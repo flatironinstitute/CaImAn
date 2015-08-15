@@ -7,9 +7,11 @@ Created on Wed Aug 05 20:38:27 2015
 import scipy.io as sio
 import numpy as np
 from matplotlib import pylab as plt
+from matplotlib.pylab import plot, imshow
 from scipy.sparse import coo_matrix as coom
 from scipy.sparse import spdiags
 from scipy.linalg import eig
+import scipy
 #%% load example data
 efty_params = sio.loadmat('efty_params.mat',struct_as_record=False) # load as structure matlab like
 Y=efty_params['Yr']
@@ -56,28 +58,34 @@ if not dist==np.inf:             # determine search area for each neuron
     IND=(np.asarray(IND)).squeeze().T
 
 Cf = np.vstack((C,f))
-
+#%%
 A = np.hstack((np.zeros((d,nr)),np.zeros((d,np.size(f,0)))))
 sA = np.zeros((d1,d2))
-#for px in range(d):   # estimate spatial components
-#    fn = ~np.isnan(Y[px,:])       # identify missing data
-#    if dist == np.inf: # UP TO HERE ****************************************************************
-#        [~, ~, a, ~] = lars_regression_noise(Y(px,fn)', Cf(:,fn)', 1, P.sn(px)^2*T);
+
+
+
+
+for px in range(d):   # estimate spatial components
+    fn = ~np.isnan(Y[px,:])       # identify missing data
+    if dist == np.inf: # UP TO HERE ****************************************************************
+#        [~, ~, a, ~] = lars_regression_noise(Y[px,fn].T, Cf[:,fn].T, 1, P.sn[px]**2*T);
 #        A(px,:) = a';
 #        sA(px) = sum(a);
-#    else
-#        ind = find(IND(px,:));
-#        if ~isempty(ind);
-#            ind2 = [ind,nr+(1:size(f,1))];
-#            [~, ~, a, ~] = lars_regression_noise(Y(px,fn)', Cf(ind2,fn)', 1, P.sn(px)^2*T);
-#            A(px,ind2) = a';
-#            sA(px) = sum(a);
-#        end
-#    end
-#    if show_sum
-#        if mod(px,d1) == 0;
-#           figure(20); imagesc(sA); axis square;  
-#           title(sprintf('Sum of spatial components (%i out of %i columns done)',round(px/d1),d2)); drawnow;
-#        end
-#    end
-#end
+        raise Exception('Not implemented')
+    else:
+        ind=np.where(IND[px,:])[0]
+        if len(ind)>0:
+            ind2 = [ind,nr+np.arange(f.shape[0])]
+           # ind2 = [ind,nr+(1:size(f,1))];
+            [~, ~, a, ~] = lars_regression_noise(Y[px,fn].T, Cf[ind2,fn].T, 1, P.sn[px]**2*T);
+            A(px,ind2) = a';
+            sA(px) = sum(a);
+        end
+    end
+    if show_sum
+        if mod(px,d1) == 0;
+           figure(20); imagesc(sA); axis square;  
+           title(sprintf('Sum of spatial components (%i out of %i columns done)',round(px/d1),d2)); drawnow;
+        end
+    end
+end
