@@ -4,6 +4,13 @@ Created on Sat Aug 08 10:19:51 2015
 
 @author: agiovann
 """
+#%%
+from cvxopt import matrix, spmatrix, spdiag, solvers
+import picos
+
+#%%
+
+
 def = lars_regression_noise(Yp, X, positive, noise)
 
 #%%
@@ -220,21 +227,23 @@ while 1:
     
     i = i + 1
 
-#%% end main loop 
-TODO!!
-%% final calculation of mus
-if flag == 0
-    if i > 1
-        Ws= squeeze(Ws(:,:,1:length(lambdas)));
-        w_dir = -(Ws(:,i) - Ws(:,i-1))/(lambdas(i)-lambdas(i-1));
-        Aw = X*w_dir;
-        y_res = Yp - X*(Ws(:,i-1) + w_dir*lambdas(i-1));
-        ld = roots([norm(Aw)^2,-2*(Aw'*y_res),y_res'*y_res-noise]);
-        lam = ld(intersect(find(ld>lambdas(i)),find(ld<lambdas(i-1))));
-        if numel(lam) == 0  || any(lam)<0 || any(~isreal(lam));
-            lam = lambdas(i);
-        end
-        W_lam = Ws(:,i-1) + w_dir*(lambdas(i-1)-lam(1));
+Ws_old=Ws
+# end main loop 
+#%% final calculation of mus
+
+Ws=np.asarray(np.swapaxes(np.swapaxes(Ws_old,0,1),1,2))
+if flag == 0:
+    if i > 0:
+        Ws= np.squeeze(Ws[:,:,:len(lambdas)]);
+        w_dir = -(Ws[:,i] - Ws[:,i-1])/(lambdas[i]-lambdas[i-1]);
+        Aw = np.dot(X,w_dir);
+        y_res = np.squeeze(Yp) - np.dot(X,Ws[:,i-1] + w_dir*lambdas[i-1]);
+        ld = scipy.roots([scipy.linalg.norm(Aw)**2,-2*np.dot(Aw.T,y_res),np.dot(y_res.T,y_res-noise)]);
+        lam = ld[np.intersect1d(np.where(ld>lambdas[i]),np.where(ld<lambdas[i-1]))];
+        if len(lam) == 0  || any(lam)<0 || any(not np.isreal(lam)):
+            lam = np.array([lambdas[i]]);
+        
+        W_lam = Ws[:,i-1] + np.dot(w_dir,lambdas[i-1]-lam[0]);
     else
         cvx_begin quiet
             variable W_lam(size(X,2));
