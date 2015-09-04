@@ -12,6 +12,8 @@ from matplotlib.pylab import plot, imshow
 from scipy.sparse import coo_matrix       
 from scipy.sparse import spdiags
 from scipy.linalg import eig
+from scipy.ndimage.morphology import generate_binary_structure, iterate_structure
+ from warnings import warn
 import scipy
 
 import time
@@ -32,33 +34,14 @@ import time
 
 
 #%%
-def update_spatial_components(Y,C,f,A_in,d1=None,d2=None,min_size=3,max_size=8,dist=3,g=None,sn=None,use_parallel=False):
+def update_spatial_components(Y,C,f,A_in,d1=None,d2=None,min_size=3,max_size=8,dist=3,g=None,sn=None,use_parallel=False, method = 'ellipse', expandCore = iterate_structure(generate_binary_structure(2,1), 2).astype(int)):
     #% set variables
     start_time = time.time()
     [d,T] = np.shape(Y)
     nr,_ = np.shape(C)       # number of neurons
     #%
-    Coor=dict();
-    Coor['x'] = np.kron(np.ones((d2,1)),np.expand_dims(range(d1),axis=1)); 
-    Coor['y'] = np.kron(np.expand_dims(range(d2),axis=1),np.ones((d1,1)));
     
-    if not dist==np.inf:             # determine search area for each neuron
-        cm = np.zeros((nr,2));        # vector for center of mass
-        Vr = []    # cell(nr,1);
-        IND = [];       # indicator for distance								   
-        cm[:,0]=np.dot(Coor['x'].T,A_in[:,:nr].todense())/A_in[:,:nr].sum(axis=0)
-        cm[:,1]=np.dot(Coor['y'].T,A_in[:,:nr].todense())/A_in[:,:nr].sum(axis=0) 
-    #    cm(:,1) = Coor.x'*A_in(:,1:nr)./sum(A_in(:,1:nr)); 
-    #    cm(:,2) = Coor.y'*A_in(:,1:nr)./sum(A_in(:,1:nr));          % center of mass for each components
-        for i in range(nr):            # calculation of variance for each component and construction of ellipses
-            dist_cm=scipy.sparse.coo_matrix(np.hstack((Coor['x'] - cm[i,0], Coor['y'] - cm[i,1])))            
-            Vr.append(dist_cm.T*spdiags(A_in[:,i].toarray().squeeze(),0,d,d)*dist_cm/A_in[:,i].sum(axis=0))        
-            D,V=eig(Vr[-1])        
-            d11 = np.min((min_size**2,np.max((max_size**2,D[0].real))))
-            d22 = np.min((min_size**2,np.max((max_size**2,D[1].real))))
-            IND.append(np.sqrt((dist_cm*V[:,0])**2/d11 + (dist_cm*V[:,1])**2/d22)<=dist)       # search indexes for each component
-    
-        IND=(np.asarray(IND)).squeeze().T
+    IND = determine_search_location(A_in,d1,d2,method = method, min_size = min_size, max_size = max_size, dist = dist, expandCore = expandCore)
     
     Cf = np.vstack((C,f))
     #%    
@@ -95,7 +78,7 @@ def update_spatial_components(Y,C,f,A_in,d1=None,d2=None,min_size=3,max_size=8,d
     if np.size(np.array(ff))>0:
         warn('eliminating empty components!!')
         nr = nr - len(ff)
-        A[:,ff] = []
+        A_[:,ff] = []
         C[ff,:] = []
         
     #% 
@@ -107,6 +90,50 @@ def update_spatial_components(Y,C,f,A_in,d1=None,d2=None,min_size=3,max_size=8,d
     A_=coo_matrix(A_)
     print("--- %s seconds ---" % (time.time() - start_time))
     return A_,b
+
+
+#%%
+def determine_search_location(A, d1, d2, method = 'ellipse', min_size = 3, max_size = 8, dist = 3, expandCore = iterate_structure(generate_binary_structure(2,1), 2).astype(int)):
+
+    from scipy.ndimage.morphology import grey_dilation 
+    from scipy.sparse import coo_matrix, issparse
+
+    d, nr = np.shape(A)
+    if not issparse(A):
+        A = coo_matrix(A)
+        
+    IND = False*np.ones((d,nr))
+    if method == 'ellipse':
+        Coor=dict();
+        Coor['x'] = np.kron(np.ones((d2,1)),np.expand_dims(range(d1),axis=1)); 
+        Coor['y'] = np.kron(np.expand_dims(range(d2),axis=1),np.ones((d1,1)));
+        if not dist==np.inf:             # determine search area for each neuron
+            cm = np.zeros((nr,2));        # vector for center of mass
+            Vr = []    # cell(nr,1);
+            IND = [];       # indicator for distance								   
+            cm[:,0]=np.dot(Coor['x'].T,A[:,:nr].todense())/A[:,:nr].sum(axis=0)
+            cm[:,1]=np.dot(Coor['y'].T,A[:,:nr].todense())/A[:,:nr].sum(axis=0) 
+            for i in range(nr):            # calculation of variance for each component and construction of ellipses
+                dist_cm=coo_matrix(np.hstack((Coor['x'] - cm[i,0], Coor['y'] - cm[i,1])))            
+                Vr.append(dist_cm.T*spdiags(A[:,i].toarray().squeeze(),0,d,d)*dist_cm/A[:,i].sum(axis=0))        
+                D,V=eig(Vr[-1])        
+                d11 = np.min((max_size**2,np.max((min_size**2,D[0].real))))
+                d22 = np.min((max_size**2,np.max((min_size**2,D[1].real))))
+                IND.append(np.sqrt((dist_cm*V[:,0])**2/d11 + (dist_cm*V[:,1])**2/d22)<=dist)       # search indexes for each component
+
+            IND=(np.asarray(IND)).squeeze().T
+        else:
+            IND = True*np.ones((d,nr))
+    elif method == 'dilate':
+        for i in range(nr):
+            A_temp = np.reshape(A[:,i].todense(),(d2,d1))
+            A_temp = grey_dilation(A_temp, footprint = expandCore)
+            IND[:,i] = np.squeeze(np.reshape(A_temp,(d,1)))>0
+    else:
+        IND = True*np.ones((d,nr))
+            
+    return IND
+
     
 #%%
 def threshold_components(A, d1, d2, medw = (3,3), thr = 0.9999, se = np.ones((3,3),dtype=np.int), ss = np.ones((3,3),dtype=np.int)):
