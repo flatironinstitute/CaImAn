@@ -13,7 +13,7 @@ from scipy.sparse import coo_matrix
 from scipy.sparse import spdiags
 from scipy.linalg import eig
 from scipy.ndimage.morphology import generate_binary_structure, iterate_structure
- from warnings import warn
+from warnings import warn
 import scipy
 
 import time
