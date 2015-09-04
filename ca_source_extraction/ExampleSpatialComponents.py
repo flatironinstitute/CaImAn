@@ -29,7 +29,7 @@ A=sio.loadmat('Amat.mat')['A']
 A_out,b_out=update_spatial_components(Y,C,f,A_in,d1=P.d1,d2=P.d2,g=P.g,sn=P.sn)
 
 #%%
-np.savez('demo_post_spatial',Y=Y,A_out=A_out,b_out=b_out,C_in=C,f_in=f,d1=P.d1,d2=P.d2,g=P.g,sn=P.sn,P=P)
+np.savez('demo_post_spatial',Y=Y,b_out=b_out,C_in=C,f_in=f,d1=P.d1,d2=P.d2,g=P.g,sn=P.sn,P=P)
 #%%
 import cPickle as pickle
 import numpy as np
@@ -37,4 +37,4 @@ import scipy.sparse
 
 
 with open('demo_post.dat', 'wb') as outfile:
-    pickle.dump(A, outfile, pickle.HIGHEST_PROTOCOL)
+    pickle.dump(A_out, outfile, pickle.HIGHEST_PROTOCOL)
