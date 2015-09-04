@@ -14,12 +14,12 @@ from scipy.sparse import spdiags
 from scipy.linalg import eig
 import scipy
 
-import sys
-path_to_folder='/Users/agiovann/Documents/SOFTWARE/SMF_Pnevmatikakis/ca_source_extraction/utilities'
 import time
 
-sys.path
-sys.path.append(path_to_folder)
+
+#import sys
+#sys.path
+#sys.path.append(path_to_folder)
 
 #try:
 #    plt.ion()
@@ -28,37 +28,15 @@ sys.path.append(path_to_folder)
 #except:
 #    print('No ipython')
 
-sys.path.append('/Users/agiovann/Documents/SOFTWARE/SPGL1/')
 
-from spgl1 import spgl1, spg_bpdn
-import spgl_aux as spg
 
-##%% load example data
-#efty_params = sio.loadmat('/Users/agiovann/Dropbox/preanalyzed data/ExamplesDataAnalysis/Andrea/GranuelCells/efty_params.mat',struct_as_record=False) # load as structure matlab like
-##efty_params = sio.loadmat('demo_workspace.mat',struct_as_record=False) # load as structure matlab like
-##%%
-#Y=efty_params['Yr']*1.0
-#C=efty_params['Cin']*1.0
-#f=efty_params['fin']*1.0
-#A_=efty_params['Ain']*1.0
-#P=efty_params['P'][0,0] # necessary because of the way it is stored
-#A=efty_params['A']*1.0
-#b=efty_params['b']*1.0
 
 #%%
-def update_spatial_components(Y,C,f,A_in,d1=None,d2=None,min_size=3,max_size=8,dist=3,use_paralle=False):
+def update_spatial_components(Y,C,f,A_in,d1=None,d2=None,min_size=3,max_size=8,dist=3,g=None,sn=None,use_parallel=False):
     #% set variables
+    start_time = time.time()
     [d,T] = np.shape(Y)
     nr,_ = np.shape(C)       # number of neurons
-    d1=P.d1
-    d2=P.d2
-    dist=P.dist
-    g=P.g
-    sn=P.sn
-    min_size = 8
-    max_size = 3
-    show_sum = 0
-    Y_interp = P.interp
     #%
     Coor=dict();
     Coor['x'] = np.kron(np.ones((d2,1)),np.expand_dims(range(d1),axis=1)); 
@@ -91,23 +69,23 @@ def update_spatial_components(Y,C,f,A_in,d1=None,d2=None,min_size=3,max_size=8,d
     Cf_=[Cf[idx_,:][:,fnn] for idx_,fnn in zip(ind2_,fn_)]
     #% LARS regression 
     A_ = np.hstack((np.zeros((d,nr)),np.zeros((d,np.size(f,0)))))
-    start_time = time.time()
+    
     if use_parallel:
         raise Exception('NOT IMPLEMENTED YET')
         #import multiprocessing as mp    
         #pool = mp.Pool(processes=8)
-        #results = [pool.apply(basis_pursuit_denoising, args=(x.T,y.T,z)) for x,y,z in zip(Y_,Cf_,P.sn)]
+        #results = [pool.apply(basis_pursuit_denoising, args=(x.T,y.T,z)) for x,y,z in zip(Y_,Cf_,sn)]
         #print(results)
     else:
-        for c,y,s,id2_,px in zip(Cf_,Y_,P.sn,ind2_,range(d)):
+        for c,y,s,id2_,px in zip(Cf_,Y_,sn,ind2_,range(d)):
             if np.size(c)>0:
-                _, _, a, _ , _= lars_regression_noise(y.T, c.T, 1, P.sn[px]**2*T)  
+                _, _, a, _ , _= lars_regression_noise(y.T, c.T, 1, sn[px]**2*T)  
                 A_[px,id2_]=a.T
         #    if np.sum(np.abs(A_[px,:-1]-A_orig[px,:]))>0.00001:
         #        print np.sum(np.abs(A_[px,:-1]-A_orig[px,:]))
         #        print px        
         #        break
-    print("--- %s seconds ---" % (time.time() - start_time))
+    
     #print np.sum(np.abs(A_[:,:-1]-A_orig))/np.sum(np.abs(A_orig))      
     #%
     print 'Updated Spatial Components'
@@ -127,7 +105,7 @@ def update_spatial_components(Y,C,f,A_in,d1=None,d2=None,min_size=3,max_size=8,d
     A_ = A_[:,:nr]    
             
     A_=coo_matrix(A_)
-    
+    print("--- %s seconds ---" % (time.time() - start_time))
     return A_,b
     
 #%%
@@ -168,11 +146,6 @@ Created on Sat Aug 08 10:19:51 2015
 
 @author: agiovann
 """
-#%%
-from cvxopt import matrix, spmatrix, spdiag, solvers
-import picos
-import numpy as np
-import scipy
 
 #%%
 def lars_regression_noise(Yp, X, positive, noise,verbose=False):
