@@ -34,13 +34,14 @@ def estimate_time_constant(Y, sn, p = 2, lags = 5, include_noise = False, pixels
     
     npx = len(pixels)
     g = 0
+    lags += p
     XC = np.zeros((npx,2*lags+1))
     for j in range(npx):
         XC[j,:] = np.squeeze(axcov(np.squeeze(Y[pixels[j],:]),lags))
         
     gv = np.zeros(npx*lags)
     if not include_noise:
-        XC = XC[:,lags:0:-1]
+        XC = XC[:,np.arange(lags-1,-1,-1)]
         lags -= p
         
     A = np.zeros((npx*lags,p))
@@ -48,12 +49,12 @@ def estimate_time_constant(Y, sn, p = 2, lags = 5, include_noise = False, pixels
         if not include_noise:
             A[i*lags+np.arange(lags),:] = toeplitz(np.squeeze(XC[i,np.arange(p-1,p+lags-1)]),np.squeeze(XC[i,np.arange(p-1,-1,-1)])) 
         else:
-            A[i*lags+np.arange(lags),:] = toeplitz(np.squeeze(XC[i,lags+np.arange(lags)]),np.squeeze(XC[i,lags+np.arange(p)])) - sn[i]*np.eye(lags,p)
+            A[i*lags+np.arange(lags),:] = toeplitz(np.squeeze(XC[i,lags+np.arange(lags)]),np.squeeze(XC[i,lags+np.arange(p)])) - (sn[i]**2)*np.eye(lags,p)
             gv[i*lags+np.arange(lags)] = np.squeeze(XC[i,lags+1:])
         
     if not include_noise:
         gv = XC[:,p:].T
-        gv = np.squeeze(np.reshape(gv,(np.size(gv),1)))
+        gv = np.squeeze(np.reshape(gv,(np.size(gv),1),order='F'))
         
     g = np.dot(np.linalg.pinv(A),gv)
     
