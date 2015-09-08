@@ -8,9 +8,9 @@ from scipy.sparse import spdiags,coo_matrix
 import scipy
 import numpy as np
 import cPickle as pickle
-from constrained_foopsi import constrained_foopsi
+from constrained_foopsi_AG import constrained_foopsi
 import random
-
+from scipy import linalg
 #%%
 def make_G_matrix(T,g):
     ''' 
@@ -74,7 +74,6 @@ def update_temporal_components(Y,A,b,Cin,fin,ITER=1,restimate_g=True,method='con
 
     #%
 #    if method=='constrained_foopsi':
-    pars=kwargs; 
         #{'gn':None,'b':None,'cl':None,'neurons_sn':None,'fudge_factor','p':None}    
     #    P.gn = cell(nr,1);
     #    P.b = cell(nr,1);
@@ -88,9 +87,13 @@ def update_temporal_components(Y,A,b,Cin,fin,ITER=1,restimate_g=True,method='con
     for iter in range(ITER):
         idxs=range(nr+1)
         random.shuffle(idxs)
+        P_=[];
     #    perm = randperm(nr+1)
         for jj,ii in enumerate(idxs):
-            print jj
+            
+            ii=jj
+            print ii,jj
+            pars=dict(kwargs)
     #        ii = perm(jj);
             if ii<=nr:
                 if flag_G:
@@ -113,19 +116,21 @@ def update_temporal_components(Y,A,b,Cin,fin,ITER=1,restimate_g=True,method='con
                         else:
                             pars['g']=g
                         
-                        cc,cb,c1,gn,sn,_ = constrained_foopsi(YrA[:,ii]/nA[ii],pars)
+                        
+                        cc,cb,c1,gn,sn,_ = constrained_foopsi(np.squeeze(np.asarray(YrA[:,ii]/nA[ii])),**pars)
+                        print pars
                         pars['gn'] = gn
                         
                         gd = np.max(np.roots(np.hstack((1,-gn.T))));  # decay time constant for initial concentration
-                        gd_vec = gd**range(T-1)
+                        gd_vec = gd**range(T)
                         
                         C[ii,:] = cc[:].T + cb + c1*gd_vec
-                        YrA[:,ii] = YrA[:,ii] - nA[ii]*C[ii,:].T
+                        YrA[:,ii] = YrA[:,ii] - np.matrix(nA[ii]*C[ii,:]).T
                         pars['b'] = cb
-                        pars['cl'] = c1           
+                        pars['c1'] = c1           
                         pars['neuron_sn'] = sn
                         pars['neuron_id'] = ii
-                        P_.append(pars.copy())
+                        P_.append(pars)
                 
             else:
                 YrA[:,ii] = YrA[:,ii] + nA[ii]*Cin[ii,:].T
@@ -138,7 +143,7 @@ def update_temporal_components(Y,A,b,Cin,fin,ITER=1,restimate_g=True,method='con
     
     
         #%disp(norm(Fin(1:nr,:) - F,'fro')/norm(F,'fro'));
-        if np.norm(Cin - C,'fro')/np.norm(C,'fro') <= 1e-3:
+        if scipy.linalg.norm(Cin - C,'fro')/scipy.linalg.norm(C,'fro') <= 1e-3:
             # stop if the overall temporal component does not change by much
             break
         else:
@@ -148,10 +153,10 @@ def update_temporal_components(Y,A,b,Cin,fin,ITER=1,restimate_g=True,method='con
     
     Y_res = Y - A*C
     
-    f = C[nr+1:-1,:]
+    f = C[nr:,:]
     C = C[:nr,:]
     
-    return C,f,Y_res,P
+    return C,f,Y_res,P_
 #%%
 
 #%%

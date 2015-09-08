@@ -34,7 +34,7 @@ import time
 
 
 #%%
-def update_spatial_components(Y,C,f,A_in,d1=None,d2=None,min_size=3,max_size=8,dist=3,g=None,sn=None,use_parallel=False, method = 'ellipse', expandCore = iterate_structure(generate_binary_structure(2,1), 2).astype(int)):
+def update_spatial_components(Y,C,f,A_in,d1=None,d2=None,min_size=3,max_size=8,dist=3,sn=None,use_parallel=False, method = 'ellipse', expandCore = iterate_structure(generate_binary_structure(2,1), 2).astype(int)):
     #% set variables
     start_time = time.time()
     [d,T] = np.shape(Y)
@@ -50,6 +50,7 @@ def update_spatial_components(Y,C,f,A_in,d1=None,d2=None,min_size=3,max_size=8,d
     ind2_ =[ np.hstack((np.where(IND[px,:])[0],nr+np.arange(f.shape[0]))) if len(np.where(IND[px,:])[0])>0 else [] for px in range(d)]
     
     Cf_=[Cf[idx_,:][:,fnn] for idx_,fnn in zip(ind2_,fn_)]
+    
     #% LARS regression 
     A_ = np.hstack((np.zeros((d,nr)),np.zeros((d,np.size(f,0)))))
     
@@ -69,7 +70,6 @@ def update_spatial_components(Y,C,f,A_in,d1=None,d2=None,min_size=3,max_size=8,d
         #        print px        
         #        break
     
-    #print np.sum(np.abs(A_[:,:-1]-A_orig))/np.sum(np.abs(A_orig))      
     #%
     print 'Updated Spatial Components'
     A_=threshold_components(A_, d1, d2)

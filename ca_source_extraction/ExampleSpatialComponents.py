@@ -25,8 +25,11 @@ b=efty_params['b']*1.0
 #%%
 A=sio.loadmat('Amat.mat')['A']
 #%%
+#A_out,b_out=update_spatial_components(Y,C,f,A_in,d1=d1,d2=d2,sn=sn)
 
-A_out,b_out=update_spatial_components(Y,C,f,A_in,d1=P.d1,d2=P.d2,g=P.g,sn=P.sn)
+#%%
+#A_out,b_out=update_spatial_components(Y,C,f,A_in,d1=P.d1,d2=P.d2,g=P.g,sn=P.sn)
+A_out,b_out=update_spatial_components(Y,C,f,A_in,d1=P.d1,d2=P.d2,sn=P.sn)
 
 #%%
 np.savez('demo_post_spatial',Y=Y,b_out=b_out,C_in=C,f_in=f,d1=P.d1,d2=P.d2,g=P.g,sn=P.sn,P=P)
