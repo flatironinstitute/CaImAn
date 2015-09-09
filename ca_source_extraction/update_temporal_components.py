@@ -4,13 +4,14 @@ Created on Fri Sep  4 10:11:26 2015
 
 @author: agiovann
 """
-from scipy.sparse import spdiags,coo_matrix
+from scipy.sparse import spdiags,coo_matrix,csgraph
 import scipy
 import numpy as np
 import cPickle as pickle
 from constrained_foopsi_AG import constrained_foopsi
 import random
 from scipy import linalg
+from update_spatial_components import update_spatial_components
 #%%
 def make_G_matrix(T,g):
     ''' 
@@ -47,20 +48,18 @@ def update_temporal_components(Y,A,b,Cin,fin,ITER=1,restimate_g=True,method='con
 #    update temporal components and background given spatial components
 #    **kwargs: all parameters passed to constrained_foopsi
 #    """
-    #%
-    if g is None:
-        raise Exception('Add recompute g')
+
 
     d,T = np.shape(Y);
     
-    flag_G = True
-    if type(g) is not list:
-        g=np.squeeze(g)
-        flag_G = False
-        G = make_G_matrix(T,np.array(g))
-    
+#    flag_G = True
+#    if type(g) is not list:
+#        g=np.squeeze(g)
+#        flag_G = False
+#        G = make_G_matrix(T,np.array(g))
+#    
     #%
-    nr = np.shape(A)[1]
+    nr = np.shape(A)[-1]
     A = scipy.sparse.hstack((A,coo_matrix(b)))
     Cin =  np.vstack((Cin,fin));
     C = Cin;
@@ -72,35 +71,23 @@ def update_temporal_components(Y,A,b,Cin,fin,ITER=1,restimate_g=True,method='con
     
     YrA = Y.T*A - Cin.T*(A.T*A);
 
-    #%
-#    if method=='constrained_foopsi':
-        #{'gn':None,'b':None,'cl':None,'neurons_sn':None,'fudge_factor','p':None}    
-    #    P.gn = cell(nr,1);
-    #    P.b = cell(nr,1);
-    #    P.c1 = cell(nr,1);           
-    #    P.neuron_sn = cell(nr,1);
-       
-            
-    #    if isfield(P,'p'); options.p = P.p; else options.p = length(P.g); end
-    #    if isfield(P,'fudge_factor'); options.fudge_factor = P.fudge_factor; end
-    
+
     for iter in range(ITER):
         idxs=range(nr+1)
         random.shuffle(idxs)
         P_=[];
     #    perm = randperm(nr+1)
-        for jj,ii in enumerate(idxs):
-            
-            ii=jj
+        for jj,ii in enumerate(idxs):            
+            #ii=jj
             print ii,jj
             pars=dict(kwargs)
     #        ii = perm(jj);
             if ii<=nr:
-                if flag_G:
-                    if type(g) is list:
-                        G = make_G_matrix(T,g[ii])
-                    else:
-                        raise Exception('Argument should be a list')
+#                if flag_G:
+#                    if type(g) is list:
+#                        G = make_G_matrix(T,g[ii])
+#                    else:
+#                        raise Exception('Argument should be a list')
                 
                 if method == 'project':
                         YrA[:,ii] = YrA[:,ii] + nA[ii]*Cin[ii,:].T;
@@ -155,8 +142,9 @@ def update_temporal_components(Y,A,b,Cin,fin,ITER=1,restimate_g=True,method='con
     
     f = C[nr:,:]
     C = C[:nr,:]
+        
+    P_ = sorted(P_, key=lambda k: k['neuron_id']) 
     
     return C,f,Y_res,P_
-#%%
 
 #%%

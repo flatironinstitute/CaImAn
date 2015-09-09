@@ -30,13 +30,17 @@ A=sio.loadmat('Amat.mat')['A']
 #%%
 #A_out,b_out=update_spatial_components(Y,C,f,A_in,d1=P.d1,d2=P.d2,g=P.g,sn=P.sn)
 A_out,b_out=update_spatial_components(Y,C,f,A_in,d1=P.d1,d2=P.d2,sn=P.sn)
-
 #%%
-np.savez('demo_post_spatial',Y=Y,b_out=b_out,C_in=C,f_in=f,d1=P.d1,d2=P.d2,g=P.g,sn=P.sn,P=P)
+np.sum(np.abs(A.todense()-A_out.todense()))/np.sum(np.abs(A.todense()))
+pl.imshow(A.todense(),aspect='auto',interpolation='none')
+pl.figure()
+pl.imshow(A_out.todense(),aspect='auto',interpolation='none')
 #%%
-import cPickle as pickle
-import numpy as np
-import scipy.sparse
+#np.savez('demo_post_spatial',Y=Y,b_out=b_out,C_in=C,f_in=f,d1=P.d1,d2=P.d2,g=P.g,sn=P.sn,P=P)
+##%%
+#import cPickle as pickle
+#import numpy as np
+#import scipy.sparse
 
 
 with open('demo_post.dat', 'wb') as outfile:
