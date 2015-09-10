@@ -30,10 +30,10 @@ def make_G_matrix(T,g):
     else:
         raise Exception('g must be an array')
 #%%
-def update_temporal_components(Y,A,b,Cin,fin,ITER=1,restimate_g=True,method='constrained_foopsi',g='None',**kwargs):
+def update_temporal_components(Y,A,b,Cin,fin,ITER=1,method='constrained_foopsi',g='None',**kwargs):
 #                               b=None, 
 #                               c1=None,
-#                               g=None, 
+#                               g=None,
 #                               sn=None, 
 #                               p=2, 
 #                               method='cvx', 
@@ -52,13 +52,7 @@ def update_temporal_components(Y,A,b,Cin,fin,ITER=1,restimate_g=True,method='con
 
     d,T = np.shape(Y);
     
-#    flag_G = True
-#    if type(g) is not list:
-#        g=np.squeeze(g)
-#        flag_G = False
-#        G = make_G_matrix(T,np.array(g))
-#    
-    #%
+
     nr = np.shape(A)[-1]
     A = scipy.sparse.hstack((A,coo_matrix(b)))
     Cin =  np.vstack((Cin,fin));
@@ -67,6 +61,7 @@ def update_temporal_components(Y,A,b,Cin,fin,ITER=1,restimate_g=True,method='con
     nA = np.squeeze(np.array(np.sum(np.square(A.todense()),axis=0)))
     
     Y=np.matrix(Y)
+    C=np.matrix(C)
     Cin=np.matrix(Cin)
     
     YrA = Y.T*A - Cin.T*(A.T*A);
@@ -82,27 +77,11 @@ def update_temporal_components(Y,A,b,Cin,fin,ITER=1,restimate_g=True,method='con
             print ii,jj
             pars=dict(kwargs)
     #        ii = perm(jj);
-            if ii<=nr:
-#                if flag_G:
-#                    if type(g) is list:
-#                        G = make_G_matrix(T,g[ii])
-#                    else:
-#                        raise Exception('Argument should be a list')
-                
-                if method == 'project':
-                        YrA[:,ii] = YrA[:,ii] + nA[ii]*Cin[ii,:].T;
-                        maxy = np.max(YrA[:,ii]/nA[ii])
-                        raise Exception('Not Implemented')
-    #                    cc = plain_foopsi(YrA(:,ii)/nA(ii)/maxy,G);
-    #                    C(ii,:) = full(cc')*maxy;
-    #                    YrA(:,ii) = YrA(:,ii) - nA(ii)*C(ii,:)';
-                elif method == 'constrained_foopsi':
+            if ii<nr:                
+                if method == 'constrained_foopsi':
+                        print YrA.shape 
+                        print YrA.shape
                         YrA[:,ii] = YrA[:,ii] + nA[ii]*Cin[ii,:].T                  
-                        if restimate_g:
-                            pars['g']=None
-                        else:
-                            pars['g']=g
-                        
                         
                         cc,cb,c1,gn,sn,_ = constrained_foopsi(np.squeeze(np.asarray(YrA[:,ii]/nA[ii])),**pars)
                         print pars
