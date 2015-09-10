@@ -13,7 +13,7 @@ from arpfit import arpfit
 from sklearn.decomposition import ProjectedGradientNMF
 from update_spatial_components import update_spatial_components
 from update_temporal_components import update_temporal_components
-
+from time import time
 #%%
 #frm=pims.open('demoMovie.tif')
 #mov = np.array(pims.open('demoMovie.tif')) 
@@ -31,8 +31,9 @@ T = sizeY[-1]
 #d1,d2,T=Y.shape
 #%% greedy initialization
 nr = 30
+t1 = time()
 Ain,Cin,center = greedyROI2d(Y, nr = nr, gSig = [4,4], gSiz = [9,9])
-
+tGREEDY = time() - t1
 #%% arpfit
 
 
