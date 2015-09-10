@@ -7,7 +7,6 @@ Created on Tue Sep  8 11:56:06 2015
 
 import numpy as np
 import matplotlib.pyplot as plt
-#import time
 
 def greedyROI2d(Y, nr=30, gSig = [5,5], gSiz = [11,11], nIter = 5):
     
@@ -72,8 +71,8 @@ def finetune2d(Y, cin, nIter = 5):
     
 def imblur(Y, sig = [5,5], siz = [11,11], nDimBlur = None):
      
-    #from scipy.ndimage.filters import gaussian_filter1d, correlate        
-    from scipy.signal import correlate    
+    from scipy.ndimage.filters import correlate        
+    #from scipy.signal import correlate    
     
     if nDimBlur is None:
         nDimBlur = Y.ndim - 1
@@ -95,7 +94,9 @@ def imblur(Y, sig = [5,5], siz = [11,11], nDimBlur = None):
     hy = np.exp(-yy**2/(2*sig[1]**2))
     hy /= np.sqrt(np.sum(hy**2))   
     
-    X1 = correlate(Y,hx[:,np.newaxis,np.newaxis],mode='same')
-    X = correlate(X1,hy[np.newaxis,:,np.newaxis],mode='same')
+    X = np.zeros(np.shape(Y))
+    for t in range(np.shape(Y)[-1]):
+        temp = correlate(Y[:,:,t],hx[:,np.newaxis],mode='wrap')
+        X[:,:,t] = correlate(temp,hy[np.newaxis,:],mode='wrap')
                 
     return X
