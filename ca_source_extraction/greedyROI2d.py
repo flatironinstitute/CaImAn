@@ -94,6 +94,7 @@ def imblur(Y, sig = 5, siz = 11, nDimBlur = None):
     hx /= np.sqrt(np.sum(hx**2))
     
     hy = np.exp(-yy**2/(2*sig[1]**2))
+<<<<<<< HEAD
     hy /= np.sqrt(np.sum(hy**2))    
 
     X = np.zeros(np.shape(Y))
@@ -125,4 +126,13 @@ def imblur(Y, sig = 5, siz = 11, nDimBlur = None):
 #        
 #        X[...,t] = temp
             
+=======
+    hy /= np.sqrt(np.sum(hy**2))   
+    
+    X = np.zeros(np.shape(Y))
+    for t in range(np.shape(Y)[-1]):
+        temp = correlate(Y[:,:,t],hx[:,np.newaxis],mode='wrap')
+        X[:,:,t] = correlate(temp,hy[np.newaxis,:],mode='wrap')
+                
+>>>>>>> FETCH_HEAD
     return X

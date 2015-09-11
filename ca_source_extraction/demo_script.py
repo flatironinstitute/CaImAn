@@ -13,6 +13,7 @@ from greedyROI2d import greedyROI2d
 from sklearn.decomposition import ProjectedGradientNMF
 from update_spatial_components import update_spatial_components
 from update_temporal_components import update_temporal_components
+import matplotlib.pyplot as plt
 
 #%%
 #frm=pims.open('demoMovie.tif')
@@ -51,7 +52,11 @@ fin = model.components_.squeeze()
 
 A,b = update_spatial_components(Yr, Cin, fin, Ain, d1=d1, d2=d2, sn = P['sn'])
 
+#%%
+plt.imshow(np.reshape(A[:,0],(d1,d2),order='F'))
+
 #%% update temporal components
 
 
 C,f,Y_res,Pnew = update_temporal_components(Yr,A,b,Cin,fin,ITER=2)
+
