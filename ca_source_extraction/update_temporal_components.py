@@ -30,7 +30,7 @@ def make_G_matrix(T,g):
     else:
         raise Exception('g must be an array')
 #%%
-def update_temporal_components(Y,A,b,Cin,fin,ITER=1,method='constrained_foopsi',g='None',**kwargs):
+def update_temporal_components(Y,A,b,Cin,fin,ITER=1,method='constrained_foopsi',deconv_method = 'cvx', g='None',**kwargs):
 #                               b=None, 
 #                               c1=None,
 #                               g=None,
@@ -83,7 +83,7 @@ def update_temporal_components(Y,A,b,Cin,fin,ITER=1,method='constrained_foopsi',
                         print YrA.shape
                         YrA[:,ii] = YrA[:,ii] + nA[ii]*Cin[ii,:].T                  
                         
-                        cc,cb,c1,gn,sn,_ = constrained_foopsi(np.squeeze(np.asarray(YrA[:,ii]/nA[ii])),**pars)
+                        cc,cb,c1,gn,sn,_ = constrained_foopsi(np.squeeze(np.asarray(YrA[:,ii]/nA[ii])), method = deconv_method, **pars)
                         print pars
                         pars['gn'] = gn
                         

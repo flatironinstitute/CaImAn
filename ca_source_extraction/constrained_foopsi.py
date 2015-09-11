@@ -13,14 +13,8 @@ import scipy.signal
 import scipy.linalg
 
 from warnings import warn    
-import time
-import sys    
-try:
-    from cvxopt import matrix, spmatrix, spdiag, solvers
-    import picos
-except ImportError:
-    raise ImportError('Constrained Foopsi requires cvxopt and picos packages.')
-
+#import time
+#import sys    
 
 #%%
 def constrained_foopsi(fluor, 
@@ -87,10 +81,95 @@ def constrained_foopsi(fluor,
     
     if g is None or sn is None:        
         g,sn = estimate_parameters(fluor, p=p, sn=sn, g = g, range_ff=noise_range, method=noise_method, lags=lags, fudge_factor=fudge_factor)
+    
+    if method == 'cvx':
+        c,b,c1,g,sn,sp = cvxopt_foopsi(fluor, b =b, c1 = c1, g=g, sn=sn, p=p, bas_nonneg = bas_nonneg, verbosity = verbosity)
+    elif method == 'spgl1':
+        try:        
+            c,b,c1,g,sn,sp = spgl1_foopsi(fluor, b =b, c1 = c1, g=g, sn=sn, p=p, bas_nonneg = bas_nonneg, verbosity = verbosity)
+        except:
+            print('SPGL1 produces an error. Using CVXOPT')
+            c,b,c1,g,sn,sp = cvxopt_foopsi(fluor, b =b, c1 = c1, g=g, sn=sn, p=p, bas_nonneg = bas_nonneg, verbosity = verbosity)    
+    
+    return c,b,c1,g,sn,sp
+
+def spgl1_foopsi(fluor, b, c1, g, sn, p, bas_nonneg, verbosity):
+    
+    import sys
+    sys.path.append('/Users/eftychios/Documents/Python/packages/SPGL1_python_port-master/')
+    from spgl1 import spg_bpdn
+    import spgl_aux as spg
+                     
+    if b is None:
+        bas_flag = True
+        b = 0
+    else:
+        bas_flag = False
+        
+    if c1 is None:
+        c1_flag = True
+        c1 = 0
+    else:
+        c1_flag = False
+
+    if bas_nonneg:
+        b_lb = 0
+    else:
+        b_lb = np.min(fluor)
+        
+    T = len(fluor)
+    w = np.ones(np.shape(fluor))
+    if bas_flag:
+        w = np.hstack((w,1e-10))
+        
+    if c1_flag:
+        w = np.hstack((w,1e-10))
+        
+    gr = np.roots(np.concatenate([np.array([1]),-g.flatten()])) 
+    gd_vec = np.max(gr)**np.arange(T)  # decay vector for initial fluorescence
+    
+    options = {'project' : spg.NormL1NN_project ,
+               'primal_norm' : spg.NormL1NN_primal ,
+               'dual_norm' : spg.NormL1NN_dual,
+               'weights'   : w, 
+               'verbosity' : verbosity}
+    
+    opA = lambda x,mode: G_inv_mat(x,mode,T,g,gd_vec,bas_flag,c1_flag)
+    
+    spikes = spg_bpdn(opA,np.squeeze(fluor)-bas_nonneg*b_lb - (1-bas_flag)*b -(1-c1_flag)*c1*gd_vec, sn*np.sqrt(T), options)[0]
+    c = opA(np.hstack((spikes[:T],0)),1)
+    if bas_flag:
+        b = spikes[T] + b_lb
+    
+    if c1_flag:
+        c1 = spikes[-1]
+        
+    return c,b,c1,g,sn,spikes
+    
+
+def G_inv_mat(x,mode,NT,gs,gd_vec,bas_flag = True, c1_flag = True):
+
+    from scipy.signal import lfilter
+    if mode == 1:
+        b = lfilter(np.array([1]),np.concatenate([np.array([1.]),-gs]),x[:NT]) + bas_flag*x[NT-1+bas_flag] + c1_flag*gd_vec*x[-1]
+        #b = np.dot(Emat,b)
+    elif mode == 2:
+        #x = np.dot(Emat.T,x)
+        b = np.hstack((np.flipud(lfilter(np.array([1]),np.concatenate([np.array([1.]),-gs]),np.flipud(x))),np.ones(bas_flag)*np.sum(x),np.ones(c1_flag)*np.sum(gd_vec*x)))
+            
+    return b
 
   
+def cvxopt_foopsi(fluor, b, c1, g, sn, p, bas_nonneg, verbosity):
+
+    try:
+        from cvxopt import matrix, spmatrix, spdiag, solvers
+        import picos
+    except ImportError:
+        raise ImportError('Constrained Foopsi requires cvxopt and picos packages.')
     
     T = len(fluor)
+
     # construct deconvolution matrix  (sp = G*c) 
     G = spmatrix(1.,range(T),range(T),(T,T))
 
