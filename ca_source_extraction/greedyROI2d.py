@@ -7,7 +7,6 @@ Created on Tue Sep  8 11:56:06 2015
 
 import numpy as np
 import matplotlib.pyplot as plt
-#import time
 
 def greedyROI2d(Y, nr=30, gSig = [5,5], gSiz = [11,11], nIter = 5):
     
@@ -43,7 +42,8 @@ def greedyROI2d(Y, nr=30, gSig = [5,5], gSiz = [11,11], nIter = 5):
         #Atemp[iSig[0]:iSig[1],jSig[0]:jSig[1]] = coef        
         #A[:,k] = np.squeeze(np.reshape(Atemp,(np.prod(d[0:-1]),1),order='F'))
         C[k,:] = np.squeeze(score)        
-        Y[iSig[0]:iSig[1],jSig[0]:jSig[1],:] = Y[iSig[0]:iSig[1],jSig[0]:jSig[1],:] - dataSig
+        #Y[iSig[0]:iSig[1],jSig[0]:jSig[1],:] = Y[iSig[0]:iSig[1],jSig[0]:jSig[1],:] - dataSig
+        Y[iSig[0]:iSig[1],jSig[0]:jSig[1],:] -= dataSig
         if k < nr-1:
             iMod = [np.maximum(ij[0]-2*gHalf[0],0),np.minimum(ij[0]+2*gHalf[0]+1,d[0])]
             iModLen = iMod[1]-iMod[0]
@@ -55,7 +55,8 @@ def greedyROI2d(Y, nr=30, gSig = [5,5], gSiz = [11,11], nIter = 5):
             dataTemp[iLag[0]:iLag[1],jLag[0]:jLag[1]] = coef
             dataTemp = imblur(dataTemp[...,np.newaxis],sig=gSig,siz=gSiz)            
             rhoTEMP = dataTemp*score[np.newaxis,np.newaxis,...]
-            rho[iMod[0]:iMod[1],jMod[0]:jMod[1],:] = rho[iMod[0]:iMod[1],jMod[0]:jMod[1],:] - rhoTEMP
+            #rho[iMod[0]:iMod[1],jMod[0]:jMod[1],:] = rho[iMod[0]:iMod[1],jMod[0]:jMod[1],:] - rhoTEMP
+            rho[iMod[0]:iMod[1],jMod[0]:jMod[1],:] -= rhoTEMP
             v[iMod[0]:iMod[1],jMod[0]:jMod[1]] = np.sum(rho[iMod[0]:iMod[1],jMod[0]:jMod[1],:]**2,axis = -1)            
 
     return A, C, center
@@ -70,22 +71,22 @@ def finetune2d(Y, cin, nIter = 5):
     
     return a, c
     
-def imblur(Y, sig = [5,5], siz = [11,11], nDimBlur = None):
+def imblur(Y, sig = 5, siz = 11, nDimBlur = None):
      
-    #from scipy.ndimage.filters import gaussian_filter1d, correlate        
-    from scipy.signal import correlate    
+    from scipy.ndimage.filters import correlate        
+    #from scipy.signal import correlate    
     
     if nDimBlur is None:
         nDimBlur = Y.ndim - 1
     else:
         nDimBlur = np.min((Y.ndim,nDimBlur))
         
-    if len(sig) == 1:
+    if np.isscalar(sig):
         sig = sig*np.ones(nDimBlur)
         
-    if len(siz) == 1:
+    if np.isscalar(siz):
         siz = siz*np.ones(nDimBlur)
-        
+    
     xx = np.arange(-np.floor(siz[0]/2),np.floor(siz[0]/2)+1)
     yy = np.arange(-np.floor(siz[1]/2),np.floor(siz[1]/2)+1)
 
@@ -93,9 +94,35 @@ def imblur(Y, sig = [5,5], siz = [11,11], nDimBlur = None):
     hx /= np.sqrt(np.sum(hx**2))
     
     hy = np.exp(-yy**2/(2*sig[1]**2))
-    hy /= np.sqrt(np.sum(hy**2))   
-    
-    X1 = correlate(Y,hx[:,np.newaxis,np.newaxis],mode='same')
-    X = correlate(X1,hy[np.newaxis,:,np.newaxis],mode='same')
-                
+    hy /= np.sqrt(np.sum(hy**2))    
+
+    X = np.zeros(np.shape(Y))
+    for t in range(np.shape(Y)[-1]):
+        temp = correlate(Y[:,:,t],hx[:,np.newaxis],mode='wrap')
+        X[:,:,t] = correlate(temp,hy[np.newaxis,:],mode='wrap')    
+
+## uncomment the following for general n-dim filtering
+#    xx = []
+#    hx = []
+#    for i in range(nDimBlur):
+#        vec = np.arange(-np.floor(siz[i]/2),np.floor(siz[i]/2)+1)
+#        xx.append(vec)
+#        fil = np.exp(-xx[i]**2/(2*sig[0]**2))
+#        hx.append(fil/np.sqrt(np.sum(fil**2)))        
+           
+#    X = np.zeros(np.shape(Y))
+#    siz = tuple([1]*nDimBlur)
+#    sizY = np.shape(Y)
+#    for t in range(sizY[-1]):
+#        temp = Y[...,t]
+#        for i in range(nDimBlur):
+#            I = [0]*nDimBlur
+#            I[i] = range(sizY[i])
+#            siz[i] = sizY[i]
+#            H = np.zeros(siz)
+#            H[tuple(I)] = hx[i]
+#            temp = correlate(temp,H,mode='wrap')
+#        
+#        X[...,t] = temp
+            
     return X
