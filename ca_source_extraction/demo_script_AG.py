@@ -13,13 +13,9 @@ from arpfit import arpfit
 from sklearn.decomposition import ProjectedGradientNMF
 from update_spatial_components import update_spatial_components
 from update_temporal_components import update_temporal_components
-<<<<<<< HEAD
 from matplotlib import pyplot as plt
 from time import time
 
-=======
-from time import time
->>>>>>> FETCH_HEAD
 #%%
 #frm=pims.open('demoMovie.tif')
 #mov = np.array(pims.open('demoMovie.tif')) 
@@ -39,12 +35,7 @@ T = sizeY[-1]
 nr = 30
 t1 = time()
 Ain,Cin,center = greedyROI2d(Y, nr = nr, gSig = [4,4], gSiz = [9,9])
-<<<<<<< HEAD
-t_elGREEDY = time()-t1
-
-=======
 tGREEDY = time() - t1
->>>>>>> FETCH_HEAD
 #%% arpfit
 
 
