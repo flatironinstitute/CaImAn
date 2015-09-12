@@ -15,10 +15,9 @@ from scipy.linalg import eig
 from scipy.ndimage.morphology import generate_binary_structure, iterate_structure
 from warnings import warn
 import scipy
-
 import time
-
-
+import picos
+from cvxopt import matrix, spmatrix, spdiag, solvers
 #import sys
 #sys.path
 #sys.path.append(path_to_folder)
@@ -236,16 +235,6 @@ def lars_regression_noise(Yp, X, positive, noise,verbose=False):
     
     Yp=np.expand_dims(Yp,axis=1) #necessary for matrix multiplications
     
-   
-#        
-#    if len(X.shape)==1:
-#        X=np.atleast_2d(X).T
-#
-#    if X.shape[0]==1:
-#         raise Exception('Dimension of Matrix X must be pixels x neurons ')
-#    
-    
-    
     _,T = np.shape(Yp); # of time steps
     _,N = np.shape(X); # of compartments
     
@@ -258,66 +247,47 @@ def lars_regression_noise(Yp, X, positive, noise,verbose=False):
     r = np.expand_dims(np.dot(X.T,Yp.flatten()),axis=1)       # N-dim vector
     M = np.dot(-X.T,X);            # N x N matrix 
     
-    #%% begin main loop
-    
+    #%% begin main loop    
     i = 0;
     flag = 0;
-
-    while 1:
-        
+    while 1:       
         if flag == 1:
             W_lam = 0
             break;
-        
-#        print i
-        
     #% calculate new gradient component if necessary    
-        if i>0 and new>=0 and visited_set[new] ==0: # AG NOT CLEAR HERE
-    
+        if i>0 and new>=0 and visited_set[new] ==0: # AG NOT CLEAR HERE    
             visited_set[new] =1;    #% remember this direction was computed    
-        
-    
+ 
     #% Compute full gradient of Q     
         dQ = r + np.dot(M,W);
             
     #% Compute new W
-        if i == 0:
-            
+        if i == 0:            
             if positive:
                 dQa = dQ
             else:
-                dQa = np.abs(dQ)
-            
+                dQa = np.abs(dQ)            
             lambda_, new = np.max(dQa),np.argmax(dQa)
-            
-            #[lambda_, new] = max(dQa(:));
         
             if lambda_ < 0:
                 print 'All negative directions!'
-                break
-                        
+                break                        
         else:
     
-            #% calculate vector to travel along          
-            
+            #% calculate vector to travel along                    
             avec, gamma_plus, gamma_minus = calcAvec(new, dQ, W, lambda_, active_set, M, positive)       
             
-           # % calculate time of travel and next new direction 
-                    
+           # % calculate time of travel and next new direction                   
             if new==-1:                              # % if we just dropped a direction we don't allow it to emerge 
                 if dropped_sign == 1:               # % with the same sign
                     gamma_plus[dropped] = np.inf;
                 else:
                     gamma_minus[dropped] = np.inf;
-                
-            
-                       
     
             gamma_plus[active_set == 1] = np.inf       #% don't consider active components 
             gamma_plus[gamma_plus <= 0] = np.inf       #% or components outside the range [0, lambda_]
             gamma_plus[gamma_plus> lambda_] = np.inf
             gp_min, gp_min_ind = np.min(gamma_plus),np.argmin(gamma_plus)
-    
     
             if positive:
                 gm_min = np.inf;                         #% don't consider new directions that would grow negative
@@ -326,19 +296,12 @@ def lars_regression_noise(Yp, X, positive, noise,verbose=False):
                 gamma_minus[gamma_minus> lambda_] =np.inf
                 gamma_minus[gamma_minus <= 0] = np.inf
                 gm_min, gm_min_ind = np.min(gamma_minus),np.argmin(gamma_minus)
-    
-            
-    
+  
             [g_min, which] = np.min(gp_min),np.argmin(gp_min)
             
-        
-    
             if g_min == np.inf:               #% if there are no possible new components, try move to the end
                 g_min = lambda_;            #% This happens when all the components are already active or, if positive==1, when there are no new positive directions 
-            
-                     
-            
-    
+   
             #% LARS check  (is g_min*avec too large?)
             gamma_zero = -W[active_set == 1]  / np.squeeze(avec);
             gamma_zero_full = np.zeros((N,k));
@@ -377,7 +340,6 @@ def lars_regression_noise(Yp, X, positive, noise,verbose=False):
                     #min(W);
                     flag = 1;
                     #%error('negative W component');
-    
             
             lambda_ = lambda_ - g_min;    
     
@@ -391,20 +353,17 @@ def lars_regression_noise(Yp, X, positive, noise,verbose=False):
             res = scipy.linalg.norm(np.squeeze(Yp-np.dot(X,W)),'fro')**2;
         else:
             res = scipy.linalg.norm(Yp-np.dot(X,W),'fro')**2;
-    
-    
+        
     #% Check finishing conditions                
         if lambda_ ==0 or (new>=0 and np.sum(active_set) == maxcomps) or (res < noise):
             if verbose:
                 print 'end. \n'        
             break
     
-    
-    #%   
+        #%   
         if new>=0:        
             active_set[new] = 1
-        
-        
+                
         i = i + 1
     
     Ws_old=Ws
@@ -424,15 +383,17 @@ def lars_regression_noise(Yp, X, positive, noise,verbose=False):
             
             W_lam = Ws[:,i-1] + np.dot(w_dir,lambdas[i-1]-lam[0]);
         else:
-            problem = picos.Problem()
-            W_lam = problem.add_variable('W_lam', X.shape[1])
-            problem.set_objective('min', 1|W_lam)
-            problem.add_constraint(W_lam >= 0)
-            problem.add_constraint(picos.norm(matrix(Yp.astype(np.float))-matrix(X.astype(np.float))*W_lam,2)<=np.sqrt(noise))
-            sel_solver = []
-            problem.solver_selection()
-            problem.solve(verbose=True)
-           
+            warn('LARS REGRESSION NOT SOLVABLE, USING NN LEAST SQUARE')
+            W_lam=scipy.optimize.nnls(X,Yp)
+#            problem = picos.Problem(X,Yp)
+#            W_lam = problem.add_variable('W_lam', X.shape[1])
+#            problem.set_objective('min', 1|W_lam)
+#            problem.add_constraint(W_lam >= 0)
+#            problem.add_constraint(picos.norm(matrix(Yp.astype(np.float))-matrix(X.astype(np.float))*W_lam,2)<=np.sqrt(noise))
+#            sel_solver = []
+#            problem.solver_selection()
+#            problem.solve(verbose=True)
+            
             
     #        cvx_begin quiet
     #            variable W_lam(size(X,2));

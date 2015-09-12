@@ -9,6 +9,7 @@ Created on Fri Sep  4 09:17:13 2015
 import scipy.io as sio
 import numpy as np
 from update_spatial_components import update_spatial_components
+import pylab as pl
 #%% load example data
 #efty_params = sio.loadmat('/Users/agiovann/Dropbox/preanalyzed data/ExamplesDataAnalysis/Andrea/GranuelCells/efty_params.mat',struct_as_record=False) # load as structure matlab like
 #efty_params = sio.loadmat('demo_workspace.mat',struct_as_record=False) # load as structure matlab like
@@ -26,14 +27,6 @@ b=efty_params['b']*1.0
 A=sio.loadmat('Amat.mat')['A']
 #%%
 #A_out,b_out=update_spatial_components(Y,C,f,A_in,d1=d1,d2=d2,sn=sn)
-print Y.shape
-print type(Y)
-print C.shape
-print type(C)
-print f.shape
-print type(f)
-print A_in.shape
-print type(A_in)
 
 
 #%%
@@ -53,5 +46,5 @@ pl.imshow(A_out.todense(),aspect='auto',interpolation='none')
 #import scipy.sparse
 
 
-with open('demo_post.dat', 'wb') as outfile:
-    pickle.dump(A_out, outfile, pickle.HIGHEST_PROTOCOL)
+#with open('demo_post.dat', 'wb') as outfile:
+#    pickle.dump(A_out, outfile, pickle.HIGHEST_PROTOCOL)

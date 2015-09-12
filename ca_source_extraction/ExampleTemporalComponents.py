@@ -42,23 +42,24 @@ Y_res=Y-np.dot(np.hstack((A.todense(),b)),np.vstack((C_in,f)))
 #TODO: test with restimate_g=True
 #TODO: test reordering of list
 start=time.time()
-C_out,f_out,Y_res_out,P_=update_temporal_components(Y,A,b,C_in,f_in,ITER=1,method='constrained_foopsi',g=P.g,bas_nonneg=False,p=2,fudge_factor=1);
+C_out,f_out,Y_res_out,P_=update_temporal_components(Y,A,b,C_in,f_in,ITER=2,method='constrained_foopsi',g=None,bas_nonneg=False,p=2,fudge_factor=1);
 print time.time()-start
+
 kkk
 #%%
-np.savez('after_temporal.npz',P_=P_)
-#%%
-P_=np.load('after_temporal.npz')['arr_3']
-thr=0.85
-mx=50
-d1=P.d1
-d2=P.d2
-sn=P.sn
-from scipy.sparse import spdiags,coo_matrix,csgraph
-import scipy
-import numpy as np
-import cPickle as pickle
-from constrained_foopsi_AG import constrained_foopsi
-import random
-from scipy import linalg
-from update_spatial_components import update_spatial_components
+#np.savez('after_temporal.npz',P_=P_)
+##%%
+#P_=np.load('after_temporal.npz')['arr_3']
+#thr=0.85
+#mx=50
+#d1=P.d1
+#d2=P.d2
+#sn=P.sn
+#from scipy.sparse import spdiags,coo_matrix,csgraph
+#import scipy
+#import numpy as np
+#import cPickle as pickle
+#from constrained_foopsi_AG import constrained_foopsi
+#import random
+#from scipy import linalg
+#from update_spatial_components import update_spatial_components
