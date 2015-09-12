@@ -67,9 +67,9 @@ C,f,Y_res,Pnew = update_temporal_components(Yr,A,b,Cin,fin,ITER=2)
 t_elTEMPORAL1 = time() - t1
 
 #%%  solving using spgl1 for deconvolution (necessary files not in repo yet)
-#t1 = time()
-#C2,f2,Y_res2,Pnew2 = update_temporal_components(Yr,A,b,Cin,fin,ITER=2,deconv_method = 'spgl1')
-#t_elTEMPORAL2 = time() - t1
+t1 = time()
+C2,f2,Y_res2,Pnew2 = update_temporal_components(Yr,A,b,Cin,fin,ITER=2,deconv_method = 'spgl1')
+t_elTEMPORAL2 = time() - t1
 #%% %%%%%%%%%%%%% ANDREA NEEDS TO FIX THIS %%%%%%%%%%%%%%%%%%%
 #SAVE TO FILE
 np.savez('preprocess_analysis',Y_res=Y_res,A=A.todense(),b=b,C=C,f=f,d1=d1,d2=d2,P=P,Pnew=Pnew,sn=P['sn'])

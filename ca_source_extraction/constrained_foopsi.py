@@ -96,7 +96,8 @@ def constrained_foopsi(fluor,
 def spgl1_foopsi(fluor, b, c1, g, sn, p, bas_nonneg, verbosity):
     
     import sys
-    sys.path.append('/Users/eftychios/Documents/Python/packages/SPGL1_python_port-master/')
+    sys.path.append('../../SPGL1_python_port/')
+    #sys.path.append('/Users/eftychios/Documents/Python/SPGL1_python_port/')
     from spgl1 import spg_bpdn
     import spgl_aux as spg
                      
