@@ -57,33 +57,36 @@ sn=P.sn
 #%%
 A_m,C_m,nr_m,merged_ROIs,P_m=mergeROIS(Y_res,A,b,C,f,d1,d2,P_,sn=sn)
 #%%
-efty_params_after = sio.loadmat('workspace_after_merge.mat',struct_as_record=False) # load as structure matlab like
-A_ef=efty_params_after['Am']*1.0
-C_ef=efty_params_after['Cm']*1.0
-merged_ROIs_ef=efty_params_after['merged_ROIs']*1.0
-P_new_ef=efty_params_after['P'][0,0]
-#%%
-np.sum(np.abs(A_m-A_ef).todense())/np.sum(np.abs(A_m).todense())
-np.sum(np.abs(C_m-C_ef))/np.sum(np.abs(C_m))
-#%%
-display_merging=1;
-for roi in merged_ROIs:
-
-    ln = len(roi)
-    pl.figure()
-    set(gcf,'Position',[300,300,(ln+2)*300,300]);
-    for j in range(ln):
-        subplot(1,ln+2,j)
-        pl.imshow(np.reshape(A[:,roi[j]],(d1,d2),order='F')) 
-    #    title(sprintf('Component %i',j),'fontsize',16,'fontweight','bold'); axis equal; axis tight;
-    
-        subplot(1,ln+2,ln+1)
-        pl.imshow(np.reshape(A_m[:,nr_m-len(roi)+i),(d1,d2),order='F'));
-        #title('Merged Component','fontsize',16,'fontweight','bold');axis equal; axis tight; 
-        subplot(1,ln+2,ln+2)
-        traces=scipy.linalg.solve(np.diag(np.max(C[roi,:],axis=1)),C[roi,:]).T
-        pl.plot(range(T),traces); 
-        pl.plot(1:T,Cm(nr_m-length(merged_ROIs)+i,:)/max(Cm(nr_m-length(merged_ROIs)+i,:)),'--k')
-
-#title('Temporal Components','fontsize',16,'fontweight','bold')
-#drawnow;
+#efty_params_after = sio.loadmat('workspace_after_merge.mat',struct_as_record=False) # load as structure matlab like
+#A_ef=efty_params_after['Am']*1.0
+#C_ef=efty_params_after['Cm']*1.0
+#merged_ROIs_ef=efty_params_after['merged_ROIs']*1.0
+#P_new_ef=efty_params_after['P'][0,0]
+##%%
+#np.sum(np.abs(A_m-A_ef).todense())/np.sum(np.abs(A_m).todense())
+#np.sum(np.abs(C_m-C_ef))/np.sum(np.abs(C_m))
+##%%
+#display_merging=1;
+#for roi in merged_ROIs:
+#
+#    ln = len(roi)
+#    pl.figure()
+#    set(gcf,'Position',[300,300,(ln+2)*300,300]);
+#    for j in range(ln):
+#        subplot(1,ln+2,j)
+#        pl.imshow(np.reshape(A[:,roi[j]],(d1,d2),order='F')) 
+#    #    title(sprintf('Component %i',j),'fontsize',16,'fontweight','bold'); axis equal; axis tight;
+#    
+#        subplot(1,ln+2,ln+1)
+#        pl.imshow(np.reshape(A_m[:,nr_m-len(roi)+i),(d1,d2),order='F'));
+#        #title('Merged Component','fontsize',16,'fontweight','bold');axis equal; axis tight; 
+#        subplot(1,ln+2,ln+2)
+#        traces=scipy.linalg.solve(np.diag(np.max(C[roi,:],axis=1)),C[roi,:]).T
+#        pl.plot(range(T),traces); 
+#        pl.plot(1:T,Cm(nr_m-length(merged_ROIs)+i,:)/max(Cm(nr_m-length(merged_ROIs)+i,:)),'--k')
+#
+##title('Temporal Components','fontsize',16,'fontweight','bold')
+##drawnow;
+##%%
+#import pims
+#mov = np.array(pims.open('demoMovie.tif')) 

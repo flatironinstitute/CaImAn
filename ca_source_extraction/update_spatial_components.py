@@ -95,7 +95,7 @@ def update_spatial_components(Y,C,f,A_in,d1=None,d2=None,min_size=3,max_size=8,d
             if np.size(c)>0:
                 if px%1000==0: 
                     print px
-                _, _, a, _ , _= lars_regression_noise(y, c.T, 1, sn[px]**2*T)  
+                _, _, a, _ , _= lars_regression_noise(y, np.array(c.T), 1, sn[px]**2*T)  
                 A_[px,id2_]=a.T
         #    if np.sum(np.abs(A_[px,:-1]-A_orig[px,:]))>0.00001:
         #        print np.sum(np.abs(A_[px,:-1]-A_orig[px,:]))
@@ -295,8 +295,7 @@ def lars_regression_noise(Yp, X, positive, noise,verbose=False):
             if lambda_ < 0:
                 print 'All negative directions!'
                 break
-            
-            
+                        
         else:
     
             #% calculate vector to travel along          
