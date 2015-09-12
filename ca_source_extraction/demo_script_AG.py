@@ -90,4 +90,4 @@ Pnew=vars_['Pnew']
 sn=vars_['sn']
 #%%
 from merge_rois import mergeROIS
-A_m,C_m,nr_m,merged_ROIs,P_m=mergeROIS(Y_res,A.tocsc(),b,C,f,d1,d2,Pnew,sn=sn)
+A_m,C_m,nr_m,merged_ROIs,P_m=mergeROIS(Y_res,A.tocsc(),b,C2,f2,d1,d2,Pnew2,sn=P['sn'])
