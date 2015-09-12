@@ -2,7 +2,7 @@
 """
 Created on Wed Sep  9 18:47:13 2015
 
-@author: epnevmatikakis
+@author: agiovann
 """
 #%%
 import pims
@@ -13,12 +13,11 @@ from greedyROI2d import greedyROI2d
 from sklearn.decomposition import ProjectedGradientNMF
 from update_spatial_components import update_spatial_components
 from update_temporal_components import update_temporal_components
-import matplotlib.pyplot as plt
-
+from merge_rois import mergeROIS
 #%%
 #frm=pims.open('demoMovie.tif')
 #mov = np.array(pims.open('demoMovie.tif')) 
-Ymat = sio.loadmat('/Users/epnevmatikakis/Desktop/Y.mat')
+Ymat = sio.loadmat('Y.mat')
 Y = Ymat['Y']*1.
 
 #%%
@@ -52,11 +51,7 @@ fin = model.components_.squeeze()
 
 A,b = update_spatial_components(Yr, Cin, fin, Ain, d1=d1, d2=d2, sn = P['sn'])
 
-#%%
-plt.imshow(np.reshape(A[:,0],(d1,d2),order='F'))
-
 #%% update temporal components
-
-
 C,f,Y_res,Pnew = update_temporal_components(Yr,A,b,Cin,fin,ITER=2)
-
+#%%
+A_m,C_m,nr_m,merged_ROIs,P_m=mergeROIS(Y_res,A.tocsc(),b,np.array(C),f,d1,d2,Pnew,sn=P['sn'])
