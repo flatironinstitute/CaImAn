@@ -26,10 +26,20 @@ b=efty_params['b']*1.0
 A=sio.loadmat('Amat.mat')['A']
 #%%
 #A_out,b_out=update_spatial_components(Y,C,f,A_in,d1=d1,d2=d2,sn=sn)
+print Y.shape
+print type(Y)
+print C.shape
+print type(C)
+print f.shape
+print type(f)
+print A_in.shape
+print type(A_in)
+
 
 #%%
 #A_out,b_out=update_spatial_components(Y,C,f,A_in,d1=P.d1,d2=P.d2,g=P.g,sn=P.sn)
 A_out,b_out=update_spatial_components(Y,C,f,A_in,d1=P.d1,d2=P.d2,sn=P.sn)
+
 #%%
 np.sum(np.abs(A.todense()-A_out.todense()))/np.sum(np.abs(A.todense()))
 pl.imshow(A.todense(),aspect='auto',interpolation='none')

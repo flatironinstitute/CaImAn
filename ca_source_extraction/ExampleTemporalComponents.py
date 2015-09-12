@@ -39,12 +39,12 @@ Y_res=Y-np.dot(np.hstack((A.todense(),b)),np.vstack((C_in,f)))
 #d2=demo_['d2']
 #P=demo_['P']
 #%% 
-TODO: test with restimate_g=True
-TODO: test reordering of list
+#TODO: test with restimate_g=True
+#TODO: test reordering of list
 start=time.time()
-C_out,f_out,Y_res_out,P_=update_temporal_components(Y,A,b,C_in,f_in,ITER=1,restimate_g=False,method='constrained_foopsi',g=P.g,bas_nonneg=False,p=2,fudge_factor=1);
+C_out,f_out,Y_res_out,P_=update_temporal_components(Y,A,b,C_in,f_in,ITER=1,method='constrained_foopsi',g=P.g,bas_nonneg=False,p=2,fudge_factor=1);
 print time.time()-start
-
+kkk
 #%%
 np.savez('after_temporal.npz',P_=P_)
 #%%

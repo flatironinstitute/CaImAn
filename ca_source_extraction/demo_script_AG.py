@@ -15,6 +15,7 @@ from update_spatial_components import update_spatial_components
 from update_temporal_components import update_temporal_components
 from matplotlib import pyplot as plt
 from time import time
+from merge_rois import mergeROIS
 
 #%%
 #frm=pims.open('demoMovie.tif')
@@ -35,7 +36,8 @@ T = sizeY[-1]
 nr = 30
 t1 = time()
 Ain,Cin,center = greedyROI2d(Y, nr = nr, gSig = [4,4], gSiz = [9,9])
-tGREEDY = time() - t1
+t_elGREEDY = time()-t1
+
 #%% arpfit
 
 
@@ -47,10 +49,7 @@ P = arpfit(Yr,p=2,pixels = active_pixels)
 #%% nmf
 
 Y_res = Yr - np.dot(Ain,Cin)
-
-
-model = ProjectedGradientNMF(n_components=1, init='random',
-                             random_state=0)
+model = ProjectedGradientNMF(n_components=1, init='random', random_state=0)
 model.fit(np.maximum(Y_res,0)) 
 
 fin = model.components_.squeeze()
@@ -74,20 +73,29 @@ t_elTEMPORAL2 = time() - t1
 #SAVE TO FILE
 np.savez('preprocess_analysis',Y_res=Y_res,A=A.todense(),b=b,C=C,f=f,d1=d1,d2=d2,P=P,Pnew=Pnew,sn=P['sn'])
 
-import numpy as np
-from scipy.sparse import csc_matrix,coo_matrix
-vars_=np.load('preprocess_analysis.npz')
 
-Y_res=vars_['Y_res']
-A=coo_matrix(vars_['A'])
-b=vars_['b']
-C=vars_['C']
-f=vars_['f']
-d1=vars_['d1']
-d2=vars_['d2']
-P=vars_['P']
-Pnew=vars_['Pnew']
-sn=vars_['sn']
 #%%
-from merge_rois import mergeROIS
-A_m,C_m,nr_m,merged_ROIs,P_m=mergeROIS(Y_res,A.tocsc(),b,C,f,d1,d2,Pnew,sn=P['sn'])
+t1 = time()
+A_m,C_m,nr_m,merged_ROIs,P_m=mergeROIS(Y_res,A.tocsc(),b,np.array(C),f,d1,d2,Pnew,sn=P['sn'])
+t_elMERGE = time() - t1
+#%% %%%%%%%%%%%%% ANDREA NEEDS TO FIX THIS %%%%%%%%%%%%%%%%%%%
+##SAVE TO FILE
+#np.savez('preprocess_analysis',Y_res=Y_res,A=A.todense(),b=b,C=C,f=f,d1=d1,d2=d2,P=P,Pnew=Pnew,sn=P['sn'])
+#
+#import numpy as np
+#from scipy.sparse import csc_matrix,coo_matrix
+#vars_=np.load('preprocess_analysis.npz')
+#
+#Y_res=vars_['Y_res']
+#A=coo_matrix(vars_['A'])
+#b=vars_['b']
+#C=vars_['C']
+#f=vars_['f']
+#d1=vars_['d1']
+#d2=vars_['d2']
+#P=vars_['P']
+#Pnew=vars_['Pnew']
+#sn=vars_['sn']
+##%%
+#from merge_rois import mergeROIS
+#A_m,C_m,nr_m,merged_ROIs,P_m=mergeROIS(Y_res,A.tocsc(),b,C,f,d1,d2,Pnew,sn=sn)
