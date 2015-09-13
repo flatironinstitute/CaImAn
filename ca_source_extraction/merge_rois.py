@@ -8,7 +8,7 @@ from scipy.sparse import spdiags,coo_matrix,csgraph,csr_matrix,csc_matrix
 import scipy
 import numpy as np
 import cPickle as pickle
-from constrained_foopsi_AG import constrained_foopsi
+from constrained_foopsi import constrained_foopsi
 import random
 from scipy import linalg
 from update_spatial_components import update_spatial_components
