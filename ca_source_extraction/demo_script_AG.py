@@ -18,19 +18,18 @@ from time import time
 from merge_rois import mergeROIS
 from scipy.sparse import coo_matrix
 #import libtiff
+import tifffile
 from utilities import *
 
 #%%
-#frm=pims.open('demoMovie.tif')
-#mov = np.array(pims.open('demoMovie.tif')) 
-Ymat = sio.loadmat('Y.mat')
-Y = Ymat['Y']*1.
+#Ymat = sio.loadmat('Y.mat')
+#Y = Ymat['Y']*1.
 
-#t = libtiff.TiffFile('demoMovie.tif') 
+t = tifffile.TiffFile('demoMovie.tif') 
 #t = libtiff.TiffFile('/Users/eftychios/Documents/_code/calcium_paper_code/datasets/clay/2014-04-05-003.tif')
-#tt = t.get_tiff_array() 
+Y = t.asarray() 
 #Y2 = tt[:]*1.
-#Y = np.transpose(Y2,(1,2,0))
+Y = np.transpose(Y,(1,2,0))*1.
 
 #%%
 sizeY = np.shape(Y)
