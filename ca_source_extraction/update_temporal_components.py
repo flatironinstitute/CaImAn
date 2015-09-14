@@ -74,17 +74,17 @@ def update_temporal_components(Y,A,b,Cin,fin,ITER=1,method='constrained_foopsi',
     #    perm = randperm(nr+1)
         for jj,ii in enumerate(idxs):            
             #ii=jj
-            print ii,jj
+            #print ii,jj
             pars=dict(kwargs)
     #        ii = perm(jj);
             if ii<nr:                
                 if method == 'constrained_foopsi':
-                        print YrA.shape 
-                        print YrA.shape
+                        #print YrA.shape 
+                        #print YrA.shape
                         YrA[:,ii] = YrA[:,ii] + nA[ii]*Cin[ii,:].T                  
                         
                         cc,cb,c1,gn,sn,_ = constrained_foopsi(np.squeeze(np.asarray(YrA[:,ii]/nA[ii])), method = deconv_method, **pars)
-                        print pars
+                        #print pars
                         pars['gn'] = gn
                         
                         gd = np.max(np.roots(np.hstack((1,-gn.T))));  # decay time constant for initial concentration
@@ -105,7 +105,7 @@ def update_temporal_components(Y,A,b,Cin,fin,ITER=1,method='constrained_foopsi',
                 YrA[:,ii] = YrA[:,ii] - nA[ii]*C[ii,:].T
             
             if jj%10 == 0:
-                print str(jj) + ' out of total ' + str(nr) + ' temporal components updated \n'
+                print str(jj+1) + ' out of total ' + str(nr+1) + ' temporal components updated \n'
     
     
         #%disp(norm(Fin(1:nr,:) - F,'fro')/norm(F,'fro'));

@@ -179,12 +179,17 @@ def threshold_components(A, d1, d2, medw = (3,3), thr = 0.9999, se = np.ones((3,
     for i in range(nr):
         A_temp = np.reshape(A[:,i],(d2,d1))
         A_temp = median_filter(A_temp,medw)
-        Asor = np.sort(np.squeeze(np.reshape(A_temp,(d,1))))
+        Asor = np.sort(np.squeeze(np.reshape(A_temp,(d,1))))[::-1]
         temp = np.cumsum(Asor**2)
-        ind = np.squeeze(np.where(temp<(1-thr)*temp[-1]))[-1]
-        A_temp[A_temp<Asor[ind]] = 0
+        ff = np.squeeze(np.where(temp<(1-thr)*temp[-1]))
+        if ff.size > 0:
+            ind = ff[-1]
+            A_temp[A_temp<Asor[ind]] = 0
+            BW = (A_temp>=Asor[ind])
+        else:
+            BW = (A_temp>=0)
+            
         Ath[:,i] = np.squeeze(np.reshape(A_temp,(d,1)))
-        BW = (A_temp>=Asor[ind])
         BW = binary_closing(BW.astype(np.int),structure = se)
         labeled_array, num_features = label(BW, structure=ss)
         BW = np.reshape(BW,(d,1))
