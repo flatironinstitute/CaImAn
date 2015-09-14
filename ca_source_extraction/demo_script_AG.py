@@ -65,7 +65,7 @@ P = arpfit(Yr,p=2,pixels = active_pixels)
 
 Y_res = Yr - np.dot(Ain,Cin)
 model = ProjectedGradientNMF(n_components=1, init='random', random_state=0)
-model.fit(np.maximum(Y_res,0)) 
+model.fit(np.maximum(Y_res,0))
 
 fin = model.components_.squeeze()
 
@@ -152,3 +152,4 @@ t_elMERGE = time() - t1
 ##%%
 #from merge_rois import mergeROIS
 #A_m,C_m,nr_m,merged_ROIs,P_m=mergeROIS(Y_res,A.tocsc(),b,C,f,d1,d2,Pnew,sn=sn)
+A_m,C_m,nr_m,merged_ROIs,P_m=mergeROIS(Y_res,A.tocsc(),b,C,f,d1,d2,Pnew,sn=P['sn'])
