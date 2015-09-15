@@ -6,6 +6,7 @@ Created on Fri Sep  4 15:38:15 2015
 """
 
 import numpy as np
+from scipy.fftpack import fft, ifft
 
 def arpfit(Y, p = 2, sn = None, g = None, noise_range = [0.25,0.5], noise_method = 'logmexp', lags = 5, include_noise = False, pixels = None):
         
@@ -70,14 +71,14 @@ def get_noise_fft(Y, noise_range = [0.25,0.5], noise_method = 'logmexp'):
     ind = np.logical_and(ind1,ind2)
     if dims > 1:
         sn = 0
-        xdft = np.fft.fft(Y,axis=-1)
+        xdft = fft(Y,axis=-1)
         xdft = xdft[...,:T/2+2]
         psdx = (1./T)*np.abs(xdft)**2
         psdx[...,1:] *= 2
         sn = mean_psd(psdx[...,ind], method = noise_method)
         
     else:
-        xdft = np.fft.fft(Y)
+        xdft = fft(Y)
         xdft = xdft[:T/2+2]
         psdx = (1./T)*np.abs(xdft)**2
         psdx[1:] *=2
@@ -114,8 +115,8 @@ def axcov(data, maxlag=5):
     data = data - np.mean(data)
     T = len(data)
     bins = np.size(data)
-    xcov = np.fft.fft(data, np.power(2, nextpow2(2 * bins - 1)))
-    xcov = np.fft.ifft(np.square(np.abs(xcov)))
+    xcov = fft(data, np.power(2, nextpow2(2 * bins - 1)))
+    xcov = ifft(np.square(np.abs(xcov)))    
     xcov = np.concatenate([xcov[np.arange(xcov.size - maxlag, xcov.size)],
                            xcov[np.arange(0, maxlag + 1)]])
     #xcov = xcov/np.concatenate([np.arange(T-maxlag,T+1),np.arange(T-1,T-maxlag-1,-1)])
