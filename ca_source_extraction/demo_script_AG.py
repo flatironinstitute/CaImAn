@@ -14,7 +14,6 @@ from sklearn.decomposition import ProjectedGradientNMF
 from update_spatial_components import update_spatial_components
 from update_temporal_components import update_temporal_components
 from matplotlib import pyplot as plt
-from time import time
 from merge_rois import mergeROIS
 from scipy.sparse import coo_matrix
 #import libtiff
@@ -49,7 +48,6 @@ t_elGREEDY = time()-t1
 #%% plot centers
 Cn = local_correlations(Y)
 fig = plt.figure()
-plt1 = plt.imshow(Cn,interpolation='none')
 plt.colorbar()
 
 plt.scatter(x=center[:,1], y=center[:,0], c='m', s=40)

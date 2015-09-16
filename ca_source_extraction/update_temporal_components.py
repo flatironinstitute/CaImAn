@@ -105,7 +105,7 @@ def update_temporal_components(Y,A,b,Cin,fin,ITER=1,method='constrained_foopsi',
                 YrA[:,ii] = YrA[:,ii] - nA[ii]*C[ii,:].T
             
             if jj%10 == 0:
-                print str(jj+1) + ' out of total ' + str(nr+1) + ' temporal components updated \n'
+                print str(jj) + ' out of total ' + str(nr+1) + ' temporal components updated \n'
     
     
         #%disp(norm(Fin(1:nr,:) - F,'fro')/norm(F,'fro'));
