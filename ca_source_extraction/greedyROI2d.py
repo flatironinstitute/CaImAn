@@ -8,8 +8,36 @@ Created on Tue Sep  8 11:56:06 2015
 import numpy as np
 import matplotlib.pyplot as plt
 
-def greedyROI2d(Y, nr=30, gSig = [5,5], gSiz = [11,11], nIter = 5):
-    
+def greedyROI2d(Y, nr=30, gSig = [5,5], gSiz = [11,11], nIter = 5, use_median = True):
+    """
+    Greedy initialization of spatial and temporal components using spatial Gaussian filtering
+    Inputs:
+    Y: np.array
+        3d array of fluorescence data with time appearing in the last axis.
+        Support for 3d imaging will be added in the future
+    nr: int
+        number of components to be found
+    gSig: scalar or list of integers
+        standard deviation of Gaussian kernel along each axis
+    gSiz: scalar or list of integers
+        size of spatial component
+    nIter: int
+        number of iterations when refining estimates
+    use_median: boolean
+        add back fluorescence median values or not during refinement
+        
+    Outputs:
+    A: np.array
+        2d array of size (# of pixels) x nr with the spatial components. Each column is
+        ordered columnwise (matlab format, order='F')
+    C: np.array
+        2d array of size nr X T with the temporal components
+    center: np.array
+        2d array of size nr x 2 with the components centroids
+        
+    Author: Eftychios A. Pnevmatikakis based on a matlab implementation by Yuanjun Gao
+            Simons Foundation, 2015
+    """
     d = np.shape(Y)
     med = np.median(Y,axis = -1)
     Y = Y - med[...,np.newaxis]
@@ -23,6 +51,11 @@ def greedyROI2d(Y, nr=30, gSig = [5,5], gSiz = [11,11], nIter = 5):
     rho = imblur(Y, sig = gSig, siz = gSiz, nDimBlur = Y.ndim-1)
     v = np.sum(rho**2,axis=-1)
     
+    if use_median:
+        fact = 1
+    else:
+        fact = 0
+    
     for k in range(nr):
         ind = np.argmax(v)
         ij = np.unravel_index(ind,d[0:-1])
@@ -30,7 +63,7 @@ def greedyROI2d(Y, nr=30, gSig = [5,5], gSiz = [11,11], nIter = 5):
         center[k,1] = ij[1]
         iSig = [np.maximum(ij[0]-gHalf[0],0),np.minimum(ij[0]+gHalf[0]+1,d[0])]
         jSig = [np.maximum(ij[1]-gHalf[1],0),np.minimum(ij[1]+gHalf[1]+1,d[1])]
-        dataTemp = Y[iSig[0]:iSig[1],jSig[0]:jSig[1],:].copy()
+        dataTemp = Y[iSig[0]:iSig[1],jSig[0]:jSig[1],:].copy() + fact*med[iSig[0]:iSig[1],jSig[0]:jSig[1],np.newaxis]
         traceTemp = np.squeeze(rho[ij[0],ij[1],:])
         coef, score = finetune2d(dataTemp, traceTemp, nIter = nIter)
         dataSig = coef[...,np.newaxis]*score[np.newaxis,np.newaxis,...]

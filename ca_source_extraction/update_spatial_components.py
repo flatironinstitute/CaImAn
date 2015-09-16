@@ -22,16 +22,6 @@ from cvxopt import matrix, spmatrix, spdiag, solvers
 #sys.path
 #sys.path.append(path_to_folder)
 
-#try:
-#    plt.ion()
-#    %load_ext autoreload
-#    %autoreload 2
-#except:
-#    print('No ipython')
-
-
-
-
 #%%
 def update_spatial_components(Y,C,f,A_in,d1=None,d2=None,min_size=3,max_size=8,dist=3,sn=None,use_parallel=False, method = 'ellipse', expandCore = iterate_structure(generate_binary_structure(2,1), 2).astype(int)):
     #% set variables
@@ -71,13 +61,6 @@ def update_spatial_components(Y,C,f,A_in,d1=None,d2=None,min_size=3,max_size=8,d
     
     ind2_ =[ np.hstack( (np.where(iid_)[0] , nr+np.arange(f.shape[0])) )   if  np.size(np.where(iid_)[0])>0  else [] for iid_ in IND]
 
-    
-#    ind2_ =[ np.hstack( (np.where(IND[px,:])[0] , nr+np.arange(f.shape[0])) )   if  np.size(np.where(IND[px,:])[0])>0  else [] for  in range(d)]
-#    if len(IND.shape)==1:     
-#         ind2_ =[ np.hstack( (np.where(IND[px])[0] , nr+np.arange(f.shape[0])) )   if  np.size(np.where(IND[px])[0])>0  else [] for px in range(d)]
-#    else:
-#         ind2_ =[ np.hstack( (np.where(IND[px,:])[0] , nr+np.arange(f.shape[0])) )   if  np.size(np.where(IND[px,:])[0])>0  else [] for px in range(d)]
-
     Cf_=[Cf[idx_,:] for idx_ in ind2_]
 
     #% LARS regression 
@@ -96,24 +79,19 @@ def update_spatial_components(Y,C,f,A_in,d1=None,d2=None,min_size=3,max_size=8,d
                     print px
                 _, _, a, _ , _= lars_regression_noise(y, np.array(c.T), 1, sn[px]**2*T)  
                 A_[px,id2_]=a.T
-        #    if np.sum(np.abs(A_[px,:-1]-A_orig[px,:]))>0.00001:
-        #        print np.sum(np.abs(A_[px,:-1]-A_orig[px,:]))
-        #        print px        
-        #        break
     
     #%
     print 'Updated Spatial Components'
     A_=threshold_components(A_, d1, d2)
-    #%
     ff = np.where(np.sum(A_,axis=0)==0);           # remove empty components
-    if np.size(np.array(ff))>0:
+    if np.size(ff)>0:
+        ff = ff[0]
         warn('eliminating empty components!!')
         nr = nr - len(ff)
-        A_[:,ff] = []
-        C[ff,:] = []
+        A_ = np.delete(A_,list(ff),1)
+        C = np.delete(C,list(ff),0)
         
-    #% 
-    Y_res = Y - np.dot(A_[:,1:nr],C[1:nr,:])
+    Y_res = Y - np.dot(A_[:,:nr],C[:nr,:])
     A_bas = np.fmax(np.dot(Y_res,f.T)/scipy.linalg.norm(f)**2,0) # update baseline based on residual
     b = A_bas
     A_ = A_[:,:nr]    
@@ -121,7 +99,6 @@ def update_spatial_components(Y,C,f,A_in,d1=None,d2=None,min_size=3,max_size=8,d
     A_=coo_matrix(A_)
     print("--- %s seconds ---" % (time.time() - start_time))
     return A_,b
-
 
 #%%
 def determine_search_location(A, d1, d2, method = 'ellipse', min_size = 3, max_size = 8, dist = 3, expandCore = iterate_structure(generate_binary_structure(2,1), 2).astype(int)):
@@ -792,8 +769,3 @@ def calcAvec(new, dQ, W, lambda_, active_set, M, positive):
 #    gamma_minus = (lambda_ + dQ)/(one_vec - dQa);
 #    
 #    return avec, gamma_plus, gamma_minus
-
-
-
-
-    
