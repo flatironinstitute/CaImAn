@@ -118,11 +118,15 @@ def com(A,d1,d2):
     
     return cm
      
+     
 def view_patches(Yr,A,C,b,f,d1,d2):
+    """
+    view spatial and temporal components
+    """    
     
     nr,T = C.shape
-    nA2 = np.sqrt(np.sum(np.array(A.todense())**2,axis=0))
-    Y_r = np.array(spdiags(1/nA2,0,nr,nr)*(A.T*np.matrix(Yr-b[:,np.newaxis]*f[np.newaxis])))
+    nA2 = np.sum(np.array(A.todense())**2,axis=0)
+    Y_r = np.array(spdiags(1/nA2,0,nr,nr)*(A.T*np.matrix(Yr-b[:,np.newaxis]*f[np.newaxis])) + C)
     fig = plt.figure()
     
     for i in range(nr+1):
@@ -135,7 +139,8 @@ def view_patches(Yr,A,C,b,f,d1,d2):
             plt.plot(np.arange(T),np.squeeze(np.array(C[i,:])))
             ax2.set_title('Temporal component ' + str(i+1)) 
             ax2.legend(labels = ['Filtered raw data','Inferred trace'])
-            plt.waitforbuttonpress()
+            plt.pause(np.minimum(1,120./nr))            
+            #plt.waitforbuttonpress()
             fig.delaxes(ax2)
         else:
             ax1 = fig.add_subplot(1,2,1)

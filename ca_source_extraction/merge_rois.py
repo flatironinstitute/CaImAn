@@ -66,16 +66,15 @@ def mergeROIS(Y_res,A,b,C,f,d1,d2,P_,thr=0.8,mx=50,sn=None,**kwargs):
     
     
     Y_res = Y_res + np.dot(b,f);
-    
-    ind=np.argsort(np.squeeze(cor))[::-1]
+    if np.size(cor) > 1:
+        ind=np.argsort(np.squeeze(cor))[::-1]
+    else:
+        ind = [0]
 
     nm = min((np.size(ind),mx))   # number of merging operations
 
-
-    mc = 30;
     A_merged = coo_matrix((d,nm)).tocsr();
     C_merged = np.zeros((nm,T));
-    
     
     P_merged=[];
     merged_ROIs = []

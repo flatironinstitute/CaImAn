@@ -8,7 +8,7 @@ Created on Tue Sep  8 11:56:06 2015
 import numpy as np
 import matplotlib.pyplot as plt
 
-def greedyROI2d(Y, nr=30, gSig = [5,5], gSiz = [11,11], nIter = 5, use_median = True):
+def greedyROI2d(Y, nr=30, gSig = [5,5], gSiz = [11,11], nIter = 5, use_median = False):
     """
     Greedy initialization of spatial and temporal components using spatial Gaussian filtering
     Inputs:
@@ -66,6 +66,8 @@ def greedyROI2d(Y, nr=30, gSig = [5,5], gSiz = [11,11], nIter = 5, use_median = 
         dataTemp = Y[iSig[0]:iSig[1],jSig[0]:jSig[1],:].copy() + fact*med[iSig[0]:iSig[1],jSig[0]:jSig[1],np.newaxis]
         traceTemp = np.squeeze(rho[ij[0],ij[1],:])
         coef, score = finetune2d(dataTemp, traceTemp, nIter = nIter)
+        C[k,:] = np.squeeze(score) 
+        score -= fact*np.median(score)
         dataSig = coef[...,np.newaxis]*score[np.newaxis,np.newaxis,...]
         [xSig,ySig] = np.meshgrid(np.arange(iSig[0],iSig[1]),np.arange(jSig[0],jSig[1]),indexing = 'xy')
         arr = np.array([np.reshape(xSig,(1,np.size(xSig)),order='F').squeeze(),np.reshape(ySig,(1,np.size(ySig)),order='F').squeeze()])
@@ -74,7 +76,6 @@ def greedyROI2d(Y, nr=30, gSig = [5,5], gSiz = [11,11], nIter = 5, use_median = 
         #Atemp = np.zeros(d[0:-1])
         #Atemp[iSig[0]:iSig[1],jSig[0]:jSig[1]] = coef        
         #A[:,k] = np.squeeze(np.reshape(Atemp,(np.prod(d[0:-1]),1),order='F'))
-        C[k,:] = np.squeeze(score)        
         #Y[iSig[0]:iSig[1],jSig[0]:jSig[1],:] = Y[iSig[0]:iSig[1],jSig[0]:jSig[1],:] - dataSig
         Y[iSig[0]:iSig[1],jSig[0]:jSig[1],:] -= dataSig
         if k < nr-1:
