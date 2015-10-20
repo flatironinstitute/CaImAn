@@ -8,7 +8,7 @@ Created on Tue Sep  8 11:56:06 2015
 import numpy as np
 import matplotlib.pyplot as plt
 
-def greedyROI2d(Y, nr=30, gSig = [5,5], gSiz = [11,11], nIter = 5, use_median = False):
+def greedyROI2d(Y, nr=30, gSig = [5,5], gSiz = [11,11], nIter = 5, use_median = False, kernel = None):
     """
     Greedy initialization of spatial and temporal components using spatial Gaussian filtering
     Inputs:
@@ -48,7 +48,7 @@ def greedyROI2d(Y, nr=30, gSig = [5,5], gSiz = [11,11], nIter = 5, use_median = 
     C = np.zeros((nr,d[-1]))    
     center = np.zeros((nr,2))
 
-    rho = imblur(Y, sig = gSig, siz = gSiz, nDimBlur = Y.ndim-1)
+    rho = imblur(Y, sig = gSig, siz = gSiz, nDimBlur = Y.ndim-1, kernel = kernel)
     v = np.sum(rho**2,axis=-1)
     
     if use_median:
@@ -87,7 +87,7 @@ def greedyROI2d(Y, nr=30, gSig = [5,5], gSiz = [11,11], nIter = 5, use_median = 
             jLag = jSig - jMod[0] + 0
             dataTemp = np.zeros((iModLen,jModLen))
             dataTemp[iLag[0]:iLag[1],jLag[0]:jLag[1]] = coef
-            dataTemp = imblur(dataTemp[...,np.newaxis],sig=gSig,siz=gSiz)            
+            dataTemp = imblur(dataTemp[...,np.newaxis],sig=gSig,siz=gSiz,kernel = kernel)            
             rhoTEMP = dataTemp*score[np.newaxis,np.newaxis,...]
             #rho[iMod[0]:iMod[1],jMod[0]:jMod[1],:] = rho[iMod[0]:iMod[1],jMod[0]:jMod[1],:] - rhoTEMP
             rho[iMod[0]:iMod[1],jMod[0]:jMod[1],:] -= rhoTEMP
@@ -105,35 +105,40 @@ def finetune2d(Y, cin, nIter = 5):
     
     return a, c
     
-def imblur(Y, sig = 5, siz = 11, nDimBlur = None):
+def imblur(Y, sig = 5, siz = 11, nDimBlur = None, kernel = None):
      
     from scipy.ndimage.filters import correlate        
     #from scipy.signal import correlate    
     
-    if nDimBlur is None:
-        nDimBlur = Y.ndim - 1
-    else:
-        nDimBlur = np.min((Y.ndim,nDimBlur))
-        
-    if np.isscalar(sig):
-        sig = sig*np.ones(nDimBlur)
-        
-    if np.isscalar(siz):
-        siz = siz*np.ones(nDimBlur)
-    
-    xx = np.arange(-np.floor(siz[0]/2),np.floor(siz[0]/2)+1)
-    yy = np.arange(-np.floor(siz[1]/2),np.floor(siz[1]/2)+1)
-
-    hx = np.exp(-xx**2/(2*sig[0]**2))
-    hx /= np.sqrt(np.sum(hx**2))
-    
-    hy = np.exp(-yy**2/(2*sig[1]**2))
-    hy /= np.sqrt(np.sum(hy**2))    
-
     X = np.zeros(np.shape(Y))
-    for t in range(np.shape(Y)[-1]):
-        temp = correlate(Y[:,:,t],hx[:,np.newaxis],mode='wrap')
-        X[:,:,t] = correlate(temp,hy[np.newaxis,:],mode='wrap')    
+    
+    if kernel is None:
+        if nDimBlur is None:
+            nDimBlur = Y.ndim - 1
+        else:
+            nDimBlur = np.min((Y.ndim,nDimBlur))
+            
+        if np.isscalar(sig):
+            sig = sig*np.ones(nDimBlur)
+            
+        if np.isscalar(siz):
+            siz = siz*np.ones(nDimBlur)
+        
+        xx = np.arange(-np.floor(siz[0]/2),np.floor(siz[0]/2)+1)
+        yy = np.arange(-np.floor(siz[1]/2),np.floor(siz[1]/2)+1)
+    
+        hx = np.exp(-xx**2/(2*sig[0]**2))
+        hx /= np.sqrt(np.sum(hx**2))
+        
+        hy = np.exp(-yy**2/(2*sig[1]**2))
+        hy /= np.sqrt(np.sum(hy**2))    
+    
+        for t in range(np.shape(Y)[-1]):
+            temp = correlate(Y[:,:,t],hx[:,np.newaxis],mode='wrap')
+            X[:,:,t] = correlate(temp,hy[np.newaxis,:],mode='wrap')    
+    else:
+        for t in range(np.shape(Y)[-1]):
+            X[:,:,t] = correlate(Y[:,:,t],kernel,mode='wrap')
 
 ## uncomment the following for general n-dim filtering
 #    xx = []
