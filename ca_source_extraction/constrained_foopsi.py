@@ -16,6 +16,9 @@ from warnings import warn
 #import time
 #import sys    
 
+from spgl1 import spg_bpdn
+import spgl_aux as spg
+
 #%%
 def constrained_foopsi(fluor, 
                      b = None, 
@@ -85,22 +88,22 @@ def constrained_foopsi(fluor,
     if method == 'cvx':
         c,b,c1,g,sn,sp = cvxopt_foopsi(fluor, b =b, c1 = c1, g=g, sn=sn, p=p, bas_nonneg = bas_nonneg, verbosity = verbosity)
     elif method == 'spgl1':
-        try:        
-            c,b,c1,g,sn,sp = spgl1_foopsi(fluor, b =b, c1 = c1, g=g, sn=sn, p=p, bas_nonneg = bas_nonneg, verbosity = verbosity)
-        except:
-            print('SPGL1 produces an error. Using CVXOPT')
-            c,b,c1,g,sn,sp = cvxopt_foopsi(fluor, b =b, c1 = c1, g=g, sn=sn, p=p, bas_nonneg = bas_nonneg, verbosity = verbosity)    
+#        try:        
+        c,b,c1,g,sn,sp = spgl1_foopsi(fluor, b =b, c1 = c1, g=g, sn=sn, p=p, bas_nonneg = bas_nonneg, verbosity = verbosity)
+#        except:
+#            print('SPGL1 produces an error. Using CVXOPT')
+#            c,b,c1,g,sn,sp = cvxopt_foopsi(fluor, b =b, c1 = c1, g=g, sn=sn, p=p, bas_nonneg = bas_nonneg, verbosity = verbosity)    
+    
+    else:
+        raise Exception('Undefined Deconvolution Method')
     
     return c,b,c1,g,sn,sp
 
 def spgl1_foopsi(fluor, b, c1, g, sn, p, bas_nonneg, verbosity):
     
-    import sys
-    sys.path.append('../../SPGL1_python_port/')
-    #sys.path.append('/Users/eftychios/Documents/Python/SPGL1_python_port/')
-    from spgl1 import spg_bpdn
-    import spgl_aux as spg
-                     
+    if 'spg' not in globals():
+        raise Exception('The SPGL package could not be loaded, use a different method')
+    
     if b is None:
         bas_flag = True
         b = 0

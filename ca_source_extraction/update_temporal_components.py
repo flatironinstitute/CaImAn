@@ -97,6 +97,9 @@ def update_temporal_components(Y,A,b,Cin,fin,ITER=1,method='constrained_foopsi',
                         pars['neuron_sn'] = sn
                         pars['neuron_id'] = ii
                         P_.append(pars)
+                else:
+                        raise Exception('undefined  method')                        
+                    
                 
             else:
                 YrA[:,ii] = YrA[:,ii] + nA[ii]*Cin[ii,:].T

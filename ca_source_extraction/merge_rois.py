@@ -14,7 +14,7 @@ from scipy import linalg
 from update_spatial_components import update_spatial_components
 from update_temporal_components import update_temporal_components
 #%%
-def mergeROIS(Y_res,A,b,C,f,d1,d2,P_,thr=0.8,mx=50,sn=None,**kwargs):
+def mergeROIS(Y_res,A,b,C,f,d1,d2,P_,thr=0.8,mx=50,sn=None,deconv_method='spgl1'):
     """
     merging of spatially overlapping components that have highly correlated tmeporal activity
     % The correlation threshold for merging overlapping components is user specified in P.merge_thr (default value 0.85)
@@ -91,10 +91,16 @@ def mergeROIS(Y_res,A,b,C,f,d1,d2,P_,thr=0.8,mx=50,sn=None,**kwargs):
         
         aa_1=scipy.sparse.linalg.spsolve(spdiags(nC,0,len(nC),len(nC)),C[merged_ROI,:])
         aa_2=(aa_1).mean(axis=0)        
-        cc,_,_,Ptemp = update_temporal_components(np.asarray(Y_res),A_merged[:,i],b,aa_2,f,p=p)       
+        
+        ff = np.nonzero(A_merged[:,i])[0]     
+        
+        cc,_,_,Ptemp = update_temporal_components(np.asarray(Y_res[ff,:]),A_merged[ff,i],b[ff],aa_2,f,p=p,deconv_method=deconv_method)  
+        
         aa,bb = update_spatial_components(np.asarray(Y_res),cc,f,A_merged[:,i],d1=d1,d2=d2,sn=sn)
+
         A_merged[:,i] = aa.tocsr();        
-        cc,_,_,Ptemp = update_temporal_components(Y_res,A_merged[:,i],bb,cc,f,p=p)
+
+        cc,_,_,Ptemp = update_temporal_components(Y_res[ff,:],A_merged[ff,i],bb[ff],cc,f,p=p,deconv_method=deconv_method)
         
         P_cycle=P_[merged_ROI[0]].copy()
         P_cycle['gn']=Ptemp[0]['gn']
@@ -104,7 +110,8 @@ def mergeROIS(Y_res,A,b,C,f,d1,d2,P_,thr=0.8,mx=50,sn=None,**kwargs):
         P_merged.append(P_cycle)
         C_merged[i,:] = cc
         if i+1 < nm:
-            Y_res = Y_res - A_merged[:,i]*cc
+            Y_res[ff,:] = Y_res[ff,:] - A_merged[ff,i]*cc
+            
     #%
     neur_id = np.unique(np.hstack(merged_ROIs))
     
