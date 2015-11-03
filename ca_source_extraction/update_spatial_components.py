@@ -74,9 +74,9 @@ def update_spatial_components(Y,C,f,A_in,d1=None,d2=None,min_size=3,max_size=8,d
         #print(results)
     else:
         for c,y,s,id2_,px in zip(Cf_,Y_,sn,ind2_,range(d)):
-            if np.size(c)>0:
-                if px%1000==0: 
+            if px%1000==0: 
                     print px
+            if np.size(c)>0:                
                 _, _, a, _ , _= lars_regression_noise(y, np.array(c.T), 1, sn[px]**2*T)
                 if np.isscalar(a):
                     A_[px,id2_]=a
@@ -96,7 +96,7 @@ def update_spatial_components(Y,C,f,A_in,d1=None,d2=None,min_size=3,max_size=8,d
         nr = nr - len(ff)
         A_ = np.delete(A_,list(ff),1)
         C = np.delete(C,list(ff),0)
-        raise Exception('Eliminated empty component. Reduce number of neurons')
+#        raise Exception('Eliminated empty component. Reduce number of neurons')
         
     Y_res = Y - np.dot(A_[:,:nr],C[:nr,:])
     A_bas = np.fmax(np.dot(Y_res,f.T)/scipy.linalg.norm(f)**2,0) # update baseline based on residual
@@ -105,7 +105,7 @@ def update_spatial_components(Y,C,f,A_in,d1=None,d2=None,min_size=3,max_size=8,d
             
     A_=coo_matrix(A_)
     print("--- %s seconds ---" % (time.time() - start_time))
-    return A_,b
+    return A_,b,C
 
 #%%
 def determine_search_location(A, d1, d2, method = 'ellipse', min_size = 3, max_size = 8, dist = 3, expandCore = iterate_structure(generate_binary_structure(2,1), 2).astype(int)):

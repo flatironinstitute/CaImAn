@@ -177,7 +177,7 @@ def view_patches(Yr,A,C,b,f,d1,d2):
             plt.plot(np.arange(T),np.squeeze(np.array(f))) 
             ax2.set_title('Temporal background')      
             
-def plot_contours(A,Cn,thr = 0.995, display_numbers = True, max_number = None, **kwargs):
+def plot_contours(A,Cn,thr = 0.995, display_numbers = True, max_number = None,cmap=None, **kwargs):
 
     A = np.array(A.todense())
     d1,d2 = np.shape(Cn)
@@ -189,7 +189,7 @@ def plot_contours(A,Cn,thr = 0.995, display_numbers = True, max_number = None, *
     
     fig = plt.figure()
     ax = fig.add_subplot(111)
-    plt.imshow(Cn,interpolation=None)
+    plt.imshow(Cn,interpolation=None,cmap=cmap)
     coordinates = []
     cm = com(A,d1,d2)
     for i in range(np.minimum(nr,max_number)):
