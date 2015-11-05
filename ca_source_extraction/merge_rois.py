@@ -15,7 +15,7 @@ from update_spatial_components import update_spatial_components
 from update_temporal_components import update_temporal_components
 import warnings
 #%%
-def mergeROIS(Y_res,A,b,C,f,d1,d2,P_,thr=0.8,mx=50,sn=None,deconv_method='spgl1'):
+def mergeROIS(Y_res,A,b,C,f,d1,d2,P_,thr=0.8,mx=50,sn=None,deconv_method='spgl1',min_size=3,max_size=8,dist=3):
     """
     merging of spatially overlapping components that have highly correlated tmeporal activity
     % The correlation threshold for merging overlapping components is user specified in P.merge_thr (default value 0.85)
@@ -100,7 +100,7 @@ def mergeROIS(Y_res,A,b,C,f,d1,d2,P_,thr=0.8,mx=50,sn=None,deconv_method='spgl1'
             
             cc,_,_,Ptemp = update_temporal_components(np.asarray(Y_res[ff,:]),A_merged[ff,i],b[ff],aa_2,f,p=p,deconv_method=deconv_method)  
             
-            aa,bb,cc = update_spatial_components(np.asarray(Y_res),cc,f,A_merged[:,i],d1=d1,d2=d2,sn=sn)
+            aa,bb,cc = update_spatial_components(np.asarray(Y_res),cc,f,A_merged[:,i],d1=d1,d2=d2,sn=sn,min_size=min_size,max_size=max_size,dist=dist)
     
             A_merged[:,i] = aa.tocsr();        
     

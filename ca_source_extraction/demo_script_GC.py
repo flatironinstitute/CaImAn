@@ -34,8 +34,11 @@ file_list=glob.glob('360 645 110_strong BODY 100MSEC_*.tif')
 for f in file_list:
     print f
 m=cb.load_movie_chain(file_list,fr=15.625,subindices=range(6,210,3))
+#%% q
+m=cb.load('M_FLUO.tif',fr=8); 
+
 #%%
-m=cb.load('M_FLUO.tif',fr=15,subindices=range(0,950,1)); 
+m=cb.load('M_FLUO.tif',fr=8); 
 #
 T,h,w=np.shape(m)
 m1=m[:,:h/2,:]  
@@ -52,7 +55,7 @@ m=m[:,-min_h:-max_h,-min_w:-max_w]
 Cn2=np.median(m,axis=0)
 
 #%%
-m=m-np.min(m)+1;
+m=m-np.min(m)+np.float16(1);
 m,mbl=m.computeDFF(secsWindow=30,method='delta_f_over_sqrt_f')
 
 #%%
@@ -66,7 +69,7 @@ Y = np.transpose(Y,(1,2,0))
 d1,d2,T = np.shape(Y)
 
 #%%
-nr = 25
+nr = 100
 t1 = time()
 Ain,Cin,center = greedyROI2d(Y, nr = nr, gSig = [2,2], gSiz = [4,4], use_median = False)
 t_elGREEDY = time()-t1
@@ -98,10 +101,10 @@ model.fit(np.maximum(Y_res,0))
 fin = model.components_.squeeze()
 #%%
 t1 = time()
-A,b,Cin = update_spatial_components(Yr, Cin, fin, Ain, d1=d1, d2=d2, sn = P['sn'],dist=2,max_size=6,min_size=3)
+A,b,Cin = update_spatial_components(Yr, Cin, fin, Ain, d1=d1, d2=d2, sn = P['sn'],dist=1,max_size=5,min_size=3)
 t_elSPATIAL = time() - t1
 #%%
-crd = plot_contours(A,Cn,thr=0.9)
+crd = plot_contours(A,Cn1,thr=0.9,cmap=pl.cm.gray)
 #%%
 t1 = time()
 C,f,Y_res,Pnew = update_temporal_components(Yr,A,b,Cin,fin,ITER=2,deconv_method = 'spgl1')
@@ -109,15 +112,15 @@ t_elTEMPORAL2 = time() - t1
 #%%
 t1 = time()
 A_sp=A.tocsc();
-A_m,C_m,nr_m,merged_ROIs,P_m=mergeROIS(Y_res,A_sp,b,np.array(C),f,d1,d2,Pnew,sn=P['sn'],thr=.9,deconv_method='spgl1')
+A_m,C_m,nr_m,merged_ROIs,P_m=mergeROIS(Y_res,A_sp,b,np.array(C),f,d1,d2,Pnew,sn=P['sn'],thr=.7,deconv_method='spgl1',min_size=3,max_size=8,dist=3)
 t_elMERGE = time() - t1
 #%%
 crd = plot_contours(A_m,Cn2,thr=0.9)
 #%%
-A2,b2,C_m_ = update_spatial_components(Yr, C_m, f, A_m, d1=d1, d2=d2, sn = P['sn'],dist=2,max_size=2)
+A2,b2,C_m_ = update_spatial_components(Yr, C_m, f, A_m, d1=d1, d2=d2, sn = P['sn'],dist=2,max_size=5,min_size=3)
 C2,f2,Y_res2,Pnew2 = update_temporal_components(Yr,A2,b2,C_m_,f,ITER=2,deconv_method = 'spgl1')
 #%%
-crd = plot_contours(A2,Cn,thr=0.9,cmap=pl.cm.gray)
+crd = plot_contours(A2,Cn1,thr=0.9,cmap=pl.cm.gray)
 
 #%%
 
