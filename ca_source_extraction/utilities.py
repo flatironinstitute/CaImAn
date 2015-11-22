@@ -158,22 +158,22 @@ def view_patches(Yr,A,C,b,f,d1,d2):
     
     for i in range(nr+1):
         if i < nr:
-            ax1 = fig.add_subplot(1,2,1)
+            ax1 = fig.add_subplot(2,1,1)
             plt.imshow(np.reshape(np.array(A.todense())[:,i],(d1,d2),order='F'),interpolation='None')
             ax1.set_title('Spatial component ' + str(i+1))    
-            ax2 = fig.add_subplot(1,2,2)
+            ax2 = fig.add_subplot(2,1,2)
             plt.plot(np.arange(T),np.squeeze(np.array(Y_r[i,:]))) 
             plt.plot(np.arange(T),np.squeeze(np.array(C[i,:])))
             ax2.set_title('Temporal component ' + str(i+1)) 
             ax2.legend(labels = ['Filtered raw data','Inferred trace'])
-            plt.pause(np.minimum(1,120./nr))            
+            plt.pause(4)            
             #plt.waitforbuttonpress()
             fig.delaxes(ax2)
         else:
-            ax1 = fig.add_subplot(1,2,1)
+            ax1 = fig.add_subplot(2,1,1)
             plt.imshow(np.reshape(b,(d1,d2),order='F'),interpolation='None')
             ax1.set_title('Spatial background background')    
-            ax2 = fig.add_subplot(1,2,2)
+            ax2 = fig.add_subplot(2,1,2)
             plt.plot(np.arange(T),np.squeeze(np.array(f))) 
             ax2.set_title('Temporal background')      
             
