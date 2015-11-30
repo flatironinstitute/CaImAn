@@ -30,10 +30,10 @@ except:
 
 #%% many movies
 import glob
-file_list=glob.glob('360 645 110_strong BODY 100MSEC_*.tif')
+file_list=glob.glob('CHR L10 503 539 -82_2X_LOBV or VI_08*.tif')
 for f in file_list:
     print f
-m=cb.load_movie_chain(file_list,fr=15.625,subindices=range(6,210,3))
+m=cb.load_movie_chain(file_list,fr=15.625,subindices=range(3,54,3))
 #%% q
 m=cb.load('M_FLUO.tif',fr=8); 
 
@@ -47,16 +47,20 @@ m=m2;
 
 
 #%%
-m,shifts,xcorrs,template=m.motion_correct(max_shift_w=10,max_shift_h=10, num_frames_template=None, template = None,method='opencv')
-max_h,max_w=np.ceil(np.max(shifts,axis=0))
-min_h,min_w=np.floor(np.min(shifts,axis=0))
+m,shifts,xcorrs,template=m.motion_correct(max_shift_w=5,max_shift_h=5, num_frames_template=None, template = None,method='opencv')
+max_h,max_w=np.ceil(np.nanmax(shifts,axis=0))
+min_h,min_w=np.floor(np.nanmin(shifts,axis=0))
 m=m[:,-min_h:-max_h,-min_w:-max_w]
 #%%
-Cn2=np.median(m,axis=0)
+Cn2=np.nanmedian(m,axis=0)
 
 #%%
-m=m-np.min(m)+np.float16(1);
-m,mbl=m.computeDFF(secsWindow=30,method='delta_f_over_sqrt_f')
+if m.min <=0:
+    print 'Removing baseline'
+    m=m-np.min(m)+np.float16(1)
+else:
+    m=m+np.float16(0.01)
+m,mbl=m.computeDFF(secsWindow=10,method='delta_f_over_sqrt_f',quantilMin=8)
 
 #%%
 #Y=np.load('M_FLUO_mc.npz')['mov'] 
@@ -69,7 +73,7 @@ Y = np.transpose(Y,(1,2,0))
 d1,d2,T = np.shape(Y)
 
 #%%
-nr = 100
+nr = 50
 t1 = time()
 Ain,Cin,center = greedyROI2d(Y, nr = nr, gSig = [2,2], gSiz = [4,4], use_median = False)
 t_elGREEDY = time()-t1
@@ -104,7 +108,7 @@ t1 = time()
 A,b,Cin = update_spatial_components(Yr, Cin, fin, Ain, d1=d1, d2=d2, sn = P['sn'],dist=1,max_size=5,min_size=3)
 t_elSPATIAL = time() - t1
 #%%
-crd = plot_contours(A,Cn1,thr=0.9,cmap=pl.cm.gray)
+crd = plot_contours(A,Cn2,thr=0.9,cmap=pl.cm.gray)
 #%%
 t1 = time()
 C,f,Y_res,Pnew = update_temporal_components(Yr,A,b,Cin,fin,ITER=2,deconv_method = 'spgl1')
@@ -112,7 +116,7 @@ t_elTEMPORAL2 = time() - t1
 #%%
 t1 = time()
 A_sp=A.tocsc();
-A_m,C_m,nr_m,merged_ROIs,P_m=mergeROIS(Y_res,A_sp,b,np.array(C),f,d1,d2,Pnew,sn=P['sn'],thr=.7,deconv_method='spgl1',min_size=3,max_size=8,dist=3)
+A_m,C_m,nr_m,merged_ROIs,P_m=mergeROIS(Y_res,A_sp,b,np.array(C),f,d1,d2,Pnew,sn=P['sn'],thr=.9,deconv_method='spgl1',min_size=3,max_size=8,dist=3)
 t_elMERGE = time() - t1
 #%%
 crd = plot_contours(A_m,Cn2,thr=0.9)
@@ -120,7 +124,7 @@ crd = plot_contours(A_m,Cn2,thr=0.9)
 A2,b2,C_m_ = update_spatial_components(Yr, C_m, f, A_m, d1=d1, d2=d2, sn = P['sn'],dist=2,max_size=5,min_size=3)
 C2,f2,Y_res2,Pnew2 = update_temporal_components(Yr,A2,b2,C_m_,f,ITER=2,deconv_method = 'spgl1')
 #%%
-crd = plot_contours(A2,Cn1,thr=0.9,cmap=pl.cm.gray)
+crd = plot_contours(A2,Cn2,thr=0.9,cmap=pl.cm.gray)
 
 #%%
 
