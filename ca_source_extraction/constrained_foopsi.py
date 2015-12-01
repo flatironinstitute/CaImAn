@@ -32,7 +32,7 @@ def constrained_foopsi(fluor,
                      noise_method = 'logmexp',
                      lags = 5, 
                      resparse = 0,
-                     fudge_factor = 1, 
+                     fudge_factor = 1., 
                      verbosity = False):
 
     """
@@ -282,7 +282,7 @@ def estimate_parameters(fluor, p = 2, sn = None, g = None, range_ff = [0.25,0.5]
 
     return g,sn
 
-def estimate_time_constant(fluor, p = 2, sn = None, lags = 5, fudge_factor = 1):
+def estimate_time_constant(fluor, p = 2, sn = None, lags = 5, fudge_factor = 1.):
     """    
     Estimate AR model parameters through the autocovariance function    
     Inputs
@@ -314,13 +314,12 @@ def estimate_time_constant(fluor, p = 2, sn = None, lags = 5, fudge_factor = 1):
     
     A = scipy.linalg.toeplitz(xc[lags+np.arange(lags)],xc[lags+np.arange(p)]) - sn**2*np.eye(lags,p)
     g = np.linalg.lstsq(A,xc[lags+1:])[0]
-    if fudge_factor < 1:
-        gr = fudge_factor*np.roots(np.concatenate([np.array([1]),-g.flatten()]))
-        gr = (gr+gr.conjugate())/2
-        gr[gr>1] = 0.95
-        gr[gr<0] = 0.15
-        g = np.poly(gr)
-        g = -g[1:]        
+    gr = np.roots(np.concatenate([np.array([1]),-g.flatten()]))
+    gr = (gr+gr.conjugate())/2.
+    gr[gr>1] = 0.95 + np.random.normal(0,0.01,np.sum(gr>1))
+    gr[gr<0] = 0.15 + np.random.normal(0,0.01,np.sum(gr<0))
+    g = np.poly(fudge_factor*gr)
+    g = -g[1:]    
         
     return g.flatten()
     
