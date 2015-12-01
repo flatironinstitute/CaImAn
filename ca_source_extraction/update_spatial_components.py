@@ -142,7 +142,12 @@ def determine_search_location(A, d1, d2, method = 'ellipse', min_size = 3, max_s
     elif method == 'dilate':
         for i in range(nr):
             A_temp = np.reshape(A[:,i].todense(),(d2,d1))
-            A_temp = grey_dilation(A_temp, footprint = expandCore)
+            if len(expandCore)> 0:
+                A_temp = grey_dilation(A_temp, footprint = expandCore)
+            else:
+                A_temp = grey_dilation(A_temp, (1,1))            
+            
+#            A_temp = grey_dilation(A_temp, footprint = expandCore)
             IND[:,i] = np.squeeze(np.reshape(A_temp,(d,1)))>0
     else:
         IND = True*np.ones((d,nr))

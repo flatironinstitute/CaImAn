@@ -14,8 +14,10 @@ from scipy import linalg
 from update_spatial_components import update_spatial_components
 from update_temporal_components import update_temporal_components
 import warnings
+from scipy.ndimage.morphology import generate_binary_structure, iterate_structure
+
 #%%
-def mergeROIS(Y_res,A,b,C,f,d1,d2,P_,thr=0.8,mx=50,sn=None,deconv_method='spgl1',min_size=3,max_size=8,dist=3):
+def mergeROIS(Y_res,A,b,C,f,d1,d2,P_,thr=0.8,mx=50,sn=None,deconv_method='spgl1',min_size=3,max_size=8,dist=3,method_exp = 'ellipse', expandCore = iterate_structure(generate_binary_structure(2,1), 2).astype(int)):
     """
     merging of spatially overlapping components that have highly correlated tmeporal activity
     % The correlation threshold for merging overlapping components is user specified in P.merge_thr (default value 0.85)
@@ -100,7 +102,7 @@ def mergeROIS(Y_res,A,b,C,f,d1,d2,P_,thr=0.8,mx=50,sn=None,deconv_method='spgl1'
             
             cc,_,_,Ptemp = update_temporal_components(np.asarray(Y_res[ff,:]),A_merged[ff,i],b[ff],aa_2,f,p=p,deconv_method=deconv_method)  
             
-            aa,bb,cc = update_spatial_components(np.asarray(Y_res),cc,f,A_merged[:,i],d1=d1,d2=d2,sn=sn,min_size=min_size,max_size=max_size,dist=dist)
+            aa,bb,cc = update_spatial_components(np.asarray(Y_res),cc,f,A_merged[:,i],d1=d1,d2=d2,sn=sn,min_size=min_size,max_size=max_size,dist=dist,method = method_exp, expandCore =expandCore)
     
             A_merged[:,i] = aa.tocsr();        
     
