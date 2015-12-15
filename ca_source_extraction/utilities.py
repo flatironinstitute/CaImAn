@@ -187,8 +187,9 @@ def plot_contours(A,Cn,thr = 0.995, display_numbers = True, max_number = None,cm
         
     x,y = np.mgrid[0:d1:1,0:d2:1]    
     
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
+#    fig = plt.figure()
+#    ax = fig.add_subplot(111)
+    ax = plt.gca()
     plt.imshow(Cn,interpolation=None,cmap=cmap)
     coordinates = []
     cm = com(A,d1,d2)
