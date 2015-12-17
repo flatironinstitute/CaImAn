@@ -75,21 +75,21 @@ def get_noise_fft(Y, noise_range = [0.25,0.5], noise_method = 'logmexp'):
     
     T = np.shape(Y)[-1]
     dims = len(np.shape(Y))
-    ff = np.arange(0,0.5,1./T)
+    ff = np.arange(0,0.5+1./T,1./T)
     ind1 = ff > noise_range[0]
     ind2 = ff <= noise_range[1]
     ind = np.logical_and(ind1,ind2)
     if dims > 1:
         sn = 0
         xdft = fft(Y,axis=-1)
-        xdft = xdft[...,:T/2+2]
+        xdft = xdft[...,:T/2+1]
         psdx = (1./T)*np.abs(xdft)**2
         psdx[...,1:] *= 2
         sn = mean_psd(psdx[...,ind], method = noise_method)
         
     else:
         xdft = fft(Y)
-        xdft = xdft[:T/2+2]
+        xdft = xdft[:T/2+1]
         psdx = (1./T)*np.abs(xdft)**2
         psdx[1:] *=2
         sn = mean_psd(psdx[ind], method = noise_method)
@@ -366,7 +366,7 @@ def hals_2D(Y,A,C,b,f,bSiz=3,maxIter=5):
     K = np.shape(A)[1] #number of neurons 
     #%% update spatial and temporal components neuron by neurons
     Yres = np.reshape(Y, (d1*d2, T),order='F') - np.dot(A,C) - np.dot(b,f[None,:]);
-    print 'First residual is ' + str(scipy.linalg.norm(Yres, 'fro')) + '\n';
+    #print 'First residual is ' + str(scipy.linalg.norm(Yres, 'fro')) + '\n';
      
     for miter in range(maxIter):
         for mcell in range(K):
@@ -404,7 +404,6 @@ def hals_2D(Y,A,C,b,f,bSiz=3,maxIter=5):
         b = np.maximum(0, b0 + np.dot(Yres,f.T/norm_f2))
         Yres = Yres + np.dot(b0-b,f)
         
-        print 'Iteration:' + str(miter)
-        print 'The norm of residual is ' + str(scipy.linalg.norm(Yres, 'fro')) + '\n';
+        print 'Iteration:' + str(miter) + ', the norm of residual is ' + str(scipy.linalg.norm(Yres, 'fro'))
     
     return A, C, b, f

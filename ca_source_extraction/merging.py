@@ -4,7 +4,7 @@ Created on Tue Sep  8 16:23:57 2015
 
 @author: agiovann
 """
-from scipy.sparse import spdiags,coo_matrix,csgraph,csr_matrix,csc_matrix
+from scipy.sparse import spdiags,coo_matrix,csgraph,csr_matrix,csc_matrix, lil_matrix
 import scipy
 import numpy as np
 import cPickle as pickle
@@ -79,7 +79,7 @@ def mergeROIS(Y_res,A,b,C,f,d1,d2,P_,thr=0.8,mx=50,sn=None,deconv_method='spgl1'
     
         nm = min((np.size(ind),mx))   # number of merging operations
     
-        A_merged = coo_matrix((d,nm)).tocsr();
+        A_merged = lil_matrix((d,nm));
         C_merged = np.zeros((nm,T));
         
         P_merged=[];
@@ -91,11 +91,11 @@ def mergeROIS(Y_res,A,b,C,f,d1,d2,P_,thr=0.8,mx=50,sn=None,deconv_method='spgl1'
             merged_ROIs.append(merged_ROI)
             nC = np.sqrt(np.sum(C[merged_ROI,:]**2,axis=1))
     #        A_merged[:,i] = np.squeeze((A[:,merged_ROI]*spdiags(nC,0,len(nC),len(nC))).sum(axis=1))    
-            A_merged[:,i] = csr_matrix((A[:,merged_ROI]*spdiags(nC,0,len(nC),len(nC))).sum(axis=1))
+            A_merged[:,i] = lil_matrix((A[:,merged_ROI]*scipy.sparse.diags(nC,0,(len(nC),len(nC)))).sum(axis=1))
     
             Y_res = Y_res + A[:,merged_ROI]*C[merged_ROI,:]
             
-            aa_1=scipy.sparse.linalg.spsolve(spdiags(nC,0,len(nC),len(nC)),C[merged_ROI,:])
+            aa_1=scipy.sparse.linalg.spsolve(scipy.sparse.diags(nC,0,(len(nC),len(nC))),csc_matrix(C[merged_ROI,:]))
             aa_2=(aa_1).mean(axis=0)        
             
             ff = np.nonzero(A_merged[:,i])[0]     
