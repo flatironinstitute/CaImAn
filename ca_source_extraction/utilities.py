@@ -178,8 +178,13 @@ def view_patches(Yr,A,C,b,f,d1,d2):
             ax2.set_title('Temporal background')      
             
 def plot_contours(A,Cn,thr = 0.995, display_numbers = True, max_number = None,cmap=None, **kwargs):
-
-    A = np.array(A.todense())
+    
+    from  scipy.sparse import issparse
+    if issparse(A):
+        A = np.array(A.todense())
+    else:
+         A = np.array(A)
+         
     d1,d2 = np.shape(Cn)
     d,nr = np.shape(A)       
     if max_number is None:
