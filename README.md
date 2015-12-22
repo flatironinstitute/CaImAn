@@ -51,9 +51,8 @@ External Dependencies
 ============
 
 The constrained deconvolution method (constrained_foopsi_python.py) can estimate with two different methods, each of which requires some additional packages:
-1. 'spgl1'
- * [SPGL1](https://github.com/epnev/SPGL1_python_port) Python implementation of the SPGL1 method. Please use the "forked" repository linked here.
-2. 'cvx'
+1. 'spgl1': For this option, the [SPGL1](https://github.com/epnev/SPGL1_python_port) python implementation is required. Please use the "forked" repository linked here.
+2. 'cvx': For this option, the following packages are needed:
  * [CVXOPT](http://cvxopt.org/) Required.
  * [PICOS](http://picos.zib.de/) Required.
  * [MOSEK](https://www.mosek.com/) Optional but strongly recommended for speed improvement, free for academic use.
