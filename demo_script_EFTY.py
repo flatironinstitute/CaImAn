@@ -12,6 +12,7 @@ import sys
 import numpy as np
 import scipy.io as sio
 
+sys.path.append("../SPGL1_python_port/")
 #%%
 import ca_source_extraction
 from ca_source_extraction.initialization import greedyROI2d, hals_2D,arpfit
@@ -36,16 +37,22 @@ import calblitz as cb
 #except:
 #    print "Probably not a Ipython interactive environment" 
 
+#%%
+t = tifffile.TiffFile('movies/demoMovie.tif') 
+#t = libtiff.TiffFile('/Users/eftychios/Documents/_code/calcium_paper_code/datasets/clay/2014-04-05-003.tif')
+Y = t.asarray() 
+Y = np.transpose(Y,(1,2,0))*1.
+d1,d2,T=Y.shape 
+#%%
+#m=cb.load('demoMovie.tif',fr=8); 
+#T,h,w=np.shape(m)
+#Y=np.asarray(m)
+#Y = np.transpose(Y,(1,2,0))
+##Ymat = sio.loadmat('Y.mat')
+##Y = Ymat['Y']*1.
+#d1,d2,T = np.shape(Y)
 #%% 
-m=cb.load('demoMovie.tif',fr=8); 
-T,h,w=np.shape(m)
 
-#%% 
-Y=np.asarray(m)
-Y = np.transpose(Y,(1,2,0))
-#Ymat = sio.loadmat('Y.mat')
-#Y = Ymat['Y']*1.
-d1,d2,T = np.shape(Y)
 
 a = sio.loadmat('demo_movie_test.mat')
 Y_test=a['Y']
