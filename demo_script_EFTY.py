@@ -5,8 +5,8 @@ Created on Wed Sep  9 18:47:13 2015
 @author: epnevmatikakis
 """
 #%%
-#%load_ext autoreload
-#%autoreload 2
+%load_ext autoreload
+%autoreload 2
 
 import sys
 import numpy as np
@@ -29,6 +29,8 @@ import scipy
 from sklearn.decomposition import NMF
 #%%
 import calblitz as cb
+#%%
+import tifffile
 #%%
 #try: 
 #    pl.ion()
@@ -53,8 +55,21 @@ d1,d2,T=Y.shape
 #d1,d2,T = np.shape(Y)
 #%% 
 
+m=cb.load('movies/demoMovie.tif',fr=8); 
+T,h,w=np.shape(m)
+Y=np.asarray(m)
+Y = np.transpose(Y,(1,2,0))
+#Ymat = sio.loadmat('Y.mat')
+#Y = Ymat['Y']*1.
+d1,d2,T = np.shape(Y)
+#%%
+t = tifffile.TiffFile('movies/demoMovie.tif') 
+Y = t.asarray() 
+Y = np.transpose(Y,(1,2,0))*1.
+d1,d2,T=Y.shape
 
-a = sio.loadmat('demo_movie_test.mat')
+
+a = sio.loadmat('movies/demo_movie_test.mat')
 Y_test=a['Y']
 
 assert scipy.linalg.norm(Y-Y_test)==0
@@ -104,11 +119,11 @@ crd = plot_contours(coo_matrix(Ain[:,::-1]),Cn,thr=0.9)
 plt.subplot(1,2,2)
 crd = plot_contours(coo_matrix(Ain_test[:,::-1]),Cn,thr=0.9)
 #%%  matlab input
-Ain=Ain_test
-Cin=Cin_test
-b_in=bin_test
-f_in=fin_test
-center=center_test-1
+#Ain=Ain_test
+#Cin=Cin_test
+#b_in=bin_test
+#f_in=fin_test
+#center=center_test-1
 #%%
 active_pixels = np.squeeze(np.nonzero(np.sum(Ain,axis=1)))
 Yr = np.reshape(Y,(d1*d2,T),order='F')
