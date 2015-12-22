@@ -17,9 +17,7 @@ from skimage.transform import resize
 
 #%%
 def initialize_components(Y, K=30, gSig=[5,5], gSiz=None, ssub=1, tsub=1, nIter = 5, use_median = False, kernel = None): 
-
-
-"""
+    """
     Initalize components using a greedy approach followed by hierarchical
     alternative least squares (HALS) NMF. Optional use of spatio-temporal
     downsampling to boost speed.
@@ -83,15 +81,6 @@ def initialize_components(Y, K=30, gSig=[5,5], gSiz=None, ssub=1, tsub=1, nIter 
     
     Cin = resize(Cin, [K, T])
     f_in = resize(f_in, [1, T])    
-    
-    
-    
-    
-    
-    
-    
-    
-    
     
     
     return Ain, Cin, bin, fin, center
