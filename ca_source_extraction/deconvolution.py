@@ -93,13 +93,14 @@ def constrained_foopsi(fluor,
 #        except:
 #            print('SPGL1 produces an error. Using CVXOPT')
 #            c,b,c1,g,sn,sp = cvxopt_foopsi(fluor, b =b, c1 = c1, g=g, sn=sn, p=p, bas_nonneg = bas_nonneg, verbosity = verbosity)    
-    
+    elif method == 'debug':
+        c,b,c1,g,sn,sp = spgl1_foopsi(fluor, b =b, c1 = c1, g=g, sn=sn, p=p, bas_nonneg = bas_nonneg, verbosity = verbosity,debug=True)
     else:
         raise Exception('Undefined Deconvolution Method')
     
     return c,b,c1,g,sn,sp
 
-def spgl1_foopsi(fluor, b, c1, g, sn, p, bas_nonneg, verbosity, thr = 1e-2):
+def spgl1_foopsi(fluor, b, c1, g, sn, p, bas_nonneg, verbosity, thr = 1e-2,debug=False):
     
     if 'spg' not in globals():
         raise Exception('The SPGL package could not be loaded, use a different method')
@@ -143,7 +144,7 @@ def spgl1_foopsi(fluor, b, c1, g, sn, p, bas_nonneg, verbosity, thr = 1e-2):
     
 
     spikes,_,_,info = spg_bpdn(opA,np.squeeze(fluor)-bas_nonneg*b_lb - (1-bas_flag)*b -(1-c1_flag)*c1*gd_vec, sn*np.sqrt(T))
-    if np.min(spikes)<-thr*np.max(spikes):
+    if np.min(spikes)<-thr*np.max(spikes) and not debug:
         spikes[:T][spikes[:T]<0]=0
         spikes,_,_,info = spg_bpdn(opA,np.squeeze(fluor)-bas_nonneg*b_lb - (1-bas_flag)*b -(1-c1_flag)*c1*gd_vec, sn*np.sqrt(T), options)
         

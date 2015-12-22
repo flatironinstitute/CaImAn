@@ -100,13 +100,13 @@ def mergeROIS(Y_res,A,b,C,f,d1,d2,P_,thr=0.8,mx=50,sn=None,deconv_method='spgl1'
             
             ff = np.nonzero(A_merged[:,i])[0]     
             
-            cc,_,_,Ptemp = update_temporal_components(np.asarray(Y_res[ff,:]),A_merged[ff,i],b[ff],aa_2,f,p=p,deconv_method=deconv_method)  
+            cc,_,_,Ptemp,S = update_temporal_components(np.asarray(Y_res[ff,:]),A_merged[ff,i],b[ff],aa_2,f,p=p,deconv_method=deconv_method)  
             
             aa,bb,cc = update_spatial_components(np.asarray(Y_res),cc,f,A_merged[:,i],d1=d1,d2=d2,sn=sn,min_size=min_size,max_size=max_size,dist=dist,method = method_exp, expandCore =expandCore)
     
             A_merged[:,i] = aa.tocsr();        
     
-            cc,_,_,Ptemp = update_temporal_components(Y_res[ff,:],A_merged[ff,i],bb[ff],cc,f,p=p,deconv_method=deconv_method)
+            cc,_,_,Ptemp,S = update_temporal_components(Y_res[ff,:],A_merged[ff,i],bb[ff],cc,f,p=p,deconv_method=deconv_method)
             
             P_cycle=P_[merged_ROI[0]].copy()
             P_cycle['gn']=Ptemp[0]['gn']
@@ -141,4 +141,4 @@ def mergeROIS(Y_res,A,b,C,f,d1,d2,P_,thr=0.8,mx=50,sn=None,deconv_method='spgl1'
         merged_ROIs=[];
         P_new=P_
         
-    return A,C,nr,merged_ROIs,P_new
+    return A,C,nr,merged_ROIs,P_new,S
