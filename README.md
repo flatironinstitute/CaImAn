@@ -10,6 +10,8 @@ Andrea Giovannucci
 Important Note
 ==============
 
+[![Join the chat at https://gitter.im/agiovann/SOURCE_EXTRACTION_PYTHON](https://badges.gitter.im/agiovann/SOURCE_EXTRACTION_PYTHON.svg)](https://gitter.im/agiovann/SOURCE_EXTRACTION_PYTHON?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 The code is currently under development. Please do not use as long as this message appears.
 
 License
