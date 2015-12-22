@@ -14,8 +14,8 @@ Pnevmatikakis, E.A., Gao, Y., Soudry, D., Pfau, D., Lacefield, C., ... & Paninsk
 
 # Contributors
 
-Andrea Giovannucci @agiovann
-Eftychios Pnevmatikakis @epnev
+Andrea Giovannucci and 
+Eftychios Pnevmatikakis 
 
 Center for Computational Biology, Simons Foundation, New York, NY
 
@@ -23,7 +23,7 @@ Center for Computational Biology, Simons Foundation, New York, NY
 Code description and related packages
 =======
 
-This repository contains a MATLAB implementation of the spatio-temporal demixing, i.e., (source extraction) code for large scale calcium imaging data. Related code can be found in the following links:
+This repository contains a Python implementation of the spatio-temporal demixing, i.e., (source extraction) code for large scale calcium imaging data. Related code can be found in the following links:
 
 ## Python
 - [Source extraction with CNMF (this package)](https://github.com/agiovann/SOURCE_EXTRACTION_PYTHON)
