@@ -38,15 +38,6 @@ This repository contains a MATLAB implementation of the spatio-temporal demixing
 - [SIMA](http://www.losonczylab.org/sima/1.3/): The [constrained deconvolution](https://github.com/losonczylab/sima/blob/master/sima/spikes.py) method has been integrated with SIMA, a Python based library for calcium imaging data analysis.
 - [Thunder](http://thunder-project.org/): The [group LASSO initialization and spatial CNMF](https://github.com/j-friedrich/thunder/tree/LocalNMF) method has been integrated with Thunder, a library for large scale neural data analysis with Spark.
 
-
-Usage and Documentation
-=======
-Check the demo scripts and documentation.pdf to get started.
-
-Usage and Documentation
-=======
-Check the demo scripts and documentation.pdf to get started.
-
 Dependencies
 ========
 The code uses the following libraries
@@ -61,11 +52,11 @@ External Dependencies
 
 The constrained deconvolution method (constrained_foopsi_python.py) can estimate with two different methods, each of which requires some additional packages:
 1. 'spgl1'
-  - [SPGL1](https://github.com/epnev/SPGL1_python_port) Python implementation of the SPGL1 method. Please use the "forked" repository linked here.
+  * [SPGL1](https://github.com/epnev/SPGL1_python_port) Python implementation of the SPGL1 method. Please use the "forked" repository linked here.
 2. 'cvx'
-  - [CVXOPT](http://cvxopt.org/) Required.
-  - [PICOS](http://picos.zib.de/) Required.
-  - [MOSEK](https://www.mosek.com/) Optional but strongly recommended for speed improvement, free for academic use.
+  * [CVXOPT](http://cvxopt.org/) Required.
+  * [PICOS](http://picos.zib.de/) Required.
+  * [MOSEK](https://www.mosek.com/) Optional but strongly recommended for speed improvement, free for academic use.
 
 In general 'spgl1' can be faster, but the python implementation is not as fast as in Matlab and not thoroughly tested.
 
