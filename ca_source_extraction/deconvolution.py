@@ -99,7 +99,7 @@ def constrained_foopsi(fluor,
     
     return c,b,c1,g,sn,sp
 
-def spgl1_foopsi(fluor, b, c1, g, sn, p, bas_nonneg, verbosity):
+def spgl1_foopsi(fluor, b, c1, g, sn, p, bas_nonneg, verbosity, thr = 1e-2):
     
     if 'spg' not in globals():
         raise Exception('The SPGL package could not be loaded, use a different method')
@@ -135,12 +135,19 @@ def spgl1_foopsi(fluor, b, c1, g, sn, p, bas_nonneg, verbosity):
     options = {'project' : spg.NormL1NN_project ,
                'primal_norm' : spg.NormL1NN_primal ,
                'dual_norm' : spg.NormL1NN_dual,
-               'weights'   : w, 
-               'verbosity' : verbosity}
+               'weights'   : w,
+               'verbosity' : verbosity,
+               'iterations': T}
     
     opA = lambda x,mode: G_inv_mat(x,mode,T,g,gd_vec,bas_flag,c1_flag)
     
-    spikes = spg_bpdn(opA,np.squeeze(fluor)-bas_nonneg*b_lb - (1-bas_flag)*b -(1-c1_flag)*c1*gd_vec, sn*np.sqrt(T), options)[0]
+    spikes,_,_,info = spg_bpdn(opA,np.squeeze(fluor)-bas_nonneg*b_lb - (1-bas_flag)*b -(1-c1_flag)*c1*gd_vec, sn*np.sqrt(T))
+    if np.min(spikes)<-thr*np.max(spikes):
+        spikes[:T][spikes[:T]<0]=0
+        spikes,_,_,info = spg_bpdn(opA,np.squeeze(fluor)-bas_nonneg*b_lb - (1-bas_flag)*b -(1-c1_flag)*c1*gd_vec, sn*np.sqrt(T), options)
+        
+    #print [np.min(spikes[:T]),np.max(spikes[:T])]
+    spikes[:T][spikes[:T]<0]=0    
     c = opA(np.hstack((spikes[:T],0)),1)
     if bas_flag:
         b = spikes[T] + b_lb
