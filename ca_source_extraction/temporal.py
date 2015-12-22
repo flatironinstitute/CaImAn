@@ -63,7 +63,7 @@ def update_temporal_components(Y,A,b,Cin,fin,ITER=1,method='constrained_foopsi',
     Y=np.matrix(Y)
     C=np.matrix(C)
     Cin=np.matrix(Cin)
-    
+    Sp = np.zeros((nr,T))
     YrA = Y.T*A - Cin.T*(A.T*A);
 
 
@@ -82,8 +82,7 @@ def update_temporal_components(Y,A,b,Cin,fin,ITER=1,method='constrained_foopsi',
                         #print YrA.shape 
                         #print YrA.shape
                         YrA[:,ii] = YrA[:,ii] + nA[ii]*Cin[ii,:].T                  
-                        
-                        cc,cb,c1,gn,sn,_ = constrained_foopsi(np.squeeze(np.asarray(YrA[:,ii]/nA[ii])), method = deconv_method, **pars)
+                        cc,cb,c1,gn,sn,sp = constrained_foopsi(np.squeeze(np.asarray(YrA[:,ii]/nA[ii])), method = deconv_method, **pars)
                         #print pars
                         pars['gn'] = gn
                         
@@ -91,6 +90,7 @@ def update_temporal_components(Y,A,b,Cin,fin,ITER=1,method='constrained_foopsi',
                         gd_vec = gd**range(T)
                         
                         C[ii,:] = cc[:].T + cb + c1*gd_vec
+                        Sp[ii,:] = sp[:T].T
                         YrA[:,ii] = YrA[:,ii] - np.matrix(nA[ii]*C[ii,:]).T
                         pars['b'] = cb
                         pars['c1'] = c1           
@@ -107,8 +107,8 @@ def update_temporal_components(Y,A,b,Cin,fin,ITER=1,method='constrained_foopsi',
                 #C[ii,:] = full(cc');
                 YrA[:,ii] = YrA[:,ii] - nA[ii]*C[ii,:].T
             
-            if jj%10 == 0:
-                print str(jj) + ' out of total ' + str(nr+1) + ' temporal components updated \n'
+            if (jj+1)%10 == 0:
+                print str(jj+1) + ' out of total ' + str(nr+1) + ' temporal components updated \n'
     
     
         #%disp(norm(Fin(1:nr,:) - F,'fro')/norm(F,'fro'));
@@ -127,6 +127,6 @@ def update_temporal_components(Y,A,b,Cin,fin,ITER=1,method='constrained_foopsi',
         
     P_ = sorted(P_, key=lambda k: k['neuron_id']) 
     
-    return C,f,Y_res,P_
+    return C,f,Y_res,P_,Sp
 
 #%%

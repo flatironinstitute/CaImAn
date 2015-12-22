@@ -16,6 +16,8 @@ from update_temporal_components import update_temporal_components
 from matplotlib import pyplot as plt
 from time import time
 from merge_rois import mergeROIS
+
+sys.path.append("../SPGL1_python_port/")
 #%%
 Yp =(pims.open('demoMovie.tif')) 
 Y=[]

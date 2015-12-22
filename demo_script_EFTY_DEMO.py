@@ -5,14 +5,14 @@ Created on Wed Sep  9 18:47:13 2015
 @author: epnevmatikakis
 """
 #%%
-%load_ext autoreload
-%autoreload 2
+#%load_ext autoreload
+#%autoreload 2
 
 import sys
 import numpy as np
 import scipy.io as sio
-
-sys.path.append("../SPGL1_python_port/")
+sys.path.append("../SPGL1_python_port-master/")
+import tifffile
 #%%
 import ca_source_extraction
 from ca_source_extraction.initialization import greedyROI2d, hals_2D,arpfit
@@ -28,14 +28,12 @@ from scipy.sparse import coo_matrix
 import scipy
 from sklearn.decomposition import NMF
 #%%
-import calblitz as cb
-#%%
-import tifffile
+#import calblitz as cb
 #%%
 #try: 
 #    pl.ion()
-#    %load_ext autoreload
-#    %autoreload 2
+    %load_ext autoreload
+    %autoreload 2
 #except:
 #    print "Probably not a Ipython interactive environment" 
 
@@ -52,37 +50,7 @@ d1,d2,T=Y.shape
 #Y = np.transpose(Y,(1,2,0))
 ##Ymat = sio.loadmat('Y.mat')
 ##Y = Ymat['Y']*1.
-#d1,d2,T = np.shape(Y)
-#%% 
-
-m=cb.load('movies/demoMovie.tif',fr=8); 
-T,h,w=np.shape(m)
-Y=np.asarray(m)
-Y = np.transpose(Y,(1,2,0))
-#Ymat = sio.loadmat('Y.mat')
-#Y = Ymat['Y']*1.
-d1,d2,T = np.shape(Y)
-#%%
-t = tifffile.TiffFile('movies/demoMovie.tif') 
-Y = t.asarray() 
-Y = np.transpose(Y,(1,2,0))*1.
-d1,d2,T=Y.shape
-
-
-a = sio.loadmat('movies/demo_movie_test.mat')
-Y_test=a['Y']
-
-assert scipy.linalg.norm(Y-Y_test)==0
-#%%
-#a = sio.loadmat('tmp.mat')
-
-Ain_test=a['Ain']
-Cin_test=a['Cin']
-bin_test=a['bin']
-fin_test=np.squeeze(a['fin'])
-center_test=a['center']
-#%%
-#
+#d1,d2,T = np.shape(Y)#
 #Ain=Ain_test
 #Cin=Cin_test
 #b_in=bin_test
@@ -108,22 +76,16 @@ plt.axis((-0.5,d2-0.5,-0.5,d1-0.5))
 plt.gca().invert_yaxis()
 plt.subplot(2,1,2)
 
-plt2 = plt.imshow(Cn,interpolation='none')
-plt.colorbar()
-plt.scatter(x=center_test[:,1]-1, y=center_test[:,0]-1, c='m', s=40)
-plt.axis((-0.5,d2-0.5,-0.5,d1-0.5))
-plt.gca().invert_yaxis()
+#plt2 = plt.imshow(Cn,interpolation='none')
+#plt.colorbar()
+#plt.scatter(x=center_test[:,1]-1, y=center_test[:,0]-1, c='m', s=40)
+#plt.axis((-0.5,d2-0.5,-0.5,d1-0.5))
+#plt.gca().invert_yaxis()
 #%% 
-plt.subplot(1,2,1)
 crd = plot_contours(coo_matrix(Ain[:,::-1]),Cn,thr=0.9)
-plt.subplot(1,2,2)
-crd = plot_contours(coo_matrix(Ain_test[:,::-1]),Cn,thr=0.9)
+
 #%%  matlab input
-#Ain=Ain_test
-#Cin=Cin_test
-#b_in=bin_test
-#f_in=fin_test
-#center=center_test-1
+
 #%%
 active_pixels = np.squeeze(np.nonzero(np.sum(Ain,axis=1)))
 Yr = np.reshape(Y,(d1*d2,T),order='F')
@@ -141,8 +103,9 @@ t_elSPATIAL = time() - t1
 crd = plot_contours(A,Cn,thr=0.9)
 #%%
 t1 = time()
-C,f,Y_res,Pnew = update_temporal_components(Yr,A,b,Cin,fin,ITER=2,deconv_method = 'spgl1')
+C,f,Y_res,Pnew,S = update_temporal_components(Yr,A,b,Cin,fin,ITER=2,deconv_method = 'spgl1')
 t_elTEMPORAL2 = time() - t1
+
 #%%
 t1 = time()
 A_sp=A.tocsc();
