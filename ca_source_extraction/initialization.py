@@ -13,7 +13,90 @@ import scipy.sparse as spr
 import scipy
 import numpy as np
 from scipy.fftpack import fft, ifft
+from skimage.transform import resize
 
+#%%
+def initialize_components(Y, K=30, gSig=[5,5], gSiz=None, ssub=1, tsub=1, nIter = 5, use_median = False, kernel = None): 
+
+
+"""
+    Initalize components using a greedy approach followed by hierarchical
+    alternative least squares (HALS) NMF. Optional use of spatio-temporal
+    downsampling to boost speed.
+    
+    Input:
+    -------------------------------------------------------
+    Y          d1 x d2 x T movie, raw data
+    K          number of neurons to extract (default value: 30)
+    tau        standard deviation of neuron size along x and y (default value: (5,5)
+    
+    fine-tuning parameters (optional)
+    init_method: method of initialization ('greedy','sparse_NMF','both')
+    nIter: number of iterations for shape tuning (default 5)
+    gSiz: size of kernel (default 2*tau + 1)
+    ssub: spatial downsampling factor (default 1)
+    tsub: temporal downsampling factor (default 1)
+            
+  
+    Output:
+    -------------------------------------------------------
+    Ain        (d1*d2) x K matrix, location of each neuron
+    Cin        T x K matrix, calcium activity of each neuron
+    center     K x 2 matrix, inferred center of each neuron
+    bin        (d1*d2) X nb matrix, initialization of spatial background
+    fin        nb X T matrix, initalization of temporal background
+    res        d1 x d2 x T movie, residual
+      
+    Authors: Andrea Giovannucci, Eftychios A. Pnevmatikakis and Pengchen Zhou
+    """
+    if gSiz is None:
+        gSiz=(2*gSig[0] + 1,2*gSig[1] + 1)
+        
+    # rescale according to downsampling factor
+    gSig = np.round([gSig[0]/ssub,gSig[1]/ssub]).astype(np.int)
+    gSiz = np.round([gSiz[0]/ssub,gSiz[1]/ssub]).astype(np.int)    
+    d1s = np.ceil(d1/ssub).astype(np.int)       #size of downsampled image
+    d2s = np.ceil(d2/ssub).astype(np.int)     
+    Ts = np.floor(T/tsub).astype(np.int)        #reduced number of frames
+
+    # spatial downsampling
+    if ssub!=1 or tsub!=1:
+        Y_ds = resize(Y, [d1s, d2s, Ts], order=0,clip=False,mode='nearest')
+    else:
+        Y_ds = Y
+        
+    Ain, Cin, _, b_in, f_in = greedyROI2d(Y_ds, nr = K, gSig = gSig, gSiz = gSiz, use_median = use_median, nIter=nIte, kernel = kernel)
+
+    Ain, Cin, b_in, f_in = hals_2D(Y_ds, Ain, Cin, b_in, f_in,maxIter=10);
+    
+    center = ssub*com(Ain,d1s,d2s) 
+    Ain=np.reshape(Ain, (d1s, d2s,K),order='F')
+    Ain = resize(Ain, [d1, d2],order=0)
+    
+    Ain = np.reshape(Ain, (d1*d2, K),order='F') 
+    
+    b_in=np.reshape(b_in,(d1s, d2s),order='F')
+    
+    b_in = resize(b_in, [d1, d2]);
+    
+    b_in = np.reshape(b_in, (d1*d2, 1),order='F')
+    
+    Cin = resize(Cin, [K, T])
+    f_in = resize(f_in, [1, T])    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    return Ain, Cin, bin, fin, center
+    
+    
 #%%
 def arpfit(Y, p = 2, sn = None, g = None, noise_range = [0.25,0.5], noise_method = 'logmexp', lags = 5, include_noise = False, pixels = None):
         

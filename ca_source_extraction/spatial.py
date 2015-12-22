@@ -29,9 +29,14 @@ except:
 #import sys
 #sys.path
 #sys.path.append(path_to_folder)
-
+def basis_denoising(y,c,boh,sn,id2_,px):           
+            if np.size(c)>0:
+                _, _, a, _ , _= lars_regression_noise(y, c, 1, sn)
+            else:
+                return (None,None,None)
+            return a,px,id2_
 #%%
-def update_spatial_components(Y,C,f,A_in,d1=None,d2=None,min_size=3,max_size=8,dist=3,sn=None,use_parallel=False, method = 'ellipse', expandCore = iterate_structure(generate_binary_structure(2,1), 2).astype(int)):
+def update_spatial_components(Y,C,f,A_in,d1=None,d2=None,min_size=3,max_size=8,dist=3,sn=None,n_processes=1, method = 'ellipse', expandCore = iterate_structure(generate_binary_structure(2,1), 2).astype(int)):
     #% set variables
     if d1 is None or d2 is None:
         raise Exception('You need to define the input dimensions')
@@ -74,9 +79,24 @@ def update_spatial_components(Y,C,f,A_in,d1=None,d2=None,min_size=3,max_size=8,d
     #% LARS regression 
     A_ = np.hstack((np.zeros((d,nr)),np.zeros((d,np.size(f,0)))))
     
-    if use_parallel:
-        raise Exception('NOT IMPLEMENTED YET')
-        #import multiprocessing as mp    
+    if n_processes>1:
+        raise Exception('Still atexperimental stage. Use n_processes=1')
+        print 'Starting Pool of Workers...'
+        from multiprocessing import Pool        
+        try: 
+            p = Pool(n_processes)  
+            mod_inputs=[(y, np.array(c.T), 1, sn[px]**2*T,id2_,px) for c,y,s,id2_,px in zip(Cf_,Y_,sn,ind2_,range(d))]              
+            results = [p.apply(basis_denoising, args=(y_,c_,boh_,sn_,id2__,px_)) for y_,c_,boh_,sn_,id2__,px_ in mod_inputs]
+            for a_,px_,id2__ in results:
+                if a_ is not None:
+                    A_[px_,id2__]=np.transpose(a_)
+            p.close()    
+            #p.join()    
+            print 'Shutting down Workers...'
+        except:             
+             p.close()    
+             p.join()
+             raise
         #pool = mp.Pool(processes=8)
         #results = [pool.apply(basis_pursuit_denoising, args=(x.T,y.T,z)) for x,y,z in zip(Y_,Cf_,sn)]
         #print(results)

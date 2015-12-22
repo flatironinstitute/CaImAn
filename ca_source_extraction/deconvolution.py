@@ -140,7 +140,8 @@ def spgl1_foopsi(fluor, b, c1, g, sn, p, bas_nonneg, verbosity):
     
     opA = lambda x,mode: G_inv_mat(x,mode,T,g,gd_vec,bas_flag,c1_flag)
     
-    spikes = spg_bpdn(opA,np.squeeze(fluor)-bas_nonneg*b_lb - (1-bas_flag)*b -(1-c1_flag)*c1*gd_vec, sn*np.sqrt(T), options)[0]
+    spikes,_,_,info = spg_bpdn(opA,np.squeeze(fluor)-bas_nonneg*b_lb - (1-bas_flag)*b -(1-c1_flag)*c1*gd_vec, sn*np.sqrt(T), options)
+    print info['iterr']
     c = opA(np.hstack((spikes[:T],0)),1)
     if bas_flag:
         b = spikes[T] + b_lb
