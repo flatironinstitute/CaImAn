@@ -186,3 +186,48 @@ def plot_contours(A,Cn,thr = 0.995, display_numbers = True, max_number = None,cm
             ax.text(cm[i,1],cm[i,0],str(i+1))
             
     return coordinates
+    
+def update_order(A):
+    '''
+    Determines the update order of the temporal components given the spatial 
+    components by creating a nest of random approximate vertex covers
+    Written by Eftychios A. Pnevmatikakis, Simons Foundation, 2015
+    '''    
+    K = np.shape(A)[-1]
+    AA = A.T*A
+    AA.setdiag(0)
+    F = (AA)>0
+    F = F.toarray()
+    rem_ind = np.arange(K)
+    O = []
+    lo = []
+    while len(rem_ind)>0:
+        L = np.sort(app_vertex_cover(F[rem_ind,:][:,rem_ind]))
+        if L.size:        
+            ord_ind = set(rem_ind) - set(rem_ind[L])
+            rem_ind = rem_ind[L]
+        else:
+            ord_ind = set(rem_ind)
+            rem_ind = []
+            
+        O.append(ord_ind)
+        lo.append(len(ord_ind))               
+    
+    return O[::-1],lo[::-1]
+   
+def app_vertex_cover(A):
+    '''
+    Finds an approximate vertex cover for a symmetric graph with adjacency 
+    matrix A. A is boolean with diagonal set to 0
+    Written by Eftychios A. Pnevmatikakis, Simons Foundation, 2015
+    '''
+    
+    L = []
+    while A.any():
+        nz = np.nonzero(A)[0]          # find non-zero edges
+        u = nz[np.random.randint(0,len(nz))]
+        A[u,:] = False
+        A[:,u] = False
+        L.append(u)
+    
+    return np.asarray(L)    
