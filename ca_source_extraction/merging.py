@@ -13,7 +13,7 @@ import warnings
 from scipy.ndimage.morphology import generate_binary_structure, iterate_structure
 
 #%%
-def mergeROIS(Y_res,A,b,C,f,d1,d2,P_,thr=0.8,mx=50,sn=None,deconv_method='spgl1',min_size=3,max_size=8,dist=3,method_exp = 'ellipse', expandCore = iterate_structure(generate_binary_structure(2,1), 2).astype(int)):
+def mergeROIS(Y_res,A,b,C,f,S,d1,d2,P_,thr=0.8,mx=50,sn=None,deconv_method='spgl1',min_size=3,max_size=8,dist=3,method_exp = 'ellipse', expandCore = iterate_structure(generate_binary_structure(2,1), 2).astype(int)):
     """
     merging of spatially overlapping components that have highly correlated tmeporal activity
     % The correlation threshold for merging overlapping components is user specified in P.merge_thr (default value 0.85)
@@ -24,12 +24,14 @@ def mergeROIS(Y_res,A,b,C,f,d1,d2,P_,thr=0.8,mx=50,sn=None,deconv_method='spgl1'
     % C:            matrix of temporal components
     % f:            temporal background
     % P:            parameter struct
+    % S:            matrix of deconvolved activity (spikes)
     
     % Outputs:
     % A:            matrix of new spatial components
     % C:            matrix of new temporal components
     % nr:           new number of components
     % merged_ROIs:  list of old components that were merged
+    % S:            merged spikes 
     
     % Written by:
     % Andrea Giovannucci from implementation of Eftychios A. Pnevmatikakis, Simons Foundation, 2015
@@ -77,6 +79,7 @@ def mergeROIS(Y_res,A,b,C,f,d1,d2,P_,thr=0.8,mx=50,sn=None,deconv_method='spgl1'
     
         A_merged = lil_matrix((d,nm));
         C_merged = np.zeros((nm,T));
+        S_merged = np.zeros((nm,T));
         
         P_merged=[];
         merged_ROIs = []
@@ -96,13 +99,13 @@ def mergeROIS(Y_res,A,b,C,f,d1,d2,P_,thr=0.8,mx=50,sn=None,deconv_method='spgl1'
             
             ff = np.nonzero(A_merged[:,i])[0]     
             
-            cc,_,_,Ptemp,S = update_temporal_components(np.asarray(Y_res[ff,:]),A_merged[ff,i],b[ff],aa_2,f,p=p,deconv_method=deconv_method)  
+            cc,_,_,Ptemp,_ = update_temporal_components(np.asarray(Y_res[ff,:]),A_merged[ff,i],b[ff],aa_2,f,p=p,deconv_method=deconv_method)  
             
             aa,bb,cc = update_spatial_components(np.asarray(Y_res),cc,f,A_merged[:,i],d1=d1,d2=d2,sn=sn,min_size=min_size,max_size=max_size,dist=dist,method = method_exp, expandCore =expandCore)
     
             A_merged[:,i] = aa.tocsr();        
     
-            cc,_,_,Ptemp,S = update_temporal_components(Y_res[ff,:],A_merged[ff,i],bb[ff],cc,f,p=p,deconv_method=deconv_method)
+            cc,_,_,Ptemp,ss = update_temporal_components(Y_res[ff,:],A_merged[ff,i],bb[ff],cc,f,p=p,deconv_method=deconv_method)
             
             P_cycle=P_[merged_ROI[0]].copy()
             P_cycle['gn']=Ptemp[0]['gn']
@@ -111,6 +114,8 @@ def mergeROIS(Y_res,A,b,C,f,d1,d2,P_,thr=0.8,mx=50,sn=None,deconv_method='spgl1'
             P_cycle['neuron_sn']=Ptemp[0]['neuron_sn']
             P_merged.append(P_cycle)
             C_merged[i,:] = cc
+            S_merged[i,:] = ss
+            
             if i+1 < nm:
                 Y_res[ff,:] = Y_res[ff,:] - A_merged[ff,i]*cc
                 
@@ -119,9 +124,9 @@ def mergeROIS(Y_res,A,b,C,f,d1,d2,P_,thr=0.8,mx=50,sn=None,deconv_method='spgl1'
                 
         good_neurons=np.setdiff1d(range(nr),neur_id)    
         
-        A= scipy.sparse.hstack((A[:,good_neurons],A_merged.tocsc()))
+        A = scipy.sparse.hstack((A[:,good_neurons],A_merged.tocsc()))
         C = np.vstack((C[good_neurons,:],C_merged))
-        
+        S = np.vstack((S[good_neurons,:],S_merged))
     #    P_new=list(P_[good_neurons].copy())
         P_new=[P_[pp] for pp in good_neurons]
         

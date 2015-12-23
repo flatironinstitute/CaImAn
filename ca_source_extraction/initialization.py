@@ -86,6 +86,8 @@ def initialize_components(Y, K=30, gSig=[5,5], gSiz=None, ssub=1, tsub=1, nIter 
     f_in = resize(f_in, [1, T])    
     center = com(Ain,d1,d2)
     
+
+    
     return Ain, Cin, b_in, f_in, center
     
     
@@ -325,11 +327,6 @@ def greedyROI2d(Y, nr=30, gSig = [5,5], gSiz = [11,11], nIter = 5, use_median = 
     b_in = model.fit_transform(np.maximum(res,0));
     f_in = model.components_.squeeze();    
    
-#    f_in = model.components_.squeeze()
-#    W = nmf_model.fit_transform(A);
-#    H = nmf_model.components_;
-    #[b_in,f_in] = NMF(n_components=1) 
-    #np.maximum(res,0)      
     return A, C, center, b_in, f_in
 
 #%%

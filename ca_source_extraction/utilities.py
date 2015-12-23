@@ -132,7 +132,7 @@ def view_patches(Yr,A,C,b,f,d1,d2):
             plt.plot(np.arange(T),np.squeeze(np.array(C[i,:])))
             ax2.set_title('Temporal component ' + str(i+1)) 
             ax2.legend(labels = ['Filtered raw data','Inferred trace'])
-            plt.pause(4)            
+            plt.pause(1)            
             #plt.waitforbuttonpress()
             fig.delaxes(ax2)
         else:
