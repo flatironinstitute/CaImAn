@@ -4,12 +4,9 @@ Created on Wed Aug 05 20:38:27 2015
 # -*- coding: utf-8 -*-
 @author: agiovann
 """
-import scipy.io as sio
 import numpy as np
-from matplotlib import pylab as plt
-from matplotlib.pylab import plot, imshow
 #from scipy.sparse import coo_matrix as coom
-from scipy.sparse import coo_matrix ,csc_matrix,csr_matrix      
+from scipy.sparse import coo_matrix ,csc_matrix      
 from scipy.sparse import spdiags
 from scipy.linalg import eig
 from scipy.ndimage.morphology import generate_binary_structure, iterate_structure

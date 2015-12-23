@@ -9,32 +9,7 @@ import numpy as np
 from scipy.sparse import spdiags, diags
 from matplotlib import pyplot as plt
 
-def interpolate_missing_data(Y):
-    """
-    Interpolate any missing data using nearest neighbor interpolation
-    """
-    from scipy.interpolate import griddata    
-    
-    mis_data = np.isnan(Y)
-    coor = mis_data.nonzero()
-    ok_data = ~mis_data
-    coor_ok = ok_data.nonzero()
-    Yvals = griddata(coor_ok,Y[coor_ok],coor,method='nearest')
-#    un_t = np.unique(coor[-1])
-#    coorx = []
-#    coory = []
-#    Yvals = []
-#    for i, unv in enumerate(un_t):
-#        tm = np.where(coor[-1]==unv)
-#        coorx.append(coor[0][tm].tolist())
-#        coory.append(coor[1][tm].tolist())
-#        Yt = Y[:,:,unv]
-#        ok = ~np.isnan(Yt)
-#        coor_ok = ok.nonzero()
-#        ytemp = griddata(coor_ok,Yt[coor_ok],(coor[0][tm],coor[1][tm]),method='nearest')
-#        Yvals.append(ytemp)
-        
-    return Yvals, coor
+
 
 def local_correlations(Y,eight_neighbours=False, swap_dim = True):
      # Output:
@@ -122,16 +97,7 @@ def extract_DF_F(Y,A,C,i=None):
              
     return C_df, Df
 
-def find_unsaturated_pixels(Y, saturationValue = None, saturationThreshold = 0.9, saturationTime = 0.005):
-    
-    if saturationValue == None:
-        saturationValue = np.power(2,np.ceil(np.log2(np.max(Y))))-1
-        
-    Ysat = (Y >= saturationThreshold*saturationValue)
-    pix = np.mean(Ysat,Y.ndim-1).flatten('F') > saturationTime
-    normalPixels = np.where(pix)
-    
-    return normalPixels
+
      
 def com(A,d1,d2):
 

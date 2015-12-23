@@ -4,13 +4,9 @@ Created on Tue Sep  8 16:23:57 2015
 
 @author: agiovann
 """
-from scipy.sparse import spdiags,coo_matrix,csgraph,csr_matrix,csc_matrix, lil_matrix
+from scipy.sparse import coo_matrix,csgraph,csc_matrix, lil_matrix
 import scipy
 import numpy as np
-import cPickle as pickle
-from deconvolution import constrained_foopsi
-import random
-from scipy import linalg
 from spatial import update_spatial_components
 from temporal import update_temporal_components
 import warnings
@@ -120,9 +116,7 @@ def mergeROIS(Y_res,A,b,C,f,d1,d2,P_,thr=0.8,mx=50,sn=None,deconv_method='spgl1'
                 
         #%
         neur_id = np.unique(np.hstack(merged_ROIs))
-        
-    
-    
+                
         good_neurons=np.setdiff1d(range(nr),neur_id)    
         
         A= scipy.sparse.hstack((A[:,good_neurons],A_merged.tocsc()))

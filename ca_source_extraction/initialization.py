@@ -14,7 +14,7 @@ import scipy
 import numpy as np
 from scipy.fftpack import fft, ifft
 from skimage.transform import resize
-
+from ca_source_extraction.utilities import com
 #%%
 def initialize_components(Y, K=30, gSig=[5,5], gSiz=None, ssub=1, tsub=1, nIter = 5, use_median = False, kernel = None): 
     """
@@ -43,32 +43,35 @@ def initialize_components(Y, K=30, gSig=[5,5], gSiz=None, ssub=1, tsub=1, nIter 
     center     K x 2 matrix, inferred center of each neuron
     bin        (d1*d2) X nb matrix, initialization of spatial background
     fin        nb X T matrix, initalization of temporal background
-    res        d1 x d2 x T movie, residual
+
       
     Authors: Andrea Giovannucci, Eftychios A. Pnevmatikakis and Pengchen Zhou
     """
     if gSiz is None:
         gSiz=(2*gSig[0] + 1,2*gSig[1] + 1)
-        
+     
+    d1,d2,T=np.shape(Y) 
     # rescale according to downsampling factor
     gSig = np.round([gSig[0]/ssub,gSig[1]/ssub]).astype(np.int)
     gSiz = np.round([gSiz[0]/ssub,gSiz[1]/ssub]).astype(np.int)    
     d1s = np.ceil(d1/ssub).astype(np.int)       #size of downsampled image
     d2s = np.ceil(d2/ssub).astype(np.int)     
     Ts = np.floor(T/tsub).astype(np.int)        #reduced number of frames
-
+    
     # spatial downsampling
     if ssub!=1 or tsub!=1:
+        print 'Spatial Downsampling...'
         Y_ds = resize(Y, [d1s, d2s, Ts], order=0,clip=False,mode='nearest')
     else:
         Y_ds = Y
         
-    Ain, Cin, _, b_in, f_in = greedyROI2d(Y_ds, nr = K, gSig = gSig, gSiz = gSiz, use_median = use_median, nIter=nIte, kernel = kernel)
-
+    print 'Roi Extraction...'    
+    Ain, Cin, _, b_in, f_in = greedyROI2d(Y_ds, nr = K, gSig = gSig, gSiz = gSiz, use_median = use_median, nIter=nIter, kernel = kernel)
+    print 'Refining Components...'    
     Ain, Cin, b_in, f_in = hals_2D(Y_ds, Ain, Cin, b_in, f_in,maxIter=10);
     
-    center = ssub*com(Ain,d1s,d2s) 
-    Ain=np.reshape(Ain, (d1s, d2s,K),order='F')
+    #center = ssub*com(Ain,d1s,d2s) 
+    Ain = np.reshape(Ain, (d1s, d2s,K),order='F')
     Ain = resize(Ain, [d1, d2],order=0)
     
     Ain = np.reshape(Ain, (d1*d2, K),order='F') 
@@ -81,9 +84,9 @@ def initialize_components(Y, K=30, gSig=[5,5], gSiz=None, ssub=1, tsub=1, nIter 
     
     Cin = resize(Cin, [K, T])
     f_in = resize(f_in, [1, T])    
+    center = com(Ain,d1,d2)
     
-    
-    return Ain, Cin, bin, fin, center
+    return Ain, Cin, b_in, f_in, center
     
     
 #%%
@@ -103,7 +106,7 @@ def arpfit(Y, p = 2, sn = None, g = None, noise_range = [0.25,0.5], noise_method
         
     P['g'] = g
     
-    return P
+    return 
 
 #%%
 def estimate_time_constant(Y, sn, p = 2, lags = 5, include_noise = False, pixels = None):

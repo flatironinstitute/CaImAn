@@ -141,18 +141,18 @@ t_elSPATIAL = time() - t1
 crd = plot_contours(A,Cn,thr=0.9)
 #%%
 t1 = time()
-C,f,Y_res,Pnew = update_temporal_components(Yr,A,b,Cin,fin,ITER=2,deconv_method = 'spgl1')
+C,f,Y_res,Pnew,S = update_temporal_components(Yr,A,b,Cin,fin,ITER=2,deconv_method = 'debug')#spgl1
 t_elTEMPORAL2 = time() - t1
 #%%
 t1 = time()
 A_sp=A.tocsc();
-A_m,C_m,nr_m,merged_ROIs,P_m=mergeROIS(Y_res,A_sp,b,np.array(C),f,d1,d2,Pnew,sn=P['sn'],thr=.85,deconv_method='spgl1',min_size=3,max_size=8,dist=2)
+A_m,C_m,nr_m,merged_ROIs,P_m,S=mergeROIS(Y_res,A_sp,b,np.array(C),f,d1,d2,Pnew,sn=P['sn'],thr=.85,deconv_method='debug',min_size=3,max_size=8,dist=2)
 t_elMERGE = time() - t1
 #%%
 crd = plot_contours(A_m,Cn,thr=0.9)
 #%%
 A2,b2,C_m_ = update_spatial_components(Yr, C_m, f, A_m, d1=d1, d2=d2, sn = P['sn'],dist=2,max_size=8,min_size=3)
-C2,f2,Y_res2,Pnew2 = update_temporal_components(Yr,A2,b2,C_m_,f,ITER=2,deconv_method = 'spgl1')
+C2,f2,Y_res2,Pnew2,S = update_temporal_components(Yr,A2,b2,C_m_,f,ITER=2,deconv_method = 'debug')
 #%%
 crd = plot_contours(A2,Cn,thr=0.9,cmap=pl.cm.gray)
 
