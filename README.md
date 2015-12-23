@@ -1,4 +1,4 @@
-Python translation of Constrained Non-negative Matrix Factorzation algorithm for source extraction from calcium imaging data. 
+Python translation of Constrained Non-negative Matrix Factorization algorithm for source extraction from calcium imaging data. 
 
 [![Join the chat at https://gitter.im/agiovann/SOURCE_EXTRACTION_PYTHON](https://badges.gitter.im/agiovann/SOURCE_EXTRACTION_PYTHON.svg)](https://gitter.im/agiovann/SOURCE_EXTRACTION_PYTHON?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
