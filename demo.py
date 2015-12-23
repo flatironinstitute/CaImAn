@@ -13,6 +13,8 @@ except:
 import sys
 import numpy as np
 import scipy.io as sio
+
+sys.path.append('../SPGL1_python_port')
 import ca_source_extraction as cse
 #%%
 from ca_source_extraction.initialization import initialize_components,arpfit
