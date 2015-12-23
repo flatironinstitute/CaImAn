@@ -6,13 +6,11 @@ Created on Tue Sep  8 11:56:06 2015
 """
 
 import numpy as np
-import matplotlib.pyplot as plt
 from sklearn.decomposition import NMF
 import scipy.ndimage as nd
 import scipy.sparse as spr
 import scipy
-import numpy as np
-from scipy.fftpack import fft, ifft
+from scipy.fftpack import fft, ifft, rfft
 from skimage.transform import resize
 from ca_source_extraction.utilities import com
 #%%
@@ -148,8 +146,33 @@ def estimate_time_constant(Y, sn, p = 2, lags = 5, include_noise = False, pixels
     
 
 #%%
-def get_noise_fft(Y, noise_range = [0.25,0.5], noise_method = 'logmexp'):
+#def get_noise_fft(Y, noise_range = [0.25,0.5], noise_method = 'logmexp'):
+#    
+#    T = np.shape(Y)[-1]
+#    dims = len(np.shape(Y))
+#    ff = np.arange(0,0.5+1./T,1./T)
+#    ind1 = ff > noise_range[0]
+#    ind2 = ff <= noise_range[1]
+#    ind = np.logical_and(ind1,ind2)
+#    if dims > 1:
+#        xdft = fft(Y,axis=-1)
+#        xdft = xdft[...,:T/2+1]
+#        psdx = (1./T)*np.abs(xdft)**2
+#        psdx[...,1:] *= 2
+#        sn = mean_psd(psdx[...,ind], method = noise_method)
+#        
+#    else:
+#        xdft = fft(Y)
+#        xdft = xdft[:T/2+1]
+#        psdx = (1./T)*np.abs(xdft)**2
+#        psdx[1:] *=2
+#        sn = mean_psd(psdx[ind], method = noise_method)
+#    
+#    return sn
     
+#%% 
+def get_noise_fft(Y, noise_range = [0.25,0.5], noise_method = 'logmexp'):
+
     T = np.shape(Y)[-1]
     dims = len(np.shape(Y))
     ff = np.arange(0,0.5+1./T,1./T)
@@ -157,22 +180,45 @@ def get_noise_fft(Y, noise_range = [0.25,0.5], noise_method = 'logmexp'):
     ind2 = ff <= noise_range[1]
     ind = np.logical_and(ind1,ind2)
     if dims > 1:
-        sn = 0
-        xdft = fft(Y,axis=-1)
-        xdft = xdft[...,:T/2+1]
-        psdx = (1./T)*np.abs(xdft)**2
+        xdft = np.fft.rfft(Y,axis=-1)
+        psdx = (1./T)*abs(xdft)**2
         psdx[...,1:] *= 2
         sn = mean_psd(psdx[...,ind], method = noise_method)
         
     else:
-        xdft = fft(Y)
-        xdft = xdft[:T/2+1]
-        psdx = (1./T)*np.abs(xdft)**2
+        xdft = np.fliplr(rfft(Y))
+        psdx = (1./T)*(xdft**2)
         psdx[1:] *=2
         sn = mean_psd(psdx[ind], method = noise_method)
     
-    return sn
-    
+    return sn        
+
+
+#def get_noise_ffts(Y, noise_range = [0.25,0.5], noise_method = 'logmexp'):
+#
+#    T = np.shape(Y)[-1]
+#    dims = len(np.shape(Y))
+#    #ff = np.kron(np.arange(0,0.5,1./T),[1,1])
+#    ff = np.arange(0,0.5+1./T,1./T)
+#    ind1 = ff > noise_range[0]
+#    ind2 = ff <= noise_range[1]
+#    ind = np.logical_and(ind1,ind2)
+#    if dims > 1:
+#        xdft = rfft(Y,axis=-1)
+#        #xdft = np.hstack((xdft[:,0][None].T,xdft[:,1::2])) + np.hstack((np.zeros((np.shape(Y)[0],1)),xdft[:,2::2],np.zeros((np.shape(Y)[0],np.mod(T+1,2)))))*(1j)
+#        #psdx = (1./T)*(np.hstack((xdft[:,0][None].T,xdft[:,1::2]))**2 + np.hstack((np.zeros((np.shape(Y)[0],1)),xdft[:,2::2],np.zeros((np.shape(Y)[0],np.mod(T+1,2)))))**2)
+#        indx1 = [0] + range(1,T,2)
+#        psdx = (1./T)*(xdft[:,indx1]**2 + np.hstack((np.zeros((np.shape(Y)[0],1)),xdft[:,2::2],np.zeros((np.shape(Y)[0],np.mod(T+1,2)))))**2)
+#        psdx[...,1:] *= 2
+#        sn = mean_psd(psdx[...,ind], method = noise_method)
+#        
+#    else:
+#        xdft = np.fliplr(rfft(Y))
+#        psdx = (1./T)*(xdft**2)
+#        psdx[1:] *=2
+#        sn = mean_psd(psdx[ind], method = noise_method)
+#    
+#    return sn  
 
 #%%
 def mean_psd(y, method = 'logmexp'):
