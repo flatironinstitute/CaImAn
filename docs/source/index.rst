@@ -11,9 +11,10 @@ Contents:
 .. toctree::
    :maxdepth: 2
 
-   tutorial	      
-   core_functions.rst
-   
+   Overview	      
+   Tutorial	      
+   core_functions
+   API reference
 	      
 
 Indices and tables
