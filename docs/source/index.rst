@@ -11,7 +11,8 @@ Contents:
 .. toctree::
    :maxdepth: 2
 
-
+   core_functions
+	      
 
 Indices and tables
 ==================
