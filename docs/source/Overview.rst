@@ -23,7 +23,7 @@ Center for Computational Biology, Simons Foundation, New York, NY
 
 
 Code description and related packages
-=====================================
+--------------------------------------
 
 This repository contains a Python implementation of the spatio-temporal demixing, i.e., (source extraction) code for large scale calcium imaging data. Related code can be found in the following links:
 
@@ -41,7 +41,7 @@ This repository contains a Python implementation of the spatio-temporal demixing
 - [Thunder](http://thunder-project.org/): The [group LASSO initialization and spatial CNMF](https://github.com/j-friedrich/thunder/tree/LocalNMF) method has been integrated with Thunder, a library for large scale neural data analysis with Spark.
 
 Dependencies
-=============
+-------------
 The code uses the following libraries
 - [NumPy](http://www.numpy.org/)
 - [SciPy](http://www.scipy.org/)
@@ -50,7 +50,7 @@ The code uses the following libraries
 - [Tifffile](https://pypi.python.org/pypi/tifffile) For reading tiff files. Other choices can work there too.
 
 External Dependencies
-======================
+------------------------
 
 The constrained deconvolution method (constrained_foopsi_python.py) can estimate with two different methods, each of which requires some additional packages:
 
@@ -63,15 +63,15 @@ The constrained deconvolution method (constrained_foopsi_python.py) can estimate
 In general 'spgl1' can be faster, but the python implementation is not as fast as in Matlab and not thoroughly tested.
 
 Questions, comments, issues
-===========================
+-----------------------------
 Please use the gitter chat room (use the button above) for questions and comments and create an issue for any bugs you might encounter.
 
 Important note
-==============
+----------------
 The implementation of this package is based on the matlab implementation which can be found [here](https://github.com/epnev/ca_source_extraction). Some of the Matlab features are currently lacking, but will be included in future releases. 
 
 License
-========
+--------
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
