@@ -1,10 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Tue Sep  8 11:56:06 2015
-
-@author: epnevmatikakis
-"""
-
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.decomposition import NMF
@@ -12,41 +5,49 @@ import scipy.ndimage as nd
 import scipy.sparse as spr
 import scipy
 import numpy as np
-from scipy.fftpack import fft, ifft
+from scipy.fftpack import fft, ifft, rfft,dst
 from skimage.transform import resize
 from ca_source_extraction.utilities import com
 #%%
 def initialize_components(Y, K=30, gSig=[5,5], gSiz=None, ssub=1, tsub=1, nIter = 5, use_median = False, kernel = None): 
-    """
-    Initalize components using a greedy approach followed by hierarchical
-    alternative least squares (HALS) NMF. Optional use of spatio-temporal
-    downsampling to boost speed.
+    """Initalize components using a greedy approach followed by hierarchical alternative least squares (HALS) NMF.
     
-    Input:
-    -------------------------------------------------------
-    Y          d1 x d2 x T movie, raw data
-    K          number of neurons to extract (default value: 30)
-    tau        standard deviation of neuron size along x and y (default value: (5,5)
-    
-    fine-tuning parameters (optional)
-    init_method: method of initialization ('greedy','sparse_NMF','both')
-    nIter: number of iterations for shape tuning (default 5)
-    gSiz: size of kernel (default 2*tau + 1)
-    ssub: spatial downsampling factor (default 1)
-    tsub: temporal downsampling factor (default 1)
-            
+    Optional use of spatio-temporal downsampling to boost speed.
+     
+    Parameters
+    ----------   
+    Y: np.ndarray
+         d1 x d2 x T movie, raw data.
+    K: [optional] int
+        number of neurons to extract (default value: 30).
+    tau: [optional] list,tuple
+        standard deviation of neuron size along x and y (default value: (5,5).
+    gSiz: [optional] list,tuple
+        size of kernel (default 2*tau + 1).
+    nIter: [optional] int
+        number of iterations for shape tuning (default 5).    
+    ssub: [optional] int
+        spatial downsampling factor (default 1).
+    tsub: [optional] int
+        temporal downsampling factor (default 1).
+    use_median: [optional] bool
+        add back fluorescence median values or not during refinement.            
   
-    Output:
-    -------------------------------------------------------
-    Ain        (d1*d2) x K matrix, location of each neuron
-    Cin        T x K matrix, calcium activity of each neuron
-    center     K x 2 matrix, inferred center of each neuron
-    bin        (d1*d2) X nb matrix, initialization of spatial background
-    fin        nb X T matrix, initalization of temporal background
-
-      
-    Authors: Andrea Giovannucci, Eftychios A. Pnevmatikakis and Pengchen Zhou
+    Returns
+    --------    
+    Ain: np.ndarray        
+        (d1*d2) x K , spatial filter of each neuron.
+    Cin: np.ndarray
+        T x K , calcium activity of each neuron.
+    center: np.ndarray
+        K x 2 , inferred center of each neuron.
+    bin: np.ndarray
+        (d1*d2) X nb, initialization of spatial background.
+    fin: np.ndarray
+        nb X T matrix, initalization of temporal background.    
+        
     """
+    
     if gSiz is None:
         gSiz=(2*gSig[0] + 1,2*gSig[1] + 1)
      
@@ -112,7 +113,9 @@ def arpfit(Y, p = 2, sn = None, g = None, noise_range = [0.25,0.5], noise_method
 
 #%%
 def estimate_time_constant(Y, sn, p = 2, lags = 5, include_noise = False, pixels = None):
-        
+    """ try this
+
+    """    
     if pixels is None:
         pixels = np.arange(np.size(Y)/np.shape(Y)[-1])
     
@@ -158,10 +161,33 @@ def get_noise_fft(Y, noise_range = [0.25,0.5], noise_method = 'logmexp'):
     ind = np.logical_and(ind1,ind2)
     if dims > 1:
         sn = 0
-        xdft = fft(Y,axis=-1)
+        
+        import time
+        import scipy                
+        import pyfftw        
+#
+        st=time.time()
+        ppx,n = Y.shape        
+        #Yfft=pyfftw.n_byte_align_empty((ppx,n), 16, dtype='int16',order='F')
+#        Yfft[:]=Y[:]
+        print time.time()-st
+        xdft = pyfftw.interfaces.numpy_fft.rfft(Y,n=16,threads=8,axis=-1)        
+        print time.time()-st
+        
+#        st=time.time()
+#        xdft = rfft(Y,axis=-1)
+#        print time.time()-st
+        
+        st=time.time()
+        xdft = rfft(Y,axis=-1)
+        print time.time()-st
+
+                
+        
         xdft = xdft[...,:T/2+1]
         psdx = (1./T)*np.abs(xdft)**2
         psdx[...,1:] *= 2
+
         sn = mean_psd(psdx[...,ind], method = noise_method)
         
     else:
