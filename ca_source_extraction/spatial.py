@@ -75,7 +75,8 @@ def update_spatial_components(Y,C,f,A_in,d1=None,d2=None,min_size=3,max_size=8,d
         
 
     Returns
-    --------    
+    --------
+    
     A: np.ndarray        
          new estimate of spatial footprints
     b: np.ndarray

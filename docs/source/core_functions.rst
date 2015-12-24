@@ -1,6 +1,8 @@
 Core Functions
 =======================
 
+Functions that are required to operate the package at a basic level
+
 .. autosummary::
 
    pre_processing.preprocess_data

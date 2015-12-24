@@ -32,7 +32,7 @@ sys.path.insert(0, os.path.abspath('../../ca_source_extraction'))
 extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.viewcode',
-    'sphinx.ext.autodoc',
+    'sphinx.ext.napoleon',
     'sphinx.ext.autosummary',
     'numpydoc'
 ]
