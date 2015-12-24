@@ -20,59 +20,54 @@ from spgl1 import spg_bpdn
 import spgl_aux as spg
 
 #%%
-def constrained_foopsi(fluor, 
-                     b = None, 
-                     c1 = None, 
-                     g = None, 
-                     sn = None, 
-                     p= 2, 
-                     method = 'cvx', 
-                     bas_nonneg = True, 
-                     noise_range = [.25,.5],
-                     noise_method = 'logmexp',
-                     lags = 5, 
-                     resparse = 0,
-                     fudge_factor = 1., 
-                     verbosity = False):
-
-    """
-    Infer the most likely discretized spike train underlying a fluorescence
-    trace, using a noise constrained deconvolution approach
-    Inputs
+def constrained_foopsi(fluor, b = None,  c1 = None, g = None,  sn = None, p= 2, method = 'spgl1', bas_nonneg = True,  
+                     noise_range = [.25,.5], noise_method = 'logmexp', lags = 5, fudge_factor = 1., 
+                    verbosity = False):
+    
+    """ Infer the most likely discretized spike train underlying a fluorescence trace 
+    
+    It relies on a noise constrained deconvolution approach
+    
+    
+    Parameters
     ----------
-    fluor   : nparray
+    fluor: np.ndarray
         One dimensional array containing the fluorescence intensities with
         one entry per time-bin.
-    b       : float, optional
-        Fluorescence baseline balue. If no value is given, then b is estimated 
-        from the data
-    c1      : 
-    g       : float, optional
+    b: [optional] float
+        Fluorescence baseline value. If no value is given, then b is estimated 
+        from the data.
+    c1: [optional] float
+        value of calcium at time 0
+    g: [optional] list,float 
         Parameters of the AR process that models the fluorescence impulse response.
         Estimated from the data if no value is given
-    sn      : float, optional
+    sn: float, optional
         Standard deviation of the noise distribution.  If no value is given, 
         then sn is estimated from the data.        
-    options : dictionary
-        list of user selected options (see more below)
-
-
-    'p'             :         2, # AR order 
-    'method'        :     'cvx', # solution method (no other currently supported)
-    'bas_nonneg'    :      True, # bseline strictly non-negative
-    'noise_range'   :  [.25,.5], # frequency range for averaging noise PSD
-    'noise_method'  : 'logmexp', # method of averaging noise PSD
-    'lags'          :         5, # number of lags for estimating time constants
-    'resparse'      :         0, # times to resparse original solution (not supported)
-    'fudge_factor'  :         1, # fudge factor for reducing time constant bias
-    'verbosity'     :     False, # display optimization details
+    p: int
+        order of the autoregression model
+    method: [optional] string
+        solution method for basis projection pursuit 'cvx' or 'spgl1'    
+    bas_nonneg: bool
+        baseline strictly non-negative        
+    noise_range:  list of two elms
+        frequency range for averaging noise PSD
+    noise_method: string
+        method of averaging noise PSD
+    lags: int 
+        number of lags for estimating time constants    
+    fudge_factor: float
+        fudge factor for reducing time constant bias
+    verbosity: bool     
+         display optimization details
     
     Returns
     -------
-    c            : ndarray of float
+    c: np.ndarray float
         The inferred denoised fluorescence signal at each time-bin.
     b, c1, g, sn : As explained above
-    sp           : ndarray of float
+    sp: ndarray of float
         Discretized deconvolved neural activity (spikes)
     
     References

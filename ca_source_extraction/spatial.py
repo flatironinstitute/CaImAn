@@ -33,8 +33,60 @@ def basis_denoising(y,c,boh,sn,id2_,px):
                 return (None,None,None)
             return a,px,id2_
 #%%
-def update_spatial_components(Y,C,f,A_in,d1=None,d2=None,min_size=3,max_size=8,dist=3,sn=None,n_processes=1, method = 'ellipse', expandCore = iterate_structure(generate_binary_structure(2,1), 2).astype(int)):
-    #% set variables
+def update_spatial_components(Y,C,f,A_in,d1=None,d2=None,min_size=3,max_size=8,dist=3,sn=None,n_processes=1, method = 'ellipse', expandCore = None):
+    """update spatial footprints and background     
+    through Basis Pursuit Denoising
+
+    for each pixel i solve the problem 
+        [A(i,:),b(i)] = argmin sum(A(i,:))
+    subject to 
+        || Y(i,:) - A(i,:)*C + b(i)*f || <= sn(i)*sqrt(T);
+    
+    for each pixel the search is limited to a few spatial components
+    
+    Parameters
+    ----------   
+    Y: np.ndarray (2D)
+        movie, raw data in 2D (pixels x time).
+    C: np.ndarray
+        calcium activity of each neuron. 
+    f: np.ndarray
+        temporal profile  of background activity.
+    Ain: np.ndarray
+        spatial profile of background activity.    
+        
+    d1: [optional] int
+        x movie dimension
+    d2: [optional] int
+        y movie dimension
+    min_size: [optional] int
+        
+    max_size: [optional] int
+        
+    dist: [optional] int
+        
+    sn: [optional] float
+        
+    n_processes: [optional] int
+        
+    method: [optional] string
+        
+    expandCore: [optional]  scipy.ndimage.morphology
+        
+
+    Returns
+    --------    
+    A: np.ndarray        
+         new estimate of spatial footprints
+    b: np.ndarray
+        new estimate of spatial background
+    C: np.ndarray        
+         temporal components (updated only when spatial components are completely removed)             
+       
+    """
+    if expandCore is None:
+        expandCore=iterate_structure(generate_binary_structure(2,1), 2).astype(int)
+    
     if d1 is None or d2 is None:
         raise Exception('You need to define the input dimensions')
     

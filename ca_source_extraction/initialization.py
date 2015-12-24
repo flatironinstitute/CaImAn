@@ -8,8 +8,9 @@ from skimage.transform import resize
 from ca_source_extraction.utilities import com
 #%%
 def initialize_components(Y, K=30, gSig=[5,5], gSiz=None, ssub=1, tsub=1, nIter = 5, use_median = False, kernel = None): 
-    """Initalize components using a greedy approach followed by hierarchical alternative least squares (HALS) NMF.
+    """Initalize components 
     
+    This method uses a greedy approach followed by hierarchical alternative least squares (HALS) NMF.
     Optional use of spatio-temporal downsampling to boost speed.
      
     Parameters
