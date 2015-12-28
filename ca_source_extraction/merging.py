@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""
+"""Merging of spatially overlapping components that are temporally correlated
 Created on Tue Sep  8 16:23:57 2015
 
 @author: agiovann
@@ -13,25 +13,43 @@ import warnings
 from scipy.ndimage.morphology import generate_binary_structure, iterate_structure
 
 #%%
-def mergeROIS(Y_res,A,b,C,f,S,d1,d2,P_,thr=0.8,mx=50,sn=None,deconv_method='spgl1',min_size=3,max_size=8,dist=3,method_exp = 'ellipse', expandCore = iterate_structure(generate_binary_structure(2,1), 2).astype(int)):
+def mergeROIS(Y_res,A,b,C,f,S,d1,d2,P_,thr=0.85,mx=50,sn=None,deconv_method='spgl1',min_size=3,max_size=8,dist=3,method_exp = 'ellipse', expandCore = iterate_structure(generate_binary_structure(2,1), 2).astype(int)):
     """
-    merging of spatially overlapping components that have highly correlated tmeporal activity
-    % The correlation threshold for merging overlapping components is user specified in P.merge_thr (default value 0.85)
-    % Inputs:
-    % Y_res:        residual movie after subtracting all found components
-    % A:            matrix of spatial components
-    % b:            spatial background
-    % C:            matrix of temporal components
-    % f:            temporal background
-    % P:            parameter struct
-    % S:            matrix of deconvolved activity (spikes)
+    merging of spatially overlapping components that have highly correlated temporal activity
+    The correlation threshold for merging overlapping components is user specified in thr
+     Inputs:
+     Y_res:        np.ndarray 
+            residual movie after subtracting all found components (Y_res = Y - A*C - b*f) (d x T)
+     A:     sparse matrix
+                matrix of spatial components (d x K)
+     b:     np.ndarray
+                spatial background (vector of length d)
+     C:     np.ndarray
+                matrix of temporal components (K x T)
+     f:     np.ndarray
+                temporal background (vector of length T)
+     P_:     struct
+                structure with neuron parameteres
+     S:     np.ndarray            
+                matrix of deconvolved activity (spikes) (K x T)
+     thr:   scalar between 0 and 1
+                correlation threshold for merging (default 0.85)
+     mx:    int
+                maximum number of merging operations (default 50)
+     sn:    nd.array
+                noise level for each pixel (vector of length d)
     
-    % Outputs:
-    % A:            matrix of new spatial components
-    % C:            matrix of new temporal components
-    % nr:           new number of components
-    % merged_ROIs:  list of old components that were merged
-    % S:            merged spikes 
+    Outputs:
+     A:     sparse matrix
+                matrix of merged spatial components (d x K)
+     C:     np.ndarray
+                matrix of merged temporal components (K x T)
+     nr:    int
+            number of components after merging
+     P_:     struct
+                structure with new neuron parameteres
+     S:     np.ndarray            
+                matrix of merged deconvolved activity (spikes) (K x T)
     
     % Written by:
     % Andrea Giovannucci from implementation of Eftychios A. Pnevmatikakis, Simons Foundation, 2015
