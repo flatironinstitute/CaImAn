@@ -30,11 +30,13 @@ def initialize_components(Y, K=30, gSig=[5,5], gSiz=None, ssub=1, tsub=1, nIter 
     nIter: [optional] int
         number of iterations for shape tuning (default 5).    
     ssub: [optional] int
-        spatial downsampling factor (default 1).
+        spatial downsampling factor recommended for large datasets (default 1, no downsampling).
     tsub: [optional] int
-        temporal downsampling factor (default 1).
+        temporal downsampling factor recommended for long datasets (default 1, no downsampling).
     use_median: [optional] bool
-        add back fluorescence median values or not during refinement.            
+        add back fluorescence median values or not during refinement.    
+    kernel: [optional] np.ndarray
+        User specified kernel for greedyROI (default None, greedy ROI searches for Gaussian shaped neurons) 
   
     Returns
     --------    
@@ -113,6 +115,8 @@ def greedyROI2d(Y, nr=30, gSig = [5,5], gSiz = [11,11], nIter = 5, use_median = 
         number of iterations when refining estimates
     use_median: boolean
         add back fluorescence median values or not during refinement
+    kernel: np.ndarray
+        User specified kernel to be used, if present, instead of Gaussian (default None)
         
     Outputs:
     A: np.array
@@ -193,7 +197,8 @@ def greedyROI2d(Y, nr=30, gSig = [5,5], gSiz = [11,11], nIter = 5, use_median = 
 
 #%%
 def finetune2d(Y, cin, nIter = 5):
-
+    """Fine tuning of components within greedyROI using rank-1 NMF
+    """
     for iter in range(nIter):
         a = np.maximum(np.dot(Y,cin),0)
         a = a/np.sqrt(np.sum(a**2))
@@ -203,7 +208,9 @@ def finetune2d(Y, cin, nIter = 5):
 
 #%%    
 def imblur(Y, sig = 5, siz = 11, nDimBlur = None, kernel = None):
-     
+    """Spatial filtering with a Gaussian or user defined kernel
+    The parameters are specified in GreedyROI2d
+    """
     from scipy.ndimage.filters import correlate        
     #from scipy.signal import correlate    
     
