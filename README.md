@@ -38,6 +38,11 @@ This repository contains a Python implementation of the spatio-temporal demixing
 - [SIMA](http://www.losonczylab.org/sima/1.3/): The [constrained deconvolution](https://github.com/losonczylab/sima/blob/master/sima/spikes.py) method has been integrated with SIMA, a Python based library for calcium imaging data analysis.
 - [Thunder](http://thunder-project.org/): The [group LASSO initialization and spatial CNMF](https://github.com/j-friedrich/thunder/tree/LocalNMF) method has been integrated with Thunder, a library for large scale neural data analysis with Spark.
 
+Documentation
+========
+
+Documentation of the code can be found [here](http://agiovann.github.io/SOURCE_EXTRACTION_PYTHON/)
+
 Dependencies
 ========
 The code uses the following libraries
