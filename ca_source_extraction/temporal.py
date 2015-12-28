@@ -71,6 +71,23 @@ def update_temporal_components(Y,A,b,Cin,fin,ITER=2,method='constrained_foopsi',
                                resparse=0, 
                                fudge_factor=1, 
                                verbosity=False):
+                               
+    Outputs:
+    C:     np.matrix
+            matrix of temporal components (K x T)
+    f:     np.array
+            vector of temporal background (length T) 
+    Y_res: np.ndarray
+            matrix with current residual (d x T)
+    P_:    dictionary
+            Dictionary with parameters for each temporal component:
+                P_.b:           baseline for fluorescence trace
+                P_.c1:          initial concentration
+                P_.gn:          discrete time constant
+                P_.neuron_sn:   noise level
+                P_.neuron_id:   index of component
+    Sp:    np.matrix
+            matrix of deconvolved neural activity (K x T)
     """
 
 
