@@ -6,6 +6,10 @@ import scipy
 from scipy.fftpack import fft, ifft, rfft
 from skimage.transform import resize
 from ca_source_extraction.utilities import com
+from joblib import Parallel, delayed
+import shutil
+import os
+import tempfile
 #%%
 def initialize_components(Y, K=30, gSig=[5,5], gSiz=None, ssub=1, tsub=1, nIter = 5, use_median = False, kernel = None): 
     """Initalize components 
@@ -92,23 +96,23 @@ def initialize_components(Y, K=30, gSig=[5,5], gSiz=None, ssub=1, tsub=1, nIter 
     
     
 #%%
-def arpfit(Y, p = 2, sn = None, g = None, noise_range = [0.25,0.5], noise_method = 'logmexp', lags = 5, include_noise = False, pixels = None):
-        
-    if pixels is None:
-        pixels = np.arange(np.size(Y)/np.shape(Y)[-1])
-        
-    P = dict()
-    if sn is None:
-        sn = get_noise_fft(Y, noise_range = noise_range, noise_method = noise_method)
-        
-    P['sn'] = sn
-    
-    if g is None:
-        g = estimate_time_constant(Y, sn, p = p, lags = lags, include_noise = include_noise, pixels = pixels)
-        
-    P['g'] = g
-    
-    return 
+#def arpfit(Y, p = 2, sn = None, g = None, noise_range = [0.25,0.5], noise_method = 'logmexp', lags = 5, include_noise = False, pixels = None):
+#        
+#    if pixels is None:
+#        pixels = np.arange(np.size(Y)/np.shape(Y)[-1])
+#        
+#    P = dict()
+#    if sn is None:
+#        sn = get_noise_fft(Y, noise_range = noise_range, noise_method = noise_method)
+#        
+#    P['sn'] = sn
+#    
+#    if g is None:
+#        g = estimate_time_constant(Y, sn, p = p, lags = lags, include_noise = include_noise, pixels = pixels)
+#        
+#    P['g'] = g
+#    
+#    return 
 
 #%%
 def estimate_time_constant(Y, sn, p = 2, lags = 5, include_noise = False, pixels = None):
@@ -175,6 +179,101 @@ def estimate_time_constant(Y, sn, p = 2, lags = 5, include_noise = False, pixels
 #    return sn
     
 #%% 
+def get_noise_fft_parallel(Y, n_processes=4,n_pixels_per_process=100, backend='threading', **kwargs):
+    """parallel version of get_noise_fft.
+    
+    Params:
+    -------
+    Y: ndarray
+        input movie (n_pixels x Time). Can be also memory mapped file. 
+    
+    n_processes: [optional] int
+        number of processes/threads to use concurrently
+        
+            
+    n_pixels_per_process: [optional] int 
+        number of pixels to be simultaneously processed by each process
+    
+    backend: [optional] string
+        the type of concurrency to be employed. 'threading' or 'multiprocessing'. In general
+        threading should be used
+    
+    **kwargs: [optional] dict
+        all the parameters passed to get_noise_fft     
+
+    Returns:
+    --------
+    sn: ndarray(double)
+        noise associated to each pixel
+    
+    """  
+    
+    folder = tempfile.mkdtemp()
+    sn_name = os.path.join(folder, 'sn_s')            
+    
+    # Pre-allocate a writeable shared memory map as a container for the
+    # results of the parallel computation
+    sn_s = np.memmap(sn_name, dtype=Y.dtype,shape=Y.shape[0], mode='w+')   
+    
+    pixel_groups=range(0,Y.shape[0]-n_pixels_per_process+1,n_pixels_per_process)
+    
+    # Fork the worker processes to perform computation concurrently                    
+    Parallel(n_jobs=n_processes, backend=backend)(delayed(fft_psd_parallel)(Y, sn_s, i, n_pixels_per_process, **kwargs)
+                        for i in pixel_groups)                       
+                       #for i in range(Y.shape[0]))
+
+        
+    # if n_pixels_per_process is not a multiple of Y.shape[0] run on remaining pixels   
+    pixels_remaining= Y.shape[0] %  n_pixels_per_process  
+    
+    if pixels_remaining>0:  
+        print "Running fft for remaining pixels:" + str(pixels_remaining)
+        fft_psd_parallel(Y,sn_s,Y.shape[0]-pixels_remaining,pixels_remaining)    
+    
+    sn_s=np.array(sn_s)
+    
+
+
+    try:
+
+        shutil.rmtree(folder)
+
+    except:
+
+        raise Exception("Failed to delete: " + folder)
+        
+    return sn_s    
+#%%        
+def fft_psd_parallel(Y,sn_s,i,num_pixels,**kwargs):
+    """helper function to parallelize get_noise_fft
+    
+    Parameters:
+    -----------
+    Y: ndarray
+        input movie (n_pixels x Time), can be also memory mapped file
+        
+    sn_s: ndarray (memory mapped)
+        file where to store the results of computation. 
+        
+    i: int
+        pixel index start
+
+    num_pixels: int
+        number of pixel to select starting from i
+    
+    **kwargs: dict
+        arguments to be passed to get_noise_fft 
+            
+    
+    """
+    idxs=range(i,i+num_pixels)
+    #sn_s[idxs]=get_noise_fft(Y[idxs], **kwargs)
+    res=get_noise_fft(Y[idxs], **kwargs)
+    sn_s[idxs]=res
+    #print("[Worker %d] sn for row %d is %f" % (os.getpid(), i, sn_s[0]))
+    
+    
+#%%    
 def get_noise_fft(Y, noise_range = [0.25,0.5], noise_method = 'logmexp'):
 
     T = np.shape(Y)[-1]
@@ -197,7 +296,7 @@ def get_noise_fft(Y, noise_range = [0.25,0.5], noise_method = 'logmexp'):
     
     return sn        
 
-
+#%%
 #def get_noise_ffts(Y, noise_range = [0.25,0.5], noise_method = 'logmexp'):
 #
 #    T = np.shape(Y)[-1]
@@ -235,7 +334,7 @@ def mean_psd(y, method = 'logmexp'):
         mp = np.log(y/2)
         mp = np.mean(mp,axis=-1)
         mp = np.exp(mp)
-        mp = np.sqrt(m)        
+        mp = np.sqrt(mp)        
 #        mp = np.sqrt(np.exp(np.mean(np.log(y/2),axis=-1)))
         
     return mp
