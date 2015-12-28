@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Fri Sep  4 10:11:26 2015
+"""A set of routines for estimating the temporal components, given the spatial components and temporal components
 
 @author: agiovann
 """
@@ -14,8 +13,16 @@ from scipy import linalg
 from spatial import update_spatial_components
 #%%
 def make_G_matrix(T,g):
-    ''' 
-    create matrix of autoregression
+    ''' create matrix of autoregression to enforce indicator dynamics
+    Inputs: 
+    T: positive integer
+        number of time-bins
+    g: nd.array, vector p x 1
+        Discrete time constants
+        
+    Output:
+    G: sparse diagonal matrix
+        Matrix of autoregression
     '''    
     if type(g) is np.ndarray:    
         if len(g) == 1 and g < 0:
@@ -30,24 +37,41 @@ def make_G_matrix(T,g):
     else:
         raise Exception('g must be an array')
 #%%
-def update_temporal_components(Y,A,b,Cin,fin,ITER=1,method='constrained_foopsi',deconv_method = 'cvx', g='None',**kwargs):
-#                               b=None, 
-#                               c1=None,
-#                               g=None,
-#                               sn=None, 
-#                               p=2, 
-#                               method='cvx', 
-#                               bas_nonneg=True, 
-#                               noise_range=[0.25, 0.5], 
-#                               noise_method='logmexp', 
-#                               lags=5, 
-#                               resparse=0, 
-#                               fudge_factor=1, 
-#                               verbosity=False):
-#    """
-#    update temporal components and background given spatial components
-#    **kwargs: all parameters passed to constrained_foopsi
-#    """
+def update_temporal_components(Y,A,b,Cin,fin,ITER=2,method='constrained_foopsi',deconv_method = 'cvx', g='None',**kwargs):
+    """update temporal components and background given spatial components using a block coordinate descent approach
+    Inputs:
+    Y: np.ndarray (2D)
+        input data with time in the last axis (d x T)
+    A: sparse matrix (crc format)
+        matrix of temporal components (d x K)
+    Cin: np.ndarray
+        current estimate of temporal components (K x T)
+    ITER: positive integer
+        Maximum number of block coordinate descent loops. Default: 2
+    fin: np.ndarray
+        current estimate of temporal background (vector of length T)
+    method: string
+        Method of deconvolution of neural activity. 
+        Default: constrained_foopsi (constrained deconvolution, the only method supported at the moment)
+    deconv_method: string
+        Solver for constrained foopsi ('cvx' or 'spgl1', default: 'cvx')
+    g:  np.ndarray
+        Global time constant (not used)
+    **kwargs: all parameters passed to constrained_foopsi
+                               b=None, 
+                               c1=None,
+                               g=None,
+                               sn=None, 
+                               p=2, 
+                               method='cvx', 
+                               bas_nonneg=True, 
+                               noise_range=[0.25, 0.5], 
+                               noise_method='logmexp', 
+                               lags=5, 
+                               resparse=0, 
+                               fudge_factor=1, 
+                               verbosity=False):
+    """
 
 
     d,T = np.shape(Y);
