@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-"""
+"""A set of utilities, mostly for post-processing and visualization
 Created on Sat Sep 12 15:52:53 2015
 
-@author: eftychios
+@author epnev
 """
 
 import numpy as np
@@ -12,11 +12,19 @@ from matplotlib import pyplot as plt
 
 
 def local_correlations(Y,eight_neighbours=False, swap_dim = True):
-     # Output:
-     #   rho M x N matrix, cross-correlation with adjacent pixel
-     # if eight_neighbours=True it will take the diagonal neighbours too
-     # swap_dim True indicates that time is listed in the last axis of Y (matlab format)
-     # and moves it in the front     
+     """Computes the correlation image for the input dataset Y
+     Inputs:
+     Y:   np.ndarray (3D)
+          Input movie data in 3D format
+     eight_neibhbours: Boolean
+          Use 8 neighbors if true, and 4 if false (default = False)
+     swap_dim: Boolean
+          True indicates that time is listed in the last axis of Y (matlab format)
+      and moves it in the front
+     
+      Output:
+        rho d1 x d2 matrix, cross-correlation with adjacent pixels
+     """
      
      if swap_dim:
          Y = np.transpose(Y,tuple(np.hstack((Y.ndim-1,range(Y.ndim)[:-1]))))
@@ -65,7 +73,17 @@ def local_correlations(Y,eight_neighbours=False, swap_dim = True):
      return rho
      
 def order_components(A,C):
-
+     """Order components based on their maximum temporal value and size
+     Inputs:
+     A:   sparse matrix (d x K)
+          spatial components
+     C:   matrix or np.ndarray (K x T)
+          temporal components
+          
+     A_or:     ordered spatial components
+     C_or:     ordered temporal components
+     srt:      sorting mapping
+     """
      A = np.array(A.todense())
      nA2 = np.sqrt(np.sum(A**2,axis=0))
      A = np.array(np.matrix(A)*diags(1/nA2,0))
@@ -80,7 +98,21 @@ def order_components(A,C):
      
 
 def extract_DF_F(Y,A,C,i=None):
-    
+    """Extract DF/F values from spatial/temporal components and background
+     Inputs:
+     Y: np.ndarray
+           input data (d x T)
+     A: sparse matrix of np.ndarray 
+           Set of spatial including spatial background (d x K)
+     C: matrix
+           Set of temporal components including background (K x T)
+           
+     Output:
+     C_df: matrix 
+          temporal components in the DF/F domain
+     Df:  np.ndarray
+          vector with baseline values for each trace
+    """
     A2 = A.copy()
     A2.data **= 2
     nA2 = np.squeeze(np.array(A2.sum(axis=0)))
@@ -100,7 +132,19 @@ def extract_DF_F(Y,A,C,i=None):
 
      
 def com(A,d1,d2):
+     """Calculation of the center of mass for spatial components
+     Inputs:
+     A:   np.ndarray 
+          matrix of spatial components (d x K)
+     d1:  int
+          number of pixels in x-direction
+     d2:  int
+          number of pixels in y-direction
 
+     Output:
+     cm:  np.ndarray
+          center of mass for spatial components (K x 2)
+     """
     nr = np.shape(A)[-1]
     Coor=dict();
     Coor['x'] = np.kron(np.ones((d2,1)),np.expand_dims(range(d1),axis=1)); 
@@ -113,8 +157,7 @@ def com(A,d1,d2):
      
      
 def view_patches(Yr,A,C,b,f,d1,d2):
-    """
-    view spatial and temporal components
+    """view spatial and temporal components
     """    
     
     nr,T = C.shape
@@ -144,7 +187,24 @@ def view_patches(Yr,A,C,b,f,d1,d2):
             ax2.set_title('Temporal background')      
             
 def plot_contours(A,Cn,thr = 0.995, display_numbers = True, max_number = None,cmap=None, **kwargs):
-    
+    """Plots contour of spatial components against a background image and returns their coordinates
+    Inputs:
+     A:   np.ndarray or sparse matrix
+               Matrix of Spatial components (d x K)
+     Cn:  np.ndarray (2D)
+               Background image (e.g. mean, correlation)
+     thr: scalar between 0 and 1
+               Energy threshold for computing contours (default 0.995)
+     display_number:     Boolean
+               Display number of ROIs if checked (default True)
+     max_number:    int
+               Display the number for only the first max_number components (default None, display all numbers)
+     cmap:     string
+               User specifies the colormap (default None, default colormap)
+               
+     Output:
+     Coor: list of coordinates with center of mass, contour plot coordinates and bounding box for each component
+    """
     from  scipy.sparse import issparse
     if issparse(A):
         A = np.array(A.todense())
@@ -188,9 +248,17 @@ def plot_contours(A,Cn,thr = 0.995, display_numbers = True, max_number = None,cm
     return coordinates
     
 def update_order(A):
-    '''
-    Determines the update order of the temporal components given the spatial 
+    '''Determines the update order of the temporal components given the spatial 
     components by creating a nest of random approximate vertex covers
+     Input:
+     A:    np.ndarray
+          matrix of spatial components (d x K)
+     
+     Outputs:
+     O:   list of sets
+          list of subsets of components. The components of each subset can be updated in parallel
+     lo:  list
+          length of each subset
     Written by Eftychios A. Pnevmatikakis, Simons Foundation, 2015
     '''    
     K = np.shape(A)[-1]
@@ -216,9 +284,14 @@ def update_order(A):
     return O[::-1],lo[::-1]
    
 def app_vertex_cover(A):
-    '''
-    Finds an approximate vertex cover for a symmetric graph with adjacency 
-    matrix A. A is boolean with diagonal set to 0
+    ''' Finds an approximate vertex cover for a symmetric graph with adjacency 
+    matrix A.
+     Input:
+     A:    boolean 2d array (K x K)
+          Adjacency matrix. A is boolean with diagonal set to 0
+     
+     Output:
+     L:   A vertex cover of A
     Written by Eftychios A. Pnevmatikakis, Simons Foundation, 2015
     '''
     
