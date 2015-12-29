@@ -9,6 +9,7 @@ from ca_source_extraction.utilities import com
 from joblib import Parallel, delayed
 import shutil
 import os
+import sys
 import tempfile
 #%%
 def initialize_components(Y, K=30, gSig=[5,5], gSiz=None, ssub=1, tsub=1, nIter = 5, use_median = False, kernel = None): 
@@ -61,11 +62,12 @@ def initialize_components(Y, K=30, gSig=[5,5], gSiz=None, ssub=1, tsub=1, nIter 
     d1s = np.ceil(d1/ssub).astype(np.int)       #size of downsampled image
     d2s = np.ceil(d2/ssub).astype(np.int)     
     Ts = np.floor(T/tsub).astype(np.int)        #reduced number of frames
+
     
     # spatial downsampling
     if ssub!=1 or tsub!=1:
-        print 'Spatial Downsampling...'
-        Y_ds = resize(Y, [d1s, d2s, Ts], order=0,clip=False,mode='nearest')
+            print "Spatial Downsampling ..."
+            Y_ds = scipy.ndimage.zoom(Y, [1./ssub, 1./ssub, 1./tsub], order=0,mode='nearest')
     else:
         Y_ds = Y
         
