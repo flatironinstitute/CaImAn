@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
-"""
+"""Extract neural activity from a fluorescence trace using a constrained deconvolution approach
 Created on Tue Sep  1 16:11:25 2015
-
 @author: Eftychios A. Pnevmatikakis, based on an implementation by T. Machado,  Andrea Giovannucci & Ben Deverett
 """
 
@@ -72,7 +71,7 @@ def constrained_foopsi(fluor, b = None,  c1 = None, g = None,  sn = None, p= 2, 
     
     References
     ----------
-    * Pnevmatikakis et al. 2015. Submitted (arXiv:1409.2903).
+    * Pnevmatikakis et al. 2016. Neuron, in press, http://dx.doi.org/10.1016/j.neuron.2015.11.037
     * Machado et al. 2015. Cell 162(2):338-350
     """
 
@@ -96,6 +95,9 @@ def constrained_foopsi(fluor, b = None,  c1 = None, g = None,  sn = None, p= 2, 
     return c,b,c1,g,sn,sp
 
 def spgl1_foopsi(fluor, b, c1, g, sn, p, bas_nonneg, verbosity, thr = 1e-2,debug=False):
+    """"Solve the deconvolution problem using the SPGL1 library
+     available from https://github.com/epnev/SPGL1_python_port
+    """"
     
     if 'spg' not in globals():
         raise Exception('The SPGL package could not be loaded, use a different method')
@@ -157,7 +159,9 @@ def spgl1_foopsi(fluor, b, c1, g, sn, p, bas_nonneg, verbosity, thr = 1e-2,debug
     
 
 def G_inv_mat(x,mode,NT,gs,gd_vec,bas_flag = True, c1_flag = True):
-
+    """
+    Fast computation of G^{-1}*x and G^{-T}*x required for using the SPGL1 method
+    """
     from scipy.signal import lfilter
     if mode == 1:
         b = lfilter(np.array([1]),np.concatenate([np.array([1.]),-gs]),x[:NT]) + bas_flag*x[NT-1+bas_flag] + c1_flag*gd_vec*x[-1]
@@ -170,7 +174,8 @@ def G_inv_mat(x,mode,NT,gs,gd_vec,bas_flag = True, c1_flag = True):
 
   
 def cvxopt_foopsi(fluor, b, c1, g, sn, p, bas_nonneg, verbosity):
-
+  """Solve the deconvolution problem using cvxopt and picos packages
+  """
     try:
         from cvxopt import matrix, spmatrix, spdiag, solvers
         import picos
@@ -402,6 +407,3 @@ def nextpow2(value):
         exponent += 1
     return exponent        
     
- 
-
-
