@@ -9,7 +9,6 @@ A set of pre-processing operations in the input dataset:
 @authors: agiovann epnev
 """
 
-from initialization import get_noise_fft,estimate_time_constant, get_noise_fft_parallel
 import numpy as np
 from scipy.interpolate import griddata    
 
@@ -172,8 +171,8 @@ def get_noise_fft_parallel(Y, n_processes=4,n_pixels_per_process=100, backend='t
     
     # Fork the worker processes to perform computation concurrently                    
     Parallel(n_jobs=n_processes, backend=backend)(delayed(fft_psd_parallel)(Y, sn_s, i, n_pixels_per_process, **kwargs)
-                        for i in pixel_groups)                       
-                       #for i in range(Y.shape[0]))
+                        for i in pixel_groups)   
+                    
 
         
     # if n_pixels_per_process is not a multiple of Y.shape[0] run on remaining pixels   

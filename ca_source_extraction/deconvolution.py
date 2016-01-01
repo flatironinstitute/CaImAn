@@ -95,9 +95,9 @@ def constrained_foopsi(fluor, b = None,  c1 = None, g = None,  sn = None, p= 2, 
     return c,b,c1,g,sn,sp
 
 def spgl1_foopsi(fluor, b, c1, g, sn, p, bas_nonneg, verbosity, thr = 1e-2,debug=False):
-    """"Solve the deconvolution problem using the SPGL1 library
+    """Solve the deconvolution problem using the SPGL1 library
      available from https://github.com/epnev/SPGL1_python_port
-    """"
+    """
     
     if 'spg' not in globals():
         raise Exception('The SPGL package could not be loaded, use a different method')
@@ -174,8 +174,8 @@ def G_inv_mat(x,mode,NT,gs,gd_vec,bas_flag = True, c1_flag = True):
 
   
 def cvxopt_foopsi(fluor, b, c1, g, sn, p, bas_nonneg, verbosity):
-  """Solve the deconvolution problem using cvxopt and picos packages
-  """
+    """Solve the deconvolution problem using cvxopt and picos packages
+    """
     try:
         from cvxopt import matrix, spmatrix, spdiag, solvers
         import picos
