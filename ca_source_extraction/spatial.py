@@ -19,7 +19,7 @@ import os
 from joblib import Parallel,delayed
 from joblib import dump, load  
 import shutil
-imp
+
 try:
     import picos
 except:
@@ -212,7 +212,6 @@ def update_spatial_components_parallel(Y,C,f,A_in,d1=None,d2=None,min_size=3,max
         A_ = np.zeros((d,nr+np.size(f,0)))
         try: # if server is not running and raise exception if not installed or not started        
             from ipyparallel import Client
-            import subprocess                       
             c = Client()
         except:
             print "this backend requires the installation of the ipyparallel (pip install ipyparallel) package and  starting a cluster (type ipcluster start -n 6) where 6 is the number of nodes"
@@ -229,7 +228,11 @@ def update_spatial_components_parallel(Y,C,f,A_in,d1=None,d2=None,min_size=3,max
                 px,idxs_,a=pars
                 A_[px,idxs_]=a
 
-        c.close()   
+        dview.results.clear()   
+        c.purge_results('all')
+        c.purge_everything()
+        
+        
              
     elif backend=='single_thread':      
 
@@ -438,6 +441,7 @@ def lars_regression_noise_ipyparallel(pars):
     import numpy as np
     import os
     import sys
+    import gc
         
     
     Y_name,C_name,noise_sn,idxs_C, idxs_Y=pars
@@ -462,6 +466,10 @@ def lars_regression_noise_ipyparallel(pars):
                 a=a.T  
                  
             As.append((px,idxs_C[px],a))
+    
+    del Y
+    del C
+    gc.collect()
     
     return As#As
 

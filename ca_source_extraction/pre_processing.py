@@ -11,7 +11,10 @@ A set of pre-processing operations in the input dataset:
 
 import numpy as np
 from scipy.interpolate import griddata    
-
+import tempfile 
+import os
+from joblib import Parallel,delayed
+import shutil
 #%%
 def interpolate_missing_data(Y):
     """
@@ -192,7 +195,8 @@ def get_noise_fft_parallel(Y, n_processes=4,n_pixels_per_process=100, backend='t
 
     except:
 
-        raise Exception("Failed to delete: " + folder)
+        print("Failed to delete: " + folder)
+        raise
         
     return sn_s    
 #%%        

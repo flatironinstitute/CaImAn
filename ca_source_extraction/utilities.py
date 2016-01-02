@@ -304,3 +304,41 @@ def app_vertex_cover(A):
         L.append(u)
     
     return np.asarray(L)    
+#%%
+def save_mat_in_chuncks(Yr,num_chunks,shape,mat_name='mat',axis=0): 
+    """ save hdf5 matrix in chunks
+    
+    Parameters
+    ----------
+    file_name: str
+        file_name of the hdf5 file to be chunked
+    shape: tuples
+        shape of the original chunked matrix
+    idx: list
+        indexes to slice matrix along axis
+    mat_name: [optional] string
+        name prefix for temporary files
+    axis: int
+        axis along which to slice the matrix   
+    
+    Returns:
+    name of the saved file
+            
+    """
+    
+    Yr=np.array_split(Yr,num_chunks,axis=axis)  
+    print "splitting array..."
+    folder = tempfile.mkdtemp()  
+    prev=0
+    idxs=[]
+    names=[];
+    for mm in Yr:
+        mm=np.array(mm)
+        idxs.append(np.array(range(prev,prev+mm.shape[0])).T)
+        new_name = os.path.join(folder, mat_name + '_'+str(prev) +'_'+str(len(idxs[-1])) ) 
+        print "Saving " + new_name
+        np.save(new_name,mm)
+        names.append(new_name)        
+        prev=prev+mm.shape[0]    
+    
+    return {'names':names,'idxs':idxs,'axis':axis,'shape':shape}   
