@@ -19,7 +19,7 @@ from spgl1 import spg_bpdn
 import spgl_aux as spg
 
 #%%
-def constrained_foopsi(fluor, b = None,  c1 = None, g = None,  sn = None, p= 2, method = 'spgl1', bas_nonneg = True,  
+def constrained_foopsi(fluor, bl = None,  c1 = None, g = None,  sn = None, p = None, method = 'spgl1', bas_nonneg = True,  
                      noise_range = [.25,.5], noise_method = 'logmexp', lags = 5, fudge_factor = 1., 
                     verbosity = False):
     
@@ -33,8 +33,8 @@ def constrained_foopsi(fluor, b = None,  c1 = None, g = None,  sn = None, p= 2, 
     fluor: np.ndarray
         One dimensional array containing the fluorescence intensities with
         one entry per time-bin.
-    b: [optional] float
-        Fluorescence baseline value. If no value is given, then b is estimated 
+    bl: [optional] float
+        Fluorescence baseline value. If no value is given, then bl is estimated 
         from the data.
     c1: [optional] float
         value of calcium at time 0
@@ -65,7 +65,7 @@ def constrained_foopsi(fluor, b = None,  c1 = None, g = None,  sn = None, p= 2, 
     -------
     c: np.ndarray float
         The inferred denoised fluorescence signal at each time-bin.
-    b, c1, g, sn : As explained above
+    bl, c1, g, sn : As explained above
     sp: ndarray of float
         Discretized deconvolved neural activity (spikes)
     
@@ -75,26 +75,29 @@ def constrained_foopsi(fluor, b = None,  c1 = None, g = None,  sn = None, p= 2, 
     * Machado et al. 2015. Cell 162(2):338-350
     """
 
-    
+    if p is None:
+        raise Exception("You must specify the value of p")
+        
     if g is None or sn is None:        
         g,sn = estimate_parameters(fluor, p=p, sn=sn, g = g, range_ff=noise_range, method=noise_method, lags=lags, fudge_factor=fudge_factor)
     
     if method == 'cvx':
-        c,b,c1,g,sn,sp = cvxopt_foopsi(fluor, b =b, c1 = c1, g=g, sn=sn, p=p, bas_nonneg = bas_nonneg, verbosity = verbosity)
+        c,bl,c1,g,sn,sp = cvxopt_foopsi(fluor, b = bl, c1 = c1, g=g, sn=sn, p=p, bas_nonneg = bas_nonneg, verbosity = verbosity)
+        
     elif method == 'spgl1':
 #        try:        
-        c,b,c1,g,sn,sp = spgl1_foopsi(fluor, b =b, c1 = c1, g=g, sn=sn, p=p, bas_nonneg = bas_nonneg, verbosity = verbosity)
+        c,bl,c1,g,sn,sp = spgl1_foopsi(fluor, bl = bl, c1 = c1, g=g, sn=sn, p=p, bas_nonneg = bas_nonneg, verbosity = verbosity)
 #        except:
 #            print('SPGL1 produces an error. Using CVXOPT')
 #            c,b,c1,g,sn,sp = cvxopt_foopsi(fluor, b =b, c1 = c1, g=g, sn=sn, p=p, bas_nonneg = bas_nonneg, verbosity = verbosity)    
     elif method == 'debug':
-        c,b,c1,g,sn,sp = spgl1_foopsi(fluor, b =b, c1 = c1, g=g, sn=sn, p=p, bas_nonneg = bas_nonneg, verbosity = verbosity,debug=True)
+        c,bl,c1,g,sn,sp = spgl1_foopsi(fluor, bl =bl, c1 = c1, g=g, sn=sn, p=p, bas_nonneg = bas_nonneg, verbosity = verbosity,debug=True)
     else:
         raise Exception('Undefined Deconvolution Method')
     
-    return c,b,c1,g,sn,sp
+    return c,bl,c1,g,sn,sp
 
-def spgl1_foopsi(fluor, b, c1, g, sn, p, bas_nonneg, verbosity, thr = 1e-2,debug=False):
+def spgl1_foopsi(fluor, bl, c1, g, sn, p, bas_nonneg, verbosity, thr = 1e-2,debug=False):
     """Solve the deconvolution problem using the SPGL1 library
      available from https://github.com/epnev/SPGL1_python_port
     """
@@ -102,9 +105,9 @@ def spgl1_foopsi(fluor, b, c1, g, sn, p, bas_nonneg, verbosity, thr = 1e-2,debug
     if 'spg' not in globals():
         raise Exception('The SPGL package could not be loaded, use a different method')
     
-    if b is None:
+    if bl is None:
         bas_flag = True
-        b = 0
+        bl = 0
     else:
         bas_flag = False
         
@@ -140,22 +143,22 @@ def spgl1_foopsi(fluor, b, c1, g, sn, p, bas_nonneg, verbosity, thr = 1e-2,debug
     opA = lambda x,mode: G_inv_mat(x,mode,T,g,gd_vec,bas_flag,c1_flag)
     
 
-    spikes,_,_,info = spg_bpdn(opA,np.squeeze(fluor)-bas_nonneg*b_lb - (1-bas_flag)*b -(1-c1_flag)*c1*gd_vec, sn*np.sqrt(T))
+    spikes,_,_,info = spg_bpdn(opA,np.squeeze(fluor)-bas_nonneg*b_lb - (1-bas_flag)*bl -(1-c1_flag)*c1*gd_vec, sn*np.sqrt(T))
     if np.min(spikes)<-thr*np.max(spikes) and not debug:
         spikes[:T][spikes[:T]<0]=0
-        spikes,_,_,info = spg_bpdn(opA,np.squeeze(fluor)-bas_nonneg*b_lb - (1-bas_flag)*b -(1-c1_flag)*c1*gd_vec, sn*np.sqrt(T), options)
+        spikes,_,_,info = spg_bpdn(opA,np.squeeze(fluor)-bas_nonneg*b_lb - (1-bas_flag)*bl -(1-c1_flag)*c1*gd_vec, sn*np.sqrt(T), options)
         
     #print [np.min(spikes[:T]),np.max(spikes[:T])]
     spikes[:T][spikes[:T]<0]=0    
 
     c = opA(np.hstack((spikes[:T],0)),1)
     if bas_flag:
-        b = spikes[T] + b_lb
+        bl = spikes[T] + b_lb
     
     if c1_flag:
         c1 = spikes[-1]
         
-    return c,b,c1,g,sn,spikes
+    return c,bl,c1,g,sn,spikes
     
 
 def G_inv_mat(x,mode,NT,gs,gd_vec,bas_flag = True, c1_flag = True):
