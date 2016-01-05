@@ -43,7 +43,7 @@ def basis_denoising(y,c,boh,sn,id2_,px):
                 return (None,None,None)
             return a,px,id2_
 #%% update_spatial_components_parallel
-def update_spatial_components_parallel(Y,C,f,A_in,d1=None,d2=None,min_size=3,max_size=8,dist=3,sn=None, method = 'ellipse', expandCore = None,backend='single_thread',n_processes=4,n_pixels_per_process=128, memory_efficient=False):
+def update_spatial_components_parallel(Y,C,f,A_in,sn=None, d1=None,d2=None,min_size=3,max_size=8, dist=3, method = 'ellipse', expandCore = None,backend='single_thread',n_processes=4,n_pixels_per_process=128, memory_efficient=False):
     """update spatial footprints and background     
     through Basis Pursuit Denoising
 
@@ -146,6 +146,9 @@ def update_spatial_components_parallel(Y,C,f,A_in,d1=None,d2=None,min_size=3,max
     Cf = np.vstack((C,f)) # create matrix that include background components
         
     [d,T] = np.shape(Y)
+    
+    if n_pixels_per_process > d:
+        raise Exception('The number of pixels per process (n_pixels_per_process) is larger than the total number of pixels!! Decrease suitably.')
 
     nr,_ = np.shape(C)       # number of neurons
     
@@ -218,6 +221,7 @@ def update_spatial_components_parallel(Y,C,f,A_in,d1=None,d2=None,min_size=3,max
             raise
         
         if len(c) <  n_processes:
+            print len(c)
             raise Exception("the number of nodes in the cluster are less than the required processes: decrease the n_processes parameter to a suitable value")            
             
         dview=c[:n_processes] # use the number of processes
@@ -227,7 +231,7 @@ def update_spatial_components_parallel(Y,C,f,A_in,d1=None,d2=None,min_size=3,max
             for pars in chunk:
                 px,idxs_,a=pars
                 A_[px,idxs_]=a
-
+        #clean up        
         dview.results.clear()   
         c.purge_results('all')
         c.purge_everything()
