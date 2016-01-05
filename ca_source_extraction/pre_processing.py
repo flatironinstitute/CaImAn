@@ -168,7 +168,7 @@ def get_noise_fft_parallel(Y, n_processes=4,n_pixels_per_process=100, backend='t
     
     # Pre-allocate a writeable shared memory map as a container for the
     # results of the parallel computation
-    sn_s = np.memmap(sn_name, dtype=Y.dtype,shape=Y.shape[0], mode='w+')   
+    sn_s = np.memmap(sn_name, dtype=np.float32,shape=Y.shape[0], mode='w+')   
     
     pixel_groups=range(0,Y.shape[0]-n_pixels_per_process+1,n_pixels_per_process)
     
@@ -259,7 +259,7 @@ def mean_psd(y, method = 'logmexp'):
 
 #%%
 
-def estimate_time_constant(Y, sn, p = 2, lags = 5, include_noise = False, pixels = None):
+def estimate_time_constant(Y, sn, p = None, lags = 5, include_noise = False, pixels = None):
     """ 
     Estimating global time constants for the dataset Y through the autocovariance function (optional).
     The function is no longer used in the standard setting of the algorithm since every trace has its own 
@@ -280,7 +280,9 @@ def estimate_time_constant(Y, sn, p = 2, lags = 5, include_noise = False, pixels
     g:  np.ndarray (p x 1) 
         Discrete time constants
     """    
-    
+    if p is None:
+        raise Exception("You need to define p")
+        
     if pixels is None:
         pixels = np.arange(np.size(Y)/np.shape(Y)[-1])
     

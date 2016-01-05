@@ -189,7 +189,9 @@ def greedyROI2d(Y, nr=30, gSig = [5,5], gSiz = [11,11], nIter = 5, use_median = 
             rho[iMod[0]:iMod[1],jMod[0]:jMod[1],:] -= rhoTEMP
             v[iMod[0]:iMod[1],jMod[0]:jMod[1]] = np.sum(rho[iMod[0]:iMod[1],jMod[0]:jMod[1],:]**2,axis = -1)            
 
-    res = np.reshape(Y,(M*N,T), order='F') + med.flatten()[:,None]
+#    res = np.reshape(Y,(M*N,T), order='F') + med.flatten()[:,None]
+    res = np.reshape(Y,(M*N,T), order='F') + med.flatten(order='F')[:,None]
+
     model = NMF(n_components=1, init='random', random_state=0)
     
     b_in = model.fit_transform(np.maximum(res,0));
@@ -308,8 +310,8 @@ def hals_2D(Y,A,C,b,f,bSiz=3,maxIter=5):
     ind_A = spr.csc_matrix(ind_A);  #indicator of nonnero pixels 
     K = np.shape(A)[1] #number of neurons 
     #%% update spatial and temporal components neuron by neurons
-    Yres = np.reshape(Y, (d1*d2, T),order='F') - np.dot(A,C) - np.dot(b,f[None,:]);
-    #print 'First residual is ' + str(scipy.linalg.norm(Yres, 'fro')) + '\n';
+    Yres = np.reshape(Y, (d1*d2, T),order='F') - A.dot(C) - b.dot(f[None,:]);
+    print 'First residual is ' + str(scipy.linalg.norm(Yres, 'fro')) + '\n';
      
     for miter in range(maxIter):
         for mcell in range(K):
@@ -320,7 +322,7 @@ def hals_2D(Y,A,C,b,f,bSiz=3,maxIter=5):
             c0 = C[mcell, :].copy();
             a0 = A[ind_pixels, mcell].copy()
             norm_a2 = scipy.linalg.norm(a0, ord=2)**2;
-            C[mcell, :] = np.maximum(0, c0 + np.dot(a0.T,tmp_Yres/norm_a2))
+            C[mcell, :] = np.maximum(0, c0 + a0.T.dot(tmp_Yres/norm_a2))
             tmp_Yres = tmp_Yres + np.dot(a0[:,None],(c0-C[mcell,:])[None,:])
            # print 'First residual is ' + str(scipy.linalg.norm(tmp_Yres, 'fro')) + '\n';
             
