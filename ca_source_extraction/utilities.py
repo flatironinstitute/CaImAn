@@ -8,7 +8,7 @@ Created on Sat Sep 12 15:52:53 2015
 import numpy as np
 from scipy.sparse import spdiags, diags
 from matplotlib import pyplot as plt
-
+from pylab import pause
 
 
 def local_correlations(Y,eight_neighbours=False, swap_dim = True):
@@ -160,7 +160,7 @@ def view_patches(Yr,A,C,b,f,d1,d2):
     """view spatial and temporal components
     """    
     
-    nr,T = C.shape
+    nr,T = C.shape    
     nA2 = np.sum(np.array(A.todense())**2,axis=0)
     Y_r = np.array(spdiags(1/nA2,0,nr,nr)*(A.T*np.matrix(Yr-b[:,np.newaxis]*f[np.newaxis])) + C)
     fig = plt.figure()
@@ -342,3 +342,8 @@ def save_mat_in_chuncks(Yr,num_chunks,shape,mat_name='mat',axis=0):
         prev=prev+mm.shape[0]    
     
     return {'names':names,'idxs':idxs,'axis':axis,'shape':shape}   
+
+def db_plot(*args,**kwargs):
+    plt.plot(*args,**kwargs)
+    plt.show()
+    pause(1)
