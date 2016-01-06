@@ -174,18 +174,27 @@ def mergeROIS_parallel(Y_res,A,b,C,f,S,sn_pix,temporal_params,spatial_params,thr
      C:     np.ndarray
                 matrix of temporal components (K x T)
      f:     np.ndarray
-                temporal background (vector of length T)
-     P_:     struct
-                structure with neuron parameteres
+                temporal background (vector of length T)     
      S:     np.ndarray            
                 matrix of deconvolved activity (spikes) (K x T)
+     sn_pix: ndarray
+                noise standard deviation for each pixel
+     temporal_params: dictionary 
+                all the parameters that can be passed to the update_temporal_components_parallel function
+     spatial_params: dictionary 
+                all the parameters that can be passed to the update_spatial_components_parallel function     
+         
      thr:   scalar between 0 and 1
                 correlation threshold for merging (default 0.85)
      mx:    int
                 maximum number of merging operations (default 50)
-     sn:    nd.array
+     sn_pix:    nd.array
                 noise level for each pixel (vector of length d)
-    
+     
+     bl:        baseline for fluorescence trace for each row in C
+     c1:        initial concentration for each row in C
+     g:         discrete time constant for each row in C
+     sn:        noise level for each row in C
     Outputs:
      A:     sparse matrix
                 matrix of merged spatial components (d x K)
@@ -193,11 +202,15 @@ def mergeROIS_parallel(Y_res,A,b,C,f,S,sn_pix,temporal_params,spatial_params,thr
                 matrix of merged temporal components (K x T)
      nr:    int
             number of components after merging
-     P_:     struct
-                structure with new neuron parameteres
+     merged_ROIs: list
+            index of components that have been merged     
      S:     np.ndarray            
                 matrix of merged deconvolved activity (spikes) (K x T)
-    
+     bl:        baseline for fluorescence trace
+     c1:        initial concentration
+     g:         discrete time constant
+     sn:        noise level
+     
     % Written by:
     % Andrea Giovannucci from implementation of Eftychios A. Pnevmatikakis, Simons Foundation, 2015
     """
@@ -310,14 +323,14 @@ def mergeROIS_parallel(Y_res,A,b,C,f,S,sn_pix,temporal_params,spatial_params,thr
         neur_id = np.unique(np.hstack(merged_ROIs))                
         good_neurons=np.setdiff1d(range(nr),neur_id)    
         
-        A = scipy.sparse.hstack((A[:,good_neurons],A_merged.tocsc()))
+        A = scipy.sparse.hstack((A.tocsc()[:,good_neurons],A_merged.tocsc()))
         C = np.vstack((C[good_neurons,:],C_merged))
         S = np.vstack((S[good_neurons,:],S_merged))
         bl=np.hstack((bl[good_neurons],np.array(bl_merged).flatten()))
         c1=np.hstack((c1[good_neurons],np.array(c1_merged).flatten()))
         sn=np.hstack((sn[good_neurons],np.array(sn_merged).flatten()))
         
-        g=np.vstack((np.array(g)[good_neurons],g_merged))        
+        g=np.vstack((np.vstack(g)[good_neurons],g_merged))        
         
     #    P_new=list(P_[good_neurons].copy())
 #        P_new=[P_[pp] for pp in good_neurons]
@@ -328,7 +341,7 @@ def mergeROIS_parallel(Y_res,A,b,C,f,S,sn_pix,temporal_params,spatial_params,thr
         nr = nr - len(neur_id) + nm
     
     else:
-        warnings.warn('No neurons merged!')        
+        print('********** No neurons merged! ***************')        
         merged_ROIs=[];        
         
     return A,C,nr,merged_ROIs,S,bl,c1,sn,g    
