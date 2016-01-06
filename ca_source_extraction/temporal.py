@@ -39,86 +39,84 @@ def make_G_matrix(T,g):
         raise Exception('g must be an array')
 #%%
 def constrained_foopsi_parallel(arg_in):
-    """ necessary for parallel computatino of the function  constrained_foopsi
+    """ necessary for parallel computation of the function  constrained_foopsi
     """  
+    
     Ytemp, nT, jj_, bl, c1, g, sn, args = arg_in
     T=np.shape(Ytemp)[0]
     cc_,cb_,c1_,gn_,sn_,sp_ = constrained_foopsi(Ytemp/nT, bl = bl,  c1 = c1, g = g,  sn = sn, **args)
-    gd_ = np.max(np.roots(np.hstack((1,-gn_.T))));  # decay time constant for initial concentration
+    gd_ = np.max(np.roots(np.hstack((1,-gn_.T))));  
     gd_vec = gd_**range(T)   
     
-#    C[ii,:] = cc[:].T + cb + c1*gd_vec
-#    Sp[ii,:] = sp[:T].T
-#    YrA[:,ii] = YrA[:,ii] - np.matrix(nA[ii]*C[ii,:]).T
-#    pars['b'] = cb
-#    pars['c1'] = c1           
-#    pars['neuron_sn'] = sn
-#    pars['neuron_id'] = ii
+
     C_ = cc_[:].T + cb_ + np.dot(c1_,gd_vec)
     Sp_ = sp_[:T].T
     Ytemp_ = Ytemp - np.dot(nT,C_).T
     
     return C_,Sp_,Ytemp_,cb_,c1_,sn_,gn_,jj_
     
-    #Ctemp(jj,:) = full(cc(:)' + cb + c1*gd_vec);
-    #Stemp(jj,:) = spk(:)';
-#    Ytemp(:,jj) = Ytemp(:,jj) - nT(jj)*Ctemp(jj,:)';
-#    btemp(jj) = cb;
-#    c1temp(jj) = c1;
-#    sntemp(jj) = sn;   
-#    gtemp(jj,:) = gn(:)';       
+     
 #%%
-def update_temporal_components_parallel(Y, A, b, Cin, fin, bl = None,  c1 = None, g = None,  sn = None, ITER=2,method_foopsi='constrained_foopsi',n_processes=1, backend='single_thread',memory_efficient=False, **kwargs):
-    """update temporal components and background given spatial components using a block coordinate descent approach
-    Inputs:
+def update_temporal_components_parallel(Y, A, b, Cin, fin, bl = None,  c1 = None, g = None,  sn = None, ITER=2, method_foopsi='constrained_foopsi', n_processes=1, backend='single_thread',memory_efficient=False, **kwargs):
+    """update temporal components and background given spatial components using a block coordinate descent approach        
+    
+    Parameters:
+    -----------
+    
     Y: np.ndarray (2D)
         input data with time in the last axis (d x T)
     A: sparse matrix (crc format)
         matrix of temporal components (d x K)
+    b: ndarray (dx1)
+        current estimate of background component
     Cin: np.ndarray
-        current estimate of temporal components (K x T)
-    ITER: positive integer
-        Maximum number of block coordinate descent loops. Default: 2
+        current estimate of temporal components (K x T)   
     fin: np.ndarray
         current estimate of temporal background (vector of length T)
-    method_foopsi: string
-        Method of deconvolution of neural activity. 
-        Default: constrained_foopsi (constrained deconvolution, the only method supported at the moment)
-    deconv_method: string
-        Solver for constrained foopsi ('cvx' or 'spgl1', default: 'cvx')
     g:  np.ndarray
         Global time constant (not used)
-    **kwargs: all parameters passed to constrained_foopsi
-                               b=None, 
-                               c1=None,
-                               g=None,
-                               sn=None, 
-                               p=2, 
-                               method='cvx', 
-                               bas_nonneg=True, 
-                               noise_range=[0.25, 0.5], 
-                               noise_method='logmexp', 
-                               lags=5, 
-                               resparse=0, 
-                               fudge_factor=1, 
-                               verbosity=False):
-                               
+    bl: ndarray
+       baseline for fluorescence trace for each column in A
+    c1: ndarray
+       initial concentration for each column in A
+    g:  ndarray       
+       discrete time constant for each column in A
+    sn: ndarray
+       noise level for each column in A       
+    ITER: positive integer
+        Maximum number of block coordinate descent loops. Default: 2
+    method_foopsi: string
+        Method of deconvolution of neural activity. 
+        Default: constrained_foopsi (constrained deconvolution, the only method supported at the moment)           
+    
+    n_processes: int
+        number of processes to use for parallel computation. Should be less than the number of processes started with ipcluster.
+    backend: 'str'
+        'single_thread' no parallelization
+        'ipyparallel', parallelization using the ipyparallel cluster. You should start the cluster (install ipyparallel and then type 
+        ipcluster -n 6, where 6 is the number of processes. 
+    memory_efficient: Bool
+        whether or not to optimize for memory usage (longer running times). nevessary with very large datasets
+
+    
+    **kwargs: all parameters passed to constrained_foopsi except bl,c1,g,sn (see documentation). Some useful parameters are      
+    p: int
+        order of the autoregression model
+    method: [optional] string
+        solution method for basis projection pursuit 'cvx' or 'spgl1' or 'debug' for fast but possibly imprecise temporal components    
+  
     Outputs:
+    --------
     C:     np.matrix
             matrix of temporal components (K x T)
     f:     np.array
             vector of temporal background (length T) 
     Y_res: np.ndarray
             matrix with current residual (d x T)
-    P_:    dictionary
-            Dictionary with parameters for each temporal component:
-                P_.b:           baseline for fluorescence trace
-                P_.c1:          initial concentration
-                P_.gn:          discrete time constant
-                P_.neuron_sn:   noise level
-                P_.neuron_id:   index of component
-    Sp:    np.matrix
-            matrix of deconvolved neural activity (K x T)
+    S:     np.ndarray            
+                matrix of merged deconvolved activity (spikes) (K x T)
+
+    bl,c1,g,sn: same as input
     """
     if not kwargs.has_key('p') or kwargs['p'] is None:
         raise Exception("You have to provide a value for p")
@@ -161,19 +159,19 @@ def update_temporal_components_parallel(Y, A, b, Cin, fin, bl = None,  c1 = None
     YrA = (A.T.dot(Y)).T-Cin.T.dot(A.T.dot(A))
     
     
+    if backend == 'ipyparallel':
+        try: # if server is not running and raise exception if not installed or not started        
+            from ipyparallel import Client
+            c = Client()
+        except:
+            print "this backend requires the installation of the ipyparallel (pip install ipyparallel) package and  starting a cluster (type ipcluster start -n 6) where 6 is the number of nodes"
+            raise
     
-    try: # if server is not running and raise exception if not installed or not started        
-        from ipyparallel import Client
-        c = Client()
-    except:
-        print "this backend requires the installation of the ipyparallel (pip install ipyparallel) package and  starting a cluster (type ipcluster start -n 6) where 6 is the number of nodes"
-        raise
-
-    if len(c) <  n_processes:
-        print len(c)
-        raise Exception("the number of nodes in the cluster are less than the required processes: decrease the n_processes parameter to a suitable value")            
-    
-    dview=c[:n_processes] # use the number of processes
+        if len(c) <  n_processes:
+            print len(c)
+            raise Exception("the number of nodes in the cluster are less than the required processes: decrease the n_processes parameter to a suitable value")            
+        
+        dview=c[:n_processes] # use the number of processes
     
     Cin=np.array(Cin.todense())    
     for iter in range(ITER):
@@ -190,15 +188,22 @@ def update_temporal_components_parallel(Y, A, b, Cin, fin, bl = None,  c1 = None
             gtemp = np.zeros((np.size(jo),kwargs['p']));
             nT = nA[jo]            
             
-            #serial_result = map(lars_regression_noise_ipyparallel, pixel_groups)
-#            parallel_result = dview.map_sync(lars_regression_noise_ipyparallel, pixel_groups)
             
-            args_in=[(np.squeeze(np.array(Ytemp[:,jj])), nT[jj], jj, bl[jo[jj]], c1[jo[jj]], g[jo[jj]], sn[jo[jj]], kwargs) for jj in range(len(jo))]
+#            args_in=[(np.squeeze(np.array(Ytemp[:,jj])), nT[jj], jj, bl[jo[jj]], c1[jo[jj]], g[jo[jj]], sn[jo[jj]], kwargs) for jj in range(len(jo))]
+            args_in=[(np.squeeze(np.array(Ytemp[:,jj])), nT[jj], jj, None, None, None, None, kwargs) for jj in range(len(jo))]
             
-#            results = map(constrained_foopsi_parallel,args_in)        
+            if backend == 'ipyparallel':                    
+                
+                results = dview.map_sync(constrained_foopsi_parallel,args_in)        
 
-            results = dview.map_sync(constrained_foopsi_parallel,args_in)        
-            
+            elif backend == 'single_thread':
+                
+                results = map(constrained_foopsi_parallel,args_in)            
+                
+            else:
+                
+                raise Exception('Backend not defined. Use either single_thread or ipyparallel')
+                
             for chunk in results:
                 #pars=dict(kwargs)
                 C_,Sp_,Ytemp_,cb_,c1_,sn_,gn_,jj_=chunk                    
@@ -241,9 +246,10 @@ def update_temporal_components_parallel(Y, A, b, Cin, fin, bl = None,  c1 = None
         C[ii,:] = cc[:].T
         YrA[:,ii] = YrA[:,ii] - nA[ii]*np.atleast_2d(C[ii,:]).T 
         
-        dview.results.clear()   
-        c.purge_results('all')
-        c.purge_everything()
+        if backend == 'ipyparallel':       
+            dview.results.clear()   
+            c.purge_results('all')
+            c.purge_everything()
 
         if scipy.linalg.norm(Cin - C,'fro')/scipy.linalg.norm(C,'fro') <= 1e-3:
             # stop if the overall temporal component does not change by much
