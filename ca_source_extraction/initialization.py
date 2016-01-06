@@ -12,7 +12,7 @@ import os
 import sys
 import tempfile
 #%%
-def initialize_components(Y, K=30, gSig=[5,5], gSiz=None, ssub=1, tsub=1, nIter = 5, use_median = False, kernel = None): 
+def initialize_components(Y, K=30, gSig=[5,5], gSiz=None, ssub=1, tsub=1, nIter = 5, maxIter=5, use_median = False, kernel = None): 
     """Initalize components 
     
     This method uses a greedy approach followed by hierarchical alternative least squares (HALS) NMF.
@@ -29,7 +29,9 @@ def initialize_components(Y, K=30, gSig=[5,5], gSiz=None, ssub=1, tsub=1, nIter 
     gSiz: [optional] list,tuple
         size of kernel (default 2*tau + 1).
     nIter: [optional] int
-        number of iterations for shape tuning (default 5).    
+        number of iterations for shape tuning (default 5).
+    maxIter: [optional] int
+        number of iterations for HALS algorithm (default 5).
     ssub: [optional] int
         spatial downsampling factor recommended for large datasets (default 1, no downsampling).
     tsub: [optional] int
@@ -76,7 +78,7 @@ def initialize_components(Y, K=30, gSig=[5,5], gSiz=None, ssub=1, tsub=1, nIter 
     print 'Roi Extraction...'    
     Ain, Cin, _, b_in, f_in = greedyROI2d(Y_ds, nr = K, gSig = gSig, gSiz = gSiz, use_median = use_median, nIter=nIter, kernel = kernel)
     print 'Refining Components...'    
-    Ain, Cin, b_in, f_in = hals_2D(Y_ds, Ain, Cin, b_in, f_in,maxIter=10);
+    Ain, Cin, b_in, f_in = hals_2D(Y_ds, Ain, Cin, b_in, f_in,maxIter=maxIter);
     
     #center = ssub*com(Ain,d1s,d2s) 
     Ain = np.reshape(Ain, (d1s, d2s,K),order='F')
