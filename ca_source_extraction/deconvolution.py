@@ -21,7 +21,7 @@ import spgl_aux as spg
 #%%
 def constrained_foopsi(fluor, bl = None,  c1 = None, g = None,  sn = None, p = None, method = 'spgl1', bas_nonneg = True,  
                      noise_range = [.25,.5], noise_method = 'logmexp', lags = 5, fudge_factor = 1., 
-                    verbosity = False):
+                    verbosity = False,**kwargs):
     
     """ Infer the most likely discretized spike train underlying a fluorescence trace 
     
@@ -101,7 +101,7 @@ def spgl1_foopsi(fluor, bl, c1, g, sn, p, bas_nonneg, verbosity, thr = 1e-2,debu
     """Solve the deconvolution problem using the SPGL1 library
      available from https://github.com/epnev/SPGL1_python_port
     """
-    
+    fluor=fluor.copy()
     if 'spg' not in globals():
         raise Exception('The SPGL package could not be loaded, use a different method')
     
