@@ -47,7 +47,7 @@ def constrained_foopsi(fluor, bl = None,  c1 = None, g = None,  sn = None, p = N
     p: int
         order of the autoregression model
     method: [optional] string
-        solution method for basis projection pursuit 'cvx' or 'spgl1'    
+        solution method for basis projection pursuit 'cvx' or 'spgl1' or 'debug' for fast but possibly imprecise temporal components    
     bas_nonneg: bool
         baseline strictly non-negative        
     noise_range:  list of two elms
