@@ -9,6 +9,7 @@ import numpy as np
 from scipy.sparse import spdiags, diags
 from matplotlib import pyplot as plt
 from pylab import pause
+import sys
 
 
 def local_correlations(Y,eight_neighbours=False, swap_dim = True):
@@ -156,27 +157,67 @@ def com(A,d1,d2):
     return cm
      
      
-def view_patches(Yr,A,C,b,f,d1,d2):
-    """view spatial and temporal components
+def view_patches(Yr,A,C,b,f,d1,d2,secs=1):
+    """view spatial and temporal components (secs=0 interactive)
+     Yr:        np.ndarray 
+            movie in format pixels (d) x frames (T)
+     A:     sparse matrix
+                matrix of spatial components (d x K)
+     C:     np.ndarray
+                matrix of temporal components (K x T)
+     b:     np.ndarray
+                spatial background (vector of length d)
+
+     f:     np.ndarray
+                temporal background (vector of length T)
+     d1,d2: np/ndarray
+                frame dimensions
+     secs: float
+                number of seconds in between component scrolling. secs=0 means interactive (click to scroll)
+             
     """    
-    
+    plt.ion()
     nr,T = C.shape    
     nA2 = np.sum(np.array(A.todense())**2,axis=0)
-    Y_r = np.array(spdiags(1/nA2,0,nr,nr)*(A.T*np.matrix(Yr-b[:,np.newaxis]*f[np.newaxis])) + C)
-    fig = plt.figure()
+    Y_r = np.array(spdiags(1/nA2,0,nr,nr)*(A.T*np.matrix(Yr-b[:,np.newaxis]*f[np.newaxis] - A.dot(C))) + C)    
+    A=A.todense()
+#    Y_r = (Yr-b.dot(f)).T.dot(A.todense()).T/nA2[:,None]#-bl[:,None]
+#    Y_r=[];
+#    
+#    Atmp=A.copy()
+#    Ctmp=C.copy()
+#    for ii in range(C.shape[0]):
+#        print ii
+#        old_c=Ctmp[ii,:]
+#        old_a=Atmp[:,ii]        
+#        Atmp[:,ii]=0  
+#        Ctmp[ii,:]=0
+#        Y_r.append((Yr-b.dot(f)- Atmp.dot(Ctmp)).T.dot(A[:,ii]).T/nA2[ii])
+#        Atmp[:,ii]=old_a  
+#        Ctmp[ii,:]=old_c                
+#    Y_r=np.asarray(Y_r)
     
+    fig = plt.figure()
+    thismanager = plt.get_current_fig_manager()
+    thismanager.toolbar.pan()
+    print('In order to scroll components you need to click on the plot')
+    sys.stdout.flush()  
     for i in range(nr+1):
         if i < nr:
             ax1 = fig.add_subplot(2,1,1)
-            plt.imshow(np.reshape(np.array(A.todense())[:,i],(d1,d2),order='F'),interpolation='None')
+            plt.imshow(np.reshape(np.array(A[:,i]),(d1,d2),order='F'),interpolation='None')
             ax1.set_title('Spatial component ' + str(i+1))    
             ax2 = fig.add_subplot(2,1,2)
-            plt.plot(np.arange(T),np.squeeze(np.array(Y_r[i,:]))) 
-            plt.plot(np.arange(T),np.squeeze(np.array(C[i,:])))
+            plt.plot(np.arange(T),np.squeeze(np.array(Y_r[i,:])),'c',linewidth=3) 
+            plt.plot(np.arange(T),np.squeeze(np.array(C[i,:])),'r',linewidth=2) 
             ax2.set_title('Temporal component ' + str(i+1)) 
             ax2.legend(labels = ['Filtered raw data','Inferred trace'])
-            plt.pause(1)            
-            #plt.waitforbuttonpress()
+            
+            if secs>0:               
+                plt.pause(secs) 
+            else:
+                plt.waitforbuttonpress()   
+                
             fig.delaxes(ax2)
         else:
             ax1 = fig.add_subplot(2,1,1)
