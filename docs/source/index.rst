@@ -11,7 +11,8 @@ Contents:
 .. toctree::
    :maxdepth: 2
 
-   Overview	      
+   Overview
+   Installation	      
    Tutorial	      
    core_functions
    API reference
