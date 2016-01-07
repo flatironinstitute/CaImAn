@@ -6,11 +6,16 @@ Created on Sat Sep 12 15:52:53 2015
 """
 
 import numpy as np
-from scipy.sparse import spdiags, diags
+from scipy.sparse import spdiags, diags, coo_matrix
 from matplotlib import pyplot as plt
 from pylab import pause
 import sys
-
+import bokeh.plotting as bpl
+from bokeh.io import vform,hplot,vplot,gridplot
+from bokeh.models import CustomJS, ColumnDataSource, Slider
+import matplotlib as mpl
+import matplotlib.cm as cm
+import numpy as np
 
 def local_correlations(Y,eight_neighbours=False, swap_dim = True):
      """Computes the correlation image for the input dataset Y
@@ -388,3 +393,96 @@ def db_plot(*args,**kwargs):
     plt.plot(*args,**kwargs)
     plt.show()
     pause(1)
+    
+def nb_view_patches(Yr,A,C,b,f,d1,d2,image_neurons=None,thr = 0.99):
+    
+    colormap =cm.get_cmap("jet") #choose any matplotlib colormap here
+    grayp = [mpl.colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
+    nr,T = C.shape
+    nA2 = np.sum(np.array(A)**2,axis=0)
+    Y_r = np.array(spdiags(1/nA2,0,nr,nr)*(A.T*np.matrix(Yr-b[:,np.newaxis]*f[np.newaxis] - A.dot(C))) + C)  
+
+    
+    bpl.output_notebook()
+    x = np.arange(T)
+    z=np.squeeze(np.array(Y_r[:,:].T))/100
+    k=np.reshape(np.array(A),(d1,d2,A.shape[1]),order='F')
+    if image_neurons is None:    
+        image_neurons=np.sum(k,axis=2)  
+    
+    fig = plt.figure()
+    coors = plot_contours(coo_matrix(A),image_neurons,thr = thr)
+    plt.close()
+#    cc=coors[0]['coordinates'];
+    cc1=[cor['coordinates'][:,0] for cor in coors]
+    cc2=[cor['coordinates'][:,1] for cor in coors]
+    c1=cc1[0]
+    c2=cc2[0]
+    npoints=range(len(c1))
+    
+    source = ColumnDataSource(data=dict(x=x, y=z[:,0], z=z))    
+    source2 = ColumnDataSource(data=dict(x=npoints,c1=c1,c2=c2,cc1=cc1,cc2=cc2))
+    
+    plot = bpl.figure(plot_width=600, plot_height=300)
+    plot.line('x', 'y', source=source, line_width=1, line_alpha=0.6)
+    
+    callback = CustomJS(args=dict(source=source,source2=source2), code="""
+            var data = source.get('data');
+            var f = cb_obj.get('value')
+            x = data['x']
+            y = data['y']
+            z = data['z']
+            
+            for (i = 0; i < x.length; i++) {
+                y[i] = z[i][f-1]             
+            }
+            
+            var data2 = source2.get('data');
+            c1 = data2['c1'];
+            c2 = data2['c2'];
+            cc1 = data2['cc1'];
+            cc2 = data2['cc2'];
+            
+            for (i = 0; i < c1.length; i++) {            
+                   c1[i] = cc1[f][i]
+                   c2[i] = cc2[f][i]            
+            }
+            source2.trigger('change');
+            source.trigger('change');
+            
+        """)
+    
+    
+    slider = Slider(start=1, end=Y_r.shape[0], value=1, step=1, title="Neuron Number", callback=callback)
+    
+    plot1 = bpl.figure(x_range=[0, d2], y_range=[0, d1],plot_width=300, plot_height=300)
+    plot1.image(image=[image_neurons], x=0, y=0, dw=d2, dh=d1, palette=grayp)
+    plot1.patch('c1','c2',alpha=0.6, color='red',line_width=2,source=source2)
+    
+    layout = vform(slider, hplot(plot1,plot))
+    
+    bpl.show(layout)
+    
+    return Y_r
+
+def nb_imshow(image,cmap='jet'):
+    
+    colormap =cm.get_cmap(cmap) #choose any matplotlib colormap here
+    grayp = [mpl.colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
+    p = bpl.figure(x_range=[0,image.shape[1]], y_range=[0,image.shape[0]])
+    p.image(image=[image], x=0, y=0, dw=image.shape[1], dh=image.shape[0], palette=grayp)
+    
+    return p
+
+def nb_plot_contour(image,A,d1,d2,thr=0.995,face_color=None, line_color='black',alpha=0.4,line_width=2,**kwargs):  
+    p=nb_imshow(image,cmap='jet')
+    center = com(A,d1,d2)
+    p.circle(center[:,1],center[:,0], size=10, color="black", fill_color=None, line_width=2, alpha=1)
+    coors = plot_contours(coo_matrix(A),image,thr = thr)
+    plt.close()
+    #    cc=coors[0]['coordinates'];
+    cc1=[np.clip(cor['coordinates'][:,0],0,d2) for cor in coors]
+    cc2=[np.clip(cor['coordinates'][:,1],0,d1) for cor in coors]
+
+    p.patches(cc1,cc2, alpha=.4, color=face_color,  line_color=line_color, line_width=2,**kwargs)
+    return p
