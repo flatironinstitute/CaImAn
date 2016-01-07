@@ -264,6 +264,8 @@ def update_temporal_components_parallel(Y, A, b, Cin, fin, bl = None,  c1 = None
     C = C[:nr,:]
         
     P_ = sorted(P_, key=lambda k: k['neuron_id']) 
+    if backend == 'ipyparallel':      
+        c.close()
     
     return C,f,Y_res,S,bl,c1,sn,g
     

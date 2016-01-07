@@ -235,6 +235,7 @@ def update_spatial_components_parallel(Y,C,f,A_in,sn=None, d1=None,d2=None,min_s
         dview.results.clear()   
         c.purge_results('all')
         c.purge_everything()
+        c.close()
         
         
              

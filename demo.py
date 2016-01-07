@@ -24,7 +24,6 @@ import tifffile
 import subprocess
 import time as tm
 from time import time
-import pandas as pd
 #% for caching
 import tempfile
 import shutil
@@ -44,20 +43,22 @@ tm.sleep(5)
 sys.stdout.flush()    
 proc_2=subprocess.Popen(["ipcluster start -n " + str(n_processes)],shell=True) 
 
-#%%
+#%% LOAD MOVIE AND MAKE DIMENSIONS COMPATIBLE WITH CNMF
 reload=0
 filename='movies/demoMovie.tif'
 t = tifffile.TiffFile(filename) 
 Y = t.asarray().astype(dtype=np.float32) 
 Y = np.transpose(Y,(1,2,0))
 d1,d2,T=Y.shape
+Yr=np.reshape(Y,(d1*d2,T),order='F')
+np.save('Y',Y)
+np.save('Yr',Yr)
 Y=np.load('Y.npy',mmap_mode='r')
 Yr=np.load('Yr.npy',mmap_mode='r')        
 d1,d2,T=Y.shape
 Cn = cse.local_correlations(Y)
 n_pixels_per_process=d1*d2/n_processes # how to subdivide the work among processes
-#%%
-
+#%% prepare parameters
 preprocess_params={ 'sn':None, 'g': None, 'noise_range' : [0.25,0.5], 'noise_method':'logmexp',
                     'n_processes':n_processes, 'n_pixels_per_process':n_pixels_per_process,   
                     'compute_g':False, 'p':p,   
