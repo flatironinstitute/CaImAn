@@ -63,9 +63,9 @@ def initialize_components(Y, K=30, gSig=[5,5], gSiz=None, ssub=1, tsub=1, nIter 
     # rescale according to downsampling factor
     gSig = np.round([gSig[0]/ssub,gSig[1]/ssub]).astype(np.int)
     gSiz = np.round([gSiz[0]/ssub,gSiz[1]/ssub]).astype(np.int)    
-    d1s = np.ceil(d1/ssub).astype(np.int)       #size of downsampled image
-    d2s = np.ceil(d2/ssub).astype(np.int)     
-    Ts = np.floor(T/tsub).astype(np.int)        #reduced number of frames
+#    d1s = np.ceil(d1/ssub).astype(np.int)       #size of downsampled image
+#    d2s = np.ceil(d2/ssub).astype(np.int)     
+#    Ts = np.floor(T/tsub).astype(np.int)        #reduced number of frames
 
     
     # spatial downsampling
@@ -81,6 +81,7 @@ def initialize_components(Y, K=30, gSig=[5,5], gSiz=None, ssub=1, tsub=1, nIter 
     Ain, Cin, b_in, f_in = hals_2D(Y_ds, Ain, Cin, b_in, f_in,maxIter=maxIter);
     
     #center = ssub*com(Ain,d1s,d2s) 
+    d1s,d2s,Ts=np.shape(Y_ds)
     Ain = np.reshape(Ain, (d1s, d2s,K),order='F')
     Ain = resize(Ain, [d1, d2],order=0)
     

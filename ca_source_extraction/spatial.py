@@ -564,8 +564,12 @@ def threshold_components(A, d1, d2, medw = (3,3), thr = 0.9999, se = np.ones((3,
         Asor = np.sort(np.squeeze(np.reshape(A_temp,(d,1))))[::-1]
         temp = np.cumsum(Asor**2)
         ff = np.squeeze(np.where(temp<(1-thr)*temp[-1]))
+
         if ff.size > 0:
-            ind = ff[-1]
+            if ff.ndim==0:
+                ind = ff
+            else:
+                ind = ff[-1]
             A_temp[A_temp<Asor[ind]] = 0
             BW = (A_temp>=Asor[ind])
         else:
