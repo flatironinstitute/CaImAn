@@ -188,7 +188,7 @@ print('DONE!')
 print t_elMERGE  
 
 
-# In[ ]:
+# In[16]:
 
 #%% refine spatial and temporal 
 t1 = time()
@@ -200,25 +200,25 @@ print('DONE!')
 print t_elMERGE 
 
 
-# In[ ]:
+# In[17]:
 
 plt.figure(num=None, figsize=(9, 7), dpi=100, facecolor='w', edgecolor='k')
 A_or, C_or, srt = cse.order_components(A2,C2)
 crd = cse.plot_contours(coo_matrix(A_or[:,::-1]),Cn,thr=0.9)
 
 
-# In[ ]:
+# In[18]:
 
 p=cse.nb_plot_contour(Cn,A_or,d1,d2,thr=0.99,face_color='purple', line_color='black',alpha=0.3,line_width=2)
 bpl.show(p)
 
 
-# In[ ]:
+# In[19]:
 
 traces_fluo=cse.nb_view_patches(Yr,A_or,C_or,b2,f2,d1,d2,thr = 0.99)
 
 
-# In[ ]:
+# In[20]:
 
 print "Stopping Cluster...."
 sys.stdout.flush()  
