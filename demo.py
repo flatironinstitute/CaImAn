@@ -130,4 +130,4 @@ cse.view_patches(Yr,coo_matrix(A_or),C_or,b2,f2, d1,d2,secs=0)
 print "Stopping Cluster...."
 sys.stdout.flush()  
 proc_2=subprocess.Popen(["ipcluster stop"],shell=True)
-time.sleep(5)
+tm.sleep(5)
