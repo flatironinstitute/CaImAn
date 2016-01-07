@@ -10,26 +10,37 @@ from scipy.sparse import spdiags, diags, coo_matrix
 from matplotlib import pyplot as plt
 from pylab import pause
 import sys
-import bokeh.plotting as bpl
-from bokeh.io import vform,hplot,vplot,gridplot
-from bokeh.models import CustomJS, ColumnDataSource, Slider
+
+try:
+    import bokeh.plotting as bpl
+    from bokeh.io import vform,hplot
+    from bokeh.models import CustomJS, ColumnDataSource, Slider
+except: 
+    print "Bokeh could not be loaded. Either it is not installed or you are not running within a notebook"
+    
 import matplotlib as mpl
 import matplotlib.cm as cm
 import numpy as np
 
 def local_correlations(Y,eight_neighbours=False, swap_dim = True):
      """Computes the correlation image for the input dataset Y
-     Inputs:
+     
+     Parameters
+     -----------
+     
      Y:   np.ndarray (3D)
           Input movie data in 3D format
      eight_neibhbours: Boolean
           Use 8 neighbors if true, and 4 if false (default = False)
      swap_dim: Boolean
           True indicates that time is listed in the last axis of Y (matlab format)
-      and moves it in the front
+          and moves it in the front
      
-      Output:
-        rho d1 x d2 matrix, cross-correlation with adjacent pixels
+     Returns
+     --------
+     
+     rho: d1 x d2 matrix, cross-correlation with adjacent pixels
+        
      """
      
      if swap_dim:
@@ -80,15 +91,20 @@ def local_correlations(Y,eight_neighbours=False, swap_dim = True):
      
 def order_components(A,C):
      """Order components based on their maximum temporal value and size
-     Inputs:
+     
+     Parameters
+     -----------
      A:   sparse matrix (d x K)
           spatial components
      C:   matrix or np.ndarray (K x T)
           temporal components
           
-     A_or:     ordered spatial components
-     C_or:     ordered temporal components
-     srt:      sorting mapping
+     A_or:  np.ndarray   
+         ordered spatial components
+     C_or:  np.ndarray  
+         ordered temporal components
+     srt:   np.ndarray  
+         sorting mapping
      """
      A = np.array(A.todense())
      nA2 = np.sqrt(np.sum(A**2,axis=0))
@@ -105,7 +121,9 @@ def order_components(A,C):
 
 def extract_DF_F(Y,A,C,i=None):
     """Extract DF/F values from spatial/temporal components and background
-     Inputs:
+     
+     Parameters
+     -----------
      Y: np.ndarray
            input data (d x T)
      A: sparse matrix of np.ndarray 
@@ -113,7 +131,8 @@ def extract_DF_F(Y,A,C,i=None):
      C: matrix
            Set of temporal components including background (K x T)
            
-     Output:
+     Returns
+     -----------
      C_df: matrix 
           temporal components in the DF/F domain
      Df:  np.ndarray
@@ -164,6 +183,9 @@ def com(A,d1,d2):
      
 def view_patches(Yr,A,C,b,f,d1,d2,secs=1):
     """view spatial and temporal components (secs=0 interactive)
+     
+     Parameters
+     -----------
      Yr:        np.ndarray 
             movie in format pixels (d) x frames (T)
      A:     sparse matrix
@@ -234,7 +256,9 @@ def view_patches(Yr,A,C,b,f,d1,d2,secs=1):
             
 def plot_contours(A,Cn,thr = 0.995, display_numbers = True, max_number = None,cmap=None, **kwargs):
     """Plots contour of spatial components against a background image and returns their coordinates
-    Inputs:
+     
+     Parameters
+     -----------
      A:   np.ndarray or sparse matrix
                Matrix of Spatial components (d x K)
      Cn:  np.ndarray (2D)
@@ -248,7 +272,8 @@ def plot_contours(A,Cn,thr = 0.995, display_numbers = True, max_number = None,cm
      cmap:     string
                User specifies the colormap (default None, default colormap)
                
-     Output:
+     Returns
+     --------
      Coor: list of coordinates with center of mass, contour plot coordinates and bounding box for each component
     """
     from  scipy.sparse import issparse

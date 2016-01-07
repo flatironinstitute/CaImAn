@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 """A set of routines for estimating the temporal components, given the spatial components and temporal components
-
 @author: agiovann
 """
 from scipy.sparse import spdiags,coo_matrix#,csgraph
@@ -58,11 +57,12 @@ def constrained_foopsi_parallel(arg_in):
      
 #%%
 def update_temporal_components_parallel(Y, A, b, Cin, fin, bl = None,  c1 = None, g = None,  sn = None, ITER=2, method_foopsi='constrained_foopsi', n_processes=1, backend='single_thread',memory_efficient=False, **kwargs):
-    """update temporal components and background given spatial components using a block coordinate descent approach        
-    
-    Parameters:
-    -----------
-    
+    """Update temporal components and background given spatial components using a block coordinate descent approach.
+
+
+    Parameters
+    -----------    
+
     Y: np.ndarray (2D)
         input data with time in the last axis (d x T)
     A: sparse matrix (crc format)
@@ -75,38 +75,36 @@ def update_temporal_components_parallel(Y, A, b, Cin, fin, bl = None,  c1 = None
         current estimate of temporal background (vector of length T)
     g:  np.ndarray
         Global time constant (not used)
-    bl: ndarray
+    bl: np.ndarray
        baseline for fluorescence trace for each column in A
-    c1: ndarray
+    c1: np.ndarray
        initial concentration for each column in A
-    g:  ndarray       
+    g:  np.ndarray       
        discrete time constant for each column in A
-    sn: ndarray
+    sn: np.ndarray
        noise level for each column in A       
     ITER: positive integer
-        Maximum number of block coordinate descent loops. Default: 2
+        Maximum number of block coordinate descent loops. 
     method_foopsi: string
-        Method of deconvolution of neural activity. 
-        Default: constrained_foopsi (constrained deconvolution, the only method supported at the moment)           
-    
+        Method of deconvolution of neural activity. constrained_foopsi is the only method supported at the moment.               
     n_processes: int
         number of processes to use for parallel computation. Should be less than the number of processes started with ipcluster.
     backend: 'str'
-        'single_thread' no parallelization
-        'ipyparallel', parallelization using the ipyparallel cluster. You should start the cluster (install ipyparallel and then type 
-        ipcluster -n 6, where 6 is the number of processes. 
+        single_thread no parallelization
+        ipyparallel, parallelization using the ipyparallel cluster. You should start the cluster (install ipyparallel and then type 
+        ipcluster -n 6, where 6 is the number of processes). 
     memory_efficient: Bool
-        whether or not to optimize for memory usage (longer running times). nevessary with very large datasets
-
-    
-    **kwargs: all parameters passed to constrained_foopsi except bl,c1,g,sn (see documentation). Some useful parameters are      
+        whether or not to optimize for memory usage (longer running times). nevessary with very large datasets  
+    **kwargs: dict
+        all parameters passed to constrained_foopsi except bl,c1,g,sn (see documentation). Some useful parameters are      
     p: int
         order of the autoregression model
     method: [optional] string
-        solution method for basis projection pursuit 'cvx' or 'spgl1' or 'debug' for fast but possibly imprecise temporal components    
+        solution method for basis projection pursuit cvx or spgl1 or debug for fast but possibly imprecise temporal components    
   
-    Outputs:
+    Returns
     --------
+    
     C:     np.matrix
             matrix of temporal components (K x T)
     f:     np.array
@@ -114,9 +112,16 @@ def update_temporal_components_parallel(Y, A, b, Cin, fin, bl = None,  c1 = None
     Y_res: np.ndarray
             matrix with current residual (d x T)
     S:     np.ndarray            
-                matrix of merged deconvolved activity (spikes) (K x T)
-
-    bl,c1,g,sn: same as input
+            matrix of merged deconvolved activity (spikes) (K x T)
+    bl:  float  
+            same as input    
+    c1:  float
+            same as input    
+    g:   float
+            same as input    
+    sn:  float
+            same as input 
+    
     """
     if not kwargs.has_key('p') or kwargs['p'] is None:
         raise Exception("You have to provide a value for p")

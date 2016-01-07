@@ -161,58 +161,68 @@ def mergeROIS(Y_res,A,b,C,f,S,d1,d2,P_,thr=0.85,mx=50,sn=None,deconv_method='spg
     return A,C,nr,merged_ROIs,P_new,S
 #%%
 def mergeROIS_parallel(Y_res,A,b,C,f,S,sn_pix,temporal_params,spatial_params,thr=0.85,mx=50,bl=None,c1=None,sn=None,g=None):
-    """
-    merging of spatially overlapping components that have highly correlated temporal activity
+    """ Merging of spatially overlapping components that have highly correlated temporal activity
     The correlation threshold for merging overlapping components is user specified in thr
-     Inputs:
-     Y_res:        np.ndarray 
-            residual movie after subtracting all found components (Y_res = Y - A*C - b*f) (d x T)
-     A:     sparse matrix
-                matrix of spatial components (d x K)
-     b:     np.ndarray
-                spatial background (vector of length d)
-     C:     np.ndarray
-                matrix of temporal components (K x T)
-     f:     np.ndarray
-                temporal background (vector of length T)     
-     S:     np.ndarray            
-                matrix of deconvolved activity (spikes) (K x T)
-     sn_pix: ndarray
-                noise standard deviation for each pixel
-     temporal_params: dictionary 
-                all the parameters that can be passed to the update_temporal_components_parallel function
-     spatial_params: dictionary 
-                all the parameters that can be passed to the update_spatial_components_parallel function     
-         
-     thr:   scalar between 0 and 1
-                correlation threshold for merging (default 0.85)
-     mx:    int
-                maximum number of merging operations (default 50)
-     sn_pix:    nd.array
-                noise level for each pixel (vector of length d)
      
-     bl:        baseline for fluorescence trace for each row in C
-     c1:        initial concentration for each row in C
-     g:         discrete time constant for each row in C
-     sn:        noise level for each row in C
-    Outputs:
-     A:     sparse matrix
-                matrix of merged spatial components (d x K)
-     C:     np.ndarray
-                matrix of merged temporal components (K x T)
-     nr:    int
-            number of components after merging
-     merged_ROIs: list
-            index of components that have been merged     
-     S:     np.ndarray            
-                matrix of merged deconvolved activity (spikes) (K x T)
-     bl:        baseline for fluorescence trace
-     c1:        initial concentration
-     g:         discrete time constant
-     sn:        noise level
+Parameters
+-----------     
+
+Y_res: np.ndarray
+     residual movie after subtracting all found components (Y_res = Y - A*C - b*f) (d x T)
+A: sparse matrix
+     matrix of spatial components (d x K)
+b: np.ndarray
+     spatial background (vector of length d)
+C: np.ndarray
+     matrix of temporal components (K x T)
+f:     np.ndarray
+     temporal background (vector of length T)     
+S:     np.ndarray            
+     matrix of deconvolved activity (spikes) (K x T)
+sn_pix: ndarray
+     noise standard deviation for each pixel
+temporal_params: dictionary 
+     all the parameters that can be passed to the update_temporal_components_parallel function
+spatial_params: dictionary 
+     all the parameters that can be passed to the update_spatial_components_parallel function     
      
-    % Written by:
-    % Andrea Giovannucci from implementation of Eftychios A. Pnevmatikakis, Simons Foundation, 2015
+thr:   scalar between 0 and 1
+     correlation threshold for merging (default 0.85)
+mx:    int
+     maximum number of merging operations (default 50)
+sn_pix:    nd.array
+     noise level for each pixel (vector of length d)
+ 
+bl:        
+     baseline for fluorescence trace for each row in C
+c1:        
+     initial concentration for each row in C
+g:         
+     discrete time constant for each row in C
+sn:        
+     noise level for each row in C
+
+Returns
+--------
+
+A:     sparse matrix
+        matrix of merged spatial components (d x K)
+C:     np.ndarray
+        matrix of merged temporal components (K x T)
+nr:    int
+    number of components after merging
+merged_ROIs: list
+    index of components that have been merged     
+S:     np.ndarray            
+        matrix of merged deconvolved activity (spikes) (K x T)
+bl: float       
+    baseline for fluorescence trace
+c1: float       
+    initial concentration
+g:  float       
+    discrete time constant
+sn: float      
+    noise level    
     """
     
 #%

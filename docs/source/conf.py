@@ -52,9 +52,9 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'Ca source separation'
-copyright = u'2015, AG and EP'
-author = u'AG and EP'
+project = u'Constrained NMF'
+copyright = u'2015, Eftychios Pnevmatikakis and Andrea Giovannucci'
+author = u'Eftychios Pnevmatikakis and Andrea Giovannucci'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
