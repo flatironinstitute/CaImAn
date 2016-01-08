@@ -38,6 +38,55 @@ This repository contains a Python implementation of the spatio-temporal demixing
 - [SIMA](http://www.losonczylab.org/sima/1.3/): The [constrained deconvolution](https://github.com/losonczylab/sima/blob/master/sima/spikes.py) method has been integrated with SIMA, a Python based library for calcium imaging data analysis.
 - [Thunder](http://thunder-project.org/): The [group LASSO initialization and spatial CNMF](https://github.com/j-friedrich/thunder/tree/LocalNMF) method has been integrated with Thunder, a library for large scale neural data analysis with Spark.
 
+Installation
+===================================================
+
+Installation on MAC OS
+----------------------
+
+1. Download and install Anaconda <http://docs.continuum.io/anaconda/install> 
+
+2. Clone these two repositories *in the same folder*:
+```
+git clone https://github.com/agiovann/Constrained_NMF.git
+git clone https://github.com/epnev/SPGL1_python_port.git
+```
+
+3.     
+    1. Go into the cloned folder and type `conda create --name CNMF --file requirements.txt`
+    
+    2. type `source activate CNMF` (this activates the environment, remember to do this every time you want to use the software)
+
+    3. type `pip install tifffile picos` 
+
+    4. type `pip install joblib --upgrade` 
+
+Use this in case 3. does not work. Type the following
+```
+git clone https://github.com/agiovann/Constrained_NMF.git
+git clone https://github.com/epnev/SPGL1_python_port.git
+conda create -n CNMF --no-deps ipython
+source activate CNMF
+conda install spyder numpy scipy ipyparallel matplotlib bokeh jupyter scikit-image scikit-learn joblib cvxopt      
+pip install picos
+pip install tifffile
+```
+
+Test the system
+----------------------
+
+A. Using the Spyder IDE. 
+    
+    1. Open the file demo.py 
+
+    2. Run the cells one by one inspecting the output
+
+B. Using notebook. 
+
+    1. type `ipython notebook`
+
+    2. open the notebook called demoCNMF.ipynb and run cell by cell inspecting the result
+
 Documentation
 ========
 
