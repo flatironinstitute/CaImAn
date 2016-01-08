@@ -51,9 +51,8 @@ setup(
     keywords = 'fluorescence calcium ca imaging deconvolution ROI identification',
     packages = ['ca_source_extraction'],
     data_files = [	('', ['LICENSE.txt']),
-                  ('', ['README.md']),
-    												],
-    install_requires = [ 'matplotlib', 'scikit-learn', 'scikit-image', 'tifffile','ipyparallel','bokeh','jupyter','scikit-learn','joblib','cvxopt','ipython','picos', 'scipy','numpy'], 
+                  ('', ['README.md'])],
+    install_requires = [ 'matplotlib', 'scikit-learn', 'scikit-image', 'tifffile','ipyparallel','bokeh','jupyter','scikit-learn','joblib>=0.8.4','cvxopt','ipython','picos', 'scipy','numpy'],
     include_dirs = [incdir, np.get_include()]    
  
 )
