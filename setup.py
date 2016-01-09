@@ -1,8 +1,7 @@
-from setuptools import setup, find_packages,Extension
-from distutils.sysconfig import get_python_inc
+from setuptools import setup
 from os import path
-import os
-import numpy as np
+#import os
+#import numpy as np
 
 
 """A setuptools based setup module.
@@ -14,15 +13,14 @@ https://github.com/pypa/sampleproject
 # Always prefer setuptools over distutils
 here = path.abspath(path.dirname(__file__))
     
-
 with open('README.md','r') as rmf:
     readme = rmf.read()
 
-incdir = os.path.join(get_python_inc(plat_specific=1), 'Numerical')
+#incdir = os.path.join(get_python_inc(plat_specific=1), 'Numerical')
 
 setup(	
     name = 'Constrained_NMF',
-    version = '0.03',
+    version = '0.1',
     author = 'Andrea Giovannucci and Eftychios Pnevmatikakis',
     author_email = 'agiovannucci@simonsfoundation.org',
     url = 'https://github.com/agiovann/Constrained_NMF',
@@ -52,8 +50,8 @@ setup(
     packages = ['ca_source_extraction'],
     data_files = [	('', ['LICENSE.txt']),
                   ('', ['README.md'])],
-    install_requires = [ 'matplotlib', 'scikit-learn', 'scikit-image', 'tifffile','ipyparallel','bokeh','jupyter','scikit-learn','joblib>=0.8.4','cvxopt','ipython','picos', 'scipy','numpy'],
-    include_dirs = [incdir, np.get_include()]    
+    install_requires = [ 'python==2.7.*'],#'matplotlib', 'scikit-learn', 'scikit-image', 'ipyparallel','scikit-learn','ipython','scipy','numpy'],#,'bokeh','jupyter','tifffile','cvxopt','picos', 'joblib>=0.8.4'],
+    #include_dirs = [incdir, np.get_include()]    
  
 )
 
