@@ -4,13 +4,10 @@ from os import path
 #import numpy as np
 
 
-"""A setuptools based setup module.
-See:
-https://packaging.python.org/en/latest/distributing.html
-https://github.com/pypa/sampleproject
 """
-
-# Always prefer setuptools over distutils
+    Installation script for anaconda installers
+    
+"""
 here = path.abspath(path.dirname(__file__))
     
 with open('README.md','r') as rmf:
@@ -47,7 +44,7 @@ setup(
     'Programming Language :: Python :: 2.7',
     ],
     keywords = 'fluorescence calcium ca imaging deconvolution ROI identification',
-    packages = ['ca_source_extraction'],
+    packages = ['ca_source_extraction','SPGL1_python_port'],
     data_files = [	('', ['LICENSE.txt']),
                   ('', ['README.md'])],
     install_requires = [ 'python==2.7.*'],#'matplotlib', 'scikit-learn', 'scikit-image', 'ipyparallel','scikit-learn','ipython','scipy','numpy'],#,'bokeh','jupyter','tifffile','cvxopt','picos', 'joblib>=0.8.4'],

@@ -15,8 +15,8 @@ from warnings import warn
 #import time
 #import sys    
 
-from spgl1 import spg_bpdn
-import spgl_aux as spg
+from SPGL1_python_port.spgl1 import spg_bpdn
+from SPGL1_python_port import spgl_aux as spg
 
 #%%
 def constrained_foopsi(fluor, bl = None,  c1 = None, g = None,  sn = None, p = None, method = 'spgl1', bas_nonneg = True,  
