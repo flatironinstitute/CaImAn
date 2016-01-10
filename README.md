@@ -48,35 +48,39 @@ Installation on MAC OS
 
 2. EASY WAY. type:
     ```
+    conda create -n CNMF  ipython
+    source activate CNMF
     conda install -c https://conda.anaconda.org/agiovann constrained_nmf
-    pip install tifffile
+    pip install 'tifffile>=0.7'
+    pip install 'joblib>=0.9.3'
     ```
 
 3. ADVANCED WAY (with access to source code).
     ```
     git clone --recursive https://github.com/agiovann/Constrained_NMF.git
-    conda create -n CNMF --no-deps ipython
+    conda create -n CNMF ipython
     source activate CNMF
     conda install spyder numpy scipy ipyparallel matplotlib bokeh jupyter scikit-image scikit-learn joblib cvxopt      
     pip install picos
     pip install tifffile
+    pip install 'joblib>=0.9.3'
     ```
 
 Test the system
 ----------------------
 In case you used installation af point 2 above you will need to download the test files from <https://github.com/agiovann/Constrained_NMF/releases/download/0.04/Demo.zip>
 
-A. Using the Spyder IDE. 
+A. Using the Spyder (type `conda install spyder`) IDE. 
     
-    1. Open the file demo.py 
-
-    2. Run the cells one by one inspecting the output
+    1. Unzip the file Demo.zip (you do not need this step if you installe dusing method 3 above, just enter the Constrained_NMF folder and you will find all the required files there.
+    2. Open the file demo.py
+    3. Run the cells one by one inspecting the output
 
 B. Using notebook. 
-
-    1. type `ipython notebook`
-
-    2. open the notebook called demoCNMF.ipynb and run cell by cell inspecting the result
+    
+    1. Unzip the file Demo.zip (you do not need this step if you installe dusing method 3 above, just enter the Constrained_NMF folder and you will find all the required files there.
+    2. type `ipython notebook`
+    3. open the notebook called demoCNMF.ipynb and run cell by cell inspecting the result
 
 Documentation
 ========
