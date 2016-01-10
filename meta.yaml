@@ -4,10 +4,12 @@ package:
 
  
 source:
-  #git_rev: 0.03
+  #git_rev: 0.04
   #git_url: https://github.com/agiovann/Constrained_NMF.git
-  path: ../Constrained_NMF 
+  #git_tag: 507cac2
+  path: .
 
+  
 requirements:
   build:
     - python <3
