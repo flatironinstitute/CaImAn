@@ -66,7 +66,9 @@ Installation on MAC OS
     pip install 'joblib>=0.9.3'
     ```
     This second option will not allaow to import the package from every folder but only from within the Constrained_NMF folder. You can access it globally by setting the environment variable PYTHONPATH
-    `export PYTHONPATH="/path/to/Constrained_NMF:$PYTHONPATH"`
+    ```
+    export PYTHONPATH="/path/to/Constrained_NMF:$PYTHONPATH"
+    ```
 
 Test the system
 ----------------------
