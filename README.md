@@ -46,17 +46,21 @@ Installation on MAC OS
 
 1. Download and install Anaconda <http://docs.continuum.io/anaconda/install> 
 
-2. EASY WAY. type `conda install -c https://conda.anaconda.org/agiovann constrained_nmf` and then type `pip install tifffile`
+2. EASY WAY. type:
+    ```
+    conda install -c https://conda.anaconda.org/agiovann constrained_nmf
+    pip install tifffile
+    ```
 
-3. ADVANCED WAY (with access to source code)
-```
-git clone --recursive https://github.com/agiovann/Constrained_NMF.git
-conda create -n CNMF --no-deps ipython
-source activate CNMF
-conda install spyder numpy scipy ipyparallel matplotlib bokeh jupyter scikit-image scikit-learn joblib cvxopt      
-pip install picos
-pip install tifffile
-```
+3. ADVANCED WAY (with access to source code).
+    ```
+    git clone --recursive https://github.com/agiovann/Constrained_NMF.git
+    conda create -n CNMF --no-deps ipython
+    source activate CNMF
+    conda install spyder numpy scipy ipyparallel matplotlib bokeh jupyter scikit-image scikit-learn joblib cvxopt      
+    pip install picos
+    pip install tifffile
+    ```
 
 Test the system
 ----------------------
