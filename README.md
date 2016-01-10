@@ -46,22 +46,9 @@ Installation on MAC OS
 
 1. Download and install Anaconda <http://docs.continuum.io/anaconda/install> 
 
-2. Clone these two repositories *in the same folder*:
-```
-git clone https://github.com/agiovann/Constrained_NMF.git
-git clone https://github.com/epnev/SPGL1_python_port.git
-```
+2a. EASY WAY. type `conda install -c https://conda.anaconda.org/agiovann constrained_nmf` and then type `pip install tifffile'
 
-3.     
-    1. Go into the cloned folder and type `conda create --name CNMF --file requirements.txt`
-    
-    2. type `source activate CNMF` (this activates the environment, remember to do this every time you want to use the software)
-
-    3. type `pip install tifffile picos` 
-
-    4. type `pip install joblib --upgrade` 
-
-Use this in case 3. does not work. Type the following
+2b. ADVANCED WAY (with access to source code)
 ```
 git clone https://github.com/agiovann/Constrained_NMF.git
 git clone https://github.com/epnev/SPGL1_python_port.git
@@ -77,7 +64,7 @@ Test the system
 
 A. Using the Spyder IDE. 
     
-    1. Open the file demo.py 
+    1. Open the file demo.py (in case you used 2a above you will need to download the test files from [here](https://github.com/agiovann/Constrained_NMF/releases/download/0.04/Demo.zip)
 
     2. Run the cells one by one inspecting the output
 
