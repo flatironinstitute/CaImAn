@@ -53,6 +53,7 @@ Installation on MAC OS
     conda install -c https://conda.anaconda.org/agiovann constrained_nmf
     pip install 'tifffile>=0.7'
     pip install 'joblib>=0.9.3'
+    pip install picos
     ```
 
 3. ADVANCED WAY (with access to source code).
@@ -61,9 +62,9 @@ Installation on MAC OS
     conda create -n CNMF ipython
     source activate CNMF
     conda install spyder numpy scipy ipyparallel matplotlib bokeh jupyter scikit-image scikit-learn joblib cvxopt      
-    pip install picos
-    pip install tifffile
+    pip install 'tifffile>=0.7'
     pip install 'joblib>=0.9.3'
+    pip install picos
     ```
     This second option will not allaow to import the package from every folder but only from within the Constrained_NMF folder. You can access it globally by setting the environment variable PYTHONPATH
     ```
@@ -76,14 +77,14 @@ In case you used installation af point 2 above you will need to download the tes
 
 A. Using the Spyder (type `conda install spyder`) IDE. 
     
-    1. Unzip the file Demo.zip (you do not need this step if you installed dusing method 3 above, just enter the Constrained_NMF folder and you will find all the required files there.
+    1. Unzip the file Demo.zip (you do not need this step if you installed dusing method 3 above, just enter the Constrained_NMF folder and you will find all the required files there).
     2. Open the file demo.py with spyder
     3. Change the current folder of the console to the 'Demo' folder
     3. Run the cells one by one inspecting the output
 
 B. Using notebook. 
     
-    1. Unzip the file Demo.zip (you do not need this step if you installed dusing method 3 above, just enter the Constrained_NMF folder and you will find all the required files there.
+    1. Unzip the file Demo.zip (you do not need this step if you installed dusing method 3 above, just enter the Constrained_NMF folder and you will find all the required files there).
     2. type `ipython notebook`
     3. open the notebook called demoCNMF.ipynb and run cell by cell inspecting the result
 
