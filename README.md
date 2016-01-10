@@ -44,7 +44,7 @@ Installation
 Installation on MAC OS
 ----------------------
 
-1. Download and install Anaconda <http://docs.continuum.io/anaconda/install> 
+1. Download and install Anaconda (Python 2.7) <http://docs.continuum.io/anaconda/install> 
 
 2. EASY WAY. type:
     ```
@@ -64,10 +64,11 @@ Installation on MAC OS
 
 Test the system
 ----------------------
+In case you used installation af point 2 above you will need to download the test files from <https://github.com/agiovann/Constrained_NMF/releases/download/0.04/Demo.zip>
 
 A. Using the Spyder IDE. 
     
-    1. Open the file demo.py (in case you used 2a above you will need to download the test files from [here](https://github.com/agiovann/Constrained_NMF/releases/download/0.04/Demo.zip)
+    1. Open the file demo.py 
 
     2. Run the cells one by one inspecting the output
 
