@@ -50,8 +50,7 @@ Installation on MAC OS
 
 3. ADVANCED WAY (with access to source code)
 ```
-git clone https://github.com/agiovann/Constrained_NMF.git
-git clone https://github.com/epnev/SPGL1_python_port.git
+git clone --recursive https://github.com/agiovann/Constrained_NMF.git
 conda create -n CNMF --no-deps ipython
 source activate CNMF
 conda install spyder numpy scipy ipyparallel matplotlib bokeh jupyter scikit-image scikit-learn joblib cvxopt      
@@ -77,7 +76,7 @@ B. Using notebook.
 Documentation
 ========
 
-Documentation of the code can be found [here](http://agiovann.github.io/SOURCE_EXTRACTION_PYTHON/)
+Documentation of the code can be found [here](http://agiovann.github.io/Constrained_NMF)
 
 Dependencies
 ========
