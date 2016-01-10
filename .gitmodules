@@ -1,0 +1,3 @@
+[submodule "SPGL1_python_port"]
+	path = SPGL1_python_port
+	url = https://github.com/epnev/SPGL1_python_port.git
