@@ -66,7 +66,7 @@ Installation on MAC OS
     pip install 'joblib>=0.9.3'
     pip install picos
     ```
-    This second option will not allaow to import the package from every folder but only from within the Constrained_NMF folder. You can access it globally by setting the environment variable PYTHONPATH
+    This second option will not allow to import the package from every folder but only from within the Constrained_NMF folder. You can access it globally by setting the environment variable PYTHONPATH
     ```
     export PYTHONPATH="/path/to/Constrained_NMF:$PYTHONPATH"
     ```
@@ -81,20 +81,17 @@ A. Using the Spyder (type `conda install spyder`) IDE.
     2. Open the file demo.py with spyder
     3. Change the current folder of the console to the 'Demo' folder
     3. Run the cells one by one inspecting the output
-    4. Remember to stop the cluster (last three lines of file). You can also stop it manually by typing in a terminal
-    ```
-    ipcluster stop
-    ```
+    4. Remember to stop the cluster (last three lines of file). You can also stop it manually by typing in a terminal 
+    'ipcluster stop'
 
 B. Using notebook. 
     
     1. Unzip the file Demo.zip (you do not need this step if you installed dusing method 3 above, just enter the Constrained_NMF folder and you will find all the required files there).
     2. type `ipython notebook`
     3. open the notebook called demoCNMF.ipynb and run cell by cell inspecting the result
-    4. Remember to stop the cluster (last three lines of file). You can also stop it manually by typing in a terminal
-    ```
-    ipcluster stop
-    ```
+    4. Remember to stop the cluster (last three lines of file). You can also stop it manually by typing in a terminal 
+    'ipcluster stop'
+    
 Documentation
 ========
 
