@@ -44,35 +44,54 @@ Installation
 Installation on MAC OS
 ----------------------
 
-1. Download and install Anaconda <http://docs.continuum.io/anaconda/install> 
+1. Download and install Anaconda (Python 2.7) <http://docs.continuum.io/anaconda/install> 
 
-2. EASY WAY. type `conda install -c https://conda.anaconda.org/agiovann constrained_nmf` and then type `pip install tifffile`
+2. EASY WAY. type:
+    ```
+    conda create -n CNMF  ipython
+    source activate CNMF
+    conda install -c https://conda.anaconda.org/agiovann constrained_nmf
+    pip install 'tifffile>=0.7'
+    pip install 'joblib>=0.9.3'
+    pip install picos
+    ```
 
-3. ADVANCED WAY (with access to source code)
-```
-git clone --recursive https://github.com/agiovann/Constrained_NMF.git
-conda create -n CNMF --no-deps ipython
-source activate CNMF
-conda install spyder numpy scipy ipyparallel matplotlib bokeh jupyter scikit-image scikit-learn joblib cvxopt      
-pip install picos
-pip install tifffile
-```
+3. ADVANCED WAY (with access to source code).
+    ```
+    git clone --recursive https://github.com/agiovann/Constrained_NMF.git
+    conda create -n CNMF ipython
+    source activate CNMF
+    conda install spyder numpy scipy ipyparallel matplotlib bokeh jupyter scikit-image scikit-learn joblib cvxopt      
+    pip install 'tifffile>=0.7'
+    pip install 'joblib>=0.9.3'
+    pip install picos
+    ```
+    This second option will not allow to import the package from every folder but only from within the Constrained_NMF folder. You can access it globally by setting the environment variable PYTHONPATH
+    ```
+    export PYTHONPATH="/path/to/Constrained_NMF:$PYTHONPATH"
+    ```
 
 Test the system
 ----------------------
+In case you used installation af point 2 above you will need to download the test files from <https://github.com/agiovann/Constrained_NMF/releases/download/0.04/Demo.zip>
 
-A. Using the Spyder IDE. 
+A. Using the Spyder (type `conda install spyder`) IDE. 
     
-    1. Open the file demo.py (in case you used 2a above you will need to download the test files from [here](https://github.com/agiovann/Constrained_NMF/releases/download/0.04/Demo.zip)
-
-    2. Run the cells one by one inspecting the output
+    1. Unzip the file Demo.zip (you do not need this step if you installed dusing method 3 above, just enter the Constrained_NMF folder and you will find all the required files there).
+    2. Open the file demo.py with spyder
+    3. Change the current folder of the console to the 'Demo' folder
+    3. Run the cells one by one inspecting the output
+    4. Remember to stop the cluster (last three lines of file). You can also stop it manually by typing in a terminal 
+    'ipcluster stop'
 
 B. Using notebook. 
-
-    1. type `ipython notebook`
-
-    2. open the notebook called demoCNMF.ipynb and run cell by cell inspecting the result
-
+    
+    1. Unzip the file Demo.zip (you do not need this step if you installed dusing method 3 above, just enter the Constrained_NMF folder and you will find all the required files there).
+    2. type `ipython notebook`
+    3. open the notebook called demoCNMF.ipynb and run cell by cell inspecting the result
+    4. Remember to stop the cluster (last three lines of file). You can also stop it manually by typing in a terminal 
+    'ipcluster stop'
+    
 Documentation
 ========
 
