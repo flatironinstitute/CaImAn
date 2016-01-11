@@ -36,9 +36,8 @@ requirements:
  
 #test:
 #    files:
-#      - movies/demoMovie.tif    
-#      - demo.py
-#      - demoCNMF.ipynb
+#      - movies/demoMovie.tif          
+
 
 about:
   home: http://agiovann.github.io/Constrained_NMF
