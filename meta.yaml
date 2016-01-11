@@ -29,7 +29,7 @@ requirements:
     - jupyter 
     - bokeh
     - cvxopt 
-    - joblib >=0.8.4
+#    - joblib >=0.8.4
 #    - tifffile >=0.7.0        
 #    - picos >=1.1.1
 
