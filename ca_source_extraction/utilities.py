@@ -15,6 +15,7 @@ try:
     import bokeh.plotting as bpl
     from bokeh.io import vform,hplot
     from bokeh.models import CustomJS, ColumnDataSource, Slider
+    from bokeh.models import Range1d
 except: 
     print "Bokeh could not be loaded. Either it is not installed or you are not running within a notebook"
     
@@ -448,6 +449,9 @@ def nb_view_patches(Yr,A,C,b,f,d1,d2,image_neurons=None,thr = 0.99):
     source = ColumnDataSource(data=dict(x=x, y=z[:,0], z=z))    
     source2 = ColumnDataSource(data=dict(x=npoints,c1=c1,c2=c2,cc1=cc1,cc2=cc2))
     
+    xr = Range1d(start=0,end=image_neurons.shape[1])
+    yr = Range1d(start=image_neurons.shape[0],end=0)
+    
     plot = bpl.figure(plot_width=600, plot_height=300)
     plot.line('x', 'y', source=source, line_width=1, line_alpha=0.6)
     
@@ -480,9 +484,10 @@ def nb_view_patches(Yr,A,C,b,f,d1,d2,image_neurons=None,thr = 0.99):
     
     slider = Slider(start=1, end=Y_r.shape[0], value=1, step=1, title="Neuron Number", callback=callback)
     
-    plot1 = bpl.figure(x_range=[0, d2], y_range=[0, d1],plot_width=300, plot_height=300)
-    plot1.image(image=[image_neurons], x=0, y=0, dw=d2, dh=d1, palette=grayp)
+    plot1 = bpl.figure(x_range=xr, y_range=yr,plot_width=300, plot_height=300)
+    plot1.image(image=[image_neurons[::-1,:]], x=0, y=image_neurons.shape[0], dw=d2, dh=d1, palette=grayp)
     plot1.patch('c1','c2',alpha=0.6, color='red',line_width=2,source=source2)
+        
     
     layout = vform(slider, hplot(plot1,plot))
     
@@ -490,17 +495,20 @@ def nb_view_patches(Yr,A,C,b,f,d1,d2,image_neurons=None,thr = 0.99):
     
     return Y_r
 
-def nb_imshow(image,cmap='jet'):
-    
+def nb_imshow(image,cmap='jet'):    
     colormap =cm.get_cmap(cmap) #choose any matplotlib colormap here
     grayp = [mpl.colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
-    p = bpl.figure(x_range=[0,image.shape[1]], y_range=[0,image.shape[0]])
-    p.image(image=[image], x=0, y=0, dw=image.shape[1], dh=image.shape[0], palette=grayp)
-    
+    xr = Range1d(start=0,end=image.shape[1])
+    yr = Range1d(start=image.shape[0],end=0)
+    p = bpl.figure(x_range=xr, y_range=yr)
+#    p = bpl.figure(x_range=[0,image.shape[1]], y_range=[0,image.shape[0]])
+#    p.image(image=[image], x=0, y=0, dw=image.shape[1], dh=image.shape[0], palette=grayp)
+    p.image(image=[image[::-1,:]], x=0, y=image.shape[0], dw=image.shape[1], dh=image.shape[0], palette=grayp)
+
     return p
 
-def nb_plot_contour(image,A,d1,d2,thr=0.995,face_color=None, line_color='black',alpha=0.4,line_width=2,**kwargs):  
-    p=nb_imshow(image,cmap='jet')
+def nb_plot_contour(image,A,d1,d2,thr=0.995,face_color=None, line_color='black',alpha=0.4,line_width=2,**kwargs):      
+    p=nb_imshow(image,cmap='jet')   
     center = com(A,d1,d2)
     p.circle(center[:,1],center[:,0], size=10, color="black", fill_color=None, line_width=2, alpha=1)
     coors = plot_contours(coo_matrix(A),image,thr = thr)
