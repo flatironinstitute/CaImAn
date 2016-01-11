@@ -12,8 +12,6 @@ Contents:
    :maxdepth: 2
 
    Overview
-   Installation	      
-   Tutorial	      
    core_functions
    API reference
 	      
