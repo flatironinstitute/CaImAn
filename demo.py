@@ -9,7 +9,7 @@ import sys
 import numpy as np
 import scipy.io as sio
 
-sys.path.append('../SPGL1_python_port')
+#sys.path.append('../SPGL1_python_port')
 import ca_source_extraction as cse
 #%
 from matplotlib import pyplot as plt
@@ -35,14 +35,13 @@ p=2 # order of the AR model (in general 1 or two)
 
 #%% start cluster for efficient computation
 print "(Stopping)  and restarting cluster to avoid unnencessary use of memory...."
-
 sys.stdout.flush()  
 proc_1=subprocess.Popen(["ipcluster stop"],shell=True)
 tm.sleep(5)
 
 sys.stdout.flush()    
 proc_2=subprocess.Popen(["ipcluster start -n " + str(n_processes)],shell=True) 
-
+tm.sleep(5)
 #%% LOAD MOVIE AND MAKE DIMENSIONS COMPATIBLE WITH CNMF
 reload=0
 filename='movies/demoMovie.tif'
