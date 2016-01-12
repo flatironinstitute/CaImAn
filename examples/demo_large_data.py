@@ -51,7 +51,7 @@ if 0:
     m.save('k26_v1_176um_target_pursuit_001_005_mc.hdf5')
 
 #%%
-reload=1
+reload=0
 if not reload:
 #    t = tifffile.TiffFile(filename) 
 #    Y = t.asarray().astype(dtype=np.float32)
@@ -87,7 +87,7 @@ else:
     Cn=np.mean(Y,axis=2) 
     
 #%%
-n_processes=6
+n_processes=12
 n_pixels_per_process=d1*d2/n_processes/2
 p=2;
 
@@ -96,7 +96,7 @@ preprocess_params={ 'sn':None, 'g': None, 'noise_range' : [0.25,0.5], 'noise_met
                     'compute_g':False, 'p':p,   
                     'lags':5, 'include_noise':False, 'pixels':None}
 init_params = { 
-                    'K':30,'gSig':[7,7],'gSiz':[15,15], 
+                    'K':100,'gSig':[7,7],'gSiz':[15,15], 
                     'ssub':2,'tsub':3,
                     'nIter':5, 'use_median':False, 'kernel':None,
                     'maxIter':5
