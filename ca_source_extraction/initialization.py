@@ -12,7 +12,7 @@ import os
 import sys
 import tempfile
 #%%
-def initialize_components(Y, K=30, gSig=[5,5], gSiz=None, ssub=1, tsub=1, nIter = 5, maxIter=5, use_median = False, kernel = None): 
+def initialize_components(Y, K=30, gSig=[5,5], gSiz=None, ssub=1, tsub=1, nIter = 5, maxIter=5, use_median = False, kernel = None, use_hals=True): 
     """Initalize components 
     
     This method uses a greedy approach followed by hierarchical alternative least squares (HALS) NMF.
@@ -40,6 +40,8 @@ def initialize_components(Y, K=30, gSig=[5,5], gSiz=None, ssub=1, tsub=1, nIter 
         add back fluorescence median values or not during refinement.    
     kernel: [optional] np.ndarray
         User specified kernel for greedyROI (default None, greedy ROI searches for Gaussian shaped neurons) 
+    use_hals: [bool]
+        Whether to refine components with the hals method
   
     Returns
     --------    
@@ -77,8 +79,9 @@ def initialize_components(Y, K=30, gSig=[5,5], gSiz=None, ssub=1, tsub=1, nIter 
         
     print 'Roi Extraction...'    
     Ain, Cin, _, b_in, f_in = greedyROI2d(Y_ds, nr = K, gSig = gSig, gSiz = gSiz, use_median = use_median, nIter=nIter, kernel = kernel)
-    print 'Refining Components...'    
-    Ain, Cin, b_in, f_in = hals_2D(Y_ds, Ain, Cin, b_in, f_in,maxIter=maxIter);
+    if use_hals:    
+        print 'Refining Components...'    
+        Ain, Cin, b_in, f_in = hals_2D(Y_ds, Ain, Cin, b_in, f_in,maxIter=maxIter);
     
     #center = ssub*com(Ain,d1s,d2s) 
     d1s,d2s,Ts=np.shape(Y_ds)
@@ -94,7 +97,7 @@ def initialize_components(Y, K=30, gSig=[5,5], gSiz=None, ssub=1, tsub=1, nIter 
     b_in = np.reshape(b_in, (d1*d2, 1),order='F')
     
     Cin = resize(Cin, [K, T])
-    f_in = resize(f_in, [1, T])    
+    f_in = resize(np.atleast_2d(f_in), [1, T])    
     center = com(Ain,d1,d2)
     
 
