@@ -15,6 +15,8 @@ import tempfile
 import os
 from joblib import Parallel,delayed
 import shutil
+from multiprocessing.dummy import Pool as ThreadPool 
+
 #%%
 def interpolate_missing_data(Y):
     """
@@ -135,7 +137,7 @@ def get_noise_fft(Y, noise_range = [0.25,0.5], noise_method = 'logmexp'):
     return sn     
 
 
-def get_noise_fft_parallel(Y, n_processes=4,n_pixels_per_process=100, backend='threading', **kwargs):
+def get_noise_fft_parallel(Y, n_processes=4,n_pixels_per_process=100, backend='multithreading', **kwargs):
     """parallel version of get_noise_fft.
     
     Params:
@@ -168,15 +170,33 @@ def get_noise_fft_parallel(Y, n_processes=4,n_pixels_per_process=100, backend='t
     
     # Pre-allocate a writeable shared memory map as a container for the
     # results of the parallel computation
-    sn_s = np.memmap(sn_name, dtype=np.float32,shape=Y.shape[0], mode='w+')   
+      
     
     pixel_groups=range(0,Y.shape[0]-n_pixels_per_process+1,n_pixels_per_process)
     
-    # Fork the worker processes to perform computation concurrently                    
-    Parallel(n_jobs=n_processes, backend=backend)(delayed(fft_psd_parallel)(Y, sn_s, i, n_pixels_per_process, **kwargs)
-                        for i in pixel_groups)   
-                    
+    if backend=="threading": # case joblib        
 
+        print "using threading"
+        
+        sn_s = np.memmap(sn_name, dtype=np.float32,shape=Y.shape[0], mode='w+') 
+        # Fork the worker processes to perform computation concurrently                    
+        Parallel(n_jobs=n_processes, backend=backend)(delayed(fft_psd_parallel)(Y, sn_s, i, n_pixels_per_process, **kwargs)
+                            for i in pixel_groups)   
+    
+    elif backend=='multithreading': 
+        
+        
+        
+        pool = ThreadPool(n_processes)
+        argsin=[(Y, i, n_pixels_per_process, kwargs) for i in pixel_groups]
+        results = pool.map(fft_psd_multithreading, argsin)
+        sn_s=np.zeros(Y.shape[0])        
+        for idx,sn in results:        
+            sn_s[idx]=sn
+            
+    else:
+        raise Exception('Unknown method')                   
+                        
         
     # if n_pixels_per_process is not a multiple of Y.shape[0] run on remaining pixels   
     pixels_remaining= Y.shape[0] %  n_pixels_per_process  
@@ -227,7 +247,35 @@ def fft_psd_parallel(Y,sn_s,i,num_pixels,**kwargs):
     res=get_noise_fft(Y[idxs], **kwargs)
     sn_s[idxs]=res
     #print("[Worker %d] sn for row %d is %f" % (os.getpid(), i, sn_s[0]))
+#%%        
+
+def fft_psd_multithreading(args):
+    """helper function to parallelize get_noise_fft
     
+    Parameters:
+    -----------
+    Y: ndarray
+        input movie (n_pixels x Time), can be also memory mapped file
+        
+    sn_s: ndarray (memory mapped)
+        file where to store the results of computation. 
+        
+    i: int
+        pixel index start
+    num_pixels: int
+        number of pixel to select starting from i
+    
+    **kwargs: dict
+        arguments to be passed to get_noise_fft 
+            
+    
+    """
+    (Y,i,num_pixels,kwargs)=args
+    idxs=range(i,i+num_pixels)
+    res=get_noise_fft(Y[idxs], **kwargs)
+    #print("[Worker %d] sn for row %d is %f" % (os.getpid(), i, sn_s[0]))    
+    return (idxs,res)
+#%%
 
 def mean_psd(y, method = 'logmexp'):
     """
@@ -360,7 +408,7 @@ def nextpow2(value):
         exponent += 1
     return exponent  
 
-def preprocess_data(Y,  sn = None , n_processes=4, n_pixels_per_process=100,  noise_range = [0.25,0.5], noise_method = 'logmexp', compute_g=False,  p = 2, g = None,  lags = 5, include_noise = False, pixels = None):
+def preprocess_data(Y,  sn = None , n_processes=4, backend='multithreading', n_pixels_per_process=100,  noise_range = [0.25,0.5], noise_method = 'logmexp', compute_g=False,  p = 2, g = None,  lags = 5, include_noise = False, pixels = None):
     """
     Performs the pre-processing operations described above.
     """
@@ -368,7 +416,7 @@ def preprocess_data(Y,  sn = None , n_processes=4, n_pixels_per_process=100,  no
     Y,coor=interpolate_missing_data(Y)            
     
     if sn is None:
-        sn=get_noise_fft_parallel(Y, n_processes=n_processes,n_pixels_per_process=n_pixels_per_process, backend='threading', noise_range = noise_range, noise_method = noise_method)    
+        sn=get_noise_fft_parallel(Y, n_processes=n_processes,n_pixels_per_process=n_pixels_per_process, backend = backend, noise_range = noise_range, noise_method = noise_method)    
         #sn = get_noise_fft(Y, noise_range = noise_range, noise_method = noise_method)        
     
     if compute_g:
