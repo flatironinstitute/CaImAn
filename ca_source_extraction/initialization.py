@@ -5,7 +5,7 @@ import scipy.sparse as spr
 import scipy
 from scipy.fftpack import fft, ifft, rfft
 from skimage.transform import resize
-from ca_source_extraction.utilities import com
+from ca_source_extraction.utilities import com,local_correlations
 from joblib import Parallel, delayed
 import shutil
 import os
@@ -72,11 +72,13 @@ def initialize_components(Y, K=30, gSig=[5,5], gSiz=None, ssub=1, tsub=1, nIter 
     
     # spatial downsampling
     if ssub!=1 or tsub!=1:
-            print "Spatial Downsampling ..."
-            Y_ds = scipy.ndimage.zoom(Y, [1./ssub, 1./ssub, 1./tsub], order=0,mode='nearest')
+        print "Spatial Downsampling ..."
+        Y_ds = scipy.ndimage.zoom(Y, [1./ssub, 1./ssub, 1./tsub], order=1,mode='nearest')            
     else:
         Y_ds = Y
-        
+
+#    Cn = local_correlations(Y_ds)
+    
     print 'Roi Extraction...'    
     Ain, Cin, _, b_in, f_in = greedyROI2d(Y_ds, nr = K, gSig = gSig, gSiz = gSiz, use_median = use_median, nIter=nIter, kernel = kernel)
     if use_hals:    
@@ -106,7 +108,7 @@ def initialize_components(Y, K=30, gSig=[5,5], gSiz=None, ssub=1, tsub=1, nIter 
     
 
 #%%
-def greedyROI2d(Y, nr=30, gSig = [5,5], gSiz = [11,11], nIter = 5, use_median = False, kernel = None):
+def greedyROI2d(Y, nr=30, gSig = [5,5], gSiz = [11,11], nIter = 5, use_median = False, kernel = None, Cn = None):
     """
     Greedy initialization of spatial and temporal components using spatial Gaussian filtering
     Inputs:
@@ -151,6 +153,10 @@ def greedyROI2d(Y, nr=30, gSig = [5,5], gSiz = [11,11], nIter = 5, use_median = 
     [M, N, T] = np.shape(Y)
 
     rho = imblur(Y, sig = gSig, siz = gSiz, nDimBlur = Y.ndim-1, kernel = kernel)
+
+    if Cn is not None:
+        rho=rho*Cn[...,np.newaxis]
+        
     v = np.sum(rho**2,axis=-1)
     
     if use_median:
@@ -169,7 +175,7 @@ def greedyROI2d(Y, nr=30, gSig = [5,5], gSiz = [11,11], nIter = 5, use_median = 
         traceTemp = np.squeeze(rho[ij[0],ij[1],:])
         coef, score = finetune2d(dataTemp, traceTemp, nIter = nIter)
         C[k,:] = np.squeeze(score) 
-        score -= fact*np.median(score)
+        #score -= fact*np.median(score)
         dataSig = coef[...,np.newaxis]*score[np.newaxis,np.newaxis,...]
         [xSig,ySig] = np.meshgrid(np.arange(iSig[0],iSig[1]),np.arange(jSig[0],jSig[1]),indexing = 'xy')
         arr = np.array([np.reshape(xSig,(1,np.size(xSig)),order='F').squeeze(),np.reshape(ySig,(1,np.size(ySig)),order='F').squeeze()])
@@ -179,7 +185,7 @@ def greedyROI2d(Y, nr=30, gSig = [5,5], gSiz = [11,11], nIter = 5, use_median = 
         #Atemp[iSig[0]:iSig[1],jSig[0]:jSig[1]] = coef        
         #A[:,k] = np.squeeze(np.reshape(Atemp,(np.prod(d[0:-1]),1),order='F'))
         #Y[iSig[0]:iSig[1],jSig[0]:jSig[1],:] = Y[iSig[0]:iSig[1],jSig[0]:jSig[1],:] - dataSig
-        Y[iSig[0]:iSig[1],jSig[0]:jSig[1],:] -= dataSig
+        Y[iSig[0]:iSig[1],jSig[0]:jSig[1],:] -= dataSig.copy()
         if k < nr-1:
             iMod = [np.maximum(ij[0]-2*gHalf[0],0),np.minimum(ij[0]+2*gHalf[0]+1,d[0])]
             iModLen = iMod[1]-iMod[0]
@@ -192,7 +198,7 @@ def greedyROI2d(Y, nr=30, gSig = [5,5], gSiz = [11,11], nIter = 5, use_median = 
             dataTemp = imblur(dataTemp[...,np.newaxis],sig=gSig,siz=gSiz,kernel = kernel)            
             rhoTEMP = dataTemp*score[np.newaxis,np.newaxis,...]
             #rho[iMod[0]:iMod[1],jMod[0]:jMod[1],:] = rho[iMod[0]:iMod[1],jMod[0]:jMod[1],:] - rhoTEMP
-            rho[iMod[0]:iMod[1],jMod[0]:jMod[1],:] -= rhoTEMP
+            rho[iMod[0]:iMod[1],jMod[0]:jMod[1],:] -= rhoTEMP.copy()
             v[iMod[0]:iMod[1],jMod[0]:jMod[1]] = np.sum(rho[iMod[0]:iMod[1],jMod[0]:jMod[1],:]**2,axis = -1)            
 
 #    res = np.reshape(Y,(M*N,T), order='F') + med.flatten()[:,None]
@@ -247,13 +253,14 @@ def imblur(Y, sig = 5, siz = 11, nDimBlur = None, kernel = None):
         hy = np.exp(-yy**2/(2*sig[1]**2))
         hy /= np.sqrt(np.sum(hy**2))    
     
-        for t in range(np.shape(Y)[-1]):
-            temp = correlate(Y[:,:,t],hx[:,np.newaxis],mode='wrap')
-            X[:,:,t] = correlate(temp,hy[np.newaxis,:],mode='wrap')    
+        temp = correlate(Y,hx[:,np.newaxis,np.newaxis],mode='constant')
+        X = correlate(temp,hy[np.newaxis,:,np.newaxis],mode='constant')  
+            
     else:
         for t in range(np.shape(Y)[-1]):
-            X[:,:,t] = correlate(Y[:,:,t],kernel,mode='wrap')
-
+            X[:,:,t] = correlate(Y[:,:,t],kernel,mode='constant')
+            print "Warning: if kernel seems not to work try to transpose it"
+            
 ## uncomment the following for general n-dim filtering
 #    xx = []
 #    hx = []
