@@ -1,7 +1,7 @@
 #%%
 try:
-    %load_ext autoreload
-    %autoreload 2
+#    %load_ext autoreload
+#    %autoreload 2
     print 1
 except:
     print 'NOT IPYTHON'
@@ -51,12 +51,12 @@ if 0:
     m.save('k26_v1_176um_target_pursuit_001_005_mc.hdf5')
 
 #%%
-reload=0
+reload=1
 if not reload:
 #    t = tifffile.TiffFile(filename) 
 #    Y = t.asarray().astype(dtype=np.float32)
 #    t.close()
-    Y=cb.load('k26_v1_176um_target_pursuit_001_005_mc.hdf5')   
+    Y=cb.load('examples/k26_v1_176um_target_pursuit_001_005_mc.hdf5')   
     Y=Y-np.percentile(Y,8)
     #Y=np.asarray(Y[:1500,-200:,-200:])
     Y=np.asarray(Y[:1500])
@@ -87,7 +87,7 @@ else:
     Cn=np.mean(Y,axis=2) 
     
 #%%
-n_processes=12
+n_processes=8
 n_pixels_per_process=d1*d2/n_processes/2
 p=2;
 
@@ -96,16 +96,16 @@ preprocess_params={ 'sn':None, 'g': None, 'noise_range' : [0.25,0.5], 'noise_met
                     'compute_g':False, 'p':p,   
                     'lags':5, 'include_noise':False, 'pixels':None}
 init_params = { 
-                    'K':100,'gSig':[7,7],'gSiz':[15,15], 
-                    'ssub':2,'tsub':3,
+                    'K':200,'gSig':[7,7],'gSiz':[15,15], 
+                    'ssub':2,'tsub':1,
                     'nIter':5, 'use_median':False, 'kernel':None,
                     'maxIter':5
                     }
 #%% start cluster for efficient computation
-print "Starting Cluster...."
-sys.stdout.flush()    
-pq=subprocess.Popen(["ipcluster start -n " + str(n_processes)],shell=True) 
-tm.sleep(6)   
+#print "Starting Cluster...."
+#sys.stdout.flush()    
+#pq=subprocess.Popen(["ipcluster start -n " + str(n_processes)],shell=True) 
+#tm.sleep(6)   
 #%% PREPROCESS DATA
 t1 = time()
 Yr,sn,g=cse.preprocess_data(Yr,**preprocess_params)
@@ -138,13 +138,13 @@ del myvars,mydict
 
 #%%
 t1 = time()
-Ain, Cin, b_in, f_in, center=cse.initialize_components(Y, **init_params)                                                    
+Ain, Cin, b_in, f_in, center=cse.initialize_components(Y,use_hals=False, **init_params)                                                    
 print time() - t1 # 
 #%%
 plt2 = plt.imshow(Cn,interpolation='None')
 plt.colorbar()
 plt.scatter(x=center[:,1], y=center[:,0], c='m', s=40)
-crd = cse.plot_contours(coo_matrix(Ain[:,::-1]),Cn,thr=0.9)
+crd = cse.plot_contours(coo_matrix(Ain),Cn,thr=0.9)
 plt.axis((-0.5,d2-0.5,-0.5,d1-0.5))
 plt.gca().invert_yaxis()
 pl.show()
