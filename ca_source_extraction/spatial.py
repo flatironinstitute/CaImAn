@@ -275,24 +275,24 @@ def update_spatial_components_parallel(Y,C,f,A_in,sn=None, d1=None,d2=None,min_s
     A_ = A_[:,:nr]                
     A_=coo_matrix(A_)
 
-    if memory_efficient:
-        print "Using memory efficient computation (slow but memory preserving)"
-        A__=coo_matrix(A_,dtype=np.float32)
-        C__=coo_matrix(C[:nr,:],dtype=np.float32)
-        Y_res_name = os.path.join(folder, 'Y_res_temp.npy')
-        Y_res = np.memmap(Y_res_name, dtype=np.float32, mode='w+', shape=Y.shape)
-        Y_res = np.memmap(Y_res_name, dtype=np.float32, mode='r+', shape=Y.shape)
-        print "computing residuals"        
-        Y_res[:] = -A__.dot(C__).todense()[:]
-        Y_res[:]+=Y
-    else:   
-        print "Using memory trade-off computation (good use of memory if input is memmaped)"         
-        Y_res = Y - A_.dot(coo_matrix(C[:nr,:]))
+#    if memory_efficient:
+#        print "Using memory efficient computation (slow but memory preserving)"
+#        A__=coo_matrix(A_,dtype=np.float32)
+#        C__=coo_matrix(C[:nr,:],dtype=np.float32)
+#        Y_res_name = os.path.join(folder, 'Y_res_temp.npy')
+#        Y_res = np.memmap(Y_res_name, dtype=np.float32, mode='w+', shape=Y.shape)
+#        Y_res = np.memmap(Y_res_name, dtype=np.float32, mode='r+', shape=Y.shape)
+#        print "computing residuals"        
+#        Y_res[:] = -A__.dot(C__).todense()[:]
+#        Y_res[:]+=Y
+#    else:   
+#        print "Using memory trade-off computation (good use of memory if input is memmaped)"         
+#        Y_res = Y - A_.dot(coo_matrix(C[:nr,:]))
 
-
+    Y_resf = np.dot(Y,f.T) - A_.dot(coo_matrix(C[:nr,:]).dot(f.T))
     print "Computing A_bas"         
-    A_bas = np.fmax(np.dot(Y_res,f.T)/scipy.linalg.norm(f)**2,0) # update baseline based on residual
-    Y_res[:]=1
+    A_bas = np.fmax(Y_resf/scipy.linalg.norm(f)**2,0) # update baseline based on residual
+    #A_bas = np.fmax(np.dot(Y_res,f.T)/scipy.linalg.norm(f)**2,0) # update baseline based on residual
     b = A_bas
     
     print("--- %s seconds ---" % (time.time() - start_time))
