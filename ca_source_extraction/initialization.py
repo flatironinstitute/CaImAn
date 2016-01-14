@@ -1,18 +1,12 @@
 import numpy as np
 from sklearn.decomposition import NMF
+from skimage.transform import downscale_local_mean, resize
 import scipy.ndimage as nd
 import scipy.sparse as spr
 import scipy
-from scipy.fftpack import fft, ifft, rfft
-from skimage.transform import resize
 from ca_source_extraction.utilities import com,local_correlations
-from joblib import Parallel, delayed
-import shutil
-import os
-import sys
-import tempfile
 #%%
-def initialize_components(Y, K=30, gSig=[5,5], gSiz=None, ssub=1, tsub=1, nIter = 5, maxIter=5, use_median = False, kernel = None, use_hals=True): 
+def initialize_components(Y, K=30, gSig=[5,5], gSiz=None, ssub=1, tsub=1, nIter = 5, maxIter=5, kernel = None, use_hals=True): 
     """Initalize components 
     
     This method uses a greedy approach followed by hierarchical alternative least squares (HALS) NMF.
@@ -35,9 +29,7 @@ def initialize_components(Y, K=30, gSig=[5,5], gSiz=None, ssub=1, tsub=1, nIter 
     ssub: [optional] int
         spatial downsampling factor recommended for large datasets (default 1, no downsampling).
     tsub: [optional] int
-        temporal downsampling factor recommended for long datasets (default 1, no downsampling).
-    use_median: [optional] bool
-        add back fluorescence median values or not during refinement.    
+        temporal downsampling factor recommended for long datasets (default 1, no downsampling).  
     kernel: [optional] np.ndarray
         User specified kernel for greedyROI (default None, greedy ROI searches for Gaussian shaped neurons) 
     use_hals: [bool]
@@ -65,22 +57,16 @@ def initialize_components(Y, K=30, gSig=[5,5], gSiz=None, ssub=1, tsub=1, nIter 
     # rescale according to downsampling factor
     gSig = np.round([gSig[0]/ssub,gSig[1]/ssub]).astype(np.int)
     gSiz = np.round([gSiz[0]/ssub,gSiz[1]/ssub]).astype(np.int)    
-#    d1s = np.ceil(d1/ssub).astype(np.int)       #size of downsampled image
-#    d2s = np.ceil(d2/ssub).astype(np.int)     
-#    Ts = np.floor(T/tsub).astype(np.int)        #reduced number of frames
-
     
     # spatial downsampling
     if ssub!=1 or tsub!=1:
         print "Spatial Downsampling ..."
-        Y_ds = scipy.ndimage.zoom(Y, [1./ssub, 1./ssub, 1./tsub], order=1,mode='nearest')            
+        Y_ds = downscale_local_mean(Y,(ssub,ssub,tsub))
     else:
         Y_ds = Y
-
-#    Cn = local_correlations(Y_ds)
-    
+   
     print 'Roi Extraction...'    
-    Ain, Cin, _, b_in, f_in = greedyROI2d(Y_ds, nr = K, gSig = gSig, gSiz = gSiz, use_median = use_median, nIter=nIter, kernel = kernel)
+    Ain, Cin, _, b_in, f_in = greedyROI2d(Y_ds, nr = K, gSig = gSig, gSiz = gSiz, nIter=nIter, kernel = kernel)
     if use_hals:    
         print 'Refining Components...'    
         Ain, Cin, b_in, f_in = hals_2D(Y_ds, Ain, Cin, b_in, f_in,maxIter=maxIter);
@@ -88,7 +74,7 @@ def initialize_components(Y, K=30, gSig=[5,5], gSiz=None, ssub=1, tsub=1, nIter 
     #center = ssub*com(Ain,d1s,d2s) 
     d1s,d2s,Ts=np.shape(Y_ds)
     Ain = np.reshape(Ain, (d1s, d2s,K),order='F')
-    Ain = resize(Ain, [d1, d2],order=0)
+    Ain = resize(Ain, [d1, d2, K],order=1)
     
     Ain = np.reshape(Ain, (d1*d2, K),order='F') 
     
@@ -102,13 +88,11 @@ def initialize_components(Y, K=30, gSig=[5,5], gSiz=None, ssub=1, tsub=1, nIter 
     f_in = resize(np.atleast_2d(f_in), [1, T])    
     center = com(Ain,d1,d2)
     
-
-    
     return Ain, Cin, b_in, f_in, center
     
 
 #%%
-def greedyROI2d(Y, nr=30, gSig = [5,5], gSiz = [11,11], nIter = 5, use_median = False, kernel = None, Cn = None):
+def greedyROI2d(Y, nr=30, gSig = [5,5], gSiz = [11,11], nIter = 5, kernel = None, Cn = None):
     """
     Greedy initialization of spatial and temporal components using spatial Gaussian filtering
     Inputs:
@@ -123,8 +107,6 @@ def greedyROI2d(Y, nr=30, gSig = [5,5], gSiz = [11,11], nIter = 5, use_median = 
         size of spatial component
     nIter: int
         number of iterations when refining estimates
-    use_median: boolean
-        add back fluorescence median values or not during refinement
     kernel: np.ndarray
         User specified kernel to be used, if present, instead of Gaussian (default None)
         
@@ -159,11 +141,6 @@ def greedyROI2d(Y, nr=30, gSig = [5,5], gSiz = [11,11], nIter = 5, use_median = 
         
     v = np.sum(rho**2,axis=-1)
     
-    if use_median:
-        fact = 1
-    else:
-        fact = 0
-    
     for k in range(nr):
         ind = np.argmax(v)
         ij = np.unravel_index(ind,d[0:-1])
@@ -171,20 +148,15 @@ def greedyROI2d(Y, nr=30, gSig = [5,5], gSiz = [11,11], nIter = 5, use_median = 
         center[k,1] = ij[1]
         iSig = [np.maximum(ij[0]-gHalf[0],0),np.minimum(ij[0]+gHalf[0]+1,d[0])]
         jSig = [np.maximum(ij[1]-gHalf[1],0),np.minimum(ij[1]+gHalf[1]+1,d[1])]
-        dataTemp = Y[iSig[0]:iSig[1],jSig[0]:jSig[1],:].copy() + fact*med[iSig[0]:iSig[1],jSig[0]:jSig[1],np.newaxis]
+        dataTemp = Y[iSig[0]:iSig[1],jSig[0]:jSig[1],:].copy()
         traceTemp = np.squeeze(rho[ij[0],ij[1],:])
         coef, score = finetune2d(dataTemp, traceTemp, nIter = nIter)
         C[k,:] = np.squeeze(score) 
-        #score -= fact*np.median(score)
         dataSig = coef[...,np.newaxis]*score[np.newaxis,np.newaxis,...]
         [xSig,ySig] = np.meshgrid(np.arange(iSig[0],iSig[1]),np.arange(jSig[0],jSig[1]),indexing = 'xy')
         arr = np.array([np.reshape(xSig,(1,np.size(xSig)),order='F').squeeze(),np.reshape(ySig,(1,np.size(ySig)),order='F').squeeze()])
         indeces = np.ravel_multi_index(arr,d[0:-1],order='F')  
         A[indeces,k] = np.reshape(coef,(1,np.size(coef)),order='C').squeeze()
-        #Atemp = np.zeros(d[0:-1])
-        #Atemp[iSig[0]:iSig[1],jSig[0]:jSig[1]] = coef        
-        #A[:,k] = np.squeeze(np.reshape(Atemp,(np.prod(d[0:-1]),1),order='F'))
-        #Y[iSig[0]:iSig[1],jSig[0]:jSig[1],:] = Y[iSig[0]:iSig[1],jSig[0]:jSig[1],:] - dataSig
         Y[iSig[0]:iSig[1],jSig[0]:jSig[1],:] -= dataSig.copy()
         if k < nr-1:
             iMod = [np.maximum(ij[0]-2*gHalf[0],0),np.minimum(ij[0]+2*gHalf[0]+1,d[0])]
@@ -197,11 +169,9 @@ def greedyROI2d(Y, nr=30, gSig = [5,5], gSiz = [11,11], nIter = 5, use_median = 
             dataTemp[iLag[0]:iLag[1],jLag[0]:jLag[1]] = coef
             dataTemp = imblur(dataTemp[...,np.newaxis],sig=gSig,siz=gSiz,kernel = kernel)            
             rhoTEMP = dataTemp*score[np.newaxis,np.newaxis,...]
-            #rho[iMod[0]:iMod[1],jMod[0]:jMod[1],:] = rho[iMod[0]:iMod[1],jMod[0]:jMod[1],:] - rhoTEMP
             rho[iMod[0]:iMod[1],jMod[0]:jMod[1],:] -= rhoTEMP.copy()
             v[iMod[0]:iMod[1],jMod[0]:jMod[1]] = np.sum(rho[iMod[0]:iMod[1],jMod[0]:jMod[1],:]**2,axis = -1)            
 
-#    res = np.reshape(Y,(M*N,T), order='F') + med.flatten()[:,None]
     res = np.reshape(Y,(M*N,T), order='F') + med.flatten(order='F')[:,None]
 
     model = NMF(n_components=1, init='random', random_state=0)
@@ -227,8 +197,7 @@ def imblur(Y, sig = 5, siz = 11, nDimBlur = None, kernel = None):
     """Spatial filtering with a Gaussian or user defined kernel
     The parameters are specified in GreedyROI2d
     """
-    from scipy.ndimage.filters import correlate        
-    #from scipy.signal import correlate    
+    from scipy.ndimage.filters import correlate     
     
     X = np.zeros(np.shape(Y))
     
@@ -255,13 +224,18 @@ def imblur(Y, sig = 5, siz = 11, nDimBlur = None, kernel = None):
     
         temp = correlate(Y,hx[:,np.newaxis,np.newaxis],mode='constant')
         X = correlate(temp,hy[np.newaxis,:,np.newaxis],mode='constant')  
-            
+
+        ## the for loop helps with memory
+        #for t in range(np.shape(Y)[-1]):
+            #temp = correlate(Y[:,:,t],hx[:,np.newaxis])#,mode='constant', cval=0.0)
+            #X[:,:,t] = correlate(temp,hy[np.newaxis,:])#,mode='constant', cval=0.0)
+
     else:
-        for t in range(np.shape(Y)[-1]):
-            X[:,:,t] = correlate(Y[:,:,t],kernel,mode='constant')
-            print "Warning: if kernel seems not to work try to transpose it"
-            
-## uncomment the following for general n-dim filtering
+        X = correlate(Y,kernel[...,np.newaxis],mode='constant')
+        #for t in range(np.shape(Y)[-1]):
+        #    X[:,:,t] = correlate(Y[:,:,t],kernel,mode='constant', cval=0.0)
+
+## uncomment the following for general n-dim filtering (slow)
 #    xx = []
 #    hx = []
 #    for i in range(nDimBlur):
@@ -285,9 +259,7 @@ def imblur(Y, sig = 5, siz = 11, nDimBlur = None, kernel = None):
 #        
 #        X[...,t] = temp
             
-
     return X
-
 
 #%%
 def hals_2D(Y,A,C,b,f,bSiz=3,maxIter=5):
@@ -345,17 +317,14 @@ def hals_2D(Y,A,C,b,f,bSiz=3,maxIter=5):
             A[ind_pixels, mcell] = tmp_a
             Yres[ind_pixels,:] = tmp_Yres + np.dot(a0[:,None]-tmp_a[:,None],C[None,mcell,:])
             #print 'First residual is ' + str(scipy.linalg.norm(tmp_Yres, 'fro')) + '\n';
-    
-    #        print 'First residual is ' + str(scipy.linalg.norm(Yres, 'fro')) + '\n';
-    
+        
         # update temporal component of the background
         f0 = f.copy();
         b0 = b.copy();
         norm_b2 = scipy.linalg.norm(b0,ord=2)**2
         f = np.maximum(0, f0 + np.dot(b0.T,Yres/norm_b2))
         Yres = Yres + np.dot(b0,f0-f)
-        #print 'First residual is ' + str(scipy.linalg.norm(Yres, 'fro')) + '\n';
-        
+        #print 'First residual is ' + str(scipy.linalg.norm(Yres, 'fro')) + '\n';        
         
         # update spatial component of the background
         norm_f2 = scipy.linalg.norm(f, ord=2)**2
