@@ -152,8 +152,6 @@ def update_temporal_components_parallel(Y, A, b, Cin, fin, bl = None,  c1 = None
     #%
     nA = np.squeeze(np.array(np.sum(np.square(A.todense()),axis=0)))
     
-    
-    Sp = np.zeros((nr,T))
     #YrA = Y.T*A - Cin.T*(A.T*A);
 #    Y=np.matrix(Y)
 #    C=np.matrix(C)
@@ -192,8 +190,7 @@ def update_temporal_components_parallel(Y, A, b, Cin, fin, bl = None,  c1 = None
             c1temp = btemp.copy()
             gtemp = np.zeros((np.size(jo),kwargs['p']));
             nT = nA[jo]            
-            
-            
+                        
 #            args_in=[(np.squeeze(np.array(Ytemp[:,jj])), nT[jj], jj, bl[jo[jj]], c1[jo[jj]], g[jo[jj]], sn[jo[jj]], kwargs) for jj in range(len(jo))]
             args_in=[(np.squeeze(np.array(Ytemp[:,jj])), nT[jj], jj, None, None, None, None, kwargs) for jj in range(len(jo))]
             
@@ -243,7 +240,7 @@ def update_temporal_components_parallel(Y, A, b, Cin, fin, bl = None,  c1 = None
             S[jo,:] = Stemp
             
 #            if (np.sum(lo[:jo])+1)%1 == 0:
-            print str(np.sum(lo[:count])) + ' out of total ' + str(nr) + ' temporal components updated \n'
+            print str(np.sum(lo[:count+1])) + ' out of total ' + str(nr) + ' temporal components updated \n'
         
         ii=nr        
         YrA[:,ii] = YrA[:,ii] + nA[ii]*np.atleast_2d(Cin[ii,:]).T
