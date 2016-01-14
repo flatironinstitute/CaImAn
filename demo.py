@@ -28,10 +28,11 @@ from time import time
 import tempfile
 import shutil
 import os
+import psutil
 #%%
-n_processes=4 # roughly number of cores on your machine minus 2
+n_processes = 10 #psutil.cpu_count() - 2 # roughly number of cores on your machine minus 2
 
-p=2 # order of the AR model (in general 1 or two)
+p=2 # order of the AR model (in general 1 or 2)
 
 #%% start cluster for efficient computation
 print "(Stopping)  and restarting cluster to avoid unnencessary use of memory...."
@@ -46,7 +47,8 @@ tm.sleep(5)
 reload=0
 filename='movies/demoMovie.tif'
 t = tifffile.TiffFile(filename) 
-Y = t.asarray().astype(dtype=np.float32) 
+Y = t.asarray().astype(dtype=np.float64) 
+#%%
 Y = np.transpose(Y,(1,2,0))
 d1,d2,T=Y.shape
 Yr=np.reshape(Y,(d1*d2,T),order='F')
@@ -63,9 +65,9 @@ preprocess_params={ 'sn':None, 'g': None, 'noise_range' : [0.25,0.5], 'noise_met
                     'compute_g':False, 'p':p,   
                     'lags':5, 'include_noise':False, 'pixels':None}
 init_params = { 
-                    'K':30,'gSig':[4,4],'gSiz':[9,9], 
+                    'K':30,'gSig':[5,5],'gSiz':[11,11], 
                     'ssub':1,'tsub':1,
-                    'nIter':5, 'use_median':False, 'kernel':None,
+                    'nIter':5, 'kernel':None,
                     'maxIter':5
                     }
 spatial_params = {               
@@ -79,33 +81,36 @@ temporal_params = {
                     'memory_efficient':False,                                
                     'bas_nonneg':True,  
                     'noise_range':[.25,.5], 'noise_method':'logmexp', 
-                    'lags':5, 'fudge_factor':1., 
+                    'lags':5, 'fudge_factor':.98, 
                     'verbosity':False
                 }
-#%% PREPROCESS DATA
+#%% PREPROCESS DATA AND INITIALIZE COMPONENTS
 t1 = time()
 Yr,sn,g=cse.preprocess_data(Yr,**preprocess_params)
 Ain, Cin, b_in, f_in, center=cse.initialize_components(Y, **init_params)                                                    
-print time() - t1  
-plt2 = plt.imshow(Cn,interpolation='None')
+print time() - t1
+#%% 
+plt2 = plt.figure(); plt.imshow(Cn,interpolation='None')
 plt.colorbar()
 plt.scatter(x=center[:,1], y=center[:,0], c='m', s=40)
-crd = cse.plot_contours(coo_matrix(Ain[:,::-1]),Cn,thr=0.9)
-plt.axis((-0.5,d2-0.5,-0.5,d1-0.5))
+crd = cse.plot_contours(coo_matrix(Ain),Cn,thr=0.9)
+plt.axis((0,d2-1,0,d1-1))
+plt2.suptitle('Spatial Components found with initialization', fontsize=16)
 plt.gca().invert_yaxis()
-pl.show()
+plt.show()
   
-#%%
+#%% UPDATE SPATIAL COMPONENTS
 t1 = time()
 A,b,Cin = cse.update_spatial_components_parallel(Yr, Cin, f_in, Ain, sn=sn, **spatial_params)
 t_elSPATIAL = time() - t1
 print t_elSPATIAL 
+plt.figure()
 crd = cse.plot_contours(A,Cn,thr=0.9)
 #%% update_temporal_components
 t1 = time()
 C,f,Y_res,S,bl,c1,neurons_sn,g = cse.update_temporal_components_parallel(Yr,A,b,Cin,f_in,bl=None,c1=None,sn=None,g=None,**temporal_params)
 t_elTEMPORAL2 = time() - t1
-print t_elTEMPORAL2 # took 98 sec   
+print t_elTEMPORAL2 
 #%% merge components corresponding to the same neuron
 t1 = time()
 A_m,C_m,nr_m,merged_ROIs,S_m,bl_m,c1_m,sn_m,g_m=cse.mergeROIS_parallel(Y_res,A,b,C,f,S,sn,temporal_params, spatial_params, bl=bl, c1=c1, sn=neurons_sn, g=g, thr=0.8, mx=50)
@@ -121,7 +126,7 @@ t1 = time()
 A2,b2,C2 = cse.update_spatial_components_parallel(Yr, C_m, f, A_m, sn=sn, **spatial_params)
 #C2,f2,Y_res2,S2,bl2,c12,neurons_sn2,g21 = cse.update_temporal_components_parallel(Yr,A2,b2,C2,f,bl=bl_m,c1=c1_m,sn=sn_m,g=g_m,**temporal_params)
 C2,f2,Y_res2,S2,bl2,c12,neurons_sn2,g21 = cse.update_temporal_components_parallel(Yr,A2,b2,C2,f,bl=None,c1=None,sn=None,g=None,**temporal_params)
-print time() - t1 # 100 seconds
+print time() - t1
 #%%
 A_or, C_or, srt = cse.order_components(A2,C2)
 cse.view_patches(Yr,coo_matrix(A_or),C_or,b2,f2, d1,d2,secs=0)    
