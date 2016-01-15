@@ -9,17 +9,18 @@ import scipy
 import numpy as np
 from spatial import update_spatial_components,update_spatial_components_parallel
 from temporal import update_temporal_components,update_temporal_components_parallel
+from deconvolution import constrained_foopsi
 import warnings
 from scipy.ndimage.morphology import generate_binary_structure, iterate_structure
 
 #%%
-def mergeROIS(Y_res,A,b,C,f,S,d1,d2,P_,thr=0.85,mx=50,sn=None,deconv_method='spgl1',min_size=3,max_size=8,dist=3,method_exp = 'ellipse', expandCore = iterate_structure(generate_binary_structure(2,1), 2).astype(int)):
+def mergeROIS(Y,A,b,C,f,S,d1,d2,P_,thr=0.85,fast_merge = True, mx=50,sn=None,deconv_method='spgl1',min_size=3,max_size=8,dist=3,method_exp = 'ellipse', expandCore = iterate_structure(generate_binary_structure(2,1), 2).astype(int)):
     """
     merging of spatially overlapping components that have highly correlated temporal activity
     The correlation threshold for merging overlapping components is user specified in thr
      Inputs:
-     Y_res:        np.ndarray 
-            residual movie after subtracting all found components (Y_res = Y - A*C - b*f) (d x T)
+     Y:     np.ndarray 
+                Input data (d x T)
      A:     sparse matrix
                 matrix of spatial components (d x K)
      b:     np.ndarray
@@ -75,7 +76,7 @@ def mergeROIS(Y_res,A,b,C,f,S,d1,d2,P_,thr=0.85,mx=50,sn=None,deconv_method='spg
             MC.append((l==i).T)
     MC=np.asarray(MC).T
     
-    if MC.ndim>1:
+    if MC.ndim>0:
         cor = np.zeros((np.shape(MC)[1],1));
         
             
@@ -86,8 +87,9 @@ def mergeROIS(Y_res,A,b,C,f,S,d1,d2,P_,thr=0.85,mx=50,sn=None,deconv_method='spg
                     print j1,j2
                     cor[i] = cor[i] +C_corr[fm[j1],fm[j2]]
         
-        
-        Y_res = Y_res + np.dot(b,f);
+        if not fast_merge:
+            Y_res = Y - A*C;
+            
         if np.size(cor) > 1:
             ind=np.argsort(np.squeeze(cor))[::-1]
         else:
@@ -107,35 +109,31 @@ def mergeROIS(Y_res,A,b,C,f,S,d1,d2,P_,thr=0.85,mx=50,sn=None,deconv_method='spg
             merged_ROI=np.where(MC[:,ind[i]])[0]
             merged_ROIs.append(merged_ROI)
             nC = np.sqrt(np.sum(C[merged_ROI,:]**2,axis=1))
-    #        A_merged[:,i] = np.squeeze((A[:,merged_ROI]*spdiags(nC,0,len(nC),len(nC))).sum(axis=1))    
-            A_merged[:,i] = lil_matrix((A[:,merged_ROI]*scipy.sparse.diags(nC,0,(len(nC),len(nC)))).sum(axis=1))
-    
-            Y_res = Y_res + A[:,merged_ROI]*C[merged_ROI,:]
-            
-            aa_1=scipy.sparse.linalg.spsolve(scipy.sparse.diags(nC,0,(len(nC),len(nC))),csc_matrix(C[merged_ROI,:]))
-            aa_2=(aa_1).mean(axis=0)        
-            
-            ff = np.nonzero(A_merged[:,i])[0]     
-            
-            cc,_,_,Ptemp,_ = update_temporal_components(np.asarray(Y_res[ff,:]),A_merged[ff,i],b[ff],aa_2,f,p=p,method=deconv_method)  
-            
-            aa,bb,cc = update_spatial_components(np.asarray(Y_res),cc,f,A_merged[:,i],d1=d1,d2=d2,sn=sn,min_size=min_size,max_size=max_size,dist=dist,method = method_exp, expandCore =expandCore)
-    
-            A_merged[:,i] = aa.tocsr();        
-    
-            cc,_,_,Ptemp,ss = update_temporal_components(Y_res[ff,:],A_merged[ff,i],bb[ff],cc,f,p=p,method=deconv_method)
-            
-            P_cycle=P_[merged_ROI[0]].copy()
-            P_cycle['gn']=Ptemp[0]['gn']
-            P_cycle['b']=Ptemp[0]['b']
-            P_cycle['c1']=Ptemp[0]['c1']
-            P_cycle['neuron_sn']=Ptemp[0]['neuron_sn']
-            P_merged.append(P_cycle)
-            C_merged[i,:] = cc
-            S_merged[i,:] = ss
-            
-            if i+1 < nm:
-                Y_res[ff,:] = Y_res[ff,:] - A_merged[ff,i]*cc
+    #        A_merged[:,i] = np.squeeze((A[:,merged_ROI]*spdiags(nC,0,len(nC),len(nC))).sum(axis=1))
+            if fast_merge:
+                aa = A[:,merged_ROI]*scipy.sparse.diags(nC,0,(len(nC),len(nC)))
+                for iter in range(10):
+                    cc = (aa.T*A[:,merged_ROI])*C[merged_ROI,:]
+            else:                    
+                A_merged[:,i] = lil_matrix((A[:,merged_ROI]*scipy.sparse.diags(nC,0,(len(nC),len(nC)))).sum(axis=1))    
+                Y_res = Y_res + A[:,merged_ROI]*C[merged_ROI,:]                
+                aa_1=scipy.sparse.linalg.spsolve(scipy.sparse.diags(nC,0,(len(nC),len(nC))),csc_matrix(C[merged_ROI,:]))
+                aa_2=(aa_1).mean(axis=0)                        
+                ff = np.nonzero(A_merged[:,i])[0]                     
+                cc,_,_,Ptemp,_ = update_temporal_components(np.asarray(Y_res[ff,:]),A_merged[ff,i],b[ff],aa_2,f,p=p,method=deconv_method)                  
+                aa,bb,cc = update_spatial_components(np.asarray(Y_res),cc,f,A_merged[:,i],d1=d1,d2=d2,sn=sn,min_size=min_size,max_size=max_size,dist=dist,method = method_exp, expandCore =expandCore)        
+                A_merged[:,i] = aa.tocsr();                
+                cc,_,_,Ptemp,ss = update_temporal_components(Y_res[ff,:],A_merged[ff,i],bb[ff],cc,f,p=p,method=deconv_method)                
+                P_cycle=P_[merged_ROI[0]].copy()
+                P_cycle['gn']=Ptemp[0]['gn']
+                P_cycle['b']=Ptemp[0]['b']
+                P_cycle['c1']=Ptemp[0]['c1']
+                P_cycle['neuron_sn']=Ptemp[0]['neuron_sn']
+                P_merged.append(P_cycle)
+                C_merged[i,:] = cc
+                S_merged[i,:] = ss                
+                if i+1 < nm:
+                    Y_res[ff,:] = Y_res[ff,:] - A_merged[ff,i]*cc
                 
         #%
         neur_id = np.unique(np.hstack(merged_ROIs))
@@ -160,14 +158,14 @@ def mergeROIS(Y_res,A,b,C,f,S,d1,d2,P_,thr=0.85,mx=50,sn=None,deconv_method='spg
         
     return A,C,nr,merged_ROIs,P_new,S
 #%%
-def mergeROIS_parallel(Y_res,A,b,C,f,S,sn_pix,temporal_params,spatial_params,thr=0.85,mx=50,bl=None,c1=None,sn=None,g=None):
+def mergeROIS_parallel(Y,A,b,C,f,S,sn_pix,temporal_params,spatial_params,thr=0.85,fast_merge=True,mx=50,bl=None,c1=None,sn=None,g=None):
     """ Merging of spatially overlapping components that have highly correlated temporal activity
     The correlation threshold for merging overlapping components is user specified in thr
      
 Parameters
 -----------     
 
-Y_res: np.ndarray
+Y: np.ndarray
      residual movie after subtracting all found components (Y_res = Y - A*C - b*f) (d x T)
 A: sparse matrix
      matrix of spatial components (d x K)
@@ -241,7 +239,7 @@ sn: float
         raise Exception("The number of elements of g must match the number of components")
 
         
-    [d,T] = np.shape(Y_res)
+    [d,T] = np.shape(Y)
     C_corr = np.corrcoef(C[:nr,:],C[:nr,:])[:nr,:nr];
     FF1=C_corr>=thr; #find graph of strongly correlated temporal components 
     A_corr=A.T*A
@@ -258,7 +256,7 @@ sn: float
             MC.append((l==i).T)
     MC=np.asarray(MC).T
     
-    if MC.ndim>1:
+    if MC.ndim>0:
         cor = np.zeros((np.shape(MC)[1],1));
         
             
@@ -269,8 +267,9 @@ sn: float
                     print j1,j2
                     cor[i] = cor[i] +C_corr[fm[j1],fm[j2]]
         
-        
-        Y_res = Y_res + np.dot(b,f);
+        if not fast_merge:
+            Y_res = Y - A.dot(C)
+            
         if np.size(cor) > 1:
             ind=np.argsort(np.squeeze(cor))[::-1]
         else:
@@ -295,39 +294,45 @@ sn: float
             merged_ROIs.append(merged_ROI)
             nC = np.sqrt(np.sum(C[merged_ROI,:]**2,axis=1))
     #        A_merged[:,i] = np.squeeze((A[:,merged_ROI]*spdiags(nC,0,len(nC),len(nC))).sum(axis=1))    
-            A_merged[:,i] = lil_matrix(( A.tocsc()[:,merged_ROI].dot(scipy.sparse.diags(nC,0,(len(nC),len(nC))))).sum(axis=1))
-    
-            Y_res = Y_res + A.tocsc()[:,merged_ROI].dot(C[merged_ROI,:])
-            
-            aa_1=scipy.sparse.linalg.spsolve(scipy.sparse.diags(nC,0,(len(nC),len(nC))),csc_matrix(C[merged_ROI,:]))
-            aa_2=(aa_1).mean(axis=0)        
-            
-            ff = np.nonzero(A_merged[:,i])[0]     
-
-#            cc,_,_,Ptemp,_ = update_temporal_components(np.asarray(Y_res[ff,:]),A_merged[ff,i],b[ff],aa_2,f,p=p,deconv_method=deconv_method)
-            cc,_,_,_,bl__,c1__,sn__,g__ = update_temporal_components_parallel(np.asarray(Y_res[ff,:]),A_merged[ff,i],b[ff],aa_2,f,bl=None,c1=None,sn=None,g=None,**temporal_params)  
-               
-            aa,bb,cc = update_spatial_components_parallel(np.asarray(Y_res),cc,f,A_merged[:,i],sn=sn_pix,**spatial_params)
-    
-            A_merged[:,i] = aa.tocsr();        
-    
-            cc,_,_,ss,bl__,c1__,sn__,g__ = update_temporal_components_parallel(Y_res[ff,:],A_merged[ff,i],bb[ff],cc,f,bl=bl__,c1=c1__,sn=sn__,g=g__,**temporal_params)
-            
-#            P_cycle=P_[merged_ROI[0]].copy()
-#            P_cycle['gn']=Ptemp[0]['gn']
-#            P_cycle['b']=Ptemp[0]['b']
-#            P_cycle['c1']=Ptemp[0]['c1']
-#            P_cycle['neuron_sn']=Ptemp[0]['neuron_sn']
-#            P_merged.append(P_cycle)
-            C_merged[i,:] = cc
-            S_merged[i,:] = ss
-            bl_merged[i] = bl__[0]
-            c1_merged[i] = c1__[0]
-            sn_merged[i] = sn__[0]
-            g_merged[i,:] = g__[0]
-            
-            if i+1 < nm:
-                Y_res[ff,:] = Y_res[ff,:] - A_merged[ff,i]*cc
+            if fast_merge:
+                aa  =  A.tocsc()[:,merged_ROI].dot(scipy.sparse.diags(nC,0,(len(nC),len(nC)))).sum(axis=1)
+                for iter in range(10):
+                    cc = np.dot(aa.T.dot(A.toarray()[:,merged_ROI]),C[merged_ROI,:])/(aa.T*aa)
+                    aa = A.tocsc()[:,merged_ROI].dot(C[merged_ROI,:].dot(cc.T))/(cc*cc.T)
+                    
+                cc,bm,cm,gm,sm,ss = constrained_foopsi(np.array(cc).squeeze(),**temporal_params)
+                A_merged[:,i] = aa; 
+                C_merged[i,:] = cc
+                S_merged[i,:] = ss[:T]
+                bl_merged[i] = bm
+                c1_merged[i] = cm
+                sn_merged[i] = sm
+                g_merged[i,:] = gm 
+            else:
+                A_merged[:,i] = lil_matrix(( A.tocsc()[:,merged_ROI].dot(scipy.sparse.diags(nC,0,(len(nC),len(nC))))).sum(axis=1))        
+                Y_res = Y_res + A.tocsc()[:,merged_ROI].dot(C[merged_ROI,:])                
+                aa_1=scipy.sparse.linalg.spsolve(scipy.sparse.diags(nC,0,(len(nC),len(nC))),csc_matrix(C[merged_ROI,:]))
+                aa_2=(aa_1).mean(axis=0)                        
+                ff = np.nonzero(A_merged[:,i])[0]         
+    #            cc,_,_,Ptemp,_ = update_temporal_components(np.asarray(Y_res[ff,:]),A_merged[ff,i],b[ff],aa_2,f,p=p,deconv_method=deconv_method)
+                cc,_,_,_,bl__,c1__,sn__,g__ = update_temporal_components_parallel(np.asarray(Y_res[ff,:]),A_merged[ff,i],b[ff],aa_2,f,bl=None,c1=None,sn=None,g=None,**temporal_params)                     
+                aa,bb,cc = update_spatial_components_parallel(np.asarray(Y_res),cc,f,A_merged[:,i],sn=sn_pix,**spatial_params)
+                A_merged[:,i] = aa.tocsr();                
+                cc,_,_,ss,bl__,c1__,sn__,g__ = update_temporal_components_parallel(Y_res[ff,:],A_merged[ff,i],bb[ff],cc,f,bl=bl__,c1=c1__,sn=sn__,g=g__,**temporal_params)                
+    #            P_cycle=P_[merged_ROI[0]].copy()
+    #            P_cycle['gn']=Ptemp[0]['gn']
+    #            P_cycle['b']=Ptemp[0]['b']
+    #            P_cycle['c1']=Ptemp[0]['c1']
+    #            P_cycle['neuron_sn']=Ptemp[0]['neuron_sn']
+    #            P_merged.append(P_cycle)
+                C_merged[i,:] = cc
+                S_merged[i,:] = ss
+                bl_merged[i] = bl__[0]
+                c1_merged[i] = c1__[0]
+                sn_merged[i] = sn__[0]
+                g_merged[i,:] = g__[0]                
+                if i+1 < nm:
+                    Y_res[ff,:] = Y_res[ff,:] - A_merged[ff,i]*cc
                 
         #%
         neur_id = np.unique(np.hstack(merged_ROIs))                
