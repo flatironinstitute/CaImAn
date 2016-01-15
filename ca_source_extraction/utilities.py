@@ -207,7 +207,10 @@ def view_patches(Yr,A,C,b,f,d1,d2,secs=1):
     plt.ion()
     nr,T = C.shape    
     nA2 = np.sum(np.array(A.todense())**2,axis=0)
-    Y_r = np.array(spdiags(1/nA2,0,nr,nr)*(A.T*np.matrix(Yr-b[:,np.newaxis]*f[np.newaxis] - A.dot(C))) + C)    
+    b = np.squeeze(b)
+    f = np.squeeze(f)
+    #Y_r = np.array(spdiags(1/nA2,0,nr,nr)*(A.T*np.matrix(Yr-b[:,np.newaxis]*f[np.newaxis] - A.dot(C))) + C)    
+    Y_r = np.array(spdiags(1/nA2,0,nr,nr)*(A.T*np.matrix(Yr)-(A.T*np.matrix(b[:,np.newaxis]))*np.matrix(f[np.newaxis]) - (A.T.dot(A))*np.matrix(C)) + C)  
     A=A.todense()
 #    Y_r = (Yr-b.dot(f)).T.dot(A.todense()).T/nA2[:,None]#-bl[:,None]
 #    Y_r=[];
