@@ -48,7 +48,6 @@ reload=0
 filename='movies/demoMovie.tif'
 t = tifffile.TiffFile(filename) 
 Y = t.asarray().astype(dtype=np.float64) 
-#%%
 Y = np.transpose(Y,(1,2,0))
 d1,d2,T=Y.shape
 Yr=np.reshape(Y,(d1*d2,T),order='F')
@@ -65,7 +64,7 @@ preprocess_params={ 'sn':None, 'g': None, 'noise_range' : [0.25,0.5], 'noise_met
                     'compute_g':False, 'p':p,   
                     'lags':5, 'include_noise':False, 'pixels':None}
 init_params = { 
-                    'K':30,'gSig':[5,5],'gSiz':[11,11], 
+                    'K':30,'gSig':[4,4],'gSiz':[9,9], 
                     'ssub':1,'tsub':1,
                     'nIter':5, 'kernel':None,
                     'maxIter':5
@@ -108,24 +107,31 @@ plt.figure()
 crd = cse.plot_contours(A,Cn,thr=0.9)
 #%% update_temporal_components
 t1 = time()
-C,f,Y_res,S,bl,c1,neurons_sn,g = cse.update_temporal_components_parallel(Yr,A,b,Cin,f_in,bl=None,c1=None,sn=None,g=None,**temporal_params)
+C,f,S,bl,c1,neurons_sn,g = cse.update_temporal_components_parallel(Yr,A,b,Cin,f_in,bl=None,c1=None,sn=None,g=None,**temporal_params)
 t_elTEMPORAL2 = time() - t1
 print t_elTEMPORAL2 
 #%% merge components corresponding to the same neuron
 t1 = time()
-A_m,C_m,nr_m,merged_ROIs,S_m,bl_m,c1_m,sn_m,g_m=cse.mergeROIS_parallel(Y_res,A,b,C,f,S,sn,temporal_params, spatial_params, bl=bl, c1=c1, sn=neurons_sn, g=g, thr=0.8, mx=50)
+A_m,C_m,nr_m,merged_ROIs,S_m,bl_m,c1_m,sn_m,g_m=cse.mergeROIS_parallel(Yr,A,b,C,f,S,sn,temporal_params, spatial_params, bl=bl, c1=c1, sn=neurons_sn, g=g, thr=0.8, mx=50, fast_merge = True)
 t_elMERGE = time() - t1
 print t_elMERGE  
+
+#%% merge components corresponding to the same neuron
+#t1 = time()
+#A_m2,C_m2,nr_m2,merged_ROIs2,S_m2,bl_m2,c1_m2,sn_m2,g_m2=cse.mergeROIS_parallel(Yr,A,b,C,f,S,sn,temporal_params, spatial_params, bl=bl, c1=c1, sn=neurons_sn, g=g, thr=0.8, mx=50, fast_merge = False)
+#t_elMERGE = time() - t1
+#print t_elMERGE  
 #%% view results. Notice that in order to scroll components you need to click on the plot
-A_or, C_or, srt = cse.order_components(A_m,C_m)
+A_or, C_or, srt = cse.order_components(A,C)
 cse.view_patches(Yr,coo_matrix(A_or),C_or,b,f, d1,d2,secs=0)
 #%%
+plt.figure()
 crd = cse.plot_contours(A_m,Cn,thr=0.9)
 #%% refine spatial and temporal 
 t1 = time()
 A2,b2,C2 = cse.update_spatial_components_parallel(Yr, C_m, f, A_m, sn=sn, **spatial_params)
 #C2,f2,Y_res2,S2,bl2,c12,neurons_sn2,g21 = cse.update_temporal_components_parallel(Yr,A2,b2,C2,f,bl=bl_m,c1=c1_m,sn=sn_m,g=g_m,**temporal_params)
-C2,f2,Y_res2,S2,bl2,c12,neurons_sn2,g21 = cse.update_temporal_components_parallel(Yr,A2,b2,C2,f,bl=None,c1=None,sn=None,g=None,**temporal_params)
+C2,f2,S2,bl2,c12,neurons_sn2,g21 = cse.update_temporal_components_parallel(Yr,A2,b2,C2,f,bl=None,c1=None,sn=None,g=None,**temporal_params)
 print time() - t1
 #%%
 A_or, C_or, srt = cse.order_components(A2,C2)
