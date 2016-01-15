@@ -109,8 +109,6 @@ def update_temporal_components_parallel(Y, A, b, Cin, fin, bl = None,  c1 = None
             matrix of temporal components (K x T)
     f:     np.array
             vector of temporal background (length T) 
-    Y_res: np.ndarray
-            matrix with current residual (d x T)
     S:     np.ndarray            
             matrix of merged deconvolved activity (spikes) (K x T)
     bl:  float  
@@ -260,7 +258,7 @@ def update_temporal_components_parallel(Y, A, b, Cin, fin, bl = None,  c1 = None
         else:
             Cin = C
     
-    Y_res = Y - A*C # this includes the baseline term
+    #Y_res = Y - A*C # this includes the baseline term
     
     f = C[nr:,:]
     C = C[:nr,:]
@@ -269,7 +267,7 @@ def update_temporal_components_parallel(Y, A, b, Cin, fin, bl = None,  c1 = None
     if backend == 'ipyparallel':      
         c.close()
     
-    return C,f,Y_res,S,bl,c1,sn,g
+    return C,f,S,bl,c1,sn,g
     
 #%%
 def update_temporal_components(Y,A,b,Cin,fin,ITER=2,method_foopsi='constrained_foopsi',n_processes=1, backend='single_thread', memory_efficient=False, **kwargs):
@@ -313,8 +311,6 @@ def update_temporal_components(Y,A,b,Cin,fin,ITER=2,method_foopsi='constrained_f
             matrix of temporal components (K x T)
     f:     np.array
             vector of temporal background (length T) 
-    Y_res: np.ndarray
-            matrix with current residual (d x T)
     P_:    dictionary
             Dictionary with parameters for each temporal component:
                 P_.b:           baseline for fluorescence trace
@@ -397,13 +393,13 @@ def update_temporal_components(Y,A,b,Cin,fin,ITER=2,method_foopsi='constrained_f
         
     
     
-    Y_res = Y - A*C
+    #Y_res = Y - A*C
     
     f = C[nr:,:]
     C = C[:nr,:]
         
     P_ = sorted(P_, key=lambda k: k['neuron_id']) 
     
-    return C,f,Y_res,P_,Sp
+    return C,f,P_,Sp
 
 #%%
