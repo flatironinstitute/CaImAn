@@ -1,7 +1,8 @@
 #%%
 try:
-    %load_ext autoreload
-    %autoreload 2
+#    %load_ext autoreload
+#    %autoreload 2
+    print 1
 except:
     print 'NOT IPYTHON'
 
@@ -30,7 +31,7 @@ import shutil
 import os
 import psutil
 #%%
-n_processes = 10 #psutil.cpu_count() - 2 # roughly number of cores on your machine minus 2
+n_processes = 4 #psutil.cpu_count() - 2 # roughly number of cores on your machine minus 2
 
 p=2 # order of the AR model (in general 1 or 2)
 
