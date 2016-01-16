@@ -137,6 +137,9 @@ print time() - t1
 #%%
 A_or, C_or, srt = cse.order_components(A2,C2)
 cse.view_patches(Yr,coo_matrix(A_or),C_or,b2,f2, d1,d2,secs=0)    
+#%%
+plt.figure()
+crd = cse.plot_contours(A_or,Cn,thr=0.9)
 #%% STOP CLUSTER
 print "Stopping Cluster...."
 sys.stdout.flush()  

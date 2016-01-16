@@ -258,7 +258,7 @@ def view_patches(Yr,A,C,b,f,d1,d2,secs=1):
             plt.plot(np.arange(T),np.squeeze(np.array(f))) 
             ax2.set_title('Temporal background')      
             
-def plot_contours(A,Cn,thr = 0.995, display_numbers = True, max_number = None,cmap=None, **kwargs):
+def plot_contours(A,Cn,thr = 0.9, display_numbers = True, max_number = None,cmap=None, **kwargs):
     """Plots contour of spatial components against a background image and returns their coordinates
      
      Parameters
@@ -307,9 +307,29 @@ def plot_contours(A,Cn,thr = 0.995, display_numbers = True, max_number = None,cm
         Bvec = np.zeros(d)
         Bvec[indx] = cumEn
         Bmat = np.reshape(Bvec,np.shape(Cn),order='F')
-        cs = plt.contour(y,x,Bmat,[thr])
-        p = cs.collections[0].get_paths()[0]
-        v = p.vertices
+        cs = plt.contour(y,x,Bmat,[thr])        
+        # this fix is necessary for having disjoint figures and borders plotted correctly        
+        p = cs.collections[0].get_paths()  
+        v=np.atleast_2d([np.nan,np.nan]);        
+        for pths in p: 
+            vtx=pths.vertices
+            num_close_coords=np.sum(np.isclose(vtx[0,:],vtx[-1,:]))
+            if num_close_coords<2:
+                if num_close_coords==0:                        
+                    # case angle  
+                    newpt=np.round(vtx[-1,:]/[d2,d1])*[d2,d1]
+                    #import ipdb; ipdb.set_trace()
+                    vtx=np.concatenate((vtx,newpt[np.newaxis,:]),axis=0)
+                    
+                else:
+                    # case one is border    
+                    vtx=np.concatenate((vtx,vtx[0,np.newaxis]),axis=0) 
+                    #import ipdb; ipdb.set_trace()
+                                                
+            v=np.concatenate((v,vtx,np.atleast_2d([np.nan,np.nan])),axis=0) 
+#        p = cs.collections[0].get_paths()[0]
+#        v = p.vertices
+            
         pars['CoM'] = np.squeeze(cm[i,:])
         pars['coordinates'] = v           
         pars['bbox'] = [np.floor(np.min(v[:,1])),np.ceil(np.max(v[:,1])),np.floor(np.min(v[:,0])),np.ceil(np.max(v[:,0]))]
@@ -455,8 +475,7 @@ def nb_view_patches(Yr,A,C,b,f,d1,d2,image_neurons=None,thr = 0.99):
     source = ColumnDataSource(data=dict(x=x, y=z[:,0], z=z))    
     source2 = ColumnDataSource(data=dict(x=npoints,c1=c1,c2=c2,cc1=cc1,cc2=cc2))
     
-    xr = Range1d(start=0,end=image_neurons.shape[1])
-    yr = Range1d(start=image_neurons.shape[0],end=0)
+    
     
     plot = bpl.figure(plot_width=600, plot_height=300)
     plot.line('x', 'y', source=source, line_width=1, line_alpha=0.6)
@@ -489,7 +508,8 @@ def nb_view_patches(Yr,A,C,b,f,d1,d2,image_neurons=None,thr = 0.99):
     
     
     slider = Slider(start=1, end=Y_r.shape[0], value=1, step=1, title="Neuron Number", callback=callback)
-    
+    xr = Range1d(start=0,end=image_neurons.shape[1])
+    yr = Range1d(start=image_neurons.shape[0],end=0)
     plot1 = bpl.figure(x_range=xr, y_range=yr,plot_width=300, plot_height=300)
     plot1.image(image=[image_neurons[::-1,:]], x=0, y=image_neurons.shape[0], dw=d2, dh=d1, palette=grayp)
     plot1.patch('c1','c2',alpha=0.6, color='red',line_width=2,source=source2)
