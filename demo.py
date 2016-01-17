@@ -31,7 +31,7 @@ import shutil
 import os
 import psutil
 #%%
-n_processes = np.maximum(psutil.cpu_count() - 1,1) # roughly number of cores on your machine minus 1
+n_processes = np.maximum(psutil.cpu_count() - 2,1) # roughly number of cores on your machine minus 1
 print 'using ' + str(n_processes) + ' processes'
 p=2 # order of the AR model (in general 1 or 2)
 
@@ -123,8 +123,8 @@ print t_elMERGE
 #t_elMERGE = time() - t1
 #print t_elMERGE  
 #%% view results. Notice that in order to scroll components you need to click on the plot
-A_or, C_or, srt = cse.order_components(A,C)
-cse.view_patches(Yr,coo_matrix(A_or),C_or,b,f, d1,d2,secs=0)
+#A_or, C_or, srt = cse.order_components(A,C)
+#cse.view_patches(Yr,coo_matrix(A_or),C_or,b,f, d1,d2,secs=0)
 #%%
 plt.figure()
 crd = cse.plot_contours(A_m,Cn,thr=0.9)
