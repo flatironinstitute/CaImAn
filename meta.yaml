@@ -28,7 +28,8 @@ requirements:
     - ipyparallel
     - jupyter 
     - bokeh
-    - cvxopt 
+    - cvxopt
+    - psutil
 #    - joblib >=0.8.4
 #    - tifffile >=0.7.0        
 #    - picos >=1.1.1
