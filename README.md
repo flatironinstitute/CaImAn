@@ -73,7 +73,9 @@ Installation on MAC OS
 
 Test the system
 ----------------------
-In case you used installation af point 2 above you will need to download the test files from <https://github.com/agiovann/Constrained_NMF/releases/download/0.04/Demo.zip>
+In case you used installation af point 2 above you will need to download the test files from
+<https://github.com/agiovann/Constrained_NMF/releases/download/0.1-beta/Demo.zip>
+
 
 A. Using the Spyder (type `conda install spyder`) IDE. 
     
