@@ -21,7 +21,69 @@ except:
     
 import matplotlib as mpl
 import matplotlib.cm as cm
-import numpy as np
+import psutil
+#%%
+
+
+def CNMFSetParms(Y, K=30, gSig = [5,5], ssub = 1, tsub = 1, p = 2, **kwargs):
+    """Dictionary for setting the CNMF parameters.
+    Any parameter that is not set get a default value specified
+    by the dictionary defaultopts
+    """
+    
+    d1,d2,T=Y.shape
+    n_processes = np.maximum(psutil.cpu_count() - 2,1) # roughly number of cores on your machine minus 1
+    print 'using ' + str(n_processes) + ' processes'
+    n_pixels_per_process=d1*d2/n_processes # how to subdivide the work among processes    
+    
+    options = dict()    
+    options['preprocess_params']={ 'sn' : None,                  # noise level for each pixel
+                                   'noise_range' : [0.25,0.5],   # range of normalized frequencies over which to average
+                                   'noise_method':'logmexp',     # averaging method ('mean','median','logmexp')
+                                   'n_processes':n_processes, 
+                                   'n_pixels_per_process':n_pixels_per_process,   
+                                   'compute_g':False,            # flag for estimating global time constant
+                                   'p':p,                        # order of AR indicator dynamics     
+                                   'lags':5,                     # number of autocovariance lags to be considered for time constant estimation
+                                   'include_noise':False,        # flag for using noise values when estimating g
+                                   'pixels':None                 # pixels to be excluded due to saturation
+                                   }
+    options['init_params'] = { 'K':K,                                          # number of components
+                               'gSig':gSig,                                    # size of components (std of Gaussian)
+                               'gSiz':list(np.array(gSig,dtype=int)*2+1),       # size of bounding box
+                               'ssub':ssub,             # spatial downsampling factor
+                               'tsub':tsub,             # temporal downsampling factor
+                               'nIter':5,               # number of refinement iterations 
+                               'kernel':None,           # user specified template for greedyROI
+                               'maxIter':5              # number of HALS iterations
+                               }
+    options['spatial_params'] = {               
+                        'd1':d1,                        # number of rows
+                        'd2':d2,                        # number of columns
+                        'method' : 'ellipse',           # method for determining footprint of spatial components ('ellipse' or 'dilate')                        
+                        'dist':3,                       # expansion factor of ellipse
+                        'n_processes':n_processes,      # number of process 
+                        'n_pixels_per_process':n_pixels_per_process,    # number of pixels to be processed by eacg worker
+                        'backend':'ipyparallel',
+                        'memory_efficient':False
+                    }
+    options['temporal_params'] = {
+                        'ITER':2,                   # block coordinate descent iterations
+                        'method':'spgl1',           # method for solving the constrained deconvolution problem ('cvx' or 'spgl1')
+                        'p':p,                      # order of AR indicator dynamics
+                        'n_processes':n_processes,
+                        'backend':'ipyparallel',
+                        'memory_efficient':False,                                
+                        'bas_nonneg':True,          # flag for setting non-negative baseline (otherwise b >= min(y))
+                        'noise_range':[.25,.5],     # range of normalized frequencies over which to average
+                        'noise_method':'logmexp',   # averaging method ('mean','median','logmexp')
+                        'lags':5,                   # number of autocovariance lags to be considered for time constant estimation
+                        'fudge_factor':.98,         # bias correction factor (between 0 and 1, close to 1)
+                        'verbosity':False
+                    }
+
+    return options
+
 
 def local_correlations(Y,eight_neighbours=False, swap_dim = True):
      """Computes the correlation image for the input dataset Y
