@@ -308,139 +308,139 @@ def update_spatial_components_parallel(Y,C,f,A_in,sn=None, d1=None,d2=None,min_s
         
     return A_,b,C
 #%% update spatial components
-def update_spatial_components(Y,C,f,A_in,d1=None,d2=None,min_size=3,max_size=8,dist=3,sn=None, method = 'ellipse', expandCore = None):
-    """update spatial footprints and background     
-    through Basis Pursuit Denoising
-
-    for each pixel i solve the problem 
-        [A(i,:),b(i)] = argmin sum(A(i,:))
-    subject to 
-        || Y(i,:) - A(i,:)*C + b(i)*f || <= sn(i)*sqrt(T);
-    
-    for each pixel the search is limited to a few spatial components
-    
-    Parameters
-    ----------   
-    Y: np.ndarray (2D)
-        movie, raw data in 2D (pixels x time).
-    C: np.ndarray
-        calcium activity of each neuron. 
-    f: np.ndarray
-        temporal profile  of background activity.
-    Ain: np.ndarray
-        spatial profile of background activity.    
-        
-    d1: [optional] int
-        x movie dimension
-    d2: [optional] int
-        y movie dimension
-    min_size: [optional] int
-        
-    max_size: [optional] int
-        
-    dist: [optional] int
-        
-    sn: [optional] float
-        
-    n_processes: [optional] int
-        
-    method: [optional] string
-        
-    expandCore: [optional]  scipy.ndimage.morphology
-        
-
-    Returns
-    --------
-    
-    A: np.ndarray        
-         new estimate of spatial footprints
-    b: np.ndarray
-        new estimate of spatial background
-    C: np.ndarray        
-         temporal components (updated only when spatial components are completely removed)             
-       
-    """
-    if expandCore is None:
-        expandCore=iterate_structure(generate_binary_structure(2,1), 2).astype(int)
-    
-    if d1 is None or d2 is None:
-        raise Exception('You need to define the input dimensions')
-    
-    Y=np.atleast_2d(Y)
-    if Y.shape[1]==1:
-        raise Exception('Dimension of Matrix Y must be pixels x time')
-    
-    C=np.atleast_2d(C)
-    if C.shape[1]==1:
-        raise Exception('Dimension of Matrix C must be neurons x time')
-    
-    f=np.atleast_2d(f)
-    if f.shape[1]==1:
-         raise Exception('Dimension of Matrix f must be neurons x time ')
-        
-    if len(A_in.shape)==1:
-        A_in=np.atleast_2d(A_in).T
-
-    if A_in.shape[0]==1:
-         raise Exception('Dimension of Matrix A must be pixels x neurons ')
-    
-    start_time = time.time()
-
-    
-    Cf = np.vstack((C,f))
-        
-    [d,T] = np.shape(Y)
-
-    nr,_ = np.shape(C)       # number of neurons
-
-    
-    IND = determine_search_location(A_in,d1,d2,method = method, min_size = min_size, max_size = max_size, dist = dist, expandCore = expandCore)
-    
-    IND=list(IND) # indices per pixel
-    
-    Y_ = list(Y) # list per pixel
-    
-    ind2_ =[ np.hstack( (np.where(iid_)[0] , nr+np.arange(f.shape[0])) )   if  np.size(np.where(iid_)[0])>0  else [] for iid_ in IND]
-
-    Cf_=[Cf[idx_,:] for idx_ in ind2_]
-
-    #% LARS regression 
-    A_ = np.hstack((np.zeros((d,nr)),np.zeros((d,np.size(f,0)))))
-
-
-    for c,y,s,id2_,px in zip(Cf_,Y_,sn,ind2_,range(d)):
-        if px%1000==0: 
-                print px
-        if np.size(c)>0:                
-            _, _, a, _ , _= lars_regression_noise(y, np.array(c.T), 1, sn[px]**2*T)
-            if np.isscalar(a):
-                A_[px,id2_]=a
-            else:
-                A_[px,id2_]=a.T
-          
-                
-                
-    
-    #%
-    print 'Updated Spatial Components'
-    A_=threshold_components(A_, d1, d2)
-    ff = np.where(np.sum(A_,axis=0)==0);           # remove empty components
-    if np.size(ff)>0:
-        ff = ff[0]
-        warn('eliminating empty components!!')
-        nr = nr - len(ff)
-        A_ = np.delete(A_,list(ff),1)
-        C = np.delete(C,list(ff),0)
-#        raise Exception('Eliminated empty component. Reduce number of neurons')
-        
-    Y_res = Y - np.dot(A_[:,:nr],C[:nr,:])
-    A_bas = np.fmax(np.dot(Y_res,f.T)/scipy.linalg.norm(f)**2,0) # update baseline based on residual
-    b = A_bas
-    A_ = A_[:,:nr]    
-            
-    A_=coo_matrix(A_)
-    print("--- %s seconds ---" % (time.time() - start_time))
-    return A_,b,C
+#def update_spatial_components(Y,C,f,A_in,d1=None,d2=None,min_size=3,max_size=8,dist=3,sn=None, method = 'ellipse', expandCore = None):
+#    """update spatial footprints and background     
+#    through Basis Pursuit Denoising
+#
+#    for each pixel i solve the problem 
+#        [A(i,:),b(i)] = argmin sum(A(i,:))
+#    subject to 
+#        || Y(i,:) - A(i,:)*C + b(i)*f || <= sn(i)*sqrt(T);
+#    
+#    for each pixel the search is limited to a few spatial components
+#    
+#    Parameters
+#    ----------   
+#    Y: np.ndarray (2D)
+#        movie, raw data in 2D (pixels x time).
+#    C: np.ndarray
+#        calcium activity of each neuron. 
+#    f: np.ndarray
+#        temporal profile  of background activity.
+#    Ain: np.ndarray
+#        spatial profile of background activity.    
+#        
+#    d1: [optional] int
+#        x movie dimension
+#    d2: [optional] int
+#        y movie dimension
+#    min_size: [optional] int
+#        
+#    max_size: [optional] int
+#        
+#    dist: [optional] int
+#        
+#    sn: [optional] float
+#        
+#    n_processes: [optional] int
+#        
+#    method: [optional] string
+#        
+#    expandCore: [optional]  scipy.ndimage.morphology
+#        
+#
+#    Returns
+#    --------
+#    
+#    A: np.ndarray        
+#         new estimate of spatial footprints
+#    b: np.ndarray
+#        new estimate of spatial background
+#    C: np.ndarray        
+#         temporal components (updated only when spatial components are completely removed)             
+#       
+#    """
+#    if expandCore is None:
+#        expandCore=iterate_structure(generate_binary_structure(2,1), 2).astype(int)
+#    
+#    if d1 is None or d2 is None:
+#        raise Exception('You need to define the input dimensions')
+#    
+#    Y=np.atleast_2d(Y)
+#    if Y.shape[1]==1:
+#        raise Exception('Dimension of Matrix Y must be pixels x time')
+#    
+#    C=np.atleast_2d(C)
+#    if C.shape[1]==1:
+#        raise Exception('Dimension of Matrix C must be neurons x time')
+#    
+#    f=np.atleast_2d(f)
+#    if f.shape[1]==1:
+#         raise Exception('Dimension of Matrix f must be neurons x time ')
+#        
+#    if len(A_in.shape)==1:
+#        A_in=np.atleast_2d(A_in).T
+#
+#    if A_in.shape[0]==1:
+#         raise Exception('Dimension of Matrix A must be pixels x neurons ')
+#    
+#    start_time = time.time()
+#
+#    
+#    Cf = np.vstack((C,f))
+#        
+#    [d,T] = np.shape(Y)
+#
+#    nr,_ = np.shape(C)       # number of neurons
+#
+#    
+#    IND = determine_search_location(A_in,d1,d2,method = method, min_size = min_size, max_size = max_size, dist = dist, expandCore = expandCore)
+#    
+#    IND=list(IND) # indices per pixel
+#    
+#    Y_ = list(Y) # list per pixel
+#    
+#    ind2_ =[ np.hstack( (np.where(iid_)[0] , nr+np.arange(f.shape[0])) )   if  np.size(np.where(iid_)[0])>0  else [] for iid_ in IND]
+#
+#    Cf_=[Cf[idx_,:] for idx_ in ind2_]
+#
+#    #% LARS regression 
+#    A_ = np.hstack((np.zeros((d,nr)),np.zeros((d,np.size(f,0)))))
+#
+#
+#    for c,y,s,id2_,px in zip(Cf_,Y_,sn,ind2_,range(d)):
+#        if px%1000==0: 
+#                print px
+#        if np.size(c)>0:                
+#            _, _, a, _ , _= lars_regression_noise(y, np.array(c.T), 1, sn[px]**2*T)
+#            if np.isscalar(a):
+#                A_[px,id2_]=a
+#            else:
+#                A_[px,id2_]=a.T
+#          
+#                
+#                
+#    
+#    #%
+#    print 'Updated Spatial Components'
+#    A_=threshold_components(A_, d1, d2)
+#    ff = np.where(np.sum(A_,axis=0)==0);           # remove empty components
+#    if np.size(ff)>0:
+#        ff = ff[0]
+#        warn('eliminating empty components!!')
+#        nr = nr - len(ff)
+#        A_ = np.delete(A_,list(ff),1)
+#        C = np.delete(C,list(ff),0)
+##        raise Exception('Eliminated empty component. Reduce number of neurons')
+#        
+#    Y_res = Y - np.dot(A_[:,:nr],C[:nr,:])
+#    A_bas = np.fmax(np.dot(Y_res,f.T)/scipy.linalg.norm(f)**2,0) # update baseline based on residual
+#    b = A_bas
+#    A_ = A_[:,:nr]    
+#            
+#    A_=coo_matrix(A_)
+#    print("--- %s seconds ---" % (time.time() - start_time))
+#    return A_,b,C
 #%%lars_regression_noise_ipyparallel
 def lars_regression_noise_ipyparallel(pars): 
     import numpy as np

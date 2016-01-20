@@ -7,8 +7,8 @@ Created on Tue Sep  8 16:23:57 2015
 from scipy.sparse import coo_matrix,csgraph,csc_matrix, lil_matrix
 import scipy
 import numpy as np
-from spatial import update_spatial_components,update_spatial_components_parallel
-from temporal import update_temporal_components,update_temporal_components_parallel
+from spatial import update_spatial_components_parallel #update_spatial_components,
+from temporal import update_temporal_components_parallel #,update_temporal_components_parallel
 from deconvolution import constrained_foopsi
 import warnings
 from scipy.ndimage.morphology import generate_binary_structure, iterate_structure

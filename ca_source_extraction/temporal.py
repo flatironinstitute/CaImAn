@@ -124,10 +124,7 @@ def update_temporal_components_parallel(Y, A, b, Cin, fin, bl = None,  c1 = None
     if not kwargs.has_key('p') or kwargs['p'] is None:
         raise Exception("You have to provide a value for p")
 
-    d,T = np.shape(Y);
-    
-    
-    
+    d,T = np.shape(Y);    
     nr = np.shape(A)[-1]
     
     
@@ -147,14 +144,7 @@ def update_temporal_components_parallel(Y, A, b, Cin, fin, bl = None,  c1 = None
     S = np.zeros(np.shape(Cin));
     Cin =  np.vstack((Cin,fin));
     C = Cin;
-    #%
     nA = np.squeeze(np.array(np.sum(np.square(A.todense()),axis=0)))
-    
-    #YrA = Y.T*A - Cin.T*(A.T*A);
-#    Y=np.matrix(Y)
-#    C=np.matrix(C)
-#    Cin=np.matrix(Cin)
-#    YrA2 = Y.T*A - Cin.T*(A.T*A);
 
     Cin=coo_matrix(Cin)
     YrA = (A.T.dot(Y)).T-Cin.T.dot(A.T.dot(A))
@@ -205,7 +195,7 @@ def update_temporal_components_parallel(Y, A, b, Cin, fin, bl = None,  c1 = None
                 raise Exception('Backend not defined. Use either single_thread or ipyparallel')
                 
             for chunk in results:
-                #pars=dict(kwargs)
+                pars=dict()
                 C_,Sp_,Ytemp_,cb_,c1_,sn_,gn_,jj_=chunk                    
                 Ctemp[jj_,:] = C_[None,:]
                                 
@@ -222,16 +212,16 @@ def update_temporal_components_parallel(Y, A, b, Cin, fin, bl = None,  c1 = None
                 g[jo[jj_]]  = gtemp[jj,:]#[jj_,np.abs(gtemp[jj,:])>0] 
                              
                 
-                #pars['b'] = cb_
-#                pars['c1'] = c1_                 
-#                pars['neuron_sn'] = sn_
-#                pars['gn'] = gtemp[jj_,np.abs(gtemp[jj,:])>0] 
+                pars['b'] = cb_
+                pars['c1'] = c1_                 
+                pars['neuron_sn'] = sn_
+                pars['gn'] = gtemp[jj_,np.abs(gtemp[jj,:])>0] 
 #                
 ##                for jj = 1:length(O{jo})
 ##                    P.gn(O{jo}(jj)) = {gtemp(jj,abs(gtemp(jj,:))>0)'};
 ##                end
-#                pars['neuron_id'] = jo[jj_]
-#                P_.append(pars)
+                pars['neuron_id'] = jo[jj_]
+                P_.append(pars)
             
             YrA[:,jo] = Ytemp
             C[jo,:] = Ctemp            
@@ -267,139 +257,137 @@ def update_temporal_components_parallel(Y, A, b, Cin, fin, bl = None,  c1 = None
     if backend == 'ipyparallel':      
         c.close()
     
-    return C,f,S,bl,c1,sn,g
+    return C,f,S,bl,c1,sn,g #,P_
     
 #%%
-def update_temporal_components(Y,A,b,Cin,fin,ITER=2,method_foopsi='constrained_foopsi',n_processes=1, backend='single_thread', memory_efficient=False, **kwargs):
-#def update_temporal_components(Y,A,b,Cin,fin,ITER=2,method_foopsi='constrained_foopsi',deconv_method = 'cvx', g='None',**kwargs):
-    """update temporal components and background given spatial components using a block coordinate descent approach
-    Inputs:
-    Y: np.ndarray (2D)
-        input data with time in the last axis (d x T)
-    A: sparse matrix (crc format)
-        matrix of temporal components (d x K)
-    Cin: np.ndarray
-        current estimate of temporal components (K x T)
-    ITER: positive integer
-        Maximum number of block coordinate descent loops. Default: 2
-    fin: np.ndarray
-        current estimate of temporal background (vector of length T)
-    method_foopsi: string
-        Method of deconvolution of neural activity. 
-        Default: constrained_foopsi (constrained deconvolution, the only method supported at the moment)
-    deconv_method: string
-        Solver for constrained foopsi ('cvx' or 'spgl1', default: 'cvx')
-    g:  np.ndarray
-        Global time constant (not used)
-    **kwargs: all parameters passed to constrained_foopsi
-                               b=None, 
-                               c1=None,
-                               g=None,
-                               sn=None, 
-                               p=2, 
-                               method='cvx', 
-                               bas_nonneg=True, 
-                               noise_range=[0.25, 0.5], 
-                               noise_method='logmexp', 
-                               lags=5, 
-                               resparse=0, 
-                               fudge_factor=1, 
-                               verbosity=False):
-                               
-    Outputs:
-    C:     np.matrix
-            matrix of temporal components (K x T)
-    f:     np.array
-            vector of temporal background (length T) 
-    P_:    dictionary
-            Dictionary with parameters for each temporal component:
-                P_.b:           baseline for fluorescence trace
-                P_.c1:          initial concentration
-                P_.gn:          discrete time constant
-                P_.neuron_sn:   noise level
-                P_.neuron_id:   index of component
-    Sp:    np.matrix
-            matrix of deconvolved neural activity (K x T)
-    """
-
-
-    d,T = np.shape(Y);
-    
-
-    nr = np.shape(A)[-1]
-    A = scipy.sparse.hstack((A,coo_matrix(b)))
-    Cin =  np.vstack((Cin,fin));
-    C = Cin;
-    #%
-    nA = np.squeeze(np.array(np.sum(np.square(A.todense()),axis=0)))
-    
-    Y=np.matrix(Y)
-    C=np.matrix(C)
-    Cin=np.matrix(Cin)
-    Sp = np.zeros((nr,T))
-    YrA = Y.T*A - Cin.T*(A.T*A);
-
-
-    for iter in range(ITER):
-        idxs=range(nr+1)
-        random.shuffle(idxs)
-        P_=[];
-    #    perm = randperm(nr+1)
-        for jj,ii in enumerate(idxs):            
-            #ii=jj
-            #print ii,jj
-            pars=dict(kwargs)
-    #        ii = perm(jj);
-            if ii<nr:                
-                if method_foopsi == 'constrained_foopsi':
-                        #print YrA.shape 
-                        #print YrA.shape
-                        YrA[:,ii] = YrA[:,ii] + nA[ii]*Cin[ii,:].T                  
-                        cc,cb,c1,gn,sn,sp = constrained_foopsi(np.squeeze(np.asarray(YrA[:,ii]/nA[ii])), **pars)
-                        #print pars
-                        pars['gn'] = gn
-                        
-                        gd = np.max(np.roots(np.hstack((1,-gn.T))));  # decay time constant for initial concentration
-                        gd_vec = gd**range(T)
-                        
-                        C[ii,:] = cc[:].T + cb + c1*gd_vec
-                        Sp[ii,:] = sp[:T].T
-                        YrA[:,ii] = YrA[:,ii] - np.matrix(nA[ii]*C[ii,:]).T
-                        pars['b'] = cb
-                        pars['c1'] = c1           
-                        pars['neuron_sn'] = sn
-                        pars['neuron_id'] = ii
-                        P_.append(pars)
-                else:
-                        raise Exception('undefined  method')                        
-                    
-                
-            else:
-                YrA[:,ii] = YrA[:,ii] + nA[ii]*Cin[ii,:].T
-                cc = np.maximum(YrA[:,ii]/nA[ii],0)
-                C[ii,:] = cc[:].T # if you use this should give an error that we need to correct
-                YrA[:,ii] = YrA[:,ii] - nA[ii]*C[ii,:].T
-            
-            if (jj+1)%10 == 0:
-                print str(jj+1) + ' out of total ' + str(nr+1) + ' temporal components updated \n'
-    
-    
-        #%disp(norm(Fin(1:nr,:) - F,'fro')/norm(F,'fro'));
-        if scipy.linalg.norm(Cin - C,'fro')/scipy.linalg.norm(C,'fro') <= 1e-3:
-            # stop if the overall temporal component does not change by much
-            break
-        else:
-            Cin = C
-        
-    
-    
-    #Y_res = Y - A*C
-    
-    f = C[nr:,:]
-    C = C[:nr,:]
-        
-    P_ = sorted(P_, key=lambda k: k['neuron_id']) 
-    
-    return C,f,P_,Sp
-
-#%%
+#def update_temporal_components(Y,A,b,Cin,fin,ITER=2,method_foopsi='constrained_foopsi',n_processes=1, backend='single_thread', memory_efficient=False, **kwargs):
+##def update_temporal_components(Y,A,b,Cin,fin,ITER=2,method_foopsi='constrained_foopsi',deconv_method = 'cvx', g='None',**kwargs):
+#    """update temporal components and background given spatial components using a block coordinate descent approach
+#    Inputs:
+#    Y: np.ndarray (2D)
+#        input data with time in the last axis (d x T)
+#    A: sparse matrix (crc format)
+#        matrix of temporal components (d x K)
+#    Cin: np.ndarray
+#        current estimate of temporal components (K x T)
+#    ITER: positive integer
+#        Maximum number of block coordinate descent loops. Default: 2
+#    fin: np.ndarray
+#        current estimate of temporal background (vector of length T)
+#    method_foopsi: string
+#        Method of deconvolution of neural activity. 
+#        Default: constrained_foopsi (constrained deconvolution, the only method supported at the moment)
+#    deconv_method: string
+#        Solver for constrained foopsi ('cvx' or 'spgl1', default: 'cvx')
+#    g:  np.ndarray
+#        Global time constant (not used)
+#    **kwargs: all parameters passed to constrained_foopsi
+#                               b=None, 
+#                               c1=None,
+#                               g=None,
+#                               sn=None, 
+#                               p=2, 
+#                               method='cvx', 
+#                               bas_nonneg=True, 
+#                               noise_range=[0.25, 0.5], 
+#                               noise_method='logmexp', 
+#                               lags=5, 
+#                               resparse=0, 
+#                               fudge_factor=1, 
+#                               verbosity=False):
+#                               
+#    Outputs:
+#    C:     np.matrix
+#            matrix of temporal components (K x T)
+#    f:     np.array
+#            vector of temporal background (length T) 
+#    P_:    dictionary
+#            Dictionary with parameters for each temporal component:
+#                P_.b:           baseline for fluorescence trace
+#                P_.c1:          initial concentration
+#                P_.gn:          discrete time constant
+#                P_.neuron_sn:   noise level
+#                P_.neuron_id:   index of component
+#    Sp:    np.matrix
+#            matrix of deconvolved neural activity (K x T)
+#    """
+#
+#
+#    d,T = np.shape(Y);
+#    
+#
+#    nr = np.shape(A)[-1]
+#    A = scipy.sparse.hstack((A,coo_matrix(b)))
+#    Cin =  np.vstack((Cin,fin));
+#    C = Cin;
+#    #%
+#    nA = np.squeeze(np.array(np.sum(np.square(A.todense()),axis=0)))
+#    
+#    Y=np.matrix(Y)
+#    C=np.matrix(C)
+#    Cin=np.matrix(Cin)
+#    Sp = np.zeros((nr,T))
+#    YrA = Y.T*A - Cin.T*(A.T*A);
+#
+#
+#    for iter in range(ITER):
+#        idxs=range(nr+1)
+#        random.shuffle(idxs)
+#        P_=[];
+#    #    perm = randperm(nr+1)
+#        for jj,ii in enumerate(idxs):            
+#            #ii=jj
+#            #print ii,jj
+#            pars=dict()
+#    #        ii = perm(jj);
+#            if ii<nr:                
+#                if method_foopsi == 'constrained_foopsi':
+#                        #print YrA.shape 
+#                        #print YrA.shape
+#                        YrA[:,ii] = YrA[:,ii] + nA[ii]*Cin[ii,:].T                  
+#                        cc,cb,c1,gn,sn,sp = constrained_foopsi(np.squeeze(np.asarray(YrA[:,ii]/nA[ii])), **pars)
+#                        #print pars
+#                        pars['gn'] = gn
+#                        
+#                        gd = np.max(np.roots(np.hstack((1,-gn.T))));  # decay time constant for initial concentration
+#                        gd_vec = gd**range(T)
+#                        
+#                        C[ii,:] = cc[:].T + cb + c1*gd_vec
+#                        Sp[ii,:] = sp[:T].T
+#                        YrA[:,ii] = YrA[:,ii] - np.matrix(nA[ii]*C[ii,:]).T
+#                        pars['b'] = cb
+#                        pars['c1'] = c1           
+#                        pars['neuron_sn'] = sn
+#                        pars['neuron_id'] = ii
+#                        P_.append(pars)
+#                else:
+#                        raise Exception('undefined  method')                        
+#                    
+#                
+#            else:
+#                YrA[:,ii] = YrA[:,ii] + nA[ii]*Cin[ii,:].T
+#                cc = np.maximum(YrA[:,ii]/nA[ii],0)
+#                C[ii,:] = cc[:].T # if you use this should give an error that we need to correct
+#                YrA[:,ii] = YrA[:,ii] - nA[ii]*C[ii,:].T
+#            
+#            if (jj+1)%10 == 0:
+#                print str(jj+1) + ' out of total ' + str(nr+1) + ' temporal components updated \n'
+#    
+#    
+#        #%disp(norm(Fin(1:nr,:) - F,'fro')/norm(F,'fro'));
+#        if scipy.linalg.norm(Cin - C,'fro')/scipy.linalg.norm(C,'fro') <= 1e-3:
+#            # stop if the overall temporal component does not change by much
+#            break
+#        else:
+#            Cin = C
+#        
+#    
+#    
+#    #Y_res = Y - A*C
+#    
+#    f = C[nr:,:]
+#    C = C[:nr,:]
+#        
+#    P_ = sorted(P_, key=lambda k: k['neuron_id']) 
+#    
+#    return C,f,P_,Sp
