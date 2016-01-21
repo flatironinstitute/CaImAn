@@ -107,6 +107,8 @@ The code uses the following libraries
 - [Matplotlib](http://matplotlib.org/)
 - [Scikit-Learn](http://scikit-learn.org/stable/)
 - [Tifffile](https://pypi.python.org/pypi/tifffile) For reading tiff files. Other choices can work there too.
+- [Joblib](https://pypi.python.org/pypi/joblib) for parallel processing
+- [ipyparallel](http://ipyparallel.readthedocs.org/en/latest/) for parallel processing
 
 External Dependencies
 ============
