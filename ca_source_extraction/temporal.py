@@ -7,7 +7,7 @@ import scipy
 import numpy as np
 #import cPickle as pickle
 from deconvolution import constrained_foopsi
-import random
+#import random
 #from scipy import linalg
 #from spatial import update_spatial_components
 from utilities import update_order
@@ -56,7 +56,7 @@ def constrained_foopsi_parallel(arg_in):
     
      
 #%%
-def update_temporal_components_parallel(Y, A, b, Cin, fin, bl = None,  c1 = None, g = None,  sn = None, ITER=2, method_foopsi='constrained_foopsi', n_processes=1, backend='single_thread',memory_efficient=False, **kwargs):
+def update_temporal_components(Y, A, b, Cin, fin, bl = None,  c1 = None, g = None,  sn = None, ITER=2, method_foopsi='constrained_foopsi', n_processes=1, backend='single_thread',memory_efficient=False, **kwargs):
     """Update temporal components and background given spatial components using a block coordinate descent approach.
 
 

@@ -42,8 +42,8 @@ def basis_denoising(y,c,boh,sn,id2_,px):
             else:
                 return (None,None,None)
             return a,px,id2_
-#%% update_spatial_components_parallel
-def update_spatial_components_parallel(Y,C,f,A_in,sn=None, d1=None,d2=None,min_size=3,max_size=8, dist=3, method = 'ellipse', expandCore = None,backend='single_thread',n_processes=4,n_pixels_per_process=128, memory_efficient=False):
+#%% update_spatial_components (in parallel)
+def update_spatial_components(Y,C,f,A_in,sn=None, d1=None,d2=None,min_size=3,max_size=8, dist=3, method = 'ellipse', expandCore = None,backend='single_thread',n_processes=4,n_pixels_per_process=128, memory_efficient=False):
     """update spatial footprints and background     
     through Basis Pursuit Denoising
 

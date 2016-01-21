@@ -52,7 +52,7 @@ Cn = cse.local_correlations(Y)
 options = cse.utilities.CNMFSetParms(Y,p=p,gSig=[4,4])
 sys.stdout.flush()    
 proc_2=subprocess.Popen(["ipcluster start -n " + str(options['spatial_params']['n_processes'])],shell=True) 
-tm.sleep(2)
+tm.sleep(5)
 
 #%% PREPROCESS DATA AND INITIALIZE COMPONENTS
 t1 = time()
@@ -71,19 +71,19 @@ plt.show()
   
 #%% UPDATE SPATIAL COMPONENTS
 t1 = time()
-A,b,Cin = cse.update_spatial_components_parallel(Yr, Cin, f_in, Ain, sn=sn, **options['spatial_params'])
+A,b,Cin = cse.update_spatial_components(Yr, Cin, f_in, Ain, sn=sn, **options['spatial_params'])
 t_elSPATIAL = time() - t1
 print t_elSPATIAL 
 plt.figure()
 crd = cse.plot_contours(A,Cn,thr=0.9)
 #%% update_temporal_components
 t1 = time()
-C,f,S,bl,c1,neurons_sn,g = cse.update_temporal_components_parallel(Yr,A,b,Cin,f_in,bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
+C,f,S,bl,c1,neurons_sn,g = cse.update_temporal_components(Yr,A,b,Cin,f_in,bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
 t_elTEMPORAL2 = time() - t1
 print t_elTEMPORAL2 
 #%% merge components corresponding to the same neuron
 t1 = time()
-A_m,C_m,nr_m,merged_ROIs,S_m,bl_m,c1_m,sn_m,g_m=cse.mergeROIS_parallel(Yr,A,b,C,f,S,sn,options['temporal_params'], options['spatial_params'], bl=bl, c1=c1, sn=neurons_sn, g=g, thr=0.8, mx=50, fast_merge = True)
+A_m,C_m,nr_m,merged_ROIs,S_m,bl_m,c1_m,sn_m,g_m=cse.merge_components(Yr,A,b,C,f,S,sn,options['temporal_params'], options['spatial_params'], bl=bl, c1=c1, sn=neurons_sn, g=g, thr=0.8, mx=50, fast_merge = True)
 t_elMERGE = time() - t1
 print t_elMERGE  
 
@@ -92,9 +92,9 @@ plt.figure()
 crd = cse.plot_contours(A_m,Cn,thr=0.9)
 #%% refine spatial and temporal 
 t1 = time()
-A2,b2,C2 = cse.update_spatial_components_parallel(Yr, C_m, f, A_m, sn=sn, **options['spatial_params'])
+A2,b2,C2 = cse.update_spatial_components(Yr, C_m, f, A_m, sn=sn, **options['spatial_params'])
 #C2,f2,Y_res2,S2,bl2,c12,neurons_sn2,g21 = cse.update_temporal_components_parallel(Yr,A2,b2,C2,f,bl=bl_m,c1=c1_m,sn=sn_m,g=g_m,**temporal_params)
-C2,f2,S2,bl2,c12,neurons_sn2,g21 = cse.update_temporal_components_parallel(Yr,A2,b2,C2,f,bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
+C2,f2,S2,bl2,c12,neurons_sn2,g21 = cse.update_temporal_components(Yr,A2,b2,C2,f,bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
 print time() - t1
 #%%
 A_or, C_or, srt = cse.order_components(A2,C2)
