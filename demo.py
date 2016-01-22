@@ -36,7 +36,7 @@ tm.sleep(5)
 reload=0
 filename='movies/demoMovie.tif'
 t = tifffile.TiffFile(filename) 
-Y = t.asarray().astype(dtype=np.float64) 
+Y = t.asarray().astype(dtype=np.float32) 
 Y = np.transpose(Y,(1,2,0))
 d1,d2,T=Y.shape
 Yr=np.reshape(Y,(d1*d2,T),order='F')
