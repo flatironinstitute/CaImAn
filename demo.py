@@ -28,9 +28,7 @@ p=2 # order of the AR model (in general 1 or 2)
 #%% start cluster for efficient computation
 print "(Stopping)  and restarting cluster to avoid unnencessary use of memory...."
 sys.stdout.flush()  
-proc_1=subprocess.Popen(["ipcluster stop"],shell=True)
-tm.sleep(5)
-
+cse.utilities.stop_server()
 
 #%% LOAD MOVIE AND MAKE DIMENSIONS COMPATIBLE WITH CNMF
 reload=0
@@ -50,9 +48,7 @@ Cn = cse.local_correlations(Y)
 
 #%%
 options = cse.utilities.CNMFSetParms(Y,p=p,gSig=[4,4])
-sys.stdout.flush()    
-proc_2=subprocess.Popen(["ipcluster start -n " + str(options['spatial_params']['n_processes'])],shell=True) 
-tm.sleep(5)
+cse.utilities.start_server(options['spatial_params']['n_processes'])
 
 #%% PREPROCESS DATA AND INITIALIZE COMPONENTS
 t1 = time()
@@ -103,7 +99,4 @@ cse.view_patches(Yr,coo_matrix(A_or),C_or,b2,f2, d1,d2,secs=0)
 plt.figure()
 crd = cse.plot_contours(A_or,Cn,thr=0.9)
 #%% STOP CLUSTER
-print "Stopping Cluster...."
-sys.stdout.flush()  
-proc_2=subprocess.Popen(["ipcluster stop"],shell=True)
-tm.sleep(5)
+cse.utilities.stop_server()
