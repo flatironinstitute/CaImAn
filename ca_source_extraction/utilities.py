@@ -623,7 +623,7 @@ def start_server(ncpus):
             c = ipyparallel.Client()
             c.close()
             break
-        except IOError:
+        except (IOError, ipyparallel.error.TimeoutError):
             sys.stdout.write(".")
             sys.stdout.flush()
             time.sleep(1)
@@ -645,7 +645,7 @@ def stop_server():
             sys.stdout.flush()
             # Only sleep if there was a server to stop at all
             time.sleep(4)
-        except IOError:
+        except (IOError, ipyparallel.error.TimeoutError):
             break
 
     sys.stdout.write(" done\n")
