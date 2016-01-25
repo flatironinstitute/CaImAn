@@ -22,6 +22,8 @@ except:
 import matplotlib as mpl
 import matplotlib.cm as cm
 import psutil
+import subprocess
+import time
 #%%
 
 
@@ -607,3 +609,43 @@ def nb_plot_contour(image,A,d1,d2,thr=0.995,face_color=None, line_color='black',
 
     p.patches(cc1,cc2, alpha=.4, color=face_color,  line_color=line_color, line_width=2,**kwargs)
     return p
+
+
+def start_server(ncpus):
+    import ipyparallel
+
+    sys.stdout.write("Starting cluster...")
+    sys.stdout.flush()
+
+    subprocess.Popen(["ipcluster start -n {0}".format(ncpus)], shell=True)
+    while True:
+        try:
+            c = ipyparallel.Client()
+            c.close()
+            break
+        except (IOError, ipyparallel.error.TimeoutError):
+            sys.stdout.write(".")
+            sys.stdout.flush()
+            time.sleep(1)
+
+    sys.stdout.write(" done\n")
+
+
+def stop_server():
+    import ipyparallel
+
+    sys.stdout.write("Stopping cluster...")
+    sys.stdout.flush()
+    subprocess.Popen(["ipcluster stop"], shell=True)
+    while True:
+        try:
+            c = ipyparallel.Client()
+            c.close()
+            sys.stdout.write(".")
+            sys.stdout.flush()
+            # Only sleep if there was a server to stop at all
+            time.sleep(4)
+        except (IOError, ipyparallel.error.TimeoutError):
+            break
+
+    sys.stdout.write(" done\n")
