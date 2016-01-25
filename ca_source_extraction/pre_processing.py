@@ -13,7 +13,7 @@ import numpy as np
 from scipy.interpolate import griddata    
 import tempfile 
 import os
-from joblib import Parallel,delayed
+#from joblib import Parallel,delayed
 import shutil
 from multiprocessing.dummy import Pool as ThreadPool 
 
@@ -97,44 +97,44 @@ def find_unsaturated_pixels(Y, saturationValue = None, saturationThreshold = 0.9
     return normalPixels
 
 #%%
-def get_noise_fft(Y, noise_range = [0.25,0.5], noise_method = 'logmexp'):
-    """Estimate the noise level for each pixel by averaging the power spectral density.
-    Inputs:
-    Y: np.ndarray
-    Input movie data with time in the last axis
-    noise_range: np.ndarray [2 x 1] between 0 and 0.5
-        Range of frequencies compared to Nyquist rate over which the power spectrum is averaged
-        default: [0.25,0.5]
-    noise method: string
-        method of averaging the noise.
-        Choices:
-            'mean': Mean
-            'median': Median
-            'logmexp': Exponential of the mean of the logarithm of PSD (default)
-    
-    Output:
-    sn: np.ndarray
-        Noise level for each pixel
-    """
-    T = np.shape(Y)[-1]
-    dims = len(np.shape(Y))
-    ff = np.arange(0,0.5+1./T,1./T)
-    ind1 = ff > noise_range[0]
-    ind2 = ff <= noise_range[1]
-    ind = np.logical_and(ind1,ind2)
-    if dims > 1:
-        xdft = np.fft.rfft(Y,axis=-1)
-        psdx = (1./T)*abs(xdft)**2
-        psdx[...,1:] *= 2
-        sn = mean_psd(psdx[...,ind], method = noise_method)
-        
-    else:
-        xdft = np.fliplr(rfft(Y))
-        psdx = (1./T)*(xdft**2)
-        psdx[1:] *=2
-        sn = mean_psd(psdx[ind], method = noise_method)
-    
-    return sn     
+#def get_noise_fft(Y, noise_range = [0.25,0.5], noise_method = 'logmexp'):
+#    """Estimate the noise level for each pixel by averaging the power spectral density.
+#    Inputs:
+#    Y: np.ndarray
+#    Input movie data with time in the last axis
+#    noise_range: np.ndarray [2 x 1] between 0 and 0.5
+#        Range of frequencies compared to Nyquist rate over which the power spectrum is averaged
+#        default: [0.25,0.5]
+#    noise method: string
+#        method of averaging the noise.
+#        Choices:
+#            'mean': Mean
+#            'median': Median
+#            'logmexp': Exponential of the mean of the logarithm of PSD (default)
+#    
+#    Output:
+#    sn: np.ndarray
+#        Noise level for each pixel
+#    """
+#    T = np.shape(Y)[-1]
+#    dims = len(np.shape(Y))
+#    ff = np.arange(0,0.5+1./T,1./T)
+#    ind1 = ff > noise_range[0]
+#    ind2 = ff <= noise_range[1]
+#    ind = np.logical_and(ind1,ind2)
+#    if dims > 1:
+#        xdft = np.fft.rfft(Y,axis=-1)
+#        psdx = (1./T)*abs(xdft)**2
+#        psdx[...,1:] *= 2
+#        sn = mean_psd(psdx[...,ind], method = noise_method)
+#        
+#    else:
+#        xdft = np.fliplr(rfft(Y))
+#        psdx = (1./T)*(xdft**2)
+#        psdx[1:] *=2
+#        sn = mean_psd(psdx[ind], method = noise_method)
+#    
+#    return sn     
 
 
 def get_noise_fft_parallel(Y, n_processes=4,n_pixels_per_process=100, backend='multithreading', **kwargs):
@@ -153,8 +153,7 @@ def get_noise_fft_parallel(Y, n_processes=4,n_pixels_per_process=100, backend='m
         number of pixels to be simultaneously processed by each process
     
     backend: [optional] string
-        the type of concurrency to be employed. 'threading' or 'multiprocessing'. In general
-        threading should be used
+        the type of concurrency to be employed. only 'multithreading' for the moment
     
     **kwargs: [optional] dict
         all the parameters passed to get_noise_fft     
@@ -166,7 +165,7 @@ def get_noise_fft_parallel(Y, n_processes=4,n_pixels_per_process=100, backend='m
     """  
     
     folder = tempfile.mkdtemp()
-    sn_name = os.path.join(folder, 'sn_s')            
+          
     
     # Pre-allocate a writeable shared memory map as a container for the
     # results of the parallel computation
@@ -174,19 +173,17 @@ def get_noise_fft_parallel(Y, n_processes=4,n_pixels_per_process=100, backend='m
     
     pixel_groups=range(0,Y.shape[0]-n_pixels_per_process+1,n_pixels_per_process)
     
-    if backend=="threading": # case joblib        
-
-        print "using threading"
-        
-        sn_s = np.memmap(sn_name, dtype=np.float32,shape=Y.shape[0], mode='w+') 
-        # Fork the worker processes to perform computation concurrently                    
-        Parallel(n_jobs=n_processes, backend=backend)(delayed(fft_psd_parallel)(Y, sn_s, i, n_pixels_per_process, **kwargs)
-                            for i in pixel_groups)   
+#    if backend=="threading": # case joblib        
+#        sn_name = os.path.join(folder, 'sn_s')         
+#        print "using threading"
+#        
+#        sn_s = np.memmap(sn_name, dtype=np.float32,shape=Y.shape[0], mode='w+') 
+#        # Fork the worker processes to perform computation concurrently                    
+#        Parallel(n_jobs=n_processes, backend=backend)(delayed(fft_psd_parallel)(Y, sn_s, i, n_pixels_per_process, **kwargs)
+#                            for i in pixel_groups)   
     
-    elif backend=='multithreading': 
-        
-        
-        
+    if backend=='multithreading': 
+
         pool = ThreadPool(n_processes)
         argsin=[(Y, i, n_pixels_per_process, kwargs) for i in pixel_groups]
         results = pool.map(fft_psd_multithreading, argsin)
