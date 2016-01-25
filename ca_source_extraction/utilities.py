@@ -24,6 +24,8 @@ import matplotlib.cm as cm
 import psutil
 import subprocess
 import time
+import ipyparallel
+
 #%%
 
 
@@ -612,7 +614,6 @@ def nb_plot_contour(image,A,d1,d2,thr=0.995,face_color=None, line_color='black',
 
 
 def start_server(ncpus):
-    import ipyparallel
 
     sys.stdout.write("Starting cluster...")
     sys.stdout.flush()
@@ -621,6 +622,10 @@ def start_server(ncpus):
     while True:
         try:
             c = ipyparallel.Client()
+            if len(c) < ncpus:
+                sys.stdout.write(".")
+                sys.stdout.flush()
+                raise ipyparallel.error.TimeoutError
             c.close()
             break
         except (IOError, ipyparallel.error.TimeoutError):
@@ -632,20 +637,24 @@ def start_server(ncpus):
 
 
 def stop_server():
-    import ipyparallel
 
-    sys.stdout.write("Stopping cluster...")
+    sys.stdout.write("Stopping cluster...\n")
     sys.stdout.flush()
-    subprocess.Popen(["ipcluster stop"], shell=True)
-    while True:
-        try:
-            c = ipyparallel.Client()
-            c.close()
-            sys.stdout.write(".")
+    
+    proc=subprocess.Popen(["ipcluster stop"], shell=True,stderr=subprocess.PIPE)
+    line_out=proc.stderr.readline()
+    if 'CRITICAL' in line_out:
+        sys.stdout.write("No cluster to stop...")
+        sys.stdout.flush()
+    elif 'Stopping' in line_out:       
+        st=time.time()
+        sys.stdout.write('Waiting for cluster to stop...')
+        while (time.time() - st) < 4:
+            sys.stdout.write('.')
             sys.stdout.flush()
-            # Only sleep if there was a server to stop at all
-            time.sleep(4)
-        except (IOError, ipyparallel.error.TimeoutError):
-            break
-
+            time.sleep(1)
+    else:
+        print '**** Unrecognized Syntax in ipcluster output, waiting for server to stop anyways ****'        
+        
+    
     sys.stdout.write(" done\n")
