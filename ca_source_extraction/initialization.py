@@ -234,30 +234,6 @@ def imblur(Y, sig = 5, siz = 11, nDimBlur = None, kernel = None):
         X = correlate(Y,kernel[...,np.newaxis],mode='constant')
         #for t in range(np.shape(Y)[-1]):
         #    X[:,:,t] = correlate(Y[:,:,t],kernel,mode='constant', cval=0.0)
-
-## uncomment the following for general n-dim filtering (slow)
-#    xx = []
-#    hx = []
-#    for i in range(nDimBlur):
-#        vec = np.arange(-np.floor(siz[i]/2),np.floor(siz[i]/2)+1)
-#        xx.append(vec)
-#        fil = np.exp(-xx[i]**2/(2*sig[0]**2))
-#        hx.append(fil/np.sqrt(np.sum(fil**2)))        
-           
-#    X = np.zeros(np.shape(Y))
-#    siz = tuple([1]*nDimBlur)
-#    sizY = np.shape(Y)
-#    for t in range(sizY[-1]):
-#        temp = Y[...,t]
-#        for i in range(nDimBlur):
-#            I = [0]*nDimBlur
-#            I[i] = range(sizY[i])
-#            siz[i] = sizY[i]
-#            H = np.zeros(siz)
-#            H[tuple(I)] = hx[i]
-#            temp = correlate(temp,H,mode='wrap')
-#        
-#        X[...,t] = temp
             
     return X
 

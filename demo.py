@@ -34,15 +34,15 @@ cse.utilities.stop_server()
 reload=0
 filename='movies/demoMovie.tif'
 t = tifffile.TiffFile(filename) 
-Y = t.asarray().astype(dtype=np.float32) 
-Y = np.transpose(Y,(1,2,0))
-d1,d2,T=Y.shape
-Yr=np.reshape(Y,(d1*d2,T),order='F')
-np.save('Y',Y)
+Yr = t.asarray().astype(dtype=np.float32) 
+Yr = np.transpose(Yr,(1,2,0))
+d1,d2,T=Yr.shape
+Yr=np.reshape(Yr,(d1*d2,T),order='F')
+#np.save('Y',Y)
 np.save('Yr',Yr)
-Y=np.load('Y.npy',mmap_mode='r')
+#Y=np.load('Y.npy',mmap_mode='r')
 Yr=np.load('Yr.npy',mmap_mode='r')        
-d1,d2,T=Y.shape
+Y=np.reshape(Yr,(d1,d2,T),order='F')
 Cn = cse.local_correlations(Y)
 #n_pixels_per_process=d1*d2/n_processes # how to subdivide the work among processes
 

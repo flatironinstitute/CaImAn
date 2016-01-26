@@ -34,7 +34,8 @@ def interpolate_missing_data(Y):
     """  
     coor=[];
     if np.any(np.isnan(Y)):
-        raise Exception('The algorithm has not been tested with missing values (NaNs)')        
+        raise Exception('The algorithm has not been tested with missing values (NaNs). Remove NaNs and rerun the algorithm.')        
+        # need to 
         for idx,row in enumerate(Y):
             nans=np.where(np.isnan(row))[0] 
             n_nans=np.where(~np.isnan(row))[0] 
@@ -97,44 +98,44 @@ def find_unsaturated_pixels(Y, saturationValue = None, saturationThreshold = 0.9
     return normalPixels
 
 #%%
-#def get_noise_fft(Y, noise_range = [0.25,0.5], noise_method = 'logmexp'):
-#    """Estimate the noise level for each pixel by averaging the power spectral density.
-#    Inputs:
-#    Y: np.ndarray
-#    Input movie data with time in the last axis
-#    noise_range: np.ndarray [2 x 1] between 0 and 0.5
-#        Range of frequencies compared to Nyquist rate over which the power spectrum is averaged
-#        default: [0.25,0.5]
-#    noise method: string
-#        method of averaging the noise.
-#        Choices:
-#            'mean': Mean
-#            'median': Median
-#            'logmexp': Exponential of the mean of the logarithm of PSD (default)
-#    
-#    Output:
-#    sn: np.ndarray
-#        Noise level for each pixel
-#    """
-#    T = np.shape(Y)[-1]
-#    dims = len(np.shape(Y))
-#    ff = np.arange(0,0.5+1./T,1./T)
-#    ind1 = ff > noise_range[0]
-#    ind2 = ff <= noise_range[1]
-#    ind = np.logical_and(ind1,ind2)
-#    if dims > 1:
-#        xdft = np.fft.rfft(Y,axis=-1)
-#        psdx = (1./T)*abs(xdft)**2
-#        psdx[...,1:] *= 2
-#        sn = mean_psd(psdx[...,ind], method = noise_method)
-#        
-#    else:
-#        xdft = np.fliplr(rfft(Y))
-#        psdx = (1./T)*(xdft**2)
-#        psdx[1:] *=2
-#        sn = mean_psd(psdx[ind], method = noise_method)
-#    
-#    return sn     
+def get_noise_fft(Y, noise_range = [0.25,0.5], noise_method = 'logmexp'):
+    """Estimate the noise level for each pixel by averaging the power spectral density.
+    Inputs:
+    Y: np.ndarray
+    Input movie data with time in the last axis
+    noise_range: np.ndarray [2 x 1] between 0 and 0.5
+        Range of frequencies compared to Nyquist rate over which the power spectrum is averaged
+        default: [0.25,0.5]
+    noise method: string
+        method of averaging the noise.
+        Choices:
+            'mean': Mean
+            'median': Median
+            'logmexp': Exponential of the mean of the logarithm of PSD (default)
+    
+    Output:
+    sn: np.ndarray
+        Noise level for each pixel
+    """
+    T = np.shape(Y)[-1]
+    dims = len(np.shape(Y))
+    ff = np.arange(0,0.5+1./T,1./T)
+    ind1 = ff > noise_range[0]
+    ind2 = ff <= noise_range[1]
+    ind = np.logical_and(ind1,ind2)
+    if dims > 1:
+        xdft = np.fft.rfft(Y,axis=-1)
+        psdx = (1./T)*abs(xdft)**2
+        psdx[...,1:] *= 2
+        sn = mean_psd(psdx[...,ind], method = noise_method)
+        
+    else:
+        xdft = np.fliplr(rfft(Y))
+        psdx = (1./T)*(xdft**2)
+        psdx[1:] *=2
+        sn = mean_psd(psdx[ind], method = noise_method)
+    
+    return sn     
 
 
 def get_noise_fft_parallel(Y, n_processes=4,n_pixels_per_process=100, backend='multithreading', **kwargs):

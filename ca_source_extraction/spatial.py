@@ -16,8 +16,7 @@ import time
 import sys
 import tempfile
 import os 
-from joblib import Parallel,delayed
-from joblib import dump, load  
+
 import shutil
 
 try:
@@ -85,10 +84,9 @@ def update_spatial_components(Y,C,f,A_in,sn=None, d1=None,d2=None,min_size=3,max
         number of threads to use when the backend is multiprocessing,threading, or ipyparallel
         
     backend [optional] str
-        'multiprocessing', 'threading', 'ipyparallel', 'single_thread' 
-        single_thread:no parallelization. It shoul dbe used in most cases.         
-        multiprocessing or threading: use the corresponding python threading package. It has known issues on mac OS. Not to be used in most situations.
-        ipyparallel: starts an ipython cluster and then send jobs to each of them 
+        'ipyparallel', 'single_thread' 
+        single_thread:no parallelization. It can be used with small datasets.                 
+        ipyparallel: uses ipython clusters and then send jobs to each of them 
         
     
     n_pixels_per_process: [optional] int
@@ -160,44 +158,44 @@ def update_spatial_components(Y,C,f,A_in,sn=None, d1=None,d2=None,min_size=3,max
 
     folder = tempfile.mkdtemp()
     
-    if backend == 'multiprocessing' or backend == 'threading':
-
-        A_name = os.path.join(folder, 'A_temp')  
-                      
-        # Pre-allocate a writeable shared memory map as a container for the
-        # results of the parallel computation     
-        print "Create Matrix for dumping data from matrix A and C for parallel computation...."              
-        A_ = np.memmap(A_name, dtype=A_in.dtype,shape=(d,nr+np.size(f,0)), mode='w+') 
-
-        pixels_name = os.path.join(folder, 'pixels')
-
-        C_name = os.path.join(folder, 'C_temp')          
-        
-        # Dump the input data to disk to free the memory
-        dump(Y, pixels_name)
-        dump(Cf, C_name)        
-        
-        # use mempry mapped versions of C and Y
-        Y = load(pixels_name, mmap_mode='r')
-        Cf = load(C_name, mmap_mode='r')
-        
-        pixel_groups=[range(i,i+n_pixels_per_process) for i in range(0,Y.shape[0]-n_pixels_per_process+1,n_pixels_per_process)]
-        
-        # Fork the worker processes to perform computation concurrently    
-        print "start parallel pool..."
-        sys.stdout.flush()
-        Parallel(n_jobs=n_processes, backend=backend,verbose=100,max_nbytes=None)(delayed(lars_regression_noise_parallel)(Y,Cf,A_,sn,i,ind2_)
-                            for i in pixel_groups) 
-                        
-            
-        # if n_pixels_per_process is not a multiple of Y.shape[0] run on remaining pixels   
-        pixels_remaining= Y.shape[0] %  n_pixels_per_process          
-        if pixels_remaining>0:             
-            print "Running deconvolution for remaining pixels:" + str(pixels_remaining)
-            lars_regression_noise_parallel(Y,Cf,A_,sn,range(Y.shape[0]-pixels_remaining,Y.shape[0]),ind2_,positive=1)        
-        A_=np.array(A_)
+#    if backend == 'multiprocessing' or backend == 'threading':
+#
+#        A_name = os.path.join(folder, 'A_temp')  
+#                      
+#        # Pre-allocate a writeable shared memory map as a container for the
+#        # results of the parallel computation     
+#        print "Create Matrix for dumping data from matrix A and C for parallel computation...."              
+#        A_ = np.memmap(A_name, dtype=A_in.dtype,shape=(d,nr+np.size(f,0)), mode='w+') 
+#
+#        pixels_name = os.path.join(folder, 'pixels')
+#
+#        C_name = os.path.join(folder, 'C_temp')          
+#        
+#        # Dump the input data to disk to free the memory
+#        dump(Y, pixels_name)
+#        dump(Cf, C_name)        
+#        
+#        # use mempry mapped versions of C and Y
+#        Y = load(pixels_name, mmap_mode='r')
+#        Cf = load(C_name, mmap_mode='r')
+#        
+#        pixel_groups=[range(i,i+n_pixels_per_process) for i in range(0,Y.shape[0]-n_pixels_per_process+1,n_pixels_per_process)]
+#        
+#        # Fork the worker processes to perform computation concurrently    
+#        print "start parallel pool..."
+#        sys.stdout.flush()
+#        Parallel(n_jobs=n_processes, backend=backend,verbose=100,max_nbytes=None)(delayed(lars_regression_noise_parallel)(Y,Cf,A_,sn,i,ind2_)
+#                            for i in pixel_groups) 
+#                        
+#            
+#        # if n_pixels_per_process is not a multiple of Y.shape[0] run on remaining pixels   
+#        pixels_remaining= Y.shape[0] %  n_pixels_per_process          
+#        if pixels_remaining>0:             
+#            print "Running deconvolution for remaining pixels:" + str(pixels_remaining)
+#            lars_regression_noise_parallel(Y,Cf,A_,sn,range(Y.shape[0]-pixels_remaining,Y.shape[0]),ind2_,positive=1)        
+#        A_=np.array(A_)
        
-    elif backend == 'ipyparallel': # use the ipyparallel package, you need to start a cluster server (ipcluster command) in order to use it
+    if backend == 'ipyparallel': # use the ipyparallel package, you need to start a cluster server (ipcluster command) in order to use it
               
         C_name = os.path.join(folder, 'C_temp.npy')        
         np.save(C_name,Cf)
