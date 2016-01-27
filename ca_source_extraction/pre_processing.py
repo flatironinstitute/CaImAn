@@ -13,7 +13,7 @@ import numpy as np
 from scipy.interpolate import griddata    
 import tempfile 
 import os
-from joblib import Parallel,delayed
+#from joblib import Parallel,delayed
 import shutil
 from multiprocessing.dummy import Pool as ThreadPool 
 
@@ -34,7 +34,8 @@ def interpolate_missing_data(Y):
     """  
     coor=[];
     if np.any(np.isnan(Y)):
-        raise Exception('The algorithm has not been tested with missing values (NaNs)')        
+        raise Exception('The algorithm has not been tested with missing values (NaNs). Remove NaNs and rerun the algorithm.')        
+        # need to 
         for idx,row in enumerate(Y):
             nans=np.where(np.isnan(row))[0] 
             n_nans=np.where(~np.isnan(row))[0] 
@@ -153,8 +154,7 @@ def get_noise_fft_parallel(Y, n_processes=4,n_pixels_per_process=100, backend='m
         number of pixels to be simultaneously processed by each process
     
     backend: [optional] string
-        the type of concurrency to be employed. 'threading' or 'multiprocessing'. In general
-        threading should be used
+        the type of concurrency to be employed. only 'multithreading' for the moment
     
     **kwargs: [optional] dict
         all the parameters passed to get_noise_fft     
@@ -166,7 +166,7 @@ def get_noise_fft_parallel(Y, n_processes=4,n_pixels_per_process=100, backend='m
     """  
     
     folder = tempfile.mkdtemp()
-    sn_name = os.path.join(folder, 'sn_s')            
+          
     
     # Pre-allocate a writeable shared memory map as a container for the
     # results of the parallel computation
@@ -174,19 +174,17 @@ def get_noise_fft_parallel(Y, n_processes=4,n_pixels_per_process=100, backend='m
     
     pixel_groups=range(0,Y.shape[0]-n_pixels_per_process+1,n_pixels_per_process)
     
-    if backend=="threading": # case joblib        
-
-        print "using threading"
-        
-        sn_s = np.memmap(sn_name, dtype=np.float32,shape=Y.shape[0], mode='w+') 
-        # Fork the worker processes to perform computation concurrently                    
-        Parallel(n_jobs=n_processes, backend=backend)(delayed(fft_psd_parallel)(Y, sn_s, i, n_pixels_per_process, **kwargs)
-                            for i in pixel_groups)   
+#    if backend=="threading": # case joblib        
+#        sn_name = os.path.join(folder, 'sn_s')         
+#        print "using threading"
+#        
+#        sn_s = np.memmap(sn_name, dtype=np.float32,shape=Y.shape[0], mode='w+') 
+#        # Fork the worker processes to perform computation concurrently                    
+#        Parallel(n_jobs=n_processes, backend=backend)(delayed(fft_psd_parallel)(Y, sn_s, i, n_pixels_per_process, **kwargs)
+#                            for i in pixel_groups)   
     
-    elif backend=='multithreading': 
-        
-        
-        
+    if backend=='multithreading': 
+
         pool = ThreadPool(n_processes)
         argsin=[(Y, i, n_pixels_per_process, kwargs) for i in pixel_groups]
         results = pool.map(fft_psd_multithreading, argsin)
