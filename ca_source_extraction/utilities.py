@@ -73,7 +73,7 @@ def CNMFSetParms(Y, K=30, gSig = [5,5], ssub = 1, tsub = 1, p = 2, **kwargs):
                     }
     options['temporal_params'] = {
                         'ITER':2,                   # block coordinate descent iterations
-                        'method':'spgl1',           # method for solving the constrained deconvolution problem ('cvx' or 'spgl1')
+                        'method':'cvxpy',           # method for solving the constrained deconvolution problem ('cvx' or 'spgl1')
                         'p':p,                      # order of AR indicator dynamics
                         'n_processes':n_processes,
                         'backend':'ipyparallel',
@@ -89,7 +89,7 @@ def CNMFSetParms(Y, K=30, gSig = [5,5], ssub = 1, tsub = 1, p = 2, **kwargs):
     return options
 
 
-def local_correlations(Y,eight_neighbours=False, swap_dim = True):
+def local_correlations(Y,eight_neighbours=True, swap_dim = True):
      """Computes the correlation image for the input dataset Y
      
      Parameters
@@ -324,7 +324,7 @@ def view_patches(Yr,A,C,b,f,d1,d2,secs=1):
             plt.plot(np.arange(T),np.squeeze(np.array(f))) 
             ax2.set_title('Temporal background')      
             
-def plot_contours(A,Cn,thr = 0.9, display_numbers = True, max_number = None,cmap=None, **kwargs):
+def plot_contours(A,Cn,thr = 0.9, display_numbers = True, max_number = None,cmap=None, swap_dim=False,**kwargs):
     """Plots contour of spatial components against a background image and returns their coordinates
      
      Parameters
@@ -350,8 +350,14 @@ def plot_contours(A,Cn,thr = 0.9, display_numbers = True, max_number = None,cmap
     if issparse(A):
         A = np.array(A.todense())
     else:
-         A = np.array(A)
-         
+        A = np.array(A)
+    
+
+    if swap_dim:
+        Cn=Cn.T
+        print 'Swapping dim'
+        
+        
     d1,d2 = np.shape(Cn)
     d,nr = np.shape(A)       
     if max_number is None:
@@ -372,8 +378,13 @@ def plot_contours(A,Cn,thr = 0.9, display_numbers = True, max_number = None,cmap
         cumEn /= cumEn[-1]
         Bvec = np.zeros(d)
         Bvec[indx] = cumEn
-        Bmat = np.reshape(Bvec,np.shape(Cn),order='F')
-        cs = plt.contour(y,x,Bmat,[thr])        
+        if swap_dim:
+            Bmat = np.reshape(Bvec,np.shape(Cn),order='C')
+        else:
+            Bmat = np.reshape(Bvec,np.shape(Cn),order='F')
+            
+
+        cs = plt.contour(y,x,Bmat,[thr])  
         # this fix is necessary for having disjoint figures and borders plotted correctly        
         p = cs.collections[0].get_paths()  
         v=np.atleast_2d([np.nan,np.nan]);        
@@ -404,7 +415,10 @@ def plot_contours(A,Cn,thr = 0.9, display_numbers = True, max_number = None,cmap
         
     if display_numbers:
         for i in range(np.minimum(nr,max_number)):
-            ax.text(cm[i,1],cm[i,0],str(i+1))
+            if swap_dim:
+                ax.text(cm[i,0],cm[i,1],str(i+1))
+            else:
+                ax.text(cm[i,1],cm[i,0],str(i+1))
             
     return coordinates
     
