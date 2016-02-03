@@ -40,10 +40,10 @@ def make_G_matrix(T,g):
 def constrained_foopsi_parallel(arg_in):
     """ necessary for parallel computation of the function  constrained_foopsi
     """  
-    
-    Ytemp, nT, jj_, bl, c1, g, sn, args = arg_in
+   
+    Ytemp, nT, jj_, bl, c1, g, sn, argss = arg_in
     T=np.shape(Ytemp)[0]
-    cc_,cb_,c1_,gn_,sn_,sp_ = constrained_foopsi(Ytemp/nT, bl = bl,  c1 = c1, g = g,  sn = sn, **args)
+    cc_,cb_,c1_,gn_,sn_,sp_ = constrained_foopsi(Ytemp/nT, bl = bl,  c1 = c1, g = g,  sn = sn, **argss)
     gd_ = np.max(np.roots(np.hstack((1,-gn_.T))));  
     gd_vec = gd_**range(T)   
     
@@ -181,7 +181,8 @@ def update_temporal_components(Y, A, b, Cin, fin, bl = None,  c1 = None, g = Non
                         
 #            args_in=[(np.squeeze(np.array(Ytemp[:,jj])), nT[jj], jj, bl[jo[jj]], c1[jo[jj]], g[jo[jj]], sn[jo[jj]], kwargs) for jj in range(len(jo))]
             args_in=[(np.squeeze(np.array(Ytemp[:,jj])), nT[jj], jj, None, None, None, None, kwargs) for jj in range(len(jo))]
-            
+#            import pdb
+#            pdb.set_trace()
             if backend == 'ipyparallel':                    
                 
                 results = dview.map_sync(constrained_foopsi_parallel,args_in)        

@@ -86,12 +86,19 @@ def constrained_foopsi(fluor, bl = None,  c1 = None, g = None,  sn = None, p = N
         
     elif method == 'spgl1':
 #        try:        
+ 
         c,bl,c1,g,sn,sp = spgl1_foopsi(fluor, bl = bl, c1 = c1, g=g, sn=sn, p=p, bas_nonneg = bas_nonneg, verbosity = verbosity)
 #        except:
 #            print('SPGL1 produces an error. Using CVXOPT')
 #            c,b,c1,g,sn,sp = cvxopt_foopsi(fluor, b =b, c1 = c1, g=g, sn=sn, p=p, bas_nonneg = bas_nonneg, verbosity = verbosity)    
     elif method == 'debug':
+      
         c,bl,c1,g,sn,sp = spgl1_foopsi(fluor, bl =bl, c1 = c1, g=g, sn=sn, p=p, bas_nonneg = bas_nonneg, verbosity = verbosity,debug=True)
+    
+    elif method == 'cvxpy':
+
+        c,bl,c1,g,sn,sp = cvxpy_foopsi(fluor,  g, sn, b=bl, c1=c1, bas_nonneg=bas_nonneg)
+
     else:
         raise Exception('Undefined Deconvolution Method')
     
@@ -107,6 +114,12 @@ def spgl1_foopsi(fluor, bl, c1, g, sn, p, bas_nonneg, verbosity, thr = 1e-2,debu
     
     if bl is None:
         bas_flag = True
+#        kde = KernelDensity(kernel='gaussian', bandwidth=100).fit(fluor[:,np.newaxis])
+#        X_plot=np.linspace(np.min(fluor),np.max(fluor),len(fluor))[:,np.newaxis]
+#        p_dens = np.exp(kde.score_samples(X_plot))
+#        print 'esimating baseline...'
+#        n,bn=np.histogram(fluor,range=(np.percentile(fluor,1),np.percentile(fluor,99)),bins=100)
+#        bl =  bn[np.argmax(n)]
         bl = 0
     else:
         bas_flag = False
@@ -142,15 +155,16 @@ def spgl1_foopsi(fluor, bl, c1, g, sn, p, bas_nonneg, verbosity, thr = 1e-2,debu
     
     opA = lambda x,mode: G_inv_mat(x,mode,T,g,gd_vec,bas_flag,c1_flag)
     
-
+    
     spikes,_,_,info = spg_bpdn(opA,np.squeeze(fluor)-bas_nonneg*b_lb - (1-bas_flag)*bl -(1-c1_flag)*c1*gd_vec, sn*np.sqrt(T))
     if np.min(spikes)<-thr*np.max(spikes) and not debug:
         spikes[:T][spikes[:T]<0]=0
         spikes,_,_,info = spg_bpdn(opA,np.squeeze(fluor)-bas_nonneg*b_lb - (1-bas_flag)*bl -(1-c1_flag)*c1*gd_vec, sn*np.sqrt(T), options)
         
-    #print [np.min(spikes[:T]),np.max(spikes[:T])]
-    spikes[:T][spikes[:T]<0]=0    
 
+
+    spikes[:T][spikes[:T]<0]=0
+    
     c = opA(np.hstack((spikes[:T],0)),1)
     if bas_flag:
         bl = spikes[T] + b_lb
@@ -281,7 +295,93 @@ def cvxopt_foopsi(fluor, b, c1, g, sn, p, bas_nonneg, verbosity):
 
     return c,b,c1,g,sn,sp
 
+def cvxpy_foopsi(fluor,  g, sn, b=None, c1=None, bas_nonneg=True):
+    '''
+    Employs conic programming solver (ECOS). 
+    
+    '''
+    try:
+        import cvxpy as cvx
+    except ImportError:
+        raise ImportError('cvxpy solver requires installation of cvxpy.')
+    
+    T = fluor.size
+    
+    # construct deconvolution matrix  (sp = G*c)     
+    G=scipy.sparse.dia_matrix((np.ones((1,T)),[0]),(T,T))
+    
+    for i,gi in enumerate(g):
+        G = G + scipy.sparse.dia_matrix((-gi*np.ones((1,T)),[-1-i]),(T,T))
+        
+    gr = np.roots(np.concatenate([np.array([1]),-g.flatten()])) 
+    gd_vec = np.max(gr)**np.arange(T)  # decay vector for initial fluorescence
+    gen_vec = G.dot(scipy.sparse.coo_matrix(np.ones((T,1))))                          
+ 
+    c = cvx.Variable(T) # calcium at each time step
+    constraints=[]
+    cnt = 0
+    if b is None:
+        flag_b = True
+        cnt += 1
+        b =  cvx.Variable(1) # baseline value
+        if bas_nonneg:
+            b_lb = 0
+        else:
+            b_lb = np.min(fluor)            
+        constraints.append(b >= b_lb)
+    else:
+        flag_b = False
 
+    if c1 is None:
+        flag_c1 = True
+        cnt += 1
+        c1 =  cvx.Variable(1) # baseline value
+        constraints.append(c1 >= 0)
+    else:
+        flag_c1 = False    
+    
+    thrNoise=sn * np.sqrt(fluor.size)
+    
+    try:
+        objective=cvx.Minimize(cvx.norm(G*c,1)) # minimize number of spikes
+        constraints.append(G*c >= 0)
+        constraints.append(cvx.norm(c - fluor - b - gd_vec*c1, 2) <= thrNoise) # constraints
+        prob = cvx.Problem(objective, constraints) 
+        result = prob.solve()    
+        
+        if  not (prob.status ==  'optimal' or prob.status == 'optimal_inaccurate'):
+            print 'PROBLEM STATUS:' + prob.status
+            raise ValueError('**** Original problem solved suboptimally or unfeasible. Reducing Constraints. ****')
+        
+        if  prob.status == 'optimal_inaccurate':
+            print 'PROBLEM STATUS:' + prob.status            
+         
+    except (ValueError,cvx.SolverError) as err:     # if solvers fail to solve the problem           
+         print(err)         
+         lam=sn/500;
+         constraints=constraints[:-1]
+         objective = cvx.Minimize(cvx.norm(c - fluor - b - gd_vec*c1, 2)+lam*cvx.norm(G*c,1))
+         prob = cvx.Problem(objective, constraints) 
+         result = prob.solve()    
+          
+         if not (prob.status ==  'optimal' or prob.status == 'optimal_inaccurate'):
+            print 'PROBLEM STATUS:' + prob.status 
+            raise Exception('Problem could not be solved')
+            
+    
+    
+    sp = np.squeeze(np.asarray(G*c.value))    
+    c = np.squeeze(np.asarray(c.value))                
+    if flag_b:    
+        b = -np.squeeze(b.value)        
+    if flag_c1:    
+        c1 = np.squeeze(c1.value)
+        
+    return c,b,c1,g,sn,sp
+    
+    
+    
+    
 def estimate_parameters(fluor, p = 2, sn = None, g = None, range_ff = [0.25,0.5], method = 'logmexp', lags = 5, fudge_factor = 1):
     """
     Estimate noise standard deviation and AR coefficients if they are not present
