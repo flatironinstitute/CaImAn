@@ -94,7 +94,9 @@ C2,f2,S2,bl2,c12,neurons_sn2,g21 = cse.update_temporal_components(Yr,A2,b2,C2,f,
 print time() - t1
 #%%
 A_or, C_or, srt = cse.order_components(A2,C2)
-cse.view_patches(Yr,coo_matrix(A_or),C_or,b2,f2, d1,d2,secs=0)    
+#cse.view_patches(Yr,coo_matrix(A_or),C_or,b2,f2, d1,d2,secs=0)    
+cse.utilities.view_patches_bar(Yr,coo_matrix(A_or),C_or,b2,f2, d1,d2,secs=0)    
+
 #%%
 plt.figure()
 crd = cse.plot_contours(A_or,Cn,thr=0.9)

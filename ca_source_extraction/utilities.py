@@ -25,7 +25,7 @@ import psutil
 import subprocess
 import time
 import ipyparallel
-
+from matplotlib.widgets import Slider
 #%%
 
 
@@ -246,8 +246,132 @@ def com(A,d1,d2):
     cm[:,1]=np.dot(Coor['y'].T,A)/A.sum(axis=0)       
     
     return cm
+    
+    
+def view_patches_bar(Yr,A,C,b,f,d1,d2,secs=1,img=None):
+    """view spatial and temporal components (secs=0 interactive)
      
+     Parameters
+     -----------
+     Yr:        np.ndarray 
+            movie in format pixels (d) x frames (T)
+     A:     sparse matrix
+                matrix of spatial components (d x K)
+     C:     np.ndarray
+                matrix of temporal components (K x T)
+     b:     np.ndarray
+                spatial background (vector of length d)
+
+     f:     np.ndarray
+                temporal background (vector of length T)
+     d1,d2: np/ndarray
+                frame dimensions
+     secs: float
+                number of seconds in between component scrolling. secs=0 means interactive (click to scroll)
+             
+    """    
+
+    plt.ion()
+    nr,T = C.shape    
+    nA2 = np.sum(np.array(A.todense())**2,axis=0)
+    b = np.squeeze(b)
+    f = np.squeeze(f)
+    
+    #Y_r = np.array(spdiags(1/nA2,0,nr,nr)*(A.T*np.matrix(Yr-b[:,np.newaxis]*f[np.newaxis] - A.dot(C))) + C)    
+    Y_r = np.array(spdiags(1/nA2,0,nr,nr)*(A.T*np.matrix(Yr)-(A.T*np.matrix(b[:,np.newaxis]))*np.matrix(f[np.newaxis]) - (A.T.dot(A))*np.matrix(C)) + C)  
+    A=A.todense()
+    if img is None:
+        imgs=np.reshape(np.array(A),(d1,d2,nr),order='F')
+        img=np.mean(imgs[:,:,:-1],axis=-1)
+#    Y_r = (Yr-b.dot(f)).T.dot(A.todense()).T/nA2[:,None]#-bl[:,None]
+#    Y_r=[];
+    bkgrnd=np.reshape(b,(d1,d2),order='F')
+#    Atmp=A.copy()
+#    Ctmp=C.copy()
+#    for ii in range(C.shape[0]):
+#        print ii
+#        old_c=Ctmp[ii,:]
+#        old_a=Atmp[:,ii]        
+#        Atmp[:,ii]=0  
+#        Ctmp[ii,:]=0
+#        Y_r.append((Yr-b.dot(f)- Atmp.dot(Ctmp)).T.dot(A[:,ii]).T/nA2[ii])
+#        Atmp[:,ii]=old_a  
+#        Ctmp[ii,:]=old_c                
+#    Y_r=np.asarray(Y_r)
+    
+#    fig = plt.subplots()
+#    plt.subplots_adjust(left=0.05, bottom=0.2)
+    fig=plt.figure(figsize=(20,20))
+
+    axcomp =  plt.axes([0.05, 0.05, 0.9, 0.03])
+    
+    ax1 = plt.axes([0.05, 0.55, 0.4, 0.4]) 
+#    ax1.axis('off')
+    ax3 = plt.axes([0.55, 0.55, 0.4, 0.4]) 
+#    ax1.axis('off')
+    ax2 = plt.axes([0.05, 0.1, 0.9, 0.4])
+#    axcolor = 'lightgoldenrodyellow'
+#    axcomp = plt.axes([0.25, 0.1, 0.65, 0.03], axisbg=axcolor)
+    
+    s_comp = Slider(axcomp, 'Component', 0, nr, valinit=0)
+    vmax=np.percentile(img,98)    
+    def update(val):
+        i=np.int(np.round(s_comp.val))
+        print 'Component:' + str(i)
+
+    
+        if i < nr:
+            
+            ax1.cla()
+            imgtmp=imgs[:,:,i]
+            ax1.imshow(imgtmp,interpolation='None',cmap=plt.cm.gray)
+            ax1.set_title('Spatial component ' + str(i+1))
+            ax1.axis('off')
+            
+            ax2.cla()
+            ax2.plot(np.arange(T),np.squeeze(np.array(Y_r[i,:])),'c',linewidth=3) 
+            ax2.plot(np.arange(T),np.squeeze(np.array(C[i,:])),'r',linewidth=2)             
+            ax2.set_title('Temporal component ' + str(i+1)) 
+            ax2.legend(labels = ['Filtered raw data','Inferred trace'])
+            
+            ax3.cla()
+            ax3.imshow(img,interpolation='None',cmap=plt.cm.gray,vmax=vmax)
+            imgtmp[imgtmp==0]=np.nan
+            ax3.imshow(imgtmp,interpolation='None',alpha=0.5,cmap=plt.cm.hot)
+        else:
+            
+            ax1.cla()
+            ax1.imshow(bkgrnd,interpolation='None')
+            ax1.set_title('Spatial background background')    
+            
+            ax2.cla()
+            ax2.plot(np.arange(T),np.squeeze(np.array(f))) 
+            ax2.set_title('Temporal background')  
      
+    
+    def arrow_key_image_control(event):
+        
+        if event.key == 'left':
+            new_val=np.round(s_comp.val-1)
+            if new_val<0:
+                new_val=0
+            s_comp.set_val(new_val)
+                
+        elif event.key == 'right':
+            new_val=np.round(s_comp.val+1)    
+            if new_val>nr:
+                new_val=nr
+            s_comp.set_val(new_val)
+        else:
+            pass    
+    
+    s_comp.on_changed(update)
+    s_comp.set_val(0)
+    id2 = fig.canvas.mpl_connect('key_release_event', arrow_key_image_control)
+    plt.show()
+        
+    
+    
 def view_patches(Yr,A,C,b,f,d1,d2,secs=1):
     """view spatial and temporal components (secs=0 interactive)
      
