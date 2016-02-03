@@ -179,7 +179,7 @@ def order_components(A,C):
      nA4 = np.sum(A**4,axis=0)**0.25
      C = np.array(diags(nA2,0)*np.matrix(C))
      mC = np.ndarray.max(np.array(C),axis=1)
-     srt = np.argsort(nA4**mC)[::-1]
+     srt = np.argsort(nA4*mC)[::-1]
      A_or = A[:,srt]
      C_or = C[srt,:]
           

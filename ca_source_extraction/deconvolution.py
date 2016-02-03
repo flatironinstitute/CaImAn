@@ -347,7 +347,7 @@ def cvxpy_foopsi(fluor,  g, sn, b=None, c1=None, bas_nonneg=True):
         constraints.append(G*c >= 0)
         constraints.append(cvx.norm(c - fluor - b - gd_vec*c1, 2) <= thrNoise) # constraints
         prob = cvx.Problem(objective, constraints) 
-        result = prob.solve()    
+        result = prob.solve(solver='ECOS')    
         
         if  not (prob.status ==  'optimal' or prob.status == 'optimal_inaccurate'):
             print 'PROBLEM STATUS:' + prob.status
@@ -361,8 +361,8 @@ def cvxpy_foopsi(fluor,  g, sn, b=None, c1=None, bas_nonneg=True):
          lam=sn/500;
          constraints=constraints[:-1]
          objective = cvx.Minimize(cvx.norm(c - fluor - b - gd_vec*c1, 2)+lam*cvx.norm(G*c,1))
-         prob = cvx.Problem(objective, constraints) 
-         result = prob.solve()    
+         prob = cvx.Problem(objective, constraints)     
+         result = prob.solve(solver='SCS')    
           
          if not (prob.status ==  'optimal' or prob.status == 'optimal_inaccurate'):
             print 'PROBLEM STATUS:' + prob.status 
