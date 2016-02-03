@@ -336,8 +336,9 @@ def view_patches_bar(Yr,A,C,b,f,d1,d2,secs=1,img=None):
             
             ax3.cla()
             ax3.imshow(img,interpolation='None',cmap=plt.cm.gray,vmax=vmax)
-            imgtmp[imgtmp==0]=np.nan
-            ax3.imshow(imgtmp,interpolation='None',alpha=0.5,cmap=plt.cm.hot)
+            imgtmp2=imgtmp.copy()    
+            imgtmp2[imgtmp2==0]=np.nan
+            ax3.imshow(imgtmp2,interpolation='None',alpha=0.5,cmap=plt.cm.hot)
         else:
             
             ax1.cla()
