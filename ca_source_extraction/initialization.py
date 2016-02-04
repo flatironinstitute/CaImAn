@@ -6,7 +6,7 @@ import scipy.sparse as spr
 import scipy
 from ca_source_extraction.utilities import com,local_correlations
 #%%
-def initialize_components(Y, K=30, gSig=[5,5], gSiz=None, ssub=1, tsub=1, nIter = 5, maxIter=5, kernel = None, use_hals=True): 
+def initialize_components(Y, K=30, gSig=[5,5], gSiz=None, ssub=1, tsub=1, nIter = 5, maxIter=5, kernel = None, use_hals=True,Cn=None): 
     """Initalize components 
     
     This method uses a greedy approach followed by hierarchical alternative least squares (HALS) NMF.
@@ -62,6 +62,8 @@ def initialize_components(Y, K=30, gSig=[5,5], gSiz=None, ssub=1, tsub=1, nIter 
     if ssub!=1 or tsub!=1:
         print "Spatial Downsampling ..."
         Y_ds = downscale_local_mean(Y,(ssub,ssub,tsub))
+        if Cn is not None:
+            Cn = downscale_local_mean(Cn,(ssub,ssub))
     else:
         Y_ds = Y
    
@@ -92,7 +94,7 @@ def initialize_components(Y, K=30, gSig=[5,5], gSiz=None, ssub=1, tsub=1, nIter 
     
 
 #%%
-def greedyROI2d(Y, nr=30, gSig = [5,5], gSiz = [11,11], nIter = 5, kernel = None, Cn = None):
+def greedyROI2d(Y, nr=30, gSig = [5,5], gSiz = [11,11], nIter = 5, kernel = None):
     """
     Greedy initialization of spatial and temporal components using spatial Gaussian filtering
     Inputs:
@@ -133,11 +135,10 @@ def greedyROI2d(Y, nr=30, gSig = [5,5], gSiz = [11,11], nIter = 5, kernel = None
     center = np.zeros((nr,2))
     
     [M, N, T] = np.shape(Y)
-
+    
     rho = imblur(Y, sig = gSig, siz = gSiz, nDimBlur = Y.ndim-1, kernel = kernel)
 
-    if Cn is not None:
-        rho=rho*Cn[...,np.newaxis]
+
         
     v = np.sum(rho**2,axis=-1)
     
