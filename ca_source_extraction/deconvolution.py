@@ -345,7 +345,7 @@ def cvxpy_foopsi(fluor,  g, sn, b=None, c1=None, bas_nonneg=True):
     try:
         objective=cvx.Minimize(cvx.norm(G*c,1)) # minimize number of spikes
         constraints.append(G*c >= 0)
-        constraints.append(cvx.norm(c - fluor - b - gd_vec*c1, 2) <= thrNoise) # constraints
+        constraints.append(cvx.norm(-c + fluor - b - gd_vec*c1, 2) <= thrNoise) # constraints
         prob = cvx.Problem(objective, constraints) 
         result = prob.solve(solver='ECOS')    
         
@@ -360,7 +360,7 @@ def cvxpy_foopsi(fluor,  g, sn, b=None, c1=None, bas_nonneg=True):
          print(err)         
          lam=sn/500;
          constraints=constraints[:-1]
-         objective = cvx.Minimize(cvx.norm(c - fluor - b - gd_vec*c1, 2)+lam*cvx.norm(G*c,1))
+         objective = cvx.Minimize(cvx.norm(-c + fluor - b - gd_vec*c1, 2)+lam*cvx.norm(G*c,1))
          prob = cvx.Problem(objective, constraints)     
          result = prob.solve(solver='SCS')    
           
@@ -373,7 +373,7 @@ def cvxpy_foopsi(fluor,  g, sn, b=None, c1=None, bas_nonneg=True):
     sp = np.squeeze(np.asarray(G*c.value))    
     c = np.squeeze(np.asarray(c.value))                
     if flag_b:    
-        b = -np.squeeze(b.value)        
+        b = np.squeeze(b.value)        
     if flag_c1:    
         c1 = np.squeeze(c1.value)
         
