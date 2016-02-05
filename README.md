@@ -1,3 +1,6 @@
+# TEMPORARY NOTICE
+Due to major upgrade in code efficiency the package might be unstable and buggy in the next 2/3 days. If the code fails download the last stable release.
+
 Python translation of Constrained Non-negative Matrix Factorization algorithm for source extraction from calcium imaging data. 
 
 [![Join the chat at https://gitter.im/agiovann/SOURCE_EXTRACTION_PYTHON](https://badges.gitter.im/agiovann/SOURCE_EXTRACTION_PYTHON.svg)](https://gitter.im/agiovann/SOURCE_EXTRACTION_PYTHON?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
