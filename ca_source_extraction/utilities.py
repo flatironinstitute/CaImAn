@@ -15,7 +15,7 @@ try:
     import bokeh
     import bokeh.plotting as bpl
     from bokeh.io import vform,hplot
-    from bokeh.models import CustomJS, ColumnDataSource, Slider
+    from bokeh.models import CustomJS, ColumnDataSource
     from bokeh.models import Range1d
 except: 
     print "Bokeh could not be loaded. Either it is not installed or you are not running within a notebook"
