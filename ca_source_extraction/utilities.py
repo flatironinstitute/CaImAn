@@ -34,7 +34,7 @@ import ca_source_extraction
 def CNMFSetParms(Y, K=30, gSig = [5,5], ssub = 1, tsub = 1, p = 2, **kwargs):
     """Dictionary for setting the CNMF parameters.
     Any parameter that is not set get a default value specified
-    by the dictionary defaultopts
+    by the dictionary default options
     """
     
     d1,d2,T=Y.shape
@@ -266,10 +266,15 @@ def view_patches_bar(Yr,A,C,b,f,d1,d2,YrA = None, secs=1,img=None):
 
      f:     np.ndarray
                 temporal background (vector of length T)
-     d1,d2: np/ndarray
+     d1,d2: np.ndarray
                 frame dimensions
-     secs: float
+     YrA:   np.ndarray
+                 ROI filtered residual as it is given from update_temporal_components
+                 If not given, then it is computed (K x T)
+     secs:  float
                 number of seconds in between component scrolling. secs=0 means interactive (click to scroll)
+     imgs:  np.ndarray
+                background image for contour plotting. Default is the image of all spatial components (d1 x d2)
              
     """      
     
@@ -381,10 +386,15 @@ def view_patches(Yr,A,C,b,f,d1,d2,YrA = None, secs=1):
 
      f:     np.ndarray
                 temporal background (vector of length T)
-     d1,d2: np/ndarray
+     d1,d2: np.ndarray
                 frame dimensions
-     secs: float
+     YrA:   np.ndarray
+                 ROI filtered residual as it is given from update_temporal_components
+                 If not given, then it is computed (K x T)
+     secs:  float
                 number of seconds in between component scrolling. secs=0 means interactive (click to scroll)
+     imgs:  np.ndarray
+                background image for contour plotting. Default is the image of all spatial components (d1 x d2)
              
     """    
     plt.ion()
@@ -402,21 +412,6 @@ def view_patches(Yr,A,C,b,f,d1,d2,YrA = None, secs=1):
         Y_r = YrA + C
         
     A=A.todense()
-#    Y_r = (Yr-b.dot(f)).T.dot(A.todense()).T/nA2[:,None]#-bl[:,None]
-#    Y_r=[];
-#    
-#    Atmp=A.copy()
-#    Ctmp=C.copy()
-#    for ii in range(C.shape[0]):
-#        print ii
-#        old_c=Ctmp[ii,:]
-#        old_a=Atmp[:,ii]        
-#        Atmp[:,ii]=0  
-#        Ctmp[ii,:]=0
-#        Y_r.append((Yr-b.dot(f)- Atmp.dot(Ctmp)).T.dot(A[:,ii]).T/nA2[ii])
-#        Atmp[:,ii]=old_a  
-#        Ctmp[ii,:]=old_c                
-#    Y_r=np.asarray(Y_r)
     
     fig = plt.figure()
     thismanager = plt.get_current_fig_manager()
@@ -489,8 +484,6 @@ def plot_contours(A,Cn,thr = 0.9, display_numbers = True, max_number = None,cmap
         
     x,y = np.mgrid[0:d1:1,0:d2:1]    
     
-#    fig = plt.figure()
-#    ax = fig.add_subplot(111)
     ax = plt.gca()
     plt.imshow(Cn,interpolation=None,cmap=cmap)
     coordinates = []
@@ -545,58 +538,8 @@ def plot_contours(A,Cn,thr = 0.9, display_numbers = True, max_number = None,cmap
                 ax.text(cm[i,1],cm[i,0],str(i+1))
             
     return coordinates
-
-
-#def select_roi(img=None, n=0, ax=None, existing=None, mode='polygon', show_mode='mask', cmap=pl.cm.Greys_r, lasso_strictness=1):
-#    """Select any number of regions of interest (ROI) in the movie.
-#    
-#    Parameters
-#    ----------
-#    img : np.ndarray
-#        image over which to select roi
-#    n : int
-#        number of ROIs to select
-#    ax : matplotlib.Axes
-#        axes on which to show and select. If None, defaults to new, if 'current', defaults to current
-#    existing : pyfluo.ROI
-#        pre-existing rois to which to add selections
-#    mode : 'polygon', 'lasso'
-#        mode by which to select roi
-#    show_mode : 'pts', 'mask'
-#        mode by which to show existing rois
-#    cmap : matplotlib.LinearSegmentedColormap
-#        color map with which to display img
-#    lasso_strictness : float
-#        number from 0-inf, to do with tolerance for edge finding
-#        
-#    Returns
-#    -------
-#    ROI object
-#    Notes
-#    -----
-#    Select points by clicking, and hit enter to finalize and ROI. Hit enter again to complete selection process.
-#    author: BEN DEVERETT
-#    """
-#    if ax is None and img is None:
-#        raise Exception('Image or axes must be supplied to select ROI.')
-#
-#    if ax == None:
-#        fig = pl.figure()
-#        ax = fig.add_subplot(111)
-#    elif ax == 'current':
-#        ax = pl.gca()
-#    pl.sca(ax)
-#    fig = ax.get_figure()
-#
-#    if img is not None:
-#        shape = img.shape
-#    elif ax is not None:
-#        shape = [abs(np.diff(ax.get_ylim())), abs(np.diff(ax.get_xlim()))]
-#
-
-    
-
-
+   
+   
     
 def manually_refine_components(Y,(dx,dy),A,C,Cn,thr = 0.9, display_numbers = True, max_number = None,cmap=None, **kwargs):
     """Plots contour of spatial components against a background image and returns their coordinates
@@ -627,10 +570,7 @@ def manually_refine_components(Y,(dx,dy),A,C,Cn,thr = 0.9, display_numbers = Tru
         A = np.array(A.todense())
     else:
         A = np.array(A)
-    
-
-    
-        
+                
         
     d1,d2 = np.shape(Cn)
     d,nr = np.shape(A)       

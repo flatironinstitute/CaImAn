@@ -10,8 +10,6 @@ import numpy as np
 from spatial import update_spatial_components
 from temporal import update_temporal_components
 from deconvolution import constrained_foopsi
-import warnings
-from scipy.ndimage.morphology import generate_binary_structure, iterate_structure
 
 #%%
 def merge_components(Y,A,b,C,f,S,sn_pix,temporal_params,spatial_params,thr=0.85,fast_merge=True,mx=50,bl=None,c1=None,sn=None,g=None):
@@ -36,9 +34,9 @@ S:     np.ndarray
 sn_pix: ndarray
      noise standard deviation for each pixel
 temporal_params: dictionary 
-     all the parameters that can be passed to the update_temporal_components_parallel function
+     all the parameters that can be passed to the update_temporal_components function
 spatial_params: dictionary 
-     all the parameters that can be passed to the update_spatial_components_parallel function     
+     all the parameters that can be passed to the update_spatial_components function     
      
 thr:   scalar between 0 and 1
      correlation threshold for merging (default 0.85)
@@ -172,10 +170,10 @@ sn: float
                 aa_2=(aa_1).mean(axis=0)                        
                 ff = np.nonzero(A_merged[:,i])[0]         
     #            cc,_,_,Ptemp,_ = update_temporal_components(np.asarray(Y_res[ff,:]),A_merged[ff,i],b[ff],aa_2,f,p=p,deconv_method=deconv_method)
-                cc,_,_,_,bl__,c1__,sn__,g__ = update_temporal_components_parallel(np.asarray(Y_res[ff,:]),A_merged[ff,i],b[ff],aa_2,f,bl=None,c1=None,sn=None,g=None,**temporal_params)                     
-                aa,bb,cc = update_spatial_components_parallel(np.asarray(Y_res),cc,f,A_merged[:,i],sn=sn_pix,**spatial_params)
+                cc,_,_,_,bl__,c1__,sn__,g__,YrA = update_temporal_components(np.asarray(Y_res[ff,:]),A_merged[ff,i],b[ff],aa_2,f,bl=None,c1=None,sn=None,g=None,**temporal_params)                     
+                aa,bb,cc = update_spatial_components(np.asarray(Y_res),cc,f,A_merged[:,i],sn=sn_pix,**spatial_params)
                 A_merged[:,i] = aa.tocsr();                
-                cc,_,_,ss,bl__,c1__,sn__,g__ = update_temporal_components_parallel(Y_res[ff,:],A_merged[ff,i],bb[ff],cc,f,bl=bl__,c1=c1__,sn=sn__,g=g__,**temporal_params)                
+                cc,_,_,ss,bl__,c1__,sn__,g__,YrA = update_temporal_components(Y_res[ff,:],A_merged[ff,i],bb[ff],cc,f,bl=bl__,c1=c1__,sn=sn__,g=g__,**temporal_params)                
     #            P_cycle=P_[merged_ROI[0]].copy()
     #            P_cycle['gn']=Ptemp[0]['gn']
     #            P_cycle['b']=Ptemp[0]['b']
