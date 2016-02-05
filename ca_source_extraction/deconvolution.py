@@ -17,11 +17,11 @@ from warnings import warn
 
 from SPGL1_python_port.spgl1 import spg_bpdn
 from SPGL1_python_port import spgl_aux as spg
-
+import sys
 #%%
 def constrained_foopsi(fluor, bl = None,  c1 = None, g = None,  sn = None, p = None, method = 'spgl1', bas_nonneg = True,  
                      noise_range = [.25,.5], noise_method = 'logmexp', lags = 5, fudge_factor = 1., 
-                    verbosity = False,**kwargs):
+                    verbosity = False, solvers=None,**kwargs):
     
     """ Infer the most likely discretized spike train underlying a fluorescence trace 
     
@@ -60,7 +60,8 @@ def constrained_foopsi(fluor, bl = None,  c1 = None, g = None,  sn = None, p = N
         fudge factor for reducing time constant bias
     verbosity: bool     
          display optimization details
-    
+    solvers: list string
+            primary and secondary (if problem unfeasible for approx solution) solvers to be used with cvxpy, default is ['ECOS','SCS']
     Returns
     -------
     c: np.ndarray float
@@ -97,7 +98,7 @@ def constrained_foopsi(fluor, bl = None,  c1 = None, g = None,  sn = None, p = N
     
     elif method == 'cvxpy':
 
-        c,bl,c1,g,sn,sp = cvxpy_foopsi(fluor,  g, sn, b=bl, c1=c1, bas_nonneg=bas_nonneg)
+        c,bl,c1,g,sn,sp = cvxpy_foopsi(fluor,  g, sn, b=bl, c1=c1, bas_nonneg=bas_nonneg, solvers=solvers)
 
     else:
         raise Exception('Undefined Deconvolution Method')
@@ -295,7 +296,7 @@ def cvxopt_foopsi(fluor, b, c1, g, sn, p, bas_nonneg, verbosity):
 
     return c,b,c1,g,sn,sp
 
-def cvxpy_foopsi(fluor,  g, sn, b=None, c1=None, bas_nonneg=True):
+def cvxpy_foopsi(fluor,  g, sn, b=None, c1=None, bas_nonneg=True,solvers=None):
     '''Solves the deconvolution problem using the cvxpy package and the ECOS library. 
     
     '''
@@ -303,7 +304,9 @@ def cvxpy_foopsi(fluor,  g, sn, b=None, c1=None, bas_nonneg=True):
         import cvxpy as cvx
     except ImportError:
         raise ImportError('cvxpy solver requires installation of cvxpy.')
-    
+    if solvers is None:
+        solvers=['ECOS','SCS']
+        
     T = fluor.size
     
     # construct deconvolution matrix  (sp = G*c)     
@@ -346,23 +349,28 @@ def cvxpy_foopsi(fluor,  g, sn, b=None, c1=None, bas_nonneg=True):
         constraints.append(G*c >= 0)
         constraints.append(cvx.norm(-c + fluor - b - gd_vec*c1, 2) <= thrNoise) # constraints
         prob = cvx.Problem(objective, constraints) 
-        result = prob.solve(solver='ECOS')    
+        result = prob.solve(solver=solvers[0])    
         
         if  not (prob.status ==  'optimal' or prob.status == 'optimal_inaccurate'):
-            print 'PROBLEM STATUS:' + prob.status
-            raise ValueError('**** Original problem solved suboptimally or unfeasible. Reducing Constraints. ****')
+            raise ValueError('Problem solved suboptimally or unfeasible')            
         
-        if  prob.status == 'optimal_inaccurate':
-            print 'PROBLEM STATUS:' + prob.status            
-         
+        print 'PROBLEM STATUS:' + prob.status 
+        sys.stdout.flush()
     except (ValueError,cvx.SolverError) as err:     # if solvers fail to solve the problem           
-         print(err)         
+         print(err) 
+         sys.stdout.flush()
          lam=sn/500;
          constraints=constraints[:-1]
          objective = cvx.Minimize(cvx.norm(-c + fluor - b - gd_vec*c1, 2)+lam*cvx.norm(G*c,1))
-         prob = cvx.Problem(objective, constraints)     
-         result = prob.solve(solver='SCS')    
-          
+         prob = cvx.Problem(objective, constraints)
+         try: #in case scs was not installed properly
+             result = prob.solve(solver=solvers[1]) 
+         except:             
+             sys.stderr.write('***** SCS solver failed, try installing and compiling SCS for much faster performance. Otherwise set the solvers in tempora_params to ["ECOS","CVXOPT"]')
+             sys.stderr.flush()
+             #result = prob.solve(solver='CVXOPT')
+             raise
+             
          if not (prob.status ==  'optimal' or prob.status == 'optimal_inaccurate'):
             print 'PROBLEM STATUS:' + prob.status 
             raise Exception('Problem could not be solved')

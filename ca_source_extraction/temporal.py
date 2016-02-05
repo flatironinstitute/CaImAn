@@ -7,6 +7,8 @@ import scipy
 import numpy as np
 from deconvolution import constrained_foopsi
 from utilities import update_order
+import sys
+import time
 #%%
 def make_G_matrix(T,g):
     ''' create matrix of autoregression to enforce indicator dynamics
@@ -54,7 +56,7 @@ def constrained_foopsi_parallel(arg_in):
     
      
 #%%
-def update_temporal_components(Y, A, b, Cin, fin, bl = None,  c1 = None, g = None,  sn = None, ITER=2, method_foopsi='constrained_foopsi', n_processes=1, backend='single_thread',memory_efficient=False, **kwargs):
+def update_temporal_components(Y, A, b, Cin, fin, bl = None,  c1 = None, g = None,  sn = None, ITER=2, method_foopsi='constrained_foopsi', n_processes=1, backend='single_thread',memory_efficient=False, debug=False, **kwargs):
     """Update temporal components and background given spatial components using a block coordinate descent approach.
     
     Parameters
@@ -102,6 +104,10 @@ def update_temporal_components(Y, A, b, Cin, fin, bl = None,  c1 = None, g = Non
             'cvxpy':    using cvxopt and cvxpy with the ECOS solver (faster, default)
             'spgl1':    using the spgl1 package
             'debug':    using spgl1 without spike non-negativity constraints (just for debugging purposes)
+    
+    solvers: list string
+            primary and secondary (if problem unfeasible for approx solution) solvers to be used with cvxpy, default is ['ECOS','SCS']
+            
     Note
     --------
 
@@ -194,9 +200,21 @@ def update_temporal_components(Y, A, b, Cin, fin, bl = None,  c1 = None, g = Non
 #            import pdb
 #            pdb.set_trace()
             if backend == 'ipyparallel':                    
+                #
+                if debug:                
+                    results = dview.map_async(constrained_foopsi_parallel,args_in)  
+                    results.get()
+                    for outp in results.stdout:   
+                        print outp[:-1]  
+                        sys.stdout.flush()                                                 
+                    for outp in results.stderr:   
+                        print outp[:-1]  
+                        sys.stderr.flush()            
+                    
+                else:
+                    
+                    results = dview.map_sync(constrained_foopsi_parallel,args_in)
                 
-                results = dview.map_sync(constrained_foopsi_parallel,args_in)        
-
             elif backend == 'single_thread':
                 
                 results = map(constrained_foopsi_parallel,args_in)            
@@ -234,7 +252,7 @@ def update_temporal_components(Y, A, b, Cin, fin, bl = None,  c1 = None, g = Non
             S[jo,:] = Stemp
             
 #            if (np.sum(lo[:jo])+1)%1 == 0:
-            print str(np.sum(lo[:count+1])) + ' out of total ' + str(nr) + ' temporal components updated \n'
+            print str(np.sum(lo[:count+1])) + ' out of total ' + str(nr) + ' temporal components updated'
         
         ii=nr        
         #YrA[:,ii] = YrA[:,ii] + nA[ii]*np.atleast_2d(Cin[ii,:]).T

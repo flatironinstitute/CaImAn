@@ -21,6 +21,8 @@ except:
     print "Bokeh could not be loaded. Either it is not installed or you are not running within a notebook"
     
 import matplotlib as mpl
+
+
 import matplotlib.cm as cm
 import psutil
 import subprocess
@@ -76,6 +78,7 @@ def CNMFSetParms(Y, K=30, gSig = [5,5], ssub = 1, tsub = 1, p = 2, **kwargs):
     options['temporal_params'] = {
                         'ITER':2,                   # block coordinate descent iterations
                         'method':'cvxpy',           # method for solving the constrained deconvolution problem ('cvx' or 'spgl1')
+                        'solvers':['ECOS','SCS'],   #  if method cvxpy, primary and secondary (if problem unfeasible for approx solution) solvers to be used with cvxpy, can be 'ECOS','SCS' or 'CVXOPT'
                         'p':p,                      # order of AR indicator dynamics
                         'n_processes':n_processes,
                         'backend':'ipyparallel',
@@ -298,7 +301,7 @@ def view_patches_bar(Yr,A,C,b,f,d1,d2,YrA = None, secs=1,img=None):
         img=np.mean(imgs[:,:,:-1],axis=-1)
 
     bkgrnd=np.reshape(b,(d1,d2),order='F')
-    fig=plt.figure(figsize=(20,20))
+    fig=plt.figure(figsize=(10,10))
 
     axcomp =  plt.axes([0.05, 0.05, 0.9, 0.03])
     
