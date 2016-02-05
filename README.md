@@ -67,7 +67,7 @@ Installation on MAC OS
     pip install 'tifffile>=0.7'
     pip install picos
     (for speeding up things considerably you should install openblas/lapack/blas and gcc compiler via homebrew
-    if you get errors compiling scs with under cvxpy try the fix below
+    if you get errors compiling scs with under cvxpy youprobably need to create a link to openblas or libgfortran in            /usr/local/lib/, for instance
         sudo ln -s  /Library/Frameworks/R.framework/Libraries/libgfortran.3.dylib  /usr/local/lib/libgfortran.2.dylib
     )
     pip install cvxpy
