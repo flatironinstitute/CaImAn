@@ -248,7 +248,7 @@ def com(A,d1,d2):
     return cm
      
      
-def view_patches(Yr,A,C,b,f,d1,d2,secs=1):
+def view_patches(Yr,A,C,b,f,d1,d2,YrA = None, secs=1):
     """view spatial and temporal components (secs=0 interactive)
      
      Parameters
@@ -272,11 +272,26 @@ def view_patches(Yr,A,C,b,f,d1,d2,secs=1):
     """    
     plt.ion()
     nr,T = C.shape    
-    nA2 = np.sum(np.array(A.todense())**2,axis=0)
+    A2 = A.copy()
+    A2.data **= 2
+    nA2 = np.sqrt(np.array(A2.sum(axis=0))).squeeze()
+    A = A*spdiags(1/nA2,0,nr,nr)
+    C = spdiags(nA2,0,nr,nr)*C
+    #nA2 = np.sqrt(np.sum(np.array(A.todense())**2,axis=0))
     b = np.squeeze(b)
     f = np.squeeze(f)
     #Y_r = np.array(spdiags(1/nA2,0,nr,nr)*(A.T*np.matrix(Yr-b[:,np.newaxis]*f[np.newaxis] - A.dot(C))) + C)    
-    Y_r = np.array(spdiags(1/nA2,0,nr,nr)*(A.T*np.matrix(Yr)-(A.T*np.matrix(b[:,np.newaxis]))*np.matrix(f[np.newaxis]) - (A.T.dot(A))*np.matrix(C)) + C)  
+    t1 = time.time()    
+    #if YrA is None:
+    #Y_r = np.array(spdiags(1/nA2,0,nr,nr)*(A.T*np.matrix(Yr)-(A.T*np.matrix(b[:,np.newaxis]))*np.matrix(f[np.newaxis]) - (A.T.dot(A))*np.matrix(C)) + C)
+    Y_r = np.array(A.T*np.matrix(Yr)-(A.T*np.matrix(b[:,np.newaxis]))*np.matrix(f[np.newaxis]) - (A.T.dot(A))*np.matrix(C) + C)
+    #else:
+    #    Y_r = spdiags(1/nA2,0,nr,nr)*(YrA + C)
+    #    Y_r2 = np.array(spdiags(1/nA2,0,nr,nr)*(A.T*np.matrix(Yr)-(A.T*np.matrix(b[:,np.newaxis]))*np.matrix(f[np.newaxis]) - (A.T.dot(A))*np.matrix(C)) + C)
+    #    print np.sqrt(np.sum((Y_r-Y_r2)**2)/np.sum(Y_r**2))
+    
+    print time.time() - t1
+    
     A=A.todense()
 #    Y_r = (Yr-b.dot(f)).T.dot(A.todense()).T/nA2[:,None]#-bl[:,None]
 #    Y_r=[];
