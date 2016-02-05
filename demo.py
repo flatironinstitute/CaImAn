@@ -74,7 +74,7 @@ plt.figure()
 crd = cse.utilities.plot_contours(A,Cn,thr=0.9)
 #%% update_temporal_components
 t1 = time()
-C,f,S,bl,c1,neurons_sn,g = cse.temporal.update_temporal_components(Yr,A,b,Cin,f_in,bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
+C,f,S,bl,c1,neurons_sn,g,YrA = cse.temporal.update_temporal_components(Yr,A,b,Cin,f_in,bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
 t_elTEMPORAL2 = time() - t1
 print t_elTEMPORAL2 
 #%% merge components corresponding to the same neuron
@@ -90,7 +90,7 @@ crd = cse.plot_contours(A_m,Cn,thr=0.9)
 t1 = time()
 A2,b2,C2 = cse.spatial.update_spatial_components(Yr, C_m, f, A_m, sn=sn, **options['spatial_params'])
 #C2,f2,Y_res2,S2,bl2,c12,neurons_sn2,g21 = cse.update_temporal_components_parallel(Yr,A2,b2,C2,f,bl=bl_m,c1=c1_m,sn=sn_m,g=g_m,**temporal_params)
-C2,f2,S2,bl2,c12,neurons_sn2,g21 = cse.temporal.update_temporal_components(Yr,A2,b2,C2,f,bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
+C2,f2,S2,bl2,c12,neurons_sn2,g21,YrA = cse.temporal.update_temporal_components(Yr,A2,b2,C2,f,bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
 print time() - t1
 #%%
 A_or, C_or, srt = cse.utilities.order_components(A2,C2)
