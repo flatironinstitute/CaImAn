@@ -1,5 +1,4 @@
-# TEMPORARY NOTICE
-Due to major upgrade in code efficiency the package might be unstable and buggy in the next 2/3 days. If the code fails download the last stable release.
+
 
 Python translation of Constrained Non-negative Matrix Factorization algorithm for source extraction from calcium imaging data. 
 
@@ -67,7 +66,12 @@ Installation on MAC OS
     conda install spyder numpy scipy ipyparallel matplotlib bokeh jupyter scikit-image scikit-learn joblib cvxopt      
     pip install 'tifffile>=0.7'
     pip install picos
+    (for speeding up things considerably you should install openblas/lapack/blas and gcc compiler via homebrew
+    if you get errors compiling scs with under cvxpy try the fix below
+        sudo ln -s  /Library/Frameworks/R.framework/Libraries/libgfortran.3.dylib  /usr/local/lib/libgfortran.2.dylib
+    )
     pip install cvxpy
+    
     ```
     This second option will not allow to import the package from every folder but only from within the Constrained_NMF folder. You can access it globally by setting the environment variable PYTHONPATH
     ```
