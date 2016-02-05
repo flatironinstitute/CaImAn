@@ -12,6 +12,7 @@ from pylab import pause
 import sys
 
 try:
+    import bokeh
     import bokeh.plotting as bpl
     from bokeh.io import vform,hplot
     from bokeh.models import CustomJS, ColumnDataSource, Slider
@@ -910,7 +911,7 @@ def nb_view_patches(Yr,A,C,b,f,d1,d2,image_neurons=None,thr = 0.99):
         """)
     
     
-    slider = Slider(start=1, end=Y_r.shape[0], value=1, step=1, title="Neuron Number", callback=callback)
+    slider = bokeh.models.Slider(start=1, end=Y_r.shape[0], value=1, step=1, title="Neuron Number", callback=callback)
     xr = Range1d(start=0,end=image_neurons.shape[1])
     yr = Range1d(start=image_neurons.shape[0],end=0)
     plot1 = bpl.figure(x_range=xr, y_range=yr,plot_width=300, plot_height=300)
