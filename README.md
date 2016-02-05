@@ -52,8 +52,8 @@ Installation on MAC OS
     source activate CNMF
     conda install -c https://conda.anaconda.org/agiovann constrained_nmf
     pip install 'tifffile>=0.7'
-    pip install 'joblib>=0.9.3'
     pip install picos
+    pip install cvxpy
     ```
 
 3. ADVANCED WAY (with access to source code).
@@ -63,8 +63,8 @@ Installation on MAC OS
     source activate CNMF
     conda install spyder numpy scipy ipyparallel matplotlib bokeh jupyter scikit-image scikit-learn joblib cvxopt      
     pip install 'tifffile>=0.7'
-    pip install 'joblib>=0.9.3'
     pip install picos
+    pip install cvxpy
     ```
     This second option will not allow to import the package from every folder but only from within the Constrained_NMF folder. You can access it globally by setting the environment variable PYTHONPATH
     ```
