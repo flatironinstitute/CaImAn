@@ -1,7 +1,7 @@
 #%%
 try:
-    #%load_ext autoreload
-    #%autoreload 2
+    %load_ext autoreload
+    %autoreload 2
     print 1
 except:
     print 'NOT IPYTHON'
@@ -43,23 +43,25 @@ np.save('Yr',Yr)
 #Y=np.load('Y.npy',mmap_mode='r')
 Yr=np.load('Yr.npy',mmap_mode='r')        
 Y=np.reshape(Yr,(d1,d2,T),order='F')
-Cn = cse.local_correlations(Y)
+Cn = cse.utilities.local_correlations(Y)
 #n_pixels_per_process=d1*d2/n_processes # how to subdivide the work among processes
 
 #%%
-options = cse.utilities.CNMFSetParms(Y,p=p,gSig=[4,4])
+options = cse.utilities.CNMFSetParms(Y,p=p,gSig=[4,4],K=1)
 cse.utilities.start_server(options['spatial_params']['n_processes'])
 
 #%% PREPROCESS DATA AND INITIALIZE COMPONENTS
 t1 = time()
-Yr,sn,g=cse.preprocess_data(Yr,**options['preprocess_params'])
-Ain, Cin, b_in, f_in, center=cse.initialize_components(Y, **options['init_params'])                                                    
+Yr,sn,g=cse.pre_processing.preprocess_data(Yr,**options['preprocess_params'])
+Ain, Cin, b_in, f_in, center=cse.initialization.initialize_components(Y, **options['init_params'])                                                    
 print time() - t1
 #%% 
-plt2 = plt.figure(); plt.imshow(Cn,interpolation='None')
-plt.colorbar()
-plt.scatter(x=center[:,1], y=center[:,0], c='m', s=40)
-crd = cse.plot_contours(coo_matrix(Ain),Cn,thr=0.9)
+#plt2 = plt.figure(); plt.imshow(Cn,interpolation='None')
+#plt.colorbar()
+#plt.scatter(x=center[:,1], y=center[:,0], c='m', s=40)
+#crd = cse.plot_contours(coo_matrix(Ain),Cn,thr=0.9)
+crd = cse.utilities.manually_refine_components(Y,options['init_params']['gSig'],coo_matrix(Ain),Cin,Cn,thr=0.9)
+#%%
 plt.axis((0,d2-1,0,d1-1))
 plt2.suptitle('Spatial Components found with initialization', fontsize=16)
 plt.gca().invert_yaxis()
@@ -67,14 +69,14 @@ plt.show()
   
 #%% UPDATE SPATIAL COMPONENTS
 t1 = time()
-A,b,Cin = cse.update_spatial_components(Yr, Cin, f_in, Ain, sn=sn, **options['spatial_params'])
+A,b,Cin = cse.spatial.update_spatial_components(Yr, Cin, f_in, Ain, sn=sn, **options['spatial_params'])
 t_elSPATIAL = time() - t1
 print t_elSPATIAL 
 plt.figure()
 crd = cse.plot_contours(A,Cn,thr=0.9)
 #%% update_temporal_components
 t1 = time()
-C,f,S,bl,c1,neurons_sn,g = cse.update_temporal_components(Yr,A,b,Cin,f_in,bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
+C,f,S,bl,c1,neurons_sn,g = cse.temporal.update_temporal_components(Yr,A,b,Cin,f_in,bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
 t_elTEMPORAL2 = time() - t1
 print t_elTEMPORAL2 
 #%% merge components corresponding to the same neuron
@@ -99,4 +101,4 @@ cse.utilities.view_patches_bar(Yr,coo_matrix(A_or),C_or,b2,f2, d1,d2,secs=0)
 plt.figure()
 crd = cse.plot_contours(A_or,Cn,thr=0.9)
 #%% STOP CLUSTER
-cse.utilities.stop_server()
+cse.stop_server()
