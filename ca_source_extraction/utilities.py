@@ -250,7 +250,7 @@ def com(A,d1,d2):
     return cm
     
     
-def view_patches_bar(Yr,A,C,b,f,d1,d2,secs=1,img=None):
+def view_patches_bar(Yr,A,C,b,f,d1,d2,YrA = None, secs=1,img=None):
     """view spatial and temporal components (secs=0 interactive)
      
      Parameters
@@ -271,39 +271,28 @@ def view_patches_bar(Yr,A,C,b,f,d1,d2,secs=1,img=None):
      secs: float
                 number of seconds in between component scrolling. secs=0 means interactive (click to scroll)
              
-    """    
-
+    """      
+    
     plt.ion()
     nr,T = C.shape    
-    nA2 = np.sum(np.array(A.todense())**2,axis=0)
+    A2 = A.copy()
+    A2.data **= 2
+    nA2 = np.sqrt(np.array(A2.sum(axis=0))).squeeze()
+    A = A*spdiags(1/nA2,0,nr,nr)
+    C = spdiags(nA2,0,nr,nr)*C
     b = np.squeeze(b)
     f = np.squeeze(f)
+    if YrA is None:
+        Y_r = np.array(A.T*np.matrix(Yr)-(A.T*np.matrix(b[:,np.newaxis]))*np.matrix(f[np.newaxis]) - (A.T.dot(A))*np.matrix(C) + C)
+    else:
+        Y_r = YrA + C    
     
-    #Y_r = np.array(spdiags(1/nA2,0,nr,nr)*(A.T*np.matrix(Yr-b[:,np.newaxis]*f[np.newaxis] - A.dot(C))) + C)    
-    Y_r = np.array(spdiags(1/nA2,0,nr,nr)*(A.T*np.matrix(Yr)-(A.T*np.matrix(b[:,np.newaxis]))*np.matrix(f[np.newaxis]) - (A.T.dot(A))*np.matrix(C)) + C)  
     A=A.todense()
     imgs=np.reshape(np.array(A),(d1,d2,nr),order='F')
-    
     if img is None:
         img=np.mean(imgs[:,:,:-1],axis=-1)
-#    Y_r = (Yr-b.dot(f)).T.dot(A.todense()).T/nA2[:,None]#-bl[:,None]
-#    Y_r=[];
+
     bkgrnd=np.reshape(b,(d1,d2),order='F')
-#    Atmp=A.copy()
-#    Ctmp=C.copy()
-#    for ii in range(C.shape[0]):
-#        print ii
-#        old_c=Ctmp[ii,:]
-#        old_a=Atmp[:,ii]        
-#        Atmp[:,ii]=0  
-#        Ctmp[ii,:]=0
-#        Y_r.append((Yr-b.dot(f)- Atmp.dot(Ctmp)).T.dot(A[:,ii]).T/nA2[ii])
-#        Atmp[:,ii]=old_a  
-#        Ctmp[ii,:]=old_c                
-#    Y_r=np.asarray(Y_r)
-    
-#    fig = plt.subplots()
-#    plt.subplots_adjust(left=0.05, bottom=0.2)
     fig=plt.figure(figsize=(20,20))
 
     axcomp =  plt.axes([0.05, 0.05, 0.9, 0.03])
@@ -405,21 +394,13 @@ def view_patches(Yr,A,C,b,f,d1,d2,YrA = None, secs=1):
     nA2 = np.sqrt(np.array(A2.sum(axis=0))).squeeze()
     A = A*spdiags(1/nA2,0,nr,nr)
     C = spdiags(nA2,0,nr,nr)*C
-    #nA2 = np.sqrt(np.sum(np.array(A.todense())**2,axis=0))
     b = np.squeeze(b)
     f = np.squeeze(f)
-    #Y_r = np.array(spdiags(1/nA2,0,nr,nr)*(A.T*np.matrix(Yr-b[:,np.newaxis]*f[np.newaxis] - A.dot(C))) + C)    
-    t1 = time.time()    
-    #if YrA is None:
-    #Y_r = np.array(spdiags(1/nA2,0,nr,nr)*(A.T*np.matrix(Yr)-(A.T*np.matrix(b[:,np.newaxis]))*np.matrix(f[np.newaxis]) - (A.T.dot(A))*np.matrix(C)) + C)
-    Y_r = np.array(A.T*np.matrix(Yr)-(A.T*np.matrix(b[:,np.newaxis]))*np.matrix(f[np.newaxis]) - (A.T.dot(A))*np.matrix(C) + C)
-    #else:
-    #    Y_r = spdiags(1/nA2,0,nr,nr)*(YrA + C)
-    #    Y_r2 = np.array(spdiags(1/nA2,0,nr,nr)*(A.T*np.matrix(Yr)-(A.T*np.matrix(b[:,np.newaxis]))*np.matrix(f[np.newaxis]) - (A.T.dot(A))*np.matrix(C)) + C)
-    #    print np.sqrt(np.sum((Y_r-Y_r2)**2)/np.sum(Y_r**2))
-    
-    print time.time() - t1
-    
+    if YrA is None:
+        Y_r = np.array(A.T*np.matrix(Yr)-(A.T*np.matrix(b[:,np.newaxis]))*np.matrix(f[np.newaxis]) - (A.T.dot(A))*np.matrix(C) + C)
+    else:
+        Y_r = YrA + C
+        
     A=A.todense()
 #    Y_r = (Yr-b.dot(f)).T.dot(A.todense()).T/nA2[:,None]#-bl[:,None]
 #    Y_r=[];
