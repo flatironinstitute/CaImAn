@@ -43,14 +43,16 @@ def constrained_foopsi_parallel(arg_in):
    
     Ytemp, nT, jj_, bl, c1, g, sn, argss = arg_in
     T=np.shape(Ytemp)[0]
-    cc_,cb_,c1_,gn_,sn_,sp_ = constrained_foopsi(Ytemp/nT, bl = bl,  c1 = c1, g = g,  sn = sn, **argss)
+    #cc_,cb_,c1_,gn_,sn_,sp_ = constrained_foopsi(Ytemp/nT, bl = bl,  c1 = c1, g = g,  sn = sn, **argss)
+    cc_,cb_,c1_,gn_,sn_,sp_ = constrained_foopsi(Ytemp, bl = bl,  c1 = c1, g = g,  sn = sn, **argss)
     gd_ = np.max(np.roots(np.hstack((1,-gn_.T))));  
     gd_vec = gd_**range(T)   
     
 
     C_ = cc_[:].T + cb_ + np.dot(c1_,gd_vec)
     Sp_ = sp_[:T].T
-    Ytemp_ = Ytemp - np.dot(nT,C_).T
+    #Ytemp_ = Ytemp - np.dot(nT,C_).T
+    Ytemp_ = Ytemp - C_.T
     
     return C_,Sp_,Ytemp_,cb_,c1_,sn_,gn_,jj_
     
@@ -145,9 +147,11 @@ def update_temporal_components(Y, A, b, Cin, fin, bl = None,  c1 = None, g = Non
     Cin =  np.vstack((Cin,fin));
     C = Cin;
     nA = np.squeeze(np.array(np.sum(np.square(A.todense()),axis=0)))
-
+    #import pdb
+    #pdb.set_trace()
     Cin=coo_matrix(Cin)
-    YrA = (A.T.dot(Y)).T-Cin.T.dot(A.T.dot(A))
+    #YrA = ((A.T.dot(Y)).T-Cin.T.dot(A.T.dot(A)))
+    YrA = ((A.T.dot(Y)).T-Cin.T.dot(A.T.dot(A)))*spdiags(1./nA,0,nr+1,nr+1)
     
     
     if backend == 'ipyparallel':
@@ -170,7 +174,8 @@ def update_temporal_components(Y, A, b, Cin, fin, bl = None,  c1 = None, g = Non
         P_=[];
         for count,jo_ in enumerate(O):
             jo=np.array(list(jo_))           
-            Ytemp = YrA[:,jo.flatten()] + (np.dot(np.diag(nA[jo]),Cin[jo,:])).T
+            #Ytemp = YrA[:,jo.flatten()] + (np.dot(np.diag(nA[jo]),Cin[jo,:])).T
+            Ytemp = YrA[:,jo.flatten()] + Cin[jo,:].T
             Ctemp = np.zeros((np.size(jo),T))
             Stemp = np.zeros((np.size(jo),T))
             btemp = np.zeros((np.size(jo),1))
@@ -232,10 +237,15 @@ def update_temporal_components(Y, A, b, Cin, fin, bl = None,  c1 = None, g = Non
             print str(np.sum(lo[:count+1])) + ' out of total ' + str(nr) + ' temporal components updated \n'
         
         ii=nr        
-        YrA[:,ii] = YrA[:,ii] + nA[ii]*np.atleast_2d(Cin[ii,:]).T
-        cc = np.maximum(YrA[:,ii]/nA[ii],0)
+        #YrA[:,ii] = YrA[:,ii] + nA[ii]*np.atleast_2d(Cin[ii,:]).T
+        #cc = np.maximum(YrA[:,ii]/nA[ii],0)
+        #C[ii,:] = cc[:].T
+        #YrA[:,ii] = YrA[:,ii] - nA[ii]*np.atleast_2d(C[ii,:]).T 
+        YrA[:,ii] = YrA[:,ii] + np.atleast_2d(Cin[ii,:]).T
+        cc = np.maximum(YrA[:,ii],0)
         C[ii,:] = cc[:].T
-        YrA[:,ii] = YrA[:,ii] - nA[ii]*np.atleast_2d(C[ii,:]).T 
+        YrA[:,ii] = YrA[:,ii] - np.atleast_2d(C[ii,:]).T        
+        
         
         if backend == 'ipyparallel':       
             dview.results.clear()   
@@ -253,12 +263,12 @@ def update_temporal_components(Y, A, b, Cin, fin, bl = None,  c1 = None, g = Non
     
     f = C[nr:,:]
     C = C[:nr,:]
-        
+    YrA = np.array(YrA[:,:nr]).T    
     P_ = sorted(P_, key=lambda k: k['neuron_id']) 
     if backend == 'ipyparallel':      
         c.close()
     
-    return C,f,S,bl,c1,sn,g #,P_
+    return C,f,S,bl,c1,sn,g,YrA #,P_
     
 #%%
 #def update_temporal_components(Y,A,b,Cin,fin,ITER=2,method_foopsi='constrained_foopsi',n_processes=1, backend='single_thread', memory_efficient=False, **kwargs):
