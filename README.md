@@ -66,9 +66,12 @@ Installation on MAC OS
     conda install spyder numpy scipy ipyparallel matplotlib bokeh jupyter scikit-image scikit-learn joblib cvxopt      
     pip install 'tifffile>=0.7'
     pip install picos
-    (if you get errors compiling scs with under cvxpy youprobably need to create a link to openblas or libgfortran in            /usr/local/lib/, for instance
+    
+    (
+        if you get errors compiling scs when installing cvxpy you probably need to create a link to openblas or libgfortran         in  /usr/local/lib/, for instance:
         sudo ln -s  /Library/Frameworks/R.framework/Libraries/libgfortran.3.dylib  /usr/local/lib/libgfortran.2.dylib
     )
+    
     pip install cvxpy
     
     ```
