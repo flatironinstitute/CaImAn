@@ -10,7 +10,7 @@ The code implements a method for simultaneous source extraction and spike infere
 
 The algorithm is presented in more detail in
 
-Pnevmatikakis, E.A., Soudry, D., Gao, Y., Machado, T., Merel, J., ... & Paninski, L. (2016). Simultaneous denoising, deconvolution, and demixing of calcium imaging data. Neuron, in press, http://dx.doi.org/10.1016/j.neuron.2015.11.037
+Pnevmatikakis, E.A., Soudry, D., Gao, Y., Machado, T., Merel, J., ... & Paninski, L. (2016). Simultaneous denoising, deconvolution, and demixing of calcium imaging data. Neuron 89(2):285-299, http://dx.doi.org/10.1016/j.neuron.2015.11.037
 
 Pnevmatikakis, E.A., Gao, Y., Soudry, D., Pfau, D., Lacefield, C., ... & Paninski, L. (2014). A structured matrix factorization framework for large scale calcium imaging data analysis. arXiv preprint arXiv:1409.2903. http://arxiv.org/abs/1409.2903
 
@@ -66,10 +66,13 @@ Installation on MAC OS
     conda install spyder numpy scipy ipyparallel matplotlib bokeh jupyter scikit-image scikit-learn joblib cvxopt      
     pip install 'tifffile>=0.7'
     pip install picos
-    (for speeding up things considerably you should install openblas/lapack/blas and gcc compiler via homebrew
-    if you get errors compiling scs with under cvxpy try the fix below
-        sudo ln -s  /Library/Frameworks/R.framework/Libraries/libgfortran.3.dylib  /usr/local/lib/libgfortran.2.dylib
+    
+    (
+    if you get errors compiling scs when installing cvxpy you probably need to create a link to openblas or libgfortran in 
+    /usr/local/lib/, for instance:
+    sudo ln -s  /Library/Frameworks/R.framework/Libraries/libgfortran.3.dylib  /usr/local/lib/libgfortran.2.dylib
     )
+    
     pip install cvxpy
     
     ```

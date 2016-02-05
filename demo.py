@@ -1,17 +1,24 @@
 #%%
 try:
-    %load_ext autoreload
-    %autoreload 2
+#    %load_ext autoreload
+ #   %autoreload 2
     print 1
 except:
     print 'NOT IPYTHON'
 
+import matplotlib as mpl
+mpl.use('TKAgg')
+from matplotlib import pyplot as plt
+#plt.ion()
+
+
+
 import sys
 import numpy as np
-#sys.path.append('../SPGL1_python_port')
 import ca_source_extraction as cse
+
+#sys.path.append('../SPGL1_python_port')
 #%
-from matplotlib import pyplot as plt
 from time import time
 from scipy.sparse import coo_matrix
 import tifffile
@@ -94,15 +101,12 @@ C2,f2,S2,bl2,c12,neurons_sn2,g21,YrA = cse.temporal.update_temporal_components(Y
 print time() - t1
 #%%
 A_or, C_or, srt = cse.utilities.order_components(A2,C2)
-cse.utilities.view_patches(Yr,coo_matrix(A_or),C_or,b2,f2,d1,d2,YrA, secs=1)
-#cse.utilities.view_patches_bar(Yr,coo_matrix(A_or),C_or,b2,f2, d1,d2,secs=0)  
-
-#%%
-from scipy.sparse import spdiags
-YrA2 = spdiags(1./np.sum(A2**2,axis=0),0,nr_m,nr_m)*(A2.T.dot(Yr - np.dot(A2,C2) - np.dot(b2,f2)))  
+#cse.utilities.view_patches(Yr,coo_matrix(A_or),C_or,b2,f2,d1,d2,YrA, secs=1)
+cse.utilities.view_patches_bar(Yr,coo_matrix(A_or),C_or,b2,f2, d1,d2, YrA=YrA, secs=0)  
+  
 #%%
 plt.figure()
 crd = cse.utilities.plot_contours(A_or,Cn,thr=0.9)
-plt.show()
+plt.show(block=True)
 #%% STOP CLUSTER
 cse.utilities.stop_server()
