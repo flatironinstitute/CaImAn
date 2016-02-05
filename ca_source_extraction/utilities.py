@@ -601,7 +601,7 @@ def plot_contours(A,Cn,thr = 0.9, display_numbers = True, max_number = None,cmap
 
 
     
-def manually_refine_components(Y,(dx,dy),A,C,Cn,thr = 0.9, display_numbers = True, max_number = None,cmap=None, swap_dim=False,**kwargs):
+def manually_refine_components(Y,(dx,dy),A,C,Cn,thr = 0.9, display_numbers = True, max_number = None,cmap=None, **kwargs):
     """Plots contour of spatial components against a background image and returns their coordinates
      
      Parameters
@@ -632,9 +632,7 @@ def manually_refine_components(Y,(dx,dy),A,C,Cn,thr = 0.9, display_numbers = Tru
         A = np.array(A)
     
 
-    if swap_dim:
-        Cn=Cn.T
-        print 'Swapping dim'
+    
         
         
     d1,d2 = np.shape(Cn)
@@ -656,19 +654,15 @@ def manually_refine_components(Y,(dx,dy),A,C,Cn,thr = 0.9, display_numbers = Tru
         cumEn = np.cumsum(A[:,i].flatten()[indx]**2)
         cumEn /= cumEn[-1]
         Bvec = np.zeros(d)
-        Bvec[indx] = cumEn
-        if swap_dim:
-            Bmat[i] = np.reshape(Bvec,np.shape(Cn),order='C')
-        else:
-            Bmat[i] = np.reshape(Bvec,np.shape(Cn),order='F')
+        Bvec[indx] = cumEn        
+        Bmat[i] = np.reshape(Bvec,np.shape(Cn),order='F')
  
         
     
     
-    A3=np.reshape(A,(d1,d2,nr),order='F')
+
     T=np.shape(Y)[-1]
-    Asuppl=[];
-    Csuppl=[];
+
     plt.close()
     
     fig = plt.figure()
@@ -697,7 +691,7 @@ def manually_refine_components(Y,(dx,dy),A,C,Cn,thr = 0.9, display_numbers = Tru
 #    
 #    fig.canvas.callbacks.connect('pick_event', on_pick)    
 #    plt.show()    
-    
+    A3=np.reshape(A,(d1,d2,nr),order='F')
     while True:               
         
         pts = fig.ginput(1, timeout=0)    
@@ -727,33 +721,28 @@ def manually_refine_components(Y,(dx,dy),A,C,Cn,thr = 0.9, display_numbers = Tru
             a_f[np.ravel_multi_index(idxs,(d1,d2),order='F').flatten()]=a__
 
             
-            Asuppl.append(a_f)
-            Csuppl.append(c__)      
+            A=np.concatenate([A,a_f],axis=1)
+            C=np.concatenate([C,c__],axis=0)      
             indx = np.argsort(a_f,axis=None)[::-1]
             cumEn = np.cumsum(a_f.flatten()[indx]**2)
             cumEn /= cumEn[-1]
             Bvec = np.zeros(d)
             Bvec[indx] = cumEn
-            if swap_dim:
-                bmat = np.reshape(Bvec,np.shape(Cn),order='C')
-            else:
-                bmat = np.reshape(Bvec,np.shape(Cn),order='F')
+            
+            bmat = np.reshape(Bvec,np.shape(Cn),order='F')
             plt.contour(y,x,bmat,[thr])           
             pause(.1)
             
         elif pts == []:
             break
-
-       
-        
-    if display_numbers:
-        for i in range(np.minimum(nr,max_number)):
-            if swap_dim:
-                ax.text(cm[i,0],cm[i,1],str(i+1))
-            else:
+        if display_numbers:
+            for i in range(np.minimum(nr,max_number)):            
                 ax.text(cm[i,1],cm[i,0],str(i+1))
+        nr+=1
+        A3=np.reshape(A,(d1,d2,nr),order='F')
+    
             
-    return coordinates
+    return A,C
 
     
 def update_order(A):
