@@ -12,6 +12,7 @@ from pylab import pause
 import sys
 
 try:
+    import bokeh
     import bokeh.plotting as bpl
     from bokeh.io import vform,hplot
     from bokeh.models import CustomJS, ColumnDataSource, Slider
@@ -25,7 +26,8 @@ import psutil
 import subprocess
 import time
 import ipyparallel
-
+from matplotlib.widgets import Slider
+import ca_source_extraction
 #%%
 
 
@@ -246,8 +248,134 @@ def com(A,d1,d2):
     cm[:,1]=np.dot(Coor['y'].T,A)/A.sum(axis=0)       
     
     return cm
+    
+    
+def view_patches_bar(Yr,A,C,b,f,d1,d2,secs=1,img=None):
+    """view spatial and temporal components (secs=0 interactive)
      
+     Parameters
+     -----------
+     Yr:        np.ndarray 
+            movie in format pixels (d) x frames (T)
+     A:     sparse matrix
+                matrix of spatial components (d x K)
+     C:     np.ndarray
+                matrix of temporal components (K x T)
+     b:     np.ndarray
+                spatial background (vector of length d)
+
+     f:     np.ndarray
+                temporal background (vector of length T)
+     d1,d2: np/ndarray
+                frame dimensions
+     secs: float
+                number of seconds in between component scrolling. secs=0 means interactive (click to scroll)
+             
+    """    
+
+    plt.ion()
+    nr,T = C.shape    
+    nA2 = np.sum(np.array(A.todense())**2,axis=0)
+    b = np.squeeze(b)
+    f = np.squeeze(f)
+    
+    #Y_r = np.array(spdiags(1/nA2,0,nr,nr)*(A.T*np.matrix(Yr-b[:,np.newaxis]*f[np.newaxis] - A.dot(C))) + C)    
+    Y_r = np.array(spdiags(1/nA2,0,nr,nr)*(A.T*np.matrix(Yr)-(A.T*np.matrix(b[:,np.newaxis]))*np.matrix(f[np.newaxis]) - (A.T.dot(A))*np.matrix(C)) + C)  
+    A=A.todense()
+    imgs=np.reshape(np.array(A),(d1,d2,nr),order='F')
+    
+    if img is None:
+        img=np.mean(imgs[:,:,:-1],axis=-1)
+#    Y_r = (Yr-b.dot(f)).T.dot(A.todense()).T/nA2[:,None]#-bl[:,None]
+#    Y_r=[];
+    bkgrnd=np.reshape(b,(d1,d2),order='F')
+#    Atmp=A.copy()
+#    Ctmp=C.copy()
+#    for ii in range(C.shape[0]):
+#        print ii
+#        old_c=Ctmp[ii,:]
+#        old_a=Atmp[:,ii]        
+#        Atmp[:,ii]=0  
+#        Ctmp[ii,:]=0
+#        Y_r.append((Yr-b.dot(f)- Atmp.dot(Ctmp)).T.dot(A[:,ii]).T/nA2[ii])
+#        Atmp[:,ii]=old_a  
+#        Ctmp[ii,:]=old_c                
+#    Y_r=np.asarray(Y_r)
+    
+#    fig = plt.subplots()
+#    plt.subplots_adjust(left=0.05, bottom=0.2)
+    fig=plt.figure(figsize=(20,20))
+
+    axcomp =  plt.axes([0.05, 0.05, 0.9, 0.03])
+    
+    ax1 = plt.axes([0.05, 0.55, 0.4, 0.4]) 
+#    ax1.axis('off')
+    ax3 = plt.axes([0.55, 0.55, 0.4, 0.4]) 
+#    ax1.axis('off')
+    ax2 = plt.axes([0.05, 0.1, 0.9, 0.4])
+#    axcolor = 'lightgoldenrodyellow'
+#    axcomp = plt.axes([0.25, 0.1, 0.65, 0.03], axisbg=axcolor)
+    
+    s_comp = Slider(axcomp, 'Component', 0, nr, valinit=0)
+    vmax=np.percentile(img,98)    
+    def update(val):
+        i=np.int(np.round(s_comp.val))
+        print 'Component:' + str(i)
+
+    
+        if i < nr:
+            
+            ax1.cla()
+            imgtmp=imgs[:,:,i]
+            ax1.imshow(imgtmp,interpolation='None',cmap=plt.cm.gray)
+            ax1.set_title('Spatial component ' + str(i+1))
+            ax1.axis('off')
+            
+            ax2.cla()
+            ax2.plot(np.arange(T),np.squeeze(np.array(Y_r[i,:])),'c',linewidth=3) 
+            ax2.plot(np.arange(T),np.squeeze(np.array(C[i,:])),'r',linewidth=2)             
+            ax2.set_title('Temporal component ' + str(i+1)) 
+            ax2.legend(labels = ['Filtered raw data','Inferred trace'])
+            
+            ax3.cla()
+            ax3.imshow(img,interpolation='None',cmap=plt.cm.gray,vmax=vmax)
+            imgtmp2=imgtmp.copy()    
+            imgtmp2[imgtmp2==0]=np.nan
+            ax3.imshow(imgtmp2,interpolation='None',alpha=0.5,cmap=plt.cm.hot)
+        else:
+            
+            ax1.cla()
+            ax1.imshow(bkgrnd,interpolation='None')
+            ax1.set_title('Spatial background background')    
+            
+            ax2.cla()
+            ax2.plot(np.arange(T),np.squeeze(np.array(f))) 
+            ax2.set_title('Temporal background')  
      
+    
+    def arrow_key_image_control(event):
+        
+        if event.key == 'left':
+            new_val=np.round(s_comp.val-1)
+            if new_val<0:
+                new_val=0
+            s_comp.set_val(new_val)
+                
+        elif event.key == 'right':
+            new_val=np.round(s_comp.val+1)    
+            if new_val>nr:
+                new_val=nr
+            s_comp.set_val(new_val)
+        else:
+            pass    
+    
+    s_comp.on_changed(update)
+    s_comp.set_val(0)
+    id2 = fig.canvas.mpl_connect('key_release_event', arrow_key_image_control)
+    plt.show()
+        
+    
+    
 def view_patches(Yr,A,C,b,f,d1,d2,YrA = None, secs=1):
     """view spatial and temporal components (secs=0 interactive)
      
@@ -436,6 +564,202 @@ def plot_contours(A,Cn,thr = 0.9, display_numbers = True, max_number = None,cmap
                 ax.text(cm[i,1],cm[i,0],str(i+1))
             
     return coordinates
+
+
+#def select_roi(img=None, n=0, ax=None, existing=None, mode='polygon', show_mode='mask', cmap=pl.cm.Greys_r, lasso_strictness=1):
+#    """Select any number of regions of interest (ROI) in the movie.
+#    
+#    Parameters
+#    ----------
+#    img : np.ndarray
+#        image over which to select roi
+#    n : int
+#        number of ROIs to select
+#    ax : matplotlib.Axes
+#        axes on which to show and select. If None, defaults to new, if 'current', defaults to current
+#    existing : pyfluo.ROI
+#        pre-existing rois to which to add selections
+#    mode : 'polygon', 'lasso'
+#        mode by which to select roi
+#    show_mode : 'pts', 'mask'
+#        mode by which to show existing rois
+#    cmap : matplotlib.LinearSegmentedColormap
+#        color map with which to display img
+#    lasso_strictness : float
+#        number from 0-inf, to do with tolerance for edge finding
+#        
+#    Returns
+#    -------
+#    ROI object
+#    Notes
+#    -----
+#    Select points by clicking, and hit enter to finalize and ROI. Hit enter again to complete selection process.
+#    author: BEN DEVERETT
+#    """
+#    if ax is None and img is None:
+#        raise Exception('Image or axes must be supplied to select ROI.')
+#
+#    if ax == None:
+#        fig = pl.figure()
+#        ax = fig.add_subplot(111)
+#    elif ax == 'current':
+#        ax = pl.gca()
+#    pl.sca(ax)
+#    fig = ax.get_figure()
+#
+#    if img is not None:
+#        shape = img.shape
+#    elif ax is not None:
+#        shape = [abs(np.diff(ax.get_ylim())), abs(np.diff(ax.get_xlim()))]
+#
+
+    
+
+
+    
+def manually_refine_components(Y,(dx,dy),A,C,Cn,thr = 0.9, display_numbers = True, max_number = None,cmap=None, **kwargs):
+    """Plots contour of spatial components against a background image and returns their coordinates
+     
+     Parameters
+     -----------
+     A:   np.ndarray or sparse matrix
+               Matrix of Spatial components (d x K)
+     Cn:  np.ndarray (2D)
+               Background image (e.g. mean, correlation)
+     thr: scalar between 0 and 1
+               Energy threshold for computing contours (default 0.995)
+     display_number:     Boolean
+               Display number of ROIs if checked (default True)
+     max_number:    int
+               Display the number for only the first max_number components (default None, display all numbers)
+     cmap:     string
+               User specifies the colormap (default None, default colormap)
+      
+               
+     
+     Returns
+     --------
+     Coor: list of coordinates with center of mass, contour plot coordinates and bounding box for each component
+    """
+    from  scipy.sparse import issparse
+    if issparse(A):
+        A = np.array(A.todense())
+    else:
+        A = np.array(A)
+    
+
+    
+        
+        
+    d1,d2 = np.shape(Cn)
+    d,nr = np.shape(A)       
+    if max_number is None:
+        max_number = nr
+        
+    x,y = np.mgrid[0:d1:1,0:d2:1]    
+    
+    
+    plt.imshow(Cn,interpolation=None,cmap=cmap)
+    coordinates = []
+    cm = com(A,d1,d2)
+    
+    Bmat=np.zeros((np.minimum(nr,max_number),d1,d2))
+    for i in range(np.minimum(nr,max_number)):
+        pars=dict(kwargs)
+        indx = np.argsort(A[:,i],axis=None)[::-1]
+        cumEn = np.cumsum(A[:,i].flatten()[indx]**2)
+        cumEn /= cumEn[-1]
+        Bvec = np.zeros(d)
+        Bvec[indx] = cumEn        
+        Bmat[i] = np.reshape(Bvec,np.shape(Cn),order='F')
+ 
+        
+    
+    
+
+    T=np.shape(Y)[-1]
+
+    plt.close()
+    
+    fig = plt.figure()
+#    ax = fig.add_subplot(111)
+    ax = plt.gca()
+    ax.imshow(Cn,interpolation=None,cmap=cmap)
+    for i in range(np.minimum(nr,max_number)):
+        plt.contour(y,x,Bmat[i],[thr])
+        
+#    def on_pick(event):
+#            artist = event.artist
+#            xmouse, ymouse = event.mouseevent.xdata, event.mouseevent.ydata
+#            x, y = artist.get_xdata(), artist.get_ydata()
+#            ind = event.ind
+#            print 'Artist picked:', event.artist
+#            print '{} vertices picked'.format(len(ind))
+#            print 'Pick between vertices {} and {}'.format(min(ind), max(ind)+1)
+#            print 'x, y of mouse: {:.2f},{:.2f}'.format(xmouse, ymouse)
+#            print 'Data point:', x[ind[0]], y[ind[0]]
+#            print
+#        
+#    fig, ax = plt.subplots()
+#    
+#    tolerance = 10 # points
+#    ax.plot(range(10), 'ro-', picker=tolerance)
+#    
+#    fig.canvas.callbacks.connect('pick_event', on_pick)    
+#    plt.show()    
+    A3=np.reshape(A,(d1,d2,nr),order='F')
+    while True:               
+        
+        pts = fig.ginput(1, timeout=0)    
+        
+        if pts != []:
+            print pts
+            xx,yy=np.round(pts[0]).astype(np.int);
+            coords_y=np.array(range(yy-dy,yy+dy+1))
+            coords_x=np.array(range(xx-dx,xx+dx+1))
+            coords_y=coords_y[(coords_y>=0) & (coords_y<d1)]
+            coords_x=coords_x[(coords_x>=0) & (coords_x<d2)]
+
+            a3_tiny=A3[coords_y[0]:coords_y[-1]+1,coords_x[0]:coords_x[-1]+1,:]
+            y3_tiny=Y[coords_y[0]:coords_y[-1]+1,coords_x[0]:coords_x[-1]+1,:]      
+ 
+            dy_sz,dx_sz=np.shape(a3_tiny)[:-1]
+            y2_tiny=np.reshape(y3_tiny,(dx_sz*dy_sz,T),order='F')
+            a2_tiny=np.reshape(a3_tiny,(dx_sz*dy_sz,nr),order='F')
+            y2_res=y2_tiny-a2_tiny.dot(C)
+            y3_res=np.reshape(y2_res,(dy_sz,dx_sz,T),order='F')
+#            plt.plot(xx,yy,'k*')                    
+            
+            a__, c__, center__, b_in__, f_in__=ca_source_extraction.initialization.greedyROI2d(y3_res, nr=1, gSig = [np.floor(dx_sz/2),np.floor(dy_sz/2)], gSiz = [dx_sz,dy_sz])
+                      
+            a_f = np.zeros((d,1))
+            idxs=np.meshgrid(coords_y,coords_x)
+            a_f[np.ravel_multi_index(idxs,(d1,d2),order='F').flatten()]=a__
+
+            
+            A=np.concatenate([A,a_f],axis=1)
+            C=np.concatenate([C,c__],axis=0)      
+            indx = np.argsort(a_f,axis=None)[::-1]
+            cumEn = np.cumsum(a_f.flatten()[indx]**2)
+            cumEn /= cumEn[-1]
+            Bvec = np.zeros(d)
+            Bvec[indx] = cumEn
+            
+            bmat = np.reshape(Bvec,np.shape(Cn),order='F')
+            plt.contour(y,x,bmat,[thr])           
+            pause(.1)
+            
+        elif pts == []:
+            break
+        if display_numbers:
+            for i in range(np.minimum(nr,max_number)):            
+                ax.text(cm[i,1],cm[i,0],str(i+1))
+        nr+=1
+        A3=np.reshape(A,(d1,d2,nr),order='F')
+    
+            
+    return A,C
+
     
 def update_order(A):
     '''Determines the update order of the temporal components given the spatial 
@@ -602,7 +926,7 @@ def nb_view_patches(Yr,A,C,b,f,d1,d2,image_neurons=None,thr = 0.99):
         """)
     
     
-    slider = Slider(start=1, end=Y_r.shape[0], value=1, step=1, title="Neuron Number", callback=callback)
+    slider = bokeh.models.Slider(start=1, end=Y_r.shape[0], value=1, step=1, title="Neuron Number", callback=callback)
     xr = Range1d(start=0,end=image_neurons.shape[1])
     yr = Range1d(start=image_neurons.shape[0],end=0)
     plot1 = bpl.figure(x_range=xr, y_range=yr,plot_width=300, plot_height=300)
