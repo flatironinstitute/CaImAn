@@ -123,15 +123,18 @@ The code uses the following libraries
 External Dependencies
 ============
 
-The constrained deconvolution method (constrained_foopsi_python.py) can estimate with two different methods, each of which requires some additional packages:
+For the constrained deconvolution method (```deconvolution.constrained_foopsi```)  various solvers can be used, each of which requires some additional packages:
 
-1. 'spgl1': For this option, the SPGL1 python implementation is required. It is by default imported as a submodule. The original implementation can be found at (https://github.com/mpf/spgl1).  
-2. 'cvx': For this option, the following packages are needed:
+1. ```'cvxpy'```: (default) For this option, the following packages are needed:
+  * [CVXOPT](http://cvxopt.org/) Required.
+  * [CVXPY](http://www.cvxpy.org/) Required.
+2. ```'cvx'```: For this option, the following packages are needed:
   * [CVXOPT](http://cvxopt.org/) Required.
   * [PICOS](http://picos.zib.de/) Required.
   * [MOSEK](https://www.mosek.com/) Optional but strongly recommended for speed improvement, free for academic use.
+3. ```'spgl1'```: For this option, the SPGL1 python implementation is required. It is by default imported as a submodule. The original implementation can be found at (https://github.com/mpf/spgl1).  
 
-In general 'spgl1' can be faster, but the python implementation is not as fast as in Matlab and not thoroughly tested.
+In general ```'cvxpy'``` can be faster, when using the 'ECOS' or 'SCS' sovlers, which are included with the CVXPY installation. ```'spgl1'``` can also be very fast but the python implementation is not as fast as in Matlab and not thoroughly tested.
 
 Questions, comments, issues
 =======
