@@ -364,7 +364,12 @@ def cvxpy_foopsi(fluor,  g, sn, b=None, c1=None, bas_nonneg=True,solvers=None):
          objective = cvx.Minimize(cvx.norm(-c + fluor - b - gd_vec*c1, 2)+lam*cvx.norm(G*c,1))
          prob = cvx.Problem(objective, constraints)
          try: #in case scs was not installed properly
-             result = prob.solve(solver=solvers[1]) 
+             try:
+                 print('TRYING AGAIN ECOS') 
+                 sys.stdout.flush()
+                 result = prob.solve(solver=solvers[0]) 
+             except:
+                 result = prob.solve(solver=solvers[1]) 
          except:             
              sys.stderr.write('***** SCS solver failed, try installing and compiling SCS for much faster performance. Otherwise set the solvers in tempora_params to ["ECOS","CVXOPT"]')
              sys.stderr.flush()

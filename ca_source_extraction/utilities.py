@@ -30,6 +30,9 @@ import time
 import ipyparallel
 from matplotlib.widgets import Slider
 import ca_source_extraction
+import sklearn   
+import time
+from sklearn.decomposition import NMF    
 #%%
 
 
@@ -488,7 +491,7 @@ def plot_contours(A,Cn,thr = 0.9, display_numbers = True, max_number = None,cmap
     x,y = np.mgrid[0:d1:1,0:d2:1]    
     
     ax = plt.gca()
-    plt.imshow(Cn,interpolation=None,cmap=cmap)
+    plt.imshow(Cn,interpolation=None,cmap=cmap,vmin=np.percentile(Cn,1),vmax=np.percentile(Cn,99))
     coordinates = []
     cm = com(A,d1,d2)
     for i in range(np.minimum(nr,max_number)):
@@ -608,7 +611,7 @@ def manually_refine_components(Y,(dx,dy),A,C,Cn,thr = 0.9, display_numbers = Tru
     fig = plt.figure()
 #    ax = fig.add_subplot(111)
     ax = plt.gca()
-    ax.imshow(Cn,interpolation=None,cmap=cmap)
+    ax.imshow(Cn,interpolation=None,cmap=cmap,vmin=np.percentile(Cn,1),vmax=np.percentile(Cn,99))
     for i in range(np.minimum(nr,max_number)):
         plt.contour(y,x,Bmat[i],[thr])
         
@@ -630,7 +633,13 @@ def manually_refine_components(Y,(dx,dy),A,C,Cn,thr = 0.9, display_numbers = Tru
 #    ax.plot(range(10), 'ro-', picker=tolerance)
 #    
 #    fig.canvas.callbacks.connect('pick_event', on_pick)    
-#    plt.show()    
+#    plt.show()   
+    
+#    model = NMF(n_components=1, init='random', random_state=0)
+    if display_numbers:
+        for i in range(np.minimum(nr,max_number)):            
+            ax.text(cm[i,1],cm[i,0],str(i+1))
+            
     A3=np.reshape(A,(d1,d2,nr),order='F')
     while True:               
         
@@ -643,41 +652,42 @@ def manually_refine_components(Y,(dx,dy),A,C,Cn,thr = 0.9, display_numbers = Tru
             coords_x=np.array(range(xx-dx,xx+dx+1))
             coords_y=coords_y[(coords_y>=0) & (coords_y<d1)]
             coords_x=coords_x[(coords_x>=0) & (coords_x<d2)]
-
             a3_tiny=A3[coords_y[0]:coords_y[-1]+1,coords_x[0]:coords_x[-1]+1,:]
-            y3_tiny=Y[coords_y[0]:coords_y[-1]+1,coords_x[0]:coords_x[-1]+1,:]      
+            y3_tiny=Y[coords_y[0]:coords_y[-1]+1,coords_x[0]:coords_x[-1]+1,:]     
+#            y3med = np.median(y3_tiny,axis=-1)
+#            y3_tiny = y3_tiny - y3med[...,np.newaxis]
+            #y3_tiny = y3_tiny-np.median(y3_tiny,axis=-1)
  
             dy_sz,dx_sz=np.shape(a3_tiny)[:-1]
             y2_tiny=np.reshape(y3_tiny,(dx_sz*dy_sz,T),order='F')
             a2_tiny=np.reshape(a3_tiny,(dx_sz*dy_sz,nr),order='F')
             y2_res=y2_tiny-a2_tiny.dot(C)
-            y3_res=np.reshape(y2_res,(dy_sz,dx_sz,T),order='F')
 #            plt.plot(xx,yy,'k*')                    
             
+            y3_res=np.reshape(y2_res,(dy_sz,dx_sz,T),order='F')
             a__, c__, center__, b_in__, f_in__=ca_source_extraction.initialization.greedyROI2d(y3_res, nr=1, gSig = [np.floor(dx_sz/2),np.floor(dy_sz/2)], gSiz = [dx_sz,dy_sz])
-                      
+#            a__ = model.fit_transform(np.maximum(y2_res,0));
+#            c__ = model.components_;
+    
+            
             a_f = np.zeros((d,1))
             idxs=np.meshgrid(coords_y,coords_x)
             a_f[np.ravel_multi_index(idxs,(d1,d2),order='F').flatten()]=a__
-
             
             A=np.concatenate([A,a_f],axis=1)
-            C=np.concatenate([C,c__],axis=0)      
+            C=np.concatenate([C,c__],axis=0)
             indx = np.argsort(a_f,axis=None)[::-1]
             cumEn = np.cumsum(a_f.flatten()[indx]**2)
             cumEn /= cumEn[-1]
             Bvec = np.zeros(d)
             Bvec[indx] = cumEn
-            
             bmat = np.reshape(Bvec,np.shape(Cn),order='F')
-            plt.contour(y,x,bmat,[thr])           
-            pause(.1)
+            plt.contour(y,x,bmat,[thr])       
+            pause(.01)
             
         elif pts == []:
             break
-        if display_numbers:
-            for i in range(np.minimum(nr,max_number)):            
-                ax.text(cm[i,1],cm[i,0],str(i+1))
+        
         nr+=1
         A3=np.reshape(A,(d1,d2,nr),order='F')
     
