@@ -183,13 +183,14 @@ def order_components(A,C):
      """
      A = np.array(A.todense())
      nA2 = np.sqrt(np.sum(A**2,axis=0))
-     A = np.array(np.matrix(A)*diags(1/nA2,0))
+     K = len(nA2)
+     A = np.array(np.matrix(A)*spdiags(1/nA2,0,K,K))
      nA4 = np.sum(A**4,axis=0)**0.25
-     C = np.array(diags(nA2,0)*np.matrix(C))
+     C = np.array(spdiags(nA2,0,K,K)*np.matrix(C))
      mC = np.ndarray.max(np.array(C),axis=1)
      srt = np.argsort(nA4*mC)[::-1]
-     A_or = A[:,srt]
-     C_or = C[srt,:]
+     A_or = A[:,srt]*spdiags(nA2[srt],0,K,K)
+     C_or = spdiags(1./nA2[srt],0,K,K)*(C[srt,:])
           
      return A_or, C_or, srt
      
@@ -279,7 +280,7 @@ def view_patches_bar(Yr,A,C,b,f,d1,d2,YrA = None, secs=1,img=None):
                  If not given, then it is computed (K x T)
      secs:  float
                 number of seconds in between component scrolling. secs=0 means interactive (click to scroll)
-     imgs:  np.ndarray
+     img:   np.ndarray
                 background image for contour plotting. Default is the image of all spatial components (d1 x d2)
              
     """      
@@ -289,8 +290,8 @@ def view_patches_bar(Yr,A,C,b,f,d1,d2,YrA = None, secs=1,img=None):
     A2 = A.copy()
     A2.data **= 2
     nA2 = np.sqrt(np.array(A2.sum(axis=0))).squeeze()
-    A = A*spdiags(1/nA2,0,nr,nr)
-    C = spdiags(nA2,0,nr,nr)*C
+    #A = A*spdiags(1/nA2,0,nr,nr)
+    #C = spdiags(nA2,0,nr,nr)*C
     b = np.squeeze(b)
     f = np.squeeze(f)
     if YrA is None:
@@ -298,6 +299,7 @@ def view_patches_bar(Yr,A,C,b,f,d1,d2,YrA = None, secs=1,img=None):
     else:
         Y_r = YrA + C    
     
+    A = A*spdiags(1/nA2,0,nr,nr)
     A=A.todense()
     imgs=np.reshape(np.array(A),(d1,d2,nr),order='F')
     if img is None:
@@ -408,8 +410,8 @@ def view_patches(Yr,A,C,b,f,d1,d2,YrA = None, secs=1):
     A2 = A.copy()
     A2.data **= 2
     nA2 = np.sqrt(np.array(A2.sum(axis=0))).squeeze()
-    A = A*spdiags(1/nA2,0,nr,nr)
-    C = spdiags(nA2,0,nr,nr)*C
+    #A = A*spdiags(1/nA2,0,nr,nr)
+    #C = spdiags(nA2,0,nr,nr)*C
     b = np.squeeze(b)
     f = np.squeeze(f)
     if YrA is None:
@@ -427,7 +429,7 @@ def view_patches(Yr,A,C,b,f,d1,d2,YrA = None, secs=1):
     for i in range(nr+1):
         if i < nr:
             ax1 = fig.add_subplot(2,1,1)
-            plt.imshow(np.reshape(np.array(A[:,i]),(d1,d2),order='F'),interpolation='None')
+            plt.imshow(np.reshape(np.array(A[:,i])/nA2[i],(d1,d2),order='F'),interpolation='None')
             ax1.set_title('Spatial component ' + str(i+1))    
             ax2 = fig.add_subplot(2,1,2)
             plt.plot(np.arange(T),np.squeeze(np.array(Y_r[i,:])),'c',linewidth=3) 
