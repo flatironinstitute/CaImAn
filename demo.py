@@ -11,8 +11,6 @@ mpl.use('TKAgg')
 from matplotlib import pyplot as plt
 #plt.ion()
 
-
-
 import sys
 import numpy as np
 import ca_source_extraction as cse
@@ -81,8 +79,9 @@ plt.figure()
 crd = cse.utilities.plot_contours(A,Cn,thr=0.9)
 #%% update_temporal_components
 t1 = time()
+options['temporal_params']['p'] = 0 # set this to zero for fast updating without deconvolution
 C,f,S,bl,c1,neurons_sn,g,YrA = cse.temporal.update_temporal_components(Yr,A,b,Cin,f_in,bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
-t_elTEMPORAL2 = time() - t1
+t_elTEMPORAL = time() - t1
 print t_elTEMPORAL 
 #%% merge components corresponding to the same neuron
 t1 = time()
@@ -96,6 +95,7 @@ crd = cse.plot_contours(A_m,Cn,thr=0.9)
 #%% refine spatial and temporal 
 t1 = time()
 A2,b2,C2 = cse.spatial.update_spatial_components(Yr, C_m, f, A_m, sn=sn, **options['spatial_params'])
+options['temporal_params']['p'] = p # set it back to original value to perform full deconvolution
 C2,f2,S2,bl2,c12,neurons_sn2,g21,YrA = cse.temporal.update_temporal_components(Yr,A2,b2,C2,f,bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
 print time() - t1
 #%%
