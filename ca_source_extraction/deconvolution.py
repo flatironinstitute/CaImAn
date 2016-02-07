@@ -75,33 +75,39 @@ def constrained_foopsi(fluor, bl = None,  c1 = None, g = None,  sn = None, p = N
     * Pnevmatikakis et al. 2016. Neuron, in press, http://dx.doi.org/10.1016/j.neuron.2015.11.037
     * Machado et al. 2015. Cell 162(2):338-350
     """
-
+    
     if p is None:
         raise Exception("You must specify the value of p")
         
     if g is None or sn is None:        
         g,sn = estimate_parameters(fluor, p=p, sn=sn, g = g, range_ff=noise_range, method=noise_method, lags=lags, fudge_factor=fudge_factor)
-    
-    if method == 'cvx':
-        c,bl,c1,g,sn,sp = cvxopt_foopsi(fluor, b = bl, c1 = c1, g=g, sn=sn, p=p, bas_nonneg = bas_nonneg, verbosity = verbosity)
-        
-    elif method == 'spgl1':
-#        try:        
- 
-        c,bl,c1,g,sn,sp = spgl1_foopsi(fluor, bl = bl, c1 = c1, g=g, sn=sn, p=p, bas_nonneg = bas_nonneg, verbosity = verbosity)
-#        except:
-#            print('SPGL1 produces an error. Using CVXOPT')
-#            c,b,c1,g,sn,sp = cvxopt_foopsi(fluor, b =b, c1 = c1, g=g, sn=sn, p=p, bas_nonneg = bas_nonneg, verbosity = verbosity)    
-    elif method == 'debug':
-      
-        c,bl,c1,g,sn,sp = spgl1_foopsi(fluor, bl =bl, c1 = c1, g=g, sn=sn, p=p, bas_nonneg = bas_nonneg, verbosity = verbosity,debug=True)
-    
-    elif method == 'cvxpy':
-
-        c,bl,c1,g,sn,sp = cvxpy_foopsi(fluor,  g, sn, b=bl, c1=c1, bas_nonneg=bas_nonneg, solvers=solvers)
-
+    if p == 0:       
+        c1 = 0
+        g = np.array(0)
+        bl = 0
+        c = np.maximum(fluor,0)
+        sp = c.copy()
     else:
-        raise Exception('Undefined Deconvolution Method')
+        if method == 'cvx':
+            c,bl,c1,g,sn,sp = cvxopt_foopsi(fluor, b = bl, c1 = c1, g=g, sn=sn, p=p, bas_nonneg = bas_nonneg, verbosity = verbosity)
+            
+        elif method == 'spgl1':
+    #        try:        
+     
+            c,bl,c1,g,sn,sp = spgl1_foopsi(fluor, bl = bl, c1 = c1, g=g, sn=sn, p=p, bas_nonneg = bas_nonneg, verbosity = verbosity)
+    #        except:
+    #            print('SPGL1 produces an error. Using CVXOPT')
+    #            c,b,c1,g,sn,sp = cvxopt_foopsi(fluor, b =b, c1 = c1, g=g, sn=sn, p=p, bas_nonneg = bas_nonneg, verbosity = verbosity)    
+        elif method == 'debug':
+          
+            c,bl,c1,g,sn,sp = spgl1_foopsi(fluor, bl =bl, c1 = c1, g=g, sn=sn, p=p, bas_nonneg = bas_nonneg, verbosity = verbosity,debug=True)
+        
+        elif method == 'cvxpy':
+    
+            c,bl,c1,g,sn,sp = cvxpy_foopsi(fluor,  g, sn, b=bl, c1=c1, bas_nonneg=bas_nonneg, solvers=solvers)
+    
+        else:
+            raise Exception('Undefined Deconvolution Method')
     
     return c,bl,c1,g,sn,sp
 
@@ -403,7 +409,10 @@ def estimate_parameters(fluor, p = 2, sn = None, g = None, range_ff = [0.25,0.5]
         sn = GetSn(fluor,range_ff,method)
         
     if g is None:
-        g = estimate_time_constant(fluor,p,sn,lags,fudge_factor)
+        if p == 0:
+            g = np.array(0)
+        else:
+            g = estimate_time_constant(fluor,p,sn,lags,fudge_factor)
 
     return g,sn
 
