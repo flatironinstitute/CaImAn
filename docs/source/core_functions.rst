@@ -9,11 +9,11 @@ Functions that are required to operate the package at a basic level
 
    initialization.initialize_components
 
-   spatial.update_spatial_components_parallel
+   spatial.update_spatial_components
 
-   temporal.update_temporal_components_parallel
+   temporal.update_temporal_components
 
-   merging.mergeROIS_parallel
+   merging.merge_components
 
    utilities.local_correlations
 
@@ -44,14 +44,14 @@ Spatial Components
 -------------------
 .. currentmodule:: spatial
 
-.. autofunction:: update_spatial_components_parallel
+.. autofunction:: update_spatial_components
 
 
 Temporal Components
 -------------------
 .. currentmodule:: temporal
 
-.. autofunction:: update_temporal_components_parallel
+.. autofunction:: update_temporal_components
 
 
 
@@ -59,7 +59,7 @@ Merge components
 ----------------
 .. currentmodule:: merging
 
-.. autofunction:: mergeROIS_parallel
+.. autofunction:: merge_components
 
 
 

@@ -5,7 +5,7 @@ cse_dir=os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(os.path.join(cse_dir,'CalBlitz'))
 import initialization, spatial, temporal, merging, utilities, pre_processing
 from initialization import initialize_components,greedyROI2d
-from spatial import update_spatial_components #update_spatial_components
+from spatial import update_spatial_components
 from temporal import update_temporal_components
 from merging import merge_components
 from pre_processing import preprocess_data
