@@ -13,13 +13,8 @@ Contents:
 
    Overview
    core_functions
-   API reference
+   
 	      
 
-Indices and tables
-==================
 
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
 

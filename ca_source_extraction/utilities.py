@@ -909,25 +909,25 @@ def nb_imshow(image,cmap='jet'):
     return p
 
 def nb_plot_contour(image,A,d1,d2,thr=0.995,face_color=None, line_color='black',alpha=0.4,line_width=2,**kwargs):  
-    '''
-    Interactive Equivalent of plot_contours for ipython notebook
+    '''Interactive Equivalent of plot_contours for ipython notebook
     
-     Parameters
-     -----------
-     A:   np.ndarray or sparse matrix
+    Parameters
+    -----------
+    A:   np.ndarray or sparse matrix
                Matrix of Spatial components (d x K)
-     Image:  np.ndarray (2D)
+    Image:  np.ndarray (2D)
                Background image (e.g. mean, correlation)
-     d1,d2: floats
+    d1,d2: floats
                dimensions os image
-     thr: scalar between 0 and 1
+    thr: scalar between 0 and 1
                Energy threshold for computing contours (default 0.995)
-     display_number:     Boolean
+    display_number:     Boolean
                Display number of ROIs if checked (default True)
-     max_number:    int
+    max_number:    int
                Display the number for only the first max_number components (default None, display all numbers)
-     cmap:     string
+    cmap:     string
                User specifies the colormap (default None, default colormap)
+               
     '''    
     p=nb_imshow(image,cmap='jet')   
     center = com(A,d1,d2)

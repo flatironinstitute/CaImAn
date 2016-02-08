@@ -2,9 +2,6 @@ Overview
 =========
 Python translation of Constrained Non-negative Matrix Factorization algorithm for source extraction from calcium imaging data. 
 
-[![Join the chat at https://gitter.im/agiovann/SOURCE_EXTRACTION_PYTHON](https://badges.gitter.im/agiovann/SOURCE_EXTRACTION_PYTHON.svg)](https://gitter.im/agiovann/SOURCE_EXTRACTION_PYTHON?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
-
-# Deconvolution and demixing of calcium imaging data
 
 The code implements a method for simultaneous source extraction and spike inference from large scale calcium imaging movies. The code is suitable for the analysis of somatic imaging data. Implementation for the analysis of dendritic/axonal imaging data will be added in the future. 
 
@@ -14,7 +11,8 @@ Pnevmatikakis, E.A., Soudry, D., Gao, Y., Machado, T., Merel, J., ... & Paninski
 
 Pnevmatikakis, E.A., Gao, Y., Soudry, D., Pfau, D., Lacefield, C., ... & Paninski, L. (2014). A structured matrix factorization framework for large scale calcium imaging data analysis. arXiv preprint arXiv:1409.2903. http://arxiv.org/abs/1409.2903
 
-# Contributors
+Contributors
+------------
 
 Andrea Giovannucci and 
 Eftychios Pnevmatikakis 
@@ -22,47 +20,7 @@ Eftychios Pnevmatikakis
 Center for Computational Biology, Simons Foundation, New York, NY
 
 
-Code description and related packages
---------------------------------------
 
-This repository contains a Python implementation of the spatio-temporal demixing, i.e., (source extraction) code for large scale calcium imaging data. Related code can be found in the following links:
-
-## Python
-- [Source extraction with CNMF (this package)](https://github.com/agiovann/SOURCE_EXTRACTION_PYTHON)
-- [Group LASSO initialization and spatial CNMF](https://github.com/danielso/ROI_detect)
-
-## Matlab 
-- [Constrained deconvolution and source extraction with CNMF](https://github.com/epnev/ca_source_extraction)
-- [MCMC spike inference](https://github.com/epnev/continuous_time_ca_sampler)
-- [Group LASSO initialization and spatial CNMF](https://github.com/danielso/ROI_detect)
-
-## Integration with other libraries
-- [SIMA](http://www.losonczylab.org/sima/1.3/): The [constrained deconvolution](https://github.com/losonczylab/sima/blob/master/sima/spikes.py) method has been integrated with SIMA, a Python based library for calcium imaging data analysis.
-- [Thunder](http://thunder-project.org/): The [group LASSO initialization and spatial CNMF](https://github.com/j-friedrich/thunder/tree/LocalNMF) method has been integrated with Thunder, a library for large scale neural data analysis with Spark.
-
-Dependencies
--------------
-The code uses the following libraries
-- [NumPy](http://www.numpy.org/)
-- [SciPy](http://www.scipy.org/)
-- [Matplotlib](http://matplotlib.org/)
-- [Scikit-Learn](http://scikit-learn.org/stable/)
-- [Tifffile](https://pypi.python.org/pypi/tifffile) For reading tiff files. Other choices can work there too.
-
-External Dependencies
-------------------------
-
-The constrained deconvolution method (constrained_foopsi_python.py) can estimate with two different methods, each of which requires some additional packages:
-
-1. 'spgl1': For this option, the [SPGL1](https://github.com/epnev/SPGL1_python_port) python implementation is required. Please use the "forked" repository linked here.
-
-2. 'cvx': For this option, the following packages are needed:
-
-  * [CVXOPT](http://cvxopt.org/) Required.
-  * [PICOS](http://picos.zib.de/) Required.
-  * [MOSEK](https://www.mosek.com/) Optional but strongly recommended for speed improvement, free for academic use.
-
-In general 'spgl1' can be faster, but the python implementation is not as fast as in Matlab and not thoroughly tested.
 
 Questions, comments, issues
 -----------------------------

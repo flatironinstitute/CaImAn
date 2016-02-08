@@ -19,11 +19,11 @@ Functions that are required to operate the package at a basic level
 
    utilities.plot_contours
 
-   utilities.view_patches
+   utilities.view_patches_bar
 
    utilities.order_components
 
-   utilities.extract_DF_F
+   utilities.manually_refine_components
 
 
 Preprocessing
@@ -69,6 +69,13 @@ Utilities
 
 .. autofunction:: local_correlations
 .. autofunction:: plot_contours
+.. autofunction:: view_patches_bar
 .. autofunction:: view_patches
-.. autofunction:: order_components
+.. autofunction:: manually_refine_components
+.. autofunction:: nb_view_patches
+.. autofunction:: nb_imshow
+.. autofunction:: nb_plot_contour
+.. autofunction:: start_server
+.. autofunction:: stop_server
+.. autofunction:: order_components		  
 .. autofunction:: extract_DF_F
