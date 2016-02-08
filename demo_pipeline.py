@@ -29,10 +29,13 @@ import calblitz as cb
 #%% load and motion correct
 preprocess=1
 if preprocess:
-    Yr=cb.load('k37_20160110_RSM_150um_65mW_zoom2p2_00001_00004.tif',fr=30)
+    Yr=cb.load('movies/demo_mc.tif',fr=30)
     t1 = time()
-    Yr,shifts,xcorrs,template=Yr.motion_correct(max_shift_w=10, max_shift_h=10, num_frames_template=500, template=None, method='opencv')    
-    Yr.save('k37_20160110_RSM_150um_65mW_zoom2p2_00001_00004.hdf5')    
+    Yr,shifts,xcorrs,template=Yr.motion_correct(max_shift_w=10, max_shift_h=10, num_frames_template=1000, template=None, method='opencv') 
+    max_h,max_w= np.max(shifts,axis=0)
+    min_h,min_w= np.min(shifts,axis=0)
+    Yr=Yr.crop(crop_top=max_h,crop_bottom=-min_h+1,crop_left=max_w,crop_right=-min_w,crop_begin=0,crop_end=0)
+    Yr.save('demo_mc.hdf5')    
     Yr=Yr-np.percentile(Yr,1)     # needed to remove 
     Yr = np.transpose(Yr,(1,2,0)) 
     d1,d2,T=Yr.shape
@@ -40,10 +43,13 @@ if preprocess:
     np.save('Yr',np.asarray(Yr))
     print time() - t1
 
-_,d1,d2=np.shape(cb.load('k37_20160110_RSM_150um_65mW_zoom2p2_00001_00004.hdf5',subindices=range(3)))
+_,d1,d2=np.shape(cb.load('demo_mc.hdf5',subindices=range(3)))
 Yr=np.load('Yr.npy',mmap_mode='r')  
 d,T=Yr.shape      
 Y=np.reshape(Yr,(d1,d2,T),order='F')
+#%% play movie
+
+
 #%%compute local correlation
 Cn = cse.utilities.local_correlations(Y)
 #%%
@@ -55,7 +61,7 @@ sys.stdout.flush()
 cse.utilities.stop_server()
 
 #%%
-options = cse.utilities.CNMFSetParms(Y,p=p,gSig=[7,7],K=300,ssub=2)
+options = cse.utilities.CNMFSetParms(Y,p=p,gSig=[7,7],K=10,ssub=2)
 cse.utilities.start_server(options['spatial_params']['n_processes'])
 
 #%% PREPROCESS DATA AND INITIALIZE COMPONENTS
@@ -121,7 +127,7 @@ crd = cse.utilities.plot_contours(A_or,Cn,thr=0.9)
 pl.close()
 cse.utilities.stop_server()
 #%% save results
-np.savez('results_analysis_004.npz',A=A.todense(),b=b,Cin=Cin,f_in=f_in, Ain=Ain, sn=sn,C=C,bl=bl,f=f,c1=c1,S=S, neurons_sn=neurons_sn, g=g,A2=A2.todense(),C2=C2,b2=b2,S2=S2,f2=f2,bl2=bl2,c12=c12, neurons_sn2=neurons_sn2, g21=g21,YrA=YrA,d1=d1,d2=d2)
+np.savez('results_analysis.npz',A=A.todense(),b=b,Cin=Cin,f_in=f_in, Ain=Ain, sn=sn,C=C,bl=bl,f=f,c1=c1,S=S, neurons_sn=neurons_sn, g=g,A2=A2.todense(),C2=C2,b2=b2,S2=S2,f2=f2,bl2=bl2,c12=c12, neurons_sn2=neurons_sn2, g21=g21,YrA=YrA,d1=d1,d2=d2)
 #%% reload and show analysis results
 import sys
 import numpy as np
@@ -131,13 +137,13 @@ import pylab as pl
 import calblitz as cb
 
 
-_,d1,d2=np.shape(cb.load('k37_20160110_RSM_150um_65mW_zoom2p2_00001_00004.hdf5',subindices=range(3)))
+
+with np.load('results_analysis.npz')  as ld:
+      locals().update(ld)
+
 Yr=np.load('Yr.npy',mmap_mode='r')  
 d,T=Yr.shape      
 Y=np.reshape(Yr,(d1,d2,T),order='F')
-
-with np.load('results_analysis_004.npz')  as ld:
-      locals().update(ld)
 
 A2=coo_matrix(A2)      
 A_or, C_or, srt = cse.utilities.order_components(A2,C2)
