@@ -26,7 +26,7 @@ from time import time
 import pylab as pl
 import psutil
 import calblitz as cb
-#%% load and motion correct
+#%% load and motion correct movie
 preprocess=1
 if preprocess:
     Yr=cb.load('movies/demo_mc.tif',fr=30)
