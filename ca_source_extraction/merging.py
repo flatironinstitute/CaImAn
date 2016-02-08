@@ -110,7 +110,8 @@ sn: float
             MC.append((l==i).T)
     MC=np.asarray(MC).T
     
-    if MC.ndim>0:
+    if MC.ndim>1:
+
         cor = np.zeros((np.shape(MC)[1],1));
         
             

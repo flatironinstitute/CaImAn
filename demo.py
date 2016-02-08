@@ -1,7 +1,7 @@
 #%%
 try:
-    %load_ext autoreload
-    %autoreload 2
+#    %load_ext autoreload
+#    %autoreload 2
     print 1
 except:
     print 'NOT IPYTHON'
@@ -55,7 +55,7 @@ Cn = cse.utilities.local_correlations(Y)
 options = cse.utilities.CNMFSetParms(Y,p=p,gSig=[4,4],K=30)
 cse.utilities.start_server(options['spatial_params']['n_processes'])
 
-    #%% PREPROCESS DATA AND INITIALIZE COMPONENTS
+#%% PREPROCESS DATA AND INITIALIZE COMPONENTS
 t1 = time()
 Yr,sn,g=cse.pre_processing.preprocess_data(Yr,**options['preprocess_params'])
 Atmp, Ctmp, b_in, f_in, center=cse.initialization.initialize_components(Y, **options['init_params'])                                                    
@@ -71,6 +71,7 @@ else:
 crd = cse.utilities.plot_contours(coo_matrix(Ain),Cn,thr=0.9)  
 pl.show()
 #%% UPDATE SPATIAL COMPONENTS
+pl.close()
 t1 = time()
 A,b,Cin = cse.spatial.update_spatial_components(Yr, Cin, f_in, Ain, sn=sn, **options['spatial_params'])
 t_elSPATIAL = time() - t1
@@ -78,6 +79,7 @@ print t_elSPATIAL
 plt.figure()
 crd = cse.utilities.plot_contours(A,Cn,thr=0.9)
 #%% update_temporal_components
+pl.close()
 t1 = time()
 options['temporal_params']['p'] = 0 # set this to zero for fast updating without deconvolution
 C,f,S,bl,c1,neurons_sn,g,YrA = cse.temporal.update_temporal_components(Yr,A,b,Cin,f_in,bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
@@ -93,6 +95,7 @@ print t_elMERGE
 plt.figure()
 crd = cse.plot_contours(A_m,Cn,thr=0.9)
 #%% refine spatial and temporal 
+pl.close()
 t1 = time()
 A2,b2,C2 = cse.spatial.update_spatial_components(Yr, C_m, f, A_m, sn=sn, **options['spatial_params'])
 options['temporal_params']['p'] = p # set it back to original value to perform full deconvolution
@@ -102,10 +105,14 @@ print time() - t1
 A_or, C_or, srt = cse.utilities.order_components(A2,C2)
 #cse.utilities.view_patches(Yr,coo_matrix(A_or),C_or,b2,f2,d1,d2,YrA = YrA[srt,:], secs=1)
 cse.utilities.view_patches_bar(Yr,coo_matrix(A_or),C_or,b2,f2, d1,d2, YrA=YrA[srt,:], secs=0)  
-  
+#plt.show(block=True) 
+plt.show()  
+ 
 #%%
+
 plt.figure()
 crd = cse.utilities.plot_contours(A_or,Cn,thr=0.9)
-plt.show(block=True)
+
 #%% STOP CLUSTER
+pl.close()
 cse.utilities.stop_server()
