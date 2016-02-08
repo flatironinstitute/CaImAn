@@ -46,9 +46,9 @@ Installation
 Installation on MAC OS
 ----------------------
 
-1. Download and install Anaconda (Python 2.7) <http://docs.continuum.io/anaconda/install> 
+Download and install Anaconda (Python 2.7) <http://docs.continuum.io/anaconda/install> 
 
-2. EASY WAY. type:
+1. EASY WAY. type:
     ```
     conda create -n CNMF  ipython
     source activate CNMF
@@ -56,9 +56,15 @@ Installation on MAC OS
     pip install 'tifffile>=0.7'
     pip install picos
     pip install cvxpy
+    pip install cvxpy
+    (
+    if you get errors compiling scs when installing cvxpy you probably need to create a link to openblas or libgfortran in 
+    /usr/local/lib/, for instance:
+    sudo ln -s  /Library/Frameworks/R.framework/Libraries/libgfortran.3.dylib  /usr/local/lib/libgfortran.2.dylib
+    )
     ```
 
-3. ADVANCED WAY (with access to source code).
+2. ADVANCED WAY (with access to source code).
     ```
     git clone --recursive https://github.com/agiovann/Constrained_NMF.git
     conda create -n CNMF ipython
@@ -66,15 +72,12 @@ Installation on MAC OS
     conda install spyder numpy scipy ipyparallel matplotlib bokeh jupyter scikit-image scikit-learn joblib cvxopt      
     pip install 'tifffile>=0.7'
     pip install picos
-    
+    pip install cvxpy
     (
     if you get errors compiling scs when installing cvxpy you probably need to create a link to openblas or libgfortran in 
     /usr/local/lib/, for instance:
     sudo ln -s  /Library/Frameworks/R.framework/Libraries/libgfortran.3.dylib  /usr/local/lib/libgfortran.2.dylib
     )
-    
-    pip install cvxpy
-    
     ```
     This second option will not allow to import the package from every folder but only from within the Constrained_NMF folder. You can access it globally by setting the environment variable PYTHONPATH
     ```
@@ -83,13 +86,13 @@ Installation on MAC OS
 
 Test the system
 ----------------------
-In case you used installation af point 2 above you will need to download the test files from
+In case you used installation af point 1 above you will need to download the test files from
 <https://github.com/agiovann/Constrained_NMF/releases/download/0.1-beta/Demo.zip>
 
 
 A. Using the Spyder (type `conda install spyder`) IDE. 
     
-    1. Unzip the file Demo.zip (you do not need this step if you installed dusing method 3 above, just enter the Constrained_NMF folder and you will find all the required files there).
+    1. Unzip the file Demo.zip (you do not need this step if you installed dusing method 2 above, just enter the Constrained_NMF folder and you will find all the required files there).
     2. Open the file demo.py with spyder
     3. Change the current folder of the console to the 'Demo' folder
     3. Run the cells one by one inspecting the output
@@ -117,7 +120,7 @@ The code uses the following libraries
 - [Matplotlib](http://matplotlib.org/)
 - [Scikit-Learn](http://scikit-learn.org/stable/)
 - [Tifffile](https://pypi.python.org/pypi/tifffile) For reading tiff files. Other choices can work there too.
-- [Joblib](https://pypi.python.org/pypi/joblib) for parallel processing
+- [cvxpy](http://www.cvxpy.org/) for solving optimization problems
 - [ipyparallel](http://ipyparallel.readthedocs.org/en/latest/) for parallel processing
 
 External Dependencies
