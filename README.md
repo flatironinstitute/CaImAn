@@ -56,7 +56,6 @@ Download and install Anaconda (Python 2.7) <http://docs.continuum.io/anaconda/in
     pip install 'tifffile>=0.7'
     pip install picos
     pip install cvxpy
-    pip install cvxpy
     (
     if you get errors compiling scs when installing cvxpy you probably need to create a link to openblas or libgfortran in 
     /usr/local/lib/, for instance:
@@ -89,8 +88,9 @@ Test the system
 In case you used installation af point 1 above you will need to download the test files from
 <https://github.com/agiovann/Constrained_NMF/releases/download/0.1-beta/Demo.zip>
 
+A. Go into the cloned folder, type `python demo.py`
 
-A. Using the Spyder (type `conda install spyder`) IDE. 
+B. Using the Spyder (type `conda install spyder`) IDE. 
     
     1. Unzip the file Demo.zip (you do not need this step if you installed dusing method 2 above, just enter the Constrained_NMF folder and you will find all the required files there).
     2. Open the file demo.py with spyder
@@ -99,7 +99,7 @@ A. Using the Spyder (type `conda install spyder`) IDE.
     4. Remember to stop the cluster (last three lines of file). You can also stop it manually by typing in a terminal 
     'ipcluster stop'
 
-B. Using notebook. 
+C. Using notebook. 
     
     1. Unzip the file Demo.zip (you do not need this step if you installed dusing method 3 above, just enter the Constrained_NMF folder and you will find all the required files there).
     2. type `ipython notebook`
