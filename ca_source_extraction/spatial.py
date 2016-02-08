@@ -157,42 +157,6 @@ def update_spatial_components(Y,C,f,A_in,sn=None, d1=None,d2=None,min_size=3,max
 
     folder = tempfile.mkdtemp()
     
-#    if backend == 'multiprocessing' or backend == 'threading':
-#
-#        A_name = os.path.join(folder, 'A_temp')  
-#                      
-#        # Pre-allocate a writeable shared memory map as a container for the
-#        # results of the parallel computation     
-#        print "Create Matrix for dumping data from matrix A and C for parallel computation...."              
-#        A_ = np.memmap(A_name, dtype=A_in.dtype,shape=(d,nr+np.size(f,0)), mode='w+') 
-#
-#        pixels_name = os.path.join(folder, 'pixels')
-#
-#        C_name = os.path.join(folder, 'C_temp')          
-#        
-#        # Dump the input data to disk to free the memory
-#        dump(Y, pixels_name)
-#        dump(Cf, C_name)        
-#        
-#        # use mempry mapped versions of C and Y
-#        Y = load(pixels_name, mmap_mode='r')
-#        Cf = load(C_name, mmap_mode='r')
-#        
-#        pixel_groups=[range(i,i+n_pixels_per_process) for i in range(0,Y.shape[0]-n_pixels_per_process+1,n_pixels_per_process)]
-#        
-#        # Fork the worker processes to perform computation concurrently    
-#        print "start parallel pool..."
-#        sys.stdout.flush()
-#        Parallel(n_jobs=n_processes, backend=backend,verbose=100,max_nbytes=None)(delayed(lars_regression_noise_parallel)(Y,Cf,A_,sn,i,ind2_)
-#                            for i in pixel_groups) 
-#                        
-#            
-#        # if n_pixels_per_process is not a multiple of Y.shape[0] run on remaining pixels   
-#        pixels_remaining= Y.shape[0] %  n_pixels_per_process          
-#        if pixels_remaining>0:             
-#            print "Running deconvolution for remaining pixels:" + str(pixels_remaining)
-#            lars_regression_noise_parallel(Y,Cf,A_,sn,range(Y.shape[0]-pixels_remaining,Y.shape[0]),ind2_,positive=1)        
-#        A_=np.array(A_)
        
     if backend == 'ipyparallel': # use the ipyparallel package, you need to start a cluster server (ipcluster command) in order to use it
               
@@ -272,19 +236,6 @@ def update_spatial_components(Y,C,f,A_in,sn=None, d1=None,d2=None,min_size=3,max
     A_ = A_[:,:nr]                
     A_=coo_matrix(A_)
 
-#    if memory_efficient:
-#        print "Using memory efficient computation (slow but memory preserving)"
-#        A__=coo_matrix(A_,dtype=np.float32)
-#        C__=coo_matrix(C[:nr,:],dtype=np.float32)
-#        Y_res_name = os.path.join(folder, 'Y_res_temp.npy')
-#        Y_res = np.memmap(Y_res_name, dtype=np.float32, mode='w+', shape=Y.shape)
-#        Y_res = np.memmap(Y_res_name, dtype=np.float32, mode='r+', shape=Y.shape)
-#        print "computing residuals"        
-#        Y_res[:] = -A__.dot(C__).todense()[:]
-#        Y_res[:]+=Y
-#    else:   
-#        print "Using memory trade-off computation (good use of memory if input is memmaped)"         
-#        Y_res = Y - A_.dot(coo_matrix(C[:nr,:]))
 
     Y_resf = np.dot(Y,f.T) - A_.dot(coo_matrix(C[:nr,:]).dot(f.T))
     print "Computing A_bas"         
@@ -307,6 +258,8 @@ def update_spatial_components(Y,C,f,A_in,sn=None, d1=None,d2=None,min_size=3,max
 
 #%%lars_regression_noise_ipyparallel
 def lars_regression_noise_ipyparallel(pars): 
+    
+    # need to import since it is run from within the server    
     import numpy as np
     import os
     import sys
@@ -340,33 +293,36 @@ def lars_regression_noise_ipyparallel(pars):
     del C
     gc.collect()
     
-    return As#As
+    return As
 
 #%% lars_regression_noise_parallel
-def lars_regression_noise_parallel(Y,C,A,noise_sn,idx_Y,idx_C,positive=1):     
-    _,T=np.shape(C)    
-    newY=np.array(Y[idx_Y,:])
-    newC=np.array(C)
-    for px in idx_Y:
-        #
-        c=newC[idx_C[px],:]
-        
-        if np.size(c)>0: 
-            y=newY[px-idx_Y[0],:]
-            sn=noise_sn[px]**2*T  
-           # print y.shape,sn,c.shape            
-            _, _, a, _ , _= lars_regression_noise(y, c.T, positive, sn)
-            if np.isscalar(a):
-                A[px,idx_C[px]]=a
-            else:
-                A[px,idx_C[px]]=a.T
+#def lars_regression_noise_parallel(Y,C,A,noise_sn,idx_Y,idx_C,positive=1):  
+#    
+#    _,T=np.shape(C)    
+#    newY=np.array(Y[idx_Y,:])
+#    newC=np.array(C)
+#    for px in idx_Y:
+#        #
+#        c=newC[idx_C[px],:]
+#        
+#        if np.size(c)>0: 
+#            y=newY[px-idx_Y[0],:]
+#            sn=noise_sn[px]**2*T  
+#           # print y.shape,sn,c.shape            
+#            _, _, a, _ , _= lars_regression_noise(y, c.T, positive, sn)
+#            if np.isscalar(a):
+#                A[px,idx_C[px]]=a
+#            else:
+#                A[px,idx_C[px]]=a.T
                 
 
-    
-          
 #%% determine_search_location
 def determine_search_location(A, d1, d2, method = 'ellipse', min_size = 3, max_size = 8, dist = 3, expandCore = iterate_structure(generate_binary_structure(2,1), 2).astype(int)):
-
+    """
+    restrict search location to subset of pixels
+     
+    TODO
+    """
     from scipy.ndimage.morphology import grey_dilation 
     from scipy.sparse import coo_matrix, issparse
 
@@ -414,7 +370,9 @@ def determine_search_location(A, d1, d2, method = 'ellipse', min_size = 3, max_s
     
 #%% threshold_components
 def threshold_components(A, d1, d2, medw = (3,3), thr = 0.9999, se = np.ones((3,3),dtype=np.int), ss = np.ones((3,3),dtype=np.int)):
-        
+    '''
+    TODO
+    '''    
     from scipy.ndimage.filters import median_filter
     from scipy.ndimage.morphology import binary_closing    
     from scipy.ndimage.measurements import label    
@@ -454,7 +412,7 @@ def threshold_components(A, d1, d2, medw = (3,3), thr = 0.9999, se = np.ones((3,
     return Ath
         
 #%% lars_regression_noise
-def lars_regression_noise(Yp, X, positive, noise,verbose=False):
+def lars_regression_noise(Yp, X, positive, noise, verbose=False):
     
     """
      Run LARS for regression problems with LASSO penalty, with optional positivity constraints

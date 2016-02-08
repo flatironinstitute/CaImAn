@@ -173,13 +173,16 @@ def order_components(A,C):
           spatial components
      C:   matrix or np.ndarray (K x T)
           temporal components
-          
+     
+     Returns
+     -------     
      A_or:  np.ndarray   
          ordered spatial components
      C_or:  np.ndarray  
          ordered temporal components
      srt:   np.ndarray  
          sorting mapping
+         
      """
      A = np.array(A.todense())
      nA2 = np.sqrt(np.sum(A**2,axis=0))
@@ -258,11 +261,11 @@ def com(A,d1,d2):
     
     
 def view_patches_bar(Yr,A,C,b,f,d1,d2,YrA = None, secs=1,img=None):
-    """view spatial and temporal components (secs=0 interactive)
+    """view spatial and temporal components interactively
      
      Parameters
      -----------
-     Yr:        np.ndarray 
+     Yr:    np.ndarray 
             movie in format pixels (d) x frames (T)
      A:     sparse matrix
                 matrix of spatial components (d x K)
@@ -278,8 +281,7 @@ def view_patches_bar(Yr,A,C,b,f,d1,d2,YrA = None, secs=1,img=None):
      YrA:   np.ndarray
                  ROI filtered residual as it is given from update_temporal_components
                  If not given, then it is computed (K x T)
-     secs:  float
-                number of seconds in between component scrolling. secs=0 means interactive (click to scroll)
+     
      img:   np.ndarray
                 background image for contour plotting. Default is the image of all spatial components (d1 x d2)
              
@@ -550,10 +552,14 @@ def plot_contours(A,Cn,thr = 0.9, display_numbers = True, max_number = None,cmap
    
     
 def manually_refine_components(Y,(dx,dy),A,C,Cn,thr = 0.9, display_numbers = True, max_number = None,cmap=None, **kwargs):
-    """Plots contour of spatial components against a background image and returns their coordinates
+    """Plots contour of spatial components against a background image and allows to interactively add novel components by clicking with mouse
      
      Parameters
      -----------
+     Y: ndarray
+               movie in 2D
+     (dx,dy): tuple
+               dimensions of the square used to identify neurons (should be set to the galue of gsiz)
      A:   np.ndarray or sparse matrix
                Matrix of Spatial components (d x K)
      Cn:  np.ndarray (2D)
@@ -571,7 +577,11 @@ def manually_refine_components(Y,(dx,dy),A,C,Cn,thr = 0.9, display_numbers = Tru
      
      Returns
      --------
-     Coor: list of coordinates with center of mass, contour plot coordinates and bounding box for each component
+     A: np.ndarray
+         matrix A os estimated  spatial component contributions
+     C: np.ndarray
+         array of estimated calcium traces
+     
     """
     from  scipy.sparse import issparse
     if issparse(A):
@@ -617,27 +627,7 @@ def manually_refine_components(Y,(dx,dy),A,C,Cn,thr = 0.9, display_numbers = Tru
     for i in range(np.minimum(nr,max_number)):
         plt.contour(y,x,Bmat[i],[thr])
         
-#    def on_pick(event):
-#            artist = event.artist
-#            xmouse, ymouse = event.mouseevent.xdata, event.mouseevent.ydata
-#            x, y = artist.get_xdata(), artist.get_ydata()
-#            ind = event.ind
-#            print 'Artist picked:', event.artist
-#            print '{} vertices picked'.format(len(ind))
-#            print 'Pick between vertices {} and {}'.format(min(ind), max(ind)+1)
-#            print 'x, y of mouse: {:.2f},{:.2f}'.format(xmouse, ymouse)
-#            print 'Data point:', x[ind[0]], y[ind[0]]
-#            print
-#        
-#    fig, ax = plt.subplots()
-#    
-#    tolerance = 10 # points
-#    ax.plot(range(10), 'ro-', picker=tolerance)
-#    
-#    fig.canvas.callbacks.connect('pick_event', on_pick)    
-#    plt.show()   
-    
-#    model = NMF(n_components=1, init='random', random_state=0)
+
     if display_numbers:
         for i in range(np.minimum(nr,max_number)):            
             ax.text(cm[i,1],cm[i,0],str(i+1))
@@ -701,14 +691,17 @@ def update_order(A):
     '''Determines the update order of the temporal components given the spatial 
     components by creating a nest of random approximate vertex covers
      Input:
+     -------
      A:    np.ndarray
           matrix of spatial components (d x K)
      
      Outputs:
+     ---------
      O:   list of sets
           list of subsets of components. The components of each subset can be updated in parallel
      lo:  list
           length of each subset
+          
     Written by Eftychios A. Pnevmatikakis, Simons Foundation, 2015
     '''    
     K = np.shape(A)[-1]
@@ -734,15 +727,17 @@ def update_order(A):
     return O[::-1],lo[::-1]
    
 def app_vertex_cover(A):
-    ''' Finds an approximate vertex cover for a symmetric graph with adjacency 
-    matrix A.
-     Input:
+    ''' Finds an approximate vertex cover for a symmetric graph with adjacency matrix A.
+     
+     Parameters
+     -----------
      A:    boolean 2d array (K x K)
           Adjacency matrix. A is boolean with diagonal set to 0
      
-     Output:
+     Returns
+     --------
      L:   A vertex cover of A
-    Written by Eftychios A. Pnevmatikakis, Simons Foundation, 2015
+     Written by Eftychios A. Pnevmatikakis, Simons Foundation, 2015
     '''
     
     L = []
@@ -771,7 +766,8 @@ def save_mat_in_chuncks(Yr,num_chunks,shape,mat_name='mat',axis=0):
     axis: int
         axis along which to slice the matrix   
     
-    Returns:
+    Returns
+    ---------
     name of the saved file
             
     """
@@ -794,12 +790,33 @@ def save_mat_in_chuncks(Yr,num_chunks,shape,mat_name='mat',axis=0):
     return {'names':names,'idxs':idxs,'axis':axis,'shape':shape}   
 
 def db_plot(*args,**kwargs):
+    # plot utility for debugging
     plt.plot(*args,**kwargs)
     plt.show()
     pause(1)
     
 def nb_view_patches(Yr,A,C,b,f,d1,d2,image_neurons=None,thr = 0.99):
+    '''
+    Interactive plotting utility for ipython notbook
     
+    Parameters
+    -----------
+    Yr: np.ndarray
+        movie
+    A,C,b,f: np.ndarrays
+        outputs of matrix factorization algorithm
+    
+    d1,d2: floats
+        dimensions of movie (x and y)
+    
+    image_neurons: np.ndarray
+        image to be overlaid to neurons (for instance the average)
+    
+    thr: double
+        threshold regulating the extent of the displayed patches
+    
+    
+    '''
     colormap =cm.get_cmap("jet") #choose any matplotlib colormap here
     grayp = [mpl.colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
     nr,T = C.shape
@@ -876,7 +893,10 @@ def nb_view_patches(Yr,A,C,b,f,d1,d2,image_neurons=None,thr = 0.99):
     
     return Y_r
 
-def nb_imshow(image,cmap='jet'):    
+def nb_imshow(image,cmap='jet'): 
+    '''
+    Interactive equivalent of imshow for ipython notebook
+    '''
     colormap =cm.get_cmap(cmap) #choose any matplotlib colormap here
     grayp = [mpl.colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
     xr = Range1d(start=0,end=image.shape[1])
@@ -888,7 +908,27 @@ def nb_imshow(image,cmap='jet'):
 
     return p
 
-def nb_plot_contour(image,A,d1,d2,thr=0.995,face_color=None, line_color='black',alpha=0.4,line_width=2,**kwargs):      
+def nb_plot_contour(image,A,d1,d2,thr=0.995,face_color=None, line_color='black',alpha=0.4,line_width=2,**kwargs):  
+    '''
+    Interactive Equivalent of plot_contours for ipython notebook
+    
+     Parameters
+     -----------
+     A:   np.ndarray or sparse matrix
+               Matrix of Spatial components (d x K)
+     Image:  np.ndarray (2D)
+               Background image (e.g. mean, correlation)
+     d1,d2: floats
+               dimensions os image
+     thr: scalar between 0 and 1
+               Energy threshold for computing contours (default 0.995)
+     display_number:     Boolean
+               Display number of ROIs if checked (default True)
+     max_number:    int
+               Display the number for only the first max_number components (default None, display all numbers)
+     cmap:     string
+               User specifies the colormap (default None, default colormap)
+    '''    
     p=nb_imshow(image,cmap='jet')   
     center = com(A,d1,d2)
     p.circle(center[:,1],center[:,0], size=10, color="black", fill_color=None, line_width=2, alpha=1)
@@ -903,7 +943,15 @@ def nb_plot_contour(image,A,d1,d2,thr=0.995,face_color=None, line_color='black',
 
 
 def start_server(ncpus):
-
+    '''
+    programmatically start the ipyparallel server
+    
+    Parameters
+    ----------
+    ncpus: int
+        number of processors
+    
+    '''
     sys.stdout.write("Starting cluster...")
     sys.stdout.flush()
 
@@ -926,7 +974,9 @@ def start_server(ncpus):
 
 
 def stop_server():
-
+    '''
+    programmatically stops the ipyparallel server
+    '''
     sys.stdout.write("Stopping cluster...\n")
     sys.stdout.flush()
     

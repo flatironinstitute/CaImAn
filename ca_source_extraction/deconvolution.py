@@ -303,8 +303,33 @@ def cvxopt_foopsi(fluor, b, c1, g, sn, p, bas_nonneg, verbosity):
     return c,b,c1,g,sn,sp
 
 def cvxpy_foopsi(fluor,  g, sn, b=None, c1=None, bas_nonneg=True,solvers=None):
-    '''Solves the deconvolution problem using the cvxpy package and the ECOS library. 
-    
+    '''Solves the deconvolution problem using the cvxpy package and the ECOS/SCS library. 
+    Parameters:
+    -----------
+    fluor: ndarray
+        fluorescence trace 
+    g: list of doubles
+        parameters of the autoregressive model, cardinality equivalent to p        
+    sn: double
+        estimated noise level
+    b: double
+        baseline level. If None it is estimated. 
+    c1: double
+        initial value of calcium. If None it is estimated.  
+    bas_nonneg: boolean
+        should the baseline be estimated        
+    solvers: tuple of two strings
+        primary and secondary solvers to be used. Can be choosen between ECOS, SCS, CVXOPT    
+
+    Returns:
+    --------
+    c: estimated calcium trace
+    b: estimated baseline
+    c1: esimtated initial calcium value
+    g: esitmated parameters of the autoregressive model
+    sn: estimated noise level
+    sp: estimated spikes 
+        
     '''
     try:
         import cvxpy as cvx
@@ -403,6 +428,18 @@ def cvxpy_foopsi(fluor,  g, sn, b=None, c1=None, bas_nonneg=True,solvers=None):
 def estimate_parameters(fluor, p = 2, sn = None, g = None, range_ff = [0.25,0.5], method = 'logmexp', lags = 5, fudge_factor = 1):
     """
     Estimate noise standard deviation and AR coefficients if they are not present
+    p: positive integer
+        order of AR system  
+    sn: float
+        noise standard deviation, estimated if not provided.
+    lags: positive integer
+        number of additional lags where he autocovariance is computed
+    range_ff : (1,2) array, nonnegative, max value <= 0.5
+        range of frequency (x Nyquist rate) over which the spectrum is averaged  
+    method: string
+        method of averaging: Mean, median, exponentiated mean of logvalues (default)
+    fudge_factor: float (0< fudge_factor <= 1)
+        shrinkage factor to reduce bias
     """
     
     if sn is None:

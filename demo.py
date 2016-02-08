@@ -104,7 +104,7 @@ print time() - t1
 #%%
 A_or, C_or, srt = cse.utilities.order_components(A2,C2)
 #cse.utilities.view_patches(Yr,coo_matrix(A_or),C_or,b2,f2,d1,d2,YrA = YrA[srt,:], secs=1)
-cse.utilities.view_patches_bar(Yr,coo_matrix(A_or),C_or,b2,f2, d1,d2, YrA=YrA[srt,:], secs=0)  
+cse.utilities.view_patches_bar(Yr,coo_matrix(A_or),C_or,b2,f2, d1,d2, YrA=YrA[srt,:])  
 #plt.show(block=True) 
 plt.show()  
  
