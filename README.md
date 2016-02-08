@@ -86,7 +86,7 @@ Download and install Anaconda (Python 2.7) <http://docs.continuum.io/anaconda/in
 Test the system
 ----------------------
 In case you used installation af point 1 above you will need to download the test files from
-<https://github.com/agiovann/Constrained_NMF/releases/download/0.1-beta/Demo.zip>
+<https://github.com/agiovann/Constrained_NMF/releases/download/v0.3/Demo.zip>
 
 A. Go into the cloned folder, type `python demo.py`
 
