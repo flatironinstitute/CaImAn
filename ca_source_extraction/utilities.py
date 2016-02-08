@@ -832,7 +832,7 @@ def nb_view_patches(Yr,A,C,b,f,d1,d2,image_neurons=None,thr = 0.99):
     z=np.squeeze(np.array(Y_r[:,:].T))/100
     k=np.reshape(np.array(A),(d1,d2,A.shape[1]),order='F')
     if image_neurons is None:    
-        image_neurons=np.sum(k,axis=2)  
+        image_neurons=np.nanmean(k,axis=2)  
     
     fig = plt.figure()
     coors = plot_contours(coo_matrix(A),image_neurons,thr = thr)
@@ -884,7 +884,7 @@ def nb_view_patches(Yr,A,C,b,f,d1,d2,image_neurons=None,thr = 0.99):
     yr = Range1d(start=image_neurons.shape[0],end=0)
     plot1 = bpl.figure(x_range=xr, y_range=yr,plot_width=300, plot_height=300)
     plot1.image(image=[image_neurons[::-1,:]], x=0, y=image_neurons.shape[0], dw=d2, dh=d1, palette=grayp)
-    plot1.patch('c1','c2',alpha=0.6, color='red',line_width=2,source=source2)
+    plot1.patch('c1','c2',alpha=0.6, color='purple',line_width=2,source=source2)
         
     
     layout = vform(slider, hplot(plot1,plot))
