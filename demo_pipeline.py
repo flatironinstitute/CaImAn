@@ -30,13 +30,13 @@ import calblitz as cb
 preprocess=1
 if preprocess:
     Yr=cb.load('movies/demo_mc.tif',fr=30)
+    Yr=Yr-np.min(Yr)     # needed to remove 
     t1 = time()
-    Yr,shifts,xcorrs,template=Yr.motion_correct(max_shift_w=10, max_shift_h=10, num_frames_template=1000, template=None, method='opencv') 
+    Yr,shifts,xcorrs,template=Yr.motion_correct(max_shift_w=10, max_shift_h=10,  method='opencv') 
     max_h,max_w= np.max(shifts,axis=0)
     min_h,min_w= np.min(shifts,axis=0)
     Yr=Yr.crop(crop_top=max_h,crop_bottom=-min_h+1,crop_left=max_w,crop_right=-min_w,crop_begin=0,crop_end=0)
-    Yr.save('demo_mc.hdf5')    
-    Yr=Yr-np.percentile(Yr,1)     # needed to remove 
+    Yr.save('demo_mc.hdf5')        
     Yr = np.transpose(Yr,(1,2,0)) 
     d1,d2,T=Yr.shape
     Yr=np.reshape(Yr,(d1*d2,T),order='F')
