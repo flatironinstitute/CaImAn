@@ -72,16 +72,24 @@ Download and install Anaconda (Python 2.7) <http://docs.continuum.io/anaconda/in
     pip install 'tifffile>=0.7'
     pip install picos
     pip install cvxpy
-    (
-    if you get errors compiling scs when installing cvxpy you probably need to create a link to openblas or libgfortran in 
-    /usr/local/lib/, for instance:
-    sudo ln -s  /Library/Frameworks/R.framework/Libraries/libgfortran.3.dylib  /usr/local/lib/libgfortran.2.dylib
-    )
+    
     ```
     This second option will not allow to import the package from every folder but only from within the Constrained_NMF folder. You can access it globally by setting the environment variable PYTHONPATH
     ```
     export PYTHONPATH="/path/to/Constrained_NMF:$PYTHONPATH"
     ```
+Troubleshooting
+----------------
+**SCS**: 
+
+if you get errors compiling scs when installing cvxpy you probably need to create a link to openblas or libgfortran in 
+/usr/local/lib/, for instance: 
+
+`sudo ln -s  /Library/Frameworks/R.framework/Libraries/libgfortran.3.dylib  /usr/local/lib/libgfortran.2.dylib`
+
+if you get the error  gcc: error trying to exec 'cc1plus': execvp: No such file or directory in ubuntu run
+    `sudo apt-get install g++`
+    
 
 Test the system
 ----------------------
