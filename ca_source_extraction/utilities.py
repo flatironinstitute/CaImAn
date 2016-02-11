@@ -854,13 +854,13 @@ def nb_view_patches(Yr,A,C,b,f,d1,d2,image_neurons=None,thr = 0.99):
     
     callback = CustomJS(args=dict(source=source,source2=source2), code="""
             var data = source.get('data');
-            var f = cb_obj.get('value')
+            var f = cb_obj.get('value')-1
             x = data['x']
             y = data['y']
             z = data['z']
             
             for (i = 0; i < x.length; i++) {
-                y[i] = z[i][f-1]             
+                y[i] = z[i][f]             
             }
             
             var data2 = source2.get('data');
