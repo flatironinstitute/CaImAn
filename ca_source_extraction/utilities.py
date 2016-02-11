@@ -453,7 +453,7 @@ def view_patches(Yr,A,C,b,f,d1,d2,YrA = None, secs=1):
             plt.plot(np.arange(T),np.squeeze(np.array(f))) 
             ax2.set_title('Temporal background')      
             
-def plot_contours(A,Cn,thr = 0.9, display_numbers = True, max_number = None,cmap=None, swap_dim=False,**kwargs):
+def plot_contours(A,Cn,thr = 0.9, display_numbers = True, max_number = None,cmap=None, swap_dim=False, colors=None, **kwargs):
     """Plots contour of spatial components against a background image and returns their coordinates
      
      Parameters
@@ -511,7 +511,7 @@ def plot_contours(A,Cn,thr = 0.9, display_numbers = True, max_number = None,cmap
             Bmat = np.reshape(Bvec,np.shape(Cn),order='F')
             
 
-        cs = plt.contour(y,x,Bmat,[thr])  
+        cs = plt.contour(y,x,Bmat,[thr],colors=colors)  
         # this fix is necessary for having disjoint figures and borders plotted correctly        
         p = cs.collections[0].get_paths()  
         v=np.atleast_2d([np.nan,np.nan]);        
