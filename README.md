@@ -168,3 +168,15 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+
+Experimental
+=============
+
+The package comes with a toolbox to manipulate movies written in Python, Calblitz. If you want to give it a try use the demo_pipeline.py file. Before that you need to install some packages:
+
+```
+pip install pims
+conda install opencv
+conda install h5py
+```
