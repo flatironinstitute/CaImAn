@@ -56,11 +56,6 @@ Download and install Anaconda (Python 2.7) <http://docs.continuum.io/anaconda/in
     pip install 'tifffile>=0.7'
     pip install picos
     pip install cvxpy
-    (
-    if you get errors compiling scs when installing cvxpy you probably need to create a link to openblas or libgfortran in 
-    /usr/local/lib/, for instance:
-    sudo ln -s  /Library/Frameworks/R.framework/Libraries/libgfortran.3.dylib  /usr/local/lib/libgfortran.2.dylib
-    )
     ```
 
 2. ADVANCED WAY (with access to source code).
@@ -78,6 +73,9 @@ Download and install Anaconda (Python 2.7) <http://docs.continuum.io/anaconda/in
     ```
     export PYTHONPATH="/path/to/Constrained_NMF:$PYTHONPATH"
     ```
+    
+    
+
 Troubleshooting
 ----------------
 **SCS**: 
