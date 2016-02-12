@@ -88,7 +88,10 @@ if you get errors compiling scs when installing cvxpy you probably need to creat
 
 if you get the error  gcc: error trying to exec 'cc1plus': execvp: No such file or directory in ubuntu run
     `sudo apt-get install g++`
-    
+ 
+**debian fortran compiler problems:**
+
+ `sudo apt-get install libatlas-base-dev gfortran`
 
 Test the system
 ----------------------
