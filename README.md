@@ -53,7 +53,7 @@ Download and install Anaconda (Python 2.7) <http://docs.continuum.io/anaconda/in
     conda create -n CNMF  ipython
     source activate CNMF
     conda install -c https://conda.anaconda.org/agiovann constrained_nmf
-    conda install openblas
+    conda install openblas atlas spyder
     pip install 'tifffile>=0.7'
     pip install picos
     pip install cvxpy
@@ -64,7 +64,7 @@ Download and install Anaconda (Python 2.7) <http://docs.continuum.io/anaconda/in
     git clone --recursive https://github.com/agiovann/Constrained_NMF.git
     conda create -n CNMF ipython
     source activate CNMF
-    conda install spyder openblas numpy scipy ipyparallel matplotlib bokeh jupyter scikit-image scikit-learn cvxopt      
+    conda install numpy scipy spyder openblas atlas ipyparallel matplotlib bokeh jupyter scikit-image scikit-learn cvxopt      
     pip install 'tifffile>=0.7'
     pip install picos
     pip install cvxpy
@@ -86,12 +86,20 @@ if you get errors compiling scs when installing cvxpy you probably need to creat
 
 `sudo ln -s  /Library/Frameworks/R.framework/Libraries/libgfortran.3.dylib  /usr/local/lib/libgfortran.2.dylib`
 
-if you get the error  gcc: error trying to exec 'cc1plus': execvp: No such file or directory in ubuntu run
-    `sudo apt-get install g++`
+
  
 **debian fortran compiler problems:**
+if you get the error  gcc: error trying to exec 'cc1plus': execvp: No such file or directory in ubuntu run
+or issues related to SCS type 
 
- `sudo apt-get install libatlas-base-dev gfortran`
+ ```
+ sudo apt-get install g++ libatlas-base-dev gfortran  libopenblas-dev 
+ conda install openblas atlas
+ ```
+ 
+ if still there are issues try 
+ 
+  `export LD_LIBRARY_PATH=/path_to_your_home/anaconda2/lib/`
 
 Test the system
 ----------------------
