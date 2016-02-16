@@ -53,7 +53,8 @@ Download and install Anaconda (Python 2.7) <http://docs.continuum.io/anaconda/in
     conda create -n CNMF  ipython
     source activate CNMF
     conda install -c https://conda.anaconda.org/agiovann constrained_nmf
-    conda install openblas atlas spyder
+    conda install openblas  spyder
+    conda install  atlas (only Ubuntu)
     pip install 'tifffile>=0.7'
     pip install picos
     pip install cvxpy
@@ -64,7 +65,7 @@ Download and install Anaconda (Python 2.7) <http://docs.continuum.io/anaconda/in
     git clone --recursive https://github.com/agiovann/Constrained_NMF.git
     conda create -n CNMF ipython
     source activate CNMF
-    conda install numpy scipy spyder openblas atlas ipyparallel matplotlib bokeh jupyter scikit-image scikit-learn cvxopt      
+    conda install numpy scipy spyder openblas ipyparallel matplotlib bokeh jupyter scikit-image scikit-learn cvxopt             conda install  atlas (only Ubuntu)
     pip install 'tifffile>=0.7'
     pip install picos
     pip install cvxpy
