@@ -53,7 +53,7 @@ Download and install Anaconda (Python 2.7) <http://docs.continuum.io/anaconda/in
     conda create -n CNMF  ipython
     source activate CNMF
     conda install -c https://conda.anaconda.org/agiovann constrained_nmf
-    conda install openblas  spyder
+    conda install  spyder
     conda install  atlas (only Ubuntu)
     pip install 'tifffile>=0.7'
     pip install picos
