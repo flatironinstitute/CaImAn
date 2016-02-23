@@ -149,10 +149,16 @@ sn: float
             nC = np.sqrt(np.sum(C[merged_ROI,:]**2,axis=1))
     #        A_merged[:,i] = np.squeeze((A[:,merged_ROI]*spdiags(nC,0,len(nC),len(nC))).sum(axis=1))    
             if fast_merge:
-                aa  =  A.tocsc()[:,merged_ROI].dot(scipy.sparse.diags(nC,0,(len(nC),len(nC)))).sum(axis=1)
-                for iter in range(10):
-                    cc = np.dot(aa.T.dot(A.toarray()[:,merged_ROI]),C[merged_ROI,:])/(aa.T*aa)
-                    aa = A.tocsc()[:,merged_ROI].dot(C[merged_ROI,:].dot(cc.T))/(cc*cc.T)
+                Acsc = A.tocsc()[:,merged_ROI]
+                Acsd = Acsc.toarray()
+                Ctmp = C[merged_ROI,:]
+                #aa  =  A.tocsc()[:,merged_ROI].dot(scipy.sparse.diags(nC,0,(len(nC),len(nC)))).sum(axis=1)
+                aa  =  Acsc.dot(scipy.sparse.diags(nC,0,(len(nC),len(nC)))).sum(axis=1)
+                for iter in range(5):
+                    #cc = np.dot(aa.T.dot(A.toarray()[:,merged_ROI]),C[merged_ROI,:])/(aa.T*aa)
+                    cc = np.dot(aa.T.dot(Acsd),Ctmp)/(aa.T*aa)
+                    #aa = A.tocsc()[:,merged_ROI].dot(C[merged_ROI,:].dot(cc.T))/(cc*cc.T)
+                    aa = Acsc.dot(Ctmp.dot(cc.T))/(cc*cc.T)
                 
                 nC = np.sqrt(np.sum(A.toarray()[:,merged_ROI]**2,axis=0))*np.sqrt(np.sum(C[merged_ROI,:]**2,axis=1))
                 indx = np.argmax(nC)
