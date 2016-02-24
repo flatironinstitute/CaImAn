@@ -41,8 +41,11 @@ def CNMFSetParms(Y, K=30, gSig=[5, 5], ssub=1, tsub=1, p=2, **kwargs):
     Any parameter that is not set get a default value specified
     by the dictionary default options
     """
-
-    d1, d2, T = Y.shape
+    
+    if type(Y) is tuple:
+        d1,d2,T=Y    
+    else:
+        d1, d2, T = Y.shape
     # roughly number of cores on your machine minus 1
     n_processes = np.maximum(psutil.cpu_count() - 2, 1)
     print 'using ' + str(n_processes) + ' processes'
