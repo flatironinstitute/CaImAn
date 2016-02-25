@@ -162,8 +162,10 @@ def update_temporal_components(Y, A, b, Cin, fin, bl = None,  c1 = None, g = Non
     #pdb.set_trace()
     Cin=coo_matrix(Cin)
     #YrA = ((A.T.dot(Y)).T-Cin.T.dot(A.T.dot(A)))
-    YrA = ((A.T.dot(Y)).T-Cin.T.dot(A.T.dot(A)))*spdiags(1./nA,0,nr+1,nr+1)
-    
+    YA = (A.T.dot(Y).T)*spdiags(1./nA,0,nr+1,nr+1)
+    AA = ((A.T.dot(A))*spdiags(1./nA,0,nr+1,nr+1)).tocsr()
+    YrA = YA - Cin.T.dot(AA)
+    #YrA = ((A.T.dot(Y)).T-Cin.T.dot(A.T.dot(A)))*spdiags(1./nA,0,nr+1,nr+1)
     
     if backend == 'ipyparallel':
         try: # if server is not running and raise exception if not installed or not started        
@@ -247,23 +249,23 @@ def update_temporal_components(Y, A, b, Cin, fin, bl = None,  c1 = None, g = Non
                 pars['neuron_id'] = jo[jj_]
                 P_.append(pars)
             
-            YrA[:,jo] = Ytemp
-            C[jo,:] = Ctemp            
+            YrA -= (Ctemp-C[jo,:]).T*AA[jo,:]
+            #YrA[:,jo] = Ytemp
+            C[jo,:] = Ctemp.copy()            
             S[jo,:] = Stemp
             
 #            if (np.sum(lo[:jo])+1)%1 == 0:
             print str(np.sum(lo[:count+1])) + ' out of total ' + str(nr) + ' temporal components updated'
         
         ii=nr        
-        #YrA[:,ii] = YrA[:,ii] + nA[ii]*np.atleast_2d(Cin[ii,:]).T
-        #cc = np.maximum(YrA[:,ii]/nA[ii],0)
-        #C[ii,:] = cc[:].T
-        #YrA[:,ii] = YrA[:,ii] - nA[ii]*np.atleast_2d(C[ii,:]).T 
-        YrA[:,ii] = YrA[:,ii] + np.atleast_2d(Cin[ii,:]).T
-        cc = np.maximum(YrA[:,ii],0)
-        C[ii,:] = cc[:].T
-        YrA[:,ii] = YrA[:,ii] - np.atleast_2d(C[ii,:]).T        
-        
+
+        #YrA[:,ii] = YrA[:,ii] + np.atleast_2d(Cin[ii,:]).T
+        #cc = np.maximum(YrA[:,ii],0)        
+        cc = np.maximum(YrA[:,ii] + np.atleast_2d(Cin[ii,:]).T,0)
+        YrA -= (cc-np.atleast_2d(Cin[ii,:]).T)*AA[ii,:]      
+        C[ii,:] = cc.T
+        #YrA = YA - C.T.dot(AA)
+        #YrA[:,ii] = YrA[:,ii] - np.atleast_2d(C[ii,:]).T                
         
         if backend == 'ipyparallel':       
             dview.results.clear()   
