@@ -14,8 +14,9 @@ import sys
 import scipy
 import pylab as pl
 import numpy as np
-%load_ext autoreload
-%autoreload 2
+
+#%load_ext autoreload
+#%autoreload 2
 
 n_processes = np.maximum(psutil.cpu_count() - 2,1) # roughly number of cores on your machine minus 1
 #print 'using ' + str(n_processes) + ' processes'
@@ -83,7 +84,9 @@ options['temporal_params']['p'] = 2
 C2,f2,S2,bl2,c12,neurons_sn2,g21,YrA = cse.temporal.update_temporal_components(Yr,A2,b2,C2,f,bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
 
 A_or, C_or, srt = cse.utilities.order_components(A2,C2)
-cse.utilities.view_patches_bar(Yr,coo_matrix(A_or),C_or,b2,f2, d1,d2, YrA=YrA[srt,:])  
+cse.utilities.view_patches_bar(Yr,scipy.sparse.coo_matrix(A_or),C_or,b2,f2, d1,d2, YrA=YrA[srt,:])  
 
 np.savez('results_analysis.npz',Cn=Cn,A_tot=A_tot.todense(), C_tot=C_tot, sn_tot=sn_tot, A2=A2.todense(),C2=C2,b2=b2,S2=S2,f2=f2,bl2=bl2,c12=c12, neurons_sn2=neurons_sn2, g21=g21,YrA=YrA,d1=d1,d2=d2)    
 scipy.io.savemat('output_analysis_matlab.mat',{'A_or':A_or,'C_or':C_or , 'YrA_or':YrA[srt,:], 'S_or': S2[srt,:] })
+
+cse.utilities.stop_server() 
