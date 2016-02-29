@@ -1,10 +1,10 @@
 package:
   name: constrained_nmf
-  version: "0.1"
+  version: "0.3"
 
  
 source:
-  #git_rev: 0.04
+  #git_rev: 0.3
   #git_url: https://github.com/agiovann/Constrained_NMF.git
   #git_tag: 507cac2
   path: .
@@ -21,6 +21,7 @@ requirements:
     - python <3
     - numpy
     - scipy
+    - openblas
     - ipython
     - matplotlib
     - scikit-learn
@@ -30,6 +31,7 @@ requirements:
     - bokeh
     - cvxopt
     - psutil
+    
 #    - joblib >=0.8.4
 #    - tifffile >=0.7.0        
 #    - picos >=1.1.1
