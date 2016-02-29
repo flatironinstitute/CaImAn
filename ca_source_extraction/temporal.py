@@ -240,7 +240,7 @@ def update_temporal_components(Y, A, b, Cin, fin, bl = None,  c1 = None, g = Non
                 bl[jo[jj_]] = cb_
                 c1[jo[jj_]] = c1_
                 sn[jo[jj_]] = sn_
-                g[jo[jj_]]  = gtemp[jj,:]#[jj_,np.abs(gtemp[jj,:])>0] 
+                g[jo[jj_]]  = gn_.T  #gtemp[jj,:]#[jj_,np.abs(gtemp[jj,:])>0] 
                                              
                 pars['b'] = cb_
                 pars['c1'] = c1_                 
