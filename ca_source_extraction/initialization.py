@@ -276,7 +276,7 @@ def hals_2D(Y, A, C, b, f, bSiz=3, maxIter=5):
         A = S.dot(data)
         B = S.dot(S.T)
         for _ in range(iters):
-            for mcell in range(K + 1):
+            for mcell in range(K + 1):  # neurons and background
                 activity[mcell] += (A[mcell] - np.dot(B[mcell].T, activity)) / B[mcell, mcell]
                 activity[mcell][activity[mcell] < 0] = 0
         return activity
@@ -285,14 +285,13 @@ def hals_2D(Y, A, C, b, f, bSiz=3, maxIter=5):
         C = activity.dot(data.T)
         D = activity.dot(activity.T)
         for _ in range(iters):
-            for mcell in range(K + 1):
-                if mcell == K:
-                    S[mcell] += (C[mcell] - np.dot(D[mcell], S)) / D[mcell, mcell]
-                else:
-                    ind_pixels = np.squeeze(np.asarray(ind_A[:, mcell].todense()))
-                    S[mcell, ind_pixels] += (C[mcell, ind_pixels] -
-                                             np.dot(D[mcell], S[:, ind_pixels])) / D[mcell, mcell]
-                S[mcell][S[mcell] < 0] = 0
+            for mcell in range(K):  # neurons
+                ind_pixels = np.squeeze(np.asarray(ind_A[:, mcell].todense()))
+                S[mcell, ind_pixels] += (C[mcell, ind_pixels] -
+                                         np.dot(D[mcell], S[:, ind_pixels])) / D[mcell, mcell]
+                S[mcell, ind_pixels][S[mcell, ind_pixels] < 0] = 0
+            S[K] += (C[K] - np.dot(D[K], S)) / D[K, K]  # background
+            S[K][S[K] < 0] = 0
         return S
 
     Ab = np.c_[A, b].T
