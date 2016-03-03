@@ -38,7 +38,7 @@ def extract_patch_coordinates(d1,d2,rf=7,stride = 5):
             coords_2d.append(idxs)
             coords_ =np.ravel_multi_index(idxs,(d1,d2),order='F')
             coords_flat.append(coords_.flatten())
-            
+      
     return coords_flat,coords_2d
 #%%
 def extract_rois_patch(file_name,d1,d2,rf=5,stride = 5):
