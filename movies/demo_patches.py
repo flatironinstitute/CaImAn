@@ -27,9 +27,9 @@ cse.utilities.start_server(n_processes)
 #%%
 #file_name='/home/agiovann/Dropbox (Simons Foundation)/Jeff/SmallExample/Yr_small.npy'
 #file_name='/home/agiovann/Dropbox (Simons Foundation)/Jeff/SmallExample/Yr.npy'
-#file_name='/home/agiovann/Dropbox (Simons Foundation)/Jeff/challenge/Yr.npy'
+file_name='/home/agiovann/Dropbox (Simons Foundation)/Jeff/challenge/Yr.npy'
 
-file_name='/home/agiovann/GIT/Constrained_NMF/Yr.npy'
+#file_name='/home/agiovann/GIT/Constrained_NMF/Yr.npy'
 
 fnames=[]
 for file in os.listdir("./"):
@@ -39,7 +39,7 @@ fnames.sort()
 print fnames  
 
 
-_,d1,d2=np.shape(cb.load(fnames[0][:-3]+'tif',subindices=range(3),fr=10))
+_,d1,d2=np.shape(cb.load(fnames[0][:-3]+'hdf5',subindices=range(3),fr=10))
 
 Yr=np.load(file_name,mmap_mode='r')
 d,T=np.shape(Yr)
@@ -49,7 +49,7 @@ rf=16
 stride = 4   
 K=6
 
-options_patch = cse.utilities.CNMFSetParms(Y,p=0,gSig=[5,5],K=K)
+options_patch = cse.utilities.CNMFSetParms(Y,p=0,gSig=[7,7],K=K)
 
 options_patch['temporal_params']['fudge_factor'] = .96
 options_patch['preprocess_params']['n_pixels_per_process']=np.int((rf*rf*4)/n_processes/(T/2000.))
@@ -77,16 +77,16 @@ t1 = time.time()
 A2,b2,C2 = cse.spatial.update_spatial_components(Yr, C_m, f, A_m, sn=sn_tot, **options['spatial_params'])
 print time.time() - t1
 
-Cn = cse.utilities.local_correlations(Y)
-crd = cse.utilities.plot_contours(A2,Cn,thr=0.9)
+#Cn = cse.utilities.local_correlations(Y)
+#crd = cse.utilities.plot_contours(A2,Cn,thr=0.9)
 
 options['temporal_params']['p'] = 2              
 C2,f2,S2,bl2,c12,neurons_sn2,g21,YrA = cse.temporal.update_temporal_components(Yr,A2,b2,C2,f,bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
 
 A_or, C_or, srt = cse.utilities.order_components(A2,C2)
-cse.utilities.view_patches_bar(Yr,scipy.sparse.coo_matrix(A_or),C_or,b2,f2, d1,d2, YrA=YrA[srt,:])  
+#cse.utilities.view_patches_bar(Yr,scipy.sparse.coo_matrix(A_or),C_or,b2,f2, d1,d2, YrA=YrA[srt,:])  
 
 np.savez('results_analysis.npz',Cn=Cn,A_tot=A_tot.todense(), C_tot=C_tot, sn_tot=sn_tot, A2=A2.todense(),C2=C2,b2=b2,S2=S2,f2=f2,bl2=bl2,c12=c12, neurons_sn2=neurons_sn2, g21=g21,YrA=YrA,d1=d1,d2=d2)    
 scipy.io.savemat('output_analysis_matlab.mat',{'A_or':A_or,'C_or':C_or , 'YrA_or':YrA[srt,:], 'S_or': S2[srt,:] })
 
-cse.utilities.stop_server() 
+#cse.utilities.stop_server() 
