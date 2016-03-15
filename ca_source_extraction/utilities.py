@@ -36,7 +36,7 @@ from sklearn.decomposition import NMF
 #%%
 
 
-def CNMFSetParms(Y, K=30, gSig=[5, 5], ssub=1, tsub=1, p=2, **kwargs):
+def CNMFSetParms(Y, K=30, gSig=[5, 5], ssub=1, tsub=1, p=2,p_ssub=1, p_tsub=1, **kwargs):
     """Dictionary for setting the CNMF parameters.
     Any parameter that is not set get a default value specified
     by the dictionary default options
@@ -52,6 +52,10 @@ def CNMFSetParms(Y, K=30, gSig=[5, 5], ssub=1, tsub=1, p=2, **kwargs):
     n_pixels_per_process = d1 * d2 / n_processes  # how to subdivide the work among processes
 
     options = dict()
+    options['patch_params']={
+                             'ssub': p_ssub,             # spatial downsampling factor
+                             'tsub': p_tsub              # temporal downsampling factor
+                            }
     options['preprocess_params'] = {'sn': None,                  # noise level for each pixel
                                     # range of normalized frequencies over which to average
                                     'noise_range': [0.25, 0.5],
