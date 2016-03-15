@@ -28,8 +28,8 @@ def extract_patch_coordinates(d1,d2,rf=7,stride = 5):
     """
     coords_flat=[]
     coords_2d=[]
-    for xx in range(rf,d1+stride,2*rf-stride):   
-        for yy in range(rf,d2+stride,2*rf-stride):
+    for xx in range(stride,d1+stride,2*rf-stride):   
+        for yy in range(stride,d2+stride,2*rf-stride):
             coords_x=np.array(range(xx - rf, xx + rf + 1))     
             coords_y=np.array(range(yy - rf, yy + rf + 1))  
             coords_y = coords_y[(coords_y >= 0) & (coords_y < d2)]
@@ -55,7 +55,7 @@ def extract_rois_patch(file_name,d1,d2,rf=5,stride = 5):
     try:
         if 1:
             c = Client()   
-            dview=c[:10]
+            dview=c[:]
             file_res = dview.map_sync(nmf_patches, args_in)                         
         else:
             file_res = map(nmf_patches, args_in)                         
@@ -83,6 +83,7 @@ def extract_rois_patch(file_name,d1,d2,rf=5,stride = 5):
         
         
     return A1,A2,C1,C2
+  
 #%%    
 def cnmf_patches(args_in):
     import numpy as np
@@ -96,19 +97,26 @@ def cnmf_patches(args_in):
     Yr=np.load(file_name,mmap_mode='r')
     Yr=Yr[idx_,:]
     d,T=Yr.shape      
-    Y=np.reshape(Yr,(shapes[1],shapes[0],T),order='F')    
+    Y=np.reshape(Yr,(shapes[1],shapes[0],T),order='F')  
+    
+#    ssub,tsub = options['patch_params']['ssub'],options['patch_params']['tsub']
+#    if ssub>1 or tsub>1:
+#        Y = cse.initialization.downscale_local_mean(Y,(ssub,ssub,tsub))
+     
+    [d1,d2,T]=Y.shape
 #    pl.imshow(np.mean(Y,axis=-1))
 #    pl.pause(.1)
 #    import pdb
 #    pdb.set_trace()
 #    options = cse.utilities.CNMFSetParms(Y,p=p,gSig=gSig,K=K)
-    options['spatial_params']['d2']=shapes[0]
-    options['spatial_params']['d1']=shapes[1]
+    options['spatial_params']['d2']=d1
+    options['spatial_params']['d1']=d2
     options['spatial_params']['backend']='single_thread'
     options['temporal_params']['backend']='single_thread'
     
     Yr,sn,g=cse.pre_processing.preprocess_data(Yr,**options['preprocess_params'])
-    Ain, Cin, b_in, f_in, center=cse.initialization.initialize_components(Y, **options['init_params'])                                                    
+    Ain, Cin, b_in, f_in, center=cse.initialization.initialize_components(Y, **options['init_params']) 
+                                                       
     print options
     A,b,Cin = cse.spatial.update_spatial_components(Yr, Cin, f_in, Ain, sn=sn, **options['spatial_params'])  
     options['temporal_params']['p'] = 0 # set this to zero for fast updating without deconvolution
@@ -120,7 +128,10 @@ def cnmf_patches(args_in):
     A2,b2,C2 = cse.spatial.update_spatial_components(Yr, C_m, f, A_m, sn=sn, **options['spatial_params'])
     options['temporal_params']['p'] = p # set it back to original value to perform full deconvolution
     C2,f2,S2,bl2,c12,neurons_sn2,g21,YrA = cse.temporal.update_temporal_components(Yr,A2,b2,C2,f,bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
-
+    
+    Y=[]
+    Yr=[]
+    
     return idx_,shapes,A2,b2,C2,f2,S2,bl2,c12,neurons_sn2,g21,sn,options
 
 #%%
