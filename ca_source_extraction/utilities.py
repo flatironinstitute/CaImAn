@@ -10,7 +10,7 @@ from scipy.sparse import spdiags, diags, coo_matrix
 from matplotlib import pyplot as plt
 from pylab import pause
 import sys
-
+import os
 try:
     import bokeh
     import bokeh.plotting as bpl
@@ -33,6 +33,8 @@ import ca_source_extraction
 import sklearn
 import time
 from sklearn.decomposition import NMF
+import shutil
+import glob
 #%%
 
 
@@ -960,7 +962,7 @@ def nb_plot_contour(image, A, d1, d2, thr=0.995, face_color=None, line_color='bl
     return p
 
 
-def start_server(ncpus):
+def start_server(ncpus,slurm_script=None):
     '''
     programmatically start the ipyparallel server
 
@@ -972,45 +974,93 @@ def start_server(ncpus):
     '''
     sys.stdout.write("Starting cluster...")
     sys.stdout.flush()
-
-    subprocess.Popen(["ipcluster start -n {0}".format(ncpus)], shell=True)
-    while True:
-        try:
-            c = ipyparallel.Client()
-            if len(c) < ncpus:
+    
+    if slurm_script is None:
+        subprocess.Popen(["ipcluster start -n {0}".format(ncpus)], shell=True)
+        while True:
+            try:
+                c = ipyparallel.Client()
+                if len(c) < ncpus:
+                    sys.stdout.write(".")
+                    sys.stdout.flush()
+                    raise ipyparallel.error.TimeoutError
+                c.close()
+                break
+            except (IOError, ipyparallel.error.TimeoutError):
                 sys.stdout.write(".")
                 sys.stdout.flush()
-                raise ipyparallel.error.TimeoutError
-            c.close()
-            break
-        except (IOError, ipyparallel.error.TimeoutError):
-            sys.stdout.write(".")
-            sys.stdout.flush()
-            time.sleep(1)
+                time.sleep(1)
+    else:
+        shell_source(slurm_script)
+        from ipyparallel import Client
+        pdir, profile = os.environ['IPPPDIR'], os.environ['IPPPROFILE']
+        c = Client(ipython_dir=pdir, profile=profile)   
+        ee = c[:]
+        ne = len(ee)
+        print 'Running on %d engines.'%(ne)
+        c.close()             
+        sys.stdout.write(" done\n")
 
-    sys.stdout.write(" done\n")
-
-
-def stop_server():
+#%%
+def shell_source(script):
+    """Sometime you want to emulate the action of "source" in bash,
+    settings some environment variables. Here is a way to do it."""
+    import subprocess, os
+    pipe = subprocess.Popen(". %s; env" % script,  stdout=subprocess.PIPE, shell=True)
+    output = pipe.communicate()[0]
+    env = dict()
+    for line in output.splitlines():
+        lsp=line.split("=", 1)
+        if len(lsp)>1:
+           env[lsp[0]]=lsp[1] 
+#    env = dict((line.split("=", 1) for line in output.splitlines()))
+    os.environ.update(env)
+#%%        
+def stop_server(is_slurm=False):
     '''
     programmatically stops the ipyparallel server
     '''
     sys.stdout.write("Stopping cluster...\n")
     sys.stdout.flush()
 
-    proc = subprocess.Popen(["ipcluster stop"], shell=True, stderr=subprocess.PIPE)
-    line_out = proc.stderr.readline()
-    if 'CRITICAL' in line_out:
-        sys.stdout.write("No cluster to stop...")
-        sys.stdout.flush()
-    elif 'Stopping' in line_out:
-        st = time.time()
-        sys.stdout.write('Waiting for cluster to stop...')
-        while (time.time() - st) < 4:
-            sys.stdout.write('.')
-            sys.stdout.flush()
-            time.sleep(1)
+    
+    if is_slurm:
+        from ipyparallel import Client
+        pdir, profile = os.environ['IPPPDIR'], os.environ['IPPPROFILE']
+        c = Client(ipython_dir=pdir, profile=profile)        
+        ee = c[:]
+        ne = len(ee)
+        print 'Shutting down %d engines.'%(ne)
+        c.shutdown(hub=True)
+        shutil.rmtree('profile_' + str(profile))
+        try: 
+            shutil.rmtree('./log/')
+        except:
+            print 'creating log folder'
+            
+        files = glob.glob('*.log')
+        os.mkdir('./log')
+        
+        for fl in files:
+            shutil.move(fl, './log/')
+    
     else:
-        print '**** Unrecognized Syntax in ipcluster output, waiting for server to stop anyways ****'
+        
+        proc = subprocess.Popen(["ipcluster stop"], shell=True, stderr=subprocess.PIPE)
+        line_out = proc.stderr.readline()
+        if 'CRITICAL' in line_out:
+            sys.stdout.write("No cluster to stop...")
+            sys.stdout.flush()
+        elif 'Stopping' in line_out:
+            st = time.time()
+            sys.stdout.write('Waiting for cluster to stop...')
+            while (time.time() - st) < 4:
+                sys.stdout.write('.')
+                sys.stdout.flush()
+                time.sleep(1)
+        else:
+            print '**** Unrecognized Syntax in ipcluster output, waiting for server to stop anyways ****'
+    
+        
 
     sys.stdout.write(" done\n")

@@ -138,7 +138,7 @@ def get_noise_fft(Y, noise_range = [0.25,0.5], noise_method = 'logmexp'):
     return sn     
 
 
-def get_noise_fft_parallel(Y, n_processes=4,n_pixels_per_process=100, backend='multithreading', **kwargs):
+def get_noise_fft_parallel(Y, n_processes=4,n_pixels_per_process=100, backend='ipyparallel', **kwargs):
     """parallel version of get_noise_fft.
     
     Params:
@@ -191,7 +191,38 @@ def get_noise_fft_parallel(Y, n_processes=4,n_pixels_per_process=100, backend='m
         sn_s=np.zeros(Y.shape[0])        
         for idx,sn in results:        
             sn_s[idx]=sn
+    
+
+    elif backend=='ipyparallel':
+        if type(Y) is np.core.memmap:  # if input file is already memory mapped then find the filename
+            Y_name = Y.filename
+        else:
+            raise Exception('ipyparallel backend only works with memory mapped files')
             
+        try: 
+            if 'IPPPDIR' in os.environ and 'IPPPROFILE' in os.environ:
+                pdir, profile = os.environ['IPPPDIR'], os.environ['IPPPROFILE']
+            else:
+                raise Exception('envirnomment variables not found, please source slurmAlloc.rc')
+        
+            c = Client(ipython_dir=pdir, profile=profile)
+            dview = c[:]
+            ne = len(dview)
+            print 'Running on %d engines.'%(ne)
+    
+            argsin=[(Y_name, i, n_pixels_per_process, kwargs) for i in pixel_groups]
+            
+            results = dview.map(fft_psd_multithreading, argsin)
+            sn_s=np.zeros(Y.shape[0])        
+            
+            for idx,sn in results:        
+                sn_s[idx]=sn
+        finally:
+            try:
+                c.close()
+            except:
+                print 'closing c failed'
+                
     else:
         raise Exception('Unknown method')                   
                         
@@ -269,6 +300,9 @@ def fft_psd_multithreading(args):
     
     """
     (Y,i,num_pixels,kwargs)=args
+    if type(Y) is str:
+        Y=np.load(Y,mmap_mode='r')
+
     idxs=range(i,i+num_pixels)
     res=get_noise_fft(Y[idxs], **kwargs)
     #print("[Worker %d] sn for row %d is %f" % (os.getpid(), i, sn_s[0]))    
