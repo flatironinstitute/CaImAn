@@ -98,7 +98,7 @@ def find_unsaturated_pixels(Y, saturationValue = None, saturationThreshold = 0.9
     return normalPixels
 
 #%%
-def get_noise_fft(Y, noise_range = [0.25,0.5], noise_method = 'logmexp'):
+def get_noise_fft(Y, noise_range = [0.25,0.5], noise_method = 'logmexp',get_spectrum=False):
     """Estimate the noise level for each pixel by averaging the power spectral density.
     Inputs:
     Y: np.ndarray
@@ -135,7 +135,10 @@ def get_noise_fft(Y, noise_range = [0.25,0.5], noise_method = 'logmexp'):
         psdx[1:] *=2
         sn = mean_psd(psdx[ind], method = noise_method)
     
-    return sn     
+    if get_spectrum:
+        return psdx    
+    else:
+        return sn     
 
 
 def get_noise_fft_parallel(Y, n_processes=4,n_pixels_per_process=100, backend='multithreading', **kwargs):
