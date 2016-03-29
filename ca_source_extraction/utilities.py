@@ -1064,3 +1064,50 @@ def stop_server(is_slurm=False):
         
 
     sys.stdout.write(" done\n")
+
+def evaluate_components(A,Yr,psx):
+
+    #%% clustering components
+    Ys=Yr
+    psx = cse.pre_processing.get_noise_fft(Ys,get_spectrum=True);
+    
+    #[sn,psx] = get_noise_fft(Ys,options);
+    #P.sn = sn(:);
+    #fprintf('  done \n');
+    psdx = np.sqrt(psx[:,3:]);
+    X = psdx[:,1:np.minimum(np.shape(psdx)[1],1500)];
+    #P.psdx = X;
+    X = X-np.mean(X,axis=1)[:,np.newaxis]#     bsxfun(@minus,X,mean(X,2));     % center
+    X = X/(+1e-5+np.std(X,axis=1)[:,np.newaxis])
+    
+    from sklearn.cluster import KMeans
+    from sklearn.decomposition import PCA,NMF
+    from sklearn.mixture import GMM
+    pc=PCA(n_components=5)
+    nmf=NMF(n_components=2)
+    nmr=nmf.fit_transform(X)
+    
+    cp=pc.fit_transform(X)
+    gmm=GMM(n_components=2)
+    
+    Cx1=gmm.fit_predict(cp)
+    
+    L=gmm.predict_proba(cp)
+    
+    km=KMeans(n_clusters=2)
+    Cx=km.fit_transform(X)
+    Cx=km.fit_transform(cp)
+    Cx=km.cluster_centers_
+    L=km.labels_
+    ind=np.argmin(np.mean(Cx[:,-49:],axis=1))
+    active_pixels = (L==ind)
+    centroids = Cx;
+    #%%%
+#    ff = false(1,size(Am,2));
+#    for i = 1:size(Am,2)
+#        a1 = Am(:,i);
+#        a2 = Am(:,i).*Pm.active_pixels(:);
+#        if sum(a2.^2) >= cl_thr^2*sum(a1.^2)
+#            ff(i) = true;
+#        end
+#    end 
