@@ -98,7 +98,7 @@ def find_unsaturated_pixels(Y, saturationValue = None, saturationThreshold = 0.9
     return normalPixels
 
 #%%
-def get_noise_fft(Y, noise_range = [0.25,0.5], noise_method = 'logmexp',get_spectrum=False):
+def get_noise_fft(Y, noise_range = [0.25,0.5], noise_method = 'logmexp'):
     """Estimate the noise level for each pixel by averaging the power spectral density.
     Inputs:
     Y: np.ndarray
@@ -135,10 +135,10 @@ def get_noise_fft(Y, noise_range = [0.25,0.5], noise_method = 'logmexp',get_spec
         psdx[1:] *=2
         sn = mean_psd(psdx[ind], method = noise_method)
     
-    if get_spectrum:
-        return psdx    
-    else:
-        return sn     
+    
+    return sn, psdx    
+    
+             
 
 
 def get_noise_fft_parallel(Y, n_processes=4,n_pixels_per_process=100, backend='ipyparallel', **kwargs):
@@ -191,10 +191,12 @@ def get_noise_fft_parallel(Y, n_processes=4,n_pixels_per_process=100, backend='i
         pool = ThreadPool(n_processes)
         argsin=[(Y, i, n_pixels_per_process, kwargs) for i in pixel_groups]
         results = pool.map(fft_psd_multithreading, argsin)
-        sn_s=np.zeros(Y.shape[0])        
-        for idx,sn in results:        
+        _,_,psx_= results[0]
+        sn_s=np.zeros(Y.shape[0])
+        psx_s=np.zeros((Y.shape[0],psx_.shape[-1]))        
+        for idx,sn,psx_ in results:        
             sn_s[idx]=sn
-    
+            psx_s[idx,:]=psx_
 
     elif backend=='ipyparallel':
         if type(Y) is np.core.memmap:  # if input file is already memory mapped then find the filename
@@ -216,10 +218,13 @@ def get_noise_fft_parallel(Y, n_processes=4,n_pixels_per_process=100, backend='i
             argsin=[(Y_name, i, n_pixels_per_process, kwargs) for i in pixel_groups]
             
             results = dview.map(fft_psd_multithreading, argsin)
+            _,_,psx_= results[0]
+            psx_s=np.zeros((Y.shape[0],psx_.shape[-1]))
             sn_s=np.zeros(Y.shape[0])        
             
-            for idx,sn in results:        
+            for idx,sn, psx_ in results:        
                 sn_s[idx]=sn
+                psx_s[idx,:]=psx_
         finally:
             try:
                 c.close()
@@ -235,10 +240,17 @@ def get_noise_fft_parallel(Y, n_processes=4,n_pixels_per_process=100, backend='i
     
     if pixels_remaining>0:  
         print "Running fft for remaining pixels:" + str(pixels_remaining)
-        fft_psd_parallel(Y,sn_s,Y.shape[0]-pixels_remaining,pixels_remaining)    
+        if type(Y) is np.core.memmap:  # if input file is already memory mapped then find the filename
+            Y_name = Y.filename
+        else:
+            raise Exception('ipyparallel backend only works with memory mapped files')   
+        
+        idx,sn, psx_=fft_psd_multithreading((Y_name,Y.shape[0]-pixels_remaining, pixels_remaining, kwargs))    
+        sn_s[idx]=sn
+        psx_s[idx,:]=psx_
     
     sn_s=np.array(sn_s)
-    
+    psx_s=np.array(psx_s)
 
 
     try:
@@ -250,7 +262,7 @@ def get_noise_fft_parallel(Y, n_processes=4,n_pixels_per_process=100, backend='i
         print("Failed to delete: " + folder)
         raise
         
-    return sn_s    
+    return sn_s,psx_s    
 #%%        
 
 def fft_psd_parallel(Y,sn_s,i,num_pixels,**kwargs):
@@ -294,12 +306,12 @@ def fft_psd_multithreading(args):
         
     i: int
         pixel index start
+        
     num_pixels: int
         number of pixel to select starting from i
     
     **kwargs: dict
-        arguments to be passed to get_noise_fft 
-            
+        arguments to be passed to get_noise_fft             
     
     """
     (Y,i,num_pixels,kwargs)=args
@@ -307,9 +319,10 @@ def fft_psd_multithreading(args):
         Y=np.load(Y,mmap_mode='r')
 
     idxs=range(i,i+num_pixels)
-    res=get_noise_fft(Y[idxs], **kwargs)
+    res,psx=get_noise_fft(Y[idxs], **kwargs)
+    
     #print("[Worker %d] sn for row %d is %f" % (os.getpid(), i, sn_s[0]))    
-    return (idxs,res)
+    return (idxs,res,psx)
 #%%
 
 def mean_psd(y, method = 'logmexp'):
@@ -443,7 +456,7 @@ def nextpow2(value):
         exponent += 1
     return exponent  
 
-def preprocess_data(Y,  sn = None , n_processes=4, backend='multithreading', n_pixels_per_process=100,  noise_range = [0.25,0.5], noise_method = 'logmexp', compute_g=False,  p = 2, g = None,  lags = 5, include_noise = False, pixels = None):
+def preprocess_data(Y, sn = None , n_processes=4, backend='multithreading', n_pixels_per_process=100,  noise_range = [0.25,0.5], noise_method = 'logmexp', compute_g=False,  p = 2, g = None,  lags = 5, include_noise = False, pixels = None):
     """
     Performs the pre-processing operations described above.
     """
@@ -451,12 +464,14 @@ def preprocess_data(Y,  sn = None , n_processes=4, backend='multithreading', n_p
     Y,coor=interpolate_missing_data(Y)            
     
     if sn is None:
-        sn=get_noise_fft_parallel(Y, n_processes=n_processes,n_pixels_per_process=n_pixels_per_process, backend = backend, noise_range = noise_range, noise_method = noise_method)    
+        sn,psx=get_noise_fft_parallel(Y, n_processes=n_processes,n_pixels_per_process=n_pixels_per_process, backend = backend, noise_range = noise_range, noise_method = noise_method)    
         #sn = get_noise_fft(Y, noise_range = noise_range, noise_method = noise_method)        
-    
+    else:
+        psx=None
+        
     if compute_g:
         g = estimate_time_constant(Y, sn, p = p, lags = lags, include_noise = include_noise, pixels = pixels)
     else:
         g=None
     
-    return Y,sn,g    
+    return Y, sn, g, psx    

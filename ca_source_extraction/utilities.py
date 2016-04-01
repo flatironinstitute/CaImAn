@@ -475,7 +475,7 @@ def view_patches(Yr, A, C, b, f, d1, d2, YrA=None, secs=1):
             ax2.set_title('Temporal background')
 
 
-def plot_contours(A, Cn, thr=0.9, display_numbers=True, max_number=None, cmap=None, swap_dim=False, colors=None, **kwargs):
+def plot_contours(A, Cn, thr=0.9, display_numbers=True, max_number=None, cmap=None, swap_dim=False, colors='w', **kwargs):
     """Plots contour of spatial components against a background image and returns their coordinates
 
      Parameters
@@ -564,9 +564,9 @@ def plot_contours(A, Cn, thr=0.9, display_numbers=True, max_number=None, cmap=No
     if display_numbers:
         for i in range(np.minimum(nr, max_number)):
             if swap_dim:
-                ax.text(cm[i, 0], cm[i, 1], str(i + 1))
+                ax.text(cm[i, 0], cm[i, 1], str(i + 1),color=colors)
             else:
-                ax.text(cm[i, 1], cm[i, 0], str(i + 1))
+                ax.text(cm[i, 1], cm[i, 0], str(i + 1),color=colors)
 
     return coordinates
 

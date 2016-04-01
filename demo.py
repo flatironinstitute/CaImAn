@@ -57,7 +57,7 @@ cse.utilities.start_server(options['spatial_params']['n_processes'])
 
 #%% PREPROCESS DATA AND INITIALIZE COMPONENTS
 t1 = time()
-Yr,sn,g=cse.pre_processing.preprocess_data(Yr,**options['preprocess_params'])
+Yr,sn,g,psx = cse.pre_processing.preprocess_data(Yr,**options['preprocess_params'])
 Atmp, Ctmp, b_in, f_in, center=cse.initialization.initialize_components(Y, **options['init_params'])                                                    
 print time() - t1
 
@@ -116,4 +116,5 @@ crd = cse.utilities.plot_contours(A_or,Cn,thr=0.9)
 #%% STOP CLUSTER
 pl.close()
 cse.utilities.stop_server()
+
 
