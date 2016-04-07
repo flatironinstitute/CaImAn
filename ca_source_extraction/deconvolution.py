@@ -19,7 +19,7 @@ from SPGL1_python_port.spgl1 import spg_bpdn
 from SPGL1_python_port import spgl_aux as spg
 import sys
 #%%
-def constrained_foopsi(fluor, bl = None,  c1 = None, g = None,  sn = None, p = None, method = 'spgl1', bas_nonneg = True,  
+def constrained_foopsi(fluor, bl = None,  c1 = None, g = None,  sn = None, p = None, method = 'cvxpy', bas_nonneg = True,  
                      noise_range = [.25,.5], noise_method = 'logmexp', lags = 5, fudge_factor = 1., 
                     verbosity = False, solvers=None,**kwargs):
     
@@ -400,6 +400,7 @@ def cvxpy_foopsi(fluor,  g, sn, b=None, c1=None, bas_nonneg=True,solvers=None):
                  sys.stdout.flush()
                  result = prob.solve(solver=solvers[0]) 
              except:
+                 print(solvers[0] + ' DID NOT WORK TRYING ' + solvers[1])
                  result = prob.solve(solver=solvers[1]) 
          except:             
              sys.stderr.write('***** SCS solver failed, try installing and compiling SCS for much faster performance. Otherwise set the solvers in tempora_params to ["ECOS","CVXOPT"]')

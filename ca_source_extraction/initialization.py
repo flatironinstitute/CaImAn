@@ -239,75 +239,65 @@ def imblur(Y, sig = 5, siz = 11, nDimBlur = None, kernel = None):
     return X
 
 #%%
-def hals_2D(Y,A,C,b,f,bSiz=3,maxIter=5):
-    """ Hierarchical alternating least square method for solving NMF problem  
-    Y = A*C + b*f 
-    
-    input: 
+def hals_2D(Y, A, C, b, f, bSiz=3, maxIter=5):
+    """ Hierarchical alternating least square method for solving NMF problem
+    Y = A*C + b*f
+
+    input:
        Y:      d1 X d2 X T, raw data. It will be reshaped to (d1*d2) X T in this
-       function 
-       A:      (d1*d2) X K, initial value of spatial components 
-       C:      K X T, initial value of temporal components 
-       b:      (d1*d2) X 1, initial value of background spatial component 
+       function
+       A:      (d1*d2) X K, initial value of spatial components
+       C:      K X T, initial value of temporal components
+       b:      (d1*d2) X 1, initial value of background spatial component
        f:      1 X T, initial value of background temporal component
-    
+
        bSiz:   blur size. A box kernel (bSiz X bSiz) will be convolved
        with each neuron's initial spatial component, then all nonzero
        pixels will be picked as pixels to be updated, and the rest will be
-       forced to be 0. 
-       maxIter: maximum iteration of iterating HALS. 
-    
+       forced to be 0.
+       maxIter: maximum iteration of iterating HALS.
+
     output:
     the updated A, C, b, f
-    
-    Author: Andrea Giovannucci, Columbia University, based on a matlab implementation from Pengcheng Zhou
+
+    Author: Johannes Friedrich, Andrea Giovannucci, Columbia University
        """
-    
+
     #%% smooth the components
     d1, d2, T = np.shape(Y)
-    ind_A = nd.filters.uniform_filter(np.reshape(A,(d1,d2, A.shape[1]),order='F'),size=(bSiz,bSiz,0))
-    ind_A = np.reshape(ind_A>1e-10,(d1*d2, A.shape[1]),order='F')
-    
-    #%%
-    ind_A = spr.csc_matrix(ind_A);  #indicator of nonnero pixels 
-    K = np.shape(A)[1] #number of neurons 
-    #%% update spatial and temporal components neuron by neurons
-    Yres = np.reshape(Y, (d1*d2, T),order='F') - A.dot(C) - b.dot(f[None,:]);
-    print 'First residual is ' + str(scipy.linalg.norm(Yres, 'fro')) + '\n';
-     
+    ind_A = nd.filters.uniform_filter(np.reshape(A, (d1, d2, A.shape[1]),
+                                                 order='F'), size=(bSiz, bSiz, 0))
+    ind_A = np.reshape(ind_A > 1e-10, (d1 * d2, A.shape[1]), order='F')
+
+    ind_A = spr.csc_matrix(ind_A)  # indicator of nonnero pixels
+    K = np.shape(A)[1]  # number of neurons
+
+    def HALS4activity(data, S, activity, iters=2):
+        A = S.dot(data)
+        B = S.dot(S.T)
+        for _ in range(iters):
+            for mcell in range(K + 1):  # neurons and background
+                activity[mcell] += (A[mcell] - np.dot(B[mcell].T, activity)) / B[mcell, mcell]
+                activity[mcell][activity[mcell] < 0] = 0
+        return activity
+
+    def HALS4shape(data, S, activity, iters=2):
+        C = activity.dot(data.T)
+        D = activity.dot(activity.T)
+        for _ in range(iters):
+            for mcell in range(K):  # neurons
+                ind_pixels = np.squeeze(np.asarray(ind_A[:, mcell].todense()))
+                S[mcell, ind_pixels] += (C[mcell, ind_pixels] -
+                                         np.dot(D[mcell], S[:, ind_pixels])) / D[mcell, mcell]
+                S[mcell, ind_pixels][S[mcell, ind_pixels] < 0] = 0
+            S[K] += (C[K] - np.dot(D[K], S)) / D[K, K]  # background
+            S[K][S[K] < 0] = 0
+        return S
+
+    Ab = np.c_[A, b].T
+    Cf = np.r_[C, f.reshape(1, -1)]
     for miter in range(maxIter):
-        for mcell in range(K):
-            ind_pixels = np.squeeze(np.asarray(ind_A[:, mcell].todense()))
-            tmp_Yres = Yres[ind_pixels, :]
-           # print 'First residual is ' + str(scipy.linalg.norm(tmp_Yres, 'fro')) + '\n';
-            # update temporal component of the neuron
-            c0 = C[mcell, :].copy();
-            a0 = A[ind_pixels, mcell].copy()
-            norm_a2 = scipy.linalg.norm(a0, ord=2)**2;
-            C[mcell, :] = np.maximum(0, c0 + a0.T.dot(tmp_Yres/norm_a2))
-            tmp_Yres = tmp_Yres + np.dot(a0[:,None],(c0-C[mcell,:])[None,:])
-           # print 'First residual is ' + str(scipy.linalg.norm(tmp_Yres, 'fro')) + '\n';
-            
-            # update spatial component of the neuron
-            norm_c2 = scipy.linalg.norm(C[mcell,:],ord=2)**2
-            tmp_a = np.maximum(0, a0 + np.dot(tmp_Yres,C[mcell, :].T/norm_c2))
-            A[ind_pixels, mcell] = tmp_a
-            Yres[ind_pixels,:] = tmp_Yres + np.dot(a0[:,None]-tmp_a[:,None],C[None,mcell,:])
-            #print 'First residual is ' + str(scipy.linalg.norm(tmp_Yres, 'fro')) + '\n';
-        
-        # update temporal component of the background
-        f0 = f.copy();
-        b0 = b.copy();
-        norm_b2 = scipy.linalg.norm(b0,ord=2)**2
-        f = np.maximum(0, f0 + np.dot(b0.T,Yres/norm_b2))
-        Yres = Yres + np.dot(b0,f0-f)
-        #print 'First residual is ' + str(scipy.linalg.norm(Yres, 'fro')) + '\n';        
-        
-        # update spatial component of the background
-        norm_f2 = scipy.linalg.norm(f, ord=2)**2
-        b = np.maximum(0, b0 + np.dot(Yres,f.T/norm_f2))
-        Yres = Yres + np.dot(b0-b,f)
-        
-        print 'Iteration:' + str(miter) + ', the norm of residual is ' + str(scipy.linalg.norm(Yres, 'fro'))
-    
-    return A, C, b, f
+        Cf = HALS4activity(np.reshape(Y, (d1 * d2, T), order='F'), Ab, Cf)
+        Ab = HALS4shape(np.reshape(Y, (d1 * d2, T), order='F'), Ab, Cf)
+
+    return Ab[:-1].T, Cf[:-1], Ab[-1].reshape(-1, 1), Cf[-1].reshape(1, -1)

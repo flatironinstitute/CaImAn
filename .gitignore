@@ -2,3 +2,5 @@
 *.npy
 *.mat
 .ipynb_checkpoints
+
+*.hdf5

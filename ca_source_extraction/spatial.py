@@ -351,7 +351,12 @@ def determine_search_location(A, d1, d2, method='ellipse', min_size=3, max_size=
                 dist_cm = coo_matrix(np.hstack((Coor['x'] - cm[i, 0], Coor['y'] - cm[i, 1])))
                 Vr.append(dist_cm.T * spdiags(A[:, i].toarray().squeeze(),
                                               0, d, d) * dist_cm / A[:, i].sum(axis=0))
+                
+                if np.sum(np.isnan(Vr))>0:
+                    raise Exception('You cannot pass empty (all zeros) components!')
+                
                 D, V = eig(Vr[-1])
+                
                 d11 = np.min((max_size**2, np.max((min_size**2, D[0].real))))
                 d22 = np.min((max_size**2, np.max((min_size**2, D[1].real))))
                 # search indexes for each component
@@ -390,6 +395,7 @@ def threshold_components(A, d1, d2, medw=(3, 3), thr=0.9999, se=np.ones((3, 3), 
     Ath = np.zeros((d, nr))
 
     for i in range(nr):
+
         A_temp = np.reshape(A[:, i], (d2, d1))
         A_temp = median_filter(A_temp, medw)
         Asor = np.sort(np.squeeze(np.reshape(A_temp, (d, 1))))[::-1]

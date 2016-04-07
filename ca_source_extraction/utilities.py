@@ -10,7 +10,7 @@ from scipy.sparse import spdiags, diags, coo_matrix
 from matplotlib import pyplot as plt
 from pylab import pause
 import sys
-
+import os
 try:
     import bokeh
     import bokeh.plotting as bpl
@@ -33,22 +33,31 @@ import ca_source_extraction
 import sklearn
 import time
 from sklearn.decomposition import NMF
+import shutil
+import glob
 #%%
 
 
-def CNMFSetParms(Y, K=30, gSig=[5, 5], ssub=1, tsub=1, p=2, **kwargs):
+def CNMFSetParms(Y, K=30, gSig=[5, 5], ssub=1, tsub=1, p=2,p_ssub=1, p_tsub=1, **kwargs):
     """Dictionary for setting the CNMF parameters.
     Any parameter that is not set get a default value specified
     by the dictionary default options
     """
-
-    d1, d2, T = Y.shape
+    
+    if type(Y) is tuple:
+        d1,d2,T=Y    
+    else:
+        d1, d2, T = Y.shape
     # roughly number of cores on your machine minus 1
     n_processes = np.maximum(psutil.cpu_count() - 2, 1)
     print 'using ' + str(n_processes) + ' processes'
     n_pixels_per_process = d1 * d2 / n_processes  # how to subdivide the work among processes
 
     options = dict()
+    options['patch_params']={
+                             'ssub': p_ssub,             # spatial downsampling factor
+                             'tsub': p_tsub              # temporal downsampling factor
+                            }
     options['preprocess_params'] = {'sn': None,                  # noise level for each pixel
                                     # range of normalized frequencies over which to average
                                     'noise_range': [0.25, 0.5],
@@ -466,7 +475,7 @@ def view_patches(Yr, A, C, b, f, d1, d2, YrA=None, secs=1):
             ax2.set_title('Temporal background')
 
 
-def plot_contours(A, Cn, thr=0.9, display_numbers=True, max_number=None, cmap=None, swap_dim=False, colors=None, **kwargs):
+def plot_contours(A, Cn, thr=0.9, display_numbers=True, max_number=None, cmap=None, swap_dim=False, colors='w', **kwargs):
     """Plots contour of spatial components against a background image and returns their coordinates
 
      Parameters
@@ -555,9 +564,9 @@ def plot_contours(A, Cn, thr=0.9, display_numbers=True, max_number=None, cmap=No
     if display_numbers:
         for i in range(np.minimum(nr, max_number)):
             if swap_dim:
-                ax.text(cm[i, 0], cm[i, 1], str(i + 1))
+                ax.text(cm[i, 0], cm[i, 1], str(i + 1),color=colors)
             else:
-                ax.text(cm[i, 1], cm[i, 0], str(i + 1))
+                ax.text(cm[i, 1], cm[i, 0], str(i + 1),color=colors)
 
     return coordinates
 
@@ -953,7 +962,7 @@ def nb_plot_contour(image, A, d1, d2, thr=0.995, face_color=None, line_color='bl
     return p
 
 
-def start_server(ncpus):
+def start_server(ncpus,slurm_script=None):
     '''
     programmatically start the ipyparallel server
 
@@ -965,45 +974,140 @@ def start_server(ncpus):
     '''
     sys.stdout.write("Starting cluster...")
     sys.stdout.flush()
-
-    subprocess.Popen(["ipcluster start -n {0}".format(ncpus)], shell=True)
-    while True:
-        try:
-            c = ipyparallel.Client()
-            if len(c) < ncpus:
+    
+    if slurm_script is None:
+        subprocess.Popen(["ipcluster start -n {0}".format(ncpus)], shell=True)
+        while True:
+            try:
+                c = ipyparallel.Client()
+                if len(c) < ncpus:
+                    sys.stdout.write(".")
+                    sys.stdout.flush()
+                    raise ipyparallel.error.TimeoutError
+                c.close()
+                break
+            except (IOError, ipyparallel.error.TimeoutError):
                 sys.stdout.write(".")
                 sys.stdout.flush()
-                raise ipyparallel.error.TimeoutError
-            c.close()
-            break
-        except (IOError, ipyparallel.error.TimeoutError):
-            sys.stdout.write(".")
-            sys.stdout.flush()
-            time.sleep(1)
+                time.sleep(1)
+    else:
+        shell_source(slurm_script)
+        from ipyparallel import Client
+        pdir, profile = os.environ['IPPPDIR'], os.environ['IPPPROFILE']
+        c = Client(ipython_dir=pdir, profile=profile)   
+        ee = c[:]
+        ne = len(ee)
+        print 'Running on %d engines.'%(ne)
+        c.close()             
+        sys.stdout.write(" done\n")
 
-    sys.stdout.write(" done\n")
-
-
-def stop_server():
+#%%
+def shell_source(script):
+    """Sometime you want to emulate the action of "source" in bash,
+    settings some environment variables. Here is a way to do it."""
+    import subprocess, os
+    pipe = subprocess.Popen(". %s; env" % script,  stdout=subprocess.PIPE, shell=True)
+    output = pipe.communicate()[0]
+    env = dict()
+    for line in output.splitlines():
+        lsp=line.split("=", 1)
+        if len(lsp)>1:
+           env[lsp[0]]=lsp[1] 
+#    env = dict((line.split("=", 1) for line in output.splitlines()))
+    os.environ.update(env)
+#%%        
+def stop_server(is_slurm=False):
     '''
     programmatically stops the ipyparallel server
     '''
     sys.stdout.write("Stopping cluster...\n")
     sys.stdout.flush()
 
-    proc = subprocess.Popen(["ipcluster stop"], shell=True, stderr=subprocess.PIPE)
-    line_out = proc.stderr.readline()
-    if 'CRITICAL' in line_out:
-        sys.stdout.write("No cluster to stop...")
-        sys.stdout.flush()
-    elif 'Stopping' in line_out:
-        st = time.time()
-        sys.stdout.write('Waiting for cluster to stop...')
-        while (time.time() - st) < 4:
-            sys.stdout.write('.')
-            sys.stdout.flush()
-            time.sleep(1)
+    
+    if is_slurm:
+        from ipyparallel import Client
+        pdir, profile = os.environ['IPPPDIR'], os.environ['IPPPROFILE']
+        c = Client(ipython_dir=pdir, profile=profile)        
+        ee = c[:]
+        ne = len(ee)
+        print 'Shutting down %d engines.'%(ne)
+        c.shutdown(hub=True)
+        shutil.rmtree('profile_' + str(profile))
+        try: 
+            shutil.rmtree('./log/')
+        except:
+            print 'creating log folder'
+            
+        files = glob.glob('*.log')
+        os.mkdir('./log')
+        
+        for fl in files:
+            shutil.move(fl, './log/')
+    
     else:
-        print '**** Unrecognized Syntax in ipcluster output, waiting for server to stop anyways ****'
+        
+        proc = subprocess.Popen(["ipcluster stop"], shell=True, stderr=subprocess.PIPE)
+        line_out = proc.stderr.readline()
+        if 'CRITICAL' in line_out:
+            sys.stdout.write("No cluster to stop...")
+            sys.stdout.flush()
+        elif 'Stopping' in line_out:
+            st = time.time()
+            sys.stdout.write('Waiting for cluster to stop...')
+            while (time.time() - st) < 4:
+                sys.stdout.write('.')
+                sys.stdout.flush()
+                time.sleep(1)
+        else:
+            print '**** Unrecognized Syntax in ipcluster output, waiting for server to stop anyways ****'
+    
+        
 
     sys.stdout.write(" done\n")
+
+def evaluate_components(A,Yr,psx):
+
+    #%% clustering components
+    Ys=Yr
+    psx = cse.pre_processing.get_noise_fft(Ys,get_spectrum=True);
+    
+    #[sn,psx] = get_noise_fft(Ys,options);
+    #P.sn = sn(:);
+    #fprintf('  done \n');
+    psdx = np.sqrt(psx[:,3:]);
+    X = psdx[:,1:np.minimum(np.shape(psdx)[1],1500)];
+    #P.psdx = X;
+    X = X-np.mean(X,axis=1)[:,np.newaxis]#     bsxfun(@minus,X,mean(X,2));     % center
+    X = X/(+1e-5+np.std(X,axis=1)[:,np.newaxis])
+    
+    from sklearn.cluster import KMeans
+    from sklearn.decomposition import PCA,NMF
+    from sklearn.mixture import GMM
+    pc=PCA(n_components=5)
+    nmf=NMF(n_components=2)
+    nmr=nmf.fit_transform(X)
+    
+    cp=pc.fit_transform(X)
+    gmm=GMM(n_components=2)
+    
+    Cx1=gmm.fit_predict(cp)
+    
+    L=gmm.predict_proba(cp)
+    
+    km=KMeans(n_clusters=2)
+    Cx=km.fit_transform(X)
+    Cx=km.fit_transform(cp)
+    Cx=km.cluster_centers_
+    L=km.labels_
+    ind=np.argmin(np.mean(Cx[:,-49:],axis=1))
+    active_pixels = (L==ind)
+    centroids = Cx;
+    #%%%
+#    ff = false(1,size(Am,2));
+#    for i = 1:size(Am,2)
+#        a1 = Am(:,i);
+#        a2 = Am(:,i).*Pm.active_pixels(:);
+#        if sum(a2.^2) >= cl_thr^2*sum(a1.^2)
+#            ff(i) = true;
+#        end
+#    end 

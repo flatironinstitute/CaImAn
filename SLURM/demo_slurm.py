@@ -12,6 +12,7 @@ from matplotlib import pyplot as plt
 #plt.ion()
 
 import sys
+import os
 import numpy as np
 import ca_source_extraction as cse
 
@@ -25,15 +26,26 @@ import time as tm
 from time import time
 import pylab as pl
 import psutil
+from ipyparallel import Client
+import shutil
+import glob
+
+#%%
+slurm_script='/mnt/xfs1/home/agiovann/SOFTWARE/Constrained_NMF/SLURM/slurmStart.sh'
+cse.utilities.start_server(ncpus=None,slurm_script=slurm_script)
+
+#%% see if running on slurm, you need to source the file slurmAlloc.rc before starting in order to start controller and engines    
+cse.utilities.stop_server(is_slurm=True)
+
 #%%
 n_processes = np.maximum(psutil.cpu_count() - 2,1) # roughly number of cores on your machine minus 1
 #print 'using ' + str(n_processes) + ' processes'
 p=2 # order of the AR model (in general 1 or 2)
 
 #%% start cluster for efficient computation
-print "Stopping  cluster to avoid unnencessary use of memory...."
-sys.stdout.flush()  
-cse.utilities.stop_server()
+#print "Stopping  cluster to avoid unnencessary use of memory...."
+#sys.stdout.flush()  
+#cse.utilities.stop_server()
 
 #%% LOAD MOVIE AND MAKE DIMENSIONS COMPATIBLE WITH CNMF
 reload=0
@@ -53,11 +65,11 @@ Cn = cse.utilities.local_correlations(Y)
 
 #%%
 options = cse.utilities.CNMFSetParms(Y,p=p,gSig=[4,4],K=30)
-cse.utilities.start_server(options['spatial_params']['n_processes'])
+#cse.utilities.start_server(options['spatial_params']['n_processes'])
 
 #%% PREPROCESS DATA AND INITIALIZE COMPONENTS
 t1 = time()
-Yr,sn,g,psx = cse.pre_processing.preprocess_data(Yr,**options['preprocess_params'])
+Yr,sn,g=cse.pre_processing.preprocess_data(Yr,**options['preprocess_params'])
 Atmp, Ctmp, b_in, f_in, center=cse.initialization.initialize_components(Y, **options['init_params'])                                                    
 print time() - t1
 
@@ -116,5 +128,3 @@ crd = cse.utilities.plot_contours(A_or,Cn,thr=0.9)
 #%% STOP CLUSTER
 pl.close()
 cse.utilities.stop_server()
-
-
