@@ -27,7 +27,6 @@ def test_interpolate_missing_data():
 
 
 def test_axcov():
-    from np.fft import fft, ifft
     data = np.random.randn(1000)
     maxlag = 5
     C = cse.pre_processing.axcov(data, maxlag)
