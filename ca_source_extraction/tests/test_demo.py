@@ -61,7 +61,7 @@ def test_demo():
 
     # %% PREPROCESS DATA AND INITIALIZE COMPONENTS
     t1 = time()
-    Yr, sn, g = cse.pre_processing.preprocess_data(Yr, **options['preprocess_params'])
+    Yr, sn, g, psx = cse.pre_processing.preprocess_data(Yr, **options['preprocess_params'])
     Atmp, Ctmp, b_in, f_in, center = cse.initialization.initialize_components(Y, **options['init_params'])
     print time() - t1
     plt.show(block=False)
@@ -90,10 +90,8 @@ def test_demo():
 
     #%% update_temporal_components
     options['temporal_params']['p'] = 0 # set this to zero for fast updating without deconvolution
+    np.random.seed(1)
     C, f, S, bl, c1, neurons_sn, g, YrA = cse.temporal.update_temporal_components(Yr, A, b, Cin, f_in, bl=None, c1=None, sn=None, g=None, **options['temporal_params'])
-
-    print(np.sum(np.abs(C)))
-
 
     # %% merge components corresponding to the same neuron
     # A_m, C_m,nr_m,merged_ROIs,S_m,bl_m,c1_m,sn_m,g_m=cse.merging.merge_components(Yr,A,b,C,f,S,sn,options['temporal_params'], options['spatial_params'], bl=bl, c1=c1, sn=neurons_sn, g=g, thr=0.8, mx=50, fast_merge = True)
@@ -106,5 +104,5 @@ def test_demo():
     # npt.assert_allclose(np.sum(np.abs(C)),81608618.9801)
 
     # verifying the spatial components
-    npt.assert_allclose(A.sum(), 273.12351195)
-    npt.assert_allclose(np.sum(np.abs(C)), 81608618.9801)
+    npt.assert_allclose(A.sum(), 287.4153861)
+    npt.assert_allclose(np.sum(np.abs(C)), 83585833.0461)
