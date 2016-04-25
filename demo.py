@@ -37,21 +37,23 @@ cse.utilities.stop_server()
 
 #%% LOAD MOVIE AND MAKE DIMENSIONS COMPATIBLE WITH CNMF
 reload=0
-filename='demoMovie.tif'
+filename='movies/demoMovie.tif'
 #%%
-t = tifffile.TiffFile(filename) 
-Yr = t.asarray().astype(dtype=np.float32) 
-Yr = np.transpose(Yr,(1,2,0))
-d1,d2,T=Yr.shape
-Yr=np.reshape(Yr,(d1*d2,T),order='F')
-#np.save('Y',Y)
-np.save('Yr',Yr)
-#Y=np.load('Y.npy',mmap_mode='r')
-Yr=np.load('Yr.npy',mmap_mode='r')        
-Y=np.reshape(Yr,(d1,d2,T),order='F')
-#%% new memmap
 if 0:
-    fname_new=cse.utilities.save_memmap([filename],base_name='Ytest')
+    t = tifffile.TiffFile(filename) 
+    Yr = t.asarray().astype(dtype=np.float32) 
+    Yr = np.transpose(Yr,(1,2,0))
+    d1,d2,T=Yr.shape
+    Yr=np.reshape(Yr,(d1*d2,T),order='F')
+    #np.save('Y',Y)
+    np.save('Yr',Yr)
+    #Y=np.load('Y.npy',mmap_mode='r')
+    Yr=np.load('Yr.npy',mmap_mode='r')        
+    Y=np.reshape(Yr,(d1,d2,T),order='F')
+else:
+    #% new memmap
+    fraction_downsample=1;
+    fname_new=cse.utilities.save_memmap([filename],base_name='Yr',resize_fact=(1,1,fraction_downsample),remove_init=30)
     Yr,d1,d2,T=cse.utilities.load_memmap(fname_new)
     Y=np.reshape(Yr,(d1,d2,T),order='F')
 #%%
