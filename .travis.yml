@@ -9,6 +9,8 @@ before_install:
 
 script:
   - docker run -i -d -p 127.0.0.1:80:4567 valentina/constrained_nmf /bin/sh -c "nosetests"
+  - docker ps -a
+  - docker run valentina/constrained_nmf /bin/sh -c "nosetests"
 
 
 # whitelist
