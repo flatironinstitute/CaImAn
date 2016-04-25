@@ -50,3 +50,4 @@ cache:
 branches:
   only:
     - testing
+    - master
