@@ -16,7 +16,6 @@ import time
 import sys
 import tempfile
 import os
-
 import shutil
 
 try:
@@ -29,6 +28,7 @@ try:
 except:
     print 'cvxopt not installed'
 
+from utilities import load_memmap
 
 #%%
 
@@ -119,8 +119,10 @@ def update_spatial_components(Y, C, f, A_in, sn=None, d1=None, d2=None, min_size
 
     if d1 is None or d2 is None:
         raise Exception('You need to define the input dimensions')
-
-    Y = np.atleast_2d(Y)
+    
+    if Y.ndim<2 and not type(Y) is str:
+        Y = np.atleast_2d(Y)
+        
     if Y.shape[1] == 1:
         raise Exception('Dimension of Matrix Y must be pixels x time')
 
@@ -149,10 +151,11 @@ def update_spatial_components(Y, C, f, A_in, sn=None, d1=None, d2=None, min_size
             'The number of pixels per process (n_pixels_per_process) is larger than the total number of pixels!! Decrease suitably.')
 
     nr, _ = np.shape(C)       # number of neurons
-
+    
     IND = determine_search_location(
         A_in, d1, d2, method=method, min_size=min_size, max_size=max_size, dist=dist, expandCore=expandCore)
     print " find search location"
+
 
     ind2_ = [np.hstack((np.where(iid_)[0], nr + np.arange(f.shape[0])))
              if np.size(np.where(iid_)[0]) > 0 else [] for iid_ in IND]
@@ -167,12 +170,14 @@ def update_spatial_components(Y, C, f, A_in, sn=None, d1=None, d2=None, min_size
         np.save(C_name, Cf)
 
         if type(Y) is np.core.memmap:  # if input file is already memory mapped then find the filename
-            Y_name = Y.filename
+            Y_name = Y.filename            
         # if not create a memory mapped version (necessary for parallelization)
+        elif type(Y) is str:
+            Y_name = Y            
         else:
             Y_name = os.path.join(folder, 'Y_temp.npy')
-            np.save(Y_name, Y)
-            Y = np.load(Y_name, mmap_mode='r')
+            np.save(Y_name, Y)            
+            Y,_,_,_=load_memmap(Y_name)    
 
         # create arguments to be passed to the function. Here we are grouping
         # bunch of pixels to be processed by each thread
@@ -180,6 +185,7 @@ def update_spatial_components(Y, C, f, A_in, sn=None, d1=None, d2=None, min_size
                         for i in range(0, d1 * d2 - n_pixels_per_process + 1, n_pixels_per_process)]
 
         A_ = np.zeros((d, nr + np.size(f, 0)))
+    
         try:  # if server is not running and raise exception if not installed or not started
             from ipyparallel import Client
             c = Client()
@@ -193,13 +199,16 @@ def update_spatial_components(Y, C, f, A_in, sn=None, d1=None, d2=None, min_size
                 "the number of nodes in the cluster are less than the required processes: decrease the n_processes parameter to a suitable value")
 
         dview = c[:n_processes]  # use the number of processes
-        #serial_result = map(lars_regression_noise_ipyparallel, pixel_groups)
+        #serial_result = map(lars_regression_noise_ipyparallel, pixel_groups)                        
         parallel_result = dview.map_sync(lars_regression_noise_ipyparallel, pixel_groups)
+        # clean up
+       
+        
         for chunk in parallel_result:
             for pars in chunk:
                 px, idxs_, a = pars
                 A_[px, idxs_] = a
-        # clean up
+        
         dview.results.clear()
         c.purge_results('all')
         c.purge_everything()
@@ -225,7 +234,7 @@ def update_spatial_components(Y, C, f, A_in, sn=None, d1=None, d2=None, min_size
     else:
         raise Exception(
             'Unknown backend specified: use single_thread, threading, multiprocessing or ipyparallel')
-
+    
     #%
     print 'Updated Spatial Components'
     A_ = threshold_components(A_, d1, d2)
@@ -240,6 +249,7 @@ def update_spatial_components(Y, C, f, A_in, sn=None, d1=None, d2=None, min_size
 
     A_ = A_[:, :nr]
     A_ = coo_matrix(A_)
+    
 
     Y_resf = np.dot(Y, f.T) - A_.dot(coo_matrix(C[:nr, :]).dot(f.T))
     print "Computing A_bas"
@@ -272,20 +282,23 @@ def lars_regression_noise_ipyparallel(pars):
     import sys
     import gc
 
+    
     Y_name, C_name, noise_sn, idxs_C, idxs_Y = pars
-    Y = np.load(Y_name, mmap_mode='r')
+
+    Y,_,_,_ = load_memmap(Y_name)
+
     Y = np.array(Y[idxs_Y, :])
     C = np.load(C_name, mmap_mode='r')
     C = np.array(C)
     _, T = np.shape(C)
     #sys.stdout = open(str(os.getpid()) + ".out", "w")
-    st = time.time()
     As = []
     # print "*****************:" + str(idxs_Y[0]) + ',' + str(idxs_Y[-1])
     sys.stdout.flush()
     for y, px in zip(Y, idxs_Y):
         # print str(time.time()-st) + ": Pixel" + str(px)
         sys.stdout.flush()
+#        print px,len(idxs_C),C.shape
         c = C[idxs_C[px], :]
         if np.size(c) > 0:
             sn = noise_sn[px]**2 * T
