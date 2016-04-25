@@ -4,13 +4,13 @@ services:
   - docker
 
 before_install:
-  - docker build -t C_NMF/constrained_nmf .
+  - docker build -t agiovann/constrained_nmf .
 
 
 script:
-  - docker run -i -d -p 127.0.0.1:80:4567 C_NMF/constrained_nmf /bin/sh -c "nosetests"
+  - docker run -i -d -p 127.0.0.1:80:4567 agiovann/constrained_nmf /bin/sh -c "nosetests"
   - docker ps -a
-  - docker run C_NMF/constrained_nmf /bin/sh -c "nosetests"
+  - docker run agiovann/constrained_nmf /bin/sh -c "nosetests"
 
 
 # whitelist
