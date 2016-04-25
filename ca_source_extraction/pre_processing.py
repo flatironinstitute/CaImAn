@@ -16,7 +16,8 @@ import os
 #from joblib import Parallel,delayed
 import shutil
 from multiprocessing.dummy import Pool as ThreadPool 
-
+from utilities import load_memmap
+from ipyparallel import Client
 #%%
 def interpolate_missing_data(Y):
     """
@@ -198,26 +199,34 @@ def get_noise_fft_parallel(Y, n_processes=4,n_pixels_per_process=100, backend='i
             sn_s[idx]=sn
             psx_s[idx,:]=psx_
 
-    elif backend=='ipyparallel':
+    elif backend=='ipyparallel' or backend=='SLURM':
         if type(Y) is np.core.memmap:  # if input file is already memory mapped then find the filename
             Y_name = Y.filename
         else:
             raise Exception('ipyparallel backend only works with memory mapped files')
             
         try: 
-            if 'IPPPDIR' in os.environ and 'IPPPROFILE' in os.environ:
-                pdir, profile = os.environ['IPPPDIR'], os.environ['IPPPROFILE']
-            else:
-                raise Exception('envirnomment variables not found, please source slurmAlloc.rc')
+            if backend=='SLURM':
+                if 'IPPPDIR' in os.environ and 'IPPPROFILE' in os.environ:
+                    pdir, profile = os.environ['IPPPDIR'], os.environ['IPPPROFILE']
+                else:
+                    raise Exception('envirnomment variables not found, please source slurmAlloc.rc')
         
-            c = Client(ipython_dir=pdir, profile=profile)
+                c = Client(ipython_dir=pdir, profile=profile)
+            else:
+                c = Client()
+                
             dview = c[:]
             ne = len(dview)
             print 'Running on %d engines.'%(ne)
     
             argsin=[(Y_name, i, n_pixels_per_process, kwargs) for i in pixel_groups]
+            if backend=='SLURM':     
+                results = dview.map(fft_psd_multithreading, argsin)
+            else:            
+                results = dview.map_sync(fft_psd_multithreading, argsin)
             
-            results = dview.map(fft_psd_multithreading, argsin)
+            
             _,_,psx_= results[0]
             psx_s=np.zeros((Y.shape[0],psx_.shape[-1]))
             sn_s=np.zeros(Y.shape[0])        
@@ -231,6 +240,16 @@ def get_noise_fft_parallel(Y, n_processes=4,n_pixels_per_process=100, backend='i
             except:
                 print 'closing c failed'
                 
+    elif backend=='single_thread':
+#        pool = ThreadPool(n_processes)
+        argsin=[(Y, i, n_pixels_per_process, kwargs) for i in pixel_groups]
+        results = map(fft_psd_multithreading, argsin)
+        _,_,psx_= results[0]
+        sn_s=np.zeros(Y.shape[0])
+        psx_s=np.zeros((Y.shape[0],psx_.shape[-1]))        
+        for idx,sn,psx_ in results:        
+            sn_s[idx]=sn
+            psx_s[idx,:]=psx_
     else:
         raise Exception('Unknown method')                   
                         
@@ -238,10 +257,12 @@ def get_noise_fft_parallel(Y, n_processes=4,n_pixels_per_process=100, backend='i
     # if n_pixels_per_process is not a multiple of Y.shape[0] run on remaining pixels   
     pixels_remaining= Y.shape[0] %  n_pixels_per_process  
     
-    if pixels_remaining>0:  
+    if pixels_remaining>0:                  
         print "Running fft for remaining pixels:" + str(pixels_remaining)
         if type(Y) is np.core.memmap:  # if input file is already memory mapped then find the filename
             Y_name = Y.filename
+        elif type(Y) is str:
+            Y_name=Y
         else:
             raise Exception('ipyparallel backend only works with memory mapped files')   
         
@@ -315,9 +336,10 @@ def fft_psd_multithreading(args):
     
     """
     (Y,i,num_pixels,kwargs)=args
+    Yold=Y
     if type(Y) is str:
-        Y=np.load(Y,mmap_mode='r')
-
+        Y,_,_,_=load_memmap(Y)
+    
     idxs=range(i,i+num_pixels)
     res,psx=get_noise_fft(Y[idxs], **kwargs)
     
