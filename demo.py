@@ -37,7 +37,8 @@ cse.utilities.stop_server()
 
 #%% LOAD MOVIE AND MAKE DIMENSIONS COMPATIBLE WITH CNMF
 reload=0
-filename='movies/demoMovie.tif'
+filename='demoMovie.tif'
+#%%
 t = tifffile.TiffFile(filename) 
 Yr = t.asarray().astype(dtype=np.float32) 
 Yr = np.transpose(Yr,(1,2,0))
@@ -48,6 +49,12 @@ np.save('Yr',Yr)
 #Y=np.load('Y.npy',mmap_mode='r')
 Yr=np.load('Yr.npy',mmap_mode='r')        
 Y=np.reshape(Yr,(d1,d2,T),order='F')
+#%% new memmap
+if 0:
+    fname_new=cse.utilities.save_memmap([filename],base_name='Ytest')
+    Yr,d1,d2,T=cse.utilities.load_memmap(fname_new)
+    Y=np.reshape(Yr,(d1,d2,T),order='F')
+#%%
 Cn = cse.utilities.local_correlations(Y)
 #n_pixels_per_process=d1*d2/n_processes # how to subdivide the work among processes
 
