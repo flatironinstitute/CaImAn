@@ -35,6 +35,8 @@ import time
 from sklearn.decomposition import NMF
 import shutil
 import glob
+from skimage.external.tifffile import imread
+
 #%%
 
 
@@ -69,7 +71,8 @@ def CNMFSetParms(Y, K=30, gSig=[5, 5], ssub=1, tsub=1, p=2,p_ssub=1, p_tsub=1, *
                                     'p': p,                        # order of AR indicator dynamics
                                     'lags': 5,                     # number of autocovariance lags to be considered for time constant estimation
                                     'include_noise': False,        # flag for using noise values when estimating g
-                                    'pixels': None                 # pixels to be excluded due to saturation
+                                    'pixels': None,                 # pixels to be excluded due to saturation
+                                    'backend':'ipyparallel'                                    
                                     }
     options['init_params'] = {'K': K,                                          # number of components
                               # size of components (std of Gaussian)
@@ -117,7 +120,76 @@ def CNMFSetParms(Y, K=30, gSig=[5, 5], ssub=1, tsub=1, p=2,p_ssub=1, p_tsub=1, *
 
     return options
 
+#%%
+def load_memmap(filename):
+    if os.path.splitext(filename)[1] == '.mmap':
+        filename=os.path.split(filename)[-1]
+        fpart=filename.split('_')[1:-1]
+        d1,d2,T,order=int(fpart[1]),int(fpart[3]),int(fpart[7]),fpart[5]
+        #print([d1,d2,T,order])
+        Yr=np.memmap(filename,mode='r',shape=(d1*d2,T),dtype=np.float32,order=order)
+        return Yr,d1,d2,T  
+    else:
+        Yr=np.load(filename,mmap_mode='r')
+        return Yr,None,None,None  
+        
+    
+#%%
+def save_memmap(filenames,base_name='Yr',resize_fact=(1,1,1),remove_init=0):   
+    """ Saves efficiently a list of tif files into a memory mappable file
+    Parameters
+    ----------
+    filenames: list
+        list of tif files
+    base_name: str
+        the base yused to build the file name. IT MUST NOT CONTAIN "_"
+    
+    resize_fact: tuple
+        x,y, and z downampling factors (0.5 means downsampled by a factor 2)     
+    Return
+    -------
+    fname_new: the name of the mapped file
+    """
+    order='F'
+    Ttot=0;    
+    for idx,f in  enumerate(filenames):
+        print f   
+        if os.path.splitext(f)[-1] == '.hdf5':
+            import calblitz as cb
+            Yr=np.array(cb.load(f))[remove_init:]
+        else:
+            Yr=imread(f)[remove_init:]
+            
+        fx,fy,fz=resize_fact
+        if fx!=1 or fy!=1 or fz!=1:
+            try:
+                import calblitz as cb
+                Yr=cb.movie(Yr,fr=1)                
+                Yr=Yr.resize(fx=fx,fy=fy,fz=fz)
+            except:
+                print('You need to install the CalBlitz package to resize the movie')
+                raise
+                
+        [T,d1,d2]=Yr.shape;
+        Yr=np.transpose(Yr,(1,2,0)) 
+        Yr=np.reshape(Yr,(d1*d2,T),order=order)
+        
+        if idx==0:
+            fname_tot=base_name+'_d1_'+str(d1)+'_d2_'+str(d2)+'_order_'+str(order)
+            big_mov=np.memmap(fname_tot,mode='w+',dtype=np.float32,shape=(d1*d2,T),order=order);
+        else:
+            big_mov=np.memmap(fname_tot,dtype=np.float32,mode='r+',shape=(d1*d2,Ttot+T),order=order)
+        #    np.save(fname[:-3]+'npy',np.asarray(Yr))
+        
+        big_mov[:,Ttot:Ttot+T]=np.asarray(Yr,dtype=np.float32)
+        big_mov.flush()
+        Ttot=Ttot+T;                                        
 
+    fname_new=fname_tot+'_frames_' +str(Ttot) + '_.mmap'
+    os.rename(fname_tot,fname_new)
+    
+    return fname_new
+#%%
 def local_correlations(Y, eight_neighbours=True, swap_dim=True):
     """Computes the correlation image for the input dataset Y
 
