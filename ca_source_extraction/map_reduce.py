@@ -12,6 +12,7 @@ from sklearn.decomposition import NMF
 from scipy.sparse import lil_matrix,coo_matrix
 import time
 import scipy
+from utilities import load_memmap
  
 #%%
 def extract_patch_coordinates(d1,d2,rf=7,stride = 5):
@@ -28,10 +29,12 @@ def extract_patch_coordinates(d1,d2,rf=7,stride = 5):
     """
     coords_flat=[]
     coords_2d=[]
-    for xx in range(stride,d1+stride,2*rf-stride):   
-        for yy in range(stride,d2+stride,2*rf-stride):
+    for xx in range(rf,d1-rf,2*rf-stride)+[d1-rf]:   
+        for yy in range(rf,d2-rf,2*rf-stride)+[d2-rf]:
+            
             coords_x=np.array(range(xx - rf, xx + rf + 1))     
             coords_y=np.array(range(yy - rf, yy + rf + 1))  
+            print([xx - rf, xx + rf + 1,yy - rf, yy + rf + 1])
             coords_y = coords_y[(coords_y >= 0) & (coords_y < d2)]
             coords_x = coords_x[(coords_x >= 0) & (coords_x < d1)]
             idxs = np.meshgrid( coords_x,coords_y)
@@ -88,17 +91,21 @@ def extract_rois_patch(file_name,d1,d2,rf=5,stride = 5):
 def cnmf_patches(args_in):
     import numpy as np
     import ca_source_extraction as cse
-    
+        
 #    file_name, idx_,shapes,p,gSig,K,fudge_fact=args_in
     file_name, idx_,shapes,options=args_in
     
     p=options['temporal_params']['p']
     
-    Yr=np.load(file_name,mmap_mode='r')
+    Yr,_,_,_=load_memmap(file_name)    
+
+    
+        
     Yr=Yr[idx_,:]
+    Yr.filename=file_name
     d,T=Yr.shape      
     Y=np.reshape(Yr,(shapes[1],shapes[0],T),order='F')  
-    
+    Y.filename=file_name
 #    ssub,tsub = options['patch_params']['ssub'],options['patch_params']['tsub']
 #    if ssub>1 or tsub>1:
 #        Y = cse.initialization.downscale_local_mean(Y,(ssub,ssub,tsub))
@@ -114,7 +121,7 @@ def cnmf_patches(args_in):
     options['spatial_params']['backend']='single_thread'
     options['temporal_params']['backend']='single_thread'
     
-    Yr,sn,g=cse.pre_processing.preprocess_data(Yr,**options['preprocess_params'])
+    Yr,sn,g,psx=cse.pre_processing.preprocess_data(Yr,**options['preprocess_params'])
     Ain, Cin, b_in, f_in, center=cse.initialization.initialize_components(Y, **options['init_params']) 
                                                        
     print options
@@ -175,7 +182,8 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, n_processes=2
     K=options['init_params']['K']
     
     idx_flat,idx_2d=extract_patch_coordinates(d1, d2, rf=rf, stride = stride)
-    
+#    import pdb 
+#    pdb.set_trace()
     args_in=[]    
     for id_f,id_2d in zip(idx_flat[:],idx_2d[:]):        
         args_in.append((file_name, id_f,id_2d[0].shape, options))
