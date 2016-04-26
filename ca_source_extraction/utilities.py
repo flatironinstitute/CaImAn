@@ -135,7 +135,7 @@ def load_memmap(filename):
         
     
 #%%
-def save_memmap(filenames,base_name='Yr',resize_fact=(1,1,1),remove_init=0):   
+def save_memmap(filenames,base_name='Yr',resize_fact=(1,1,1),remove_init=0,idx_xy=None):   
     """ Saves efficiently a list of tif files into a memory mappable file
     Parameters
     ----------
@@ -156,10 +156,16 @@ def save_memmap(filenames,base_name='Yr',resize_fact=(1,1,1),remove_init=0):
         print f   
         if os.path.splitext(f)[-1] == '.hdf5':
             import calblitz as cb
-            Yr=np.array(cb.load(f))[remove_init:]
+            if idx_xy is None:
+                Yr=np.array(cb.load(f))[remove_init:]
+            else:
+                Yr=np.array(cb.load(f))[remove_init:,idx_xy[0],idx_xy[1]]                                                        
         else:
-            Yr=imread(f)[remove_init:]
-            
+            if idx_xy is None:
+                Yr=imread(f)[remove_init:]
+            else:
+                Yr=imread(f)[remove_init:,idx_xy[0],idx_xy[1]]
+                
         fx,fy,fz=resize_fact
         if fx!=1 or fy!=1 or fz!=1:
             try:
