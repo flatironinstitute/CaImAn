@@ -38,50 +38,25 @@ for file in os.listdir("./"):
 fnames.sort()
 print fnames  
 #%%
-fraction_downsample=1;
-fname_new=cse.utilities.save_memmap(fnames,base_name='Yr',resize_fact=(1,1,fraction_downsample),remove_init=30)
-#
-##%%
-#
-#big_shifts=[]
-#
-#for f in  fnames[1:nfiles]:
-#    print f    
-#    Yr=imread(f)
-##    Yr=cb.load(f,fr=30)    
-#    #Yr=Yr[:,(350):400,(390):455]
-##    pl.imshow(np.mean(Yr,0))
-#    #Yr=Yr.resize(fx=1,fy=1,fz=1)
-#    Yr = np.transpose(Yr,(1,2,0)) 
-#    d1,d2,T=Yr.shape
-#    Yr=np.reshape(Yr,(d1*d2,T),order='F')
-#    print Yr.shape
-#    big_mov=np.memmap(fname_tot,dtype=np.float32,mode='r+',shape=(d1*d2,Ttot+T),order=order)
-##    np.save(fname[:-3]+'npy',np.asarray(Yr))
-#    big_mov[:,Ttot:Ttot+T]=np.asarray(Yr,dtype=np.float32)
-#    Ttot=Ttot+T;
-#
-#big_mov.flush()
-##%%
-#fname_new=fname_tot+'_frames_' +str(Ttot) + '_.mmap'
-#os.rename(fname_tot,fname_new)
-#del big_mov
-##%%
-#fpart=fname_new.split('_')[1:-1]
-##mov_dims =  dict([(fpart[i], fpart[i+1]) for i id1n range(0,len(fpart),2) ])
-#d1,d2,nframes,order=int(fpart[1]),int(fpart[3]),int(fpart[7]),fpart[5],
+fraction_downsample=.2;
+idx_x=slice(250,500,None)
+idx_y=slice(0,250,None)
+fname_new=cse.utilities.save_memmap(fnames,base_name='Yr',resize_fact=(1,1,fraction_downsample),remove_init=30,idx_xy=(idx_x,idx_y))
+#%%
+fname_new=cse.utilities.save_memmap(fnames,base_name='Yr',remove_init=30*fraction_downsample)
+
 #%%
 Yr,d1,d2,T=cse.utilities.load_memmap(fname_new)
 #%%
-Yr=cb.movie(np.array(cb.to_3D(Yr.T,[T,d1,d2])),fr=30)
+m=cb.movie(np.array(cb.to_3D(Yr.T,[T,d1,d2])),fr=30)
 #%%
 d,T=np.shape(Yr)
 Y=np.reshape(Yr,(d1,d2,T),order='F')
 
-rf=8
+rf=15
 stride = 2   
-K=5
-gSig=[5,5]
+K=15
+gSig=[3,3]
 
 options_patch = cse.utilities.CNMFSetParms(Y,p=0,gSig=gSig,K=K)
 
@@ -94,15 +69,18 @@ options_patch['temporal_params']['p'] = 0 # set this to zero for fast updating w
 
 A_tot,C_tot,sn_tot, optional_outputs = cse.map_reduce.run_CNMF_patches(fname_new, (d1, d2, T), options_patch,rf=rf,stride = stride,
                                                                        n_processes=n_processes, backend='ipyparallel')
+
 np.savez('results_analysis_patch.npz',A_tot=A_tot.todense(), C_tot=C_tot, sn_tot=sn_tot,d1=d1,d2=d2)    
 #%%
-#Cn=cse.utilities.local_correlations(Y[:,:,:4000])
-Cn=np.mean(Y[:,:,:4000],axis=-1)
+if 0:
+    Cn=cse.utilities.local_correlations(Y[:,:,:4000])
+else:
+    Cn=np.mean(Y[:,:,:4000],axis=-1)
 #%%
 crd = cse.utilities.plot_contours(A_tot,Cn,thr=0.9)
 #%%
 
-options = cse.utilities.CNMFSetParms(Y,p=2,gSig=[4,4],K=A_tot.shape[-1])
+options = cse.utilities.CNMFSetParms(Y,p=2,gSig=gSig,K=A_tot.shape[-1])
 pix_proc=np.minimum(np.int((d1*d2)/n_processes/(T/2000.)),np.int((d1*d2)/n_processes))
 options['preprocess_params']['n_pixels_per_process']=pix_proc
 options['spatial_params']['n_pixels_per_process']=pix_proc
@@ -140,3 +118,5 @@ scipy.io.savemat('output_analysis_matlab.mat',{'A_or':A_or,'C_or':C_or , 'YrA_or
 #cse.utilities.stop_server() 
 #%%
 crd = cse.utilities.plot_contours(A_or,Cn,thr=0.9)
+#%%
+cse.utilities.view_patches_bar(Yr,scipy.sparse.coo_matrix(A_or),C_or,b2,f2, d1,d2, YrA=YrA[srt,:])  
