@@ -19,7 +19,7 @@ RUN conda install scikit-image
 RUN conda install cvxopt
 RUN conda install -c https://conda.anaconda.org/omnia cvxpy
 RUN conda install -c https://conda.anaconda.org/conda-forge tifffile
-RUN git clone --recursive https://github.com/valentina-s/Constrained_NMF.git
+RUN git clone --recursive https://github.com/agiovann/Constrained_NMF.git
 WORKDIR /Constrained_NMF/
 # RUN git checkout docker
 RUN apt-get install libc6-i386
