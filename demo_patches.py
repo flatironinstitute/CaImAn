@@ -37,12 +37,14 @@ for file in os.listdir("./"):
         fnames.append(file)
 fnames.sort()
 print fnames  
+fnames=[fnames[0]]
 #%%
 fraction_downsample=.2;
-idx_x=slice(250,500,None)
-idx_y=slice(0,250,None)
+idx_x=slice(150,350,None)
+idx_y=slice(250,450,None)
 fname_new=cse.utilities.save_memmap(fnames,base_name='Yr',resize_fact=(1,1,fraction_downsample),remove_init=30,idx_xy=(idx_x,idx_y))
 #%%
+fraction_downsample=.2;
 fname_new=cse.utilities.save_memmap(fnames,base_name='Yr',remove_init=30*fraction_downsample)
 
 #%%
@@ -52,11 +54,11 @@ m=cb.movie(np.array(cb.to_3D(Yr.T,[T,d1,d2])),fr=30)
 #%%
 d,T=np.shape(Yr)
 Y=np.reshape(Yr,(d1,d2,T),order='F')
-
+merge_thresh=0.95
 rf=15
 stride = 2   
-K=15
-gSig=[3,3]
+K=10
+gSig=[5,5]
 
 options_patch = cse.utilities.CNMFSetParms(Y,p=0,gSig=gSig,K=K)
 
@@ -72,7 +74,7 @@ A_tot,C_tot,sn_tot, optional_outputs = cse.map_reduce.run_CNMF_patches(fname_new
 
 np.savez('results_analysis_patch.npz',A_tot=A_tot.todense(), C_tot=C_tot, sn_tot=sn_tot,d1=d1,d2=d2)    
 #%%
-if 0:
+if 1:
     Cn=cse.utilities.local_correlations(Y[:,:,:4000])
 else:
     Cn=np.mean(Y[:,:,:4000],axis=-1)
@@ -88,7 +90,7 @@ options['temporal_params']['n_pixels_per_process']=pix_proc
 
 
 options['temporal_params']['p'] = 0              
-A_m,C_m,nr_m,merged_ROIs,S_m,bl_m,c1_m,sn_m,g_m=cse.merge_components(Yr,A_tot,[],np.array(C_tot),[],np.array(C_tot),[],options['temporal_params'],options['spatial_params'],thr=0.8,mx=np.Inf)     
+A_m,C_m,nr_m,merged_ROIs,S_m,bl_m,c1_m,sn_m,g_m=cse.merge_components(Yr,A_tot,[],np.array(C_tot),[],np.array(C_tot),[],options['temporal_params'],options['spatial_params'],thr=merge_thresh,mx=np.Inf)     
 
 #%%
 crd = cse.utilities.plot_contours(A_m,Cn,thr=0.9)
