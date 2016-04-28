@@ -44,7 +44,8 @@ def basis_denoising(y, c, boh, sn, id2_, px):
 #%% update_spatial_components (in parallel)
 
 
-def update_spatial_components(Y, C, f, A_in, sn=None, d1=None, d2=None, min_size=3, max_size=8, dist=3, method='ellipse', expandCore=None, backend='single_thread', n_processes=4, n_pixels_per_process=128, memory_efficient=False):
+def update_spatial_components(Y, C, f, A_in, sn=None, d1=None, d2=None, min_size=3, max_size=8, dist=3, 
+                              method='ellipse', expandCore=None, backend='single_thread', n_processes=4, n_pixels_per_process=128 ):
     """update spatial footprints and background through Basis Pursuit Denoising
 
     for each pixel i solve the problem
@@ -93,8 +94,6 @@ def update_spatial_components(Y, C, f, A_in, sn=None, d1=None, d2=None, min_size
     n_pixels_per_process: [optional] int
         number of pixels to be processed by each thread
 
-    memory_efficient [bool]
-        whether or not to reduce memory usage (at the expense of increased computational time)
 
     method: [optional] string
         method used to expand the search for pixels 'ellipse' or 'dilate'
@@ -113,7 +112,6 @@ def update_spatial_components(Y, C, f, A_in, sn=None, d1=None, d2=None, min_size
          temporal components (updated only when spatial components are completely removed)
 
     """
-
     if expandCore is None:
         expandCore = iterate_structure(generate_binary_structure(2, 1), 2).astype(int)
 
@@ -144,7 +142,7 @@ def update_spatial_components(Y, C, f, A_in, sn=None, d1=None, d2=None, min_size
 
     Cf = np.vstack((C, f))  # create matrix that include background components
 
-    [d, T] = np.shape(Y)
+    [d, T] = np.shape(Y)    
 
     if n_pixels_per_process > d:
         raise Exception(
@@ -250,7 +248,8 @@ def update_spatial_components(Y, C, f, A_in, sn=None, d1=None, d2=None, min_size
     A_ = A_[:, :nr]
     A_ = coo_matrix(A_)
     
-
+#    import pdb 
+#    pdb.set_trace()
     Y_resf = np.dot(Y, f.T) - A_.dot(coo_matrix(C[:nr, :]).dot(f.T))
     print "Computing A_bas"
     A_bas = np.fmax(Y_resf / scipy.linalg.norm(f)**2, 0)  # update baseline based on residual

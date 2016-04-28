@@ -122,11 +122,26 @@ def CNMFSetParms(Y, K=30, gSig=[5, 5], ssub=1, tsub=1, p=2,p_ssub=1, p_tsub=1, *
 
 #%%
 def load_memmap(filename):
+    """ Load a memory mapped file created by the function save_memmap
+    Parameters:
+    -----------
+        filename: str
+            path of the file to be loaded
+            
+    Returns:
+    --------
+    Yr:
+        memory mapped variable
+    d1,d2:
+        frame dimensions
+    T: int
+        number of frames
+    
+    """
     if os.path.splitext(filename)[1] == '.mmap':
         filename=os.path.split(filename)[-1]
         fpart=filename.split('_')[1:-1]
         d1,d2,T,order=int(fpart[1]),int(fpart[3]),int(fpart[7]),fpart[5]
-        #print([d1,d2,T,order])
         Yr=np.memmap(filename,mode='r',shape=(d1*d2,T),dtype=np.float32,order=order)
         return Yr,d1,d2,T  
     else:
@@ -135,20 +150,25 @@ def load_memmap(filename):
         
     
 #%%
-def save_memmap(filenames,base_name='Yr',resize_fact=(1,1,1),remove_init=0,idx_xy=None):   
+def save_memmap(filenames,base_name='Yr',resize_fact=(1,1,1),remove_init=0,idx_xy=None):       
     """ Saves efficiently a list of tif files into a memory mappable file
     Parameters
     ----------
-    filenames: list
-        list of tif files
-    base_name: str
-        the base yused to build the file name. IT MUST NOT CONTAIN "_"
-    
-    resize_fact: tuple
-        x,y, and z downampling factors (0.5 means downsampled by a factor 2)     
+        filenames: list
+            list of tif files
+        base_name: str
+            the base yused to build the file name. IT MUST NOT CONTAIN "_"    
+        resize_fact: tuple
+            x,y, and z downampling factors (0.5 means downsampled by a factor 2) 
+        remove_init: int
+            number iof frames to remove at the begining of each tif file (used for resonant scanning images if laser in rutned on trial by trial)
+        idx_xy: tuple size 2
+            for selecting slices of the original FOV, for instance idx_xy=(slice(150,350,None),slice(150,350,None))
+
     Return
     -------
-    fname_new: the name of the mapped file
+        fname_new: the name of the mapped file, the format is such that the name will contain the frame dimensions and the number of f
+
     """
     order='F'
     Ttot=0;    

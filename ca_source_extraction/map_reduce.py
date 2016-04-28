@@ -142,7 +142,7 @@ def cnmf_patches(args_in):
     return idx_,shapes,A2,b2,C2,f2,S2,bl2,c12,neurons_sn2,g21,sn,options
 
 #%%
-def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, n_processes=2, backend='single_thread'):
+def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, n_processes=2, backend='single_thread',memory_fact=4):
     """
     Function that runs CNMF in patches, either in parallel or sequentiually, and return the result for each. It requires that ipyparallel is running
         
@@ -166,20 +166,33 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, n_processes=2
     backend: string
         'ipyparallel' or 'single_thread'
     
+    n_processes: int
+        nuber of cores to be used (should be less than the number of cores started with ipyparallel)
+        
+    memory_fact: double
+        unitless number accounting how much memory should be used. You will need to try different values to see which one would work the default is OK for a 16 GB system
+    
     
     Returns
     -------
-    A_tot:
+    A_tot: matrix containing all the componenents from all the patches
     
-    C_tot:
+    C_tot: matrix containing the calcium traces corresponding to A_tot
     
-    sn_tot:
+    sn_tot: per pixel noise estimate
     
-    optional_outputs:    
+    optional_outputs: set of outputs related to the result of CNMF ALGORITHM ON EACH patch   
     """
     (d1,d2,T)=shape
     d=d1*d2
     K=options['init_params']['K']
+    
+    options['preprocess_params']['backend']='single_thread' 
+    options['preprocess_params']['n_pixels_per_process']=np.int((rf*rf*memory_fact)/n_processes/(T/2000.))
+    options['spatial_params']['n_pixels_per_process']=np.int((rf*rf*memory_fact)/n_processes/(T/2000.))
+    options['temporal_params']['n_pixels_per_process']=np.int((rf*rf*memory_fact)/n_processes/(T/2000.))
+    
+    
     
     idx_flat,idx_2d=extract_patch_coordinates(d1, d2, rf=rf, stride = stride)
 #    import pdb 
@@ -199,13 +212,16 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, n_processes=2
             c = Client()   
             dview=c[:n_processes]
             file_res = dview.map_sync(cnmf_patches, args_in)        
-
-        finally:
-            
             dview.results.clear()   
             c.purge_results('all')
             c.purge_everything()
-            c.close()                   
+            c.close()         
+        except:
+            print('Something went wrong')  
+            raise
+        finally:
+            print('It went well')
+                    
 
     elif backend is 'single_thread':
 
