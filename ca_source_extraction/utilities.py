@@ -94,7 +94,6 @@ def CNMFSetParms(Y, K=30, gSig=[5, 5], ssub=1, tsub=1, p=2,p_ssub=1, p_tsub=1, *
         'n_processes': n_processes,      # number of process
         'n_pixels_per_process': n_pixels_per_process,    # number of pixels to be processed by eacg worker
         'backend': 'ipyparallel',
-        'memory_efficient': False
     }
     options['temporal_params'] = {
         'ITER': 2,                   # block coordinate descent iterations
