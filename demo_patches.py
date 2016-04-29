@@ -31,7 +31,7 @@ for file in os.listdir("./"):
         fnames.append(file)
 fnames.sort()
 print fnames  
-
+fnames=fnames[:10]
 #%% Create a unique file fot the whole dataset
 # THIS IS  ONLY IF YOU NEED TO SELECT A SUBSET OF THE FIELD OF VIEW 
 #fraction_downsample=.5;
@@ -39,7 +39,7 @@ print fnames
 #idx_y=slice(250,450,None)
 #fname_new=cse.utilities.save_memmap(fnames,base_name='Yr',resize_fact=(1,1,fraction_downsample),remove_init=30,idx_xy=(idx_x,idx_y))
 #%%  Create a unique file fot the whole dataset
-fraction_downsample=.25; # useful to downsample the movie across time. fraction_downsample=.1 measn downsampling by a factor of 10
+fraction_downsample=.1; # useful to downsample the movie across time. fraction_downsample=.1 measn downsampling by a factor of 10
 fname_new=cse.utilities.save_memmap(fnames,base_name='Yr',resize_fact=(1,1,fraction_downsample))
 #%%
 Yr,d1,d2,T=cse.utilities.load_memmap(fname_new)
