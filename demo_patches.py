@@ -61,7 +61,7 @@ stride = 2 #amounpl.it of overlap between the patches in pixels
 K=7 # number of neurons expected per patch
 gSig=[4,4] # expected half size of neurons
 merge_thresh=0.8 # merging threshold, max correlation allowed
-p=1 #order of the autoregressive system
+p=0 #order of the autoregressive system
 memory_fact=1; #unitless number accounting how much memory should be used. You will need to try different values to see which one would work the default is OK for a 16 GB system
 save_results=False
 #%%
@@ -75,7 +75,7 @@ if save_results:
 #%% if you have many components this might take long!
 crd = cse.utilities.plot_contours(A_tot,Cn,thr=0.9)
 #%% set parameters for full field of view analysis
-options = cse.utilities.CNMFSetParms(Y,p=p,gSig=gSig,K=A_tot.shape[-1],thr=merge_thresh)
+options = cse.utilities.CNMFSetParms(Y,p=0,gSig=gSig,K=A_tot.shape[-1],thr=merge_thresh)
 pix_proc=np.minimum(np.int((d1*d2)/n_processes/(T/2000.)),np.int((d1*d2)/n_processes)) # regulates the amount of memory used
 options['spatial_params']['n_pixels_per_process']=pix_proc
 options['temporal_params']['n_pixels_per_process']=pix_proc
@@ -93,6 +93,7 @@ t1 = time.time()
 A2,b2,C2 = cse.spatial.update_spatial_components(Yr, C_m, f, A_m, sn=sn_tot, **options['spatial_params'])
 print time.time() - t1
 #%% UPDATE TEMPORAL COMPONENTS
+options['temporal_params']['p']=p
 C2,f2,S2,bl2,c12,neurons_sn2,g21,YrA = cse.temporal.update_temporal_components(Yr,A2,b2,C2,f,bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
 #%% Order components
 #A_or, C_or, srt = cse.utilities.order_components(A2,C2)
