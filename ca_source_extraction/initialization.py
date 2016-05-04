@@ -49,7 +49,7 @@ def initialize_components(Y, K=30, gSig=[5,5], gSiz=None, ssub=1, tsub=1, nIter 
         nb X T matrix, initalization of temporal background.    
         
     """
-    
+
     if gSiz is None:
         gSiz=(2*gSig[0] + 1,2*gSig[1] + 1)
      
@@ -59,11 +59,12 @@ def initialize_components(Y, K=30, gSig=[5,5], gSiz=None, ssub=1, tsub=1, nIter 
     gSiz = np.round([gSiz[0]/ssub,gSiz[1]/ssub]).astype(np.int)    
     
     # spatial downsampling
+    mean_val=np.mean(Y)
     if ssub!=1 or tsub!=1:
         print "Spatial Downsampling ..."
-        Y_ds = downscale_local_mean(Y,(ssub,ssub,tsub))
+        Y_ds = downscale_local_mean(Y,(ssub,ssub,tsub),cval=mean_val)
         if Cn is not None:
-            Cn = downscale_local_mean(Cn,(ssub,ssub))
+            Cn = downscale_local_mean(Cn,(ssub,ssub),cval=mean_val)
     else:
         Y_ds = Y
    
@@ -87,7 +88,7 @@ def initialize_components(Y, K=30, gSig=[5,5], gSiz=None, ssub=1, tsub=1, nIter 
     b_in = np.reshape(b_in, (d1*d2, 1),order='F')
     
     Cin = resize(Cin, [K, T])
-    f_in = resize(np.atleast_2d(f_in), [1, T])    
+    f_in = resize(np.atleast_2d(f_in), [1, T])  
     center = com(Ain,d1,d2)
     
     return Ain, Cin, b_in, f_in, center
