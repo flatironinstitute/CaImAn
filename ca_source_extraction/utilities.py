@@ -99,7 +99,7 @@ def CNMFSetParms(Y, K=30, gSig=[5, 5], ssub=1, tsub=1, p=2,p_ssub=1, p_tsub=1, t
     }
     options['temporal_params'] = {
         'ITER': 2,                   # block coordinate descent iterations
-        # method for solving the constrained deconvolution problem ('cvx' or 'spgl1')
+        # method for solving the constrained deconvolution problem ('cvx' or 'cvxpy')
         'method': 'cvxpy',
         # if method cvxpy, primary and secondary (if problem unfeasible for approx
         # solution) solvers to be used with cvxpy, can be 'ECOS','SCS' or 'CVXOPT'

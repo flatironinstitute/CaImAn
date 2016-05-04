@@ -68,7 +68,7 @@ try:
                         'memory_efficient':False
                     }
     temporal_params = {
-                        'ITER':2, 'method':'spgl1', 'p':p,
+                        'ITER':2, 'method':'cvxpy', 'p':p,
                         'n_processes':n_processes,'backend':'ipyparallel',
                         'memory_efficient':False,                                
                         'bas_nonneg':True,  

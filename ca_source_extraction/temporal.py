@@ -102,8 +102,6 @@ def update_temporal_components(Y, A, b, Cin, fin, bl = None,  c1 = None, g = Non
         solution method for constrained foopsi. Choices are
             'cvx':      using cvxopt and picos (slow especially without the MOSEK solver)
             'cvxpy':    using cvxopt and cvxpy with the ECOS solver (faster, default)
-            'spgl1':    using the spgl1 package
-            'debug':    using spgl1 without spike non-negativity constraints (just for debugging purposes)
     
     solvers: list string
             primary and secondary (if problem unfeasible for approx solution) solvers to be used with cvxpy, default is ['ECOS','SCS']

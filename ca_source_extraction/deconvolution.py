@@ -15,8 +15,7 @@ from warnings import warn
 #import time
 #import sys    
 
-from SPGL1_python_port.spgl1 import spg_bpdn
-from SPGL1_python_port import spgl_aux as spg
+
 import sys
 #%%
 def constrained_foopsi(fluor, bl = None,  c1 = None, g = None,  sn = None, p = None, method = 'cvxpy', bas_nonneg = True,  
@@ -47,7 +46,7 @@ def constrained_foopsi(fluor, bl = None,  c1 = None, g = None,  sn = None, p = N
     p: int
         order of the autoregression model
     method: [optional] string
-        solution method for basis projection pursuit 'cvx' or 'spgl1' or 'debug' for fast but possibly imprecise temporal components    
+        solution method for basis projection pursuit 'cvx' or 'cvxpy'
     bas_nonneg: bool
         baseline strictly non-negative        
     noise_range:  list of two elms
@@ -90,18 +89,7 @@ def constrained_foopsi(fluor, bl = None,  c1 = None, g = None,  sn = None, p = N
     else:
         if method == 'cvx':
             c,bl,c1,g,sn,sp = cvxopt_foopsi(fluor, b = bl, c1 = c1, g=g, sn=sn, p=p, bas_nonneg = bas_nonneg, verbosity = verbosity)
-            
-        elif method == 'spgl1':
-    #        try:        
-     
-            c,bl,c1,g,sn,sp = spgl1_foopsi(fluor, bl = bl, c1 = c1, g=g, sn=sn, p=p, bas_nonneg = bas_nonneg, verbosity = verbosity)
-    #        except:
-    #            print('SPGL1 produces an error. Using CVXOPT')
-    #            c,b,c1,g,sn,sp = cvxopt_foopsi(fluor, b =b, c1 = c1, g=g, sn=sn, p=p, bas_nonneg = bas_nonneg, verbosity = verbosity)    
-        elif method == 'debug':
-          
-            c,bl,c1,g,sn,sp = spgl1_foopsi(fluor, bl =bl, c1 = c1, g=g, sn=sn, p=p, bas_nonneg = bas_nonneg, verbosity = verbosity,debug=True)
-        
+                    
         elif method == 'cvxpy':
     
             c,bl,c1,g,sn,sp = cvxpy_foopsi(fluor,  g, sn, b=bl, c1=c1, bas_nonneg=bas_nonneg, solvers=solvers)
@@ -111,80 +99,12 @@ def constrained_foopsi(fluor, bl = None,  c1 = None, g = None,  sn = None, p = N
     
     return c,bl,c1,g,sn,sp
 
-def spgl1_foopsi(fluor, bl, c1, g, sn, p, bas_nonneg, verbosity, thr = 1e-2,debug=False):
-    """Solve the deconvolution problem using the SPGL1 library
-     available from https://github.com/epnev/SPGL1_python_port
-    """
-    fluor=fluor.copy()
-    if 'spg' not in globals():
-        raise Exception('The SPGL package could not be loaded, use a different method')
-    
-    if bl is None:
-        bas_flag = True
-#        kde = KernelDensity(kernel='gaussian', bandwidth=100).fit(fluor[:,np.newaxis])
-#        X_plot=np.linspace(np.min(fluor),np.max(fluor),len(fluor))[:,np.newaxis]
-#        p_dens = np.exp(kde.score_samples(X_plot))
-#        print 'esimating baseline...'
-#        n,bn=np.histogram(fluor,range=(np.percentile(fluor,1),np.percentile(fluor,99)),bins=100)
-#        bl =  bn[np.argmax(n)]
-        bl = 0
-    else:
-        bas_flag = False
-        
-    if c1 is None:
-        c1_flag = True
-        c1 = 0
-    else:
-        c1_flag = False
 
-    if bas_nonneg:
-        b_lb = 0
-    else:
-        b_lb = np.min(fluor)
-        
-    T = len(fluor)
-    w = np.ones(np.shape(fluor))
-    if bas_flag:
-        w = np.hstack((w,1e-10))
-        
-    if c1_flag:
-        w = np.hstack((w,1e-10))
-        
-    gr = np.roots(np.concatenate([np.array([1]),-g.flatten()])) 
-    gd_vec = np.max(gr)**np.arange(T)  # decay vector for initial fluorescence
-    
-    options = {'project' : spg.NormL1NN_project ,
-               'primal_norm' : spg.NormL1NN_primal ,
-               'dual_norm' : spg.NormL1NN_dual,
-               'weights'   : w,
-               'verbosity' : verbosity,
-               'iterations': T}
-    
-    opA = lambda x,mode: G_inv_mat(x,mode,T,g,gd_vec,bas_flag,c1_flag)
-    
-    
-    spikes,_,_,info = spg_bpdn(opA,np.squeeze(fluor)-bas_nonneg*b_lb - (1-bas_flag)*bl -(1-c1_flag)*c1*gd_vec, sn*np.sqrt(T))
-    if np.min(spikes)<-thr*np.max(spikes) and not debug:
-        spikes[:T][spikes[:T]<0]=0
-        spikes,_,_,info = spg_bpdn(opA,np.squeeze(fluor)-bas_nonneg*b_lb - (1-bas_flag)*bl -(1-c1_flag)*c1*gd_vec, sn*np.sqrt(T), options)
-        
-
-
-    spikes[:T][spikes[:T]<0]=0
-    
-    c = opA(np.hstack((spikes[:T],0)),1)
-    if bas_flag:
-        bl = spikes[T] + b_lb
-    
-    if c1_flag:
-        c1 = spikes[-1]
-        
-    return c,bl,c1,g,sn,spikes
     
 
 def G_inv_mat(x,mode,NT,gs,gd_vec,bas_flag = True, c1_flag = True):
     """
-    Fast computation of G^{-1}*x and G^{-T}*x required for using the SPGL1 method
+    Fast computation of G^{-1}*x and G^{-T}*x 
     """
     from scipy.signal import lfilter
     if mode == 1:
