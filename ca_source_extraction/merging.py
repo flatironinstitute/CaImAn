@@ -238,5 +238,5 @@ sn: float
         print('********** No neurons merged! ***************')        
         merged_ROIs=[];        
         
-    return A,C,nr,merged_ROIs,S,bl,c1,sn,g   
+    return A,C,nr,merged_ROIs,S,bl,c1,sn,g
     
