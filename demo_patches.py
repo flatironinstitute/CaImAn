@@ -100,10 +100,10 @@ C2,f2,S2,bl2,c12,neurons_sn2,g21,YrA = cse.temporal.update_temporal_components(Y
 #%% save analysis results in python and matlab format
 if save_results:
     np.savez('results_analysis.npz',Cn=Cn,A_tot=A_tot.todense(), C_tot=C_tot, sn_tot=sn_tot, A2=A2.todense(),C2=C2,b2=b2,S2=S2,f2=f2,bl2=bl2,c12=c12, neurons_sn2=neurons_sn2, g21=g21,YrA=YrA,d1=d1,d2=d2)    
-    scipy.io.savemat('output_analysis_matlab.mat',{'A_or':A_or,'C_or':C_or , 'YrA_or':YrA[srt,:], 'S_or': S2[srt,:] })
+    scipy.io.savemat('output_analysis_matlab.mat',{'A2':A2,'C2':C2 , 'YrA':YrA, 'S2': S2 })
 #%% stop server
 cse.utilities.stop_server() 
-#%%
+#%% order components according to a quality threshold and only select the ones wiht qualitylarger than quality_threshold. 
 quality_threshold=100
 traces=C2+YrA
 idx_components, fitness, erfc = cse.utilities.evaluate_components(traces,N=5,robust_std=True)
