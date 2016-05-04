@@ -100,7 +100,7 @@ def find_unsaturated_pixels(Y, saturationValue = None, saturationThreshold = 0.9
     return normalPixels
 
 #%%
-def get_noise_fft(Y, noise_range = [0.25,0.5], noise_method = 'logmexp'):
+def get_noise_fft(Y, noise_range = [0.25,0.5], noise_method = 'logmexp', max_num_samples_fft=10000):
     """Estimate the noise level for each pixel by averaging the power spectral density.
     Inputs:
     Y: np.ndarray
@@ -120,6 +120,13 @@ def get_noise_fft(Y, noise_range = [0.25,0.5], noise_method = 'logmexp'):
         Noise level for each pixel
     """
     T = np.shape(Y)[-1]
+    if T > max_num_samples_fft:
+        Y=np.concatenate((Y[...,1:np.int(max_num_samples_fft/3)],        
+                         Y[...,np.int(T/2-max_num_samples_fft/3/2):np.int(T/2+max_num_samples_fft/3/2)],
+                         Y[...,-np.int(max_num_samples_fft/3):]),axis=-1)        
+
+        T = np.shape(Y)[-1]
+        
     dims = len(np.shape(Y))
     ff = np.arange(0,0.5+1./T,1./T)
     ind1 = ff > noise_range[0]
@@ -483,7 +490,7 @@ def nextpow2(value):
         exponent += 1
     return exponent
 
-def preprocess_data(Y, sn = None , n_processes=4, backend='multithreading', n_pixels_per_process=100,  noise_range = [0.25,0.5], noise_method = 'logmexp', compute_g=False,  p = 2, g = None,  lags = 5, include_noise = False, pixels = None):
+def preprocess_data(Y, sn = None , n_processes=4, backend='multithreading', n_pixels_per_process=100,  noise_range = [0.25,0.5], noise_method = 'logmexp', compute_g=False,  p = 2, g = None,  lags = 5, include_noise = False, pixels = None,max_num_samples_fft=10000):
     """
     Performs the pre-processing operations described above.
     """
@@ -491,7 +498,7 @@ def preprocess_data(Y, sn = None , n_processes=4, backend='multithreading', n_pi
     Y,coor=interpolate_missing_data(Y)
 
     if sn is None:
-        sn,psx=get_noise_fft_parallel(Y, n_processes=n_processes,n_pixels_per_process=n_pixels_per_process, backend = backend, noise_range = noise_range, noise_method = noise_method)
+        sn,psx=get_noise_fft_parallel(Y, n_processes=n_processes,n_pixels_per_process=n_pixels_per_process, backend = backend, noise_range = noise_range, noise_method = noise_method,max_num_samples_fft=max_num_samples_fft)
         #sn = get_noise_fft(Y, noise_range = noise_range, noise_method = noise_method)
     else:
         psx=None
