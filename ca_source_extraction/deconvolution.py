@@ -308,8 +308,8 @@ def cvxpy_foopsi(fluor,  g, sn, b=None, c1=None, bas_nonneg=True,solvers=None):
         print 'PROBLEM STATUS:' + prob.status 
         sys.stdout.flush()
     except (ValueError,cvx.SolverError) as err:     # if solvers fail to solve the problem           
-         print(err) 
-         sys.stdout.flush()
+#         print(err) 
+#         sys.stdout.flush()
          lam=sn/500;
          constraints=constraints[:-1]
          objective = cvx.Minimize(cvx.norm(-c + fluor - b - gd_vec*c1, 2)+lam*cvx.norm(G*c,1))

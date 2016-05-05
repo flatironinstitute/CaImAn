@@ -576,7 +576,7 @@ def view_patches(Yr, A, C, b, f, d1, d2, YrA=None, secs=1):
             ax2.set_title('Temporal background')
 
 
-def plot_contours(A, Cn, thr=0.9, display_numbers=True, max_number=None, cmap=None, swap_dim=False, colors='w', **kwargs):
+def plot_contours(A, Cn, thr=0.9, display_numbers=True, max_number=None, cmap=None, swap_dim=False, colors='w', vmin=None, vmax=None, **kwargs):
     """Plots contour of spatial components against a background image and returns their coordinates
 
      Parameters
@@ -616,8 +616,13 @@ def plot_contours(A, Cn, thr=0.9, display_numbers=True, max_number=None, cmap=No
     x, y = np.mgrid[0:d1:1, 0:d2:1]
 
     ax = plt.gca()
-    plt.imshow(Cn, interpolation=None, cmap=cmap,
-               vmin=np.percentile(Cn, 1), vmax=np.percentile(Cn, 99))
+    if vmax is None and vmin is None:
+        plt.imshow(Cn, interpolation=None, cmap=cmap,
+                   vmin=np.percentile(Cn, 1), vmax=np.percentile(Cn, 99))
+    else:
+        plt.imshow(Cn, interpolation=None, cmap=cmap,
+                   vmin=vmin, vmax=vmax)
+        
     coordinates = []
     cm = com(A, d1, d2)
     for i in range(np.minimum(nr, max_number)):
