@@ -56,10 +56,10 @@ else:
 #%%
 pl.imshow(Cn,cmap='gray',vmin=np.percentile(Cn, 1), vmax=np.percentile(Cn, 99))    
 #%%
-rf=15 # half-size of the patches in pixels. rf=25, patches are 50x50
+rf=9 # half-size of the patches in pixels. rf=25, patches are 50x50
 stride = 2 #amounpl.it of overlap between the patches in pixels    
-K=5 # number of neurons expected per patch
-gSig=[7,7] # expected half size of neurons
+K=7 # number of neurons expected per patch
+gSig=[4,4] # expected half size of neurons
 merge_thresh=0.8 # merging threshold, max correlation allowed
 p=1 #order of the autoregressive system
 memory_fact=1; #unitless number accounting how much memory should be used. You will need to try different values to see which one would work the default is OK for a 16 GB system
