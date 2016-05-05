@@ -61,7 +61,7 @@ stride = 2 #amounpl.it of overlap between the patches in pixels
 K=7 # number of neurons expected per patch
 gSig=[4,4] # expected half size of neurons
 merge_thresh=0.8 # merging threshold, max correlation allowed
-p=0 #order of the autoregressive system
+p=1 #order of the autoregressive system
 memory_fact=1; #unitless number accounting how much memory should be used. You will need to try different values to see which one would work the default is OK for a 16 GB system
 save_results=False
 #%%

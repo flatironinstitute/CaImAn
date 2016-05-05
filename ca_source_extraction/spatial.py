@@ -235,15 +235,18 @@ def update_spatial_components(Y, C, f, A_in, sn=None, d1=None, d2=None, min_size
     
     #%
     print 'Updated Spatial Components'
+   
     A_ = threshold_components(A_, d1, d2)
+
     print "threshold"
     ff = np.where(np.sum(A_, axis=0) == 0)           # remove empty components
     if np.size(ff) > 0:
         ff = ff[0]
-        warn('eliminating empty components!!')
+        print('eliminating empty components!!')
         nr = nr - len(ff)
         A_ = np.delete(A_, list(ff), 1)
         C = np.delete(C, list(ff), 0)
+    
 
     A_ = A_[:, :nr]
     A_ = coo_matrix(A_)
