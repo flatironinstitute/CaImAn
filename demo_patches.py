@@ -66,8 +66,9 @@ memory_fact=1; #unitless number accounting how much memory should be used. You w
 save_results=False
 #%%
 options_patch = cse.utilities.CNMFSetParms(Y,p=0,gSig=gSig,K=K,ssub=1,tsub=4,thr=merge_thresh)
-A_tot,C_tot,sn_tot, optional_outputs = cse.map_reduce.run_CNMF_patches(fname_new, (d1, d2, T), options_patch,rf=rf,stride = stride,
+A_tot,C_tot,b,f,sn_tot, optional_outputs = cse.map_reduce.run_CNMF_patches(fname_new, (d1, d2, T), options_patch,rf=rf,stride = stride,
                                                                        n_processes=n_processes, backend='ipyparallel',memory_fact=memory_fact)
+
 #%%
 if save_results:
     np.savez('results_analysis_patch.npz',A_tot=A_tot.todense(), C_tot=C_tot, sn_tot=sn_tot,d1=d1,d2=d2)    
@@ -82,11 +83,8 @@ options['temporal_params']['n_pixels_per_process']=pix_proc
 #%% merge spatially overlaping and temporally correlated components      
 A_m,C_m,nr_m,merged_ROIs,S_m,bl_m,c1_m,sn_m,g_m=cse.merge_components(Yr,A_tot,[],np.array(C_tot),[],np.array(C_tot),[],options['temporal_params'],options['spatial_params'],thr=options['merging']['thr'],mx=np.Inf)     
 #%% display components  DO NOT RUN IF YOU HAVE TOO MANY COMPONENTS
+pl.figure()
 crd = cse.utilities.plot_contours(A_m,Cn,thr=0.9)
-#%% approximate the background temporal dynamics
-pixels_bckgrnd=np.nonzero(A_m.sum(axis=-1)==0)[0]
-f=np.sum(Yr[pixels_bckgrnd,:],axis=0)
-print np.shape(pixels_bckgrnd)
 #%% UPDATE SPATIAL OCMPONENTS
 options['spatial_params']['backend']='ipyparallel' #parallelize with ipyparallel
 t1 = time.time()
@@ -94,6 +92,7 @@ A2,b2,C2 = cse.spatial.update_spatial_components(Yr, C_m, f, A_m, sn=sn_tot, **o
 print time.time() - t1
 #%% UPDATE TEMPORAL COMPONENTS
 options['temporal_params']['p']=p
+options['temporal_params']['fudge_factor']=0.96
 C2,f2,S2,bl2,c12,neurons_sn2,g21,YrA = cse.temporal.update_temporal_components(Yr,A2,b2,C2,f,bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
 #%% Order components
 #A_or, C_or, srt = cse.utilities.order_components(A2,C2)
@@ -115,4 +114,5 @@ if save_results:
 cse.utilities.view_patches_bar(Yr,scipy.sparse.coo_matrix(A2.tocsc()[:,idx_components]),C2[idx_components,:],b2,f2, d1,d2, YrA=YrA[idx_components,:])  
 #%%
 # select only portion of components
+pl.figure();
 crd = cse.utilities.plot_contours(A2.tocsc()[:,idx_components],Cn,thr=0.9)

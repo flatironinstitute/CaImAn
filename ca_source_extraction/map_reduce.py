@@ -240,7 +240,7 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, n_processes=2
             print('Something went wrong')  
             raise
         finally:
-            print('It went well')
+            print('You may think that it went well but reality is harsh')
                     
 
     elif backend is 'single_thread':
@@ -258,7 +258,10 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, n_processes=2
     num_patches=len(file_res)
     
     A_tot=scipy.sparse.csc_matrix((d,K*num_patches))
+    B_tot=scipy.sparse.csc_matrix((d,num_patches))
     C_tot=np.zeros((K*num_patches,T))
+    F_tot=np.zeros((num_patches,T))
+    mask=np.zeros(d)
     sn_tot=np.zeros((d1*d2))
     b_tot=[]
     f_tot=[]
@@ -286,6 +289,9 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, n_processes=2
         g_tot.append(g)
         idx_tot.append(idx_)
         shapes_tot.append(shapes)
+        mask[idx_] += 1
+        F_tot[patch_id,:]=f
+        B_tot[idx_,patch_id]=b        
         
         for ii in range(np.shape(A)[-1]):            
             new_comp=A.tocsc()[:,ii]/np.sqrt(np.sum(np.array(A.tocsc()[:,ii].todense())**2))
@@ -310,7 +316,20 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, n_processes=2
     optional_outputs['idx_tot']=idx_tot
     optional_outputs['shapes_tot']=shapes_tot
     optional_outputs['id_patch_tot']= id_patch_tot
+    optional_outputs['B'] = B_tot
+    optional_outputs['F'] = F_tot
+    optional_outputs['mask'] = mask
     
-    return A_tot,C_tot,sn_tot, optional_outputs
+    Im = scipy.sparse.csr_matrix((1./mask,(np.arange(d),np.arange(d))))
+    Bm = Im.dot(B_tot)
+    A_tot = Im.dot(A_tot)
+    f = np.mean(F_tot,axis=0)
+
+    for iter in range(10):
+        b = Bm.dot(F_tot.dot(f))/np.sum(f**2)  
+        f = np.dot((Bm.T.dot(b)).T,F_tot)/np.sum(b**2)
+
+    
+    return A_tot,C_tot,b,f,sn_tot, optional_outputs
 
 
