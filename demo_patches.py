@@ -34,13 +34,13 @@ print fnames
 fnames=fnames
 #%% Create a unique file fot the whole dataset
 # THIS IS  ONLY IF YOU NEED TO SELECT A SUBSET OF THE FIELD OF VIEW 
-fraction_downsample=.2;
-idx_x=slice(10,502,None)
-idx_y=slice(10,502,None)
-fname_new=cse.utilities.save_memmap(fnames,base_name='Yr',resize_fact=(1,1,fraction_downsample),remove_init=30,idx_xy=(idx_x,idx_y))
+#fraction_downsample=.2;
+#idx_x=slice(10,502,None)
+#idx_y=slice(10,502,None)
+#fname_new=cse.utilities.save_memmap(fnames,base_name='Yr',resize_fact=(1,1,fraction_downsample),remove_init=30,idx_xy=(idx_x,idx_y))
 #%%  Create a unique file fot the whole dataset
-#fraction_downsample=.5; # useful to downsample the movie across time. fraction_downsample=.1 measn downsampling by a factor of 10
-#fname_new=cse.utilities.save_memmap(fnames,base_name='Yr',resize_fact=(1,1,fraction_downsample))
+fraction_downsample=1; # useful to downsample the movie across time. fraction_downsample=.1 measn downsampling by a factor of 10
+fname_new=cse.utilities.save_memmap(fnames,base_name='Yr',resize_fact=(1,1,fraction_downsample))
 #%%
 Yr,d1,d2,T=cse.utilities.load_memmap(fname_new)
 d,T=np.shape(Yr)
