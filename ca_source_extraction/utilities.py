@@ -1247,15 +1247,16 @@ def evaluate_components(traces,N=5,robust_std=False):
         probability at each time step of observing the N consequtive actual trace values given the distribution of noise
     
     """
-    
+   # import pdb
+   # pdb.set_trace()
     md=mode_robust(traces,axis=1)
     ff1=traces-md[:,None] 
     ff1=-ff1*(ff1<0) # only consider values under the mode to determine the noise standard deviation
     if robust_std:
         # compute 25 percentile
-        ff1=np.sort(ff1[:].T,axis=0).T
+        ff1=np.sort(ff1,axis=1)
         ff1[ff1==0]=np.nan
-        Ns=np.round(np.sum(ff1>0,1)*.75)
+        Ns=np.round(np.sum(ff1>0,1)*.5)
         iqr_h=np.zeros(traces.shape[0])
     
         for idx,el in enumerate(ff1):
@@ -1268,25 +1269,25 @@ def evaluate_components(traces,N=5,robust_std=False):
         Ns=np.sum(ff1>0,1)
         sd_r=np.sqrt(np.sum(ff1**2,1)/Ns)
 #    
-    
+    from scipy.stats import norm
 
     # compute z value
-    z=(traces-md[:,None])/sd_r[:,None]
+    z=(traces-md[:,None])/sd_r[:,None]  
     # probability of observing values larger or equal to z given notmal distribution with mean md and std sd_r    
-    erf=.5*scipy.special.erfc(z/np.sqrt(2))
+    erf = 1 - norm.cdf(z)
     # use logarithm so that multiplication becomes sum
-    erf=-np.log10(erf)        
+    erf=np.log(erf)        
     filt = np.ones(N) 
     # moving sum
     erfc=np.apply_along_axis(lambda m: np.convolve(m, filt, mode='full'), axis=1, arr=erf)
         
     #select the maximum value of such probability for each trace
-    fitness=np.max(erfc,1)
+    fitness=np.min(erfc,1)
     
     ordered=np.argsort(fitness)
     
     
-    idx_components=ordered[::-1]# selec only portion of components
+    idx_components=ordered #[::-1]# selec only portion of components
     fitness=fitness[idx_components]
     erfc=erfc[idx_components]
     

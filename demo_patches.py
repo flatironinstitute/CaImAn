@@ -51,7 +51,7 @@ Y=np.reshape(Yr,(d1,d2,T),order='F') # 3D version of the movie
 corr_image=1
 if corr_image:
     # build correlation image
-    Cn=cse.utilities.local_correlations(Y[:,:,:10000])
+    Cn=cse.utilities.local_correlations(Y[:,:,:3000])
 else:
     # build mean image
     Cn=np.mean(Y[:,:,:memory_fact*10000],axis=-1)
@@ -76,7 +76,8 @@ A_tot,C_tot,b,f,sn_tot, optional_outputs = cse.map_reduce.run_CNMF_patches(fname
 if save_results:
     np.savez('results_analysis_patch.npz',A_tot=A_tot.todense(), C_tot=C_tot, sn_tot=sn_tot,d1=d1,d2=d2)    
 #%% if you have many components this might take long!
-crd = cse.utilities.plot_contours(A_tot,Cn,thr=0.9,vmax=0.8, vmin=None)
+pl.figure()
+crd = cse.utilities.plot_contours(A_tot,Cn,thr=0.9)
 #%% set parameters for full field of view analysis
 options = cse.utilities.CNMFSetParms(Y,n_processes,p=0,gSig=gSig,K=A_tot.shape[-1],thr=merge_thresh)
 pix_proc=np.minimum(np.int((d1*d2)/n_processes/(T/2000.)),np.int((d1*d2)/n_processes)) # regulates the amount of memory used
@@ -105,10 +106,10 @@ log_files=glob.glob('Yr*_LOG_*')
 for log_file in log_files:
     os.remove(log_file)
 #%% order components according to a quality threshold and only select the ones wiht qualitylarger than quality_threshold. 
-quality_threshold=100
+#quality_threshold=0
 traces=C2+YrA
-idx_components, fitness, erfc = cse.utilities.evaluate_components(traces,N=5,robust_std=True)
-idx_components=idx_components[fitness>quality_threshold]
+idx_components, fitness, erfc = cse.utilities.evaluate_components(traces,N=5,robust_std=False)
+#idx_components=idx_components[fitness<quality_threshold]
 
 print(idx_components.size*1./traces.shape[0])
 #%% save analysis results in python and matlab format
