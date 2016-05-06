@@ -27,7 +27,8 @@ cse.utilities.stop_server()
 cse.utilities.start_server(n_processes)
 #%% slect all tiff files in current folder
 fnames=[]
-for file in os.listdir("./"):
+base_folder='./movies/Patch_demo' # folder containing the demo files
+for file in glob.glob(os.path.join(base_folder,'*.tif')):
     if file.endswith(".tif"):
         fnames.append(file)
 fnames.sort()

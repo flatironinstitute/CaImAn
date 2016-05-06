@@ -41,13 +41,14 @@ cse.utilities.stop_server()
 reload=0
 fnames=['movies/demoMovie.tif'] # can be a list of names
 #%% FOR LOADING ALL TIFF FILES IN A FILE AND SAVING THEM ON A SINGLE MEMORY MAPPABLE FILE
-#fnames=[]
-#for file in os.listdir("./"):
-#    if file.endswith(".tif"):
-#        fnames.append(file)
-#fnames.sort()
-#print fnames  
-#fnames=fnames
+fnames=[]
+base_folder='./movies/' # folder containing the demo files
+for file in glob.glob(os.path.join(base_folder,'*.tif')):
+    if file.endswith(".tif"):
+        fnames.append(file)
+fnames.sort()
+print fnames  
+fnames=fnames
 #%% Create a unique file fot the whole dataset
 # THIS IS  ONLY IF YOU NEED TO SELECT A SUBSET OF THE FIELD OF VIEW 
 #fraction_downsample=1;
