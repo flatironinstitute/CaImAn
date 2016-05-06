@@ -58,6 +58,7 @@ Download and install Anaconda (Python 2.7) <http://docs.continuum.io/anaconda/in
     conda install  spyder
     conda install  atlas (only Ubuntu)
     conda install accelerate
+    conda install opencv
     pip install 'tifffile>=0.7'
     pip install picos
     pip install cvxpy
@@ -70,6 +71,7 @@ Download and install Anaconda (Python 2.7) <http://docs.continuum.io/anaconda/in
     source activate CNMF
     conda install numpy scipy spyder openblas ipyparallel matplotlib bokeh jupyter scikit-image scikit-learn cvxopt         conda install  atlas (only Ubuntu)
     conda install accelerate
+    conda install opencv
     pip install 'tifffile>=0.7'
     pip install picos
     pip install cvxpy
