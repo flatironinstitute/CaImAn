@@ -14,11 +14,12 @@ import sys
 import scipy
 import pylab as pl
 import numpy as np
+import glob
 
 %load_ext autoreload
 %autoreload 2
 
-n_processes = np.maximum(psutil.cpu_count() - 1,1) # roughly number of cores on your machine minus 1
+n_processes = np.maximum(np.int(psutil.cpu_count()*.75),1) # roughly number of cores on your machine minus 1
 print 'using ' + str(n_processes) + ' processes'
 print "Restarting cluster to avoid unnencessary use of memory...."
 sys.stdout.flush()  
@@ -34,10 +35,10 @@ print fnames
 fnames=fnames
 #%% Create a unique file fot the whole dataset
 # THIS IS  ONLY IF YOU NEED TO SELECT A SUBSET OF THE FIELD OF VIEW 
-#fraction_downsample=.2;
+#fraction_downsample=1;
 #idx_x=slice(10,502,None)
 #idx_y=slice(10,502,None)
-#fname_new=cse.utilities.save_memmap(fnames,base_name='Yr',resize_fact=(1,1,fraction_downsample),remove_init=30,idx_xy=(idx_x,idx_y))
+#fname_new=cse.utilities.save_memmap(fnames,base_name='Yr',resize_fact=(1,1,fraction_downsample),remove_init=0,idx_xy=(idx_x,idx_y))
 #%%  Create a unique file fot the whole dataset
 fraction_downsample=1; # useful to downsample the movie across time. fraction_downsample=.1 measn downsampling by a factor of 10
 fname_new=cse.utilities.save_memmap(fnames,base_name='Yr',resize_fact=(1,1,fraction_downsample))
@@ -53,30 +54,30 @@ if corr_image:
 else:
     # build mean image
     Cn=np.mean(Y[:,:,:memory_fact*10000],axis=-1)
-#%%
+    
+Cn[np.isnan(Cn)]=0
+#%%    
 pl.imshow(Cn,cmap='gray',vmin=np.percentile(Cn, 1), vmax=np.percentile(Cn, 99))    
 #%%
-rf=9 # half-size of the patches in pixels. rf=25, patches are 50x50
+rf=15 # half-size of the patches in pixels. rf=25, patches are 50x50
 stride = 2 #amounpl.it of overlap between the patches in pixels    
-K=7 # number of neurons expected per patch
+K=9 # number of neurons expected per patch
 gSig=[4,4] # expected half size of neurons
 merge_thresh=0.8 # merging threshold, max correlation allowed
-p=1 #order of the autoregressive system
+p=2 #order of the autoregressive system
 memory_fact=1; #unitless number accounting how much memory should be used. You will need to try different values to see which one would work the default is OK for a 16 GB system
 save_results=False
-#%%
-options_patch = cse.utilities.CNMFSetParms(Y,p=0,gSig=gSig,K=K,ssub=1,tsub=4,thr=merge_thresh)
+#%% RUN ALGORITHM ON PATCHES
+options_patch = cse.utilities.CNMFSetParms(Y,n_processes,p=0,gSig=gSig,K=K,ssub=1,tsub=4,thr=merge_thresh)
 A_tot,C_tot,b,f,sn_tot, optional_outputs = cse.map_reduce.run_CNMF_patches(fname_new, (d1, d2, T), options_patch,rf=rf,stride = stride,
                                                                        n_processes=n_processes, backend='ipyparallel',memory_fact=memory_fact)
-
 #%%
 if save_results:
     np.savez('results_analysis_patch.npz',A_tot=A_tot.todense(), C_tot=C_tot, sn_tot=sn_tot,d1=d1,d2=d2)    
-
 #%% if you have many components this might take long!
 crd = cse.utilities.plot_contours(A_tot,Cn,thr=0.9,vmax=0.8, vmin=None)
 #%% set parameters for full field of view analysis
-options = cse.utilities.CNMFSetParms(Y,p=0,gSig=gSig,K=A_tot.shape[-1],thr=merge_thresh)
+options = cse.utilities.CNMFSetParms(Y,n_processes,p=0,gSig=gSig,K=A_tot.shape[-1],thr=merge_thresh)
 pix_proc=np.minimum(np.int((d1*d2)/n_processes/(T/2000.)),np.int((d1*d2)/n_processes)) # regulates the amount of memory used
 options['spatial_params']['n_pixels_per_process']=pix_proc
 options['temporal_params']['n_pixels_per_process']=pix_proc
@@ -97,8 +98,11 @@ C2,f2,S2,bl2,c12,neurons_sn2,g21,YrA = cse.temporal.update_temporal_components(Y
 #%% Order components
 #A_or, C_or, srt = cse.utilities.order_components(A2,C2)
 
-#%% stop server
+#%% stop server and remove log files
 cse.utilities.stop_server() 
+log_files=glob.glob('Yr*_LOG_*')
+for log_file in log_files:
+    os.remove(log_file)
 #%% order components according to a quality threshold and only select the ones wiht qualitylarger than quality_threshold. 
 quality_threshold=100
 traces=C2+YrA
