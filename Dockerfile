@@ -26,6 +26,7 @@ RUN apt-get install libc6-i386
 RUN apt-get install -y libsm6 libxrender1
 RUN conda install pyqt
 RUN python setup.py install
+RUN apt-get install bzip2
 # RUN nosetests
 
 EXPOSE 8080

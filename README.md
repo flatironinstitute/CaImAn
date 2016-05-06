@@ -57,9 +57,13 @@ Download and install Anaconda (Python 2.7) <http://docs.continuum.io/anaconda/in
     conda install -c https://conda.anaconda.org/agiovann constrained_nmf
     conda install  spyder
     conda install  atlas (only Ubuntu)
+    conda install accelerate
+    conda install opencv
+    conda install h5py
     pip install 'tifffile>=0.7'
     pip install picos
     pip install cvxpy
+    pip install pims
     ```
 
 2. ADVANCED WAY (with access to source code).
@@ -67,10 +71,14 @@ Download and install Anaconda (Python 2.7) <http://docs.continuum.io/anaconda/in
     git clone --recursive https://github.com/agiovann/Constrained_NMF.git
     conda create -n CNMF ipython
     source activate CNMF
-    conda install numpy scipy spyder openblas ipyparallel matplotlib bokeh jupyter scikit-image scikit-learn cvxopt             conda install  atlas (only Ubuntu)
+    conda install numpy scipy spyder openblas ipyparallel matplotlib bokeh jupyter scikit-image scikit-learn cvxopt         conda install  atlas (only Ubuntu)
+    conda install accelerate
+    conda install opencv
+    conda install h5py
     pip install 'tifffile>=0.7'
     pip install picos
     pip install cvxpy
+    pip install pims
 
     ```
     This second option will not allow to import the package from every folder but only from within the Constrained_NMF folder. You can access it globally by setting the environment variable PYTHONPATH
