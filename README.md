@@ -1,5 +1,5 @@
 
-NEW RELEASE INCLUDING IMPROVED MEMORY MANAGEMENT AND IMPROVED DETECTION
+!! NEW RELEASE INCLUDING IMPROVED MEMORY MANAGEMENT AND IMPROVED DETECTION !!
 =======================================================================
 
 Please refer to the following wiki [page](https://github.com/agiovann/Constrained_NMF/wiki/Processing-large-datasets) or read in the testing section below
