@@ -41,7 +41,7 @@ from skimage.external.tifffile import imread
 #%%
 
 
-def CNMFSetParms(Y, K=30, gSig=[5, 5], ssub=1, tsub=1, p=2,p_ssub=1, p_tsub=1, thr=0.8, **kwargs):
+def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], ssub=1, tsub=1, p=2,p_ssub=1, p_tsub=1, thr=0.8,**kwargs):
     """Dictionary for setting the CNMF parameters.
     Any parameter that is not set get a default value specified
     by the dictionary default options
@@ -51,8 +51,10 @@ def CNMFSetParms(Y, K=30, gSig=[5, 5], ssub=1, tsub=1, p=2,p_ssub=1, p_tsub=1, t
         d1,d2,T=Y    
     else:
         d1, d2, T = Y.shape
-    # roughly number of cores on your machine minus 1
-    n_processes = np.maximum(psutil.cpu_count() - 2, 1)
+        
+        
+    
+    
     print 'using ' + str(n_processes) + ' processes'
     n_pixels_per_process = d1 * d2 / n_processes  # how to subdivide the work among processes
 
