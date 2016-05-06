@@ -26,7 +26,9 @@ from time import time
 import pylab as pl
 import psutil
 #%%
-n_processes = np.maximum(psutil.cpu_count() - 2,1) # roughly number of cores on your machine minus 1
+n_processes = np.maximum(np.int(psutil.cpu_count()*.75),1) # roughly number of cores on your machine minus 1
+print 'using ' + str(n_processes) + ' processes'
+
 #print 'using ' + str(n_processes) + ' processes'
 p=2 # order of the AR model (in general 1 or 2)
 
@@ -37,31 +39,31 @@ cse.utilities.stop_server()
 
 #%% LOAD MOVIE AND MAKE DIMENSIONS COMPATIBLE WITH CNMF
 reload=0
-filename='movies/demoMovie.tif'
+fnames=['movies/demoMovie.tif'] # can be a list of names
+#%% FOR LOADING ALL TIFF FILES IN A FILE AND SAVING THEM ON A SINGLE MEMORY MAPPABLE FILE
+#fnames=[]
+#for file in os.listdir("./"):
+#    if file.endswith(".tif"):
+#        fnames.append(file)
+#fnames.sort()
+#print fnames  
+#fnames=fnames
+#%% Create a unique file fot the whole dataset
+# THIS IS  ONLY IF YOU NEED TO SELECT A SUBSET OF THE FIELD OF VIEW 
+#fraction_downsample=1;
+#idx_x=slice(10,502,None)
+#idx_y=slice(10,502,None)
+#fname_new=cse.utilities.save_memmap(fnames,base_name='Yr',resize_fact=(1,1,fraction_downsample),remove_init=0,idx_xy=(idx_x,idx_y))
+#%%  Create a unique file fot the whole dataset
+fraction_downsample=1; # useful to downsample the movie across time. fraction_downsample=.1 measn downsampling by a factor of 10
+fname_new=cse.utilities.save_memmap(fnames,base_name='Yr',resize_fact=(1,1,fraction_downsample))
 #%%
-if 0:
-    t = tifffile.TiffFile(filename) 
-    Yr = t.asarray().astype(dtype=np.float32) 
-    Yr = np.transpose(Yr,(1,2,0))
-    d1,d2,T=Yr.shape
-    Yr=np.reshape(Yr,(d1*d2,T),order='F')
-    #np.save('Y',Y)
-    np.save('Yr',Yr)
-    #Y=np.load('Y.npy',mmap_mode='r')
-    Yr=np.load('Yr.npy',mmap_mode='r')        
-    Y=np.reshape(Yr,(d1,d2,T),order='F')
-else:
-    #% new memmap
-    fraction_downsample=1;
-    fname_new=cse.utilities.save_memmap([filename],base_name='Yr',resize_fact=(1,1,fraction_downsample),remove_init=30)
-    Yr,d1,d2,T=cse.utilities.load_memmap(fname_new)
-    Y=np.reshape(Yr,(d1,d2,T),order='F')
+Yr,d1,d2,T=cse.utilities.load_memmap(fname_new)
+Y=np.reshape(Yr,(d1,d2,T),order='F')
 #%%
 Cn = cse.utilities.local_correlations(Y)
-#n_pixels_per_process=d1*d2/n_processes # how to subdivide the work among processes
-
 #%%
-options = cse.utilities.CNMFSetParms(Y,p=p,gSig=[4,4],K=30)
+options = cse.utilities.CNMFSetParms(Y,n_processes,p=p,gSig=[4,4],K=30)
 cse.utilities.start_server(options['spatial_params']['n_processes'])
 
 #%% PREPROCESS DATA AND INITIALIZE COMPONENTS
@@ -111,16 +113,17 @@ options['temporal_params']['p'] = p # set it back to original value to perform f
 C2,f2,S2,bl2,c12,neurons_sn2,g21,YrA = cse.temporal.update_temporal_components(Yr,A2,b2,C2,f,bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
 print time() - t1
 #%%
-A_or, C_or, srt = cse.utilities.order_components(A2,C2)
-#cse.utilities.view_patches(Yr,coo_matrix(A_or),C_or,b2,f2,d1,d2,YrA = YrA[srt,:], secs=1)
-cse.utilities.view_patches_bar(Yr,coo_matrix(A_or),C_or,b2,f2, d1,d2, YrA=YrA[srt,:])  
-#plt.show(block=True) 
-plt.show()  
- 
-#%%
+quality_threshold=100
+traces=C2+YrA
+idx_components, fitness, erfc = cse.utilities.evaluate_components(traces,N=5,robust_std=True)
+idx_components=idx_components[fitness>quality_threshold]
 
-plt.figure()
-crd = cse.utilities.plot_contours(A_or,Cn,thr=0.9)
+print(idx_components.size*1./traces.shape[0]) 
+#%%
+cse.utilities.view_patches_bar(Yr,scipy.sparse.coo_matrix(A2.tocsc()[:,idx_components]),C2[idx_components,:],b2,f2, d1,d2, YrA=YrA[idx_components,:])  
+#%% visualize components
+pl.figure();
+crd = cse.utilities.plot_contours(A2.tocsc()[:,idx_components],Cn,thr=0.9)
 
 #%% STOP CLUSTER
 pl.close()
