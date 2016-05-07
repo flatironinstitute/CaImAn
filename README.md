@@ -25,11 +25,14 @@ Pnevmatikakis, E.A., Gao, Y., Soudry, D., Pfau, D., Lacefield, C., ... & Paninsk
 
 # Contributors
 
-Andrea Giovannucci and
-Eftychios Pnevmatikakis
-
+Andrea Giovannucci, Eftychios Pnevmatikakis, 
 Center for Computational Biology, Simons Foundation, New York, NY
 
+Valentina Staneva
+eScience Institute. University of Washinghton. Seattle, WA.
+
+Johannes Friedrich
+Columbia University, New York, NY. 
 
 Code description and related packages
 =======
@@ -121,6 +124,9 @@ or issues related to SCS type
 
 Test the system
 ----------------------
+
+**SINGLE PATCH**
+
 In case you used installation af point 1 above you will need to download the test files from
 <https://github.com/agiovann/Constrained_NMF/releases/download/v0.3/Demo.zip>
 
@@ -142,6 +148,12 @@ C. Using notebook.
     3. open the notebook called demoCNMF.ipynb and run cell by cell inspecting the result
     4. Remember to stop the cluster (last three lines of file). You can also stop it manually by typing in a terminal
     'ipcluster stop'
+
+
+**MULTI PATCH**
++ Download the two demo movies [here](https://github.com/agiovann/Constrained_NMF/releases/download/v0.4-alpha/Patch_demo.zip) (courtesy of Dr. Sue Ann Koay from the Tank Lab, Princeton Neuroscience Institute, Princeton. NJ). Unzip the folder. Then in Spyder open the file demo_patches.py, and change the base_folder variable to point to the folder you just unzipped. 
++ Run one by one the cells (delimited by '#%%') 
++ Inspect the results. The demo will start a cluster and process pathes of the movie (more details [here](https://github.com/agiovann/Constrained_NMF/wiki/Processing-large-datasets)) in parallel (cse.map_reduce.run_CNMF_patches). Afterwards, it will merge the results back together and proceed to firstly merge potentially overlaping components (cse.merge_components) from different patches, secondly to update the spatial extent of the joined spatial components (cse.spatial.update_spatial_components), and finally denoising the traces (cse.temporal.update_temporal_components). THe final bit is used for visualization. 
 
 Documentation
 ========
