@@ -29,20 +29,14 @@ import psutil
 n_processes = np.maximum(np.int(psutil.cpu_count()*.75),1) # roughly number of cores on your machine minus 1
 print 'using ' + str(n_processes) + ' processes'
 
-#print 'using ' + str(n_processes) + ' processes'
-p=2 # order of the AR model (in general 1 or 2)
-
 #%% start cluster for efficient computation
 print "Stopping  cluster to avoid unnencessary use of memory...."
 sys.stdout.flush()  
 cse.utilities.stop_server()
 
-#%% LOAD MOVIE AND MAKE DIMENSIONS COMPATIBLE WITH CNMF
-reload=0
-fnames=['movies/demoMovie.tif'] # can be a list of names
 #%% FOR LOADING ALL TIFF FILES IN A FILE AND SAVING THEM ON A SINGLE MEMORY MAPPABLE FILE
 fnames=[]
-base_folder='./movies/' # folder containing the demo files
+base_folder='/Users/agiovann/Documents/PYTHON/Constrained_NMF/movies/' # folder containing the demo files
 for file in glob.glob(os.path.join(base_folder,'*.tif')):
     if file.endswith(".tif"):
         fnames.append(file)
@@ -64,7 +58,11 @@ Y=np.reshape(Yr,(d1,d2,T),order='F')
 #%%
 Cn = cse.utilities.local_correlations(Y)
 #%%
-options = cse.utilities.CNMFSetParms(Y,n_processes,p=p,gSig=[4,4],K=30)
+K=30 # number of neurons expected per patch
+gSig=[4,4] # expected half size of neurons
+merge_thresh=0.8 # merging threshold, max correlation allowed
+p=2 #order of the autoregressive system
+options = cse.utilities.CNMFSetParms(Y,n_processes,p=p,gSig=gSig,K=K)
 cse.utilities.start_server(options['spatial_params']['n_processes'])
 
 #%% PREPROCESS DATA AND INITIALIZE COMPONENTS
@@ -114,12 +112,9 @@ options['temporal_params']['p'] = p # set it back to original value to perform f
 C2,f2,S2,bl2,c12,neurons_sn2,g21,YrA = cse.temporal.update_temporal_components(Yr,A2,b2,C2,f,bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
 print time() - t1
 #%%
-quality_threshold=100
 traces=C2+YrA
 idx_components, fitness, erfc = cse.utilities.evaluate_components(traces,N=5,robust_std=True)
-idx_components=idx_components[fitness>quality_threshold]
 
-print(idx_components.size*1./traces.shape[0]) 
 #%%
 cse.utilities.view_patches_bar(Yr,scipy.sparse.coo_matrix(A2.tocsc()[:,idx_components]),C2[idx_components,:],b2,f2, d1,d2, YrA=YrA[idx_components,:])  
 #%% visualize components
