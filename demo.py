@@ -25,6 +25,9 @@ import time as tm
 from time import time
 import pylab as pl
 import psutil
+import glob
+import os
+import scipy
 #%%
 n_processes = np.maximum(np.int(psutil.cpu_count()*.75),1) # roughly number of cores on your machine minus 1
 print 'using ' + str(n_processes) + ' processes'
@@ -36,7 +39,7 @@ cse.utilities.stop_server()
 
 #%% FOR LOADING ALL TIFF FILES IN A FILE AND SAVING THEM ON A SINGLE MEMORY MAPPABLE FILE
 fnames=[]
-base_folder='/Users/agiovann/Documents/PYTHON/Constrained_NMF/movies/' # folder containing the demo files
+base_folder='./movies/' # folder containing the demo files
 for file in glob.glob(os.path.join(base_folder,'*.tif')):
     if file.endswith(".tif"):
         fnames.append(file)
@@ -57,6 +60,8 @@ Yr,d1,d2,T=cse.utilities.load_memmap(fname_new)
 Y=np.reshape(Yr,(d1,d2,T),order='F')
 #%%
 Cn = cse.utilities.local_correlations(Y)
+pl.imshow(Cn,cmap='gray',vmin=np.percentile(Cn, 1), vmax=np.percentile(Cn, 99))    
+
 #%%
 K=30 # number of neurons expected per patch
 gSig=[4,4] # expected half size of neurons
