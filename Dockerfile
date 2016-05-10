@@ -1,5 +1,5 @@
 FROM ubuntu
-
+RUN apt-get install bzip2
 RUN apt-get update
 RUN apt-get install -y libglib2.0-0
 RUN apt-get install -y git wget
@@ -26,7 +26,7 @@ RUN apt-get install libc6-i386
 RUN apt-get install -y libsm6 libxrender1
 RUN conda install pyqt
 RUN python setup.py install
-RUN apt-get install bzip2
+
 # RUN nosetests
 
 EXPOSE 8080
