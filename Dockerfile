@@ -1,8 +1,9 @@
 FROM ubuntu
-RUN apt-get install bzip2
+
 RUN apt-get update
 RUN apt-get install -y libglib2.0-0
 RUN apt-get install -y git wget
+RUN apt-get install bzip2
 RUN export MINICONDA=$HOME/miniconda
 RUN export PATH="$MINICONDA/bin:$PATH"
 RUN hash -r
