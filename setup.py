@@ -44,7 +44,7 @@ setup(
     'Programming Language :: Python :: 2.7',
     ],
     keywords = 'fluorescence calcium ca imaging deconvolution ROI identification',
-    packages = ['ca_source_extraction','SPGL1_python_port'],
+    packages = ['ca_source_extraction'],
     data_files = [	('', ['LICENSE.txt']),
                   ('', ['README.md'])],
     install_requires = [ 'python==2.7.*'],#'matplotlib', 'scikit-learn', 'scikit-image', 'ipyparallel','scikit-learn','ipython','scipy','numpy'],#,'bokeh','jupyter','tifffile','cvxopt','picos', 'joblib>=0.8.4'],
