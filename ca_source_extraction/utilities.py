@@ -68,7 +68,7 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], ssub=1, tsub=1, p=2,p_ssub=1
                                     'noise_range': [0.25, 0.5],
                                     # averaging method ('mean','median','logmexp')
                                     'noise_method': 'logmexp',
-                                    'max_num_samples_fft':10000,
+                                    'max_num_samples_fft':3000,
                                     'n_processes': n_processes,
                                     'n_pixels_per_process': n_pixels_per_process,
                                     'compute_g': False,            # flag for estimating global time constant
