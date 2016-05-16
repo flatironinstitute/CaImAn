@@ -92,6 +92,7 @@ def update_temporal_components(Y, A, b, Cin, fin, bl = None,  c1 = None, g = Non
         single_thread no parallelization
         ipyparallel, parallelization using the ipyparallel cluster. You should start the cluster (install ipyparallel and then type 
         ipcluster -n 6, where 6 is the number of processes). 
+        SLURM: using SLURM scheduler
     memory_efficient: Bool
         whether or not to optimize for memory usage (longer running times). nevessary with very large datasets  
     **kwargs: dict
@@ -165,10 +166,20 @@ def update_temporal_components(Y, A, b, Cin, fin, bl = None,  c1 = None, g = Non
     YrA = YA - Cin.T.dot(AA)
     #YrA = ((A.T.dot(Y)).T-Cin.T.dot(A.T.dot(A)))*spdiags(1./nA,0,nr+1,nr+1)
     
-    if backend == 'ipyparallel':
+    if backend == 'ipyparallel' or backend == 'SLURM':
         try: # if server is not running and raise exception if not installed or not started        
             from ipyparallel import Client
-            c = Client()
+            if backend is 'SLURM':
+                if 'IPPPDIR' in os.environ and 'IPPPROFILE' in os.environ:
+                    pdir, profile = os.environ['IPPPDIR'], os.environ['IPPPROFILE']
+                else:
+                    raise Exception('envirnomment variables not found, please source slurmAlloc.rc')
+        
+                c = Client(ipython_dir=pdir, profile=profile)
+                print 'Using '+ str(len(c)) + ' processes'
+            else:
+                c = Client()
+            
         except:
             print "this backend requires the installation of the ipyparallel (pip install ipyparallel) package and  starting a cluster (type ipcluster start -n 6) where 6 is the number of nodes"
             raise
@@ -199,7 +210,7 @@ def update_temporal_components(Y, A, b, Cin, fin, bl = None,  c1 = None, g = Non
             args_in=[(np.squeeze(np.array(Ytemp[:,jj])), nT[jj], jj, None, None, None, None, kwargs) for jj in range(len(jo))]
 #            import pdb
 #            pdb.set_trace()
-            if backend == 'ipyparallel':                    
+            if backend == 'ipyparallel' or backend == 'SLURM':                    
                 #
                 if debug:                
                     results = dview.map_async(constrained_foopsi_parallel,args_in)  
@@ -221,7 +232,7 @@ def update_temporal_components(Y, A, b, Cin, fin, bl = None,  c1 = None, g = Non
                 
             else:
                 
-                raise Exception('Backend not defined. Use either single_thread or ipyparallel')
+                raise Exception('Backend not defined. Use either single_thread or ipyparallel or SLURM')
                 
             for chunk in results:
                 pars=dict()
@@ -265,7 +276,7 @@ def update_temporal_components(Y, A, b, Cin, fin, bl = None,  c1 = None, g = Non
         #YrA = YA - C.T.dot(AA)
         #YrA[:,ii] = YrA[:,ii] - np.atleast_2d(C[ii,:]).T                
         
-        if backend == 'ipyparallel':       
+        if backend == 'ipyparallel' or  backend == 'SLURM':       
             dview.results.clear()   
             c.purge_results('all')
             c.purge_everything()
@@ -281,7 +292,7 @@ def update_temporal_components(Y, A, b, Cin, fin, bl = None,  c1 = None, g = Non
     C = C[:nr,:]
     YrA = np.array(YrA[:,:nr]).T    
     P_ = sorted(P_, key=lambda k: k['neuron_id']) 
-    if backend == 'ipyparallel':      
+    if backend == 'ipyparallel' or  backend == 'SLURM':      
         c.close()
     
     return C,f,S,bl,c1,sn,g,YrA #,P_

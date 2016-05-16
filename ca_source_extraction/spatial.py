@@ -89,7 +89,7 @@ def update_spatial_components(Y, C, f, A_in, sn=None, d1=None, d2=None, min_size
         'ipyparallel', 'single_thread'
         single_thread:no parallelization. It can be used with small datasets.
         ipyparallel: uses ipython clusters and then send jobs to each of them
-
+        SLURM: use the slurm scheduler
 
     n_pixels_per_process: [optional] int
         number of pixels to be processed by each thread
@@ -162,7 +162,7 @@ def update_spatial_components(Y, C, f, A_in, sn=None, d1=None, d2=None, min_size
 
     # use the ipyparallel package, you need to start a cluster server
     # (ipcluster command) in order to use it
-    if backend == 'ipyparallel':
+    if backend == 'ipyparallel' or backend == 'SLURM':
 
         C_name = os.path.join(folder, 'C_temp.npy')
         np.save(C_name, Cf)
@@ -186,9 +186,19 @@ def update_spatial_components(Y, C, f, A_in, sn=None, d1=None, d2=None, min_size
     
         try:  # if server is not running and raise exception if not installed or not started
             from ipyparallel import Client
-            c = Client()
+            if backend is 'SLURM':
+                if 'IPPPDIR' in os.environ and 'IPPPROFILE' in os.environ:
+                    pdir, profile = os.environ['IPPPDIR'], os.environ['IPPPROFILE']
+                else:
+                    raise Exception('envirnomment variables not found, please source slurmAlloc.rc')
+        
+                c = Client(ipython_dir=pdir, profile=profile)
+                print 'Using '+ str(len(c)) + ' processes'
+            else:
+                c = Client()
+
         except:
-            print "this backend requires the installation of the ipyparallel (pip install ipyparallel) package and  starting a cluster (type ipcluster start -n 6) where 6 is the number of nodes"
+            print "this backend requires the installation of the ipyparallel or SLURM (pip install ipyparallel) package and  starting a cluster (type ipcluster start -n 6) where 6 is the number of nodes"
             raise
 
         if len(c) < n_processes:
@@ -231,7 +241,7 @@ def update_spatial_components(Y, C, f, A_in, sn=None, d1=None, d2=None, min_size
 
     else:
         raise Exception(
-            'Unknown backend specified: use single_thread, threading, multiprocessing or ipyparallel')
+            'Unknown backend specified: use single_thread, SLURM, multiprocessing or ipyparallel')
     
     #%
     print 'Updated Spatial Components'
