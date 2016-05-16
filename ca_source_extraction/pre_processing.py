@@ -131,7 +131,7 @@ def get_noise_fft(Y, noise_range = [0.25,0.5], noise_method = 'logmexp', max_num
     ff = np.arange(0,0.5+1./T,1./T)
     ind1 = ff > noise_range[0]
     ind2 = ff <= noise_range[1]
-    ind = np.logical_and(ind1,ind2)
+    ind = np.logical_and(ind1,ind2)    
     if dims > 1:
         xdft = np.fft.rfft(Y,axis=-1)
         psdx = (1./T)*abs(xdft)**2
