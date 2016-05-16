@@ -13,7 +13,7 @@ from scipy.sparse import lil_matrix,coo_matrix
 import time
 import scipy
 from utilities import load_memmap
- 
+import os
 #%%
 def extract_patch_coordinates(d1,d2,rf=7,stride = 5):
     """
@@ -132,7 +132,9 @@ def cnmf_patches(args_in):
 #    options = cse.utilities.CNMFSetParms(Y,p=p,gSig=gSig,K=K)
     options['spatial_params']['d2']=d1
     options['spatial_params']['d1']=d2
-    
+#    options['preprocess_params']['backend']='single_thread'
+#    options['spatial_params']['backend']='single_thread'    
+#    options['temporal_params']['backend']='single_thread'    
     
     Yr,sn,g,psx=cse.pre_processing.preprocess_data(Yr,**options['preprocess_params'])
     logger.info('Preprocess Data')
@@ -183,7 +185,7 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, n_processes=2
         amount of overlap between patches
         
     backend: string
-        'ipyparallel' or 'single_thread'
+        'ipyparallel' or 'single_thread' or SLURM
     
     n_processes: int
         nuber of cores to be used (should be less than the number of cores started with ipyparallel)
@@ -225,11 +227,20 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, n_processes=2
 
     st=time.time()        
     
-    if backend is 'ipyparallel':
+    if backend is 'ipyparallel' or backend is 'SLURM':
 
         try:
+            if backend is 'SLURM':
+                if 'IPPPDIR' in os.environ and 'IPPPROFILE' in os.environ:
+                    pdir, profile = os.environ['IPPPDIR'], os.environ['IPPPROFILE']
+                else:
+                    raise Exception('envirnomment variables not found, please source slurmAlloc.rc')
+        
+                c = Client(ipython_dir=pdir, profile=profile)
+                print 'Using '+ str(len(c)) + ' processes'
+            else:
+                c = Client()
 
-            c = Client()   
             dview=c[:n_processes]
             file_res = dview.map_sync(cnmf_patches, args_in)        
             dview.results.clear()   
