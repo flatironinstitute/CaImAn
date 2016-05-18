@@ -378,7 +378,7 @@ def mean_psd(y, method = 'logmexp'):
     elif method == 'median':
         mp = np.sqrt(np.median(y/2,axis=-1))
     else:
-        mp = np.log(y/2)
+        mp = np.log((y+1e-10)/2)
         mp = np.mean(mp,axis=-1)
         mp = np.exp(mp)
         mp = np.sqrt(mp)
