@@ -39,9 +39,9 @@ cse.utilities.stop_server()
 
 #%% FOR LOADING ALL TIFF FILES IN A FILE AND SAVING THEM ON A SINGLE MEMORY MAPPABLE FILE
 fnames=[]
-base_folder='./movies/' # folder containing the demo files
+base_folder='./movies' # folder containing the demo files
 for file in glob.glob(os.path.join(base_folder,'*.tif')):
-    if file.endswith(".tif"):
+    if file.endswith("ie.tif"):
         fnames.append(file)
 fnames.sort()
 print fnames  
@@ -59,8 +59,8 @@ fname_new=cse.utilities.save_memmap(fnames,base_name='Yr',resize_fact=(1,1,fract
 Yr,d1,d2,T=cse.utilities.load_memmap(fname_new)
 Y=np.reshape(Yr,(d1,d2,T),order='F')
 #%%
-Cn = cse.utilities.local_correlations(Y)
-pl.imshow(Cn,cmap='gray',vmin=np.percentile(Cn, 1), vmax=np.percentile(Cn, 99))    
+Cn = cse.utilities.local_correlations(Y[:,:,:1000])
+pl.imshow(Cn,cmap='gray')    
 
 #%%
 K=30 # number of neurons expected per patch
