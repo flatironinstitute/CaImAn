@@ -212,7 +212,7 @@ def save_memmap(filenames,base_name='Yr',resize_fact=(1,1,1),remove_init=0,idx_x
             big_mov=np.memmap(fname_tot,dtype=np.float32,mode='r+',shape=(d1*d2,Ttot+T),order=order)
         #    np.save(fname[:-3]+'npy',np.asarray(Yr))
         
-        big_mov[:,Ttot:Ttot+T]=np.asarray(Yr,dtype=np.float32)
+        big_mov[:,Ttot:Ttot+T]=np.asarray(Yr,dtype=np.float32)+1e-10
         big_mov.flush()
         Ttot=Ttot+T;                                        
 
@@ -618,9 +618,10 @@ def plot_contours(A, Cn, thr=0.9, display_numbers=True, max_number=None, cmap=No
     x, y = np.mgrid[0:d1:1, 0:d2:1]
 
     ax = plt.gca()
-    if vmax is None and vmin is None:
+    #Cn[np.isnan(Cn)]=0
+    if vmax is None and vmin is None:        
         plt.imshow(Cn, interpolation=None, cmap=cmap,
-                   vmin=np.percentile(Cn, 1), vmax=np.percentile(Cn, 99))
+                   vmin=np.percentile(Cn[~np.isnan(Cn)], 1), vmax=np.percentile(Cn[~np.isnan(Cn)], 99))
     else:
         plt.imshow(Cn, interpolation=None, cmap=cmap,
                    vmin=vmin, vmax=vmax)
@@ -746,7 +747,7 @@ def manually_refine_components(Y, (dx, dy), A, C, Cn, thr=0.9, display_numbers=T
 #    ax = fig.add_subplot(111)
     ax = plt.gca()
     ax.imshow(Cn, interpolation=None, cmap=cmap,
-              vmin=np.percentile(Cn, 1), vmax=np.percentile(Cn, 99))
+              vmin=np.percentile(Cn[~np.isnan(Cn)], 1), vmax=np.percentile(Cn[~np.isnan(Cn)], 99))
     for i in range(np.minimum(nr, max_number)):
         plt.contour(y, x, Bmat[i], [thr])
 
