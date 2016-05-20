@@ -35,6 +35,9 @@ import psutil
 import calblitz as cb
 import shutil
 import glob
+#%% LOGIN TO MASTER NODE
+# TYPE salloc -n n_nodes --exclusive
+# source activate environment_name
 #%%#%%
 slurm_script='/mnt/xfs1/home/agiovann/SOFTWARE/Constrained_NMF/SLURM/slurmStart.sh'
 cse.utilities.start_server(ncpus=None,slurm_script=slurm_script)
@@ -43,7 +46,8 @@ cse.utilities.start_server(ncpus=None,slurm_script=slurm_script)
 #%%
 import os
 fnames=[]
-for file in glob.glob("/mnt/ceph/agiovann/ImagingData/5.11/*.tif"):
+base_folder='/mnt/ceph/users/agiovann/ImagingData/eyeblink/b23/5.12/'
+for file in glob.glob(base_folder+'*.tif'):
     if file.startswith("") and file.endswith(".tif"):
         fnames.append(file)
 fnames.sort()
@@ -51,7 +55,7 @@ print fnames
 #%%
 fnames=['./movies/demoMovie_PC.tif']
 #%%
-n_processes = 52#np.maximum(psutil.cpu_count() - 2,1) # roughly number of cores on your machine minus 1
+n_processes = 112#np.maximum(psutil.cpu_count() - 2,1) # roughly number of cores on your machine minus 1
 
 #%%
 #low_SNR=False
@@ -71,7 +75,8 @@ t2=time()-t1
 print t2
 #%%   
 all_movs=[]
-for f in  glob.glob('./*.hdf5'):
+for f in  glob.glob(base_folder+'*.hdf5'):
+    print f
     with np.load(f[:-4]+'npz') as fl:
 #        pl.subplot(1,2,1)
 #        pl.imshow(fl['template'],cmap=pl.cm.gray)
@@ -83,22 +88,52 @@ for f in  glob.glob('./*.hdf5'):
 #%%        
 all_movs=cb.movie(np.concatenate(all_movs,axis=0),fr=10)
 all_movs,shifts,corss,_=all_movs.motion_correct(template=None,max_shift_w=45, max_shift_h=45)
-template=np.median(all_movs,axis=0)
-np.save('template_total',template)
-pl.imshow(template,cmap=pl.cm.gray,vmax=100)
 #%%
+template=np.median(all_movs[:],axis=0)
+np.save(base_folder+'template_total',template)
+pl.imshow(template,cmap=pl.cm.gray,vmax=120)
+#%%
+all_movs.play(backend='opencv',gain=10,fr=10)
+#%%
+t1 = time()
 file_res=cb.motion_correct_parallel(fnames,30,template=template,margins_out=0,max_shift_w=45, max_shift_h=45,backend='SLURM',remove_blanks=False)
+t2=time()-t1
+print t2
 #%%
 for f in  file_res:
     with np.load(f+'npz') as fl:
-        pl.subplot(1,2,1)
-        pl.imshow(fl['template'],cmap=pl.cm.gray)
-        pl.subplot(1,2,2)
-        pl.plot(fl['shifts'])       
+        pl.subplot(2,2,1)
+        pl.imshow(fl['template'],cmap=pl.cm.gray,vmin=np.percentile(fl['template'],1),vmax=np.percentile(fl['template'],99))
+        
+        pl.subplot(2,2,3)
+        pl.plot(fl['xcorrs'])  
+        pl.subplot(2,2,2)
+        pl.plot(fl['shifts'])
         pl.pause(0.1)
         pl.cla()
         
 print time() - t1 - 200
+#%%
+all_movs=[]
+for f in  glob.glob(base_folder+'*.hdf5'):
+    print f
+    with np.load(f[:-4]+'npz') as fl:
+#        pl.subplot(1,2,1)
+#        pl.imshow(fl['template'],cmap=pl.cm.gray)
+#        pl.subplot(1,2,2)
+#        pl.plot(fl['shifts'])       
+        all_movs.append(fl['template'][np.newaxis,:,:])
+#        pl.pause(2)
+#        pl.cla()
+        
+all_movs=cb.movie(np.concatenate(all_movs,axis=0),fr=10)
+all_movs,shifts,corss,_=all_movs.motion_correct(template=None,max_shift_w=45, max_shift_h=45)        
+all_movs.save(base_folder+'avg_movies.tif')
+template=np.median(all_movs[:],axis=0)
+np.save(base_folder+'template_total',template)
+pl.imshow(template,cmap=pl.cm.gray,vmax=100)
+#%%
+all_movs.play(backend='opencv',gain=10,fr=5)
 #%%
 big_mov=[];
 big_shifts=[]
