@@ -26,7 +26,7 @@ import glob
 
 #%% slect all tiff files in current folder
 fnames=[]
-base_folder='/Users/agiovann/Dropbox (Simons Foundation)/Python_progress/Patch_demo/' # folder containing the demo files
+base_folder='./' # folder containing the demo files
 for file in glob.glob(os.path.join(base_folder,'*.tif')):
     if file.endswith(".tif"):
         fnames.append(file)
@@ -61,7 +61,7 @@ pl.imshow(Cn,cmap='gray',vmin=np.percentile(Cn, 1), vmax=np.percentile(Cn, 99))
 #%%
 rf=15 # half-size of the patches in pixels. rf=25, patches are 50x50
 stride = 2 #amounpl.it of overlap between the patches in pixels    
-K=9 # number of neurons expected per patch
+K=3 # number of neurons expected per patch
 gSig=[4,4] # expected half size of neurons
 merge_thresh=0.8 # merging threshold, max correlation allowed
 p=2 #order of the autoregressive system
@@ -78,10 +78,10 @@ cse.utilities.start_server(n_processes)
 options_patch = cse.utilities.CNMFSetParms(Y,n_processes,p=0,gSig=gSig,K=K,ssub=1,tsub=4,thr=merge_thresh)
 A_tot,C_tot,b,f,sn_tot, optional_outputs = cse.map_reduce.run_CNMF_patches(fname_new, (d1, d2, T), options_patch,rf=rf,stride = stride,
                                                                        n_processes=n_processes, backend='ipyparallel',memory_fact=memory_fact)
+print 'Number of components:' + str(A_tot.shape[-1])      
 #%%
 if save_results:
     np.savez('results_analysis_patch.npz',A_tot=A_tot.todense(), C_tot=C_tot, sn_tot=sn_tot,d1=d1,d2=d2)    
-print 'Number of components:' + str(A_tot.shape[-1])      
 #%% if you have many components this might take long!
 pl.figure()
 crd = cse.utilities.plot_contours(A_tot,Cn,thr=0.9)
@@ -105,6 +105,7 @@ print time.time() - t1
 #%% UPDATE TEMPORAL COMPONENTS
 options['temporal_params']['p']=p
 options['temporal_params']['fudge_factor']=0.96 #change ifdenoised traces time constant is wrong
+options['temporal_params']['backend']='ipyparallel'
 C2,f2,S2,bl2,c12,neurons_sn2,g21,YrA = cse.temporal.update_temporal_components(Yr,A2,b2,C2,f,bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
 #%% Order components
 #A_or, C_or, srt = cse.utilities.order_components(A2,C2)

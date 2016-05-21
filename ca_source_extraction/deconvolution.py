@@ -330,7 +330,12 @@ def cvxpy_foopsi(fluor,  g, sn, b=None, c1=None, bas_nonneg=True,solvers=None):
              
          if not (prob.status ==  'optimal' or prob.status == 'optimal_inaccurate'):
             print 'PROBLEM STATUS:' + prob.status 
-            raise Exception('Problem could not be solved')
+            sp=fluor
+            c=fluor
+            b=0
+            c1=0                      
+            return c,b,c1,g,sn,sp
+            #raise Exception('Problem could not be solved')
             
     
     
