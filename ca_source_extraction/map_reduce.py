@@ -98,7 +98,7 @@ def cnmf_patches(args_in):
 #    file_name, idx_,shapes,p,gSig,K,fudge_fact=args_in
     file_name, idx_,shapes,options=args_in
     
-    name_log=file_name[:-5]+ '_LOG_ ' + str(idx_[0])+'_'+str(idx_[-1])
+    name_log=os.path.basename(file_name[:-5])+ '_LOG_ ' + str(idx_[0])+'_'+str(idx_[-1])
     logger = logging.getLogger(name_log)
     hdlr = logging.FileHandler('./'+name_log)
     formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
