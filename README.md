@@ -66,17 +66,14 @@ Download and install Anaconda (Python 2.7) <http://docs.continuum.io/anaconda/in
     source activate CNMF
     conda install -c https://conda.anaconda.org/agiovann constrained_nmf
     conda install  spyder
-    conda install  atlas (only Ubuntu)
-    conda install accelerate
     conda install opencv
     conda install h5py
     conda install scikit-image
     conda install scikit-learn
-    pip install 'tifffile>=0.7'
     pip install picos
     pip install cvxpy
     pip install pims
-    conda install -c https://conda.binstar.org/menpo opencv3
+
     ```
 
 2. ADVANCED WAY (with access to source code).
@@ -84,17 +81,14 @@ Download and install Anaconda (Python 2.7) <http://docs.continuum.io/anaconda/in
     git clone --recursive https://github.com/agiovann/Constrained_NMF.git
     conda create -n CNMF ipython
     source activate CNMF
-    conda install numpy scipy spyder openblas ipyparallel matplotlib bokeh jupyter scikit-image scikit-learn cvxopt         conda install  atlas (only Ubuntu)
-    conda install accelerate
+    conda install numpy scipy spyder openblas ipyparallel matplotlib bokeh jupyter scikit-image scikit-learn cvxopt     
     conda install opencv
     conda install h5py
     conda install scikit-image
     conda install scikit-learn
-    pip install 'tifffile>=0.7'
     pip install picos
     pip install cvxpy
     pip install pims
-    conda install -c https://conda.binstar.org/menpo opencv3
     ```
     This second option will not allow to import the package from every folder but only from within the Constrained_NMF folder. You can access it globally by setting the environment variable PYTHONPATH
     ```
@@ -126,6 +120,16 @@ or issues related to SCS type
  if still there are issues try
 
   `export LD_LIBRARY_PATH=/path_to_your_home/anaconda2/lib/`
+
+ if more problems try 
+    ```
+
+    conda install  atlas (only Ubuntu)
+    pip install 'tifffile>=0.7'
+    conda install accelerate
+    conda install -c https://conda.binstar.org/menpo opencv3
+
+```
 
 Test the system
 ----------------------
