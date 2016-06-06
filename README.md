@@ -73,6 +73,7 @@ Download and install Anaconda (Python 2.7) <http://docs.continuum.io/anaconda/in
     pip install cvxpy
     pip install pims
     conda install -c https://conda.binstar.org/menpo opencv3
+    pip install 'tifffile>=0.7'
 
     ```
 
@@ -93,6 +94,7 @@ Download and install Anaconda (Python 2.7) <http://docs.continuum.io/anaconda/in
     pip install cvxpy
     pip install pims
     conda install -c https://conda.binstar.org/menpo opencv3
+    pip install 'tifffile>=0.7'
     ```
     This second option will not allow to import the package from every folder but only from within the Constrained_NMF folder. You can access it globally by setting the environment variable PYTHONPATH
     ```
