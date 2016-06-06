@@ -70,10 +70,13 @@ Download and install Anaconda (Python 2.7) <http://docs.continuum.io/anaconda/in
     conda install accelerate
     conda install opencv
     conda install h5py
+    conda install scikit-image
+    conda install scikit-learn
     pip install 'tifffile>=0.7'
     pip install picos
     pip install cvxpy
     pip install pims
+    conda install -c https://conda.binstar.org/menpo opencv3
     ```
 
 2. ADVANCED WAY (with access to source code).
@@ -85,11 +88,13 @@ Download and install Anaconda (Python 2.7) <http://docs.continuum.io/anaconda/in
     conda install accelerate
     conda install opencv
     conda install h5py
+    conda install scikit-image
+    conda install scikit-learn
     pip install 'tifffile>=0.7'
     pip install picos
     pip install cvxpy
     pip install pims
-
+    conda install -c https://conda.binstar.org/menpo opencv3
     ```
     This second option will not allow to import the package from every folder but only from within the Constrained_NMF folder. You can access it globally by setting the environment variable PYTHONPATH
     ```
