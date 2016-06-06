@@ -81,11 +81,16 @@ Download and install Anaconda (Python 2.7) <http://docs.continuum.io/anaconda/in
     git clone --recursive https://github.com/agiovann/Constrained_NMF.git
     conda create -n CNMF ipython
     source activate CNMF
-    conda install numpy scipy spyder openblas ipyparallel matplotlib bokeh jupyter scikit-image scikit-learn cvxopt     
-    conda install opencv
-    conda install h5py
+    conda install numpy scipy 
+    conda install spyder 
+    conda install openblas 
+    conda install ipyparallel
+    conda install matplotlib bokeh jupyter
     conda install scikit-image
     conda install scikit-learn
+    conda install cvxopt     
+    conda install opencv
+    conda install h5py
     pip install picos
     pip install cvxpy
     pip install pims
