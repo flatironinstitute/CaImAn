@@ -6,7 +6,7 @@ import scipy.sparse as spr
 import scipy
 from ca_source_extraction.utilities import com,local_correlations
 #%%
-def initialize_components(Y, K=30, gSig=[5,5], gSiz=None, ssub=1, tsub=1, nIter = 5, maxIter=5, kernel = None, use_hals=True,Cn=None): 
+def initialize_components(Y, K=30, gSig=[5,5], gSiz=None, ssub=1, tsub=1, nIter = 5, maxIter=5, kernel = None, use_hals=True,Cn=None,sn=None): 
     """Initalize components 
     
     This method uses a greedy approach followed by hierarchical alternative least squares (HALS) NMF.
@@ -58,6 +58,12 @@ def initialize_components(Y, K=30, gSig=[5,5], gSiz=None, ssub=1, tsub=1, nIter 
     gSig = np.round([gSig[0]/ssub,gSig[1]/ssub]).astype(np.int)
     gSiz = np.round([gSiz[0]/ssub,gSiz[1]/ssub]).astype(np.int)    
     
+    print 'Noise Normalization'
+    if sn is not None:
+        min_noise=np.percentile(sn,2)
+        noise=np.maximum(sn,min_noise)
+        Y=Y/np.reshape(noise,(d1,d2))[:,:,np.newaxis]
+    
     # spatial downsampling
     mean_val=np.mean(Y)
     if ssub!=1 or tsub!=1:
@@ -68,7 +74,10 @@ def initialize_components(Y, K=30, gSig=[5,5], gSiz=None, ssub=1, tsub=1, nIter 
     else:
         Y_ds = Y
    
+        
+
     print 'Roi Extraction...'    
+    
     Ain, Cin, _, b_in, f_in = greedyROI2d(Y_ds, nr = K, gSig = gSig, gSiz = gSiz, nIter=nIter, kernel = kernel)
     if use_hals:    
         print 'Refining Components...'    
@@ -90,6 +99,11 @@ def initialize_components(Y, K=30, gSig=[5,5], gSiz=None, ssub=1, tsub=1, nIter 
     Cin = resize(Cin, [K, T])
     f_in = resize(np.atleast_2d(f_in), [1, T])  
     center = com(Ain,d1,d2)
+    
+    if sn is not None:
+        Ain=Ain*np.reshape(noise,(d1*d2,))[:,np.newaxis]
+        b_in=b_in*np.reshape(noise,(d1*d2,))
+        Y=Y*np.reshape(noise,(d1,d2))[:,:,np.newaxis]
     
     return Ain, Cin, b_in, f_in, center
     

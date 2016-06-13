@@ -1,7 +1,7 @@
 #%%
 try:
-#    %load_ext autoreload
-#    %autoreload 2
+    %load_ext autoreload
+    %autoreload 2
     print 1
 except:
     print 'NOT IPYTHON'
@@ -59,12 +59,12 @@ fname_new=cse.utilities.save_memmap(fnames,base_name='Yr',resize_fact=(1,1,fract
 Yr,d1,d2,T=cse.utilities.load_memmap(fname_new)
 Y=np.reshape(Yr,(d1,d2,T),order='F')
 #%%
-Cn = cse.utilities.local_correlations(Y[:,:,:1000])
+Cn = cse.utilities.local_correlations(Y[:,:,:])
 pl.imshow(Cn,cmap='gray')    
 
 #%%
 K=30 # number of neurons expected per patch
-gSig=[4,4] # expected half size of neurons
+gSig=[7,7] # expected half size of neurons
 merge_thresh=0.8 # merging threshold, max correlation allowed
 p=2 #order of the autoregressive system
 options = cse.utilities.CNMFSetParms(Y,n_processes,p=p,gSig=gSig,K=K)
@@ -73,7 +73,7 @@ cse.utilities.start_server(options['spatial_params']['n_processes'])
 #%% PREPROCESS DATA AND INITIALIZE COMPONENTS
 t1 = time()
 Yr,sn,g,psx = cse.pre_processing.preprocess_data(Yr,**options['preprocess_params'])
-Atmp, Ctmp, b_in, f_in, center=cse.initialization.initialize_components(Y, **options['init_params'])                                                    
+Atmp, Ctmp, b_in, f_in, center=cse.initialization.initialize_components(Y, sn=sn, **options['init_params'])                                                    
 print time() - t1
 
 #%% Refine manually component by clicking on neurons 
@@ -102,7 +102,7 @@ t_elTEMPORAL = time() - t1
 print t_elTEMPORAL 
 #%% merge components corresponding to the same neuron
 t1 = time()
-A_m,C_m,nr_m,merged_ROIs,S_m,bl_m,c1_m,sn_m,g_m=cse.merging.merge_components(Yr,A,b,C,f,S,sn,options['temporal_params'], options['spatial_params'], bl=bl, c1=c1, sn=neurons_sn, g=g, thr=0.8, mx=50, fast_merge = True)
+A_m,C_m,nr_m,merged_ROIs,S_m,bl_m,c1_m,sn_m,g_m=cse.merging.merge_components(Yr,A,b,C,f,S,sn,options['temporal_params'], options['spatial_params'], bl=bl, c1=c1, sn=neurons_sn, g=g, thr=merge_thresh, mx=50, fast_merge = True)
 t_elMERGE = time() - t1
 print t_elMERGE  
 
@@ -121,7 +121,7 @@ traces=C2+YrA
 idx_components, fitness, erfc = cse.utilities.evaluate_components(traces,N=5,robust_std=True)
 
 #%%
-cse.utilities.view_patches_bar(Yr,scipy.sparse.coo_matrix(A2.tocsc()[:,idx_components]),C2[idx_components,:],b2,f2, d1,d2, YrA=YrA[idx_components,:])  
+cse.utilities.view_patches_bar(Yr,scipy.sparse.coo_matrix(A2.tocsc()[:,idx_components]),C2[idx_components,:],b2,f2, d1,d2, YrA=YrA[idx_components,:],img=Cn)  
 #%% visualize components
 pl.figure();
 crd = cse.utilities.plot_contours(A2.tocsc()[:,idx_components],Cn,thr=0.9)
