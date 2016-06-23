@@ -6,7 +6,6 @@ Created on Sat Sep 12 15:52:53 2015
 """
 
 import numpy as np
-import scipy
 from scipy.sparse import spdiags, diags, coo_matrix
 from matplotlib import pyplot as plt
 from pylab import pause
@@ -25,15 +24,11 @@ import matplotlib as mpl
 
 
 import matplotlib.cm as cm
-import psutil
 import subprocess
 import time
 import ipyparallel
 from matplotlib.widgets import Slider
 import ca_source_extraction
-import sklearn
-import time
-from sklearn.decomposition import NMF
 import shutil
 import glob
 from skimage.external.tifffile import imread
@@ -41,34 +36,31 @@ from skimage.external.tifffile import imread
 #%%
 
 
-def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], ssub=1, tsub=1, p=2,p_ssub=1, p_tsub=1, thr=0.8,**kwargs):
+def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], ssub=1, tsub=1, p=2, p_ssub=1, p_tsub=1, thr=0.8, **kwargs):
     """Dictionary for setting the CNMF parameters.
     Any parameter that is not set get a default value specified
     by the dictionary default options
     """
-    
+
     if type(Y) is tuple:
-        d1,d2,T=Y    
+        dims, T = Y[:-1], Y[-1]
     else:
-        d1, d2, T = Y.shape
-        
-        
-    
-    
+        dims, T = Y.shape[:-1], Y.shape[-1]
+
     print 'using ' + str(n_processes) + ' processes'
-    n_pixels_per_process = d1 * d2 / n_processes  # how to subdivide the work among processes
+    n_pixels_per_process = np.prod(dims) / n_processes  # how to subdivide the work among processes
 
     options = dict()
-    options['patch_params']={
-                             'ssub': p_ssub,             # spatial downsampling factor
-                             'tsub': p_tsub              # temporal downsampling factor
-                            }
+    options['patch_params'] = {
+        'ssub': p_ssub,             # spatial downsampling factor
+        'tsub': p_tsub              # temporal downsampling factor
+    }
     options['preprocess_params'] = {'sn': None,                  # noise level for each pixel
                                     # range of normalized frequencies over which to average
                                     'noise_range': [0.25, 0.5],
                                     # averaging method ('mean','median','logmexp')
                                     'noise_method': 'logmexp',
-                                    'max_num_samples_fft':3000,
+                                    'max_num_samples_fft': 3000,
                                     'n_processes': n_processes,
                                     'n_pixels_per_process': n_pixels_per_process,
                                     'compute_g': False,            # flag for estimating global time constant
@@ -76,7 +68,7 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], ssub=1, tsub=1, p=2,p_ssub=1
                                     'lags': 5,                     # number of autocovariance lags to be considered for time constant estimation
                                     'include_noise': False,        # flag for using noise values when estimating g
                                     'pixels': None,                 # pixels to be excluded due to saturation
-                                    'backend':'ipyparallel'                                    
+                                    'backend': 'ipyparallel'
                                     }
     options['init_params'] = {'K': K,                                          # number of components
                               # size of components (std of Gaussian)
@@ -90,8 +82,7 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], ssub=1, tsub=1, p=2,p_ssub=1
                               'maxIter': 5              # number of HALS iterations
                               }
     options['spatial_params'] = {
-        'd1': d1,                        # number of rows
-        'd2': d2,                        # number of columns
+        'dims': dims,                   # number of rows, columns [and depths]
         # method for determining footprint of spatial components ('ellipse' or 'dilate')
         'method': 'ellipse',
         'dist': 3,                       # expansion factor of ellipse
@@ -121,18 +112,20 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], ssub=1, tsub=1, p=2,p_ssub=1
                         'verbosity': False
     }
     options['merging'] = {
-        'thr': thr,        
+        'thr': thr,
     }
     return options
 
 #%%
+
+
 def load_memmap(filename):
     """ Load a memory mapped file created by the function save_memmap
     Parameters:
     -----------
         filename: str
             path of the file to be loaded
-            
+
     Returns:
     --------
     Yr:
@@ -141,21 +134,21 @@ def load_memmap(filename):
         frame dimensions
     T: int
         number of frames
-    
+
     """
     if os.path.splitext(filename)[1] == '.mmap':
-        filename=os.path.split(filename)[-1]
-        fpart=filename.split('_')[1:-1]
-        d1,d2,T,order=int(fpart[1]),int(fpart[3]),int(fpart[7]),fpart[5]
-        Yr=np.memmap(filename,mode='r',shape=(d1*d2,T),dtype=np.float32,order=order)
-        return Yr,d1,d2,T  
+        filename = os.path.split(filename)[-1]
+        fpart = filename.split('_')[1:-1]
+        d1, d2, T, order = int(fpart[1]), int(fpart[3]), int(fpart[7]), fpart[5]
+        Yr = np.memmap(filename, mode='r', shape=(d1 * d2, T), dtype=np.float32, order=order)
+        return Yr, d1, d2, T
     else:
-        Yr=np.load(filename,mmap_mode='r')
-        return Yr,None,None,None  
-        
-    
+        Yr = np.load(filename, mmap_mode='r')
+        return Yr, None, None, None
+
+
 #%%
-def save_memmap(filenames,base_name='Yr',resize_fact=(1,1,1),remove_init=0,idx_xy=None):       
+def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0, idx_xy=None):
     """ Saves efficiently a list of tif files into a memory mappable file
     Parameters
     ----------
@@ -175,113 +168,128 @@ def save_memmap(filenames,base_name='Yr',resize_fact=(1,1,1),remove_init=0,idx_x
         fname_new: the name of the mapped file, the format is such that the name will contain the frame dimensions and the number of f
 
     """
-    order='F'
-    Ttot=0;    
-    for idx,f in  enumerate(filenames):
-        print f   
+    order = 'F'
+    Ttot = 0
+    for idx, f in enumerate(filenames):
+        print f
         if os.path.splitext(f)[-1] == '.hdf5':
             import calblitz as cb
             if idx_xy is None:
-                Yr=np.array(cb.load(f))[remove_init:]
+                Yr = np.array(cb.load(f))[remove_init:]
             else:
-                Yr=np.array(cb.load(f))[remove_init:,idx_xy[0],idx_xy[1]]                                                        
+                Yr = np.array(cb.load(f))[remove_init:, idx_xy[0], idx_xy[1]]
         else:
             if idx_xy is None:
-                Yr=imread(f)[remove_init:]
+                Yr = imread(f)[remove_init:]
             else:
-                Yr=imread(f)[remove_init:,idx_xy[0],idx_xy[1]]
-                
-        fx,fy,fz=resize_fact
-        if fx!=1 or fy!=1 or fz!=1:
+                Yr = imread(f)[remove_init:, idx_xy[0], idx_xy[1]]
+
+        fx, fy, fz = resize_fact
+        if fx != 1 or fy != 1 or fz != 1:
             try:
                 import calblitz as cb
-                Yr=cb.movie(Yr,fr=1)                
-                Yr=Yr.resize(fx=fx,fy=fy,fz=fz)
+                Yr = cb.movie(Yr, fr=1)
+                Yr = Yr.resize(fx=fx, fy=fy, fz=fz)
             except:
                 print('You need to install the CalBlitz package to resize the movie')
                 raise
-                
-        [T,d1,d2]=Yr.shape;
-        Yr=np.transpose(Yr,(1,2,0)) 
-        Yr=np.reshape(Yr,(d1*d2,T),order=order)
-        
-        if idx==0:
-            fname_tot=base_name+'_d1_'+str(d1)+'_d2_'+str(d2)+'_order_'+str(order)
-            big_mov=np.memmap(fname_tot,mode='w+',dtype=np.float32,shape=(d1*d2,T),order=order);
-        else:
-            big_mov=np.memmap(fname_tot,dtype=np.float32,mode='r+',shape=(d1*d2,Ttot+T),order=order)
-        #    np.save(fname[:-3]+'npy',np.asarray(Yr))
-        
-        big_mov[:,Ttot:Ttot+T]=np.asarray(Yr,dtype=np.float32)+1e-10
-        big_mov.flush()
-        Ttot=Ttot+T;                                        
 
-    fname_new=fname_tot+'_frames_' +str(Ttot) + '_.mmap'
-    os.rename(fname_tot,fname_new)
-    
+        [T, d1, d2] = Yr.shape
+        Yr = np.transpose(Yr, (1, 2, 0))
+        Yr = np.reshape(Yr, (d1 * d2, T), order=order)
+
+        if idx == 0:
+            fname_tot = base_name + '_d1_' + str(d1) + '_d2_' + str(d2) + '_order_' + str(order)
+            big_mov = np.memmap(fname_tot, mode='w+', dtype=np.float32,
+                                shape=(d1 * d2, T), order=order)
+        else:
+            big_mov = np.memmap(fname_tot, dtype=np.float32, mode='r+',
+                                shape=(d1 * d2, Ttot + T), order=order)
+        #    np.save(fname[:-3]+'npy',np.asarray(Yr))
+
+        big_mov[:, Ttot:Ttot + T] = np.asarray(Yr, dtype=np.float32) + 1e-10
+        big_mov.flush()
+        Ttot = Ttot + T
+
+    fname_new = fname_tot + '_frames_' + str(Ttot) + '_.mmap'
+    os.rename(fname_tot, fname_new)
+
     return fname_new
 #%%
+
+
 def local_correlations(Y, eight_neighbours=True, swap_dim=True):
     """Computes the correlation image for the input dataset Y
 
     Parameters
     -----------
 
-    Y:   np.ndarray (3D)
-         Input movie data in 3D format
-    eight_neibhbours: Boolean
-         Use 8 neighbors if true, and 4 if false (default = False)
+    Y:  np.ndarray (3D or 4D)
+        Input movie data in 3D or 4D format
+    eight_neighbours: Boolean
+        Use 8 neighbors if true, and 4 if false for 3D data (default = True)
+        Use 6 neighbors for 4D data, irrespectively
     swap_dim: Boolean
-         True indicates that time is listed in the last axis of Y (matlab format)
-         and moves it in the front
+        True indicates that time is listed in the last axis of Y (matlab format)
+        and moves it in the front
 
     Returns
     --------
 
-    rho: d1 x d2 matrix, cross-correlation with adjacent pixels
+    rho: d1 x d2 [x d3] matrix, cross-correlation with adjacent pixels
 
     """
 
     if swap_dim:
         Y = np.transpose(Y, tuple(np.hstack((Y.ndim - 1, range(Y.ndim)[:-1]))))
 
-    rho = np.zeros(np.shape(Y)[1:3])
+    rho = np.zeros(np.shape(Y)[1:])
     w_mov = (Y - np.mean(Y, axis=0)) / np.std(Y, axis=0)
 
     rho_h = np.mean(np.multiply(w_mov[:, :-1, :], w_mov[:, 1:, :]), axis=0)
-    rho_w = np.mean(np.multiply(w_mov[:, :, :-1], w_mov[:, :, 1:, ]), axis=0)
-
-    if True:
-        rho_d1 = np.mean(np.multiply(w_mov[:, 1:, :-1], w_mov[:, :-1, 1:, ]), axis=0)
-        rho_d2 = np.mean(np.multiply(w_mov[:, :-1, :-1], w_mov[:, 1:, 1:, ]), axis=0)
+    rho_w = np.mean(np.multiply(w_mov[:, :, :-1], w_mov[:, :, 1:]), axis=0)
 
     rho[:-1, :] = rho[:-1, :] + rho_h
     rho[1:, :] = rho[1:, :] + rho_h
     rho[:, :-1] = rho[:, :-1] + rho_w
     rho[:, 1:] = rho[:, 1:] + rho_w
 
-    if eight_neighbours:
-        rho[:-1, :-1] = rho[:-1, :-1] + rho_d2
-        rho[1:, 1:] = rho[1:, 1:] + rho_d1
-        rho[1:, :-1] = rho[1:, :-1] + rho_d1
-        rho[:-1, 1:] = rho[:-1, 1:] + rho_d2
-
-    if eight_neighbours:
-        neighbors = 8 * np.ones(np.shape(Y)[1:3])
-        neighbors[0, :] = neighbors[0, :] - 3
-        neighbors[-1, :] = neighbors[-1, :] - 3
-        neighbors[:, 0] = neighbors[:, 0] - 3
-        neighbors[:, -1] = neighbors[:, -1] - 3
-        neighbors[0, 0] = neighbors[0, 0] + 1
-        neighbors[-1, -1] = neighbors[-1, -1] + 1
-        neighbors[-1, 0] = neighbors[-1, 0] + 1
-        neighbors[0, -1] = neighbors[0, -1] + 1
-    else:
-        neighbors = 4 * np.ones(np.shape(Y)[1:3])
-        neighbors[0, :] = neighbors[0, :] - 1
-        neighbors[-1, :] = neighbors[-1, :] - 1
+    if Y.ndim == 4:
+        rho_d = np.mean(np.multiply(w_mov[:, :, :, :-1], w_mov[:, :, :, 1:]), axis=0)
+        rho[:, :, :-1] = rho[:, :, :-1] + rho_d
+        rho[:, :, 1:] = rho[:, :, 1:] + rho_d
+        neighbors = 6 * np.ones(np.shape(Y)[1:])
+        neighbors[0] = neighbors[0] - 1
+        neighbors[-1] = neighbors[-1] - 1
         neighbors[:, 0] = neighbors[:, 0] - 1
         neighbors[:, -1] = neighbors[:, -1] - 1
+        neighbors[:, :, 0] = neighbors[:, :, 0] - 1
+        neighbors[:, :, -1] = neighbors[:, :, -1] - 1
+
+    else:
+        if eight_neighbours:
+            rho_d1 = np.mean(np.multiply(w_mov[:, 1:, :-1], w_mov[:, :-1, 1:, ]), axis=0)
+            rho_d2 = np.mean(np.multiply(w_mov[:, :-1, :-1], w_mov[:, 1:, 1:, ]), axis=0)
+            rho[:-1, :-1] = rho[:-1, :-1] + rho_d2
+            rho[1:, 1:] = rho[1:, 1:] + rho_d1
+            rho[1:, :-1] = rho[1:, :-1] + rho_d1
+            rho[:-1, 1:] = rho[:-1, 1:] + rho_d2
+
+            neighbors = 8 * np.ones(np.shape(Y)[1:3])
+            neighbors[0, :] = neighbors[0, :] - 3
+            neighbors[-1, :] = neighbors[-1, :] - 3
+            neighbors[:, 0] = neighbors[:, 0] - 3
+            neighbors[:, -1] = neighbors[:, -1] - 3
+            neighbors[0, 0] = neighbors[0, 0] + 1
+            neighbors[-1, -1] = neighbors[-1, -1] + 1
+            neighbors[-1, 0] = neighbors[-1, 0] + 1
+            neighbors[0, -1] = neighbors[0, -1] + 1
+        else:
+            neighbors = 4 * np.ones(np.shape(Y)[1:3])
+            neighbors[0, :] = neighbors[0, :] - 1
+            neighbors[-1, :] = neighbors[-1, :] - 1
+            neighbors[:, 0] = neighbors[:, 0] - 1
+            neighbors[:, -1] = neighbors[:, -1] - 1
 
     rho = np.divide(rho, neighbors)
 
@@ -618,14 +626,14 @@ def plot_contours(A, Cn, thr=0.9, display_numbers=True, max_number=None, cmap=No
     x, y = np.mgrid[0:d1:1, 0:d2:1]
 
     ax = plt.gca()
-    #Cn[np.isnan(Cn)]=0
-    if vmax is None and vmin is None:        
+    # Cn[np.isnan(Cn)]=0
+    if vmax is None and vmin is None:
         plt.imshow(Cn, interpolation=None, cmap=cmap,
                    vmin=np.percentile(Cn[~np.isnan(Cn)], 1), vmax=np.percentile(Cn[~np.isnan(Cn)], 99))
     else:
         plt.imshow(Cn, interpolation=None, cmap=cmap,
                    vmin=vmin, vmax=vmax)
-        
+
     coordinates = []
     cm = com(A, d1, d2)
     for i in range(np.minimum(nr, max_number)):
@@ -673,9 +681,9 @@ def plot_contours(A, Cn, thr=0.9, display_numbers=True, max_number=None, cmap=No
     if display_numbers:
         for i in range(np.minimum(nr, max_number)):
             if swap_dim:
-                ax.text(cm[i, 0], cm[i, 1], str(i + 1),color=colors)
+                ax.text(cm[i, 0], cm[i, 1], str(i + 1), color=colors)
             else:
-                ax.text(cm[i, 1], cm[i, 0], str(i + 1),color=colors)
+                ax.text(cm[i, 1], cm[i, 0], str(i + 1), color=colors)
 
     return coordinates
 
@@ -1071,7 +1079,7 @@ def nb_plot_contour(image, A, d1, d2, thr=0.995, face_color=None, line_color='bl
     return p
 
 
-def start_server(ncpus,slurm_script=None):
+def start_server(ncpus, slurm_script=None):
     '''
     programmatically start the ipyparallel server
 
@@ -1083,7 +1091,7 @@ def start_server(ncpus,slurm_script=None):
     '''
     sys.stdout.write("Starting cluster...")
     sys.stdout.flush()
-    
+
     if slurm_script is None:
         subprocess.Popen(["ipcluster start -n {0}".format(ncpus)], shell=True)
         while True:
@@ -1103,28 +1111,33 @@ def start_server(ncpus,slurm_script=None):
         shell_source(slurm_script)
         from ipyparallel import Client
         pdir, profile = os.environ['IPPPDIR'], os.environ['IPPPROFILE']
-        c = Client(ipython_dir=pdir, profile=profile)   
+        c = Client(ipython_dir=pdir, profile=profile)
         ee = c[:]
         ne = len(ee)
-        print 'Running on %d engines.'%(ne)
-        c.close()             
+        print 'Running on %d engines.' % (ne)
+        c.close()
         sys.stdout.write(" done\n")
 
 #%%
+
+
 def shell_source(script):
     """Sometime you want to emulate the action of "source" in bash,
     settings some environment variables. Here is a way to do it."""
-    import subprocess, os
+    import subprocess
+    import os
     pipe = subprocess.Popen(". %s; env" % script,  stdout=subprocess.PIPE, shell=True)
     output = pipe.communicate()[0]
     env = dict()
     for line in output.splitlines():
-        lsp=line.split("=", 1)
-        if len(lsp)>1:
-           env[lsp[0]]=lsp[1] 
+        lsp = line.split("=", 1)
+        if len(lsp) > 1:
+            env[lsp[0]] = lsp[1]
 #    env = dict((line.split("=", 1) for line in output.splitlines()))
     os.environ.update(env)
-#%%        
+#%%
+
+
 def stop_server(is_slurm=False):
     '''
     programmatically stops the ipyparallel server
@@ -1132,29 +1145,28 @@ def stop_server(is_slurm=False):
     sys.stdout.write("Stopping cluster...\n")
     sys.stdout.flush()
 
-    
     if is_slurm:
         from ipyparallel import Client
         pdir, profile = os.environ['IPPPDIR'], os.environ['IPPPROFILE']
-        c = Client(ipython_dir=pdir, profile=profile)        
+        c = Client(ipython_dir=pdir, profile=profile)
         ee = c[:]
         ne = len(ee)
-        print 'Shutting down %d engines.'%(ne)
+        print 'Shutting down %d engines.' % (ne)
         c.shutdown(hub=True)
         shutil.rmtree('profile_' + str(profile))
-        try: 
+        try:
             shutil.rmtree('./log/')
         except:
             print 'creating log folder'
-            
+
         files = glob.glob('*.log')
         os.mkdir('./log')
-        
+
         for fl in files:
             shutil.move(fl, './log/')
-    
+
     else:
-        
+
         proc = subprocess.Popen(["ipcluster stop"], shell=True, stderr=subprocess.PIPE)
         line_out = proc.stderr.readline()
         if 'CRITICAL' in line_out:
@@ -1169,17 +1181,15 @@ def stop_server(is_slurm=False):
                 time.sleep(1)
         else:
             print '**** Unrecognized Syntax in ipcluster output, waiting for server to stop anyways ****'
-    
-        
 
     sys.stdout.write(" done\n")
 
-#def evaluate_components(A,Yr,psx):
+# def evaluate_components(A,Yr,psx):
 #
 #    #%% clustering components
 #    Ys=Yr
 #    psx = cse.pre_processing.get_noise_fft(Ys,get_spectrum=True);
-#    
+#
 #    #[sn,psx] = get_noise_fft(Ys,options);
 #    #P.sn = sn(:);
 #    #fprintf('  done \n');
@@ -1188,21 +1198,21 @@ def stop_server(is_slurm=False):
 #    #P.psdx = X;
 #    X = X-np.mean(X,axis=1)[:,np.newaxis]#     bsxfun(@minus,X,mean(X,2));     % center
 #    X = X/(+1e-5+np.std(X,axis=1)[:,np.newaxis])
-#    
+#
 #    from sklearn.cluster import KMeans
 #    from sklearn.decomposition import PCA,NMF
 #    from sklearn.mixture import GMM
 #    pc=PCA(n_components=5)
 #    nmf=NMF(n_components=2)
 #    nmr=nmf.fit_transform(X)
-#    
+#
 #    cp=pc.fit_transform(X)
 #    gmm=GMM(n_components=2)
-#    
+#
 #    Cx1=gmm.fit_predict(cp)
-#    
+#
 #    L=gmm.predict_proba(cp)
-#    
+#
 #    km=KMeans(n_clusters=2)
 #    Cx=km.fit_transform(X)
 #    Cx=km.fit_transform(cp)
@@ -1211,7 +1221,7 @@ def stop_server(is_slurm=False):
 #    ind=np.argmin(np.mean(Cx[:,-49:],axis=1))
 #    active_pixels = (L==ind)
 #    centroids = Cx;
-# 
+#
 #    ff = false(1,size(Am,2));
 #    for i = 1:size(Am,2)
 #        a1 = Am(:,i);
@@ -1219,14 +1229,15 @@ def stop_server(is_slurm=False):
 #        if sum(a2.^2) >= cl_thr^2*sum(a1.^2)
 #            ff(i) = true;
 #        end
-#    end 
+#    end
 #%%
-def evaluate_components(traces,N=5,robust_std=False):
-    
+
+
+def evaluate_components(traces, N=5, robust_std=False):
     """ Define a metric and order components according to the probabilty if some "exceptional events" (like a spike). Suvh probability is defined as the likeihood of observing the actual trace value over N samples given an estimated noise distribution. 
     The function first estimates the noise distribution by considering the dispersion around the mode. This is done only using values lower than the mode. The estimation of the noise std is made robust by using the approximation std=iqr/1.349. 
     Then, the probavility of having N consecutive eventsis estimated. This probability is used to order the components. 
-    
+
     Parameters
     ----------
     traces: ndarray
@@ -1234,115 +1245,117 @@ def evaluate_components(traces,N=5,robust_std=False):
 
     N: int
         N number of consecutive events
-    
-    
+
+
     Returns
     -------
     idx_components: ndarray
         the components ordered according to the fitness
-    
+
     fitness: ndarray
-        
+
 
     erfc: ndarray
         probability at each time step of observing the N consequtive actual trace values given the distribution of noise
-    
+
     """
    # import pdb
    # pdb.set_trace()
-    md=mode_robust(traces,axis=1)
-    ff1=traces-md[:,None] 
-    ff1=-ff1*(ff1<0) # only consider values under the mode to determine the noise standard deviation
+    md = mode_robust(traces, axis=1)
+    ff1 = traces - md[:, None]
+    # only consider values under the mode to determine the noise standard deviation
+    ff1 = -ff1 * (ff1 < 0)
     if robust_std:
         # compute 25 percentile
-        ff1=np.sort(ff1,axis=1)
-        ff1[ff1==0]=np.nan
-        Ns=np.round(np.sum(ff1>0,1)*.5)
-        iqr_h=np.zeros(traces.shape[0])
-    
-        for idx,el in enumerate(ff1):
-            iqr_h[idx]=ff1[idx,-Ns[idx]]
-            
-        #approximate standard deviation as iqr/1.349    
-        sd_r=2*iqr_h/1.349
-        
-    else:            
-        Ns=np.sum(ff1>0,1)
-        sd_r=np.sqrt(np.sum(ff1**2,1)/Ns)
-#    
+        ff1 = np.sort(ff1, axis=1)
+        ff1[ff1 == 0] = np.nan
+        Ns = np.round(np.sum(ff1 > 0, 1) * .5)
+        iqr_h = np.zeros(traces.shape[0])
+
+        for idx, el in enumerate(ff1):
+            iqr_h[idx] = ff1[idx, -Ns[idx]]
+
+        # approximate standard deviation as iqr/1.349
+        sd_r = 2 * iqr_h / 1.349
+
+    else:
+        Ns = np.sum(ff1 > 0, 1)
+        sd_r = np.sqrt(np.sum(ff1**2, 1) / Ns)
+#
     from scipy.stats import norm
 
     # compute z value
-    z=(traces-md[:,None])/sd_r[:,None]  
-    # probability of observing values larger or equal to z given notmal distribution with mean md and std sd_r    
+    z = (traces - md[:, None]) / sd_r[:, None]
+    # probability of observing values larger or equal to z given notmal
+    # distribution with mean md and std sd_r
     erf = 1 - norm.cdf(z)
     # use logarithm so that multiplication becomes sum
-    erf=np.log(erf)        
-    filt = np.ones(N) 
+    erf = np.log(erf)
+    filt = np.ones(N)
     # moving sum
-    erfc=np.apply_along_axis(lambda m: np.convolve(m, filt, mode='full'), axis=1, arr=erf)
-        
-    #select the maximum value of such probability for each trace
-    fitness=np.min(erfc,1)
-    
-    ordered=np.argsort(fitness)
-    
-    
-    idx_components=ordered #[::-1]# selec only portion of components
-    fitness=fitness[idx_components]
-    erfc=erfc[idx_components]
-    
+    erfc = np.apply_along_axis(lambda m: np.convolve(m, filt, mode='full'), axis=1, arr=erf)
+
+    # select the maximum value of such probability for each trace
+    fitness = np.min(erfc, 1)
+
+    ordered = np.argsort(fitness)
+
+    idx_components = ordered  # [::-1]# selec only portion of components
+    fitness = fitness[idx_components]
+    erfc = erfc[idx_components]
+
     return idx_components, fitness, erfc
 #%%
+
+
 def mode_robust(inputData, axis=None, dtype=None):
+    """
+    Robust estimator of the mode of a data set using the half-sample mode.
 
-   """
-   Robust estimator of the mode of a data set using the half-sample mode.
-   
-   .. versionadded: 1.0.3
-   """
-   import numpy
-   if axis is not None:
-      fnc = lambda x: mode_robust(x, dtype=dtype)
-      dataMode = numpy.apply_along_axis(fnc, axis, inputData)
-   else:
-      # Create the function that we can use for the half-sample mode
-      def _hsm(data):
-         if data.size == 1:
-            return data[0]
-         elif data.size == 2:
-            return data.mean()
-         elif data.size == 3:
-            i1 = data[1] - data[0]
-            i2 = data[2] - data[1]
-            if i1 < i2:
-               return data[:2].mean()
-            elif i2 > i1:
-               return data[1:].mean()
+    .. versionadded: 1.0.3
+    """
+    import numpy
+    if axis is not None:
+        fnc = lambda x: mode_robust(x, dtype=dtype)
+        dataMode = numpy.apply_along_axis(fnc, axis, inputData)
+    else:
+        # Create the function that we can use for the half-sample mode
+        def _hsm(data):
+            if data.size == 1:
+                return data[0]
+            elif data.size == 2:
+                return data.mean()
+            elif data.size == 3:
+                i1 = data[1] - data[0]
+                i2 = data[2] - data[1]
+                if i1 < i2:
+                    return data[:2].mean()
+                elif i2 > i1:
+                    return data[1:].mean()
+                else:
+                    return data[1]
             else:
-               return data[1]
-         else:
-#            wMin = data[-1] - data[0]
-            wMin=np.inf
-            N = data.size/2 + data.size%2 
-            for i in xrange(0, N):
-               w = data[i+N-1] - data[i] 
-               if w < wMin:
-                  wMin = w
-                  j = i
+                #            wMin = data[-1] - data[0]
+                wMin = np.inf
+                N = data.size / 2 + data.size % 2
+                for i in xrange(0, N):
+                    w = data[i + N - 1] - data[i]
+                    if w < wMin:
+                        wMin = w
+                        j = i
 
-            return _hsm(data[j:j+N])
-            
-      data = inputData.ravel()
-      if type(data).__name__ == "MaskedArray":
-         data = data.compressed()
-      if dtype is not None:
-         data = data.astype(dtype)
-         
-      # The data need to be sorted for this to work
-      data = numpy.sort(data)
-      
-      # Find the mode
-      dataMode = _hsm(data)
-      
-   return dataMode
+                return _hsm(data[j:j + N])
+
+        data = inputData.ravel()
+        if type(data).__name__ == "MaskedArray":
+            data = data.compressed()
+        if dtype is not None:
+            data = data.astype(dtype)
+
+        # The data need to be sorted for this to work
+        data = numpy.sort(data)
+
+        # Find the mode
+        dataMode = _hsm(data)
+
+    return dataMode

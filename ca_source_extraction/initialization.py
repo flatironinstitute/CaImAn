@@ -4,22 +4,26 @@ from skimage.transform import downscale_local_mean, resize
 import scipy.ndimage as nd
 import scipy.sparse as spr
 import scipy
-from ca_source_extraction.utilities import com,local_correlations
+# from ca_source_extraction.utilities import com, local_correlations
+from scipy.ndimage.measurements import center_of_mass
 #%%
-def initialize_components(Y, K=30, gSig=[5,5], gSiz=None, ssub=1, tsub=1, nIter = 5, maxIter=5, kernel = None, use_hals=True,Cn=None,sn=None): 
-    """Initalize components 
-    
+
+
+def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter=5, maxIter=5,
+                          kernel=None, use_hals=True, Cn=None, sn=None):
+    """Initalize components
+
     This method uses a greedy approach followed by hierarchical alternative least squares (HALS) NMF.
     Optional use of spatio-temporal downsampling to boost speed.
-     
+
     Parameters
-    ----------   
+    ----------
     Y: np.ndarray
-         d1 x d2 x T movie, raw data.
+         d1 x d2 [x d3] x T movie, raw data.
     K: [optional] int
         number of neurons to extract (default value: 30).
     tau: [optional] list,tuple
-        standard deviation of neuron size along x and y (default value: (5,5).
+        standard deviation of neuron size along x and y [and z] (default value: (5,5).
     gSiz: [optional] list,tuple
         size of kernel (default 2*tau + 1).
     nIter: [optional] int
@@ -29,93 +33,96 @@ def initialize_components(Y, K=30, gSig=[5,5], gSiz=None, ssub=1, tsub=1, nIter 
     ssub: [optional] int
         spatial downsampling factor recommended for large datasets (default 1, no downsampling).
     tsub: [optional] int
-        temporal downsampling factor recommended for long datasets (default 1, no downsampling).  
+        temporal downsampling factor recommended for long datasets (default 1, no downsampling).
     kernel: [optional] np.ndarray
-        User specified kernel for greedyROI (default None, greedy ROI searches for Gaussian shaped neurons) 
+        User specified kernel for greedyROI (default None, greedy ROI searches for Gaussian shaped neurons)
     use_hals: [bool]
         Whether to refine components with the hals method
-  
+
     Returns
-    --------    
-    Ain: np.ndarray        
-        (d1*d2) x K , spatial filter of each neuron.
+    --------
+    Ain: np.ndarray
+        (d1*d2[*d3]) x K , spatial filter of each neuron.
     Cin: np.ndarray
         T x K , calcium activity of each neuron.
     center: np.ndarray
-        K x 2 , inferred center of each neuron.
+        K x 2 [or 3] , inferred center of each neuron.
     bin: np.ndarray
-        (d1*d2) X nb, initialization of spatial background.
+        (d1*d2[*d3]) x nb, initialization of spatial background.
     fin: np.ndarray
-        nb X T matrix, initalization of temporal background.    
-        
+        nb x T matrix, initalization of temporal background.
+
     """
 
     if gSiz is None:
-        gSiz=(2*gSig[0] + 1,2*gSig[1] + 1)
-     
-    d1,d2,T=np.shape(Y) 
+        gSiz = 2 * np.asarray(gSig) + 1
+
+    d, T = np.shape(Y)[:-1], np.shape(Y)[-1]
     # rescale according to downsampling factor
-    gSig = np.round([gSig[0]/ssub,gSig[1]/ssub]).astype(np.int)
-    gSiz = np.round([gSiz[0]/ssub,gSiz[1]/ssub]).astype(np.int)    
-    
+    gSig = np.round(np.asarray(gSig) / ssub).astype(np.int)
+    gSiz = np.round(np.asarray(gSiz) / ssub).astype(np.int)
+
     print 'Noise Normalization'
     if sn is not None:
-        min_noise=np.percentile(sn,2)
-        noise=np.maximum(sn,min_noise)
-        Y=Y/np.reshape(noise,(d1,d2))[:,:,np.newaxis]
-    
+        min_noise = np.percentile(sn, 2)
+        noise = np.maximum(sn, min_noise)
+        Y = Y / np.reshape(noise, d + (-1,))
+
     # spatial downsampling
-    mean_val=np.mean(Y)
-    if ssub!=1 or tsub!=1:
+    mean_val = np.mean(Y)
+    if ssub != 1 or tsub != 1:
         print "Spatial Downsampling ..."
-        Y_ds = downscale_local_mean(Y,(ssub,ssub,tsub),cval=mean_val)
+        Y_ds = downscale_local_mean(Y, [ssub] * len(d) + [tsub], cval=mean_val)
         if Cn is not None:
-            Cn = downscale_local_mean(Cn,(ssub,ssub),cval=mean_val)
+            Cn = downscale_local_mean(Cn, [ssub] * len(d), cval=mean_val)
     else:
         Y_ds = Y
-   
-        
 
-    print 'Roi Extraction...'    
-    
-    Ain, Cin, _, b_in, f_in = greedyROI2d(Y_ds, nr = K, gSig = gSig, gSiz = gSiz, nIter=nIter, kernel = kernel)
-    if use_hals:    
-        print 'Refining Components...'    
-        Ain, Cin, b_in, f_in = hals_2D(Y_ds, Ain, Cin, b_in, f_in,maxIter=maxIter);
-    
-    #center = ssub*com(Ain,d1s,d2s) 
-    d1s,d2s,Ts=np.shape(Y_ds)
-    Ain = np.reshape(Ain, (d1s, d2s,K),order='F')
-    Ain = resize(Ain, [d1, d2, K],order=1)
-    
-    Ain = np.reshape(Ain, (d1*d2, K),order='F') 
-    
-    b_in=np.reshape(b_in,(d1s, d2s),order='F')
-    
-    b_in = resize(b_in, [d1, d2]);
-    
-    b_in = np.reshape(b_in, (d1*d2, 1),order='F')
-    
+    print 'Roi Extraction...'
+
+    Ain, Cin, _, b_in, f_in = greedyROI2d(
+        Y_ds, nr=K, gSig=gSig, gSiz=gSiz, nIter=nIter, kernel=kernel)
+    if use_hals:
+        print 'Refining Components...'
+        Ain, Cin, b_in, f_in = hals_2D(Y_ds, Ain, Cin, b_in, f_in, maxIter=maxIter)
+
+    ds = Y_ds.shape[:-1]
+    Ain = np.reshape(Ain, ds + (K,), order='F')
+    if len(ds) == 2:
+        Ain = resize(Ain, d + (K,), order=1)
+    else:  # resize only deals with 2D images, hence apply resize twice
+        Ain = np.reshape([resize(a, d[1:] + (K,), order=1)
+                          for a in Ain], (ds[0], d[1] * d[2], K), order='F')
+        Ain = resize(Ain, (d[0], d[1] * d[2], K), order=1)
+
+    Ain = np.reshape(Ain, (np.prod(d), K), order='F')
+
+    b_in = np.reshape(b_in, ds, order='F')
+
+    b_in = resize(b_in, ds)
+
+    b_in = np.reshape(b_in, (np.prod(d), 1), order='F')
+
     Cin = resize(Cin, [K, T])
-    f_in = resize(np.atleast_2d(f_in), [1, T])  
-    center = com(Ain,d1,d2)
-    
+    f_in = resize(np.atleast_2d(f_in), [1, T])
+    # center = com(Ain, *d)
+    center = np.asarray([center_of_mass(a.reshape(d, order='F')) for a in Ain.T])
+
     if sn is not None:
-        Ain=Ain*np.reshape(noise,(d1*d2,))[:,np.newaxis]
-        b_in=b_in*np.reshape(noise,(d1*d2,))
-        Y=Y*np.reshape(noise,(d1,d2))[:,:,np.newaxis]
-    
+        Ain = Ain * np.reshape(noise, (np.prod(d), -1))
+        b_in = b_in * np.ravel(noise)
+        Y = Y * np.reshape(noise, d + (-1,))
+
     return Ain, Cin, b_in, f_in, center
-    
+
 
 #%%
-def greedyROI2d(Y, nr=30, gSig = [5,5], gSiz = [11,11], nIter = 5, kernel = None):
+def greedyROI2d(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None):
     """
     Greedy initialization of spatial and temporal components using spatial Gaussian filtering
     Inputs:
     Y: np.array
-        3d array of fluorescence data with time appearing in the last axis.
-        Support for 3d imaging will be added in the future
+        3d or 4d array of fluorescence data with time appearing in the last axis.
     nr: int
         number of components to be found
     gSig: scalar or list of integers
@@ -126,7 +133,7 @@ def greedyROI2d(Y, nr=30, gSig = [5,5], gSiz = [11,11], nIter = 5, kernel = None
         number of iterations when refining estimates
     kernel: np.ndarray
         User specified kernel to be used, if present, instead of Gaussian (default None)
-        
+
     Outputs:
     A: np.array
         2d array of size (# of pixels) x nr with the spatial components. Each column is
@@ -134,126 +141,136 @@ def greedyROI2d(Y, nr=30, gSig = [5,5], gSiz = [11,11], nIter = 5, kernel = None
     C: np.array
         2d array of size nr X T with the temporal components
     center: np.array
-        2d array of size nr x 2 with the components centroids
-        
+        2d array of size nr x 2 [ or 3] with the components centroids
+
     Author: Eftychios A. Pnevmatikakis based on a matlab implementation by Yuanjun Gao
             Simons Foundation, 2015
     """
     d = np.shape(Y)
-    med = np.median(Y,axis = -1)
-    Y = Y - med[...,np.newaxis]
-    gHalf = np.array(gSiz)/2
-    gSiz = 2*gHalf + 1
-    
-    A = np.zeros((np.prod(d[0:-1]),nr))    
-    C = np.zeros((nr,d[-1]))    
-    center = np.zeros((nr,2))
-    
-    [M, N, T] = np.shape(Y)
-    
-    rho = imblur(Y, sig = gSig, siz = gSiz, nDimBlur = Y.ndim-1, kernel = kernel)
+    med = np.median(Y, axis=-1)
+    Y = Y - med[..., np.newaxis]
+    gHalf = np.array(gSiz) / 2
+    gSiz = 2 * gHalf + 1
 
+    A = np.zeros((np.prod(d[0:-1]), nr))
+    C = np.zeros((nr, d[-1]))
+    center = np.zeros((nr, Y.ndim - 1))
 
-        
-    v = np.sum(rho**2,axis=-1)
-    
+    rho = imblur(Y, sig=gSig, siz=gSiz, nDimBlur=Y.ndim - 1, kernel=kernel)
+
+    v = np.sum(rho**2, axis=-1)
+
     for k in range(nr):
         ind = np.argmax(v)
-        ij = np.unravel_index(ind,d[0:-1])
-        center[k,0] = ij[0]
-        center[k,1] = ij[1]
-        iSig = [np.maximum(ij[0]-gHalf[0],0),np.minimum(ij[0]+gHalf[0]+1,d[0])]
-        jSig = [np.maximum(ij[1]-gHalf[1],0),np.minimum(ij[1]+gHalf[1]+1,d[1])]
-        dataTemp = Y[iSig[0]:iSig[1],jSig[0]:jSig[1],:].copy()
-        traceTemp = np.squeeze(rho[ij[0],ij[1],:])
-        coef, score = finetune2d(dataTemp, traceTemp, nIter = nIter)
-        C[k,:] = np.squeeze(score) 
-        dataSig = coef[...,np.newaxis]*score[np.newaxis,np.newaxis,...]
-        [xSig,ySig] = np.meshgrid(np.arange(iSig[0],iSig[1]),np.arange(jSig[0],jSig[1]),indexing = 'xy')
-        arr = np.array([np.reshape(xSig,(1,np.size(xSig)),order='F').squeeze(),np.reshape(ySig,(1,np.size(ySig)),order='F').squeeze()])
-        indeces = np.ravel_multi_index(arr,d[0:-1],order='F')  
-        A[indeces,k] = np.reshape(coef,(1,np.size(coef)),order='C').squeeze()
-        Y[iSig[0]:iSig[1],jSig[0]:jSig[1],:] -= dataSig.copy()
-        if k < nr-1:
-            iMod = [np.maximum(ij[0]-2*gHalf[0],0),np.minimum(ij[0]+2*gHalf[0]+1,d[0])]
-            iModLen = iMod[1]-iMod[0]
-            jMod = [np.maximum(ij[1]-2*gHalf[1],0),np.minimum(ij[1]+2*gHalf[1]+1,d[1])]
-            jModLen = jMod[1]-jMod[0]
-            iLag = iSig - iMod[0] + 0
-            jLag = jSig - jMod[0] + 0
-            dataTemp = np.zeros((iModLen,jModLen))
-            dataTemp[iLag[0]:iLag[1],jLag[0]:jLag[1]] = coef
-            dataTemp = imblur(dataTemp[...,np.newaxis],sig=gSig,siz=gSiz,kernel = kernel)            
-            rhoTEMP = dataTemp*score[np.newaxis,np.newaxis,...]
-            rho[iMod[0]:iMod[1],jMod[0]:jMod[1],:] -= rhoTEMP.copy()
-            v[iMod[0]:iMod[1],jMod[0]:jMod[1]] = np.sum(rho[iMod[0]:iMod[1],jMod[0]:jMod[1],:]**2,axis = -1)            
+        ij = np.unravel_index(ind, d[0:-1])
+        for c, i in enumerate(ij):
+            center[k, c] = i
+        ijSig = [[np.maximum(ij[c] - gHalf[c], 0), np.minimum(ij[c] + gHalf[c] + 1, d[c])]
+                 for c in range(len(ij))]
+        dataTemp = Y[map(lambda a: slice(*a), ijSig)].copy()
+        traceTemp = np.squeeze(rho[ij])
+        coef, score = finetune2d(dataTemp, traceTemp, nIter=nIter)
+        C[k, :] = np.squeeze(score)
+        dataSig = coef[..., np.newaxis] * score.reshape([1] * (Y.ndim - 1) + [-1])
+        xySig = np.meshgrid(*[np.arange(s[0], s[1]) for s in ijSig], indexing='xy')
+        arr = np.array([np.reshape(s, (1, np.size(s)), order='F').squeeze() for s in xySig])
+        indeces = np.ravel_multi_index(arr, d[0:-1], order='F')
+        A[indeces, k] = np.reshape(coef, (1, np.size(coef)), order='C').squeeze()
+        Y[map(lambda a: slice(*a), ijSig)] -= dataSig.copy()
+        if k < nr - 1:
+            Mod = [[np.maximum(ij[c] - 2 * gHalf[c], 0),
+                    np.minimum(ij[c] + 2 * gHalf[c] + 1, d[c])] for c in range(len(ij))]
+            ModLen = [m[1] - m[0] for m in Mod]
+            Lag = [ijSig[c] - Mod[c][0] for c in range(len(ij))]
+            dataTemp = np.zeros(ModLen)
+            dataTemp[map(lambda a: slice(*a), Lag)] = coef
+            dataTemp = imblur(dataTemp[..., np.newaxis], sig=gSig, siz=gSiz, kernel=kernel)
+            rhoTEMP = dataTemp * score.reshape([1] * (Y.ndim - 1) + [-1])
+            rho[map(lambda a: slice(*a), Mod)] -= rhoTEMP.copy()
+            v[map(lambda a: slice(*a), Mod)] = np.sum(
+                rho[map(lambda a: slice(*a), Mod)]**2, axis=-1)
 
-    res = np.reshape(Y,(M*N,T), order='F') + med.flatten(order='F')[:,None]
+    res = np.reshape(Y, (np.prod(d[0:-1]), d[-1]), order='F') + med.flatten(order='F')[:, None]
 
     model = NMF(n_components=1, init='random', random_state=0)
-    
-    b_in = model.fit_transform(np.maximum(res,0));
-    f_in = model.components_.squeeze();    
-   
+
+    b_in = model.fit_transform(np.maximum(res, 0))
+    f_in = model.components_.squeeze()
+
     return A, C, center, b_in, f_in
 
 #%%
-def finetune2d(Y, cin, nIter = 5):
+
+
+def finetune2d(Y, cin, nIter=5):
     """Fine tuning of components within greedyROI using rank-1 NMF
     """
     for iter in range(nIter):
-        a = np.maximum(np.dot(Y,cin),0)
-        a = a/np.sqrt(np.sum(a**2))
-        c = np.sum(Y*a[...,np.newaxis],tuple(np.arange(Y.ndim-1)))
-    
+        a = np.maximum(np.dot(Y, cin), 0)
+        a = a / np.sqrt(np.sum(a**2))
+        c = np.sum(Y * a[..., np.newaxis], tuple(np.arange(Y.ndim - 1)))
+
     return a, c
 
-#%%    
-def imblur(Y, sig = 5, siz = 11, nDimBlur = None, kernel = None):
+#%%
+
+
+def imblur(Y, sig=5, siz=11, nDimBlur=None, kernel=None):
     """Spatial filtering with a Gaussian or user defined kernel
     The parameters are specified in GreedyROI2d
     """
-    from scipy.ndimage.filters import correlate     
-    
+    from scipy.ndimage.filters import correlate
+
     X = np.zeros(np.shape(Y))
-    
+
     if kernel is None:
         if nDimBlur is None:
             nDimBlur = Y.ndim - 1
         else:
-            nDimBlur = np.min((Y.ndim,nDimBlur))
-            
-        if np.isscalar(sig):
-            sig = sig*np.ones(nDimBlur)
-            
-        if np.isscalar(siz):
-            siz = siz*np.ones(nDimBlur)
-        
-        xx = np.arange(-np.floor(siz[0]/2),np.floor(siz[0]/2)+1)
-        yy = np.arange(-np.floor(siz[1]/2),np.floor(siz[1]/2)+1)
-    
-        hx = np.exp(-xx**2/(2*sig[0]**2))
-        hx /= np.sqrt(np.sum(hx**2))
-        
-        hy = np.exp(-yy**2/(2*sig[1]**2))
-        hy /= np.sqrt(np.sum(hy**2))    
-    
-        temp = correlate(Y,hx[:,np.newaxis,np.newaxis],mode='constant')
-        X = correlate(temp,hy[np.newaxis,:,np.newaxis],mode='constant')  
+            nDimBlur = np.min((Y.ndim, nDimBlur))
 
-        ## the for loop helps with memory
-        #for t in range(np.shape(Y)[-1]):
-            #temp = correlate(Y[:,:,t],hx[:,np.newaxis])#,mode='constant', cval=0.0)
-            #X[:,:,t] = correlate(temp,hy[np.newaxis,:])#,mode='constant', cval=0.0)
+        if np.isscalar(sig):
+            sig = sig * np.ones(nDimBlur)
+
+        if np.isscalar(siz):
+            siz = siz * np.ones(nDimBlur)
+
+        # xx = np.arange(-np.floor(siz[0] / 2), np.floor(siz[0] / 2) + 1)
+        # yy = np.arange(-np.floor(siz[1] / 2), np.floor(siz[1] / 2) + 1)
+
+        # hx = np.exp(-xx**2 / (2 * sig[0]**2))
+        # hx /= np.sqrt(np.sum(hx**2))
+
+        # hy = np.exp(-yy**2 / (2 * sig[1]**2))
+        # hy /= np.sqrt(np.sum(hy**2))
+
+        # temp = correlate(Y, hx[:, np.newaxis, np.newaxis], mode='constant')
+        # X = correlate(temp, hy[np.newaxis, :, np.newaxis], mode='constant')
+
+        # the for loop helps with memory
+        # for t in range(np.shape(Y)[-1]):
+        # temp = correlate(Y[:,:,t],hx[:,np.newaxis])#,mode='constant', cval=0.0)
+        # X[:,:,t] = correlate(temp,hy[np.newaxis,:])#,mode='constant', cval=0.0)
+
+        X = Y.copy()
+        for i in range(nDimBlur):
+            h = np.exp(-np.arange(-np.floor(siz[i] / 2), np.floor(siz[i] / 2) + 1)**2
+                       / (2 * sig[i]**2))
+            h /= np.sqrt(h.dot(h))
+            shape = [1] * len(Y.shape)
+            shape[i] = -1
+            X = correlate(X, h.reshape(shape), mode='constant')
 
     else:
-        X = correlate(Y,kernel[...,np.newaxis],mode='constant')
-        #for t in range(np.shape(Y)[-1]):
+        X = correlate(Y, kernel[..., np.newaxis], mode='constant')
+        # for t in range(np.shape(Y)[-1]):
         #    X[:,:,t] = correlate(Y[:,:,t],kernel,mode='constant', cval=0.0)
-            
+
     return X
 
 #%%
+
+
 def hals_2D(Y, A, C, b, f, bSiz=3, maxIter=5):
     """ Hierarchical alternating least square method for solving NMF problem
     Y = A*C + b*f
@@ -279,13 +296,14 @@ def hals_2D(Y, A, C, b, f, bSiz=3, maxIter=5):
        """
 
     #%% smooth the components
-    d1, d2, T = np.shape(Y)
-    ind_A = nd.filters.uniform_filter(np.reshape(A, (d1, d2, A.shape[1]),
-                                                 order='F'), size=(bSiz, bSiz, 0))
-    ind_A = np.reshape(ind_A > 1e-10, (d1 * d2, A.shape[1]), order='F')
-
+    dims, T = np.shape(Y)[:-1], np.shape(Y)[-1]
+    K = A.shape[1]  # number of neurons
+    if isinstance(bSiz, (int, long, float)):
+        bSiz = [bSiz] * len(dims)
+    ind_A = nd.filters.uniform_filter(np.reshape(A, dims + (K,),
+                                                 order='F'), size=bSiz + [0])
+    ind_A = np.reshape(ind_A > 1e-10, (np.prod(dims), K), order='F')
     ind_A = spr.csc_matrix(ind_A)  # indicator of nonnero pixels
-    K = np.shape(A)[1]  # number of neurons
 
     def HALS4activity(data, S, activity, iters=2):
         A = S.dot(data)
@@ -312,7 +330,7 @@ def hals_2D(Y, A, C, b, f, bSiz=3, maxIter=5):
     Ab = np.c_[A, b].T
     Cf = np.r_[C, f.reshape(1, -1)]
     for miter in range(maxIter):
-        Cf = HALS4activity(np.reshape(Y, (d1 * d2, T), order='F'), Ab, Cf)
-        Ab = HALS4shape(np.reshape(Y, (d1 * d2, T), order='F'), Ab, Cf)
+        Cf = HALS4activity(np.reshape(Y, (np.prod(dims), T), order='F'), Ab, Cf)
+        Ab = HALS4shape(np.reshape(Y, (np.prod(dims), T), order='F'), Ab, Cf)
 
     return Ab[:-1].T, Cf[:-1], Ab[-1].reshape(-1, 1), Cf[-1].reshape(1, -1)
