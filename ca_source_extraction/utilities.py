@@ -144,10 +144,13 @@ def load_memmap(filename):
     
     """
     if os.path.splitext(filename)[1] == '.mmap':
+        file_to_load = filename
         filename=os.path.split(filename)[-1]
         fpart=filename.split('_')[1:-1]
         d1,d2,T,order=int(fpart[1]),int(fpart[3]),int(fpart[7]),fpart[5]
-        Yr=np.memmap(filename,mode='r',shape=(d1*d2,T),dtype=np.float32,order=order)
+        Yr=np.memmap(
+            file_to_load, mode='r', shape=(d1*d2,T), dtype=np.float32,
+            order=order)
         return Yr,d1,d2,T  
     else:
         Yr=np.load(filename,mmap_mode='r')
