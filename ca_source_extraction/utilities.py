@@ -12,6 +12,7 @@ from matplotlib import pyplot as plt
 from pylab import pause
 import sys
 import os
+import shlex
 try:
     import bokeh
     import bokeh.plotting as bpl
@@ -1071,7 +1072,7 @@ def nb_plot_contour(image, A, d1, d2, thr=0.995, face_color=None, line_color='bl
     return p
 
 
-def start_server(ncpus,slurm_script=None):
+def start_server(ncpus,slurm_script=None, ipcluster="ipcluster"):
     '''
     programmatically start the ipyparallel server
 
@@ -1079,13 +1080,16 @@ def start_server(ncpus,slurm_script=None):
     ----------
     ncpus: int
         number of processors
-
+    ipcluster : str
+        ipcluster binary file name; requires 4 path separators on Windows
+        Default: "ipcluster"
     '''
     sys.stdout.write("Starting cluster...")
     sys.stdout.flush()
     
     if slurm_script is None:
-        subprocess.Popen(["ipcluster start -n {0}".format(ncpus)], shell=True)
+        subprocess.Popen(shlex.split(
+            "{0} start -n {1}".format(ipcluster, ncpus)), shell=True)
         while True:
             try:
                 c = ipyparallel.Client()
@@ -1125,9 +1129,15 @@ def shell_source(script):
 #    env = dict((line.split("=", 1) for line in output.splitlines()))
     os.environ.update(env)
 #%%        
-def stop_server(is_slurm=False):
+def stop_server(is_slurm=False, ipcluster='ipcluster'):
     '''
     programmatically stops the ipyparallel server
+
+    Parameters
+    ----------
+    ipcluster : str
+        ipcluster binary file name; requires 4 path separators on Windows
+        Default: "ipcluster"
     '''
     sys.stdout.write("Stopping cluster...\n")
     sys.stdout.flush()
@@ -1155,7 +1165,8 @@ def stop_server(is_slurm=False):
     
     else:
         
-        proc = subprocess.Popen(["ipcluster stop"], shell=True, stderr=subprocess.PIPE)
+        proc = subprocess.Popen(shlex.split(
+            ipcluster + " stop"), shell=True, stderr=subprocess.PIPE)
         line_out = proc.stderr.readline()
         if 'CRITICAL' in line_out:
             sys.stdout.write("No cluster to stop...")
