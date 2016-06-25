@@ -354,7 +354,8 @@ def determine_search_location(A, dims, method='ellipse', min_size=3, max_size=8,
     from scipy.ndimage.morphology import grey_dilation
     from scipy.sparse import coo_matrix, issparse
 
-    # d1, d2 = dims
+    if len(dims) ==2:    
+        d1, d2 = dims
 
     d, nr = np.shape(A)
 
