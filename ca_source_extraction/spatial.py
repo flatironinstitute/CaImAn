@@ -433,7 +433,7 @@ def threshold_components(A, dims, medw=(3, 3), thr=0.9999,
 
     for i in range(nr):
 
-        A_temp = np.reshape(A[:, i], dims, order='F')
+        A_temp = np.reshape(A[:, i], dims[::-1])
         A_temp = median_filter(A_temp, medw)
         Asor = np.sort(np.squeeze(np.reshape(A_temp, (d, 1))))[::-1]
         temp = np.cumsum(Asor**2)
@@ -463,9 +463,8 @@ def threshold_components(A, dims, medw=(3, 3), thr=0.9999,
 
     return Ath
 
+
 #%% lars_regression_noise
-
-
 def lars_regression_noise(Yp, X, positive, noise, verbose=False):
     """
      Run LARS for regression problems with LASSO penalty, with optional positivity constraints
