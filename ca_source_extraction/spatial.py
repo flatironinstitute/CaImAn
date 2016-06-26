@@ -280,9 +280,8 @@ def update_spatial_components(Y, C, f, A_in, sn=None, dims=None, min_size=3, max
 
     return A_, b, C
 
+
 #%%lars_regression_noise_ipyparallel
-
-
 def lars_regression_noise_ipyparallel(pars):
 
     # need to import since it is run from within the server
@@ -354,8 +353,10 @@ def determine_search_location(A, dims, method='ellipse', min_size=3, max_size=8,
     from scipy.ndimage.morphology import grey_dilation
     from scipy.sparse import coo_matrix, issparse
 
-    if len(dims) ==2:    
+    if len(dims) == 2:
         d1, d2 = dims
+    elif len(dims) == 3:
+        d1, d2, d3 = dims
 
     d, nr = np.shape(A)
 
@@ -364,16 +365,22 @@ def determine_search_location(A, dims, method='ellipse', min_size=3, max_size=8,
     IND = False * np.ones((d, nr))
     if method == 'ellipse':
         Coor = dict()
-        Coor['x'] = np.kron(np.ones((d2, 1)), np.expand_dims(range(d1), axis=1))
-        Coor['y'] = np.kron(np.expand_dims(range(d2), axis=1), np.ones((d1, 1)))
+        if len(dims) == 2:
+            Coor['x'] = np.kron(np.ones(d2), range(d1))
+            Coor['y'] = np.kron(range(d2), np.ones(d1))
+        elif len(dims) == 3:
+            Coor['x'] = np.kron(np.ones(d3 * d2), range(d1))
+            Coor['y'] = np.kron(np.kron(np.ones(d3), range(d2)), np.ones(d1))
+            Coor['z'] = np.kron(range(d3), np.ones(d2 * d1))
         if not dist == np.inf:             # determine search area for each neuron
-            cm = np.zeros((nr, 2))        # vector for center of mass
+            cm = np.zeros((nr, len(dims)))        # vector for center of mass
             Vr = []    # cell(nr,1);
             IND = []       # indicator for distance
-            cm[:, 0] = np.dot(Coor['x'].T, A[:, :nr].todense()) / A[:, :nr].sum(axis=0)
-            cm[:, 1] = np.dot(Coor['y'].T, A[:, :nr].todense()) / A[:, :nr].sum(axis=0)
+            for i, c in enumerate(['x', 'y', 'z'][:len(dims)]):
+                cm[:, i] = np.dot(Coor[c], A[:, :nr].todense()) / A[:, :nr].sum(axis=0)
             for i in range(nr):            # calculation of variance for each component and construction of ellipses
-                dist_cm = coo_matrix(np.hstack((Coor['x'] - cm[i, 0], Coor['y'] - cm[i, 1])))
+                dist_cm = coo_matrix(np.hstack([Coor[c].reshape(-1, 1) - cm[i, k]
+                                                for k, c in enumerate(['x', 'y', 'z'][:len(dims)])]))
                 Vr.append(dist_cm.T * spdiags(A[:, i].toarray().squeeze(),
                                               0, d, d) * dist_cm / A[:, i].sum(axis=0))
 
@@ -382,12 +389,11 @@ def determine_search_location(A, dims, method='ellipse', min_size=3, max_size=8,
 
                 D, V = eig(Vr[-1])
 
-                d11 = np.min((max_size**2, np.max((min_size**2, D[0].real))))
-                d22 = np.min((max_size**2, np.max((min_size**2, D[1].real))))
-                # search indexes for each component
-                IND.append(np.sqrt((dist_cm * V[:, 0])**2 / d11 +
-                                   (dist_cm * V[:, 1])**2 / d22) <= dist)
+                dkk = [np.min((max_size**2, np.max((min_size**2, dd.real)))) for dd in D]
 
+                # search indexes for each component
+                IND.append(np.sqrt(np.sum([(dist_cm * V[:, k])**2 / dkk[k]
+                                           for k in range(len(dkk))], 0)) <= dist)
             IND = (np.asarray(IND)).squeeze().T
         else:
             IND = True * np.ones((d, nr))
