@@ -31,6 +31,7 @@ from matplotlib.widgets import Slider
 import ca_source_extraction
 import shutil
 import glob
+import shlex
 from skimage.external.tifffile import imread
 
 #%%
@@ -1166,15 +1167,18 @@ def start_server(ncpus, slurm_script=None,ipcluster="ipcluster"):
     ncpus: int
         number of processors
     ipcluster : str
-        ipcluster binary file name; requires 4 path separators on Windows
+        ipcluster binary file name; requires 4 path separators on Windows. ipcluster="C:\\\\Anaconda2\\\\Scripts\\\\ipcluster.exe"
          Default: "ipcluster"    
     '''
     sys.stdout.write("Starting cluster...")
     sys.stdout.flush()
 
     if slurm_script is None:
-        subprocess.Popen(shlex.split("{0} start -n {1}".format(ipcluster, ncpus)), shell=True)
-#        subprocess.Popen(["ipcluster start -n {0}".format(ncpus)], shell=True)
+        if ipcluster == "ipcluster":
+            subprocess.Popen(["ipcluster start -n {0}".format(ncpus)], shell=True)   
+        else:
+            subprocess.Popen(shlex.split("{0} start -n {1}".format(ipcluster, ncpus)), shell=True)
+#        
         while True:
             try:
                 c = ipyparallel.Client()
@@ -1252,8 +1256,11 @@ def stop_server(is_slurm=False, ipcluster='ipcluster'):
             shutil.move(fl, './log/')
 
     else:
-        proc = subprocess.Popen(shlex.split(ipcluster + " stop"), shell=True, stderr=subprocess.PIPE)
-#        proc = subprocess.Popen(["ipcluster stop"], shell=True, stderr=subprocess.PIPE)
+        if ipcluster == "ipcluster":
+             proc = subprocess.Popen(["ipcluster stop"], shell=True, stderr=subprocess.PIPE)
+        else:
+             proc = subprocess.Popen(shlex.split(ipcluster + " stop"), shell=True, stderr=subprocess.PIPE)
+       
         line_out = proc.stderr.readline()
         if 'CRITICAL' in line_out:
             sys.stdout.write("No cluster to stop...")
