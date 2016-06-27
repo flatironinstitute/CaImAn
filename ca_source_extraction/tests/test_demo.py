@@ -56,7 +56,7 @@ def test_demo():
     # n_pixels_per_process=d1*d2/n_processes # how to subdivide the work among processes
 
     # %%
-    options = cse.utilities.CNMFSetParms(Y, p=p, gSig=[4, 4], K=30)
+    options = cse.utilities.CNMFSetParms(Y, n_processes, p=p, gSig=[4, 4], K=30)
     cse.utilities.start_server(options['spatial_params']['n_processes'])
 
     # %% PREPROCESS DATA AND INITIALIZE COMPONENTS

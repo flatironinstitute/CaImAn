@@ -35,6 +35,8 @@ from utilities import load_memmap
 #import sys
 # sys.path
 # sys.path.append(path_to_folder)
+
+
 def basis_denoising(y, c, boh, sn, id2_, px):
     if np.size(c) > 0:
         _, _, a, _, _ = lars_regression_noise(y, c, 1, sn)
@@ -44,8 +46,8 @@ def basis_denoising(y, c, boh, sn, id2_, px):
 #%% update_spatial_components (in parallel)
 
 
-def update_spatial_components(Y, C, f, A_in, sn=None, d1=None, d2=None, min_size=3, max_size=8, dist=3, 
-                              method='ellipse', expandCore=None, backend='single_thread', n_processes=4, n_pixels_per_process=128 ):
+def update_spatial_components(Y, C, f, A_in, sn=None, dims=None, min_size=3, max_size=8, dist=3,
+                              method='ellipse', expandCore=None, backend='single_thread', n_processes=4, n_pixels_per_process=128):
     """update spatial footprints and background through Basis Pursuit Denoising
 
     for each pixel i solve the problem
@@ -57,8 +59,8 @@ def update_spatial_components(Y, C, f, A_in, sn=None, d1=None, d2=None, min_size
 
     Parameters
     ----------
-    Y: np.ndarray (2D)
-        movie, raw data in 2D (pixels x time).
+    Y: np.ndarray (2D or 3D)
+        movie, raw data in 2D or 3D (pixels x time).
     C: np.ndarray
         calcium activity of each neuron.
     f: np.ndarray
@@ -66,11 +68,8 @@ def update_spatial_components(Y, C, f, A_in, sn=None, d1=None, d2=None, min_size
     Ain: np.ndarray
         spatial profile of background activity.
 
-    d1: [optional] int
-        x movie dimension
-
-    d2: [optional] int
-        y movie dimension
+    dims: [optional] tuple
+        x, y[, z] movie dimensions
 
     min_size: [optional] int
 
@@ -115,12 +114,12 @@ def update_spatial_components(Y, C, f, A_in, sn=None, d1=None, d2=None, min_size
     if expandCore is None:
         expandCore = iterate_structure(generate_binary_structure(2, 1), 2).astype(int)
 
-    if d1 is None or d2 is None:
+    if dims is None:
         raise Exception('You need to define the input dimensions')
-    
-    if Y.ndim<2 and not type(Y) is str:
+
+    if Y.ndim < 2 and not type(Y) is str:
         Y = np.atleast_2d(Y)
-        
+
     if Y.shape[1] == 1:
         raise Exception('Dimension of Matrix Y must be pixels x time')
 
@@ -142,18 +141,17 @@ def update_spatial_components(Y, C, f, A_in, sn=None, d1=None, d2=None, min_size
 
     Cf = np.vstack((C, f))  # create matrix that include background components
 
-    [d, T] = np.shape(Y)    
+    [d, T] = np.shape(Y)
 
     if n_pixels_per_process > d:
         raise Exception(
             'The number of pixels per process (n_pixels_per_process) is larger than the total number of pixels!! Decrease suitably.')
 
     nr, _ = np.shape(C)       # number of neurons
-    
-    IND = determine_search_location(
-        A_in, d1, d2, method=method, min_size=min_size, max_size=max_size, dist=dist, expandCore=expandCore)
-    print " find search location"
 
+    IND = determine_search_location(
+        A_in, dims, method=method, min_size=min_size, max_size=max_size, dist=dist, expandCore=expandCore)
+    print " find search location"
 
     ind2_ = [np.hstack((np.where(iid_)[0], nr + np.arange(f.shape[0])))
              if np.size(np.where(iid_)[0]) > 0 else [] for iid_ in IND]
@@ -168,32 +166,33 @@ def update_spatial_components(Y, C, f, A_in, sn=None, d1=None, d2=None, min_size
         np.save(C_name, Cf)
 
         if type(Y) is np.core.memmap:  # if input file is already memory mapped then find the filename
-            Y_name = Y.filename            
+            Y_name = Y.filename
         # if not create a memory mapped version (necessary for parallelization)
         elif type(Y) is str:
-            Y_name = Y            
+            Y_name = Y
         else:
             Y_name = os.path.join(folder, 'Y_temp.npy')
-            np.save(Y_name, Y)            
-            Y,_,_,_=load_memmap(Y_name)    
+            np.save(Y_name, Y)
+            Y, _, _, _ = load_memmap(Y_name)
 
         # create arguments to be passed to the function. Here we are grouping
         # bunch of pixels to be processed by each thread
         pixel_groups = [(Y_name, C_name, sn, ind2_, range(i, i + n_pixels_per_process))
-                        for i in range(0, d1 * d2 - n_pixels_per_process + 1, n_pixels_per_process)]
+                        for i in range(0, np.prod(dims) - n_pixels_per_process + 1, n_pixels_per_process)]
 
         A_ = np.zeros((d, nr + np.size(f, 0)))
-    
+
         try:  # if server is not running and raise exception if not installed or not started
             from ipyparallel import Client
             if backend is 'SLURM':
                 if 'IPPPDIR' in os.environ and 'IPPPROFILE' in os.environ:
                     pdir, profile = os.environ['IPPPDIR'], os.environ['IPPPROFILE']
                 else:
-                    raise Exception('envirnomment variables not found, please source slurmAlloc.rc')
-        
+                    raise Exception(
+                        'envirnomment variables not found, please source slurmAlloc.rc')
+
                 c = Client(ipython_dir=pdir, profile=profile)
-                print 'Using '+ str(len(c)) + ' processes'
+                print 'Using ' + str(len(c)) + ' processes'
             else:
                 c = Client()
 
@@ -207,16 +206,15 @@ def update_spatial_components(Y, C, f, A_in, sn=None, d1=None, d2=None, min_size
                 "the number of nodes in the cluster are less than the required processes: decrease the n_processes parameter to a suitable value")
 
         dview = c[:n_processes]  # use the number of processes
-        #serial_result = map(lars_regression_noise_ipyparallel, pixel_groups)                        
+        #serial_result = map(lars_regression_noise_ipyparallel, pixel_groups)
         parallel_result = dview.map_sync(lars_regression_noise_ipyparallel, pixel_groups)
         # clean up
-       
-        
+
         for chunk in parallel_result:
             for pars in chunk:
                 px, idxs_, a = pars
                 A_[px, idxs_] = a
-        
+
         dview.results.clear()
         c.purge_results('all')
         c.purge_everything()
@@ -242,11 +240,11 @@ def update_spatial_components(Y, C, f, A_in, sn=None, d1=None, d2=None, min_size
     else:
         raise Exception(
             'Unknown backend specified: use single_thread, SLURM, multiprocessing or ipyparallel')
-    
+
     #%
     print 'Updated Spatial Components'
-   
-    A_ = threshold_components(A_, d1, d2)
+
+    A_ = threshold_components(A_, dims)
 
     print "threshold"
     ff = np.where(np.sum(A_, axis=0) == 0)           # remove empty components
@@ -256,12 +254,11 @@ def update_spatial_components(Y, C, f, A_in, sn=None, d1=None, d2=None, min_size
         nr = nr - len(ff)
         A_ = np.delete(A_, list(ff), 1)
         C = np.delete(C, list(ff), 0)
-    
 
     A_ = A_[:, :nr]
     A_ = coo_matrix(A_)
-    
-#    import pdb 
+
+#    import pdb
 #    pdb.set_trace()
     Y_resf = np.dot(Y, f.T) - A_.dot(coo_matrix(C[:nr, :]).dot(f.T))
     print "Computing A_bas"
@@ -283,9 +280,8 @@ def update_spatial_components(Y, C, f, A_in, sn=None, d1=None, d2=None, min_size
 
     return A_, b, C
 
+
 #%%lars_regression_noise_ipyparallel
-
-
 def lars_regression_noise_ipyparallel(pars):
 
     # need to import since it is run from within the server
@@ -294,10 +290,9 @@ def lars_regression_noise_ipyparallel(pars):
     import sys
     import gc
 
-    
     Y_name, C_name, noise_sn, idxs_C, idxs_Y = pars
 
-    Y,_,_,_ = load_memmap(Y_name)
+    Y, _, _ = load_memmap(Y_name)
 
     Y = np.array(Y[idxs_Y, :])
     C = np.load(C_name, mmap_mode='r')
@@ -348,7 +343,8 @@ def lars_regression_noise_ipyparallel(pars):
 
 
 #%% determine_search_location
-def determine_search_location(A, d1, d2, method='ellipse', min_size=3, max_size=8, dist=3, expandCore=iterate_structure(generate_binary_structure(2, 1), 2).astype(int)):
+def determine_search_location(A, dims, method='ellipse', min_size=3, max_size=8, dist=3,
+                              expandCore=iterate_structure(generate_binary_structure(2, 1), 2).astype(int)):
     """
     restrict search location to subset of pixels
 
@@ -357,6 +353,11 @@ def determine_search_location(A, d1, d2, method='ellipse', min_size=3, max_size=
     from scipy.ndimage.morphology import grey_dilation
     from scipy.sparse import coo_matrix, issparse
 
+    if len(dims) == 2:
+        d1, d2 = dims
+    elif len(dims) == 3:
+        d1, d2, d3 = dims
+
     d, nr = np.shape(A)
 
     A = csc_matrix(A)
@@ -364,42 +365,50 @@ def determine_search_location(A, d1, d2, method='ellipse', min_size=3, max_size=
     IND = False * np.ones((d, nr))
     if method == 'ellipse':
         Coor = dict()
-        Coor['x'] = np.kron(np.ones((d2, 1)), np.expand_dims(range(d1), axis=1))
-        Coor['y'] = np.kron(np.expand_dims(range(d2), axis=1), np.ones((d1, 1)))
+        if len(dims) == 2:
+            Coor['x'] = np.kron(np.ones(d2), range(d1))
+            Coor['y'] = np.kron(range(d2), np.ones(d1))
+        elif len(dims) == 3:
+            Coor['x'] = np.kron(np.ones(d3 * d2), range(d1))
+            Coor['y'] = np.kron(np.kron(np.ones(d3), range(d2)), np.ones(d1))
+            Coor['z'] = np.kron(range(d3), np.ones(d2 * d1))
         if not dist == np.inf:             # determine search area for each neuron
-            cm = np.zeros((nr, 2))        # vector for center of mass
+            cm = np.zeros((nr, len(dims)))        # vector for center of mass
             Vr = []    # cell(nr,1);
             IND = []       # indicator for distance
-            cm[:, 0] = np.dot(Coor['x'].T, A[:, :nr].todense()) / A[:, :nr].sum(axis=0)
-            cm[:, 1] = np.dot(Coor['y'].T, A[:, :nr].todense()) / A[:, :nr].sum(axis=0)
+            for i, c in enumerate(['x', 'y', 'z'][:len(dims)]):
+                cm[:, i] = np.dot(Coor[c], A[:, :nr].todense()) / A[:, :nr].sum(axis=0)
             for i in range(nr):            # calculation of variance for each component and construction of ellipses
-                dist_cm = coo_matrix(np.hstack((Coor['x'] - cm[i, 0], Coor['y'] - cm[i, 1])))
+                dist_cm = coo_matrix(np.hstack([Coor[c].reshape(-1, 1) - cm[i, k]
+                                                for k, c in enumerate(['x', 'y', 'z'][:len(dims)])]))
                 Vr.append(dist_cm.T * spdiags(A[:, i].toarray().squeeze(),
                                               0, d, d) * dist_cm / A[:, i].sum(axis=0))
-                
-                if np.sum(np.isnan(Vr))>0:
-                    raise Exception('You cannot pass empty (all zeros) components!')
-                
-                D, V = eig(Vr[-1])
-                
-                d11 = np.min((max_size**2, np.max((min_size**2, D[0].real))))
-                d22 = np.min((max_size**2, np.max((min_size**2, D[1].real))))
-                # search indexes for each component
-                IND.append(np.sqrt((dist_cm * V[:, 0])**2 / d11 +
-                                   (dist_cm * V[:, 1])**2 / d22) <= dist)
 
+                if np.sum(np.isnan(Vr)) > 0:
+                    raise Exception('You cannot pass empty (all zeros) components!')
+
+                D, V = eig(Vr[-1])
+
+                dkk = [np.min((max_size**2, np.max((min_size**2, dd.real)))) for dd in D]
+
+                # search indexes for each component
+                IND.append(np.sqrt(np.sum([(dist_cm * V[:, k])**2 / dkk[k]
+                                           for k in range(len(dkk))], 0)) <= dist)
             IND = (np.asarray(IND)).squeeze().T
         else:
             IND = True * np.ones((d, nr))
     elif method == 'dilate':
         for i in range(nr):
-            A_temp = np.reshape(A[:, i].todense(), (d2, d1))
+            A_temp = np.reshape(A[:, i].toarray(), dims[::-1])  # , order='F')
+            # A_temp = np.reshape(A[:, i].toarray(), (d2, d1))
             if len(expandCore) > 0:
+                if len(expandCore.shape) < len(dims):  # default for 3D
+                    expandCore = iterate_structure(
+                        generate_binary_structure(len(dims), 1), 2).astype(int)
                 A_temp = grey_dilation(A_temp, footprint=expandCore)
             else:
-                A_temp = grey_dilation(A_temp, (1, 1))
+                A_temp = grey_dilation(A_temp, [1] * len(dims))
 
-#            A_temp = grey_dilation(A_temp, footprint = expandCore)
             IND[:, i] = np.squeeze(np.reshape(A_temp, (d, 1))) > 0
     else:
         IND = True * np.ones((d, nr))
@@ -408,7 +417,8 @@ def determine_search_location(A, d1, d2, method='ellipse', min_size=3, max_size=
 
 
 #%% threshold_components
-def threshold_components(A, d1, d2, medw=(3, 3), thr=0.9999, se=np.ones((3, 3), dtype=np.int), ss=np.ones((3, 3), dtype=np.int)):
+def threshold_components(A, dims, medw=(3, 3), thr=0.9999,
+                         se=np.ones((3, 3), dtype=np.int), ss=np.ones((3, 3), dtype=np.int)):
     '''
     TODO
     '''
@@ -416,12 +426,20 @@ def threshold_components(A, d1, d2, medw=(3, 3), thr=0.9999, se=np.ones((3, 3), 
     from scipy.ndimage.morphology import binary_closing
     from scipy.ndimage.measurements import label
 
+    if len(dims) == 3:  # default values for 3D
+        if len(medw) == 2:
+            medw = (3, 3, 3)
+        if len(se.shape) == 2:
+            se = np.ones((3, 3, 3), dtype=np.int)
+        if len(ss.shape) == 2:
+            ss = np.ones((3, 3, 3), dtype=np.int)
+
     d, nr = np.shape(A)
     Ath = np.zeros((d, nr))
 
     for i in range(nr):
 
-        A_temp = np.reshape(A[:, i], (d2, d1))
+        A_temp = np.reshape(A[:, i], dims[::-1])
         A_temp = median_filter(A_temp, medw)
         Asor = np.sort(np.squeeze(np.reshape(A_temp, (d, 1))))[::-1]
         temp = np.cumsum(Asor**2)
@@ -451,9 +469,8 @@ def threshold_components(A, d1, d2, medw=(3, 3), thr=0.9999, se=np.ones((3, 3), 
 
     return Ath
 
+
 #%% lars_regression_noise
-
-
 def lars_regression_noise(Yp, X, positive, noise, verbose=False):
     """
      Run LARS for regression problems with LASSO penalty, with optional positivity constraints

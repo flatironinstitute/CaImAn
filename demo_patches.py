@@ -24,7 +24,7 @@ import glob
 %autoreload 2
 
 
-#%% slect all tiff files in current folder
+#%% select all tiff files in current folder
 fnames=[]
 base_folder='./' # folder containing the demo files
 for file in glob.glob(os.path.join(base_folder,'*.tif')):
@@ -43,7 +43,7 @@ fnames=fnames
 fraction_downsample=1; # useful to downsample the movie across time. fraction_downsample=.1 measn downsampling by a factor of 10
 fname_new=cse.utilities.save_memmap(fnames,base_name='Yr',resize_fact=(1,1,fraction_downsample))
 #%%
-Yr,d1,d2,T=cse.utilities.load_memmap(fname_new)
+Yr,(d1,d2),T=cse.utilities.load_memmap(fname_new)
 d,T=np.shape(Yr)
 Y=np.reshape(Yr,(d1,d2,T),order='F') # 3D version of the movie
 #%% build an image to check the presence of neurons

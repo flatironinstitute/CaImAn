@@ -111,7 +111,7 @@ def cnmf_patches(args_in):
     p=options['temporal_params']['p']
     
     logger.info('START')
-    Yr,_,_,_=load_memmap(file_name)    
+    Yr,_,_=load_memmap(file_name)    
     logger.info('Read file')
     
         
@@ -133,8 +133,7 @@ def cnmf_patches(args_in):
     #    import pdb
     #    pdb.set_trace()
     #    options = cse.utilities.CNMFSetParms(Y,p=p,gSig=gSig,K=K)
-        options['spatial_params']['d2']=d1
-        options['spatial_params']['d1']=d2
+        options['spatial_params']['dims']=(d1,d2)
     #    options['preprocess_params']['backend']='single_thread'
     #    options['spatial_params']['backend']='single_thread'    
     #    options['temporal_params']['backend']='single_thread'    

@@ -350,7 +350,7 @@ def fft_psd_multithreading(args):
     (Y,i,num_pixels,kwargs)=args
     Yold=Y
     if type(Y) is str:
-        Y,_,_,_=load_memmap(Y)
+        Y,_,_=load_memmap(Y)
     
     idxs=range(i,i+num_pixels)
     res,psx=get_noise_fft(Y[idxs], **kwargs)
