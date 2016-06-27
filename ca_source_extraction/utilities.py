@@ -138,11 +138,19 @@ def load_memmap(filename):
 
     """
     if os.path.splitext(filename)[1] == '.mmap':
+
+        file_to_load = filename
+
         filename = os.path.split(filename)[-1]
+
         fpart = filename.split('_')[1:-1]
+
         d1, d2, d3, T, order = int(fpart[1]), int(fpart[3]), int(fpart[5]), int(fpart[9]), fpart[7]
-        Yr = np.memmap(filename, mode='r', shape=(d1 * d2 * d3, T), dtype=np.float32, order=order)
+        
+        Yr = np.memmap(file_to_load, mode='r', shape=(d1 * d2 * d3, T), dtype=np.float32, order=order)
+
         return (Yr, (d1, d2), T) if d3==1 else (Yr, (d1, d2, d3), T)
+
     else:
         Yr = np.load(filename, mmap_mode='r')
         return Yr, None, None
@@ -1428,6 +1436,7 @@ def mode_robust(inputData, axis=None, dtype=None):
                 else:
                     return data[1]
             else:
+#<<<<<<< HEAD
                 #            wMin = data[-1] - data[0]
                 wMin = np.inf
                 N = data.size / 2 + data.size % 2
@@ -1452,3 +1461,31 @@ def mode_robust(inputData, axis=None, dtype=None):
         dataMode = _hsm(data)
 
     return dataMode
+#=======
+#               return data[1]
+#         else:
+##            wMin = data[-1] - data[0]
+#            wMin=np.inf
+#            N = data.size/2 + data.size%2 
+#            for i in xrange(0, N):
+#               w = data[i+N-1] - data[i] 
+#               if w < wMin:
+#                  wMin = w
+#                  j = i
+#
+#            return _hsm(data[j:j+N])
+#            
+#      data = inputData.ravel()
+#      if type(data).__name__ == "MaskedArray":
+#         data = data.compressed()
+#      if dtype is not None:
+#         data = data.astype(dtype)
+#         
+#      # The data need to be sorted for this to work
+#      data = numpy.sort(data)
+#      
+#      # Find the mode
+#      dataMode = _hsm(data)
+#      
+#   return dataMode
+#>>>>>>> 9afa11dd3825fd3ac6298b5bcfb3869a55ce3c68
