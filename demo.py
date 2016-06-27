@@ -56,8 +56,8 @@ fnames=fnames
 fraction_downsample=1; # useful to downsample the movie across time. fraction_downsample=.1 measn downsampling by a factor of 10
 fname_new=cse.utilities.save_memmap(fnames,base_name='Yr',resize_fact=(1,1,fraction_downsample))
 #%%
-Yr,d1,d2,T=cse.utilities.load_memmap(fname_new)
-Y=np.reshape(Yr,(d1,d2,T),order='F')
+Yr,dims,T=cse.utilities.load_memmap(fname_new)
+Y=np.reshape(Yr,dims+(T,),order='F')
 #%%
 Cn = cse.utilities.local_correlations(Y[:,:,:])
 pl.imshow(Cn,cmap='gray')    
@@ -121,7 +121,7 @@ traces=C2+YrA
 idx_components, fitness, erfc = cse.utilities.evaluate_components(traces,N=5,robust_std=True)
 
 #%%
-cse.utilities.view_patches_bar(Yr,scipy.sparse.coo_matrix(A2.tocsc()[:,idx_components]),C2[idx_components,:],b2,f2, d1,d2, YrA=YrA[idx_components,:],img=Cn)  
+cse.utilities.view_patches_bar(Yr,scipy.sparse.coo_matrix(A2.tocsc()[:,idx_components]),C2[idx_components,:],b2,f2, dims[0],dims[1], YrA=YrA[idx_components,:],img=Cn)  
 #%% visualize components
 pl.figure();
 crd = cse.utilities.plot_contours(A2.tocsc()[:,idx_components],Cn,thr=0.9)

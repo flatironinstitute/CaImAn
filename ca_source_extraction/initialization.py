@@ -72,19 +72,19 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
     mean_val = np.mean(Y)
     if ssub != 1 or tsub != 1:
         print "Spatial Downsampling ..."
-        Y_ds = downscale_local_mean(Y, [ssub] * len(d) + [tsub], cval=mean_val)
+        Y_ds = downscale_local_mean(Y, tuple([ssub] * len(d) + [tsub]), cval=mean_val)
         if Cn is not None:
-            Cn = downscale_local_mean(Cn, [ssub] * len(d), cval=mean_val)
+            Cn = downscale_local_mean(Cn, tuple([ssub] * len(d)), cval=mean_val)
     else:
         Y_ds = Y
 
     print 'Roi Extraction...'
 
-    Ain, Cin, _, b_in, f_in = greedyROI2d(
+    Ain, Cin, _, b_in, f_in = greedyROI(
         Y_ds, nr=K, gSig=gSig, gSiz=gSiz, nIter=nIter, kernel=kernel)
     if use_hals:
         print 'Refining Components...'
-        Ain, Cin, b_in, f_in = hals_2D(Y_ds, Ain, Cin, b_in, f_in, maxIter=maxIter)
+        Ain, Cin, b_in, f_in = hals(Y_ds, Ain, Cin, b_in, f_in, maxIter=maxIter)
 
     ds = Y_ds.shape[:-1]
     Ain = np.reshape(Ain, ds + (K,), order='F')
@@ -101,7 +101,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
 
     b_in = resize(b_in, ds)
 
-    b_in = np.reshape(b_in, (np.prod(d), 1), order='F')
+    b_in = np.reshape(b_in, (-1, 1), order='F')
 
     Cin = resize(Cin, [K, T])
     f_in = resize(np.atleast_2d(f_in), [1, T])
@@ -117,7 +117,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
 
 
 #%%
-def greedyROI2d(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None):
+def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None):
     """
     Greedy initialization of spatial and temporal components using spatial Gaussian filtering
     Inputs:
@@ -169,7 +169,7 @@ def greedyROI2d(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None):
                  for c in range(len(ij))]
         dataTemp = Y[map(lambda a: slice(*a), ijSig)].copy()
         traceTemp = np.squeeze(rho[ij])
-        coef, score = finetune2d(dataTemp, traceTemp, nIter=nIter)
+        coef, score = finetune(dataTemp, traceTemp, nIter=nIter)
         C[k, :] = np.squeeze(score)
         dataSig = coef[..., np.newaxis] * score.reshape([1] * (Y.ndim - 1) + [-1])
         xySig = np.meshgrid(*[np.arange(s[0], s[1]) for s in ijSig], indexing='xy')
@@ -202,7 +202,7 @@ def greedyROI2d(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None):
 #%%
 
 
-def finetune2d(Y, cin, nIter=5):
+def finetune(Y, cin, nIter=5):
     """Fine tuning of components within greedyROI using rank-1 NMF
     """
     for iter in range(nIter):
@@ -217,7 +217,7 @@ def finetune2d(Y, cin, nIter=5):
 
 def imblur(Y, sig=5, siz=11, nDimBlur=None, kernel=None):
     """Spatial filtering with a Gaussian or user defined kernel
-    The parameters are specified in GreedyROI2d
+    The parameters are specified in GreedyROI
     """
     from scipy.ndimage.filters import correlate
 
@@ -271,20 +271,20 @@ def imblur(Y, sig=5, siz=11, nDimBlur=None, kernel=None):
 #%%
 
 
-def hals_2D(Y, A, C, b, f, bSiz=3, maxIter=5):
+def hals(Y, A, C, b, f, bSiz=3, maxIter=5):
     """ Hierarchical alternating least square method for solving NMF problem
     Y = A*C + b*f
 
     input:
-       Y:      d1 X d2 X T, raw data. It will be reshaped to (d1*d2) X T in this
+       Y:      d1 X d2 [X d3] X T, raw data. It will be reshaped to (d1*d2[*d3]) X T in this
        function
-       A:      (d1*d2) X K, initial value of spatial components
+       A:      (d1*d2[*d3]) X K, initial value of spatial components
        C:      K X T, initial value of temporal components
-       b:      (d1*d2) X 1, initial value of background spatial component
+       b:      (d1*d2[*d3]) X 1, initial value of background spatial component
        f:      1 X T, initial value of background temporal component
-
-       bSiz:   blur size. A box kernel (bSiz X bSiz) will be convolved
-       with each neuron's initial spatial component, then all nonzero
+       bSiz:   int or tuple of int
+       blur size. A box kernel (bSiz X bSiz [X bSiz]) (if int) or bSiz (if tuple) will 
+       be convolved with each neuron's initial spatial component, then all nonzero
        pixels will be picked as pixels to be updated, and the rest will be
        forced to be 0.
        maxIter: maximum iteration of iterating HALS.

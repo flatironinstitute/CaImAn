@@ -292,7 +292,7 @@ def lars_regression_noise_ipyparallel(pars):
 
     Y_name, C_name, noise_sn, idxs_C, idxs_Y = pars
 
-    Y, _, _, _ = load_memmap(Y_name)
+    Y, _, _ = load_memmap(Y_name)
 
     Y = np.array(Y[idxs_Y, :])
     C = np.load(C_name, mmap_mode='r')
