@@ -146,10 +146,11 @@ def load_memmap(filename):
         fpart = filename.split('_')[1:-1]
 
         d1, d2, d3, T, order = int(fpart[1]), int(fpart[3]), int(fpart[5]), int(fpart[9]), fpart[7]
-        
-        Yr = np.memmap(file_to_load, mode='r', shape=(d1 * d2 * d3, T), dtype=np.float32, order=order)
 
-        return (Yr, (d1, d2), T) if d3==1 else (Yr, (d1, d2, d3), T)
+        Yr = np.memmap(file_to_load, mode='r', shape=(
+            d1 * d2 * d3, T), dtype=np.float32, order=order)
+
+        return (Yr, (d1, d2), T) if d3 == 1 else (Yr, (d1, d2, d3), T)
 
     else:
         Yr = np.load(filename, mmap_mode='r')
@@ -1017,7 +1018,7 @@ def db_plot(*args, **kwargs):
     pause(1)
 
 
-def nb_view_patches(Yr, A, C, b, f, d1, d2, image_neurons=None, thr=0.99):
+def nb_view_patches(Yr, A, C, b, f, d1, d2, image_neurons=None, thr=0.99, denoised_color=None):
     '''
     Interactive plotting utility for ipython notbook
 
@@ -1037,6 +1038,8 @@ def nb_view_patches(Yr, A, C, b, f, d1, d2, image_neurons=None, thr=0.99):
     thr: double
         threshold regulating the extent of the displayed patches
 
+    denoised_color: string or None
+        color name (e.g. 'red') or hex color code (e.g. '#F0027F')
 
     '''
     colormap = cm.get_cmap("jet")  # choose any matplotlib colormap here
@@ -1066,21 +1069,24 @@ def nb_view_patches(Yr, A, C, b, f, d1, d2, image_neurons=None, thr=0.99):
     c2 = cc2[0]
     npoints = range(len(c1))
 
-    source = ColumnDataSource(data=dict(x=x, y=z[:, 0], z=z))
+    source = ColumnDataSource(data=dict(x=x, y=z[:, 0], y2=C[0] / 100, z=z, z2=C.T / 100))
     source2 = ColumnDataSource(data=dict(x=npoints, c1=c1, c2=c2, cc1=cc1, cc2=cc2))
 
     plot = bpl.figure(plot_width=600, plot_height=300)
     plot.line('x', 'y', source=source, line_width=1, line_alpha=0.6)
+    if denoised_color is not None:
+        plot.line('x', 'y2', source=source, line_width=1, line_alpha=0.6, color=denoised_color)
 
     callback = CustomJS(args=dict(source=source, source2=source2), code="""
             var data = source.get('data');
             var f = cb_obj.get('value')-1
             x = data['x']
             y = data['y']
-            z = data['z']
+            y2 = data['y2']
 
             for (i = 0; i < x.length; i++) {
-                y[i] = z[i][f]
+                y[i] = data['z'][i][f]
+                y2[i] = data['z2'][i][f]
             }
 
             var data2 = source2.get('data');
@@ -1103,11 +1109,298 @@ def nb_view_patches(Yr, A, C, b, f, d1, d2, image_neurons=None, thr=0.99):
     xr = Range1d(start=0, end=image_neurons.shape[1])
     yr = Range1d(start=image_neurons.shape[0], end=0)
     plot1 = bpl.figure(x_range=xr, y_range=yr, plot_width=300, plot_height=300)
+
     plot1.image(image=[image_neurons[::-1, :]], x=0,
                 y=image_neurons.shape[0], dw=d2, dh=d1, palette=grayp)
     plot1.patch('c1', 'c2', alpha=0.6, color='purple', line_width=2, source=source2)
 
     layout = vform(slider, hplot(plot1, plot))
+
+    bpl.show(layout)
+
+    return Y_r
+
+
+def get_contours3d(A, dims, thr=0.9):
+    """Gets contour of spatial components and returns their coordinates
+
+     Parameters
+     -----------
+     A:   np.ndarray or sparse matrix
+               Matrix of Spatial components (d x K)
+     dims: tuple of ints
+               Spatial dimensions of movie (x, y, z)
+     thr: scalar between 0 and 1
+               Energy threshold for computing contours (default 0.995)
+
+     Returns
+     --------
+     Coor: list of coordinates with center of mass and
+            contour plot coordinates (per layer) for each component
+    """
+    from scipy.ndimage.measurements import center_of_mass
+    d, nr = np.shape(A)
+    x, y = np.mgrid[0:dims[1]:1, 0:dims[2]:1]
+
+    coordinates = []
+    cm = np.asarray([center_of_mass(a.reshape(dims, order='F')) for a in A.T])
+    for i in range(nr):
+        pars = dict()
+        indx = np.argsort(A[:, i], axis=None)[::-1]
+        cumEn = np.cumsum(A[:, i].flatten()[indx]**2)
+        cumEn /= cumEn[-1]
+        Bvec = np.zeros(d)
+        Bvec[indx] = cumEn
+        Bmat = np.reshape(Bvec, dims, order='F')
+        pars['coordinates'] = []
+        for B in Bmat:
+            cs = plt.contour(y, x, B, [thr])
+            # this fix is necessary for having disjoint figures and borders plotted correctly
+            p = cs.collections[0].get_paths()
+            v = np.atleast_2d([np.nan, np.nan])
+            for pths in p:
+                vtx = pths.vertices
+                num_close_coords = np.sum(np.isclose(vtx[0, :], vtx[-1, :]))
+                if num_close_coords < 2:
+                    if num_close_coords == 0:
+                        # case angle
+                        newpt = np.round(vtx[-1, :] / [d2, d1]) * [d2, d1]
+                        vtx = np.concatenate((vtx, newpt[np.newaxis, :]), axis=0)
+
+                    else:
+                        # case one is border
+                        vtx = np.concatenate((vtx, vtx[0, np.newaxis]), axis=0)
+
+                v = np.concatenate((v, vtx, np.atleast_2d([np.nan, np.nan])), axis=0)
+
+            pars['coordinates'] += [v]
+        pars['CoM'] = np.squeeze(cm[i, :])
+        pars['neuron_id'] = i + 1
+        coordinates.append(pars)
+    return coordinates
+
+
+def nb_view_patches3d(Yr, A, C, b, f, dims, image_type='mean',
+                      max_projection=False, axis=0, thr=0.99, denoised_color=None):
+    '''
+    Interactive plotting utility for ipython notbook
+
+    Parameters
+    -----------
+    Yr: np.ndarray
+        movie
+
+    A,C,b,f: np.ndarrays
+        outputs of matrix factorization algorithm
+
+    dims: tuple of ints
+        dimensions of movie (x, y and z)
+
+    image_type: 'mean', 'max' or 'corr'
+        image to be overlaid to neurons (average, maximum or nearest neigbor correlation)
+
+    max_projection: boolean
+        plot max projection along specified axis if True, plot layers if False
+
+    axis: int (0, 1 or 2)
+        axis along which max projection is performed or layers are shown
+
+    thr: double
+        threshold regulating the extent of the displayed patches
+
+    denoised_color: string or None
+        color name (e.g. 'red') or hex color code (e.g. '#F0027F')
+
+    '''
+    d, T = Yr.shape
+    order = range(4)
+    order.insert(0, order.pop(axis))
+    Yr = Yr.reshape(dims + (-1,), order='F').transpose(order).reshape((d, T), order='F')
+    A = A.reshape(dims + (-1,), order='F').transpose(order).reshape((d, -1), order='F')
+    dims = tuple(np.array(dims)[order[:3]])
+    d1, d2, d3 = dims
+    colormap = cm.get_cmap("jet")  # choose any matplotlib colormap here
+    grayp = [mpl.colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
+    nr, T = C.shape
+    nA2 = np.sum(np.array(A)**2, axis=0)
+    b = np.squeeze(b)
+    f = np.squeeze(f)
+    Y_r = np.array(spdiags(1 / nA2, 0, nr, nr) *
+                   (A.T * np.matrix(Yr) - (A.T * np.matrix(b[:, np.newaxis])) *
+                    np.matrix(f[np.newaxis]) - (A.T.dot(A)) * np.matrix(C)) + C)
+
+    bpl.output_notebook()
+    x = np.arange(T)
+    z = np.squeeze(np.array(Y_r[:, :].T)) / 100
+    k = np.reshape(np.array(A), dims + (A.shape[1],), order='F')
+    source = ColumnDataSource(data=dict(x=x, y=z[:, 0], y2=C[0] / 100, z=z, z2=C.T / 100))
+
+    if max_projection:
+        if image_type == 'corr':
+            image_neurons = [(local_correlations(
+                Yr.reshape(dims + (-1,), order='F'))[:, ::-1]).max(i)
+                for i in range(3)]
+        elif image_type in ['mean', 'max']:
+            tmp = [({'mean': np.nanmean, 'max': np.nanmax}[image_type]
+                    (k, axis=3)[:, ::-1]).max(i) for i in range(3)]
+        else:
+            raise ValueError("image_type must be 'mean', 'max' or 'corr'")
+
+#         tmp = [np.nanmean(k.max(i), axis=2) for i in range(3)]
+        image_neurons = np.nan * np.ones((int(1.05 * (d1 + d2)), int(1.05 * (d1 + d3))))
+        image_neurons[:d2, -d3:] = tmp[0][::-1]
+        image_neurons[:d2, :d1] = tmp[2].T[::-1]
+        image_neurons[-d1:, -d3:] = tmp[1]
+        offset1 = image_neurons.shape[1] - d3
+        offset2 = image_neurons.shape[0] - d1
+        coors = [plot_contours(coo_matrix(A.reshape(dims + (-1,), order='F').max(i)
+                                          .reshape((np.prod(dims) / dims[i], -1), order='F')),
+                               tmp[i], thr=thr) for i in range(3)]
+        plt.close()
+        cc1 = [[cor['coordinates'][:, 0] + offset1 for cor in coors[0]],
+               [cor['coordinates'][:, 1] for cor in coors[2]],
+               [cor['coordinates'][:, 0] + offset1 for cor in coors[1]]]
+        cc2 = [[cor['coordinates'][:, 1] for cor in coors[0]],
+               [cor['coordinates'][:, 0] for cor in coors[2]],
+               [cor['coordinates'][:, 1] + offset2 for cor in coors[1]]]
+        c1x = cc1[0][0]
+        c2x = cc2[0][0]
+        c1y = cc1[1][0]
+        c2y = cc2[1][0]
+        c1z = cc1[2][0]
+        c2z = cc2[2][0]
+        source2 = ColumnDataSource(data=dict(  # x=npointsx, y=npointsy, z=npointsz,
+            c1x=c1x, c1y=c1y, c1z=c1z,
+            c2x=c2x, c2y=c2y, c2z=c2z, cc1=cc1, cc2=cc2))
+        callback = CustomJS(args=dict(source=source, source2=source2), code="""
+                var data = source.get('data');
+                var f = cb_obj.get('value')-1
+                y = data['y']
+                y2 = data['y2']
+                for (i = 0; i < y.length; i++) {
+                    y[i] = data['z'][i][f];
+                    y2[i] = data['z2'][i][f];
+                }
+
+                var data2 = source2.get('data');
+                c1x = data2['c1x'];
+                c2x = data2['c2x'];
+                c1y = data2['c1y'];
+                c2y = data2['c2y'];
+                c1z = data2['c1z'];
+                c2z = data2['c2z'];
+                cc1 = data2['cc1'];
+                cc2 = data2['cc2'];
+                for (i = 0; i < c1x.length; i++) {
+                       c1x[i] = cc1[0][f][i]
+                       c2x[i] = cc2[0][f][i]
+                }
+                for (i = 0; i < c1y.length; i++) {
+                       c1y[i] = cc1[1][f][i]
+                       c2y[i] = cc2[1][f][i]
+                }
+                for (i = 0; i < c1z.length; i++) {
+                       c1z[i] = cc1[2][f][i]
+                       c2z[i] = cc2[2][f][i]
+                }
+                source2.trigger('change');
+                source.trigger('change');
+            """)
+
+    else:
+        if image_type == 'corr':
+            image_neurons = local_correlations(Yr.reshape(dims + (-1,), order='F'))[:, ::-1]
+        elif image_type in ['mean', 'max']:
+            image_neurons = {'mean': np.nanmean, 'max': np.nanmax}[image_type](k, axis=3)[:, ::-1]
+        else:
+            raise ValueError('image_type must be mean, max or corr')
+
+        cmap = bokeh.models.mappers.LinearColorMapper([mpl.colors.rgb2hex(m)
+                                                       for m in colormap(np.arange(colormap.N))])
+        cmap.high = image_neurons.max()
+        coors = get_contours3d(A, dims, thr=thr)
+        plt.close()
+        cc1 = [[l[:, 0] for l in n['coordinates']] for n in coors]
+        cc2 = [[l[:, 1] for l in n['coordinates']] for n in coors]
+        linit = int(round(coors[0]['CoM'][0]))  # pick initl layer in which first neuron lies
+        c1 = cc1[0][linit]
+        c2 = cc2[0][linit]
+        source2 = ColumnDataSource(data=dict(c1=c1, c2=c2, cc1=cc1, cc2=cc2))
+        x = range(d2)
+        y = range(d3)
+        source3 = ColumnDataSource(
+            data=dict(im1=[image_neurons[linit]], im=image_neurons, xx=[x], yy=[y]))
+
+        callback = CustomJS(args=dict(source=source, source2=source2), code="""
+                var data = source.get('data');
+                var f = slider_neuron.get('value')-1;
+                var l = slider_layer.get('value')-1;
+                y = data['y']
+                y2 = data['y2']
+                for (i = 0; i < y.length; i++) {
+                    y[i] = data['z'][i][f];
+                    y2[i] = data['z2'][i][f];
+                }
+
+                var data2 = source2.get('data');
+                c1 = data2['c1'];
+                c2 = data2['c2'];
+                for (i = 0; i < c1.length; i++) {
+                       c1[i] = data2['cc1'][f][l][i];
+                       c2[i] = data2['cc2'][f][l][i];
+                }
+                source2.trigger('change');
+                source.trigger('change');
+            """)
+
+        callback_layer = CustomJS(args=dict(source=source3, source2=source2), code="""
+                var f = slider_neuron.get('value')-1;
+                var l = slider_layer.get('value')-1;
+                var im1 = source.get('data')['im1'][0];
+                for (var i = 0; i < source.get('data')['xx'][0].length; i++) {
+                    for (var j = 0; j < source.get('data')['yy'][0].length; j++){
+                        im1[i][j] = source.get('data')['im'][l][i][j];
+                    }
+                }
+                var data2 = source2.get('data');
+                c1 = data2['c1'];
+                c2 = data2['c2'];
+                for (i = 0; i < c1.length; i++) {
+                       c1[i] = data2['cc1'][f][l][i];
+                       c2[i] = data2['cc2'][f][l][i];
+                }
+                source.trigger('change');
+                source2.trigger('change');
+            """)
+
+    plot = bpl.figure(plot_width=600, plot_height=300)
+    plot.line('x', 'y', source=source, line_width=1, line_alpha=0.6)
+    if denoised_color is not None:
+        plot.line('x', 'y2', source=source, line_width=1, line_alpha=0.6, color=denoised_color)
+    slider = bokeh.models.Slider(start=1, end=Y_r.shape[0], value=1, step=1,
+                                 title="Neuron Number", callback=callback)
+    xr = Range1d(start=0, end=image_neurons.shape[1] if max_projection else d3)
+    yr = Range1d(start=image_neurons.shape[0] if max_projection else d2, end=0)
+    plot1 = bpl.figure(x_range=xr, y_range=yr, plot_width=300, plot_height=300)
+
+    if max_projection:
+        plot1.image(image=[image_neurons[::-1, :]], x=0,
+                    y=image_neurons.shape[0], dw=image_neurons.shape[1], dh=image_neurons.shape[0], palette=grayp)
+        plot1.patch('c1x', 'c2x', alpha=0.6, color='purple', line_width=2, source=source2)
+        plot1.patch('c1y', 'c2y', alpha=0.6, color='purple', line_width=2, source=source2)
+        plot1.patch('c1z', 'c2z', alpha=0.6, color='purple', line_width=2, source=source2)
+        layout = vform(slider, hplot(plot1, plot))
+    else:
+        slider_layer = bokeh.models.Slider(start=1, end=d1, value=linit + 1, step=1,
+                                           title="Layer", callback=callback_layer)
+        callback.args['slider_neuron'] = slider
+        callback.args['slider_layer'] = slider_layer
+        callback_layer.args['slider_neuron'] = slider
+        callback_layer.args['slider_layer'] = slider_layer
+        plot1.image(image='im1', x=[0], y=[d2], dw=[d3], dh=[d2],
+                    color_mapper=cmap, source=source3)
+        plot1.patch('c1', 'c2', alpha=0.6, color='purple', line_width=2, source=source2)
+        layout = vform(slider, slider_layer, hplot(plot1, plot))
 
     bpl.show(layout)
 
@@ -1166,7 +1459,7 @@ def nb_plot_contour(image, A, d1, d2, thr=0.995, face_color=None, line_color='bl
     return p
 
 
-def start_server(ncpus, slurm_script=None,ipcluster="ipcluster"):
+def start_server(ncpus, slurm_script=None, ipcluster="ipcluster"):
     '''
     programmatically start the ipyparallel server
 
@@ -1183,10 +1476,10 @@ def start_server(ncpus, slurm_script=None,ipcluster="ipcluster"):
 
     if slurm_script is None:
         if ipcluster == "ipcluster":
-            subprocess.Popen(["ipcluster start -n {0}".format(ncpus)], shell=True)   
+            subprocess.Popen(["ipcluster start -n {0}".format(ncpus)], shell=True)
         else:
             subprocess.Popen(shlex.split("{0} start -n {1}".format(ipcluster, ncpus)), shell=True)
-#        
+#
         while True:
             try:
                 c = ipyparallel.Client()
@@ -1265,10 +1558,11 @@ def stop_server(is_slurm=False, ipcluster='ipcluster'):
 
     else:
         if ipcluster == "ipcluster":
-             proc = subprocess.Popen(["ipcluster stop"], shell=True, stderr=subprocess.PIPE)
+            proc = subprocess.Popen(["ipcluster stop"], shell=True, stderr=subprocess.PIPE)
         else:
-             proc = subprocess.Popen(shlex.split(ipcluster + " stop"), shell=True, stderr=subprocess.PIPE)
-       
+            proc = subprocess.Popen(shlex.split(ipcluster + " stop"),
+                                    shell=True, stderr=subprocess.PIPE)
+
         line_out = proc.stderr.readline()
         if 'CRITICAL' in line_out:
             sys.stdout.write("No cluster to stop...")
@@ -1386,7 +1680,7 @@ def evaluate_components(traces, N=5, robust_std=False):
     from scipy.stats import norm
 
     # compute z value
-    z = (traces - md[:, None]) / (3*sd_r[:, None])
+    z = (traces - md[:, None]) / (3 * sd_r[:, None])
     # probability of observing values larger or equal to z given notmal
     # distribution with mean md and std sd_r
     erf = 1 - norm.cdf(z)
@@ -1436,7 +1730,7 @@ def mode_robust(inputData, axis=None, dtype=None):
                 else:
                     return data[1]
             else:
-#<<<<<<< HEAD
+                #<<<<<<< HEAD
                 #            wMin = data[-1] - data[0]
                 wMin = np.inf
                 N = data.size / 2 + data.size % 2
@@ -1466,26 +1760,26 @@ def mode_robust(inputData, axis=None, dtype=None):
 #         else:
 ##            wMin = data[-1] - data[0]
 #            wMin=np.inf
-#            N = data.size/2 + data.size%2 
+#            N = data.size/2 + data.size%2
 #            for i in xrange(0, N):
-#               w = data[i+N-1] - data[i] 
+#               w = data[i+N-1] - data[i]
 #               if w < wMin:
 #                  wMin = w
 #                  j = i
 #
 #            return _hsm(data[j:j+N])
-#            
+#
 #      data = inputData.ravel()
 #      if type(data).__name__ == "MaskedArray":
 #         data = data.compressed()
 #      if dtype is not None:
 #         data = data.astype(dtype)
-#         
+#
 #      # The data need to be sorted for this to work
 #      data = numpy.sort(data)
-#      
+#
 #      # Find the mode
 #      dataMode = _hsm(data)
-#      
+#
 #   return dataMode
 #>>>>>>> 9afa11dd3825fd3ac6298b5bcfb3869a55ce3c68
