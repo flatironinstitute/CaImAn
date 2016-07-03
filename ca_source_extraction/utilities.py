@@ -1140,7 +1140,8 @@ def get_contours3d(A, dims, thr=0.9):
     """
     from scipy.ndimage.measurements import center_of_mass
     d, nr = np.shape(A)
-    x, y = np.mgrid[0:dims[1]:1, 0:dims[2]:1]
+    d1, d2, d3 = dims
+    x, y = np.mgrid[0:d2:1, 0:d3:1]
 
     coordinates = []
     cm = np.asarray([center_of_mass(a.reshape(dims, order='F')) for a in A.T])
