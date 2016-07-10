@@ -26,7 +26,7 @@ import glob
 
 #%% select all tiff files in current folder
 fnames=[]
-base_folder='./' # folder containing the demo files
+base_folder='./movies/' # folder containing the demo files
 for file in glob.glob(os.path.join(base_folder,'*.tif')):
     if file.endswith(".tif"):
         fnames.append(file)
@@ -59,7 +59,7 @@ Cn[np.isnan(Cn)]=0
 #%% USE this visualization to establish how large are neurons and how many neurons do you expect in a patch
 pl.imshow(Cn,cmap='gray',vmin=np.percentile(Cn, 1), vmax=np.percentile(Cn, 99))    
 #%%
-rf=15 # half-size of the patches in pixels. rf=25, patches are 50x50
+rf=10 # half-size of the patches in pixels. rf=25, patches are 50x50
 stride = 2 #amounpl.it of overlap between the patches in pixels    
 K=3 # number of neurons expected per patch
 gSig=[4,4] # expected half size of neurons
@@ -92,6 +92,22 @@ options['spatial_params']['n_pixels_per_process']=pix_proc
 options['temporal_params']['n_pixels_per_process']=pix_proc
 #%% merge spatially overlaping and temporally correlated components      
 A_m,C_m,nr_m,merged_ROIs,S_m,bl_m,c1_m,sn_m,g_m=cse.merge_components(Yr,A_tot,[],np.array(C_tot),[],np.array(C_tot),[],options['temporal_params'],options['spatial_params'],thr=options['merging']['thr'],mx=np.Inf)     
+#%% update temporal to get Y_r
+options['temporal_params']['p']=0
+options['temporal_params']['fudge_factor']=0.96 #change ifdenoised traces time constant is wrong
+options['temporal_params']['backend']='ipyparallel'
+C_m,f_m,S_m,bl_m,c1_m,neurons_sn_m,g2_m,YrA_m = cse.temporal.update_temporal_components(Yr,A_m,np.atleast_2d(b).T,C_m,f,bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
+
+#%%
+traces=C_m+YrA_m
+idx_components, fitness, erfc = cse.utilities.evaluate_components(traces,N=5,robust_std=False)
+idx_components=idx_components[np.logical_and(True ,fitness < -10)]
+print(len(idx_components))
+cse.utilities.view_patches_bar(Yr,scipy.sparse.coo_matrix(A_m.tocsc()[:,idx_components]),C_m[idx_components,:],b,f_m, d1,d2, YrA=YrA_m[idx_components,:])  
+#%%
+A_m=A_m[:,idx_components]
+C_m=C_m[idx_components,:]   
+
 #%% display components  DO NOT RUN IF YOU HAVE TOO MANY COMPONENTS
 pl.figure()
 crd = cse.utilities.plot_contours(A_m,Cn,thr=0.9)
@@ -130,3 +146,30 @@ cse.utilities.view_patches_bar(Yr,scipy.sparse.coo_matrix(A2.tocsc()[:,idx_compo
 # select only portion of components
 pl.figure();
 crd = cse.utilities.plot_contours(A2.tocsc()[:,idx_components],Cn,thr=0.9)
+
+#%% RELOAD COMPONENTS!
+if save_results:
+    import sys
+    import numpy as np
+    import ca_source_extraction as cse
+    from scipy.sparse import coo_matrix
+    import scipy
+    import pylab as pl
+    import calblitz as cb
+    
+    
+    
+    with np.load('results_analysis.npz')  as ld:
+          locals().update(ld)
+    
+    fname_new='Yr_d1_60_d2_80_d3_1_order_F_frames_2000_.mmap'
+    
+    Yr,(d1,d2),T=cse.utilities.load_memmap(fname_new)
+    d,T=np.shape(Yr)
+    Y=np.reshape(Yr,(d1,d2,T),order='F') # 3D version of the movie
+    
+    
+    traces=C2+YrA
+    idx_components, fitness, erfc = cse.utilities.evaluate_components(traces,N=5,robust_std=False)
+    #cse.utilities.view_patches(Yr,coo_matrix(A_or),C_or,b2,f2,d1,d2,YrA = YrA[srt,:], secs=1)
+    cse.utilities.view_patches_bar(Yr,scipy.sparse.coo_matrix(A2[:,idx_components]),C2[idx_components,:],b2,f2, d1,d2, YrA=YrA[idx_components,:])  

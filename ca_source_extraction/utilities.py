@@ -1731,10 +1731,11 @@ def mode_robust(inputData, axis=None, dtype=None):
                 else:
                     return data[1]
             else:
-                #<<<<<<< HEAD
+                
                 #            wMin = data[-1] - data[0]
                 wMin = np.inf
                 N = data.size / 2 + data.size % 2
+
                 for i in xrange(0, N):
                     w = data[i + N - 1] - data[i]
                     if w < wMin:
