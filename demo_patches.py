@@ -9,26 +9,61 @@ and https://github.com/agiovann/Constrained_NMF
 
 """
 #%%
-import os
-import ca_source_extraction as cse 
-import calblitz as cb
-import time
-import psutil
+try:
+    %load_ext autoreload
+    %autoreload 2
+    print 1
+except:
+    print 'NOT IPYTHON'
+
+import matplotlib as mpl
+mpl.use('TKAgg')
+from matplotlib import pyplot as plt
+#plt.ion()
+
 import sys
-import scipy
-import pylab as pl
 import numpy as np
+import ca_source_extraction as cse
+
+#sys.path.append('../SPGL1_python_port')
+#%
+from time import time
+from scipy.sparse import coo_matrix
+import tifffile
+import subprocess
+import time as tm
+from time import time
+import pylab as pl
+import psutil
 import glob
+import os
+import scipy
+from ipyparallel import Client
+#%%
+n_processes = np.maximum(np.int(psutil.cpu_count()*.75),1) # roughly number of cores on your machine minus 1
+print 'using ' + str(n_processes) + ' processes'
 
-%load_ext autoreload
-%autoreload 2
+#%% start cluster for efficient computation
+single_thread=False
 
-
-#%% select all tiff files in current folder
+if single_thread:
+    dview=None
+else:    
+    try:
+        c.close()
+    except:
+        print 'C was not existing, creating one'
+    print "Stopping  cluster to avoid unnencessary use of memory...."
+    sys.stdout.flush()  
+    cse.utilities.stop_server()
+    cse.utilities.start_server()
+    c=Client()
+    dview=c[:n_processes]
+#%% FOR LOADING ALL TIFF FILES IN A FILE AND SAVING THEM ON A SINGLE MEMORY MAPPABLE FILE
 fnames=[]
 base_folder='./movies/' # folder containing the demo files
 for file in glob.glob(os.path.join(base_folder,'*.tif')):
-    if file.endswith(".tif"):
+    if file.endswith("ie.tif"):
         fnames.append(file)
 fnames.sort()
 print fnames  
@@ -39,25 +74,26 @@ fnames=fnames
 #idx_x=slice(10,502,None)
 #idx_y=slice(10,502,None)
 #fname_new=cse.utilities.save_memmap(fnames,base_name='Yr',resize_fact=(1,1,fraction_downsample),remove_init=0,idx_xy=(idx_x,idx_y))
-#%%  Memory Map. Create a unique file for the whole dataset
-fraction_downsample=1; # useful to downsample the movie across time. fraction_downsample=.1 measn downsampling by a factor of 10
-fname_new=cse.utilities.save_memmap(fnames,base_name='Yr',resize_fact=(1,1,fraction_downsample))
+
 #%%
-Yr,(d1,d2),T=cse.utilities.load_memmap(fname_new)
-d,T=np.shape(Yr)
-Y=np.reshape(Yr,(d1,d2,T),order='F') # 3D version of the movie
-#%% build an image to check the presence of neurons
-corr_image=1
-if corr_image:
-    # build correlation image
-    Cn=cse.utilities.local_correlations(Y[:,:,:3000])
-else:
-    # build mean image
-    Cn=np.mean(Y[:,:,:memory_fact*10000],axis=-1)
-    
-Cn[np.isnan(Cn)]=0
-#%% USE this visualization to establish how large are neurons and how many neurons do you expect in a patch
-pl.imshow(Cn,cmap='gray',vmin=np.percentile(Cn, 1), vmax=np.percentile(Cn, 99))    
+name_new=cse.utilities.save_memmap_each(fnames, dview=dview,base_name='Yr', resize_fact=(1, 1, 1), remove_init=0, idx_xy=None)
+name_new.sort()
+#%%
+fname_new=cse.utilities.save_memmap_join('Yr',name_new, n_chunks=12, dview=dview)
+#%%  Create a unique file fot the whole dataset
+##
+#fraction_downsample=1; # useful to downsample the movie across time. fraction_downsample=.1 measn downsampling by a factor of 10
+#fname_new=cse.utilities.save_memmap(fnames,base_name='Yr',resize_fact=(1,1,fraction_downsample),order='F')
+#%%
+
+#%%
+#fname_new='Yr_d1_501_d2_398_d3_1_order_F_frames_369_.mmap'
+Yr,dims,T=cse.utilities.load_memmap(fname_new)
+d1,d2=dims
+Y=np.reshape(Yr,dims+(T,),order='F')
+#%%
+Cn = cse.utilities.local_correlations(Y)
+pl.imshow(Cn,cmap='gray')  
 #%%
 rf=10 # half-size of the patches in pixels. rf=25, patches are 50x50
 stride = 2 #amounpl.it of overlap between the patches in pixels    
@@ -67,17 +103,10 @@ merge_thresh=0.8 # merging threshold, max correlation allowed
 p=2 #order of the autoregressive system
 memory_fact=1; #unitless number accounting how much memory should be used. You will need to try different values to see which one would work the default is OK for a 16 GB system
 save_results=False
-#%% Start the cluster
-n_processes = np.maximum(np.int(psutil.cpu_count()*.75),1) # roughly number of cores on your machine minus 1
-print 'using ' + str(n_processes) + ' processes'
-print "Restarting cluster to avoid unnencessary use of memory...."
-sys.stdout.flush()  
-cse.utilities.stop_server() 
-cse.utilities.start_server(n_processes)
 #%% RUN ALGORITHM ON PATCHES
 options_patch = cse.utilities.CNMFSetParms(Y,n_processes,p=0,gSig=gSig,K=K,ssub=1,tsub=4,thr=merge_thresh)
 A_tot,C_tot,b,f,sn_tot, optional_outputs = cse.map_reduce.run_CNMF_patches(fname_new, (d1, d2, T), options_patch,rf=rf,stride = stride,
-                                                                       n_processes=n_processes, backend='ipyparallel',memory_fact=memory_fact)
+                                                                       n_processes=n_processes, dview=dview ,memory_fact=memory_fact)
 print 'Number of components:' + str(A_tot.shape[-1])      
 #%%
 if save_results:
@@ -91,12 +120,12 @@ pix_proc=np.minimum(np.int((d1*d2)/n_processes/(T/2000.)),np.int((d1*d2)/n_proce
 options['spatial_params']['n_pixels_per_process']=pix_proc
 options['temporal_params']['n_pixels_per_process']=pix_proc
 #%% merge spatially overlaping and temporally correlated components      
-A_m,C_m,nr_m,merged_ROIs,S_m,bl_m,c1_m,sn_m,g_m=cse.merge_components(Yr,A_tot,[],np.array(C_tot),[],np.array(C_tot),[],options['temporal_params'],options['spatial_params'],thr=options['merging']['thr'],mx=np.Inf)     
+A_m,C_m,nr_m,merged_ROIs,S_m,bl_m,c1_m,sn_m,g_m=cse.merge_components(Yr,A_tot,[],np.array(C_tot),[],np.array(C_tot),[],options['temporal_params'],options['spatial_params'],dview=dview,thr=options['merging']['thr'],mx=np.Inf)     
 #%% update temporal to get Y_r
 options['temporal_params']['p']=0
 options['temporal_params']['fudge_factor']=0.96 #change ifdenoised traces time constant is wrong
 options['temporal_params']['backend']='ipyparallel'
-C_m,f_m,S_m,bl_m,c1_m,neurons_sn_m,g2_m,YrA_m = cse.temporal.update_temporal_components(Yr,A_m,np.atleast_2d(b).T,C_m,f,bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
+C_m,f_m,S_m,bl_m,c1_m,neurons_sn_m,g2_m,YrA_m = cse.temporal.update_temporal_components(Yr,A_m,np.atleast_2d(b).T,C_m,f,dview=dview,bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
 
 #%%
 traces=C_m+YrA_m
@@ -114,15 +143,13 @@ crd = cse.utilities.plot_contours(A_m,Cn,thr=0.9)
 #%%
 print 'Number of components:' + str(A_m.shape[-1])  
 #%% UPDATE SPATIAL OCMPONENTS
-options['spatial_params']['backend']='ipyparallel' #parallelize with ipyparallel
-t1 = time.time()
-A2,b2,C2 = cse.spatial.update_spatial_components(Yr, C_m, f, A_m, sn=sn_tot, **options['spatial_params'])
-print time.time() - t1
+t1 = time()
+A2,b2,C2 = cse.spatial.update_spatial_components(Yr, C_m, f, A_m, sn=sn_tot,dview=dview, **options['spatial_params'])
+print time() - t1
 #%% UPDATE TEMPORAL COMPONENTS
 options['temporal_params']['p']=p
 options['temporal_params']['fudge_factor']=0.96 #change ifdenoised traces time constant is wrong
-options['temporal_params']['backend']='ipyparallel'
-C2,f2,S2,bl2,c12,neurons_sn2,g21,YrA = cse.temporal.update_temporal_components(Yr,A2,b2,C2,f,bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
+C2,f2,S2,bl2,c12,neurons_sn2,g21,YrA = cse.temporal.update_temporal_components(Yr,A2,b2,C2,f,dview=dview, bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
 #%% Order components
 #A_or, C_or, srt = cse.utilities.order_components(A2,C2)
 #%% stop server and remove log files

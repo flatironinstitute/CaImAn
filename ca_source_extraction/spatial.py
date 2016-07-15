@@ -112,6 +112,7 @@ def update_spatial_components(Y, C, f, A_in, sn=None, dims=None, min_size=3, max
          temporal components (updated only when spatial components are completely removed)
 
     """
+
     if expandCore is None:
         expandCore = iterate_structure(generate_binary_structure(2, 1), 2).astype(int)
 
@@ -172,15 +173,23 @@ def update_spatial_components(Y, C, f, A_in, sn=None, dims=None, min_size=3, max
     elif type(Y) is str:
         Y_name = Y
     else:
+        raise Exception('Not implemented consistently')
         Y_name = os.path.join(folder, 'Y_temp.npy')
         np.save(Y_name, Y)
         Y, _, _, _ = load_memmap(Y_name)
 
     # create arguments to be passed to the function. Here we are grouping
     # bunch of pixels to be processed by each thread
-    pixel_groups = [(Y_name, C_name, sn, ind2_, range(i, i + n_pixels_per_process))
-                    for i in range(0, np.prod(dims) - n_pixels_per_process + 1, n_pixels_per_process)]
-
+#    pixel_groups = [(Y_name, C_name, sn, ind2_, range(i, i + n_pixels_per_process))
+#                    for i in range(0, np.prod(dims) - n_pixels_per_process + 1, n_pixels_per_process)]
+    pixel_groups = []
+    for i in range(0, np.prod(dims) - n_pixels_per_process + 1, n_pixels_per_process):
+        pixel_groups.append([Y_name, C_name, sn, ind2_, range(i, i + n_pixels_per_process)])
+        
+    if i< np.prod(dims):
+        pixel_groups.append([Y_name, C_name, sn, ind2_, range(i,np.prod(dims))])
+        
+        
     A_ = np.zeros((d, nr + np.size(f, 0)))
 
     
@@ -188,34 +197,32 @@ def update_spatial_components(Y, C, f, A_in, sn=None, dims=None, min_size=3, max
     if dview is not None:
         parallel_result = dview.map_sync(lars_regression_noise_ipyparallel, pixel_groups)
         dview.results.clear()
+        for chunk in parallel_result:
+            for pars in chunk:
+                px, idxs_, a = pars
+                A_[px, idxs_] = a        
     else:
-        parallel_result = map(lars_regression_noise_ipyparallel, pixel_groups)
-    # clean up
+#        parallel_result = map(lars_regression_noise_ipyparallel, pixel_groups)
+#        for chunk in parallel_result:
+#            for pars in chunk:
+#                px, idxs_, a = pars
+#                A_[px, idxs_] = a    
 
-    for chunk in parallel_result:
-        for pars in chunk:
-            px, idxs_, a = pars
-            A_[px, idxs_] = a
 
-    
-        
+        Cf_ = [Cf[idx_, :] for idx_ in ind2_]
 
-#    else :
-#
-#        Cf_ = [Cf[idx_, :] for idx_ in ind2_]
-#
-#        #% LARS regression
-#        A_ = np.hstack((np.zeros((d, nr)), np.zeros((d, np.size(f, 0)))))
-#
-#        for c, y, s, id2_, px in zip(Cf_, Y, sn, ind2_, range(d)):
-#            if px % 1000 == 0:
-#                print px
-#            if np.size(c) > 0:
-#                _, _, a, _, _ = lars_regression_noise(y, np.array(c.T), 1, sn[px]**2 * T)
-#                if np.isscalar(a):
-#                    A_[px, id2_] = a
-#                else:
-#                    A_[px, id2_] = a.T
+        #% LARS regression
+        A_ = np.hstack((np.zeros((d, nr)), np.zeros((d, np.size(f, 0)))))
+
+        for c, y, s, id2_, px in zip(Cf_, Y, sn, ind2_, range(d)):
+            if px % 1000 == 0:
+                print px
+            if np.size(c) > 0:
+                _, _, a, _, _ = lars_regression_noise(y, np.array(c.T), 1, sn[px]**2 * T)
+                if np.isscalar(a):
+                    A_[px, id2_] = a
+                else:
+                    A_[px, id2_] = a.T
 #
    
 
