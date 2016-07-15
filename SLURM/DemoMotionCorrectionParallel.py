@@ -46,16 +46,14 @@ cse.utilities.start_server(ncpus=None,slurm_script=slurm_script)
 #%%
 import os
 fnames=[]
-base_folder='/mnt/ceph/users/agiovann/ImagingData/eyeblink/b23/5.12/'
-for file in glob.glob(base_folder+'*.tif'):
-    if file.startswith("") and file.endswith(".tif"):
+base_folder='/mnt/ceph/users/agiovann/ImagingData/LABELLING/k31/20151223/'
+for file in glob.glob(base_folder+'k31_20151223_AM_150um_65mW_zoom2p2_00001_*.tif'):
         fnames.append(file)
 fnames.sort()
 print fnames  
+
 #%%
-fnames=['./movies/demoMovie_PC.tif']
-#%%
-n_processes = 112#np.maximum(psutil.cpu_count() - 2,1) # roughly number of cores on your machine minus 1
+n_processes = 56#np.maximum(psutil.cpu_count() - 2,1) # roughly number of cores on your machine minus 1
 
 #%%
 #low_SNR=False
@@ -70,7 +68,7 @@ n_processes = 112#np.maximum(psutil.cpu_count() - 2,1) # roughly number of cores
 #    mn.play(gain=5.,magnification=4,backend='opencv',fr=30)
 #%%
 t1 = time()
-file_res=cb.motion_correct_parallel(fnames,fr=30,template=None,margins_out=0,max_shift_w=45, max_shift_h=45,backend='SLURM',apply_smooth=True)
+file_res=cb.motion_correct_parallel(fnames,fr=30,template=None,margins_out=0,max_shift_w=45, max_shift_h=45,dview=,apply_smooth=True)
 t2=time()-t1
 print t2
 #%%   
@@ -96,7 +94,7 @@ pl.imshow(template,cmap=pl.cm.gray,vmax=120)
 all_movs.play(backend='opencv',gain=10,fr=10)
 #%%
 t1 = time()
-file_res=cb.motion_correct_parallel(fnames,30,template=template,margins_out=0,max_shift_w=45, max_shift_h=45,backend='SLURM',remove_blanks=False)
+file_res=cb.motion_correct_parallel(fnames,30,template=template,margins_out=0,max_shift_w=45, max_shift_h=45,client=,remove_blanks=False)
 t2=time()-t1
 print t2
 #%%
