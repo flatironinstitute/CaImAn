@@ -56,7 +56,7 @@ def constrained_foopsi_parallel(arg_in):
     
      
 #%%
-def update_temporal_components(Y, A, b, Cin, fin, bl = None,  c1 = None, g = None,  sn = None, ITER=2, method_foopsi='constrained_foopsi', n_processes=1, backend='single_thread',memory_efficient=False, debug=False, **kwargs):
+def update_temporal_components(Y, A, b, Cin, fin, bl = None,  c1 = None, g = None,  sn = None, ITER=2, method_foopsi='constrained_foopsi', memory_efficient=False, debug=False, dview=None,**kwargs):
     """Update temporal components and background given spatial components using a block coordinate descent approach.
     
     Parameters
@@ -132,7 +132,9 @@ def update_temporal_components(Y, A, b, Cin, fin, bl = None,  c1 = None, g = Non
     YrA: np.ndarray
             matrix of spatial component filtered raw data, after all contributions have been removed.            
             YrA corresponds to the residual trace for each component and is used for faster plotting (K x T)
+    
     """
+    
     if not kwargs.has_key('p') or kwargs['p'] is None:
         raise Exception("You have to provide a value for p")
 
@@ -166,29 +168,6 @@ def update_temporal_components(Y, A, b, Cin, fin, bl = None,  c1 = None, g = Non
     YrA = YA - Cin.T.dot(AA)
     #YrA = ((A.T.dot(Y)).T-Cin.T.dot(A.T.dot(A)))*spdiags(1./nA,0,nr+1,nr+1)
     
-    if backend == 'ipyparallel' or backend == 'SLURM':
-        try: # if server is not running and raise exception if not installed or not started        
-            from ipyparallel import Client
-            if backend is 'SLURM':
-                if 'IPPPDIR' in os.environ and 'IPPPROFILE' in os.environ:
-                    pdir, profile = os.environ['IPPPDIR'], os.environ['IPPPROFILE']
-                else:
-                    raise Exception('envirnomment variables not found, please source slurmAlloc.rc')
-        
-                c = Client(ipython_dir=pdir, profile=profile)
-                print 'Using '+ str(len(c)) + ' processes'
-            else:
-                c = Client()
-            
-        except:
-            print "this backend requires the installation of the ipyparallel (pip install ipyparallel) package and  starting a cluster (type ipcluster start -n 6) where 6 is the number of nodes"
-            raise
-    
-        if len(c) <  n_processes:
-            print len(c)
-            raise Exception("the number of nodes in the cluster are less than the required processes: decrease the n_processes parameter to a suitable value")            
-        
-        dview=c[:n_processes] # use the number of processes
     
     Cin=np.array(Cin.todense())    
     for iter in range(ITER):
@@ -210,7 +189,7 @@ def update_temporal_components(Y, A, b, Cin, fin, bl = None,  c1 = None, g = Non
             args_in=[(np.squeeze(np.array(Ytemp[:,jj])), nT[jj], jj, None, None, None, None, kwargs) for jj in range(len(jo))]
 #            import pdb
 #            pdb.set_trace()
-            if backend == 'ipyparallel' or backend == 'SLURM':                    
+            if dview is not None:                    
                 #
                 if debug:                
                     results = dview.map_async(constrained_foopsi_parallel,args_in)  
@@ -226,13 +205,10 @@ def update_temporal_components(Y, A, b, Cin, fin, bl = None,  c1 = None, g = Non
                     
                     results = dview.map_sync(constrained_foopsi_parallel,args_in)
                 
-            elif backend == 'single_thread':
+            else:
                 
                 results = map(constrained_foopsi_parallel,args_in)            
                 
-            else:
-                
-                raise Exception('Backend not defined. Use either single_thread or ipyparallel or SLURM')
                 
             for chunk in results:
                 pars=dict()
@@ -276,10 +252,9 @@ def update_temporal_components(Y, A, b, Cin, fin, bl = None,  c1 = None, g = Non
         #YrA = YA - C.T.dot(AA)
         #YrA[:,ii] = YrA[:,ii] - np.atleast_2d(C[ii,:]).T                
         
-        if backend == 'ipyparallel' or  backend == 'SLURM':       
+        if dview is not None:       
             dview.results.clear()   
-            c.purge_results('all')
-            c.purge_everything()
+            
 
         if scipy.linalg.norm(Cin - C,'fro')/scipy.linalg.norm(C,'fro') <= 1e-3:
             # stop if the overall temporal component does not change by much
@@ -292,7 +267,6 @@ def update_temporal_components(Y, A, b, Cin, fin, bl = None,  c1 = None, g = Non
     C = C[:nr,:]
     YrA = np.array(YrA[:,:nr]).T    
     P_ = sorted(P_, key=lambda k: k['neuron_id']) 
-    if backend == 'ipyparallel' or  backend == 'SLURM':      
-        c.close()
+    
     
     return C,f,S,bl,c1,sn,g,YrA #,P_

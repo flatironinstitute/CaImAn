@@ -150,7 +150,7 @@ def get_noise_fft(Y, noise_range = [0.25,0.5], noise_method = 'logmexp', max_num
 
 
 
-def get_noise_fft_parallel(Y, n_processes=4,n_pixels_per_process=100, backend='ipyparallel', **kwargs):
+def get_noise_fft_parallel(Y,n_pixels_per_process=100, dview=None, **kwargs):
     """parallel version of get_noise_fft.
 
     Params:
@@ -183,7 +183,6 @@ def get_noise_fft_parallel(Y, n_processes=4,n_pixels_per_process=100, backend='i
     # Pre-allocate a writeable shared memory map as a container for the
     # results of the parallel computation
 
-
     pixel_groups=range(0,Y.shape[0]-n_pixels_per_process+1,n_pixels_per_process)
 
 #    if backend=="threading": # case joblib
@@ -195,64 +194,56 @@ def get_noise_fft_parallel(Y, n_processes=4,n_pixels_per_process=100, backend='i
 #        Parallel(n_jobs=n_processes, backend=backend)(delayed(fft_psd_parallel)(Y, sn_s, i, n_pixels_per_process, **kwargs)
 #                            for i in pixel_groups)
 
-    if backend=='multithreading':
+#    if backend=='multithreading':
+#
+#        pool = ThreadPool(n_processes)
+#        argsin=[(Y, i, n_pixels_per_process, kwargs) for i in pixel_groups]
+#        results = pool.map(fft_psd_multithreading, argsin)
+#        _,_,psx_= results[0]
+#        sn_s=np.zeros(Y.shape[0])
+#        psx_s=np.zeros((Y.shape[0],psx_.shape[-1]))
+#        for idx,sn,psx_ in results:
+#            sn_s[idx]=sn
+#            psx_s[idx,:]=psx_
 
-        pool = ThreadPool(n_processes)
-        argsin=[(Y, i, n_pixels_per_process, kwargs) for i in pixel_groups]
-        results = pool.map(fft_psd_multithreading, argsin)
-        _,_,psx_= results[0]
-        sn_s=np.zeros(Y.shape[0])
-        psx_s=np.zeros((Y.shape[0],psx_.shape[-1]))
-        for idx,sn,psx_ in results:
-            sn_s[idx]=sn
-            psx_s[idx,:]=psx_
-
-    elif backend=='ipyparallel' or backend=='SLURM':
+    if dview is not None:
+        
         if type(Y) is np.core.memmap:  # if input file is already memory mapped then find the filename
             Y_name = Y.filename
         else:
             raise Exception('ipyparallel backend only works with memory mapped files')
             
-        try: 
-            if backend=='SLURM':
-                if 'IPPPDIR' in os.environ and 'IPPPROFILE' in os.environ:
-                    pdir, profile = os.environ['IPPPDIR'], os.environ['IPPPROFILE']
-                else:
-                    raise Exception('envirnomment variables not found, please source slurmAlloc.rc')
         
-                c = Client(ipython_dir=pdir, profile=profile)
-            else:
-                c = Client()
+        ne = len(dview)
+        print 'Running on %d engines.'%(ne)
 
+        argsin=[(Y_name, i, n_pixels_per_process, kwargs) for i in pixel_groups]
 
-            dview = c[:]
-            ne = len(dview)
-            print 'Running on %d engines.'%(ne)
+#        if backend=='SLURM':     
+#            results = dview.map(fft_psd_multithreading, argsin)
+#        else:            
+#            results = dview.map_sync(fft_psd_multithreading, argsin)
+        
+        
+        if dview.client.profile == 'default':     
+            results = dview.map_sync(fft_psd_multithreading, argsin)            
+        else:
+            print 'PROFILE:'+ dview.client.profile
+            results = dview.map(fft_psd_multithreading, argsin)         
+        
+        _,_,psx_= results[0]
+        psx_s=np.zeros((Y.shape[0],psx_.shape[-1]))
+        sn_s=np.zeros(Y.shape[0])
 
-            argsin=[(Y_name, i, n_pixels_per_process, kwargs) for i in pixel_groups]
-
-            if backend=='SLURM':     
-                results = dview.map(fft_psd_multithreading, argsin)
-            else:            
-                results = dview.map_sync(fft_psd_multithreading, argsin)
-            
-
-            _,_,psx_= results[0]
-            psx_s=np.zeros((Y.shape[0],psx_.shape[-1]))
-            sn_s=np.zeros(Y.shape[0])
-
-            for idx,sn, psx_ in results:
-                sn_s[idx]=sn
-                psx_s[idx,:]=psx_
-        finally:
-            try:
-                c.close()
-            except:
-                print 'closing c failed'
+        for idx,sn, psx_ in results:
+            sn_s[idx]=sn
+            psx_s[idx,:]=psx_
+        
 
                 
-    elif backend=='single_thread':
+    else:
 #        pool = ThreadPool(n_processes)
+        print 'Single Thread'
         argsin=[(Y, i, n_pixels_per_process, kwargs) for i in pixel_groups]
         results = map(fft_psd_multithreading, argsin)
         _,_,psx_= results[0]
@@ -261,8 +252,7 @@ def get_noise_fft_parallel(Y, n_processes=4,n_pixels_per_process=100, backend='i
         for idx,sn,psx_ in results:        
             sn_s[idx]=sn
             psx_s[idx,:]=psx_
-    else:
-        raise Exception('Unknown method')                   
+                 
                         
         
     # if n_pixels_per_process is not a multiple of Y.shape[0] run on remaining pixels   
@@ -490,7 +480,7 @@ def nextpow2(value):
         exponent += 1
     return exponent
 
-def preprocess_data(Y, sn = None , n_processes=4, backend='multithreading', n_pixels_per_process=100,  noise_range = [0.25,0.5], noise_method = 'logmexp', compute_g=False,  p = 2, g = None,  lags = 5, include_noise = False, pixels = None,max_num_samples_fft=10000):
+def preprocess_data(Y, sn = None ,  dview=None, n_pixels_per_process=100,  noise_range = [0.25,0.5], noise_method = 'logmexp', compute_g=False,  p = 2, g = None,  lags = 5, include_noise = False, pixels = None,max_num_samples_fft=10000):
     """
     Performs the pre-processing operations described above.
     """
@@ -498,7 +488,7 @@ def preprocess_data(Y, sn = None , n_processes=4, backend='multithreading', n_pi
     Y,coor=interpolate_missing_data(Y)
 
     if sn is None:
-        sn,psx=get_noise_fft_parallel(Y, n_processes=n_processes,n_pixels_per_process=n_pixels_per_process, backend = backend, noise_range = noise_range, noise_method = noise_method,max_num_samples_fft=max_num_samples_fft)
+        sn,psx=get_noise_fft_parallel(Y,n_pixels_per_process=n_pixels_per_process, dview = dview, noise_range = noise_range, noise_method = noise_method,max_num_samples_fft=max_num_samples_fft)
         #sn = get_noise_fft(Y, noise_range = noise_range, noise_method = noise_method)
     else:
         psx=None

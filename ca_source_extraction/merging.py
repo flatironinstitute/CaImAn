@@ -12,7 +12,7 @@ from temporal import update_temporal_components
 from deconvolution import constrained_foopsi
 
 #%%
-def merge_components(Y,A,b,C,f,S,sn_pix,temporal_params,spatial_params,thr=0.85,fast_merge=True,mx=1000,bl=None,c1=None,sn=None,g=None):
+def merge_components(Y,A,b,C,f,S,sn_pix,temporal_params,spatial_params,dview=None,thr=0.85,fast_merge=True,mx=1000,bl=None,c1=None,sn=None,g=None):
     """ Merging of spatially overlapping components that have highly correlated temporal activity
     The correlation threshold for merging overlapping components is user specified in thr
      
@@ -190,10 +190,10 @@ sn: float
                 aa_2=(aa_1).mean(axis=0)                        
                 ff = np.nonzero(A_merged[:,i])[0]         
     #            cc,_,_,Ptemp,_ = update_temporal_components(np.asarray(Y_res[ff,:]),A_merged[ff,i],b[ff],aa_2,f,p=p,deconv_method=deconv_method)
-                cc,_,_,_,bl__,c1__,sn__,g__,YrA = update_temporal_components(np.asarray(Y_res[ff,:]),A_merged[ff,i],b[ff],aa_2,f,bl=None,c1=None,sn=None,g=None,**temporal_params)                     
-                aa,bb,cc = update_spatial_components(np.asarray(Y_res),cc,f,A_merged[:,i],sn=sn_pix,**spatial_params)
+                cc,_,_,_,bl__,c1__,sn__,g__,YrA = update_temporal_components(np.asarray(Y_res[ff,:]),A_merged[ff,i],b[ff],aa_2,f,dview=dview,bl=None,c1=None,sn=None,g=None,**temporal_params)                     
+                aa,bb,cc = update_spatial_components(np.asarray(Y_res),cc,f,A_merged[:,i],sn=sn_pix,dview=dview,**spatial_params)
                 A_merged[:,i] = aa.tocsr();                
-                cc,_,_,ss,bl__,c1__,sn__,g__,YrA = update_temporal_components(Y_res[ff,:],A_merged[ff,i],bb[ff],cc,f,bl=bl__,c1=c1__,sn=sn__,g=g__,**temporal_params)                
+                cc,_,_,ss,bl__,c1__,sn__,g__,YrA = update_temporal_components(Y_res[ff,:],A_merged[ff,i],bb[ff],cc,f,dview=dview,bl=bl__,c1=c1__,sn=sn__,g=g__,**temporal_params)                
 
 
                 C_merged[i,:] = cc

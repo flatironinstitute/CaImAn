@@ -33,7 +33,7 @@ import shutil
 import glob
 import shlex
 from skimage.external.tifffile import imread
-
+import psutil
 #%%
 
 
@@ -62,14 +62,12 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], ssub=1, tsub=1, p=2, p_ssub=
                                     # averaging method ('mean','median','logmexp')
                                     'noise_method': 'logmexp',
                                     'max_num_samples_fft': 3000,
-                                    'n_processes': n_processes,
                                     'n_pixels_per_process': n_pixels_per_process,
                                     'compute_g': False,            # flag for estimating global time constant
                                     'p': p,                        # order of AR indicator dynamics
                                     'lags': 5,                     # number of autocovariance lags to be considered for time constant estimation
                                     'include_noise': False,        # flag for using noise values when estimating g
                                     'pixels': None,                 # pixels to be excluded due to saturation
-                                    'backend': 'ipyparallel'
                                     }
     options['init_params'] = {'K': K,                                          # number of components
                               # size of components (std of Gaussian)
@@ -87,9 +85,7 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], ssub=1, tsub=1, p=2, p_ssub=
         # method for determining footprint of spatial components ('ellipse' or 'dilate')
         'method': 'ellipse',
         'dist': 3,                       # expansion factor of ellipse
-        'n_processes': n_processes,      # number of process
         'n_pixels_per_process': n_pixels_per_process,    # number of pixels to be processed by eacg worker
-        'backend': 'ipyparallel',
     }
     options['temporal_params'] = {
         'ITER': 2,                   # block coordinate descent iterations
@@ -99,8 +95,6 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], ssub=1, tsub=1, p=2, p_ssub=
         # solution) solvers to be used with cvxpy, can be 'ECOS','SCS' or 'CVXOPT'
         'solvers': ['ECOS', 'SCS'],
         'p': p,                      # order of AR indicator dynamics
-        'n_processes': n_processes,
-        'backend': 'ipyparallel',
         'memory_efficient': False,
         # flag for setting non-negative baseline (otherwise b >= min(y))
         'bas_nonneg': True,
@@ -150,15 +144,91 @@ def load_memmap(filename):
         Yr = np.memmap(file_to_load, mode='r', shape=(
             d1 * d2 * d3, T), dtype=np.float32, order=order)
 
-        return (Yr, (d1, d2), T) if d3 == 1 else (Yr, (d1, d2, d3), T)
+        return (Yr, (d1, d2 ), T) if d3 == 1 else (Yr, (d1, d2, d3), T)
 
     else:
         Yr = np.load(filename, mmap_mode='r')
         return Yr, None, None
 
-
+#%% 
+def save_memmap_each(fnames, dview=None, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0, idx_xy=None):
+    order='C'
+    pars=[]
+    for idx,f in enumerate(fnames):
+        pars.append([f,base_name+str(idx),resize_fact,remove_init,idx_xy,order])
+        
+    if dview is not None:
+        fnames_new=dview.map_sync(save_place_holder,pars)
+    else:
+        fnames_new=map(save_place_holder,pars)
+    
+    return fnames_new
 #%%
-def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0, idx_xy=None):
+def save_memmap_join(base_name,mmap_fnames, n_chunks=12, dview=None):
+    
+    tot_frames=0
+    order='C'
+    for f in mmap_fnames:
+        Yr,dims,T=load_memmap(f)
+        print f,T
+        tot_frames+=T
+        del Yr
+       
+    
+    d=np.prod(dims)
+    
+    fname_tot = base_name
+    
+    fname_tot = base_name + '_d1_' + str(dims[0]) + '_d2_' + str(dims[1]) + '_d3_' + str(1 if len(dims) == 2 else dims[2]) + '_order_' + str(order) + '_frames_' + str(tot_frames) + '_.mmap'
+    
+    print fname_tot
+                
+    big_mov = np.memmap(fname_tot, mode='w+', dtype=np.float32,shape=(d, tot_frames), order='C')
+    
+    
+    step=d/n_chunks
+    pars=[]
+    for ref in range(0,d-step,step):
+        pars.append([fname_tot,d,tot_frames,mmap_fnames,ref,ref+step])
+    
+    if ref<d:
+        pars.append([fname_tot,d,tot_frames,mmap_fnames,ref,d])
+    
+    if dview is not None:    
+        res=dview.map_sync(save_portion, pars)
+    else:
+        res=map(save_portion, pars)
+        
+    return fname_tot
+
+    
+#%%
+def save_portion(pars):
+    
+    big_mov,d,tot_frames,fnames,idx_start,idx_end=pars
+    big_mov = np.memmap(big_mov, mode='r+', dtype=np.float32,shape=(d, tot_frames), order='C')
+    Ttot=0
+    for f in fnames:
+        print f
+        Yr,dims,T=load_memmap(f)        
+        print idx_start,idx_end
+        big_mov[idx_start:idx_end,Ttot:Ttot+T]=np.array(Yr[idx_start:idx_end])
+        Ttot=Ttot+T
+        del Yr
+    del big_mov    
+    return Ttot#%%
+        
+    
+#%%
+def save_place_holder(pars):
+    """ To use map reduce
+    """
+    
+    import ca_source_extraction as cse
+    f,base_name,resize_fact,remove_init,idx_xy,order=pars    
+    return save_memmap([f],base_name=base_name,resize_fact=resize_fact,remove_init=remove_init, idx_xy=idx_xy, order=order)
+#%%
+def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0, idx_xy=None, order='F'):
     """ Saves efficiently a list of tif files into a memory mappable file
     Parameters
     ----------
@@ -178,7 +248,7 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
         fname_new: the name of the mapped file, the format is such that the name will contain the frame dimensions and the number of f
 
     """
-    order = 'F'
+    print 'Warning. Deprecated. save_memmap_parallel'
     Ttot = 0
     for idx, f in enumerate(filenames):
         print f
@@ -210,7 +280,80 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
 
         T, dims = Yr.shape[0], Yr.shape[1:]
         Yr = np.transpose(Yr, range(1, len(dims) + 1) + [0])
-        Yr = np.reshape(Yr, (np.prod(dims), T), order=order)
+        Yr = np.reshape(Yr, (np.prod(dims), T), order='F')
+
+        if idx == 0:
+            fname_tot = base_name + '_d1_' + str(dims[0]) + '_d2_' + str(dims[1]) + '_d3_' + str(
+                1 if len(dims) == 2 else dims[2]) + '_order_' + str(order)
+            big_mov = np.memmap(fname_tot, mode='w+', dtype=np.float32,
+                                shape=(np.prod(dims), T), order=order)
+        else:
+            big_mov = np.memmap(fname_tot, dtype=np.float32, mode='r+',
+                                shape=(np.prod(dims), Ttot + T), order=order)
+        #    np.save(fname[:-3]+'npy',np.asarray(Yr))
+
+        big_mov[:, Ttot:Ttot + T] = np.asarray(Yr, dtype=np.float32) + 1e-10
+        big_mov.flush()
+        Ttot = Ttot + T
+
+    fname_new = fname_tot + '_frames_' + str(Ttot) + '_.mmap'
+    os.rename(fname_tot, fname_new)
+    del big_mov
+
+    return fname_new
+#%%
+def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0, idx_xy=None, order='F'):
+    """ Saves efficiently a list of tif files into a memory mappable file
+    Parameters
+    ----------
+        filenames: list
+            list of tif files
+        base_name: str
+            the base used to build the file name. IT MUST NOT CONTAIN "_"    
+        resize_fact: tuple
+            x,y, and z downampling factors (0.5 means downsampled by a factor 2) 
+        remove_init: int
+            number of frames to remove at the begining of each tif file (used for resonant scanning images if laser in rutned on trial by trial)
+        idx_xy: tuple size 2 [or 3 for 3D data]
+            for selecting slices of the original FOV, for instance idx_xy=(slice(150,350,None),slice(150,350,None))
+
+    Return
+    -------
+        fname_new: the name of the mapped file, the format is such that the name will contain the frame dimensions and the number of f
+
+    """
+    Ttot = 0
+    for idx, f in enumerate(filenames):
+        print f
+        if os.path.splitext(f)[-1] == '.hdf5':
+            import calblitz as cb
+            if idx_xy is None:
+                Yr = np.array(cb.load(f))[remove_init:]
+            elif len(idx_xy) == 2:
+                Yr = np.array(cb.load(f))[remove_init:, idx_xy[0], idx_xy[1]]
+            else:
+                Yr = np.array(cb.load(f))[remove_init:, idx_xy[0], idx_xy[1], idx_xy[2]]
+        else:
+            if idx_xy is None:
+                Yr = imread(f)[remove_init:]
+            elif len(idx_xy) == 2:
+                Yr = imread(f)[remove_init:, idx_xy[0], idx_xy[1]]
+            else:
+                Yr = imread(f)[remove_init:, idx_xy[0], idx_xy[1], idx_xy[2]]
+
+        fx, fy, fz = resize_fact
+        if fx != 1 or fy != 1 or fz != 1:
+            try:
+                import calblitz as cb
+                Yr = cb.movie(Yr, fr=1)
+                Yr = Yr.resize(fx=fx, fy=fy, fz=fz)
+            except:
+                print('You need to install the CalBlitz package to resize the movie')
+                raise
+
+        T, dims = Yr.shape[0], Yr.shape[1:]
+        Yr = np.transpose(Yr, range(1, len(dims) + 1) + [0])
+        Yr = np.reshape(Yr, (np.prod(dims), T), order='F')
 
         if idx == 0:
             fname_tot = base_name + '_d1_' + str(dims[0]) + '_d2_' + str(dims[1]) + '_d3_' + str(
@@ -1460,7 +1603,7 @@ def nb_plot_contour(image, A, d1, d2, thr=0.995, face_color=None, line_color='bl
     return p
 
 
-def start_server(ncpus, slurm_script=None, ipcluster="ipcluster"):
+def start_server(slurm_script=None, ipcluster="ipcluster"):
     '''
     programmatically start the ipyparallel server
 
@@ -1474,7 +1617,8 @@ def start_server(ncpus, slurm_script=None, ipcluster="ipcluster"):
     '''
     sys.stdout.write("Starting cluster...")
     sys.stdout.flush()
-
+    ncpus=psutil.cpu_count()
+    
     if slurm_script is None:
         if ipcluster == "ipcluster":
             subprocess.Popen(["ipcluster start -n {0}".format(ncpus)], shell=True)
