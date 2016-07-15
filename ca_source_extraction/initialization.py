@@ -53,7 +53,8 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
         nb x T matrix, initalization of temporal background.
 
     """
-
+    
+        
     if gSiz is None:
         gSiz = 2 * np.asarray(gSig) + 1
 
@@ -66,7 +67,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
     if sn is not None:
         min_noise = np.percentile(sn, 2)
         noise = np.maximum(sn, min_noise)
-        Y = Y / np.reshape(noise, d + (-1,))
+        Y = Y / np.reshape(noise, d + (-1,),order='F')
 
     # spatial downsampling
     mean_val = np.mean(Y)
@@ -88,30 +89,35 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
 
     ds = Y_ds.shape[:-1]
     Ain = np.reshape(Ain, ds + (K,), order='F')
+    
     if len(ds) == 2:
+
         Ain = resize(Ain, d + (K,), order=1)
+
     else:  # resize only deals with 2D images, hence apply resize twice
-        Ain = np.reshape([resize(a, d[1:] + (K,), order=1)
-                          for a in Ain], (ds[0], d[1] * d[2], K), order='F')
+
+        Ain = np.reshape([resize(a, d[1:] + (K,), order=1) for a in Ain], (ds[0], d[1] * d[2], K), order='F')
         Ain = resize(Ain, (d[0], d[1] * d[2], K), order=1)
 
     Ain = np.reshape(Ain, (np.prod(d), K), order='F')
 
     b_in = np.reshape(b_in, ds, order='F')
 
-    b_in = resize(b_in, ds)
-
+#    b_in = resize(b_in, ds)
+    b_in = resize(b_in, d)
+    
     b_in = np.reshape(b_in, (-1, 1), order='F')
 
     Cin = resize(Cin, [K, T])
+    
     f_in = resize(np.atleast_2d(f_in), [1, T])
     # center = com(Ain, *d)
     center = np.asarray([center_of_mass(a.reshape(d, order='F')) for a in Ain.T])
 
-    if sn is not None:
-        Ain = Ain * np.reshape(noise, (np.prod(d), -1))
-        b_in = b_in * np.ravel(noise)
-        Y = Y * np.reshape(noise, d + (-1,))
+    if sn is not None:        
+        Ain = Ain * np.reshape(noise, (np.prod(d), -1),order='F')      
+        b_in = b_in * np.atleast_2d(noise).T
+        Y = Y * np.reshape(noise, d + (-1,),order='F')
 
     return Ain, Cin, b_in, f_in, center
 
