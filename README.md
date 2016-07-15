@@ -80,6 +80,9 @@ Download and install Anaconda (Python 2.7) <http://docs.continuum.io/anaconda/in
 2. ADVANCED WAY (with access to source code).
     ```
     git clone --recursive https://github.com/agiovann/Constrained_NMF.git
+    cd Constrained_NMF/CalBlitz/
+    git checkout master
+    git pull
     conda create -n CNMF ipython
     source activate CNMF
     conda install numpy scipy 
