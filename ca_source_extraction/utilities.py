@@ -147,6 +147,7 @@ def load_memmap(filename):
         return (Yr, (d1, d2 ), T) if d3 == 1 else (Yr, (d1, d2, d3), T)
 
     else:
+        raise Exception('Not implemented consistently')
         Yr = np.load(filename, mmap_mode='r')
         return Yr, None, None
 

@@ -133,6 +133,7 @@ def cnmf_patches(args_in):
     #    import pdb
     #    pdb.set_trace()
     #    options = cse.utilities.CNMFSetParms(Y,p=p,gSig=gSig,K=K)
+
         options['spatial_params']['dims']=(d1,d2)
     #    options['preprocess_params']['backend']='single_thread'
     #    options['spatial_params']['backend']='single_thread'    
@@ -160,8 +161,10 @@ def cnmf_patches(args_in):
         options['temporal_params']['p'] = p # set it back to original value to perform full deconvolution
         C2,f2,S2,bl2,c12,neurons_sn2,g21,YrA = cse.temporal.update_temporal_components(Yr,A2,b2,C2,f,bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
         logger.info('Update Temporal II')                                                       
+       
         Y=[]
         Yr=[]
+        
 
         return idx_,shapes,A2,b2,C2,f2,S2,bl2,c12,neurons_sn2,g21,sn,options
     
@@ -172,7 +175,7 @@ def cnmf_patches(args_in):
     
 
 #%%
-def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, n_processes=2, backend='single_thread',memory_fact=1):
+def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, n_processes=2, dview=None,memory_fact=1):
     """Function that runs CNMF in patches, either in parallel or sequentiually, and return the result for each. It requires that ipyparallel is running
         
     Parameters
@@ -216,12 +219,9 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, n_processes=2
     d=d1*d2
     K=options['init_params']['K']
     
-    options['preprocess_params']['backend']='single_thread' 
     options['preprocess_params']['n_pixels_per_process']=np.int((rf*rf)/memory_fact)
     options['spatial_params']['n_pixels_per_process']=np.int((rf*rf)/memory_fact)
     options['temporal_params']['n_pixels_per_process']=np.int((rf*rf)/memory_fact)
-    options['spatial_params']['backend']='single_thread'
-    options['temporal_params']['backend']='single_thread'
 
     
     idx_flat,idx_2d=extract_patch_coordinates(d1, d2, rf=rf, stride = stride)
@@ -235,26 +235,13 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, n_processes=2
 
     st=time.time()        
     
-    if backend is 'ipyparallel' or backend is 'SLURM':
-
-        try:
-            if backend is 'SLURM':
-                if 'IPPPDIR' in os.environ and 'IPPPROFILE' in os.environ:
-                    pdir, profile = os.environ['IPPPDIR'], os.environ['IPPPROFILE']
-                else:
-                    raise Exception('envirnomment variables not found, please source slurmAlloc.rc')
+    if dview is not None:
         
-                c = Client(ipython_dir=pdir, profile=profile)
-                print 'Using '+ str(len(c)) + ' processes'
-            else:
-                c = Client()
-
-            dview=c[:n_processes]
+        try:
+            
             file_res = dview.map_sync(cnmf_patches, args_in)        
             dview.results.clear()   
-            c.purge_results('all')
-            c.purge_everything()
-            c.close()         
+
         except:
             print('Something went wrong')  
             raise
@@ -262,13 +249,10 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, n_processes=2
             print('You may think that it went well but reality is harsh')
                     
 
-    elif backend is 'single_thread':
+    else:
 
         file_res = map(cnmf_patches, args_in)                         
 
-    else:
-        raise Exception('Backend unknown')
-            
       
     print time.time()-st
     
