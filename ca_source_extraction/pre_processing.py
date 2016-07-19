@@ -480,7 +480,7 @@ def nextpow2(value):
         exponent += 1
     return exponent
 
-def preprocess_data(Y, sn = None ,  dview=None, n_pixels_per_process=100,  noise_range = [0.25,0.5], noise_method = 'logmexp', compute_g=False,  p = 2, g = None,  lags = 5, include_noise = False, pixels = None,max_num_samples_fft=10000):
+def preprocess_data(Y, sn = None ,  dview=None, n_pixels_per_process=100,  noise_range = [0.25,0.5], noise_method = 'logmexp', compute_g=False,  p = 2, g = None,  lags = 5, include_noise = False, pixels = None,max_num_samples_fft=3000):
     """
     Performs the pre-processing operations described above.
     """
