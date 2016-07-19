@@ -1669,7 +1669,7 @@ def shell_source(script):
 #%%
 
 
-def stop_server(is_slurm=False, ipcluster='ipcluster'):
+def stop_server(is_slurm=False, ipcluster='ipcluster',pdir=None,profile=None):
     '''
     programmatically stops the ipyparallel server
     Parameters
@@ -1683,7 +1683,8 @@ def stop_server(is_slurm=False, ipcluster='ipcluster'):
 
     if is_slurm:
         from ipyparallel import Client
-        pdir, profile = os.environ['IPPPDIR'], os.environ['IPPPROFILE']
+        if pdir is None and profile is None:
+            pdir, profile = os.environ['IPPPDIR'], os.environ['IPPPROFILE']
         c = Client(ipython_dir=pdir, profile=profile)
         ee = c[:]
         ne = len(ee)
