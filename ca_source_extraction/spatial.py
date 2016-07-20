@@ -157,8 +157,13 @@ def update_spatial_components(Y, C, f, A_in, sn=None, dims=None, min_size=3, max
 
     ind2_ = [np.hstack((np.where(iid_)[0], nr + np.arange(f.shape[0])))
              if np.size(np.where(iid_)[0]) > 0 else [] for iid_ in IND]
-
-    folder = tempfile.mkdtemp()
+               
+    if os.environ.get('SLURM_SUBMIT_DIR') is not None:   
+        tmpf=os.environ.get('SLURM_SUBMIT_DIR')
+        print 'cluster temporary folder:'+ tmpf
+        folder = tempfile.mkdtemp(dir=tmpf)    
+    else:
+        folder = tempfile.mkdtemp()
 
     # use the ipyparallel package, you need to start a cluster server
     # (ipcluster command) in order to use it
@@ -166,6 +171,7 @@ def update_spatial_components(Y, C, f, A_in, sn=None, dims=None, min_size=3, max
 
     C_name = os.path.join(folder, 'C_temp.npy')
     np.save(C_name, Cf)
+
 
     if type(Y) is np.core.memmap:  # if input file is already memory mapped then find the filename
         Y_name = Y.filename

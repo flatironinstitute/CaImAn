@@ -100,7 +100,7 @@ def find_unsaturated_pixels(Y, saturationValue = None, saturationThreshold = 0.9
     return normalPixels
 
 #%%
-def get_noise_fft(Y, noise_range = [0.25,0.5], noise_method = 'logmexp', max_num_samples_fft=10000):
+def get_noise_fft(Y, noise_range = [0.25,0.5], noise_method = 'logmexp', max_num_samples_fft=3072):
     """Estimate the noise level for each pixel by averaging the power spectral density.
     Inputs:
     Y: np.ndarray
@@ -120,19 +120,23 @@ def get_noise_fft(Y, noise_range = [0.25,0.5], noise_method = 'logmexp', max_num
         Noise level for each pixel
     """
     T = np.shape(Y)[-1]
+    Y=np.array(Y,dtype=np.float64)
+
     if T > max_num_samples_fft:
-        Y=np.concatenate((Y[...,1:np.int(max_num_samples_fft/3)],        
+        Y=np.concatenate((Y[...,1:np.int(max_num_samples_fft/3)+1],        
                          Y[...,np.int(T/2-max_num_samples_fft/3/2):np.int(T/2+max_num_samples_fft/3/2)],
                          Y[...,-np.int(max_num_samples_fft/3):]),axis=-1)        
 
         T = np.shape(Y)[-1]
-        
+
     dims = len(np.shape(Y))
     ff = np.arange(0,0.5+1./T,1./T)
     ind1 = ff > noise_range[0]
     ind2 = ff <= noise_range[1]
     ind = np.logical_and(ind1,ind2)    
+
     if dims > 1:
+
         xdft = np.fft.rfft(Y,axis=-1)
         psdx = (1./T)*abs(xdft)**2
         psdx[...,1:] *= 2

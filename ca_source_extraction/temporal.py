@@ -192,13 +192,21 @@ def update_temporal_components(Y, A, b, Cin, fin, bl = None,  c1 = None, g = Non
             if dview is not None:                    
                 #
                 if debug:                
+
                     results = dview.map_async(constrained_foopsi_parallel,args_in)  
+
                     results.get()
+
                     for outp in results.stdout:   
+
                         print outp[:-1]  
-                        sys.stdout.flush()                                                 
+
+                        sys.stdout.flush()            
+                                     
                     for outp in results.stderr:   
+
                         print outp[:-1]  
+
                         sys.stderr.flush()            
                     
                 else:
@@ -211,32 +219,49 @@ def update_temporal_components(Y, A, b, Cin, fin, bl = None,  c1 = None, g = Non
                 
                 
             for chunk in results:
+               
                 pars=dict()
+
                 C_,Sp_,Ytemp_,cb_,c1_,sn_,gn_,jj_=chunk                    
+               
                 Ctemp[jj_,:] = C_[None,:]
                                 
                 Stemp[jj_,:] = Sp_               
+                
                 Ytemp[:,jj_] = Ytemp_[:,None]            
+
                 btemp[jj_] = cb_
+
                 c1temp[jj_] = c1_
+
                 sntemp[jj_] = sn_   
+
                 gtemp[jj_,:] = gn_.T  
                    
                 bl[jo[jj_]] = cb_
+
                 c1[jo[jj_]] = c1_
+
                 sn[jo[jj_]] = sn_
+
                 g[jo[jj_]]  = gn_.T if kwargs['p'] > 0 else [] #gtemp[jj,:]
                                              
                 pars['b'] = cb_
+
                 pars['c1'] = c1_                 
+
                 pars['neuron_sn'] = sn_
+
                 pars['gn'] = gtemp[jj_,np.abs(gtemp[jj,:])>0] 
+
                 pars['neuron_id'] = jo[jj_]
+
                 P_.append(pars)
             
             YrA -= (Ctemp-C[jo,:]).T*AA[jo,:]
             #YrA[:,jo] = Ytemp
             C[jo,:] = Ctemp.copy()            
+
             S[jo,:] = Stemp
             
 #            if (np.sum(lo[:jo])+1)%1 == 0:

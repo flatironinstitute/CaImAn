@@ -61,7 +61,7 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], ssub=1, tsub=1, p=2, p_ssub=
                                     'noise_range': [0.25, 0.5],
                                     # averaging method ('mean','median','logmexp')
                                     'noise_method': 'logmexp',
-                                    'max_num_samples_fft': 3000,
+                                    'max_num_samples_fft': 3*1024,
                                     'n_pixels_per_process': n_pixels_per_process,
                                     'compute_g': False,            # flag for estimating global time constant
                                     'p': p,                        # order of AR indicator dynamics
@@ -199,7 +199,9 @@ def save_memmap_join(base_name,mmap_fnames, n_chunks=12, dview=None):
         res=dview.map_sync(save_portion, pars)
     else:
         res=map(save_portion, pars)
-        
+     
+    print 'Deleting big mov'
+    del big_mov
     return fname_tot
 
     
@@ -209,13 +211,19 @@ def save_portion(pars):
     big_mov,d,tot_frames,fnames,idx_start,idx_end=pars
     big_mov = np.memmap(big_mov, mode='r+', dtype=np.float32,shape=(d, tot_frames), order='C')
     Ttot=0
-    for f in fnames:
+    Yr_tot=np.zeros((idx_end-idx_start,tot_frames))    
+    print Yr_tot.shape
+    for f in fnames:        
         print f
         Yr,dims,T=load_memmap(f)        
         print idx_start,idx_end
-        big_mov[idx_start:idx_end,Ttot:Ttot+T]=np.array(Yr[idx_start:idx_end])
+        Yr_tot[:,Ttot:Ttot+T]=np.array(Yr[idx_start:idx_end])
         Ttot=Ttot+T
         del Yr
+    
+    big_mov[idx_start:idx_end,:]=Yr_tot
+    del Yr_tot
+    print 'done'
     del big_mov    
     return Ttot#%%
         
@@ -1722,6 +1730,7 @@ def stop_server(is_slurm=False, ipcluster='ipcluster',pdir=None,profile=None):
                 sys.stdout.flush()
                 time.sleep(1)
         else:
+            print line_out
             print '**** Unrecognized Syntax in ipcluster output, waiting for server to stop anyways ****'
 
     sys.stdout.write(" done\n")
