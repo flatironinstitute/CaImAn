@@ -131,15 +131,13 @@ or issues related to SCS type
   `export LD_LIBRARY_PATH=/path_to_your_home/anaconda2/lib/`
 
  if more problems try 
-    ```
 
-    conda install  atlas (only Ubuntu)
-    pip install 'tifffile>=0.7'
-    conda install accelerate
-    
-    conda install openblas 
-
-```
+ ```
+ conda install  atlas (only Ubuntu)
+ pip install 'tifffile>=0.7'
+ conda install accelerate
+ conda install openblas 
+ ```
 
 Test the system
 ----------------------
