@@ -139,7 +139,7 @@ def load_memmap(filename):
 
         fpart = filename.split('_')[1:-1]
 
-        d1, d2, d3, T, order = int(fpart[1]), int(fpart[3]), int(fpart[5]), int(fpart[9]), fpart[7]
+        d1, d2, d3, T, order = int(fpart[-9]), int(fpart[-7]), int(fpart[-5]), int(fpart[-1]), fpart[-3]
 
         Yr = np.memmap(file_to_load, mode='r', shape=(
             d1 * d2 * d3, T), dtype=np.float32, order=order)
@@ -152,11 +152,14 @@ def load_memmap(filename):
         return Yr, None, None
 
 #%% 
-def save_memmap_each(fnames, dview=None, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0, idx_xy=None):
+def save_memmap_each(fnames, dview=None, base_name=None, resize_fact=(1, 1, 1), remove_init=0, idx_xy=None):
     order='C'
     pars=[]
     for idx,f in enumerate(fnames):
-        pars.append([f,base_name+str(idx),resize_fact,remove_init,idx_xy,order])
+        if base_name is not None:
+            pars.append([f,base_name+str(idx),resize_fact,remove_init,idx_xy,order])
+        else:
+            pars.append([f,os.path.splitext(f)[0],resize_fact,remove_init,idx_xy,order])            
         
     if dview is not None:
         fnames_new=dview.map_sync(save_place_holder,pars)
@@ -165,7 +168,7 @@ def save_memmap_each(fnames, dview=None, base_name='Yr', resize_fact=(1, 1, 1), 
     
     return fnames_new
 #%%
-def save_memmap_join(base_name,mmap_fnames, n_chunks=12, dview=None):
+def save_memmap_join(mmap_fnames,base_name=None, n_chunks=6, dview=None):
     
     tot_frames=0
     order='C'
@@ -178,8 +181,10 @@ def save_memmap_join(base_name,mmap_fnames, n_chunks=12, dview=None):
     
     d=np.prod(dims)
     
-    fname_tot = base_name
-    
+    if base_name is None:        
+        base_name = mmap_fnames[0]
+        base_name = base_name[:base_name.find('_d1_')]+'-#-'+str(len(mmap_fnames)) 
+        
     fname_tot = base_name + '_d1_' + str(dims[0]) + '_d2_' + str(dims[1]) + '_d3_' + str(1 if len(dims) == 2 else dims[2]) + '_order_' + str(order) + '_frames_' + str(tot_frames) + '_.mmap'
     
     print fname_tot
@@ -189,19 +194,26 @@ def save_memmap_join(base_name,mmap_fnames, n_chunks=12, dview=None):
     
     step=d/n_chunks
     pars=[]
-    for ref in range(0,d-step,step):
+    for ref in range(0,d-step+1,step):
         pars.append([fname_tot,d,tot_frames,mmap_fnames,ref,ref+step])
-    
-    if ref<d:
-        pars.append([fname_tot,d,tot_frames,mmap_fnames,ref,d])
+    # last batch should include the leftover pixels
+    pars[-1][-1]=d
+
+#    if ref+step+1<d:
+#        print 'running on remaining pixels:' + str(ref+step-d)
+#        pars.append([fname_tot,d,tot_frames,mmap_fnames,ref+step,d])
     
     if dview is not None:    
         res=dview.map_sync(save_portion, pars)
     else:
         res=map(save_portion, pars)
      
+
+    np.savez(base_name+'.npz',mmap_fnames=mmap_fnames,fname_tot=fname_tot)
+    
     print 'Deleting big mov'
     del big_mov
+    
     return fname_tot
 
     

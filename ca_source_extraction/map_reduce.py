@@ -178,7 +178,7 @@ def cnmf_patches(args_in):
     
 
 #%%
-def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, n_processes=2, dview=None,memory_fact=1):
+def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, dview=None,memory_fact=1):
     """Function that runs CNMF in patches, either in parallel or sequentiually, and return the result for each. It requires that ipyparallel is running
         
     Parameters
