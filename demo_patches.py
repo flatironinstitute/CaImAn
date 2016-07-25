@@ -40,11 +40,11 @@ import os
 import scipy
 from ipyparallel import Client
 #%%
-backend='SLURM'
+backend='local'
 if backend == 'SLURM':
     n_processes = np.int(os.environ.get('SLURM_NPROCS'))
 else:
-    n_processes = np.maximum(np.int(psutil.cpu_count()*.75),1) # roughly number of cores on your machine minus 1
+    n_processes = np.maximum(np.int(psutil.cpu_count()),1) # roughly number of cores on your machine minus 1
 print 'using ' + str(n_processes) + ' processes'
 
 #%% start cluster for efficient computation
@@ -69,6 +69,7 @@ else:
         pdir, profile = os.environ['IPPPDIR'], os.environ['IPPPROFILE']
         c = Client(ipython_dir=pdir, profile=profile)        
     else:
+        cse.utilities.stop_server()
         cse.utilities.start_server()        
         c=Client()
 
@@ -76,9 +77,9 @@ else:
     dview=c[:len(c)]
 #%% FOR LOADING ALL TIFF FILES IN A FILE AND SAVING THEM ON A SINGLE MEMORY MAPPABLE FILE
 fnames=[]
-base_folder='' # folder containing the demo files
+base_folder='./movies' # folder containing the demo files
 for file in glob.glob(os.path.join(base_folder,'*.tif')):
-    if file.endswith("_motion_corrected.tif"):
+    if file.endswith(".tif"):
         fnames.append(file)
 fnames.sort()
 print fnames  
@@ -91,16 +92,18 @@ fnames=fnames
 #fname_new=cse.utilities.save_memmap(fnames,base_name='Yr',resize_fact=(1,1,fraction_downsample),remove_init=0,idx_xy=(idx_x,idx_y))
 
 #%%
-idx_x=slice(12,500,None)
-idx_y=slice(12,500,None)
-idx_xy=(idx_x,idx_y)
-#idx_xy=None
+#idx_x=slice(12,500,None)
+#idx_y=slice(12,500,None)
+#idx_xy=(idx_x,idx_y)
+downsample_factor=1 # use .2 or .1 if file is large and you want a quick answer
+idx_xy=None
 base_name='Yr'
-name_new=cse.utilities.save_memmap_each(fnames, dview=dview,base_name=base_name, resize_fact=(1, 1, .2), remove_init=0,idx_xy=idx_xy )
+name_new=cse.utilities.save_memmap_each(fnames, dview=dview,base_name=base_name, resize_fact=(1, 1, downsample_factor), remove_init=0,idx_xy=idx_xy )
 name_new.sort(key=lambda fn: np.int(fn[len(base_name):fn.find('_')]))
 print name_new
 #%%
-fname_new=cse.utilities.save_memmap_join('Yr',name_new, n_chunks=6, dview=dview)
+n_chunks=6 # increase this number if you have memory issues at this point
+fname_new=cse.utilities.save_memmap_join(name_new,base_name='Yr', n_chunks=6, dview=dview)
 #%%  Create a unique file fot the whole dataset
 ##
 #fraction_downsample=1; # useful to downsample the movie across time. fraction_downsample=.1 measn downsampling by a factor of 10
@@ -113,24 +116,22 @@ Yr,dims,T=cse.utilities.load_memmap(fname_new)
 d1,d2=dims
 Y=np.reshape(Yr,dims+(T,),order='F')
 #%%
-ytmp=
-#%%
 Cn = cse.utilities.local_correlations(Y[:,:,:3000])
 pl.imshow(Cn,cmap='gray')  
 
 #%%
-rf=30 # half-size of the patches in pixels. rf=25, patches are 50x50
+rf=10 # half-size of the patches in pixels. rf=25, patches are 50x50
 stride = 2 #amounpl.it of overlap between the patches in pixels    
-K=4 # number of neurons expected per patch
-gSig=[10,10] # expected half size of neurons
+K=3 # number of neurons expected per patch
+gSig=[7,7] # expected half size of neurons
 merge_thresh=0.8 # merging threshold, max correlation allowed
 p=2 #order of the autoregressive system
 memory_fact=1; #unitless number accounting how much memory should be used. You will need to try different values to see which one would work the default is OK for a 16 GB system
-save_results=True
+save_results=False
 #%% RUN ALGORITHM ON PATCHES
 options_patch = cse.utilities.CNMFSetParms(Y,n_processes,p=0,gSig=gSig,K=K,ssub=1,tsub=4,thr=merge_thresh)
 A_tot,C_tot,b,f,sn_tot, optional_outputs = cse.map_reduce.run_CNMF_patches(fname_new, (d1, d2, T), options_patch,rf=rf,stride = stride,
-                                                                       n_processes=n_processes, dview=dview,memory_fact=memory_fact)
+                                                                        dview=dview,memory_fact=memory_fact)
 print 'Number of components:' + str(A_tot.shape[-1])      
 #%%
 if save_results:
@@ -151,7 +152,9 @@ options['temporal_params']['fudge_factor']=0.96 #change ifdenoised traces time c
 options['temporal_params']['backend']='ipyparallel'
 C_m,f_m,S_m,bl_m,c1_m,neurons_sn_m,g2_m,YrA_m = cse.temporal.update_temporal_components(Yr,A_m,np.atleast_2d(b).T,C_m,f,dview=dview,bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
 
-#%%
+#%% get rid of evenrually noisy components. 
+# But check by visual inspection to have a feeling fot the threshold. Try to be loose, you will be able to get rid of more of them later!
+
 traces=C_m+YrA_m
 idx_components, fitness, erfc = cse.utilities.evaluate_components(traces,N=5,robust_std=False)
 idx_components=idx_components[np.logical_and(True ,fitness < -10)]
@@ -178,26 +181,27 @@ C2,f2,S2,bl2,c12,neurons_sn2,g21,YrA = cse.temporal.update_temporal_components(Y
 #%% Order components
 #A_or, C_or, srt = cse.utilities.order_components(A2,C2)
 #%% stop server and remove log files
-cse.utilities.stop_server(is_slurm = (backend == 'SLURM'),pdir=pdir,profile=profile) 
+cse.utilities.stop_server(is_slurm = (backend == 'SLURM')) 
 log_files=glob.glob('Yr*_LOG_*')
 for log_file in log_files:
     os.remove(log_file)
 #%% order components according to a quality threshold and only select the ones wiht qualitylarger than quality_threshold. 
-quality_threshold=-15
+quality_threshold=-20
 traces=C2+YrA
 idx_components, fitness, erfc = cse.utilities.evaluate_components(traces,N=5,robust_std=False)
 idx_components=idx_components[fitness<quality_threshold]
 print(idx_components.size*1./traces.shape[0])
+#%%
+pl.figure();
+crd = cse.utilities.plot_contours(A2.tocsc()[:,idx_components],Cn,thr=0.9)
+#%%
+cse.utilities.view_patches_bar(Yr,scipy.sparse.coo_matrix(A2.tocsc()[:,idx_components]),C2[idx_components,:],b2,f2, d1,d2, YrA=YrA[idx_components,:])  
 #%% save analysis results in python and matlab format
 if save_results:
     np.savez('results_analysis.npz',Cn=Cn,A_tot=A_tot.todense(), C_tot=C_tot, sn_tot=sn_tot, A2=A2.todense(),C2=C2,b2=b2,S2=S2,f2=f2,bl2=bl2,c12=c12, neurons_sn2=neurons_sn2, g21=g21,YrA=YrA,d1=d1,d2=d2,idx_components=idx_components, fitness=fitness, erfc=erfc)    
     scipy.io.savemat('output_analysis_matlab.mat',{'A2':A2,'C2':C2 , 'YrA':YrA, 'S2': S2 ,'YrA': YrA, 'd1':d1,'d2':d2,'idx_components':idx_components, 'fitness':fitness })
 #%% 
-cse.utilities.view_patches_bar(Yr,scipy.sparse.coo_matrix(A2.tocsc()[:,idx_components]),C2[idx_components,:],b2,f2, d1,d2, YrA=YrA[idx_components,:])  
-#%%
-# select only portion of components
-pl.figure();
-crd = cse.utilities.plot_contours(A2.tocsc()[:,idx_components],Cn,thr=0.9)
+
 
 #%% RELOAD COMPONENTS!
 if save_results:
@@ -214,7 +218,7 @@ if save_results:
     with np.load('results_analysis.npz')  as ld:
           locals().update(ld)
     
-    fname_new='Yr_d1_60_d2_80_d3_1_order_F_frames_2000_.mmap'
+    fname_new='Yr0_d1_60_d2_80_d3_1_order_C_frames_2000_.mmap'
     
     Yr,(d1,d2),T=cse.utilities.load_memmap(fname_new)
     d,T=np.shape(Yr)
