@@ -1,7 +1,7 @@
 #%%
 try:
-    %load_ext autoreload
-    %autoreload 2
+#    %load_ext autoreload
+#    %autoreload 2
     print 1
 except:
     print 'NOT IPYTHON'
@@ -69,7 +69,7 @@ fnames=fnames
 name_new=cse.utilities.save_memmap_each(fnames, dview=dview,base_name='Yr', resize_fact=(1, 1, 1), remove_init=0, idx_xy=None)
 name_new.sort()
 #%%
-fname_new=cse.utilities.save_memmap_join('Yr',name_new, n_chunks=12, dview=dview)
+fname_new=cse.utilities.save_memmap_join(name_new,base_name='Yr', n_chunks=12, dview=dview)
 #%%  Create a unique file fot the whole dataset
 #
 #fraction_downsample=1; # useful to downsample the movie across time. fraction_downsample=.1 measn downsampling by a factor of 10
