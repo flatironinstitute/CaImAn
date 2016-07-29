@@ -37,6 +37,11 @@ import psutil
 import json
 from scipy import ndimage
 import scipy
+
+from skimage.filters import sobel
+from skimage.morphology import watershed
+from scipy import ndimage as ndi
+
 #%%
 
 
@@ -2342,3 +2347,108 @@ def nf_read_roi_zip(fname,dims):
     
     masks = np.array([tomask(s-1) for s in coords])
     return masks
+
+#%%    
+def extract_binary_masks_blob(A,  neuron_radius,dims,max_fraction=.3, minCircularity= 0.2, minInertiaRatio = 0.2,minConvexity = .2):
+    """
+    Function to extract masks from data. It will also perform a preliminary selectino of good masks based on criteria like shape and size
+    
+    Parameters:
+    ----------
+    A: scipy.sparse matris
+        contains the components as outputed from the CNMF algorithm
+        
+    neuron_radius: float 
+        neuronal radius employed in the CNMF settings (gSiz)
+    
+    max_fraction: float
+        fraction of the maximum of a components use to threshold the 
+    
+    min_elevation_map=30
+    
+    max_elevation_map=150
+    
+    minCircularity= 0.2
+    
+    minInertiaRatio = 0.2
+    
+    minConvexity = .2
+    
+    Returns:
+    --------
+    
+    """    
+    import cv2
+    
+    params = cv2.SimpleBlobDetector_Params()
+    params.minCircularity = minCircularity
+    params.minInertiaRatio = minInertiaRatio 
+    params.minConvexity = minConvexity    
+    
+    # Change thresholds
+    params.blobColor=255
+    
+    params.minThreshold = 0.5
+    params.maxThreshold = 1.5
+    params.thresholdStep= .5
+    
+    min_elevation_map=max_fraction*255
+    max_elevation_map=0.9*255
+    
+    params.minArea = np.pi*((neuron_radius*.75)**2)
+    #params.maxArea = 4*np.pi*((gSig[0]-1)**2)
+    
+    
+    
+    params.filterByArea = True
+    params.filterByCircularity = True
+    params.filterByConvexity = True
+    params.filterByInertia = True
+    
+    detector = cv2.SimpleBlobDetector_create(params)
+    
+    
+    masks_ws=[]
+    pos_examples=[] 
+    neg_examples=[]
+
+
+    for count,comp in enumerate(A.tocsc()[:].T):
+
+        print count
+        comp_d=np.array(comp.todense())
+        comp_d=comp_d*(comp_d>(np.max(comp_d)*.3))
+        comp_orig=np.reshape(comp.todense(),dims,order='F')
+        comp_orig=(comp_orig-np.min(comp_orig))/(np.max(comp_orig)-np.min(comp_orig))*255
+        gray_image=np.reshape(comp_d,dims,order='F')
+        gray_image=(gray_image-np.min(gray_image))/(np.max(gray_image)-np.min(gray_image))*255
+        gray_image=gray_image.astype(np.uint8)    
+
+        
+        # segment using watershed
+        markers = np.zeros_like(gray_image)
+        elevation_map = sobel(gray_image)
+        markers[gray_image < min_elevation_map] = 1
+        markers[gray_image > max_elevation_map] = 2    
+        edges = watershed(elevation_map, markers)-1
+         
+        # only keep largest object 
+        label_objects, nb_labels = ndi.label(edges)
+        sizes = np.bincount(label_objects.ravel())
+        idx_largest = np.argmax(sizes[1:])    
+        edges=(label_objects==(1+idx_largest))
+        edges=ndi.binary_fill_holes(edges)
+        
+        
+        masks_ws.append(edges)
+        keypoints = detector.detect(edges.astype(np.uint8)*200)
+        
+        if len(keypoints)>0:
+    #        im_with_keypoints = cv2.drawKeypoints(gray_image, keypoints, np.array([]), (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+            pos_examples.append(count)
+
+        else:
+            
+            neg_examples.append(count)
+
+    return np.array(masks_ws),np.array(pos_examples),np.array(neg_examples)    
