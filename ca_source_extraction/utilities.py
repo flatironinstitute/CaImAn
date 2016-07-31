@@ -2417,7 +2417,7 @@ def extract_binary_masks_blob(A,  neuron_radius,dims,max_fraction=.3, minCircula
 
         print count
         comp_d=np.array(comp.todense())
-        comp_d=comp_d*(comp_d>(np.max(comp_d)*.3))
+        comp_d=comp_d*(comp_d>(np.max(comp_d)*max_fraction))
         comp_orig=np.reshape(comp.todense(),dims,order='F')
         comp_orig=(comp_orig-np.min(comp_orig))/(np.max(comp_orig)-np.min(comp_orig))*255
         gray_image=np.reshape(comp_d,dims,order='F')
