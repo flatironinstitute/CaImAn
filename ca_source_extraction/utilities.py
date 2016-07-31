@@ -2349,7 +2349,7 @@ def nf_read_roi_zip(fname,dims):
     return masks
 
 #%%    
-def extract_binary_masks_blob(A,  neuron_radius,dims,max_fraction=.3, minCircularity= 0.2, minInertiaRatio = 0.2,minConvexity = .2):
+def extract_binary_masks_blob(A,  neuron_radius,dims,max_fraction=.8,min_fraction=.8, minCircularity= 0.2, minInertiaRatio = 0.2,minConvexity = .2):
     """
     Function to extract masks from data. It will also perform a preliminary selectino of good masks based on criteria like shape and size
     
@@ -2392,8 +2392,8 @@ def extract_binary_masks_blob(A,  neuron_radius,dims,max_fraction=.3, minCircula
     params.maxThreshold = 1.5
     params.thresholdStep= .5
     
-    min_elevation_map=max_fraction*255
-    max_elevation_map=0.9*255
+    min_elevation_map=min_fraction*255
+    max_elevation_map=max_fraction*255
     
     params.minArea = np.pi*((neuron_radius*.75)**2)
     #params.maxArea = 4*np.pi*((gSig[0]-1)**2)
