@@ -41,7 +41,14 @@ import scipy
 from skimage.filters import sobel
 from skimage.morphology import watershed
 from scipy import ndimage as ndi
-
+#from skimage.feature import peak_local_max
+import pylab as pl
+import skimage
+from scipy.sparse import issparse
+from scipy.ndimage.measurements import center_of_mass
+from ipyparallel import Client
+from scipy.stats import norm
+from skimage.draw import polygon
 #%%
 
 
@@ -868,7 +875,6 @@ def plot_contours(A, Cn, thr=0.9, display_numbers=True, max_number=None, cmap=No
      --------
      Coor: list of coordinates with center of mass, contour plot coordinates and bounding box for each component
     """
-    from scipy.sparse import issparse
     if issparse(A):
         A = np.array(A.todense())
     else:
@@ -980,7 +986,6 @@ def manually_refine_components(Y, (dx, dy), A, C, Cn, thr=0.9, display_numbers=T
          array of estimated calcium traces
 
     """
-    from scipy.sparse import issparse
     if issparse(A):
         A = np.array(A.todense())
     else:
@@ -1310,7 +1315,6 @@ def get_contours3d(A, dims, thr=0.9):
      Coor: list of coordinates with center of mass and
             contour plot coordinates (per layer) for each component
     """
-    from scipy.ndimage.measurements import center_of_mass
     d, nr = np.shape(A)
     d1, d2, d3 = dims
     x, y = np.mgrid[0:d2:1, 0:d3:1]
@@ -1669,7 +1673,7 @@ def start_server(slurm_script=None, ipcluster="ipcluster"):
                 time.sleep(1)
     else:
         shell_source(slurm_script)
-        from ipyparallel import Client
+
         pdir, profile = os.environ['IPPPDIR'], os.environ['IPPPROFILE']
         c = Client(ipython_dir=pdir, profile=profile)
         ee = c[:]
@@ -1684,8 +1688,8 @@ def start_server(slurm_script=None, ipcluster="ipcluster"):
 def shell_source(script):
     """Sometime you want to emulate the action of "source" in bash,
     settings some environment variables. Here is a way to do it."""
-    import subprocess
-    import os
+
+
     pipe = subprocess.Popen(". %s; env" % script,  stdout=subprocess.PIPE, shell=True)
     output = pipe.communicate()[0]
     env = dict()
@@ -1711,7 +1715,7 @@ def stop_server(is_slurm=False, ipcluster='ipcluster',pdir=None,profile=None):
     sys.stdout.flush()
 
     if is_slurm:
-        from ipyparallel import Client
+        
         if pdir is None and profile is None:
             pdir, profile = os.environ['IPPPDIR'], os.environ['IPPPROFILE']
         c = Client(ipython_dir=pdir, profile=profile)
@@ -1853,7 +1857,7 @@ def evaluate_components(traces, N=5, robust_std=False):
         Ns = np.sum(ff1 > 0, 1)
         sd_r = np.sqrt(np.sum(ff1**2, 1) / Ns)
 #
-    from scipy.stats import norm
+
 
     # compute z value
     z = (traces - md[:, None]) / (3 * sd_r[:, None])
@@ -2224,7 +2228,6 @@ def nf_masks_to_json(binary_masks,json_filename):
 #%%
 # Copyright: Luis Pedro Coelho <luis@luispedro.org>, 2012
 # License: MIT
-import numpy as np
 
 def nf_read_roi(fileobj):
     '''
@@ -2327,7 +2330,6 @@ def nf_read_roi(fileobj):
     
     return points
 #%%
-from skimage.draw import polygon
 def nf_read_roi_zip(fname,dims):
     
     import zipfile
@@ -2339,7 +2341,7 @@ def nf_read_roi_zip(fname,dims):
 
         mask = np.zeros(dims)
         coords=np.array(coords)
-        rr, cc = polygon(coords[:,0], coords[:,1])
+        rr, cc = polygon(coords[:,0]+1, coords[:,1]+1)        
         mask[rr,cc]=1
 #        mask[zip(*coords)] = 1
         
@@ -2349,7 +2351,7 @@ def nf_read_roi_zip(fname,dims):
     return masks
 
 #%%    
-def extract_binary_masks_blob(A,  neuron_radius,dims,max_fraction=.8,min_fraction=.8, minCircularity= 0.2, minInertiaRatio = 0.2,minConvexity = .2):
+def extract_binary_masks_blob(A,  neuron_radius,dims,num_std_threshold=1, minCircularity= 0.5, minInertiaRatio = 0.2,minConvexity = .8):
     """
     Function to extract masks from data. It will also perform a preliminary selectino of good masks based on criteria like shape and size
     
@@ -2361,24 +2363,26 @@ def extract_binary_masks_blob(A,  neuron_radius,dims,max_fraction=.8,min_fractio
     neuron_radius: float 
         neuronal radius employed in the CNMF settings (gSiz)
     
-    max_fraction: float
-        fraction of the maximum of a components use to threshold the 
+    num_std_threshold: int
+        number of times above iqr/1.349 (std estimator) the median to be considered as threshold for the component
     
-    min_elevation_map=30
+     
     
-    max_elevation_map=150
+    minCircularity: float
+        parameter from cv2.SimpleBlobDetector
     
-    minCircularity= 0.2
+    minInertiaRatio: float
+        parameter from cv2.SimpleBlobDetector
     
-    minInertiaRatio = 0.2
-    
-    minConvexity = .2
+    minConvexity: float
+        parameter from cv2.SimpleBlobDetector
     
     Returns:
     --------
     
     """    
     import cv2
+
     
     params = cv2.SimpleBlobDetector_Params()
     params.minCircularity = minCircularity
@@ -2388,12 +2392,12 @@ def extract_binary_masks_blob(A,  neuron_radius,dims,max_fraction=.8,min_fractio
     # Change thresholds
     params.blobColor=255
     
-    params.minThreshold = 0.5
-    params.maxThreshold = 1.5
-    params.thresholdStep= .5
+    params.minThreshold = 0
+    params.maxThreshold = 255
+    params.thresholdStep= 3
     
-    min_elevation_map=min_fraction*255
-    max_elevation_map=max_fraction*255
+#    min_elevation_map=
+#    max_elevation_map=
     
     params.minArea = np.pi*((neuron_radius*.75)**2)
     #params.maxArea = 4*np.pi*((gSig[0]-1)**2)
@@ -2417,7 +2421,8 @@ def extract_binary_masks_blob(A,  neuron_radius,dims,max_fraction=.8,min_fractio
 
         print count
         comp_d=np.array(comp.todense())
-        comp_d=comp_d*(comp_d>(np.max(comp_d)*max_fraction))
+#        comp_d=comp_d*(comp_d>(np.max(comp_d)*max_fraction))
+#        comp_d=comp_d*(comp_d>(np.max(comp_d)*0))        
         comp_orig=np.reshape(comp.todense(),dims,order='F')
         comp_orig=(comp_orig-np.min(comp_orig))/(np.max(comp_orig)-np.min(comp_orig))*255
         gray_image=np.reshape(comp_d,dims,order='F')
@@ -2428,21 +2433,42 @@ def extract_binary_masks_blob(A,  neuron_radius,dims,max_fraction=.8,min_fractio
         # segment using watershed
         markers = np.zeros_like(gray_image)
         elevation_map = sobel(gray_image)
-        markers[gray_image < min_elevation_map] = 1
-        markers[gray_image > max_elevation_map] = 2    
+        thr_1=np.percentile(gray_image[gray_image>0],50)
+        iqr=np.diff(np.percentile(gray_image[gray_image>0],(25,75)))
+        thr_2=thr_1 + num_std_threshold*iqr/1.35
+        markers[gray_image < thr_1] = 1
+        markers[gray_image > thr_2] = 2  
+#        local_maxi = peak_local_max(elevation_map, num_peaks=1,indices=False)
+#        markers = ndi.label(local_maxi)[0]
         edges = watershed(elevation_map, markers)-1
-         
         # only keep largest object 
         label_objects, nb_labels = ndi.label(edges)
         sizes = np.bincount(label_objects.ravel())
-        idx_largest = np.argmax(sizes[1:])    
-        edges=(label_objects==(1+idx_largest))
-        edges=ndi.binary_fill_holes(edges)
+#        pl.subplot(2,2,1)
+#        pl.imshow(gray_image)
+#        pl.subplot(2,2,2)
+#        pl.imshow(elevation_map)        
+#        pl.subplot(2,2,3)
+#        pl.imshow(markers)
+#        pl.subplot(2,2,4)
+#        pl.imshow(edges)
+#        pl.pause(4.)
+        if len(sizes)>1:           
+            idx_largest = np.argmax(sizes[1:])    
+            edges=(label_objects==(1+idx_largest))
+            edges=ndi.binary_fill_holes(edges)
+        else:
+            print 'empty component'
+            edges=np.zeros_like(edges)
         
-        
-        masks_ws.append(edges)
-        keypoints = detector.detect(edges.astype(np.uint8)*200)
-        
+#        edges=skimage.morphology.convex_hull_image(edges)
+        if 1:
+            masks_ws.append(edges)
+            keypoints = detector.detect((edges*200.).astype(np.uint8))
+        else:            
+            masks_ws.append(gray_image)
+            keypoints = detector.detect(gray_image)
+            
         if len(keypoints)>0:
     #        im_with_keypoints = cv2.drawKeypoints(gray_image, keypoints, np.array([]), (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
             pos_examples.append(count)
@@ -2452,3 +2478,4 @@ def extract_binary_masks_blob(A,  neuron_radius,dims,max_fraction=.8,min_fractio
             neg_examples.append(count)
 
     return np.array(masks_ws),np.array(pos_examples),np.array(neg_examples)    
+#%%
