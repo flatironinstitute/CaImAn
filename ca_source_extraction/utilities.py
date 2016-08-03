@@ -175,7 +175,7 @@ def save_memmap_each(fnames, dview=None, base_name=None, resize_fact=(1, 1, 1), 
             pars.append([f,base_name+str(idx),resize_fact,remove_init,idx_xy,order])
         else:
             pars.append([f,os.path.splitext(f)[0],resize_fact,remove_init,idx_xy,order])            
-        
+    
     if dview is not None:
         fnames_new=dview.map_sync(save_place_holder,pars)
     else:
@@ -201,6 +201,7 @@ def save_memmap_join(mmap_fnames,base_name=None, n_chunks=6, dview=None):
         base_name = base_name[:base_name.find('_d1_')]+'-#-'+str(len(mmap_fnames)) 
         
     fname_tot = base_name + '_d1_' + str(dims[0]) + '_d2_' + str(dims[1]) + '_d3_' + str(1 if len(dims) == 2 else dims[2]) + '_order_' + str(order) + '_frames_' + str(tot_frames) + '_.mmap'
+    fname_tot = os.path.join(os.path.split(mmap_fnames[0])[0],fname_tot)         
     
     print fname_tot
                 
@@ -252,7 +253,8 @@ def save_portion(pars):
     del Yr_tot
     print 'done'
     del big_mov    
-    return Ttot#%%
+    return Ttot
+#%%
         
     
 #%%
@@ -261,82 +263,82 @@ def save_place_holder(pars):
     """
     
     import ca_source_extraction as cse
-    f,base_name,resize_fact,remove_init,idx_xy,order=pars    
+    f,base_name,resize_fact,remove_init,idx_xy,order=pars   
     return save_memmap([f],base_name=base_name,resize_fact=resize_fact,remove_init=remove_init, idx_xy=idx_xy, order=order)
 #%%
-def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0, idx_xy=None, order='F'):
-    """ Saves efficiently a list of tif files into a memory mappable file
-    Parameters
-    ----------
-        filenames: list
-            list of tif files
-        base_name: str
-            the base used to build the file name. IT MUST NOT CONTAIN "_"    
-        resize_fact: tuple
-            x,y, and z downampling factors (0.5 means downsampled by a factor 2) 
-        remove_init: int
-            number of frames to remove at the begining of each tif file (used for resonant scanning images if laser in rutned on trial by trial)
-        idx_xy: tuple size 2 [or 3 for 3D data]
-            for selecting slices of the original FOV, for instance idx_xy=(slice(150,350,None),slice(150,350,None))
-
-    Return
-    -------
-        fname_new: the name of the mapped file, the format is such that the name will contain the frame dimensions and the number of f
-
-    """
-    print 'Warning. Deprecated. save_memmap_parallel'
-    Ttot = 0
-    for idx, f in enumerate(filenames):
-        print f
-        if os.path.splitext(f)[-1] == '.hdf5':
-            import calblitz as cb
-            if idx_xy is None:
-                Yr = np.array(cb.load(f))[remove_init:]
-            elif len(idx_xy) == 2:
-                Yr = np.array(cb.load(f))[remove_init:, idx_xy[0], idx_xy[1]]
-            else:
-                Yr = np.array(cb.load(f))[remove_init:, idx_xy[0], idx_xy[1], idx_xy[2]]
-        else:
-            if idx_xy is None:
-                Yr = imread(f)[remove_init:]
-            elif len(idx_xy) == 2:
-                Yr = imread(f)[remove_init:, idx_xy[0], idx_xy[1]]
-            else:
-                Yr = imread(f)[remove_init:, idx_xy[0], idx_xy[1], idx_xy[2]]
-
-        fx, fy, fz = resize_fact
-        if fx != 1 or fy != 1 or fz != 1:
-            try:
-                import calblitz as cb
-                Yr = cb.movie(Yr, fr=1)
-                Yr = Yr.resize(fx=fx, fy=fy, fz=fz)
-            except:
-                print('You need to install the CalBlitz package to resize the movie')
-                raise
-
-        T, dims = Yr.shape[0], Yr.shape[1:]
-        Yr = np.transpose(Yr, range(1, len(dims) + 1) + [0])
-        Yr = np.reshape(Yr, (np.prod(dims), T), order='F')
-
-        if idx == 0:
-            fname_tot = base_name + '_d1_' + str(dims[0]) + '_d2_' + str(dims[1]) + '_d3_' + str(
-                1 if len(dims) == 2 else dims[2]) + '_order_' + str(order)
-            big_mov = np.memmap(fname_tot, mode='w+', dtype=np.float32,
-                                shape=(np.prod(dims), T), order=order)
-        else:
-            big_mov = np.memmap(fname_tot, dtype=np.float32, mode='r+',
-                                shape=(np.prod(dims), Ttot + T), order=order)
-        #    np.save(fname[:-3]+'npy',np.asarray(Yr))
-
-        big_mov[:, Ttot:Ttot + T] = np.asarray(Yr, dtype=np.float32) + 1e-10
-        big_mov.flush()
-        Ttot = Ttot + T
-
-    fname_new = fname_tot + '_frames_' + str(Ttot) + '_.mmap'
-    os.rename(fname_tot, fname_new)
-    del big_mov
-
-    return fname_new
+#def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0, idx_xy=None, order='F'):
+#    """ Saves efficiently a list of tif files into a memory mappable file
+#    Parameters
+#    ----------
+#        filenames: list
+#            list of tif files
+#        base_name: str
+#            the base used to build the file name. IT MUST NOT CONTAIN "_"    
+#        resize_fact: tuple
+#            x,y, and z downampling factors (0.5 means downsampled by a factor 2) 
+#        remove_init: int
+#            number of frames to remove at the begining of each tif file (used for resonant scanning images if laser in rutned on trial by trial)
+#        idx_xy: tuple size 2 [or 3 for 3D data]
+#            for selecting slices of the original FOV, for instance idx_xy=(slice(150,350,None),slice(150,350,None))
+#
+#    Return
+#    -------
+#        fname_new: the name of the mapped file, the format is such that the name will contain the frame dimensions and the number of f
+#
+#    """
+#    Ttot = 0
+#    for idx, f in enumerate(filenames):
+#        print f
+#        if os.path.splitext(f)[-1] == '.hdf5':
+#            import calblitz as cb
+#            if idx_xy is None:
+#                Yr = np.array(cb.load(f))[remove_init:]
+#            elif len(idx_xy) == 2:
+#                Yr = np.array(cb.load(f))[remove_init:, idx_xy[0], idx_xy[1]]
+#            else:
+#                Yr = np.array(cb.load(f))[remove_init:, idx_xy[0], idx_xy[1], idx_xy[2]]
+#        else:
+#            if idx_xy is None:
+#                Yr = imread(f)[remove_init:]
+#            elif len(idx_xy) == 2:
+#                Yr = imread(f)[remove_init:, idx_xy[0], idx_xy[1]]
+#            else:
+#                Yr = imread(f)[remove_init:, idx_xy[0], idx_xy[1], idx_xy[2]]
+#
+#        fx, fy, fz = resize_fact
+#        if fx != 1 or fy != 1 or fz != 1:
+#            try:
+#                import calblitz as cb
+#                Yr = cb.movie(Yr, fr=1)
+#                Yr = Yr.resize(fx=fx, fy=fy, fz=fz)
+#            except:
+#                print('You need to install the CalBlitz package to resize the movie')
+#                raise
+#
+#        T, dims = Yr.shape[0], Yr.shape[1:]
+#        Yr = np.transpose(Yr, range(1, len(dims) + 1) + [0])
+#        Yr = np.reshape(Yr, (np.prod(dims), T), order='F')
+#
+#        if idx == 0:
+#            fname_tot = base_name + '_d1_' + str(dims[0]) + '_d2_' + str(dims[1]) + '_d3_' + str(
+#                1 if len(dims) == 2 else dims[2]) + '_order_' + str(order)
+#                                   
+#            big_mov = np.memmap(fname_tot, mode='w+', dtype=np.float32,
+#                                shape=(np.prod(dims), T), order=order)
+#        else:
+#            big_mov = np.memmap(fname_tot, dtype=np.float32, mode='r+',
+#                                shape=(np.prod(dims), Ttot + T), order=order)
+#        #    np.save(fname[:-3]+'npy',np.asarray(Yr))
+#
+#        big_mov[:, Ttot:Ttot + T] = np.asarray(Yr, dtype=np.float32) + 1e-10
+#        big_mov.flush()
+#        Ttot = Ttot + T
+#
+#    fname_new = fname_tot + '_frames_' + str(Ttot) + '_.mmap'
+#    os.rename(fname_tot, fname_new)
+#    del big_mov
+#
+#    return fname_new
 #%%
 def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0, idx_xy=None, order='F'):
     """ Saves efficiently a list of tif files into a memory mappable file
@@ -394,6 +396,7 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
         if idx == 0:
             fname_tot = base_name + '_d1_' + str(dims[0]) + '_d2_' + str(dims[1]) + '_d3_' + str(
                 1 if len(dims) == 2 else dims[2]) + '_order_' + str(order)
+            fname_tot = os.path.join(os.path.split(f)[0],fname_tot)         
             big_mov = np.memmap(fname_tot, mode='w+', dtype=np.float32,
                                 shape=(np.prod(dims), T), order=order)
         else:
