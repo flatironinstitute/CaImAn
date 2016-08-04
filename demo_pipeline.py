@@ -51,14 +51,14 @@ if not os.path.exists('PPC.tif'):
     
 #%% load and motion correct movie
 m=cb.load('PPC.tif',fr=30)    
-(m-np.min(m)).play(backend='opencv',magnification=3,fr=30,gain=10.)
+(m-np.min(m)).play(backend='opencv',magnification=1,fr=60,gain=20.)
 #%%
 max_w=25 # max pixel shift in width direction
 max_h=25
 mc,shifts,corrs, template = m.motion_correct(max_shift_w=max_w,max_shift_h=max_h,remove_blanks=True)
 
 #%%
-(mc-np.min(mc)).play(backend='opencv',magnification=3,fr=30,gain=10.)
+(mc-np.min(mc)).play(backend='opencv',magnification=1,fr=60,gain=10.)
 #%%
 mc.save('PPC_mc.tif')
 fnames=['PPC_mc.tif']
@@ -91,8 +91,6 @@ else:
     n_processes=len(c)
     print 'Using '+ str(len(c)) + ' processes'
     dview=c[:len(c)]
-#%% FOR LOADING ALL TIFF FILES IN A FILE AND SAVING THEM ON A SINGLE MEMORY MAPPABLE FILE
-
 
 #%%
 downsample_factor=1 # use .2 or .1 if file is large and you want a quick answer
@@ -180,7 +178,7 @@ log_files=glob.glob('Yr*_LOG_*')
 for log_file in log_files:
     os.remove(log_file)
 #%% order components according to a quality threshold and only select the ones wiht qualitylarger than quality_threshold. 
-quality_threshold=-20
+quality_threshold=-10
 traces=C2+YrA
 idx_components, fitness, erfc = cse.utilities.evaluate_components(traces,N=5,robust_std=False)
 idx_components=idx_components[fitness<quality_threshold]
@@ -198,7 +196,8 @@ if save_results:
 
 
 #%% RELOAD COMPONENTS!
-if save_results:
+load_results=True
+if load_results:
     import sys
     import numpy as np
     import ca_source_extraction as cse
@@ -212,14 +211,31 @@ if save_results:
     with np.load('results_analysis.npz')  as ld:
           locals().update(ld)
     
-    fname_new='Yr0_d1_60_d2_80_d3_1_order_C_frames_2000_.mmap'
+    fname_new=glob.glob('Yr0*_.mmap')[0]
     
     Yr,(d1,d2),T=cse.utilities.load_memmap(fname_new)
     d,T=np.shape(Yr)
     Y=np.reshape(Yr,(d1,d2,T),order='F') # 3D version of the movie
     
-    
+    dims=(d1,d2)
     traces=C2+YrA
     idx_components, fitness, erfc = cse.utilities.evaluate_components(traces,N=5,robust_std=False)
     #cse.utilities.view_patches(Yr,coo_matrix(A_or),C_or,b2,f2,d1,d2,YrA = YrA[srt,:], secs=1)
     cse.utilities.view_patches_bar(Yr,scipy.sparse.coo_matrix(A2[:,idx_components]),C2[idx_components,:],b2,f2, d1,d2, YrA=YrA[idx_components,:])  
+#%% only select blob-like structures
+min_radius=3
+masks_ws,pos_examples,neg_examples=cse.utilities.extract_binary_masks_blob(
+scipy.sparse.coo_matrix(A2).tocsc()[:,:], min_radius, dims, num_std_threshold=1, 
+minCircularity= 0.5, minInertiaRatio = 0.2,minConvexity = .8)
+np.savez(os.path.join(os.path.split(fname_new)[0],'regions_CNMF.npz'),masks_ws=masks_ws,pos_examples=pos_examples,neg_examples=neg_examples)
+#%% visualize them
+pl.subplot(1,2,1)
+final_masks=np.array(masks_ws)[pos_examples]
+pl.imshow(np.reshape(final_masks.max(0),dims,order='F'),vmax=1)
+pl.title('Positive examples')
+pl.subplot(1,2,2)
+neg_examples_masks=np.array(masks_ws)[neg_examples]
+pl.imshow(np.reshape(neg_examples_masks.max(0),dims,order='F'),vmax=1)
+pl.title('Negative examples')
+#%% visualize them again
+cse.utilities.view_patches_bar(Yr,scipy.sparse.coo_matrix(A2[:,pos_examples]),C2[pos_examples,:],b2,f2, d1,d2, YrA=YrA[pos_examples,:])  
