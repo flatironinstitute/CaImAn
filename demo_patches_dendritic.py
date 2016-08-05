@@ -154,9 +154,9 @@ options['temporal_params']['n_pixels_per_process']=pix_proc
 if 1:   
    A_m,C_m,nr_m,merged_ROIs,S_m,bl_m,c1_m,sn_m,g_m=cse.merge_components(Yr,A_tot,[],np.array(C_tot),[],np.array(C_tot),[],options['temporal_params'],options['spatial_params'],dview=dview,thr=options['merging']['thr'],mx=np.Inf)     
 else:
-   A_m,C_m,f_m=A_tot,C_tot,f
+   A_m,C_m=A_tot,C_tot
 
-cse.utilities.view_patches_bar(Yr,A_m,C_m,b,f_m, d1,d2, C_m ,img=Cn)  
+cse.utilities.view_patches_bar(Yr,A_m,C_m,b,f, d1,d2, C_m ,img=Cn)  
 
 #%% update temporal to get Y_r
 options['temporal_params']['p']=0
@@ -206,7 +206,7 @@ print(idx_components.size*1./traces.shape[0])
 pl.figure();
 crd = cse.utilities.plot_contours(A2.tocsc()[:,idx_components],Cn,thr=0.9)
 #%%
-cse.utilities.view_patches_bar(Yr,scipy.sparse.coo_matrix(A2.tocsc()[:,idx_components]),C2[idx_components,:],b2,f2, d1,d2, YrA=YrA[idx_components,:])  
+cse.utilities.view_patches_bar(Yr,scipy.sparse.coo_matrix(A2.tocsc()[:,idx_components]),C2[idx_components,:],b2,f2, d1,d2, YrA=YrA[idx_components,:],img=Cn)  
 #%% save analysis results in python and matlab format
 if save_results:
     np.savez('results_analysis.npz',Cn=Cn,A_tot=A_tot.todense(), C_tot=C_tot, sn_tot=sn_tot, A2=A2.todense(),C2=C2,b2=b2,S2=S2,f2=f2,bl2=bl2,c12=c12, neurons_sn2=neurons_sn2, g21=g21,YrA=YrA,d1=d1,d2=d2,idx_components=idx_components, fitness=fitness, erfc=erfc)    
