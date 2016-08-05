@@ -93,7 +93,7 @@ else:
     dview=c[:len(c)]
 
 #%%
-downsample_factor=1 # use .2 or .1 if file is large and you want a quick answer
+downsample_factor=.5 # use .2 or .1 if file is large and you want a quick answer
 idx_xy=None
 base_name='Yr'
 name_new=cse.utilities.save_memmap_each(fnames, dview=dview,base_name=base_name, resize_fact=(1, 1, downsample_factor), remove_init=0,idx_xy=idx_xy )
@@ -238,4 +238,4 @@ neg_examples_masks=np.array(masks_ws)[neg_examples]
 pl.imshow(np.reshape(neg_examples_masks.max(0),dims,order='F'),vmax=1)
 pl.title('Negative examples')
 #%% visualize them again
-cse.utilities.view_patches_bar(Yr,scipy.sparse.coo_matrix(A2[:,pos_examples]),C2[pos_examples,:],b2,f2, d1,d2, YrA=YrA[pos_examples,:])  
+cse.utilities.view_patches_bar(Yr,scipy.sparse.coo_matrix(A2.tocsc()[:,pos_examples]),C2[pos_examples,:],b2,f2, d1,d2, YrA=YrA[pos_examples,:])  
