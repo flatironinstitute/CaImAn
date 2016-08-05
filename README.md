@@ -1,7 +1,4 @@
 
-!! NEW RELEASE INCLUDING IMPROVED MEMORY MANAGEMENT AND IMPROVED DETECTION !!
-=======================================================================
-
 Please refer to the following wiki [page](https://github.com/agiovann/Constrained_NMF/wiki/Processing-large-datasets) or read in the testing section below
 
 ConstrainedNMF
@@ -60,24 +57,6 @@ Installation on MAC OS
 
 Download and install Anaconda (Python 2.7) <http://docs.continuum.io/anaconda/install>
 
-1. EASY WAY. type:
-    ```
-    conda create -n CNMF  ipython
-    source activate CNMF
-    conda install -c https://conda.anaconda.org/agiovann constrained_nmf
-    conda install spyder
-    conda install h5py
-    conda install scikit-image
-    conda install scikit-learn
-    pip install picos
-    pip install cvxpy
-    pip install pims
-    conda install -c https://conda.binstar.org/menpo opencv3
-    pip install 'tifffile>=0.7'
-
-    ```
-
-2. ADVANCED WAY (with access to source code).
     ```
     git clone --recursive https://github.com/agiovann/Constrained_NMF.git
     cd Constrained_NMF/CalBlitz/
@@ -96,7 +75,7 @@ Download and install Anaconda (Python 2.7) <http://docs.continuum.io/anaconda/in
     pip install picos
     pip install cvxpy
     pip install pims
-    conda install -c https://conda.binstar.org/menpo opencv3
+    conda install -c menpo opencv3=3.1.0
     pip install 'tifffile>=0.7'
     ```
     This second option will not allow to import the package from every folder but only from within the Constrained_NMF folder. You can access it globally by setting the environment variable PYTHONPATH
