@@ -4,15 +4,13 @@ from skimage.transform import downscale_local_mean, resize
 import scipy.ndimage as nd
 import scipy.sparse as spr
 import scipy
-# from ca_source_extraction.utilities import com, local_correlations
 from scipy.ndimage.measurements import center_of_mass
-from sklearn.decomposition import NMF
 import utilities
 #%%
 
 
 def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter=5, maxIter=5,
-                          kernel=None, use_hals=True, Cn=None, sn=None,method = 'greedy_roi',max_iter_snmf=500,alpha_snmf=10e2,sigma_smooth_snmf=(.5,.5,.5),perc_baseline_snmf=20):
+                          kernel=None, use_hals=True, normalize = True, img=None,method = 'greedy_roi',max_iter_snmf=500,alpha_snmf=10e2,sigma_smooth_snmf=(.5,.5,.5),perc_baseline_snmf=20):
     """Initalize components
 
     This method uses a greedy approach followed by hierarchical alternative least squares (HALS) NMF.
@@ -38,10 +36,19 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
         temporal downsampling factor recommended for long datasets (default 1, no downsampling).
     kernel: [optional] np.ndarray
         User specified kernel for greedyROI (default None, greedy ROI searches for Gaussian shaped neurons)
-    use_hals: [bool]
+    use_hals: [optional] bool
         Whether to refine components with the hals method
+    normalize: [optional] bool
+        Whether to normalize data before running the initialization
+    img: optional [np 2d array]
+        Image with which to normalize. If not present use the mean + offset 
     method: str  
-        'greedy_roi' or 'sparse_nmf'
+        Initialization method 'greedy_roi' or 'sparse_nmf' 
+    max_iter_snmf: int 
+        Maximum number of sparse NMF iterations
+    alpha_snmf: scalar
+        Sparsity penalty
+    
     Returns
     --------
     Ain: np.ndarray
@@ -67,18 +74,19 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
     gSiz = np.round(np.asarray(gSiz) / ssub).astype(np.int)
 
     print 'Noise Normalization'
-    if sn is not None:
-        min_noise = np.percentile(sn, 2)
-        noise = np.maximum(sn, min_noise)
-        Y = Y / np.reshape(noise, d + (-1,),order='F')
+    if normalize is True:
+        if img is None:
+            img = np.mean(Y,axis=-1)
+            img += np.median(img)
+            
+        Y = Y / np.reshape(img, d + (-1,),order='F')
+        alpha_snmf /= np.mean(img)
 
     # spatial downsampling
     mean_val = np.mean(Y)
     if ssub != 1 or tsub != 1:
         print "Spatial Downsampling ..."
         Y_ds = downscale_local_mean(Y, tuple([ssub] * len(d) + [tsub]), cval=mean_val)
-        if Cn is not None:
-            Cn = downscale_local_mean(Cn, tuple([ssub] * len(d)), cval=mean_val)
     else:
         Y_ds = Y
 
@@ -128,10 +136,13 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
     # center = com(Ain, *d)
     center = np.asarray([center_of_mass(a.reshape(d, order='F')) for a in Ain.T])
 
-    if sn is not None:        
-        Ain = Ain * np.reshape(noise, (np.prod(d), -1),order='F')      
-        b_in = b_in * np.atleast_2d(noise).T
-        Y = Y * np.reshape(noise, d + (-1,),order='F')
+    if normalize is True:    
+        #import pdb
+        #pdb.set_trace()        
+        Ain = Ain * np.reshape(img, (np.prod(d), -1),order='F')    
+        b_in = b_in * np.reshape(img, (np.prod(d), -1),order='F') 
+        #b_in = np.atleast_2d(b_in * img.flatten('F')) #np.reshape(img, (np.prod(d), -1),order='F')
+        Y = Y * np.reshape(img, d + (-1,),order='F')
         
     
     return Ain, Cin, b_in, f_in, center
