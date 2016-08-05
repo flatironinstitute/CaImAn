@@ -52,7 +52,7 @@ from skimage.draw import polygon
 #%%
 
 
-def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], ssub=1, tsub=1, p=2, p_ssub=1, p_tsub=1, thr=0.8, **kwargs):
+def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], ssub=1, tsub=1, p=2, p_ssub=1, p_tsub=1, thr=0.8, method_init= 'greedy_roi', **kwargs):
     """Dictionary for setting the CNMF parameters.
     Any parameter that is not set get a default value specified
     by the dictionary default options
@@ -69,7 +69,8 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], ssub=1, tsub=1, p=2, p_ssub=
     options = dict()
     options['patch_params'] = {
         'ssub': p_ssub,             # spatial downsampling factor
-        'tsub': p_tsub              # temporal downsampling factor
+        'tsub': p_tsub,              # temporal downsampling factor
+        'only_init' : False
     }
     options['preprocess_params'] = {'sn': None,                  # noise level for each pixel
                                     # range of normalized frequencies over which to average
@@ -93,7 +94,12 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], ssub=1, tsub=1, p=2, p_ssub=
                               'tsub': tsub,             # temporal downsampling factor
                               'nIter': 5,               # number of refinement iterations
                               'kernel': None,           # user specified template for greedyROI
-                              'maxIter': 5              # number of HALS iterations
+                              'maxIter': 5,              # number of HALS iterations
+                              'method' : method_init,     # can be greedy_roi or sparse_nmf
+                              'max_iter_snmf' : 500,
+                              'alpha_snmf' : 10e2,
+                              'sigma_smooth_snmf' : (.5,.5,.5),
+                              'perc_baseline_snmf': 20
                               }
     options['spatial_params'] = {
         'dims': dims,                   # number of rows, columns [and depths]
@@ -1657,9 +1663,9 @@ def start_server(slurm_script=None, ipcluster="ipcluster"):
     
     if slurm_script is None:
         if ipcluster == "ipcluster":
-            subprocess.Popen(["ipcluster start -n {0}".format(ncpus)], shell=True)
+            p1 = subprocess.Popen(["ipcluster start -n {0}".format(ncpus)], shell=True,close_fds=True)
         else:
-            subprocess.Popen(shlex.split("{0} start -n {1}".format(ipcluster, ncpus)), shell=True)
+            p1 = subprocess.Popen(shlex.split("{0} start -n {1}".format(ipcluster, ncpus)), shell=True,close_fds=True)
 #
         while True:
             try:
@@ -1668,15 +1674,16 @@ def start_server(slurm_script=None, ipcluster="ipcluster"):
                     sys.stdout.write(".")
                     sys.stdout.flush()
                     raise ipyparallel.error.TimeoutError
-                c.close()
+                c.close()                
+
                 break
             except (IOError, ipyparallel.error.TimeoutError):
                 sys.stdout.write(".")
                 sys.stdout.flush()
                 time.sleep(1)
+                
     else:
         shell_source(slurm_script)
-
         pdir, profile = os.environ['IPPPDIR'], os.environ['IPPPROFILE']
         c = Client(ipython_dir=pdir, profile=profile)
         ee = c[:]
@@ -1684,6 +1691,7 @@ def start_server(slurm_script=None, ipcluster="ipcluster"):
         print 'Running on %d engines.' % (ne)
         c.close()
         sys.stdout.write(" done\n")
+        
 
 #%%
 
@@ -1702,6 +1710,7 @@ def shell_source(script):
             env[lsp[0]] = lsp[1]
 #    env = dict((line.split("=", 1) for line in output.splitlines()))
     os.environ.update(env)
+    pipe.stdout.close()
 #%%
 
 
@@ -1740,10 +1749,10 @@ def stop_server(is_slurm=False, ipcluster='ipcluster',pdir=None,profile=None):
 
     else:
         if ipcluster == "ipcluster":
-            proc = subprocess.Popen(["ipcluster stop"], shell=True, stderr=subprocess.PIPE)
+            proc = subprocess.Popen(["ipcluster stop"], shell=True, stderr=subprocess.PIPE,close_fds=True)
         else:
             proc = subprocess.Popen(shlex.split(ipcluster + " stop"),
-                                    shell=True, stderr=subprocess.PIPE)
+                                    shell=True, stderr=subprocess.PIPE,close_fds=True)
 
         line_out = proc.stderr.readline()
         if 'CRITICAL' in line_out:
@@ -1759,7 +1768,9 @@ def stop_server(is_slurm=False, ipcluster='ipcluster',pdir=None,profile=None):
         else:
             print line_out
             print '**** Unrecognized Syntax in ipcluster output, waiting for server to stop anyways ****'
-
+        
+        proc.stderr.close()
+        
     sys.stdout.write(" done\n")
 
 # def evaluate_components(A,Yr,psx):

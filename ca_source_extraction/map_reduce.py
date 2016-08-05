@@ -15,7 +15,7 @@ import scipy
 from utilities import load_memmap
 import os
 #%%
-def extract_patch_coordinates(d1,d2,rf=7,stride = 5):
+def extract_patch_coordinates(d1,d2,rf=(7,7),stride = (2,2)):
     """
     Function that partition the FOV in patches and return the indexed in 2D and 1D (flatten, order='F') formats
     Parameters
@@ -29,12 +29,15 @@ def extract_patch_coordinates(d1,d2,rf=7,stride = 5):
     """
     coords_flat=[]
     coords_2d=[]
-    for xx in range(rf,d1-rf,2*rf-stride)+[d1-rf]:   
-        for yy in range(rf,d2-rf,2*rf-stride)+[d2-rf]:
+    rf1,rf2 = rf
+    stride1,stride2 = stride
+    
+    for xx in range(rf1,d1-rf1,2*rf1-stride1)+[d1-rf1]:   
+        for yy in range(rf2,d2-rf2,2*rf2-stride2)+[d2-rf2]:
             
-            coords_x=np.array(range(xx - rf, xx + rf + 1))     
-            coords_y=np.array(range(yy - rf, yy + rf + 1))  
-            print([xx - rf, xx + rf + 1,yy - rf, yy + rf + 1])
+            coords_x=np.array(range(xx - rf1, xx + rf1 + 1))     
+            coords_y=np.array(range(yy - rf2, yy + rf2 + 1))  
+            print([xx - rf1, xx + rf1 + 1,yy - rf2, yy + rf2 + 1])
             coords_y = coords_y[(coords_y >= 0) & (coords_y < d2)]
             coords_x = coords_x[(coords_x >= 0) & (coords_x < d1)]
             idxs = np.meshgrid( coords_x,coords_y)
@@ -145,31 +148,37 @@ def cnmf_patches(args_in):
         
         logger.info('Initialize Components') 
         Ain, Cin, b_in, f_in, center=cse.initialization.initialize_components(Y, **options['init_params']) 
-                                                              
-        logger.info('Spatial Update')                                                      
-        A,b,Cin = cse.spatial.update_spatial_components(Yr, Cin, f_in, Ain, sn=sn, **options['spatial_params'])  
-        options['temporal_params']['p'] = 0 # set this to zero for fast updating without deconvolution
+                                                  
+        if options['patch_params']['only_init']:
+            
+            return idx_,shapes, coo_matrix(Ain), b_in, Cin, f_in, None, None , None, None, g, sn, options
+
+        else:
+                                              
+            logger.info('Spatial Update')                                                      
+            A,b,Cin = cse.spatial.update_spatial_components(Yr, Cin, f_in, Ain, sn=sn, **options['spatial_params'])  
+            options['temporal_params']['p'] = 0 # set this to zero for fast updating without deconvolution
+                                                                       
+            
+            logger.info('Temporal Update')  
+            C,f,S,bl,c1,neurons_sn,g,YrA = cse.temporal.update_temporal_components(Yr,A,b,Cin,f_in,bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
+            
+            logger.info('Merge Components') 
+            A_m,C_m,nr_m,merged_ROIs,S_m,bl_m,c1_m,sn_m,g_m=cse.merging.merge_components(Yr,A,b,C,f,S,sn,options['temporal_params'], options['spatial_params'], bl=bl, c1=c1, sn=neurons_sn, g=g, thr=options['merging']['thr'], fast_merge = True)
+                                                                  
+            logger.info('Update Spatial II')
+            A2,b2,C2 = cse.spatial.update_spatial_components(Yr, C_m, f, A_m, sn=sn, **options['spatial_params'])
+            
+            logger.info('Update Temporal II')                                                       
+            options['temporal_params']['p'] = p # set it back to original value to perform full deconvolution
+            C2,f2,S2,bl2,c12,neurons_sn2,g21,YrA = cse.temporal.update_temporal_components(Yr,A2,b2,C2,f,bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
                                                                    
-        
-        logger.info('Temporal Update')  
-        C,f,S,bl,c1,neurons_sn,g,YrA = cse.temporal.update_temporal_components(Yr,A,b,Cin,f_in,bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
-        
-        logger.info('Merge Components') 
-        A_m,C_m,nr_m,merged_ROIs,S_m,bl_m,c1_m,sn_m,g_m=cse.merging.merge_components(Yr,A,b,C,f,S,sn,options['temporal_params'], options['spatial_params'], bl=bl, c1=c1, sn=neurons_sn, g=g, thr=options['merging']['thr'], fast_merge = True)
-                                                              
-        logger.info('Update Spatial II')
-        A2,b2,C2 = cse.spatial.update_spatial_components(Yr, C_m, f, A_m, sn=sn, **options['spatial_params'])
-        
-        logger.info('Update Temporal II')                                                       
-        options['temporal_params']['p'] = p # set it back to original value to perform full deconvolution
-        C2,f2,S2,bl2,c12,neurons_sn2,g21,YrA = cse.temporal.update_temporal_components(Yr,A2,b2,C2,f,bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
-                                                               
-       
-        Y=[]
-        Yr=[]
-        
-        logger.info('Done!')
-        return idx_,shapes,A2,b2,C2,f2,S2,bl2,c12,neurons_sn2,g21,sn,options
+           
+            Y=[]
+            Yr=[]
+            
+            logger.info('Done!')
+            return idx_,shapes,A2,b2,C2,f2,S2,bl2,c12,neurons_sn2,g21,sn,options
     
     else:
         return None                
@@ -222,12 +231,24 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, dview=None,me
     d=d1*d2
     K=options['init_params']['K']
     
-    options['preprocess_params']['n_pixels_per_process']=np.int((rf*rf)/memory_fact)
-    options['spatial_params']['n_pixels_per_process']=np.int((rf*rf)/memory_fact)
-    options['temporal_params']['n_pixels_per_process']=np.int((rf*rf)/memory_fact)
+    if not np.isscalar(rf):
+        rf1,rf2=rf
+    else:
+        rf1=rf
+        rf2=rf
+        
+    if not np.isscalar(stride):    
+        stride1,stride2=stride
+    else:
+        stride1=stride
+        stride2=stride
+        
+    options['preprocess_params']['n_pixels_per_process']=np.int((rf1*rf2)/memory_fact)
+    options['spatial_params']['n_pixels_per_process']=np.int((rf1*rf2)/memory_fact)
+    options['temporal_params']['n_pixels_per_process']=np.int((rf1*rf2)/memory_fact)
 
     
-    idx_flat,idx_2d=extract_patch_coordinates(d1, d2, rf=rf, stride = stride)
+    idx_flat,idx_2d=extract_patch_coordinates(d1, d2, rf=(rf1,rf2), stride = (stride1,stride2))
 #    import pdb 
 #    pdb.set_trace()
     args_in=[]    

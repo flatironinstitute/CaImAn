@@ -6,11 +6,13 @@ import scipy.sparse as spr
 import scipy
 # from ca_source_extraction.utilities import com, local_correlations
 from scipy.ndimage.measurements import center_of_mass
+from sklearn.decomposition import NMF
+import utilities
 #%%
 
 
 def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter=5, maxIter=5,
-                          kernel=None, use_hals=True, Cn=None, sn=None):
+                          kernel=None, use_hals=True, Cn=None, sn=None,method = 'greedy_roi',max_iter_snmf=500,alpha_snmf=10e2,sigma_smooth_snmf=(.5,.5,.5),perc_baseline_snmf=20):
     """Initalize components
 
     This method uses a greedy approach followed by hierarchical alternative least squares (HALS) NMF.
@@ -38,7 +40,8 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
         User specified kernel for greedyROI (default None, greedy ROI searches for Gaussian shaped neurons)
     use_hals: [bool]
         Whether to refine components with the hals method
-
+    method: str  
+        'greedy_roi' or 'sparse_nmf'
     Returns
     --------
     Ain: np.ndarray
@@ -80,13 +83,24 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
         Y_ds = Y
 
     print 'Roi Extraction...'
+    if method == 'greedy_roi':
+        Ain, Cin, _, b_in, f_in = greedyROI(
+            Y_ds, nr=K, gSig=gSig, gSiz=gSiz, nIter=nIter, kernel=kernel)
+        if use_hals:
+            print 'Refining Components...'
+            Ain, Cin, b_in, f_in = hals(Y_ds, Ain, Cin, b_in, f_in, maxIter=maxIter)
+    elif method == 'sparse_nmf':
+        Ain, Cin, _, b_in, f_in = sparseNMF( Y_ds,nr=K,  max_iter_snmf=max_iter_snmf, alpha= alpha_snmf, sigma_smooth=sigma_smooth_snmf,remove_baseline=True,perc_baseline=perc_baseline_snmf)
+#        print np.sum(Ain), np.sum(Cin)        
+#        print 'Refining Components...'
+#        Ain, Cin, b_in, f_in = hals(Y_ds, Ain, Cin, b_in, f_in, maxIter=maxIter)            
+#        print np.sum(Ain), np.sum(Cin)
+    else:
+        print method
+        raise Exception("Unsupported method")
+        
 
-    Ain, Cin, _, b_in, f_in = greedyROI(
-        Y_ds, nr=K, gSig=gSig, gSiz=gSiz, nIter=nIter, kernel=kernel)
-    if use_hals:
-        print 'Refining Components...'
-        Ain, Cin, b_in, f_in = hals(Y_ds, Ain, Cin, b_in, f_in, maxIter=maxIter)
-
+    K=np.shape(Ain)[-1]
     ds = Y_ds.shape[:-1]
     Ain = np.reshape(Ain, ds + (K,), order='F')
     
@@ -118,10 +132,83 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
         Ain = Ain * np.reshape(noise, (np.prod(d), -1),order='F')      
         b_in = b_in * np.atleast_2d(noise).T
         Y = Y * np.reshape(noise, d + (-1,),order='F')
-
+        
+    
     return Ain, Cin, b_in, f_in, center
 
+#%%
+def sparseNMF(Y_ds, nr,  max_iter_snmf=500, alpha= 10e2, sigma_smooth=(.5,.5,.5),remove_baseline=True,perc_baseline=20):
+    """
+    Initilaization using sparse NMF
+    Parameters
+    -----------
+        
+    max_iter_snm: int
+        number of iterations
+    alpha_snmf:
+        sparsity regularizer
+    sigma_smooth_snmf:
+        smoothing along z,x, and y (.5,.5,.5)
+    perc_baseline_snmf:
+        percentile to remove frmo movie beofre NMF
+    
+    Returns:
+    -------
 
+    A: np.array
+        2d array of size (# of pixels) x nr with the spatial components. Each column is
+        ordered columnwise (matlab format, order='F')
+    C: np.array
+        2d array of size nr X T with the temporal components
+    center: np.array
+        2d array of size nr x 2 [ or 3] with the components centroids
+    """
+    
+    m = scipy.ndimage.gaussian_filter(np.transpose(Y_ds,[2,0,1]), sigma=sigma_smooth, mode='nearest',truncate=2)
+    if remove_baseline:      
+        bl = np.percentile(m,perc_baseline,axis=0)
+        m1 = np.maximum(0,m-bl)
+    else:
+        bl=0
+        m1=m
+    
+    mdl = NMF(n_components=nr,verbose=True,init='nndsvd',tol=1e-10,max_iter=max_iter_snmf,shuffle=True,alpha=alpha,l1_ratio=1)
+    T,d1,d2=np.shape(m1)
+    d=d1*d2
+    yr=np.reshape(m1,[T,d],order='F')    
+    C=mdl.fit_transform(yr).T
+    A=mdl.components_.T   
+    ind_good = np.where(np.logical_and((np.sum(A,0)*np.std(C,axis=1)) > 0, np.sum(A>np.mean(A),axis=0)<d/3 ) )[0] 
+#    A_in=A[:, ind_good] 
+#    C_in=C[ind_good, :]    
+    ind_bad = np.where(np.logical_or((np.sum(A,0)*np.std(C,axis=1)) == 0, np.sum(A>np.mean(A),axis=0)>d/3 ) )[0] 
+    A_in=np.zeros_like(A)
+    
+    C_in=np.zeros_like(C)
+    A_in[:, ind_good] = A[:, ind_good]
+    C_in[ind_good, :] = C[ind_good, :]
+    A_in=A_in*(A_in>(.1*np.max(A_in,axis=0))[np.newaxis,:])
+    A_in[:3, ind_bad] = .0001
+    C_in[ind_bad, :3] =  .0001
+    
+#    import pdb
+#    pdb.set_trace()
+    m1 = yr.T-A_in.dot(C_in)+ np.maximum(0,bl.flatten())[:,np.newaxis]
+    
+    
+    model = NMF(n_components=1, init='random', random_state=0,max_iter=max_iter_snmf)
+
+    b_in = model.fit_transform(np.maximum(m1, 0))
+    f_in = model.components_.squeeze()
+    
+    center=utilities.com(A_in,d1,d2)
+#    for iter in range(max_iter_snmf):
+#        f = np.maximum(b.T.dot(scipy.linalg.solve(scipy.linalg.norm(b).T**2,Y.T),0);
+#        b = np.maximum(Y.dot(scipy.linalg.solve(scipy.linalg.norm(f).T**2,f.T),0);        
+#    end
+    
+    return A_in, C_in, center, b_in, f_in
+    
 #%%
 def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None):
     """
