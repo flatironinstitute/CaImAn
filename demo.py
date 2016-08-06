@@ -99,7 +99,7 @@ print time() - t1
 
 #%%
 t1 = time()
-Atmp, Ctmp, b_in, f_in, center=cse.initialization.initialize_components(Y, sn=sn, **options['init_params'])                                                    
+Atmp, Ctmp, b_in, f_in, center=cse.initialization.initialize_components(Y, **options['init_params'])                                                    
 print time() - t1
 
 #%% Refine manually component by clicking on neurons 
@@ -120,7 +120,7 @@ print t_elSPATIAL
 #plt.figure()
 crd = cse.utilities.plot_contours(A,Cn,thr=0.9)
 #%% update_temporal_components
-pl.close()
+#pl.close()
 t1 = time()
 options['temporal_params']['p'] = 0 # set this to zero for fast updating without deconvolution
 C,f,S,bl,c1,neurons_sn,g,YrA = cse.temporal.update_temporal_components(Yr,A,b,Cin,f_in,dview=dview,bl=None,c1=None,sn=None,g=None,**options['temporal_params'])

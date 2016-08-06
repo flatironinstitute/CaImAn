@@ -444,27 +444,53 @@ def contruct_ellipse_parallel(pars):
     # search indexes for each component
     return np.sqrt(np.sum([(dist_cm * V[:, k])**2 / dkk[k] for k in range(len(dkk))], 0)) <= dist
 #%% threshold_components
-def threshold_components(A, dims, medw=(3, 3), thr=0.9999,
+def threshold_components(A, dims, medw=(3, 3), thr_method = 'nrg', maxthr = 0.1, nrgthr=0.9999, extract_cc = True,
                          se=np.ones((3, 3), dtype=np.int), ss=np.ones((3, 3), dtype=np.int),dview=None):
     '''
-    TODO
+    Post-processing of spatial components which includes the following steps
+    (i) Median filtering
+    (ii) Thresholding
+    (iii) Morphological closing of spatial support
+    (iv) Extraction of largest connected component
+    
+    Parameters:
+    A:      np.ndarray
+        2d matrix with spatial components
+    dims:   tuple
+        dimensions of spatial components
+    medw: [optional] tuple
+        window of median filter
+    thr_method: [optional] string
+        Method of thresholding: 
+            'max' sets to zero pixels that have value less than a fraction of the max value
+            'nrg' keeps the pixels that contribute up to a specified fraction of the energy
+    maxthr: [optional] scalar
+        Threshold of max value
+    nrgthr: [optional] scalar 
+        Threshold of energy
+    extract_cc: [optional] bool
+        Flag to extract connected components (might want to turn to False for dendritic imaging)
+    se: [optional] np.intarray
+        Morphological closing structuring element
+    ss: [optinoal] np.intarray
+        Binary element for determining connectivity
     '''
     
     
     if len(dims) == 3:  # default values for 3D
         if len(medw) == 2:
-            medw = (3, 3, 3)
+            medw = (3, 3, 1)
         if len(se.shape) == 2:
-            se = np.ones((3, 3, 3), dtype=np.int)
+            se = np.ones((3, 3, 1), dtype=np.int)
         if len(ss.shape) == 2:
-            ss = np.ones((3, 3, 3), dtype=np.int)
+            ss = np.ones((3, 3, 1), dtype=np.int)
 
     d, nr = np.shape(A)
     Ath = np.zeros((d, nr))
     
     pars=[];
     for i in range(nr):
-        pars.append([A[:, i], i , dims, medw, d, se, ss, thr])
+        pars.append([A[:, i], i , dims, medw, d, thr_method, se, ss, maxthr, nrgthr, extract_cc])
     
     if dview is not None:
         res=dview.map_async(threshold_components_parallel,pars)        
@@ -512,38 +538,45 @@ def threshold_components(A, dims, medw=(3, 3), thr=0.9999,
 
 def threshold_components_parallel(pars):
     
-        
-        
-        A_i, i , dims, medw, d, se, ss, thr  = pars
+                
+        A_i, i , dims, medw, d, thr_method, se, ss, maxthr, nrgthr, extract_cc  = pars
         A_temp = np.reshape(A_i, dims[::-1])
         A_temp = median_filter(A_temp, medw)
-        Asor = np.sort(np.squeeze(np.reshape(A_temp, (d, 1))))[::-1]
-        temp = np.cumsum(Asor**2)
-        ff = np.squeeze(np.where(temp < (1 - thr) * temp[-1]))
-
-        if ff.size > 0:
-            if ff.ndim == 0:
-                ind = ff
+        if thr_method == 'max':
+            BW = (A_temp>maxthr*np.max(A_temp))                        
+        elif thr_method == 'nrg':        
+            Asor = np.sort(np.squeeze(np.reshape(A_temp, (d, 1))))[::-1]
+            temp = np.cumsum(Asor**2)
+            ff = np.squeeze(np.where(temp < (1 - nrgthr) * temp[-1]))    
+            if ff.size > 0:
+                if ff.ndim == 0:
+                    ind = ff
+                else:
+                    ind = ff[-1]
+                A_temp[A_temp < Asor[ind]] = 0
+                BW = (A_temp >= Asor[ind])
             else:
-                ind = ff[-1]
-            A_temp[A_temp < Asor[ind]] = 0
-            BW = (A_temp >= Asor[ind])
-        else:
-            BW = (A_temp >= 0)
-
+                BW = (A_temp >= 0)
+    
         Ath = np.squeeze(np.reshape(A_temp, (d, 1)))
+        Ath2 = np.zeros((d))
         BW = binary_closing(BW.astype(np.int), structure=se)
-        labeled_array, num_features = label(BW, structure=ss)
-        BW = np.reshape(BW, (d, 1))
-        labeled_array = np.squeeze(np.reshape(labeled_array, (d, 1)))
-        nrg = np.zeros((num_features, 1))
-        for j in range(num_features):
-            nrg[j] = np.sum(Ath[labeled_array == j + 1]**2)
+        if extract_cc:        
+            labeled_array, num_features = label(BW, structure=ss)
+            BW = np.reshape(BW, (d, 1))
+            labeled_array = np.squeeze(np.reshape(labeled_array, (d, 1)))
+            nrg = np.zeros((num_features, 1))
+            for j in range(num_features):
+                nrg[j] = np.sum(Ath[labeled_array == j + 1]**2)
 
-        indm = np.argmax(nrg)
-        Ath[labeled_array == indm + 1] = A_i[labeled_array == indm + 1]
+            indm = np.argmax(nrg)         
+            #Ath2[labeled_array == indm + 1] = A_i[labeled_array == indm + 1]
+            Ath2[labeled_array == indm + 1] = Ath[labeled_array == indm + 1]
+        else:            
+            BW = BW.flatten()
+            Ath2[BW] = Ath[BW]
         
-        return Ath, i
+        return Ath2, i
         
 #%% lars_regression_noise
 def lars_regression_noise(Yp, X, positive, noise, verbose=False):
