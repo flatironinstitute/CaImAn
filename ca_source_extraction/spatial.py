@@ -6,7 +6,7 @@ Created on Wed Aug 05 20:38:27 2015
 """
 import numpy as np
 #from scipy.sparse import coo_matrix as coom
-from scipy.sparse import coo_matrix, csc_matrix
+from scipy.sparse import coo_matrix, csc_matrix, csr_matrix
 from scipy.sparse import spdiags
 from scipy.linalg import eig
 from scipy.ndimage.morphology import generate_binary_structure, iterate_structure
@@ -48,7 +48,7 @@ def basis_denoising(y, c, boh, sn, id2_, px):
 #%% update_spatial_components (in parallel)
 
 
-def update_spatial_components(Y, C, f, A_in, sn=None, dims=None, min_size=3, max_size=8, dist=3,
+def update_spatial_components(Y, C = None, f = None, A_in = None, sn=None, dims=None, min_size=3, max_size=8, dist=3,
                               method='ellipse', expandCore=None, dview=None, n_pixels_per_process=128,
                               medw=(3, 3), thr_method = 'nrg', maxthr = 0.1, nrgthr=0.9999, extract_cc = True,
                               se=np.ones((3, 3), dtype=np.int), ss=np.ones((3, 3), dtype=np.int)):
@@ -69,8 +69,9 @@ def update_spatial_components(Y, C, f, A_in, sn=None, dims=None, min_size=3, max
         calcium activity of each neuron.
     f: np.ndarray
         temporal profile  of background activity.
-    Ain: np.ndarray
-        spatial profile of background activity.
+    A_in: np.ndarray
+        spatial profile of background activity. If A_in is boolean then it defines the spatial support of A. 
+        Otherwise it is used to determine it through determine_search_location
 
     dims: [optional] tuple
         x, y[, z] movie dimensions
@@ -130,35 +131,57 @@ def update_spatial_components(Y, C, f, A_in, sn=None, dims=None, min_size=3, max
     if Y.shape[1] == 1:
         raise Exception('Dimension of Matrix Y must be pixels x time')
 
-    C = np.atleast_2d(C)
-    if C.shape[1] == 1:
-        raise Exception('Dimension of Matrix C must be neurons x time')
+    if C is not None:
+        C = np.atleast_2d(C)
+        if C.shape[1] == 1:
+            raise Exception('Dimension of Matrix C must be neurons x time')
 
-    f = np.atleast_2d(f)
-    if f.shape[1] == 1:
-        raise Exception('Dimension of Matrix f must be neurons x time ')
+    if f is not None:
+        f = np.atleast_2d(f)
+        if f.shape[1] == 1:
+            raise Exception('Dimension of Matrix f must be neurons x time ')
 
-    if len(A_in.shape) == 1:
-        A_in = np.atleast_2d(A_in).T
+    if (A_in is None) and (C is None):
+        raise Exception('Either A or C need to be determined')
+        
+    if A_in is not None:
+        if len(A_in.shape) == 1:
+            A_in = np.atleast_2d(A_in).T
 
-    if A_in.shape[0] == 1:
-        raise Exception('Dimension of Matrix A must be pixels x neurons ')
+        if A_in.shape[0] == 1:
+            raise Exception('Dimension of Matrix A must be pixels x neurons ')
 
     start_time = time.time()
-
-    Cf = np.vstack((C, f))  # create matrix that include background components
-
+    
     [d, T] = np.shape(Y)
+    
+    if A_in is None:
+        A_in = np.ones((d,np.shape(C)[1]),dtype=bool)
 
     if n_pixels_per_process > d:
         raise Exception(
             'The number of pixels per process (n_pixels_per_process) is larger than the total number of pixels!! Decrease suitably.')
+        
+    if A_in.dtype == bool:
+        IND = A_in.copy()
+        print "spatial support for each components given by the user"
+        if C is None:
+            INDav = IND.astype('float32')/np.sum(IND,axis=0)
+            px = (np.sum(IND,axis=1)>0)
+            f = np.mean(Y[~px,:],axis=0)            
+            Y_resf = np.dot(Y, f.T)
+            b = np.fmax(Y_resf / scipy.linalg.norm(f)**2, 0)           
+            C = np.fmax(csr_matrix(INDav.T).dot(Y) - np.outer(INDav.T.dot(b),f), 0)
+            f = np.atleast_2d(f)
+    else:
+        IND = determine_search_location(
+            A_in, dims, method=method, min_size=min_size, max_size=max_size, dist=dist, expandCore=expandCore,dview=dview)
+        print "found spatial support for each component"
 
+    print np.shape(A_in)    
+
+    Cf = np.vstack((C, f))  # create matrix that include background components
     nr, _ = np.shape(C)       # number of neurons
-
-    IND = determine_search_location(
-        A_in, dims, method=method, min_size=min_size, max_size=max_size, dist=dist, expandCore=expandCore,dview=dview)
-    print " find search location"
 
     ind2_ = [np.hstack((np.where(iid_)[0], nr + np.arange(f.shape[0])))
              if np.size(np.where(iid_)[0]) > 0 else [] for iid_ in IND]
