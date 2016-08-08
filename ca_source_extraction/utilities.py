@@ -49,6 +49,7 @@ from scipy.ndimage.measurements import center_of_mass
 from ipyparallel import Client
 from scipy.stats import norm
 from skimage.draw import polygon
+from warnings import warn
 #%%
 
 
@@ -106,8 +107,15 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], ssub=1, tsub=1, p=2, p_ssub=
         # method for determining footprint of spatial components ('ellipse' or 'dilate')
         'method': 'ellipse',
         'dist': 3,                       # expansion factor of ellipse
-        'n_pixels_per_process': n_pixels_per_process,    # number of pixels to be processed by eacg worker
-    }
+        'n_pixels_per_process': n_pixels_per_process,   # number of pixels to be processed by eacg worker
+        'medw' : (3, 3),                                # window of median filter
+        'thr_method' : 'nrg',                           #  Method of thresholding ('max' or 'nrg')
+        'maxthr' : 0.1,                                 # Max threshold
+        'nrgthr' : 0.9999,                              # Energy threshold
+        'extract_cc' : True,                            # Flag to extract connected components (might want to turn to False for dendritic imaging)
+        'se' : np.ones((3, 3), dtype=np.int),           # Morphological closing structuring element
+        'ss' : np.ones((3, 3), dtype=np.int)            # Binary element for determining connectivity            
+        }
     options['temporal_params'] = {
         'ITER': 2,                   # block coordinate descent iterations
         # method for solving the constrained deconvolution problem ('cvx' or 'cvxpy')
@@ -862,7 +870,7 @@ def view_patches(Yr, A, C, b, f, d1, d2, YrA=None, secs=1):
             ax2.set_title('Temporal background')
 
 
-def plot_contours(A, Cn, thr=0.9, display_numbers=True, max_number=None, cmap=None, swap_dim=False, colors='w', vmin=None, vmax=None, **kwargs):
+def plot_contours(A, Cn, thr=None, thr_method = 'max', maxthr = 0.2, nrgthr = 0.9, display_numbers=True, max_number=None, cmap=None, swap_dim=False, colors='w', vmin=None, vmax=None, **kwargs):
     """Plots contour of spatial components against a background image and returns their coordinates
 
      Parameters
@@ -871,8 +879,17 @@ def plot_contours(A, Cn, thr=0.9, display_numbers=True, max_number=None, cmap=No
                Matrix of Spatial components (d x K)
      Cn:  np.ndarray (2D)
                Background image (e.g. mean, correlation)
+     thr_method: [optional] string
+              Method of thresholding: 
+                  'max' sets to zero pixels that have value less than a fraction of the max value
+                  'nrg' keeps the pixels that contribute up to a specified fraction of the energy
+     maxthr: [optional] scalar
+                Threshold of max value
+     nrgthr: [optional] scalar
+                Threshold of energy
      thr: scalar between 0 and 1
-               Energy threshold for computing contours (default 0.995)
+               Energy threshold for computing contours (default 0.9)
+               Kept for backwards compatibility. If not None then thr_method = 'nrg', and nrgthr = thr
      display_number:     Boolean
                Display number of ROIs if checked (default True)
      max_number:    int
@@ -898,6 +915,11 @@ def plot_contours(A, Cn, thr=0.9, display_numbers=True, max_number=None, cmap=No
     if max_number is None:
         max_number = nr
 
+    if thr is not None:
+        thr_method = 'nrg'
+        nrgthr = thr
+        warn("The way to call utilities.plot_contours has changed. Look at the definition for more details.")
+
     x, y = np.mgrid[0:d1:1, 0:d2:1]
 
     ax = plt.gca()
@@ -913,16 +935,25 @@ def plot_contours(A, Cn, thr=0.9, display_numbers=True, max_number=None, cmap=No
     cm = com(A, d1, d2)
     for i in range(np.minimum(nr, max_number)):
         pars = dict(kwargs)
-        indx = np.argsort(A[:, i], axis=None)[::-1]
-        cumEn = np.cumsum(A[:, i].flatten()[indx]**2)
-        cumEn /= cumEn[-1]
-        Bvec = np.zeros(d)
-        Bvec[indx] = cumEn
+        if thr_method == 'nrg':        
+            indx = np.argsort(A[:, i], axis=None)[::-1]
+            cumEn = np.cumsum(A[:, i].flatten()[indx]**2)
+            cumEn /= cumEn[-1]
+            Bvec = np.zeros(d)
+            Bvec[indx] = cumEn
+            thr = nrgthr
+            
+        else: # thr_method = 'max'
+            if ~(thr_method == 'max'):
+                warn("Unknown threshold method. Choosing max")
+            Bvec = A[:,i].flatten()
+            Bvec /= np.max(Bvec)
+            thr = maxthr                
+            
         if swap_dim:
             Bmat = np.reshape(Bvec, np.shape(Cn), order='C')
         else:
             Bmat = np.reshape(Bvec, np.shape(Cn), order='F')
-
         cs = plt.contour(y, x, Bmat, [thr], colors=colors)
         # this fix is necessary for having disjoint figures and borders plotted correctly
         p = cs.collections[0].get_paths()

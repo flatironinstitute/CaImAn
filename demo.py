@@ -109,7 +109,8 @@ if refine_components:
 else:
     Ain,Cin = Atmp, Ctmp
 #%% plot estimated component
-crd = cse.utilities.plot_contours(coo_matrix(Ain),Cn,thr=0.9)  
+pl.figure()
+crd = cse.utilities.plot_contours(coo_matrix(Ain),Cn)  
 pl.show()
 #%% UPDATE SPATIAL COMPONENTS
 pl.close()
@@ -117,8 +118,8 @@ t1 = time()
 A,b,Cin = cse.spatial.update_spatial_components(Yr, Cin, f_in, Ain, sn=sn, dview=dview,**options['spatial_params'])
 t_elSPATIAL = time() - t1
 print t_elSPATIAL 
-#plt.figure()
-crd = cse.utilities.plot_contours(A,Cn,thr=0.9)
+pl.figure()
+crd = cse.utilities.plot_contours(A,Cn)
 #%% update_temporal_components
 #pl.close()
 t1 = time()

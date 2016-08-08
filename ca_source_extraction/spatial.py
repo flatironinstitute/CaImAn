@@ -49,7 +49,9 @@ def basis_denoising(y, c, boh, sn, id2_, px):
 
 
 def update_spatial_components(Y, C, f, A_in, sn=None, dims=None, min_size=3, max_size=8, dist=3,
-                              method='ellipse', expandCore=None, dview=None, n_pixels_per_process=128):
+                              method='ellipse', expandCore=None, dview=None, n_pixels_per_process=128,
+                              medw=(3, 3), thr_method = 'nrg', maxthr = 0.1, nrgthr=0.9999, extract_cc = True,
+                              se=np.ones((3, 3), dtype=np.int), ss=np.ones((3, 3), dtype=np.int)):
     """update spatial footprints and background through Basis Pursuit Denoising
 
     for each pixel i solve the problem
@@ -101,6 +103,9 @@ def update_spatial_components(Y, C, f, A_in, sn=None, dims=None, min_size=3, max
 
     dview: view on ipyparallel client
             you need to create an ipyparallel client and pass a view on the processors (client = Client(), dview=client[:])            
+            
+    medw, thr_method, maxthr, nrgthr, extract_cc, se, ss: [optional]
+        Parameters for components post-processing. Refer to spatial.threshold_components for more details
 
     Returns
     --------
@@ -235,7 +240,8 @@ def update_spatial_components(Y, C, f, A_in, sn=None, dims=None, min_size=3, max
     #%
     print 'Updated Spatial Components'
 
-    A_ = threshold_components(A_, dims,dview=dview)
+    A_ = threshold_components(A_, dims, dview=dview, medw=(3, 3), thr_method = thr_method, maxthr = maxthr, nrgthr = nrgthr, extract_cc = extract_cc,
+                         se=se, ss=ss)
 
     print "threshold"
     ff = np.where(np.sum(A_, axis=0) == 0)           # remove empty components
@@ -466,7 +472,7 @@ def threshold_components(A, dims, medw=(3, 3), thr_method = 'nrg', maxthr = 0.1,
             'nrg' keeps the pixels that contribute up to a specified fraction of the energy
     maxthr: [optional] scalar
         Threshold of max value
-    nrgthr: [optional] scalar 
+    nrgthr: [optional] scalar
         Threshold of energy
     extract_cc: [optional] bool
         Flag to extract connected components (might want to turn to False for dendritic imaging)
