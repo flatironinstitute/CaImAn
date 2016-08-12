@@ -6,7 +6,7 @@ Created on Wed Aug 05 20:38:27 2015
 """
 import numpy as np
 #from scipy.sparse import coo_matrix as coom
-from scipy.sparse import coo_matrix, csc_matrix
+from scipy.sparse import coo_matrix, csc_matrix, csr_matrix
 from scipy.sparse import spdiags
 from scipy.linalg import eig
 from scipy.ndimage.morphology import generate_binary_structure, iterate_structure
@@ -48,8 +48,10 @@ def basis_denoising(y, c, boh, sn, id2_, px):
 #%% update_spatial_components (in parallel)
 
 
-def update_spatial_components(Y, C, f, A_in, sn=None, dims=None, min_size=3, max_size=8, dist=3,
-                              method='ellipse', expandCore=None, dview=None, n_pixels_per_process=128):
+def update_spatial_components(Y, C = None, f = None, A_in = None, sn=None, dims=None, min_size=3, max_size=8, dist=3,
+                              method='ellipse', expandCore=None, dview=None, n_pixels_per_process=128,
+                              medw=(3, 3), thr_method = 'nrg', maxthr = 0.1, nrgthr=0.9999, extract_cc = True,
+                              se=np.ones((3, 3), dtype=np.int), ss=np.ones((3, 3), dtype=np.int)):
     """update spatial footprints and background through Basis Pursuit Denoising
 
     for each pixel i solve the problem
@@ -67,8 +69,9 @@ def update_spatial_components(Y, C, f, A_in, sn=None, dims=None, min_size=3, max
         calcium activity of each neuron.
     f: np.ndarray
         temporal profile  of background activity.
-    Ain: np.ndarray
-        spatial profile of background activity.
+    A_in: np.ndarray
+        spatial profile of background activity. If A_in is boolean then it defines the spatial support of A. 
+        Otherwise it is used to determine it through determine_search_location
 
     dims: [optional] tuple
         x, y[, z] movie dimensions
@@ -101,6 +104,9 @@ def update_spatial_components(Y, C, f, A_in, sn=None, dims=None, min_size=3, max
 
     dview: view on ipyparallel client
             you need to create an ipyparallel client and pass a view on the processors (client = Client(), dview=client[:])            
+            
+    medw, thr_method, maxthr, nrgthr, extract_cc, se, ss: [optional]
+        Parameters for components post-processing. Refer to spatial.threshold_components for more details
 
     Returns
     --------
@@ -125,35 +131,57 @@ def update_spatial_components(Y, C, f, A_in, sn=None, dims=None, min_size=3, max
     if Y.shape[1] == 1:
         raise Exception('Dimension of Matrix Y must be pixels x time')
 
-    C = np.atleast_2d(C)
-    if C.shape[1] == 1:
-        raise Exception('Dimension of Matrix C must be neurons x time')
+    if C is not None:
+        C = np.atleast_2d(C)
+        if C.shape[1] == 1:
+            raise Exception('Dimension of Matrix C must be neurons x time')
 
-    f = np.atleast_2d(f)
-    if f.shape[1] == 1:
-        raise Exception('Dimension of Matrix f must be neurons x time ')
+    if f is not None:
+        f = np.atleast_2d(f)
+        if f.shape[1] == 1:
+            raise Exception('Dimension of Matrix f must be neurons x time ')
 
-    if len(A_in.shape) == 1:
-        A_in = np.atleast_2d(A_in).T
+    if (A_in is None) and (C is None):
+        raise Exception('Either A or C need to be determined')
+        
+    if A_in is not None:
+        if len(A_in.shape) == 1:
+            A_in = np.atleast_2d(A_in).T
 
-    if A_in.shape[0] == 1:
-        raise Exception('Dimension of Matrix A must be pixels x neurons ')
+        if A_in.shape[0] == 1:
+            raise Exception('Dimension of Matrix A must be pixels x neurons ')
 
     start_time = time.time()
-
-    Cf = np.vstack((C, f))  # create matrix that include background components
-
+    
     [d, T] = np.shape(Y)
+    
+    if A_in is None:
+        A_in = np.ones((d,np.shape(C)[1]),dtype=bool)
 
     if n_pixels_per_process > d:
         raise Exception(
             'The number of pixels per process (n_pixels_per_process) is larger than the total number of pixels!! Decrease suitably.')
+        
+    if A_in.dtype == bool:
+        IND = A_in.copy()
+        print "spatial support for each components given by the user"
+        if C is None:
+            INDav = IND.astype('float32')/np.sum(IND,axis=0)
+            px = (np.sum(IND,axis=1)>0)
+            f = np.mean(Y[~px,:],axis=0)            
+            Y_resf = np.dot(Y, f.T)
+            b = np.fmax(Y_resf / scipy.linalg.norm(f)**2, 0)           
+            C = np.fmax(csr_matrix(INDav.T).dot(Y) - np.outer(INDav.T.dot(b),f), 0)
+            f = np.atleast_2d(f)
+    else:
+        IND = determine_search_location(
+            A_in, dims, method=method, min_size=min_size, max_size=max_size, dist=dist, expandCore=expandCore,dview=dview)
+        print "found spatial support for each component"
 
+    print np.shape(A_in)    
+
+    Cf = np.vstack((C, f))  # create matrix that include background components
     nr, _ = np.shape(C)       # number of neurons
-
-    IND = determine_search_location(
-        A_in, dims, method=method, min_size=min_size, max_size=max_size, dist=dist, expandCore=expandCore,dview=dview)
-    print " find search location"
 
     ind2_ = [np.hstack((np.where(iid_)[0], nr + np.arange(f.shape[0])))
              if np.size(np.where(iid_)[0]) > 0 else [] for iid_ in IND]
@@ -235,7 +263,8 @@ def update_spatial_components(Y, C, f, A_in, sn=None, dims=None, min_size=3, max
     #%
     print 'Updated Spatial Components'
 
-    A_ = threshold_components(A_, dims,dview=dview)
+    A_ = threshold_components(A_, dims, dview=dview, medw=(3, 3), thr_method = thr_method, maxthr = maxthr, nrgthr = nrgthr, extract_cc = extract_cc,
+                         se=se, ss=ss)
 
     print "threshold"
     ff = np.where(np.sum(A_, axis=0) == 0)           # remove empty components
@@ -444,27 +473,53 @@ def contruct_ellipse_parallel(pars):
     # search indexes for each component
     return np.sqrt(np.sum([(dist_cm * V[:, k])**2 / dkk[k] for k in range(len(dkk))], 0)) <= dist
 #%% threshold_components
-def threshold_components(A, dims, medw=(3, 3), thr=0.9999,
+def threshold_components(A, dims, medw=(3, 3), thr_method = 'nrg', maxthr = 0.1, nrgthr=0.9999, extract_cc = True,
                          se=np.ones((3, 3), dtype=np.int), ss=np.ones((3, 3), dtype=np.int),dview=None):
     '''
-    TODO
+    Post-processing of spatial components which includes the following steps
+    (i) Median filtering
+    (ii) Thresholding
+    (iii) Morphological closing of spatial support
+    (iv) Extraction of largest connected component
+    
+    Parameters:
+    A:      np.ndarray
+        2d matrix with spatial components
+    dims:   tuple
+        dimensions of spatial components
+    medw: [optional] tuple
+        window of median filter
+    thr_method: [optional] string
+        Method of thresholding: 
+            'max' sets to zero pixels that have value less than a fraction of the max value
+            'nrg' keeps the pixels that contribute up to a specified fraction of the energy
+    maxthr: [optional] scalar
+        Threshold of max value
+    nrgthr: [optional] scalar
+        Threshold of energy
+    extract_cc: [optional] bool
+        Flag to extract connected components (might want to turn to False for dendritic imaging)
+    se: [optional] np.intarray
+        Morphological closing structuring element
+    ss: [optinoal] np.intarray
+        Binary element for determining connectivity
     '''
     
     
     if len(dims) == 3:  # default values for 3D
         if len(medw) == 2:
-            medw = (3, 3, 3)
+            medw = (3, 3, 1)
         if len(se.shape) == 2:
-            se = np.ones((3, 3, 3), dtype=np.int)
+            se = np.ones((3, 3, 1), dtype=np.int)
         if len(ss.shape) == 2:
-            ss = np.ones((3, 3, 3), dtype=np.int)
+            ss = np.ones((3, 3, 1), dtype=np.int)
 
     d, nr = np.shape(A)
     Ath = np.zeros((d, nr))
     
     pars=[];
     for i in range(nr):
-        pars.append([A[:, i], i , dims, medw, d, se, ss, thr])
+        pars.append([A[:, i], i , dims, medw, d, thr_method, se, ss, maxthr, nrgthr, extract_cc])
     
     if dview is not None:
         res=dview.map_async(threshold_components_parallel,pars)        
@@ -512,38 +567,45 @@ def threshold_components(A, dims, medw=(3, 3), thr=0.9999,
 
 def threshold_components_parallel(pars):
     
-        
-        
-        A_i, i , dims, medw, d, se, ss, thr  = pars
+                
+        A_i, i , dims, medw, d, thr_method, se, ss, maxthr, nrgthr, extract_cc  = pars
         A_temp = np.reshape(A_i, dims[::-1])
         A_temp = median_filter(A_temp, medw)
-        Asor = np.sort(np.squeeze(np.reshape(A_temp, (d, 1))))[::-1]
-        temp = np.cumsum(Asor**2)
-        ff = np.squeeze(np.where(temp < (1 - thr) * temp[-1]))
-
-        if ff.size > 0:
-            if ff.ndim == 0:
-                ind = ff
+        if thr_method == 'max':
+            BW = (A_temp>maxthr*np.max(A_temp))                        
+        elif thr_method == 'nrg':        
+            Asor = np.sort(np.squeeze(np.reshape(A_temp, (d, 1))))[::-1]
+            temp = np.cumsum(Asor**2)
+            ff = np.squeeze(np.where(temp < (1 - nrgthr) * temp[-1]))    
+            if ff.size > 0:
+                if ff.ndim == 0:
+                    ind = ff
+                else:
+                    ind = ff[-1]
+                A_temp[A_temp < Asor[ind]] = 0
+                BW = (A_temp >= Asor[ind])
             else:
-                ind = ff[-1]
-            A_temp[A_temp < Asor[ind]] = 0
-            BW = (A_temp >= Asor[ind])
-        else:
-            BW = (A_temp >= 0)
-
+                BW = (A_temp >= 0)
+    
         Ath = np.squeeze(np.reshape(A_temp, (d, 1)))
+        Ath2 = np.zeros((d))
         BW = binary_closing(BW.astype(np.int), structure=se)
-        labeled_array, num_features = label(BW, structure=ss)
-        BW = np.reshape(BW, (d, 1))
-        labeled_array = np.squeeze(np.reshape(labeled_array, (d, 1)))
-        nrg = np.zeros((num_features, 1))
-        for j in range(num_features):
-            nrg[j] = np.sum(Ath[labeled_array == j + 1]**2)
+        if extract_cc:        
+            labeled_array, num_features = label(BW, structure=ss)
+            BW = np.reshape(BW, (d, 1))
+            labeled_array = np.squeeze(np.reshape(labeled_array, (d, 1)))
+            nrg = np.zeros((num_features, 1))
+            for j in range(num_features):
+                nrg[j] = np.sum(Ath[labeled_array == j + 1]**2)
 
-        indm = np.argmax(nrg)
-        Ath[labeled_array == indm + 1] = A_i[labeled_array == indm + 1]
+            indm = np.argmax(nrg)         
+            #Ath2[labeled_array == indm + 1] = A_i[labeled_array == indm + 1]
+            Ath2[labeled_array == indm + 1] = Ath[labeled_array == indm + 1]
+        else:            
+            BW = BW.flatten()
+            Ath2[BW] = Ath[BW]
         
-        return Ath, i
+        return Ath2, i
         
 #%% lars_regression_noise
 def lars_regression_noise(Yp, X, positive, noise, verbose=False):
