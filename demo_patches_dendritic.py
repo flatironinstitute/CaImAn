@@ -189,8 +189,6 @@ print time() - t1
 options['temporal_params']['p']=p
 options['temporal_params']['fudge_factor']=0.96 #change ifdenoised traces time constant is wrong
 C2,f2,S2,bl2,c12,neurons_sn2,g21,YrA = cse.temporal.update_temporal_components(Yr,A2,b2,C2,f,dview=dview, bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
-#%% Order components
-#A_or, C_or, srt = cse.utilities.order_components(A2,C2)
 #%% stop server and remove log files
 #cse.utilities.stop_server(is_slurm = (backend == 'SLURM')) 
 log_files=glob.glob('Yr*_LOG_*')
@@ -213,6 +211,27 @@ if save_results:
     scipy.io.savemat(os.path.join(base_folder,'output_analysis_matlab.mat'),{'A2':A2,'C2':C2 , 'YrA':YrA, 'S2': S2 ,'YrA': YrA, 'd1':d1,'d2':d2,'idx_components':idx_components, 'fitness':fitness })
 #%% 
 
+min_radius=5 # min radius of expected blobs
+masks_ws,pos_examples,neg_examples=cse.utilities.extract_binary_masks_blob(A2.tocsc()[:,:], 
+     min_radius, dims, minCircularity= 0.5, minInertiaRatio = 0.2,minConvexity = .8)
+
+pl.subplot(1,2,1)
+
+final_masks=np.array(masks_ws)[pos_examples]
+pl.imshow(np.reshape(final_masks.max(0),dims,order='F'),vmax=1)
+pl.subplot(1,2,2)
+
+neg_examples_masks=np.array(masks_ws)[neg_examples]
+pl.imshow(np.reshape(neg_examples_masks.max(0),dims,order='F'),vmax=1)
+#%%
+pl.imshow(np.reshape(A2.tocsc()[:,neg_examples].mean(1),dims, order='F'))
+#%%
+pl.imshow(np.reshape(A2.tocsc()[:,pos_examples].mean(1),dims, order='F'))
+
+#%%
+cse.utilities.view_patches_bar(Yr,scipy.sparse.coo_matrix(A2.tocsc()[:,pos_examples]),C2[pos_examples,:],b2,f2, dims[0],dims[1], YrA=YrA[pos_examples,:],img=Cn)  
+#%%
+cse.utilities.view_patches_bar(Yr,scipy.sparse.coo_matrix(A2.tocsc()[:,neg_examples]),C2[neg_examples,:],b2,f2, dims[0],dims[1], YrA=YrA[neg_examples,:],img=Cn)  
 
 #%% RELOAD COMPONENTS!
 if save_results:

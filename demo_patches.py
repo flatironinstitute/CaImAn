@@ -99,7 +99,7 @@ downsample_factor=1 # use .2 or .1 if file is large and you want a quick answer
 idx_xy=None
 base_name='Yr'
 name_new=cse.utilities.save_memmap_each(fnames, dview=dview,base_name=base_name, resize_fact=(1, 1, downsample_factor), remove_init=0,idx_xy=idx_xy )
-name_new.sort(key=lambda fn: np.int(fn[len(base_name):fn.find('_')]))
+name_new.sort(key=lambda fn: np.int(fn[fn.find(base_name)+len(base_name):fn.find('_')]))
 print name_new
 #%%
 n_chunks=6 # increase this number if you have memory issues at this point
@@ -200,7 +200,27 @@ cse.utilities.view_patches_bar(Yr,scipy.sparse.coo_matrix(A2.tocsc()[:,idx_compo
 if save_results:
     np.savez('results_analysis.npz',Cn=Cn,A_tot=A_tot.todense(), C_tot=C_tot, sn_tot=sn_tot, A2=A2.todense(),C2=C2,b2=b2,S2=S2,f2=f2,bl2=bl2,c12=c12, neurons_sn2=neurons_sn2, g21=g21,YrA=YrA,d1=d1,d2=d2,idx_components=idx_components, fitness=fitness, erfc=erfc)    
     scipy.io.savemat('output_analysis_matlab.mat',{'A2':A2,'C2':C2 , 'YrA':YrA, 'S2': S2 ,'YrA': YrA, 'd1':d1,'d2':d2,'idx_components':idx_components, 'fitness':fitness })
-#%% 
+#%% select  blobs
+min_radius=5 # min radius of expected blobs
+masks_ws,pos_examples,neg_examples=cse.utilities.extract_binary_masks_blob(A2.tocsc()[:,:], 
+     min_radius, dims, minCircularity= 0.5, minInertiaRatio = 0.2,minConvexity = .8)
+
+pl.subplot(1,2,1)
+
+final_masks=np.array(masks_ws)[pos_examples]
+pl.imshow(np.reshape(final_masks.max(0),dims,order='F'),vmax=1)
+pl.subplot(1,2,2)
+
+neg_examples_masks=np.array(masks_ws)[neg_examples]
+pl.imshow(np.reshape(neg_examples_masks.max(0),dims,order='F'),vmax=1)
+#%%
+pl.imshow(np.reshape(A2.tocsc()[:,neg_examples].mean(1),dims, order='F'))
+#%%
+pl.imshow(np.reshape(A2.tocsc()[:,pos_examples].mean(1),dims, order='F'))
+
+#%%
+
+cse.utilities.view_patches_bar(Yr,scipy.sparse.coo_matrix(A2.tocsc()[:,pos_examples]),C2[pos_examples,:],b2,f2, dims[0],dims[1], YrA=YrA[pos_examples,:],img=Cn)  
 
 
 #%% RELOAD COMPONENTS!

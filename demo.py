@@ -99,7 +99,7 @@ print time() - t1
 
 #%%
 t1 = time()
-Atmp, Ctmp, b_in, f_in, center=cse.initialization.initialize_components(Y, sn=sn, **options['init_params'])                                                    
+Atmp, Ctmp, b_in, f_in, center=cse.initialization.initialize_components(Y, normalize=True, **options['init_params'])                                                    
 print time() - t1
 
 #%% Refine manually component by clicking on neurons 
@@ -158,4 +158,25 @@ if not single_thread:
     c.close()
     cse.utilities.stop_server()
 
+#%% select  blobs
+min_radius=5 # min radius of expected blobs
+masks_ws,pos_examples,neg_examples=cse.utilities.extract_binary_masks_blob(A2.tocsc()[:,:], 
+     min_radius, dims, minCircularity= 0.5, minInertiaRatio = 0.2,minConvexity = .8)
 
+pl.subplot(1,2,1)
+
+final_masks=np.array(masks_ws)[pos_examples]
+pl.imshow(np.reshape(final_masks.max(0),dims,order='F'),vmax=1)
+pl.subplot(1,2,2)
+
+neg_examples_masks=np.array(masks_ws)[neg_examples]
+pl.imshow(np.reshape(neg_examples_masks.max(0),dims,order='F'),vmax=1)
+#%%
+pl.imshow(np.reshape(A2.tocsc()[:,neg_examples].mean(1),dims, order='F'))
+#%%
+pl.imshow(np.reshape(A2.tocsc()[:,pos_examples].mean(1),dims, order='F'))
+
+#%%
+cse.utilities.view_patches_bar(Yr,scipy.sparse.coo_matrix(A2.tocsc()[:,pos_examples]),C2[pos_examples,:],b2,f2, dims[0],dims[1], YrA=YrA[pos_examples,:],img=Cn)  
+#%%
+cse.utilities.view_patches_bar(Yr,scipy.sparse.coo_matrix(A2.tocsc()[:,neg_examples]),C2[neg_examples,:],b2,f2, dims[0],dims[1], YrA=YrA[neg_examples,:],img=Cn)  
