@@ -117,6 +117,14 @@ or issues related to SCS type
  conda install accelerate
  conda install openblas 
  ```
+ 
+**CVXOPT**:
+
+If you are on Windows and don't manage to install or compile cvxopt, a simple solution is to download the right binary [there](http://www.lfd.uci.edu/~gohlke/pythonlibs/#cvxopt) and install the library by typing:
+
+```
+pip install cvxopt-1.1.7-XXXX.whl
+```
 
 Test the system
 ----------------------
