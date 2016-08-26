@@ -297,8 +297,11 @@ def update_spatial_components(Y, C = None, f = None, A_in = None, sn=None, dims=
     except:
 
         raise Exception("Failed to delete: " + folder)
-
-    return A_, b, C
+    
+    if A_in.dtype == bool:
+        return A_, b, C,f
+    else:
+        return A_, b, C
 
 
 #%%lars_regression_noise_ipyparallel

@@ -181,14 +181,54 @@ def load_memmap(filename):
         return Yr, None, None
 
 #%% 
-def save_memmap_each(fnames, dview=None, base_name=None, resize_fact=(1, 1, 1), remove_init=0, idx_xy=None):
+def save_memmap_each(fnames, dview=None, base_name=None, resize_fact=(1, 1, 1), remove_init=0, idx_xy=None,xy_shifts=None):
+    """
+    Create several memory mapped files using parallel processing
+    
+    Parameters:
+    -----------
+    fnames: list of str
+        list of path to the filenames
+        
+    dview: ipyparallel dview
+        used to perform computation in parallel. If none it will be signle thread
+        
+    base_name str
+        BaseName for the file to be creates. If not given the file itself is used
+
+    resize_fact: tuple
+        resampling factors for each dimension x,y,time. .1 = downsample 10X
+        
+    remove_init: int 
+        number of samples to remove from the beginning of each chunk
+        
+    idx_xy: slice operator 
+        used to perform slicing of the movie (to select a subportion of the movie)
+    
+    xy_shifts: list 
+        x and y shifts computed by a motion correction algorithm to be applied before memory mapping
+    
+    Returns:
+    --------
+    fnames_tot: list
+        paths to the created memory map files
+    
+    
+    """
     order='C'
     pars=[]
+    if xy_shifts is None:
+        xy_shifts=[None]*len(fnames)
+    
+    if type(resize_fact)is not list:
+        resize_fact=[resize_fact]*len(fnames)    
+    
+        
     for idx,f in enumerate(fnames):
         if base_name is not None:
-            pars.append([f,base_name+str(idx),resize_fact,remove_init,idx_xy,order])
+            pars.append([f,base_name+str(idx),resize_fact[idx],remove_init,idx_xy,order,xy_shifts[idx]])
         else:
-            pars.append([f,os.path.splitext(f)[0],resize_fact,remove_init,idx_xy,order])            
+            pars.append([f,os.path.splitext(f)[0],resize_fact[idx],remove_init,idx_xy,order,xy_shifts[idx]])            
     
     if dview is not None:
         fnames_new=dview.map_sync(save_place_holder,pars)
@@ -197,7 +237,7 @@ def save_memmap_each(fnames, dview=None, base_name=None, resize_fact=(1, 1, 1), 
     
     return fnames_new
 #%%
-def save_memmap_join(mmap_fnames,base_name=None, n_chunks=6, dview=None):
+def save_memmap_join(mmap_fnames,base_name=None, n_chunks=6, dview=None,async=False):
     
     tot_frames=0
     order='C'
@@ -277,8 +317,8 @@ def save_place_holder(pars):
     """
     
     import ca_source_extraction as cse
-    f,base_name,resize_fact,remove_init,idx_xy,order=pars   
-    return save_memmap([f],base_name=base_name,resize_fact=resize_fact,remove_init=remove_init, idx_xy=idx_xy, order=order)
+    f,base_name,resize_fact,remove_init,idx_xy,order,xy_shifts=pars   
+    return save_memmap([f],base_name=base_name,resize_fact=resize_fact,remove_init=remove_init, idx_xy=idx_xy, order=order,xy_shifts=xy_shifts)
 #%%
 #def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0, idx_xy=None, order='F'):
 #    """ Saves efficiently a list of tif files into a memory mappable file
@@ -354,7 +394,7 @@ def save_place_holder(pars):
 #
 #    return fname_new
 #%%
-def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0, idx_xy=None, order='F'):
+def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0, idx_xy=None, order='F',xy_shifts=None):
     """ Saves efficiently a list of tif files into a memory mappable file
     Parameters
     ----------
@@ -368,6 +408,10 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
             number of frames to remove at the begining of each tif file (used for resonant scanning images if laser in rutned on trial by trial)
         idx_xy: tuple size 2 [or 3 for 3D data]
             for selecting slices of the original FOV, for instance idx_xy=(slice(150,350,None),slice(150,350,None))
+        order: str
+            whether to save the file in 'C' or 'F' order     
+        xy_shifts: list 
+            x and y shifts computed by a motion correction algorithm to be applied before memory mapping    
 
     Return
     -------
@@ -377,31 +421,48 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
     Ttot = 0
     for idx, f in enumerate(filenames):
         print f
-        if os.path.splitext(f)[-1] == '.hdf5':
-            import calblitz as cb
-            if idx_xy is None:
-                Yr = np.array(cb.load(f))[remove_init:]
-            elif len(idx_xy) == 2:
-                Yr = np.array(cb.load(f))[remove_init:, idx_xy[0], idx_xy[1]]
-            else:
-                Yr = np.array(cb.load(f))[remove_init:, idx_xy[0], idx_xy[1], idx_xy[2]]
-        else:
+        is_calblitz=False
+#        if os.path.splitext(f)[-1] == '.hdf5':
+        try: 
+            
+            import calblitz as cb  
+            is_calblitz=True
+            
+        except:
+            
+            print('Calblitz not found, using imread from skimage')
+            if xy_shifts is not None:
+                raise Exception('Calblitz not installed, you cannot motion correct')
+                
             if idx_xy is None:
                 Yr = imread(f)[remove_init:]
             elif len(idx_xy) == 2:
                 Yr = imread(f)[remove_init:, idx_xy[0], idx_xy[1]]
             else:
-                Yr = imread(f)[remove_init:, idx_xy[0], idx_xy[1], idx_xy[2]]
+                Yr = imread(f)[remove_init:, idx_xy[0], idx_xy[1], idx_xy[2]]                  
+        
+        if is_calblitz:
+            
+            Yr=cb.load(f,fr=1)            
+            if xy_shifts is not None:
+                Yr=Yr.apply_shifts(xy_shifts,interpolation='cubic',remove_blanks=False)
+            
+            if idx_xy is None:
+                Yr = np.array(Yr)[remove_init:]
+            elif len(idx_xy) == 2:
+                Yr = np.array(Yr)[remove_init:, idx_xy[0], idx_xy[1]]
+            else:
+                Yr = np.array(Yr)[remove_init:, idx_xy[0], idx_xy[1], idx_xy[2]]
+    
 
         fx, fy, fz = resize_fact
         if fx != 1 or fy != 1 or fz != 1:
-            try:
-                import calblitz as cb
+            if is_calblitz:
                 Yr = cb.movie(Yr, fr=1)
                 Yr = Yr.resize(fx=fx, fy=fy, fz=fz)
-            except:
-                print('You need to install the CalBlitz package to resize the movie')
-                raise
+            else:
+                raise Exception('You need to install the CalBlitz package to resize the movie')
+                
 
         T, dims = Yr.shape[0], Yr.shape[1:]
         Yr = np.transpose(Yr, range(1, len(dims) + 1) + [0])
@@ -1882,6 +1943,7 @@ def evaluate_components(traces, N=5, robust_std=False):
    # import pdb
    # pdb.set_trace()
     md = mode_robust(traces, axis=1)
+
     ff1 = traces - md[:, None]
     # only consider values under the mode to determine the noise standard deviation
     ff1 = -ff1 * (ff1 < 0)
@@ -2386,6 +2448,7 @@ def nf_read_roi_zip(fname,dims):
 
         mask = np.zeros(dims)
         coords=np.array(coords)
+#        rr, cc = polygon(coords[:,0]+1, coords[:,1]+1)        
         rr, cc = polygon(coords[:,0]+1, coords[:,1]+1)        
         mask[rr,cc]=1
 #        mask[zip(*coords)] = 1
