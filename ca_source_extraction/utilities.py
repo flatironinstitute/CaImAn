@@ -420,6 +420,7 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
 
         big_mov[:, Ttot:Ttot + T] = np.asarray(Yr, dtype=np.float32) + 1e-10
         big_mov.flush()
+        del big_mov
         Ttot = Ttot + T
 
     fname_new = fname_tot + '_frames_' + str(Ttot) + '_.mmap'
