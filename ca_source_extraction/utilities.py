@@ -481,6 +481,7 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
 
         big_mov[:, Ttot:Ttot + T] = np.asarray(Yr, dtype=np.float32) + 1e-10
         big_mov.flush()
+        del big_mov
         Ttot = Ttot + T
 
     fname_new = fname_tot + '_frames_' + str(Ttot) + '_.mmap'
@@ -1755,9 +1756,9 @@ def start_server(slurm_script=None, ipcluster="ipcluster"):
     
     if slurm_script is None:
         if ipcluster == "ipcluster":
-            p1 = subprocess.Popen(["ipcluster start -n {0}".format(ncpus)], shell=True,close_fds=True)
+            p1 = subprocess.Popen("ipcluster start -n {0}".format(ncpus), shell=True, close_fds=(os.name != 'nt'))
         else:
-            p1 = subprocess.Popen(shlex.split("{0} start -n {1}".format(ipcluster, ncpus)), shell=True,close_fds=True)
+            p1 = subprocess.Popen(shlex.split("{0} start -n {1}".format(ipcluster, ncpus)), shell=True, close_fds=(os.name != 'nt'))
 #
         while True:
             try:
@@ -1841,10 +1842,10 @@ def stop_server(is_slurm=False, ipcluster='ipcluster',pdir=None,profile=None):
 
     else:
         if ipcluster == "ipcluster":
-            proc = subprocess.Popen(["ipcluster stop"], shell=True, stderr=subprocess.PIPE,close_fds=True)
+            proc = subprocess.Popen("ipcluster stop", shell=True, stderr=subprocess.PIPE, close_fds=(os.name != 'nt'))
         else:
             proc = subprocess.Popen(shlex.split(ipcluster + " stop"),
-                                    shell=True, stderr=subprocess.PIPE,close_fds=True)
+                                    shell=True, stderr=subprocess.PIPE, close_fds=(os.name != 'nt'))
 
         line_out = proc.stderr.readline()
         if 'CRITICAL' in line_out:
