@@ -177,7 +177,10 @@ def update_spatial_components(Y, C = None, f = None, A_in = None, sn=None, dims=
         IND = determine_search_location(
             A_in, dims, method=method, min_size=min_size, max_size=max_size, dist=dist, expandCore=expandCore,dview=dview)
         print "found spatial support for each component"
-
+        if C is None:
+            raise Exception('You need to provide estimate of C and f')
+            
+            
     print np.shape(A_in)    
 
     Cf = np.vstack((C, f))  # create matrix that include background components

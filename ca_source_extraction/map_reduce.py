@@ -128,21 +128,10 @@ def cnmf_patches(args_in):
         d,T=Yr.shape      
         Y=np.reshape(Yr,(shapes[1],shapes[0],T),order='F')  
         Y.filename=file_name
-    #    ssub,tsub = options['patch_params']['ssub'],options['patch_params']['tsub']
-    #    if ssub>1 or tsub>1:
-    #        Y = cse.initialization.downscale_local_mean(Y,(ssub,ssub,tsub))
          
         [d1,d2,T]=Y.shape
-    #    pl.imshow(np.mean(Y,axis=-1))
-    #    pl.pause(.1)
-    #    import pdb
-    #    pdb.set_trace()
-    #    options = cse.utilities.CNMFSetParms(Y,p=p,gSig=gSig,K=K)
 
         options['spatial_params']['dims']=(d1,d2)
-    #    options['preprocess_params']['backend']='single_thread'
-    #    options['spatial_params']['backend']='single_thread'    
-    #    options['temporal_params']['backend']='single_thread'    
         logger.info('Preprocess Data')
         Yr,sn,g,psx=cse.pre_processing.preprocess_data(Yr,**options['preprocess_params'])
         
@@ -178,7 +167,7 @@ def cnmf_patches(args_in):
             Yr=[]
             
             logger.info('Done!')
-            return idx_,shapes,A2,b2,C2,f2,S2,bl2,c12,neurons_sn2,g21,sn,options
+            return idx_,shapes,A2,b2,C2,f2,S2,bl2,c12,neurons_sn2,g21,sn,options,YrA
     
     else:
         return None                
@@ -287,6 +276,7 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, dview=None,me
     A_tot=scipy.sparse.csc_matrix((d,K*num_patches))
     B_tot=scipy.sparse.csc_matrix((d,num_patches))
     C_tot=np.zeros((K*num_patches,T))
+    YrA_tot=np.zeros((K*num_patches,T))
     F_tot=np.zeros((num_patches,T))
     mask=np.zeros(d)
     sn_tot=np.zeros((d1*d2))
@@ -300,6 +290,7 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, dview=None,me
     shapes_tot=[]    
     id_patch_tot=[]
     
+    
     count=0  
     patch_id=0
 
@@ -307,7 +298,7 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, dview=None,me
     
     for fff in file_res:
         if fff is not None:
-            idx_,shapes,A,b,C,f,S,bl,c1,neurons_sn,g,sn,_=fff
+            idx_,shapes,A,b,C,f,S,bl,c1,neurons_sn,g,sn,_,YrA=fff
             sn_tot[idx_]=sn
             b_tot.append(b)
             f_tot.append(f)
@@ -325,7 +316,8 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, dview=None,me
                 new_comp=A.tocsc()[:,ii]/np.sqrt(np.sum(np.array(A.tocsc()[:,ii].todense())**2))
                 if new_comp.sum()>0:
                     A_tot[idx_,count]=new_comp
-                    C_tot[count,:]=C[ii,:]   
+                    C_tot[count,:]=C[ii,:]  
+                    YrA_tot[count,:]=YrA[ii,:]
                     id_patch_tot.append(patch_id)
                     count+=1
             
@@ -335,6 +327,7 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, dview=None,me
 
     A_tot=A_tot[:,:count]
     C_tot=C_tot[:count,:]  
+    YrA_tot=YrA_tot[:count,:]  
     
     optional_outputs=dict()
     optional_outputs['b_tot']=b_tot
@@ -360,6 +353,6 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, dview=None,me
         f = np.dot((Bm.T.dot(b)).T,F_tot)/np.sum(b**2)
 
     
-    return A_tot,C_tot,b,f,sn_tot, optional_outputs
+    return A_tot,C_tot,YrA_tot,b,f,sn_tot, optional_outputs
 
 
