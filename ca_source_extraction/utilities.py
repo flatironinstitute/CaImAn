@@ -105,7 +105,7 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], ssub=1, tsub=1, p=2, p_ssub=
     options['spatial_params'] = {
         'dims': dims,                   # number of rows, columns [and depths]
         # method for determining footprint of spatial components ('ellipse' or 'dilate')
-        'method': 'ellipse',
+        'method': 'dilate',#'ellipse', 'dilate',
         'dist': 3,                       # expansion factor of ellipse
         'n_pixels_per_process': n_pixels_per_process,   # number of pixels to be processed by eacg worker
         'medw' : (3, 3),                                # window of median filter
@@ -132,7 +132,7 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], ssub=1, tsub=1, p=2, p_ssub=
         'noise_method': 'logmexp',   # averaging method ('mean','median','logmexp')
                         'lags': 5,                   # number of autocovariance lags to be considered for time constant estimation
                         # bias correction factor (between 0 and 1, close to 1)
-                        'fudge_factor': .98,
+                        'fudge_factor': .96,
                         'verbosity': False
     }
     options['merging'] = {
