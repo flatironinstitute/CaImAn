@@ -408,7 +408,7 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
             number of frames to remove at the begining of each tif file (used for resonant scanning images if laser in rutned on trial by trial)
         idx_xy: tuple size 2 [or 3 for 3D data]
             for selecting slices of the original FOV, for instance idx_xy=(slice(150,350,None),slice(150,350,None))
-        order: str
+        order: string
             whether to save the file in 'C' or 'F' order     
         xy_shifts: list 
             x and y shifts computed by a motion correction algorithm to be applied before memory mapping    
