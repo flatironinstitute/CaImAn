@@ -60,7 +60,7 @@ Y=np.reshape(Yr,dims+(T,),order='F')
 Cn = cse.utilities.local_correlations(Y[:,:,:])
 pl.imshow(Cn,cmap='gray')  
 #%%  
-rois_1=np.transpose(cse.utilities.nf_read_roi_zip(base_folder+'regions/princeton_regions.zip',np.shape(Cn)),[1,2,0])
+rois_1=np.transpose(cse.utilities.nf_read_roi_zip(base_folder+'regions/ben_regions.zip',np.shape(Cn)),[1,2,0])
 Ain=np.reshape(rois_1,[np.prod(np.shape(Cn)),-1],order='F')
 #%%
 K=Ain.shape[-1] # number of neurons expected per patch
@@ -93,7 +93,7 @@ pl.show()
 #%% UPDATE SPATIAL COMPONENTS
 pl.figure()
 t1 = time()
-A,b,Cin,f = cse.spatial.update_spatial_components(Yr, C=None, f=None, A_in=Ain.astype(np.bool), sn=sn, dview=dview,**options['spatial_params'])
+A,b,Cin,f = cse.spatial.update_spatial_components(Yr, C=None, f=None, A_in=Ain.astype(np.bool), sn=sn, dview=None,**options['spatial_params'])
 t_elSPATIAL = time() - t1
 print t_elSPATIAL 
 pl.figure()

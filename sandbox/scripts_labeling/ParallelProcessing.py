@@ -145,17 +145,7 @@ for reg,img,proj in zip(regions,images,projections):
     templates.append(m)
     masks=cse.utilities.nf_read_roi_zip(reg+'/ben_regions.zip',m.shape)
     masks_all.append(masks)   
-    if 0:           
-        pl.subplot(5,6,counter+1)
-        m[np.isnan(m)]=0
-        
-        lq,hq=np.percentile(m,[10,99])
-        pl.imshow(m,cmap='gray',vmin=lq,vmax=hq)
-#        pl.imshow(np.sum(masks,0),cmap='hot',alpha=.3)
-    #    pl.imshow(m,cmap='gray',vmin=.1,vmax=.6)
-        pl.axis('off')
-        pl.title(img.split('/')[-2])
-        pl.pause(.1)
+    
 
 #%% compute shifts so that everybody is well aligned
 counter=0     
@@ -228,15 +218,6 @@ for fl,tmpl,fr,rs_f,shfts in zip(fls,tmpls,frates,resize_facts,xy_shifts):
         new_shfts.append(shfts)
         if len(glob.glob(fl[:-4]+'_*.mmap'))>0:
             frate_different.append(glob.glob(fl[:-4]+'_*.mmap')[0])
-            
-            
-        
-        
-#        if not os.path.exists(fl[:-3]+'npz'):
-#            new_fls.append(fl)
-#            new_tmpls.append(tmpl)
-#        else:
-#            1      
 #%%
 name_new=cse.utilities.save_memmap_each(new_fls, dview=c[::4],base_name=None, resize_fact=new_frs, remove_init=0,xy_shifts=new_shfts)
 #%%
@@ -250,6 +231,7 @@ for bf in base_folders:
     except:
         fls.sort() 
         print fls
+        
     base_name_='TOTAL_'
     n_chunks_=6
     dview_=None
@@ -266,8 +248,21 @@ names_map=dview.map_sync(memmap_place_holder,pars)
 #%%    
 fname_new=cse.utilities.save_memmap_join(fls,base_name='TOTAL_', n_chunks=6, dview=c[::3])
 #%%
+fnames_mmap=[]
+for reg,img,proj,masks,template in zip(regions,images,projections,masks_all,templates):
+    if len(glob.glob(os.path.join(img,'TOTAL_*.mmap')))==1:
+        fnames_mmap.append(glob.glob(os.path.join(img,'TOTAL_*.mmap'))[0])
+    else:
+        raise Exception('Number of files not as expected!')
+#%%
+for nm,tmpl,masks in zip(fnames_mmap,templates,masks_all):
+    print nm
+    Yr,dims,T=cse.utilities.load_memmap(nm)
+    d1,d2=dims
+    Y=np.reshape(Yr,dims+(T,),order='F')
+    img=np.mean(Y,-1)
+    np.allclose(img,tmpl)
 
-    
 #%% process files sequntially in case of failure
 if 0:
     fnames1=[]        
