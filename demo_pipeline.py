@@ -148,7 +148,7 @@ C_m,f_m,S_m,bl_m,c1_m,neurons_sn_m,g2_m,YrA_m = cse.temporal.update_temporal_com
 # But check by visual inspection to have a feeling fot the threshold. Try to be loose, you will be able to get rid of more of them later!
 max_fitness=-10 # the smaller the fitter
 traces=C_m+YrA_m
-idx_components, fitness, erfc = cse.utilities.evaluate_components(traces,N=5,robust_std=False)
+idx_components, fitness, erfc,r_values,num_significant_samples = cse.utilities.evaluate_components(traces,N=5,robust_std=False)
 idx_components=idx_components[np.logical_and(True ,fitness < max_fitness)]
 print(len(idx_components))
 cse.utilities.view_patches_bar(Yr,scipy.sparse.coo_matrix(A_m.tocsc()[:,idx_components]),C_m[idx_components,:],b,f_m, d1,d2, YrA=YrA_m[idx_components,:]
@@ -178,16 +178,22 @@ log_files=glob.glob('Yr*_LOG_*')
 for log_file in log_files:
     os.remove(log_file)
 #%% order components according to a quality threshold and only select the ones wiht qualitylarger than quality_threshold. 
-quality_threshold=-10
 traces=C2+YrA
-idx_components, fitness, erfc = cse.utilities.evaluate_components(traces,N=5,robust_std=False)
-idx_components=idx_components[fitness<quality_threshold]
-print(idx_components.size*1./traces.shape[0])
+idx_components, fitness, erfc,r_values,num_significant_samples = cse.utilities.evaluate_components(Y,traces,A2,N=5,robust_std=False)
+
+sure_in_idx= idx_components[np.logical_and(np.array(num_significant_samples)>1 ,np.array(r_values)>=.5)]
+doubtful = idx_components[np.logical_and(np.array(num_significant_samples)==1 ,np.array(r_values)>=.5)]
+they_suck = idx_components[np.logical_and(np.array(num_significant_samples)>=0 ,np.array(r_values)<.5)]
 #%%
-pl.figure();
-crd = cse.utilities.plot_contours(A2.tocsc()[:,idx_components],Cn,thr=0.9)
-#%%
-cse.utilities.view_patches_bar(Yr,scipy.sparse.coo_matrix(A2.tocsc()[:,idx_components]),C2[idx_components,:],b2,f2, d1,d2, YrA=YrA[idx_components,:])  
+cse.utilities.view_patches_bar(Yr,scipy.sparse.coo_matrix(A2.tocsc()[:,sure_in_idx]),C2[sure_in_idx,:],b2,f2, dims[0],dims[1], YrA=YrA[sure_in_idx,:],img=Cn)  
+#%% visualize components
+#pl.figure();
+pl.subplot(1,3,1)
+crd = cse.utilities.plot_contours(A2.tocsc()[:,sure_in_idx],Cn,thr=0.9)
+pl.subplot(1,3,2)
+crd = cse.utilities.plot_contours(A2.tocsc()[:,doubtful],Cn,thr=0.9)
+pl.subplot(1,3,3)
+crd = cse.utilities.plot_contours(A2.tocsc()[:,they_suck],Cn,thr=0.9)
 #%% save analysis results in python and matlab format
 if save_results:
     np.savez('results_analysis.npz',Cn=Cn,A_tot=A_tot.todense(), C_tot=C_tot, sn_tot=sn_tot, A2=A2.todense(),C2=C2,b2=b2,S2=S2,f2=f2,bl2=bl2,c12=c12, neurons_sn2=neurons_sn2, g21=g21,YrA=YrA,d1=d1,d2=d2,idx_components=idx_components, fitness=fitness, erfc=erfc)    
@@ -219,7 +225,7 @@ if load_results:
     
     dims=(d1,d2)
     traces=C2+YrA
-    idx_components, fitness, erfc = cse.utilities.evaluate_components(traces,N=5,robust_std=False)
+    idx_components, fitness, erfc,r_values,num_significant_samples = cse.utilities.evaluate_components(traces,N=5,robust_std=False)
     #cse.utilities.view_patches(Yr,coo_matrix(A_or),C_or,b2,f2,d1,d2,YrA = YrA[srt,:], secs=1)
     cse.utilities.view_patches_bar(Yr,scipy.sparse.coo_matrix(A2[:,idx_components]),C2[idx_components,:],b2,f2, d1,d2, YrA=YrA[idx_components,:])  
 #%% only select blob-like structures

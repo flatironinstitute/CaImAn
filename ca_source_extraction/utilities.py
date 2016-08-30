@@ -1915,20 +1915,29 @@ def stop_server(is_slurm=False, ipcluster='ipcluster',pdir=None,profile=None):
 #%%
 
 
-def evaluate_components(traces, N=5, robust_std=False):
+def evaluate_components(Y, traces, A, N=5, robust_std=False,thresh_overlap=.3, thresh_finess=-20):
     """ Define a metric and order components according to the probabilty if some "exceptional events" (like a spike). Suvh probability is defined as the likeihood of observing the actual trace value over N samples given an estimated noise distribution. 
     The function first estimates the noise distribution by considering the dispersion around the mode. This is done only using values lower than the mode. The estimation of the noise std is made robust by using the approximation std=iqr/1.349. 
     Then, the probavility of having N consecutive eventsis estimated. This probability is used to order the components. 
-
+    The algorithm also measures the reliability of the spatial mask by comparing the filters in A with the average of the movies over samples where exceptional events happen, after  removing (if possible)
+    frames when neighboring neurons were active
+    
     Parameters
     ----------
+    Y: ndarray 
+        movie x,y,t
+    
+    A: scipy sparse array
+        spatial components    
+        
     traces: ndarray
         Fluorescence traces 
 
     N: int
         N number of consecutive events
 
-
+    thresh_overlap: 
+    
     Returns
     -------
     idx_components: ndarray
@@ -1939,10 +1948,18 @@ def evaluate_components(traces, N=5, robust_std=False):
 
     erfc: ndarray
         probability at each time step of observing the N consequtive actual trace values given the distribution of noise
+        
+    r_values: list
+        float values representing correlation between component and spatial mask obtained by averaging important points
 
+    num_significant_samples: int
+        quantify how many samples were used rto obtain the spatial mask by average
+    
     """
    # import pdb
    # pdb.set_trace()
+    d1,d2,T=np.shape(Y)
+    dims=(d1,d2)
     md = mode_robust(traces, axis=1)
 
     ff1 = traces - md[:, None]
@@ -1987,7 +2004,67 @@ def evaluate_components(traces, N=5, robust_std=False):
     fitness = fitness[idx_components]
     erfc = erfc[idx_components]
 
-    return idx_components, fitness, erfc
+    # compute the overlap between spatial and movie average across samples with significant events
+
+    
+
+    min_important_points=2
+    
+    r_values=[]
+
+    num_significant_samples=[]
+    
+    for er,idx_comp in zip(erfc,idx_components):
+        
+        a=np.array(A.tocsc()[:,idx_comp].todense()).squeeze()
+    
+        px = np.nonzero(a)[0]    
+    
+        mn=np.min(er)
+       
+        overlaping_idx=np.where(np.array([scipy.stats.pearsonr(a,np.array(aa.todense()).squeeze())[0] for aa in A.T.tocsc()])>thresh_overlap)[0]    
+    
+        idx_not_a=np.setdiff1d(overlaping_idx,idx_comp) 
+
+        important_points=np.where(er<=np.minimum(thresh_finess,mn))[0]
+            
+        
+        
+        
+        
+        if len(important_points) > 0:
+            
+            if len(idx_not_a)>0: #identify points when neighbors are active
+ 
+               print('active neighbours:'+str(idx_not_a))   
+               activities_other_comps=erfc[idx_not_a].min(0)        
+               bad_points=np.where(activities_other_comps<-10)[0]
+
+               if len(np.setdiff1d(important_points,bad_points)) > min_important_points:        
+
+                    important_points=np.setdiff1d(important_points,bad_points)
+        
+               else:  
+                   
+                    print('Including active neighbours')        
+                
+            important_points=np.minimum(important_points,T-1) 
+            
+            num_significant_samples.append(len(important_points))
+
+            img=np.mean(Y[:,:,important_points],-1)
+        #    img = cse.utilities.local_correlations(Y[:,:,np.array(important_points)])
+            r_values.append(scipy.stats.pearsonr(a[px],img.flatten(order='F')[px])[0])
+       
+        else:
+            num_significant_samples.append(0)
+            r_values.append(0)
+            print('No significant samples')        
+        
+             
+        
+
+    return idx_components, fitness, erfc,r_values,num_significant_samples
 #%%
 
 

@@ -206,11 +206,14 @@ class CNMF(object):
            A,C,nr,merged_ROIs,S,bl,c1,sn,g=merge_components(Yr,A,[],np.array(C),[],np.array(C),[],options['temporal_params'],options['spatial_params'],dview=self.dview,thr=self.merge_thresh,mx=np.Inf)                         
            C,f,S,bl,c1,neurons_sn,g2,YrA = update_temporal_components(Yr,A,np.atleast_2d(b).T,C,f,dview=self.dview,bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
            
-           idx_components, fitness, erfc = evaluate_components(C+YrA,N=self.N_samples_fitness,robust_std=self.robust_std)
-           print ('Eliminating ' + str(np.sum(fitness >= self.fitness_threshold)) + ' components out of ' + str(len(idx_components)))
-           idx_components=idx_components[fitness < self.fitness_threshold]  
-           A=A[:,idx_components]
-           C=C[idx_components,:] 
+           idx_components, fitness, erfc ,r_values, num_significant_samples = evaluate_components(Y,C+YrA,A,N=self.N_samples_fitness,robust_std=self.robust_std)
+           sure_in_idx= idx_components[np.logical_and(np.array(num_significant_samples)>0 ,np.array(r_values)>=.5)]
+
+           print ('Eliminating ' + str(len(sure_in_idx)) + ' components out of ' + str(len(idx_components)))
+           
+           
+           A=A[:,sure_in_idx]
+           C=C[sure_in_idx,:] 
                                                                         
        self.A=A
        self.C=C

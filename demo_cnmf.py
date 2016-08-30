@@ -74,23 +74,35 @@ Yr,dims,T=cse.utilities.load_memmap(fname_new)
 images=np.reshape(Yr.T,[T]+list(dims),order='F')
 Y=np.transpose(images,[1,2,0])
 #%%
-cnmf=cse.CNMF(n_processes, k=30,gSig=[7,7],merge_thresh=0.8,p=2,dview=dview,Ain=None)
+cnmf=cse.CNMF(n_processes, k=50,gSig=[7,7],merge_thresh=0.8,p=2,dview=dview,Ain=None)
 cnmf=cnmf.fit(images)
+A,C,b,f,YrA=cnmf.A,cnmf.C,cnmf.b,cnmf.f,cnmf.YrA
+
 #%%
 Cn = cse.utilities.local_correlations(Y[:,:,:])
 pl.imshow(Cn,cmap='gray')    
 #%%
 crd = cse.utilities.plot_contours(cnmf.A,Cn)
 #%%
-traces=cnmf.C+cnmf.YrA
-idx_components, fitness, erfc = cse.utilities.evaluate_components(traces,N=5,robust_std=True)
-idx_components=idx_components[fitness<-10]
+pl.close('all')
+traces=C+YrA
+idx_components, fitness, erfc, r_values,num_significant_samples = cse.utilities.evaluate_components(Y,traces,A, N=5,robust_std=True)
+#idx_components=idx_components[fitness<-10]        
 #%%
-A,C,b,f,YrA=cnmf.A,cnmf.C,cnmf.b,cnmf.f,cnmf.YrA
-cse.utilities.view_patches_bar(Yr,scipy.sparse.coo_matrix(A.tocsc()[:,idx_components]),C[idx_components,:],b,f, dims[0],dims[1], YrA=YrA[idx_components,:],img=Cn)  
+sure_in_idx= idx_components[np.logical_and(np.array(num_significant_samples)>1 ,np.array(r_values)>=.5)]
+doubtful = idx_components[np.logical_and(np.array(num_significant_samples)==1 ,np.array(r_values)>=.5)]
+they_suck = idx_components[np.logical_and(np.array(num_significant_samples)>=0 ,np.array(r_values)<.5)]
+#%%
+cse.utilities.view_patches_bar(Yr,scipy.sparse.coo_matrix(A.tocsc()[:,sure_in_idx]),C[sure_in_idx,:],b,f, dims[0],dims[1], YrA=YrA[sure_in_idx,:],img=Cn)  
 #%% visualize components
 #pl.figure();
-#crd = cse.utilities.plot_contours(A2.tocsc()[:,idx_components],Cn,thr=0.9)
+pl.subplot(1,3,1)
+crd = cse.utilities.plot_contours(A.tocsc()[:,sure_in_idx],Cn,thr=0.9)
+pl.subplot(1,3,2)
+crd = cse.utilities.plot_contours(A.tocsc()[:,doubtful],Cn,thr=0.9)
+pl.subplot(1,3,3)
+crd = cse.utilities.plot_contours(A.tocsc()[:,they_suck],Cn,thr=0.9)
+
 #%% STOP CLUSTER
 pl.close()
 if not single_thread:    

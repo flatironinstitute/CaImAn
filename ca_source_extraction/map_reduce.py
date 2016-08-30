@@ -137,10 +137,20 @@ def cnmf_patches(args_in):
         
         logger.info('Initialize Components') 
         Ain, Cin, b_in, f_in, center=cse.initialization.initialize_components(Y, **options['init_params']) 
-                                                  
+#        import pdb
+#        pdb.set_trace()
+        nA = np.squeeze(np.array(np.sum(np.square(Ain),axis=0)))
+        nr=len(nA)
+        Cin=coo_matrix(Cin)
+
+        YA = (Ain.T.dot(Yr).T)*scipy.sparse.spdiags(1./nA,0,nr,nr)
+        AA = ((Ain.T.dot(Ain))*scipy.sparse.spdiags(1./nA,0,nr,nr))
+        YrA = YA - Cin.T.dot(AA)
+        Cin=Cin.todense()           
+                             
         if options['patch_params']['only_init']:
             
-            return idx_,shapes, coo_matrix(Ain), b_in, Cin, f_in, None, None , None, None, g, sn, options
+            return idx_,shapes, coo_matrix(Ain), b_in, Cin, f_in, None, None , None, None, g, sn, options, YrA.T
 
         else:
                                               
@@ -316,7 +326,7 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, dview=None,me
                 new_comp=A.tocsc()[:,ii]/np.sqrt(np.sum(np.array(A.tocsc()[:,ii].todense())**2))
                 if new_comp.sum()>0:
                     A_tot[idx_,count]=new_comp
-                    C_tot[count,:]=C[ii,:]  
+                    C_tot[count,:]=C[ii,:]                      
                     YrA_tot[count,:]=YrA[ii,:]
                     id_patch_tot.append(patch_id)
                     count+=1

@@ -145,39 +145,45 @@ C2,f2,S2,bl2,c12,neurons_sn2,g21,YrA = cse.temporal.update_temporal_components(Y
 print time() - t1
 #%%
 traces=C2+YrA
-idx_components, fitness, erfc = cse.utilities.evaluate_components(traces,N=5,robust_std=True)
-idx_components=idx_components[fitness<-10]
+idx_components, fitness, erfc,r_values,num_significant_samples = cse.utilities.evaluate_components(Y,traces,A2,N=5,robust_std=False)
+
+sure_in_idx= idx_components[np.logical_and(np.array(num_significant_samples)>1 ,np.array(r_values)>=.5)]
+doubtful = idx_components[np.logical_and(np.array(num_significant_samples)==1 ,np.array(r_values)>=.5)]
+they_suck = idx_components[np.logical_and(np.array(num_significant_samples)>=0 ,np.array(r_values)<.5)]
 #%%
-cse.utilities.view_patches_bar(Yr,scipy.sparse.coo_matrix(A2.tocsc()[:,idx_components]),C2[idx_components,:],b2,f2, dims[0],dims[1], YrA=YrA[idx_components,:],img=Cn)  
+cse.utilities.view_patches_bar(Yr,scipy.sparse.coo_matrix(A2.tocsc()[:,sure_in_idx]),C2[sure_in_idx,:],b2,f2, dims[0],dims[1], YrA=YrA[sure_in_idx,:],img=Cn)  
 #%% visualize components
 #pl.figure();
-#crd = cse.utilities.plot_contours(A2.tocsc()[:,idx_components],Cn,thr=0.9)
-
+pl.subplot(1,3,1)
+crd = cse.utilities.plot_contours(A2.tocsc()[:,sure_in_idx],Cn,thr=0.9)
+pl.subplot(1,3,2)
+crd = cse.utilities.plot_contours(A2.tocsc()[:,doubtful],Cn,thr=0.9)
+pl.subplot(1,3,3)
+crd = cse.utilities.plot_contours(A2.tocsc()[:,they_suck],Cn,thr=0.9)
 #%% STOP CLUSTER
 pl.close()
 if not single_thread:    
     c.close()
     cse.utilities.stop_server()
 
-#%% select  blobs
-min_radius=5 # min radius of expected blobs
-masks_ws,pos_examples,neg_examples=cse.utilities.extract_binary_masks_blob(A2.tocsc()[:,:], 
-     min_radius, dims, minCircularity= 0.5, minInertiaRatio = 0.2,minConvexity = .8)
-
-pl.subplot(1,2,1)
-
-final_masks=np.array(masks_ws)[pos_examples]
-pl.imshow(np.reshape(final_masks.max(0),dims,order='F'),vmax=1)
-pl.subplot(1,2,2)
-
-neg_examples_masks=np.array(masks_ws)[neg_examples]
-pl.imshow(np.reshape(neg_examples_masks.max(0),dims,order='F'),vmax=1)
-#%%
-pl.imshow(np.reshape(A2.tocsc()[:,neg_examples].mean(1),dims, order='F'))
-#%%
-pl.imshow(np.reshape(A2.tocsc()[:,pos_examples].mean(1),dims, order='F'))
-
-#%%
-cse.utilities.view_patches_bar(Yr,scipy.sparse.coo_matrix(A2.tocsc()[:,pos_examples]),C2[pos_examples,:],b2,f2, dims[0],dims[1], YrA=YrA[pos_examples,:],img=Cn)  
-#%%
-cse.utilities.view_patches_bar(Yr,scipy.sparse.coo_matrix(A2.tocsc()[:,neg_examples]),C2[neg_examples,:],b2,f2, dims[0],dims[1], YrA=YrA[neg_examples,:],img=Cn)  
+##%% select  blobs
+#min_radius=5 # min radius of expected blobs
+#masks_ws,pos_examples,neg_examples=cse.utilities.extract_binary_masks_blob(A2.tocsc()[:,:], 
+#     min_radius, dims, minCircularity= 0.5, minInertiaRatio = 0.2,minConvexity = .8)
+#
+#pl.subplot(1,2,1)
+#
+#final_masks=np.array(masks_ws)[pos_examples]
+#pl.imshow(np.reshape(final_masks.max(0),dims,order='F'),vmax=1)
+#pl.subplot(1,2,2)
+#
+#neg_examples_masks=np.array(masks_ws)[neg_examples]
+#pl.imshow(np.reshape(neg_examples_masks.max(0),dims,order='F'),vmax=1)
+##%%
+#pl.imshow(np.reshape(A2.tocsc()[:,neg_examples].mean(1),dims, order='F'))
+##%%
+#pl.imshow(np.reshape(A2.tocsc()[:,pos_examples].mean(1),dims, order='F'))
+##%%
+#cse.utilities.view_patches_bar(Yr,scipy.sparse.coo_matrix(A2.tocsc()[:,pos_examples]),C2[pos_examples,:],b2,f2, dims[0],dims[1], YrA=YrA[pos_examples,:],img=Cn)  
+##%%
+#cse.utilities.view_patches_bar(Yr,scipy.sparse.coo_matrix(A2.tocsc()[:,neg_examples]),C2[neg_examples,:],b2,f2, dims[0],dims[1], YrA=YrA[neg_examples,:],img=Cn)  
