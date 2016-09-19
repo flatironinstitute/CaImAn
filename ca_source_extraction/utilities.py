@@ -2013,24 +2013,21 @@ def evaluate_components(Y, traces, A, N=5, robust_std=False,thresh_overlap=.3, t
     r_values=[]
 
     num_significant_samples=[]
+    #import pdb
+    #pdb.set_trace()        
+    AA = (A.T*A).toarray()        
     
     for er,idx_comp in zip(erfc,idx_components):
         
-        a=np.array(A.tocsc()[:,idx_comp].todense()).squeeze()
-    
-        px = np.nonzero(a)[0]    
-    
+        a=np.array(A.tocsc()[:,idx_comp].todense()).squeeze()   
+        px = np.nonzero(a)[0]       
         mn=np.min(er)
        
-        overlaping_idx=np.where(np.array([scipy.stats.pearsonr(a,np.array(aa.todense()).squeeze())[0] for aa in A.T.tocsc()])>thresh_overlap)[0]    
-    
+        #overlaping_idx=np.where(np.array([scipy.stats.pearsonr(a,np.array(aa.todense()).squeeze())[0] for aa in A.T.tocsc()])>thresh_overlap)[0]    
+        overlaping_idx = np.where(AA[idx_comp,:])             
         idx_not_a=np.setdiff1d(overlaping_idx,idx_comp) 
-
-        important_points=np.where(er<=np.minimum(thresh_finess,mn))[0]
+        important_points=np.where(er<=np.maximum(thresh_finess,mn))[0]
             
-        
-        
-        
         
         if len(important_points) > 0:
             
