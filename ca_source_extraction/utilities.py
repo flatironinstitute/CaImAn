@@ -2668,3 +2668,48 @@ def extract_binary_masks_blob(A,  neuron_radius,dims,num_std_threshold=1, minCir
 
     return np.array(masks_ws),np.array(pos_examples),np.array(neg_examples)    
 #%%
+
+def find_activity_intervals(C,Npeaks = 5, tB=-5, tA = 25, thres = 0.3):
+        
+    import peakutils
+    K,T = np.shape(C)
+    L = []
+    for i in range(K):
+        indexes = peakutils.indexes(C[i,:],thres=thres)        
+        srt_ind = indexes[np.argsort(C[i,indexes])][::-1]
+        srt_ind = srt_ind[:Npeaks]
+        L.append(srt_ind)
+        
+    LOC = []
+    for i in range(K):
+        interval = np.kron(L[i],np.ones(tA-tB,dtype=int)) + np.kron(np.ones(len(L[i]),dtype=int),np.arange(tB,tA))
+        interval[interval<0] = 0
+        interval[interval>T-1] = T-1
+        LOC.append(np.array(list(set(interval))))        
+        
+    return LOC
+
+def classify_components_ep(Y,A,C,b,f,Athresh = 0.1,Npeaks = 5, tB=-5, tA = 25, thres = 0.3):
+    
+    K,T = np.shape(C)
+    A = csc_matrix(A)
+    AA = (A.T*A).toarray() 
+    nA=np.sqrt(np.array(A.power(2).sum(0)))
+    AA = AA/np.outer(nA,nA.T)
+    AA -= np.eye(K)
+    LOC = find_activity_intervals(C, Npeaks = Npeaks, tB=tB, tA = tA, thres = thres)
+    rval = np.zeros(K)
+
+    for i in range(K):        
+        atemp = A[:,i].toarray().flatten()
+        ovlp_cmp = np.where(AA[:,i]>Athresh)[0]
+        indexes = set(LOC[i])
+        for cnt,j in enumerate(ovlp_cmp):
+            indexes = indexes - set(LOC[j])
+            
+        indexes = list(indexes)
+        px = np.where(atemp>0)[0]
+        mY = np.mean(Y[px,:][:,indexes],axis=-1)
+        #rval[i] = np.corrcoef(mY,atemp[px])[0,1]
+        rval[i] = scipy.stats.pearsonr(mY,atemp[px])[0]
+    return rval
