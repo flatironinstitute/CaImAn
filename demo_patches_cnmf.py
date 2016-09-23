@@ -103,7 +103,7 @@ name_new.sort(key=lambda fn: np.int(fn[fn.find(base_name)+len(base_name):fn.find
 print name_new
 #%%
 n_chunks=6 # increase this number if you have memory issues at this point
-fname_new=cse.utilities.save_memmap_join(name_new,base_name='Yr', n_chunks=6, dview=dview)
+ls=cse.utilities.save_memmap_join(name_new,base_name='Yr', n_chunks=6, dview=dview)
 #%%  Create a unique file fot the whole dataset
 ##
 #fraction_downsample=1; # useful to downsample the movie across time. fraction_downsample=.1 measn downsampling by a factor of 10
@@ -120,17 +120,17 @@ Y=np.reshape(Yr,dims+(T,),order='F')
 Cn = cse.utilities.local_correlations(Y[:,:,:3000])
 pl.imshow(Cn,cmap='gray')  
 #%%
-rf=10 # half-size of the patches in pixels. rf=25, patches are 50x50
+rf=15 # half-size of the patches in pixels. rf=25, patches are 50x50
 stride = 4 #amounpl.it of overlap between the patches in pixels    
-K=4 # number of neurons expected per patch
+K=5 # number of neurons expected per patch
 gSig=[7,7] # expected half size of neurons
 merge_thresh=0.8 # merging threshold, max correlation allowed
 p=2 #order of the autoregressive system
 memory_fact=1; #unitless number accounting how much memory should be used. You will need to try different values to see which one would work the default is OK for a 16 GB system
 save_results=False
 #%% RUN ALGORITHM ON PATCHES
-cnmf=cse.CNMF(n_processes, k=K,gSig=gSig,merge_thresh=0.8,p=0,dview=dview,Ain=None,rf=rf,stride=stride, memory_fact=memory_fact,\
-        method_init='sparse_nmf',alpha_snmf=10e2)
+cnmf=cse.CNMF(n_processes, k=K,gSig=gSig,merge_thresh=0.8,p=0,dview=None,Ain=None,rf=rf,stride=stride, memory_fact=memory_fact,\
+        method_init='sparse_nmf',alpha_snmf=1e1,only_init_patch=True)
 cnmf=cnmf.fit(images)
 
 A_tot=cnmf.A
@@ -141,6 +141,28 @@ f_tot=cnmf.f
 sn_tot=cnmf.sn
 
 print 'Number of components:' + str(A_tot.shape[-1])
+#%%
+A=A_tot
+C=C_tot
+merged_ROIs=[0]
+while len(merged_ROIs)>0:
+    A,C,nr_m,merged_ROIs,S_m,bl_m,c1_m,sn_m,g_m=cse.merge_components(Yr, A, b_tot, C, f_tot, None, sn_tot, options['temporal_params'], options['spatial_params'], dview=c[:], thr=merge_thresh, fast_merge=True)
+
+#%%
+idx_components, fitness, erfc ,r_values, num_significant_samples = cse.utilities.evaluate_components(Y,C_tot+YrA_tot,A_tot,N=5,robust_std=True,thresh_finess=-10,compute_r_values=False)
+sure_in_idx= idx_components[fitness<-10]
+
+print ('Keeping ' + str(len(sure_in_idx)) + ' components out of ' + str(len(idx_components)))
+#%%
+pl.figure()
+crd = cse.utilities.plot_contours(A_tot.tocsc()[:,sure_in_idx],Cn,thr=0.9)
+#%%
+A_tot=A_tot.tocsc()[:,sure_in_idx]
+C_tot=C_tot[sure_in_idx]
+#%%
+save_results = True
+if save_results:
+    np.savez('results_analysis_patch.npz',A_tot=A_tot.todense(), C_tot=C_tot, sn_tot=sn_tot,d1=d1,d2=d2,b=b,f=f) 
 #%% if you have many components this might take long!
 pl.figure()
 crd = cse.utilities.plot_contours(A_tot,Cn,thr=0.9)
@@ -155,6 +177,40 @@ YrA=cnmf.YrA
 b=cnmf.b
 f=cnmf.f
 sn=cnmf.sn
+#%%
+options = cse.utilities.CNMFSetParms(Y,n_processes,p=0,gSig=gSig,K=A.shape[-1],thr=merge_thresh)
+
+#%%
+
+merged_ROIs=[0]
+while len(merged_ROIs)>0:
+    A,C,nr_m,merged_ROIs,S_m,bl_m,c1_m,sn_m,g_m=cse.merge_components(Yr, A, b, C, f, None, sn, options['temporal_params'], options['spatial_params'], dview=c[:], \
+    thr=0.7, fast_merge=True)
+#%%
+options['temporal_params']['p']=0
+options['temporal_params']['fudge_factor']=0.96 #change ifdenoised traces time constant is wrong
+options['temporal_params']['backend']='ipyparallel'
+C,f,S,bl,c1,neurons_sn,g2,YrA = cse.temporal.update_temporal_components(Yr,A,np.atleast_2d(b),C,f,dview=c[:],**options['temporal_params'])
+    
+#%%
+    
+#%%
+traces=C+YrA
+num_sampls=traces.shape[-1]/5
+traces=traces-scipy.ndimage.filters.percentile_filter(traces,8,size=[num_sampls,1])
+
+idx_components, fitness, erfc ,r_values, num_significant_samples = cse.utilities.evaluate_components(Y,traces,A,N=5,robust_std=True,thresh_finess=-10,compute_r_values=False)
+sure_in_idx= idx_components[np.logical_and(fitness<-7.5,True)]
+
+print ('Keeping ' + str(len(sure_in_idx)) + ' components out of ' + str(len(idx_components)))
+#%%
+save_results=True
+if save_results:
+    np.savez(os.path.join(os.path.split(fname_new)[0],'results_analysis.npz'),Cn=Cn,A_tot=A_tot.todense(), C_tot=C_tot, sn_tot=sn_tot, A2=A.todense(),C2=C,b2=b,f2=f,YrA=YrA,sn=sn,d1=d1,d2=d2,idx_components=idx_components, fitness=fitness, erfc=erfc)    
+     
+#%%
+pl.figure()
+crd = cse.utilities.plot_contours(A.tocsc()[:,sure_in_idx],Cn,thr=0.9)
 #%% get rid of evenrually noisy components. 
 # But check by visual inspection to have a feeling fot the threshold. Try to be loose, you will be able to get rid of more of them later!
 traces=C+YrA

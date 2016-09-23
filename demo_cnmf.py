@@ -108,7 +108,8 @@ pl.close()
 if not single_thread:    
     c.close()
     cse.utilities.stop_server()
-
+#%%
+    
 #%% select  blobs
 #min_radius=5 # min radius of expected blobs
 #masks_ws,pos_examples,neg_examples=cse.utilities.extract_binary_masks_blob(A.tocsc()[:,:], 
