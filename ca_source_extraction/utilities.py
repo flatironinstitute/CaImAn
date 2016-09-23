@@ -50,6 +50,8 @@ from ipyparallel import Client
 from scipy.stats import norm
 from skimage.draw import polygon
 from warnings import warn
+from scipy.optimize import linear_sum_assignment   
+
 #%%
 
 
@@ -1915,7 +1917,7 @@ def stop_server(is_slurm=False, ipcluster='ipcluster',pdir=None,profile=None):
 #%%
 
 
-def evaluate_components(Y, traces, A, N=5, robust_std=False,thresh_overlap=.3, thresh_finess=-20):
+def evaluate_components(Y, traces, A, N=5, robust_std=False,thresh_overlap=.3, thresh_finess=-20,compute_r_values=True):
     """ Define a metric and order components according to the probabilty if some "exceptional events" (like a spike). Suvh probability is defined as the likeihood of observing the actual trace value over N samples given an estimated noise distribution. 
     The function first estimates the noise distribution by considering the dispersion around the mode. This is done only using values lower than the mode. The estimation of the noise std is made robust by using the approximation std=iqr/1.349. 
     Then, the probavility of having N consecutive eventsis estimated. This probability is used to order the components. 
@@ -1997,6 +1999,7 @@ def evaluate_components(Y, traces, A, N=5, robust_std=False,thresh_overlap=.3, t
     filt = np.ones(N)
     # moving sum
     erfc = np.apply_along_axis(lambda m: np.convolve(m, filt, mode='full'), axis=1, arr=erf)
+    erfc = erfc [:,:T]
 
     # select the maximum value of such probability for each trace
     fitness = np.min(erfc, 1)
@@ -2010,59 +2013,67 @@ def evaluate_components(Y, traces, A, N=5, robust_std=False,thresh_overlap=.3, t
     # compute the overlap between spatial and movie average across samples with significant events
 
     
-
-    min_important_points=2
+    if compute_r_values:
+        min_important_points=2
+        
+        r_values=[]
     
-    r_values=[]
-
-    num_significant_samples=[]
-    #import pdb
-    #pdb.set_trace()        
-    AA = (A.T*A).toarray() 
-    nA=np.sqrt(np.array(A.power(2).sum(0)))
-    AA = AA/np.outer(nA,nA.T)      
-    
-    for er,idx_comp in zip(erfc,idx_components):
+        num_significant_samples=[]
+        #import pdb
+        #pdb.set_trace()        
+        AA = (A.T*A).toarray() 
+        nA=np.sqrt(np.array(A.power(2).sum(0)))
+        AA = AA/np.outer(nA,nA.T)      
         
-        a=np.array(A.tocsc()[:,idx_comp].todense()).squeeze()   
-        px = np.nonzero(a)[0]       
-        mn=np.min(er)
-                                           
-        overlaping_idx = np.where(AA[idx_comp,:]>thresh_overlap)
-#        overlaping_idx_corr = np.where(np.array([scipy.stats.pearsonr(a,np.array(aa.todense()).squeeze())[0] for aa in A.T.tocsc()[:,overlaping_idx]])>thresh_overlap)[0]    
-#        overlaping_idx=overlaping_idx[overlaping_idx_corr]
-        idx_not_a=np.setdiff1d(overlaping_idx,idx_comp) 
-        important_points=np.where(er<=np.maximum(thresh_finess,mn))[0]
+        for er,idx_comp in zip(erfc,idx_components):
             
-        
-        if len(important_points) > 0:
-            
-            if len(idx_not_a)>0: #identify points when neighbors are active
- 
-               print('active neighbours:'+str(idx_not_a))   
-               activities_other_comps=erfc[idx_not_a].min(0)        
-               bad_points=np.where(activities_other_comps<-10)[0]
-
-               if len(np.setdiff1d(important_points,bad_points)) > min_important_points:        
-
-                    important_points=np.setdiff1d(important_points,bad_points)
-        
-               else:  
-                   
-                    print('Including active neighbours')        
+            a=np.array(A.tocsc()[:,idx_comp].todense()).squeeze()   
+            px = np.nonzero(a)[0]       
+            mn=np.min(er)
+                                               
+            overlaping_idx = np.where(AA[idx_comp,:]>thresh_overlap)
+    #        overlaping_idx_corr = np.where(np.array([scipy.stats.pearsonr(a,np.array(aa.todense()).squeeze())[0] for aa in A.T.tocsc()[:,overlaping_idx]])>thresh_overlap)[0]    
+    #        overlaping_idx=overlaping_idx[overlaping_idx_corr]
+            idx_not_a=np.setdiff1d(overlaping_idx,idx_comp) 
+            important_points=np.where(er<=np.minimum(thresh_finess,mn*0.9))[0]
                 
-            important_points=np.minimum(important_points,T-1) 
             
-            num_significant_samples.append(len(important_points))
+            if len(important_points) > 0:
+                
+                if len(idx_not_a)>0: #identify points when neighbors are active
+     
+                   print('active neighbours:'+str(idx_not_a))   
+                   activities_other_comps=erfc[idx_not_a].min(0)        
+                   bad_points=np.where(activities_other_comps<-10)[0]
+    
+                   if len(np.setdiff1d(important_points,bad_points)) > min_important_points:        
+    
+                        important_points=np.setdiff1d(important_points,bad_points)
+            
+                   else:  
+                       
+                        print('Including active neighbours')        
+                    
+                important_points=np.minimum(important_points,T-1) 
+                
+                num_significant_samples.append(len(important_points))
 
-            img=np.mean(Y[:,:,important_points],-1)
-        #    img = cse.utilities.local_correlations(Y[:,:,np.array(important_points)])
-            r_values.append(scipy.stats.pearsonr(a[px],img.flatten(order='F')[px])[0])
-       
-        else:
-            num_significant_samples.append(0)
-            r_values.append(0)
-            print('No significant samples')        
+                non_activity_points=np.where(er>-2)[0]
+                
+                img=np.mean(Y[:,:,important_points],-1)-np.mean(Y[:,:,non_activity_points],-1)
+                
+#                pl.imshow(img)
+#                pl.pause(1)
+            #    img = cse.utilities.local_correlations(Y[:,:,np.array(important_points)])
+                r_values.append(scipy.stats.pearsonr(a[px],img.flatten(order='F')[px])[0])
+           
+            else:
+                num_significant_samples.append(0)
+                r_values.append(0)
+                print('No significant samples')     
+    else:
+         num_significant_samples=None
+         r_values=None
         
              
         
@@ -2242,6 +2253,7 @@ def distance_masks(M_s,cm_s,max_dist):
     Returns:
     --------
     D_s: list of matrix distances
+    
     """
     D_s=[]
 
@@ -2285,11 +2297,12 @@ def distance_masks(M_s,cm_s,max_dist):
     return D_s   
 
 #%% find matches
+
 def find_matches(D_s, print_assignment=False):
     
     matches=[]
     costs=[]
-    t_start=time()
+    t_start=time.time()
     for ii,D in enumerate(D_s):
         DD=D.copy()    
         if np.sum(np.where(np.isnan(DD)))>0:
@@ -2309,7 +2322,7 @@ def find_matches(D_s, print_assignment=False):
                 print '(%d, %d) -> %f' % (row, column, value)
             total.append(value)      
         print  'FOV: %d, shape: %d,%d total cost: %f' % (ii, DD.shape[0],DD.shape[1], np.sum(total))
-        print time()-t_start
+        print time.time()-t_start
         costs.append(total)      
         
     return matches,costs
@@ -2568,6 +2581,9 @@ def extract_binary_masks_blob(A,  neuron_radius,dims,num_std_threshold=1, minCir
     
     Returns:
     --------
+    masks: np.array
+    pos_examples:
+    neg_examples:
     
     """    
     import cv2

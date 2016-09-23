@@ -40,33 +40,82 @@ import scipy
 from ipyparallel import Client
 
 #%%
-folders_in=[
-'/mnt/ceph/users/agiovann/ImagingData/LABELLING/NEUROFINDER/neurofinder.00.00.test/',
-'/mnt/ceph/users/agiovann/ImagingData/LABELLING/NEUROFINDER/neurofinder.00.01.test/',
-'/mnt/ceph/users/agiovann/ImagingData/LABELLING/NEUROFINDER/neurofinder.01.00.test/',
-'/mnt/ceph/users/agiovann/ImagingData/LABELLING/NEUROFINDER/neurofinder.01.01.test/',
-'/mnt/ceph/users/agiovann/ImagingData/LABELLING/NEUROFINDER/neurofinder.02.00.test/',
-'/mnt/ceph/users/agiovann/ImagingData/LABELLING/NEUROFINDER/neurofinder.02.01.test/',
-'/mnt/ceph/users/agiovann/ImagingData/LABELLING/NEUROFINDER/neurofinder.03.00.test/',
-'/mnt/ceph/users/agiovann/ImagingData/LABELLING/NEUROFINDER/neurofinder.04.00.test/',
-'/mnt/ceph/users/agiovann/ImagingData/LABELLING/NEUROFINDER/neurofinder.04.01.test/',
-#%
 #folders_in=[
-'/mnt/ceph/users/agiovann/ImagingData/LABELLING/NEUROFINDER/neurofinder.00.07/',
-'/mnt/ceph/users/agiovann/ImagingData/LABELLING/NEUROFINDER/neurofinder.00.00/',
-'/mnt/ceph/users/agiovann/ImagingData/LABELLING/NEUROFINDER/neurofinder.01.00/',
-'/mnt/ceph/users/agiovann/ImagingData/LABELLING/NEUROFINDER/neurofinder.01.01/',
-'/mnt/ceph/users/agiovann/ImagingData/LABELLING/NEUROFINDER/neurofinder.02.00/',
-'/mnt/ceph/users/agiovann/ImagingData/LABELLING/NEUROFINDER/neurofinder.02.01/',
-'/mnt/ceph/users/agiovann/ImagingData/LABELLING/NEUROFINDER/neurofinder.03.00/',
-'/mnt/ceph/users/agiovann/ImagingData/LABELLING/NEUROFINDER/neurofinder.04.00/',
-'/mnt/ceph/users/agiovann/ImagingData/LABELLING/NEUROFINDER/neurofinder.04.01/']
+##'/mnt/ceph/neuro/labeling/neurofinder.00.00.test/',
+##'/mnt/ceph/neuro/labeling/neurofinder.00.01.test/',
+##'/mnt/ceph/neuro/labeling/neurofinder.01.00.test/',
+##'/mnt/ceph/neuro/labeling/neurofinder.01.01.test/',
+##'/mnt/ceph/neuro/labeling/neurofinder.02.00.test/',
+##'/mnt/ceph/neuro/labeling/neurofinder.02.01.test/',
+##'/mnt/ceph/neuro/labeling/neurofinder.03.00.test/',
+##'/mnt/ceph/neuro/labeling/neurofinder.04.00.test/',
+##'/mnt/ceph/neuro/labeling/neurofinder.04.01.test/',
+##%
+##folders_in=[
+#'/mnt/ceph/neuro/labeling/neurofinder.00.00/',
+#'/mnt/ceph/neuro/labeling/neurofinder.00.01/',
+#'/mnt/ceph/neuro/labeling/neurofinder.00.02/',
+#'/mnt/ceph/neuro/labeling/neurofinder.00.03/',
+#'/mnt/ceph/neuro/labeling/neurofinder.00.04/',
+#'/mnt/ceph/neuro/labeling/neurofinder.01.00/',
+#'/mnt/ceph/neuro/labeling/neurofinder.01.01/',
+#'/mnt/ceph/neuro/labeling/neurofinder.02.00/',
+##'/mnt/ceph/neuro/labeling/neurofinder.02.01/',
+##'/mnt/ceph/neuro/labeling/neurofinder.03.00/',
+#'/mnt/ceph/neuro/labeling/neurofinder.04.00/',
+##'/mnt/ceph/neuro/labeling/neurofinder.04.01/'\
+#]
+#%%
+params=[
+#['Jan25_2015_07_13',30,False,False,False], # fname, frate, do_rotate_template, do_self_motion_correct, do_motion_correct
+#['Jan40_exp2_001',30,False,False,False],
+#['Jan42_exp4_001',30,False,False,False],
+#['Jan-AMG1_exp2_new_001',30,False,False,False],
+#['Jan-AMG_exp3_001',30,False,False,False],
+#['Yi.data.001',30,False,True,True],
+#['Yi.data.002',30,False,True,True],
+#['FN.151102_001',30,False,True,True],
+#['J115_2015-12-09_L01',30,False,False,False],
+#['J123_2015-11-20_L01_0',30,False,False,False],
+#['k26_v1_176um_target_pursuit_002_013',30,False,True,True],
+#['k31_20151223_AM_150um_65mW_zoom2p2',30,False,True,True],
+#['k31_20160104_MMA_150um_65mW_zoom2p2',30,False,True,True],
+#['k31_20160106_MMA_400um_118mW_zoom2p2_00001_1-19',30,True,True,True],
+#['k31_20160107_MMP_150um_65mW_zoom2p2_00001_1-15',30,True,True,True],
+#['k36_20151229_MMA_200um_65mW_zoom2p2_00001_1-17',30,True,True,True],
+#['k36_20160115_RSA_400um_118mW_zoom2p2_00001_20-38',30,True,True,True],
+#['k36_20160127_RL_150um_65mW_zoom2p2_00002_22-41',30,True,True,True],
+#['k37_20160109_AM_150um_65mW_zoom2p2_00001_1-16',30,True,True,True],
+['/mnt/ceph/neuro/labeling/neurofinder.00.00',7,False,False,False,7,4],
+['/mnt/ceph/neuro/labeling/neurofinder.00.01',7,False,False,False,7,4],
+['/mnt/ceph/neuro/labeling/neurofinder.00.02',7,False,False,False,7,4],
+['/mnt/ceph/neuro/labeling/neurofinder.00.03',7,False,False,False,7,4],
+['/mnt/ceph/neuro/labeling/neurofinder.00.04',7,False,False,False,7,4],
+['/mnt/ceph/neuro/labeling/neurofinder.01.00',7.5,False,False,False,7,4],
+['/mnt/ceph/neuro/labeling/neurofinder.01.01',7.5,False,False,False,7,4],
+['/mnt/ceph/users/agiovann/ImagingData/LABELLING/NEUROFINDER/neurofinder.02.01',8,False,False,False,6,4],
+['/mnt/ceph/neuro/labeling/neurofinder.02.00',8,False,False,False,6,4],
+['/mnt/ceph/users/agiovann/ImagingData/LABELLING/NEUROFINDER/neurofinder.03.00',7.5,False,False,False,7,4],
+['/mnt/ceph/neuro/labeling/neurofinder.04.00',6.75,False,False,False,6,4],
+['/mnt/ceph/users/agiovann/ImagingData/LABELLING/NEUROFINDER/neurofinder.04.01',3,False,False,False,6,4],
+
+#['packer.001',15,False,False,False],
+#['yuste.Single_150u',10,False,False,False]
+]
+#params=params[11:13]
+f_rates=np.array([el[1] for el in params])
+base_folders=[el[0] for el in params]
+do_rotate_template=np.array([el[2] for el in params])
+do_self_motion_correct=np.array([el[3] for el in params])
+do_motion_correct=np.array([el[4] for el in params])
+gsigs=np.array([el[5] for el in params])
+Ks=np.array([el[6] for el in params])
 
 #%%
 backend = 'local'
 if backend == 'SLURM':
     n_processes = np.int(os.environ.get('SLURM_NPROCS'))
-else:
+else: 
     n_processes = np.maximum(np.int(psutil.cpu_count()),1) # roughly number of cores on your machine minus 1
 print 'using ' + str(n_processes) + ' processes'
 single_thread=False
@@ -97,63 +146,75 @@ else:
     print 'Using '+ str(len(c)) + ' processes'
     dview=c[:len(c)]
 #%%
-for folder_in in folders_in:
+load_results=True    
+for folder_in,f_r,gsig,K in zip(base_folders[-2:-1],f_rates[-2:-1],gsigs[-2:-1],Ks[-2:-1]):
 #    try:
-        #%%'/mnt/ceph/users/agiovann/ImagingData/LABELLING/NEUROFINDER/neurofinder.00.00.test/']
-        fname_mov=os.path.join(os.path.split(folder_in)[0], os.path.split(folder_in)[-1] + 'MOV.tif')
-        print fname_mov
-        files=sorted(glob(os.path.join(os.path.split(folder_in)[0],'images/*.tiff')))
+        sds
         #%% LOAD MOVIE HERE USE YOUR METHOD, Movie is frames x dim2 x dim2
-        m=cb.load_movie_chain(files,fr=30)
-        m=m-np.min(m)
-        m.save(fname_mov)        
-            
-        #%%
-        downsample_factor = .3  
-        base_name ='Yr'
-        
-        name_new=cse.utilities.save_memmap_each([fname_mov], dview=None,base_name=base_name, resize_fact=(1, 1, downsample_factor), remove_init=0,idx_xy=None )
-        print name_new
-        #%%
-        fname_new=cse.utilities.save_memmap_join(name_new,base_name='Yr', n_chunks=6, dview=dview)
-        
+        movie_name=os.path.join(folder_in,'images','images_all.tif')
+        if load_results:
+            #%%
+            downsample_factor = 3/f_r  
+            base_name ='Yr'        
+            name_new=cse.utilities.save_memmap_each([movie_name], dview=None,base_name=base_name, resize_fact=(1, 1, downsample_factor), remove_init=0,idx_xy=None )
+            print name_new
+            #%%
+            fname_new=cse.utilities.save_memmap_join(name_new,base_name='Yr', n_chunks=6, dview=dview)
+        else:
+            fname_new=glob(os.path.join(folder_in,'images','Yr_*.mmap'))[0]
         #%%    
         #fname_new='Yr_d1_501_d2_398_d3_1_order_F_frames_369_.mmap'
         Yr,dims,T=cse.utilities.load_memmap(fname_new)
         d1,d2=dims
         Y=np.reshape(Yr,dims+(T,),order='F')
         #%%
-        Cn = cse.utilities.local_correlations(Y[:,:,:3000])
-        #pl.imshow(Cn,cmap='gray')  
-        
-        #%%
-        rf=15 # half-size of the patches in pixels. rf=25, patches are 50x50
-        stride = 2 #amounpl.it of overlap between the patches in pixels    
-        K=5 # number of neurons expected per patch
-        gSig=[5,5] # expected half size of neurons
-        merge_thresh=0.8 # merging threshold, max correlation allowed
-        p=2 #order of the autoregressive system
-        memory_fact=1; #unitless number accounting how much memory should be used. You will need to try different values to see which one would work the default is OK for a 16 GB system
-        save_results=True
-        #%% RUN ALGORITHM ON PATCHES
-        options_patch = cse.utilities.CNMFSetParms(Y,n_processes,p=0,gSig=gSig,K=K,ssub=1,tsub=4,thr=merge_thresh)
-        A_tot,C_tot,b,f,sn_tot, optional_outputs = cse.map_reduce.run_CNMF_patches(fname_new, (d1, d2, T), options_patch,rf=rf,stride = stride,
-                                                                                dview=dview,memory_fact=memory_fact)
-        print 'Number of components:' + str(A_tot.shape[-1])      
-        
-        #%%
-        if save_results:
-            np.savez('results_analysis_patch.npz',A_tot=A_tot.todense(), C_tot=C_tot, sn_tot=sn_tot,d1=d1,d2=d2,b=b,f=f)    
+        if load_results:
+            with np.load(os.path.join(folder_in,'images','results_analysis_patch_2.npz')) as ld:
+                locals().update(ld)
+            gSig=[gsig,gsig]
+            merge_thresh=0.8 # merging threshold, max correlation allowed
+            p=2 #order of the autoregressive system
+            memory_fact=1; #unitless number a
+            
+        else:    
+            #%%
+            Cn = cse.utilities.local_correlations(Y[:,:,:3000])
+            #pl.imshow(Cn,cmap='gray')  
+            
+            #%%
+            rf=15 # half-size of the patches in pixels. rf=25, patches are 50x50
+            stride = 2 #amounpl.it of overlap between the patches in pixels    
+    #        K=K # number of neurons expected per patch
+            gSig=[gsig,gsig] # expected half size of neurons
+            merge_thresh=0.8 # merging threshold, max correlation allowed
+            p=2 #order of the autoregressive system
+            memory_fact=1; #unitless number accounting how much memory should be used. You will need to try different values to see which one would work the default is OK for a 16 GB system
+            save_results=True
+            #%% RUN ALGORITHM ON PATCHES
+            options_patch = cse.utilities.CNMFSetParms(Y,n_processes,p=0,gSig=gSig,K=K,ssub=1,tsub=4,thr=merge_thresh)
+            A_tot,C_tot,YrA_tot,b,f,sn_tot, optional_outputs  = cse.map_reduce.run_CNMF_patches(fname_new, (d1, d2, T), options_patch,rf=rf,stride = stride,
+                                                                                    dview=dview,memory_fact=memory_fact)
+            print 'Number of components:' + str(A_tot.shape[-1])      
+            
+            #%%
+            if save_results:
+                np.savez(os.path.join(folder_in,'images','results_analysis_patch_2.npz'),A_tot=A_tot.todense(), C_tot=C_tot, sn_tot=sn_tot,d1=d1,d2=d2,b=b,f=f,Cn=Cn)    
+            
         #%% if you have many components this might take long!
-        #pl.figure()
-        #crd = cse.utilities.plot_contours(A_tot,Cn,thr=0.9)
+        #
+        #pl.figure();crd = cse.utilities.plot_contours(A_tot,Cn,thr=0.9)
         #%% set parameters for full field of view analysis
         options = cse.utilities.CNMFSetParms(Y,n_processes,p=0,gSig=gSig,K=A_tot.shape[-1],thr=merge_thresh)
         pix_proc=np.minimum(np.int((d1*d2)/n_processes/(T/2000.)),np.int((d1*d2)/n_processes)) # regulates the amount of memory used
         options['spatial_params']['n_pixels_per_process']=pix_proc
         options['temporal_params']['n_pixels_per_process']=pix_proc
         #%% merge spatially overlaping and temporally correlated components      
-        A_m,C_m,nr_m,merged_ROIs,S_m,bl_m,c1_m,sn_m,g_m=cse.merge_components(Yr,A_tot,[],np.array(C_tot),[],np.array(C_tot),[],options['temporal_params'],options['spatial_params'],dview=dview,thr=options['merging']['thr'],mx=np.Inf)     
+        merged_ROIs=[0]
+        A_m=scipy.sparse.coo_matrix(A_tot)
+        C_m=C_tot
+        while len(merged_ROIs)>0:
+            A_m,C_m,nr_m,merged_ROIs,S_m,bl_m,c1_m,sn_m,g_m=cse.merge_components(Yr,A_m,[],np.array(C_m),[],np.array(C_m),[],options['temporal_params'],options['spatial_params'],dview=dview,thr=options['merging']['thr'],mx=np.Inf)     
+        # pl.figure();crd = cse.utilities.plot_contours(A_m,Cn,thr=0.9)    
         #%% update temporal to get Y_r
         options['temporal_params']['p']=0
         options['temporal_params']['fudge_factor']=0.96 #change ifdenoised traces time constant is wrong
@@ -164,29 +225,51 @@ for folder_in in folders_in:
         # But check by visual inspection to have a feeling fot the threshold. Try to be loose, you will be able to get rid of more of them later!
         
         traces=C_m+YrA_m
-        idx_components, fitness, erfc = cse.utilities.evaluate_components(traces,N=5,robust_std=False)
-        idx_components=idx_components[np.logical_and(True ,fitness < -5)]
+        traces_a=traces-scipy.ndimage.percentile_filter(traces,8,size=[1,np.shape(traces)[-1]/5])
+        traces_b=np.diff(traces,axis=1)
+        idx_components_a, fitness_a, erfc_a,r_values_a,num_significant_samples_a = cse.utilities.evaluate_components(Y,traces_a,A_m,N=5,robust_std=True,compute_r_values=False)
+        idx_components_b, fitness_b, erfc_b,r_values_b,num_significant_samples_b = cse.utilities.evaluate_components(Y,traces_b,A_m,N=5,robust_std=True,compute_r_values=False)
+
+        idx_components_bad=np.intersect1d(idx_components_a[fitness_a > -15],idx_components_b[fitness_b > -15])        
+        idx_components=np.union1d(idx_components_a[fitness_a < -15],idx_components_b[fitness_b < -15])        
+        
+
         print(len(idx_components))
+        print len(traces)
 #        cse.utilities.view_patches_bar(Yr,scipy.sparse.coo_matrix(A_m.tocsc()[:,idx_components]),C_m[idx_components,:],b,f_m, d1,d2, YrA=YrA_m[idx_components,:]
 #                        ,img=Cn)  
+        #%%
+#       pl.figure(); crd = cse.utilities.plot_contours(A_m[:,idx_components_bad],Cn,thr=0.9) 
+#       pl.figure(); crd = cse.utilities.plot_contours(A_m[:,idx_components],Cn,thr=0.9)
         #%%
         A_m=A_m[:,idx_components]
         C_m=C_m[idx_components,:]   
         
         #%% display components  DO NOT RUN IF YOU HAVE TOO MANY COMPONENTS
-        #pl.figure()
-        #crd = cse.utilities.plot_contours(A_m,Cn,thr=0.9)
+        
         #%%
         print 'Number of components:' + str(A_m.shape[-1])  
         #%% UPDATE SPATIAL OCMPONENTS
         t1 = time()
         A2,b2,C2 = cse.spatial.update_spatial_components(Yr, C_m, f, A_m, sn=sn_tot,dview=dview, **options['spatial_params'])
         print time() - t1
+        #%%
+        #       pl.figure(); crd = cse.utilities.plot_contours(A2,Cn,thr=0.9)
+
+        #%% UPDATE TEMPORAL COMPONENTS
+        options['temporal_params']['p']=0
+        options['temporal_params']['fudge_factor']=0.96 #change ifdenoised traces time constant is wrong
+        C2,f2,S2,bl2,c12,neurons_sn2,g21,YrA = cse.temporal.update_temporal_components(Yr,A2,b2,C2,f,dview=dview, bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
+        #%% MERGE AGAIN        
+        merged_ROIs2=[0]
+        A_m=A2
+        C_m=C2
+        while len(merged_ROIs2)>0:
+            A2,C2,nr2,merged_ROIs2,S2,bl_2,c1_2,sn_2,g_2=cse.merge_components(Yr,A2,b2,np.array(C2),f2,np.array(S2),[],options['temporal_params'],options['spatial_params'],dview=dview,thr=options['merging']['thr'],mx=np.Inf)     
         #%% UPDATE TEMPORAL COMPONENTS
         options['temporal_params']['p']=p
         options['temporal_params']['fudge_factor']=0.96 #change ifdenoised traces time constant is wrong
-        C2,f2,S2,bl2,c12,neurons_sn2,g21,YrA = cse.temporal.update_temporal_components(Yr,A2,b2,C2,f,dview=dview, bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
-        #%% Order components
+        C2,f2,S2,bl2,c12,neurons_sn2,g21,YrA = cse.temporal.update_temporal_components(Yr,A2,b2,C2,f2,dview=dview, bl=None,c1=None,sn=None,g=None,**options['temporal_params'])#%% Order components
         #A_or, C_or, srt = cse.utilities.order_components(A2,C2)
         #%% stop server and remove log files
 #        cse.utilities.stop_server(is_slurm = (backend == 'SLURM')) 
@@ -194,20 +277,21 @@ for folder_in in folders_in:
         for log_file in log_files:
             os.remove(log_file)
         #%% order components according to a quality threshold and only select the ones wiht qualitylarger than quality_threshold. 
-        quality_threshold=-0
+        quality_threshold=-10
         traces=C2+YrA
-        idx_components, fitness, erfc = cse.utilities.evaluate_components(traces,N=5,robust_std=False)
-        idx_components=idx_components[fitness<quality_threshold]
-        #_,_,idx_components=cse.utilities.order_components(A2,C2)
-        print(idx_components.size*1./traces.shape[0])
+        idx_components, fitness, erfc,r_values,num_significant_samples = cse.utilities.evaluate_components(Y,traces,A2,N=5,robust_std=True,compute_r_values=True,thresh_overlap=.3, thresh_finess=-7.5)
         #%%
-        #pl.figure();
-        #crd = cse.utilities.plot_contours(A2.tocsc()[:,idx_components],Cn,thr=0.9)
+        idx_components_a=idx_components[np.logical_and(fitness<quality_threshold,np.array(r_values)>=.5)]
+        #_,_,idx_components=cse.utilities.order_components(A2,C2)
+        print(idx_components_a.size*1./traces.shape[0])
+        #%%
+#        pl.figure();
+#        crd = cse.utilities.plot_contours(A2.tocsc()[:,idx_components_a],Cn,thr=0.9)
         #%%
 #        cse.utilities.view_patches_bar(Yr,scipy.sparse.coo_matrix(A2.tocsc()[:,idx_components]),C2[idx_components,:],b2,f2, d1,d2, YrA=YrA[idx_components,:])  
         #%% save analysis results in python and matlab format
         if save_results:
-            np.savez(os.path.join(os.path.split(fname_new)[0],'results_analysis.npz'),Cn=Cn,A_tot=A_tot.todense(), C_tot=C_tot, sn_tot=sn_tot, A2=A2.todense(),C2=C2,b2=b2,S2=S2,f2=f2,bl2=bl2,c12=c12, neurons_sn2=neurons_sn2, g21=g21,YrA=YrA,d1=d1,d2=d2,idx_components=idx_components, fitness=fitness, erfc=erfc)    
+            np.savez(os.path.join(folder_in,'results_analysis_2.npz'),Cn=Cn,A_tot=A_tot, C_tot=C_tot, sn_tot=sn_tot, A2=A2,C2=C2,b2=b2,S2=S2,f2=f2,bl2=bl2,c12=c12, neurons_sn2=neurons_sn2, g21=g21,YrA=YrA,d1=d1,d2=d2,idx_components=idx_components, fitness=fitness, erfc=erfc,r_values=r_values,num_significant_samples=num_significant_samples)    
         #    scipy.io.savemat('output_analysis_matlab.mat',{'A2':A2,'C2':C2 , 'YrA':YrA, 'S2': S2 ,'YrA': YrA, 'd1':d1,'d2':d2,'idx_components':idx_components, 'fitness':fitness })
         #%%
         ##%%
@@ -242,15 +326,51 @@ for folder_in in folders_in:
         #    dims=(d1,d2)
         #
         #
+        #%%
+#        all_masks_A=np.reshape(A2.toarray(),dims+(-1,),order='F').transpose([2,0,1])
+#        #%%
+#        final_masks=[]
+#        
+#        for counter,img in enumerate(all_masks_A[idx_components_a]):
+##            print counter
+#            img=(img*1./np.max(img)*256).astype(np.uint8)
+##            img = cv2.GaussianBlur(img,(3,3),0)
+#            th=cv2.threshold(img,0,255,cv2.THRESH_BINARY+cv2.THRESH_OTSU)[1]>0
+#            
+#            label_objects, nb_labels = ndi.label(th)
+#            sizes = np.bincount(label_objects.ravel())
+#            if len(sizes)>1:           
+#                idx_largest = np.argmax(sizes[1:])    
+#                edges=(label_objects==(1+idx_largest))
+#                edges=ndi.binary_fill_holes(edges)
+#            else:
+#                print 'empty component'
+#                edges=np.zeros_like(edges)
+#            final_masks.append(edges[np.newaxis,:,:])
+##            pl.imshow(final_masks[-1])
+##            pl.title(str(np.sum(final_masks[-1]>0)))
+##            pl.pause(.01)            
+##            pl.cla()
+#        final_masks=np.concatenate(final_masks,0)    
+#        idx_components_selected=np.where(np.sum(final_masks,(1,2))>(3*3*np.pi))[0]
+#        final_masks=final_masks[idx_components_selected]  
+#        idx_components_selected=idx_components_a[idx_components_selected]
+#        print final_masks.shape
         #%% extract binary masks
-        min_radius=gSig[0]
+        min_radius=gSig[0]-2
         masks_ws,pos_examples,neg_examples=cse.utilities.extract_binary_masks_blob(
         A2.tocsc()[:,:], min_radius, dims, num_std_threshold=1, 
-        minCircularity= 0.5, minInertiaRatio = 0.2,minConvexity = .8)
-        np.savez(os.path.join(os.path.split(fname_new)[0],'regions_CNMF.npz'),masks_ws=masks_ws,pos_examples=pos_examples,neg_examples=neg_examples)
-#        #%%
-#        pl.subplot(1,2,1)
-        final_masks=np.array(masks_ws)[pos_examples]
+        minCircularity= 0.5, minInertiaRatio = 0.2,minConvexity =.8)
+        
+        np.savez(os.path.join(os.path.split(fname_new)[0],'regions_CNMF_2.npz'),masks_ws=masks_ws,pos_examples=pos_examples,neg_examples=neg_examples,\
+                                                                                            idx_components_a=idx_components_a)
+        final_masks=np.array(masks_ws)[np.intersect1d(idx_components_a,pos_examples)]
+        
+        
+          
+#        final_masks=np.array(masks_ws)[pos_examples]        
+#        final_masks=np.array(masks_ws)[idx_components_a]
+#        final_masks=final_masks[np.sum(final_masks,(1,2))>(3*3*np.pi)]
 #        pl.imshow(np.reshape(final_masks.max(0),dims,order='F'),vmax=1)
 #        pl.imshow(Cn,cmap='gray',alpha=.8)
 #
@@ -289,27 +409,38 @@ for folder_in in folders_in:
 #        pl.title('A MATRIX')
         #plt.show()
         #%%
-        regions_CNMF=cse.utilities.nf_masks_to_json( final_masks,os.path.join(os.path.split(fname_new)[0],'regions_CNMF.json'))
+        regions_CNMF=cse.utilities.nf_masks_to_json( final_masks,os.path.join(folder_in,'regions','regions_CNMF_2.json'))
         
 #    except:
 #        np.save(os.path.join(os.path.split(folder_in)[0],'failure'),np.array(1))
 #regions_BEN=cse.utilities.nf_masks_to_json( masks_ben,'regions_ben.json')
 #%%
-from neurofinder import load, centers, shapes
-for folder_in_check in folders_in[-9:]:
+
+#%%
+from neurofinder import load, centers, shapes,match
+for folder_in_check in base_folders:
+    #%
+    ref_file=os.path.join(folder_in_check,'regions','regions_CNMF_2.json')
+    if os.path.exists(ref_file):
+        print folder_in_check
+        b=load(ref_file)
+    #    a=load(os.path.join(folder_in_check,'regions','regions_wesley.json'))
+        a=load(os.path.join(folder_in_check,'regions/regions.json'))
+    #    a=load(os.path.join(folder_in_check,'regions/regions_ben.json'))
     
-    print folder_in_check
-    a=load(os.path.join(folder_in_check,'regions_CNMF.json'))
-    b=load(os.path.join(folder_in_check,'regions/regions.json'))
-    #print match(a,b,threshold=5)
-    re,pr=centers(a,b,threshold=5)
-    incl,excl=shapes(a,b,threshold=5)
-    fscore=2*(pr*re)/(pr+re)
-    print 'Exclusion %.3f\nRecall %.3f\nCombined %.3f\nPrecision %.3f\nInclusion %.3f\n' % (excl,re,fscore,pr,incl)
+        #print
+        mtc=match(a,b,threshold=5)
+        re,pr=centers(a,b,threshold=5)
+        incl,excl=shapes(a,b,threshold=5)
+        fscore=2*(pr*re)/(pr+re)
+        print 'Exclusion %.3f\nRecall %.3f\nCombined %.3f\nPrecision %.3f\nInclusion %.3f' % (excl,re,fscore,pr,incl)
+        
+    else:
+        print ref_file + ' DO NOT EXIST!'
 #%%
 from neurofinder import load, centers, shapes
 results=[]
-for folder_in_check in folders_in[:-9]:
+for folder_in_check in folders_in:
     
     a=load(os.path.join(folder_in_check,'regions_CNMF.json'))  
     dset='.'.join(folder_in_check[:-1].split('.')[1:])
@@ -407,7 +538,30 @@ for folder_in_check in folders_in[-2:-1]:
     masks_ws,pos_examples,neg_examples=cse.utilities.extract_binary_masks_blob(
     scipy.sparse.coo_matrix(A2), min_radius, (d1,d2), num_std_threshold=1, 
     minCircularity= 0.5, minInertiaRatio = 0.2,minConvexity = .8)
-    np.savez(os.path.join(folder_in_check,'regions_CNMF.npz'),masks_ws=masks_ws,pos_examples=pos_examples,neg_examples=neg_examples)     
+    np.savez(os.path.join(folder_in_check,'regions_CNMF.npz'),masks_ws=masks_ws,pos_examples=pos_examples,neg_examples=neg_examples)  
+    
+#%%
+with np.load('results_analysis_2.npz') as ld:    
+    locals().update(ld)    
+with np.load('images/regions_CNMF_2.npz') as ld:    
+    locals().update(ld)   
+    
+A2=A2[()]    
+A_tot=A[()]
+#%%
+pl.figure()
+crd = cse.utilities.plot_contours(A2.tocsc()[:,idx_components_a],Cn,thr=0.9)    
+#%%
+pl.figure()
+crd = cse.utilities.plot_contours(A2.tocsc()[:,np.intersect1d(pos_examples,idx_components_a)],Cn,thr=0.9)  
+#%%
+pl.figure()
+crd = cse.utilities.plot_contours(A2.tocsc()[:,idx_components],Cn,thr=0.9)    
+#%%
+pl.figure()
+crd = cse.utilities.plot_contours(A_tot,Cn,thr=0.9)    
+
+#%%
 #from neurofinder import match,load,centers,shapes 
 #a=load('regions/regions.json')
 #b=load('regions_ben.json')

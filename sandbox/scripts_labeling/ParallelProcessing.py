@@ -43,7 +43,7 @@ import re
  
 #%%
 #backend='SLURM'
-backend='SLURM'
+backend='local'
 if backend == 'SLURM':
     n_processes = np.int(os.environ.get('SLURM_NPROCS'))
 else:
@@ -82,145 +82,138 @@ else:
 
 #%% get all the right folders
 params=[
-'FN.151102_001',30,
-'J115_2015-12-09_L01',30,
-'J123_2015-11-20_L01_0',30,
-'Jan25_2015_07_13',30,
-'Jan40_exp2_001',30,
-'Jan42_exp4_001',30,
-'Jan-AMG1_exp2_new_001',30,
-'Jan-AMG_exp3_001',30,
-'k26_v1_176um_target_pursuit_002_013',30,
-'k31_20151223_AM_150um_65mW_zoom2p2',30,
-'k31_20160104_MMA_150um_65mW_zoom2p2',30,
-'k31_20160106_MMA_400um_118mW_zoom2p2_00001_1-19',30,
-'k31_20160107_MMP_150um_65mW_zoom2p2_00001_1-15',30,
-'k36_20151229_MMA_200um_65mW_zoom2p2_00001_1-17',30,
-'k36_20160115_RSA_400um_118mW_zoom2p2_00001_20-38',30,
-'k36_20160127_RL_150um_65mW_zoom2p2_00002_22-41',30,
-'k37_20160109_AM_150um_65mW_zoom2p2_00001_1-16',30,
-'neurofinder.00.00',7,
-'neurofinder.00.01',7,
-'neurofinder.00.02',7,
-'neurofinder.00.03',7,
-'neurofinder.00.04',7,
-'neurofinder.01.00',7.5,
-'neurofinder.01.01',7.5,
-'neurofinder.02.00',8,
-'neurofinder.04.00',6.75,
-'packer.001',15,
-'Yi.data.001',30,
-'Yi.data.002',30,
-'yuste.Single_150u',10
+['Jan25_2015_07_13',30,False,False,False], # fname, frate, do_rotate_template, do_self_motion_correct, do_motion_correct
+['Jan40_exp2_001',30,False,False,False],
+['Jan42_exp4_001',30,False,False,False],
+['Jan-AMG1_exp2_new_001',30,False,False,False],
+['Jan-AMG_exp3_001',30,False,False,False],
+['Yi.data.001',30,False,True,True],
+['Yi.data.002',30,False,True,True],
+['FN.151102_001',30,False,True,True],
+['J115_2015-12-09_L01',30,False,False,False],
+['J123_2015-11-20_L01_0',30,False,False,False],
+['k26_v1_176um_target_pursuit_002_013',30,False,True,True],
+['k31_20151223_AM_150um_65mW_zoom2p2',30,False,True,True],
+['k31_20160104_MMA_150um_65mW_zoom2p2',30,False,True,True],
+['k31_20160106_MMA_400um_118mW_zoom2p2_00001_1-19',30,True,True,True],
+['k31_20160107_MMP_150um_65mW_zoom2p2_00001_1-15',30,True,True,True],
+['k36_20151229_MMA_200um_65mW_zoom2p2_00001_1-17',30,True,True,True],
+['k36_20160115_RSA_400um_118mW_zoom2p2_00001_20-38',30,True,True,True],
+['k36_20160127_RL_150um_65mW_zoom2p2_00002_22-41',30,True,True,True],
+['k37_20160109_AM_150um_65mW_zoom2p2_00001_1-16',30,True,True,True],
+['neurofinder.00.00',7,False,False,False],
+['neurofinder.00.01',7,False,False,False],
+['neurofinder.00.02',7,False,False,False],
+['neurofinder.00.03',7,False,False,False],
+['neurofinder.00.04',7,False,False,False],
+['neurofinder.01.00',7.5,False,False,False],
+['neurofinder.01.01',7.5,False,False,False],
+['neurofinder.02.00',8,False,False,False],
+['neurofinder.04.00',6.75,False,False,False],
+['packer.001',15,False,False,False],
+['yuste.Single_150u',10,False,False,False]
 ]
-f_rates=np.array([el for el in params[1::2]])
-base_folders=[os.path.join('/mnt/ceph/neuro/labeling',el) for el in params[::2]]
+#params=params[11:13]
+f_rates=np.array([el[1] for el in params])
+base_folders=[os.path.join('/mnt/ceph/neuro/labeling',el[0]) for el in params]
+do_rotate_template=np.array([el[2] for el in params])
+do_self_motion_correct=np.array([el[3] for el in params])
+do_motion_correct=np.array([el[4] for el in params])
+
 #%%
-final_f_rate=6.0
-#%%
-#for fld in base_folders[-13:-4]:
-#    print fld
-#    with open(os.path.join(fld,'info.json')) as f:
-#        a=json.load(f)
-#        print a['rate-hz']
-        
+final_f_rate=5.0        
 #%%
 counter=0
 images=[os.path.join(el,'images') for el in base_folders]
 regions=[os.path.join(el,'regions') for el in base_folders]
 projections=[os.path.join(el,'projections') for el in base_folders]
 
-#%% get masks and templates
 counter=0         
 masks_all=[];
 templates=[]
 templates_path=[]
-for reg,img,proj in zip(regions,images,projections):
-    
-        
+for reg,img,proj,rot,self_mot,do_mot in zip(regions,images,projections,do_rotate_template,do_self_motion_correct,do_motion_correct):
+            
     print counter
     counter+=1   
     m=cb.load(proj+'/median_projection.tif',fr=1)
     templates_path.append(proj+'/median_projection.tif')
-    templates.append(m)
-    masks=cse.utilities.nf_read_roi_zip(reg+'/ben_regions.zip',m.shape)
+    masks=cse.utilities.nf_read_roi_zip(reg+'/ben_regions.zip',m.shape)    
+    if rot:
+        m=m.T
+        masks=np.transpose(masks,[0,2,1])
+    if self_mot and do_mot:
+        m=None
+        
     masks_all.append(masks)   
-    
+    templates.append(m)
 
-#%% compute shifts so that everybody is well aligned
+#%% visualize averages and masks
 counter=0     
 for reg,img,proj,masks,template in zip(regions,images,projections,masks_all,templates):
     pl.subplot(5,6,counter+1)
+
     print counter
+    
     counter+=1   
     
     template[np.isnan(template)]=0
+
     lq,hq=np.percentile(template,[10,99])
+
     pl.imshow(template,cmap='gray',vmin=lq,vmax=hq)
+
     pl.imshow(np.sum(masks,0),cmap='hot',alpha=.3)
+
     pl.axis('off')
     pl.title(img.split('/')[-2])
     pl.pause(.1)
-#%% compute shifts so that everybody is well aligned
+#%% HERE GOES TO MOTION CORRECTION
+    
+#%% extract file names   
 tmpls=[]
 fls=[]
 frates=[]
 resize_facts=[]
-for reg,img,proj,masks,template,f_rate in zip(regions,images,projections,masks_all,templates_path,f_rates):
+mmap_files=[]
+for reg,img,proj,template,f_rate in zip(regions,images,projections,templates_path,f_rates):
     fl=glob.glob(img+'/*.tif')    
     fl.sort()
-    fls=fls+fl
-    tmpls=tmpls+[template]*len(fl)
-    frates=frates+[f_rate]*len(fl)
-    resize_facts=resize_facts+[(1,1,final_f_rate/f_rate)]*len(fl)
-#%%
-if 0:
-    new_fls=[]
-    new_tmpls=[]
-    xy_shifts=[]
-    for fl,tmpl in zip(fls,tmpls):
-        if not os.path.exists(fl[:-3]+'npz'):
-            new_fls.append(fl)
-            new_tmpls.append(tmpl)
+    for ff in fl:
+        if len(glob.glob(ff[:-4]+'*.mmap'))==0 or 1:
+            print 'adding ' + ff
+            fls=fls+[ff]
+            tmpls=tmpls+[template]
+            frates=frates+[f_rate]
+            resize_facts=resize_facts+[(1,1,final_f_rate/f_rate)]
         else:
+            print 'skipping ' + ff
+            mmap_files.append(glob.glob(ff[:-4]+'*.mmap')[0])
+            
+#%% FOR MOTION CORRECTION LOOK AT MOTIONN_CORRECTION.py
+#%% create memmap file for each tif file in C order
+name_new=cse.utilities.save_memmap_each(fls, dview=c[::4],base_name=None, resize_fact=resize_facts, remove_init=0)
+#%% create avg image for each chunk
+def create_average_image(fname):
+    import os
+    if not os.path.exists(fname[:-5]+'_avg_image.npy'):    
+        import ca_source_extraction as cse
+        import numpy as np
     
-    fls=new_fls
-    tmpls=new_tmpls  
-
-    
+        Yr,dims,T=cse.utilities.load_memmap(fname)
+        img=np.mean(Yr,-1)
+        img=np.reshape(img,dims,order='F')
+        np.save(fname[:-5]+'_avg_image.npy',np.array(img))
+        return img
+        
+    return None
 #%%    
-file_res=cb.motion_correct_parallel(fls,fr=30,template=tmpls,margins_out=0,max_shift_w=45, max_shift_h=45,dview=c[::2],apply_smooth=False,save_hdf5=False)    
-file_res_all.append(file_res)
-#    fls=glob.glob(img+'/*.tif')
-#    fls.sort()
-#    print fls
-#%%
-xy_shifts=[]
-for fl,tmpl in zip(fls,tmpls):
-    if os.path.exists(fl[:-3]+'npz'):
-        print fl[:-3]+'npz'
-        with np.load(fl[:-3]+'npz') as ld:
-            xy_shifts.append(ld['shifts'])
-    else:
-        raise Exception('*********************** ERROR, FILE NOT EXISTING!!!')
-#        with np.load(fl[:-3]+'npz') as ld:    
-#%%
-name_new=cse.utilities.save_memmap_each(fls, dview=c[::3],base_name=None, resize_fact=resize_facts, remove_init=0,xy_shifts=xy_shifts)
-#%% 
-frate_different=[]
-new_fls=[]   
-new_frs=[] 
-new_shfts=[]
-for fl,tmpl,fr,rs_f,shfts in zip(fls,tmpls,frates,resize_facts,xy_shifts):
-    if len(glob.glob(fl[:-4]+'_*.mmap'))==0  or fr != 30:
-        new_fls.append(fl)
-        new_frs.append(rs_f)
-        new_shfts.append(shfts)
-        if len(glob.glob(fl[:-4]+'_*.mmap'))>0:
-            frate_different.append(glob.glob(fl[:-4]+'_*.mmap')[0])
-#%%
-name_new=cse.utilities.save_memmap_each(new_fls, dview=c[::4],base_name=None, resize_fact=new_frs, remove_init=0,xy_shifts=new_shfts)
-#%%
+  
+#%% create average images so that one could look at them
+b_dview=c.load_balanced_view(targets=range(1,len(c),3))
+images=b_dview.map_sync(create_average_image,mmap_files)
+np.save('all_averages.npy',np.array(images))
+#%% in order to maximally parallelize, we pass portions of work to differet workers
 pars=[]
 import re
 
@@ -243,10 +236,11 @@ def memmap_place_holder(par):
     fls,base_name_,n_chunks_,dview_=par
     return cse.utilities.save_memmap_join(fls,base_name=base_name_, n_chunks=n_chunks_, dview=dview_)
 #%%
-dview=c[::3]
-names_map=dview.map_sync(memmap_place_holder,pars)    
+names_map=b_dview.map_sync(memmap_place_holder,pars)    
 #%%    
 fname_new=cse.utilities.save_memmap_join(fls,base_name='TOTAL_', n_chunks=6, dview=c[::3])
+#%%
+
 #%%
 fnames_mmap=[]
 for reg,img,proj,masks,template in zip(regions,images,projections,masks_all,templates):
@@ -255,14 +249,39 @@ for reg,img,proj,masks,template in zip(regions,images,projections,masks_all,temp
     else:
         raise Exception('Number of files not as expected!')
 #%%
+imgs_avg_mmap=[]    
+counter=0     
+pl.close('all')    
 for nm,tmpl,masks in zip(fnames_mmap,templates,masks_all):
+    pl.subplot(5,6,counter+1)
     print nm
-    Yr,dims,T=cse.utilities.load_memmap(nm)
+    Yr,dims,T=cse.utilities.load_memmap(nm)    
     d1,d2=dims
     Y=np.reshape(Yr,dims+(T,),order='F')
     img=np.mean(Y,-1)
-    np.allclose(img,tmpl)
-
+    counter+=1 
+    imgs_avg_mmap.append(img)
+    pl.imshow(img,cmap='gray')
+#%%
+counter=0     
+for nm,tmpl,masks,avg_img in zip(fnames_mmap,templates,masks_all,imgs_avg_mmap):
+    pl.subplot(5,6,counter+1)
+    counter+=1 
+    pl.imshow(avg_img,cmap='gray')   
+    pl.title(nm.split('/')[-3])
+#%% check averages
+counter=0     
+for reg,img,proj,masks,template in zip(regions,images,projections,masks_all,templates):
+    pl.subplot(5,6,counter+1)
+    print counter
+    movie_files= glob.glob(img+'/*.mmap')
+    m=cb.load(movie_files[0],fr=6) 
+    template=np.mean(m,0)
+    lq,hq=np.percentile(template,[10,99])           
+    pl.imshow(template,cmap='gray',vmin=lq,vmax=hq)
+    pl.pause(.1)
+    counter+=1    
+    pl.title(img.split('/')[-2])
 #%% process files sequntially in case of failure
 if 0:
     fnames1=[]        
@@ -303,14 +322,16 @@ print t2
 
 #%%   
 all_movs=[]
-for f in  fnames:
+counter=0
+for f in  fls:
     print f
     with np.load(f[:-3]+'npz') as fl:
-#        pl.subplot(1,2,1)
+        pl.subplot(6,5,counter+1)
 #        pl.imshow(fl['template'],cmap=pl.cm.gray)
 #        pl.subplot(1,2,2)
-#        pl.plot(fl['shifts'])       
-        all_movs.append(fl['template'][np.newaxis,:,:])
+        pl.plot(fl['shifts'])       
+        counter+=1
+#        all_movs.append(fl['template'][np.newaxis,:,:])
 #        pl.pause(.1)
 #        pl.cla()
 #%%        
