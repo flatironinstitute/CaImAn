@@ -207,7 +207,7 @@ def update_spatial_components(Y, C = None, f = None, A_in = None, sn=None, dims=
     if type(Y) is np.core.memmap:  # if input file is already memory mapped then find the filename
         Y_name = Y.filename
     # if not create a memory mapped version (necessary for parallelization)
-    elif type(Y) is str:
+    elif type(Y) is str or dview is None:
         Y_name = Y
     else:
         raise Exception('Not implemented consistently')
