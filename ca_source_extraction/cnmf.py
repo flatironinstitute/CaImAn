@@ -25,7 +25,7 @@ class CNMF(object):
    def __init__(self, n_processes, k=5, gSig=[4,4], merge_thresh=0.8 , p=2, dview=None, Ain=None, Cin=None, f_in=None,do_merge=True,\
                                        ssub=2, tsub=2,p_ssub=1, p_tsub=1, method_init= 'greedy_roi',alpha_snmf=None,\
                                        rf=None,stride=None, memory_fact=1,\
-                                       N_samples_fitness = 5,robust_std = False,fitness_threshold=-10,corr_threshold=0):
+                                       N_samples_fitness = 5,robust_std = False,fitness_threshold=-10,corr_threshold=0,only_init_patch=False):
        """ 
        Constructor of the CNMF method
       
@@ -118,6 +118,7 @@ class CNMF(object):
        self.corr_threshold=corr_threshold
        self.do_merge=do_merge
        self.alpha_snmf=alpha_snmf
+       self.only_init=only_init_patch
        
        self.A=None
        self.C=None
@@ -193,29 +194,34 @@ class CNMF(object):
            
            if type(images) is np.ndarray:
                raise Exception ('You need to provide a memory mapped file as input if you use patches!!')
+        
+           if self.only_init:
+               options['patch_params']['only_init']=True
 
            A,C,YrA,b,f,sn, optional_outputs = run_CNMF_patches(images.filename, (d1, d2, T), options,rf=self.rf,stride = self.stride,
                                                                         dview=self.dview,memory_fact=self.memory_fact)
            
-           
-           
+
            options = CNMFSetParms(Y,self.n_processes,p=self.p,gSig=self.gSig,K=A.shape[-1],thr=self.merge_thresh)
            pix_proc=np.minimum(np.int((d1*d2)/self.n_processes/(T/2000.)),np.int((d1*d2)/self.n_processes)) # regulates the amount of memory used
            options['spatial_params']['n_pixels_per_process']=pix_proc
            options['temporal_params']['n_pixels_per_process']=pix_proc
-#
-           A,C,nr,merged_ROIs,S,bl,c1,sn,g=merge_components(Yr,A,[],np.array(C),[],np.array(C),[],options['temporal_params'],options['spatial_params'],dview=self.dview,thr=self.merge_thresh,mx=np.Inf)                         
+#           
+           merged_ROIs=[0]
+           while len(merged_ROIs)>0:
+               A,C,nr,merged_ROIs,S,bl,c1,sn,g=merge_components(Yr,A,[],np.array(C),[],np.array(C),[],options['temporal_params'],options['spatial_params'],dview=self.dview,thr=self.merge_thresh,mx=np.Inf)                         
+
            C,f,S,bl,c1,neurons_sn,g2,YrA = update_temporal_components(Yr,A,np.atleast_2d(b).T,C,f,dview=self.dview,bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
            
-           idx_components, fitness, erfc ,r_values, num_significant_samples = evaluate_components(Y,C+YrA,A,N=self.N_samples_fitness,robust_std=self.robust_std,thresh_finess=self.fitness_threshold)
-           sure_in_idx= idx_components[np.logical_and(np.array(num_significant_samples)>0 ,np.array(r_values)>=self.corr_threshold)]
-
-           print ('Keeping ' + str(len(sure_in_idx)) + ' components out of ' + str(len(idx_components)))
-
-           
-           A=A[:,sure_in_idx]
-           C=C[sure_in_idx,:] 
-           YrA=YrA[sure_in_idx]
+#           idx_components, fitness, erfc ,r_values, num_significant_samples = evaluate_components(Y,C+YrA,A,N=self.N_samples_fitness,robust_std=self.robust_std,thresh_finess=self.fitness_threshold)
+#           sure_in_idx= idx_components[np.logical_and(np.array(num_significant_samples)>0 ,np.array(r_values)>=self.corr_threshold)]
+#
+#           print ('Keeping ' + str(len(sure_in_idx)) + ' components out of ' + str(len(idx_components)))
+#
+#           
+#           A=A[:,sure_in_idx]
+#           C=C[sure_in_idx,:] 
+#           YrA=YrA[sure_in_idx]
                                                                         
        self.A=A
        self.C=C
