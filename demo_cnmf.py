@@ -37,10 +37,13 @@ pl.ion()
 import ca_source_extraction as cse
 #%%
 final_frate=10
-is_patches=False
+is_patches=True
+is_dendrites=True
+
 if is_dendrites == True:
-        init_method = 'sparse_nmf'
-        alpha_snmf=1e1 # this controls sparsity
+# THIS METHOd CAN GIVE POSSIBLY INCONSISTENT RESULTS ON SOMAS WHEN NOT USED WITH PATCHES    
+    init_method = 'sparse_nmf' 
+    alpha_snmf=10e2 # this controls sparsity
 else:
     init_method = 'greedy_roi'
 #%%
@@ -132,7 +135,6 @@ else:
     memory_fact=1; #unitless number accounting how much memory should be used. You will need to try different values to see which one would work the default is OK for a 16 GB system
     save_results=False
     #%% RUN ALGORITHM ON PATCHES
-    is_dendrites=False # if you ater looking for dendrites
     
     
         
