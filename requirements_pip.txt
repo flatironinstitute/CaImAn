@@ -2,3 +2,4 @@ picos
 cvxpy
 pims
 peakutils
+tifffile
