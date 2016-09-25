@@ -1916,16 +1916,14 @@ def stop_server(is_slurm=False, ipcluster='ipcluster',pdir=None,profile=None):
 #    end
 #%%
 
-
-def evaluate_components(Y, traces, A, N=5, robust_std=False,thresh_overlap=.3, thresh_finess=-20,compute_r_values=True):
-    """ Define a metric and order components according to the probabilty if some "exceptional events" (like a spike). Suvh probability is defined as the likeihood of observing the actual trace value over N samples given an estimated noise distribution. 
+def compute_event_exceptionality(Y,traces,robust_std=False,N=5):
+    """
+    Define a metric and order components according to the probabilty if some "exceptional events" (like a spike). Suvh probability is defined as the likeihood of observing the actual trace value over N samples given an estimated noise distribution. 
     The function first estimates the noise distribution by considering the dispersion around the mode. This is done only using values lower than the mode. The estimation of the noise std is made robust by using the approximation std=iqr/1.349. 
-    Then, the probavility of having N consecutive eventsis estimated. This probability is used to order the components. 
-    The algorithm also measures the reliability of the spatial mask by comparing the filters in A with the average of the movies over samples where exceptional events happen, after  removing (if possible)
-    frames when neighboring neurons were active
+    Then, the probavility of having N consecutive eventsis estimated. This probability is used to order the components.
     
-    Parameters
-    ----------
+    Parameters:    
+    -----------
     Y: ndarray 
         movie x,y,t
     
@@ -1937,32 +1935,18 @@ def evaluate_components(Y, traces, A, N=5, robust_std=False,thresh_overlap=.3, t
 
     N: int
         N number of consecutive events
-
-    thresh_overlap: float
-        not used for the moment
     
-    
-    Returns
-    -------
+    Returns:
+    --------
     idx_components: ndarray
         the components ordered according to the fitness
 
     fitness: ndarray
-
+        value estimate of the quality of components (the lesser the better)
 
     erfc: ndarray
         probability at each time step of observing the N consequtive actual trace values given the distribution of noise
-        
-    r_values: list
-        float values representing correlation between component and spatial mask obtained by averaging important points
-
-    num_significant_samples: int
-        quantify how many samples were used rto obtain the spatial mask by average
-    
-    
     """
-   # import pdb
-   # pdb.set_trace()
     d1,d2,T=np.shape(Y)
     dims=(d1,d2)
     md = mode_robust(traces, axis=1)
@@ -2004,81 +1988,157 @@ def evaluate_components(Y, traces, A, N=5, robust_std=False,thresh_overlap=.3, t
     # select the maximum value of such probability for each trace
     fitness = np.min(erfc, 1)
 
-    ordered = np.argsort(fitness)
+    #ordered = np.argsort(fitness)
+    
+    #idx_components = ordered  # [::-1]# selec only portion of components
+    #fitness = fitness[idx_components]
+    #erfc = erfc[idx_components]
+    
+    return fitness,erfc
+#%%
+def evaluate_components(Y, traces, A, C, b, f, remove_baseline = True, N = 5, robust_std = False, Athresh = 0.1, Npeaks = 5, tB=-5, tA = 25, thresh_C = 0.3):
+    """ Define a metric and order components according to the probabilty if some "exceptional events" (like a spike). Suvh probability is defined as the likeihood of observing the actual trace value over N samples given an estimated noise distribution. 
+    The function first estimates the noise distribution by considering the dispersion around the mode. This is done only using values lower than the mode. The estimation of the noise std is made robust by using the approximation std=iqr/1.349. 
+    Then, the probavility of having N consecutive eventsis estimated. This probability is used to order the components. 
+    The algorithm also measures the reliability of the spatial mask by comparing the filters in A with the average of the movies over samples where exceptional events happen, after  removing (if possible)
+    frames when neighboring neurons were active
+    
+    Parameters
+    ----------
+    Y: ndarray 
+        movie x,y,t
+    
+    A,C,b,f: various types 
+        outputs of cnmf    
+        
+    traces: ndarray
+        Fluorescence traces 
+    
+    remove_baseline: bool
+        whether to remove the baseline in a rolling fashion *(8 percentile)
+                
+    N: int
+        N number of consecutive events probability multiplied
 
-    idx_components = ordered  # [::-1]# selec only portion of components
-    fitness = fitness[idx_components]
-    erfc = erfc[idx_components]
 
+    Athresh: float 
+        threshold on overlap of A (between 0 and 1)
+
+    Npeaks: int
+    
+    tB: int
+        samples to include before the peak
+        
+    tA = int
+        samples to include after the peak
+
+    thresh_C: float
+        fraction of the maximum of C that is used as minimum peak height        
+    
+    Returns
+    -------
+    idx_components: ndarray
+        the components ordered according to the fitness
+
+    fitness_raw: ndarray
+        value estimate of the quality of components (the lesser the better) on the raw trace
+
+    fitness_delta: ndarray
+        value estimate of the quality of components (the lesser the better) on diff(trace)
+
+    erfc_raw: ndarray
+        probability at each time step of observing the N consequtive actual trace values given the distribution of noise on the raw trace
+        
+    erfc_raw: ndarray
+        probability at each time step of observing the N consequtive actual trace values given the distribution of noise on diff(trace)    
+    
+    r_values: list
+        float values representing correlation between component and spatial mask obtained by averaging important points
+
+    significant_samples: ndarray
+        indexes of samples used to obtain the spatial mask by average
+    
+    """
+   # import pdb
+   # pdb.set_trace()
+    d1,d2,T=np.shape(Y)
+    Yr=np.reshape(Y,(d1*d2,T),order='F')    
+    
+    
+    fitness_delta, erfc_delta = compute_event_exceptionality(Y,np.diff(traces,axis=1),robust_std=robust_std,N=N)
+    
+    if remove_baseline:
+        traces = traces - scipy.ndimage.percentile_filter(traces,8,size=[1,np.shape(traces)[-1]/5])
+        
+    fitness_raw, erfc_raw = compute_event_exceptionality(Y,traces,robust_std=robust_std,N=N)
+    
+    
     # compute the overlap between spatial and movie average across samples with significant events
+    r_values, significant_samples = classify_components_ep(Yr, A, C, b, f, Athresh = Athresh, Npeaks = Npeaks, tB=tB, tA = tA, thres = thresh_C)
+#    if compute_r_values:
+#        min_important_points=2
+#        
+#        r_values=[]
+#    
+#        num_significant_samples=[]
+#        #import pdb
+#        #pdb.set_trace()        
+#        AA = (A.T*A).toarray() 
+#        nA=np.sqrt(np.array(A.power(2).sum(0)))
+#        AA = AA/np.outer(nA,nA.T)      
+#        
+#        for er,idx_comp in zip(erfc,idx_components):
+#            
+#            a=np.array(A.tocsc()[:,idx_comp].todense()).squeeze()   
+#            px = np.nonzero(a)[0]       
+#            mn=np.min(er)
+#                                               
+#            overlaping_idx = np.where(AA[idx_comp,:]>thresh_overlap)
+#    #        overlaping_idx_corr = np.where(np.array([scipy.stats.pearsonr(a,np.array(aa.todense()).squeeze())[0] for aa in A.T.tocsc()[:,overlaping_idx]])>thresh_overlap)[0]    
+#    #        overlaping_idx=overlaping_idx[overlaping_idx_corr]
+#            idx_not_a=np.setdiff1d(overlaping_idx,idx_comp) 
+#            important_points=np.where(er<=np.minimum(thresh_finess,mn*0.9))[0]
+#                
+#            
+#            if len(important_points) > 0:
+#                
+#                if len(idx_not_a)>0: #identify points when neighbors are active
+#     
+#                   print('active neighbours:'+str(idx_not_a))   
+#                   activities_other_comps=erfc[idx_not_a].min(0)        
+#                   bad_points=np.where(activities_other_comps<-10)[0]
+#    
+#                   if len(np.setdiff1d(important_points,bad_points)) > min_important_points:        
+#    
+#                        important_points=np.setdiff1d(important_points,bad_points)
+#            
+#                   else:  
+#                       
+#                        print('Including active neighbours')        
+#                    
+#                important_points=np.minimum(important_points,T-1) 
+#                
+#                num_significant_samples.append(len(important_points))
+#
+#                non_activity_points=np.where(er>-2)[0]
+#                
+#                img=np.mean(Y[:,:,important_points],-1)-np.mean(Y[:,:,non_activity_points],-1)
+#                
+##                pl.imshow(img)
+##                pl.pause(1)
+#            #    img = cse.utilities.local_correlations(Y[:,:,np.array(important_points)])
+#                r_values.append(scipy.stats.pearsonr(a[px],img.flatten(order='F')[px])[0])
+#           
+#            else:
+#                num_significant_samples.append(0)
+#                r_values.append(0)
+#                print('No significant samples')     
+#    else:
+#         num_significant_samples=None
+#         r_values=None
 
-    
-    if compute_r_values:
-        min_important_points=2
-        
-        r_values=[]
-    
-        num_significant_samples=[]
-        #import pdb
-        #pdb.set_trace()        
-        AA = (A.T*A).toarray() 
-        nA=np.sqrt(np.array(A.power(2).sum(0)))
-        AA = AA/np.outer(nA,nA.T)      
-        
-        for er,idx_comp in zip(erfc,idx_components):
-            
-            a=np.array(A.tocsc()[:,idx_comp].todense()).squeeze()   
-            px = np.nonzero(a)[0]       
-            mn=np.min(er)
-                                               
-            overlaping_idx = np.where(AA[idx_comp,:]>thresh_overlap)
-    #        overlaping_idx_corr = np.where(np.array([scipy.stats.pearsonr(a,np.array(aa.todense()).squeeze())[0] for aa in A.T.tocsc()[:,overlaping_idx]])>thresh_overlap)[0]    
-    #        overlaping_idx=overlaping_idx[overlaping_idx_corr]
-            idx_not_a=np.setdiff1d(overlaping_idx,idx_comp) 
-            important_points=np.where(er<=np.minimum(thresh_finess,mn*0.9))[0]
-                
-            
-            if len(important_points) > 0:
-                
-                if len(idx_not_a)>0: #identify points when neighbors are active
-     
-                   print('active neighbours:'+str(idx_not_a))   
-                   activities_other_comps=erfc[idx_not_a].min(0)        
-                   bad_points=np.where(activities_other_comps<-10)[0]
-    
-                   if len(np.setdiff1d(important_points,bad_points)) > min_important_points:        
-    
-                        important_points=np.setdiff1d(important_points,bad_points)
-            
-                   else:  
-                       
-                        print('Including active neighbours')        
-                    
-                important_points=np.minimum(important_points,T-1) 
-                
-                num_significant_samples.append(len(important_points))
 
-                non_activity_points=np.where(er>-2)[0]
-                
-                img=np.mean(Y[:,:,important_points],-1)-np.mean(Y[:,:,non_activity_points],-1)
-                
-#                pl.imshow(img)
-#                pl.pause(1)
-            #    img = cse.utilities.local_correlations(Y[:,:,np.array(important_points)])
-                r_values.append(scipy.stats.pearsonr(a[px],img.flatten(order='F')[px])[0])
-           
-            else:
-                num_significant_samples.append(0)
-                r_values.append(0)
-                print('No significant samples')     
-    else:
-         num_significant_samples=None
-         r_values=None
-        
-             
-        
-
-    return idx_components, fitness, erfc,r_values,num_significant_samples
+    return fitness_raw, fitness_delta, erfc_raw, erfc_delta, r_values, significant_samples
 #%%
 
 
@@ -2698,10 +2758,14 @@ def find_activity_intervals(C,Npeaks = 5, tB=-5, tA = 25, thres = 0.3):
         
     LOC = []
     for i in range(K):
-        interval = np.kron(L[i],np.ones(tA-tB,dtype=int)) + np.kron(np.ones(len(L[i]),dtype=int),np.arange(tB,tA))
-        interval[interval<0] = 0
-        interval[interval>T-1] = T-1
-        LOC.append(np.array(list(set(interval))))        
+        if len(L[i])>0:
+            interval = np.kron(L[i],np.ones(tA-tB,dtype=int)) + np.kron(np.ones(len(L[i]),dtype=int),np.arange(tB,tA))                        
+            interval[interval<0] = 0
+            interval[interval>T-1] = T-1
+            LOC.append(np.array(list(set(interval))))        
+        else:
+            LOC.append(None)                        
+
         
     return LOC
 
@@ -2715,17 +2779,26 @@ def classify_components_ep(Y,A,C,b,f,Athresh = 0.1,Npeaks = 5, tB=-5, tA = 25, t
     AA -= np.eye(K)
     LOC = find_activity_intervals(C, Npeaks = Npeaks, tB=tB, tA = tA, thres = thres)
     rval = np.zeros(K)
-
-    for i in range(K):        
-        atemp = A[:,i].toarray().flatten()
-        ovlp_cmp = np.where(AA[:,i]>Athresh)[0]
-        indexes = set(LOC[i])
-        for cnt,j in enumerate(ovlp_cmp):
-            indexes = indexes - set(LOC[j])
+    
+    significant_samples=[]
+    for i in range(K):      
+        if LOC[i] is not None:
+            atemp = A[:,i].toarray().flatten()
+            ovlp_cmp = np.where(AA[:,i]>Athresh)[0]
+            indexes = set(LOC[i])
+            for cnt,j in enumerate(ovlp_cmp):
+                if LOC[j] is not None:
+                    indexes = indexes - set(LOC[j])
+                    
+                
+            indexes = list(indexes)
+            px = np.where(atemp>0)[0]
+            mY = np.mean(Y[px,:][:,indexes],axis=-1)
+            significant_samples.append(indexes)
+            #rval[i] = np.corrcoef(mY,atemp[px])[0,1]
+            rval[i] = scipy.stats.pearsonr(mY,atemp[px])[0]
+        else:            
+            rval[i] = 0
+            significant_samples.append(0)
             
-        indexes = list(indexes)
-        px = np.where(atemp>0)[0]
-        mY = np.mean(Y[px,:][:,indexes],axis=-1)
-        #rval[i] = np.corrcoef(mY,atemp[px])[0,1]
-        rval[i] = scipy.stats.pearsonr(mY,atemp[px])[0]
-    return rval
+    return rval,significant_samples
