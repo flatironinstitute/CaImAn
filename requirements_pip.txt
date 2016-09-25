@@ -1,0 +1,4 @@
+picos
+cvxpy
+pims
+peakutils

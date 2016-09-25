@@ -1,0 +1,14 @@
+numpy
+scipy
+ipython
+ipyparallel
+matplotlib
+bokeh
+jupyter
+scikit-image
+scikit-learn
+cvxopt
+h5py
+spyder
+
+
