@@ -148,12 +148,12 @@ sn: float
 #            P_cycle=dict()
             merged_ROI=np.where(MC[:,ind[i]])[0]
             merged_ROIs.append(merged_ROI)
-            nC = np.sqrt(np.sum(C[merged_ROI,:]**2,axis=1))
+            nC = np.sqrt(np.sum(np.array(C)[merged_ROI,:]**2,axis=1))
     #        A_merged[:,i] = np.squeeze((A[:,merged_ROI]*spdiags(nC,0,len(nC),len(nC))).sum(axis=1))    
             if fast_merge:
                 Acsc = A.tocsc()[:,merged_ROI]
                 Acsd = Acsc.toarray()
-                Ctmp = C[merged_ROI,:]
+                Ctmp = np.array(C)[merged_ROI,:]
                 print merged_ROI.T
                 #aa  =  A.tocsc()[:,merged_ROI].dot(scipy.sparse.diags(nC,0,(len(nC),len(nC)))).sum(axis=1)
                 aa  =  Acsc.dot(scipy.sparse.diags(nC,0,(len(nC),len(nC)))).sum(axis=1)
