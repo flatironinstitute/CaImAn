@@ -29,8 +29,14 @@ import ca_source_extraction as cse
 #%%
 # frame rate in Hz
 final_frate=10 
+
 #%%
-n_processes = np.maximum(np.int(psutil.cpu_count()*.75),1) # roughly number of cores on your machine minus 1
+#backend='SLURM'
+backend='local'
+if backend == 'SLURM':
+    n_processes = np.int(os.environ.get('SLURM_NPROCS'))
+else:
+    n_processes = np.maximum(np.int(psutil.cpu_count()),1) # roughly number of cores on your machine minus 1
 print 'using ' + str(n_processes) + ' processes'
 #%% start cluster for efficient computation
 single_thread=False
@@ -44,43 +50,54 @@ else:
         print 'C was not existing, creating one'
     print "Stopping  cluster to avoid unnencessary use of memory...."
     sys.stdout.flush()  
-    cse.utilities.stop_server()
-    cse.utilities.start_server()
-    c=Client()
-    dview=c[:n_processes]
+    if backend == 'SLURM':
+        try:
+            cse.utilities.stop_server(is_slurm=True)
+        except:
+            print 'Nothing to stop'
+        slurm_script='/mnt/xfs1/home/agiovann/SOFTWARE/Constrained_NMF/SLURM/slurmStart.sh'
+        cse.utilities.start_server(slurm_script=slurm_script)
+        pdir, profile = os.environ['IPPPDIR'], os.environ['IPPPROFILE']
+        c = Client(ipython_dir=pdir, profile=profile)        
+    else:
+        cse.utilities.stop_server()
+        cse.utilities.start_server()        
+        c=Client()
+
+    print 'Using '+ str(len(c)) + ' processes'
+    dview=c[:len(c)]
 #%% FOR LOADING ALL TIFF FILES IN A FILE AND SAVING THEM ON A SINGLE MEMORY MAPPABLE FILE
 fnames=[]
 base_folder='./movies/' # folder containing the demo files
 for file in glob.glob(os.path.join(base_folder,'*.tif')):
     if file.endswith("ie.tif"):
-        fnames.append(file)
+        fnames.append(os.path.abspath(file))
 fnames.sort()
 print fnames  
 fnames=fnames
-#%% Create a unique file fot the whole dataset
-# THIS IS  ONLY IF YOU NEED TO SELECT A SUBSET OF THE FIELD OF VIEW 
-#fraction_downsample=1;
-#final_frate=final_frate*fraction_downsample
-#idx_x=slice(10,502,None)
-#idx_y=slice(10,502,None)
-#fname_new=cse.utilities.save_memmap(fnames,base_name='Yr',resize_fact=(1,1,fraction_downsample),remove_init=0,idx_xy=(idx_x,idx_y))
-
+#%%
+#idx_x=slice(12,500,None)
+#idx_y=slice(12,500,None)
+#idx_xy=(idx_x,idx_y)
+downsample_factor=1 # use .2 or .1 if file is large and you want a quick answer
+final_frate=final_frate*downsample_factor
+idx_xy=None
+base_name='Yr'
+name_new=cse.utilities.save_memmap_each(fnames, dview=dview,base_name=base_name, resize_fact=(1, 1, downsample_factor), remove_init=0,idx_xy=idx_xy )
+name_new.sort()
+print name_new
 #%%
 name_new=cse.utilities.save_memmap_each(fnames, dview=dview,base_name='Yr', resize_fact=(1, 1, 1), remove_init=0, idx_xy=None)
 name_new.sort()
 #%%
 fname_new=cse.utilities.save_memmap_join(name_new,base_name='Yr', n_chunks=12, dview=dview)
-#%%  Create a unique file for the whole dataset
-# useful to downsample the movie across time. fraction_downsample=.1 measn downsampling by a factor of 10
-#fraction_downsample=1;
-#final_frate=final_frate*fraction_downsample
-#fname_new=cse.utilities.save_memmap(fnames,base_name='Yr',resize_fact=(1,1,fraction_downsample),order='C')
 #%%
 Yr,dims,T=cse.utilities.load_memmap(fname_new)
 Y=np.reshape(Yr,dims+(T,),order='F')
 #%% visualize correlation image
-Cn = cse.utilities.local_correlations(Y[:,:,:])
-pl.imshow(Cn,cmap='gray')    
+Cn = cse.utilities.local_correlations(Y)
+pl.imshow(Cn,cmap='gray')   
+#%%
 #%% parameters of experiment
 K=30 # number of neurons expected per patch
 gSig=[7,7] # expected half size of neurons
@@ -125,6 +142,7 @@ t1 = time()
 A_m,C_m,nr_m,merged_ROIs,S_m,bl_m,c1_m,sn_m,g_m=cse.merging.merge_components(Yr,A,b,C,f,S,sn,options['temporal_params'], options['spatial_params'],dview=dview, bl=bl, c1=c1, sn=neurons_sn, g=g, thr=merge_thresh, mx=50, fast_merge = True)
 t_elMERGE = time() - t1
 print t_elMERGE  
+
 
 #%%
 #plt.figure()
