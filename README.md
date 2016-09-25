@@ -1,4 +1,6 @@
 
+
+
 Please refer to the following wiki [page](https://github.com/agiovann/Constrained_NMF/wiki/Processing-large-datasets) or read in the testing section below
 
 ConstrainedNMF
@@ -62,21 +64,10 @@ Download and install Anaconda (Python 2.7) <http://docs.continuum.io/anaconda/in
     cd Constrained_NMF/CalBlitz/
     git checkout master
     git pull
-    conda create -n CNMF ipython
+    conda create -n CNMF ipython --file requirements_conda.txt    
     source activate CNMF
-    conda install numpy scipy 
-    conda install spyder 
-    conda install ipyparallel
-    conda install matplotlib bokeh jupyter
-    conda install scikit-image
-    conda install scikit-learn
-    conda install cvxopt     
-    conda install h5py
-    pip install picos
-    pip install cvxpy
-    pip install pims
+    pip install -r requirements_pip.txt
     conda install -c menpo opencv3=3.1.0
-    pip install 'tifffile>=0.7'
     ```
     This second option will not allow to import the package from every folder but only from within the Constrained_NMF folder. You can access it globally by setting the environment variable PYTHONPATH
     ```
