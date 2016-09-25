@@ -396,7 +396,7 @@ def save_place_holder(pars):
 #
 #    return fname_new
 #%%
-def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0, idx_xy=None, order='F',xy_shifts=None):
+def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0, idx_xy=None, order='F',xy_shifts=None,is_3D=False):
     """ Saves efficiently a list of tif files into a memory mappable file
     Parameters
     ----------
@@ -414,12 +414,17 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
             whether to save the file in 'C' or 'F' order     
         xy_shifts: list 
             x and y shifts computed by a motion correction algorithm to be applied before memory mapping    
-
+            
+        is_3D: boolean
+            whether it is 3D data
     Return
     -------
         fname_new: the name of the mapped file, the format is such that the name will contain the frame dimensions and the number of f
 
     """
+   
+        
+    
     Ttot = 0
     for idx, f in enumerate(filenames):
         print f
@@ -430,9 +435,22 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
             import calblitz as cb  
             is_calblitz=True
             
-        except:
-            
+        except:            
             print('Calblitz not found, using imread from skimage')
+            
+        if is_3D:
+            import tifffile                       
+            print "Using tifffile library instead of skimage because of  3D"
+            
+            if idx_xy is None:
+                Yr = tifffile.imread(f)[remove_init:]
+            elif len(idx_xy) == 2:
+                Yr = tifffile.imread(f)[remove_init:, idx_xy[0], idx_xy[1]]
+            else:
+                Yr = tifffile.imread(f)[remove_init:, idx_xy[0], idx_xy[1], idx_xy[2]]     
+                
+        elif not is_calblitz:
+            
             if xy_shifts is not None:
                 raise Exception('Calblitz not installed, you cannot motion correct')
                 
@@ -441,9 +459,9 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
             elif len(idx_xy) == 2:
                 Yr = imread(f)[remove_init:, idx_xy[0], idx_xy[1]]
             else:
-                Yr = imread(f)[remove_init:, idx_xy[0], idx_xy[1], idx_xy[2]]                  
+                raise Exception('You need to set is_3D=True for 3D data)')                  
         
-        if is_calblitz:
+        else:
             
             Yr=cb.load(f,fr=1)            
             if xy_shifts is not None:
@@ -454,6 +472,7 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
             elif len(idx_xy) == 2:
                 Yr = np.array(Yr)[remove_init:, idx_xy[0], idx_xy[1]]
             else:
+                raise Exception('You need to set is_3D=True for 3D data)')
                 Yr = np.array(Yr)[remove_init:, idx_xy[0], idx_xy[1], idx_xy[2]]
     
 
@@ -469,7 +488,7 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
         T, dims = Yr.shape[0], Yr.shape[1:]
         Yr = np.transpose(Yr, range(1, len(dims) + 1) + [0])
         Yr = np.reshape(Yr, (np.prod(dims), T), order='F')
-
+        
         if idx == 0:
             fname_tot = base_name + '_d1_' + str(dims[0]) + '_d2_' + str(dims[1]) + '_d3_' + str(
                 1 if len(dims) == 2 else dims[2]) + '_order_' + str(order)
