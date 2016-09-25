@@ -68,8 +68,8 @@ Download and install Anaconda (Python 2.7) <http://docs.continuum.io/anaconda/in
     source activate CNMF
     pip install -r requirements_pip.txt
     conda install -c menpo opencv3=3.1.0
-    ```
-    This second option will not allow to import the package from every folder but only from within the Constrained_NMF folder. You can access it globally by setting the environment variable PYTHONPATH
+    
+    To make the package available from everywhere:
     ```
     export PYTHONPATH="/path/to/Constrained_NMF:$PYTHONPATH"
     ```
