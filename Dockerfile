@@ -14,12 +14,10 @@ ENV PATH=/anaconda/bin:${PATH}
 RUN conda config --set always_yes yes
 RUN conda update --yes conda
 RUN conda info -a
-RUN conda install psutil
-RUN conda install ipyparallel
-RUN conda install scikit-image
-RUN conda install cvxopt
+RUN conda install --file requirements_conda.txt  
 RUN conda install -c https://conda.anaconda.org/omnia cvxpy
 RUN conda install -c https://conda.anaconda.org/conda-forge tifffile
+RUN pip install -r requirements_pip.txt
 RUN git clone --recursive https://github.com/agiovann/Constrained_NMF.git
 WORKDIR /Constrained_NMF/
 # RUN git checkout docker
