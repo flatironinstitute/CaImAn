@@ -155,44 +155,44 @@ options['temporal_params']['p'] = p # set it back to original value to perform f
 C2,f2,S2,bl2,c12,neurons_sn2,g21,YrA = cse.temporal.update_temporal_components(Yr,A2,b2,C2,f,dview=dview, bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
 print time() - t1
 #%%
-tB = np.minimum(-2,np.floor(-5./30*final_frate))
-tA = np.maximum(5,np.ceil(25./30*final_frate))
-Npeaks=10
-traces=C2+YrA
-#        traces_a=traces-scipy.ndimage.percentile_filter(traces,8,size=[1,np.shape(traces)[-1]/5])
-#        traces_b=np.diff(traces,axis=1)
-fitness_raw, fitness_delta, erfc_raw, erfc_delta, r_values, significant_samples = cse.utilities.evaluate_components(Y, traces, A2, C2, b2, f2, remove_baseline=True, N=5, robust_std=False, Athresh = 0.1, Npeaks = Npeaks, tB=tB, tA = tA, thresh_C = 0.3)
-
-idx_components_r=np.where(r_values>=.6)[0]
-idx_components_raw=np.where(fitness_raw<-60)[0]        
-idx_components_delta=np.where(fitness_delta<-20)[0]   
-
-
-min_radius=gSig[0]-2
-masks_ws,idx_blobs,idx_non_blobs=cse.utilities.extract_binary_masks_blob(
-A2.tocsc(), min_radius, dims, num_std_threshold=1, 
-minCircularity= 0.6, minInertiaRatio = 0.2,minConvexity =.8)
-
-
-
-
-idx_components=np.union1d(idx_components_r,idx_components_raw)
-idx_components=np.union1d(idx_components,idx_components_delta)  
-idx_blobs=np.intersect1d(idx_components,idx_blobs)   
-idx_components_bad=np.setdiff1d(range(len(traces)),idx_components)
-
-print(' ***** ')
-print len(traces)
-print(len(idx_components))
-print(len(idx_blobs))
-#%% visualize components
-#pl.figure();
-pl.subplot(1,3,1)
-crd = cse.utilities.plot_contours(A2.tocsc()[:,idx_components],Cn,thr=0.9)
-pl.subplot(1,3,2)
-crd = cse.utilities.plot_contours(A2.tocsc()[:,idx_blobs],Cn,thr=0.9)
-pl.subplot(1,3,3)
-crd = cse.utilities.plot_contours(A2.tocsc()[:,idx_components_bad],Cn,thr=0.9)
+    tB = np.minimum(-2,np.floor(-5./30*final_frate))
+    tA = np.maximum(5,np.ceil(25./30*final_frate))
+    Npeaks=10
+    traces=C2+YrA
+    #        traces_a=traces-scipy.ndimage.percentile_filter(traces,8,size=[1,np.shape(traces)[-1]/5])
+    #        traces_b=np.diff(traces,axis=1)
+    fitness_raw, fitness_delta, erfc_raw, erfc_delta, r_values, significant_samples = cse.utilities.evaluate_components(Y, traces, A2, C2, b2, f2, remove_baseline=True, N=5, robust_std=False, Athresh = 0.1, Npeaks = Npeaks, tB=tB, tA = tA, thresh_C = 0.3)
+    
+    idx_components_r=np.where(r_values>=.6)[0]
+    idx_components_raw=np.where(fitness_raw<-60)[0]        
+    idx_components_delta=np.where(fitness_delta<-20)[0]   
+    
+    
+    min_radius=gSig[0]-2
+    masks_ws,idx_blobs,idx_non_blobs=cse.utilities.extract_binary_masks_blob(
+    A2.tocsc(), min_radius, dims, num_std_threshold=1, 
+    minCircularity= 0.6, minInertiaRatio = 0.2,minConvexity =.8)
+    
+    
+    
+    
+    idx_components=np.union1d(idx_components_r,idx_components_raw)
+    idx_components=np.union1d(idx_components,idx_components_delta)  
+    idx_blobs=np.intersect1d(idx_components,idx_blobs)   
+    idx_components_bad=np.setdiff1d(range(len(traces)),idx_components)
+    
+    print(' ***** ')
+    print len(traces)
+    print(len(idx_components))
+    print(len(idx_blobs))
+    #%% visualize components
+    #pl.figure();
+    pl.subplot(1,3,1)
+    crd = cse.utilities.plot_contours(A2.tocsc()[:,idx_components],Cn,thr=0.9)
+    pl.subplot(1,3,2)
+    crd = cse.utilities.plot_contours(A2.tocsc()[:,idx_blobs],Cn,thr=0.9)
+    pl.subplot(1,3,3)
+    crd = cse.utilities.plot_contours(A2.tocsc()[:,idx_components_bad],Cn,thr=0.9)
 #%%
 cse.utilities.view_patches_bar(Yr,scipy.sparse.coo_matrix(A2.tocsc()[:,idx_components]),C2[idx_components,:],b2,f2, dims[0],dims[1], YrA=YrA[idx_components,:],img=Cn)  
 #%%
