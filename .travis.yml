@@ -21,3 +21,4 @@ branches:
     - anaconda
     - docker
     - master
+    - agiovann-master
