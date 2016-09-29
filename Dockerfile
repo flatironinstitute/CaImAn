@@ -14,16 +14,17 @@ ENV PATH=/anaconda/bin:${PATH}
 RUN conda config --set always_yes yes
 RUN conda update --yes conda
 RUN conda info -a
-RUN conda install --file requirements_conda.txt  
+
 RUN conda install -c https://conda.anaconda.org/omnia cvxpy
 RUN conda install -c https://conda.anaconda.org/conda-forge tifffile
-RUN pip install -r requirements_pip.txt
 RUN git clone --recursive https://github.com/agiovann/Constrained_NMF.git
 WORKDIR /Constrained_NMF/
+RUN conda install --file requirements_conda.txt
+RUN pip install -r requirements_pip.txt
 # RUN git checkout docker
 RUN apt-get install libc6-i386
 RUN apt-get install -y libsm6 libxrender1
-RUN conda install pyqt
+RUN conda install pyqt=4.11.4
 RUN python setup.py install
 
 # RUN nosetests
