@@ -57,7 +57,7 @@ def test_demo():
 
     # %%
     options = cse.utilities.CNMFSetParms(Y, n_processes, p=p, gSig=[4, 4], K=30)
-    cse.utilities.start_server(n_processes)
+    cse.utilities.start_server()
 
     # %% PREPROCESS DATA AND INITIALIZE COMPONENTS
     t1 = time()
