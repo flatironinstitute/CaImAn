@@ -17,10 +17,9 @@ RUN conda info -a
 
 RUN conda install -c https://conda.anaconda.org/omnia cvxpy
 RUN conda install -c https://conda.anaconda.org/conda-forge tifffile
-RUN git clone --recursive -b agiovann-master https://github.com/valentina-s/Constrained_NMF.git
-# RUN git clone --recursive https://github.com/valentina-s/Constrained_NMF.git
+# RUN git clone --recursive -b agiovann-master https://github.com/valentina-s/Constrained_NMF.git
+RUN git clone --recursive https://github.com/agiovann/Constrained_NMF.git
 WORKDIR /Constrained_NMF/
-# RUN git checkout agiovann-master
 RUN conda install --file requirements_conda.txt
 RUN pip install -r requirements_pip.txt
 RUN apt-get install libc6-i386
