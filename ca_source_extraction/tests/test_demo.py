@@ -107,4 +107,4 @@ def test_demo():
     #npt.assert_allclose(A.sum(), 287.4153861)
     #npt.assert_allclose(A.sum(), 751340.8134685752) # local result
     npt.assert_allclose(A.sum(), 747791.0863774812)
-    npt.assert_allclose(np.sum(np.abs(C)), 26379.240968779737)
+    npt.assert_allclose(np.sum(np.abs(C)), 26374.93628584506)
