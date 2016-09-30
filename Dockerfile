@@ -19,9 +19,10 @@ RUN conda install -c https://conda.anaconda.org/omnia cvxpy
 RUN conda install -c https://conda.anaconda.org/conda-forge tifffile
 # RUN git clone --recursive -b agiovann-master https://github.com/valentina-s/Constrained_NMF.git
 RUN git clone --recursive https://github.com/valentina-s/Constrained_NMF.git
-RUN git checkout agiovann-master
+ENV WORKDIR /Constrained_NMF/
 RUN conda install --file requirements_conda.txt
 RUN pip install -r requirements_pip.txt
+RUN git checkout agiovann-master
 # RUN git checkout docker
 RUN apt-get install libc6-i386
 RUN apt-get install -y libsm6 libxrender1
