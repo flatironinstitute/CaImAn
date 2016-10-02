@@ -72,7 +72,12 @@ base_folder='./movies/' # folder containing the demo files
 for file in glob.glob(os.path.join(base_folder,'*.tif')):
     if file.endswith("ie.tif"):
         fnames.append(os.path.abspath(file))
+        
 fnames.sort()
+if len(fnames)==0:
+    raise Exception("Could not find any tiff file")
+    
+    
 print fnames  
 fnames=fnames
 #%%
