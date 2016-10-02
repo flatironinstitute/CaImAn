@@ -9,7 +9,7 @@ import utilities
 #%%
 
 
-def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter=5, maxIter=5,
+def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter=5, maxIter=5, nb=1,
                           kernel=None, use_hals=True, normalize = True, img=None,method = 'greedy_roi',max_iter_snmf=500,alpha_snmf=10e2,sigma_smooth_snmf=(.5,.5,.5),perc_baseline_snmf=20):
     """Initalize components
 
@@ -93,12 +93,13 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
     print 'Roi Extraction...'
     if method == 'greedy_roi':
         Ain, Cin, _, b_in, f_in = greedyROI(
-            Y_ds, nr=K, gSig=gSig, gSiz=gSiz, nIter=nIter, kernel=kernel)
+            Y_ds, nr=K, gSig=gSig, gSiz=gSiz, nIter=nIter, kernel=kernel, nb=nb)
+                    
         if use_hals:
             print 'Refining Components...'
             Ain, Cin, b_in, f_in = hals(Y_ds, Ain, Cin, b_in, f_in, maxIter=maxIter)
     elif method == 'sparse_nmf':
-        Ain, Cin, _, b_in, f_in = sparseNMF( Y_ds,nr=K,  max_iter_snmf=max_iter_snmf, alpha= alpha_snmf, sigma_smooth=sigma_smooth_snmf,remove_baseline=True,perc_baseline=perc_baseline_snmf)
+        Ain, Cin, _, b_in, f_in = sparseNMF( Y_ds,nr=K, nb=nb, max_iter_snmf=max_iter_snmf, alpha= alpha_snmf, sigma_smooth=sigma_smooth_snmf,remove_baseline=True,perc_baseline=perc_baseline_snmf)
 #        print np.sum(Ain), np.sum(Cin)        
 #        print 'Refining Components...'
 #        Ain, Cin, b_in, f_in = hals(Y_ds, Ain, Cin, b_in, f_in, maxIter=maxIter)            
@@ -122,17 +123,22 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
         Ain = resize(Ain, (d[0], d[1] * d[2], K), order=1)
 
     Ain = np.reshape(Ain, (np.prod(d), K), order='F')
-
-    b_in = np.reshape(b_in, ds, order='F')
-
-#    b_in = resize(b_in, ds)
-    b_in = resize(b_in, d)
+    #import pdb
+    #pdb.set_trace()  
     
-    b_in = np.reshape(b_in, (-1, 1), order='F')
+    b_in = np.reshape(b_in, ds + (nb,), order='F')
+
+    if len(ds) == 2:    
+        b_in = resize(b_in, d + (nb,), order = 1)
+    else:
+        b_in = np.reshape([resize(b, d[1:] + (nb,), order=1) for b in b_in], (ds[0], d[1] * d[2], K), order='F')
+        b_in = resize(b_in, (d[0], d[1] * d[2], K), order=1)
+    
+    b_in = np.reshape(b_in, (np.prod(d), nb), order='F')
 
     Cin = resize(Cin, [K, T])
     
-    f_in = resize(np.atleast_2d(f_in), [1, T])
+    f_in = resize(np.atleast_2d(f_in), [nb, T])
     # center = com(Ain, *d)
     center = np.asarray([center_of_mass(a.reshape(d, order='F')) for a in Ain.T])
 
@@ -148,7 +154,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
     return Ain, Cin, b_in, f_in, center
 
 #%%
-def sparseNMF(Y_ds, nr,  max_iter_snmf=500, alpha= 10e2, sigma_smooth=(.5,.5,.5),remove_baseline=True,perc_baseline=20):
+def sparseNMF(Y_ds, nr,  max_iter_snmf=500, alpha= 10e2, sigma_smooth=(.5,.5,.5),remove_baseline=True,perc_baseline=20, nb=1):
     """
     Initilaization using sparse NMF
     Parameters
@@ -161,7 +167,9 @@ def sparseNMF(Y_ds, nr,  max_iter_snmf=500, alpha= 10e2, sigma_smooth=(.5,.5,.5)
     sigma_smooth_snmf:
         smoothing along z,x, and y (.5,.5,.5)
     perc_baseline_snmf:
-        percentile to remove frmo movie beofre NMF
+        percentile to remove frmo movie before NMF
+    nb: int
+        Number of background components    
     
     Returns:
     -------
@@ -202,12 +210,12 @@ def sparseNMF(Y_ds, nr,  max_iter_snmf=500, alpha= 10e2, sigma_smooth=(.5,.5,.5)
     A_in[:3, ind_bad] = .0001
     C_in[ind_bad, :3] =  .0001
     
-#    import pdb
-#    pdb.set_trace()
+    #import pdb
+    #pdb.set_trace()
     m1 = yr.T-A_in.dot(C_in)+ np.maximum(0,bl.flatten())[:,np.newaxis]
     
     
-    model = NMF(n_components=1, init='random', random_state=0,max_iter=max_iter_snmf)
+    model = NMF(n_components=nb, init='random', random_state=0,max_iter=max_iter_snmf)
 
     b_in = model.fit_transform(np.maximum(m1, 0))
     f_in = model.components_.squeeze()
@@ -221,7 +229,7 @@ def sparseNMF(Y_ds, nr,  max_iter_snmf=500, alpha= 10e2, sigma_smooth=(.5,.5,.5)
     return A_in, C_in, center, b_in, f_in
     
 #%%
-def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None):
+def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb = 1):
     """
     Greedy initialization of spatial and temporal components using spatial Gaussian filtering
     Inputs:
@@ -237,6 +245,8 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None):
         number of iterations when refining estimates
     kernel: np.ndarray
         User specified kernel to be used, if present, instead of Gaussian (default None)
+    nb: int
+        Number of background components
 
     Outputs:
     A: np.array
@@ -296,7 +306,7 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None):
 
     res = np.reshape(Y, (np.prod(d[0:-1]), d[-1]), order='F') + med.flatten(order='F')[:, None]
 
-    model = NMF(n_components=1, init='random', random_state=0)
+    model = NMF(n_components=nb, init='random', random_state=0)
 
     b_in = model.fit_transform(np.maximum(res, 0))
     f_in = model.components_.squeeze()
@@ -384,8 +394,8 @@ def hals(Y, A, C, b, f, bSiz=3, maxIter=5):
        function
        A:      (d1*d2[*d3]) X K, initial value of spatial components
        C:      K X T, initial value of temporal components
-       b:      (d1*d2[*d3]) X 1, initial value of background spatial component
-       f:      1 X T, initial value of background temporal component
+       b:      (d1*d2[*d3]) X nb, initial value of background spatial component
+       f:      nb X T, initial value of background temporal component
        bSiz:   int or tuple of int
        blur size. A box kernel (bSiz X bSiz [X bSiz]) (if int) or bSiz (if tuple) will 
        be convolved with each neuron's initial spatial component, then all nonzero
@@ -402,6 +412,7 @@ def hals(Y, A, C, b, f, bSiz=3, maxIter=5):
     #%% smooth the components
     dims, T = np.shape(Y)[:-1], np.shape(Y)[-1]
     K = A.shape[1]  # number of neurons
+    nb = b.shape[1] # number of background components
     if isinstance(bSiz, (int, long, float)):
         bSiz = [bSiz] * len(dims)
     ind_A = nd.filters.uniform_filter(np.reshape(A, dims + (K,),
@@ -431,10 +442,14 @@ def hals(Y, A, C, b, f, bSiz=3, maxIter=5):
             S[K][S[K] < 0] = 0
         return S
 
+    #import pdb
+    #pdb.set_trace()  
     Ab = np.c_[A, b].T
-    Cf = np.r_[C, f.reshape(1, -1)]
+    Cf = np.r_[C, f.reshape(nb, -1)]
+    #Cf = np.r_[C, f]
     for miter in range(maxIter):
         Cf = HALS4activity(np.reshape(Y, (np.prod(dims), T), order='F'), Ab, Cf)
         Ab = HALS4shape(np.reshape(Y, (np.prod(dims), T), order='F'), Ab, Cf)
 
-    return Ab[:-1].T, Cf[:-1], Ab[-1].reshape(-1, 1), Cf[-1].reshape(1, -1)
+    return Ab[:-nb].T, Cf[:-nb], Ab[-nb:].reshape(-1, nb), Cf[-nb:].reshape(nb, -1)
+    #return Ab[:-nb].T, Cf[:-nb], Ab[-nb:], Cf[-nb:]

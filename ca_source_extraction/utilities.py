@@ -55,7 +55,7 @@ from scipy.optimize import linear_sum_assignment
 #%%
 
 
-def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], ssub=1, tsub=1, p=2, p_ssub=1, p_tsub=1, thr=0.8, method_init= 'greedy_roi', **kwargs):
+def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], ssub=1, tsub=1, p=2, p_ssub=1, p_tsub=1, thr=0.8, method_init= 'greedy_roi', nb = 1, **kwargs):
     """Dictionary for setting the CNMF parameters.
     Any parameter that is not set get a default value specified
     by the dictionary default options
@@ -102,7 +102,8 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], ssub=1, tsub=1, p=2, p_ssub=
                               'max_iter_snmf' : 500,
                               'alpha_snmf' : 10e2,
                               'sigma_smooth_snmf' : (.5,.5,.5),
-                              'perc_baseline_snmf': 20
+                              'perc_baseline_snmf': 20,
+                              'nb' : nb                 # number of background components
                               }
     options['spatial_params'] = {
         'dims': dims,                   # number of rows, columns [and depths]
@@ -116,7 +117,8 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], ssub=1, tsub=1, p=2, p_ssub=
         'nrgthr' : 0.9999,                              # Energy threshold
         'extract_cc' : True,                            # Flag to extract connected components (might want to turn to False for dendritic imaging)
         'se' : np.ones((3, 3), dtype=np.int),           # Morphological closing structuring element
-        'ss' : np.ones((3, 3), dtype=np.int)            # Binary element for determining connectivity            
+        'ss' : np.ones((3, 3), dtype=np.int),           # Binary element for determining connectivity            
+        'nb' : nb                                       # number of background components
         }
     options['temporal_params'] = {
         'ITER': 2,                   # block coordinate descent iterations
@@ -132,10 +134,10 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], ssub=1, tsub=1, p=2, p_ssub=
         # range of normalized frequencies over which to average
         'noise_range': [.25, .5],
         'noise_method': 'logmexp',   # averaging method ('mean','median','logmexp')
-                        'lags': 5,                   # number of autocovariance lags to be considered for time constant estimation
-                        # bias correction factor (between 0 and 1, close to 1)
-                        'fudge_factor': .96,
-                        'verbosity': False
+        'lags': 5,                   # number of autocovariance lags to be considered for time constant estimation
+        'fudge_factor': .96,         # bias correction factor (between 0 and 1, close to 1)
+        'nb' : nb,                   # number of background components               
+        'verbosity': False
     }
     options['merging'] = {
         'thr': thr,
@@ -787,6 +789,7 @@ def view_patches_bar(Yr, A, C, b, f, d1, d2, YrA=None, secs=1, img=None):
 
     plt.ion()
     nr, T = C.shape
+    nb = f.shape[0]
     A2 = A.copy()
     A2.data **= 2
     nA2 = np.sqrt(np.array(A2.sum(axis=0))).squeeze()
@@ -806,7 +809,7 @@ def view_patches_bar(Yr, A, C, b, f, d1, d2, YrA=None, secs=1, img=None):
     if img is None:
         img = np.mean(imgs[:, :, :-1], axis=-1)
 
-    bkgrnd = np.reshape(b, (d1, d2), order='F')
+    bkgrnd = np.reshape(b, (d1, d2) + (nb,), order='F')
     fig = plt.figure(figsize=(10, 10))
 
     axcomp = plt.axes([0.05, 0.05, 0.9, 0.03])
@@ -819,7 +822,7 @@ def view_patches_bar(Yr, A, C, b, f, d1, d2, YrA=None, secs=1, img=None):
 #    axcolor = 'lightgoldenrodyellow'
 #    axcomp = plt.axes([0.25, 0.1, 0.65, 0.03], axisbg=axcolor)
 
-    s_comp = Slider(axcomp, 'Component', 0, nr, valinit=0)
+    s_comp = Slider(axcomp, 'Component', 0, nr+nb-1, valinit=0)
     vmax = np.percentile(img, 98)
 
     def update(val):
@@ -848,12 +851,12 @@ def view_patches_bar(Yr, A, C, b, f, d1, d2, YrA=None, secs=1, img=None):
         else:
 
             ax1.cla()
-            ax1.imshow(bkgrnd, interpolation='None')
-            ax1.set_title('Spatial background background')
+            ax1.imshow(bkgrnd[:, :, i-nr], interpolation='None')
+            ax1.set_title('Spatial background ' + str(i + 1 - nr))
 
             ax2.cla()
-            ax2.plot(np.arange(T), np.squeeze(np.array(f)))
-            ax2.set_title('Temporal background')
+            ax2.plot(np.arange(T), np.squeeze(np.array(f[i-nr,:])))
+            ax2.set_title('Temporal background ' + str(i + 1 - nr))
 
     def arrow_key_image_control(event):
 
@@ -906,6 +909,7 @@ def view_patches(Yr, A, C, b, f, d1, d2, YrA=None, secs=1):
     """
     plt.ion()
     nr, T = C.shape
+    nb = f.shape[0]
     A2 = A.copy()
     A2.data **= 2
     nA2 = np.sqrt(np.array(A2.sum(axis=0))).squeeze()
@@ -920,7 +924,7 @@ def view_patches(Yr, A, C, b, f, d1, d2, YrA=None, secs=1):
         Y_r = YrA + C
 
     A = A.todense()
-
+    bkgrnd = np.reshape(b, (d1, d2) + (nb,), order='F')
     fig = plt.figure()
     thismanager = plt.get_current_fig_manager()
     thismanager.toolbar.pan()
@@ -946,11 +950,11 @@ def view_patches(Yr, A, C, b, f, d1, d2, YrA=None, secs=1):
             fig.delaxes(ax2)
         else:
             ax1 = fig.add_subplot(2, 1, 1)
-            plt.imshow(np.reshape(b, (d1, d2), order='F'), interpolation='None')
-            ax1.set_title('Spatial background background')
+            plt.imshow(bkgrnd[:, :, i-nr], interpolation='None')
+            ax1.set_title('Spatial background ' + str(i - nr + 1))
             ax2 = fig.add_subplot(2, 1, 2)
-            plt.plot(np.arange(T), np.squeeze(np.array(f)))
-            ax2.set_title('Temporal background')
+            plt.plot(np.arange(T), np.squeeze(np.array(f[i-nr,:])))
+            ax2.set_title('Temporal background ' + str(i - nr + 1))
 
 
 def plot_contours(A, Cn, thr=None, thr_method = 'max', maxthr = 0.2, nrgthr = 0.9, display_numbers=True, max_number=None, cmap=None, swap_dim=False, colors='w', vmin=None, vmax=None, **kwargs):

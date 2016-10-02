@@ -186,7 +186,7 @@ def cnmf_patches(args_in):
     
 
 #%%
-def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, dview=None,memory_fact=1):
+def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, gnb = 1, dview=None, memory_fact=1):
     """Function that runs CNMF in patches, either in parallel or sequentiually, and return the result for each. It requires that ipyparallel is running
         
     Parameters
@@ -205,6 +205,9 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, dview=None,me
     
     stride: int
         amount of overlap between patches
+        
+    gnb: int
+        number of global background components
         
     backend: string
         'ipyparallel' or 'single_thread' or SLURM
@@ -245,7 +248,7 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, dview=None,me
     options['preprocess_params']['n_pixels_per_process']=np.int((rf1*rf2)/memory_fact)
     options['spatial_params']['n_pixels_per_process']=np.int((rf1*rf2)/memory_fact)
     options['temporal_params']['n_pixels_per_process']=np.int((rf1*rf2)/memory_fact)
-
+    nb = options['spatial_params']['nb']
     
     idx_flat,idx_2d=extract_patch_coordinates(d1, d2, rf=(rf1,rf2), stride = (stride1,stride2))
 #    import pdb 
@@ -284,10 +287,10 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, dview=None,me
     num_patches=len(file_res)
     
     A_tot=scipy.sparse.csc_matrix((d,K*num_patches))
-    B_tot=scipy.sparse.csc_matrix((d,num_patches))
+    B_tot=scipy.sparse.csc_matrix((d,nb*num_patches))
     C_tot=np.zeros((K*num_patches,T))
     YrA_tot=np.zeros((K*num_patches,T))
-    F_tot=np.zeros((num_patches,T))
+    F_tot=np.zeros((nb*num_patches,T))
     mask=np.zeros(d)
     sn_tot=np.zeros((d1*d2))
     b_tot=[]
@@ -299,9 +302,9 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, dview=None,me
     idx_tot=[];
     shapes_tot=[]    
     id_patch_tot=[]
-    
-    
-    count=0  
+        
+    count=0
+    count_bgr = 0
     patch_id=0
 
     print 'Transforming patches into full matrix'
@@ -319,8 +322,11 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, dview=None,me
             idx_tot.append(idx_)
             shapes_tot.append(shapes)
             mask[idx_] += 1
-            F_tot[patch_id,:]=f
-            B_tot[idx_,patch_id]=b        
+                                
+            for ii in range(np.shape(b)[-1]):
+                B_tot[idx_,patch_id]=b[:,ii]
+                F_tot[patch_id,:]=f[ii,:]
+                count_bgr += 1
             
             for ii in range(np.shape(A)[-1]):            
                 new_comp=A.tocsc()[:,ii]/np.sqrt(np.sum(np.array(A.tocsc()[:,ii].todense())**2))
@@ -356,12 +362,15 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, dview=None,me
     Im = scipy.sparse.csr_matrix((1./mask,(np.arange(d),np.arange(d))))
     Bm = Im.dot(B_tot)
     A_tot = Im.dot(A_tot)
-    f = np.mean(F_tot,axis=0)
+    
+    f = np.r_[np.atleast_2d(np.mean(F_tot,axis=0)),np.random.rand(gnb-1,T)]
 
-    for iter in range(10):
-        b = Bm.dot(F_tot.dot(f))/np.sum(f**2)  
-        f = np.dot((Bm.T.dot(b)).T,F_tot)/np.sum(b**2)
-
+    for iter in range(100):
+        b = np.fmax(Bm.dot(F_tot.dot(f.T)).dot(np.linalg.inv(f.dot(f.T))),0)
+        #f = np.fmax(np.dot((Bm.T.dot(b)).T,F_tot).dot(np.linalg.inv(b.T.dot(b))),0)
+        #import pdb
+        #pdb.set_trace()
+        f = np.fmax(np.linalg.inv(b.T.dot(b)).dot((Bm.T.dot(b)).T.dot(F_tot)),0)
     
     return A_tot,C_tot,YrA_tot,b,f,sn_tot, optional_outputs
 

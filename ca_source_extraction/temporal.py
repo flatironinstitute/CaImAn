@@ -56,7 +56,7 @@ def constrained_foopsi_parallel(arg_in):
     
      
 #%%
-def update_temporal_components(Y, A, b, Cin, fin, bl = None,  c1 = None, g = None,  sn = None, ITER=2, method_foopsi='constrained_foopsi', memory_efficient=False, debug=False, dview=None,**kwargs):
+def update_temporal_components(Y, A, b, Cin, fin, bl = None,  c1 = None, g = None,  sn = None, nb = 1, ITER=2, method_foopsi='constrained_foopsi', memory_efficient=False, debug=False, dview=None,**kwargs):
     """Update temporal components and background given spatial components using a block coordinate descent approach.
     
     Parameters
@@ -82,6 +82,8 @@ def update_temporal_components(Y, A, b, Cin, fin, bl = None,  c1 = None, g = Non
        discrete time constant for each column in A
     sn: np.ndarray
        noise level for each column in A       
+    nb: [optional] int
+        Number of background components
     ITER: positive integer
         Maximum number of block coordinate descent loops. 
     method_foopsi: string
@@ -141,6 +143,9 @@ def update_temporal_components(Y, A, b, Cin, fin, bl = None,  c1 = None, g = Non
     d,T = np.shape(Y);    
     nr = np.shape(A)[-1]
     
+    if b is not None:
+        nb = b.shape[1]
+            
     
     if  bl is None:
         bl=np.repeat(None,nr)
@@ -163,8 +168,8 @@ def update_temporal_components(Y, A, b, Cin, fin, bl = None,  c1 = None, g = Non
     #pdb.set_trace()
     Cin=coo_matrix(Cin)
     #YrA = ((A.T.dot(Y)).T-Cin.T.dot(A.T.dot(A)))
-    YA = (A.T.dot(Y).T)*spdiags(1./nA,0,nr+1,nr+1)
-    AA = ((A.T.dot(A))*spdiags(1./nA,0,nr+1,nr+1)).tocsr()
+    YA = (A.T.dot(Y).T)*spdiags(1./nA,0,nr+nb,nr+nb)
+    AA = ((A.T.dot(A))*spdiags(1./nA,0,nr+nb,nr+nb)).tocsr()
     YrA = YA - Cin.T.dot(AA)
     #YrA = ((A.T.dot(Y)).T-Cin.T.dot(A.T.dot(A)))*spdiags(1./nA,0,nr+1,nr+1)
     
@@ -270,10 +275,11 @@ def update_temporal_components(Y, A, b, Cin, fin, bl = None,  c1 = None, g = Non
         ii=nr        
 
         #YrA[:,ii] = YrA[:,ii] + np.atleast_2d(Cin[ii,:]).T
-        #cc = np.maximum(YrA[:,ii],0)        
-        cc = np.maximum(YrA[:,ii] + np.atleast_2d(Cin[ii,:]).T,0)
-        YrA -= (cc-np.atleast_2d(Cin[ii,:]).T)*AA[ii,:]      
-        C[ii,:] = cc.T
+        #cc = np.maximum(YrA[:,ii],0) 
+        for ii in np.arange(nr,nr+nb):       
+            cc = np.maximum(YrA[:,ii] + np.atleast_2d(Cin[ii,:]).T,0)
+            YrA -= (cc-np.atleast_2d(Cin[ii,:]).T)*AA[ii,:]      
+            C[ii,:] = cc.T
         #YrA = YA - C.T.dot(AA)
         #YrA[:,ii] = YrA[:,ii] - np.atleast_2d(C[ii,:]).T                
         

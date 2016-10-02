@@ -10,6 +10,7 @@ from scipy.sparse import coo_matrix, csc_matrix, csr_matrix
 from scipy.sparse import spdiags
 from scipy.linalg import eig
 from scipy.ndimage.morphology import generate_binary_structure, iterate_structure
+from sklearn.decomposition import NMF
 from warnings import warn
 import scipy
 import time
@@ -51,7 +52,7 @@ def basis_denoising(y, c, boh, sn, id2_, px):
 def update_spatial_components(Y, C = None, f = None, A_in = None, sn=None, dims=None, min_size=3, max_size=8, dist=3,
                               method='ellipse', expandCore=None, dview=None, n_pixels_per_process=128,
                               medw=(3, 3), thr_method = 'nrg', maxthr = 0.1, nrgthr=0.9999, extract_cc = True,
-                              se=np.ones((3, 3), dtype=np.int), ss=np.ones((3, 3), dtype=np.int)):
+                              se=np.ones((3, 3), dtype=np.int), ss=np.ones((3, 3), dtype=np.int), nb = 1):
     """update spatial footprints and background through Basis Pursuit Denoising
 
     for each pixel i solve the problem
@@ -107,6 +108,9 @@ def update_spatial_components(Y, C = None, f = None, A_in = None, sn=None, dims=
             
     medw, thr_method, maxthr, nrgthr, extract_cc, se, ss: [optional]
         Parameters for components post-processing. Refer to spatial.threshold_components for more details
+        
+    nb: [optional] int
+        Number of background components
 
     Returns
     --------
@@ -139,7 +143,7 @@ def update_spatial_components(Y, C = None, f = None, A_in = None, sn=None, dims=
     if f is not None:
         f = np.atleast_2d(f)
         if f.shape[1] == 1:
-            raise Exception('Dimension of Matrix f must be neurons x time ')
+            raise Exception('Dimension of Matrix f must be background comps x time ')
 
     if (A_in is None) and (C is None):
         raise Exception('Either A or C need to be determined')
@@ -161,6 +165,12 @@ def update_spatial_components(Y, C = None, f = None, A_in = None, sn=None, dims=
     if n_pixels_per_process > d:
         raise Exception(
             'The number of pixels per process (n_pixels_per_process) is larger than the total number of pixels!! Decrease suitably.')
+    
+    if f is not None:
+        nb = f.shape[0]
+    else:
+        if b is not None:
+            nb = b.shape[1]
         
     if A_in.dtype == bool:
         IND = A_in.copy()
@@ -168,11 +178,17 @@ def update_spatial_components(Y, C = None, f = None, A_in = None, sn=None, dims=
         if C is None:
             INDav = IND.astype('float32')/np.sum(IND,axis=0)
             px = (np.sum(IND,axis=1)>0)
-            f = np.mean(Y[~px,:],axis=0)            
+            model = NMF(n_components=nb, init='random', random_state=0)            
+            b = model.fit_transform(np.maximum(Y[~px,:], 0))
+            f = model.components_.squeeze()
+            #f = np.mean(Y[~px,:],axis=0)            
             Y_resf = np.dot(Y, f.T)
-            b = np.fmax(Y_resf / scipy.linalg.norm(f)**2, 0)           
+            b = np.fmax(Y_resf.dot(np.linalg.inv(f.dot(f.T)), 0))
+            #b = np.fmax(Y_resf / scipy.linalg.norm(f)**2, 0)           
             C = np.fmax(csr_matrix(INDav.T).dot(Y) - np.outer(INDav.T.dot(b),f), 0)
             f = np.atleast_2d(f)
+                        
+            
     else:
         IND = determine_search_location(
             A_in, dims, method=method, min_size=min_size, max_size=max_size, dist=dist, expandCore=expandCore,dview=dview)
@@ -281,12 +297,12 @@ def update_spatial_components(Y, C = None, f = None, A_in = None, sn=None, dims=
     A_ = A_[:, :nr]
     A_ = coo_matrix(A_)
 
-#    import pdb
-#    pdb.set_trace()
+    #import pdb
+    #pdb.set_trace()
     Y_resf = np.dot(Y, f.T) - A_.dot(coo_matrix(C[:nr, :]).dot(f.T))
     print "Computing A_bas"
-    A_bas = np.fmax(Y_resf / scipy.linalg.norm(f)**2, 0)  # update baseline based on residual
-    # A_bas = np.fmax(np.dot(Y_res,f.T)/scipy.linalg.norm(f)**2,0) # update
+    A_bas = np.fmax(Y_resf.dot(np.linalg.inv(f.dot(f.T))), 0)  # update baseline based on residual
+    #A_bas = np.fmax(Y_resf / scipy.linalg.norm(f)**2, 0)  # update baseline based on residual    
     # baseline based on residual
     b = A_bas
 

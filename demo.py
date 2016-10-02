@@ -72,7 +72,12 @@ base_folder='./movies/' # folder containing the demo files
 for file in glob.glob(os.path.join(base_folder,'*.tif')):
     if file.endswith("ie.tif"):
         fnames.append(os.path.abspath(file))
+        
 fnames.sort()
+if len(fnames)==0:
+    raise Exception("Could not find any tiff file")
+     
+     
 print fnames  
 fnames=fnames
 #%%
@@ -103,7 +108,7 @@ K=30 # number of neurons expected per patch
 gSig=[7,7] # expected half size of neurons
 merge_thresh=0.8 # merging threshold, max correlation allowed
 p=2 #order of the autoregressive system
-options = cse.utilities.CNMFSetParms(Y,n_processes,p=p,gSig=gSig,K=K,ssub=2,tsub=2)
+options = cse.utilities.CNMFSetParms(Y,n_processes,p=p,gSig=gSig,K=K,ssub=2,tsub=2,nb=1)
 #%% PREPROCESS DATA AND INITIALIZE COMPONENTS
 t1 = time()
 Yr,sn,g,psx = cse.pre_processing.preprocess_data(Yr,dview=dview,**options['preprocess_params'])
