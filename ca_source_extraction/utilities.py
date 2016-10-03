@@ -795,8 +795,8 @@ def view_patches_bar(Yr, A, C, b, f, d1, d2, YrA=None, secs=1, img=None):
     nA2 = np.sqrt(np.array(A2.sum(axis=0))).squeeze()
     #A = A*spdiags(1/nA2,0,nr,nr)
     #C = spdiags(nA2,0,nr,nr)*C
-    b = np.squeeze(b)
-    f = np.squeeze(f)
+    #b = np.squeeze(b)
+    #f = np.squeeze(f)
     if YrA is None:
         Y_r = np.array(A.T * np.matrix(Yr) - (A.T * np.matrix(b[:, np.newaxis])) * np.matrix(
             f[np.newaxis]) - (A.T.dot(A)) * np.matrix(C) + C)
@@ -849,11 +849,11 @@ def view_patches_bar(Yr, A, C, b, f, d1, d2, YrA=None, secs=1, img=None):
             imgtmp2[imgtmp2 == 0] = np.nan
             ax3.imshow(imgtmp2, interpolation='None', alpha=0.5, cmap=plt.cm.hot)
         else:
-
+            #import pdb; pdb.set_trace()
             ax1.cla()
             ax1.imshow(bkgrnd[:, :, i-nr], interpolation='None')
             ax1.set_title('Spatial background ' + str(i + 1 - nr))
-
+            
             ax2.cla()
             ax2.plot(np.arange(T), np.squeeze(np.array(f[i-nr,:])))
             ax2.set_title('Temporal background ' + str(i + 1 - nr))
@@ -915,8 +915,8 @@ def view_patches(Yr, A, C, b, f, d1, d2, YrA=None, secs=1):
     nA2 = np.sqrt(np.array(A2.sum(axis=0))).squeeze()
     #A = A*spdiags(1/nA2,0,nr,nr)
     #C = spdiags(nA2,0,nr,nr)*C
-    b = np.squeeze(b)
-    f = np.squeeze(f)
+    #b = np.squeeze(b)
+    #f = np.squeeze(f)
     if YrA is None:
         Y_r = np.array(A.T * np.matrix(Yr) - (A.T * np.matrix(b[:, np.newaxis])) * np.matrix(
             f[np.newaxis]) - (A.T.dot(A)) * np.matrix(C) + C)
