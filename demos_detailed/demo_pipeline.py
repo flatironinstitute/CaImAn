@@ -10,9 +10,10 @@ and https://github.com/agiovann/Constrained_NMF
 """
 #%%
 try:
-    %load_ext autoreload
-    %autoreload 2
-    print 1
+    if __IPYTHON__:
+        # this is used for debugging purposes only. allows to reload classes when changed
+        get_ipython().magic(u'load_ext autoreload')
+        get_ipython().magic(u'autoreload 2')
 except:
     print 'NOT IPYTHON'
 
@@ -29,12 +30,7 @@ import ca_source_extraction as cse
 #%
 from time import time
 from scipy.sparse import coo_matrix
-import tifffile
-import subprocess
-import time as tm
-from time import time
 import pylab as pl
-import psutil
 import glob
 import os
 import scipy
@@ -51,14 +47,18 @@ if not os.path.exists('PPC.tif'):
     
 #%% load and motion correct movie
 m=cb.load('PPC.tif',fr=30)    
-(m-np.min(m)).play(backend='opencv',magnification=2,fr=60,gain=5.)
+m -= np.min(m)
+play_movie = False
+
+if play_movie:
+    m.play(backend='opencv',magnification=2,fr=60,gain=5.)
 #%%
 max_w=25 # max pixel shift in width direction
 max_h=25
 mc,shifts,corrs, template = m.motion_correct(max_shift_w=max_w,max_shift_h=max_h,remove_blanks=True)
 
-#%%
-(mc-np.min(mc)).play(backend='opencv',magnification=1,fr=60,gain=2.)
+if play_movie:
+    mc.play(backend='opencv',magnification=2,fr=60,gain=5.)
 #%%
 mc.save('PPC_mc.tif')
 fnames=['PPC_mc.tif']
@@ -119,7 +119,7 @@ gSig=[4,4] # expected half size of neurons
 merge_thresh=0.8 # merging threshold, max correlation allowed
 p=2 #order of the autoregressive system
 memory_fact=1; #unitless number accounting how much memory should be used. You will need to try different values to see which one would work the default is OK for a 16 GB system
-save_results=True
+save_results=False
 #%% RUN ALGORITHM ON PATCHES
 options_patch = cse.utilities.CNMFSetParms(Y,n_processes,p=0,gSig=gSig,K=K,ssub=1,tsub=4,thr=merge_thresh)
 A_tot,C_tot,YrA_tot,b,f,sn_tot, optional_outputs = cse.map_reduce.run_CNMF_patches(fname_new, (d1, d2, T), options_patch,rf=rf,stride = stride,
@@ -144,15 +144,32 @@ options['temporal_params']['p']=0
 options['temporal_params']['fudge_factor']=0.96 #change ifdenoised traces time constant is wrong
 options['temporal_params']['backend']='ipyparallel'
 C_m,f_m,S_m,bl_m,c1_m,neurons_sn_m,g2_m,YrA_m = cse.temporal.update_temporal_components(Yr,A_m,b,C_m,f,dview=dview,bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
-#%% get rid of eventually noisy components. 
+
+#%% get rid of evenrually noisy components. 
 # But check by visual inspection to have a feeling fot the threshold. Try to be loose, you will be able to get rid of more of them later!
-max_fitness=-10 # the smaller the fitter
+final_frate = 30
+tB = np.minimum(-2,np.floor(-5./30*final_frate))
+tA = np.maximum(5,np.ceil(25./30*final_frate))
+Npeaks=10
 traces=C_m+YrA_m
-idx_components, fitness, erfc,r_values,num_significant_samples = cse.utilities.evaluate_components(Y, traces, A_tot, C_tot, b, f,N=5,robust_std=False)
-idx_components=idx_components[np.logical_and(True ,fitness < max_fitness)]
+#        traces_a=traces-scipy.ndimage.percentile_filter(traces,8,size=[1,np.shape(traces)[-1]/5])
+#        traces_b=np.diff(traces,axis=1)
+fitness_raw, fitness_delta, erfc_raw, erfc_delta, r_values, significant_samples =\
+             cse.utilities.evaluate_components(Y, traces, A_m, C_m, b, f_m, \
+             remove_baseline=True, N=5, robust_std=False, Athresh = 0.1, Npeaks = Npeaks, tB=tB, tA = tA, thresh_C = 0.3)
+
+idx_components_r=np.where(r_values>=.5)[0]
+idx_components_raw=np.where(fitness_raw<-20)[0]        
+idx_components_delta=np.where(fitness_delta<-10)[0]   
+
+
+idx_components=np.union1d(idx_components_r,idx_components_raw)
+idx_components=np.union1d(idx_components,idx_components_delta)  
+idx_components_bad=np.setdiff1d(range(len(traces)),idx_components)
+
+print(' ***** ')
+print len(traces)
 print(len(idx_components))
-cse.utilities.view_patches_bar(Yr,scipy.sparse.coo_matrix(A_m.tocsc()[:,idx_components]),C_m[idx_components,:],b,f_m, d1,d2, YrA=YrA_m[idx_components,:]
-                ,img=Cn)  
 #%%
 A_m=A_m[:,idx_components]
 C_m=C_m[idx_components,:]   
@@ -177,23 +194,54 @@ cse.utilities.stop_server(is_slurm = (backend == 'SLURM'))
 log_files=glob.glob('Yr*_LOG_*')
 for log_file in log_files:
     os.remove(log_file)
-#%% order components according to a quality threshold and only select the ones wiht qualitylarger than quality_threshold. 
+#%% order components according to a quality threshold and only select the ones wiht quality larger than quality_threshold. 
+B = np.minimum(-2,np.floor(-5./30*final_frate))
+tA = np.maximum(5,np.ceil(25./30*final_frate))
+Npeaks=10
 traces=C2+YrA
-idx_components, fitness, erfc,r_values,num_significant_samples = cse.utilities.evaluate_components(Y,traces,A2,N=5,robust_std=False)
+#        traces_a=traces-scipy.ndimage.percentile_filter(traces,8,size=[1,np.shape(traces)[-1]/5])
+#        traces_b=np.diff(traces,axis=1)
+fitness_raw, fitness_delta, erfc_raw, erfc_delta, r_values, significant_samples = cse.utilities.evaluate_components(Y, traces, A2, C2, b2, f2, remove_baseline=True, N=5, robust_std=False, Athresh = 0.1, Npeaks = Npeaks, tB=tB, tA = tA, thresh_C = 0.3)
 
-sure_in_idx= idx_components[np.logical_and(np.array(num_significant_samples)>1 ,np.array(r_values)>=.5)]
-doubtful = idx_components[np.logical_and(np.array(num_significant_samples)==1 ,np.array(r_values)>=.5)]
-they_suck = idx_components[np.logical_and(np.array(num_significant_samples)>=0 ,np.array(r_values)<.5)]
-#%%
-cse.utilities.view_patches_bar(Yr,scipy.sparse.coo_matrix(A2.tocsc()[:,sure_in_idx]),C2[sure_in_idx,:],b2,f2, dims[0],dims[1], YrA=YrA[sure_in_idx,:],img=Cn)  
+idx_components_r=np.where(r_values>=.6)[0]
+idx_components_raw=np.where(fitness_raw<-60)[0]        
+idx_components_delta=np.where(fitness_delta<-20)[0]   
+
+
+min_radius=gSig[0]-2
+masks_ws,idx_blobs,idx_non_blobs=cse.utilities.extract_binary_masks_blob(
+A2.tocsc(), min_radius, dims, num_std_threshold=1, 
+minCircularity= 0.6, minInertiaRatio = 0.2,minConvexity =.8)
+
+
+
+
+idx_components=np.union1d(idx_components_r,idx_components_raw)
+idx_components=np.union1d(idx_components,idx_components_delta)  
+idx_blobs=np.intersect1d(idx_components,idx_blobs)   
+idx_components_bad=np.setdiff1d(range(len(traces)),idx_components)
+
+print(' ***** ')
+print len(traces)
+print(len(idx_components))
+print(len(idx_blobs))
 #%% visualize components
-#pl.figure();
+pl.figure();
 pl.subplot(1,3,1)
-crd = cse.utilities.plot_contours(A2.tocsc()[:,sure_in_idx],Cn,thr=0.9)
+crd = cse.utilities.plot_contours(A2.tocsc()[:,idx_components],Cn,thr=0.9)
 pl.subplot(1,3,2)
-crd = cse.utilities.plot_contours(A2.tocsc()[:,doubtful],Cn,thr=0.9)
+crd = cse.utilities.plot_contours(A2.tocsc()[:,idx_blobs],Cn,thr=0.9)
 pl.subplot(1,3,3)
-crd = cse.utilities.plot_contours(A2.tocsc()[:,they_suck],Cn,thr=0.9)
+crd = cse.utilities.plot_contours(A2.tocsc()[:,idx_components_bad],Cn,thr=0.9)
+#%%
+cse.utilities.view_patches_bar(Yr,scipy.sparse.coo_matrix(A2.tocsc()[:,idx_components]),C2[idx_components,:],b2,f2, dims[0],dims[1], YrA=YrA[idx_components,:],img=Cn)  
+#%%
+cse.utilities.view_patches_bar(Yr,scipy.sparse.coo_matrix(A2.tocsc()[:,idx_components_bad]),C2[idx_components_bad,:],b2,f2, dims[0],dims[1], YrA=YrA[idx_components_bad,:],img=Cn)  
+#%% STOP CLUSTER
+pl.close()
+if not single_thread:    
+    c.close()
+    cse.utilities.stop_server()
 #%% save analysis results in python and matlab format
 if save_results:
     np.savez('results_analysis.npz',Cn=Cn,A_tot=A_tot.todense(), C_tot=C_tot, sn_tot=sn_tot, A2=A2.todense(),C2=C2,b2=b2,S2=S2,f2=f2,bl2=bl2,c12=c12, neurons_sn2=neurons_sn2, g21=g21,YrA=YrA,d1=d1,d2=d2,idx_components=idx_components, fitness=fitness, erfc=erfc)    
@@ -202,46 +250,46 @@ if save_results:
 
 
 #%% RELOAD COMPONENTS!
-load_results=True
-if load_results:
-    import sys
-    import numpy as np
-    import ca_source_extraction as cse
-    from scipy.sparse import coo_matrix
-    import scipy
-    import pylab as pl
-    import calblitz as cb
-    
-    
-    
-    with np.load('results_analysis.npz')  as ld:
-          locals().update(ld)
-    
-    fname_new=glob.glob('Yr0*_.mmap')[0]
-    
-    Yr,(d1,d2),T=cse.utilities.load_memmap(fname_new)
-    d,T=np.shape(Yr)
-    Y=np.reshape(Yr,(d1,d2,T),order='F') # 3D version of the movie
-    
-    dims=(d1,d2)
-    traces=C2+YrA
-    idx_components, fitness, erfc,r_values,num_significant_samples = cse.utilities.evaluate_components(traces,N=5,robust_std=False)
-    #cse.utilities.view_patches(Yr,coo_matrix(A_or),C_or,b2,f2,d1,d2,YrA = YrA[srt,:], secs=1)
-    cse.utilities.view_patches_bar(Yr,scipy.sparse.coo_matrix(A2[:,idx_components]),C2[idx_components,:],b2,f2, d1,d2, YrA=YrA[idx_components,:])  
-#%% only select blob-like structures
-min_radius=3
-masks_ws,pos_examples,neg_examples=cse.utilities.extract_binary_masks_blob(
-scipy.sparse.coo_matrix(A2).tocsc()[:,:], min_radius, dims, num_std_threshold=1, 
-minCircularity= 0.5, minInertiaRatio = 0.2,minConvexity = .8)
-np.savez(os.path.join(os.path.split(fname_new)[0],'regions_CNMF.npz'),masks_ws=masks_ws,pos_examples=pos_examples,neg_examples=neg_examples)
-#%% visualize them
-pl.subplot(1,2,1)
-final_masks=np.array(masks_ws)[pos_examples]
-pl.imshow(np.reshape(final_masks.max(0),dims,order='F'),vmax=1)
-pl.title('Positive examples')
-pl.subplot(1,2,2)
-neg_examples_masks=np.array(masks_ws)[neg_examples]
-pl.imshow(np.reshape(neg_examples_masks.max(0),dims,order='F'),vmax=1)
-pl.title('Negative examples')
-#%% visualize them again
-cse.utilities.view_patches_bar(Yr,scipy.sparse.coo_matrix(A2.tocsc()[:,pos_examples]),C2[pos_examples,:],b2,f2, d1,d2, YrA=YrA[pos_examples,:])  
+#load_results=True
+#if load_results:
+#    import sys
+#    import numpy as np
+#    import ca_source_extraction as cse
+#    from scipy.sparse import coo_matrix
+#    import scipy
+#    import pylab as pl
+#    import calblitz as cb
+#    
+#    
+#    
+#    with np.load('results_analysis.npz')  as ld:
+#          locals().update(ld)
+#    
+#    fname_new=glob.glob('Yr0*_.mmap')[0]
+#    
+#    Yr,(d1,d2),T=cse.utilities.load_memmap(fname_new)
+#    d,T=np.shape(Yr)
+#    Y=np.reshape(Yr,(d1,d2,T),order='F') # 3D version of the movie
+#    
+#    dims=(d1,d2)
+#    traces=C2+YrA
+#    idx_components, fitness, erfc,r_values,num_significant_samples = cse.utilities.evaluate_components(traces,N=5,robust_std=False)
+#    #cse.utilities.view_patches(Yr,coo_matrix(A_or),C_or,b2,f2,d1,d2,YrA = YrA[srt,:], secs=1)
+#    cse.utilities.view_patches_bar(Yr,scipy.sparse.coo_matrix(A2[:,idx_components]),C2[idx_components,:],b2,f2, d1,d2, YrA=YrA[idx_components,:])  
+##%% only select blob-like structures
+#min_radius=3
+#masks_ws,pos_examples,neg_examples=cse.utilities.extract_binary_masks_blob(
+#scipy.sparse.coo_matrix(A2).tocsc()[:,:], min_radius, dims, num_std_threshold=1, 
+#minCircularity= 0.5, minInertiaRatio = 0.2,minConvexity = .8)
+#np.savez(os.path.join(os.path.split(fname_new)[0],'regions_CNMF.npz'),masks_ws=masks_ws,pos_examples=pos_examples,neg_examples=neg_examples)
+##%% visualize them
+#pl.subplot(1,2,1)
+#final_masks=np.array(masks_ws)[pos_examples]
+#pl.imshow(np.reshape(final_masks.max(0),dims,order='F'),vmax=1)
+#pl.title('Positive examples')
+#pl.subplot(1,2,2)
+#neg_examples_masks=np.array(masks_ws)[neg_examples]
+#pl.imshow(np.reshape(neg_examples_masks.max(0),dims,order='F'),vmax=1)
+#pl.title('Negative examples')
+##%% visualize them again
+#cse.utilities.view_patches_bar(Yr,scipy.sparse.coo_matrix(A2.tocsc()[:,pos_examples]),C2[pos_examples,:],b2,f2, d1,d2, YrA=YrA[pos_examples,:])  
