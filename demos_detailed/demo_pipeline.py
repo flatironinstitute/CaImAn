@@ -51,14 +51,14 @@ if not os.path.exists('PPC.tif'):
     
 #%% load and motion correct movie
 m=cb.load('PPC.tif',fr=30)    
-(m-np.min(m)).play(backend='opencv',magnification=1,fr=60,gain=20.)
+(m-np.min(m)).play(backend='opencv',magnification=2,fr=60,gain=5.)
 #%%
 max_w=25 # max pixel shift in width direction
 max_h=25
 mc,shifts,corrs, template = m.motion_correct(max_shift_w=max_w,max_shift_h=max_h,remove_blanks=True)
 
 #%%
-(mc-np.min(mc)).play(backend='opencv',magnification=1,fr=60,gain=10.)
+(mc-np.min(mc)).play(backend='opencv',magnification=1,fr=60,gain=2.)
 #%%
 mc.save('PPC_mc.tif')
 fnames=['PPC_mc.tif']
@@ -122,7 +122,7 @@ memory_fact=1; #unitless number accounting how much memory should be used. You w
 save_results=True
 #%% RUN ALGORITHM ON PATCHES
 options_patch = cse.utilities.CNMFSetParms(Y,n_processes,p=0,gSig=gSig,K=K,ssub=1,tsub=4,thr=merge_thresh)
-A_tot,C_tot,b,f,sn_tot, optional_outputs = cse.map_reduce.run_CNMF_patches(fname_new, (d1, d2, T), options_patch,rf=rf,stride = stride,
+A_tot,C_tot,YrA_tot,b,f,sn_tot, optional_outputs = cse.map_reduce.run_CNMF_patches(fname_new, (d1, d2, T), options_patch,rf=rf,stride = stride,
                                                                         dview=dview,memory_fact=memory_fact)
 print 'Number of components:' + str(A_tot.shape[-1])      
 #%%
@@ -143,12 +143,12 @@ A_m,C_m,nr_m,merged_ROIs,S_m,bl_m,c1_m,sn_m,g_m=cse.merge_components(Yr,A_tot,[]
 options['temporal_params']['p']=0
 options['temporal_params']['fudge_factor']=0.96 #change ifdenoised traces time constant is wrong
 options['temporal_params']['backend']='ipyparallel'
-C_m,f_m,S_m,bl_m,c1_m,neurons_sn_m,g2_m,YrA_m = cse.temporal.update_temporal_components(Yr,A_m,np.atleast_2d(b).T,C_m,f,dview=dview,bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
-#%% get rid of evenrually noisy components. 
+C_m,f_m,S_m,bl_m,c1_m,neurons_sn_m,g2_m,YrA_m = cse.temporal.update_temporal_components(Yr,A_m,b,C_m,f,dview=dview,bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
+#%% get rid of eventually noisy components. 
 # But check by visual inspection to have a feeling fot the threshold. Try to be loose, you will be able to get rid of more of them later!
 max_fitness=-10 # the smaller the fitter
 traces=C_m+YrA_m
-idx_components, fitness, erfc,r_values,num_significant_samples = cse.utilities.evaluate_components(traces,N=5,robust_std=False)
+idx_components, fitness, erfc,r_values,num_significant_samples = cse.utilities.evaluate_components(Y, traces, A_tot, C_tot, b, f,N=5,robust_std=False)
 idx_components=idx_components[np.logical_and(True ,fitness < max_fitness)]
 print(len(idx_components))
 cse.utilities.view_patches_bar(Yr,scipy.sparse.coo_matrix(A_m.tocsc()[:,idx_components]),C_m[idx_components,:],b,f_m, d1,d2, YrA=YrA_m[idx_components,:]
@@ -162,7 +162,7 @@ pl.figure()
 crd = cse.utilities.plot_contours(A_m,Cn,thr=0.9)
 #%%
 print 'Number of components:' + str(A_m.shape[-1])  
-#%% UPDATE SPATIAL OCMPONENTS
+#%% UPDATE SPATIAL COMPONENTS
 t1 = time()
 A2,b2,C2 = cse.spatial.update_spatial_components(Yr, C_m, f, A_m, sn=sn_tot,dview=dview, **options['spatial_params'])
 print time() - t1
