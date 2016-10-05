@@ -122,7 +122,7 @@ save_results=True
 #%% RUN ALGORITHM ON PATCHES
 options_patch = cse.utilities.CNMFSetParms(Y,n_processes,p=0,gSig=gSig,K=K,ssub=1,tsub=4,thr=merge_thresh)
 A_tot,C_tot,YrA_tot,b,f,sn_tot, optional_outputs = cse.map_reduce.run_CNMF_patches(fname_new, (d1, d2, T), options_patch,rf=rf,stride = stride,
-                                                                        dview=dview,memory_fact=memory_fact)
+                                                                        dview=dview,memory_fact=memory_fact,gnb=1)
 print 'Number of components:' + str(A_tot.shape[-1])      
 #%%
 if save_results:

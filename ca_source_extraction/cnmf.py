@@ -24,7 +24,7 @@ class CNMF(object):
    """
    def __init__(self, n_processes, k=5, gSig=[4,4], merge_thresh=0.8 , p=2, dview=None, Ain=None, Cin=None, f_in=None,do_merge=True,\
                                        ssub=2, tsub=2,p_ssub=1, p_tsub=1, method_init= 'greedy_roi',alpha_snmf=None,\
-                                       rf=None,stride=None, memory_fact=1,\
+                                       rf=None,stride=None, memory_fact=1, gnb = 1,\
                                        N_samples_fitness = 5,robust_std = False,fitness_threshold=-10,corr_threshold=0,only_init_patch=False):
        """ 
        Constructor of the CNMF method
@@ -74,6 +74,9 @@ class CNMF(object):
            
        rf: int
            half-size of the patches in pixels. rf=25, patches are 50x50
+           
+       gnb: int
+           number of global background components
        
        stride: int
            amount of overlap between the patches in pixels
@@ -112,6 +115,7 @@ class CNMF(object):
        self.rf=rf # half-size of the patches in pixels. rf=25, patches are 50x50
        self.stride=stride #amount of overlap between the patches in pixels   
        self.memory_fact = memory_fact  #unitless number accounting how much memory should be used. You will need to try different values to see which one would work the default is OK for a 16 GB system
+       self.gnb = gnb
        self.N_samples_fitness=N_samples_fitness
        self.robust_std=robust_std
        self.fitness_threshold=fitness_threshold
@@ -199,7 +203,7 @@ class CNMF(object):
                options['patch_params']['only_init']=True
 
            A,C,YrA,b,f,sn, optional_outputs = run_CNMF_patches(images.filename, (d1, d2, T), options,rf=self.rf,stride = self.stride,
-                                                                        dview=self.dview,memory_fact=self.memory_fact)
+                                                                        dview=self.dview,memory_fact=self.memory_fact,gnb=self.gnb)
            
 
            options = CNMFSetParms(Y,self.n_processes,p=self.p,gSig=self.gSig,K=A.shape[-1],thr=self.merge_thresh)
@@ -211,7 +215,7 @@ class CNMF(object):
            while len(merged_ROIs)>0:
                A,C,nr,merged_ROIs,S,bl,c1,sn,g=merge_components(Yr,A,[],np.array(C),[],np.array(C),[],options['temporal_params'],options['spatial_params'],dview=self.dview,thr=self.merge_thresh,mx=np.Inf)                         
 
-           C,f,S,bl,c1,neurons_sn,g2,YrA = update_temporal_components(Yr,A,np.atleast_2d(b).T,C,f,dview=self.dview,bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
+           C,f,S,bl,c1,neurons_sn,g2,YrA = update_temporal_components(Yr,A,b,C,f,dview=self.dview,bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
            
 #           idx_components, fitness, erfc ,r_values, num_significant_samples = evaluate_components(Y,C+YrA,A,N=self.N_samples_fitness,robust_std=self.robust_std,thresh_finess=self.fitness_threshold)
 #           sure_in_idx= idx_components[np.logical_and(np.array(num_significant_samples)>0 ,np.array(r_values)>=self.corr_threshold)]

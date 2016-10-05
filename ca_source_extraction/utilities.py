@@ -868,8 +868,8 @@ def view_patches_bar(Yr, A, C, b, f, d1, d2, YrA=None, secs=1, img=None):
 
         elif event.key == 'right':
             new_val = np.round(s_comp.val + 1)
-            if new_val > nr:
-                new_val = nr
+            if new_val > nr+nb:
+                new_val = nr+nb
             s_comp.set_val(new_val)
         else:
             pass

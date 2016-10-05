@@ -144,8 +144,9 @@ def update_temporal_components(Y, A, b, Cin, fin, bl = None,  c1 = None, g = Non
     nr = np.shape(A)[-1]
     
     if b is not None:
+        if b.shape[0]<b.shape[1]:
+            b = b.T
         nb = b.shape[1]
-            
     
     if  bl is None:
         bl=np.repeat(None,nr)
@@ -158,14 +159,13 @@ def update_temporal_components(Y, A, b, Cin, fin, bl = None,  c1 = None, g = Non
 
     if  sn is None:
         sn=np.repeat(None,nr)                        
-    
+   
     A = scipy.sparse.hstack((A,coo_matrix(b)))
     S = np.zeros(np.shape(Cin));
     Cin =  np.vstack((Cin,fin));
     C = Cin;
     nA = np.squeeze(np.array(np.sum(np.square(A.todense()),axis=0)))
-    #import pdb
-    #pdb.set_trace()
+
     Cin=coo_matrix(Cin)
     #YrA = ((A.T.dot(Y)).T-Cin.T.dot(A.T.dot(A)))
     YA = (A.T.dot(Y).T)*spdiags(1./nA,0,nr+nb,nr+nb)

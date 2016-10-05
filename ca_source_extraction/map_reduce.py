@@ -324,7 +324,11 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, gnb = 1, dvie
             mask[idx_] += 1
                                 
             for ii in range(np.shape(b)[-1]):
-                B_tot[idx_,patch_id]=b[:,ii]
+#                import pdb
+#                pdb.set_trace()
+#                print ii
+                
+                B_tot[idx_,patch_id]=b[:,ii,np.newaxis]
                 F_tot[patch_id,:]=f[ii,:]
                 count_bgr += 1
             

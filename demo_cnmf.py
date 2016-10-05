@@ -142,7 +142,7 @@ else:
     
         
     cnmf=cse.CNMF(n_processes, k=K,gSig=gSig,merge_thresh=0.8,p=0,dview=c[:],Ain=None,rf=rf,stride=stride, memory_fact=memory_fact,\
-            method_init=init_method,alpha_snmf=alpha_snmf,only_init_patch=True)
+            method_init=init_method,alpha_snmf=alpha_snmf,only_init_patch=True,gnb=1)
     cnmf=cnmf.fit(images)
     
     A_tot=cnmf.A
