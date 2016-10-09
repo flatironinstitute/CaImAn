@@ -1970,7 +1970,7 @@ def compute_event_exceptionality(traces,robust_std=False,N=5):
     erfc: ndarray
         probability at each time step of observing the N consequtive actual trace values given the distribution of noise
     """
-    T=np.shape(traces[-1])
+    T=np.shape(traces)[-1]
     md = mode_robust(traces, axis=1)
 
     ff1 = traces - md[:, None]
