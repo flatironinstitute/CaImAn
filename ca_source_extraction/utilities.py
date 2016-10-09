@@ -1939,7 +1939,7 @@ def stop_server(is_slurm=False, ipcluster='ipcluster',pdir=None,profile=None):
 #    end
 #%%
 
-def compute_event_exceptionality(Y,traces,robust_std=False,N=5):
+def compute_event_exceptionality(traces,robust_std=False,N=5):
     """
     Define a metric and order components according to the probabilty if some "exceptional events" (like a spike). Suvh probability is defined as the likeihood of observing the actual trace value over N samples given an estimated noise distribution. 
     The function first estimates the noise distribution by considering the dispersion around the mode. This is done only using values lower than the mode. The estimation of the noise std is made robust by using the approximation std=iqr/1.349. 
@@ -1970,8 +1970,7 @@ def compute_event_exceptionality(Y,traces,robust_std=False,N=5):
     erfc: ndarray
         probability at each time step of observing the N consequtive actual trace values given the distribution of noise
     """
-    d1,d2,T=np.shape(Y)
-    dims=(d1,d2)
+    T=np.shape(traces[-1])
     md = mode_robust(traces, axis=1)
 
     ff1 = traces - md[:, None]
@@ -2088,12 +2087,12 @@ def evaluate_components(Y, traces, A, C, b, f, remove_baseline = True, N = 5, ro
     Yr=np.reshape(Y,(d1*d2,T),order='F')    
     
     
-    fitness_delta, erfc_delta = compute_event_exceptionality(Y,np.diff(traces,axis=1),robust_std=robust_std,N=N)
+    fitness_delta, erfc_delta = compute_event_exceptionality(np.diff(traces,axis=1),robust_std=robust_std,N=N)
     
     if remove_baseline:
         traces = traces - scipy.ndimage.percentile_filter(traces,8,size=[1,np.shape(traces)[-1]/5])
         
-    fitness_raw, erfc_raw = compute_event_exceptionality(Y,traces,robust_std=robust_std,N=N)
+    fitness_raw, erfc_raw = compute_event_exceptionality(traces,robust_std=robust_std,N=N)
     
     
     # compute the overlap between spatial and movie average across samples with significant events
