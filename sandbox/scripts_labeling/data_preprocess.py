@@ -41,15 +41,18 @@ from ipyparallel import Client
 
 #%%
 params=[
-['/mnt/ceph/neuro/VariousLabeling/non_labelled_neurofinder/neurofinder.00.00.test/',7],
-['/mnt/ceph/neuro/VariousLabeling/non_labelled_neurofinder/neurofinder.00.01.test/',7],
-['/mnt/ceph/neuro/VariousLabeling/non_labelled_neurofinder/neurofinder.01.00.test/',7.5],
-['/mnt/ceph/neuro/VariousLabeling/non_labelled_neurofinder/neurofinder.01.01.test/',7.5],
-['/mnt/ceph/neuro/VariousLabeling/non_labelled_neurofinder/neurofinder.02.00.test/',8],
-['/mnt/ceph/neuro/VariousLabeling/non_labelled_neurofinder/neurofinder.02.01.test/',8],
-['/mnt/ceph/neuro/VariousLabeling/non_labelled_neurofinder/neurofinder.03.00.test/',7.5],
-['/mnt/ceph/neuro/VariousLabeling/non_labelled_neurofinder/neurofinder.04.00.test/',6.75],
-['/mnt/ceph/neuro/VariousLabeling/non_labelled_neurofinder/neurofinder.04.01.test/',3]]
+#['/mnt/ceph/neuro/VariousLabeling/non_labelled_neurofinder/neurofinder.00.00.test/',7],
+#['/mnt/ceph/neuro/VariousLabeling/non_labelled_neurofinder/neurofinder.00.01.test/',7],
+#['/mnt/ceph/neuro/VariousLabeling/non_labelled_neurofinder/neurofinder.01.00.test/',7.5],
+#['/mnt/ceph/neuro/VariousLabeling/non_labelled_neurofinder/neurofinder.01.01.test/',7.5],
+#['/mnt/ceph/neuro/VariousLabeling/non_labelled_neurofinder/neurofinder.02.00.test/',8],
+#['/mnt/ceph/neuro/VariousLabeling/non_labelled_neurofinder/neurofinder.02.01.test/',8],
+#['/mnt/ceph/neuro/VariousLabeling/non_labelled_neurofinder/neurofinder.03.00.test/',7.5],
+#['/mnt/ceph/neuro/VariousLabeling/non_labelled_neurofinder/neurofinder.04.00.test/',6.75],
+#['/mnt/ceph/neuro/VariousLabeling/non_labelled_neurofinder/neurofinder.04.01.test/',3]
+['/mnt/ceph/neuro/labeling/neurofinder.01.01/',7.5],
+
+]
 #%%
 #for ft in folders_in:
 #    print ft
@@ -102,14 +105,18 @@ for folder_in,f_rate in zip(folders,f_rates):
 #%%
 fls=c[:].map_sync(processor_placeholder,pars)        
 #%%
+fls=map(processor_placeholder,pars)        
+
+#%%
 def processor_placeholder(pars):  
     import os          
     import calblitz as cb
     from  glob import glob
     folder_in,f_rate=pars
     fname_mov=os.path.join(os.path.split(folder_in)[0], os.path.split(folder_in)[-1] + 'MOV.hdf5')
-    print fname_mov
-    files=sorted(glob(os.path.join(os.path.split(folder_in)[0],'images/*.tiff')))
+    print fname_mov    
+    files=sorted(glob(os.path.join(os.path.split(folder_in)[0],'images/*.tif')))
+    print files
     #% LOAD MOVIE HERE USE YOUR METHOD, Movie is frames x dim2 x dim2
     m=cb.load_movie_chain(files,fr=f_rate)      
     m.file_name=[os.path.basename(ttt) for ttt in m.file_name]
@@ -123,7 +130,7 @@ for ffll in folders:
     print(os.path.join(os.path.dirname(ffll),'MOV.hfd5'))    
     fls.append(os.path.join(os.path.dirname(ffll),'MOV.hdf5'))
 #%%
-             
+res=map(create_images_for_labeling,fls)             
 #%%
 def create_images_for_labeling(pars):
     import scipy.stats as st

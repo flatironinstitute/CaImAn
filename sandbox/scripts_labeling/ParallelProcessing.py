@@ -82,16 +82,16 @@ else:
 
 #%% get all the right folders
 params=[
-['Jan25_2015_07_13',30,False,False,False], # fname, frate, do_rotate_template, do_self_motion_correct, do_motion_correct
-['Jan40_exp2_001',30,False,False,False],
-['Jan42_exp4_001',30,False,False,False],
-['Jan-AMG1_exp2_new_001',30,False,False,False],
-['Jan-AMG_exp3_001',30,False,False,False],
-['Yi.data.001',30,False,True,True],
-['Yi.data.002',30,False,True,True],
-['FN.151102_001',30,False,True,True],
-['J115_2015-12-09_L01',30,False,False,False],
-['J123_2015-11-20_L01_0',30,False,False,False],
+#['Jan25_2015_07_13',30,False,False,False], # fname, frate, do_rotate_template, do_self_motion_correct, do_motion_correct
+#['Jan40_exp2_001',30,False,False,False],
+#['Jan42_exp4_001',30,False,False,False],
+#['Jan-AMG1_exp2_new_001',30,False,False,False],
+#['Jan-AMG_exp3_001',30,False,False,False],
+#['Yi.data.001',30,False,True,True],
+#['Yi.data.002',30,False,True,True],
+#['FN.151102_001',30,False,True,True],
+#['J115_2015-12-09_L01',30,False,False,False],
+#['J123_2015-11-20_L01_0',30,False,False,False],
 ['k26_v1_176um_target_pursuit_002_013',30,False,True,True],
 ['k31_20151223_AM_150um_65mW_zoom2p2',30,False,True,True],
 ['k31_20160104_MMA_150um_65mW_zoom2p2',30,False,True,True],
@@ -101,17 +101,17 @@ params=[
 ['k36_20160115_RSA_400um_118mW_zoom2p2_00001_20-38',30,True,True,True],
 ['k36_20160127_RL_150um_65mW_zoom2p2_00002_22-41',30,True,True,True],
 ['k37_20160109_AM_150um_65mW_zoom2p2_00001_1-16',30,True,True,True],
-['neurofinder.00.00',7,False,False,False],
-['neurofinder.00.01',7,False,False,False],
-['neurofinder.00.02',7,False,False,False],
-['neurofinder.00.03',7,False,False,False],
-['neurofinder.00.04',7,False,False,False],
-['neurofinder.01.00',7.5,False,False,False],
-['neurofinder.01.01',7.5,False,False,False],
-['neurofinder.02.00',8,False,False,False],
-['neurofinder.04.00',6.75,False,False,False],
-['packer.001',15,False,False,False],
-['yuste.Single_150u',10,False,False,False]
+#['neurofinder.00.00',7,False,False,False],
+#['neurofinder.00.01',7,False,False,False],
+#['neurofinder.00.02',7,False,False,False],
+#['neurofinder.00.03',7,False,False,False],
+#['neurofinder.00.04',7,False,False,False],
+#['neurofinder.01.00',7.5,False,False,False],
+#['neurofinder.01.01',7.5,False,False,False],
+#['neurofinder.02.00',8,False,False,False],
+#['neurofinder.04.00',6.75,False,False,False],
+#['packer.001',15,False,False,False],
+#['yuste.Single_150u',10,False,False,False]
 ]
 #params=params[11:13]
 f_rates=np.array([el[1] for el in params])
@@ -119,7 +119,51 @@ base_folders=[os.path.join('/mnt/ceph/neuro/labeling',el[0]) for el in params]
 do_rotate_template=np.array([el[2] for el in params])
 do_self_motion_correct=np.array([el[3] for el in params])
 do_motion_correct=np.array([el[4] for el in params])
+#%% FOR EFTY
+#dir_efty='/mnt/ceph/neuro/labeling/neurofinder.01.01'
+#median=cb.load(dir_efty+'/projections/median_projection.tif',fr=1)
+#c_img=cb.load(dir_efty+'/projections/correlation_image.tif',fr=1)
+#
+#masks_ben=cse.utilities.nf_read_roi_zip(dir_efty+'/regions/ben_regions.zip',median.shape)    
+#masks_nf=cse.utilities.nf_load_masks(dir_efty+'/regions/regions.json',median.shape)    
+#masks_beal=cse.utilities.nf_read_roi_zip(dir_efty+'/regions/beale_regions.zip',median.shape)    
+#masks_sabr=cse.utilities.nf_read_roi_zip(dir_efty+'/regions/sabrina_regions.zip',median.shape)    
+#
+#lq,hq=np.percentile(c_img,[5,95])
+#lq_t,hq_t=np.percentile(median,[5,99])
+#
+#pl.subplot(2,3,1)
+#pl.imshow(c_img,cmap='gray',vmin=lq,vmax=hq)
+#pl.axis('off')
+#pl.title('Correlation Image')
+#pl.subplot(2,3,2)
+#pl.imshow(c_img,cmap='gray',vmin=lq,vmax=hq)
+#pl.imshow(np.sum(masks_ben,0),cmap='hot',alpha=.3)
+#pl.axis('off')
+#pl.title('ben')
+#pl.subplot(2,3,3)
+#pl.imshow(c_img,cmap='gray',vmin=lq,vmax=hq)
+#pl.imshow(np.sum(masks_nf,0),cmap='Greens',alpha=.3)
+#pl.title('neurofinder')
+#pl.axis('off')
 
+#pl.subplot(2,3,4)
+#pl.imshow(c_img,cmap='gray',vmin=lq,vmax=hq)
+#pl.imshow(np.sum(masks_beal,0),cmap='Greens',alpha=.3)
+#pl.axis('off')
+#pl.title('beal')
+#pl.subplot(2,3,5)  
+#pl.imshow(c_img,cmap='gray',vmin=lq,vmax=hq)
+#pl.imshow(np.sum(masks_ben,0),cmap='hot',alpha=.3)
+#pl.imshow(np.sum(masks_nf,0),cmap='Greens',alpha=.3)
+#pl.title('ben + nf + CI')
+#pl.axis('off')
+#pl.subplot(2,3,6)  
+#pl.imshow(np.sum(masks_ben,0)>0,cmap='hot')
+#pl.imshow(np.sum(masks_nf,0)>0,cmap='Greens',alpha=.5)    
+#pl.title('ben + nf')    
+#pl.pause(.1)
+        
 #%%
 final_f_rate=5.0        
 #%%
@@ -130,69 +174,157 @@ projections=[os.path.join(el,'projections') for el in base_folders]
 
 counter=0         
 masks_all=[];
+masks_all_nf=[];
 templates=[]
 templates_path=[]
+corr_images=[]
 for reg,img,proj,rot,self_mot,do_mot in zip(regions,images,projections,do_rotate_template,do_self_motion_correct,do_motion_correct):
             
     print counter
     counter+=1   
     m=cb.load(proj+'/median_projection.tif',fr=1)
     templates_path.append(proj+'/median_projection.tif')
-    masks=cse.utilities.nf_read_roi_zip(reg+'/ben_regions.zip',m.shape)    
+    m1=cb.load(proj+'/correlation_image.tif',fr=1)
+    
+    masks=cse.utilities.nf_read_roi_zip(reg+'/ben_regions.zip',m.shape) 
+    masks_nf=None
+#    masks_nf=cse.utilities.nf_load_masks(reg+'/regions.json',m.shape)    
     if rot:
         m=m.T
+        m1=m1.T
         masks=np.transpose(masks,[0,2,1])
+#        masks_nf=np.transpose(masks_nf,[0,2,1])
     if self_mot and do_mot:
         m=None
+        m1=None
         
-    masks_all.append(masks)   
+    masks_all.append(masks)  
+    masks_all_nf.append(masks_nf)
     templates.append(m)
+    corr_images.append(m1)
+#%% visualize averages and masks
+#counter=0     
+#pl.close('all')
+#for reg,img,proj,masks,template,c_img,masks_nf in zip(regions,images,projections,masks_all,templates,corr_images,masks_all_nf):
+#    
+#    
+#    pl.figure()
+#    counter+=1   
+#    
+#    template[np.isnan(c_img)]=0
+#
+#    lq,hq=np.percentile(c_img,[5,95])
+#    lq_t,hq_t=np.percentile(template,[5,99])
+#    pl.subplot(2,3,1)
+#    pl.imshow(c_img,cmap='gray',vmin=lq,vmax=hq)
+#    pl.axis('off')
+#    pl.title('Correlation Image')
+#    pl.subplot(2,3,2)
+#    pl.imshow(c_img,cmap='gray',vmin=lq,vmax=hq)
+#    pl.imshow(np.sum(masks,0),cmap='hot',alpha=.3)
+#    pl.axis('off')
+#    pl.title('ben')
+#    pl.subplot(2,3,3)
+#    pl.imshow(c_img,cmap='gray',vmin=lq,vmax=hq)
+#    pl.imshow(np.sum(masks_nf,0),cmap='Greens',alpha=.3)
+#    pl.title('neurofinder')
+#    pl.axis('off')
+#    pl.subplot(2,3,4)
+#    pl.imshow(template,cmap='gray',vmin=lq_t,vmax=hq_t)
+#    pl.axis('off')
+#    pl.subplot(2,3,5)  
+#    pl.imshow(c_img,cmap='gray',vmin=lq,vmax=hq)
+#    pl.imshow(np.sum(masks,0),cmap='hot',alpha=.3)
+#    pl.imshow(np.sum(masks_nf,0),cmap='Greens',alpha=.3)
+#    pl.title('both + CI')
+#    pl.axis('off')
+#    pl.subplot(2,3,6)  
+#    pl.imshow(np.sum(masks,0)>0,cmap='hot')
+#    pl.imshow(np.sum(masks_nf,0)>0,cmap='Greens',alpha=.5)    
+#    pl.title('both')    
+#    pl.pause(.1)
+#    break
 
 #%% visualize averages and masks
 counter=0     
-for reg,img,proj,masks,template in zip(regions,images,projections,masks_all,templates):
+for reg,img,proj,masks,template,c_img,masks_nf in zip(regions,images,projections,masks_all,templates,corr_images,masks_all_nf):
     pl.subplot(5,6,counter+1)
 
     print counter
     
     counter+=1   
     
-    template[np.isnan(template)]=0
+    template[np.isnan(c_img)]=0
 
-    lq,hq=np.percentile(template,[10,99])
+    lq,hq=np.percentile(c_img,[5,95])
 
-    pl.imshow(template,cmap='gray',vmin=lq,vmax=hq)
-
+    pl.imshow(c_img,cmap='gray',vmin=lq,vmax=hq)
     pl.imshow(np.sum(masks,0),cmap='hot',alpha=.3)
-
+    pl.imshow(np.sum(masks_nf,0),cmap='Greens',alpha=.3)
+    
     pl.axis('off')
     pl.title(img.split('/')[-2])
     pl.pause(.1)
 #%% HERE GOES TO MOTION CORRECTION
-    
+xy_shifts=[]
+for fl,tmpl in zip(fls,tmpls):
+    if os.path.exists(fl[:-3]+'npz'):
+        print fl[:-3]+'npz'
+        with np.load(fl[:-3]+'npz') as ld:
+            xy_shifts.append(ld['shifts'])
+    else:
+        raise Exception('*********************** ERROR, FILE NOT EXISTING!!!')
+#        with np.load(fl[:-3]+'npz') as ld:    
+#%%
+name_new=cse.utilities.save_memmap_each(fls, dview=c[::3],base_name=None, resize_fact=resize_facts, remove_init=0,xy_shifts=xy_shifts)
+#%%
+pars=[]
+import re
+
+for bf in base_folders:
+    fls=glob.glob(os.path.join(bf,'images/*.mmap'))   
+    try:
+        fls.sort(key=lambda fn: np.int(re.findall('_[0-9]{1,5}_d1_',fn)[0][1:-4]))
+    except:
+        fls.sort() 
+        print fls
+        
+    base_name_='TOTAL_'
+    n_chunks_=6
+    dview_=None
+    pars.append([fls,base_name_,n_chunks_,dview_])
+#%%
+name_new=[]
+def memmap_place_holder(par):
+    import ca_source_extraction as cse
+    fls,base_name_,n_chunks_,dview_=par
+    return cse.utilities.save_memmap_join(fls,base_name=base_name_, n_chunks=n_chunks_, dview=dview_)
+#%%
+dview=c[::3]
+names_map=dview.map_sync(memmap_place_holder,pars)        
 #%% extract file names   
-tmpls=[]
-fls=[]
-frates=[]
-resize_facts=[]
-mmap_files=[]
-for reg,img,proj,template,f_rate in zip(regions,images,projections,templates_path,f_rates):
-    fl=glob.glob(img+'/*.tif')    
-    fl.sort()
-    for ff in fl:
-        if len(glob.glob(ff[:-4]+'*.mmap'))==0 or 1:
-            print 'adding ' + ff
-            fls=fls+[ff]
-            tmpls=tmpls+[template]
-            frates=frates+[f_rate]
-            resize_facts=resize_facts+[(1,1,final_f_rate/f_rate)]
-        else:
-            print 'skipping ' + ff
-            mmap_files.append(glob.glob(ff[:-4]+'*.mmap')[0])
-            
-#%% FOR MOTION CORRECTION LOOK AT MOTIONN_CORRECTION.py
-#%% create memmap file for each tif file in C order
-name_new=cse.utilities.save_memmap_each(fls, dview=c[::4],base_name=None, resize_fact=resize_facts, remove_init=0)
+#tmpls=[]
+#fls=[]
+#frates=[]
+#resize_facts=[]
+#mmap_files=[]
+#for reg,img,proj,template,f_rate in zip(regions,images,projections,templates_path,f_rates):
+#    fl=glob.glob(img+'/*.tif')    
+#    fl.sort()
+#    for ff in fl:
+#        if len(glob.glob(ff[:-4]+'*.mmap'))==0 or 1:
+#            print 'adding ' + ff
+#            fls=fls+[ff]
+#            tmpls=tmpls+[template]
+#            frates=frates+[f_rate]
+#            resize_facts=resize_facts+[(1,1,final_f_rate/f_rate)]
+#        else:
+#            print 'skipping ' + ff
+#            mmap_files.append(glob.glob(ff[:-4]+'*.mmap')[0])
+#            
+##%% FOR MOTION CORRECTION LOOK AT MOTIONN_CORRECTION.py
+##%% create memmap file for each tif file in C order
+#name_new=cse.utilities.save_memmap_each(fls, dview=c[::4],base_name=None, resize_fact=resize_facts, remove_init=0)
 #%% create avg image for each chunk
 def create_average_image(fname):
     import os
@@ -211,7 +343,7 @@ def create_average_image(fname):
   
 #%% create average images so that one could look at them
 b_dview=c.load_balanced_view(targets=range(1,len(c),3))
-images=b_dview.map_sync(create_average_image,mmap_files)
+images=b_dview.map_sync(create_average_image,names_map)
 np.save('all_averages.npy',np.array(images))
 #%% in order to maximally parallelize, we pass portions of work to differet workers
 pars=[]

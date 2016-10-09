@@ -273,7 +273,7 @@ def memmap_place_holder(par):
 dview=c[::3]
 names_map=dview.map_sync(memmap_place_holder,pars)    
 #%%    
-fname_new=cse.utilities.save_memmap_join(fls,base_name='TOTAL_', n_chunks=6, dview=c[::3])
+#fname_new=cse.utilities.save_memmap_join(fls,base_name='TOTAL_', n_chunks=6, dview=c[::3])
 #%%
 fnames_mmap=[]
 for reg,img,proj,masks,template in zip(regions,images,projections,masks_all,templates):
@@ -282,10 +282,15 @@ for reg,img,proj,masks,template in zip(regions,images,projections,masks_all,temp
     else:
         raise Exception('Number of files not as expected!')
 #%%
+counter=0
 for nm,tmpl,masks in zip(fnames_mmap,templates,masks_all):
     print nm
+    counter+=1
+    pl.subplot(3,3,counter)
     Yr,dims,T=cse.utilities.load_memmap(nm)
     d1,d2=dims
     Y=np.reshape(Yr,dims+(T,),order='F')
     img=np.mean(Y,-1)
-    np.allclose(img,tmpl)        
+#    np.allclose(img,tmpl)   
+    pl.imshow(img)     
+    pl.pause(1)

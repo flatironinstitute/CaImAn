@@ -93,11 +93,11 @@ params=[
 ['/mnt/ceph/neuro/labeling/neurofinder.00.04',7,False,False,False,7,4],
 ['/mnt/ceph/neuro/labeling/neurofinder.01.00',7.5,False,False,False,7,4],
 ['/mnt/ceph/neuro/labeling/neurofinder.01.01',7.5,False,False,False,7,4],
-['/mnt/ceph/users/agiovann/ImagingData/LABELLING/NEUROFINDER/neurofinder.02.01',8,False,False,False,6,4],
+['/mnt/ceph/neuro/labeling/neurofinder.02.01',8,False,False,False,6,4],
 ['/mnt/ceph/neuro/labeling/neurofinder.02.00',8,False,False,False,6,4],
 ['/mnt/ceph/neuro/labeling/neurofinder.03.00',7.5,False,False,False,7,4],
 ['/mnt/ceph/neuro/labeling/neurofinder.04.00',6.75,False,False,False,6,4],
-['/mnt/ceph/users/agiovann/ImagingData/LABELLING/NEUROFINDER/neurofinder.04.01',3,False,False,False,6,4],
+['/mnt/ceph/neuro/labeling/neurofinder.04.01',3,False,False,False,6,4],
 
 #['packer.001',15,False,False,False],
 #['yuste.Single_150u',10,False,False,False]
@@ -147,10 +147,10 @@ else:
     dview=c[:len(c)]
 #%%
 final_frate=3
-load_results=True 
+load_results=False 
 save_results=True   
 save_mmap=False
-for folder_in,f_r,gsig,K in zip(base_folders,f_rates,gsigs,Ks):
+for folder_in,f_r,gsig,K in zip(base_folders[-1:],f_rates[-1:],gsigs[-1:],Ks[-1:]):
 #    try:
         
         #%% LOAD MOVIE HERE USE YOUR METHOD, Movie is frames x dim2 x dim2
@@ -172,7 +172,7 @@ for folder_in,f_r,gsig,K in zip(base_folders,f_rates,gsigs,Ks):
         Y=np.reshape(Yr,dims+(T,),order='F')
         #%%
         if load_results:
-            with np.load(os.path.join(folder_in,'images','results_analysis_patch_2.npz')) as ld:
+            with np.load(os.path.join(folder_in,'images','results_analysis_patch_3.npz')) as ld:
                 locals().update(ld)
             gSig=[gsig,gsig]
             merge_thresh=0.8 # merging threshold, max correlation allowed
@@ -200,7 +200,7 @@ for folder_in,f_r,gsig,K in zip(base_folders,f_rates,gsigs,Ks):
             
             #%%
             if save_results:
-                np.savez(os.path.join(folder_in,'images','results_analysis_patch_2.npz'),A_tot=A_tot.todense(), C_tot=C_tot, sn_tot=sn_tot,d1=d1,d2=d2,b=b,f=f,Cn=Cn)    
+                np.savez(os.path.join(folder_in,'images','results_analysis_patch_3.npz'),A_tot=A_tot.todense(), C_tot=C_tot, sn_tot=sn_tot,d1=d1,d2=d2,b=b,f=f,Cn=Cn)    
             
         #%% if you have many components this might take long!
         #
@@ -292,8 +292,8 @@ for folder_in,f_r,gsig,K in zip(base_folders,f_rates,gsigs,Ks):
         fitness_raw, fitness_delta, erfc_raw, erfc_delta, r_values, significant_samples = cse.utilities.evaluate_components(Y, traces, A2, C2, b2, f2, remove_baseline=True, N=5, robust_std=False, Athresh = 0.1, Npeaks = Npeaks, tB=tB, tA = tA, thresh_C = 0.3)
 
         idx_components_r=np.where(r_values>=.5)[0]
-        idx_components_raw=np.where(fitness_raw<-40)[0]        
-        idx_components_delta=np.where(fitness_delta<-10)[0]        
+        idx_components_raw=np.where(fitness_raw<-30)[0]        
+        idx_components_delta=np.where(fitness_delta<-15)[0]        
           
         idx_components=np.union1d(idx_components_r,idx_components_raw)
         idx_components=np.union1d(idx_components,idx_components_delta)   
@@ -310,7 +310,7 @@ for folder_in,f_r,gsig,K in zip(base_folders,f_rates,gsigs,Ks):
 #        cse.utilities.view_patches_bar(Yr,scipy.sparse.coo_matrix(A2.tocsc()[:,idx_components]),C2[idx_components,:],b2,f2, d1,d2, YrA=YrA[idx_components,:])  
         #%% save analysis results in python and matlab format
         if save_results:
-            np.savez(os.path.join(folder_in,'results_analysis_2.npz'),Cn=Cn,A_tot=A_tot, C_tot=C_tot, sn_tot=sn_tot, A2=A2,C2=C2,b2=b2,S2=S2,f2=f2,bl2=bl2,c12=c12, neurons_sn2=neurons_sn2, g21=g21,YrA=YrA,d1=d1,d2=d2, 
+            np.savez(os.path.join(folder_in,'results_analysis_3.npz'),Cn=Cn,A_tot=A_tot, C_tot=C_tot, sn_tot=sn_tot, A2=A2,C2=C2,b2=b2,S2=S2,f2=f2,bl2=bl2,c12=c12, neurons_sn2=neurons_sn2, g21=g21,YrA=YrA,d1=d1,d2=d2,
             fitness_raw=fitness_raw, fitness_delta=fitness_delta, erfc_raw=erfc_raw, erfc_delta=erfc_delta, r_values=r_values, significant_samples=significant_samples)    
         #    scipy.io.savemat('output_analysis_matlab.mat',{'A2':A2,'C2':C2 , 'YrA':YrA, 'S2': S2 ,'YrA': YrA, 'd1':d1,'d2':d2,'idx_components':idx_components, 'fitness':fitness })
         #%%
@@ -382,7 +382,7 @@ for folder_in,f_r,gsig,K in zip(base_folders,f_rates,gsigs,Ks):
         A2.tocsc()[:,:], min_radius, dims, num_std_threshold=1, 
         minCircularity= 0.5, minInertiaRatio = 0.2,minConvexity =.8)
         
-        np.savez(os.path.join(os.path.split(fname_new)[0],'regions_CNMF_2.npz'),masks_ws=masks_ws,pos_examples=pos_examples,neg_examples=neg_examples,\
+        np.savez(os.path.join(os.path.split(fname_new)[0],'regions_CNMF_3.npz'),masks_ws=masks_ws,pos_examples=pos_examples,neg_examples=neg_examples,\
                                                                                             idx_components=idx_components)
         final_masks=np.array(masks_ws)[np.intersect1d(idx_components,pos_examples)]
 #        final_masks=np.array(masks_ws)[np.intersect1d(idx_components,idx_components)]
@@ -430,13 +430,11 @@ for folder_in,f_r,gsig,K in zip(base_folders,f_rates,gsigs,Ks):
 #        pl.title('A MATRIX')
         #plt.show()
         #%%
-        regions_CNMF=cse.utilities.nf_masks_to_json( final_masks,os.path.join(folder_in,'regions','regions_CNMF_2.json'))
+        regions_CNMF=cse.utilities.nf_masks_to_json( final_masks,os.path.join(folder_in,'regions','regions_CNMF_3.json'))
         
 #    except:
 #        np.save(os.path.join(os.path.split(folder_in)[0],'failure'),np.array(1))
 #regions_BEN=cse.utilities.nf_masks_to_json( masks_ben,'regions_ben.json')
-#%%
-
 #%%
 def tomask(coords,dims):
     mask = np.zeros(dims)
@@ -447,21 +445,77 @@ def tomask(coords,dims):
 #%%
 import json
 from neurofinder import load, centers, shapes,match
-for folder_in in base_folders:
+for folder_in in base_folders[-2:-1]:
     #%
     ref_file=os.path.join(folder_in,'regions','regions_CNMF_1.json')
     if os.path.exists(ref_file):
         print folder_in
         b=load(ref_file)
     #    a=load(os.path.join(folder_in,'regions','regions_wesley.json'))
-        a=load(os.path.join(folder_in,'regions/regions.json'))
-        
-        with open(os.path.join(folder_in,'regions/regions.json')) as f:
+        a=load(os.path.join(folder_in,'regions/regions_ben.json'))
+#        
+        with open(os.path.join(folder_in,'regions/regions_ben.json')) as f:
             regions = json.load(f)
-
+        
         masks_nf = np.array([tomask(s['coordinates'],dims) for s in regions])
-#        a=load(os.path.join(folder_in_check,'regions/regions_ben.json'))
-    
+       
+        with open(os.path.join(folder_in,'regions/regions_CNMF_1.json')) as f:
+            regions = json.load(f)    
+
+        masks_1 = np.array([tomask(s['coordinates'],dims) for s in regions])
+        
+        with open(os.path.join(folder_in,'regions/regions_CNMF_2.json')) as f:
+            regions = json.load(f)    
+
+        masks_2 = np.array([tomask(s['coordinates'],dims) for s in regions])
+#        a=load(os.path.join(folder_in,'regions/regions_ben.json'))
+        with np.load(os.path.join(folder_in,'results_analysis_2.npz')) as ld:
+            Cn=ld['Cn']
+            lq,hq=np.percentile(Cn,[5,90])
+            r_values=ld['r_values']
+            fitness_raw=ld['fitness_raw']
+            fitness_delta=ld['fitness_delta']
+            A2=ld['A2'][()]
+            
+        with np.load(os.path.join(folder_in,'images/regions_CNMF_2.npz')) as ld:
+            masks_ws=ld['masks_ws']
+            pos_examples=ld['pos_examples']
+        
+#        
+        pl.figure()
+        pl.subplot(2,2,2)
+        pl.imshow(Cn,cmap='gray',vmin=lq,vmax=hq)
+        pl.imshow(np.sum(masks_nf,0),alpha=.3,cmap='hot')
+        pl.title('NF')
+        pl.subplot(2,2,1)
+        pl.imshow(Cn,cmap='gray',vmin=lq,vmax=hq)
+        pl.imshow(np.sum(masks_1,0),alpha=.3,cmap='hot')
+        pl.title('M_1')
+        pl.subplot(2,2,3)
+        pl.imshow(Cn,cmap='gray',vmin=lq,vmax=hq)
+#        idcomps=np.union1d(np.where(r_values>.1)[0],np.where(fitness_delta<-2)[0])
+#        idcomps=np.union1d(idcomps,np.where(fitness_raw<-4)[0])
+        
+#        masks_ws_,pos_examples,neg_examples=cse.utilities.extract_masks_blob(
+#        A2.tocsc()[:,:], min_radius, dims, num_std_threshold=1, 
+#        minCircularity= 0.8, minInertiaRatio = 0.5,minConvexity =.8)        
+#        mask_ws=masks_ws_
+#        idcomps=pos_examples
+#        idcomps=idcomps[pos_examples]
+
+#        idcomps=np.intersect1d(pos_examples,idcomps)
+#        regions_CNMF=cse.utilities.nf_masks_to_json( masks_ws[idcomps],os.path.join('/tmp/regions_CNMF_2.json'))
+#        b=load(os.path.join('/tmp/regions_CNMF_2.json'))
+#        pl.imshow(np.sum(masks_ws[idcomps],0),alpha=.3,cmap='hot')
+        pl.imshow(np.sum(masks_2,0),alpha=.3,cmap='hot')
+
+        pl.title('M_2')
+        pl.subplot(2,2,4)
+#        pl.imshow(Cn,cmap='gray')
+#        pl.imshow(np.sum(masks_nf,0)+2*np.sum(masks_ws[idcomps],0))
+        pl.imshow(np.sum(masks_nf,0)+2*np.sum(masks_2,0))
+#        pl.imshow(np.sum(masks_2,0),alpha=.2,cmap='hot')
+        pl.title('M_overlap')
         #print
         mtc=match(a,b,threshold=5)
         re,pr=centers(a,b,threshold=5)
