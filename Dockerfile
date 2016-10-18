@@ -18,7 +18,8 @@ RUN conda info -a
 RUN conda install -c https://conda.anaconda.org/omnia cvxpy
 RUN conda install -c https://conda.anaconda.org/conda-forge tifffile
 # RUN git clone --recursive -b agiovann-master https://github.com/valentina-s/Constrained_NMF.git
-RUN git clone --recursive https://github.com/agiovann/Constrained_NMF.git
+# RUN git clone --recursive https://github.com/agiovann/Constrained_NMF.git
+RUN git clone --recursive -b dev https://github.com/valentina-s/Constrained_NMF.git
 WORKDIR /Constrained_NMF/
 RUN conda install --file requirements_conda.txt
 RUN pip install -r requirements_pip.txt

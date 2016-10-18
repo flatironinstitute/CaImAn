@@ -1,11 +1,12 @@
-import ca_source_extraction as cse
+import caiman
+from caiman.segmentation import cnmf as cnmf
 import numpy.testing as npt
 import numpy as np
 
 def test_make_G_matrix():
     g = np.array([1,2,3])
     T = 6
-    G = cse.temporal.make_G_matrix(T,g)
+    G = cnmf.temporal.make_G_matrix(T,g)
     G = G.todense()
     true_G = np.matrix(
         [[ 1.,  0.,  0.,  0.,  0.,  0.],

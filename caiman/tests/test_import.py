@@ -1,4 +1,5 @@
-import ca_source_extraction as cse
+import caiman
+from caiman.segmentation import cnmf as cnmf
 
 # import numpy as np
 # import numpy.testing as npt
