@@ -1,4 +1,5 @@
-import ca_source_extraction as cse
+import caiman
+from caiman.segmentation import cnmf as cnmf
 import numpy.testing as npt
 import numpy as np
 
@@ -18,7 +19,7 @@ def test_interpolate_missing_data():
     Y[index,index,index] = np.nan
 
     # interpolate
-    Y_interpolated = cse.pre_processing.interpolate_missing_data(Y)
+    Y_interpolated = cnmf.pre_processing.interpolate_missing_data(Y)
 
     # compare to original
     npt.assert_allclose(Y_interpolated,np.ones((20,20,10)),rtol=1e-07,)
@@ -29,7 +30,7 @@ def test_interpolate_missing_data():
 def test_axcov():
     data = np.random.randn(1000)
     maxlag = 5
-    C = cse.pre_processing.axcov(data, maxlag)
+    C = cnmf.pre_processing.axcov(data, maxlag)
     print(C)
 
     npt.assert_allclose(C,np.concatenate((np.zeros(maxlag),np.array([1]),np.zeros(maxlag))), atol = 1)

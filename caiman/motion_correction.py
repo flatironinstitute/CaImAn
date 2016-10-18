@@ -129,7 +129,68 @@ function H2 = constructH(Hd,ns)
     H2(((0:ns-2)*ns+(1:ns-1))+1) = Hd(ns+1:)';
 
 
- 
+def motion_correct_parallel(file_names,fr,template=None,margins_out=0,max_shift_w=5, max_shift_h=5,remove_blanks=False,apply_smooth=False,dview=None,save_hdf5=True):
+    """motion correct many movies usingthe ipyparallel cluster
+    Parameters
+    ----------
+    file_names: list of strings
+        names of he files to be motion corrected
+    fr: double
+        fr parameters for calcblitz movie 
+    margins_out: int
+        number of pixels to remove from the borders    
+    
+    Return
+    ------
+    base file names of the motion corrected files
+    """
+    args_in=[];
+    for file_idx,f in enumerate(file_names):
+        if type(template) is list:
+            args_in.append((f,fr,margins_out,template[file_idx],max_shift_w, max_shift_h,remove_blanks,apply_smooth,save_hdf5))
+        else:
+            args_in.append((f,fr,margins_out,template,max_shift_w, max_shift_h,remove_blanks,apply_smooth,save_hdf5))
+        
+    try:
+        
+        if dview is not None:
+#            if backend is 'SLURM':
+#                if 'IPPPDIR' in os.environ and 'IPPPROFILE' in os.environ:
+#                    pdir, profile = os.environ['IPPPDIR'], os.environ['IPPPROFILE']
+#                else:
+#                    raise Exception('envirnomment variables not found, please source slurmAlloc.rc')
+#        
+#                c = Client(ipython_dir=pdir, profile=profile)
+#                print 'Using '+ str(len(c)) + ' processes'
+#            else:
+#                c = Client()
+
+
+            file_res = dview.map_sync(process_movie_parallel, args_in)                         
+            dview.results.clear()       
+
+            
+
+        else:
+            
+            file_res = map(process_movie_parallel, args_in)        
+                 
+        
+        
+    except :   
+        
+        try:
+            if dview is not None:
+                
+                dview.results.clear()       
+
+        except UnboundLocalError as uberr:
+
+            print 'could not close client'
+
+        raise
+                                    
+    return file_res 
 
 #%%
 ####

@@ -6,40 +6,18 @@ Created on Tue Jun 30 21:01:17 2015
 """
 
 #%%
-import cv2
 
 import scipy.ndimage
 import warnings
 import numpy as np
 from pylab import plt
-from tempfile import NamedTemporaryFile
-from IPython.display import HTML
+
 import calblitz as cb
 import numpy as np
 from ipyparallel import Client
 import os
 import tifffile
-#%%
-def playMatrix(mov,gain=1.0,frate=.033):
-    for frame in mov: 
-        if gain!=1:
-            cv2.imshow('frame',frame*gain)
-        else:
-            cv2.imshow('frame',frame)
-            
-        if cv2.waitKey(int(frate*1000)) & 0xFF == ord('q'):
-            cv2.destroyAllWindows()
-            break  
-    cv2.destroyAllWindows()        
-#%% montage
-def matrixMontage(spcomps,*args, **kwargs):
-    numcomps, width, height=spcomps.shape
-    rowcols=int(np.ceil(np.sqrt(numcomps)));           
-    for k,comp in enumerate(spcomps):        
-        plt.subplot(rowcols,rowcols,k+1)       
-        plt.imshow(comp,*args, **kwargs)                             
-        plt.axis('off')         
-        
+
 #%% CVX OPT
 #####    LOOK AT THIS! https://github.com/cvxgrp/cvxpy/blob/master/examples/qcqp.py
 if False:
@@ -98,24 +76,7 @@ if False:
     #y(y<(mean(y(:)-3*std(y(:)))))=0;
 #%%
 
-VIDEO_TAG = """<video controls>
- <source src="data:video/x-m4v;base64,{0}" type="video/mp4">
- Your browser does not support the video tag.
-</video>"""
-
-def anim_to_html(anim,fps=20):
-    if not hasattr(anim, '_encoded_video'):
-        with NamedTemporaryFile(suffix='.mp4') as f:
-            anim.save(f.name, fps=fps, extra_args=['-vcodec', 'libx264'])
-            video = open(f.name, "rb").read()
-        anim._encoded_video = video.encode("base64")
-    
-    return VIDEO_TAG.format(anim._encoded_video)
-    
-
-def display_animation(anim,fps=20):
-    plt.close(anim._fig)
-    return HTML(anim_to_html(anim,fps=fps))    
+  
 
 def apply_function_per_movie_cluster(client_,function_name,args):
     """ use ipyparallel and SLURM to apply the same function on several datasets
@@ -199,68 +160,7 @@ def pre_preprocess_movie_labeling(dview, file_names, median_filter_size=(2,1,1),
    return file_res
     
 #%%
-def motion_correct_parallel(file_names,fr,template=None,margins_out=0,max_shift_w=5, max_shift_h=5,remove_blanks=False,apply_smooth=False,dview=None,save_hdf5=True):
-    """motion correct many movies usingthe ipyparallel cluster
-    Parameters
-    ----------
-    file_names: list of strings
-        names of he files to be motion corrected
-    fr: double
-        fr parameters for calcblitz movie 
-    margins_out: int
-        number of pixels to remove from the borders    
-    
-    Return
-    ------
-    base file names of the motion corrected files
-    """
-    args_in=[];
-    for file_idx,f in enumerate(file_names):
-        if type(template) is list:
-            args_in.append((f,fr,margins_out,template[file_idx],max_shift_w, max_shift_h,remove_blanks,apply_smooth,save_hdf5))
-        else:
-            args_in.append((f,fr,margins_out,template,max_shift_w, max_shift_h,remove_blanks,apply_smooth,save_hdf5))
-        
-    try:
-        
-        if dview is not None:
-#            if backend is 'SLURM':
-#                if 'IPPPDIR' in os.environ and 'IPPPROFILE' in os.environ:
-#                    pdir, profile = os.environ['IPPPDIR'], os.environ['IPPPROFILE']
-#                else:
-#                    raise Exception('envirnomment variables not found, please source slurmAlloc.rc')
-#        
-#                c = Client(ipython_dir=pdir, profile=profile)
-#                print 'Using '+ str(len(c)) + ' processes'
-#            else:
-#                c = Client()
 
-
-            file_res = dview.map_sync(process_movie_parallel, args_in)                         
-            dview.results.clear()       
-
-            
-
-        else:
-            
-            file_res = map(process_movie_parallel, args_in)        
-                 
-        
-        
-    except :   
-        
-        try:
-            if dview is not None:
-                
-                dview.results.clear()       
-
-        except UnboundLocalError as uberr:
-
-            print 'could not close client'
-
-        raise
-                                    
-    return file_res
 
 #%%
 def mode_robust(inputData, axis=None, dtype=None):

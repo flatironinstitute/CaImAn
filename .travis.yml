@@ -22,3 +22,4 @@ branches:
     - docker
     - master
     - agiovann-master
+    - dev
