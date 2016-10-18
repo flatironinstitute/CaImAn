@@ -41,7 +41,7 @@ from skimage import data
 
 import timeseries as ts
 from traces import trace
-from utils import display_animation
+from caiman.utils import visualization
 
 
 class movie(ts.timeseries):
@@ -963,7 +963,7 @@ class movie(ts.timeseries):
                                            frames=self.shape[0], interval=1, blit=True)
 
             # call our new function to display the animation
-            return display_animation(anim, fps=fr)
+            return visualization.display_animation(anim, fps=fr)
 
 
          if fr==None:
