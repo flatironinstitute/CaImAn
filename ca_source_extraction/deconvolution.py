@@ -102,7 +102,8 @@ def constrained_foopsi(fluor, bl=None,  c1=None, g=None,  sn=None, p=None, metho
             from oasis import constrained_oasisAR1
             if p == 1:
                 if bl is None:
-                    c, sp, bl, g, _ = constrained_oasisAR1(fluor, g[0], sn, optimize_b=True, penalty=1)
+                    c, sp, bl, g, _ = constrained_oasisAR1(
+                        fluor, g[0], sn, optimize_b=True, b_nonneg=bas_nonneg, penalty=penalty)
                 else:
                     c, sp, _, g, _ = constrained_oasisAR1(fluor - bl, g[0], sn, optimize_b=False, penalty=1)
                 c1 = c[0]
@@ -111,7 +112,8 @@ def constrained_foopsi(fluor, bl=None,  c1=None, g=None,  sn=None, p=None, metho
                 c -= c1 * g**np.arange(len(fluor))
             elif p == 2:
                 if bl is None:
-                    c, sp, bl, g, _ = constrained_oasisAR2(fluor, g, sn, optimize_b=True, penalty=1)
+                    c, sp, bl, g, _ = constrained_oasisAR2(
+                        fluor, g, sn, optimize_b=True, b_nonneg=bas_nonneg, penalty=penalty)
                 else:
                     c, sp, _, g, _ = constrained_oasisAR2(fluor - bl, g, sn, optimize_b=False, penalty=1)
                 c1 = c[0]
@@ -541,7 +543,7 @@ def onnls(y, g, lam=0, shift=100, window=200, mask=None, tol=1e-9, max_iter=None
     return c, s
 
 
-def constrained_oasisAR2(y, g, sn, optimize_b=True, optimize_g=0, decimate=5, shift=100, window=200,
+def constrained_oasisAR2(y, g, sn, optimize_b=True, b_nonneg=True, optimize_g=0, decimate=5, shift=100, window=200,
                          tol=1e-9, max_iter=1, penalty=1):
     """ Infer the most likely discretized spike train underlying an AR(2) fluorescence trace
 
@@ -559,6 +561,8 @@ def constrained_oasisAR2(y, g, sn, optimize_b=True, optimize_g=0, decimate=5, sh
         Standard deviation of the noise distribution.
     optimize_b : bool, optional, default True
         Optimize baseline if True else it is set to 0, see y.
+    b_nonneg: bool, optional, default True
+        Enforce strictly non-negative baseline if True.
     optimize_g : int, optional, default 0
         Number of large, isolated events to consider for optimizing g.
         No optimization if optimize_g=0.
@@ -627,6 +631,8 @@ def constrained_oasisAR2(y, g, sn, optimize_b=True, optimize_g=0, decimate=5, sh
         b = np.percentile(y, 15) if optimize_b else 0
         lam = 2 * sn * np.linalg.norm(g11)
         mask = None
+    if b_nonneg:
+        b = max(b, 0)
     # run ONNLS
     c, s = onnls(y - b, g, lam=lam, mask=mask)
 
@@ -673,7 +679,7 @@ def constrained_oasisAR2(y, g, sn, optimize_b=True, optimize_g=0, decimate=5, sh
             lam -= db / f_lam
 
     else:  # optimize b
-        db = np.mean(y - c) - b
+        db = max(np.mean(y - c), 0 if b_nonneg else -np.inf) - b
         b += db
         lam -= db / (1 - g[0] - g[1])
         for i in range(max_iter - 1):
@@ -699,6 +705,8 @@ def constrained_oasisAR2(y, g, sn, optimize_b=True, optimize_g=0, decimate=5, sh
             except:
                 db = -bb / aa
             # perform shift
+            if b_nonneg:
+                db = max(db, -b)
             b += db
             c, s = onnls(y - b, g, lam=lam, mask=mask)
             db = np.mean(y - c) - b
