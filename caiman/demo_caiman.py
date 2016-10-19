@@ -57,9 +57,9 @@ m=load(mov_path,fr=10)
 m1=m.resize(1,1,.2)
 
 #%%
-mc=m.motion_correct(5,5)
+#mc=m.motion_correct(5,5)
 #%%
-m1=mc[0].resize(1,1,.2)
+#m1=mc[0].resize(1,1,.2)
 #%%
 (m1-np.percentile(m1,8)).play(backend='opencv',fr=100,gain=10.)
 #%%
