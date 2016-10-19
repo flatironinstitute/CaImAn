@@ -34,14 +34,34 @@ pl.ion()
 #%%
 import caiman
 from caiman.base import movies,timeseries
-from caiman.segmentation import cnmf as cnmf
+from caiman.source_extraction import cnmf as cnmf
+from caiman.base.movies import movie,load
+from skimage.external import tifffile
+import numpy as np
+#%%
+fname='/mnt/ceph/neuro/labeling/k37_20160109_AM_150um_65mW_zoom2p2_00001_1-16/images/k37_20160109_AM_150um_65mW_zoom2p2_00001_00001.tif'
+fname='/run/media/agiovann/ANDREA/k26_v1_176um_target_pursuit_002_013.tif'
+with tifffile.TiffFile(fname) as tf: 
+    m=movie(tf,fr=30)
+
+shifts_,xcorrs_,template_ = m.motion_correction_online(init_frames_template=100)
+#%%
+shifts,xcorrs,template = m.motion_correction_online(template=template_,min_count=len(m))
+#%%
+m1=m.apply_shifts_online(shifts)   
+m1=m.resize(1,1,.2)
+#%%
+mov_path=m.apply_shifts_online(shifts,save_base_name='/tmp/test')   
+#%%
+m=load(mov_path,fr=10)
+m1=m.resize(1,1,.2)
 
 #%%
-m=caiman.base.movies.load('example_movies/demoMovie.tif',fr=30)
+mc=m.motion_correct(5,5)
 #%%
-m.play(backend='opencv',fr=100,gain=3.)
-
-
+m1=mc[0].resize(1,1,.2)
+#%%
+(m1-np.percentile(m1,8)).play(backend='opencv',fr=100,gain=10.)
 #%%
 final_frate=15
 is_patches=True
@@ -91,32 +111,33 @@ else:
     print 'Using '+ str(len(c)) + ' processes'
     dview=c[:len(c)]
 #%% FOR LOADING ALL TIFF FILES IN A FILE AND SAVING THEM ON A SINGLE MEMORY MAPPABLE FILE
-fnames=[]
-base_folder='./example_movies' # folder containing the demo files
-for file in glob.glob(os.path.join(base_folder,'*.tif')):
-    if file.endswith("ie.tif"):
-        fnames.append(os.path.abspath(file))
-fnames.sort()
-if len(fnames)==0:
-    raise Exception("Could not find any tiff file")
-
-print fnames  
-fnames=fnames
-#%%
-#idx_x=slice(12,500,None)
-#idx_y=slice(12,500,None)
-#idx_xy=(idx_x,idx_y)
-downsample_factor=1 # use .2 or .1 if file is large and you want a quick answer
-final_frate=final_frate*downsample_factor
-idx_xy=None
-base_name='Yr'
-name_new=cnmf.utilities.save_memmap_each(fnames, dview=dview,base_name=base_name, resize_fact=(1, 1, downsample_factor), remove_init=0,idx_xy=idx_xy )
-name_new.sort()
-print name_new
-#%%
-fname_new=cnmf.utilities.save_memmap_join(name_new,base_name='Yr', n_chunks=12, dview=dview)
+#fnames=[]
+#base_folder='./example_movies' # folder containing the demo files
+#for file in glob.glob(os.path.join(base_folder,'*.tif')):
+#    if file.endswith("ie.tif"):
+#        fnames.append(os.path.abspath(file))
+#fnames.sort()
+#if len(fnames)==0:
+#    raise Exception("Could not find any tiff file")
+#
+#print fnames  
+#fnames=fnames
+##%%
+##idx_x=slice(12,500,None)
+##idx_y=slice(12,500,None)
+##idx_xy=(idx_x,idx_y)
+#downsample_factor=1 # use .2 or .1 if file is large and you want a quick answer
+#final_frate=final_frate*downsample_factor
+#idx_xy=None
+#base_name='Yr'
+#name_new=cnmf.utilities.save_memmap_each(fnames, dview=dview,base_name=base_name, resize_fact=(1, 1, downsample_factor), remove_init=0,idx_xy=idx_xy )
+#name_new.sort()
+#print name_new
+##%%
+#fname_new=cnmf.utilities.save_memmap_join(name_new,base_name='Yr', n_chunks=12, dview=dview)
 #%%
 #fname_new='Yr_d1_501_d2_398_d3_1_order_F_frames_369_.mmap'
+fname_new=m1
 Yr,dims,T=cnmf.utilities.load_memmap(fname_new)
 d1,d2=dims
 images=np.reshape(Yr.T,[T]+list(dims),order='F')

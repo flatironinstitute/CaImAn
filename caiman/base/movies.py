@@ -41,8 +41,8 @@ from skimage import data
 
 import timeseries as ts
 from traces import trace
-from utils import display_animation
-
+from visualization import display_animation
+from ..motion_correction import apply_shift_online,motion_correct_online
 
 class movie(ts.timeseries):
     """
@@ -72,7 +72,9 @@ class movie(ts.timeseries):
     def __new__(cls, input_arr, **kwargs):
 
         if (type(input_arr) is np.ndarray) or \
-           (type(input_arr) is h5py._hl.dataset.Dataset):
+           (type(input_arr) is h5py._hl.dataset.Dataset) or\
+           ('mmap' in str(type(input_arr))) or\
+           ('tifffile' in str(type(input_arr))):
             # kwargs['start_time']=start_time;
             # kwargs['file_name']=file_name;
             # kwargs['meta_data']=meta_data;
@@ -82,6 +84,15 @@ class movie(ts.timeseries):
         else:
             raise Exception('Input must be an ndarray, use load instead!')
 
+    
+    def motion_correction_online(self,max_shift_w=25,max_shift_h=25,init_frames_template=100,show_movie=False,bilateral_blur=False,template=None,min_count=1000):
+        return motion_correct_online(self,max_shift_w=max_shift_w,max_shift_h=max_shift_h,init_frames_template=init_frames_template,show_movie=show_movie,bilateral_blur=bilateral_blur,template=template,min_count=min_count)
+        
+    def apply_shifts_online(self,xy_shifts,save_base_name=None):
+        if save_base_name is None:
+            return movie(apply_shift_online(self,xy_shifts,save_base_name=save_base_name),fr=self.fr)        
+        else:
+            return apply_shift_online(self,xy_shifts,save_base_name=save_base_name)        
     def motion_correct(self,
                        max_shift_w=5,
                        max_shift_h=5,
@@ -162,6 +173,23 @@ class movie(ts.timeseries):
 
 
     def bin_median(self,window=10):
+        ''' compute median of 3D array in along axis o by binning values
+        Parameters
+        ----------
+    
+        mat: ndarray
+            input 3D matrix, time along first dimension
+        
+        window: int
+            number of frames in a bin
+            
+            
+        Returns
+        -------
+        img: 
+            median image   
+            
+        '''
         T,d1,d2=np.shape(self)
         num_windows=np.int(T/window)
         num_frames=num_windows*window
