@@ -434,7 +434,7 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
 #        if os.path.splitext(f)[-1] == '.hdf5':
         try: 
             
-            import calblitz as cb  
+            from caiman.base.movies import movie,load 
             is_calblitz=True
             
         except:            
@@ -465,7 +465,7 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
         
         else:
             
-            Yr=cb.load(f,fr=1)            
+            Yr=load(f,fr=1)            
             if xy_shifts is not None:
                 Yr=Yr.apply_shifts(xy_shifts,interpolation='cubic',remove_blanks=False)
             
@@ -481,7 +481,7 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
         fx, fy, fz = resize_fact
         if fx != 1 or fy != 1 or fz != 1:
             if is_calblitz:
-                Yr = cb.movie(Yr, fr=1)
+                Yr = movie(Yr, fr=1)
                 Yr = Yr.resize(fx=fx, fy=fy, fz=fz)
             else:
                 raise Exception('You need to install the CalBlitz package to resize the movie')

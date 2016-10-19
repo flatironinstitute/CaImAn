@@ -44,7 +44,7 @@ fname='/mnt/ceph/neuro/labeling/k37_20160109_AM_150um_65mW_zoom2p2_00001_1-16/im
 with tifffile.TiffFile(fname) as tf: 
     m=movie(tf,fr=30)
 
-shifts_,xcorrs_,template_ = m.motion_correction_online(init_frames_template=100)
+shifts_,xcorrs_,template_ = m.motion_correction_online(init_frames_template=400)
 #%%
 shifts,xcorrs,template = m.motion_correction_online(template=template_,min_count=len(m))
 #%%
@@ -83,7 +83,7 @@ else:
     n_processes = np.maximum(np.int(psutil.cpu_count()),1) # roughly number of cores on your machine minus 1
 print 'using ' + str(n_processes) + ' processes'
 #%% start cluster for efficient computation
-single_thread=False
+single_thread=True
 
 if single_thread:
     dview=None
@@ -111,33 +111,35 @@ else:
     print 'Using '+ str(len(c)) + ' processes'
     dview=c[:len(c)]
 #%% FOR LOADING ALL TIFF FILES IN A FILE AND SAVING THEM ON A SINGLE MEMORY MAPPABLE FILE
-#fnames=[]
-#base_folder='./example_movies' # folder containing the demo files
-#for file in glob.glob(os.path.join(base_folder,'*.tif')):
-#    if file.endswith("ie.tif"):
-#        fnames.append(os.path.abspath(file))
-#fnames.sort()
-#if len(fnames)==0:
-#    raise Exception("Could not find any tiff file")
-#
-#print fnames  
-#fnames=fnames
-##%%
-##idx_x=slice(12,500,None)
-##idx_y=slice(12,500,None)
-##idx_xy=(idx_x,idx_y)
-#downsample_factor=1 # use .2 or .1 if file is large and you want a quick answer
-#final_frate=final_frate*downsample_factor
-#idx_xy=None
-#base_name='Yr'
-#name_new=cnmf.utilities.save_memmap_each(fnames, dview=dview,base_name=base_name, resize_fact=(1, 1, downsample_factor), remove_init=0,idx_xy=idx_xy )
-#name_new.sort()
-#print name_new
-##%%
-#fname_new=cnmf.utilities.save_memmap_join(name_new,base_name='Yr', n_chunks=12, dview=dview)
+fnames=[]
+base_folder='/run/media/agiovann/ANDREA/' # folder containing the demo files
+base_folder='/run/media/agiovann/ANDREA/'
+
+for file in glob.glob(os.path.join(base_folder,'*.tif')):
+    if file.endswith("k26_v1_176um_target_pursuit_002_013.tif"):
+        fnames.append(os.path.abspath(file))
+fnames.sort()
+if len(fnames)==0:
+    raise Exception("Could not find any tiff file")
+
+print fnames  
+fnames=fnames
+#%%
+#idx_x=slice(12,500,None)
+#idx_y=slice(12,500,None)
+#idx_xy=(idx_x,idx_y)
+downsample_factor=.2 # use .2 or .1 if file is large and you want a quick answer
+final_frate=final_frate*downsample_factor
+idx_xy=None
+base_name='Yr'
+name_new=cnmf.utilities.save_memmap_each(fnames, dview=dview,base_name=base_name, resize_fact=(1, 1, downsample_factor), remove_init=0,idx_xy=idx_xy )
+name_new.sort()
+print name_new
+#%%
+fname_new=cnmf.utilities.save_memmap_join(name_new,base_name='Yr', n_chunks=12, dview=dview)
 #%%
 #fname_new='Yr_d1_501_d2_398_d3_1_order_F_frames_369_.mmap'
-fname_new=m1
+#fname_new=m1
 Yr,dims,T=cnmf.utilities.load_memmap(fname_new)
 d1,d2=dims
 images=np.reshape(Yr.T,[T]+list(dims),order='F')
@@ -159,9 +161,9 @@ if not is_patches:
 #%%
 else:
     #%%
-    rf=14 # half-size of the patches in pixels. rf=25, patches are 50x50
+    rf=15 # half-size of the patches in pixels. rf=25, patches are 50x50
     stride = 4 #amounpl.it of overlap between the patches in pixels    
-    K=6 # number of neurons expected per patch
+    K=3 # number of neurons expected per patch
     gSig=[7,7] # expected half size of neurons
     merge_thresh=0.8 # merging threshold, max correlation allowed
     p=2 #order of the autoregressive system
@@ -216,8 +218,10 @@ else:
     pl.figure()
     crd = cnmf.utilities.plot_contours(A_tot,Cn,thr=0.9)
     #%%
-    cnm=cnmf.CNMF(n_processes, k=A_tot.shape,gSig=gSig,merge_thresh=merge_thresh,p=p,dview=dview,Ain=A_tot,Cin=C_tot,\
+    cnm=cnmf.CNMF(n_processes, k=A_tot.shape,gSig=gSig,merge_thresh=merge_thresh,p=p,dview=None,Ain=A_tot,Cin=C_tot,\
                      f_in=f_tot, rf=None,stride=None)
+    
+#    images_1=np.array(images-np.min(images))                     
     cnm=cnm.fit(images)
 
 #%%
