@@ -226,13 +226,14 @@ class CNMF(object):
 #           A=A[:,sure_in_idx]
 #           C=C[sure_in_idx,:] 
 #           YrA=YrA[sure_in_idx]
-                                                                        
-       self.A=A
-       self.C=C
-       self.b=b
-       self.f=f
-       self.YrA=YrA
-       self.sn=sn
+       
+       self.S = S                                                                 
+       self.A = A
+       self.C = C
+       self.b = b
+       self.f = f
+       self.YrA = YrA
+       self.sn = sn
                
        
        return self

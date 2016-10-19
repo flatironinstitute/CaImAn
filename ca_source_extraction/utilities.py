@@ -122,8 +122,8 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], ssub=1, tsub=1, p=2, p_ssub=
         }
     options['temporal_params'] = {
         'ITER': 2,                   # block coordinate descent iterations
-        # method for solving the constrained deconvolution problem ('cvx' or 'cvxpy')
-        'method': 'cvxpy',
+        # method for solving the constrained deconvolution problem ('oasis','cvx' or 'cvxpy')
+        'method': 'cvxpy', # 'oasis'
         # if method cvxpy, primary and secondary (if problem unfeasible for approx
         # solution) solvers to be used with cvxpy, can be 'ECOS','SCS' or 'CVXOPT'
         'solvers': ['ECOS', 'SCS'],
@@ -185,7 +185,7 @@ def load_memmap(filename):
         return Yr, None, None
 
 #%% 
-def save_memmap_each(fnames, dview=None, base_name=None, resize_fact=(1, 1, 1), remove_init=0, idx_xy=None,xy_shifts=None):
+def save_memmap_each(fnames, dview=None, base_name=None, resize_fact=(1, 1, 1), remove_init=0, idx_xy=None,xy_shifts=None,add_to_movie=0):
     """
     Create several memory mapped files using parallel processing
     
@@ -230,9 +230,9 @@ def save_memmap_each(fnames, dview=None, base_name=None, resize_fact=(1, 1, 1), 
         
     for idx,f in enumerate(fnames):
         if base_name is not None:
-            pars.append([f,base_name+str(idx),resize_fact[idx],remove_init,idx_xy,order,xy_shifts[idx]])
+            pars.append([f,base_name+str(idx),resize_fact[idx],remove_init,idx_xy,order,xy_shifts[idx],add_to_movie])
         else:
-            pars.append([f,os.path.splitext(f)[0],resize_fact[idx],remove_init,idx_xy,order,xy_shifts[idx]])            
+            pars.append([f,os.path.splitext(f)[0],resize_fact[idx],remove_init,idx_xy,order,xy_shifts[idx],add_to_movie])            
     
     if dview is not None:
         fnames_new=dview.map_sync(save_place_holder,pars)
@@ -294,7 +294,7 @@ def save_memmap_join(mmap_fnames,base_name=None, n_chunks=6, dview=None,async=Fa
 #%%
 def save_portion(pars):
     
-    big_mov,d,tot_frames,fnames,idx_start,idx_end=pars
+    big_mov,d,tot_frames,fnames,idx_start,idx_end =pars
     big_mov = np.memmap(big_mov, mode='r+', dtype=np.float32,shape=(d, tot_frames), order='C')
     Ttot=0
     Yr_tot=np.zeros((idx_end-idx_start,tot_frames))    
@@ -321,8 +321,8 @@ def save_place_holder(pars):
     """
     
     import ca_source_extraction as cse
-    f,base_name,resize_fact,remove_init,idx_xy,order,xy_shifts=pars   
-    return save_memmap([f],base_name=base_name,resize_fact=resize_fact,remove_init=remove_init, idx_xy=idx_xy, order=order,xy_shifts=xy_shifts)
+    f,base_name,resize_fact,remove_init,idx_xy,order,xy_shifts,add_to_movie=pars   
+    return save_memmap([f],base_name=base_name,resize_fact=resize_fact,remove_init=remove_init, idx_xy=idx_xy, order=order,xy_shifts=xy_shifts,add_to_movie=add_to_movie)
 #%%
 #def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0, idx_xy=None, order='F'):
 #    """ Saves efficiently a list of tif files into a memory mappable file
@@ -398,7 +398,7 @@ def save_place_holder(pars):
 #
 #    return fname_new
 #%%
-def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0, idx_xy=None, order='F',xy_shifts=None,is_3D=False):
+def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0, idx_xy=None, order='F',xy_shifts=None,is_3D=False,add_to_movie=0):
     """ Saves efficiently a list of tif files into a memory mappable file
     Parameters
     ----------
@@ -502,7 +502,7 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
                                 shape=(np.prod(dims), Ttot + T), order=order)
         #    np.save(fname[:-3]+'npy',np.asarray(Yr))
 
-        big_mov[:, Ttot:Ttot + T] = np.asarray(Yr, dtype=np.float32) + 1e-10
+        big_mov[:, Ttot:Ttot + T] = np.asarray(Yr, dtype=np.float32) + 1e-10 + add_to_movie
         big_mov.flush()
         del big_mov
         Ttot = Ttot + T
