@@ -38,12 +38,12 @@ import ca_source_extraction as cse
 #%%
 final_frate=10
 is_patches=True
-is_dendrites=True
+is_dendrites=False # 
 
 if is_dendrites == True:
 # THIS METHOd CAN GIVE POSSIBLY INCONSISTENT RESULTS ON SOMAS WHEN NOT USED WITH PATCHES    
     init_method = 'sparse_nmf' 
-    alpha_snmf=10e2 # this controls sparsity
+    alpha_snmf=None #10e2  # this controls sparsity
 else:
     init_method = 'greedy_roi'
 #%%
@@ -84,9 +84,9 @@ else:
     dview=c[:len(c)]
 #%% FOR LOADING ALL TIFF FILES IN A FILE AND SAVING THEM ON A SINGLE MEMORY MAPPABLE FILE
 fnames=[]
-base_folder='./movies' # folder containing the demo files
+base_folder='./movies/' # folder containing the demo files
 for file in glob.glob(os.path.join(base_folder,'*.tif')):
-    if file.endswith("ie.tif"):
+    if file.endswith(".tif"):
         fnames.append(os.path.abspath(file))
 fnames.sort()
 if len(fnames)==0:
@@ -98,11 +98,12 @@ fnames=fnames
 #idx_x=slice(12,500,None)
 #idx_y=slice(12,500,None)
 #idx_xy=(idx_x,idx_y)
+add_to_movie=300 # the movie must be positive!!!
 downsample_factor=1 # use .2 or .1 if file is large and you want a quick answer
 final_frate=final_frate*downsample_factor
 idx_xy=None
 base_name='Yr'
-name_new=cse.utilities.save_memmap_each(fnames, dview=dview,base_name=base_name, resize_fact=(1, 1, downsample_factor), remove_init=0,idx_xy=idx_xy )
+name_new=cse.utilities.save_memmap_each(fnames, dview=dview,base_name=base_name, resize_fact=(1, 1, downsample_factor), remove_init=0,idx_xy=idx_xy,add_to_movie=add_to_movie)
 name_new.sort()
 print name_new
 #%%
@@ -113,6 +114,9 @@ Yr,dims,T=cse.utilities.load_memmap(fname_new)
 d1,d2=dims
 images=np.reshape(Yr.T,[T]+list(dims),order='F')
 Y=np.reshape(Yr,dims+(T,),order='F')
+#%%
+if np.min(images)<0:
+    raise Exception('Movie too negative, add_to_movie should be larger')
 #%%
 Cn = cse.utilities.local_correlations(Y[:,:,:3000])
 pl.imshow(Cn,cmap='gray')  
@@ -129,9 +133,10 @@ if not is_patches:
      
 #%%
 else:
-    rf=14 # half-size of the patches in pixels. rf=25, patches are 50x50
+    #%%
+    rf=15 # half-size of the patches in pixels. rf=25, patches are 50x50
     stride = 4 #amounpl.it of overlap between the patches in pixels    
-    K=6 # number of neurons expected per patch
+    K=5 # number of neurons expected per patch
     gSig=[7,7] # expected half size of neurons
     merge_thresh=0.8 # merging threshold, max correlation allowed
     p=2 #order of the autoregressive system
@@ -141,7 +146,7 @@ else:
     
     
         
-    cnmf=cse.CNMF(n_processes, k=K,gSig=gSig,merge_thresh=0.8,p=0,dview=c[:],Ain=None,rf=rf,stride=stride, memory_fact=memory_fact,\
+    cnmf=cse.CNMF(n_processes, k=K,gSig=gSig,merge_thresh=0.8,p=0,dview=dview,Ain=None,rf=rf,stride=stride, memory_fact=memory_fact,\
             method_init=init_method,alpha_snmf=alpha_snmf,only_init_patch=True,gnb=1)
     cnmf=cnmf.fit(images)
     
