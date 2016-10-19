@@ -40,7 +40,7 @@ from skimage.external import tifffile
 import numpy as np
 #%%
 fname='/mnt/ceph/neuro/labeling/k37_20160109_AM_150um_65mW_zoom2p2_00001_1-16/images/k37_20160109_AM_150um_65mW_zoom2p2_00001_00001.tif'
-fname='/run/media/agiovann/ANDREA/k26_v1_176um_target_pursuit_002_013.tif'
+#fname='/run/media/agiovann/ANDREA/k26_v1_176um_target_pursuit_002_013.tif'
 with tifffile.TiffFile(fname) as tf: 
     m=movie(tf,fr=30)
 
@@ -48,8 +48,8 @@ shifts_,xcorrs_,template_ = m.motion_correction_online(init_frames_template=100)
 #%%
 shifts,xcorrs,template = m.motion_correction_online(template=template_,min_count=len(m))
 #%%
-m1=m.apply_shifts_online(shifts)   
-m1=m.resize(1,1,.2)
+#m1=m.apply_shifts_online(shifts)   
+#m1=m.resize(1,1,.2)
 #%%
 mov_path=m.apply_shifts_online(shifts,save_base_name='/tmp/test')   
 #%%
