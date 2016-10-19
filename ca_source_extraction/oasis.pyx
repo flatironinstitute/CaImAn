@@ -295,7 +295,7 @@ def constrained_oasisAR1(np.ndarray[DOUBLE, ndim=1] y, DOUBLE g, DOUBLE sn, bool
                     return sum([foo(y, a_s[i][2], a_s[i][3], h[:a_s[i][3]], b, g) for i in idx[-optimize_g:]])
 
                 def baz(y, active_set):
-                    return minimize(lambda x: bar(y, x, active_set), (b, g), bounds=((0 if b_nonneg else None, None), (0, 1)), method='L-BFGS-B',
+                    return minimize(lambda x: bar(y, x, active_set), (b, g), bounds=((0 if b_nonneg else None, None), (.001, .999)), method='L-BFGS-B',
                                     options={'gtol': 1e-04, 'maxiter': 3, 'ftol': 1e-05})
                 result = baz(y, active_set)
                 if abs(result['x'][1] - g) < 1e-3:

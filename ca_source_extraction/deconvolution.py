@@ -22,8 +22,8 @@ import sys
 
 def constrained_foopsi(fluor, bl=None,  c1=None, g=None,  sn=None, p=None, method='cvxpy', bas_nonneg=True,
                        noise_range=[.25, .5], noise_method='logmexp', lags=5, fudge_factor=1.,
-                       verbosity=False, solvers=None, **kwargs):
-    """ Infer the most likely discretized spike train underlying a fluorescence trace 
+                       verbosity=False, solvers=None, optimize_g=0, penalty=1, **kwargs):
+    """ Infer the most likely discretized spike train underlying a fluorescence trace
 
     It relies on a noise constrained deconvolution approach
 
@@ -58,7 +58,7 @@ def constrained_foopsi(fluor, bl=None,  c1=None, g=None,  sn=None, p=None, metho
         number of lags for estimating time constants
     fudge_factor: float
         fudge factor for reducing time constant bias
-    verbosity: bool     
+    verbosity: bool
          display optimization details
     solvers: list string
             primary and secondary (if problem unfeasible for approx solution) solvers to be used with cvxpy, default is ['ECOS','SCS']
@@ -103,9 +103,11 @@ def constrained_foopsi(fluor, bl=None,  c1=None, g=None,  sn=None, p=None, metho
             if p == 1:
                 if bl is None:
                     c, sp, bl, g, _ = constrained_oasisAR1(
-                        fluor, g[0], sn, optimize_b=True, b_nonneg=bas_nonneg, penalty=penalty)
+                        fluor, g[0], sn, optimize_b=True, b_nonneg=bas_nonneg,
+                        optimize_g=optimize_g, penalty=penalty)
                 else:
-                    c, sp, _, g, _ = constrained_oasisAR1(fluor - bl, g[0], sn, optimize_b=False, penalty=1)
+                    c, sp, _, g, _ = constrained_oasisAR1(
+                        fluor - bl, g[0], sn, optimize_b=False, penalty=1)
                 c1 = c[0]
                 # remove intial calcium to align with the other foopsi methods
                 # it is added back in function constrained_foopsi_parallel of temporal.py
@@ -113,9 +115,11 @@ def constrained_foopsi(fluor, bl=None,  c1=None, g=None,  sn=None, p=None, metho
             elif p == 2:
                 if bl is None:
                     c, sp, bl, g, _ = constrained_oasisAR2(
-                        fluor, g, sn, optimize_b=True, b_nonneg=bas_nonneg, penalty=penalty)
+                        fluor, g, sn, optimize_b=True, b_nonneg=bas_nonneg,
+                        optimize_g=optimize_g, penalty=penalty)
                 else:
-                    c, sp, _, g, _ = constrained_oasisAR2(fluor - bl, g, sn, optimize_b=False, penalty=1)
+                    c, sp, _, g, _ = constrained_oasisAR2(
+                        fluor - bl, g, sn, optimize_b=False, penalty=1)
                 c1 = c[0]
                 d = (g[0] + sqrt(g[0] * g[0] + 4 * g[1])) / 2
                 c -= c1 * d**np.arange(len(fluor))
