@@ -14,22 +14,22 @@ from sklearn.decomposition import NMF
 from warnings import warn
 import scipy
 import time
-import sys
 import tempfile
 import os
 import shutil
 
-try:
-    import picos
-except:
-    print 'picos not installed'
+#try:
+#    import picos
+#except:
+#    print 'picos not installed'
 
 try:
-    from cvxopt import matrix, spmatrix, spdiag, solvers
+    from cvxopt import matrix, spmatrix, spdiag
+    from cvxopt import solvers
 except:
     print 'cvxopt not installed'
 
-from utilities import load_memmap
+from caiman.mmapping import load_memmap
 from scipy.ndimage.filters import median_filter
 from scipy.ndimage.morphology import binary_closing
 from scipy.ndimage.measurements import label

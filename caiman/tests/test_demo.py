@@ -1,5 +1,7 @@
-import caiman
+import caiman as cm
 from caiman.segmentation import cnmf as cnmf
+from caiman.cluster import start_server,stop_server
+
 import numpy.testing as npt
 
 
@@ -11,7 +13,6 @@ def test_demo():
     except:
         print 'NOT IPYTHON'
 
-    import matplotlib as mpl
 
     from matplotlib import pyplot as plt
 
@@ -20,10 +21,7 @@ def test_demo():
     from time import time
     from scipy.sparse import coo_matrix
     import tifffile
-    import subprocess
-    import time as tm
-    from time import time
-    import pylab as pl
+
     import psutil
 
 
@@ -37,7 +35,7 @@ def test_demo():
     # %% start cluster for efficient computation
     print "Stopping  cluster to avoid unnecessary use of memory...."
     sys.stdout.flush()
-    cse.utilities.stop_server()
+    stop_server()
 
     # %% LOAD MOVIE AND MAKE DIMENSIONS COMPATIBLE WITH CNMF
     reload = 0
@@ -57,7 +55,7 @@ def test_demo():
 
     # %%
     options = cnmf.utilities.CNMFSetParms(Y, n_processes, p=p, gSig=[4, 4], K=30)
-    cse.utilities.start_server()
+    start_server()
 
     # %% PREPROCESS DATA AND INITIALIZE COMPONENTS
     t1 = time()
@@ -70,7 +68,7 @@ def test_demo():
     # %% Refine manually component by clicking on neurons
     refine_components = False
     if refine_components:
-        Ain, Cin = cse.utilities.manually_refine_components(Y, options['init_params']['gSig'], coo_matrix(Atmp), Ctmp, Cn, thr=0.9)
+        Ain, Cin = cnmf.utilities.manually_refine_components(Y, options['init_params']['gSig'], coo_matrix(Atmp), Ctmp, Cn, thr=0.9)
     else:
         Ain, Cin = Atmp, Ctmp
 
@@ -94,8 +92,6 @@ def test_demo():
     C, f, S, bl, c1, neurons_sn, g, YrA = cnmf.temporal.update_temporal_components(Yr, A, b, Cin, f_in, bl=None, c1=None, sn=None, g=None, **options['temporal_params'])
 
     # %% merge components corresponding to the same neuron
-    # A_m, C_m,nr_m,merged_ROIs,S_m,bl_m,c1_m,sn_m,g_m=cse.merging.merge_components(Yr,A,b,C,f,S,sn,options['temporal_params'], options['spatial_params'], bl=bl, c1=c1, sn=neurons_sn, g=g, thr=0.8, mx=50, fast_merge = True)
-
     # print(np.sum(np.abs(C_m)))
 
     cnmf.utilities.stop_server()

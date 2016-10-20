@@ -10,7 +10,9 @@ Created on Fri Aug 26 15:44:32 2016
 """
 
 import numpy as np
-from utilities import local_correlations, CNMFSetParms, order_components,evaluate_components
+from caiman.summary_images import local_correlations
+from caiman.components_evaluation import evaluate_components
+from utilities import  CNMFSetParms, order_components
 from pre_processing import preprocess_data
 from initialization import initialize_components
 from merging import merge_components
@@ -25,7 +27,8 @@ class CNMF(object):
    def __init__(self, n_processes, k=5, gSig=[4,4], merge_thresh=0.8 , p=2, dview=None, Ain=None, Cin=None, f_in=None,do_merge=True,\
                                        ssub=2, tsub=2,p_ssub=1, p_tsub=1, method_init= 'greedy_roi',alpha_snmf=None,\
                                        rf=None,stride=None, memory_fact=1, gnb = 1,\
-                                       N_samples_fitness = 5,robust_std = False,fitness_threshold=-10,corr_threshold=0,only_init_patch=False):
+                                       N_samples_fitness = 5,robust_std = False,fitness_threshold=-10,corr_threshold=0,only_init_patch=False\
+                                       ,method_deconvolution='oasis'):
        """ 
        Constructor of the CNMF method
       
@@ -123,6 +126,7 @@ class CNMF(object):
        self.do_merge=do_merge
        self.alpha_snmf=alpha_snmf
        self.only_init=only_init_patch
+       self.method_deconvolution=method_deconvolution
        
        self.A=None
        self.C=None
@@ -175,7 +179,7 @@ class CNMF(object):
                               
     	     
            options['temporal_params']['p'] = 0 # set this to zero for fast updating without deconvolution
-           
+           options['temporal_params']['method']=self.method_deconvolution
            C,f,S,bl,c1,neurons_sn,g,YrA = update_temporal_components(Yr,A,b,Cin,self.f_in,dview=self.dview,**options['temporal_params'])             
         	
            if self.do_merge:
@@ -207,10 +211,12 @@ class CNMF(object):
            
 
            options = CNMFSetParms(Y,self.n_processes,p=self.p,gSig=self.gSig,K=A.shape[-1],thr=self.merge_thresh)
+                   
            pix_proc=np.minimum(np.int((d1*d2)/self.n_processes/(T/2000.)),np.int((d1*d2)/self.n_processes)) # regulates the amount of memory used
            options['spatial_params']['n_pixels_per_process']=pix_proc
            options['temporal_params']['n_pixels_per_process']=pix_proc
-#           
+           options['temporal_params']['method']=self.method_deconvolution
+            
            merged_ROIs=[0]
            while len(merged_ROIs)>0:
                A,C,nr,merged_ROIs,S,bl,c1,sn,g=merge_components(Yr,A,[],np.array(C),[],np.array(C),[],options['temporal_params'],options['spatial_params'],dview=self.dview,thr=self.merge_thresh,mx=np.Inf)                         

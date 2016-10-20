@@ -27,12 +27,7 @@ import pylab as pl
 from skimage.external.tifffile import imread
 from tqdm import tqdm
 import timeseries
-# from ca_source_extraction.utilities import save_memmap,load_memmap
 
-try:
-    plt.ion()
-except:
-    1
 
 
 from skimage.transform import warp, AffineTransform
@@ -41,7 +36,10 @@ from skimage import data
 
 import timeseries as ts
 from traces import trace
-from utils import display_animation
+
+from caiman.utils import visualization
+import caiman.summary_images as si 
+from caiman.motion_correction import apply_shift_online,motion_correct_online
 
 
 class movie(ts.timeseries):
@@ -72,7 +70,9 @@ class movie(ts.timeseries):
     def __new__(cls, input_arr, **kwargs):
 
         if (type(input_arr) is np.ndarray) or \
-           (type(input_arr) is h5py._hl.dataset.Dataset):
+           (type(input_arr) is h5py._hl.dataset.Dataset) or\
+           ('mmap' in str(type(input_arr))) or\
+           ('tifffile' in str(type(input_arr))):
             # kwargs['start_time']=start_time;
             # kwargs['file_name']=file_name;
             # kwargs['meta_data']=meta_data;
@@ -82,6 +82,16 @@ class movie(ts.timeseries):
         else:
             raise Exception('Input must be an ndarray, use load instead!')
 
+    
+    def motion_correction_online(self,max_shift_w=25,max_shift_h=25,init_frames_template=100,show_movie=False,bilateral_blur=False,template=None,min_count=1000):
+        return motion_correct_online(self,max_shift_w=max_shift_w,max_shift_h=max_shift_h,init_frames_template=init_frames_template,show_movie=show_movie,bilateral_blur=bilateral_blur,template=template,min_count=min_count)
+        
+    def apply_shifts_online(self,xy_shifts,save_base_name=None):
+        
+        if save_base_name is None:
+            return movie(apply_shift_online(self,xy_shifts,save_base_name=save_base_name),fr=self.fr)        
+        else:
+            return apply_shift_online(self,xy_shifts,save_base_name=save_base_name)        
     def motion_correct(self,
                        max_shift_w=5,
                        max_shift_h=5,
@@ -162,6 +172,23 @@ class movie(ts.timeseries):
 
 
     def bin_median(self,window=10):
+        ''' compute median of 3D array in along axis o by binning values
+        Parameters
+        ----------
+    
+        mat: ndarray
+            input 3D matrix, time along first dimension
+        
+        window: int
+            number of frames in a bin
+            
+            
+        Returns
+        -------
+        img: 
+            median image   
+            
+        '''
         T,d1,d2=np.shape(self)
         num_windows=np.int(T/window)
         num_frames=num_windows*window
@@ -642,64 +669,30 @@ class movie(ts.timeseries):
         return mask
 
 
-    def local_correlations(self,eight_neighbours=False):
-         '''
-         Compute local correlations.
-         Parameters:
-         -----------
-         if eight_neighbours=True it will take the diagonal neighbours too
+    def local_correlations(self,eight_neighbours=False,swap_dim=True):
+        """Computes the correlation image for the input dataset Y
 
-         Returns
-         -------
-         rho M x N matrix, cross-correlation with adjacent pixel
-         '''
+            Parameters
+            -----------
+        
+            Y:  np.ndarray (3D or 4D)
+                Input movie data in 3D or 4D format
+            eight_neighbours: Boolean
+                Use 8 neighbors if true, and 4 if false for 3D data (default = True)
+                Use 6 neighbors for 4D data, irrespectively
+            swap_dim: Boolean
+                True indicates that time is listed in the last axis of Y (matlab format)
+                and moves it in the front
+        
+            Returns
+            --------
+        
+            rho: d1 x d2 [x d3] matrix, cross-correlation with adjacent pixels
+        
+        """
+        rho = si.local_correlations(Y, eight_neighbours=eight_neighbours, swap_dim=swap_dim)
 
-         rho = np.zeros(np.shape(self)[1:3])
-         w_mov = (self - np.mean(self, axis = 0))/np.std(self, axis = 0)
-
-         rho_h = np.mean(np.multiply(w_mov[:,:-1,:], w_mov[:,1:,:]), axis = 0)
-         rho_w = np.mean(np.multiply(w_mov[:,:,:-1], w_mov[:,:,1:,]), axis = 0)
-
-         if True:
-             rho_d1 = np.mean(np.multiply(w_mov[:,1:,:-1], w_mov[:,:-1,1:,]), axis = 0)
-             rho_d2 = np.mean(np.multiply(w_mov[:,:-1,:-1], w_mov[:,1:,1:,]), axis = 0)
-
-
-         rho[:-1,:] = rho[:-1,:] + rho_h
-         rho[1:,:] = rho[1:,:] + rho_h
-         rho[:,:-1] = rho[:,:-1] + rho_w
-         rho[:,1:] = rho[:,1:] + rho_w
-
-         if eight_neighbours:
-             rho[:-1,:-1] = rho[:-1,:-1] + rho_d2
-             rho[1:,1:] = rho[1:,1:] + rho_d1
-             rho[1:,:-1] = rho[1:,:-1] + rho_d1
-             rho[:-1,1:] = rho[:-1,1:] + rho_d2
-
-
-         if eight_neighbours:
-             neighbors = 8 * np.ones(np.shape(self)[1:3])
-             neighbors[0,:] = neighbors[0,:] - 3;
-             neighbors[-1,:] = neighbors[-1,:] - 3;
-             neighbors[:,0] = neighbors[:,0] - 3;
-             neighbors[:,-1] = neighbors[:,-1] - 3;
-             neighbors[0,0] = neighbors[0,0] + 1;
-             neighbors[-1,-1] = neighbors[-1,-1] + 1;
-             neighbors[-1,0] = neighbors[-1,0] + 1;
-             neighbors[0,-1] = neighbors[0,-1] + 1;
-         else:
-             neighbors = 4 * np.ones(np.shape(self)[1:3])
-             neighbors[0,:] = neighbors[0,:] - 1;
-             neighbors[-1,:] = neighbors[-1,:] - 1;
-             neighbors[:,0] = neighbors[:,0] - 1;
-             neighbors[:,-1] = neighbors[:,-1] - 1;
-
-
-
-
-         rho = np.divide(rho, neighbors)
-
-         return rho
+        return rho
 
     def partition_FOV_KMeans(self,tradeoff_weight=.5,fx=.25,fy=.25,n_clusters=4,max_iter=500):
         """
@@ -963,7 +956,7 @@ class movie(ts.timeseries):
                                            frames=self.shape[0], interval=1, blit=True)
 
             # call our new function to display the animation
-            return display_animation(anim, fps=fr)
+            return visualization.display_animation(anim, fps=fr)
 
 
          if fr==None:
@@ -1063,7 +1056,6 @@ def load(file_name,fr=None,start_time=0,meta_data=None,subindices=None,shape=Non
 
 
         elif extension == '.avi': # load avi file
-            #raise Exception('Use sintax mov=cb.load(filename)')
             if subindices is not None:
                 raise Exception('Subindices not implemented')
             cap = cv2.VideoCapture(file_name)

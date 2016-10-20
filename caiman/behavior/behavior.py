@@ -5,7 +5,7 @@ OPTICAL FLOW
 @author: agiovann
 """
 #%%
-import calblitz as cb
+import caiman as cm
 import numpy as np
 import pylab as pl
 from scipy.io import loadmat
@@ -309,7 +309,7 @@ if __name__ == "__main__":
 def main():
     #%
     mmat=loadmat('mov_AG051514-01-060914 C.mat')['mov']
-    m=cb.movie(mmat.transpose((2,0,1)),fr=120)
+    m=cm.movie(mmat.transpose((2,0,1)),fr=120)
     mask=select_roi(m[0])
     if 1:
         mov_tot=compute_optical_flow(m[:3000],mask)
