@@ -1,3 +1,4 @@
+#%%
 import numpy as np
 import matplotlib.pyplot as pl
 from matplotlib import animation
@@ -224,13 +225,13 @@ class GUI(animation.TimedAnimation):
             lastmax = np.max(t)
         self.ax_trcs.set_ylim([0,lastmax])
         #self.fig.canvas.draw_idle()
-
+#%%
 if __name__ == '__main__':
     # load data
-    mov = np.load('/Users/ben/Desktop/example.npy')
+    mov = load(fname,fr=30)
     mean,minn,maxx = mov.mean(axis=0),mov.min(axis=0),mov.max(axis=0)
     roi = np.load('/Users/ben/Desktop/roi.npy')
-    tr = np.load('/Users/ben/Desktop/tr.npy')
+    tr = np.random.random([3000,3])#np.load('/Users/ben/Desktop/tr.npy') roi
 
     # run interface
     intfc = GUI(mov, roi, tr, images=dict(mean=mean,min=minn,max=maxx))

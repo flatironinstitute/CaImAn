@@ -1938,7 +1938,35 @@ def stop_server(is_slurm=False, ipcluster='ipcluster',pdir=None,profile=None):
 #        end
 #    end
 #%%
+def estimate_noise_mode(traces,robust_std=False):
+    
+    T=np.shape(traces)[-1]
 
+    md = mode_robust_fast(traces, axis=1)
+
+    ff1 = traces - md[:, None]
+    # only consider values under the mode to determine the noise standard deviation
+    ff1 = -ff1 * (ff1 < 0)
+    if robust_std:
+        # compute 25 percentile
+        ff1 = np.sort(ff1, axis=1)
+        ff1[ff1 == 0] = np.nan
+        Ns = np.round(np.sum(ff1 > 0, 1) * .5)
+        iqr_h = np.zeros(traces.shape[0])
+
+        for idx, el in enumerate(ff1):
+            iqr_h[idx] = ff1[idx, -Ns[idx]]
+
+        # approximate standard deviation as iqr/1.349
+        sd_r = 2 * iqr_h / 1.349
+
+    else:
+        Ns = np.sum(ff1 > 0, 1)
+        sd_r = np.sqrt(np.sum(ff1**2, 1) / Ns)
+    
+    return sd_r    
+#
+#%%
 def compute_event_exceptionality(traces,robust_std=False,N=5):
     """
     Define a metric and order components according to the probabilty if some "exceptional events" (like a spike). Suvh probability is defined as the likeihood of observing the actual trace value over N samples given an estimated noise distribution. 
@@ -1961,14 +1989,16 @@ def compute_event_exceptionality(traces,robust_std=False,N=5):
     
     Returns:
     --------
-    idx_components: ndarray
-        the components ordered according to the fitness
-
+    
     fitness: ndarray
         value estimate of the quality of components (the lesser the better)
 
     erfc: ndarray
         probability at each time step of observing the N consequtive actual trace values given the distribution of noise
+        
+    noise_est: ndarray
+        the components ordered according to the fitness
+    
     """
     T=np.shape(traces)[-1]
     md = mode_robust(traces, axis=1)
@@ -1993,7 +2023,7 @@ def compute_event_exceptionality(traces,robust_std=False,N=5):
         Ns = np.sum(ff1 > 0, 1)
         sd_r = np.sqrt(np.sum(ff1**2, 1) / Ns)
 #
-
+    
 
     # compute z value
     z = (traces - md[:, None]) / (3 * sd_r[:, None])
@@ -2016,7 +2046,7 @@ def compute_event_exceptionality(traces,robust_std=False,N=5):
     #fitness = fitness[idx_components]
     #erfc = erfc[idx_components]
     
-    return fitness,erfc
+    return fitness,erfc,sd_r
 #%%
 def evaluate_components(Y, traces, A, C, b, f, remove_baseline = True, N = 5, robust_std = False, Athresh = 0.1, Npeaks = 5, tB=-5, tA = 25, thresh_C = 0.3):
     """ Define a metric and order components according to the probabilty if some "exceptional events" (like a spike). Suvh probability is defined as the likeihood of observing the actual trace value over N samples given an estimated noise distribution. 
@@ -2087,12 +2117,12 @@ def evaluate_components(Y, traces, A, C, b, f, remove_baseline = True, N = 5, ro
     Yr=np.reshape(Y,(d1*d2,T),order='F')    
     
     
-    fitness_delta, erfc_delta = compute_event_exceptionality(np.diff(traces,axis=1),robust_std=robust_std,N=N)
+    fitness_delta, erfc_delta,std_rr = compute_event_exceptionality(np.diff(traces,axis=1),robust_std=robust_std,N=N)
     
     if remove_baseline:
         traces = traces - scipy.ndimage.percentile_filter(traces,8,size=[1,np.shape(traces)[-1]/5])
         
-    fitness_raw, erfc_raw = compute_event_exceptionality(traces,robust_std=robust_std,N=N)
+    fitness_raw, erfc_raw,std_rr = compute_event_exceptionality(traces,robust_std=robust_std,N=N)
     
     
     # compute the overlap between spatial and movie average across samples with significant events
@@ -2162,8 +2192,73 @@ def evaluate_components(Y, traces, A, C, b, f, remove_baseline = True, N = 5, ro
 
     return fitness_raw, fitness_delta, erfc_raw, erfc_delta, r_values, significant_samples
 #%%
+#@numba.jit("void(f8[:])")
+#def bubblesort_jit(X):
+#    N = len(X)
+#    for end in range(N, 1, -1):
+#        for i in range(end - 1):
+#            cur = X[i]
+#            if cur > X[i + 1]:
+#                tmp = X[i]
+#                X[i] = X[i + 1]
+#                X[i + 1] = tmp   
+                                    
+#%%
+                                    
+import numba
+@numba.jit("void(f4[:])")
+def _hsm(data):
+    if data.size == 1:
+        return data[0]
+    elif data.size == 2:
+        return data.mean()
+    elif data.size == 3:
+        i1 = data[1] - data[0]
+        i2 = data[2] - data[1]
+        if i1 < i2:
+            return data[:2].mean()
+        elif i2 > i1:
+            return data[1:].mean()
+        else:
+            return data[1]
+    else:
+        
+        #            wMin = data[-1] - data[0]
+        wMin = np.inf
+        N = data.size / 2 + data.size % 2
 
+        for i in xrange(0, N):
+            w = data[i + N - 1] - data[i]
+            if w < wMin:
+                wMin = w
+                j = i
 
+        return _hsm(data[j:j + N])
+#%%
+
+def mode_robust_fast(inputData,axis=None):
+    """
+    Robust estimator of the mode of a data set using the half-sample mode.
+
+    .. versionadded: 1.0.3
+    """
+    
+    if axis is not None:
+        
+        fnc = lambda x: mode_robust_fast(x)
+
+        dataMode = np.apply_along_axis(fnc, axis, inputData)
+
+    else:
+        # Create the function that we can use for the half-sample mode        
+        data = inputData.ravel()        
+        # The data need to be sorted for this to work
+        data = np.sort(data)
+        # Find the mode
+        dataMode = _hsm(data)
+
+    return dataMode
+#%%
 def mode_robust(inputData, axis=None, dtype=None):
     """
     Robust estimator of the mode of a data set using the half-sample mode.
