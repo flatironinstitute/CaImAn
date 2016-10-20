@@ -132,7 +132,7 @@ if not is_patches:
     merge_thresh = 0.8  # merging threshold, max correlation allowed
     p = 2  # order of the autoregressive system
     cnmf = cse.CNMF(n_processes, method_init=init_method, k=K, gSig=gSig, merge_thresh=merge_thresh,
-                    p=p, dview=dview, Ain=None)
+                    p=p, dview=dview, Ain=None,method_deconvolution='oasis')
     cnmf = cnmf.fit(images)
 
 #%%
@@ -149,7 +149,7 @@ else:
     #%% RUN ALGORITHM ON PATCHES
 
     cnmf = cse.CNMF(n_processes, k=K, gSig=gSig, merge_thresh=0.8, p=0, dview=c[:], Ain=None, rf=rf, stride=stride, memory_fact=memory_fact,
-                    method_init=init_method, alpha_snmf=alpha_snmf, only_init_patch=True, gnb=1)
+                    method_init=init_method, alpha_snmf=alpha_snmf, only_init_patch=True, gnb=1,method_deconvolution='oasis')
     cnmf = cnmf.fit(images)
 
     A_tot = cnmf.A
