@@ -46,6 +46,7 @@ if is_dendrites == True:
     alpha_snmf=None #10e2  # this controls sparsity
 else:
     init_method = 'greedy_roi'
+    alpha_snmf=None #10e2  # this controls sparsity
 #%%
 # backend='SLURM'
 backend = 'local'
