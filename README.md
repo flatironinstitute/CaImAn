@@ -2,9 +2,15 @@
 CaImAn
 ======
 
-### *A Computational toolbox for large scale **Ca**lcium **Im**aging **An**alysis*
 
-Recent advances in calcium imaging acquisition techniques are creating datasets of the order of Terabytes/week. Memory and computationally efficient algorithms are required to analyze in reasonable amount of time terabytes of data. This projects implements a set of essential methods required in the calcium imaging movies analysis pipeline. Fast and scalable algorithms are implemented for motion correction, movie manipulation and roi segmentation.
+[![Join the chat at https://gitter.im/agiovann/SOURCE_EXTRACTION_PYTHON](https://badges.gitter.im/agiovann/SOURCE_EXTRACTION_PYTHON.svg)](https://gitter.im/agiovann/SOURCE_EXTRACTION_PYTHON?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
+<a href='https://travis-ci.org/agiovann/Constrained_NMF'><img src='https://secure.travis-ci.org/agiovann/Constrained_NMF.png?branch=master'></a>
+
+
+A Computational toolbox for large scale **Ca**lcium **Im**aging **An**alysis*
+
+Recent advances in calcium imaging acquisition techniques are creating datasets of the order of Terabytes/week. Memory and computationally efficient algorithms are required to analyze in reasonable amount of time terabytes of data. This projects implements a set of essential methods required in the calcium imaging movies analysis pipeline. Fast and scalable algorithms are implemented for motion correction, movie manipulation and source and spike extraction.
 
 
 ### Features
@@ -37,25 +43,26 @@ Recent advances in calcium imaging acquisition techniques are creating datasets 
 
 * Installation on posix
 
-Download and install Anaconda (Python 2.7) <http://docs.continuum.io/anaconda/install>
+   * Download and install Anaconda (Python 2.7) <http://docs.continuum.io/anaconda/install>
 
-```
-git clone --recursive https://github.com/agiovann/Constrained_NMF.git
-cd Constrained_NMF/CalBlitz/
-git checkout master
-git pull
-conda create -n CNMF ipython --file requirements_conda.txt    
-source activate CNMF
-pip install -r requirements_pip.txt
-conda install -c menpo opencv3=3.1.0
-```
+   ```
+   git clone --recursive https://github.com/agiovann/Constrained_NMF.git
+   cd Constrained_NMF/CalBlitz/
+   git checkout master
+   git pull
+   conda create -n CNMF ipython --file requirements_conda.txt    
+   source activate CNMF
+   pip install -r requirements_pip.txt
+   conda install -c menpo opencv3=3.1.0
+   ```
 
-To make the package available from everywhere:
+   * To make the package available from everywhere:
 
-```
-export PYTHONPATH="/path/to/caiman:$PYTHONPATH"
-```
+   ```
+   export PYTHONPATH="/path/to/caiman:$PYTHONPATH"
+   ```
 
+# Example
 
 # Contributors:
 
@@ -74,10 +81,6 @@ Please refer to the following wiki [page](https://github.com/agiovann/Constraine
 
 
 Python translation of Constrained Non-negative Matrix Factorization algorithm for source extraction from calcium imaging data.
-
-[![Join the chat at https://gitter.im/agiovann/SOURCE_EXTRACTION_PYTHON](https://badges.gitter.im/agiovann/SOURCE_EXTRACTION_PYTHON.svg)](https://gitter.im/agiovann/SOURCE_EXTRACTION_PYTHON?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
-
-<a href='https://travis-ci.org/agiovann/Constrained_NMF'><img src='https://secure.travis-ci.org/agiovann/Constrained_NMF.png?branch=master'></a>
 
 # Deconvolution and demixing of calcium imaging data
 
