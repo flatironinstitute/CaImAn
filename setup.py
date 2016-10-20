@@ -52,5 +52,5 @@ setup(
     include_dirs=[np.get_include()],
     # compile with:     python setup.py build_ext -i
     # clean up with:    python setup.py clean --all
-    ext_modules=cythonize("ca_source_extraction/oasis.pyx")
+    ext_modules=cythonize("caiman/source_extraction/cnmf/oasis.pyx")
 )
