@@ -2,39 +2,40 @@
 CaImAn
 ======
 
-# Computational toolbox for large scale **Ca**lcium **Im**aging **An**alysis
+### *A Computational toolbox for large scale **Ca**lcium **Im**aging **An**alysis*
 
 Recent advances in calcium imaging acquisition techniques are creating datasets of the order of Terabytes/week. Memory and computationally efficient algorithms are required to analyze in reasonable amount of time terabytes of data. This projects implements a set of essential methods required in the calcium imaging movies analysis pipeline. Fast and scalable algorithms are implemented for motion correction, movie manipulation and roi segmentation.
 
 
 
 
-## Handling of very large datasets
+### Handling of very large datasets
 
 * Memory mapping
 * Frame-by-frame online processing  (some functions)
 * opencv-based efficient movie playing and resizing
 
-## Motion correction
+### Motion correction
 
 * Fast parallelizable open-cv motion correction of large movies
 * Run also in online mode (i.e. one frame at a time)
 * (in progress) non rigid motion correction
 
-## Source extraction 
+### Source extraction 
 
 * identification of oixles associated to each neuron/neuronal structure
 * deals with heavily overlaping and neuroopil contaminated movies 
 * separates different sources based on Nonnegative Matrix Factorization algorithms
 
-## Denoising, deconvolution and spike extraction
+### Denoising, deconvolution and spike extraction
 
 * spikes can be inferred from fluorescence traces
 * also works in online mode (i.e. one sample at a time)
 
-# Installation
+### Installation
 
-## Installation on posix
+
+### Installation on posix
 ----------------------
 
 Download and install Anaconda (Python 2.7) <http://docs.continuum.io/anaconda/install>
@@ -48,8 +49,10 @@ conda create -n CNMF ipython --file requirements_conda.txt
 source activate CNMF
 pip install -r requirements_pip.txt
 conda install -c menpo opencv3=3.1.0
+```
 
 To make the package available from everywhere:
+
 ```
 export PYTHONPATH="/path/to/caiman:$PYTHONPATH"
 ```
