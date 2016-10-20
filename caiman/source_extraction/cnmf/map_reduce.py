@@ -8,12 +8,11 @@ Created on Wed Feb 17 14:58:26 2016
 """
 from ipyparallel import Client
 import numpy as np
-from sklearn.decomposition import NMF
 from scipy.sparse import lil_matrix,coo_matrix
 import time
 import scipy
-from utilities import load_memmap
 import os
+from caiman.mmapping import load_memmap
 #%%
 def extract_patch_coordinates(d1,d2,rf=(7,7),stride = (2,2)):
     """
@@ -79,7 +78,6 @@ def extract_rois_patch(file_name,d1,d2,rf=5,stride = 5):
     C2=[]
     for count,f in enumerate(file_res):
         idx_,flt,ca,d=f
-        #flt,ca,_=cse.order_components(coo_matrix(flt),ca)
         A1[idx_,count]=flt[:,0][:,np.newaxis]        
         A2[idx_,count]=flt[:,1][:,np.newaxis]        
         C1.append(ca[0,:])
@@ -93,7 +91,7 @@ def extract_rois_patch(file_name,d1,d2,rf=5,stride = 5):
 #%%    
 def cnmf_patches(args_in):
     import numpy as np
-    import ca_source_extraction as cse
+    import caiman as cm
     import time
     import logging
 
@@ -133,10 +131,10 @@ def cnmf_patches(args_in):
 
         options['spatial_params']['dims']=(d1,d2)
         logger.info('Preprocess Data')
-        Yr,sn,g,psx=cse.pre_processing.preprocess_data(Yr,**options['preprocess_params'])
+        Yr,sn,g,psx=cm.source_extraction.cnmf.pre_processing.preprocess_data(Yr,**options['preprocess_params'])
         
         logger.info('Initialize Components') 
-        Ain, Cin, b_in, f_in, center=cse.initialization.initialize_components(Y, **options['init_params']) 
+        Ain, Cin, b_in, f_in, center=cm.source_extraction.cnmf.initialization.initialize_components(Y, **options['init_params']) 
 #        import pdb
 #        pdb.set_trace()
         nA = np.squeeze(np.array(np.sum(np.square(Ain),axis=0)))
@@ -155,22 +153,22 @@ def cnmf_patches(args_in):
         else:
                                               
             logger.info('Spatial Update')                                                      
-            A,b,Cin = cse.spatial.update_spatial_components(Yr, Cin, f_in, Ain, sn=sn, **options['spatial_params'])  
+            A,b,Cin = cm.source_extraction.cnmf.spatial.update_spatial_components(Yr, Cin, f_in, Ain, sn=sn, **options['spatial_params'])  
             options['temporal_params']['p'] = 0 # set this to zero for fast updating without deconvolution
                                                                        
             
             logger.info('Temporal Update')  
-            C,f,S,bl,c1,neurons_sn,g,YrA = cse.temporal.update_temporal_components(Yr,A,b,Cin,f_in,bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
+            C,f,S,bl,c1,neurons_sn,g,YrA = cm.source_extraction.cnmf.temporal.update_temporal_components(Yr,A,b,Cin,f_in,bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
             
             logger.info('Merge Components') 
-            A_m,C_m,nr_m,merged_ROIs,S_m,bl_m,c1_m,sn_m,g_m=cse.merging.merge_components(Yr,A,b,C,f,S,sn,options['temporal_params'], options['spatial_params'], bl=bl, c1=c1, sn=neurons_sn, g=g, thr=options['merging']['thr'], fast_merge = True)
+            A_m,C_m,nr_m,merged_ROIs,S_m,bl_m,c1_m,sn_m,g_m=cm.source_extraction.cnmf.merging.merge_components(Yr,A,b,C,f,S,sn,options['temporal_params'], options['spatial_params'], bl=bl, c1=c1, sn=neurons_sn, g=g, thr=options['merging']['thr'], fast_merge = True)
                                                                   
             logger.info('Update Spatial II')
-            A2,b2,C2 = cse.spatial.update_spatial_components(Yr, C_m, f, A_m, sn=sn, **options['spatial_params'])
+            A2,b2,C2 = cm.source_extraction.cnmf.spatial.update_spatial_components(Yr, C_m, f, A_m, sn=sn, **options['spatial_params'])
             
             logger.info('Update Temporal II')                                                       
             options['temporal_params']['p'] = p # set it back to original value to perform full deconvolution
-            C2,f2,S2,bl2,c12,neurons_sn2,g21,YrA = cse.temporal.update_temporal_components(Yr,A2,b2,C2,f,bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
+            C2,f2,S2,bl2,c12,neurons_sn2,g21,YrA = cm.source_extraction.cnmf.temporal.update_temporal_components(Yr,A2,b2,C2,f,bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
                                                                    
            
             Y=[]

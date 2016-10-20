@@ -6,224 +6,15 @@ Created on Tue Jun 30 21:01:17 2015
 """
 
 #%%
-
-import scipy.ndimage
-import warnings
 import numpy as np
-from pylab import plt
-
-import calblitz as cb
-import numpy as np
-from ipyparallel import Client
 import os
 import tifffile
 
-#%% CVX OPT
-#####    LOOK AT THIS! https://github.com/cvxgrp/cvxpy/blob/master/examples/qcqp.py
-if False:
-    from cvxopt import matrix, solvers
-    A = matrix([ [ .3, -.4,  -.2,  -.4,  1.3 ],
-                     [ .6, 1.2, -1.7,   .3,  -.3 ],
-                     [-.3,  .0,   .6, -1.2, -2.0 ] ])
-    b = matrix([ 1.5, .0, -1.2, -.7, .0])
-    m, n = A.size
-    I = matrix(0.0, (n,n))
-    I[::n+1] = 1.0
-    G = matrix([-I, matrix(0.0, (1,n)), I])
-    h = matrix(n*[0.0] + [1.0] + n*[0.0])
-    dims = {'l': n, 'q': [n+1], 's': []}
-    x = solvers.coneqp(A.T*A, -A.T*b, G, h, dims)['x']
-    print(x)    
-    #%%
-    from scipy.signal import lfilter
-    dt=0.016;
-    t=np.arange(0,10,dt)
-    lambda_=dt*1;
-    tau=.17;
-    sigmaNoise=.1;
-    tfilt=np.arange(0,4,dt);
-    spikes=np.random.poisson(lam=lambda_,size=t.shape);
-    print(np.sum(spikes))
-    filtExp=np.exp(-tfilt/tau);
-    simTraceCa=lfilter(filtExp,1,spikes);
-    simTraceFluo=simTraceCa+np.random.normal(loc=0, scale=sigmaNoise,size=np.shape(simTraceCa));
-    plt.plot(t,simTraceCa,'g')
-    plt.plot(t,spikes,'r')
-    plt.plot(t,simTraceFluo)           
-    
-      
-    #%%
-    #trtest=tracesDFF.D_5
-    #simTraceFluo=trtest.Data';
-    #dt=trtest.frameRate;
-    #t=trtest.Time;
-    #tau=.21;
-    
-    #%%
-    gam=(1-dt/tau);
-    numSamples=np.shape(simTraceFluo)[-1];
-    G=np.diag(np.repeat(-gam,numSamples-1),-1) + np.diag(np.repeat(1,numSamples));
-    A_2=- np.diag(np.repeat(1,numSamples));
-    Aeq1=np.concatenate((G,A_2),axis=1);
-    beq=np.hstack((simTraceFluo[0],np.zeros(numSamples-1)));
-    A1=np.hstack((np.zeros(numSamples), -np.ones(numSamples)));
-    
-    
-    #%%
-    T = np.size(G,0);
-    oness=np.ones((T));
-    sqthr=np.sqrt(thr);
-    #y(y<(mean(y(:)-3*std(y(:)))))=0;
-#%%
-
-  
-
-def apply_function_per_movie_cluster(client_,function_name,args):
-    """ use ipyparallel and SLURM to apply the same function on several datasets
-    Parameters:
-    -----------
-    client_: pointer to ipyparallel client
-        
-    file_names: str
-        list of file names
-    function_name: handle
-        name of function to apply
-
-    args: list
-        arguments to pass to function
-    
-    Returns:
-    -------
-    
-    file_res: list 
-        containing outputs
-    """
-    
-    
-    
-    return file_res
-
-def pre_preprocess_movie_labeling(dview, file_names, median_filter_size=(2,1,1), 
-                                  resize_factors=[.2,.1666666666],diameter_bilateral_blur=4):
-   def pre_process_handle(args):
-#        import calblitz as cb 
-        
-        from scipy.ndimage import filters as ft
-        import logging
-        
-        fil, resize_factors, diameter_bilateral_blur,median_filter_size=args
-        
-        name_log=fil[:-4]+ '_LOG'
-        logger = logging.getLogger(name_log)
-        hdlr = logging.FileHandler(name_log)
-        formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
-        hdlr.setFormatter(formatter)
-        logger.addHandler(hdlr) 
-        logger.setLevel(logging.INFO)
-
-        logger.info('START')
-        logger.info(fil)
-        mov=cb.load(fil,fr=30)
-        logger.info('Read file')
-
-        mov=mov.resize(1,1,resize_factors[0])
-        logger.info('Resize')
-        mov=mov.bilateral_blur_2D(diameter=diameter_bilateral_blur)
-        logger.info('Bilateral')
-        mov1=cb.movie(ft.median_filter(mov,median_filter_size),fr=30)
-        logger.info('Median filter')
-        #mov1=mov1-np.median(mov1,0)
-        mov1=mov1.resize(1,1,resize_factors[1])
-        logger.info('Resize 2')
-        mov1=mov1-cb.utils.mode_robust(mov1,0)
-        logger.info('Mode')
-        mov=mov.resize(1,1,resize_factors[1])
-        logger.info('Resize')
-#        mov=mov-np.percentile(mov,1)
-        
-        mov.save(fil[:-4] + '_compress_.tif')
-        logger.info('Save 1')
-        mov1.save(fil[:-4] + '_BL_compress_.tif')
-        logger.info('Save 2')
-        return 1
-        
-   args=[]
-   for name in file_names:
-            args.append([name,resize_factors,diameter_bilateral_blur,median_filter_size])
-            
-   if dview is not None: 
-       file_res = dview.map_sync(pre_process_handle, args)                         
-       dview.results.clear()       
-   else:
-       file_res = map(pre_process_handle, args)     
-        
-   return file_res
-    
-#%%
-
-
-#%%
-def mode_robust(inputData, axis=None, dtype=None):
-    """
-    Robust estimator of the mode of a data set using the half-sample mode.
-
-    .. versionadded: 1.0.3
-    """
-    import numpy
-    if axis is not None:
-        fnc = lambda x: mode_robust(x, dtype=dtype)
-        dataMode = numpy.apply_along_axis(fnc, axis, inputData)
-    else:
-        # Create the function that we can use for the half-sample mode
-        def _hsm(data):
-            if data.size == 1:
-                return data[0]
-            elif data.size == 2:
-                return data.mean()
-            elif data.size == 3:
-                i1 = data[1] - data[0]
-                i2 = data[2] - data[1]
-                if i1 < i2:
-                    return data[:2].mean()
-                elif i2 > i1:
-                    return data[1:].mean()
-                else:
-                    return data[1]
-            else:
-
-                #            wMin = data[-1] - data[0]
-                wMin = np.inf
-                N = data.size / 2 + data.size % 2
-                for i in xrange(0, N):
-                    w = data[i + N - 1] - data[i]
-                    if w < wMin:
-                        wMin = w
-                        j = i
-
-                return _hsm(data[j:j + N])
-
-        data = inputData.ravel()
-        if type(data).__name__ == "MaskedArray":
-            data = data.compressed()
-        if dtype is not None:
-            data = data.astype(dtype)
-
-        # The data need to be sorted for this to work
-        data = numpy.sort(data)
-
-        # Find the mode
-        dataMode = _hsm(data)
-
-    return dataMode
 #%%    
 def process_movie_parallel(arg_in):
-#    import calblitz
-#    import calblitz.movies
-    import calblitz as cb
-    import numpy as np
-    import sys
-    
 
+    import caiman as cm
+    import numpy as np    
     
 
     fname,fr,margins_out,template,max_shift_w, max_shift_h,remove_blanks,apply_smooth,save_hdf5=arg_in
@@ -231,7 +22,7 @@ def process_movie_parallel(arg_in):
     if template is not None:
         if type(template) is str:
             if os.path.exists(template):
-                template=cb.load(template,fr=1)
+                template=cm.load(template,fr=1)
             else:
                 raise Exception('Path to template does not exist:'+template)                
 #    with open(fname[:-4]+'.stout', "a") as log:
@@ -241,13 +32,13 @@ def process_movie_parallel(arg_in):
     #    import pdb
     #    pdb.set_trace()
     
-    if type(fname) is cb.movie or type(fname) is cb.movies.movie:
+    if type(fname) is cm.movie or type(fname) is cm.movies.movie:
         print type(fname)
         Yr=fname
 
     else:        
         
-        Yr=cb.load(fname,fr=fr)
+        Yr=cm.load(fname,fr=fr)
         
     if Yr.ndim>1:
 
@@ -275,7 +66,7 @@ def process_movie_parallel(arg_in):
 
   #      Yr = Yr + bl_yr           
         
-        if type(fname) is cb.movie:
+        if type(fname) is cm.movie:
 
             return Yr 
 
@@ -325,7 +116,7 @@ def val_parse(v):
 
         else:
             return v
-
+#%%
 def si_parse(imd):
 
     # parse image_description field embedded by scanimage

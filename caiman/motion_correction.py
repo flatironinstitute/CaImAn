@@ -18,6 +18,8 @@ def apply_shift_iteration(img,shift):
      return  cv2.warpAffine(img,M,(w_i,h_i),flags=cv2.INTER_CUBIC)
 #%%
 def apply_shift_online(movie_iterable,xy_shifts,save_base_name=None,order='F'):
+    if len(movie_iterable) != len(xy_shifts):
+        raise Exception('Number of shifts does not match movie length!')
     count=0
     new_mov=[]
     
@@ -270,9 +272,9 @@ def bin_median(mat,window=10):
 #
 #        count+=1
 
-    #%% NON RIGID
+#%% NON RIGID
 #import scipy
-#chone=cb.load('/Users/agiovann/Documents/MATLAB/Motion_Correction/M_FLUO_1.tif',fr=15)
+#chone=cm.load('/Users/agiovann/Documents/MATLAB/Motion_Correction/M_FLUO_1.tif',fr=15)
 #chone=chone[:,8:-8,8:-8]
 #T=np.median(chone,axis=0)
 #Nbasis = 8
@@ -482,7 +484,7 @@ def bin_median(mat,window=10):
 #max_shift_aff=3
 #
 #fullfilename = filenames[0]
-#chone=cb.load(fullfilename,fr=fr)
+#chone=cm.load(fullfilename,fr=fr)
 ##chone=chone.crop(5,5,5,5)
 #chone,_,_,_=chone.motion_correct(max_shift_rigid,max_shift_rigid,remove_blanks=True)
 ##info=imfinfo(fullfilename)
@@ -561,7 +563,7 @@ def bin_median(mat,window=10):
 #    new_mov.append(warped)
 ##    tform=fitgeotrans(fpts,rpts,'affine')
 ##    cated_movie(:,:,frame)=imwarp(cated_movie(:,:,frame),tform,'OutputView',R)   
-#new_mov=cb.concatenate([chone,cb.movie(np.array(new_mov),fr=15)],axis=1)
+#new_mov=cm.concatenate([chone,cm.movie(np.array(new_mov),fr=15)],axis=1)
 ##%%
 #
 ##cated_movie(:,:,1) = cated_movie(:,:,2)

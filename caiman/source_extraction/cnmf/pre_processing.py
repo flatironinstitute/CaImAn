@@ -10,14 +10,9 @@ A set of pre-processing operations in the input dataset:
 """
 
 import numpy as np
-from scipy.interpolate import griddata
 import tempfile
-import os
-#from joblib import Parallel,delayed
 import shutil
-from multiprocessing.dummy import Pool as ThreadPool 
-from utilities import load_memmap
-from ipyparallel import Client
+from caiman.mmapping import load_memmap
 
 #%%
 def interpolate_missing_data(Y):

@@ -32,36 +32,47 @@ import matplotlib as mpl
 import pylab as pl
 pl.ion()
 #%%
-import caiman
-from caiman.base import movies,timeseries
-from caiman.source_extraction import cnmf as cnmf
-from caiman.base.movies import movie,load
 from skimage.external import tifffile
-import numpy as np
+import caiman as cm
+from caiman.source_extraction import cnmf as cnmf
+from caiman.components_evaluation import evaluate_components
+from caiman.utils.visualization import plot_contours
+from caiman.base.rois import extract_binary_masks_blob
 #%%
 fname='/mnt/ceph/neuro/labeling/k37_20160109_AM_150um_65mW_zoom2p2_00001_1-16/images/k37_20160109_AM_150um_65mW_zoom2p2_00001_00001.tif'
 #fname='/run/media/agiovann/ANDREA/k26_v1_176um_target_pursuit_002_013.tif'
+fname='./example_movies/demoMovie.tif'
+
 with tifffile.TiffFile(fname) as tf: 
     m=movie(tf,fr=30)
+    mh=movie(tf.asarray(),fr=30)
+#(mh-np.percentile(mh,8)).play(backend='opencv',fr=100,gain=10.,magnification=5)
+#mh=mh.motion_correct(5,5)[0]
+    #%%
+m=load(fname,fr=30).resize(1,1,.2)
+#%%
+shifts_,xcorrs_,template_ = m.motion_correction_online(init_frames_template=100,max_shift_h=5,max_shift_w=5)
+#%%
+shifts,xcorrs,template = m.motion_correction_online(template=template_,min_count=len(m),max_shift_h=5,max_shift_w=5)
 
-shifts_,xcorrs_,template_ = m.motion_correction_online(init_frames_template=400)
 #%%
-shifts,xcorrs,template = m.motion_correction_online(template=template_,min_count=len(m))
-#%%
+
 #m1=m.apply_shifts_online(shifts)   
 #m1=m.resize(1,1,.2)
 #%%
 mov_path=m.apply_shifts_online(shifts,save_base_name='/tmp/test')   
 #%%
-m=load(mov_path,fr=10)
-m1=m.resize(1,1,.2)
+m=load(mov_path,fr=30*.2)
+m1=cm.concatenate([m.resize(1,1,1),mh.resize(1,1,1)],axis=1)
+
+(m1-np.percentile(m1,8)).play(backend='opencv',fr=100,gain=3.,magnification=5)
 
 #%%
 #mc=m.motion_correct(5,5)
 #%%
 #m1=mc[0].resize(1,1,.2)
 #%%
-(m1-np.percentile(m1,8)).play(backend='opencv',fr=100,gain=10.)
+(m1-np.percentile(m1,8)).play(backend='opencv',fr=100,gain=10.,magnification=5)
 #%%
 final_frate=15
 is_patches=True
@@ -70,7 +81,7 @@ is_dendrites=False
 if is_dendrites == True:
 # THIS METHOd CAN GIVE POSSIBLY INCONSISTENT RESULTS ON SOMAS WHEN NOT USED WITH PATCHES    
     init_method = 'sparse_nmf' 
-    alpha_snmf=10e2 # this controls sparsity
+    alpha_snmf=None # this controls sparsity
 else:
     init_method = 'greedy_roi'
     alpha_snmf=None
@@ -83,7 +94,7 @@ else:
     n_processes = np.maximum(np.int(psutil.cpu_count()),1) # roughly number of cores on your machine minus 1
 print 'using ' + str(n_processes) + ' processes'
 #%% start cluster for efficient computation
-single_thread=True
+single_thread=False
 
 if single_thread:
     dview=None
@@ -96,16 +107,16 @@ else:
     sys.stdout.flush()  
     if backend == 'SLURM':
         try:
-            cnmf.utilities.stop_server(is_slurm=True)
+            stop_server(is_slurm=True)
         except:
             print 'Nothing to stop'
         slurm_script='/mnt/xfs1/home/agiovann/SOFTWARE/Constrained_NMF/SLURM/slurmStart.sh'
-        cnmf.utilities.start_server(slurm_script=slurm_script)
+        start_server(slurm_script=slurm_script)
         pdir, profile = os.environ['IPPPDIR'], os.environ['IPPPROFILE']
         c = Client(ipython_dir=pdir, profile=profile)        
     else:
-        cnmf.utilities.stop_server()
-        cnmf.utilities.start_server()        
+        stop_server()
+        start_server()        
         c=Client()
 
     print 'Using '+ str(len(c)) + ' processes'
@@ -114,9 +125,9 @@ else:
 fnames=[]
 base_folder='/run/media/agiovann/ANDREA/' # folder containing the demo files
 base_folder='/run/media/agiovann/ANDREA/'
-
+base_folder='./example_movies'
 for file in glob.glob(os.path.join(base_folder,'*.tif')):
-    if file.endswith("k26_v1_176um_target_pursuit_002_013.tif"):
+    if file.endswith("ie.tif"):
         fnames.append(os.path.abspath(file))
 fnames.sort()
 if len(fnames)==0:
@@ -128,19 +139,20 @@ fnames=fnames
 #idx_x=slice(12,500,None)
 #idx_y=slice(12,500,None)
 #idx_xy=(idx_x,idx_y)
-downsample_factor=.2 # use .2 or .1 if file is large and you want a quick answer
+add_to_movie=300
+downsample_factor=1. # use .2 or .1 if file is large and you want a quick answer
 final_frate=final_frate*downsample_factor
 idx_xy=None
 base_name='Yr'
-name_new=cnmf.utilities.save_memmap_each(fnames, dview=dview,base_name=base_name, resize_fact=(1, 1, downsample_factor), remove_init=0,idx_xy=idx_xy )
+name_new=save_memmap_each(fnames, dview=dview,base_name=base_name, resize_fact=(1, 1, downsample_factor), remove_init=0,idx_xy=idx_xy,add_to_movie=add_to_movie)
 name_new.sort()
 print name_new
 #%%
-fname_new=cnmf.utilities.save_memmap_join(name_new,base_name='Yr', n_chunks=12, dview=dview)
+fname_new=save_memmap_join(name_new,base_name='Yr', n_chunks=12, dview=dview)
 #%%
 #fname_new='Yr_d1_501_d2_398_d3_1_order_F_frames_369_.mmap'
 #fname_new=m1
-Yr,dims,T=cnmf.utilities.load_memmap(fname_new)
+Yr,dims,T=load_memmap(fname_new)
 d1,d2=dims
 images=np.reshape(Yr.T,[T]+list(dims),order='F')
 Y=np.reshape(Yr,dims+(T,),order='F')
@@ -154,16 +166,16 @@ if not is_patches:
     gSig=[7,7] # expected half size of neurons
     merge_thresh=0.8 # merging threshold, max correlation allowed
     p=2 #order of the autoregressive system
-    cnmf=cnmf.CNMF(n_processes, method_init=init_method, k=K,gSig=gSig,merge_thresh=merge_thresh,\
+    cnm=cnmf.CNMF(n_processes, method_init=init_method, k=K,gSig=gSig,merge_thresh=merge_thresh,\
                         p=p,dview=dview,Ain=None)
-    cnmf=cnmf.fit(images)
+    cnm=cnm.fit(images)
      
 #%%
 else:
     #%%
     rf=15 # half-size of the patches in pixels. rf=25, patches are 50x50
     stride = 4 #amounpl.it of overlap between the patches in pixels    
-    K=3 # number of neurons expected per patch
+    K=6# number of neurons expected per patch
     gSig=[7,7] # expected half size of neurons
     merge_thresh=0.8 # merging threshold, max correlation allowed
     p=2 #order of the autoregressive system
@@ -193,7 +205,7 @@ else:
     traces=C_tot+YrA_tot
     #        traces_a=traces-scipy.ndimage.percentile_filter(traces,8,size=[1,np.shape(traces)[-1]/5])
     #        traces_b=np.diff(traces,axis=1)
-    fitness_raw, fitness_delta, erfc_raw, erfc_delta, r_values, significant_samples = cnmf.utilities.evaluate_components(Y, traces, A_tot, C_tot, b_tot, f_tot, remove_baseline=True, N=5, robust_std=False,Athresh = 0.1, Npeaks = Npeaks, tB=tB, tA = tA, thresh_C = 0.3)
+    fitness_raw, fitness_delta, erfc_raw, erfc_delta, r_values, significant_samples = evaluate_components(Y, traces, A_tot, C_tot, b_tot, f_tot, remove_baseline=True, N=5, robust_std=False,Athresh = 0.1, Npeaks = Npeaks, tB=tB, tA = tA, thresh_C = 0.3)
     
     idx_components_r=np.where(r_values>=.4)[0]
     idx_components_raw=np.where(fitness_raw<-20)[0]        
@@ -206,7 +218,7 @@ else:
     print ('Keeping ' + str(len(idx_components)) + ' and discarding  ' + str(len(idx_components_bad)))
     #%%
     pl.figure()
-    crd = cnmf.utilities.plot_contours(A_tot.tocsc()[:,idx_components],Cn,thr=0.9)
+    crd = plot_contours(A_tot.tocsc()[:,idx_components],Cn,thr=0.9)
     #%%
     A_tot=A_tot.tocsc()[:,idx_components]
     C_tot=C_tot[idx_components]
@@ -216,9 +228,9 @@ else:
         np.savez('results_analysis_patch.npz',A_tot=A_tot, C_tot=C_tot, YrA_tot=YrA_tot,sn_tot=sn_tot,d1=d1,d2=d2,b_tot=b_tot,f=f_tot) 
     #%% if you have many components this might take long!
     pl.figure()
-    crd = cnmf.utilities.plot_contours(A_tot,Cn,thr=0.9)
+    crd = plot_contours(A_tot,Cn,thr=0.9)
     #%%
-    cnm=cnmf.CNMF(n_processes, k=A_tot.shape,gSig=gSig,merge_thresh=merge_thresh,p=p,dview=None,Ain=A_tot,Cin=C_tot,\
+    cnm=cnmf.CNMF(n_processes, k=A_tot.shape,gSig=gSig,merge_thresh=merge_thresh,p=p,dview=dview,Ain=A_tot,Cin=C_tot,\
                      f_in=f_tot, rf=None,stride=None)
     
 #    images_1=np.array(images-np.min(images))                     
@@ -234,7 +246,7 @@ traces=C+YrA
 #        traces_a=traces-scipy.ndimage.percentile_filter(traces,8,size=[1,np.shape(traces)[-1]/5])
 #        traces_b=np.diff(traces,axis=1)
 fitness_raw, fitness_delta, erfc_raw, erfc_delta, r_values, significant_samples = \
-    cnmf.utilities.evaluate_components(Y, traces, A, C, b, f, remove_baseline=True, \
+    evaluate_components(Y, traces, A, C, b, f, remove_baseline=True, \
     N=5, robust_std=False, Athresh = 0.1, Npeaks = Npeaks, tB=tB, tA = tA, thresh_C = 0.3)
 
 idx_components_r=np.where(r_values>=.5)[0]
@@ -243,7 +255,7 @@ idx_components_delta=np.where(fitness_delta<-20)[0]
 
 
 min_radius=gSig[0]-2
-masks_ws,idx_blobs,idx_non_blobs=cnmf.utilities.extract_binary_masks_blob(
+masks_ws,idx_blobs,idx_non_blobs=extract_binary_masks_blob(
 A.tocsc(), min_radius, dims, num_std_threshold=1, 
 minCircularity= 0.5, minInertiaRatio = 0.2,minConvexity =.8)
 
@@ -264,11 +276,11 @@ if save_results:
 #%% visualize components
 #pl.figure();
 pl.subplot(1,3,1)
-crd = cnmf.utilities.plot_contours(A.tocsc()[:,idx_components],Cn,thr=0.9)
+crd = plot_contours(A.tocsc()[:,idx_components],Cn,thr=0.9)
 pl.subplot(1,3,2)
-crd = cnmf.utilities.plot_contours(A.tocsc()[:,idx_blobs],Cn,thr=0.9)
+crd = plot_contours(A.tocsc()[:,idx_blobs],Cn,thr=0.9)
 pl.subplot(1,3,3)
-crd = cnmf.utilities.plot_contours(A.tocsc()[:,idx_components_bad],Cn,thr=0.9)
+crd = plot_contours(A.tocsc()[:,idx_components_bad],Cn,thr=0.9)
 #%%
 cnmf.utilities.view_patches_bar(Yr,scipy.sparse.coo_matrix(A.tocsc()[:,idx_components]),C[idx_components,:],b,f, dims[0],dims[1], YrA=YrA[idx_components,:],img=Cn)  
 #%%
@@ -277,9 +289,9 @@ cnmf.utilities.view_patches_bar(Yr,scipy.sparse.coo_matrix(A.tocsc()[:,idx_compo
 pl.close()
 if not single_thread:    
     c.close()
-    cnmf.utilities.stop_server()
+    stop_server()
 #%%
-cnmf.utilities.stop_server(is_slurm = (backend == 'SLURM')) 
+stop_server(is_slurm = (backend == 'SLURM')) 
 log_files=glob.glob('Yr*_LOG_*')
 for log_file in log_files:
     os.remove(log_file)
