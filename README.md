@@ -45,7 +45,7 @@ Recent advances in calcium imaging acquisition techniques are creating datasets 
 
    * Download and install Anaconda (Python 2.7) <http://docs.continuum.io/anaconda/install>
 
-   ```
+   ```bash
    git clone --recursive https://github.com/agiovann/Constrained_NMF.git
    cd Constrained_NMF/CalBlitz/
    git checkout master
@@ -58,11 +58,15 @@ Recent advances in calcium imaging acquisition techniques are creating datasets 
 
    * To make the package available from everywhere:
 
-   ```
+   ```bash
    export PYTHONPATH="/path/to/caiman:$PYTHONPATH"
    ```
 
 # Example
+
+   ```python
+   
+   ```
 
 # Contributors:
 
