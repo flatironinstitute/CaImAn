@@ -916,7 +916,7 @@ class movie(ts.timeseries):
         [T,d1,d2]=self.shape
         return movie(np.concatenate([self[j:j+window,:,:].local_correlations(eight_neighbours=True)[np.newaxis,:,:] for j in range(T-window)],axis=0),fr=self.fr)
 
-    def play(self,gain=1,fr=None,magnification=1,offset=0,interpolation=cv2.INTER_LINEAR,backend='pylab',do_loop=False):
+    def play(self,gain=1,fr=None,magnification=1,offset=0,interpolation=cv2.INTER_LINEAR,backend='opencv',do_loop=False):
          """
          Play the movie using opencv
 
@@ -1017,7 +1017,7 @@ class movie(ts.timeseries):
             
 
 
-def load(file_name,fr=None,start_time=0,meta_data=None,subindices=None,shape=None,num_frames_sub_idx=np.inf):
+def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None,num_frames_sub_idx=np.inf):
     '''
     load movie from file.
 

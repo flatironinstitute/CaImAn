@@ -52,7 +52,7 @@ class timeseries(np.ndarray):
 
     """
 
-    def __new__(cls, input_arr, fr=None,start_time=0,file_name=None, meta_data=None):
+    def __new__(cls, input_arr, fr=30,start_time=0,file_name=None, meta_data=None):
         #
 
         if fr is None:
