@@ -16,7 +16,7 @@ with open('README.md', 'r') as rmf:
 #incdir = os.path.join(get_python_inc(plat_specific=1), 'Numerical')
 
 setup(
-    name='Constrained_NMF',
+    name='CaImAn',
     version='0.1',
     author='Andrea Giovannucci and Eftychios Pnevmatikakis',
     author_email='agiovannucci@simonsfoundation.org',
@@ -44,7 +44,7 @@ setup(
         'Programming Language :: Python :: 2.7',
     ],
     keywords='fluorescence calcium ca imaging deconvolution ROI identification',
-    packages=['ca_source_extraction'],
+    packages=['caiman'],
     data_files=[	('', ['LICENSE.txt']),
                  ('', ['README.md'])],
     # 'matplotlib', 'scikit-learn', 'scikit-image', 'ipyparallel','scikit-learn','ipython','scipy','numpy'],#,'bokeh','jupyter','tifffile','cvxopt','picos', 'joblib>=0.8.4'],
