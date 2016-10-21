@@ -1,12 +1,9 @@
 # -*- coding: utf-8 -*-
 """
 Created on Wed Feb 24 18:39:45 2016
-
 @author: Andrea Giovannucci
-
 For explanation consult at https://github.com/agiovann/Constrained_NMF/releases/download/v0.4-alpha/Patch_demo.zip
 and https://github.com/agiovann/Constrained_NMF
-
 """
 #%%
 try:
