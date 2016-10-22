@@ -15,7 +15,7 @@ ENV PATH=/anaconda/bin:${PATH}
 RUN conda config --set always_yes yes
 RUN conda update --yes conda
 RUN conda info -a
-
+RUN conda install -c menpo opencv3=3.1.0
 RUN conda install -c https://conda.anaconda.org/omnia cvxpy
 RUN conda install -c https://conda.anaconda.org/conda-forge tifffile
 # RUN git clone --recursive -b agiovann-master https://github.com/valentina-s/Constrained_NMF.git
