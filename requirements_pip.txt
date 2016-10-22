@@ -3,4 +3,4 @@ cvxpy
 pims
 peakutils
 tifffile
-pqdm
+tqdm
