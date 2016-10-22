@@ -29,6 +29,7 @@ try:
 except:
     print 'cvxopt not installed'
 
+import pylab as pl
 from caiman.mmapping import load_memmap
 from scipy.ndimage.filters import median_filter
 from scipy.ndimage.morphology import binary_closing
@@ -52,8 +53,9 @@ def basis_denoising(y, c, boh, sn, id2_, px):
 def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, min_size=3, max_size=8, dist=3,
                               method='ellipse', expandCore=None, dview=None, n_pixels_per_process=128,
                               medw=(3, 3), thr_method='nrg', maxthr=0.1, nrgthr=0.9999, extract_cc=True,
-                              se=np.ones((3, 3), dtype=np.int), ss=np.ones((3, 3), dtype=np.int), nb=1):
-    """update spatial footprints and background through Basis Pursuit Denoising
+                              se=np.ones((3, 3), dtype=np.int), ss=np.ones((3, 3), dtype=np.int), nb=1, method_ls='nnls_L0'):
+    
+    """update spatial footprints and background through Basis Pursuit Denoising 
 
     for each pixel i solve the problem
         [A(i,:),b(i)] = argmin sum(A(i,:))
@@ -111,6 +113,12 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
 
     nb: [optional] int
         Number of background components
+        
+    method_ls:
+        method to perform the regression for the basis pursuit denoising.
+             'nnls_L0'. Nonnegative least square with L0 penalty        
+             'lasso_lars' lasso lars function from scikit learn
+             'lasso_lars_old' lasso lars from old implementation, will be deprecated 
 
     Returns
     --------
@@ -210,67 +218,74 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
     else:
         folder = tempfile.mkdtemp()
 
-    # use the ipyparallel package, you need to start a cluster server
-    # (ipcluster command) in order to use it
+    
+    if dview is None:
 
-    C_name = os.path.join(folder, 'C_temp.npy')
-    np.save(C_name, Cf)
-
-    if type(Y) is np.core.memmap:  # if input file is already memory mapped then find the filename
-        Y_name = Y.filename
-    # if not create a memory mapped version (necessary for parallelization)
-    elif type(Y) is str or dview is None:
         Y_name = Y
+        C_name = Cf
+
     else:
-        raise Exception('Not implemented consistently')
-        Y_name = os.path.join(folder, 'Y_temp.npy')
-        np.save(Y_name, Y)
-        Y, _, _, _ = load_memmap(Y_name)
+        
+        C_name = os.path.join(folder, 'C_temp.npy')
+        np.save(C_name, Cf)
+    
+        if type(Y) is np.core.memmap:  # if input file is already memory mapped then find the filename
+            Y_name = Y.filename
+        # if not create a memory mapped version (necessary for parallelization)
+        elif type(Y) is str or dview is None:
+            Y_name = Y
+        else:
+            raise Exception('Not implemented consistently')
+            Y_name = os.path.join(folder, 'Y_temp.npy')
+            np.save(Y_name, Y)
+            Y, _, _, _ = load_memmap(Y_name)
 
     # create arguments to be passed to the function. Here we are grouping
     # bunch of pixels to be processed by each thread
 #    pixel_groups = [(Y_name, C_name, sn, ind2_, range(i, i + n_pixels_per_process))
 # for i in range(0, np.prod(dims) - n_pixels_per_process + 1,
 # n_pixels_per_process)]
+    cct=np.diag(C.dot(C.T))
+    rank_f=nb
     pixel_groups = []
     for i in range(0, np.prod(dims) - n_pixels_per_process + 1, n_pixels_per_process):
-        pixel_groups.append([Y_name, C_name, sn, ind2_, range(i, i + n_pixels_per_process)])
+        pixel_groups.append([Y_name, C_name, sn, ind2_, range(i, i + n_pixels_per_process), method_ls, cct,rank_f])
 
     if i < np.prod(dims):
-        pixel_groups.append([Y_name, C_name, sn, ind2_, range(i, np.prod(dims))])
+        pixel_groups.append([Y_name, C_name, sn, ind2_, range(i, np.prod(dims)), method_ls, cct,rank_f])
 
     A_ = np.zeros((d, nr + np.size(f, 0)))
 
     #serial_result = map(lars_regression_noise_ipyparallel, pixel_groups)
     if dview is not None:
-        parallel_result = dview.map_sync(lars_regression_noise_ipyparallel, pixel_groups)
+        parallel_result = dview.map_sync(regression_ipyparallel, pixel_groups)
         dview.results.clear()
         for chunk in parallel_result:
             for pars in chunk:
                 px, idxs_, a = pars
                 A_[px, idxs_] = a
     else:
-        #        parallel_result = map(lars_regression_noise_ipyparallel, pixel_groups)
-        #        for chunk in parallel_result:
-        #            for pars in chunk:
-        #                px, idxs_, a = pars
-        #                A_[px, idxs_] = a
-
-        Cf_ = [Cf[idx_, :] for idx_ in ind2_]
-
-        #% LARS regression
-        A_ = np.hstack((np.zeros((d, nr)), np.zeros((d, np.size(f, 0)))))
-
-        for c, y, s, id2_, px in zip(Cf_, Y, sn, ind2_, range(d)):
-            if px % 1000 == 0:
-                print px
-            if np.size(c) > 0:
-                _, _, a, _, _ = lars_regression_noise(y, np.array(c.T), 1, sn[px]**2 * T)
-                if np.isscalar(a):
-                    A_[px, id2_] = a
-                else:
-                    A_[px, id2_] = a.T
+        parallel_result = map(regression_ipyparallel, pixel_groups)
+        for chunk in parallel_result:
+            for pars in chunk:
+                px, idxs_, a = pars
+                A_[px, idxs_] = a
+##
+#        Cf_ = [Cf[idx_, :] for idx_ in ind2_]
 #
+#        #% LARS regression
+#        A_ = np.hstack((np.zeros((d, nr)), np.zeros((d, np.size(f, 0)))))
+#        
+#        for c, y, s, id2_, px in zip(Cf_, Y, sn, ind2_, range(d)):
+#            if px % 1000 == 0:
+#                print px
+#            if np.size(c) > 0:
+#                _, _, a, _, _ = lars_regression_noise_old(y, np.array(c.T), 1, sn[px]**2 * T)
+#                if np.isscalar(a):
+#                    A_[px, id2_] = a
+#                else:
+#                    A_[px, id2_] = a.T
+##
 
     #%
     print 'Updated Spatial Components'
@@ -311,48 +326,89 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
         raise Exception("Failed to delete: " + folder)
 
     if A_in.dtype == bool:
+        
         return A_, b, C, f
     else:
         return A_, b, C
 
 
 #%%lars_regression_noise_ipyparallel
-def lars_regression_noise_ipyparallel(pars):
+def regression_ipyparallel(pars):
 
     # need to import since it is run from within the server
     import numpy as np
-    import os
     import sys
-    import gc
+    from sklearn import linear_model        
 
-    Y_name, C_name, noise_sn, idxs_C, idxs_Y = pars
+    Y_name, C_name, noise_sn, idxs_C, idxs_Y,method_least_square,cct,rank_f = pars
+    
+    if type(Y_name) is str:
+        print("Reloading Y")
+        Y, _, _ = load_memmap(Y_name)
+        Y = np.array(Y[idxs_Y, :])
+    else:
+        Y = Y_name[idxs_Y, :]
+        
+    if type(C_name) is str: 
+        print("Reloading Y")           
+        C = np.load(C_name, mmap_mode='r')
+        C = np.array(C)
+    else:
+        C = C_name
 
-    Y, _, _ = load_memmap(Y_name)
-    Y = np.array(Y[idxs_Y, :])
-
-    C = np.load(C_name, mmap_mode='r')
-    C = np.array(C)
     _, T = np.shape(C)
     #sys.stdout = open(str(os.getpid()) + ".out", "w")
     As = []
     # print "*****************:" + str(idxs_Y[0]) + ',' + str(idxs_Y[-1])
-    sys.stdout.flush()
+    
     for y, px in zip(Y, idxs_Y):
         # print str(time.time()-st) + ": Pixel" + str(px)
-        sys.stdout.flush()
 #        print px,len(idxs_C),C.shape
         c = C[idxs_C[px], :]
+        idx_only_neurons=idxs_C[px]
+        cct_=cct[idx_only_neurons[:-rank_f]]
+        
         if np.size(c) > 0:
             sn = noise_sn[px]**2 * T
-            _, _, a, _, _ = lars_regression_noise(y, c.T, 1, sn)
+            
+            if method_least_square == 'lasso_lars_old': # lasso lars from old implementation, will be deprecated 
+                
+                a = lars_regression_noise_old(y, c.T, 1, sn)[2]
+         
+            elif method_least_square == 'nnls_L0': #   Nonnegative least square with L0 penalty   
+                a = nnls_L0( c.T,y,1.2*sn)
+            
+            elif method_least_square == 'lasso_lars': # lasso lars function from scikit learn
+                #a, RSS = scipy.optimize.nnls(c.T, np.ravel(y))
+#                RSS = RSS * RSS                
+#                if RSS <= 2*sn:  # hard noise constraint hardly feasible                    
+#                lambda_lasso=.5*noise_sn[px]*np.sqrt(np.max(cct_))/T 
+                lambda_lasso=1
+                clf = linear_model.LassoLars(alpha=lambda_lasso,positive=True)   
+                a_lrs = clf.fit(np.array(c.T),np.ravel(y))                    
+                a = a_lrs.coef_
+#                else:
+#                    print 'Problem infeasible'
+#                    pl.cla()
+#                    pl.plot(a.T.dot(c));
+#                    pl.plot(y)
+#                    pl.pause(3)
+
+            else:
+                raise Exception('Least Square Method not found!'+method_least_square)
+            
             if not np.isscalar(a):
                 a = a.T
 
             As.append((px, idxs_C[px], a))
 
-    del Y
-    del C
-    gc.collect()
+    if type(Y_name) is str:
+        print("deleting Y")
+        del Y
+    
+    if type(C_name) is str:            
+        del C
+#    gc.collect()
 
     return As
 
@@ -619,10 +675,34 @@ def threshold_components_parallel(pars):
 
     return Ath2, i
 
+#%%
+def nnls_L0(X,Yp,noise):
+    """
+    Nonnegative least square with L0 penalty
+    min_||W_lam||_0 || Yp-W_lam*X||**2 <= noise
+    
+    """
+    W_lam, RSS = scipy.optimize.nnls(X, np.ravel(Yp))
+    RSS = RSS * RSS
+    if RSS > noise:  # hard noise constraint problem infeasible
+        return W_lam
+
+    while 1:
+        eliminate = []
+        for i in np.where(W_lam[:-1] > 0)[0]:  # W_lam[:-1] to skip background
+            mask = W_lam > 0
+            mask[i] = 0
+            Wtmp, tmp = scipy.optimize.nnls(X * mask, np.ravel(Yp))
+            if tmp * tmp < noise:
+                eliminate.append([i, tmp])
+        if eliminate == []:
+            return W_lam
+        else:
+            W_lam[eliminate[np.argmin(np.array(eliminate)[:, 1])][0]] = 0
+            
+            
 #%% lars_regression_noise
-
-
-def lars_regression_noise(Yp, X, positive, noise, verbose=False):
+def lars_regression_noise_old(Yp, X, positive, noise, verbose=False):
     """
      Run LARS for regression problems with LASSO penalty, with optional positivity constraints
      Author: Andrea Giovannucci. Adapted code from Eftychios Pnevmatikakis
@@ -652,51 +732,51 @@ def lars_regression_noise(Yp, X, positive, noise, verbose=False):
 
     # do NNLS first
     # if  hard noise constraint problem infeasible we are done, otherwise good for warm-starting
-    W_lam, RSS = scipy.optimize.nnls(X, np.ravel(Yp))
-    RSS = RSS * RSS
-    if RSS > noise:  # hard noise constraint problem infeasible
-        return 0, 0, W_lam, 0, 0
-
-    while 1:
-        eliminate = []
-        for i in np.where(W_lam[:-1] > 0)[0]:  # W_lam[:-1] to skip background
-            mask = W_lam > 0
-            mask[i] = 0
-            Wtmp, tmp = scipy.optimize.nnls(X * mask, np.ravel(Yp))
-            if tmp * tmp < noise:
-                eliminate.append([i, tmp])
-        if eliminate == []:
-            return 0, 0, W_lam, 0, 0
-        else:
-            W_lam[eliminate[np.argmin(np.array(eliminate)[:, 1])][0]] = 0
+#    W_lam, RSS = scipy.optimize.nnls(X, np.ravel(Yp))
+#    RSS = RSS * RSS
+#    if RSS > noise:  # hard noise constraint problem infeasible
+#        return 0, 0, W_lam, 0, 0
+#
+#    while 1:
+#        eliminate = []
+#        for i in np.where(W_lam[:-1] > 0)[0]:  # W_lam[:-1] to skip background
+#            mask = W_lam > 0
+#            mask[i] = 0
+#            Wtmp, tmp = scipy.optimize.nnls(X * mask, np.ravel(Yp))
+#            if tmp * tmp < noise:
+#                eliminate.append([i, tmp])
+#        if eliminate == []:
+#            return 0, 0, W_lam, 0, 0
+#        else:
+#            W_lam[eliminate[np.argmin(np.array(eliminate)[:, 1])][0]] = 0
 
     # obsolete stuff below
 
     # solve hard noise constraint problem
     T = len(Yp)  # of time steps
-    A = Yp.dot(X)
-    B = X.T.dot(X)
-    dB = 1 / np.diag(B)
-    import pdb
-    pdb.set_trace()
-    z = np.sqrt(1 / dB)
-    lam = np.max(1 * np.sqrt(noise / T) * z)
-    counter = 0
-    res = X.dot(W_lam) - Yp
-    tmp = X.dot(dB)
-    aa = tmp.dot(tmp)
-    while (RSS < noise * .9999 or RSS > noise * 1.0001) and counter < 20:
-        counter += 1
-        bb = tmp.dot(res)
-        cc = RSS - noise
-        if counter > 1:
-            lam += (bb + (0 if bb * bb <= aa * cc else np.sqrt(bb * bb - aa * cc))) / aa
-        for _ in range(3):
-            for i in range(len(W_lam)):
-                W_lam[i] = np.clip(W_lam[i] + (A[i] - W_lam.dot(B)[i] - lam) * dB[i], 0, np.inf)
-        res = X.dot(W_lam) - Yp
-        RSS = res.dot(res)
-    return 1, 1, W_lam, 1, 1
+#    A = Yp.dot(X)
+#    B = X.T.dot(X)
+#    dB = 1 / np.diag(B)
+#    import pdb
+#    pdb.set_trace()
+#    z = np.sqrt(1 / dB)
+#    lam = np.max(1 * np.sqrt(noise / T) * z)
+#    counter = 0
+#    res = X.dot(W_lam) - Yp
+#    tmp = X.dot(dB)
+#    aa = tmp.dot(tmp)
+#    while (RSS < noise * .9999 or RSS > noise * 1.0001) and counter < 20:
+#        counter += 1
+#        bb = tmp.dot(res)
+#        cc = RSS - noise
+#        if counter > 1:
+#            lam += (bb + (0 if bb * bb <= aa * cc else np.sqrt(bb * bb - aa * cc))) / aa
+#        for _ in range(3):
+#            for i in range(len(W_lam)):
+#                W_lam[i] = np.clip(W_lam[i] + (A[i] - W_lam.dot(B)[i] - lam) * dB[i], 0, np.inf)
+#        res = X.dot(W_lam) - Yp
+#        RSS = res.dot(res)
+#    return 1, 1, W_lam, 1, 1
 
     k = 1
     Yp = np.squeeze(np.asarray(Yp))

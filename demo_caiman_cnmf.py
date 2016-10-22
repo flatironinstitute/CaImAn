@@ -51,7 +51,7 @@ else:
     alpha_snmf=None #10e2  # this controls sparsity
 
 #%%
-# backend='SLURM'
+#backend='SLURM'
 backend = 'local'
 if backend == 'SLURM':
     n_processes = np.int(os.environ.get('SLURM_NPROCS'))
@@ -88,7 +88,6 @@ else:
     print 'Using ' + str(len(c)) + ' processes'
     dview = c[:len(c)]
 #%% FOR LOADING ALL TIFF FILES IN A FILE AND SAVING THEM ON A SINGLE MEMORY MAPPABLE FILE
-
 
 fnames = []
 base_folder = './example_movies'  # folder containing the demo files
@@ -260,7 +259,7 @@ view_patches_bar(Yr, scipy.sparse.coo_matrix(A.tocsc()[:, idx_components_bad]), 
 pl.close()
 if not single_thread:
     c.close()
-    cm.stop_server()
+    cm.stop_server(is_slurm=(backend == 'SLURM'))
 
 log_files = glob.glob('Yr*_LOG_*')
 for log_file in log_files:

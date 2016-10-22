@@ -163,7 +163,7 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], ssub=1, tsub=1, p=2, p_ssub=
                                     # range of normalized frequencies over which to average
                                     'noise_range': [0.25, 0.5],
                                     # averaging method ('mean','median','logmexp')
-                                    'noise_method': 'logmexp',
+                                    'noise_method': 'mean',
                                     'max_num_samples_fft': 3*1024,
                                     'n_pixels_per_process': n_pixels_per_process,
                                     'compute_g': False,            # flag for estimating global time constant
@@ -202,7 +202,10 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], ssub=1, tsub=1, p=2, p_ssub=
         'extract_cc' : True,                            # Flag to extract connected components (might want to turn to False for dendritic imaging)
         'se' : np.ones((3, 3), dtype=np.int),           # Morphological closing structuring element
         'ss' : np.ones((3, 3), dtype=np.int),           # Binary element for determining connectivity            
-        'nb' : nb                                       # number of background components
+        'nb' : nb,                                      # number of background components
+        'method_ls':'lasso_lars'                        # 'nnls_L0'. Nonnegative least square with L0 penalty        
+                                                        #'lasso_lars' lasso lars function from scikit learn
+                                                        #'lasso_lars_old' lasso lars from old implementation, will be deprecated 
         }
     options['temporal_params'] = {
         'ITER': 2,                   # block coordinate descent iterations
@@ -217,7 +220,7 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], ssub=1, tsub=1, p=2, p_ssub=
         'bas_nonneg': True,
         # range of normalized frequencies over which to average
         'noise_range': [.25, .5],
-        'noise_method': 'logmexp',   # averaging method ('mean','median','logmexp')
+        'noise_method': 'mean',   # averaging method ('mean','median','logmexp')
         'lags': 5,                   # number of autocovariance lags to be considered for time constant estimation
         'fudge_factor': .96,         # bias correction factor (between 0 and 1, close to 1)
         'nb' : nb,                   # number of background components               

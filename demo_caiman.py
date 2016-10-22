@@ -25,7 +25,7 @@ import caiman as cm
 from caiman.components_evaluation import evaluate_components
 from caiman.utils.visualization import plot_contours,view_patches_bar
 from caiman.base.rois import extract_binary_masks_blob
-
+from caiman.source_extraction import cnmf
 #%%
 #backend='SLURM'
 backend='local'
@@ -100,7 +100,8 @@ K=30 # number of neurons expected per patch
 gSig=[7,7] # expected half size of neurons
 merge_thresh=0.8 # merging threshold, max correlation allowed
 p=2 #order of the autoregressive system
-options = cm.source_extraction.cnmf.utilities.CNMFSetParms(Y,n_processes,p=p,gSig=gSig,K=K,ssub=2,tsub=2,nb=2)
+options = cnmf.utilities.CNMFSetParms(Y,n_processes,p=p,gSig=gSig,K=K,ssub=2,tsub=2,nb=1)
+options['preprocess_params']['noise_method']='mean'
 #%% PREPROCESS DATA AND INITIALIZE COMPONENTS
 t1 = time()
 Yr,sn,g,psx = cm.source_extraction.cnmf.pre_processing.preprocess_data(Yr,dview=dview,**options['preprocess_params'])
@@ -110,7 +111,7 @@ t1 = time()
 Atmp, Ctmp, b_in, f_in, center=cm.source_extraction.cnmf.initialization.initialize_components(Y, normalize=True, **options['init_params'])                                                    
 print time() - t1
 #%% Refine manually component by clicking on neurons 
-refine_components=True
+refine_components=False
 if refine_components:
     Ain,Cin = cm.source_extraction.cnmf.utilities.manually_refine_components(Y,options['init_params']['gSig'],coo_matrix(Atmp),Ctmp,Cn,thr=0.9)
 else:
@@ -120,13 +121,13 @@ pl.figure()
 crd = plot_contours(coo_matrix(Ain),Cn)  
 pl.show()
 #%% UPDATE SPATIAL COMPONENTS
-pl.close()
+#pl.close()
 t1 = time()
 A,b,Cin = cm.source_extraction.cnmf.spatial.update_spatial_components(Yr, Cin, f_in, Ain, sn=sn, dview=dview,**options['spatial_params'])
 t_elSPATIAL = time() - t1
-print t_elSPATIAL 
 pl.figure()
 crd = plot_contours(A,Cn)
+
 #%% update_temporal_components
 #pl.close()
 t1 = time()
@@ -145,12 +146,16 @@ print t_elMERGE
 #plt.figure()
 #crd = cm.source_extraction.cnmf.plot_contours(A_m,Cn,thr=0.9)
 #%% refine spatial and temporal 
-pl.close()
+#pl.close()
 t1 = time()
 A2,b2,C2 = cm.source_extraction.cnmf.spatial.update_spatial_components(Yr, C_m, f, A_m, sn=sn,dview=dview, **options['spatial_params'])
 options['temporal_params']['p'] = p # set it back to original value to perform full deconvolution
 C2,f2,S2,bl2,c12,neurons_sn2,g21,YrA = cm.source_extraction.cnmf.temporal.update_temporal_components(Yr,A2,b2,C2,f,dview=dview, bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
 print time() - t1
+
+pl.figure()
+crd = plot_contours(A2.tocsc()[:,:],Cn,thr=0.9)
+
 #%%
 final_frate = 10
 tB = np.minimum(-2,np.floor(-5./30*final_frate))
