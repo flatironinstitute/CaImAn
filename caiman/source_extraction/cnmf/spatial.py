@@ -382,8 +382,8 @@ def regression_ipyparallel(pars):
                 #a, RSS = scipy.optimize.nnls(c.T, np.ravel(y))
 #                RSS = RSS * RSS                
 #                if RSS <= 2*sn:  # hard noise constraint hardly feasible                    
-#                lambda_lasso=.5*noise_sn[px]*np.sqrt(np.max(cct_))/T 
-                lambda_lasso=1
+                lambda_lasso=.5*noise_sn[px]*np.sqrt(np.max(cct_))/T 
+#                lambda_lasso=1
                 clf = linear_model.LassoLars(alpha=lambda_lasso,positive=True)   
                 a_lrs = clf.fit(np.array(c.T),np.ravel(y))                    
                 a = a_lrs.coef_
