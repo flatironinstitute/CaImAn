@@ -50,7 +50,7 @@ def basis_denoising(y, c, boh, sn, id2_, px):
 #%% update_spatial_components (in parallel)
 
 
-def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, min_size=3, max_size=8, dist=3,
+def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, min_size=3, max_size=8, dist=3,normalize_yyt_one=True,
                               method='ellipse', expandCore=None, dview=None, n_pixels_per_process=128,
                               medw=(3, 3), thr_method='nrg', maxthr=0.1, nrgthr=0.9999, extract_cc=True,
                               se=np.ones((3, 3), dtype=np.int), ss=np.ones((3, 3), dtype=np.int), nb=1, method_ls='nnls_L0'):
@@ -119,6 +119,9 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
              'nnls_L0'. Nonnegative least square with L0 penalty        
              'lasso_lars' lasso lars function from scikit learn
              'lasso_lars_old' lasso lars from old implementation, will be deprecated 
+        
+        normalize_yyt_one: bool
+            wheter to norrmalize the C and A matrices so that diag(C*C.T) are ones
 
     Returns
     --------
@@ -129,8 +132,17 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
     C: np.ndarray
          temporal components (updated only when spatial components are completely removed)
 
+    
     """
-
+    if normalize_yyt_one:
+#        cct=np.diag(C.dot(C.T))
+        nr_C=np.shape(C)[0]
+        d = scipy.sparse.lil_matrix((nr_C,nr_C))
+        d.setdiag(np.sqrt(np.sum(C**2,1)))
+        A_in=A_in*d
+        C=C/np.sqrt(np.sum(C**2,1)[:,np.newaxis])   
+        
+        
     if expandCore is None:
         expandCore = iterate_structure(generate_binary_structure(2, 1), 2).astype(int)
 
