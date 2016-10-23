@@ -133,7 +133,7 @@ if not is_patches:
     gSig = [7, 7]  # expected half size of neurons
     merge_thresh = 0.8  # merging threshold, max correlation allowed
     p = 2  # order of the autoregressive system
-    cnm = cse.CNMF(n_processes, method_init=init_method, k=K, gSig=gSig, merge_thresh=merge_thresh,
+    cnm = cnmf.CNMF(n_processes, method_init=init_method, k=K, gSig=gSig, merge_thresh=merge_thresh,
                     p=p, dview=dview, Ain=None,method_deconvolution='oasis')
     cnm = cnm.fit(images)
 

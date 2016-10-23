@@ -12,6 +12,98 @@ from caiman.summary_images import local_correlations
 from caiman.base.rois import com
 import pylab as pl
 #%%
+def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], ssub=1, tsub=1, p=2, p_ssub=1, p_tsub=1, thr=0.8, method_init= 'greedy_roi', nb = 1, **kwargs):
+    """Dictionary for setting the CNMF parameters.
+    Any parameter that is not set get a default value specified
+    by the dictionary default options
+    """
+
+    if type(Y) is tuple:
+        dims, T = Y[:-1], Y[-1]
+    else:
+        dims, T = Y.shape[:-1], Y.shape[-1]
+
+    print 'using ' + str(n_processes) + ' processes'
+    n_pixels_per_process = np.prod(dims) / n_processes  # how to subdivide the work among processes
+
+    options = dict()
+    options['patch_params'] = {
+        'ssub': p_ssub,             # spatial downsampling factor
+        'tsub': p_tsub,              # temporal downsampling factor
+        'only_init' : False
+    }
+    options['preprocess_params'] = {'sn': None,                  # noise level for each pixel
+                                    # range of normalized frequencies over which to average
+                                    'noise_range': [0.25, 0.5],
+                                    # averaging method ('mean','median','logmexp')
+                                    'noise_method': 'mean',
+                                    'max_num_samples_fft': 3*1024,
+                                    'n_pixels_per_process': n_pixels_per_process,
+                                    'compute_g': False,            # flag for estimating global time constant
+                                    'p': p,                        # order of AR indicator dynamics
+                                    'lags': 5,                     # number of autocovariance lags to be considered for time constant estimation
+                                    'include_noise': False,        # flag for using noise values when estimating g
+                                    'pixels': None,                 # pixels to be excluded due to saturation
+                                    }
+    options['init_params'] = {'K': K,                                          # number of components
+                              # size of components (std of Gaussian)
+                              'gSig': gSig,
+                              # size of bounding box
+                              'gSiz': list(np.array(gSig, dtype=int) * 2 + 1),
+                              'ssub': ssub,             # spatial downsampling factor
+                              'tsub': tsub,             # temporal downsampling factor
+                              'nIter': 5,               # number of refinement iterations
+                              'kernel': None,           # user specified template for greedyROI
+                              'maxIter': 5,              # number of HALS iterations
+                              'method' : method_init,     # can be greedy_roi or sparse_nmf
+                              'max_iter_snmf' : 500,
+                              'alpha_snmf' : 10e2,
+                              'sigma_smooth_snmf' : (.5,.5,.5),
+                              'perc_baseline_snmf': 20,
+                              'nb' : nb                 # number of background components
+                              }
+    options['spatial_params'] = {
+        'dims': dims,                   # number of rows, columns [and depths]
+        # method for determining footprint of spatial components ('ellipse' or 'dilate')
+        'method': 'dilate',#'ellipse', 'dilate',
+        'dist': 3,                       # expansion factor of ellipse
+        'n_pixels_per_process': n_pixels_per_process,   # number of pixels to be processed by eacg worker
+        'medw' : (3, 3),                                # window of median filter
+        'thr_method' : 'nrg',                           #  Method of thresholding ('max' or 'nrg')
+        'maxthr' : 0.1,                                 # Max threshold
+        'nrgthr' : 0.9999,                              # Energy threshold
+        'extract_cc' : True,                            # Flag to extract connected components (might want to turn to False for dendritic imaging)
+        'se' : np.ones((3, 3), dtype=np.int),           # Morphological closing structuring element
+        'ss' : np.ones((3, 3), dtype=np.int),           # Binary element for determining connectivity            
+        'nb' : nb,                                      # number of background components
+        'method_ls':'lasso_lars'                        # 'nnls_L0'. Nonnegative least square with L0 penalty        
+                                                        #'lasso_lars' lasso lars function from scikit learn
+                                                        #'lasso_lars_old' lasso lars from old implementation, will be deprecated 
+        }
+    options['temporal_params'] = {
+        'ITER': 2,                   # block coordinate descent iterations
+        # method for solving the constrained deconvolution problem ('oasis','cvx' or 'cvxpy')
+        'method':'oasis', #'cvxpy', # 'oasis'
+        # if method cvxpy, primary and secondary (if problem unfeasible for approx
+        # solution) solvers to be used with cvxpy, can be 'ECOS','SCS' or 'CVXOPT'
+        'solvers': ['ECOS', 'SCS'],
+        'p': p,                      # order of AR indicator dynamics
+        'memory_efficient': False,
+        # flag for setting non-negative baseline (otherwise b >= min(y))
+        'bas_nonneg': True,
+        # range of normalized frequencies over which to average
+        'noise_range': [.25, .5],
+        'noise_method': 'mean',   # averaging method ('mean','median','logmexp')
+        'lags': 5,                   # number of autocovariance lags to be considered for time constant estimation
+        'fudge_factor': .96,         # bias correction factor (between 0 and 1, close to 1)
+        'nb' : nb,                   # number of background components               
+        'verbosity': False
+    }
+    options['merging'] = {
+        'thr': thr,
+    }
+    return options
+#%%
 def manually_refine_components(Y, (dx, dy), A, C, Cn, thr=0.9, display_numbers=True, max_number=None, cmap=None, **kwargs):
     """Plots contour of spatial components against a background image and allows to interactively add novel components by clicking with mouse
 
@@ -139,97 +231,7 @@ def manually_refine_components(Y, (dx, dy), A, C, Cn, thr=0.9, display_numbers=T
 
     return A, C
 
-def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], ssub=1, tsub=1, p=2, p_ssub=1, p_tsub=1, thr=0.8, method_init= 'greedy_roi', nb = 1, **kwargs):
-    """Dictionary for setting the CNMF parameters.
-    Any parameter that is not set get a default value specified
-    by the dictionary default options
-    """
 
-    if type(Y) is tuple:
-        dims, T = Y[:-1], Y[-1]
-    else:
-        dims, T = Y.shape[:-1], Y.shape[-1]
-
-    print 'using ' + str(n_processes) + ' processes'
-    n_pixels_per_process = np.prod(dims) / n_processes  # how to subdivide the work among processes
-
-    options = dict()
-    options['patch_params'] = {
-        'ssub': p_ssub,             # spatial downsampling factor
-        'tsub': p_tsub,              # temporal downsampling factor
-        'only_init' : False
-    }
-    options['preprocess_params'] = {'sn': None,                  # noise level for each pixel
-                                    # range of normalized frequencies over which to average
-                                    'noise_range': [0.25, 0.5],
-                                    # averaging method ('mean','median','logmexp')
-                                    'noise_method': 'mean',
-                                    'max_num_samples_fft': 3*1024,
-                                    'n_pixels_per_process': n_pixels_per_process,
-                                    'compute_g': False,            # flag for estimating global time constant
-                                    'p': p,                        # order of AR indicator dynamics
-                                    'lags': 5,                     # number of autocovariance lags to be considered for time constant estimation
-                                    'include_noise': False,        # flag for using noise values when estimating g
-                                    'pixels': None,                 # pixels to be excluded due to saturation
-                                    }
-    options['init_params'] = {'K': K,                                          # number of components
-                              # size of components (std of Gaussian)
-                              'gSig': gSig,
-                              # size of bounding box
-                              'gSiz': list(np.array(gSig, dtype=int) * 2 + 1),
-                              'ssub': ssub,             # spatial downsampling factor
-                              'tsub': tsub,             # temporal downsampling factor
-                              'nIter': 5,               # number of refinement iterations
-                              'kernel': None,           # user specified template for greedyROI
-                              'maxIter': 5,              # number of HALS iterations
-                              'method' : method_init,     # can be greedy_roi or sparse_nmf
-                              'max_iter_snmf' : 500,
-                              'alpha_snmf' : 10e2,
-                              'sigma_smooth_snmf' : (.5,.5,.5),
-                              'perc_baseline_snmf': 20,
-                              'nb' : nb                 # number of background components
-                              }
-    options['spatial_params'] = {
-        'dims': dims,                   # number of rows, columns [and depths]
-        # method for determining footprint of spatial components ('ellipse' or 'dilate')
-        'method': 'dilate',#'ellipse', 'dilate',
-        'dist': 3,                       # expansion factor of ellipse
-        'n_pixels_per_process': n_pixels_per_process,   # number of pixels to be processed by eacg worker
-        'medw' : (3, 3),                                # window of median filter
-        'thr_method' : 'nrg',                           #  Method of thresholding ('max' or 'nrg')
-        'maxthr' : 0.1,                                 # Max threshold
-        'nrgthr' : 0.9999,                              # Energy threshold
-        'extract_cc' : True,                            # Flag to extract connected components (might want to turn to False for dendritic imaging)
-        'se' : np.ones((3, 3), dtype=np.int),           # Morphological closing structuring element
-        'ss' : np.ones((3, 3), dtype=np.int),           # Binary element for determining connectivity            
-        'nb' : nb,                                      # number of background components
-        'method_ls':'lasso_lars'                        # 'nnls_L0'. Nonnegative least square with L0 penalty        
-                                                        #'lasso_lars' lasso lars function from scikit learn
-                                                        #'lasso_lars_old' lasso lars from old implementation, will be deprecated 
-        }
-    options['temporal_params'] = {
-        'ITER': 2,                   # block coordinate descent iterations
-        # method for solving the constrained deconvolution problem ('oasis','cvx' or 'cvxpy')
-        'method': 'cvxpy', # 'oasis'
-        # if method cvxpy, primary and secondary (if problem unfeasible for approx
-        # solution) solvers to be used with cvxpy, can be 'ECOS','SCS' or 'CVXOPT'
-        'solvers': ['ECOS', 'SCS'],
-        'p': p,                      # order of AR indicator dynamics
-        'memory_efficient': False,
-        # flag for setting non-negative baseline (otherwise b >= min(y))
-        'bas_nonneg': True,
-        # range of normalized frequencies over which to average
-        'noise_range': [.25, .5],
-        'noise_method': 'mean',   # averaging method ('mean','median','logmexp')
-        'lags': 5,                   # number of autocovariance lags to be considered for time constant estimation
-        'fudge_factor': .96,         # bias correction factor (between 0 and 1, close to 1)
-        'nb' : nb,                   # number of background components               
-        'verbosity': False
-    }
-    options['merging'] = {
-        'thr': thr,
-    }
-    return options
 
 
 
