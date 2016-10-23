@@ -166,7 +166,8 @@ sn: float
 #                nC = np.sqrt(np.sum(A.toarray()[:,merged_ROI]**2,axis=0))*np.sqrt(np.sum(C[merged_ROI,:]**2,axis=1))
                 nC = np.sqrt(np.sum(Acsd**2,axis=0))*np.sqrt(np.sum(Ctmp**2,axis=1))   
 #                nA = sqrt( sum(aa.^2)/ max(sum(A(:,merged_ROIs{i}).^2)));
-                nA = np.sqrt( np.sum(np.array(aa)**2) / np.max( np.sum(A.toarray()[:,merged_ROIs[i]]**2) ) )
+
+                nA = np.sqrt( np.sum(np.array(aa)**2) / A.tocsc()[:,merged_ROIs[i]].power(2).sum(0).max() )
 #                nA = np.sqrt(np.sum(np.array(aa)**2)
                 aa /= nA
                 cc *= nA
