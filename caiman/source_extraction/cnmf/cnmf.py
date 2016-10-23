@@ -180,6 +180,7 @@ class CNMF(object):
     	     
            options['temporal_params']['p'] = 0 # set this to zero for fast updating without deconvolution
            options['temporal_params']['method']=self.method_deconvolution
+
            C,f,S,bl,c1,neurons_sn,g,YrA = update_temporal_components(Yr,A,b,Cin,self.f_in,dview=self.dview,**options['temporal_params'])             
         	
            if self.do_merge:

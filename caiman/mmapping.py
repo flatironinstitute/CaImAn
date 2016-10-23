@@ -47,7 +47,7 @@ def load_memmap(filename):
         return Yr, None, None
 
 #%% 
-def save_memmap_each(fnames, dview=None, base_name=None, resize_fact=(1, 1, 1), remove_init=0, idx_xy=None,xy_shifts=None,add_to_movie=0):
+def save_memmap_each(fnames, dview=None, base_name=None, resize_fact=(1, 1, 1), remove_init=0, idx_xy=None,xy_shifts=None,add_to_movie=0,border_to_0=0):
     """
     Create several memory mapped files using parallel processing
     
@@ -74,6 +74,9 @@ def save_memmap_each(fnames, dview=None, base_name=None, resize_fact=(1, 1, 1), 
     xy_shifts: list 
         x and y shifts computed by a motion correction algorithm to be applied before memory mapping
     
+    border_to_0: int
+        number of pixels on the border to set to the minimum of the movie
+    
     Returns:
     --------
     fnames_tot: list
@@ -92,9 +95,9 @@ def save_memmap_each(fnames, dview=None, base_name=None, resize_fact=(1, 1, 1), 
         
     for idx,f in enumerate(fnames):
         if base_name is not None:
-            pars.append([f,base_name+str(idx),resize_fact[idx],remove_init,idx_xy,order,xy_shifts[idx],add_to_movie])
+            pars.append([f,base_name+str(idx),resize_fact[idx],remove_init,idx_xy,order,xy_shifts[idx],add_to_movie,border_to_0])
         else:
-            pars.append([f,os.path.splitext(f)[0],resize_fact[idx],remove_init,idx_xy,order,xy_shifts[idx],add_to_movie])            
+            pars.append([f,os.path.splitext(f)[0],resize_fact[idx],remove_init,idx_xy,order,xy_shifts[idx],add_to_movie,border_to_0])            
     
     if dview is not None:
         fnames_new=dview.map_sync(save_place_holder,pars)
@@ -179,11 +182,11 @@ def save_portion(pars):
 def save_place_holder(pars):
     """ To use map reduce
     """
-    f,base_name,resize_fact,remove_init,idx_xy,order,xy_shifts,add_to_movie=pars   
-    return save_memmap([f],base_name=base_name,resize_fact=resize_fact,remove_init=remove_init, idx_xy=idx_xy, order=order,xy_shifts=xy_shifts,add_to_movie=add_to_movie)
+    f,base_name,resize_fact,remove_init,idx_xy,order,xy_shifts,add_to_movie,border_to_0=pars   
+    return save_memmap([f],base_name=base_name,resize_fact=resize_fact,remove_init=remove_init, idx_xy=idx_xy, order=order,xy_shifts=xy_shifts,add_to_movie=add_to_movie,border_to_0=border_to_0)
 
 #%%
-def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0, idx_xy=None, order='F',xy_shifts=None,is_3D=False,add_to_movie=0):
+def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0, idx_xy=None, order='F',xy_shifts=None,is_3D=False,add_to_movie=0,border_to_0=0):
     
     """ Saves efficiently a list of tif files into a memory mappable file
     Parameters
@@ -254,7 +257,13 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
                 raise Exception('You need to set is_3D=True for 3D data)')
                 Yr = np.array(Yr)[remove_init:, idx_xy[0], idx_xy[1], idx_xy[2]]
     
-
+        if border_to_0>0:
+            min_mov=np.min(Yr)
+            Yr[:,:border_to_0,:]=min_mov
+            Yr[:,:,:border_to_0]=min_mov
+            Yr[:,:,-border_to_0:]=min_mov
+            Yr[:,-border_to_0:,:]=min_mov
+        
         fx, fy, fz = resize_fact
         if fx != 1 or fy != 1 or fz != 1:
             
@@ -276,7 +285,7 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
             big_mov = np.memmap(fname_tot, dtype=np.float32, mode='r+',
                                 shape=(np.prod(dims), Ttot + T), order=order)
         #    np.save(fname[:-3]+'npy',np.asarray(Yr))
-
+       
         big_mov[:, Ttot:Ttot + T] = np.asarray(Yr, dtype=np.float32) + 1e-10 + add_to_movie
         big_mov.flush()
         del big_mov
