@@ -28,7 +28,7 @@ class CNMF(object):
                                        ssub=2, tsub=2,p_ssub=1, p_tsub=1, method_init= 'greedy_roi',alpha_snmf=None,\
                                        rf=None,stride=None, memory_fact=1, gnb = 1,\
                                        N_samples_fitness = 5,robust_std = False,fitness_threshold=-10,corr_threshold=0,only_init_patch=False\
-                                       ,method_deconvolution='oasis'):
+                                       ,method_deconvolution='cvxpy'):
        """ 
        Constructor of the CNMF method
       
@@ -180,7 +180,7 @@ class CNMF(object):
     	     
            options['temporal_params']['p'] = 0 # set this to zero for fast updating without deconvolution
            options['temporal_params']['method']=self.method_deconvolution
-           
+
            C,f,S,bl,c1,neurons_sn,g,YrA = update_temporal_components(Yr,A,b,Cin,self.f_in,dview=self.dview,**options['temporal_params'])             
         	
            if self.do_merge:
