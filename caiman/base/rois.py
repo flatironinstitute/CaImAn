@@ -9,7 +9,7 @@ Created on Thu Oct 22 13:22:26 2015
 
 #%%
 from scipy.ndimage.filters import gaussian_filter
-from scipy.ndimage import label
+from scipy.ndimage import label,center_of_mass
 import scipy 
 import numpy as np
 import time
@@ -19,6 +19,7 @@ from skimage.filters import sobel
 from skimage.morphology import watershed
 from scipy import ndimage as ndi
 from skimage.draw import polygon
+#from cell_magic_wand import cell_magic_wand,cell_magic_wand_3d_IOU
 #%%
 def com(A, d1, d2):
     """Calculation of the center of mass for spatial components
@@ -492,7 +493,35 @@ def extract_binary_masks_blob(A,  neuron_radius,dims,num_std_threshold=1, minCir
             
             neg_examples.append(count)
 
-    return np.array(masks_ws),np.array(pos_examples),np.array(neg_examples)    
+    return np.array(masks_ws),np.array(pos_examples),np.array(neg_examples)
+    
+    
+#%%
+def extract_binary_masks_blob_parallel(A,  neuron_radius,dims,num_std_threshold=1, minCircularity= 0.5, minInertiaRatio = 0.2,minConvexity = .8,dview=None):
+    
+    pars=[]    
+    for a in range(A.shape[-1]):
+        pars.append([A[:,a],  neuron_radius,dims,num_std_threshold, minCircularity, minInertiaRatio,minConvexity])
+    if dview is not None:
+        res=dview.map_sync(extract_binary_masks_blob_parallel_place_holder,pars)
+    else:
+        res=map(extract_binary_masks_blob_parallel_place_holder,pars)
+    
+    masks=[]
+    is_pos=[]
+    is_neg=[]
+    for r in res:
+        masks.append(np.squeeze(r[0]))
+        is_pos.append(r[1])
+        is_neg.append(r[2])
+
+    masks=np.dstack(masks).transpose([2,0,1])
+    return  masks,is_pos,is_neg
+#%%   
+def extract_binary_masks_blob_parallel_place_holder(pars):
+    A,  neuron_radius, dims, num_std_threshold , minCircularity , minInertiaRatio ,minConvexity =pars
+    masks_ws,pos_examples,neg_examples = extract_binary_masks_blob(A,  neuron_radius,dims,num_std_threshold=num_std_threshold, minCircularity= 0.5, minInertiaRatio = minInertiaRatio,minConvexity = minConvexity)
+    return masks_ws,len(pos_examples),len(neg_examples)
 #%%
 def extractROIsFromPCAICA(spcomps, numSTD=4, gaussiansigmax=2 , gaussiansigmay=2,thresh=None):
     """
@@ -611,3 +640,52 @@ def threshold_components(A_s,shape,min_size=5,max_size=np.inf,max_perc=.3):
         B_s.append(csc.csc_matrix(np.array(tmp)).T)
     
     return B_s, lab_imgs, cm_s         
+    
+#%%
+#def get_roi_from_spatial_component(sp_comp, min_radius, max_radius, roughness=2, zoom_factor=1, center_range=2,z_step=1,thresh_iou=.4):
+#     
+#     
+#     if sp_comp.ndim > 2:
+#         center=center_of_mass(sp_comp[0])
+#         roi=cell_magic_wand_3d_IOU(sp_comp,center,min_radius, max_radius, roughness=roughness, zoom_factor=zoom_factor, center_range=center_range, z_step=z_step,thresh_iou=thresh_iou)
+#     else:            
+#         center=center_of_mass(sp_comp)
+#         roi=cell_magic_wand(sp_comp,center,min_radius, max_radius, roughness=roughness, zoom_factor=zoom_factor, center_range=center_range)
+#     print sp_comp.shape,roi.shape
+#     pl.subplot(1,2,1)
+#     pl.cla()
+#     if sp_comp.ndim > 2:
+#         pl.imshow(sp_comp[0])
+#     else:
+#         pl.imshow(sp_comp)
+#     pl.subplot(1,2,2)
+#     pl.cla()    
+#     pl.imshow(roi)
+##     pl.plot(center[1],center[0],'k.')     
+#     pl.pause(.3)
+#     print 'Roi Size:' + str(np.sum(roi)) 
+#     return roi
+##%%     
+#def get_roi_from_spatial_component_place_holder(pars):
+#    sp_comp, min_radius, max_radius, roughness, zoom_factor, center_range,z_step,thresh_iou = pars
+#    roi=get_roi_from_spatial_component(sp_comp,min_radius, max_radius, roughness=roughness, zoom_factor=zoom_factor, center_range=center_range,z_step=z_step,thresh_iou=thresh_iou)
+#    return roi
+##%%
+#def get_roi_from_spatial_component_parallel(sp_comps,min_radius, max_radius, other_imgs=None,dview=None, roughness=2, zoom_factor=1, center_range=2,z_step=1,thresh_iou=.4):   
+#
+#    pars=[]
+#    for sp_comp in sp_comps:
+#        if other_imgs is None:
+#            pars.append([sp_comp, min_radius, max_radius, roughness, zoom_factor, center_range,z_step,thresh_iou])
+#        else:
+#           
+#            pars.append([np.dstack([sp_comp]+other_imgs).transpose(2,0,1), min_radius, max_radius, roughness, zoom_factor, center_range,z_step,thresh_iou])
+#            
+#        
+#    if dview is not None:
+#        rois=dview.map_sync(get_roi_from_spatial_component_place_holder,pars)
+#        
+#    else:
+#        rois=map(get_roi_from_spatial_component_place_holder,pars)
+#        
+#    return rois        
