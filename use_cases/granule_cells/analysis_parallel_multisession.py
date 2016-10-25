@@ -25,7 +25,8 @@ import calblitz as cb
 import sys
 import numpy as np
 import pickle
-from calblitz.granule_cells.utils_granule import load_data_from_stored_results,process_eyelid_traces,process_wheel_traces,process_fast_process_day,process_wheel_traces_talmo
+import use_cases
+from use_cases.granule_cells.utils_granule import load_data_from_stored_results,process_eyelid_traces,process_wheel_traces,process_fast_process_day,process_wheel_traces_talmo
 import pandas as pd
 import re
 #%%
@@ -384,6 +385,7 @@ all_binned_eye=[]
 all_binned_UR=[]
 all_binned_CR=[]
 mouse_now=''      
+
 for tr_fl, tr_bh, eye, whe, tm, fl, nm, pos_examples, A, tiff_names, timestamps_TM_ ,wheel_mms_TM_, nose_vel_TM_ in\
  zip(triggers_chunk_fluo, triggers_chunk_bh, eyelid_chunk, wheel_chunk, tm_behav, fluo_chunk,names_chunks,good_neurons_chunk,A_chunks,tiff_names_chunks,timestamps_TM_chunk,wheel_mms_TM_chunk,nose_vel_TM_chunk):
     
@@ -608,7 +610,7 @@ for tr_fl, tr_bh, eye, whe, tm, fl, nm, pos_examples, A, tiff_names, timestamps_
     if  nm !=  session_nice_trials[-1]:
 #        continue        
         1
-    if len(whe)<10:
+    if len(whe)<40:
         print 'skipping small files'
         continue
     
@@ -1288,6 +1290,7 @@ for mat_summary in mat_summaries:
         raise Exception('Not implemented')
         
     for ss in sess_:
+        
         idx_sess=np.where([item == ss for item in cr_ampl_dic['session']])[0]
         print ss
         
@@ -1508,6 +1511,8 @@ pl.ylabel('DF/F')
 
 pl.rc('font', **font)
 #%%
+
+#%%
 bins=np.arange(0,1,.05)
 #active_during_wheel=pl.hist(np.array(bh_correl.active_during_wheel.dropna().values,dtype='float'),bins)[0]
 #active_during_CS=pl.hist(np.array(bh_correl.active_during_CS.dropna().values,dtype='float'),bins)[0]
@@ -1561,7 +1566,76 @@ for r_ in bh_correl_tmp.keys()[bh_correl_tmp.keys().str.contains('r_.*rnd')]:
     bh_correl_tmp[r_[:-4]]=bh_correl_tmp[r_[:-4]]-bh_correl_tmp[r_]
 #    print bh_correl_tmp.fillna(method='pad').groupby('mouse')[r_].quantile(.95).values.T
     results_corr=pd.concat([results_corr,bh_correl_tmp.fillna(method='pad').groupby('mouse')[r_[:-4]].agg({r_[2:-9]:lambda x: np.nanmean(x>=0)})],axis=1)
-        
+#%%
+    
+#results_corr=pd.DataFrame()
+#bh_correl_tmp=fillna(method='pad')[(bh_correl.session_id==8.0)  | (np.isnan(bh_correl.session_id))  | ((bh_correl.mouse=='b35') & (bh_correl.session=='20160714143248') & (bh_correl.chunk=='061'))].copy()
+#for r_ in bh_correl_tmp.keys()[bh_correl_tmp.keys().str.contains('r_.*rnd')]:
+##    print bh_correl_tmp.fillna(method='pad').groupby('mouse')[r_].quantile(.95).values
+#    bh_correl_tmp[r_]=bh_correl_tmp.fillna(method='pad').groupby('mouse')[r_].transform(lambda x: x.quantile(.99))
+#    bh_correl_tmp[r_[:-4]]=bh_correl_tmp[r_[:-4]]-bh_correl_tmp[r_]
+##    print bh_correl_tmp.fillna(method='pad').groupby('mouse')[r_].quantile(.95).values.T
+#    results_corr=pd.concat([results_corr,bh_correl_tmp.fillna(method='pad').groupby('mouse')[r_[:-4]].agg({r_[2:-9]:lambda x: np.nanmean(x>=0)})],axis=1)
+##    
+    
+#%%
+#last_sessions= bh_correl_tmp.fillna(method='pad')[(bh_correl.session_id==8.0)  | (np.isnan(bh_correl.session_id))  | ((bh_correl.mouse=='b35') & (bh_correl.session=='20160714143248') & (bh_correl.chunk=='061'))]    
+last_sessions=bh_correl.fillna(method='pad')[(bh_correl.session_id==8.0)  | (np.isnan(bh_correl.session_id))  | ((bh_correl.mouse=='b35') & (bh_correl.session=='20160714143248') & (bh_correl.chunk=='061'))]
+last_sessions.groupby('mouse')['perc_CR'].count()
+last_sessions = last_sessions.sort_values(['r_CR_eye_fluo'])[['r_CR_eye_fluo','r_nose_fluo','r_wheel_fluo','r_UR_eye_fluo']].values
+thresh_corr=.15
+idx=np.min(last_sessions,1)>-thresh_corr
+last_sessions=last_sessions[idx]
+bests=np.argmax(last_sessions,1)
+bests[np.max(last_sessions,1)<=thresh_corr]=4
+best_cr=last_sessions[(last_sessions[:,0]>thresh_corr) & (bests==0)].T
+best_nose=last_sessions[(last_sessions[:,1]>thresh_corr) & (bests==1)].T
+best_wheel=last_sessions[(last_sessions[:,2]>thresh_corr) & (bests==2)].T
+best_ur=last_sessions[(last_sessions[:,3]>thresh_corr) & (bests==3)].T
+unrelated=last_sessions[bests==4].T
+
+
+pl.subplot(6,1,1)
+pl.plot(best_cr,'o-',color='gray')
+pl.title('CR best')
+pl.xlim([-.5,4.5])
+pl.ylabel('Pearson\'s r')
+
+pl.subplot(6,1,2)
+pl.plot(best_nose,'o-',color='gray')
+pl.title('Nose best')
+pl.xlim([-.5,4.5])
+pl.ylabel('Pearson\'s r')
+
+pl.subplot(6,1,3)
+pl.plot(best_wheel,'o-',color='gray')
+pl.title('Wheel best')
+pl.xlim([-.5,4.5])
+pl.ylabel('Pearson\'s r')
+
+pl.subplot(6,1,4)
+pl.plot(best_ur,'o-',color='gray')
+pl.title('UR best')
+pl.xlim([-.5,4.5])
+pl.ylabel('Pearson\'s r')
+
+pl.subplot(6,1,5)
+pl.plot(unrelated,'o-',color='gray')
+pl.title('unrelated')
+pl.xlim([-.5,4.5])
+pl.ylabel('Pearson\'s r')
+
+
+pl.subplot(6,1,6)
+
+all_neuron=len(last_sessions)
+
+pl.bar([0,1,2,3,4],np.array([len(best_cr.T),len(best_nose.T),len(best_wheel.T),len(best_ur.T),len(unrelated.T)])*1./all_neuron,width=[-.1])
+pl.xlim([-.5,4.5])     
+pl.xticks([0,1,2,3,4],['cr','nose','wheel','ur','unrelated'])   
+
+pl.rc('font', **font)
+
 #pl.figure('Cells selectivity all',figsize=(6,12))   
 #results_corr.mean().plot(kind='bar',yerr=results_corr.sem(),ax=pl.gca())
 #pl.xlabel('behavior')
