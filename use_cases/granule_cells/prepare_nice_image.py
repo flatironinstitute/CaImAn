@@ -19,7 +19,7 @@ from matplotlib import pyplot as plt
 
 import sys
 import numpy as np
-import ca_source_extraction as cse
+
 
 #sys.path.append('../SPGL1_python_port')
 #%
@@ -35,6 +35,12 @@ import glob
 import os
 import scipy
 from ipyparallel import Client
+
+import caiman as cm
+from caiman.components_evaluation import evaluate_components
+from caiman.utils.visualization import plot_contours,view_patches_bar
+from caiman.base.rois import extract_binary_masks_blob
+from caiman.source_extraction import cnmf as cnmf
 #%%
 #backend='SLURM'
 backend='local'
@@ -57,22 +63,20 @@ else:
     sys.stdout.flush()  
     if backend == 'SLURM':
         try:
-            cse.utilities.stop_server(is_slurm=True)
+            cm.stop_server(is_slurm=True)
         except:
             print 'Nothing to stop'
         slurm_script='/mnt/xfs1/home/agiovann/SOFTWARE/Constrained_NMF/SLURM/slurmStart.sh'
-        cse.utilities.start_server(slurm_script=slurm_script)
+        cm.start_server(slurm_script=slurm_script)
         pdir, profile = os.environ['IPPPDIR'], os.environ['IPPPROFILE']
         c = Client(ipython_dir=pdir, profile=profile)        
     else:
-        cse.utilities.stop_server()
-        cse.utilities.start_server()        
+        cm.stop_server()
+        cm.start_server()        
         c=Client()
 
     print 'Using '+ str(len(c)) + ' processes'
     dview=c[:len(c)]
-#%%
-
 #%%
 os.chdir('/mnt/ceph/users/agiovann/ImagingData/eyeblink/b38/20160706154257')
 fls=[]
@@ -128,13 +132,16 @@ for fl in new_fls:
         raise Exception('*********************** ERROR, FILE NOT EXISTING!!!')
 #%%
 resize_facts=(1,1,.2)
-name_new=cse.utilities.save_memmap_each(new_fls, dview=c[:],base_name=None, resize_fact=resize_facts, remove_init=0,xy_shifts=xy_shifts)
+name_new=cm.save_memmap_each(new_fls, dview=c[:],base_name=None, resize_fact=resize_facts, remove_init=0,xy_shifts=xy_shifts)
 #%%
-fname_new=cse.utilities.save_memmap_join(name_new,base_name='TOTAL_', n_chunks=6, dview=c[:])
+fname_new=cm.save_memmap_join(name_new,base_name='TOTAL_', n_chunks=6, dview=c[:])
 #%%
-m=cb.load('TOTAL__d1_512_d2_512_d3_1_order_C_frames_2300_.mmap',fr=6)
+m=cm.load('TOTAL__d1_512_d2_512_d3_1_order_C_frames_2300_.mmap',fr=6)
 #%%
 tmp=np.median(m,0)
+#%%
+Cn = m.local_correlations(eight_neighbours=True,swap_dim=False)
+pl.imshow(Cn,cmap='gray')  
 #%%
 lq,hq=np.percentile(tmp,[10,98]) 
 pl.imshow(tmp,cmap='gray',vmin=lq,vmax=hq)
@@ -144,17 +151,17 @@ pl.imshow(tmp[10:160,120:450],cmap='gray',vmin=lq,vmax=hq)
 m1=m[:,10:160,120:450]
 m1.save('MOV_EXAMPLE_20160706154257.tif')
 #%%
-name_new=cse.utilities.save_memmap_each(['MOV_EXAMPLE_20160706154257.tif'], dview=c[:],base_name=None)
+name_new=cm.save_memmap_each(['MOV_EXAMPLE_20160706154257.tif'], dview=c[:],base_name=None)
 #%%
 n_chunks=6 # increase this number if you have memory issues at this point
-fname_new=cse.utilities.save_memmap_join(name_new,base_name='MOV_EXAMPLE_20160706154257__', n_chunks=6, dview=dview)
+fname_new=cm.save_memmap_join(name_new,base_name='MOV_EXAMPLE_20160706154257__', n_chunks=6, dview=dview)
 #%%
-Yr,dims,T=cse.utilities.load_memmap('MOV_EXAMPLE_20160706154257___d1_150_d2_330_d3_1_order_C_frames_2300_.mmap')
+Yr,dims,T=cm.load_memmap('MOV_EXAMPLE_20160706154257___d1_150_d2_330_d3_1_order_C_frames_2300_.mmap')
 d1,d2=dims
 images=np.reshape(Yr.T,[T]+list(dims),order='F')
 Y=np.reshape(Yr,dims+(T,),order='F')
 #%%
-Cn = cse.utilities.local_correlations(Y[:,:,:3000])
+Cn = cm.local_correlations(Y[:,:,:3000],swap_dim=True)
 pl.imshow(Cn,cmap='gray')  
 #%%
 rf=10 # half-size of the patches in pixels. rf=25, patches are 50x50
@@ -166,64 +173,147 @@ p=2 #order of the autoregressive system
 memory_fact=1; #unitless number accounting how much memory should be used. You will need to try different values to see which one would work the default is OK for a 16 GB system
 save_results=False
 #%% RUN ALGORITHM ON PATCHES
-cnmf=cse.CNMF(n_processes, k=K,gSig=gSig,merge_thresh=0.8,p=0,dview=c[:],Ain=None, \
+cnm=cnmf.CNMF(n_processes, k=K,gSig=gSig,merge_thresh=0.8,p=0,dview=dview,Ain=None, \
         rf=rf,stride=stride, memory_fact=memory_fact,\
         method_init='greedy_roi',alpha_snmf=10e2)
-cnmf=cnmf.fit(images)
+cnm=cnm.fit(images)
 
-A_tot=cnmf.A
-C_tot=cnmf.C
-YrA_tot=cnmf.YrA
-b_tot=cnmf.b
-f_tot=cnmf.f
-sn_tot=cnmf.sn
+A_tot=cnm.A
+C_tot=cnm.C
+YrA_tot=cnm.YrA
+b_tot=cnm.b
+f_tot=cnm.f
+sn_tot=cnm.sn
 
 print 'Number of components:' + str(A_tot.shape[-1])
 #%%
 
-idx_components, fitness, erfc ,r_values, num_significant_samples = cse.utilities.evaluate_components(Y,C_tot+YrA_tot,A_tot,robust_std=False,thresh_finess=-15)
-sure_in_idx= idx_components[np.logical_and(np.array(num_significant_samples)>0 ,np.array(r_values)>=.3)]
-print len(sure_in_idx)
-#%%
-cse.utilities.view_patches_bar(Yr,scipy.sparse.coo_matrix(A_tot.tocsc()[:,sure_in_idx]),C_tot[sure_in_idx,:],b,f, dims[0],dims[1], YrA=YrA_tot[sure_in_idx,:],img=np.mean(Y,-1))  
+final_frate = 2# approx final rate  (after eventual downsampling )
+tB = np.minimum(-2, np.floor(-5. / 30 * final_frate))
+tA = np.maximum(5, np.ceil(25. / 30 * final_frate))
+Npeaks = 10
+traces = C_tot + YrA_tot
+#        traces_a=traces-scipy.ndimage.percentile_filter(traces,8,size=[1,np.shape(traces)[-1]/5])
+#        traces_b=np.diff(traces,axis=1)
+fitness_raw, fitness_delta, erfc_raw, erfc_delta, r_values, significant_samples = evaluate_components(
+    Y, traces, A_tot, C_tot, b_tot, f_tot, remove_baseline=True, N=5, robust_std=False, Athresh=0.1, Npeaks=Npeaks, tB=tB, tA=tA, thresh_C=0.3)
 
-#%% if you have many components this might take long!
+idx_components_r = np.where(r_values >= .4)[0]
+idx_components_raw = np.where(fitness_raw < -20)[0]
+idx_components_delta = np.where(fitness_delta < -10)[0]
+
+idx_components = np.union1d(idx_components_r, idx_components_raw)
+idx_components = np.union1d(idx_components, idx_components_delta)
+idx_components_bad = np.setdiff1d(range(len(traces)), idx_components)
+
+print ('Keeping ' + str(len(idx_components)) +
+       ' and discarding  ' + str(len(idx_components_bad)))
+#%%
 pl.figure()
-crd = cse.utilities.plot_contours(A_tot[:,sure_in_idx],Cn,thr=0.9)
+crd = plot_contours(A_tot.tocsc()[:, idx_components], Cn, thr=0.9)
 #%%
-cnmf=cse.CNMF(n_processes, k=A_tot.shape,gSig=gSig,merge_thresh=merge_thresh,p=p,dview=c[:],Ain=A_tot[:,sure_in_idx],Cin=C_tot[sure_in_idx,:],\
+A_tot = A_tot.tocsc()[:, idx_components]
+C_tot = C_tot[idx_components]
+#%%
+cnm=cnmf.CNMF(n_processes, k=A_tot.shape,gSig=gSig,merge_thresh=merge_thresh,p=p,dview=dview,Ain=A_tot,Cin=C_tot,\
                  f_in=f_tot, rf=None,stride=None)
-cnmf=cnmf.fit(images)
+cnm=cnm.fit(images)
 #%%
-A=cnmf.A
-C=cnmf.C
-YrA=cnmf.YrA
-b=cnmf.b
-f=cnmf.f
-sn=cnmf.sn
+A, C, b, f, YrA, sn = cnm.A, cnm.C, cnm.b, cnm.f, cnm.YrA, cnm.sn
+#%%
+final_frate=1
+tB = np.minimum(-2, np.floor(-5. / 30 * final_frate))
+tA = np.maximum(5, np.ceil(25. / 30 * final_frate))
+Npeaks = 10
+traces = C + YrA
+#        traces_a=traces-scipy.ndimage.percentile_filter(traces,8,size=[1,np.shape(traces)[-1]/5])
+#        traces_b=np.diff(traces,axis=1)
+fitness_raw, fitness_delta, erfc_raw, erfc_delta, r_values, significant_samples = \
+    evaluate_components(Y, traces, A, C, b, f, remove_baseline=True,
+                                      N=5, robust_std=False, Athresh=0.1, Npeaks=Npeaks, tB=tB, tA=tA, thresh_C=0.3)
 
-traces=C+YrA
-idx_components, fitness, erfc,r_values,num_significant_samples = cse.utilities.evaluate_components(Y,traces,A,N=5,robust_std=False)
-#%%
-sure_in_idx= idx_components[np.logical_and(np.array(num_significant_samples)>1 ,np.array(r_values)>=.5)]
-doubtful = idx_components[np.logical_and(np.array(num_significant_samples)==1 ,np.array(r_values)>=.5)]
-they_suck = idx_components[np.logical_and(np.array(num_significant_samples)>=0 ,np.array(r_values)<.5)]
+idx_components_r = np.where(r_values >= .5)[0]
+idx_components_raw = np.where(fitness_raw < -50)[0]
+idx_components_delta = np.where(fitness_delta < -30)[0]
 
-pl.subplot(1,3,1)
-crd = cse.utilities.plot_contours(A.tocsc()[:,sure_in_idx],Cn,thr=0.9)
-pl.subplot(1,3,2)
-crd = cse.utilities.plot_contours(A.tocsc()[:,doubtful],Cn,thr=0.9)
-pl.subplot(1,3,3)
-crd = cse.utilities.plot_contours(A.tocsc()[:,they_suck],Cn,thr=0.9)
-#%%
-cse.utilities.view_patches_bar(Yr,scipy.sparse.coo_matrix(A.tocsc()[:,sure_in_idx]),C[sure_in_idx,:],b,f, dims[0],dims[1], YrA=YrA[sure_in_idx,:],img=np.mean(Y,-1))  
-#%%
-idx_to_show=[0,1,5,8,14,17,18,23,24,25,26,28,29,31,32,33,34,36,43,45,47,51,53,54,57,60,61,62,63,64,65,66,67,71,72,74,75,78,79,80,81,91,95,96,97,99,102]
-cse.utilities.view_patches_bar(Yr,scipy.sparse.coo_matrix(A.tocsc()[:,sure_in_idx[idx_to_show]]),C[sure_in_idx[idx_to_show],:],b,f, dims[0],dims[1], YrA=YrA[sure_in_idx[idx_to_show],:],img=np.mean(Y,-1))  
-#%%
-idx_to_show=[0,1,5,8,14,17,18,23,24,25,26,28,29,31,32,33,34,36,43,45,47,51,53,54,57,60,61,62,63,64,65,66,67,71,72,74,75,78,79,80,81,91,95,96,97,99,102]
-idx_to_show=np.array(idx_to_show)[[2,19,23,26,34]]
 
+min_radius = gSig[0] - 2 
+#masks_ws, idx_blobs, idx_non_blobs = extract_binary_masks_blob(
+#    A.tocsc(), min_radius, dims, num_std_threshold=1,
+#    minCircularity=0.5, minInertiaRatio=0.2, minConvexity=.7)
+
+#% LOOK FOR BLOB LIKE STRUCTURES!
+masks_ws, is_blob, is_non_blob = cm.base.rois.extract_binary_masks_blob_parallel(A.tocsc(), min_radius, dims, num_std_threshold=1,
+    minCircularity=0.1, minInertiaRatio=0.1, minConvexity=.1,dview=dview)    
+    
+idx_blobs=np.where(is_blob)[0]
+idx_non_blobs=np.where(is_non_blob)[0]     
+
+idx_components = np.union1d(idx_components_r, idx_components_raw)
+idx_components = np.union1d(idx_components, idx_components_delta)
+idx_blobs = np.intersect1d(idx_components, idx_blobs)
+idx_components_bad = np.setdiff1d(range(len(traces)), idx_components)
+
+print(' ***** ')
+print len(traces)
+print(len(idx_components))
+print(len(idx_blobs))
+#%%
+save_results = False
+if save_results:
+    np.savez('results_analysis.npz', Cn=Cn, A=A.todense(), C=C, b=b, f=f, YrA=YrA, sn=sn, d1=d1, d2=d2, idx_components=idx_components, idx_components_bad=idx_components_bad)
+    scipy.io.savemat('results_analysis.mat', {'C':Cn, 'A':A.toarray(), 'C':C, 'b':b, 'f':f, 'YrA':YrA, 'sn':sn, 'd1':d1, 'd2':d2, 'idx_components':idx_components, 'idx_components_blobs':idx_blobs})
+    np.savez('results_blobs.npz', spatial_comps=A.tocsc().toarray().reshape(dims+(-1,),order='F').transpose([2,0,1]),masks=masks_ws,idx_components=idx_components,idx_blobs=idx_blobs,idx_components_bad=idx_components_bad)
+    
+    
+#%% visualize components
+# pl.figure();
+pl.subplot(1, 3, 1)
+crd = plot_contours(A.tocsc()[:, idx_components], Cn, thr=0.9)
+pl.subplot(1, 3, 2)
+crd = plot_contours(A.tocsc()[:, idx_blobs], Cn, thr=0.9)
+pl.subplot(1, 3, 3)
+crd = plot_contours(A.tocsc()[:, idx_components_bad], Cn, thr=0.9)
+#%%
+#idx_very_nice=[2, 19, 23, 27,32,43,45,49,51,94,100]
+#idx_very_nice=np.array(idx_very_nice)[np.array([3,4,8,10])]
+#idx_very_nice=idx_blobs[idx_very_nice]
+idx_very_nice=idx_blobs
+view_patches_bar(Yr, scipy.sparse.coo_matrix(A.tocsc()[:, idx_very_nice]), C[
+                               idx_very_nice, :], b, f, dims[0], dims[1], YrA=YrA[idx_very_nice, :], img=Cn)
+#%%
+new_m=cm.movie(np.reshape(A.tocsc()[:,idx_blobs]*C[idx_blobs]+b.dot(f),dims+(-1,),order='F').transpose([2,0,1]))
+new_m.play(fr=30,backend='opencv',gain=7.,magnification=3.)
+#%%
+new_m=cm.movie(np.reshape(A.tocsc()[:,idx_blobs]*C[idx_blobs]+b*np.median(f),dims+(-1,),order='F').transpose([2,0,1]))
+new_m.play(fr=30,backend='opencv',gain=7.,magnification=3.)
+#%%
+new_m=cm.movie(np.reshape(A.tocsc()[:,idx_blobs]*C[idx_blobs],dims+(-1,),order='F').transpose([2,0,1]))
+new_m.play(fr=30,backend='opencv',gain=30.,magnification=3.)
+#%%
+#idx_to_show=[0,1,5,8,14,17,18,23,24,25,26,28,29,31,32,33,34,36,43,45,47,51,53,54,57,60,61,62,63,64,65,66,67,71,72,74,75,78,79,80,81,91,95,96,97,99,102]
+#cm.view_patches_bar(Yr,scipy.sparse.coo_matrix(A.tocsc()[:,sure_in_idx[idx_to_show]]),C[sure_in_idx[idx_to_show],:],b,f, dims[0],dims[1], YrA=YrA[sure_in_idx[idx_to_show],:],img=np.mean(Y,-1))  
+#%%
+#idx_to_show=[0,1,5,8,14,17,18,23,24,25,26,28,29,31,32,33,34,36,43,45,47,51,53,54,57,60,61,62,63,64,65,66,67,71,72,74,75,78,79,80,81,91,95,96,97,99,102]
+#idx_to_show=np.array(idx_to_show)[[2,19,23,26,34]]
+#%%
+import numpy as np
+import caiman as cm
+import scipy
+with np.load('results_analysis.npz') as ld:
+    locals().update(ld)
+
+A=scipy.sparse.coo_matrix(A)  
+
+with np.load('results_blobs.npz') as ld:
+    locals().update(ld)
+
+m=cm.load('MOV_EXAMPLE_20160706154257___d1_150_d2_330_d3_1_order_C_frames_2300_.mmap')
+Yr,dims,T=cm.load_memmap('MOV_EXAMPLE_20160706154257___d1_150_d2_330_d3_1_order_C_frames_2300_.mmap')
+d1,d2=dims
+images=np.reshape(Yr.T,[T]+list(dims),order='F')
+Y=np.reshape(Yr,dims+(T,),order='F')
+#%%
 
 ylimit=100
 pl.figure()
@@ -290,7 +380,7 @@ Y_r_sig=A.T.dot(m)
 Y_r_sig= scipy.sparse.linalg.spsolve(scipy.sparse.spdiags(np.sqrt(nA),0,nA.size,nA.size),Y_r_sig)
 Y_r_bl=A.T.dot(bckg_1)
 Y_r_bl= scipy.sparse.linalg.spsolve(scipy.sparse.spdiags(np.sqrt(nA),0,nA.size,nA.size),Y_r_bl)                
-Y_r_bl=cse.utilities.mode_robust(Y_r_bl,1)        
+Y_r_bl=cm.mode_robust(Y_r_bl,1)        
 trs=Y_r_sig/Y_r_bl[:,np.newaxis]
 
 cb.trace(trs[np.hstack([sure_in_idx[idx_to_show],7])].T,fr=6).plot()
@@ -865,7 +955,7 @@ cb.trace(trs[np.hstack([sure_in_idx[idx_to_show],7])].T,fr=6).plot()
 ###                    window_hp=201
 ###                    window_lp=3
 ###                    bl=signal.medfilt(mov,window_hp)
-####                    bl=cse.utilities.mode_robust(mov)
+####                    bl=cm.mode_robust(mov)
 ###                    mov=signal.medfilt(mov-bl,window_lp)
 ###
 ###                    
@@ -896,7 +986,7 @@ cb.trace(trs[np.hstack([sure_in_idx[idx_to_show],7])].T,fr=6).plot()
 ###sub_trig[:2]=np.round(sub_trig[:2]*fraction_downsample)
 ###sub_trig[-1]=np.floor(sub_trig[-1]*fraction_downsample)
 ###sub_trig[-1]=np.cumsum(sub_trig[-1])
-###fname_new=cse.utilities.save_memmap(fnames,base_name='Yr',resize_fact=(1,1,fraction_downsample),remove_init=0,idx_xy=(slice(90,-10,None),slice(30,-120,None)))
+###fname_new=cm.save_memmap(fnames,base_name='Yr',resize_fact=(1,1,fraction_downsample),remove_init=0,idx_xy=(slice(90,-10,None),slice(30,-120,None)))
 ####%%
 ###m=cb.load(fname_new,fr=30*fraction_downsample)
 ###T,d1,d2=np.shape(m)
@@ -911,7 +1001,7 @@ cb.trace(trs[np.hstack([sure_in_idx[idx_to_show],7])].T,fr=6).plot()
 ###%%
 ##(newm-np.mean(newm,0)).play(backend='opencv',fr=3,gain=2.,magnification=1,do_loop=True)
 ###%%v
-##Yr,d1,d2,T=cse.utilities.load_memmap(fname_new)
+##Yr,d1,d2,T=cm.load_memmap(fname_new)
 ##d,T=np.shape(Yr)
 ##Y=np.reshape(Yr,(d1,d2,T),order='F') # 3D version of the movie 
 ##
@@ -945,7 +1035,7 @@ cb.trace(trs[np.hstack([sure_in_idx[idx_to_show],7])].T,fr=6).plot()
 ##    pl.imshow(c)
 ##    
 ###%%
-##md=cse.utilities.mode_robust(m1,0)
+##md=cm.mode_robust(m1,0)
 ##mm1=m1*(m1<md)
 ##rob_std=np.sum(mm1**2,0)/np.sum(mm1>0,0)
 ##rob_std[np.isnan(rob_std)]=0
