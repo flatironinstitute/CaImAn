@@ -1,5 +1,5 @@
 import caiman
-from caiman.segmentation import cnmf as cnmf
+from caiman.source_extraction import cnmf as cnmf
 import numpy.testing as npt
 import numpy as np
 
