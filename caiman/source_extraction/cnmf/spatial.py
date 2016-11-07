@@ -134,6 +134,7 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
 
     
     """
+    C=np.array(C)
     if normalize_yyt_one:
 #        cct=np.diag(C.dot(C.T))
         nr_C=np.shape(C)[0]

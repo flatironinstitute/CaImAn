@@ -690,7 +690,7 @@ class movie(ts.timeseries):
             rho: d1 x d2 [x d3] matrix, cross-correlation with adjacent pixels
         
         """
-        rho = si.local_correlations(Y, eight_neighbours=eight_neighbours, swap_dim=swap_dim)
+        rho = si.local_correlations(self, eight_neighbours=eight_neighbours, swap_dim=swap_dim)
 
         return rho
 
