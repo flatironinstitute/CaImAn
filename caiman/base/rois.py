@@ -19,6 +19,7 @@ from skimage.filters import sobel
 from skimage.morphology import watershed
 from scipy import ndimage as ndi
 from skimage.draw import polygon
+import pylab as pl
 #from cell_magic_wand import cell_magic_wand,cell_magic_wand_3d_IOU
 #%%
 def com(A, d1, d2):
@@ -44,6 +45,122 @@ def com(A, d1, d2):
     cm[:, 1] = np.dot(Coor['y'].T, A) / A.sum(axis=0)
 
     return cm
+#%% 
+def mask_to_2d(mask):
+    if mask.ndim > 2:
+        ncomps,d1,d2 = np.shape(mask)
+        dims = d1,d2
+        return scipy.sparse.coo_matrix(np.reshape(mask[:].transpose([1,2,0]),(np.prod(dims),-1,),order='F'))
+    else:    
+        dims  = np.shape(mask)    
+        return scipy.sparse.coo_matrix(np.reshape(mask,(np.prod(dims),-1,),order='F'))
+#%%
+def nf_match_neurons_in_binary_masks(masks_gt,masks_comp,thresh_cost=.7, min_dist = 10, print_assignment= False, plot_results = False, Cn=None):
+    '''
+    Match neurons expressed as binary masks. Uses Hungarian matching algorithm
+    
+    Parameters:
+    -----------
+    
+    masks_gt: ndarray  ncomponents x d1 x d2
+        ground truth masks
+    
+    masks_comp: ndarray  ncomponents x d1 x d2
+        mask to compare to
+    
+    thresh_cost: double 
+        max cost accepted 
+ 
+    min_dist: min distance between cm
+    
+    print_assignment:
+        for hungarian algorithm
+    
+    plot_results: bool    
+
+    Cn: 
+        correlation image or median
+
+    Returns:
+    --------
+    idx_tp_1:
+        indeces true pos ground truth mask 
+    
+    idx_tp_2:
+        indeces ground truth comp
+
+    idx_fn_1:
+        indeces false neg
+
+    idx_fp_2:
+        indeces false pos
+
+    performance:  
+    
+    '''
+    #%%
+    ncomps,d1,d2 = np.shape(masks_gt)
+    dims = d1,d2
+    A_ben = scipy.sparse.csc_matrix(np.reshape(masks_gt[:].transpose([1,2,0]),(np.prod(dims),-1,),order='F'))
+    A_cnmf = scipy.sparse.csc_matrix(np.reshape(masks_comp[:].transpose([1,2,0]),(np.prod(dims),-1,),order='F'))
+    
+    cm_ben = [ scipy.ndimage.center_of_mass(mm) for mm in masks_gt]
+    cm_cnmf = [ scipy.ndimage.center_of_mass(mm) for mm in masks_comp]
+    #%% find distances and matches
+    D=distance_masks([A_ben,A_cnmf],[cm_ben,cm_cnmf], min_dist )    
+    matches,costs=find_matches(D,print_assignment=print_assignment)
+    matches=matches[0]
+    costs=costs[0]
+
+    #%% compute precision and recall
+    TP = np.sum(np.array(costs)<thresh_cost)*1.
+    FN = np.shape(masks_gt)[0] - TP
+    FP = np.shape(masks_comp)[0] - TP
+    TN = 0
+    
+    performance = dict() 
+    performance['recall'] = TP/(TP+FN)
+    performance['precision'] = TP/(TP+FP) 
+    performance['accuracy'] = (TP+TN)/(TP+FP+FN+TN)
+    performance['f1_score'] = 2*TP/(2*TP+FP+FN)
+    print performance
+    #%%
+    idx_tp = np.where(np.array(costs)<thresh_cost)[0]
+    idx_tp_ben = matches[0][idx_tp] 
+    idx_tp_cnmf = matches[1][idx_tp]
+     
+    idx_fn = np.setdiff1d(range(np.shape(masks_gt)[0]),idx_tp)
+    
+    idx_fp =  np.setdiff1d(range(np.shape(masks_comp)[0]),matches[1][idx_tp])
+    
+    idx_fp_cnmf = idx_fp
+    
+    idx_tp_gt,idx_tp_comp, idx_fn_gt, idx_fp_comp = idx_tp_ben,idx_tp_cnmf, idx_fn, idx_fp_cnmf
+    
+    if plot_results:
+        pl.rcParams['pdf.fonttype'] = 42
+        font = {'family' : 'Myriad Pro',
+                'weight' : 'regular',
+                'size'   : 20}
+        pl.rc('font', **font)
+        lp,hp = np.nanpercentile(Cn,[5,95])
+        pl.subplot(1,2,1)
+        pl.imshow(Cn,vmin=lp,vmax=hp)
+        [pl.contour(mm,levels=[0],colors='w',linewidths=2) for mm in masks_comp[idx_tp_comp]] 
+        [pl.contour(mm,levels=[0],colors='r',linewidths=2) for mm in masks_gt[idx_tp_gt]] 
+        pl.title('TRUE POSITIVE')
+        #pl.legend([comp_str,'GT'])
+        pl.axis('off')
+        pl.subplot(1,2,2)
+        pl.imshow(Cn,vmin=lp,vmax=hp)
+        [pl.contour(mm,levels=[0],colors='w',linewidths=2) for mm in masks_comp[idx_fp_comp]] 
+        [pl.contour(mm,levels=[0],colors='r',linewidths=2) for mm in masks_gt[idx_fn]] 
+        pl.title('FALSE POSITIVE (w), FALSE NEGATIVE (r)')
+        #pl.legend([comp_str,'GT'])
+        pl.axis('off')
+    return  idx_tp_gt,idx_tp_comp, idx_fn_gt, idx_fp_comp, performance 
+    
+    
 #%% compute mask distances
 def distance_masks(M_s,cm_s,max_dist):
     """
