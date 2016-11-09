@@ -1964,7 +1964,7 @@ print np.std(neurons_per_100_um2)
 #minuss=np.concatenate(grouped_session.apply(lambda x: x[['fluo_plus']].values).values)
 import statsmodels.api as sm
 #%% values javier
-
+cr_ampl_m = cr_ampl.copy()
 for mse in cr_ampl_m.mouse.unique():
     print mse
     subset=cr_ampl_m[(cr_ampl_m.mouse==mse)]
@@ -1994,7 +1994,7 @@ samples_per_FOV=30
 #group_var = 'ampl_eyelid_CSCSUS'
 #bins=[-0.15,.15, .4,  1]
 ###
-#
+##
 group_var = 'perc_CR'
 bins=[0,.2,.4,.6, .8, 1]
 
@@ -2127,6 +2127,13 @@ pl.errorbar(bins[1:],np.mean(all_traces_mean,0)[:,1],np.std(all_traces_mean,0)[:
 pl.legend(['CR+','CR-'],loc=4)
 pl.xlabel(group_var)
 pl.ylabel('DF/F')
+#%% size effects
+(np.mean(all_traces_mean,0)[:,0] - np.mean(all_traces_mean,0)[:,1])/np.sqrt(.5*np.var(all_traces_mean,0)[:,0]+ .5*np.var(all_traces_mean,0)[:,1])
+print np.mean(all_traces_mean,0)[:,0] 
+print np.mean(all_traces_mean,0)[:,1]
+print np.std(all_traces_mean,0)[:,0]
+print np.std(all_traces_mean,0)[:,1]
+
 #%% r coeff
 print np.mean(all_rs_plus,0) 
 print np.std(all_rs_plus,0) 
