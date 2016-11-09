@@ -161,8 +161,7 @@ class CNMF(object):
                                        
        self.options=options 
        
-       if self.rf is None:
-                            
+       if self.rf is None: # no patches
            Yr,sn,g,psx = preprocess_data(Yr,dview=self.dview,**options['preprocess_params'])                      
  
            if self.Ain is None:
@@ -170,7 +169,8 @@ class CNMF(object):
                    options['init_params']['alpha_snmf']=self.alpha_snmf
                    
                self.Ain, self.Cin , self.b_in, self.f_in, center=initialize_components(Y, normalize=True, **options['init_params'])  
-           
+
+
            if self.Ain.dtype == bool:
                A,b,Cin,fin = update_spatial_components(Yr, self.Cin, self.f_in, self.Ain, sn=sn, dview=self.dview,**options['spatial_params'])
                self.f_in=fin

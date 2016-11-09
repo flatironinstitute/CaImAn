@@ -252,15 +252,18 @@ def evaluate_components(Y, traces, A, C, b, f, remove_baseline = True, N = 5, ro
     d1,d2,T=np.shape(Y)
     Yr=np.reshape(Y,(d1*d2,T),order='F')    
     
-    
+    print('Computing event exceptionality delta')
     fitness_delta, erfc_delta,std_rr = compute_event_exceptionality(np.diff(traces,axis=1),robust_std=robust_std,N=N)
     
+    
+    print('Removing Baseline')
     if remove_baseline:
         traces = traces - scipy.ndimage.percentile_filter(traces,8,size=[1,np.shape(traces)[-1]/5])
-        
+    
+    print('Computing event exceptionality')    
     fitness_raw, erfc_raw,std_rr = compute_event_exceptionality(traces,robust_std=robust_std,N=N)
     
-    
+    print('Evaluating spatial footprint')
     # compute the overlap between spatial and movie average across samples with significant events
     r_values, significant_samples = classify_components_ep(Yr, A, C, b, f, Athresh = Athresh, Npeaks = Npeaks, tB=tB, tA = tA, thres = thresh_C)
 

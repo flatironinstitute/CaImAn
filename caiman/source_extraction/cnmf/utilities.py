@@ -11,6 +11,7 @@ from caiman.source_extraction.cnmf.initialization import greedyROI
 from caiman.summary_images import local_correlations
 from caiman.base.rois import com
 import pylab as pl
+import psutil
 #%%
 def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], ssub=1, tsub=1, p=2, p_ssub=1, p_tsub=1, thr=0.8, method_init= 'greedy_roi', nb = 1, **kwargs):
     """Dictionary for setting the CNMF parameters.
@@ -24,8 +25,13 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], ssub=1, tsub=1, p=2, p_ssub=
         dims, T = Y.shape[:-1], Y.shape[-1]
 
     print 'using ' + str(n_processes) + ' processes'
-    n_pixels_per_process = np.prod(dims) / n_processes  # how to subdivide the work among processes
-
+#    n_pixels_per_process = np.prod(dims) / n_processes  # how to subdivide the work among processes
+    
+    avail_memory_per_process = np.array(psutil.virtual_memory()[1])/2.**30/n_processes
+    mem_per_pix = 3.6977678498329843e-09
+    n_pixels_per_process = np.int(avail_memory_per_process/8./mem_per_pix/T)
+    print 'using ' + str(n_pixels_per_process) + ' pixels per process'
+    
     options = dict()
     options['patch_params'] = {
         'ssub': p_ssub,             # spatial downsampling factor

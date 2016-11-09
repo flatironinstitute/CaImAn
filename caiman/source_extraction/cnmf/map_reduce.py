@@ -370,8 +370,8 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, gnb = 1, dvie
     for iter in range(100):
         b = np.fmax(Bm.dot(F_tot.dot(f.T)).dot(np.linalg.inv(f.dot(f.T))),0)
         #f = np.fmax(np.dot((Bm.T.dot(b)).T,F_tot).dot(np.linalg.inv(b.T.dot(b))),0)
-        #import pdb
-        #pdb.set_trace()
+#        import pdb
+#        pdb.set_trace()
         f = np.fmax(np.linalg.inv(b.T.dot(b)).dot((Bm.T.dot(b)).T.dot(F_tot)),0)
     
     return A_tot,C_tot,YrA_tot,b,f,sn_tot, optional_outputs

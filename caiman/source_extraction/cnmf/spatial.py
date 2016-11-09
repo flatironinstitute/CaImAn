@@ -30,7 +30,7 @@ except:
     print 'cvxopt not installed'
 
 import pylab as pl
-from caiman.mmapping import load_memmap
+from caiman.mmapping import load_memmap, parallel_dot_product
 from scipy.ndimage.filters import median_filter
 from scipy.ndimage.morphology import binary_closing
 from scipy.ndimage.measurements import label
@@ -268,7 +268,8 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
         pixel_groups.append([Y_name, C_name, sn, ind2_, range(i, np.prod(dims)), method_ls, cct,rank_f])
 
     A_ = np.zeros((d, nr + np.size(f, 0)))
-
+    print 'Starting Update Spatial Components'
+    
     #serial_result = map(lars_regression_noise_ipyparallel, pixel_groups)
     if dview is not None:
         parallel_result = dview.map_sync(regression_ipyparallel, pixel_groups)
@@ -320,7 +321,9 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
 
     #import pdb
     # pdb.set_trace()
-    Y_resf = np.dot(Y, f.T) - A_.dot(coo_matrix(C[:nr, :]).dot(f.T))
+#    Y_resf = np.dot(Y, f.T) - A_.dot(coo_matrix(C[:nr, :]).dot(f.T))
+    print "Computing residuals"
+    Y_resf = parallel_dot_product(Y,f.T,block_size=5000,dview=dview) - A_.dot(coo_matrix(C[:nr, :]).dot(f.T))
     print "Computing A_bas"
     A_bas = np.fmax(Y_resf.dot(np.linalg.inv(f.dot(f.T))), 0)  # update baseline based on residual
     # A_bas = np.fmax(Y_resf / scipy.linalg.norm(f)**2, 0)  # update baseline based on residual
@@ -351,6 +354,7 @@ def regression_ipyparallel(pars):
     # need to import since it is run from within the server
     import numpy as np
     import sys
+    import gc
     from sklearn import linear_model        
 
     Y_name, C_name, noise_sn, idxs_C, idxs_Y,method_least_square,cct,rank_f = pars
@@ -421,7 +425,9 @@ def regression_ipyparallel(pars):
     
     if type(C_name) is str:            
         del C
-#    gc.collect()
+    
+    if type(Y_name) is str:
+        gc.collect()
 
     return As
 
@@ -648,7 +654,7 @@ def threshold_components(A, dims, medw=(3, 3), thr_method='nrg', maxthr=0.1, nrg
 
 
 def threshold_components_parallel(pars):
-
+    
     A_i, i, dims, medw, d, thr_method, se, ss, maxthr, nrgthr, extract_cc = pars
     A_temp = np.reshape(A_i, dims[::-1])
     A_temp = median_filter(A_temp, medw)
