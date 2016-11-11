@@ -8,6 +8,7 @@ import numpy as np
 import os
 from skimage.external.tifffile import imread
 import caiman as cm  
+import tifffile
 #%%
 def load_memmap(filename):
     """ Load a memory mapped file created by the function save_memmap
@@ -296,62 +297,102 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
 
     return fname_new
 #%%
-def parallel_dot_product(A,b,block_size=5000,dview=None):
+def parallel_dot_product(A,b,block_size=5000,dview=None,transpose=False):
     ''' Chunk matrix product between matrix and column vectors 
     A: memory mapped ndarray
         pixels x time
-    b: column array    
+    b: time x comps   
     '''
+    
     pars = []
-    pixels,tm = np.shape(A)
-    for idx in range(0,pixels-block_size,block_size):
-        idx_to_pass = range(idx,idx+block_size)
-        pars.append([A.filename,idx_to_pass,b])
+    d1,d2 = np.shape(A)
+    
+    
+    
+    
+    if block_size<d1:
 
-    if idx < (pixels - 1):
-        idx_to_pass = range(idx,pixels)
-        pars.append([A.filename,idx_to_pass,b])
+        for idx in range(0,d1-block_size,block_size):
+            idx_to_pass = range(idx,idx+block_size)
+            pars.append([A.filename,idx_to_pass,b,transpose])
+
+    else:
         
+        idx = 0
+        
+    if (idx+block_size) < d1:
+        idx_to_pass = range(idx+block_size,d1)
+        pars.append([A.filename,idx_to_pass,b,transpose])
+        
+#    import pdb
+#    pdb.set_trace() 
     if dview is None:
         results = map(dot_place_holder,pars)
     else:
         results = dview.map_sync(dot_place_holder,pars)
-        
-    output = np.zeros((pixels,1))
-    for res in results:
-       output[res[0]] = res[1] 
     
+   
+    if transpose:
+        output = np.zeros((d2,np.shape(b)[-1]))
+        for res in results:
+           output = output+res[1] 
+        
+    else:
+        output = np.zeros((d1,np.shape(b)[-1]))
+        for res in results:
+           output[res[0]] = res[1] 
+        
     return output
         
 #%%
 def dot_place_holder(par):
      from caiman.mmapping import load_memmap
-     A_name,idx_to_pass,b_ = par
-     A_, _, _  = load_memmap(A_name)            
-     print idx_to_pass[-1]
-     return idx_to_pass,A_[idx_to_pass].dot(b_)  
      
+     A_name,idx_to_pass,b_,transpose = par
+     A_, _, _  = load_memmap(A_name)      
+     
+#     import pdb
+#     pdb.set_trace()    
+     print idx_to_pass[-1]
+     
+         
+     if 'sparse' in str(type(b_)):
+         if transpose:
+             return idx_to_pass,(b_.T.tocsc()[:,idx_to_pass].dot(A_[idx_to_pass])).T
+         else:             
+             return idx_to_pass,(b_.T.dot(A_[idx_to_pass].T)).T
+         
+     else:
+         if transpose:
+             return idx_to_pass,A_[idx_to_pass].dot(b_[idx_to_pass])  
+         else:
+             return idx_to_pass,A_[idx_to_pass].dot(b_)  
+         
 #%% 
-def save_tif_to_mmap_online(movie_iterable,save_base_name='YrOL_'):
+def save_tif_to_mmap_online(movie_iterable,save_base_name='YrOL_', order = 'C',add_to_movie=0,border_to_0=0):
     
     if type(movie_iterable) is str:
-        with tifffile.Tifffile(movie_iterable) as tf:
-            movie_iterable = 1
+        with tifffile.TiffFile(movie_iterable) as tf:
+            movie_iterable = cm.movie(tf)
+            
     count=0
     new_mov=[]
     
     dims=(len(movie_iterable),)+movie_iterable[0].shape
     
     
-    if save_base_name is not None:
-        fname_tot = save_base_name + '_d1_' + str(dims[1]) + '_d2_' + str(dims[2]) + '_d3_' + str(
-                1 if len(dims) == 3 else dims[3]) + '_order_' + str(order) + '_frames_' + str(dims[0]) + '_.mmap'
-                
-        big_mov = np.memmap(fname_tot, mode='w+', dtype=np.float32,
+    
+    fname_tot = save_base_name + '_d1_' + str(dims[1]) + '_d2_' + str(dims[2]) + '_d3_' + str(
+            1 if len(dims) == 3 else dims[3]) + '_order_' + str(order) + '_frames_' + str(dims[0]) + '_.mmap'
+            
+    big_mov = np.memmap(fname_tot, mode='w+', dtype=np.float32,
                                 shape=(np.prod(dims[1:]), dims[0]), order=order)
-                                
-                                
-    for page,shift in zip(movie_iterable,xy_shifts):  
+    try:                            
+        min_mov = np.min(movie_iterable[0].asarray())                            
+    except:
+        min_mov = np.min(movie_iterable[0])
+        
+    for page in movie_iterable:  
          if count%100 == 0:
              print(count)
              
@@ -359,17 +400,19 @@ def save_tif_to_mmap_online(movie_iterable,save_base_name='YrOL_'):
              page=page.asarray()
                  
          img=np.array(page,dtype=np.float32)
-         new_img = apply_shift_iteration(img,shift)
-         if save_base_name is not None:
-             big_mov[:,count] = np.reshape(img,np.prod(dims[1:]),order='F')
-         else:
-             new_mov.append(new_img)
          
+         if border_to_0 > 0:
+            img[:border_to_0,:]=min_mov
+            img[:,:border_to_0]=min_mov
+            img[:,-border_to_0:]=min_mov
+            img[-border_to_0:,:]=min_mov
+            
+         big_mov[:,count] = np.reshape(img+add_to_movie,np.prod(dims[1:]),order='F')
+          
          count+=1
     
-    if save_base_name is not None:
-        big_mov.flush()
-        del big_mov    
-        return fname_tot
-    else:
-        return np.array(new_mov)      
+    
+    big_mov.flush()
+    del big_mov    
+    return fname_tot
+    

@@ -30,6 +30,7 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], ssub=1, tsub=1, p=2, p_ssub=
     avail_memory_per_process = np.array(psutil.virtual_memory()[1])/2.**30/n_processes
     mem_per_pix = 3.6977678498329843e-09
     n_pixels_per_process = np.int(avail_memory_per_process/8./mem_per_pix/T)
+    n_pixels_per_process = np.minimum(n_pixels_per_process,np.prod(dims) / n_processes)
     print 'using ' + str(n_pixels_per_process) + ' pixels per process'
     
     options = dict()

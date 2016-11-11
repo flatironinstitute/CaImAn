@@ -258,7 +258,8 @@ def evaluate_components(Y, traces, A, C, b, f, remove_baseline = True, N = 5, ro
     
     print('Removing Baseline')
     if remove_baseline:
-        traces = traces - scipy.ndimage.percentile_filter(traces,8,size=[1,np.shape(traces)[-1]/5])
+        num_samps_bl=np.minimum(np.shape(traces)[-1]/5,800)
+        traces = traces - scipy.ndimage.percentile_filter(traces,8,size=[1,num_samps_bl])
     
     print('Computing event exceptionality')    
     fitness_raw, erfc_raw,std_rr = compute_event_exceptionality(traces,robust_std=robust_std,N=N)

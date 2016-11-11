@@ -360,14 +360,14 @@ def regression_ipyparallel(pars):
     Y_name, C_name, noise_sn, idxs_C, idxs_Y,method_least_square,cct,rank_f = pars
     
     if type(Y_name) is str:
-        print("Reloading Y")
+       # print("Reloading Y")
         Y, _, _ = load_memmap(Y_name)
         Y = np.array(Y[idxs_Y, :])
     else:
         Y = Y_name[idxs_Y, :]
         
     if type(C_name) is str: 
-        print("Reloading Y")           
+        #print("Reloading Y")           
         C = np.load(C_name, mmap_mode='r')
         C = np.array(C)
     else:
@@ -420,7 +420,7 @@ def regression_ipyparallel(pars):
             As.append((px, idxs_C[px], a))
 
     if type(Y_name) is str:
-        print("deleting Y")
+        #print("deleting Y")
         del Y
     
     if type(C_name) is str:            

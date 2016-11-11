@@ -9,6 +9,7 @@ from deconvolution import constrained_foopsi
 from utilities import update_order
 import sys
 import time
+from caiman.mmapping import parallel_dot_product
 #%%
 def make_G_matrix(T,g):
     ''' create matrix of autoregression to enforce indicator dynamics
@@ -168,7 +169,13 @@ def update_temporal_components(Y, A, b, Cin, fin, bl = None,  c1 = None, g = Non
 
     Cin=coo_matrix(Cin)
     #YrA = ((A.T.dot(Y)).T-Cin.T.dot(A.T.dot(A)))
-    YA = (A.T.dot(Y).T)*spdiags(1./nA,0,nr+nb,nr+nb)
+    print ('Generating residuals')
+#    YA = (A.T.dot(Y).T)*spdiags(1./nA,0,nr+nb,nr+nb)
+    YA = parallel_dot_product(Y,A,dview=dview,block_size=5000,transpose=True)*spdiags(1./nA,0,nr+nb,nr+nb)
+    print ('Done')
+   # 
+#    print np.allclose(YA,YA1)
+    
     AA = ((A.T.dot(A))*spdiags(1./nA,0,nr+nb,nr+nb)).tocsr()
     YrA = YA - Cin.T.dot(AA)
     #YrA = ((A.T.dot(Y)).T-Cin.T.dot(A.T.dot(A)))*spdiags(1./nA,0,nr+1,nr+1)

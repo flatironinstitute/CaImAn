@@ -229,7 +229,7 @@ def get_noise_fft_parallel(Y,n_pixels_per_process=100, dview=None, **kwargs):
         else:
             print 'PROFILE:'+ dview.client.profile
             results = dview.map_sync(fft_psd_multithreading, argsin)         
-        
+       
         _,_,psx_= results[0]
         psx_s=np.zeros((Y.shape[0],psx_.shape[-1]))
         sn_s=np.zeros(Y.shape[0])

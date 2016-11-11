@@ -9,7 +9,9 @@ import numpy as np
 import pylab as pl
 import cv2 
 import h5py
-
+import caiman as cm
+import tifffile
+import gc
 #%%
 def apply_shift_iteration(img,shift):
      sh_x_n,sh_y_n = shift
@@ -44,7 +46,7 @@ def apply_shift_online(movie_iterable,xy_shifts,save_base_name=None,order='F'):
          img=np.array(page,dtype=np.float32)
          new_img = apply_shift_iteration(img,shift)
          if save_base_name is not None:
-             big_mov[:,count] = np.reshape(img,np.prod(dims[1:]),order='F')
+             big_mov[:,count] = np.reshape(new_img,np.prod(dims[1:]),order='F')
          else:
              new_mov.append(new_img)
          
@@ -56,46 +58,106 @@ def apply_shift_online(movie_iterable,xy_shifts,save_base_name=None,order='F'):
         return fname_tot
     else:
         return np.array(new_mov) 
+#%%        
+  
+def motion_correct_online_multifile(list_files,add_to_movie,order = 'C', **kwargs):
+    
+    
+    kwargs['order'] = order
+    all_names  = []   
+    all_shifts = [] 
+    all_xcorrs = []
+    all_templates = []
+    template = None
+    kwargs_=kwargs.copy()
+    kwargs_['order'] = order
+    total_frames = 0
+    for file_ in list_files:
+        print 'Processing:' + file_
+        kwargs_['template'] = template
+        kwargs_['save_base_name'] = file_[:-4]
+        shifts,xcorrs,template, fname_tot  =  motion_correct_online(tifffile.TiffFile(file_),add_to_movie,**kwargs_)
+        all_names.append(fname_tot)
+        all_shifts.append(shifts)
+        all_xcorrs.append(xcorrs)
+        all_templates.append(template)
+        total_frames = total_frames + len(shifts)
+    
+
+
+    
+
+    
+    return all_names, all_shifts, all_xcorrs, all_templates
+        
+        
+    
 #%%
-def motion_correct_online(movie_iterable,max_shift_w=25,max_shift_h=25,hfd5_name=None,init_frames_template=100,show_movie=False,bilateral_blur=False,template=None,min_count=1000):
+def motion_correct_online(movie_iterable,add_to_movie,max_shift_w=25,max_shift_h=25,save_base_name=None,order = 'C',\
+                        init_frames_template=100,show_movie=False,bilateral_blur=False,template=None,min_count=1000,border_to_0=0):
 
      shifts=[];   # store the amount of shift in each frame
      xcorrs=[]; 
+     
+   
      
      if 'tifffile' in str(type(movie_iterable[0])):   
              init_mov=[m.asarray() for m in movie_iterable[:init_frames_template]]
      else:
              init_mov=movie_iterable[slice(0,init_frames_template,1)]
              
-     if template is None:
+     dims=(len(movie_iterable),)+movie_iterable[0].shape 
+     print "dimensions:" + str(dims)       
+             
+     if save_base_name is not None:
+         fname_tot = save_base_name + '_d1_' + str(dims[1]) + '_d2_' + str(dims[2]) + '_d3_' + str(1 if len(dims) == 3 else dims[3]) + '_order_' + str(order) + '_frames_' + str(dims[0]) + '_.mmap'
+         big_mov = np.memmap(fname_tot, mode='w+', dtype=np.float32, shape=(np.prod(dims[1:]), dims[0]), order=order)       
+     else:
+         fname_tot = None
          
+          
+     
+     if template is None:         
          template=np.median(init_mov,0)    
          count=init_frames_template
+         if np.percentile(template, 1) + add_to_movie < - 10:
+             raise Exception('Movie too negative, You need to add a larger value to the movie (add_to_movie)')
+         template=np.array(template + add_to_movie,dtype=np.float32)    
      else:
+         if np.percentile(template, 1) < - 10:
+             raise Exception('Movie too negative, You need to add a larger value to the movie (add_to_movie)')
          count=min_count
          
-     #if np.percentile(template, 8) < - 0.1:
-     to_remove=np.percentile(init_mov, 8)
      
-     template=np.array(template-to_remove,dtype=np.float32)
+         
+     
+     
+     min_mov = 0
           
 #     buffer_=np.zeros((buffer_median,)+template.shape)            
-     for page in movie_iterable:  
-                  
-         
+     for idx_frame,page in enumerate(movie_iterable):  
+                           
          if 'tifffile' in str(type(movie_iterable[0])):
              page=page.asarray()
-         
-        
+                 
          img=np.array(page,dtype=np.float32)
-         img=img-to_remove
+         img=img+add_to_movie
          template_old=template
+
          new_img,template,shift,avg_corr = motion_correct_iteration(img,template,count,max_shift_w=max_shift_w,max_shift_h=max_shift_h,bilateral_blur=bilateral_blur)
          if count%100 == 0:
              print 'Relative change in template:' + str(np.sum(np.abs(template-template_old))/np.sum(np.abs(template)))
              print 'Iteration:'+ str(count)
+                           
              
-         new_img = new_img + to_remove
+         if border_to_0 > 0:
+            new_img[:border_to_0,:]=min_mov
+            new_img[:,:border_to_0]=min_mov
+            new_img[:,-border_to_0:]=min_mov
+            new_img[-border_to_0:,:]=min_mov
+         
+         if save_base_name is not None:
+             big_mov[:,idx_frame] = np.reshape(new_img,np.prod(dims[1:]),order='F')
 
          if show_movie:
             cv2.imshow('frame',new_img/200)
@@ -105,8 +167,15 @@ def motion_correct_online(movie_iterable,max_shift_w=25,max_shift_h=25,hfd5_name
          xcorrs.append(avg_corr)
          count+=1
          
-     template=template+to_remove
-     return shifts,xcorrs,template      
+     if save_base_name is not None:
+        print 'Flushing memory'
+        big_mov.flush()
+        del big_mov     
+        gc.collect()
+        
+     
+
+     return shifts,xcorrs,template, fname_tot     
 #%%
 def motion_correct_iteration(img,template,frame_num,max_shift_w=25,max_shift_h=25,bilateral_blur=False,diameter=10,sigmaColor=10000,sigmaSpace=0):
 
