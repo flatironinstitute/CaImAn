@@ -60,12 +60,12 @@ Installation on MAC OS
 Download and install Anaconda (Python 2.7) <http://docs.continuum.io/anaconda/install>
 
     ```
-    git clone --recursive https://github.com/agiovann/Constrained_NMF.git
-    cd Constrained_NMF/CalBlitz/
-    git checkout master
+    git clone  https://github.com/simonsfoundation/CaImAn
+    cd Caiman
+    git checkout dev
     git pull
-    conda create -n CNMF ipython --file requirements_conda.txt    
-    source activate CNMF
+    conda create -n CaImAn ipython --file requirements_conda.txt    
+    source activate CaImAn
     pip install -r requirements_pip.txt
     conda install -c menpo opencv3=3.1.0
     
