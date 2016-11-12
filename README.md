@@ -61,7 +61,7 @@ Download and install Anaconda (Python 2.7) <http://docs.continuum.io/anaconda/in
 
     ```
     git clone  https://github.com/simonsfoundation/CaImAn
-    cd Caiman
+    cd CaImAn
     git checkout dev
     git pull
     conda create -n CaImAn ipython --file requirements_conda.txt    
