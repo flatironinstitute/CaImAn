@@ -8,6 +8,7 @@ import numpy as np
 import os
 from skimage.external.tifffile import imread
 import caiman as cm  
+import tifffile
 #%%
 def load_memmap(filename):
     """ Load a memory mapped file created by the function save_memmap
@@ -332,11 +333,12 @@ def dot_place_holder(par):
      return idx_to_pass,A_[idx_to_pass].dot(b_)  
      
 #%% 
-def save_tif_to_mmap_online(movie_iterable,save_base_name='YrOL_'):
+def save_tif_to_mmap_online(movie_iterable,save_base_name='YrOL_', order='C'):
     
     if type(movie_iterable) is str:
         with tifffile.Tifffile(movie_iterable) as tf:
-            movie_iterable = 1
+            movie_iterable = cm.movie(tf)
+    
     count=0
     new_mov=[]
     
@@ -351,7 +353,7 @@ def save_tif_to_mmap_online(movie_iterable,save_base_name='YrOL_'):
                                 shape=(np.prod(dims[1:]), dims[0]), order=order)
                                 
                                 
-    for page,shift in zip(movie_iterable,xy_shifts):  
+    for page in movie_iterable:  
          if count%100 == 0:
              print(count)
              
@@ -359,9 +361,9 @@ def save_tif_to_mmap_online(movie_iterable,save_base_name='YrOL_'):
              page=page.asarray()
                  
          img=np.array(page,dtype=np.float32)
-         new_img = apply_shift_iteration(img,shift)
+         new_img = img
          if save_base_name is not None:
-             big_mov[:,count] = np.reshape(img,np.prod(dims[1:]),order='F')
+             big_mov[:,count] = np.reshape(new_img,np.prod(dims[1:]),order='F')
          else:
              new_mov.append(new_img)
          
