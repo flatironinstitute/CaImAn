@@ -63,7 +63,7 @@ else:
     n_processes = np.maximum(np.int(psutil.cpu_count()), 1)
 print 'using ' + str(n_processes) + ' processes'
 #%% start cluster for efficient computation
-single_thread = True
+single_thread = False
 
 if single_thread:
     dview = None

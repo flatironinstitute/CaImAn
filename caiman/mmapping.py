@@ -309,8 +309,6 @@ def parallel_dot_product(A,b,block_size=5000,dview=None,transpose=False):
     b = cPickle.dumps(b)
     
     
-    import pdb
-    pdb.set_trace()
     if block_size<d1:
 
         for idx in range(0,d1-block_size,block_size):
@@ -334,7 +332,7 @@ def parallel_dot_product(A,b,block_size=5000,dview=None,transpose=False):
     else:
         results = dview.map_sync(dot_place_holder,pars)
     
-    
+    b = cPickle.loads(b)
     if transpose:
         output = np.zeros((d2,np.shape(b)[-1]))
         for res in results:
@@ -351,8 +349,6 @@ def parallel_dot_product(A,b,block_size=5000,dview=None,transpose=False):
 def dot_place_holder(par):
      from caiman.mmapping import load_memmap
      import cPickle
-     import pdb
-     pdb.set_trace()
      A_name,idx_to_pass,b_,transpose = par
      A_, _, _  = load_memmap(A_name)      
      b_ = cPickle.loads(b_)
@@ -364,7 +360,7 @@ def dot_place_holder(par):
          
      if 'sparse' in str(type(b_)):
          if transpose:
-             return idx_to_pass,(b_.T.tocsc()[:,idx_to_pass].dot(A_[idx_to_pass])).T
+             return idx_to_pass,(b_.T.tocsc()[:,idx_to_pass].dot(A_[idx_to_pass])).T             
          else:             
              return idx_to_pass,(b_.T.dot(A_[idx_to_pass].T)).T
          

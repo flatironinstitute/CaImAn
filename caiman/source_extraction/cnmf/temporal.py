@@ -175,7 +175,7 @@ def update_temporal_components(Y, A, b, Cin, fin, bl = None,  c1 = None, g = Non
 
     
     if 'memmap' in str(type(Y)):
-        YA = parallel_dot_product(Y,A,dview=dview,block_size=1000,transpose=True)*spdiags(1./nA,0,nr+nb,nr+nb)
+        YA = parallel_dot_product(Y,A,dview=None,block_size=20000,transpose=True)*spdiags(1./nA,0,nr+nb,nr+nb)
     else:
         YA = (A.T.dot(Y).T)*spdiags(1./nA,0,nr+nb,nr+nb)
     print ('Done')
