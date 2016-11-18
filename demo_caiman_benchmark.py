@@ -25,6 +25,7 @@ import glob
 import os
 import scipy
 from ipyparallel import Client
+from time import time
 # mpl.use('Qt5Agg')
 
 
@@ -36,6 +37,8 @@ from caiman.components_evaluation import evaluate_components
 from caiman.utils.visualization import plot_contours,view_patches_bar
 from caiman.base.rois import extract_binary_masks_blob_parallel
 from caiman.source_extraction import cnmf as cnmf
+from caiman.mmapping import save_tif_to_mmap_online
+from caiman.motion_correction import motion_correct_online,motion_correct_online_multifile
 #%%
 pl.close('all')
 #%%
@@ -104,14 +107,44 @@ fnames=fnames
 #idx_x=slice(12,500,None)
 #idx_y=slice(12,500,None)
 #idx_xy=(idx_x,idx_y)
+t_mmap = time()
 add_to_movie=300 # the movie must be positive!!!
 border_to_0=10
 downsample_factor=1 # use .2 or .1 if file is large and you want a quick answer
 idx_xy=None
 base_name='Yr'
+#%%
 name_new=cm.save_memmap_each(fnames, dview=dview,base_name=base_name, resize_fact=(1, 1, downsample_factor), remove_init=0,idx_xy=idx_xy,add_to_movie=add_to_movie,border_to_0=border_to_0)
 name_new.sort()
 print name_new
+t_mmap_1 = time()
+print t_mmap_1-t_mmap
+#%%
+t_mmap_online = time()
+fname = save_tif_to_mmap_online('k31_20160104_MMA_150um_65mW_zoom2p2_00001_00001.tif',border_to_0=border_to_0,add_to_movie=add_to_movie)
+t_mmap_online_1 = time()
+print t_mmap_online_1-t_mmap_online
+#%%
+#Yr, dims, T = cm.load_memmap(fname)
+#d1, d2 = dims
+#images = np.reshape(Yr.T, [T] + list(dims), order='F')
+images = tifffile.TiffFile('k31_20160104_MMA_150um_65mW_zoom2p2_00001_00001.tif')
+t_mc_online = time()
+shifts,xcorrs,template  = motion_correct_online(images, save_base_name=None,border_to_0=border_to_0,add_to_movie=add_to_movie)
+t_mc_online_1 = time()
+print t_mc_online_1-t_mc_online
+#%%
+fls = glob.glob('k*.tif')
+fls=fls[:3]
+t_mmap_mc_online = time()
+all_names, all_shifts, all_xcorrs, all_templates = motion_correct_online_multifile(fls,add_to_movie)
+t_mmap_mc_online_1 = time()
+print  t_mmap_mc_online_1 - t_mmap_mc_online
+#%%
+t_mmap_join = time()    
+fname_new = cm.mmapping.save_memmap_join(all_names, base_name= 'Yr_MC_MF_', n_chunks=100, dview=dview,async=False)    
+t_mmap_join_1 = time()    
+print  t_mmap_join_1 - t_mmap_join
 #%%
 if len(name_new) > 1:
     fname_new = cm.save_memmap_join(name_new, base_name='Yr', n_chunks=12, dview=dview)
@@ -129,92 +162,94 @@ Y = np.reshape(Yr, dims + (T,), order='F')
 #    raise Exception('Movie too negative, add_to_movie should be larger')
 #%%
 if 0:
-   Cn = cm.local_correlations(Y[:,:,:3000])
-   pl.imshow(Cn,cmap='gray')  
+   Cn = cm.local_correlations(Y[:,:,::np.int(np.shape(images)[0]/3000)]) 
+   pl.imshow(Cn)  
 
 #%%
-if not is_patches:
-    #%%
-    K = 35  # number of neurons expected per patch
-    gSig = [7, 7]  # expected half size of neurons
-    merge_thresh = 0.8  # merging threshold, max correlation allowed
-    p = 2  # order of the autoregressive system
-    cnm = cnmf.CNMF(n_processes, method_init=init_method, k=K, gSig=gSig, merge_thresh=merge_thresh,
-                    p=p, dview=dview, Ain=None,method_deconvolution='oasis')
-    cnm = cnm.fit(images)
-
+#if not is_patches:
+#    #%%
+#    K = 35  # number of neurons expected per patch
+#    gSig = [7, 7]  # expected half size of neurons
+#    merge_thresh = 0.8  # merging threshold, max correlation allowed
+#    p = 2  # order of the autoregressive system
+#    cnm = cnmf.CNMF(n_processes, method_init=init_method, k=K, gSig=gSig, merge_thresh=merge_thresh,
+#                    p=p, dview=dview, Ain=None,method_deconvolution='oasis')
+#    cnm = cnm.fit(images)
+#
+##%%
+#else:
 #%%
-else:
-    #%%
-    rf = 30  # half-size of the patches in pixels. rf=25, patches are 50x50
-    stride = 4  # amounpl.it of overlap between the patches in pixels
-    K = 6  # number of neurons expected per patch
-    gSig = [7, 7]  # expected half size of neurons
-    merge_thresh = 0.8  # merging threshold, max correlation allowed
-    p = 1  # order of the autoregressive system
-    memory_fact = 1  # unitless number accounting how much memory should be used. You will need to try different values to see which one would work the default is OK for a 16 GB system
-    save_results = False
-    #%% RUN ALGORITHM ON PATCHES
-    t1 = time()
-    cnm = cnmf.CNMF(n_processes, k=K, gSig=gSig, merge_thresh=0.8, p=0, dview=c[:], Ain=None, rf=rf, stride=stride, memory_fact=memory_fact,
-                    method_init=init_method, alpha_snmf=alpha_snmf, only_init_patch=True, gnb=1,method_deconvolution='oasis')
-    cnm = cnm.fit(images)
+rf = 30  # half-size of the patches in pixels. rf=25, patches are 50x50
+stride = 4  # amounpl.it of overlap between the patches in pixels
+K = 14  # number of neurons expected per patch
+gSig = [7, 7]  # expected half size of neurons
+merge_thresh = 0.8  # merging threshold, max correlation allowed
+p = 1  # order of the autoregressive system
+memory_fact = 1  # unitless number accounting how much memory should be used. You will need to try different values to see which one would work the default is OK for a 16 GB system
+save_results = False
+#%% RUN ALGORITHM ON PATCHES
+t1 = time()
+cnm = cnmf.CNMF(n_processes, k=K, gSig=gSig, merge_thresh=0.8, p=0, dview=dview, Ain=None, rf=rf, stride=stride, memory_fact=memory_fact,
+                method_init=init_method, alpha_snmf=alpha_snmf, only_init_patch=True, gnb=1,method_deconvolution='oasis')
+cnm = cnm.fit(images)
 
-    A_tot = cnm.A
-    C_tot = cnm.C
-    YrA_tot = cnm.YrA
-    b_tot = cnm.b
-    f_tot = cnm.f
-    sn_tot = cnm.sn
+A_tot = cnm.A
+C_tot = cnm.C
+YrA_tot = cnm.YrA
+b_tot = cnm.b
+f_tot = cnm.f
+sn_tot = cnm.sn
 
-    print 'Number of components:' + str(A_tot.shape[-1])
-    t2 = time()
-    #%%
+print 'Number of components:' + str(A_tot.shape[-1])
+t2 = time()
+print t2 - t1
+#%%
    
-    final_frate = 10# approx final rate  (after eventual downsampling )
-    tB = np.minimum(-2, np.floor(-5. / 30 * final_frate))
-    tA = np.maximum(5, np.ceil(25. / 30 * final_frate))
-    Npeaks = 10
-    traces = C_tot + YrA_tot
-    #        traces_a=traces-scipy.ndimage.percentile_filter(traces,8,size=[1,np.shape(traces)[-1]/5])
-    #        traces_b=np.diff(traces,axis=1)
-    fitness_raw, fitness_delta, erfc_raw, erfc_delta, r_values, significant_samples = evaluate_components(
-        Y, traces, A_tot, C_tot, b_tot, f_tot, remove_baseline=True, N=5, robust_std=False, Athresh=0.1, Npeaks=Npeaks, tB=tB, tA=tA, thresh_C=0.3)
+final_frate = 10# approx final rate  (after eventual downsampling )
+tB = np.minimum(-2, np.floor(-5. / 30 * final_frate))
+tA = np.maximum(5, np.ceil(25. / 30 * final_frate))
+Npeaks = 10
+traces = C_tot + YrA_tot
+#        traces_a=traces-scipy.ndimage.percentile_filter(traces,8,size=[1,np.shape(traces)[-1]/5])
+#        traces_b=np.diff(traces,axis=1)
+fitness_raw, fitness_delta, erfc_raw, erfc_delta, r_values, significant_samples = evaluate_components(
+    Y, traces, A_tot, C_tot, b_tot, f_tot, remove_baseline=True, N=5, robust_std=False, Athresh=0.1, Npeaks=Npeaks, tB=tB, tA=tA, thresh_C=0.3)
 
-    idx_components_r = np.where(r_values >= .4)[0]
-    idx_components_raw = np.where(fitness_raw < -20)[0]
-    idx_components_delta = np.where(fitness_delta < -10)[0]
+idx_components_r = np.where(r_values >= .4)[0]
+idx_components_raw = np.where(fitness_raw < -20)[0]
+idx_components_delta = np.where(fitness_delta < -10)[0]
 
-    idx_components = np.union1d(idx_components_r, idx_components_raw)
-    idx_components = np.union1d(idx_components, idx_components_delta)
-    idx_components_bad = np.setdiff1d(range(len(traces)), idx_components)
+idx_components = np.union1d(idx_components_r, idx_components_raw)
+idx_components = np.union1d(idx_components, idx_components_delta)
+idx_components_bad = np.setdiff1d(range(len(traces)), idx_components)
 
-    print ('Keeping ' + str(len(idx_components)) +
-           ' and discarding  ' + str(len(idx_components_bad)))
-    t3 = time()
-    #%%
-    if 0:
-        pl.figure()
-        crd = plot_contours(A_tot.tocsc()[:, idx_components], Cn, thr=0.9)
-        crd = plot_contours(A_tot.tocsc()[:, :], Cn, thr=0.9)
+print ('Keeping ' + str(len(idx_components)) +
+       ' and discarding  ' + str(len(idx_components_bad)))
+t3 = time()
+#%%
+if 0:
+    pl.figure()
+    crd = plot_contours(A_tot.tocsc()[:, idx_components], Cn, thr=0.9)
+    crd = plot_contours(A_tot.tocsc()[:, :], Cn, thr=0.9)
 
-    #%%
-    A_tot = A_tot.tocsc()[:, idx_components]
-    C_tot = C_tot[idx_components]
-    #%%
-    save_results = False
-    if save_results:
-        np.savez('results_analysis_patch.npz', A_tot=A_tot, C_tot=C_tot,
-                 YrA_tot=YrA_tot, sn_tot=sn_tot, d1=d1, d2=d2, b_tot=b_tot, f=f_tot)
-    
-    #%%
-    cnm = cnmf.CNMF(n_processes, k=A_tot.shape, gSig=gSig, merge_thresh=merge_thresh, p=p, dview=dview, Ain=A_tot, Cin=C_tot,
-                    f_in=f_tot, rf=None, stride=None, method_deconvolution='oasis')
-    cnm = cnm.fit(images)
-    t4 = time()
+#%%
+A_tot = A_tot.tocsc()[:, idx_components]
+C_tot = C_tot[idx_components]
+#%%
+save_results = False
+if save_results:
+    np.savez('results_analysis_patch.npz', A_tot=A_tot, C_tot=C_tot,
+             YrA_tot=YrA_tot, sn_tot=sn_tot, d1=d1, d2=d2, b_tot=b_tot, f=f_tot)
+
+#%%
+cnm = cnmf.CNMF(n_processes, k=A_tot.shape, gSig=gSig, merge_thresh=merge_thresh, p=p, dview=dview, Ain=A_tot, Cin=C_tot,
+                f_in=f_tot, rf=None, stride=None, method_deconvolution='oasis')
+cnm = cnm.fit(images)
+t4 = time()
 #%%
 A, C, b, f, YrA, sn = cnm.A, cnm.C, cnm.b, cnm.f, cnm.YrA, cnm.sn
 #%%
+
 tB = np.minimum(-2, np.floor(-5. / 30 * final_frate))
 tA = np.maximum(5, np.ceil(25. / 30 * final_frate))
 Npeaks = 10
@@ -247,6 +282,12 @@ print len(traces)
 print(len(idx_components))
 print(len(idx_blobs))
 t5 = time()
+#%%
+print t2-t1
+print t3 - t2
+print t4 - t3
+print t5 -t4
+
 #%%
 save_results = False
 if save_results:

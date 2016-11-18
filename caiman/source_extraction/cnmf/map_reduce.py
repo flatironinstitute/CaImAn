@@ -13,80 +13,8 @@ import time
 import scipy
 import os
 from caiman.mmapping import load_memmap
-#%%
-def extract_patch_coordinates(d1,d2,rf=(7,7),stride = (2,2)):
-    """
-    Function that partition the FOV in patches and return the indexed in 2D and 1D (flatten, order='F') formats
-    Parameters
-    ----------    
-    d1,d2: int
-        dimensions of the original matrix that will be  divided in patches
-    rf: int
-        radius of receptive field, corresponds to half the size of the square patch        
-    stride: int
-        degree of overlap of the patches
-    """
-    coords_flat=[]
-    coords_2d=[]
-    rf1,rf2 = rf
-    stride1,stride2 = stride
-    
-    for xx in range(rf1,d1-rf1,2*rf1-stride1)+[d1-rf1]:   
-        for yy in range(rf2,d2-rf2,2*rf2-stride2)+[d2-rf2]:
-            
-            coords_x=np.array(range(xx - rf1, xx + rf1 + 1))     
-            coords_y=np.array(range(yy - rf2, yy + rf2 + 1))  
-            print([xx - rf1, xx + rf1 + 1,yy - rf2, yy + rf2 + 1])
-            coords_y = coords_y[(coords_y >= 0) & (coords_y < d2)]
-            coords_x = coords_x[(coords_x >= 0) & (coords_x < d1)]
-            idxs = np.meshgrid( coords_x,coords_y)
-            coords_2d.append(idxs)
-            coords_ =np.ravel_multi_index(idxs,(d1,d2),order='F')
-            coords_flat.append(coords_.flatten())
-      
-    return coords_flat,coords_2d
-#%%
-def extract_rois_patch(file_name,d1,d2,rf=5,stride = 5):
-    idx_flat,idx_2d=extract_patch_coordinates(d1, d2, rf=rf,stride = stride)
-    perctl=95
-    n_components=2
-    tol=1e-6
-    max_iter=5000
-    args_in=[]    
-    for id_f,id_2d in zip(idx_flat,idx_2d):        
-        args_in.append((file_name, id_f,id_2d[0].shape, perctl,n_components,tol,max_iter))
-    st=time.time()
-    print len(idx_flat)
-    try:
-        if 1:
-            c = Client()   
-            dview=c[:]
-            file_res = dview.map_sync(nmf_patches, args_in)                         
-        else:
-            file_res = map(nmf_patches, args_in)                         
-    finally:
-        dview.results.clear()   
-        c.purge_results('all')
-        c.purge_everything()
-        c.close()
-    
-    print time.time()-st
-    
-    A1=lil_matrix((d1*d2,len(file_res)))
-    C1=[]
-    A2=lil_matrix((d1*d2,len(file_res)))
-    C2=[]
-    for count,f in enumerate(file_res):
-        idx_,flt,ca,d=f
-        A1[idx_,count]=flt[:,0][:,np.newaxis]        
-        A2[idx_,count]=flt[:,1][:,np.newaxis]        
-        C1.append(ca[0,:])
-        C2.append(ca[1,:])
-#        pl.imshow(np.reshape(flt[:,0],d,order='F'),vmax=10)
-#        pl.pause(.1)
-        
-        
-    return A1,A2,C1,C2
+from caiman.cluster import extract_patch_coordinates,extract_rois_patch
+
   
 #%%    
 def cnmf_patches(args_in):
@@ -182,7 +110,7 @@ def cnmf_patches(args_in):
         
         
     
-
+    
 #%%
 def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, gnb = 1, dview=None, memory_fact=1):
     """Function that runs CNMF in patches, either in parallel or sequentiually, and return the result for each. It requires that ipyparallel is running
@@ -361,6 +289,7 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, gnb = 1, dvie
     optional_outputs['F'] = F_tot
     optional_outputs['mask'] = mask
     
+    print "Generating backgound"
     Im = scipy.sparse.csr_matrix((1./mask,(np.arange(d),np.arange(d))))
     Bm = Im.dot(B_tot)
     A_tot = Im.dot(A_tot)

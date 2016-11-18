@@ -187,7 +187,7 @@ class CNMF(object):
                A,C,nr,merged_ROIs,S,bl,c1,sn1,g1=merge_components(Yr,A,b,C,f,S,sn,options['temporal_params'], options['spatial_params'],dview=self.dview, bl=bl, c1=c1, sn=neurons_sn, g=g, thr=self.merge_thresh, mx=50, fast_merge = True)
            
            print A.shape    
-        
+          
            A,b,C = update_spatial_components(Yr, C, f, A, sn=sn,dview=self.dview, **options['spatial_params'])
            options['temporal_params']['p'] = self.p # set it back to original value to perform full deconvolution
            
@@ -217,11 +217,13 @@ class CNMF(object):
            options['spatial_params']['n_pixels_per_process']=pix_proc
            options['temporal_params']['n_pixels_per_process']=pix_proc
            options['temporal_params']['method']=self.method_deconvolution
-            
+           
+           print "merging"  
            merged_ROIs=[0]
            while len(merged_ROIs)>0:
                A,C,nr,merged_ROIs,S,bl,c1,sn_n,g=merge_components(Yr,A,[],np.array(C),[],np.array(C),[],options['temporal_params'],options['spatial_params'],dview=self.dview,thr=self.merge_thresh,mx=np.Inf)                         
 
+           print "update temporal" 
            C,f,S,bl,c1,neurons_sn,g2,YrA = update_temporal_components(Yr,A,b,C,f,dview=self.dview,bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
            
 #           idx_components, fitness, erfc ,r_values, num_significant_samples = evaluate_components(Y,C+YrA,A,N=self.N_samples_fitness,robust_std=self.robust_std,thresh_finess=self.fitness_threshold)

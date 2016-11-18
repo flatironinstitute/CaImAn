@@ -323,7 +323,11 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
     # pdb.set_trace()
 #    Y_resf = np.dot(Y, f.T) - A_.dot(coo_matrix(C[:nr, :]).dot(f.T))
     print "Computing residuals"
-    Y_resf = parallel_dot_product(Y,f.T,block_size=5000,dview=dview) - A_.dot(coo_matrix(C[:nr, :]).dot(f.T))
+    if 'memmap' in str(type(Y)):
+        Y_resf = parallel_dot_product(Y,f.T,block_size=5000,dview=dview) - A_.dot(coo_matrix(C[:nr, :]).dot(f.T))
+    else:
+        Y_resf = np.dot(Y, f.T) - A_.dot(coo_matrix(C[:nr, :]).dot(f.T))
+
     print "Computing A_bas"
     A_bas = np.fmax(Y_resf.dot(np.linalg.inv(f.dot(f.T))), 0)  # update baseline based on residual
     # A_bas = np.fmax(Y_resf / scipy.linalg.norm(f)**2, 0)  # update baseline based on residual
@@ -360,14 +364,14 @@ def regression_ipyparallel(pars):
     Y_name, C_name, noise_sn, idxs_C, idxs_Y,method_least_square,cct,rank_f = pars
     
     if type(Y_name) is str:
-        print("Reloading Y")
+       # print("Reloading Y")
         Y, _, _ = load_memmap(Y_name)
         Y = np.array(Y[idxs_Y, :])
     else:
         Y = Y_name[idxs_Y, :]
         
     if type(C_name) is str: 
-        print("Reloading Y")           
+        #print("Reloading Y")           
         C = np.load(C_name, mmap_mode='r')
         C = np.array(C)
     else:
@@ -420,7 +424,7 @@ def regression_ipyparallel(pars):
             As.append((px, idxs_C[px], a))
 
     if type(Y_name) is str:
-        print("deleting Y")
+        #print("deleting Y")
         del Y
     
     if type(C_name) is str:            
