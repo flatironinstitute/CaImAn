@@ -644,7 +644,7 @@ class movie(ts.timeseries):
         Create a denoise version of the movie only using the first 'components' components
         '''
         _, _, clean_vectors = self.IPCA(components, batch)
-        self = self.__class__(np.reshape(clean_vectors.T, np.shape(self)),**self.__dict__)
+        self = self.__class__(np.reshape(np.float32(clean_vectors.T), np.shape(self)),**self.__dict__)
         return self
 
     def IPCA_io(self, n_components=50, fun='logcosh', max_iter=1000, tol=1e-20):
