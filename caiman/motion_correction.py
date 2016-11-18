@@ -76,7 +76,8 @@ def motion_correct_online_multifile(list_files,add_to_movie,order = 'C', **kwarg
         print 'Processing:' + file_
         kwargs_['template'] = template
         kwargs_['save_base_name'] = file_[:-4]
-        shifts,xcorrs,template, fname_tot  =  motion_correct_online(tifffile.TiffFile(file_),add_to_movie,**kwargs_)
+        tffl = tifffile.TiffFile(file_)
+        shifts,xcorrs,template, fname_tot  =  motion_correct_online(tffl,add_to_movie,**kwargs_)
         all_names.append(fname_tot)
         all_shifts.append(shifts)
         all_xcorrs.append(xcorrs)
@@ -99,13 +100,23 @@ def motion_correct_online(movie_iterable,add_to_movie,max_shift_w=25,max_shift_h
      shifts=[];   # store the amount of shift in each frame
      xcorrs=[]; 
      
-   
+
      
      if 'tifffile' in str(type(movie_iterable[0])):   
-             init_mov=[m.asarray() for m in movie_iterable[:init_frames_template]]
+             if len(movie_iterable)==1:
+                 print('******** WARNING ****** NEED TO LOAD IN MEMORY SINCE SHAPE OF PAGE IS THE FULL MOVIE')
+                 movie_iterable = movie_iterable.asarray()
+                 init_mov=movie_iterable[:init_frames_template]
+             else:
+                 
+                 init_mov=[m.asarray() for m in movie_iterable[:init_frames_template]]
      else:
              init_mov=movie_iterable[slice(0,init_frames_template,1)]
-             
+     
+     
+     
+         
+         
      dims=(len(movie_iterable),)+movie_iterable[0].shape 
      print "dimensions:" + str(dims)       
              
@@ -134,7 +145,8 @@ def motion_correct_online(movie_iterable,add_to_movie,max_shift_w=25,max_shift_h
      
      min_mov = 0
           
-#     buffer_=np.zeros((buffer_median,)+template.shape)            
+#     buffer_=np.zeros((buffer_median,)+template.shape)  
+       
      for idx_frame,page in enumerate(movie_iterable):  
                            
          if 'tifffile' in str(type(movie_iterable[0])):
@@ -143,7 +155,7 @@ def motion_correct_online(movie_iterable,add_to_movie,max_shift_w=25,max_shift_h
          img=np.array(page,dtype=np.float32)
          img=img+add_to_movie
          template_old=template
-
+         
          new_img,template,shift,avg_corr = motion_correct_iteration(img,template,count,max_shift_w=max_shift_w,max_shift_h=max_shift_h,bilateral_blur=bilateral_blur)
          if count%100 == 0:
              print 'Relative change in template:' + str(np.sum(np.abs(template-template_old))/np.sum(np.abs(template)))

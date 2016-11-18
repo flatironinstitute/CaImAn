@@ -63,7 +63,7 @@ else:
     n_processes = np.maximum(np.int(psutil.cpu_count()), 1)
 print 'using ' + str(n_processes) + ' processes'
 #%% start cluster for efficient computation
-single_thread = False
+single_thread = True
 
 if single_thread:
     dview = None
@@ -135,13 +135,14 @@ t_mc_online_1 = time()
 print t_mc_online_1-t_mc_online
 #%%
 fls = glob.glob('k*.tif')
+fls=fls[:3]
 t_mmap_mc_online = time()
 all_names, all_shifts, all_xcorrs, all_templates = motion_correct_online_multifile(fls,add_to_movie)
 t_mmap_mc_online_1 = time()
 print  t_mmap_mc_online_1 - t_mmap_mc_online
 #%%
 t_mmap_join = time()    
-fname_tot = cm.mmapping.save_memmap_join(all_names, base_name= 'Yr_MC_MF_', n_chunks=50, dview=dview,async=False)    
+fname_new = cm.mmapping.save_memmap_join(all_names, base_name= 'Yr_MC_MF_', n_chunks=100, dview=dview,async=False)    
 t_mmap_join_1 = time()    
 print  t_mmap_join_1 - t_mmap_join
 #%%
@@ -161,8 +162,8 @@ Y = np.reshape(Yr, dims + (T,), order='F')
 #    raise Exception('Movie too negative, add_to_movie should be larger')
 #%%
 if 0:
-   Cn = cm.local_correlations(Y[:,:,:3000])
-   pl.imshow(Cn,cmap='gray')  
+   Cn = cm.local_correlations(Y[:,:,::np.int(np.shape(images)[0]/3000)]) 
+   pl.imshow(Cn)  
 
 #%%
 #if not is_patches:
@@ -180,7 +181,7 @@ if 0:
 #%%
 rf = 30  # half-size of the patches in pixels. rf=25, patches are 50x50
 stride = 4  # amounpl.it of overlap between the patches in pixels
-K = 6  # number of neurons expected per patch
+K = 14  # number of neurons expected per patch
 gSig = [7, 7]  # expected half size of neurons
 merge_thresh = 0.8  # merging threshold, max correlation allowed
 p = 1  # order of the autoregressive system
@@ -188,7 +189,7 @@ memory_fact = 1  # unitless number accounting how much memory should be used. Yo
 save_results = False
 #%% RUN ALGORITHM ON PATCHES
 t1 = time()
-cnm = cnmf.CNMF(n_processes, k=K, gSig=gSig, merge_thresh=0.8, p=0, dview=c[:], Ain=None, rf=rf, stride=stride, memory_fact=memory_fact,
+cnm = cnmf.CNMF(n_processes, k=K, gSig=gSig, merge_thresh=0.8, p=0, dview=dview, Ain=None, rf=rf, stride=stride, memory_fact=memory_fact,
                 method_init=init_method, alpha_snmf=alpha_snmf, only_init_patch=True, gnb=1,method_deconvolution='oasis')
 cnm = cnm.fit(images)
 
@@ -201,6 +202,7 @@ sn_tot = cnm.sn
 
 print 'Number of components:' + str(A_tot.shape[-1])
 t2 = time()
+print t2 - t1
 #%%
    
 final_frate = 10# approx final rate  (after eventual downsampling )
