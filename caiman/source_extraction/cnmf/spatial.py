@@ -323,7 +323,11 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
     # pdb.set_trace()
 #    Y_resf = np.dot(Y, f.T) - A_.dot(coo_matrix(C[:nr, :]).dot(f.T))
     print "Computing residuals"
-    Y_resf = parallel_dot_product(Y,f.T,block_size=5000,dview=dview) - A_.dot(coo_matrix(C[:nr, :]).dot(f.T))
+    if 'memmap' in str(type(Y)):
+        Y_resf = parallel_dot_product(Y,f.T,block_size=5000,dview=dview) - A_.dot(coo_matrix(C[:nr, :]).dot(f.T))
+    else:
+        Y_resf = np.dot(Y, f.T) - A_.dot(coo_matrix(C[:nr, :]).dot(f.T))
+
     print "Computing A_bas"
     A_bas = np.fmax(Y_resf.dot(np.linalg.inv(f.dot(f.T))), 0)  # update baseline based on residual
     # A_bas = np.fmax(Y_resf / scipy.linalg.norm(f)**2, 0)  # update baseline based on residual

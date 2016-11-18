@@ -303,35 +303,38 @@ def parallel_dot_product(A,b,block_size=5000,dview=None,transpose=False):
         pixels x time
     b: time x comps   
     '''
-    
+    import cPickle
     pars = []
     d1,d2 = np.shape(A)
+    b = cPickle.dumps(b)
     
     
-    
-    
+    import pdb
+    pdb.set_trace()
     if block_size<d1:
 
         for idx in range(0,d1-block_size,block_size):
             idx_to_pass = range(idx,idx+block_size)
             pars.append([A.filename,idx_to_pass,b,transpose])
+        
+        if (idx+block_size) < d1:
+            idx_to_pass = range(idx+block_size,d1)
+            pars.append([A.filename,idx_to_pass,b,transpose])    
 
     else:
         
-        idx = 0
+        idx_to_pass = range(d1)
+        pars.append([A.filename,idx_to_pass,b,transpose]) 
         
-    if (idx+block_size) < d1:
-        idx_to_pass = range(idx+block_size,d1)
-        pars.append([A.filename,idx_to_pass,b,transpose])
+    
         
-#    import pdb
-#    pdb.set_trace() 
+   
     if dview is None:
         results = map(dot_place_holder,pars)
     else:
         results = dview.map_sync(dot_place_holder,pars)
     
-   
+    
     if transpose:
         output = np.zeros((d2,np.shape(b)[-1]))
         for res in results:
@@ -347,9 +350,12 @@ def parallel_dot_product(A,b,block_size=5000,dview=None,transpose=False):
 #%%
 def dot_place_holder(par):
      from caiman.mmapping import load_memmap
-     
+     import cPickle
+     import pdb
+     pdb.set_trace()
      A_name,idx_to_pass,b_,transpose = par
      A_, _, _  = load_memmap(A_name)      
+     b_ = cPickle.loads(b_)
      
 #     import pdb
 #     pdb.set_trace()    

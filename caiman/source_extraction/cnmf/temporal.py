@@ -166,17 +166,24 @@ def update_temporal_components(Y, A, b, Cin, fin, bl = None,  c1 = None, g = Non
     Cin =  np.vstack((Cin,fin));
     C = Cin;
     nA = np.squeeze(np.array(np.sum(np.square(A.todense()),axis=0)))
+    
 
     Cin=coo_matrix(Cin)
     #YrA = ((A.T.dot(Y)).T-Cin.T.dot(A.T.dot(A)))
     print ('Generating residuals')
 #    YA = (A.T.dot(Y).T)*spdiags(1./nA,0,nr+nb,nr+nb)
-    YA = parallel_dot_product(Y,A,dview=dview,block_size=5000,transpose=True)*spdiags(1./nA,0,nr+nb,nr+nb)
+
+    
+    if 'memmap' in str(type(Y)):
+        YA = parallel_dot_product(Y,A,dview=dview,block_size=1000,transpose=True)*spdiags(1./nA,0,nr+nb,nr+nb)
+    else:
+        YA = (A.T.dot(Y).T)*spdiags(1./nA,0,nr+nb,nr+nb)
     print ('Done')
    # 
 #    print np.allclose(YA,YA1)
     
     AA = ((A.T.dot(A))*spdiags(1./nA,0,nr+nb,nr+nb)).tocsr()
+    
     YrA = YA - Cin.T.dot(AA)
     #YrA = ((A.T.dot(Y)).T-Cin.T.dot(A.T.dot(A)))*spdiags(1./nA,0,nr+1,nr+1)
     
@@ -280,7 +287,8 @@ def update_temporal_components(Y, A, b, Cin, fin, bl = None,  c1 = None, g = Non
             print str(np.sum(lo[:count+1])) + ' out of total ' + str(nr) + ' temporal components updated'
         
         ii=nr        
-
+        
+        
         #YrA[:,ii] = YrA[:,ii] + np.atleast_2d(Cin[ii,:]).T
         #cc = np.maximum(YrA[:,ii],0) 
         for ii in np.arange(nr,nr+nb):       
