@@ -8,10 +8,11 @@ Created on Fri Mar  4 21:02:12 2016
 import numpy as np
 import pylab as pl
 import cv2 
-import h5py
+import collections
 import caiman as cm
 import tifffile
 import gc
+
 #%%
 def apply_shift_iteration(img,shift):
      sh_x_n,sh_y_n = shift
@@ -95,7 +96,7 @@ def motion_correct_online_multifile(list_files,add_to_movie,order = 'C', **kwarg
     
 #%%
 def motion_correct_online(movie_iterable,add_to_movie,max_shift_w=25,max_shift_h=25,save_base_name=None,order = 'C',\
-                        init_frames_template=100,show_movie=False,bilateral_blur=False,template=None,min_count=1000,border_to_0=0):
+                        init_frames_template=100, show_movie=False, bilateral_blur=False,template=None, min_count=1000, border_to_0=0, n_iter = 1, remove_blanks=False):
 
      shifts=[];   # store the amount of shift in each frame
      xcorrs=[]; 
@@ -107,6 +108,7 @@ def motion_correct_online(movie_iterable,add_to_movie,max_shift_w=25,max_shift_h
                  print('******** WARNING ****** NEED TO LOAD IN MEMORY SINCE SHAPE OF PAGE IS THE FULL MOVIE')
                  movie_iterable = movie_iterable.asarray()
                  init_mov=movie_iterable[:init_frames_template]
+                 
              else:
                  
                  init_mov=[m.asarray() for m in movie_iterable[:init_frames_template]]
@@ -114,8 +116,7 @@ def motion_correct_online(movie_iterable,add_to_movie,max_shift_w=25,max_shift_h
              init_mov=movie_iterable[slice(0,init_frames_template,1)]
      
      
-     
-         
+             
          
      dims=(len(movie_iterable),)+movie_iterable[0].shape 
      print "dimensions:" + str(dims)       
@@ -128,8 +129,8 @@ def motion_correct_online(movie_iterable,add_to_movie,max_shift_w=25,max_shift_h
          
           
      
-     if template is None:         
-         template=np.median(init_mov,0)    
+     if template is None:        
+         template = np.median(init_mov,0)
          count=init_frames_template
          if np.percentile(template, 1) + add_to_movie < - 10:
              raise Exception('Movie too negative, You need to add a larger value to the movie (add_to_movie)')
@@ -139,45 +140,81 @@ def motion_correct_online(movie_iterable,add_to_movie,max_shift_w=25,max_shift_h
              raise Exception('Movie too negative, You need to add a larger value to the movie (add_to_movie)')
          count=min_count
          
-     
-         
-     
+     set_blanks_nan = 0              
      
      min_mov = 0
-          
-#     buffer_=np.zeros((buffer_median,)+template.shape)  
-       
-     for idx_frame,page in enumerate(movie_iterable):  
-                           
-         if 'tifffile' in str(type(movie_iterable[0])):
-             page=page.asarray()
-                 
-         img=np.array(page,dtype=np.float32)
-         img=img+add_to_movie
-         template_old=template
-         
-         new_img,template,shift,avg_corr = motion_correct_iteration(img,template,count,max_shift_w=max_shift_w,max_shift_h=max_shift_h,bilateral_blur=bilateral_blur)
-         if count%100 == 0:
-             print 'Relative change in template:' + str(np.sum(np.abs(template-template_old))/np.sum(np.abs(template)))
-             print 'Iteration:'+ str(count)
-                           
+     buffer_size_frames=100          
+     buffer_size_template=100     
+     buffer_frames=collections.deque(maxlen=buffer_size_frames)  
+     buffer_templates=collections.deque(maxlen=buffer_size_template)  
+     
+     
+     for n in range(n_iter):  
+         if n>0:
+             count = init_frames_template
              
-         if border_to_0 > 0:
-            new_img[:border_to_0,:]=min_mov
-            new_img[:,:border_to_0]=min_mov
-            new_img[:,-border_to_0:]=min_mov
-            new_img[-border_to_0:,:]=min_mov
-         
-         if save_base_name is not None:
-             big_mov[:,idx_frame] = np.reshape(new_img,np.prod(dims[1:]),order='F')
+         for idx_frame,page in enumerate(movie_iterable):  
+                               
+             if 'tifffile' in str(type(movie_iterable[0])):
+                 page=page.asarray()
+                     
+             img=np.array(page,dtype=np.float32)
+             img=img+add_to_movie
+             template_old=template
+             
+             new_img,template_tmp,shift,avg_corr = motion_correct_iteration(img,template,count,max_shift_w=max_shift_w,max_shift_h=max_shift_h,bilateral_blur=bilateral_blur)
+             
+             if count < (buffer_size_frames + init_frames_template):
+                 template = template_tmp
+                 
+             buffer_frames.append(new_img)
+             
+             if count%100 == 0:
+                 print 'Relative change in template:' + str(np.sum(np.abs(template-template_old))/np.sum(np.abs(template)))
+                 print 'Iteration:'+ str(count)
+                 if count >= (buffer_size_frames + init_frames_template):
+                     buffer_templates.append(np.mean(buffer_frames,0))
+                     template = np.median(buffer_templates,0)
+                 
+#                 pl.cla()
+#                 pl.imshow(template,cmap='gray',vmin=100,vmax=800)
+#                 pl.pause(.01)
+                 
+                                                
+             if border_to_0 > 0:
+                new_img[:border_to_0,:]=min_mov
+                new_img[:,:border_to_0]=min_mov
+                new_img[:,-border_to_0:]=min_mov
+                new_img[-border_to_0:,:]=min_mov
+             
+             shifts.append(shift)
+             xcorrs.append(avg_corr)
+             
+             if (save_base_name is not None) and (n_iter == (n+1)):
+                  if set_blanks_nan:
 
-         if show_movie:
-            cv2.imshow('frame',new_img/200)
-            cv2.waitKey(int(1./200*1000))
-                  
-         shifts.append(shift)
-         xcorrs.append(avg_corr)
-         count+=1
+                      shift_h,shift_w= np.round(shift).astype(np.int)
+                      h,w=new_img.shape
+                      if shift[0] >= 0:
+                          new_img[:shift_h,:] = np.nan
+                      else:
+                          new_img[h-1+shift_h:,:] = np.nan
+                          
+                      if shift[1]>=0:
+                          new_img[:,:shift_w] = np.nan                          
+                      else:
+                          new_img[:,w-1+shift_w:] = np.nan
+                          
+
+                 
+                  big_mov[:,idx_frame] = np.reshape(new_img,np.prod(dims[1:]),order='F')
+    
+             if show_movie:
+                cv2.imshow('frame',new_img/1000)
+                cv2.waitKey(int(1./200*1000))
+                      
+
+             count+=1
          
      if save_base_name is not None:
         print 'Flushing memory'
@@ -197,12 +234,20 @@ def motion_correct_iteration(img,template,frame_num,max_shift_w=25,max_shift_h=2
     
     if bilateral_blur:
         img=cv2.bilateralFilter(img,diameter,sigmaColor,sigmaSpace)    
-    
+#    if 1:
     templ_crop=template[max_shift_h:h_i-max_shift_h,max_shift_w:w_i-max_shift_w].astype(np.float32)
     
     h,w = templ_crop.shape
 
     res = cv2.matchTemplate(img,templ_crop,cv2.TM_CCORR_NORMED)
+#    else:
+#
+#        templ_crop=template.astype(np.float32)
+#        
+#        h,w = templ_crop.shape
+#        
+#        img_pad =  np.pad(img,(max_shift_h,max_shift_w),mode='symmetric')
+#        res = cv2.matchTemplate(img_pad,templ_crop,cv2.TM_CCORR_NORMED)
 
     top_left = cv2.minMaxLoc(res)[3]
          
@@ -472,70 +517,161 @@ def bin_median(mat,window=10):
 #    H2((0:ns-1)*ns+(1:ns)) = Hd(1:ns)';
 #    H2(((1:ns-1)*ns+(1:ns-1))) = Hd(ns+1:)';
 #    H2(((0:ns-2)*ns+(1:ns-1))+1) = Hd(ns+1:)';
+#%%    
+def process_movie_parallel(arg_in):
+
+   
+    
+
+    fname,fr,margins_out,template,max_shift_w, max_shift_h,remove_blanks,apply_smooth,save_hdf5=arg_in
+    
+    if template is not None:
+        if type(template) is str:
+            if os.path.exists(template):
+                template=cm.load(template,fr=1)
+            else:
+                raise Exception('Path to template does not exist:'+template)                
+#    with open(fname[:-4]+'.stout', "a") as log:
+#        print fname
+#        sys.stdout = log
+        
+    #    import pdb
+    #    pdb.set_trace()
+    type_input = str(type(fname)) 
+    if 'movie' in type_input:        
+        print type(fname)
+        Yr=fname
+
+    elif ('ndarray' in type_input):        
+        Yr=cm.movie(np.array(fname,dtype=np.float32),fr=fr)
+    elif 'str' in type_input: 
+        Yr=cm.load(fname,fr=fr)
+    else:
+        raise Exception('Unkown input type:' + type_input)
+   
+    if Yr.ndim>1:
+
+        print 'loaded'    
+
+        if apply_smooth:
+
+            print 'applying smoothing'
+
+            Yr=Yr.bilateral_blur_2D(diameter=10,sigmaColor=10000,sigmaSpace=0)
+
+#        bl_yr=np.float32(np.percentile(Yr,8))    
+
+ #       Yr=Yr-bl_yr     # needed to remove baseline
+
+        print 'Remove BL'
+
+        if margins_out!=0:
+
+            Yr=Yr[:,margins_out:-margins_out,margins_out:-margins_out] # borders create troubles
+
+        print 'motion correcting'
+
+        Yr,shifts,xcorrs,template=Yr.motion_correct(max_shift_w=max_shift_w, max_shift_h=max_shift_h,  method='opencv',template=template,remove_blanks=remove_blanks) 
+
+  #      Yr = Yr + bl_yr           
+        
+        if ('movie' in type_input) or ('ndarray' in type_input):
+            print 'Returning Values'
+            return Yr, shifts, xcorrs, template
+
+        else:     
+            
+            print 'median computing'        
+
+            template=Yr.bin_median()
+
+            print 'saving'  
+
+            idx_dot=len(fname.split('.')[-1])
+
+            if save_hdf5:
+
+                Yr.save(fname[:-idx_dot]+'hdf5')        
+
+            print 'saving 2'                 
+
+            np.savez(fname[:-idx_dot]+'npz',shifts=shifts,xcorrs=xcorrs,template=template)
+
+            print 'deleting'        
+
+            del Yr
+
+            print 'done!'
+        
+            return fname[:-idx_dot] 
+        #sys.stdout = sys.__stdout__ 
+    else:
+        return None
+           
 
 #%%
-#def motion_correct_parallel(file_names,fr,template=None,margins_out=0,max_shift_w=5, max_shift_h=5,remove_blanks=False,apply_smooth=False,dview=None,save_hdf5=True):
-#    """motion correct many movies usingthe ipyparallel cluster
-#    Parameters
-#    ----------
-#    file_names: list of strings
-#        names of he files to be motion corrected
-#    fr: double
-#        fr parameters for calcblitz movie 
-#    margins_out: int
-#        number of pixels to remove from the borders    
-#    
-#    Return
-#    ------
-#    base file names of the motion corrected files
-#    """
-#    args_in=[];
-#    for file_idx,f in enumerate(file_names):
-#        if type(template) is list:
-#            args_in.append((f,fr,margins_out,template[file_idx],max_shift_w, max_shift_h,remove_blanks,apply_smooth,save_hdf5))
-#        else:
-#            args_in.append((f,fr,margins_out,template,max_shift_w, max_shift_h,remove_blanks,apply_smooth,save_hdf5))
+def motion_correct_parallel(file_names,fr=10,template=None,margins_out=0,max_shift_w=5, max_shift_h=5,remove_blanks=False,apply_smooth=False,dview=None,save_hdf5=True):
+    """motion correct many movies usingthe ipyparallel cluster
+    Parameters
+    ----------
+    file_names: list of strings
+        names of he files to be motion corrected
+    fr: double
+        fr parameters for calcblitz movie 
+    margins_out: int
+        number of pixels to remove from the borders    
+    
+    Return
+    ------
+    base file names of the motion corrected files
+    """
+    args_in=[];
+    for file_idx,f in enumerate(file_names):
+        if type(template) is list:
+            args_in.append((f,fr,margins_out,template[file_idx],max_shift_w, max_shift_h,remove_blanks,apply_smooth,save_hdf5))
+        else:
+            args_in.append((f,fr,margins_out,template,max_shift_w, max_shift_h,remove_blanks,apply_smooth,save_hdf5))
+        
+    try:
+        
+        if dview is not None:
+#            if backend is 'SLURM':
+#                if 'IPPPDIR' in os.environ and 'IPPPROFILE' in os.environ:
+#                    pdir, profile = os.environ['IPPPDIR'], os.environ['IPPPROFILE']
+#                else:
+#                    raise Exception('envirnomment variables not found, please source slurmAlloc.rc')
 #        
-#    try:
-#        
-#        if dview is not None:
-##            if backend is 'SLURM':
-##                if 'IPPPDIR' in os.environ and 'IPPPROFILE' in os.environ:
-##                    pdir, profile = os.environ['IPPPDIR'], os.environ['IPPPROFILE']
-##                else:
-##                    raise Exception('envirnomment variables not found, please source slurmAlloc.rc')
-##        
-##                c = Client(ipython_dir=pdir, profile=profile)
-##                print 'Using '+ str(len(c)) + ' processes'
-##            else:
-##                c = Client()
-#
-#
-#            file_res = dview.map_sync(process_movie_parallel, args_in)                         
-#            dview.results.clear()       
-#
-#            
-#
-#        else:
-#            
-#            file_res = map(process_movie_parallel, args_in)        
-#                 
-#        
-#        
-#    except :   
-#        
-#        try:
-#            if dview is not None:
-#                
-#                dview.results.clear()       
-#
-#        except UnboundLocalError as uberr:
-#
-#            print 'could not close client'
-#
-#        raise
-#                                    
-#    return file_res 
+#                c = Client(ipython_dir=pdir, profile=profile)
+#                print 'Using '+ str(len(c)) + ' processes'
+#            else:
+#                c = Client()
+
+
+            file_res = dview.map_sync(process_movie_parallel, args_in)                         
+            dview.results.clear()       
+
+            
+
+        else:
+            
+            file_res = map(process_movie_parallel, args_in)        
+                 
+        
+        
+    except :   
+        
+        try:
+            if dview is not None:
+                
+                dview.results.clear()       
+
+        except UnboundLocalError as uberr:
+
+            print 'could not close client'
+
+        raise
+                                    
+    return file_res 
 
 #%%
 ####

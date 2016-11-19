@@ -37,6 +37,7 @@ from skimage import data
 import timeseries as ts
 from traces import trace
 
+from caiman.mmapping import load_memmap
 from caiman.utils import visualization
 import caiman.summary_images as si 
 from caiman.motion_correction import apply_shift_online,motion_correct_online
@@ -1128,11 +1129,13 @@ def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None,
 
             filename=os.path.split(file_name)[-1]
             fpart=filename.split('_')[1:-1]
-            d1,d2,d3,T,order=int(fpart[-9]),int(fpart[-7]),int(fpart[-5]),int(fpart[-1]),fpart[-3]
-            Yr=np.memmap(file_name,mode='r',shape=(d1*d2,T),dtype=np.float32,order=order)
-            print 'mmap'
 
-            return movie(to_3D(np.array(Yr).T,(T,d1,d2),order=order),fr=fr)
+            Yr, dims, T = load_memmap(filename)
+            d1, d2 = dims
+            images = np.reshape(Yr.T, [T] + list(dims), order='F')
+            
+            print 'mmap'
+            return movie(images,fr=fr)
             
         elif extension == '.sbx':
 
