@@ -90,7 +90,7 @@ def mode_robust(inputData, axis=None, dtype=None):
     return dataMode
     
 #%%
-@numba.jit("void(f4[:])")
+#@numba.jit("void(f4[:])")
 def _hsm(data):
     if data.size == 1:
         return data[0]

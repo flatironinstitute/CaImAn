@@ -91,7 +91,7 @@ def extract_rois_patch(file_name,d1,d2,rf=5,stride = 5):
         
     return A1,A2,C1,C2
 #%%
-def apply_to_patch(mmap_file, function, shape, dview, rf , stride , *args, **kwargs):
+def apply_to_patch(mmap_file, shape, dview, rf , stride , function, *args, **kwargs):
     '''
     apply function to patches in parallel or not
     
@@ -140,8 +140,12 @@ def apply_to_patch(mmap_file, function, shape, dview, rf , stride , *args, **kwa
     idx_flat,idx_2d=extract_patch_coordinates(d1, d2, rf=(rf1,rf2), stride = (stride1,stride2))
 
     args_in=[]    
+    
     for id_f,id_2d in zip(idx_flat[:],idx_2d[:]):        
+
         args_in.append((mmap_file.filename, id_f,id_2d[0].shape, function, args, kwargs))
+        
+        
 
     print len(idx_flat)
 
@@ -150,7 +154,8 @@ def apply_to_patch(mmap_file, function, shape, dview, rf , stride , *args, **kwa
         
         try:
             
-            file_res = dview.map_sync(function_place_holder, args_in)        
+            file_res = dview.map_sync(function_place_holder, args_in)  
+            
             dview.results.clear()   
 
         except:
