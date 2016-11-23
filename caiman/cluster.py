@@ -139,6 +139,14 @@ def apply_to_patch(mmap_file, shape, dview, rf , stride , function, *args, **kwa
     
     idx_flat,idx_2d=extract_patch_coordinates(d1, d2, rf=(rf1,rf2), stride = (stride1,stride2))
 
+    shape_grid = tuple(np.ceil((d1*1./(rf1*2-stride1),d2*1./(rf2*2-stride2))).astype(np.int))
+    if d1 <= rf1*2:
+        shape_grid = (1,shape_grid[1])
+    if d2 <= rf2*2:
+        shape_grid = (shape_grid[0],1)    
+        
+    print shape_grid
+    
     args_in=[]    
     
     for id_f,id_2d in zip(idx_flat[:],idx_2d[:]):        
@@ -169,7 +177,7 @@ def apply_to_patch(mmap_file, shape, dview, rf , stride , function, *args, **kwa
         
         file_res = map(function_place_holder, args_in)      
 
-    return file_res   
+    return file_res, idx_flat, shape_grid
 #%%
 def function_place_holder(args_in):
 
@@ -188,7 +196,7 @@ def function_place_holder(args_in):
             print '** reshaping form 2D to 1D'
             res_fun = np.reshape(res_fun,d1*d2,order = 'F')
 
-    return res_fun, idx_
+    return res_fun
      
 #%%
 def start_server(slurm_script=None, ipcluster="ipcluster"):

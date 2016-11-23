@@ -97,7 +97,7 @@ def motion_correct_online_multifile(list_files,add_to_movie,order = 'C', **kwarg
 #%%
 def motion_correct_online(movie_iterable,add_to_movie,max_shift_w=25,max_shift_h=25,save_base_name=None,order = 'C',\
                         init_frames_template=100, show_movie=False, bilateral_blur=False,template=None, min_count=1000,\
-                        border_to_0=0, n_iter = 1, remove_blanks=False,show_template=False):
+                        border_to_0=0, n_iter = 1, remove_blanks=False,show_template=False,return_mov=False, use_median_as_template = False):
 
      shifts=[];   # store the amount of shift in each frame
      xcorrs=[]; 
@@ -125,11 +125,12 @@ def motion_correct_online(movie_iterable,add_to_movie,max_shift_w=25,max_shift_h
      print "dimensions:" + str(dims)       
              
      
-         
+     if use_median_as_template:
+        template = bin_median(movie_iterable)
           
      
      if template is None:        
-         template = np.median(init_mov,0)
+         template = bin_median(init_mov)
          count=init_frames_template
          if np.percentile(template, 1) + add_to_movie < - 10:
              raise Exception('Movie too negative, You need to add a larger value to the movie (add_to_movie)')
@@ -149,8 +150,14 @@ def motion_correct_online(movie_iterable,add_to_movie,max_shift_w=25,max_shift_h
      max_w,max_h,min_w,min_h=0,0,0,0
      
      big_mov = None
+     if return_mov:
+        mov=[]   
+     else:
+        mov = None
+     
      
      for n in range(n_iter):  
+         
          if n>0:
              count = init_frames_template
              
@@ -169,7 +176,9 @@ def motion_correct_online(movie_iterable,add_to_movie,max_shift_w=25,max_shift_h
          else:
              
              fname_tot = None  
-             
+         
+         shifts_tmp = []
+         xcorr_tmp = []
          for idx_frame,page in enumerate(movie_iterable):  
                                
              if 'tifffile' in str(type(movie_iterable[0])):
@@ -199,7 +208,7 @@ def motion_correct_online(movie_iterable,add_to_movie,max_shift_w=25,max_shift_h
                  
                  if show_template:
                      pl.cla()
-                     pl.imshow(template,cmap='gray',vmin=50,vmax=150,interpolation='none')
+                     pl.imshow(template,cmap='gray',vmin=250,vmax=350,interpolation='none')
                      pl.pause(.001)
                  
                  print 'Relative change in template:' + str(np.sum(np.abs(template-template_old))/np.sum(np.abs(template)))
@@ -211,9 +220,9 @@ def motion_correct_online(movie_iterable,add_to_movie,max_shift_w=25,max_shift_h
                 new_img[:,-border_to_0:]=min_mov
                 new_img[-border_to_0:,:]=min_mov
              
-             shifts.append(shift)
-             xcorrs.append(avg_corr)
-             
+             shifts_tmp.append(shift)
+             xcorr_tmp.append(avg_corr)
+
              if (save_base_name is not None) and (n_iter == (n+1)):
                           
                   if remove_blanks and n>0:
@@ -226,13 +235,25 @@ def motion_correct_online(movie_iterable,add_to_movie,max_shift_w=25,max_shift_h
                           new_img = new_img[:,:min_w]
                  
                   big_mov[:,idx_frame] = np.reshape(new_img,np.prod(dims[1:]),order='F')
-    
+             
+             if return_mov:
+                 mov.append(new_img)
+             
              if show_movie:
                 cv2.imshow('frame',new_img/500)
-                cv2.waitKey(int(1./500*1000))
+                print shift
+                if np.any(np.remainder(shift,1) == (0,0)):
+                    1
+#                    cv2.waitKey(int(1000))
+
+                else:
+                
+                    cv2.waitKey(int(1./500*1000))
                       
 
              count+=1
+         shifts.append(shifts_tmp)
+         xcorrs.append(xcorr_tmp)
          
      if save_base_name is not None:
         print 'Flushing memory'
@@ -242,7 +263,7 @@ def motion_correct_online(movie_iterable,add_to_movie,max_shift_w=25,max_shift_h
         
      
 
-     return shifts,xcorrs,template, fname_tot     
+     return shifts,xcorrs,template, fname_tot, np.array(mov)     
 #%%
 def motion_correct_iteration(img,template,frame_num,max_shift_w=25,max_shift_h=25,bilateral_blur=False,diameter=10,sigmaColor=10000,sigmaSpace=0):
 
@@ -269,7 +290,8 @@ def motion_correct_iteration(img,template,frame_num,max_shift_w=25,max_shift_h=2
 
     top_left = cv2.minMaxLoc(res)[3]
          
-    avg_corr=np.mean(res)
+#    avg_corr=np.max(cv2.matchTemplate(img,template,cv2.TM_CCOEFF_NORMED))
+    avg_corr=np.max(res)
 
     sh_y,sh_x = top_left
 
