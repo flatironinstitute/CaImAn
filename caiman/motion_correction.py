@@ -119,7 +119,9 @@ def motion_correct_online(movie_iterable,add_to_movie,max_shift_w=25,max_shift_h
              
          
      dims=(len(movie_iterable),)+movie_iterable[0].shape 
-     print "dimensions:" + str(dims)       
+     print "dimensions:" + str(dims)      
+     
+     
              
      if save_base_name is not None:
          fname_tot = save_base_name + '_d1_' + str(dims[1]) + '_d2_' + str(dims[2]) + '_d3_' + str(1 if len(dims) == 3 else dims[3]) + '_order_' + str(order) + '_frames_' + str(dims[0]) + '_.mmap'
