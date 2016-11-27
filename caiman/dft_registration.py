@@ -120,7 +120,7 @@ def _compute_error(cross_correlation_max, src_amp, target_amp):
 
 
 def register_translation(src_image, target_image, upsample_factor=1,
-                         space="real"):
+                         space="real", max_shifts = (10,10)):
     """
     Efficient subpixel image translation registration by cross-correlation.
 
@@ -212,7 +212,14 @@ def register_translation(src_image, target_image, upsample_factor=1,
         cross_correlation = ifftn(image_product)
 
     # Locate maximum
-    maxima = np.unravel_index(np.argmax(np.abs(cross_correlation)),
+    
+    new_cross_corr  = np.abs(cross_correlation)
+    new_cross_corr[max_shifts[0]+1:-max_shifts[0]-1,:] = 0 
+    new_cross_corr[:,max_shifts[1]+1:-max_shifts[1]-1] = 0
+    
+    
+    
+    maxima = np.unravel_index(np.argmax(new_cross_corr),
                               cross_correlation.shape)
     midpoints = np.array([np.fix(axis_size / 2) for axis_size in shape])
 
@@ -220,6 +227,7 @@ def register_translation(src_image, target_image, upsample_factor=1,
     shifts[shifts > midpoints] -= np.array(shape)[shifts > midpoints]
 
     if upsample_factor == 1:
+        
         src_amp = np.sum(np.abs(src_freq) ** 2) / src_freq.size
         target_amp = np.sum(np.abs(target_freq) ** 2) / target_freq.size
         CCmax = cross_correlation.max()

@@ -22,7 +22,7 @@ import time
 import cv2
 from caiman.motion_correction import apply_shift_iteration
 #%% SLOWER METHOD BUT COVER FULL FOVs
-def tile_and_correct(img,template, shapes,overlaps,upsample_factor_fft=10,upsample_factor_grid=1,show_movie=False):
+def tile_and_correct(img,template, shapes,overlaps,upsample_factor_fft=10,upsample_factor_grid=1,max_shifts = (10,10),show_movie=False):
 #    templates = view_as_windows(template.astype(np.float32),shapes,strides)
     templates, _ = cm.cluster.get_patches_from_image(template.astype(np.float32),shapes=shapes,overlaps = overlaps)    
     num_tiles = np.prod(templates.shape[:2])    
@@ -30,7 +30,7 @@ def tile_and_correct(img,template, shapes,overlaps,upsample_factor_fft=10,upsamp
     imgs, _ = cm.cluster.get_patches_from_image(img.astype(np.float32),shapes=shapes,overlaps = overlaps)    
     dim_grid = np.shape(imgs)[:2]
     imgs = list(np.reshape(imgs,(num_tiles)))
-    shfts = [register_translation(a,b,c) for a, b, c in zip (imgs,templates,[upsample_factor_fft]*num_tiles)]    
+    shfts = [register_translation(a,b,c,max_shifts = max_shifts) for a, b, c in zip (imgs,templates,[upsample_factor_fft]*num_tiles)]    
     shift_img_x = np.reshape(np.array(shfts)[:,0],dim_grid)  
     shift_img_y = np.reshape(np.array(shfts)[:,1],dim_grid)
     
@@ -69,7 +69,7 @@ def tile_and_correct(img,template, shapes,overlaps,upsample_factor_fft=10,upsamp
     return shfts
 
 #%% THIS IS FASTER BUT NEED SOME TWEAKS TO COVER THE FULL FOV
-def tile_and_correct_fast(img,template, shapes,overlaps,upsample_factor_fft=10,upsample_factor_grid=1,show_movie=True):
+def tile_and_correct_fast(img,template, shapes,overlaps,upsample_factor_fft=10,upsample_factor_grid=1,max_shifts = (10,10),show_movie=True):
     #%
     strides = np.subtract(shapes,overlaps)
     templates = view_as_windows(template.astype(np.float32),shapes,strides)        
@@ -131,11 +131,11 @@ num_tiles = np.prod(templates.shape[:2])
 templates = list(np.reshape(templates,(num_tiles,shapes[0],shapes[1])))
 #%% slower covering full FOVs
 t1 = time.time()
-shfts_fft = [tile_and_correct(img,template, shapes,overlaps,show_movie=True) for count,img in enumerate(np.array(m)[:2000])]    
+shfts_fft = [tile_and_correct(img,template, shapes,overlaps,max_shifts = (5,5),show_movie=True) for count,img in enumerate(np.array(m)[:2000])]    
 print time.time()- t1
 #%% faster needs some tweaking
 t1 = time.time()
-shfts_fft = [tile_and_correct_fast(img, template, shapes,overlaps,show_movie=True) for count,img in enumerate(np.array(m)[:2000])]    
+shfts_fft = [tile_and_correct_fast(img, template, shapes,overlaps,max_shifts = (10,10),show_movie=True) for count,img in enumerate(np.array(m)[:2000])]    
 print time.time()- t1
 
 #%% RIGID MOTION CORRECTION TEST
