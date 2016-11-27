@@ -4,13 +4,15 @@ Created on Tue Nov 22 20:03:46 2016
 
 Port of Manuel Guizar's code from:
 http://www.mathworks.com/matlabcentral/fileexchange/18401-efficient-subpixel-image-registration-by-cross-correlation
+adapted from scikit.image.register_translation
+
 """
 
 import numpy as np
 #from numpy.fft import fftn,ifftn
 #from accelerate.mkl.fftpack import fftn,ifftn
-from pyfftw.interfaces.numpy_fft import fftn, ifftn
-opencv = False
+#from pyfftw.interfaces.numpy_fft import fftn, ifftn
+#opencv = False
 import cv2
 from cv2 import dft as fftn
 from cv2 import idft as ifftn

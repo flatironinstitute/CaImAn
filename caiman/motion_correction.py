@@ -14,11 +14,23 @@ import tifffile
 import gc
 
 #%%
-def apply_shift_iteration(img,shift):
+def apply_shift_iteration(img,shift,border_nan=False):
      sh_x_n,sh_y_n = shift
      w_i,h_i=img.shape
      M = np.float32([[1,0,sh_y_n],[0,1,sh_x_n]])    
-     return  cv2.warpAffine(img,M,(w_i,h_i),flags=cv2.INTER_CUBIC)
+     img = cv2.warpAffine(img,M,(h_i,w_i),flags=cv2.INTER_CUBIC)
+     if border_nan:  
+         max_w,max_h,min_w,min_h=0,0,0,0
+         max_h,max_w = np.ceil(np.maximum((max_h,max_w),shift)).astype(np.int)
+         min_h,min_w = np.floor(np.minimum((min_h,min_w),shift)).astype(np.int)
+         img[:max_h,:] = np.nan
+         if min_h < 0:
+             img[min_h:,:] = np.nan
+         img[:,:max_w] = np.nan 
+         if min_w < 0:
+             img[:,min_w:] = np.nan
+             
+     return  img
 #%%
 def apply_shift_online(movie_iterable,xy_shifts,save_base_name=None,order='F'):
     if len(movie_iterable) != len(xy_shifts):
@@ -202,8 +214,7 @@ def motion_correct_online(movie_iterable,add_to_movie,max_shift_w=25,max_shift_h
              buffer_frames.append(new_img)
              
              if count%100 == 0:
-                 
-                 
+                                  
                  if count >= (buffer_size_frames + init_frames_template):
                      buffer_templates.append(np.mean(buffer_frames,0))                     
                      template = np.median(buffer_templates,0)
@@ -224,10 +235,8 @@ def motion_correct_online(movie_iterable,add_to_movie,max_shift_w=25,max_shift_h
              
              shifts_tmp.append(shift)
              xcorr_tmp.append(avg_corr)
-
-             if (save_base_name is not None) and (n_iter == (n+1)):
-                          
-                  if remove_blanks and n>0:
+             
+             if remove_blanks and n>0  and (n_iter == (n+1)):
                       
                       new_img = new_img[max_h:,:]
                       if min_h < 0:
@@ -235,10 +244,14 @@ def motion_correct_online(movie_iterable,add_to_movie,max_shift_w=25,max_shift_h
                       new_img = new_img[:,max_w:] 
                       if min_w < 0:
                           new_img = new_img[:,:min_w]
+                          
+             if (save_base_name is not None) and (n_iter == (n+1)):
+                          
+                  
                  
                   big_mov[:,idx_frame] = np.reshape(new_img,np.prod(dims[1:]),order='F')
              
-             if return_mov:
+             if return_mov and (n_iter == (n+1)):
                  mov.append(new_img)
              
              if show_movie:
@@ -265,7 +278,7 @@ def motion_correct_online(movie_iterable,add_to_movie,max_shift_w=25,max_shift_h
         
      
 
-     return shifts,xcorrs,template, fname_tot, np.array(mov)     
+     return shifts,xcorrs,template, fname_tot, np.dstack(mov).transpose([2,0,1])     
 #%%
 def motion_correct_iteration(img,template,frame_num,max_shift_w=25,max_shift_h=25,bilateral_blur=False,diameter=10,sigmaColor=10000,sigmaSpace=0):
 
