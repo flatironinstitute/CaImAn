@@ -27,6 +27,7 @@ def get_patches_from_image(img,shapes,overlaps):
     for idx_0,count_0 in enumerate(coords_2d):
         for idx_1,count_1 in enumerate(count_0):
             imgs[idx_0,idx_1] = img[count_1[0],count_1[1]]
+            
     return imgs, coords_2d
 #%%
 def extract_patch_coordinates(d1,d2,rf=(7,7),stride = (2,2)):
@@ -49,19 +50,20 @@ def extract_patch_coordinates(d1,d2,rf=(7,7),stride = (2,2)):
     iter_1 = range(rf2,d2-rf2,2*rf2-stride2)+[d2-rf2]
     coords_2d = np.empty([len(iter_0),len(iter_1),2],dtype=np.object)   
     for count_0,xx in enumerate(iter_0):
-
+        coords_x=np.array(range(xx - rf1, xx + rf1 + 1)) 
+        coords_x = coords_x[(coords_x >= 0) & (coords_x < d1)]
         for count_1,yy in enumerate(iter_1):
           
-            coords_x=np.array(range(xx - rf1, xx + rf1 + 1))     
-            coords_y=np.array(range(yy - rf2, yy + rf2 + 1))  
+                
+            coords_y = np.array(range(yy - rf2, yy + rf2 + 1))  
 #            print([xx - rf1, xx + rf1 + 1,yy - rf2, yy + rf2 + 1])
             coords_y = coords_y[(coords_y >= 0) & (coords_y < d2)]
-            coords_x = coords_x[(coords_x >= 0) & (coords_x < d1)]
+            
             idxs = np.meshgrid( coords_x,coords_y)
 
             coords_2d[count_0,count_1,0] = idxs[0]
             coords_2d[count_0,count_1,1] = idxs[1]
-            coords_ =np.ravel_multi_index(idxs,(d1,d2),order='F')
+            coords_ = np.ravel_multi_index(idxs,(d1,d2),order='F')
             coords_flat.append(coords_.flatten())
       
     return coords_flat,coords_2d

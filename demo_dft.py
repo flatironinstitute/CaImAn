@@ -21,6 +21,9 @@ from skimage.util import view_as_windows
 import time
 import cv2
 from caiman.motion_correction import apply_shift_iteration
+import numbers
+from numpy.lib.stride_tricks import as_strided
+from warnings import warn
 #%% SLOWER METHOD BUT COVER FULL FOVs
 def tile_and_correct(img,template, shapes,overlaps,upsample_factor_fft=10,upsample_factor_grid=1,max_shifts = (10,10),show_movie=False):
 #    templates = view_as_windows(template.astype(np.float32),shapes,strides)
@@ -61,13 +64,32 @@ def tile_and_correct(img,template, shapes,overlaps,upsample_factor_fft=10,upsamp
 
     new_img = new_img/normalizer
     if show_movie:
-        img_show = cv2.resize(np.hstack([new_img,img]),None,fx=2,fy=2)
+        img_show = np.hstack([new_img,img])
+#        img_show = cv2.resize(img_show,None,fx=2,fy=2)
 #        img_show = new_img
-        cv2.imshow('frame',img_show/300)
+        cv2.imshow('frame',img_show/5000)
         cv2.waitKey(int(1./500*1000))      
          
     return shfts
 
+
+
+#%% set parameters and create template
+#m = cm.load('M_FLUO_t.tif')
+m = cm.load('CA1_green.tif')
+t1  = time.time()
+template = m.copy().motion_correct(18,18,template=None)[-1]
+t2  = time.time() - t1
+print t2
+#%%
+shapes = (32,32)
+overlaps = (0,0)
+strides = np.subtract(shapes,overlaps)
+
+#%% slower covering full FOVs
+t1 = time.time()
+shfts_fft = [tile_and_correct(img,template, shapes, overlaps, max_shifts = (5,5), show_movie=False) for count,img in enumerate(np.array(m)[:300])]    
+print time.time()- t1
 #%% THIS IS FASTER BUT NEED SOME TWEAKS TO COVER THE FULL FOV
 def tile_and_correct_fast(img,template, shapes,overlaps,upsample_factor_fft=10,upsample_factor_grid=1,max_shifts = (10,10),show_movie=True):
     #%
@@ -114,28 +136,14 @@ def tile_and_correct_fast(img,template, shapes,overlaps,upsample_factor_fft=10,u
         cv2.waitKey(int(1./500*1000))
                
     return shfts
-
-#%% set parameters and create template
-m = cm.load('M_FLUO_t.tif')
-t1  = time.time()
-template = m.copy().motion_correct(18,18,template=None)[-1]
-t2  = time.time() - t1
-print t2
-
-shapes = (36,36)
-overlaps = (8,8)
-strides = np.subtract(shapes,overlaps)
-templates = view_as_windows(template.astype(np.float32),shapes,strides)    
-print templates.shape
-num_tiles = np.prod(templates.shape[:2])
-templates = list(np.reshape(templates,(num_tiles,shapes[0],shapes[1])))
-#%% slower covering full FOVs
-t1 = time.time()
-shfts_fft = [tile_and_correct(img,template, shapes,overlaps,max_shifts = (5,5),show_movie=True) for count,img in enumerate(np.array(m)[:2000])]    
-print time.time()- t1
 #%% faster needs some tweaking
+shapes = (32,32)
+overlaps = (0,0)
+strides = np.subtract(shapes,overlaps)
+
+#%%
 t1 = time.time()
-shfts_fft = [tile_and_correct_fast(img, template, shapes,overlaps,max_shifts = (10,10),show_movie=True) for count,img in enumerate(np.array(m)[:2000])]    
+shfts_fft = [tile_and_correct_fast(img, template, shapes,overlaps,max_shifts = (5,5),show_movie=False) for count,img in enumerate(np.array(m)[:])]    
 print time.time()- t1
 
 #%% RIGID MOTION CORRECTION TEST
@@ -150,3 +158,82 @@ for count,img in enumerate(np.array(m)):
     
 t2  = time.time() - t1
 print t2
+
+#%%
+def sliding_window(image, windowSize, stepSize):
+    # slide a window across the image
+    range_1 = range(0, image.shape[0]-windowSize[0], stepSize[0]) + [image.shape[0]-windowSize[0]]
+    range_2 = range(0, image.shape[1]-windowSize[1], stepSize[1]) + [image.shape[1]-windowSize[1]]
+    for dim_1, x in enumerate(range_1):
+		for dim_2,y in enumerate(range_2):
+			# yield the current window
+			yield (dim_1, dim_2 , x, y, image[ x:x + windowSize[0],y:y + windowSize[1]])
+   
+#%%
+shapes = (32,32)
+overlaps = (8,8)
+strides = np.subtract(shapes,overlaps)
+#%% 
+def tile_and_correct_faster(img,template, shapes,overlaps,upsample_factor_fft=10,upsample_factor_grid=1,max_shifts = (10,10),show_movie=False):
+#%    templates = view_as_windows(template.astype(np.float32),shapes,strides)
+    strides = np.subtract(shapes,overlaps)    
+    iterator = sliding_window(template.astype(np.float32),windowSize=shapes,stepSize = strides)        
+    templates = [it[-1] for it in iterator]
+    iterator = sliding_window(template.astype(np.float32),windowSize=shapes,stepSize = strides)        
+    xy_grid = [(it[0],it[1]) for it in iterator]    
+    num_tiles = np.prod(np.add(xy_grid[-1],1))    
+    iterator = sliding_window(img.astype(np.float32),windowSize=shapes,stepSize = strides)        
+    imgs = [it[-1] for it in iterator]
+    
+    dim_grid = tuple(np.add(xy_grid[-1],1))
+    
+    shfts = [register_translation(a,b,c,max_shifts = max_shifts) for a, b, c in zip (imgs,templates,[upsample_factor_fft]*num_tiles)]    
+    shift_img_x = np.reshape(np.array(shfts)[:,0],dim_grid)  
+    shift_img_y = np.reshape(np.array(shfts)[:,1],dim_grid)
+    
+    newshapes = tuple(np.ceil(np.multiply(shapes,1./upsample_factor_grid)).astype(np.int))    
+    newstrides = np.subtract(newshapes,overlaps)
+    
+    iterator = sliding_window(img.astype(np.float32),windowSize=newshapes,stepSize = newstrides)        
+    imgs = [it[-1] for it in iterator]
+        
+    iterator = sliding_window(img.astype(np.float32),windowSize=newshapes,stepSize = newstrides)        
+    xy_grid = [(it[0],it[1]) for it in iterator]  
+    iterator = sliding_window(img.astype(np.float32),windowSize=newshapes,stepSize = newstrides)        
+    start_step = [(it[2],it[3]) for it in iterator]
+    
+    dim_new_grid = tuple(np.add(xy_grid[-1],1))
+    shift_img_x = cv2.resize(shift_img_x,dim_new_grid[::-1],interpolation = cv2.INTER_CUBIC)
+    shift_img_y = cv2.resize(shift_img_y,dim_new_grid[::-1],interpolation = cv2.INTER_CUBIC)
+    num_tiles = np.prod(dim_new_grid)   
+    
+    total_shifts = [(-x,-y) for x,y in zip(shift_img_x.reshape(num_tiles),shift_img_y.reshape(num_tiles))]     
+
+    imgs = [apply_shift_iteration(im,sh,border_nan=True) for im,sh in zip(imgs, total_shifts)]
+    
+    normalizer = np.zeros_like(img)
+    new_img = np.zeros_like(img)*np.nan
+    
+    for (x,y),(idx_0,idx_1),im in zip(start_step,xy_grid,imgs):
+#        print (x,y,idx_0,idx_1)
+        prev_val = normalizer[x:x + newshapes[0],y:y + newshapes[1]]
+        normalizer[x:x + newshapes[0],y:y + newshapes[1]] = np.nansum(np.dstack([~np.isnan(im),prev_val]),-1)
+        prev_val = new_img[x:x + newshapes[0],y:y + newshapes[1]]
+        new_img[x:x + newshapes[0],y:y + newshapes[1]] = np.nansum(np.dstack([im,prev_val]),-1)
+    
+    
+
+    new_img = new_img/normalizer
+    if show_movie:
+        img_show = np.hstack([new_img,img])
+#        img_show = cv2.resize(img_show,None,fx=2,fy=2)
+#        img_show = new_img
+        cv2.imshow('frame',img_show/20000)
+        cv2.waitKey(int(1./500*1000))      
+       
+       
+    return shfts
+#%
+t1 = time.time()
+shfts_fft = [tile_and_correct_faster(img, template, shapes,overlaps,max_shifts = (5,5),show_movie=False) for count,img in enumerate(np.array(m)[:])]    
+print time.time()- t1
