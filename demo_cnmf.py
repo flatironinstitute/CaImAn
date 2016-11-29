@@ -85,8 +85,6 @@ else:
     print 'Using ' + str(len(c)) + ' processes'
     dview = c[:len(c)]
 #%% FOR LOADING ALL TIFF FILES IN A FILE AND SAVING THEM ON A SINGLE MEMORY MAPPABLE FILE
-
-
 fnames = []
 base_folder = './movies'  # folder containing the demo files
 for file in glob.glob(os.path.join(base_folder, '*.tif')):
@@ -102,7 +100,7 @@ fnames=fnames
 #idx_x=slice(12,500,None)
 #idx_y=slice(12,500,None)
 #idx_xy=(idx_x,idx_y)
-add_to_movie=300 # the movie must be positive!!!
+add_to_movie=0 # the movie must be positive!!!
 downsample_factor=1 # use .2 or .1 if file is large and you want a quick answer
 final_frate=final_frate*downsample_factor
 idx_xy=None
@@ -139,7 +137,7 @@ if not is_patches:
 #%%
 else:
     #%%
-    rf = 14  # half-size of the patches in pixels. rf=25, patches are 50x50
+    rf = 15  # half-size of the patches in pixels. rf=25, patches are 50x50
     stride = 4  # amounpl.it of overlap between the patches in pixels
     K = 6  # number of neurons expected per patch
     gSig = [7, 7]  # expected half size of neurons
@@ -236,8 +234,7 @@ print(len(idx_blobs))
 #%%
 save_results = True
 if save_results:
-    np.savez(os.path.join(os.path.split(fname_new)[0], 'results_analysis.npz'), Cn=Cn, A=A.todense(
-    ), C=C, b=b, f=f, YrA=YrA, sn=sn, d1=d1, d2=d2, idx_components=idx_components, idx_components_bad=idx_components_bad)
+    np.savez(os.path.join(os.path.split(fname_new)[0], 'results_analysis.npz'), Cn=Cn, A=A.todense(), C=C, b=b, f=f, YrA=YrA, sn=sn, d1=d1, d2=d2, idx_components=idx_components, idx_components_bad=idx_components_bad)
 
 #%% visualize components
 # pl.figure();
