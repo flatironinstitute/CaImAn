@@ -175,7 +175,7 @@ def sliding_window(image, windowSize, stepSize):
 			yield (dim_1, dim_2 , x, y, image[ x:x + windowSize[0],y:y + windowSize[1]])
    
 #%%
-shapes = (64,64)
+shapes = (32,32)
 overlaps = (8,8)
 strides = np.subtract(shapes,overlaps)
 #%% 
@@ -242,7 +242,7 @@ def tile_and_correct_faster(img,template, shapes,overlaps,upsample_factor_fft=10
     if show_movie:
         img = apply_shift_iteration(img,-rigid_shts,border_nan=True)
         img_show = np.vstack([new_img,img,new_img-img])
-        img_show = cv2.resize(img_show,None,fx=1,fy=1)
+        img_show = cv2.resize(img_show,None,fx=5,fy=5)
 #        img_show = new_img
         cv2.imshow('frame',img_show/200)
         cv2.waitKey(int(1./500*1000))      
@@ -250,7 +250,7 @@ def tile_and_correct_faster(img,template, shapes,overlaps,upsample_factor_fft=10
     return shfts
 #%%
 t1 = time.time()
-shfts_fft = [tile_and_correct_faster(img, template, shapes,overlaps,max_shifts = (20,20),show_movie=True,max_deviation_rigid=2) for count,img in enumerate(np.array(m)[:])]    
+shfts_fft = [tile_and_correct_faster(img, template, shapes,overlaps,max_shifts = (20,20),show_movie=True,max_deviation_rigid=4) for count,img in enumerate(np.array(m)[:])]    
 print time.time()- t1
 #%%
 #from cvxpy import *
