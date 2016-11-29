@@ -120,7 +120,7 @@ def _compute_error(cross_correlation_max, src_amp, target_amp):
 
 
 def register_translation(src_image, target_image, upsample_factor=1,
-                         space="real", max_shifts = (10,10)):
+                         space="real", shifts_lb = None, shifts_ub = None, max_shifts = (10,10)):
     """
     Efficient subpixel image translation registration by cross-correlation.
 
@@ -214,10 +214,29 @@ def register_translation(src_image, target_image, upsample_factor=1,
     # Locate maximum
     
     new_cross_corr  = np.abs(cross_correlation)
-    new_cross_corr[max_shifts[0]+1:-max_shifts[0]-1,:] = 0 
-    new_cross_corr[:,max_shifts[1]+1:-max_shifts[1]-1] = 0
     
+    if (shifts_lb is not None) or (shifts_ub is not None):
+        
+        if  (shifts_lb[0]<0) and (shifts_ub[0]>=0):
+            new_cross_corr[shifts_ub[0]:shifts_lb[0],:] = 0                                                                  
+        else:
+            new_cross_corr[:shifts_lb[0],:] = 0                
+            new_cross_corr[shifts_ub[0]:,:] = 0    
+            
+        if  (shifts_lb[1]<0) and (shifts_ub[1]>=0):      
+            new_cross_corr[:,shifts_ub[1]:shifts_lb[1]] = 0                                                      
+        else:
+            new_cross_corr[:,:shifts_lb[1]] = 0    
+            new_cross_corr[:,shifts_ub[1]:] = 0    
+            
+            
+    else:
     
+        new_cross_corr[max_shifts[0]:-max_shifts[0],:] = 0   
+        
+        new_cross_corr[:,max_shifts[1]:-max_shifts[1]] = 0
+
+
     
     maxima = np.unravel_index(np.argmax(new_cross_corr),
                               cross_correlation.shape)
