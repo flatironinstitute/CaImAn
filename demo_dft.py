@@ -141,10 +141,10 @@ from warnings import warn
 #print time.time()- t1
 #%% set parameters and create template
 #m = cm.load('M_FLUO_t.tif')
-#m = cm.load('M_FLUO_4.tif')
+m = cm.load('M_FLUO_4.tif')
 
 #m = cm.load('CA1_green.tif')
-m = cm.load('/mnt/xfs1/home/agiovann/imaging/b23/4.24/20160424165602_00028_00001.tif')
+#m = cm.load('ExampleStack1.tif')
 t1  = time.time()
 template = m.copy().motion_correct(18,18,template=None)[-1]
 t2  = time.time() - t1
@@ -175,8 +175,8 @@ def sliding_window(image, windowSize, stepSize):
 			yield (dim_1, dim_2 , x, y, image[ x:x + windowSize[0],y:y + windowSize[1]])
    
 #%%
-shapes = (32,32)
-overlaps = (8,8)
+shapes = (36,36)
+overlaps = (6,6)
 strides = np.subtract(shapes,overlaps)
 #%% 
 def tile_and_correct_faster(img,template, shapes,overlaps,upsample_factor_fft=10,upsample_factor_grid=1,max_shifts = (10,10),show_movie=False,max_deviation_rigid=None):
@@ -194,8 +194,8 @@ def tile_and_correct_faster(img,template, shapes,overlaps,upsample_factor_fft=10
     dim_grid = tuple(np.add(xy_grid[-1],1))
     
     if max_deviation_rigid is not None:
-        lb_shifts = np.round(np.subtract(rigid_shts,max_deviation_rigid)).astype(int)
-        ub_shifts = np.round(np.add(rigid_shts,max_deviation_rigid)).astype(int)
+        lb_shifts = np.ceil(np.subtract(rigid_shts,max_deviation_rigid)).astype(int)
+        ub_shifts = np.floor(np.add(rigid_shts,max_deviation_rigid)).astype(int)
 #        print rigid_shts, lb_shifts, ub_shifts 
     else:
         lb_shifts = None
@@ -242,7 +242,7 @@ def tile_and_correct_faster(img,template, shapes,overlaps,upsample_factor_fft=10
     if show_movie:
         img = apply_shift_iteration(img,-rigid_shts,border_nan=True)
         img_show = np.vstack([new_img,img,new_img-img])
-        img_show = cv2.resize(img_show,None,fx=5,fy=5)
+        img_show = cv2.resize(img_show,None,fx=3,fy=3)
 #        img_show = new_img
         cv2.imshow('frame',img_show/200)
         cv2.waitKey(int(1./500*1000))      
@@ -250,8 +250,11 @@ def tile_and_correct_faster(img,template, shapes,overlaps,upsample_factor_fft=10
     return shfts
 #%%
 t1 = time.time()
-shfts_fft = [tile_and_correct_faster(img, template, shapes,overlaps,max_shifts = (20,20),show_movie=True,max_deviation_rigid=4) for count,img in enumerate(np.array(m)[:])]    
+shfts_fft = [tile_and_correct_faster(img, template, shapes,overlaps,max_shifts = (10,10),show_movie=False,max_deviation_rigid=3) for count,img in enumerate(np.array(m)[:])]    
 print time.time()- t1
+#%%
+import pylab as pl
+pl.plot([np.array(sft)[:,1] for sft in shfts_fft])
 #%%
 #from cvxpy import *
 #import numpy
