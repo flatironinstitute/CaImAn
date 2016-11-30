@@ -233,8 +233,8 @@ def tile_and_correct_faster(img,template, shapes,overlaps,upsample_factor_fft=10
 #    kn = -np.ones([3,3])
 #    kn[1,1] = 1
 #    kn = kn/9
-    shift_img_x[(np.abs(shift_img_x-rigid_shts[0])/np.std(shift_img_x-rigid_shts[0]))>3] = rigid_shts[0]
-    shift_img_y[(np.abs(shift_img_y-rigid_shts[1])/np.std(shift_img_y-rigid_shts[1]))>3] = rigid_shts[1]
+    shift_img_x[(np.abs(shift_img_x-rigid_shts[0])/np.std(shift_img_x-rigid_shts[0]))>max_sd_outlier] = rigid_shts[0]
+    shift_img_y[(np.abs(shift_img_y-rigid_shts[1])/np.std(shift_img_y-rigid_shts[1]))>max_sd_outlier] = rigid_shts[1]
 #    pl.cla()    
 #    pl.subplot(1,2,1)
 #    pl.imshow((np.abs(shift_img_x-rigid_shts[0])/np.std(shift_img_x-rigid_shts[0]))>3,interpolation = 'None',vmax = 2 )
@@ -270,7 +270,7 @@ def tile_and_correct_faster(img,template, shapes,overlaps,upsample_factor_fft=10
     return shfts,new_img-add_to_movie
 #%%
 t1 = time.time()
-shfts_fft = [tile_and_correct_faster(img, template, shapes,overlaps,max_shifts = (12,12),show_movie=False,max_deviation_rigid=5, add_to_movie = 300,max_interpatch_shift=1) for count,img in enumerate(np.array(m)[:])]    
+shfts_fft = [tile_and_correct_faster(img, template, shapes,overlaps,max_shifts = (12,12),show_movie=False,max_deviation_rigid=5, add_to_movie = 300,max_sd_outlier=3) for count,img in enumerate(np.array(m)[:])]    
 print time.time()- t1
  #%%
 import pylab as pl
