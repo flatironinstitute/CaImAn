@@ -141,12 +141,12 @@ from warnings import warn
 #print time.time()- t1
 #%% set parameters and create template
 #m = cm.load('M_FLUO_t.tif')
-m = cm.load('M_FLUO_4.tif')
-
+#m = cm.load('M_FLUO_4.tif')
+m = cm.load('k56_20160608_RSM_125um_41mW_zoom2p2_00001_00034.tif')
 #m = cm.load('CA1_green.tif')
 #m = cm.load('ExampleStack1.tif')
 t1  = time.time()
-template = m.copy().motion_correct(18,18,template=None)[-1]
+mr,sft,xcr,template = m.copy().motion_correct(18,18,template=None)
 t2  = time.time() - t1
 print t2
 
@@ -175,12 +175,14 @@ def sliding_window(image, windowSize, stepSize):
 			yield (dim_1, dim_2 , x, y, image[ x:x + windowSize[0],y:y + windowSize[1]])
    
 #%%
-shapes = (36,36)
-overlaps = (6,6)
+shapes = (128,126)
+overlaps = (16,16)
 strides = np.subtract(shapes,overlaps)
 #%% 
-def tile_and_correct_faster(img,template, shapes,overlaps,upsample_factor_fft=10,upsample_factor_grid=1,max_shifts = (10,10),show_movie=False,max_deviation_rigid=None):
+def tile_and_correct_faster(img,template, shapes,overlaps,upsample_factor_fft=10,upsample_factor_grid=1,max_shifts = (10,10),show_movie=False,max_deviation_rigid=None,add_to_movie=0,max_sd_outlier=3):
 #%    templates = view_as_windows(template.astype(np.float32),shapes,strides)
+    img = img + add_to_movie
+    template = template + add_to_movie
     rigid_shts = register_translation(img.astype(np.float32),template.astype(np.float32),upsample_factor=upsample_factor_fft,max_shifts=max_shifts)
     strides = np.subtract(shapes,overlaps)    
     iterator = sliding_window(template.astype(np.float32),windowSize=shapes,stepSize = strides)        
@@ -216,12 +218,30 @@ def tile_and_correct_faster(img,template, shapes,overlaps,upsample_factor_fft=10
     xy_grid = [(it[0],it[1]) for it in iterator]  
     iterator = sliding_window(img.astype(np.float32),windowSize=newshapes,stepSize = newstrides)        
     start_step = [(it[2],it[3]) for it in iterator]
-    
+
     dim_new_grid = tuple(np.add(xy_grid[-1],1))
     shift_img_x = cv2.resize(shift_img_x,dim_new_grid[::-1],interpolation = cv2.INTER_CUBIC)
     shift_img_y = cv2.resize(shift_img_y,dim_new_grid[::-1],interpolation = cv2.INTER_CUBIC)
-    num_tiles = np.prod(dim_new_grid)   
-    
+    num_tiles = np.prod(dim_new_grid)
+#    x_nans = np.where(np.abs(np.diff(shift_img_x))>max_interpatch_shift)
+#    y_nans = np.where(np.abs(np.diff(shift_img_y))>max_interpatch_shift)
+#    shift_img_x[x_nans] = rigid_shts[0]
+#    shift_img_y[y_nans] = rigid_shts[1]
+#    print rigid_shts
+#    print np.abs(np.diff(shift_img_x))
+#    print np.abs(np.diff(shift_img_y))
+#    kn = -np.ones([3,3])
+#    kn[1,1] = 1
+#    kn = kn/9
+    shift_img_x[(np.abs(shift_img_x-rigid_shts[0])/np.std(shift_img_x-rigid_shts[0]))>3] = rigid_shts[0]
+    shift_img_y[(np.abs(shift_img_y-rigid_shts[1])/np.std(shift_img_y-rigid_shts[1]))>3] = rigid_shts[1]
+#    pl.cla()    
+#    pl.subplot(1,2,1)
+#    pl.imshow((np.abs(shift_img_x-rigid_shts[0])/np.std(shift_img_x-rigid_shts[0]))>3,interpolation = 'None',vmax = 2 )
+#    pl.subplot(1,2,2)
+#    pl.imshow((np.abs(shift_img_y-rigid_shts[1])/np.std(shift_img_y-rigid_shts[1]))>3,interpolation = 'None',vmax = 2 )
+#    pl.pause(.1)
+
     total_shifts = [(-x,-y) for x,y in zip(shift_img_x.reshape(num_tiles),shift_img_y.reshape(num_tiles))]     
 
     imgs = [apply_shift_iteration(im,sh,border_nan=True) for im,sh in zip(imgs, total_shifts)]
@@ -229,7 +249,7 @@ def tile_and_correct_faster(img,template, shapes,overlaps,upsample_factor_fft=10
     normalizer = np.zeros_like(img)
     new_img = np.zeros_like(img)*np.nan
     
-    for (x,y),(idx_0,idx_1),im in zip(start_step,xy_grid,imgs):
+    for (x,y),(idx_0,idx_1),im,(sh_x,shy) in zip(start_step,xy_grid,imgs,total_shifts):
 #        print (x,y,idx_0,idx_1)
         prev_val = normalizer[x:x + newshapes[0],y:y + newshapes[1]]
         normalizer[x:x + newshapes[0],y:y + newshapes[1]] = np.nansum(np.dstack([~np.isnan(im),prev_val]),-1)
@@ -241,20 +261,48 @@ def tile_and_correct_faster(img,template, shapes,overlaps,upsample_factor_fft=10
     new_img = new_img/normalizer
     if show_movie:
         img = apply_shift_iteration(img,-rigid_shts,border_nan=True)
-        img_show = np.vstack([new_img,img,new_img-img])
-        img_show = cv2.resize(img_show,None,fx=3,fy=3)
+        img_show = np.vstack([new_img,img])
+        img_show = cv2.resize(img_show,None,fx=.5,fy=.5)
 #        img_show = new_img
-        cv2.imshow('frame',img_show/200)
+        cv2.imshow('frame',img_show/20)
         cv2.waitKey(int(1./500*1000))      
               
-    return shfts
+    return shfts,new_img-add_to_movie
 #%%
 t1 = time.time()
-shfts_fft = [tile_and_correct_faster(img, template, shapes,overlaps,max_shifts = (10,10),show_movie=False,max_deviation_rigid=3) for count,img in enumerate(np.array(m)[:])]    
+shfts_fft = [tile_and_correct_faster(img, template, shapes,overlaps,max_shifts = (12,12),show_movie=False,max_deviation_rigid=5, add_to_movie = 300,max_interpatch_shift=1) for count,img in enumerate(np.array(m)[:])]    
 print time.time()- t1
-#%%
+ #%%
 import pylab as pl
-pl.plot([np.array(sft)[:,1] for sft in shfts_fft])
+pl.plot([np.array(sft[0])[:,0] for sft in shfts_fft])
+#%%
+mc = cm.movie(np.dstack([np.array(sft[1]) for sft in shfts_fft]).transpose([2,0,1]))
+mc[np.isnan(mc)] = 0
+#%%
+comp=cm.concatenate([mr+300,mc+300],axis=1)
+comp.resize(1,1,.3).play(gain=20.,fr=50)
+#%%
+ccimage = m.local_correlations(eight_neighbours=True,swap_dim=False)
+ccimage_rig = mr.local_correlations(eight_neighbours=True,swap_dim=False)
+ccimage_els = mc.local_correlations(eight_neighbours=True,swap_dim=False)
+#%%
+pl.subplot(1,3,1)
+pl.imshow(ccimage)
+pl.subplot(1,3,2)
+pl.imshow(ccimage_rig)
+pl.subplot(1,3,3)
+pl.imshow(ccimage_els)
+#%%
+pl.subplot(1,3,1)
+pl.imshow(np.mean(mr,0),vmax=500)
+pl.subplot(1,3,2)
+pl.imshow(np.mean(mc,0))
+
+
+#%%
+mc.save('elastic_1.tif')
+np.save('shifts_1.npy',np.array([np.array(sft[0]) for sft in shfts_fft]))
+#%%
 #%%
 #from cvxpy import *
 #import numpy
