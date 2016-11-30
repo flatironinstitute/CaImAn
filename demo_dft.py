@@ -173,7 +173,8 @@ def sliding_window(image, windowSize, stepSize):
 		for dim_2,y in enumerate(range_2):
 			# yield the current window
 			yield (dim_1, dim_2 , x, y, image[ x:x + windowSize[0],y:y + windowSize[1]])
-   
+def iqr(a):
+    return np.percentile(a,75)-np.percentile(a,25)
 #%%
 shapes = (128,126)
 overlaps = (16,16)
@@ -233,8 +234,10 @@ def tile_and_correct_faster(img,template, shapes,overlaps,upsample_factor_fft=10
 #    kn = -np.ones([3,3])
 #    kn[1,1] = 1
 #    kn = kn/9
-    shift_img_x[(np.abs(shift_img_x-rigid_shts[0])/np.std(shift_img_x-rigid_shts[0]))>max_sd_outlier] = rigid_shts[0]
-    shift_img_y[(np.abs(shift_img_y-rigid_shts[1])/np.std(shift_img_y-rigid_shts[1]))>max_sd_outlier] = rigid_shts[1]
+#    for i in range(2):
+
+    shift_img_x[(np.abs(shift_img_x-rigid_shts[0])/iqr(shift_img_x-rigid_shts[0])/1.349)>max_sd_outlier] = np.median(shift_img_x)
+    shift_img_y[(np.abs(shift_img_y-rigid_shts[1])/iqr(shift_img_y-rigid_shts[1])/1.349)>max_sd_outlier] = np.median(shift_img_y)
 #    pl.cla()    
 #    pl.subplot(1,2,1)
 #    pl.imshow((np.abs(shift_img_x-rigid_shts[0])/np.std(shift_img_x-rigid_shts[0]))>3,interpolation = 'None',vmax = 2 )
@@ -267,14 +270,14 @@ def tile_and_correct_faster(img,template, shapes,overlaps,upsample_factor_fft=10
         cv2.imshow('frame',img_show/20)
         cv2.waitKey(int(1./500*1000))      
               
-    return shfts,new_img-add_to_movie
+    return total_shifts,new_img-add_to_movie
 #%%
 t1 = time.time()
-shfts_fft = [tile_and_correct_faster(img, template, shapes,overlaps,max_shifts = (12,12),show_movie=False,max_deviation_rigid=5, add_to_movie = 300,max_sd_outlier=3) for count,img in enumerate(np.array(m)[:])]    
+shfts_fft = [tile_and_correct_faster(img, template, shapes,overlaps,max_shifts = (12,12),show_movie=False,max_deviation_rigid=5, add_to_movie = 300,max_sd_outlier=1.5) for count,img in enumerate(np.array(m))]    
 print time.time()- t1
  #%%
 import pylab as pl
-pl.plot([np.array(sft[0])[:,0] for sft in shfts_fft])
+pl.plot([np.array(sft[0])[:,1] for sft in shfts_fft])
 #%%
 mc = cm.movie(np.dstack([np.array(sft[1]) for sft in shfts_fft]).transpose([2,0,1]))
 mc[np.isnan(mc)] = 0
