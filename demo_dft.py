@@ -157,7 +157,7 @@ for count,img in enumerate(np.array(m)):
     if count%100 == 0:
             print count
             print time.time()- t1
-    shts = register_translation(img.astype(np.float32),template.astype(np.float32),upsample_factor=10)
+    shts = register_translation(img.astype(np.float32),template.astype(np.float32),upsample_factor=10,max_shifts = (12,12))
     shifts_fft.append(shts)
     
 t2  = time.time() - t1
@@ -176,11 +176,11 @@ def sliding_window(image, windowSize, stepSize):
 def iqr(a):
     return np.percentile(a,75)-np.percentile(a,25)
 #%%
-shapes = (128,126)
+shapes = (128+16,128+16)
 overlaps = (16,16)
 strides = np.subtract(shapes,overlaps)
 #%% 
-def tile_and_correct_faster(img,template, shapes,overlaps,upsample_factor_fft=10,upsample_factor_grid=1,max_shifts = (10,10),show_movie=False,max_deviation_rigid=None,add_to_movie=0,max_sd_outlier=3):
+def tile_and_correct_faster(img,template, shapes,overlaps,upsample_factor_fft=10,upsample_factor_grid=2,max_shifts = (10,10),show_movie=False,max_deviation_rigid=None,add_to_movie=0,max_sd_outlier=3):
 #%    templates = view_as_windows(template.astype(np.float32),shapes,strides)
     img = img + add_to_movie
     template = template + add_to_movie
@@ -235,7 +235,7 @@ def tile_and_correct_faster(img,template, shapes,overlaps,upsample_factor_fft=10
 #    kn[1,1] = 1
 #    kn = kn/9
 #    for i in range(2):
-
+    
     shift_img_x[(np.abs(shift_img_x-rigid_shts[0])/iqr(shift_img_x-rigid_shts[0])/1.349)>max_sd_outlier] = np.median(shift_img_x)
     shift_img_y[(np.abs(shift_img_y-rigid_shts[1])/iqr(shift_img_y-rigid_shts[1])/1.349)>max_sd_outlier] = np.median(shift_img_y)
 #    pl.cla()    
@@ -263,17 +263,32 @@ def tile_and_correct_faster(img,template, shapes,overlaps,upsample_factor_fft=10
 
     new_img = new_img/normalizer
     if show_movie:
+#        for xx,yy,(sh_x,sh_y) in zip(np.array(start_step)[:,0]+newshapes[0]/2,np.array(start_step)[:,1]+newshapes[1]/2,total_shifts):
+#            new_img = cv2.arrowedLine(new_img,(xx,yy),(np.int(xx+sh_x*10),np.int(yy+sh_y*10)),5000,1)
+            
         img = apply_shift_iteration(img,-rigid_shts,border_nan=True)
         img_show = np.vstack([new_img,img])
         img_show = cv2.resize(img_show,None,fx=.5,fy=.5)
 #        img_show = new_img
-        cv2.imshow('frame',img_show/20)
+        
+        cv2.imshow('frame',img_show/1000)
         cv2.waitKey(int(1./500*1000))      
-              
+    
+        
+    xx,yy = np.array(start_step)[:,0]+newshapes[0]/2,np.array(start_step)[:,1]+newshapes[1]/2
+    pl.cla()
+    pl.imshow(new_img,vmin = 200, vmax = 500 ,cmap = 'gray',origin = 'lower')
+    pl.axis('off')
+    pl.quiver(yy,xx,shift_img_y, -shift_img_x, color = 'red')
+    pl.pause(.01)
+    import pdb
+    pdb.set_trace()
+          
     return total_shifts,new_img-add_to_movie
 #%%
 t1 = time.time()
-shfts_fft = [tile_and_correct_faster(img, template, shapes,overlaps,max_shifts = (12,12),show_movie=False,max_deviation_rigid=5, add_to_movie = 300,max_sd_outlier=1.5) for count,img in enumerate(np.array(m))]    
+add_to_movie = - np.min(m)
+shfts_fft = [tile_and_correct_faster(img, template, shapes,overlaps,max_shifts = (12,12),show_movie=False,max_deviation_rigid=5, add_to_movie = add_to_movie,max_sd_outlier=np.inf) for count,img in enumerate(np.array(m[600:800]))]    
 print time.time()- t1
  #%%
 import pylab as pl
@@ -283,7 +298,7 @@ mc = cm.movie(np.dstack([np.array(sft[1]) for sft in shfts_fft]).transpose([2,0,
 mc[np.isnan(mc)] = 0
 #%%
 comp=cm.concatenate([mr+300,mc+300],axis=1)
-comp.resize(1,1,.3).play(gain=20.,fr=50)
+comp.resize(1,1,.25).play(gain=20.,fr=50)
 #%%
 ccimage = m.local_correlations(eight_neighbours=True,swap_dim=False)
 ccimage_rig = mr.local_correlations(eight_neighbours=True,swap_dim=False)

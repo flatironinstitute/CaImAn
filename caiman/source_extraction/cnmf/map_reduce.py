@@ -52,6 +52,7 @@ def cnmf_patches(args_in):
         
         Yr.filename=file_name
         d,T=Yr.shape      
+
         Y=np.reshape(Yr,(shapes[1],shapes[0],T),order='F')  
         Y.filename=file_name
          
@@ -202,7 +203,8 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, gnb = 1, dvie
                     
 
     else:
-
+        import pdb
+        pdb.set_trace()
         file_res = map(cnmf_patches, args_in)                         
 
       

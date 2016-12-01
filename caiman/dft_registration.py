@@ -4,11 +4,12 @@ Created on Tue Nov 22 20:03:46 2016
 
 Port of Manuel Guizar's code from:
 http://www.mathworks.com/matlabcentral/fileexchange/18401-efficient-subpixel-image-registration-by-cross-correlation
-adapted from scikit.image.register_translation
+adapted from scikit.image.register_translation and scikit image register_translation function by
 
 """
 
 import numpy as np
+import pylab as pl
 #from numpy.fft import fftn,ifftn
 #from accelerate.mkl.fftpack import fftn,ifftn
 #from pyfftw.interfaces.numpy_fft import fftn, ifftn
@@ -84,6 +85,7 @@ def _upsampled_dft(data, upsampled_region_size,
             ifftshift(np.arange(data.shape[0]))[None, :] -
             np.floor(data.shape[0] / 2))
     )
+    
 
     return row_kernel.dot(data).dot(col_kernel)
 
@@ -210,11 +212,13 @@ def register_translation(src_image, target_image, upsample_factor=1,
         shape = src_freq.shape
         image_product = src_freq * target_freq.conj()
         cross_correlation = ifftn(image_product)
-
+    
+    
     # Locate maximum
     
     new_cross_corr  = np.abs(cross_correlation)
-    
+
+
     if (shifts_lb is not None) or (shifts_ub is not None):
         
         if  (shifts_lb[0]<0) and (shifts_ub[0]>=0):
@@ -236,7 +240,14 @@ def register_translation(src_image, target_image, upsample_factor=1,
         
         new_cross_corr[:,max_shifts[1]:-max_shifts[1]] = 0
 
-
+#    pl.cla()
+#    ranges = np.percentile(np.abs(cross_correlation),[1,99.99])
+#    pl.subplot(1,2,1)
+#    pl.imshow( np.abs(cross_correlation),interpolation = 'none',vmin = ranges[0],vmax = ranges[1])
+#    pl.pause(.1)
+#    pl.subplot(1,2,2)
+#    pl.imshow(new_cross_corr,interpolation = 'none',vmin = ranges[0],vmax = ranges[1])
+#    pl.pause(1)
     
     maxima = np.unravel_index(np.argmax(new_cross_corr),
                               cross_correlation.shape)
