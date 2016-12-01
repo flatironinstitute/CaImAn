@@ -181,8 +181,9 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, gnb = 1, dvie
 #    import pdb 
 #    pdb.set_trace()
     args_in=[]    
-    for id_f,id_2d in zip(idx_flat[:],idx_2d[:]):        
-        args_in.append((file_name, id_f,id_2d[0].shape, options))
+    for id_f,id_2d in zip(idx_flat[:],idx_2d[:,:,0].flatten()):        
+
+        args_in.append((file_name, id_f,id_2d.shape, options))
 
     print len(idx_flat)
 
@@ -203,8 +204,7 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, gnb = 1, dvie
                     
 
     else:
-        import pdb
-        pdb.set_trace()
+
         file_res = map(cnmf_patches, args_in)                         
 
       

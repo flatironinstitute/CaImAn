@@ -150,7 +150,7 @@ else:
     save_results = False
     #%% RUN ALGORITHM ON PATCHES
 
-    cnm = cnmf.CNMF(n_processes, k=K, gSig=gSig, merge_thresh=0.8, p=0, dview=c[:], Ain=None, rf=rf, stride=stride, memory_fact=memory_fact,
+    cnm = cnmf.CNMF(n_processes, k=K, gSig=gSig, merge_thresh=0.8, p=0, dview=None, Ain=None, rf=rf, stride=stride, memory_fact=memory_fact,
                     method_init=init_method, alpha_snmf=alpha_snmf, only_init_patch=True, gnb=1,method_deconvolution='oasis')
     cnm = cnm.fit(images)
 
