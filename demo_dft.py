@@ -165,10 +165,10 @@ print t2
 
 
 #%%
-def sliding_window(image, windowSize, stepSize):
+def sliding_window(image, windowSize, strides):
     # slide a window across the image
-    range_1 = range(0, image.shape[0]-windowSize[0], stepSize[0]) + [image.shape[0]-windowSize[0]]
-    range_2 = range(0, image.shape[1]-windowSize[1], stepSize[1]) + [image.shape[1]-windowSize[1]]
+    range_1 = range(0, image.shape[0]-windowSize[0], strides[0]) + [image.shape[0]-windowSize[0]]
+    range_2 = range(0, image.shape[1]-windowSize[1], strides[1]) + [image.shape[1]-windowSize[1]]
     for dim_1, x in enumerate(range_1):
 		for dim_2,y in enumerate(range_2):
 			# yield the current window
@@ -179,21 +179,41 @@ def iqr(a):
 shapes = (128+16,128+16)
 overlaps = (16,16)
 strides = np.subtract(shapes,overlaps)
+#itertools.tee(sliding_window(m[0], shapes, strides), 3)
+#%%
+def create_weight_matrix_for_blending(img, shapes, overlaps):
+   
+   strides = np.subtract(shapes,overlaps)
+   
+   max_grid_1,max_grid_2 =  np.max(np.array([it[:2] for it in  sliding_window(img, shapes, strides)]),0)
+
+   for grid_1, grid_2 , x, y, _ in sliding_window(img, shapes, strides):
+       
+       weight_mat = np.ones(shapes)  
+
+       if grid_1 > 0:
+           weight_mat[:overlaps[0],:] = np.linspace(0,1,overlaps[0])[:,None]
+       if grid_1 < max_grid_1: 
+           weight_mat[-overlaps[0]:,:] = np.linspace(1,0,overlaps[0])[:,None]
+       if grid_2 > 0:
+           weight_mat[:,:overlaps[1]] = weight_mat[:,:overlaps[1]]*np.linspace(0,1,overlaps[1])[None,:]
+       if grid_2 < max_grid_2: 
+           weight_mat[:,-overlaps[1]:] = weight_mat[:,-overlaps[1]:]*np.linspace(1,0,overlaps[1])[None,:]
+       
+       yield weight_mat
+       
 #%% 
-def tile_and_correct_faster(img,template, shapes,overlaps,upsample_factor_fft=10,upsample_factor_grid=2,max_shifts = (10,10),show_movie=False,max_deviation_rigid=None,add_to_movie=0,max_sd_outlier=3):
+def tile_and_correct_faster(img,template, shapes,overlaps,upsample_factor_fft=10,upsample_factor_grid=2,max_shifts = (12,12),show_movie=False,max_deviation_rigid=3,add_to_movie=507,max_sd_outlier=np.inf):
 #%    templates = view_as_windows(template.astype(np.float32),shapes,strides)
+    
     img = img + add_to_movie
     template = template + add_to_movie
     rigid_shts = register_translation(img.astype(np.float32),template.astype(np.float32),upsample_factor=upsample_factor_fft,max_shifts=max_shifts)
-    strides = np.subtract(shapes,overlaps)    
-    iterator = sliding_window(template.astype(np.float32),windowSize=shapes,stepSize = strides)        
-    templates = [it[-1] for it in iterator]
-    iterator = sliding_window(template.astype(np.float32),windowSize=shapes,stepSize = strides)        
-    xy_grid = [(it[0],it[1]) for it in iterator]    
+    strides = np.subtract(shapes,overlaps)   
+    templates = [it[-1] for it in sliding_window(template.astype(np.float32),windowSize=shapes,strides = strides)]
+    xy_grid = [(it[0],it[1]) for it in sliding_window(template.astype(np.float32),windowSize=shapes,strides = strides)]    
     num_tiles = np.prod(np.add(xy_grid[-1],1))    
-    iterator = sliding_window(img.astype(np.float32),windowSize=shapes,stepSize = strides)        
-    imgs = [it[-1] for it in iterator]
-    
+    imgs = [it[-1] for it in sliding_window(img.astype(np.float32),windowSize=shapes,strides = strides)]    
     dim_grid = tuple(np.add(xy_grid[-1],1))
     
     if max_deviation_rigid is not None:
@@ -212,54 +232,39 @@ def tile_and_correct_faster(img,template, shapes,overlaps,upsample_factor_fft=10
     newshapes = tuple(np.ceil(np.multiply(shapes,1./upsample_factor_grid)).astype(np.int))    
     newstrides = np.subtract(newshapes,overlaps)
     
-    iterator = sliding_window(img.astype(np.float32),windowSize=newshapes,stepSize = newstrides)        
-    imgs = [it[-1] for it in iterator]
+    imgs = [it[-1] for it in sliding_window(img.astype(np.float32),windowSize=newshapes,strides = newstrides)  ]
         
-    iterator = sliding_window(img.astype(np.float32),windowSize=newshapes,stepSize = newstrides)        
-    xy_grid = [(it[0],it[1]) for it in iterator]  
-    iterator = sliding_window(img.astype(np.float32),windowSize=newshapes,stepSize = newstrides)        
-    start_step = [(it[2],it[3]) for it in iterator]
+    xy_grid = [(it[0],it[1]) for it in sliding_window(img.astype(np.float32),windowSize=newshapes,strides = newstrides)]  
+
+    start_step = [(it[2],it[3]) for it in sliding_window(img.astype(np.float32),windowSize=newshapes,strides = newstrides)]
 
     dim_new_grid = tuple(np.add(xy_grid[-1],1))
     shift_img_x = cv2.resize(shift_img_x,dim_new_grid[::-1],interpolation = cv2.INTER_CUBIC)
     shift_img_y = cv2.resize(shift_img_y,dim_new_grid[::-1],interpolation = cv2.INTER_CUBIC)
     num_tiles = np.prod(dim_new_grid)
-#    x_nans = np.where(np.abs(np.diff(shift_img_x))>max_interpatch_shift)
-#    y_nans = np.where(np.abs(np.diff(shift_img_y))>max_interpatch_shift)
-#    shift_img_x[x_nans] = rigid_shts[0]
-#    shift_img_y[y_nans] = rigid_shts[1]
-#    print rigid_shts
-#    print np.abs(np.diff(shift_img_x))
-#    print np.abs(np.diff(shift_img_y))
-#    kn = -np.ones([3,3])
-#    kn[1,1] = 1
-#    kn = kn/9
-#    for i in range(2):
+
+    
     
     shift_img_x[(np.abs(shift_img_x-rigid_shts[0])/iqr(shift_img_x-rigid_shts[0])/1.349)>max_sd_outlier] = np.median(shift_img_x)
     shift_img_y[(np.abs(shift_img_y-rigid_shts[1])/iqr(shift_img_y-rigid_shts[1])/1.349)>max_sd_outlier] = np.median(shift_img_y)
-#    pl.cla()    
-#    pl.subplot(1,2,1)
-#    pl.imshow((np.abs(shift_img_x-rigid_shts[0])/np.std(shift_img_x-rigid_shts[0]))>3,interpolation = 'None',vmax = 2 )
-#    pl.subplot(1,2,2)
-#    pl.imshow((np.abs(shift_img_y-rigid_shts[1])/np.std(shift_img_y-rigid_shts[1]))>3,interpolation = 'None',vmax = 2 )
-#    pl.pause(.1)
+
 
     total_shifts = [(-x,-y) for x,y in zip(shift_img_x.reshape(num_tiles),shift_img_y.reshape(num_tiles))]     
 
     imgs = [apply_shift_iteration(im,sh,border_nan=True) for im,sh in zip(imgs, total_shifts)]
     
-    normalizer = np.zeros_like(img)
+    normalizer = np.zeros_like(img)*np.nan
     new_img = np.zeros_like(img)*np.nan
-    
-    for (x,y),(idx_0,idx_1),im,(sh_x,shy) in zip(start_step,xy_grid,imgs,total_shifts):
-#        print (x,y,idx_0,idx_1)
-        prev_val = normalizer[x:x + newshapes[0],y:y + newshapes[1]]
-        normalizer[x:x + newshapes[0],y:y + newshapes[1]] = np.nansum(np.dstack([~np.isnan(im),prev_val]),-1)
+    weight_matrix = create_weight_matrix_for_blending(img,newshapes, overlaps)
+
+    for (x,y),(idx_0,idx_1),im,(sh_x,shy),weight_mat in zip(start_step,xy_grid,imgs,total_shifts,weight_matrix):
+
+        prev_val_1 = normalizer[x:x + newshapes[0],y:y + newshapes[1]]        
+
+        normalizer[x:x + newshapes[0],y:y + newshapes[1]] = np.nansum(np.dstack([~np.isnan(im)*1*weight_mat.T,prev_val_1]),-1)
         prev_val = new_img[x:x + newshapes[0],y:y + newshapes[1]]
-        new_img[x:x + newshapes[0],y:y + newshapes[1]] = np.nansum(np.dstack([im,prev_val]),-1)
-    
-    
+        new_img[x:x + newshapes[0],y:y + newshapes[1]] = np.nansum(np.dstack([im*weight_mat.T,prev_val]),-1)
+             
 
     new_img = new_img/normalizer
     if show_movie:
@@ -267,28 +272,39 @@ def tile_and_correct_faster(img,template, shapes,overlaps,upsample_factor_fft=10
 #            new_img = cv2.arrowedLine(new_img,(xx,yy),(np.int(xx+sh_x*10),np.int(yy+sh_y*10)),5000,1)
             
         img = apply_shift_iteration(img,-rigid_shts,border_nan=True)
-        img_show = np.vstack([new_img,img])
-        img_show = cv2.resize(img_show,None,fx=.5,fy=.5)
+#        img_show = np.vstack([new_img,img])
+        img_show = new_img
+        img_show = cv2.resize(img_show,None,fx=1,fy=1)
 #        img_show = new_img
         
         cv2.imshow('frame',img_show/1000)
         cv2.waitKey(int(1./500*1000))      
     
-        
-    xx,yy = np.array(start_step)[:,0]+newshapes[0]/2,np.array(start_step)[:,1]+newshapes[1]/2
-    pl.cla()
-    pl.imshow(new_img,vmin = 200, vmax = 500 ,cmap = 'gray',origin = 'lower')
-    pl.axis('off')
-    pl.quiver(yy,xx,shift_img_y, -shift_img_x, color = 'red')
-    pl.pause(.01)
-    import pdb
-    pdb.set_trace()
+    else:
+        cv2.destroyAllWindows()
+#    xx,yy = np.array(start_step)[:,0]+newshapes[0]/2,np.array(start_step)[:,1]+newshapes[1]/2
+#    pl.cla()
+#    pl.imshow(new_img,vmin = 200, vmax = 500 ,cmap = 'gray',origin = 'lower')
+#    pl.axis('off')
+#    pl.quiver(yy,xx,shift_img_y, -shift_img_x, color = 'red')
+#    pl.pause(.01)
+
           
     return total_shifts,new_img-add_to_movie
 #%%
+def correct_wrapper(args): 
+    from demo_dft  import tile_and_correct_faster
+    img, template, shapes,overlaps = args
+    return 1#tile_and_correct_faster(img, template, shapes,overlaps)[0]
+#%%
 t1 = time.time()
 add_to_movie = - np.min(m)
-shfts_fft = [tile_and_correct_faster(img, template, shapes,overlaps,max_shifts = (12,12),show_movie=False,max_deviation_rigid=5, add_to_movie = add_to_movie,max_sd_outlier=np.inf) for count,img in enumerate(np.array(m[600:800]))]    
+#%%
+
+res = c[:].map_sync(correct_wrapper,[(img,template,shapes,overlaps) for img in m[:20]])
+
+#%%
+shfts_fft = [tile_and_correct_faster(img, template, shapes,overlaps,max_shifts = (12,12),show_movie=False,max_deviation_rigid=3, add_to_movie = add_to_movie,max_sd_outlier=np.inf) for count,img in enumerate(np.array(m))]    
 print time.time()- t1
  #%%
 import pylab as pl
