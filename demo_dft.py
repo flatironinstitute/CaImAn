@@ -203,7 +203,7 @@ def create_weight_matrix_for_blending(img, shapes, overlaps):
        yield weight_mat
        
 #%% 
-def tile_and_correct_faster(img,template, shapes,overlaps,upsample_factor_fft=10,upsample_factor_grid=2,max_shifts = (12,12),show_movie=False,max_deviation_rigid=3,add_to_movie=507,max_sd_outlier=np.inf):
+def tile_and_correct_faster(img,template, shapes,overlaps,upsample_factor_fft=10,upsample_factor_grid=4,max_shifts = (12,12),show_movie=False,max_deviation_rigid=3,add_to_movie=507,max_sd_outlier=np.inf):
 #%    templates = view_as_windows(template.astype(np.float32),shapes,strides)
     
     img = img + add_to_movie
@@ -301,10 +301,10 @@ t1 = time.time()
 add_to_movie = - np.min(m)
 #%%
 
-res = c[:].map_sync(correct_wrapper,[(img,template,shapes,overlaps) for img in m[:20]])
+#res = c[:].map_sync(correct_wrapper,[(img,template,shapes,overlaps) for img in m[:20]])
 
 #%%
-shfts_fft = [tile_and_correct_faster(img, template, shapes,overlaps,max_shifts = (12,12),show_movie=False,max_deviation_rigid=3, add_to_movie = add_to_movie,max_sd_outlier=np.inf) for count,img in enumerate(np.array(m))]    
+shfts_fft = [tile_and_correct_faster(img, template, shapes,overlaps,max_shifts = (12,12),show_movie=False,max_deviation_rigid=3, add_to_movie = add_to_movie,max_sd_outlier=np.inf) for count,img in enumerate(np.array(m[:500]))]    
 print time.time()- t1
  #%%
 import pylab as pl
