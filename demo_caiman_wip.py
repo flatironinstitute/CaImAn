@@ -41,21 +41,38 @@ fname='/mnt/ceph/neuro/labeling/k37_20160109_AM_150um_65mW_zoom2p2_00001_1-16/im
 fname='./example_movies/demoMovie.tif'
 
 with tifffile.TiffFile(fname) as tf: 
-    m=movie(tf,fr=30)
-    mh=movie(tf.asarray(),fr=30)
+    m=cm.movie(tf,fr=30)
+    mh=cm.movie(tf.asarray(),fr=30)
 #(mh-np.percentile(mh,8)).play(backend='opencv',fr=100,gain=10.,magnification=5)
 #mh=mh.motion_correct(5,5)[0]
+#%%
+from sklearn.metrics.pairwise import euclidean_distances
+#mh=mh[:,30:60,30:60]
+T,h,w=np.shape(mh)
+idxA,idxB =  np.meshgrid(range(w),range(h))
+coordmat=np.vstack((idxA.flatten(),idxB.flatten()))
+distanceMatrix=euclidean_distances(coordmat.T)
+distanceMatrix=np.logical_and(distanceMatrix<2,distanceMatrix>0)*distanceMatrix
+img=np.corrcoef(mh.to_2D(order='C').T)
+img=img*distanceMatrix
+img=scipy.sparse.coo_matrix(img)
+from sklearn.cluster import DBSCAN,KMeans,SpectralClustering
+cl=SpectralClustering(n_clusters=3).fit(img)
+
+#%%
+pl.imshow(cl.labels_.reshape((h,w)))
+#pl.imshow(mh.local_correlations(eight_neighbours=True,swap_dim=False),alpha=.5)
+#%%
+pl.imshow(img,interpolation='none')
+#%%
+cc=scipy.sparse.csgraph.connected_components(img,directed=False)
+#distanceMatrix=distanceMatrix/np.max(distanceMatrix)    
     #%%
 m=load(fname,fr=30).resize(1,1,.2)
 #%%
 shifts_,xcorrs_,template_ = m.motion_correction_online(init_frames_template=100,max_shift_h=5,max_shift_w=5)
 #%%
 shifts,xcorrs,template = m.motion_correction_online(template=template_,min_count=len(m),max_shift_h=5,max_shift_w=5)
-
-#%%
-
-#m1=m.apply_shifts_online(shifts)   
-#m1=m.resize(1,1,.2)
 #%%
 mov_path=m.apply_shifts_online(shifts,save_base_name='/tmp/test')   
 #%%
