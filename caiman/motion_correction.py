@@ -12,6 +12,16 @@ import collections
 import caiman as cm
 import tifffile
 import gc
+import os
+#from numpy.fft import fftn,ifftn
+#from accelerate.mkl.fftpack import fftn,ifftn
+#from pyfftw.interfaces.numpy_fft import fftn, ifftn
+#opencv = False
+
+from cv2 import dft as fftn
+from cv2 import idft as ifftn
+opencv = True
+from numpy.fft import ifftshift
 
 #%%
 def apply_shift_iteration(img,shift,border_nan=False):
@@ -575,8 +585,6 @@ def bin_median(mat,window=10):
 #%%    
 def process_movie_parallel(arg_in):
 
-   
-    
 
     fname,fr,margins_out,template,max_shift_w, max_shift_h,remove_blanks,apply_smooth,save_hdf5=arg_in
     
@@ -729,179 +737,504 @@ def motion_correct_parallel(file_names,fr=10,template=None,margins_out=0,max_shi
     return file_res 
 
 #%%
-####
-### Load and Motion Correct
-#
-## This first part just creates a cell array of filenames to load, may have
-## to be changed if you're names are different than Alice's
-#
-##get all files names
-##%%
-#num_files = 2
-#nameOffset = 0
-#mouse_name = 'AG01'
-#session_name = '010101'
-#view_name = 'view1'
-#slice_name = 'slice1'
-#
-#
-#
-#filenames=['M_FLUO_1.tif','M_FLUO_2.tif']
-#fr=15.
-#n_blocks_x=3
-#n_blocks_y=3
-#
-#
-#max_shift_rigid=10
-#max_shift_aff=3
-#
-#fullfilename = filenames[0]
-#chone=cm.load(fullfilename,fr=fr)
-##chone=chone.crop(5,5,5,5)
-#chone,_,_,_=chone.motion_correct(max_shift_rigid,max_shift_rigid,remove_blanks=True)
-##info=imfinfo(fullfilename)
-#Z,N,M=chone.shape
-#
-#
-##scale movie for seamless intensities
-##Clip bad image region
-#meanlastframes=np.median(np.mean(chone[-400:],axis=(1,2)))
-#meanfirstframes=np.median(np.mean(chone[:400],axis=(1,2)))
-#chone=chone*(meanlastframes/meanfirstframes)    
-#
-##Construct Movie Segments
-#
-#xind = np.floor(np.linspace(0,M/2.,n_blocks_x))
-#yind = np.floor(np.linspace(0,N/2.,n_blocks_y))
-#segPos = []
-#for x in range(len(xind)):
-#    for y in range(len(yind)):
-#        segPos.append([xind[x], yind[y],  np.floor(M/2.), np.floor(N/2.)])
+
+def _upsampled_dft(data, upsampled_region_size,
+                   upsample_factor=1, axis_offsets=None):
+    """
+    Upsampled DFT by matrix multiplication.
+
+    This code is intended to provide the same result as if the following
+    operations were performed:
+        - Embed the array "data" in an array that is ``upsample_factor`` times
+          larger in each dimension.  ifftshift to bring the center of the
+          image to (1,1).
+        - Take the FFT of the larger array.
+        - Extract an ``[upsampled_region_size]`` region of the result, starting
+          with the ``[axis_offsets+1]`` element.
+
+    It achieves this result by computing the DFT in the output array without
+    the need to zeropad. Much faster and memory efficient than the zero-padded
+    FFT approach if ``upsampled_region_size`` is much smaller than
+    ``data.size * upsample_factor``.
+
+    Parameters
+    ----------
+    data : 2D ndarray
+        The input data array (DFT of original data) to upsample.
+    upsampled_region_size : integer or tuple of integers, optional
+        The size of the region to be sampled.  If one integer is provided, it
+        is duplicated up to the dimensionality of ``data``.
+    upsample_factor : integer, optional
+        The upsampling factor.  Defaults to 1.
+    axis_offsets : tuple of integers, optional
+        The offsets of the region to be sampled.  Defaults to None (uses
+        image center)
+
+    Returns
+    -------
+    output : 2D ndarray
+            The upsampled DFT of the specified region.
+    """
+    # if people pass in an integer, expand it to a list of equal-sized sections
+    if not hasattr(upsampled_region_size, "__iter__"):
+        upsampled_region_size = [upsampled_region_size, ] * data.ndim
+    else:
+        if len(upsampled_region_size) != data.ndim:
+            raise ValueError("shape of upsampled region sizes must be equal "
+                             "to input data's number of dimensions.")
+
+    if axis_offsets is None:
+        axis_offsets = [0, ] * data.ndim
+    else:
+        if len(axis_offsets) != data.ndim:
+            raise ValueError("number of axis offsets must be equal to input "
+                             "data's number of dimensions.")
+
+    col_kernel = np.exp(
+        (-1j * 2 * np.pi / (data.shape[1] * upsample_factor)) *
+        (ifftshift(np.arange(data.shape[1]))[:, None] -
+         np.floor(data.shape[1] / 2)).dot(
+             np.arange(upsampled_region_size[1])[None, :] - axis_offsets[1])
+    )
+    row_kernel = np.exp(
+        (-1j * 2 * np.pi / (data.shape[0] * upsample_factor)) *
+        (np.arange(upsampled_region_size[0])[:, None] - axis_offsets[0]).dot(
+            ifftshift(np.arange(data.shape[0]))[None, :] -
+            np.floor(data.shape[0] / 2))
+    )
+    
+
+    return row_kernel.dot(data).dot(col_kernel)
+
+
+def _compute_phasediff(cross_correlation_max):
+    """
+    Compute global phase difference between the two images (should be
+        zero if images are non-negative).
+
+    Parameters
+    ----------
+    cross_correlation_max : complex
+        The complex value of the cross correlation at its maximum point.
+    """
+    return np.arctan2(cross_correlation_max.imag, cross_correlation_max.real)
+
+
+def _compute_error(cross_correlation_max, src_amp, target_amp):
+    """
+    Compute RMS error metric between ``src_image`` and ``target_image``.
+
+    Parameters
+    ----------
+    cross_correlation_max : complex
+        The complex value of the cross correlation at its maximum point.
+    src_amp : float
+        The normalized average image intensity of the source image
+    target_amp : float
+        The normalized average image intensity of the target image
+    """
+    error = 1.0 - cross_correlation_max * cross_correlation_max.conj() /\
+        (src_amp * target_amp)
+    return np.sqrt(np.abs(error))
+
+#%%
+def register_translation(src_image, target_image, upsample_factor=1,
+                         space="real", shifts_lb = None, shifts_ub = None, max_shifts = (10,10)):
+    """
+    Efficient subpixel image translation registration by cross-correlation.
+
+    This code gives the same precision as the FFT upsampled cross-correlation
+    in a fraction of the computation time and with reduced memory requirements.
+    It obtains an initial estimate of the cross-correlation peak by an FFT and
+    then refines the shift estimation by upsampling the DFT only in a small
+    neighborhood of that estimate by means of a matrix-multiply DFT.
+
+    Parameters
+    ----------
+    src_image : ndarray
+        Reference image.
+    target_image : ndarray
+        Image to register.  Must be same dimensionality as ``src_image``.
+    upsample_factor : int, optional
+        Upsampling factor. Images will be registered to within
+        ``1 / upsample_factor`` of a pixel. For example
+        ``upsample_factor == 20`` means the images will be registered
+        within 1/20th of a pixel.  Default is 1 (no upsampling)
+    space : string, one of "real" or "fourier"
+        Defines how the algorithm interprets input data.  "real" means data
+        will be FFT'd to compute the correlation, while "fourier" data will
+        bypass FFT of input data.  Case insensitive.
+
+    Returns
+    -------
+    shifts : ndarray
+        Shift vector (in pixels) required to register ``target_image`` with
+        ``src_image``.  Axis ordering is consistent with numpy (e.g. Z, Y, X)
+    error : float
+        Translation invariant normalized RMS error between ``src_image`` and
+        ``target_image``.
+    phasediff : float
+        Global phase difference between the two images (should be
+        zero if images are non-negative).
+
+    References
+    ----------
+    .. [1] Manuel Guizar-Sicairos, Samuel T. Thurman, and James R. Fienup,
+           "Efficient subpixel image registration algorithms,"
+           Optics Letters 33, 156-158 (2008).
+    """
+    # images must be the same shape
+    if src_image.shape != target_image.shape:
+        raise ValueError("Error: images must be same size for "
+                         "register_translation")
+
+    # only 2D data makes sense right now
+    if src_image.ndim != 2 and upsample_factor > 1:
+        raise NotImplementedError("Error: register_translation only supports "
+                                  "subpixel registration for 2D images")
+
+    # assume complex data is already in Fourier space
+    if space.lower() == 'fourier':
+        src_freq = src_image
+        target_freq = target_image
+    # real data needs to be fft'd.
+    elif space.lower() == 'real':
+        if opencv:
+            src_freq_1 = fftn(src_image,flags=cv2.DFT_COMPLEX_OUTPUT+cv2.DFT_SCALE)
+            src_freq  = src_freq_1[:,:,0]+1j*src_freq_1[:,:,1]
+            src_freq   = np.array(src_freq, dtype=np.complex128, copy=False)            
+            target_freq_1 = fftn(target_image,flags=cv2.DFT_COMPLEX_OUTPUT+cv2.DFT_SCALE)
+            target_freq  = target_freq_1[:,:,0]+1j*target_freq_1[:,:,1]
+            target_freq = np.array(target_freq , dtype=np.complex128, copy=False)
+        else:
+            src_image_cpx = np.array(src_image, dtype=np.complex128, copy=False)
+            target_image_cpx = np.array(target_image, dtype=np.complex128, copy=False)
+            src_freq = np.fft.fftn(src_image_cpx)
+            target_freq = fftn(target_image_cpx)
+
+    else:
+        raise ValueError("Error: register_translation only knows the \"real\" "
+                         "and \"fourier\" values for the ``space`` argument.")
+
+    # Whole-pixel shift - Compute cross-correlation by an IFFT
+    
+    shape = src_freq.shape
+    image_product = src_freq * target_freq.conj()
+    if opencv:
+        
+        image_product_cv = np.dstack([np.real(image_product),np.imag(image_product)])
+        cross_correlation = fftn(image_product_cv,flags=cv2.DFT_INVERSE+cv2.DFT_SCALE)
+        cross_correlation = cross_correlation[:,:,0]+1j*cross_correlation[:,:,1]
+    else:
+        shape = src_freq.shape
+        image_product = src_freq * target_freq.conj()
+        cross_correlation = ifftn(image_product)
+    
+    
+    # Locate maximum
+    
+    new_cross_corr  = np.abs(cross_correlation)
+
+
+    if (shifts_lb is not None) or (shifts_ub is not None):
+        
+        if  (shifts_lb[0]<0) and (shifts_ub[0]>=0):
+            new_cross_corr[shifts_ub[0]:shifts_lb[0],:] = 0                                                                  
+        else:
+            new_cross_corr[:shifts_lb[0],:] = 0                
+            new_cross_corr[shifts_ub[0]:,:] = 0    
+            
+        if  (shifts_lb[1]<0) and (shifts_ub[1]>=0):      
+            new_cross_corr[:,shifts_ub[1]:shifts_lb[1]] = 0                                                      
+        else:
+            new_cross_corr[:,:shifts_lb[1]] = 0    
+            new_cross_corr[:,shifts_ub[1]:] = 0    
+            
+            
+    else:
+    
+        new_cross_corr[max_shifts[0]:-max_shifts[0],:] = 0   
+        
+        new_cross_corr[:,max_shifts[1]:-max_shifts[1]] = 0
+
+#    pl.cla()
+#    ranges = np.percentile(np.abs(cross_correlation),[1,99.99])
+#    pl.subplot(1,2,1)
+#    pl.imshow( np.abs(cross_correlation),interpolation = 'none',vmin = ranges[0],vmax = ranges[1])
+#    pl.pause(.1)
+#    pl.subplot(1,2,2)
+#    pl.imshow(new_cross_corr,interpolation = 'none',vmin = ranges[0],vmax = ranges[1])
+#    pl.pause(1)
+    
+    maxima = np.unravel_index(np.argmax(new_cross_corr),
+                              cross_correlation.shape)
+    midpoints = np.array([np.fix(axis_size / 2) for axis_size in shape])
+
+    shifts = np.array(maxima, dtype=np.float64)
+    shifts[shifts > midpoints] -= np.array(shape)[shifts > midpoints]
+
+    if upsample_factor == 1:
+        
+        src_amp = np.sum(np.abs(src_freq) ** 2) / src_freq.size
+        target_amp = np.sum(np.abs(target_freq) ** 2) / target_freq.size
+        CCmax = cross_correlation.max()
+    # If upsampling > 1, then refine estimate with matrix multiply DFT
+    else:
+        # Initial shift estimate in upsampled grid
+        shifts = np.round(shifts * upsample_factor) / upsample_factor
+        upsampled_region_size = np.ceil(upsample_factor * 1.5)
+        # Center of output array at dftshift + 1
+        dftshift = np.fix(upsampled_region_size / 2.0)
+        upsample_factor = np.array(upsample_factor, dtype=np.float64)
+        normalization = (src_freq.size * upsample_factor ** 2)
+        # Matrix multiply DFT around the current shift estimate
+        sample_region_offset = dftshift - shifts*upsample_factor
+
+        cross_correlation = _upsampled_dft(image_product.conj(),
+                                           upsampled_region_size,
+                                           upsample_factor,
+                                           sample_region_offset).conj()
+        cross_correlation /= normalization
+        # Locate maximum and map back to original pixel grid
+        maxima = np.array(np.unravel_index(
+                              np.argmax(np.abs(cross_correlation)),
+                              cross_correlation.shape),
+                          dtype=np.float64)
+        maxima -= dftshift
+        shifts = shifts + maxima / upsample_factor
+        CCmax = cross_correlation.max()
+        src_amp = _upsampled_dft(src_freq * src_freq.conj(),
+                                 1, upsample_factor)[0, 0]
+        src_amp /= normalization
+        target_amp = _upsampled_dft(target_freq * target_freq.conj(),
+                                    1, upsample_factor)[0, 0]
+        target_amp /= normalization
+
+    # If its only one row or column the shift along that dimension has no
+    # effect. We set to zero.
+    for dim in range(src_freq.ndim):
+        if shape[dim] == 1:
+            shifts[dim] = 0
+
+    return shifts#, _compute_error(CCmax, src_amp, target_amp),\
+        #_compute_phasediff(CCmax)
+    
+#%%
+def sliding_window(image, overlaps, strides):
+    ''' efficiently and lazily slides a window across the image
+     Parameters
+     ----------
+     img:ndarray 2D
+         image that needs to be slices
+     windowSize: tuple 
+         dimension of the patch
+     strides: tuple
+         stride in wach dimension    
+         
+     Returns:
+     -------
+     iterator containing five items
+     dim_1, dim_2 coordinates in the patch grid 
+     x, y: bottom border of the patch in the original matrix  
+     patch: the patch
+     '''
+    windowSize = np.add(overlaps,strides)
+    range_1 = range(0, image.shape[0]-windowSize[0], strides[0]) + [image.shape[0]-windowSize[0]]
+    range_2 = range(0, image.shape[1]-windowSize[1], strides[1]) + [image.shape[1]-windowSize[1]]
+    for dim_1, x in enumerate(range_1):
+		for dim_2,y in enumerate(range_2):
+			# yield the current window
+			yield (dim_1, dim_2 , x, y, image[ x:x + windowSize[0],y:y + windowSize[1]])
+#%%
+def iqr(a):
+    return np.percentile(a,75)-np.percentile(a,25)
+#%%
+def create_weight_matrix_for_blending(img, overlaps, strides):
+   ''' create a matrix that is used to normalize the intersection of the stiched patches
+   
+   Parameters:
+   -----------
+   img: original image, ndarray
+   shapes, overlaps, strides:  tuples
+       shapes, overlaps and strides of the patches
+   
+   Returns:
+   --------
+   weight_mat: normalizing weight matrix    
+   '''
+   
+   shapes = np.add(strides,overlaps)
+   
+   max_grid_1,max_grid_2 =  np.max(np.array([it[:2] for it in  sliding_window(img, overlaps, strides)]),0)
+
+   for grid_1, grid_2 , x, y, _ in sliding_window(img, overlaps, strides):
+       
+       weight_mat = np.ones(shapes)  
+       
+       if grid_1 > 0:
+           weight_mat[:overlaps[0],:] = np.linspace(0,1,overlaps[0])[:,None]
+       if grid_1 < max_grid_1: 
+           weight_mat[-overlaps[0]:,:] = np.linspace(1,0,overlaps[0])[:,None]
+       if grid_2 > 0:
+           weight_mat[:,:overlaps[1]] = weight_mat[:,:overlaps[1]]*np.linspace(0,1,overlaps[1])[None,:]
+       if grid_2 < max_grid_2: 
+           weight_mat[:,-overlaps[1]:] = weight_mat[:,-overlaps[1]:]*np.linspace(1,0,overlaps[1])[None,:]
+       
+       yield weight_mat
+       
+#%% 
+def tile_and_correct(img,template, strides, overlaps,max_shifts, newoverlaps = None, newstrides = None, upsample_factor_grid=4,\
+                upsample_factor_fft=10,show_movie=False,max_deviation_rigid=2,add_to_movie=0):
+    
+    ''' perform piecewise rigid motion correction iteration, by
+        1) dividing the FOV in patches
+        2) motion correcting each patch separately
+        3) upsampling the motion correction vector field
+        4) stiching back together the corrected subpatches
+    
+    Parameters:
+    -----------
+    img: ndaarray 2D
+        image to correct
+
+    template: ndarray
+        reference image
+
+    strides: tuple
+        strides of the patches in which the FOV is subdivided
+
+    overlaps: tuple
+        amount of pixel overlaping between patches along each dimension
+
+    max_shifts: tuple
+        max shifts in x and y       
+
+    newstrides:tuple
+        strides between patches along each dimension when upsampling the vector fields
+     
+    newoverlaps:tuple
+        amount of pixel overlaping between patches along each dimension when upsampling the vector fields
+         
+    upsample_factor_grid: int
+        if newshapes or newstrides are not specified this is inferred upsampling by a constant factor the cvector field
+        
+    upsample_factor_fft: int 
+        resolution of fractional shifts 
+    
+    show_movie: boolean whether to visualize the original and corrected frame during motion correction
+    
+    max_deviation_rigid: int
+        maximum deviation in shifts of each patch from the rigid shift (should not be large)    
+    
+    add_to_movie: if movie is too negative the correction might have some issues. In this case it is good to add values so that it is non negative most of the times
+    
+
+    
+    '''    
+    
+    img = img + add_to_movie
+    
+    template = template + add_to_movie
+    
+    # compute rigid shifts    
+    rigid_shts = register_translation(img.astype(np.float32),template.astype(np.float32),upsample_factor=upsample_factor_fft,max_shifts=max_shifts)
+
+    
+    
+    # extract patches
+    templates = [it[-1] for it in sliding_window(template.astype(np.float32),overlaps=overlaps,strides = strides)]
+    xy_grid = [(it[0],it[1]) for it in sliding_window(template.astype(np.float32),overlaps=overlaps,strides = strides)]    
+    num_tiles = np.prod(np.add(xy_grid[-1],1))    
+    imgs = [it[-1] for it in sliding_window(img.astype(np.float32),overlaps=overlaps,strides = strides)]    
+    dim_grid = tuple(np.add(xy_grid[-1],1))
+    
+    if max_deviation_rigid is not None:
+        
+        lb_shifts = np.ceil(np.subtract(rigid_shts,max_deviation_rigid)).astype(int)
+        ub_shifts = np.floor(np.add(rigid_shts,max_deviation_rigid)).astype(int)
+
+    else:
+
+        lb_shifts = None
+        ub_shifts = None
+    
+    #extract shifts for each patch        
+    shfts = [register_translation(a,b,c, shifts_lb = lb_shifts, shifts_ub = ub_shifts, max_shifts = max_shifts) for a, b, c in zip (imgs,templates,[upsample_factor_fft]*num_tiles)]    
+    
+    # create a vector field
+    shift_img_x = np.reshape(np.array(shfts)[:,0],dim_grid)  
+    shift_img_y = np.reshape(np.array(shfts)[:,1],dim_grid)
+    
+    # create automatically upsample parameters if not passed
+    if newoverlaps is None:
+        newoverlaps = overlaps
+    if newstrides is None:
+        newstrides = tuple(np.round(np.divide(strides,upsample_factor_grid)).astype(np.int))
+    
+    newshapes = np.add(newstrides ,newoverlaps)
+        
+    
+    
+    imgs = [it[-1] for it in sliding_window(img.astype(np.float32),overlaps=newoverlaps,strides = newstrides)  ]
+        
+    xy_grid = [(it[0],it[1]) for it in sliding_window(img.astype(np.float32),overlaps=newoverlaps,strides = newstrides)]  
+
+    start_step = [(it[2],it[3]) for it in sliding_window(img.astype(np.float32),overlaps=newoverlaps,strides = newstrides)]
+
+    
+    
+    dim_new_grid = tuple(np.add(xy_grid[-1],1))
+
+    shift_img_x = cv2.resize(shift_img_x,dim_new_grid[::-1],interpolation = cv2.INTER_CUBIC)
+    shift_img_y = cv2.resize(shift_img_y,dim_new_grid[::-1],interpolation = cv2.INTER_CUBIC)
+    num_tiles = np.prod(dim_new_grid)
+   
+   
+    
+#    shift_img_x[(np.abs(shift_img_x-rigid_shts[0])/iqr(shift_img_x-rigid_shts[0])/1.349)>max_sd_outlier] = np.median(shift_img_x)
+#    shift_img_y[(np.abs(shift_img_y-rigid_shts[1])/iqr(shift_img_y-rigid_shts[1])/1.349)>max_sd_outlier] = np.median(shift_img_y)
 #    
-#
-#nSeg = len(segPos)
-#segPos=np.asarray(segPos,dtype=np.int)
-##First order motion correction
-##clear xshifts yshifts corThresh,
-#xshifts=[]
-#yshifts=[]
-#new_chone=chone.copy().resize(1,1,.5).resize(1,1,2)
-#
-#for Seg in range(nSeg):
-#    print(Seg)
-#    tMov = new_chone[:,segPos[Seg,1]:segPos[Seg,1]+segPos[Seg,3],segPos[Seg,0]:segPos[Seg,0]+segPos[Seg,2]].copy()
-#    print(tMov.shape)
-#    print(segPos[Seg,:])
-##        tBase = np.percentile(tMov,1)
-##        tTop = np.percentile(tMov,99)
-##        tMov = (tMov - tBase) / (tTop-tBase)
-##        tMov[tMov<0] = 0 
-##        tMov[tMov>1] = 1
-#    tMov,xsh,xcorr,templ=tMov.motion_correct(max_shift_w=max_shift_aff, max_shift_h=max_shift_aff)
-#    xsh=np.array(xsh)
-#    xshifts.append(xsh[:,0])
-#    yshifts.append(xsh[:,1])
-##        [xshifts(Seg,:),yshifts(Seg,:)]=track_subpixel_wholeframe_motion_varythresh(...
-##        tMov,median(tMov,3),5,0.9,100)
-#
-#xshifts=np.array(xshifts)
-#yshifts=np.array(yshifts)
-#    
-#       
-#pl.plot(np.array(xshifts).T,color='r')
-#pl.plot(np.array(yshifts).T,color='g')
-##%%
-#from skimage import data
-#from skimage import transform as tf
-#
-#usePos = range(nSeg)
-#
-#yoff = segPos[usePos,1] + np.floor(segPos[usePos,3]/2.)
-#xoff = segPos[usePos,0] + np.floor(segPos[usePos,2]/2.)
-#rpts = np.concatenate([xoff[:,np.newaxis], yoff[:,np.newaxis]],axis=1)
-#
-#chone=(chone-np.min(chone))/(np.max(chone)-np.min(chone))
-#new_mov=[]
-#for frame,img in enumerate(chone):
-#    if frame250 ==0:
-#        print(frame)
-#    
-#    xframe = xshifts[usePos,frame] + xoff
-#    yframe = yshifts[usePos,frame] + yoff
-#    fpts=np.concatenate([xframe[:,np.newaxis], yframe[:,np.newaxis]],axis=1)
-#    tform = tf.ProjectiveTransform()
-#    tform.estimate(rpts, fpts)
-#    warped = tf.warp(img, tform, output_shape=img.shape)
-#    new_mov.append(warped)
-##    tform=fitgeotrans(fpts,rpts,'affine')
-##    cated_movie(:,:,frame)=imwarp(cated_movie(:,:,frame),tform,'OutputView',R)   
-#new_mov=cm.concatenate([chone,cm.movie(np.array(new_mov),fr=15)],axis=1)
-##%%
-#
-##cated_movie(:,:,1) = cated_movie(:,:,2)
-#
-#blank=sum(cated_movie==0,3)
-#xmin=find(median(blank,1)==0,1,'first'),
-#xmax=find(median(blank,1)==0,1,'last'),
-#ymin=find(median(blank,2)==0,1,'first'),
-#ymax=find(median(blank,2)==0,1,'last'),
-#cated_movie=cated_movie(ymin:ymax,xmin:xmax,:)
-#save(sprintf('#s_#s_#s_#s',mouse_name,session_name,view_name,slice_name),'cated_movie','chone_mask','-v7.3')
-#
-### Calculate piecewise covariance, principle components, and feed to ICA algorithm
-#
-#M=size(cated_movie,1)
-#N=size(cated_movie,2)
-#Z=size(cated_movie,3)
-#nPCs = 1e3
-#
-#cated_movie=reshape(cated_movie,M*N,size(cated_movie,3))
-#pxmean = mean(cated_movie,2)
-#cated_movie = cated_movie ./ repmat(pxmean/100,1,Z)
-#
-#display('------------Computing Principle Components-------------')
-#[e,s,l]=pca(cated_movie,'NumComponents',nPCs)
-#
-#covtrace = double(sum(l))
-#CovEvals = double(l(1:nPCs))
-#mixedsig= double(e(:,1:nPCs))'
-#mixedfilters = double(reshape(s(:,1:nPCs),M,N,nPCs))
-#save(sprintf('#s_#s_#s_#s_PCs',mouse_name,session_name,view_name,slice_name),'mixedsig','mixedfilters','covtrace','CovEvals')
-#clear e s l
-#
-#PCuse = 1:300
-#mu=.2
-#nIC = ceil(length(PCuse)/1)
-#ica_A_guess = []
-#termtol = 1e-7
-#maxrounds = 1e3
-#smwidth = 3
-#thresh = 2
-#arealims = [20 400]
-#plotting = 1
-#[ica_sig, ica_filters, ica_A, numiter] = CellsortICA(...
-#     mixedsig,mixedfilters, CovEvals, PCuse, mu, nIC, ica_A_guess, termtol, maxrounds)
-##CellsortChoosePCs(shiftdim(ica_filters,1),M,N)
-#[ica_segments, segmentlabel, segcentroid] = CellsortSegmentation...
-#    (ica_filters, smwidth, thresh, arealims, plotting)
-#for i=1:size(ica_segments,1)
-#    normSeg(:,:,i)=100*ica_segments(i,:,:)/norm(reshape(ica_segments(i,:,:),1,[]))
-#
-#normSeg = reshape(normSeg,M*N,[])
-#SegTraces = normSeg' * cated_movie
-#normSeg = reshape(normSeg,M,N,[])
-#
-#for i=1:size(ica_segments,1)
-#    segSize(i) = squeeze(sum(sum(ica_segments(i,:,:)>0)))
-#    segSkew(i) = skewness(reshape(ica_segments(i,:,:),1,[]))
-#
-#segSTD = sqrt(std(SegTraces,[],2)./mean(SegTraces,2))
-#segSize = zscore(segSize)
-#segSkew = zscore(segSkew)
-#
-#goodSeg = find(segSize-segSkew > 0)
-#gTrace = SegTraces(goodSeg,:)
-#save(sprintf('#s_#s_#s_#s_ICs',mouse_name,session_name,view_name,slice_name),...
-#    'SegTraces','normSeg','ica_sig','ica_filters','ica_A','ica_segments','segmentlabel','segcentroid',...
-#    'segSize','segSkew','segSTD','goodSeg','gTrace')
-#figure,scatter(segSize,segSkew,50,segSTD,'filled')
+    
+    total_shifts = [(-x,-y) for x,y in zip(shift_img_x.reshape(num_tiles),shift_img_y.reshape(num_tiles))]     
+
+    imgs = [apply_shift_iteration(im,sh,border_nan=True) for im,sh in zip(imgs, total_shifts)]
+    
+    normalizer = np.zeros_like(img)*np.nan    
+    new_img = np.zeros_like(img)*np.nan
+
+    weight_matrix = create_weight_matrix_for_blending(img, newoverlaps, newstrides)
+
+    for (x,y),(idx_0,idx_1),im,(sh_x,shy),weight_mat in zip(start_step,xy_grid,imgs,total_shifts,weight_matrix):
+
+        prev_val_1 = normalizer[x:x + newshapes[0],y:y + newshapes[1]]        
+
+        normalizer[x:x + newshapes[0],y:y + newshapes[1]] = np.nansum(np.dstack([~np.isnan(im)*1*weight_mat,prev_val_1]),-1)
+        prev_val = new_img[x:x + newshapes[0],y:y + newshapes[1]]
+        new_img[x:x + newshapes[0],y:y + newshapes[1]] = np.nansum(np.dstack([im*weight_mat,prev_val]),-1)
+
+    new_img = new_img/normalizer
+    if show_movie:
+#        for xx,yy,(sh_x,sh_y) in zip(np.array(start_step)[:,0]+newshapes[0]/2,np.array(start_step)[:,1]+newshapes[1]/2,total_shifts):
+#            new_img = cv2.arrowedLine(new_img,(xx,yy),(np.int(xx+sh_x*10),np.int(yy+sh_y*10)),5000,1)
+            
+        img = apply_shift_iteration(img,-rigid_shts,border_nan=True)
+        img_show = new_img
+        img_show = np.vstack([new_img,img])
+        
+        img_show = cv2.resize(img_show,None,fx=1,fy=1)
+#        img_show = new_img
+        
+        cv2.imshow('frame',img_show/np.percentile(template,99))
+        cv2.waitKey(int(1./500*1000))      
+    
+    else:
+        cv2.destroyAllWindows()
+#    xx,yy = np.array(start_step)[:,0]+newshapes[0]/2,np.array(start_step)[:,1]+newshapes[1]/2
+#    pl.cla()
+#    pl.imshow(new_img,vmin = 200, vmax = 500 ,cmap = 'gray',origin = 'lower')
+#    pl.axis('off')
+#    pl.quiver(yy,xx,shift_img_y, -shift_img_x, color = 'red')
+#    pl.pause(.01)
+
+          
+    return new_img-add_to_movie, total_shifts,start_step,xy_grid    
