@@ -19,29 +19,22 @@ import numpy as np
 from caiman.motion_correction import tile_and_correct
 import time
 import pylab as pl
-#%% set parameters and create template
-#m = cm.load('M_FLUO_t.tif')
-m = cm.load('M_FLUO_4.tif')[:1000]
-#m = cm.load('k56_20160608_RSM_125um_41mW_zoom2p2_00001_00034.tif')[:1000]
-#m = cm.load('CA1_green.tif')
-#m = cm.load('ExampleStack1.tif')
+#%% set parameters and create template by rigid motion correction
+m = cm.load('/Users/agiovann/Documents/SOFTWARE/Constrained_NMF/example_movies/k56_20160608_RSM_125um_41mW_zoom2p2_00001_00034.tif')[:1000]
+
 t1  = time.time()
 mr,sft,xcr,template = m.copy().motion_correct(18,18,template=None)
 t2  = time.time() - t1
 print t2
 add_to_movie = - np.min(m)
-
 #%%
 t1 = time.time()
-#granule
-#shapes = (32+16,32+16)
-overlaps = (16,16)
-strides = (32,32)
-#newshapes = (32,32)
+## for 512 512 this seems good
+overlaps = (32,32)
+strides = (128,128)
+
 newstrides = None
-##Sue Ann
-#overlaps = (32,32)
-#strides = (128,128)
+upsample_factor_grid = 4
 
 #%
 total_shifts = []
@@ -52,14 +45,14 @@ for count,img in enumerate(np.array(m)):
     if count % 10  == 0:
         print count
     mc[count],total_shift,start_step,xy_grid = tile_and_correct(img, template, strides, overlaps,(12,12), newoverlaps = None, \
-                newstrides = newstrides, upsample_factor_grid=4,\
+                newstrides = newstrides, upsample_factor_grid=upsample_factor_grid,\
                 upsample_factor_fft=10,show_movie=False,max_deviation_rigid=2,add_to_movie=add_to_movie)
     
     total_shifts.append(total_shift)
     start_steps.append(start_step)
     xy_grids.append(xy_grid)
 
-#%%
+#%% plot shifts per patch
 pl.plot(np.reshape(np.array(total_shifts),(len(total_shifts),-1))) 
 #%%
 m_raw = np.nanmean(m,0)
@@ -106,11 +99,11 @@ pl.ylim([0,1])
 #%
 pl.subplot(2,2,3);
 pl.title('rigid mean')
-pl.imshow(np.mean(mr,0),cmap='gray',vmax=300);
+pl.imshow(np.nanmean(mr,0),cmap='gray');
 
 pl.axis('off')
 pl.subplot(2,2,4);
-pl.imshow(np.mean(mc,0),cmap='gray',vmax=300)
+pl.imshow(np.nanmean(mc,0),cmap='gray')
 pl.title('pw-rigid mean')
 pl.axis('off')
 
@@ -118,12 +111,13 @@ pl.axis('off')
 #%%
 mc = cm.movie(mc)
 mc[np.isnan(mc)] = 0
-mc.resize(1,1,.25).play(gain=10.,fr=50)
-#%%
+#%% play movie
+(mc+add_to_movie).resize(1,1,.25).play(gain=10.,fr=50)
+#%% compute correlation images
 ccimage = m.local_correlations(eight_neighbours=True,swap_dim=False)
 ccimage_rig = mr.local_correlations(eight_neighbours=True,swap_dim=False)
 ccimage_els = mc.local_correlations(eight_neighbours=True,swap_dim=False)
-#%%
+#%% check correlation images
 pl.subplot(3,1,1)
 pl.imshow(ccimage)
 pl.subplot(3,1,2)

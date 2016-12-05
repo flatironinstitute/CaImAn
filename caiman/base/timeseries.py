@@ -32,8 +32,6 @@ from scipy.io import loadmat,savemat
 import tifffile
 from tifffile import imsave
 
-if tifffile.__version__ < '0.7.0':
-    raise Exception('You need libtiff version >= 0.7.0, run pip install tifffile --upgrade')
 
 #%%
 class timeseries(np.ndarray):

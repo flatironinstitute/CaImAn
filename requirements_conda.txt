@@ -10,5 +10,5 @@ scikit-learn
 cvxopt
 h5py
 spyder
-
+cython
 
