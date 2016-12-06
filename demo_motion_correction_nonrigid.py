@@ -6,7 +6,12 @@ Created on Mon Nov 21 15:53:15 2016
 """
 #%%
 import cv2
-cv2.setNumThreads(1)
+try:
+    cv2.setNumThreads(1)
+except:
+    print 'Open CV is naturally single threaded'
+    
+    
 try:
     if __IPYTHON__:
         print 1
@@ -33,7 +38,11 @@ def tile_and_correct_wrapper(params):
     from skimage.external.tifffile import imread
     import numpy as np
     import cv2
-    cv2.setNumThreads(1)
+    try:
+        cv2.setNumThreads(1)
+    except:
+        1 #'Open CV is naturally single threaded'
+        
     from caiman.motion_correction import tile_and_correct
     
     img_name,  out_fname,idxs, shape_mov, template, strides, overlaps, max_shifts,\
@@ -139,7 +148,7 @@ fname = 'k56_20160608_RSM_125um_41mW_zoom2p2_00001_00034.tif'
 m = cm.load(fname)
 
 t1  = time.time()
-mr,sft,xcr,template = m[:100].copy().motion_correct(18,18,template=None)
+mr,sft,xcr,template = m[:].copy().motion_correct(18,18,template=None)
 t2  = time.time() - t1
 print t2
 add_to_movie = - np.min(m)
@@ -178,9 +187,18 @@ for count,img in enumerate(np.array(m)):
 #%%
 mc = cm.load('k56_20160608_RSM_125um_41mW_zoom2p2_00001_00034_d1_512_d2_512_d3_1_order_F_frames_3000_.mmap')
 #mc = cm.load('M_FLUO_4_d1_64_d2_128_d3_1_order_F_frames_4620_.mmap')
+#%%
+mc.resize(1,1,1).play(gain=100,fr = 10, offset = 300,magnification=1.)
+#%%
+m.resize(1,1,1).play(gain=200,fr = 50, offset = 300,magnification=1.)
+#%%
+with  h5py.File('sueann_corrected.mat') as f:
+    mef = np.array(f['M2'])
 
-mc.resize(1,1,1).play(gain=100,fr = 50, offset = 100,magnification=3)
+mef = cm.movie(mef)    
 
+#%%
+mef.resize(1,1,1).play(gain=30,fr = 20, offset = 300,magnification=1.)
 #%%
 T,d1,d2 = np.shape(m)
 shape_mov = (d1*d2,m.shape[0])
@@ -204,19 +222,20 @@ import scipy
 r_raw = []
 r_rig = []
 r_el = []
+max_shft = 12
 for fr_id in range(m.shape[0]):
-    fr = m[fr_id]
-    templ_ = m_raw.copy()
-    templ_[np.isnan(fr)]=0
+    fr = m[fr_id].copy()[max_shft:-max_shft,max_shft :-max_shft]
+    templ_ = m_raw.copy()[max_shft:-max_shft,max_shft :-max_shft]
+#    templ_ = templ_[12:-12,12:-12]
     fr[np.isnan(fr)]=0
     r_raw.append(scipy.stats.pearsonr(fr.flatten(),templ_.flatten())[0]) 
-    fr = mr[fr_id]
-    templ_ = m_rig.copy()
+    fr = mr[fr_id].copy()[max_shft:-max_shft,max_shft :-max_shft]
+    templ_ = m_rig.copy()[max_shft:-max_shft,max_shft :-max_shft]
     templ_[np.isnan(fr)]=0
     fr[np.isnan(fr)]=0
     r_rig.append(scipy.stats.pearsonr(fr.flatten(),templ_.flatten())[0]) 
-    fr = mc[fr_id]
-    templ_ = m_el.copy()
+    fr = mc[fr_id].copy()[max_shft:-max_shft,max_shft :-max_shft]
+    templ_ = m_el.copy()[max_shft:-max_shft,max_shft :-max_shft]
     templ_[np.isnan(fr)]=0
     fr[np.isnan(fr)]=0
     r_el.append(scipy.stats.pearsonr(fr.flatten(),templ_.flatten())[0])        
