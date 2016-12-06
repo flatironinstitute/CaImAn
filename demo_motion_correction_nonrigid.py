@@ -5,6 +5,8 @@ Created on Mon Nov 21 15:53:15 2016
 @author: agiovann
 """
 #%%
+import cv2
+cv2.setNumThreads(1)
 try:
     if __IPYTHON__:
         print 1
@@ -12,17 +14,88 @@ try:
         get_ipython().magic(u'load_ext autoreload')
         get_ipython().magic(u'autoreload 2')
 except NameError:
-    print('Not IcPYTHON')
+    print('Not IPYTHON')
     pass
 
 import caiman as cm
 import numpy as np
-from caiman.motion_correction import motion_correction_piecewise, tile_and_correct
 import time
 import pylab as pl
-import cv2
+import psutil
+import sys
+import os
+from ipyparallel import Client
 from skimage.external.tifffile import TiffFile
-cv2.setNumThreads(1)
+from caiman.motion_correction import tile_and_correct#, motion_correction_piecewise
+#%% in parallel
+def tile_and_correct_wrapper(params):
+    
+    from skimage.external.tifffile import imread
+    import numpy as np
+    import cv2
+    cv2.setNumThreads(1)
+    from caiman.motion_correction import tile_and_correct
+    
+    img_name,  out_fname,idxs, shape_mov, template, strides, overlaps, max_shifts,\
+        add_to_movie,max_deviation_rigid,upsample_factor_grid, newoverlaps, newstrides  = params
+    
+    
+    
+    imgs = imread(img_name,key = idxs)
+    mc = np.zeros_like(imgs)
+    shift_info = []
+    for count, img in enumerate(imgs): 
+        if count % 10 == 0:
+            print count
+        mc[count],total_shift,start_step,xy_grid = tile_and_correct(img, template, strides, overlaps,max_shifts, add_to_movie=add_to_movie, newoverlaps = newoverlaps, newstrides = newstrides,\
+                upsample_factor_grid= upsample_factor_grid, upsample_factor_fft=10,show_movie=False,max_deviation_rigid=max_deviation_rigid)
+        shift_info.append([total_shift,start_step,xy_grid])
+    outv = np.memmap(out_fname,mode='r+', dtype=np.float32, shape=shape_mov, order='F')
+    outv[:,idxs] = np.reshape(mc,(len(imgs),-1),order = 'F').T
+    
+    return shift_info,idxs
+#%%
+def motion_correction_piecewise(fname,num_splits, strides, overlaps, add_to_movie=0, template = None, max_shifts = (12,12),max_deviation_rigid = 3,newoverlaps = None, newstrides = None,\
+                                upsample_factor_grid = 4, order = 'F',c = None):
+    '''
+
+    '''
+
+    with TiffFile(fname) as tf:
+        d1,d2 = tf[0].shape
+        T = len(tf)    
+        idxs = np.array_split(range(T),num_splits)
+    
+    
+    
+    if template is None:
+        raise Exception('Not implemented')
+    
+    
+    
+    shape_mov =  (d1*d2,T)
+    base_name = fname[:-4]
+    dims = d1,d2
+    
+    fname_tot = base_name + '_d1_' + str(dims[0]) + '_d2_' + str(dims[1]) + '_d3_' + str(1 if len(dims) == 2 else dims[2]) + '_order_' + str(order) + '_frames_' + str(T) + '_.mmap'
+    fname_tot = os.path.join(os.path.split(fname)[0],fname_tot) 
+    
+    big_mov = np.memmap(fname_tot, mode='w+', dtype=np.float32, shape=shape_mov, order=order)
+    
+    pars = []
+    
+    for idx in idxs:
+            pars.append([fname,big_mov.filename,idx,shape_mov, template, strides, overlaps, max_shifts, np.array(add_to_movie,dtype = np.float32),max_deviation_rigid,upsample_factor_grid, newoverlaps, newstrides ])
+
+    t1 = time.time()
+    if c is not None:
+        res = c[:].map_sync(tile_and_correct_wrapper,pars)
+    else:
+        res = map(tile_and_correct_wrapper,pars)
+
+    print time.time()-t1    
+    
+    return fname_tot, res
 #%%
 #backend='SLURM'
 backend = 'local'
@@ -62,20 +135,21 @@ else:
     dview = c[:len(c)]
 #%% set parameters and create template by rigid motion correction
 fname = 'k56_20160608_RSM_125um_41mW_zoom2p2_00001_00034.tif'
-fname = 'M_FLUO_4.tif'
+#fname = 'M_FLUO_4.tif'
 m = cm.load(fname)
 
 t1  = time.time()
-mr,sft,xcr,template = m[:500].copy().motion_correct(18,18,template=None)
+mr,sft,xcr,template = m[:100].copy().motion_correct(18,18,template=None)
 t2  = time.time() - t1
 print t2
 add_to_movie = - np.min(m)
 template = cm.motion_correction.bin_median(mr)
+
 #%%
 ## for 512 512 this seems good
 overlaps = (16,16)
 strides = (128,128)# 512 512 
-strides = (48,48)# 128 64
+#strides = (48,48)# 128 64
 
 num_splits = 28 # for parallelization split the movies in  num_splits chuncks across time
 newstrides = None
@@ -83,7 +157,7 @@ upsample_factor_grid = 4
 fname_tot, res = motion_correction_piecewise(fname,num_splits, strides, overlaps,\
                             add_to_movie=add_to_movie, template = template, max_shifts = (12,12),max_deviation_rigid = 3,\
                             newoverlaps = None, newstrides = newstrides,\
-                            upsample_factor_grid = upsample_factor_grid, order = 'F',dview = dview)
+                            upsample_factor_grid = upsample_factor_grid, order = 'F',c = c)
 #%%
 #%
 total_shifts = []
@@ -102,8 +176,8 @@ for count,img in enumerate(np.array(m)):
     xy_grids.append(xy_grid)
 
 #%%
-#mc = cm.load('k56_20160608_RSM_125um_41mW_zoom2p2_00001_00034_d1_512_d2_512_d3_1_order_F_frames_3000_.mmap')
-mc = cm.load('M_FLUO_4_d1_64_d2_128_d3_1_order_F_frames_4620_.mmap')
+mc = cm.load('k56_20160608_RSM_125um_41mW_zoom2p2_00001_00034_d1_512_d2_512_d3_1_order_F_frames_3000_.mmap')
+#mc = cm.load('M_FLUO_4_d1_64_d2_128_d3_1_order_F_frames_4620_.mmap')
 
 mc.resize(1,1,1).play(gain=100,fr = 50, offset = 100,magnification=3)
 
@@ -115,7 +189,7 @@ Y = np.memmap('M_FLUO_4_d1_64_d2_128_d3_1_order_F_frames_4620_.mmap',mode = 'r',
 mc = cm.movie(np.reshape(Y,(d2,d1,T),order = 'F').transpose([2,1,0]))
 mc.resize(1,1,.25).play(gain=10.,fr=50)
 #%%
-cv2.setNumThreads(14)
+
 t1 = time.time()
 res = map(tile_and_correct_wrapper,pars)  
 print time.time()-t1
@@ -191,54 +265,3 @@ pl.subplot(3,1,2)
 pl.imshow(ccimage_rig)
 pl.subplot(3,1,3)
 pl.imshow(ccimage_els)
-#%%
-pl.subplot(2,1,1)
-pl.imshow(np.mean(mr,0))
-pl.subplot(2,1,2)
-pl.imshow(np.mean(mc,0))
-
-
-#%% TEST EFY
-#import scipy
-#ld =scipy.io.loadmat('comparison_1.mat')
-#locals().update(ld)
-#d1,d2 = np.shape(I)
-#grid_size = tuple(grid_size[0].astype(np.int))
-#mot_uf = mot_uf[0][0].astype(np.int)
-#overlap_post =  overlap_post[0][0].astype(np.int)
-#shapes = tuple(np.add(grid_size, overlap_post))
-#overlaps = (overlap_post,overlap_post)
-#strides = np.subtract(shapes,overlaps)
-##newshapes = tuple(np.add(grid_size/mot_uf, 2*overlap_post))
-#newstrides = np.add(tuple(np.divide((d1,d2),sf_up.shape[:2])),-1)
-#newshapes = np.add(np.multiply(newstrides,2),+3)
-#
-#    
-#O_and,sf_a,start_steps, xy_a  = tile_and_correct_faster(I, temp, shapes,overlaps,max_shifts = (15,15),newshapes = newshapes, newstrides= newstrides,show_movie=False,max_deviation_rigid=2, add_to_movie = 0, upsample_factor_grid=4)
-#print np.nanmean(O_and),np.nanmean(I),np.mean(O[O!=0])
-##%
-#
-#vmin,vmax = np.percentile(sf_up[:,:,0,0],[1,99])
-#pl.subplot(2,1,1)
-#img_sh = np.zeros( np.add(xy_a[-1],1))
-#for s,g in  zip (sf_a,xy_a): 
-#    img_sh[g] = s[0]  
-#    
-#pl.imshow(img_sh,interpolation = 'none',vmin = vmin,vmax = vmax)
-#pl.subplot(2,1,2)
-#pl.imshow(sf_up[:,:,0,0],interpolation = 'none',vmin = vmin,vmax = vmax)
-##%
-#newtemp = temp.copy()
-##newtemp[np.isnan(O_and)] = 0
-#O_and[np.isnan(O_and)] = 0
-#print  scipy.stats.pearsonr(O_and.flatten(),newtemp.flatten())
-#newtemp = temp.copy()
-##newtemp[O==0] = 0
-#
-#print scipy.stats.pearsonr(O.flatten(),newtemp.flatten())
-##%
-#lq,hq = np.percentile(O,[1,99])
-#pl.subplot(2,1,1)
-#pl.imshow(O_and,vmin = lq, vmax =hq)
-#pl.subplot(2,1,2)
-#pl.imshow(O,vmin = lq, vmax =hq)
