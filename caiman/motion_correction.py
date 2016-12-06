@@ -8,11 +8,13 @@ Created on Fri Mar  4 21:02:12 2016
 import numpy as np
 import pylab as pl
 import cv2 
+cv2.setNumThreads(1)
 import collections
 import caiman as cm
 import tifffile
 import gc
 import os
+import time
 #from numpy.fft import fftn,ifftn
 #from accelerate.mkl.fftpack import fftn,ifftn
 #from pyfftw.interfaces.numpy_fft import fftn, ifftn
@@ -22,6 +24,8 @@ from cv2 import dft as fftn
 from cv2 import idft as ifftn
 opencv = True
 from numpy.fft import ifftshift
+from skimage.external.tifffile import TiffFile
+
 
 #%%
 def apply_shift_iteration(img,shift,border_nan=False):
@@ -1131,7 +1135,7 @@ def tile_and_correct(img,template, strides, overlaps,max_shifts, newoverlaps = N
 
     
     '''    
-    
+    print str(cv2.getNumThreads()) + '*'
     img = img + add_to_movie
     
     template = template + add_to_movie
@@ -1238,3 +1242,70 @@ def tile_and_correct(img,template, strides, overlaps,max_shifts, newoverlaps = N
 
           
     return new_img-add_to_movie, total_shifts,start_step,xy_grid    
+
+#%% in parallel
+def tile_and_correct_wrapper(params):
+    from skimage.external.tifffile import imread
+    import numpy as np
+    cv2.setNumThreads(1)
+    print str(cv2.getNumThreads()) + '*'
+    img_name,  out_fname,idxs, shape_mov, template, strides, overlaps, max_shifts,\
+        add_to_movie,max_deviation_rigid,upsample_factor_grid, newoverlaps, newstrides  = params
+    
+    
+    
+    imgs = imread(img_name,key = idxs)
+    mc = np.zeros_like(imgs)
+    shift_info = []
+    for count, img in enumerate(imgs): 
+        if count % 10 == 0:
+            print count
+        mc[count],total_shift,start_step,xy_grid = tile_and_correct(img, template, strides, overlaps,max_shifts, add_to_movie=add_to_movie, newoverlaps = newoverlaps, newstrides = newstrides,\
+                upsample_factor_grid= upsample_factor_grid, upsample_factor_fft=10,show_movie=False,max_deviation_rigid=max_deviation_rigid)
+        shift_info.append([total_shift,start_step,xy_grid])
+    outv = np.memmap(out_fname,mode='r+', dtype=np.float32, shape=shape_mov, order='F')
+    outv[:,idxs] = np.reshape(mc.T,(-1,len(imgs)),order = 'F')
+    
+    return shift_info,idxs
+#%%
+def motion_correction_piecewise(fname,num_splits, strides, overlaps, add_to_movie=0, template = None, max_shifts = (12,12),max_deviation_rigid = 3,newoverlaps = None, newstrides = None,\
+                                upsample_factor_grid = 4, order = 'F',dview = None):
+    '''
+
+    '''
+    cv2.setNumThreads(1)    
+    with TiffFile(fname) as tf:
+        d1,d2 = tf[0].shape
+        T = len(tf)    
+        idxs = np.array_split(range(T),num_splits)
+    
+    
+    
+    if template is None:
+        raise Exception('Not implemented')
+    
+    
+    
+    shape_mov =  (d1*d2,T)
+    base_name = fname[:-4]
+    dims = d1,d2
+    
+    fname_tot = base_name + '_d1_' + str(dims[0]) + '_d2_' + str(dims[1]) + '_d3_' + str(1 if len(dims) == 2 else dims[2]) + '_order_' + str(order) + '_frames_' + str(T) + '_.mmap'
+    fname_tot = os.path.join(os.path.split(fname)[0],fname_tot) 
+    
+    big_mov = np.memmap(fname_tot, mode='w+', dtype=np.float32, shape=shape_mov, order=order)
+    
+    pars = []
+    print str(cv2.getNumThreads()) + '*'  
+    for idx in idxs:
+            pars.append([fname,big_mov.filename,idx,shape_mov, template, strides, overlaps, max_shifts, np.array(add_to_movie,dtype = np.float32),max_deviation_rigid,upsample_factor_grid, newoverlaps, newstrides ])
+
+    t1 = time.time()
+    if dview is not None:
+        res = dview.map_sync(tile_and_correct_wrapper,pars)
+    else:
+        res = map(tile_and_correct_wrapper,pars)
+
+    print time.time()-t1    
+    
+    return fname_tot, res

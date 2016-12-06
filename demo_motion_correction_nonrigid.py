@@ -7,35 +7,45 @@ Created on Mon Nov 21 15:53:15 2016
 #%%
 try:
     if __IPYTHON__:
+        print 1
         # this is used for debugging purposes only. allows to reload classes when changed
         get_ipython().magic(u'load_ext autoreload')
         get_ipython().magic(u'autoreload 2')
 except NameError:
-    print('Not IPYTHON')
+    print('Not IcPYTHON')
     pass
 
 import caiman as cm
 import numpy as np
-from caiman.motion_correction import tile_and_correct
+from caiman.motion_correction import motion_correction_piecewise, tile_and_correct
 import time
 import pylab as pl
+import cv2
+from skimage.external.tifffile import TiffFile
+cv2.setNumThreads(1)
 #%% set parameters and create template by rigid motion correction
-m = cm.load('/Users/agiovann/Documents/SOFTWARE/Constrained_NMF/example_movies/k56_20160608_RSM_125um_41mW_zoom2p2_00001_00034.tif')[:1000]
+fname = 'k56_20160608_RSM_125um_41mW_zoom2p2_00001_00034.tif'
+m = cm.load(fname)
 
 t1  = time.time()
-mr,sft,xcr,template = m.copy().motion_correct(18,18,template=None)
+mr,sft,xcr,template = m[:500].copy().motion_correct(18,18,template=None)
 t2  = time.time() - t1
 print t2
 add_to_movie = - np.min(m)
+template = cm.motion_correction.bin_median(mr)
 #%%
 t1 = time.time()
 ## for 512 512 this seems good
-overlaps = (32,32)
+overlaps = (16,16)
 strides = (128,128)
-
+num_splits = 28
 newstrides = None
 upsample_factor_grid = 4
-
+fname_tot, res = motion_correction_piecewise(fname,num_splits, strides, overlaps,\
+                            add_to_movie=add_to_movie, template = template, max_shifts = (12,12),max_deviation_rigid = 3,\
+                            newoverlaps = None, newstrides = newstrides,\
+                            upsample_factor_grid = upsample_factor_grid, order = 'F',dview = dview)
+#%%
 #%
 total_shifts = []
 start_steps = []
@@ -52,6 +62,15 @@ for count,img in enumerate(np.array(m)):
     start_steps.append(start_step)
     xy_grids.append(xy_grid)
 
+#%%
+Y = np.memmap(fname[:-3]+'mmap',mode = 'r',dtype=np.float32, shape=shape_mov, order='F')
+mc = cm.movie(np.reshape(Y,(d2,d1,T),order = 'F').transpose([2,1,0]))
+mc.resize(1,1,.2).play(gain=20,fr = 20, offset =300)
+#%%
+cv2.setNumThreads(14)
+t1 = time.time()
+res = map(tile_and_correct_wrapper,pars)  
+print time.time()-t1
 #%% plot shifts per patch
 pl.plot(np.reshape(np.array(total_shifts),(len(total_shifts),-1))) 
 #%%
