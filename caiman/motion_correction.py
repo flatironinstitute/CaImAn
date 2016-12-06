@@ -1264,7 +1264,7 @@ def tile_and_correct_wrapper(params):
                 upsample_factor_grid= upsample_factor_grid, upsample_factor_fft=10,show_movie=False,max_deviation_rigid=max_deviation_rigid)
         shift_info.append([total_shift,start_step,xy_grid])
     outv = np.memmap(out_fname,mode='r+', dtype=np.float32, shape=shape_mov, order='F')
-    outv[:,idxs] = np.reshape(mc.T,(-1,len(imgs)),order = 'F')
+    outv[:,idxs] = np.reshape(mc,(len(imgs),-1),order = 'F').T
     
     return shift_info,idxs
 #%%

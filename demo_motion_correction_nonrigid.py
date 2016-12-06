@@ -23,8 +23,46 @@ import pylab as pl
 import cv2
 from skimage.external.tifffile import TiffFile
 cv2.setNumThreads(1)
+#%%
+#backend='SLURM'
+backend = 'local'
+if backend == 'SLURM':
+    n_processes = np.int(os.environ.get('SLURM_NPROCS'))
+else:
+    # roughly number of cores on your machine minus 1
+    n_processes = np.maximum(np.int(psutil.cpu_count()), 1)
+print 'using ' + str(n_processes) + ' processes'
+#%% start cluster for efficient computation
+single_thread = False
+
+if single_thread:
+    dview = None
+else:
+    try:
+        c.close()
+    except:
+        print 'C was not existing, creating one'
+    print "Stopping  cluster to avoid unnencessary use of memory...."
+    sys.stdout.flush()
+    if backend == 'SLURM':
+        try:
+            cm.stop_server(is_slurm=True)
+        except:
+            print 'Nothing to stop'
+        slurm_script = '/mnt/xfs1/home/agiovann/SOFTWARE/Constrained_NMF/SLURM/slurmStart.sh'
+        cm.start_server(slurm_script=slurm_script)
+        pdir, profile = os.environ['IPPPDIR'], os.environ['IPPPROFILE']
+        c = Client(ipython_dir=pdir, profile=profile)
+    else:
+        cm.stop_server()
+        cm.start_server()
+        c = Client()
+
+    print 'Using ' + str(len(c)) + ' processes'
+    dview = c[:len(c)]
 #%% set parameters and create template by rigid motion correction
 fname = 'k56_20160608_RSM_125um_41mW_zoom2p2_00001_00034.tif'
+fname = 'M_FLUO_4.tif'
 m = cm.load(fname)
 
 t1  = time.time()
@@ -34,11 +72,12 @@ print t2
 add_to_movie = - np.min(m)
 template = cm.motion_correction.bin_median(mr)
 #%%
-t1 = time.time()
 ## for 512 512 this seems good
 overlaps = (16,16)
-strides = (128,128)
-num_splits = 28
+strides = (128,128)# 512 512 
+strides = (48,48)# 128 64
+
+num_splits = 28 # for parallelization split the movies in  num_splits chuncks across time
 newstrides = None
 upsample_factor_grid = 4
 fname_tot, res = motion_correction_piecewise(fname,num_splits, strides, overlaps,\
@@ -63,9 +102,18 @@ for count,img in enumerate(np.array(m)):
     xy_grids.append(xy_grid)
 
 #%%
-Y = np.memmap(fname[:-3]+'mmap',mode = 'r',dtype=np.float32, shape=shape_mov, order='F')
+#mc = cm.load('k56_20160608_RSM_125um_41mW_zoom2p2_00001_00034_d1_512_d2_512_d3_1_order_F_frames_3000_.mmap')
+mc = cm.load('M_FLUO_4_d1_64_d2_128_d3_1_order_F_frames_4620_.mmap')
+
+mc.resize(1,1,1).play(gain=100,fr = 50, offset = 100,magnification=3)
+
+#%%
+T,d1,d2 = np.shape(m)
+shape_mov = (d1*d2,m.shape[0])
+
+Y = np.memmap('M_FLUO_4_d1_64_d2_128_d3_1_order_F_frames_4620_.mmap',mode = 'r',dtype=np.float32, shape=shape_mov, order='F')
 mc = cm.movie(np.reshape(Y,(d2,d1,T),order = 'F').transpose([2,1,0]))
-mc.resize(1,1,.2).play(gain=20,fr = 20, offset =300)
+mc.resize(1,1,.25).play(gain=10.,fr=50)
 #%%
 cv2.setNumThreads(14)
 t1 = time.time()
