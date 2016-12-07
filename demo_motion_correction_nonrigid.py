@@ -59,13 +59,17 @@ def tile_and_correct_wrapper(params):
         mc[count],total_shift,start_step,xy_grid = tile_and_correct(img, template, strides, overlaps,max_shifts, add_to_movie=add_to_movie, newoverlaps = newoverlaps, newstrides = newstrides,\
                 upsample_factor_grid= upsample_factor_grid, upsample_factor_fft=10,show_movie=False,max_deviation_rigid=max_deviation_rigid)
         shift_info.append([total_shift,start_step,xy_grid])
-    outv = np.memmap(out_fname,mode='r+', dtype=np.float32, shape=shape_mov, order='F')
-    outv[:,idxs] = np.reshape(mc,(len(imgs),-1),order = 'F').T
+    if out_fname is not None:           
+        outv = np.memmap(out_fname,mode='r+', dtype=np.float32, shape=shape_mov, order='F')
+        outv[:,idxs] = np.reshape(mc,(len(imgs),-1),order = 'F').T
+        return shift_info,idxs
+    else:
+        return shift_info, idxs, np.mean(mc)
+        
     
-    return shift_info,idxs
 #%%
-def motion_correction_piecewise(fname,num_splits, strides, overlaps, add_to_movie=0, template = None, max_shifts = (12,12),max_deviation_rigid = 3,newoverlaps = None, newstrides = None,\
-                                upsample_factor_grid = 4, order = 'F',c = None):
+def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0, template = None, max_shifts = (12,12),max_deviation_rigid = 3,newoverlaps = None, newstrides = None,\
+                                upsample_factor_grid = 4, order = 'F',dview = None,save_movie= True):
     '''
 
     '''
@@ -73,8 +77,12 @@ def motion_correction_piecewise(fname,num_splits, strides, overlaps, add_to_movi
     with TiffFile(fname) as tf:
         d1,d2 = tf[0].shape
         T = len(tf)    
-        idxs = np.array_split(range(T),num_splits)
     
+    if type(splits) is int:
+        idxs = np.array_split(range(T),splits)
+    else:
+        idxs = splits
+        save_movie = False
     
     
     if template is None:
@@ -86,19 +94,22 @@ def motion_correction_piecewise(fname,num_splits, strides, overlaps, add_to_movi
     base_name = fname[:-4]
     dims = d1,d2
     
-    fname_tot = base_name + '_d1_' + str(dims[0]) + '_d2_' + str(dims[1]) + '_d3_' + str(1 if len(dims) == 2 else dims[2]) + '_order_' + str(order) + '_frames_' + str(T) + '_.mmap'
-    fname_tot = os.path.join(os.path.split(fname)[0],fname_tot) 
+    if save_movie:
+        fname_tot = base_name + '_d1_' + str(dims[0]) + '_d2_' + str(dims[1]) + '_d3_' + str(1 if len(dims) == 2 else dims[2]) + '_order_' + str(order) + '_frames_' + str(T) + '_.mmap'
+        fname_tot = os.path.join(os.path.split(fname)[0],fname_tot) 
     
-    big_mov = np.memmap(fname_tot, mode='w+', dtype=np.float32, shape=shape_mov, order=order)
-    
+        big_mov = np.memmap(fname_tot, mode='w+', dtype=np.float32, shape=shape_mov, order=order)
+    else:
+        fname_tot = None
+        
     pars = []
     
     for idx in idxs:
-            pars.append([fname,big_mov.filename,idx,shape_mov, template, strides, overlaps, max_shifts, np.array(add_to_movie,dtype = np.float32),max_deviation_rigid,upsample_factor_grid, newoverlaps, newstrides ])
+            pars.append([fname,fname_tot,idx,shape_mov, template, strides, overlaps, max_shifts, np.array(add_to_movie,dtype = np.float32),max_deviation_rigid,upsample_factor_grid, newoverlaps, newstrides ])
 
     t1 = time.time()
-    if c is not None:
-        res = c[:].map_sync(tile_and_correct_wrapper,pars)
+    if dview is not None:
+        res =dview.map_sync(tile_and_correct_wrapper,pars)
     else:
         res = map(tile_and_correct_wrapper,pars)
 
@@ -143,8 +154,8 @@ else:
     print 'Using ' + str(len(c)) + ' processes'
     dview = c[:len(c)]
 #%% set parameters and create template by rigid motion correction
-#fname = 'k56_20160608_RSM_125um_41mW_zoom2p2_00001_00034.tif'
-fname = 'M_FLUO_t.tif'
+fname = 'k56_20160608_RSM_125um_41mW_zoom2p2_00001_00034.tif'
+#fname = 'M_FLUO_t.tif'
 #fname = 'M_FLUO_4.tif'
 
 m = cm.load(fname)
@@ -156,6 +167,26 @@ print t2
 add_to_movie = - np.min(m)
 template = cm.motion_correction.bin_median(mr)
 np.save('template_gc.npy',template)
+#%% online does not seem to work!
+#overlaps = (16,16)
+#if template.shape == (512,512):
+#    strides = (128,128)# 512 512 
+#    #strides = (48,48)# 128 64
+#elif template.shape == (64,128):
+#    strides = (48,48)# 512 512
+#else:
+#    raise Exception('Unknown size, set manually')    
+#upsample_factor_grid = 4
+#
+#T = m.shape[0]
+#idxs_outer = np.array_split(range(T),T/1000)
+#for iddx in idxs_outer:
+#    num_fr = len(iddx)
+#    splits = np.array_split(iddx,num_fr/n_processes)
+#    print (splits[0][0]),(splits[-1][-1])
+#    fname_tot, res = motion_correction_piecewise(fname,splits, strides, overlaps,\
+#                            add_to_movie=add_to_movie, template = template, max_shifts = (12,12),max_deviation_rigid = 3,\
+#                            upsample_factor_grid = upsample_factor_grid,dview = dview)
 #%%
 ## for 512 512 this seems good
 overlaps = (16,16)
@@ -167,13 +198,24 @@ elif template.shape == (64,128):
 else:
     raise Exception('Unknown size, set manually')    
 
-num_splits = 28 # for parallelization split the movies in  num_splits chuncks across time
+splits = 28 # for parallelization split the movies in  num_splits chuncks across time
 newstrides = None
 upsample_factor_grid = 4
-fname_tot, res = motion_correction_piecewise(fname,num_splits, strides, overlaps,\
-                            add_to_movie=add_to_movie, template = template, max_shifts = (12,12),max_deviation_rigid = 3,\
+new_templ = template
+
+for iter in range(3):
+    print iter
+    old_templ = new_templ.copy()
+    fname_tot, res = motion_correction_piecewise(fname,splits, strides, overlaps,\
+                            add_to_movie=add_to_movie, template = old_templ, max_shifts = (12,12),max_deviation_rigid = 3,\
                             newoverlaps = None, newstrides = newstrides,\
-                            upsample_factor_grid = upsample_factor_grid, order = 'F',c = c)
+                            upsample_factor_grid = upsample_factor_grid, order = 'F',dview = dview)
+    mc = cm.load(fname_tot)
+    new_templ = cm.motion_correction.bin_median(mc,exclude_nans=True)
+    print np.linalg.norm(new_templ-old_templ)/np.linalg.norm(old_templ)
+    
+#%%
+pl.imshow(new_templ)
 #%%
 #%
 total_shifts = []

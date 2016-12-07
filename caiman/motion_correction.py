@@ -351,7 +351,7 @@ def motion_correct_iteration(img,template,frame_num,max_shift_w=25,max_shift_h=2
     
     return new_img,new_templ,shift,avg_corr
 #%%    
-def bin_median(mat,window=10):
+def bin_median(mat,window=10,exclude_nans = False ):
 
     ''' compute median of 3D array in along axis o by binning values
     Parameters
@@ -373,7 +373,11 @@ def bin_median(mat,window=10):
     T,d1,d2=np.shape(mat)
     num_windows=np.int(T/window)
     num_frames=num_windows*window
-    img=np.median(np.mean(np.reshape(mat[:num_frames],(window,num_windows,d1,d2)),axis=0),axis=0)    
+    if exclude_nans:
+        img=np.nanmedian(np.nanmean(np.reshape(mat[:num_frames],(window,num_windows,d1,d2)),axis=0),axis=0)    
+    else:
+        img=np.median(np.mean(np.reshape(mat[:num_frames],(window,num_windows,d1,d2)),axis=0),axis=0)        
+            
     return img
 #%% with buffer
 #    import skimage
@@ -1147,105 +1151,106 @@ def tile_and_correct(img,template, strides, overlaps,max_shifts, newoverlaps = N
     
     # compute rigid shifts    
     rigid_shts = register_translation(img,template,upsample_factor=upsample_factor_fft,max_shifts=max_shifts)
-
-    
-    
-    # extract patches
-    templates = [it[-1] for it in sliding_window(template,overlaps=overlaps,strides = strides)]
-    xy_grid = [(it[0],it[1]) for it in sliding_window(template,overlaps=overlaps,strides = strides)]    
-    num_tiles = np.prod(np.add(xy_grid[-1],1))    
-    imgs = [it[-1] for it in sliding_window(img,overlaps=overlaps,strides = strides)]    
-    dim_grid = tuple(np.add(xy_grid[-1],1))
-    
-    if max_deviation_rigid is not None:
-        
-        lb_shifts = np.ceil(np.subtract(rigid_shts,max_deviation_rigid)).astype(int)
-        ub_shifts = np.floor(np.add(rigid_shts,max_deviation_rigid)).astype(int)
-
+    if max_deviation_rigid == 0:
+        apply_shift_iteration(img,rigid_shts,border_nan=True)
+        return new_img-add_to_movie, rigid_shts, None, None
     else:
-
-        lb_shifts = None
-        ub_shifts = None
-    
-    #extract shifts for each patch        
-    shfts = [register_translation(a,b,c, shifts_lb = lb_shifts, shifts_ub = ub_shifts, max_shifts = max_shifts) for a, b, c in zip (imgs,templates,[upsample_factor_fft]*num_tiles)]    
-    
-    # create a vector field
-    shift_img_x = np.reshape(np.array(shfts)[:,0],dim_grid)  
-    shift_img_y = np.reshape(np.array(shfts)[:,1],dim_grid)
-    
-    # create automatically upsample parameters if not passed
-    if newoverlaps is None:
-        newoverlaps = overlaps
-    if newstrides is None:
-        newstrides = tuple(np.round(np.divide(strides,upsample_factor_grid)).astype(np.int))
-    
-    newshapes = np.add(newstrides ,newoverlaps)
+        # extract patches
+        templates = [it[-1] for it in sliding_window(template,overlaps=overlaps,strides = strides)]
+        xy_grid = [(it[0],it[1]) for it in sliding_window(template,overlaps=overlaps,strides = strides)]    
+        num_tiles = np.prod(np.add(xy_grid[-1],1))    
+        imgs = [it[-1] for it in sliding_window(img,overlaps=overlaps,strides = strides)]    
+        dim_grid = tuple(np.add(xy_grid[-1],1))
         
-    
-    
-    imgs = [it[-1] for it in sliding_window(img,overlaps=newoverlaps,strides = newstrides)  ]
-        
-    xy_grid = [(it[0],it[1]) for it in sliding_window(img,overlaps=newoverlaps,strides = newstrides)]  
-
-    start_step = [(it[2],it[3]) for it in sliding_window(img,overlaps=newoverlaps,strides = newstrides)]
-
-    
-    
-    dim_new_grid = tuple(np.add(xy_grid[-1],1))
-
-    shift_img_x = cv2.resize(shift_img_x,dim_new_grid[::-1],interpolation = cv2.INTER_CUBIC)
-    shift_img_y = cv2.resize(shift_img_y,dim_new_grid[::-1],interpolation = cv2.INTER_CUBIC)
-    num_tiles = np.prod(dim_new_grid)
-   
-   
-    
-#    shift_img_x[(np.abs(shift_img_x-rigid_shts[0])/iqr(shift_img_x-rigid_shts[0])/1.349)>max_sd_outlier] = np.median(shift_img_x)
-#    shift_img_y[(np.abs(shift_img_y-rigid_shts[1])/iqr(shift_img_y-rigid_shts[1])/1.349)>max_sd_outlier] = np.median(shift_img_y)
-#    
-    
-    total_shifts = [(-x,-y) for x,y in zip(shift_img_x.reshape(num_tiles),shift_img_y.reshape(num_tiles))]     
-
-    imgs = [apply_shift_iteration(im,sh,border_nan=True) for im,sh in zip(imgs, total_shifts)]
-    
-    normalizer = np.zeros_like(img)*np.nan    
-    new_img = np.zeros_like(img)*np.nan
-
-    weight_matrix = create_weight_matrix_for_blending(img, newoverlaps, newstrides)
-
-    for (x,y),(idx_0,idx_1),im,(sh_x,shy),weight_mat in zip(start_step,xy_grid,imgs,total_shifts,weight_matrix):
-
-        prev_val_1 = normalizer[x:x + newshapes[0],y:y + newshapes[1]]        
-
-        normalizer[x:x + newshapes[0],y:y + newshapes[1]] = np.nansum(np.dstack([~np.isnan(im)*1*weight_mat,prev_val_1]),-1)
-        prev_val = new_img[x:x + newshapes[0],y:y + newshapes[1]]
-        new_img[x:x + newshapes[0],y:y + newshapes[1]] = np.nansum(np.dstack([im*weight_mat,prev_val]),-1)
-
-    new_img = new_img/normalizer
-    if show_movie:
-#        for xx,yy,(sh_x,sh_y) in zip(np.array(start_step)[:,0]+newshapes[0]/2,np.array(start_step)[:,1]+newshapes[1]/2,total_shifts):
-#            new_img = cv2.arrowedLine(new_img,(xx,yy),(np.int(xx+sh_x*10),np.int(yy+sh_y*10)),5000,1)
+        if max_deviation_rigid is not None:
             
-        img = apply_shift_iteration(img,-rigid_shts,border_nan=True)
-        img_show = new_img
-        img_show = np.vstack([new_img,img])
-        
-        img_show = cv2.resize(img_show,None,fx=1,fy=1)
-#        img_show = new_img
-        
-        cv2.imshow('frame',img_show/np.percentile(template,99))
-        cv2.waitKey(int(1./500*1000))      
+            lb_shifts = np.ceil(np.subtract(rigid_shts,max_deviation_rigid)).astype(int)
+            ub_shifts = np.floor(np.add(rigid_shts,max_deviation_rigid)).astype(int)
     
-    else:
-        cv2.destroyAllWindows()
-#    xx,yy = np.array(start_step)[:,0]+newshapes[0]/2,np.array(start_step)[:,1]+newshapes[1]/2
-#    pl.cla()
-#    pl.imshow(new_img,vmin = 200, vmax = 500 ,cmap = 'gray',origin = 'lower')
-#    pl.axis('off')
-#    pl.quiver(yy,xx,shift_img_y, -shift_img_x, color = 'red')
-#    pl.pause(.01)
-
-          
-    return new_img-add_to_movie, total_shifts,start_step,xy_grid    
+        else:
+    
+            lb_shifts = None
+            ub_shifts = None
+        
+        #extract shifts for each patch        
+        shfts = [register_translation(a,b,c, shifts_lb = lb_shifts, shifts_ub = ub_shifts, max_shifts = max_shifts) for a, b, c in zip (imgs,templates,[upsample_factor_fft]*num_tiles)]    
+        
+        # create a vector field
+        shift_img_x = np.reshape(np.array(shfts)[:,0],dim_grid)  
+        shift_img_y = np.reshape(np.array(shfts)[:,1],dim_grid)
+        
+        # create automatically upsample parameters if not passed
+        if newoverlaps is None:
+            newoverlaps = overlaps
+        if newstrides is None:
+            newstrides = tuple(np.round(np.divide(strides,upsample_factor_grid)).astype(np.int))
+        
+        newshapes = np.add(newstrides ,newoverlaps)
+            
+        
+        
+        imgs = [it[-1] for it in sliding_window(img,overlaps=newoverlaps,strides = newstrides)  ]
+            
+        xy_grid = [(it[0],it[1]) for it in sliding_window(img,overlaps=newoverlaps,strides = newstrides)]  
+    
+        start_step = [(it[2],it[3]) for it in sliding_window(img,overlaps=newoverlaps,strides = newstrides)]
+    
+        
+        
+        dim_new_grid = tuple(np.add(xy_grid[-1],1))
+    
+        shift_img_x = cv2.resize(shift_img_x,dim_new_grid[::-1],interpolation = cv2.INTER_CUBIC)
+        shift_img_y = cv2.resize(shift_img_y,dim_new_grid[::-1],interpolation = cv2.INTER_CUBIC)
+        num_tiles = np.prod(dim_new_grid)
+       
+       
+        
+    #    shift_img_x[(np.abs(shift_img_x-rigid_shts[0])/iqr(shift_img_x-rigid_shts[0])/1.349)>max_sd_outlier] = np.median(shift_img_x)
+    #    shift_img_y[(np.abs(shift_img_y-rigid_shts[1])/iqr(shift_img_y-rigid_shts[1])/1.349)>max_sd_outlier] = np.median(shift_img_y)
+    #    
+        
+        total_shifts = [(-x,-y) for x,y in zip(shift_img_x.reshape(num_tiles),shift_img_y.reshape(num_tiles))]     
+    
+        imgs = [apply_shift_iteration(im,sh,border_nan=True) for im,sh in zip(imgs, total_shifts)]
+        
+        normalizer = np.zeros_like(img)*np.nan    
+        new_img = np.zeros_like(img)*np.nan
+    
+        weight_matrix = create_weight_matrix_for_blending(img, newoverlaps, newstrides)
+    
+        for (x,y),(idx_0,idx_1),im,(sh_x,shy),weight_mat in zip(start_step,xy_grid,imgs,total_shifts,weight_matrix):
+    
+            prev_val_1 = normalizer[x:x + newshapes[0],y:y + newshapes[1]]        
+    
+            normalizer[x:x + newshapes[0],y:y + newshapes[1]] = np.nansum(np.dstack([~np.isnan(im)*1*weight_mat,prev_val_1]),-1)
+            prev_val = new_img[x:x + newshapes[0],y:y + newshapes[1]]
+            new_img[x:x + newshapes[0],y:y + newshapes[1]] = np.nansum(np.dstack([im*weight_mat,prev_val]),-1)
+    
+        new_img = new_img/normalizer
+        if show_movie:
+    #        for xx,yy,(sh_x,sh_y) in zip(np.array(start_step)[:,0]+newshapes[0]/2,np.array(start_step)[:,1]+newshapes[1]/2,total_shifts):
+    #            new_img = cv2.arrowedLine(new_img,(xx,yy),(np.int(xx+sh_x*10),np.int(yy+sh_y*10)),5000,1)
+                
+            img = apply_shift_iteration(img,-rigid_shts,border_nan=True)
+            img_show = new_img
+            img_show = np.vstack([new_img,img])
+            
+            img_show = cv2.resize(img_show,None,fx=1,fy=1)
+    #        img_show = new_img
+            
+            cv2.imshow('frame',img_show/np.percentile(template,99))
+            cv2.waitKey(int(1./500*1000))      
+        
+        else:
+            cv2.destroyAllWindows()
+    #    xx,yy = np.array(start_step)[:,0]+newshapes[0]/2,np.array(start_step)[:,1]+newshapes[1]/2
+    #    pl.cla()
+    #    pl.imshow(new_img,vmin = 200, vmax = 500 ,cmap = 'gray',origin = 'lower')
+    #    pl.axis('off')
+    #    pl.quiver(yy,xx,shift_img_y, -shift_img_x, color = 'red')
+    #    pl.pause(.01)
+    
+              
+        return new_img-add_to_movie, total_shifts,start_step,xy_grid    
 
 
