@@ -51,7 +51,7 @@ def tile_and_correct_wrapper(params):
     
     
     imgs = imread(img_name,key = idxs)
-    mc = np.zeros_like(imgs)
+    mc = np.zeros(imgs.shape,dtype = np.float32)
     shift_info = []
     for count, img in enumerate(imgs): 
         if count % 10 == 0:
@@ -143,8 +143,10 @@ else:
     print 'Using ' + str(len(c)) + ' processes'
     dview = c[:len(c)]
 #%% set parameters and create template by rigid motion correction
-fname = 'k56_20160608_RSM_125um_41mW_zoom2p2_00001_00034.tif'
+#fname = 'k56_20160608_RSM_125um_41mW_zoom2p2_00001_00034.tif'
+fname = 'M_FLUO_t.tif'
 #fname = 'M_FLUO_4.tif'
+
 m = cm.load(fname)
 
 t1  = time.time()
@@ -153,12 +155,17 @@ t2  = time.time() - t1
 print t2
 add_to_movie = - np.min(m)
 template = cm.motion_correction.bin_median(mr)
-
+np.save('template_gc.npy',template)
 #%%
 ## for 512 512 this seems good
 overlaps = (16,16)
-strides = (128,128)# 512 512 
-#strides = (48,48)# 128 64
+if template.shape == (512,512):
+    strides = (128,128)# 512 512 
+    #strides = (48,48)# 128 64
+elif template.shape == (64,128):
+    strides = (48,48)# 512 512
+else:
+    raise Exception('Unknown size, set manually')    
 
 num_splits = 28 # for parallelization split the movies in  num_splits chuncks across time
 newstrides = None
@@ -185,20 +192,27 @@ for count,img in enumerate(np.array(m)):
     xy_grids.append(xy_grid)
 
 #%%
-mc = cm.load('k56_20160608_RSM_125um_41mW_zoom2p2_00001_00034_d1_512_d2_512_d3_1_order_F_frames_3000_.mmap')
+#mc = cm.load('k56_20160608_RSM_125um_41mW_zoom2p2_00001_00034_d1_512_d2_512_d3_1_order_F_frames_3000_.mmap')
+
 #mc = cm.load('M_FLUO_4_d1_64_d2_128_d3_1_order_F_frames_4620_.mmap')
+mc = cm.load('M_FLUO_t_d1_64_d2_128_d3_1_order_F_frames_6764_.mmap')
+
 #%%
-mc.resize(1,1,1).play(gain=100,fr = 10, offset = 300,magnification=1.)
+mc.resize(1,1,.2).play(gain=10,fr = 30, offset = 0,magnification=1.)
 #%%
-m.resize(1,1,1).play(gain=200,fr = 50, offset = 300,magnification=1.)
+m.resize(1,1,.2).play(gain=10,fr = 30, offset = 0,magnification=1.)
 #%%
+cm.concatenate([mr.resize(1,1,.5),mc.resize(1,1,.5)],axis=1).play(gain=10,fr = 100, offset = 0,magnification=3.)
+
+#%%
+import h5py
 with  h5py.File('sueann_corrected.mat') as f:
     mef = np.array(f['M2'])
 
-mef = cm.movie(mef)    
+mef = cm.movie(mef.transpose([0,2,1]))    
 
 #%%
-mef.resize(1,1,1).play(gain=30,fr = 20, offset = 300,magnification=1.)
+cm.concatenate([mef.resize(1,1,.15),mc.resize(1,1,.15)],axis=1).play(gain=30,fr = 80, offset = 300,magnification=1.)
 #%%
 T,d1,d2 = np.shape(m)
 shape_mov = (d1*d2,m.shape[0])
@@ -207,49 +221,48 @@ Y = np.memmap('M_FLUO_4_d1_64_d2_128_d3_1_order_F_frames_4620_.mmap',mode = 'r',
 mc = cm.movie(np.reshape(Y,(d2,d1,T),order = 'F').transpose([2,1,0]))
 mc.resize(1,1,.25).play(gain=10.,fr=50)
 #%%
-
-t1 = time.time()
-res = map(tile_and_correct_wrapper,pars)  
-print time.time()-t1
-#%% plot shifts per patch
 pl.plot(np.reshape(np.array(total_shifts),(len(total_shifts),-1))) 
 #%%
-m_raw = np.nanmean(m,0)
-m_rig = np.nanmean(mr,0)
-m_el = np.nanmean(mc,0)
+m_raw = np.nanmedian(m,0)
+m_rig = np.nanmedian(mr,0)
+m_el = np.nanmedian(mc,0)
+m_ef = np.nanmedian(mef,0)
 #%%
 import scipy
 r_raw = []
 r_rig = []
 r_el = []
+r_ef = []
 max_shft = 12
 for fr_id in range(m.shape[0]):
     fr = m[fr_id].copy()[max_shft:-max_shft,max_shft :-max_shft]
     templ_ = m_raw.copy()[max_shft:-max_shft,max_shft :-max_shft]
-#    templ_ = templ_[12:-12,12:-12]
-    fr[np.isnan(fr)]=0
     r_raw.append(scipy.stats.pearsonr(fr.flatten(),templ_.flatten())[0]) 
+    
     fr = mr[fr_id].copy()[max_shft:-max_shft,max_shft :-max_shft]
-    templ_ = m_rig.copy()[max_shft:-max_shft,max_shft :-max_shft]
-    templ_[np.isnan(fr)]=0
-    fr[np.isnan(fr)]=0
+    templ_ = m_rig.copy()[max_shft:-max_shft,max_shft :-max_shft]    
     r_rig.append(scipy.stats.pearsonr(fr.flatten(),templ_.flatten())[0]) 
+
     fr = mc[fr_id].copy()[max_shft:-max_shft,max_shft :-max_shft]
-    templ_ = m_el.copy()[max_shft:-max_shft,max_shft :-max_shft]
-    templ_[np.isnan(fr)]=0
-    fr[np.isnan(fr)]=0
+    templ_ = m_el.copy()[max_shft:-max_shft,max_shft :-max_shft]    
     r_el.append(scipy.stats.pearsonr(fr.flatten(),templ_.flatten())[0])        
+    if 0:
+        fr = mef[fr_id].copy()[max_shft:-max_shft,max_shft :-max_shft]
+        templ_ = m_ef.copy()[max_shft:-max_shft,max_shft :-max_shft]    
+        r_ef.append(scipy.stats.pearsonr(fr.flatten(),templ_.flatten())[0])        
 
 #%%
 import pylab as pl
-pl.subplot(2,2,1)
+vmax=150
+max_shft = 3
+pl.subplot(2,3,1)
 pl.scatter(r_raw,r_rig)
 pl.plot([0,1],[0,1],'r--')
 pl.xlabel('raw')
 pl.ylabel('rigid')
 pl.xlim([0,1])
 pl.ylim([0,1])
-pl.subplot(2,2,2)
+pl.subplot(2,3,2)
 pl.scatter(r_rig,r_el)
 pl.plot([0,1],[0,1],'r--')
 pl.ylabel('pw-rigid')
@@ -257,17 +270,40 @@ pl.xlabel('rigid')
 pl.xlim([0,1])
 pl.ylim([0,1])
 #%
-pl.subplot(2,2,3);
+
+
+
+pl.subplot(2,3,4);
 pl.title('rigid mean')
-pl.imshow(np.nanmean(mr,0),cmap='gray');
+pl.imshow(np.nanmean(mr,0)[max_shft:-max_shft,max_shft:-max_shft],cmap='gray', vmax = vmax,interpolation = 'none');
 
 pl.axis('off')
-pl.subplot(2,2,4);
-pl.imshow(np.nanmean(mc,0),cmap='gray')
+pl.subplot(2,3,5);
+pl.imshow(np.nanmean(mc,0)[max_shft:-max_shft,max_shft:-max_shft],cmap='gray',vmax = vmax,interpolation = 'none')
 pl.title('pw-rigid mean')
 pl.axis('off')
 
 
+if 0:
+    pl.subplot(2,3,3);
+    pl.scatter(r_el,r_ef)
+    pl.plot([0,1],[0,1],'r--')
+    pl.ylabel('pw-rigid')
+    pl.xlabel('pw-rigid eft')
+    pl.xlim([0,1])
+    pl.ylim([0,1])
+    
+    pl.subplot(2,3,6);
+    pl.imshow(np.nanmean(mef,0)[max_shft:-max_shft,max_shft:-max_shft],cmap='gray',vmax = vmax,interpolation = 'none')
+    pl.title('pw-rigid eft mean')
+    pl.axis('off')
+
+#%%
+
+pl.plot(r_raw)
+pl.plot(r_rig)
+pl.plot(r_el)
+pl.plot(r_ef)
 #%%
 mc = cm.movie(mc)
 mc[np.isnan(mc)] = 0
@@ -277,10 +313,13 @@ mc[np.isnan(mc)] = 0
 ccimage = m.local_correlations(eight_neighbours=True,swap_dim=False)
 ccimage_rig = mr.local_correlations(eight_neighbours=True,swap_dim=False)
 ccimage_els = mc.local_correlations(eight_neighbours=True,swap_dim=False)
+ccimage_ef = mef.local_correlations(eight_neighbours=True,swap_dim=False)
 #%% check correlation images
-pl.subplot(3,1,1)
+pl.subplot(2,2,1)
 pl.imshow(ccimage)
-pl.subplot(3,1,2)
+pl.subplot(2,2,2)
 pl.imshow(ccimage_rig)
-pl.subplot(3,1,3)
+pl.subplot(2,2,3)
 pl.imshow(ccimage_els)
+pl.subplot(2,2,4)
+pl.imshow(ccimage_ef)

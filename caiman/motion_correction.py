@@ -1138,21 +1138,23 @@ def tile_and_correct(img,template, strides, overlaps,max_shifts, newoverlaps = N
 
     
     '''    
+    img = img.astype(np.float32)
+    template = template.astype(np.float32)
+    
     
     img = img + add_to_movie
-    
     template = template + add_to_movie
     
     # compute rigid shifts    
-    rigid_shts = register_translation(img.astype(np.float32),template.astype(np.float32),upsample_factor=upsample_factor_fft,max_shifts=max_shifts)
+    rigid_shts = register_translation(img,template,upsample_factor=upsample_factor_fft,max_shifts=max_shifts)
 
     
     
     # extract patches
-    templates = [it[-1] for it in sliding_window(template.astype(np.float32),overlaps=overlaps,strides = strides)]
-    xy_grid = [(it[0],it[1]) for it in sliding_window(template.astype(np.float32),overlaps=overlaps,strides = strides)]    
+    templates = [it[-1] for it in sliding_window(template,overlaps=overlaps,strides = strides)]
+    xy_grid = [(it[0],it[1]) for it in sliding_window(template,overlaps=overlaps,strides = strides)]    
     num_tiles = np.prod(np.add(xy_grid[-1],1))    
-    imgs = [it[-1] for it in sliding_window(img.astype(np.float32),overlaps=overlaps,strides = strides)]    
+    imgs = [it[-1] for it in sliding_window(img,overlaps=overlaps,strides = strides)]    
     dim_grid = tuple(np.add(xy_grid[-1],1))
     
     if max_deviation_rigid is not None:
@@ -1182,11 +1184,11 @@ def tile_and_correct(img,template, strides, overlaps,max_shifts, newoverlaps = N
         
     
     
-    imgs = [it[-1] for it in sliding_window(img.astype(np.float32),overlaps=newoverlaps,strides = newstrides)  ]
+    imgs = [it[-1] for it in sliding_window(img,overlaps=newoverlaps,strides = newstrides)  ]
         
-    xy_grid = [(it[0],it[1]) for it in sliding_window(img.astype(np.float32),overlaps=newoverlaps,strides = newstrides)]  
+    xy_grid = [(it[0],it[1]) for it in sliding_window(img,overlaps=newoverlaps,strides = newstrides)]  
 
-    start_step = [(it[2],it[3]) for it in sliding_window(img.astype(np.float32),overlaps=newoverlaps,strides = newstrides)]
+    start_step = [(it[2],it[3]) for it in sliding_window(img,overlaps=newoverlaps,strides = newstrides)]
 
     
     

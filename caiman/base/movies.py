@@ -931,7 +931,7 @@ class movie(ts.timeseries):
              print '*** WARNING *** SPEED MIGHT BE LOW. USE opencv backend if available'
 
          gain*=1.
-         maxmov=np.max(self)
+         maxmov=np.nanmax(self)
 
          if backend is 'pylab':
             plt.ion()
