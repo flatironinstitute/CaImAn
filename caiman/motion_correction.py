@@ -1152,8 +1152,8 @@ def tile_and_correct(img,template, strides, overlaps,max_shifts, newoverlaps = N
     # compute rigid shifts    
     rigid_shts = register_translation(img,template,upsample_factor=upsample_factor_fft,max_shifts=max_shifts)
     if max_deviation_rigid == 0:
-        apply_shift_iteration(img,rigid_shts,border_nan=True)
-        return new_img-add_to_movie, rigid_shts, None, None
+        new_img = apply_shift_iteration(img,(-rigid_shts[0],-rigid_shts[1]),border_nan=True)
+        return new_img-add_to_movie, (-rigid_shts[0],-rigid_shts[1]), None, None
     else:
         # extract patches
         templates = [it[-1] for it in sliding_window(template,overlaps=overlaps,strides = strides)]

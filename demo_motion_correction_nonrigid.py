@@ -64,7 +64,7 @@ def tile_and_correct_wrapper(params):
         outv[:,idxs] = np.reshape(mc,(len(imgs),-1),order = 'F').T
         return shift_info,idxs
     else:
-        return shift_info, idxs, np.mean(mc)
+        return shift_info, idxs, np.nanmean(mc,0)
         
     
 #%%
@@ -159,7 +159,27 @@ fname = 'k56_20160608_RSM_125um_41mW_zoom2p2_00001_00034.tif'
 #fname = 'M_FLUO_4.tif'
 
 m = cm.load(fname)
+template = cm.motion_correction.bin_median(m)
+#%%
+splits = 28 # for parallelization split the movies in  num_splits chuncks across time
+new_templ = template
 
+for iter in range(1):
+    print iter
+    old_templ = new_templ.copy()
+    fname_tot, res = motion_correction_piecewise(fname,splits, None, None,\
+                            add_to_movie=-np.min(template), template = old_templ, max_shifts = (12,12),max_deviation_rigid = 0,\
+                            newoverlaps = None, newstrides = None,\
+                            upsample_factor_grid = 4, order = 'F',dview = dview,save_movie=False)
+
+    
+    new_templ = np.median(np.dstack([r[-1] for r in res ]),0)
+#    mc = cm.load(fname_tot)
+#    new_templ = cm.motion_correction.bin_median(mc,exclude_nans=True)
+    print np.linalg.norm(new_templ-old_templ)/np.linalg.norm(old_templ)
+#%%
+pl.imshow(new_templ,cmap = 'gray')    
+#%%
 t1  = time.time()
 mr,sft,xcr,template = m[:].copy().motion_correct(18,18,template=None)
 t2  = time.time() - t1
