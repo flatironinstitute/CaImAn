@@ -157,36 +157,36 @@ else:
 fname = 'k56_20160608_RSM_125um_41mW_zoom2p2_00001_00034.tif'
 #fname = 'M_FLUO_t.tif'
 #fname = 'M_FLUO_4.tif'
-
-m = cm.load(fname)
-template = cm.motion_correction.bin_median(m)
+max_shifts = (12,12)
+m = cm.load(fname,subindices=slice(None,None,None))
+mr = m.copy().motion_correct(max_shifts[0],max_shifts[1],template=None)[0]
+template = cm.motion_correction.bin_median(mr)
+pl.imshow(template)
 #%%
 splits = 28 # for parallelization split the movies in  num_splits chuncks across time
 new_templ = template
-
-for iter in range(1):
+add_to_movie=-np.min(template)
+for iter in range(3):
     print iter
     old_templ = new_templ.copy()
     fname_tot, res = motion_correction_piecewise(fname,splits, None, None,\
-                            add_to_movie=-np.min(template), template = old_templ, max_shifts = (12,12),max_deviation_rigid = 0,\
+                            add_to_movie=add_to_movie, template = old_templ, max_shifts = max_shifts,max_deviation_rigid = 0,\
                             newoverlaps = None, newstrides = None,\
                             upsample_factor_grid = 4, order = 'F',dview = dview,save_movie=False)
 
     
-    new_templ = np.median(np.dstack([r[-1] for r in res ]),0)
+    new_templ = np.nanmedian(np.dstack([r[-1] for r in res ]),-1)
 #    mc = cm.load(fname_tot)
 #    new_templ = cm.motion_correction.bin_median(mc,exclude_nans=True)
     print np.linalg.norm(new_templ-old_templ)/np.linalg.norm(old_templ)
+    
+pl.imshow(new_templ,cmap = 'gray',vmax = np.percentile(new_templ,95))     
 #%%
-pl.imshow(new_templ,cmap = 'gray')    
+import scipy
+np.save(str(np.shape(m)[-1])+'_templ_rigid.npy',new_templ)
+scipy.io.savemat('/mnt/xfs1/home/agiovann/dropbox/Python_progress/' + str(np.shape(m)[-1])+'_templ_rigid.mat',{'template':new_templ}) 
 #%%
-t1  = time.time()
-mr,sft,xcr,template = m[:].copy().motion_correct(18,18,template=None)
-t2  = time.time() - t1
-print t2
-add_to_movie = - np.min(m)
-template = cm.motion_correction.bin_median(mr)
-np.save('template_gc.npy',template)
+template = new_templ
 #%% online does not seem to work!
 #overlaps = (16,16)
 #if template.shape == (512,512):
@@ -222,20 +222,29 @@ splits = 28 # for parallelization split the movies in  num_splits chuncks across
 newstrides = None
 upsample_factor_grid = 4
 new_templ = template
-
-for iter in range(3):
-    print iter
+add_to_movie = -np.min(new_templ)
+num_iter = 3
+save_movie = False
+for iter_ in range(num_iter):
+    print iter_
     old_templ = new_templ.copy()
+    if iter_ == num_iter-1:
+        save_movie = True
+        print 'saving!'
+        templ_to_save = old_templ
     fname_tot, res = motion_correction_piecewise(fname,splits, strides, overlaps,\
                             add_to_movie=add_to_movie, template = old_templ, max_shifts = (12,12),max_deviation_rigid = 3,\
                             newoverlaps = None, newstrides = newstrides,\
-                            upsample_factor_grid = upsample_factor_grid, order = 'F',dview = dview)
-    mc = cm.load(fname_tot)
-    new_templ = cm.motion_correction.bin_median(mc,exclude_nans=True)
-    print np.linalg.norm(new_templ-old_templ)/np.linalg.norm(old_templ)
-    
+                            upsample_factor_grid = upsample_factor_grid, order = 'F',dview = dview,save_movie = save_movie)
+    if iter_ < num_iter-1:
+        new_templ = np.nanmedian(np.dstack([r[-1] for r in res ]),-1)
+        print np.linalg.norm(new_templ-old_templ)/np.linalg.norm(old_templ)
+
+pl.imshow(templ_to_save,cmap = 'gray',vmax = np.percentile(templ_to_save,99))
 #%%
-pl.imshow(new_templ)
+np.save(str(np.shape(m)[-1])+'_templ_pw_rigid.npy',templ_to_save)
+scipy.io.savemat('/mnt/xfs1/home/agiovann/dropbox/Python_progress/' + str(np.shape(m)[-1])+'_templ_pw_rigid.mat',{'template':templ_to_save}) 
+
 #%%
 #%
 total_shifts = []
@@ -254,27 +263,29 @@ for count,img in enumerate(np.array(m)):
     xy_grids.append(xy_grid)
 
 #%%
-#mc = cm.load('k56_20160608_RSM_125um_41mW_zoom2p2_00001_00034_d1_512_d2_512_d3_1_order_F_frames_3000_.mmap')
+mc = cm.load('k56_20160608_RSM_125um_41mW_zoom2p2_00001_00034_d1_512_d2_512_d3_1_order_F_frames_3000_.mmap')
 
 #mc = cm.load('M_FLUO_4_d1_64_d2_128_d3_1_order_F_frames_4620_.mmap')
-mc = cm.load('M_FLUO_t_d1_64_d2_128_d3_1_order_F_frames_6764_.mmap')
+#mc = cm.load('M_FLUO_t_d1_64_d2_128_d3_1_order_F_frames_6764_.mmap')
 
 #%%
 mc.resize(1,1,.2).play(gain=10,fr = 30, offset = 0,magnification=1.)
 #%%
 m.resize(1,1,.2).play(gain=10,fr = 30, offset = 0,magnification=1.)
 #%%
-cm.concatenate([mr.resize(1,1,.5),mc.resize(1,1,.5)],axis=1).play(gain=10,fr = 100, offset = 0,magnification=3.)
+cm.concatenate([mr.resize(1,1,.5),mc.resize(1,1,.5)],axis=1).play(gain=10,fr = 100, offset = 300,magnification=1.)
 
 #%%
 import h5py
-with  h5py.File('sueann_corrected.mat') as f:
+with  h5py.File('sueann.mat') as f:
     mef = np.array(f['M2'])
 
 mef = cm.movie(mef.transpose([0,2,1]))    
 
 #%%
-cm.concatenate([mef.resize(1,1,.15),mc.resize(1,1,.15)],axis=1).play(gain=30,fr = 80, offset = 300,magnification=1.)
+cm.concatenate([mef.resize(1,1,.15),mc.resize(1,1,.15)],axis=1).play(gain=30,fr = 40, offset = 300,magnification=1.)
+#%%
+(mc-mef).play(gain=50,fr = 80, offset = 10,magnification=1.)
 #%%
 T,d1,d2 = np.shape(m)
 shape_mov = (d1*d2,m.shape[0])
@@ -285,10 +296,14 @@ mc.resize(1,1,.25).play(gain=10.,fr=50)
 #%%
 pl.plot(np.reshape(np.array(total_shifts),(len(total_shifts),-1))) 
 #%%
-m_raw = np.nanmedian(m,0)
-m_rig = np.nanmedian(mr,0)
-m_el = np.nanmedian(mc,0)
-m_ef = np.nanmedian(mef,0)
+#m_raw = cm.motion_correction.bin_median(m,exclude_nans=True)
+#m_rig = cm.motion_correction.bin_median(mr,exclude_nans=True)
+#m_el = cm.motion_correction.bin_median(mc,exclude_nans=True)
+
+m_raw = np.nanmean(m,0)
+m_rig = np.nanmean(mr,0)
+m_el = np.nanmean(mc,0)
+#m_ef = np.nanmedian(mef,0)
 #%%
 import scipy
 r_raw = []
@@ -311,8 +326,29 @@ for fr_id in range(m.shape[0]):
     if 0:
         fr = mef[fr_id].copy()[max_shft:-max_shft,max_shft :-max_shft]
         templ_ = m_ef.copy()[max_shft:-max_shft,max_shft :-max_shft]    
-        r_ef.append(scipy.stats.pearsonr(fr.flatten(),templ_.flatten())[0])        
+        r_ef.append(scipy.stats.pearsonr(fr.flatten(),templ_.flatten())[0])   
 
+r_raw =np.array(r_raw)
+r_rig =np.array(r_rig)     
+r_el =np.array(r_el)     
+   
+#%%
+r_ef = scipy.io.loadmat('sueann.mat')['cM2'].squeeze()
+r_efr = scipy.io.loadmat('sueann.mat')['cY'].squeeze()
+
+pl.plot(r_raw)
+pl.plot(r_efr)
+#%%
+pl.plot(r_rig)
+#%%
+pl.plot(r_el)
+pl.plot(r_ef)
+#%%
+pl.scatter(r_el,r_ef)
+pl.plot([0,1],[0,1],'r--')
+
+#%%
+pl.plot((r_ef-r_el)/np.abs(r_el))
 #%%
 import pylab as pl
 vmax=150
@@ -361,10 +397,6 @@ if 0:
     pl.axis('off')
 
 #%%
-
-pl.plot(r_raw)
-pl.plot(r_rig)
-pl.plot(r_el)
 pl.plot(r_ef)
 #%%
 mc = cm.movie(mc)

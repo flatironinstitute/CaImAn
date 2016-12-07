@@ -99,7 +99,7 @@ class movie(ts.timeseries):
                        num_frames_template=None,
                        template=None,
                        method='opencv',
-                       remove_blanks=False):
+                       remove_blanks=False,interpolation='cubic'):
 
         '''
         Extract shifts and motion corrected movie automatically,
@@ -148,19 +148,19 @@ class movie(ts.timeseries):
             submov = self[::frames_to_skip, :].copy()
             templ = submov.bin_median() # create template with portion of movie
             shifts,xcorrs=submov.extract_shifts(max_shift_w=max_shift_w, max_shift_h=max_shift_h, template=templ, method=method)  #
-            submov.apply_shifts(shifts,interpolation='cubic',method=method)
+            submov.apply_shifts(shifts,interpolation=interpolation,method=method)
             template=submov.bin_median()
             del submov
             m=self.copy()
             shifts,xcorrs=m.extract_shifts(max_shift_w=max_shift_w, max_shift_h=max_shift_h, template=template, method=method)  #
-            m=m.apply_shifts(shifts,interpolation='cubic',method=method)
+            m=m.apply_shifts(shifts,interpolation=interpolation,method=method)
             template=(m.bin_median())
             del m
         else:
             template=template-np.percentile(template,8)
         # now use the good template to correct
         shifts,xcorrs=self.extract_shifts(max_shift_w=max_shift_w, max_shift_h=max_shift_h, template=template, method=method)  #
-        self=self.apply_shifts(shifts,interpolation='cubic',method=method)
+        self=self.apply_shifts(shifts,interpolation=interpolation,method=method)
 #        self=self+min_val
 
         if remove_blanks:
