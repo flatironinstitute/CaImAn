@@ -1027,9 +1027,49 @@ def register_translation(src_image, target_image, upsample_factor=1,
         if shape[dim] == 1:
             shifts[dim] = 0
 
-    return shifts#, _compute_error(CCmax, src_amp, target_amp),\
-        #_compute_phasediff(CCmax)
     
+
+    return shifts, src_freq,_compute_phasediff(CCmax) #, _compute_error(CCmax, src_amp, target_amp),\
+        #_compute_phasediff(CCmax)
+
+#%%        
+def apply_shifts_dft(src_freq, shifts, diffphase, is_freq = True, border_nan = False):
+    '''
+    apply shifts using inverse dft
+    src_freq: ndarray
+        if is_freq it is fourier transform image else original image
+    shifts: shifts to apply
+    diffphase: comes from the register_translation output
+    
+    '''
+    shifts = shifts[::-1]
+    if not is_freq:
+        src_freq = np.dstack([np.real(src_freq),np.imag(src_freq)])
+        src_freq = fftn(src_freq,flags=cv2.DFT_COMPLEX_OUTPUT+cv2.DFT_SCALE)
+        src_freq  = src_freq[:,:,0]+1j*src_freq[:,:,1]
+        src_freq   = np.array(src_freq, dtype=np.complex128, copy=False)          
+    
+    nr,nc = np.shape(src_freq)
+    Nr = ifftshift(np.arange(-np.fix(nr/2.),np.ceil(nr/2.)))
+    Nc = ifftshift(np.arange(-np.fix(nc/2.),np.ceil(nc/2.)))
+    Nr,Nc = np.meshgrid(Nr,Nc)
+    
+    Greg = src_freq*np.exp(1j*2*np.pi*(-shifts[0]*1.*Nr/nr-shifts[1]*1.*Nc/nc))
+    Greg = Greg.dot(np.exp(1j*diffphase))
+    Greg = np.dstack([np.real(Greg),np.imag(Greg)])
+    new_img = ifftn(Greg)[:,:,0]
+    if border_nan:  
+         max_w,max_h,min_w,min_h=0,0,0,0
+         max_h,max_w = np.ceil(np.maximum((max_h,max_w),shifts)).astype(np.int)
+         min_h,min_w = np.floor(np.minimum((min_h,min_w),shifts)).astype(np.int)
+         new_img[:max_h,:] = np.nan
+         if min_h < 0:
+             new_img[min_h:,:] = np.nan
+         new_img[:,:max_w] = np.nan 
+         if min_w < 0:
+             new_img[:,min_w:] = np.nan
+    
+    return new_img
 #%%
 def sliding_window(image, overlaps, strides):
     ''' efficiently and lazily slides a window across the image
@@ -1142,17 +1182,18 @@ def tile_and_correct(img,template, strides, overlaps,max_shifts, newoverlaps = N
 
     
     '''    
-    img = img.astype(np.float32)
-    template = template.astype(np.float32)
+    img = img.astype(np.float64)
+    template = template.astype(np.float64)
     
     
     img = img + add_to_movie
     template = template + add_to_movie
     
     # compute rigid shifts    
-    rigid_shts = register_translation(img,template,upsample_factor=upsample_factor_fft,max_shifts=max_shifts)
+    rigid_shts,sfr_freq,diffphase = register_translation(img,template,upsample_factor=upsample_factor_fft,max_shifts=max_shifts)
     if max_deviation_rigid == 0:
-        new_img = apply_shift_iteration(img,(-rigid_shts[0],-rigid_shts[1]),border_nan=True)
+#        new_img = apply_shift_iteration(img,(-rigid_shts[0],-rigid_shts[1]),border_nan=True)
+        new_img = apply_shifts_dft(sfr_freq,(-rigid_shts[0],-rigid_shts[1]),diffphase,border_nan=True)
         return new_img-add_to_movie, (-rigid_shts[0],-rigid_shts[1]), None, None
     else:
         # extract patches
@@ -1173,11 +1214,18 @@ def tile_and_correct(img,template, strides, overlaps,max_shifts, newoverlaps = N
             ub_shifts = None
         
         #extract shifts for each patch        
-        shfts = [register_translation(a,b,c, shifts_lb = lb_shifts, shifts_ub = ub_shifts, max_shifts = max_shifts) for a, b, c in zip (imgs,templates,[upsample_factor_fft]*num_tiles)]    
+        shfts_et_all = [register_translation(a,b,c, shifts_lb = lb_shifts, shifts_ub = ub_shifts, max_shifts = max_shifts) for a, b, c in zip (imgs,templates,[upsample_factor_fft]*num_tiles)]    
+        shfts = [sshh[0] for sshh in shfts_et_all] 
+        diffs_phase = [sshh[2] for sshh in shfts_et_all]
+#        frq_srcs = [sshh[1] for sshh in shfts_et_all] 
         
         # create a vector field
         shift_img_x = np.reshape(np.array(shfts)[:,0],dim_grid)  
         shift_img_y = np.reshape(np.array(shfts)[:,1],dim_grid)
+        diffs_phase_grid = np.reshape(np.array(diffs_phase),dim_grid)
+        
+        
+        
         
         # create automatically upsample parameters if not passed
         if newoverlaps is None:
@@ -1201,6 +1249,8 @@ def tile_and_correct(img,template, strides, overlaps,max_shifts, newoverlaps = N
     
         shift_img_x = cv2.resize(shift_img_x,dim_new_grid[::-1],interpolation = cv2.INTER_CUBIC)
         shift_img_y = cv2.resize(shift_img_y,dim_new_grid[::-1],interpolation = cv2.INTER_CUBIC)
+        diffs_phase_grid_us = cv2.resize(diffs_phase_grid,dim_new_grid[::-1],interpolation = cv2.INTER_CUBIC)
+
         num_tiles = np.prod(dim_new_grid)
        
        
@@ -1210,8 +1260,10 @@ def tile_and_correct(img,template, strides, overlaps,max_shifts, newoverlaps = N
     #    
         
         total_shifts = [(-x,-y) for x,y in zip(shift_img_x.reshape(num_tiles),shift_img_y.reshape(num_tiles))]     
-    
-        imgs = [apply_shift_iteration(im,sh,border_nan=True) for im,sh in zip(imgs, total_shifts)]
+        total_diffs_phase = [dfs for dfs in diffs_phase_grid_us.reshape(num_tiles)]    
+                             
+        imgs = [apply_shifts_dft(im,(sh[0],sh[1]),dffphs, is_freq = False, border_nan=True)  for im,sh,dffphs in zip(imgs, total_shifts,total_diffs_phase) ]
+#        imgs = [apply_shift_iteration(im,sh,border_nan=True) for im,sh in zip(imgs, total_shifts)]
         
         normalizer = np.zeros_like(img)*np.nan    
         new_img = np.zeros_like(img)*np.nan
@@ -1230,8 +1282,8 @@ def tile_and_correct(img,template, strides, overlaps,max_shifts, newoverlaps = N
         if show_movie:
     #        for xx,yy,(sh_x,sh_y) in zip(np.array(start_step)[:,0]+newshapes[0]/2,np.array(start_step)[:,1]+newshapes[1]/2,total_shifts):
     #            new_img = cv2.arrowedLine(new_img,(xx,yy),(np.int(xx+sh_x*10),np.int(yy+sh_y*10)),5000,1)
-                
-            img = apply_shift_iteration(img,-rigid_shts,border_nan=True)
+            img = apply_shifts_dft(sfr_freq,(-rigid_shts[0],-rigid_shts[1]),diffphase,border_nan=True)
+#            img = apply_shift_iteration(img,-rigid_shts,border_nan=True)
             img_show = new_img
             img_show = np.vstack([new_img,img])
             
