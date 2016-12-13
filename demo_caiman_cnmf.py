@@ -224,7 +224,7 @@ idx_components_delta = np.where(fitness_delta < -20)[0]
 min_radius = gSig[0] - 2
 masks_ws, idx_blobs, idx_non_blobs = extract_binary_masks_blob(
     A.tocsc(), min_radius, dims, num_std_threshold=1,
-    minCircularity=0.5, minInertiaRatio=0.2, minConvexity=.8)
+    minCircularity=0.7, minInertiaRatio=0.2, minConvexity=.5)
 
 idx_components = np.union1d(idx_components_r, idx_components_raw)
 idx_components = np.union1d(idx_components, idx_components_delta)
