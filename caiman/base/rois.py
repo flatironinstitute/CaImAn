@@ -536,7 +536,7 @@ def extract_binary_masks_blob(A,  neuron_radius,dims,num_std_threshold=1, minCir
     #params.maxArea = 4*np.pi*((gSig[0]-1)**2)
     
     
-    
+    params.filterByColor = True
     params.filterByArea = True
     params.filterByCircularity = True
     params.filterByConvexity = True
