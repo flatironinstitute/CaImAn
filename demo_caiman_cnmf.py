@@ -16,8 +16,8 @@ try:
     if __IPYTHON__:
         1
         # this is used for debugging purposes only. allows to reload classes when changed
-#        get_ipython().magic('load_ext autoreload')
-#        get_ipython().magic('autoreload 2')
+        get_ipython().magic('load_ext autoreload')
+        get_ipython().magic('autoreload 2')
 except NameError:
     print('Not IPYTHON')
     pass
@@ -222,7 +222,7 @@ fitness_raw, fitness_delta, erfc_raw, erfc_delta, r_values, significant_samples 
     evaluate_components(Y, traces, A, C, b, f, remove_baseline=True,
                                       N=5, robust_std=False, Athresh=0.1, Npeaks=Npeaks, tB=tB, tA=tA, thresh_C=0.3)
 
-idx_components_r = np.where(r_values >= .5)[0]
+idx_components_r = np.where(r_values >= .6)[0]
 idx_components_raw = np.where(fitness_raw < -40)[0]
 idx_components_delta = np.where(fitness_delta < -20)[0]
 
