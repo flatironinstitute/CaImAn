@@ -8,12 +8,17 @@ For explanation consult at https://github.com/agiovann/Constrained_NMF/releases/
 and https://github.com/agiovann/Constrained_NMF
 
 """
+from __future__ import division
+from __future__ import print_function
 #%%
+from builtins import str
+from builtins import range
+from past.utils import old_div
 try:
     if __IPYTHON__:
         # this is used for debugging purposes only. allows to reload classes when changed
-        get_ipython().magic(u'load_ext autoreload')
-        get_ipython().magic(u'autoreload 2')
+        get_ipython().magic('load_ext autoreload')
+        get_ipython().magic('autoreload 2')
 except NameError:
     print('Not IPYTHON')
     pass
@@ -61,7 +66,7 @@ if backend == 'SLURM':
 else:
     # roughly number of cores on your machine minus 1
     n_processes = np.maximum(np.int(psutil.cpu_count()), 1)
-print 'using ' + str(n_processes) + ' processes'
+print(('using ' + str(n_processes) + ' processes'))
 #%% start cluster for efficient computation
 single_thread = False
 
@@ -71,14 +76,14 @@ else:
     try:
         c.close()
     except:
-        print 'C was not existing, creating one'
-    print "Stopping  cluster to avoid unnencessary use of memory...."
+        print('C was not existing, creating one')
+    print("Stopping  cluster to avoid unnencessary use of memory....")
     sys.stdout.flush()
     if backend == 'SLURM':
         try:
             cm.stop_server(is_slurm=True)
         except:
-            print 'Nothing to stop'
+            print('Nothing to stop')
         slurm_script = '/mnt/xfs1/home/agiovann/SOFTWARE/Constrained_NMF/SLURM/slurmStart.sh'
         cm.start_server(slurm_script=slurm_script)
         pdir, profile = os.environ['IPPPDIR'], os.environ['IPPPROFILE']
@@ -88,7 +93,7 @@ else:
         cm.start_server()
         c = Client()
 
-    print 'Using ' + str(len(c)) + ' processes'
+    print(('Using ' + str(len(c)) + ' processes'))
     dview = c[:len(c)]
 #%% FOR LOADING ALL TIFF FILES IN A FILE AND SAVING THEM ON A SINGLE MEMORY MAPPABLE FILE
 
@@ -101,7 +106,7 @@ fnames.sort()
 if len(fnames) == 0:
     raise Exception("Could not find any tiff file")
 
-print fnames  
+print(fnames)  
 fnames=fnames
 #%%
 #idx_x=slice(12,500,None)
@@ -116,14 +121,14 @@ base_name='Yr'
 #%%
 name_new=cm.save_memmap_each(fnames, dview=dview,base_name=base_name, resize_fact=(1, 1, downsample_factor), remove_init=0,idx_xy=idx_xy,add_to_movie=add_to_movie,border_to_0=border_to_0)
 name_new.sort()
-print name_new
+print(name_new)
 t_mmap_1 = time()
-print t_mmap_1-t_mmap
+print((t_mmap_1-t_mmap))
 #%%
 t_mmap_online = time()
 fname = save_tif_to_mmap_online('k31_20160104_MMA_150um_65mW_zoom2p2_00001_00001.tif',border_to_0=border_to_0,add_to_movie=add_to_movie)
 t_mmap_online_1 = time()
-print t_mmap_online_1-t_mmap_online
+print((t_mmap_online_1-t_mmap_online))
 #%%
 #Yr, dims, T = cm.load_memmap(fname)
 #d1, d2 = dims
@@ -132,19 +137,19 @@ images = tifffile.TiffFile('k31_20160104_MMA_150um_65mW_zoom2p2_00001_00001.tif'
 t_mc_online = time()
 shifts,xcorrs,template  = motion_correct_online(images, save_base_name=None,border_to_0=border_to_0,add_to_movie=add_to_movie)
 t_mc_online_1 = time()
-print t_mc_online_1-t_mc_online
+print((t_mc_online_1-t_mc_online))
 #%%
 fls = glob.glob('k*.tif')
 fls=fls[:3]
 t_mmap_mc_online = time()
 all_names, all_shifts, all_xcorrs, all_templates = motion_correct_online_multifile(fls,add_to_movie)
 t_mmap_mc_online_1 = time()
-print  t_mmap_mc_online_1 - t_mmap_mc_online
+print((t_mmap_mc_online_1 - t_mmap_mc_online))
 #%%
 t_mmap_join = time()    
 fname_new = cm.mmapping.save_memmap_join(all_names, base_name= 'Yr_MC_MF_', n_chunks=100, dview=dview,async=False)    
 t_mmap_join_1 = time()    
-print  t_mmap_join_1 - t_mmap_join
+print((t_mmap_join_1 - t_mmap_join))
 #%%
 if len(name_new) > 1:
     fname_new = cm.save_memmap_join(name_new, base_name='Yr', n_chunks=12, dview=dview)
@@ -162,8 +167,8 @@ Y = np.reshape(Yr, dims + (T,), order='F')
 #    raise Exception('Movie too negative, add_to_movie should be larger')
 #%%
 if 0:
-   Cn = cm.local_correlations(Y[:,:,::np.int(np.shape(images)[0]/3000)]) 
-   pl.imshow(Cn)  
+    Cn = cm.local_correlations(Y[:,:,::np.int(old_div(np.shape(images)[0],3000))]) 
+    pl.imshow(Cn)  
 
 #%%
 #if not is_patches:
@@ -200,11 +205,11 @@ b_tot = cnm.b
 f_tot = cnm.f
 sn_tot = cnm.sn
 
-print 'Number of components:' + str(A_tot.shape[-1])
+print(('Number of components:' + str(A_tot.shape[-1])))
 t2 = time()
-print t2 - t1
+print((t2 - t1))
 #%%
-   
+
 final_frate = 10# approx final rate  (after eventual downsampling )
 tB = np.minimum(-2, np.floor(-5. / 30 * final_frate))
 tA = np.maximum(5, np.ceil(25. / 30 * final_frate))
@@ -221,10 +226,10 @@ idx_components_delta = np.where(fitness_delta < -10)[0]
 
 idx_components = np.union1d(idx_components_r, idx_components_raw)
 idx_components = np.union1d(idx_components, idx_components_delta)
-idx_components_bad = np.setdiff1d(range(len(traces)), idx_components)
+idx_components_bad = np.setdiff1d(list(range(len(traces))), idx_components)
 
-print ('Keeping ' + str(len(idx_components)) +
-       ' and discarding  ' + str(len(idx_components_bad)))
+print(('Keeping ' + str(len(idx_components)) +
+       ' and discarding  ' + str(len(idx_components_bad))))
 t3 = time()
 #%%
 if 0:
@@ -275,18 +280,18 @@ idx_non_blobs = np.where(idx_non_blobs)[0]
 idx_components = np.union1d(idx_components_r, idx_components_raw)
 idx_components = np.union1d(idx_components, idx_components_delta)
 idx_blobs = np.intersect1d(idx_components, idx_blobs)
-idx_components_bad = np.setdiff1d(range(len(traces)), idx_components)
+idx_components_bad = np.setdiff1d(list(range(len(traces))), idx_components)
 
 print(' ***** ')
-print len(traces)
-print(len(idx_components))
-print(len(idx_blobs))
+print((len(traces)))
+print((len(idx_components)))
+print((len(idx_blobs)))
 t5 = time()
 #%%
-print t2-t1
-print t3 - t2
-print t4 - t3
-print t5 -t4
+print((t2-t1))
+print((t3 - t2))
+print((t4 - t3))
+print((t5 -t4))
 
 #%%
 save_results = False
@@ -303,7 +308,7 @@ if 0:
     crd = plot_contours(A.tocsc()[:, idx_blobs], Cn, thr=0.9)
     pl.subplot(1, 3, 3)
     crd = plot_contours(A.tocsc()[:, idx_components_bad], Cn, thr=0.9)
-    
+
 #%%
 if 0:
     view_patches_bar(Yr, scipy.sparse.coo_matrix(A.tocsc()[:, idx_components]), C[

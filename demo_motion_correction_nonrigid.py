@@ -4,20 +4,27 @@ Created on Mon Nov 21 15:53:15 2016
 
 @author: agiovann
 """
+from __future__ import division
+from __future__ import print_function
 #%%
+from builtins import zip
+from builtins import str
+from builtins import map
+from builtins import range
+from past.utils import old_div
 import cv2
 try:
     cv2.setNumThreads(1)
 except:
-    print 'Open CV is naturally single threaded'
-    
-    
+    print('Open CV is naturally single threaded')
+
+
 try:
     if __IPYTHON__:
-        print 1
+        print((1))
         # this is used for debugging purposes only. allows to reload classes when changed
-        get_ipython().magic(u'load_ext autoreload')
-        get_ipython().magic(u'autoreload 2')
+        get_ipython().magic('load_ext autoreload')
+        get_ipython().magic('autoreload 2')
 except NameError:
     print('Not IPYTHON')
     pass
@@ -34,7 +41,7 @@ from skimage.external.tifffile import TiffFile
 from caiman.motion_correction import tile_and_correct#, motion_correction_piecewise
 #%% in parallel
 def tile_and_correct_wrapper(params):
-    
+
     from skimage.external.tifffile import imread
     import numpy as np
     import cv2
@@ -42,20 +49,20 @@ def tile_and_correct_wrapper(params):
         cv2.setNumThreads(1)
     except:
         1 #'Open CV is naturally single threaded'
-        
+
     from caiman.motion_correction import tile_and_correct
-    
+
     img_name,  out_fname,idxs, shape_mov, template, strides, overlaps, max_shifts,\
         add_to_movie,max_deviation_rigid,upsample_factor_grid, newoverlaps, newstrides  = params
-    
-    
-    
+
+
+
     imgs = imread(img_name,key = idxs)
     mc = np.zeros(imgs.shape,dtype = np.float32)
     shift_info = []
     for count, img in enumerate(imgs): 
         if count % 10 == 0:
-            print count
+            print(count)
         mc[count],total_shift,start_step,xy_grid = tile_and_correct(img, template, strides, overlaps,max_shifts, add_to_movie=add_to_movie, newoverlaps = newoverlaps, newstrides = newstrides,\
                 upsample_factor_grid= upsample_factor_grid, upsample_factor_fft=10,show_movie=False,max_deviation_rigid=max_deviation_rigid)
         shift_info.append([total_shift,start_step,xy_grid])
@@ -64,8 +71,8 @@ def tile_and_correct_wrapper(params):
         outv[:,idxs] = np.reshape(mc.astype(np.float32),(len(imgs),-1),order = 'F').T
 
     return shift_info, idxs, np.nanmean(mc,0)
-        
-    
+
+
 #%%
 def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0, template = None, max_shifts = (12,12),max_deviation_rigid = 3,newoverlaps = None, newstrides = None,\
                                 upsample_factor_grid = 4, order = 'F',dview = None,save_movie= True, base_name = 'none'):
@@ -76,47 +83,47 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
     with TiffFile(fname) as tf:
         d1,d2 = tf[0].shape
         T = len(tf)    
-    
+
     if type(splits) is int:
-        idxs = np.array_split(range(T),splits)
+        idxs = np.array_split(list(range(T)),splits)
     else:
         idxs = splits
         save_movie = False
-    
-    
+
+
     if template is None:
         raise Exception('Not implemented')
-    
-    
-    
+
+
+
     shape_mov =  (d1*d2,T)
-    
+
     dims = d1,d2
-    
+
     if save_movie:
         if base_name is None:
             base_name = fname[:-4]
-            
+
         fname_tot = base_name + '_d1_' + str(dims[0]) + '_d2_' + str(dims[1]) + '_d3_' + str(1 if len(dims) == 2 else dims[2]) + '_order_' + str(order) + '_frames_' + str(T) + '_.mmap'
         fname_tot = os.path.join(os.path.split(fname)[0],fname_tot) 
-    
+
         np.memmap(fname_tot, mode='w+', dtype=np.float32, shape=shape_mov, order=order)
     else:
         fname_tot = None
-        
+
     pars = []
-    
+
     for idx in idxs:
-            pars.append([fname,fname_tot,idx,shape_mov, template, strides, overlaps, max_shifts, np.array(add_to_movie,dtype = np.float32),max_deviation_rigid,upsample_factor_grid, newoverlaps, newstrides ])
+        pars.append([fname,fname_tot,idx,shape_mov, template, strides, overlaps, max_shifts, np.array(add_to_movie,dtype = np.float32),max_deviation_rigid,upsample_factor_grid, newoverlaps, newstrides ])
 
     t1 = time.time()
     if dview is not None:
         res =dview.map_sync(tile_and_correct_wrapper,pars)
     else:
-        res = map(tile_and_correct_wrapper,pars)
+        res = list(map(tile_and_correct_wrapper,pars))
 
-    print time.time()-t1    
-    
+    print((time.time()-t1))    
+
     return fname_tot, res
 #%%
 #backend='SLURM'
@@ -126,7 +133,7 @@ if backend == 'SLURM':
 else:
     # roughly number of cores on your machine minus 1
     n_processes = np.maximum(np.int(psutil.cpu_count()), 1)
-print 'using ' + str(n_processes) + ' processes'
+print(('using ' + str(n_processes) + ' processes'))
 #%% start cluster for efficient computation
 single_thread = False
 
@@ -136,14 +143,14 @@ else:
     try:
         c.close()
     except:
-        print 'C was not existing, creating one'
-    print "Stopping  cluster to avoid unnencessary use of memory...."
+        print('C was not existing, creating one')
+    print("Stopping  cluster to avoid unnencessary use of memory....")
     sys.stdout.flush()
     if backend == 'SLURM':
         try:
             cm.stop_server(is_slurm=True)
         except:
-            print 'Nothing to stop'
+            print('Nothing to stop')
         slurm_script = '/mnt/xfs1/home/agiovann/SOFTWARE/Constrained_NMF/SLURM/slurmStart.sh'
         cm.start_server(slurm_script=slurm_script)
         pdir, profile = os.environ['IPPPDIR'], os.environ['IPPPROFILE']
@@ -153,7 +160,7 @@ else:
         cm.start_server()
         c = Client()
 
-    print 'Using ' + str(len(c)) + ' processes'
+    print(('Using ' + str(len(c)) + ' processes'))
     dview = c[:len(c)]
 #%% set parameters and create template by rigid motion correction
 fname = 'k56_20160608_RSM_125um_41mW_zoom2p2_00001_00034.tif'
@@ -170,24 +177,24 @@ add_to_movie=-np.min(template)
 save_movie = False
 num_iter = 3 
 for iter_ in range(num_iter):
-    print iter_
+    print(iter_)
     old_templ = new_templ.copy()
     if iter_ == num_iter-1:
         save_movie = True
-        print 'saving!'
+        print('saving!')
 #        templ_to_save = old_templ
-        
+
     fname_tot, res = motion_correction_piecewise(fname,splits, None, None,\
                             add_to_movie=add_to_movie, template = old_templ, max_shifts = max_shifts,max_deviation_rigid = 0,\
                             newoverlaps = None, newstrides = None,\
                             upsample_factor_grid = 4, order = 'F',dview = dview, save_movie=save_movie ,base_name  = 'rig_sue_')
 
-    
-    
-    new_templ = np.nanmedian(np.dstack([r[-1] for r in res ]),-1)
-    print np.linalg.norm(new_templ-old_templ)/np.linalg.norm(old_templ)
 
-    
+
+    new_templ = np.nanmedian(np.dstack([r[-1] for r in res ]),-1)
+    print((old_div(np.linalg.norm(new_templ-old_templ),np.linalg.norm(old_templ))))
+
+
 pl.imshow(new_templ,cmap = 'gray',vmax = np.percentile(new_templ,95))     
 #%%
 import scipy
@@ -243,23 +250,23 @@ num_iter = 2
 save_movie = False
 
 for iter_ in range(num_iter):
-    print iter_
+    print(iter_)
     old_templ = new_templ.copy()
-    
+
     if iter_ == num_iter-1:
         save_movie = True
-        print 'saving!'
+        print('saving!')
 
-        
-        
+
+
     fname_tot, res = motion_correction_piecewise(fname,splits, strides, overlaps,\
                             add_to_movie=add_to_movie, template = old_templ, max_shifts = (12,12),max_deviation_rigid = max_deviation_rigid,\
                             newoverlaps = newoverlaps, newstrides = newstrides,\
                             upsample_factor_grid = upsample_factor_grid, order = 'F',dview = dview,save_movie = save_movie, base_name = 'els_sue_')
-    
-    
+
+
     new_templ = np.nanmedian(np.dstack([r[-1] for r in res ]),-1)
-    print np.linalg.norm(new_templ-old_templ)/np.linalg.norm(old_templ)
+    print((old_div(np.linalg.norm(new_templ-old_templ),np.linalg.norm(old_templ))))
     pl.imshow(new_templ,cmap = 'gray',vmax = np.percentile(new_templ,99))
     pl.pause(.1)
 
@@ -338,7 +345,7 @@ for fr_id in range(m.shape[0]):
     fr = m[fr_id].copy()[max_shft:-max_shft,max_shft :-max_shft]
     templ_ = m_raw.copy()[max_shft:-max_shft,max_shft :-max_shft]
     r_raw.append(scipy.stats.pearsonr(fr.flatten(),templ_.flatten())[0]) 
-    
+
     fr = mr[fr_id].copy()[max_shft:-max_shft,max_shft :-max_shft]
     templ_ = m_rig.copy()[max_shft:-max_shft,max_shft :-max_shft]    
     r_rig.append(scipy.stats.pearsonr(fr.flatten(),templ_.flatten())[0]) 
@@ -369,7 +376,7 @@ pl.scatter(r_el,r_ef)
 pl.plot([0,1],[0,1],'r--')
 
 #%%
-pl.plot((r_ef-r_el)/np.abs(r_el))
+pl.plot(old_div((r_ef-r_el),np.abs(r_el)))
 #%%
 import pylab as pl
 vmax=150
@@ -411,7 +418,7 @@ if 0:
     pl.xlabel('pw-rigid eft')
     pl.xlim([0,1])
     pl.ylim([0,1])
-    
+
     pl.subplot(2,3,6);
     pl.imshow(np.nanmean(mef,0)[max_shft:-max_shft,max_shft:-max_shft],cmap='gray',vmax = vmax,interpolation = 'none')
     pl.title('pw-rigid eft mean')
@@ -446,11 +453,11 @@ for chunk in res:
         shifts,pos,init = frame
         x_sh = np.zeros(np.add(init[-1],1))
         y_sh = np.zeros(np.add(init[-1],1))
-        
+
         for nt,sh in zip(init,shifts):
             x_sh[nt] = sh[0]
             y_sh[nt] = sh[1]
-        
+
         jac_xx = x_sh[1:,:] - x_sh[:-1,:]
         jac_yx = y_sh[1:,:] - y_sh[:-1,:]
         jac_xy = x_sh[:,1:] - x_sh[:,:-1]
@@ -458,8 +465,8 @@ for chunk in res:
 
         mag_norm = np.sqrt(jac_xx[:,:-1]**2 + jac_yx[:,:-1]**2 + jac_xy[:-1,:]**2 +  jac_yy[:-1,:]**2)
         all_mags.append(mag_norm)
-        
-        
+
+
 #        pl.cla()            
 #        pl.imshow(mag_der,vmin=0,vmax =1,interpolation = 'none')
 #        pl.pause(.1)
@@ -484,18 +491,18 @@ levels = 3
 winsize = 100 
 iterations = 15
 poly_n = 5
-poly_sigma = 1.2/5
+poly_sigma = old_div(1.2,5)
 flags = 0 #cv2.OPTFLOW_FARNEBACK_GAUSSIAN
 norms = []
 flows = []
 for fr,fr1,fr0 in zip(m.resize(1,1,.2),m1.resize(1,1,.2),m0.resize(1,1,.2)):
     count +=1
-    print count
-    
+    print(count)
+
     flow1 = cv2.calcOpticalFlowFarneback(tmpl1[12:-12,12:-12],fr1[12:-12,12:-12],None,pyr_scale, levels, winsize, iterations, poly_n, poly_sigma, flags);
     flow = cv2.calcOpticalFlowFarneback(tmpl[12:-12,12:-12],fr[12:-12,12:-12],None,pyr_scale, levels, winsize, iterations, poly_n, poly_sigma, flags);
     flow0 = cv2.calcOpticalFlowFarneback(tmpl0[12:-12,12:-12],fr0[12:-12,12:-12],None,pyr_scale, levels, winsize, iterations, poly_n, poly_sigma, flags);
-    
+
 #    pl.subplot(2,3,1)    
 #    pl.cla()    
 #    pl.imshow(flow1[:,:,1],vmin=vmin,vmax=vmax)       
@@ -521,4 +528,4 @@ for fr,fr1,fr0 in zip(m.resize(1,1,.2),m1.resize(1,1,.2),m0.resize(1,1,.2)):
     norms.append([n1,n,n0 ])
 #%%
 flm = cm.movie(np.dstack( [np.concatenate(fl[0][:,:,:],axis=0) for fl  in flows])).transpose([2,0,1])
-    
+

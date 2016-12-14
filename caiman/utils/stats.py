@@ -4,13 +4,17 @@ Created on Thu Oct 20 13:49:57 2016
 
 @author: agiovann
 """
+from __future__ import division
+from __future__ import print_function
+from builtins import range
+from past.utils import old_div
 try:
     import numba
 except:
-    print "numba not found"
-    
+    print("numba not found")
+
 import numpy as np    
-    
+
 #%%
 def mode_robust_fast(inputData,axis=None):
     """
@@ -18,9 +22,9 @@ def mode_robust_fast(inputData,axis=None):
 
     .. versionadded: 1.0.3
     """
-    
+
     if axis is not None:
-        
+
         fnc = lambda x: mode_robust_fast(x)
 
         dataMode = np.apply_along_axis(fnc, axis, inputData)
@@ -62,12 +66,12 @@ def mode_robust(inputData, axis=None, dtype=None):
                 else:
                     return data[1]
             else:
-                
+
                 #            wMin = data[-1] - data[0]
                 wMin = np.inf
-                N = data.size / 2 + data.size % 2
+                N = data.size // 2 + data.size % 2
 
-                for i in xrange(0, N):
+                for i in range(0, N):
                     w = data[i + N - 1] - data[i]
                     if w < wMin:
                         wMin = w
@@ -88,7 +92,7 @@ def mode_robust(inputData, axis=None, dtype=None):
         dataMode = _hsm(data)
 
     return dataMode
-    
+
 #%%
 #@numba.jit("void(f4[:])")
 def _hsm(data):
@@ -106,12 +110,12 @@ def _hsm(data):
         else:
             return data[1]
     else:
-        
+
         #            wMin = data[-1] - data[0]
         wMin = np.inf
-        N = data.size / 2 + data.size % 2
+        N = old_div(data.size, 2) + data.size % 2
 
-        for i in xrange(0, N):
+        for i in range(0, N):
             w = data[i + N - 1] - data[i]
             if w < wMin:
                 wMin = w

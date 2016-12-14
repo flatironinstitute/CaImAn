@@ -9,6 +9,7 @@ Created on Mon Jul 11 10:09:09 2016
 
 @author: agiovann
 """
+from __future__ import print_function
 from glob import glob
 import scipy.stats as st
 import calblitz as cb
@@ -17,30 +18,30 @@ import numpy as np
 for fl in glob('k36*compress_.tif'):
     print(fl) 
     m=cb.load(fl,fr=3)
-    
+
     img=m.local_correlations(eight_neighbours=True)
     im=cb.movie(img,fr=1)
     im.save(fl[:-4]+'correlation_image.tif')
-    
+
     m=np.array(m)
 
     img=st.skew(m,0)
     im=cb.movie(img,fr=1)
     im.save(fl[:-4]+'skew.tif')
-    
+
     img=st.kurtosis(m,0)
     im=cb.movie(img,fr=1)
     im.save(fl[:-4]+'kurtosis.tif')
-    
+
     img=np.std(m,0)
     im=cb.movie(img,fr=1)
     im.save(fl[:-4]+'std.tif')
-    
+
     img=np.median(m,0)
     im=cb.movie(img,fr=1)
     im.save(fl[:-4]+'median.tif')
-    
-    
+
+
     img=np.max(m,0)
     im=cb.movie(img,fr=1)
     im.save(fl[:-4]+'max.tif')

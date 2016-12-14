@@ -14,6 +14,7 @@ Class representing a time series.
 
 author: Andrea Giovannucci
 """
+from __future__ import print_function
 #%%
 import os
 import warnings
@@ -21,7 +22,7 @@ import numpy as np
 import cv2
 import h5py
 import pylab as plt
-import cPickle as cpk
+import pickle as cpk
 try:
     plt.ion()
 except:
@@ -128,7 +129,7 @@ class timeseries(np.ndarray):
 
         '''
         name,extension = os.path.splitext(file_name)[:2]
-        print extension
+        print(extension)
 
         if extension == '.tif': # load avi file
     #            raise Exception('not implemented')
@@ -173,40 +174,40 @@ class timeseries(np.ndarray):
                 try: 
                     dset.attrs["file_name"]=[a.encode('utf8') for a in self.file_name]
                 except:
-                    print 'No file name saved'
+                    print('No file name saved')
 
                 dset.attrs["meta_data"]=cpk.dumps(self.meta_data)
 
         else:
-            print extension
+            print(extension)
             raise Exception('Extension Unknown')
 
 
 def concatenate(*args, **kwargs):
-        """
-        Concatenate movies
+    """
+    Concatenate movies
 
-        Parameters
-        ---------------------------
-        mov: XMovie object
-        """
+    Parameters
+    ---------------------------
+    mov: XMovie object
+    """
 
-        obj = []
-        frRef = None
-        for arg in args:
-            for m in arg:
-                if issubclass(type(m), timeseries):
-                    if frRef is None:
-                        obj = m
-                        frRef = obj.fr
-                    else:
-                        obj.__dict__['file_name'].extend(
-                                [ls for ls in m.file_name])
-                        obj.__dict__['meta_data'].extend(
-                                [ls for ls in m.meta_data])
-                        if obj.fr != m.fr:
-                            raise ValueError('Frame rates of input vectors \
+    obj = []
+    frRef = None
+    for arg in args:
+        for m in arg:
+            if issubclass(type(m), timeseries):
+                if frRef is None:
+                    obj = m
+                    frRef = obj.fr
+                else:
+                    obj.__dict__['file_name'].extend(
+                            [ls for ls in m.file_name])
+                    obj.__dict__['meta_data'].extend(
+                            [ls for ls in m.meta_data])
+                    if obj.fr != m.fr:
+                        raise ValueError('Frame rates of input vectors \
                             do not match. You cannot concatenate movies with \
                             different frame rates.')
 
-        return obj.__class__(np.concatenate(*args, **kwargs), **obj.__dict__)
+    return obj.__class__(np.concatenate(*args, **kwargs), **obj.__dict__)

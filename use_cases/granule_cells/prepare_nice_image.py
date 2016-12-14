@@ -4,13 +4,18 @@ Created on Sun Jul 24 17:06:17 2016
 
 @author: agiovann
 """
+from __future__ import division
+from __future__ import print_function
 #%%
+from builtins import str
+from builtins import range
+from past.utils import old_div
 try:
-    %load_ext autoreload
-    %autoreload 2
-    print 1
+    get_ipython().magic('load_ext autoreload')
+    get_ipython().magic('autoreload 2')
+    print((1))
 except:
-    print 'NOT IPYTHON'
+    print('NOT IPYTHON')
 
 import matplotlib as mpl
 mpl.use('TKAgg')
@@ -48,7 +53,7 @@ if backend == 'SLURM':
     n_processes = np.int(os.environ.get('SLURM_NPROCS'))
 else:
     n_processes = np.maximum(np.int(psutil.cpu_count()),1) # roughly number of cores on your machine minus 1
-print 'using ' + str(n_processes) + ' processes'
+print(('using ' + str(n_processes) + ' processes'))
 #%% start cluster for efficient computation
 single_thread=False
 
@@ -58,14 +63,14 @@ else:
     try:
         c.close()
     except:
-        print 'C was not existing, creating one'
-    print "Stopping  cluster to avoid unnencessary use of memory...."
+        print('C was not existing, creating one')
+    print("Stopping  cluster to avoid unnencessary use of memory....")
     sys.stdout.flush()  
     if backend == 'SLURM':
         try:
             cm.stop_server(is_slurm=True)
         except:
-            print 'Nothing to stop'
+            print('Nothing to stop')
         slurm_script='/mnt/xfs1/home/agiovann/SOFTWARE/Constrained_NMF/SLURM/slurmStart.sh'
         cm.start_server(slurm_script=slurm_script)
         pdir, profile = os.environ['IPPPDIR'], os.environ['IPPPROFILE']
@@ -75,7 +80,7 @@ else:
         cm.start_server()        
         c=Client()
 
-    print 'Using '+ str(len(c)) + ' processes'
+    print(('Using '+ str(len(c)) + ' processes'))
     dview=c[:len(c)]
 #%%
 os.chdir('/mnt/ceph/users/agiovann/ImagingData/eyeblink/b38/20160706154257')
@@ -83,15 +88,15 @@ fls=[]
 for root, dirs, files in os.walk("."):
     for file in files:
         if file.endswith("1.npz"):
-             print(os.path.join(root, file))
-             fls.append(os.path.join(root, file))
+            print((os.path.join(root, file)))
+            fls.append(os.path.join(root, file))
 
 fls.sort()
 for fl in fls:
-    print fl
+    print(fl)
     with np.load(fl) as ld:
-        print ld.keys()
-        
+        print((list(ld.keys())))
+
         tmpls=ld['template']
         lq,hq=np.percentile(tmpls,[5,95]) 
         pl.imshow(tmpls,cmap='gray',vmin=lq,vmax=hq)
@@ -101,11 +106,11 @@ for fl in fls:
 all_movs=[]
 for f in  fls:    
     with np.load(f) as fl:
-        print f
+        print(f)
 #        pl.subplot(1,2,1)
 #        pl.imshow(fl['template'],cmap=pl.cm.gray)
 #        pl.subplot(1,2,2)
-             
+
         all_movs.append(fl['template'][np.newaxis,:,:])
 #        pl.plot(fl['shifts'])  
 #        pl.pause(.001)
@@ -125,7 +130,7 @@ file_res=cb.motion_correct_parallel(new_fls,fr=6,template=final_template,margins
 xy_shifts=[]
 for fl in new_fls:
     if os.path.exists(fl[:-3]+'npz'):
-        print fl[:-3]+'npz'
+        print((fl[:-3]+'npz'))
         with np.load(fl[:-3]+'npz') as ld:
             xy_shifts.append(ld['shifts'])
     else:
@@ -185,7 +190,7 @@ b_tot=cnm.b
 f_tot=cnm.f
 sn_tot=cnm.sn
 
-print 'Number of components:' + str(A_tot.shape[-1])
+print(('Number of components:' + str(A_tot.shape[-1])))
 #%%
 
 final_frate = 2# approx final rate  (after eventual downsampling )
@@ -204,10 +209,10 @@ idx_components_delta = np.where(fitness_delta < -10)[0]
 
 idx_components = np.union1d(idx_components_r, idx_components_raw)
 idx_components = np.union1d(idx_components, idx_components_delta)
-idx_components_bad = np.setdiff1d(range(len(traces)), idx_components)
+idx_components_bad = np.setdiff1d(list(range(len(traces))), idx_components)
 
-print ('Keeping ' + str(len(idx_components)) +
-       ' and discarding  ' + str(len(idx_components_bad)))
+print(('Keeping ' + str(len(idx_components)) +
+       ' and discarding  ' + str(len(idx_components_bad))))
 #%%
 pl.figure()
 crd = plot_contours(A_tot.tocsc()[:, idx_components], Cn, thr=0.9)
@@ -245,27 +250,27 @@ min_radius = gSig[0] - 2
 #% LOOK FOR BLOB LIKE STRUCTURES!
 masks_ws, is_blob, is_non_blob = cm.base.rois.extract_binary_masks_blob_parallel(A.tocsc(), min_radius, dims, num_std_threshold=1,
     minCircularity=0.1, minInertiaRatio=0.1, minConvexity=.1,dview=dview)    
-    
+
 idx_blobs=np.where(is_blob)[0]
 idx_non_blobs=np.where(is_non_blob)[0]     
 
 idx_components = np.union1d(idx_components_r, idx_components_raw)
 idx_components = np.union1d(idx_components, idx_components_delta)
 idx_blobs = np.intersect1d(idx_components, idx_blobs)
-idx_components_bad = np.setdiff1d(range(len(traces)), idx_components)
+idx_components_bad = np.setdiff1d(list(range(len(traces))), idx_components)
 
 print(' ***** ')
-print len(traces)
-print(len(idx_components))
-print(len(idx_blobs))
+print((len(traces)))
+print((len(idx_components)))
+print((len(idx_blobs)))
 #%%
 save_results = False
 if save_results:
     np.savez('results_analysis.npz', Cn=Cn, A=A.todense(), C=C, b=b, f=f, YrA=YrA, sn=sn, d1=d1, d2=d2, idx_components=idx_components, idx_components_bad=idx_components_bad)
     scipy.io.savemat('results_analysis.mat', {'C':Cn, 'A':A.toarray(), 'C':C, 'b':b, 'f':f, 'YrA':YrA, 'sn':sn, 'd1':d1, 'd2':d2, 'idx_components':idx_components, 'idx_components_blobs':idx_blobs})
     np.savez('results_blobs.npz', spatial_comps=A.tocsc().toarray().reshape(dims+(-1,),order='F').transpose([2,0,1]),masks=masks_ws,idx_components=idx_components,idx_blobs=idx_blobs,idx_components_bad=idx_components_bad)
-    
-    
+
+
 #%% visualize components
 # pl.figure();
 pl.subplot(1, 3, 1)
@@ -353,7 +358,7 @@ for iid in sure_in_idx[np.hstack([idx_to_show,7])]:
     cx,cy=scipy.ndimage.measurements.center_of_mass(np.array(mmsk))
     cx=np.int(cx)
     cy=np.int(cy)
-    print(cx,cy)
+    print((cx,cy))
     pl.imshow(mmsk[np.maximum(cx-15,0):cx+15,np.maximum(cy-15,0):cy+15],cmap='gray')
     pl.ylim([0,30])
 
@@ -375,13 +380,13 @@ nA = (A.power(2)).sum(0)
 
 m=m-bckg_1          
 
-   
+
 Y_r_sig=A.T.dot(m)
 Y_r_sig= scipy.sparse.linalg.spsolve(scipy.sparse.spdiags(np.sqrt(nA),0,nA.size,nA.size),Y_r_sig)
 Y_r_bl=A.T.dot(bckg_1)
 Y_r_bl= scipy.sparse.linalg.spsolve(scipy.sparse.spdiags(np.sqrt(nA),0,nA.size,nA.size),Y_r_bl)                
 Y_r_bl=cm.mode_robust(Y_r_bl,1)        
-trs=Y_r_sig/Y_r_bl[:,np.newaxis]
+trs=old_div(Y_r_sig,Y_r_bl[:,np.newaxis])
 
 cb.trace(trs[np.hstack([sure_in_idx[idx_to_show],7])].T,fr=6).plot()
 #pl.figure()

@@ -4,13 +4,16 @@ Created on Mon Nov  7 10:50:33 2016
 
 @author: agiovann
 """
+from __future__ import division
+from __future__ import print_function
 
 #%%
+from past.utils import old_div
 try:
     if __IPYTHON__:
         # this is used for debugging purposes only. allows to reload classes when changed
-        get_ipython().magic(u'load_ext autoreload')
-        get_ipython().magic(u'autoreload 2')
+        get_ipython().magic('load_ext autoreload')
+        get_ipython().magic('autoreload 2')
 except NameError:
     print('Not IPYTHON')
     pass
@@ -80,7 +83,7 @@ thresh_noise = -20
 #%%
 import pylab as pl
 pl.ion()    
-    
+
 with np.load(os.path.join(folder,'results_analysis.npz')) as ld:
     locals().update(ld)
 
@@ -93,11 +96,11 @@ Y = np.reshape(Yr, dims + (T,), order='F')
 gSig = [8, 8]  # expected half size of neurons
 final_frate=1
 with np.load(os.path.join(folder,'results_blobs.npz')) as ld:
-    print ld.keys()
+    print((list(ld.keys())))
     locals().update(ld)
-    
+
 masks_cnmf=masks[idx_blob]  
-  
+
 #%%
 crd = plot_contours(A.tocsc()[:, idx_components], Cn, thr=0.9)
 #%%
@@ -124,8 +127,8 @@ Yr=np.array(Yr)
 traces_ben = cm.base.rois.mask_to_2d(masks_ben).T.dot(Yr)
 traces_princeton = cm.base.rois.mask_to_2d(masks_princeton).T.dot(Yr)
 
-traces_ben=traces_ben-scipy.ndimage.percentile_filter(traces_ben,8,size=[1,np.shape(traces_ben)[-1]/5])
-traces_princeton=traces_princeton-scipy.ndimage.percentile_filter(traces_princeton,8,size=[1,np.shape(traces_princeton)[-1]/5])
+traces_ben=traces_ben-scipy.ndimage.percentile_filter(traces_ben,8,size=[1,old_div(np.shape(traces_ben)[-1],5)])
+traces_princeton=traces_princeton-scipy.ndimage.percentile_filter(traces_princeton,8,size=[1,old_div(np.shape(traces_princeton)[-1],5)])
 
 
 fitness_ben,_,_=cm.components_evaluation.compute_event_exceptionality(traces_ben)
@@ -152,13 +155,13 @@ masks_princeton=masks_princeton[fitness_princeton<thresh_noise]
 #        pl.xlabel('COST:'+ str(cost))
 #        pl.pause(1)
 #        pl.cla()
-        
+
 #%%
 
 
 #print np.shape(masks_ben)[0]        
 #print np.shape(masks_cnmf)[0]    
-    
+
 
 
 #%%

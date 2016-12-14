@@ -4,15 +4,19 @@ Created on Tue Feb 16 17:56:14 2016
 
 @author: agiovann
 """
+from __future__ import print_function
 
 #%%
+from builtins import zip
+from builtins import str
+from builtins import range
 try:
-    %load_ext autoreload
-    %autoreload 2
-    print 1
+    get_ipython().magic('load_ext autoreload')
+    get_ipython().magic('autoreload 2')
+    print((1))
 except:
 
-    print 'NOT IPYTHON'
+    print('NOT IPYTHON')
 import matplotlib as mpl
 mpl.use('TKAgg')
 from matplotlib import pyplot as plt
@@ -40,7 +44,7 @@ import os
 import glob
 import h5py
 import re
- 
+
 #%%
 #backend='SLURM'
 backend='local'
@@ -48,7 +52,7 @@ if backend == 'SLURM':
     n_processes = np.int(os.environ.get('SLURM_NPROCS'))
 else:
     n_processes = np.maximum(np.int(psutil.cpu_count()),1) # roughly number of cores on your machine minus 1
-print 'using ' + str(n_processes) + ' processes'
+print(('using ' + str(n_processes) + ' processes'))
 
 
 #%% start cluster for efficient computation
@@ -60,14 +64,14 @@ else:
     try:
         c.close()
     except:
-        print 'C was not existing, creating one'
-    print "Stopping  cluster to avoid unnencessary use of memory...."
+        print('C was not existing, creating one')
+    print("Stopping  cluster to avoid unnencessary use of memory....")
     sys.stdout.flush()  
     if backend == 'SLURM':
         try:
             cse.utilities.stop_server(is_slurm=True)
         except:
-            print 'Nothing to stop'
+            print('Nothing to stop')
         slurm_script='/mnt/xfs1/home/agiovann/SOFTWARE/Constrained_NMF/SLURM/slurmStart.sh'
         cse.utilities.start_server(slurm_script=slurm_script)
         pdir, profile = os.environ['IPPPDIR'], os.environ['IPPPROFILE']
@@ -77,7 +81,7 @@ else:
         cse.utilities.start_server()        
         c=Client()
 
-    print 'Using '+ str(len(c)) + ' processes'
+    print(('Using '+ str(len(c)) + ' processes'))
     dview=c[:]
 
 #%% get all the right folders
@@ -163,7 +167,7 @@ do_motion_correct=np.array([el[4] for el in params])
 #pl.imshow(np.sum(masks_nf,0)>0,cmap='Greens',alpha=.5)    
 #pl.title('ben + nf')    
 #pl.pause(.1)
-        
+
 #%%
 final_f_rate=5.0        
 #%%
@@ -179,13 +183,13 @@ templates=[]
 templates_path=[]
 corr_images=[]
 for reg,img,proj,rot,self_mot,do_mot in zip(regions,images,projections,do_rotate_template,do_self_motion_correct,do_motion_correct):
-            
-    print counter
+
+    print(counter)
     counter+=1   
     m=cb.load(proj+'/median_projection.tif',fr=1)
     templates_path.append(proj+'/median_projection.tif')
     m1=cb.load(proj+'/correlation_image.tif',fr=1)
-    
+
     masks=cse.utilities.nf_read_roi_zip(reg+'/ben_regions.zip',m.shape) 
     masks_nf=None
 #    masks_nf=cse.utilities.nf_load_masks(reg+'/regions.json',m.shape)    
@@ -197,7 +201,7 @@ for reg,img,proj,rot,self_mot,do_mot in zip(regions,images,projections,do_rotate
     if self_mot and do_mot:
         m=None
         m1=None
-        
+
     masks_all.append(masks)  
     masks_all_nf.append(masks_nf)
     templates.append(m)
@@ -250,10 +254,10 @@ counter=0
 for reg,img,proj,masks,template,c_img,masks_nf in zip(regions,images,projections,masks_all,templates,corr_images,masks_all_nf):
     pl.subplot(5,6,counter+1)
 
-    print counter
-    
+    print(counter)
+
     counter+=1   
-    
+
     template[np.isnan(c_img)]=0
 
     lq,hq=np.percentile(c_img,[5,95])
@@ -261,7 +265,7 @@ for reg,img,proj,masks,template,c_img,masks_nf in zip(regions,images,projections
     pl.imshow(c_img,cmap='gray',vmin=lq,vmax=hq)
     pl.imshow(np.sum(masks,0),cmap='hot',alpha=.3)
     pl.imshow(np.sum(masks_nf,0),cmap='Greens',alpha=.3)
-    
+
     pl.axis('off')
     pl.title(img.split('/')[-2])
     pl.pause(.1)
@@ -269,7 +273,7 @@ for reg,img,proj,masks,template,c_img,masks_nf in zip(regions,images,projections
 xy_shifts=[]
 for fl,tmpl in zip(fls,tmpls):
     if os.path.exists(fl[:-3]+'npz'):
-        print fl[:-3]+'npz'
+        print((fl[:-3]+'npz'))
         with np.load(fl[:-3]+'npz') as ld:
             xy_shifts.append(ld['shifts'])
     else:
@@ -287,8 +291,8 @@ for bf in base_folders:
         fls.sort(key=lambda fn: np.int(re.findall('_[0-9]{1,5}_d1_',fn)[0][1:-4]))
     except:
         fls.sort() 
-        print fls
-        
+        print(fls)
+
     base_name_='TOTAL_'
     n_chunks_=6
     dview_=None
@@ -331,18 +335,18 @@ def create_average_image(fname):
     if not os.path.exists(fname[:-5]+'_avg_image.npy'):    
         import ca_source_extraction as cse
         import numpy as np
-    
+
         Yr,dims,T=cse.utilities.load_memmap(fname)
         img=np.mean(Yr,-1)
         img=np.reshape(img,dims,order='F')
         np.save(fname[:-5]+'_avg_image.npy',np.array(img))
         return img
-        
+
     return None
 #%%    
-  
+
 #%% create average images so that one could look at them
-b_dview=c.load_balanced_view(targets=range(1,len(c),3))
+b_dview=c.load_balanced_view(targets=list(range(1,len(c),3)))
 images=b_dview.map_sync(create_average_image,names_map)
 np.save('all_averages.npy',np.array(images))
 #%% in order to maximally parallelize, we pass portions of work to differet workers
@@ -355,8 +359,8 @@ for bf in base_folders:
         fls.sort(key=lambda fn: np.int(re.findall('_[0-9]{1,5}_d1_',fn)[0][1:-4]))
     except:
         fls.sort() 
-        print fls
-        
+        print(fls)
+
     base_name_='TOTAL_'
     n_chunks_=6
     dview_=None
@@ -386,7 +390,7 @@ counter=0
 pl.close('all')    
 for nm,tmpl,masks in zip(fnames_mmap,templates,masks_all):
     pl.subplot(5,6,counter+1)
-    print nm
+    print(nm)
     Yr,dims,T=cse.utilities.load_memmap(nm)    
     d1,d2=dims
     Y=np.reshape(Yr,dims+(T,),order='F')
@@ -405,7 +409,7 @@ for nm,tmpl,masks,avg_img in zip(fnames_mmap,templates,masks_all,imgs_avg_mmap):
 counter=0     
 for reg,img,proj,masks,template in zip(regions,images,projections,masks_all,templates):
     pl.subplot(5,6,counter+1)
-    print counter
+    print(counter)
     movie_files= glob.glob(img+'/*.mmap')
     m=cb.load(movie_files[0],fr=6) 
     template=np.mean(m,0)
@@ -421,13 +425,13 @@ if 0:
         if os.path.isfile(f[:-3]+'hdf5'):
             1
         else:
-            print 1
+            print((1))
             fnames1.append(f)
     #%% motion correct
     t1 = time()
     file_res=cb.motion_correct_parallel(fnames1,fr=30,template=None,margins_out=0,max_shift_w=45, max_shift_h=45,dview=None,apply_smooth=True)
     t2=time()-t1
-    print t2        
+    print(t2)        
 #%% LOGIN TO MASTER NODE
 # TYPE salloc -n n_nodes --exclusive
 # source activate environment_name
@@ -444,19 +448,19 @@ else:
     cse.utilities.stop_server()
     cse.utilities.start_server()
     client_ = Client()
-print 'Using '+ str(len(client_)) + ' processes'
+print(('Using '+ str(len(client_)) + ' processes'))
 
 #%% motion correct
 t1 = time()
 file_res=cb.motion_correct_parallel(fnames,fr=30,template=None,margins_out=0,max_shift_w=45, max_shift_h=45,dview=client_[::2],apply_smooth=True)
 t2=time()-t1
-print t2  
+print(t2)  
 
 #%%   
 all_movs=[]
 counter=0
 for f in  fls:
-    print f
+    print(f)
     with np.load(f[:-3]+'npz') as fl:
         pl.subplot(6,5,counter+1)
 #        pl.imshow(fl['template'],cmap=pl.cm.gray)
@@ -479,13 +483,13 @@ all_movs.play(backend='opencv',gain=5,fr=30)
 t1 = time()
 file_res=cb.motion_correct_parallel(fnames,30,template=template,margins_out=0,max_shift_w=45, max_shift_h=45,dview=client_[::2],remove_blanks=False)
 t2=time()-t1
-print t2
+print(t2)
 #%%
 fnames=[]
 for file in glob.glob(base_folder+'k31_20160107_MMP_150um_65mW_zoom2p2_000*[0-9].hdf5'):
-        fnames.append(file)
+    fnames.append(file)
 fnames.sort()
-print fnames  
+print(fnames)  
 #%%
 file_res=cb.utils.pre_preprocess_movie_labeling(client_[::2], fnames, median_filter_size=(2,1,1), 
                                   resize_factors=[.2,.1666666666],diameter_bilateral_blur=4)
@@ -502,7 +506,7 @@ os.mkdir(fold)
 #%%
 files=glob.glob(fnames[0][:-20]+'*BL_compress_.tif')
 files.sort()
-print files
+print(files)
 #%%
 m=cb.load_movie_chain(files,fr=3)
 m.play(backend='opencv',gain=10,fr=40)
@@ -511,7 +515,7 @@ m.save(files[0][:-20]+'_All_BL.tif')
 #%%
 files=glob.glob(fnames[0][:-20]+'*[0-9]._compress_.tif')
 files.sort()
-print files
+print(files)
 #%%
 m=cb.load_movie_chain(files,fr=3)
 m.play(backend='opencv',gain=3,fr=40)

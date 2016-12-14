@@ -4,6 +4,7 @@ Created on Tue Jun 30 21:01:17 2015
 
 @author: agiovann
 """
+from __future__ import print_function
 
 #%%
 import numpy as np
@@ -46,13 +47,13 @@ def get_image_description_SI(fname):
     image_descriptions=[]
     tf=tifffile.TiffFile(fname)
     for idx,pag in enumerate(tf.pages):
-            if idx%1000==0:
-                print(idx)
+        if idx%1000==0:
+            print(idx)
     #        i2cd=si_parse(pag.tags['image_description'].value)['I2CData']
-            field=pag.tags['image_description'].value
-            
-            image_descriptions.append(si_parse(field))
-    
+        field=pag.tags['image_description'].value
+
+        image_descriptions.append(si_parse(field))
+
     return image_descriptions
-    
-   
+
+

@@ -3,10 +3,14 @@
 Created on Tue Sep  1 16:11:25 2015
 @author: Eftychios A. Pnevmatikakis, based on an implementation by T. Machado,  Andrea Giovannucci & Ben Deverett
 """
+from __future__ import division
+from __future__ import print_function
 
 # -*- coding: utf-8 -*-
 # Written by
 
+from builtins import range
+from past.utils import old_div
 import numpy as np
 import scipy.signal
 import scipy.linalg
@@ -99,7 +103,7 @@ def constrained_foopsi(fluor, bl=None,  c1=None, g=None,  sn=None, p=None, metho
                 fluor,  g, sn, b=bl, c1=c1, bas_nonneg=bas_nonneg, solvers=solvers)
 
         elif method == 'oasis':
-            from oasis import constrained_oasisAR1
+            from caiman.source_extraction.cnmf.oasis import constrained_oasisAR1
             if p == 1:
                 if bl is None:
                     c, sp, bl, g, _ = constrained_oasisAR1(
@@ -121,7 +125,7 @@ def constrained_foopsi(fluor, bl=None,  c1=None, g=None,  sn=None, p=None, metho
                     c, sp, _, g, _ = constrained_oasisAR2(
                         fluor - bl, g, sn, optimize_b=False, penalty=1)
                 c1 = c[0]
-                d = (g[0] + sqrt(g[0] * g[0] + 4 * g[1])) / 2
+                d = old_div((g[0] + sqrt(g[0] * g[0] + 4 * g[1])), 2)
                 c -= c1 * d**np.arange(len(fluor))
             else:
                 raise Exception('OASIS is currently only implemented for p=1 and p=2')
@@ -162,7 +166,7 @@ def cvxopt_foopsi(fluor, b, c1, g, sn, p, bas_nonneg, verbosity):
     T = len(fluor)
 
     # construct deconvolution matrix  (sp = G*c)
-    G = spmatrix(1., range(T), range(T), (T, T))
+    G = spmatrix(1., list(range(T)), list(range(T)), (T, T))
 
     for i in range(p):
         G = G + spmatrix(-g[i], np.arange(i + 1, T), np.arange(T - i - 1), (T, T))
@@ -223,22 +227,22 @@ def cvxopt_foopsi(fluor, b, c1, g, sn, p, bas_nonneg, verbosity):
         warn('Original problem infeasible. Adjusting noise level and re-solving')
         # setup quadratic problem with cvxopt
         solvers.options['show_progress'] = verbosity
-        ind_rows = range(T)
-        ind_cols = range(T)
+        ind_rows = list(range(T))
+        ind_cols = list(range(T))
         vals = np.ones(T)
         if flag_b:
-            ind_rows = ind_rows + range(T)
+            ind_rows = ind_rows + list(range(T))
             ind_cols = ind_cols + [T] * T
             vals = np.concatenate((vals, np.ones(T)))
         if flag_c1:
-            ind_rows = ind_rows + range(T)
+            ind_rows = ind_rows + list(range(T))
             ind_cols = ind_cols + [T + cnt - 1] * T
             vals = np.concatenate((vals, np.squeeze(gd_vec)))
         P = spmatrix(vals, ind_rows, ind_cols, (T, T + cnt))
         H = P.T * P
         Py = P.T * matrix(fluor.astype(float))
         sol = solvers.qp(
-            H, -Py, spdiag([-G, -spmatrix(1., range(cnt), range(cnt))]), matrix(0., (T + cnt, 1)))
+            H, -Py, spdiag([-G, -spmatrix(1., list(range(cnt)), list(range(cnt)))]), matrix(0., (T + cnt, 1)))
         xx = sol['x']
         c = np.array(xx[:T])
         sp = np.array(G * matrix(c))
@@ -247,7 +251,7 @@ def cvxopt_foopsi(fluor, b, c1, g, sn, p, bas_nonneg, verbosity):
             b = np.array(xx[T + 1]) + b_lb
         if flag_c1:
             c1 = np.array(xx[-1])
-        sn = np.linalg.norm(fluor - c - c1 * gd_vec - b) / np.sqrt(T)
+        sn = old_div(np.linalg.norm(fluor - c - c1 * gd_vec - b), np.sqrt(T))
     else:  # readout picos solution
         c = np.squeeze(calcium_fit.value)
         sp = np.squeeze(np.asarray(G * calcium_fit.value))
@@ -342,12 +346,12 @@ def cvxpy_foopsi(fluor,  g, sn, b=None, c1=None, bas_nonneg=True, solvers=None):
         if not (prob.status == 'optimal' or prob.status == 'optimal_inaccurate'):
             raise ValueError('Problem solved suboptimally or unfeasible')
 
-        print 'PROBLEM STATUS:' + prob.status
+        print(('PROBLEM STATUS:' + prob.status))
         sys.stdout.flush()
     except (ValueError, cvx.SolverError) as err:     # if solvers fail to solve the problem
         #         print(err)
         #         sys.stdout.flush()
-        lam = sn / 500
+        lam = old_div(sn, 500)
         constraints = constraints[:-1]
         objective = cvx.Minimize(cvx.norm(-c + fluor - b - gd_vec *
                                           c1, 2) + lam * cvx.norm(G * c, 1))
@@ -358,7 +362,7 @@ def cvxpy_foopsi(fluor,  g, sn, b=None, c1=None, bas_nonneg=True, solvers=None):
                 sys.stdout.flush()
                 result = prob.solve(solver=solvers[0])
             except:
-                print(solvers[0] + ' DID NOT WORK TRYING ' + solvers[1])
+                print((solvers[0] + ' DID NOT WORK TRYING ' + solvers[1]))
                 result = prob.solve(solver=solvers[1])
         except:
             sys.stderr.write(
@@ -368,7 +372,7 @@ def cvxpy_foopsi(fluor,  g, sn, b=None, c1=None, bas_nonneg=True, solvers=None):
             raise
 
         if not (prob.status == 'optimal' or prob.status == 'optimal_inaccurate'):
-            print 'PROBLEM STATUS:' + prob.status
+            print(('PROBLEM STATUS:' + prob.status))
             sp = fluor
             c = fluor
             b = 0
@@ -441,16 +445,16 @@ def _nnls(KK, Ky, s=None, mask=None, tol=1e-9, max_iter=None):
             mu = np.linalg.inv(KK[P][:, P]).dot(Ky[P])
         except:
             mu = np.linalg.inv(KK[P][:, P] + tol * np.eye(P.sum())).dot(Ky[P])
-            print r'added $\epsilon$I to avoid singularity'
+            print(r'added $\epsilon$I to avoid singularity')
         while len(mu > 0) and min(mu) < 0:
-            a = min(s[P][mu < 0] / (s[P][mu < 0] - mu[mu < 0]))
+            a = min(old_div(s[P][mu < 0], (s[P][mu < 0] - mu[mu < 0])))
             s[P] += a * (mu - s[P])
             P[s <= tol] = False
             try:
                 mu = np.linalg.inv(KK[P][:, P]).dot(Ky[P])
             except:
                 mu = np.linalg.inv(KK[P][:, P] + tol * np.eye(P.sum())).dot(Ky[P])
-                print r'added $\epsilon$I to avoid singularity'
+                print(r'added $\epsilon$I to avoid singularity')
         s[P] = mu.copy()
         l = Ky - KK[:, P].dot(s[P])
         if max(l) < tol:
@@ -518,9 +522,9 @@ def onnls(y, g, lam=0, shift=100, window=200, mask=None, tol=1e-9, max_iter=None
         _y = y - lam * (1 - g[0] - g[1])
         _y[-2] = y[-2] - lam * (1 - g[0])
         _y[-1] = y[-1] - lam
-        d = (g[0] + sqrt(g[0] * g[0] + 4 * g[1])) / 2
-        r = (g[0] - sqrt(g[0] * g[0] + 4 * g[1])) / 2
-        h = (np.exp(log(d) * np.arange(1, w + 1)) - np.exp(log(r) * np.arange(1, w + 1))) / (d - r)
+        d = old_div((g[0] + sqrt(g[0] * g[0] + 4 * g[1])), 2)
+        r = old_div((g[0] - sqrt(g[0] * g[0] + 4 * g[1])), 2)
+        h = old_div((np.exp(log(d) * np.arange(1, w + 1)) - np.exp(log(r) * np.arange(1, w + 1))), (d - r))
         for i in range(w):
             K[i:, i] = h[:w - i]
     else:  # arbitrary kernel
@@ -597,11 +601,11 @@ def constrained_oasisAR2(y, g, sn, optimize_b=True, b_nonneg=True, optimize_g=0,
     """
 
     T = len(y)
-    d = (g[0] + sqrt(g[0] * g[0] + 4 * g[1])) / 2
-    r = (g[0] - sqrt(g[0] * g[0] + 4 * g[1])) / 2
+    d = old_div((g[0] + sqrt(g[0] * g[0] + 4 * g[1])), 2)
+    r = old_div((g[0] - sqrt(g[0] * g[0] + 4 * g[1])), 2)
     if not optimize_g:
-        g11 = (np.exp(log(d) * np.arange(1, T + 1)) -
-               np.exp(log(r) * np.arange(1, T + 1))) / (d - r)
+        g11 = old_div((np.exp(log(d) * np.arange(1, T + 1)) -
+               np.exp(log(r) * np.arange(1, T + 1))), (d - r))
         g12 = np.append(0, g[1] * g11[:-1])
         g11g11 = np.cumsum(g11 * g11)
         g11g12 = np.cumsum(g11 * g12)
@@ -610,22 +614,22 @@ def constrained_oasisAR2(y, g, sn, optimize_b=True, b_nonneg=True, optimize_g=0,
     thresh = sn * sn * T
     # get initial estimate of b and lam on downsampled data using AR1 model
     if decimate > 0:
-        from oasis import constrained_oasisAR1
+        from caiman.source_extraction.cnmf.oasis  import constrained_oasisAR1
         _, s, b, aa, lam = constrained_oasisAR1(y.reshape(-1, decimate).mean(1),
-                                                d**decimate, sn / sqrt(decimate),
+                                                d**decimate, old_div(sn, sqrt(decimate)),
                                                 optimize_b=optimize_b, optimize_g=optimize_g)
         if optimize_g > 0:
-            d = aa**(1. / decimate)
+            d = aa**(old_div(1., decimate))
             g[0] = d + r
             g[1] = -d * r
-            g11 = (np.exp(log(d) * np.arange(1, T + 1)) -
-                   np.exp(log(r) * np.arange(1, T + 1))) / (d - r)
+            g11 = old_div((np.exp(log(d) * np.arange(1, T + 1)) -
+                   np.exp(log(r) * np.arange(1, T + 1))), (d - r))
             g12 = np.append(0, g[1] * g11[:-1])
             g11g11 = np.cumsum(g11 * g11)
             g11g12 = np.cumsum(g11 * g12)
             Sg11 = np.cumsum(g11)
             f_lam = 1 - g[0] - g[1]
-        lam *= (1 - d**decimate) / f_lam
+        lam *= old_div((1 - d**decimate), f_lam)
         ff = np.hstack([a * decimate + np.arange(-decimate, decimate)
                         for a in np.where(s > 1e-6)[0]])  # this window size seems necessary and sufficient
         ff = np.unique(ff[(ff >= 0) * (ff < T)])
@@ -655,16 +659,16 @@ def constrained_oasisAR2(y, g, sn, optimize_b=True, b_nonneg=True, optimize_g=0,
                 l = ls[i + 1] - f - 1
                 # if and elif correct last 2 time points for |s|_1 instead |c|_1
                 if i == len(ls) - 2:  # last pool
-                    tmp[f] = (1. / f_lam if l == 0 else
-                              (Sg11[l] + g[1] / f_lam * g11[l - 1]
+                    tmp[f] = (old_div(1., f_lam) if l == 0 else
+                              old_div((Sg11[l] + g[1] / f_lam * g11[l - 1]
                                + (g[0] + g[1]) / f_lam * g11[l]
-                               - g11g12[l] * tmp[f - 1]) / g11g11[l])
+                               - g11g12[l] * tmp[f - 1]), g11g11[l]))
                 # secondlast pool if last one has length 1
                 elif i == len(ls) - 3 and ls[-2] == T - 1:
-                    tmp[f] = (Sg11[l] + g[1] / f_lam * g11[l]
-                              - g11g12[l] * tmp[f - 1]) / g11g11[l]
+                    tmp[f] = old_div((Sg11[l] + g[1] / f_lam * g11[l]
+                              - g11g12[l] * tmp[f - 1]), g11g11[l])
                 else:  # all other pools
-                    tmp[f] = (Sg11[l] - g11g12[l] * tmp[f - 1]) / g11g11[l]
+                    tmp[f] = old_div((Sg11[l] - g11g12[l] * tmp[f - 1]), g11g11[l])
                 l += 1
                 tmp[f + 1:f + l] = g11[1:l] * tmp[f] + g12[1:l] * tmp[f - 1]
 
@@ -672,20 +676,20 @@ def constrained_oasisAR2(y, g, sn, optimize_b=True, b_nonneg=True, optimize_g=0,
             bb = res.dot(tmp)
             cc = RSS - thresh
             try:
-                db = (-bb + sqrt(bb * bb - aa * cc)) / aa
+                db = old_div((-bb + sqrt(bb * bb - aa * cc)), aa)
             except:
-                db = -bb / aa
+                db = old_div(-bb, aa)
             # perform shift
             b += db
             c, s = onnls(y - b, g, lam=lam, mask=mask)
             db = np.mean(y - c) - b
             b += db
-            lam -= db / f_lam
+            lam -= old_div(db, f_lam)
 
     else:  # optimize b
         db = max(np.mean(y - c), 0 if b_nonneg else -np.inf) - b
         b += db
-        lam -= db / (1 - g[0] - g[1])
+        lam -= old_div(db, (1 - g[0] - g[1]))
         for i in range(max_iter - 1):
             res = y - c - b
             RSS = res.dot(res)
@@ -698,16 +702,16 @@ def constrained_oasisAR2(y, g, sn, optimize_b=True, b_nonneg=True, optimize_g=0,
             tmp[:l] = (1 + d) / (1 + d**l) * np.exp(log(d) * np.arange(l))  # first pool
             for i, f in enumerate(ls[:-1]):  # all other pools
                 l = ls[i + 1] - f
-                tmp[f] = (Sg11[l - 1] - g11g12[l - 1] * tmp[f - 1]) / g11g11[l - 1]
+                tmp[f] = old_div((Sg11[l - 1] - g11g12[l - 1] * tmp[f - 1]), g11g11[l - 1])
                 tmp[f + 1:f + l] = g11[1:l] * tmp[f] + g12[1:l] * tmp[f - 1]
             tmp -= tmp.mean()
             aa = tmp.dot(tmp)
             bb = res.dot(tmp)
             cc = RSS - thresh
             try:
-                db = (-bb + sqrt(bb * bb - aa * cc)) / aa
+                db = old_div((-bb + sqrt(bb * bb - aa * cc)), aa)
             except:
-                db = -bb / aa
+                db = old_div(-bb, aa)
             # perform shift
             if b_nonneg:
                 db = max(db, -b)
@@ -715,7 +719,7 @@ def constrained_oasisAR2(y, g, sn, optimize_b=True, b_nonneg=True, optimize_g=0,
             c, s = onnls(y - b, g, lam=lam, mask=mask)
             db = np.mean(y - c) - b
             b += db
-            lam -= db / f_lam
+            lam -= old_div(db, f_lam)
 
     if penalty == 0:  # get (locally optimal) L0 solution
 
@@ -727,12 +731,12 @@ def constrained_oasisAR2(y, g, sn, optimize_b=True, b_nonneg=True, optimize_g=0,
                           / (1 - d**(2 * l))) * np.exp(log(d) * np.arange(l))
             for i, f in enumerate(ls[:-1]):  # all other pools
                 l = ls[i + 1] - f
-                tmp[f] = (g11[:l].dot(y[f:f + l])
-                          - g11g12[l - 1] * tmp[f - 1]) / g11g11[l - 1]
+                tmp[f] = old_div((g11[:l].dot(y[f:f + l])
+                          - g11g12[l - 1] * tmp[f - 1]), g11g11[l - 1])
                 tmp[f + 1:f + l] = g11[1:l] * tmp[f] + g12[1:l] * tmp[f - 1]
             return tmp
         spikesizes = np.sort(s[s > 1e-6])
-        i = len(spikesizes) / 2
+        i = old_div(len(spikesizes), 2)
         l = 0
         u = len(spikesizes) - 1
         while u - l > 1:
@@ -742,11 +746,11 @@ def constrained_oasisAR2(y, g, sn, optimize_b=True, b_nonneg=True, optimize_g=0,
             RSS = res.dot(res)
             if RSS < thresh or i == 0:
                 l = i
-                i = (l + u) / 2
+                i = old_div((l + u), 2)
                 res0 = tmp
             else:
                 u = i
-                i = (l + u) / 2
+                i = old_div((l + u), 2)
         if i > 0:
             c = res0
             s = np.append([0, 0], c[2:] - g[0] * c[1:-1] - g[1] * c[:-2])
@@ -817,7 +821,7 @@ def estimate_time_constant(fluor, p=2, sn=None, lags=5, fudge_factor=1.):
     # print A, xc
     g = np.linalg.lstsq(A, xc[lags + 1:])[0]
     gr = np.roots(np.concatenate([np.array([1]), -g.flatten()]))
-    gr = (gr + gr.conjugate()) / 2.
+    gr = old_div((gr + gr.conjugate()), 2.)
     gr[gr > 1] = 0.95 + np.random.normal(0, 0.01, np.sum(gr > 1))
     gr[gr < 0] = 0.15 + np.random.normal(0, 0.01, np.sum(gr < 0))
     g = np.poly(fudge_factor * gr)
@@ -850,9 +854,9 @@ def GetSn(fluor, range_ff=[0.25, 0.5], method='logmexp'):
     ind = np.logical_and(ind1, ind2)
     Pxx_ind = Pxx[ind]
     sn = {
-        'mean': lambda Pxx_ind: np.sqrt(np.mean(Pxx_ind / 2)),
-        'median': lambda Pxx_ind: np.sqrt(np.median(Pxx_ind / 2)),
-        'logmexp': lambda Pxx_ind: np.sqrt(np.exp(np.mean(np.log(Pxx_ind / 2))))
+        'mean': lambda Pxx_ind: np.sqrt(np.mean(old_div(Pxx_ind, 2))),
+        'median': lambda Pxx_ind: np.sqrt(np.median(old_div(Pxx_ind, 2))),
+        'logmexp': lambda Pxx_ind: np.sqrt(np.exp(np.mean(np.log(old_div(Pxx_ind, 2)))))
     }[method](Pxx_ind)
 
     return sn
@@ -881,7 +885,7 @@ def axcov(data, maxlag=5):
     xcov = np.concatenate([xcov[np.arange(xcov.size - maxlag, xcov.size)],
                            xcov[np.arange(0, maxlag + 1)]])
     #xcov = xcov/np.concatenate([np.arange(T-maxlag,T+1),np.arange(T-1,T-maxlag-1,-1)])
-    return np.real(xcov / T)
+    return np.real(old_div(xcov, T))
 
 
 def nextpow2(value):

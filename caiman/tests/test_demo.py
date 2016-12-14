@@ -1,3 +1,4 @@
+from __future__ import print_function
 import caiman as cm
 from caiman.source_extraction import cnmf as cnmf
 from caiman.cluster import start_server,stop_server
@@ -7,11 +8,11 @@ import numpy.testing as npt
 
 def test_demo():
     try:
-    #    %load_ext autoreload
-    #    %autoreload 2
-        print 1
+    #    get_ipython().magic(u'load_ext autoreload')
+    #    get_ipython().magic(u'autoreload 2')
+        print((1))
     except:
-        print 'NOT IPYTHON'
+        print('NOT IPYTHON')
 
 
     from matplotlib import pyplot as plt
@@ -33,7 +34,7 @@ def test_demo():
     p = 2
 
     # %% start cluster for efficient computation
-    print "Stopping  cluster to avoid unnecessary use of memory...."
+    print("Stopping  cluster to avoid unnecessary use of memory....")
     sys.stdout.flush()
     stop_server()
 
@@ -61,7 +62,7 @@ def test_demo():
     t1 = time()
     Yr, sn, g, psx = cnmf.pre_processing.preprocess_data(Yr, **options['preprocess_params'])
     Atmp, Ctmp, b_in, f_in, center = cnmf.initialization.initialize_components(Y, **options['init_params'])
-    print time() - t1
+    print((time() - t1))
     plt.show(block=False)
 
 
@@ -76,7 +77,7 @@ def test_demo():
     # %% UPDATE SPATIAL COMPONENTS
     A, b, Cin  = cnmf.spatial.update_spatial_components(Yr, Cin, f_in, Ain, sn=sn, **options['spatial_params'])
 
-    print(A.sum())
+    print((A.sum()))
 
     #print(options['spatial_params'])
     A2, b2, temp  = cnmf.spatial.update_spatial_components(Yr, Cin, f_in, Ain, sn=sn, **options['spatial_params'])

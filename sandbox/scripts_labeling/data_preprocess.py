@@ -1,3 +1,5 @@
+from __future__ import division
+from __future__ import print_function
 # example python script for loading neurofinder data
 #
 # for more info see:
@@ -12,8 +14,12 @@
 # - matplotlib
 #
 #%%
-%load_ext autoreload
-%autoreload 2
+from builtins import zip
+from builtins import map
+from builtins import str
+from past.utils import old_div
+get_ipython().magic('load_ext autoreload')
+get_ipython().magic('autoreload 2')
 import matplotlib.pyplot as plt
 import ca_source_extraction as cse
 import calblitz as cb
@@ -67,7 +73,7 @@ if backend == 'SLURM':
     n_processes = np.int(os.environ.get('SLURM_NPROCS'))
 else:
     n_processes = np.maximum(np.int(psutil.cpu_count()),1) # roughly number of cores on your machine minus 1
-print 'using ' + str(n_processes) + ' processes'
+print(('using ' + str(n_processes) + ' processes'))
 single_thread=False
 
 if single_thread:
@@ -76,14 +82,14 @@ else:
     try:
         c.close()
     except:
-        print 'C was not existing, creating one'
-    print "Stopping  cluster to avoid unnencessary use of memory...."
+        print('C was not existing, creating one')
+    print("Stopping  cluster to avoid unnencessary use of memory....")
     sys.stdout.flush()  
     if backend == 'SLURM':
         try:
             cse.utilities.stop_server(is_slurm=True)
         except:
-            print 'Nothing to stop'
+            print('Nothing to stop')
         slurm_script='/mnt/xfs1/home/agiovann/SOFTWARE/Constrained_NMF/SLURM/slurmStart.sh'
         cse.utilities.start_server(slurm_script=slurm_script)
         pdir, profile = os.environ['IPPPDIR'], os.environ['IPPPROFILE']
@@ -93,19 +99,19 @@ else:
         cse.utilities.start_server()        
         c=Client()
 
-    print 'Using '+ str(len(c)) + ' processes'
+    print(('Using '+ str(len(c)) + ' processes'))
     dview=c[:len(c)]
 #%%
 pars=[]
 for folder_in,f_rate in zip(folders,f_rates):
-    print folder_in, f_rate
+    print((folder_in, f_rate))
     pars.append([folder_in, f_rate])
 #%% '/mnt/ceph/users/agiovann/ImagingData/LABELLING/NEUROFINDER/neurofinder.00.00.test/']
-    
+
 #%%
 fls=c[:].map_sync(processor_placeholder,pars)        
 #%%
-fls=map(processor_placeholder,pars)        
+fls=list(map(processor_placeholder,pars))        
 
 #%%
 def processor_placeholder(pars):  
@@ -114,9 +120,9 @@ def processor_placeholder(pars):
     from  glob import glob
     folder_in,f_rate=pars
     fname_mov=os.path.join(os.path.split(folder_in)[0], os.path.split(folder_in)[-1] + 'MOV.hdf5')
-    print fname_mov    
+    print(fname_mov)    
     files=sorted(glob(os.path.join(os.path.split(folder_in)[0],'images/*.tif')))
-    print files
+    print(files)
     #% LOAD MOVIE HERE USE YOUR METHOD, Movie is frames x dim2 x dim2
     m=cb.load_movie_chain(files,fr=f_rate)      
     m.file_name=[os.path.basename(ttt) for ttt in m.file_name]
@@ -127,10 +133,10 @@ def processor_placeholder(pars):
 import os
 fls=[]
 for ffll in folders:
-    print(os.path.join(os.path.dirname(ffll),'MOV.hfd5'))    
+    print((os.path.join(os.path.dirname(ffll),'MOV.hfd5')))    
     fls.append(os.path.join(os.path.dirname(ffll),'MOV.hdf5'))
 #%%
-res=map(create_images_for_labeling,fls)             
+res=list(map(create_images_for_labeling,fls))             
 #%%
 def create_images_for_labeling(pars):
     import scipy.stats as st
@@ -138,58 +144,58 @@ def create_images_for_labeling(pars):
     import numpy as np
     import calblitz as cb
     from  glob import glob
-    
+
     try:
         f_name=pars
         cdir=os.path.dirname(f_name)
-        
-        print 'loading'
+
+        print('loading')
         m=cb.load(f_name)
-        
-        print 'corr image'
+
+        print('corr image')
         img=m.local_correlations(eight_neighbours=True)
         im=cb.movie(img,fr=1)
         im.save(os.path.join(cdir,'correlation_image.tif'))
-        
-        print 'std image'
+
+        print('std image')
         img=np.std(m,0)
         im=cb.movie(np.array(img),fr=1)
         im.save(os.path.join(cdir,'std_projection.tif'))
-    
-    
-        m1=m.resize(1,1,1./m.fr)   
-        
-    
-        print 'median image'
+
+
+        m1=m.resize(1,1,old_div(1.,m.fr))   
+
+
+        print('median image')
         img=np.median(m1,0)
         im=cb.movie(np.array(img),fr=1)
         im.save(os.path.join(cdir,'median_projection.tif'))     
 
-        print 'save BL'
+        print('save BL')
         m1=m1-img
         m1.save(os.path.join(cdir,'MOV_BL.tif'))
         m1=m1.bilateral_blur_2D()
         m1.save(os.path.join(cdir,'MOV_BL_BIL.tif'))
         m=np.array(m1)
-        
-        print 'max image'
+
+        print('max image')
         img=np.max(m,0)
         im=cb.movie(np.array(img),fr=1)
         im.save(os.path.join(cdir,'max_projection.tif'))           
-        
-        print 'skew image'
+
+        print('skew image')
         img=st.skew(m,0)
         im=cb.movie(img,fr=1)
         im.save(os.path.join(cdir,'skew_projection.tif'))
         del m
         del m1
-    except Exception, e:
-        
+    except Exception as e:
+
         return e
-        
+
     return f_name
-    
-    
-    
-    
-    
+
+
+
+
+

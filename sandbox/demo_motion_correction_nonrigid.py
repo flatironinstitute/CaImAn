@@ -4,12 +4,14 @@ Created on Mon Nov 21 15:53:15 2016
 
 @author: agiovann
 """
+from __future__ import print_function
 #%%
+from builtins import range
 try:
     if __IPYTHON__:
         # this is used for debugging purposes only. allows to reload classes when changed
-        get_ipython().magic(u'load_ext autoreload')
-        get_ipython().magic(u'autoreload 2')
+        get_ipython().magic('load_ext autoreload')
+        get_ipython().magic('autoreload 2')
 except NameError:
     print('Not IPYTHON')
     pass
@@ -28,7 +30,7 @@ m = cm.load('M_FLUO_4.tif')[:1000]
 t1  = time.time()
 mr,sft,xcr,template = m.copy().motion_correct(18,18,template=None)
 t2  = time.time() - t1
-print t2
+print(t2)
 add_to_movie = - np.min(m)
 
 #%%
@@ -50,11 +52,11 @@ xy_grids = []
 mc = np.zeros(m.shape)
 for count,img in enumerate(np.array(m)):
     if count % 10  == 0:
-        print count
+        print(count)
     mc[count],total_shift,start_step,xy_grid = tile_and_correct(img, template, strides, overlaps,(12,12), newoverlaps = None, \
                 newstrides = newstrides, upsample_factor_grid=4,\
                 upsample_factor_fft=10,show_movie=False,max_deviation_rigid=2,add_to_movie=add_to_movie)
-    
+
     total_shifts.append(total_shift)
     start_steps.append(start_step)
     xy_grids.append(xy_grid)

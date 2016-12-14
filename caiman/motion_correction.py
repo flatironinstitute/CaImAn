@@ -4,7 +4,14 @@ Created on Fri Mar  4 21:02:12 2016
 
 @author: agiovann, adapted from motion correction algorithm from Selmaan Chettih
 """
+from __future__ import division
+from __future__ import print_function
 #%%
+from builtins import zip
+from builtins import map
+from builtins import str
+from builtins import range
+from past.utils import old_div
 import numpy as np
 import pylab as pl
 import cv2 
@@ -30,23 +37,23 @@ from skimage.external.tifffile import TiffFile
 #%%
 def apply_shift_iteration(img,shift,border_nan=False):
 
-     
-     sh_x_n,sh_y_n = shift
-     w_i,h_i=img.shape
-     M = np.float32([[1,0,sh_y_n],[0,1,sh_x_n]])    
-     img = cv2.warpAffine(img,M,(h_i,w_i),flags=cv2.INTER_CUBIC)
-     if border_nan:  
-         max_w,max_h,min_w,min_h=0,0,0,0
-         max_h,max_w = np.ceil(np.maximum((max_h,max_w),shift)).astype(np.int)
-         min_h,min_w = np.floor(np.minimum((min_h,min_w),shift)).astype(np.int)
-         img[:max_h,:] = np.nan
-         if min_h < 0:
-             img[min_h:,:] = np.nan
-         img[:,:max_w] = np.nan 
-         if min_w < 0:
-             img[:,min_w:] = np.nan
-             
-     return  img
+
+    sh_x_n,sh_y_n = shift
+    w_i,h_i=img.shape
+    M = np.float32([[1,0,sh_y_n],[0,1,sh_x_n]])    
+    img = cv2.warpAffine(img,M,(h_i,w_i),flags=cv2.INTER_CUBIC)
+    if border_nan:  
+        max_w,max_h,min_w,min_h=0,0,0,0
+        max_h,max_w = np.ceil(np.maximum((max_h,max_w),shift)).astype(np.int)
+        min_h,min_w = np.floor(np.minimum((min_h,min_w),shift)).astype(np.int)
+        img[:max_h,:] = np.nan
+        if min_h < 0:
+            img[min_h:,:] = np.nan
+        img[:,:max_w] = np.nan 
+        if min_w < 0:
+            img[:,min_w:] = np.nan
+
+    return  img
 #%%
 def apply_shift_online(movie_iterable,xy_shifts,save_base_name=None,order='F'):
 
@@ -54,34 +61,34 @@ def apply_shift_online(movie_iterable,xy_shifts,save_base_name=None,order='F'):
         raise Exception('Number of shifts does not match movie length!')
     count=0
     new_mov=[]
-    
+
     dims=(len(movie_iterable),)+movie_iterable[0].shape
-    
-    
+
+
     if save_base_name is not None:
         fname_tot = save_base_name + '_d1_' + str(dims[1]) + '_d2_' + str(dims[2]) + '_d3_' + str(
                 1 if len(dims) == 3 else dims[3]) + '_order_' + str(order) + '_frames_' + str(dims[0]) + '_.mmap'
-                
+
         big_mov = np.memmap(fname_tot, mode='w+', dtype=np.float32,
                                 shape=(np.prod(dims[1:]), dims[0]), order=order)
-                                
+
 
     for page,shift in zip(movie_iterable,xy_shifts):  
-         if count%100 == 0:
-             print(count)
-             
-         if 'tifffile' in str(type(movie_iterable[0])):
-             page=page.asarray()
-                 
-         img=np.array(page,dtype=np.float32)
-         new_img = apply_shift_iteration(img,shift)
-         if save_base_name is not None:
-             big_mov[:,count] = np.reshape(new_img,np.prod(dims[1:]),order='F')
-         else:
-             new_mov.append(new_img)
-         
-         count+=1
-    
+        if count%100 == 0:
+            print(count)
+
+        if 'tifffile' in str(type(movie_iterable[0])):
+            page=page.asarray()
+
+        img=np.array(page,dtype=np.float32)
+        new_img = apply_shift_iteration(img,shift)
+        if save_base_name is not None:
+            big_mov[:,count] = np.reshape(new_img,np.prod(dims[1:]),order='F')
+        else:
+            new_mov.append(new_img)
+
+        count+=1
+
     if save_base_name is not None:
         big_mov.flush()
         del big_mov    
@@ -89,10 +96,10 @@ def apply_shift_online(movie_iterable,xy_shifts,save_base_name=None,order='F'):
     else:
         return np.array(new_mov) 
 #%%        
-  
+
 def motion_correct_online_multifile(list_files,add_to_movie,order = 'C', **kwargs):
-    
-    
+
+
     kwargs['order'] = order
     all_names  = []   
     all_shifts = [] 
@@ -103,7 +110,7 @@ def motion_correct_online_multifile(list_files,add_to_movie,order = 'C', **kwarg
     kwargs_['order'] = order
     total_frames = 0
     for file_ in list_files:
-        print 'Processing:' + file_
+        print(('Processing:' + file_))
         kwargs_['template'] = template
         kwargs_['save_base_name'] = file_[:-4]
         tffl = tifffile.TiffFile(file_)
@@ -113,201 +120,201 @@ def motion_correct_online_multifile(list_files,add_to_movie,order = 'C', **kwarg
         all_xcorrs.append(xcorrs)
         all_templates.append(template)
         total_frames = total_frames + len(shifts)
-    
 
 
-    
 
-    
+
+
+
     return all_names, all_shifts, all_xcorrs, all_templates
-        
-        
-    
+
+
+
 #%%
 def motion_correct_online(movie_iterable,add_to_movie,max_shift_w=25,max_shift_h=25,save_base_name=None,order = 'C',\
                         init_frames_template=100, show_movie=False, bilateral_blur=False,template=None, min_count=1000,\
                         border_to_0=0, n_iter = 1, remove_blanks=False,show_template=False,return_mov=False, use_median_as_template = False):
 
-     shifts=[];   # store the amount of shift in each frame
-     xcorrs=[]; 
-     
-     if remove_blanks and n_iter==1:
-         raise Exception('In order to remove blanks you need at least two iterations n_iter=2')
-            
-     
-     if 'tifffile' in str(type(movie_iterable[0])):   
-             if len(movie_iterable)==1:
-                 print('******** WARNING ****** NEED TO LOAD IN MEMORY SINCE SHAPE OF PAGE IS THE FULL MOVIE')
-                 movie_iterable = movie_iterable.asarray()
-                 init_mov=movie_iterable[:init_frames_template]
-                 
-             else:
-                 
-                 init_mov=[m.asarray() for m in movie_iterable[:init_frames_template]]
-     else:
-             init_mov=movie_iterable[slice(0,init_frames_template,1)]
-     
-     
-             
-         
-     dims=(len(movie_iterable),)+movie_iterable[0].shape 
-     print "dimensions:" + str(dims)      
-     
-     
-             
-     
-     if use_median_as_template:
+    shifts=[];   # store the amount of shift in each frame
+    xcorrs=[]; 
+
+    if remove_blanks and n_iter==1:
+        raise Exception('In order to remove blanks you need at least two iterations n_iter=2')
+
+
+    if 'tifffile' in str(type(movie_iterable[0])):   
+        if len(movie_iterable)==1:
+            print('******** WARNING ****** NEED TO LOAD IN MEMORY SINCE SHAPE OF PAGE IS THE FULL MOVIE')
+            movie_iterable = movie_iterable.asarray()
+            init_mov=movie_iterable[:init_frames_template]
+
+        else:
+
+            init_mov=[m.asarray() for m in movie_iterable[:init_frames_template]]
+    else:
+        init_mov=movie_iterable[slice(0,init_frames_template,1)]
+
+
+
+
+    dims=(len(movie_iterable),)+movie_iterable[0].shape 
+    print(("dimensions:" + str(dims)))      
+
+
+
+
+    if use_median_as_template:
         template = bin_median(movie_iterable)
-          
-     
-     if template is None:        
-         template = bin_median(init_mov)
-         count=init_frames_template
-         if np.percentile(template, 1) + add_to_movie < - 10:
-             raise Exception('Movie too negative, You need to add a larger value to the movie (add_to_movie)')
-         template=np.array(template + add_to_movie,dtype=np.float32)    
-     else:
-         if np.percentile(template, 1) < - 10:
-             raise Exception('Movie too negative, You need to add a larger value to the movie (add_to_movie)')
-         count=min_count
-         
-            
-     
-     min_mov = 0
-     buffer_size_frames=100          
-     buffer_size_template=100     
-     buffer_frames=collections.deque(maxlen=buffer_size_frames)  
-     buffer_templates=collections.deque(maxlen=buffer_size_template)  
-     max_w,max_h,min_w,min_h=0,0,0,0
-     
-     big_mov = None
-     if return_mov:
+
+
+    if template is None:        
+        template = bin_median(init_mov)
+        count=init_frames_template
+        if np.percentile(template, 1) + add_to_movie < - 10:
+            raise Exception('Movie too negative, You need to add a larger value to the movie (add_to_movie)')
+        template=np.array(template + add_to_movie,dtype=np.float32)    
+    else:
+        if np.percentile(template, 1) < - 10:
+            raise Exception('Movie too negative, You need to add a larger value to the movie (add_to_movie)')
+        count=min_count
+
+
+
+    min_mov = 0
+    buffer_size_frames=100          
+    buffer_size_template=100     
+    buffer_frames=collections.deque(maxlen=buffer_size_frames)  
+    buffer_templates=collections.deque(maxlen=buffer_size_template)  
+    max_w,max_h,min_w,min_h=0,0,0,0
+
+    big_mov = None
+    if return_mov:
         mov=[]   
-     else:
+    else:
         mov = None
-     
-     
-     for n in range(n_iter):  
-         
-         if n>0:
-             count = init_frames_template
-             
+
+
+    for n in range(n_iter):  
+
+        if n>0:
+            count = init_frames_template
+
 #         if (n>0) and  (n_iter == (n+1)):
 #             buffer_templates = collections.deque(list(buffer_templates)[-10:])
 #             
-         if (save_base_name is not None) and (big_mov is None) and (n_iter == (n+1)):  
+        if (save_base_name is not None) and (big_mov is None) and (n_iter == (n+1)):  
 
-             if remove_blanks:
-                 dims = (dims[0],dims[1]+min_h-max_h,dims[2]+min_w-max_w)
-                 
+            if remove_blanks:
+                dims = (dims[0],dims[1]+min_h-max_h,dims[2]+min_w-max_w)
 
-             fname_tot = save_base_name + '_d1_' + str(dims[1]) + '_d2_' + str(dims[2]) + '_d3_' + str(1 if len(dims) == 3 else dims[3]) + '_order_' + str(order) + '_frames_' + str(dims[0]) + '_.mmap'
-             big_mov = np.memmap(fname_tot, mode='w+', dtype=np.float32, shape=(np.prod(dims[1:]), dims[0]), order=order)       
 
-         else:
-             
-             fname_tot = None  
-         
-         shifts_tmp = []
-         xcorr_tmp = []
-         for idx_frame,page in enumerate(movie_iterable):  
-                               
-             if 'tifffile' in str(type(movie_iterable[0])):
-                 page=page.asarray()
-                     
-             img=np.array(page,dtype=np.float32)
-             img=img+add_to_movie
-             
-             new_img,template_tmp,shift,avg_corr = motion_correct_iteration(img,template,count,max_shift_w=max_shift_w,max_shift_h=max_shift_h,bilateral_blur=bilateral_blur)
-             
-             max_h,max_w = np.ceil(np.maximum((max_h,max_w),shift)).astype(np.int)
-             min_h,min_w = np.floor(np.minimum((min_h,min_w),shift)).astype(np.int)
-             
-             if count < (buffer_size_frames + init_frames_template):
-                 template_old=template
-                 template = template_tmp
-             else:
-                 template_old=template
-             buffer_frames.append(new_img)
-             
-             if count%100 == 0:
-                                  
-                 if count >= (buffer_size_frames + init_frames_template):
-                     buffer_templates.append(np.mean(buffer_frames,0))                     
-                     template = np.median(buffer_templates,0)
-                 
-                 if show_template:
-                     pl.cla()
-                     pl.imshow(template,cmap='gray',vmin=250,vmax=350,interpolation='none')
-                     pl.pause(.001)
-                 
-                 print 'Relative change in template:' + str(np.sum(np.abs(template-template_old))/np.sum(np.abs(template)))
-                 print 'Iteration:'+ str(count)
-                                                
-             if border_to_0 > 0:
+            fname_tot = save_base_name + '_d1_' + str(dims[1]) + '_d2_' + str(dims[2]) + '_d3_' + str(1 if len(dims) == 3 else dims[3]) + '_order_' + str(order) + '_frames_' + str(dims[0]) + '_.mmap'
+            big_mov = np.memmap(fname_tot, mode='w+', dtype=np.float32, shape=(np.prod(dims[1:]), dims[0]), order=order)       
+
+        else:
+
+            fname_tot = None  
+
+        shifts_tmp = []
+        xcorr_tmp = []
+        for idx_frame,page in enumerate(movie_iterable):  
+
+            if 'tifffile' in str(type(movie_iterable[0])):
+                page=page.asarray()
+
+            img=np.array(page,dtype=np.float32)
+            img=img+add_to_movie
+
+            new_img,template_tmp,shift,avg_corr = motion_correct_iteration(img,template,count,max_shift_w=max_shift_w,max_shift_h=max_shift_h,bilateral_blur=bilateral_blur)
+
+            max_h,max_w = np.ceil(np.maximum((max_h,max_w),shift)).astype(np.int)
+            min_h,min_w = np.floor(np.minimum((min_h,min_w),shift)).astype(np.int)
+
+            if count < (buffer_size_frames + init_frames_template):
+                template_old=template
+                template = template_tmp
+            else:
+                template_old=template
+            buffer_frames.append(new_img)
+
+            if count%100 == 0:
+
+                if count >= (buffer_size_frames + init_frames_template):
+                    buffer_templates.append(np.mean(buffer_frames,0))                     
+                    template = np.median(buffer_templates,0)
+
+                if show_template:
+                    pl.cla()
+                    pl.imshow(template,cmap='gray',vmin=250,vmax=350,interpolation='none')
+                    pl.pause(.001)
+
+                print(('Relative change in template:' + str(old_div(np.sum(np.abs(template-template_old)),np.sum(np.abs(template))))))
+                print(('Iteration:'+ str(count)))
+
+            if border_to_0 > 0:
                 new_img[:border_to_0,:]=min_mov
                 new_img[:,:border_to_0]=min_mov
                 new_img[:,-border_to_0:]=min_mov
                 new_img[-border_to_0:,:]=min_mov
-             
-             shifts_tmp.append(shift)
-             xcorr_tmp.append(avg_corr)
-             
-             if remove_blanks and n>0  and (n_iter == (n+1)):
-                      
-                      new_img = new_img[max_h:,:]
-                      if min_h < 0:
-                          new_img = new_img[:min_h,:]
-                      new_img = new_img[:,max_w:] 
-                      if min_w < 0:
-                          new_img = new_img[:,:min_w]
-                          
-             if (save_base_name is not None) and (n_iter == (n+1)):
-                          
-                  
-                 
-                  big_mov[:,idx_frame] = np.reshape(new_img,np.prod(dims[1:]),order='F')
-             
-             if return_mov and (n_iter == (n+1)):
-                 mov.append(new_img)
-             
-             if show_movie:
-                cv2.imshow('frame',new_img/500)
-                print shift
+
+            shifts_tmp.append(shift)
+            xcorr_tmp.append(avg_corr)
+
+            if remove_blanks and n>0  and (n_iter == (n+1)):
+
+                new_img = new_img[max_h:,:]
+                if min_h < 0:
+                    new_img = new_img[:min_h,:]
+                new_img = new_img[:,max_w:] 
+                if min_w < 0:
+                    new_img = new_img[:,:min_w]
+
+            if (save_base_name is not None) and (n_iter == (n+1)):
+
+
+
+                big_mov[:,idx_frame] = np.reshape(new_img,np.prod(dims[1:]),order='F')
+
+            if return_mov and (n_iter == (n+1)):
+                mov.append(new_img)
+
+            if show_movie:
+                cv2.imshow('frame',old_div(new_img,500))
+                print(shift)
                 if np.any(np.remainder(shift,1) == (0,0)):
                     1
 #                    cv2.waitKey(int(1000))
 
                 else:
-                
-                    cv2.waitKey(int(1./500*1000))
-                      
 
-             count+=1
-         shifts.append(shifts_tmp)
-         xcorrs.append(xcorr_tmp)
-         
-     if save_base_name is not None:
-        print 'Flushing memory'
+                    cv2.waitKey(int(1./500*1000))
+
+
+            count+=1
+        shifts.append(shifts_tmp)
+        xcorrs.append(xcorr_tmp)
+
+    if save_base_name is not None:
+        print('Flushing memory')
         big_mov.flush()
         del big_mov     
         gc.collect()
-        
-     
 
-     return shifts,xcorrs,template, fname_tot, np.dstack(mov).transpose([2,0,1])     
+
+
+    return shifts,xcorrs,template, fname_tot, np.dstack(mov).transpose([2,0,1])     
 #%%
 def motion_correct_iteration(img,template,frame_num,max_shift_w=25,max_shift_h=25,bilateral_blur=False,diameter=10,sigmaColor=10000,sigmaSpace=0):
 
     h_i, w_i = template.shape
     ms_h = max_shift_h
     ms_w = max_shift_w
-    
+
     if bilateral_blur:
         img=cv2.bilateralFilter(img,diameter,sigmaColor,sigmaSpace)    
 #    if 1:
     templ_crop=template[max_shift_h:h_i-max_shift_h,max_shift_w:w_i-max_shift_w].astype(np.float32)
-    
+
     h,w = templ_crop.shape
 
     res = cv2.matchTemplate(img,templ_crop,cv2.TM_CCORR_NORMED)
@@ -321,34 +328,34 @@ def motion_correct_iteration(img,template,frame_num,max_shift_w=25,max_shift_h=2
 #        res = cv2.matchTemplate(img_pad,templ_crop,cv2.TM_CCORR_NORMED)
 
     top_left = cv2.minMaxLoc(res)[3]
-         
+
 #    avg_corr=np.max(cv2.matchTemplate(img,template,cv2.TM_CCOEFF_NORMED))
     avg_corr=np.max(res)
 
     sh_y,sh_x = top_left
 
     if (0 < top_left[1] < 2 * ms_h-1) & (0 < top_left[0] < 2 * ms_w-1):
-         # if max is internal, check for subpixel shift using gaussian
-         # peak registration
-         log_xm1_y = np.log(res[sh_x-1,sh_y]);
-         log_xp1_y = np.log(res[sh_x+1,sh_y]);
-         log_x_ym1 = np.log(res[sh_x,sh_y-1]);
-         log_x_yp1 = np.log(res[sh_x,sh_y+1]);
-         four_log_xy = 4*np.log(res[sh_x,sh_y]);
+        # if max is internal, check for subpixel shift using gaussian
+        # peak registration
+        log_xm1_y = np.log(res[sh_x-1,sh_y]);
+        log_xp1_y = np.log(res[sh_x+1,sh_y]);
+        log_x_ym1 = np.log(res[sh_x,sh_y-1]);
+        log_x_yp1 = np.log(res[sh_x,sh_y+1]);
+        four_log_xy = 4*np.log(res[sh_x,sh_y]);
 
-         sh_x_n = -(sh_x - ms_h + (log_xm1_y - log_xp1_y) / (2 * log_xm1_y - four_log_xy + 2 * log_xp1_y))
-         sh_y_n = -(sh_y - ms_w + (log_x_ym1 - log_x_yp1) / (2 * log_x_ym1 - four_log_xy + 2 * log_x_yp1))
+        sh_x_n = -(sh_x - ms_h + old_div((log_xm1_y - log_xp1_y), (2 * log_xm1_y - four_log_xy + 2 * log_xp1_y)))
+        sh_y_n = -(sh_y - ms_w + old_div((log_x_ym1 - log_x_yp1), (2 * log_x_ym1 - four_log_xy + 2 * log_x_yp1)))
     else:
-         sh_x_n = -(sh_x - ms_h)
-         sh_y_n = -(sh_y - ms_w)
+        sh_x_n = -(sh_x - ms_h)
+        sh_y_n = -(sh_y - ms_w)
 
     M = np.float32([[1,0,sh_y_n],[0,1,sh_x_n]])
-    
+
     new_img = cv2.warpAffine(img,M,(w_i,h_i),flags=cv2.INTER_CUBIC)
-    
+
     new_templ=template*frame_num/(frame_num + 1) + 1./(frame_num + 1)*new_img     
     shift=[sh_x_n,sh_y_n]
-    
+
     return new_img,new_templ,shift,avg_corr
 #%%    
 def bin_median(mat,window=10,exclude_nans = False ):
@@ -359,25 +366,25 @@ def bin_median(mat,window=10,exclude_nans = False ):
 
     mat: ndarray
         input 3D matrix, time along first dimension
-    
+
     window: int
         number of frames in a bin
-        
-        
+
+
     Returns
     -------
     img: 
         median image   
-        
+
     '''
     T,d1,d2=np.shape(mat)
-    num_windows=np.int(T/window)
+    num_windows=np.int(old_div(T,window))
     num_frames=num_windows*window
     if exclude_nans:
         img=np.nanmedian(np.nanmean(np.reshape(mat[:num_frames],(window,num_windows,d1,d2)),axis=0),axis=0)    
     else:
         img=np.median(np.mean(np.reshape(mat[:num_frames],(window,num_windows,d1,d2)),axis=0),axis=0)        
-            
+
     return img
 #%% with buffer
 #    import skimage
@@ -598,7 +605,7 @@ def process_movie_parallel(arg_in):
 
 
     fname,fr,margins_out,template,max_shift_w, max_shift_h,remove_blanks,apply_smooth,save_hdf5=arg_in
-    
+
     if template is not None:
         if type(template) is str:
             if os.path.exists(template):
@@ -608,12 +615,12 @@ def process_movie_parallel(arg_in):
 #    with open(fname[:-4]+'.stout', "a") as log:
 #        print fname
 #        sys.stdout = log
-        
+
     #    import pdb
     #    pdb.set_trace()
     type_input = str(type(fname)) 
     if 'movie' in type_input:        
-        print type(fname)
+        print((type(fname)))
         Yr=fname
 
     elif ('ndarray' in type_input):        
@@ -622,14 +629,14 @@ def process_movie_parallel(arg_in):
         Yr=cm.load(fname,fr=fr)
     else:
         raise Exception('Unkown input type:' + type_input)
-   
+
     if Yr.ndim>1:
 
-        print 'loaded'    
+        print('loaded')    
 
         if apply_smooth:
 
-            print 'applying smoothing'
+            print('applying smoothing')
 
             Yr=Yr.bilateral_blur_2D(diameter=10,sigmaColor=10000,sigmaSpace=0)
 
@@ -637,29 +644,29 @@ def process_movie_parallel(arg_in):
 
  #       Yr=Yr-bl_yr     # needed to remove baseline
 
-        print 'Remove BL'
+        print('Remove BL')
 
         if margins_out!=0:
 
             Yr=Yr[:,margins_out:-margins_out,margins_out:-margins_out] # borders create troubles
 
-        print 'motion correcting'
+        print('motion correcting')
 
         Yr,shifts,xcorrs,template=Yr.motion_correct(max_shift_w=max_shift_w, max_shift_h=max_shift_h,  method='opencv',template=template,remove_blanks=remove_blanks) 
 
   #      Yr = Yr + bl_yr           
-        
+
         if ('movie' in type_input) or ('ndarray' in type_input):
-            print 'Returning Values'
+            print('Returning Values')
             return Yr, shifts, xcorrs, template
 
         else:     
-            
-            print 'median computing'        
+
+            print('median computing')        
 
             template=Yr.bin_median()
 
-            print 'saving'  
+            print('saving')  
 
             idx_dot=len(fname.split('.')[-1])
 
@@ -667,21 +674,21 @@ def process_movie_parallel(arg_in):
 
                 Yr.save(fname[:-idx_dot]+'hdf5')        
 
-            print 'saving 2'                 
+            print('saving 2')                 
 
             np.savez(fname[:-idx_dot]+'npz',shifts=shifts,xcorrs=xcorrs,template=template)
 
-            print 'deleting'        
+            print('deleting')        
 
             del Yr
 
-            print 'done!'
-        
+            print('done!')
+
             return fname[:-idx_dot] 
         #sys.stdout = sys.__stdout__ 
     else:
         return None
-           
+
 
 #%%
 def motion_correct_parallel(file_names,fr=10,template=None,margins_out=0,max_shift_w=5, max_shift_h=5,remove_blanks=False,apply_smooth=False,dview=None,save_hdf5=True):
@@ -694,7 +701,7 @@ def motion_correct_parallel(file_names,fr=10,template=None,margins_out=0,max_shi
         fr parameters for calcblitz movie 
     margins_out: int
         number of pixels to remove from the borders    
-    
+
     Return
     ------
     base file names of the motion corrected files
@@ -705,9 +712,9 @@ def motion_correct_parallel(file_names,fr=10,template=None,margins_out=0,max_shi
             args_in.append((f,fr,margins_out,template[file_idx],max_shift_w, max_shift_h,remove_blanks,apply_smooth,save_hdf5))
         else:
             args_in.append((f,fr,margins_out,template,max_shift_w, max_shift_h,remove_blanks,apply_smooth,save_hdf5))
-        
+
     try:
-        
+
         if dview is not None:
 #            if backend is 'SLURM':
 #                if 'IPPPDIR' in os.environ and 'IPPPROFILE' in os.environ:
@@ -724,27 +731,27 @@ def motion_correct_parallel(file_names,fr=10,template=None,margins_out=0,max_shi
             file_res = dview.map_sync(process_movie_parallel, args_in)                         
             dview.results.clear()       
 
-            
+
 
         else:
-            
-            file_res = map(process_movie_parallel, args_in)        
-                 
-        
-        
+
+            file_res = list(map(process_movie_parallel, args_in))        
+
+
+
     except :   
-        
+
         try:
             if dview is not None:
-                
+
                 dview.results.clear()       
 
         except UnboundLocalError as uberr:
 
-            print 'could not close client'
+            print('could not close client')
 
         raise
-                                    
+
     return file_res 
 
 #%%
@@ -804,16 +811,16 @@ def _upsampled_dft(data, upsampled_region_size,
     col_kernel = np.exp(
         (-1j * 2 * np.pi / (data.shape[1] * upsample_factor)) *
         (ifftshift(np.arange(data.shape[1]))[:, None] -
-         np.floor(data.shape[1] / 2)).dot(
+         np.floor(old_div(data.shape[1], 2))).dot(
              np.arange(upsampled_region_size[1])[None, :] - axis_offsets[1])
     )
     row_kernel = np.exp(
         (-1j * 2 * np.pi / (data.shape[0] * upsample_factor)) *
         (np.arange(upsampled_region_size[0])[:, None] - axis_offsets[0]).dot(
             ifftshift(np.arange(data.shape[0]))[None, :] -
-            np.floor(data.shape[0] / 2))
+            np.floor(old_div(data.shape[0], 2)))
     )
-    
+
 
     return row_kernel.dot(data).dot(col_kernel)
 
@@ -928,11 +935,11 @@ def register_translation(src_image, target_image, upsample_factor=1,
                          "and \"fourier\" values for the ``space`` argument.")
 
     # Whole-pixel shift - Compute cross-correlation by an IFFT
-    
+
     shape = src_freq.shape
     image_product = src_freq * target_freq.conj()
     if opencv:
-        
+
         image_product_cv = np.dstack([np.real(image_product),np.imag(image_product)])
         cross_correlation = fftn(image_product_cv,flags=cv2.DFT_INVERSE+cv2.DFT_SCALE)
         cross_correlation = cross_correlation[:,:,0]+1j*cross_correlation[:,:,1]
@@ -940,32 +947,32 @@ def register_translation(src_image, target_image, upsample_factor=1,
         shape = src_freq.shape
         image_product = src_freq * target_freq.conj()
         cross_correlation = ifftn(image_product)
-    
-    
+
+
     # Locate maximum
-    
+
     new_cross_corr  = np.abs(cross_correlation)
 
 
     if (shifts_lb is not None) or (shifts_ub is not None):
-        
+
         if  (shifts_lb[0]<0) and (shifts_ub[0]>=0):
             new_cross_corr[shifts_ub[0]:shifts_lb[0],:] = 0                                                                  
         else:
             new_cross_corr[:shifts_lb[0],:] = 0                
             new_cross_corr[shifts_ub[0]:,:] = 0    
-            
+
         if  (shifts_lb[1]<0) and (shifts_ub[1]>=0):      
             new_cross_corr[:,shifts_ub[1]:shifts_lb[1]] = 0                                                      
         else:
             new_cross_corr[:,:shifts_lb[1]] = 0    
             new_cross_corr[:,shifts_ub[1]:] = 0    
-            
-            
+
+
     else:
-    
+
         new_cross_corr[max_shifts[0]:-max_shifts[0],:] = 0   
-        
+
         new_cross_corr[:,max_shifts[1]:-max_shifts[1]] = 0
 
 #    pl.cla()
@@ -976,26 +983,26 @@ def register_translation(src_image, target_image, upsample_factor=1,
 #    pl.subplot(1,2,2)
 #    pl.imshow(new_cross_corr,interpolation = 'none',vmin = ranges[0],vmax = ranges[1])
 #    pl.pause(1)
-    
+
     maxima = np.unravel_index(np.argmax(new_cross_corr),
                               cross_correlation.shape)
-    midpoints = np.array([np.fix(axis_size / 2) for axis_size in shape])
+    midpoints = np.array([np.fix(old_div(axis_size, 2)) for axis_size in shape])
 
     shifts = np.array(maxima, dtype=np.float64)
     shifts[shifts > midpoints] -= np.array(shape)[shifts > midpoints]
 
     if upsample_factor == 1:
-        
-        src_amp = np.sum(np.abs(src_freq) ** 2) / src_freq.size
-        target_amp = np.sum(np.abs(target_freq) ** 2) / target_freq.size
+
+        src_amp = old_div(np.sum(np.abs(src_freq) ** 2), src_freq.size)
+        target_amp = old_div(np.sum(np.abs(target_freq) ** 2), target_freq.size)
         CCmax = cross_correlation.max()
     # If upsampling > 1, then refine estimate with matrix multiply DFT
     else:
         # Initial shift estimate in upsampled grid
-        shifts = np.round(shifts * upsample_factor) / upsample_factor
+        shifts = old_div(np.round(shifts * upsample_factor), upsample_factor)
         upsampled_region_size = np.ceil(upsample_factor * 1.5)
         # Center of output array at dftshift + 1
-        dftshift = np.fix(upsampled_region_size / 2.0)
+        dftshift = np.fix(old_div(upsampled_region_size, 2.0))
         upsample_factor = np.array(upsample_factor, dtype=np.float64)
         normalization = (src_freq.size * upsample_factor ** 2)
         # Matrix multiply DFT around the current shift estimate
@@ -1012,7 +1019,7 @@ def register_translation(src_image, target_image, upsample_factor=1,
                               cross_correlation.shape),
                           dtype=np.float64)
         maxima -= dftshift
-        shifts = shifts + maxima / upsample_factor
+        shifts = shifts + old_div(maxima, upsample_factor)
         CCmax = cross_correlation.max()
         src_amp = _upsampled_dft(src_freq * src_freq.conj(),
                                  1, upsample_factor)[0, 0]
@@ -1027,7 +1034,7 @@ def register_translation(src_image, target_image, upsample_factor=1,
         if shape[dim] == 1:
             shifts[dim] = 0
 
-    
+
 
     return shifts, src_freq,_compute_phasediff(CCmax) #, _compute_error(CCmax, src_amp, target_amp),\
         #_compute_phasediff(CCmax)
@@ -1040,7 +1047,7 @@ def apply_shifts_dft(src_freq, shifts, diffphase, is_freq = True, border_nan = F
         if is_freq it is fourier transform image else original image
     shifts: shifts to apply
     diffphase: comes from the register_translation output
-    
+
     '''
     shifts = shifts[::-1]
     if not is_freq:
@@ -1048,27 +1055,27 @@ def apply_shifts_dft(src_freq, shifts, diffphase, is_freq = True, border_nan = F
         src_freq = fftn(src_freq,flags=cv2.DFT_COMPLEX_OUTPUT+cv2.DFT_SCALE)
         src_freq  = src_freq[:,:,0]+1j*src_freq[:,:,1]
         src_freq   = np.array(src_freq, dtype=np.complex128, copy=False)          
-    
+
     nr,nc = np.shape(src_freq)
-    Nr = ifftshift(np.arange(-np.fix(nr/2.),np.ceil(nr/2.)))
-    Nc = ifftshift(np.arange(-np.fix(nc/2.),np.ceil(nc/2.)))
+    Nr = ifftshift(np.arange(-np.fix(old_div(nr,2.)),np.ceil(old_div(nr,2.))))
+    Nc = ifftshift(np.arange(-np.fix(old_div(nc,2.)),np.ceil(old_div(nc,2.))))
     Nr,Nc = np.meshgrid(Nr,Nc)
-    
+
     Greg = src_freq*np.exp(1j*2*np.pi*(-shifts[0]*1.*Nr/nr-shifts[1]*1.*Nc/nc))
     Greg = Greg.dot(np.exp(1j*diffphase))
     Greg = np.dstack([np.real(Greg),np.imag(Greg)])
     new_img = ifftn(Greg)[:,:,0]
     if border_nan:  
-         max_w,max_h,min_w,min_h=0,0,0,0
-         max_h,max_w = np.ceil(np.maximum((max_h,max_w),shifts)).astype(np.int)
-         min_h,min_w = np.floor(np.minimum((min_h,min_w),shifts)).astype(np.int)
-         new_img[:max_h,:] = np.nan
-         if min_h < 0:
-             new_img[min_h:,:] = np.nan
-         new_img[:,:max_w] = np.nan 
-         if min_w < 0:
-             new_img[:,min_w:] = np.nan
-    
+        max_w,max_h,min_w,min_h=0,0,0,0
+        max_h,max_w = np.ceil(np.maximum((max_h,max_w),shifts)).astype(np.int)
+        min_h,min_w = np.floor(np.minimum((min_h,min_w),shifts)).astype(np.int)
+        new_img[:max_h,:] = np.nan
+        if min_h < 0:
+            new_img[min_h:,:] = np.nan
+        new_img[:,:max_w] = np.nan 
+        if min_w < 0:
+            new_img[:,min_w:] = np.nan
+
     return new_img
 #%%
 def sliding_window(image, overlaps, strides):
@@ -1081,7 +1088,7 @@ def sliding_window(image, overlaps, strides):
          dimension of the patch
      strides: tuple
          stride in wach dimension    
-         
+
      Returns:
      -------
      iterator containing five items
@@ -1090,59 +1097,59 @@ def sliding_window(image, overlaps, strides):
      patch: the patch
      '''
     windowSize = np.add(overlaps,strides)
-    range_1 = range(0, image.shape[0]-windowSize[0], strides[0]) + [image.shape[0]-windowSize[0]]
-    range_2 = range(0, image.shape[1]-windowSize[1], strides[1]) + [image.shape[1]-windowSize[1]]
+    range_1 = list(range(0, image.shape[0]-windowSize[0], strides[0])) + [image.shape[0]-windowSize[0]]
+    range_2 = list(range(0, image.shape[1]-windowSize[1], strides[1])) + [image.shape[1]-windowSize[1]]
     for dim_1, x in enumerate(range_1):
-		for dim_2,y in enumerate(range_2):
-			# yield the current window
-			yield (dim_1, dim_2 , x, y, image[ x:x + windowSize[0],y:y + windowSize[1]])
+        for dim_2,y in enumerate(range_2):
+            # yield the current window
+            yield (dim_1, dim_2 , x, y, image[ x:x + windowSize[0],y:y + windowSize[1]])
 #%%
 def iqr(a):
     return np.percentile(a,75)-np.percentile(a,25)
 #%%
 def create_weight_matrix_for_blending(img, overlaps, strides):
-   ''' create a matrix that is used to normalize the intersection of the stiched patches
-   
-   Parameters:
-   -----------
-   img: original image, ndarray
-   shapes, overlaps, strides:  tuples
-       shapes, overlaps and strides of the patches
-   
-   Returns:
-   --------
-   weight_mat: normalizing weight matrix    
-   '''
-   
-   shapes = np.add(strides,overlaps)
-   
-   max_grid_1,max_grid_2 =  np.max(np.array([it[:2] for it in  sliding_window(img, overlaps, strides)]),0)
+    ''' create a matrix that is used to normalize the intersection of the stiched patches
 
-   for grid_1, grid_2 , x, y, _ in sliding_window(img, overlaps, strides):
-       
-       weight_mat = np.ones(shapes)  
-       
-       if grid_1 > 0:
-           weight_mat[:overlaps[0],:] = np.linspace(0,1,overlaps[0])[:,None]
-       if grid_1 < max_grid_1: 
-           weight_mat[-overlaps[0]:,:] = np.linspace(1,0,overlaps[0])[:,None]
-       if grid_2 > 0:
-           weight_mat[:,:overlaps[1]] = weight_mat[:,:overlaps[1]]*np.linspace(0,1,overlaps[1])[None,:]
-       if grid_2 < max_grid_2: 
-           weight_mat[:,-overlaps[1]:] = weight_mat[:,-overlaps[1]:]*np.linspace(1,0,overlaps[1])[None,:]
-       
-       yield weight_mat
-       
+    Parameters:
+    -----------
+    img: original image, ndarray
+    shapes, overlaps, strides:  tuples
+        shapes, overlaps and strides of the patches
+
+    Returns:
+    --------
+    weight_mat: normalizing weight matrix    
+    '''
+
+    shapes = np.add(strides,overlaps)
+
+    max_grid_1,max_grid_2 =  np.max(np.array([it[:2] for it in  sliding_window(img, overlaps, strides)]),0)
+
+    for grid_1, grid_2 , x, y, _ in sliding_window(img, overlaps, strides):
+
+        weight_mat = np.ones(shapes)  
+
+        if grid_1 > 0:
+            weight_mat[:overlaps[0],:] = np.linspace(0,1,overlaps[0])[:,None]
+        if grid_1 < max_grid_1: 
+            weight_mat[-overlaps[0]:,:] = np.linspace(1,0,overlaps[0])[:,None]
+        if grid_2 > 0:
+            weight_mat[:,:overlaps[1]] = weight_mat[:,:overlaps[1]]*np.linspace(0,1,overlaps[1])[None,:]
+        if grid_2 < max_grid_2: 
+            weight_mat[:,-overlaps[1]:] = weight_mat[:,-overlaps[1]:]*np.linspace(1,0,overlaps[1])[None,:]
+
+        yield weight_mat
+
 #%% 
 def tile_and_correct(img,template, strides, overlaps,max_shifts, newoverlaps = None, newstrides = None, upsample_factor_grid=4,\
                 upsample_factor_fft=10,show_movie=False,max_deviation_rigid=2,add_to_movie=0):
-    
+
     ''' perform piecewise rigid motion correction iteration, by
         1) dividing the FOV in patches
         2) motion correcting each patch separately
         3) upsampling the motion correction vector field
         4) stiching back together the corrected subpatches
-    
+
     Parameters:
     -----------
     img: ndaarray 2D
@@ -1162,33 +1169,33 @@ def tile_and_correct(img,template, strides, overlaps,max_shifts, newoverlaps = N
 
     newstrides:tuple
         strides between patches along each dimension when upsampling the vector fields
-     
+
     newoverlaps:tuple
         amount of pixel overlaping between patches along each dimension when upsampling the vector fields
-         
+
     upsample_factor_grid: int
         if newshapes or newstrides are not specified this is inferred upsampling by a constant factor the cvector field
-        
+
     upsample_factor_fft: int 
         resolution of fractional shifts 
-    
+
     show_movie: boolean whether to visualize the original and corrected frame during motion correction
-    
+
     max_deviation_rigid: int
         maximum deviation in shifts of each patch from the rigid shift (should not be large)    
-    
-    add_to_movie: if movie is too negative the correction might have some issues. In this case it is good to add values so that it is non negative most of the times
-    
 
-    
+    add_to_movie: if movie is too negative the correction might have some issues. In this case it is good to add values so that it is non negative most of the times
+
+
+
     '''    
     img = img.astype(np.float64)
     template = template.astype(np.float64)
-    
-    
+
+
     img = img + add_to_movie
     template = template + add_to_movie
-    
+
     # compute rigid shifts    
     rigid_shts,sfr_freq,diffphase = register_translation(img,template,upsample_factor=upsample_factor_fft,max_shifts=max_shifts)
     if max_deviation_rigid == 0:
@@ -1202,83 +1209,83 @@ def tile_and_correct(img,template, strides, overlaps,max_shifts, newoverlaps = N
         num_tiles = np.prod(np.add(xy_grid[-1],1))    
         imgs = [it[-1] for it in sliding_window(img,overlaps=overlaps,strides = strides)]    
         dim_grid = tuple(np.add(xy_grid[-1],1))
-        
+
         if max_deviation_rigid is not None:
-            
+
             lb_shifts = np.ceil(np.subtract(rigid_shts,max_deviation_rigid)).astype(int)
             ub_shifts = np.floor(np.add(rigid_shts,max_deviation_rigid)).astype(int)
-    
+
         else:
-    
+
             lb_shifts = None
             ub_shifts = None
-        
+
         #extract shifts for each patch        
         shfts_et_all = [register_translation(a,b,c, shifts_lb = lb_shifts, shifts_ub = ub_shifts, max_shifts = max_shifts) for a, b, c in zip (imgs,templates,[upsample_factor_fft]*num_tiles)]    
         shfts = [sshh[0] for sshh in shfts_et_all] 
         diffs_phase = [sshh[2] for sshh in shfts_et_all]
 #        frq_srcs = [sshh[1] for sshh in shfts_et_all] 
-        
+
         # create a vector field
         shift_img_x = np.reshape(np.array(shfts)[:,0],dim_grid)  
         shift_img_y = np.reshape(np.array(shfts)[:,1],dim_grid)
         diffs_phase_grid = np.reshape(np.array(diffs_phase),dim_grid)
-        
-        
-        
-        
+
+
+
+
         # create automatically upsample parameters if not passed
         if newoverlaps is None:
             newoverlaps = overlaps
         if newstrides is None:
             newstrides = tuple(np.round(np.divide(strides,upsample_factor_grid)).astype(np.int))
-        
+
         newshapes = np.add(newstrides ,newoverlaps)
-            
-        
-        
+
+
+
         imgs = [it[-1] for it in sliding_window(img,overlaps=newoverlaps,strides = newstrides)  ]
-            
+
         xy_grid = [(it[0],it[1]) for it in sliding_window(img,overlaps=newoverlaps,strides = newstrides)]  
-    
+
         start_step = [(it[2],it[3]) for it in sliding_window(img,overlaps=newoverlaps,strides = newstrides)]
-    
-        
-        
+
+
+
         dim_new_grid = tuple(np.add(xy_grid[-1],1))
-    
+
         shift_img_x = cv2.resize(shift_img_x,dim_new_grid[::-1],interpolation = cv2.INTER_CUBIC)
         shift_img_y = cv2.resize(shift_img_y,dim_new_grid[::-1],interpolation = cv2.INTER_CUBIC)
         diffs_phase_grid_us = cv2.resize(diffs_phase_grid,dim_new_grid[::-1],interpolation = cv2.INTER_CUBIC)
 
         num_tiles = np.prod(dim_new_grid)
-       
-       
-        
+
+
+
     #    shift_img_x[(np.abs(shift_img_x-rigid_shts[0])/iqr(shift_img_x-rigid_shts[0])/1.349)>max_sd_outlier] = np.median(shift_img_x)
     #    shift_img_y[(np.abs(shift_img_y-rigid_shts[1])/iqr(shift_img_y-rigid_shts[1])/1.349)>max_sd_outlier] = np.median(shift_img_y)
     #    
-        
+
         total_shifts = [(-x,-y) for x,y in zip(shift_img_x.reshape(num_tiles),shift_img_y.reshape(num_tiles))]     
         total_diffs_phase = [dfs for dfs in diffs_phase_grid_us.reshape(num_tiles)]    
-                             
+
         imgs = [apply_shifts_dft(im,(sh[0],sh[1]),dffphs, is_freq = False, border_nan=True)  for im,sh,dffphs in zip(imgs, total_shifts,total_diffs_phase) ]
 #        imgs = [apply_shift_iteration(im,sh,border_nan=True) for im,sh in zip(imgs, total_shifts)]
-        
+
         normalizer = np.zeros_like(img)*np.nan    
         new_img = np.zeros_like(img)*np.nan
-    
+
         weight_matrix = create_weight_matrix_for_blending(img, newoverlaps, newstrides)
-    
+
         for (x,y),(idx_0,idx_1),im,(sh_x,shy),weight_mat in zip(start_step,xy_grid,imgs,total_shifts,weight_matrix):
-    
+
             prev_val_1 = normalizer[x:x + newshapes[0],y:y + newshapes[1]]        
-    
+
             normalizer[x:x + newshapes[0],y:y + newshapes[1]] = np.nansum(np.dstack([~np.isnan(im)*1*weight_mat,prev_val_1]),-1)
             prev_val = new_img[x:x + newshapes[0],y:y + newshapes[1]]
             new_img[x:x + newshapes[0],y:y + newshapes[1]] = np.nansum(np.dstack([im*weight_mat,prev_val]),-1)
-    
-        new_img = new_img/normalizer
+
+        new_img = old_div(new_img,normalizer)
         if show_movie:
     #        for xx,yy,(sh_x,sh_y) in zip(np.array(start_step)[:,0]+newshapes[0]/2,np.array(start_step)[:,1]+newshapes[1]/2,total_shifts):
     #            new_img = cv2.arrowedLine(new_img,(xx,yy),(np.int(xx+sh_x*10),np.int(yy+sh_y*10)),5000,1)
@@ -1286,13 +1293,13 @@ def tile_and_correct(img,template, strides, overlaps,max_shifts, newoverlaps = N
 #            img = apply_shift_iteration(img,-rigid_shts,border_nan=True)
             img_show = new_img
             img_show = np.vstack([new_img,img])
-            
+
             img_show = cv2.resize(img_show,None,fx=1,fy=1)
     #        img_show = new_img
-            
-            cv2.imshow('frame',img_show/np.percentile(template,99))
+
+            cv2.imshow('frame',old_div(img_show,np.percentile(template,99)))
             cv2.waitKey(int(1./500*1000))      
-        
+
         else:
             cv2.destroyAllWindows()
     #    xx,yy = np.array(start_step)[:,0]+newshapes[0]/2,np.array(start_step)[:,1]+newshapes[1]/2
@@ -1301,8 +1308,8 @@ def tile_and_correct(img,template, strides, overlaps,max_shifts, newoverlaps = N
     #    pl.axis('off')
     #    pl.quiver(yy,xx,shift_img_y, -shift_img_x, color = 'red')
     #    pl.pause(.01)
-    
-              
+
+
         return new_img-add_to_movie, total_shifts,start_step,xy_grid    
 
 

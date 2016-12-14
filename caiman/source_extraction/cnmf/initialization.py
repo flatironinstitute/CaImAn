@@ -1,3 +1,7 @@
+from __future__ import division
+from __future__ import print_function
+from builtins import range
+from past.utils import old_div
 import numpy as np
 from sklearn.decomposition import NMF
 from skimage.transform import downscale_local_mean, resize
@@ -5,7 +9,7 @@ import scipy.ndimage as nd
 import scipy.sparse as spr
 import scipy
 from scipy.ndimage.measurements import center_of_mass
-import utilities
+#from . import utilities
 #%%
 
 
@@ -69,33 +73,34 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
 
     d, T = np.shape(Y)[:-1], np.shape(Y)[-1]
     # rescale according to downsampling factor
-    gSig = np.round(np.asarray(gSig) / ssub).astype(np.int)
-    gSiz = np.round(np.asarray(gSiz) / ssub).astype(np.int)
+    gSig = np.round(np.asarray(gSig) // ssub).astype(np.int)
+    gSiz = np.round(np.asarray(gSiz) // ssub).astype(np.int)
+    
 
-    print 'Noise Normalization'
+    print('Noise Normalization')
     if normalize is True:
         if img is None:
             img = np.mean(Y, axis=-1)
             img += np.median(img)
 
-        Y = Y / np.reshape(img, d + (-1,), order='F')
+        Y = old_div(Y, np.reshape(img, d + (-1,), order='F'))
         alpha_snmf /= np.mean(img)
 
     # spatial downsampling
     mean_val = np.mean(Y)
     if ssub != 1 or tsub != 1:
-        print "Spatial Downsampling ..."
+        print("Spatial Downsampling ...")
         Y_ds = downscale_local_mean(Y, tuple([ssub] * len(d) + [tsub]), cval=mean_val)
     else:
         Y_ds = Y
 
-    print 'Roi Extraction...'
+    print('Roi Extraction...')
     if method == 'greedy_roi':
         Ain, Cin, _, b_in, f_in = greedyROI(
             Y_ds, nr=K, gSig=gSig, gSiz=gSiz, nIter=nIter, kernel=kernel, nb=nb)
 
         if use_hals:
-            print 'Refining Components...'
+            print('Refining Components...')
             Ain, Cin, b_in, f_in = hals(Y_ds, Ain, Cin, b_in, f_in, maxIter=maxIter)
     elif method == 'sparse_nmf':
         Ain, Cin, _, b_in, f_in = sparseNMF(Y_ds, nr=K, nb=nb, max_iter_snmf=max_iter_snmf, alpha=alpha_snmf,
@@ -105,7 +110,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
 #        Ain, Cin, b_in, f_in = hals(Y_ds, Ain, Cin, b_in, f_in, maxIter=maxIter)
 #        print np.sum(Ain), np.sum(Cin)
     else:
-        print method
+        print(method)
         raise Exception("Unsupported method")
 
     K = np.shape(Ain)[-1]
@@ -203,11 +208,11 @@ def sparseNMF(Y_ds, nr,  max_iter_snmf=500, alpha=10e2, sigma_smooth=(.5, .5, .5
     C = mdl.fit_transform(yr).T
     A = mdl.components_.T
     ind_good = np.where(np.logical_and((np.sum(A, 0) * np.std(C, axis=1))
-                                       > 0, np.sum(A > np.mean(A), axis=0) < d / 3))[0]
+                                       > 0, np.sum(A > np.mean(A), axis=0) < old_div(d, 3)))[0]
 #    A_in=A[:, ind_good]
 #    C_in=C[ind_good, :]
     ind_bad = np.where(np.logical_or((np.sum(A, 0) * np.std(C, axis=1))
-                                     == 0, np.sum(A > np.mean(A), axis=0) > d / 3))[0]
+                                     == 0, np.sum(A > np.mean(A), axis=0) > old_div(d, 3)))[0]
     A_in = np.zeros_like(A)
 
     C_in = np.zeros_like(C)
@@ -271,7 +276,7 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1):
     d = np.shape(Y)
     med = np.median(Y, axis=-1)
     Y = Y - med[..., np.newaxis]
-    gHalf = np.array(gSiz) / 2
+    gHalf = np.array(gSiz) // 2
     gSiz = 2 * gHalf + 1
 
     A = np.zeros((np.prod(d[0:-1]), nr))
@@ -289,28 +294,29 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1):
             center[k, c] = i
         ijSig = [[np.maximum(ij[c] - gHalf[c], 0), np.minimum(ij[c] + gHalf[c] + 1, d[c])]
                  for c in range(len(ij))]
-        dataTemp = Y[map(lambda a: slice(*a), ijSig)].copy()
+
+        dataTemp = Y[[slice(*a) for a in ijSig]].copy()
         traceTemp = np.squeeze(rho[ij])
         coef, score = finetune(dataTemp, traceTemp, nIter=nIter)
         C[k, :] = np.squeeze(score)
         dataSig = coef[..., np.newaxis] * score.reshape([1] * (Y.ndim - 1) + [-1])
         xySig = np.meshgrid(*[np.arange(s[0], s[1]) for s in ijSig], indexing='xy')
-        arr = np.array([np.reshape(s, (1, np.size(s)), order='F').squeeze() for s in xySig])
+        arr = np.array([np.reshape(s, (1, np.size(s)), order='F').squeeze() for s in xySig],dtype = np.int)
         indeces = np.ravel_multi_index(arr, d[0:-1], order='F')
         A[indeces, k] = np.reshape(coef, (1, np.size(coef)), order='C').squeeze()
-        Y[map(lambda a: slice(*a), ijSig)] -= dataSig.copy()
+        Y[[slice(*a) for a in ijSig]] -= dataSig.copy()
         if k < nr - 1:
             Mod = [[np.maximum(ij[c] - 2 * gHalf[c], 0),
                     np.minimum(ij[c] + 2 * gHalf[c] + 1, d[c])] for c in range(len(ij))]
             ModLen = [m[1] - m[0] for m in Mod]
             Lag = [ijSig[c] - Mod[c][0] for c in range(len(ij))]
             dataTemp = np.zeros(ModLen)
-            dataTemp[map(lambda a: slice(*a), Lag)] = coef
+            dataTemp[[slice(*a) for a in Lag]] = coef
             dataTemp = imblur(dataTemp[..., np.newaxis], sig=gSig, siz=gSiz, kernel=kernel)
             rhoTEMP = dataTemp * score.reshape([1] * (Y.ndim - 1) + [-1])
-            rho[map(lambda a: slice(*a), Mod)] -= rhoTEMP.copy()
-            v[map(lambda a: slice(*a), Mod)] = np.sum(
-                rho[map(lambda a: slice(*a), Mod)]**2, axis=-1)
+            rho[[slice(*a) for a in Mod]] -= rhoTEMP.copy()
+            v[[slice(*a) for a in Mod]] = np.sum(
+                rho[[slice(*a) for a in Mod]]**2, axis=-1)
 
     res = np.reshape(Y, (np.prod(d[0:-1]), d[-1]), order='F') + med.flatten(order='F')[:, None]
 
@@ -329,7 +335,7 @@ def finetune(Y, cin, nIter=5):
     """
     for iter in range(nIter):
         a = np.maximum(np.dot(Y, cin), 0)
-        a = a / np.sqrt(np.sum(a**2))
+        a = old_div(a, np.sqrt(np.sum(a**2)))
         c = np.sum(Y * a[..., np.newaxis], tuple(np.arange(Y.ndim - 1)))
 
     return a, c
@@ -376,8 +382,7 @@ def imblur(Y, sig=5, siz=11, nDimBlur=None, kernel=None):
 
         X = Y.copy()
         for i in range(nDimBlur):
-            h = np.exp(-np.arange(-np.floor(siz[i] / 2), np.floor(siz[i] / 2) + 1)**2
-                       / (2 * sig[i]**2))
+            h = np.exp(old_div(-np.arange(-np.floor(old_div(siz[i], 2)), np.floor(old_div(siz[i], 2)) + 1)**2, (2 * sig[i]**2)))
             h /= np.sqrt(h.dot(h))
             shape = [1] * len(Y.shape)
             shape[i] = -1
@@ -421,7 +426,7 @@ def hals(Y, A, C, b, f, bSiz=3, maxIter=5):
     dims, T = np.shape(Y)[:-1], np.shape(Y)[-1]
     K = A.shape[1]  # number of neurons
     nb = b.shape[1]  # number of background components
-    if isinstance(bSiz, (int, long, float)):
+    if isinstance(bSiz, (int, float)):
         bSiz = [bSiz] * len(dims)
     ind_A = nd.filters.uniform_filter(np.reshape(A, dims + (K,),
                                                  order='F'), size=bSiz + [0])
@@ -433,7 +438,7 @@ def hals(Y, A, C, b, f, bSiz=3, maxIter=5):
         B = S.dot(S.T)
         for _ in range(iters):
             for mcell in range(K + 1):  # neurons and background
-                activity[mcell] += (A[mcell] - np.dot(B[mcell].T, activity)) / B[mcell, mcell]
+                activity[mcell] += old_div((A[mcell] - np.dot(B[mcell].T, activity)), B[mcell, mcell])
                 activity[mcell][activity[mcell] < 0] = 0
         return activity
 
@@ -443,10 +448,10 @@ def hals(Y, A, C, b, f, bSiz=3, maxIter=5):
         for _ in range(iters):
             for mcell in range(K):  # neurons
                 ind_pixels = np.squeeze(np.asarray(ind_A[:, mcell].todense()))
-                S[mcell, ind_pixels] += (C[mcell, ind_pixels] -
-                                         np.dot(D[mcell], S[:, ind_pixels])) / D[mcell, mcell]
+                S[mcell, ind_pixels] += old_div((C[mcell, ind_pixels] -
+                                         np.dot(D[mcell], S[:, ind_pixels])), D[mcell, mcell])
                 S[mcell, ind_pixels][S[mcell, ind_pixels] < 0] = 0
-            S[K] += (C[K] - np.dot(D[K], S)) / D[K, K]  # background
+            S[K] += old_div((C[K] - np.dot(D[K], S)), D[K, K])  # background
             S[K][S[K] < 0] = 0
         return S
 

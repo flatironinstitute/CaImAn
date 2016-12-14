@@ -4,6 +4,11 @@ Created on Mon Oct 17 14:50:22 2016
 
 @author: agiovann
 """
+from __future__ import division
+from __future__ import print_function
+from builtins import str
+from builtins import range
+from past.utils import old_div
 import cv2
 import numpy as np
 import pylab as pl
@@ -24,7 +29,7 @@ try:
     from bokeh.models import CustomJS, ColumnDataSource
     from bokeh.models import Range1d
 except:
-    print "Bokeh could not be loaded. Either it is not installed or you are not running within a notebook"
+    print("Bokeh could not be loaded. Either it is not installed or you are not running within a notebook")
 
 from caiman.summary_images import local_correlations
 
@@ -83,7 +88,7 @@ def view_patches(Yr, A, C, b, f, d1, d2, YrA=None, secs=1):
     for i in range(nr + 1):
         if i < nr:
             ax1 = fig.add_subplot(2, 1, 1)
-            pl.imshow(np.reshape(np.array(A[:, i]) / nA2[i],
+            pl.imshow(np.reshape(old_div(np.array(A[:, i]), nA2[i]),
                                   (d1, d2), order='F'), interpolation='None')
             ax1.set_title('Spatial component ' + str(i + 1))
             ax2 = fig.add_subplot(2, 1, 2)
@@ -111,7 +116,7 @@ def view_patches(Yr, A, C, b, f, d1, d2, YrA=None, secs=1):
 
 
 
-    
+
 def nb_view_patches(Yr, A, C, b, f, d1, d2, image_neurons=None, thr=0.99, denoised_color=None):
     '''
     Interactive plotting utility for ipython notbook
@@ -143,12 +148,12 @@ def nb_view_patches(Yr, A, C, b, f, d1, d2, image_neurons=None, thr=0.99, denois
     b = np.squeeze(b)
     f = np.squeeze(f)
     #Y_r = np.array(spdiags(1/nA2,0,nr,nr)*(A.T*np.matrix(Yr-b[:,np.newaxis]*f[np.newaxis] - A.dot(C))) + C)
-    Y_r = np.array(spdiags(1 / nA2, 0, nr, nr) * (A.T * np.matrix(Yr) - (A.T *
+    Y_r = np.array(spdiags(old_div(1, nA2), 0, nr, nr) * (A.T * np.matrix(Yr) - (A.T *
                                                                          np.matrix(b[:, np.newaxis])) * np.matrix(f[np.newaxis]) - (A.T.dot(A)) * np.matrix(C)) + C)
 
     bpl.output_notebook()
     x = np.arange(T)
-    z = np.squeeze(np.array(Y_r[:, :].T)) / 100
+    z = old_div(np.squeeze(np.array(Y_r[:, :].T)), 100)
     k = np.reshape(np.array(A), (d1, d2, A.shape[1]), order='F')
     if image_neurons is None:
         image_neurons = np.nanmean(k, axis=2)
@@ -161,9 +166,9 @@ def nb_view_patches(Yr, A, C, b, f, d1, d2, image_neurons=None, thr=0.99, denois
     cc2 = [cor['coordinates'][:, 1] for cor in coors]
     c1 = cc1[0]
     c2 = cc2[0]
-    npoints = range(len(c1))
+    npoints = list(range(len(c1)))
 
-    source = ColumnDataSource(data=dict(x=x, y=z[:, 0], y2=C[0] / 100, z=z, z2=C.T / 100))
+    source = ColumnDataSource(data=dict(x=x, y=z[:, 0], y2=old_div(C[0], 100), z=z, z2=old_div(C.T, 100)))
     source2 = ColumnDataSource(data=dict(x=npoints, c1=c1, c2=c2, cc1=cc1, cc2=cc2))
 
     plot = bpl.figure(plot_width=600, plot_height=300)
@@ -258,7 +263,7 @@ def get_contours3d(A, dims, thr=0.9):
                 if num_close_coords < 2:
                     if num_close_coords == 0:
                         # case angle
-                        newpt = np.round(vtx[-1, :] / [d2, d1]) * [d2, d1]
+                        newpt = np.round(old_div(vtx[-1, :], [d2, d1])) * [d2, d1]
                         vtx = np.concatenate((vtx, newpt[np.newaxis, :]), axis=0)
 
                     else:
@@ -307,7 +312,7 @@ def nb_view_patches3d(Yr, A, C, b, f, dims, image_type='mean',
 
     '''
     d, T = Yr.shape
-    order = range(4)
+    order = list(range(4))
     order.insert(0, order.pop(axis))
     Yr = Yr.reshape(dims + (-1,), order='F').transpose(order).reshape((d, T), order='F')
     A = A.reshape(dims + (-1,), order='F').transpose(order).reshape((d, -1), order='F')
@@ -319,15 +324,15 @@ def nb_view_patches3d(Yr, A, C, b, f, dims, image_type='mean',
     nA2 = np.sum(np.array(A)**2, axis=0)
     b = np.squeeze(b)
     f = np.squeeze(f)
-    Y_r = np.array(spdiags(1 / nA2, 0, nr, nr) *
+    Y_r = np.array(spdiags(old_div(1, nA2), 0, nr, nr) *
                    (A.T * np.matrix(Yr) - (A.T * np.matrix(b[:, np.newaxis])) *
                     np.matrix(f[np.newaxis]) - (A.T.dot(A)) * np.matrix(C)) + C)
 
     bpl.output_notebook()
     x = np.arange(T)
-    z = np.squeeze(np.array(Y_r[:, :].T)) / 100
+    z = old_div(np.squeeze(np.array(Y_r[:, :].T)), 100)
     k = np.reshape(np.array(A), dims + (A.shape[1],), order='F')
-    source = ColumnDataSource(data=dict(x=x, y=z[:, 0], y2=C[0] / 100, z=z, z2=C.T / 100))
+    source = ColumnDataSource(data=dict(x=x, y=z[:, 0], y2=old_div(C[0], 100), z=z, z2=old_div(C.T, 100)))
 
     if max_projection:
         if image_type == 'corr':
@@ -348,7 +353,7 @@ def nb_view_patches3d(Yr, A, C, b, f, dims, image_type='mean',
         offset1 = image_neurons.shape[1] - d3
         offset2 = image_neurons.shape[0] - d1
         coors = [plot_contours(coo_matrix(A.reshape(dims + (-1,), order='F').max(i)
-                                          .reshape((np.prod(dims) / dims[i], -1), order='F')),
+                                          .reshape((old_div(np.prod(dims), dims[i]), -1), order='F')),
                                tmp[i], thr=thr) for i in range(3)]
         pl.close()
         cc1 = [[cor['coordinates'][:, 0] + offset1 for cor in coors[0]],
@@ -420,8 +425,8 @@ def nb_view_patches3d(Yr, A, C, b, f, dims, image_type='mean',
         c1 = cc1[0][linit]
         c2 = cc2[0][linit]
         source2 = ColumnDataSource(data=dict(c1=c1, c2=c2, cc1=cc1, cc2=cc2))
-        x = range(d2)
-        y = range(d3)
+        x = list(range(d2))
+        y = list(range(d3))
         source3 = ColumnDataSource(
             data=dict(im1=[image_neurons[linit]], im=image_neurons, xx=[x], yy=[y]))
 
@@ -551,7 +556,7 @@ def nb_plot_contour(image, A, d1, d2, thr=0.995, face_color=None, line_color='bl
 
     p.patches(cc1, cc2, alpha=.4, color=face_color,  line_color=line_color, line_width=2, **kwargs)
     return p
-    
+
 #%%
 def playMatrix(mov,gain=1.0,frate=.033):
     for frame in mov: 
@@ -559,7 +564,7 @@ def playMatrix(mov,gain=1.0,frate=.033):
             cv2.imshow('frame',frame*gain)
         else:
             cv2.imshow('frame',frame)
-            
+
         if cv2.waitKey(int(frate*1000)) & 0xFF == ord('q'):
             cv2.destroyAllWindows()
             break  
@@ -572,8 +577,8 @@ def matrixMontage(spcomps,*args, **kwargs):
         pl.subplot(rowcols,rowcols,k+1)       
         pl.imshow(comp,*args, **kwargs)                             
         pl.axis('off')         
-        
-        
+
+
 #%%
 VIDEO_TAG = """<video controls>
  <source src="data:video/x-m4v;base64,{0}" type="video/mp4">
@@ -586,9 +591,9 @@ def anim_to_html(anim,fps=20):
             anim.save(f.name, fps=fps, extra_args=['-vcodec', 'libx264'])
             video = open(f.name, "rb").read()
         anim._encoded_video = video.encode("base64")
-    
+
     return VIDEO_TAG.format(anim._encoded_video)
-    
+
 #%%
 def display_animation(anim,fps=20):
     pl.close(anim._fig)
@@ -638,7 +643,7 @@ def view_patches_bar(Yr, A, C, b, f, d1, d2, YrA=None, secs=1, img=None):
     else:
         Y_r = YrA + C
 
-    A = A * spdiags(1 / nA2, 0, nr, nr)
+    A = A * spdiags(old_div(1, nA2), 0, nr, nr)
     A = A.todense()
     imgs = np.reshape(np.array(A), (d1, d2, nr), order='F')
     if img is None:
@@ -662,7 +667,7 @@ def view_patches_bar(Yr, A, C, b, f, d1, d2, YrA=None, secs=1, img=None):
 
     def update(val):
         i = np.int(np.round(s_comp.val))
-        print 'Component:' + str(i)
+        print(('Component:' + str(i)))
 
         if i < nr:
 
@@ -688,7 +693,7 @@ def view_patches_bar(Yr, A, C, b, f, d1, d2, YrA=None, secs=1, img=None):
             ax1.cla()
             ax1.imshow(bkgrnd[:, :, i-nr], interpolation='None')
             ax1.set_title('Spatial background ' + str(i + 1 - nr))
-            
+
             ax2.cla()
             ax2.plot(np.arange(T), np.squeeze(np.array(f[i-nr,:])))
             ax2.set_title('Temporal background ' + str(i + 1 - nr))
@@ -752,7 +757,7 @@ def plot_contours(A, Cn, thr=None, thr_method = 'max', maxthr = 0.2, nrgthr = 0.
 
     if swap_dim:
         Cn = Cn.T
-        print 'Swapping dim'
+        print('Swapping dim')
 
     d1, d2 = np.shape(Cn)
     d, nr = np.shape(A)
@@ -786,14 +791,14 @@ def plot_contours(A, Cn, thr=None, thr_method = 'max', maxthr = 0.2, nrgthr = 0.
             Bvec = np.zeros(d)
             Bvec[indx] = cumEn
             thr = nrgthr
-            
+
         else: # thr_method = 'max'
             if ~(thr_method == 'max'):
                 warn("Unknown threshold method. Choosing max")
             Bvec = A[:,i].flatten()
             Bvec /= np.max(Bvec)
             thr = maxthr                
-            
+
         if swap_dim:
             Bmat = np.reshape(Bvec, np.shape(Cn), order='C')
         else:
@@ -808,7 +813,7 @@ def plot_contours(A, Cn, thr=None, thr_method = 'max', maxthr = 0.2, nrgthr = 0.
             if num_close_coords < 2:
                 if num_close_coords == 0:
                     # case angle
-                    newpt = np.round(vtx[-1, :] / [d2, d1]) * [d2, d1]
+                    newpt = np.round(old_div(vtx[-1, :], [d2, d1])) * [d2, d1]
                     #import ipdb; ipdb.set_trace()
                     vtx = np.concatenate((vtx, newpt[np.newaxis, :]), axis=0)
 

@@ -8,14 +8,19 @@ For explanation consult at https://github.com/agiovann/Constrained_NMF/releases/
 and https://github.com/agiovann/Constrained_NMF
 
 """
+from __future__ import division
+from __future__ import print_function
 #%%
+from builtins import str
+from builtins import range
+from past.utils import old_div
 try:
     if __IPYTHON__:
         # this is used for debugging purposes only. allows to reload classes when changed
-        get_ipython().magic(u'load_ext autoreload')
-        get_ipython().magic(u'autoreload 2')
+        get_ipython().magic('load_ext autoreload')
+        get_ipython().magic('autoreload 2')
 except:
-    print 'NOT IPYTHON'
+    print('NOT IPYTHON')
 
 import matplotlib as mpl
 mpl.use('TKAgg')
@@ -37,14 +42,14 @@ import scipy
 from ipyparallel import Client
 import calblitz as cb
 #%% download example
-import urllib
+import urllib.request, urllib.parse, urllib.error
 import shutil
 
 if not os.path.exists('PPC.tif'):
     url = "https://www.dropbox.com/s/z8rj5dekrl6yxfr/PPC.tif?dl=1"  # dl=1 is important
-    u = urllib.urlretrieve(url)
+    u = urllib.request.urlretrieve(url)
     shutil.move(u[0],'./PPC.tif')
-    
+
 #%% load and motion correct movie
 m=cb.load('PPC.tif',fr=30)    
 m -= np.min(m)
@@ -72,14 +77,14 @@ else:
     try:
         c.close()
     except:
-        print 'C was not existing, creating one'
-    print "Stopping  cluster to avoid unnencessary use of memory...."
+        print('C was not existing, creating one')
+    print("Stopping  cluster to avoid unnencessary use of memory....")
     sys.stdout.flush()  
     if backend == 'SLURM':
         try:
             cse.utilities.stop_server(is_slurm=True)
         except:
-            print 'Nothing to stop'
+            print('Nothing to stop')
         slurm_script='/mnt/xfs1/home/agiovann/SOFTWARE/Constrained_NMF/SLURM/slurmStart.sh'
         cse.utilities.start_server(slurm_script=slurm_script)
         pdir, profile = os.environ['IPPPDIR'], os.environ['IPPPROFILE']
@@ -89,7 +94,7 @@ else:
         cse.utilities.start_server()        
         c=Client()
     n_processes=len(c)
-    print 'Using '+ str(len(c)) + ' processes'
+    print(('Using '+ str(len(c)) + ' processes'))
     dview=c[:len(c)]
 
 #%%
@@ -98,7 +103,7 @@ idx_xy=None
 base_name='Yr'
 name_new=cse.utilities.save_memmap_each(fnames, dview=dview,base_name=base_name, resize_fact=(1, 1, downsample_factor), remove_init=0,idx_xy=idx_xy )
 name_new.sort(key=lambda fn: np.int(fn[len(base_name):fn.find('_')]))
-print name_new
+print(name_new)
 #%%
 n_chunks=6 # increase this number if you have memory issues at this point
 fname_new=cse.utilities.save_memmap_join(name_new,base_name='Yr', n_chunks=6, dview=dview)
@@ -124,7 +129,7 @@ save_results=False
 options_patch = cse.utilities.CNMFSetParms(Y,n_processes,p=0,gSig=gSig,K=K,ssub=1,tsub=4,thr=merge_thresh)
 A_tot,C_tot,YrA_tot,b,f,sn_tot, optional_outputs = cse.map_reduce.run_CNMF_patches(fname_new, (d1, d2, T), options_patch,rf=rf,stride = stride,
                                                                         dview=dview,memory_fact=memory_fact)
-print 'Number of components:' + str(A_tot.shape[-1])      
+print(('Number of components:' + str(A_tot.shape[-1])))      
 #%%
 if save_results:
     np.savez('results_analysis_patch.npz',A_tot=A_tot.todense(), C_tot=C_tot, sn_tot=sn_tot,d1=d1,d2=d2,b=b,f=f)    
@@ -134,7 +139,7 @@ if False:
     crd = cse.utilities.plot_contours(A_tot,Cn,thr=0.9)
 #%% set parameters for full field of view analysis
 options = cse.utilities.CNMFSetParms(Y,n_processes,p=0,gSig=gSig,K=A_tot.shape[-1],thr=merge_thresh)
-pix_proc=np.minimum(np.int((d1*d2)/n_processes/(T/2000.)),np.int((d1*d2)/n_processes)) # regulates the amount of memory used
+pix_proc=np.minimum(np.int((d1*d2)/n_processes/(old_div(T,2000.))),np.int(old_div((d1*d2),n_processes))) # regulates the amount of memory used
 options['spatial_params']['n_pixels_per_process']=pix_proc
 options['temporal_params']['n_pixels_per_process']=pix_proc
 #%% merge spatially overlaping and temporally correlated components      
@@ -165,11 +170,11 @@ idx_components_delta=np.where(fitness_delta<-10)[0]
 
 idx_components=np.union1d(idx_components_r,idx_components_raw)
 idx_components=np.union1d(idx_components,idx_components_delta)  
-idx_components_bad=np.setdiff1d(range(len(traces)),idx_components)
+idx_components_bad=np.setdiff1d(list(range(len(traces))),idx_components)
 
 print(' ***** ')
-print len(traces)
-print(len(idx_components))
+print((len(traces)))
+print((len(idx_components)))
 #%%
 A_m=A_m[:,idx_components]
 C_m=C_m[idx_components,:]   
@@ -178,11 +183,11 @@ C_m=C_m[idx_components,:]
 pl.figure()
 crd = cse.utilities.plot_contours(A_m,Cn,thr=0.9)
 #%%
-print 'Number of components:' + str(A_m.shape[-1])  
+print(('Number of components:' + str(A_m.shape[-1])))  
 #%% UPDATE SPATIAL COMPONENTS
 t1 = time()
 A2,b2,C2 = cse.spatial.update_spatial_components(Yr, C_m, f, A_m, sn=sn_tot,dview=dview, **options['spatial_params'])
-print time() - t1
+print((time() - t1))
 #%% UPDATE TEMPORAL COMPONENTS
 options['temporal_params']['p']=p
 options['temporal_params']['fudge_factor']=0.96 #change ifdenoised traces time constant is wrong
@@ -219,12 +224,12 @@ minCircularity= 0.6, minInertiaRatio = 0.2,minConvexity =.8)
 idx_components=np.union1d(idx_components_r,idx_components_raw)
 idx_components=np.union1d(idx_components,idx_components_delta)  
 idx_blobs=np.intersect1d(idx_components,idx_blobs)   
-idx_components_bad=np.setdiff1d(range(len(traces)),idx_components)
+idx_components_bad=np.setdiff1d(list(range(len(traces))),idx_components)
 
 print(' ***** ')
-print len(traces)
-print(len(idx_components))
-print(len(idx_blobs))
+print((len(traces)))
+print((len(idx_components)))
+print((len(idx_blobs)))
 #%% visualize components
 pl.figure();
 pl.subplot(1,3,1)

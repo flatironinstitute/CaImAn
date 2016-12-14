@@ -8,12 +8,16 @@ For explanation consult at https://github.com/agiovann/Constrained_NMF/releases/
 and https://github.com/agiovann/Constrained_NMF
 
 """
+from __future__ import print_function
 #%%
+from builtins import str
+from builtins import range
 try:
     if __IPYTHON__:
+        1
         # this is used for debugging purposes only. allows to reload classes when changed
-        get_ipython().magic(u'load_ext autoreload')
-        get_ipython().magic(u'autoreload 2')
+#        get_ipython().magic('load_ext autoreload')
+#        get_ipython().magic('autoreload 2')
 except NameError:
     print('Not IPYTHON')
     pass
@@ -35,7 +39,7 @@ import caiman as cm
 from caiman.components_evaluation import evaluate_components
 from caiman.utils.visualization import plot_contours,view_patches_bar
 from caiman.base.rois import extract_binary_masks_blob
-from caiman.source_extraction import cnmf as cnmf
+from caiman.source_extraction.cnmf import cnmf as cnmf
 #%%
 pl.close('all')
 #%%
@@ -58,7 +62,7 @@ if backend == 'SLURM':
 else:
     # roughly number of cores on your machine minus 1
     n_processes = np.maximum(np.int(psutil.cpu_count()), 1)
-print 'using ' + str(n_processes) + ' processes'
+print(('using ' + str(n_processes) + ' processes'))
 #%% start cluster for efficient computation
 single_thread = False
 
@@ -68,14 +72,14 @@ else:
     try:
         c.close()
     except:
-        print 'C was not existing, creating one'
-    print "Stopping  cluster to avoid unnencessary use of memory...."
+        print('C was not existing, creating one')
+    print("Stopping  cluster to avoid unnencessary use of memory....")
     sys.stdout.flush()
     if backend == 'SLURM':
         try:
             cm.stop_server(is_slurm=True)
         except:
-            print 'Nothing to stop'
+            print('Nothing to stop')
         slurm_script = '/mnt/xfs1/home/agiovann/SOFTWARE/Constrained_NMF/SLURM/slurmStart.sh'
         cm.start_server(slurm_script=slurm_script)
         pdir, profile = os.environ['IPPPDIR'], os.environ['IPPPROFILE']
@@ -85,32 +89,32 @@ else:
         cm.start_server()
         c = Client()
 
-    print 'Using ' + str(len(c)) + ' processes'
+    print(('Using ' + str(len(c)) + ' processes'))
     dview = c[:len(c)]
 #%% FOR LOADING ALL TIFF FILES IN A FILE AND SAVING THEM ON A SINGLE MEMORY MAPPABLE FILE
 
 fnames = []
 base_folder = './example_movies'  # folder containing the demo files
 for file in glob.glob(os.path.join(base_folder, '*.tif')):
-    if file.endswith("ie.tif"):
+    if file.endswith("34.tif"):
         fnames.append(os.path.abspath(file))        
 fnames.sort()
 if len(fnames) == 0:
     raise Exception("Could not find any tiff file")
 
-print fnames  
+print(fnames)  
 fnames=fnames
 #%%
 #idx_x=slice(12,500,None)
 #idx_y=slice(12,500,None)
 #idx_xy=(idx_x,idx_y)
-add_to_movie=300 # the movie must be positive!!!
+add_to_movie=540 # the movie must be positive!!!
 downsample_factor=1 # use .2 or .1 if file is large and you want a quick answer
 idx_xy=None
 base_name='Yr'
 name_new=cm.save_memmap_each(fnames, dview=dview,base_name=base_name, resize_fact=(1, 1, downsample_factor), remove_init=0,idx_xy=idx_xy,add_to_movie=add_to_movie)
 name_new.sort()
-print name_new
+print(name_new)
 #%%
 fname_new = cm.save_memmap_join(name_new, base_name='Yr', n_chunks=12, dview=dview)
 #%%
@@ -132,20 +136,20 @@ if not is_patches:
     K = 35  # number of neurons expected per patch
     gSig = [7, 7]  # expected half size of neurons
     merge_thresh = 0.8  # merging threshold, max correlation allowed
-    p = 2  # order of the autoregressive system
+    p = 1  # order of the autoregressive system
     cnm = cnmf.CNMF(n_processes, method_init=init_method, k=K, gSig=gSig, merge_thresh=merge_thresh,
                     p=p, dview=dview, Ain=None,method_deconvolution='oasis')
     cnm = cnm.fit(images)
-
+    crd = plot_contours(cnm.A, Cn, thr=0.9)
 #%%
 else:
     #%%
-    rf = 15  # half-size of the patches in pixels. rf=25, patches are 50x50
+    rf = 35  # half-size of the patches in pixels. rf=25, patches are 50x50
     stride = 4  # amounpl.it of overlap between the patches in pixels
     K = 6  # number of neurons expected per patch
     gSig = [7, 7]  # expected half size of neurons
     merge_thresh = 0.8  # merging threshold, max correlation allowed
-    p = 2  # order of the autoregressive system
+    p = 1  # order of the autoregressive system
     memory_fact = 1  # unitless number accounting how much memory should be used. You will need to try different values to see which one would work the default is OK for a 16 GB system
     save_results = False
     #%% RUN ALGORITHM ON PATCHES
@@ -161,7 +165,8 @@ else:
     f_tot = cnm.f
     sn_tot = cnm.sn
 
-    print 'Number of components:' + str(A_tot.shape[-1])
+    print(('Number of components:' + str(A_tot.shape[-1])))
+    crd = plot_contours(A_tot.tocsc(), Cn, thr=0.9)
 
     #%%
     final_frate = 10# approx final rate  (after eventual downsampling )
@@ -180,10 +185,10 @@ else:
 
     idx_components = np.union1d(idx_components_r, idx_components_raw)
     idx_components = np.union1d(idx_components, idx_components_delta)
-    idx_components_bad = np.setdiff1d(range(len(traces)), idx_components)
+    idx_components_bad = np.setdiff1d(list(range(len(traces))), idx_components)
 
-    print ('Keeping ' + str(len(idx_components)) +
-           ' and discarding  ' + str(len(idx_components_bad)))
+    print(('Keeping ' + str(len(idx_components)) +
+           ' and discarding  ' + str(len(idx_components_bad))))
     #%%
     pl.figure()
     crd = plot_contours(A_tot.tocsc()[:, idx_components], Cn, thr=0.9)
@@ -206,6 +211,7 @@ else:
 #%%
 A, C, b, f, YrA, sn = cnm.A, cnm.C, cnm.b, cnm.f, cnm.YrA, cnm.sn
 #%%
+final_frate = 10
 tB = np.minimum(-2, np.floor(-5. / 30 * final_frate))
 tA = np.maximum(5, np.ceil(25. / 30 * final_frate))
 Npeaks = 10
@@ -229,12 +235,12 @@ masks_ws, idx_blobs, idx_non_blobs = extract_binary_masks_blob(
 idx_components = np.union1d(idx_components_r, idx_components_raw)
 idx_components = np.union1d(idx_components, idx_components_delta)
 idx_blobs = np.intersect1d(idx_components, idx_blobs)
-idx_components_bad = np.setdiff1d(range(len(traces)), idx_components)
+idx_components_bad = np.setdiff1d(list(range(len(traces))), idx_components)
 
 print(' ***** ')
-print len(traces)
-print(len(idx_components))
-print(len(idx_blobs))
+print((len(traces)))
+print((len(idx_components)))
+print((len(idx_blobs)))
 #%%
 save_results = True
 if save_results:

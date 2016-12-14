@@ -4,15 +4,17 @@ Created on Tue Feb 16 17:56:14 2016
 
 @author: agiovann
 """
+from __future__ import print_function
 
 #%%
+from builtins import range
 try:
-    %load_ext autoreload
-    %autoreload 2
-    print 1
+    get_ipython().magic('load_ext autoreload')
+    get_ipython().magic('autoreload 2')
+    print((1))
 except:
 
-    print 'NOT IPYTHON'
+    print('NOT IPYTHON')
 import matplotlib as mpl
 mpl.use('TKAgg')
 from matplotlib import pyplot as plt
@@ -48,9 +50,9 @@ import os
 fnames=[]
 base_folder='/mnt/ceph/users/agiovann/ImagingData/LABELLING/k31/20151223/'
 for file in glob.glob(base_folder+'k31_20151223_AM_150um_65mW_zoom2p2_00001_*.tif'):
-        fnames.append(file)
+    fnames.append(file)
 fnames.sort()
-print fnames  
+print(fnames)  
 
 #%%
 n_processes = 56#np.maximum(psutil.cpu_count() - 2,1) # roughly number of cores on your machine minus 1
@@ -68,13 +70,13 @@ n_processes = 56#np.maximum(psutil.cpu_count() - 2,1) # roughly number of cores 
 #    mn.play(gain=5.,magnification=4,backend='opencv',fr=30)
 #%%
 t1 = time()
-file_res=cb.motion_correct_parallel(fnames,fr=30,template=None,margins_out=0,max_shift_w=45, max_shift_h=45,dview=,apply_smooth=True)
+file_res=cb.motion_correct_parallel(fnames,fr=30,template=None,margins_out=0,max_shift_w=45, max_shift_h=45,dview=dview,apply_smooth=True)
 t2=time()-t1
-print t2
+print(t2)
 #%%   
 all_movs=[]
 for f in  glob.glob(base_folder+'*.hdf5'):
-    print f
+    print(f)
     with np.load(f[:-4]+'npz') as fl:
 #        pl.subplot(1,2,1)
 #        pl.imshow(fl['template'],cmap=pl.cm.gray)
@@ -94,27 +96,27 @@ pl.imshow(template,cmap=pl.cm.gray,vmax=120)
 all_movs.play(backend='opencv',gain=10,fr=10)
 #%%
 t1 = time()
-file_res=cb.motion_correct_parallel(fnames,30,template=template,margins_out=0,max_shift_w=45, max_shift_h=45,client=,remove_blanks=False)
+file_res=cb.motion_correct_parallel(fnames,30,template=template,margins_out=0,max_shift_w=45, max_shift_h=45,client=c,remove_blanks=False)
 t2=time()-t1
-print t2
+print(t2)
 #%%
 for f in  file_res:
     with np.load(f+'npz') as fl:
         pl.subplot(2,2,1)
         pl.imshow(fl['template'],cmap=pl.cm.gray,vmin=np.percentile(fl['template'],1),vmax=np.percentile(fl['template'],99))
-        
+
         pl.subplot(2,2,3)
         pl.plot(fl['xcorrs'])  
         pl.subplot(2,2,2)
         pl.plot(fl['shifts'])
         pl.pause(0.1)
         pl.cla()
-        
-print time() - t1 - 200
+
+print((time() - t1 - 200))
 #%%
 all_movs=[]
 for f in  glob.glob(base_folder+'*.hdf5'):
-    print f
+    print(f)
     with np.load(f[:-4]+'npz') as fl:
 #        pl.subplot(1,2,1)
 #        pl.imshow(fl['template'],cmap=pl.cm.gray)
@@ -123,7 +125,7 @@ for f in  glob.glob(base_folder+'*.hdf5'):
         all_movs.append(fl['template'][np.newaxis,:,:])
 #        pl.pause(2)
 #        pl.cla()
-        
+
 all_movs=cb.movie(np.concatenate(all_movs,axis=0),fr=10)
 all_movs,shifts,corss,_=all_movs.motion_correct(template=None,max_shift_w=45, max_shift_h=45)        
 all_movs.save(base_folder+'avg_movies.tif')
@@ -139,14 +141,14 @@ fr_remove_init=30
 for f in  fnames:
     with np.load(f[:-3]+'npz') as fl:
         big_shifts.append(fl['shifts'])
-        
-    print f
+
+    print(f)
     Yr=cb.load(f[:-3]+'hdf5')[fr_remove_init:]
     Yr=Yr.resize(fx=1,fy=1,fz=.2)
     Yr = np.transpose(Yr,(1,2,0)) 
     d1,d2,T=Yr.shape
     Yr=np.reshape(Yr,(d1*d2,T),order='F')
-    print Yr.shape
+    print((Yr.shape))
 #    np.save(fname[:-3]+'npy',np.asarray(Yr))
     big_mov.append(np.asarray(Yr))
 #%%
@@ -157,7 +159,7 @@ np.save('Yr_DS.npy',big_mov)
 np.save('big_shifts.npy',big_shifts)
 
 #%%
-_,d1,d2=np.shape(cb.load(fnames[0][:-3]+'hdf5',subindices=range(3),fr=10))
+_,d1,d2=np.shape(cb.load(fnames[0][:-3]+'hdf5',subindices=list(range(3)),fr=10))
 Yr=np.load('Yr_DS.npy',mmap_mode='r')  
 d,T=Yr.shape      
 Y=np.reshape(Yr,(d1,d2,T),order='F')

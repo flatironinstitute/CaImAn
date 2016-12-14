@@ -1,9 +1,12 @@
+from __future__ import print_function
 #%%
+from builtins import str
+from builtins import range
 try:
     if __IPYTHON__:
         # this is used for debugging purposes only. allows to reload classes when changed
-        get_ipython().magic(u'load_ext autoreload')
-        get_ipython().magic(u'autoreload 2')
+        get_ipython().magic('load_ext autoreload')
+        get_ipython().magic('autoreload 2')
 except NameError:       
     print('Not IPYTHON')    
     pass
@@ -33,7 +36,7 @@ if backend == 'SLURM':
     n_processes = np.int(os.environ.get('SLURM_NPROCS'))
 else:
     n_processes = np.maximum(np.int(psutil.cpu_count()),1) # roughly number of cores on your machine minus 1
-print 'using ' + str(n_processes) + ' processes'
+print(('using ' + str(n_processes) + ' processes'))
 #%% start cluster for efficient computation
 single_thread=False
 
@@ -43,14 +46,14 @@ else:
     try:
         c.close()
     except:
-        print 'C was not existing, creating one'
-    print "Stopping  cluster to avoid unnencessary use of memory...."
+        print('C was not existing, creating one')
+    print("Stopping  cluster to avoid unnencessary use of memory....")
     sys.stdout.flush()  
     if backend == 'SLURM':
         try:
             stop_server(is_slurm=True)
         except:
-            print 'Nothing to stop'
+            print('Nothing to stop')
         slurm_script='/mnt/xfs1/home/agiovann/SOFTWARE/Constrained_NMF/SLURM/slurmStart.sh'
         cm.start_server(slurm_script=slurm_script)
         pdir, profile = os.environ['IPPPDIR'], os.environ['IPPPROFILE']
@@ -60,7 +63,7 @@ else:
         cm.start_server()        
         c=Client()
 
-    print 'Using '+ str(len(c)) + ' processes'
+    print(('Using '+ str(len(c)) + ' processes'))
     dview=c[:len(c)]
 #%% FOR LOADING ALL TIFF FILES IN A FILE AND SAVING THEM ON A SINGLE MEMORY MAPPABLE FILE
 fnames=[]
@@ -68,12 +71,12 @@ base_folder='./example_movies/' # folder containing the demo files
 for file in glob.glob(os.path.join(base_folder,'*.tif')):
     if file.endswith("ie.tif"):
         fnames.append(os.path.abspath(file))
-        
+
 fnames.sort()
 if len(fnames)==0:
     raise Exception("Could not find any tiff file")
 
-print fnames  
+print(fnames)  
 fnames=fnames
 #%%
 #idx_x=slice(12,500,None)
@@ -85,7 +88,7 @@ idx_xy=None
 base_name='Yr'
 name_new=cm.save_memmap_each(fnames, dview=dview,base_name=base_name, resize_fact=(1, 1, downsample_factor), remove_init=0,idx_xy=idx_xy,add_to_movie=add_to_movie )
 name_new.sort()
-print name_new
+print(name_new)
 
 #%%
 fname_new=cm.save_memmap_join(name_new,base_name='Yr', n_chunks=12, dview=dview)
@@ -105,11 +108,11 @@ options['preprocess_params']['noise_method']='mean'
 #%% PREPROCESS DATA AND INITIALIZE COMPONENTS
 t1 = time()
 Yr,sn,g,psx = cm.source_extraction.cnmf.pre_processing.preprocess_data(Yr,dview=dview,**options['preprocess_params'])
-print time() - t1
+print((time() - t1))
 #%%
 t1 = time()
 Atmp, Ctmp, b_in, f_in, center=cm.source_extraction.cnmf.initialization.initialize_components(Y, normalize=True, **options['init_params'])                                                    
-print time() - t1
+print((time() - t1))
 #%% Refine manually component by clicking on neurons 
 refine_components=False
 if refine_components:
@@ -134,12 +137,12 @@ t1 = time()
 options['temporal_params']['p'] = 0 # set this to zero for fast updating without deconvolution
 C,f,S,bl,c1,neurons_sn,g,YrA = cm.source_extraction.cnmf.temporal.update_temporal_components(Yr,A,b,Cin,f_in,dview=dview,bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
 t_elTEMPORAL = time() - t1
-print t_elTEMPORAL 
+print(t_elTEMPORAL) 
 #%% merge components corresponding to the same neuron
 t1 = time()
 A_m,C_m,nr_m,merged_ROIs,S_m,bl_m,c1_m,sn_m,g_m=cm.source_extraction.cnmf.merging.merge_components(Yr,A,b,C,f,S,sn,options['temporal_params'], options['spatial_params'],dview=dview, bl=bl, c1=c1, sn=neurons_sn, g=g, thr=merge_thresh, mx=50, fast_merge = True)
 t_elMERGE = time() - t1
-print t_elMERGE  
+print(t_elMERGE)  
 
 
 #%%
@@ -151,7 +154,7 @@ t1 = time()
 A2,b2,C2 = cm.source_extraction.cnmf.spatial.update_spatial_components(Yr, C_m, f, A_m, sn=sn,dview=dview, **options['spatial_params'])
 options['temporal_params']['p'] = p # set it back to original value to perform full deconvolution
 C2,f2,S2,bl2,c12,neurons_sn2,g21,YrA = cm.source_extraction.cnmf.temporal.update_temporal_components(Yr,A2,b2,C2,f,dview=dview, bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
-print time() - t1
+print((time() - t1))
 
 pl.figure()
 crd = plot_contours(A2.tocsc()[:,:],Cn,thr=0.9)
@@ -182,12 +185,12 @@ minCircularity= 0.6, minInertiaRatio = 0.2,minConvexity =.8)
 idx_components=np.union1d(idx_components_r,idx_components_raw)
 idx_components=np.union1d(idx_components,idx_components_delta)  
 idx_blobs=np.intersect1d(idx_components,idx_blobs)   
-idx_components_bad=np.setdiff1d(range(len(traces)),idx_components)
+idx_components_bad=np.setdiff1d(list(range(len(traces))),idx_components)
 
 print(' ***** ')
-print len(traces)
-print(len(idx_components))
-print(len(idx_blobs))
+print((len(traces)))
+print((len(idx_components)))
+print((len(idx_blobs)))
 #%% visualize components
 #pl.figure();
 pl.subplot(1,3,1)

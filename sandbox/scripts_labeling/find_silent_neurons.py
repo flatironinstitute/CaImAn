@@ -1,10 +1,12 @@
+from __future__ import print_function
 #%%
+from builtins import str
 try:
-    %load_ext autoreload
-    %autoreload 2
-    print 1
+    get_ipython().magic('load_ext autoreload')
+    get_ipython().magic('autoreload 2')
+    print((1))
 except:
-    print 'NOT IPYTHON'
+    print('NOT IPYTHON')
 
 import matplotlib as mpl
 mpl.use('TKAgg')
@@ -31,7 +33,7 @@ import scipy
 from ipyparallel import Client
 #%%
 n_processes = np.maximum(np.int(psutil.cpu_count()),1) # roughly number of cores on your machine minus 1
-print 'using ' + str(n_processes) + ' processes'
+print(('using ' + str(n_processes) + ' processes'))
 
 #%% start cluster for efficient computation
 single_thread=False
@@ -42,8 +44,8 @@ else:
     try:
         c.close()
     except:
-        print 'C was not existing, creating one'
-    print "Stopping  cluster to avoid unnencessary use of memory...."
+        print('C was not existing, creating one')
+    print("Stopping  cluster to avoid unnencessary use of memory....")
     sys.stdout.flush()  
     cse.utilities.stop_server()
     cse.utilities.start_server()
@@ -71,7 +73,7 @@ options = cse.utilities.CNMFSetParms(Y,n_processes,p=p,gSig=gSig,K=K,ssub=2,tsub
 #%% PREPROCESS DATA AND INITIALIZE COMPONENTS
 t1 = time()
 Yr,sn,g,psx = cse.pre_processing.preprocess_data(Yr,dview=dview,**options['preprocess_params'])
-print time() - t1
+print((time() - t1))
 
 ##%%
 #t1 = time()
@@ -93,7 +95,7 @@ pl.figure()
 t1 = time()
 A,b,Cin,f = cse.spatial.update_spatial_components(Yr, C=None, f=None, A_in=Ain.astype(np.bool), sn=sn, dview=None,**options['spatial_params'])
 t_elSPATIAL = time() - t1
-print t_elSPATIAL 
+print(t_elSPATIAL) 
 pl.figure()
 crd = cse.utilities.plot_contours(A,Cn)
 
@@ -104,7 +106,7 @@ t1 = time()
 options['temporal_params']['p'] = 0 # set this to zero for fast updating without deconvolution
 C,f,S,bl,c1,neurons_sn,g,YrA = cse.temporal.update_temporal_components(Yr,A,b,Cin,f,dview=dview,bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
 t_elTEMPORAL = time() - t1
-print t_elTEMPORAL 
+print(t_elTEMPORAL) 
 
 #%%
 traces=C+YrA
@@ -113,8 +115,8 @@ traces=traces-scipy.signal.savgol_filter(traces,np.shape(traces)[1]/2*2-1,1,axis
 
 idx_components, fitness, erfc = cse.utilities.evaluate_components(traces,N=5,robust_std=True)
 idx_components=idx_components[fitness>-35]
-print len(idx_components)
-print np.shape(A)
+print((len(idx_components)))
+print((np.shape(A)))
 #%%
 
 cse.utilities.view_patches_bar(Yr,scipy.sparse.coo_matrix(A.tocsc()[:,idx_components]),C[idx_components,:],b,f, dims[0],dims[1], YrA=YrA[idx_components,:],img=Cn)  
@@ -126,7 +128,7 @@ t1 = time()
 A2,b2,C2 = cse.spatial.update_spatial_components(Yr, C, f, A, sn=sn,dview=dview, **options['spatial_params'])
 options['temporal_params']['p'] = p # set it back to original value to perform full deconvolution
 C2,f2,S2,bl2,c12,neurons_sn2,g21,YrA = cse.temporal.update_temporal_components(Yr,A2,b2,C2,f,dview=dview, bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
-print time() - t1
+print((time() - t1))
 #%%
 plt.figure()
 crd = cse.plot_contours(A2,Cn,thr=0.9)

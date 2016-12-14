@@ -1,4 +1,5 @@
 #%%
+from builtins import zip
 import numpy as np
 import matplotlib.pyplot as pl
 from matplotlib import animation
@@ -79,7 +80,7 @@ class GUI(animation.TimedAnimation):
         self.sl_contrast1 = Slider(self.ax_contrast1, 'Hi', 0., 255.0, valinit=self.c1, valfmt='%d')
         self.sl_contrast0.on_changed(self.evt_contrast)
         self.sl_contrast1.on_changed(self.evt_contrast)
-        self.img_buttons = [Button(ax,k) for k,ax in zip(self.images.keys(),self.axs_imbuts)]
+        self.img_buttons = [Button(ax,k) for k,ax in zip(list(self.images.keys()),self.axs_imbuts)]
         self.but_rm = Button(self.ax_rm, 'Remove All ROIs Currently in FOV')
 
         # display initial things
@@ -95,13 +96,13 @@ class GUI(animation.TimedAnimation):
         self.plot_current_traces()
 
         # callbacks
-        for ib,lab in zip(self.img_buttons,self.images.keys()):
+        for ib,lab in zip(self.img_buttons,list(self.images.keys())):
             ib.on_clicked(lambda evt, lab=lab: self.evt_imbut(evt,lab))
         self.but_rm.on_clicked(self.remove_roi)
         self.fig.canvas.mpl_connect('button_press_event', self.evt_click)
         self.ax_mov.callbacks.connect('xlim_changed', self.evt_zoom)
         self.ax_mov.callbacks.connect('ylim_changed', self.evt_zoom)
-            
+
         # runtime
         self._idx = -1
         self.t0 = time.clock()
@@ -135,17 +136,17 @@ class GUI(animation.TimedAnimation):
         self.t0 = time.clock()
 
         self.movdata.set_data(d)
-        
+
         # blit
         self._drawn_artists = self.always_draw
         for da in self._drawn_artists:
             da.set_animated(True)
-    
+
     def _blit_clear(self, artists, bg_cache):
         for ax in self.blit_clear_axes:
             if ax in bg_cache:
                 self.fig.canvas.restore_region(bg_cache[ax])
-    
+
     def evt_contrast(self, val):
         self.c0 = self.sl_contrast0.val
         self.c1 = self.sl_contrast1.val
@@ -156,7 +157,7 @@ class GUI(animation.TimedAnimation):
         if self.c1 < self.c0:
             self.c1 = self.c0+1
             self.sl_contrast1.set_val(self.c1)
-        
+
         self.movdata.set_clim(vmin=self.c0, vmax=self.c1)
         self.imgdata.set_clim(vmin=self.c0, vmax=self.c1)
 

@@ -4,12 +4,15 @@ Created on Sat Nov 19 14:29:15 2016
 
 @author: agiovann
 """
+from __future__ import print_function
 
+from builtins import zip
+from builtins import str
 try:
     if __IPYTHON__:
         # this is used for debugging purposes only. allows to reload classes when changed
-        get_ipython().magic(u'load_ext autoreload')
-        get_ipython().magic(u'autoreload 2')
+        get_ipython().magic('load_ext autoreload')
+        get_ipython().magic('autoreload 2')
 except NameError:
     print('Not IPYTHON')
     pass
@@ -42,7 +45,7 @@ if backend == 'SLURM':
 else:
     # roughly number of cores on your machine minus 1
     n_processes = np.maximum(np.int(psutil.cpu_count()), 1)
-print 'using ' + str(n_processes) + ' processes'
+print(('using ' + str(n_processes) + ' processes'))
 #%% start cluster for efficient computation
 single_thread = False
 
@@ -52,14 +55,14 @@ else:
     try:
         c.close()
     except:
-        print 'C was not existing, creating one'
-    print "Stopping  cluster to avoid unnencessary use of memory...."
+        print('C was not existing, creating one')
+    print("Stopping  cluster to avoid unnencessary use of memory....")
     sys.stdout.flush()
     if backend == 'SLURM':
         try:
             cm.stop_server(is_slurm=True)
         except:
-            print 'Nothing to stop'
+            print('Nothing to stop')
         slurm_script = '/mnt/xfs1/home/agiovann/SOFTWARE/Constrained_NMF/SLURM/slurmStart.sh'
         cm.start_server(slurm_script=slurm_script)
         pdir, profile = os.environ['IPPPDIR'], os.environ['IPPPROFILE']
@@ -69,7 +72,7 @@ else:
         cm.start_server()
         c = Client()
 
-    print 'Using ' + str(len(c)) + ' processes'
+    print(('Using ' + str(len(c)) + ' processes'))
     dview = c[:len(c)]
 #%%
 #idx_x=slice(12,500,None)
@@ -84,11 +87,11 @@ base_name='Yr'
 #name_new=cm.save_memmap_each(['M_FLUO_t.tif'], dview=dview,base_name=base_name, resize_fact=(1, 1, downsample_factor), remove_init=0,idx_xy=idx_xy,add_to_movie=add_to_movie,border_to_0=border_to_0)
 name_new=cm.save_memmap_each(['M_FLUO_t.tif'], dview=dview,base_name=base_name, resize_fact=(1, 1, downsample_factor), remove_init=0,idx_xy=idx_xy,add_to_movie=add_to_movie,border_to_0=border_to_0)
 ame_new.sort()
-print name_new
+print(name_new)
 #%% 
 #Yr,dim,T=cm.load_memmap('Yr0_d1_64_d2_128_d3_1_order_C_frames_6764_.mmap')   
 Yr,dim,T=cm.load_memmap('Yr0_d1_512_d2_512_d3_1_order_C_frames_1076_.mmap')    
- 
+
 res,idfl,shape_grid = apply_to_patch(Yr,(T,)+dim,None,dim[0],8, motion_correct_online, 200, max_shift_w=15, max_shift_h=15, save_base_name='test_mmap',  init_frames_template=100, show_movie=False, remove_blanks=True,n_iter=2,show_template=False)    
 #%%
 [pl.plot(np.array(r[0][-2])) for r in res]
@@ -114,7 +117,7 @@ res_p = apply_to_patch(mr,(T,)+dim_r,None,48,8, motion_correct_online, 0, show_t
  show_movie=False, remove_blanks=False, n_iter=2, return_mov=True,use_median_as_template = True)
 
 #%%
- 
+
 for idx,r in enumerate(res_p):
     pl.subplot(shape_grid[0],shape_grid[1],idx+1)
 #    pl.plot(np.reshape(np.ar4ray(r[0][0]).T,(4,-1)).T)
@@ -122,7 +125,7 @@ for idx,r in enumerate(res_p):
 #    idx_good = np.where(np.array(r[1][-1])>.15)[0]
 #    pl.plot(np.array(r[0][-1])[idx_good])
     pl.plot(np.array(r[0][-1]))
-    
+
 #%% 
 for idx,r in enumerate(res_p):
     pl.subplot(shape_grid[0],shape_grid[1],idx+1)
@@ -150,14 +153,14 @@ for idx,r in enumerate(res_p):
 movie_shifts_x = np.zeros((T,)  + dim_r) 
 movie_shifts_y = np.zeros((T,)  + dim_r) 
 
-  
+
 for r,idx_mat in zip(res_p,idfl):
     img_temp = np.zeros(np.prod(dim_r ) )   
     img_temp[idx_mat]=1
     img_temp = np.reshape(img_temp,dim_r,order='F')
 #    pl.imshow(img_temp)
     x1,x2 = np.round(scipy.ndimage.center_of_mass(img_temp)).astype(np.int)
-    print x1,x2
+    print((x1,x2))
     movie_shifts_x[:,x1,x2] = np.array(r[0][-1])[:,0]
     movie_shifts_y[:,x1,x2] = np.array(r[0][-1])[:,1]
 
@@ -168,14 +171,14 @@ pl.imshow(mn)
 
 for imm_x,imm_y in zip(movie_shifts_x,movie_shifts_y):
     y,x = np.where((imm_x!=0) | (imm_y!=0))          
-    
+
     pl.cla()
     pl.imshow(mn)
     pl.quiver( x,y,  np.array(imm_y[y,x]),np.array(imm_x[y,x]), color='w',angles='xy', scale_units='xy', scale=.1) 
 #    pl.xlim([0, dim_r[1]])
 #    pl.ylim([0, dim_r[0]])
     pl.pause(.01)
-    
+
 
 #%% final movie shifts size 
 np.multiply(shape_grid,2)
@@ -190,7 +193,7 @@ for idx,r in enumerate(res_p):
     mm=cm.movie(r[-1])
     mm.play(fr=100,magnification=7,gain=2.)  
 #%%
-     
+
 #%%
 imgtot = np.zeros(np.prod(dim_r))
 for idx,r in enumerate(res_p):    

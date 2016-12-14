@@ -4,10 +4,12 @@ Created on Sun Aug  7 13:44:32 2016
 
 @author: agiovann
 """
+from __future__ import print_function
 
 #%%    
-%load_ext autoreload
-%autoreload 2    
+from builtins import zip
+get_ipython().magic('load_ext autoreload')
+get_ipython().magic('autoreload 2')    
 from glob import glob
 import numpy as np
 import pylab as pl
@@ -41,13 +43,13 @@ amplitudes_fluo=amplitudes['amplitudes_fluo']
 #%%
 counter=0
 with np.load(glob(os.path.join(base_folder,'*-template_total.npz'))[0]) as ld:
-        templs=ld['template_each']
-        for mn1,A in zip(templs,masks['A_each']):
-            
-            pl.subplot(2,3,counter+1)        
+    templs=ld['template_each']
+    for mn1,A in zip(templs,masks['A_each']):
+
+        pl.subplot(2,3,counter+1)        
 #            mn=np.median(templs,0)
-            mn=mn1
-            d1,d2=np.shape(mn)
+        mn=mn1
+        d1,d2=np.shape(mn)
 #            selem = disk(50)
 #            mn=(mn1 - np.min(mn1))/(np.max(mn1)-np.min(mn1))
 #            mn = rank.equalize(mn, selem=selem)
@@ -55,13 +57,13 @@ with np.load(glob(os.path.join(base_folder,'*-template_total.npz'))[0]) as ld:
 #            os.path.split(fl)[-1]
 #            pl.imshow(mn,cmap='gray')
 #            pl.imshow(mn,cmap='gray',vmax=np.percentile(mn,99))
-            
+
 #            pl.imshow(mn,cmap='gray',vmax=np.percentile(mn,98))
-            pl.imshow(A.mean(1).reshape((d1,d2),order='F'),alpha=1,cmap='hot')
+        pl.imshow(A.mean(1).reshape((d1,d2),order='F'),alpha=1,cmap='hot')
 #            pl.xlim([0,512])
 #            pl.ylim([300,512])
-            pl.axis('off')
-            counter+=1
+        pl.axis('off')
+        counter+=1
 #            pl.title(fl.split('/')[-2][:8])
 
 #%%
@@ -109,7 +111,7 @@ pl.ylim([-.1, None])
 
 #%
 import pandas
-    
+
 bins=np.arange(-.15,0.7,.2)
 n_bins=6
 thresh__correlation=.93
@@ -123,7 +125,7 @@ for resps in amplitudes_fluo.T:
     dfs.append(pandas.DataFrame(
         {y_name: resps[idxCSCSUS[idx_order]],
          x_name: amplitudes_eyelid[idxCSCSUS]}))
-         
+
     idx_order=np.random.permutation(idx_order)         
     dfs_random.append(pandas.DataFrame(
         {y_name: resps[idxCSCSUS[idx_order]],
@@ -142,9 +144,9 @@ for df,dfr in zip(dfs,dfs_random): # random scramble
     grouped_sem = groups.sem()
     (r,p_val)=scipy.stats.pearsonr(grouped_mean.ampl_eye,grouped_mean.ampl_fl)
 #    r=np.corrcoef(grouped_mean.ampl_eye,grouped_mean.ampl_fl)[0,1]
-    
+
     r_ss.append(r)
-    
+
     if bins is None:
         [_,bins]=np.histogram(df.ampl_eye,n_bins)         
 
@@ -156,7 +158,7 @@ for df,dfr in zip(dfs,dfs_random): # random scramble
     r_s.append(r)    
     if r_s[-1]>thresh__correlation:
         pl.subplot(2,2,3)
-        print 'found'
+        print('found')
         pl.errorbar(grouped_mean.ampl_eye,grouped_mean.ampl_fl,grouped_sem.ampl_fl.as_matrix(),grouped_sem.ampl_eye.as_matrix(),fmt='.')
         pl.scatter(grouped_mean.ampl_eye,grouped_mean.ampl_fl,s=groups.apply(len).values*3)#
         pl.xlabel(x_name)

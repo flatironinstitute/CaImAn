@@ -8,13 +8,17 @@ For explanation consult at https://github.com/agiovann/Constrained_NMF/releases/
 and https://github.com/agiovann/Constrained_NMF
 
 """
+from __future__ import division
+from __future__ import print_function
 #%%
+from builtins import str
+from past.utils import old_div
 try:
-    %load_ext autoreload
-    %autoreload 2
-    print 1
+    get_ipython().magic('load_ext autoreload')
+    get_ipython().magic('autoreload 2')
+    print((1))
 except:
-    print 'NOT IPYTHON'
+    print('NOT IPYTHON')
 
 import matplotlib as mpl
 mpl.use('TKAgg')
@@ -45,7 +49,7 @@ if backend == 'SLURM':
     n_processes = np.int(os.environ.get('SLURM_NPROCS'))
 else:
     n_processes = np.maximum(np.int(psutil.cpu_count()),1) # roughly number of cores on your machine minus 1
-print 'using ' + str(n_processes) + ' processes'
+print(('using ' + str(n_processes) + ' processes'))
 
 #%% start cluster for efficient computation
 single_thread=False
@@ -56,14 +60,14 @@ else:
     try:
         c.close()
     except:
-        print 'C was not existing, creating one'
-    print "Stopping  cluster to avoid unnencessary use of memory...."
+        print('C was not existing, creating one')
+    print("Stopping  cluster to avoid unnencessary use of memory....")
     sys.stdout.flush()  
     if backend == 'SLURM':
         try:
             cse.utilities.stop_server(is_slurm=True)
         except:
-            print 'Nothing to stop'
+            print('Nothing to stop')
         slurm_script='/mnt/xfs1/home/agiovann/SOFTWARE/Constrained_NMF/SLURM/slurmStart.sh'
         cse.utilities.start_server(slurm_script=slurm_script)
         pdir, profile = os.environ['IPPPDIR'], os.environ['IPPPROFILE']
@@ -73,7 +77,7 @@ else:
         cse.utilities.start_server()        
         c=Client()
 
-    print 'Using '+ str(len(c)) + ' processes'
+    print(('Using '+ str(len(c)) + ' processes'))
     dview=c[:len(c)]
 #%% FOR LOADING ALL TIFF FILES IN A FILE AND SAVING THEM ON A SINGLE MEMORY MAPPABLE FILE
 fnames=[]
@@ -82,7 +86,7 @@ for file in glob.glob(os.path.join(base_folder,'*.hdf5')):
     if file.endswith(""):
         fnames.append(os.path.abspath(file))
 fnames.sort()
-print fnames  
+print(fnames)  
 fnames=fnames
 #%% Create a unique file fot the whole dataset
 # THIS IS  ONLY IF YOU NEED TO SELECT A SUBSET OF THE FIELD OF VIEW 
@@ -100,7 +104,7 @@ idx_xy=None
 base_name='Yr'
 name_new=cse.utilities.save_memmap_each(fnames, dview=dview,base_name=base_name, resize_fact=(1, 1, downsample_factor), remove_init=0,idx_xy=idx_xy )
 name_new.sort(key=lambda fn: np.int(os.path.split(fn)[-1][len(base_name):os.path.split(fn)[-1].find('_')]))
-print name_new
+print(name_new)
 #%%
 n_chunks=6 # increase this number if you have memory issues at this point
 fname_new=cse.utilities.save_memmap_join(name_new,base_name='Yr', n_chunks=6, dview=dview)
@@ -138,7 +142,7 @@ options_patch['patch_params']['only_init']=True
 
 A_tot,C_tot,b,f,sn_tot, optional_outputs = cse.map_reduce.run_CNMF_patches(fname_new, (d1, d2, T), options_patch,rf=rf,stride = stride,
                                                                         dview=dview,memory_fact=memory_fact)
-print 'Number of components:' + str(A_tot.shape[-1])      
+print(('Number of components:' + str(A_tot.shape[-1])))      
 #%%
 if save_results:
     np.savez(os.path.join(base_folder,'results_analysis_patch.npz'),A_tot=A_tot.todense(), C_tot=C_tot, sn_tot=sn_tot,d1=d1,d2=d2,b=b,f=f)    
@@ -147,14 +151,14 @@ pl.figure()
 crd = cse.utilities.plot_contours(A_tot,Cn,thr=0.9)
 #%% set parameters for full field of view analysis
 options = cse.utilities.CNMFSetParms(Y,n_processes,p=0,gSig=gSig,K=A_tot.shape[-1],thr=merge_thresh)
-pix_proc=np.minimum(np.int((d1*d2)/n_processes/(T/2000.)),np.int((d1*d2)/n_processes)) # regulates the amount of memory used
+pix_proc=np.minimum(np.int((d1*d2)/n_processes/(old_div(T,2000.))),np.int(old_div((d1*d2),n_processes))) # regulates the amount of memory used
 options['spatial_params']['n_pixels_per_process']=pix_proc
 options['temporal_params']['n_pixels_per_process']=pix_proc
 #%% merge spatially overlaping and temporally correlated components   
 if 1:   
-   A_m,C_m,nr_m,merged_ROIs,S_m,bl_m,c1_m,sn_m,g_m=cse.merge_components(Yr,A_tot,[],np.array(C_tot),[],np.array(C_tot),[],options['temporal_params'],options['spatial_params'],dview=dview,thr=options['merging']['thr'],mx=np.Inf)     
+    A_m,C_m,nr_m,merged_ROIs,S_m,bl_m,c1_m,sn_m,g_m=cse.merge_components(Yr,A_tot,[],np.array(C_tot),[],np.array(C_tot),[],options['temporal_params'],options['spatial_params'],dview=dview,thr=options['merging']['thr'],mx=np.Inf)     
 else:
-   A_m,C_m,f_m=A_tot,C_tot,f
+    A_m,C_m,f_m=A_tot,C_tot,f
 
 cse.utilities.view_patches_bar(Yr,A_m,C_m,b,f_m, d1,d2, C_m ,img=Cn)  
 
@@ -169,7 +173,7 @@ C_m,f_m,S_m,bl_m,c1_m,neurons_sn_m,g2_m,YrA_m = cse.temporal.update_temporal_com
 traces=C_m+YrA_m
 idx_components, fitness, erfc = cse.utilities.evaluate_components(traces,N=5,robust_std=False)
 idx_components=idx_components[np.logical_and(True ,fitness < -10)]
-print(len(idx_components))
+print((len(idx_components)))
 cse.utilities.view_patches_bar(Yr,scipy.sparse.coo_matrix(A_m.tocsc()[:,idx_components]),C_m[idx_components,:],b,f_m, d1,d2, YrA=YrA_m[idx_components,:],img=Cn)  
 #%%
 A_m=A_m[:,idx_components]
@@ -179,12 +183,12 @@ C_m=C_m[idx_components,:]
 pl.figure()
 crd = cse.utilities.plot_contours(A_m,Cn,thr=0.9)
 #%%
-print 'Number of components:' + str(A_m.shape[-1])  
+print(('Number of components:' + str(A_m.shape[-1])))  
 #%% UPDATE SPATIAL OCMPONENTS
 t1 = time()
 options['spatial_params']['method']='dilate'
 A2,b2,C2 = cse.spatial.update_spatial_components(Yr, C_m, f, A_m, sn=sn_tot,dview=dview, **options['spatial_params'])
-print time() - t1
+print((time() - t1))
 #%% UPDATE TEMPORAL COMPONENTS
 options['temporal_params']['p']=p
 options['temporal_params']['fudge_factor']=0.96 #change ifdenoised traces time constant is wrong
@@ -201,7 +205,7 @@ quality_threshold=-5
 traces=C2+YrA
 idx_components, fitness, erfc = cse.utilities.evaluate_components(traces,N=5,robust_std=False)
 idx_components=idx_components[fitness<quality_threshold]
-print(idx_components.size*1./traces.shape[0])
+print((idx_components.size*1./traces.shape[0]))
 #%%
 pl.figure();
 crd = cse.utilities.plot_contours(A2.tocsc()[:,idx_components],Cn,thr=0.9)
@@ -223,19 +227,19 @@ if save_results:
     import scipy
     import pylab as pl
     import calblitz as cb
-    
-    
-    
+
+
+
     with np.load('results_analysis.npz')  as ld:
-          locals().update(ld)
-    
+        locals().update(ld)
+
     fname_new='Yr0_d1_60_d2_80_d3_1_order_C_frames_2000_.mmap'
-    
+
     Yr,(d1,d2),T=cse.utilities.load_memmap(fname_new)
     d,T=np.shape(Yr)
     Y=np.reshape(Yr,(d1,d2,T),order='F') # 3D version of the movie
-    
-    
+
+
     traces=C2+YrA
     idx_components, fitness, erfc = cse.utilities.evaluate_components(traces,N=5,robust_std=False)
     #cse.utilities.view_patches(Yr,coo_matrix(A_or),C_or,b2,f2,d1,d2,YrA = YrA[srt,:], secs=1)

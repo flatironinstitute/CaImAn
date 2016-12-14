@@ -8,12 +8,15 @@ For explanation consult at https://github.com/agiovann/Constrained_NMF/releases/
 and https://github.com/agiovann/Constrained_NMF
 
 """
+from __future__ import print_function
 #%%
+from builtins import str
+from builtins import range
 try:
     if __IPYTHON__:
         # this is used for debugging purposes only. allows to reload classes when changed
-        get_ipython().magic(u'load_ext autoreload')
-        get_ipython().magic(u'autoreload 2')
+        get_ipython().magic('load_ext autoreload')
+        get_ipython().magic('autoreload 2')
 except NameError:
     print('Not IPYTHON')
     pass
@@ -51,7 +54,7 @@ if backend == 'SLURM':
 else:
     # roughly number of cores on your machine minus 1
     n_processes = np.maximum(np.int(psutil.cpu_count()), 1)
-print 'using ' + str(n_processes) + ' processes'
+print(('using ' + str(n_processes) + ' processes'))
 #%% start cluster for efficient computation
 single_thread = False
 
@@ -61,14 +64,14 @@ else:
     try:
         c.close()
     except:
-        print 'C was not existing, creating one'
-    print "Stopping  cluster to avoid unnencessary use of memory...."
+        print('C was not existing, creating one')
+    print("Stopping  cluster to avoid unnencessary use of memory....")
     sys.stdout.flush()
     if backend == 'SLURM':
         try:
             cm.stop_server(is_slurm=True)
         except:
-            print 'Nothing to stop'
+            print('Nothing to stop')
         slurm_script = '/mnt/xfs1/home/agiovann/SOFTWARE/Constrained_NMF/SLURM/slurmStart.sh'
         cm.start_server(slurm_script=slurm_script)
         pdir, profile = os.environ['IPPPDIR'], os.environ['IPPPROFILE']
@@ -78,7 +81,7 @@ else:
         cm.start_server()
         c = Client()
 
-    print 'Using ' + str(len(c)) + ' processes'
+    print(('Using ' + str(len(c)) + ' processes'))
     dview = c[:len(c)]
 #%% FOR LOADING ALL TIFF FILES IN A FILE AND SAVING THEM ON A SINGLE MEMORY MAPPABLE FILE
 
@@ -91,7 +94,7 @@ fnames.sort()
 if len(fnames) == 0:
     raise Exception("Could not find any tiff file")
 
-print fnames  
+print(fnames)  
 fnames=fnames
 #%%
 #idx_x=slice(12,500,None)
@@ -104,7 +107,7 @@ idx_xy=None
 base_name='Yr'
 name_new=cm.save_memmap_each(fnames, dview=dview,base_name=base_name, resize_fact=(1, 1, downsample_factor), remove_init=0,idx_xy=idx_xy,add_to_movie=add_to_movie,border_to_0=border_to_0)
 name_new.sort()
-print name_new
+print(name_new)
 #%%
 fname_new = cm.save_memmap_join(name_new, base_name='Yr', n_chunks=12, dview=dview)
 #%%
@@ -144,7 +147,7 @@ b_tot = cnm.b
 f_tot = cnm.f
 sn_tot = cnm.sn
 
-print 'Number of components:' + str(A_tot.shape[-1])
+print(('Number of components:' + str(A_tot.shape[-1])))
 
 #%%
 final_frate = 10# approx final rate  (after eventual downsampling )
@@ -163,10 +166,10 @@ idx_components_delta = np.where(fitness_delta < -10)[0]
 
 idx_components = np.union1d(idx_components_r, idx_components_raw)
 idx_components = np.union1d(idx_components, idx_components_delta)
-idx_components_bad = np.setdiff1d(range(len(traces)), idx_components)
+idx_components_bad = np.setdiff1d(list(range(len(traces))), idx_components)
 
-print ('Keeping ' + str(len(idx_components)) +
-       ' and discarding  ' + str(len(idx_components_bad)))
+print(('Keeping ' + str(len(idx_components)) +
+       ' and discarding  ' + str(len(idx_components_bad))))
 #%%
 pl.figure()
 crd = plot_contours(A_tot.tocsc()[:, idx_components], Cn, thr=0.9)
@@ -213,19 +216,19 @@ min_radius = gSig[0]
 #% LOOK FOR BLOB LIKE STRUCTURES!
 masks_ws, is_blob, is_non_blob = cm.base.rois.extract_binary_masks_blob_parallel(A.tocsc(), min_radius, dims, num_std_threshold=1,
     minCircularity=0.5, minInertiaRatio=0.2, minConvexity=.7,dview=dview)    
-    
+
 idx_blobs=np.where(is_blob)[0]
 idx_non_blobs=np.where(is_non_blob)[0]     
 
 idx_components = np.union1d(idx_components_r, idx_components_raw)
 idx_components = np.union1d(idx_components, idx_components_delta)
 idx_blobs = np.intersect1d(idx_components, idx_blobs)
-idx_components_bad = np.setdiff1d(range(len(traces)), idx_components)
+idx_components_bad = np.setdiff1d(list(range(len(traces))), idx_components)
 
 print(' ***** ')
-print len(traces)
-print(len(idx_components))
-print(len(idx_blobs))
+print((len(traces)))
+print((len(idx_components)))
+print((len(idx_blobs)))
 #%%
 save_results = True
 if save_results:
@@ -260,8 +263,8 @@ for log_file in log_files:
 try:
     if __IPYTHON__:
         # this is used for debugging purposes only. allows to reload classes when changed
-        get_ipython().magic(u'load_ext autoreload')
-        get_ipython().magic(u'autoreload 2')
+        get_ipython().magic('load_ext autoreload')
+        get_ipython().magic('autoreload 2')
 except NameError:
     print('Not IPYTHON')
     pass
@@ -282,7 +285,7 @@ from caiman.source_extraction import cnmf as cnmf
 
 import pylab as pl
 pl.ion()    
-    
+
 with np.load('results_analysis.npz') as ld:
     locals().update(ld)
 

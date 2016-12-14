@@ -4,7 +4,12 @@ Created on Sat Sep 12 15:52:53 2015
 
 @author epnev
 """
+from __future__ import division
+from __future__ import print_function
 
+from builtins import str
+from builtins import range
+from past.utils import old_div
 import numpy as np
 from scipy.sparse import diags,spdiags,issparse
 from caiman.source_extraction.cnmf.initialization import greedyROI
@@ -24,15 +29,15 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], ssub=1, tsub=1, p=2, p_ssub=
     else:
         dims, T = Y.shape[:-1], Y.shape[-1]
 
-    print 'using ' + str(n_processes) + ' processes'
+    print(('using ' + str(n_processes) + ' processes'))
 #    n_pixels_per_process = np.prod(dims) / n_processes  # how to subdivide the work among processes
-    
+
     avail_memory_per_process = np.array(psutil.virtual_memory()[1])/2.**30/n_processes
     mem_per_pix = 3.6977678498329843e-09
     n_pixels_per_process = np.int(avail_memory_per_process/8./mem_per_pix/T)
-    n_pixels_per_process = np.minimum(n_pixels_per_process,np.prod(dims) / n_processes)
-    print 'using ' + str(n_pixels_per_process) + ' pixels per process'
-    
+    n_pixels_per_process = np.int(np.minimum(n_pixels_per_process,np.prod(dims) // n_processes))
+    print(('using ' + str(n_pixels_per_process) + ' pixels per process'))
+
     options = dict()
     options['patch_params'] = {
         'ssub': p_ssub,             # spatial downsampling factor
@@ -111,7 +116,7 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], ssub=1, tsub=1, p=2, p_ssub=
     }
     return options
 #%%
-def manually_refine_components(Y, (dx, dy), A, C, Cn, thr=0.9, display_numbers=True, max_number=None, cmap=None, **kwargs):
+def manually_refine_components(Y, xxx_todo_changeme, A, C, Cn, thr=0.9, display_numbers=True, max_number=None, cmap=None, **kwargs):
     """Plots contour of spatial components against a background image and allows to interactively add novel components by clicking with mouse
 
      Parameters
@@ -143,6 +148,7 @@ def manually_refine_components(Y, (dx, dy), A, C, Cn, thr=0.9, display_numbers=T
          array of estimated calcium traces
 
     """
+    (dx, dy) = xxx_todo_changeme
     if issparse(A):
         A = np.array(A.todense())
     else:
@@ -191,10 +197,10 @@ def manually_refine_components(Y, (dx, dy), A, C, Cn, thr=0.9, display_numbers=T
         pts = fig.ginput(1, timeout=0)
 
         if pts != []:
-            print pts
+            print(pts)
             xx, yy = np.round(pts[0]).astype(np.int)
-            coords_y = np.array(range(yy - dy, yy + dy + 1))
-            coords_x = np.array(range(xx - dx, xx + dx + 1))
+            coords_y = np.array(list(range(yy - dy, yy + dy + 1)))
+            coords_x = np.array(list(range(xx - dx, xx + dx + 1)))
             coords_y = coords_y[(coords_y >= 0) & (coords_y < d1)]
             coords_x = coords_x[(coords_x >= 0) & (coords_x < d2)]
             a3_tiny = A3[coords_y[0]:coords_y[-1] + 1, coords_x[0]:coords_x[-1] + 1, :]
@@ -211,7 +217,7 @@ def manually_refine_components(Y, (dx, dy), A, C, Cn, thr=0.9, display_numbers=T
 
             y3_res = np.reshape(y2_res, (dy_sz, dx_sz, T), order='F')
             a__, c__, center__, b_in__, f_in__ = greedyROI(
-                y3_res, nr=1, gSig=[np.floor(dx_sz / 2), np.floor(dy_sz / 2)], gSiz=[dx_sz, dy_sz])
+                y3_res, nr=1, gSig=[np.floor(old_div(dx_sz, 2)), np.floor(old_div(dy_sz, 2))], gSiz=[dx_sz, dy_sz])
 #            a__ = model.fit_transform(np.maximum(y2_res,0));
 #            c__ = model.components_;
 
@@ -264,7 +270,7 @@ def extract_DF_F(Y, A, C, i=None):
     A2 = A.copy()
     A2.data **= 2
     nA2 = np.squeeze(np.array(A2.sum(axis=0)))
-    A = A * diags(1 / nA2, 0)
+    A = A * diags(old_div(1, nA2), 0)
     C = diags(nA2, 0) * C
 
     # if i is None:
@@ -273,7 +279,7 @@ def extract_DF_F(Y, A, C, i=None):
     Y = np.matrix(Y)
     Yf = A.transpose() * (Y - A * C)  # + A[:,i]*C[i,:])
     Df = np.median(np.array(Yf), axis=1)
-    C_df = diags(1 / Df, 0) * C
+    C_df = diags(old_div(1, Df), 0) * C
 
     return C_df, Df
 
@@ -457,16 +463,16 @@ def order_components(A, C):
     A = np.array(A.todense())
     nA2 = np.sqrt(np.sum(A**2, axis=0))
     K = len(nA2)
-    A = np.array(np.matrix(A) * spdiags(1 / nA2, 0, K, K))
+    A = np.array(np.matrix(A) * spdiags(old_div(1, nA2), 0, K, K))
     nA4 = np.sum(A**4, axis=0)**0.25
     C = np.array(spdiags(nA2, 0, K, K) * np.matrix(C))
     mC = np.ndarray.max(np.array(C), axis=1)
     srt = np.argsort(nA4 * mC)[::-1]
     A_or = A[:, srt] * spdiags(nA2[srt], 0, K, K)
-    C_or = spdiags(1. / nA2[srt], 0, K, K) * (C[srt, :])
+    C_or = spdiags(old_div(1., nA2[srt]), 0, K, K) * (C[srt, :])
 
     return A_or, C_or, srt
 
 
 
-      
+

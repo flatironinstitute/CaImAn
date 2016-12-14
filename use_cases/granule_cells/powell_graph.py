@@ -4,10 +4,15 @@ Created on Sun Aug  7 13:44:32 2016
 
 @author: agiovann
 """
+from __future__ import division
+from __future__ import print_function
 
 #%%    
-%load_ext autoreload
-%autoreload 2    
+from builtins import str
+from builtins import range
+from past.utils import old_div
+get_ipython().magic('load_ext autoreload')
+get_ipython().magic('autoreload 2')    
 from glob import glob
 import numpy as np
 import pylab as pl
@@ -42,8 +47,8 @@ from skimage.filter import rank
 from skimage import exposure    
 counter=0          
 for counter,fl in enumerate(fls):
-    print os.path.abspath(fl)
-    
+    print((os.path.abspath(fl)))
+
     with np.load(glob(os.path.join(os.path.abspath(fl),'*-template_total.npz'))[0]) as ld:
         templs=ld['template_each']
         for mn1 in templs:
@@ -65,8 +70,8 @@ for counter,fl in enumerate(fls):
             counter+=1
 
 #%% image powell locomotion
-%load_ext autoreload
-%autoreload 2    
+get_ipython().magic('load_ext autoreload')
+get_ipython().magic('autoreload 2')    
 import calblitz as cb
 from calblitz.granule_cells import utils_granule as gc
 from glob import glob
@@ -85,25 +90,25 @@ if is_blob:
     with np.load(base_folder+'neurons_matching.npz') as ld:
         locals().update(ld)
 
-        
+
 
 with np.load(base_folder+'all_triggers.npz') as at:
     triggers_img=at['triggers']
     trigger_names_img=at['trigger_names'] 
-    
+
 with np.load(base_folder+'behavioral_traces.npz') as ld: 
     res_bt = dict(**ld)
     tm=res_bt['time']
-    f_rate_bh=1/np.median(np.diff(tm))
+    f_rate_bh=old_div(1,np.median(np.diff(tm)))
     ISI=res_bt['trial_info'][0][3]-res_bt['trial_info'][0][2]
     eye_traces=np.array(res_bt['eyelid'])
     idx_CS_US=res_bt['idx_CS_US']
     idx_US=res_bt['idx_US']
     idx_CS=res_bt['idx_CS']
-    
+
     idx_ALL=np.sort(np.hstack([idx_CS_US,idx_US,idx_CS]))
     eye_traces,amplitudes_at_US, trig_CRs=gc.process_eyelid_traces(eye_traces,tm,idx_CS_US,idx_US,idx_CS,thresh_CR=.15,time_CR_on=-.1,time_US_on=.05)
-    
+
     idxCSUSCR = trig_CRs['idxCSUSCR']
     idxCSUSNOCR = trig_CRs['idxCSUSNOCR']
     idxCSCR = trig_CRs['idxCSCR']
@@ -114,7 +119,7 @@ with np.load(base_folder+'behavioral_traces.npz') as ld:
     idxCSCSUS=np.concatenate([idx_CS,idx_CS_US]) 
 
 with open(base_folder+'traces.pk','r') as f:    
-            locals().update(pickle.load(f))  
+    locals().update(pickle.load(f))  
 
 triggers_img=np.array(triggers_img)    
 idx_expected_US=  np.repeat( np.nanmedian(triggers_img[:,1]),len(triggers_img[:,1]))     
@@ -122,7 +127,7 @@ triggers_img =  np.concatenate([triggers_img,   idx_expected_US[:,np.newaxis].as
 
 img_descr=cb.utils.get_image_description_SI(glob(base_folder+'2016*.tif')[0])[0]
 f_rate=img_descr['scanimage.SI.hRoiManager.scanFrameRate']
-print f_rate              
+print(f_rate)              
 #%%
 #traces_flat=np.concatenate(traces,1)
 #%%
@@ -143,7 +148,7 @@ for idx in [126]:#[169, 249, 392, 600, 434,  17, 907, 755, 834,  58, 586, 404, 7
     traces_flat=np.concatenate(traces_mat[11:21,idx,:],0)
     time_vect=np.median(np.diff(time_mat))*np.arange(len(wheel_flat))
     pl.subplot(2,1,1)
-    pl.plot(time_vect,wheel_flat/np.max(wheel_flat))
+    pl.plot(time_vect,old_div(wheel_flat,np.max(wheel_flat)))
     traces_flat=scipy.signal.savgol_filter(traces_flat,5,1)
     pl.axis('tight')
     pl.ylabel('Action index')
@@ -158,7 +163,7 @@ for idx in [126]:#[169, 249, 392, 600, 434,  17, 907, 755, 834,  58, 586, 404, 7
     pl.pause(2)
 #%%
 import pandas as pd
-    
+
 pl.close()
 wheel_flat=np.concatenate(wheel_mat,0)
 
@@ -167,7 +172,7 @@ dick['wheel']=wheel_flat
 dick['id']=np.arange(len(wheel_flat))
 rs=[]
 for idx in range(traces_mat.shape[1]):
-    print idx
+    print(idx)
     tr=np.concatenate(traces_mat[:,idx,:],0)
     rs.append(np.corrcoef(tr,wheel_flat)[0,1])  
     if rs[-1]>.25 and np.min(tr)<.2 and np.max(tr)<7:
@@ -185,7 +190,7 @@ mean_down=mean_down.filter(regex=("neuron*")).values
 mean_up=mean_up.filter(regex=("neuron*")).values
 pl.figure(facecolor="white")
 ax = pl.gca()
-ax.plot(np.tile([0,1],(mean_up.shape[0],1)).T ,np.vstack([mean_down,mean_up])/.2,'-ro',markersize=20)
+ax.plot(np.tile([0,1],(mean_up.shape[0],1)).T ,old_div(np.vstack([mean_down,mean_up]),.2),'-ro',markersize=20)
 ax.get_yaxis().set_tick_params(direction='out')
 ax.get_xaxis().set_tick_params(direction='out')
 ax.xaxis.set_tick_params(width=1)

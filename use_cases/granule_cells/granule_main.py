@@ -4,12 +4,17 @@ Created on Sun Jul 24 17:06:17 2016
 
 @author: agiovann
 """
+from __future__ import division
+from __future__ import print_function
+from builtins import zip
+from builtins import range
+from past.utils import old_div
 try:
-    %load_ext autoreload
-    %autoreload 2
-    print 1
+    get_ipython().magic('load_ext autoreload')
+    get_ipython().magic('autoreload 2')
+    print((1))
 except:
-    print 'NOT IPYTHON'
+    print('NOT IPYTHON')
 
 import matplotlib as mpl
 mpl.use('TKAgg')
@@ -76,11 +81,11 @@ is_blob=True
 for base_folder in base_folders:
     img_descr=cb.utils.get_image_description_SI(glob(base_folder+'2016*.tif')[0])[0]
     f_rate=img_descr['scanimage.SI.hRoiManager.scanFrameRate']
-    print f_rate    
+    print(f_rate)    
     #%%
     fls=glob(os.path.join(base_folder,'2016*.tif'))
     fls.sort()     
-    print fls 
+    print(fls) 
     # verufy they are ordered 
     #%%
     triggers_img,trigger_names_img=gc.extract_triggers(fls,read_dictionaries=False)     
@@ -91,7 +96,7 @@ for base_folder in base_folders:
     assert len(camera_file)==1, 'there are none or two camera files'    
     res_bt=gc.get_behavior_traces(camera_file[0],t0=0,t1=8.0,freq=60,ISI=.25,draw_rois=False,plot_traces=False,mov_filt_1d=True,window_lp=5)   
     t_end=time()-t_start
-    print t_end
+    print(t_end)
     #%%
     np.savez(base_folder+'behavioral_traces.npz',**res_bt)
     #%%
@@ -100,16 +105,16 @@ for base_folder in base_folders:
     #%%
     pl.close()
     tm=res_bt['time']
-    f_rate_bh=1/np.median(np.diff(tm))
+    f_rate_bh=old_div(1,np.median(np.diff(tm)))
     ISI=res_bt['trial_info'][0][3]-res_bt['trial_info'][0][2]
     eye_traces=np.array(res_bt['eyelid'])
     idx_CS_US=res_bt['idx_CS_US']
     idx_US=res_bt['idx_US']
     idx_CS=res_bt['idx_CS']
-    
+
     idx_ALL=np.sort(np.hstack([idx_CS_US,idx_US,idx_CS]))
     eye_traces,amplitudes_at_US, trig_CRs=gc.process_eyelid_traces(eye_traces,tm,idx_CS_US,idx_US,idx_CS,thresh_CR=.15,time_CR_on=-.1,time_US_on=.05)
-    
+
     idxCSUSCR = trig_CRs['idxCSUSCR']
     idxCSUSNOCR = trig_CRs['idxCSUSNOCR']
     idxCSCR = trig_CRs['idxCSCR']
@@ -118,8 +123,8 @@ for base_folder in base_folders:
     idxCR = trig_CRs['idxCR']
     idxUS = trig_CRs['idxUS']
     idxCSCSUS=np.concatenate([idx_CS,idx_CS_US])
-    
-    
+
+
     pl.plot(tm,np.mean(eye_traces[idxCSUSCR],0))       
     pl.plot(tm,np.mean(eye_traces[idxCSUSNOCR],0))     
     pl.plot(tm,np.mean(eye_traces[idxCSCR],0))
@@ -130,7 +135,7 @@ for base_folder in base_folders:
     pl.ylabel('eyelid closure')
     plt.axvspan(-ISI,ISI, color='g', alpha=0.2, lw=0)
     plt.axvspan(0,0.03, color='r', alpha=0.2, lw=0)
-    
+
     pl.xlim([-.5,1])
     pl.savefig(base_folder+'behavioral_traces.pdf')
     #%%
@@ -139,23 +144,23 @@ for base_folder in base_folders:
     #pl.hist(amplitudes_at_US[idxCR],bins=bins)
     #pl.hist(amplitudes_at_US[idxNOCR],bins=bins)
     #pl.savefig(base_folder+'hist_behav.pdf')
-    
-    
+
+
     #%%
     pl.close() 
     f_results= glob(base_folder+'*results_analysis.npz')
     f_results.sort()
     for rs in f_results:
-        print rs
+        print(rs)
     #%% load results and put them in lists
     A_s,C_s,YrA_s, Cn_s, b_s, f_s, shape =  gc.load_results(f_results)     
     B_s, lab_imgs, cm_s  = gc.threshold_components(A_s,shape, min_size=5,max_size=50,max_perc=.5)
     #%%
     if not batch_mode:
         for i,A_ in enumerate(B_s):
-             sizes=np.array(A_.sum(0)).squeeze()
-             pl.subplot(2,3,i+1)
-             pl.imshow(np.reshape(A_.sum(1),shape,order='F'),cmap='gray',vmax=.5)
+            sizes=np.array(A_.sum(0)).squeeze()
+            pl.subplot(2,3,i+1)
+            pl.imshow(np.reshape(A_.sum(1),shape,order='F'),cmap='gray',vmax=.5)
     #%% compute mask distances 
     if len(B_s)>1:
         max_dist=30
@@ -166,7 +171,7 @@ for base_folder in base_folders:
             for ii,D in enumerate(D_s):
                 pl.subplot(3,3,ii+1)
                 pl.imshow(D,interpolation='None')
-            
+
         #%% find matches
         matches,costs =  gc.find_matches(D_s, print_assignment=False)
         #%%
@@ -186,32 +191,32 @@ for base_folder in base_folders:
         import scipy 
         import pylab as pl
         import ca_source_extraction as cse
-        
+
         if is_blob:
             with np.load(base_folder+'distance_masks.npz') as ld:
                 D_s=ld['D_s']
             with np.load(base_folder+'neurons_matching.npz') as ld:
                 locals().update(ld)
-    
-                
-    
+
+
+
         with np.load(base_folder+'all_triggers.npz') as at:
             triggers_img=at['triggers']
             trigger_names_img=at['trigger_names'] 
-            
+
         with np.load(base_folder+'behavioral_traces.npz') as ld: 
             res_bt = dict(**ld)
             tm=res_bt['time']
-            f_rate_bh=1/np.median(np.diff(tm))
+            f_rate_bh=old_div(1,np.median(np.diff(tm)))
             ISI=res_bt['trial_info'][0][3]-res_bt['trial_info'][0][2]
             eye_traces=np.array(res_bt['eyelid'])
             idx_CS_US=res_bt['idx_CS_US']
             idx_US=res_bt['idx_US']
             idx_CS=res_bt['idx_CS']
-            
+
             idx_ALL=np.sort(np.hstack([idx_CS_US,idx_US,idx_CS]))
             eye_traces,amplitudes_at_US, trig_CRs=gc.process_eyelid_traces(eye_traces,tm,idx_CS_US,idx_US,idx_CS,thresh_CR=.15,time_CR_on=-.1,time_US_on=.05)
-            
+
             idxCSUSCR = trig_CRs['idxCSUSCR']
             idxCSUSNOCR = trig_CRs['idxCSUSNOCR']
             idxCSCR = trig_CRs['idxCSCR']
@@ -220,44 +225,44 @@ for base_folder in base_folders:
             idxCR = trig_CRs['idxCR']
             idxUS = trig_CRs['idxUS']
             idxCSCSUS=np.concatenate([idx_CS,idx_CS_US])    
-            
-            
+
+
         f_results= glob(base_folder+'*results_analysis.npz')
         f_results.sort()
         for rs in f_results:
-            print rs     
-        print '*****'        
+            print(rs)     
+        print('*****')        
         A_s,C_s,YrA_s, Cn_s, b_s, f_s, shape =  gc.load_results(f_results) 
         if is_blob:
             remove_unconnected_components=True
         else:
             remove_unconnected_components=False
-            
+
             neurons=[]
             for xx in A_s:
                 neurons.append(np.arange(A_s[0].shape[-1]))
-            
+
         B_s, lab_imgs, cm_s  = gc. threshold_components(A_s,shape, min_size=5,max_size=50,max_perc=.5,remove_unconnected_components=remove_unconnected_components)
     #%%
-       
+
     row_cols=np.ceil(np.sqrt(len(A_s)))        
     for idx,B in enumerate(A_s):
-         pl.subplot(row_cols,row_cols,idx+1)
-         pl.imshow(np.reshape(B[:,neurons[idx]].sum(1),shape,order='F'))
+        pl.subplot(row_cols,row_cols,idx+1)
+        pl.imshow(np.reshape(B[:,neurons[idx]].sum(1),shape,order='F'))
     pl.savefig(base_folder+'neuron_matches.pdf')
-         
+
     #%%
     if not batch_mode:  
         num_neurons=neurons[0].size
         for neuro in range(num_neurons):
             for idx,B in enumerate(A_s):
-                 pl.subplot(row_cols,row_cols,idx+1)
-                 pl.imshow(np.reshape(B[:,neurons[idx][neuro]].sum(1),shape,order='F'))
+                pl.subplot(row_cols,row_cols,idx+1)
+                pl.imshow(np.reshape(B[:,neurons[idx][neuro]].sum(1),shape,order='F'))
             pl.pause(.01)     
             for idx,B in enumerate(A_s):
                 pl.subplot(row_cols,row_cols,idx+1)
                 pl.cla()       
-    
+
     #%%
     if 0:
         idx=0
@@ -268,21 +273,21 @@ for base_folder in base_folders:
                 pl.imshow(np.reshape(B_s[idx][:,row].todense(),(512,512),order='F'),cmap='gray',interpolation='None')    
                 pl.imshow(np.reshape(B_s[idx+1][:,column].todense(),(512,512),order='F'),alpha=.5,cmap='hot',interpolation='None')               
                 if B_s[idx][:,row].T.dot(B_s[idx+1][:,column]).todense() == 0:
-                    print 'Flaw'            
+                    print('Flaw')            
                 pl.pause(.3)
-    
+
     #%%
     tmpl_name=glob(base_folder+'*template_total.npz')[0]
-    print tmpl_name
+    print(tmpl_name)
     with np.load(tmpl_name) as ld:
         mov_names_each=ld['movie_names']
-    
-    
+
+
     traces=[]
     traces_BL=[]
     traces_DFF=[]
     all_chunk_sizes=[]
-    
+
     for idx, mov_names in enumerate(mov_names_each):
         idx=0
         A=A_s[idx][:,neurons[idx]]
@@ -292,24 +297,24 @@ for base_folder in base_folders:
         f=f_s[idx]
         chunk_sizes=[]
         for mv in mov_names:
-                base_name=os.path.splitext(os.path.split(mv)[-1])[0]
-                with np.load(base_folder+base_name+'.npz') as ld:
-                    TT=len(ld['shifts'])            
-                chunk_sizes.append(TT)
-    
-                
+            base_name=os.path.splitext(os.path.split(mv)[-1])[0]
+            with np.load(base_folder+base_name+'.npz') as ld:
+                TT=len(ld['shifts'])            
+            chunk_sizes.append(TT)
+
+
         all_chunk_sizes.append(chunk_sizes)
-    
+
         traces_,traces_DFF_,traces_BL_ = gc.generate_linked_traces(mov_names,chunk_sizes,A,b,f)
         traces=traces+traces_
         traces_DFF=traces_DFF+traces_DFF_
         traces_BL=traces_BL+traces_BL_
-    
+
     #%%
     import pickle
     with open(base_folder+'traces.pk','w') as f: 
         pickle.dump(dict(traces=traces,traces_BL=traces_BL,traces_DFF=traces_DFF),f)   
-    
+
     #%%
     if not batch_mode:
         with open(base_folder+'traces.pk','r') as f:    
@@ -317,21 +322,21 @@ for base_folder in base_folders:
     #%%
     chunk_sizes=[]
     for idx,mvs in enumerate(mov_names_each):    
-        print idx 
+        print(idx) 
         for mv in mvs:
             base_name=os.path.splitext(os.path.split(mv)[-1])[0]
             with np.load(os.path.join(base_folder,base_name+'.npz')) as ld:
                 TT=len(ld['shifts'])            
             chunk_sizes.append(TT)
-            
-            
+
+
     min_chunk=np.min(chunk_sizes)
     max_chunk=np.max(chunk_sizes)
     num_chunks=np.sum(chunk_sizes)
     #%%
     import copy
     Ftraces=copy.deepcopy(traces_DFF[:])
-    
+
     #%%
 
     #%%
@@ -339,55 +344,55 @@ for base_folder in base_folders:
     CS_ALONE=0
     US_ALONE=   1
     CS_US=2
-    
+
     samples_before=np.int(2.8*f_rate)
     samples_after=np.int(7.3*f_rate)-samples_before
-    
-    
+
+
     if interpolate:
         Ftraces_mat=np.zeros([len(chunk_sizes),len(traces[0]),max_chunk])
         abs_frames=np.arange(max_chunk)
     else:    
         Ftraces_mat=np.zeros([len(chunk_sizes),len(traces[0]),samples_after+samples_before])
-        
+
     crs=idxCR
     nocrs=idxNOCR
     uss=idxUS
-    
+
     triggers_img=np.array(triggers_img)
-    
+
     idx_trig_CS=triggers_img[:][:,0]
     idx_trig_US=triggers_img[:][:,1]
     trial_type=triggers_img[:][:,2]
     length=triggers_img[:][:,-1]
     ISI=np.int(np.nanmedian(idx_trig_US)-np.nanmedian(idx_trig_CS))
-    
+
     for idx,fr in enumerate(chunk_sizes):
-    
-        print idx
-        
+
+        print(idx)
+
         if interpolate:
-    
+
             if fr!=max_chunk:
-        
+
                 f1=scipy.interpolate.interp1d(np.arange(fr) , Ftraces[idx] ,axis=1, bounds_error=False, kind='linear')  
                 Ftraces_mat[idx]=np.array(f1(abs_frames))
-                
+
             else:
-                
+
                 Ftraces_mat[idx]=Ftraces[idx][:,trigs_US-samples_before]
-        
-        
+
+
         else:
-    
+
             if trial_type[idx] == CS_ALONE:
-                    Ftraces_mat[idx]=Ftraces[idx][:,np.int(idx_trig_CS[idx]+ISI-samples_before):np.int(idx_trig_CS[idx]+ISI+samples_after)]
+                Ftraces_mat[idx]=Ftraces[idx][:,np.int(idx_trig_CS[idx]+ISI-samples_before):np.int(idx_trig_CS[idx]+ISI+samples_after)]
             else:
-                    Ftraces_mat[idx]=Ftraces[idx][:,np.int(idx_trig_US[idx]-samples_before):np.int(idx_trig_US[idx]+samples_after)]
-    
+                Ftraces_mat[idx]=Ftraces[idx][:,np.int(idx_trig_US[idx]-samples_before):np.int(idx_trig_US[idx]+samples_after)]
+
     #%%
     wheel_traces, movement_at_CS, trigs_mov = gc.process_wheel_traces(np.array(res_bt['wheel']),tm,thresh_MOV_iqr=1000,time_CS_on=-.25,time_US_on=0)    
-    print trigs_mov
+    print(trigs_mov)
     mn_idx_CS_US=np.intersect1d(idx_CS_US,trigs_mov['idxNO_MOV'])
     nm_idx_US=np.intersect1d(idx_US,trigs_mov['idxNO_MOV'])
     nm_idx_CS=np.intersect1d(idx_CS,trigs_mov['idxNO_MOV'])
@@ -406,34 +411,34 @@ for base_folder in base_folders:
     amplitudes_responses=np.mean(ftraces[:,:,samples_before+ISI-1:samples_before+ISI+1],-1)
     cell_responsiveness=np.median(amplitudes_responses[nm_idxCSCSUS],axis=0)
     fraction_responsive=len(np.where(cell_responsiveness>threshold_responsiveness)[0])*1./np.shape(ftraces)[1]
-    print fraction_responsive
+    print(fraction_responsive)
     ftraces=ftraces[:,cell_responsiveness>threshold_responsiveness,:]
     amplitudes_responses=np.mean(ftraces[:,:,samples_before+ISI-1:samples_before+ISI+1],-1)
     #%%
     np.savez('ftraces.npz',ftraces=ftraces,samples_before=samples_before,samples_after=samples_after,ISI=ISI)
-    
-    
+
+
     #%%pl.close()
     pl.close()
-    t=np.arange(-samples_before,samples_after)/f_rate
+    t=old_div(np.arange(-samples_before,samples_after),f_rate)
     pl.plot(t,np.median(ftraces[nm_idxCR],axis=(0,1)),'-*')
     pl.plot(t,np.median(ftraces[nm_idxNOCR],axis=(0,1)),'-d')
     pl.plot(t,np.median(ftraces[nm_idxUS],axis=(0,1)),'-o')
-    plt.axvspan((-ISI)/f_rate, 0, color='g', alpha=0.2, lw=0)
+    plt.axvspan(old_div((-ISI),f_rate), 0, color='g', alpha=0.2, lw=0)
     plt.axvspan(0, 0.03, color='r', alpha=0.5, lw=0)
     pl.xlabel('Time to US (s)')
     pl.ylabel('DF/F')
     pl.xlim([-.5, 1])
     pl.legend(['CR+','CR-','US'])
     pl.savefig(base_folder+'eyelid_resp_by_trial.pdf')
-    
+
     #%%
     if not batch_mode:
         pl.close()
         for cell in range(ftraces.shape[1]):   
         #    pl.cla()
             pl.subplot(11,10,cell+1)
-            print cell
+            print(cell)
             tr_cr=np.median(ftraces[crs,cell,:],axis=(0))    
             tr_nocr=np.median(ftraces[nocrs,cell,:],axis=(0))    
             tr_us=np.median(ftraces[uss,cell,:],axis=(0))  
@@ -447,7 +452,7 @@ for base_folder in base_folders:
         #    pl.pause(1)
     #%%
     import pandas
-    
+
     bins=np.arange(-.1,.3,.05)
     n_bins=6
     dfs=[];
@@ -459,18 +464,18 @@ for base_folder in base_folders:
         dfs.append(pandas.DataFrame(
             {y_name: resps[idxCSCSUS[idx_order]],
              x_name: amplitudes_at_US[idxCSCSUS]}))
-             
+
         idx_order=np.random.permutation(idx_order)         
         dfs_random.append(pandas.DataFrame(
             {y_name: resps[idxCSCSUS[idx_order]],
              x_name: amplitudes_at_US[idxCSCSUS]}))
-    
-    
+
+
     r_s=[]
     r_ss=[]
-    
+
     for df,dfr in zip(dfs,dfs_random): # random scramble
-    
+
         if bins is None:
             [_,bins]=np.histogram(dfr.ampl_eye,n_bins)         
         groups = dfr.groupby(np.digitize(dfr.ampl_eye, bins))
@@ -478,12 +483,12 @@ for base_folder in base_folders:
         grouped_sem = groups.sem()
         (r,p_val)=scipy.stats.pearsonr(grouped_mean.ampl_eye,grouped_mean.ampl_fl)
     #    r=np.corrcoef(grouped_mean.ampl_eye,grouped_mean.ampl_fl)[0,1]
-        
+
         r_ss.append(r)
-        
+
         if bins is None:
             [_,bins]=np.histogram(df.ampl_eye,n_bins)         
-    
+
         groups = df.groupby(np.digitize(df.ampl_eye, bins))    
         grouped_mean = groups.mean()
         grouped_sem= groups.sem()    
@@ -492,26 +497,26 @@ for base_folder in base_folders:
         r_s.append(r)    
         if r_s[-1]>.86:
             pl.subplot(1,2,1)
-            print 'found'
+            print('found')
             pl.errorbar(grouped_mean.ampl_eye,grouped_mean.ampl_fl,grouped_sem.ampl_fl.as_matrix(),grouped_sem.ampl_eye.as_matrix(),fmt='.')
             pl.scatter(grouped_mean.ampl_eye,grouped_mean.ampl_fl,s=groups.apply(len).values*3)#
             pl.xlabel(x_name)
             pl.ylabel(y_name)
-    
+
     mu_scr=np.mean(r_ss)
-    
+
     std_scr=np.std(r_ss)
     [a,b]=np.histogram(r_s,20)
-    
+
     pl.subplot(1,2,2)
     pl.plot(b[1:],scipy.signal.savgol_filter(a,3,1))  
     plt.axvspan(mu_scr-std_scr, mu_scr+std_scr, color='r', alpha=0.2, lw=0)
     pl.xlabel('correlation coefficients')
     pl.ylabel('bin counts')
     pl.savefig(base_folder+'correlations.pdf')
-    
-    
-    
+
+
+
     #%%
     if not batch_mode:
         r_s=[]
@@ -527,7 +532,7 @@ for base_folder in base_folders:
             r_s.append(r)
             pl.xlabel('Amplitudes CR')
             pl.ylabel('Amplitudes GC responses')
-        
+
         pl.hist(r_s)    
 
 #%%
