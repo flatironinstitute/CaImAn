@@ -96,7 +96,7 @@ else:
 fnames = []
 base_folder = './example_movies'  # folder containing the demo files
 for file in glob.glob(os.path.join(base_folder, '*.tif')):
-    if file.endswith("34.tif"):
+    if file.endswith("ie.tif"):
         fnames.append(os.path.abspath(file))        
 fnames.sort()
 if len(fnames) == 0:
@@ -136,7 +136,7 @@ if not is_patches:
     K = 35  # number of neurons expected per patch
     gSig = [7, 7]  # expected half size of neurons
     merge_thresh = 0.8  # merging threshold, max correlation allowed
-    p = 1  # order of the autoregressive system
+    p = 2  # order of the autoregressive system
     cnm = cnmf.CNMF(n_processes, method_init=init_method, k=K, gSig=gSig, merge_thresh=merge_thresh,
                     p=p, dview=dview, Ain=None,method_deconvolution='oasis')
     cnm = cnm.fit(images)
@@ -144,12 +144,12 @@ if not is_patches:
 #%%
 else:
     #%%
-    rf = 35  # half-size of the patches in pixels. rf=25, patches are 50x50
+    rf = 15  # half-size of the patches in pixels. rf=25, patches are 50x50
     stride = 4  # amounpl.it of overlap between the patches in pixels
     K = 6  # number of neurons expected per patch
     gSig = [7, 7]  # expected half size of neurons
     merge_thresh = 0.8  # merging threshold, max correlation allowed
-    p = 1  # order of the autoregressive system
+    p = 2  # order of the autoregressive system
     memory_fact = 1  # unitless number accounting how much memory should be used. You will need to try different values to see which one would work the default is OK for a 16 GB system
     save_results = False
     #%% RUN ALGORITHM ON PATCHES

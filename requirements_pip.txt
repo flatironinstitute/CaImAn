@@ -4,3 +4,4 @@ pims
 peakutils
 tifffile
 tqdm
+future
