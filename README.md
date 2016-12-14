@@ -78,6 +78,14 @@ Download and install Anaconda (Python 2.7) <http://docs.continuum.io/anaconda/in
 
 Troubleshooting
 ----------------
+
+**Python 3 and spyder**
+if spyder crashes on mac os run 
+```
+brew install --upgrade openssl
+brew unlink openssl && brew link openssl --force
+```
+
 **SCS**:
 
 if you get errors compiling scs when installing cvxpy you probably need to create a link to openblas or libgfortran in
