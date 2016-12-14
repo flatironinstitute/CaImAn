@@ -210,11 +210,14 @@ class CNMF(object):
 
             if self.only_init:
                 options['patch_params']['only_init']=True
-
+                
+                
+             
             A,C,YrA,b,f,sn, optional_outputs = run_CNMF_patches(images.filename, (d1, d2, T), options,rf=self.rf,stride = self.stride,
                                                                          dview=self.dview,memory_fact=self.memory_fact,gnb=self.gnb)
 
 
+            
             options = CNMFSetParms(Y,self.n_processes,p=self.p,gSig=self.gSig,K=A.shape[-1],thr=self.merge_thresh)
 
             pix_proc=np.minimum(np.int((d1*d2)/self.n_processes/(old_div(T,2000.))),np.int(old_div((d1*d2),self.n_processes))) # regulates the amount of memory used

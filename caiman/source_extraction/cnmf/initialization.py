@@ -68,6 +68,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
 
     """
 
+    
     if gSiz is None:
         gSiz = 2 * np.asarray(gSig) + 1
 
@@ -76,7 +77,8 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
     gSig = np.round(np.asarray(gSig) // ssub).astype(np.int)
     gSiz = np.round(np.asarray(gSiz) // ssub).astype(np.int)
     
-
+   
+    
     print('Noise Normalization')
     if normalize is True:
         if img is None:
@@ -86,6 +88,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
         Y = old_div(Y, np.reshape(img, d + (-1,), order='F'))
         alpha_snmf /= np.mean(img)
 
+    
     # spatial downsampling
     mean_val = np.mean(Y)
     if ssub != 1 or tsub != 1:
@@ -94,11 +97,15 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
     else:
         Y_ds = Y
 
+    
+       
     print('Roi Extraction...')
+    
+    
     if method == 'greedy_roi':
         Ain, Cin, _, b_in, f_in = greedyROI(
             Y_ds, nr=K, gSig=gSig, gSiz=gSiz, nIter=nIter, kernel=kernel, nb=nb)
-
+       
         if use_hals:
             print('Refining Components...')
             Ain, Cin, b_in, f_in = hals(Y_ds, Ain, Cin, b_in, f_in, maxIter=maxIter)
@@ -112,11 +119,15 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
     else:
         print(method)
         raise Exception("Unsupported method")
-
+        
+        
     K = np.shape(Ain)[-1]
     ds = Y_ds.shape[:-1]
-    Ain = np.reshape(Ain, ds + (K,), order='F')
 
+    Ain = np.reshape(Ain, ds + (K,), order='F')
+    
+    
+    
     if len(ds) == 2:
 
         Ain = resize(Ain, d + (K,), order=1)
@@ -128,6 +139,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
         Ain = resize(Ain, (d[0], d[1] * d[2], K), order=1)
 
     Ain = np.reshape(Ain, (np.prod(d), K), order='F')
+   
     #import pdb
     # pdb.set_trace()
 
@@ -152,11 +164,14 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
         #import pdb
         # pdb.set_trace()
         Ain = Ain * np.reshape(img, (np.prod(d), -1), order='F')
+        
         b_in = b_in * np.reshape(img, (np.prod(d), -1), order='F')
         # b_in = np.atleast_2d(b_in * img.flatten('F')) #np.reshape(img,
         # (np.prod(d), -1),order='F')
         Y = Y * np.reshape(img, d + (-1,), order='F')
 
+    
+    
     return Ain, Cin, b_in, f_in, center
 
 #%%
@@ -273,6 +288,15 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1):
     Author: Eftychios A. Pnevmatikakis based on a matlab implementation by Yuanjun Gao
             Simons Foundation, 2015
     """
+    debug_ = False        
+    if debug_:
+        import os
+        f  = open('_LOG_1_'+str(os.getpid()),'w+')
+        f.write('type_rho:'+str(type(rho))+'\n') 
+        f.write('rho:'+str(np.mean(rho))+'\n') 
+        f.close()
+    
+    
     d = np.shape(Y)
     med = np.median(Y, axis=-1)
     Y = Y - med[..., np.newaxis]
@@ -282,27 +306,42 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1):
     A = np.zeros((np.prod(d[0:-1]), nr))
     C = np.zeros((nr, d[-1]))
     center = np.zeros((nr, Y.ndim - 1))
-
+    
+    
+    
+   
     rho = imblur(Y, sig=gSig, siz=gSiz, nDimBlur=Y.ndim - 1, kernel=kernel)
-
+    
+    
     v = np.sum(rho**2, axis=-1)
+    
 
+    
     for k in range(nr):
+    
         ind = np.argmax(v)
+        
         ij = np.unravel_index(ind, d[0:-1])
+        
         for c, i in enumerate(ij):
             center[k, c] = i
+            
         ijSig = [[np.maximum(ij[c] - gHalf[c], 0), np.minimum(ij[c] + gHalf[c] + 1, d[c])]
                  for c in range(len(ij))]
 
-        dataTemp = Y[[slice(*a) for a in ijSig]].copy()
-        traceTemp = np.squeeze(rho[ij])
+        dataTemp = np.array(Y[[slice(*a) for a in ijSig]].copy(),dtype=np.float)
+        
+        traceTemp = np.array(np.squeeze(rho[ij]),dtype = np.float)
+        
         coef, score = finetune(dataTemp, traceTemp, nIter=nIter)
+        
         C[k, :] = np.squeeze(score)
+        
         dataSig = coef[..., np.newaxis] * score.reshape([1] * (Y.ndim - 1) + [-1])
         xySig = np.meshgrid(*[np.arange(s[0], s[1]) for s in ijSig], indexing='xy')
         arr = np.array([np.reshape(s, (1, np.size(s)), order='F').squeeze() for s in xySig],dtype = np.int)
         indeces = np.ravel_multi_index(arr, d[0:-1], order='F')
+        
         A[indeces, k] = np.reshape(coef, (1, np.size(coef)), order='C').squeeze()
         Y[[slice(*a) for a in ijSig]] -= dataSig.copy()
         if k < nr - 1:
@@ -318,6 +357,7 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1):
             v[[slice(*a) for a in Mod]] = np.sum(
                 rho[[slice(*a) for a in Mod]]**2, axis=-1)
 
+    
     res = np.reshape(Y, (np.prod(d[0:-1]), d[-1]), order='F') + med.flatten(order='F')[:, None]
 
     model = NMF(n_components=nb, init='random', random_state=0)
@@ -325,6 +365,7 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1):
     b_in = model.fit_transform(np.maximum(res, 0))
     f_in = model.components_.squeeze()
 
+    
     return A, C, center, b_in, f_in
 
 #%%
@@ -333,11 +374,23 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1):
 def finetune(Y, cin, nIter=5):
     """Fine tuning of components within greedyROI using rank-1 NMF
     """
+    debug_ = False
+    
+    
+    if debug_:
+        import os
+        f  = open('_LOG_1_'+str(os.getpid()),'w+')
+        f.write('Y:'+str(np.mean(Y))+'\n') 
+        f.write('cin:'+str(np.mean(cin))+'\n') 
+        f.close()
+        
+    c = cin    
     for iter in range(nIter):
-        a = np.maximum(np.dot(Y, cin), 0)
+        a = np.maximum(np.dot(Y, c), 0)
         a = old_div(a, np.sqrt(np.sum(a**2)))
         c = np.sum(Y * a[..., np.newaxis], tuple(np.arange(Y.ndim - 1)))
-
+        
+    
     return a, c
 
 #%%

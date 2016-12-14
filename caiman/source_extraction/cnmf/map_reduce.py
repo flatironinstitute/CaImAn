@@ -51,31 +51,34 @@ def cnmf_patches(args_in):
     logger.info('Read file')
     Yr,_,_=load_memmap(file_name)    
 
-
+    
 
     Yr=Yr[idx_,:]
-
+    
+    
     if (np.sum(np.abs(np.diff(Yr))))>0.1:
 
         Yr.filename=file_name
         d,T=Yr.shape      
-
+        
         Y=np.reshape(Yr,(shapes[1],shapes[0],T),order='F')  
         Y.filename=file_name
-
+        
         [d1,d2,T]=Y.shape
 
         options['spatial_params']['dims']=(d1,d2)
         logger.info('Preprocess Data')
         Yr,sn,g,psx=cm.source_extraction.cnmf.pre_processing.preprocess_data(Yr,**options['preprocess_params'])
+        
 
         logger.info('Initialize Components') 
+        
         Ain, Cin, b_in, f_in, center=cm.source_extraction.cnmf.initialization.initialize_components(Y, **options['init_params']) 
-#        import pdb
-#        pdb.set_trace()
+        
         nA = np.squeeze(np.array(np.sum(np.square(Ain),axis=0)))
         nr=len(nA)
         Cin=coo_matrix(Cin)
+        
 
         YA = (Ain.T.dot(Yr).T)*scipy.sparse.spdiags(old_div(1.,nA),0,nr,nr)
         AA = ((Ain.T.dot(Ain))*scipy.sparse.spdiags(old_div(1.,nA),0,nr,nr))
@@ -91,7 +94,7 @@ def cnmf_patches(args_in):
             logger.info('Spatial Update')                                                      
             A,b,Cin = cm.source_extraction.cnmf.spatial.update_spatial_components(Yr, Cin, f_in, Ain, sn=sn, **options['spatial_params'])  
             options['temporal_params']['p'] = 0 # set this to zero for fast updating without deconvolution
-
+            
 
             logger.info('Temporal Update')  
             C,f,S,bl,c1,neurons_sn,g,YrA = cm.source_extraction.cnmf.temporal.update_temporal_components(Yr,A,b,Cin,f_in,bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
@@ -217,7 +220,7 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, gnb = 1, dvie
 
     print((time.time()-st))
 
-
+     
     # extract the values from the output of mapped computation
     num_patches=len(file_res)
 
