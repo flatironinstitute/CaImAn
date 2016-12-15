@@ -190,92 +190,49 @@ def get_noise_fft_parallel(Y,n_pixels_per_process=100, dview=None, **kwargs):
 
     pixel_groups=list(range(0,Y.shape[0]-n_pixels_per_process+1,n_pixels_per_process))
 
-#    if backend=="threading": # case joblib
-#        sn_name = os.path.join(folder, 'sn_s')
-#        print "using threading"
-#
-#        sn_s = np.memmap(sn_name, dtype=np.float32,shape=Y.shape[0], mode='w+')
-#        # Fork the worker processes to perform computation concurrently
-#        Parallel(n_jobs=n_processes, backend=backend)(delayed(fft_psd_parallel)(Y, sn_s, i, n_pixels_per_process, **kwargs)
-#                            for i in pixel_groups)
 
-#    if backend=='multithreading':
-#
-#        pool = ThreadPool(n_processes)
-#        argsin=[(Y, i, n_pixels_per_process, kwargs) for i in pixel_groups]
-#        results = pool.map(fft_psd_multithreading, argsin)
-#        _,_,psx_= results[0]
-#        sn_s=np.zeros(Y.shape[0])
-#        psx_s=np.zeros((Y.shape[0],psx_.shape[-1]))
-#        for idx,sn,psx_ in results:
-#            sn_s[idx]=sn
-#            psx_s[idx,:]=psx_
-
-    if dview is not None:
-
+    argsin=[(Y, i, n_pixels_per_process, kwargs) for i in pixel_groups]
+    pixels_remaining= Y.shape[0] % n_pixels_per_process
+    if pixels_remaining>0:  
+        argsin.append((Y,Y.shape[0]-pixels_remaining, pixels_remaining, kwargs))
+    
+ 
+    if dview is None:
+        
+        print('Single Thread')    
+        results = list(map(fft_psd_multithreading, argsin))
+    
+    else:
+        
         if type(Y) is np.core.memmap:  # if input file is already memory mapped then find the filename
+        
             Y_name = Y.filename
+        
         else:
+            
             raise Exception('ipyparallel backend only works with memory mapped files')
-
-
+            
         ne = len(dview)
         print(('Running on %d engines.'%(ne)))
-
-        argsin=[(Y_name, i, n_pixels_per_process, kwargs) for i in pixel_groups]
-
-#        if backend=='SLURM':     
-#            results = dview.map(fft_psd_multithreading, argsin)
-#        else:            
-#            results = dview.map_sync(fft_psd_multithreading, argsin)
 
 
         if dview.client.profile == 'default':     
             results = dview.map_sync(fft_psd_multithreading, argsin)            
         else:
             print(('PROFILE:'+ dview.client.profile))
-            results = dview.map_sync(fft_psd_multithreading, argsin)         
-
-        _,_,psx_= results[0]
-        psx_s=np.zeros((Y.shape[0],psx_.shape[-1]))
-        sn_s=np.zeros(Y.shape[0])
-
-        for idx,sn, psx_ in results:
-            sn_s[idx]=sn
-            psx_s[idx,:]=psx_
-
-
-
-    else:
-#        pool = ThreadPool(n_processes)
-        print('Single Thread')
-        argsin=[(Y, i, n_pixels_per_process, kwargs) for i in pixel_groups]
-        results = list(map(fft_psd_multithreading, argsin))
-        _,_,psx_= results[0]
-        sn_s=np.zeros(Y.shape[0])
-        psx_s=np.zeros((Y.shape[0],psx_.shape[-1]))        
-        for idx,sn,psx_ in results:        
-            sn_s[idx]=sn
-            psx_s[idx,:]=psx_
-
-
-
-    # if n_pixels_per_process is not a multiple of Y.shape[0] run on remaining pixels   
-    pixels_remaining= Y.shape[0] %  n_pixels_per_process  
-
-    if pixels_remaining>0:                  
-
-        print(("Running fft for remaining pixels:" + str(pixels_remaining)))
-        if type(Y) is np.core.memmap:  # if input file is already memory mapped then find the filename
-            Y_name = Y.filename
-        elif type(Y) is str:
-            Y_name=Y
-        else:
-            raise Exception('ipyparallel backend only works with memory mapped files')
-
-        idx,sn, psx_=fft_psd_multithreading((Y_name,Y.shape[0]-pixels_remaining, pixels_remaining, kwargs))
+            results = dview.map_sync(fft_psd_multithreading, argsin)     
+            
+            
+    _,_,psx_= results[0]
+    sn_s=np.zeros(Y.shape[0])
+    psx_s=np.zeros((Y.shape[0],psx_.shape[-1]))        
+    for idx,sn,psx_ in results:        
         sn_s[idx]=sn
         psx_s[idx,:]=psx_
+
+
+
+
 
     sn_s=np.array(sn_s)
     psx_s=np.array(psx_s)
@@ -344,10 +301,14 @@ def fft_psd_multithreading(args):
     """
     (Y,i,num_pixels,kwargs)=args
     Yold=Y
-    if type(Y) is str:
+    if isinstance(Y,basestring):
         Y,_,_=load_memmap(Y)
 
     idxs=list(range(i,i+num_pixels))
+#    import pdb
+#    pdb.set_trace()
+    print(len(idxs))
+#    print(kwargs)
     res,psx=get_noise_fft(Y[idxs], **kwargs)
 
     #print("[Worker %d] sn for row %d is %f" % (os.getpid(), i, sn_s[0]))
