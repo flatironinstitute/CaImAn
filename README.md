@@ -72,11 +72,11 @@ Recent advances in calcium imaging acquisition techniques are creating datasets 
 
 # Contributors:
 
-* Deverett, Ben. **Princeton University**
-* Friedrich, Johannes. **Columbia University and Janelia Farm**
 * Giovannucci, Andrea. **Simons Foundation** 
 * Pnevmatikakis, Eftychios. **Simons Foundation** 
+* Friedrich, Johannes. **Columbia University and Janelia Farm**
 * Staneva, Valentina. **eScience Institute**
+* Deverett, Ben. **Princeton University**
 
 
 
@@ -98,16 +98,6 @@ Pnevmatikakis, E.A., Soudry, D., Gao, Y., Machado, T., Merel, J., ... & Paninski
 
 Pnevmatikakis, E.A., Gao, Y., Soudry, D., Pfau, D., Lacefield, C., ... & Paninski, L. (2014). A structured matrix factorization framework for large scale calcium imaging data analysis. arXiv preprint arXiv:1409.2903. http://arxiv.org/abs/1409.2903
 
-# Contributors
-
-Andrea Giovannucci, Eftychios Pnevmatikakis, 
-Center for Computational Biology, Simons Foundation, New York, NY
-
-Valentina Staneva
-eScience Institute. University of Washinghton. Seattle, WA.
-
-Johannes Friedrich
-Columbia University, New York, NY. 
 
 Code description and related packages
 =======
@@ -271,7 +261,7 @@ In general ```'cvxpy'``` can be faster, when using the 'ECOS' or 'SCS' sovlers, 
 Questions, comments, issues
 =======
 Please use the gitter chat room (use the button above) for questions and comments and create an issue for any bugs you might encounter.
-
+ipclu
 Important note
 ======
 The implementation of this package is based on the matlab implementation which can be found [here](https://github.com/epnev/ca_source_extraction). Some of the Matlab features are currently lacking, but will be included in future releases.
@@ -291,15 +281,4 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-
-Experimental
-=============
-
-The package comes with a toolbox to manipulate movies written in Python, Calblitz. If you want to give it a try use the demo_pipeline.py file. Before that you need to install some packages:
-
-```
-pip install pims
-conda install opencv
-conda install h5py
 ```
