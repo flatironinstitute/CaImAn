@@ -79,7 +79,7 @@ Recent advances in calcium imaging acquisition techniques are creating datasets 
 * Deverett, Ben. **Princeton University**
 
 
-Please refer to the following wiki [page](https://github.com/agiovann/caiman/wiki/Processing-large-datasets) or read in the testing section below
+Please refer to the following wiki [page](https://github.com/simonsfoundation/CaImAn/wiki/Processing-large-datasets) or read in the testing section below
 
 
 
