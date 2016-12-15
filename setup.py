@@ -6,8 +6,8 @@ from Cython.Build import cythonize
 
 """
     Installation script for anaconda installers
-
 """
+
 here = path.abspath(path.dirname(__file__))
 
 with open('README.md', 'r') as rmf:
@@ -16,9 +16,9 @@ with open('README.md', 'r') as rmf:
 #incdir = os.path.join(get_python_inc(plat_specific=1), 'Numerical')
 
 setup(
-    name='Constrained_NMF',
+    name='CaImAn',
     version='0.1',
-    author='Andrea Giovannucci and Eftychios Pnevmatikakis',
+    author='Andrea Giovannucci, Eftychios Pnevmatikakis, Johannes Friedrich, Valentina Staneva, Ben Deverett',
     author_email='agiovannucci@simonsfoundation.org',
     url='https://github.com/agiovann/Constrained_NMF',
     license='GPL-2',
@@ -44,7 +44,7 @@ setup(
         'Programming Language :: Python :: 2.7',
     ],
     keywords='fluorescence calcium ca imaging deconvolution ROI identification',
-    packages=['ca_source_extraction'],
+    packages=['caiman'],
     data_files=[	('', ['LICENSE.txt']),
                  ('', ['README.md'])],
     # 'matplotlib', 'scikit-learn', 'scikit-image', 'ipyparallel','scikit-learn','ipython','scipy','numpy'],#,'bokeh','jupyter','tifffile','cvxopt','picos', 'joblib>=0.8.4'],
@@ -52,5 +52,6 @@ setup(
     include_dirs=[np.get_include()],
     # compile with:     python setup.py build_ext -i
     # clean up with:    python setup.py clean --all
-    ext_modules=cythonize("ca_source_extraction/oasis.pyx")
+    ext_modules=cythonize("caiman/source_extraction/cnmf/oasis.pyx")
+
 )

@@ -4,9 +4,13 @@ Created on Wed Aug 31 09:46:09 2016
 
 @author: agiovann
 """
+from __future__ import division
+from __future__ import print_function
 #%%
 #TAKE BEGINNING OF ParallelProcessing.py
 #%% 
+from builtins import zip
+from past.utils import old_div
 tmpls=[]
 fls=[]
 frates=[]
@@ -19,10 +23,10 @@ for reg,img,proj,masks,template,f_rate,do_mot in zip(regions,images,projections,
 #            if os.path.exists(ff[:-3]+'npz'):
 #                print "existing:" + ff[:-3]+'npz'
 #            else:
-                fls=fls+[ff]
-                tmpls=tmpls+[template]
-                frates=frates+[f_rate]
-                resize_facts=resize_facts+[(1,1,final_f_rate/f_rate)]
+            fls=fls+[ff]
+            tmpls=tmpls+[template]
+            frates=frates+[f_rate]
+            resize_facts=resize_facts+[(1,1,old_div(final_f_rate,f_rate))]
 #%%
 file_res=cb.motion_correct_parallel(fls,fr=6,template=tmpls,margins_out=0,max_shift_w=45, max_shift_h=45,dview=c[::2],apply_smooth=True,save_hdf5=False,remove_blanks=False)    
 #%%
@@ -37,13 +41,13 @@ for reg,img,proj,f_rate in zip(regions,images,projections,f_rates):
     for f in  fls:
         if os.path.exists(f[:-3]+'npz'):
             with np.load(f[:-3]+'npz') as fl:
-                print f       
+                print(f)       
                 img_templ=fl['template'][np.newaxis,:,:]
-                erode=np.shape(img_templ)[-1]/10
+                erode=old_div(np.shape(img_templ)[-1],10)
                 img_templ=img_templ[:,erode:-erode,erode:-erode]
                 all_movs.append(img_templ)
                 all_shifts.append(fl['shifts'])
-    
+
     if len(all_movs)>1:
         all_movs=cb.movie(np.concatenate(all_movs,axis=0),fr=1)        
         img_=np.nanmedian(all_movs,0)
@@ -52,15 +56,15 @@ for reg,img,proj,f_rate in zip(regions,images,projections,f_rates):
         templates.append(all_movs)
     else:
         templates.append(all_movs)
-        
+
     master_templates.append(np.nanmedian(all_movs,0))    
     np.savez(os.path.join(img,'master_template_one.npz'),all_movs=all_movs,fls=fls,master_template=master_templates[-1],all_shifts=all_shifts)
 
 #%%            
 counter=1
 for ts,reg,mt in zip(templates,images,master_templates)[:]:
-    print reg
-    
+    print(reg)
+
     if 0:
         for t in ts:            
             lq,hq=np.percentile(np.array(t),[10,90])  
@@ -79,13 +83,13 @@ counter=1
 for reg,img,proj,f_rate in zip(regions,images,projections,f_rates):
     pl.subplot(5,6,counter)
     counter+=1
-    
+
     with np.load(os.path.join(img,'master_template_one.npz')) as ld:
         template=ld['master_template']
         all_movs=ld['all_movs']
         fl=ld['fls']
         shifts=ld['all_shifts']
-        
+
 #    pl.imshow(template,cmap='gray')
     pl.plot(np.concatenate(shifts))
     pl.title(img)
@@ -93,7 +97,7 @@ for reg,img,proj,f_rate in zip(regions,images,projections,f_rates):
 #    tmpls=tmpls+[template]*len(fl)
     tmpls=tmpls+list(all_movs)
 
-    
+
 #%%
 file_res=cb.motion_correct_parallel(fls,fr=6,template=tmpls,margins_out=0,max_shift_w=45, max_shift_h=45,dview=c[::2],apply_smooth=True,save_hdf5=False,remove_blanks=False)    
 #%%
@@ -103,19 +107,19 @@ master_templates=[]
 for reg,img,proj,f_rate in zip(regions,images,projections,f_rates):
     fls=glob.glob(img+'/*.tif')
     fls.sort() 
-    
+
     all_movs=[];
     all_shifts=[]
     for f in  fls:
-        
+
         with np.load(f[:-3]+'npz') as fl:
-            print f       
+            print(f)       
             img_templ=fl['template'][np.newaxis,:,:]
-            erode=np.shape(img_templ)[-1]/10
+            erode=old_div(np.shape(img_templ)[-1],10)
             img_templ=img_templ[:,erode:-erode,erode:-erode]
             all_movs.append(img_templ)
             all_shifts.append(fl['shifts'])
-    
+
     if len(all_movs)>1:
         all_movs=cb.movie(np.concatenate(all_movs,axis=0),fr=1)        
 #        all_movs=cb.motion_correct_parallel(file_names=[all_movs],fr=6, max_shift_w=5, max_shift_h=5,template=None,apply_smooth=True)
@@ -123,14 +127,14 @@ for reg,img,proj,f_rate in zip(regions,images,projections,f_rates):
         templates.append(all_movs)
     else:
         templates.append(all_movs)
-        
+
     master_templates.append(np.nanmedian(all_movs,0))    
 #    np.savez(os.path.join(img,'master_template_two.npz'),all_movs=all_movs,fls=fls,master_template=master_templates[-1],all_shifts=all_shifts)
 #%%
 counter=1
 for ts,reg,mt in zip(templates,images,master_templates):
-    print reg
-    
+    print(reg)
+
     if 0:
         for t in ts:
             lq,hq=np.percentile(np.array(t),[1,99])  
@@ -143,20 +147,20 @@ for ts,reg,mt in zip(templates,images,master_templates):
         pl.imshow(np.squeeze(mt),cmap='gray',vmin=lq,vmax=hq) 
         counter+=1    
 
-                
+
 #%% check the x and y shifts
 
 counter=0     
 for reg,img,proj,template in zip(regions,images,projections,templates):
     pl.subplot(5,6,counter+1)
-    print counter
+    print(counter)
     shifts_files= glob.glob(img+'/*.tif')
     all_shifts=[]
     for sh_fl in shifts_files:
-        if 
+
         with np.load(sh_fl) as ld:            
             all_shifts.append(ld['shifts'])
-                
+
     pl.plot(np.concatenate(all_shifts))
     pl.pause(.1)
     counter+=1
@@ -165,9 +169,9 @@ for reg,img,proj,template in zip(regions,images,projections,templates):
 counter=0     
 for reg,img,proj,masks,template in zip(regions,images,projections,masks_all,templates):
     pl.subplot(5,6,counter+1)
-    print counter
+    print(counter)
     counter+=1   
-    
+
     template[np.isnan(template)]=0
     lq,hq=np.percentile(template,[10,99])
     pl.imshow(template,cmap='gray',vmin=lq,vmax=hq)
@@ -175,12 +179,12 @@ for reg,img,proj,masks,template in zip(regions,images,projections,masks_all,temp
     pl.axis('off')
     pl.title(img.split('/')[-2])
     pl.pause(.1)
-    
+
 #%% check averages
 counter=0     
 for reg,img,proj,masks,template in zip(regions,images,projections,masks_all,templates):
     pl.subplot(5,6,counter+1)
-    print counter
+    print(counter)
     movie_files= glob.glob(img+'/*.mmap')
     m=cb.load(movie_files[0],fr=6) 
     template=np.mean(m,0)
@@ -189,7 +193,7 @@ for reg,img,proj,masks,template in zip(regions,images,projections,masks_all,temp
     pl.pause(.1)
     counter+=1    
     pl.title(img.split('/')[-2])
-        
+
 #%% compute shifts so that everybody is well aligned
 tmpls=[]
 fls=[]
@@ -201,7 +205,7 @@ for reg,img,proj,masks,template,f_rate in zip(regions,images,projections,masks_a
     fls=fls+fl
     tmpls=tmpls+[template]*len(fl)
     frates=frates+[f_rate]*len(fl)
-    resize_facts=resize_facts+[(1,1,final_f_rate/f_rate)]*len(fl)
+    resize_facts=resize_facts+[(1,1,old_div(final_f_rate,f_rate))]*len(fl)
 #%%
 if 0:
     new_fls=[]
@@ -212,11 +216,12 @@ if 0:
             new_fls.append(fl)
             new_tmpls.append(tmpl)
         else:
-    
+            1
+
     fls=new_fls
     tmpls=new_tmpls  
 
-    
+
 
 #    fls=glob.glob(img+'/*.tif')
 #    fls.sort()
@@ -225,7 +230,7 @@ if 0:
 xy_shifts=[]
 for fl,tmpl in zip(fls,tmpls):
     if os.path.exists(fl[:-3]+'npz'):
-        print fl[:-3]+'npz'
+        print((fl[:-3]+'npz'))
         with np.load(fl[:-3]+'npz') as ld:
             xy_shifts.append(ld['shifts'])
     else:
@@ -257,8 +262,8 @@ for bf in base_folders:
         fls.sort(key=lambda fn: np.int(re.findall('_[0-9]{1,5}_d1_',fn)[0][1:-4]))
     except:
         fls.sort() 
-        print fls
-        
+        print(fls)
+
     base_name_='TOTAL_'
     n_chunks_=6
     dview_=None
@@ -284,7 +289,7 @@ for reg,img,proj,masks,template in zip(regions,images,projections,masks_all,temp
 #%%
 counter=0
 for nm,tmpl,masks in zip(fnames_mmap,templates,masks_all):
-    print nm
+    print(nm)
     counter+=1
     pl.subplot(3,3,counter)
     Yr,dims,T=cse.utilities.load_memmap(nm)

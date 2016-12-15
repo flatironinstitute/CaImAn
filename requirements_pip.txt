@@ -3,3 +3,5 @@ cvxpy
 pims
 peakutils
 tifffile
+tqdm
+future

@@ -6,8 +6,8 @@ Created on Wed Aug 10 12:35:08 2016
 """
 
 #%%
-%load_ext autoreload
-%autoreload 2    
+get_ipython().magic('load_ext autoreload')
+get_ipython().magic('autoreload 2')    
 from scipy.io import loadmat
 import numpy as np
 from PIL import Image
@@ -32,7 +32,7 @@ def extract_sue_ann_info(fname,base_folder):
 
     if idx<0:
         raise Exception('Matching name not found!')
-        
+
     return A,C,template,idx_shapes,A_init               
 #%%
 img_corr=cb.load(base_folder+'projections/correlation_image.tif',fr=1)
@@ -49,18 +49,18 @@ if os.path.exist(base_folder+'regions/princeton_regions.mat'):
 elif os.path.exist(base_folder+'regions/sue_ann_regions.mat'):
     A,C,template,idx_shapes,A_in=extract_sue_ann_info(base_folder+'regions/sue_ann_regions.mat',base_folder)    
     rois_1=np.reshape(A.todense(),(shape[0],shape[1],-1),order='F')
-    
+
 else:
     rois_1=np.transpose(cse.utilities.nf_read_roi_zip(base_folder+'regions/princeton_regions.zip',shape),[1,2,0])
 
-    
+
 
 if os.path.exist(base_folder+'regions/ben_regions.mat'):   
     b = loadmat(base_folder+'regions/ben_regions.mat')
     rois_2 = b['M']
 else:
     rois_1=np.transpose(cse.utilities.nf_read_roi_zip(base_folder+'regions/ben_regions.zip',shape),[1,2,0])
-    
+
 vmax_corr_perc=95
 vmin_corr_perc=5
 

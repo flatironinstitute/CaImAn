@@ -1,16 +1,92 @@
 
+CaImAn
+======
 
-
-Please refer to the following wiki [page](https://github.com/agiovann/Constrained_NMF/wiki/Processing-large-datasets) or read in the testing section below
-
-ConstrainedNMF
-==============
-
-Python translation of Constrained Non-negative Matrix Factorization algorithm for source extraction from calcium imaging data.
 
 [![Join the chat at https://gitter.im/agiovann/SOURCE_EXTRACTION_PYTHON](https://badges.gitter.im/agiovann/SOURCE_EXTRACTION_PYTHON.svg)](https://gitter.im/agiovann/SOURCE_EXTRACTION_PYTHON?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 <a href='https://travis-ci.org/agiovann/Constrained_NMF'><img src='https://secure.travis-ci.org/agiovann/Constrained_NMF.png?branch=master'></a>
+
+
+A Computational toolbox for large scale **Ca**lcium **Im**aging **An**alysis*
+
+Recent advances in calcium imaging acquisition techniques are creating datasets of the order of Terabytes/week. Memory and computationally efficient algorithms are required to analyze in reasonable amount of time terabytes of data. This projects implements a set of essential methods required in the calcium imaging movies analysis pipeline. Fast and scalable algorithms are implemented for motion correction, movie manipulation and source and spike extraction.
+
+
+### Features
+
+* Handling of very large datasets
+
+    * Memory mapping
+    * Frame-by-frame online processing  (some functions)
+    * opencv-based efficient movie playing and resizing
+
+* Motion correction
+
+    * Fast parallelizable open-cv motion correction of large movies
+    * Run also in online mode (i.e. one frame at a time)
+    * (in progress) non rigid motion correction
+
+* Source extraction 
+
+    * identification of oixles associated to each neuron/neuronal structure
+    * deals with heavily overlaping and neuroopil contaminated movies 
+    * separates different sources based on Nonnegative Matrix Factorization algorithms
+
+* Denoising, deconvolution and spike extraction
+
+    * spikes can be inferred from fluorescence traces
+    * also works in online mode (i.e. one sample at a time)
+
+### Installation
+
+
+* Installation on posix
+
+   * Download and install Anaconda (Python 2.7) <http://docs.continuum.io/anaconda/install>
+
+   ```bash
+   
+   git clone https://github.com/simonsfoundation/CaImAn
+   cd CaImAn/
+   git checkout dev
+   git pull
+   conda create -n CaImAn ipython --file requirements_conda.txt    
+   source activate CaImAn
+   pip install -r requirements_pip.txt
+   conda install -c menpo opencv3=3.1.0
+   python setup.py build_ext -i
+   ```
+
+   * To make the package available from everywhere:
+
+   ```bash
+   export PYTHONPATH="/path/to/caiman:$PYTHONPATH"
+   ```
+
+# Example
+
+   ```python
+   
+   ```
+
+# Contributors:
+
+* Deverett, Ben. **Princeton University**
+* Friedrich, Johannes. **Columbia University and Janelia Farm**
+* Giovannucci, Andrea. **Simons Foundation** 
+* Pnevmatikakis, Eftychios. **Simons Foundation** 
+* Staneva, Valentina. **eScience Institute**
+
+
+
+
+
+Please refer to the following wiki [page](https://github.com/agiovann/Constrained_NMF/wiki/Processing-large-datasets) or read in the testing section below
+
+
+
+Python translation of Constrained Non-negative Matrix Factorization algorithm for source extraction from calcium imaging data.
 
 # Deconvolution and demixing of calcium imaging data
 
