@@ -157,7 +157,7 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
     if dims is None:
         raise Exception('You need to define the input dimensions')
 
-    if Y.ndim < 2 and not type(Y) is str:
+    if Y.ndim < 2 and not isinstance(Y, basestring):
         Y = np.atleast_2d(Y)
 
     if Y.shape[1] == 1:
@@ -252,7 +252,7 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
         if type(Y) is np.core.memmap:  # if input file is already memory mapped then find the filename
             Y_name = Y.filename
         # if not create a memory mapped version (necessary for parallelization)
-        elif type(Y) is str or dview is None:
+        elif isinstance(Y, basestring) or dview is None:
             Y_name = Y
         else:
             raise Exception('Not implemented consistently')
@@ -370,14 +370,14 @@ def regression_ipyparallel(pars):
 
     Y_name, C_name, noise_sn, idxs_C, idxs_Y,method_least_square,cct,rank_f = pars
 
-    if type(Y_name) is str:
+    if isinstance(Y_name, basestring):
        # print("Reloading Y")
         Y, _, _ = load_memmap(Y_name)
         Y = np.array(Y[idxs_Y, :])
     else:
         Y = Y_name[idxs_Y, :]
 
-    if type(C_name) is str: 
+    if  isinstance(C_name, basestring): 
         #print("Reloading Y")           
         C = np.load(C_name, mmap_mode='r')
         C = np.array(C)
@@ -430,14 +430,14 @@ def regression_ipyparallel(pars):
 
             As.append((px, idxs_C[px], a))
 
-    if type(Y_name) is str:
+    if isinstance(Y_name,basestring):
         #print("deleting Y")
         del Y
 
-    if type(C_name) is str:            
+    if isinstance(C_name,basestring):           
         del C
 
-    if type(Y_name) is str:
+    if isinstance(Y_name,basestring):        
         gc.collect()
 
     return As

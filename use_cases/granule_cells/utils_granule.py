@@ -87,7 +87,7 @@ def extract_triggers(file_list,read_dictionaries=False):
 
             i2cd=image_description['I2CData']
 
-            if type(i2cd) is str:
+            if isinstance(i2cd,basestring):
 
                 if i2cd.find('US_ON')>=0:
 

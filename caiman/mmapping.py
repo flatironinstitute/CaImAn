@@ -379,7 +379,7 @@ def dot_place_holder(par):
 #%% 
 def save_tif_to_mmap_online(movie_iterable,save_base_name='YrOL_', order = 'C',add_to_movie=0,border_to_0=0):
 
-    if type(movie_iterable) is str:
+    if isinstace(movie_iterable,basestring):
         with tifffile.TiffFile(movie_iterable) as tf:
             movie_iterable = cm.movie(tf)
 

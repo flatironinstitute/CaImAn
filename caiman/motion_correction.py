@@ -607,7 +607,7 @@ def process_movie_parallel(arg_in):
     fname,fr,margins_out,template,max_shift_w, max_shift_h,remove_blanks,apply_smooth,save_hdf5=arg_in
 
     if template is not None:
-        if type(template) is str:
+        if isinstance(template,basestring):
             if os.path.exists(template):
                 template=cm.load(template,fr=1)
             else:
@@ -625,7 +625,7 @@ def process_movie_parallel(arg_in):
 
     elif ('ndarray' in type_input):        
         Yr=cm.movie(np.array(fname,dtype=np.float32),fr=fr)
-    elif 'str' in type_input: 
+    elif isinstance(fname,basestring): 
         Yr=cm.load(fname,fr=fr)
     else:
         raise Exception('Unkown input type:' + type_input)
