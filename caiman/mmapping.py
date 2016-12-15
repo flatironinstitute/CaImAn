@@ -6,6 +6,7 @@ Created on Thu Oct 20 11:33:35 2016
 """
 from __future__ import division
 from __future__ import print_function
+from past.builtins import basestring
 from builtins import map
 from builtins import str
 from builtins import range
