@@ -23,13 +23,13 @@ Recent advances in calcium imaging acquisition techniques are creating datasets 
 
 * Motion correction
 
-    * Fast parallelizable open-cv motion correction of large movies
+    * Fast parallelizable open-cv and fft-based motion correction of large movies
     * Run also in online mode (i.e. one frame at a time)
-    * (in progress) non rigid motion correction
+    * non rigid motion correction
 
 * Source extraction 
 
-    * identification of oixles associated to each neuron/neuronal structure
+    * identification of pixles associated to each neuron/neuronal structure
     * deals with heavily overlaping and neuroopil contaminated movies 
     * separates different sources based on Nonnegative Matrix Factorization algorithms
 
@@ -43,7 +43,7 @@ Recent advances in calcium imaging acquisition techniques are creating datasets 
 
 * Installation on posix
 
-   * Download and install Anaconda (Python 2.7) <http://docs.continuum.io/anaconda/install>
+   * Download and install Anaconda (Python 2.7 or Python 3.5) <http://docs.continuum.io/anaconda/install>
 
    ```bash
    
@@ -63,7 +63,7 @@ Recent advances in calcium imaging acquisition techniques are creating datasets 
    ```bash
    export PYTHONPATH="/path/to/caiman:$PYTHONPATH"
    ```
-
+      
 # Example
 
    ```python
@@ -79,10 +79,7 @@ Recent advances in calcium imaging acquisition techniques are creating datasets 
 * Deverett, Ben. **Princeton University**
 
 
-
-
-
-Please refer to the following wiki [page](https://github.com/agiovann/Constrained_NMF/wiki/Processing-large-datasets) or read in the testing section below
+Please refer to the following wiki [page](https://github.com/agiovann/caiman/wiki/Processing-large-datasets) or read in the testing section below
 
 
 
