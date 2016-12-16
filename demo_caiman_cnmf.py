@@ -80,7 +80,7 @@ else:
             cm.stop_server(is_slurm=True)
         except:
             print('Nothing to stop')
-        slurm_script = '/mnt/xfs1/home/agiovann/SOFTWARE/Constrained_NMF/SLURM/slurmStart.sh'
+        slurm_script = '/mnt/xfs1/home/agiovann/SOFTWARE/CaImAn/SLURM/slurmStart.sh'
         cm.start_server(slurm_script=slurm_script)
         pdir, profile = os.environ['IPPPDIR'], os.environ['IPPPROFILE']
         c = Client(ipython_dir=pdir, profile=profile)
