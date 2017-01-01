@@ -72,5 +72,9 @@ def test_oasis():
 
 
 def test_cvx():
-    foo('cvx', 1)
-    foo('cvx', 2)
+    try:  # test only if mosek is installed
+        import mosek
+        foo('cvx', 1)
+        foo('cvx', 2)
+    except:
+        pass

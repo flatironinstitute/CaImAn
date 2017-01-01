@@ -22,14 +22,16 @@ RUN conda install -c https://conda.anaconda.org/omnia cvxpy
 RUN conda install -c https://conda.anaconda.org/conda-forge tifffile
 # RUN git clone --recursive -b agiovann-master https://github.com/valentina-s/Constrained_NMF.git
 # RUN git clone --recursive https://github.com/agiovann/Constrained_NMF.git
-RUN git clone --recursive -b dev https://github.com/agiovann/Constrained_NMF.git
-WORKDIR /Constrained_NMF/
+# RUN git clone --recursive -b dev https://github.com/agiovann/Constrained_NMF.git
+ADD . /CaImAn
+WORKDIR /CaImAn/
 RUN conda install --file requirements_conda.txt
 RUN pip install -r requirements_pip.txt
 RUN apt-get install libc6-i386
 RUN apt-get install -y libsm6 libxrender1
 RUN conda install pyqt=4.11.4
 RUN python setup.py install
+RUN python setup.py build_ext -i
 
 # RUN nosetests
 

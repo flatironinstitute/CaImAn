@@ -4,22 +4,22 @@ services:
   - docker
 
 before_install:
-  - docker build -t agiovann/constrained_nmf .
+  - docker build -t simonsfoundation/caiman .
 
 
 script:
-  - docker run -i -d -p 127.0.0.1:80:4567 agiovann/constrained_nmf /bin/sh -c "nosetests"
+  - docker run -i -d -p 127.0.0.1:80:4567 simonsfoundation/caiman /bin/sh -c "nosetests"
   - docker ps -a
-  - docker run agiovann/constrained_nmf /bin/sh -c "nosetests"
+  - docker run simonsfoundation/caiman /bin/sh -c "nosetests"
 
 
 # whitelist
 branches:
   only:
-    - testing
-    - CNMF2
-    - anaconda
-    - docker
+    # - testing
+    # - CNMF2
+    # - anaconda
+    # - docker
     - master
-    - agiovann-master
-    - dev
+    # - agiovann-master
+    # - dev
