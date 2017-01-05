@@ -292,7 +292,7 @@ def shell_source(script):
 #%%
 
 
-def stop_server(is_slurm=False, ipcluster='ipcluster',pdir=None,profile=None):
+def stop_server( ipcluster='ipcluster',pdir=None,profile=None):
     '''
     programmatically stops the ipyparallel server
     Parameters
@@ -303,7 +303,13 @@ def stop_server(is_slurm=False, ipcluster='ipcluster',pdir=None,profile=None):
     '''
     sys.stdout.write("Stopping cluster...\n")
     sys.stdout.flush()
-
+    try:
+        pdir, profile = os.environ['IPPPDIR'], os.environ['IPPPROFILE']
+        is_slurm = True
+    except:
+        print('NOT SLURM')
+        is_slurm = False
+        
     if is_slurm:
 
         if pdir is None and profile is None:
@@ -312,6 +318,7 @@ def stop_server(is_slurm=False, ipcluster='ipcluster',pdir=None,profile=None):
         ee = c[:]
         ne = len(ee)
         print(('Shutting down %d engines.' % (ne)))
+        c.close()
         c.shutdown(hub=True)
         shutil.rmtree('profile_' + str(profile))
         try:
@@ -350,3 +357,52 @@ def stop_server(is_slurm=False, ipcluster='ipcluster',pdir=None,profile=None):
         proc.stderr.close()
 
     sys.stdout.write(" done\n")
+#%%
+def setup_cluster(backend = 'local',n_processes = None,single_thread = False):
+    ''' Restart if necessary the pipyparallel cluster, and manages the case of SLURM
+    
+    '''
+    #backend; 'local' or 'SLURM'. SLURM is experimental! You need to modify the script SLURM/slurmStart.sh
+    if n_processes is None:
+        if backend == 'SLURM':
+            n_processes = np.int(os.environ.get('SLURM_NPROCS'))
+        else:
+            # roughly number of cores on your machine minus 1
+            n_processes = np.maximum(np.int(psutil.cpu_count()), 1)
+        
+    print(('using ' + str(n_processes) + ' processes'))
+   
+    
+    
+    if single_thread:
+        dview = None
+        c = None
+    else:
+        try:
+            c.close()
+        except:
+            print('C was not existing, creating one')
+            
+        print("Stopping  cluster to avoid unnencessary use of memory....")
+        
+        sys.stdout.flush()
+        
+        if backend == 'SLURM':
+            try:
+                stop_server(is_slurm=True)
+            except:
+                print('Nothing to stop')
+            slurm_script = 'SLURM/slurmStart.sh'
+            start_server(slurm_script=slurm_script)
+            pdir, profile = os.environ['IPPPDIR'], os.environ['IPPPROFILE']
+            c = Client(ipython_dir=pdir, profile=profile)
+        else:
+            stop_server()
+            start_server()
+            c = Client()
+    
+        print(('Using ' + str(len(c)) + ' processes'))
+        dview = c[:len(c)]
+    
+    return c,dview,n_processes                 
+    

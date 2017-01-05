@@ -188,7 +188,7 @@ def classify_components_ep(Y,A,C,b,f,Athresh = 0.1,Npeaks = 5, tB=-5, tA = 25, t
 
     return rval,significant_samples
 #%%
-def evaluate_components(Y, traces, A, C, b, f, remove_baseline = True, N = 5, robust_std = False, Athresh = 0.1, Npeaks = 5, tB=-5, tA = 25, thresh_C = 0.3):
+def evaluate_components(Y, traces, A, C, b, f, final_frate, remove_baseline = True, N = 5, robust_std = False, Athresh = 0.1, Npeaks = 5, thresh_C = 0.3):
     """ Define a metric and order components according to the probabilty if some "exceptional events" (like a spike). Suvh probability is defined as the likeihood of observing the actual trace value over N samples given an estimated noise distribution. 
     The function first estimates the noise distribution by considering the dispersion around the mode. This is done only using values lower than the mode. The estimation of the noise std is made robust by using the approximation std=iqr/1.349. 
     Then, the probavility of having N consecutive eventsis estimated. This probability is used to order the components. 
@@ -218,11 +218,7 @@ def evaluate_components(Y, traces, A, C, b, f, remove_baseline = True, N = 5, ro
 
     Npeaks: int
 
-    tB: int
-        samples to include before the peak
-
-    tA = int
-        samples to include after the peak
+   
 
     thresh_C: float
         fraction of the maximum of C that is used as minimum peak height        
@@ -251,9 +247,12 @@ def evaluate_components(Y, traces, A, C, b, f, remove_baseline = True, N = 5, ro
         indexes of samples used to obtain the spatial mask by average
 
     """
-   # import pdb
-   # pdb.set_trace()
+#    tB,tA:samples to include before/after the peak
+
+    tB = np.minimum(-2, np.floor( -5. / 30 * final_frate))
+    tA = np.maximum(5, np.ceil(25. / 30 * final_frate))
     d1,d2,T=np.shape(Y)
+    
     Yr=np.reshape(Y,(d1*d2,T),order='F')    
 
     print('Computing event exceptionality delta')

@@ -81,6 +81,9 @@ def save_memmap_each(fnames, dview=None, base_name=None, resize_fact=(1, 1, 1), 
 
     xy_shifts: list 
         x and y shifts computed by a motion correction algorithm to be applied before memory mapping
+    
+    add_to_movie: float
+        if movie too negative will make it positive    
 
     border_to_0: int
         number of pixels on the border to set to the minimum of the movie
@@ -114,20 +117,42 @@ def save_memmap_each(fnames, dview=None, base_name=None, resize_fact=(1, 1, 1), 
 
     return fnames_new
 #%%
-def save_memmap_join(mmap_fnames,base_name=None, n_chunks=6, dview=None,async=False):
+def save_memmap_join(mmap_fnames,base_name=None, n_chunks=12, dview=None, async=False):
+    '''
+    From small memory mappable files creates a large one
+    
+    Parameters:
+    -----------        
+    mmap_fnames: list of memory mapped files
+    base_name: string, will be the first portion of name to be solved
+    n_chunks: number of chunks in which to subdivide when saving, smaller requires more memory
+    dview: cluster handle
+    async: somtimes it will not work asynchrounously, try this if it fails
+    
+    Returns:
+    --------
+    
+    '''
 
     tot_frames=0
+
     order='C'
+    
     for f in mmap_fnames:
+    
         Yr,dims,T=load_memmap(f)
+        
         print((f,T))
+        
         tot_frames+=T
+        
         del Yr
 
 
     d=np.prod(dims)
 
     if base_name is None:        
+        
         base_name = mmap_fnames[0]
         base_name = base_name[:base_name.find('_d1_')]+'-#-'+str(len(mmap_fnames)) 
 

@@ -1023,7 +1023,7 @@ class movie(ts.timeseries):
 
 
 
-def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None,num_frames_sub_idx=np.inf):
+def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None,num_frames_sub_idx=np.inf, var_name_hdf5 = 'mov'):
     '''
     load movie from file.
 
@@ -1119,17 +1119,26 @@ def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None,
                 return movie(**f)
 
         elif extension== '.hdf5':
+            
             with h5py.File(file_name, "r") as f:
-                attrs=dict(f['mov'].attrs)
+                attrs=dict(f[var_name_hdf5].attrs)
                 #print attrs
                 if meta_data in attrs:
                     attrs['meta_data']=cpk.loads(attrs['meta_data'])
 
                 if subindices is None:
 #                    fr=f['fr'],start_time=f['start_time'],file_name=f['file_name']
-                    return movie(f['mov'],**attrs)
+                    return movie(f[var_name_hdf5],**attrs)
                 else:
-                    return movie(f['mov'][subindices],**attrs)
+                    return movie(f[var_name_hdf5][subindices],**attrs)
+                    
+        elif extension== '.h5_at':
+             with h5py.File(file_name, "r") as f:
+                if subindices is None:
+                    return movie(f['quietBlock'],fr=fr)
+                else:
+                    return movie(f['quietBlock'][subindices],fr=fr)
+            
         elif extension == '.mmap':
 
             filename=os.path.split(file_name)[-1]
@@ -1261,6 +1270,8 @@ def to_3D(mov2D,shape,order='F'):
     transform to 3D a vectorized movie
     """
     return np.reshape(mov2D,shape,order=order)
+
+
 
 
 

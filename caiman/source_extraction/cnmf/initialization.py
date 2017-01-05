@@ -9,6 +9,7 @@ import scipy.ndimage as nd
 import scipy.sparse as spr
 import scipy
 from scipy.ndimage.measurements import center_of_mass
+import caiman
 #from . import utilities
 #%%
 
@@ -246,7 +247,7 @@ def sparseNMF(Y_ds, nr,  max_iter_snmf=500, alpha=10e2, sigma_smooth=(.5, .5, .5
     b_in = model.fit_transform(np.maximum(m1, 0))
     f_in = model.components_.squeeze()
 
-    center = utilities.com(A_in, d1, d2)
+    center = caiman.base.rois.com(A_in, d1, d2)
 #    for iter in range(max_iter_snmf):
 #        f = np.maximum(b.T.dot(scipy.linalg.solve(scipy.linalg.norm(b).T**2,Y.T),0);
 #        b = np.maximum(Y.dot(scipy.linalg.solve(scipy.linalg.norm(f).T**2,f.T),0);
