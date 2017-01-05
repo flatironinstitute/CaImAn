@@ -50,25 +50,27 @@ def oasisAR1(np.ndarray[DOUBLE, ndim=1] y, DOUBLE g, DOUBLE lam=0, DOUBLE s_min=
         DOUBLE v, w
         np.ndarray[DOUBLE, ndim = 1] solution, h
 
-    len_active_set = len(y)
-    solution = np.empty(len_active_set)
+    T = len(y)
+    solution = np.empty(T)
     # [value, weight, start time, length] of pool
-    active_set = [[y[i] - lam * (1 - g), 1, i, 1] for i in range(len_active_set)]
-    active_set[-1] = [y[-1] - lam, 1, len_active_set - 1, 1]  # |s|_1 instead |c|_1
+    active_set = [[y[i] - lam * (1 - g), 1, i, 1] for i in [0, 1]]
     c = 0
-    while c < len_active_set - 1:
-        while c < len_active_set - 1 and \
+    i = 1
+    while i < T:
+        while i < T and \
             (active_set[c][0] / active_set[c][1] * g**active_set[c][3] + s_min <=
              active_set[c + 1][0] / active_set[c + 1][1]):
             c += 1
-        if c == len_active_set - 1:
+            i = active_set[c][2] + active_set[c][3]
+            if i < T:
+                active_set.append([y[i] - lam * (1 if i == T - 1 else (1 - g)), 1, i, 1])
+        if i == T:
             break
         # merge two pools
         active_set[c][0] += active_set[c + 1][0] * g**active_set[c][3]
         active_set[c][1] += active_set[c + 1][1] * g**(2 * active_set[c][3])
         active_set[c][3] += active_set[c + 1][3]
         active_set.pop(c + 1)
-        len_active_set -= 1
         while (c > 0 and  # backtrack until violations fixed
                (active_set[c - 1][0] / active_set[c - 1][1] * g**active_set[c - 1][3] + s_min >
                 active_set[c][0] / active_set[c][1])):
@@ -78,7 +80,9 @@ def oasisAR1(np.ndarray[DOUBLE, ndim=1] y, DOUBLE g, DOUBLE lam=0, DOUBLE s_min=
             active_set[c][1] += active_set[c + 1][1] * g**(2 * active_set[c][3])
             active_set[c][3] += active_set[c + 1][3]
             active_set.pop(c + 1)
-            len_active_set -= 1
+        i = active_set[c][2] + active_set[c][3]
+        if i < T:
+            active_set.append([y[i] - lam * (1 if i == T - 1 else (1 - g)), 1, i, 1])
     # construct solution
     # calc explicit kernel h up to required length just once
     h = np.exp(log(g) * np.arange(max([a[-1] for a in active_set])))
@@ -87,8 +91,9 @@ def oasisAR1(np.ndarray[DOUBLE, ndim=1] y, DOUBLE g, DOUBLE lam=0, DOUBLE s_min=
     return solution, np.append(0, solution[1:] - g * solution[:-1])
 
 
-def constrained_oasisAR1(np.ndarray[DOUBLE, ndim=1] y, DOUBLE g, DOUBLE sn, bool optimize_b=False,
-                         bool b_nonneg=True, int optimize_g=0, int decimate=1, int max_iter=5, int penalty=1):
+def constrained_oasisAR1(np.ndarray[DOUBLE, ndim=1] y, DOUBLE g, DOUBLE sn,
+                         bool optimize_b=False, bool b_nonneg=True, int optimize_g=0,
+                         int decimate=1, int max_iter=5, int penalty=1):
     """ Infer the most likely discretized spike train underlying an AR(1) fluorescence trace
 
     Solves the noise constrained sparse non-negative deconvolution problem
@@ -152,11 +157,51 @@ def constrained_oasisAR1(np.ndarray[DOUBLE, ndim=1] y, DOUBLE g, DOUBLE sn, bool
         g = g**decimate
         thresh = thresh / decimate / decimate
         T = len(y)
-    len_active_set = T
     h = np.exp(log(g) * np.arange(T))  # explicit kernel, useful for constructing solution
-    solution = np.empty(len_active_set)
+    solution = np.empty(T)
     # [value, weight, start time, length] of pool
-    active_set = [[y[i], 1, i, 1] for i in range(len_active_set)]
+    lam = 0  # sn/sqrt(1-g*g)
+    if T < 5000:  # for 5000 or more frames grow set of pools in first run: faster & memory
+        active_set = [[y[i], 1, i, 1] for i in range(T)]
+    else:
+        def oasis1strun(y, g, h, solution):
+            T = len(y)
+            # [value, weight, start time, length] of pool
+            active_set = [[y[i], 1, i, 1] for i in [0, 1]]
+            c = 0
+            i = 1
+            while i < T:
+                while i < T and \
+                    (active_set[c][0] * active_set[c + 1][1] * g**active_set[c][3] <=
+                     active_set[c][1] * active_set[c + 1][0]):
+                    c += 1
+                    i = active_set[c][2] + active_set[c][3]
+                    if i < T:
+                        active_set.append([y[i], 1, i, 1])
+                if i == T:
+                    break
+                # merge two pools
+                active_set[c][0] += active_set[c + 1][0] * g**active_set[c][3]
+                active_set[c][1] += active_set[c + 1][1] * g**(2 * active_set[c][3])
+                active_set[c][3] += active_set[c + 1][3]
+                active_set.pop(c + 1)
+                while (c > 0 and  # backtrack until violations fixed
+                       (active_set[c - 1][0] * active_set[c][1] * g**active_set[c - 1][3] >
+                        active_set[c - 1][1] * active_set[c][0])):
+                    c -= 1
+                    # merge two pools
+                    active_set[c][0] += active_set[c + 1][0] * g**active_set[c][3]
+                    active_set[c][1] += active_set[c + 1][1] * g**(2 * active_set[c][3])
+                    active_set[c][3] += active_set[c + 1][3]
+                    active_set.pop(c + 1)
+                i = active_set[c][2] + active_set[c][3]
+                if i < T:
+                    active_set.append([y[i], 1, i, 1])
+            # construct solution
+            for v, w, f, l in active_set:
+                solution[f:f + l] = v / w * h[:l]
+            solution[solution < 0] = 0
+            return solution, active_set
 
     def oasis(active_set, g, h, solution):
         solution = np.empty(active_set[-1][2] + active_set[-1][3])
@@ -192,11 +237,13 @@ def constrained_oasisAR1(np.ndarray[DOUBLE, ndim=1] y, DOUBLE g, DOUBLE sn, bool
         return solution, active_set
 
     if not optimize_b:  # don't optimize b nor g, just the dual variable lambda
-        solution, active_set = oasis(active_set, g, h, solution)
+        if T < 5000:
+            solution, active_set = oasis(active_set, g, h, solution)
+        else:
+            solution, active_set = oasis1strun(y, g, h, solution)
         tmp = np.empty(len(solution))
         res = y - solution
         RSS = (res).dot(res)
-        lam = 0
         b = 0
         # until noise constraint is tight or spike train is empty
         while RSS < thresh * (1 - 1e-4) and sum(solution) > 1e-9:
@@ -222,13 +269,16 @@ def constrained_oasisAR1(np.ndarray[DOUBLE, ndim=1] y, DOUBLE g, DOUBLE sn, bool
         b = np.percentile(y, 15)  # initial estimate of baseline
         if b_nonneg:
             b = max(b, 0)
-        for a in active_set:     # subtract baseline
-            a[0] -= b
-        solution, active_set = oasis(active_set, g, h, solution)
+        if T < 5000:
+            for a in active_set:   # subtract baseline
+                a[0] -= b
+            solution, active_set = oasis(active_set, g, h, solution)
+        else:
+            solution, active_set = oasis1strun(y - b, g, h, solution)
         # update b and lam
         db = max(np.mean(y - solution), 0 if b_nonneg else -np.inf) - b
         b += db
-        lam = -db / (1 - g)
+        lam -= db / (1 - g)
         # correct last pool
         active_set[-1][0] -= lam * g**active_set[-1][3]  # |s|_1 instead |c|_1
         v, w, f, l = active_set[-1]
@@ -240,7 +290,8 @@ def constrained_oasisAR1(np.ndarray[DOUBLE, ndim=1] y, DOUBLE g, DOUBLE sn, bool
         g_converged = False
         count = 0
         # until noise constraint is tight or spike train is empty or max_iter reached
-        while (RSS < thresh * (1 - 1e-4) or RSS > thresh * (1 + 1e-4)) and sum(solution) > 1e-9 and count < max_iter:
+        while (RSS < thresh * (1 - 1e-4) or RSS > thresh * (1 + 1e-4)) \
+                and sum(solution) > 1e-9 and count < max_iter:
             count += 1
             # update lam and b
             # calc total shift dphi due to contribution of baseline and lambda
@@ -256,7 +307,6 @@ def constrained_oasisAR1(np.ndarray[DOUBLE, ndim=1] y, DOUBLE g, DOUBLE sn, bool
             if bb * bb - aa * cc > 0:
                 dphi = (-bb + sqrt(bb * bb - aa * cc)) / aa
             else:
-                # print 'shit happens'
                 dphi = -bb / aa
             if b_nonneg:
                 dphi = max(dphi, -b / (1 - g))
@@ -286,16 +336,19 @@ def constrained_oasisAR1(np.ndarray[DOUBLE, ndim=1] y, DOUBLE g, DOUBLE sn, bool
                     def foo(y, t_hat, len_set, q, b, g, lam=lam):
                         yy = y[t_hat:t_hat + len_set] - b
                         if t_hat + len_set == T:  # |s|_1 instead |c|_1
-                            tmp = ((q.dot(yy) - lam) * (1 - g * g)
-                                   / (1 - g**(2 * len_set))) * q - yy
+                            tmp = ((q.dot(yy) - lam) * (1 - g * g) /
+                                   (1 - g**(2 * len_set))) * q - yy
                         else:
-                            tmp = ((q.dot(yy) - lam * (1 - g**len_set)) * (1 - g * g)
-                                   / (1 - g**(2 * len_set))) * q - yy
+                            tmp = ((q.dot(yy) - lam * (1 - g**len_set)) * (1 - g * g) /
+                                   (1 - g**(2 * len_set))) * q - yy
                         return tmp.dot(tmp)
-                    return sum([foo(y, a_s[i][2], a_s[i][3], h[:a_s[i][3]], b, g) for i in idx[-optimize_g:]])
+                    return sum([foo(y, a_s[i][2], a_s[i][3], h[:a_s[i][3]], b, g)
+                                for i in idx[-optimize_g:]])
 
                 def baz(y, active_set):
-                    return minimize(lambda x: bar(y, x, active_set), (b, g), bounds=((0 if b_nonneg else None, None), (.001, .999)), method='L-BFGS-B',
+                    return minimize(lambda x: bar(y, x, active_set), (b, g),
+                                    bounds=((0 if b_nonneg else None, None), (.001, .999)),
+                                    method='L-BFGS-B',
                                     options={'gtol': 1e-04, 'maxiter': 3, 'ftol': 1e-05})
                 result = baz(y, active_set)
                 if abs(result['x'][1] - g) < 1e-3:
@@ -337,7 +390,7 @@ def constrained_oasisAR1(np.ndarray[DOUBLE, ndim=1] y, DOUBLE g, DOUBLE sn, bool
         ll = np.append(ff[1:] - ff[:-1], T - ff[-1])
         active_set = map(list, zip([0.] * len(ll), [0.] * len(ll), list(ff), list(ll)))
         ma = max([a[3] for a in active_set])
-        h = np.exp(log(g) * np.arange(ma + 3 * decimate))
+        h = np.exp(log(g) * np.arange(T))
         for a in active_set:
             q = h[:a[3]]
             a[0] = q.dot(fluor[a[2]:a[2] + a[3]]) - (b / (1 - g) + lam) * (1 - g**a[3])
@@ -371,8 +424,6 @@ def constrained_oasisAR1(np.ndarray[DOUBLE, ndim=1] y, DOUBLE g, DOUBLE sn, bool
                 v, w, f, l = a_s[i]
                 solution[f:f + l] = max(0, v) / w * h[:l]
             # calc RSS
-            # res = y - solution
-            # RSS = res.dot(res)
             RSS -= res[a_s[c][2]:f + l].dot(res[a_s[c][2]:f + l])
             res[a_s[c][2]:f + l] = solution[a_s[c][2]:f + l] - y[a_s[c][2]:f + l]
             RSS += res[a_s[c][2]:f + l].dot(res[a_s[c][2]:f + l])
