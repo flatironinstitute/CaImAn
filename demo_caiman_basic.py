@@ -53,9 +53,9 @@ fitness_raw, fitness_delta, erfc_raw, erfc_delta, r_values, significant_samples 
     cm.components_evaluation.evaluate_components(Y, traces, A, C, b, f,final_frate, remove_baseline=True,
                                       N=5, robust_std=False, Npeaks=Npeaks, thresh_C=0.3)
 
-idx_components_r = np.where(r_values >= .6)[0] # filter based on spatial consistency
-idx_components_raw = np.where(fitness_raw < -40)[0] # filter based on transient size
-idx_components_delta = np.where(fitness_delta < -20)[0] #  filter based on transient derivative size
+idx_components_r = np.where(r_values >= .85)[0] # filter based on spatial consistency
+idx_components_raw = np.where(fitness_raw < -50)[0] # filter based on transient size
+idx_components_delta = np.where(fitness_delta < -50)[0] #  filter based on transient derivative size
 idx_components = np.union1d(idx_components_r, idx_components_raw)
 idx_components = np.union1d(idx_components, idx_components_delta)
 idx_components_bad = np.setdiff1d(list(range(len(traces))), idx_components)
