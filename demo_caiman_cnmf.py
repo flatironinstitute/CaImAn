@@ -41,8 +41,8 @@ from caiman.base.rois import extract_binary_masks_blob
 #%%
 c,dview,n_processes = cm.cluster.setup_cluster(backend = 'local',n_processes = None,single_thread = False)
 #%%
-is_patches=False
-is_dendrites=True # 
+is_patches=True
+is_dendrites=False # 
 
 if is_dendrites == True:
 # THIS METHOd CAN GIVE POSSIBLY INCONSISTENT RESULTS ON SOMAS WHEN NOT USED WITH PATCHES    
@@ -55,9 +55,9 @@ else:
 #%% FOR LOADING ALL TIFF FILES IN A FILE AND SAVING THEM ON A SINGLE MEMORY MAPPABLE FILE
     
 fnames = []
-base_folder = './'  # folder containing the demo files
-for file in glob.glob(os.path.join(base_folder, '*.h5_at')):
-    if file.endswith(".h5_at"):
+base_folder = './example_movies/'  # folder containing the demo files
+for file in glob.glob(os.path.join(base_folder, '*.tif')):
+    if file.endswith("ie.tif"):
         fnames.append(os.path.abspath(file))        
 fnames.sort()
 if len(fnames) == 0:
@@ -69,8 +69,8 @@ fnames=fnames
 #idx_x=slice(12,500,None)
 #idx_y=slice(12,500,None)
 #idx_xy=(idx_x,idx_y)
-add_to_movie=520 # the movie must be positive!!!
-downsample_factor=.2 # use .2 or .1 if file is large and you want a quick answer
+add_to_movie=300 # the movie must be positive!!!
+downsample_factor=1 # use .2 or .1 if file is large and you want a quick answer
 idx_xy=None
 base_name='Yr'
 name_new=cm.save_memmap_each(fnames, dview=dview,base_name=base_name, resize_fact=(1, 1, downsample_factor), remove_init=0,idx_xy=idx_xy,add_to_movie=add_to_movie)
@@ -105,10 +105,10 @@ if not is_patches:
 #%%
 else:
     #%%
-    rf = 30  # half-size of the patches in pixels. rf=25, patches are 50x50
-    stride = 10  # amounpl.it of overlap between the patches in pixels
+    rf = 14  # half-size of the patches in pixels. rf=25, patches are 50x50
+    stride = 6  # amounpl.it of overlap between the patches in pixels
     K = 6  # number of neurons expected per patch
-    gSig = [7, 7]  # expected half size of neurons
+    gSig = [6, 6]  # expected half size of neurons
     merge_thresh = 0.8  # merging threshold, max correlation allowed
     p = 1  # order of the autoregressive system
     memory_fact = 1  # unitless number accounting how much memory should be used. You will need to try different values to see which one would work the default is OK for a 16 GB system
@@ -139,9 +139,9 @@ else:
     fitness_raw, fitness_delta, erfc_raw, erfc_delta, r_values, significant_samples = evaluate_components(
         Y, traces, A_tot, C_tot, b_tot, f_tot, final_frate, remove_baseline=True, N=5, robust_std=False, Athresh=0.1, Npeaks=Npeaks,  thresh_C=0.3)
 
-    idx_components_r = np.where(r_values >= .4)[0]
-    idx_components_raw = np.where(fitness_raw < -20)[0]
-    idx_components_delta = np.where(fitness_delta < -10)[0]
+    idx_components_r = np.where(r_values >= .5)[0]
+    idx_components_raw = np.where(fitness_raw < -40)[0]
+    idx_components_delta = np.where(fitness_delta < -20)[0]
 
     idx_components = np.union1d(idx_components_r, idx_components_raw)
     idx_components = np.union1d(idx_components, idx_components_delta)
@@ -160,9 +160,7 @@ else:
     if save_results:
         np.savez('results_analysis_patch.npz', A_tot=A_tot, C_tot=C_tot,
                  YrA_tot=YrA_tot, sn_tot=sn_tot, d1=d1, d2=d2, b_tot=b_tot, f=f_tot)
-    #%% if you have many components this might take long!
-    pl.figure()
-    crd = plot_contours(A_tot, Cn, thr=0.9)
+
     #%%
     cnm = cnmf.CNMF(n_processes, k=A_tot.shape, gSig=gSig, merge_thresh=merge_thresh, p=p, dview=dview, Ain=A_tot, Cin=C_tot,
                     f_in=f_tot, rf=None, stride=None)
@@ -181,9 +179,9 @@ fitness_raw, fitness_delta, erfc_raw, erfc_delta, r_values, significant_samples 
     evaluate_components(Y, traces, A, C, b, f, final_frate, remove_baseline=True,
                                       N=5, robust_std=False, Athresh=0.1, Npeaks=Npeaks,  thresh_C=0.3)
 
-idx_components_r = np.where(r_values >= .6)[0]
-idx_components_raw = np.where(fitness_raw < -40)[0]
-idx_components_delta = np.where(fitness_delta < -20)[0]
+idx_components_r = np.where(r_values >= .95)[0]
+idx_components_raw = np.where(fitness_raw < -100)[0]
+idx_components_delta = np.where(fitness_delta < -100)[0]
 
 
 #min_radius = gSig[0] - 2
@@ -203,8 +201,7 @@ print((len(idx_components)))
 #%%
 save_results = True
 if save_results:
-    np.savez(os.path.join(os.path.split(fname_new)[0], 'results_analysis.npz'), Cn=Cn, A=A.todense(
-    ), C=C, b=b, f=f, YrA=YrA, sn=sn, d1=d1, d2=d2, idx_components=idx_components, idx_components_bad=idx_components_bad)
+    np.savez(os.path.join(os.path.split(fname_new)[0], 'results_analysis.npz'), Cn=Cn, A=A.todense(), C=C, b=b, f=f, YrA=YrA, sn=sn, d1=d1, d2=d2, idx_components=idx_components, idx_components_bad=idx_components_bad)
 
 #%% visualize components
 # pl.figure();
