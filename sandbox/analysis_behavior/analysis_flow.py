@@ -67,23 +67,30 @@ ms = [get_nonzero_subarray(mask.multiply(fr),mask) for fr in m]
 ms = np.dstack(ms)
 ms = cm.movie(ms.transpose([2,0,1]))
 #%%
-of_or = cm.behavior.behavior.compute_optical_flow(ms[:2000],do_show=False,polar_coord=False) 
+of_or = cm.behavior.behavior.compute_optical_flow(ms[:],do_show=False,polar_coord=False) 
 #min1,min0 = np.min(of[1]),np.min(of[0])
 #of[1] -= min1
 #of[0] -= min0
 of = of_or - np.min(of_or)
 #%%
-spatial_filter, time_trace, norm_fact = cm.behavior.behavior.extract_components(of[:,:2000,:,:],n_components=1,verbose = True,normalize_std=False)
+spatial_filter, time_trace, norm_fact = cm.behavior.behavior.extract_components(of[:,:,:,:],n_components=1,verbose = True,normalize_std=False,max_iter=400)
 x,y = scipy.signal.medfilt(time_trace[0],kernel_size=[1,1]).T
 spatial_mask = spatial_filter[0]
 spatial_mask[spatial_mask<(np.max(spatial_mask[0])*.99)] = np.nan
 ofmk = of_or*spatial_mask[None,None,:,:]
 #%%
 mag,dirct = to_polar(x-cm.components_evaluation.mode_robust(x),y-cm.components_evaluation.mode_robust(y))
-range_ = np.std(np.nanmedian(np.sqrt(ofmk[0]**2+ofmk[1]**2),(1,2)))
+range_ = np.std(np.nanpercentile(np.sqrt(ofmk[0]**2+ofmk[1]**2),95,(1,2)))
 mag = (mag/np.std(mag))*range_
-pl.plot(mag,'-')
-pl.plot(dirct,'-')
+mag = scipy.signal.medfilt(mag.squeeze(),kernel_size=1)
+dirct = scipy.signal.medfilt(dirct.squeeze(),kernel_size=1).T
+
+dirct[mag<.5]=np.nan
+#mag[mag<.25]=np.nan
+
+
+pl.plot(mag,'.-')
+pl.plot(dirct,'.-')
 #%%
 spatial_filter, time_trace, norm_fact = cm.behavior.behavior.extract_components(of[:,:2000,:,:],n_components=1,verbose = True)
 mag,dirct = scipy.signal.medfilt(time_trace[0],kernel_size=[1,1]).T
