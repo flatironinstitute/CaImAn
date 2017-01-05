@@ -15,7 +15,7 @@ import numpy as np
 import pylab as pl
 from scipy.io import loadmat
 import cv2
-from sklearn.decomposition import NMF,PCA
+from sklearn.decomposition import NMF,PCA,DictionaryLearning
 import time
 #%% dense flow
 def select_roi(img,n_rois=1):
@@ -49,7 +49,7 @@ def select_roi(img,n_rois=1):
 
     return masks
 #%%
-def compute_optical_flow(m,mask,polar_coord=True,do_show=False,do_write=False,file_name=None,frate=30,pyr_scale=.1,levels=3 , winsize=25,iterations=3,poly_n=7,poly_sigma=1.5):
+def compute_optical_flow(m,mask = None,polar_coord=True,do_show=False,do_write=False,file_name=None,frate=30,pyr_scale=.1,levels=3 , winsize=25,iterations=3,poly_n=7,poly_sigma=1.5):
     """
     This function compute the optical flow of behavioral movies using the opencv cv2.calcOpticalFlowFarneback function 
 
@@ -88,8 +88,11 @@ def compute_optical_flow(m,mask,polar_coord=True,do_show=False,do_write=False,fi
     if do_show:
         cv2.namedWindow( "frame2", cv2.WINDOW_NORMAL )
 
-
-    data = np.zeros(np.shape(m[0]), dtype=np.int32)
+    if mask is not None:
+        data = mask.astype(np.int32)
+    else:
+        data = 1
+        
     T,d1,d2=m.shape
     angs=np.zeros(T)
     mags=np.zeros(T)
@@ -139,7 +142,7 @@ def compute_optical_flow(m,mask,polar_coord=True,do_show=False,do_write=False,fi
         mov_tot[0,counter]=coord_1
         mov_tot[1,counter]=coord_2
 
-        prvs = next_
+        prvs = next_.copy()
 
     if do_write:
         video.release()
@@ -203,7 +206,8 @@ def extract_components(mov_tot,n_components=6,normalize_std=True,**kwargs):
     tt=time.time()    
 
     nmf=NMF(n_components=n_components,**kwargs)
-    newm=np.reshape(mov_tot,(c*T,d1*d2),order='C') 
+#    nmf=DictionaryLearning(n_components=n_components,**kwargs)
+    newm=np.reshape(mov_tot,(c*T,d1*d2)) 
 
     time_trace=nmf.fit_transform(newm)
     spatial_filter=nmf.components_
@@ -211,6 +215,7 @@ def extract_components(mov_tot,n_components=6,normalize_std=True,**kwargs):
     spatial_filter=np.concatenate([np.reshape(sp,(d1,d2))[np.newaxis,:,:] for sp in spatial_filter],axis=0)
 
     time_trace=[np.reshape(ttr,(c,T)).T for ttr in time_trace.T]
+#    time_trace=[np.reshape(ttr,(c,T)).T for ttr in time_trace]
 
     el_t=time.time()-tt
     print(el_t)
