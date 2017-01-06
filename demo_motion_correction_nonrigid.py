@@ -226,10 +226,10 @@ mr = cm.load(fname_tot)
 #                            upsample_factor_grid = upsample_factor_grid,dview = dview)
 #%%
 ## for 512 512 this seems good
-overlaps = (64,64)
+overlaps = (32,32)
 if template.shape == (512,512):
     strides = (128,128)# 512 512 
-    strides = (16,16)# 512 512 
+#    strides = (16,16)# 512 512 
     newoverlaps = None
     newstrides = None
     #strides = (48,48)# 128 64
@@ -242,11 +242,11 @@ else:
 
 splits = 28 # for parallelization split the movies in  num_splits chuncks across time
 
-upsample_factor_grid = 1
+upsample_factor_grid = 4
 max_deviation_rigid = 3
 new_templ = template
-add_to_movie = -np.min(new_templ)
-num_iter = 2
+add_to_movie = -np.min(m)
+num_iter = 1
 save_movie = False
 
 for iter_ in range(num_iter):
@@ -272,7 +272,7 @@ for iter_ in range(num_iter):
 
 mc = cm.load(fname_tot)        
  #%%
-np.save(str(np.shape(m)[-1])+'_templ_pw_rigid.npy',templ_to_save)
+np.save(str(np.shape(m)[-1])+'_templ_pw_rigid.npy',new_templ)
 scipy.io.savemat('/mnt/xfs1/home/agiovann/dropbox/Python_progress/' + str(np.shape(m)[-1])+'_templ_pw_rigid.mat',{'template':templ_to_save}) 
 #%%
 #%
@@ -282,7 +282,7 @@ scipy.io.savemat('/mnt/xfs1/home/agiovann/dropbox/Python_progress/' + str(np.sha
 #mc = np.zeros(m.shape)
 #for count,img in enumerate(np.array(m)):
 #    if count % 10  == 0:
-#        print count
+#        print(count)
 #    mc[count],total_shift,start_step,xy_grid = tile_and_correct(img, template, strides, overlaps,(12,12), newoverlaps = None, \
 #                newstrides = newstrides, upsample_factor_grid=upsample_factor_grid,\
 #                upsample_factor_fft=10,show_movie=False,max_deviation_rigid=2,add_to_movie=add_to_movie)
@@ -297,7 +297,7 @@ scipy.io.savemat('/mnt/xfs1/home/agiovann/dropbox/Python_progress/' + str(np.sha
 #mc = cm.load('M_FLUO_t_d1_64_d2_128_d3_1_order_F_frames_6764_.mmap')
 
 #%%
-mc.resize(1,1,.2).play(gain=30,fr = 30, offset = 300,magnification=1.)
+mc.resize(1,1,.03).play(gain=30,fr = 30, offset = 300,magnification=1.)
 #%%
 m.resize(1,1,.2).play(gain=10,fr = 30, offset = 0,magnification=1.)
 #%%
@@ -324,6 +324,10 @@ Y = np.memmap('M_FLUO_4_d1_64_d2_128_d3_1_order_F_frames_4620_.mmap',mode = 'r',
 mc = cm.movie(np.reshape(Y,(d2,d1,T),order = 'F').transpose([2,1,0]))
 mc.resize(1,1,.25).play(gain=10.,fr=50)
 #%%
+total_shifts = [r[0][0][0] for r in res]
+
+
+
 pl.plot(np.reshape(np.array(total_shifts),(len(total_shifts),-1))) 
 #%%
 #m_raw = cm.motion_correction.bin_median(m,exclude_nans=True)
@@ -370,7 +374,7 @@ r_ef =np.array(r_ef)
 pl.plot(r_raw)
 pl.plot(r_rig)
 pl.plot(r_el)
-pl.plot(r_ef)
+#pl.plot(r_ef)
 #%%
 pl.scatter(r_el,r_ef)
 pl.plot([0,1],[0,1],'r--')
@@ -379,36 +383,50 @@ pl.plot([0,1],[0,1],'r--')
 pl.plot(old_div((r_ef-r_el),np.abs(r_el)))
 #%%
 import pylab as pl
-vmax=150
+vmax=-100
 max_shft = 3
-pl.subplot(2,3,1)
+
+#%
+
+
+pl.subplot(3,3,1);
+pl.imshow(np.nanmean(m,0)[max_shft:-max_shft,max_shft:-max_shft],cmap='gray',vmax = vmax,interpolation = 'none')
+pl.title('raw')
+pl.axis('off')
+pl.xlim([0,100])
+pl.ylim([220,320])
+pl.axis('off')
+
+
+pl.subplot(3,3,2);
+pl.title('rigid mean')
+pl.imshow(np.nanmean(mr,0)[max_shft:-max_shft,max_shft:-max_shft],cmap='gray', vmax = vmax,interpolation = 'none');
+pl.xlim([0,100])
+pl.ylim([220,320])
+pl.axis('off')
+
+pl.subplot(3,3,3);
+pl.imshow(np.nanmean(mc,0)[max_shft:-max_shft,max_shft:-max_shft],cmap='gray',vmax = vmax,interpolation = 'none')
+pl.title('pw-rigid mean')
+pl.axis('off')
+pl.xlim([0,100])
+pl.ylim([220,320])
+pl.axis('off')
+
+pl.subplot(3,3,5)
 pl.scatter(r_raw,r_rig)
 pl.plot([0,1],[0,1],'r--')
 pl.xlabel('raw')
 pl.ylabel('rigid')
 pl.xlim([0,1])
 pl.ylim([0,1])
-pl.subplot(2,3,2)
+pl.subplot(3,3,6)
 pl.scatter(r_rig,r_el)
 pl.plot([0,1],[0,1],'r--')
 pl.ylabel('pw-rigid')
 pl.xlabel('rigid')
 pl.xlim([0,1])
 pl.ylim([0,1])
-#%
-
-
-
-pl.subplot(2,3,4);
-pl.title('rigid mean')
-pl.imshow(np.nanmean(mr,0)[max_shft:-max_shft,max_shft:-max_shft],cmap='gray', vmax = vmax,interpolation = 'none');
-
-pl.axis('off')
-pl.subplot(2,3,5);
-pl.imshow(np.nanmean(mc,0)[max_shft:-max_shft,max_shft:-max_shft],cmap='gray',vmax = vmax,interpolation = 'none')
-pl.title('pw-rigid mean')
-pl.axis('off')
-
 
 if 0:
     pl.subplot(2,3,3);
@@ -438,13 +456,13 @@ ccimage_els = mc.local_correlations(eight_neighbours=True,swap_dim=False)
 ccimage_ef = mef.local_correlations(eight_neighbours=True,swap_dim=False)
 #%% check correlation images
 pl.subplot(2,2,1)
-pl.imshow(ccimage,vmin = 0, vmax = 0.6, interpolation = 'none')
+pl.imshow(ccimage,vmin = 0, vmax = 0.4, interpolation = 'none')
 pl.subplot(2,2,2)
-pl.imshow(ccimage_rig,vmin = 0, vmax = 0.6, interpolation = 'none')
+pl.imshow(ccimage_rig,vmin = 0, vmax = 0.4, interpolation = 'none')
 pl.subplot(2,2,3)
-pl.imshow(ccimage_els,vmin = 0, vmax = 0.6, interpolation = 'none')
+pl.imshow(ccimage_els,vmin = 0, vmax = 0.4, interpolation = 'none')
 pl.subplot(2,2,4)
-pl.imshow(ccimage_ef,vmin = 0, vmax = 0.6, interpolation = 'none')
+pl.imshow(ccimage_ef,vmin = 0, vmax = 0.4, interpolation = 'none')
 #%%
 all_mags = [] 
 all_mags_eig = [] 
@@ -468,11 +486,11 @@ for chunk in res:
 
 
 #        pl.cla()            
-#        pl.imshow(mag_der,vmin=0,vmax =1,interpolation = 'none')
+#        pl.imshow(mag_norm,vmin=0,vmax =1,interpolation = 'none')
 #        pl.pause(.1)
 #%%
 mam = cm.movie(np.dstack(all_mags)).transpose([2,0,1])
-mam.play(magnification=10,gain = 5.)
+#mam.play(magnification=10,gain = 5.)
 #%%
 pl.imshow(np.max(mam,0),interpolation = 'none')
 #%%
@@ -502,7 +520,7 @@ for fr,fr1,fr0 in zip(m.resize(1,1,.2),m1.resize(1,1,.2),m0.resize(1,1,.2)):
     flow1 = cv2.calcOpticalFlowFarneback(tmpl1[12:-12,12:-12],fr1[12:-12,12:-12],None,pyr_scale, levels, winsize, iterations, poly_n, poly_sigma, flags);
     flow = cv2.calcOpticalFlowFarneback(tmpl[12:-12,12:-12],fr[12:-12,12:-12],None,pyr_scale, levels, winsize, iterations, poly_n, poly_sigma, flags);
     flow0 = cv2.calcOpticalFlowFarneback(tmpl0[12:-12,12:-12],fr0[12:-12,12:-12],None,pyr_scale, levels, winsize, iterations, poly_n, poly_sigma, flags);
-
+#
 #    pl.subplot(2,3,1)    
 #    pl.cla()    
 #    pl.imshow(flow1[:,:,1],vmin=vmin,vmax=vmax)       
@@ -527,5 +545,173 @@ for fr,fr1,fr0 in zip(m.resize(1,1,.2),m1.resize(1,1,.2),m0.resize(1,1,.2)):
     flows.append([flow1,flow,flow0])
     norms.append([n1,n,n0 ])
 #%%
-flm = cm.movie(np.dstack( [np.concatenate(fl[0][:,:,:],axis=0) for fl  in flows])).transpose([2,0,1])
+flm1_x = cm.movie(np.dstack( [fl[0][:,:,0] for fl  in flows])).transpose([2,0,1])
+flm_x = cm.movie(np.dstack( [fl[1][:,:,0] for fl  in flows])).transpose([2,0,1])
+flm0_x = cm.movie(np.dstack( [fl[2][:,:,0] for fl  in flows])).transpose([2,0,1])
 
+flm1_y = cm.movie(np.dstack( [fl[0][:,:,1] for fl  in flows])).transpose([2,0,1])
+flm_y = cm.movie(np.dstack( [fl[1][:,:,1] for fl  in flows])).transpose([2,0,1])
+flm0_y = cm.movie(np.dstack( [fl[2][:,:,1] for fl  in flows])).transpose([2,0,1])
+
+#%%
+pl.figure()
+pl.subplot(2,1,1)
+pl.plot(norms)
+pl.subplot(2,1,2)
+pl.plot(np.arange(0,3000*.2,0.2),r_el)
+pl.plot(np.arange(0,3000*.2,0.2),r_rig)
+pl.plot(np.arange(0,3000*.2,0.2),r_raw)
+#%%
+#%% compare to optical flow
+pl.figure()
+vmin = -.5
+vmax = .5
+cmap = 'hot'
+pl.subplot(2,3,1)
+pl.imshow(np.mean(np.abs(flm1_x),0),vmin = vmin, vmax = vmax,cmap=cmap)
+pl.title('PW-RIGID')
+pl.ylabel('optical flow x')
+pl.colorbar()
+pl.subplot(2,3,2)
+pl.title('RIGID')
+pl.imshow(np.mean(np.abs(flm_x),0),vmin = vmin, vmax = vmax,cmap=cmap)
+pl.colorbar()
+pl.subplot(2,3,3)
+pl.imshow(np.mean(np.abs(flm0_x),0),vmin = vmin*4, vmax = vmax*4,cmap=cmap)
+pl.title('RAW')
+pl.colorbar()
+pl.subplot(2,3,4)
+pl.imshow(np.mean(np.abs(flm1_y),0),vmin = vmin, vmax = vmax,cmap=cmap)
+pl.ylabel('optical flow y')
+pl.colorbar()
+pl.subplot(2,3,5)
+pl.imshow(np.mean(np.abs(flm_y),0),vmin = vmin, vmax = vmax,cmap=cmap)
+pl.colorbar()
+pl.subplot(2,3,6)
+pl.imshow(np.mean(np.abs(flm0_y),0),vmin = vmin*4, vmax = vmax*4,cmap=cmap)
+pl.colorbar()
+#%%
+fl_rig = [n[1]/1000 for n in norms]
+fl_raw = [n[2]/1000 for n in norms]
+fl_el = [n[0]/1000 for n in norms]
+#%%
+
+font = {'family' : 'Myriad Pro',
+        'weight' : 'regular',
+        'size'   : 15}
+
+pl.rc('font', **font)
+
+vmax=-100
+max_shft = 3
+
+pl.subplot(4,3,1);
+pl.imshow(np.nanmean(m,0)[max_shft:-max_shft,max_shft:-max_shft],cmap='gray',vmax = vmax,interpolation = 'none')
+pl.title('raw')
+pl.axis('off')
+pl.xlim([0,100])
+pl.ylim([220,320])
+pl.axis('off')
+
+
+pl.subplot(4,3,2);
+pl.title('rigid mean')
+pl.imshow(np.nanmean(mr,0)[max_shft:-max_shft,max_shft:-max_shft],cmap='gray', vmax = vmax,interpolation = 'none');
+pl.xlim([0,100])
+pl.ylim([220,320])
+pl.axis('off')
+
+pl.subplot(4,3,3);
+pl.imshow(np.nanmean(mc,0)[max_shft:-max_shft,max_shft:-max_shft],cmap='gray',vmax = vmax,interpolation = 'none')
+pl.title('pw-rigid mean')
+pl.axis('off')
+pl.xlim([0,100])
+pl.ylim([220,320])
+pl.axis('off')
+
+pl.subplot(4,3,5)
+pl.scatter(r_raw,r_rig,s = 50, c = 'red')
+pl.axis('tight')
+pl.plot([0,1],[0,1],'k--')
+pl.xlabel('raw')
+pl.ylabel('rigid')
+pl.xlim([0.2,.45])
+pl.ylim([.2,.45])
+pl.locator_params(nbins=4)
+
+pl.subplot(4,3,6)
+pl.scatter(r_rig,r_el,s = 50, c = 'red')
+pl.plot([0,1],[0,1],'k--')
+pl.ylabel('pw-rigid')
+pl.xlabel('rigid')
+pl.xlim([0.3,.45])
+pl.ylim([.3,.45])
+pl.locator_params(nbins=4)
+
+
+pl.subplot(4,3,4)
+pl.plot(np.arange(0,3000*.2,0.2),r_el)
+pl.plot(np.arange(0,3000*.2,0.2),r_rig)
+pl.plot(np.arange(0,3000*.2,0.2),r_raw)
+pl.xlim([220,320])
+pl.ylabel('correlation')
+pl.locator_params(nbins=4)
+
+pl.subplot(4,3,7)
+pl.plot(norms)
+pl.xlim([220,320])
+pl.ylabel('norm of optical flow')
+pl.xlabel('frames')
+pl.locator_params(nbins=4)
+
+pl.subplot(4,3,8)
+pl.scatter(fl_raw,fl_rig,s = 50, c = 'red')
+pl.axis('tight')
+pl.plot([0,3000],[0,3000],'k--')
+pl.xlabel('raw')
+pl.ylabel('rigid')
+pl.xlim([0,3])
+pl.ylim([0,3])
+pl.locator_params(nbins=4)
+
+pl.subplot(4,3,9)
+pl.scatter(fl_rig,fl_el,s = 50, c = 'red')
+pl.plot([0,1000],[0,1000],'k--')
+pl.ylabel('pw-rigid')
+pl.xlabel('rigid')
+pl.xlim([0,1])
+pl.ylim([0,1])
+pl.locator_params(nbins=4)
+
+
+
+ofl_mod_rig = np.mean(np.sqrt(flm_x**2+flm_y**2),0)
+ofl_mod_el = np.mean(np.sqrt(flm1_x**2+flm1_y**2),0)
+
+
+pl.subplot(4,3,10);
+pl.imshow(ofl_mod_el,cmap='hot',vmin = 0, vmax = 1,interpolation = 'none')
+pl.axis('off')
+pl.colorbar()
+
+pl.subplot(4,3,11);
+pl.imshow(ofl_mod_rig,cmap='hot',vmin = 0, vmax = 1,interpolation = 'none')
+pl.axis('off')
+#pl.xlim([0,100])
+#pl.ylim([220,320])
+pl.axis('off')
+
+
+pl.subplot(4,3,12);
+pl.imshow(ofl_mod_el,cmap='hot',vmin = 0, vmax = 1,interpolation = 'none')
+pl.axis('off')
+#pl.xlim([0,100])
+#pl.ylim([220,320])
+pl.axis('off')
+
+#font = {'family' : 'Myriad Pro',
+#        'weight' : 'regular',
+#        'size'   : 15}
+#
+#pl.rc('font', **font)
+pl.rcParams['pdf.fonttype'] = 42
