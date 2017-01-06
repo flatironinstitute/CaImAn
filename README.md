@@ -5,7 +5,7 @@ CaImAn
 
 [![Join the chat at https://gitter.im/agiovann/SOURCE_EXTRACTION_PYTHON](https://badges.gitter.im/agiovann/SOURCE_EXTRACTION_PYTHON.svg)](https://gitter.im/agiovann/SOURCE_EXTRACTION_PYTHON?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
-<a href='https://travis-ci.org/agiovann/Constrained_NMF'><img src='https://secure.travis-ci.org/agiovann/Constrained_NMF.png?branch=master'></a>
+<a href='https://travis-ci.org/simonsfoundation/CaImAn'><img src='https://secure.travis-ci.org/simonsfoundation/CaImAn.png?branch=master'></a>
 
 
 A Computational toolbox for large scale **Ca**lcium **Im**aging **An**alysis*
