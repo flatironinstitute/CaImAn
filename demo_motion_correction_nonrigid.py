@@ -163,19 +163,27 @@ else:
     print(('Using ' + str(len(c)) + ' processes'))
     dview = c[:len(c)]
 #%% set parameters and create template by rigid motion correction
+t1 = time.time()
 fname = 'k56_20160608_RSM_125um_41mW_zoom2p2_00001_00034.tif'
-#fname = 'M_FLUO_t.tif'
-#fname = 'M_FLUO_4.tif'
+fname = 'Sue_1000.tif'
+fname = 'Sue_2000.tif'
+
 max_shifts = (12,12)
+splits = 28 # for parallelization split the movies in  num_splits chuncks across time
+#fname = 'M_FLUO_t.tif'
+#max_shifts = (10,10)
+#splits = 28 # for parallelization split the movies in  num_splits chuncks across time
+
+#fname = 'M_FLUO_4.tif'
 m = cm.load(fname,subindices=slice(None,None,None))
 template = cm.motion_correction.bin_median( m[100:500].copy().motion_correct(max_shifts[0],max_shifts[1],template=None)[0])
-pl.imshow(template)
-#%%
-splits = 28 # for parallelization split the movies in  num_splits chuncks across time
+#pl.imshow(template)
+#%
+
 new_templ = template
 add_to_movie=-np.min(template)
 save_movie = False
-num_iter = 3 
+num_iter = 2 
 for iter_ in range(num_iter):
     print(iter_)
     old_templ = new_templ.copy()
@@ -187,19 +195,20 @@ for iter_ in range(num_iter):
     fname_tot, res = motion_correction_piecewise(fname,splits, None, None,\
                             add_to_movie=add_to_movie, template = old_templ, max_shifts = max_shifts,max_deviation_rigid = 0,\
                             newoverlaps = None, newstrides = None,\
-                            upsample_factor_grid = 4, order = 'F',dview = dview, save_movie=save_movie ,base_name  = 'rig_sue_')
+                            upsample_factor_grid = 4, order = 'F',dview = dview, save_movie=save_movie ,base_name  = fname[:-4]+ '_rig_')
 
 
 
     new_templ = np.nanmedian(np.dstack([r[-1] for r in res ]),-1)
     print((old_div(np.linalg.norm(new_templ-old_templ),np.linalg.norm(old_templ))))
 
-
+t2 = time.time() - t1
+print(t2)
 pl.imshow(new_templ,cmap = 'gray',vmax = np.percentile(new_templ,95))     
 #%%
 import scipy
-np.save(str(np.shape(m)[-1])+'_templ_rigid.npy',new_templ)
-scipy.io.savemat('/mnt/xfs1/home/agiovann/dropbox/Python_progress/' + str(np.shape(m)[-1])+'_templ_rigid.mat',{'template':new_templ}) 
+np.save(fname[:-4]+'_templ_rigid.npy',new_templ)
+#scipy.io.savemat('/mnt/xfs1/home/agiovann/dropbox/Python_progress/' + str(np.shape(m)[-1])+'_templ_rigid.mat',{'template':new_templ}) 
 #%%
 template = new_templ
 #%%
@@ -226,27 +235,31 @@ mr = cm.load(fname_tot)
 #                            upsample_factor_grid = upsample_factor_grid,dview = dview)
 #%%
 ## for 512 512 this seems good
-overlaps = (32,32)
+t1 = time.time()
+
 if template.shape == (512,512):
     strides = (128,128)# 512 512 
+    overlaps = (32,32)
+
 #    strides = (16,16)# 512 512 
     newoverlaps = None
     newstrides = None
     #strides = (48,48)# 128 64
 elif template.shape == (64,128):
-    strides = (48,48)# 
+    strides = (32,32)#
+    overlaps = (16,16)
+
     newoverlaps = None
     newstrides = None
 else:
     raise Exception('Unknown size, set manually')    
 
-splits = 28 # for parallelization split the movies in  num_splits chuncks across time
 
 upsample_factor_grid = 4
 max_deviation_rigid = 3
 new_templ = template
 add_to_movie = -np.min(m)
-num_iter = 1
+num_iter = 2
 save_movie = False
 
 for iter_ in range(num_iter):
@@ -260,20 +273,22 @@ for iter_ in range(num_iter):
 
 
     fname_tot, res = motion_correction_piecewise(fname,splits, strides, overlaps,\
-                            add_to_movie=add_to_movie, template = old_templ, max_shifts = (12,12),max_deviation_rigid = max_deviation_rigid,\
+                            add_to_movie=add_to_movie, template = old_templ, max_shifts = max_shifts,max_deviation_rigid = max_deviation_rigid,\
                             newoverlaps = newoverlaps, newstrides = newstrides,\
-                            upsample_factor_grid = upsample_factor_grid, order = 'F',dview = dview,save_movie = save_movie, base_name = 'els_sue_')
+                            upsample_factor_grid = upsample_factor_grid, order = 'F',dview = dview,save_movie = save_movie, base_name = fname[:-4]+ '_els_')
 
 
     new_templ = np.nanmedian(np.dstack([r[-1] for r in res ]),-1)
-    print((old_div(np.linalg.norm(new_templ-old_templ),np.linalg.norm(old_templ))))
-    pl.imshow(new_templ,cmap = 'gray',vmax = np.percentile(new_templ,99))
-    pl.pause(.1)
+#    print((old_div(np.linalg.norm(new_templ-old_templ),np.linalg.norm(old_templ))))
+#    pl.imshow(new_templ,cmap = 'gray',vmax = np.percentile(new_templ,99))
+#    pl.pause(.1)
+t2 = time.time() - t1
+print(t2)
 
 mc = cm.load(fname_tot)        
  #%%
-np.save(str(np.shape(m)[-1])+'_templ_pw_rigid.npy',new_templ)
-scipy.io.savemat('/mnt/xfs1/home/agiovann/dropbox/Python_progress/' + str(np.shape(m)[-1])+'_templ_pw_rigid.mat',{'template':templ_to_save}) 
+np.save(fname[:-4]+'_templ_pw_rigid.npy',new_templ)
+#scipy.io.savemat('/mnt/xfs1/home/agiovann/dropbox/Python_progress/' + str(np.shape(m)[-1])+'_templ_pw_rigid.mat',{'template':templ_to_save}) 
 #%%
 #%
 #total_shifts = []
@@ -297,7 +312,7 @@ scipy.io.savemat('/mnt/xfs1/home/agiovann/dropbox/Python_progress/' + str(np.sha
 #mc = cm.load('M_FLUO_t_d1_64_d2_128_d3_1_order_F_frames_6764_.mmap')
 
 #%%
-mc.resize(1,1,.03).play(gain=30,fr = 30, offset = 300,magnification=1.)
+mc.resize(1,1,.03).play(gain=3,fr = 30, offset = 300,magnification=1.)
 #%%
 m.resize(1,1,.2).play(gain=10,fr = 30, offset = 0,magnification=1.)
 #%%
@@ -344,22 +359,22 @@ r_raw = []
 r_rig = []
 r_el = []
 r_ef = []
-max_shft = 12
+max_shft_x, max_shft_y = max_shifts
 for fr_id in range(m.shape[0]):
-    fr = m[fr_id].copy()[max_shft:-max_shft,max_shft :-max_shft]
-    templ_ = m_raw.copy()[max_shft:-max_shft,max_shft :-max_shft]
+    fr = m[fr_id].copy()[max_shft_x:-max_shft_x,max_shft_y :-max_shft_y]
+    templ_ = m_raw.copy()[max_shft_x:-max_shft_x,max_shft_y :-max_shft_y]
     r_raw.append(scipy.stats.pearsonr(fr.flatten(),templ_.flatten())[0]) 
 
-    fr = mr[fr_id].copy()[max_shft:-max_shft,max_shft :-max_shft]
-    templ_ = m_rig.copy()[max_shft:-max_shft,max_shft :-max_shft]    
+    fr = mr[fr_id].copy()[max_shft_x:-max_shft_x,max_shft_y :-max_shft_y]
+    templ_ = m_rig.copy()[max_shft_x:-max_shft_x,max_shft_y :-max_shft_y]    
     r_rig.append(scipy.stats.pearsonr(fr.flatten(),templ_.flatten())[0]) 
 
-    fr = mc[fr_id].copy()[max_shft:-max_shft,max_shft :-max_shft]
-    templ_ = m_el.copy()[max_shft:-max_shft,max_shft :-max_shft]    
+    fr = mc[fr_id].copy()[max_shft_x:-max_shft_x,max_shft_y :-max_shft_y]
+    templ_ = m_el.copy()[max_shft_x:-max_shft_x,max_shft_y :-max_shft_y]    
     r_el.append(scipy.stats.pearsonr(fr.flatten(),templ_.flatten())[0])        
     if 1:
-        fr = mef[fr_id].copy()[max_shft:-max_shft,max_shft :-max_shft]
-        templ_ = m_ef.copy()[max_shft:-max_shft,max_shft :-max_shft]    
+        fr = mef[fr_id].copy()[max_shft_x:-max_shft_x,max_shft_y :-max_shft_y]
+        templ_ = m_ef.copy()[max_shft_x:-max_shft_x,max_shft_y :-max_shft_y]    
         r_ef.append(scipy.stats.pearsonr(fr.flatten(),templ_.flatten())[0])   
 
 r_raw =np.array(r_raw)
@@ -517,9 +532,9 @@ for fr,fr1,fr0 in zip(m.resize(1,1,.2),m1.resize(1,1,.2),m0.resize(1,1,.2)):
     count +=1
     print(count)
 
-    flow1 = cv2.calcOpticalFlowFarneback(tmpl1[12:-12,12:-12],fr1[12:-12,12:-12],None,pyr_scale, levels, winsize, iterations, poly_n, poly_sigma, flags);
-    flow = cv2.calcOpticalFlowFarneback(tmpl[12:-12,12:-12],fr[12:-12,12:-12],None,pyr_scale, levels, winsize, iterations, poly_n, poly_sigma, flags);
-    flow0 = cv2.calcOpticalFlowFarneback(tmpl0[12:-12,12:-12],fr0[12:-12,12:-12],None,pyr_scale, levels, winsize, iterations, poly_n, poly_sigma, flags);
+    flow1 = cv2.calcOpticalFlowFarneback(tmpl1[max_shft_x:-max_shft_x,max_shft_y:-max_shft_y],fr1[max_shft_x:-max_shft_x,max_shft_y:-max_shft_y],None,pyr_scale, levels, winsize, iterations, poly_n, poly_sigma, flags);
+    flow = cv2.calcOpticalFlowFarneback(tmpl[max_shft_x:-max_shft_x,max_shft_y:-max_shft_y],fr[max_shft_x:-max_shft_x,max_shft_y:-max_shft_y],None,pyr_scale, levels, winsize, iterations, poly_n, poly_sigma, flags);
+    flow0 = cv2.calcOpticalFlowFarneback(tmpl0[max_shft_x:-max_shft_x,max_shft_y:-max_shft_y],fr0[max_shft_x:-max_shft_x,max_shft_y:-max_shft_y],None,pyr_scale, levels, winsize, iterations, poly_n, poly_sigma, flags);
 #
 #    pl.subplot(2,3,1)    
 #    pl.cla()    
@@ -715,3 +730,74 @@ pl.axis('off')
 #
 #pl.rc('font', **font)
 pl.rcParams['pdf.fonttype'] = 42
+#%% test against SIMA
+import sima
+import sima.motion
+from sima.motion import HiddenMarkov2D
+#fname_gr = 'M_FLUO_t.tif'
+#fname_gr = 'Sue_1000.tif'
+#fname_gr = 'Sue_2000.tif'
+fname_gr = 'Sue_1000_T.tif'
+fname_gr = 'Sue_1000_T.tifrow1_example_sima_T.tif'
+sequences = [sima.Sequence.create('TIFF',fname_gr)]
+dataset = sima.ImagingDataset(sequences,fname_gr)             
+#%%
+import time
+t1 = time.time()
+granularity = 'row'
+gran_n = 1
+mc_approach  = sima.motion.HiddenMarkov2D(granularity = (granularity,gran_n),max_displacement=max_shifts, verbose = True,n_processes  = 14)
+new_dataset = mc_approach.correct(dataset,None)
+t2 =time.time() - t1
+print(t2)
+#%
+new_dataset.export_frames([[[fname_gr[:-4] + granularity  + str(gran_n) + '_example_sima.tif']]], fmt='TIFF16')
+#%%
+m_s = cm.load(granularity  + str(gran_n) + '_example_sima.tif')
+m_s_row = cm.load('example_sima.tif')
+#%%
+def compute_metrics_motion_correction(fname,max_shft_x,max_shft_y,pyr_scale = .5,levels = 3,winsize = 100, iterations = 15, poly_n = 5, poly_sigma = 1.2/5, flags = 0,\
+                                      play_flow = False, resize_fact_flow = .2):
+    
+    #cv2.OPTFLOW_FARNEBACK_GAUSSIAN
+    import scipy
+    vmin, vmax = -1, 1
+    m = cm.load(fname).resize(1,1,resize_fact_flow)[:,max_shft_x:-max_shft_x,max_shft_y:-max_shft_y]
+    tmpl = cm.motion_correction.bin_median(m)
+#    tmpl = tmpl[max_shft_x:-max_shft_x,max_shft_y:-max_shft_y]
+    
+
+    norms = []
+    flows = []
+    correlations = []
+    count = 0
+    for fr in m:
+        count +=1
+        print(count)    
+        flow = cv2.calcOpticalFlowFarneback(tmpl,fr,None,pyr_scale, levels, winsize, iterations, poly_n, poly_sigma, flags);
+        
+        if play_flow:
+            pl.subplot(1,3,1)    
+            pl.cla()    
+            pl.imshow(fr,vmax =300 )       
+            pl.title('movie')
+
+            
+            pl.subplot(1,3,3)    
+            pl.cla()    
+            pl.imshow(flow[:,:,1],vmin=vmin,vmax=vmax)       
+            pl.title('y_flow')
+            
+            pl.subplot(1,3,2)    
+            pl.cla()    
+            pl.imshow(flow[:,:,0],vmin=vmin,vmax=vmax)       
+            pl.title('x_flow')
+            pl.pause(.05)
+            
+            
+        n = np.linalg.norm(flow)
+        flows.append(flow)
+        norms.append(n)
+        correlations.append(scipy.stats.pearsonr(fr.flatten(),tmpl.flatten())[0]) 
+    np.savez(fname[:-4]+'_metrics',flows = flows, norms = norms, correlations = correlations, tmpl = tmpl)
+    return tmpl, correlations, flows, norms
