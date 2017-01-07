@@ -80,10 +80,11 @@ Download and install Anaconda (Python 2.7) <http://docs.continuum.io/anaconda/in
     source activate CaImAn
     pip install -r requirements_pip.txt
     conda install -c menpo opencv3=3.1.0
+    python setup.py build_ext -i
     
     To make the package available from everywhere:
     ```
-    export PYTHONPATH="/path/to/Constrained_NMF:$PYTHONPATH"
+    export PYTHONPATH="/path/to/CaImAn:$PYTHONPATH"
     ```
     
 # Example
