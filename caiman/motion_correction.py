@@ -1057,7 +1057,7 @@ def apply_shifts_dft(src_freq, shifts, diffphase, is_freq = True, border_nan = F
         src_freq  = src_freq[:,:,0]+1j*src_freq[:,:,1]
         src_freq   = np.array(src_freq, dtype=np.complex128, copy=False)          
 
-    nr,nc = np.shape(src_freq)
+    nc,nr = np.shape(src_freq)
     Nr = ifftshift(np.arange(-np.fix(old_div(nr,2.)),np.ceil(old_div(nr,2.))))
     Nc = ifftshift(np.arange(-np.fix(old_div(nc,2.)),np.ceil(old_div(nc,2.))))
     Nr,Nc = np.meshgrid(Nr,Nc)
