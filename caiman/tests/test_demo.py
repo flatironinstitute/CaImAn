@@ -29,7 +29,7 @@ def demo(parallel=False):
         stop_server()
 
     # verifying the spatial components
-    npt.assert_allclose(cnm.A.sum(), 32216000, 1e-3)
+    npt.assert_allclose(cnm.A.sum(), 32282000, 1e-3)
     # verifying the temporal components
     npt.assert_allclose(cnm.C.sum(), 640.5, 1e-2)
 

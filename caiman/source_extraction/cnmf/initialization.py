@@ -69,7 +69,6 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
 
     """
 
-    
     if gSiz is None:
         gSiz = 2 * np.asarray(gSig) + 1
 
@@ -77,9 +76,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
     # rescale according to downsampling factor
     gSig = np.round(np.asarray(gSig) // ssub).astype(np.int)
     gSiz = np.round(np.asarray(gSiz) // ssub).astype(np.int)
-    
-   
-    
+
     print('Noise Normalization')
     if normalize is True:
         if img is None:
@@ -89,7 +86,6 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
         Y = old_div(Y, np.reshape(img, d + (-1,), order='F'))
         alpha_snmf /= np.mean(img)
 
-    
     # spatial downsampling
     mean_val = np.mean(Y)
     if ssub != 1 or tsub != 1:
@@ -98,15 +94,12 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
     else:
         Y_ds = Y
 
-    
-       
     print('Roi Extraction...')
-    
-    
+
     if method == 'greedy_roi':
         Ain, Cin, _, b_in, f_in = greedyROI(
             Y_ds, nr=K, gSig=gSig, gSiz=gSiz, nIter=nIter, kernel=kernel, nb=nb)
-       
+
         if use_hals:
             print('Refining Components...')
             Ain, Cin, b_in, f_in = hals(Y_ds, Ain, Cin, b_in, f_in, maxIter=maxIter)
@@ -120,15 +113,12 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
     else:
         print(method)
         raise Exception("Unsupported method")
-        
-        
+
     K = np.shape(Ain)[-1]
     ds = Y_ds.shape[:-1]
 
     Ain = np.reshape(Ain, ds + (K,), order='F')
-    
-    
-    
+
     if len(ds) == 2:
 
         Ain = resize(Ain, d + (K,), order=1)
@@ -140,7 +130,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
         Ain = resize(Ain, (d[0], d[1] * d[2], K), order=1)
 
     Ain = np.reshape(Ain, (np.prod(d), K), order='F')
-   
+
     #import pdb
     # pdb.set_trace()
 
@@ -165,14 +155,12 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
         #import pdb
         # pdb.set_trace()
         Ain = Ain * np.reshape(img, (np.prod(d), -1), order='F')
-        
+
         b_in = b_in * np.reshape(img, (np.prod(d), -1), order='F')
         # b_in = np.atleast_2d(b_in * img.flatten('F')) #np.reshape(img,
         # (np.prod(d), -1),order='F')
         Y = Y * np.reshape(img, d + (-1,), order='F')
 
-    
-    
     return Ain, Cin, b_in, f_in, center
 
 #%%
@@ -289,15 +277,14 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1):
     Author: Eftychios A. Pnevmatikakis based on a matlab implementation by Yuanjun Gao
             Simons Foundation, 2015
     """
-    debug_ = False        
+    debug_ = False
     if debug_:
         import os
-        f  = open('_LOG_1_'+str(os.getpid()),'w+')
-        f.write('type_rho:'+str(type(rho))+'\n') 
-        f.write('rho:'+str(np.mean(rho))+'\n') 
+        f = open('_LOG_1_' + str(os.getpid()), 'w+')
+        f.write('type_rho:' + str(type(rho)) + '\n')
+        f.write('rho:' + str(np.mean(rho)) + '\n')
         f.close()
-    
-    
+
     d = np.shape(Y)
     med = np.median(Y, axis=-1)
     Y = Y - med[..., np.newaxis]
@@ -307,42 +294,37 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1):
     A = np.zeros((np.prod(d[0:-1]), nr))
     C = np.zeros((nr, d[-1]))
     center = np.zeros((nr, Y.ndim - 1))
-    
-    
-    
-   
-    rho = imblur(Y, sig=gSig, siz=gSiz, nDimBlur=Y.ndim - 1, kernel=kernel)
-    
-    
-    v = np.sum(rho**2, axis=-1)
-    
 
-    
+    rho = imblur(Y, sig=gSig, siz=gSiz, nDimBlur=Y.ndim - 1, kernel=kernel)
+
+    v = np.sum(rho**2, axis=-1)
+
     for k in range(nr):
-    
+
         ind = np.argmax(v)
-        
+
         ij = np.unravel_index(ind, d[0:-1])
-        
+
         for c, i in enumerate(ij):
             center[k, c] = i
-            
+
         ijSig = [[np.maximum(ij[c] - gHalf[c], 0), np.minimum(ij[c] + gHalf[c] + 1, d[c])]
                  for c in range(len(ij))]
 
-        dataTemp = np.array(Y[[slice(*a) for a in ijSig]].copy(),dtype=np.float)
-        
-        traceTemp = np.array(np.squeeze(rho[ij]),dtype = np.float)
-        
+        dataTemp = np.array(Y[[slice(*a) for a in ijSig]].copy(), dtype=np.float)
+
+        traceTemp = np.array(np.squeeze(rho[ij]), dtype=np.float)
+
         coef, score = finetune(dataTemp, traceTemp, nIter=nIter)
-        
+
         C[k, :] = np.squeeze(score)
-        
+
         dataSig = coef[..., np.newaxis] * score.reshape([1] * (Y.ndim - 1) + [-1])
         xySig = np.meshgrid(*[np.arange(s[0], s[1]) for s in ijSig], indexing='xy')
-        arr = np.array([np.reshape(s, (1, np.size(s)), order='F').squeeze() for s in xySig],dtype = np.int)
+        arr = np.array([np.reshape(s, (1, np.size(s)), order='F').squeeze()
+                        for s in xySig], dtype=np.int)
         indeces = np.ravel_multi_index(arr, d[0:-1], order='F')
-        
+
         A[indeces, k] = np.reshape(coef, (1, np.size(coef)), order='C').squeeze()
         Y[[slice(*a) for a in ijSig]] -= dataSig.copy()
         if k < nr - 1:
@@ -358,7 +340,6 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1):
             v[[slice(*a) for a in Mod]] = np.sum(
                 rho[[slice(*a) for a in Mod]]**2, axis=-1)
 
-    
     res = np.reshape(Y, (np.prod(d[0:-1]), d[-1]), order='F') + med.flatten(order='F')[:, None]
 
     model = NMF(n_components=nb, init='random', random_state=0)
@@ -366,7 +347,6 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1):
     b_in = model.fit_transform(np.maximum(res, 0))
     f_in = model.components_.squeeze()
 
-    
     return A, C, center, b_in, f_in
 
 #%%
@@ -376,22 +356,20 @@ def finetune(Y, cin, nIter=5):
     """Fine tuning of components within greedyROI using rank-1 NMF
     """
     debug_ = False
-    
-    
+
     if debug_:
         import os
-        f  = open('_LOG_1_'+str(os.getpid()),'w+')
-        f.write('Y:'+str(np.mean(Y))+'\n') 
-        f.write('cin:'+str(np.mean(cin))+'\n') 
+        f = open('_LOG_1_' + str(os.getpid()), 'w+')
+        f.write('Y:' + str(np.mean(Y)) + '\n')
+        f.write('cin:' + str(np.mean(cin)) + '\n')
         f.close()
-        
-    c = cin    
+
+    c = cin
     for iter in range(nIter):
         a = np.maximum(np.dot(Y, c), 0)
         a = old_div(a, np.sqrt(np.sum(a**2)))
         c = np.sum(Y * a[..., np.newaxis], tuple(np.arange(Y.ndim - 1)))
-        
-    
+
     return a, c
 
 #%%
@@ -436,7 +414,8 @@ def imblur(Y, sig=5, siz=11, nDimBlur=None, kernel=None):
 
         X = Y.copy()
         for i in range(nDimBlur):
-            h = np.exp(old_div(-np.arange(-np.floor(old_div(siz[i], 2)), np.floor(old_div(siz[i], 2)) + 1)**2, (2 * sig[i]**2)))
+            h = np.exp(
+                old_div(-np.arange(-np.floor(old_div(siz[i], 2)), np.floor(old_div(siz[i], 2)) + 1)**2, (2 * sig[i]**2)))
             h /= np.sqrt(h.dot(h))
             shape = [1] * len(Y.shape)
             shape[i] = -1
@@ -473,8 +452,8 @@ def hals(Y, A, C, b, f, bSiz=3, maxIter=5):
     output:
     the updated A, C, b, f
 
-    Author: Johannes Friedrich, Andrea Giovannucci, Columbia University
-       """
+    Author: Johannes Friedrich, Andrea Giovannucci
+    """
 
     #%% smooth the components
     dims, T = np.shape(Y)[:-1], np.shape(Y)[-1]
@@ -482,41 +461,36 @@ def hals(Y, A, C, b, f, bSiz=3, maxIter=5):
     nb = b.shape[1]  # number of background components
     if isinstance(bSiz, (int, float)):
         bSiz = [bSiz] * len(dims)
-    ind_A = nd.filters.uniform_filter(np.reshape(A, dims + (K,),
-                                                 order='F'), size=bSiz + [0])
+    ind_A = nd.filters.uniform_filter(np.reshape(A, dims + (K,), order='F'), size=bSiz + [0])
     ind_A = np.reshape(ind_A > 1e-10, (np.prod(dims), K), order='F')
     ind_A = spr.csc_matrix(ind_A)  # indicator of nonnero pixels
 
-    def HALS4activity(data, S, activity, iters=2):
-        A = S.dot(data)
-        B = S.dot(S.T)
+    def HALS4activity(Yr, A, C, iters=2):
+        U = A.T.dot(Yr)
+        V = A.T.dot(A)
         for _ in range(iters):
-            for mcell in range(K + 1):  # neurons and background
-                activity[mcell] += old_div((A[mcell] - np.dot(B[mcell].T, activity)), B[mcell, mcell])
-                activity[mcell][activity[mcell] < 0] = 0
-        return activity
+            for m in range(len(U)):  # neurons and background
+                C[m] = np.clip(C[m] + (U[m] - V[m].dot(C)) / V[m, m], 0, np.inf)
+        return C
 
-    def HALS4shape(data, S, activity, iters=2):
-        C = activity.dot(data.T)
-        D = activity.dot(activity.T)
+    def HALS4shape(Yr, A, C, iters=2):
+        U = C.dot(Yr.T)
+        V = C.dot(C.T)
         for _ in range(iters):
-            for mcell in range(K):  # neurons
-                ind_pixels = np.squeeze(np.asarray(ind_A[:, mcell].todense()))
-                S[mcell, ind_pixels] += old_div((C[mcell, ind_pixels] -
-                                         np.dot(D[mcell], S[:, ind_pixels])), D[mcell, mcell])
-                S[mcell, ind_pixels][S[mcell, ind_pixels] < 0] = 0
-            S[K] += old_div((C[K] - np.dot(D[K], S)), D[K, K])  # background
-            S[K][S[K] < 0] = 0
-        return S
+            for m in range(K):  # neurons
+                ind_pixels = np.squeeze(ind_A[:, m].toarray())
+                A[ind_pixels, m] = np.clip(A[ind_pixels, m] +
+                                           ((U[m, ind_pixels] - V[m].dot(A[ind_pixels].T)) /
+                                            V[m, m]), 0, np.inf)
+            for m in range(nb):  # background
+                A[:, K + m] = np.clip(A[:, K + m] + ((U[K + m] - V[K + m].dot(A.T)) /
+                                                     V[K + m, K + m]), 0, np.inf)
+        return A
 
-    #import pdb
-    # pdb.set_trace()
-    Ab = np.c_[A, b].T
+    Ab = np.c_[A, b]
     Cf = np.r_[C, f.reshape(nb, -1)]
-    #Cf = np.r_[C, f]
-    for miter in range(maxIter):
+    for _ in range(maxIter):
         Cf = HALS4activity(np.reshape(Y, (np.prod(dims), T), order='F'), Ab, Cf)
         Ab = HALS4shape(np.reshape(Y, (np.prod(dims), T), order='F'), Ab, Cf)
 
-    return Ab[:-nb].T, Cf[:-nb], Ab[-nb:].reshape(-1, nb), Cf[-nb:].reshape(nb, -1)
-    # return Ab[:-nb].T, Cf[:-nb], Ab[-nb:], Cf[-nb:]
+    return Ab[:, :-nb], Cf[:-nb], Ab[:, -nb:], Cf[-nb:].reshape(nb, -1)
