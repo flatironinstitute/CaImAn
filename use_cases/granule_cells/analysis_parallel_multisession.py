@@ -613,7 +613,7 @@ mouse_now=''
 session_now=''
 session_id = 0
 compute_redundancy = False
-check_timing= False
+check_timing= True
 redundancy=[]
 max_fluo_range=np.inf
 #single_session = True
@@ -636,9 +636,10 @@ for tr_fl, tr_bh, eye, whe, tm, fl, nm, pos_examples, A, tiff_names, timestamps_
     zip(triggers_chunk_fluo, triggers_chunk_bh, eyelid_chunk, wheel_chunk,\
      tm_behav, fluo_chunk,names_chunks,good_neurons_chunk,A_chunks,tiff_names_chunks,\
      timestamps_TM_chunk,wheel_mms_TM_chunk,nose_vel_TM_chunk):
-    if  nm !=  session_nice_trials[:1]:
-#        continue  
-        1       
+    if  nm !=  session_nice_trials[-1]:
+        print(nm)
+        continue  
+#        1       
 
 
 
@@ -839,39 +840,42 @@ for tr_fl, tr_bh, eye, whe, tm, fl, nm, pos_examples, A, tiff_names, timestamps_
 
     r_nose_fluo=[scipy.stats.pearsonr(binned_nose.flatten(),bf.flatten()) for bf in binned_fluo]
     r_nose_fluo=np.array([rnf[0] if rnf[1]<min_confidence and rnf[0]>min_r else None for rnf in r_nose_fluo])
-    mat_rnd=mat_all_nose[np.random.permutation(np.shape(mat_all_nose)[0])[:np.shape(binned_nose)[0]]]
+    
 
+    r_wheel_fluo=[scipy.stats.pearsonr(binned_wheel.flatten(),bf.flatten()) for bf in binned_fluo]
+    r_wheel_fluo=np.array([rnf[0] if rnf[1]<min_confidence and rnf[0]>min_r else None for rnf in r_wheel_fluo])
+
+    r_eye_fluo=[scipy.stats.pearsonr(binned_eye.flatten(),bf.flatten()) for bf in binned_fluo]
+    r_eye_fluo=np.array([rnf[0] if rnf[1]<min_confidence and rnf[0]>min_r else None for rnf in r_eye_fluo])
+
+    bh_correl_tmp['r_nose_fluo']=r_nose_fluo
+    bh_correl_tmp['r_wheel_fluo']=r_wheel_fluo
+    bh_correl_tmp['r_eye_fluo']=r_eye_fluo
+
+    
+#    if not check_timing:
+    mat_rnd=mat_all_nose[np.random.permutation(np.shape(mat_all_nose)[0])[:np.shape(binned_nose)[1]]]
 #        r_nose_fluo_rnd=[scipy.stats.pearsonr(binned_nose[np.random.permutation(np.shape(binned_nose)[0])].flatten(),bf.flatten()) for bf in binned_fluo]
     r_nose_fluo_rnd=[scipy.stats.pearsonr(mat_rnd.flatten(),bf.flatten()) for bf in binned_fluo]
     r_nose_fluo_rnd=np.array([rnf[0] if rnf[1]<min_confidence and rnf[0]>min_r else None for rnf in r_nose_fluo_rnd])
 
 
-    r_wheel_fluo=[scipy.stats.pearsonr(binned_wheel.flatten(),bf.flatten()) for bf in binned_fluo]
-    r_wheel_fluo=np.array([rnf[0] if rnf[1]<min_confidence and rnf[0]>min_r else None for rnf in r_wheel_fluo])
-
-    mat_rnd=mat_all_wheel[np.random.permutation(np.shape(mat_all_wheel)[0])[:np.shape(binned_wheel)[0]]]
-
+    mat_rnd=mat_all_wheel[np.random.permutation(np.shape(mat_all_wheel)[0])[:np.shape(binned_wheel)[1]]]
 #        r_nose_fluo_rnd=[scipy.stats.pearsonr(binned_nose[np.random.permutation(np.shape(binned_nose)[0])].flatten(),bf.flatten()) for bf in binned_fluo]
     r_wheel_fluo_rnd=[scipy.stats.pearsonr(mat_rnd.flatten(),bf.flatten()) for bf in binned_fluo]    
     r_wheel_fluo_rnd=np.array([rnf[0] if rnf[1]<min_confidence and rnf[0]>min_r else None for rnf in r_wheel_fluo_rnd])
 
 
-    r_eye_fluo=[scipy.stats.pearsonr(binned_eye.flatten(),bf.flatten()) for bf in binned_fluo]
-    r_eye_fluo=np.array([rnf[0] if rnf[1]<min_confidence and rnf[0]>min_r else None for rnf in r_eye_fluo])
-
-    mat_rnd=mat_all_eye[np.random.permutation(np.shape(mat_all_eye)[0])[:np.shape(binned_eye)[0]]]
-
+    mat_rnd=mat_all_eye[np.random.permutation(np.shape(mat_all_eye)[0])[:np.shape(binned_eye)[1]]]
 #        r_nose_fluo_rnd=[scipy.stats.pearsonr(binned_nose[np.random.permutation(np.shape(binned_nose)[0])].flatten(),bf.flatten()) for bf in binned_fluo]
     r_eye_fluo_rnd=[scipy.stats.pearsonr(mat_rnd.flatten(),bf.flatten()) for bf in binned_fluo]  
     r_eye_fluo_rnd=np.array([rnf[0] if rnf[1]<min_confidence and rnf[0]>min_r else None for rnf in r_eye_fluo_rnd])
 
-
-    bh_correl_tmp['r_nose_fluo']=r_nose_fluo
-    bh_correl_tmp['r_nose_fluo_rnd']=r_nose_fluo_rnd
-    bh_correl_tmp['r_wheel_fluo']=r_wheel_fluo
     bh_correl_tmp['r_wheel_fluo_rnd']=r_wheel_fluo_rnd
-    bh_correl_tmp['r_eye_fluo']=r_eye_fluo
+    bh_correl_tmp['r_nose_fluo_rnd']=r_nose_fluo_rnd
+
     bh_correl_tmp['r_eye_fluo_rnd']=r_eye_fluo_rnd
+    
 
     fluo_crpl=func_avg_fluo(amplitudes_responses[idxCR,:][:,idx_responsive],0)    
 
@@ -905,46 +909,58 @@ for tr_fl, tr_bh, eye, whe, tm, fl, nm, pos_examples, A, tiff_names, timestamps_
 #        CR_eye_fluo_rnd=[scipy.stats.pearsonr(bf.flatten(),ampl_CR_eye.flatten()[np.random.permutation(np.shape(ampl_CR_eye.flatten())[0])]) for bf in amplitudes_responses_CR_fl.transpose([1,0,2])]
     CR_eye_fluo_rnd=[rnf[0] if rnf[1]<min_confidence and rnf[0]>min_r else None for rnf in CR_eye_fluo_rnd]
 
-    if check_timing: # plot nic edelay binned
+    if check_timing: # plot nice delay binned
 #            pl.plot(bin_edge[idx_good_samples[1:-1]],binned_fluo[100].mean(0)-.2)
-        min_r_CR=.3
+        min_r_CR = .3
         time_binned_data=bin_edge[idx_good_samples[1:-1]]
         binned_fluo_norm=old_div((binned_fluo-np.percentile(binned_fluo[...,5:50],50,(1,2))[:,np.newaxis,np.newaxis]),np.std(binned_fluo[...,5:50],(1,2))[:,np.newaxis,np.newaxis])
         binned_fluo_norm=np.mean(binned_fluo_norm[:,idxCR,:],1)
         binned_fluo_norm=old_div((binned_fluo_norm-np.percentile(binned_fluo_norm[...,5:50],50,(-1))[:,np.newaxis]),np.std(binned_fluo_norm[...,5:50],(-1))[:,np.newaxis])
         binned_eye_norm=old_div((binned_eye-np.percentile(binned_eye[...,5:50],50,(-1))[:,np.newaxis]),np.std(binned_eye[...,5:50],(-1))[:,np.newaxis])
         binned_eye_norm=binned_eye_norm[idxCR].mean(0)
+        binned_eye_norm = binned_eye_norm - np.percentile(binned_eye_norm[np.logical_and(time_binned_data[:]>-1,time_binned_data[:]<-.25)],50)
+
+                
+        binned_nose_norm=old_div((binned_nose-np.percentile(binned_nose[...,5:50],50,(-1))[:,np.newaxis]),np.std(binned_nose[...,5:50],(-1))[:,np.newaxis])
+        binned_nose_norm=binned_nose_norm[idxCR].mean(0)
+        binned_nose_norm = binned_nose_norm - np.percentile(binned_nose_norm[np.logical_and(time_binned_data[:]>-1,time_binned_data[:]<-.25)],50)
 
         idx_during_cs= np.where((time_binned_data>-0.22) & (time_binned_data<0.03))[0]
         idx_max_eye=np.where(binned_eye_norm[idx_during_cs]>3)[0][0]
+        idx_max_nose=np.where(binned_nose_norm[idx_during_cs]>2)[0][0]
 
         pl.subplot(1,2,1)
         ax=pl.gca()
         l1 = pl.plot(time_binned_data[:],binned_fluo_norm[CR_eye_fluo>min_r_CR][:,:].T,color='lightgray')
         l2 = pl.plot(time_binned_data[:],binned_eye_norm[:],'k',linewidth=2,label='Inline label')
+        l3 = pl.plot(time_binned_data[:],binned_nose_norm[:],'r',linewidth=2,label='Inline label')
         l1[0].set_label('Granule cells with r_CR>0.3')
         l2[0].set_label('Eyelid')
+        l3[0].set_label('Nose')
         pl.legend()
         pl.xlabel('Time to US (s)')
         pl.ylabel('z-score')
-        pl.xlim([-.3,0.03])
+        pl.xlim([-.4,0.03])
         pl.ylim([-3,30])
         # find fr each trial and neuron the first index larger than 1 std
         bins_sign_fluo=np.array([np.where(binned_fluo_norm[iid_neuro][idx_during_cs]>3)[0][0] if np.max(binned_fluo_norm[iid_neuro][idx_during_cs])>3 else np.nan for iid_neuro in range(np.shape(binned_fluo_norm)[0]) ])
 
-
 #            bins_sign_fluo=[bisect.bisect(binned_fluo_norm[iid_neuro][idx_during_cs],3) for iid_neuro in range(np.shape(binned_fluo_norm)[0])]
-
+        bins_hist = time_binned_data[np.logical_and(time_binned_data[:]>-.25,time_binned_data[:]<.25)]
         pl.subplot(1,2,2)
-        pl.hist(0.034*(idx_max_eye-np.array(bins_sign_fluo)[CR_eye_fluo>min_r_CR]),bins=10)
-        pl.xlabel('time lag granule - eyelid (s)')
+        pl.hist(0.034*(idx_max_eye-np.array(bins_sign_fluo)[np.logical_and(CR_eye_fluo>min_r_CR,~np.isnan(bins_sign_fluo))]),bins=bins_hist)
+        pl.hist(0.034*(idx_max_nose-np.array(bins_sign_fluo)[np.logical_and(CR_eye_fluo>min_r_CR,~np.isnan(bins_sign_fluo))]),bins=bins_hist)
+
+        pl.xlabel('time lag  (s)')
         pl.ylabel('Cell count N=' +str(np.sum([CR_eye_fluo>min_r_CR])))
-        pl.xlim([-.1,.1])
+        pl.xlim([-.1,.25])
+        pl.legend(['granule - eyelid (>3 std)','granule - snout (>2 std)'])
+        
         #pl.ylim([3,8])
-        lsl
+        
     else:
 
-        print("skippined lags")
+        print("skipping lags")
 
 
     if compute_redundancy:
@@ -1003,7 +1019,9 @@ for tr_fl, tr_bh, eye, whe, tm, fl, nm, pos_examples, A, tiff_names, timestamps_
         redundancy.append(old_div(np.max(Icum_neurons),np.max(I_classif)))
         print(('Redundancy:' + str(old_div(np.max(Icum_neurons),np.max(I_classif)))))
         print((len(I_neurons)))
+        
     else:
+        
         print('SKIPPED REDUNDANCY')
 
     if 0: # for plotting  example redundancy use Ag0515 
@@ -1205,7 +1223,7 @@ mat_summaries=[
 '/mnt/xfs1/home/agiovann/imaging/eyeblink/MAT_SUMMARIES/gc-AG052014-02/python_out.mat',
 '/mnt/xfs1/home/agiovann/imaging/eyeblink/MAT_SUMMARIES/AG052014-01/python_out.mat',
 '/mnt/xfs1/home/agiovann/imaging/eyeblink/MAT_SUMMARIES/AG051514-01/python_out.mat']
-for mat_summary in mat_summaries[:]:
+for mat_summary in mat_summaries[-1:]:
     ld=scipy.io.loadmat(mat_summary)
     cr_ampl_dic=dict()
     cr_ampl_dic['trials']=np.array([a[0][0][0] for a in ld['python_trials']])
@@ -1450,20 +1468,25 @@ for mat_summary in mat_summaries[:]:
             binned_fluo_norm=old_div((binned_fluo_norm-np.percentile(binned_fluo_norm[...,1:20],50,(-1))[:,np.newaxis]),np.std(binned_fluo_norm[...,1:20],(-1))[:,np.newaxis])
             binned_eye_norm=old_div((binned_eye-np.percentile(binned_eye[...,1:20],50,(-1))[:,np.newaxis]),np.std(binned_eye[...,1:20],(-1))[:,np.newaxis])
             binned_eye_norm=binned_eye_norm[idx_CR].mean(0)
+            binned_nose_norm=old_div((binned_nose-np.percentile(binned_nose[...,1:20],50,(-1))[:,np.newaxis]),np.std(binned_nose[...,1:20],(-1))[:,np.newaxis])
+            binned_nose_norm=binned_nose_norm[idx_CR].mean(0)
 
             idx_during_cs= np.where((time_binned_data>-ISI) & (time_binned_data<0.03))[0]
             idx_max_eye=np.where(binned_eye_norm[idx_during_cs]>3)[0][0]
-
+            idx_max_nose=np.where(binned_nose_norm[idx_during_cs]>3)[0][0]
+            
             pl.subplot(1,2,1)
             ax=pl.gca()
             l1 = pl.plot(time_binned_data[:],binned_fluo_norm[CR_eye_fluo>min_r_CR,:].T,color='lightgray')
             l2 = pl.plot(time_binned_data[:],binned_eye_norm[:],'k',linewidth=2,label='Inline label')
+            l3 = pl.plot(time_binned_data[:],binned_nose_norm[:],'r',linewidth=2,label='Inline label')
             l1[0].set_label('Granule cells with r_CR>0.3')
             l2[0].set_label('Eyelid')
+            l2[0].set_label('Snout')
             pl.legend()
             pl.xlabel('Time to US (s)')
             pl.ylabel('z-score')
-            pl.xlim([-.3,0.03])
+            pl.xlim([-.5,0.03])
             pl.ylim([-3,10])
             # find fr each trial and neuron the first index larger than 1 std
             bins_sign_fluo=np.array([np.where(binned_fluo_norm[iid_neuro][idx_during_cs]>3)[0][0] if np.max(binned_fluo_norm[iid_neuro][idx_during_cs])>3 else np.nan for iid_neuro in range(np.shape(binned_fluo_norm)[0]) ])
@@ -1473,15 +1496,20 @@ for mat_summary in mat_summaries[:]:
 
             pl.subplot(1,2,2)
             pl.hist(0.064*(idx_max_eye-np.array(bins_sign_fluo)[CR_eye_fluo>min_r_CR]),bins=10)
+            pl.hist(0.064*(idx_max_nose-np.array(bins_sign_fluo)[CR_eye_fluo>min_r_CR]),bins=10)
             pl.xlabel('time lag granule - eyelid (s)')
             pl.ylabel('Cell count N=' +str(np.sum([CR_eye_fluo>min_r_CR])))
             pl.xlim([-.1,.2])
+            lsl
             #pl.ylim([3,8])
             all_neurons_lag=np.concatenate([np.load(a) for a in ['timing_lag_AG051501_sec.npy','timing_lag_b35_sec.npy','timing_lag_b37_sec.npy','timing_lag_gc-AGGC6f-031213-03_sec.npy']])
-            pl.hist(all_neurons_lag,bins=30)
-            pl.xlabel('time lag granule - eyelid (s)')
-            pl.ylabel('Cell count N=' +str(len(all_neurons_lag)))
+            all_nose_lag=np.concatenate([np.load(a)['arr_0'] for a in ['lags_AG051515-01.npy.npz','lags_b37.npy.npz']])
 
+            pl.hist(all_neurons_lag,bins=np.arange(-.3,.3,.032))
+            pl.hist(all_nose_lag,bins=np.arange(-.3,.3,.032))
+            pl.xlabel('time lag granule - eyelid (s)')
+            pl.ylabel('Cell count')
+            pl.legend(['eyelid - GrC','nose Grc'])
 #            idxHighCorr=np.argsort(CR_eye_fluo)[::-1]
         # redundancy calculation            
 #             
@@ -1859,9 +1887,9 @@ bh_correl_tmp=bh_correl_sel.copy()
 
 b37_last_sess = bh_correl_tmp[(bh_correl_tmp.mouse=='b37') &  (bh_correl_tmp.session == '20160705103903') & (bh_correl_tmp.chunk == '121')]
 b35_last_sess = bh_correl_tmp[(bh_correl_tmp.mouse=='b35') &  (bh_correl_tmp.session == '20160714143248') & (bh_correl_tmp.chunk == '061')]
-AG051514_01_last_sess =bh_correl_tmp[(bh_correl_tmp.mouse=='AG051514-01')]
-AG052014_01_last_sess =bh_correl_tmp[(bh_correl_tmp.mouse=='AG052014-01')]
-gc_AGGC6f_031213_03_last_sess =bh_correl_tmp[(bh_correl_tmp.mouse=='gc-AGGC6f-031213-03')]
+AG051514_01_last_sess = bh_correl_tmp[(bh_correl_tmp.mouse=='AG051514-01')]
+AG052014_01_last_sess = bh_correl_tmp[(bh_correl_tmp.mouse=='AG052014-01')]
+gc_AGGC6f_031213_03_last_sess = bh_correl_tmp[(bh_correl_tmp.mouse=='gc-AGGC6f-031213-03')]
 #gc_AG052014_02_last_sess =bh_correl_tmp[(bh_correl_tmp.mouse=='gc-AG052014-02')]
 
 cr_neurons=[]
@@ -2520,7 +2548,7 @@ pl.rc('font', **font)
 #%%
 
 bh_correl_tmp=bh_correl_sel.copy()
-for r_ in list(bh_correl_tmp.keys())[list(bh_correl_tmp.keys()).str.contains('r_.*rnd')]:
+for r_ in bh_correl_tmp.keys()[bh_correl_tmp.keys().str.contains('r_.*rnd')]:
     borders_low=bh_correl_tmp.fillna(method='pad').groupby('mouse')[r_].quantile(.05)
     borders_high=bh_correl_tmp.fillna(method='pad').groupby('mouse')[r_].quantile(.95)
 
@@ -2543,7 +2571,7 @@ for r_ in list(bh_correl_tmp.keys())[list(bh_correl_tmp.keys()).str.contains('r_
 results_corr=pd.DataFrame()
 bh_correl_tmp=bh_correl_sel.copy()
 bh_correl_tmp=bh_correl_tmp[bh_correl_tmp['learning_phase']>=0].copy()
-for r_ in list(bh_correl_tmp.keys())[list(bh_correl_tmp.keys()).str.contains('r_.*rnd')]:
+for r_ in bh_correl_tmp.keys()[bh_correl_tmp.keys().str.contains('r_.*rnd')]:
 #    print bh_correl_tmp.fillna(method='pad').groupby('mouse')[r_].quantile(.95).values
     bh_correl_tmp[r_]=bh_correl_tmp.fillna(method='pad').groupby('mouse')[r_].transform(lambda x: x.quantile(.99))
     bh_correl_tmp[r_[:-4]]=bh_correl_tmp[r_[:-4]]-bh_correl_tmp[r_]
@@ -2563,7 +2591,7 @@ idx_last_sessions = ( ((bh_correl_sel.mouse=='b37') &  (bh_correl_sel.session ==
 
 
 bh_correl_tmp =  bh_correl_sel[idx_last_sessions].copy()           
-for r_ in list(bh_correl_tmp.keys())[list(bh_correl_tmp.keys()).str.contains('r_.*rnd')]:
+for r_ in bh_correl_tmp.keys()[bh_correl_tmp.keys().str.contains('r_.*rnd')]:
 #    print bh_correl_tmp.fillna(method='pad').groupby('mouse')[r_].quantile(.95).values
     bh_correl_tmp[r_]=bh_correl_tmp.fillna(method='pad').groupby('mouse')[r_].transform(lambda x: x.quantile(.99))
     bh_correl_tmp[r_[:-4]]=bh_correl_tmp[r_[:-4]]-bh_correl_tmp[r_]
@@ -2777,7 +2805,7 @@ pl.rc('font', **font)
 counter=0
 pl.figure(figsize=(12,12))
 legends=[]
-for r_ in list(bh_correl.keys())[list(bh_correl.keys()).str.contains('r_.*rnd')]:
+for r_ in bh_correl.keys()[bh_correl.keys().str.contains('r_.*rnd')]:
     counter+=1
 
     ax=pl.subplot(3,2,counter)
@@ -2883,6 +2911,8 @@ print((bh_correl_tmp.groupby('mouse')['respond_to_wheel'].mean()))
 
 #%%
 from itertools import cycle, islice
+cr_ampl_m=cr_ampl_sel.copy()
+
 grouped_session=cr_ampl_m.groupby(['mouse',pd.cut(cr_ampl_m['perc_CR'],bins,include_lowest=True),pd.cut(cr_ampl_m['fluo_plus'],[0,.2,.8,1.5],include_lowest=True)]) 
 pl.close('all')
 
@@ -2901,7 +2931,8 @@ for counter,ms in enumerate(cr_ampl_m.mouse.unique()):
             print('**')
             cr_now=cr_now[cr_now.session_id>=np.maximum(0,cr_now.session_id.max()-2)]    
         else:
-            cr_now=cr_now[cr_now.session_id==np.maximum(0,cr_now.session_id.max())]    
+            cr_now=cr_now[cr_now.session_id==np.maximum(0,cr_now.session_id.max())]   
+                          
     cr_now['delta']=(cr_now['fluo_plus']-cr_now['fluo_minus'])  
     cr_now['delta_norm']=old_div((cr_now['fluo_plus']-cr_now['fluo_minus']),np.abs(cr_now['fluo_plus']+cr_now['fluo_minus']))          
     cr_now['fluo_minus']=-cr_now['fluo_minus']
