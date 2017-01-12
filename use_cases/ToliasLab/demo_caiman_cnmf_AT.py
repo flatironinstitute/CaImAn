@@ -41,7 +41,7 @@ from caiman.base.rois import extract_binary_masks_blob
 #%%
 c,dview,n_processes = cm.cluster.setup_cluster(backend = 'local',n_processes = None,single_thread = False)
 #%%
-is_patches=False
+is_patches=True
 is_dendrites=True # 
 
 if is_dendrites == True:
@@ -52,16 +52,14 @@ else:
     init_method = 'greedy_roi'
     alpha_snmf=None #10e2  # this controls sparsity
 
+#%% USE h5_at to load the mat data from Tolias
+if 0:
+    import shutil
+    shutil.move('quietBlock.mat','quietBlock.h5_at')
+    shutil.move('activeBlock.mat','activeBlock.h5_at')
 #%% FOR LOADING ALL TIFF FILES IN A FILE AND SAVING THEM ON A SINGLE MEMORY MAPPABLE FILE
     
-fnames = []
-base_folder = './example_movies/'  # folder containing the demo files
-for file in glob.glob(os.path.join(base_folder, '*.tif')):
-    if file.endswith("ie.tif"):
-        fnames.append(os.path.abspath(file))        
-fnames.sort()
-if len(fnames) == 0:
-    raise Exception("Could not find any tiff file")
+fnames = ['quietBlock.h5_at']
 
 print(fnames)  
 fnames=fnames
@@ -106,7 +104,7 @@ if not is_patches:
 else:
     #%%
     rf = 30  # half-size of the patches in pixels. rf=25, patches are 50x50
-    stride = 10  # amounpl.it of overlap between the patches in pixels
+    stride = 20  # amounpl.it of overlap between the patches in pixels
     K = 6  # number of neurons expected per patch
     gSig = [7, 7]  # expected half size of neurons
     merge_thresh = 0.8  # merging threshold, max correlation allowed
