@@ -73,7 +73,8 @@ Installation on MAC OS
 
 Download and install Anaconda (Python 2.7) <http://docs.continuum.io/anaconda/install>
 
-    ```
+    ```bash
+    
     git clone  https://github.com/simonsfoundation/CaImAn
     cd CaImAn
     git checkout dev
@@ -82,16 +83,15 @@ Download and install Anaconda (Python 2.7) <http://docs.continuum.io/anaconda/in
     source activate CaImAn
     pip install -r requirements_pip.txt
     conda install -c menpo opencv3=3.1.0
-    python setup.py build_ext -i
     ```
-    
-    * To make the package available from everywhere and have it working *efficiently* under any configuration ALWAYS run      these lines before starting spyder:
 
-    ```bash
-    export PYTHONPATH="/path/to/CaImAn:$PYTHONPATH"
-    export MKL_NUM_THREADS=1
-    export OPENBLAS_NUM_THREADS=1
-    ```
+   * To make the package available from everywhere and have it working *efficiently* under any configuration ALWAYS run these lines before starting spyder:
+
+   ```bash
+   export PYTHONPATH="/path/to/caiman:$PYTHONPATH"
+   export MKL_NUM_THREADS=1
+   export OPENBLAS_NUM_THREADS=1
+   ```
     
 # Example
 
