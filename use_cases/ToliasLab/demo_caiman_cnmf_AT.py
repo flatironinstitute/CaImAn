@@ -104,7 +104,7 @@ if not is_patches:
 else:
     #%%
     rf = 30  # half-size of the patches in pixels. rf=25, patches are 50x50
-    stride = 20  # amounpl.it of overlap between the patches in pixels
+    stride = 30  # amounpl.it of overlap between the patches in pixels
     K = 6  # number of neurons expected per patch
     gSig = [7, 7]  # expected half size of neurons
     merge_thresh = 0.8  # merging threshold, max correlation allowed
@@ -218,9 +218,7 @@ view_patches_bar(Yr, scipy.sparse.coo_matrix(A.tocsc()[:, idx_components]), C[
 #%%
 view_patches_bar(Yr, scipy.sparse.coo_matrix(A.tocsc()[:, idx_components_bad]), C[
                                idx_components_bad, :], b, f, dims[0], dims[1], YrA=YrA[idx_components_bad, :], img=Cn)
-#%% STOP CLUSTER and clean up log files
-
-   
+#%% STOP CLUSTER and clean up log files   
 cm.stop_server()
 
 log_files = glob.glob('Yr*_LOG_*')
