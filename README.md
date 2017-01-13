@@ -58,10 +58,12 @@ Recent advances in calcium imaging acquisition techniques are creating datasets 
    python setup.py build_ext -i
    ```
 
-   * To make the package available from everywhere:
+   * To make the package available from everywhere and have it working *efficiently* under any configuration ALWAYS run these lines before starting spyder:
 
    ```bash
    export PYTHONPATH="/path/to/caiman:$PYTHONPATH"
+   export MKL_NUM_THREADS=1
+   export OPENBLAS_NUM_THREADS=1
    ```
 Installation
 ===================================================
@@ -81,10 +83,14 @@ Download and install Anaconda (Python 2.7) <http://docs.continuum.io/anaconda/in
     pip install -r requirements_pip.txt
     conda install -c menpo opencv3=3.1.0
     python setup.py build_ext -i
-    
-    To make the package available from everywhere:
     ```
+    
+    * To make the package available from everywhere and have it working *efficiently* under any configuration ALWAYS run      these lines before starting spyder:
+
+    ```bash
     export PYTHONPATH="/path/to/CaImAn:$PYTHONPATH"
+    export MKL_NUM_THREADS=1
+    export OPENBLAS_NUM_THREADS=1
     ```
     
 # Example
