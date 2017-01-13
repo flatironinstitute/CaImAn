@@ -658,7 +658,6 @@ def extractROIsFromPCAICA(spcomps, numSTD=4, gaussiansigmax=2 , gaussiansigmay=2
     """        
 
     numcomps, width, height=spcomps.shape
-    rowcols=int(np.ceil(np.sqrt(numcomps)));  
 
     #%
     allMasks=[];

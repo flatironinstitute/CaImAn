@@ -76,7 +76,8 @@ def cnmf_patches(args_in):
         Ain, Cin, b_in, f_in, center=cm.source_extraction.cnmf.initialization.initialize_components(Y, **options['init_params']) 
         
         nA = np.squeeze(np.array(np.sum(np.square(Ain),axis=0)))
-        nr=len(nA)
+
+        nr=nA.size
         Cin=coo_matrix(Cin)
         
 
@@ -221,13 +222,31 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, gnb = 1, dvie
     print((time.time()-st))
 
      
-    # extract the values from the output of mapped computation
+    # count components
+    count=0
+    count_bgr = 0
+    patch_id=0
     num_patches=len(file_res)
+    for fff in file_res:
+        if fff is not None:
+            idx_,shapes,A,b,C,f,S,bl,c1,neurons_sn,g,sn,_,YrA=fff
+            
+            for ii in range(np.shape(b)[-1]):
 
-    A_tot=scipy.sparse.csc_matrix((d,K*num_patches))
+                count_bgr += 1
+
+            for ii in range(np.shape(A)[-1]):            
+                new_comp=old_div(A.tocsc()[:,ii],np.sqrt(np.sum(np.array(A.tocsc()[:,ii].todense())**2)))
+                if new_comp.sum()>0:
+                    count+=1
+
+            patch_id+=1  
+
+            
+    A_tot=scipy.sparse.csc_matrix((d,count))
     B_tot=scipy.sparse.csc_matrix((d,nb*num_patches))
-    C_tot=np.zeros((K*num_patches,T))
-    YrA_tot=np.zeros((K*num_patches,T))
+    C_tot=np.zeros((count,T))
+    YrA_tot=np.zeros((count,T))
     F_tot=np.zeros((nb*num_patches,T))
     mask=np.zeros(d)
     sn_tot=np.zeros((d1*d2))

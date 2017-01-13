@@ -3,8 +3,9 @@ from __future__ import print_function
 from builtins import range
 from past.utils import old_div
 import numpy as np
-from sklearn.decomposition import NMF
+from sklearn.decomposition import NMF, FastICA
 from skimage.transform import downscale_local_mean, resize
+import pylab as pl
 import scipy.ndimage as nd
 import scipy.sparse as spr
 import scipy
@@ -12,8 +13,6 @@ from scipy.ndimage.measurements import center_of_mass
 import caiman
 #from . import utilities
 #%%
-
-
 def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter=5, maxIter=5, nb=1,
                           kernel=None, use_hals=True, normalize=True, img=None, method='greedy_roi', max_iter_snmf=500, alpha_snmf=10e2, sigma_smooth_snmf=(.5, .5, .5), perc_baseline_snmf=20):
     """Initalize components
@@ -104,13 +103,20 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
             print('Refining Components...')
             Ain, Cin, b_in, f_in = hals(Y_ds, Ain, Cin, b_in, f_in, maxIter=maxIter)
     elif method == 'sparse_nmf':
+        
         Ain, Cin, _, b_in, f_in = sparseNMF(Y_ds, nr=K, nb=nb, max_iter_snmf=max_iter_snmf, alpha=alpha_snmf,
                                             sigma_smooth=sigma_smooth_snmf, remove_baseline=True, perc_baseline=perc_baseline_snmf)
 #        print np.sum(Ain), np.sum(Cin)
 #        print 'Refining Components...'
 #        Ain, Cin, b_in, f_in = hals(Y_ds, Ain, Cin, b_in, f_in, maxIter=maxIter)
 #        print np.sum(Ain), np.sum(Cin)
+    elif method == 'pca_ica':
+        
+        Ain, Cin, _, b_in, f_in = ICA_PCA(Y_ds, nr = K, sigma_smooth=sigma_smooth_snmf,  truncate = 2, fun='logcosh',\
+                                          max_iter=max_iter_snmf, tol=1e-10,remove_baseline=True, perc_baseline=perc_baseline_snmf, nb=nb)
+        
     else:
+        
         print(method)
         raise Exception("Unsupported method")
 
@@ -164,9 +170,84 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
     return Ain, Cin, b_in, f_in, center
 
 #%%
+def ICA_PCA(Y_ds, nr, sigma_smooth=(.5, .5, .5),  truncate = 2, fun='logcosh', max_iter=1000, tol=1e-10,remove_baseline=True, perc_baseline=20, nb=1):
+    """ Initialization using ICA and PCA. DOES NOT WORK WELL WORK IN PROGRESS"
+    
+    Parameters:
+    -----------
+    
+    Returns:
+    --------
+        
+    
+    """
+    m = scipy.ndimage.gaussian_filter(np.transpose(Y_ds, [2, 0, 1]), sigma=sigma_smooth, mode='nearest', truncate=truncate)
+    if remove_baseline:
+        bl = np.percentile(m, perc_baseline, axis=0)
+        m1 = np.maximum(0, m - bl)
+    else:
+        bl = 0
+        m1 = m
+        
+    pca_comp = nr
+    
+    T, d1, d2 = np.shape(m1)
+    d = d1 * d2
+    yr = np.reshape(m1, [T, d], order='F')
+    
+    [U,S,V] = scipy.sparse.linalg.svds(yr,pca_comp)
+    S = np.diag(S);
+#        whiteningMatrix = np.dot(scipy.linalg.inv(np.sqrt(S)),U.T)
+#        dewhiteningMatrix = np.dot(U,np.sqrt(S))
+    whiteningMatrix = np.dot(scipy.linalg.inv(S),U.T)
+#    dewhiteningMatrix = np.dot(U,S)
+    whitesig =  np.dot(whiteningMatrix,yr)
+#    wsigmask=np.reshape(whitesig.T,(d1,d2,pca_comp));
+    f_ica = FastICA(whiten=False, fun=fun, max_iter=max_iter, tol=tol)
+    S_ = f_ica.fit_transform(whitesig.T)
+    A_in = f_ica.mixing_
+    A_in = np.dot(A_in,whitesig)
+
+    
+    masks = np.reshape(A_in.T,(d1,d2,pca_comp),order = 'F').transpose([2,0,1])
+    
+    
+#    pl.figure()
+ #   caiman.utils.visualization.matrixMontage(np.array(masks))
+    masks = np.array(caiman.base.rois.extractROIsFromPCAICA(masks)[0])
+#    pl.pause(3)
+    
+    
+    if masks.size > 0:
+
+        C_in = caiman.base.movies.movie(m1).extract_traces_from_masks(np.array(masks)).T
+        A_in = np.reshape(masks,[-1,d1*d2],order = 'F').T
+        
+#        pl.figure()
+#        pl.imshow(np.reshape(A_in.sum(1),[d1,d2],order = 'F'))
+#        pl.pause(3)
+
+    
+    else:
+        
+        A_in = np.zeros([d1*d2,pca_comp])     
+        C_in = np.zeros([pca_comp,T])
 
 
-def sparseNMF(Y_ds, nr,  max_iter_snmf=500, alpha=10e2, sigma_smooth=(.5, .5, .5), remove_baseline=True, perc_baseline=20, nb=1):
+
+    m1 = yr.T - A_in.dot(C_in) + np.maximum(0, bl.flatten())[:, np.newaxis]
+    
+    model = NMF(n_components=nb, init='random', random_state=0)
+
+    b_in = model.fit_transform(np.maximum(m1, 0))
+    f_in = model.components_.squeeze()
+
+    center = caiman.base.rois.com(A_in, d1, d2)
+
+
+    return A_in, C_in, center, b_in, f_in
+#%%
+def sparseNMF(Y_ds, nr,  max_iter_snmf=500, alpha=10e2, sigma_smooth=(.5, .5, .5), remove_baseline=True, perc_baseline=20, nb=1, truncate = 2 ):
     """
     Initilaization using sparse NMF
     Parameters
@@ -196,7 +277,7 @@ def sparseNMF(Y_ds, nr,  max_iter_snmf=500, alpha=10e2, sigma_smooth=(.5, .5, .5
     """
 
     m = scipy.ndimage.gaussian_filter(np.transpose(
-        Y_ds, [2, 0, 1]), sigma=sigma_smooth, mode='nearest', truncate=2)
+        Y_ds, [2, 0, 1]), sigma=sigma_smooth, mode='nearest', truncate=truncate)
     if remove_baseline:
         bl = np.percentile(m, perc_baseline, axis=0)
         m1 = np.maximum(0, m - bl)
@@ -240,7 +321,7 @@ def sparseNMF(Y_ds, nr,  max_iter_snmf=500, alpha=10e2, sigma_smooth=(.5, .5, .5
 #        f = np.maximum(b.T.dot(scipy.linalg.solve(scipy.linalg.norm(b).T**2,Y.T),0);
 #        b = np.maximum(Y.dot(scipy.linalg.solve(scipy.linalg.norm(f).T**2,f.T),0);
 #    end
-
+    
     return A_in, C_in, center, b_in, f_in
 
 #%%

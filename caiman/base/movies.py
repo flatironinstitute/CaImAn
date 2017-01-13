@@ -671,7 +671,8 @@ class movie(ts.timeseries):
         S_ = f_ica.fit_transform(whitesig.T)
         A_ = f_ica.mixing_
         A=np.dot(A_,whitesig)
-        mask=np.reshape(A.T,(d1,d2,pca_comp))
+        mask=np.reshape(A.T,(d1,d2,pca_comp)).transpose([2,0,1])
+        
         return mask
 
 
@@ -749,8 +750,13 @@ class movie(ts.timeseries):
         """
         T,h,w=self.shape
         Y=np.reshape(self,(T,h*w))
+        if masks.ndim == 2:
+            masks = masks[None,:,:] 
+            
         nA,_,_=masks.shape
+
         A=np.reshape(masks,(nA,h*w))
+        
         pixelsA=np.sum(A,axis=1)
         A=old_div(A,pixelsA[:,None]) # obtain average over ROI
         traces=trace(np.dot(A,np.transpose(Y)).T,**self.__dict__)

@@ -389,7 +389,9 @@ def regression_ipyparallel(pars):
     #sys.stdout = open(str(os.getpid()) + ".out", "w")
     As = []
     # print "*****************:" + str(idxs_Y[0]) + ',' + str(idxs_Y[-1])
-
+    print('updating lars')
+#    import os
+#    print('**' + str(os.environ['OPENBLAS_NUM_THREADS']))
     for y, px in zip(Y, idxs_Y):
         # print str(time.time()-st) + ": Pixel" + str(px)
 #        print px,len(idxs_C),C.shape
@@ -430,7 +432,8 @@ def regression_ipyparallel(pars):
                 a = a.T
 
             As.append((px, idxs_C[px], a))
-
+    
+    print('clearing variables')
     if isinstance(Y_name,basestring):
         #print("deleting Y")
         del Y
@@ -440,7 +443,7 @@ def regression_ipyparallel(pars):
 
     if isinstance(Y_name,basestring):        
         gc.collect()
-
+    print('done!')
     return As
 
 #%% lars_regression_noise_parallel
