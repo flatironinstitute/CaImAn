@@ -191,7 +191,19 @@ def get_noise_fft_parallel(Y,n_pixels_per_process=100, dview=None, **kwargs):
     pixel_groups=list(range(0,Y.shape[0]-n_pixels_per_process+1,n_pixels_per_process))
 
 
-    argsin=[(Y, i, n_pixels_per_process, kwargs) for i in pixel_groups]
+    if type(Y) is np.core.memmap:  # if input file is already memory mapped then find the filename
+        
+        Y_name = Y.filename
+        
+    else:
+        
+        if dview is not None:   
+            
+            raise Exception('ipyparallel backend only works with memory mapped files')
+            
+        Y_name = Y    
+
+    argsin=[(Y_name, i, n_pixels_per_process, kwargs) for i in pixel_groups]
     pixels_remaining= Y.shape[0] % n_pixels_per_process
     if pixels_remaining>0:  
         argsin.append((Y,Y.shape[0]-pixels_remaining, pixels_remaining, kwargs))
@@ -204,14 +216,7 @@ def get_noise_fft_parallel(Y,n_pixels_per_process=100, dview=None, **kwargs):
     
     else:
         
-        if type(Y) is np.core.memmap:  # if input file is already memory mapped then find the filename
-        
-            Y_name = Y.filename
-        
-        else:
-            
-            raise Exception('ipyparallel backend only works with memory mapped files')
-            
+                    
         ne = len(dview)
         print(('Running on %d engines.'%(ne)))
 
