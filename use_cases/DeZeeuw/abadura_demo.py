@@ -171,7 +171,7 @@ else:
     dview = c[:len(c)]
 #%% set parameters and create template by rigid motion correction
 t1 = time.time()
-fname = '20_12__006.tif'
+fname = '20_12__002_cr.tif'
 max_shifts = (12,12)
 splits = 28 # for parallelization split the movies in  num_sqplits chuncks across time
 m = cm.load(fname,subindices=slice(None,None,None))
@@ -181,7 +181,6 @@ m.play(gain = 1,magnification=1,fr =60)
 template = cm.motion_correction.bin_median( m[100:500].copy().motion_correct(max_shifts[0],max_shifts[1],template=None)[0])
 pl.imshow(template)
 #%%
-
 new_templ = template
 add_to_movie=-np.min(template)
 save_movie = False
@@ -219,7 +218,7 @@ mr = cm.load(fname_tot)
 fnames = [fname_tot]
 #%%
 idx_x=slice(12,500,None)
-idx_y=slice((796-512)/2,-(796-512)/2,None)
+idx_y=slice(12,500,None)
 idx_xy=(idx_x,idx_y)
 add_to_movie=-np.nanmin(mr) # the movie must be positive!!!
 downsample_factor=.2 # use .2 or .1 if file is large and you want a quick answer
