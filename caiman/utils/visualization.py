@@ -358,7 +358,7 @@ def nb_view_patches3d(Yr, A, C, b, f, dims, image_type='mean',
         cc2 = [[list(cor['coordinates'][:, 1]) for cor in coors[0]],
                [list(cor['coordinates'][:, 0]) for cor in coors[2]],
                [list(cor['coordinates'][:, 1] + offset2) for cor in coors[1]]]
-        K = np.max([map(len, c) for c in cc1])
+        K = np.max([[len(c) for c in cc] for cc in cc1])
         c1x = [np.nan] * K
         c2x = [np.nan] * K
         c1y = [np.nan] * K
@@ -535,38 +535,49 @@ def nb_imshow(image, cmap='jet'):
     return p
 
 
-def nb_plot_contour(image, A, d1, d2, thr=0.995, face_color=None, line_color='black', alpha=0.4, line_width=2, **kwargs):
+def nb_plot_contour(image, A, d1, d2, thr=None, thr_method='max', maxthr=0.2, nrgthr=0.9,
+                    face_color=None, line_color='black', alpha=0.4, line_width=2, **kwargs):
     '''Interactive Equivalent of plot_contours for ipython notebook
 
     Parameters
     -----------
     A:   np.ndarray or sparse matrix
-               Matrix of Spatial components (d x K)
+            Matrix of Spatial components (d x K)
     Image:  np.ndarray (2D)
-               Background image (e.g. mean, correlation)
+            Background image (e.g. mean, correlation)
     d1,d2: floats
-               dimensions os image
+            dimensions os image
     thr: scalar between 0 and 1
-               Energy threshold for computing contours (default 0.995)
+            Energy threshold for computing contours
+            Kept for backwards compatibility. If not None then thr_method = 'nrg', and nrgthr = thr
+    thr_method: [optional] string
+            Method of thresholding:
+                'max' sets to zero pixels that have value less than a fraction of the max value
+                'nrg' keeps the pixels that contribute up to a specified fraction of the energy
+    maxthr: [optional] scalar
+            Threshold of max value
+    nrgthr: [optional] scalar
+            Threshold of energy
     display_number:     Boolean
-               Display number of ROIs if checked (default True)
+            Display number of ROIs if checked (default True)
     max_number:    int
-               Display the number for only the first max_number components (default None, display all numbers)
+            Display the number for only the first max_number components (default None, display all numbers)
     cmap:     string
-               User specifies the colormap (default None, default colormap)
+            User specifies the colormap (default None, default colormap)
 
     '''
     p = nb_imshow(image, cmap='jet')
     center = com(A, d1, d2)
     p.circle(center[:, 1], center[:, 0], size=10, color="black",
              fill_color=None, line_width=2, alpha=1)
-    coors = plot_contours(coo_matrix(A), image, thr=thr)
+    coors = plot_contours(coo_matrix(A), image, thr=thr,
+                          thr_method=thr_method, maxthr=maxthr, nrgthr=nrgthr)
     pl.close()
     #    cc=coors[0]['coordinates'];
     cc1 = [np.clip(cor['coordinates'][:, 0], 0, d2) for cor in coors]
     cc2 = [np.clip(cor['coordinates'][:, 1], 0, d1) for cor in coors]
 
-    p.patches(cc1, cc2, alpha=.4, color=face_color,  line_color=line_color, line_width=2, **kwargs)
+    p.patches(cc1, cc2, alpha=.4, color=face_color, line_color=line_color, line_width=2, **kwargs)
     return p
 
 #%%
@@ -816,7 +827,7 @@ def plot_contours(A, Cn, thr=None, thr_method='max', maxthr=0.2, nrgthr=0.9, dis
             thr = nrgthr
 
         else:  # thr_method = 'max'
-            if ~(thr_method == 'max'):
+            if thr_method != 'max':
                 warn("Unknown threshold method. Choosing max")
             Bvec = A[:, i].flatten()
             Bvec /= np.max(Bvec)
