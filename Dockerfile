@@ -18,8 +18,8 @@ RUN conda update --yes conda
 RUN conda info -a
 RUN CONDA_SSL_VERIFY=false conda update pyopenssl
 RUN conda install -c menpo opencv3=3.1.0
-RUN conda install -c https://conda.anaconda.org/omnia cvxpy
-RUN conda install -c https://conda.anaconda.org/conda-forge tifffile
+RUN conda install -c cvxgrp cvxpy
+# RUN conda install -c https://conda.anaconda.org/conda-forge tifffile
 # RUN git clone --recursive -b agiovann-master https://github.com/valentina-s/Constrained_NMF.git
 # RUN git clone --recursive https://github.com/agiovann/Constrained_NMF.git
 # RUN git clone --recursive -b dev https://github.com/agiovann/Constrained_NMF.git
