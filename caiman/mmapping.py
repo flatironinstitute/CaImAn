@@ -106,7 +106,7 @@ def save_memmap_each(fnames, dview=None, base_name=None, resize_fact=(1, 1, 1), 
 
     for idx,f in enumerate(fnames):
         if base_name is not None:
-            pars.append([f,base_name+str(idx),resize_fact[idx],remove_init,idx_xy,order,xy_shifts[idx],add_to_movie,border_to_0])
+            pars.append([f,base_name+'{:04d}'.format(idx),resize_fact[idx],remove_init,idx_xy,order,xy_shifts[idx],add_to_movie,border_to_0])
         else:
             pars.append([f,os.path.splitext(f)[0],resize_fact[idx],remove_init,idx_xy,order,xy_shifts[idx],add_to_movie,border_to_0])            
 
