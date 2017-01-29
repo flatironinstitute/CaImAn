@@ -1150,7 +1150,7 @@ def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None,
             filename=os.path.split(file_name)[-1]
             fpart=filename.split('_')[1:-1]
 
-            Yr, dims, T = load_memmap(filename)
+            Yr, dims, T = load_memmap(os.path.join(os.path.split(file_name)[0],filename))
             d1, d2 = dims
             images = np.reshape(Yr.T, [T] + list(dims), order='F')
 
