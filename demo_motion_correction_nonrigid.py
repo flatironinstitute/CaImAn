@@ -53,7 +53,7 @@ def tile_and_correct_wrapper(params):
     from caiman.motion_correction import tile_and_correct
 
     img_name,  out_fname,idxs, shape_mov, template, strides, overlaps, max_shifts,\
-        add_to_movie,max_deviation_rigid,upsample_factor_grid, newoverlaps, newstrides  = params
+        add_to_movie,max_deviation_rigid,upsample_factor_grid, newoverlaps, newstrides,shifts_opencv  = params
 
 
 
@@ -64,7 +64,7 @@ def tile_and_correct_wrapper(params):
         if count % 10 == 0:
             print(count)
         mc[count],total_shift,start_step,xy_grid = tile_and_correct(img, template, strides, overlaps,max_shifts, add_to_movie=add_to_movie, newoverlaps = newoverlaps, newstrides = newstrides,\
-                upsample_factor_grid= upsample_factor_grid, upsample_factor_fft=10,show_movie=False,max_deviation_rigid=max_deviation_rigid)
+                upsample_factor_grid= upsample_factor_grid, upsample_factor_fft=10,show_movie=False,max_deviation_rigid=max_deviation_rigid,shifts_opencv = shifts_opencv)
         shift_info.append([total_shift,start_step,xy_grid])
     if out_fname is not None:           
         outv = np.memmap(out_fname,mode='r+', dtype=np.float32, shape=shape_mov, order='F')
@@ -75,7 +75,7 @@ def tile_and_correct_wrapper(params):
 
 #%%
 def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0, template = None, max_shifts = (12,12),max_deviation_rigid = 3,newoverlaps = None, newstrides = None,\
-                                upsample_factor_grid = 4, order = 'F',dview = None,save_movie= True, base_name = 'none', num_splits = None):
+                                upsample_factor_grid = 4, order = 'F',dview = None,save_movie= True, base_name = 'none', num_splits = None,shifts_opencv= False):
     '''
 
     '''
@@ -120,7 +120,7 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
     
         
     for idx in idxs:
-        pars.append([fname,fname_tot,idx,shape_mov, template, strides, overlaps, max_shifts, np.array(add_to_movie,dtype = np.float32),max_deviation_rigid,upsample_factor_grid, newoverlaps, newstrides ])
+        pars.append([fname,fname_tot,idx,shape_mov, template, strides, overlaps, max_shifts, np.array(add_to_movie,dtype = np.float32),max_deviation_rigid,upsample_factor_grid, newoverlaps, newstrides, shifts_opencv ])
 
     t1 = time.time()
     if dview is not None:
@@ -172,21 +172,22 @@ else:
 t1 = time.time()
 #fname = 'k56_20160608_RSM_125um_41mW_zoom2p2_00001_00034.tif'
 #fname = 'Sue_1000.tif'
-##fname = 'Sue_2000.tif'
-#max_shifts = (12,12)
+fname = 'Sue_2000.tif'
+max_shifts = (12,12)
 #splits = 56 # for parallelization split the movies in  num_splits chuncks across time
 #num_splits_to_process = 28
-fname = 'M_FLUO_t_1000.tif'
-max_shifts = (10,10)
+#fname = 'M_FLUO_t_1000.tif'
+#max_shifts = (10,10)
 splits = 56 # for parallelization split the movies in  num_splits chuncks across time
 num_splits_to_process = 28
 #fname = 'M_FLUO_4.tif'
-m = cm.load(fname,subindices=slice(None,None,None))
+m = cm.load(fname,subindices=slice(0,500,None))
 template = cm.motion_correction.bin_median( m[100:400].copy().motion_correct(max_shifts[0],max_shifts[1],template=None)[0])
 print (time.time() - t1)
-#%%
+#%
 #pl.imshow(template)
 #%
+shifts_opencv = False
 new_templ = template
 add_to_movie=-np.min(template)
 save_movie = False
@@ -197,12 +198,13 @@ for iter_ in range(num_iter):
     if iter_ == num_iter-1:
         save_movie = True
         print('saving!')
+        num_splits_to_process = None
 #        templ_to_save = old_templ
 
     fname_tot, res = motion_correction_piecewise(fname,splits, None, None,\
                             add_to_movie=add_to_movie, template = old_templ, max_shifts = max_shifts,max_deviation_rigid = 0,\
                             newoverlaps = None, newstrides = None,\
-                            upsample_factor_grid = 4, order = 'F',dview = dview, save_movie=save_movie ,base_name  = fname[:-4]+ '_rig_',num_splits=num_splits_to_process)
+                            upsample_factor_grid = 4, order = 'F',dview = dview, save_movie=save_movie ,base_name  = fname[:-4]+ '_rig_',num_splits=num_splits_to_process,shifts_opencv=shifts_opencv)
 
 
 
@@ -283,7 +285,7 @@ for iter_ in range(num_iter):
     fname_tot, res = motion_correction_piecewise(fname,splits, strides, overlaps,\
                             add_to_movie=add_to_movie, template = old_templ, max_shifts = max_shifts,max_deviation_rigid = max_deviation_rigid,\
                             newoverlaps = newoverlaps, newstrides = newstrides,\
-                            upsample_factor_grid = upsample_factor_grid, order = 'F',dview = dview,save_movie = save_movie, base_name = fname[:-4]+ '_els_',num_splits=num_splits_to_process)
+                            upsample_factor_grid = upsample_factor_grid, order = 'F',dview = dview,save_movie = save_movie, base_name = fname[:-4]+ '_els_opencv_',num_splits=num_splits_to_process,shifts_opencv = shifts_opencv)
 
 
     new_templ = np.nanmedian(np.dstack([r[-1] for r in res ]),-1)
@@ -299,6 +301,192 @@ pl.imshow(new_templ,cmap = 'gray',vmax = np.percentile(new_templ,95))
  #%%
 np.save(fname[:-4]+'_templ_pw_rigid.npy',new_templ)
 #scipy.io.savemat('/mnt/xfs1/home/agiovann/dropbox/Python_progress/' + str(np.shape(m)[-1])+'_templ_pw_rigid.mat',{'template':templ_to_save}) 
+#%%
+#%%
+def compute_metrics_motion_correction(fname,final_size_x,final_size_y, swap_dim,pyr_scale = .5,levels = 3,winsize = 100, iterations = 15, poly_n = 5, poly_sigma = 1.2/5, flags = 0,\
+                                      play_flow = False, resize_fact_flow = .2,template = None):
+    
+    #cv2.OPTFLOW_FARNEBACK_GAUSSIAN
+    import scipy
+    vmin, vmax = -1, 1
+    m = cm.load(fname)
+    
+    
+    max_shft_x = np.int(np.ceil((np.shape(m)[1]-final_size_x)/2))
+    max_shft_y = np.int(np.ceil((np.shape(m)[2]-final_size_y)/2))
+    max_shft_x_1 = - ( (np.shape(m)[1]-max_shft_x)-(final_size_x) )
+    max_shft_y_1 = - ( (np.shape(m)[2]-max_shft_y)-(final_size_y) )
+    if max_shft_x_1 == 0:
+        max_shft_x_1 = None
+        
+    if max_shft_y_1 == 0:
+        max_shft_y_1 = None
+#    print ([max_shft_x,max_shft_x_1,max_shft_y,max_shft_y_1])    
+    m = m[:,max_shft_x:max_shft_x_1,max_shft_y:max_shft_y_1]
+    print('Local correlations..')
+    img_corr = m.local_correlations(eight_neighbours=True, swap_dim = swap_dim)
+    print (m.shape)
+    if template is None:
+        tmpl = cm.motion_correction.bin_median(m)
+    else:
+        tmpl = template
+#    tmpl = tmpl[max_shft_x:-max_shft_x,max_shft_y:-max_shft_y]
+    
+    
+    print('Compute Smoothness.. ')
+    smoothness = np.sqrt(np.sum(np.sum(np.array(np.gradient(np.mean(m,0)))**2,0)))
+    smoothness_corr = np.sqrt(np.sum(np.sum(np.array(np.gradient(img_corr))**2,0)))
+    
+    print('Compute correlations.. ')
+    correlations = []
+    count = 0
+    for fr in m:
+         if count%100 == 0:
+            print(count)   
+        
+         count +=1    
+         correlations.append(scipy.stats.pearsonr(fr.flatten(),tmpl.flatten())[0]) 
+        
+    print('Compute optical flow .. ')
+    
+    m = m.resize(1,1,resize_fact_flow)
+    norms = []
+    flows = []
+    count = 0
+    for fr in m:
+        
+        if count%100 == 0:
+            print(count)   
+        
+        count +=1    
+        flow = cv2.calcOpticalFlowFarneback(tmpl,fr,None,pyr_scale, levels, winsize, iterations, poly_n, poly_sigma, flags)
+        
+        if play_flow:
+            pl.subplot(1,3,1)    
+            pl.cla()    
+            pl.imshow(fr,vmin = 0, vmax = 300, cmap = 'gray' )       
+            pl.title('movie')
+
+            
+            pl.subplot(1,3,3)    
+            pl.cla()    
+            pl.imshow(flow[:,:,1],vmin=vmin,vmax=vmax)       
+            pl.title('y_flow')
+            
+            pl.subplot(1,3,2)    
+            pl.cla()    
+            pl.imshow(flow[:,:,0],vmin=vmin,vmax=vmax)       
+            pl.title('x_flow')
+            pl.pause(.05)
+            
+            
+        n = np.linalg.norm(flow)
+        flows.append(flow)
+        norms.append(n)
+        
+    
+        
+    
+    
+    np.savez(fname[:-4]+'_metrics',flows = flows, norms = norms, correlations = correlations,smoothness=smoothness,tmpl = tmpl, smoothness_corr = smoothness_corr, img_corr = img_corr)
+    return tmpl, correlations, flows, norms, smoothness
+    
+#%% run comparisons MLK
+m_res = glob.glob('MKL*hdf5')
+final_size = (512-24,512-24)
+winsize = 100
+swap_dim = False
+resize_fact_flow = .2
+for mv in m_res:
+    tmpl, correlations, flows_orig, norms,smoothness  = compute_metrics_motion_correction(mv,final_size[0],final_size[1],swap_dim, winsize=winsize , play_flow=False, resize_fact_flow=resize_fact_flow)
+
+
+#%% run comparisons NORMCORRE
+m_fluos = glob.glob('M_FLUO*.mmap') + glob.glob('M_FLUO*.tif') 
+final_size = (64-20,128-20)
+winsize = 32
+resize_fact_flow = 1
+for mv in m_fluos:
+    tmpl, correlations, flows_orig, norms,smoothness = compute_metrics_motion_correction(mv,final_size[0],final_size[1],winsize=winsize , play_flow=False, resize_fact_flow=resize_fact_flow)
+#% run comparisons resonant
+m_res = glob.glob('Sue*mmap') + glob.glob('Sue*.tif')  
+final_size = (512-24,512-24)
+winsize = 100
+swap_dim = False
+resize_fact_flow = .2
+for mv in m_res:
+    tmpl, correlations, flows_orig, norms,smoothness  = compute_metrics_motion_correction(mv,final_size[0],final_size[1],swap_dim, winsize=winsize , play_flow=False, resize_fact_flow=resize_fact_flow)
+
+#%% run comparisons SIMA
+m_fluos = glob.glob('plane*.tif') + glob.glob('row*.tif') 
+final_size = (64-20,128-20)
+winsize = 32
+resize_fact_flow = 1
+for mv in m_fluos:
+    tmpl, correlations, flows_orig, norms,smoothness = compute_metrics_motion_correction(mv,final_size[0],final_size[1],winsize=winsize , play_flow=False, resize_fact_flow=resize_fact_flow)
+#% run comparisons resonant
+m_res = glob.glob('Sue*.tif')  
+final_size = (512-24,512-24)
+winsize = 100
+resize_fact_flow = .2
+for mv in m_res:
+    tmpl, correlations, flows_orig, norms,smoothness  = compute_metrics_motion_correction(mv,final_size[0],final_size[1],winsize=winsize , play_flow=False, resize_fact_flow=resize_fact_flow)
+#%% run comparisons SUITE2P
+for mvs in glob.glob('Sue*2000*16*.mat'):
+    print (mvs)
+    cm.movie(scipy.io.loadmat(mvs)['data'].transpose([2,0,1])).save(mvs[:-3]+'.hdf5')
+#%%
+m_fluos = glob.glob('M_FLUO*.hdf5')
+final_size = (64-20,128-20)
+winsize = 32
+resize_fact_flow = 1
+for mv in m_fluos:
+    tmpl, correlations, flows_orig, norms,smoothness = compute_metrics_motion_correction(mv,final_size[0],final_size[1],winsize=winsize , play_flow=False, resize_fact_flow=resize_fact_flow)
+#% run comparisons resonant
+m_res = glob.glob('Sue_2000*16*.hdf5')  
+final_size = (512-24,512-24)
+winsize = 100
+resize_fact_flow = .2
+for mv in m_res:
+    tmpl, correlations, flows_orig, norms,smoothness  = compute_metrics_motion_correction(mv,final_size[0],final_size[1],winsize=winsize , play_flow=False, resize_fact_flow=resize_fact_flow)
+#%% plot the results
+files_img = [u'/mnt/xfs1/home/agiovann/DataForPublications/Piecewise-Rigid-Analysis-paper/NORM_CORRE_OPENCV/Sue_2000_els_opencv__d1_512_d2_512_d3_1_order_F_frames_2000_._metrics.npz',
+             u'/mnt/xfs1/home/agiovann/DataForPublications/Piecewise-Rigid-Analysis-paper/NORMCORRE_EFF/Sue_2000_els__d1_512_d2_512_d3_1_order_F_frames_2000_._metrics.npz',
+#             u'/mnt/xfs1/home/agiovann/DataForPublications/Piecewise-Rigid-Analysis-paper/MLK/Sue_2000_MLK_metrics.npz',
+#             u'/mnt/xfs1/home/agiovann/DataForPublications/Piecewise-Rigid-Analysis-paper/SIMA_RESULTS/Sue_1000_T.tifrow1_example_sima_Trow1_example_sima_metrics.npz',
+#             u'/mnt/xfs1/home/agiovann/DataForPublications/Piecewise-Rigid-Analysis-paper/SUITE_2P_RES/Sue_2000_t_NB_16.._metrics.npz',
+             u'/mnt/xfs1/home/agiovann/DataForPublications/Piecewise-Rigid-Analysis-paper/MLK/MKL16T._metrics.npz'] 
+#for fl in glob.glob('*.npz'):
+for fl in files_img:    
+    with np.load(fl) as ld:
+        print(ld.keys())
+        pl.figure()
+        print(fl + ':' + str(np.mean(ld['norms'])) + '+/-' + str(np.std(ld['norms'])) + ' ; ' + str(np.mean(ld['correlations'])) + '+/-' + str(np.std(ld['correlations'])) + ' ; ' + str(ld['smoothness']) + ' ; ' + str(ld['smoothness_corr']))
+        pl.subplot(1,2,1)
+        try:
+            mean_img = np.mean(cm.load(fl[:-12]+'mmap'),0)[12:-12,12:-12]
+        except:
+            try:
+                mean_img = np.mean(cm.load(fl[:-12]+'.tif'),0)[12:-12,12:-12]    
+            except:
+                mean_img = np.mean(cm.load(fl[:-12]+'hdf5'),0)[12:-12,12:-12]        
+#        lq,hq = np.nanpercentile(mean_img,[.1,99.9])
+        lq, hq = 13.3, 318.01
+        pl.imshow(mean_img,vmin = lq,vmax = hq)
+        pl.colorbar()
+#        pl.plot(ld['correlations'])
+        
+        pl.subplot(1,2,2)
+        pl.imshow(ld['img_corr'],vmin = 0,vmax =.5)
+        pl.colorbar()
+#%%
+for fl in glob.glob('Mf*.npz'):
+    with np.load(fl) as ld:
+        print(ld.keys())
+        pl.figure()
+        print(fl + ':' + str(np.mean(ld['norms'])) + '+/-' + str(np.std(ld['norms'])) + ' ; ' + str(np.mean(ld['correlations'])) + '+/-' + str(np.std(ld['correlations'])) + ' ; ' + str(ld['smoothness']) + ' ; ' + str(ld['smoothness_corr']))
+     
+        
 #%%
 #%
 #total_shifts = []
@@ -322,7 +510,7 @@ np.save(fname[:-4]+'_templ_pw_rigid.npy',new_templ)
 #mc = cm.load('M_FLUO_t_d1_64_d2_128_d3_1_order_F_frames_6764_.mmap')
 
 #%%
-mc.resize(1,1,.03).play(gain=3,fr = 30, offset = 300,magnification=1.)
+mc.resize(1,1,.1).play(gain=10.,fr = 30, offset = 100,magnification=1.)
 #%%
 m.resize(1,1,.2).play(gain=10,fr = 30, offset = 0,magnification=1.)
 #%%
@@ -794,143 +982,6 @@ def compute_jacobians(res):
             
             all_mags_eig.append(mag_eig)
             all_mags.append(mag_norm)
-#%%
-def compute_metrics_motion_correction(fname,final_size_x,final_size_y,pyr_scale = .5,levels = 3,winsize = 100, iterations = 15, poly_n = 5, poly_sigma = 1.2/5, flags = 0,\
-                                      play_flow = False, resize_fact_flow = .2,template = None):
-    
-    #cv2.OPTFLOW_FARNEBACK_GAUSSIAN
-    import scipy
-    vmin, vmax = -1, 1
-    m = cm.load(fname)
-
-    max_shft_x = np.int(np.ceil((np.shape(m)[1]-final_size_x)/2))
-    max_shft_y = np.int(np.ceil((np.shape(m)[2]-final_size_y)/2))
-    max_shft_x_1 = - ( (np.shape(m)[1]-max_shft_x)-(final_size_x) )
-    max_shft_y_1 = - ( (np.shape(m)[2]-max_shft_y)-(final_size_y) )
-    if max_shft_x_1 == 0:
-        max_shft_x_1 = None
-        
-    if max_shft_y_1 == 0:
-        max_shft_y_1 = None
-#    print ([max_shft_x,max_shft_x_1,max_shft_y,max_shft_y_1])    
-    m = m[:,max_shft_x:max_shft_x_1,max_shft_y:max_shft_y_1]
-    print (m.shape)
-    if template is None:
-        tmpl = cm.motion_correction.bin_median(m)
-    else:
-        tmpl = template
-#    tmpl = tmpl[max_shft_x:-max_shft_x,max_shft_y:-max_shft_y]
-    
-    
-    print('Compute Smoothness.. ')
-    smoothness = np.sqrt(np.sum(np.sum(np.array(np.gradient(np.mean(m,0)))**2,0)))
-    
-    print('Compute correlations.. ')
-    correlations = []
-    count = 0
-    for fr in m:
-         if count%100 == 0:
-            print(count)   
-        
-         count +=1    
-         correlations.append(scipy.stats.pearsonr(fr.flatten(),tmpl.flatten())[0]) 
-        
-    print('Compute optical flow .. ')
-    
-    m = m.resize(1,1,resize_fact_flow)
-    norms = []
-    flows = []
-    count = 0
-    for fr in m:
-        
-        if count%100 == 0:
-            print(count)   
-        
-        count +=1    
-        flow = cv2.calcOpticalFlowFarneback(tmpl,fr,None,pyr_scale, levels, winsize, iterations, poly_n, poly_sigma, flags)
-        
-        if play_flow:
-            pl.subplot(1,3,1)    
-            pl.cla()    
-            pl.imshow(fr,vmin = 0, vmax = 300, cmap = 'gray' )       
-            pl.title('movie')
-
-            
-            pl.subplot(1,3,3)    
-            pl.cla()    
-            pl.imshow(flow[:,:,1],vmin=vmin,vmax=vmax)       
-            pl.title('y_flow')
-            
-            pl.subplot(1,3,2)    
-            pl.cla()    
-            pl.imshow(flow[:,:,0],vmin=vmin,vmax=vmax)       
-            pl.title('x_flow')
-            pl.pause(.05)
-            
-            
-        n = np.linalg.norm(flow)
-        flows.append(flow)
-        norms.append(n)
-        
-    
-        
-    
-    
-    np.savez(fname[:-4]+'_metrics',flows = flows, norms = norms, correlations = correlations,smoothness=smoothness,tmpl = tmpl)
-    return tmpl, correlations, flows, norms, smoothness
-    
-#%% run comparisons NORMCORRE
-m_fluos = glob.glob('M_FLUO*.mmap') + glob.glob('M_FLUO*.tif') 
-final_size = (64-20,128-20)
-winsize = 32
-resize_fact_flow = 1
-for mv in m_fluos:
-    tmpl, correlations, flows_orig, norms,smoothness = compute_metrics_motion_correction(mv,final_size[0],final_size[1],winsize=winsize , play_flow=False, resize_fact_flow=resize_fact_flow)
-#% run comparisons resonant
-m_res = glob.glob('Sue*mmap') + glob.glob('Sue*.tif')  
-final_size = (512-24,512-24)
-winsize = 100
-resize_fact_flow = .2
-for mv in m_res:
-    tmpl, correlations, flows_orig, norms,smoothness  = compute_metrics_motion_correction(mv,final_size[0],final_size[1],winsize=winsize , play_flow=False, resize_fact_flow=resize_fact_flow)
-
-#%% run comparisons SIMA
-m_fluos = glob.glob('plane*.tif') + glob.glob('row*.tif') 
-final_size = (64-20,128-20)
-winsize = 32
-resize_fact_flow = 1
-for mv in m_fluos:
-    tmpl, correlations, flows_orig, norms,smoothness = compute_metrics_motion_correction(mv,final_size[0],final_size[1],winsize=winsize , play_flow=False, resize_fact_flow=resize_fact_flow)
-#% run comparisons resonant
-m_res = glob.glob('Sue*.tif')  
-final_size = (512-24,512-24)
-winsize = 100
-resize_fact_flow = .2
-for mv in m_res:
-    tmpl, correlations, flows_orig, norms,smoothness  = compute_metrics_motion_correction(mv,final_size[0],final_size[1],winsize=winsize , play_flow=False, resize_fact_flow=resize_fact_flow)
-#%% run comparisons SUITE2P
-for mvs in glob.glob('Sue*2000*16*.mat'):
-    print (mvs)
-    cm.movie(scipy.io.loadmat(mvs)['data'].transpose([2,0,1])).save(mvs[:-3]+'.hdf5')
-#%%
-m_fluos = glob.glob('M_FLUO*.hdf5')
-final_size = (64-20,128-20)
-winsize = 32
-resize_fact_flow = 1
-for mv in m_fluos:
-    tmpl, correlations, flows_orig, norms,smoothness = compute_metrics_motion_correction(mv,final_size[0],final_size[1],winsize=winsize , play_flow=False, resize_fact_flow=resize_fact_flow)
-#% run comparisons resonant
-m_res = glob.glob('Sue_2000*16*.hdf5')  
-final_size = (512-24,512-24)
-winsize = 100
-resize_fact_flow = .2
-for mv in m_res:
-    tmpl, correlations, flows_orig, norms,smoothness  = compute_metrics_motion_correction(mv,final_size[0],final_size[1],winsize=winsize , play_flow=False, resize_fact_flow=resize_fact_flow)
-#%% plot the results 
-for fl in glob.glob('*.npz'):
-    with np.load(fl) as ld:
-#        print(ld.keys())
-        print(fl + ':' + str(np.mean(ld['norms'])) + '+/-' + str(np.std(ld['norms'])) + ' ; ' + str(np.mean(ld['correlations'])) + '+/-' + str(np.std(ld['correlations'])) + ' ; ' + str(ld['smoothness']))
 
 ##%%
 #m = cm.load('M_FLUO_t_1000.tif')
