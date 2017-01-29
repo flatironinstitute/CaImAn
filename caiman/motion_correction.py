@@ -1143,7 +1143,7 @@ def create_weight_matrix_for_blending(img, overlaps, strides):
 
 #%% 
 def tile_and_correct(img,template, strides, overlaps,max_shifts, newoverlaps = None, newstrides = None, upsample_factor_grid=4,\
-                upsample_factor_fft=10,show_movie=False,max_deviation_rigid=2,add_to_movie=0):
+                upsample_factor_fft=10,show_movie=False,max_deviation_rigid=2,add_to_movie=0, shifts_opencv = False):
 
     ''' perform piecewise rigid motion correction iteration, by
         1) dividing the FOV in patches
@@ -1197,11 +1197,17 @@ def tile_and_correct(img,template, strides, overlaps,max_shifts, newoverlaps = N
     img = img + add_to_movie
     template = template + add_to_movie
 
-    # compute rigid shifts    
+    # compute rigid shifts 
+    
     rigid_shts,sfr_freq,diffphase = register_translation(img,template,upsample_factor=upsample_factor_fft,max_shifts=max_shifts)
+    
     if max_deviation_rigid == 0:
-#        new_img = apply_shift_iteration(img,(-rigid_shts[0],-rigid_shts[1]),border_nan=True)
-        new_img = apply_shifts_dft(sfr_freq,(-rigid_shts[0],-rigid_shts[1]),diffphase,border_nan=True)
+        if shifts_opencv:
+            new_img = apply_shift_iteration(img,(-rigid_shts[0],-rigid_shts[1]),border_nan=True)
+        else:
+            new_img = apply_shifts_dft(sfr_freq,(-rigid_shts[0],-rigid_shts[1]),diffphase,border_nan=True)
+            
+            
         return new_img-add_to_movie, (-rigid_shts[0],-rigid_shts[1]), None, None
     else:
         # extract patches
@@ -1269,9 +1275,13 @@ def tile_and_correct(img,template, strides, overlaps,max_shifts, newoverlaps = N
 
         total_shifts = [(-x,-y) for x,y in zip(shift_img_x.reshape(num_tiles),shift_img_y.reshape(num_tiles))]     
         total_diffs_phase = [dfs for dfs in diffs_phase_grid_us.reshape(num_tiles)]    
+        if shifts_opencv:
 
-        imgs = [apply_shifts_dft(im,(sh[0],sh[1]),dffphs, is_freq = False, border_nan=True)  for im,sh,dffphs in zip(imgs, total_shifts,total_diffs_phase) ]
-#        imgs = [apply_shift_iteration(im,sh,border_nan=True) for im,sh in zip(imgs, total_shifts)]
+            imgs = [apply_shift_iteration(im,sh,border_nan=True) for im,sh in zip(imgs, total_shifts)]
+            
+        else:
+
+            imgs = [apply_shifts_dft(im,(sh[0],sh[1]),dffphs, is_freq = False, border_nan=True)  for im,sh,dffphs in zip(imgs, total_shifts,total_diffs_phase) ]
 
         normalizer = np.zeros_like(img)*np.nan    
         new_img = np.zeros_like(img)*np.nan
