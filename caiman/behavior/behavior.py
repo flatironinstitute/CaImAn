@@ -17,6 +17,8 @@ from scipy.io import loadmat
 import cv2
 from sklearn.decomposition import NMF,PCA,DictionaryLearning
 import time
+import scipy
+from scipy.sparse import coo_matrix
 #%% dense flow
 def select_roi(img,n_rois=1):
     """
@@ -48,6 +50,88 @@ def select_roi(img,n_rois=1):
         pl.close()
 
     return masks
+#%%
+def to_polar(x,y):
+    mag, ang = cv2.cartToPolar(x, y)
+    return mag,ang
+#%%
+def get_nonzero_subarray(arr,mask):
+    
+    x, y = mask.nonzero()   
+    
+    return arr.toarray()[x.min():x.max()+1, y.min():y.max()+1]
+    
+#%%
+def extract_motor_components_OF(m, n_components, mask = None,  resize_fact= .5, only_magnitude = False, max_iter = 1000, verbose = False):
+        
+    if mask is not None:
+        
+        mask = coo_matrix(np.array(mask).squeeze())
+        ms = [get_nonzero_subarray(mask.multiply(fr),mask) for fr in m]
+        ms = np.dstack(ms)
+        ms = cm.movie(ms.transpose([2,0,1]))
+
+    else:
+        
+        ms = m    
+
+    of_or = compute_optical_flow(ms,do_show=False,polar_coord=False) 
+    of_or = np.concatenate([cm.movie(of_or[0]).resize(resize_fact,resize_fact,1)[np.newaxis,:,:,:],cm.movie(of_or[1]).resize(resize_fact,resize_fact,1)[np.newaxis,:,:,:]],axis = 0)
+
+    if only_magnitude:
+        of = np.sqrt(of[0]**2+of[1]**2)
+    else:        
+        offset_removed = np.min(of_or)        
+        of = of_or - offset_removed        
+    
+    spatial_filter_, time_trace_, norm_fact = extract_components(of,n_components=n_components,verbose = verbose ,normalize_std=False,max_iter=max_iter)
+  
+    return  spatial_filter_, time_trace_, of_or
+    #%%
+def extract_magnitude_and_angle_from_OF(spatial_filter_, time_trace_, of_or, num_std_mag_for_angle = .6, sav_filter_size =3, only_magnitude = False):
+    
+    
+    mags = []
+    dircts = []
+    dircts_thresh = []
+    n_components = len(spatial_filter_)
+    spatial_masks_thr = []
+    for ncmp in range(n_components):
+        spatial_filter = spatial_filter_[ncmp]
+        time_trace = time_trace_[ncmp]
+        if only_magnitude:
+            mag = scipy.signal.medfilt(time_trace,kernel_size=[1,1]).T
+            mag =  scipy.signal.savgol_filter(mag.squeeze(),sav_filter_size,1)                
+            dirct = None
+        else:
+            x,y = scipy.signal.medfilt(time_trace,kernel_size=[1,1]).T
+            x =  scipy.signal.savgol_filter(x.squeeze(),sav_filter_size,1)                
+            y =  scipy.signal.savgol_filter(y.squeeze(),sav_filter_size,1)
+            mag,dirct = to_polar(x-cm.components_evaluation.mode_robust(x),y-cm.components_evaluation.mode_robust(y))
+            dirct = scipy.signal.medfilt(dirct.squeeze(),kernel_size=1).T        
+            
+        # normalize to pixel units
+        spatial_mask = spatial_filter
+        spatial_mask[spatial_mask<(np.nanpercentile(spatial_mask[0],99.9)*.9)] = np.nan
+        ofmk = of_or*spatial_mask[None,None,:,:]
+        range_ = np.std(np.nanpercentile(np.sqrt(ofmk[0]**2+ofmk[1]**2),95,(1,2)))
+        mag = (mag/np.std(mag))*range_
+        mag = scipy.signal.medfilt(mag.squeeze(),kernel_size=1)
+        dirct_orig = dirct.copy()
+        if not only_magnitude:
+            dirct[mag<num_std_mag_for_angle*np.nanstd(mag)] = np.nan
+
+   
+        mags.append(mag)
+        dircts.append(dirct_orig)
+        dircts_thresh.append(dirct)
+        spatial_masks_thr.append(spatial_mask)
+      
+    
+    
+    
+    return mags, dircts, dircts_thresh, spatial_masks_thr
+    
 #%%
 def compute_optical_flow(m,mask = None,polar_coord=True,do_show=False,do_write=False,file_name=None,frate=30,pyr_scale=.1,levels=3 , winsize=25,iterations=3,poly_n=7,poly_sigma=1.5):
     """
