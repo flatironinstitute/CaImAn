@@ -1,3 +1,4 @@
+future
 numpy
 scipy
 ipython
@@ -10,4 +11,4 @@ scikit-learn
 cvxopt
 h5py
 cython
-future
+spyder
