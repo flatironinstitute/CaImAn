@@ -100,7 +100,7 @@ Download and install Anaconda (Python 2.7) <http://docs.continuum.io/anaconda/in
     
 # Example
 
-  See the file demo_caiman_cnmf.py in the root folder
+  See the file demo_motion_correction.py and demo_caiman_cnmf.py in the root folder
 
 # Contributors:
 
@@ -115,27 +115,23 @@ Please refer to the following wiki [page](https://github.com/simonsfoundation/Ca
 
 # Deconvolution and demixing of calcium imaging data
 
-The code implements a method for simultaneous source extraction and spike inference from large scale calcium imaging movies. The code is suitable for the analysis of somatic imaging data. Implementation for the analysis of dendritic/axonal imaging data will be added in the near future.
+The code implements simultaneous source extraction and spike inference from large scale calcium imaging movies. The code is suitable for the analysis of somatic imaging data. Implementation for the analysis of dendritic/axonal imaging data will be added in the near future. The following references provide the theoretical background and original code for the included methods. 
 
-The algorithm is presented in more detail in
+Pnevmatikakis, E.A., Soudry, D., Gao, Y., Machado, T., Merel, J., ... & Paninski, L. (2016). Simultaneous denoising, deconvolution, and demixing of calcium imaging data. Neuron 89(2):285-299, http://dx.doi.org/10.1016/j.neuron.2015.11.037. [Github repo](https://github.com/epnev/ca_source_extraction). 
 
-Pnevmatikakis, E.A., Soudry, D., Gao, Y., Machado, T., Merel, J., ... & Paninski, L. (2016). Simultaneous denoising, deconvolution, and demixing of calcium imaging data. Neuron 89(2):285-299, http://dx.doi.org/10.1016/j.neuron.2015.11.037
+Pnevmatikakis, E.A., Gao, Y., Soudry, D., Pfau, D., Lacefield, C., ... & Paninski, L. (2014). A structured matrix factorization framework for large scale calcium imaging data analysis. arXiv preprint arXiv:1409.2903. http://arxiv.org/abs/1409.2903. 
 
-Pnevmatikakis, E.A., Gao, Y., Soudry, D., Pfau, D., Lacefield, C., ... & Paninski, L. (2014). A structured matrix factorization framework for large scale calcium imaging data analysis. arXiv preprint arXiv:1409.2903. http://arxiv.org/abs/1409.2903
-
-Friedrich, Johannes, Pengcheng Zhou, and Liam Paninski. "Fast Active Set Methods for Online Deconvolution of Calcium Imaging Data." arXiv preprint arXiv:1609.00639 (2016). https://arxiv.org/pdf/1609.00639.
+Friedrich J. and Paninski L. Fast active set methods for online spike inference from calcium imaging. NIPS, 29:1984-1992, 2016. [PDF](https://papers.nips.cc/paper/6505-fast-active-set-methods-for-online-spike-inference-from-calcium-imaging). [Github repository](https://github.com/j-friedrich/OASIS).
 
 
 Code description and related packages
 =======
 
-This repository contains a general toolbox for the analysi of calcium imaging data. It contains routines to handle and visualize large datasets. It can peroform operations like
+The implementation of this package is developed in parallel with a MATLAB toobox, which can be found [here](https://github.com/epnev/ca_source_extraction). 
 
-* spatio-temporal demixing, i.e., (source extraction) code for large scale calcium imaging data. Related code can be found in the following links:
+Some tools that are currently available in Matlab and not in Python are at the following links
 
-## Matlab
-- [Constrained deconvolution and source extraction with CNMF](https://github.com/epnev/ca_source_extraction)
-- [MCMC spike inference](https://github.com/epnev/continuous_time_ca_sampler)
+- [MCMC spike inference](https://github.com/epnev/continuous_time_ca_sampler) 
 - [Group LASSO initialization and spatial CNMF](https://github.com/danielso/ROI_detect)
 
 
@@ -256,10 +252,6 @@ Questions, comments, issues
 =======
 Please use the gitter chat room (use the button above) for questions and comments and create an issue for any bugs you might encounter.
 
-
-Important note
-======
-The implementation of this package is based on the matlab implementation which can be found [here](https://github.com/epnev/ca_source_extraction). Some of the Matlab features are currently lacking, but will be included in future releases.
 
 License
 =======
