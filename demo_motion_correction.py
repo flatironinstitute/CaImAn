@@ -38,58 +38,17 @@ import sys
 from ipyparallel import Client
 from skimage.external.tifffile import TiffFile
 from caiman.motion_correction import tile_and_correct, motion_correction_piecewise
-
 #%%
-#backend='SLURM'
-backend = 'local'
-if backend == 'SLURM':
-    n_processes = np.int(os.environ.get('SLURM_NPROCS'))
-else:
-    # roughly number of cores on your machine minus 1
-    n_processes = np.maximum(np.int(psutil.cpu_count()), 1)
-print(('using ' + str(n_processes) + ' processes'))
-#%% start cluster for efficient computation
-single_thread = False
-if single_thread:
-    dview = None
-else:
-    try:
-        c.close()
-    except:
-        print('C was not existing, creating one')
-    print("Stopping  cluster to avoid unnencessary use of memory....")
-    sys.stdout.flush()
-    if backend == 'SLURM':
-        try:
-            cm.stop_server(is_slurm=True)
-        except:
-            print('Nothing to stop')
-        slurm_script = '/mnt/xfs1/home/agiovann/SOFTWARE/Constrained_NMF/SLURM/slurmStart.sh'
-        cm.start_server(slurm_script=slurm_script)
-        pdir, profile = os.environ['IPPPDIR'], os.environ['IPPPROFILE']
-        c = Client(ipython_dir=pdir, profile=profile)
-    else:
-        cm.stop_server()
-        cm.start_server()
-        c = Client()
-
-    print(('Using ' + str(len(c)) + ' processes'))
-    dview = c[:len(c)]
+c,dview,n_processes = cm.cluster.setup_cluster(backend = 'local',n_processes = None,single_thread = False)
 #%% set parameters and create template by rigid motion correction
 t1 = time.time()
-#fname = 'M_FLUO_4.tif'
-#max_shifts = (8,8)
-#num_iter = 2
-
-#fname = 'Sue_2x_3000.tif'
-fname = 'Sue_2x_3000_40_-46.tif'
+fname = 'example_movies/Sue_2x_3000_40_-46.tif'
 max_shifts = (6,6)
-num_iter = 1
-
+num_iter = 1 # number of times the algorithm is run
 splits = 56 # for parallelization split the movies in  num_splits chuncks across time
 num_splits_to_process = None # if none all the splits are processed and the movie is saved
-shifts_opencv = True
-save_movie_rigid = True
+shifts_opencv = True # apply shifts fast way (but smoothing results)
+save_movie_rigid = True # save the movies vs just get the template
 t1 = time.time()
 fname_tot_rig, total_template_rig, templates_rig, shifts_rig = cm.motion_correction.motion_correct_batch_rigid(fname, max_shifts, dview = dview, splits = splits ,num_splits_to_process = num_splits_to_process, num_iter = num_iter,  template = None, shifts_opencv = shifts_opencv , save_movie_rigid = save_movie_rigid)
 t2 = time.time() - t1
@@ -144,8 +103,9 @@ upsample_factor_grid = 4
 max_deviation_rigid = 3
 add_to_movie = -np.min(total_template_rig)
 num_iter = 1
+max_shifts_els = np.add(np.ceil(np.max(np.abs(shifts_rig),0)).astype(int),max_deviation_rigid+1)[::-1]
 for num_splits_to_process in [28,None]:
-    fname_tot_els, total_template_wls, templates_els, x_shifts_els, y_shifts_els, coord_shifts_els  = cm.motion_correction.motion_correct_batch_pwrigid(fname, max_shifts, strides, overlaps, add_to_movie, newoverlaps = None,  newstrides = None,
+    fname_tot_els, total_template_wls, templates_els, x_shifts_els, y_shifts_els, coord_shifts_els  = cm.motion_correction.motion_correct_batch_pwrigid(fname, max_shifts_els, strides, overlaps, add_to_movie, newoverlaps = None,  newstrides = None,
                                              dview = dview, upsample_factor_grid = upsample_factor_grid, max_deviation_rigid = max_deviation_rigid,
                                              splits = splits ,num_splits_to_process = num_splits_to_process, num_iter = num_iter,
                                              template = new_templ, shifts_opencv = shifts_opencv, save_movie = save_movie)
@@ -155,11 +115,12 @@ pl.subplot(2,1,1)
 pl.plot(x_shifts_els)
 pl.subplot(2,1,2)
 pl.plot(y_shifts_els)
+
 #%%
-m_els = cm.load(fname_tot_els)
+m_els = cm.load(fname_tot_els)    
 cm.concatenate([m_rig.resize(1,1,.2),m_els.resize(1,1,.2)],axis = 1).play(fr = 50, gain = 20,magnification=2, offset = add_to_movie) 
 #%% compute metrics for the results
-final_size =  np.subtract(np.subtract(new_templ.shape, max_shifts),(1,1))
+final_size =  np.subtract(new_templ.shape, max_shifts_els)
 winsize = 75
 swap_dim = False
 resize_fact_flow = .2
