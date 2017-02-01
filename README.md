@@ -233,6 +233,7 @@ The code uses the following libraries
 - [Tifffile](https://pypi.python.org/pypi/tifffile) For reading tiff files. Other choices can work there too.
 - [cvxpy](http://www.cvxpy.org/) for solving optimization problems
 - [ipyparallel](http://ipyparallel.readthedocs.org/en/latest/) for parallel processing
+- [opencv](http://opencv.org/) for efficient image manipulation and visualization
 
 External Dependencies
 ============
