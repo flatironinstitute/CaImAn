@@ -72,7 +72,7 @@ def cnmf_patches(args_in):
         
 
         logger.info('Initialize Components') 
-        
+
         Ain, Cin, b_in, f_in, center=cm.source_extraction.cnmf.initialization.initialize_components(Y, **options['init_params']) 
         
         nA = np.squeeze(np.array(np.sum(np.square(Ain),axis=0)))

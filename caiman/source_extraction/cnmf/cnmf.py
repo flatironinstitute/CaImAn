@@ -212,7 +212,9 @@ class CNMF(object):
                 options['patch_params']['only_init']=True
                 
                 
-             
+            if self.alpha_snmf is not None:
+                    options['init_params']['alpha_snmf']=self.alpha_snmf
+                           
             A,C,YrA,b,f,sn, optional_outputs = run_CNMF_patches(images.filename, (d1, d2, T), options,rf=self.rf,stride = self.stride,
                                                                          dview=self.dview,memory_fact=self.memory_fact,gnb=self.gnb)
 

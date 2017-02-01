@@ -291,7 +291,7 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
                 Yr = np.array(Yr)[remove_init:, idx_xy[0], idx_xy[1], idx_xy[2]]
 
         if border_to_0>0:
-            min_mov=np.min(Yr)
+            min_mov=np.nanmin(Yr)
             Yr[:,:border_to_0,:]=min_mov
             Yr[:,:,:border_to_0]=min_mov
             Yr[:,:,-border_to_0:]=min_mov

@@ -272,3 +272,20 @@ def evaluate_components(Y, traces, A, C, b, f, final_frate, remove_baseline = Tr
     r_values, significant_samples = classify_components_ep(Yr, A, C, b, f, Athresh = Athresh, Npeaks = Npeaks, tB=tB, tA = tA, thres = thresh_C)
 
     return fitness_raw, fitness_delta, erfc_raw, erfc_delta, r_values, significant_samples    
+#%%
+def estimate_components_quality(traces, Y, A, C, b, f, final_frate = 30, Npeaks=10, r_values_min = .95,fitness_min = -100,fitness_delta_min = -100):
+ 
+    fitness_raw, fitness_delta, erfc_raw, erfc_delta, r_values, significant_samples = \
+        evaluate_components(Y, traces, A, C, b, f, final_frate, remove_baseline=True,
+                                          N=5, robust_std=False, Athresh=0.1, Npeaks=Npeaks,  thresh_C=0.3)
+    
+    idx_components_r = np.where(r_values >= r_values_min)[0]  # threshold on space consistency
+    idx_components_raw = np.where(fitness_raw < fitness_min)[0] # threshold on time variability
+    idx_components_delta = np.where(fitness_delta < fitness_delta_min)[0] # threshold on time variability (if nonsparse activity)
+    
+    
+    idx_components = np.union1d(idx_components_r, idx_components_raw)
+    idx_components = np.union1d(idx_components, idx_components_delta)
+    idx_components_bad = np.setdiff1d(list(range(len(traces))), idx_components)
+
+    return idx_components,idx_components_bad

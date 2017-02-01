@@ -61,7 +61,7 @@ for file in glob.glob(os.path.join(base_folder, '*.tif')):
         fnames.append(os.path.abspath(file))        
 fnames.sort()
 if len(fnames) == 0:
-    raise Exception("Could not find any tiff file")
+    raise Exception("Could not find any file")
 
 print(fnames)  
 fnames=fnames
@@ -69,6 +69,7 @@ fnames=fnames
 #idx_x=slice(12,500,None)
 #idx_y=slice(12,500,None)
 #idx_xy=(idx_x,idx_y)
+
 add_to_movie=300 # the movie must be positive!!!
 downsample_factor=1 # use .2 or .1 if file is large and you want a quick answer
 idx_xy=None
@@ -77,7 +78,11 @@ name_new=cm.save_memmap_each(fnames, dview=dview,base_name=base_name, resize_fac
 name_new.sort()
 print(name_new)
 #%%
-fname_new = cm.save_memmap_join(name_new, base_name='Yr', n_chunks=12, dview=dview)
+if len(name_new)>1:
+    fname_new = cm.save_memmap_join(name_new, base_name='Yr', n_chunks=12, dview=dview)
+else:
+    print('One file only, not saving!')
+    fname_new = name_new[0]
 #%%
 # fname_new='Yr_d1_501_d2_398_d3_1_order_F_frames_369_.mmap'
 Yr, dims, T = cm.load_memmap(fname_new)
@@ -87,6 +92,8 @@ Y = np.reshape(Yr, dims + (T,), order='F')
 #%%
 if np.min(images)<0:
     raise Exception('Movie too negative, add_to_movie should be larger')
+if np.sum(np.isnan(images))>0:
+    raise Exception('Movie contains nan! You did not remove enough borders')   
 #%%
 Cn = cm.local_correlations(Y[:,:,:3000])
 pl.imshow(Cn,cmap='gray')  
@@ -111,11 +118,10 @@ else:
     gSig = [6, 6]  # expected half size of neurons
     merge_thresh = 0.8  # merging threshold, max correlation allowed
     p = 1  # order of the autoregressive system
-    memory_fact = 1  # unitless number accounting how much memory should be used. You will need to try different values to see which one would work the default is OK for a 16 GB system
     save_results = False
     #%% RUN ALGORITHM ON PATCHES
 
-    cnm = cnmf.CNMF(n_processes, k=K, gSig=gSig, merge_thresh=0.8, p=0, dview=dview, Ain=None, rf=rf, stride=stride, memory_fact=memory_fact,
+    cnm = cnmf.CNMF(n_processes, k=K, gSig=gSig, merge_thresh=0.8, p=0, dview=dview, Ain=None, rf=rf, stride=stride, memory_fact=1,
                     method_init=init_method, alpha_snmf=alpha_snmf, only_init_patch=True, gnb=1,method_deconvolution='oasis')
     cnm = cnm.fit(images)
 
@@ -163,7 +169,7 @@ else:
 
     #%%
     cnm = cnmf.CNMF(n_processes, k=A_tot.shape, gSig=gSig, merge_thresh=merge_thresh, p=p, dview=dview, Ain=A_tot, Cin=C_tot,
-                    f_in=f_tot, rf=None, stride=None)
+                    f_in=f_tot, rf=None, stride=None, method_deconvolution='oasis')
     cnm = cnm.fit(images)
 
 #%%

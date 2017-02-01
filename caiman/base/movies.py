@@ -1031,23 +1031,34 @@ class movie(ts.timeseries):
 
 def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None,num_frames_sub_idx=np.inf, var_name_hdf5 = 'mov'):
     '''
-    load movie from file.
+    load movie from file. SUpports a variety of formats. tif, hdf5, npy and memory mapped. Matlab is experimental. 
 
     Parameters
     -----------
     file_name: string
         name of file. Possible extensions are tif, avi, npy, (npz and hdf5 are usable only if saved by calblitz)
+    
     fr: float
         frame rate
+    
     start_time: float
         initial time for frame 1
+    
     meta_data: dict
-        same as for calblitz.movie
+        dictionary containing meta information about the movie
+    
     subindices: iterable indexes
         for loading only portion of the movie
+    
     shape: tuple of two values
         dimension of the movie along x and y if loading from a two dimensional numpy array
+        
+    num_frames_sub_idx:     
+        when reading sbx format (experimental and unstable)
 
+    var_name_hdf5: str
+        if loading from hdf5 name of the variable to load
+        
     Returns
     -------
     mov: calblitz.movie
@@ -1172,13 +1183,25 @@ def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None,
     return movie(input_arr,fr=fr,start_time=start_time,file_name=os.path.split(file_name)[-1], meta_data=meta_data)
 
 
-def load_movie_chain(file_list, fr=None, start_time=0,
+def load_movie_chain(file_list, fr=30, start_time=0,
                      meta_data=None, subindices=None,
                      bottom=0, top=0, left=0, right=0):
     ''' load movies from list of file names
-    file_list: list of file names in string format
-    other parameters as in load_movie except
-    bottom, top, left, right to load only portion of the field of view
+    Parameters:
+    ----------
+    file_list: list 
+       file names in string format
+    
+    the other parameters as in load_movie except
+
+    bottom, top, left, right: int
+        to load only portion of the field of view
+        
+    Returns:
+    --------
+    movie: cm.movie
+        movie corresponding to the concatenation og the input files
+        
     '''
     mov = []
     for f in tqdm(file_list):

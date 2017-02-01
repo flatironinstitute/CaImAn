@@ -1342,8 +1342,12 @@ def compute_metrics_motion_correction(fname,final_size_x,final_size_y, swap_dim,
         
     if max_shft_y_1 == 0:
         max_shft_y_1 = None
-#    print ([max_shft_x,max_shft_x_1,max_shft_y,max_shft_y_1])    
+    print ([max_shft_x,max_shft_x_1,max_shft_y,max_shft_y_1])    
     m = m[:,max_shft_x:max_shft_x_1,max_shft_y:max_shft_y_1]
+    if np.sum(np.isnan(m))>0:
+        print(m.shape)
+        raise Exception('Movie containts nan')
+        
     print('Local correlations..')
     img_corr = m.local_correlations(eight_neighbours=True, swap_dim = swap_dim)
     print (m.shape)
@@ -1491,7 +1495,7 @@ def motion_correct_batch_rigid(fname, max_shifts, dview = None, splits = 56 ,num
     
         fname_tot_rig, res_rig = motion_correction_piecewise (fname, splits, strides = None, overlaps = None,\
                                 add_to_movie=add_to_movie, template = old_templ, max_shifts = max_shifts, max_deviation_rigid = 0,\
-                                dview = dview, save_movie = save_movie ,base_name  = fname[:-4]+ '_rig_',num_splits=num_splits_to_process,shifts_opencv=shifts_opencv)
+                                dview = dview, save_movie = save_movie ,base_name  = os.path.split(fname)[-1][:-4]+ '_rig_',num_splits=num_splits_to_process,shifts_opencv=shifts_opencv)
     
     
     
@@ -1599,7 +1603,7 @@ def motion_correct_batch_pwrigid(fname, max_shifts, strides, overlaps, add_to_mo
                                 max_deviation_rigid = max_deviation_rigid,\
                                 newoverlaps = newoverlaps, newstrides = newstrides,\
                                 upsample_factor_grid = upsample_factor_grid, order = 'F',dview = dview,save_movie = save_movie,
-                                base_name = fname[:-4]+ '_els_',num_splits=num_splits_to_process,shifts_opencv = shifts_opencv)
+                                base_name = os.path.split(fname)[-1][:-4] + '_els_',num_splits=num_splits_to_process,shifts_opencv = shifts_opencv)
     
     
         new_templ = np.nanmedian(np.dstack([r[-1] for r in res_el ]),-1)    
@@ -1658,7 +1662,7 @@ def tile_and_correct_wrapper(params):
 
 #%%
 def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0, template = None, max_shifts = (12,12),max_deviation_rigid = 3,newoverlaps = None, newstrides = None,\
-                                upsample_factor_grid = 4, order = 'F',dview = None,save_movie= True, base_name = 'none', num_splits = None,shifts_opencv= False):
+                                upsample_factor_grid = 4, order = 'F',dview = None,save_movie= True, base_name = None, num_splits = None,shifts_opencv= False):
     '''
 
     '''
@@ -1691,7 +1695,7 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
         
     if save_movie:
         if base_name is None:
-            base_name = fname[:-4]
+            base_name = os.path.split(fname)[1][:-4]
 
         fname_tot = base_name + '_d1_' + str(dims[0]) + '_d2_' + str(dims[1]) + '_d3_' + str(1 if len(dims) == 2 else dims[2]) + '_order_' + str(order) + '_frames_' + str(T) + '_.mmap'
         fname_tot = os.path.join(os.path.split(fname)[0],fname_tot) 

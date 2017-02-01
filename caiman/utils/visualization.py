@@ -720,11 +720,13 @@ def view_patches_bar(Yr, A, C, b, f, d1, d2, YrA=None, secs=1, img=None):
             imgtmp2 = imgtmp.copy()
             imgtmp2[imgtmp2 == 0] = np.nan
             ax3.imshow(imgtmp2, interpolation='None', alpha=0.5, cmap=pl.cm.hot)
+            ax3.axis('off')
         else:
             #import pdb; pdb.set_trace()
             ax1.cla()
             ax1.imshow(bkgrnd[:, :, i - nr], interpolation='None')
             ax1.set_title('Spatial background ' + str(i + 1 - nr))
+            ax1.axis('off')
 
             ax2.cla()
             ax2.plot(np.arange(T), np.squeeze(np.array(f[i - nr, :])))
