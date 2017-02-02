@@ -54,7 +54,6 @@ Recent advances in calcium imaging acquisition techniques are creating datasets 
    
    git clone https://github.com/simonsfoundation/CaImAn
    cd CaImAn/
-   git checkout dev
    git pull
    conda create -n CaImAn ipython --file requirements_conda.txt    
    source activate CaImAn
@@ -82,12 +81,12 @@ Download and install Anaconda (Python 2.7) <http://docs.continuum.io/anaconda/in
     
     git clone  https://github.com/simonsfoundation/CaImAn
     cd CaImAn
-    git checkout dev
     git pull
     conda create -n CaImAn ipython --file requirements_conda.txt    
     source activate CaImAn
     pip install -r requirements_pip.txt
     conda install -c menpo opencv3=3.1.0
+    python setup.py build_ext -i
     ```
 
    * To make the package available from everywhere and have it working *efficiently* under any configuration ALWAYS run these lines before starting spyder:
