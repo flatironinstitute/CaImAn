@@ -142,8 +142,8 @@ class movie(ts.timeseries):
 
         if template is None:  # if template is not provided it is created
             if num_frames_template is None:
-                num_frames_template = old_div(10e7,(512*512))
-
+                num_frames_template = old_div(10e7,(self.shape[1]*self.shape[2]))
+                
             frames_to_skip = int(np.maximum(1, old_div(self.shape[0],num_frames_template)))
             # sometimes it is convenient to only consider a subset of the
             # movie when computing the median
@@ -1169,10 +1169,13 @@ def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None,
             return movie(images,fr=fr)
 
         elif extension == '.sbx':
-
-            print('sbx')
-
-            return movie(sbxread(file_name[:-4],num_frames_sub_idx).transpose([0,3,2,1]),fr=fr)
+            if subindices is not None:
+                nframes = subindices.step
+                return movie(sbxreadskip(file_name[:-4],skip = subindices.step), fr=fr)
+            else:
+                print('sbx')
+                return movie(sbxread(file_name[:-4],k = 0, n_frames = np.inf), fr=fr)
+            
 
 
         else:
@@ -1251,7 +1254,7 @@ def _todict(matobj):
             dict[strg] = elem
     return dict
 
-def sbxread(filename,n_frames=np.inf):
+def sbxread(filename,k = 0, n_frames=np.inf):
     '''
     Input: filename should be full path excluding .sbx
     '''
@@ -1275,8 +1278,7 @@ def sbxread(filename,n_frames=np.inf):
     max_idx = os.path.getsize(filename + '.sbx')/info['recordsPerBuffer']/info['sz'][1]*factor/4-1
 
     # Paramters
-    k = 0; #First frame
-    N = max_idx; #Last frame
+    N = max_idx+1; #Last frame
 
     N = np.minimum(max_idx,n_frames)
 
@@ -1286,12 +1288,96 @@ def sbxread(filename,n_frames=np.inf):
     # Open File
     fo = open(filename + '.sbx')
 
-    # Note: There is a weird inversion that happns thus I am dding the negative sign....
+    # Note: SBX files store the values strangely, its necessary to subtract the values from the max int16 to get the correct ones
     fo.seek(k*nSamples, 0)
-    x = np.fromfile(fo, dtype = 'uint16',count = nSamples/2*N)
+    ii16 = np.iinfo(np.uint16)
+    x = ii16.max - np.fromfile(fo, dtype = 'uint16',count = int(nSamples/2*N))
 
-    x = -x.reshape((info['nChan'], info['sz'][1], info['recordsPerBuffer'], N), order = 'F')
+    x = x.reshape((int(info['nChan']), int(info['sz'][1]), int(info['recordsPerBuffer']), int(N)), order = 'F')
 
+    x = x[0, :, :, :]
+    
+    return x.transpose([2,1,0])
+
+def sbxreadskip(filename,skip):
+    '''
+    Input: filename should be full path excluding .sbx
+    '''
+    # Check if contains .sbx and if so just truncate
+    if '.sbx' in filename:
+        filename = filename[:-4]
+
+    # Load info
+    info = loadmat_sbx(filename + '.mat')['info']
+    #print info.keys()
+
+    # Defining number of channels/size factor
+    if info['channels'] == 1:
+        info['nChan'] = 2; factor = 1
+    elif info['channels'] == 2:
+        info['nChan'] = 1; factor = 2
+    elif info['channels'] == 3:
+        info['nChan'] = 1; factor = 2
+
+    # Determine number of frames in whole file
+    max_idx = os.path.getsize(filename + '.sbx')/info['recordsPerBuffer']/info['sz'][1]*factor/4-1
+
+    # Paramters
+    N = max_idx+1; #Last frame
+
+
+
+
+    nSamples = info['sz'][1] * info['recordsPerBuffer'] * 2 * info['nChan']
+
+    # Open File
+    fo = open(filename + '.sbx')
+ 
+    # Note: SBX files store the values strangely, its necessary to subtract the values from the max int16 to get the correct ones
+    for k in range(0, N, skip):
+        fo.seek(k*nSamples, 0)
+        ii16 = np.iinfo(np.uint16)
+        tmp = ii16.max - np.fromfile(fo, dtype = 'uint16',count = int(nSamples/2*1))
+    
+        tmp = tmp.reshape((int(info['nChan']), int(info['sz'][1]), int(info['recordsPerBuffer']), int(1)), order = 'F')
+        if k is 0:
+                 x = tmp;
+        else:
+                x = np.concatenate((x, tmp), axis=3)
+        
+
+    x = x[0, :, :, :]
+    
+    return x.transpose([2,1,0])
+
+def sbxshape(filename):
+    '''
+    Input: filename should be full path excluding .sbx
+    '''
+    # Check if contains .sbx and if so just truncate
+    if '.sbx' in filename:
+        filename = filename[:-4]
+
+    # Load info
+    info = loadmat_sbx(filename + '.mat')['info']
+    #print info.keys()
+
+    # Defining number of channels/size factor
+    if info['channels'] == 1:
+        info['nChan'] = 2; factor = 1
+    elif info['channels'] == 2:
+        info['nChan'] = 1; factor = 2
+    elif info['channels'] == 3:
+        info['nChan'] = 1; factor = 2
+
+    # Determine number of frames in whole file
+    max_idx = os.path.getsize(filename + '.sbx')/info['recordsPerBuffer']/info['sz'][1]*factor/4-1
+
+    N = max_idx+1; #Last frame
+
+    x = (int(info['sz'][1]), int(info['recordsPerBuffer']), int(N))
+
+    
     return x
 
 def to_3D(mov2D,shape,order='F'):
