@@ -1485,6 +1485,7 @@ def motion_correct_batch_rigid(fname, max_shifts, dview = None, splits = 56 ,num
         
     save_movie = False
     fname_tot_rig = None
+    res_rig = [] 
     for iter_ in range(num_iter):
         print(iter_)
         old_templ = new_templ.copy()
