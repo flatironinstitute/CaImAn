@@ -223,7 +223,7 @@ def function_place_holder(args_in):
     return res_fun
 
 #%%
-def start_server(slurm_script=None, ipcluster="ipcluster"):
+def start_server(slurm_script=None, ipcluster="ipcluster", ncpus = None):
     '''
     programmatically start the ipyparallel server
 
@@ -237,7 +237,8 @@ def start_server(slurm_script=None, ipcluster="ipcluster"):
     '''
     sys.stdout.write("Starting cluster...")
     sys.stdout.flush()
-    ncpus=psutil.cpu_count()
+    if ncpus is None:
+        ncpus=psutil.cpu_count()
 
     if slurm_script is None:
         if ipcluster == "ipcluster":
@@ -364,10 +365,11 @@ def setup_cluster(backend = 'local',n_processes = None,single_thread = False):
     '''
     #backend; 'local' or 'SLURM'. SLURM is experimental! You need to modify the script SLURM/slurmStart.sh
     if n_processes is None:
-        if backend == 'SLURM':
+        if backend == 'SLURM':            
             n_processes = np.int(os.environ.get('SLURM_NPROCS'))
         else:
             # roughly number of cores on your machine minus 1
+            
             n_processes = np.maximum(np.int(psutil.cpu_count()), 1)
         
     print(('using ' + str(n_processes) + ' processes'))
@@ -393,12 +395,12 @@ def setup_cluster(backend = 'local',n_processes = None,single_thread = False):
             except:
                 print('Nothing to stop')
             slurm_script = 'SLURM/slurmStart.sh'
-            start_server(slurm_script=slurm_script)
+            start_server(slurm_script=slurm_script, ncpus=n_processes)
             pdir, profile = os.environ['IPPPDIR'], os.environ['IPPPROFILE']
             c = Client(ipython_dir=pdir, profile=profile)
         else:
             stop_server()
-            start_server()
+            start_server(ncpus=n_processes)
             c = Client()
     
         print(('Using ' + str(len(c)) + ' processes'))
