@@ -33,7 +33,7 @@ from cv2 import idft as ifftn
 opencv = True
 from numpy.fft import ifftshift
 from skimage.external.tifffile import TiffFile
-
+import itertools
 
 #%%
 def apply_shift_iteration(img,shift,border_nan=False):
@@ -1267,12 +1267,13 @@ def tile_and_correct(img,template, strides, overlaps,max_shifts, newoverlaps = N
 
         num_tiles = np.prod(dim_new_grid)
 
-
+        max_shear  = np.percentile([np.max(np.abs(np.diff(ssshh,axis = xxsss))) for ssshh, xxsss in itertools.product([shift_img_x,shift_img_y],[0,1])],75)
+        print(max_shear)
 
     #    shift_img_x[(np.abs(shift_img_x-rigid_shts[0])/iqr(shift_img_x-rigid_shts[0])/1.349)>max_sd_outlier] = np.median(shift_img_x)
     #    shift_img_y[(np.abs(shift_img_y-rigid_shts[1])/iqr(shift_img_y-rigid_shts[1])/1.349)>max_sd_outlier] = np.median(shift_img_y)
     #    
-
+        
         total_shifts = [(-x,-y) for x,y in zip(shift_img_x.reshape(num_tiles),shift_img_y.reshape(num_tiles))]     
         total_diffs_phase = [dfs for dfs in diffs_phase_grid_us.reshape(num_tiles)]    
         if shifts_opencv:
@@ -1283,20 +1284,46 @@ def tile_and_correct(img,template, strides, overlaps,max_shifts, newoverlaps = N
 
             imgs = [apply_shifts_dft(im,(sh[0],sh[1]),dffphs, is_freq = False, border_nan=True)  for im,sh,dffphs in zip(imgs, total_shifts,total_diffs_phase) ]
 
+
+
+        
         normalizer = np.zeros_like(img)*np.nan    
         new_img = np.zeros_like(img)*np.nan
-
+                               
         weight_matrix = create_weight_matrix_for_blending(img, newoverlaps, newstrides)
+        
+        if max_shear < 0.5:
+            for (x,y),(idx_0,idx_1),im,(sh_x,shy),weight_mat in zip(start_step,xy_grid,imgs,total_shifts,weight_matrix):
+    
+                prev_val_1 = normalizer[x:x + newshapes[0],y:y + newshapes[1]]        
+    
+                normalizer[x:x + newshapes[0],y:y + newshapes[1]] = np.nansum(np.dstack([~np.isnan(im)*1*weight_mat,prev_val_1]),-1)
+                prev_val = new_img[x:x + newshapes[0],y:y + newshapes[1]]
+                new_img[x:x + newshapes[0],y:y + newshapes[1]] = np.nansum(np.dstack([im*weight_mat,prev_val]),-1)
 
-        for (x,y),(idx_0,idx_1),im,(sh_x,shy),weight_mat in zip(start_step,xy_grid,imgs,total_shifts,weight_matrix):
 
-            prev_val_1 = normalizer[x:x + newshapes[0],y:y + newshapes[1]]        
-
-            normalizer[x:x + newshapes[0],y:y + newshapes[1]] = np.nansum(np.dstack([~np.isnan(im)*1*weight_mat,prev_val_1]),-1)
-            prev_val = new_img[x:x + newshapes[0],y:y + newshapes[1]]
-            new_img[x:x + newshapes[0],y:y + newshapes[1]] = np.nansum(np.dstack([im*weight_mat,prev_val]),-1)
-
-        new_img = old_div(new_img,normalizer)
+            new_img = old_div(new_img,normalizer)
+            
+        else: # in case the difference in shift between neighboring patches is larger than 0.5 pixels we do not interpolate in the overlaping area
+            half_overlap_x = np.int(newoverlaps[0]/2)
+            half_overlap_y = np.int(newoverlaps[1]/2)
+            for (x,y),(idx_0,idx_1),im,(sh_x,shy),weight_mat in zip(start_step,xy_grid,imgs,total_shifts,weight_matrix):
+                
+                if idx_0 == 0: 
+                    x_start = x
+                else:
+                    x_start = x + half_overlap_x
+                    
+                if idx_1 == 0:
+                    y_start = y
+                else:
+                    y_start = y + half_overlap_y
+                    
+                x_end = x + newshapes[0]
+                y_end = y + newshapes[1]
+                new_img[x_start:x_end,y_start:y_end] = im[x_start-x:,y_start-y:]
+                
+                
         if show_movie:
     #        for xx,yy,(sh_x,sh_y) in zip(np.array(start_step)[:,0]+newshapes[0]/2,np.array(start_step)[:,1]+newshapes[1]/2,total_shifts):
     #            new_img = cv2.arrowedLine(new_img,(xx,yy),(np.int(xx+sh_x*10),np.int(yy+sh_y*10)),5000,1)
