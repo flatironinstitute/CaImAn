@@ -206,7 +206,7 @@ def get_noise_fft_parallel(Y,n_pixels_per_process=100, dview=None, **kwargs):
     argsin=[(Y_name, i, n_pixels_per_process, kwargs) for i in pixel_groups]
     pixels_remaining= Y.shape[0] % n_pixels_per_process
     if pixels_remaining>0:  
-        argsin.append((Y,Y.shape[0]-pixels_remaining, pixels_remaining, kwargs))
+        argsin.append((Y_name,Y.shape[0]-pixels_remaining, pixels_remaining, kwargs))
     
  
     if dview is None:
@@ -221,8 +221,10 @@ def get_noise_fft_parallel(Y,n_pixels_per_process=100, dview=None, **kwargs):
         print(('Running on %d engines.'%(ne)))
 
 
-        if dview.client.profile == 'default':     
-            results = dview.map_sync(fft_psd_multithreading, argsin)            
+        if dview.client.profile == 'default':  
+
+                results = dview.map_sync(fft_psd_multithreading, argsin)            
+
         else:
             print(('PROFILE:'+ dview.client.profile))
             results = dview.map_sync(fft_psd_multithreading, argsin)     
