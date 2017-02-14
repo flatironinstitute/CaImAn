@@ -140,27 +140,28 @@ params_movie = {'fname':'example_movies/Sue_2000.tif',
 #                'final_frate' : 30                          
 #                }
 #%%
-#params_movie = {'fname':'/Users/agiovann/Dropbox (Simons Foundation)/CaImWorkshop2017/ABadura/20_12__002_cropped.tif',
-#                'max_shifts':(6,6), # maximum allow rigid shift
-#                'splits_rig':28, # for parallelization split the movies in  num_splits chuncks across time
-#                'num_splits_to_process_rig':None, # if none all the splits are processed and the movie is saved
-#                'strides': (96,96), # intervals at which patches are laid out for motion correction
-#                'overlaps': (32,32), # overlap between pathes (size of patch strides+overlaps)
-#                'splits_els':28, # for parallelization split the movies in  num_splits chuncks across time
-#                'num_splits_to_process_els':[14,None], # if none all the splits are processed and the movie is saved
-#                'upsample_factor_grid':4, # upsample factor to avoid smearing when merging patches
-#                'max_deviation_rigid':3, #maximum deviation allowed for patch with respect to rigid shift
-#                'p': 1, # order of the autoregressive system  
-#                'merge_thresh' : 0.8,  # merging threshold, max correlation allowed
-#                'rf' : (10,30),  # half-size of the patches in pixels. rf=25, patches are 50x50
-#                'stride_cnmf' : (5,10),  # amount of overlap between the patches in pixels
-#                'K' : 6,  #  number of components per patch
-#                'is_dendrites': True,  # if dendritic. In this case you need to set init_method to sparse_nmf
-#                'init_method' : 'sparse_nmf',
-#                'gSig' : [0,0],  # expected half size of neurons    
-#                'alpha_snmf' : 10,  # this controls sparsity  
-#                'final_frate' : 30                          
-#                }
+params_movie = {'fname':'./20_12__002_cropped.tif',
+                'max_shifts':(6,6), # maximum allow rigid shift
+                'niter_rig':1,
+                'splits_rig':28, # for parallelization split the movies in  num_splits chuncks across time
+                'num_splits_to_process_rig':None, # if none all the splits are processed and the movie is saved
+                'strides': (96,96), # intervals at which patches are laid out for motion correction
+                'overlaps': (32,32), # overlap between pathes (size of patch strides+overlaps)
+                'splits_els':28, # for parallelization split the movies in  num_splits chuncks across time
+                'num_splits_to_process_els':[14,None], # if none all the splits are processed and the movie is saved
+                'upsample_factor_grid':4, # upsample factor to avoid smearing when merging patches
+                'max_deviation_rigid':3, #maximum deviation allowed for patch with respect to rigid shift
+                'p': 1, # order of the autoregressive system  
+                'merge_thresh' : 0.8,  # merging threshold, max correlation allowed
+                'rf' : (10,30),  # half-size of the patches in pixels. rf=25, patches are 50x50
+                'stride_cnmf' : (5,10),  # amount of overlap between the patches in pixels
+                'K' : 6,  #  number of components per patch
+                'is_dendrites': True,  # if dendritic. In this case you need to set init_method to sparse_nmf
+                'init_method' : 'sparse_nmf',
+                'gSig' : [0,0],  # expected half size of neurons    
+                'alpha_snmf' : 10,  # this controls sparsity  
+                'final_frate' : 30                          
+                }
 #%%
 #params_movie = {'fname':'/Users/agiovann/SOFTWARE/CaImAn/example_movies/CaImWorkshop2017/LBina/160121_b2_arthiha_brian.tif',
 #                'max_shifts':(3,3), # maximum allow rigid shift
@@ -310,7 +311,7 @@ params_movie = {'fname':'example_movies/Sue_2000.tif',
 #%%
 m_orig = cm.load(params_movie['fname'])
 #%% start local cluster
-c,dview,n_processes = cm.cluster.setup_cluster(backend = 'local',n_processes = None,single_thread = False, n_processes=4)
+c,dview,n_processes = cm.cluster.setup_cluster(backend = 'local',n_processes = None,single_thread = False)
 #%% RIGID MOTION CORRECTION
 t1 = time.time()
 fname = params_movie['fname']
@@ -326,6 +327,7 @@ t2 = time.time() - t1
 print(t2)
 pl.imshow(total_template_rig,cmap = 'gray',vmin = np.percentile(total_template_rig,5),vmax = np.percentile(total_template_rig,95))     
 #%%
+
 pl.close()
 pl.plot(shifts_rig)
 #%%
@@ -335,7 +337,7 @@ add_to_movie = - np.min(total_template_rig)+1
 print(add_to_movie)
 #%% visualize movies
 
-m_rig.resize(1,1,.2).play(fr = 30, gain = 30, magnification=1, offset = add_to_movie)
+m_rig.resize(1,1,.2).play(fr = 30, gain = 10, magnification=1, offset = add_to_movie)
 #%%
 downs = .2
 cm.concatenate([m_rig.resize(1,1,downs),m_orig.resize(1,1,downs)],axis = 1).play(fr = 30, gain = 25,magnification=1, offset = add_to_movie) 
@@ -378,7 +380,7 @@ m_els = cm.load(fname_tot_els)
 pl.imshow(m_els.local_correlations(eight_neighbours=True,swap_dim=False))
 #%%
 downs = .1
-m_els.resize(1,1,downs).play(fr = 10, gain = 35.,magnification=1, offset = add_to_movie) 
+m_els.resize(1,1,downs).play(fr = 10, gain = 5.,magnification=1, offset = add_to_movie) 
 
 #%%
 m_els = cm.load(fname_tot_els) 

@@ -42,7 +42,8 @@ def apply_shift_iteration(img,shift,border_nan=False):
     sh_x_n,sh_y_n = shift
     w_i,h_i=img.shape
     M = np.float32([[1,0,sh_y_n],[0,1,sh_x_n]])    
-    img = cv2.warpAffine(img,M,(h_i,w_i),flags=cv2.INTER_CUBIC)
+    min_,max_ = np.min(img),np.max(img)
+    img = np.clip(cv2.warpAffine(img,M,(h_i,w_i),flags=cv2.INTER_CUBIC),min_,max_)
     if border_nan:  
         max_w,max_h,min_w,min_h=0,0,0,0
         max_h,max_w = np.ceil(np.maximum((max_h,max_w),shift)).astype(np.int)
@@ -351,8 +352,8 @@ def motion_correct_iteration(img,template,frame_num,max_shift_w=25,max_shift_h=2
         sh_y_n = -(sh_y - ms_w)
 
     M = np.float32([[1,0,sh_y_n],[0,1,sh_x_n]])
-
-    new_img = cv2.warpAffine(img,M,(w_i,h_i),flags=cv2.INTER_CUBIC)
+    min_,max_ = np.min(img),np.max(img)
+    new_img = np.clip(cv2.warpAffine(img,M,(w_i,h_i),flags=cv2.INTER_CUBIC),min_,max_)
 
     new_templ=template*frame_num/(frame_num + 1) + 1./(frame_num + 1)*new_img     
     shift=[sh_x_n,sh_y_n]
@@ -1444,7 +1445,7 @@ def compute_metrics_motion_correction(fname,final_size_x,final_size_y, swap_dim,
     return tmpl, correlations, flows, norms, smoothness
 
 #%% motion correction in batches
-def motion_correct_batch_rigid(fname, max_shifts, dview = None, splits = 56 ,num_splits_to_process = None, num_iter = 1,  template = None, shifts_opencv = False, save_movie_rigid = False):
+def motion_correct_batch_rigid(fname, max_shifts, dview = None, splits = 56 ,num_splits_to_process = None, num_iter = 1,  template = None, shifts_opencv = False, save_movie_rigid = False, add_to_movie = None):
     """
     Function that perform memory efficient hyper parallelized rigid motion corrections while also saving a memory mappable file
 
@@ -1504,7 +1505,9 @@ def motion_correct_batch_rigid(fname, max_shifts, dview = None, splits = 56 ,num
     
     
     new_templ = template
-    add_to_movie=-np.min(template)
+    if add_to_movie is None:
+        add_to_movie=-np.min(template)
+
     if np.isnan(add_to_movie):
         raise Exception('The movie contains nans. Nans are not allowed!')
     else:
@@ -1621,8 +1624,9 @@ def motion_correct_batch_pwrigid(fname, max_shifts, strides, overlaps, add_to_mo
         old_templ = new_templ.copy()
     
         if iter_ == num_iter-1:
-            save_movie = save_movie           
-            print('saving!')
+            save_movie = save_movie
+            if save_movie:
+                print('saving mmap of ' + fname)
     
     
     
