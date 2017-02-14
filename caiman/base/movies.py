@@ -47,7 +47,6 @@ from caiman.utils import visualization
 import caiman.summary_images as si 
 from caiman.motion_correction import apply_shift_online,motion_correct_online
 
-
 class movie(ts.timeseries):
     """
     Class representing a movie. This class subclasses timeseries,
@@ -97,7 +96,17 @@ class movie(ts.timeseries):
         if save_base_name is None:
             return movie(apply_shift_online(self,xy_shifts,save_base_name=save_base_name),fr=self.fr)        
         else:
-            return apply_shift_online(self,xy_shifts,save_base_name=save_base_name)        
+            return apply_shift_online(self,xy_shifts,save_base_name=save_base_name)
+
+    def calc_min(self):
+        tmp = []
+        bins = np.linspace(0, self.shape[0], 10).round(0)
+        for i in range(9):
+            tmp.append(np.nanmin(self[np.int(bins[i]):np.int(bins[i+1]), :, :]).tolist() + 1)
+        minval = np.ndarray(1)
+        minval[0] = np.nanmin(tmp)
+        return movie(input_arr = minval)
+            
     def motion_correct(self,
                        max_shift_w=5,
                        max_shift_h=5,
@@ -1181,6 +1190,8 @@ def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None,
         else:
             raise Exception('Unknown file type')
     else:
+        print('File is:')
+        print(file_name)
         raise Exception('File not found!')
 
     return movie(input_arr,fr=fr,start_time=start_time,file_name=os.path.split(file_name)[-1], meta_data=meta_data)

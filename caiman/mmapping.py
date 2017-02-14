@@ -247,7 +247,6 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
 
     """
 
-
     #TODO: can be done online    
     Ttot = 0
     for idx, f in enumerate(filenames):
@@ -283,7 +282,8 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
                 Yr=Yr.apply_shifts(xy_shifts,interpolation='cubic',remove_blanks=False)
 
             if idx_xy is None:
-                Yr = np.array(Yr)[remove_init:]
+                if remove_init > 0:
+                    Yr = np.array(Yr)[remove_init:]
             elif len(idx_xy) == 2:
                 Yr = np.array(Yr)[remove_init:, idx_xy[0], idx_xy[1]]
             else:
@@ -291,7 +291,7 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
                 Yr = np.array(Yr)[remove_init:, idx_xy[0], idx_xy[1], idx_xy[2]]
 
         if border_to_0>0:
-            min_mov=np.nanmin(Yr)
+            min_mov= Yr.calc_min()
             Yr[:,:border_to_0,:]=min_mov
             Yr[:,:,:border_to_0]=min_mov
             Yr[:,:,-border_to_0:]=min_mov
@@ -325,6 +325,103 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
         Ttot = Ttot + T
 
     fname_new = fname_tot + '_frames_' + str(Ttot) + '_.mmap'
+    os.rename(fname_tot, fname_new)
+
+    return fname_new
+
+def save_memmap_chunks(filename, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0, idx_xy=None, order='F',xy_shifts=None,is_3D=False,add_to_movie=0,border_to_0=0, n_chunks=1):
+
+    """ Saves efficiently a list of tif files into a memory mappable file
+    Parameters
+    ----------
+        filenames: list
+            list of tif files
+        base_name: str
+            the base used to build the file name. IT MUST NOT CONTAIN "_"    
+        resize_fact: tuple
+            x,y, and z downampling factors (0.5 means downsampled by a factor 2) 
+        remove_init: int
+            number of frames to remove at the begining of each tif file (used for resonant scanning images if laser in rutned on trial by trial)
+        idx_xy: tuple size 2 [or 3 for 3D data]
+            for selecting slices of the original FOV, for instance idx_xy=(slice(150,350,None),slice(150,350,None))
+        order: string
+            whether to save the file in 'C' or 'F' order     
+        xy_shifts: list 
+            x and y shifts computed by a motion correction algorithm to be applied before memory mapping    
+
+        is_3D: boolean
+            whether it is 3D data
+    Return
+    -------
+        fname_new: the name of the mapped file, the format is such that the name will contain the frame dimensions and the number of f
+
+    """
+
+    #TODO: can be done online    
+    print(filename)
+
+    Yr=cm.load(filename,fr=1) 
+    
+    T, dims = Yr.shape[0], Yr.shape[1:]
+    step=np.int(old_div(T,n_chunks))
+    bins = []
+    
+    for i in range(0,T,step):
+        bins.append(i)
+    bins.append(T)
+    
+    for j in range(0,len(bins)-1):
+        tmp = np.array(Yr[bins[j]:bins[j+1], :, :])
+        if xy_shifts is not None:
+            tmp=tmp.apply_shifts(xy_shifts,interpolation='cubic',remove_blanks=False)
+    
+        if idx_xy is None:
+            if remove_init > 0:
+                tmp = np.array(tmp)[remove_init:]
+        elif len(idx_xy) == 2:
+            tmp = np.array(tmp)[remove_init:, idx_xy[0], idx_xy[1]]
+        else:
+            raise Exception('You need to set is_3D=True for 3D data)')
+            tmp = np.array(tmp)[remove_init:, idx_xy[0], idx_xy[1], idx_xy[2]]
+    
+        if border_to_0>0:
+            min_mov= np.nanmin(tmp)
+            tmp[:,:border_to_0,:]=min_mov
+            tmp[:,:,:border_to_0]=min_mov
+            tmp[:,:,-border_to_0:]=min_mov
+            tmp[:,-border_to_0:,:]=min_mov
+    
+        fx, fy, fz = resize_fact
+        if fx != 1 or fy != 1 or fz != 1:
+    
+            tmp = cm.movie(tmp, fr=1)
+            tmp = Yr.resize(fx=fx, fy=fy, fz=fz)
+    
+    
+        Tc, dimsc = tmp.shape[0], tmp.shape[1:]
+        tmp = np.transpose(tmp, list(range(1, len(dimsc) + 1)) + [0])
+        tmp = np.reshape(tmp, (np.prod(dimsc), Tc), order='F')
+    
+        if j == 0:
+            fname_tot = base_name + '_d1_' + str(dims[0]) + '_d2_' + str(dims[1]) + '_d3_' + str(
+                1 if len(dims) == 2 else dims[2]) + '_order_' + str(order)
+            fname_tot = os.path.join(os.path.split(filename)[0],fname_tot)         
+            big_mov = np.memmap(fname_tot, mode='w+', dtype=np.float32,
+                                shape=(np.prod(dims), T), order=order)
+        else:
+            big_mov = np.memmap(fname_tot, dtype=np.float32, mode='r+',
+                                shape=(np.prod(dims), T), order=order)
+        #    np.save(fname[:-3]+'npy',np.asarray(Yr))
+    
+        big_mov[:, bins[j]:bins[j+1]] = np.asarray(tmp, dtype=np.float32) + 1e-10 + add_to_movie
+        big_mov.flush()
+        del big_mov
+
+#    if ref+step+1<d:
+#        print 'running on remaining pixels:' + str(ref+step-d)
+#        pars.append([fname_tot,d,tot_frames,mmap_fnames,ref+step,d])
+
+    fname_new = fname_tot + '_frames_' + str(T) + '_.mmap'
     os.rename(fname_tot, fname_new)
 
     return fname_new
