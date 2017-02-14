@@ -379,7 +379,10 @@ def bin_median(mat,window=10,exclude_nans = False ):
         median image   
 
     '''
+    
     T,d1,d2=np.shape(mat)
+    if T < window:
+        window = T
     num_windows=np.int(old_div(T,window))
     num_frames=num_windows*window
     if exclude_nans:
@@ -905,7 +908,7 @@ def register_translation(src_image, target_image, upsample_factor=1,
     """
     # images must be the same shape
     if src_image.shape != target_image.shape:
-        raise ValueError("Error: images must be same size for "
+        raise ValueError("Error: images must really be same size for "
                          "register_translation")
 
     # only 2D data makes sense right now
@@ -1674,11 +1677,19 @@ def tile_and_correct_wrapper(params):
     img_name,  out_fname,idxs, shape_mov, template, strides, overlaps, max_shifts,\
         add_to_movie,max_deviation_rigid,upsample_factor_grid, newoverlaps, newstrides,shifts_opencv  = params
 
+    import os
 
-
-    imgs = imread(img_name,key = idxs)
-    mc = np.zeros(imgs.shape,dtype = np.float32)
-    shift_info = []
+    name, extension = os.path.splitext(img_name)[:2]
+    
+    if extension == '.tif' or extension == '.tiff':  # check if tiff file
+        imgs = imread(img_name,key = idxs)
+        mc = np.zeros(imgs.shape,dtype = np.float32)
+        shift_info = []
+    elif extension == '.sbx':  # check if sbx file
+        imgs = cm.base.movies.sbxread(name, idxs[0], len(idxs))
+        mc = np.zeros(imgs.shape,dtype = np.float32)
+        shift_info = []
+        
     for count, img in enumerate(imgs): 
         if count % 10 == 0:
             print(count)
@@ -1700,22 +1711,28 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
     '''
     import os
 
-   
-    with TiffFile(fname) as tf:
-        d1,d2 = tf[0].shape
-        T = len(tf)    
+    name, extension = os.path.splitext(fname)[:2]
 
+    if extension == '.tif' or extension == '.tiff':  # check if tiff file
+       with TiffFile(fname) as tf:
+         d1,d2 = tf[0].shape
+         T = len(tf)    
+    elif extension == '.sbx':  # check if sbx file
+         shape = cm.base.movies.sbxshape(name)
+
+         d1 = shape[1]
+         d2 = shape[0]
+         T = shape[2]
+         
     if type(splits) is int:
-        idxs = np.array_split(list(range(T)),splits)
+         idxs = np.array_split(list(range(T)),splits)
     else:
-        idxs = splits
-        save_movie = False
+         idxs = splits
+         save_movie = False
 
 
     if template is None:
-        raise Exception('Not implemented')
-
-
+         raise Exception('Not implemented')
 
     shape_mov =  (d1*d2,T)
 
@@ -1726,29 +1743,26 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
         print('**** MOVIE NOT SAVED BECAUSE num_splits is not None ****')
         
     if save_movie:
-        if base_name is None:
-            base_name = os.path.split(fname)[1][:-4]
-
-        fname_tot = base_name + '_d1_' + str(dims[0]) + '_d2_' + str(dims[1]) + '_d3_' + str(1 if len(dims) == 2 else dims[2]) + '_order_' + str(order) + '_frames_' + str(T) + '_.mmap'
-        fname_tot = os.path.join(os.path.split(fname)[0],fname_tot) 
-
-        np.memmap(fname_tot, mode='w+', dtype=np.float32, shape=shape_mov, order=order)
+       if base_name is None:
+           base_name = os.path.split(fname)[1][:-4]
+       fname_tot = base_name + '_d1_' + str(dims[0]) + '_d2_' + str(dims[1]) + '_d3_' + str(1 if len(dims) == 2 else dims[2]) + '_order_' + str(order) + '_frames_' + str(T) + '_.mmap'
+       fname_tot = os.path.join(os.path.split(fname)[0],fname_tot) 
+       np.memmap(fname_tot, mode='w+', dtype=np.float32, shape=shape_mov, order=order)
     else:
         fname_tot = None
-
+    
     pars = []
-    
-    
-        
     for idx in idxs:
-        pars.append([fname,fname_tot,idx,shape_mov, template, strides, overlaps, max_shifts, np.array(add_to_movie,dtype = np.float32),max_deviation_rigid,upsample_factor_grid, newoverlaps, newstrides, shifts_opencv ])
+      pars.append([fname,fname_tot,idx,shape_mov, template, strides, overlaps, max_shifts, np.array(add_to_movie,dtype = np.float32),max_deviation_rigid,upsample_factor_grid, newoverlaps, newstrides, shifts_opencv ])
 
     t1 = time.time()
     if dview is not None:
         res =dview.map_sync(tile_and_correct_wrapper,pars)
     else:
         res = list(map(tile_and_correct_wrapper,pars))
-
+        
     print((time.time()-t1))    
+            
+    res = list(map(tile_and_correct_wrapper,pars))
 
     return fname_tot, res   
