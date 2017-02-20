@@ -90,81 +90,67 @@ Cn = cm.local_correlations(Y[:,:,:3000])
 pl.imshow(Cn,cmap='gray')  
 
 #%%
-if not is_patches:
-    #%%
-    K = 35  # number of neurons expected per patch
-    gSig = [7, 7]  # expected half size of neurons
-    merge_thresh = 0.8  # merging threshold, max correlation allowed
-    p = 2  # order of the autoregressive system
-    cnm = cnmf.CNMF(n_processes, method_init=init_method, k=K, gSig=gSig, merge_thresh=merge_thresh,
-                    p=p, dview=dview, Ain=None,method_deconvolution='oasis')
-    cnm = cnm.fit(images)
-    crd = plot_contours(cnm.A, Cn, thr=0.9)
+rf = 30  # half-size of the patches in pixels. rf=25, patches are 50x50
+stride = 30  # amounpl.it of overlap between the patches in pixels
+K = 6  # number of neurons expected per patch
+gSig = [7, 7]  # expected half size of neurons
+merge_thresh = 0.8  # merging threshold, max correlation allowed
+p = 1  # order of the autoregressive system
+memory_fact = 1  # unitless number accounting how much memory should be used. You will need to try different values to see which one would work the default is OK for a 16 GB system
+save_results = False
+#%% RUN ALGORITHM ON PATCHES
+cnm = cnmf.CNMF(n_processes, k=K, gSig=gSig, merge_thresh=0.8, p=0, dview=dview, Ain=None, rf=rf, stride=stride, memory_fact=memory_fact,
+                method_init=init_method, alpha_snmf=alpha_snmf, only_init_patch=True, gnb=1,method_deconvolution='oasis', n_pixels_per_process = 10000, block_size = 10000)
+cnm = cnm.fit(images)
+
+A_tot = cnm.A
+C_tot = cnm.C
+YrA_tot = cnm.YrA
+b_tot = cnm.b
+f_tot = cnm.f
+sn_tot = cnm.sn
+
+print(('Number of components:' + str(A_tot.shape[-1])))
 #%%
-else:
-    #%%
-    rf = 30  # half-size of the patches in pixels. rf=25, patches are 50x50
-    stride = 30  # amounpl.it of overlap between the patches in pixels
-    K = 6  # number of neurons expected per patch
-    gSig = [7, 7]  # expected half size of neurons
-    merge_thresh = 0.8  # merging threshold, max correlation allowed
-    p = 1  # order of the autoregressive system
-    memory_fact = 1  # unitless number accounting how much memory should be used. You will need to try different values to see which one would work the default is OK for a 16 GB system
-    save_results = False
-    #%% RUN ALGORITHM ON PATCHES
+pl.figure()
+crd = plot_contours(A_tot, Cn, thr=0.9)
+#%%
+final_frate = 10# approx final rate  (after eventual downsampling )
+Npeaks = 10
+traces = C_tot + YrA_tot
+#        traces_a=traces-scipy.ndimage.percentile_filter(traces,8,size=[1,np.shape(traces)[-1]/5])
+#        traces_b=np.diff(traces,axis=1)
+fitness_raw, fitness_delta, erfc_raw, erfc_delta, r_values, significant_samples = evaluate_components(
+    Y, traces, A_tot, C_tot, b_tot, f_tot, final_frate, remove_baseline=True, N=5, robust_std=False, Athresh=0.1, Npeaks=Npeaks,  thresh_C=0.3)
 
-    cnm = cnmf.CNMF(n_processes, k=K, gSig=gSig, merge_thresh=0.8, p=0, dview=dview, Ain=None, rf=rf, stride=stride, memory_fact=memory_fact,
-                    method_init=init_method, alpha_snmf=alpha_snmf, only_init_patch=True, gnb=1,method_deconvolution='oasis', n_pixels_per_process = 10000, block_size = 10000)
-    cnm = cnm.fit(images)
+idx_components_r = np.where(r_values >= .4)[0]
+idx_components_raw = np.where(fitness_raw < -20)[0]
+idx_components_delta = np.where(fitness_delta < -10)[0]
 
-    A_tot = cnm.A
-    C_tot = cnm.C
-    YrA_tot = cnm.YrA
-    b_tot = cnm.b
-    f_tot = cnm.f
-    sn_tot = cnm.sn
+idx_components = np.union1d(idx_components_r, idx_components_raw)
+idx_components = np.union1d(idx_components, idx_components_delta)
+idx_components_bad = np.setdiff1d(list(range(len(traces))), idx_components)
 
-    print(('Number of components:' + str(A_tot.shape[-1])))
-    #%%
-    pl.figure()
-    crd = plot_contours(A_tot, Cn, thr=0.9)
-    #%%
-    final_frate = 10# approx final rate  (after eventual downsampling )
-    Npeaks = 10
-    traces = C_tot + YrA_tot
-    #        traces_a=traces-scipy.ndimage.percentile_filter(traces,8,size=[1,np.shape(traces)[-1]/5])
-    #        traces_b=np.diff(traces,axis=1)
-    fitness_raw, fitness_delta, erfc_raw, erfc_delta, r_values, significant_samples = evaluate_components(
-        Y, traces, A_tot, C_tot, b_tot, f_tot, final_frate, remove_baseline=True, N=5, robust_std=False, Athresh=0.1, Npeaks=Npeaks,  thresh_C=0.3)
-
-    idx_components_r = np.where(r_values >= .4)[0]
-    idx_components_raw = np.where(fitness_raw < -20)[0]
-    idx_components_delta = np.where(fitness_delta < -10)[0]
-
-    idx_components = np.union1d(idx_components_r, idx_components_raw)
-    idx_components = np.union1d(idx_components, idx_components_delta)
-    idx_components_bad = np.setdiff1d(list(range(len(traces))), idx_components)
-
-    print(('Keeping ' + str(len(idx_components)) +
-           ' and discarding  ' + str(len(idx_components_bad))))
-    #%%
-    pl.figure()
-    crd = plot_contours(A_tot.tocsc()[:, idx_components], Cn, thr=0.9)
-    #%%
-    A_tot = A_tot.tocsc()[:, idx_components]
-    C_tot = C_tot[idx_components]
-    #%%
-    save_results = True
-    if save_results:
-        np.savez('results_analysis_patch.npz', A_tot=A_tot, C_tot=C_tot,
-                 YrA_tot=YrA_tot, sn_tot=sn_tot, d1=d1, d2=d2, b_tot=b_tot, f=f_tot)
-    #%% if you have many components this might take long!
-    pl.figure()
-    crd = plot_contours(A_tot, Cn, thr=0.9)
-    #%%
-    cnm = cnmf.CNMF(n_processes, k=A_tot.shape, gSig=gSig, merge_thresh=merge_thresh, p=p, dview=dview, Ain=A_tot, Cin=C_tot,
-                    f_in=f_tot, rf=None, stride=None, n_pixels_per_process = 10000, block_size = 10000)
-    cnm = cnm.fit(images)
+print(('Keeping ' + str(len(idx_components)) +
+       ' and discarding  ' + str(len(idx_components_bad))))
+#%%
+pl.figure()
+crd = plot_contours(A_tot.tocsc()[:, idx_components], Cn, thr=0.9)
+#%%
+A_tot = A_tot.tocsc()[:, idx_components]
+C_tot = C_tot[idx_components]
+#%%
+save_results = True
+if save_results:
+    np.savez('results_analysis_patch.npz', A_tot=A_tot, C_tot=C_tot,
+             YrA_tot=YrA_tot, sn_tot=sn_tot, d1=d1, d2=d2, b_tot=b_tot, f=f_tot)
+#%% if you have many components this might take long!
+pl.figure()
+crd = plot_contours(A_tot, Cn, thr=0.9)
+#%%
+cnm = cnmf.CNMF(n_processes, k=A_tot.shape, gSig=gSig, merge_thresh=merge_thresh, p=p, dview=dview, Ain=A_tot, Cin=C_tot,
+                f_in=f_tot, rf=None, stride=None, n_pixels_per_process = 10000, block_size = 10000)
+cnm = cnm.fit(images)
 
 #%%
 A, C, b, f, YrA, sn = cnm.A, cnm.C, cnm.b, cnm.f, cnm.YrA, cnm.sn
