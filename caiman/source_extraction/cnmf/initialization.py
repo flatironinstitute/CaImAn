@@ -314,6 +314,10 @@ def sparseNMF(Y_ds, nr,  max_iter_snmf=500, alpha=10e2, sigma_smooth=(.5, .5, .5
 
     b_in = model.fit_transform(np.maximum(m1, 0))
     f_in = model.components_.squeeze()
+#    for ccount,caaa in enumerate(A.T):
+#        pl.subplot(3,3,ccount+1)
+#        pl.imshow(np.reshape(caaa,[d1,d2],order = 'F'))    
+        
 #    pl.subplot(2,2,1)
 #    pl.imshow(np.reshape(b_in,[d1,d2],order = 'F'))
 #    pl.subplot(2,2,2)
@@ -322,7 +326,7 @@ def sparseNMF(Y_ds, nr,  max_iter_snmf=500, alpha=10e2, sigma_smooth=(.5, .5, .5
 #    pl.imshow(np.mean(np.maximum(0, m - bl),0))
 #    pl.subplot(2,2,4)
 #    pl.imshow(caiman.movie(np.maximum(0, m - bl)).local_correlations(swap_dim=False))
-#    pl.pause(.1)
+#    pl.pause(4)
 
     center = caiman.base.rois.com(A_in, d1, d2)
 #    for iter in range(max_iter_snmf):

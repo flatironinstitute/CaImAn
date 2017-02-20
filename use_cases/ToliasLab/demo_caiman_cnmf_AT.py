@@ -47,7 +47,7 @@ is_dendrites=True #
 if is_dendrites == True:
 # THIS METHOd CAN GIVE POSSIBLY INCONSISTENT RESULTS ON SOMAS WHEN NOT USED WITH PATCHES    
     init_method = 'sparse_nmf' 
-    alpha_snmf=10e1  # this controls sparsity
+    alpha_snmf=10e2  # this controls sparsity
 else:
     init_method = 'greedy_roi'
     alpha_snmf=None #10e2  # this controls sparsity
@@ -114,7 +114,7 @@ else:
     #%% RUN ALGORITHM ON PATCHES
 
     cnm = cnmf.CNMF(n_processes, k=K, gSig=gSig, merge_thresh=0.8, p=0, dview=dview, Ain=None, rf=rf, stride=stride, memory_fact=memory_fact,
-                    method_init=init_method, alpha_snmf=alpha_snmf, only_init_patch=True, gnb=1,method_deconvolution='oasis')
+                    method_init=init_method, alpha_snmf=alpha_snmf, only_init_patch=True, gnb=1,method_deconvolution='oasis', n_pixels_per_process = 10000, block_size = 10000)
     cnm = cnm.fit(images)
 
     A_tot = cnm.A
@@ -163,7 +163,7 @@ else:
     crd = plot_contours(A_tot, Cn, thr=0.9)
     #%%
     cnm = cnmf.CNMF(n_processes, k=A_tot.shape, gSig=gSig, merge_thresh=merge_thresh, p=p, dview=dview, Ain=A_tot, Cin=C_tot,
-                    f_in=f_tot, rf=None, stride=None)
+                    f_in=f_tot, rf=None, stride=None, n_pixels_per_process = 10000, block_size = 10000)
     cnm = cnm.fit(images)
 
 #%%
@@ -224,3 +224,10 @@ cm.stop_server()
 log_files = glob.glob('Yr*_LOG_*')
 for log_file in log_files:
     os.remove(log_file)
+#%% extreme merging
+corrs = np.corrcoef(C[idx_components])
+pl.imshow(corrs>0.8)
+#%%
+rec = cm.movie(cm.base.movies.to_3D(A.dot(C).T,(T,d1,d2)))
+#%%
+cm.concatenate([rec*2,cm.movie(images)],axis = 1).play(fr=30,gain = 20)

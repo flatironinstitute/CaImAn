@@ -36,7 +36,9 @@ def interpolate_missing_data(Y):
         list of interpolated coordinates
     """
     coor=[];
-    if np.any(np.isnan(Y)):
+    print('checking if missing data')
+#    if np.any(np.isnan(Y[:2000])) or np.any(np.isnan(Y[-2000:])):
+    if np.any(np.isnan(Y)):    
         raise Exception('The algorithm has not been tested with missing values (NaNs). Remove NaNs and rerun the algorithm.')
         # need to
         for idx,row in enumerate(Y):
@@ -453,12 +455,12 @@ def nextpow2(value):
         exponent += 1
     return exponent
 
-def preprocess_data(Y, sn = None ,  dview=None, n_pixels_per_process=100,  noise_range = [0.25,0.5], noise_method = 'logmexp', compute_g=False,  p = 2, g = None,  lags = 5, include_noise = False, pixels = None,max_num_samples_fft=3000):
+def preprocess_data(Y, sn = None ,  dview=None, n_pixels_per_process=100,  noise_range = [0.25,0.5], noise_method = 'logmexp', compute_g=False,  p = 2, g = None,  lags = 5, include_noise = False, pixels = None,max_num_samples_fft=3000, check_nan = True):
     """
     Performs the pre-processing operations described above.
     """
-
-    Y,coor=interpolate_missing_data(Y)
+    if check_nan:
+        Y,coor=interpolate_missing_data(Y)
 
     if sn is None:
         sn,psx=get_noise_fft_parallel(Y,n_pixels_per_process=n_pixels_per_process, dview = dview, noise_range = noise_range, noise_method = noise_method,max_num_samples_fft=max_num_samples_fft)
