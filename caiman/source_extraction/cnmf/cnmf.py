@@ -33,7 +33,7 @@ class CNMF(object):
                                         ssub=2, tsub=2,p_ssub=1, p_tsub=1, method_init= 'greedy_roi',alpha_snmf=None,\
                                         rf=None,stride=None, memory_fact=1, gnb = 1,\
                                         N_samples_fitness = 5,robust_std = False,fitness_threshold=-10,corr_threshold=0,only_init_patch=False\
-                                        ,method_deconvolution='cvxpy'):
+                                        ,method_deconvolution='oasis', n_pixels_per_process = 1000, block_size = 1000, check_nan = True):
         """ 
         Constructor of the CNMF method
 
@@ -132,7 +132,10 @@ class CNMF(object):
         self.alpha_snmf=alpha_snmf
         self.only_init=only_init_patch
         self.method_deconvolution=method_deconvolution
-
+        self.n_pixels_per_process = n_pixels_per_process
+        self.block_size = block_size
+        self.check_nan = check_nan
+        
         self.A=None
         self.C=None
         self.S=None
@@ -162,39 +165,45 @@ class CNMF(object):
         print((T,d1,d2))
 
         options = CNMFSetParms(Y,self.n_processes,p=self.p,gSig=self.gSig,K=self.k,ssub=self.ssub,tsub=self.tsub,\
-                                        p_ssub=self.p_ssub, p_tsub=self.p_tsub, method_init= self.method_init)
+                                        p_ssub=self.p_ssub, p_tsub=self.p_tsub, method_init= self.method_init, n_pixels_per_process = self.n_pixels_per_process, block_size = self.block_size, check_nan = self.check_nan)
 
         self.options=options 
 
         if self.rf is None: # no patches
+            print('preprocessing ...')
             Yr,sn,g,psx = preprocess_data(Yr,dview=self.dview,**options['preprocess_params'])                      
             
             if self.Ain is None:
+                print('initializing ...')
                 if self.alpha_snmf is not None:
                     options['init_params']['alpha_snmf']=self.alpha_snmf
 
                 self.Ain, self.Cin , self.b_in, self.f_in, center=initialize_components(Y, normalize=True, **options['init_params'])  
-            
+            print('update spatial ...')
+
             if self.Ain.dtype == bool:
                 A,b,Cin,fin = update_spatial_components(Yr, self.Cin, self.f_in, self.Ain, sn=sn, dview=self.dview,**options['spatial_params'])
                 self.f_in=fin
             else:
                 A,b,Cin = update_spatial_components(Yr, self.Cin, self.f_in, self.Ain, sn=sn, dview=self.dview,**options['spatial_params'])
-
+            
+            print('update temporal ...')
             
             options['temporal_params']['p'] = 0 # set this to zero for fast updating without deconvolution
             options['temporal_params']['method']=self.method_deconvolution
 
             C,f,S,bl,c1,neurons_sn,g,YrA = update_temporal_components(Yr,A,b,Cin,self.f_in,dview=self.dview,**options['temporal_params'])             
-
+            
             if self.do_merge:
+                print('merge components ...')
                 A,C,nr,merged_ROIs,S,bl,c1,sn1,g1=merge_components(Yr,A,b,C,f,S,sn,options['temporal_params'], options['spatial_params'],dview=self.dview, bl=bl, c1=c1, sn=neurons_sn, g=g, thr=self.merge_thresh, mx=50, fast_merge = True)
 
             print((A.shape))    
-
+            print('update spatial ...')
+            
             A,b,C = update_spatial_components(Yr, C, f, A, sn=sn,dview=self.dview, **options['spatial_params'])
             options['temporal_params']['p'] = self.p # set it back to original value to perform full deconvolution
-
+            print('update temporal ...')
             C,f,S,bl,c1,neurons_sn,g1,YrA = update_temporal_components(Yr,A,b,C,f,dview=self.dview,bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
 
 
@@ -215,16 +224,16 @@ class CNMF(object):
             if self.alpha_snmf is not None:
                     options['init_params']['alpha_snmf']=self.alpha_snmf
                            
-            A,C,YrA,b,f,sn, optional_outputs = run_CNMF_patches(images.filename, (d1, d2, T), options,rf=self.rf,stride = self.stride,
-                                                                         dview=self.dview,memory_fact=self.memory_fact,gnb=self.gnb)
+            A,C,YrA,b,f,sn, optional_outputs = run_CNMF_patches(images.filename, (d1, d2, T), options, rf = self.rf,stride = self.stride,
+                                                                         dview = self.dview, memory_fact = self.memory_fact, gnb = self.gnb)
 
 
             
-            options = CNMFSetParms(Y,self.n_processes,p=self.p,gSig=self.gSig,K=A.shape[-1],thr=self.merge_thresh)
+            options = CNMFSetParms(Y,self.n_processes,p=self.p,gSig=self.gSig,K=A.shape[-1],thr=self.merge_thresh, n_pixels_per_process = self.n_pixels_per_process, block_size = self.block_size, check_nan = self.check_nan)
 
-            pix_proc=np.minimum(np.int((d1*d2)/self.n_processes/(old_div(T,2000.))),np.int(old_div((d1*d2),self.n_processes))) # regulates the amount of memory used
-            options['spatial_params']['n_pixels_per_process']=pix_proc
-            options['temporal_params']['n_pixels_per_process']=pix_proc
+#            pix_proc=np.minimum(np.int((d1*d2)/self.n_processes/(old_div(T,2000.))),np.int(old_div((d1*d2),self.n_processes))) # regulates the amount of memory used
+#            options['spatial_params']['n_pixels_per_process']=pix_proc
+#            options['temporal_params']['n_pixels_per_process']=pix_proc
             options['temporal_params']['method']=self.method_deconvolution
 
             print("merging")  
