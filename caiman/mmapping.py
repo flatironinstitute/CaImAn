@@ -277,7 +277,7 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
 
         else:
 
-            Yr=cm.load(f,fr=1)            
+            Yr=cm.load(f,fr=1,in_memory = True)            
             if xy_shifts is not None:
                 Yr=Yr.apply_shifts(xy_shifts,interpolation='cubic',remove_blanks=False)
 
@@ -289,8 +289,10 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
             else:
                 raise Exception('You need to set is_3D=True for 3D data)')
                 Yr = np.array(Yr)[remove_init:, idx_xy[0], idx_xy[1], idx_xy[2]]
+        
 
         if border_to_0>0:
+            
             min_mov= Yr.calc_min()
             Yr[:,:border_to_0,:]=min_mov
             Yr[:,:,:border_to_0]=min_mov
@@ -300,7 +302,9 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
         fx, fy, fz = resize_fact
         if fx != 1 or fy != 1 or fz != 1:
 
-            Yr = cm.movie(Yr, fr=1)
+            if 'movie' not in str(type(Yr)):
+                Yr = cm.movie(Yr, fr=1)
+  
             Yr = Yr.resize(fx=fx, fy=fy, fz=fz)
 
 
@@ -426,25 +430,28 @@ def save_memmap_chunks(filename, base_name='Yr', resize_fact=(1, 1, 1), remove_i
 
     return fname_new
 #%%
-def parallel_dot_product(A,b,block_size=5000,dview=None,transpose=False):
+def parallel_dot_product(A,b,block_size=20000,dview=None,transpose=False):
     ''' Chunk matrix product between matrix and column vectors 
     A: memory mapped ndarray
         pixels x time
     b: time x comps   
     '''
+    
     import pickle
     pars = []
     d1,d2 = np.shape(A)
     b = pickle.dumps(b)
-
-
+    print('parallel dot product block size: ' + str(block_size))
+    
     if block_size<d1:
 
         for idx in range(0,d1-block_size,block_size):
+            
             idx_to_pass = list(range(idx,idx+block_size))
             pars.append([A.filename,idx_to_pass,b,transpose])
 
         if (idx+block_size) < d1:
+            
             idx_to_pass = list(range(idx+block_size,d1))
             pars.append([A.filename,idx_to_pass,b,transpose])    
 
@@ -452,25 +459,52 @@ def parallel_dot_product(A,b,block_size=5000,dview=None,transpose=False):
 
         idx_to_pass = list(range(d1))
         pars.append([A.filename,idx_to_pass,b,transpose]) 
+        
+    print('Start product')    
 
 
-
-
+    
     if dview is None:
-        results = list(map(dot_place_holder,pars))
+        
+        
+#        results = list(map(dot_place_holder,pars))
+        if transpose:
+            b = pickle.loads(b)    
+            print('Transposing')
+            output = np.zeros((d2,np.shape(b)[-1]))
+            for counts, pr in enumerate(pars):
+                
+#                print(counts)
+                iddx, rs = dot_place_holder(pr)
+                output = output + rs
+    
+        else:
+            b = pickle.loads(b)  
+            output = np.zeros((d1,np.shape(b)[-1]))
+            for counts,pr in enumerate(pars):
+               
+#                print(counts)
+                iddx, rs = dot_place_holder(pr)
+                output[iddx] = rs 
+
+        
+    
     else:
+        
         results = dview.map_sync(dot_place_holder,pars)
+        b = pickle.loads(b)    
+        if transpose:
+            print('Transposing')
+            output = np.zeros((d2,np.shape(b)[-1]))
+            for res in results:
+                output = output+res[1] 
+    
+        else:
+            output = np.zeros((d1,np.shape(b)[-1]))
+            for res in results:
+                output[res[0]] = res[1] 
 
-    b = pickle.loads(b)
-    if transpose:
-        output = np.zeros((d2,np.shape(b)[-1]))
-        for res in results:
-            output = output+res[1] 
-
-    else:
-        output = np.zeros((d1,np.shape(b)[-1]))
-        for res in results:
-            output[res[0]] = res[1] 
+    
 
     return output
 
