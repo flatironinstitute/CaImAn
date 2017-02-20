@@ -1041,7 +1041,7 @@ class movie(ts.timeseries):
 
 
 
-def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None,num_frames_sub_idx=np.inf, var_name_hdf5 = 'mov'):
+def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None,num_frames_sub_idx=np.inf, var_name_hdf5 = 'mov', in_memory = False):
     '''
     load movie from file. SUpports a variety of formats. tif, hdf5, npy and memory mapped. Matlab is experimental. 
 
@@ -1176,7 +1176,11 @@ def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None,
             Yr, dims, T = load_memmap(os.path.join(os.path.split(file_name)[0],filename))
             d1, d2 = dims
             images = np.reshape(Yr.T, [T] + list(dims), order='F')
-
+            
+            if in_memory:
+                print('loading in memory')
+                images = np.array(images)
+            
             print('mmap')
             return movie(images,fr=fr)
 
