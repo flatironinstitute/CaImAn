@@ -33,7 +33,7 @@ class CNMF(object):
                                         ssub=2, tsub=2,p_ssub=1, p_tsub=1, method_init= 'greedy_roi',alpha_snmf=None,\
                                         rf=None,stride=None, memory_fact=1, gnb = 1,\
                                         N_samples_fitness = 5,robust_std = False,fitness_threshold=-10,corr_threshold=0,only_init_patch=False\
-                                        ,method_deconvolution='oasis', n_pixels_per_process = 1000, block_size = 1000, check_nan = True):
+                                        ,method_deconvolution='oasis', n_pixels_per_process = 4000, block_size = 20000, check_nan = True, skip_refinement = False):
         """ 
         Constructor of the CNMF method
 
@@ -135,6 +135,7 @@ class CNMF(object):
         self.n_pixels_per_process = n_pixels_per_process
         self.block_size = block_size
         self.check_nan = check_nan
+        self.skip_refinement = skip_refinement
         
         self.A=None
         self.C=None
@@ -188,25 +189,37 @@ class CNMF(object):
                 A,b,Cin = update_spatial_components(Yr, self.Cin, self.f_in, self.Ain, sn=sn, dview=self.dview,**options['spatial_params'])
             
             print('update temporal ...')
-            
-            options['temporal_params']['p'] = 0 # set this to zero for fast updating without deconvolution
+            if not self.skip_refinement:
+                options['temporal_params']['p'] = 0 # set this to zero for fast updating without deconvolution
+            else:
+                options['temporal_params']['p'] =self.p
+                       
             options['temporal_params']['method']=self.method_deconvolution
 
             C,f,S,bl,c1,neurons_sn,g,YrA = update_temporal_components(Yr,A,b,Cin,self.f_in,dview=self.dview,**options['temporal_params'])             
             
-            if self.do_merge:
-                print('merge components ...')
-                A,C,nr,merged_ROIs,S,bl,c1,sn1,g1=merge_components(Yr,A,b,C,f,S,sn,options['temporal_params'], options['spatial_params'],dview=self.dview, bl=bl, c1=c1, sn=neurons_sn, g=g, thr=self.merge_thresh, mx=50, fast_merge = True)
-
-            print((A.shape))    
-            print('update spatial ...')
+            if not self.skip_refinement:
             
-            A,b,C = update_spatial_components(Yr, C, f, A, sn=sn,dview=self.dview, **options['spatial_params'])
-            options['temporal_params']['p'] = self.p # set it back to original value to perform full deconvolution
-            print('update temporal ...')
-            C,f,S,bl,c1,neurons_sn,g1,YrA = update_temporal_components(Yr,A,b,C,f,dview=self.dview,bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
-
-
+                if self.do_merge:
+                    print('merge components ...')
+                    A,C,nr,merged_ROIs,S,bl,c1,sn1,g1=merge_components(Yr,A,b,C,f,S,sn,options['temporal_params'], options['spatial_params'],dview=self.dview, bl=bl, c1=c1, sn=neurons_sn, g=g, thr=self.merge_thresh, mx=50, fast_merge = True)
+                 
+                    
+                print((A.shape))    
+                
+                print('update spatial ...')            
+                
+                A,b,C = update_spatial_components(Yr, C, f, A, sn=sn,dview=self.dview, **options['spatial_params'])
+                            
+                
+                options['temporal_params']['p'] = self.p # set it back to original value to perform full deconvolution
+                print('update temporal ...')            
+                C,f,S,bl,c1,neurons_sn,g1,YrA = update_temporal_components(Yr,A,b,C,f,dview=self.dview,bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
+            
+            else:    
+                
+                A,b,C = A,b,Cin
+                C,f,S,bl,c1,neurons_sn,g1,YrA = C,f,S,bl,c1,neurons_sn,g,YrA
 
         else: # use patches 
 

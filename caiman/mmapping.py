@@ -462,7 +462,7 @@ def parallel_dot_product(A,b,block_size=20000,dview=None,transpose=False):
         
     print('Start product')    
 
-
+    
     
     if dview is None:
         
@@ -491,7 +491,9 @@ def parallel_dot_product(A,b,block_size=20000,dview=None,transpose=False):
     
     else:
         
+#        results = dview.map_sync(dot_place_holder,pars)
         results = dview.map_sync(dot_place_holder,pars)
+
         b = pickle.loads(b)    
         if transpose:
             print('Transposing')
@@ -500,6 +502,7 @@ def parallel_dot_product(A,b,block_size=20000,dview=None,transpose=False):
                 output = output+res[1] 
     
         else:
+            print('Filling')
             output = np.zeros((d1,np.shape(b)[-1]))
             for res in results:
                 output[res[0]] = res[1] 
@@ -523,15 +526,32 @@ def dot_place_holder(par):
 
     if 'sparse' in str(type(b_)):
         if transpose:
-            return idx_to_pass,(b_.T.tocsc()[:,idx_to_pass].dot(A_[idx_to_pass])).T             
-        else:             
-            return idx_to_pass,(b_.T.dot(A_[idx_to_pass].T)).T
+            
+            outp = (b_.T.tocsc()[:,idx_to_pass].dot(A_[idx_to_pass])).T
+#            import pdb
+#            pdb.set_trace()
+            del b_        
+            return idx_to_pass, outp            
+        
+        else:    
+            
+            outp = (b_.T.dot(A_[idx_to_pass].T)).T
+            del b_
+            return idx_to_pass,outp
 
     else:
+        
         if transpose:
-            return idx_to_pass,A_[idx_to_pass].dot(b_[idx_to_pass])  
+        
+            outp = A_[idx_to_pass].dot(b_[idx_to_pass])  
+            del b_
+            return idx_to_pass, outp
+        
         else:
-            return idx_to_pass,A_[idx_to_pass].dot(b_)  
+            
+            outp = A_[idx_to_pass].dot(b_)  
+            del b_
+            return idx_to_pass,outp
 
 #%% 
 def save_tif_to_mmap_online(movie_iterable,save_base_name='YrOL_', order = 'C',add_to_movie=0,border_to_0=0):

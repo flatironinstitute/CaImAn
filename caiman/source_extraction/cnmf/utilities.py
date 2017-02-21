@@ -99,7 +99,6 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], ssub=2, tsub=2, p=2, p_ssub=
         'se' : np.ones((3, 3), dtype=np.int),           # Morphological closing structuring element
         'ss' : np.ones((3, 3), dtype=np.int),           # Binary element for determining connectivity            
         'nb' : nb,                                      # number of background components
-        'block_size' : block_size, # number of pixels to process at the same time for dot product. Make it smaller if memory problems
         'method_ls':'lasso_lars',                        # 'nnls_L0'. Nonnegative least square with L0 penalty        
                                                         #'lasso_lars' lasso lars function from scikit learn
                                                         #'lasso_lars_old' lasso lars from old implementation, will be deprecated 

@@ -247,7 +247,7 @@ if params_movie['is_dendrites'] == True:
 #%%
 t1 = time.time()
 n_pixels_per_process = 1000 # the smaller the best memory performance
-block_size = 5000
+block_size = 10000
 
 cnm = cnmf.CNMF(n_processes, k=K, gSig=gSig, merge_thresh=0.8, p=0, dview=dview, Ain=None, rf=rf, stride=stride, memory_fact=1,
                     method_init=init_method, alpha_snmf=alpha_snmf, only_init_patch=True, gnb=1,method_deconvolution='oasis', n_pixels_per_process = n_pixels_per_process, p_ssub=2, p_tsub=2,
@@ -297,7 +297,8 @@ block_size = 10000
 
 t1 = time.time()
 cnm = cnmf.CNMF(n_processes, k=A_tot.shape, gSig=gSig, merge_thresh=merge_thresh, p=p, dview=dview, Ain=A_tot, Cin=C_tot,
-                    f_in=f_tot, rf=None, stride=None,method_deconvolution='oasis',n_pixels_per_process = n_pixels_per_process, block_size = block_size, check_nan = False)
+                    f_in=f_tot, rf=None, stride=None,method_deconvolution='oasis',n_pixels_per_process = n_pixels_per_process, 
+                    block_size = block_size, check_nan = False, skip_refinement = True)
 cnm = cnm.fit(images)
 t_cnmf_refine = time.time() - t1
 

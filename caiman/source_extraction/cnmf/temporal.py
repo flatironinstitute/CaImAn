@@ -181,7 +181,14 @@ def update_temporal_components(Y, A, b, Cin, fin, bl = None,  c1 = None, g = Non
 
         
     if 'memmap' in str(type(Y)):
-        YA = parallel_dot_product(Y,A,dview=None,block_size=block_size,transpose=True)*spdiags(old_div(1.,nA),0,nr+nb,nr+nb)
+        if block_size <= 10000:
+            print ('Forcing single thread for memory issues')
+            dview_res = None
+        else:
+            
+            dview_res = dview
+            
+        YA = parallel_dot_product(Y,A,dview=dview_res,block_size=block_size,transpose=True)*spdiags(old_div(1.,nA),0,nr+nb,nr+nb)
     else:
         YA = (A.T.dot(Y).T)*spdiags(old_div(1.,nA),0,nr+nb,nr+nb)
     print ('Done')
