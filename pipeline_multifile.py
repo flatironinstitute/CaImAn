@@ -50,11 +50,11 @@ from caiman.base.rois import extract_binary_masks_blob
 #%%
 params_movie = {'fname':None,
                 'max_shifts':(10,10), # maximum allow rigid shift
-                'splits_rig':10, # for parallelization split the movies in  num_splits chuncks across time
+                'splits_rig':14, # for parallelization split the movies in  num_splits chuncks across time
                 'num_splits_to_process_rig':None, # if none all the splits are processed and the movie is saved
                 'strides': (128,128), # intervals at which patches are laid out for motion correction
                 'overlaps': (32,32), # overlap between pathes (size of patch strides+overlaps)
-                'splits_els':10, # for parallelization split the movies in  num_splits chuncks across time
+                'splits_els':14, # for parallelization split the movies in  num_splits chuncks across time
                 'num_splits_to_process_els':[None], # if none all the splits are processed and the movie is saved
                 'upsample_factor_grid':4, # upsample factor to avoid smearing when merging patches
                 'max_deviation_rigid':3, #maximum deviation allowed for patch with respect to rigid shift
@@ -159,7 +159,7 @@ for file_to_process in (all_files[:1]+all_files):
 templates_all_els = templates_all_els[1:]
 total_shifts_els = total_shifts_els[1:]  
 #%%
-cm.movie(np.array(templates_all_els)).play(fr=105,gain = 10, offset = add_to_movie-10)
+cm.movie(np.array(templates_all_els)).play(fr=5,gain = 5, offset = add_to_movie-10)
     
     
 #%%
@@ -177,11 +177,16 @@ for ffnn in  fnames_map:
    print(ffnn) 
    adds_to_movie.append(np.min(cm.load(fnames_map[0])[:,border_to_0:-border_to_0,border_to_0:-border_to_0]).min())
 
+add_to_movie = np.min(adds_to_movie)
 print(adds_to_movie)
+
+print(add_to_movie)
+
+
 #%%
 #add_to_movie=np.nanmin(templates_rig)+1# the movie must be positive!!!
 t1 = time.time()
-n_processes_mmap = 5# lower this number if you have memory problems!
+n_processes_mmap = 14# lower this number if you have memory problems!
 dview_sub = c[:n_processes_mmap]
 downsample_factor=1 # use .2 or .1 if file is large and you want a quick answer
 idx_xy=None
@@ -193,7 +198,7 @@ t_mmap_1 = time.time() - t1
 #%%
 t1 = time.time()
 if len(name_new)>1:
-    fname_new = cm.save_memmap_join(name_new, base_name='Yr', n_chunks=96, dview=dview)
+    fname_new = cm.save_memmap_join(name_new, base_name='Yr', n_chunks=56, dview=dview)
 else:
     print('One file only, not saving!')
     fname_new = name_new[0] 
@@ -246,8 +251,8 @@ if params_movie['is_dendrites'] == True:
         raise Exception('need to set a value for alpha_snmf')
 #%%
 t1 = time.time()
-n_pixels_per_process = 1000 # the smaller the best memory performance
-block_size = 5000
+n_pixels_per_process = 5000 # the smaller the best memory performance
+block_size = 20000
 
 cnm = cnmf.CNMF(n_processes, k=K, gSig=gSig, merge_thresh=0.8, p=0, dview=dview, Ain=None, rf=rf, stride=stride, memory_fact=1,
                     method_init=init_method, alpha_snmf=alpha_snmf, only_init_patch=True, gnb=1,method_deconvolution='oasis', n_pixels_per_process = n_pixels_per_process, p_ssub=2, p_tsub=2,
@@ -292,8 +297,8 @@ if False:
 A_tot = A_tot.tocsc()[:, idx_components]
 C_tot = C_tot[idx_components]
 #%% rerun updating the components
-n_pixels_per_process = 1000 # the smaller the best memory performance
-block_size = 10000
+n_pixels_per_process = 4000 # the smaller the best memory performance
+block_size = 20000
 
 t1 = time.time()
 cnm = cnmf.CNMF(n_processes, k=A_tot.shape, gSig=gSig, merge_thresh=merge_thresh, p=p, dview=dview, Ain=A_tot, Cin=C_tot,
