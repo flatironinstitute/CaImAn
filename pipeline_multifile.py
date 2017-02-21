@@ -117,7 +117,7 @@ print(t2)
 pl.close()
 pl.plot(np.concatenate(total_shifts,0)) 
 #%% visualize all templates
-cm.movie(np.array(templates_all)).play(fr=2,gain = 5, offset =add_to_movie)
+#cm.movie(np.array(templates_all)).play(fr=2,gain = 5, offset =add_to_movie)
 
 #%% PIECEWISE RIGID MOTION CORRECTION
 total_shifts_els = []
@@ -159,14 +159,14 @@ for file_to_process in (all_files[:1]+all_files):
 templates_all_els = templates_all_els[1:]
 total_shifts_els = total_shifts_els[1:]  
 #%%
-cm.movie(np.array(templates_all_els)).play(fr=105,gain = 10, offset = add_to_movie-10)
+#cm.movie(np.array(templates_all_els)).play(fr=105,gain = 10, offset = add_to_movie-10)
     
     
 #%%
-pl.subplot(2,1,1)
-pl.plot(np.concatenate([shfts[0]  for shfts in total_shifts_els],0))
-pl.subplot(2,1,2)
-pl.plot(np.concatenate([shfts[1]  for shfts in total_shifts_els],0))
+#pl.subplot(2,1,1)
+#pl.plot(np.concatenate([shfts[0]  for shfts in total_shifts_els],0))
+#pl.subplot(2,1,2)
+#pl.plot(np.concatenate([shfts[1]  for shfts in total_shifts_els],0))
 #%%
 border_to_0 = np.max([np.ceil(np.max(np.array(ttl))).astype(np.int) for ttl in total_shifts_els])
 fnames_map  = [os.path.abspath(flfl) for flfl in glob.glob('*.mmap')]
@@ -178,6 +178,7 @@ for ffnn in  fnames_map:
    adds_to_movie.append(np.min(cm.load(fnames_map[0])[:,border_to_0:-border_to_0,border_to_0:-border_to_0]).min())
 
 print(adds_to_movie)
+add_to_movie = np.min(adds_to_movie)
 #%%
 #add_to_movie=np.nanmin(templates_rig)+1# the movie must be positive!!!
 t1 = time.time()
@@ -227,8 +228,8 @@ if np.min(images)<0:
 if np.sum(np.isnan(images))>0:
     raise Exception('Movie contains nan! You did not remove enough borders')   
 #%%
-m_els = cm.load(fname_new) 
-m_els.play(fr = 100, gain = 3,magnification=1, offset = 0)          
+#m_els = cm.load(fname_new) 
+#m_els.play(fr = 100, gain = 3,magnification=1, offset = 0)          
 #%% some parameter settings
 p = params_movie['p']  # order of the autoregressive system  
 merge_thresh = params_movie['merge_thresh']  # merging threshold, max correlation allowed
