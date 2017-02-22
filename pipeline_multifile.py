@@ -50,11 +50,11 @@ from caiman.base.rois import extract_binary_masks_blob
 #%%
 params_movie = {'fname':None,
                 'max_shifts':(10,10), # maximum allow rigid shift
-                'splits_rig':14, # for parallelization split the movies in  num_splits chuncks across time
+                'splits_rig':20, # for parallelization split the movies in  num_splits chuncks across time
                 'num_splits_to_process_rig':None, # if none all the splits are processed and the movie is saved
                 'strides': (128,128), # intervals at which patches are laid out for motion correction
                 'overlaps': (32,32), # overlap between pathes (size of patch strides+overlaps)
-                'splits_els':14, # for parallelization split the movies in  num_splits chuncks across time
+                'splits_els':20, # for parallelization split the movies in  num_splits chuncks across time
                 'num_splits_to_process_els':[None], # if none all the splits are processed and the movie is saved
                 'upsample_factor_grid':4, # upsample factor to avoid smearing when merging patches
                 'max_deviation_rigid':3, #maximum deviation allowed for patch with respect to rigid shift
@@ -62,10 +62,10 @@ params_movie = {'fname':None,
                 'merge_thresh' : 0.8,  # merging threshold, max correlation allowed
                 'rf' : (15,15),  # half-size of the patches in pixels. rf=25, patches are 50x50
                 'stride_cnmf' : (5,5),  # amount of overlap between the patches in pixels
-                'K' : 6,  #  number of components per patch
+                'K' : 7,  #  number of components per patch
                 'is_dendrites': False,  # if dendritic. In this case you need to set init_method to sparse_nmf
                 'init_method' : 'greedy_roi',
-                'gSig' : [7,7],  # expected half size of neurons    
+                'gSig' : [8,8],  # expected half size of neurons    
                 'alpha_snmf' : None,  # this controls sparsity  
                 'final_frate' : 30                          
                 }
@@ -117,7 +117,7 @@ print(t2)
 pl.close()
 pl.plot(np.concatenate(total_shifts,0)) 
 #%% visualize all templates
-cm.movie(np.array(templates_all)).play(fr=2,gain = 5, offset =add_to_movie)
+#cm.movie(np.array(templates_all)).play(fr=2,gain = 5, offset =add_to_movie)
 
 #%% PIECEWISE RIGID MOTION CORRECTION
 total_shifts_els = []
@@ -159,14 +159,15 @@ for file_to_process in (all_files[:1]+all_files):
 templates_all_els = templates_all_els[1:]
 total_shifts_els = total_shifts_els[1:]  
 #%%
-cm.movie(np.array(templates_all_els)).play(fr=5,gain = 5, offset = add_to_movie-10)
+
+#cm.movie(np.array(templates_all_els)).play(fr=105,gain = 10, offset = add_to_movie-10)
     
     
 #%%
-pl.subplot(2,1,1)
-pl.plot(np.concatenate([shfts[0]  for shfts in total_shifts_els],0))
-pl.subplot(2,1,2)
-pl.plot(np.concatenate([shfts[1]  for shfts in total_shifts_els],0))
+#pl.subplot(2,1,1)
+#pl.plot(np.concatenate([shfts[0]  for shfts in total_shifts_els],0))
+#pl.subplot(2,1,2)
+#pl.plot(np.concatenate([shfts[1]  for shfts in total_shifts_els],0))
 #%%
 border_to_0 = np.max([np.ceil(np.max(np.array(ttl))).astype(np.int) for ttl in total_shifts_els])
 fnames_map  = [os.path.abspath(flfl) for flfl in glob.glob('*.mmap')]
@@ -179,10 +180,7 @@ for ffnn in  fnames_map:
 
 add_to_movie = np.min(adds_to_movie)
 print(adds_to_movie)
-
 print(add_to_movie)
-
-
 #%%
 #add_to_movie=np.nanmin(templates_rig)+1# the movie must be positive!!!
 t1 = time.time()
@@ -232,8 +230,8 @@ if np.min(images)<0:
 if np.sum(np.isnan(images))>0:
     raise Exception('Movie contains nan! You did not remove enough borders')   
 #%%
-m_els = cm.load(fname_new) 
-m_els.play(fr = 100, gain = 3,magnification=1, offset = 0)          
+#m_els = cm.load(fname_new) 
+#m_els.play(fr = 100, gain = 3,magnification=1, offset = 0)          
 #%% some parameter settings
 p = params_movie['p']  # order of the autoregressive system  
 merge_thresh = params_movie['merge_thresh']  # merging threshold, max correlation allowed
@@ -251,8 +249,9 @@ if params_movie['is_dendrites'] == True:
         raise Exception('need to set a value for alpha_snmf')
 #%%
 t1 = time.time()
-n_pixels_per_process = 5000 # the smaller the best memory performance
-block_size = 20000
+n_pixels_per_process = 4000 # the smaller the best memory performance
+block_size = 50000
+
 
 cnm = cnmf.CNMF(n_processes, k=K, gSig=gSig, merge_thresh=0.8, p=0, dview=dview, Ain=None, rf=rf, stride=stride, memory_fact=1,
                     method_init=init_method, alpha_snmf=alpha_snmf, only_init_patch=True, gnb=1,method_deconvolution='oasis', n_pixels_per_process = n_pixels_per_process, p_ssub=2, p_tsub=2,
@@ -302,7 +301,8 @@ block_size = 20000
 
 t1 = time.time()
 cnm = cnmf.CNMF(n_processes, k=A_tot.shape, gSig=gSig, merge_thresh=merge_thresh, p=p, dview=dview, Ain=A_tot, Cin=C_tot,
-                    f_in=f_tot, rf=None, stride=None,method_deconvolution='oasis',n_pixels_per_process = n_pixels_per_process, block_size = block_size, check_nan = False)
+                    f_in=f_tot, rf=None, stride=None,method_deconvolution='oasis',n_pixels_per_process = n_pixels_per_process, 
+                    block_size = block_size, check_nan = False, skip_refinement = True)
 cnm = cnm.fit(images)
 t_cnmf_refine = time.time() - t1
 
@@ -324,10 +324,11 @@ t_comp_quality_2 = time.time() - t1
 #%% save results
 np.savez(os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:-4]+'results_analysis.npz'), Cn=Cn, A=A.todense(), C=C, b=b, f=f, YrA=YrA, sn=sn, d1=d1, d2=d2, idx_components=idx_components, idx_components_bad=idx_components_bad)
 #%%
+pl.figure()
 pl.subplot(1, 2, 1)
-crd = plot_contours(A.tocsc()[:, idx_components], Cn, thr=0.9)
+crd = plot_contours(A.tocsc()[:, idx_components], Cn, thr=0.9, cmap = 'gray')
 pl.subplot(1, 2, 2)
-crd = plot_contours(A.tocsc()[:, idx_components_bad], Cn, thr=0.9)
+crd = plot_contours(A.tocsc()[:, idx_components_bad], Cn, thr=0.9, cmap = 'gray')
 #%%
 view_patches_bar(Yr, scipy.sparse.coo_matrix(A.tocsc()[:, idx_components]), C[
                                idx_components, :], b, f, dims[0], dims[1], YrA=YrA[idx_components, :], img=Cn)
@@ -341,3 +342,15 @@ import glob
 log_files = glob.glob('Yr*_LOG_*')
 for log_file in log_files:
     os.remove(log_file)
+#%%
+import matplotlib as mpl
+mpl.rcParams['pdf.fonttype'] = 42
+crd = plot_contours(A.tocsc()[:, idx_components], Cn, thr=0.9, cmap = 'gray',colors = 'r')
+crd = plot_contours(scipy.sparse.coo_matrix(roi_lindsey.transpose([1,2,0]).reshape((d1*d2,-1),order = 'F')), Cn, thr=0.99999, cmap = 'gray', colors = 'y')
+#%%
+for count,nrn in enumerate([998, 989, 987, 976, 963 ,962]):
+    pl.subplot(6,2,2*count+1)
+    pl.imshow(A.tocsc()[:,idx_components[nrn]].toarray().reshape((d1,d2),order = 'F'))
+    pl.subplot(6,2,2*count+2)
+    pl.plot(scipy.signal.resample_poly(traces[idx_components[nrn]],1,1)[::10])
+    

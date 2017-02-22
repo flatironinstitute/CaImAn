@@ -61,7 +61,7 @@ def basis_denoising(y, c, boh, sn, id2_, px):
 def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, min_size=3, max_size=8, dist=3,normalize_yyt_one=True,
                               method='ellipse', expandCore=None, dview=None, n_pixels_per_process=128,
                               medw=(3, 3), thr_method='nrg', maxthr=0.1, nrgthr=0.9999, extract_cc=True,
-                              se=np.ones((3, 3), dtype=np.int), ss=np.ones((3, 3), dtype=np.int), nb=1, method_ls='nnls_L0', block_size = 20000):
+                              se=np.ones((3, 3), dtype=np.int), ss=np.ones((3, 3), dtype=np.int), nb=1, method_ls='nnls_L0'):
 
     """update spatial footprints and background through Basis Pursuit Denoising 
 
@@ -332,7 +332,7 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
 #    Y_resf = np.dot(Y, f.T) - A_.dot(coo_matrix(C[:nr, :]).dot(f.T))
     print("Computing residuals")
     if 'memmap' in str(type(Y)):
-        Y_resf = parallel_dot_product(Y,f.T,block_size=block_size,dview=None) - A_.dot(coo_matrix(C[:nr, :]).dot(f.T))
+        Y_resf = parallel_dot_product(Y,f.T,block_size=1000,dview=dview) - A_.dot(coo_matrix(C[:nr, :]).dot(f.T))
     else:
         Y_resf = np.dot(Y, f.T) - A_.dot(coo_matrix(C[:nr, :]).dot(f.T))
 
