@@ -106,7 +106,7 @@ if not is_patches:
     merge_thresh = 0.8  # merging threshold, max correlation allowed
     p = 2  # order of the autoregressive system
     cnm = cnmf.CNMF(n_processes, method_init=init_method, k=K, gSig=gSig, merge_thresh=merge_thresh,
-                    p=p, dview=dview, Ain=None,method_deconvolution='oasis')
+                    p=p, dview=dview, Ain=None,method_deconvolution='oasis',skip_refinement = False)
     cnm = cnm.fit(images)
     crd = plot_contours(cnm.A, Cn, thr=0.9)
 #%%
