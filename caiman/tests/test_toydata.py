@@ -42,6 +42,7 @@ def pipeline(D):
     options['spatial_params']['thr_method'] = 'nrg'
     options['spatial_params']['extract_cc'] = False
     options['temporal_params']['method'] = 'oasis'
+    options['spatial_params']['n_pixels_per_process'] = np.prod(dims) / n_processes
 
     # PREPROCESS DATA AND INITIALIZE COMPONENTS
     Yr, sn, g, psx = cnmf.pre_processing.preprocess_data(
