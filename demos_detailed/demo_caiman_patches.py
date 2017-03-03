@@ -186,7 +186,7 @@ crd = plot_contours(A_m,Cn,thr=0.9)
 print(('Number of components:' + str(A_m.shape[-1])))  
 #%% UPDATE SPATIAL OCMPONENTS
 t1 = time()
-A2,b2,C2 = cnmf.spatial.update_spatial_components(Yr, C_m, f, A_m, sn=sn_tot,dview=dview, **options['spatial_params'])
+A2,b2,C2,f = cnmf.spatial.update_spatial_components(Yr, C_m, f, A_m, sn=sn_tot,dview=dview, **options['spatial_params'])
 print((time() - t1))
 #%% UPDATE TEMPORAL COMPONENTS
 options['temporal_params']['p']=p
