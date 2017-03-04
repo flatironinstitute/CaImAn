@@ -86,7 +86,7 @@ pl.show()
 #%% UPDATE SPATIAL COMPONENTS
 pl.close()
 t1 = time()
-A,b,Cin = cse.spatial.update_spatial_components(Yr, Cin, f_in, Ain, sn=sn, **options['spatial_params'])
+A,b,Cin,f_in = cse.spatial.update_spatial_components(Yr, Cin, f_in, Ain, sn=sn, **options['spatial_params'])
 t_elSPATIAL = time() - t1
 print(t_elSPATIAL) 
 plt.figure()
@@ -110,7 +110,7 @@ crd = cse.plot_contours(A_m,Cn,thr=0.9)
 #%% refine spatial and temporal 
 pl.close()
 t1 = time()
-A2,b2,C2 = cse.spatial.update_spatial_components(Yr, C_m, f, A_m, sn=sn, **options['spatial_params'])
+A2,b2,C2,f = cse.spatial.update_spatial_components(Yr, C_m, f, A_m, sn=sn, **options['spatial_params'])
 options['temporal_params']['p'] = p # set it back to original value to perform full deconvolution
 C2,f2,S2,bl2,c12,neurons_sn2,g21,YrA = cse.temporal.update_temporal_components(Yr,A2,b2,C2,f,bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
 print((time() - t1))

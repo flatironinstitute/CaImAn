@@ -125,7 +125,7 @@ cse.utilities.view_patches_bar(Yr,scipy.sparse.coo_matrix(A.tocsc()[:,idx_compon
 #%% refine spatial and temporal 
 pl.close()
 t1 = time()
-A2,b2,C2 = cse.spatial.update_spatial_components(Yr, C, f, A, sn=sn,dview=dview, **options['spatial_params'])
+A2,b2,C2,f = cse.spatial.update_spatial_components(Yr, C, f, A, sn=sn,dview=dview, **options['spatial_params'])
 options['temporal_params']['p'] = p # set it back to original value to perform full deconvolution
 C2,f2,S2,bl2,c12,neurons_sn2,g21,YrA = cse.temporal.update_temporal_components(Yr,A2,b2,C2,f,dview=dview, bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
 print((time() - t1))
