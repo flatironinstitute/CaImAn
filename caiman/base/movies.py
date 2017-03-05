@@ -32,8 +32,11 @@ import pylab as pl
 from skimage.external.tifffile import imread
 from tqdm import tqdm
 from . import timeseries
-
-
+try:
+    import sima
+    HAS_SIMA = True
+except ImportError:
+    HAS_SIMA = False
 
 from skimage.transform import warp, AffineTransform
 from skimage.feature import match_template
@@ -1191,8 +1194,16 @@ def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None,
             else:
                 print('sbx')
                 return movie(sbxread(file_name[:-4],k = 0, n_frames = np.inf), fr=fr)
-            
 
+        elif extension == '.sima':
+            if not HAS_SIMA:
+                raise Exception("sima module unavailable")
+
+            dataset = sima.ImagingDataset.load(file_name)
+            if subindices is None:
+                input_arr = np.array(dataset.sequences[0]).squeeze()
+            else:
+                input_arr = np.array(dataset.sequences[0])[subindices, :, :, :, :].squeeze()
 
         else:
             raise Exception('Unknown file type')
