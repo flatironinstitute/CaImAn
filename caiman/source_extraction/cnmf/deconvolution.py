@@ -19,7 +19,7 @@ import sys
 #%%
 
 
-def constrained_foopsi(fluor, bl=None,  c1=None, g=None,  sn=None, p=None, method='cvxpy', bas_nonneg=True,
+def constrained_foopsi(fluor, bl=None,  c1=None, g=None,  sn=None, p=None, method='oasis', bas_nonneg=True,
                        noise_range=[.25, .5], noise_method='logmexp', lags=5, fudge_factor=1.,
                        verbosity=False, solvers=None, optimize_g=0, penalty=1, **kwargs):
     """ Infer the most likely discretized spike train underlying a fluorescence trace
@@ -638,10 +638,10 @@ def constrained_oasisAR2(y, g, sn, optimize_b=True, b_nonneg=True, optimize_g=0,
     # get initial estimate of b and lam on downsampled data using AR1 model
     if decimate > 0:
         from caiman.source_extraction.cnmf.oasis import oasisAR1, constrained_oasisAR1
-        _, s, b, aa, lam = constrained_oasisAR1(
-            y[:len(y) // decimate * decimate].reshape(-1, decimate).mean(1),
-            d**decimate, sn / sqrt(decimate),
-            optimize_b=optimize_b, b_nonneg=b_nonneg, optimize_g=optimize_g)
+        _, s, b, aa, lam = constrained_oasisAR1(y.reshape(-1, decimate).mean(1),
+                                                d**decimate, sn / sqrt(decimate),
+                                                optimize_b=optimize_b, b_nonneg=b_nonneg,
+                                                optimize_g=optimize_g)
         if optimize_g:
             from scipy.optimize import minimize
             d = aa**(1. / decimate)
