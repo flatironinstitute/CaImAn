@@ -1725,7 +1725,9 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
          T = shape[2]
          
     if type(splits) is int:
+        
          idxs = np.array_split(list(range(T)),splits)
+    
     else:
          idxs = splits
          save_movie = False

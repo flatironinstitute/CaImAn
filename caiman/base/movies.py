@@ -1122,6 +1122,8 @@ def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None,
             cv2.destroyAllWindows()
 
         elif extension == '.npy': # load npy file
+            if fr is None:
+                fr = 30
             if subindices is not None:
                 input_arr=np.load(file_name)[subindices]
             else:
