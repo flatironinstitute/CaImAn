@@ -75,7 +75,7 @@ params_movie = {'fname':None,
 c,dview,n_processes = cm.cluster.setup_cluster(backend = 'local',n_processes = None,single_thread = False)
 #%%
 if params_movie['fname'] is None:
-    all_files  = [os.path.abspath(flfl) for flfl in glob.glob('*.tif')]
+    all_files  = [os.path.abspath(flfl) for flfl in glob.glob('*.npy')]
     all_files.sort()
 
 else:
@@ -94,6 +94,7 @@ num_splits_to_process = params_movie['num_splits_to_process_rig'] # if none all 
 shifts_opencv = True # apply shifts fast way (but smoothing results)
 save_movie_rigid = False # save the movies vs just get the template
 t1 = time.time()
+
 for file_to_process in all_files[:1]:
     
     fname = file_to_process
@@ -178,7 +179,7 @@ for ffnn in  fnames_map:
    print(ffnn) 
    adds_to_movie.append(np.min(cm.load(fnames_map[0])[:,border_to_0:-border_to_0,border_to_0:-border_to_0]).min())
 
-add_to_movie = np.min(adds_to_movie)
+add_to_movie = - np.min(adds_to_movie)
 print(adds_to_movie)
 print(add_to_movie)
 #%%

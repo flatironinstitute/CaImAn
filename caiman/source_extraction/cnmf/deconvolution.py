@@ -19,7 +19,7 @@ import sys
 #%%
 
 
-def constrained_foopsi(fluor, bl=None,  c1=None, g=None,  sn=None, p=None, method='cvxpy', bas_nonneg=True,
+def constrained_foopsi(fluor, bl=None,  c1=None, g=None,  sn=None, p=None, method='oasis', bas_nonneg=True,
                        noise_range=[.25, .5], noise_method='logmexp', lags=5, fudge_factor=1.,
                        verbosity=False, solvers=None, optimize_g=0, penalty=1, **kwargs):
     """ Infer the most likely discretized spike train underlying a fluorescence trace
@@ -295,9 +295,13 @@ def cvxpy_foopsi(fluor, g, sn, b=None, c1=None, bas_nonneg=True, solvers=None):
 
     '''
     try:
+        
         import cvxpy as cvx
+        
     except ImportError:
-        raise ImportError('cvxpy solver requires installation of cvxpy.')
+        
+        raise ImportError('cvxpy solver requires installation of cvxpy. Not working in windows at the moment.')
+    
     if solvers is None:
         solvers = ['ECOS', 'SCS']
 

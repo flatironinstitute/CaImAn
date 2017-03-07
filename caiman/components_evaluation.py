@@ -176,8 +176,11 @@ def classify_components_ep(Y,A,C,b,f,Athresh = 0.1,Npeaks = 5, tB=-5, tA = 25, t
                     indexes = indexes - set(LOC[j])
 
 
-            indexes = list(indexes)
+            indexes = np.array(list(indexes)).astype(np.int)
+             
+
             px = np.where(atemp>0)[0]
+
             mY = np.mean(Y[px,:][:,indexes],axis=-1)
             significant_samples.append(indexes)
             #rval[i] = np.corrcoef(mY,atemp[px])[0,1]

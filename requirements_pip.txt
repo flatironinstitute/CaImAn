@@ -1,5 +1,2 @@
-picos
-pims
 peakutils
-tifffile
 tqdm

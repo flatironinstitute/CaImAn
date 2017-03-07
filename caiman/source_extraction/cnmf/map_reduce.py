@@ -40,7 +40,7 @@ def cnmf_patches(args_in):
     formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
     hdlr.setFormatter(formatter)
     logger.addHandler(hdlr) 
-    logger.setLevel(logging.INFO)
+    logger.setLevel(logging.INFO)   
 
 
 

@@ -13,9 +13,14 @@ from builtins import range
 from past.utils import old_div
 import numpy as np
 import os
-from skimage.external.tifffile import imread
+
 import caiman as cm  
-import tifffile
+try:
+    import tifffile
+except:
+    print('tifffile not found, using skimage.externals')
+    from skimage.external import tifffile as tifffile
+
 #%%
 def load_memmap(filename):
     """ Load a memory mapped file created by the function save_memmap
@@ -253,7 +258,6 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
         print(f)
 
         if is_3D:
-            import tifffile                       
             print("Using tifffile library instead of skimage because of  3D")
 
             if idx_xy is None:
