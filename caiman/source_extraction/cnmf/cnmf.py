@@ -17,13 +17,13 @@ from past.utils import old_div
 import numpy as np
 from caiman.summary_images import local_correlations
 from caiman.components_evaluation import evaluate_components
-from .utilities import  CNMFSetParms, order_components
-from .pre_processing import preprocess_data
-from .initialization import initialize_components
-from .merging import merge_components
-from .spatial import update_spatial_components
-from .temporal import update_temporal_components
-from .map_reduce import run_CNMF_patches
+from caiman.source_extraction.cnmf.utilities import  CNMFSetParms, order_components
+from caiman.source_extraction.cnmf.pre_processing import preprocess_data
+from caiman.source_extraction.cnmf.initialization import initialize_components
+from caiman.source_extraction.cnmf.merging import merge_components
+from caiman.source_extraction.cnmf.spatial import update_spatial_components
+from caiman.source_extraction.cnmf.temporal import update_temporal_components
+from caiman.source_extraction.cnmf.map_reduce import run_CNMF_patches
 
 class CNMF(object):
     """
@@ -31,9 +31,8 @@ class CNMF(object):
     """
     def __init__(self, n_processes, k=5, gSig=[4,4], merge_thresh=0.8 , p=2, dview=None, Ain=None, Cin=None, f_in=None,do_merge=True,\
                                         ssub=2, tsub=2,p_ssub=1, p_tsub=1, method_init= 'greedy_roi',alpha_snmf=None,\
-                                        rf=None,stride=None, memory_fact=1, gnb = 1,\
-                                        N_samples_fitness = 5,robust_std = False,fitness_threshold=-10,corr_threshold=0,only_init_patch=False\
-                                        ,method_deconvolution='oasis', n_pixels_per_process = 4000, block_size = 20000, check_nan = True, skip_refinement = False):
+                                        rf=None,stride=None, memory_fact=1, gnb = 1, only_init_patch=False,\
+                                        method_deconvolution = 'oasis', n_pixels_per_process = 4000, block_size = 20000, check_nan = True, skip_refinement = False):
         """ 
         Constructor of the CNMF method
 
@@ -95,11 +94,8 @@ class CNMF(object):
         N_samples_fitness: int 
             number of samples over which exceptional events are computed (See utilities.evaluate_components) 
 
-        robust_std: bool
-            whether to use robust std estimation for fitness (See utilities.evaluate_components)        
 
-        fitness_threshold: float
-            fitness threshold to decide which components to keep. The lower the stricter is the inclusion criteria (See utilities.evaluate_components)
+        
 
         Returns:
         --------
@@ -123,11 +119,7 @@ class CNMF(object):
         self.rf=rf # half-size of the patches in pixels. rf=25, patches are 50x50
         self.stride=stride #amount of overlap between the patches in pixels   
         self.memory_fact = memory_fact  #unitless number accounting how much memory should be used. You will need to try different values to see which one would work the default is OK for a 16 GB system
-        self.gnb = gnb
-        self.N_samples_fitness=N_samples_fitness
-        self.robust_std=robust_std
-        self.fitness_threshold=fitness_threshold
-        self.corr_threshold=corr_threshold
+        self.gnb = gnb                        
         self.do_merge=do_merge
         self.alpha_snmf=alpha_snmf
         self.only_init=only_init_patch
@@ -255,7 +247,7 @@ class CNMF(object):
                 A,C,nr,merged_ROIs,S,bl,c1,sn_n,g=merge_components(Yr,A,[],np.array(C),[],np.array(C),[],options['temporal_params'],options['spatial_params'],dview=self.dview,thr=self.merge_thresh,mx=np.Inf)                         
 
             print("update temporal") 
-            C,f,S,bl,c1,neurons_sn,g2,YrA = update_temporal_components(Yr,A,b,C,f,dview=self.dview,bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
+            C,f,S,bl,c1,neurons_sn,g1,YrA = update_temporal_components(Yr,A,b,C,f,dview=self.dview,bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
 
 #           idx_components, fitness, erfc ,r_values, num_significant_samples = evaluate_components(Y,C+YrA,A,N=self.N_samples_fitness,robust_std=self.robust_std,thresh_finess=self.fitness_threshold)
 #           sure_in_idx= idx_components[np.logical_and(np.array(num_significant_samples)>0 ,np.array(r_values)>=self.corr_threshold)]
@@ -267,12 +259,16 @@ class CNMF(object):
 #           C=C[sure_in_idx,:] 
 #           YrA=YrA[sure_in_idx]
 
-        self.A=A
-        self.C=C
-        self.b=b
-        self.f=f
-        self.YrA=YrA
-        self.sn=sn
+        self.bl = bl
+        self.c1 = c1
+        self.neurons_sn = neurons_sn
+        self.g = g1
+        self.A = A 
+        self.C = C
+        self.b = b
+        self.f = f
+        self.YrA = YrA
+        self.sn = sn
 
 
         return self
