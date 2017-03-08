@@ -5,6 +5,7 @@ from caiman.cluster import start_server, stop_server
 import numpy.testing as npt
 import numpy as np
 import psutil
+from ipyparallel import Client
 
 
 def demo(parallel=False):
@@ -15,13 +16,14 @@ def demo(parallel=False):
     stop_server()
     if parallel:
         start_server()
+        c = Client()
 
     # LOAD MOVIE AND MEMORYMAP
     fname_new = cm.save_memmap(['example_movies/demoMovie.tif'], base_name='Yr')
     Yr, dims, T = cm.load_memmap(fname_new)
     # INIT
     cnm = cnmf.CNMF(n_processes, method_init='greedy_roi', k=30, gSig=[4, 4], merge_thresh=.8,
-                    p=p, dview=None, Ain=None, method_deconvolution='oasis')
+                    p=p, dview=c[:] if parallel else None, Ain=None, method_deconvolution='oasis')
     # FIT
     images = np.reshape(Yr.T, [T] + list(dims), order='F')
     cnm = cnm.fit(images)
