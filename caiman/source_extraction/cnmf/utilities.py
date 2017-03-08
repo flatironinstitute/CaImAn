@@ -48,7 +48,8 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], ssub=2, tsub=2, p=2, p_ssub=
     options['patch_params'] = {
         'ssub': p_ssub,             # spatial downsampling factor
         'tsub': p_tsub,              # temporal downsampling factor
-        'only_init' : False
+        'only_init' : False,
+        'skip_refinement' : False
     }
     
     options['preprocess_params'] = {'sn': None,                  # noise level for each pixel
