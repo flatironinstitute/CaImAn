@@ -24,7 +24,7 @@ from caiman.source_extraction.cnmf.merging import merge_components
 from caiman.source_extraction.cnmf.spatial import update_spatial_components
 from caiman.source_extraction.cnmf.temporal import update_temporal_components
 from caiman.source_extraction.cnmf.map_reduce import run_CNMF_patches
-
+import scipy
 
 
 class CNMF(object):
@@ -176,6 +176,34 @@ class CNMF(object):
 
                 self.Ain, self.Cin, self.b_in, self.f_in, center = initialize_components(
                     Y, normalize=True, **options['init_params'])
+                
+            if self.only_init: # only return values after initialization
+
+                
+                nA = np.squeeze(np.array(np.sum(np.square(self.Ain),axis=0)))
+        
+                nr=nA.size
+                Cin=scipy.sparse.coo_matrix(self.Cin)
+                
+        
+                YA = (self.Ain.T.dot(Yr).T)*scipy.sparse.spdiags(old_div(1.,nA),0,nr,nr)
+                AA = ((self.Ain.T.dot(self.Ain))*scipy.sparse.spdiags(old_div(1.,nA),0,nr,nr))
+
+                self.YrA = YA - Cin.T.dot(AA)
+                self.C = Cin.todense()           
+                
+                self.bl = None
+                self.c1 = None
+                self.neurons_sn = None
+                self.g = g
+                self.A = self.Ain                  
+                self.b = self.b_in
+                self.f = self.f_in
+                self.sn = sn
+                
+                return self    
+                
+                
             print('update spatial ...')
 
             if self.Ain.dtype == bool:
@@ -239,7 +267,7 @@ class CNMF(object):
             if self.alpha_snmf is not None:
                 options['init_params']['alpha_snmf'] = self.alpha_snmf
 
-            A, C, YrA, b, f, sn, optional_outputs = run_CNMF_patches(images.filename, (d1, d2, T), options, rf=self.rf, stride=self.stride,
+            A, C, YrA, b, f, sn, optional_outputs = run_CNMF_patches(images.filename, dims + (T,), options, rf=self.rf, stride=self.stride,
                                                                      dview=self.dview, memory_fact=self.memory_fact, gnb=self.gnb)
 
             options = CNMFSetParms(Y, self.n_processes, p=self.p, gSig=self.gSig, K=A.shape[
@@ -257,7 +285,7 @@ class CNMF(object):
                     C), [], options['temporal_params'], options['spatial_params'], dview=self.dview, thr=self.merge_thresh, mx=np.Inf)
 
             print("update temporal")
-            C, f, S, bl, c1, neurons_sn, g2, YrA = update_temporal_components(
+            C, f, S, bl, c1, neurons_sn, g1, YrA = update_temporal_components(
                 Yr, A, b, C, f, dview=self.dview, bl=None, c1=None, sn=None, g=None, **options['temporal_params'])
 
 
