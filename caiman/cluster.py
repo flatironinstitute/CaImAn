@@ -35,7 +35,7 @@ def get_patches_from_image(img,shapes,overlaps):
 
     return imgs, coords_2d
 #%%
-def extract_patch_coordinates(d1,d2,rf=(7,7),stride = (2,2)):
+def extract_patch_coordinates_old(d1,d2,rf=(7,7),stride = (2,2)):
     """
     Function that partition the FOV in patches and return the indexed in 2D and 1D (flatten, order='F') formats
     Parameters
@@ -73,6 +73,53 @@ def extract_patch_coordinates(d1,d2,rf=(7,7),stride = (2,2)):
 
     return coords_flat,coords_2d
 #%%
+def extract_patch_coordinates(dims, rf, stride):
+    """
+    Function that partition the FOV in patches and return the indexed in 2D and 1D (flatten, order='F') formats
+    Parameters
+    ----------
+    dims: tuple of int
+        dimensions of the original matrix that will be  divided in patches
+    rf: tuple of int
+        radius of receptive field, corresponds to half the size of the square patch
+    stride: tuple of int
+        degree of overlap of the patches
+    """
+    coords_flat = []
+    shapes = []
+    iters = [list(range(rf[i], dims[i] - rf[i], 2 * rf[i] - stride[i])) + [dims[i] - rf[i]]
+             for i in range(len(dims))]
+    coords = np.empty(list(map(len, iters)) + [len(dims)], dtype=np.object)
+    for count_0, xx in enumerate(iters[0]):
+        coords_x = np.arange(xx - rf[0], xx + rf[0] + 1)
+        coords_x = coords_x[(coords_x >= 0) & (coords_x < dims[0])]
+        for count_1, yy in enumerate(iters[1]):
+            coords_y = np.arange(yy - rf[1], yy + rf[1] + 1)
+            coords_y = coords_y[(coords_y >= 0) & (coords_y < dims[1])]
+            if len(dims) == 2:
+                idxs = np.meshgrid(coords_x, coords_y)
+                coords[count_0, count_1] = idxs
+                shapes.append(idxs[0].shape[::-1])
+
+
+                coords_ = np.ravel_multi_index(idxs, dims, order='F')
+                coords_flat.append(coords_.flatten())
+            else:  # 3D data
+                for count_2, zz in enumerate(iters[2]):
+                    coords_z = np.arange(zz - rf[2], zz + rf[2] + 1)
+                    coords_z = coords_z[(coords_z >= 0) & (coords_z < dims[2])]
+                    idxs = np.meshgrid(coords_x, coords_y, coords_z)
+                    shps = idxs[0].shape
+                    shapes.append([shps[1],shps[0],shps[2]])
+                    coords[count_0, count_1, count_2] = idxs
+                    coords_ = np.ravel_multi_index(idxs, dims, order='F')
+                    coords_flat.append(coords_.flatten())
+
+    for i, c in enumerate(coords_flat):
+        assert(len(c) == np.prod(shapes[i]))
+
+    return map(np.sort, coords_flat), shapes
+#%%
 def extract_rois_patch(file_name,d1,d2,rf=5,stride = 5):
     idx_flat,idx_2d=extract_patch_coordinates(d1, d2, rf=rf,stride = stride)
     perctl=95
@@ -80,8 +127,8 @@ def extract_rois_patch(file_name,d1,d2,rf=5,stride = 5):
     tol=1e-6
     max_iter=5000
     args_in=[]    
-    for id_f,id_2d in zip(idx_flat,idx_2d):        
-        args_in.append((file_name, id_f,id_2d[0].shape, perctl,n_components,tol,max_iter))
+    for id_f,id_2d in zip(idx_flat[:],idx_2d[:]):        
+        args_in.append((file_name, id_f,id_2d, perctl,n_components,tol,max_iter))
     st=time.time()
     print((len(idx_flat)))
     try:
@@ -175,7 +222,7 @@ def apply_to_patch(mmap_file, shape, dview, rf , stride , function, *args, **kwa
 
     for id_f,id_2d in zip(idx_flat[:],idx_2d[:]):        
 
-        args_in.append((mmap_file.filename, id_f,id_2d[0].shape, function, args, kwargs))
+        args_in.append((mmap_file.filename, id_f,id_2d, function, args, kwargs))
 
 
 

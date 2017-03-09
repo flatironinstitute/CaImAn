@@ -20,7 +20,7 @@ import time
 import scipy
 import os
 from caiman.mmapping import load_memmap
-from caiman.cluster import extract_patch_coordinates,extract_rois_patch
+from caiman.cluster import extract_patch_coordinates,extract_rois_patch,extract_patch_coordinates_old
 #from caiman.source_extraction.cnmf import cnmf as cnmf
 
 
@@ -63,12 +63,14 @@ def cnmf_patches(args_in):
         d,T=Yr.shape      
 
         
-        Y=np.reshape(Yr,(shapes[1],shapes[0],T),order='F')  
-        Y.filename=file_name
+#        Y=np.reshape(Yr,(shapes[1],shapes[0],T),order='F')  
+#        Y.filename=file_name
         
-
-        dims = shapes[1],shapes[0]
+       
+#        dims = shapes[1],shapes[0]
+        dims = shapes #shapes[1],shapes[0],shapes[2]
         images = np.reshape(Yr.T, [T] + list(dims), order='F')
+
         images.filename=file_name
         
         cnm = cnmf.CNMF(n_processes = 1, k = options['init_params']['K'], gSig = options['init_params']['gSig'], merge_thresh = options['merging']['thr'], p = p, dview = None,  Ain = None,  Cin = None, f_in = None, do_merge = True,\
@@ -81,7 +83,6 @@ def cnmf_patches(args_in):
         cnm = cnm.fit(images)   
 
 
-        Y = []
         Yr = []
         images = []
         
@@ -195,36 +196,55 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, gnb = 1, dvie
 
     optional_outputs: set of outputs related to the result of CNMF ALGORITHM ON EACH patch   
     """
-    (d1,d2,T)=shape
-    d=d1*d2
-    K=options['init_params']['K']
+#    (d1,d2,T)=shape
+    
+#    K=options['init_params']['K']
+#    if not np.isscalar(rf):
+#        rf1,rf2=rf
+#    else:
+#        rf1=rf
+#        rf2=rf
 
-    if not np.isscalar(rf):
-        rf1,rf2=rf
+#    if not np.isscalar(stride):    
+#        stride1,stride2=stride
+#    else:
+#        stride1=stride
+#        stride2=stride
+
+
+    dims=shape[:-1]
+    d = np.prod(dims)
+    T = shape[-1]
+    
+    if np.isscalar(rf):
+        rfs=[rf]*len(dims)
     else:
-        rf1=rf
-        rf2=rf
-
-    if not np.isscalar(stride):    
-        stride1,stride2=stride
+        rfs = rf
+        
+    if np.isscalar(stride):    
+        strides = [stride]*len(dims)
     else:
-        stride1=stride
-        stride2=stride
-
-    options['preprocess_params']['n_pixels_per_process']=np.int(old_div((rf1*rf2),memory_fact))
-    options['spatial_params']['n_pixels_per_process']=np.int(old_div((rf1*rf2),memory_fact))
-    options['temporal_params']['n_pixels_per_process']=np.int(old_div((rf1*rf2),memory_fact))
+        strides = stride
+        
+    options['preprocess_params']['n_pixels_per_process']=np.int(old_div(np.prod(rfs),memory_fact))
+    options['spatial_params']['n_pixels_per_process']=np.int(old_div(np.prod(rfs),memory_fact))
+    options['temporal_params']['n_pixels_per_process']=np.int(old_div(np.prod(rfs),memory_fact))
     nb = options['spatial_params']['nb']
 
-    idx_flat,idx_2d=extract_patch_coordinates(d1, d2, rf=(rf1,rf2), stride = (stride1,stride2))
-#    import pdb 
-#    pdb.set_trace()
+#    idx_flat,idx_2d=extract_patch_coordinates_old(shape[0],shape[1], rfs, strides)
+#    args_in=[]    
+#    for id_f,id_2d in zip(idx_flat[:],idx_2d[:,:,0].flatten()):        
+#        print(id_2d.shape)
+#        args_in.append((file_name, id_f,id_2d.shape, options))
+
+
+    idx_flat,idx_2d=extract_patch_coordinates(dims, rfs, strides)
+    print('*')
     args_in=[]    
-    for id_f,id_2d in zip(idx_flat[:],idx_2d[:,:,0].flatten()):        
-
-        args_in.append((file_name, id_f,id_2d.shape, options))
-
-    print((len(idx_flat)))
+    for id_f,id_2d in zip(idx_flat,idx_2d):        
+        print(id_2d)
+        args_in.append((file_name, id_f,id_2d, options))
+#
 
     st=time.time()        
 
@@ -264,6 +284,7 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, gnb = 1, dvie
                 count_bgr += 1
 
             for ii in range(np.shape(A)[-1]):            
+                
                 new_comp=old_div(A.tocsc()[:,ii],np.sqrt(np.sum(np.array(A.tocsc()[:,ii].todense())**2)))
                 if new_comp.sum()>0:
                     count+=1
@@ -277,7 +298,7 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, gnb = 1, dvie
     YrA_tot=np.zeros((count,T))
     F_tot=np.zeros((nb*num_patches,T))
     mask=np.zeros(d)
-    sn_tot=np.zeros((d1*d2))
+    sn_tot=np.zeros((d))
     b_tot=[]
     f_tot=[]
     bl_tot=[]
