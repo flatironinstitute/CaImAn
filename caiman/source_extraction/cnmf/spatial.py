@@ -189,8 +189,9 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
         A_in = np.ones((d, np.shape(C)[1]), dtype=bool)
 
     if n_pixels_per_process > d:
-        raise Exception(
-            'The number of pixels per process (n_pixels_per_process) is larger than the total number of pixels!! Decrease suitably.')
+        print(
+            'The number of pixels per process (n_pixels_per_process) is larger than the total number of pixels!! Decreasing suitably.')
+        n_pixels_per_process = d
 
     if f is not None:
         nb = f.shape[0]
