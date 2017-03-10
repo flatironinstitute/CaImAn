@@ -143,7 +143,7 @@ class CNMF(object):
         self.b=None
         self.f=None
 
-	self.sn = None
+        self.sn = None
         self.g = None
 
 
