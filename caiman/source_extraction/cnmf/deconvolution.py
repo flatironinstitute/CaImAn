@@ -621,12 +621,12 @@ def constrained_oasisAR2(y, g, sn, optimize_b=True, b_nonneg=True, optimize_g=0,
     * Friedrich J and Paninski L, NIPS 2016
     * Friedrich J, Zhou P, and Paninski L, arXiv 2016
     """
-
     T = len(y)
     d = (g[0] + sqrt(g[0] * g[0] + 4 * g[1])) / 2
     r = (g[0] - sqrt(g[0] * g[0] + 4 * g[1])) / 2
     if window is None:
         window = int(min(T, max(200, -5 / log(d))))
+
     if not optimize_g:
         g11 = (np.exp(log(d) * np.arange(1, T + 1)) * np.arange(1, T + 1)) if d == r else \
             (np.exp(log(d) * np.arange(1, T + 1)) -
@@ -664,10 +664,13 @@ def constrained_oasisAR2(y, g, sn, optimize_b=True, b_nonneg=True, optimize_g=0,
         elif decimate > 1:
             s = oasisAR1(y - b, d, lam=lam * (1 - aa) / (1 - d))[1]
         lam *= (1 - d**decimate) / f_lam
+
         # this window size seems necessary and sufficient
-        ff = np.hstack([a + np.arange(-2, 2) for a in np.where(s > s.max() / 10.)[0]])
+        possible_spikes = [x + np.arange(-2, 3) for x in np.where(s > s.max() / 10.)[0]]
+        ff = np.array(possible_spikes, dtype=np.int).ravel()
         # ff = np.hstack([a * decimate + np.arange(-decimate, decimate)
         #                 for a in np.where(s > 1e-6)[0]])
+
         ff = np.unique(ff[(ff >= 0) * (ff < T)])
         mask = np.zeros(T, dtype=bool)
         mask[ff] = True
