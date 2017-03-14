@@ -198,7 +198,7 @@ sn: float
                 ff = np.nonzero(A_merged[:,i])[0]         
     #            cc,_,_,Ptemp,_ = update_temporal_components(np.asarray(Y_res[ff,:]),A_merged[ff,i],b[ff],aa_2,f,p=p,deconv_method=deconv_method)
                 cc,_,_,_,bl__,c1__,sn__,g__,YrA = update_temporal_components(np.asarray(Y_res[ff,:]),A_merged[ff,i],b[ff],aa_2,f,dview=dview,bl=None,c1=None,sn=None,g=None,**temporal_params)                     
-                aa,bb,cc = update_spatial_components(np.asarray(Y_res),cc,f,A_merged[:,i],sn=sn_pix,dview=dview,**spatial_params)
+                aa,bb,cc,f = update_spatial_components(np.asarray(Y_res),cc,f,A_merged[:,i],sn=sn_pix,dview=dview,**spatial_params)
                 A_merged[:,i] = aa.tocsr();                
                 cc,_,_,ss,bl__,c1__,sn__,g__,YrA = update_temporal_components(Y_res[ff,:],A_merged[ff,i],bb[ff],cc,f,dview=dview,bl=bl__,c1=c1__,sn=sn__,g=g__,**temporal_params)                
 

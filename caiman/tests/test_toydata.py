@@ -42,7 +42,6 @@ def pipeline(D):
     options['spatial_params']['thr_method'] = 'nrg'
     options['spatial_params']['extract_cc'] = False
     options['temporal_params']['method'] = 'oasis'
-    options['spatial_params']['n_pixels_per_process'] = np.prod(dims) / n_processes
 
     # PREPROCESS DATA AND INITIALIZE COMPONENTS
     Yr, sn, g, psx = cnmf.pre_processing.preprocess_data(
@@ -51,7 +50,7 @@ def pipeline(D):
         Y, **options['init_params'])
 
     # UPDATE SPATIAL COMPONENTS
-    A, b, Cin = cnmf.spatial.update_spatial_components(
+    A, b, Cin, f_in = cnmf.spatial.update_spatial_components(
         Yr, Cin, f_in, Ain, sn=sn, **options['spatial_params'])
 
     # UPDATE TEMPORAL COMPONENTS

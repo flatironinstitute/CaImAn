@@ -168,12 +168,7 @@ class CNMF(object):
 
                 self.Ain, self.Cin , self.b_in, self.f_in, center=initialize_components(Y, normalize=True, **options['init_params'])  
 
-            if self.Ain.dtype == bool:
-                A,b,Cin,fin = update_spatial_components(Yr, self.Cin, self.f_in, self.Ain, sn=sn, dview=self.dview,**options['spatial_params'])
-                self.f_in=fin
-            else:
-                A,b,Cin = update_spatial_components(Yr, self.Cin, self.f_in, self.Ain, sn=sn, dview=self.dview,**options['spatial_params'])
-
+            A,b,Cin,self.f_in = update_spatial_components(Yr, self.Cin, self.f_in, self.Ain, sn=sn, dview=self.dview,**options['spatial_params'])
 
             options['temporal_params']['p'] = 0 # set this to zero for fast updating without deconvolution
 
@@ -184,7 +179,7 @@ class CNMF(object):
 
             print((A.shape))    
 
-            A,b,C = update_spatial_components(Yr, C, f, A, sn=sn,dview=self.dview, **options['spatial_params'])
+            A,b,C,f = update_spatial_components(Yr, C, f, A, sn=sn,dview=self.dview, **options['spatial_params'])
             options['temporal_params']['p'] = self.p # set it back to original value to perform full deconvolution
 
             C,f,S,bl,c1,neurons_sn,g1,YrA = update_temporal_components(Yr,A,b,C,f,dview=self.dview,bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
