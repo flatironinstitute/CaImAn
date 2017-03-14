@@ -20,7 +20,8 @@ import time
 import scipy
 import os
 from caiman.mmapping import load_memmap
-from caiman.cluster import extract_patch_coordinates,extract_rois_patch
+from caiman.cluster import extract_patch_coordinates,extract_rois_patch,extract_patch_coordinates_old
+#from caiman.source_extraction.cnmf import cnmf as cnmf
 
 
 #%%    
@@ -29,7 +30,7 @@ def cnmf_patches(args_in):
     import caiman as cm
     import time
     import logging
-
+    from caiman.source_extraction.cnmf import cnmf as cnmf
 
 #    file_name, idx_,shapes,p,gSig,K,fudge_fact=args_in
     file_name, idx_,shapes,options=args_in
@@ -40,7 +41,7 @@ def cnmf_patches(args_in):
     formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
     hdlr.setFormatter(formatter)
     logger.addHandler(hdlr) 
-    logger.setLevel(logging.INFO)
+    logger.setLevel(logging.INFO)   
 
 
 
@@ -60,62 +61,89 @@ def cnmf_patches(args_in):
 
         Yr.filename=file_name
         d,T=Yr.shape      
+
         
-        Y=np.reshape(Yr,(shapes[1],shapes[0],T),order='F')  
-        Y.filename=file_name
+#        Y=np.reshape(Yr,(shapes[1],shapes[0],T),order='F')  
+#        Y.filename=file_name
         
-        [d1,d2,T]=Y.shape
+       
+#        dims = shapes[1],shapes[0]
+        dims = shapes #shapes[1],shapes[0],shapes[2]
+        images = np.reshape(Yr.T, [T] + list(dims), order='F')
 
-        options['spatial_params']['dims']=(d1,d2)
-        logger.info('Preprocess Data')
-        Yr,sn,g,psx=cm.source_extraction.cnmf.pre_processing.preprocess_data(Yr,**options['preprocess_params'])
+        images.filename=file_name
         
-
-        logger.info('Initialize Components') 
-
-        Ain, Cin, b_in, f_in, center=cm.source_extraction.cnmf.initialization.initialize_components(Y, **options['init_params']) 
+        cnm = cnmf.CNMF(n_processes = 1, k = options['init_params']['K'], gSig = options['init_params']['gSig'], merge_thresh = options['merging']['thr'], p = p, dview = None,  Ain = None,  Cin = None, f_in = None, do_merge = True,\
+                                        ssub = options['init_params']['ssub'], tsub = options['init_params']['ssub'], p_ssub = 1, p_tsub = 1, method_init = options['init_params']['method'], alpha_snmf = options['init_params']['alpha_snmf'],\
+                                        rf=None,stride=None, memory_fact=1, gnb = options['init_params']['nb'],\
+                                        only_init_patch = options['patch_params']['only_init']\
+                                        ,method_deconvolution =  options['temporal_params']['method'], n_pixels_per_process = options['preprocess_params']['n_pixels_per_process'],\
+                                        block_size = options['temporal_params']['block_size'], check_nan = options['preprocess_params']['check_nan'], skip_refinement = options['patch_params']['skip_refinement'])
         
-        nA = np.squeeze(np.array(np.sum(np.square(Ain),axis=0)))
+        cnm = cnm.fit(images)   
 
-        nr=nA.size
-        Cin=coo_matrix(Cin)
+
+        Yr = []
+        images = []
         
-
-        YA = (Ain.T.dot(Yr).T)*scipy.sparse.spdiags(old_div(1.,nA),0,nr,nr)
-        AA = ((Ain.T.dot(Ain))*scipy.sparse.spdiags(old_div(1.,nA),0,nr,nr))
-        YrA = YA - Cin.T.dot(AA)
-        Cin=Cin.todense()           
-
-        if options['patch_params']['only_init']:
-
-            return idx_,shapes, coo_matrix(Ain), b_in, Cin, f_in, None, None , None, None, g, sn, options, YrA.T
-
-        else:
-
-            logger.info('Spatial Update')                                                      
-            A,b,Cin,f_in = cm.source_extraction.cnmf.spatial.update_spatial_components(Yr, Cin, f_in, Ain, sn=sn, **options['spatial_params'])
-            options['temporal_params']['p'] = 0 # set this to zero for fast updating without deconvolution
-            
-
-            logger.info('Temporal Update')  
-            C,f,S,bl,c1,neurons_sn,g,YrA = cm.source_extraction.cnmf.temporal.update_temporal_components(Yr,A,b,Cin,f_in,bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
-
-            logger.info('Merge Components') 
-            A_m,C_m,nr_m,merged_ROIs,S_m,bl_m,c1_m,sn_m,g_m=cm.source_extraction.cnmf.merging.merge_components(Yr,A,b,C,f,S,sn,options['temporal_params'], options['spatial_params'], bl=bl, c1=c1, sn=neurons_sn, g=g, thr=options['merging']['thr'], fast_merge = True)
-
-            logger.info('Update Spatial II')
-            A2,b2,C2,f = cm.source_extraction.cnmf.spatial.update_spatial_components(Yr, C_m, f, A_m, sn=sn, **options['spatial_params'])
-
-            logger.info('Update Temporal II')                                                       
-            options['temporal_params']['p'] = p # set it back to original value to perform full deconvolution
-            C2,f2,S2,bl2,c12,neurons_sn2,g21,YrA = cm.source_extraction.cnmf.temporal.update_temporal_components(Yr,A2,b2,C2,f,bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
+        return idx_,shapes,scipy.sparse.coo_matrix(cnm.A),cnm.b,cnm.C,cnm.f,cnm.S,cnm.bl,cnm.c1,cnm.neurons_sn,cnm.g,cnm.sn,cnm.options,cnm.YrA.T
 
 
-            Y=[]
-            Yr=[]
-
-            logger.info('Done!')
-            return idx_,shapes,A2,b2,C2,f2,S2,bl2,c12,neurons_sn2,g21,sn,options,YrA
+#        [d1,d2,T]=Y.shape
+#
+#        options['spatial_params']['dims']=(d1,d2)
+#        logger.info('Preprocess Data')
+#        Yr,sn,g,psx=cm.source_extraction.cnmf.pre_processing.preprocess_data(Yr,**options['preprocess_params'])
+#        
+#
+#        logger.info('Initialize Components') 
+#
+#        Ain, Cin, b_in, f_in, center=cm.source_extraction.cnmf.initialization.initialize_components(Y, **options['init_params']) 
+#        
+#        nA = np.squeeze(np.array(np.sum(np.square(Ain),axis=0)))
+#
+#        nr=nA.size
+#        Cin=coo_matrix(Cin)
+#        
+#
+#        YA = (Ain.T.dot(Yr).T)*scipy.sparse.spdiags(old_div(1.,nA),0,nr,nr)
+#        AA = ((Ain.T.dot(Ain))*scipy.sparse.spdiags(old_div(1.,nA),0,nr,nr))
+#        YrA = YA - Cin.T.dot(AA)
+#        Cin=Cin.todense()           
+#
+#        if options['patch_params']['only_init']:
+#
+#            return idx_,shapes, coo_matrix(Ain), b_in, Cin, f_in, None, None , None, None, g, sn, options, YrA.T
+#
+#        else:
+#            
+#            raise Exception('Bug here, need to double check. For now set ["patch_params"]["only_init"] = True')
+#            logger.info('Spatial Update')                                                      
+#            A,b,Cin, f_in = cm.source_extraction.cnmf.spatial.update_spatial_components(Yr, Cin, f_in, Ain, sn=sn, **options['spatial_params'])
+#            options['temporal_params']['p'] = 0 # set this to zero for fast updating without deconvolution
+#            
+#            import pdb
+#            pdb.set_trace()
+#            
+#            logger.info('Temporal Update')  
+#            C,f,S,bl,c1,neurons_sn,g,YrA = cm.source_extraction.cnmf.temporal.update_temporal_components(Yr,A,b,Cin,f_in,bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
+#
+#            logger.info('Merge Components') 
+#            A_m,C_m,nr_m,merged_ROIs,S_m,bl_m,c1_m,sn_m,g_m=cm.source_extraction.cnmf.merging.merge_components(Yr,A,b,C,f,S,sn,options['temporal_params'], options['spatial_params'], bl=bl, c1=c1, sn=neurons_sn, g=g, thr=options['merging']['thr'], fast_merge = True)
+#
+#            logger.info('Update Spatial II')
+#            A2,b2,C2,f = cm.source_extraction.cnmf.spatial.update_spatial_components(Yr, C_m, f, A_m, sn=sn, **options['spatial_params'])
+#
+#            logger.info('Update Temporal II')                                                       
+#            options['temporal_params']['p'] = p # set it back to original value to perform full deconvolution
+#            C2,f2,S2,bl2,c12,neurons_sn2,g21,YrA = cm.source_extraction.cnmf.temporal.update_temporal_components(Yr,A2,b2,C2,f,bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
+#
+#
+#            Y=[]
+#            Yr=[]
+#
+#            logger.info('Done!')
+#            return idx_,shapes,A2,b2,C2,f2,S2,bl2,c12,neurons_sn2,g21,sn,options,YrA
 
     else:
         return None                
@@ -167,36 +195,55 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, gnb = 1, dvie
 
     optional_outputs: set of outputs related to the result of CNMF ALGORITHM ON EACH patch   
     """
-    (d1,d2,T)=shape
-    d=d1*d2
-    K=options['init_params']['K']
+#    (d1,d2,T)=shape
+    
+#    K=options['init_params']['K']
+#    if not np.isscalar(rf):
+#        rf1,rf2=rf
+#    else:
+#        rf1=rf
+#        rf2=rf
 
-    if not np.isscalar(rf):
-        rf1,rf2=rf
+#    if not np.isscalar(stride):    
+#        stride1,stride2=stride
+#    else:
+#        stride1=stride
+#        stride2=stride
+
+
+    dims=shape[:-1]
+    d = np.prod(dims)
+    T = shape[-1]
+    
+    if np.isscalar(rf):
+        rfs=[rf]*len(dims)
     else:
-        rf1=rf
-        rf2=rf
-
-    if not np.isscalar(stride):    
-        stride1,stride2=stride
+        rfs = rf
+        
+    if np.isscalar(stride):    
+        strides = [stride]*len(dims)
     else:
-        stride1=stride
-        stride2=stride
-
-    options['preprocess_params']['n_pixels_per_process']=np.int(old_div((rf1*rf2),memory_fact))
-    options['spatial_params']['n_pixels_per_process']=np.int(old_div((rf1*rf2),memory_fact))
-    options['temporal_params']['n_pixels_per_process']=np.int(old_div((rf1*rf2),memory_fact))
+        strides = stride
+        
+    options['preprocess_params']['n_pixels_per_process']=np.int(old_div(np.prod(rfs),memory_fact))
+    options['spatial_params']['n_pixels_per_process']=np.int(old_div(np.prod(rfs),memory_fact))
+    options['temporal_params']['n_pixels_per_process']=np.int(old_div(np.prod(rfs),memory_fact))
     nb = options['spatial_params']['nb']
 
-    idx_flat,idx_2d=extract_patch_coordinates(d1, d2, rf=(rf1,rf2), stride = (stride1,stride2))
-#    import pdb 
-#    pdb.set_trace()
+#    idx_flat,idx_2d=extract_patch_coordinates_old(shape[0],shape[1], rfs, strides)
+#    args_in=[]    
+#    for id_f,id_2d in zip(idx_flat[:],idx_2d[:,:,0].flatten()):        
+#        print(id_2d.shape)
+#        args_in.append((file_name, id_f,id_2d.shape, options))
+
+
+    idx_flat,idx_2d=extract_patch_coordinates(dims, rfs, strides)
+    print('*')
     args_in=[]    
-    for id_f,id_2d in zip(idx_flat[:],idx_2d[:,:,0].flatten()):        
-
-        args_in.append((file_name, id_f,id_2d.shape, options))
-
-    print((len(idx_flat)))
+    for id_f,id_2d in zip(idx_flat,idx_2d):        
+        print(id_2d)
+        args_in.append((file_name, id_f,id_2d, options))
+#
 
     st=time.time()        
 
@@ -236,6 +283,7 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, gnb = 1, dvie
                 count_bgr += 1
 
             for ii in range(np.shape(A)[-1]):            
+                
                 new_comp=old_div(A.tocsc()[:,ii],np.sqrt(np.sum(np.array(A.tocsc()[:,ii].todense())**2)))
                 if new_comp.sum()>0:
                     count+=1
@@ -249,7 +297,7 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, gnb = 1, dvie
     YrA_tot=np.zeros((count,T))
     F_tot=np.zeros((nb*num_patches,T))
     mask=np.zeros(d)
-    sn_tot=np.zeros((d1*d2))
+    sn_tot=np.zeros((d))
     b_tot=[]
     f_tot=[]
     bl_tot=[]

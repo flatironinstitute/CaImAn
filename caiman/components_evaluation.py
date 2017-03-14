@@ -144,7 +144,7 @@ def find_activity_intervals(C,Npeaks = 5, tB=-5, tA = 25, thres = 0.3):
     LOC = []
     for i in range(K):
         if len(L[i])>0:
-            interval = np.kron(L[i],np.ones(tA-tB,dtype=int)) + np.kron(np.ones(len(L[i]),dtype=int),np.arange(tB,tA))                        
+            interval = np.kron(L[i],np.ones(int(np.round(tA-tB)),dtype=int)) + np.kron(np.ones(len(L[i]),dtype=int),np.arange(tB,tA))                        
             interval[interval<0] = 0
             interval[interval>T-1] = T-1
             LOC.append(np.array(list(set(interval))))        
@@ -176,8 +176,11 @@ def classify_components_ep(Y,A,C,b,f,Athresh = 0.1,Npeaks = 5, tB=-5, tA = 25, t
                     indexes = indexes - set(LOC[j])
 
 
-            indexes = list(indexes)
+            indexes = np.array(list(indexes)).astype(np.int)
+             
+
             px = np.where(atemp>0)[0]
+
             mY = np.mean(Y[px,:][:,indexes],axis=-1)
             significant_samples.append(indexes)
             #rval[i] = np.corrcoef(mY,atemp[px])[0,1]

@@ -160,18 +160,37 @@ pl.figure()
 crd = plot_contours(A2.tocsc()[:,:],Cn,thr=0.9)
 
 #%%
+#%%
 final_frate = 10
-tB = np.minimum(-2,np.floor(-5./30*final_frate))
-tA = np.maximum(5,np.ceil(25./30*final_frate))
-Npeaks=10
-traces=C2+YrA
+
+Npeaks = 10
+traces = C + YrA
 #        traces_a=traces-scipy.ndimage.percentile_filter(traces,8,size=[1,np.shape(traces)[-1]/5])
 #        traces_b=np.diff(traces,axis=1)
-fitness_raw, fitness_delta, erfc_raw, erfc_delta, r_values, significant_samples = evaluate_components(Y, traces, A2, C2, b2, f2, remove_baseline=True, N=5, robust_std=False, Athresh = 0.1, Npeaks = Npeaks, tB=tB, tA = tA, thresh_C = 0.3)
+fitness_raw, fitness_delta, erfc_raw, erfc_delta, r_values, significant_samples = \
+    evaluate_components(Y, traces, A, C, b, f, final_frate, remove_baseline=True,
+                                      N=5, robust_std=False, Athresh=0.1, Npeaks=Npeaks,  thresh_C=0.3)
 
-idx_components_r=np.where(r_values>=.6)[0]
-idx_components_raw=np.where(fitness_raw<-60)[0]        
-idx_components_delta=np.where(fitness_delta<-20)[0]   
+idx_components_r = np.where(r_values >= .85)[0]
+idx_components_raw = np.where(fitness_raw < -40)[0]
+idx_components_delta = np.where(fitness_delta < -40)[0]
+
+
+#min_radius = gSig[0] - 2
+#masks_ws, idx_blobs, idx_non_blobs = extract_binary_masks_blob(
+#    A.tocsc(), min_radius, dims, num_std_threshold=1,
+#    minCircularity=0.7, minInertiaRatio=0.2, minConvexity=.5)
+
+idx_components = np.union1d(idx_components_r, idx_components_raw)
+idx_components = np.union1d(idx_components, idx_components_delta)
+#idx_blobs = np.intersect1d(idx_components, idx_blobs)
+idx_components_bad = np.setdiff1d(list(range(len(traces))), idx_components)
+
+print(' ***** ')
+print((len(traces)))
+print((len(idx_components)))
+#print((len(idx_blobs)))
+
 
 
 min_radius=gSig[0]-2

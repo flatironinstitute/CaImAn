@@ -9,6 +9,7 @@ import numpy as np
 import glob
 import pylab as pl
 import caiman as cm
+import os
 #%% start cluster
 c,dview,n_processes = cm.cluster.setup_cluster(backend = 'local',n_processes = None,single_thread = False)
 #%% FOR LOADING ALL TIFF FILES IN A FILE AND SAVING THEM ON A SINGLE MEMORY MAPPABLE FILE

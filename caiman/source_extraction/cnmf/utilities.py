@@ -48,7 +48,8 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], ssub=2, tsub=2, p=2, p_ssub=
     options['patch_params'] = {
         'ssub': p_ssub,             # spatial downsampling factor
         'tsub': p_tsub,              # temporal downsampling factor
-        'only_init' : False
+        'only_init' : True,
+        'skip_refinement' : False
     }
     
     options['preprocess_params'] = {'sn': None,                  # noise level for each pixel
@@ -91,13 +92,13 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], ssub=2, tsub=2, p=2, p_ssub=
         'method': 'dilate',#'ellipse', 'dilate',
         'dist': 3,                       # expansion factor of ellipse
         'n_pixels_per_process': n_pixels_per_process,   # number of pixels to be processed by eacg worker
-        'medw' : (3, 3),                                # window of median filter
+        'medw' : (3,)*len(dims),                                # window of median filter
         'thr_method' : 'nrg',                           #  Method of thresholding ('max' or 'nrg')
         'maxthr' : 0.1,                                 # Max threshold
         'nrgthr' : 0.9999,                              # Energy threshold
         'extract_cc' : True,                            # Flag to extract connected components (might want to turn to False for dendritic imaging)
-        'se' : np.ones((3, 3), dtype=np.int),           # Morphological closing structuring element
-        'ss' : np.ones((3, 3), dtype=np.int),           # Binary element for determining connectivity            
+        'se' : np.ones((3,)*len(dims), dtype=np.uint8),           # Morphological closing structuring element
+        'ss' : np.ones((3,)*len(dims), dtype=np.uint8),           # Binary element for determining connectivity            
         'nb' : nb,                                      # number of background components
         'method_ls':'lasso_lars',                        # 'nnls_L0'. Nonnegative least square with L0 penalty        
                                                         #'lasso_lars' lasso lars function from scikit learn

@@ -8,8 +8,6 @@ from __future__ import print_function
 
 #%%
 import numpy as np
-import os
-import tifffile
 
 
 #%% 
@@ -45,7 +43,18 @@ def get_image_description_SI(fname):
     """Given a tif file acquired with Scanimage it returns a dictionary containing the information in the image description field
     """
     image_descriptions=[]
-    tf=tifffile.TiffFile(fname)
+    
+    try:
+        
+        from tifffile import TiffFile
+    
+    except:
+
+        print('tifffile package not found, using skimage.external.tifffile')
+        from skimage.external.tifffile import TiffFile 
+        
+    tf=TiffFile(fname)
+    
     for idx,pag in enumerate(tf.pages):
         if idx%1000==0:
             print(idx)

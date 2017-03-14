@@ -47,145 +47,149 @@ from caiman.utils.visualization import plot_contours,view_patches_bar
 from caiman.base.rois import extract_binary_masks_blob
 
 
-#%%
+##%%
 params_movie = {'fname':None,
-                'max_shifts':(10,10), # maximum allow rigid shift
-                'splits_rig':20, # for parallelization split the movies in  num_splits chuncks across time
-                'num_splits_to_process_rig':None, # if none all the splits are processed and the movie is saved
-                'strides': (128,128), # intervals at which patches are laid out for motion correction
-                'overlaps': (32,32), # overlap between pathes (size of patch strides+overlaps)
-                'splits_els':20, # for parallelization split the movies in  num_splits chuncks across time
-                'num_splits_to_process_els':[None], # if none all the splits are processed and the movie is saved
-                'upsample_factor_grid':4, # upsample factor to avoid smearing when merging patches
-                'max_deviation_rigid':3, #maximum deviation allowed for patch with respect to rigid shift
+#                'max_shifts':(10,10), # maximum allow rigid shift
+#                'splits_rig':20, # for parallelization split the movies in  num_splits chuncks across time
+#                'num_splits_to_process_rig':None, # if none all the splits are processed and the movie is saved
+#                'strides': (128,128), # intervals at which patches are laid out for motion correction
+#                'overlaps': (32,32), # overlap between pathes (size of patch strides+overlaps)
+#                'splits_els':20, # for parallelization split the movies in  num_splits chuncks across time
+#                'num_splits_to_process_els':[None], # if none all the splits are processed and the movie is saved
+#                'upsample_factor_grid':4, # upsample factor to avoid smearing when merging patches
+#                'max_deviation_rigid':3, #maximum deviation allowed for patch with respect to rigid shift
                 'p': 1, # order of the autoregressive system  
                 'merge_thresh' : 0.8,  # merging threshold, max correlation allowed
-                'rf' : (15,15),  # half-size of the patches in pixels. rf=25, patches are 50x50
-                'stride_cnmf' : (5,5),  # amount of overlap between the patches in pixels
+                'rf' : (20,20),  # half-size of the patches in pixels. rf=25, patches are 50x50
+                'stride_cnmf' : (20,20),  # amount of overlap between the patches in pixels
                 'K' : 7,  #  number of components per patch
-                'is_dendrites': False,  # if dendritic. In this case you need to set init_method to sparse_nmf
-                'init_method' : 'greedy_roi',
+                'is_dendrites': True,  # if dendritic. In this case you need to set init_method to sparse_nmf
+                'init_method' : 'sparse_nmf',
                 'gSig' : [8,8],  # expected half size of neurons    
-                'alpha_snmf' : None,  # this controls sparsity  
+                'alpha_snmf' : 10e1,  # this controls sparsity  
                 'final_frate' : 30                          
                 }
-#%%
-#m_orig = cm.load(params_movie['fname'])
+##%%
+##m_orig = cm.load(params_movie['fname'])
 #%% start local cluster
 c,dview,n_processes = cm.cluster.setup_cluster(backend = 'local',n_processes = None,single_thread = False)
 #%%
-if params_movie['fname'] is None:
-    all_files  = [os.path.abspath(flfl) for flfl in glob.glob('*.npy')]
-    all_files.sort()
-
-else:
-    all_files = [params_movie['fname']]    
-    
-print(all_files)    
-#%% RIGID MOTION CORRECTION
-total_template_rig = None
-total_shifts = []
-templates_all = []
-add_to_movie = - np.min(np.array(cm.load(all_files[0])).astype(np.float32))
-max_shifts = params_movie['max_shifts'] # maximum allowed shifts
-num_iter = 1 # number of times the algorithm is run
-splits = params_movie['splits_rig'] # for parallelization split the movies in  num_splits chuncks across time
-num_splits_to_process = params_movie['num_splits_to_process_rig'] # if none all the splits are processed and the movie is saved
-shifts_opencv = True # apply shifts fast way (but smoothing results)
-save_movie_rigid = False # save the movies vs just get the template
-t1 = time.time()
-
-for file_to_process in all_files[:1]:
-    
-    fname = file_to_process
-
-
-    print(dview)
-    fname_tot_rig, total_template_rig, templates_rig, shifts_rig = cm.motion_correction.motion_correct_batch_rigid(fname,\
-                        max_shifts, dview = dview, splits = splits ,num_splits_to_process = num_splits_to_process,\
-                        num_iter = num_iter,  template = total_template_rig, shifts_opencv = shifts_opencv , save_movie_rigid = save_movie_rigid, add_to_movie = add_to_movie)
-    total_shifts.append(shifts_rig)
-    templates_all.append(total_template_rig)
-    t2 = time.time() - t1
-    print(t2)
-    pl.imshow(total_template_rig,cmap = 'gray',vmax = np.percentile(total_template_rig,95))    
-    pl.pause(.01)
-
-t2 = time.time() - t1
-print(t2)
-
+#if params_movie['fname'] is None:
+#    all_files  = [os.path.abspath(flfl) for flfl in glob.glob('*.npy')]
+#    all_files.sort()
+#
+#else:
+#    all_files = [params_movie['fname']]    
+#    
+#print(all_files)    
+##%% RIGID MOTION CORRECTION
+#total_template_rig = None
+#total_shifts = []
+#templates_all = []
+#add_to_movie = - np.min(np.array(cm.load(all_files[0])).astype(np.float32))
+#max_shifts = params_movie['max_shifts'] # maximum allowed shifts
+#num_iter = 1 # number of times the algorithm is run
+#splits = params_movie['splits_rig'] # for parallelization split the movies in  num_splits chuncks across time
+#num_splits_to_process = params_movie['num_splits_to_process_rig'] # if none all the splits are processed and the movie is saved
+#shifts_opencv = True # apply shifts fast way (but smoothing results)
+#save_movie_rigid = False # save the movies vs just get the template
+#t1 = time.time()
+#
+#for file_to_process in all_files[:1]:
+#    
+#    fname = file_to_process
+#
+#
+#    print(dview)
+#    fname_tot_rig, total_template_rig, templates_rig, shifts_rig = cm.motion_correction.motion_correct_batch_rigid(fname,\
+#                        max_shifts, dview = dview, splits = splits ,num_splits_to_process = num_splits_to_process,\
+#                        num_iter = num_iter,  template = total_template_rig, shifts_opencv = shifts_opencv , save_movie_rigid = save_movie_rigid, add_to_movie = add_to_movie)
+#    total_shifts.append(shifts_rig)
+#    templates_all.append(total_template_rig)
+#    t2 = time.time() - t1
+#    print(t2)
+#    pl.imshow(total_template_rig,cmap = 'gray',vmax = np.percentile(total_template_rig,95))    
+#    pl.pause(.01)
+#
+#t2 = time.time() - t1
+#print(t2)
+#
+##%%
+#pl.close()
+#pl.plot(np.concatenate(total_shifts,0)) 
+##%% visualize all templates
+##cm.movie(np.array(templates_all)).play(fr=2,gain = 5, offset =add_to_movie)
+#
+##%% PIECEWISE RIGID MOTION CORRECTION
+#total_shifts_els = []
+#templates_all_els = []
+#new_templ = total_template_rig.copy()
+#strides = params_movie['strides']
+#overlaps = params_movie['overlaps']
+#shifts_opencv = True
+#save_movie = True
+#splits = params_movie['splits_els']
+#num_splits_to_process_list = params_movie['num_splits_to_process_els']
+#upsample_factor_grid = params_movie['upsample_factor_grid']
+#max_deviation_rigid = params_movie['upsample_factor_grid']
+#times_all = [] 
+#init = True
+#count = 0
+#for file_to_process in (all_files[:1]+all_files):
+#    t1 = time.time()
+#    num_iter = 1
+#    
+#    fname_tot_els, total_template_wls, templates_els, x_shifts_els, y_shifts_els, coord_shifts_els  = cm.motion_correction.motion_correct_batch_pwrigid(file_to_process, max_shifts, strides, overlaps, add_to_movie, newoverlaps = None,  newstrides = None,
+#                                                 dview = dview, upsample_factor_grid = upsample_factor_grid, max_deviation_rigid = max_deviation_rigid,
+#                                                 splits = splits ,num_splits_to_process = num_splits_to_process, num_iter = num_iter,
+#                                                 template = new_templ, shifts_opencv = shifts_opencv, save_movie = save_movie)
+#    
+#    t2 = time.time() - t1
+#    times_all.append(t2)    
+#    print(t2) 
+#                    
+#    total_shifts_els.append([x_shifts_els, y_shifts_els])
+#    templates_all_els.append(total_template_wls)
+#    if count < 10:
+#        new_templ = np.nanmedian(np.array(templates_all_els[-5:]),0)
+#    pl.imshow(total_template_wls,cmap = 'gray',vmax = np.percentile(total_template_wls,95))    
+#    pl.pause(.01)
+#    count += 1
+#
+#    
+#templates_all_els = templates_all_els[1:]
+#total_shifts_els = total_shifts_els[1:]  
+##%%
+#
+##cm.movie(np.array(templates_all_els)).play(fr=105,gain = 10, offset = add_to_movie-10)
+#    
+#    
+##%%
+##pl.subplot(2,1,1)
+##pl.plot(np.concatenate([shfts[0]  for shfts in total_shifts_els],0))
+##pl.subplot(2,1,2)
+##pl.plot(np.concatenate([shfts[1]  for shfts in total_shifts_els],0))
 #%%
-pl.close()
-pl.plot(np.concatenate(total_shifts,0)) 
-#%% visualize all templates
-#cm.movie(np.array(templates_all)).play(fr=2,gain = 5, offset =add_to_movie)
-
-#%% PIECEWISE RIGID MOTION CORRECTION
-total_shifts_els = []
-templates_all_els = []
-new_templ = total_template_rig.copy()
-strides = params_movie['strides']
-overlaps = params_movie['overlaps']
-shifts_opencv = True
-save_movie = True
-splits = params_movie['splits_els']
-num_splits_to_process_list = params_movie['num_splits_to_process_els']
-upsample_factor_grid = params_movie['upsample_factor_grid']
-max_deviation_rigid = params_movie['upsample_factor_grid']
-times_all = [] 
-init = True
-count = 0
-for file_to_process in (all_files[:1]+all_files):
-    t1 = time.time()
-    num_iter = 1
-    
-    fname_tot_els, total_template_wls, templates_els, x_shifts_els, y_shifts_els, coord_shifts_els  = cm.motion_correction.motion_correct_batch_pwrigid(file_to_process, max_shifts, strides, overlaps, add_to_movie, newoverlaps = None,  newstrides = None,
-                                                 dview = dview, upsample_factor_grid = upsample_factor_grid, max_deviation_rigid = max_deviation_rigid,
-                                                 splits = splits ,num_splits_to_process = num_splits_to_process, num_iter = num_iter,
-                                                 template = new_templ, shifts_opencv = shifts_opencv, save_movie = save_movie)
-    
-    t2 = time.time() - t1
-    times_all.append(t2)    
-    print(t2) 
-                    
-    total_shifts_els.append([x_shifts_els, y_shifts_els])
-    templates_all_els.append(total_template_wls)
-    if count < 10:
-        new_templ = np.nanmedian(np.array(templates_all_els[-5:]),0)
-    pl.imshow(total_template_wls,cmap = 'gray',vmax = np.percentile(total_template_wls,95))    
-    pl.pause(.01)
-    count += 1
-
-    
-templates_all_els = templates_all_els[1:]
-total_shifts_els = total_shifts_els[1:]  
-#%%
-
-#cm.movie(np.array(templates_all_els)).play(fr=105,gain = 10, offset = add_to_movie-10)
-    
-    
-#%%
-#pl.subplot(2,1,1)
-#pl.plot(np.concatenate([shfts[0]  for shfts in total_shifts_els],0))
-#pl.subplot(2,1,2)
-#pl.plot(np.concatenate([shfts[1]  for shfts in total_shifts_els],0))
-#%%
-border_to_0 = np.max([np.ceil(np.max(np.array(ttl))).astype(np.int) for ttl in total_shifts_els])
-fnames_map  = [os.path.abspath(flfl) for flfl in glob.glob('*.mmap')]
+border_to_0 = 0 # if you need to remove portions of the border (in pixels)
+fnames_map  = [os.path.abspath(flfl) for flfl in glob.glob('*.npy')]
 fnames_map.sort()   
 adds_to_movie = [] 
 print(fnames_map)   
+# compute the minimum since it needs to create a positive movie
 for ffnn in  fnames_map:
    print(ffnn) 
-   adds_to_movie.append(np.min(cm.load(fnames_map[0])[:,border_to_0:-border_to_0,border_to_0:-border_to_0]).min())
-
+   if border_to_0 > 0:
+       adds_to_movie.append(np.min(cm.load(ffnn)[:,border_to_0:-border_to_0,border_to_0:-border_to_0]).min())
+   else:
+       adds_to_movie.append(np.min(cm.load(ffnn)).min())
+       
 add_to_movie = - np.min(adds_to_movie)
 print(adds_to_movie)
 print(add_to_movie)
 #%%
 #add_to_movie=np.nanmin(templates_rig)+1# the movie must be positive!!!
 t1 = time.time()
-n_processes_mmap = 14# lower this number if you have memory problems!
+n_processes_mmap = 2# lower this number if you have memory problems!
 dview_sub = c[:n_processes_mmap]
 downsample_factor=1 # use .2 or .1 if file is large and you want a quick answer
 idx_xy=None
@@ -203,7 +207,6 @@ else:
     fname_new = name_new[0] 
 t_mmap_2 = time.time() - t1    
 #%%
-
 Yr, dims, T = cm.load_memmap(fname_new)
 d1, d2 = dims
 images = np.reshape(Yr.T, [T] + list(dims), order='F')
@@ -221,9 +224,7 @@ for jj,mv in enumerate(all_files_mmap_single):
     pl.pause(.1)
 
 t_cn = time.time() - t1 
-#%%
-mean_img = np.mean(images,0)
-pl.imshow(mean_img,cmap='gray')  
+
 
 #%%
 if np.min(images)<0:
@@ -273,9 +274,9 @@ crd = plot_contours(A_tot, Cn, thr=0.9)
 #%% DISCARD LOW QUALITY COMPONENT
 t1 = time.time()
 final_frate = params_movie['final_frate']
-r_values_min = .6  #threshold on space consistency
-fitness_min =-30 # threshold on time variability
-fitness_delta_min = -30  # threshold on time variability (if nonsparse activity)
+r_values_min = .8  #threshold on space consistency
+fitness_min =-50 # threshold on time variability
+fitness_delta_min = -50  # threshold on time variability (if nonsparse activity)
 Npeaks = 10
 traces = C_tot + YrA_tot
 idx_components,idx_components_bad = cm.components_evaluation.estimate_components_quality(traces, Y, A_tot, C_tot, b_tot, f_tot, final_frate = final_frate, Npeaks=Npeaks, r_values_min = r_values_min,fitness_min = fitness_min,fitness_delta_min = fitness_delta_min)
@@ -303,7 +304,7 @@ block_size = 20000
 t1 = time.time()
 cnm = cnmf.CNMF(n_processes, k=A_tot.shape, gSig=gSig, merge_thresh=merge_thresh, p=p, dview=dview, Ain=A_tot, Cin=C_tot,
                     f_in=f_tot, rf=None, stride=None,method_deconvolution='oasis',n_pixels_per_process = n_pixels_per_process, 
-                    block_size = block_size, check_nan = False, skip_refinement = True)
+                    block_size = block_size, check_nan = False, skip_refinement = False)
 cnm = cnm.fit(images)
 t_cnmf_refine = time.time() - t1
 
@@ -355,3 +356,12 @@ for count,nrn in enumerate([998, 989, 987, 976, 963 ,962]):
     pl.subplot(6,2,2*count+2)
     pl.plot(scipy.signal.resample_poly(traces[idx_components[nrn]],1,1)[::10])
     
+#%% opossible mergers
+corrs = np.corrcoef(C[idx_components])
+pl.imshow(corrs>0.8)
+#%% residuals
+rec = cm.movie(cm.base.movies.to_3D(A.dot(C).T,(T,d1,d2)))
+#%% compare residuals and original movie
+cm.concatenate([rec*2,cm.movie(images)],axis = 1).play(fr=30,gain = 20)
+mean_img = np.mean(images,0)
+pl.imshow(mean_img,cmap='gray')  

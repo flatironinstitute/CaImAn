@@ -19,7 +19,13 @@ import cv2
 
 import collections
 import caiman as cm
-import tifffile
+
+try:
+    import tifffile
+except:
+    print('tifffile package not found, using skimage.external.tifffile')
+    from skimage.external import tifffile as tifffile
+    
 import gc
 import os
 import time
@@ -32,7 +38,6 @@ from cv2 import dft as fftn
 from cv2 import idft as ifftn
 opencv = True
 from numpy.fft import ifftshift
-from skimage.external.tifffile import TiffFile
 import itertools
 
 #%%
@@ -1713,19 +1718,33 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
 
     name, extension = os.path.splitext(fname)[:2]
 
-    if extension == '.tif' or extension == '.tiff':  # check if tiff file
-       with TiffFile(fname) as tf:
-         d1,d2 = tf[0].shape
-         T = len(tf)    
+    if extension == '.tif' or extension == '.tiff':  # check if tiff file       
+        
+        with tifffile.TiffFile(fname) as tf:
+           d1,d2 = tf[0].shape
+           T = len(tf)    
+           
     elif extension == '.sbx':  # check if sbx file
-         shape = cm.base.movies.sbxshape(name)
-
-         d1 = shape[1]
-         d2 = shape[0]
-         T = shape[2]
          
+        shape = cm.base.movies.sbxshape(name)
+        d1 = shape[1]
+        d2 = shape[0]
+        T = shape[2]
+
+    elif extension == '.npy':
+        raise Exception('Numpy not supported at the moment')
+#        shape = np.load(fname,mmap_mode='r').shape
+#        d1 = shape[1]
+#        d2 = shape[2]
+#        T = shape[0]               
+    else:
+        raise Exception('Unsupported file extension for parallel motion correction')
+        
+        
     if type(splits) is int:
+        
          idxs = np.array_split(list(range(T)),splits)
+    
     else:
          idxs = splits
          save_movie = False

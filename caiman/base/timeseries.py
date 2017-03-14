@@ -30,8 +30,6 @@ except:
 
 from scipy.io import loadmat,savemat
 
-import tifffile
-from tifffile import imsave
 
 
 #%%
@@ -133,7 +131,15 @@ class timeseries(np.ndarray):
 
         if extension == '.tif': # load avi file
     #            raise Exception('not implemented')
-
+            try:
+                
+                from tifffile import imsave
+                print('tifffile package not found, using skimage instead for imsave')
+                
+            except:
+                
+                from skimage.external.tifffile import imsave
+                
             np.clip(self,np.percentile(self,1),np.percentile(self,99.99999),self)
             minn,maxx = np.min(self),np.max(self)
             data = 65536 * (self-minn)/(maxx-minn)
@@ -209,5 +215,8 @@ def concatenate(*args, **kwargs):
                         raise ValueError('Frame rates of input vectors \
                             do not match. You cannot concatenate movies with \
                             different frame rates.')
-
-    return obj.__class__(np.concatenate(*args, **kwargs), **obj.__dict__)
+    try:                      
+        return obj.__class__(np.concatenate(*args, **kwargs), **obj.__dict__)
+    except:
+        print('no meta information passed')
+        return obj.__class__(np.concatenate(*args, **kwargs))
