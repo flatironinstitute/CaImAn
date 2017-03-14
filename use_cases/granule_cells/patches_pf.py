@@ -187,7 +187,7 @@ print(('Number of components:' + str(A_m.shape[-1])))
 #%% UPDATE SPATIAL OCMPONENTS
 t1 = time()
 options['spatial_params']['method']='dilate'
-A2,b2,C2 = cse.spatial.update_spatial_components(Yr, C_m, f, A_m, sn=sn_tot,dview=dview, **options['spatial_params'])
+A2,b2,C2,f = cse.spatial.update_spatial_components(Yr, C_m, f, A_m, sn=sn_tot,dview=dview, **options['spatial_params'])
 print((time() - t1))
 #%% UPDATE TEMPORAL COMPONENTS
 options['temporal_params']['p']=p

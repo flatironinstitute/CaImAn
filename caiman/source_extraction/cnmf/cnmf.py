@@ -133,11 +133,13 @@ class CNMF(object):
         self.check_nan = check_nan
         self.skip_refinement = skip_refinement
 
-        self.A = None
-        self.C = None
-        self.S = None
-        self.b = None
-        self.f = None
+        self.A=None
+        self.C=None
+        self.S=None
+        self.b=None
+        self.f=None
+        self.sn = None
+        self.g = None
 
     def fit(self, images):
         """
@@ -152,7 +154,6 @@ class CNMF(object):
         self
 
         """
-
         T = images.shape[0]
         dims = images.shape[1:]
         Yr = images.reshape([T, np.prod(dims)], order='F').T
@@ -167,6 +168,7 @@ class CNMF(object):
 
         if self.rf is None:  # no patches
             print('preprocessing ...')
+
             Yr, sn, g, psx = preprocess_data(Yr, dview=self.dview, **options['preprocess_params'])
 
             if self.Ain is None:
@@ -178,7 +180,6 @@ class CNMF(object):
                     Y, normalize=True, **options['init_params'])
                 
             if self.only_init: # only return values after initialization
-
                 
                 nA = np.squeeze(np.array(np.sum(np.square(self.Ain),axis=0)))
         
@@ -201,18 +202,11 @@ class CNMF(object):
                 self.f = self.f_in
                 self.sn = sn
                 
-                return self    
-                
+                return self
+
                 
             print('update spatial ...')
-
-            if self.Ain.dtype == bool:
-                A, b, Cin, fin = update_spatial_components(
-                    Yr, self.Cin, self.f_in, self.Ain, sn=sn, dview=self.dview, **options['spatial_params'])
-                self.f_in = fin
-            else:
-                A, b, Cin = update_spatial_components(
-                    Yr, self.Cin, self.f_in, self.Ain, sn=sn, dview=self.dview, **options['spatial_params'])
+            A, b, Cin, self.f_in = update_spatial_components(Yr, self.Cin, self.f_in, self.Ain, sn=sn, dview=self.dview, **options['spatial_params'])
 
             print('update temporal ...')
             if not self.skip_refinement:
@@ -237,7 +231,7 @@ class CNMF(object):
 
                 print('update spatial ...')
 
-                A, b, C = update_spatial_components(
+                A, b, C, f = update_spatial_components(
                     Yr, C, f, A, sn=sn, dview=self.dview, **options['spatial_params'])
 
                 # set it back to original value to perform full deconvolution
@@ -288,7 +282,6 @@ class CNMF(object):
             C, f, S, bl, c1, neurons_sn, g1, YrA = update_temporal_components(
                 Yr, A, b, C, f, dview=self.dview, bl=None, c1=None, sn=None, g=None, **options['temporal_params'])
 
-
 #           idx_components, fitness, erfc ,r_values, num_significant_samples = evaluate_components(Y,C+YrA,A,N=self.N_samples_fitness,robust_std=self.robust_std,thresh_finess=self.fitness_threshold)
 #           sure_in_idx= idx_components[np.logical_and(np.array(num_significant_samples)>0 ,np.array(r_values)>=self.corr_threshold)]
 #
@@ -299,18 +292,16 @@ class CNMF(object):
 #           C=C[sure_in_idx,:]
 #           YrA=YrA[sure_in_idx]
 
-
+        self.A=A
+        self.C=C
+        self.b=b
+        self.f=f
+        self.S = S
+        self.YrA=YrA
+        self.sn=sn
+        self.g = g1
         self.bl = bl
         self.c1 = c1
         self.neurons_sn = neurons_sn
-        self.g = g1
-        self.A = A 
-        self.C = C
-        self.b = b
-        self.f = f
-        self.S = S
-        self.YrA = YrA
-        self.sn = sn
-
 
         return self

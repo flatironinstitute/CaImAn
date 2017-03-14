@@ -137,7 +137,8 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
         new estimate of spatial background
     C: np.ndarray
          temporal components (updated only when spatial components are completely removed)
-
+    f: np.ndarray
+        same as f_in except if empty component deleted.
 
     """
     C = np.array(C)
@@ -318,10 +319,13 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
     ff = np.where(np.sum(A_, axis=0) == 0)           # remove empty components
     if np.size(ff) > 0:
         ff = ff[0]
-        print('eliminating empty components!!')
-        nr = nr - len(ff)
+        print('eliminating {} empty components!!'.format(len(ff)))
         A_ = np.delete(A_, list(ff), 1)
         C = np.delete(C, list(ff), 0)
+        background_ff = list(filter(lambda i: i > 0, ff-nr))
+        f = np.delete(f, background_ff, 0)
+        nr = nr - (len(ff) - len(background_ff))
+        nb = nb - len(background_ff)
 
     A_ = A_[:, :nr]
     A_ = coo_matrix(A_)
@@ -353,11 +357,12 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
 
         raise Exception("Failed to delete: " + folder)
 
-    if A_in.dtype == bool:
 
-        return A_, b, C, f
-    else:
-        return A_, b, C
+    # if A_in.dtype == bool:
+    #     return A_, b, C, f
+    # else:
+    #     return A_, b, C
+    return A_, b, C, f
 
 
 #%%lars_regression_noise_ipyparallel
