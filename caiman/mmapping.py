@@ -14,7 +14,7 @@ from past.utils import old_div
 import numpy as np
 import os
 
-from .. import caiman as cm
+import caiman as cm
 
 try:
     import tifffile
