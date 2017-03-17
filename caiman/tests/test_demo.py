@@ -1,5 +1,5 @@
 from __future__ import print_function
-from ... import caiman as cm
+import caiman as cm
 from ..source_extraction import cnmf as cnmf
 from ..cluster import start_server, stop_server
 import numpy.testing as npt

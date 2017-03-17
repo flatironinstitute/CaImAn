@@ -18,7 +18,7 @@ import pylab as pl
 import cv2 
 
 import collections
-from .. import caiman as cm
+import caiman as cm
 
 try:
     import tifffile
