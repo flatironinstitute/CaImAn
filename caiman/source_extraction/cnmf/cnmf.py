@@ -15,15 +15,13 @@ from builtins import str
 from builtins import object
 from past.utils import old_div
 import numpy as np
-from caiman.summary_images import local_correlations
-from caiman.components_evaluation import evaluate_components
-from caiman.source_extraction.cnmf.utilities import  CNMFSetParms, order_components
-from caiman.source_extraction.cnmf.pre_processing import preprocess_data
-from caiman.source_extraction.cnmf.initialization import initialize_components
-from caiman.source_extraction.cnmf.merging import merge_components
-from caiman.source_extraction.cnmf.spatial import update_spatial_components
-from caiman.source_extraction.cnmf.temporal import update_temporal_components
-from caiman.source_extraction.cnmf.map_reduce import run_CNMF_patches
+from .utilities import  CNMFSetParms
+from .pre_processing import preprocess_data
+from .initialization import initialize_components
+from .merging import merge_components
+from .spatial import update_spatial_components
+from .temporal import update_temporal_components
+from .map_reduce import run_CNMF_patches
 import scipy
 
 
@@ -95,10 +93,8 @@ class CNMF(object):
             unitless number accounting how much memory should be used. You will need to try different values to see which one would work the default is OK for a 16 GB system
 
         N_samples_fitness: int 
-            number of samples over which exceptional events are computed (See utilities.evaluate_components) 
+            number of samples over which exceptional events are computed (See utilities.evaluate_components)
 
-
-        
 
         Returns:
         --------
@@ -162,7 +158,8 @@ class CNMF(object):
 
         options = CNMFSetParms(Y, self.n_processes, p=self.p, gSig=self.gSig, K=self.k, ssub=self.ssub, tsub=self.tsub,
                                p_ssub=self.p_ssub, p_tsub=self.p_tsub, method_init=self.method_init,
-                               n_pixels_per_process=self.n_pixels_per_process, block_size=self.block_size, check_nan=self.check_nan)
+                               n_pixels_per_process=self.n_pixels_per_process, block_size=self.block_size,
+                               check_nan=self.check_nan, nb=self.gnb)
 
         self.options = options
 
@@ -204,7 +201,6 @@ class CNMF(object):
                 
                 return self
 
-                
             print('update spatial ...')
             A, b, Cin, self.f_in = update_spatial_components(Yr, self.Cin, self.f_in, self.Ain, sn=sn, dview=self.dview, **options['spatial_params'])
 
