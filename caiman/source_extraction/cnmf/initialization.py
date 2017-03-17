@@ -10,7 +10,7 @@ import scipy.ndimage as nd
 import scipy.sparse as spr
 import scipy
 from scipy.ndimage.measurements import center_of_mass
-import caiman
+from .... import caiman
 #from . import utilities
 #%%
 def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter=5, maxIter=5, nb=1,

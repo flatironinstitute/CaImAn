@@ -10,15 +10,17 @@ A set of pre-processing operations in the input dataset:
 """
 from __future__ import division
 from __future__ import print_function
-from past.builtins import basestring
-from builtins import map
-from builtins import str
-from builtins import range
-from past.utils import old_div
-import numpy as np
-import tempfile
+
 import shutil
-from caiman.mmapping import load_memmap
+import tempfile
+
+import numpy as np
+from builtins import map
+from builtins import range
+from ...mmapping import load_memmap
+from past.builtins import basestring
+from past.utils import old_div
+
 
 #%%
 def interpolate_missing_data(Y):

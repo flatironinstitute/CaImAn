@@ -1,4 +1,4 @@
-from caiman.source_extraction.cnmf.deconvolution import constrained_foopsi
+from ..source_extraction.cnmf.deconvolution import constrained_foopsi
 import numpy.testing as npt
 import numpy as np
 from time import time

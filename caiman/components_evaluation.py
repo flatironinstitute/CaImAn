@@ -9,7 +9,7 @@ from __future__ import print_function
 from builtins import range
 from past.utils import old_div
 import numpy as np
-from caiman.utils.stats import mode_robust, mode_robust_fast
+from .utils.stats import mode_robust, mode_robust_fast
 from scipy.sparse import csc_matrix
 from scipy.stats import norm
 import scipy

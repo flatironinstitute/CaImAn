@@ -10,7 +10,7 @@ from __future__ import print_function
 from builtins import zip
 from builtins import range
 from past.utils import old_div
-import caiman as cm
+from ... import caiman as cm
 import numpy as np
 import pylab as pl
 from scipy.io import loadmat

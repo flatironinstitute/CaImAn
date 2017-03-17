@@ -1,7 +1,7 @@
 from __future__ import print_function
-import caiman as cm
-from caiman.source_extraction import cnmf as cnmf
-from caiman.cluster import start_server, stop_server
+from ... import caiman as cm
+from ..source_extraction import cnmf as cnmf
+from ..cluster import start_server, stop_server
 import numpy.testing as npt
 import numpy as np
 import psutil

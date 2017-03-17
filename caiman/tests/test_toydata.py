@@ -1,4 +1,4 @@
-from caiman.source_extraction import cnmf as cnmf
+from ..source_extraction import cnmf as cnmf
 import numpy.testing as npt
 import numpy as np
 from scipy.ndimage.filters import gaussian_filter

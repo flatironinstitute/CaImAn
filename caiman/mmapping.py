@@ -14,7 +14,8 @@ from past.utils import old_div
 import numpy as np
 import os
 
-import caiman as cm  
+from .. import caiman as cm
+
 try:
     import tifffile
 except:
@@ -518,7 +519,6 @@ def parallel_dot_product(A,b,block_size=20000,dview=None,transpose=False):
 
 #%%
 def dot_place_holder(par):
-    from caiman.mmapping import load_memmap
     import pickle
     A_name,idx_to_pass,b_,transpose = par
     A_, _, _  = load_memmap(A_name)      

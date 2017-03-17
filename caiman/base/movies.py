@@ -45,10 +45,10 @@ from skimage import data
 from . import timeseries as ts
 from .traces import trace
 
-from caiman.mmapping import load_memmap
-from caiman.utils import visualization
-import caiman.summary_images as si 
-from caiman.motion_correction import apply_shift_online,motion_correct_online
+from ..mmapping import load_memmap
+from ..utils import visualization
+from .. import summary_images as si
+from ..motion_correction import apply_shift_online,motion_correct_online
 
 class movie(ts.timeseries):
     """

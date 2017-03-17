@@ -14,8 +14,7 @@ import numpy as np
 from .deconvolution import constrained_foopsi
 from .utilities import update_order
 import sys
-import time
-from caiman.mmapping import parallel_dot_product
+from ...mmapping import parallel_dot_product
 #%%
 def make_G_matrix(T,g):
     ''' create matrix of autoregression to enforce indicator dynamics
