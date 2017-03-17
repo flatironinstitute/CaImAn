@@ -30,11 +30,11 @@ import shutil
 # except:
 #    print 'picos not installed'
 
-try:
-    from cvxopt import matrix, spmatrix, spdiag
-    from cvxopt import solvers
-except:
-    print('cvxopt not installed')
+# try:
+#     from cvxopt import matrix, spmatrix, spdiag
+#     from cvxopt import solvers
+# except:
+#     print('cvxopt not installed')
 
 from ...mmapping import load_memmap, parallel_dot_product
 from scipy.ndimage.filters import median_filter
