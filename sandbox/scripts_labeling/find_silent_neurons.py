@@ -104,7 +104,7 @@ crd = cse.utilities.plot_contours(A,Cn)
 #pl.close()
 t1 = time()
 options['temporal_params']['p'] = 0 # set this to zero for fast updating without deconvolution
-C,f,S,bl,c1,neurons_sn,g,YrA = cse.temporal.update_temporal_components(Yr,A,b,Cin,f,dview=dview,bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
+C,A,b,f,S,bl,c1,neurons_sn,g,YrA = cse.temporal.update_temporal_components(Yr,A,b,Cin,f,dview=dview,bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
 t_elTEMPORAL = time() - t1
 print(t_elTEMPORAL) 
 
@@ -127,7 +127,7 @@ pl.close()
 t1 = time()
 A2,b2,C2,f = cse.spatial.update_spatial_components(Yr, C, f, A, sn=sn,dview=dview, **options['spatial_params'])
 options['temporal_params']['p'] = p # set it back to original value to perform full deconvolution
-C2,f2,S2,bl2,c12,neurons_sn2,g21,YrA = cse.temporal.update_temporal_components(Yr,A2,b2,C2,f,dview=dview, bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
+C2,A2,b2,f2,S2,bl2,c12,neurons_sn2,g21,YrA = cse.temporal.update_temporal_components(Yr,A2,b2,C2,f,dview=dview, bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
 print((time() - t1))
 #%%
 plt.figure()

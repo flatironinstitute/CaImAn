@@ -54,7 +54,7 @@ def pipeline(D):
         Yr, Cin, f_in, Ain, sn=sn, **options['spatial_params'])
 
     # UPDATE TEMPORAL COMPONENTS
-    C, f, S, bl, c1, neurons_sn, g, YrA = cnmf.temporal.update_temporal_components(
+    C, A, b, f, S, bl, c1, neurons_sn, g, YrA = cnmf.temporal.update_temporal_components(
         Yr, A, b, Cin, f_in, bl=None, c1=None, sn=None, g=None, **options['temporal_params'])
 
     # VERIFY HIGH CORRELATION WITH GROUND TRUTH
