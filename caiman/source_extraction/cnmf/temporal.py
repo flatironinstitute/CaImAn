@@ -326,7 +326,7 @@ def update_temporal_components(Y, A, b, Cin, fin, bl = None,  c1 = None, g = Non
         print('eliminating {} empty temporal components!!'.format(len(ff)))
         A = np.delete(A, list(ff), 1)
         C = np.delete(C, list(ff), 0)
-        YrA = np.delete(YrA, list(ff), 0)
+        YrA = np.delete(YrA, list(ff), 1)
         S = np.delete(S, list(ff), 0)
         sn =  np.delete(sn, list(ff))
         g = np.delete(g, list(ff))
