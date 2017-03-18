@@ -298,9 +298,6 @@ def update_temporal_components(Y, A, b, Cin, fin, bl = None,  c1 = None, g = Non
 
         ii=nr
 
-        # Delete those who do not spike(?)
-
-
         #YrA[:,ii] = YrA[:,ii] + np.atleast_2d(Cin[ii,:]).T
         #cc = np.maximum(YrA[:,ii],0) 
         for ii in np.arange(nr,nr+nb):       
@@ -321,10 +318,28 @@ def update_temporal_components(Y, A, b, Cin, fin, bl = None,  c1 = None, g = Non
         else:
             Cin = C
 
+    # Eliminating empty temporal components
+    A = A.toarray()
+    ff = np.where(np.sum(C, axis=1) == 0)  # remove empty components
+    if np.size(ff) > 0:
+        ff = ff[0]
+        print('eliminating {} empty temporal components!!'.format(len(ff)))
+        A = np.delete(A, list(ff), 1)
+        C = np.delete(C, list(ff), 0)
+        YrA = np.delete(YrA, list(ff), 0)
+        S = np.delete(S, list(ff), 0)
+        sn =  np.delete(sn, list(ff))
+        g = np.delete(g, list(ff))
+        bl = np.delete(bl, list(ff))
+        c1 = np.delete(c1, list(ff))
+
+        background_ff = list(filter(lambda i: i > 0, ff - nr))
+        nr = nr - (len(ff) - len(background_ff))
+
+    b = A[:, nr:]
+    A = coo_matrix(A[:,:nr])
     f = C[nr:,:]
     C = C[:nr,:]
     YrA = np.array(YrA[:,:nr]).T    
-    P_ = sorted(P_, key=lambda k: k['neuron_id']) 
 
-
-    return C,f,S,bl,c1,sn,g,YrA #,P_
+    return C,A,b,f,S,bl,c1,sn,g,YrA
