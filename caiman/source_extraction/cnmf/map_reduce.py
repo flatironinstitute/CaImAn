@@ -362,7 +362,7 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, gnb = 1, dvie
     optional_outputs['F'] = F_tot
     optional_outputs['mask'] = mask
 
-    print("Generating backgound")
+    print("Generating background")
     Im = scipy.sparse.csr_matrix((old_div(1.,mask),(np.arange(d),np.arange(d))))
     Bm = Im.dot(B_tot)
     A_tot = Im.dot(A_tot)

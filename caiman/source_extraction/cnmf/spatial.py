@@ -302,7 +302,7 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
     ff = np.where(np.sum(A_, axis=0) == 0)           # remove empty components
     if np.size(ff) > 0:
         ff = ff[0]
-        print('eliminating {} empty components!!'.format(len(ff)))
+        print('eliminating {} empty spatial components!!'.format(len(ff)))
         A_ = np.delete(A_, list(ff), 1)
         C = np.delete(C, list(ff), 0)
         background_ff = list(filter(lambda i: i > 0, ff-nr))
