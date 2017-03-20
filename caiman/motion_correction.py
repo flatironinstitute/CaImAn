@@ -1348,7 +1348,10 @@ def tile_and_correct(img,template, strides, overlaps,max_shifts, newoverlaps = N
             cv2.waitKey(int(1./500*1000))      
 
         else:
-            cv2.destroyAllWindows()
+            try:
+                cv2.destroyAllWindows()
+            except:
+                pass
     #    xx,yy = np.array(start_step)[:,0]+newshapes[0]/2,np.array(start_step)[:,1]+newshapes[1]/2
     #    pl.cla()
     #    pl.imshow(new_img,vmin = 200, vmax = 500 ,cmap = 'gray',origin = 'lower')
