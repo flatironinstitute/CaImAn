@@ -850,12 +850,6 @@ def generate_linked_traces(mov_names,chunk_sizes,A,b,f):
 
     f_in=np.atleast_2d(scipy.signal.resample(f,num_chunks))
 
-
-
-#    C,f,S,bl,c1,neurons_sn,g,YrA = cse.temporal.update_temporal_components(Yr,A,b,C_in,f_in,p=0)
-
-
-
     traces=[]
     traces_BL=[]
     traces_DFF=[]

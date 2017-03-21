@@ -1680,8 +1680,6 @@ def tile_and_correct_wrapper(params):
     except:
         1 #'Open CV is naturally single threaded'
 
-    from caiman.motion_correction import tile_and_correct
-
     img_name,  out_fname,idxs, shape_mov, template, strides, overlaps, max_shifts,\
         add_to_movie,max_deviation_rigid,upsample_factor_grid, newoverlaps, newstrides,shifts_opencv  = params
 

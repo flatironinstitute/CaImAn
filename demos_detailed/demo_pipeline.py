@@ -148,7 +148,7 @@ A_m,C_m,nr_m,merged_ROIs,S_m,bl_m,c1_m,sn_m,g_m=cse.merge_components(Yr,A_tot,[]
 options['temporal_params']['p']=0
 options['temporal_params']['fudge_factor']=0.96 #change ifdenoised traces time constant is wrong
 options['temporal_params']['backend']='ipyparallel'
-C_m,f_m,S_m,bl_m,c1_m,neurons_sn_m,g2_m,YrA_m = cse.temporal.update_temporal_components(Yr,A_m,b,C_m,f,dview=dview,bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
+C_m,A_m,b,f_m,S_m,bl_m,c1_m,neurons_sn_m,g2_m,YrA_m = cse.temporal.update_temporal_components(Yr,A_m,b,C_m,f,dview=dview,bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
 
 #%% get rid of evenrually noisy components. 
 # But check by visual inspection to have a feeling fot the threshold. Try to be loose, you will be able to get rid of more of them later!
@@ -191,7 +191,7 @@ print((time() - t1))
 #%% UPDATE TEMPORAL COMPONENTS
 options['temporal_params']['p']=p
 options['temporal_params']['fudge_factor']=0.96 #change ifdenoised traces time constant is wrong
-C2,f2,S2,bl2,c12,neurons_sn2,g21,YrA = cse.temporal.update_temporal_components(Yr,A2,b2,C2,f,dview=dview, bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
+C2,A2,b2,f2,S2,bl2,c12,neurons_sn2,g21,YrA = cse.temporal.update_temporal_components(Yr,A2,b2,C2,f,dview=dview, bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
 #%% Order components
 #A_or, C_or, srt = cse.utilities.order_components(A2,C2)
 #%% stop server and remove log files

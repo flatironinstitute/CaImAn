@@ -9,6 +9,7 @@ import numpy as np
 import glob
 import pylab as pl
 import caiman as cm
+from caiman.components_evaluation import evaluate_components
 import os
 #%% start cluster
 c,dview,n_processes = cm.cluster.setup_cluster(backend = 'local',n_processes = None,single_thread = False)
@@ -51,7 +52,7 @@ final_frate = 10# approximate frame rate of data
 Npeaks = 10
 traces = C + YrA
 fitness_raw, fitness_delta, erfc_raw, erfc_delta, r_values, significant_samples = \
-    cm.components_evaluation.evaluate_components(Y, traces, A, C, b, f,final_frate, remove_baseline=True,
+    evaluate_components(Y, traces, A, C, b, f,final_frate, remove_baseline=True,
                                       N=5, robust_std=False, Npeaks=Npeaks, thresh_C=0.3)
 
 idx_components_r = np.where(r_values >= .85)[0] # filter based on spatial consistency

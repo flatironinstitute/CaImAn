@@ -13,24 +13,18 @@ from builtins import str
 from builtins import map
 from builtins import range
 from past.utils import old_div
-from ipyparallel import Client
 import numpy as np
-from scipy.sparse import lil_matrix,coo_matrix
 import time
 import scipy
 import os
-from caiman.mmapping import load_memmap
-from caiman.cluster import extract_patch_coordinates,extract_rois_patch,extract_patch_coordinates_old
-#from caiman.source_extraction.cnmf import cnmf as cnmf
+from ...mmapping import load_memmap
+from ...cluster import extract_patch_coordinates
 
 
 #%%    
 def cnmf_patches(args_in):
-    import numpy as np
-    import caiman as cm
-    import time
     import logging
-    from caiman.source_extraction.cnmf import cnmf as cnmf
+    from . import cnmf
 
 #    file_name, idx_,shapes,p,gSig,K,fudge_fact=args_in
     file_name, idx_,shapes,options=args_in
@@ -368,7 +362,7 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, gnb = 1, dvie
     optional_outputs['F'] = F_tot
     optional_outputs['mask'] = mask
 
-    print("Generating backgound")
+    print("Generating background")
     Im = scipy.sparse.csr_matrix((old_div(1.,mask),(np.arange(d),np.arange(d))))
     Bm = Im.dot(B_tot)
     A_tot = Im.dot(A_tot)

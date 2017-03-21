@@ -1,6 +1,5 @@
 from __future__ import print_function
-import caiman
-from caiman.source_extraction import cnmf as cnmf
+from ..source_extraction import cnmf as cnmf
 import numpy.testing as npt
 import numpy as np
 

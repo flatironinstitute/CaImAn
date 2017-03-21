@@ -20,8 +20,8 @@ import psutil
 import sys
 import os
 import numpy as np
-from caiman.mmapping import load_memmap
-import pylab as pl
+from .mmapping import load_memmap
+
 #%%
 def get_patches_from_image(img,shapes,overlaps):
     d1,d2 = np.shape(img)
@@ -293,20 +293,17 @@ def start_server(slurm_script=None, ipcluster="ipcluster", ncpus = None):
         else:
             p1 = subprocess.Popen(shlex.split("{0} start -n {1}".format(ipcluster, ncpus)), shell=True, close_fds=(os.name != 'nt'))
 #
-        while True:
-            try:
-                c = ipyparallel.Client()
-                if len(c) < ncpus:
-                    sys.stdout.write(".")
-                    sys.stdout.flush()
-                    raise ipyparallel.error.TimeoutError
-                c.close()                
+        # Check that all processes have started
+        time.sleep(1)
+        client = ipyparallel.Client()
+        while len(client) < ncpus:
+            sys.stdout.write(".")
+            sys.stdout.flush()
+            client.close()
 
-                break
-            except (IOError, ipyparallel.error.TimeoutError):
-                sys.stdout.write(".")
-                sys.stdout.flush()
-                time.sleep(1)
+            time.sleep(1)
+            client = ipyparallel.Client()
+        client.close()
 
     else:
         shell_source(slurm_script)

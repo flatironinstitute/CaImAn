@@ -22,20 +22,11 @@ except:
 
 import matplotlib as mpl
 mpl.use('TKAgg')
-from matplotlib import pyplot as plt
-#plt.ion()
 
 import sys
 import numpy as np
 import ca_source_extraction as cse
 
-#sys.path.append('../SPGL1_python_port')
-#%
-from time import time
-from scipy.sparse import coo_matrix
-import tifffile
-import subprocess
-import time as tm
 from time import time
 import pylab as pl
 import psutil
@@ -166,7 +157,7 @@ cse.utilities.view_patches_bar(Yr,A_m,C_m,b,f_m, d1,d2, C_m ,img=Cn)
 options['temporal_params']['p']=0
 options['temporal_params']['fudge_factor']=0.96 #change ifdenoised traces time constant is wrong
 options['temporal_params']['backend']='ipyparallel'
-C_m,f_m,S_m,bl_m,c1_m,neurons_sn_m,g2_m,YrA_m = cse.temporal.update_temporal_components(Yr,A_m,np.atleast_2d(b).T,C_m,f,dview=dview,bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
+C_m,A_m,b,f_m,S_m,bl_m,c1_m,neurons_sn_m,g2_m,YrA_m = cse.temporal.update_temporal_components(Yr,A_m,np.atleast_2d(b).T,C_m,f,dview=dview,bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
 
 #%% get rid of evenrually noisy components. 
 # But check by visual inspection to have a feeling fot the threshold. Try to be loose, you will be able to get rid of more of them later!
@@ -192,7 +183,7 @@ print((time() - t1))
 #%% UPDATE TEMPORAL COMPONENTS
 options['temporal_params']['p']=p
 options['temporal_params']['fudge_factor']=0.96 #change ifdenoised traces time constant is wrong
-C2,f2,S2,bl2,c12,neurons_sn2,g21,YrA = cse.temporal.update_temporal_components(Yr,A2,b2,C2,f,dview=dview, bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
+C2,A2,b2,f2,S2,bl2,c12,neurons_sn2,g21,YrA = cse.temporal.update_temporal_components(Yr,A2,b2,C2,f,dview=dview, bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
 #%% Order components
 #A_or, C_or, srt = cse.utilities.order_components(A2,C2)
 #%% stop server and remove log files
@@ -223,12 +214,8 @@ if save_results:
     import sys
     import numpy as np
     import ca_source_extraction as cse
-    from scipy.sparse import coo_matrix
     import scipy
     import pylab as pl
-    import calblitz as cb
-
-
 
     with np.load('results_analysis.npz')  as ld:
         locals().update(ld)

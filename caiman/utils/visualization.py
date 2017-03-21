@@ -18,7 +18,7 @@ import sys
 from warnings import warn
 from scipy.sparse import issparse, spdiags, coo_matrix
 from matplotlib.widgets import Slider
-from caiman.base.rois import com
+from ..base.rois import com
 from scipy.ndimage.measurements import center_of_mass
 import matplotlib.cm as cm
 import matplotlib as mpl
@@ -30,7 +30,7 @@ try:
 except:
     print("Bokeh could not be loaded. Either it is not installed or you are not running within a notebook")
 
-from caiman.summary_images import local_correlations
+from ..summary_images import local_correlations
 
 
 #%%

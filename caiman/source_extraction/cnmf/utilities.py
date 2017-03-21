@@ -12,9 +12,8 @@ from builtins import range
 from past.utils import old_div
 import numpy as np
 from scipy.sparse import diags,spdiags,issparse
-from caiman.source_extraction.cnmf.initialization import greedyROI
-from caiman.summary_images import local_correlations
-from caiman.base.rois import com
+from .initialization import greedyROI
+from ...base.rois import com
 import pylab as pl
 import psutil
 #%%
@@ -67,8 +66,9 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], ssub=2, tsub=2, p=2, p_ssub=
                                     'check_nan' : check_nan # whether to check for nans. The algorithm does not work with nans
 
                                     }
-    
-    options['init_params'] = {'K': K,                                          # number of components
+    gSig = gSig if gSig is not None else [-1, -1]
+
+    options['init_params'] = {'K': K,                  # number of components
                               # size of components (std of Gaussian)
                               'gSig': gSig,
                               # size of bounding box

@@ -15,15 +15,13 @@ from builtins import str
 from builtins import object
 from past.utils import old_div
 import numpy as np
-from caiman.summary_images import local_correlations
-from caiman.components_evaluation import evaluate_components
-from caiman.source_extraction.cnmf.utilities import  CNMFSetParms, order_components
-from caiman.source_extraction.cnmf.pre_processing import preprocess_data
-from caiman.source_extraction.cnmf.initialization import initialize_components
-from caiman.source_extraction.cnmf.merging import merge_components
-from caiman.source_extraction.cnmf.spatial import update_spatial_components
-from caiman.source_extraction.cnmf.temporal import update_temporal_components
-from caiman.source_extraction.cnmf.map_reduce import run_CNMF_patches
+from .utilities import  CNMFSetParms
+from .pre_processing import preprocess_data
+from .initialization import initialize_components
+from .merging import merge_components
+from .spatial import update_spatial_components
+from .temporal import update_temporal_components
+from .map_reduce import run_CNMF_patches
 import scipy
 
 
@@ -95,10 +93,8 @@ class CNMF(object):
             unitless number accounting how much memory should be used. You will need to try different values to see which one would work the default is OK for a 16 GB system
 
         N_samples_fitness: int 
-            number of samples over which exceptional events are computed (See utilities.evaluate_components) 
+            number of samples over which exceptional events are computed (See utilities.evaluate_components)
 
-
-        
 
         Returns:
         --------
@@ -141,6 +137,7 @@ class CNMF(object):
         self.sn = None
         self.g = None
 
+
     def fit(self, images):
         """
         This method uses the cnmf algorithm to find sources in data.
@@ -162,7 +159,8 @@ class CNMF(object):
 
         options = CNMFSetParms(Y, self.n_processes, p=self.p, gSig=self.gSig, K=self.k, ssub=self.ssub, tsub=self.tsub,
                                p_ssub=self.p_ssub, p_tsub=self.p_tsub, method_init=self.method_init,
-                               n_pixels_per_process=self.n_pixels_per_process, block_size=self.block_size, check_nan=self.check_nan)
+                               n_pixels_per_process=self.n_pixels_per_process, block_size=self.block_size,
+                               check_nan=self.check_nan, nb=self.gnb)
 
         self.options = options
 
@@ -204,7 +202,6 @@ class CNMF(object):
                 
                 return self
 
-                
             print('update spatial ...')
             A, b, Cin, self.f_in = update_spatial_components(Yr, self.Cin, self.f_in, self.Ain, sn=sn, dview=self.dview, **options['spatial_params'])
 
@@ -217,7 +214,7 @@ class CNMF(object):
 
             options['temporal_params']['method'] = self.method_deconvolution
 
-            C, f, S, bl, c1, neurons_sn, g, YrA = update_temporal_components(
+            C, A, b, f, S, bl, c1, neurons_sn, g, YrA = update_temporal_components(
                 Yr, A, b, Cin, self.f_in, dview=self.dview, **options['temporal_params'])
 
             if not self.skip_refinement:
@@ -237,7 +234,7 @@ class CNMF(object):
                 # set it back to original value to perform full deconvolution
                 options['temporal_params']['p'] = self.p
                 print('update temporal ...')
-                C, f, S, bl, c1, neurons_sn, g1, YrA = update_temporal_components(
+                C, A, b, f, S, bl, c1, neurons_sn, g1, YrA = update_temporal_components(
                     Yr, A, b, C, f, dview=self.dview, bl=None, c1=None, sn=None, g=None, **options['temporal_params'])
 
             else:
@@ -267,9 +264,6 @@ class CNMF(object):
             options = CNMFSetParms(Y, self.n_processes, p=self.p, gSig=self.gSig, K=A.shape[
                                    -1], thr=self.merge_thresh, n_pixels_per_process=self.n_pixels_per_process, block_size=self.block_size, check_nan=self.check_nan)
 
-#            pix_proc=np.minimum(np.int((d1*d2)/self.n_processes/(old_div(T,2000.))),np.int(old_div((d1*d2),self.n_processes))) # regulates the amount of memory used
-#            options['spatial_params']['n_pixels_per_process']=pix_proc
-#            options['temporal_params']['n_pixels_per_process']=pix_proc
             options['temporal_params']['method'] = self.method_deconvolution
 
             print("merging")
@@ -279,7 +273,7 @@ class CNMF(object):
                     C), [], options['temporal_params'], options['spatial_params'], dview=self.dview, thr=self.merge_thresh, mx=np.Inf)
 
             print("update temporal")
-            C, f, S, bl, c1, neurons_sn, g1, YrA = update_temporal_components(
+            C, A, b, f, S, bl, c1, neurons_sn, g1, YrA = update_temporal_components(
                 Yr, A, b, C, f, dview=self.dview, bl=None, c1=None, sn=None, g=None, **options['temporal_params'])
 
 #           idx_components, fitness, erfc ,r_values, num_significant_samples = evaluate_components(Y,C+YrA,A,N=self.N_samples_fitness,robust_std=self.robust_std,thresh_finess=self.fitness_threshold)
