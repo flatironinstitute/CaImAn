@@ -39,7 +39,7 @@ from caiman.utils.visualization import plot_contours,view_patches_bar
 from caiman.base.rois import extract_binary_masks_blob
 
 #%%
-c,dview,n_processes = cm.cluster.setup_cluster(backend = 'local',n_processes = None,single_thread = True)
+c,dview,n_processes = cm.cluster.setup_cluster(backend = 'local',n_processes = None,single_thread = False)
 #%%
 is_patches=True
 is_dendrites=False # 

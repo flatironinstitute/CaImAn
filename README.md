@@ -46,7 +46,7 @@ Recent advances in calcium imaging acquisition techniques are creating datasets 
 ### Installation
 
 
-* Installation on posix
+* Installation on posix (Mac and Linux)
 
    * Download and install Anaconda (Python 2.7 or Python 3.5) <http://docs.continuum.io/anaconda/install>
 
@@ -69,33 +69,26 @@ Recent advances in calcium imaging acquisition techniques are creating datasets 
    export MKL_NUM_THREADS=1
    export OPENBLAS_NUM_THREADS=1
    ```
-Installation
-===================================================
 
-Installation on MAC OS
-----------------------
+* Installation on posix (Mac and Linux)
 
-Download and install Anaconda (Python 2.7) <http://docs.continuum.io/anaconda/install>
+
+   * Download and install Anaconda (Python 2.7) <http://docs.continuum.io/anaconda/install>, GIT (<https://git-scm.com/>) and Microsoft Visual C++ Compiler for Python 2.7 <https://www.microsoft.com/en-us/download/details.aspx?id=44266>
 
     ```bash
     
     git clone  https://github.com/simonsfoundation/CaImAn
     cd CaImAn
     git pull
+    conda update conda
     conda create -n CaImAn ipython --file requirements_conda.txt    
-    source activate CaImAn
+    activate CaImAn
     pip install -r requirements_pip.txt
     conda install -c menpo opencv3=3.1.0
     python setup.py build_ext -i
+    conda update --all
+    
     ```
-
-   * To make the package available from everywhere and have it working *efficiently* under any configuration ALWAYS run these lines before starting spyder:
-
-   ```bash
-   export PYTHONPATH="/path/to/caiman:$PYTHONPATH"
-   export MKL_NUM_THREADS=1
-   export OPENBLAS_NUM_THREADS=1
-   ```
     
 # Example
 
@@ -106,6 +99,7 @@ Download and install Anaconda (Python 2.7) <http://docs.continuum.io/anaconda/in
 * Giovannucci, Andrea. **Simons Foundation** 
 * Pnevmatikakis, Eftychios. **Simons Foundation** 
 * Friedrich, Johannes. **Columbia University and Janelia Farm**
+* Cobos, Erick. **Baylor College of Medicine**
 * Staneva, Valentina. **eScience Institute**
 * Deverett, Ben. **Princeton University**
 
