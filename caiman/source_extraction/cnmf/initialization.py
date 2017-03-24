@@ -11,10 +11,11 @@ import scipy.sparse as spr
 import scipy
 from scipy.ndimage.measurements import center_of_mass
 import caiman
+
 #from . import utilities
 #%%
 def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter=5, maxIter=5, nb=1,
-                          kernel=None, use_hals=True, normalize=True, img=None, method='greedy_roi', max_iter_snmf=500, alpha_snmf=10e2, sigma_smooth_snmf=(.5, .5, .5), perc_baseline_snmf=20):
+                          kernel=None, use_hals=True, normalize_init=True, img=None, method='greedy_roi', max_iter_snmf=500, alpha_snmf=10e2, sigma_smooth_snmf=(.5, .5, .5), perc_baseline_snmf=20, options_local_NMF = None):
     """Initalize components
 
     This method uses a greedy approach followed by hierarchical alternative least squares (HALS) NMF.
@@ -42,8 +43,8 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
         User specified kernel for greedyROI (default None, greedy ROI searches for Gaussian shaped neurons)
     use_hals: [optional] bool
         Whether to refine components with the hals method
-    normalize: [optional] bool
-        Whether to normalize data before running the initialization
+    normalize_init: [optional] bool
+        Whether to normalize_init data before running the initialization
     img: optional [np 2d array]
         Image with which to normalize. If not present use the mean + offset 
     method: str  
@@ -68,6 +69,14 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
 
     """
 
+
+    if method == 'local_nmf':
+        tsub_lnmf = tsub
+        ssub_lnmf = ssub
+        tsub = 1 
+        ssub = 1
+        
+        
     if gSiz is None:
         gSiz = 2 * np.asarray(gSig) + 1
 
@@ -77,7 +86,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
     gSiz = np.round(np.asarray(gSiz) // ssub).astype(np.int)
 
     print('Noise Normalization')
-    if normalize is True:
+    if normalize_init is True:
         if img is None:
             img = np.mean(Y, axis=-1)
             img += np.median(img)
@@ -117,11 +126,82 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
         Ain, Cin, _, b_in, f_in = ICA_PCA(Y_ds, nr = K, sigma_smooth=sigma_smooth_snmf,  truncate = 2, fun='logcosh',\
                                           max_iter=max_iter_snmf, tol=1e-10,remove_baseline=True, perc_baseline=perc_baseline_snmf, nb=nb)
         
+    elif method == 'local_nmf':
+        from SourceExtraction.CNMF4Dendrites import CNMF4Dendrites    
+        from SourceExtraction.AuxilaryFunctions import GetCentersData
+        #Get initialization for components center
+        print(Y_ds.transpose([2,0,1]).shape)
+        if options_local_NMF is None:
+            
+             raise Exception('You need to define arguments for local NMF')
+           
+            
+#            #Define CNMF parameters
+#            mbs=[tsub_lnmf] # temporal downsampling of data in intial phase of NMF
+#            ds=ssub_lnmf # spatial downsampling of data in intial phase of NMF. Ccan be an integer or a list of the size of spatial dimensions
+#            TargetAreaRatio=[0.01,0.06] # target sparsity range for spatial components
+#            #repeats=1 # how many repeations to run NMF algorithm
+#            iters0=[5] #30 number of intial NMF iterations, in which we downsample data and add components
+#            iters=20 #100 number of main NMF iterations, in which we fine tune the components on the full data
+#            lam1_s=10# l1 regularization parameter initialization (for increased sparsity). If zero, we have no l1 sparsity penalty        
+#            bkg_per=0.1 # intialize of background shape at this percentile (over time) of video
+#            sig=Y_ds.shape[:-1] # estiamte size of neuron - bounding box is 3 times this size. If larger then data, we have no bounding box.
+#            MergeThreshold_activity=0.85#merge components if activity is correlated above the this threshold (and sufficiently close)
+#            MergeThreshold_shapes=0.99 #merge components if activity is correlated above the this threshold (and sufficiently close)                    
+#            Connected=True # should we constrain all spatial component to be connected?
+#            SigmaMask=3  # if not [], then update masks so that they are non-zero a radius of SigmaMasks around previous non-zero support of shapes
+
+                                   #Get initialization for components center
+
+#            NumCent=400 # Max number of centers to import from Group Lasso intialization - if 0, we don't run group lasso
+#            cent=GetCentersData(Y_ds.transpose([2,0,1]),NumCent)
+#            
+#            #Define CNMF parameters
+#            mbs=[10] # temporal downsampling of data in intial phase of NMF
+#            ds=1 # spatial downsampling of data in intial phase of NMF. Ccan be an integer or a list of the size of spatial dimensions
+#            TargetAreaRatio=[0.01,0.06] # target sparsity range for spatial components
+#            #repeats=1 # how many repeations to run NMF algorithm
+#            iters0=[5] #30 number of intial NMF iterations, in which we downsample data and add components
+#            iters=20 #100 number of main NMF iterations, in which we fine tune the components on the full data
+#            lam1_s=10# l1 regularization parameter initialization (for increased sparsity). If zero, we have no l1 sparsity penalty
+#            updateLambdaIntervals=2 # update sparsity parameter every updateLambdaIntervals iterations
+#            addComponentsIntervals=1 # in initial NMF phase, add new component every updateLambdaIntervals*addComponentsIntervals iterations
+#            updateRhoIntervals=1 # in main NMF phase, update sparsity learning speed (Rho) every updateLambdaIntervals*updateRhoIntervals iterations
+#            Background_num=1 #number of background components - one of which at every repetion
+#            bkg_per=0.1 # intialize of background shape at this percentile (over time) of video
+#            sig=Y_ds.shape[:-1] # estiamte size of neuron - bounding box is 3 times this size. If larger then data, we have no bounding box.
+#            MergeThreshold_activity=0.85#merge components if activity is correlated above the this threshold (and sufficiently close)
+#            MergeThreshold_shapes=0.99 #merge components if activity is correlated above the this threshold (and sufficiently close)        
+#            Connected=True # should we constrain all spatial component to be connected?
+#            SigmaMask=3  # if not [], then update masks so that they are non-zero a radius of SigmaMasks around previous non-zero support of shapes
+        
+#            cnmf_obj=CNMF4Dendrites(sig=sig, verbose=True,adaptBias=True,TargetAreaRatio=TargetAreaRatio,
+#                     Connected=Connected, SigmaMask=SigmaMask,bkg_per=bkg_per,iters=iters,iters0=iters0, mbs=mbs, 
+#                     ds=ds,lam1_s=lam1_s,MergeThreshold_activity=MergeThreshold_activity,MergeThreshold_shapes=MergeThreshold_shapes)  
+        else:
+            
+            NumCent=options_local_NMF.pop('NumCent', None) # Max number of centers to import from Group Lasso intialization - if 0, we don't run group lasso
+            cent=GetCentersData(Y_ds.transpose([2,0,1]),NumCent) 
+            sig=Y_ds.shape[:-1] # estiamte size of neuron - bounding box is 3 times this size. If larger then data, we have no bounding box.
+            cnmf_obj=CNMF4Dendrites(sig=sig, verbose=True,adaptBias=True,**options_local_NMF)  
+            
+        #Define CNMF parameters
+        _, _, _ =cnmf_obj.fit(np.array(Y_ds.transpose([2,0,1]),dtype = np.float),cent)
+        
+        Ain = cnmf_obj.A
+        Cin = cnmf_obj.C
+        b_in = cnmf_obj.b
+        f_in = cnmf_obj.f 
+        
+#        Cin, _, b_in, f_in = ICA_PCA(Y_ds, nr = K, sigma_smooth=sigma_smooth_snmf,  truncate = 2, fun='logcosh',\
+#                                          max_iter=max_iter_snmf, tol=1e-10,remove_baseline=True, perc_baseline=perc_baseline_snmf, nb=nb)
+    
     else:
         
         print(method)
         raise Exception("Unsupported method")
-
+    
+    
     K = np.shape(Ain)[-1]
     ds = Y_ds.shape[:-1]
 
@@ -159,7 +239,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
     # center = com(Ain, *d)
     center = np.asarray([center_of_mass(a.reshape(d, order='F')) for a in Ain.T])
 
-    if normalize is True:
+    if normalize_init is True:
         #import pdb
         # pdb.set_trace()
         Ain = Ain * np.reshape(img, (np.prod(d), -1), order='F')

@@ -66,13 +66,12 @@ def cnmf_patches(args_in):
         images = np.reshape(Yr.T, [T] + list(dims), order='F')
 
         images.filename=file_name
-        
         cnm = cnmf.CNMF(n_processes = 1, k = options['init_params']['K'], gSig = options['init_params']['gSig'], merge_thresh = options['merging']['thr'], p = p, dview = None,  Ain = None,  Cin = None, f_in = None, do_merge = True,\
-                                        ssub = options['init_params']['ssub'], tsub = options['init_params']['ssub'], p_ssub = 1, p_tsub = 1, method_init = options['init_params']['method'], alpha_snmf = options['init_params']['alpha_snmf'],\
+                                        ssub = options['init_params']['ssub'], tsub = options['init_params']['tsub'], p_ssub = options['patch_params']['ssub'], p_tsub = options['patch_params']['tsub'], method_init = options['init_params']['method'], alpha_snmf = options['init_params']['alpha_snmf'],\
                                         rf=None,stride=None, memory_fact=1, gnb = options['init_params']['nb'],\
                                         only_init_patch = options['patch_params']['only_init']\
                                         ,method_deconvolution =  options['temporal_params']['method'], n_pixels_per_process = options['preprocess_params']['n_pixels_per_process'],\
-                                        block_size = options['temporal_params']['block_size'], check_nan = options['preprocess_params']['check_nan'], skip_refinement = options['patch_params']['skip_refinement'])
+                                        block_size = options['temporal_params']['block_size'], check_nan = options['preprocess_params']['check_nan'], skip_refinement = options['patch_params']['skip_refinement'], options_local_NMF = options['init_params']['options_local_NMF'], normalize_init = options['init_params']['normalize_init'])
         
         cnm = cnm.fit(images)   
 

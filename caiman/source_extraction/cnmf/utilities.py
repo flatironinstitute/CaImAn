@@ -17,7 +17,7 @@ from ...base.rois import com
 import pylab as pl
 import psutil
 #%%
-def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], ssub=2, tsub=2, p=2, p_ssub=2, p_tsub=2, thr=0.8, method_init= 'greedy_roi', nb = 1, n_pixels_per_process = 1000, block_size = 1000, check_nan = True, **kwargs):
+def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], ssub=2, tsub=2, p=2, p_ssub=2, p_tsub=2, thr=0.8, method_init= 'greedy_roi', nb = 1, n_pixels_per_process = 1000, block_size = 1000, check_nan = True, normalize_init = True, options_local_NMF = None):
     """Dictionary for setting the CNMF parameters.
     Any parameter that is not set get a default value specified
     by the dictionary default options
@@ -68,22 +68,22 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], ssub=2, tsub=2, p=2, p_ssub=
                                     }
     gSig = gSig if gSig is not None else [-1, -1]
 
-    options['init_params'] = {'K': K,                  # number of components
-                              # size of components (std of Gaussian)
-                              'gSig': gSig,
-                              # size of bounding box
+    options['init_params'] = {'K': K,                  # number of components                                             
+                              'gSig': gSig,                               # size of bounding box
                               'gSiz': list(np.array(gSig, dtype=int) * 2 + 1),
                               'ssub': ssub,             # spatial downsampling factor
                               'tsub': tsub,             # temporal downsampling factor
                               'nIter': 5,               # number of refinement iterations
                               'kernel': None,           # user specified template for greedyROI
                               'maxIter': 5,              # number of HALS iterations
-                              'method' : method_init,     # can be greedy_roi or sparse_nmf
+                              'method' : method_init,     # can be greedy_roi or sparse_nmf, local_NMF 
                               'max_iter_snmf' : 500,
                               'alpha_snmf' : 10e2,
                               'sigma_smooth_snmf' : (.5,.5,.5),
                               'perc_baseline_snmf': 20,
                               'nb' : nb,                 # number of background components
+                              'normalize_init': normalize_init,        # whether to pixelwise equalize the movies during initialization
+                              'options_local_NMF': options_local_NMF # dictionary with parameters to pass to local_NMF initializaer
                               }
     
     options['spatial_params'] = {
