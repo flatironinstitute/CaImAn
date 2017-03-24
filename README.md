@@ -70,7 +70,7 @@ Recent advances in calcium imaging acquisition techniques are creating datasets 
    export OPENBLAS_NUM_THREADS=1
    ```
 
-* Installation on posix (Mac and Linux)
+* Installation on posix (Windows)
 
 
    * Download and install Anaconda (Python 2.7) <http://docs.continuum.io/anaconda/install>, GIT (<https://git-scm.com/>) and Microsoft Visual C++ Compiler for Python 2.7 <https://www.microsoft.com/en-us/download/details.aspx?id=44266>
