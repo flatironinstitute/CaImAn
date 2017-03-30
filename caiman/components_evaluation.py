@@ -254,9 +254,9 @@ def evaluate_components(Y, traces, A, C, b, f, final_frate, remove_baseline = Tr
 
     tB = np.minimum(-2, np.floor( -5. / 30 * final_frate))
     tA = np.maximum(5, np.ceil(25. / 30 * final_frate))
-    d1,d2,T=np.shape(Y)
+    dims,T=np.shape(Y)[:-1],np.shape(Y)[-1]
     
-    Yr=np.reshape(Y,(d1*d2,T),order='F')    
+    Yr=np.reshape(Y,(np.prod(dims),T),order='F')    
 
     print('Computing event exceptionality delta')
     fitness_delta, erfc_delta,std_rr = compute_event_exceptionality(np.diff(traces,axis=1),robust_std=robust_std,N=N)

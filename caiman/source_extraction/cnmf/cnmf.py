@@ -33,7 +33,7 @@ class CNMF(object):
     def __init__(self, n_processes, k=5, gSig=[4,4], merge_thresh=0.8 , p=2, dview=None, Ain=None, Cin=None, f_in=None,do_merge=True,\
                                         ssub=2, tsub=2,p_ssub=1, p_tsub=1, method_init= 'greedy_roi',alpha_snmf=None,\
                                         rf=None,stride=None, memory_fact=1, gnb = 1, only_init_patch=False,\
-                                        method_deconvolution = 'oasis', n_pixels_per_process = 4000, block_size = 20000, check_nan = True, skip_refinement = False):
+                                        method_deconvolution = 'oasis', n_pixels_per_process = 4000, block_size = 20000, check_nan = True, skip_refinement = False, normalize_init=True, options_local_NMF = None):
         """ 
         Constructor of the CNMF method
 
@@ -128,7 +128,8 @@ class CNMF(object):
         self.block_size = block_size
         self.check_nan = check_nan
         self.skip_refinement = skip_refinement
-
+        self.normalize_init = normalize_init
+        self.options_local_NMF = options_local_NMF
         self.A=None
         self.C=None
         self.S=None
@@ -160,23 +161,25 @@ class CNMF(object):
         options = CNMFSetParms(Y, self.n_processes, p=self.p, gSig=self.gSig, K=self.k, ssub=self.ssub, tsub=self.tsub,
                                p_ssub=self.p_ssub, p_tsub=self.p_tsub, method_init=self.method_init,
                                n_pixels_per_process=self.n_pixels_per_process, block_size=self.block_size,
-                               check_nan=self.check_nan, nb=self.gnb)
+                               check_nan=self.check_nan, nb=self.gnb, normalize_init = self.normalize_init, options_local_NMF = self.options_local_NMF)
 
         self.options = options
-
+        
         if self.rf is None:  # no patches
             print('preprocessing ...')
 
             Yr, sn, g, psx = preprocess_data(Yr, dview=self.dview, **options['preprocess_params'])
-
+            
             if self.Ain is None:
                 print('initializing ...')
                 if self.alpha_snmf is not None:
                     options['init_params']['alpha_snmf'] = self.alpha_snmf
 
                 self.Ain, self.Cin, self.b_in, self.f_in, center = initialize_components(
-                    Y, normalize=True, **options['init_params'])
+                    Y, **options['init_params'])
                 
+
+
             if self.only_init: # only return values after initialization
                 
                 nA = np.squeeze(np.array(np.sum(np.square(self.Ain),axis=0)))
@@ -243,7 +246,7 @@ class CNMF(object):
                 C, f, S, bl, c1, neurons_sn, g1, YrA = C, f, S, bl, c1, neurons_sn, g, YrA
 
         else:  # use patches
-
+            
             if self.stride is None:
                 self.stride = np.int(self.rf * 2 * .1)
                 print(('**** Setting the stride to 10% of 2*rf automatically:' + str(self.stride)))
