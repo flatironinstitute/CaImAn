@@ -166,7 +166,7 @@ class CNMF(object):
                 if self.alpha_snmf is not None:
                     options['init_params']['alpha_snmf']=self.alpha_snmf
 
-                self.Ain, self.Cin , self.b_in, self.f_in, center=initialize_components(Y, normalize=True, **options['init_params'])  
+                self.Ain, self.Cin , self.b_in, self.f_in, center=initialize_components(Y, normalize_init=True, **options['init_params'])
 
             A,b,Cin,self.f_in = update_spatial_components(Yr, self.Cin, self.f_in, self.Ain, sn=sn, dview=self.dview,**options['spatial_params'])
 

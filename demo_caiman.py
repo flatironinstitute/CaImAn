@@ -111,7 +111,7 @@ Yr,sn,g,psx = cm.source_extraction.cnmf.pre_processing.preprocess_data(Yr,dview=
 print((time() - t1))
 #%%
 t1 = time()
-Atmp, Ctmp, b_in, f_in, center=cm.source_extraction.cnmf.initialization.initialize_components(Y, normalize=True, **options['init_params'])                                                    
+Atmp, Ctmp, b_in, f_in, center=cm.source_extraction.cnmf.initialization.initialize_components(Y, normalize_init=True, **options['init_params'])
 print((time() - t1))
 #%% Refine manually component by clicking on neurons 
 refine_components=False
