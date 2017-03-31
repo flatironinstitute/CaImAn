@@ -82,8 +82,8 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
 
     d, T = np.shape(Y)[:-1], np.shape(Y)[-1]
     # rescale according to downsampling factor
-    gSig = np.round(np.asarray(gSig) // ssub).astype(np.int)
-    gSiz = np.round(np.asarray(gSiz) // ssub).astype(np.int)
+    gSig = np.round(np.asarray(gSig) / ssub).astype(np.int)
+    gSiz = np.round(np.asarray(gSiz) / ssub).astype(np.int)
 
     print('Noise Normalization')
     if normalize_init is True:
