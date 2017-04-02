@@ -13,24 +13,38 @@ from sklearn.decomposition import FastICA
 import pylab as pl
 import glob
 import numpy as np
-#import spams
+from caiman.components_evaluation import compute_event_exceptionality#import spams
 #from PIL import Image
-import time
+import scipy
+from skimage.morphology import square
+from skimage.filters import rank
+
 #%%
-a = cm.load('demoMovie.tif')[:,20:50,20:50]
-Yr = cm.movie.to_2D(a)
+a = cm.load('example_movies/demoMovie.tif')
+all_els = []
+for it in range(10):
+    print(it)
+#    a = cm.movie(np.random.randn(*mns.shape).astype(np.float32))
+    Yr = cm.movie.to_2D(a).astype(np.float)
+
+    #%
+    norm = lambda(x): np.exp(-x**2/2)/np.sqrt(2*np.pi)
+    fitness ,res, sd_r,md = compute_event_exceptionality(Yr.T)
+    mns = cm.movie(scipy.ndimage.convolve(np.reshape(np.clip(-np.log(norm(np.array((Yr-md)/sd_r,dtype=np.float))),0,1000),[-1,60,80],order = 'F'),np.ones([3,3,3])))
+    mns[mns<27*np.log((mns.shape[0]))] = 0
+    all_els.append(np.sum(mns>0))
+    print(all_els)
+#%%    
 mov = Yr
 #%%
-res = compute_event_exceptionality(Yr.T)
-mns = -cm.movie(np.reshape(res[1],[30,30,-1]).transpose([2,1,0]))
-mns[mns > 1000] = 1000
-mov = cm.movie.to_2D(mns)
-
+mns = -cm.movie(np.reshape(res.clip(-1000,0),[80,60,-1]).transpose([2,1,0]))
+#mns[mns > 1000] = 1000
+mov = cm.movie.to_2D(mns)    
 #%%
 noise = res[2]
 mode = cm.components_evaluation.mode_robust(Yr,0)
 Yr_1 = (cm.movie.to_2D(a)-mode)/res[2]
-mns_1 = (np.reshape(Yr_1,[-1,30,30],order='F'))
+mns_1 = (np.reshape(Yr_1,[-1,80,60],order='F'))
 mov = np.maximum(0,cm.movie.to_2D(mns_1))
 #%%
 

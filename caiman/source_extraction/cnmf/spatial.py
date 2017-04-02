@@ -325,6 +325,7 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
 
     print("Computing A_bas")
     A_bas = np.fmax(Y_resf.dot(np.linalg.inv(f.dot(f.T))), 0)  # update baseline based on residual
+
     # A_bas = np.fmax(Y_resf / scipy.linalg.norm(f)**2, 0)  # update baseline based on residual
     # baseline based on residual
     b = A_bas

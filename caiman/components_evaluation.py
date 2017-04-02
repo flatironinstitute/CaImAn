@@ -128,7 +128,7 @@ def compute_event_exceptionality(traces,robust_std=False,N=5,use_mode_fast=False
     #fitness = fitness[idx_components]
     #erfc = erfc[idx_components]
 
-    return fitness,erfc,sd_r
+    return fitness,erfc,sd_r,md
 #%%
 def find_activity_intervals(C,Npeaks = 5, tB=-5, tA = 25, thres = 0.3):
 
@@ -259,7 +259,7 @@ def evaluate_components(Y, traces, A, C, b, f, final_frate, remove_baseline = Tr
     Yr=np.reshape(Y,(np.prod(dims),T),order='F')    
 
     print('Computing event exceptionality delta')
-    fitness_delta, erfc_delta,std_rr = compute_event_exceptionality(np.diff(traces,axis=1),robust_std=robust_std,N=N)
+    fitness_delta, erfc_delta,std_rr, _ = compute_event_exceptionality(np.diff(traces,axis=1),robust_std=robust_std,N=N)
 
 
     print('Removing Baseline')
@@ -268,7 +268,7 @@ def evaluate_components(Y, traces, A, C, b, f, final_frate, remove_baseline = Tr
         traces = traces - scipy.ndimage.percentile_filter(traces,8,size=[1,num_samps_bl])
 
     print('Computing event exceptionality')    
-    fitness_raw, erfc_raw,std_rr = compute_event_exceptionality(traces,robust_std=robust_std,N=N)
+    fitness_raw, erfc_raw,std_rr, _ = compute_event_exceptionality(traces,robust_std=robust_std,N=N)
 
     print('Evaluating spatial footprint')
     # compute the overlap between spatial and movie average across samples with significant events

@@ -308,8 +308,10 @@ def motion_correct_online(movie_iterable,add_to_movie,max_shift_w=25,max_shift_h
         gc.collect()
 
 
-
-    return shifts,xcorrs,template, fname_tot, np.dstack(mov).transpose([2,0,1])     
+    if mov is not None:
+        mov = np.dstack(mov).transpose([2,0,1]) 
+        
+    return shifts,xcorrs,template, fname_tot, mov    
 #%%
 def motion_correct_iteration(img,template,frame_num,max_shift_w=25,max_shift_h=25,bilateral_blur=False,diameter=10,sigmaColor=10000,sigmaSpace=0):
 
@@ -1506,10 +1508,11 @@ def motion_correct_batch_rigid(fname, max_shifts, dview = None, splits = 56 ,num
     m = cm.load(fname,subindices=slice(0,None,10))
     
     if m.shape[0]<300:
+        m = cm.load(fname,subindices=slice(0,None,1))
+    elif m.shape[0]<500:
         m = cm.load(fname,subindices=slice(0,None,5))
-    elif m.shape[0]>500:
+    else:
         m = cm.load(fname,subindices=slice(0,None,30))
-        
     if template is None:       
         template = cm.motion_correction.bin_median(m.motion_correct(max_shifts[0],max_shifts[1],template=None)[0])
     
@@ -1722,8 +1725,12 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
     if extension == '.tif' or extension == '.tiff':  # check if tiff file       
         
         with tifffile.TiffFile(fname) as tf:
-           d1,d2 = tf[0].shape
-           T = len(tf)    
+
+           if len(tf) == 1:
+               T,d1,d2 = tf[0].shape
+           else:    
+               d1,d2 = tf[0].shape
+               T = len(tf)    
            
     elif extension == '.sbx':  # check if sbx file
          
