@@ -44,28 +44,21 @@ def cnmf_patches(args_in):
     logger.info('START')
 
     logger.info('Read file')
-    Yr,_,_=load_memmap(file_name)    
+    Yr, dims, timesteps = load_memmap(file_name)
 
-    
+    # slicing array (takes the min and max index in n-dimensional space and cuts the box they define)
+    # for 2d a rectangle/square, for 3d a rectangular cuboid/cube, etc.
+    upper_left_corner = min(idx_)
+    lower_right_corner = max(idx_)
+    indices = np.unravel_index([upper_left_corner, lower_right_corner], dims, order='F')  # indices as tuples
+    slices = [slice(min_dim, max_dim + 1) for min_dim, max_dim in indices]
+    slices.insert(0, slice(timesteps))  # insert slice for timesteps, equivalent to :
 
-    Yr=Yr[idx_,:]
-    
-    
-    if (np.sum(np.abs(np.diff(Yr))))>0.1:
+    images = np.reshape(Yr.T, [timesteps] + list(dims), order='F')
+    images = images[slices]
 
-        Yr.filename=file_name
-        d,T=Yr.shape      
+    if (np.sum(np.abs(np.diff(images.reshape(timesteps, -1).T)))) > 0.1:
 
-        
-#        Y=np.reshape(Yr,(shapes[1],shapes[0],T),order='F')  
-#        Y.filename=file_name
-        
-       
-#        dims = shapes[1],shapes[0]
-        dims = shapes #shapes[1],shapes[0],shapes[2]
-        images = np.reshape(Yr.T, [T] + list(dims), order='F')
-
-        images.filename=file_name
         cnm = cnmf.CNMF(n_processes = 1, k = options['init_params']['K'], gSig = options['init_params']['gSig'], merge_thresh = options['merging']['thr'], p = p, dview = None,  Ain = None,  Cin = None, f_in = None, do_merge = True,\
                                         ssub = options['init_params']['ssub'], tsub = options['init_params']['tsub'], p_ssub = options['patch_params']['ssub'], p_tsub = options['patch_params']['tsub'], method_init = options['init_params']['method'], alpha_snmf = options['init_params']['alpha_snmf'],\
                                         rf=None,stride=None, memory_fact=1, gnb = options['init_params']['nb'],\

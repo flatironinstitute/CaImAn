@@ -144,13 +144,12 @@ class movie(ts.timeseries):
         '''
 
         # adjust the movie so that valuse are non negative
-
-#        min_val = np.percentile(self, 8)
-#        if min_val>0:
-#            print "removing 8 percentile"
-#            self = self-min_val
-#        else:
-#            min_val=0
+        #        min_val = np.percentile(self, 8)
+        #        if min_val>0:
+        #            print "removing 8 percentile"
+        #            self = self-min_val
+        #        else:
+        #            min_val=0
 
         if template is None:  # if template is not provided it is created
             if num_frames_template is None:
@@ -313,10 +312,6 @@ class movie(ts.timeseries):
 
         return (shifts,xcorrs)
 
-
-
-
-
     def apply_shifts(self, shifts,interpolation='linear',method='opencv',remove_blanks=False):
         """
         Apply precomputed shifts to a movie, using subpixels adjustment (cv2.INTER_CUBIC function)
@@ -396,7 +391,6 @@ class movie(ts.timeseries):
 
         return self
 
-
     def debleach(self):
         """ Debleach by fiting a model to the median intensity.
         """
@@ -443,7 +437,6 @@ class movie(ts.timeseries):
         t,h,w=self.shape
 
         return self[crop_begin:t-crop_end,crop_top:h-crop_bottom,crop_left:w-crop_right]
-
 
     def computeDFF(self,secsWindow=5,quantilMin=8,method='only_baseline',order='C'):
         """
@@ -503,7 +496,6 @@ class movie(ts.timeseries):
         print(('Final Size Movie:' +  np.str(self.shape)))
         return self,movie(movBL,fr=self.fr,start_time=self.start_time,meta_data=self.meta_data,file_name=self.file_name)
 
-
     def NonnegativeMatrixFactorization(self,n_components=30, init='nndsvd', beta=1,tol=5e-7, sparseness='components',**kwargs):
         '''
         See documentation for scikit-learn NMF
@@ -523,8 +515,6 @@ class movie(ts.timeseries):
         space_components=np.reshape(components_,(n_components,h,w))
 
         return space_components,time_components
-
-
 
     def online_NMF(self,n_components=30,method='nnsc',lambda1=100,iterations=-5,batchsize=512,model=None,**kwargs):
         """ Method performing online matrix factorization and using the spams (http://spams-devel.gforge.inria.fr/doc-python/html/index.html) package from Inria.
@@ -659,7 +649,6 @@ class movie(ts.timeseries):
 
         return ind_frames
 
-
     def IPCA_denoise(self, components = 50, batch = 1000):
         '''
         Create a denoise version of the movie only using the first 'components' components
@@ -689,7 +678,6 @@ class movie(ts.timeseries):
         mask=np.reshape(A.T,(d1,d2,pca_comp)).transpose([2,0,1])
         
         return mask
-
 
     def local_correlations(self,eight_neighbours=False,swap_dim=True):
         """Computes the correlation image for the input dataset Y
@@ -751,7 +739,6 @@ class movie(ts.timeseries):
         fovs=np.reshape(labs,(h,w))
         fovs=cv2.resize(np.uint8(fovs),(w1,h1),old_div(1.,fx),old_div(1.,fy),interpolation=cv2.INTER_NEAREST)
         return np.uint8(fovs), mcoef, distanceMatrix
-
 
     def extract_traces_from_masks(self,masks):
         """
@@ -829,7 +816,6 @@ class movie(ts.timeseries):
 
         return self
 
-
     def guided_filter_blur_2D(self,guide_filter,radius=5, eps=0):
         """
         performs guided filtering on each frame. See opencv documentation of cv2.ximgproc.guidedFilter
@@ -855,8 +841,6 @@ class movie(ts.timeseries):
             self[idx] =   cv2.bilateralFilter(fr,diameter,sigmaColor,sigmaSpace)
 
         return self
-
-
 
     def gaussian_blur_2D(self,kernel_size_x=5,kernel_size_y=5,kernel_std_x=1,kernel_std_y=1,borderType=cv2.BORDER_REPLICATE):
         """
@@ -936,8 +920,6 @@ class movie(ts.timeseries):
             raise Exception('Method not implemented')
         pl.imshow(zp,cmap=cmap,aspect=aspect,**kwargs)
         return zp
-
-
 
     def local_correlations_movie(self,window=10):
         [T,d1,d2]=self.shape
