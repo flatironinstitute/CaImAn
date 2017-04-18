@@ -103,7 +103,7 @@ K=30 # number of neurons expected per patch
 gSig=[7,7] # expected half size of neurons
 merge_thresh=0.8 # merging threshold, max correlation allowed
 p=2 #order of the autoregressive system
-options = cnmf.utilities.CNMFSetParms(Y,n_processes,p=p,gSig=gSig,K=K,ssub=2,tsub=2,nb=1)
+options = cnmf.utilities.CNMFSetParms(Y,n_processes,p=p,gSig=gSig,K=K,ssub=2,tsub=2,nb=1, normalize_init=True)
 options['preprocess_params']['noise_method']='mean'
 #%% PREPROCESS DATA AND INITIALIZE COMPONENTS
 t1 = time()
@@ -111,7 +111,7 @@ Yr,sn,g,psx = cm.source_extraction.cnmf.pre_processing.preprocess_data(Yr,dview=
 print((time() - t1))
 #%%
 t1 = time()
-Atmp, Ctmp, b_in, f_in, center=cm.source_extraction.cnmf.initialization.initialize_components(Y, normalize=True, **options['init_params'])                                                    
+Atmp, Ctmp, b_in, f_in, center=cm.source_extraction.cnmf.initialization.initialize_components(Y, **options['init_params'])
 print((time() - t1))
 #%% Refine manually component by clicking on neurons 
 refine_components=False

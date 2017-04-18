@@ -154,9 +154,13 @@ class CNMF(object):
         """
         T = images.shape[0]
         dims = images.shape[1:]
-        Yr = images.reshape([T, np.prod(dims)], order='F').T
         Y = np.transpose(images, list(range(1, len(dims) + 1)) + [0])
+        Yr = np.transpose(np.reshape(images, (T, -1), order='F'))
         print((T,) + dims)
+
+        # Make sure filename is pointed correctly (numpy sets it to None sometimes)
+        Y.filename = images.filename
+        Yr.filename = images.filename
 
         options = CNMFSetParms(Y, self.n_processes, p=self.p, gSig=self.gSig, K=self.k, ssub=self.ssub, tsub=self.tsub,
                                p_ssub=self.p_ssub, p_tsub=self.p_tsub, method_init=self.method_init,

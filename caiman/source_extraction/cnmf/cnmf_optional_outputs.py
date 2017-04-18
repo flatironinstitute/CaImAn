@@ -154,7 +154,7 @@ class CNMF(object):
         print((T,d1,d2))
 
         options = CNMFSetParms(Y,self.n_processes,p=self.p,gSig=self.gSig,K=self.k,ssub=self.ssub,tsub=self.tsub,\
-                                        p_ssub=self.p_ssub, p_tsub=self.p_tsub, method_init= self.method_init)
+                                        p_ssub=self.p_ssub, p_tsub=self.p_tsub, method_init= self.method_init, normalize_init=True)
 
         self.options=options 
 
@@ -166,7 +166,7 @@ class CNMF(object):
                 if self.alpha_snmf is not None:
                     options['init_params']['alpha_snmf']=self.alpha_snmf
 
-                self.Ain, self.Cin , self.b_in, self.f_in, center=initialize_components(Y, normalize=True, **options['init_params'])  
+                self.Ain, self.Cin , self.b_in, self.f_in, center=initialize_components(Y, **options['init_params'])
 
             A,b,Cin,self.f_in = update_spatial_components(Yr, self.Cin, self.f_in, self.Ain, sn=sn, dview=self.dview,**options['spatial_params'])
 

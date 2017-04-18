@@ -142,8 +142,10 @@ def nb_view_patches(Yr, A, C, b, f, d1, d2, image_neurons=None, thr=0.99, denois
     b = np.squeeze(b)
     f = np.squeeze(f)
     #Y_r = np.array(spdiags(1/nA2,0,nr,nr)*(A.T*np.matrix(Yr-b[:,np.newaxis]*f[np.newaxis] - A.dot(C))) + C)
-    Y_r = np.array(spdiags(old_div(1, nA2), 0, nr, nr) * (A.T * np.matrix(Yr) - (A.T *
-                                                                                 np.matrix(b[:, np.newaxis])) * np.matrix(f[np.newaxis]) - (A.T.dot(A)) * np.matrix(C)) + C)
+    Y_r = np.array(spdiags(old_div(1, nA2), 0, nr, nr) *
+                   (A.T * np.matrix(Yr) -
+                    (A.T * np.matrix(b[:, np.newaxis])) * np.matrix(f[np.newaxis]) -
+                    A.T.dot(A) * np.matrix(C)) + C)
 
     bpl.output_notebook()
     x = np.arange(T)
@@ -274,7 +276,7 @@ def get_contours3d(A, dims, thr=0.9):
     return coordinates
 
 
-def nb_view_patches3d(Yr,Y_r, A, C, b, f, dims, image_type='mean',
+def nb_view_patches3d(Yr, Y_r, A, C, b, f, dims, image_type='mean',
                       max_projection=False, axis=0, thr=0.9, denoised_color=None):
     '''
     Interactive plotting utility for ipython notbook
@@ -311,11 +313,13 @@ def nb_view_patches3d(Yr,Y_r, A, C, b, f, dims, image_type='mean',
     order = list(range(4))
     order.insert(0, order.pop(axis))
     Y_r = Y_r + C
-    index_permut = np.reshape(np.arange(d),dims,order = 'F').transpose(order[:-1]).reshape(d, order='F')
-    A = A[index_permut,:] 
+    index_permut = np.reshape(np.arange(d), dims, order='F').transpose(
+        order[:-1]).reshape(d, order='F')
+    A = A[index_permut, :]
 #    Yr = Yr.reshape(dims + (-1,), order='F').transpose(order).reshape((d, T), order='F')
-#    A = A.reshape(dims + (-1,), order='F').transpose(order).reshape((d, -1), order='F')# A[index_permut,:] 
-    
+# A = A.reshape(dims + (-1,), order='F').transpose(order).reshape((d, -1),
+# order='F')# A[index_permut,:]
+
 #    Yr = Yr.reshape(dims + (-1,), order='F').transpose(order).reshape((d, T), order='F')
 #    A = A.reshape(dims + (-1,), order='F').transpose(order).reshape((d, -1), order='F')
     dims = tuple(np.array(dims)[order[:3]])
@@ -326,7 +330,7 @@ def nb_view_patches3d(Yr,Y_r, A, C, b, f, dims, image_type='mean',
 #    nA2 = A.power(2).sum(axis=0)
     b = np.squeeze(b)
     f = np.squeeze(f)
-    
+
 #    Y_r = np.array(spdiags(1. / nA2, 0, nr, nr) *
 #                   (A.T * np.matrix(Yr) - (A.T * np.matrix(b[:, np.newaxis])) *
 #                    np.matrix(f[np.newaxis]) - (A.T.dot(A)) * np.matrix(C)) + C)
@@ -334,31 +338,33 @@ def nb_view_patches3d(Yr,Y_r, A, C, b, f, dims, image_type='mean',
     bpl.output_notebook()
     x = np.arange(T)
     z = np.squeeze(np.array(Y_r[:, :].T)) / 100
-        
-                  
+
+
 #    index_permut = np.reshape(np.arange(d),dims,order = 'F')
-               
+
 #    k = np.reshape(np.array(A), dims + (A.shape[1],), order='F')
 #    k = A[index_permut,:]
-    
+
     source = ColumnDataSource(data=dict(x=x, y=z[:, 0], y2=C[0] / 100,
                                         z=z.tolist(), z2=(C.T / 100).tolist()))
 
     if max_projection:
         if image_type == 'corr':
-        
-            image_neurons = [(local_correlations(
+
+            tmp = [(local_correlations(
                 Yr.reshape(dims + (-1,), order='F'))[:, ::-1]).max(i)
                 for i in range(3)]
-        
+
         elif image_type == 'mean':
-            
-            tmp = [(A.mean(axis=1).toarray().reshape(dims, order = 'F')[:, ::-1]).max(i) for i in range(3)]
-        
-        elif image_type ==  'max':
-        
-            tmp = [(A.max(axis=1).toarray().reshape(dims, order = 'F')[:, ::-1]).max(i) for i in range(3)]
-            
+
+            tmp = [(np.array(A.mean(axis=1)).reshape(dims, order='F')[:, ::-1]).max(i)
+                   for i in range(3)]
+
+        elif image_type == 'max':
+
+            tmp = [(A.max(axis=1).toarray().reshape(dims, order='F')[:, ::-1]).max(i)
+                   for i in range(3)]
+
         else:
             raise ValueError("image_type must be 'mean', 'max' or 'corr'")
 
@@ -368,15 +374,14 @@ def nb_view_patches3d(Yr,Y_r, A, C, b, f, dims, image_type='mean',
         image_neurons[-d1:, -d3:] = tmp[1]
         offset1 = image_neurons.shape[1] - d3
         offset2 = image_neurons.shape[0] - d1
-                                     
-                            
-        proj_ = [coo_matrix([A[:,nnrr].toarray().reshape(dims, order='F').max(i).reshape(-1, order='F') for nnrr in range(A.shape[1])]) for i in range(3)]
+
+        proj_ = [coo_matrix([A[:, nnrr].toarray().reshape(dims, order='F').max(
+            i).reshape(-1, order='F') for nnrr in range(A.shape[1])]) for i in range(3)]
         proj_ = [pproj_.T for pproj_ in proj_]
-                     
-                                     
-        coors = [ plot_contours(coo_matrix(proj_[i]), tmp[i], thr_method='nrg', nrgthr = thr) for i in range(3) ]
-            
-                
+
+        coors = [plot_contours(coo_matrix(proj_[i]), tmp[i],
+                               thr_method='nrg', nrgthr=thr) for i in range(3)]
+
         pl.close()
         cc1 = [[list(cor['coordinates'][:, 0] + offset1) for cor in coors[0]],
                [list(cor['coordinates'][:, 1]) for cor in coors[2]],
@@ -438,23 +443,23 @@ def nb_view_patches3d(Yr,Y_r, A, C, b, f, dims, image_type='mean',
             """)
 
     else:
-        
+
         if image_type == 'corr':
-            
+
             image_neurons = local_correlations(Yr.reshape(dims + (-1,), order='F'))[:, ::-1]
-            
-        elif image_type  == 'mean':
-            
-            image_neurons = A.mean(axis=1).toarray().reshape(dims, order = 'F')[:, ::-1]        
-            
+
+        elif image_type == 'mean':
+
+            image_neurons = np.array(A.mean(axis=1)).reshape(dims, order='F')[:, ::-1]
+
         elif image_type == 'max':
-            
-            image_neurons = A.max(axis=1).toarray().reshape(dims, order = 'F')[:, ::-1]
-        
+
+            image_neurons = A.max(axis=1).toarray().reshape(dims, order='F')[:, ::-1]
+
         else:
-            
+
             raise ValueError('image_type must be mean, max or corr')
-        
+
         cmap = bokeh.models.mappers.LinearColorMapper([mpl.colors.rgb2hex(m)
                                                        for m in colormap(np.arange(colormap.N))])
         cmap.high = image_neurons.max()
