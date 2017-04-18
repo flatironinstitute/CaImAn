@@ -39,7 +39,100 @@ from cv2 import idft as ifftn
 opencv = True
 from numpy.fft import ifftshift
 import itertools
+#%%
+class MotionCorrect(object):
 
+     def __init__(self, fname, min_mov, dview=None, max_shifts=(6,6), niter_rig=1, splits_rig=14, num_splits_to_process_rig=None, 
+                strides= (96,96), overlaps= (32,32), splits_els=14,num_splits_to_process_els=[7,None], 
+                upsample_factor_grid=4, max_deviation_rigid=3, shifts_opencv = True, nonneg_movie = False): 
+        """
+        Constructor class for motion correction operations
+        
+        
+        Parameters
+        ----------
+        fname: str
+            path to file to motion correct
+        min_mov: int16 or float32
+            estimate minimum value of the movie to produce an output that is positive       
+        max_shifts: tuple
+            maximum allow rigid shift
+        niter_rig':int
+            maximum number of iterations rigid motion correction
+        splits_rig': int
+             for parallelization split the movies in  num_splits chuncks across time
+        num_splits_to_process_rig:list, 
+            if none all the splits are processed and the movie is saved, otherwise at each iteration num_splits_to_process_rig are considered
+        strides: tuple 
+            intervals at which patches are laid out for motion correction
+        overlaps: tuple
+            overlap between pathes (size of patch strides+overlaps)
+        splits_els':list
+            for parallelization split the movies in  num_splits chuncks across time 
+        num_splits_to_process_els:list,
+            if none all the splits are processed and the movie is saved  otherwise at each iteration num_splits_to_process_els are considered
+        upsample_factor_grid:int, 
+            upsample factor of shifts per patches to avoid smearing when merging patches
+        max_deviation_rigid:int
+            maximum deviation allowed for patch with respect to rigid shift
+        shifts_opencv: Bool 
+            apply shifts fast way (but smoothing results)
+        save_movie_rigid:Bool
+            save the movies vs just get the template
+        """
+        self.fname=fname
+        self.dview=dview
+        self.max_shifts=max_shifts
+        self.niter_rig=niter_rig
+        self.splits_rig=splits_rig
+        self.num_splits_to_process_rig=num_splits_to_process_rig
+        self.strides= strides
+        self.overlaps= overlaps
+        self.splits_els=splits_els
+        self.num_splits_to_process_els=num_splits_to_process_els
+        self.upsample_factor_grid=upsample_factor_grid
+        self.max_deviation_rigid=max_deviation_rigid
+        self.shifts_opencv = shifts_opencv
+        self.min_mov = min_mov
+        self.nonneg_movie  = nonneg_movie
+
+        
+        
+     def motion_correct_rigid(self, template = None, save_movie = False):   
+        """
+       
+      
+        """
+        print('Rigid Motion Correction')
+        print(-self.min_mov)
+        self.fname_tot_rig, self.total_template_rig, self.templates_rig, self.shifts_rig = motion_correct_batch_rigid(self.fname,\
+                                                                        self.max_shifts, dview = self.dview, splits = self.splits_rig ,num_splits_to_process = self.num_splits_to_process_rig,\
+                                                                        num_iter = self.niter_rig,\
+                                                                        template = template, shifts_opencv = self.shifts_opencv , save_movie_rigid = save_movie, add_to_movie= -self.min_mov, nonneg_movie = self.nonneg_movie)
+        
+        return self
+    
+     def motion_correct_pwrigid(self,save_movie = True, template=None):  
+        
+        num_iter = 1
+        if template is None:
+             print('generating template by rigid motion correction')
+             self = self.motion_correct_rigid()   
+             self.total_template_els = self.total_template_rig.copy()
+             pl.imshow(self.total_template_els)        
+             pl.pause(1)
+        else:
+             self.total_template_els = template
+            
+        for num_splits_to_process in self.num_splits_to_process_els:
+            self.fname_tot_els, new_template_els, self.templates_els, self.x_shifts_els, self.y_shifts_els, self.coord_shifts_els  =\
+                    motion_correct_batch_pwrigid(self.fname, self.max_shifts, self.strides, self.overlaps, -self.min_mov, 
+                                                     dview = self.dview, upsample_factor_grid = self.upsample_factor_grid, max_deviation_rigid = self.max_deviation_rigid,
+                                                     splits = self.splits_els ,num_splits_to_process = num_splits_to_process, num_iter = num_iter,
+                                                     template =  self.total_template_els, shifts_opencv = self.shifts_opencv, save_movie = save_movie, nonneg_movie = self.nonneg_movie)
+            self.total_template_els = new_template_els
+        
+        return self
 #%%
 def apply_shift_iteration(img,shift,border_nan=False):
 
@@ -1204,7 +1297,7 @@ def tile_and_correct(img,template, strides, overlaps,max_shifts, newoverlaps = N
     img = img.astype(np.float64)
     template = template.astype(np.float64)
 
-
+    
     img = img + add_to_movie
     template = template + add_to_movie
 
@@ -1458,7 +1551,7 @@ def compute_metrics_motion_correction(fname,final_size_x,final_size_y, swap_dim,
     return tmpl, correlations, flows, norms, smoothness
 
 #%% motion correction in batches
-def motion_correct_batch_rigid(fname, max_shifts, dview = None, splits = 56 ,num_splits_to_process = None, num_iter = 1,  template = None, shifts_opencv = False, save_movie_rigid = False, add_to_movie = None):
+def motion_correct_batch_rigid(fname, max_shifts, dview = None, splits = 56 ,num_splits_to_process = None, num_iter = 1,  template = None, shifts_opencv = False, save_movie_rigid = False, add_to_movie = None, nonneg_movie = False):
     """
     Function that perform memory efficient hyper parallelized rigid motion corrections while also saving a memory mappable file
 
@@ -1521,7 +1614,8 @@ def motion_correct_batch_rigid(fname, max_shifts, dview = None, splits = 56 ,num
     new_templ = template
     if add_to_movie is None:
         add_to_movie=-np.min(template)
-
+        
+    
     if np.isnan(add_to_movie):
         raise Exception('The movie contains nans. Nans are not allowed!')
     else:
@@ -1540,7 +1634,7 @@ def motion_correct_batch_rigid(fname, max_shifts, dview = None, splits = 56 ,num
     
         fname_tot_rig, res_rig = motion_correction_piecewise (fname, splits, strides = None, overlaps = None,\
                                 add_to_movie=add_to_movie, template = old_templ, max_shifts = max_shifts, max_deviation_rigid = 0,\
-                                dview = dview, save_movie = save_movie ,base_name  = os.path.split(fname)[-1][:-4]+ '_rig_',num_splits=num_splits_to_process,shifts_opencv=shifts_opencv)
+                                dview = dview, save_movie = save_movie ,base_name  = os.path.split(fname)[-1][:-4]+ '_rig_',num_splits=num_splits_to_process,shifts_opencv=shifts_opencv, nonneg_movie = nonneg_movie)
     
     
     
@@ -1560,7 +1654,7 @@ def motion_correct_batch_rigid(fname, max_shifts, dview = None, splits = 56 ,num
 def motion_correct_batch_pwrigid(fname, max_shifts, strides, overlaps, add_to_movie, newoverlaps = None,  newstrides = None,
                                              dview = None, upsample_factor_grid = 4, max_deviation_rigid = 3,
                                              splits = 56 ,num_splits_to_process = None, num_iter = 1,
-                                             template = None, shifts_opencv = False, save_movie = False):
+                                             template = None, shifts_opencv = False, save_movie = False, nonneg_movie = False):
     """
     Function that perform memory efficient hyper parallelized rigid motion corrections while also saving a memory mappable file
 
@@ -1649,7 +1743,7 @@ def motion_correct_batch_pwrigid(fname, max_shifts, strides, overlaps, add_to_mo
                                 max_deviation_rigid = max_deviation_rigid,\
                                 newoverlaps = newoverlaps, newstrides = newstrides,\
                                 upsample_factor_grid = upsample_factor_grid, order = 'F',dview = dview,save_movie = save_movie,
-                                base_name = os.path.split(fname)[-1][:-4] + '_els_',num_splits=num_splits_to_process,shifts_opencv = shifts_opencv)
+                                base_name = os.path.split(fname)[-1][:-4] + '_els_',num_splits=num_splits_to_process,shifts_opencv = shifts_opencv, nonneg_movie = nonneg_movie)
     
     
         new_templ = np.nanmedian(np.dstack([r[-1] for r in res_el ]),-1)    
@@ -1684,7 +1778,7 @@ def tile_and_correct_wrapper(params):
         1 #'Open CV is naturally single threaded'
 
     img_name,  out_fname,idxs, shape_mov, template, strides, overlaps, max_shifts,\
-        add_to_movie,max_deviation_rigid,upsample_factor_grid, newoverlaps, newstrides,shifts_opencv  = params
+        add_to_movie,max_deviation_rigid,upsample_factor_grid, newoverlaps, newstrides,shifts_opencv,nonneg_movie  = params
 
     import os
 
@@ -1705,16 +1799,21 @@ def tile_and_correct_wrapper(params):
         mc[count],total_shift,start_step,xy_grid = tile_and_correct(img, template, strides, overlaps,max_shifts, add_to_movie=add_to_movie, newoverlaps = newoverlaps, newstrides = newstrides,\
                 upsample_factor_grid= upsample_factor_grid, upsample_factor_fft=10,show_movie=False,max_deviation_rigid=max_deviation_rigid,shifts_opencv = shifts_opencv)
         shift_info.append([total_shift,start_step,xy_grid])
+        
     if out_fname is not None:           
         outv = np.memmap(out_fname,mode='r+', dtype=np.float32, shape=shape_mov, order='F')
-        outv[:,idxs] = np.reshape(mc.astype(np.float32),(len(imgs),-1),order = 'F').T
+        if nonneg_movie:
+            bias = np.float32(add_to_movie)
+        else:
+            bias = 0
+        outv[:,idxs] = np.reshape(mc.astype(np.float32),(len(imgs),-1),order = 'F').T + bias
 
     return shift_info, idxs, np.nanmean(mc,0)
 
 
 #%%
 def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0, template = None, max_shifts = (12,12),max_deviation_rigid = 3,newoverlaps = None, newstrides = None,\
-                                upsample_factor_grid = 4, order = 'F',dview = None,save_movie= True, base_name = None, num_splits = None,shifts_opencv= False):
+                                upsample_factor_grid = 4, order = 'F',dview = None,save_movie= True, base_name = None, num_splits = None,shifts_opencv= False, nonneg_movie = False):
     '''
 
     '''
@@ -1780,7 +1879,7 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
     
     pars = []
     for idx in idxs:
-      pars.append([fname,fname_tot,idx,shape_mov, template, strides, overlaps, max_shifts, np.array(add_to_movie,dtype = np.float32),max_deviation_rigid,upsample_factor_grid, newoverlaps, newstrides, shifts_opencv ])
+      pars.append([fname,fname_tot,idx,shape_mov, template, strides, overlaps, max_shifts, np.array(add_to_movie,dtype = np.float32),max_deviation_rigid,upsample_factor_grid, newoverlaps, newstrides, shifts_opencv,nonneg_movie  ])
 
     t1 = time.time()
     
