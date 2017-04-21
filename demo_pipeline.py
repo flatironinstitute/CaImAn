@@ -310,8 +310,20 @@ params_movie = {'fname':'./20_12__002_cropped.tif',
 #                }
 #%%
 m_orig = cm.load(params_movie['fname'])
-#%% start local cluster
+#%% RUN ANALYSIS
 c,dview,n_processes = cm.cluster.setup_cluster(backend = 'local',n_processes = None,single_thread = False)
+#%%
+fn = 'example_movies/k56_20160608_RSM_125um_41mW_zoom2p2_00001_00034.tif'
+min_mov = cm.load(fn,subindices=range(400)).min()
+mc = MotionCorrect(fn,min_mov,dview=dview, nonneg_movie = True)
+mc.motion_correct_rigid(save_movie=True)
+m_rig = cm.load(mc.fname_tot_rig)
+#%%
+mc.motion_correct_pwrigid(save_movie=True,template = mc.total_template_rig)
+m_els = cm.load(mc.fname_tot_els)
+#%%
+
+
 #%% RIGID MOTION CORRECTION
 t1 = time.time()
 fname = params_movie['fname']
@@ -363,6 +375,9 @@ for num_splits_to_process in num_splits_to_process_list:
                                              splits = splits ,num_splits_to_process = num_splits_to_process, num_iter = num_iter,
                                              template = new_templ, shifts_opencv = shifts_opencv, save_movie = save_movie)
     new_templ = total_template_wls
+    pl.imshow(new_templ)
+    pl.pause(.01)
+    
 t2 = time.time() - t1
 print(t2)    
 #%%
