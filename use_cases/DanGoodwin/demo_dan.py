@@ -95,7 +95,7 @@ from caiman.base.rois import extract_binary_masks_blob
 #                'final_frate' : 30                          
 #                }
 #%%
-params_movie = {'fname':'/mnt/ceph/users/agiovann/ImagingData/DanGoodwin/Somagcamp-Fish4-z13-100-400crop256.tif',
+params_movie = {'fname':'/mnt/ceph/users/agiovann/ImagingData/DanGoodwin/Somagcamp-Fish4-z13-100-600crop256-FFT.tif',
                 'max_shifts':(15,15), # maximum allow rigid shift
                 'niter_rig':1,
                 'splits_rig':7, # for parallelization split the movies in  num_splits chuncks across time
@@ -314,7 +314,7 @@ add_to_movie = - np.min(total_template_rig)+1
 print(add_to_movie)
 #%% visualize movies
 
-m_rig.resize(1,1,.2).play(fr = 30, gain = 2, magnification=1, offset = add_to_movie)
+m_rig.resize(1,1,.2).play(fr = 30, gain = 1, magnification=1, offset = add_to_movie)
 #%%
 downs = .2
 cm.concatenate([m_rig.resize(1,1,downs),m_orig.resize(1,1,downs)],axis = 1).play(fr = 30, gain = 2,magnification=1, offset = add_to_movie) 
@@ -362,7 +362,7 @@ m_els.resize(1,1,downs).play(fr = 10, gain = 2.,magnification=2, offset = add_to
 #%%
 m_els = cm.load(fname_tot_els) 
 downs = .2
-cm.concatenate([m_orig.resize(1,1,downs),m_rig.resize(1,1,downs),m_els.resize(1,1,downs)],axis = 2).play(fr = 10, gain = 3,magnification=2, offset = add_to_movie) 
+cm.concatenate([m_orig.resize(1,1,downs),m_rig.resize(1,1,downs),m_els.resize(1,1,downs)],axis = 2).play(fr = 10, gain = 1,magnification=2, offset = add_to_movie) 
 #%% compute metrics for the results
 final_size =  np.subtract(new_templ.shape,2*borders_pix)
 winsize = 100
