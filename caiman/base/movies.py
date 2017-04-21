@@ -679,6 +679,7 @@ class movie(ts.timeseries):
         
         return mask
 
+
     def local_correlations(self,eight_neighbours=False,swap_dim=True):
         """Computes the correlation image for the input dataset Y
 
@@ -700,9 +701,28 @@ class movie(ts.timeseries):
             rho: d1 x d2 [x d3] matrix, cross-correlation with adjacent pixels
 
         """
-        rho = si.local_correlations(self, eight_neighbours=eight_neighbours, swap_dim=swap_dim)
+        T = self.shape[0]
+        Cn = np.zeros(self.shape[1:])
+        if T<=3000:
+            Cn = si.local_correlations(self, eight_neighbours=eight_neighbours, swap_dim=swap_dim)
+        else:
+            n_chunks = T//1500
+            frames_per_chunk = 1500
+            for jj,mv in enumerate(range(n_chunks-1)):
+                print('number of chunks:' + str(jj) + ' frames: ' + str([mv*frames_per_chunk,(mv+1)*frames_per_chunk]))
+                rho = si.local_correlations(self[mv*frames_per_chunk:(mv+1)*frames_per_chunk], eight_neighbours=eight_neighbours, swap_dim=swap_dim)                
+                Cn = np.maximum(Cn,rho)    
+                pl.imshow(Cn,cmap='gray')  
+                pl.pause(.1)
+            
+            print('number of chunks:' + str(n_chunks-1) + ' frames: ' + str([(n_chunks-1)*frames_per_chunk,T]))
+            rho = si.local_correlations(self[(n_chunks-1)*frames_per_chunk:], eight_neighbours=eight_neighbours, swap_dim=swap_dim)                
+            Cn = np.maximum(Cn,rho)    
+            pl.imshow(Cn,cmap='gray')  
+            pl.pause(.1)
+            
 
-        return rho
+        return Cn
 
     def partition_FOV_KMeans(self,tradeoff_weight=.5,fx=.25,fy=.25,n_clusters=4,max_iter=500):
         """
