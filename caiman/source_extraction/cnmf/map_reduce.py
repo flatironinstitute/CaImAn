@@ -270,7 +270,7 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, gnb = 1, dvie
 
             for ii in range(np.shape(A)[-1]):            
                 
-                new_comp=old_div(A.tocsc()[:,ii],np.sqrt(np.sum(np.array(A.tocsc()[:,ii].todense())**2)))
+                new_comp=scipy.sparse.csc_matrix(old_div(A.tocsc()[:,ii],np.sqrt(np.sum(np.array(A.tocsc()[:,ii].todense())**2))))
                 if new_comp.sum()>0:
                     count+=1
 
