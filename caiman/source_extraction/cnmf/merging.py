@@ -100,13 +100,27 @@ sn: float
 
     [d, T] = np.shape(Y)
 #    C_corr = np.corrcoef(C[:nr,:],C[:nr,:])[:nr,:nr];
-    C_corr = np.corrcoef(C)
-    FF1 = C_corr >= thr  # find graph of strongly correlated temporal components
-    A_corr = A.T * A
+#    import pdb
+#    pdb.set_trace()
+#    C_corr = np.corrcoef(C)
+#    FF1 = C_corr >= thr  # find graph of strongly correlated temporal components
+    A_corr = scipy.sparse.triu(A.T * A)
     A_corr.setdiag(0)
+    A_corr = A_corr.tocsc()
     FF2 = A_corr > 0            # % find graph of overlapping spatial components
-    FF3 = np.logical_and(FF1, FF2.todense())
-    FF3 = coo_matrix(FF3)
+    C_corr = scipy.sparse.csc_matrix(A_corr.shape)
+    for ii in range(nr):
+        overlap_indeces = A_corr[ii,:].nonzero()[1]
+        if len(overlap_indeces)>0:
+            corr_values = [scipy.stats.pearsonr(C[ii,:],C[jjj,:])[0] for jjj in overlap_indeces]#np.corrcoef(C[ii,:],C[overlap_indeces,:])
+            C_corr[ii,overlap_indeces] = corr_values 
+    
+    
+    FF1 = (C_corr+C_corr.T) > thr    
+    FF3 = FF1.multiply(FF2)
+        
+#    FF3 = np.logical_and(FF1, FF2.todense())
+#    FF3 = coo_matrix(FF3)
     c, l = csgraph.connected_components(FF3)  # % extract connected components
 
     p = temporal_params['p']
