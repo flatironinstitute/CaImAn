@@ -11,6 +11,7 @@ import scipy.sparse as spr
 import scipy
 from scipy.ndimage.measurements import center_of_mass
 import caiman
+import cv2
 
 #from . import utilities
 #%%
@@ -551,11 +552,12 @@ def finetune(Y, cin, nIter=5):
 #%%
 
 
-def imblur(Y, sig=5, siz=11, nDimBlur=None, kernel=None):
+def imblur(Y, sig=5, siz=11, nDimBlur=None, kernel=None, opencv = True):
     """Spatial filtering with a Gaussian or user defined kernel
     The parameters are specified in GreedyROI
     """
-    from scipy.ndimage.filters import correlate
+#    import cv2
+#    from scipy.ndimage.filters import correlate
 
     X = np.zeros(np.shape(Y))
 
@@ -589,13 +591,22 @@ def imblur(Y, sig=5, siz=11, nDimBlur=None, kernel=None):
         # X[:,:,t] = correlate(temp,hy[np.newaxis,:])#,mode='constant', cval=0.0)
 
         X = Y.copy()
-        for i in range(nDimBlur):
-            h = np.exp(
-                old_div(-np.arange(-np.floor(old_div(siz[i], 2)), np.floor(old_div(siz[i], 2)) + 1)**2, (2 * sig[i]**2)))
-            h /= np.sqrt(h.dot(h))
-            shape = [1] * len(Y.shape)
-            shape[i] = -1
-            X = correlate(X, h.reshape(shape), mode='constant')
+        if opencv and nDimBlur == 2:
+            if X.ndim > 2:
+                for frame in range(X.shape[-1]):
+                    X[:,:,frame] = cv2.GaussianBlur(X[:,:,frame],tuple(siz),sig[0],sig[1],cv2.BORDER_CONSTANT,0)               
+                
+            else:
+                X = cv2.GaussianBlur(X,tuple(siz),sig[0],sig[1],cv2.BORDER_CONSTANT,0) 
+        else:                
+            for i in range(nDimBlur):
+                h = np.exp(
+                    old_div(-np.arange(-np.floor(old_div(siz[i], 2)), np.floor(old_div(siz[i], 2)) + 1)**2, (2 * sig[i]**2)))
+                h /= np.sqrt(h.dot(h))
+                shape = [1] * len(Y.shape)
+                shape[i] = -1
+                X = correlate(X, h.reshape(shape), mode='constant')
+                
 
     else:
         X = correlate(Y, kernel[..., np.newaxis], mode='constant')
