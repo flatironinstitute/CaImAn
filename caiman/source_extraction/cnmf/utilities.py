@@ -17,6 +17,8 @@ from ...base.rois import com
 import pylab as pl
 import psutil
 import scipy
+from ...mmapping import parallel_dot_product
+
 #%%
 def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], ssub=2, tsub=2, p=2, p_ssub=2, p_tsub=2, thr=0.8, method_init= 'greedy_roi', nb = 1, n_pixels_per_process = 1000, block_size = 1000, check_nan = True, normalize_init = True, options_local_NMF = None):
     """Dictionary for setting the CNMF parameters.
@@ -132,9 +134,28 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], ssub=2, tsub=2, p=2, p_ssub=
     return options
 #%%
 def computeDFF_traces(Yr, A, C,  bl, quantileMin = 8, frames_window = 200):
-        """ Compute DFF function from cnmf output
-        """
+    extract_DF_F(Yr, A, C,  bl, quantileMin , frames_window )
+    
+#%%    
+def extract_DF_F(Yr, A, C,  bl, quantileMin = 8, frames_window = 200, block_size = 400, dview = None):    
+        """ Compute DFF function from cnmf output. Disclaimer: it might be memory inefficient
         
+        Parameters:
+        -----------
+        Yr: ndarray (2D)
+            movie pixels X time
+        A: scipy.sparse.coo_matrix
+            spatial components (from cnmf cnm.A)
+        C: ndarray
+            temporal components (from cnmf cnm.C)
+        bl: ndarray
+            baseline for each component (from cnmf cnm.bl)
+        quantile_min: float
+            quantile minimum of the 
+        frammes_window: int
+            number of frames for running quantile                        
+            
+        """        
         nA = np.array(np.sqrt(A.power(2).sum(0)).T);
         A = scipy.sparse.coo_matrix(A/nA.T)
         C = C*nA
@@ -144,7 +165,19 @@ def computeDFF_traces(Yr, A, C,  bl, quantileMin = 8, frames_window = 200):
         
         T = C.shape[-1]
 #            AY = mm_fun(A,Y);
-        AY = A.T.dot(Yr)
+    #        AY = A.T.dot(Yr)
+        if 'memmap' in str(type(Yr)):
+            if block_size >= 500:
+                print('Forcing single thread for memory issues')
+                dview_res = None
+            else:
+                print('Using thread. If memory issues set block_size larger than 500')
+                dview_res = dview
+    
+            AY = parallel_dot_product(Yr, A, dview=dview_res, block_size=block_size,
+                                      transpose=True).T 
+        else:
+            AY = A.T.dot(Yr)
         
         
         bas_val = bl[None,:]

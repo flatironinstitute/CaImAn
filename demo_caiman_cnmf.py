@@ -34,7 +34,7 @@ pl.ion()
 #%%
 import caiman as cm
 from caiman.source_extraction.cnmf import cnmf as cnmf
-from caiman.source_extraction.cnmf.utilities import computeDFF_traces
+from caiman.source_extraction.cnmf.utilities import extract_DF_F
 from caiman.components_evaluation import evaluate_components
 from caiman.utils.visualization import plot_contours,view_patches_bar
 from caiman.base.rois import extract_binary_masks_blob
@@ -109,7 +109,7 @@ if not is_patches:
                     p=p, dview=dview, Ain=None,method_deconvolution='oasis',skip_refinement = False)
     cnm = cnm.fit(images)
     crd = plot_contours(cnm.A, Cn, thr=0.9)
-    C_dff = computeDFF_traces(Yr, cnm.A, cnm.C, cnm.bl, quantileMin = 8, frames_window = 200)
+    C_dff = extract_DF_F(Yr, cnm.A, cnm.C, cnm.bl, quantileMin = 8, frames_window = 200)
     pl.plot(C_dff.T)
     #%%
 else:
@@ -226,13 +226,11 @@ view_patches_bar(Yr, scipy.sparse.coo_matrix(A.tocsc()[:, idx_components]), C[
 view_patches_bar(Yr, scipy.sparse.coo_matrix(A.tocsc()[:, idx_components_bad]), C[
                                idx_components_bad, :], b, f, dims[0], dims[1], YrA=YrA[idx_components_bad, :], img=Cn)
 #%% STOP CLUSTER and clean up log files
-
-   
 cm.stop_server()
 
 log_files = glob.glob('Yr*_LOG_*')
 for log_file in log_files:
     os.remove(log_file)
 #%%
-C_dff = computeDFF_traces(Yr, A.tocsc()[:, idx_components], C[idx_components, :], cnm.bl[idx_components], quantileMin = 8, frames_window = 200)
+C_dff = extract_DF_F(Yr, A.tocsc()[:, idx_components], C[idx_components, :], cnm.bl[idx_components], quantileMin = 8, frames_window = 200)
 pl.plot(C_dff.T)
