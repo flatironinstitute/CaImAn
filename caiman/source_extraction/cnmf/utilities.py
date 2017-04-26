@@ -16,6 +16,7 @@ from .initialization import greedyROI
 from ...base.rois import com
 import pylab as pl
 import psutil
+import scipy
 #%%
 def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], ssub=2, tsub=2, p=2, p_ssub=2, p_tsub=2, thr=0.8, method_init= 'greedy_roi', nb = 1, n_pixels_per_process = 1000, block_size = 1000, check_nan = True, normalize_init = True, options_local_NMF = None):
     """Dictionary for setting the CNMF parameters.
@@ -129,6 +130,44 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], ssub=2, tsub=2, p=2, p_ssub=
         'thr': thr,
     }
     return options
+#%%
+def computeDFF_traces(Yr, A, C,  bl, quantileMin = 8, frames_window = 200):
+        """ Compute DFF function from cnmf output
+        """
+        
+        nA = np.array(np.sqrt(A.power(2).sum(0)).T);
+        A = scipy.sparse.coo_matrix(A/nA.T)
+        C = C*nA
+        bl = (bl*nA.T).squeeze()
+        nA = np.array(np.sqrt(A.power(2).sum(0)).T);
+        
+        
+        T = C.shape[-1]
+#            AY = mm_fun(A,Y);
+        AY = A.T.dot(Yr)
+        
+        
+        bas_val = bl[None,:]
+        Bas = np.repeat(bas_val,T,0).T
+                    
+        
+        AA = A.T.dot(A);
+        AA.setdiag(0)
+        Cf = (C-Bas)*(nA**2)
+        C2 = AY - AA.dot(C);
+        
+        
+        if frames_window is None or  frames_window > T:
+            Df = np.percentile(C2,quantileMin, axis = 1)
+            C_df = Cf/Df[:,None]              
+           
+        else:
+            Df = scipy.ndimage.percentile_filter(C2, quantileMin, (frames_window,1))
+            C_df = Cf/Df
+        
+       
+        return C_df
+                
 #%%
 def manually_refine_components(Y, xxx_todo_changeme, A, C, Cn, thr=0.9, display_numbers=True, max_number=None, cmap=None, **kwargs):
     """Plots contour of spatial components against a background image and allows to interactively add novel components by clicking with mouse
@@ -262,40 +301,40 @@ def manually_refine_components(Y, xxx_todo_changeme, A, C, Cn, thr=0.9, display_
 
 
 
-def extract_DF_F(Y, A, C, i=None):
-    """Extract DF/F values from spatial/temporal components and background
-
-     Parameters
-     -----------
-     Y: np.ndarray
-           input data (d x T)
-     A: sparse matrix of np.ndarray
-           Set of spatial including spatial background (d x K)
-     C: matrix
-           Set of temporal components including background (K x T)
-
-     Returns
-     -----------
-     C_df: matrix
-          temporal components in the DF/F domain
-     Df:  np.ndarray
-          vector with baseline values for each trace
-    """
-    A2 = A.copy()
-    A2.data **= 2
-    nA2 = np.squeeze(np.array(A2.sum(axis=0)))
-    A = A * diags(old_div(1, nA2), 0)
-    C = diags(nA2, 0) * C
-
-    # if i is None:
-    #    i = np.argmin(np.max(A,axis=0))
-
-    Y = np.matrix(Y)
-    Yf = A.transpose() * (Y - A * C)  # + A[:,i]*C[i,:])
-    Df = np.median(np.array(Yf), axis=1)
-    C_df = diags(old_div(1, Df), 0) * C
-
-    return C_df, Df
+#def extract_DF_F(Y, A, C, i=None):
+#    """Extract DF/F values from spatial/temporal components and background
+#
+#     Parameters
+#     -----------
+#     Y: np.ndarray
+#           input data (d x T)
+#     A: sparse matrix of np.ndarray
+#           Set of spatial including spatial background (d x K)
+#     C: matrix
+#           Set of temporal components including background (K x T)
+#
+#     Returns
+#     -----------
+#     C_df: matrix
+#          temporal components in the DF/F domain
+#     Df:  np.ndarray
+#          vector with baseline values for each trace
+#    """
+#    A2 = A.copy()
+#    A2.data **= 2
+#    nA2 = np.squeeze(np.array(A2.sum(axis=0)))
+#    A = A * diags(old_div(1, nA2), 0)
+#    C = diags(nA2, 0) * C
+#
+#    # if i is None:
+#    #    i = np.argmin(np.max(A,axis=0))
+#
+#    Y = np.matrix(Y)
+#    Yf = A.transpose() * (Y - A * C)  # + A[:,i]*C[i,:])
+#    Df = np.median(np.array(Yf), axis=1)
+#    C_df = diags(old_div(1, Df), 0) * C
+#
+#    return C_df, Df
 
 #%%
 def app_vertex_cover(A):
