@@ -109,7 +109,7 @@ if not is_patches:
                     p=p, dview=dview, Ain=None,method_deconvolution='oasis',skip_refinement = False)
     cnm = cnm.fit(images)
     crd = plot_contours(cnm.A, Cn, thr=0.9)
-    C_dff = extract_DF_F(Yr, cnm.A, cnm.C, cnm.bl, quantileMin = 8, frames_window = 200)
+    C_dff = extract_DF_F(Yr, cnm.A, cnm.C, cnm.bl, quantileMin = 8, frames_window = 200, dview = dview)
     pl.plot(C_dff.T)
     #%%
 else:
@@ -232,5 +232,5 @@ log_files = glob.glob('Yr*_LOG_*')
 for log_file in log_files:
     os.remove(log_file)
 #%%
-C_dff = extract_DF_F(Yr, A.tocsc()[:, idx_components], C[idx_components, :], cnm.bl[idx_components], quantileMin = 8, frames_window = 200)
+C_dff = extract_DF_F(Yr, A.tocsc()[:, idx_components], C[idx_components, :], cnm.bl[idx_components], quantileMin = 8, frames_window = 200, dview = dview)
 pl.plot(C_dff.T)
