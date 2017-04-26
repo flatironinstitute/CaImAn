@@ -62,7 +62,7 @@ def mask_to_2d(mask):
         dims  = np.shape(mask)    
         return scipy.sparse.coo_matrix(np.reshape(mask,(np.prod(dims),-1,),order='F'))
 #%%
-def nf_match_neurons_in_binary_masks(masks_gt,masks_comp,thresh_cost=.7, min_dist = 10, print_assignment= False, plot_results = False, Cn=None):
+def nf_match_neurons_in_binary_masks(masks_gt,masks_comp,thresh_cost=.7, min_dist = 10, print_assignment= False, plot_results = False, Cn=None, labels = None):
     '''
     Match neurons expressed as binary masks. Uses Hungarian matching algorithm
 
@@ -155,14 +155,20 @@ def nf_match_neurons_in_binary_masks(masks_gt,masks_comp,thresh_cost=.7, min_dis
         pl.imshow(Cn,vmin=lp,vmax=hp)
         [pl.contour(mm,levels=[0],colors='w',linewidths=2) for mm in masks_comp[idx_tp_comp]] 
         [pl.contour(mm,levels=[0],colors='r',linewidths=2) for mm in masks_gt[idx_tp_gt]] 
-        pl.title('TRUE POSITIVE')
+        if labels is None:
+            pl.title('MATCHES')
+        else:
+            pl.title('MATCHES: '+labels[1]+'(w), ' + labels[0] + '(r)')
         #pl.legend([comp_str,'GT'])
         pl.axis('off')
         pl.subplot(1,2,2)
         pl.imshow(Cn,vmin=lp,vmax=hp)
         [pl.contour(mm,levels=[0],colors='w',linewidths=2) for mm in masks_comp[idx_fp_comp]] 
         [pl.contour(mm,levels=[0],colors='r',linewidths=2) for mm in masks_gt[idx_fn]] 
-        pl.title('FALSE POSITIVE (w), FALSE NEGATIVE (r)')
+        if labels is None:
+            pl.title('FALSE POSITIVE (w), FALSE NEGATIVE (r)')
+        else:
+            pl.title(labels[1]+'(w), ' + labels[0] + '(r)')
         #pl.legend([comp_str,'GT'])
         pl.axis('off')
     return  idx_tp_gt,idx_tp_comp, idx_fn_gt, idx_fp_comp, performance 
@@ -370,6 +376,8 @@ def nf_read_roi(fileobj):
     points = read_roi(fileobj)
 
     Read ImageJ's ROI format
+    
+    Addapted from https://gist.github.com/luispedro/3437255
     '''
 # This is based on:
 # http://rsbweb.nih.gov/ij/developer/source/ij/io/RoiDecoder.java.html
@@ -420,12 +428,12 @@ def nf_read_roi(fileobj):
     # Discard second Byte:
     get8()
 
-    if not (0 <= roi_type < 11):
-        print(('roireader: ROI type %s not supported' % roi_type))
-
-    if roi_type != 7:
-
-        print(('roireader: ROI type %s not supported (!= 7)' % roi_type))
+#    if not (0 <= roi_type < 11):
+#        print(('roireader: ROI type %s not supported' % roi_type))
+#
+#    if roi_type != 7:
+#
+#        print(('roireader: ROI type %s not supported (!= 7)' % roi_type))
 
     top = get16()
     left = get16()
