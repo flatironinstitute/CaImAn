@@ -225,6 +225,7 @@ def distance_masks(M_s,cm_s,max_dist):
         ##            intersect= np.sum(np.logical_xor(M1[:,i],M2[:,j]))
         ##            union=np.sum(np.logical_or(M1[:,i],M2[:,j]))
                     if union  > 0:
+                        #intersection is removed from union since union contains twice the overlaping area
                         D[i,j] = 1-1.*intersection/(union-intersection)
                     else:
 #                        print 'empty component: setting distance to max'
