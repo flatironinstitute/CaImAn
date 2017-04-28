@@ -46,13 +46,13 @@ from caiman.motion_correction import MotionCorrect
 from caiman.components_evaluation import evaluate_components
 from caiman.utils.visualization import plot_contours, view_patches_bar
 from caiman.base.rois import extract_binary_masks_blob
-
+from caiman.utils.utils import download_demo
 #%%
 #m = cm.load('example_movies/demoMovie.tif')
 #
 #cm.concatenate([m.resize(1,1,.2),m.resize(1,1,.2)],axis =1).play(fr =20, gain = 3.,magnification =3)
 #%% set parameters and create template by RIGID MOTION CORRECTION
-params_movie = {'fname': 'example_movies/Sue_2x_3000_40_-46.tif',
+params_movie = {'fname': 'example_movies/demoSue2x.tif',
                 'niter_rig': 1,
                 'max_shifts': (6, 6),  # maximum allow rigid shift
                 'splits_rig': 56,  # for parallelization split the movies in  num_splits chuncks across time
@@ -150,7 +150,9 @@ upsample_factor_grid = params_movie['upsample_factor_grid']
 # maximum deviation allowed for patch with respect to rigid
 # shift
 max_deviation_rigid = params_movie['max_deviation_rigid']
-
+#%% download movie if not there
+if fname == 'example_movies/demoSue2x.tif':
+    download_demo()
 #%%
 m_orig = cm.load(fname)
 #%% play movie

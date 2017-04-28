@@ -8,8 +8,27 @@ from __future__ import print_function
 
 #%%
 import numpy as np
-
-
+import os
+import urllib2
+import requests
+#%%
+def download_demo():
+    if os.path.exists('./example_movies'):
+        if not(os.path.exists('./example_movies/demoSue2x.tif')):        
+            url = 'https://www.dropbox.com/s/09z974vkeg3t5gn/Sue_2x_3000_40_-46.tif?dl=1'
+            print("downloading demo Sue2x with urllib2")
+            f = urllib2.urlopen(url)
+            data = f.read()
+            with open("./example_movies/demoSue2x.tif", "wb") as code:
+                code.write(data)
+        else:
+            print('File already existing')
+    else:
+         raise Exception('You must be in caiman folder')
+#    print("downloading with requests")
+#    r = requests.get(url)
+#    with open("code3.tif", "wb") as code:
+#        code.write(r.content)
 #%% 
 def val_parse(v):
     # parse values from si tags into python objects if possible
