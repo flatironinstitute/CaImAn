@@ -945,7 +945,7 @@ class movie(ts.timeseries):
         [T,d1,d2]=self.shape
         return movie(np.concatenate([self[j:j+window,:,:].local_correlations(eight_neighbours=True)[np.newaxis,:,:] for j in range(T-window)],axis=0),fr=self.fr)
 
-    def play(self,gain=1,fr=None,magnification=1,offset=0,interpolation=cv2.INTER_LINEAR,backend='opencv',do_loop=False):
+    def play(self,gain=1,fr=None,magnification=1,offset=0,interpolation=cv2.INTER_LINEAR,backend='opencv',do_loop=False, bord_px = None):
         """
         Play the movie using opencv
 
@@ -998,6 +998,9 @@ class movie(ts.timeseries):
         while looping:
 
             for iddxx,frame in enumerate(self):
+                if bord_px is not None and np.sum(bord_px) > 0:
+                    frame = frame[bord_px:-bord_px, bord_px:-bord_px]
+                    
                 if backend is 'opencv':
                     if magnification != 1:
                         frame = cv2.resize(frame,None,fx=magnification, fy=magnification, interpolation = interpolation)
@@ -1009,7 +1012,7 @@ class movie(ts.timeseries):
                         terminated=True
                         break
 
-
+                
                 elif backend is 'pylab':
 
                     im.set_data((offset+frame)*gain/maxmov)
