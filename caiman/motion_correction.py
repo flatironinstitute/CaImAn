@@ -75,12 +75,8 @@ from numpy.fft import ifftshift
 import itertools
 #%%
 class MotionCorrect(object):
-
-     def __init__(self, fname, min_mov, dview=None, max_shifts=(6,6), niter_rig=1, splits_rig=14, num_splits_to_process_rig=None, 
-                strides= (96,96), overlaps= (32,32), splits_els=14,num_splits_to_process_els=[7,None], 
-                upsample_factor_grid=4, max_deviation_rigid=3, shifts_opencv = True, nonneg_movie = False): 
-        """
-        Constructor class for motion correction operations
+     """
+         class implementing motion correction operations
         
         
         Parameters
@@ -114,6 +110,15 @@ class MotionCorrect(object):
         save_movie_rigid:Bool
             save the movies vs just get the template
         """
+     def __init__(self, fname, min_mov, dview=None, max_shifts=(6,6), niter_rig=1, splits_rig=14, num_splits_to_process_rig=None, 
+                strides= (96,96), overlaps= (32,32), splits_els=14,num_splits_to_process_els=[7,None], 
+                upsample_factor_grid=4, max_deviation_rigid=3, shifts_opencv = True, nonneg_movie = False): 
+        """
+        Constructor class for motion correction operations
+        
+        
+        
+        """
         self.fname=fname
         self.dview=dview
         self.max_shifts=max_shifts
@@ -146,7 +151,7 @@ class MotionCorrect(object):
         
         return self
     
-     def motion_correct_pwrigid(self,save_movie = True, template=None):  
+     def motion_correct_pwrigid(self,save_movie = True, template=None, show_template = True):  
         
         num_iter = 1
         if template is None:
@@ -164,6 +169,12 @@ class MotionCorrect(object):
                                                      dview = self.dview, upsample_factor_grid = self.upsample_factor_grid, max_deviation_rigid = self.max_deviation_rigid,
                                                      splits = self.splits_els ,num_splits_to_process = num_splits_to_process, num_iter = num_iter,
                                                      template =  self.total_template_els, shifts_opencv = self.shifts_opencv, save_movie = save_movie, nonneg_movie = self.nonneg_movie)
+            if show_template:
+                pl.imshow(new_template_els)
+                pl.pause(.5)
+            if np.isnan(np.sum(new_template_els)):
+                raise Exception('Template contains NaNs, something went wrong. Reconsider the parameters')
+                
             self.total_template_els = new_template_els
         
         return self
