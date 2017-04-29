@@ -323,7 +323,7 @@ def update_temporal_components(Y, A, b, Cin, fin, bl=None, c1=None, g=None, sn=N
     if np.size(ff) > 0:
         ff = ff[0]
         print('eliminating {} empty temporal components!!'.format(len(ff)))
-        keep = range(A.shape[1])
+        keep = list(range(A.shape[1]))
         for i in ff:
             keep.remove(i)
         A = A[:, keep]

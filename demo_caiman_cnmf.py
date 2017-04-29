@@ -225,12 +225,14 @@ view_patches_bar(Yr, scipy.sparse.coo_matrix(A.tocsc()[:, idx_components]), C[
 #%%
 view_patches_bar(Yr, scipy.sparse.coo_matrix(A.tocsc()[:, idx_components_bad]), C[
                                idx_components_bad, :], b, f, dims[0], dims[1], YrA=YrA[idx_components_bad, :], img=Cn)
+#%%
+C_dff = extract_DF_F(Yr, A.tocsc()[:, idx_components], C[idx_components, :], cnm.bl[idx_components], quantileMin = 8, frames_window = 200, dview = dview)
+pl.plot(C_dff.T)
+
 #%% STOP CLUSTER and clean up log files
 cm.stop_server()
 
 log_files = glob.glob('Yr*_LOG_*')
 for log_file in log_files:
     os.remove(log_file)
-#%%
-C_dff = extract_DF_F(Yr, A.tocsc()[:, idx_components], C[idx_components, :], cnm.bl[idx_components], quantileMin = 8, frames_window = 200, dview = dview)
-pl.plot(C_dff.T)
+
