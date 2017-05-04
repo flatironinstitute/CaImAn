@@ -55,12 +55,12 @@ def extract_patch_coordinates_old(d1,d2,rf=(7,7),stride = (2,2)):
     iter_1 = list(range(rf2,d2-rf2,2*rf2-stride2))+[d2-rf2]
     coords_2d = np.empty([len(iter_0),len(iter_1),2],dtype=np.object)   
     for count_0,xx in enumerate(iter_0):
-        coords_x=np.array(list(range(xx - rf1, xx + rf1 + 1))) 
+        coords_x=np.array(list(range(xx - rf1, xx + rf1))) 
         coords_x = coords_x[(coords_x >= 0) & (coords_x < d1)]
         for count_1,yy in enumerate(iter_1):
 
 
-            coords_y = np.array(list(range(yy - rf2, yy + rf2 + 1)))  
+            coords_y = np.array(list(range(yy - rf2, yy + rf2)))  
 #            print([xx - rf1, xx + rf1 + 1,yy - rf2, yy + rf2 + 1])
             coords_y = coords_y[(coords_y >= 0) & (coords_y < d2)]
 
