@@ -22,6 +22,7 @@ from .merging import merge_components
 from .spatial import update_spatial_components
 from .temporal import update_temporal_components
 from .map_reduce import run_CNMF_patches
+from caiman import components_evaluation
 import scipy
 
 
@@ -33,7 +34,7 @@ class CNMF(object):
     def __init__(self, n_processes, k=5, gSig=[4,4], merge_thresh=0.8 , p=2, dview=None, Ain=None, Cin=None, f_in=None,do_merge=True,\
                                         ssub=2, tsub=2,p_ssub=1, p_tsub=1, method_init= 'greedy_roi',alpha_snmf=None,\
                                         rf=None,stride=None, memory_fact=1, gnb = 1, only_init_patch=False,\
-                                        method_deconvolution = 'oasis', n_pixels_per_process = 4000, block_size = 20000, check_nan = True, skip_refinement = False, normalize_init=True, options_local_NMF = None):
+                                        method_deconvolution = 'oasis', n_pixels_per_process = 4000, block_size = 20000, check_nan = True, skip_refinement = False, normalize_init=True, options_local_NMF = None, remove_very_bad_comps = False):
         """ 
         Constructor of the CNMF method
 
@@ -137,6 +138,7 @@ class CNMF(object):
         self.f=None
         self.sn = None
         self.g = None
+        self.remove_very_bad_comps = remove_very_bad_comps
 
 
     def fit(self, images):
@@ -165,13 +167,12 @@ class CNMF(object):
         options = CNMFSetParms(Y, self.n_processes, p=self.p, gSig=self.gSig, K=self.k, ssub=self.ssub, tsub=self.tsub,
                                p_ssub=self.p_ssub, p_tsub=self.p_tsub, method_init=self.method_init,
                                n_pixels_per_process=self.n_pixels_per_process, block_size=self.block_size,
-                               check_nan=self.check_nan, nb=self.gnb, normalize_init = self.normalize_init, options_local_NMF = self.options_local_NMF)
+                               check_nan=self.check_nan, nb=self.gnb, normalize_init = self.normalize_init, options_local_NMF = self.options_local_NMF, remove_very_bad_comps = self.remove_very_bad_comps)
 
         self.options = options
         
         if self.rf is None:  # no patches
             print('preprocessing ...')
-
             Yr, sn, g, psx = preprocess_data(Yr, dview=self.dview, **options['preprocess_params'])
             
             if self.Ain is None:
@@ -191,24 +192,48 @@ class CNMF(object):
                 nr=nA.size
                 Cin=scipy.sparse.coo_matrix(self.Cin)
                 
-        
+                
+                
+                
                 YA = (self.Ain.T.dot(Yr).T)*scipy.sparse.spdiags(old_div(1.,nA),0,nr,nr)
                 AA = ((self.Ain.T.dot(self.Ain))*scipy.sparse.spdiags(old_div(1.,nA),0,nr,nr))
-
-                self.YrA = YA - Cin.T.dot(AA)
-                self.C = Cin.todense()           
                 
+                self.YrA = YA - Cin.T.dot(AA)      
+                self.A = self.Ain 
+                self.C = Cin.todense() 
+                
+                if self.remove_very_bad_comps:
+                
+                    final_frate = 3
+                    r_values_min = 0.5  # threshold on space consistency
+                    fitness_min = -15  # threshold on time variability
+                    fitness_delta_min = -15
+                    Npeaks = 10
+                    traces = np.array(self.C)
+#                    import pdb;pdb.set_trace()
+                    idx_components, idx_components_bad, fitness_raw, fitness_delta, r_values = components_evaluation.estimate_components_quality(
+                        traces, Y, self.A, np.array(self.C), self.b_in, self.f_in, final_frate = final_frate, Npeaks=Npeaks, r_values_min=r_values_min, fitness_min=fitness_min, fitness_delta_min=fitness_delta_min, return_all = True, N = 5)                    
+    
+                    print(('Keeping ' + str(len(idx_components)) +
+                           ' and discarding  ' + str(len(idx_components_bad))))
+                    
+                    self.C = self.C[idx_components]                    
+                    self.A = self.A[:,idx_components]                                  
+                    self.YrA = self.YrA[:,idx_components]
+                                                           
+                    
+                
+                self.sn = sn                    
+                self.b = self.b_in
+                self.f = self.f_in    
+                self.g = g    
                 self.bl = None
                 self.c1 = None
                 self.neurons_sn = None
-                self.g = g
-                self.A = self.Ain                  
-                self.b = self.b_in
-                self.f = self.f_in
-                self.sn = sn
                 
                 return self
 
+            
             print('update spatial ...')
             A, b, Cin, self.f_in = update_spatial_components(Yr, self.Cin, self.f_in, self.Ain, sn=sn, dview=self.dview, **options['spatial_params'])
 
@@ -245,10 +270,11 @@ class CNMF(object):
                     Yr, A, b, C, f, dview=self.dview, bl=None, c1=None, sn=None, g=None, **options['temporal_params'])
 
             else:
+                
+                    C, f, S, bl, c1, neurons_sn, g1, YrA = C, f, S, bl, c1, neurons_sn, g, YrA
 
-                A, b, C = A, b, Cin
-                C, f, S, bl, c1, neurons_sn, g1, YrA = C, f, S, bl, c1, neurons_sn, g, YrA
-
+            
+         
         else:  # use patches
             
             if self.stride is None:
@@ -264,6 +290,7 @@ class CNMF(object):
 
             if self.alpha_snmf is not None:
                 options['init_params']['alpha_snmf'] = self.alpha_snmf
+
 
             A, C, YrA, b, f, sn, optional_outputs = run_CNMF_patches(images.filename, dims + (T,), options, rf=self.rf, stride=self.stride,
                                                                      dview=self.dview, memory_fact=self.memory_fact, gnb=self.gnb)

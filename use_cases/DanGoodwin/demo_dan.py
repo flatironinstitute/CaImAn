@@ -95,15 +95,15 @@ from caiman.base.rois import extract_binary_masks_blob
 #                'final_frate' : 30                          
 #                }
 #%%
-params_movie = {'fname':'/mnt/ceph/users/agiovann/ImagingData/DanGoodwin/Somagcamp-Fish4-z13-100-600crop256-FFT.tif',
+params_movie = {'fname':'/mnt/xfs1/home/agiovann/Downloads/Fish11-AV133-Z13-1.tif',
                 'max_shifts':(15,15), # maximum allow rigid shift
                 'niter_rig':1,
-                'splits_rig':7, # for parallelization split the movies in  num_splits chuncks across time
+                'splits_rig':2, # for parallelization split the movies in  num_splits chuncks across time
                 'num_splits_to_process_rig':None, # if none all the splits are processed and the movie is saved
-                'strides': (48,48), # intervals at which patches are laid out for motion correction
-                'overlaps': (48,48), # overlap between pathes (size of patch strides+overlaps)
-                'splits_els':7, # for parallelization split the movies in  num_splits chuncks across time
-                'num_splits_to_process_els':[7,7,7,None], # if none all the splits are processed and the movie is saved
+                'strides': (256,256), # intervals at which patches are laid out for motion correction
+                'overlaps': (32,32), # overlap between pathes (size of patch strides+overlaps)
+                'splits_els':1, # for parallelization split the movies in  num_splits chuncks across time
+                'num_splits_to_process_els':[None], # if none all the splits are processed and the movie is saved
                 'upsample_factor_grid':3, # upsample factor to avoid smearing when merging patches
                 'max_deviation_rigid':7, #maximum deviation allowed for patch with respect to rigid shift
                 'p': 1, # order of the autoregressive system  
@@ -314,7 +314,7 @@ add_to_movie = - np.min(total_template_rig)+1
 print(add_to_movie)
 #%% visualize movies
 
-m_rig.resize(1,1,.2).play(fr = 30, gain = 1, magnification=1, offset = add_to_movie)
+m_rig.resize(1,1,.2).play(fr = 20, gain = 5, magnification=1, offset = add_to_movie)
 #%%
 downs = .2
 cm.concatenate([m_rig.resize(1,1,downs),m_orig.resize(1,1,downs)],axis = 1).play(fr = 30, gain = 2,magnification=1, offset = add_to_movie) 
@@ -334,21 +334,23 @@ upsample_factor_grid = params_movie['upsample_factor_grid']
 max_deviation_rigid = params_movie['max_deviation_rigid']
 add_to_movie = - np.min(total_template_rig)+1
 num_iter = 1
-for num_splits_to_process in num_splits_to_process_list:
+for num_splits_to_process in num_splits_to_process_list[-1:]:
     fname_tot_els, total_template_wls, templates_els, x_shifts_els, y_shifts_els, coord_shifts_els  = cm.motion_correction.motion_correct_batch_pwrigid(fname, max_shifts, strides, overlaps, add_to_movie, newoverlaps = None,  newstrides = None,
                                              dview = dview, upsample_factor_grid = upsample_factor_grid, max_deviation_rigid = max_deviation_rigid,
                                              splits = splits ,num_splits_to_process = num_splits_to_process, num_iter = num_iter,
                                              template = new_templ, shifts_opencv = shifts_opencv, save_movie = save_movie)
     new_templ = total_template_wls
+    pl.imshow(new_templ,cmap = 'gray',vmin = np.percentile(new_templ,5), vmax = np.percentile(new_templ,95))
+    pl.pause(.1)
 t2 = time.time() - t1
 print(t2)    
 #%%
 
 #%%
 pl.subplot(2,1,1)
-pl.plot(x_shifts_els)
+_ = pl.plot(x_shifts_els)
 pl.subplot(2,1,2)
-pl.plot(y_shifts_els)
+_ = pl.plot(y_shifts_els)
 #%%
 borders_pix = np.ceil(np.maximum(np.max(np.abs(x_shifts_els)),np.max(np.abs(y_shifts_els)))).astype(np.int)
 #%%
@@ -356,8 +358,10 @@ m_els = cm.load(fname_tot_els)
 #%%
 pl.imshow(m_els.local_correlations(eight_neighbours=True,swap_dim=False))
 #%%
-downs = .1
-m_els.resize(1,1,downs).play(fr = 10, gain = 2.,magnification=2, offset = add_to_movie) 
+downs = .2
+m_els.resize(1,1,downs).play(fr = 20, gain = 5, magnification=1, offset = add_to_movie)
+#%%
+cm.movie(np.array(templates_els)).play(fr = 2, gain = 5, magnification=1, offset = add_to_movie)
 
 #%%
 m_els = cm.load(fname_tot_els) 

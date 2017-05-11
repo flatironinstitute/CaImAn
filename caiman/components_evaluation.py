@@ -162,6 +162,7 @@ def classify_components_ep(Y,A,C,b,f,Athresh = 0.1,Npeaks = 5, tB=-5, tA = 25, t
     nA=np.sqrt(np.array(A.power(2).sum(0)))
     AA = old_div(AA,np.outer(nA,nA.T))
     AA -= np.eye(K)
+    
     LOC = find_activity_intervals(C, Npeaks = Npeaks, tB=tB, tA = tA, thres = thres)
     rval = np.zeros(K)
 
@@ -276,11 +277,11 @@ def evaluate_components(Y, traces, A, C, b, f, final_frate, remove_baseline = Tr
 
     return fitness_raw, fitness_delta, erfc_raw, erfc_delta, r_values, significant_samples    
 #%%
-def estimate_components_quality(traces, Y, A, C, b, f, final_frate = 30, Npeaks=10, r_values_min = .95,fitness_min = -100,fitness_delta_min = -100):
+def estimate_components_quality(traces, Y, A, C, b, f, final_frate = 30, Npeaks=10, r_values_min = .95,fitness_min = -100,fitness_delta_min = -100, return_all = False, N =5):
  
     fitness_raw, fitness_delta, erfc_raw, erfc_delta, r_values, significant_samples = \
         evaluate_components(Y, traces, A, C, b, f, final_frate, remove_baseline=True,
-                                          N=5, robust_std=False, Athresh=0.1, Npeaks=Npeaks,  thresh_C=0.3)
+                                          N=N, robust_std=False, Athresh=0.1, Npeaks=Npeaks,  thresh_C=0.3)
     
     idx_components_r = np.where(r_values >= r_values_min)[0]  # threshold on space consistency
     idx_components_raw = np.where(fitness_raw < fitness_min)[0] # threshold on time variability
@@ -290,5 +291,8 @@ def estimate_components_quality(traces, Y, A, C, b, f, final_frate = 30, Npeaks=
     idx_components = np.union1d(idx_components_r, idx_components_raw)
     idx_components = np.union1d(idx_components, idx_components_delta)
     idx_components_bad = np.setdiff1d(list(range(len(traces))), idx_components)
-
-    return idx_components,idx_components_bad
+    
+    if return_all:
+        return idx_components,idx_components_bad, fitness_raw, fitness_delta, r_values 
+    else:
+        return idx_components,idx_components_bad

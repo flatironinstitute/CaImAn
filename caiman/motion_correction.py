@@ -1943,6 +1943,10 @@ def tile_and_correct_wrapper(params):
         imgs = cm.base.movies.sbxread(name, idxs[0], len(idxs))
         mc = np.zeros(imgs.shape,dtype = np.float32)
         shift_info = []
+    elif extension =='.hdf5':
+        imgs = cm.load(img_name,subindices=list(idxs))
+        mc = np.zeros(imgs.shape,dtype = np.float32)
+        shift_info = []
         
     for count, img in enumerate(imgs): 
         if count % 10 == 0:
@@ -1969,7 +1973,7 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
 
     '''
     import os
-
+    import h5py
     name, extension = os.path.splitext(fname)[:2]
 
     if extension == '.tif' or extension == '.tiff':  # check if tiff file       
@@ -1981,7 +1985,7 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
            else:    
                d1,d2 = tf[0].shape
                T = len(tf)    
-           
+               
     elif extension == '.sbx':  # check if sbx file
          
         shape = cm.base.movies.sbxshape(name)
@@ -1995,6 +1999,9 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
 #        d1 = shape[1]
 #        d2 = shape[2]
 #        T = shape[0]               
+    elif extension == '.hdf5':
+        with h5py.File(fname) as fl:
+           T,d1,d2 = fl['mov'].shape   
     else:
         raise Exception('Unsupported file extension for parallel motion correction')
         
