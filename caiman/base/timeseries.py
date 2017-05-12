@@ -117,13 +117,16 @@ class timeseries(np.ndarray):
 #        # then just call the parent
 #        return np.ndarray.__array_wrap__(self, out_arr, context)
 #
-    def save(self,file_name):
+    def save(self,file_name, to32 = True):
         '''
         Save the timeseries in various formats
 
         parameters
         ----------
-        file_name: name of file. Possible formats are tif, avi, npz and hdf5
+        file_name: str
+            name of file. Possible formats are tif, avi, npz and hdf5
+        to32: Bool
+            whether to transform to 32 bits
 
         '''
         name,extension = os.path.splitext(file_name)[:2]
@@ -139,12 +142,14 @@ class timeseries(np.ndarray):
             except:
                 
                 from skimage.external.tifffile import imsave
-                
-            np.clip(self,np.percentile(self,1),np.percentile(self,99.99999),self)
-            minn,maxx = np.min(self),np.max(self)
-            data = 65536 * (self-minn)/(maxx-minn)
-            data = data.astype(np.int32)
-            imsave(file_name, self.astype(np.float32))
+            if to32:    
+                np.clip(self,np.percentile(self,1),np.percentile(self,99.99999),self)
+                minn,maxx = np.min(self),np.max(self)
+                data = 65536 * (self-minn)/(maxx-minn)
+                data = data.astype(np.int32)
+                imsave(file_name, self.astype(np.float32))
+            else:
+                imsave(file_name, self)
 
         elif extension == '.npz':
             np.savez(file_name,input_arr=self, start_time=self.start_time,fr=self.fr,meta_data=self.meta_data,file_name=self.file_name)
