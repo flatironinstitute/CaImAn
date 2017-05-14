@@ -222,14 +222,14 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, gnb = 1, dvie
             patch_id+=1  
 
             
-    A_tot=scipy.sparse.csc_matrix((d,count))
-    B_tot=scipy.sparse.csc_matrix((d,nb*num_patches))
+  #  A_tot=scipy.sparse.csc_matrix((d,count))
+  #  B_tot=scipy.sparse.csc_matrix((d,nb*num_patches))
     C_tot=np.zeros((count,T))
     YrA_tot=np.zeros((count,T))
     F_tot=np.zeros((nb*num_patches,T))
     mask=np.zeros(d)
     sn_tot=np.zeros((d))
-    b_tot=[]
+  #  b_tot=[]
     f_tot=[]
     bl_tot=[]
     c1_tot=[]
@@ -244,12 +244,20 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, gnb = 1, dvie
     patch_id=0
 
     print('Transforming patches into full matrix')
+    
+    # instead of filling in the matrices, construct lists with their non-zero entries and coordinates
+    idx_tot_B = []
+    b_tot = []
+    idx_ptr_B = [0]
+    
+    idx_tot_A = []
+    a_tot = []
+    idx_ptr_A = [0]
 
     for fff in file_res:
         if fff is not None:
             idx_,shapes,A,b,C,f,S,bl,c1,neurons_sn,g,sn,_,YrA=fff
             sn_tot[idx_]=sn
-            b_tot.append(b)
             f_tot.append(f)
             bl_tot.append(bl)
             c1_tot.append(c1)
@@ -258,20 +266,24 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, gnb = 1, dvie
             idx_tot.append(idx_)
             shapes_tot.append(shapes)
             mask[idx_] += 1
+            
 
             for ii in range(np.shape(b)[-1]):
-#                import pdb
-#                pdb.set_trace()
-#                print ii
-
-                B_tot[idx_,patch_id]=b[:,ii,np.newaxis]
+                #B_tot[idx_,patch_id]=b[:,ii,np.newaxis]
+                b_tot.append(b[:,ii])
+                idx_tot_B.append(idx_)
+                idx_ptr_B.append(len(idx_))
                 F_tot[patch_id,:]=f[ii,:]
                 count_bgr += 1
+                print(count_bgr)
 
             for ii in range(np.shape(A)[-1]):            
                 new_comp=old_div(A.tocsc()[:,ii],np.sqrt(np.sum(np.array(A.tocsc()[:,ii].todense())**2)))
                 if new_comp.sum()>0:
-                    A_tot[idx_,count]=new_comp
+                    #A_tot[idx_,count]=new_comp
+                    a_tot.append(new_comp.toarray().flatten())
+                    idx_tot_A.append(idx_)
+                    idx_ptr_A.append(len(idx_))
                     C_tot[count,:]=C[ii,:]                      
                     YrA_tot[count,:]=YrA[ii,:]
                     id_patch_tot.append(patch_id)
@@ -280,8 +292,22 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, gnb = 1, dvie
             patch_id+=1  
         else:
             print('Skipped Empty Patch')
+            
+           
+    idx_tot_B = np.concatenate(idx_tot_B)
+    b_tot = np.concatenate(b_tot)     
+    idx_ptr_B = np.cumsum(np.array(idx_ptr_B))
+    B_tot = scipy.sparse.csc_matrix((b_tot, idx_tot_B, idx_ptr_B), shape=(d, count_bgr))     
+  
+    idx_tot_A = np.concatenate(idx_tot_A)
+    a_tot = np.concatenate(a_tot)     
+    idx_ptr_A = np.cumsum(np.array(idx_ptr_A))
+    A_tot = scipy.sparse.csc_matrix((a_tot, idx_tot_A, idx_ptr_A), shape=(d, count))         
+
+                 
+            
     print('Done!')
-    A_tot=A_tot[:,:count]
+#    A_tot=A_tot[:,:count]
     C_tot=C_tot[:count,:]  
     YrA_tot=YrA_tot[:count,:]  
 
