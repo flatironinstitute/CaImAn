@@ -12,7 +12,7 @@ from scipy.sparse import spdiags, coo_matrix  # ,csgraph
 import scipy
 import numpy as np
 from .deconvolution import constrained_foopsi
-from .utilities import update_order
+from .utilities import update_order_greedy
 import sys
 from ...mmapping import parallel_dot_product
 #%%
@@ -191,17 +191,18 @@ def update_temporal_components(Y, A, b, Cin, fin, bl=None, c1=None, g=None, sn=N
                                   transpose=True) * spdiags(old_div(1., nA), 0, nr + nb, nr + nb)
     else:
         YA = (A.T.dot(Y).T) * spdiags(old_div(1., nA), 0, nr + nb, nr + nb)
+#        YA = (A.T.dot(Y).T)/nA
     print('Done')
 
     # print np.allclose(YA,YA1)
-
+    
     AA = ((A.T.dot(A)) * spdiags(old_div(1., nA), 0, nr + nb, nr + nb)).tocsr()
     YrA = YA - AA.T.dot(Cin).T
 
     #YrA = ((A.T.dot(Y)).T-Cin.T.dot(A.T.dot(A)))*spdiags(1./nA,0,nr+1,nr+1)
-
-    for iter in range(ITER):
-        O, lo = update_order(A[:, :nr])
+    #O, lo = update_order(A[:, :nr])
+    O,lo = update_order_greedy(AA[:nr,:][:,:nr])
+    for iter in range(ITER):        
         P_ = []
 
         for count, jo_ in enumerate(O):

@@ -394,6 +394,8 @@ def app_vertex_cover(A):
         L.append(u)
 
     return np.asarray(L)
+    
+    
 #%%
 
 
@@ -525,6 +527,56 @@ def update_order(A):
 
     return O[::-1], lo[::-1]
 
+
+def update_order_greedy(A,flag_AA = True):
+    '''Determines the update order of the temporal components given the spatial
+    components using a greedy method
+    Input:
+     -------
+     A:       sparse crc matrix
+              matrix of spatial components (d x K) 
+     OR 
+              A.T.dot(A) matrix (d x d) if flag_AA = true
+     flag_AA: boolean (default true)     
+
+     Outputs:
+     ---------
+     O:   list of sets
+          list of subsets of components. The components of each subset can be updated in parallel
+     lo:  list
+          length of each subset
+
+    Written by Eftychios A. Pnevmatikakis, Simons Foundation, 2017
+    '''
+    K = np.shape(A)[-1]
+    O = []
+    lo = []
+    for i in range(K):
+        if i%100 == 0:
+            print(i)
+            
+        new_list = True
+        for ls in O:
+            #import pdb
+            #pdb.set_trace()
+            if flag_AA:
+                if A[i,ls].nnz == 0:
+                    ls.append(i)
+                    new_list = False
+                    break
+            else:
+                if (A[:,i].T.dot(A[:,ls])).nnz == 0:
+                    ls.append(i)
+                    new_list = False
+                    break
+                
+        if new_list:
+            O.append([i])
+        
+    lo = [len(ls) for ls in O]
+    return O,lo
+        
+    
 
 #%%
 def order_components(A, C):
