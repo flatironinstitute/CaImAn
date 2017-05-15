@@ -179,14 +179,14 @@ class MotionCorrect(object):
         
         return self
 #%%
-def apply_shift_iteration(img,shift,border_nan=False):
+def apply_shift_iteration(img,shift,border_nan=False, border_type = cv2.BORDER_REFLECT):
 
 
     sh_x_n,sh_y_n = shift
     w_i,h_i=img.shape
     M = np.float32([[1,0,sh_y_n],[0,1,sh_x_n]])    
     min_,max_ = np.min(img),np.max(img)
-    img = np.clip(cv2.warpAffine(img,M,(h_i,w_i),flags=cv2.INTER_CUBIC),min_,max_)
+    img = np.clip(cv2.warpAffine(img,M,(h_i,w_i),flags=cv2.INTER_CUBIC, borderMode = border_type),min_,max_)
     if border_nan:  
         max_w,max_h,min_w,min_h=0,0,0,0
         max_h,max_w = np.ceil(np.maximum((max_h,max_w),shift)).astype(np.int)
@@ -1458,7 +1458,7 @@ def tile_and_correct(img,template, strides, overlaps,max_shifts, newoverlaps = N
     
     if max_deviation_rigid == 0:
         if shifts_opencv:
-            new_img = apply_shift_iteration(img,(-rigid_shts[0],-rigid_shts[1]),border_nan=True)
+            new_img = apply_shift_iteration(img,(-rigid_shts[0],-rigid_shts[1]),border_nan=False)
         else:
             new_img = apply_shifts_dft(sfr_freq,(-rigid_shts[0],-rigid_shts[1]),diffphase,border_nan=True)
             
