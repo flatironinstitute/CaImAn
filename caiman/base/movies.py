@@ -1211,8 +1211,15 @@ def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None,
                 raise Exception("sima module unavailable")
 
             dataset = sima.ImagingDataset.load(file_name)
+            frame_step = 1000
             if subindices is None:
-                input_arr = np.array(dataset.sequences[0]).squeeze()
+                input_arr = np.empty((
+                        dataset.sequences[0].shape[0],
+                        dataset.sequences[0].shape[2],
+                        dataset.sequences[0].shape[3]), dtype=np.float32)
+                for nframe in range(0, dataset.sequences[0].shape[0], frame_step):
+                    input_arr[nframe:nframe+frame_step] = np.array(dataset.sequences[0][
+                        nframe:nframe+frame_step, 0, :, :, 0]).astype(np.float32).squeeze()
             else:
                 input_arr = np.array(dataset.sequences[0])[subindices, :, :, :, :].squeeze()
 
