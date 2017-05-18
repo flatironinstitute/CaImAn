@@ -62,7 +62,7 @@ def mask_to_2d(mask):
         dims  = np.shape(mask)    
         return scipy.sparse.coo_matrix(np.reshape(mask,(np.prod(dims),-1,),order='F'))
 #%%
-def nf_match_neurons_in_binary_masks(masks_gt,masks_comp,thresh_cost=.7, min_dist = 10, print_assignment= False, plot_results = False, Cn=None, labels = None):
+def nf_match_neurons_in_binary_masks(masks_gt,masks_comp,thresh_cost=.7, min_dist = 10, print_assignment= False, plot_results = False, Cn=None, labels = None, cmap = 'viridis'):
     '''
     Match neurons expressed as binary masks. Uses Hungarian matching algorithm
 
@@ -152,9 +152,10 @@ def nf_match_neurons_in_binary_masks(masks_gt,masks_comp,thresh_cost=.7, min_dis
         pl.rc('font', **font)
         lp,hp = np.nanpercentile(Cn,[5,95])
         pl.subplot(1,2,1)
-        pl.imshow(Cn,vmin=lp,vmax=hp)
-        [pl.contour(mm,levels=[0],colors='w',linewidths=2) for mm in masks_comp[idx_tp_comp]] 
-        [pl.contour(mm,levels=[0],colors='r',linewidths=2) for mm in masks_gt[idx_tp_gt]] 
+        pl.imshow(Cn,vmin=lp,vmax=hp, cmap = cmap)
+#        pl.colorbar()
+        [pl.contour(mm,levels=[0],colors='w',linewidths=1) for mm in masks_comp[idx_tp_comp]] 
+        [pl.contour(mm,levels=[0],colors='r',linewidths=1) for mm in masks_gt[idx_tp_gt]] 
         if labels is None:
             pl.title('MATCHES')
         else:
@@ -162,9 +163,9 @@ def nf_match_neurons_in_binary_masks(masks_gt,masks_comp,thresh_cost=.7, min_dis
         #pl.legend([comp_str,'GT'])
         pl.axis('off')
         pl.subplot(1,2,2)
-        pl.imshow(Cn,vmin=lp,vmax=hp)
-        [pl.contour(mm,levels=[0],colors='w',linewidths=2) for mm in masks_comp[idx_fp_comp]] 
-        [pl.contour(mm,levels=[0],colors='r',linewidths=2) for mm in masks_gt[idx_fn]] 
+        pl.imshow(Cn,vmin=lp,vmax=hp, cmap = cmap)
+        [pl.contour(mm,levels=[0],colors='w',linewidths=1) for mm in masks_comp[idx_fp_comp]] 
+        [pl.contour(mm,levels=[0],colors='r',linewidths=1) for mm in masks_gt[idx_fn]] 
         if labels is None:
             pl.title('FALSE POSITIVE (w), FALSE NEGATIVE (r)')
         else:
