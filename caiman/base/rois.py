@@ -133,10 +133,10 @@ def nf_match_neurons_in_binary_masks(masks_gt,masks_comp,thresh_cost=.7, min_dis
     print(performance)
     #%%
     idx_tp = np.where(np.array(costs)<thresh_cost)[0]
-    idx_tp_ben = matches[0][idx_tp] 
-    idx_tp_cnmf = matches[1][idx_tp]
+    idx_tp_ben = matches[0][idx_tp]    # ground truth
+    idx_tp_cnmf = matches[1][idx_tp]   # algorithm - comp 
 
-    idx_fn = np.setdiff1d(list(range(np.shape(masks_gt)[0])),idx_tp)
+    idx_fn = np.setdiff1d(list(range(np.shape(masks_gt)[0])),matches[0][idx_tp])
 
     idx_fp =  np.setdiff1d(list(range(np.shape(masks_comp)[0])),matches[1][idx_tp])
 

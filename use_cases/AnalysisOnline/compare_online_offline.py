@@ -167,7 +167,7 @@ print(roi_ds.shape)
 #%%
 plot_results = True
 pl.figure(figsize=(30,20))
-_,_, _, _, performance_rs_on =  cm.base.rois.nf_match_neurons_in_binary_masks(roi_rs,A_on_thr[:,:].reshape([dims_on[0],dims_on[1],-1],order = 'F').transpose([2,0,1])*1.,thresh_cost=.7, min_dist = 10,
+tp_gt, tp_comp, fn_gt, fp_comp, performance_rs_on =  cm.base.rois.nf_match_neurons_in_binary_masks(roi_rs,A_on_thr[:,:].reshape([dims_on[0],dims_on[1],-1],order = 'F').transpose([2,0,1])*1.,thresh_cost=.7, min_dist = 10,
                                                                               print_assignment= False,plot_results=plot_results ,Cn=Cn, labels = ['RS','Online'])
 pl.rcParams['pdf.fonttype'] = 42
 font = {'family' : 'Myriad Pro',
