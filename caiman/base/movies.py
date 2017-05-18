@@ -1146,7 +1146,8 @@ def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None,
                     d1,d2=shape
                     input_arr=np.transpose(np.reshape(input_arr,(d1,d2,T),order='F'),(2,0,1))
                 else:
-                    raise Exception('Loaded vector is 2D , you need to provide the shape parameter')
+                    input_arr=input_arr[np.newaxis,:,:]
+#                    raise Exception('Loaded vector is 2D , you need to provide the shape parameter')
 
         elif extension == '.mat': # load npy file
             input_arr=loadmat(file_name)['data']
@@ -1249,7 +1250,7 @@ def load_movie_chain(file_list, fr=30, start_time=0,
     mov = []
     for f in tqdm(file_list):
         m = load(f, fr=fr, start_time=start_time,
-                 meta_data=meta_data, subindices=subindices)
+                 meta_data=meta_data, subindices=subindices, in_memory = True)
         if m.ndim == 2:
             m = m[np.newaxis, :, :]
         tm, h, w = np.shape(m)
