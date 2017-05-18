@@ -360,7 +360,7 @@ m_images = cm.movie(images)
 #if np.sum(np.isnan(images)) > 0:
 #    raise Exception('Movie contains nan! You did not remove enough borders')
 #%% correlation image
-Cn = cm.local_correlations(Y[:1000])
+Cn = cm.local_correlations(Y)
 Cn[np.isnan(Cn)] = 0
 pl.imshow(Cn, cmap='gray', vmax=.55)
 #%% some parameter settings
@@ -405,6 +405,8 @@ f_tot = cnm.f
 sn_tot = cnm.sn
 t2 = time.time() - t1
 print(('Number of components:' + str(A_tot.shape[-1])))
+#%%
+np.savez(os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:-4] + 'results_analysis_ZEBRA_patch.npz'), Cn=Cn, A=A_tot, C=C_tot, b=b_tot, f=f_tot, YrA=YrA_tot, sn=sn_tot, d1=d1, d2=d2)
 #%%
 pl.figure()
 crd = plot_contours(A_tot, Cn, thr=0.9)
