@@ -1992,7 +1992,10 @@ def tile_and_correct_wrapper(params):
         imgs = cm.load(img_name,subindices=list(idxs))
         mc = np.zeros(imgs.shape,dtype = np.float32)
         shift_info = []
-        
+    elif extension =='.h5':
+        imgs = cm.load(img_name,subindices=list(idxs))
+        mc = np.zeros(imgs.shape,dtype = np.float32)
+        shift_info = []    
     for count, img in enumerate(imgs): 
         if count % 10 == 0:
             print(count)
@@ -2046,7 +2049,16 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
 #        T = shape[0]               
     elif extension == '.hdf5':
         with h5py.File(fname) as fl:
-           T,d1,d2 = fl['mov'].shape   
+           T,d1,d2 = fl['mov'].shape 
+           
+    elif extension == '.h5':
+        
+        with h5py.File(fname) as fl:
+            if 'imaging' in fl.keys():
+                T,_,d1,d2,_ = fl['imaging'].shape 
+            else:
+                raise Exception('Unsupported file key for for h5 files in parallel motion correction')
+           
     else:
         raise Exception('Unsupported file extension for parallel motion correction')
         
