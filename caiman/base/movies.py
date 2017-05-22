@@ -1183,6 +1183,21 @@ def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None,
                 else:
                     return movie(f['quietBlock'][subindices],fr=fr)
             
+        elif extension== '.h5':
+              with h5py.File(file_name, "r") as f:
+                if 'imaging' in f.keys():  
+                    if subindices is None:
+    #                    fr=f['fr'],start_time=f['start_time'],file_name=f['file_name']
+                        images = np.array(f['imaging']).squeeze() 
+                        if images.ndim>3:
+                            images = images[:,0]
+                    else:
+                        images = np.array(f['imaging'][subindices]).squeeze()
+                        if images.ndim>3:
+                            images = images[:,0]
+                            
+                    return movie(images.astype(np.float32))
+                
         elif extension == '.mmap':
 
             filename=os.path.split(file_name)[-1]
