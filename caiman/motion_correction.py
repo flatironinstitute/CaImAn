@@ -82,17 +82,20 @@ class MotionCorrect(object):
         Parameters
         ----------
         fname: str
-            path to file to motion correct
+            path to file to motion correct        
         min_mov: int16 or float32
-            estimate minimum value of the movie to produce an output that is positive       
+            estimated minimum value of the movie to produce an output that is positive  
+        dview: ipyparallel view object list
+            to perform parallel computing, if NOne will operate in single thread    
         max_shifts: tuple
             maximum allow rigid shift
         niter_rig':int
-            maximum number of iterations rigid motion correction
+            maximum number of iterations rigid motion correction, in general is 1. 0 will quickly initialize a template with the first frames
         splits_rig': int
              for parallelization split the movies in  num_splits chuncks across time
         num_splits_to_process_rig:list, 
             if none all the splits are processed and the movie is saved, otherwise at each iteration num_splits_to_process_rig are considered
+        
         strides: tuple 
             intervals at which patches are laid out for motion correction
         overlaps: tuple
@@ -107,8 +110,15 @@ class MotionCorrect(object):
             maximum deviation allowed for patch with respect to rigid shift
         shifts_opencv: Bool 
             apply shifts fast way (but smoothing results)
-        save_movie_rigid:Bool
-            save the movies vs just get the template
+        
+        nonneg_movie: boolean
+            make the SAVED movie and template mostly nonnegative by removing min_mov from movie
+            
+        Return:
+        -------
+        self
+        important fields
+        
         """
      def __init__(self, fname, min_mov, dview=None, max_shifts=(6,6), niter_rig=1, splits_rig=14, num_splits_to_process_rig=None, 
                 strides= (96,96), overlaps= (32,32), splits_els=14,num_splits_to_process_els=[7,None], 
@@ -116,7 +126,9 @@ class MotionCorrect(object):
         """
         Constructor class for motion correction operations
         
-        
+       
+                                                                        
+                                                                        
         
         """
         self.fname=fname
@@ -139,8 +151,22 @@ class MotionCorrect(object):
         
      def motion_correct_rigid(self, template = None, save_movie = False):   
         """
-       
-      
+        Perform rigid motion correction
+        Parameters:
+        ----------
+        template: ndarray 2D
+            if known, one can pass a template to register the frames to             
+        save_movie_rigid:Bool
+            save the movies vs just get the template
+        
+        Returns:
+        --------
+        self
+        important fields: 
+        self.fname_tot_rig: name of the mmap file saved
+        self.total_template_rig: template updated by iterating  over the chunks
+        self.templates_rig: list of templates. one for each chunk
+        self.shifts_rig: shifts in x and y per frame 
         """
         print('Rigid Motion Correction')
         print(-self.min_mov)
@@ -152,7 +178,28 @@ class MotionCorrect(object):
         return self
     
      def motion_correct_pwrigid(self,save_movie = True, template=None, show_template = True):  
+        """Perform pw-rigid motion correction
+        Parameters:
+        ----------
+        template: ndarray 2D
+            if known, one can pass a template to register the frames to             
+        save_movie:Bool
+            save the movies vs just get the template
+        show_template: boolean
+            whether to show the updated template at each iteration
         
+        Returns:
+        --------
+        self
+        important fields: 
+        self.fname_tot_els: name of the mmap file saved        
+        self.templates_els: template updated by iterating  over the chunks
+        self.x_shifts_els: shifts in x per frame per patch
+        self.y_shifts_els: shifts in y per frame per patch
+        self.coord_shifts_els: coordinates associated to the patch for values in x_shifts_els and y_shifts_els
+        self.total_template_els: list of templates. one for each chunk
+                
+        """
         num_iter = 1
         if template is None:
              print('generating template by rigid motion correction')
@@ -180,8 +227,6 @@ class MotionCorrect(object):
         return self
 #%%
 def apply_shift_iteration(img,shift,border_nan=False, border_type = cv2.BORDER_REFLECT):
-
-
     sh_x_n,sh_y_n = shift
     w_i,h_i=img.shape
     M = np.float32([[1,0,sh_y_n],[0,1,sh_x_n]])    

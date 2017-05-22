@@ -34,7 +34,9 @@ class CNMF(object):
     def __init__(self, n_processes, k=5, gSig=[4,4], merge_thresh=0.8 , p=2, dview=None, Ain=None, Cin=None, f_in=None,do_merge=True,\
                                         ssub=2, tsub=2,p_ssub=1, p_tsub=1, method_init= 'greedy_roi',alpha_snmf=None,\
                                         rf=None,stride=None, memory_fact=1, gnb = 1, only_init_patch=False,\
-                                        method_deconvolution = 'oasis', n_pixels_per_process = 4000, block_size = 20000, check_nan = True, skip_refinement = False, normalize_init=True, options_local_NMF = None, remove_very_bad_comps = False):
+                                        method_deconvolution = 'oasis', n_pixels_per_process = 4000, block_size = 20000,
+                                        check_nan = True, skip_refinement = False, normalize_init=True, options_local_NMF = None,
+                                        remove_very_bad_comps = False):
         """ 
         Constructor of the CNMF method
 
@@ -96,7 +98,35 @@ class CNMF(object):
         N_samples_fitness: int 
             number of samples over which exceptional events are computed (See utilities.evaluate_components)
 
+        only_init_patch= boolean
+            only run initialization on patches
+        
+        method_deconvolution = 'oasis' or 'cvxpy'
+            method used for deconvolution. Suggested 'oasis' see  
+            Friedrich J, Zhou P, Paninski L. Fast Online Deconvolution of Calcium Imaging Data. PLoS Comput Biol. 2017; 13(3):e1005423.
+        
+        n_pixels_per_process: int. 
+            Number of pixels to be processed in parallel per core (no patch mode). Decrease if memory problems
+        
+        block_size: int. 
+            Number of pixels to be used to perform residual computation in blocks. Decrease if memory problems
+        
+        check_nan: Boolean. 
+            Check if file contains NaNs (costly for very large files so could be turned off)
+        
+        skip_refinement: 
+            Bool. If true it only performs one iteration of update spatial update temporal instead of two
+        
+        normalize_init=Bool. 
+            Differences in intensities on the FOV might caus troubles in the initialization when patches are not used, so each pixels can be normalized by its median intensity
+        
+        options_local_NMF: 
+            experimental, not to be used
 
+        remove_very_bad_comps:Bool
+            whether to remove components with very low values of component quality directly on the patch. This might create some minor imprecisions. 
+            Howeverm benefits can be considerable if done because if many components (>2000) are created and joined together, operation that causes a bottleneck
+        
         Returns:
         --------
         self

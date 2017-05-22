@@ -123,7 +123,7 @@ def save_memmap_each(fnames, dview=None, base_name=None, resize_fact=(1, 1, 1), 
 
     return fnames_new
 #%%
-def save_memmap_join(mmap_fnames,base_name=None, n_chunks=12, dview=None, async=False):
+def save_memmap_join(mmap_fnames,base_name=None, n_chunks=20, dview=None, async=False):
     '''
     From small memory mappable files creates a large one
     
