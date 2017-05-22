@@ -84,29 +84,6 @@ params_movie = {'fname': 'example_movies/demoSue2x.tif',
                 }
 
 #%%
-# params_movie = {'fname':'example_movies/Sue_2000.tif',
-#                'max_shifts':(12,12), # maximum allow rigid shift
-#                'niter_rig':0,
-#                'splits_rig':28, # for parallelization split the movies in  num_splits chuncks across time
-#                'num_splits_to_process_rig':None, # if none all the splits are processed and the movie is saved
-#                'strides': (80,80), # intervals at which patches are laid out for motion correction
-#                'overlaps': (48,48), # overlap between pathes (size of patch strides+overlaps)
-#                'splits_els':28, # for parallelization split the movies in  num_splits chuncks across time
-#                'num_splits_to_process_els':[14,None], # if none all the splits are processed and the movie is saved
-#                'upsample_factor_grid':3, # upsample factor to avoid smearing when merging patches
-#                'max_deviation_rigid':7, #maximum deviation allowed for patch with respect to rigid shift
-# 'p': 1, # order of the autoregressive system
-# 'merge_thresh' : 0.8,  # merging threshold, max correlation allowed
-# 'rf' : 15,  # half-size of the patches in pixels. rf=25, patches are 50x50
-# 'stride_cnmf' : 6,  # amounpl.it of overlap between the patches in pixels
-# 'K' : 4,  #  number of components per patch
-# 'is_dendrites': False,  # if dendritic. In this case you need to set init_method to sparse_nmf
-# 'init_method' : 'greedy_roi',
-# 'gSig' : [4, 4],  # expected half size of neurons
-# 'alpha_snmf' : None,  # this controls sparsity
-# 'final_frate' : 30
-#                }
-#%%
 # params_movie = {'fname':'example_movies/demoMovie.tif',
 #                'max_shifts':(1,1), # maximum allow rigid shift
 #                'splits_rig':28, # for parallelization split the movies in  num_splits chuncks across time
@@ -277,6 +254,11 @@ for cnt, fl, metr in zip(range(len(fls)),fls,['pw_rigid','rigid','raw']):
                 np.sqrt(flows[:, :, :, 0]**2 + flows[:, :, :, 1]**2), 0), vmin=0, vmax=0.3)
             pl.colorbar()
             pl.title('Mean optical flow')
+#%%
+del m_rig, flows, flows_orig  
+#%%
+c, dview, n_processes = cm.cluster.setup_cluster(
+    backend='local', n_processes=None, single_thread=False)    
 #%% save each chunk in F format
 t1 = time.time()
 if not params_movie.has_key('max_shifts'):
