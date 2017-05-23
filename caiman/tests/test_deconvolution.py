@@ -61,9 +61,9 @@ def foo(method, p):
     print(['\n', ''][p - 1] + ' %5s AR%d   %.4fs' % (method, p, time() - t))
 
 
-def test_cvxpy():
-    foo('cvxpy', 1)
-    foo('cvxpy', 2)
+# def test_cvxpy():
+#     foo('cvxpy', 1)
+#     foo('cvxpy', 2)
 
 
 def test_oasis():
@@ -71,10 +71,10 @@ def test_oasis():
     foo('oasis', 2)
 
 
-def test_cvx():
-    try:  # test only if mosek is installed
-        import mosek
-        foo('cvx', 1)
-        foo('cvx', 2)
-    except:
-        pass
+# def test_cvx():
+#     try:  # test only if mosek is installed
+#         import mosek
+#         foo('cvx', 1)
+#         foo('cvx', 2)
+#     except:
+#         pass
