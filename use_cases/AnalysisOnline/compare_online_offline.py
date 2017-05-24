@@ -41,7 +41,7 @@ from caiman.components_evaluation import evaluate_components
 from caiman.utils.visualization import plot_contours,view_patches_bar
 from caiman.base.rois import extract_binary_masks_blob
 #%%
-c,dview,n_processes = cm.cluster.setup_cluster(backend = 'local',n_processes = None,single_thread = False)
+c,dview,n_processes = cm.cluster.setup_cluster(backend = 'local',n_processes = None,single_thread = True)
 #%%
 min_size_neuro = 50
 n_frames_per_bin = 10
@@ -85,6 +85,7 @@ print((len(r_values)))
 print((len(idx_components)))  
 #%%
 A_off = A_off.toarray()[:,idx_components]
+#A_off = A_off[:,idx_components]
 C_off = C_off[idx_components]
 #    OASISinstances = OASISinstances[()]
 #%%
@@ -111,7 +112,7 @@ pl.imshow(A_off_thr.sum(-1).reshape(dims_off,order = 'F'))
 #%%
 #with np.load('results_full_movie_online_may5/results_analysis_online_JEFF_90k.take7_no_batch.npz') as ld:
 #online_file ='/opt/local/privateCaImAn/JEFF_MAY_14_AFT_BETTER_INIT_UPDATES_NO_STATS/results_analysis_online_JEFF_LAST_90000.npz'
-online_file ='/mnt/ceph/neuro/DataForPublications/OnlineCNMF/Jeff/EP_linux/results_analysis_online_JEFF_LAST__DS_2_90000.npz'
+#online_file ='/mnt/ceph/neuro/DataForPublications/OnlineCNMF/Jeff/EP_linux/results_analysis_online_JEFF_LAST__DS_2_90000.npz'
 online_file ='/mnt/ceph/neuro/SUE_results_online_DS/results_analysis_online_SUE__DS_2_116043.npz'
 
 with np.load(online_file) as ld:
@@ -153,7 +154,7 @@ pl.imshow(A_on_thr.sum(-1).reshape(dims_on,order = 'F'))
 #%% load labelers
 roi_rs = nf_read_roi_zip('/mnt/ceph/neuro/labeling/k53_20160530/regions/sonia_active_regions.zip',Cn.shape)
 print(roi_rs.shape)
-roi_bs = nf_read_roi_zip('/mnt/ceph/neuro/labeling/k53_20160530/regions/lindsey_active_regions_9.zip',Cn.shape)
+roi_bs = nf_read_roi_zip('/mnt/ceph/neuro/labeling/k53_20160530/regions/lindsey_active_regions.zip',Cn.shape)
 print(roi_bs.shape)
 #roi_ds = nf_read_roi_zip('/mnt/ceph/neuro/labeling/J115_2015-12-09_L01/regions/natalia_active_regions_els.zip',Cn.shape)
 #print(roi_ds.shape)
@@ -166,6 +167,7 @@ roi_ds = nf_read_roi_zip('/mnt/ceph/neuro/labeling/J115_2015-12-09_L01/regions/n
 print(roi_ds.shape)
 #%%
 plot_results = True
+#%%
 pl.figure(figsize=(30,20))
 tp_gt, tp_comp, fn_gt, fp_comp, performance_rs_on =  cm.base.rois.nf_match_neurons_in_binary_masks(roi_rs,A_on_thr[:,:].reshape([dims_on[0],dims_on[1],-1],order = 'F').transpose([2,0,1])*1.,thresh_cost=.7, min_dist = 10,
                                                                               print_assignment= False,plot_results=plot_results ,Cn=Cn, labels = ['RS','Online'])
