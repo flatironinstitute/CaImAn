@@ -25,7 +25,12 @@ import matplotlib as mpl
 try:
     import bokeh
     import bokeh.plotting as bpl
-    from bokeh.io import vform, hplot
+    try:
+        from bokeh.io import vform, hplot
+    except:
+        # newer version of bokeh does not use vform & hplot, instead uses column & row
+        from bokeh.layouts import column as vform
+        from bokeh.layouts import row as hplot
     from bokeh.models import CustomJS, ColumnDataSource, Range1d
 except:
     print("Bokeh could not be loaded. Either it is not installed or you are not running within a notebook")
