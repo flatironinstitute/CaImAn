@@ -1,0 +1,7 @@
+<map id="plot_contours" name="plot_contours">
+<area shape="rect" id="node2" href="$namespacecaiman_1_1utils_1_1visualization.html#a6954f6ef72e703af3959f02b7b4bb6d8" title="Interactive plotting utility for ipython notbook. " alt="" coords="162,5,287,31"/>
+<area shape="rect" id="node3" href="$namespacecaiman_1_1utils_1_1visualization.html#a710f8ce5063f0475fb009dd74f84ab9a" title="Interactive plotting utility for ipython notbook. " alt="" coords="155,55,294,80"/>
+<area shape="rect" id="node5" href="$namespacecaiman_1_1utils_1_1visualization.html#aa6b9002875d7d86524868e7d795a4f3f" title="Interactive Equivalent of plot_contours for ipython notebook. " alt="" coords="166,104,283,129"/>
+<area shape="rect" id="node4" href="$namespacecaiman_1_1utils_1_1visualization.html#a4414d9cf72aae1de86fcc5346deaeb3a" title="Gets contour of spatial components and returns their coordinates. " alt="" coords="342,55,455,80"/>
+<area shape="rect" id="node6" href="$namespacecaiman_1_1utils_1_1visualization.html#ac95a3a5e8c3bee95392831c57548fc04" title="Interactive equivalent of imshow for ipython notebook. " alt="" coords="354,104,443,129"/>
+</map>

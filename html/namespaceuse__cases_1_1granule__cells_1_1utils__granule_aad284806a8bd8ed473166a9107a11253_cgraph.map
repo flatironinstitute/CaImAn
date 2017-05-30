@@ -1,0 +1,6 @@
+<map id="load_data_from_stored_results" name="load_data_from_stored_results">
+<area shape="rect" id="node2" href="$namespaceuse__cases_1_1granule__cells_1_1utils__granule.html#a8d7c62cfe68cb8f54148c40fad7f2079" title="Load results from CNMF on various FOVs and merge them after some preprocessing. " alt="" coords="242,5,335,31"/>
+<area shape="rect" id="node3" href="$namespaceuse__cases_1_1granule__cells_1_1utils__granule.html#a548726920163e9294689515308c625ca" title="preprocess traces output of get_behavior_traces " alt="" coords="212,55,366,80"/>
+<area shape="rect" id="node4" href="$namespaceuse__cases_1_1granule__cells_1_1utils__granule.html#a0df0b96808c567e87ff6349d7ad41289" title="Equivalent of take for the input format we are using. " alt="" coords="221,104,356,129"/>
+<area shape="rect" id="node5" href="$namespaceuse__cases_1_1granule__cells_1_1utils__granule.html#ac9cde14ba363f17139f7a84a7164e5f4" title="process_wheel_traces" alt="" coords="212,153,366,179"/>
+</map>

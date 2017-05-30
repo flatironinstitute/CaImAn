@@ -1,0 +1,4 @@
+<map id="distance_masks" name="distance_masks">
+<area shape="rect" id="node2" href="$namespacecaiman_1_1base_1_1rois.html#a55efa0edbb0867a0fa3a8e86bb1fa407" title="get_distance_from_A" alt="" coords="171,5,319,31"/>
+<area shape="rect" id="node3" href="$namespacecaiman_1_1base_1_1rois.html#a110f7c7d62671deddd9e58cc0c873a4c" title="Match neurons expressed as binary masks. " alt="" coords="170,55,320,93"/>
+</map>

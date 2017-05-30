@@ -1,0 +1,6 @@
+<map id="determine_search_location" name="determine_search_location">
+<area shape="rect" id="node2" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1spatial.html#ab7b90a8cbd754f9c03b13cf1709eebd4" title="update spatial footprints and background through Basis Pursuit Denoising " alt="" coords="235,40,423,65"/>
+<area shape="rect" id="node5" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1spatial.html#af3e32db8a5aeabf7269b756732a5e5a1" title="regression_ipyparallel" alt="" coords="253,89,404,115"/>
+<area shape="rect" id="node3" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1merging.html#ad08adf2e086a22ef379b10ed3ee36936" title="Merging of spatially overlapping components that have highly correlated temporal activity The correla..." alt="" coords="471,5,770,44"/>
+<area shape="rect" id="node4" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1spatial.html#adbbc80bf3821229671c7f77648016071" title="basis_denoising" alt="" coords="562,68,679,93"/>
+</map>
