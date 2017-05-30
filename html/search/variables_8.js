@@ -1,0 +1,13 @@
+var searchData=
+[
+  ['h',['h',['../namespacedemo__caiman__wip.html#a5e36941b3d856737e81516acd45edc50',1,'demo_caiman_wip']]],
+  ['has_5fsima',['HAS_SIMA',['../namespacecaiman_1_1base_1_1movies.html#a96392e5dda870c7e6c6f498192ec06ef',1,'caiman::base::movies']]],
+  ['here',['here',['../namespacesetup.html#a3d7462064c15ae84cb15dfa3f136fa5c',1,'setup']]],
+  ['hierarchy',['hierarchy',['../namespaceneurofinder__template.html#a1abd264d106f3e5580353c22c8c05709',1,'neurofinder_template']]],
+  ['hist',['hist',['../namespacecompare__online__offline.html#ac15e5a1de3bd77dc1ff2768e42dc9e8b',1,'compare_online_offline']]],
+  ['histtype',['histtype',['../namespaceuse__cases_1_1granule__cells_1_1analysis__parallel__multisession.html#a7fd3b74d99259115bacd8d405bc621c8',1,'use_cases::granule_cells::analysis_parallel_multisession']]],
+  ['hq',['hq',['../namespacedemo__motion__correction.html#a5c14b5026aab0e77060219bfa8c1273b',1,'demo_motion_correction.hq()'],['../namespace_m_o_t_i_o_n___c_o_r_r_e_c_t_i_o_n.html#a5c14b5026aab0e77060219bfa8c1273b',1,'MOTION_CORRECTION.hq()'],['../namespaceneurofinder__template.html#a5c14b5026aab0e77060219bfa8c1273b',1,'neurofinder_template.hq()'],['../namespace_parallel_processing.html#a5c14b5026aab0e77060219bfa8c1273b',1,'ParallelProcessing.hq()'],['../namespacedemo__pipeline___zebra.html#a5c14b5026aab0e77060219bfa8c1273b',1,'demo_pipeline_Zebra.hq()'],['../namespacedemo__dan.html#a5c14b5026aab0e77060219bfa8c1273b',1,'demo_dan.hq()'],['../namespaceuse__cases_1_1granule__cells_1_1analysis__parallel__multisession.html#a5c14b5026aab0e77060219bfa8c1273b',1,'use_cases.granule_cells.analysis_parallel_multisession.hq()'],['../namespaceuse__cases_1_1granule__cells_1_1prepare__nice__image.html#a5c14b5026aab0e77060219bfa8c1273b',1,'use_cases.granule_cells.prepare_nice_image.hq()'],['../namespacedemo__elastic__and__online.html#a5c14b5026aab0e77060219bfa8c1273b',1,'demo_elastic_and_online.hq()'],['../namespacedemo__motion__correction__nonrigid.html#a5c14b5026aab0e77060219bfa8c1273b',1,'demo_motion_correction_nonrigid.hq()'],['../namespacedemo__pipeline___n_i_n.html#a5c14b5026aab0e77060219bfa8c1273b',1,'demo_pipeline_NIN.hq()'],['../namespacedemo__pipeline___n_i_n__2.html#a5c14b5026aab0e77060219bfa8c1273b',1,'demo_pipeline_NIN_2.hq()']]],
+  ['html_5fstatic_5fpath',['html_static_path',['../namespaceconf.html#a0a3ed65f01f948fea22a3928be863e0f',1,'conf']]],
+  ['html_5ftheme',['html_theme',['../namespaceconf.html#ae3cdb5291b613a54e31ca9520cddb940',1,'conf']]],
+  ['htmlhelp_5fbasename',['htmlhelp_basename',['../namespaceconf.html#a75a82d2191ce50cef1a4b6522da3c148',1,'conf']]]
+];

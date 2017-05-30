@@ -1,0 +1,10 @@
+<map id="create_weight_matrix_for_blending" name="create_weight_matrix_for_blending">
+<area shape="rect" id="node2" href="$namespacecaiman_1_1motion__correction.html#aef362667b31a29dfcc1a0c35c87f01ad" title="efficiently and lazily slides a window across the image Parameters img:ndarray 2D image that needs to..." alt="" coords="395,5,506,31"/>
+<area shape="rect" id="node3" href="$namespacecaiman_1_1motion__correction.html#aea060208c09f0e4fb01e6d31b9acf36f" title="perform piecewise rigid motion correction iteration, by 1) dividing the FOV in patches 2) motion corr..." alt="" coords="201,92,318,117"/>
+<area shape="rect" id="node4" href="$namespacecaiman_1_1motion__correction.html#a0700d66a3a6b2556b1c712daf9c18a9b" title="register_translation" alt="" coords="383,55,518,80"/>
+<area shape="rect" id="node7" href="$namespacecaiman_1_1motion__correction.html#a54e0e94e8c54dadcad8bc6688e46c590" title="apply_shift_iteration" alt="" coords="381,104,521,129"/>
+<area shape="rect" id="node8" href="$namespacecaiman_1_1motion__correction.html#ad4fabc7e2b2082da438e99a60ca41d96" title="apply_shifts_dft" alt="" coords="394,153,508,179"/>
+<area shape="rect" id="node9" href="$namespacecaiman_1_1motion__correction.html#a93dc0dbba76cd31384bb0fdca775fff6" title="compute_metrics_motion\l_correction" alt="" coords="366,203,536,241"/>
+<area shape="rect" id="node5" href="$namespacecaiman_1_1motion__correction.html#aa339d12f180017a763175f450816f158" title="_upsampled_dft" alt="" coords="596,31,713,56"/>
+<area shape="rect" id="node6" href="$namespacecaiman_1_1motion__correction.html#a09859fe5f2beba321b5397662b26651b" title="_compute_phasediff" alt="" coords="584,80,725,105"/>
+</map>

@@ -1,0 +1,5 @@
+<map id="extract_DF_F" name="extract_DF_F">
+<area shape="rect" id="node2" href="$namespacecaiman_1_1mmapping.html#aa75ec735ea507b2ce7eb0e0bd33d2ba3" title="Chunk matrix product between matrix and column vectors A memory mapped ndarray pixels x time b time x..." alt="" coords="155,5,332,44"/>
+<area shape="rect" id="node3" href="$namespacecaiman_1_1mmapping.html#a14d47c076020d7d3adf2599ed3354e4b" title="caiman.mmapping.dot\l_place_holder" alt="" coords="380,5,533,44"/>
+<area shape="rect" id="node4" href="$namespacecaiman_1_1mmapping.html#aeb2ed62e4a9028089a2eec09d392707f" title="Load a memory mapped file created by the function save_memmap. " alt="" coords="581,5,740,44"/>
+</map>

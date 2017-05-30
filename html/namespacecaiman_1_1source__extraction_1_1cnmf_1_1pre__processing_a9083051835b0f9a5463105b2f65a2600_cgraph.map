@@ -1,0 +1,7 @@
+<map id="preprocess_data" name="preprocess_data">
+<area shape="rect" id="node2" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1pre__processing.html#a4f24a28b19a32e01749dc3b71b41f5df" title="interpolate_missing_data" alt="" coords="174,5,344,31"/>
+<area shape="rect" id="node3" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1pre__processing.html#ad6085436e00dd246c1798b76d5cd176a" title="parallel version of get_noise_fft. " alt="" coords="185,55,333,80"/>
+<area shape="rect" id="node4" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1pre__processing.html#a1b73b814ed1bd025323df1f86b4e083b" title="estimate_time_constant" alt="" coords="178,104,340,129"/>
+<area shape="rect" id="node5" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1pre__processing.html#a60941191e5c55d29e33ed6fa698f1844" title="axcov" alt="" coords="392,104,448,129"/>
+<area shape="rect" id="node6" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1pre__processing.html#aebcfd66f32d95838dfa847044ee22a2b" title="nextpow2" alt="" coords="496,104,574,129"/>
+</map>

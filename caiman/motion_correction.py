@@ -1,6 +1,6 @@
 ## -*- coding: utf-8 -*-
 """
-@author: Andrea Giovannucci,
+@author Andrea Giovannucci,
 
 The functions apply_shifts_dft, register_translation, _compute_error, _compute_phasediff, and _upsampled_dft are from 
 SIMA (https://github.com/losonczylab/sima), licensed under the  GNU GENERAL PUBLIC LICENSE, Version 2, 1991. 
