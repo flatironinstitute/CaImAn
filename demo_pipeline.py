@@ -115,7 +115,8 @@ params_movie = {'fname': ['example_movies/demoSue2x.tif'],
 #%%
 
 """
-all_names = glob.glob('/mnt/ceph/neuro/Sue/k53/k53_20160530_RSM_125um_41mW_zoom2p2_00001_000*.tif')
+all_names = glob.glob(
+    '/mnt/ceph/neuro/Sue/k53/k53_20160530_RSM_125um_41mW_zoom2p2_00001_000*.tif')
 all_names.sort()
 all_names = all_names[:]
 print(all_names)
@@ -216,17 +217,20 @@ c, dview, n_processes = cm.cluster.setup_cluster(
 #%%
 
 # movie must be mostly positive for this to work
+#TODO : explain
 min_mov = cm.load(fname[0], subindices=range(400)).min()
 mc_list = []
 new_templ = None
 for each_file in fname:
+    #TODO: needinfo how the classes works 
     mc = MotionCorrect(each_file, min_mov,
                    dview=dview, max_shifts=max_shifts, niter_rig=niter_rig, splits_rig=splits_rig, 
                    num_splits_to_process_rig=num_splits_to_process_rig,
-                shifts_opencv = True, nonneg_movie = True)
+                   shifts_opencv = True, nonneg_movie = True)
     mc.motion_correct_rigid(template = new_templ, save_movie=True)
     new_templ = mc.total_template_rig
     
+    #TODO : needinfo
     pl.imshow(new_templ, cmap = 'gray')
     pl.pause(.1)
     mc_list.append(mc)
@@ -245,10 +249,13 @@ pl.ylabel('pixels')
 #%% inspect movie
 bord_px_rig = np.ceil(np.max(mc.shifts_rig)).astype(np.int)
 downsample_ratio = .2
+#TODO: todocument
 m_rig.resize(1, 1, downsample_ratio).play(
     gain=10, offset = offset_mov*.25, fr=30, magnification=2,bord_px = bord_px_rig)
 #%%
-mc.motion_correct_pwrigid(save_movie=True, template=mc.total_template_rig, show_template = True)
+#a computing intensive but parralellized part
+mc.motion_correct_pwrigid(save_movie=True,
+                          template=mc.total_template_rig, show_template = True)
 m_els = cm.load(mc.fname_tot_els)
 pl.imshow(mc.total_template_els, cmap = 'gray')
 bord_px_els = np.ceil(np.maximum(np.max(np.abs(mc.x_shifts_els)),
