@@ -176,8 +176,6 @@ class MotionCorrect(object):
                                                                         template = template, shifts_opencv = self.shifts_opencv , save_movie_rigid = save_movie, add_to_movie= -self.min_mov, nonneg_movie = self.nonneg_movie)
         
         return self
-
-        
     
      def motion_correct_pwrigid(self,save_movie = True, template=None, show_template = True):  
         """Perform pw-rigid motion correction
@@ -1748,7 +1746,106 @@ def compute_metrics_motion_correction(fname,final_size_x,final_size_y, swap_dim,
     np.savez(fname[:-4]+'_metrics',flows = flows, norms = norms, correlations = correlations,smoothness=smoothness,tmpl = tmpl, smoothness_corr = smoothness_corr, img_corr = img_corr)
     return tmpl, correlations, flows, norms, smoothness
 
+#%% motion correction in batches
+def motion_correct_batch_rigid(fname, max_shifts, dview = None, splits = 56 ,num_splits_to_process = None, num_iter = 1,  template = None, shifts_opencv = False, save_movie_rigid = False, add_to_movie = None, nonneg_movie = False):
+    """
+    Function that perform memory efficient hyper parallelized rigid motion corrections while also saving a memory mappable file
 
+    Parameters:
+    -----------
+    fname: str
+        name of the movie to motion correct. It should not contain nans. All the loadable formats from CaImAn are acceptable
+
+    max_shifts: tuple
+        x and y maximum allowd shifts 
+
+    dview: ipyparallel view
+        used to perform parallel computing
+
+    splits: int
+        number of batches in which the movies is subdivided
+
+    num_splits_to_process: int
+        number of batches to process. when not None, the movie is not saved since only a random subset of batches will be processed
+
+    num_iter: int
+        number of iterations to perform. The more iteration the better will be the template. 
+
+    template: ndarray
+        if a good approximation of the template to register is available, it can be used 
+
+    shifts_opencv: boolean
+         toggle the shifts applied with opencv, if yes faster but induces some smoothing
+
+    save_movie_rigid: boolean
+         toggle save movie
+    
+    Returns:
+    --------    
+    fname_tot_rig: str
+    
+    total_template:ndarray
+    
+    templates:list
+        list of produced templates, one per batch
+    
+    shifts: list
+        inferred rigid shifts to corrrect the movie
+    
+    """
+    
+    m = cm.load(fname,subindices=slice(0,None,10))
+    
+    if m.shape[0]<300:
+        m = cm.load(fname,subindices=slice(0,None,1))
+    elif m.shape[0]<500:
+        m = cm.load(fname,subindices=slice(0,None,5))
+    else:
+        m = cm.load(fname,subindices=slice(0,None,30))
+    if template is None:       
+        template = cm.motion_correction.bin_median(m.motion_correct(max_shifts[0],max_shifts[1],template=None)[0])
+    
+    
+    
+    new_templ = template
+    if add_to_movie is None:
+        add_to_movie=-np.min(template)
+        
+    
+    if np.isnan(add_to_movie):
+        raise Exception('The movie contains nans. Nans are not allowed!')
+    else:
+        print('Adding to movie '+ str(add_to_movie))
+        
+    save_movie = False
+    fname_tot_rig = None
+    res_rig = [] 
+    for iter_ in range(num_iter):
+        print(iter_)
+        old_templ = new_templ.copy()
+        if iter_ == num_iter-1:
+            save_movie = save_movie_rigid        
+            print('saving!')
+    #        templ_to_save = old_templ
+    
+        fname_tot_rig, res_rig = motion_correction_piecewise (fname, splits, strides = None, overlaps = None,\
+                                add_to_movie=add_to_movie, template = old_templ, max_shifts = max_shifts, max_deviation_rigid = 0,\
+                                dview = dview, save_movie = save_movie ,base_name  = os.path.split(fname)[-1][:-4]+ '_rig_',num_splits=num_splits_to_process,shifts_opencv=shifts_opencv, nonneg_movie = nonneg_movie)
+    
+    
+    
+        new_templ = np.nanmedian(np.dstack([r[-1] for r in res_rig ]),-1)
+        print((old_div(np.linalg.norm(new_templ-old_templ),np.linalg.norm(old_templ))))
+    
+    total_template = new_templ
+    templates = []
+    shifts = []
+    for rr in res_rig:
+        shift_info, idxs, tmpl = rr
+        templates.append(tmpl)
+        shifts+=[[sh[0][0],sh[0][1]] for sh in  shift_info[:len(idxs)]]
+    
+    return fname_tot_rig, total_template, templates, shifts
 #%%
 def motion_correct_batch_pwrigid(fname, max_shifts, strides, overlaps, add_to_movie, newoverlaps = None,  newstrides = None,
                                              dview = None, upsample_factor_grid = 4, max_deviation_rigid = 3,

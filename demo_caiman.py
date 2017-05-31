@@ -54,6 +54,7 @@ else:
             stop_server(is_slurm=True)
         except:
             print('Nothing to stop')
+        #todocument
         slurm_script='/mnt/xfs1/home/agiovann/SOFTWARE/Constrained_NMF/SLURM/slurmStart.sh'
         cm.start_server(slurm_script=slurm_script)
         pdir, profile = os.environ['IPPPDIR'], os.environ['IPPPROFILE']
@@ -74,6 +75,7 @@ for file in glob.glob(os.path.join(base_folder,'*.tif')):
 
 fnames.sort()
 if len(fnames)==0:
+    #todocument raise
     raise Exception("Could not find any tiff file")
 
 print(fnames)  
@@ -87,10 +89,12 @@ downsample_factor=1 # use .2 or .1 if file is large and you want a quick answer
 idx_xy=None
 base_name='Yr'
 name_new=cm.save_memmap_each(fnames, dview=dview,base_name=base_name, resize_fact=(1, 1, downsample_factor), remove_init=0,idx_xy=idx_xy,add_to_movie=add_to_movie )
+#todocument sort
 name_new.sort()
 print(name_new)
 
 #%%
+#todocument return
 fname_new=cm.save_memmap_join(name_new,base_name='Yr', n_chunks=12, dview=dview)
 #%%
 Yr,dims,T=cm.load_memmap(fname_new)
