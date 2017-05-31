@@ -1,6 +1,0 @@
-<map id="test_single_thread" name="test_single_thread">
-<area shape="rect" id="node2" href="$namespacecaiman_1_1tests_1_1test__demo.html#ac5c3950ffe101e5dfa9c5ca2087dfc73" title="demo" alt="" coords="184,44,238,69"/>
-<area shape="rect" id="node3" href="$namespacecaiman_1_1cluster.html#a224e29488e19814e85b50e1afd812a7d" title="caiman.cluster.stop\l_server" alt="" coords="287,5,422,44"/>
-<area shape="rect" id="node4" href="$namespacecaiman_1_1cluster.html#a36c3cc16b38cc1e90b578cb5952a0ba9" title="programmatically start the ipyparallel server " alt="" coords="286,68,423,107"/>
-<area shape="rect" id="node5" href="$namespacecaiman_1_1cluster.html#aa2ca4c63a4bfd3dc43f9a93bd0fb7525" title="Sometime you want to emulate the action of &quot;source&quot; in bash, settings some environment variables..." alt="" coords="471,68,608,107"/>
-</map>

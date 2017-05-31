@@ -1,6 +1,0 @@
-<map id="manually_refine_components" name="manually_refine_components">
-<area shape="rect" id="node2" href="$namespacecaiman_1_1base_1_1rois.html#ae37bc9f1a4e815bd7d8e44a2334883a2" title="Calculation of the center of mass for spatial components. " alt="" coords="347,5,498,31"/>
-<area shape="rect" id="node3" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1initialization.html#a7dd7bbb01fcb5237fc7d7674b870c9ae" title="Greedy initialization of spatial and temporal components using spatial Gaussian filtering. " alt="" coords="249,55,596,80"/>
-<area shape="rect" id="node4" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1initialization.html#ac8f4ada67920c28ee00d92af03cb4f8b" title="Spatial filtering with a Gaussian or user defined kernel The parameters are specified in GreedyROI..." alt="" coords="649,29,968,55"/>
-<area shape="rect" id="node5" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1initialization.html#a34abf87100936b47d488cefbb9def7e9" title="Fine tuning of components within greedyROI using rank&#45;1 NMF. " alt="" coords="644,79,973,104"/>
-</map>

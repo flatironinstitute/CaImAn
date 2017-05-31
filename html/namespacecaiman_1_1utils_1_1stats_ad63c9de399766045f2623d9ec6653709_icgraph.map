@@ -1,6 +1,0 @@
-<map id="mode_robust" name="mode_robust">
-<area shape="rect" id="node2" href="$namespacecaiman_1_1components__evaluation.html#a115ea8d0f9c41cb31cb7fe05535f65f7" title="estimate the noise in the traces under assumption that signals are sparse and only positive..." alt="" coords="153,5,416,44"/>
-<area shape="rect" id="node3" href="$namespacecaiman_1_1components__evaluation.html#a967e8c445c84976814609f9c120153a2" title="caiman.components_evaluation.compute\l_event_exceptionality" alt="" coords="152,68,416,107"/>
-<area shape="rect" id="node4" href="$namespacecaiman_1_1components__evaluation.html#ad2a8435be788c8e75130e41f884adb0f" title="Define a metric and order components according to the probabilty if some &quot;exceptional events&quot; (like a..." alt="" coords="464,68,727,107"/>
-<area shape="rect" id="node5" href="$namespacecaiman_1_1components__evaluation.html#a57b89e19503abe333d5767d462266e7a" title="caiman.components_evaluation.estimate\l_components_quality" alt="" coords="775,68,1038,107"/>
-</map>

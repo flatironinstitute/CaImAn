@@ -1,6 +1,0 @@
-<map id="nb_view_patches3d" name="nb_view_patches3d">
-<area shape="rect" id="node2" href="$namespacecaiman_1_1summary__images.html#ae17ab7076653cb3f5db43612a005c646" title="Computes the correlation image for the input dataset Y. " alt="" coords="193,5,397,44"/>
-<area shape="rect" id="node3" href="$namespacecaiman_1_1utils_1_1visualization.html#ad48f24a70009a82e7a8cafa02e283a0e" title="Plots contour of spatial components against a background image and returns their coordinates. " alt="" coords="244,68,345,93"/>
-<area shape="rect" id="node5" href="$namespacecaiman_1_1utils_1_1visualization.html#a4414d9cf72aae1de86fcc5346deaeb3a" title="Gets contour of spatial components and returns their coordinates. " alt="" coords="238,117,351,143"/>
-<area shape="rect" id="node4" href="$namespacecaiman_1_1base_1_1rois.html#ae37bc9f1a4e815bd7d8e44a2334883a2" title="Calculation of the center of mass for spatial components. " alt="" coords="445,68,596,93"/>
-</map>

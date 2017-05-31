@@ -1,5 +1,0 @@
-<map id="_compute_error" name="_compute_error">
-<area shape="rect" id="node2" href="$namespacecaiman_1_1motion__correction.html#a0700d66a3a6b2556b1c712daf9c18a9b" title="register_translation" alt="" coords="169,31,304,56"/>
-<area shape="rect" id="node3" href="$namespacecaiman_1_1motion__correction.html#aa339d12f180017a763175f450816f158" title="_upsampled_dft" alt="" coords="364,5,480,31"/>
-<area shape="rect" id="node4" href="$namespacecaiman_1_1motion__correction.html#a09859fe5f2beba321b5397662b26651b" title="_compute_phasediff" alt="" coords="352,55,493,80"/>
-</map>

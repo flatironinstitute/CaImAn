@@ -1,5 +1,0 @@
-<map id="setup_cluster" name="setup_cluster">
-<area shape="rect" id="node2" href="$namespacecaiman_1_1cluster.html#a224e29488e19814e85b50e1afd812a7d" title="stop_server" alt="" coords="154,5,245,31"/>
-<area shape="rect" id="node3" href="$namespacecaiman_1_1cluster.html#a36c3cc16b38cc1e90b578cb5952a0ba9" title="programmatically start the ipyparallel server " alt="" coords="154,55,246,80"/>
-<area shape="rect" id="node4" href="$namespacecaiman_1_1cluster.html#aa2ca4c63a4bfd3dc43f9a93bd0fb7525" title="Sometime you want to emulate the action of &quot;source&quot; in bash, settings some environment variables..." alt="" coords="294,55,390,80"/>
-</map>
