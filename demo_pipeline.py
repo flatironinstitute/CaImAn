@@ -1,9 +1,15 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Mon Nov 21 15:53:15 2016
+##@package demos  
+#\brief      for the user/programmer to understand and try the code
+#\details    all of other usefull functions (demos available on jupyter notebook) -*- coding: utf-8 -*- 
+#\version   1.0
+#\pre       EXample.First initialize the system.
+#\bug       
+#\warning   
+#\copyright GNU General Public License v2.0 
+#\date Created on Mon Nov 21 15:53:15 2016
+#\author agiovann
+#toclean
 
-@author: agiovann
-"""
 from __future__ import division
 from __future__ import print_function
 from builtins import zip
@@ -28,7 +34,7 @@ try:
 except NameError:
     print('Not IPYTHON')
     pass
-#%%
+
 import caiman as cm
 import numpy as np
 import os
@@ -40,7 +46,8 @@ import sys
 from ipyparallel import Client
 from skimage.external.tifffile import TiffFile
 import scipy
-#%%
+
+
 from caiman.motion_correction import tile_and_correct, motion_correction_piecewise
 from caiman.source_extraction.cnmf import cnmf as cnmf
 from caiman.motion_correction import MotionCorrect
@@ -48,11 +55,8 @@ from caiman.components_evaluation import evaluate_components
 from caiman.utils.visualization import plot_contours, view_patches_bar
 from caiman.base.rois import extract_binary_masks_blob
 from caiman.utils.utils import download_demo
-#%%
-#m = cm.load('example_movies/demoMovie.tif')
-#
-#cm.concatenate([m.resize(1,1,.2),m.resize(1,1,.2)],axis =1).play(fr =20, gain = 3.,magnification =3)
-#%% set parameters and create template by RIGID MOTION CORRECTION
+
+#@params params_movie set parameters and create template by RIGID MOTION CORRECTION
 params_movie = {'fname': ['example_movies/demoSue2x.tif'],
                 'niter_rig': 1,
                 'max_shifts': (6, 6),  # maximum allow rigid shift
@@ -83,8 +87,9 @@ params_movie = {'fname': ['example_movies/demoSue2x.tif'],
                 'alpha_snmf': None,  # this controls sparsity
                 'final_frate': 30
                 }
-
 #%%
+
+
 # params_movie = {'fname':'example_movies/Sue_2000.tif',
 #                'max_shifts':(12,12), # maximum allow rigid shift
 #                'niter_rig':0,
@@ -108,7 +113,10 @@ params_movie = {'fname': ['example_movies/demoSue2x.tif'],
 # 'final_frate' : 30
 #                }
 #%%
-all_names = glob.glob('/mnt/ceph/neuro/Sue/k53/k53_20160530_RSM_125um_41mW_zoom2p2_00001_000*.tif')
+
+"""
+all_names = glob.glob(
+    '/mnt/ceph/neuro/Sue/k53/k53_20160530_RSM_125um_41mW_zoom2p2_00001_000*.tif')
 all_names.sort()
 all_names = all_names[:]
 print(all_names)
@@ -150,61 +158,85 @@ params_movie = {'fname':all_names,
 #                'gSig' : [4, 4],  # expected half size of neurons
 #                'alpha_snmf' : None,  # this controls sparsity
 #                'final_frate' : 30
-#                }
+#  }
+
+"""
 #%% load movie (in memory!)
+
+#TODO: do find&replace on those parameters and delete this paragrph
+
+#@params fname name of the movie 
 fname = params_movie['fname']
+
 niter_rig = params_movie['niter_rig']
-# maximum allow rigid shift
+
+#@params max_shifts maximum allow rigid shift
 max_shifts = params_movie['max_shifts']  
-# for parallelization split the movies in  num_splits chuncks across time
+
+#@params splits_rig for parallelization split the movies in  num_splits chuncks across time
 splits_rig = params_movie['splits_rig']  
-# if none all the splits are processed and the movie is saved
+
+#@params num_splits_to_process_ri if none all the splits are processed and the movie is saved
 num_splits_to_process_rig = params_movie['num_splits_to_process_rig']
-#%%
-# intervals at which patches are laid out for motion correction
+
+#@params strides intervals at which patches are laid out for motion correction
 strides = params_movie['strides']
-# overlap between pathes (size of patch strides+overlaps)
+
+#@ prams overlaps overlap between pathes (size of patch strides+overlaps)
 overlaps = params_movie['overlaps']
-# for parallelization split the movies in  num_splits chuncks across time
+
+#@params splits_els for parallelization split the movies in  num_splits chuncks across time
 splits_els = params_movie['splits_els'] 
-# if none all the splits are processed and the movie is saved
+
+#@params num_splits_to_process_els  if none all the splits are processed and the movie is saved
 num_splits_to_process_els = params_movie['num_splits_to_process_els']
-# upsample factor to avoid smearing when merging patches
+
+#@params upsample_factor_grid upsample factor to avoid smearing when merging patches
 upsample_factor_grid = params_movie['upsample_factor_grid'] 
-# maximum deviation allowed for patch with respect to rigid
-# shift
+
+#@params max_deviation_rigid maximum deviation allowed for patch with respect to rigid shift
 max_deviation_rigid = params_movie['max_deviation_rigid']
+
 #%% download movie if not there
 if fname == 'example_movies/demoSue2x.tif':
+    #TODO: todocument
     download_demo()
-#%%
+    #TODO: todocument
 m_orig = cm.load_movie_chain(fname[:1])
+
 #%% play movie
+#TODO: load screenshot 1
 downsample_ratio = .2
 offset_mov = -np.min(m_orig[:100])
 m_orig.resize(1, 1, downsample_ratio).play(
     gain=10, offset = offset_mov, fr=30, magnification=2)
+
 #%% RUN ANALYSIS
 c, dview, n_processes = cm.cluster.setup_cluster(
     backend='local', n_processes=20, single_thread=False)
 #%%
+
 # movie must be mostly positive for this to work
+#TODO : explain
 min_mov = cm.load(fname[0], subindices=range(400)).min()
 mc_list = []
 new_templ = None
 for each_file in fname:
+    #TODO: needinfo how the classes works 
     mc = MotionCorrect(each_file, min_mov,
                    dview=dview, max_shifts=max_shifts, niter_rig=niter_rig, splits_rig=splits_rig, 
                    num_splits_to_process_rig=num_splits_to_process_rig,
-                shifts_opencv = True, nonneg_movie = True)
+                   shifts_opencv = True, nonneg_movie = True)
     mc.motion_correct_rigid(template = new_templ, save_movie=True)
     new_templ = mc.total_template_rig
     
+    #TODO : needinfo
     pl.imshow(new_templ, cmap = 'gray')
     pl.pause(.1)
     mc_list.append(mc)
     
-
+#needhelp why it is not the same as in the notebooks ?
+#TODO: show screenshot 2,3
 #%% visualize templates
 cm.movie(np.array(mc.templates_rig)).play(
     fr=10, gain=5, magnification=2, offset=offset_mov)
@@ -217,10 +249,13 @@ pl.ylabel('pixels')
 #%% inspect movie
 bord_px_rig = np.ceil(np.max(mc.shifts_rig)).astype(np.int)
 downsample_ratio = .2
+#TODO: todocument
 m_rig.resize(1, 1, downsample_ratio).play(
     gain=10, offset = offset_mov*.25, fr=30, magnification=2,bord_px = bord_px_rig)
 #%%
-mc.motion_correct_pwrigid(save_movie=True, template=mc.total_template_rig, show_template = True)
+#a computing intensive but parralellized part
+mc.motion_correct_pwrigid(save_movie=True,
+                          template=mc.total_template_rig, show_template = True)
 m_els = cm.load(mc.fname_tot_els)
 pl.imshow(mc.total_template_els, cmap = 'gray')
 bord_px_els = np.ceil(np.maximum(np.max(np.abs(mc.x_shifts_els)),

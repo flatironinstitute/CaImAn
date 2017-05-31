@@ -13,7 +13,7 @@ from .utils.stats import mode_robust, mode_robust_fast
 from scipy.sparse import csc_matrix
 from scipy.stats import norm
 import scipy
-#%%
+
 def estimate_noise_mode(traces,robust_std=False,use_mode_fast=False, return_all = False):
     """ estimate the noise in the traces under assumption that signals are sparse and only positive. The last dimension should be time. 
 

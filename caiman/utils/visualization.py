@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-Created on Mon Oct 17 14:50:22 2016
+\date Created on Mon Oct 17 14:50:22 2016
 
-@author: agiovann
+\author agiovann
 """
 from __future__ import division
 from __future__ import print_function

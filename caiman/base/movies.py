@@ -783,19 +783,22 @@ class movie(ts.timeseries):
         A=old_div(A,pixelsA[:,None]) # obtain average over ROI
         traces=trace(np.dot(A,np.transpose(Y)).T,**self.__dict__)
         return traces
+    ##resize movies along axis and interpolate or lowpass when necessary
+    #  it will not work without opencv
+    # 
+    #@param self the object pointer
+    #@param fx  fraction/multiple of dimension (.5 means the image will be half the size)
+    #@param fy  fraction/multiple of dimension (.5 means the image will be half the size)
+    #@param fz  fraction/multiple of dimension (.5 means the image will be half the size)
+    #@param interpolation  Set to none if you do not want interpolation or lowpass
+    #@returns self|new_m 
+    #\version   1.0
+    #\bug       
+    #\warning  
+    #\author  andrea giovannanucci
 
     def resize(self,fx=1,fy=1,fz=1,interpolation=cv2.INTER_AREA):
-        """
-        resize movies along axis and interpolate or lowpass when necessary
-        it will not work without opencv
-
-        Parameters
-        -------------------
-        fx,fy,fz:fraction/multiple of dimension (.5 means the image will be half the size)
-        interpolation=cv2.INTER_AREA. Set to none if you do not want interpolation or lowpass
-
-
-        """
+       
         T,d1,d2 =self.shape
         d=d1*d2
         elm=d*T
@@ -835,7 +838,7 @@ class movie(ts.timeseries):
                 self.fr=self.fr*fz
 
         return self
-
+    
     def guided_filter_blur_2D(self,guide_filter,radius=5, eps=0):
         """
         performs guided filtering on each frame. See opencv documentation of cv2.ximgproc.guidedFilter
@@ -1293,7 +1296,7 @@ def loadmat_sbx(filename):
 
 def _check_keys(dict):
     '''
-    checks if entries in dictionary are mat-objects. If yes
+    checks if entries in dictionary rare mat-objects. If yes
     todict is called to change them to nested dictionaries
     '''
 
