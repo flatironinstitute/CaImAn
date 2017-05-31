@@ -1,9 +1,0 @@
-<map id="onnls" name="onnls">
-<area shape="rect" id="node2" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1deconvolution.html#ad9f9b2ef0aad5c652f86bd8c7ae64bdd" title="_nnls" alt="" coords="157,5,211,31"/>
-<area shape="rect" id="node3" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1deconvolution.html#a5753e123f06d6f8a5f53e8f1cc50baba" title="Infer the most likely discretized spike train underlying an AR(2) fluorescence trace. " alt="" coords="107,55,261,80"/>
-<area shape="rect" id="node4" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1deconvolution.html#a7a73db2b3e0e88f4a5f30f80944c1319" title="estimate_time_constant" alt="" coords="504,29,666,55"/>
-<area shape="rect" id="node8" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1deconvolution.html#a7199190b4f33e4a70dedc9deea7e4c45" title="estimate_parameters" alt="" coords="309,80,456,105"/>
-<area shape="rect" id="node5" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1deconvolution.html#a16b9a254776edd0d9093ee35b1ef17a2" title="GetSn" alt="" coords="714,80,773,105"/>
-<area shape="rect" id="node6" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1deconvolution.html#a458da977dee6e97910a1b006e899b309" title="axcov" alt="" coords="715,29,772,55"/>
-<area shape="rect" id="node7" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1deconvolution.html#a8d83696f273bd0121651cf48a6b899ae" title="nextpow2" alt="" coords="821,29,900,55"/>
-</map>

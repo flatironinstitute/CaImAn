@@ -1,5 +1,0 @@
-<map id="estimate_noise_mode" name="estimate_noise_mode">
-<area shape="rect" id="node2" href="$namespacecaiman_1_1utils_1_1stats.html#ad89811d5260ec000aff655f547770d16" title="Robust estimator of the mode of a data set using the half&#45;sample mode. " alt="" coords="205,5,366,44"/>
-<area shape="rect" id="node4" href="$namespacecaiman_1_1utils_1_1stats.html#ad63c9de399766045f2623d9ec6653709" title="Robust estimator of the mode of a data set using the half&#45;sample mode. " alt="" coords="205,68,366,107"/>
-<area shape="rect" id="node3" href="$namespacecaiman_1_1utils_1_1stats.html#a55b174a1921dc0c54b644979bc3b429a" title="caiman.utils.stats._hsm" alt="" coords="414,44,574,69"/>
-</map>

@@ -1,4 +1,0 @@
-<map id="get_image_description_SI" name="get_image_description_SI">
-<area shape="rect" id="node2" href="$namespacecaiman_1_1utils_1_1utils.html#acb92eaecdc1f6d8e00bc14c21dceef9a" title="parse image_description field embedded by scanimage from get iamge description " alt="" coords="229,5,301,31"/>
-<area shape="rect" id="node3" href="$namespacecaiman_1_1utils_1_1utils.html#a2da4278493c8ec9464cd1b2d00f12bf2" title="parse values from si tags into python objects if possible from si parse " alt="" coords="349,5,428,31"/>
-</map>

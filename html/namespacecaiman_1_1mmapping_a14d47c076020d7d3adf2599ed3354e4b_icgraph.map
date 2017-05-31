@@ -1,9 +1,0 @@
-<map id="dot_place_holder" name="dot_place_holder">
-<area shape="rect" id="node2" href="$namespacecaiman_1_1mmapping.html#aa75ec735ea507b2ce7eb0e0bd33d2ba3" title="Chunk matrix product between matrix and column vectors A memory mapped ndarray pixels x time b time x..." alt="" coords="177,75,319,100"/>
-<area shape="rect" id="node3" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1spatial.html#ab7b90a8cbd754f9c03b13cf1709eebd4" title="update spatial footprints and background through Basis Pursuit Denoising " alt="" coords="388,68,681,107"/>
-<area shape="rect" id="node6" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1temporal.html#ae56ee735c5b8f6fdaca8baaee1371d58" title="Update temporal components and background given spatial components using a block coordinate descent a..." alt="" coords="382,5,687,44"/>
-<area shape="rect" id="node7" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1utilities.html#a280d064e1a9888eca4b375647d031491" title="Compute DFF function from cnmf output. " alt="" coords="367,133,702,159"/>
-<area shape="rect" id="node4" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1merging.html#ad08adf2e086a22ef379b10ed3ee36936" title="Merging of spatially overlapping components that have highly correlated temporal activity The correla..." alt="" coords="753,5,1052,44"/>
-<area shape="rect" id="node5" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1spatial.html#adbbc80bf3821229671c7f77648016071" title="caiman.source_extraction.cnmf.spatial.basis\l_denoising" alt="" coords="761,68,1044,107"/>
-<area shape="rect" id="node8" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1utilities.html#aea3aa78c7c153170012079014e1f4895" title="caiman.source_extraction.cnmf.utilities.compute\lDFF_traces" alt="" coords="750,131,1055,169"/>
-</map>

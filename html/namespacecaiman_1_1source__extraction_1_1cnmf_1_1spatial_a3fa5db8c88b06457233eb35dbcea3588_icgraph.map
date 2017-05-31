@@ -1,6 +1,0 @@
-<map id="threshold_components" name="threshold_components">
-<area shape="rect" id="node2" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1spatial.html#ab7b90a8cbd754f9c03b13cf1709eebd4" title="update spatial footprints and background through Basis Pursuit Denoising " alt="" coords="210,40,398,65"/>
-<area shape="rect" id="node5" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1spatial.html#a940c6646b47352d714e0cfdddb3b4e65" title="contruct_ellipse_parallel" alt="" coords="221,89,386,115"/>
-<area shape="rect" id="node3" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1merging.html#ad08adf2e086a22ef379b10ed3ee36936" title="Merging of spatially overlapping components that have highly correlated temporal activity The correla..." alt="" coords="446,5,745,44"/>
-<area shape="rect" id="node4" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1spatial.html#adbbc80bf3821229671c7f77648016071" title="basis_denoising" alt="" coords="537,68,654,93"/>
-</map>
