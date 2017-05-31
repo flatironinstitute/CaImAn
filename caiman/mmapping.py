@@ -39,6 +39,9 @@ def load_memmap(filename):
     T: int
         number of frames
 
+
+    @throws exception if not in mmap
+
     """
     if os.path.splitext(filename)[1] == '.mmap':
 

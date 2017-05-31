@@ -1,0 +1,6 @@
+<map id="extract_traces_mat" name="extract_traces_mat">
+<area shape="rect" id="node2" href="$namespaceuse__cases_1_1granule__cells_1_1utils__granule.html#aad284806a8bd8ed473166a9107a11253" title="From the partial data stored retrieves variables of interest. " alt="" coords="188,48,347,87"/>
+<area shape="rect" id="node3" href="$namespaceuse__cases_1_1granule__cells_1_1utils__granule.html#a8d7c62cfe68cb8f54148c40fad7f2079" title="Load results from CNMF on various FOVs and merge them after some preprocessing. " alt="" coords="425,5,518,31"/>
+<area shape="rect" id="node4" href="$namespaceuse__cases_1_1granule__cells_1_1utils__granule.html#a548726920163e9294689515308c625ca" title="preprocess traces output of get_behavior_traces " alt="" coords="395,55,549,80"/>
+<area shape="rect" id="node5" href="$namespaceuse__cases_1_1granule__cells_1_1utils__granule.html#ac9cde14ba363f17139f7a84a7164e5f4" title="process_wheel_traces" alt="" coords="395,104,549,129"/>
+</map>

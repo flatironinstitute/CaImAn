@@ -1,0 +1,4 @@
+<map id="nf_match_neurons_in_binary_masks" name="nf_match_neurons_in_binary_masks">
+<area shape="rect" id="node2" href="$namespacecaiman_1_1base_1_1rois.html#adc8128004edb81aefbc6d8ba07557414" title="Compute distance matrix based on an intersection over union metric. " alt="" coords="203,5,320,31"/>
+<area shape="rect" id="node3" href="$namespacecaiman_1_1base_1_1rois.html#ad8b7c6d1ce325bba2b0369a7ce7b8c85" title="find_matches" alt="" coords="211,55,312,80"/>
+</map>

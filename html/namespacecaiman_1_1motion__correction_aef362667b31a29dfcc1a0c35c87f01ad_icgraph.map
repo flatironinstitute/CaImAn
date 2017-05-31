@@ -1,0 +1,7 @@
+<map id="sliding_window" name="sliding_window">
+<area shape="rect" id="node2" href="$namespacecaiman_1_1motion__correction.html#a88ef513cfa324fc8548e4fb46d7a67e5" title="create a matrix that is used to normalize the intersection of the stiched patches ..." alt="" coords="164,75,312,113"/>
+<area shape="rect" id="node3" href="$namespacecaiman_1_1motion__correction.html#aea060208c09f0e4fb01e6d31b9acf36f" title="perform piecewise rigid motion correction iteration, by 1) dividing the FOV in patches 2) motion corr..." alt="" coords="360,81,477,107"/>
+<area shape="rect" id="node4" href="$namespaceabadura__demo.html#a98e8097ac25259476cca178403afebb1" title="abadura_demo.tile_and\l_correct_wrapper" alt="" coords="531,5,693,44"/>
+<area shape="rect" id="node5" href="$namespacedemo__motion__correction__nonrigid.html#a7c12b0a7d034249b2ceb2b7a2a36498b" title="demo_motion_correction\l_nonrigid.tile_and_correct\l_wrapper" alt="" coords="525,68,699,120"/>
+<area shape="rect" id="node6" href="$namespacecaiman_1_1motion__correction.html#a9c4d6e518f42c395cb58a08d2ff21f45" title="tile_and_correct_wrapper" alt="" coords="526,144,698,169"/>
+</map>

@@ -1,0 +1,9 @@
+<map id="load" name="load">
+<area shape="rect" id="node2" href="$namespacecaiman_1_1mmapping.html#aeb2ed62e4a9028089a2eec09d392707f" title="Load a memory mapped file created by the function save_memmap. " alt="" coords="100,5,259,44"/>
+<area shape="rect" id="node3" href="$namespacecaiman_1_1base_1_1movies.html#ad9b115e435b36308da1248112f09f0db" title="Input filename should be full path excluding .sbx. " alt="" coords="133,68,226,93"/>
+<area shape="rect" id="node7" href="$namespacecaiman_1_1base_1_1movies.html#ad72bfc8cc5386d4470caa0be723598e9" title="Input filename should be full path excluding .sbx. " alt="" coords="145,117,214,143"/>
+<area shape="rect" id="node8" href="$namespacecaiman_1_1base_1_1movies.html#a5a35758b31edb4a9b2105a058a0882a6" title="load movies from list of file names " alt="" coords="115,167,244,192"/>
+<area shape="rect" id="node4" href="$namespacecaiman_1_1base_1_1movies.html#a1dae08ecd6c4b9ef41d5e820eb86604d" title="loadmat_sbx" alt="" coords="307,93,404,119"/>
+<area shape="rect" id="node5" href="$namespacecaiman_1_1base_1_1movies.html#abb80862aafd574c59a95c0b24268be69" title="_check_keys" alt="" coords="452,93,550,119"/>
+<area shape="rect" id="node6" href="$namespacecaiman_1_1base_1_1movies.html#a3678b9e2ae337ad61ebe7630c5e08ead" title="A recursive function which constructs from matobjects nested dictionaries. " alt="" coords="598,93,659,119"/>
+</map>

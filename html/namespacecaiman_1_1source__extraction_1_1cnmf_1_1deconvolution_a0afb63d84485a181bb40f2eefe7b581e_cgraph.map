@@ -1,0 +1,12 @@
+<map id="constrained_foopsi" name="constrained_foopsi">
+<area shape="rect" id="node2" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1deconvolution.html#a7199190b4f33e4a70dedc9deea7e4c45" title="estimate_parameters" alt="" coords="389,23,536,49"/>
+<area shape="rect" id="node7" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1deconvolution.html#a04aa84702e9977187b4ac0ba95891fb6" title="Solve the deconvolution problem using cvxopt and picos packages. " alt="" coords="213,26,315,51"/>
+<area shape="rect" id="node8" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1deconvolution.html#a0dd508a8cc717626fa4c45d0a5c08bfd" title="Solves the deconvolution problem using the cvxpy package and the ECOS/SCS library. " alt="" coords="215,75,313,101"/>
+<area shape="rect" id="node9" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1deconvolution.html#a5753e123f06d6f8a5f53e8f1cc50baba" title="Infer the most likely discretized spike train underlying an AR(2) fluorescence trace. " alt="" coords="187,125,341,150"/>
+<area shape="rect" id="node3" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1deconvolution.html#a16b9a254776edd0d9093ee35b1ef17a2" title="GetSn" alt="" coords="794,25,853,50"/>
+<area shape="rect" id="node4" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1deconvolution.html#a7a73db2b3e0e88f4a5f30f80944c1319" title="estimate_time_constant" alt="" coords="584,74,746,99"/>
+<area shape="rect" id="node5" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1deconvolution.html#a458da977dee6e97910a1b006e899b309" title="axcov" alt="" coords="796,74,852,99"/>
+<area shape="rect" id="node6" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1deconvolution.html#a8d83696f273bd0121651cf48a6b899ae" title="nextpow2" alt="" coords="901,74,980,99"/>
+<area shape="rect" id="node10" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1deconvolution.html#affae481e26d5e13bc6f62c6e643b63d5" title="Infer the most likely discretized spike train underlying an AR(2) fluorescence trace. " alt="" coords="436,125,489,150"/>
+<area shape="rect" id="node11" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1deconvolution.html#ad9f9b2ef0aad5c652f86bd8c7ae64bdd" title="_nnls" alt="" coords="638,125,692,150"/>
+</map>

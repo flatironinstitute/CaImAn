@@ -1,0 +1,12 @@
+<map id="tile_and_correct_wrapper" name="tile_and_correct_wrapper">
+<area shape="rect" id="node2" href="$namespacecaiman_1_1motion__correction.html#aea060208c09f0e4fb01e6d31b9acf36f" title="perform piecewise rigid motion correction iteration, by 1) dividing the FOV in patches 2) motion corr..." alt="" coords="225,219,420,257"/>
+<area shape="rect" id="node11" href="$namespaceabadura__demo.html#ac750eb83be3cd67b359e572e5c77d593" title="motion_correction_piecewise" alt="" coords="226,281,419,307"/>
+<area shape="rect" id="node3" href="$namespacecaiman_1_1motion__correction.html#a0700d66a3a6b2556b1c712daf9c18a9b" title="caiman.motion_correction.register\l_translation" alt="" coords="471,36,693,75"/>
+<area shape="rect" id="node6" href="$namespacecaiman_1_1motion__correction.html#a54e0e94e8c54dadcad8bc6688e46c590" title="caiman.motion_correction.apply\l_shift_iteration" alt="" coords="477,99,687,137"/>
+<area shape="rect" id="node7" href="$namespacecaiman_1_1motion__correction.html#ad4fabc7e2b2082da438e99a60ca41d96" title="caiman.motion_correction.apply\l_shifts_dft" alt="" coords="477,161,687,200"/>
+<area shape="rect" id="node8" href="$namespacecaiman_1_1motion__correction.html#aef362667b31a29dfcc1a0c35c87f01ad" title="efficiently and lazily slides a window across the image Parameters img:ndarray 2D image that needs to..." alt="" coords="745,247,960,285"/>
+<area shape="rect" id="node9" href="$namespacecaiman_1_1motion__correction.html#a88ef513cfa324fc8548e4fb46d7a67e5" title="create a matrix that is used to normalize the intersection of the stiched patches ..." alt="" coords="475,276,690,315"/>
+<area shape="rect" id="node10" href="$namespacecaiman_1_1motion__correction.html#a93dc0dbba76cd31384bb0fdca775fff6" title="caiman.motion_correction.compute\l_metrics_motion_correction" alt="" coords="468,339,697,377"/>
+<area shape="rect" id="node4" href="$namespacecaiman_1_1motion__correction.html#aa339d12f180017a763175f450816f158" title="caiman.motion_correction.\l_upsampled_dft" alt="" coords="764,5,941,44"/>
+<area shape="rect" id="node5" href="$namespacecaiman_1_1motion__correction.html#a09859fe5f2beba321b5397662b26651b" title="caiman.motion_correction.\l_compute_phasediff" alt="" coords="764,68,941,107"/>
+</map>

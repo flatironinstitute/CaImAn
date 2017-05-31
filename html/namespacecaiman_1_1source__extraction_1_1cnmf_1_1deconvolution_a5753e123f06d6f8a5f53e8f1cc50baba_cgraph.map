@@ -1,0 +1,9 @@
+<map id="constrained_oasisAR2" name="constrained_oasisAR2">
+<area shape="rect" id="node2" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1deconvolution.html#a7a73db2b3e0e88f4a5f30f80944c1319" title="estimate_time_constant" alt="" coords="403,56,565,81"/>
+<area shape="rect" id="node6" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1deconvolution.html#affae481e26d5e13bc6f62c6e643b63d5" title="Infer the most likely discretized spike train underlying an AR(2) fluorescence trace. " alt="" coords="255,5,308,31"/>
+<area shape="rect" id="node8" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1deconvolution.html#a7199190b4f33e4a70dedc9deea7e4c45" title="estimate_parameters" alt="" coords="208,107,355,132"/>
+<area shape="rect" id="node3" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1deconvolution.html#a16b9a254776edd0d9093ee35b1ef17a2" title="GetSn" alt="" coords="613,105,672,131"/>
+<area shape="rect" id="node4" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1deconvolution.html#a458da977dee6e97910a1b006e899b309" title="axcov" alt="" coords="614,56,670,81"/>
+<area shape="rect" id="node5" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1deconvolution.html#a8d83696f273bd0121651cf48a6b899ae" title="nextpow2" alt="" coords="720,56,798,81"/>
+<area shape="rect" id="node7" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1deconvolution.html#ad9f9b2ef0aad5c652f86bd8c7ae64bdd" title="_nnls" alt="" coords="457,5,510,31"/>
+</map>

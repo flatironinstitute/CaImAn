@@ -1,0 +1,9 @@
+<map id="apply_shift_iteration" name="apply_shift_iteration">
+<area shape="rect" id="node2" href="$namespacecaiman_1_1motion__correction.html#af84483b6805cfea4c866952cd5fc801c" title="apply_shift_online" alt="" coords="193,53,321,79"/>
+<area shape="rect" id="node4" href="$namespacecaiman_1_1motion__correction.html#aea060208c09f0e4fb01e6d31b9acf36f" title="perform piecewise rigid motion correction iteration, by 1) dividing the FOV in patches 2) motion corr..." alt="" coords="199,179,315,204"/>
+<area shape="rect" id="node3" href="$classcaiman_1_1base_1_1movies_1_1movie.html#a05335edb94d8c896c53e006756680dc9" title="caiman.base.movies.movie.apply\l_shifts_online" alt="" coords="369,5,587,44"/>
+<area shape="rect" id="node5" href="$namespaceabadura__demo.html#a98e8097ac25259476cca178403afebb1" title="abadura_demo.tile_and\l_correct_wrapper" alt="" coords="397,68,559,107"/>
+<area shape="rect" id="node6" href="$namespacedemo__motion__correction__nonrigid.html#a7c12b0a7d034249b2ceb2b7a2a36498b" title="demo_motion_correction\l_nonrigid.tile_and_correct\l_wrapper" alt="" coords="391,131,566,183"/>
+<area shape="rect" id="node7" href="$namespacecaiman_1_1motion__correction.html#a88ef513cfa324fc8548e4fb46d7a67e5" title="create a matrix that is used to normalize the intersection of the stiched patches ..." alt="" coords="404,207,552,245"/>
+<area shape="rect" id="node8" href="$namespacecaiman_1_1motion__correction.html#a9c4d6e518f42c395cb58a08d2ff21f45" title="tile_and_correct_wrapper" alt="" coords="392,269,564,295"/>
+</map>
