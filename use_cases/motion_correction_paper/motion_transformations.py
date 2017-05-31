@@ -125,8 +125,8 @@ if False:
     templ = np.nanmean(m,0)
     new_templ = templ*1./np.max(np.nanmean(templ,0))/2
     new_templ[np.isnan(new_templ)]=np.nanmean(new_templ) 
-    min_val = np.min(new_templ) 
-    new_templ = new_templ*(1.1) 
+#    min_val = np.min(new_templ) 
+    new_templ = new_templ+0.1 
     
     
     
@@ -167,7 +167,7 @@ if False:
         vy_s.append(vy_)
         imgs_with_flow.append(dispOpticalFlow(np.dstack([new_templ,new_templ,new_templ])/100,np.dstack([vx_*array*2,vy_*array*2]),Divisor=20))
 #%% oracle
-for patch_size in np.array([32,64,96]):
+for patch_size in np.array([24,48,96]):
     best_possible_x = cv2.resize(cv2.resize(vx_,tuple(np.divide(new_templ.shape,(patch_size,patch_size)))),new_templ.shape)
     best_possible_y = cv2.resize(cv2.resize(vy_,tuple(np.divide(new_templ.shape,(patch_size,patch_size)))),new_templ.shape)
     gt = np.dstack([vx_*array  ,vy_*array ])  
@@ -177,7 +177,7 @@ for patch_size in np.array([32,64,96]):
     #%%
     all_movs_dist = []
     all_movs_tosave = []
-    for patch_size in [32,64,96]:          
+    for patch_size in [32,48,96]:          
             for noise_sigma in np.arange(0.01,4,.4,dtype = np.float32):
                 for iter_ in range(10):
                         vx,vy, img_flow  = vx_s[0],vy_s[0], imgs_with_flow[0]
@@ -314,24 +314,28 @@ with np.load('/mnt/ceph/neuro/DataForPublications/Piecewise-Rigid-Analysis-paper
     max_shift = ld['max_shift']
 #%%
 pl.rcParams['pdf.fonttype'] = 42
-pl.subplot(2,2,1)
+
+pl.subplot(3,2,1)
 pl.imshow(imgs_with_flow[0],cmap = 'gray')
 pl.axis('off')
-pl.subplot(2,2,2)
+pl.subplot(3,2,2)
 pl.imshow(all_movs_dist[0]['newim']-new_templ,cmap = 'gray')
 pl.axis('off')
-pl.subplot(2,2,3)
+aa = pl.subplot(3,2,3)
 
-#%
+aa = pl.subplot(3,2,4)
+
+aa = pl.subplot(3,2,5)
 df = pandas.DataFrame()
 for key in ['noise_sigma','patch_size','iter_','norm_diff_shifts_oflow_res']:
     df[key] = [mmm[key] for mmm in all_movs_dist]
-a = df.groupby(['noise_sigma']).mean().unstack(level=0)['norm_diff_shifts_oflow_res'].plot(y=['norm_diff_shifts_oflow_res'],yerr =  df.groupby(['noise_sigma']).sem().unstack(level=0)['norm_diff_shifts_oflow_res'])      
+df.groupby(['patch_size','noise_sigma']).mean().unstack(level=0).plot(y=['norm_diff_shifts_oflow_res'],yerr =  df.groupby(['noise_sigma']).sem().unstack(level=0)['norm_diff_shifts_oflow_res'], ax = aa)      
 pl.xlabel('noise level')
 pl.ylabel('Norm ratio residual/gt') 
+pl.legend(['24/48','48/48','96/48']) 
 
 #%
-pl.subplot(2,2,4)
+pl.subplot(3,2,6)
 df = pandas.DataFrame()
 for key in ['noise_sigma','patch_size','iter_','norm_diff_shifts_oflow']:
     df[key] = [mmm[key] for mmm in all_movs_dist]
@@ -344,7 +348,7 @@ df.groupby(['patch_size','noise_sigma']).mean().unstack(level=0).plot(y = ['norm
 pl.xlabel('noise level')
 pl.ylabel('Norm ratio delta/gt') 
 #pl.ylim([.12,.5])
-pl.legend(['optical flow'] + ['32/48','64/48','96/48']) 
+pl.legend(['optical flow'] + ['24/48','48/48','96/48']) 
 #%%
 
 ##%%
