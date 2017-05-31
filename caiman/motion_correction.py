@@ -1568,7 +1568,7 @@ def tile_and_correct(img,template, strides, overlaps,max_shifts, newoverlaps = N
         num_tiles = np.prod(dim_new_grid)
 
         max_shear  = np.percentile([np.max(np.abs(np.diff(ssshh,axis = xxsss))) for ssshh, xxsss in itertools.product([shift_img_x,shift_img_y],[0,1])],75)
-        print(max_shear)
+#        print(max_shear)
 
     #    shift_img_x[(np.abs(shift_img_x-rigid_shts[0])/iqr(shift_img_x-rigid_shts[0])/1.349)>max_sd_outlier] = np.median(shift_img_x)
     #    shift_img_y[(np.abs(shift_img_y-rigid_shts[1])/iqr(shift_img_y-rigid_shts[1])/1.349)>max_sd_outlier] = np.median(shift_img_y)
@@ -1638,11 +1638,11 @@ def tile_and_correct(img,template, strides, overlaps,max_shifts, newoverlaps = N
             cv2.imshow('frame',old_div(img_show,np.percentile(template,99)))
             cv2.waitKey(int(1./500*1000))      
 
-        else:
-            try:
-                cv2.destroyAllWindows()
-            except:
-                pass
+#        else:
+#            try:
+#                cv2.destroyAllWindows()
+#            except:
+#                pass
     #    xx,yy = np.array(start_step)[:,0]+newshapes[0]/2,np.array(start_step)[:,1]+newshapes[1]/2
     #    pl.cla()
     #    pl.imshow(new_img,vmin = 200, vmax = 500 ,cmap = 'gray',origin = 'lower')
@@ -1652,7 +1652,10 @@ def tile_and_correct(img,template, strides, overlaps,max_shifts, newoverlaps = N
 
 
         return new_img-add_to_movie, total_shifts,start_step,xy_grid    
-
+#%% 
+def compute_flow_single_frame(frame,templ,pyr_scale = .5,levels = 3, winsize = 100, iterations = 15, poly_n = 5, poly_sigma = 1.2/5, flags = 0):
+    flow = cv2.calcOpticalFlowFarneback(templ,frame,None,pyr_scale, levels, winsize, iterations, poly_n, poly_sigma, flags)
+    return flow
 #%%
 def compute_metrics_motion_correction(fname,final_size_x,final_size_y, swap_dim,pyr_scale = .5,levels = 3,winsize = 100, iterations = 15, poly_n = 5, poly_sigma = 1.2/5, flags = 0,\
                                       play_flow = False, resize_fact_flow = .2,template = None):
