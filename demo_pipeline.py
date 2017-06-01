@@ -526,6 +526,8 @@ t[7] = time.time() - t1
 np.savez(os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:-4] + 'results_analysis.npz'), Cn=Cn, A=A,
          C=C, b=b, f=f, YrA=YrA, sn=sn, d1=d1, d2=d2, idx_components=idx_components, idx_components_bad=idx_components_bad,
          fitness_raw=fitness_raw, fitness_delta=fitness_delta, r_values=r_values)
+#we save it
+comp.save(True)
 #%%
 #TODO: show screenshot 14
 pl.subplot(1, 2, 1)

@@ -20,6 +20,8 @@ Link
 import platform as plt
 import datetime
 import numpy as np
+import os
+import matplotlib.pyplot as pl
     
 """
    Comparison(object): class you instanciate to compare the different functions you are calling in your program.
@@ -100,7 +102,7 @@ class Comparison(object):
             	---------
             
              
-            	.. image:: /Users/jeremie/CaImAn/dev/kalfon/img/datacomparison.png
+            	.. image:: CaImAn/dev/kalfon/img/datacomparison.png
             
              
                 """
@@ -133,74 +135,76 @@ class Comparison(object):
         #if not we save the value of the difference into 
         #for rigid
         
-        
-                   A = data['values']['rig_shifts']['ourdata'][()] #we do this [()] because of REASONS
-                   B = self.comparison['rig_shifts']['ourdata']
-                   A = np.linalg.norm(A-B)/np.linalg.norm(A)
-                   B = A < self.comparison['rig_shifts']['sensibility']
-                   self.information['values']['rig_shifts'].update({'isdifferent':B,
-                                          'diff_data': A,
-                                          'diff_timing': data['ground_truth']['rig_shifts']['timer']
-                                          - self.comparison['rig_shifts']['timer']
-                                        
-                                })
-        #for pwrigid
-                   A= data['values']['pwrig_shifts']['ourdata'][0][()]
-                   B = self.comparison['pwrig_shifts']['ourdata'][0]
-                   C = np.linalg.norm(A-B)/np.linalg.norm(A)
-                   #there is xs and ys
-                   A= data['values']['pwrig_shifts']['ourdata'][1][()]
-                   B = self.comparison['pwrig_shifts']['ourdata'][1]
-                   #a simple comparison algo
-                   A = np.linalg.norm(A-B)/np.linalg.norm(A)
-                   #we add both errors
-                   A=A+C
-                   B = A < self.comparison['pwrig_shifts']['sensibility']
-                   self.information['values']['pwrig_shifts'].update({'isdifferent':B,
-                                            'diff_data': A,
-                                            'diff_timing': data['values']['pwrig_shifts']['timer']
-                                            - self.comparison['pwrig_shifts']['timer']
-                                        
-                                })
-        #for cnmf on patches 
-                   A= data['values']['cnmf_on_patch']['ourdata'][0][()]
-                   B = self.comparison['cnmf_on_patch']['ourdata'][0]
-                   C = np.linalg.norm(A-B)/np.linalg.norm(A)
-                   #there is temporal and spatial
-                   A= data['values']['cnmf_on_patch']['ourdata'][1][()]
-                   B = self.comparison['cnmf_on_patch']['ourdata'][1]
-                   A = np.linalg.norm(A-B)/np.linalg.norm(A)
-                   A=A+C
-                   B = A < self.comparison['cnmf_on_patch']['sensibility']
-                   self.information['values']['cnmf_on_patch'].update({'isdifferent':B,
-                                            'diff_data': A,
-                                            'diff_timing': data['values']['cnmf_on_patch']['timer']
-                                            - self.comparison['cnmf_on_patch']['timer']
-                                        
-                                })
-        #for cnmf full frame
-                   A= data['values']['cnmf_full_frame']['ourdata'][0][()]
-                   B = self.comparison['cnmf_full_frame']['ourdata'][0]
-                   C = np.linalg.norm(A-B)/np.linalg.norm(A)
-                   #there is temporal and spatial
-                   A= data['values']['cnmf_full_frame']['ourdata'][1][()]
-                   B = self.comparison['cnmf_full_frame']['ourdata'][1]
-                   A = np.linalg.norm(A-B)/np.linalg.norm(A)
-                   #we add both errors
-                   A=A+C
-                   B = A < self.comparison['cnmf_full_frame']['sensibility']
-                   self.information['values']['cnmf_full_frame'].update({'isdifferent':B,
-                                            'diff_data': A,
-                                            'diff_timing': data['values']['cnmf_full_frame']['timer']
-                                            - self.comparison['cnmf_full_frame']['timer']
-                                        
-                                })
-                  
-                #we save with the system date
-                   dta='/Users/jeremie/CaImAn/comparison/tests/'
-                   dta+=dt
-                   dta+='.npz'
-                   np.savez(dta, **data)
+                   if data['processor']==self.information['processor']:
+                       A = data['values']['rig_shifts']['ourdata'][()] #we do this [()] because of REASONS
+                       B = self.comparison['rig_shifts']['ourdata']
+                       A = np.linalg.norm(A-B)/np.linalg.norm(A)
+                       B = A < self.comparison['rig_shifts']['sensibility']
+                       self.information['values']['rig_shifts'].update({'isdifferent':B,
+                                              'diff_data': A,
+                                              'diff_timing': data['ground_truth']['rig_shifts']['timer']
+                                              - self.comparison['rig_shifts']['timer']
+                                            
+                                    })
+            #for pwrigid
+                       A= data['values']['pwrig_shifts']['ourdata'][0][()]
+                       B = self.comparison['pwrig_shifts']['ourdata'][0]
+                       C = np.linalg.norm(A-B)/np.linalg.norm(A)
+                       #there is xs and ys
+                       A= data['values']['pwrig_shifts']['ourdata'][1][()]
+                       B = self.comparison['pwrig_shifts']['ourdata'][1]
+                       #a simple comparison algo
+                       A = np.linalg.norm(A-B)/np.linalg.norm(A)
+                       #we add both errors
+                       A=A+C
+                       B = A < self.comparison['pwrig_shifts']['sensibility']
+                       self.information['values']['pwrig_shifts'].update({'isdifferent':B,
+                                                'diff_data': A,
+                                                'diff_timing': data['values']['pwrig_shifts']['timer']
+                                                - self.comparison['pwrig_shifts']['timer']
+                                            
+                                    })
+            #for cnmf on patches 
+                       A= data['values']['cnmf_on_patch']['ourdata'][0][()]
+                       B = self.comparison['cnmf_on_patch']['ourdata'][0]
+                       C = np.linalg.norm(A-B)/np.linalg.norm(A)
+                       #there is temporal and spatial
+                       A= data['values']['cnmf_on_patch']['ourdata'][1][()]
+                       B = self.comparison['cnmf_on_patch']['ourdata'][1]
+                       A = np.linalg.norm(A-B)/np.linalg.norm(A)
+                       A=A+C
+                       B = A < self.comparison['cnmf_on_patch']['sensibility']
+                       self.information['values']['cnmf_on_patch'].update({'isdifferent':B,
+                                                'diff_data': A,
+                                                'diff_timing': data['values']['cnmf_on_patch']['timer']
+                                                - self.comparison['cnmf_on_patch']['timer']
+                                            
+                                    })
+            #for cnmf full frame
+                       A= data['values']['cnmf_full_frame']['ourdata'][0][()]
+                       B = self.comparison['cnmf_full_frame']['ourdata'][0]
+                       C = np.linalg.norm(A-B)/np.linalg.norm(A)
+                       #there is temporal and spatial
+                       A= data['values']['cnmf_full_frame']['ourdata'][1][()]
+                       B = self.comparison['cnmf_full_frame']['ourdata'][1]
+                       A = np.linalg.norm(A-B)/np.linalg.norm(A)
+                       #we add both errors
+                       A=A+C
+                       B = A < self.comparison['cnmf_full_frame']['sensibility']
+                       self.information['values']['cnmf_full_frame'].update({'isdifferent':B,
+                                                'diff_data': A,
+                                                'diff_timing': data['values']['cnmf_full_frame']['timer']
+                                                - self.comparison['cnmf_full_frame']['timer']
+                                            
+                                    })
+                      
+                    #we save with the system date
+                       dta='/Users/jeremie/CaImAn/comparison/tests/'
+                       dta+=dt
+                       dta+='.npz'
+                       np.savez(dta, **data)
+                   else:
+                        print("you need to set ground trut with your own computer")
             
             #if we cannot manage to open it or it doesnt exist:
             except (IOError, OSError) :
@@ -210,3 +214,99 @@ class Comparison(object):
                 dta+=dt
                 dta+='.npz'
                 np.savez(dta, **self.information)
+                
+    def plot(self):
+        
+        """save the comparison object on a file
+ 
+ 
+            depending on if we say this file will be ground truth or not, it wil be saved in either the tests or the groung truth folder
+            if saved in test, a comparison to groundtruth will be add to the object 
+            this comparison will be on 
+                data : a normized difference of the normalized value of the arrays
+                time : difference
+ 
+            Parameters
+            -----------
+ 
+            self:  dictionnary
+               the object of this class tha tcontains every value
+            istruth: Boolean
+                if we want it ot be the ground truth
+             
+            	See Also
+            	---------
+            
+             
+            	.. image:: /Users/jeremie/CaImAn/dev/kalfon/img/datacomparison.png
+            
+             
+                """
+        dr='/Users/jeremie/CaImAn/comparison/'
+        #what we wille plot
+        times=np.array([])
+        comps=np.array([])
+        time=np.array([])
+        comp=np.array([])
+        try: 
+                with np.load('/Users/jeremie/CaImAn/comparison/groundtruth.npz') as data: 
+                    
+                    for name in os.listdir('/Users/jeremie/CaImAn/comparison/tests'):
+                       try: 
+                            dr+=name
+                            with np.load(dr) as tfile:
+                                #if we are on similar proc
+                                if tfile['processor']==data['processor']:
+                                    tfile=tfile['value'][()]
+                                    for val in tfile:
+                                        val=val[()]
+                                        time= np.append(times, val['diff_timing'])
+                                        comp= np.append(comp, val['diff_data'])
+                                    
+                                    times= np.append(times, time)    
+                                    comps= np.append(comps, comp)
+                       except:
+                           print('a file coul not be read')
+                
+                pl.close()
+                pl.subplot(2, 1, 1)
+                pl.plot(times)
+                pl.xlabel('time difference')
+                pl.subplot(2, 1, 2)
+                pl.plot(comps)
+                pl.ylabel('')
+                pl.xlabel('frames')
+        except:
+            print('there is really no file at all')
+            
+    def see(self, filename=None):
+        
+        
+        dr='/Users/jeremie/CaImAn/comparison/'
+        try:
+            filename
+            dr=+filename
+            with np.load(dr) as data:
+                print('here is the info :\n')
+                print(data['processor'])
+                print(data['platform'])
+                print('\n\n here is the value :\n')
+                data=data['value'][()]
+                for val in data :
+                    val=val[()]
+                    
+                    print(val['diff_timing'])
+                    print('\n')
+                    print(val['diff_data'])
+                    print('\n')
+                    print(val['isdiffernt'])
+                    print('\n')
+                    print(val['sensibility'])
+                    print('\n')
+                    print('\n')
+                                
+        except:
+           print(' the name is not valid')
+                                        
+                
+            
