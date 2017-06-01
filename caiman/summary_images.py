@@ -51,7 +51,7 @@ def max_correlation_image(Y,bin_size = 1000, eight_neighbours = True, swap_dim =
         Cn_bins = np.zeros(((n_bins,)+Y.shape[1:]))
         for i in range(n_bins):
             Cn_bins[i] = local_correlations_fft(Y[i*bin_size:(i+1)*bin_size],eight_neighbours=eight_neighbours,swap_dim=False)
-            print i*bin_size
+            print(i*bin_size)
     
         Cn = np.max(Cn_bins,axis=0)
         return Cn
