@@ -43,7 +43,7 @@ import time
 import pylab as pl
 import scipy
 
-from comparison import comparison
+
 from caiman.source_extraction.cnmf import cnmf as cnmf
 from caiman.components_evaluation import estimate_components_quality
 from caiman.motion_correction import MotionCorrect
@@ -81,80 +81,40 @@ params_movie = {'fname': ['example_movies/demoSue2x.tif'],
                 'alpha_snmf': None,  # this controls sparsity
                 'final_frate': 30
                 }
+
 #%%
-
-
-# params_movie = {'fname':'example_movies/Sue_2000.tif',
-#                'max_shifts':(12,12), # maximum allow rigid shift
-#                'niter_rig':0,
-#                'splits_rig':28, # for parallelization split the movies in  num_splits chuncks across time
-#                'num_splits_to_process_rig':None, # if none all the splits are processed and the movie is saved
-#                'strides': (80,80), # intervals at which patches are laid out for motion correction
-#                'overlaps': (48,48), # overlap between pathes (size of patch strides+overlaps)
-#                'splits_els':28, # for parallelization split the movies in  num_splits chuncks across time
-#                'num_splits_to_process_els':[14,None], # if none all the splits are processed and the movie is saved
-#                'upsample_factor_grid':3, # upsample factor to avoid smearing when merging patches
-#                'max_deviation_rigid':7, #maximum deviation allowed for patch with respect to rigid shift
-# 'p': 1, # order of the autoregressive system
-# 'merge_thresh' : 0.8,  # merging threshold, max correlation allowed
-# 'rf' : 15,  # half-size of the patches in pixels. rf=25, patches are 50x50
-# 'stride_cnmf' : 6,  # amounpl.it of overlap between the patches in pixels
-# 'K' : 4,  #  number of components per patch
-# 'is_dendrites': False,  # if dendritic. In this case you need to set init_method to sparse_nmf
-# 'init_method' : 'greedy_roi',
-# 'gSig' : [4, 4],  # expected half size of neurons
-# 'alpha_snmf' : None,  # this controls sparsity
-# 'final_frate' : 30
-#                }
-#%%
-
-"""
-all_names = glob.glob(
-    '/mnt/ceph/neuro/Sue/k53/k53_20160530_RSM_125um_41mW_zoom2p2_00001_000*.tif')
-all_names.sort()
-all_names = all_names[:]
-print(all_names)
-params_movie = {'fname':all_names,
-                'max_shifts':(20,20), # maximum allow rigid shift
-                'niter_rig':1,
-                'splits_rig':10, # for parallelization split the movies in  num_splits chuncks across time
-                'num_splits_to_process_rig':None, # if none all the splits are processed and the movie is saved
-                 'p': 1, # order of the autoregressive system
-                 'merge_thresh' : 0.8,  # merging threshold, max correlation allowed
-                 'rf' : 14,  # half-size of the patches in pixels. rf=25, patches are 50x50
-                 'stride_cnmf' : 4,  # amounpl.it of overlap between the patches in pixels
-                 'K' : 6,  #  number of components per patch
-                 'is_dendrites': False,  # if dendritic. In this case you need to set init_method to sparse_nmf
-                 'init_method' : 'greedy_roi',
-                 'gSig' : [7, 7],  # expected half size of neurons
-                 'alpha_snmf' : None,  # this controls sparsity
-                 'final_frate' : 30
-                }
-#%%
-
-# params_movie = {'fname':'example_movies/demoMovie.tif',
-#                'max_shifts':(1,1), # maximum allow rigid shift
-#                'splits_rig':28, # for parallelization split the movies in  num_splits chuncks across time
-#                'num_splits_to_process_rig':None, # if none all the splits are processed and the movie is saved
-#                'strides': (48,48), # intervals at which patches are laid out for motion correction
-#                'overlaps': (24,24), # overlap between pathes (size of patch strides+overlaps)
-#                'splits_els':28, # for parallelization split the movies in  num_splits chuncks across time
-#                'num_splits_to_process_els':[28,None], # if none all the splits are processed and the movie is saved
-#                'upsample_factor_grid':4, # upsample factor to avoid smearing when merging patches
-#                'max_deviation_rigid':3, #maximum deviation allowed for patch with respect to rigid shift
-#                'p': 1, # order of the autoregressive system
-#                'merge_thresh' : 0.8,  # merging threshold, max correlation allowed
-#                'rf' : 15,  # half-size of the patches in pixels. rf=25, patches are 50x50
-#                'stride_cnmf' : 6,  # amounpl.it of overlap between the patches in pixels
-#                'K' : 5,  #  number of components per patch
-#                'is_dendrites': False,  # if dendritic. In this case you need to set init_method to sparse_nmf
-#                'init_method' : 'greedy_roi',
-#                'gSig' : [4, 4],  # expected half size of neurons
-#                'alpha_snmf' : None,  # this controls sparsity
-#                'final_frate' : 30
-#  }
-
-"""
+#Precision you want for the validation of your comparison
+comparison ={'rig_shifts': {},
+             'pwrig_shifts': {},
+             'cnmf_on_patch': {},
+             'cnmf_full_frame': {},
+             'is_ground_truth': True,
+             'ground_truth':None,
+             'sensibility':None
+        }
+#the sensibility USER TO CHOOSE
+comparison['sensibility']={  
+        'rig_shifts': 0.001,
+        'pwrig_shifts':0.1,
+        'cnmf_on_patch':0.01,
+        'cnmf_full_frame':0.001
+        }
+comparison['rig_shifts']={
+                          'ourdata': None,
+                          'timers': None
+                         }
+comparison['pwrig_shifts']={
+                          'ourdata': None,
+                          'timers': None
+                         }
+comparison['cnmf_on_patch']={
+                          'ourdata': None,
+                          'timers': None
+                         }
+comparison['cnmf_full_frame']={
+                          'ourdata': None,
+                          'timers': None
+                         }
 #%% load movie (in memory!)
 
 #TODO: do find&replace on those parameters and delete this paragrph
@@ -198,27 +158,17 @@ if fname == 'example_movies/demoSue2x.tif':
     #TODO: todocument
 m_orig = cm.load_movie_chain(fname[:1])
 
-#%% play movie
-#TODO: load screenshot 1
-downsample_ratio = .2
-offset_mov = -np.min(m_orig[:100])
-m_orig.resize(1, 1, downsample_ratio).play(
-    gain=10, offset = offset_mov, fr=30, magnification=2)
 
+#TODO: load screenshot 1
 #%% RUN ANALYSIS
 c, dview, n_processes = cm.cluster.setup_cluster(
     backend='local', n_processes=20, single_thread=False)
-#%%
+
 
 # movie must be mostly positive for this to work
-#TODO : document
+#TODO : TOdocument
 #setting timer to see how the changement in functions make the code react on a same computer. 
-
 t1 = time.time()
-
-#we want to compare it using comp
-comp=comparison.Comparison
-
 t=[]
 min_mov = cm.load(fname[0], subindices=range(400)).min()
 mc_list = []
@@ -232,18 +182,14 @@ for each_file in fname:
     mc.motion_correct_rigid(template = new_templ, save_movie=True)
     new_templ = mc.total_template_rig
     m_rig = cm.load(mc.fname_tot_rig)
-    #TODO : needinfo
-    pl.imshow(new_templ, cmap = 'gray')
-    pl.pause(.1)
+
+
     mc_list.append(mc)
 
-comp.comparison['rig_shifts']['timer'] = time.time() - t1
-comp.comparison['rig_shifts']['ourdata'] = mc.shifts_rig 
-#needhelp why it is not the same as in the notebooks ?
+comparison['rig_shifts']['timer'] = time.time() - t1
 #TODO: show screenshot 2,3
-#%% visualize templates
-cm.movie(np.array(mc.templates_rig)).play(
-    fr=10, gain=5, magnification=2, offset=offset_mov)
+#%% store rigid shifts
+comparison['rig_shifts']['ourdata']=mc.shifts_rig
 #%% plot rigid shifts
 pl.close()
 pl.plot(mc.shifts_rig)
@@ -251,12 +197,7 @@ pl.legend(['x shifts','y shifts'])
 pl.xlabel('frames')
 pl.ylabel('pixels')
 #TODO: show screenshot 4
-#%% inspect movie
-bord_px_rig = np.ceil(np.max(mc.shifts_rig)).astype(np.int)
-downsample_ratio = .2
-#TODO: todocument
-m_rig.resize(1, 1, downsample_ratio).play(
-    gain=10, offset = offset_mov*.25, fr=30, magnification=2,bord_px = bord_px_rig)
+
 #%%
 #a computing intensive but parralellized part
 t1 = time.time()
@@ -264,16 +205,16 @@ mc.motion_correct_pwrigid(save_movie=True,
                           template=mc.total_template_rig, show_template = True)
 #TODO: change var name els= pwr
 m_els = cm.load(mc.fname_tot_els)
-pl.imshow(mc.total_template_els, cmap = 'gray')
 #TODO: show screenshot 5
 #TODO: bug sometimes saying there is no y_shifts_els 
 bord_px_els = np.ceil(np.maximum(np.max(np.abs(mc.x_shifts_els)),
                                  np.max(np.abs(mc.y_shifts_els)))).astype(np.int)
-comp.comparison['pwrig_shifts']['timer'] = time.time() - t1
-comp.comparison['pwrig_shifts']['ourdata'] = [mc.x_shifts_els,mc.y_shifts_els]
+comparison['pwrig_shifts']['timer'] = time.time() - t1
+comparison['pwrig_shifts']['ourdata'] = [mc.x_shifts_els, mc.y_shifts_els]
+        
 #%% visualize elastic shifts
 pl.close()
-pl.subplot(2, 1, 1)
+pl.subplot(2, 1, 1) 
 pl.plot(mc.x_shifts_els)
 pl.ylabel('x shifts (pixels)')
 pl.subplot(2, 1, 2)
@@ -281,20 +222,8 @@ pl.plot(mc.y_shifts_els)
 pl.ylabel('y_shifts (pixels)')
 pl.xlabel('frames')
 #TODO: show screenshot 6
-#%% play corrected and downsampled movie
-downsample_ratio = .2
-m_els.resize(1, 1, downsample_ratio).play(
-    gain=10, offset = 0, fr=30, magnification=2,bord_px = bord_px_els)
-#%% local correlation
-pl.imshow(m_els.local_correlations(eight_neighbours=True, swap_dim=False))
-#TODO: show screenshot 7
-#%% visualize raw, rigid and pw-rigid motion correted moviews
-downsample_factor = .2
-#TODO : todocument
-cm.concatenate([m_orig.resize(1, 1, downsample_factor)+offset_mov, m_rig.resize(1, 1, downsample_factor), m_els.resize(
-    1, 1, downsample_factor)], axis=2).play(fr=60, gain=15, magnification=2, offset=0)
-#TODO: show screenshot 8
 #%% compute metrics for the results, just to check that motion correction worked properly
+t1 = time.time()
 final_size = np.subtract(mc.total_template_els.shape, 2 * bord_px_els)
 winsize = 100
 swap_dim = False
@@ -307,6 +236,7 @@ tmpl, correlations, flows_orig, norms, smoothness = cm.motion_correction.compute
     mc.fname_tot_rig, final_size[0], final_size[1], swap_dim, winsize=winsize, play_flow=False, resize_fact_flow=resize_fact_flow)
 tmpl, correlations, flows_orig, norms, smoothness = cm.motion_correction.compute_metrics_motion_correction(
     fname, final_size[0], final_size[1], swap_dim, winsize=winsize, play_flow=False, resize_fact_flow=resize_fact_flow)
+t[3] = time.time() - t1
 #%% plot the results of metrics
 fls = [mc.fname_tot_els[:-4] + '_metrics.npz', mc.fname_tot_rig[:-4] +
        '_metrics.npz', mc.fname[:-4] + '_metrics.npz']
@@ -407,7 +337,7 @@ images = np.reshape(Yr.T, [T] + list(dims), order='F')
 #TODO: needinfo
 Y = np.reshape(Yr, dims + (T,), order='F')
 m_images = cm.movie(images)
-
+t[4] = time.time() - t1
 #TODO: show screenshot 10
 #%%  checks on movies 
 #computationnally intensive
@@ -470,14 +400,10 @@ YrA_tot = cnm.YrA
 b_tot = cnm.b
 f_tot = cnm.f
 sn_tot = cnm.sn
-comp.comparison['cnmf_on_patch']['timer'] = time.time() - t1
-comp.comparison['cnmf_on_patch']['ourdata'] = [cnm.A,cnm.C]
+comparison['cnmf_on_patch']['timer'] = time.time() - t1
+comparison['cnmf_on_patch']['ourdata'] = [cnm.A, cnm.C]
+
 print(('Number of components:' + str(A_tot.shape[-1])))
-#%%
-pl.figure()
-#TODO: show screenshot 12
-#TODO : change the way it is used
-crd = plot_contours(A_tot, Cn, thr=0.9)
 #%% DISCARD LOW QUALITY COMPONENT
 t1 = time.time()
 final_frate = params_movie['final_frate']
@@ -494,10 +420,6 @@ t[6] = time.time() - t1
 print(('Keeping ' + str(len(idx_components)) +
        ' and discarding  ' + str(len(idx_components_bad))))
 #%%
-#TODO: show screenshot 13
-pl.figure()
-crd = plot_contours(A_tot.tocsc()[:, idx_components], Cn, thr=0.9)
-#%%
 A_tot = A_tot.tocsc()[:, idx_components]
 C_tot = C_tot[idx_components]
 #%% rerun updating the components to refine
@@ -505,8 +427,8 @@ t1 = time.time()
 cnm = cnmf.CNMF(n_processes, k=A_tot.shape, gSig=gSig, merge_thresh=merge_thresh, p=p, dview=dview, Ain=A_tot, Cin=C_tot,
                 f_in=f_tot, rf=None, stride=None, method_deconvolution='oasis')
 cnm = cnm.fit(images)
-comp.comparison['cnmf_full_frame']['timer'] = time.time() - t1
-comp.comparison['cnmf_full_frame']['ourdata'] = [cnm.A,cnm.C]
+comparison['cnmf_full_frame']['timer'] = time.time() - t1
+comparison['cnmf_full_frame']['ourdata'] = [cnm.A, cnm.C]
 #%%
 A, C, b, f, YrA, sn = cnm.A, cnm.C, cnm.b, cnm.f, cnm.YrA, cnm.sn
 #%% again recheck quality of components, stricter criteria
@@ -522,23 +444,7 @@ print(' ***** ')
 print((len(traces)))
 print((len(idx_components)))
 t[7] = time.time() - t1
-#%% save results
-np.savez(os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:-4] + 'results_analysis.npz'), Cn=Cn, A=A,
-         C=C, b=b, f=f, YrA=YrA, sn=sn, d1=d1, d2=d2, idx_components=idx_components, idx_components_bad=idx_components_bad,
-         fitness_raw=fitness_raw, fitness_delta=fitness_delta, r_values=r_values)
-#%%
-#TODO: show screenshot 14
-pl.subplot(1, 2, 1)
-crd = plot_contours(A.tocsc()[:, idx_components], Cn, thr=0.9)
-pl.subplot(1, 2, 2)
-crd = plot_contours(A.tocsc()[:, idx_components_bad], Cn, thr=0.9)
-#%%
-#TODO: needinfo
-view_patches_bar(Yr, scipy.sparse.coo_matrix(A.tocsc()[:, idx_components]), C[
-    idx_components, :], b, f, dims[0], dims[1], YrA=YrA[idx_components, :], img=Cn)
-#%%
-view_patches_bar(Yr, scipy.sparse.coo_matrix(A.tocsc()[:, idx_components_bad]), C[
-    idx_components_bad, :], b, f, dims[0], dims[1], YrA=YrA[idx_components_bad, :], img=Cn)
+
 #%% STOP CLUSTER and clean up log files
 #TODO: todocument
 cm.stop_server()
@@ -547,12 +453,143 @@ log_files = glob.glob('Yr*_LOG_*')
 for log_file in log_files:
     os.remove(log_file)
 #%% reconstruct denoised movie
-denoised = cm.movie(A.dot(C) + b.dot(f)).reshape(dims+(-1,),order = 'F').transpose([2,0,1])
-#%% 
-#TODO: show screenshot 15
-denoised.play(gain = 10, offset = 0,fr =50, magnification = 2)
-#%% reconstruct denoised movie without background
-denoised = cm.movie(A.dot(C)).reshape(dims+(-1,),order = 'F').transpose([2,0,1])
+
 #%%
-#TODO: show screenshot 16
-denoised.play(gain = 10, offset = 0,fr =100, magnification = 2)
+#writing the information about the efficiency of the code
+dt = datetime.date.today()
+dt=str(dt)
+plat=plt.platform()
+plat=str(plat)
+pro=plt.processor()
+pro=str(pro)
+information ={
+        'platform': plat,
+        'processor':pro,
+        'values':None
+        }
+#%%
+try:
+    with np.load('CaImAn/dev/kalfon/efficiency.npz') as data:  
+        
+        
+        #if we want the ground truth:
+        if comparison['is_ground_truth']:
+            data['ground_truth']=None
+            for k in comparison.keys:
+                if type(comparison[k]) is dict:
+                    #ma que bella, we put everything into the ground truth       
+                    data['ground_truth']['information']['values'].append({
+                                k: { 'data': comparison[k]['ourdata'],
+                                     'timer': comparison[k]['timer']
+                                     }
+                                })
+#we add the parameters of the ground truth in the same fashion as in everyother entry
+            data['ground_truth'].append({
+                    'params':params_movie
+                    })
+            data['groun_truth']['information'].append({
+                    'platform':plat,
+                    'processor':pro
+                    })
+            print('we now have ground truth')
+        else:
+            #if not we save the value of the difference into 
+#for rigid
+           A = data['ground_truth']['rig_shifts'][()] #we do this [()] because of REASONS
+           B = comparison['rig_shifts'] 
+           A = np.linalg.norm(A-B)/np.linalg.norm(A)
+           B = A < comparison['sensibility']['rig_shifts'][()] #we do this [()] because of REASONS
+           information['values'].append({
+                   'rig_shifts' :{'isdifferent':B,
+                                  'difference': A,
+                                  'timing': data['ground_truth']['rig_shifts']['timer']
+                                  - comparison['rig_shifts']['timer']
+                                }
+                        })
+#for pwrigid
+           A= data['ground_truth']['pwrig_shifts'][0][()]
+           B = comparison['pwrig_shifts'][0]
+           C = np.linalg.norm(A-B)/np.linalg.norm(A)
+           #there is xs and ys
+           A= data['ground_truth']['pwrig_shifts'][1][()]
+           B = comparison['pwrig_shifts'][1]
+           A = np.linalg.norm(A-B)/np.linalg.norm(A)
+           A=A+C
+           B = A < comparison['sensibility']['pwrig_shifts']
+           information['values'].append({
+                   'pwrig_shifts' :{'isdifferent':B,
+                                    'difference': A,
+                                    'timing': data['ground_truth']['pwrig_shifts']['timer']
+                                    - comparison['pwrig_shifts']['timer']
+                                }
+                        })
+#for cnmf on patches 
+           A= data['ground_truth']['cnmf_on_patch'][0][()]
+           B = comparison['cnmf_on_patch'][0]
+           C = np.linalg.norm(A-B)/np.linalg.norm(A)
+           #there is temporal and spatial
+           A= data['ground_truth']['cnmf_on_patch'][1][()]
+           B = comparison['cnmf_on_patch'][1]
+           A = np.linalg.norm(A-B)/np.linalg.norm(A)
+           A=A+C
+           B = A < comparison['sensibility']['cnmf_on_patch']
+           information['values'].append({
+                   'cnmf_on_patch' :{'isdifferent':B,
+                                    'difference': A,
+                                    'timing': data['ground_truth']['cnmf_on_patch']['timer']
+                                    - comparison['cnmf_on_patch']['timer']
+                                }
+                        })
+#for cnmf full frame
+           A= data['ground_truth']['cnmf_full_frame'][0][()]
+           B = comparison['cnmf_full_frame'][0]
+           C = np.linalg.norm(A-B)/np.linalg.norm(A)
+           #there is temporal and spatial
+           A= data['ground_truth']['cnmf_full_frame'][1][()]
+           B = comparison['cnmf_full_frame'][1]
+           A = np.linalg.norm(A-B)/np.linalg.norm(A)
+           A=A+C
+           B = A < comparison['sensibility']['cnmf_full_frame']
+           information['values'].append({
+                   'cnmf_full_frame' :{'isdifferent':B,
+                                    'difference': A,
+                                    'timing': data['ground_truth']['cnmf_full_frame']['timer']
+                                    - comparison['cnmf_full_frame']['timer']
+                                }
+                        })
+           #we put everything back into data
+           data['entries'].append({
+                   'information': information,
+                   'parameters': params_movie,
+                   'sensibility': comparison['sensibility']
+                   })
+        #if we cannot manage to open it or it doesnt exist:
+    np.savez('CaImAn/dev/kalfon/efficiency.npz', **data)
+    
+    
+except (IOError, OSError) as e:
+    
+    
+    data={'ground_truth':None,
+          'entries':None
+            }
+    for k in comparison.keys:
+                if type(comparison[k]) is dict:
+                    #ma que bella, we put everything into the ground truth       
+                    data['ground_truth']['information']['values'].append({
+                                k: { 'data': comparison[k]['ourdata'],
+                                     'timer': comparison[k]['timer']
+                                     }
+                                })
+#we add the parameters of the ground truth in the same fashion as in everyother entry
+    data['ground_truth'].append({
+                    'params':params_movie
+                    })
+    data['groun_truth']['information'].append({
+                    'platform':plat,
+                    'processor':pro
+                    })
+    print('we finally have ground truth')
+              
+    
+

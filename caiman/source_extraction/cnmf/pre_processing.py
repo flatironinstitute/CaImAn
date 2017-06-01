@@ -22,6 +22,155 @@ from past.builtins import basestring
 from past.utils import old_div
 
 
+
+
+
+#%%
+
+def fft_psd_parallel(Y,sn_s,i,num_pixels,**kwargs):
+    """helper function to parallelize get_noise_fft
+
+    Parameters:
+    -----------
+    Y: ndarray
+        input movie (n_pixels x Time), can be also memory mapped file
+
+    sn_s: ndarray (memory mapped)
+        file where to store the results of computation.
+
+    i: int
+        pixel index start
+    num_pixels: int
+        number of pixel to select starting from i
+
+    **kwargs: dict
+        arguments to be passed to get_noise_fft
+
+
+    """
+    idxs=list(range(i,i+num_pixels))
+    #sn_s[idxs]=get_noise_fft(Y[idxs], **kwargs)
+    res=get_noise_fft(Y[idxs], **kwargs)
+    sn_s[idxs]=res
+    #print("[Worker %d] sn for row %d is %f" % (os.getpid(), i, sn_s[0]))
+#%%
+
+def fft_psd_multithreading(args):
+    """helper function to parallelize get_noise_fft
+
+    Parameters:
+    -----------
+    Y: ndarray
+        input movie (n_pixels x Time), can be also memory mapped file
+
+    sn_s: ndarray (memory mapped)
+        file where to store the results of computation.
+
+    i: int
+        pixel index start
+
+    num_pixels: int
+        number of pixel to select starting from i
+
+    **kwargs: dict
+        arguments to be passed to get_noise_fft
+
+    """
+    (Y,i,num_pixels,kwargs)=args
+    Yold=Y
+    if isinstance(Y,basestring):
+        Y,_,_=load_memmap(Y)
+
+    idxs=list(range(i,i+num_pixels))
+#    import pdb
+#    pdb.set_trace()
+    print(len(idxs))
+#    print(kwargs)
+    res,psx=get_noise_fft(Y[idxs], **kwargs)
+
+    #print("[Worker %d] sn for row %d is %f" % (os.getpid(), i, sn_s[0]))
+    return (idxs,res,psx)
+#%%
+
+
+def preprocess_data(Y, sn = None ,  dview=None, n_pixels_per_process=100,  noise_range = [0.25,0.5], noise_method = 'logmexp', compute_g=False,  p = 2, g = None,  lags = 5, include_noise = False, pixels = None,max_num_samples_fft=3000, check_nan = True):
+    """
+    Performs the pre-processing operations described above.
+    """
+    if check_nan:
+        Y,coor=interpolate_missing_data(Y)
+
+    if sn is None:
+        sn,psx=get_noise_fft_parallel(Y,n_pixels_per_process=n_pixels_per_process, dview = dview, noise_range = noise_range, noise_method = noise_method,max_num_samples_fft=max_num_samples_fft)
+        #sn = get_noise_fft(Y, noise_range = noise_range, noise_method = noise_method)
+    else:
+        psx=None
+
+    if compute_g:
+        g = estimate_time_constant(Y, sn, p = p, lags = lags, include_noise = include_noise, pixels = pixels)
+    else:
+        g=None
+
+    return Y, sn, g, psx
+
+#%%
+
+def estimate_time_constant(Y, sn, p = None, lags = 5, include_noise = False, pixels = None):
+    """
+    Estimating global time constants for the dataset Y through the autocovariance function (optional).
+    The function is no longer used in the standard setting of the algorithm since every trace has its own
+    time constant.
+    Inputs:
+    Y: np.ndarray (2D)
+        input movie data with time in the last axis
+    p: positive integer
+        order of AR process, default: 2
+    lags: positive integer
+        number of lags in the past to consider for determining time constants. Default 5
+    include_noise: Boolean
+        Flag to include pre-estimated noise value when determining time constants. Default: False
+    pixels: np.ndarray
+        Restrict estimation to these pixels (e.g., remove saturated pixels). Default: All pixels
+
+    Output:
+    g:  np.ndarray (p x 1)
+        Discrete time constants
+    """
+    if p is None:
+        raise Exception("You need to define p")
+
+    if pixels is None:
+        pixels = np.arange(old_div(np.size(Y),np.shape(Y)[-1]))
+
+    from scipy.linalg import toeplitz
+
+    npx = len(pixels)
+    g = 0
+    lags += p
+    XC = np.zeros((npx,2*lags+1))
+    for j in range(npx):
+        XC[j,:] = np.squeeze(axcov(np.squeeze(Y[pixels[j],:]),lags))
+
+    gv = np.zeros(npx*lags)
+    if not include_noise:
+        XC = XC[:,np.arange(lags-1,-1,-1)]
+        lags -= p
+
+    A = np.zeros((npx*lags,p))
+    for i in range(npx):
+        if not include_noise:
+            A[i*lags+np.arange(lags),:] = toeplitz(np.squeeze(XC[i,np.arange(p-1,p+lags-1)]),np.squeeze(XC[i,np.arange(p-1,-1,-1)]))
+        else:
+            A[i*lags+np.arange(lags),:] = toeplitz(np.squeeze(XC[i,lags+np.arange(lags)]),np.squeeze(XC[i,lags+np.arange(p)])) - (sn[i]**2)*np.eye(lags,p)
+            gv[i*lags+np.arange(lags)] = np.squeeze(XC[i,lags+1:])
+
+    if not include_noise:
+        gv = XC[:,p:].T
+        gv = np.squeeze(np.reshape(gv,(np.size(gv),1),order='F'))
+
+    g = np.dot(np.linalg.pinv(A),gv)
+
+    return g
 #%%
 def interpolate_missing_data(Y):
     """
@@ -74,37 +223,6 @@ def interpolate_missing_data(Y):
     return Y, coor
 
 #%%
-def find_unsaturated_pixels(Y, saturationValue = None, saturationThreshold = 0.9, saturationTime = 0.005):
-    """Identifies the saturated pixels that are saturated and returns the ones that are not.
-    A pixel is defined as saturated if its observed fluorescence is above
-    saturationThreshold*saturationValue at least saturationTime fraction of the time.
-    Inputs:
-    Y: np.ndarray
-        input movie data, either 2D or 3D with time in the last axis
-    saturationValue: scalar (optional)
-        Saturation level, default value the lowest power of 2 larger than max(Y)
-    saturationThreshold: scalar between 0 and 1 (optional)
-        Fraction of saturationValue above which the fluorescence is considered to
-        be in the saturated region. Default value 0.9
-    saturationTime: scalar between 0 and 1 (optional)
-        Fraction of time that pixel needs to be in the saturated
-        region to be considered saturated. Default: 0.005
-
-    Output:
-    normalPixels:   nd.array
-        list of unsaturated pixels
-
-    """
-    if saturationValue == None:
-        saturationValue = np.power(2,np.ceil(np.log2(np.max(Y))))-1
-
-    Ysat = (Y >= saturationThreshold*saturationValue)
-    pix = np.mean(Ysat,Y.ndim-1).flatten('F') > saturationTime
-    normalPixels = np.where(pix)
-
-    return normalPixels
-
-#%%
 def get_noise_fft(Y, noise_range = [0.25,0.5], noise_method = 'logmexp', max_num_samples_fft=3072):
     """Estimate the noise level for each pixel by averaging the power spectral density.
     Inputs:
@@ -155,9 +273,6 @@ def get_noise_fft(Y, noise_range = [0.25,0.5], noise_method = 'logmexp', max_num
 
 
     return sn, psdx
-
-
-
 
 def get_noise_fft_parallel(Y,n_pixels_per_process=100, dview=None, **kwargs):
     """parallel version of get_noise_fft.
@@ -261,71 +376,6 @@ def get_noise_fft_parallel(Y,n_pixels_per_process=100, dview=None, **kwargs):
     return sn_s,psx_s
 #%%
 
-def fft_psd_parallel(Y,sn_s,i,num_pixels,**kwargs):
-    """helper function to parallelize get_noise_fft
-
-    Parameters:
-    -----------
-    Y: ndarray
-        input movie (n_pixels x Time), can be also memory mapped file
-
-    sn_s: ndarray (memory mapped)
-        file where to store the results of computation.
-
-    i: int
-        pixel index start
-    num_pixels: int
-        number of pixel to select starting from i
-
-    **kwargs: dict
-        arguments to be passed to get_noise_fft
-
-
-    """
-    idxs=list(range(i,i+num_pixels))
-    #sn_s[idxs]=get_noise_fft(Y[idxs], **kwargs)
-    res=get_noise_fft(Y[idxs], **kwargs)
-    sn_s[idxs]=res
-    #print("[Worker %d] sn for row %d is %f" % (os.getpid(), i, sn_s[0]))
-#%%
-
-def fft_psd_multithreading(args):
-    """helper function to parallelize get_noise_fft
-
-    Parameters:
-    -----------
-    Y: ndarray
-        input movie (n_pixels x Time), can be also memory mapped file
-
-    sn_s: ndarray (memory mapped)
-        file where to store the results of computation.
-
-    i: int
-        pixel index start
-
-    num_pixels: int
-        number of pixel to select starting from i
-
-    **kwargs: dict
-        arguments to be passed to get_noise_fft
-
-    """
-    (Y,i,num_pixels,kwargs)=args
-    Yold=Y
-    if isinstance(Y,basestring):
-        Y,_,_=load_memmap(Y)
-
-    idxs=list(range(i,i+num_pixels))
-#    import pdb
-#    pdb.set_trace()
-    print(len(idxs))
-#    print(kwargs)
-    res,psx=get_noise_fft(Y[idxs], **kwargs)
-
-    #print("[Worker %d] sn for row %d is %f" % (os.getpid(), i, sn_s[0]))
-    return (idxs,res,psx)
-#%%
-
 def mean_psd(y, method = 'logmexp'):
     """
     Averaging the PSD
@@ -354,64 +404,7 @@ def mean_psd(y, method = 'logmexp'):
     return mp
 
 
-#%%
 
-def estimate_time_constant(Y, sn, p = None, lags = 5, include_noise = False, pixels = None):
-    """
-    Estimating global time constants for the dataset Y through the autocovariance function (optional).
-    The function is no longer used in the standard setting of the algorithm since every trace has its own
-    time constant.
-    Inputs:
-    Y: np.ndarray (2D)
-        input movie data with time in the last axis
-    p: positive integer
-        order of AR process, default: 2
-    lags: positive integer
-        number of lags in the past to consider for determining time constants. Default 5
-    include_noise: Boolean
-        Flag to include pre-estimated noise value when determining time constants. Default: False
-    pixels: np.ndarray
-        Restrict estimation to these pixels (e.g., remove saturated pixels). Default: All pixels
-
-    Output:
-    g:  np.ndarray (p x 1)
-        Discrete time constants
-    """
-    if p is None:
-        raise Exception("You need to define p")
-
-    if pixels is None:
-        pixels = np.arange(old_div(np.size(Y),np.shape(Y)[-1]))
-
-    from scipy.linalg import toeplitz
-
-    npx = len(pixels)
-    g = 0
-    lags += p
-    XC = np.zeros((npx,2*lags+1))
-    for j in range(npx):
-        XC[j,:] = np.squeeze(axcov(np.squeeze(Y[pixels[j],:]),lags))
-
-    gv = np.zeros(npx*lags)
-    if not include_noise:
-        XC = XC[:,np.arange(lags-1,-1,-1)]
-        lags -= p
-
-    A = np.zeros((npx*lags,p))
-    for i in range(npx):
-        if not include_noise:
-            A[i*lags+np.arange(lags),:] = toeplitz(np.squeeze(XC[i,np.arange(p-1,p+lags-1)]),np.squeeze(XC[i,np.arange(p-1,-1,-1)]))
-        else:
-            A[i*lags+np.arange(lags),:] = toeplitz(np.squeeze(XC[i,lags+np.arange(lags)]),np.squeeze(XC[i,lags+np.arange(p)])) - (sn[i]**2)*np.eye(lags,p)
-            gv[i*lags+np.arange(lags)] = np.squeeze(XC[i,lags+1:])
-
-    if not include_noise:
-        gv = XC[:,p:].T
-        gv = np.squeeze(np.reshape(gv,(np.size(gv),1),order='F'))
-
-    g = np.dot(np.linalg.pinv(A),gv)
-
-    return g
 
 def axcov(data, maxlag=5):
     """
@@ -457,22 +450,33 @@ def nextpow2(value):
         exponent += 1
     return exponent
 
-def preprocess_data(Y, sn = None ,  dview=None, n_pixels_per_process=100,  noise_range = [0.25,0.5], noise_method = 'logmexp', compute_g=False,  p = 2, g = None,  lags = 5, include_noise = False, pixels = None,max_num_samples_fft=3000, check_nan = True):
+#%%
+def find_unsaturated_pixels(Y, saturationValue = None, saturationThreshold = 0.9, saturationTime = 0.005):
+    """Identifies the saturated pixels that are saturated and returns the ones that are not.
+    A pixel is defined as saturated if its observed fluorescence is above
+    saturationThreshold*saturationValue at least saturationTime fraction of the time.
+    Inputs:
+    Y: np.ndarray
+        input movie data, either 2D or 3D with time in the last axis
+    saturationValue: scalar (optional)
+        Saturation level, default value the lowest power of 2 larger than max(Y)
+    saturationThreshold: scalar between 0 and 1 (optional)
+        Fraction of saturationValue above which the fluorescence is considered to
+        be in the saturated region. Default value 0.9
+    saturationTime: scalar between 0 and 1 (optional)
+        Fraction of time that pixel needs to be in the saturated
+        region to be considered saturated. Default: 0.005
+
+    Output:
+    normalPixels:   nd.array
+        list of unsaturated pixels
+
     """
-    Performs the pre-processing operations described above.
-    """
-    if check_nan:
-        Y,coor=interpolate_missing_data(Y)
+    if saturationValue == None:
+        saturationValue = np.power(2,np.ceil(np.log2(np.max(Y))))-1
 
-    if sn is None:
-        sn,psx=get_noise_fft_parallel(Y,n_pixels_per_process=n_pixels_per_process, dview = dview, noise_range = noise_range, noise_method = noise_method,max_num_samples_fft=max_num_samples_fft)
-        #sn = get_noise_fft(Y, noise_range = noise_range, noise_method = noise_method)
-    else:
-        psx=None
+    Ysat = (Y >= saturationThreshold*saturationValue)
+    pix = np.mean(Ysat,Y.ndim-1).flatten('F') > saturationTime
+    normalPixels = np.where(pix)
 
-    if compute_g:
-        g = estimate_time_constant(Y, sn, p = p, lags = lags, include_noise = include_noise, pixels = pixels)
-    else:
-        g=None
-
-    return Y, sn, g, psx
+    return normalPixels
