@@ -1980,7 +1980,7 @@ def tile_and_correct_wrapper(params):
 
     name, extension = os.path.splitext(img_name)[:2]
     
-    if extension == '.tif' or extension == '.tiff':  # check if tiff file
+    if extension == '.tif' or extension == '.tiff':  # check if tiff 
         imgs = imread(img_name,key = idxs)
         mc = np.zeros(imgs.shape,dtype = np.float32)
         shift_info = []

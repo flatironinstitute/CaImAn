@@ -35,6 +35,8 @@ import matplotlib.pyplot as pl
     ----------
     self : object
         see the linked image
+    sensibility: inside
+        the user to change it manualy
  
     Methods
     -------
@@ -79,8 +81,9 @@ class Comparison(object):
                           'timer': None,
                           'sensibility': 0.01
                          }
+    
         
-    def save(self, istruth=False):
+    def save(self, istruth=False, params=None):
         """save the comparison object on a file
  
  
@@ -121,12 +124,14 @@ class Comparison(object):
         self.information ={
                 'platform': plat,
                 'processor':pro,
-                'values':self.comparison
+                'values':self.comparison,
+                'params': params
                 }
         #if we want to set this data as truth
         if istruth:
                 #we just save it
-               np.savez('/Users/jeremie/CaImAn/comparison/groundtruth.npz', **self.information)
+               os.remove("/Users/jeremie/CaImAn/comparison/groundtruth/groundtruth.npz")
+               np.savez('/Users/jeremie/CaImAn/comparison/groundtruth/groundtruth.npz', **self.information)
                print('we now have ground truth')
         else:
             #if not we create a comparison first
@@ -136,63 +141,65 @@ class Comparison(object):
         #for rigid
         
                    if data['processor']==self.information['processor']:
-                       A = data['values']['rig_shifts']['ourdata'][()] #we do this [()] because of REASONS
-                       B = self.comparison['rig_shifts']['ourdata']
-                       A = np.linalg.norm(A-B)/np.linalg.norm(A)
-                       B = A < self.comparison['rig_shifts']['sensibility']
-                       self.information['values']['rig_shifts'].update({'isdifferent':B,
-                                              'diff_data': A,
+                       
+                       init = data['values']['rig_shifts']['ourdata'][()]
+                        #we do this [()] because of REASONS
+                       curr = self.comparison['rig_shifts']['ourdata']
+                       diff = np.linalg.norm(init-curr)/np.linalg.norm(init)
+                       isdiff = diff < self.comparison['rig_shifts']['sensibility']
+                       self.information['values']['rig_shifts'].update({'isdifferent':isdiff,
+                                              'diff_data': diff,
                                               'diff_timing': data['ground_truth']['rig_shifts']['timer']
                                               - self.comparison['rig_shifts']['timer']
                                             
                                     })
             #for pwrigid
-                       A= data['values']['pwrig_shifts']['ourdata'][0][()]
-                       B = self.comparison['pwrig_shifts']['ourdata'][0]
-                       C = np.linalg.norm(A-B)/np.linalg.norm(A)
+                       init= data['values']['pwrig_shifts']['ourdata'][0][()]
+                       curr = self.comparison['pwrig_shifts']['ourdata'][0]
+                       diff = np.linalg.norm(init-curr)/np.linalg.norm(init)
                        #there is xs and ys
-                       A= data['values']['pwrig_shifts']['ourdata'][1][()]
-                       B = self.comparison['pwrig_shifts']['ourdata'][1]
+                       init= data['values']['pwrig_shifts']['ourdata'][1][()]
+                       curr = self.comparison['pwrig_shifts']['ourdata'][1]
                        #a simple comparison algo
-                       A = np.linalg.norm(A-B)/np.linalg.norm(A)
+                       diff2 = np.linalg.norm(init-curr)/np.linalg.norm(init)
                        #we add both errors
-                       A=A+C
-                       B = A < self.comparison['pwrig_shifts']['sensibility']
-                       self.information['values']['pwrig_shifts'].update({'isdifferent':B,
-                                                'diff_data': A,
+                       diff=diff+diff2
+                       isdiff = diff < self.comparison['pwrig_shifts']['sensibility']
+                       self.information['values']['pwrig_shifts'].update({'isdifferent':isdiff,
+                                                'diff_data': diff,
                                                 'diff_timing': data['values']['pwrig_shifts']['timer']
                                                 - self.comparison['pwrig_shifts']['timer']
                                             
                                     })
             #for cnmf on patches 
-                       A= data['values']['cnmf_on_patch']['ourdata'][0][()]
-                       B = self.comparison['cnmf_on_patch']['ourdata'][0]
-                       C = np.linalg.norm(A-B)/np.linalg.norm(A)
+                       init= data['values']['cnmf_on_patch']['ourdata'][0][()]
+                       curr = self.comparison['cnmf_on_patch']['ourdata'][0]
+                       diffA = np.linalg.norm(init-curr)/np.linalg.norm(init)
                        #there is temporal and spatial
-                       A= data['values']['cnmf_on_patch']['ourdata'][1][()]
-                       B = self.comparison['cnmf_on_patch']['ourdata'][1]
-                       A = np.linalg.norm(A-B)/np.linalg.norm(A)
-                       A=A+C
-                       B = A < self.comparison['cnmf_on_patch']['sensibility']
-                       self.information['values']['cnmf_on_patch'].update({'isdifferent':B,
-                                                'diff_data': A,
+                       init= data['values']['cnmf_on_patch']['ourdata'][1][()]
+                       curr = self.comparison['cnmf_on_patch']['ourdata'][1]
+                       diff = np.linalg.norm(init-curr)/np.linalg.norm(init)
+                       diff=diff+diffA
+                       isdiff = init < self.comparison['cnmf_on_patch']['sensibility']
+                       self.information['values']['cnmf_on_patch'].update({'isdifferent':isdiff,
+                                                'diff_data': diff,
                                                 'diff_timing': data['values']['cnmf_on_patch']['timer']
                                                 - self.comparison['cnmf_on_patch']['timer']
                                             
                                     })
             #for cnmf full frame
-                       A= data['values']['cnmf_full_frame']['ourdata'][0][()]
-                       B = self.comparison['cnmf_full_frame']['ourdata'][0]
-                       C = np.linalg.norm(A-B)/np.linalg.norm(A)
+                       inti= data['values']['cnmf_full_frame']['ourdata'][0][()]
+                       curr = self.comparison['cnmf_full_frame']['ourdata'][0]
+                       diff = np.linalg.norm(init-curr)/np.linalg.norm(init)
                        #there is temporal and spatial
-                       A= data['values']['cnmf_full_frame']['ourdata'][1][()]
-                       B = self.comparison['cnmf_full_frame']['ourdata'][1]
-                       A = np.linalg.norm(A-B)/np.linalg.norm(A)
+                       init= data['values']['cnmf_full_frame']['ourdata'][1][()]
+                       curr = self.comparison['cnmf_full_frame']['ourdata'][1]
+                       diffA = np.linalg.norm(init-curr)/np.linalg.norm(init)
                        #we add both errors
-                       A=A+C
-                       B = A < self.comparison['cnmf_full_frame']['sensibility']
-                       self.information['values']['cnmf_full_frame'].update({'isdifferent':B,
-                                                'diff_data': A,
+                       diff=diffA+diff
+                       isdiff = diffA < self.comparison['cnmf_full_frame']['sensibility']
+                       self.information['values']['cnmf_full_frame'].update({'isdifferent':isdiff,
+                                                'diff_data': diff,
                                                 'diff_timing': data['values']['cnmf_full_frame']['timer']
                                                 - self.comparison['cnmf_full_frame']['timer']
                                             
