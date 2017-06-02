@@ -1,9 +1,0 @@
-*.pyc
-*.npy
-*.mat
-.ipynb_checkpoints
-*.hdf5
-*.mmap
-*.npz
-*.c
-*.so
