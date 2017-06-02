@@ -1,0 +1,244 @@
+*.pyc
+*.npy
+*.mat
+.ipynb_checkpoints
+*.hdf5
+*.mmap
+*.npz
+*.c
+*.so
+<<<<<<< HEAD
+
+demoSue2x0000_d1_170_d2_170_d3_1_order_C_frames_3000__LOG_ 4080_9210
+demoSue2x0000_d1_170_d2_170_d3_1_order_C_frames_3000__LOG_ 4104_9234
+demoSue2x0000_d1_170_d2_170_d3_1_order_C_frames_3000__LOG_ 4128_9258
+demoSue2x0000_d1_170_d2_170_d3_1_order_C_frames_3000__LOG_ 4152_9282
+demoSue2x0000_d1_170_d2_170_d3_1_order_C_frames_3000__LOG_ 4176_9306
+demoSue2x0000_d1_170_d2_170_d3_1_order_C_frames_3000__LOG_ 4200_9330
+demoSue2x0000_d1_170_d2_170_d3_1_order_C_frames_3000__LOG_ 4220_9349
+demoSue2x0000_d1_170_d2_170_d3_1_order_C_frames_3000__LOG_ 48_5178
+demoSue2x0000_d1_170_d2_170_d3_1_order_C_frames_3000__LOG_ 72_5202
+demoSue2x0000_d1_170_d2_170_d3_1_order_C_frames_3000__LOG_ 8160_13290
+demoSue2x0000_d1_170_d2_170_d3_1_order_C_frames_3000__LOG_ 8184_13314
+demoSue2x0000_d1_170_d2_170_d3_1_order_C_frames_3000__LOG_ 8208_13338
+demoSue2x0000_d1_170_d2_170_d3_1_order_C_frames_3000__LOG_ 8232_13362
+demoSue2x0000_d1_170_d2_170_d3_1_order_C_frames_3000__LOG_ 8256_13386
+demoSue2x0000_d1_170_d2_170_d3_1_order_C_frames_3000__LOG_ 8280_13410
+demoSue2x0000_d1_170_d2_170_d3_1_order_C_frames_3000__LOG_ 8300_13429
+demoSue2x0000_d1_170_d2_170_d3_1_order_C_frames_3000__LOG_ 96_5226
+example_movies/demoSue2x.tif
+demoSue2x0000_d1_170_d2_170_d3_1_order_C_frames_3000__LOG_ 12336_17466
+demoSue2x0000_d1_170_d2_170_d3_1_order_C_frames_3000__LOG_ 12360_17490
+demoSue2x0000_d1_170_d2_170_d3_1_order_C_frames_3000__LOG_ 12380_17509
+demoSue2x0000_d1_170_d2_170_d3_1_order_C_frames_3000__LOG_ 140_5269
+demoSue2x0000_d1_170_d2_170_d3_1_order_C_frames_3000__LOG_ 16320_21450
+demoSue2x0000_d1_170_d2_170_d3_1_order_C_frames_3000__LOG_ 16344_21474
+demoSue2x0000_d1_170_d2_170_d3_1_order_C_frames_3000__LOG_ 16368_21498
+demoSue2x0000_d1_170_d2_170_d3_1_order_C_frames_3000__LOG_ 16392_21522
+demoSue2x0000_d1_170_d2_170_d3_1_order_C_frames_3000__LOG_ 16416_21546
+demoSue2x0000_d1_170_d2_170_d3_1_order_C_frames_3000__LOG_ 16440_21570
+demoSue2x0000_d1_170_d2_170_d3_1_order_C_frames_3000__LOG_ 23896_28856
+demoSue2x0000_d1_170_d2_170_d3_1_order_C_frames_3000__LOG_ 23920_28880
+demoSue2x0000_d1_170_d2_170_d3_1_order_C_frames_3000__LOG_ 23940_28899
+demoSue2x0000_d1_170_d2_170_d3_1_order_C_frames_3000__LOG_ 24_5154
+demoSue2x0000_d1_170_d2_170_d3_1_order_C_frames_3000__LOG_ 0_5130
+demoSue2x0000_d1_170_d2_170_d3_1_order_C_frames_3000__LOG_ 120_5250
+demoSue2x0000_d1_170_d2_170_d3_1_order_C_frames_3000__LOG_ 12240_17370
+demoSue2x0000_d1_170_d2_170_d3_1_order_C_frames_3000__LOG_ 12264_17394
+demoSue2x0000_d1_170_d2_170_d3_1_order_C_frames_3000__LOG_ 12288_17418
+demoSue2x0000_d1_170_d2_170_d3_1_order_C_frames_3000__LOG_ 12312_17442
+
+# Created by https://www.gitignore.io/api/macos,python,windows
+
+### macOS ###
+*.DS_Store
+.AppleDouble
+.LSOverride
+
+# Icon must end with two \r
+Icon
+
+# Thumbnails
+._*
+
+# Files that might appear in the root of a volume
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# Directories potentially created on remote AFP share
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+### Python ###
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# PyInstaller
+#  Usually these files are written by a python script from a template
+#  before PyInstaller builds the exe, so as to inject date/other infos into it.
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*,cover
+.hypothesis/
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
+*.log
+local_settings.py
+
+# Flask stuff:
+instance/
+.webassets-cache
+
+# Scrapy stuff:
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+target/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# celery beat schedule file
+celerybeat-schedule
+
+# SageMath parsed files
+*.sage.py
+
+# dotenv
+.env
+
+# virtualenv
+.venv
+venv/
+ENV/
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+#html documentation
+/html
+
+#building part
+/build
+
+### Windows ###
+# Windows thumbnail cache files
+Thumbs.db
+ehthumbs.db
+ehthumbs_vista.db
+
+# Folder config file
+Desktop.ini
+
+# Recycle Bin used on file shares
+$RECYCLE.BIN/
+
+# Windows Installer files
+*.cab
+*.msi
+*.msm
+*.msp
+
+# Windows shortcuts
+*.lnk
+
+# End of https://www.gitignore.io/api/macos,python,windows
+demoMovieJ0000_d1_60_d2_80_d3_1_order_C_frames_2000__LOG_ 3024_4794
+demoMovieJ0000_d1_60_d2_80_d3_1_order_C_frames_2000__LOG_ 3030_4799
+demoMovieJ0000_d1_60_d2_80_d3_1_order_C_frames_2000__LOG_ 30_1859
+Yr0000_d1_60_d2_80_d3_1_order_C_frames_2000__LOG_ 0_1708
+Yr0000_d1_60_d2_80_d3_1_order_C_frames_2000__LOG_ 1320_3028
+Yr0000_d1_60_d2_80_d3_1_order_C_frames_2000__LOG_ 1342_3050
+Yr0000_d1_60_d2_80_d3_1_order_C_frames_2000__LOG_ 1352_3059
+Yr0000_d1_60_d2_80_d3_1_order_C_frames_2000__LOG_ 22_1730
+Yr0000_d1_60_d2_80_d3_1_order_C_frames_2000__LOG_ 2640_4348
+Yr0000_d1_60_d2_80_d3_1_order_C_frames_2000__LOG_ 2662_4370
+Yr0000_d1_60_d2_80_d3_1_order_C_frames_2000__LOG_ 2672_4379
+Yr0000_d1_60_d2_80_d3_1_order_C_frames_2000__LOG_ 3120_4768
+Yr0000_d1_60_d2_80_d3_1_order_C_frames_2000__LOG_ 3142_4790
+Yr0000_d1_60_d2_80_d3_1_order_C_frames_2000__LOG_ 3152_4799
+Yr0000_d1_60_d2_80_d3_1_order_C_frames_2000__LOG_ 32_1739
+demoMovieJ0000_d1_60_d2_80_d3_1_order_C_frames_2000__LOG_ 1470_3299
+demoMovieJ0000_d1_60_d2_80_d3_1_order_C_frames_2000__LOG_ 1560_3512
+demoMovieJ0000_d1_60_d2_80_d3_1_order_C_frames_2000__LOG_ 1586_3538
+demoMovieJ0000_d1_60_d2_80_d3_1_order_C_frames_2000__LOG_ 1588_3539
+demoMovieJ0000_d1_60_d2_80_d3_1_order_C_frames_2000__LOG_ 1680_3632
+demoMovieJ0000_d1_60_d2_80_d3_1_order_C_frames_2000__LOG_ 1708_3659
+demoMovieJ0000_d1_60_d2_80_d3_1_order_C_frames_2000__LOG_ 24_1854
+demoMovieJ0000_d1_60_d2_80_d3_1_order_C_frames_2000__LOG_ 26_1978
+demoMovieJ0000_d1_60_d2_80_d3_1_order_C_frames_2000__LOG_ 2880_4710
+demoMovieJ0000_d1_60_d2_80_d3_1_order_C_frames_2000__LOG_ 2880_4772
+demoMovieJ0000_d1_60_d2_80_d3_1_order_C_frames_2000__LOG_ 28_1979
+demoMovieJ0000_d1_60_d2_80_d3_1_order_C_frames_2000__LOG_ 2904_4734
+demoMovieJ0000_d1_60_d2_80_d3_1_order_C_frames_2000__LOG_ 2906_4798
+demoMovieJ0000_d1_60_d2_80_d3_1_order_C_frames_2000__LOG_ 2908_4799
+demoMovieJ0000_d1_60_d2_80_d3_1_order_C_frames_2000__LOG_ 2910_4739
+demoMovieJ0000_d1_60_d2_80_d3_1_order_C_frames_2000__LOG_ 3000_4770
+demoMovieJ0000_d1_60_d2_80_d3_1_order_C_frames_2000__LOG_ 0_1830
+demoMovieJ0000_d1_60_d2_80_d3_1_order_C_frames_2000__LOG_ 0_1952
+demoMovieJ0000_d1_60_d2_80_d3_1_order_C_frames_2000__LOG_ 1440_3270
+demoMovieJ0000_d1_60_d2_80_d3_1_order_C_frames_2000__LOG_ 1464_3294
+=======
+>>>>>>> eb6b2514b3e73821aaba94ba7295051da619eb2e

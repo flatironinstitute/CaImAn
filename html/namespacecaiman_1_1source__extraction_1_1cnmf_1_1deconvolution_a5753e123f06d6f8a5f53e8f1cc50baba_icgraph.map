@@ -1,8 +1,0 @@
-<map id="constrained_oasisAR2" name="constrained_oasisAR2">
-<area shape="rect" id="node2" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1deconvolution.html#a0afb63d84485a181bb40f2eefe7b581e" title="Infer the most likely discretized spike train underlying a fluorescence trace. " alt="" coords="208,75,341,100"/>
-<area shape="rect" id="node7" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1deconvolution.html#affae481e26d5e13bc6f62c6e643b63d5" title="Infer the most likely discretized spike train underlying an AR(2) fluorescence trace. " alt="" coords="248,124,301,149"/>
-<area shape="rect" id="node3" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1merging.html#ad08adf2e086a22ef379b10ed3ee36936" title="Merging of spatially overlapping components that have highly correlated temporal activity The correla..." alt="" coords="407,5,706,44"/>
-<area shape="rect" id="node4" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1temporal.html#a2ede407f1e0d0722f51ddb6e99f48f9f" title="necessary for parallel computation of the function constrained_foopsi " alt="" coords="389,68,723,107"/>
-<area shape="rect" id="node5" href="$namespacecaiman_1_1tests_1_1test__deconvolution.html#aaebeed7ce9541fa4c56791c67009cdc6" title="caiman.tests.test_deconvolution.foo" alt="" coords="440,131,673,156"/>
-<area shape="rect" id="node6" href="$namespacecaiman_1_1tests_1_1test__deconvolution.html#a90f82ae854f8179179664fe34973f11b" title="caiman.tests.test_deconvolution.test\l_oasis" alt="" coords="771,124,1008,163"/>
-</map>

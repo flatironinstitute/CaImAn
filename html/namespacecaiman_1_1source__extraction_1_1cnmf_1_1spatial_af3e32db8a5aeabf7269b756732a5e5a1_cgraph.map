@@ -1,6 +1,0 @@
-<map id="regression_ipyparallel" name="regression_ipyparallel">
-<area shape="rect" id="node2" href="$namespacecaiman_1_1mmapping.html#aeb2ed62e4a9028089a2eec09d392707f" title="Load a memory mapped file created by the function save_memmap. " alt="" coords="215,5,375,44"/>
-<area shape="rect" id="node3" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1spatial.html#a6f8a2090fe45b30f032bf6ec1a91c1ce" title="Run LARS for regression problems with LASSO penalty, with optional positivity constraints. " alt="" coords="207,68,384,93"/>
-<area shape="rect" id="node4" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1spatial.html#a86e3328b66dc7efa75c0646f02815ab4" title="nnls_L0" alt="" coords="261,117,329,143"/>
-<area shape="rect" id="node5" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1spatial.html#aca0edbf4c2cd31fe1a9c228c4099a485" title="restrict search location to subset of pixels " alt="" coords="204,167,386,192"/>
-</map>

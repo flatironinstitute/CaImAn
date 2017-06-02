@@ -1,5 +1,0 @@
-<map id="evt_zoom" name="evt_zoom">
-<area shape="rect" id="node2" href="$classcaiman_1_1gui_1_1gui_1_1_g_u_i.html#af25f6f83cd7cf2d40b222224a9230542" title="plot_current_traces" alt="" coords="132,5,268,31"/>
-<area shape="rect" id="node3" href="$classcaiman_1_1gui_1_1gui_1_1_g_u_i.html#a06508ecd0b0e41023403958b0d08f995" title="get_current_roi" alt="" coords="316,5,427,31"/>
-<area shape="rect" id="node4" href="$namespacecaiman_1_1gui_1_1gui.html#a919565f7d8a432cb5643d7b66ef2a4d1" title="caiman.gui.gui.isin" alt="" coords="475,5,606,31"/>
-</map>
