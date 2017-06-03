@@ -392,7 +392,6 @@ if np.min(images) < 0:
 if np.sum(np.isnan(images)) > 0:
     raise Exception('Movie contains nan! You did not remove enough borders')
 #%% correlation image
-for fff in fname_new:
 Cn = cm.movie(images[:1000]).local_correlations(eight_neighbours=True,swap_dim=True)
 #Cn[np.isnan(Cn)] = 0
 pl.imshow(Cn, cmap='gray', vmax=.35)
