@@ -113,29 +113,27 @@ params_movie = {'fname': ['example_movies/demoSue2x.tif'],
 # 'final_frate' : 30
 #                }
 #%%
-
-"""
-all_names = glob.glob(
-    '/mnt/ceph/neuro/Sue/k53/k53_20160530_RSM_125um_41mW_zoom2p2_00001_000*.tif')
-all_names.sort()
-all_names = all_names[:]
-print(all_names)
-params_movie = {'fname':all_names,
-                'max_shifts':(20,20), # maximum allow rigid shift
-                'niter_rig':1,
-                'splits_rig':10, # for parallelization split the movies in  num_splits chuncks across time
-                'num_splits_to_process_rig':None, # if none all the splits are processed and the movie is saved
-                 'p': 1, # order of the autoregressive system
-                 'merge_thresh' : 0.8,  # merging threshold, max correlation allowed
-                 'rf' : 14,  # half-size of the patches in pixels. rf=25, patches are 50x50
-                 'stride_cnmf' : 4,  # amounpl.it of overlap between the patches in pixels
-                 'K' : 6,  #  number of components per patch
-                 'is_dendrites': False,  # if dendritic. In this case you need to set init_method to sparse_nmf
-                 'init_method' : 'greedy_roi',
-                 'gSig' : [7, 7],  # expected half size of neurons
-                 'alpha_snmf' : None,  # this controls sparsity
-                 'final_frate' : 30
-                }
+#all_names = glob.glob(
+#    '/mnt/ceph/neuro/Sue/k53/k53_20160530_RSM_125um_41mW_zoom2p2_00001_000*.tif')
+#all_names.sort()
+#all_names = all_names[:]
+#print(all_names)
+#params_movie = {'fname':all_names,
+#                'max_shifts':(20,20), # maximum allow rigid shift
+#                'niter_rig':1,
+#                'splits_rig':10, # for parallelization split the movies in  num_splits chuncks across time
+#                'num_splits_to_process_rig':None, # if none all the splits are processed and the movie is saved
+#                 'p': 1, # order of the autoregressive system
+#                 'merge_thresh' : 0.8,  # merging threshold, max correlation allowed
+#                 'rf' : 14,  # half-size of the patches in pixels. rf=25, patches are 50x50
+#                 'stride_cnmf' : 4,  # amounpl.it of overlap between the patches in pixels
+#                 'K' : 6,  #  number of components per patch
+#                 'is_dendrites': False,  # if dendritic. In this case you need to set init_method to sparse_nmf
+#                 'init_method' : 'greedy_roi',
+#                 'gSig' : [7, 7],  # expected half size of neurons
+#                 'alpha_snmf' : None,  # this controls sparsity
+#                 'final_frate' : 30
+#                }
 #%%
 
 # params_movie = {'fname':'example_movies/demoMovie.tif',
@@ -160,7 +158,6 @@ params_movie = {'fname':all_names,
 #                'final_frate' : 30
 #  }
 
-"""
 #%% load movie (in memory!)
 
 #TODO: do find&replace on those parameters and delete this paragrph
@@ -198,7 +195,7 @@ upsample_factor_grid = params_movie['upsample_factor_grid']
 max_deviation_rigid = params_movie['max_deviation_rigid']
 
 #%% download movie if not there
-if fname == 'example_movies/demoSue2x.tif':
+if 'example_movies/demoSue2x.tif' in fname:
     #TODO: todocument
     download_demo()
     #TODO: todocument
