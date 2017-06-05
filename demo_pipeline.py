@@ -130,7 +130,7 @@ from caiman.utils.utils import download_demo
 
 
 params_movie = {'fname':[u'/Users/jeremie/CaImAn/example_movies/demoMovieJ.tif'],
-                'max_shifts':(1,1), # maximum allow rigid shift
+                'max_shifts':(2,2), # maximum allow rigid shift
                 'niter_rig':1,
                 'splits_rig':28, # for parallelization split the movies in  num_splits chuncks across time
                 'num_splits_to_process_rig':None, # if none all the splits are processed and the movie is saved
@@ -138,16 +138,16 @@ params_movie = {'fname':[u'/Users/jeremie/CaImAn/example_movies/demoMovieJ.tif']
                 'overlaps': (24,24), # overlap between pathes (size of patch strides+overlaps)
                 'splits_els':28, # for parallelization split the movies in  num_splits chuncks across time
                 'num_splits_to_process_els':[14,None], # if none all the splits are processed and the movie is saved
-                'upsample_factor_grid':4, # upsample factor to avoid smearing when merging patches
-                'max_deviation_rigid':3, #maximum deviation allowed for patch with respect to rigid shift
+                'upsample_factor_grid':2, # upsample factor to avoid smearing when merging patches
+                'max_deviation_rigid':2, #maximum deviation allowed for patch with respect to rigid shift
                 'p': 1, # order of the autoregressive system
                 'merge_thresh' : 0.8,  # merging threshold, max correlation allowed
-                'rf' : 16,  # half-size of the patches in pixels. rf=25, patches are 50x50
-                'stride_cnmf' : 4,  # amounpl.it of overlap between the patches in pixels
-                'K' : 6,  #  number of components per patch
+                'rf' : 14,  # half-size of the patches in pixels. rf=25, patches are 50x50
+                'stride_cnmf' : 5,  # amounpl.it of overlap between the patches in pixels
+                'K' : 5,  #  number of components per patch
                 'is_dendrites': False,  # if dendritic. In this case you need to set init_method to sparse_nmf
                 'init_method' : 'greedy_roi',
-                'gSig' : [7, 7],  # expected half size of neurons
+                'gSig' : [6, 6],  # expected half size of neurons
                 'alpha_snmf' : None,  # this controls sparsity
                 'final_frate' : 30
   }
@@ -425,6 +425,7 @@ Cn = cm.local_correlations(Y)
 Cn[np.isnan(Cn)] = 0
 pl.imshow(Cn, cmap='gray', vmax=.65)
 #TODO: show screenshot 11
+
 #%% some parameter settings
 # order of the autoregressive fit to calcium imaging in general one (slow gcamps) or two (fast gcamps fast scanning)
 p = params_movie['p']  
@@ -521,7 +522,7 @@ np.savez(os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:
          C=C, b=b, f=f, YrA=YrA, sn=sn, d1=d1, d2=d2, idx_components=idx_components, idx_components_bad=idx_components_bad,
          fitness_raw=fitness_raw, fitness_delta=fitness_delta, r_values=r_values)
 #we save it
-comp.save(True, params=params_movie)
+comp.save(istruth=True, params=params_movie)
 #%%
 #TODO: show screenshot 14
 pl.subplot(1, 2, 1)

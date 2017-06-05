@@ -22,6 +22,8 @@ import datetime
 import numpy as np
 import os
 import matplotlib.pyplot as pl
+import json
+import codecs
     
 """
    Comparison(object): class you instanciate to compare the different functions you are calling in your program.
@@ -89,9 +91,11 @@ class Comparison(object):
  
             depending on if we say this file will be ground truth or not, it wil be saved in either the tests or the groung truth folder
             if saved in test, a comparison to groundtruth will be add to the object 
+            dededededede
             this comparison will be on 
                 data : a normized difference of the normalized value of the arrays
                 time : difference
+            
  
             Parameters
             -----------
@@ -120,6 +124,52 @@ class Comparison(object):
         plat=str(plat)
         pro=plt.processor()
         pro=str(pro)
+        
+        
+        #actions on the sparse matrix
+        
+        A = self.comparison['cnmf_full_frame']['ourdata'][0]
+        if not isinstance(A, list):
+            print(type(A))
+            if not isinstance(A, np.ndarray):
+                A=A.toarray()
+            self.comparison['cnmf_full_frame']['ourdata'][0] = A.tolist()
+        
+        A = self.comparison['cnmf_full_frame']['ourdata'][1]
+        if not isinstance(A, list):
+            print(type(A))
+            if not isinstance(A, np.ndarray):
+                A=A.toarray()
+            self.comparison['cnmf_full_frame']['ourdata'][1] = A.tolist()
+    
+        A = self.comparison['cnmf_on_patch']['ourdata'][0]
+        if not isinstance(A, list):
+            print(type(A))
+            if not isinstance(A, np.ndarray):
+                A=A.toarray()
+            self.comparison['cnmf_on_patch']['ourdata'][0] = A.tolist()
+        
+        it=0
+        for A in self.comparison['pwrig_shifts']['ourdata']:
+            ite=0
+            for B in A:
+                if not isinstance(B, list):
+                    self.comparison['pwrig_shifts']['ourdata'][it][ite] = B.tolist()
+                ite+=1
+            it+=1
+            
+        
+        A = self.comparison['cnmf_on_patch']['ourdata'][1]
+        if not isinstance(A, list):
+            print(type(A))
+            if not isinstance(A, np.ndarray):
+                A=A.toarray()
+            self.comparison['cnmf_on_patch']['ourdata'][1] = A.tolist()
+            
+            
+        print('we now only have lists')
+        
+        
         #we store a big file which is containing everything ( INFORMATION)
         self.information ={
                 'platform': plat,
@@ -127,100 +177,121 @@ class Comparison(object):
                 'values':self.comparison,
                 'params': params
                 }
+        
+        file_path="comparison/groundtruth/groundtruth.json"
+        
         #if we want to set this data as truth
         if istruth:
                 #we just save it
-               os.remove("/Users/jeremie/CaImAn/comparison/groundtruth/groundtruth.npz")
-               np.savez('/Users/jeremie/CaImAn/comparison/groundtruth/groundtruth.npz', **self.information)
-               print('we now have ground truth')
+            if os._exists("comparison/groundtruth/groundtruth.json"):
+               os.remove("comparison/groundtruth/groundtruth.json")
+            else:
+               print("nothing to remove")
+               
+            
+            json.dump(self.information, codecs.open(file_path, 'w', encoding='utf-8'),
+                      separators=(',', ':'), sort_keys=True, indent=4) ### this saves the array in .json format  
+                      
+            #np.savez('comparison/groundtruth/groundtruth.npz', **self.information)
+            print('we now have ground truth')
         else:
             #if not we create a comparison first
             try: 
-                with np.load('/Users/jeremie/CaImAn/comparison/groundtruth.npz') as data: 
-        #if not we save the value of the difference into 
-        #for rigid
-        
-                   if data['processor']==self.information['processor']:
-                       
-                       init = data['values']['rig_shifts']['ourdata'][()]
-                        #we do this [()] because of REASONS
-                       curr = self.comparison['rig_shifts']['ourdata']
-                       diff = np.linalg.norm(init-curr)/np.linalg.norm(init)
-                       isdiff = diff < self.comparison['rig_shifts']['sensibility']
-                       self.information['values']['rig_shifts'].update({'isdifferent':isdiff,
-                                              'diff_data': diff,
-                                              'diff_timing': data['ground_truth']['rig_shifts']['timer']
-                                              - self.comparison['rig_shifts']['timer']
-                                            
-                                    })
-            #for pwrigid
-                       init= data['values']['pwrig_shifts']['ourdata'][0][()]
-                       curr = self.comparison['pwrig_shifts']['ourdata'][0]
-                       diff = np.linalg.norm(init-curr)/np.linalg.norm(init)
-                       #there is xs and ys
-                       init= data['values']['pwrig_shifts']['ourdata'][1][()]
-                       curr = self.comparison['pwrig_shifts']['ourdata'][1]
-                       #a simple comparison algo
-                       diff2 = np.linalg.norm(init-curr)/np.linalg.norm(init)
-                       #we add both errors
-                       diff=diff+diff2
-                       isdiff = diff < self.comparison['pwrig_shifts']['sensibility']
-                       self.information['values']['pwrig_shifts'].update({'isdifferent':isdiff,
-                                                'diff_data': diff,
-                                                'diff_timing': data['values']['pwrig_shifts']['timer']
-                                                - self.comparison['pwrig_shifts']['timer']
-                                            
-                                    })
-            #for cnmf on patches 
-                       init= data['values']['cnmf_on_patch']['ourdata'][0][()]
-                       curr = self.comparison['cnmf_on_patch']['ourdata'][0]
-                       diffA = np.linalg.norm(init-curr)/np.linalg.norm(init)
-                       #there is temporal and spatial
-                       init= data['values']['cnmf_on_patch']['ourdata'][1][()]
-                       curr = self.comparison['cnmf_on_patch']['ourdata'][1]
-                       diff = np.linalg.norm(init-curr)/np.linalg.norm(init)
-                       diff=diff+diffA
-                       isdiff = init < self.comparison['cnmf_on_patch']['sensibility']
-                       self.information['values']['cnmf_on_patch'].update({'isdifferent':isdiff,
-                                                'diff_data': diff,
-                                                'diff_timing': data['values']['cnmf_on_patch']['timer']
-                                                - self.comparison['cnmf_on_patch']['timer']
-                                            
-                                    })
-            #for cnmf full frame
-                       inti= data['values']['cnmf_full_frame']['ourdata'][0][()]
-                       curr = self.comparison['cnmf_full_frame']['ourdata'][0]
-                       diff = np.linalg.norm(init-curr)/np.linalg.norm(init)
-                       #there is temporal and spatial
-                       init= data['values']['cnmf_full_frame']['ourdata'][1][()]
-                       curr = self.comparison['cnmf_full_frame']['ourdata'][1]
-                       diffA = np.linalg.norm(init-curr)/np.linalg.norm(init)
-                       #we add both errors
-                       diff=diffA+diff
-                       isdiff = diffA < self.comparison['cnmf_full_frame']['sensibility']
-                       self.information['values']['cnmf_full_frame'].update({'isdifferent':isdiff,
-                                                'diff_data': diff,
-                                                'diff_timing': data['values']['cnmf_full_frame']['timer']
-                                                - self.comparison['cnmf_full_frame']['timer']
-                                            
-                                    })
-                      
-                    #we save with the system date
-                       dta='/Users/jeremie/CaImAn/comparison/tests/'
-                       dta+=dt
-                       dta+='.npz'
-                       np.savez(dta, **data)
-                   else:
-                        print("you need to set ground trut with your own computer")
+                data = codecs.open(file_path, 'r', encoding='utf-8').read()
+                data = json.loads(data)
             
             #if we cannot manage to open it or it doesnt exist:
             except (IOError, OSError) :
                 #we save but we explain why there were a problem
                 print('we were not able to read the file to compare it')
-                dta='/Users/jeremie/CaImAn/comparison/tests/NC'
-                dta+=dt
-                dta+='.npz'
-                np.savez(dta, **self.information)
+                
+                file_path="comparison/tests/NC"+dt+".json"
+                json.dump(self.information, codecs.open(file_path, 'w', encoding='utf-8'),
+                      separators=(',', ':'), sort_keys=True, indent=4) ### this saves the array in .json format
+            
+                return
+                 
+        
+        #they need to be run on the same computer
+            if data['processor']==self.information['processor']:
+                #they need to have the same name
+               if data['params']['fname']==self.information['params']['fname']:
+               
+            #if not we save the value of the difference into 
+        #for rigid
+                   init = data['values']['rig_shifts']['ourdata']
+                    #we do this [()] because of REASONS
+                   curr = self.comparison['rig_shifts']['ourdata']
+                   diff = np.linalg.norm(np.asarray(init)-np.asarray(curr))/np.linalg.norm(init)
+                   isdiff = diff < self.comparison['rig_shifts']['sensibility']
+                   self.information['values']['rig_shifts'].update({'isdifferent':isdiff,
+                                          'diff_data': diff,
+                                          'diff_timing': data['values']['rig_shifts']['timer']
+                                          - self.comparison['rig_shifts']['timer']
+                                        
+                                })
+        #for pwrigid
+                   init= data['values']['pwrig_shifts']['ourdata'][0]
+                   curr = self.comparison['pwrig_shifts']['ourdata'][0]
+                   diff = np.linalg.norm(np.asarray(init)-np.asarray(curr))/np.linalg.norm(init)
+                   #there is xs and ys
+                   init= data['values']['pwrig_shifts']['ourdata'][1]
+                   curr = self.comparison['pwrig_shifts']['ourdata'][1]
+                   #a simple comparison algo
+                   diff2 = np.linalg.norm(np.asarray(init)-np.asarray(curr))/np.linalg.norm(init)
+                   #we add both errors
+                   diff=diff+diff2
+                   isdiff = diff < self.comparison['pwrig_shifts']['sensibility']
+                   self.information['values']['pwrig_shifts'].update({'isdifferent':isdiff,
+                                            'diff_data': diff,
+                                            'diff_timing': data['values']['pwrig_shifts']['timer']
+                                            - self.comparison['pwrig_shifts']['timer']
+                                        
+                                })
+        #for cnmf on patches 
+                   init= data['values']['cnmf_on_patch']['ourdata'][0]
+                   curr = self.comparison['cnmf_on_patch']['ourdata'][0]
+                   diffA = np.linalg.norm(np.asarray(init)-np.asarray(curr))/np.linalg.norm(init)
+                   #there is temporal and spatial
+                   init= data['values']['cnmf_on_patch']['ourdata'][1]
+                   curr = self.comparison['cnmf_on_patch']['ourdata'][1]
+                   diff = np.linalg.norm(np.asarray(init)-np.asarray(curr))/np.linalg.norm(init)
+                   diff=diff+diffA
+                   isdiff = init < self.comparison['cnmf_on_patch']['sensibility']
+                   self.information['values']['cnmf_on_patch'].update({'isdifferent':isdiff,
+                                            'diff_data': diff,
+                                            'diff_timing': data['values']['cnmf_on_patch']['timer']
+                                            - self.comparison['cnmf_on_patch']['timer']
+                                        
+                                })
+        #for cnmf full frame
+                   init= data['values']['cnmf_full_frame']['ourdata'][0]
+                   curr = self.comparison['cnmf_full_frame']['ourdata'][0]
+                   diff = np.linalg.norm(np.asarray(init)-np.asarray(curr))/np.linalg.norm(init)
+                   #there is temporal and spatial
+                   init= data['values']['cnmf_full_frame']['ourdata'][1]
+                   curr = self.comparison['cnmf_full_frame']['ourdata'][1]
+                   diffA = np.linalg.norm(np.asarray(init)-np.asarray(curr))/np.linalg.norm(init)
+                   #we add both errors
+                   diff=diffA+diff
+                   isdiff = diffA < self.comparison['cnmf_full_frame']['sensibility']
+                   self.information['values']['cnmf_full_frame'].update({'isdifferent':isdiff,
+                                            'diff_data': diff,
+                                            'diff_timing': data['values']['cnmf_full_frame']['timer']
+                                            - self.comparison['cnmf_full_frame']['timer']
+                                        
+                                })
+                  
+                #we save with the system date
+                   file_path="comparison/tests/NC"+dt+".json"
+                   json.dump(self.information, codecs.open(file_path, 'w', encoding='utf-8'),
+                      separators=(',', ':'), sort_keys=True, indent=4) ### this saves the array in .json format
+               else:
+                   print('you need to use the same movie for ground truth')
+            else:
+                print("you need to set ground trut with your own computer")
+            
+            
                 
     def plot(self):
         
@@ -264,14 +335,17 @@ class Comparison(object):
                             with np.load(dr) as tfile:
                                 #if we are on similar proc
                                 if tfile['processor']==data['processor']:
-                                    tfile=tfile['value'][()]
-                                    for val in tfile:
-                                        val=val[()]
-                                        time= np.append(times, val['diff_timing'])
-                                        comp= np.append(comp, val['diff_data'])
-                                    
-                                    times= np.append(times, time)    
-                                    comps= np.append(comps, comp)
+                                    if tfile['params']['fname']==data['params']['fname']:
+                                        tfile=tfile['value'][()]
+                                        for val in tfile:
+                                            val=val[()]
+                                            time= np.append(times, val['diff_timing'])
+                                            comp= np.append(comp, val['diff_data'])
+                                        
+                                        times= np.append(times, time)    
+                                        comps= np.append(comps, comp)
+                                    else:
+                                        print('a file was not made using the same movie than ground truth')
                        except:
                            print('a file coul not be read')
                 
@@ -289,31 +363,56 @@ class Comparison(object):
     def see(self, filename=None):
         
         
-        dr='/Users/jeremie/CaImAn/comparison/'
+        dr='comparison/'
+        
+        dr=dr+filename+'.json'
+        print(dr)
         try:
-            filename
-            dr=+filename
-            with np.load(dr) as data:
-                print('here is the info :\n')
-                print(data['processor'])
-                print(data['platform'])
-                print('\n\n here is the value :\n')
-                data=data['value'][()]
-                for val in data :
-                    val=val[()]
-                    
-                    print(val['diff_timing'])
-                    print('\n')
-                    print(val['diff_data'])
-                    print('\n')
-                    print(val['isdiffernt'])
-                    print('\n')
-                    print(val['sensibility'])
-                    print('\n')
-                    print('\n')
+            
+                data = codecs.open(dr, 'r', encoding='utf-8').read()
+                data = json.loads(data)
+                
                                 
         except:
            print(' the name is not valid')
-                                        
+           return
+           
+        print('here is the info :\n')
+        print(data['processor'])
+        print(data['platform'])
+        print('\n\n here is the value :\n')
+        data=dict(data)
+        data=data['values']
+       
+        for key in data:
+            print(key)
+            val= data[key]
+            try:
+                print('time diff: ')
+                print(val['diff_timing'])
+                print('\n')
+            except:
+                print('no diff timing')
+            try:
+                print('data diff: ')
+                print(val['diff_data'])
+                print('\n')
+            except:
+                print('no diff data')
+            try: 
+                print('clause enough ?:  ')
+                print(val['isdiffernt'])
+                print('\n')
+            except:
+                print(' because its groundtruth')
+            print('sensibility:  ')
+            print(val['sensibility'])
+            print('\n')
+            print('\n')
+           
+  
+
+            
+                                    
                 
             
