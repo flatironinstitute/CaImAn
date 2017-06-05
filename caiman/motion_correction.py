@@ -176,6 +176,8 @@ class MotionCorrect(object):
                                                                         template = template, shifts_opencv = self.shifts_opencv , save_movie_rigid = save_movie, add_to_movie= -self.min_mov, nonneg_movie = self.nonneg_movie)
         
         return self
+
+        
     
      def motion_correct_pwrigid(self,save_movie = True, template=None, show_template = True):  
         """Perform pw-rigid motion correction
@@ -1749,37 +1751,28 @@ def compute_metrics_motion_correction(fname,final_size_x,final_size_y, swap_dim,
     np.savez(fname[:-4]+'_metrics',flows = flows, norms = norms, correlations = correlations,smoothness=smoothness,tmpl = tmpl, smoothness_corr = smoothness_corr, img_corr = img_corr)
     return tmpl, correlations, flows, norms, smoothness
 
-#%% motion correction in batches
+#%%
 def motion_correct_batch_rigid(fname, max_shifts, dview = None, splits = 56 ,num_splits_to_process = None, num_iter = 1,  template = None, shifts_opencv = False, save_movie_rigid = False, add_to_movie = None, nonneg_movie = False):
     """
     Function that perform memory efficient hyper parallelized rigid motion corrections while also saving a memory mappable file
-
     Parameters:
     -----------
     fname: str
         name of the movie to motion correct. It should not contain nans. All the loadable formats from CaImAn are acceptable
-
     max_shifts: tuple
         x and y maximum allowd shifts 
-
     dview: ipyparallel view
         used to perform parallel computing
-
     splits: int
         number of batches in which the movies is subdivided
-
     num_splits_to_process: int
         number of batches to process. when not None, the movie is not saved since only a random subset of batches will be processed
-
     num_iter: int
         number of iterations to perform. The more iteration the better will be the template. 
-
     template: ndarray
         if a good approximation of the template to register is available, it can be used 
-
     shifts_opencv: boolean
          toggle the shifts applied with opencv, if yes faster but induces some smoothing
-
     save_movie_rigid: boolean
          toggle save movie
     
@@ -1983,7 +1976,7 @@ def tile_and_correct_wrapper(params):
 
     name, extension = os.path.splitext(img_name)[:2]
     
-    if extension == '.tif' or extension == '.tiff':  # check if tiff 
+    if extension == '.tif' or extension == '.tiff':  # check if tiff file
         imgs = imread(img_name,key = idxs)
         mc = np.zeros(imgs.shape,dtype = np.float32)
         shift_info = []

@@ -14,7 +14,9 @@ from __future__ import division
 from __future__ import print_function
 from builtins import zip
 from builtins import str
+from builtins import map
 from builtins import range
+from past.utils import old_div
 import cv2
 import glob
 
@@ -33,19 +35,27 @@ try:
 except NameError:
     print('Not IPYTHON')
     pass
-
+#%%
 import caiman as cm
 import numpy as np
 import os
 import time
 import pylab as pl
+import psutil
+import sys
+from ipyparallel import Client
+from skimage.external.tifffile import TiffFile
 import scipy
 
 from comparison import comparison
+#%%
+from caiman.motion_correction import tile_and_correct, motion_correction_piecewise
 from caiman.source_extraction.cnmf import cnmf as cnmf
 from caiman.components_evaluation import estimate_components_quality
 from caiman.motion_correction import MotionCorrect
+from caiman.components_evaluation import evaluate_components
 from caiman.utils.visualization import plot_contours, view_patches_bar
+from caiman.base.rois import extract_binary_masks_blob
 from caiman.utils.utils import download_demo
 
 ##@params params_movie set parameters and create template by RIGID MOTION CORRECTION
@@ -205,7 +215,7 @@ m_orig.resize(1, 1, downsample_ratio).play(
 
 #%% RUN ANALYSIS
 c, dview, n_processes = cm.cluster.setup_cluster(
-    backend='local', n_processes=20, single_thread=False)
+    backend='local', n_processes=None, single_thread=False)
 #%%
 
 # movie must be mostly positive for this to work
@@ -238,6 +248,16 @@ comp.comparison['rig_shifts']['timer'] = time.time() - t1
 comp.comparison['rig_shifts']['ourdata'] = mc.shifts_rig 
 #needhelp why it is not the same as in the notebooks ?
 #TODO: show screenshot 2,3
+                   num_splits_to_process_rig=num_splits_to_process_rig, 
+                strides= strides, overlaps= overlaps, splits_els=splits_els,
+                num_splits_to_process_els=num_splits_to_process_els, 
+                upsample_factor_grid=upsample_factor_grid, max_deviation_rigid=max_deviation_rigid, 
+                shifts_opencv = True, nonneg_movie = True)
+#%%
+mc.motion_correct_rigid(save_movie=True)
+# load motion corrected movie
+m_rig = cm.load(mc.fname_tot_rig)
+pl.imshow(mc.total_template_rig, cmap = 'gray')
 #%% visualize templates
 cm.movie(np.array(mc.templates_rig)).play(
     fr=10, gain=5, magnification=2, offset=offset_mov)
