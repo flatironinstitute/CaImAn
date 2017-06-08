@@ -16,7 +16,7 @@ from tempfile import NamedTemporaryFile
 from IPython.display import HTML
 import sys
 from warnings import warn
-from scipy.sparse import issparse, spdiags, coo_matrix
+from scipy.sparse import issparse, spdiags, coo_matrix, csc_matrix
 from matplotlib.widgets import Slider
 from ..base.rois import com
 from scipy.ndimage.measurements import center_of_mass
@@ -222,7 +222,7 @@ def nb_view_patches(Yr, A, C, b, f, d1, d2, image_neurons=None, thr=0.99, denois
     return Y_r
 
 
-def get_contours3d(A, dims, thr=0.9):
+def get_contours(A, dims, thr=0.9):
     """Gets contour of spatial components and returns their coordinates
 
      Parameters
@@ -230,37 +230,42 @@ def get_contours3d(A, dims, thr=0.9):
      A:   np.ndarray or sparse matrix
                Matrix of Spatial components (d x K)
      dims: tuple of ints
-               Spatial dimensions of movie (x, y, z)
+               Spatial dimensions of movie (x, y[, z])
      thr: scalar between 0 and 1
-               Energy threshold for computing contours (default 0.995)
+               Energy threshold for computing contours (default 0.9)
 
      Returns
      --------
      Coor: list of coordinates with center of mass and
             contour plot coordinates (per layer) for each component
     """
+    A = csc_matrix(A)
     d, nr = np.shape(A)
-    d1, d2, d3 = dims
-    x, y = np.mgrid[0:d2:1, 0:d3:1]
+    if len(dims) == 3:
+        d1, d2, d3 = dims
+        x, y = np.mgrid[0:d2:1, 0:d3:1]
+    else:
+        d1, d2 = dims
+        x, y = np.mgrid[0:d1:1, 0:d2:1]
 
     coordinates = []
     cm = np.asarray([center_of_mass(a.toarray().reshape(dims, order='F')) for a in A.T])
     for i in range(nr):
         pars = dict()
-        indx = np.argsort(A[:, i].toarray(), axis=None)[::-1]
-        cumEn = np.cumsum(A[:, i].toarray().flatten()[indx]**2)
+        indx = np.argsort(A.data[A.indptr[i]:A.indptr[i + 1]])[::-1]
+        cumEn = np.cumsum(A.data[A.indptr[i]:A.indptr[i + 1]][indx]**2)
         cumEn /= cumEn[-1]
-        Bvec = np.zeros(d)
-        Bvec[indx] = cumEn
+        Bvec = np.ones(d)
+        Bvec[A.indices[A.indptr[i]:A.indptr[i + 1]][indx]] = cumEn
         Bmat = np.reshape(Bvec, dims, order='F')
         pars['coordinates'] = []
-        for B in Bmat:
-            cs = pl.contour(y, x, B, [thr])
+        for B in (Bmat if len(dims) == 3 else [Bmat]):
+            c = mpl._cntr.Cntr(y, x, B)
+            nlist = c.trace(thr)
+            vertices = nlist[:len(nlist) // 2]
             # this fix is necessary for having disjoint figures and borders plotted correctly
-            p = cs.collections[0].get_paths()
-            v = np.atleast_2d([np.nan, np.nan])
-            for pths in p:
-                vtx = pths.vertices
+            v = np.atleast_2d([None, None])  # Bokeh does not accept nan in list, only in np arrays
+            for k, vtx in enumerate(vertices):
                 num_close_coords = np.sum(np.isclose(vtx[0, :], vtx[-1, :]))
                 if num_close_coords < 2:
                     if num_close_coords == 0:
@@ -272,24 +277,29 @@ def get_contours3d(A, dims, thr=0.9):
                         # case one is border
                         vtx = np.concatenate((vtx, vtx[0, np.newaxis]), axis=0)
 
-                v = np.concatenate((v, vtx, np.atleast_2d([np.nan, np.nan])), axis=0)
+                if k == 0:
+                    v = vtx
+                else:
+                    v = np.concatenate((v, vtx), axis=0)
+                    # Probably needed for disjoint figures, but Bokeh does not accept nan in list
+                    # v = np.concatenate((v, vtx, np.atleast_2d([np.nan, np.nan])), axis=0)
 
-            pars['coordinates'] += [v]
+            pars['coordinates'] = v if len(dims) == 2 else (pars['coordinates'] + [v])
         pars['CoM'] = np.squeeze(cm[i, :])
         pars['neuron_id'] = i + 1
         coordinates.append(pars)
     return coordinates
 
 
-def nb_view_patches3d(Yr, Y_r, A, C, b, f, dims, image_type='mean',
+def nb_view_patches3d(Y_r, A, C, b, f, dims, image_type='mean', Yr=None,
                       max_projection=False, axis=0, thr=0.9, denoised_color=None):
     '''
     Interactive plotting utility for ipython notbook
 
     Parameters
     -----------
-    Yr: np.ndarray
-        movie
+    Y_r: np.ndarray
+        residual of each trace
 
     A,C,b,f: np.ndarrays
         outputs of matrix factorization algorithm
@@ -298,7 +308,11 @@ def nb_view_patches3d(Yr, Y_r, A, C, b, f, dims, image_type='mean',
         dimensions of movie (x, y and z)
 
     image_type: 'mean', 'max' or 'corr'
-        image to be overlaid to neurons (average, maximum or nearest neigbor correlation)
+        image to be overlaid to neurons 
+        (average of shapes, maximum of shapes or nearest neigbor correlation of raw data)
+
+    Yr: np.ndarray
+        movie, only required if image_type=='corr' to calculate correlation image
 
     max_projection: boolean
         plot max projection along specified axis if True, plot layers if False
@@ -313,6 +327,7 @@ def nb_view_patches3d(Yr, Y_r, A, C, b, f, dims, image_type='mean',
         color name (e.g. 'red') or hex color code (e.g. '#F0027F')
 
     '''
+    bokeh.io.curdoc().clear()  # prune old orphaned models, otherwise filesize blows up
     T = Y_r.shape[-1]
     d = A.shape[0]
     order = list(range(4))
@@ -320,7 +335,7 @@ def nb_view_patches3d(Yr, Y_r, A, C, b, f, dims, image_type='mean',
     Y_r = Y_r + C
     index_permut = np.reshape(np.arange(d), dims, order='F').transpose(
         order[:-1]).reshape(d, order='F')
-    A = A[index_permut, :]
+    A = csc_matrix(A)[index_permut, :]
 #    Yr = Yr.reshape(dims + (-1,), order='F').transpose(order).reshape((d, T), order='F')
 # A = A.reshape(dims + (-1,), order='F').transpose(order).reshape((d, -1),
 # order='F')# A[index_permut,:]
@@ -340,7 +355,7 @@ def nb_view_patches3d(Yr, Y_r, A, C, b, f, dims, image_type='mean',
 #                   (A.T * np.matrix(Yr) - (A.T * np.matrix(b[:, np.newaxis])) *
 #                    np.matrix(f[np.newaxis]) - (A.T.dot(A)) * np.matrix(C)) + C)
 
-    bpl.output_notebook()
+    # bpl.output_notebook()
     x = np.arange(T)
     z = np.squeeze(np.array(Y_r[:, :].T)) / 100
 
@@ -384,8 +399,7 @@ def nb_view_patches3d(Yr, Y_r, A, C, b, f, dims, image_type='mean',
             i).reshape(-1, order='F') for nnrr in range(A.shape[1])]) for i in range(3)]
         proj_ = [pproj_.T for pproj_ in proj_]
 
-        coors = [plot_contours(coo_matrix(proj_[i]), tmp[i],
-                               thr_method='nrg', nrgthr=thr) for i in range(3)]
+        coors = [get_contours(proj_[i], tmp[i].shape, thr=thr) for i in range(3)]
 
         pl.close()
         cc1 = [[list(cor['coordinates'][:, 0] + offset1) for cor in coors[0]],
@@ -468,7 +482,7 @@ def nb_view_patches3d(Yr, Y_r, A, C, b, f, dims, image_type='mean',
         cmap = bokeh.models.mappers.LinearColorMapper([mpl.colors.rgb2hex(m)
                                                        for m in colormap(np.arange(colormap.N))])
         cmap.high = image_neurons.max()
-        coors = get_contours3d(A, dims, thr=thr)
+        coors = get_contours(A, dims, thr=thr)
         pl.close()
         cc1 = [[list(l[:, 0]) for l in n['coordinates']] for n in coors]
         cc2 = [[list(l[:, 1]) for l in n['coordinates']] for n in coors]
@@ -480,8 +494,11 @@ def nb_view_patches3d(Yr, Y_r, A, C, b, f, dims, image_type='mean',
         x = list(range(d2))
         y = list(range(d3))
         source3 = ColumnDataSource(
-            data=dict(im1=[image_neurons[linit].tolist()], im=[image_neurons.tolist()],
+            data=dict(image=[image_neurons[linit].tolist()], im=[image_neurons.tolist()],
                       xx=[x], yy=[y], x=[0], y=[d2], dw=[d3], dh=[d2]))
+        # source3 = ColumnDataSource(
+        #     data=dict(image=[image_neurons[linit]], im=[map(list, image_neurons)],
+        #               xx=[x], yy=[y], x=[0], y=[d2], dw=[d3], dh=[d2]))
 
         callback = CustomJS(args=dict(source=source, source2=source2,
                                       source2_=source2_), code="""
@@ -510,10 +527,10 @@ def nb_view_patches3d(Yr, Y_r, A, C, b, f, dims, image_type='mean',
         callback_layer = CustomJS(args=dict(source=source3, source2=source2, source2_=source2_), code="""
                 var f = slider_neuron.get('value')-1;
                 var l = slider_layer.get('value')-1;
-                var im1 = source.get('data')['im1'][0];
+                var image = source.get('data')['image'][0];
                 for (var i = 0; i < source.get('data')['xx'][0].length; i++) {
                     for (var j = 0; j < source.get('data')['yy'][0].length; j++){
-                        im1[i][j] = source.get('data')['im'][0][l][i][j];
+                        image[i][j] = source.get('data')['im'][0][l][i][j];
                     }
                 }
                 var data2 = source2.get('data');
@@ -553,7 +570,7 @@ def nb_view_patches3d(Yr, Y_r, A, C, b, f, dims, image_type='mean',
         callback.args['slider_layer'] = slider_layer
         callback_layer.args['slider_neuron'] = slider
         callback_layer.args['slider_layer'] = slider_layer
-        plot1.image(image='im1', x='x', y='y', dw='dw', dh='dh',
+        plot1.image(image='image', x='x', y='y', dw='dw', dh='dh',
                     color_mapper=cmap, source=source3)
         plot1.patch('c1', 'c2', alpha=0.6, color='purple', line_width=2, source=source2)
         layout = bokeh.layouts.layout([[slider], [slider_layer], [bokeh.layouts.row(plot1, plot)]],
