@@ -191,6 +191,11 @@ ehthumbs_vista.db
 # Folder config file
 Desktop.ini
 
+#dev and comparison
+/bin
+/comparison/tests
+/comparison/groundtruth
+
 # Recycle Bin used on file shares
 $RECYCLE.BIN/
 

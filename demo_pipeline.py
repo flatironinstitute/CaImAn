@@ -35,7 +35,6 @@ try:
 except NameError:
     print('Not IPYTHON')
     pass
-#%%
 import caiman as cm
 import numpy as np
 import os
@@ -48,7 +47,6 @@ from skimage.external.tifffile import TiffFile
 import scipy
 
 from comparison import comparison
-#%%
 from caiman.motion_correction import tile_and_correct, motion_correction_piecewise
 from caiman.source_extraction.cnmf import cnmf as cnmf
 from caiman.components_evaluation import estimate_components_quality
@@ -58,7 +56,7 @@ from caiman.utils.visualization import plot_contours, view_patches_bar
 from caiman.base.rois import extract_binary_masks_blob
 from caiman.utils.utils import download_demo
 
-##@params params_movie set parameters and create template by RIGID MOTION CORRECTION
+#@params params_movie set parameters and create template by RIGID MOTION CORRECTION
 #params_movie = {'fname': ['/Users/jeremie/CaImAn/example_movies/demoSue2x.tif'],
 #                'niter_rig': 1,
 #                'max_shifts': (3, 3),  # maximum allow rigid shift
@@ -140,16 +138,16 @@ from caiman.utils.utils import download_demo
 
 
 params_movie = {'fname':[u'/Users/jeremie/CaImAn/example_movies/demoMovieJ.tif'],
-                'max_shifts':(2,2), # maximum allow rigid shift
+                'max_shifts':(1,1), # maximum allow rigid shift
                 'niter_rig':1,
-                'splits_rig':28, # for parallelization split the movies in  num_splits chuncks across time
+                'splits_rig':14, # for parallelization split the movies in  num_splits chuncks across time
                 'num_splits_to_process_rig':None, # if none all the splits are processed and the movie is saved
                 'strides': (48,48), # intervals at which patches are laid out for motion correction
                 'overlaps': (24,24), # overlap between pathes (size of patch strides+overlaps)
-                'splits_els':28, # for parallelization split the movies in  num_splits chuncks across time
+                'splits_els':14, # for parallelization split the movies in  num_splits chuncks across time
                 'num_splits_to_process_els':[14,None], # if none all the splits are processed and the movie is saved
-                'upsample_factor_grid':2, # upsample factor to avoid smearing when merging patches
-                'max_deviation_rigid':2, #maximum deviation allowed for patch with respect to rigid shift
+                'upsample_factor_grid':3, # upsample factor to avoid smearing when merging patches
+                'max_deviation_rigid':1, #maximum deviation allowed for patch with respect to rigid shift
                 'p': 1, # order of the autoregressive system
                 'merge_thresh' : 0.8,  # merging threshold, max correlation allowed
                 'rf' : 14,  # half-size of the patches in pixels. rf=25, patches are 50x50
@@ -157,7 +155,7 @@ params_movie = {'fname':[u'/Users/jeremie/CaImAn/example_movies/demoMovieJ.tif']
                 'K' : 5,  #  number of components per patch
                 'is_dendrites': False,  # if dendritic. In this case you need to set init_method to sparse_nmf
                 'init_method' : 'greedy_roi',
-                'gSig' : [6, 6],  # expected half size of neurons
+                'gSig' : [4, 4],  # expected half size of neurons
                 'alpha_snmf' : None,  # this controls sparsity
                 'final_frate' : 30
   }
@@ -216,17 +214,21 @@ m_orig.resize(1, 1, downsample_ratio).play(
 #%% RUN ANALYSIS
 c, dview, n_processes = cm.cluster.setup_cluster(
     backend='local', n_processes=None, single_thread=False)
-#%%
+
+#%% INITIALIZING
+t1 = time.time()
+#we want to compare it using comp
+comp=comparison.Comparison()
+comp.dims = np.shape(m_orig)[1:]
+
+
 
 # movie must be mostly positive for this to work
 #TODO : document
 #setting timer to see how the changement in functions make the code react on a same computer. 
 
-t1 = time.time()
 
-#we want to compare it using comp
-comp=comparison.Comparison()
-t=[]
+
 min_mov = cm.load(fname[0], subindices=range(400)).min()
 mc_list = []
 new_templ = None
@@ -234,9 +236,12 @@ for each_file in fname:
     #TODO: needinfo how the classes works 
     mc = MotionCorrect(each_file, min_mov,
                    dview=dview, max_shifts=max_shifts, niter_rig=niter_rig, splits_rig=splits_rig, 
-                   num_splits_to_process_rig=num_splits_to_process_rig,
+                   num_splits_to_process_rig=num_splits_to_process_rig, 
+                   strides= strides, overlaps= overlaps, splits_els=splits_els,
+                   num_splits_to_process_els=num_splits_to_process_els, 
+                   upsample_factor_grid=upsample_factor_grid, max_deviation_rigid=max_deviation_rigid, 
                    shifts_opencv = True, nonneg_movie = True)
-    mc.motion_correct_rigid(template = new_templ, save_movie=True)
+    mc.motion_correct_rigid(save_movie=True)
     new_templ = mc.total_template_rig
     m_rig = cm.load(mc.fname_tot_rig)
     #TODO : needinfo
@@ -248,13 +253,8 @@ comp.comparison['rig_shifts']['timer'] = time.time() - t1
 comp.comparison['rig_shifts']['ourdata'] = mc.shifts_rig 
 #needhelp why it is not the same as in the notebooks ?
 #TODO: show screenshot 2,3
-                   num_splits_to_process_rig=num_splits_to_process_rig, 
-                strides= strides, overlaps= overlaps, splits_els=splits_els,
-                num_splits_to_process_els=num_splits_to_process_els, 
-                upsample_factor_grid=upsample_factor_grid, max_deviation_rigid=max_deviation_rigid, 
-                shifts_opencv = True, nonneg_movie = True)
+
 #%%
-mc.motion_correct_rigid(save_movie=True)
 # load motion corrected movie
 m_rig = cm.load(mc.fname_tot_rig)
 pl.imshow(mc.total_template_rig, cmap = 'gray')
@@ -286,8 +286,6 @@ pl.imshow(mc.total_template_els, cmap = 'gray')
 #TODO: bug sometimes saying there is no y_shifts_els 
 bord_px_els = np.ceil(np.maximum(np.max(np.abs(mc.x_shifts_els)),
                                  np.max(np.abs(mc.y_shifts_els)))).astype(np.int)
-comp.comparison['pwrig_shifts']['timer'] = time.time() - t1
-comp.comparison['pwrig_shifts']['ourdata'] = [mc.x_shifts_els,mc.y_shifts_els]
 #%% visualize elastic shifts
 pl.close()
 pl.subplot(2, 1, 1)
@@ -542,7 +540,7 @@ np.savez(os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:
          C=C, b=b, f=f, YrA=YrA, sn=sn, d1=d1, d2=d2, idx_components=idx_components, idx_components_bad=idx_components_bad,
          fitness_raw=fitness_raw, fitness_delta=fitness_delta, r_values=r_values)
 #we save it
-comp.save(istruth=True, params=params_movie)
+comp.save_with_compare(istruth=False, params=params_movie)
 #%%
 #TODO: show screenshot 14
 pl.subplot(1, 2, 1)

@@ -600,11 +600,13 @@ def threshold_components(A, dims, medw=None, thr_method='nrg', maxthr=0.1, nrgth
         se = np.ones((3,) * len(dims), dtype='uint8')
     if ss is None:
         ss = np.ones((3,) * len(dims), dtype='uint8')
-
+    #dims and nm of neurones
     d, nr = np.shape(A)
+    #instanciation of A thresh.
     Ath = np.zeros((d, nr))
 
     pars = []
+    #fo each neurons
     for i in range(nr):
         pars.append([A[:, i], i, dims, medw, d, thr_method, se, ss, maxthr, nrgthr, extract_cc])
 
@@ -623,7 +625,9 @@ def threshold_components(A, dims, medw=None, thr_method='nrg', maxthr=0.1, nrgth
 def threshold_components_parallel(pars):
 
     A_i, i, dims, medw, d, thr_method, se, ss, maxthr, nrgthr, extract_cc = pars
-    A_temp = np.reshape(A_i, dims[::-1])
+    #we reshape this one dimension column of the 2d components into the 2D that 
+    A_temp = np.reshape(A_i, dims, 'F')
+    #we apply a median filter of size medw
     A_temp = median_filter(A_temp, medw)
     if thr_method == 'max':
         BW = (A_temp > maxthr * np.max(A_temp))
@@ -640,23 +644,28 @@ def threshold_components_parallel(pars):
             BW = (A_temp >= Asor[ind])
         else:
             BW =np.zeros_like(A_temp)
-
+    #we want to remove the components that are valued 0 in this now 1d matrix
     Ath = np.squeeze(np.reshape(A_temp, (d, 1)))
     Ath2 = np.zeros((d))
+    #we do that to have a full closed structure even if the values have been trehsolded
     BW = binary_closing(BW.astype(np.int), structure=se)
 
+    #if we have deleted the elemnt
     if BW.max() == 0:
         return Ath2, i
-
+    #
     if extract_cc:
+        #we extract each future as independent with the cross structuring elemnt
         labeled_array, num_features = label(BW, structure=ss)
         BW = np.reshape(BW, (d, 1))
         labeled_array = np.squeeze(np.reshape(labeled_array, (d, 1)))
         nrg = np.zeros((num_features, 1))
+        #we extract the energy for each component
         for j in range(num_features):
             nrg[j] = np.sum(Ath[labeled_array == j + 1]**2)
 
         indm = np.argmax(nrg)
+        #Ath2 takes all the elements who have the maximum total energy  
         #Ath2[labeled_array == indm + 1] = A_i[labeled_array == indm + 1]
         Ath2[labeled_array == indm + 1] = Ath[labeled_array == indm + 1]
 
