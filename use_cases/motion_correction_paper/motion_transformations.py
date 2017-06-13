@@ -167,7 +167,7 @@ if False:
         vy_s.append(vy_)
         imgs_with_flow.append(dispOpticalFlow(np.dstack([new_templ,new_templ,new_templ])/100,np.dstack([vx_*array*2,vy_*array*2]),Divisor=20))
 #%% oracle
-for patch_size in np.array([24,48,96]):
+for patch_size in np.array([24,48,96,128]):
     best_possible_x = cv2.resize(cv2.resize(vx_,tuple(np.divide(new_templ.shape,(patch_size,patch_size)))),new_templ.shape)
     best_possible_y = cv2.resize(cv2.resize(vy_,tuple(np.divide(new_templ.shape,(patch_size,patch_size)))),new_templ.shape)
     gt = np.dstack([vx_*array  ,vy_*array ])  
@@ -177,7 +177,7 @@ for patch_size in np.array([24,48,96]):
     #%%
     all_movs_dist = []
     all_movs_tosave = []
-    for patch_size in [32,48,96]:          
+    for patch_size in [32,48,96,128]:          
             for noise_sigma in np.arange(0.01,4,.4,dtype = np.float32):
                 for iter_ in range(10):
                         vx,vy, img_flow  = vx_s[0],vy_s[0], imgs_with_flow[0]
@@ -249,7 +249,7 @@ for patch_size in np.array([24,48,96]):
         mov_dist['shifts_oflow_res_masked'] = shifts_oflow_res_masked
         
         mov_dist['gt_resid_shifts_masked'] = shifts_ncorre_masked - mov_dist['gt_shifts_masked']
-        mov_dist['norm_diff_shifts_oflow_res'] = np.linalg.norm(shifts_oflow_res_masked-mov_dist['gt_resid_shifts_masked'])/np.linalg.norm( mov_dist['gt_resid_shifts_masked'])
+        mov_dist['norm_diff_shifts_oflow_res'] = np.linalg.norm(shifts_oflow_res_masked-mov_dist['gt_resid_shifts_masked'])/np.linalg.norm( mov_dist['gt_shifts_masked'])
         
         
         print(mov_dist['norm_diff_shifts_ncorre'])  
@@ -257,21 +257,23 @@ for patch_size in np.array([24,48,96]):
         
         
 #%% FROM EP
-import scipy
-scipy.io.loadmat('test_simulation_shifts_nrmcorre_EP.mat',mdict = fl)
-all_movs_dist = fl['all_movs_tosave']
-new_templ = fl['template']
-mask = fl['mask']
+#import h5py
+#with h5py.File('EP_73.mat','r') as fl:
+#    print(fl.keys())
+#    all_movs_tosave = fl['all_movs_tosave']
+##    all_movs_dist = fl['all_movs_tosave']
+##    new_templ = fl['template']
+##    mask = fl['mask']
 
 #%%
-cv2.destroyAllWindows() 
-for mov_dist in all_movs_dist:
-    print(mov_dist['patch_size'],mov_dist['noise_sigma'],mov_dist['iter_'])
-    newim = mov_dist['newim']
-    new_templ = mov_dist['template']
-    patch_size = mov_dist['patch_size']
-    mov_dist['shifts_ncorre'] = shifts_ncorre
-    mov_dist['shifts_ncorre_masked'] = shifts_ncorre_masked        
+#cv2.destroyAllWindows() 
+#for mov_dist in all_movs_dist:
+#    print(mov_dist['patch_size'],mov_dist['noise_sigma'],mov_dist['iter_'])
+#    newim = mov_dist['newim']
+#    new_templ = mov_dist['template']
+#    patch_size = mov_dist['patch_size']
+#    mov_dist['shifts_ncorre'] = shifts_ncorre
+#    mov_dist['shifts_ncorre_masked'] = shifts_ncorre_masked        
     #%%
 #    cv2.destroyAllWindows() 
 #    for mov_dist in all_movs_dist:
@@ -313,33 +315,30 @@ with np.load('/mnt/ceph/neuro/DataForPublications/Piecewise-Rigid-Analysis-paper
     new_templ = all_movs_dist[0]['template']
     max_shift = ld['max_shift']
 #%%
+cv2.destroyAllWindows() 
+for mov_dist in all_movs_dist:
+    print(mov_dist['patch_size'],mov_dist['noise_sigma'],mov_dist['iter_'])    
+    mov_dist['norm_shifts_oflow_res_masked'] = np.linalg.norm(mov_dist['shifts_oflow_res_masked'])
+#%%
 pl.rcParams['pdf.fonttype'] = 42
 
-pl.subplot(3,2,1)
+pl.subplot(2,3,1)
 pl.imshow(imgs_with_flow[0],cmap = 'gray')
 pl.axis('off')
-pl.subplot(3,2,2)
-pl.imshow(all_movs_dist[0]['newim']-new_templ,cmap = 'gray')
+pl.subplot(2,3,4)
+pl.imshow(all_movs_dist[0]['newim']-new_templ,cmap = 'viridis',vmax = 1)
 pl.axis('off')
-aa = pl.subplot(3,2,3)
+aa = pl.subplot(2,3,2)
+pl.imshow(all_movs_dist[10]['newim'],cmap = 'gray',vmin=0,vmax=1)
+pl.title(all_movs_dist[10]['noise_sigma'])
+pl.axis('off')
+aa = pl.subplot(2,3,5)
 
-aa = pl.subplot(3,2,4)
-
-aa = pl.subplot(3,2,5)
-df = pandas.DataFrame()
-for key in ['noise_sigma','patch_size','iter_','norm_diff_shifts_oflow_res']:
-    df[key] = [mmm[key] for mmm in all_movs_dist]
-df.groupby(['patch_size','noise_sigma']).mean().unstack(level=0).plot(y=['norm_diff_shifts_oflow_res'],yerr =  df.groupby(['noise_sigma']).sem().unstack(level=0)['norm_diff_shifts_oflow_res'], ax = aa)      
-pl.xlabel('noise level')
-pl.ylabel('Norm ratio residual/gt') 
-pl.legend(['24/48','48/48','96/48']) 
-
+pl.imshow(all_movs_dist[20]['newim'],cmap = 'gray',vmin=0,vmax=1)
+pl.title(all_movs_dist[20]['noise_sigma'])
+pl.axis('off')
 #%
-pl.subplot(3,2,6)
-df = pandas.DataFrame()
-for key in ['noise_sigma','patch_size','iter_','norm_diff_shifts_oflow']:
-    df[key] = [mmm[key] for mmm in all_movs_dist]
-a = df.groupby(['noise_sigma']).mean().unstack(level=0)['norm_diff_shifts_oflow'].plot(y=['norm_diff_shifts_oflow'],yerr =  df.groupby(['noise_sigma']).sem().unstack(level=0)['norm_diff_shifts_oflow'])
+a = pl.subplot(2,3,3)
 
 df = pandas.DataFrame()
 for key in ['noise_sigma','patch_size','iter_','norm_diff_shifts_ncorre']:
@@ -347,8 +346,22 @@ for key in ['noise_sigma','patch_size','iter_','norm_diff_shifts_ncorre']:
 df.groupby(['patch_size','noise_sigma']).mean().unstack(level=0).plot(y = ['norm_diff_shifts_ncorre'], yerr =  df.groupby(['patch_size','noise_sigma']).sem().unstack(level=0), ax = a)   
 pl.xlabel('noise level')
 pl.ylabel('Norm ratio delta/gt') 
+df = pandas.DataFrame()
+for key in ['noise_sigma','patch_size','iter_','norm_diff_shifts_oflow']:
+    df[key] = [mmm[key] for mmm in all_movs_dist]
+df.groupby(['noise_sigma']).mean().unstack(level=0)['norm_diff_shifts_oflow'].plot(y=['norm_diff_shifts_oflow'],yerr =  df.groupby(['noise_sigma']).sem().unstack(level=0)['norm_diff_shifts_oflow'], ax = a)
+pl.xlim([-.1,3.7])
 #pl.ylim([.12,.5])
-pl.legend(['optical flow'] + ['24/48','48/48','96/48']) 
+pl.legend(['24/48','48/48','96/48','128/48']+['optical flow']) 
+aa = pl.subplot(2,3,6)
+df = pandas.DataFrame()
+for key in ['noise_sigma','patch_size','iter_','norm_diff_shifts_oflow_res']:
+    df[key] = [mmm[key] for mmm in all_movs_dist]
+df.groupby(['patch_size','noise_sigma']).mean().unstack(level=0).plot(y=['norm_diff_shifts_oflow_res'],yerr =  df.groupby(['noise_sigma']).sem().unstack(level=0)['norm_diff_shifts_oflow_res'], ax = aa)      
+pl.xlabel('noise level')
+pl.ylabel('Norm ratio residual/gt') 
+pl.legend(['24/48','48/48','96/48','128/48']) 
+pl.xlim([-.1,3.7])
 #%%
 
 ##%%
