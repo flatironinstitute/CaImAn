@@ -70,10 +70,10 @@ idx_components_raw = np.where(fitness_raw < -55)[0]
 idx_components_delta = np.where(fitness_delta < -55)[0]
 
 
-#min_radius = gSig[0] - 2
-#masks_ws, idx_blobs, idx_non_blobs = extract_binary_masks_blob(
-#    A.tocsc(), min_radius, dims, num_std_threshold=1,
-#    minCircularity=0.7, minInertiaRatio=0.2, minConvexity=.5)
+min_radius = gSig[0] - 2
+masks_ws, idx_blobs, idx_non_blobs = extract_binary_masks_blob(
+       A.tocsc(), min_radius, dims, num_std_threshold=1,
+   minCircularity=0.7, minInertiaRatio=0.2, minConvexity=.5)
 
 idx_components = np.union1d(idx_components_r, idx_components_raw)
 idx_components = np.union1d(idx_components, idx_components_delta)
@@ -139,6 +139,7 @@ crd = plot_contours(scipy.sparse.coo_matrix(A_on), Cn, thr=0.9)
 view_patches_bar(None, scipy.sparse.coo_matrix(A_on.tocsc()[:, :]), C_on[
                                :, :], b_on, f_on, dims_on[0], dims_on[1], YrA=noisyC[:-1]-C_on, img=Cn)    
 #%%
+#touse
 A_on_thr = cm.source_extraction.cnmf.spatial.threshold_components(A_on.toarray(), dims_on, medw=None, thr_method='max', maxthr=0.2, nrgthr=0.99, extract_cc=True,
                          se=None, ss=None, dview=dview) 
 
@@ -176,7 +177,7 @@ font = {'family' : 'Myriad Pro',
         'weight' : 'regular',
         'size'   : 20}
 pl.rc('font', **font)
-#%%
+#t#%%
 pl.figure(figsize=(30,20))
 _,_, _, _, performance_rs_off =  cm.base.rois.nf_match_neurons_in_binary_masks(roi_rs,A_off_thr[:,:].reshape([dims_off[0],dims_off[1],-1],order = 'F').transpose([2,0,1])*1.,
                                                                                thresh_cost=.7, min_dist = 10, print_assignment= False ,plot_results=plot_results ,Cn=Cn, labels = ['RS','offline'])
@@ -216,7 +217,7 @@ pl.rcParams['pdf.fonttype'] = 42
 font = {'family' : 'Myriad Pro',
         'weight' : 'regular',
         'size'   : 20}
-pl.rc('font', **font)
+pl.rc('font', **font) 
 #%%
 #pl.figure(figsize=(30,20))
 #_,_, _, _, performance_ds_bs =  cm.base.rois.nf_match_neurons_in_binary_masks(roi_ds,roi_bs,
@@ -255,7 +256,11 @@ font = {'family' : 'Myriad Pro',
 pl.rc('font', **font)
 #%%
 pl.figure(figsize=(30,20))
-idx_tp_gt,idx_tp_comp, idx_fn, idx_fp_comp, performance_off_on =  cm.base.rois.nf_match_neurons_in_binary_masks(A_off_thr[:,:].reshape([dims_off[0],dims_off[1],-1],order = 'F').transpose([2,0,1])*1.,A_on_thr[:,:].reshape([dims_on[0],dims_on[1],-1],order = 'F').transpose([2,0,1])*1.,thresh_cost=.7, min_dist = 10, print_assignment= False,plot_results=True,Cn=Cn, labels = ['online','offline'])
+#touse
+idx_tp_gt,idx_tp_comp, idx_fn, idx_fp_comp, performance_off_on =  cm.base.rois.nf_match_neurons_in_binary_masks(A_off_thr[:,:]
+                        .reshape([dims_off[0],dims_off[1],-1],order = 'F')
+                        .transpose([2,0,1])*1.,A_on_thr[:,:].reshape([dims_on[0],dims_on[1],-1],order = 'F')
+                        .transpose([2,0,1])*1.,thresh_cost=.7, min_dist = 10, print_assignment= False,plot_results=True,Cn=Cn, labels = ['online','offline'])
 pl.rcParams['pdf.fonttype'] = 42
 font = {'family' : 'Myriad Pro',
         'weight' : 'regular',
@@ -263,6 +268,7 @@ font = {'family' : 'Myriad Pro',
 pl.rc('font', **font)
 
 #%%
+#touse
 corrs = np.array([scipy.stats.pearsonr(C_off_thr[gt,:],C_on_thr[comp,:])[0] for gt,comp in zip(idx_tp_gt,idx_tp_comp)])
 #%%
 

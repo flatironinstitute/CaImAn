@@ -1,4 +1,5 @@
-
+#!/bin/bash
+#to lauch to install the file
 git clone https://github.com/simonsfoundation/CaImAn
 cd CaImAn/
 git pull
@@ -7,3 +8,7 @@ source activate CaImAn
 pip install -r requirements_pip.txt
 conda install -c menpo opencv3=3.1.0
 python setup.py build_ext -i
+
+export PYTHONPATH="/path/to/caiman:$PYTHONPATH"
+export MKL_NUM_THREADS=1
+export OPENBLAS_NUM_THREADS=1

@@ -1,16 +1,26 @@
-##
-#@file utils 
-#@brief pure utilitaries(other)
-#  all of other usefull functions -*- coding: utf-8 -*-.
-#
-#@namespace utils
-#@version   1.0
-#@pre       EXample.First initialize the system.
-#@bug       
-#@warning   
-#@copyright GNU General Public License v2.0
-#@date Created on Tue Jun 30 21:01:17 2015
-#@author agiovann
+""" pure utilitaries(other)
+ 
+ all of other usefull functions 
+ 
+See Also
+------------
+https://docs.python.org/2/library/urllib.html
+ 
+"""
+#\package Caiman/utils
+#\version   1.0
+#\bug       
+#\warning   
+#\copyright GNU General Public License v2.0
+#\date Created on Tue Jun 30 21:01:17 2015
+#\author: andrea giovannucci
+#\namespace utils
+#\pre none
+
+
+
+
+
 
 from __future__ import print_function
 
@@ -28,6 +38,8 @@ except:
 #\throws an exception if not in the Caiman folder
 #\author  andrea giovannucci
 def download_demo():
+
+    
     if os.path.exists('./example_movies'):
         if not(os.path.exists('./example_movies/demoSue2x.tif')):        
             url = 'https://www.dropbox.com/s/09z974vkeg3t5gn/Sue_2x_3000_40_-46.tif?dl=1'

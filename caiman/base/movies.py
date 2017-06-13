@@ -20,7 +20,9 @@ import sklearn
 import warnings
 import numpy as np
 import scipy as sp
-from sklearn.decomposition import NMF, IncrementalPCA, FastICA
+from sklearn.decomposition import NMF
+from sklearn.decomposition import incremental_pca  , FastICA
+
 from sklearn.cluster import KMeans
 from sklearn.metrics.pairwise import euclidean_distances
 import pylab as plt

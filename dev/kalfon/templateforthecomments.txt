@@ -1,0 +1,139 @@
+﻿#FILE
+""" Store arrays
+
+
+We put arrays on disk as raw bytes, extending along the first dimension.
+Alongside each array x we ensure the value x.dtype which stores the string
+description of the array's dtype.
+
+
+See Also
+------------
+
+
+Link 
+
+
+"""
+#\package Caiman/utils
+#\image html X.jpg
+#\version   1.0
+#\copyright GNU General Public License v2.0
+#\date Created on Tue Jun 30 21:01:17 2015
+#\author: andrea giovannucci
+
+
+
+
+
+
+
+#FUNCTION
+"""short
+
+
+
+
+    explanation
+
+
+        Parameters
+        -----------
+        Y:  np.ndarray (3D or 4D)
+            Input movie data in 3D or 4D format
+
+        eight_neighbours: Boolean
+            Use 8 neighbors if true, and 4 if false for 3D data (default = True)
+            Use 6 neighbors for 4D data, irrespectively
+            
+        swap_dim: Boolean
+            True indicates that time is listed in the last axis of Y (matlab format)
+            and moves it in the front
+
+
+        Returns
+        --------
+        rho: d1 x d2 [x d3] matrix, cross-correlation with adjacent pixels
+
+
+        Raises:
+        ---------
+        ZeroDivisionError, AssertionError, & ValueError.
+
+
+        See Also
+        ---------
+        Link.
+
+
+        .. image:: filename
+
+        Notes
+
+
+        """
+#\bug       
+#\warning  
+
+
+
+
+#OTHER
+"""
+short
+
+
+explanation
+
+
+
+
+    See Also
+    -----------
+
+
+    This and that   
+
+
+
+
+"""
+#\version   1.0
+#\def NAME documentation
+#\image html X.jpg
+#\var
+
+
+
+
+
+
+
+
+
+#CLASS
+    """
+class name(type): short
+
+
+   explanation
+
+
+    ...
+
+
+    Attributes
+    ----------
+    exposure : float
+        Exposure in seconds.
+
+
+    Methods
+    -------
+    colorspace(c='rgb')
+        Represent the photo in the given colorspace.
+    gamma(n=1.0)
+        Change the photo's gamma exposure.
+
+
+    """
