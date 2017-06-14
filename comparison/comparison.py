@@ -25,7 +25,7 @@ import matplotlib.pyplot as pl
 import json
 import codecs
 import glob 
-
+import zipfile as zf
 import appJar as gui
 import caiman as cm
 import scipy
@@ -89,7 +89,10 @@ class Comparison(object):
                           'timer': None,
                           'sensitivity': 0.01
                          }
-    
+        self.cnmfull=None
+        self.cnmpatch=None
+ 
+   
         
     def save(self, istruth=False, params=None):
         """save the comparison object on a file
@@ -161,7 +164,7 @@ class Comparison(object):
                       separators=(',', ':'), sort_keys=True, indent=4) ### this saves the array in .json format  
                       
             #np.savez('comparison/groundtruth/groundtruth.npz', **self.information)
-            print('we now have ground truth')
+            print('we now have ground truth. PLEASE think about zipping the file ;)')
         else:
             #if not we create a comparison first
             try: 
@@ -184,9 +187,12 @@ class Comparison(object):
                  
         
         #they need to be run on the same computer
-            if data['processor']==self.information['processor']:
-                #they need to have the same name
-               if data['params']['fname']==self.information['params']['fname']:
+            if data['processor']!=self.information['processor']:
+                
+                print("you don't have the same processor than groundtruth.. the time difference can vary because of that\n try recreate your own groundtruth before testing")
+            
+                #they need to be taken with the same initial parameters
+            if data['params']==self.information['params']:
                
             #if not we save the value of the difference into 
             
@@ -388,10 +394,8 @@ class Comparison(object):
                    file_path="comparison/tests/"+dt+".json"
                    json.dump(self.information, codecs.open(file_path, 'w', encoding='utf-8'),
                       separators=(',', ':'), sort_keys=True, indent=4) ### this saves the array in .json format
-               else:
-                   print('you need to use the same movie for ground truth')
             else:
-                print("you need to set ground trut with your own computer")
+                   print('you need to use the same paramters to compare your version of the code with the groundtruth one. look for the groundtruth paramters with the see() method')
             
             
             
@@ -399,268 +403,461 @@ class Comparison(object):
             
             
             
-    def save_with_compare(self, istruth=False, params=None, dview=None):
+            
+    def save_with_compare(self, istruth=False, params=None, dview=None, avg_min_size_ratio=0, n_frames_per_bin = 10, dims_test = (170,170) , dims_gt = (170,170), Cn=None, cmap=None):
         
         
         
+        
+          
+         #getting the DATA FOR COMPARISONS   
+        if params ==None or self.cnmpatch == None or self.cnmfull == None:
+            print('we need the paramters in order to save anything\n')
+            return
+        #actions on the sparse matrix
+        if not isinstance(self.cnmpatch, dict):
+            self.cnmpatch = self.cnmpatch.__dict__
+            self.cnmfull  =self.cnmfull.__dict__
+            #filtering of datas
+            dat = self.cnmpatch
+            dot={}
+            for keys in dat:
+                val= dat[keys] 
+                if not isinstance(val, scipy.sparse.coo.coo_matrix) or not isinstance(val,np.ndarray):
+                    dot[keys]=val
+            self.cnmpatch = dot
+            
+            dat = self.cnmfull
+            dot={}
+            for keys in dat:
+                val= dat[keys] 
+                if not isinstance(val, scipy.sparse.coo.coo_matrix) or not isinstance(val,np.ndarray):
+                    dot[keys]=val
+            self.cnmfull = dot    
+          
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        #initialization
         dt = datetime.datetime.today()
         dt=str(dt)
         plat=plt.platform()
         plat=str(plat)
         pro=plt.processor()
         pro=str(pro)
-        
-        
-        #actions on the sparse matrix
-        
-        
-        
-        
         #we store a big file which is containing everything ( INFORMATION)
         self.information ={
                 'platform': plat,
                 'processor':pro,
                 'values':self.comparison,
-                'params': params
+                'params': params,
+                'cnmfull':self.cnmfull,
+                'cnmpatch':self.cnmpatch,
+                'differences': {
+                        'proc':None,
+                        'params_movie':None,
+                        'params_patch':None,
+                        'params_full':None}
                 }
-        
         file_path="comparison/groundtruth/groundtruth.json"
         
+       
+        
+        
+        
+        
+        
+        
+        #OPENNINGS
         #if we want to set this data as truth
         if istruth:
                 #we just save it
             if os._exists("comparison/groundtruth/groundtruth.json"):
                os.remove("comparison/groundtruth/groundtruth.json")
             else:
-               print("nothing to remove")
+               print("nothing to remove\n")
                
-            
+            sparsetolist(self) 
             json.dump(self.information, codecs.open(file_path, 'w', encoding='utf-8'),
                       separators=(',', ':'), sort_keys=True, indent=4) ### this saves the array in .json format  
                       
             #np.savez('comparison/groundtruth/groundtruth.npz', **self.information)
-            print('we now have ground truth')
+            print('we now have ground truth\n')
+            return
         else:
             #if not we create a comparison first
-            try: 
+            if not os._exists("comparison/groundtruth/groundtruth.json"):
+                try: 
+                 
+                    ziped = zf.ZipFile(file_path+".zip")
+                    ziped.extractall("comparison/groundtruth")
+                    #os.remove("comparison/groundtruth/groundtruth.json.zip")
+                except : 
+                    print('already unzipped')
+            try:
+    
                 data = codecs.open("comparison/groundtruth/groundtruth.json", 'r', encoding='utf-8').read()
                 data = json.loads(data)
             
             #if we cannot manage to open it or it doesnt exist:
             except (IOError, OSError) :
                 #we save but we explain why there were a problem
-                print('we were not able to read the file to compare it')
+                print('we were not able to read the file to compare it\n')
                 sparsetolist(self)
                 file_path="comparison/tests/NC"+dt+".json"
                 json.dump(self.information, codecs.open(file_path, 'w', encoding='utf-8'),
                       separators=(',', ':'), sort_keys=True, indent=4) ### this saves the array in .json format
             
                 return
-                 
+        i=0
+        dr='comparison/tests/'
+        for name in os.listdir(dr):
+             i+=1
+        i =str(i)
+        if not os.path.exists(dr+'/'+i):
+            os.makedirs(dr+'/'+i)  
+            
+            
+            
+            
+            
+            
+        """    
+         #getting the DATA FOR COMPARISONS   
+        if params ==None or self.cnmpatch == None or self.cnmfull == None:
+            print('we need the paramters in order to save anything\n')
+            return
+        #actions on the sparse matrix
+        self.cnmpatch = self.cnmpatch.__dict__
+        self.cnmfull  =self.cnmfull.__dict__
+        #filtering of datas
+        dat = self.cnmpatch
+        dot={}
+        for keys in dat:
+            val= dat[keys] 
+            if not isinstance(val, scipy.sparse.coo.coo_matrix) or not isinstance(val,np.ndarray):
+                dot[keys]=val
+        self.cnmpatch = dot
         
+        dat = self.cnmfull
+        dot={}
+        for keys in dat:
+            val= dat[keys] 
+            if not isinstance(val, scipy.sparse.coo.coo_matrix) or not isinstance(val,np.ndarray):
+                dot[keys]=val
+        self.cnmfull = dot    
+        """    
+        
+        
+        
+        
+        
+        
+        #INFORMATION FOR THE USER
         #they need to be run on the same computer
-            if data['processor']==self.information['processor']:
-                #they need to have the same name
-               if data['params']['fname']==self.information['params']['fname']:
-               
-            #if not we save the value of the difference into 
-            
-        #for neurons
-        #           self.information['values']['diff_neurons'] = data['values']['neurons'] - self.comparison['neurons'] 
-            
+            #they need to be run on the same computer
+        if data['processor']!=self.information['processor']:
+                
+                print("you don't have the same processor than groundtruth.. the time difference can vary because of that\n try recreate your own groundtruth before testing\n")
+                
+                self.infomations['differences']['proc'] = True
+                #they need to be taken with the same initial parameters
+        """
+        if data['params']!=self.information['params']:
+            print("you do not use the same movie parameters... Things can go wrong\n\n")
+            print('you need to use the same paramters to compare your version of the code with the groundtruth one. look for the groundtruth paramters with the see() method\n')
+            self.information['differences']['params_movie'] = True
+        if data['cnmpatch']!=self.cnmpatch:
+            print('you do not use the same paramters in your cnmf on patches initialization\n')
+            self.information['differences']['params_patch'] = True
+        if data['cnmfull']!=self.cnmfull:
+            print('you do not use the same paramters in your cnmf full frame initialization\n')
+            self.information['differences']['params_full'] = True
+            """
+   
+    
+    
             
         #for rigid
-                   init = data['values']['rig_shifts']['ourdata']
-                    #we do this [()] because of REASONS
-                   curr = self.comparison['rig_shifts']['ourdata']
-                   diff = np.linalg.norm(np.asarray(init)-np.asarray(curr))/np.linalg.norm(init)
-                   isdiff = diff < self.comparison['rig_shifts']['sensitivity']
-                   self.information['values']['rig_shifts'].update({'isdifferent':int(isdiff),
-                                          'diff_data': diff,
-                                          'diff_timing': data['values']['rig_shifts']['timer']
-                                          - self.comparison['rig_shifts']['timer']
-                                        
-                                })
-            
-        #for cnmf on patch
-            #get the values
-                  
-                    #trial 
-                   dims_gt = 60,80
-                   dims_test = 60,80
-                   #to change with the last computed size returned by the program
-                   m = data['params']['gSig'][1]
-                   min_size_neuro = (m*m/2) +m
-                   print("min_size_neuro\n")
-                   print(min_size_neuro)
-                           #endt rial 
-                   n_frames_per_bin = 10
-                   A_gt= data['values']['cnmf_on_patch']['ourdata'][0] #A gt
-                   A_test = self.comparison['cnmf_on_patch']['ourdata'][0] #A test
-                   A_test=A_test.toarray() #coo sparse matrix
-                   A_gt = np.asarray(A_gt)   # list matrix
-                   C_gt= data['values']['cnmf_on_patch']['ourdata'][1] #C gt
-                   C_test = self.comparison['cnmf_on_patch']['ourdata'][1] #C test
-                   C_test=np.asarray(C_test)
-                   C_gt = np.asarray(C_gt)
-           #proceed to a trhreshold
-                   A_test_thr = cm.source_extraction.cnmf.spatial.threshold_components(A_test, dims_test, medw=None, thr_method='max', maxthr=0.2, nrgthr=0.99, extract_cc=True,
-                         se=None, ss=None, dview=dview) 
-                   A_gt_thr = cm.source_extraction.cnmf.spatial.threshold_components(A_gt, dims_gt, medw=None, thr_method='max', maxthr=0.2, nrgthr=0.99, extract_cc=True,
-                         se=None, ss=None, dview=dview) 
-                   #compute C using this A thr
-                   
-                   
-                   A_test_thr  = A_test_thr  > 0  
-                   
-                   size_neurons_test  = A_test_thr.sum(0)
-                   print("size_neurons_test\n ")
-                   print(size_neurons_test)
-                   A_test_thr = A_test_thr[:,size_neurons_test>min_size_neuro]
-                   print("A_test_thr.shape\n")
-                   print(A_test_thr.shape)
-                   C_test_frame = C_test.shape[1]
-                   C_test_thr = C_test[size_neurons_test>min_size_neuro,:C_test_frame]
-                   #same for gt
-                   print("C_test_thr\n")
-                   print(C_test_thr)
-                   A_gt_thr  = A_gt_thr  > 0  
-                   size_neurons_gt = A_gt_thr.sum(0)
-                   A_gt_thr = A_gt_thr[:,size_neurons_gt>min_size_neuro]
-                   C_gt_frame = C_gt.shape[1]
-                   C_gt_thr = C_gt[size_neurons_gt>min_size_neuro,:C_gt_frame]
-                   
-                   #we would also like the difference in the number of neurons
-                   self.comparison['diff_neurons'] = A_test_thr.shape[1] - A_gt_thr.shape[1] 
-                   print(self.comparison['diff_neurons'])
-                  
-                   
-                   C_test_thr = np.array([CC.reshape([-1,n_frames_per_bin]).max(1) for CC in C_test_thr])
-                   C_gt_thr = np.array([CC.reshape([-1,n_frames_per_bin]).max(1) for CC in C_gt_thr])
-
-                   idx_tp_gt,idx_tp_comp, idx_fn_gt, idx_fp_comp, performance_off_on =  cm.base.rois.nf_match_neurons_in_binary_masks(
-                           A_gt_thr[:,:].reshape([dims_gt[0],dims_gt[1],-1],order = 'F').transpose([2,0,1])*1.
-                           ,A_test_thr[:,:].reshape([dims_test[0],dims_test[1],-1],order = 'F').transpose([2,0,1])*1.)
-                   
-                   #the pearson's correlation coefficient of the two Calcium activities thresholded
-                   #comparing Calcium activities of all the components that are defined by the matching algo as the same.
-                   corrs = np.array([scipy.stats.pearsonr(C_gt_thr[gt,:],C_test_thr[comp,:])[0] for gt,comp in zip(idx_tp_gt,idx_tp_comp)])
-                   
-                   
-                   isdiff = self.comparison['diff_neurons'] == 0
-                   isdiff = isdiff and np.linalg.norm(corrs) < self.comparison['cnmf_on_patch']['sensitivity'] 
-                       
-                   self.information['values']['cnmf_on_patch'].update({'isdifferent':int(isdiff),
-                                          'diff_data': {
-                                                  
-                                                  'performance':performance_off_on,
-                                                  'corelations': corrs.tolist()
-                                                    #performance = dict() 
-                                                    #performance['recall'] = old_div(TP,(TP+FN))
-                                                    #performance['precision'] = old_div(TP,(TP+FP)) 
-                                                    #performance['accuracy'] = old_div((TP+TN),(TP+FP+FN+TN))
-                                                    #performance['f1_score'] = 2*TP/(2*TP+FP+FN)
-                                                    
-                                                                                                  
-                                                  
-                                                  
-                                                  
-                                                  },
-                                          'diff_timing': data['values']['cnmf_on_patch']['timer']
-                                          - self.comparison['cnmf_on_patch']['timer']
-                                        
-                                })
-            
+        init = data['values']['rig_shifts']['ourdata']
+        #we do this [()] because of REASONS
+        curr = self.comparison['rig_shifts']['ourdata']
+        diff = np.linalg.norm(np.asarray(init)-np.asarray(curr))/np.linalg.norm(init)
+        isdiff = diff < self.comparison['rig_shifts']['sensitivity']
+        self.information['values']['rig_shifts'].update({'isdifferent':int(isdiff),
+                              'diff_data': diff,
+                              'diff_timing': data['values']['rig_shifts']['timer']
+                              - self.comparison['rig_shifts']['timer']
+                            
+                    })
                     
-            #CNMF FULL FRAME
-                           
-                   n_frames_per_bin = 10
-                   A_gt= data['values']['cnmf_full_frame']['ourdata'][0] #A gt
-                   A_test = self.comparison['cnmf_full_frame']['ourdata'][0] #A test
-                   A_test=A_test.toarray() #coo sparse matrix
-                   A_gt = np.asarray(A_gt)   # list matrix
-                   C_gt= data['values']['cnmf_full_frame']['ourdata'][1] #C gt
-                   C_test = self.comparison['cnmf_full_frame']['ourdata'][1] #C test
-                   C_test=np.asarray(C_test)
-                   C_gt = np.asarray(C_gt)
-           #proceed to a trhreshold
-                   A_test_thr = cm.source_extraction.cnmf.spatial.threshold_components(A_test, dims_test, medw=None, thr_method='max', maxthr=0.2, nrgthr=0.99, extract_cc=True,
-                         se=None, ss=None, dview=dview) 
-                   A_gt_thr = cm.source_extraction.cnmf.spatial.threshold_components(A_gt, dims_gt, medw=None, thr_method='max', maxthr=0.2, nrgthr=0.99, extract_cc=True,
-                         se=None, ss=None, dview=dview) 
-                   #compute C using this A thr
-                   A_test_thr  = A_test_thr  > 0  
-
-                   size_neurons_test  = A_test_thr.sum(0)
-                   A_test_thr = A_test_thr[:,size_neurons_test>min_size_neuro]
-                   C_test_frame = C_test.shape[1]
-                   C_test_thr = C_test[size_neurons_test>min_size_neuro,:C_test_frame]
-                   #same for gt
-                   A_gt_thr  = A_gt_thr  > 0 
-                   print(A_test_thr.shape)
-                   print("\n")
-                   size_neurons_gt = A_gt_thr.sum(0)
-                    
-                   A_gt_thr = A_gt_thr[:,size_neurons_gt>min_size_neuro]
-                   C_gt_frame = C_gt.shape[1]
-                   C_gt_thr = C_gt[size_neurons_gt>min_size_neuro,:C_gt_frame]
-                   
-                   #we would also like the difference in the number of neurons
-                   self.comparison['diff_neurons'] = A_test_thr.shape[1] - A_gt_thr.shape[1] 
-                   
-                   print(self.comparison['diff_neurons'])
-                   
-                   C_test_thr = np.array([CC.reshape([-1,n_frames_per_bin]).max(1) for CC in C_test_thr])
-                   C_gt_thr = np.array([CC.reshape([-1,n_frames_per_bin]).max(1) for CC in C_gt_thr])
+                 
+        #plotting part
+        if len(curr) <= len(init):
+            for ie in range(0, len(curr)-1):
+                curr[ie][0] = init[ie][0]-curr[ie][0]
+                curr[ie][1] = init[ie][1]-curr[ie][1]
+        else :
+               for ie in range(0, len(init)-1):
+                curr[ie][0] = init[ie][0]-curr[ie][0]
+                curr[ie][1] = init[ie][1]-curr[ie][1]
+        fig = pl.figure()
+        pl.plot(curr)
+        pl.legend(['x shifts','y shifts'])
+        pl.xlabel('frames')
+        pl.ylabel('pixels')
+        fig.savefig(dr+str(i)+'/'+'rigidcorrection.pdf')
+        
+        
+        
 
 
-                   idx_tp_gt,idx_tp_comp, idx_fn_gt, idx_fp_comp, performance_off_on =  cm.base.rois.nf_match_neurons_in_binary_masks(
-                           A_gt_thr[:,:].reshape([dims_gt[0],dims_gt[1],-1],order = 'F').transpose([2,0,1])*1.
-                           ,A_test_thr[:,:].reshape([dims_test[0],dims_test[1],-1],order = 'F').transpose([2,0,1])*1.)
-                   
-                   #the pearson's correlation coefficient of the two Calcium activities thresholded
-                   #comparing Calcium activities of all the components that are defined by the matching algo as the same.
-                   corrs = np.array([scipy.stats.pearsonr(C_gt_thr[gt,:],C_test_thr[comp,:])[0] for gt,comp in zip(idx_tp_gt,idx_tp_comp)])
-                   
-                   
-                   isdiff = self.comparison['diff_neurons'] == 0
-                   isdiff = isdiff and np.linalg.norm(corrs) < self.comparison['cnmf_full_frame']['sensitivity'] 
-                       
-                   self.information['values']['cnmf_full_frame'].update({'isdifferent':int(isdiff),
-                                          'diff_data': {
-                                                  
-                                                  'performance':performance_off_on,
-                                                  'corelations':corrs.tolist()
-                                                    #performance = dict() 
-                                                    #performance['recall'] = old_div(TP,(TP+FN))
-                                                    #performance['precision'] = old_div(TP,(TP+FP)) 
-                                                    #performance['accuracy'] = old_div((TP+TN),(TP+FP+FN+TN))
-                                                    #performance['f1_score'] = 2*TP/(2*TP+FP+FN)
-                                                    
-                                                                                                  
-                                                  
-                                                  
-                                                  
-                                                  },
-                                          'diff_timing': data['values']['cnmf_on_patch']['timer']
-                                          - self.comparison['cnmf_on_patch']['timer']
+
+
+#for cnmf on patch
+
+
+
+#get the values
+        m = data['params']['gSig'][1]
+        min_size_neuro  = m*m*np.pi*2*avg_min_size_ratio
+               
+       
+        A_gt= data['values']['cnmf_on_patch']['ourdata'][0] #A gt
+        A_test = self.comparison['cnmf_on_patch']['ourdata'][0] #A test
+        A_test=A_test.toarray() #coo sparse matrix
+        A_gt = np.asarray(A_gt)   # list matrix
+        C_gt= data['values']['cnmf_on_patch']['ourdata'][1] #C gt
+        C_test = self.comparison['cnmf_on_patch']['ourdata'][1] #C test
+        C_test=np.asarray(C_test)
+        C_gt = np.asarray(C_gt)
+        
+        
+#proceed to a trhreshold
+        A_test_thr = cm.source_extraction.cnmf.spatial.threshold_components(A_test, dims_test, medw=None, thr_method='max', maxthr=0.2, nrgthr=0.99, extract_cc=True,
+             se=None, ss=None, dview=dview) 
+        A_gt_thr = cm.source_extraction.cnmf.spatial.threshold_components(A_gt, dims_gt, medw=None, thr_method='max', maxthr=0.2, nrgthr=0.99, extract_cc=True,
+             se=None, ss=None, dview=dview) 
+    
+       
+       
+        A_test_thr  = A_test_thr  > 0      
+        size_neurons_test  = A_test_thr.sum(0)
+        C_test_frame = C_test.shape[1]
+        C_test_thr = C_test[size_neurons_test>min_size_neuro,:C_test_frame]
+        A_gt_thr  = A_gt_thr  > 0  
+        size_neurons_gt = A_gt_thr.sum(0)
+        C_gt_frame = C_gt.shape[1]
+        C_gt_thr = C_gt[size_neurons_gt>min_size_neuro,:C_gt_frame] 
+       #we would also like the difference in the number of neurons   
+       #add the comparison with the cnmf and motion and params movie
+        self.comparison['diff_neurons'] = A_test_thr.shape[1] - A_gt_thr.shape[1] 
+        print(self.comparison['diff_neurons'])
+      
+        
+        
+        
+       #coputing the values
+        C_test_thr = np.array([CC.reshape([-1,n_frames_per_bin]).max(1) for CC in C_test_thr])
+        C_gt_thr = np.array([CC.reshape([-1,n_frames_per_bin]).max(1) for CC in C_gt_thr])
+        maskgt = A_gt_thr[:,:].reshape([dims_gt[0],dims_gt[1],-1],order = 'F').transpose([2,0,1])*1.
+        masktest = A_test_thr[:,:].reshape([dims_test[0],dims_test[1],-1],order = 'F').transpose([2,0,1])*1.
+        idx_tp_gt,idx_tp_comp, idx_fn_gt, idx_fp_comp, performance_off_on =  cm.base.rois.nf_match_neurons_in_binary_masks(maskgt,masktest)
+       #the pearson's correlation coefficient of the two Calcium activities thresholded
+       #comparing Calcium activities of all the components that are defined by the matching algo as the same.
+        corrs = np.array([scipy.stats.pearsonr(C_gt_thr[gt,:],C_test_thr[comp,:])[0] for gt,comp in zip(idx_tp_gt,idx_tp_comp)])
+        isdiff = self.comparison['diff_neurons'] == 0
+        isdiff = isdiff and np.linalg.norm(corrs) < self.comparison['cnmf_on_patch']['sensitivity'] 
+        
+        
+        
+       #PLotting
+        fig = pl.figure()
+        pl.rcParams['pdf.fonttype'] = 42
+        font = {'family' : 'Myriad Pro',
+                'weight' : 'regular',
+                'size'   : 20}
+        pl.rc('font', **font)
+        lp,hp = np.nanpercentile(Cn,[5,95])
+        pl.subplot(1,2,1)
+        pl.imshow(Cn,vmin=lp,vmax=hp, cmap = cmap)
+#        pl.colorbar()
+        [pl.contour(mm,levels=[0],colors='w',linewidths=1) for mm in masktest[idx_tp_comp]] 
+        [pl.contour(mm,levels=[0],colors='r',linewidths=1) for mm in maskgt[idx_tp_gt]] 
+        pl.title('MATCHES')
+        pl.axis('off')
+        pl.subplot(1,2,2)
+        pl.imshow(Cn,vmin=lp,vmax=hp, cmap = cmap)
+        [pl.contour(mm,levels=[0],colors='w',linewidths=1) for mm in masktest[idx_fp_comp]] 
+        [pl.contour(mm,levels=[0],colors='r',linewidths=1) for mm in maskgt[idx_fn_gt]] 
+        pl.title('FALSE POSITIVE (w), FALSE NEGATIVE (r)')
+        #pl.legend([comp_str,'GT'])
+        pl.axis('off')
+        fig.savefig(dr+i+'/'+'onpatch.pdf') 
+        
+        
+        
+       
+        #SAVING
+        self.information['values']['cnmf_on_patch'].update({'isdifferent':int(isdiff),
+                              'diff_data': {
+                                      
+                                      'performance':performance_off_on,
+                                      'corelations': corrs.tolist()
+                                        #performance = dict() 
+                                        #performance['recall'] = old_div(TP,(TP+FN))
+                                        #performance['precision'] = old_div(TP,(TP+FP)) 
+                                        #performance['accuracy'] = old_div((TP+TN),(TP+FP+FN+TN))
+                                        #performance['f1_score'] = 2*TP/(2*TP+FP+FN)
                                         
-                                })
-                  
-        i=2
-        for name in os.listdir('/Users/jeremie/CaImAn/comparison/tests'):
-            i+=1
+                                                                                      
+                                      
+                                      
+                                      
+                                      },
+                              'diff_timing': data['values']['cnmf_on_patch']['timer']
+                              - self.comparison['cnmf_on_patch']['timer']
+                            
+                    })
+
+        
+#CNMF FULL FRAME
+           
+
+#getting the value    
+        n_frames_per_bin = 10
+        A_gt= data['values']['cnmf_full_frame']['ourdata'][0] #A gt
+        A_test = self.comparison['cnmf_full_frame']['ourdata'][0] #A test
+        A_test=A_test.toarray() #coo sparse matrix
+        A_gt = np.asarray(A_gt)   # list matrix
+        C_gt= data['values']['cnmf_full_frame']['ourdata'][1] #C gt
+        C_test = self.comparison['cnmf_full_frame']['ourdata'][1] #C test
+        C_test=np.asarray(C_test)
+        C_gt = np.asarray(C_gt)
+        
+        
+        
+        
+   #proceed to a trhreshold
+        A_test_thr = cm.source_extraction.cnmf.spatial.threshold_components(A_test, dims_test, medw=None, thr_method='max', maxthr=0.2, nrgthr=0.99, extract_cc=True,
+             se=None, ss=None, dview=dview) 
+        A_gt_thr = cm.source_extraction.cnmf.spatial.threshold_components(A_gt, dims_gt, medw=None, thr_method='max', maxthr=0.2, nrgthr=0.99, extract_cc=True,
+             se=None, ss=None, dview=dview) 
+        
+        
+        
+        #compute C using this A thr
+        A_test_thr  = A_test_thr  > 0  
+        size_neurons_test  = A_test_thr.sum(0)
+        C_test_frame = C_test.shape[1]
+        C_test_thr = C_test[size_neurons_test>min_size_neuro,:C_test_frame]
+        #same for gt
+        A_gt_thr  = A_gt_thr  > 0 
+        size_neurons_gt = A_gt_thr.sum(0)
+        C_gt_frame = C_gt.shape[1]
+        C_gt_thr = C_gt[size_neurons_gt>min_size_neuro,:C_gt_frame]
+       #we would also like the difference in the number of neurons
+        self.comparison['diff_neurons'] = A_test_thr.shape[1] - A_gt_thr.shape[1] 
+        print(self.comparison['diff_neurons'])
+        #computing the values
+        C_test_thr = np.array([CC.reshape([-1,n_frames_per_bin]).max(1) for CC in C_test_thr])
+        C_gt_thr = np.array([CC.reshape([-1,n_frames_per_bin]).max(1) for CC in C_gt_thr])
+        maskgt = A_gt_thr[:,:].reshape([dims_gt[0],dims_gt[1],-1],order = 'F').transpose([2,0,1])*1.
+        masktest = A_test_thr[:,:].reshape([dims_test[0],dims_test[1],-1],order = 'F').transpose([2,0,1])*1.
+        idx_tp_gt,idx_tp_comp, idx_fn_gt, idx_fp_comp, performance_off_on =  cm.base.rois.nf_match_neurons_in_binary_masks(maskgt,masktest)
+       #the pearson's correlation coefficient of the two Calcium activities thresholded
+        #comparing Calcium activities of all the components that are defined by the matching algo as the same.
+        corrs = np.array([scipy.stats.pearsonr(C_gt_thr[gt,:],C_test_thr[comp,:])[0] for gt,comp in zip(idx_tp_gt,idx_tp_comp)])
+        isdiff = self.comparison['diff_neurons'] == 0
+        isdiff = isdiff and np.linalg.norm(corrs) < self.comparison['cnmf_full_frame']['sensitivity'] 
+        
+        
+        
+        
+        
+        
+        
+        
+        #PLOTTING
+        fig = pl.figure()
+        pl.rcParams['pdf.fonttype'] = 42
+        font = {'family' : 'Myriad Pro',
+                'weight' : 'regular',
+                'size'   : 20}
+        pl.rc('font', **font)
+        lp,hp = np.nanpercentile(Cn,[5,95])
+        pl.subplot(1,2,1)
+        pl.imshow(Cn,vmin=lp,vmax=hp, cmap = cmap)
+        [pl.contour(mm,levels=[0],colors='w',linewidths=1) for mm in masktest[idx_tp_comp]] 
+        [pl.contour(mm,levels=[0],colors='r',linewidths=1) for mm in maskgt[idx_tp_gt]] 
+        pl.title('MATCHES')
+        pl.axis('off')
+        pl.subplot(1,2,2)
+        pl.imshow(Cn,vmin=lp,vmax=hp, cmap = cmap)
+        [pl.contour(mm,levels=[0],colors='w',linewidths=1) for mm in masktest[idx_fp_comp]] 
+        [pl.contour(mm,levels=[0],colors='r',linewidths=1) for mm in maskgt[idx_fn_gt]] 
+        pl.title('FALSE POSITIVE (w), FALSE NEGATIVE (r)')
+        
+        #pl.legend([comp_str,'GT'])
+        pl.axis('off')
+        fig.savefig(dr+i+'/'+'fullframe.pdf')
+        
+        
+        
+
+          #saving 
+        self.information['values']['cnmf_full_frame'].update({'isdifferent':int(isdiff),
+                              'diff_data': {
+                                      
+                                      'performance':performance_off_on,
+                                      'corelations':corrs.tolist()
+                                        #performance = dict() 
+                                        #performance['recall'] = old_div(TP,(TP+FN))
+                                        #performance['precision'] = old_div(TP,(TP+FP)) 
+                                        #performance['accuracy'] = old_div((TP+TN),(TP+FP+FN+TN))
+                                        #performance['f1_score'] = 2*TP/(2*TP+FP+FN)
+                                        
+                                                                                      
+                                      
+                                      
+                                      
+                                      },
+                              'diff_timing': data['values']['cnmf_on_patch']['timer']
+                              - self.comparison['cnmf_on_patch']['timer']
+                            
+                    })
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        #SAving of everything
         sparsetolist(self)
-        i=str(i)
-        file_path="comparison/tests/"+i+".json"
+        file_path="comparison/tests/"+i+"/"+i+".json"
         json.dump(self.information, codecs.open(file_path, 'w', encoding='utf-8'),
                       separators=(',', ':'), sort_keys=True, indent=4) ### this saves the array in .json format
         
         
         
         
-                
-    def plot(self):
+    
+    
+
+    
+
+
+        
+    def plotall(self):
         
         """save the comparison object on a file
  
@@ -708,15 +905,23 @@ class Comparison(object):
 
         
         try:
-                
-                drect='/Users/jeremie/CaImAn/comparison/groundtruth/groundtruth.json'
-                data = codecs.open(drect, 'r', encoding='utf-8').read()
-                data = json.loads(data)
+              
+            drect='/Users/jeremie/CaImAn/comparison/groundtruth/groundtruth.json'
+            data = codecs.open(drect, 'r', encoding='utf-8').read()
+            data = json.loads(data)
+        except:
+            print('no groundtruth \n')
+            return 
+        try :
+            ziped = zf(dr+".zip")
+            ziped.extractall()
+            os.remove("comparison/groundtruth/groundtruth.json.zip")
+        except : 
+            print('already unzipped')
+        
                 
                                 
-        except:
-           print('no groundtruth \n')
-           return 
+        
         i=0
         count1=0
         count2=0
@@ -895,17 +1100,19 @@ app.go()
         fig, ay = pl.subplots(2,1,3)
         pl.show()
         """
-    
-    
-                
-                
-                
+        
         
             
     def see(self,filename=None):
         
         if filename == None:
             dr='comparison/groundtruth/groundtruth.json'
+            try :
+                ziped = zf(dr+".zip")
+                ziped.extractall()
+                os.remove("comparison/groundtruth/groundtruth.json.zip")
+            except : 
+                print('already unzipped')
         else:
             dr='comparison/tests/'
         
@@ -925,6 +1132,9 @@ app.go()
         see_it(data)
         
         
+        
+        
+        
            
   
 def see_it(data=None):
@@ -937,10 +1147,11 @@ def see_it(data=None):
                     print('\n')
                     see_it(val)
                 else:
-                    if not isinstance(val, list):
+                    if not isinstance(val, list) or len(val)<3 :
                         
                         print(key)
                         print(val)
+                    
                     
 def press(self,btn):
         pl.close()
@@ -1000,7 +1211,10 @@ def sparsetolist(self):
             self.information['values']['cnmf_on_patch']['ourdata'][1] = A.tolist()      
             
         
-        
+    
+    
+            
+    
             
             
                                     
