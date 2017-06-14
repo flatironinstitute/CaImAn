@@ -1,2 +1,6 @@
 peakutils
 tqdm
+tifffile
+numba 
+pyqtgraph 
+sima
