@@ -429,7 +429,7 @@ def setup_cluster(backend = 'local',n_processes = None,single_thread = False):
         except:
             print('C was not existing, creating one')
             
-        print("Stopping  cluster to avoid unnencessary use of memory....")
+        print("Stopping  cluster to avoid unnecessary use of memory....")
         
         sys.stdout.flush()
         
@@ -451,4 +451,3 @@ def setup_cluster(backend = 'local',n_processes = None,single_thread = False):
         dview = c[:len(c)]
     
     return c,dview,n_processes                 
-    

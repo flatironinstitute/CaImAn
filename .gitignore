@@ -7,3 +7,7 @@
 *.npz
 *.c
 *.so
+
+.idea/*
+build/*
+Yr*
