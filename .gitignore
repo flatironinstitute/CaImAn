@@ -158,6 +158,9 @@ Desktop.ini
 !/comparison/tests/proof
 /comparison/groundtruth/groundtruth.json
 
+#generated data from caiman
+/data_storage
+
 # Recycle Bin used on file shares
 $RECYCLE.BIN/
 
