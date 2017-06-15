@@ -7,10 +7,11 @@ See Also
 ------------
  
 Link 
- 
+
+.. image:: dev/kalfon/img/datacomparison.pdf
 """
-#\package Caiman/self.comparison
-#\image html X.jpg
+#\package CaImAn/comparison
+#\image html dev/kalfon/img/datacomparison.pdf
 #\version   1.0
 #\copyright GNU General Public License v2.0
 #\date Created on Tue Jun 30 21:01:17 2015
@@ -26,20 +27,50 @@ import json
 import codecs
 import glob 
 import zipfile as zf
-import appJar as gui
 import caiman as cm
 import scipy
 """
-   Comparison(object): class you instanciate to compare the different functions you are calling in your program.
- 
+   Comparison(object): It is used for comparison the modification on the CaImAn program
+   
+   
+   You need to compare your modification to the groundtruth and then rename the folder created as "proof" for it to be send in you next push request
+   
    Here it has been made for 3 different functions. for it to compare well you need to set your 
    ground truth with the same computer with which you are comparing the files
+   class you instanciate to compare the different parts of CaImAn 
+   
  
     
  
     Attributes
     ----------
     self : object
+        information(dictionary)
+            	cnmfull
+            	cnmpatch
+            	processor
+            	params
+            		each movie_params
+            	platform
+            	values
+            		cnmf on patch 
+            			sensitivity
+            			isdifferent
+            			timer
+            			ourdata
+            			diff_data
+            				performance
+            					f1_score
+            					accuracy
+            					precision
+            					recall
+            				correlations
+            					persons correlations 
+            		cnmf_full_frame
+            			same#
+            		rig_shifts
+            			same# without perfomance+ and corrs
+            		diff neurons
         see the linked image
     sensitivity: inside
         the user to change it manualy
@@ -51,11 +82,20 @@ import scipy
         
     save(istruth)
         save the comparison object on a file
+        
+    save_with_compare(self, istruth, params, dview, avg_min_size_ratio, n_frames_per_bin, dims_test, dims_gt, Cn, cmap)
+        the save functions to use ! 
+        
+    see(self,filename=None)
+        to look into a particular saved file
+        
+    plotall(self)
+        when you want to plot the variations of the different tests that have been compared according to the actual groundtruth
    
     See Also
     --------
     
-    .. image:: /Users/jeremie/CaImAn/dev/kalfon/img/datacomparison.png
+    .. image:: dev/kalfon/img/datacomparison.pdf
     """
 class Comparison(object):
 
@@ -118,7 +158,7 @@ class Comparison(object):
             	---------
             
              
-            	.. image:: CaImAn/dev/kalfon/img/datacomparison.png
+            	.. image:: CaImAn/dev/kalfon/img/datacomparison.pdf
             
              
                 """
@@ -404,8 +444,51 @@ class Comparison(object):
             
             
             
-    def save_with_compare(self, istruth=False, params=None, dview=None, avg_min_size_ratio=0, n_frames_per_bin = 10, dims_test = (170,170) , dims_gt = (170,170), Cn=None, cmap=None):
-        
+    def save_with_compare(self, istruth=False, params=None, dview=None, n_frames_per_bin = 10, dims_test = (80,60) , dims_gt = (80,60), Cn=None, cmap=None):
+        """save the comparison as well as the images of the precision recall calculations
+ 
+ 
+            depending on if we say this file will be ground truth or not, it wil be saved in either the tests or the groung truth folder
+            if saved in test, a comparison to groundtruth will be add to the object 
+            this comparison will be on 
+                data : a normized difference of the normalized value of the arrays
+                time : difference
+            in order for this function to work, you need to
+                previously give it the cnm objects after initializing them ( on patch and full frame)
+                give the values of the time and data 
+                have a groundtruth
+                
+ 
+            Parameters
+            -----------
+ 
+            self:  dictionnary
+               the object of this class tha tcontains every value
+            istruth: Boolean
+                if we want it ot be the ground truth
+            params:
+                movie parameters
+            dview : 
+                your dview object
+            n_frames_per_bin:
+                you need to know those data before
+                they have been given to the base/rois functions
+            dims_test:
+                you need to know those data before
+                they have been given to the base/rois functions
+            Cn: 
+                your correlation image
+            Cmap:
+                a particular colormap for your Cn
+             
+            	See Also
+            	---------
+            
+            Example of utilisation on Demo Pipeline
+            	.. image:: CaImAn/dev/kalfon/img/datacomparison.pdf
+            
+             
+                """
         
         
         
@@ -415,29 +498,12 @@ class Comparison(object):
             print('we need the paramters in order to save anything\n')
             return
         #actions on the sparse matrix
-        if not isinstance(self.cnmpatch, dict):
-            self.cnmpatch = self.cnmpatch.__dict__
-            self.cnmfull  =self.cnmfull.__dict__
-            #filtering of datas
-            dat = self.cnmpatch
-            dot={}
-            for keys in dat:
-                val= dat[keys] 
-                if not isinstance(val, scipy.sparse.coo.coo_matrix) or not isinstance(val,np.ndarray):
-                    dot[keys]=val
-            self.cnmpatch = dot
-            
-            dat = self.cnmfull
-            dot={}
-            for keys in dat:
-                val= dat[keys] 
-                if not isinstance(val, scipy.sparse.coo.coo_matrix) or not isinstance(val,np.ndarray):
-                    dot[keys]=val
-            self.cnmfull = dot    
           
-        
-        
-        
+          
+        cnm = self.cnmpatch.__dict__
+        cnmpatch = deletesparse(cnm)
+        cnm = self.cnmfull.__dict__
+        cnmfull = deletesparse(cnm)
         
         
         
@@ -454,11 +520,12 @@ class Comparison(object):
         #we store a big file which is containing everything ( INFORMATION)
         self.information ={
                 'platform': plat,
+                'time':dt,
                 'processor':pro,
                 'values':self.comparison,
                 'params': params,
-                'cnmfull':self.cnmfull,
-                'cnmpatch':self.cnmpatch,
+                'cnmfull':cnmfull,
+                'cnmpatch':cnmpatch,
                 'differences': {
                         'proc':None,
                         'params_movie':None,
@@ -483,8 +550,8 @@ class Comparison(object):
             else:
                print("nothing to remove\n")
                
-            sparsetolist(self) 
-            json.dump(self.information, codecs.open(file_path, 'w', encoding='utf-8'),
+            information = sparsetolist(self.information) 
+            json.dump(information, codecs.open(file_path, 'w', encoding='utf-8'),
                       separators=(',', ':'), sort_keys=True, indent=4) ### this saves the array in .json format  
                       
             #np.savez('comparison/groundtruth/groundtruth.npz', **self.information)
@@ -511,7 +578,8 @@ class Comparison(object):
                 print('we were not able to read the file to compare it\n')
                 sparsetolist(self)
                 file_path="comparison/tests/NC"+dt+".json"
-                json.dump(self.information, codecs.open(file_path, 'w', encoding='utf-8'),
+                information = sparsetolist(self.information) 
+                json.dump(information, codecs.open(file_path, 'w', encoding='utf-8'),
                       separators=(',', ':'), sort_keys=True, indent=4) ### this saves the array in .json format
             
                 return
@@ -527,32 +595,7 @@ class Comparison(object):
             
             
             
-            
-        """    
-         #getting the DATA FOR COMPARISONS   
-        if params ==None or self.cnmpatch == None or self.cnmfull == None:
-            print('we need the paramters in order to save anything\n')
-            return
-        #actions on the sparse matrix
-        self.cnmpatch = self.cnmpatch.__dict__
-        self.cnmfull  =self.cnmfull.__dict__
-        #filtering of datas
-        dat = self.cnmpatch
-        dot={}
-        for keys in dat:
-            val= dat[keys] 
-            if not isinstance(val, scipy.sparse.coo.coo_matrix) or not isinstance(val,np.ndarray):
-                dot[keys]=val
-        self.cnmpatch = dot
-        
-        dat = self.cnmfull
-        dot={}
-        for keys in dat:
-            val= dat[keys] 
-            if not isinstance(val, scipy.sparse.coo.coo_matrix) or not isinstance(val,np.ndarray):
-                dot[keys]=val
-        self.cnmfull = dot    
-        """    
+         
         
         
         
@@ -568,7 +611,7 @@ class Comparison(object):
                 
                 self.infomations['differences']['proc'] = True
                 #they need to be taken with the same initial parameters
-        """
+        
         if data['params']!=self.information['params']:
             print("you do not use the same movie parameters... Things can go wrong\n\n")
             print('you need to use the same paramters to compare your version of the code with the groundtruth one. look for the groundtruth paramters with the see() method\n')
@@ -579,7 +622,7 @@ class Comparison(object):
         if data['cnmfull']!=self.cnmfull:
             print('you do not use the same paramters in your cnmf full frame initialization\n')
             self.information['differences']['params_full'] = True
-            """
+            
    
     
     
@@ -625,9 +668,7 @@ class Comparison(object):
 
 
 #get the values
-        m = data['params']['gSig'][1]
-        min_size_neuro  = m*m*np.pi*2*avg_min_size_ratio
-               
+
        
         A_gt= data['values']['cnmf_on_patch']['ourdata'][0] #A gt
         A_test = self.comparison['cnmf_on_patch']['ourdata'][0] #A test
@@ -646,15 +687,11 @@ class Comparison(object):
              se=None, ss=None, dview=dview) 
     
        
-       
+        #we do not compute any min size of neurons
+        C_test_thr =C_test
+        C_gt_thr = C_gt
         A_test_thr  = A_test_thr  > 0      
-        size_neurons_test  = A_test_thr.sum(0)
-        C_test_frame = C_test.shape[1]
-        C_test_thr = C_test[size_neurons_test>min_size_neuro,:C_test_frame]
         A_gt_thr  = A_gt_thr  > 0  
-        size_neurons_gt = A_gt_thr.sum(0)
-        C_gt_frame = C_gt.shape[1]
-        C_gt_thr = C_gt[size_neurons_gt>min_size_neuro,:C_gt_frame] 
        #we would also like the difference in the number of neurons   
        #add the comparison with the cnmf and motion and params movie
         self.comparison['diff_neurons'] = A_test_thr.shape[1] - A_gt_thr.shape[1] 
@@ -682,17 +719,9 @@ class Comparison(object):
         pl.rcParams['pdf.fonttype'] = 42
         font = {'family' : 'Myriad Pro',
                 'weight' : 'regular',
-                'size'   : 20}
+                'size'   : 10}
         pl.rc('font', **font)
         lp,hp = np.nanpercentile(Cn,[5,95])
-        pl.subplot(1,2,1)
-        pl.imshow(Cn,vmin=lp,vmax=hp, cmap = cmap)
-#        pl.colorbar()
-        [pl.contour(mm,levels=[0],colors='w',linewidths=1) for mm in masktest[idx_tp_comp]] 
-        [pl.contour(mm,levels=[0],colors='r',linewidths=1) for mm in maskgt[idx_tp_gt]] 
-        pl.title('MATCHES')
-        pl.axis('off')
-        pl.subplot(1,2,2)
         pl.imshow(Cn,vmin=lp,vmax=hp, cmap = cmap)
         [pl.contour(mm,levels=[0],colors='w',linewidths=1) for mm in masktest[idx_fp_comp]] 
         [pl.contour(mm,levels=[0],colors='r',linewidths=1) for mm in maskgt[idx_fn_gt]] 
@@ -754,14 +783,9 @@ class Comparison(object):
         
         #compute C using this A thr
         A_test_thr  = A_test_thr  > 0  
-        size_neurons_test  = A_test_thr.sum(0)
-        C_test_frame = C_test.shape[1]
-        C_test_thr = C_test[size_neurons_test>min_size_neuro,:C_test_frame]
-        #same for gt
-        A_gt_thr  = A_gt_thr  > 0 
-        size_neurons_gt = A_gt_thr.sum(0)
-        C_gt_frame = C_gt.shape[1]
-        C_gt_thr = C_gt[size_neurons_gt>min_size_neuro,:C_gt_frame]
+        #we do not compute a threshold on the size of neurons
+        C_test_thr = C_test
+        C_gt_thr = C_gt
        #we would also like the difference in the number of neurons
         self.comparison['diff_neurons'] = A_test_thr.shape[1] - A_gt_thr.shape[1] 
         print(self.comparison['diff_neurons'])
@@ -789,16 +813,10 @@ class Comparison(object):
         pl.rcParams['pdf.fonttype'] = 42
         font = {'family' : 'Myriad Pro',
                 'weight' : 'regular',
-                'size'   : 20}
+                'size'   : 10}
         pl.rc('font', **font)
         lp,hp = np.nanpercentile(Cn,[5,95])
-        pl.subplot(1,2,1)
-        pl.imshow(Cn,vmin=lp,vmax=hp, cmap = cmap)
-        [pl.contour(mm,levels=[0],colors='w',linewidths=1) for mm in masktest[idx_tp_comp]] 
-        [pl.contour(mm,levels=[0],colors='r',linewidths=1) for mm in maskgt[idx_tp_gt]] 
-        pl.title('MATCHES')
         pl.axis('off')
-        pl.subplot(1,2,2)
         pl.imshow(Cn,vmin=lp,vmax=hp, cmap = cmap)
         [pl.contour(mm,levels=[0],colors='w',linewidths=1) for mm in masktest[idx_fp_comp]] 
         [pl.contour(mm,levels=[0],colors='r',linewidths=1) for mm in maskgt[idx_fn_gt]] 
@@ -842,9 +860,9 @@ class Comparison(object):
         
         
         #SAving of everything
-        sparsetolist(self)
         file_path="comparison/tests/"+i+"/"+i+".json"
-        json.dump(self.information, codecs.open(file_path, 'w', encoding='utf-8'),
+        information = sparsetolist(self.information) 
+        json.dump(information, codecs.open(file_path, 'w', encoding='utf-8'),
                       separators=(',', ':'), sort_keys=True, indent=4) ### this saves the array in .json format
         
         
@@ -859,28 +877,15 @@ class Comparison(object):
         
     def plotall(self):
         
-        """save the comparison object on a file
+        """Plots all the comparisons present in the tests folder if they have been computed with the same gt than the actual gt
  
- 
-            depending on if we say this file will be ground truth or not, it wil be saved in either the tests or the groung truth folder
-            if saved in test, a comparison to groundtruth will be add to the object 
-            this comparison will be on 
-                data : a normized difference of the normalized value of the arrays
-                time : difference
- 
+            
             Parameters
             -----------
  
             self:  dictionnary
                the object of this class tha tcontains every value
-            istruth: Boolean
-                if we want it ot be the ground truth
-             
-            	See Also
-            	---------
             
-             
-            	.. image:: /Users/jeremie/CaImAn/dev/kalfon/img/datacomparison.png
             
              
                 """
@@ -904,6 +909,13 @@ class Comparison(object):
         self.numb=[]
 
         
+        if not os._exists("comparison/groundtruth/groundtruth.json"):
+            try :
+                ziped = zf(dr+".zip")
+                ziped.extractall()
+                os.remove("comparison/groundtruth/groundtruth.json.zip")
+            except : 
+                print('not unzipped')
         try:
               
             drect='/Users/jeremie/CaImAn/comparison/groundtruth/groundtruth.json'
@@ -912,13 +924,6 @@ class Comparison(object):
         except:
             print('no groundtruth \n')
             return 
-        try :
-            ziped = zf(dr+".zip")
-            ziped.extractall()
-            os.remove("comparison/groundtruth/groundtruth.json.zip")
-        except : 
-            print('already unzipped')
-        
                 
                                 
         
@@ -1104,19 +1109,40 @@ app.go()
         
             
     def see(self,filename=None):
+        """shows you the important data about a certain test file ( just give the number or name)
+ 
+ 
+            if you give nothing it will give you back the groundtruth infos
+ 
+            Parameters
+            -----------
+ 
+            self:  dictionnary
+               the object of this class tha tcontains every value
+            filename:
+                ( just give the number or name)
+             
+            	See Also
+            	---------
+            
+             
+            	.. image:: /Users/jeremie/CaImAn/dev/kalfon/img/datacomparison.png
+            
+             
+                """
         
         if filename == None:
+          if not os._exists("comparison/groundtruth/groundtruth.json"):
             dr='comparison/groundtruth/groundtruth.json'
             try :
                 ziped = zf(dr+".zip")
                 ziped.extractall()
-                os.remove("comparison/groundtruth/groundtruth.json.zip")
             except : 
-                print('already unzipped')
+                print('not unzipped')
         else:
             dr='comparison/tests/'
         
-            dr=dr+filename+'.json'
+            dr=dr+filename+'/'+filename+'.json'
             print(dr)
         try:
             
@@ -1170,28 +1196,28 @@ def press(self,btn):
                     pl.show()
                     
             
-def sparsetolist(self):
+def sparsetolist(information):
 #actions on the sparse matrix
-        A = self.information['values']['cnmf_full_frame']['ourdata'][0]
+        A = information['values']['cnmf_full_frame']['ourdata'][0]
         if not isinstance(A, list):
             print(type(A))
             if not isinstance(A, np.ndarray):
                 A=A.toarray()
-            self.information['values']['cnmf_full_frame']['ourdata'][0] = A.tolist()
+            information['values']['cnmf_full_frame']['ourdata'][0] = A.tolist()
         
-        A = self.information['values']['cnmf_full_frame']['ourdata'][1]
+        A = information['values']['cnmf_full_frame']['ourdata'][1]
         if not isinstance(A, list):
             print(type(A))
             if not isinstance(A, np.ndarray):
                 A=A.toarray()
-            self.information['values']['cnmf_full_frame']['ourdata'][1] = A.tolist()
+            information['values']['cnmf_full_frame']['ourdata'][1] = A.tolist()
     
-        A = self.information['values']['cnmf_on_patch']['ourdata'][0]
+        A = information['values']['cnmf_on_patch']['ourdata'][0]
         if not isinstance(A, list):
             print(type(A))
             if not isinstance(A, np.ndarray):
                 A=A.toarray()
-            self.information['values']['cnmf_on_patch']['ourdata'][0] = A.tolist()
+            information['values']['cnmf_on_patch']['ourdata'][0] = A.tolist()
         """
         it=0
         for A in self.information['values']['pwrig_shifts']['ourdata']:
@@ -1203,15 +1229,28 @@ def sparsetolist(self):
             it+=1
             """
         
-        A = self.information['values']['cnmf_on_patch']['ourdata'][1]
+        A = information['values']['cnmf_on_patch']['ourdata'][1]
         if not isinstance(A, list):
             print(type(A))
             if not isinstance(A, np.ndarray):
                 A=A.toarray()
-            self.information['values']['cnmf_on_patch']['ourdata'][1] = A.tolist()      
+            information['values']['cnmf_on_patch']['ourdata'][1] = A.tolist()  
+        return information
             
-        
-    
+def deletesparse(cnm):
+            for keys in cnm:
+                val= cnm[keys] 
+                if isinstance(val, dict):
+                    val = deletesparse(val)
+                if not isinstance(val, scipy.sparse.coo.coo_matrix) and not isinstance(val,np.ndarray) and not isinstance(val, scipy.sparse.csc.csc_matrix) and not keys=='dview':
+                    print(type(val))
+                    cnm[keys]=val
+                else:
+                    
+                    cnm[keys]=None
+            return cnm
+            
+              
     
             
     

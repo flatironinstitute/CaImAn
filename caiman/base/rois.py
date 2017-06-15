@@ -105,7 +105,7 @@ def nf_match_neurons_in_binary_masks(masks_gt,masks_comp,thresh_cost=.7, min_dis
         indeces true pos ground truth mask 
 
     idx_tp_2:
-        indeces ground truth comp
+        indeces true pos comp
 
     idx_fn_1:
         indeces false neg
@@ -180,7 +180,7 @@ def nf_match_neurons_in_binary_masks(masks_gt,masks_comp,thresh_cost=.7, min_dis
         pl.subplot(1,2,2)
         pl.imshow(Cn,vmin=lp,vmax=hp, cmap = cmap)
         [pl.contour(mm,levels=[0],colors='w',linewidths=1) for mm in masks_comp[idx_fp_comp]] 
-        [pl.contour(mm,levels=[0],colors='r',linewidths=1) for mm in masks_gt[idx_fn]] 
+        [pl.contour(mm,levels=[0],colors='r',linewidths=1) for mm in masks_gt[idx_fn_gt]] 
         if labels is None:
             pl.title('FALSE POSITIVE (w), FALSE NEGATIVE (r)')
         else:
