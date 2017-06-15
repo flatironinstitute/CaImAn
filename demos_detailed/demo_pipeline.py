@@ -47,15 +47,21 @@ from skimage.external.tifffile import TiffFile
 import scipy
 import copy
 
+from caiman.utils.utils import download_demo
+from caiman.base.rois import extract_binary_masks_blob
+from caiman.utils.visualization import plot_contours, view_patches_bar
+from caiman.source_extraction.cnmf import cnmf as cnmf
+from caiman.motion_correction import MotionCorrect
+from caiman.components_evaluation import estimate_components_quality
+
+from caiman.components_evaluation import evaluate_components
+
 from comparison import comparison
 from caiman.motion_correction import tile_and_correct, motion_correction_piecewise
-from caiman.source_extraction.cnmf import cnmf as cnmf
-from caiman.components_evaluation import estimate_components_quality
-from caiman.motion_correction import MotionCorrect
-from caiman.components_evaluation import evaluate_components
-from caiman.utils.visualization import plot_contours, view_patches_bar
-from caiman.base.rois import extract_binary_masks_blob
-from caiman.utils.utils import download_demo
+
+
+
+
 
 #@params params_movie set parameters and create template by RIGID MOTION CORRECTION
 #params_movie = {'fname': ['/Users/jeremie/CaImAn/example_movies/demoSue2x.tif'],
