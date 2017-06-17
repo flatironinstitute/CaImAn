@@ -66,7 +66,7 @@ whole_field = True
 mask_all = whole_field
 is_tg = False
 gt_names = ['./LickingForAndrea/points_licking50z_1_200.mat']
-expt_names = ['./LickingForAndrea/licking50z_1_200.tif'] 
+expt_names = ['./LickingForAndrea/licking50z_1_200_ds.tif'] 
 expt_fold = [os.path.split(nm)[0].split('/')[1] for nm in gt_names]
 print(expt_names)
 print (expt_fold)
