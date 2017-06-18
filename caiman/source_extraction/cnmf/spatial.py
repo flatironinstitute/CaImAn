@@ -626,7 +626,7 @@ def threshold_components_parallel(pars):
 
     A_i, i, dims, medw, d, thr_method, se, ss, maxthr, nrgthr, extract_cc = pars
     #we reshape this one dimension column of the 2d components into the 2D that 
-    A_temp = np.reshape(A_i, dims, 'F')
+    A_temp = np.reshape(A_i, dims[::-1])
     #we apply a median filter of size medw
     A_temp = median_filter(A_temp, medw)
     if thr_method == 'max':

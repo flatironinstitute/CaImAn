@@ -13,6 +13,46 @@ from .utils.stats import mode_robust, mode_robust_fast
 from scipy.sparse import csc_matrix
 from scipy.stats import norm
 import scipy
+
+
+def estimate_noise_mode(traces,robust_std=False,use_mode_fast=False, return_all = False):
+    """ estimate the noise in the traces under assumption that signals are sparse and only positive. The last dimension should be time. 
+
+    """
+    if use_mode_fast:
+        md = mode_robust_fast(traces, axis=1)
+    else:
+        md = mode_robust(traces, axis=1)
+
+    ff1 = traces - md[:, None]
+    # only consider values under the mode to determine the noise standard deviation
+    ff1 = -ff1 * (ff1 < 0)
+    if robust_std:
+        # compute 25 percentile
+        ff1 = np.sort(ff1, axis=1)
+        ff1[ff1 == 0] = np.nan
+        Ns = np.round(np.sum(ff1 > 0, 1) * .5)
+        iqr_h = np.zeros(traces.shape[0])
+
+        for idx, el in enumerate(ff1):
+            iqr_h[idx] = ff1[idx, -Ns[idx]]
+
+        # approximate standard deviation as iqr/1.349
+        sd_r = 2 * iqr_h / 1.349
+
+    else:
+        Ns = np.sum(ff1 > 0, 1)
+        sd_r = np.sqrt(old_div(np.sum(ff1**2, 1), Ns))
+    
+    if return_all :
+        return md, sd_r    
+    else:
+        return sd_r    
+#
+
+
+
+
 #%%
 def compute_event_exceptionality(traces,robust_std=False,N=5,use_mode_fast=False):
     """

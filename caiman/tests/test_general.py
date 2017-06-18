@@ -1,0 +1,256 @@
+##@package demos  
+#\brief      for the user/programmer to understand and try the code
+#\details    all of other usefull functions (demos available on jupyter notebook) -*- coding: utf-8 -*- 
+#\version   1.0
+#\pre       EXample.First initialize the system.
+#\bug       
+#\warning   
+#\copyright GNU General Public License v2.0 
+#\date Created on Mon Nov 21 15:53:15 2016
+#\author agiovann
+#toclean
+
+from __future__ import division
+from __future__ import print_function
+from builtins import str
+import platform as plt
+import datetime
+import matplotlib.pyplot as pl
+import codecs
+import zipfile as zf
+import scipy
+from builtins import range
+
+import cv2
+import glob
+
+try:
+    cv2.setNumThreads(1)
+except:
+    print('Open CV is naturally single threaded')
+
+try:
+    if __IPYTHON__:
+        print((1))
+        # this is used for debugging purposes only. allows to reload classes
+        # when changed
+        get_ipython().magic('load_ext autoreload')
+        get_ipython().magic('autoreload 2')
+except NameError:
+    print('Not IPYTHON')
+    pass
+import caiman as cm
+import numpy as np
+import os
+import time
+import pylab as pl
+from caiman.source_extraction.cnmf import cnmf as cnmf
+from caiman.motion_correction import MotionCorrect
+from caiman.components_evaluation import estimate_components_quality
+from caiman.tests.comparison import comparison
+
+
+params_movie = {'fname':[u'/Users/jeremie/CaImAn/example_movies/demoMovieJ.tif'],
+                'max_shifts':(2,2), # maximum allow rigid shift (2,2)
+                'niter_rig':1,
+                'splits_rig':14, # for parallelization split the movies in  num_splits chuncks across time
+                'num_splits_to_process_rig':None, # if none all the splits are processed and the movie is saved
+                'strides': (48,48), # intervals at which patches are laid out for motion correction
+                'overlaps': (24,24), # overlap between pathes (size of patch strides+overlaps)
+                'splits_els':14, # for parallelization split the movies in  num_splits chuncks across time
+                'num_splits_to_process_els':[14,None], # if none all the splits are processed and the movie is saved
+                'upsample_factor_grid':3, # upsample factor to avoid smearing when merging patches
+                'max_deviation_rigid':1, #maximum deviation allowed for patch with respect to rigid shift
+                'p': 1, # order of the autoregressive system
+                'merge_thresh' : 0.8,  # merging threshold, max correlation allow
+                'rf' : 20,  # half-size of the patches in pixels. rf=25, patches are 50x50    20
+                'stride_cnmf' : 5,  # amounpl.it of overlap between the patches in pixels
+                'K' : 6,  #  number of components per patch §
+                'is_dendrites': False,  # if dendritic. In this case you need to set init_method to sparse_nmf
+                'init_method' : 'greedy_roi',
+                'gSig' : [6,6],  # expected half size of neurons
+                'alpha_snmf' : None,  # this controls sparsity
+                'final_frate' : 10,
+                'r_values_min_patch' : .7,  # threshold on space consistency
+                'fitness_min_patch' : -40,  # threshold on time variability
+# threshold on time variability (if nonsparse activity)
+                'fitness_delta_min_patch' : -40,
+                'Npeaks': 10,
+                'r_values_min_full' : .85,
+                'fitness_min_full' : - 50,
+                'fitness_delta_min_full' : - 50,
+                'only_init_patch':True,
+                'gnb':1,
+                'memory_fact':1,
+                'n_chunks':10
+                
+  }
+params_display={
+        'downsample_ratio':.2,
+        'thr_plot':0.9
+        }
+
+
+
+def test_general(params_movie, params_display):
+
+    #@params fname name of the movie 
+    fname = params_movie['fname']
+    niter_rig = params_movie['niter_rig']
+    max_shifts = params_movie['max_shifts']
+    splits_rig = params_movie['splits_rig']
+    num_splits_to_process_rig = params_movie['num_splits_to_process_rig']
+    strides = params_movie['strides']
+    overlaps = params_movie['overlaps']
+    splits_els = params_movie['splits_els'] 
+    num_splits_to_process_els = params_movie['num_splits_to_process_els']
+    upsample_factor_grid = params_movie['upsample_factor_grid'] 
+    max_deviation_rigid = params_movie['max_deviation_rigid']
+    
+    
+    m_orig = cm.load_movie_chain(fname[:1])
+    min_mov = cm.load(fname[0], subindices=range(400)).min()
+    dimensionvid = np.shape(m_orig)[1:]
+
+
+    
+    testbegin()
+
+
+################ RIG CORRECTION #################
+    t1 = time.time()
+    mc = MotionCorrect(fname, min_mov,
+                   max_shifts=max_shifts, niter_rig=niter_rig, splits_rig=splits_rig, 
+                   num_splits_to_process_rig=num_splits_to_process_rig, 
+                   strides= strides, overlaps= overlaps, splits_els=splits_els,
+                   num_splits_to_process_els=num_splits_to_process_els, 
+                   upsample_factor_grid=upsample_factor_grid, max_deviation_rigid=max_deviation_rigid, 
+                   shifts_opencv = True, nonneg_movie = True)
+    mc.motion_correct_rigid(save_movie=True)
+    m_rig = cm.load(mc.fname_tot_rig)
+    bord_px_rig = np.ceil(np.max(mc.shifts_rig)).astype(np.int)
+    testrig(mc.shifts_rig, t=time.time() - t1)
+###########################################    
+    
+
+
+
+    if not params_movie.has_key('max_shifts'):
+        fnames = params_movie['fname']
+        border_to_0 = 0
+    else:#elif not params_movie.has_key('overlaps'):
+        fnames = [mc.fname_tot_rig]
+        border_to_0 = bord_px_rig
+        m_els = m_rig
+    
+    idx_xy = None
+    add_to_movie = -np.nanmin(m_els) + 1  # movie must be positive
+    remove_init = 0
+    downsample_factor = 1 
+    base_name = fname[0].split('/')[-1][:-4]
+    name_new = cm.save_memmap_each(fnames, base_name=base_name, resize_fact=(
+        1, 1, downsample_factor), remove_init=remove_init, idx_xy=idx_xy, add_to_movie=add_to_movie, border_to_0=border_to_0)
+    name_new.sort()
+    
+    
+    if len(name_new) > 1:
+        fname_new = cm.save_memmap_join(
+            name_new, base_name='Yr', n_chunks=params_movie['n_chunks'], dview=None)
+    else:
+        print('One file only, not saving!')
+        fname_new = name_new[0]
+    
+    
+    Yr, dims, T = cm.load_memmap(fname_new)
+    d1, d2 = dims
+    images = np.reshape(Yr.T, [T] + list(dims), order='F')
+    Y = np.reshape(Yr, dims + (T,), order='F')
+    
+    if np.min(images) < 0:
+        #TODO: should do this in an automatic fashion with a while loop at the 367 line
+        raise Exception('Movie too negative, add_to_movie should be larger')
+    if np.sum(np.isnan(images)) > 0:
+        #TODO: same here
+        raise Exception('Movie contains nan! You did not remove enough borders')
+    
+    Cn = cm.local_correlations(Y)
+    Cn[np.isnan(Cn)] = 0
+    p = params_movie['p']  
+    merge_thresh= params_movie['merge_thresh'] 
+    rf = params_movie['rf']  
+    stride_cnmf = params_movie['stride_cnmf'] 
+    K =  params_movie['K'] 
+    init_method = params_movie['init_method']
+    gSig = params_movie['gSig']  
+    alpha_snmf = params_movie['alpha_snmf']  
+    final_frate = params_movie['final_frate']
+    
+    
+    if params_movie['is_dendrites'] == True:
+        if params_movie['init_method'] is not 'sparse_nmf':
+            raise Exception('dendritic requires sparse_nmf')
+        if params_movie['alpha_snmf'] is None:
+            raise Exception('need to set a value for alpha_snmf')
+            
+            
+################ CNMF PART PATCH #################
+    t1 = time.time()
+    cnm = cnmf.CNMF(k=K, gSig=gSig, merge_thresh=params_movie['merge_thresh'], p=params_movie['p'], rf=rf, stride=stride_cnmf, memory_fact=params_movie['memory_fact'],
+                    method_init=init_method, alpha_snmf=alpha_snmf, only_init_patch=params_movie['only_init_patch'], gnb=params_movie['gnb'], method_deconvolution='oasis')
+    cnm = cnm.fit(images)
+    A_tot = cnm.A
+    C_tot = cnm.C
+    YrA_tot = cnm.YrA
+    b_tot = cnm.b
+    f_tot = cnm.f
+    testcnmf(cnm.copy(), t=time.time() - t1,dims=dimensionvid)
+#################### ########################
+    
+    print(('Number of components:' + str(A_tot.shape[-1])))
+    pl.figure()
+    final_frate = params_movie['final_frate']
+    r_values_min = params_movie['r_values_min_patch']  # threshold on space consistency
+    fitness_min = params_movie['fitness_delta_min_patch']  # threshold on time variability
+    fitness_delta_min = params_movie['fitness_delta_min_patch']
+    Npeaks =params_movie['Npeaks']
+    
+    traces = C_tot + YrA_tot
+
+    idx_components, idx_components_bad = estimate_components_quality(
+        traces, Y, A_tot, C_tot, b_tot, f_tot, final_frate=final_frate, Npeaks=Npeaks, r_values_min=r_values_min, fitness_min=fitness_min, fitness_delta_min=fitness_delta_min)
+
+
+    A_tot = A_tot.tocsc()[:, idx_components]
+    C_tot = C_tot[idx_components]
+    
+    
+################ CNMF PART FULL #################
+    t1 = time.time()
+    cnm = cnmf.CNMF( k=A_tot.shape, gSig=gSig, merge_thresh=merge_thresh, p=p, Ain=A_tot, Cin=C_tot,
+                    f_in=f_tot, rf=None, stride=None, method_deconvolution='oasis')
+    cnm = cnm.fit(images)
+    testcnmf(cnm.copy(), t =time.time() - t1,dims=dimensionvid)
+#################### ########################
+
+    log_files = glob.glob('*_LOG_*')
+    for log_file in log_files:
+        os.remove(log_file)
+
+
+
+
+def testbegin():
+    
+    
+    return
+
+def testrig(rig,t):
+    
+    
+    return
+
+def testcnmf(cnm,t,dims):
+    A_test = cnm.A
+    
+    cnm = self.cnmpatch.__dict__
+    cnmpatch = deletesparse(cnm)

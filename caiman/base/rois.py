@@ -120,7 +120,7 @@ def nf_match_neurons_in_binary_masks(masks_gt,masks_comp,thresh_cost=.7, min_dis
     ncomps,d1,d2 = np.shape(masks_gt)
     dims = d1,d2
     #transpose to have a list of components, then reshaping it to have a 1D matrix red in the Fortran style
-    A_ben = scipy.sparse.csc_matrix(np.reshape(masks_gt[:].transpose([1,2,0]),(np.prod(dims),-1,),order='F'))
+    A_ben = scipy.sparse.csc_matrix(np.reshape(masks_gt[:].transpose([1,2, 0]),(np.prod(dims),-1,),order='F'))
     A_cnmf = scipy.sparse.csc_matrix(np.reshape(masks_comp[:].transpose([1,2,0]),(np.prod(dims),-1,),order='F'))
     #have the center if mass of each element of the two masks
     cm_ben = [ scipy.ndimage.center_of_mass(mm) for mm in masks_gt]

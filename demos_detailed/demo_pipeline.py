@@ -145,7 +145,7 @@ from caiman.motion_correction import tile_and_correct, motion_correction_piecewi
 
 
 params_movie = {'fname':[u'/Users/jeremie/CaImAn/example_movies/demoMovieJ.tif'],
-                'max_shifts':(1,1), # maximum allow rigid shift (2,2)
+                'max_shifts':(2,2), # maximum allow rigid shift (2,2)
                 'niter_rig':1,
                 'splits_rig':14, # for parallelization split the movies in  num_splits chuncks across time
                 'num_splits_to_process_rig':None, # if none all the splits are processed and the movie is saved
@@ -157,9 +157,9 @@ params_movie = {'fname':[u'/Users/jeremie/CaImAn/example_movies/demoMovieJ.tif']
                 'max_deviation_rigid':1, #maximum deviation allowed for patch with respect to rigid shift
                 'p': 1, # order of the autoregressive system
                 'merge_thresh' : 0.8,  # merging threshold, max correlation allow
-                'rf' : 14,  # half-size of the patches in pixels. rf=25, patches are 50x50    20
+                'rf' : 20,  # half-size of the patches in pixels. rf=25, patches are 50x50    20
                 'stride_cnmf' : 5,  # amounpl.it of overlap between the patches in pixels
-                'K' : 5,  #  number of components per patch §
+                'K' : 6,  #  number of components per patch §
                 'is_dendrites': False,  # if dendritic. In this case you need to set init_method to sparse_nmf
                 'init_method' : 'greedy_roi',
                 'gSig' : [6,6],  # expected half size of neurons
@@ -511,7 +511,7 @@ b_tot = cnm.b
 f_tot = cnm.f
 sn_tot = cnm.sn
 comp.comparison['cnmf_on_patch']['timer'] = time.time() - t1
-comp.comparison['cnmf_on_patch']['ourdata'] = [cnm.A,cnm.C]
+comp.comparison['cnmf_on_patch']['ourdata'] = [cnm.A.copy(),cnm.C.copy()]
 print(('Number of components:' + str(A_tot.shape[-1])))
 #%%
 pl.figure()
@@ -542,10 +542,9 @@ C_tot = C_tot[idx_components]
 t1 = time.time()
 cnm = cnmf.CNMF(n_processes, k=A_tot.shape, gSig=gSig, merge_thresh=merge_thresh, p=p, dview=dview, Ain=A_tot, Cin=C_tot,
                 f_in=f_tot, rf=None, stride=None, method_deconvolution='oasis')
-comp.cnmfull = copy.copy(cnm)
 cnm = cnm.fit(images)
 comp.comparison['cnmf_full_frame']['timer'] = time.time() - t1
-comp.comparison['cnmf_full_frame']['ourdata'] = [cnm.A,cnm.C]
+comp.comparison['cnmf_full_frame']['ourdata'] = [cnm.A.copy(),cnm.C.copy()]
 #%%
 A, C, b, f, YrA, sn = cnm.A, cnm.C, cnm.b, cnm.f, cnm.YrA, cnm.sn
 #%% again recheck quality of components, stricter criteria
@@ -566,7 +565,7 @@ np.savez(os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:
          C=C, b=b, f=f, YrA=YrA, sn=sn, d1=d1, d2=d2, idx_components=idx_components, idx_components_bad=idx_components_bad,
          fitness_raw=fitness_raw, fitness_delta=fitness_delta, r_values=r_values)
 #we save it
-comp.save_with_compare(istruth=True, params=params_movie, Cn=Cn, dview=dview)
+comp.save_with_compare(istruth=False, params=params_movie, Cn=Cn, dview=dview)
 #%%
 #TODO: show screenshot 14
 pl.subplot(1, 2, 1)
