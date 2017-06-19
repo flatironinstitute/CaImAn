@@ -13,12 +13,6 @@
 from __future__ import division
 from __future__ import print_function
 from builtins import str
-import platform as plt
-import datetime
-import matplotlib.pyplot as pl
-import codecs
-import zipfile as zf
-import scipy
 from builtins import range
 
 import cv2
@@ -44,12 +38,16 @@ import numpy as np
 import os
 import time
 import pylab as pl
+import copy
 from caiman.source_extraction.cnmf import cnmf as cnmf
 from caiman.motion_correction import MotionCorrect
 from caiman.components_evaluation import estimate_components_quality
 from caiman.tests.comparison import comparison
 
 
+
+
+#GLOBAL VAR
 params_movie = {'fname':[u'/Users/jeremie/CaImAn/example_movies/demoMovieJ.tif'],
                 'max_shifts':(2,2), # maximum allow rigid shift (2,2)
                 'niter_rig':1,
@@ -83,8 +81,7 @@ params_movie = {'fname':[u'/Users/jeremie/CaImAn/example_movies/demoMovieJ.tif']
                 'gnb':1,
                 'memory_fact':1,
                 'n_chunks':10
-                
-  }
+                }
 params_display={
         'downsample_ratio':.2,
         'thr_plot':0.9
@@ -92,9 +89,11 @@ params_display={
 
 
 
-def test_general(params_movie, params_display):
+def test_general():
 
     #@params fname name of the movie 
+    global params_movie
+    global params_diplay
     fname = params_movie['fname']
     niter_rig = params_movie['niter_rig']
     max_shifts = params_movie['max_shifts']
@@ -110,12 +109,8 @@ def test_general(params_movie, params_display):
     
     m_orig = cm.load_movie_chain(fname[:1])
     min_mov = cm.load(fname[0], subindices=range(400)).min()
-    dimensionvid = np.shape(m_orig)[1:]
-
-
-    
-    testbegin()
-
+    comp=comparison.Comparison()
+    comp.dims = np.shape(m_orig)[1:]
 
 ################ RIG CORRECTION #################
     t1 = time.time()
@@ -129,7 +124,8 @@ def test_general(params_movie, params_display):
     mc.motion_correct_rigid(save_movie=True)
     m_rig = cm.load(mc.fname_tot_rig)
     bord_px_rig = np.ceil(np.max(mc.shifts_rig)).astype(np.int)
-    testrig(mc.shifts_rig, t=time.time() - t1)
+    comp.comparison['rig_shifts']['timer'] = time.time() - t1
+    comp.comparison['rig_shifts']['ourdata'] = mc.shifts_rig 
 ###########################################    
     
 
@@ -197,13 +193,15 @@ def test_general(params_movie, params_display):
     t1 = time.time()
     cnm = cnmf.CNMF(k=K, gSig=gSig, merge_thresh=params_movie['merge_thresh'], p=params_movie['p'], rf=rf, stride=stride_cnmf, memory_fact=params_movie['memory_fact'],
                     method_init=init_method, alpha_snmf=alpha_snmf, only_init_patch=params_movie['only_init_patch'], gnb=params_movie['gnb'], method_deconvolution='oasis')
+    comp.cnmpatch  = copy.copy(cnm)
     cnm = cnm.fit(images)
     A_tot = cnm.A
     C_tot = cnm.C
     YrA_tot = cnm.YrA
     b_tot = cnm.b
     f_tot = cnm.f
-    testcnmf(cnm.copy(), t=time.time() - t1,dims=dimensionvid)
+    comp.comparison['cnmf_on_patch']['timer'] = time.time() - t1
+    comp.comparison['cnmf_on_patch']['ourdata'] = [cnm.A.copy(),cnm.C.copy()]
 #################### ########################
     
     print(('Number of components:' + str(A_tot.shape[-1])))
@@ -229,28 +227,99 @@ def test_general(params_movie, params_display):
     cnm = cnmf.CNMF( k=A_tot.shape, gSig=gSig, merge_thresh=merge_thresh, p=p, Ain=A_tot, Cin=C_tot,
                     f_in=f_tot, rf=None, stride=None, method_deconvolution='oasis')
     cnm = cnm.fit(images)
-    testcnmf(cnm.copy(), t =time.time() - t1,dims=dimensionvid)
+    comp.comparison['cnmf_full_frame']['timer'] = time.time() - t1
+    comp.comparison['cnmf_full_frame']['ourdata'] = [cnm.A.copy(),cnm.C.copy()]
 #################### ########################
-
+    comp.save_with_compare(istruth=False, params=params_movie, Cn=Cn)
     log_files = glob.glob('*_LOG_*')
     for log_file in log_files:
         os.remove(log_file)
 
 
-
+"""
 
 def testbegin():
     
-    
-    return
+        dt = datetime.datetime.today()
+        dt=str(dt)
+        plat=plt.platform()
+        plat=str(plat)
+        pro=plt.processor()
+        pro=str(pro)
+        #we store a big file which is containing everything ( INFORMATION)
+        global information
+        global params_movie
+        information ={
+                'platform': plat,
+                'time':dt,
+                'processor':pro,
+                'params': params_movie,
+                'cnmfull':None,
+                'cnmpatch':None,
+                'differences': {
+                        'proc':None,
+                        'params_movie':None,
+                        'params_patch':None,
+                        'params_full':None}
+                }
+        file_path="comparison/tests/"  
+        if os._exists(file_path):
+               os.remove(file_path)
+               os.makedirs(file_path) 
+        
+        
+        try:
+            with np.load('comparison/groundtruth.npz') as data:
+                paramsgt = data
+        except:
+            print('you do not have groundtruth, look for it on github\n')
+            return
+        
+        if paramsgt['params']!=information['params']:
+            print("you do not use the same movie parameters... Things can go wrong\n\n")
+            print('you need to use the same paramters to compare your version of the code with the groundtruth one. look for the groundtruth paramters with the see() method\n')
+            information['differences']['params_movie'] = True
+            
+            
+            
+        if paramsgt['processor']!=information['processor']:
+                print("you don't have the same processor than groundtruth.. the time difference can vary because of that\n try recreate your own groundtruth before testing\n")
+                information['differences']['proc'] = True
+        return
+        
+        
 
 def testrig(rig,t):
     
     
     return
 
-def testcnmf(cnm,t,dims):
+def testcnmf(cnm,t,dims,testparam =False):
     A_test = cnm.A
     
     cnm = self.cnmpatch.__dict__
     cnmpatch = deletesparse(cnm)
+    try:
+            with np.load('comparison/groundtruth.npz') as data:
+                paramsgt = data
+        except:
+            print('you do not have groundtruth, look for it on github\n')
+            return
+    
+    
+    
+def end(){
+        
+        
+        
+        
+        
+        
+        
+        filename='comparison/tests.npz'
+        np.savez(filename,information= self.information 
+                  , A_full = self.comparison['cnmf_full_frame']['ourdata'][0],C_full = self.comparison['cnmf_full_frame']['ourdata'][1]
+                  ,A_patch = self.comparison['cnmf_on_patch']['ourdata'][0],C_patch= self.comparison['cnmf_on_patch']['ourdata'][1]
+                  ,rig_shifts = self.comparison['rig_shifts']['ourdata'])  
+        }
+"""

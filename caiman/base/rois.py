@@ -163,7 +163,7 @@ def nf_match_neurons_in_binary_masks(masks_gt,masks_comp,thresh_cost=.7, min_dis
         pl.rcParams['pdf.fonttype'] = 42
         font = {'family' : 'Myriad Pro',
                 'weight' : 'regular',
-                'size'   : 20}
+                'size'   : 10}
         pl.rc('font', **font)
         lp,hp = np.nanpercentile(Cn,[5,95])
         pl.subplot(1,2,1)
