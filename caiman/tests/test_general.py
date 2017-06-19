@@ -63,7 +63,7 @@ params_movie = {'fname':[u'/Users/jeremie/CaImAn/example_movies/demoMovieJ.tif']
                 'merge_thresh' : 0.8,  # merging threshold, max correlation allow
                 'rf' : 20,  # half-size of the patches in pixels. rf=25, patches are 50x50    20
                 'stride_cnmf' : 5,  # amounpl.it of overlap between the patches in pixels
-                'K' : 6,  #  number of components per patch §
+                'K' : 6,  #  number of components per patch 
                 'is_dendrites': False,  # if dendritic. In this case you need to set init_method to sparse_nmf
                 'init_method' : 'greedy_roi',
                 'gSig' : [6,6],  # expected half size of neurons
@@ -114,14 +114,17 @@ def test_general():
 
 ################ RIG CORRECTION #################
     t1 = time.time()
-    mc = MotionCorrect(fname, min_mov,
-                   max_shifts=max_shifts, niter_rig=niter_rig, splits_rig=splits_rig, 
-                   num_splits_to_process_rig=num_splits_to_process_rig, 
-                   strides= strides, overlaps= overlaps, splits_els=splits_els,
-                   num_splits_to_process_els=num_splits_to_process_els, 
-                   upsample_factor_grid=upsample_factor_grid, max_deviation_rigid=max_deviation_rigid, 
-                   shifts_opencv = True, nonneg_movie = True)
-    mc.motion_correct_rigid(save_movie=True)
+    for each_file in fname:
+        mc = MotionCorrect(each_file, min_mov,
+                       max_shifts=max_shifts, niter_rig=niter_rig
+                       , splits_rig=splits_rig, 
+                       num_splits_to_process_rig=num_splits_to_process_rig, 
+                       strides= strides, overlaps= overlaps, splits_els=splits_els,
+                       num_splits_to_process_els=num_splits_to_process_els, 
+                       upsample_factor_grid=upsample_factor_grid
+                       , max_deviation_rigid=max_deviation_rigid, 
+                       shifts_opencv = True, nonneg_movie = True)
+        mc.motion_correct_rigid(save_movie=True)
     m_rig = cm.load(mc.fname_tot_rig)
     bord_px_rig = np.ceil(np.max(mc.shifts_rig)).astype(np.int)
     comp.comparison['rig_shifts']['timer'] = time.time() - t1
@@ -145,7 +148,8 @@ def test_general():
     downsample_factor = 1 
     base_name = fname[0].split('/')[-1][:-4]
     name_new = cm.save_memmap_each(fnames, base_name=base_name, resize_fact=(
-        1, 1, downsample_factor), remove_init=remove_init, idx_xy=idx_xy, add_to_movie=add_to_movie, border_to_0=border_to_0)
+        1, 1, downsample_factor), remove_init=remove_init,
+            idx_xy=idx_xy, add_to_movie=add_to_movie, border_to_0=border_to_0)
     name_new.sort()
     
     
@@ -191,8 +195,8 @@ def test_general():
             
 ################ CNMF PART PATCH #################
     t1 = time.time()
-    cnm = cnmf.CNMF(k=K, gSig=gSig, merge_thresh=params_movie['merge_thresh'], p=params_movie['p'], rf=rf, stride=stride_cnmf, memory_fact=params_movie['memory_fact'],
-                    method_init=init_method, alpha_snmf=alpha_snmf, only_init_patch=params_movie['only_init_patch'], gnb=params_movie['gnb'], method_deconvolution='oasis')
+    cnm = cnmf.CNMF(n_processes=1, k=K, gSig=gSig, merge_thresh=params_movie['merge_thresh'], p=params_movie['p'], dview=None, rf=rf, stride=stride_cnmf, memory_fact=params_movie['memory_fact'],
+                method_init=init_method, alpha_snmf=alpha_snmf, only_init_patch=params_movie['only_init_patch'], gnb=params_movie['gnb'], method_deconvolution='oasis')
     comp.cnmpatch  = copy.copy(cnm)
     cnm = cnm.fit(images)
     A_tot = cnm.A
@@ -205,7 +209,6 @@ def test_general():
 #################### ########################
     
     print(('Number of components:' + str(A_tot.shape[-1])))
-    pl.figure()
     final_frate = params_movie['final_frate']
     r_values_min = params_movie['r_values_min_patch']  # threshold on space consistency
     fitness_min = params_movie['fitness_delta_min_patch']  # threshold on time variability
@@ -215,7 +218,9 @@ def test_general():
     traces = C_tot + YrA_tot
 
     idx_components, idx_components_bad = estimate_components_quality(
-        traces, Y, A_tot, C_tot, b_tot, f_tot, final_frate=final_frate, Npeaks=Npeaks, r_values_min=r_values_min, fitness_min=fitness_min, fitness_delta_min=fitness_delta_min)
+        traces, Y, A_tot, C_tot, b_tot, f_tot, final_frate=final_frate,
+        Npeaks=Npeaks, r_values_min=r_values_min, fitness_min=fitness_min, 
+        fitness_delta_min=fitness_delta_min)
 
 
     A_tot = A_tot.tocsc()[:, idx_components]
@@ -224,7 +229,7 @@ def test_general():
     
 ################ CNMF PART FULL #################
     t1 = time.time()
-    cnm = cnmf.CNMF( k=A_tot.shape, gSig=gSig, merge_thresh=merge_thresh, p=p, Ain=A_tot, Cin=C_tot,
+    cnm = cnmf.CNMF(n_processes=1, k=A_tot.shape, gSig=gSig, merge_thresh=merge_thresh, p=p, Ain=A_tot, Cin=C_tot,
                     f_in=f_tot, rf=None, stride=None, method_deconvolution='oasis')
     cnm = cnm.fit(images)
     comp.comparison['cnmf_full_frame']['timer'] = time.time() - t1
@@ -234,6 +239,19 @@ def test_general():
     log_files = glob.glob('*_LOG_*')
     for log_file in log_files:
         os.remove(log_file)
+
+
+
+############ assertions ##################
+    assert comp.information['differences']['params_movie'],"you ned to set the same movie paramters than the ground truth to have a real comparison (use the comp.see() function to explore it)"
+    assert comp.information['differences']['params_cnm'],"you need to set the same cnmf paramters than the ground truth to have a real comparison (use the comp.see() function to explore it)"
+    assert comp.information['diff']['rig']['isdifferent'],"the rigid shifts are different from the groundtruth"
+    assert comp.information['diff']['cnmpatch']['isdifferent'],"the cnmf on patch produces different  results than the groundtruth"
+    assert comp.information['diff']['cnmfull']['isdifferent'],"the cnmf full frame produces different  results than the groundtruth"
+
+
+
+
 
 
 """

@@ -136,9 +136,9 @@ class Comparison(object):
                          }
 
         self.cnmpatch=None
+        self.information =None   
             
-            
-            
+        
             
             
             
@@ -190,9 +190,8 @@ class Comparison(object):
              
                 """
          #getting the DATA FOR COMPARISONS   
-        if params ==None or self.cnmpatch == None :
-            print('we need the paramters in order to save anything\n')
-            return
+        assert (params !=None or self.cnmpatch != None)
+        print('we need the paramters in order to save anything\n')
         #actions on the sparse matrix
         cnm = self.cnmpatch.__dict__
         cnmpatch = deletesparse(cnm)
@@ -219,7 +218,7 @@ class Comparison(object):
                                 }
                 
                 }
-        file_path="comparison/groundtruth.npz"
+        file_path="caiman/tests/comparison/groundtruth.npz"
         
 
         
@@ -250,7 +249,7 @@ class Comparison(object):
             except (IOError, OSError) : #if we cannot manage to open it or it doesnt exist:
                 #we save but we explain why there were a problem
                 print('we were not able to read the file to compare it\n')
-                file_path="comparison/tests/NC"+dt+".json"
+                file_path="comparison/tests/NC"+dt+".npz"
                 np.savez(file_path,information= information 
                               , A_full = self.comparison['cnmf_full_frame']['ourdata'][0],C_full = self.comparison['cnmf_full_frame']['ourdata'][1]
                               ,A_patch = self.comparison['cnmf_on_patch']['ourdata'][0],C_patch= self.comparison['cnmf_on_patch']['ourdata'][1]
@@ -258,12 +257,12 @@ class Comparison(object):
                 return
         #creating the FOLDER to store our data
         i=0
-        dr='comparison/tests/'
+        dr='caiman/tests/comparison/tests/'
         for name in os.listdir(dr):
              i+=1
         i =str(i)
-        if not os.path.exists(dr+'/'+i):
-            os.makedirs(dr+'/'+i)  
+        if not os.path.exists(dr+i):
+            os.makedirs(dr+i)  
         information.update({'diff':{}})   
         information.update({'differences':{
                 'proc':False,
@@ -296,7 +295,7 @@ class Comparison(object):
         
 ##############################for cnmf on patch     
         information['diff'].update({
-                'cnmptach': cnmf(Cn=Cn, A_gt = A_patch,
+                'cnmpatch': cnmf(Cn=Cn, A_gt = A_patch,
                    A_test=self.comparison['cnmf_on_patch']['ourdata'][0],
                    C_gt = C_patch,
                    C_test = self.comparison['cnmf_on_patch']['ourdata'][1],
@@ -320,15 +319,13 @@ class Comparison(object):
         pl.close()        
         
 #####################SAving of everything
-        file_path="comparison/tests/"+i+"/"+i+".npz"
+        file_path="caiman/tests/comparison/tests/"+i+"/"+i+".npz"
         np.savez(file_path,information= information 
                               , A_full = self.comparison['cnmf_full_frame']['ourdata'][0],C_full = self.comparison['cnmf_full_frame']['ourdata'][1]
                               ,A_patch = self.comparison['cnmf_on_patch']['ourdata'][0],C_patch= self.comparison['cnmf_on_patch']['ourdata'][1]
                               ,rig_shifts = self.comparison['rig_shifts']['ourdata'])
         
-        
-        
-         
+        self.information = information         
             
     def see(self,filename=None):
         """shows you the important data about a certain test file ( just give the number or name)
