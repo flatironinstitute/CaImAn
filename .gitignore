@@ -154,9 +154,7 @@ Desktop.ini
 #dev and comparison
 /bin
 #everything from test except one (generated from the User)
-/comparison/tests
-!/comparison/tests/proof
-/comparison/groundtruth/groundtruth.json
+caiman/tests/comparison/tests
 
 #generated data from caiman
 /data_storage

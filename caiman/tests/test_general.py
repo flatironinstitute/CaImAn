@@ -37,7 +37,6 @@ import caiman as cm
 import numpy as np
 import os
 import time
-import pylab as pl
 import copy
 from caiman.source_extraction.cnmf import cnmf as cnmf
 from caiman.motion_correction import MotionCorrect
@@ -48,7 +47,7 @@ from caiman.tests.comparison import comparison
 
 
 #GLOBAL VAR
-params_movie = {'fname':[u'/Users/jeremie/CaImAn/example_movies/demoMovieJ.tif'],
+params_movie = {'fname':[u'caiman/example_movies/demoMovieJ.tif'],
                 'max_shifts':(2,2), # maximum allow rigid shift (2,2)
                 'niter_rig':1,
                 'splits_rig':14, # for parallelization split the movies in  num_splits chuncks across time
@@ -63,7 +62,7 @@ params_movie = {'fname':[u'/Users/jeremie/CaImAn/example_movies/demoMovieJ.tif']
                 'merge_thresh' : 0.8,  # merging threshold, max correlation allow
                 'rf' : 20,  # half-size of the patches in pixels. rf=25, patches are 50x50    20
                 'stride_cnmf' : 5,  # amounpl.it of overlap between the patches in pixels
-                'K' : 6,  #  number of components per patch 
+                'K' : 6,  # number of components per patch
                 'is_dendrites': False,  # if dendritic. In this case you need to set init_method to sparse_nmf
                 'init_method' : 'greedy_roi',
                 'gSig' : [6,6],  # expected half size of neurons
