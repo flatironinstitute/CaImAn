@@ -201,6 +201,7 @@ class CNMF(object):
                                alpha_snmf=self.alpha_snmf)
         self.options = options
 
+
         if self.rf is None:  # no patches
             print('preprocessing ...')
             Yr, sn, g, psx = preprocess_data(Yr, dview=self.dview, **options['preprocess_params'])
@@ -241,8 +242,7 @@ class CNMF(object):
                     idx_components, idx_components_bad, fitness_raw, fitness_delta, r_values = components_evaluation.estimate_components_quality(
                         traces, Y, self.A, np.array(self.C), self.b_in, self.f_in, final_frate = final_frate, Npeaks=Npeaks, r_values_min=r_values_min, fitness_min=fitness_min, fitness_delta_min=fitness_delta_min, return_all = True, N = 5)
 
-                    print(('Keeping ' + str(len(idx_components)) +
-                           ' and discarding  ' + str(len(idx_components_bad))))
+                    print('Keeping', str(len(idx_components)), 'and discarding ', str(len(idx_components_bad)))
 
                     self.C = self.C[idx_components]
                     self.A = self.A[:,idx_components]
@@ -311,10 +311,6 @@ class CNMF(object):
 
             if self.only_init:
                 options['patch_params']['only_init'] = True
-
-            if self.alpha_snmf is not None:
-                options['init_params']['alpha_snmf'] = self.alpha_snmf
-
 
             A, C, YrA, b, f, sn, optional_outputs = run_CNMF_patches(images.filename, dims + (T,), options, rf=self.rf, stride=self.stride,
                                                                      dview=self.dview, memory_fact=self.memory_fact, gnb=self.gnb)
