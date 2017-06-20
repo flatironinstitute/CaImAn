@@ -218,7 +218,7 @@ class Comparison(object):
                                 }
                 
                 }
-        file_path="caiman/tests/comparison/groundtruth.npz"
+        file_path="/CaImAn/caiman/tests/comparison/groundtruth.npz"
         
 
         
@@ -257,7 +257,7 @@ class Comparison(object):
                 return
         #creating the FOLDER to store our data
         i=0
-        dr='caiman/tests/comparison/tests/'
+        dr='/CaImAn/caiman/tests/comparison/tests/'
         for name in os.listdir(dr):
              i+=1
         i =str(i)

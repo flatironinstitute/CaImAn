@@ -117,7 +117,7 @@ def view_patches(Yr, A, C, b, f, d1, d2, YrA=None, secs=1):
 
 
 def nb_view_patches(Yr, A, C, b, f, d1, d2, image_neurons=None, thr=0.99, denoised_color=None):
-    '''
+    """
     Interactive plotting utility for ipython notbook
 
     Parameters
@@ -139,7 +139,7 @@ def nb_view_patches(Yr, A, C, b, f, d1, d2, image_neurons=None, thr=0.99, denois
     denoised_color: string or None
         color name (e.g. 'red') or hex color code (e.g. '#F0027F')
 
-    '''
+    """
     colormap = cm.get_cmap("jet")  # choose any matplotlib colormap here
     grayp = [mpl.colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
     nr, T = C.shape
@@ -158,10 +158,7 @@ def nb_view_patches(Yr, A, C, b, f, d1, d2, image_neurons=None, thr=0.99, denois
     k = np.reshape(np.array(A), (d1, d2, A.shape[1]), order='F')
     if image_neurons is None:
         image_neurons = np.nanmean(k, axis=2)
-
-    fig = pl.figure()
     coors = plot_contours(coo_matrix(A), image_neurons, thr=thr)
-    pl.close()
 #    cc=coors[0]['coordinates'];
     cc1 = [cor['coordinates'][:, 0] for cor in coors]
     cc2 = [cor['coordinates'][:, 1] for cor in coors]
@@ -293,7 +290,7 @@ def get_contours(A, dims, thr=0.9):
 
 def nb_view_patches3d(Y_r, A, C, b, f, dims, image_type='mean', Yr=None,
                       max_projection=False, axis=0, thr=0.9, denoised_color=None):
-    '''
+    """
     Interactive plotting utility for ipython notbook
 
     Parameters
@@ -326,7 +323,7 @@ def nb_view_patches3d(Y_r, A, C, b, f, dims, image_type='mean', Yr=None,
     denoised_color: string or None
         color name (e.g. 'red') or hex color code (e.g. '#F0027F')
 
-    '''
+    """
     bokeh.io.curdoc().clear()  # prune old orphaned models, otherwise filesize blows up
     T = Y_r.shape[-1]
     d = A.shape[0]
@@ -582,9 +579,9 @@ def nb_view_patches3d(Y_r, A, C, b, f, dims, image_type='mean', Yr=None,
 
 
 def nb_imshow(image, cmap='jet'):
-    '''
+    """
     Interactive equivalent of imshow for ipython notebook
-    '''
+    """
     colormap = cm.get_cmap(cmap)  # choose any matplotlib colormap here
     grayp = [mpl.colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
     xr = Range1d(start=0, end=image.shape[1])
@@ -600,7 +597,7 @@ def nb_imshow(image, cmap='jet'):
 
 def nb_plot_contour(image, A, d1, d2, thr=None, thr_method='max', maxthr=0.2, nrgthr=0.9,
                     face_color=None, line_color='black', alpha=0.4, line_width=2, **kwargs):
-    '''Interactive Equivalent of plot_contours for ipython notebook
+    """Interactive Equivalent of plot_contours for ipython notebook
 
     Parameters
     -----------
@@ -628,7 +625,7 @@ def nb_plot_contour(image, A, d1, d2, thr=None, thr_method='max', maxthr=0.2, nr
     cmap:     string
             User specifies the colormap (default None, default colormap)
 
-    '''
+    """
     p = nb_imshow(image, cmap='jet')
     center = com(A, d1, d2)
     p.circle(center[:, 1], center[:, 0], size=10, color="black",
