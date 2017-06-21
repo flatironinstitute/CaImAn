@@ -159,34 +159,36 @@ def nf_match_neurons_in_binary_masks(masks_gt,masks_comp,thresh_cost=.7, min_dis
     idx_tp_gt,idx_tp_comp, idx_fn_gt, idx_fp_comp = idx_tp_ben,idx_tp_cnmf, idx_fn, idx_fp_cnmf
 
     if plot_results:
-        
-        pl.rcParams['pdf.fonttype'] = 42
-        font = {'family' : 'Myriad Pro',
-                'weight' : 'regular',
-                'size'   : 10}
-        pl.rc('font', **font)
-        lp,hp = np.nanpercentile(Cn,[5,95])
-        pl.subplot(1,2,1)
-        pl.imshow(Cn,vmin=lp,vmax=hp, cmap = cmap)
-#        pl.colorbar()
-        [pl.contour(mm,levels=[0],colors='w',linewidths=1) for mm in masks_comp[idx_tp_comp]] 
-        [pl.contour(mm,levels=[0],colors='r',linewidths=1) for mm in masks_gt[idx_tp_gt]] 
-        if labels is None:
-            pl.title('MATCHES')
-        else:
-            pl.title('MATCHES: '+labels[1]+'(w), ' + labels[0] + '(r)')
-        #pl.legend([comp_str,'GT'])
-        pl.axis('off')
-        pl.subplot(1,2,2)
-        pl.imshow(Cn,vmin=lp,vmax=hp, cmap = cmap)
-        [pl.contour(mm,levels=[0],colors='w',linewidths=1) for mm in masks_comp[idx_fp_comp]] 
-        [pl.contour(mm,levels=[0],colors='r',linewidths=1) for mm in masks_gt[idx_fn_gt]] 
-        if labels is None:
-            pl.title('FALSE POSITIVE (w), FALSE NEGATIVE (r)')
-        else:
-            pl.title(labels[1]+'(w), ' + labels[0] + '(r)')
-        #pl.legend([comp_str,'GT'])
-        pl.axis('off')
+        try :
+            pl.rcParams['pdf.fonttype'] = 42
+            font = {'family' : 'Myriad Pro',
+                    'weight' : 'regular',
+                    'size'   : 10}
+            pl.rc('font', **font)
+            lp,hp = np.nanpercentile(Cn,[5,95])
+            pl.subplot(1,2,1)
+            pl.imshow(Cn,vmin=lp,vmax=hp, cmap = cmap)
+    #        pl.colorbar()
+            [pl.contour(mm,levels=[0],colors='w',linewidths=1) for mm in masks_comp[idx_tp_comp]] 
+            [pl.contour(mm,levels=[0],colors='r',linewidths=1) for mm in masks_gt[idx_tp_gt]] 
+            if labels is None:
+                pl.title('MATCHES')
+            else:
+                pl.title('MATCHES: '+labels[1]+'(w), ' + labels[0] + '(r)')
+            #pl.legend([comp_str,'GT'])
+            pl.axis('off')
+            pl.subplot(1,2,2)
+            pl.imshow(Cn,vmin=lp,vmax=hp, cmap = cmap)
+            [pl.contour(mm,levels=[0],colors='w',linewidths=1) for mm in masks_comp[idx_fp_comp]] 
+            [pl.contour(mm,levels=[0],colors='r',linewidths=1) for mm in masks_gt[idx_fn_gt]] 
+            if labels is None:
+                pl.title('FALSE POSITIVE (w), FALSE NEGATIVE (r)')
+            else:
+                pl.title(labels[1]+'(w), ' + labels[0] + '(r)')
+            #pl.legend([comp_str,'GT'])
+            pl.axis('off')
+        except :
+            print("not able to plot precision recall usually because we are on travis")
     return  idx_tp_gt,idx_tp_comp, idx_fn_gt, idx_fp_comp, performance 
 
 

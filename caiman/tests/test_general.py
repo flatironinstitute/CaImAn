@@ -19,6 +19,8 @@ from __future__ import division
 from __future__ import print_function
 from builtins import str
 from builtins import range
+import matplotlib
+matplotlib.use('agg')
 from caiman.utils.utils import download_demo
 import cv2
 import glob

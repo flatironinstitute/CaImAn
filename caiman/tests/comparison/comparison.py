@@ -23,8 +23,7 @@ import datetime
 import numpy as np
 import os
 ######## ONLY IF ON TRAVIS ######
-import matplotlib
-matplotlib.use('agg')
+
 #############################
 import matplotlib.pyplot as pl 
 import caiman as cm
@@ -293,9 +292,11 @@ class Comparison(object):
                 'rig': plotrig(init = rig_shifts,curr = self.comparison['rig_shifts']['ourdata']
                             ,timer=self.comparison['rig_shifts']['timer']-data['timer']['rig_shifts']
                             ,sensitivity =self.comparison['rig_shifts']['sensitivity'])})
-        pl.gcf().savefig(dr+str(i)+'/'+'rigidcorrection.pdf')
-        pl.close()
-        
+        try :
+            pl.gcf().savefig(dr+str(i)+'/'+'rigidcorrection.pdf')
+            pl.close()
+        except: 
+            print("\n")
         
 ##############################for cnmf on patch     
         information['diff'].update({
@@ -306,8 +307,11 @@ class Comparison(object):
                    dview=dview,sensitivity = self.comparison['cnmf_on_patch']['sensitivity'],
                    dims_test=dims_test,dims_gt=dims_gt,
                    timer=self.comparison['cnmf_on_patch']['timer']-data['timer']['cnmf_on_patch'])})
-        pl.gcf().savefig(dr+i+'/'+'onpatch.pdf') 
-        pl.close()
+        try :
+            pl.gcf().savefig(dr+i+'/'+'onpatch.pdf') 
+            pl.close()
+        except: 
+            print("\n")
 
         
 ##############################CNMF FULL FRAME
@@ -319,8 +323,11 @@ class Comparison(object):
                    dview=dview,sensitivity = self.comparison['cnmf_full_frame']['sensitivity'],
                    dims_test=dims_test,dims_gt=dims_gt,
                    timer=self.comparison['cnmf_full_frame']['timer']-data['timer']['cnmf_full_frame'])})
-        pl.gcf().savefig(dr+i+'/'+'cnmfull.pdf') 
-        pl.close()        
+        try :
+            pl.gcf().savefig(dr+i+'/'+'cnmfull.pdf') 
+            pl.close()        
+        except: 
+            print("\n")
         
 #####################SAving of everything
         file_path="./caiman/tests/comparison/tests/"+i+"/"+i+".npz"
@@ -446,17 +453,20 @@ def plotrig(init, curr,timer,sensitivity):
         init = init.transpose([1,0])
         xc = np.arange(curr.shape[1])
         xi = np.arange(init.shape[1])
-        pl.figure()
-        pl.subplot(1,2,1)
-        pl.plot(xc,curr[0], 'r',xi, init[0],'b')
-        pl.legend(['x shifts curr','x shifts init'])
-        pl.xlabel('frames')
-        pl.ylabel('pixels') 
-        pl.subplot(1,2,2)
-        pl.plot(xc,curr[1], 'r',xi, init[1],'b')
-        pl.legend(['yshifts curr','y shifts init'])
-        pl.xlabel('frames')
-        pl.ylabel('pixels')        
+        try :
+            pl.figure()
+            pl.subplot(1,2,1)
+            pl.plot(xc,curr[0], 'r',xi, init[0],'b')
+            pl.legend(['x shifts curr','x shifts init'])
+            pl.xlabel('frames')
+            pl.ylabel('pixels') 
+            pl.subplot(1,2,2)
+            pl.plot(xc,curr[1], 'r',xi, init[1],'b')
+            pl.legend(['yshifts curr','y shifts init'])
+            pl.xlabel('frames')
+            pl.ylabel('pixels')    
+        except : 
+            print("not able to plot")
         return info   
                                     
                 
