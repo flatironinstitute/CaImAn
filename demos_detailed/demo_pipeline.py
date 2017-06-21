@@ -500,7 +500,7 @@ if params_movie['is_dendrites'] == True:
 t1 = time.time()
 #TODO: todocument
 #TODO: warnings 3
-cnm = cnmf.CNMF(n_processes, k=K, gSig=gSig, merge_thresh=params_movie['merge_thresh'], p=params_movie['p'], dview=dview, rf=rf, stride=stride_cnmf, memory_fact=params_movie['memory_fact'],
+cnm = cnmf.CNMF(n_processes=1, k=K, gSig=gSig, merge_thresh=params_movie['merge_thresh'], p=params_movie['p'], dview=None, rf=rf, stride=stride_cnmf, memory_fact=params_movie['memory_fact'],
                 method_init=init_method, alpha_snmf=alpha_snmf, only_init_patch=params_movie['only_init_patch'], gnb=params_movie['gnb'], method_deconvolution='oasis')
 comp.cnmpatch  = copy.copy(cnm)
 cnm = cnm.fit(images)
@@ -541,7 +541,7 @@ A_tot = A_tot.tocsc()[:, idx_components]
 C_tot = C_tot[idx_components]
 #%% rerun updating the components to refine
 t1 = time.time()
-cnm = cnmf.CNMF(n_processes, k=A_tot.shape, gSig=gSig, merge_thresh=merge_thresh, p=p, dview=dview, Ain=A_tot, Cin=C_tot,
+cnm = cnmf.CNMF(n_processes=1, k=A_tot.shape, gSig=gSig, merge_thresh=merge_thresh, p=p, dview=None, Ain=A_tot, Cin=C_tot,
                 f_in=f_tot, rf=None, stride=None, method_deconvolution='oasis')
 
 cnm = cnm.fit(images)
@@ -567,7 +567,7 @@ np.savez(os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:
          C=C, b=b, f=f, YrA=YrA, sn=sn, d1=d1, d2=d2, idx_components=idx_components, idx_components_bad=idx_components_bad,
          fitness_raw=fitness_raw, fitness_delta=fitness_delta, r_values=r_values)
 #we save it
-comp.save_with_compare(istruth=False, params=params_movie, Cn=Cn, dview=dview)
+comp.save_with_compare(istruth=True, params=params_movie, Cn=Cn, dview=dview)
 #%%
 #TODO: show screenshot 14
 pl.subplot(1, 2, 1)

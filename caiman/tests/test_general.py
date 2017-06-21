@@ -1,20 +1,25 @@
-##@package demos  
-#\brief      for the user/programmer to understand and try the code
-#\details    all of other usefull functions (demos available on jupyter notebook) -*- coding: utf-8 -*- 
+""" test the principal functions of CaImAn
+ 
+use for the nose test and continuous integration devellopment. 
+ 
+See Also
+------------
+caiman/tests/comparison/comparison.py 
+
+ 
+"""
+#\package None
 #\version   1.0
-#\pre       EXample.First initialize the system.
-#\bug       
-#\warning   
-#\copyright GNU General Public License v2.0 
-#\date Created on Mon Nov 21 15:53:15 2016
-#\author agiovann
-#toclean
+#\copyright GNU General Public License v2.0
+#\date Created on june 2017
+#\author: Jremie KALFON
+
 
 from __future__ import division
 from __future__ import print_function
 from builtins import str
 from builtins import range
-
+from caiman.utils.utils import download_demo
 import cv2
 import glob
 
@@ -47,8 +52,8 @@ from caiman.tests.comparison import comparison
 
 
 #GLOBAL VAR
-params_movie = {'fname':[u'/CaImAn/example_movies/demoMovieJ.tif'],
-                'max_shifts':(2,2), # maximum allow rigid shift (2,2)
+params_movie = {'fname':[u'./example_movies/demoMovieJ.tif'],
+                'max_shifts':(1,1), # maximum allow rigid shift (2,2)
                 'niter_rig':1,
                 'splits_rig':14, # for parallelization split the movies in  num_splits chuncks across time
                 'num_splits_to_process_rig':None, # if none all the splits are processed and the movie is saved
@@ -62,7 +67,7 @@ params_movie = {'fname':[u'/CaImAn/example_movies/demoMovieJ.tif'],
                 'merge_thresh' : 0.8,  # merging threshold, max correlation allow
                 'rf' : 20,  # half-size of the patches in pixels. rf=25, patches are 50x50    20
                 'stride_cnmf' : 5,  # amounpl.it of overlap between the patches in pixels
-                'K' : 6,  # number of components per patch
+                'K' : 5,  # number of components per patch
                 'is_dendrites': False,  # if dendritic. In this case you need to set init_method to sparse_nmf
                 'init_method' : 'greedy_roi',
                 'gSig' : [6,6],  # expected half size of neurons
@@ -89,8 +94,22 @@ params_display={
 
 
 def test_general():
+    """ the function that will do the test 
+ 
+ 
+    A shorter version than the demo pipeline that calls comparison for the real test work 
+ 
+            
+ 
+        Raises:
+      ---------
+   params_movie, params_cnmf, rig correction, cnmf on patch, cnmf full frame 
 
-    #@params fname name of the movie 
+ 
+    """
+#\bug       
+#\warning  
+
     global params_movie
     global params_diplay
     fname = params_movie['fname']
@@ -105,7 +124,7 @@ def test_general():
     upsample_factor_grid = params_movie['upsample_factor_grid'] 
     max_deviation_rigid = params_movie['max_deviation_rigid']
     
-    
+    download_demo(fname[0])
     m_orig = cm.load_movie_chain(fname[:1])
     min_mov = cm.load(fname[0], subindices=range(400)).min()
     comp=comparison.Comparison()
@@ -242,101 +261,14 @@ def test_general():
 
 
 ############ assertions ##################
-    assert comp.information['differences']['params_movie'],"you ned to set the same movie paramters than the ground truth to have a real comparison (use the comp.see() function to explore it)"
-    assert comp.information['differences']['params_cnm'],"you need to set the same cnmf paramters than the ground truth to have a real comparison (use the comp.see() function to explore it)"
-    assert comp.information['diff']['rig']['isdifferent'],"the rigid shifts are different from the groundtruth"
-    assert comp.information['diff']['cnmpatch']['isdifferent'],"the cnmf on patch produces different  results than the groundtruth"
-    assert comp.information['diff']['cnmfull']['isdifferent'],"the cnmf full frame produces different  results than the groundtruth"
+    assert not comp.information['differences']['params_movie'],"you ned to set the same movie paramters than the ground truth to have a real comparison (use the comp.see() function to explore it)"
+    assert not comp.information['differences']['params_cnm'],"you need to set the same cnmf paramters than the ground truth to have a real comparison (use the comp.see() function to explore it)"
+    assert not comp.information['diff']['rig']['isdifferent'],"the rigid shifts are different from the groundtruth"
+    assert not comp.information['diff']['cnmpatch']['isdifferent'],"the cnmf on patch produces different  results than the groundtruth"
+    assert not comp.information['diff']['cnmfull']['isdifferent'],"the cnmf full frame produces different  results than the groundtruth"
 
 
 
 
 
 
-"""
-
-def testbegin():
-    
-        dt = datetime.datetime.today()
-        dt=str(dt)
-        plat=plt.platform()
-        plat=str(plat)
-        pro=plt.processor()
-        pro=str(pro)
-        #we store a big file which is containing everything ( INFORMATION)
-        global information
-        global params_movie
-        information ={
-                'platform': plat,
-                'time':dt,
-                'processor':pro,
-                'params': params_movie,
-                'cnmfull':None,
-                'cnmpatch':None,
-                'differences': {
-                        'proc':None,
-                        'params_movie':None,
-                        'params_patch':None,
-                        'params_full':None}
-                }
-        file_path="comparison/tests/"  
-        if os._exists(file_path):
-               os.remove(file_path)
-               os.makedirs(file_path) 
-        
-        
-        try:
-            with np.load('comparison/groundtruth.npz') as data:
-                paramsgt = data
-        except:
-            print('you do not have groundtruth, look for it on github\n')
-            return
-        
-        if paramsgt['params']!=information['params']:
-            print("you do not use the same movie parameters... Things can go wrong\n\n")
-            print('you need to use the same paramters to compare your version of the code with the groundtruth one. look for the groundtruth paramters with the see() method\n')
-            information['differences']['params_movie'] = True
-            
-            
-            
-        if paramsgt['processor']!=information['processor']:
-                print("you don't have the same processor than groundtruth.. the time difference can vary because of that\n try recreate your own groundtruth before testing\n")
-                information['differences']['proc'] = True
-        return
-        
-        
-
-def testrig(rig,t):
-    
-    
-    return
-
-def testcnmf(cnm,t,dims,testparam =False):
-    A_test = cnm.A
-    
-    cnm = self.cnmpatch.__dict__
-    cnmpatch = deletesparse(cnm)
-    try:
-            with np.load('comparison/groundtruth.npz') as data:
-                paramsgt = data
-        except:
-            print('you do not have groundtruth, look for it on github\n')
-            return
-    
-    
-    
-def end(){
-        
-        
-        
-        
-        
-        
-        
-        filename='comparison/tests.npz'
-        np.savez(filename,information= self.information 
-                  , A_full = self.comparison['cnmf_full_frame']['ourdata'][0],C_full = self.comparison['cnmf_full_frame']['ourdata'][1]
-                  ,A_patch = self.comparison['cnmf_on_patch']['ourdata'][0],C_patch= self.comparison['cnmf_on_patch']['ourdata'][1]
-                  ,rig_shifts = self.comparison['rig_shifts']['ourdata'])  
-        }
-"""

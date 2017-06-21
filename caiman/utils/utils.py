@@ -32,24 +32,45 @@ try:
 except:
     from urllib.request import urlopen as urlopen
 
-##\brief      downloading the demo from a dropbox folder
-#\details using urllib, os.path
-#\version   1.0
-#\throws an exception if not in the Caiman folder
-#\author  andrea giovannucci
-def download_demo():
 
-    
+
+file_list=[['./example_movies/demoSue2x.tif','https://www.dropbox.com/s/09z974vkeg3t5gn/Sue_2x_3000_40_-46.tif?dl=1']
+          ,['./example_movies/demoMovieJ.tif','https://www.dropbox.com/s/8j1cnqubye3asmu/demoMovieJ.tif?dl=1']
+          ,['./example_movies/demoMovie.tif','https://www.dropbox.com/s/obmtq7305ug4dh7/demoMovie.tif?dl=1']]
+
+
+
+
+def download_demo(name='./example_movies/demoSue2x.tif'):
+    """downliad a file from the file list with the url of its location 
+ 
+ 
+        using urllib, you can add you own name and location in this global parameter
+ 
+            Parameters
+            -----------
+ 
+            name: str
+                the path of the file correspondong to a file in the filelist
+ 
+        Raises:
+        ---------
+        WrongFolder
+ 
+
+        """
+#\bug       
+#\warning  
+    global file_list
     if os.path.exists('./example_movies'):
-        if not(os.path.exists('./example_movies/demoSue2x.tif')):        
-            url = 'https://www.dropbox.com/s/09z974vkeg3t5gn/Sue_2x_3000_40_-46.tif?dl=1'
-            print("downloading demo Sue2x with urllib")
-            f = urlopen(url)
-            data = f.read()
-            with open("./example_movies/demoSue2x.tif", "wb") as code:
-                code.write(data)
-        else:
-            print('File already existing')
+        for f in file_list:
+            if (not(os.path.exists(f[0])) and name==f[0]):        
+                url = f[1]
+                print("downloading "+f[0]+"with urllib")
+                f = urlopen(url)
+                data = f.read()
+                with open(name, "wb") as code:
+                    code.write(data)
     else:
          raise Exception('You must be in caiman folder')
 #    print("downloading with requests")

@@ -218,7 +218,7 @@ class Comparison(object):
                                 }
                 
                 }
-        file_path="/CaImAn/caiman/tests/comparison/groundtruth.npz"
+        file_path="./caiman/tests/comparison/groundtruth.npz"
         
 
         
@@ -257,7 +257,7 @@ class Comparison(object):
                 return
         #creating the FOLDER to store our data
         i=0
-        dr='/CaImAn/caiman/tests/comparison/tests/'
+        dr='./caiman/tests/comparison/tests/'
         for name in os.listdir(dr):
              i+=1
         i =str(i)
@@ -319,7 +319,7 @@ class Comparison(object):
         pl.close()        
         
 #####################SAving of everything
-        file_path="caiman/tests/comparison/tests/"+i+"/"+i+".npz"
+        file_path="./caiman/tests/comparison/tests/"+i+"/"+i+".npz"
         np.savez(file_path,information= information 
                               , A_full = self.comparison['cnmf_full_frame']['ourdata'][0],C_full = self.comparison['cnmf_full_frame']['ourdata'][1]
                               ,A_patch = self.comparison['cnmf_on_patch']['ourdata'][0],C_patch= self.comparison['cnmf_on_patch']['ourdata'][1]
@@ -344,9 +344,9 @@ class Comparison(object):
             	.. image:: caiman/tests/comparison/data.pdf
                 """
         if filename == None:
-            dr='comparison/groundtruth.npz'
+            dr='./caiman/tests/comparison/groundtruth.npz'
         else:
-            dr='comparison/tests/'
+            dr='./caiman/tests/comparison/tests/'
             dr=dr+filename+'/'+filename+'.npz'
             
             print(dr)
@@ -359,14 +359,14 @@ class Comparison(object):
 def see_it(data=None):
             for key in data:
                 
-                val= data[key] 
+                val= data[key]
                 if isinstance(val, dict):
                     print('\n')
                     print(key)
                     print('\n')
                     see_it(val)
                 else:
-                    if not isinstance(val, list) or len(val)<3 :
+                    if not isinstance(val, scipy.sparse.coo.coo_matrix) and not isinstance(val, scipy.sparse.csc.csc_matrix) and not isinstance(val, list):
                         
                         print(key)
                         print(val)
@@ -399,6 +399,7 @@ def cnmf(Cn,A_gt, A_test,C_gt,C_test, dims_gt, dims_test, dview= None, sensitivi
         
         #compute C using this A thr
         A_test_thr  = A_test_thr  > 0  
+        A_gt_thr  = A_gt_thr  > 0 
         #we do not compute a threshold on the size of neurons
         C_test_thr = C_test
         C_gt_thr = C_gt
@@ -411,7 +412,7 @@ def cnmf(Cn,A_gt, A_test,C_gt,C_test, dims_gt, dims_test, dview= None, sensitivi
         maskgt = A_gt_thr[:,:].reshape([dims_gt[0],dims_gt[1],-1],order = 'F').transpose([2,0,1])*1.
         masktest = A_test_thr[:,:].reshape([dims_test[0],dims_test[1],-1],order = 'F').transpose([2,0,1])*1.
         
-        idx_tp_gt,idx_tp_comp, idx_fn_gt, idx_fp_comp, performance_off_on =  cm.base.rois.nf_match_neurons_in_binary_masks(maskgt,masktest, Cn=Cn, plot_results=True)
+        idx_tp_gt,idx_tp_comp, idx_fn_gt, idx_fp_comp, performance_off_on =  cm.base.rois.nf_match_neurons_in_binary_masks(masks_gt=maskgt,masks_comp = masktest, Cn=Cn, plot_results=True)
         
        #the pearson's correlation coefficient of the two Calcium activities thresholded
         #comparing Calcium activities of all the components that are defined by the matching algo as the same.
@@ -433,7 +434,7 @@ def cnmf(Cn,A_gt, A_test,C_gt,C_test, dims_gt, dims_test, dview= None, sensitivi
 def plotrig(init, curr,timer,sensitivity):
 
         diff = np.linalg.norm(np.asarray(init)-np.asarray(curr))/np.linalg.norm(init)
-        isdiff = diff < sensitivity
+        isdiff = diff > sensitivity
         info={'isdifferent':int(isdiff),
                               'diff_data': diff,
                               'diff_timing': timer}
