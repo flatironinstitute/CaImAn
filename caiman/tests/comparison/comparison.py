@@ -22,6 +22,10 @@ import platform as plt
 import datetime
 import numpy as np
 import os
+######## ONLY IF ON TRAVIS ######
+import matplotlib
+matplotlib.use('agg')
+#############################
 import matplotlib.pyplot as pl
 import caiman as cm
 import scipy
