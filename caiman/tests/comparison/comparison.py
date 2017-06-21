@@ -26,7 +26,7 @@ import os
 import matplotlib
 matplotlib.use('agg')
 #############################
-import matplotlib.pyplot as pl
+import matplotlib.pyplot as pl 
 import caiman as cm
 import scipy
 """
