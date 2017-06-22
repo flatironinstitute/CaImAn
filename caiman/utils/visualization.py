@@ -1,9 +1,13 @@
 # -*- coding: utf-8 -*-
+""" List of plotting functions to visualize what's happening in the code
+ 
+ 
 """
-\date Created on Mon Oct 17 14:50:22 2016
-
-\author agiovann
-"""
+#\package Caiman/utils
+#\version   1.0
+#\copyright GNU General Public License v2.0
+#\date Created on Tue Jun 30 21:01:17 2016
+#\author: andrea giovannucci
 from __future__ import division
 from __future__ import print_function
 from builtins import str
@@ -64,6 +68,10 @@ def view_patches(Yr, A, C, b, f, d1, d2, YrA=None, secs=1):
                 number of seconds in between component scrolling. secs=0 means interactive (click to scroll)
      imgs:  np.ndarray
                 background image for contour plotting. Default is the image of all spatial components (d1 x d2)
+    
+    See Also
+    ------------
+    ..image:: doc/img/
 
     """
     pl.ion()
@@ -144,6 +152,7 @@ def nb_view_patches(Yr, A, C, b, f, d1, d2, image_neurons=None, thr=0.99, denois
     grayp = [mpl.colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
     nr, T = C.shape
     nA2 = np.sum(np.array(A)**2, axis=0)
+    
     b = np.squeeze(b)
     f = np.squeeze(f)
     #Y_r = np.array(spdiags(1/nA2,0,nr,nr)*(A.T*np.matrix(Yr-b[:,np.newaxis]*f[np.newaxis] - A.dot(C))) + C)
@@ -160,15 +169,35 @@ def nb_view_patches(Yr, A, C, b, f, d1, d2, image_neurons=None, thr=0.99, denois
         image_neurons = np.nanmean(k, axis=2)
     coors = plot_contours(coo_matrix(A), image_neurons, thr=thr)
 #    cc=coors[0]['coordinates'];
+    #cc1 = [list(cor['coordinates'][:, 0]) for cor in coors]  
+    #cc2 = [list(cor['coordinates'][:, 1]) for cor in coors]
+    #for i in range(len(cc1)):
+     #   ii=0
+#      while ii < len(cc1[i]) :
+#            if np.isnan(cc1[i][ii]):
+#                del cc1[i][ii]  
+#
+#            else :
+#                ii+=1
+#    for i in range(len(cc2)):
+#        ii=0
+#        while ii < len(cc2[i]) :
+#            if np.isnan(cc2[i][ii]):
+#                del cc2[i][ii]  
+#            else :
+#                ii+=1
+
     cc1 = [cor['coordinates'][:, 0] for cor in coors]
     cc2 = [cor['coordinates'][:, 1] for cor in coors]
     c1 = cc1[0]
     c2 = cc2[0]
+    cc1.extend(range(35))
+    cc2.extend(range(35))
     npoints = list(range(len(c1)))
-
+    
     source = ColumnDataSource(
         data=dict(x=x, y=z[:, 0], y2=old_div(C[0], 100), z=z, z2=old_div(C.T, 100)))
-    source2 = ColumnDataSource(data=dict(x=npoints, c1=c1, c2=c2, cc1=cc1, cc2=cc2))
+    source2 = ColumnDataSource(data=dict(x=np.asarray(npoints), c1=np.asarray(c1), c2=np.asarray(c2), cc1=np.asarray(cc1), cc2=np.asarray(cc2)))
 
     plot = bpl.figure(plot_width=600, plot_height=300)
     plot.line('x', 'y', source=source, line_width=1, line_alpha=0.6)
@@ -178,13 +207,13 @@ def nb_view_patches(Yr, A, C, b, f, d1, d2, image_neurons=None, thr=0.99, denois
     callback = CustomJS(args=dict(source=source, source2=source2), code="""
             var data = source.get('data');
             var f = cb_obj.get('value')-1
-            x = data['x']
-            y = data['y']
-            y2 = data['y2']
+            x = data['x'];
+            y = data['y'];
+            y2 = data['y2'];
 
             for (i = 0; i < x.length; i++) {
-                y[i] = data['z'][i][f]
-                y2[i] = data['z2'][i][f]
+                y[i] = data['z'][i][f];
+                y2[i] = data['z2'][i][f];
             }
 
             var data2 = source2.get('data');
@@ -194,8 +223,8 @@ def nb_view_patches(Yr, A, C, b, f, d1, d2, image_neurons=None, thr=0.99, denois
             cc2 = data2['cc2'];
 
             for (i = 0; i < c1.length; i++) {
-                   c1[i] = cc1[f][i]
-                   c2[i] = cc2[f][i]
+                   c1[i] = cc1[f][i];
+                   c2[i] = cc2[f][i];
             }
             source2.trigger('change');
             source.trigger('change');
@@ -235,6 +264,8 @@ def get_contours(A, dims, thr=0.9):
      --------
      Coor: list of coordinates with center of mass and
             contour plot coordinates (per layer) for each component
+            
+        
     """
     A = csc_matrix(A)
     d, nr = np.shape(A)
@@ -810,7 +841,7 @@ def view_patches_bar(Yr, A, C, b, f, d1, d2, YrA=None, secs=1, img=None):
 
     s_comp.on_changed(update)
     s_comp.set_val(0)
-    id2 = fig.canvas.mpl_connect('key_release_event', arrow_key_image_control)
+    fig.canvas.mpl_connect('key_release_event', arrow_key_image_control)
     pl.show()
 #%%
 

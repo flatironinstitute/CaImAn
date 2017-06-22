@@ -46,6 +46,7 @@ __pycache__/
 *.c
 
 # Distribution / packaging
+*__LOG_*
 .Python
 env/
 build/
@@ -138,6 +139,7 @@ ENV/
 
 #html documentation
 /html
+/docs/html
 
 #building part
 /build
