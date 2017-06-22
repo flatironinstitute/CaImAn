@@ -143,10 +143,9 @@ def nb_view_patches(Yr, A, C, b, f, d1, d2, image_neurons=None, thr=0.99, denois
     colormap = cm.get_cmap("jet")  # choose any matplotlib colormap here
     grayp = [mpl.colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
     nr, T = C.shape
-    nA2 = np.sum(np.array(A)**2, axis=0)
+    nA2 = np.ravel(A.power(2).sum(0))
     b = np.squeeze(b)
     f = np.squeeze(f)
-    #Y_r = np.array(spdiags(1/nA2,0,nr,nr)*(A.T*np.matrix(Yr-b[:,np.newaxis]*f[np.newaxis] - A.dot(C))) + C)
     Y_r = np.array(spdiags(old_div(1, nA2), 0, nr, nr) *
                    (A.T * np.matrix(Yr) -
                     (A.T * np.matrix(b[:, np.newaxis])) * np.matrix(f[np.newaxis]) -
@@ -155,30 +154,28 @@ def nb_view_patches(Yr, A, C, b, f, d1, d2, image_neurons=None, thr=0.99, denois
     bpl.output_notebook()
     x = np.arange(T)
     z = old_div(np.squeeze(np.array(Y_r[:, :].T)), 100)
-    k = np.reshape(np.array(A), (d1, d2, A.shape[1]), order='F')
     if image_neurons is None:
-        image_neurons = np.nanmean(k, axis=2)
+        image_neurons = A.mean(1).reshape((d1, d2), order='F')
 
-    fig = pl.figure()
-    coors = plot_contours(coo_matrix(A), image_neurons, thr=thr)
+    coors = get_contours(A, (d1, d2), thr)
     pl.close()
-#    cc=coors[0]['coordinates'];
     cc1 = [cor['coordinates'][:, 0] for cor in coors]
     cc2 = [cor['coordinates'][:, 1] for cor in coors]
     c1 = cc1[0]
     c2 = cc2[0]
     npoints = list(range(len(c1)))
 
-    source = ColumnDataSource(
-        data=dict(x=x, y=z[:, 0], y2=old_div(C[0], 100), z=z, z2=old_div(C.T, 100)))
-    source2 = ColumnDataSource(data=dict(x=npoints, c1=c1, c2=c2, cc1=cc1, cc2=cc2))
+    source = ColumnDataSource(data=dict(x=x, y=z[:, 0], y2=C[0] / 100,
+                                        z=z.tolist(), z2=(C.T / 100).tolist()))
+    source2 = ColumnDataSource(data=dict(x=npoints, c1=c1, c2=c2))
+    source2_ = ColumnDataSource(data=dict(cc1=cc1, cc2=cc2))
 
     plot = bpl.figure(plot_width=600, plot_height=300)
     plot.line('x', 'y', source=source, line_width=1, line_alpha=0.6)
     if denoised_color is not None:
         plot.line('x', 'y2', source=source, line_width=1, line_alpha=0.6, color=denoised_color)
 
-    callback = CustomJS(args=dict(source=source, source2=source2), code="""
+    callback = CustomJS(args=dict(source=source, source2=source2, source2_=source2_), code="""
             var data = source.get('data');
             var f = cb_obj.get('value')-1
             x = data['x']
@@ -190,11 +187,12 @@ def nb_view_patches(Yr, A, C, b, f, d1, d2, image_neurons=None, thr=0.99, denois
                 y2[i] = data['z2'][i][f]
             }
 
+            var data2_ = source2_.get('data');
             var data2 = source2.get('data');
             c1 = data2['c1'];
             c2 = data2['c2'];
-            cc1 = data2['cc1'];
-            cc2 = data2['cc2'];
+            cc1 = data2_['cc1'];
+            cc2 = data2_['cc2'];
 
             for (i = 0; i < c1.length; i++) {
                    c1[i] = cc1[f][i]
@@ -202,7 +200,6 @@ def nb_view_patches(Yr, A, C, b, f, d1, d2, image_neurons=None, thr=0.99, denois
             }
             source2.trigger('change');
             source.trigger('change');
-
         """)
 
     slider = bokeh.models.Slider(start=1, end=Y_r.shape[
