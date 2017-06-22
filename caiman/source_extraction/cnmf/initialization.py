@@ -552,7 +552,7 @@ def finetune(Y, cin, nIter=5):
 #%%
 
 
-def imblur(Y, sig=5, siz=11, nDimBlur=None, kernel=None, opencv = True):
+def imblur(Y, sig=5, siz=11, nDimBlur=None, kernel=None, opencv = False):
     """Spatial filtering with a Gaussian or user defined kernel
     The parameters are specified in GreedyROI
     """
