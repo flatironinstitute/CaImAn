@@ -130,11 +130,12 @@ def get_noise_fft(Y, noise_range = [0.25,0.5], noise_method = 'logmexp', max_num
         T = np.shape(Y)[-1]
 
     dims = len(np.shape(Y))
+    #we create a map of what is the noise on the FFT space
     ff = np.arange(0,0.5+old_div(1.,T),old_div(1.,T))
     ind1 = ff > noise_range[0]
     ind2 = ff <= noise_range[1]
-    ind = np.logical_and(ind1,ind2)    
-
+    ind = np.logical_and(ind1,ind2)
+    #we compute the mean of the noise spectral density s
     if dims > 1:
 
         xdft = np.fft.rfft(Y,axis=-1)
@@ -143,7 +144,7 @@ def get_noise_fft(Y, noise_range = [0.25,0.5], noise_method = 'logmexp', max_num
         sn = mean_psd(psdx[...,ind], method = noise_method)
 
     else:
-        xdft = np.fliplr(rfft(Y))
+        xdft = np.fliplr(np.fft.rfft(Y))
         psdx = (old_div(1.,T))*(xdft**2)
         psdx[1:] *=2
         sn = mean_psd(psdx[ind], method = noise_method)
@@ -287,7 +288,6 @@ def fft_psd_multithreading(args):
         arguments to be passed to get_noise_fft
     """
     (Y,i,num_pixels,kwargs)=args
-    Yold=Y
     if isinstance(Y,basestring):
         Y,_,_=load_memmap(Y)
 

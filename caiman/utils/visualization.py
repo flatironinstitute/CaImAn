@@ -248,6 +248,7 @@ def get_contours(A, dims, thr=0.9):
     """
     A = csc_matrix(A)
     d, nr = np.shape(A)
+    #if we are on a 3D video
     if len(dims) == 3:
         d1, d2, d3 = dims
         x, y = np.mgrid[0:d2:1, 0:d3:1]
@@ -256,19 +257,28 @@ def get_contours(A, dims, thr=0.9):
         x, y = np.mgrid[0:d1:1, 0:d2:1]
 
     coordinates = []
+    #get the center of mass of neurons( patches )
     cm = np.asarray([center_of_mass(a.toarray().reshape(dims, order='F')) for a in A.T])
+    #for each patches
     for i in range(nr):
         pars = dict()
-        indx = np.argsort(A.data[A.indptr[i]:A.indptr[i + 1]])[::-1]
-        cumEn = np.cumsum(A.data[A.indptr[i]:A.indptr[i + 1]][indx]**2)
+        #we compute the cumulative sum of the energy of the Ath component that has been ordered from least to highest
+        patch_data = A.data[A.indptr[i]:A.indptr[i + 1]]
+        indx = np.argsort(patch_data)[::-1]
+        cumEn = np.cumsum(patch_data[indx]**2)
+        #we work with normalized values
         cumEn /= cumEn[-1]
         Bvec = np.ones(d)
+        #we put it in a similar matrix
         Bvec[A.indices[A.indptr[i]:A.indptr[i + 1]][indx]] = cumEn
         Bmat = np.reshape(Bvec, dims, order='F')
         pars['coordinates'] = []
+        # for each dimensions we draw the contour
         for B in (Bmat if len(dims) == 3 else [Bmat]):
-            c = mpl._cntr.Cntr(y, x, B)
-            nlist = c.trace(thr)
+            #plotting the contour usgin matplotlib undocumented function around the thr threshold
+            nlist = mpl._cntr.Cntr(y, x, B).trace(thr)
+
+            #vertices will be the first half of the list
             vertices = nlist[:len(nlist) // 2]
             # this fix is necessary for having disjoint figures and borders plotted correctly
             v = np.atleast_2d([None, None])  # Bokeh does not accept nan in list, only in np arrays

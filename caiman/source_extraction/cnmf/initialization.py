@@ -1,3 +1,17 @@
+""" Initialize the component for the CNMF
+
+contain a list of functions to initialize the neurons and the corresponding traces with different set of methods
+liek ICA PCA, greedy roi
+
+
+
+"""
+#\package Caiman/source_extraction/cnmf/
+#\version   1.0
+#\copyright GNU General Public License v2.0
+#\date Created on Tue Jun 30 21:01:17 2015
+#\author: Eftychios A. Pnevmatikakis
+
 from __future__ import division
 from __future__ import print_function
 from builtins import range
@@ -17,7 +31,8 @@ from scipy.ndimage.filters import correlate
 #%%
 def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter=5, maxIter=5, nb=1,
                           kernel=None, use_hals=True, normalize_init=True, img=None, method='greedy_roi', max_iter_snmf=500, alpha_snmf=10e2, sigma_smooth_snmf=(.5, .5, .5), perc_baseline_snmf=20, options_local_NMF = None):
-    """Initalize components
+    """
+    Initalize components
 
     This method uses a greedy approach followed by hierarchical alternative least squares (HALS) NMF.
     Optional use of spatio-temporal downsampling to boost speed.
@@ -110,7 +125,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
             Y_ds, nr=K, gSig=gSig, gSiz=gSiz, nIter=nIter, kernel=kernel, nb=nb)
 
         if use_hals:
-            print('Refining Components...')
+            print('(Hals) Refining Components...')
             Ain, Cin, b_in, f_in = hals(Y_ds, Ain, Cin, b_in, f_in, maxIter=maxIter)
             
         
@@ -426,7 +441,9 @@ def sparseNMF(Y_ds, nr,  max_iter_snmf=500, alpha=10e2, sigma_smooth=(.5, .5, .5
 def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1):
     """
     Greedy initialization of spatial and temporal components using spatial Gaussian filtering
+
     Inputs:
+    --------
     Y: np.array
         3d or 4d array of fluorescence data with time appearing in the last axis.
     nr: int
@@ -443,6 +460,7 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1):
         Number of background components
 
     Outputs:
+    -------
     A: np.array
         2d array of size (# of pixels) x nr with the spatial components. Each column is
         ordered columnwise (matlab format, order='F')
@@ -451,51 +469,54 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1):
     center: np.array
         2d array of size nr x 2 [ or 3] with the components centroids
 
-    Author: Eftychios A. Pnevmatikakis based on a matlab implementation by Yuanjun Gao
+    @Author: Eftychios A. Pnevmatikakis based on a matlab implementation by Yuanjun Gao
             Simons Foundation, 2015
-    """
-    debug_ = False
-    if debug_:
-        import os
-        f = open('_LOG_1_' + str(os.getpid()), 'w+')
-        f.write('type_rho:' + str(type(rho)) + '\n')
-        f.write('rho:' + str(np.mean(rho)) + '\n')
-        f.close()
 
+    See Also:
+    -------
+    http://www.cell.com/neuron/pdf/S0896-6273(15)01084-3.pdf
+
+
+    """
+
+    #debug_ = False
+    # if debug_:
+    #     import os
+    #     f = open('_LOG_1_' + str(os.getpid()), 'w+')
+    #     f.write('type_blurred:' + str(type(blurred)) + '\n')
+    #     f.write('blurred:' + str(np.mean(blurred)) + '\n')
+    #     f.close()
+
+    print("Greedy initialization of spatial and temporal components using spatial Gaussian filtering")
     d = np.shape(Y)
     med = np.median(Y, axis=-1)
     Y = Y - med[..., np.newaxis]
     gHalf = np.array(gSiz) // 2
     gSiz = 2 * gHalf + 1
-
+    #we initialize every values to zero
     A = np.zeros((np.prod(d[0:-1]), nr))
     C = np.zeros((nr, d[-1]))
     center = np.zeros((nr, Y.ndim - 1))
 
-    rho = imblur(Y, sig=gSig, siz=gSiz, nDimBlur=Y.ndim - 1, kernel=kernel)
-
-    v = np.sum(rho**2, axis=-1)
+    blurred = imblur(Y, sig=gSig, siz=gSiz, nDimBlur=Y.ndim - 1, kernel=kernel)
+    v = np.sum(blurred**2, axis=-1)
 
     for k in range(nr):
-
+        #we take the highest value of the blurred total image and we define it as the center of the neuron
         ind = np.argmax(v)
-
         ij = np.unravel_index(ind, d[0:-1])
-
         for c, i in enumerate(ij):
             center[k, c] = i
 
+        #we define a squared size around it
         ijSig = [[np.maximum(ij[c] - gHalf[c], 0), np.minimum(ij[c] + gHalf[c] + 1, d[c])]
                  for c in range(len(ij))]
-
+        #we create an array of it (fl like) and compute the trace like the pixel ij trough time
         dataTemp = np.array(Y[[slice(*a) for a in ijSig]].copy(), dtype=np.float)
-
-        traceTemp = np.array(np.squeeze(rho[ij]), dtype=np.float)
+        traceTemp = np.array(np.squeeze(blurred[ij]), dtype=np.float)
 
         coef, score = finetune(dataTemp, traceTemp, nIter=nIter)
-
         C[k, :] = np.squeeze(score)
-
         dataSig = coef[..., np.newaxis] * score.reshape([1] * (Y.ndim - 1) + [-1])
         xySig = np.meshgrid(*[np.arange(s[0], s[1]) for s in ijSig], indexing='xy')
         arr = np.array([np.reshape(s, (1, np.size(s)), order='F').squeeze()
@@ -512,10 +533,10 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1):
             dataTemp = np.zeros(ModLen)
             dataTemp[[slice(*a) for a in Lag]] = coef
             dataTemp = imblur(dataTemp[..., np.newaxis], sig=gSig, siz=gSiz, kernel=kernel)
-            rhoTEMP = dataTemp * score.reshape([1] * (Y.ndim - 1) + [-1])
-            rho[[slice(*a) for a in Mod]] -= rhoTEMP.copy()
+            blurredTEMP = dataTemp * score.reshape([1] * (Y.ndim - 1) + [-1])
+            blurred[[slice(*a) for a in Mod]] -= blurredTEMP.copy()
             v[[slice(*a) for a in Mod]] = np.sum(
-                rho[[slice(*a) for a in Mod]]**2, axis=-1)
+                blurred[[slice(*a) for a in Mod]]**2, axis=-1)
 
     res = np.reshape(Y, (np.prod(d[0:-1]), d[-1]), order='F') + med.flatten(order='F')[:, None]
 
@@ -530,22 +551,50 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1):
 
 
 def finetune(Y, cin, nIter=5):
-    """Fine tuning of components within greedyROI using rank-1 NMF
-    """
-    debug_ = False
+    """compute a initialized version of A and C
 
-    if debug_:
-        import os
-        f = open('_LOG_1_' + str(os.getpid()), 'w+')
-        f.write('Y:' + str(np.mean(Y)) + '\n')
-        f.write('cin:' + str(np.mean(cin)) + '\n')
-        f.close()
+    Parameters :
+    -----------
 
-    c = cin
+    Y:  D1*d2*T*K patches
+
+    c: array T*K
+        the inital calcium traces
+
+    nIter: int
+        True indicates that time is listed in the last axis of Y (matlab format)
+        and moves it in the front
+
+    Returns :
+    --------
+
+    a: array (d1,D2) the computed A as l2(Y*C)/Y*C
+
+    c: array(T) C as the sum of As on x*y axis
+
+
+    See Also:
+    ---------
+
+            """
+    # \bug
+    # \warning
+
+
+    # debug_ = False
+    #
+    # if debug_:
+    #     import os
+    #     f = open('_LOG_1_' + str(os.getpid()), 'w+')
+    #     f.write('Y:' + str(np.mean(Y)) + '\n')
+    #     f.write('cin:' + str(np.mean(cin)) + '\n')
+    #     f.close()
+
+    #we compute the multiplication of patches per traces ( non negatively )
     for iter in range(nIter):
-        a = np.maximum(np.dot(Y, c), 0)
-        a = old_div(a, np.sqrt(np.sum(a**2)))
-        c = np.sum(Y * a[..., np.newaxis], tuple(np.arange(Y.ndim - 1)))
+        a = np.maximum(np.dot(Y, cin), 0)
+        a = old_div(a, np.sqrt(np.sum(a**2))) #compute the l2/a
+        c = np.sum(Y * a[..., np.newaxis], tuple(np.arange(Y.ndim - 1))) #c as the variation of thoses patches
 
     return a, c
 
@@ -555,9 +604,10 @@ def finetune(Y, cin, nIter=5):
 def imblur(Y, sig=5, siz=11, nDimBlur=None, kernel=None, opencv = True):
     """Spatial filtering with a Gaussian or user defined kernel
     The parameters are specified in GreedyROI
+
     """
 #    import cv2
-    
+    # TODO: document
 
     X = np.zeros(np.shape(Y))
 
@@ -593,6 +643,7 @@ def imblur(Y, sig=5, siz=11, nDimBlur=None, kernel=None, opencv = True):
         X = Y.copy()
         if opencv and nDimBlur == 2:
             if X.ndim > 2:
+                #if we are on a video we repeat for each frame
                 for frame in range(X.shape[-1]):
                     X[:,:,frame] = cv2.GaussianBlur(X[:,:,frame],tuple(siz),sig[0],sig[1],cv2.BORDER_CONSTANT,0)               
                 
@@ -639,10 +690,13 @@ def hals(Y, A, C, b, f, bSiz=3, maxIter=5):
     output:
     the updated A, C, b, f
 
-    Author: Johannes Friedrich, Andrea Giovannucci
+    @Author: Johannes Friedrich, Andrea Giovannucci
+
+    See Also:
+        http://proceedings.mlr.press/v39/kimura14.pdf
     """
 
-    #%% smooth the components
+    # smooth the components
     dims, T = np.shape(Y)[:-1], np.shape(Y)[-1]
     K = A.shape[1]  # number of neurons
     nb = b.shape[1]  # number of background components

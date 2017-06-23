@@ -19,7 +19,9 @@ from ...mmapping import parallel_dot_product
 
 
 def make_G_matrix(T, g):
-    ''' create matrix of autoregression to enforce indicator dynamics
+    """
+    create matrix of autoregression to enforce indicator dynamics
+
     Inputs: 
     T: positive integer
         number of time-bins
@@ -29,7 +31,7 @@ def make_G_matrix(T, g):
     Output:
     G: sparse diagonal matrix
         Matrix of autoregression
-    '''
+    """
     if type(g) is np.ndarray:
         if len(g) == 1 and g < 0:
             g = 0
@@ -68,7 +70,7 @@ def constrained_foopsi_parallel(arg_in):
 def update_temporal_components(Y, A, b, Cin, fin, bl=None, c1=None, g=None, sn=None, nb=1, ITER=2, method_foopsi='constrained_foopsi', block_size=20000, memory_efficient=False, debug=False, dview=None, **kwargs):
     """Update temporal components and background given spatial components using a block coordinate descent approach.
 
-    Parameters
+    Parameters:
     -----------
 
     Y: np.ndarray (2D)
@@ -118,12 +120,12 @@ def update_temporal_components(Y, A, b, Cin, fin, bl=None, c1=None, g=None, sn=N
     solvers: list string
             primary and secondary (if problem unfeasible for approx solution) solvers to be used with cvxpy, default is ['ECOS','SCS']
 
-    Note
+    Note:
     --------
 
     The temporal components are updated in parallel by default by forming of sequence of vertex covers.
 
-    Returns
+    Returns:
     --------
 
     C:   np.ndarray
@@ -222,83 +224,51 @@ def update_temporal_components(Y, A, b, Cin, fin, bl=None, c1=None, g=None, sn=N
                         None, None, None, kwargs) for jj in range(len(jo))]
 
             if dview is not None:
-                #
                 if debug:
-
                     results = dview.map_async(constrained_foopsi_parallel, args_in)
-
                     results.get()
 
                     for outp in results.stdout:
-
                         print((outp[:-1]))
-
                         sys.stdout.flush()
 
                     for outp in results.stderr:
-
                         print((outp[:-1]))
-
                         sys.stderr.flush()
 
                 else:
-
                     results = dview.map_sync(constrained_foopsi_parallel, args_in)
 
             else:
-
                 results = list(map(constrained_foopsi_parallel, args_in))
 
             for chunk in results:
-
                 pars = dict()
-
                 C_, Sp_, Ytemp_, cb_, c1_, sn_, gn_, jj_ = chunk
-
                 Ctemp[jj_, :] = C_[None, :]
-
                 Stemp[jj_, :] = Sp_
-
                 Ytemp[:, jj_] = Ytemp_  # [:, None]
-
                 btemp[jj_] = cb_
-
                 c1temp[jj_] = c1_
-
                 sntemp[jj_] = sn_
-
                 gtemp[jj_, :] = gn_.T
-
                 bl[jo[jj_]] = cb_
-
                 c1[jo[jj_]] = c1_
-
                 sn[jo[jj_]] = sn_
-
                 g[jo[jj_]] = gn_.T if kwargs['p'] > 0 else []  # gtemp[jj,:]
-
                 pars['b'] = cb_
-
                 pars['c1'] = c1_
-
                 pars['neuron_sn'] = sn_
-
                 pars['gn'] = gtemp[jj_, np.abs(gtemp[jj_, :]) > 0]
-
                 pars['neuron_id'] = jo[jj_]
-
                 P_.append(pars)
 
             YrA -= AA[jo, :].T.dot(Ctemp - C[jo, :]).T
             C[jo, :] = Ctemp.copy()
-
             S[jo, :] = Stemp
-
-#           if (np.sum(lo[:jo])+1)%1 == 0:
             print((str(np.sum(lo[:count + 1])) + ' out of total ' +
                    str(nr) + ' temporal components updated'))
 
-        ii = nr
 
         #YrA[:,ii] = YrA[:,ii] + np.atleast_2d(Cin[ii,:]).T
         #cc = np.maximum(YrA[:,ii],0)

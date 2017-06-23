@@ -47,12 +47,7 @@ from scipy.ndimage.measurements import label
 # sys.path.append(path_to_folder)
 
 
-def basis_denoising(y, c, boh, sn, id2_, px):
-    if np.size(c) > 0:
-        _, _, a, _, _ = lars_regression_noise(y, c, 1, sn)
-    else:
-        return (None, None, None)
-    return a, px, id2_
+
 #%% update_spatial_components (in parallel)
 
 
@@ -69,7 +64,7 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
 
     for each pixel the search is limited to a few spatial components
 
-    Parameters
+    Parameters:
     ----------
     Y: np.ndarray (2D or 3D)
         movie, raw data in 2D or 3D (pixels x time).
@@ -128,7 +123,7 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
         normalize_yyt_one: bool
             wheter to norrmalize the C and A matrices so that diag(C*C.T) are ones
 
-    Returns
+    Returns:
     --------
     A: np.ndarray
          new estimate of spatial footprints
@@ -195,9 +190,7 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
 
     if f is not None:
         nb = f.shape[0]
-    else:
-        if b is not None:
-            nb = b.shape[1]
+
 
     if A_in.dtype == bool:
         IND = A_in.copy()
@@ -346,6 +339,7 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
 
 #%%lars_regression_noise_ipyparallel
 def regression_ipyparallel(pars):
+    #TODO : to ddocument
 
     # need to import since it is run from within the server
     import numpy as np
@@ -356,36 +350,28 @@ def regression_ipyparallel(pars):
     Y_name, C_name, noise_sn, idxs_C, idxs_Y, method_least_square, cct, rank_f = pars
 
     if isinstance(Y_name, basestring):
-       # print("Reloading Y")
         Y, _, _ = load_memmap(Y_name)
         Y = np.array(Y[idxs_Y, :])
     else:
         Y = Y_name[idxs_Y, :]
 
     if isinstance(C_name, basestring):
-        #print("Reloading Y")
         C = np.load(C_name, mmap_mode='r')
         C = np.array(C)
     else:
         C = C_name
-
     _, T = np.shape(C)
-    #sys.stdout = open(str(os.getpid()) + ".out", "w")
     As = []
-    # print "*****************:" + str(idxs_Y[0]) + ',' + str(idxs_Y[-1])
     print('updating lars')
-#    import os
-#    print('**' + str(os.environ['OPENBLAS_NUM_THREADS']))
+
     for y, px in zip(Y, idxs_Y):
-        # print str(time.time()-st) + ": Pixel" + str(px)
-        #        print px,len(idxs_C),C.shape
+
         c = C[idxs_C[px], :]
         idx_only_neurons = idxs_C[px]
         cct_ = cct[idx_only_neurons[:-rank_f]]
 
         if np.size(c) > 0:
             sn = noise_sn[px]**2 * T
-
             if method_least_square == 'lasso_lars_old':  # lasso lars from old implementation, will be deprecated
 
                 a = lars_regression_noise_old(y, c.T, 1, sn)[2]
@@ -394,20 +380,11 @@ def regression_ipyparallel(pars):
                 a = nnls_L0(c.T, y, 1.2 * sn)
 
             elif method_least_square == 'lasso_lars':  # lasso lars function from scikit learn
-                #a, RSS = scipy.optimize.nnls(c.T, np.ravel(y))
-                #                RSS = RSS * RSS
-                #                if RSS <= 2*sn:  # hard noise constraint hardly feasible
                 lambda_lasso = .5 * noise_sn[px] * np.sqrt(np.max(cct_)) / T
-#                lambda_lasso=1
                 clf = linear_model.LassoLars(alpha=lambda_lasso, positive=True)
                 a_lrs = clf.fit(np.array(c.T), np.ravel(y))
                 a = a_lrs.coef_
-#                else:
-#                    print 'Problem infeasible'
-#                    pl.cla()
-#                    pl.plot(a.T.dot(c));
-#                    pl.plot(y)
-#                    pl.pause(3)
+
 
             else:
                 raise Exception('Least Square Method not found!' + method_least_square)
@@ -430,7 +407,22 @@ def regression_ipyparallel(pars):
     print('done!')
     return As
 
+
 #%% lars_regression_noise_parallel
+
+#
+# def basis_denoising(y, c, boh, sn, id2_, px):
+#     if np.size(c) > 0:
+#         _, _, a, _, _ = lars_regression_noise(y, c, 1, sn)
+#     else:
+#         return (None, None, None)
+#     return a, px, id2_
+#
+#
+#
+#
+
+
 # def lars_regression_noise_parallel(Y,C,A,noise_sn,idx_Y,idx_C,positive=1):
 #
 #    _,T=np.shape(C)
@@ -457,8 +449,10 @@ def determine_search_location(A, dims, method='ellipse', min_size=3, max_size=8,
     """
     restrict search location to subset of pixels
 
-    TODO
+
     """
+
+    #TODO: todocument
     from scipy.ndimage.morphology import grey_dilation
     from scipy.sparse import coo_matrix, issparse
 
@@ -543,7 +537,8 @@ def determine_search_location(A, dims, method='ellipse', min_size=3, max_size=8,
 #%%
 
 
-def contruct_ellipse_parallel(pars):
+def construct_ellipse_parallel(pars):
+    # TODO: todocument
 
     Coor, cm, A_i, Vr, dims, dist, max_size, min_size, d = pars
     dist_cm = coo_matrix(np.hstack([Coor[c].reshape(-1, 1) - cm[k]
@@ -565,8 +560,9 @@ def contruct_ellipse_parallel(pars):
 
 def threshold_components(A, dims, medw=None, thr_method='nrg', maxthr=0.1, nrgthr=0.9999, extract_cc=True,
                          se=None, ss=None, dview=None):
-    '''
+    """
     Post-processing of spatial components which includes the following steps
+
     (i) Median filtering
     (ii) Thresholding
     (iii) Morphological closing of spatial support
@@ -593,7 +589,12 @@ def threshold_components(A, dims, medw=None, thr_method='nrg', maxthr=0.1, nrgth
         Morphological closing structuring element
     ss: [optinoal] np.intarray
         Binary element for determining connectivity
-    '''
+
+    Returns:
+        Ath: np.ndarray
+            2d matrix with spatial components thresholded
+    """
+
     if medw is None:
         medw = (3,) * len(dims)
     if se is None:
@@ -623,6 +624,7 @@ def threshold_components(A, dims, medw=None, thr_method='nrg', maxthr=0.1, nrgth
 
 
 def threshold_components_parallel(pars):
+    #TODO document
 
     A_i, i, dims, medw, d, thr_method, se, ss, maxthr, nrgthr, extract_cc = pars
     #we reshape this one dimension column of the 2d components into the 2D that 
@@ -679,6 +681,7 @@ def threshold_components_parallel(pars):
 
 
 def nnls_L0(X, Yp, noise):
+    # TODO: documment
     """
     Nonnegative least square with L0 penalty
     min_||W_lam||_0 || Yp-W_lam*X||**2 <= noise
@@ -967,7 +970,7 @@ def lars_regression_noise_old(Yp, X, positive, noise, verbose=False):
 
 
 def calcAvec(new, dQ, W, lambda_, active_set, M, positive):
-    # TODO: comment
+    # TODO: documment
     r, c = np.nonzero(active_set)
 #    [r,c] = find(active_set);
     Mm = -M.take(r, axis=0).take(r, axis=1)

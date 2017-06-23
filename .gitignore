@@ -137,6 +137,9 @@ ENV/
 # mkdocs documentation
 /site
 
+#VCS
+*.idea
+
 #html documentation
 /html
 /docs/html
