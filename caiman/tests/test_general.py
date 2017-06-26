@@ -54,7 +54,7 @@ from caiman.tests.comparison import comparison
 
 
 #GLOBAL VAR
-params_movie = {'fname':[u'./example_movies/demoMovieJ.tif'],
+params_movie = {'fname':[u'./example_movies/demoSue2x.tif'],
                 'max_shifts':(1,1), # maximum allow rigid shift (2,2)
                 'niter_rig':1,
                 'splits_rig':14, # for parallelization split the movies in  num_splits chuncks across time

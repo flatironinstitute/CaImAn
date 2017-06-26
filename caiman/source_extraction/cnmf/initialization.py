@@ -28,7 +28,9 @@ import cv2
 from scipy.ndimage.filters import correlate
 #%%
 def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter=5, maxIter=5, nb=1,
-                          kernel=None, use_hals=True, normalize_init=True, img=None, method='greedy_roi', max_iter_snmf=500, alpha_snmf=10e2, sigma_smooth_snmf=(.5, .5, .5), perc_baseline_snmf=20, options_local_NMF = None):
+                          kernel=None, use_hals=True, normalize_init=True, img=None, method='greedy_roi',
+                          max_iter_snmf=500, alpha_snmf=10e2, sigma_smooth_snmf=(.5, .5, .5),
+                          perc_baseline_snmf=20, options_local_NMF = None):
     """
     Initalize components
 
@@ -185,7 +187,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
             # Max number of centers to import from Group Lasso intialization - if 0, we don't run group lasso
             cent=GetCentersData(Y_ds.transpose([2,0,1]),NumCent) 
             sig=Y_ds.shape[:-1]
-            # estiamte size of neuron - bounding box is 3 times this size. If larger then data, we have no bounding box.
+            # estimate size of neuron - bounding box is 3 times this size. If larger then data, we have no bounding box.
             cnmf_obj=CNMF4Dendrites(sig=sig, verbose=True,adaptBias=True,**options_local_NMF)  
             
         #Define CNMF parameters
@@ -265,7 +267,7 @@ def ICA_PCA(Y_ds, nr, sigma_smooth=(.5, .5, .5),  truncate = 2, fun='logcosh', m
     yr = np.reshape(m1, [T, d], order='F')
 
     [U,S,V] = scipy.sparse.linalg.svds(yr,pca_comp)
-    S = np.diag(S);
+    S = np.diag(S)
     whiteningMatrix = np.dot(scipy.linalg.inv(S),U.T)
     whitesig =  np.dot(whiteningMatrix,yr)
     f_ica = FastICA(whiten=False, fun=fun, max_iter=max_iter, tol=tol)
@@ -411,6 +413,13 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1):
 
 
     """
+    debug_ = False
+    if debug_:
+        import os
+        f = open('_LOG_1_' + str(os.getpid()), 'w+')
+        f.write('type_rho:' + str(type(rho)) + '\n')
+        f.write('rho:' + str(np.mean(rho)) + '\n')
+        f.close()
 
     #TODO: to comment , to deletecommented code
     print("Greedy initialization of spatial and temporal components using spatial Gaussian filtering")
@@ -424,8 +433,8 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1):
     C = np.zeros((nr, d[-1]))
     center = np.zeros((nr, Y.ndim - 1))
 
-    blurred = imblur(Y, sig=gSig, siz=gSiz, nDimBlur=Y.ndim - 1, kernel=kernel)
-    v = np.sum(blurred**2, axis=-1)
+    rho = imblur(Y, sig=gSig, siz=gSiz, nDimBlur=Y.ndim - 1, kernel=kernel)
+    v = np.sum(rho**2, axis=-1)
 
     for k in range(nr):
         #we take the highest value of the blurred total image and we define it as the center of the neuron
@@ -439,7 +448,7 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1):
                  for c in range(len(ij))]
         #we create an array of it (fl like) and compute the trace like the pixel ij trough time
         dataTemp = np.array(Y[[slice(*a) for a in ijSig]].copy(), dtype=np.float)
-        traceTemp = np.array(np.squeeze(blurred[ij]), dtype=np.float)
+        traceTemp = np.array(np.squeeze(rho[ij]), dtype=np.float)
 
         coef, score = finetune(dataTemp, traceTemp, nIter=nIter)
         C[k, :] = np.squeeze(score)
@@ -459,10 +468,10 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1):
             dataTemp = np.zeros(ModLen)
             dataTemp[[slice(*a) for a in Lag]] = coef
             dataTemp = imblur(dataTemp[..., np.newaxis], sig=gSig, siz=gSiz, kernel=kernel)
-            blurredTEMP = dataTemp * score.reshape([1] * (Y.ndim - 1) + [-1])
-            blurred[[slice(*a) for a in Mod]] -= blurredTEMP.copy()
+            temp = dataTemp * score.reshape([1] * (Y.ndim - 1) + [-1])
+            rho[[slice(*a) for a in Mod]] -= temp.copy()
             v[[slice(*a) for a in Mod]] = np.sum(
-                blurred[[slice(*a) for a in Mod]]**2, axis=-1)
+                rho[[slice(*a) for a in Mod]]**2, axis=-1)
 
     res = np.reshape(Y, (np.prod(d[0:-1]), d[-1]), order='F') + med.flatten(order='F')[:, None]
 
@@ -503,26 +512,23 @@ def finetune(Y, cin, nIter=5):
     ---------
 
             """
-    # \bug
-    # \warning
-
-
-    # debug_ = False
-    #
-    # if debug_:
-    #     import os
-    #     f = open('_LOG_1_' + str(os.getpid()), 'w+')
-    #     f.write('Y:' + str(np.mean(Y)) + '\n')
-    #     f.write('cin:' + str(np.mean(cin)) + '\n')
-    #     f.close()
+    #\bug
+    #\warning
+    debug_ = False
+    if debug_:
+        import os
+        f = open('_LOG_1_' + str(os.getpid()), 'w+')
+        f.write('Y:' + str(np.mean(Y)) + '\n')
+        f.write('cin:' + str(np.mean(cin)) + '\n')
+        f.close()
 
     #we compute the multiplication of patches per traces ( non negatively )
-    for iter in range(nIter):
+    for _ in range(nIter):
         a = np.maximum(np.dot(Y, cin), 0)
         a = old_div(a, np.sqrt(np.sum(a**2))) #compute the l2/a
-        c = np.sum(Y * a[..., np.newaxis], tuple(np.arange(Y.ndim - 1))) #c as the variation of thoses patches
+        cin = np.sum(Y * a[..., np.newaxis], tuple(np.arange(Y.ndim - 1))) #c as the variation of thoses patches
 
-    return a, c
+    return a, cin
 
 #%%
 
