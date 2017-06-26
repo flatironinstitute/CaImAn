@@ -62,10 +62,10 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
     normalize_init: [optional] bool
         Whether to normalize_init data before running the initialization
     img: optional [np 2d array]
-        Image with which to normalize. If not present use the mean + offset 
-    method: str  
-        Initialization method 'greedy_roi' or 'sparse_nmf' 
-    max_iter_snmf: int 
+        Image with which to normalize. If not present use the mean + offset
+    method: str
+        Initialization method 'greedy_roi' or 'sparse_nmf'
+    max_iter_snmf: int
         Maximum number of sparse NMF iterations
     alpha_snmf: scalar
         Sparsity penalty
@@ -89,10 +89,10 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
     if method == 'local_nmf':
         tsub_lnmf = tsub
         ssub_lnmf = ssub
-        tsub = 1 
+        tsub = 1
         ssub = 1
-        
-        
+
+
     if gSiz is None:
         gSiz = 2 * np.asarray(gSig) + 1
 
@@ -108,7 +108,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
             img += np.median(img)
 
         Y = old_div(Y, np.reshape(img, d + (-1,), order='F'))
-        alpha_snmf /= np.mean(img)
+        if alpha_snmf is not None: alpha_snmf /= np.mean(img)
 
     # spatial downsampling
     mean_val = np.mean(Y)
@@ -127,10 +127,10 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
         if use_hals:
             print('(Hals) Refining Components...')
             Ain, Cin, b_in, f_in = hals(Y_ds, Ain, Cin, b_in, f_in, maxIter=maxIter)
-            
-        
+
+
     elif method == 'sparse_nmf':
-        
+
         Ain, Cin, _, b_in, f_in = sparseNMF(Y_ds, nr=K, nb=nb, max_iter_snmf=max_iter_snmf, alpha=alpha_snmf,
                                             sigma_smooth=sigma_smooth_snmf, remove_baseline=True, perc_baseline=perc_baseline_snmf)
 #        print np.sum(Ain), np.sum(Cin)
@@ -138,20 +138,20 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
 #        Ain, Cin, b_in, f_in = hals(Y_ds, Ain, Cin, b_in, f_in, maxIter=maxIter)
 #        print np.sum(Ain), np.sum(Cin)
     elif method == 'pca_ica':
-        
+
         Ain, Cin, _, b_in, f_in = ICA_PCA(Y_ds, nr = K, sigma_smooth=sigma_smooth_snmf,  truncate = 2, fun='logcosh',\
                                           max_iter=max_iter_snmf, tol=1e-10,remove_baseline=True, perc_baseline=perc_baseline_snmf, nb=nb)
-        
+
     elif method == 'local_nmf':
-        from SourceExtraction.CNMF4Dendrites import CNMF4Dendrites    
+        from SourceExtraction.CNMF4Dendrites import CNMF4Dendrites
         from SourceExtraction.AuxilaryFunctions import GetCentersData
         #Get initialization for components center
         print(Y_ds.transpose([2,0,1]).shape)
         if options_local_NMF is None:
-            
+
              raise Exception('You need to define arguments for local NMF')
-           
-            
+
+
 #            #Define CNMF parameters
 #            mbs=[tsub_lnmf] # temporal downsampling of data in intial phase of NMF
 #            ds=ssub_lnmf # spatial downsampling of data in intial phase of NMF. Ccan be an integer or a list of the size of spatial dimensions
@@ -159,11 +159,11 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
 #            #repeats=1 # how many repeations to run NMF algorithm
 #            iters0=[5] #30 number of intial NMF iterations, in which we downsample data and add components
 #            iters=20 #100 number of main NMF iterations, in which we fine tune the components on the full data
-#            lam1_s=10# l1 regularization parameter initialization (for increased sparsity). If zero, we have no l1 sparsity penalty        
+#            lam1_s=10# l1 regularization parameter initialization (for increased sparsity). If zero, we have no l1 sparsity penalty
 #            bkg_per=0.1 # intialize of background shape at this percentile (over time) of video
 #            sig=Y_ds.shape[:-1] # estiamte size of neuron - bounding box is 3 times this size. If larger then data, we have no bounding box.
 #            MergeThreshold_activity=0.85#merge components if activity is correlated above the this threshold (and sufficiently close)
-#            MergeThreshold_shapes=0.99 #merge components if activity is correlated above the this threshold (and sufficiently close)                    
+#            MergeThreshold_shapes=0.99 #merge components if activity is correlated above the this threshold (and sufficiently close)
 #            Connected=True # should we constrain all spatial component to be connected?
 #            SigmaMask=3  # if not [], then update masks so that they are non-zero a radius of SigmaMasks around previous non-zero support of shapes
 
@@ -171,7 +171,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
 
 #            NumCent=400 # Max number of centers to import from Group Lasso intialization - if 0, we don't run group lasso
 #            cent=GetCentersData(Y_ds.transpose([2,0,1]),NumCent)
-#            
+#
 #            #Define CNMF parameters
 #            mbs=[10] # temporal downsampling of data in intial phase of NMF
 #            ds=1 # spatial downsampling of data in intial phase of NMF. Ccan be an integer or a list of the size of spatial dimensions
@@ -187,37 +187,37 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
 #            bkg_per=0.1 # intialize of background shape at this percentile (over time) of video
 #            sig=Y_ds.shape[:-1] # estiamte size of neuron - bounding box is 3 times this size. If larger then data, we have no bounding box.
 #            MergeThreshold_activity=0.85#merge components if activity is correlated above the this threshold (and sufficiently close)
-#            MergeThreshold_shapes=0.99 #merge components if activity is correlated above the this threshold (and sufficiently close)        
+#            MergeThreshold_shapes=0.99 #merge components if activity is correlated above the this threshold (and sufficiently close)
 #            Connected=True # should we constrain all spatial component to be connected?
 #            SigmaMask=3  # if not [], then update masks so that they are non-zero a radius of SigmaMasks around previous non-zero support of shapes
-        
+
 #            cnmf_obj=CNMF4Dendrites(sig=sig, verbose=True,adaptBias=True,TargetAreaRatio=TargetAreaRatio,
-#                     Connected=Connected, SigmaMask=SigmaMask,bkg_per=bkg_per,iters=iters,iters0=iters0, mbs=mbs, 
-#                     ds=ds,lam1_s=lam1_s,MergeThreshold_activity=MergeThreshold_activity,MergeThreshold_shapes=MergeThreshold_shapes)  
+#                     Connected=Connected, SigmaMask=SigmaMask,bkg_per=bkg_per,iters=iters,iters0=iters0, mbs=mbs,
+#                     ds=ds,lam1_s=lam1_s,MergeThreshold_activity=MergeThreshold_activity,MergeThreshold_shapes=MergeThreshold_shapes)
         else:
-            
+
             NumCent=options_local_NMF.pop('NumCent', None) # Max number of centers to import from Group Lasso intialization - if 0, we don't run group lasso
-            cent=GetCentersData(Y_ds.transpose([2,0,1]),NumCent) 
+            cent=GetCentersData(Y_ds.transpose([2,0,1]),NumCent)
             sig=Y_ds.shape[:-1] # estiamte size of neuron - bounding box is 3 times this size. If larger then data, we have no bounding box.
-            cnmf_obj=CNMF4Dendrites(sig=sig, verbose=True,adaptBias=True,**options_local_NMF)  
-            
+            cnmf_obj=CNMF4Dendrites(sig=sig, verbose=True,adaptBias=True,**options_local_NMF)
+
         #Define CNMF parameters
         _, _, _ =cnmf_obj.fit(np.array(Y_ds.transpose([2,0,1]),dtype = np.float),cent)
-        
+
         Ain = cnmf_obj.A
         Cin = cnmf_obj.C
         b_in = cnmf_obj.b
-        f_in = cnmf_obj.f 
-        
+        f_in = cnmf_obj.f
+
 #        Cin, _, b_in, f_in = ICA_PCA(Y_ds, nr = K, sigma_smooth=sigma_smooth_snmf,  truncate = 2, fun='logcosh',\
 #                                          max_iter=max_iter_snmf, tol=1e-10,remove_baseline=True, perc_baseline=perc_baseline_snmf, nb=nb)
-    
+
     else:
-        
+
         print(method)
         raise Exception("Unsupported method")
-    
-    
+
+
     K = np.shape(Ain)[-1]
     ds = Y_ds.shape[:-1]
 
@@ -264,21 +264,21 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
         # b_in = np.atleast_2d(b_in * img.flatten('F')) #np.reshape(img,
         # (np.prod(d), -1),order='F')
         Y = Y * np.reshape(img, d + (-1,), order='F')
-       
-    
+
+
     return Ain, Cin, b_in, f_in, center
 
 #%%
 def ICA_PCA(Y_ds, nr, sigma_smooth=(.5, .5, .5),  truncate = 2, fun='logcosh', max_iter=1000, tol=1e-10,remove_baseline=True, perc_baseline=20, nb=1):
     """ Initialization using ICA and PCA. DOES NOT WORK WELL WORK IN PROGRESS"
-    
+
     Parameters:
     -----------
-    
+
     Returns:
     --------
-        
-    
+
+
     """
     m = scipy.ndimage.gaussian_filter(np.transpose(Y_ds, [2, 0, 1]), sigma=sigma_smooth, mode='nearest', truncate=truncate)
     if remove_baseline:
@@ -287,13 +287,13 @@ def ICA_PCA(Y_ds, nr, sigma_smooth=(.5, .5, .5),  truncate = 2, fun='logcosh', m
     else:
         bl = 0
         m1 = m
-        
+
     pca_comp = nr
-    
+
     T, d1, d2 = np.shape(m1)
     d = d1 * d2
     yr = np.reshape(m1, [T, d], order='F')
-    
+
     [U,S,V] = scipy.sparse.linalg.svds(yr,pca_comp)
     S = np.diag(S);
 #        whiteningMatrix = np.dot(scipy.linalg.inv(np.sqrt(S)),U.T)
@@ -307,35 +307,35 @@ def ICA_PCA(Y_ds, nr, sigma_smooth=(.5, .5, .5),  truncate = 2, fun='logcosh', m
     A_in = f_ica.mixing_
     A_in = np.dot(A_in,whitesig)
 
-    
+
     masks = np.reshape(A_in.T,(d1,d2,pca_comp),order = 'F').transpose([2,0,1])
-    
-    
+
+
 #    pl.figure()
  #   caiman.utils.visualization.matrixMontage(np.array(masks))
     masks = np.array(caiman.base.rois.extractROIsFromPCAICA(masks)[0])
 #    pl.pause(3)
-    
-    
+
+
     if masks.size > 0:
 
         C_in = caiman.base.movies.movie(m1).extract_traces_from_masks(np.array(masks)).T
         A_in = np.reshape(masks,[-1,d1*d2],order = 'F').T
-        
+
 #        pl.figure()
 #        pl.imshow(np.reshape(A_in.sum(1),[d1,d2],order = 'F'))
 #        pl.pause(3)
 
-    
+
     else:
-        
-        A_in = np.zeros([d1*d2,pca_comp])     
+
+        A_in = np.zeros([d1*d2,pca_comp])
         C_in = np.zeros([pca_comp,T])
 
 
 
     m1 = yr.T - A_in.dot(C_in) + np.maximum(0, bl.flatten())[:, np.newaxis]
-    
+
     model = NMF(n_components=nb, init='random', random_state=0)
 
     b_in = model.fit_transform(np.maximum(m1, 0))
@@ -361,7 +361,7 @@ def sparseNMF(Y_ds, nr,  max_iter_snmf=500, alpha=10e2, sigma_smooth=(.5, .5, .5
     perc_baseline_snmf:
         percentile to remove frmo movie before NMF
     nb: int
-        Number of background components    
+        Number of background components
 
     Returns:
     -------
@@ -415,12 +415,12 @@ def sparseNMF(Y_ds, nr,  max_iter_snmf=500, alpha=10e2, sigma_smooth=(.5, .5, .5
     f_in = model.components_.squeeze()
 #    for ccount,caaa in enumerate(A.T):
 #        pl.subplot(3,3,ccount+1)
-#        pl.imshow(np.reshape(caaa,[d1,d2],order = 'F'))    
-        
+#        pl.imshow(np.reshape(caaa,[d1,d2],order = 'F'))
+
 #    pl.subplot(2,2,1)
 #    pl.imshow(np.reshape(b_in,[d1,d2],order = 'F'))
 #    pl.subplot(2,2,2)
-#    pl.imshow(np.reshape(A_in.mean(axis = 1),[d1,d2],order = 'F'))    
+#    pl.imshow(np.reshape(A_in.mean(axis = 1),[d1,d2],order = 'F'))
 #    pl.subplot(2,2,3)
 #    pl.imshow(np.mean(np.maximum(0, m - bl),0))
 #    pl.subplot(2,2,4)
@@ -432,7 +432,7 @@ def sparseNMF(Y_ds, nr,  max_iter_snmf=500, alpha=10e2, sigma_smooth=(.5, .5, .5
 #        f = np.maximum(b.T.dot(scipy.linalg.solve(scipy.linalg.norm(b).T**2,Y.T),0);
 #        b = np.maximum(Y.dot(scipy.linalg.solve(scipy.linalg.norm(f).T**2,f.T),0);
 #    end
-    
+
     return A_in, C_in, center, b_in, f_in
 
 #%%
@@ -601,14 +601,13 @@ def finetune(Y, cin, nIter=5):
 #%%
 
 
-def imblur(Y, sig=5, siz=11, nDimBlur=None, kernel=None, opencv = True):
+def imblur(Y, sig=5, siz=11, nDimBlur=None, kernel=None, opencv = False):
     """Spatial filtering with a Gaussian or user defined kernel
     The parameters are specified in GreedyROI
 
     """
-#    import cv2
+    # import cv2
     # TODO: document
-
     X = np.zeros(np.shape(Y))
 
     if kernel is None:
@@ -645,11 +644,11 @@ def imblur(Y, sig=5, siz=11, nDimBlur=None, kernel=None, opencv = True):
             if X.ndim > 2:
                 #if we are on a video we repeat for each frame
                 for frame in range(X.shape[-1]):
-                    X[:,:,frame] = cv2.GaussianBlur(X[:,:,frame],tuple(siz),sig[0],sig[1],cv2.BORDER_CONSTANT,0)               
-                
+                    X[:,:,frame] = cv2.GaussianBlur(X[:,:,frame],tuple(siz),sig[0],sig[1],cv2.BORDER_CONSTANT,0)
+
             else:
-                X = cv2.GaussianBlur(X,tuple(siz),sig[0],sig[1],cv2.BORDER_CONSTANT,0) 
-        else:                
+                X = cv2.GaussianBlur(X,tuple(siz),sig[0],sig[1],cv2.BORDER_CONSTANT,0)
+        else:
             for i in range(nDimBlur):
                 h = np.exp(
                     old_div(-np.arange(-np.floor(old_div(siz[i], 2)), np.floor(old_div(siz[i], 2)) + 1)**2, (2 * sig[i]**2)))
@@ -657,7 +656,7 @@ def imblur(Y, sig=5, siz=11, nDimBlur=None, kernel=None, opencv = True):
                 shape = [1] * len(Y.shape)
                 shape[i] = -1
                 X = correlate(X, h.reshape(shape), mode='constant')
-                
+
 
     else:
         X = correlate(Y, kernel[..., np.newaxis], mode='constant')
@@ -681,7 +680,7 @@ def hals(Y, A, C, b, f, bSiz=3, maxIter=5):
        b:      (d1*d2[*d3]) X nb, initial value of background spatial component
        f:      nb X T, initial value of background temporal component
        bSiz:   int or tuple of int
-       blur size. A box kernel (bSiz X bSiz [X bSiz]) (if int) or bSiz (if tuple) will 
+       blur size. A box kernel (bSiz X bSiz [X bSiz]) (if int) or bSiz (if tuple) will
        be convolved with each neuron's initial spatial component, then all nonzero
        pixels will be picked as pixels to be updated, and the rest will be
        forced to be 0.
