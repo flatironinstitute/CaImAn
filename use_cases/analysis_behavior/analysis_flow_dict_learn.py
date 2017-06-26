@@ -49,7 +49,7 @@ from caiman.behavior import behavior
 from scipy.sparse import coo_matrix
 #%% ANALYSYS LICKING
 #n_components = 3
-#m = cm.load('/mnt/ceph/neuro/DataForPublications/JNM_Behavior/PS3_Vid1_conv.tif')
+#m = cm.load('./LickingForAndrea/licking50z_1_200.tif')
 #mask = behavior.select_roi(np.median(m[::100],0),1)[0]
 #resize_fact = .5
 #num_std_mag_for_angle = .6
@@ -62,128 +62,129 @@ from scipy.sparse import coo_matrix
 #ms = np.dstack(ms)
 #ms = cm.movie(ms.transpose([2,0,1]))
 #of_or = cm.behavior.behavior.compute_optical_flow(ms,do_show=True,polar_coord=True) 
-whole_field = True   
-mask_all = whole_field
-is_tg = False
-gt_names = ['./LickingForAndrea/points_licking50z_1_200.mat']
-expt_names = ['./LickingForAndrea/licking50z_1_200_ds.tif'] 
-expt_fold = [os.path.split(nm)[0].split('/')[1] for nm in gt_names]
-print(expt_names)
-print (expt_fold)
-for e,e1 in zip(gt_names,expt_names):
-    print(e)    
-    pts = scipy.io.loadmat(e)['points'][0][0]    
-    lat_sess = scipy.signal.savgol_filter(np.sqrt(np.diff(np.array(pts[0]).T,axis=0)**2+np.diff(np.array(pts[8]).T,axis=0)**2),3,1)[2:]
-    
-    mat_files = [e1]
-    m = cm.load(e1,fr=100)[2:]
-    pl.figure()
-    pl.imshow(m[10],cmap = 'gray')
-    pl.plot(pts[0][10]/3,pts[8][10]/3,'r*')
-    
-    
-    mask =behavior.select_roi(np.median(m[::100],0),1)[0]
-    
-    if mask_all:
-        
-        np.save(e[:-4]+'_mask_all_lick.npy',mask)
-            
-    else:
-        
-        np.save(e[:-4]+'_mask_all_tg.npy',mask)
-#%%    
-r_values = []
-only_magnitude = False
-n_components = 3
-resize_fact = .5
-num_std_mag_for_angle = .6
-
-for e,e1 in zip(gt_names,expt_names):
-        
-    
-    mat_files = [e1]
-    
-    if whole_field:
-        mask = np.load(e[:-4]+'_mask_all_lick.npy')
-    
-    elif is_tg:
-        mask = np.load(e[:-4]+'_mask_all_tg.npy')
-
-        
-    m = cm.load_movie_chain(mat_files, fr = 100)
-    spatial_filter_, time_trace_, of_or = cm.behavior.behavior.extract_motor_components_OF(m, n_components, mask = mask,  resize_fact= resize_fact, only_magnitude = only_magnitude , max_iter = 1000, verbose = True, method_factorization = 'dict_learn')
-    
-    mags, dircts, dircts_thresh, spatial_masks_thrs = cm.behavior.behavior.extract_magnitude_and_angle_from_OF(spatial_filter_, time_trace_, of_or, num_std_mag_for_angle = num_std_mag_for_angle, sav_filter_size =3, only_magnitude = only_magnitude)
-    if whole_field:
-        np.savez(e[:-4]+'_NEW_results_all_lick_DL', mags = mags, dircts= dircts, dircts_thresh= dircts_thresh, spatial_masks_thrs = spatial_masks_thrs ,
-             spatial_filter_ = spatial_filter_, time_trace_ = time_trace_, mask = mask, of_or = of_or)
-    elif is_tg:
-        np.savez(e[:-4]+'_NEW_results_tg_lick_DL', mags = mags, dircts= dircts, dircts_thresh= dircts_thresh, spatial_masks_thrs = spatial_masks_thrs ,
-             spatial_filter_ = spatial_filter_, time_trace_ = time_trace_, mask = mask, of_or = of_or)
-      
 #%%
-pl.rcParams['pdf.fonttype'] = 42
-font = {'family' : 'Myriad Pro',
-        'weight' : 'regular',
-        'size'   : 20}
-pl.rc('font', **font)
-r_values = []
-for e,e1 in zip(gt_names,expt_names)[1:]:
-    pl.figure()
-    if whole_field:
-        ftoload = e[:-4]+'_NEW_results_all_lick_DL.npz'
-    elif is_tg:
-        ftoload = e[:-4]+'_NEW_results_tg_lick_DL.npz'
-
-    
-    with np.load(ftoload) as ld:
-        print(ftoload)
-        pts = scipy.io.loadmat(e)['points'][0][0]    
-        whisk_sess_pix = scipy.signal.savgol_filter(np.abs(np.diff(np.array(pts[8]).T,axis=0)),3,1)
-        mags = ld['mags']
-        dircts_thresh = ld['dircts']
-        spatial_filter_ = ld['spatial_filter_']
-        mask_orig = ld['mask']
-        
-        idd = 0
-        axlin = pl.subplot(n_components,2,2)
-        for mag, dirct, spatial_filter in zip(mags,dircts_thresh,spatial_filter_):
-            pl.subplot(n_components,2,1+idd*2)
-            m = cm.load(e1)
-            mask =  mask_orig.astype(np.float32).copy()
-            min_x,min_y = np.min(np.where(mask),1)
-#            max_x,max_y = np.max(np.where(mask),1)
-            
-            spfl = spatial_filter
-            spfl = cm.movie(spfl[None,:,:]).resize(1/resize_fact,1/resize_fact,1).squeeze()
-            max_x,max_y = np.add( (min_x,min_y), np.shape(spfl) )
-               
-            mask[min_x:max_x,min_y:max_y] =  spfl
-            mask[mask<np.nanpercentile(spfl,70)] = np.nan
-#            spfl = ld['spatial_filter'][idd]
-            pl.imshow(m[0],cmap = 'gray')
-            pl.imshow(mask,alpha = .5)
-            pl.axis('off')
-            
-           
-            axelin = pl.subplot(n_components,2,2+idd*2,sharex = axlin)
-            pl.plot(mag/30,'k')
-            dirct[mag<0.5 * np.std(mag)] = np.nan
-            pl.plot(dirct,'r-',linewidth =  2)
-    
-            gt_pix_2 = scipy.signal.savgol_filter(np.diff(np.array(pts[8]).T,axis=0)[2:],3,1)        
-            gt_pix = np.abs(gt_pix_2)       
-            pl.plot(range(3,3+gt_pix.size),gt_pix,'c')                
-#            pl.plot(gt_pix_2,'g') 
-            cc = np.corrcoef(gt_pix,mag[3:])[0,1]
-            pl.xlabel(str(cc))
-            pl.xlim([300,720])
-            print(cc)
-            
-                
-            r_values.append(cc)   
-            idd += 1
-    print(r_values)
+#whole_field = True   
+#mask_all = whole_field
+#is_tg = False
+#gt_names = ['./LickingForAndrea/points_licking50z_1_200.mat']
+#expt_names = ['./LickingForAndrea/licking50z_1_200.tif'] 
+#expt_fold = [os.path.split(nm)[0].split('/')[1] for nm in gt_names]
+#print(expt_names)
+#print (expt_fold)
+#for e,e1 in zip(gt_names,expt_names):
+#    print(e)    
+#    pts = scipy.io.loadmat(e)['points'][0][0]    
+#    lat_sess = scipy.signal.savgol_filter(np.sqrt(np.diff(np.array(pts[0]).T,axis=0)**2+np.diff(np.array(pts[8]).T,axis=0)**2),3,1)[2:]
+#    
+#    mat_files = [e1]
+#    m = cm.load(e1,fr=100)[2:]
+#    pl.figure()
+#    pl.imshow(m[10],cmap = 'gray')
+#    pl.plot(pts[0][10]/3,pts[8][10]/3,'r*')
+#    
+#    
+#    mask =behavior.select_roi(np.median(m[::100],0),1)[0]
+#    
+#    if mask_all:
+#        
+#        np.save(e[:-4]+'_mask_all_lick.npy',mask)
+#            
+#    else:
+#        
+#        np.save(e[:-4]+'_mask_all_tg.npy',mask)
+##%%    
+#r_values = []
+#only_magnitude = False
+#n_components = 3
+#resize_fact = .5
+#num_std_mag_for_angle = .6
+#
+#for e,e1 in zip(gt_names,expt_names):
+#        
+#    
+#    mat_files = [e1]
+#    
+#    if whole_field:
+#        mask = np.load(e[:-4]+'_mask_all_lick.npy')
+#    
+#    elif is_tg:
+#        mask = np.load(e[:-4]+'_mask_all_tg.npy')
+#
+#        
+#    m = cm.load_movie_chain(mat_files, fr = 100)
+#    spatial_filter_, time_trace_, of_or = cm.behavior.behavior.extract_motor_components_OF(m, n_components, mask = mask,  resize_fact= resize_fact, only_magnitude = only_magnitude , max_iter = 1000, verbose = True, method_factorization = 'dict_learn')
+#    
+#    mags, dircts, dircts_thresh, spatial_masks_thrs = cm.behavior.behavior.extract_magnitude_and_angle_from_OF(spatial_filter_, time_trace_, of_or, num_std_mag_for_angle = num_std_mag_for_angle, sav_filter_size =3, only_magnitude = only_magnitude)
+#    if whole_field:
+#        np.savez(e[:-4]+'_NEW_results_all_lick_DL', mags = mags, dircts= dircts, dircts_thresh= dircts_thresh, spatial_masks_thrs = spatial_masks_thrs ,
+#             spatial_filter_ = spatial_filter_, time_trace_ = time_trace_, mask = mask, of_or = of_or)
+#    elif is_tg:
+#        np.savez(e[:-4]+'_NEW_results_tg_lick_DL', mags = mags, dircts= dircts, dircts_thresh= dircts_thresh, spatial_masks_thrs = spatial_masks_thrs ,
+#             spatial_filter_ = spatial_filter_, time_trace_ = time_trace_, mask = mask, of_or = of_or)
+#      
+##%%
+#pl.rcParams['pdf.fonttype'] = 42
+#font = {'family' : 'Myriad Pro',
+#        'weight' : 'regular',
+#        'size'   : 10}
+#pl.rc('font', **font)
+#r_values = []
+#for e,e1 in zip(gt_names,expt_names):
+#    pl.figure()
+#    if whole_field:
+#        ftoload = e[:-4]+'_NEW_results_all_lick_DL.npz'
+#    elif is_tg:
+#        ftoload = e[:-4]+'_NEW_results_tg_lick_DL.npz'
+#
+#    
+#    with np.load(ftoload) as ld:
+#        print(ftoload)
+#        pts = scipy.io.loadmat(e)['points'][0][0]    
+#        whisk_sess_pix = scipy.signal.savgol_filter(np.abs(np.diff(np.array(pts[8]).T,axis=0)),3,1)
+#        mags = ld['mags']
+#        dircts_thresh = ld['dircts']
+#        spatial_filter_ = ld['spatial_filter_']
+#        mask_orig = ld['mask']
+#        
+#        idd = 0
+#        axlin = pl.subplot(n_components,2,2)
+#        for mag, dirct, spatial_filter in zip(mags,dircts_thresh,spatial_filter_):
+#            pl.subplot(n_components,2,1+idd*2)
+#            m = cm.load(e1)
+#            mask =  mask_orig.astype(np.float32).copy()
+#            min_x,min_y = np.min(np.where(mask),1)
+##            max_x,max_y = np.max(np.where(mask),1)
+#            
+#            spfl = spatial_filter
+#            spfl = cm.movie(spfl[None,:,:]).resize(1/resize_fact,1/resize_fact,1).squeeze()
+#            max_x,max_y = np.add( (min_x,min_y), np.shape(spfl) )
+#               
+#            mask[min_x:max_x,min_y:max_y] =  spfl
+#            mask[mask<np.nanpercentile(spfl,70)] = np.nan
+##            spfl = ld['spatial_filter'][idd]
+#            pl.imshow(m[0],cmap = 'gray')
+#            pl.imshow(mask,alpha = .5)
+#            pl.axis('off')
+#            
+#           
+#            axelin = pl.subplot(n_components,2,2+idd*2,sharex = axlin)
+#            pl.plot(mag/1,'k')
+#            dirct[mag<0.5 * np.std(mag)] = np.nan
+#            pl.plot(dirct,'r-',linewidth =  2)
+#    
+#            gt_pix_2 = scipy.signal.savgol_filter(np.diff(np.array(pts[8]).T,axis=0)[2:],3,1)        
+#            gt_pix = np.abs(gt_pix_2)       
+#            pl.plot(range(3,3+gt_pix.size),gt_pix,'c')                
+##            pl.plot(gt_pix_2,'g') 
+#            cc = np.corrcoef(gt_pix,mag[3:])[0,1]
+#            pl.xlabel(str(cc))
+##            pl.xlim([300,720])
+#            print(cc)
+#            
+#                
+#            r_values.append(cc)   
+#            idd += 1
+#    print(r_values)
 
 #%% ANALYSYS SIDE WHEEL
 #n_components = 3
@@ -200,9 +201,10 @@ for e,e1 in zip(gt_names,expt_names)[1:]:
 #ms = np.dstack(ms)
 #ms = cm.movie(ms.transpose([2,0,1]))
 #of_or = cm.behavior.behavior.compute_optical_flow(ms,do_show=True,polar_coord=True) 
-whole_field = False   
+pl.close('all')
+whole_field = True
 mask_all = whole_field
-is_hl = True
+is_hl = False
 is_fl = False
 
 gt_names = ['./lateral_videos/points_PS3_Vid1_conv.mat','./lateral_videos/points_PS3_Vid14_conv.mat']
@@ -222,23 +224,25 @@ for e,e1 in zip(gt_names,expt_names):
     pl.plot(pts[0][10]/3,pts[8][10]/3,'r*')
     
     
-    mask =behavior.select_roi(np.median(m[::100],0),1)[0]
-    
     if mask_all:
-        
+        mask = np.ones(m.shape[1:])
         np.save(e[:-4]+'_mask_all_lat.npy',mask)
             
     else:
-        
+        mask =behavior.select_roi(np.median(m[::100],0),1)[0]
         np.save(e[:-4]+'_mask_lat_hl.npy',mask)
 #%%    
 r_values = []
 only_magnitude = False
-n_components = 3
+n_components = 6
 resize_fact = .5
 num_std_mag_for_angle = .6
+if whole_field:
+    max_iter_DL=-30
+else:
+    max_iter_DL=-30
 
-for e,e1 in zip(gt_names,expt_names)[1:]:
+for e,e1 in zip(gt_names,expt_names):
         
     
     mat_files = [e1]
@@ -254,9 +258,10 @@ for e,e1 in zip(gt_names,expt_names)[1:]:
         sdsd
         
     m = cm.load_movie_chain(mat_files, fr = 100)
-    spatial_filter_, time_trace_, of_or = cm.behavior.behavior.extract_motor_components_OF(m, n_components, mask = mask,  resize_fact= resize_fact, only_magnitude = only_magnitude , max_iter = 1000, verbose = True, method_factorization = 'dict_learn')
+    spatial_filter_, time_trace_, of_or = cm.behavior.behavior.extract_motor_components_OF(m, n_components, mask = mask,  resize_fact= resize_fact, only_magnitude = only_magnitude,verbose = True, method_factorization = 'dict_learn', max_iter_DL=max_iter_DL)
     
     mags, dircts, dircts_thresh, spatial_masks_thrs = cm.behavior.behavior.extract_magnitude_and_angle_from_OF(spatial_filter_, time_trace_, of_or, num_std_mag_for_angle = num_std_mag_for_angle, sav_filter_size =3, only_magnitude = only_magnitude)
+    
     if whole_field:
         np.savez(e[:-4]+'_NEW_results_all_lat_DL', mags = mags, dircts= dircts, dircts_thresh= dircts_thresh, spatial_masks_thrs = spatial_masks_thrs ,
              spatial_filter_ = spatial_filter_, time_trace_ = time_trace_, mask = mask, of_or = of_or)
@@ -270,10 +275,10 @@ for e,e1 in zip(gt_names,expt_names)[1:]:
 pl.rcParams['pdf.fonttype'] = 42
 font = {'family' : 'Myriad Pro',
         'weight' : 'regular',
-        'size'   : 20}
+        'size'   : 10}
 pl.rc('font', **font)
 r_values = []
-for e,e1 in zip(gt_names,expt_names)[1:]:
+for e,e1 in zip(gt_names,expt_names):
     pl.figure()
     if whole_field:
         ftoload = e[:-4]+'_NEW_results_all_lat_DL.npz'
@@ -285,7 +290,7 @@ for e,e1 in zip(gt_names,expt_names)[1:]:
     with np.load(ftoload) as ld:
         print(ftoload)
         pts = scipy.io.loadmat(e)['points'][0][0]    
-        whisk_sess_pix = scipy.signal.savgol_filter(np.abs(np.diff(np.array(pts[8]).T,axis=0)),3,1)
+#        whisk_sess_pix = scipy.signal.savgol_filter(np.sqrt(np.diff(np.array(pts[0]).T,axis=0)**2+np.diff(np.array(pts[8]).T,axis=0)**2),3,1)
         mags = ld['mags']
         dircts_thresh = ld['dircts']
         spatial_filter_ = ld['spatial_filter_']
@@ -313,17 +318,19 @@ for e,e1 in zip(gt_names,expt_names)[1:]:
             
            
             axelin = pl.subplot(n_components,2,2+idd*2,sharex = axlin)
-            pl.plot(mag/30,'k')
+            pl.plot(mag/10,'k')
             dirct[mag<0.5 * np.std(mag)] = np.nan
             pl.plot(dirct,'r-',linewidth =  2)
     
-            gt_pix_2 = scipy.signal.savgol_filter(np.diff(np.array(pts[8]).T,axis=0)[2:],3,1)        
-            gt_pix = np.abs(gt_pix_2)       
+#            gt_pix_2 = scipy.signal.savgol_filter(np.diff(np.array(pts[8]).T,axis=0)[2:],3,1)        
+#            gt_pix_2 = np.diff(np.array(pts[8]).T,axis=0)[2:]       
+
+            gt_pix = scipy.signal.savgol_filter(np.sqrt(np.diff(np.array(pts[0]).T,axis=0)**2+np.diff(np.array(pts[8]).T,axis=0)**2)[2:],3,1)     
             pl.plot(range(3,3+gt_pix.size),gt_pix,'c')                
 #            pl.plot(gt_pix_2,'g') 
             cc = np.corrcoef(gt_pix,mag[3:])[0,1]
             pl.xlabel(str(cc))
-            pl.xlim([300,720])
+            #pl.xlim([300,720])
             print(cc)
             
                 
@@ -492,12 +499,12 @@ for e in gt_names:
 #        pl.plot(wheel_pix_sess,'c')    
     
 #%% plot results whiskers (see https://docs.google.com/spreadsheets/d/1RFxlmImHfPK2dGZ7zygUXE6mgEenM9CZ1JIZyPxEmik/edit#gid=0)
-corr_whisk_small_fov = [#0.92,	0.9,	0.9324128569,\
-    0.59,	0.58,	0.697233956,\
-    0.4	, 0.55,	0.5354124487,\
-    0.59,	0.54,	0.5827637091,\
-    #0.82,	0.85,	0.8796042868,\
-    #0.86,	0.87,	0.8958397014]
+corr_whisk_small_fov = [0.95065496	,0.95016154,	0.94908368,
+0.62233045,	0.69616698,	0.7193105,
+0.49881314,	0.47176943,	0.44350409,
+0.54272791,	0.6410466,	0.60483352,
+0.8463465,	0.87738967,	0.8679484,
+0.86214715,	0.879505,	0.88293684]
 corr_whisk_small_fov  = np.reshape(corr_whisk_small_fov ,[-1,3])
 
 
