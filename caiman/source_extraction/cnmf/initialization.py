@@ -19,7 +19,6 @@ from past.utils import old_div
 import numpy as np
 from sklearn.decomposition import NMF, FastICA
 from skimage.transform import downscale_local_mean, resize
-import pylab as pl
 import scipy.ndimage as nd
 import scipy.sparse as spr
 import scipy
@@ -27,7 +26,6 @@ from scipy.ndimage.measurements import center_of_mass
 import caiman
 import cv2
 from scipy.ndimage.filters import correlate
-#from . import utilities
 #%%
 def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter=5, maxIter=5, nb=1,
                           kernel=None, use_hals=True, normalize_init=True, img=None, method='greedy_roi', max_iter_snmf=500, alpha_snmf=10e2, sigma_smooth_snmf=(.5, .5, .5), perc_baseline_snmf=20, options_local_NMF = None):
@@ -84,15 +82,12 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
         nb x T matrix, initalization of temporal background.
 
     """
-
-
     if method == 'local_nmf':
         tsub_lnmf = tsub
         ssub_lnmf = ssub
         tsub = 1 
         ssub = 1
-        
-        
+
     if gSiz is None:
         gSiz = 2 * np.asarray(gSig) + 1
 
@@ -119,7 +114,6 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
         Y_ds = Y
 
     print('Roi Extraction...')
-
     if method == 'greedy_roi':
         Ain, Cin, _, b_in, f_in = greedyROI(
             Y_ds, nr=K, gSig=gSig, gSiz=gSiz, nIter=nIter, kernel=kernel, nb=nb)
@@ -127,20 +121,14 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
         if use_hals:
             print('(Hals) Refining Components...')
             Ain, Cin, b_in, f_in = hals(Y_ds, Ain, Cin, b_in, f_in, maxIter=maxIter)
-            
         
     elif method == 'sparse_nmf':
-        
         Ain, Cin, _, b_in, f_in = sparseNMF(Y_ds, nr=K, nb=nb, max_iter_snmf=max_iter_snmf, alpha=alpha_snmf,
                                             sigma_smooth=sigma_smooth_snmf, remove_baseline=True, perc_baseline=perc_baseline_snmf)
-#        print np.sum(Ain), np.sum(Cin)
-#        print 'Refining Components...'
-#        Ain, Cin, b_in, f_in = hals(Y_ds, Ain, Cin, b_in, f_in, maxIter=maxIter)
-#        print np.sum(Ain), np.sum(Cin)
+
     elif method == 'pca_ica':
-        
-        Ain, Cin, _, b_in, f_in = ICA_PCA(Y_ds, nr = K, sigma_smooth=sigma_smooth_snmf,  truncate = 2, fun='logcosh',\
-                                          max_iter=max_iter_snmf, tol=1e-10,remove_baseline=True, perc_baseline=perc_baseline_snmf, nb=nb)
+        Ain, Cin, _, b_in, f_in = ICA_PCA(Y_ds, nr = K, sigma_smooth=sigma_smooth_snmf,  truncate = 2, fun='logcosh',
+                    max_iter=max_iter_snmf, tol=1e-10,remove_baseline=True, perc_baseline=perc_baseline_snmf, nb=nb)
         
     elif method == 'local_nmf':
         from SourceExtraction.CNMF4Dendrites import CNMF4Dendrites    
@@ -148,9 +136,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
         #Get initialization for components center
         print(Y_ds.transpose([2,0,1]).shape)
         if options_local_NMF is None:
-            
              raise Exception('You need to define arguments for local NMF')
-           
             
 #            #Define CNMF parameters
 #            mbs=[tsub_lnmf] # temporal downsampling of data in intial phase of NMF
@@ -195,10 +181,11 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
 #                     Connected=Connected, SigmaMask=SigmaMask,bkg_per=bkg_per,iters=iters,iters0=iters0, mbs=mbs, 
 #                     ds=ds,lam1_s=lam1_s,MergeThreshold_activity=MergeThreshold_activity,MergeThreshold_shapes=MergeThreshold_shapes)  
         else:
-            
-            NumCent=options_local_NMF.pop('NumCent', None) # Max number of centers to import from Group Lasso intialization - if 0, we don't run group lasso
+            NumCent=options_local_NMF.pop('NumCent', None)
+            # Max number of centers to import from Group Lasso intialization - if 0, we don't run group lasso
             cent=GetCentersData(Y_ds.transpose([2,0,1]),NumCent) 
-            sig=Y_ds.shape[:-1] # estiamte size of neuron - bounding box is 3 times this size. If larger then data, we have no bounding box.
+            sig=Y_ds.shape[:-1]
+            # estiamte size of neuron - bounding box is 3 times this size. If larger then data, we have no bounding box.
             cnmf_obj=CNMF4Dendrites(sig=sig, verbose=True,adaptBias=True,**options_local_NMF)  
             
         #Define CNMF parameters
@@ -208,36 +195,26 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
         Cin = cnmf_obj.C
         b_in = cnmf_obj.b
         f_in = cnmf_obj.f 
-        
-#        Cin, _, b_in, f_in = ICA_PCA(Y_ds, nr = K, sigma_smooth=sigma_smooth_snmf,  truncate = 2, fun='logcosh',\
-#                                          max_iter=max_iter_snmf, tol=1e-10,remove_baseline=True, perc_baseline=perc_baseline_snmf, nb=nb)
-    
+
     else:
-        
+
         print(method)
         raise Exception("Unsupported method")
-    
-    
+
     K = np.shape(Ain)[-1]
     ds = Y_ds.shape[:-1]
 
     Ain = np.reshape(Ain, ds + (K,), order='F')
 
     if len(ds) == 2:
-
         Ain = resize(Ain, d + (K,), order=1)
 
     else:  # resize only deals with 2D images, hence apply resize twice
-
         Ain = np.reshape([resize(a, d[1:] + (K,), order=1)
                           for a in Ain], (ds[0], d[1] * d[2], K), order='F')
         Ain = resize(Ain, (d[0], d[1] * d[2], K), order=1)
 
     Ain = np.reshape(Ain, (np.prod(d), K), order='F')
-
-    #import pdb
-    # pdb.set_trace()
-
     b_in = np.reshape(b_in, ds + (nb,), order='F')
 
     if len(ds) == 2:
@@ -248,24 +225,17 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
         b_in = resize(b_in, (d[0], d[1] * d[2], nb), order=1)
 
     b_in = np.reshape(b_in, (np.prod(d), nb), order='F')
-
     Cin = resize(Cin, [K, T])
-
     f_in = resize(np.atleast_2d(f_in), [nb, T])
-    # center = com(Ain, *d)
     center = np.asarray([center_of_mass(a.reshape(d, order='F')) for a in Ain.T])
 
     if normalize_init is True:
-        #import pdb
-        # pdb.set_trace()
         Ain = Ain * np.reshape(img, (np.prod(d), -1), order='F')
 
         b_in = b_in * np.reshape(img, (np.prod(d), -1), order='F')
-        # b_in = np.atleast_2d(b_in * img.flatten('F')) #np.reshape(img,
-        # (np.prod(d), -1),order='F')
+        #TODO: to check unused Y
         Y = Y * np.reshape(img, d + (-1,), order='F')
        
-    
     return Ain, Cin, b_in, f_in, center
 
 #%%
@@ -280,6 +250,7 @@ def ICA_PCA(Y_ds, nr, sigma_smooth=(.5, .5, .5),  truncate = 2, fun='logcosh', m
         
     
     """
+    #TODO: to document, tocomment (jeremie )
     m = scipy.ndimage.gaussian_filter(np.transpose(Y_ds, [2, 0, 1]), sigma=sigma_smooth, mode='nearest', truncate=truncate)
     if remove_baseline:
         bl = np.percentile(m, perc_baseline, axis=0)
@@ -287,45 +258,28 @@ def ICA_PCA(Y_ds, nr, sigma_smooth=(.5, .5, .5),  truncate = 2, fun='logcosh', m
     else:
         bl = 0
         m1 = m
-        
     pca_comp = nr
     
     T, d1, d2 = np.shape(m1)
     d = d1 * d2
     yr = np.reshape(m1, [T, d], order='F')
-    
+
     [U,S,V] = scipy.sparse.linalg.svds(yr,pca_comp)
     S = np.diag(S);
-#        whiteningMatrix = np.dot(scipy.linalg.inv(np.sqrt(S)),U.T)
-#        dewhiteningMatrix = np.dot(U,np.sqrt(S))
     whiteningMatrix = np.dot(scipy.linalg.inv(S),U.T)
-#    dewhiteningMatrix = np.dot(U,S)
     whitesig =  np.dot(whiteningMatrix,yr)
-#    wsigmask=np.reshape(whitesig.T,(d1,d2,pca_comp));
     f_ica = FastICA(whiten=False, fun=fun, max_iter=max_iter, tol=tol)
     S_ = f_ica.fit_transform(whitesig.T)
     A_in = f_ica.mixing_
     A_in = np.dot(A_in,whitesig)
 
-    
     masks = np.reshape(A_in.T,(d1,d2,pca_comp),order = 'F').transpose([2,0,1])
-    
-    
-#    pl.figure()
- #   caiman.utils.visualization.matrixMontage(np.array(masks))
-    masks = np.array(caiman.base.rois.extractROIsFromPCAICA(masks)[0])
-#    pl.pause(3)
-    
-    
-    if masks.size > 0:
 
+    masks = np.array(caiman.base.rois.extractROIsFromPCAICA(masks)[0])
+
+    if masks.size > 0:
         C_in = caiman.base.movies.movie(m1).extract_traces_from_masks(np.array(masks)).T
         A_in = np.reshape(masks,[-1,d1*d2],order = 'F').T
-        
-#        pl.figure()
-#        pl.imshow(np.reshape(A_in.sum(1),[d1,d2],order = 'F'))
-#        pl.pause(3)
-
     
     else:
         
@@ -349,6 +303,7 @@ def ICA_PCA(Y_ds, nr, sigma_smooth=(.5, .5, .5),  truncate = 2, fun='logcosh', m
 def sparseNMF(Y_ds, nr,  max_iter_snmf=500, alpha=10e2, sigma_smooth=(.5, .5, .5), remove_baseline=True, perc_baseline=20, nb=1, truncate = 2 ):
     """
     Initilaization using sparse NMF
+
     Parameters
     -----------
 
@@ -393,8 +348,7 @@ def sparseNMF(Y_ds, nr,  max_iter_snmf=500, alpha=10e2, sigma_smooth=(.5, .5, .5
     A = mdl.components_.T
     ind_good = np.where(np.logical_and((np.sum(A, 0) * np.std(C, axis=1))
                                        > 0, np.sum(A > np.mean(A), axis=0) < old_div(d, 3)))[0]
-#    A_in=A[:, ind_good]
-#    C_in=C[ind_good, :]
+
     ind_bad = np.where(np.logical_or((np.sum(A, 0) * np.std(C, axis=1))
                                      == 0, np.sum(A > np.mean(A), axis=0) > old_div(d, 3)))[0]
     A_in = np.zeros_like(A)
@@ -406,33 +360,12 @@ def sparseNMF(Y_ds, nr,  max_iter_snmf=500, alpha=10e2, sigma_smooth=(.5, .5, .5
     A_in[:3, ind_bad] = .0001
     C_in[ind_bad, :3] = .0001
 
-
     m1 = yr.T - A_in.dot(C_in) + np.maximum(0, bl.flatten())[:, np.newaxis]
-
     model = NMF(n_components=nb, init='random', random_state=0, max_iter=max_iter_snmf)
-
     b_in = model.fit_transform(np.maximum(m1, 0))
     f_in = model.components_.squeeze()
-#    for ccount,caaa in enumerate(A.T):
-#        pl.subplot(3,3,ccount+1)
-#        pl.imshow(np.reshape(caaa,[d1,d2],order = 'F'))    
-        
-#    pl.subplot(2,2,1)
-#    pl.imshow(np.reshape(b_in,[d1,d2],order = 'F'))
-#    pl.subplot(2,2,2)
-#    pl.imshow(np.reshape(A_in.mean(axis = 1),[d1,d2],order = 'F'))    
-#    pl.subplot(2,2,3)
-#    pl.imshow(np.mean(np.maximum(0, m - bl),0))
-#    pl.subplot(2,2,4)
-#    pl.imshow(caiman.movie(np.maximum(0, m - bl)).local_correlations(swap_dim=False))
-#    pl.pause(4)
-
     center = caiman.base.rois.com(A_in, d1, d2)
-#    for iter in range(max_iter_snmf):
-#        f = np.maximum(b.T.dot(scipy.linalg.solve(scipy.linalg.norm(b).T**2,Y.T),0);
-#        b = np.maximum(Y.dot(scipy.linalg.solve(scipy.linalg.norm(f).T**2,f.T),0);
-#    end
-    
+
     return A_in, C_in, center, b_in, f_in
 
 #%%
@@ -479,14 +412,7 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1):
 
     """
 
-    #debug_ = False
-    # if debug_:
-    #     import os
-    #     f = open('_LOG_1_' + str(os.getpid()), 'w+')
-    #     f.write('type_blurred:' + str(type(blurred)) + '\n')
-    #     f.write('blurred:' + str(np.mean(blurred)) + '\n')
-    #     f.close()
-
+    #TODO: to comment , to deletecommented code
     print("Greedy initialization of spatial and temporal components using spatial Gaussian filtering")
     d = np.shape(Y)
     med = np.median(Y, axis=-1)
@@ -606,8 +532,7 @@ def imblur(Y, sig=5, siz=11, nDimBlur=None, kernel=None, opencv = True):
     The parameters are specified in GreedyROI
 
     """
-#    import cv2
-    # TODO: document
+    # TODO: document (jerem)
 
     X = np.zeros(np.shape(Y))
 
@@ -622,23 +547,6 @@ def imblur(Y, sig=5, siz=11, nDimBlur=None, kernel=None, opencv = True):
 
         if np.isscalar(siz):
             siz = siz * np.ones(nDimBlur)
-
-        # xx = np.arange(-np.floor(siz[0] / 2), np.floor(siz[0] / 2) + 1)
-        # yy = np.arange(-np.floor(siz[1] / 2), np.floor(siz[1] / 2) + 1)
-
-        # hx = np.exp(-xx**2 / (2 * sig[0]**2))
-        # hx /= np.sqrt(np.sum(hx**2))
-
-        # hy = np.exp(-yy**2 / (2 * sig[1]**2))
-        # hy /= np.sqrt(np.sum(hy**2))
-
-        # temp = correlate(Y, hx[:, np.newaxis, np.newaxis], mode='constant')
-        # X = correlate(temp, hy[np.newaxis, :, np.newaxis], mode='constant')
-
-        # the for loop helps with memory
-        # for t in range(np.shape(Y)[-1]):
-        # temp = correlate(Y[:,:,t],hx[:,np.newaxis])#,mode='constant', cval=0.0)
-        # X[:,:,t] = correlate(temp,hy[np.newaxis,:])#,mode='constant', cval=0.0)
 
         X = Y.copy()
         if opencv and nDimBlur == 2:

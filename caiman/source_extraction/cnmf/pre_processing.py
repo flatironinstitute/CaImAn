@@ -19,55 +19,39 @@ from builtins import range
 from ...mmapping import load_memmap
 from past.builtins import basestring
 from past.utils import old_div
-
+#TODO to document file
 
 #%%
 def interpolate_missing_data(Y):
     """
     Interpolate any missing data using nearest neighbor interpolation.
     Missing data is identified as entries with values NaN
-    Input:
+
+    Parameters:
     Y   np.ndarray (3D)
         movie, raw data in 3D format (d1 x d2 x T)
-    Outputs:
+
+    Returns:
     Y   np.ndarray (3D)
         movie, data with interpolated entries (d1 x d2 x T)
     coor list
         list of interpolated coordinates
+
+    Raises:
+        Exception('The algorithm has not been tested with missing values (NaNs). Remove NaNs and rerun the algorithm.')
     """
-    coor=[];
+    coor=[]
     print('checking if missing data')
-#    if np.any(np.isnan(Y[:2000])) or np.any(np.isnan(Y[-2000:])):
-    if np.any(np.isnan(Y)):    
-        raise Exception('The algorithm has not been tested with missing values (NaNs). Remove NaNs and rerun the algorithm.')
-        # need to
+    if np.any(np.isnan(Y)):
         for idx,row in enumerate(Y):
             nans=np.where(np.isnan(row))[0]
             n_nans=np.where(~np.isnan(row))[0]
             coor.append((idx,nans))
             Y[idx,nans]=np.interp(nans, n_nans, row[n_nans])
+        raise Exception(
+            'The algorithm has not been tested with missing values (NaNs). Remove NaNs and rerun the algorithm.')
 
 
-#    mis_data = np.isnan(Y)
-#    coor = mis_data.nonzero()
-#    ok_data = ~mis_data
-#    coor_ok = ok_data.nonzero()
-#    Yvals=[np.where(np.isnan(Y)) for row in Y]
-#
-#    Yvals = griddata(coor_ok,Y[coor_ok],coor,method='nearest')
-#    un_t = np.unique(coor[-1])
-#    coorx = []
-#    coory = []
-#    Yvals = []
-#    for i, unv in enumerate(un_t):
-#        tm = np.where(coor[-1]==unv)
-#        coorx.append(coor[0][tm].tolist())
-#        coory.append(coor[1][tm].tolist())
-#        Yt = Y[:,:,unv]
-#        ok = ~np.isnan(Yt)
-#        coor_ok = ok.nonzero()
-#        ytemp = griddata(coor_ok,Yt[coor_ok],(coor[0][tm],coor[1][tm]),method='nearest')
-#        Yvals.append(ytemp)
 
     return Y, coor
 
@@ -125,8 +109,7 @@ def get_noise_fft(Y, noise_range = [0.25,0.5], noise_method = 'logmexp', max_num
     if T > max_num_samples_fft:
         Y=np.concatenate((Y[...,1:np.int(old_div(max_num_samples_fft,3))+1],        
                          Y[...,np.int(old_div(T,2)-max_num_samples_fft/3/2):np.int(old_div(T,2)+max_num_samples_fft/3/2)],
-                         Y[...,-np.int(old_div(max_num_samples_fft,3)):]),axis=-1)        
-
+                         Y[...,-np.int(old_div(max_num_samples_fft,3)):]),axis=-1)
         T = np.shape(Y)[-1]
 
     dims = len(np.shape(Y))
@@ -137,7 +120,6 @@ def get_noise_fft(Y, noise_range = [0.25,0.5], noise_method = 'logmexp', max_num
     ind = np.logical_and(ind1,ind2)
     #we compute the mean of the noise spectral density s
     if dims > 1:
-
         xdft = np.fft.rfft(Y,axis=-1)
         psdx = (old_div(1.,T))*abs(xdft)**2
         psdx[...,1:] *= 2
@@ -148,7 +130,6 @@ def get_noise_fft(Y, noise_range = [0.25,0.5], noise_method = 'logmexp', max_num
         psdx = (old_div(1.,T))*(xdft**2)
         psdx[1:] *=2
         sn = mean_psd(psdx[ind], method = noise_method)
-
 
     return sn, psdx
 
@@ -174,26 +155,19 @@ def get_noise_fft_parallel(Y,n_pixels_per_process=100, dview=None, **kwargs):
     sn: ndarray(double)
         noise associated to each pixel
     """
-
     folder = tempfile.mkdtemp()
-
 
     # Pre-allocate a writeable shared memory map as a container for the
     # results of the parallel computation
-
     pixel_groups=list(range(0,Y.shape[0]-n_pixels_per_process+1,n_pixels_per_process))
 
-
     if type(Y) is np.core.memmap:  # if input file is already memory mapped then find the filename
-        
         Y_name = Y.filename
         
     else:
-        
-        if dview is not None:   
-            
+        if dview is not None:
             raise Exception('ipyparallel backend only works with memory mapped files')
-            
+
         Y_name = Y
 
     argsin=[(Y_name, i, n_pixels_per_process, kwargs) for i in pixel_groups]
@@ -203,26 +177,21 @@ def get_noise_fft_parallel(Y,n_pixels_per_process=100, dview=None, **kwargs):
     
  
     if dview is None:
-        
         print('Single Thread')    
         results = list(map(fft_psd_multithreading, argsin))
     
     else:
-        
-                    
         ne = len(dview)
         print(('Running on %d engines.'%(ne)))
 
 
-        if dview.client.profile == 'default':  
-
+        if dview.client.profile == 'default':
                 results = dview.map_sync(fft_psd_multithreading, argsin)            
 
         else:
             print(('PROFILE:'+ dview.client.profile))
             results = dview.map_sync(fft_psd_multithreading, argsin)     
-            
-            
+
     _,_,psx_= results[0]
     sn_s=np.zeros(Y.shape[0])
     psx_s=np.zeros((Y.shape[0],psx_.shape[-1]))        
@@ -230,20 +199,14 @@ def get_noise_fft_parallel(Y,n_pixels_per_process=100, dview=None, **kwargs):
         sn_s[idx]=sn
         psx_s[idx,:]=psx_
 
-
-
-
-
     sn_s=np.array(sn_s)
     psx_s=np.array(psx_s)
 
 
     try:
-
         shutil.rmtree(folder)
 
     except:
-
         print(("Failed to delete: " + folder))
         raise
 
@@ -266,10 +229,8 @@ def fft_psd_parallel(Y,sn_s,i,num_pixels,**kwargs):
         arguments to be passed to get_noise_fft
     """
     idxs=list(range(i,i+num_pixels))
-    #sn_s[idxs]=get_noise_fft(Y[idxs], **kwargs)
     res=get_noise_fft(Y[idxs], **kwargs)
     sn_s[idxs]=res
-    #print("[Worker %d] sn for row %d is %f" % (os.getpid(), i, sn_s[0]))
 #%%
 
 def fft_psd_multithreading(args):
@@ -292,28 +253,30 @@ def fft_psd_multithreading(args):
         Y,_,_=load_memmap(Y)
 
     idxs=list(range(i,i+num_pixels))
-#    import pdb
-#    pdb.set_trace()
     print(len(idxs))
-#    print(kwargs)
     res,psx=get_noise_fft(Y[idxs], **kwargs)
 
-    #print("[Worker %d] sn for row %d is %f" % (os.getpid(), i, sn_s[0]))
     return (idxs,res,psx)
 #%%
 
 def mean_psd(y, method = 'logmexp'):
     """
     Averaging the PSD
-    Inputs:
-    y: np.ndarray
-        PSD values
-    method: string
-        method of averaging the noise.
-        Choices:
-            'mean': Mean
-            'median': Median
-            'logmexp': Exponential of the mean of the logarithm of PSD (default)
+
+    Parameters:
+
+        y: np.ndarray
+             PSD values
+        method: string
+            method of averaging the noise.
+            Choices:
+             'mean': Mean
+             'median': Median
+             'logmexp': Exponential of the mean of the logarithm of PSD (default)
+
+    Returns:
+        mp: array
+            mean psd
     """
 
     if method == 'mean':
@@ -325,7 +288,6 @@ def mean_psd(y, method = 'logmexp'):
         mp = np.mean(mp,axis=-1)
         mp = np.exp(mp)
         mp = np.sqrt(mp)
-#        mp = np.sqrt(np.exp(np.mean(np.log(y/2),axis=-1)))
 
     return mp
 
@@ -354,14 +316,11 @@ def estimate_time_constant(Y, sn, p = None, lags = 5, include_noise = False, pix
     """
     if p is None:
         raise Exception("You need to define p")
-
     if pixels is None:
         pixels = np.arange(old_div(np.size(Y),np.shape(Y)[-1]))
 
     from scipy.linalg import toeplitz
-
     npx = len(pixels)
-    g = 0
     lags += p
     XC = np.zeros((npx,2*lags+1))
     for j in range(npx):
@@ -391,13 +350,16 @@ def estimate_time_constant(Y, sn, p = None, lags = 5, include_noise = False, pix
 def axcov(data, maxlag=5):
     """
     Compute the autocovariance of data at lag = -maxlag:0:maxlag
-    Parameters
+
+
+    Parameters:
     ----------
     data : array
         Array containing fluorescence data
     maxlag : int
         Number of lags to use in autocovariance calculation
-    Returns
+
+    Returns:
     -------
     axcov : array
         Autocovariances computed from -maxlag:0:maxlag
@@ -418,12 +380,13 @@ def axcov(data, maxlag=5):
 def nextpow2(value):
     """
     Find exponent such that 2^exponent is equal to or greater than abs(value).
-    Parameters
+
+    Parameters:
     ----------
-    value : int
-    Returns
+        value : int
+    Returns:
     -------
-    exponent : int
+        exponent : int
     """
 
     exponent = 0
@@ -435,13 +398,14 @@ def nextpow2(value):
 def preprocess_data(Y, sn = None ,  dview=None, n_pixels_per_process=100,  noise_range = [0.25,0.5], noise_method = 'logmexp', compute_g=False,  p = 2, g = None,  lags = 5, include_noise = False, pixels = None,max_num_samples_fft=3000, check_nan = True):
     """
     Performs the pre-processing operations described above.
+
     """
+    #TODO: todocument
     if check_nan:
         Y,coor=interpolate_missing_data(Y)
 
     if sn is None:
         sn,psx=get_noise_fft_parallel(Y,n_pixels_per_process=n_pixels_per_process, dview = dview, noise_range = noise_range, noise_method = noise_method,max_num_samples_fft=max_num_samples_fft)
-        #sn = get_noise_fft(Y, noise_range = noise_range, noise_method = noise_method)
     else:
         psx=None
 
