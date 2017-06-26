@@ -718,73 +718,100 @@ def extractROIsFromPCAICA(spcomps, numSTD=4, gaussiansigmax=2 , gaussiansigmay=2
     return allMasks,maskgrouped 
 
 #%% threshold and remove spurious components    
-def threshold_components(A_s,shape,min_size=5,max_size=np.inf,max_perc=.3):        
-    """
-    Threshold components output of a CNMF algorithm (A matrices)
+#def threshold_components(A_s,shape,min_size=5,max_size=np.inf,max_perc=.3):        
+#    """
+#    Threshold components output of a CNMF algorithm (A matrices)
+#
+#    Parameters:
+#    ----------
+#
+#    A_s: list 
+#        list of A matrice output from CNMF
+#
+#    min_size: int
+#        min size of the component in pixels
+#
+#    max_size: int
+#        max size of the component in pixels
+#
+#    max_perc: float        
+#        fraction of the maximum of each component used to threshold 
+#
+#
+#    Returns:
+#    -------        
+#
+#    B_s: list of the thresholded components
+#
+#    lab_imgs: image representing the components in ndimage format
+#
+#    cm_s: center of masses of each components
+#    """
+#
+#    B_s=[]
+#    lab_imgs=[]
+#
+#    cm_s=[]
+#    for A_ in A_s:
+#        print('*')
+#        max_comps=A_.max(0).todense().T
+#        tmp=[]
+#        cm=[]
+#        lim=np.zeros(shape)
+#        for idx,a in enumerate(A_.T):        
+#            #create mask by thresholding to 50% of the max
+#            print(idx)
+#            mask=np.reshape(a.todense()>(max_comps[idx]*max_perc),shape)        
+#            label_im, nb_labels = ndi.label(mask)
+#            sizes = ndi.sum(mask, label_im, list(range(nb_labels + 1)))            
+#            l_largest=(label_im==np.argmax(sizes))
+#            cm.append(scipy.ndimage.measurements.center_of_mass(l_largest,l_largest))
+#            lim[l_largest] = (idx+1)
+#    #       #remove connected components that are too small
+#            mask_size=np.logical_or(sizes<min_size,sizes>max_size)
+#            if np.sum(mask_size[1:])>1:
+#                print(('removing ' + str( np.sum(mask_size[1:])-1) + ' components'))
+#            remove_pixel=mask_size[label_im]
+#            label_im[remove_pixel] = 0           
+#
+#            label_im=(label_im>0)*1    
+#
+#            tmp.append(label_im.flatten())
+#
+#
+#        cm_s.append(cm)    
+#        lab_imgs.append(lim)        
+#        B_s.append(csc.csc_matrix(np.array(tmp)).T)
+#
+#    return B_s, lab_imgs, cm_s         
 
+#%% remove duplicate ROIs from manually annotated files
+
+def detect_duplicates(file_name,dist_thr = 0.1, FOV = (512,512)):
+    """
+    Removes duplicate ROIs from file file_name
     Parameters:
-    ----------
-
-    A_s: list 
-        list of A matrice output from CNMF
-
-    min_size: int
-        min size of the component in pixels
-
-    max_size: int
-        max size of the component in pixels
-
-    max_perc: float        
-        fraction of the maximum of each component used to threshold 
-
-
+    -----------
+        file_name:  .zip file with all rois
+        dist_thr:   distance threshold for duplicate detection
+        FOV:        dimensions of the FOV
+    
     Returns:
-    -------        
-
-    B_s: list of the thresholded components
-
-    lab_imgs: image representing the components in ndimage format
-
-    cm_s: center of masses of each components
-    """
-
-    B_s=[]
-    lab_imgs=[]
-
-    cm_s=[]
-    for A_ in A_s:
-        print('*')
-        max_comps=A_.max(0).todense().T
-        tmp=[]
-        cm=[]
-        lim=np.zeros(shape)
-        for idx,a in enumerate(A_.T):        
-            #create mask by thresholding to 50% of the max
-            print(idx)
-            mask=np.reshape(a.todense()>(max_comps[idx]*max_perc),shape)        
-            label_im, nb_labels = ndi.label(mask)
-            sizes = ndi.sum(mask, label_im, list(range(nb_labels + 1)))            
-            l_largest=(label_im==np.argmax(sizes))
-            cm.append(scipy.ndimage.measurements.center_of_mass(l_largest,l_largest))
-            lim[l_largest] = (idx+1)
-    #       #remove connected components that are too small
-            mask_size=np.logical_or(sizes<min_size,sizes>max_size)
-            if np.sum(mask_size[1:])>1:
-                print(('removing ' + str( np.sum(mask_size[1:])-1) + ' components'))
-            remove_pixel=mask_size[label_im]
-            label_im[remove_pixel] = 0           
-
-            label_im=(label_im>0)*1    
-
-            tmp.append(label_im.flatten())
-
-
-        cm_s.append(cm)    
-        lab_imgs.append(lim)        
-        B_s.append(csc.csc_matrix(np.array(tmp)).T)
-
-    return B_s, lab_imgs, cm_s         
-
+    --------
+        ind     : list of indeces with duplicate entries
+    """    
+    
+    rois = nf_read_roi_zip(file_name,FOV)
+    cm = [scipy.ndimage.center_of_mass(mm) for mm in rois]
+    sp_rois = scipy.sparse.csc_matrix(np.reshape(rois,(rois.shape[0],np.prod(FOV))).T)
+    D = distance_masks([sp_rois,sp_rois],[cm,cm], 10)[0]
+    np.fill_diagonal(D,1)
+    indeces = np.where(D<dist_thr)      # pairs of duplicate indeces
+    ind = np.unique(indeces[1][indeces[1]>indeces[0]])
+    
+    return ind
+    
+    
 #%%
 #def get_roi_from_spatial_component(sp_comp, min_radius, max_radius, roughness=2, zoom_factor=1, center_range=2,z_step=1,thresh_iou=.4):
 #     
