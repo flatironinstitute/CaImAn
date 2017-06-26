@@ -153,6 +153,7 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
     C_name,Y_name,folder = creatememmap(Y,np.vstack((C, f)),dview)
 
     #we create a pixel group array (chunks for the cnmf)for the parrallelization of the process
+    print('Starting Update Spatial Components')
     cct = np.diag(C.dot(C.T))
     pixel_groups = []
     for i in range(0, np.prod(dims) - n_pixels_per_process + 1, n_pixels_per_process):
@@ -162,16 +163,12 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
     if i < np.prod(dims):
             pixel_groups.append([Y_name, C_name, sn, ind2_, list(
             range(i, np.prod(dims))), method_ls, cct, rank_f])
-
     A_ = np.zeros((d, nr + np.size(f, 0)))    #init A_
-
-    print('Starting Update Spatial Components')
     if dview is not None:
         parallel_result = dview.map_sync(regression_ipyparallel, pixel_groups)
         dview.results.clear()
     else:
         parallel_result = list(map(regression_ipyparallel, pixel_groups))
-
     for chunk in parallel_result:
         for pars in chunk:
             px, idxs_, a = pars
@@ -287,23 +284,26 @@ def determine_search_location(A, dims, method='ellipse', min_size=3, max_size=8,
     Parameters:
     ----------
     [parsed]
-    cm[i]:
+     cm[i]:
         center of mass of each neuron
-    A[:, i]: the A of each components
-    Vr:
-    dims:
+     A[:, i]: the A of each components
+     dims:
         the dimension of each A's ( same usually )
-    dist:
+     dist:
         computed distance matrix
-    max_size:
-    min_size:
-
+     max_size:
+     min_size:
+     method:
+        searching method : ellipse, dillate
+     expandCore:
+        morphological expansion structure from morphology in scipy
 
 
     Returns:
     --------
     dist_indicator: np.ndarray
         distance from the cm to search for the spatial footprint
+
     Raises:
     -------
     Exception('You cannot pass empty (all zeros) components!')
