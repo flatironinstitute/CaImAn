@@ -6,9 +6,6 @@ Created on Thu Oct 22 13:22:26 2015
 """
 from __future__ import division
 from __future__ import print_function
-
-
-
 #%%
 from builtins import map
 from builtins import zip
@@ -27,6 +24,10 @@ from skimage.morphology import watershed
 from scipy import ndimage as ndi
 from skimage.draw import polygon
 import pylab as pl
+import zipfile
+import tempfile
+import shutil
+import os 
 #from cell_magic_wand import cell_magic_wand,cell_magic_wand_3d_IOU
 #%%
 def com(A, d1, d2):
@@ -489,7 +490,7 @@ def nf_read_roi(fileobj):
 #%%
 def nf_read_roi_zip(fname,dims):
 
-    import zipfile
+#    import zipfile
     with zipfile.ZipFile(fname) as zf:
         coords = [nf_read_roi(zf.open(n))
                     for n in zf.namelist()]
@@ -507,7 +508,41 @@ def nf_read_roi_zip(fname,dims):
 
     masks = np.array([tomask(s-1) for s in coords])
     return masks
+#%%
+def nf_merge_roi_zip(fnames, idx_to_keep, new_fold):    
 
+    """
+    Create a zip file containing ROIs for ImageJ by combining elements from a list of ROI zip files
+    
+    Parameters:
+    -----------
+        fnames: str
+            list of zip files containing ImageJ rois
+        idx_to_keep:   list of lists
+            for each zip file index of elements to keep
+        new_fold: str
+            name of the output zip file (without .zip extension)
+    
+    """    
+    folders_rois = []
+    files_to_keep = []
+    # unzip the files and keep only the ones that are requested
+    for fn,idx in zip(fnames,idx_to_keep):
+        dirpath = tempfile.mkdtemp()
+        folders_rois.append(dirpath)        
+        with zipfile.ZipFile(fn) as zf:
+            name_rois = zf.namelist()            
+        zip_ref = zipfile.ZipFile(fn, 'r')
+        zip_ref.extractall(dirpath)                
+        files_to_keep.append([os.path.join(dirpath,ff) for ff in np.array(name_rois)[idx]])
+        zip_ref.close()
+    
+    os.makedirs(new_fold)
+    for fls in files_to_keep:
+        for fl in fls:
+            shutil.move(fl,new_fold)
+    shutil.make_archive(new_fold, 'zip', new_fold)        
+    shutil.rmtree(new_fold)    
 #%%    
 def extract_binary_masks_blob(A,  neuron_radius,dims,num_std_threshold=1, minCircularity= 0.5, minInertiaRatio = 0.2,minConvexity = .8):
     """
