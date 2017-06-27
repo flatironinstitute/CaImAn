@@ -20,7 +20,10 @@ import scipy
 from ...mmapping import parallel_dot_product
 
 #%%
-def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], ssub=2, tsub=2, p=2, p_ssub=2, p_tsub=2, thr=0.8, method_init= 'greedy_roi', nb = 1, n_pixels_per_process = 1000, block_size = 1000, check_nan = True, normalize_init = True, options_local_NMF = None, remove_very_bad_comps = False):
+def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], ssub=2, tsub=2, p=2, p_ssub=2, p_tsub=2,
+                 thr=0.8, method_init='greedy_roi', nb=1, n_pixels_per_process=1000, block_size=1000,
+                 check_nan=True, normalize_init=True, options_local_NMF=None, remove_very_bad_comps=False,
+                 alpha_snmf=10e2):
     """Dictionary for setting the CNMF parameters.
     Any parameter that is not set get a default value specified
     by the dictionary default options
@@ -34,12 +37,12 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], ssub=2, tsub=2, p=2, p_ssub=
     print(('using ' + str(n_processes) + ' processes'))
 #    n_pixels_per_process = np.prod(dims) / n_processes  # how to subdivide the work among processes
 
-    if n_pixels_per_process is None:                                  
+    if n_pixels_per_process is None:
         avail_memory_per_process = np.array(psutil.virtual_memory()[1])/2.**30/n_processes
         mem_per_pix = 3.6977678498329843e-09
         n_pixels_per_process = np.int(avail_memory_per_process/8./mem_per_pix/T)
         n_pixels_per_process = np.int(np.minimum(n_pixels_per_process,np.prod(dims) // n_processes))
-    
+
     if block_size is None:
         block_size = n_pixels_per_process
 
@@ -54,7 +57,7 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], ssub=2, tsub=2, p=2, p_ssub=
         'skip_refinement' : False,
         'remove_very_bad_comps' : remove_very_bad_comps
     }
-    
+
     options['preprocess_params'] = {'sn': None,                  # noise level for each pixel
                                     # range of normalized frequencies over which to average
                                     'noise_range': [0.25, 0.5],
@@ -72,7 +75,7 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], ssub=2, tsub=2, p=2, p_ssub=
                                     }
     gSig = gSig if gSig is not None else [-1, -1]
 
-    options['init_params'] = {'K': K,                  # number of components                                             
+    options['init_params'] = {'K': K,                  # number of components
                               'gSig': gSig,                               # size of bounding box
                               'gSiz': [int(round((x * 2) + 1)) for x in gSig],
                               'ssub': ssub,             # spatial downsampling factor
@@ -80,16 +83,16 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], ssub=2, tsub=2, p=2, p_ssub=
                               'nIter': 5,               # number of refinement iterations
                               'kernel': None,           # user specified template for greedyROI
                               'maxIter': 5,              # number of HALS iterations
-                              'method' : method_init,     # can be greedy_roi or sparse_nmf, local_NMF 
+                              'method' : method_init,     # can be greedy_roi or sparse_nmf, local_NMF
                               'max_iter_snmf' : 500,
-                              'alpha_snmf' : 10e2,
+                              'alpha_snmf' : alpha_snmf,
                               'sigma_smooth_snmf' : (.5,.5,.5),
                               'perc_baseline_snmf': 20,
                               'nb' : nb,                 # number of background components
                               'normalize_init': normalize_init,        # whether to pixelwise equalize the movies during initialization
                               'options_local_NMF': options_local_NMF # dictionary with parameters to pass to local_NMF initializaer
                               }
-    
+
     options['spatial_params'] = {
         'dims': dims,                   # number of rows, columns [and depths]
         # method for determining footprint of spatial components ('ellipse' or 'dilate')
@@ -102,12 +105,12 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], ssub=2, tsub=2, p=2, p_ssub=
         'nrgthr' : 0.9999,                              # Energy threshold
         'extract_cc' : True,                            # Flag to extract connected components (might want to turn to False for dendritic imaging)
         'se' : np.ones((3,)*len(dims), dtype=np.uint8),           # Morphological closing structuring element
-        'ss' : np.ones((3,)*len(dims), dtype=np.uint8),           # Binary element for determining connectivity            
+        'ss' : np.ones((3,)*len(dims), dtype=np.uint8),           # Binary element for determining connectivity
         'nb' : nb,                                      # number of background components
-        'method_ls':'lasso_lars',                        # 'nnls_L0'. Nonnegative least square with L0 penalty        
+        'method_ls':'lasso_lars',                        # 'nnls_L0'. Nonnegative least square with L0 penalty
                                                         #'lasso_lars' lasso lars function from scikit learn
-                                                        #'lasso_lars_old' lasso lars from old implementation, will be deprecated 
-                                                        
+                                                        #'lasso_lars_old' lasso lars from old implementation, will be deprecated
+
         }
     options['temporal_params'] = {
         'ITER': 2,                   # block coordinate descent iterations
@@ -125,7 +128,7 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], ssub=2, tsub=2, p=2, p_ssub=
         'noise_method': 'mean',   # averaging method ('mean','median','logmexp')
         'lags': 5,                   # number of autocovariance lags to be considered for time constant estimation
         'fudge_factor': .96,         # bias correction factor (between 0 and 1, close to 1)
-        'nb' : nb,                   # number of background components               
+        'nb' : nb,                   # number of background components
         'verbosity': False,
         'block_size' : block_size # number of pixels to process at the same time for dot product. Make it smaller if memory problems
     }
@@ -136,11 +139,11 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], ssub=2, tsub=2, p=2, p_ssub=
 #%%
 def computeDFF_traces(Yr, A, C,  bl, quantileMin = 8, frames_window = 200):
     extract_DF_F(Yr, A, C,  bl, quantileMin , frames_window )
-    
-#%%    
-def extract_DF_F(Yr, A, C,  bl, quantileMin = 8, frames_window = 200, block_size = 400, dview = None):    
+
+#%%
+def extract_DF_F(Yr, A, C,  bl, quantileMin = 8, frames_window = 200, block_size = 400, dview = None):
         """ Compute DFF function from cnmf output. Disclaimer: it might be memory inefficient
-        
+
         Parameters:
         -----------
         Yr: ndarray (2D)
@@ -152,18 +155,18 @@ def extract_DF_F(Yr, A, C,  bl, quantileMin = 8, frames_window = 200, block_size
         bl: ndarray
             baseline for each component (from cnmf cnm.bl)
         quantile_min: float
-            quantile minimum of the 
+            quantile minimum of the
         frammes_window: int
-            number of frames for running quantile                        
-            
-        """        
+            number of frames for running quantile
+
+        """
         nA = np.array(np.sqrt(A.power(2).sum(0)).T);
         A = scipy.sparse.coo_matrix(A/nA.T)
         C = C*nA
         bl = (bl*nA.T).squeeze()
         nA = np.array(np.sqrt(A.power(2).sum(0)).T);
-        
-        
+
+
         T = C.shape[-1]
 #            AY = mm_fun(A,Y);
     #        AY = A.T.dot(Yr)
@@ -174,34 +177,34 @@ def extract_DF_F(Yr, A, C,  bl, quantileMin = 8, frames_window = 200, block_size
             else:
                 print('Using thread. If memory issues set block_size larger than 500')
                 dview_res = dview
-    
+
             AY = parallel_dot_product(Yr, A, dview=dview_res, block_size=block_size,
-                                      transpose=True).T 
+                                      transpose=True).T
         else:
             AY = A.T.dot(Yr)
-        
-        
+
+
         bas_val = bl[None,:]
         Bas = np.repeat(bas_val,T,0).T
-                    
-        
+
+
         AA = A.T.dot(A);
         AA.setdiag(0)
         Cf = (C-Bas)*(nA**2)
         C2 = AY - AA.dot(C);
-        
-        
+
+
         if frames_window is None or  frames_window > T:
             Df = np.percentile(C2,quantileMin, axis = 1)
-            C_df = Cf/Df[:,None]              
-           
+            C_df = Cf/Df[:,None]
+
         else:
             Df = scipy.ndimage.percentile_filter(C2, quantileMin, (frames_window,1))
             C_df = Cf/Df
-        
-       
+
+
         return C_df
-                
+
 #%%
 def manually_refine_components(Y, xxx_todo_changeme, A, C, Cn, thr=0.9, display_numbers=True, max_number=None, cmap=None, **kwargs):
     """Plots contour of spatial components against a background image and allows to interactively add novel components by clicking with mouse
@@ -394,8 +397,8 @@ def app_vertex_cover(A):
         L.append(u)
 
     return np.asarray(L)
-    
-    
+
+
 #%%
 
 
@@ -534,10 +537,10 @@ def update_order_greedy(A,flag_AA = True):
     Input:
      -------
      A:       sparse crc matrix
-              matrix of spatial components (d x K) 
-     OR 
+              matrix of spatial components (d x K)
+     OR
               A.T.dot(A) matrix (d x d) if flag_AA = true
-     flag_AA: boolean (default true)     
+     flag_AA: boolean (default true)
 
      Outputs:
      ---------
@@ -554,7 +557,7 @@ def update_order_greedy(A,flag_AA = True):
     for i in range(K):
         if i%100 == 0:
             print(i)
-            
+
         new_list = True
         for ls in O:
             #import pdb
@@ -569,14 +572,14 @@ def update_order_greedy(A,flag_AA = True):
                     ls.append(i)
                     new_list = False
                     break
-                
+
         if new_list:
             O.append([i])
-        
+
     lo = [len(ls) for ls in O]
     return O,lo
-        
-    
+
+
 
 #%%
 def order_components(A, C):
