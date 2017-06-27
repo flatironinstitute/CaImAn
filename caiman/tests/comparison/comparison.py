@@ -140,7 +140,7 @@ class Comparison(object):
 
         self.cnmpatch=None
         self.information =None   
-            
+        self.dims=None
         
             
             
@@ -201,6 +201,8 @@ class Comparison(object):
 
         
         #initialization
+        dims_test = [self.dims[0],self.dims[1]]
+        dims_gt = dims_test
         dt = datetime.datetime.today()
         dt=str(dt)
         plat=plt.platform()
@@ -221,6 +223,7 @@ class Comparison(object):
                                 }
                 
                 }
+
         file_path="./caiman/tests/comparison/groundtruth.npz"
         
 
@@ -338,7 +341,7 @@ class Comparison(object):
         
         self.information = information         
             
-    def see(self,filename=None):
+def see(filename=None):
         """shows you the important data about a certain test file ( just give the number or name)
  
             if you give nothing it will give you back the groundtruth infos

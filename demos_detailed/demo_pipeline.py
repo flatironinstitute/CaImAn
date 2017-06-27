@@ -140,7 +140,7 @@ from caiman.motion_correction import tile_and_correct, motion_correction_piecewi
 #                }
 
 
-params_movie = {'fname': [u'/Users/jeremie/CaImAn/example_movies/demoMovieJ.tif'],
+params_movie = {'fname': [u'./example_movies/demoMovieJ.tif'],
                 'max_shifts': (2, 2),  # maximum allow rigid shift (2,2)
                 'niter_rig': 1,
                 'splits_rig': 14,  # for parallelization split the movies in  num_splits chuncks across time
@@ -186,9 +186,7 @@ params_display = {
 
 # @params fname name of the movie
 fname = params_movie['fname']
-
 niter_rig = params_movie['niter_rig']
-
 # @params max_shifts maximum allow rigid shift
 max_shifts = params_movie['max_shifts']
 
