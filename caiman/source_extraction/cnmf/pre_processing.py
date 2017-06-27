@@ -60,18 +60,24 @@ def find_unsaturated_pixels(Y, saturationValue = None, saturationThreshold = 0.9
     """Identifies the saturated pixels that are saturated and returns the ones that are not.
     A pixel is defined as saturated if its observed fluorescence is above
     saturationThreshold*saturationValue at least saturationTime fraction of the time.
+
     Inputs:
     Y: np.ndarray
         input movie data, either 2D or 3D with time in the last axis
+
     saturationValue: scalar (optional)
         Saturation level, default value the lowest power of 2 larger than max(Y)
+
     saturationThreshold: scalar between 0 and 1 (optional)
         Fraction of saturationValue above which the fluorescence is considered to
         be in the saturated region. Default value 0.9
+
     saturationTime: scalar between 0 and 1 (optional)
         Fraction of time that pixel needs to be in the saturated
         region to be considered saturated. Default: 0.005
+
     Output:
+
     normalPixels:   nd.array
         list of unsaturated pixels
     """
@@ -87,19 +93,26 @@ def find_unsaturated_pixels(Y, saturationValue = None, saturationThreshold = 0.9
 #%%
 def get_noise_fft(Y, noise_range = [0.25,0.5], noise_method = 'logmexp', max_num_samples_fft=3072):
     """Estimate the noise level for each pixel by averaging the power spectral density.
+
     Inputs:
+
     Y: np.ndarray
+
     Input movie data with time in the last axis
+
     noise_range: np.ndarray [2 x 1] between 0 and 0.5
         Range of frequencies compared to Nyquist rate over which the power spectrum is averaged
         default: [0.25,0.5]
+
     noise method: string
         method of averaging the noise.
         Choices:
             'mean': Mean
             'median': Median
             'logmexp': Exponential of the mean of the logarithm of PSD (default)
+
     Output:
+
     sn: np.ndarray
         Noise level for each pixel
     """
@@ -138,20 +151,27 @@ def get_noise_fft(Y, noise_range = [0.25,0.5], noise_method = 'logmexp', max_num
 
 def get_noise_fft_parallel(Y,n_pixels_per_process=100, dview=None, **kwargs):
     """parallel version of get_noise_fft.
+
     Params:
     -------
     Y: ndarray
         input movie (n_pixels x Time). Can be also memory mapped file.
+
     n_processes: [optional] int
         number of processes/threads to use concurrently
+
     n_pixels_per_process: [optional] int
         number of pixels to be simultaneously processed by each process
+
     backend: [optional] string
         the type of concurrency to be employed. only 'multithreading' for the moment
+
     **kwargs: [optional] dict
         all the parameters passed to get_noise_fft
+
     Returns:
     --------
+
     sn: ndarray(double)
         noise associated to each pixel
     """
@@ -215,16 +235,22 @@ def get_noise_fft_parallel(Y,n_pixels_per_process=100, dview=None, **kwargs):
 
 def fft_psd_parallel(Y,sn_s,i,num_pixels,**kwargs):
     """helper function to parallelize get_noise_fft
+
     Parameters:
     -----------
+
     Y: ndarray
         input movie (n_pixels x Time), can be also memory mapped file
+
     sn_s: ndarray (memory mapped)
         file where to store the results of computation.
+
     i: int
         pixel index start
+
     num_pixels: int
         number of pixel to select starting from i
+
     **kwargs: dict
         arguments to be passed to get_noise_fft
     """
@@ -235,16 +261,22 @@ def fft_psd_parallel(Y,sn_s,i,num_pixels,**kwargs):
 
 def fft_psd_multithreading(args):
     """helper function to parallelize get_noise_fft
+
     Parameters:
     -----------
+
     Y: ndarray
         input movie (n_pixels x Time), can be also memory mapped file
+
     sn_s: ndarray (memory mapped)
         file where to store the results of computation.
+
     i: int
         pixel index start
+
     num_pixels: int
         number of pixel to select starting from i
+
     **kwargs: dict
         arguments to be passed to get_noise_fft
     """
@@ -267,6 +299,7 @@ def mean_psd(y, method = 'logmexp'):
 
         y: np.ndarray
              PSD values
+
         method: string
             method of averaging the noise.
             Choices:
@@ -299,17 +332,24 @@ def estimate_time_constant(Y, sn, p = None, lags = 5, include_noise = False, pix
     Estimating global time constants for the dataset Y through the autocovariance function (optional).
     The function is no longer used in the standard setting of the algorithm since every trace has its own
     time constant.
+
     Inputs:
+
     Y: np.ndarray (2D)
         input movie data with time in the last axis
+
     p: positive integer
         order of AR process, default: 2
+
     lags: positive integer
         number of lags in the past to consider for determining time constants. Default 5
+
     include_noise: Boolean
         Flag to include pre-estimated noise value when determining time constants. Default: False
+
     pixels: np.ndarray
         Restrict estimation to these pixels (e.g., remove saturated pixels). Default: All pixels
+
     Output:
     g:  np.ndarray (p x 1)
         Discrete time constants
@@ -356,6 +396,7 @@ def axcov(data, maxlag=5):
     ----------
     data : array
         Array containing fluorescence data
+
     maxlag : int
         Number of lags to use in autocovariance calculation
 
@@ -384,6 +425,7 @@ def nextpow2(value):
     Parameters:
     ----------
         value : int
+
     Returns:
     -------
         exponent : int

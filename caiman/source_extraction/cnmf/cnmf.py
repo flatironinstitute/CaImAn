@@ -175,11 +175,11 @@ class CNMF(object):
         """
         This method uses the cnmf algorithm to find sources in data.
 
-        Parameters
+        Parameters:
         ----------
         images : mapped np.ndarray of shape (t,x,y[,z]) containing the images that vary over time.
 
-        Returns
+        Returns:
         --------
         self
 
@@ -273,26 +273,22 @@ class CNMF(object):
                 options['temporal_params']['p'] = 0
             else:
                 options['temporal_params']['p'] = self.p
-
+            print('deconvolution ...')
             options['temporal_params']['method'] = self.method_deconvolution
 
             C, A, b, f, S, bl, c1, neurons_sn, g, YrA = update_temporal_components(
                 Yr, A, b, Cin, self.f_in, dview=self.dview, **options['temporal_params'])
 
             if not self.skip_refinement:
-
+                print('refinement...')
                 if self.do_merge:
                     print('merge components ...')
                     A, C, nr, merged_ROIs, S, bl, c1, sn1, g1 = merge_components(Yr, A, b, C, f, S, sn, options['temporal_params'], options[
                                                                                  'spatial_params'], dview=self.dview, bl=bl, c1=c1, sn=neurons_sn, g=g, thr=self.merge_thresh, mx=50, fast_merge=True)
-
                 print((A.shape))
-
                 print('update spatial ...')
-
                 A, b, C, f = update_spatial_components(
                     Yr, C, f, A, sn=sn, dview=self.dview, **options['spatial_params'])
-
                 # set it back to original value to perform full deconvolution
                 options['temporal_params']['p'] = self.p
                 print('update temporal ...')
@@ -300,13 +296,11 @@ class CNMF(object):
                     Yr, A, b, C, f, dview=self.dview, bl=None, c1=None, sn=None, g=None, **options['temporal_params'])
 
             else:
-                
                     C, f, S, bl, c1, neurons_sn, g1, YrA = C, f, S, bl, c1, neurons_sn, g, YrA
 
             
          
         else:  # use patches
-            
             if self.stride is None:
                 self.stride = np.int(self.rf * 2 * .1)
                 print(('**** Setting the stride to 10% of 2*rf automatically:' + str(self.stride)))

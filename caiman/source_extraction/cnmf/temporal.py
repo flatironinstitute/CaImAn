@@ -75,43 +75,61 @@ def update_temporal_components(Y, A, b, Cin, fin, bl=None, c1=None, g=None, sn=N
 
     Y: np.ndarray (2D)
         input data with time in the last axis (d x T)
+
     A: sparse matrix (crc format)
         matrix of temporal components (d x K)
+
     b: ndarray (dx1)
         current estimate of background component
+
     Cin: np.ndarray
         current estimate of temporal components (K x T)
+
     fin: np.ndarray
         current estimate of temporal background (vector of length T)
+
     g:  np.ndarray
         Global time constant (not used)
+
     bl: np.ndarray
        baseline for fluorescence trace for each column in A
+
     c1: np.ndarray
        initial concentration for each column in A
+
     g:  np.ndarray
        discrete time constant for each column in A
+
     sn: np.ndarray
        noise level for each column in A
+
     nb: [optional] int
         Number of background components
+
     ITER: positive integer
         Maximum number of block coordinate descent loops.
+
     method_foopsi: string
         Method of deconvolution of neural activity. constrained_foopsi is the only method supported at the moment.
+
     n_processes: int
         number of processes to use for parallel computation. Should be less than the number of processes started with ipcluster.
+
     backend: 'str'
         single_thread no parallelization
         ipyparallel, parallelization using the ipyparallel cluster. You should start the cluster (install ipyparallel and then type 
         ipcluster -n 6, where 6 is the number of processes).
         SLURM: using SLURM scheduler
+
     memory_efficient: Bool
-        whether or not to optimize for memory usage (longer running times). nevessary with very large datasets  
+        whether or not to optimize for memory usage (longer running times). nevessary with very large datasets
+
     **kwargs: dict
-        all parameters passed to constrained_foopsi except bl,c1,g,sn (see documentation). Some useful parameters are      
+        all parameters passed to constrained_foopsi except bl,c1,g,sn (see documentation). Some useful parameters are
+
     p: int
         order of the autoregression model
+
     method: [optional] string
         solution method for constrained foopsi. Choices are
             'cvx':      using cvxopt and picos (slow especially without the MOSEK solver)
@@ -130,18 +148,25 @@ def update_temporal_components(Y, A, b, Cin, fin, bl=None, c1=None, g=None, sn=N
 
     C:   np.ndarray
             matrix of temporal components (K x T)
+
     f:   np.array
             vector of temporal background (length T)
+
     S:   np.ndarray
             matrix of merged deconvolved activity (spikes) (K x T)
+
     bl:  float
             same as input
+
     c1:  float
             same as input
+
     g:   float
             same as input
+
     sn:  float
             same as input
+
     YrA: np.ndarray
             matrix of spatial component filtered raw data, after all contributions have been removed.
             YrA corresponds to the residual trace for each component and is used for faster plotting (K x T)

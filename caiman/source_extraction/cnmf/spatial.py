@@ -36,7 +36,7 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
                               method='ellipse', expandCore=None, dview=None, n_pixels_per_process=128,
                               medw=(3, 3), thr_method='nrg', maxthr=0.1, nrgthr=0.9999, extract_cc=True,
                               se=np.ones((3, 3), dtype=np.int), ss=np.ones((3, 3), dtype=np.int), nb=1,
-                              method_ls='nnls_L0'):
+                              method_ls='lasso_lars'):
     """update spatial footprints and background through Basis Pursuit Denoising 
 
     for each pixel i solve the problem
@@ -50,10 +50,13 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
     ----------
     Y: np.ndarray (2D or 3D)
         movie, raw data in 2D or 3D (pixels x time).
+
     C: np.ndarray
         calcium activity of each neuron.
+
     f: np.ndarray
         temporal profile  of background activity.
+
     A_in: np.ndarray
         spatial profile of background activity. If A_in is boolean then it defines the spatial support of A. 
         Otherwise it is used to determine it through determine_search_location
@@ -109,23 +112,35 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
     --------
     A: np.ndarray
          new estimate of spatial footprints
+
     b: np.ndarray
         new estimate of spatial background
+
     C: np.ndarray
          temporal components (updated only when spatial components are completely removed)
+
     f: np.ndarray
         same as f_in except if empty component deleted.
 
     Raises:
     -------
+
     Exception('You need to define the input dimensions')
+
     Exception('Dimension of Matrix Y must be pixels x time')
+
     Exception('Dimension of Matrix C must be neurons x time')
+
     Exception('Dimension of Matrix f must be background comps x time ')
+
     Exception('Either A or C need to be determined')
+
     Exception('Dimension of Matrix A must be pixels x neurons ')
+
     Exception('You need to provide estimate of C and f')
+
     Exception('Not implemented consistently')
+
     Exception("Failed to delete: " + folder)
     """
 
@@ -159,7 +174,6 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
     for i in range(0, np.prod(dims) - n_pixels_per_process + 1, n_pixels_per_process):
         pixel_groups.append([Y_name, C_name, sn, ind2_, list(
             range(i, i + n_pixels_per_process)), method_ls, cct, rank_f])
-#TODO : check this unused if
     if i < np.prod(dims):
             pixel_groups.append([Y_name, C_name, sn, ind2_, list(
             range(i, np.prod(dims))), method_ls, cct, rank_f])
@@ -198,7 +212,6 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
                  A_.dot(coo_matrix(C[:nr, :]).dot(f.T))
     else:
         Y_resf = np.dot(Y, f.T) - A_.dot(coo_matrix(C[:nr, :]).dot(f.T))
-
     b = np.fmax(Y_resf.dot(np.linalg.inv(f.dot(f.T))), 0)  # update baseline based on residual
     print(("--- %s seconds ---" % (time.time() - start_time)))
     try:  # clean up
@@ -212,7 +225,51 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
 
 # %%lars_regression_noise_ipyparallel
 def regression_ipyparallel(pars):
-    # TODO : to document (jerem)
+    """update spatial footprints and background through Basis Pursuit Denoising
+
+       for each pixel i solve the problem
+           [A(i,:),b(i)] = argmin sum(A(i,:))
+       subject to
+           || Y(i,:) - A(i,:)*C + b(i)*f || <= sn(i)*sqrt(T);
+
+       for each pixel the search is limited to a few spatial components
+
+       Parameters:
+       ----------
+       C_name: string
+            memmap C
+
+       Y_name: string
+            memmap Y
+
+       idxs_Y: np.array
+           indices of the Calcium traces for each computed components
+
+       idxs_C: np.array
+           indices of the Calcium traces for each computed components
+
+       method_least_square:
+           method to perform the regression for the basis pursuit denoising.
+                'nnls_L0'. Nonnegative least square with L0 penalty
+                'lasso_lars' lasso lars function from scikit learn
+                'lasso_lars_old' lasso lars from old implementation, will be deprecated
+
+
+
+       Returns:
+       --------
+       px: np.ndarray
+            positions o the regression
+
+       idxs_C: np.ndarray
+           indices of the Calcium traces for each computed components
+
+       a: learned weight
+
+       Raises:
+       -------
+       Exception('Least Square Method not found!'
+       """
 
     # /!\ need to import since it is run from within the server
     import numpy as np
@@ -278,7 +335,9 @@ def regression_ipyparallel(pars):
 def determine_search_location(A, dims, method='ellipse', min_size=3, max_size=8, dist=3,
                               expandCore=iterate_structure(generate_binary_structure(2, 1), 2).astype(int), dview=None):
     """
+    compute the indices of the distance from the cm to search for the spatial component
 
+    does it by following an ellipse from the cm or doing a step by step dilatation around the cm
 
 
     Parameters:
@@ -286,17 +345,33 @@ def determine_search_location(A, dims, method='ellipse', min_size=3, max_size=8,
     [parsed]
      cm[i]:
         center of mass of each neuron
+
      A[:, i]: the A of each components
+
      dims:
         the dimension of each A's ( same usually )
+
      dist:
         computed distance matrix
-     max_size:
-     min_size:
-     method:
-        searching method : ellipse, dillate
-     expandCore:
-        morphological expansion structure from morphology in scipy
+
+     dims: [optional] tuple
+                x, y[, z] movie dimensions
+
+    method: [optional] string
+            method used to expand the search for pixels 'ellipse' or 'dilate'
+
+    expandCore: [optional]  scipy.ndimage.morphology
+            if method is dilate this represents the kernel used for expansion
+
+    min_size: [optional] int
+
+    max_size: [optional] int
+
+    dist: [optional] int
+
+    dims: [optional] tuple
+             x, y[, z] movie dimensions
+
 
 
     Returns:
@@ -309,7 +384,6 @@ def determine_search_location(A, dims, method='ellipse', min_size=3, max_size=8,
     Exception('You cannot pass empty (all zeros) components!')
     """
 
-    # TODO: todocument
     from scipy.ndimage.morphology import grey_dilation
 
     # we initialize the values
@@ -358,8 +432,7 @@ def determine_search_location(A, dims, method='ellipse', min_size=3, max_size=8,
 
     elif method == 'dilate':
         for i in range(nr):
-            A_temp = np.reshape(A[:, i].toarray(), dims[::-1])  # , order='F')
-            # A_temp = np.reshape(A[:, i].toarray(), (d2, d1))
+            A_temp = np.reshape(A[:, i].toarray(), dims[::-1])
             if len(expandCore) > 0:
                 if len(expandCore.shape) < len(dims):  # default for 3D
                     expandCore = iterate_structure(
@@ -393,15 +466,21 @@ def construct_ellipse_parallel(pars):
     [parsed]
     cm[i]:
         center of mass of each neuron
+
     A[:, i]: the A of each components
+
     Vr:
+
     dims:
         the dimension of each A's ( same usually )
+
     dist:
         computed distance matrix
-    max_size:
-    min_size:
-    d:
+
+    min_size: [optional] int
+
+    max_size: [optional] int
+
 
 
     Returns:
@@ -413,7 +492,6 @@ def construct_ellipse_parallel(pars):
     -------
     Exception('You cannot pass empty (all zeros) components!')
     """
-    # TODO: todocument
 
 
     Coor, cm, A_i, Vr, dims, dist, max_size, min_size, d = pars
@@ -447,24 +525,33 @@ def threshold_components(A, dims, medw=None, thr_method='nrg', maxthr=0.1, nrgth
     (iv) Extraction of largest connected component
 
     Parameters:
+
     A:      np.ndarray
         2d matrix with spatial components
+
     dims:   tuple
         dimensions of spatial components
+
     medw: [optional] tuple
         window of median filter
+
     thr_method: [optional] string
         Method of thresholding: 
             'max' sets to zero pixels that have value less than a fraction of the max value
             'nrg' keeps the pixels that contribute up to a specified fraction of the energy
+
     maxthr: [optional] scalar
         Threshold of max value
+
     nrgthr: [optional] scalar
         Threshold of energy
+
     extract_cc: [optional] bool
         Flag to extract connected components (might want to turn to False for dendritic imaging)
+
     se: [optional] np.intarray
         Morphological closing structuring element
+
     ss: [optinoal] np.intarray
         Binary element for determining connectivity
 
@@ -502,7 +589,51 @@ def threshold_components(A, dims, medw=None, thr_method='nrg', maxthr=0.1, nrgth
 
 
 def threshold_components_parallel(pars):
-    # TODO document
+    """
+       Post-processing of spatial components which includes the following steps
+
+       (i) Median filtering
+       (ii) Thresholding
+       (iii) Morphological closing of spatial support
+       (iv) Extraction of largest connected component
+       /!\ need to be called through the function threshold components
+
+       Parameters:
+        [parsed]
+       A:      np.ndarray
+           2d matrix with spatial components
+
+       dims:   tuple
+           dimensions of spatial components
+
+       medw: [optional] tuple
+           window of median filter
+
+       thr_method: [optional] string
+           Method of thresholding:
+               'max' sets to zero pixels that have value less than a fraction of the max value
+               'nrg' keeps the pixels that contribute up to a specified fraction of the energy
+
+       maxthr: [optional] scalar
+
+           Threshold of max value
+       nrgthr: [optional] scalar
+           Threshold of energy
+
+       extract_cc: [optional] bool
+
+           Flag to extract connected components (might want to turn to False for dendritic imaging)
+       se: [optional] np.intarray
+
+           Morphological closing structuring element
+
+       ss: [optinoal] np.intarray
+           Binary element for determining connectivity
+
+       Returns:
+           Ath: np.ndarray
+               2d matrix with spatial components thresholded
+       """
 
     A_i, i, dims, medw, d, thr_method, se, ss, maxthr, nrgthr, extract_cc = pars
     # we reshape this one dimension column of the 2d components into the 2D that
@@ -516,10 +647,7 @@ def threshold_components_parallel(pars):
         temp = np.cumsum(Asor ** 2)
         ff = np.squeeze(np.where(temp < nrgthr * temp[-1]))
         if ff.size > 0:
-            if ff.ndim == 0:
-                ind = ff
-            else:
-                ind = ff[-1]
+            ind = ff if ff.ndim == 0 else ff[-1]
             A_temp[A_temp < Asor[ind]] = 0
             BW = (A_temp >= Asor[ind])
         else:
@@ -537,16 +665,12 @@ def threshold_components_parallel(pars):
     if extract_cc:
         # we extract each future as independent with the cross structuring elemnt
         labeled_array, num_features = label(BW, structure=ss)
-        BW = np.reshape(BW, (d, 1))
         labeled_array = np.squeeze(np.reshape(labeled_array, (d, 1)))
         nrg = np.zeros((num_features, 1))
         # we extract the energy for each component
         for j in range(num_features):
             nrg[j] = np.sum(Ath[labeled_array == j + 1] ** 2)
-
         indm = np.argmax(nrg)
-        # Ath2 takes all the elements who have the maximum total energy
-        # Ath2[labeled_array == indm + 1] = A_i[labeled_array == indm + 1]
         Ath2[labeled_array == indm + 1] = Ath[labeled_array == indm + 1]
 
     else:
@@ -560,14 +684,28 @@ def threshold_components_parallel(pars):
 
 
 def nnls_L0(X, Yp, noise):
-    # TODO: documment
     """
     Nonnegative least square with L0 penalty
 
+    It will basically call the scipy function with some tests
     we want to minimize :
     min|| Yp-W_lam*X||**2 <= noise
     with ||W_lam||_0  penalty
     and W_lam >0
+
+    Parameters:
+    ---------
+        X: np.array
+            the input parameter ((the regressor
+
+        Y: np.array
+            ((the regressand
+
+    Returns:
+    --------
+        W_lam: np.array
+            the learned weight matrices ((Models
+
     """
     W_lam, RSS = scipy.optimize.nnls(X, np.ravel(Yp))
     RSS = RSS * RSS
@@ -588,6 +726,7 @@ def nnls_L0(X, Yp, noise):
             W_lam[eliminate[np.argmin(np.array(eliminate)[:, 1])][0]] = 0
 
 
+
 # %% lars_regression_noise
 def lars_regression_noise_old(Yp, X, positive, noise, verbose=False):
     """
@@ -595,21 +734,26 @@ def lars_regression_noise_old(Yp, X, positive, noise, verbose=False):
      Author: Andrea Giovannucci. Adapted code from Eftychios Pnevmatikakis
 
 
-     Input Parameters:
+     Parameters:
+        -------
        Yp:          Yp[:,t] is the observed data at time t
+
        X:           the regresion problem is Yp=X*W + noise
+
        maxcomps:    maximum number of active components to allow
+
        positive:    a flag to enforce positivity
+
        noise:       the noise of the observation equation. if it is not
                     provided as an argument, the noise is computed from the
                     variance at the end point of the algorithm. The noise is
                     used in the computation of the Cp criterion.
 
 
-     Output Parameters:
+     Return:
        Ws: weights from each iteration
        lambdas: lambda_ values at each iteration
-       TODO: W_lam, lam, flag
+
        Cps: C_p estimates
        last_break:     last_break(m) == n means that the last break with m non-zero weights is at Ws(:,:,n)
 
@@ -618,13 +762,13 @@ def lars_regression_noise_old(Yp, X, positive, noise, verbose=False):
         group Lasso :
     """
     #INITAILIZATION
-    #todo compartiment
     k = 1
     Yp = np.squeeze(np.asarray(Yp))
     # necessary for matrix multiplications
     Yp = np.expand_dims(Yp, axis=1)
     _, T = np.shape(Yp)  # of time steps
     _, N = np.shape(X)  # of compartments
+
     # 1 : Start with all Weights equal to zero.
     maxcomps = N
     W = np.zeros((N, k))
@@ -641,8 +785,6 @@ def lars_regression_noise_old(Yp, X, positive, noise, verbose=False):
     flag = 0
     while 1:
         if flag == 1:
-            #todo look at this var
-            W_lam = 0
             break
             # % calculate new gradient component if necessary
         if i > 0 and new >= 0 and visited_set[new] == 0:  # AG NOT CLEAR HERE
@@ -665,7 +807,6 @@ def lars_regression_noise_old(Yp, X, positive, noise, verbose=False):
 
             # % calculate vector to travel along
             avec, gamma_plus, gamma_minus = calcAvec(new, dQ, W, lambda_, active_set, M,positive)
-            #todo look at lambda, dropped sign
             # % calculate time of travel and next new direction
             if new == -1:  # % if we just dropped a direction we don't allow it to emerge
                 if dropped_sign == 1:  # % with the same sign
@@ -678,9 +819,7 @@ def lars_regression_noise_old(Yp, X, positive, noise, verbose=False):
             gamma_plus[gamma_plus > lambda_] = np.inf
             gp_min, gp_min_ind = np.min(gamma_plus), np.argmin(gamma_plus)
 
-            if positive: #todo look at unused var
-                gm_min = np.inf  # % don't consider new directions that would grow negative
-            else:
+            if not positive:
                 gamma_minus[active_set == 1] = np.inf
                 gamma_minus[gamma_minus > lambda_] = np.inf
                 gamma_minus[gamma_minus <= 0] = np.inf
@@ -784,8 +923,29 @@ def lars_regression_noise_old(Yp, X, positive, noise, verbose=False):
 
 # %% auxiliary functions
 def calcAvec(new, dQ, W, lambda_, active_set, M,positive):
-    # TODO: documment
+    """
+    calculate the vectoe to travel along
 
+    used in the lars regression function
+
+               Parameters:
+               ----------
+               Y: np.ndarray (2D or 3D)
+                   movie, raw data in 2D or 3D (pixels x time).
+
+               Cf: np.ndarray
+                   calcium activity of each neuron + background components
+
+               Returns:
+               --------
+               C_name: string
+                    the memmaped name of Cf
+
+               Y_name: string
+                    the memmaped name of Y
+
+
+    """
     r, c = np.nonzero(active_set)
     Mm = -M.take(r, axis=0).take(r, axis=1)
     Mm = old_div((Mm + Mm.T), 2)
@@ -795,10 +955,8 @@ def calcAvec(new, dQ, W, lambda_, active_set, M,positive):
         eigMm = np.real(eigMm)
     else:
         eigMm = Mm
-    #todo ask for flags
     if any(eigMm < 0):
         np.min(eigMm)
-        flag=1
 
     b = np.sign(W)
     if new >= 0:
@@ -808,13 +966,6 @@ def calcAvec(new, dQ, W, lambda_, active_set, M,positive):
         avec = np.linalg.solve(Mm, b)
     else:
         avec = old_div(b, Mm)
-    if positive:
-        if new >= 0:
-            in_ = np.sum(active_set[:new])
-            if avec[in_] < 0:
-                # new;
-                #%error('new component of a is negative')
-                flag = 1
     one_vec = np.ones(W.shape)
     dQa = np.zeros(W.shape)
     for j in range(len(r)):
@@ -835,13 +986,17 @@ def test(Y, A_in, C, f, n_pixels_per_process,nb):
         ----------
         Y: np.ndarray (2D or 3D)
             movie, raw data in 2D or 3D (pixels x time).
+
         C: np.ndarray
             calcium activity of each neuron.
+
         f: np.ndarray
             temporal profile  of background activity.
+
         A_in: np.ndarray
             spatial profile of background activity. If A_in is boolean then it defines the spatial support of A. 
             Otherwise it is used to determine it through determine_search_location
+
         n_pixels_per_process: [optional] int
             number of pixels to be processed by each thread
 
@@ -862,13 +1017,6 @@ def test(Y, A_in, C, f, n_pixels_per_process,nb):
         Exception('You need to provide estimate of C and f')
         Exception('Not implemented consistently')
         Exception("Failed to delete: " + folder)
-        :param nb:
-        :param Y:
-        :param A_in:
-        :param C:
-        :param f:
-        :param n_pixels_per_process:
-        :return:
         """
     if Y.ndim < 2 and not isinstance(Y, basestring):
         Y = np.atleast_2d(Y)
@@ -909,7 +1057,71 @@ def test(Y, A_in, C, f, n_pixels_per_process,nb):
 
 
 def computing_indicator(Y,A_in,C,f,nb,method,dims,min_size,max_size,dist,expandCore,dview):
+    """compute the indices of the distance from the cm to search for the spatial component (calling determine_search_location)
 
+does it by following an ellipse from the cm or doing a step by step dilatation around the cm
+if it doesn't follow the rules it will throw an exception that is not supposed to be catch by spatial.
+
+
+           Parameters:
+           ----------
+           Y: np.ndarray (2D or 3D)
+               movie, raw data in 2D or 3D (pixels x time).
+
+           C: np.ndarray
+               calcium activity of each neuron.
+
+           f: np.ndarray
+               temporal profile  of background activity.
+
+           A_in: np.ndarray
+               spatial profile of background activity. If A_in is boolean then it defines the spatial support of A.
+               Otherwise it is used to determine it through determine_search_location
+
+           n_pixels_per_process: [optional] int
+               number of pixels to be processed by each thread
+
+           min_size: [optional] int
+
+           max_size: [optional] int
+
+           dist: [optional] int
+
+           dims: [optional] tuple
+                x, y[, z] movie dimensions
+
+           method: [optional] string
+                method used to expand the search for pixels 'ellipse' or 'dilate'
+
+           expandCore: [optional]  scipy.ndimage.morphology
+                if method is dilate this represents the kernel used for expansion
+
+
+           Returns:
+           --------
+           same:
+            but reshaped and tested
+
+           Raises:
+           -------
+           Exception('You need to define the input dimensions')
+
+           Exception('Dimension of Matrix Y must be pixels x time')
+
+           Exception('Dimension of Matrix C must be neurons x time')
+
+           Exception('Dimension of Matrix f must be background comps x time ')
+
+           Exception('Either A or C need to be determined')
+
+           Exception('Dimension of Matrix A must be pixels x neurons ')
+
+           Exception('You need to provide estimate of C and f')
+
+           Exception('Not implemented consistently')
+
+           Exception("Failed to delete: " + folder)
+           """
     b=[]
     if A_in.dtype == bool:
         dist_indicator = A_in.copy()
@@ -941,7 +1153,30 @@ def computing_indicator(Y,A_in,C,f,nb,method,dims,min_size,max_size,dist,expandC
 
 
 def creatememmap(Y,Cf,dview):
-    #todo: todocument
+    """memmap the C and Y objects in parallel
+
+           the memmaped object will be red during parallelized computation such as the regression function
+
+           Parameters:
+           ----------
+           Y: np.ndarray (2D or 3D)
+               movie, raw data in 2D or 3D (pixels x time).
+
+           Cf: np.ndarray
+               calcium activity of each neuron + background components
+
+           Returns:
+           --------
+           C_name: string
+                the memmaped name of Cf
+
+           Y_name: string
+                the memmaped name of Y
+
+           Raises:
+           -------
+           Exception('Not implemented consistently')
+           """
     if os.environ.get('SLURM_SUBMIT_DIR') is not None:
         tmpf = os.environ.get('SLURM_SUBMIT_DIR')
         print(('cluster temporary folder:' + tmpf))
