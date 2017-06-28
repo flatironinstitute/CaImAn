@@ -488,12 +488,13 @@ def nf_read_roi(fileobj):
 
     return points
 #%%
-def nf_read_roi_zip(fname,dims):
+def nf_read_roi_zip(fname,dims,return_names = False):
 
 #    import zipfile
     with zipfile.ZipFile(fname) as zf:
+        names = zf.namelist()
         coords = [nf_read_roi(zf.open(n))
-                    for n in zf.namelist()]
+                    for n in names]
 
     def tomask(coords):
 
@@ -507,7 +508,10 @@ def nf_read_roi_zip(fname,dims):
         return mask
 
     masks = np.array([tomask(s-1) for s in coords])
-    return masks
+    if return_names:
+        return masks,names
+    else:
+        return masks
 #%%
 def nf_merge_roi_zip(fnames, idx_to_keep, new_fold):    
 
@@ -531,7 +535,8 @@ def nf_merge_roi_zip(fnames, idx_to_keep, new_fold):
         dirpath = tempfile.mkdtemp()
         folders_rois.append(dirpath)        
         with zipfile.ZipFile(fn) as zf:
-            name_rois = zf.namelist()            
+            name_rois = zf.namelist() 
+            print(len(name_rois))
         zip_ref = zipfile.ZipFile(fn, 'r')
         zip_ref.extractall(dirpath)                
         files_to_keep.append([os.path.join(dirpath,ff) for ff in np.array(name_rois)[idx]])
@@ -843,8 +848,8 @@ def detect_duplicates(file_name,dist_thr = 0.1, FOV = (512,512)):
     np.fill_diagonal(D,1)
     indeces = np.where(D<dist_thr)      # pairs of duplicate indeces
     ind = np.unique(indeces[1][indeces[1]>indeces[0]])
-    
-    return ind
+    ind_singlets = set(np.arange(len(rois))) - set(ind)
+    return ind, np.array(list(ind_singlets))
     
     
 #%%
