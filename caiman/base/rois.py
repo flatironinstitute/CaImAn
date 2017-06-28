@@ -833,7 +833,8 @@ def detect_duplicates(file_name,dist_thr = 0.1, FOV = (512,512)):
     
     Returns:
     --------
-        ind     : list of indeces with duplicate entries
+        ind         : list of indeces with duplicate entries
+        ind_keep    : list of kept indeces
     """    
     
     rois = nf_read_roi_zip(file_name,FOV)
@@ -842,9 +843,11 @@ def detect_duplicates(file_name,dist_thr = 0.1, FOV = (512,512)):
     D = distance_masks([sp_rois,sp_rois],[cm,cm], 10)[0]
     np.fill_diagonal(D,1)
     indeces = np.where(D<dist_thr)      # pairs of duplicate indeces
-    ind = np.unique(indeces[1][indeces[1]>indeces[0]])
+    ind = list(np.unique(indeces[1][indeces[1]>indeces[0]]))
+    ind_keep = list(set(range(D.shape[0]))-set(ind))
+    duplicates = list(np.unique(np.concatenate((indeces[0],indeces[1]))))
     
-    return ind
+    return duplicates, ind_keep
     
     
 #%%
