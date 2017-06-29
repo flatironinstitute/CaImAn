@@ -1,4 +1,4 @@
-
+# -*- coding: utf-8 -*-
 """ Initialize the component for the CNMF
 
 contain a list of functions to initialize the neurons and the corresponding traces with different set of methods

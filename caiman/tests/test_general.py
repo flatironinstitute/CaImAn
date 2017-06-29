@@ -267,7 +267,7 @@ def test_general():
             
 ################ CNMF PART PATCH #################
     t1 = time.time()
-    cnm = cnmf.CNMF(n_processes=4, k=K, gSig=gSig, merge_thresh=params_movie['merge_thresh'], p=params_movie['p'],
+    cnm = cnmf.CNMF(n_processes=1, k=K, gSig=gSig, merge_thresh=params_movie['merge_thresh'], p=params_movie['p'],
                 dview=None, rf=rf, stride=stride_cnmf, memory_fact=params_movie['memory_fact'],
                 method_init=init_method, alpha_snmf=alpha_snmf, only_init_patch=params_movie['only_init_patch'],
                 gnb=params_movie['gnb'], method_deconvolution='oasis')
@@ -302,7 +302,7 @@ def test_general():
     
 ################ CNMF PART FULL #################
     t1 = time.time()
-    cnm = cnmf.CNMF(n_processes=4, k=A_tot.shape, gSig=gSig, merge_thresh=merge_thresh, p=p, Ain=A_tot, Cin=C_tot,
+    cnm = cnmf.CNMF(n_processes=1, k=A_tot.shape, gSig=gSig, merge_thresh=merge_thresh, p=p, Ain=A_tot, Cin=C_tot,
                     f_in=f_tot, rf=None, stride=None, method_deconvolution='oasis')
     cnm = cnm.fit(images)
     ############ DISCARDING
