@@ -48,7 +48,7 @@ import copy
 from caiman.source_extraction.cnmf import cnmf as cnmf
 from caiman.motion_correction import MotionCorrect
 from caiman.components_evaluation import estimate_components_quality
-from caiman.tests.comparison import comparison
+from caiman.tests.comparison import Comparison
 
 
 
@@ -147,7 +147,19 @@ def test_general():
  
         Raises:
       ---------
-   params_movie, params_cnmf, rig correction, cnmf on patch, cnmf full frame 
+        params_movie
+
+        params_cnmf
+
+        rig correction
+
+        cnmf on patch
+
+        cnmf full frame
+
+        not able to read the file
+
+        no groundtruth
 
  
     """
@@ -171,7 +183,7 @@ def test_general():
     download_demo(fname[0])
     m_orig = cm.load_movie_chain(fname[:1])
     min_mov = cm.load(fname[0], subindices=range(400)).min()
-    comp=comparison.Comparison()
+    comp=Comparison()
     comp.dims = np.shape(m_orig)[1:]
     
 
@@ -255,8 +267,10 @@ def test_general():
             
 ################ CNMF PART PATCH #################
     t1 = time.time()
-    cnm = cnmf.CNMF(n_processes=4, k=K, gSig=gSig, merge_thresh=params_movie['merge_thresh'], p=params_movie['p'], dview=None, rf=rf, stride=stride_cnmf, memory_fact=params_movie['memory_fact'],
-                method_init=init_method, alpha_snmf=alpha_snmf, only_init_patch=params_movie['only_init_patch'], gnb=params_movie['gnb'], method_deconvolution='oasis')
+    cnm = cnmf.CNMF(n_processes=4, k=K, gSig=gSig, merge_thresh=params_movie['merge_thresh'], p=params_movie['p'],
+                dview=None, rf=rf, stride=stride_cnmf, memory_fact=params_movie['memory_fact'],
+                method_init=init_method, alpha_snmf=alpha_snmf, only_init_patch=params_movie['only_init_patch'],
+                gnb=params_movie['gnb'], method_deconvolution='oasis')
     comp.cnmpatch  = copy.copy(cnm)
     cnm = cnm.fit(images)
     A_tot = cnm.A
@@ -309,20 +323,16 @@ def test_general():
     comp.comparison['cnmf_full_frame']['timer'] = time.time() - t1
     comp.comparison['cnmf_full_frame']['ourdata'] = [A_tot_full.copy(),C_tot_full.copy()]
 #################### ########################
-    print(comp.dims)
     comp.save_with_compare(istruth=False, params=params_movie, Cn=Cn)
     log_files = glob.glob('*_LOG_*')
     for log_file in log_files:
         os.remove(log_file)
-
-
-
 ############ assertions ##################
-    assert not comp.information['differences']['params_movie'],"you ned to set the same movie paramters than the ground truth to have a real comparison (use the comp.see() function to explore it)"
-    assert not comp.information['differences']['params_cnm'],"you need to set the same cnmf paramters than the ground truth to have a real comparison (use the comp.see() function to explore it)"
-    assert not comp.information['diff']['rig']['isdifferent'],"the rigid shifts are different from the groundtruth"
-    assert not comp.information['diff']['cnmpatch']['isdifferent'],"the cnmf on patch produces different  results than the groundtruth"
-    assert not comp.information['diff']['cnmfull']['isdifferent'],"the cnmf full frame produces different  results than the groundtruth"
+    assert(not comp.information['differences']['params_movie']),"you ned to set the same movie paramters than the ground truth to have a real comparison (use the comp.see() function to explore it)"
+    assert(not comp.information['differences']['params_cnm']),"you need to set the same cnmf paramters than the ground truth to have a real comparison (use the comp.see() function to explore it)"
+    assert(not comp.information['diff']['rig']['isdifferent']),"the rigid shifts are different from the groundtruth "
+    assert(not comp.information['diff']['cnmpatch']['isdifferent']),"the cnmf on patch produces different  results than the groundtruth "
+    assert(not comp.information['diff']['cnmfull']['isdifferent']),"the cnmf full frame produces different  results than the groundtruth "
 
 
 

@@ -1,6 +1,7 @@
 """ compare how the elements behave
  
-We create a folder ground truth that possess the same thing than the other in a form of a dictionnary containing nparrays and other info.
+We create a folder ground truth that possess the same thing than the other
+in a form of a dictionnary containing nparrays and other info.
 the other files contains every test and the name is the date of the test
  
 See Also
@@ -28,86 +29,86 @@ import os
 import matplotlib.pyplot as pl 
 import caiman as cm
 import scipy
-"""
-   Comparison(object): It is used for comparison the modification on the CaImAn program
-   
-   
-   You need to compare your modification to the groundtruth and then rename the folder created as "proof" for it to be send in you next push request
-   
-   Here it has been made for 3 different functions. for it to compare well you need to set your 
-   ground truth with the same computer with which you are comparing the files
-   class you instanciate to compare the different parts of CaImAn 
-   
- 
-    
- 
-    Attributes
-    ----------
-    self : object
-LIST OF WHAT YOU CAN FIND IN THE SAVED FILE
-  data
-	A_full
-	A_patch
-	rig_shifts
-	C_full
-	C_patch
-	information
-		diffrences
-			params_cnm
-			proc
-			param_movie
-		params
-		timer
-			rig_shifts
-			cnmf on patch 
-			cnmf_full_frame
-		time
-		processor
-		cnmpatch
-		platform
-		diff
-			cnmfull [same parameters](#732ed9)
-			cnmpatch
-				diff_data
-					performance
-						f1_score
-						accuracy
-						precision
-						recall
-					diffneur
-					correlations
-				isdifferent
-				diff_timing
-			rig
-				diff_timing
-				isdifferent
-				diff_data
-        the user to change it manualy
- 
-    Methods
-    -------
-    __init__()
-        Initialize the function be instanciating a comparison object  
-        
-    save(istruth)
-        save the comparison object on a file
-        
-    save_with_compare(self, istruth, params, dview, avg_min_size_ratio, n_frames_per_bin, dims_test, dims_gt, Cn, cmap)
-        the save functions to use ! 
-        
-    see(self,filename=None)
-        to look into a particular saved file
-        
-    plotall(self)
-        when you want to plot the variations of the different tests that have been compared according to the actual groundtruth
-   
-    See Also
-    --------
-    
-    .. image:: caiman/tests/comparison/data.pdf
-    """
-class Comparison(object):
 
+class Comparison(object):
+    """
+       Comparison(object): It is used for comparison the modification on the CaImAn program
+
+
+       You need to compare your modification to the groundtruth and then rename the folder created as "proof" for it to be send in you next push request
+
+       Here it has been made for 3 different functions. for it to compare well you need to set your
+       ground truth with the same computer with which you are comparing the files
+       class you instanciate to compare the different parts of CaImAn
+
+
+
+
+        Attributes
+        ----------
+        self : object
+    LIST OF WHAT YOU CAN FIND IN THE SAVED FILE
+      data
+    	A_full
+    	A_patch
+    	rig_shifts
+    	C_full
+    	C_patch
+    	information
+    		diffrences
+    			params_cnm
+    			proc
+    			param_movie
+    		params
+    		timer
+    			rig_shifts
+    			cnmf on patch
+    			cnmf_full_frame
+    		time
+    		processor
+    		cnmpatch
+    		platform
+    		diff
+    			cnmfull [same parameters](#732ed9)
+    			cnmpatch
+    				diff_data
+    					performance
+    						f1_score
+    						accuracy
+    						precision
+    						recall
+    					diffneur
+    					correlations
+    				isdifferent
+    				diff_timing
+    			rig
+    				diff_timing
+    				isdifferent
+    				diff_data
+            the user to change it manualy
+
+        Methods
+        -------
+        __init__()
+            Initialize the function be instanciating a comparison object
+
+        save(istruth)
+            save the comparison object on a file
+
+        save_with_compare(self, istruth, params, dview, avg_min_size_ratio, n_frames_per_bin, dims_test, dims_gt, Cn, cmap)
+            the save functions to use !
+
+        see(self,filename=None)
+            to look into a particular saved file
+
+        plotall(self)
+            when you want to plot the variations of the different tests that have been compared according to the actual groundtruth
+
+        See Also
+        --------
+
+        .. image:: caiman/tests/comparison/data.pdf
+        """
     def __init__(self):
         
         self.comparison ={'rig_shifts': {},
@@ -147,7 +148,7 @@ class Comparison(object):
             
             
             
-    def save_with_compare(self, istruth=False, params=None, dview=None, n_frames_per_bin = 10, dims_test = (60,80) , dims_gt = (60,80), Cn=None, cmap=None):
+    def save_with_compare(self, istruth=False, params=None, dview=None, Cn=None):
         """save the comparison as well as the images of the precision recall calculations
  
  
@@ -162,38 +163,52 @@ class Comparison(object):
                 have a groundtruth
                 
  
-            Parameters
+            Parameters:
             -----------
  
             self:  dictionnary
                the object of this class tha tcontains every value
+
             istruth: Boolean
                 if we want it ot be the ground truth
+
             params:
                 movie parameters
-            dview : 
+
+            dview :
                 your dview object
+
             n_frames_per_bin:
                 you need to know those data before
                 they have been given to the base/rois functions
+
             dims_test:
                 you need to know those data before
                 they have been given to the base/rois functions
-            Cn: 
+
+            Cn:
                 your correlation image
+
             Cmap:
                 a particular colormap for your Cn
              
-            	See Also
+            	See Also:
             	---------
             
             Example of utilisation on Demo Pipeline
             	.. image:: caiman/tests/comparison/data.pdf
             
-             
+
+             Raise:
+             ------
+
+             ('we now have ground truth\n')
+
+             ('we were not able to read the file to compare it\n')
+
                 """
          #getting the DATA FOR COMPARISONS   
-        assert (params !=None or self.cnmpatch != None)
+        assert (params !=None and self.cnmpatch != None)
         print('we need the paramters in order to save anything\n')
         #actions on the sparse matrix
         cnm = self.cnmpatch.__dict__
@@ -236,8 +251,10 @@ class Comparison(object):
                os.remove(file_path)
                print("nothing to remove\n")
             np.savez(file_path,information= information 
-                          , A_full = self.comparison['cnmf_full_frame']['ourdata'][0],C_full = self.comparison['cnmf_full_frame']['ourdata'][1]
-                          ,A_patch = self.comparison['cnmf_on_patch']['ourdata'][0],C_patch= self.comparison['cnmf_on_patch']['ourdata'][1]
+                          , A_full = self.comparison['cnmf_full_frame']['ourdata'][0],
+                     C_full = self.comparison['cnmf_full_frame']['ourdata'][1]
+                          ,A_patch = self.comparison['cnmf_on_patch']['ourdata'][0],
+                     C_patch= self.comparison['cnmf_on_patch']['ourdata'][1]
                           ,rig_shifts = self.comparison['rig_shifts']['ourdata'])  
             #np.savez('comparison/groundtruth/groundtruth.npz', **information)
             print('we now have ground truth\n')
@@ -257,8 +274,10 @@ class Comparison(object):
                 print('we were not able to read the file to compare it\n')
                 file_path="comparison/tests/NC"+dt+".npz"
                 np.savez(file_path,information= information 
-                              , A_full = self.comparison['cnmf_full_frame']['ourdata'][0],C_full = self.comparison['cnmf_full_frame']['ourdata'][1]
-                              ,A_patch = self.comparison['cnmf_on_patch']['ourdata'][0],C_patch= self.comparison['cnmf_on_patch']['ourdata'][1]
+                              , A_full = self.comparison['cnmf_full_frame']['ourdata'][0],
+                         C_full = self.comparison['cnmf_full_frame']['ourdata'][1]
+                              ,A_patch = self.comparison['cnmf_on_patch']['ourdata'][0],
+                         C_patch= self.comparison['cnmf_on_patch']['ourdata'][1]
                               ,rig_shifts = self.comparison['rig_shifts']['ourdata'])  
                 return
         #creating the FOLDER to store our data
@@ -276,11 +295,13 @@ class Comparison(object):
                 'params_cnm':False}})    
         #INFORMATION FOR THE USER
         if data['processor']!=information['processor']:
-            print("you don't have the same processor than groundtruth.. the time difference can vary because of that\n try recreate your own groundtruth before testing\n")
+            print("you don't have the same processor than groundtruth.. the time difference can vary"
+                  " because of that\n try recreate your own groundtruth before testing\n")
             information['differences']['proc'] = True
         if data['params']!=information['params']:
             print("you do not use the same movie parameters... Things can go wrong\n\n")
-            print('you need to use the same paramters to compare your version of the code with the groundtruth one. look for the groundtruth paramters with the see() method\n')
+            print('you need to use the same paramters to compare your version of the code with '
+                  'the groundtruth one. look for the groundtruth paramters with the see() method\n')
             information['differences']['params_movie'] = True
         if data['cnmpatch']!=cnmpatch:
             print('you do not use the same paramters in your cnmf on patches initialization\n')
@@ -335,25 +356,27 @@ class Comparison(object):
 #####################SAving of everything
         file_path="./caiman/tests/comparison/tests/"+i+"/"+i+".npz"
         np.savez(file_path,information= information 
-                              , A_full = self.comparison['cnmf_full_frame']['ourdata'][0],C_full = self.comparison['cnmf_full_frame']['ourdata'][1]
-                              ,A_patch = self.comparison['cnmf_on_patch']['ourdata'][0],C_patch= self.comparison['cnmf_on_patch']['ourdata'][1]
+                              , A_full = self.comparison['cnmf_full_frame']['ourdata'][0],
+                 C_full = self.comparison['cnmf_full_frame']['ourdata'][1]
+                              ,A_patch = self.comparison['cnmf_on_patch']['ourdata'][0],
+                 C_patch= self.comparison['cnmf_on_patch']['ourdata'][1]
                               ,rig_shifts = self.comparison['rig_shifts']['ourdata'])
         
-        self.information = information         
+        self.information = information
             
 def see(filename=None):
         """shows you the important data about a certain test file ( just give the number or name)
  
             if you give nothing it will give you back the groundtruth infos
  
-            Parameters
+            Parameters:
             -----------
             self:  dictionnary
                the object of this class tha tcontains every value
             filename:
                 ( just give the number or name)
              
-            	See Also
+            	See Also:
             	--------- 
             	.. image:: caiman/tests/comparison/data.pdf
                 """
@@ -380,7 +403,8 @@ def see_it(data=None):
                     print('\n')
                     see_it(val)
                 else:
-                    if not isinstance(val, scipy.sparse.coo.coo_matrix) and not isinstance(val, scipy.sparse.csc.csc_matrix) and not isinstance(val, list):
+                    if not isinstance(val, scipy.sparse.coo.coo_matrix) \
+                            and not isinstance(val, scipy.sparse.csc.csc_matrix) and not isinstance(val, list):
                         
                         print(key)
                         print(val)
@@ -391,7 +415,8 @@ def deletesparse(cnm):
                 val= cnm[keys] 
                 if isinstance(val, dict):
                     val = deletesparse(val)
-                if not isinstance(val, scipy.sparse.coo.coo_matrix) and not isinstance(val,np.ndarray) and not isinstance(val, scipy.sparse.csc.csc_matrix) and not keys=='dview':
+                if not isinstance(val, scipy.sparse.coo.coo_matrix) and not isinstance(val,np.ndarray) \
+                        and not isinstance(val, scipy.sparse.csc.csc_matrix) and not keys=='dview':
                     print(type(val))
                     cnm[keys]=val
                 else:
@@ -406,9 +431,11 @@ def cnmf(Cn,A_gt, A_test,C_gt,C_test, dims_gt, dims_test, dview= None, sensitivi
         A_gt = A_gt.toarray()
   
    #proceed to a trhreshold
-        A_test_thr = cm.source_extraction.cnmf.spatial.threshold_components(A_test, dims_test, medw=None, thr_method='max', maxthr=0.2, nrgthr=0.99, extract_cc=True,
+        A_test_thr = cm.source_extraction.cnmf.spatial.threshold_components(
+            A_test, dims_test, medw=None, thr_method='max', maxthr=0.2, nrgthr=0.99, extract_cc=True,
              se=None, ss=None, dview=dview) 
-        A_gt_thr = cm.source_extraction.cnmf.spatial.threshold_components(A_gt, dims_gt, medw=None, thr_method='max', maxthr=0.2, nrgthr=0.99, extract_cc=True,
+        A_gt_thr = cm.source_extraction.cnmf.spatial.threshold_components(
+            A_gt, dims_gt, medw=None, thr_method='max', maxthr=0.2, nrgthr=0.99, extract_cc=True,
              se=None, ss=None, dview=dview) 
         
         #compute C using this A thr
@@ -426,13 +453,15 @@ def cnmf(Cn,A_gt, A_test,C_gt,C_test, dims_gt, dims_test, dview= None, sensitivi
         maskgt = A_gt_thr[:,:].reshape([dims_gt[0],dims_gt[1],-1],order = 'F').transpose([2,0,1])*1.
         masktest = A_test_thr[:,:].reshape([dims_test[0],dims_test[1],-1],order = 'F').transpose([2,0,1])*1.
         
-        idx_tp_gt,idx_tp_comp, idx_fn_gt, idx_fp_comp, performance_off_on =  cm.base.rois.nf_match_neurons_in_binary_masks(masks_gt=maskgt,masks_comp = masktest, Cn=Cn, plot_results=True)
+        idx_tp_gt,idx_tp_comp, idx_fn_gt, idx_fp_comp, performance_off_on =  \
+            cm.base.rois.nf_match_neurons_in_binary_masks(masks_gt=maskgt,
+                                                          masks_comp = masktest, Cn=Cn, plot_results=True)
         
-       #the pearson's correlation coefficient of the two Calcium activities thresholded
+        #the pearson's correlation coefficient of the two Calcium activities thresholded
         #comparing Calcium activities of all the components that are defined by the matching algo as the same.
-        corrs = np.array([scipy.stats.pearsonr(C_gt_thr[gt,:],C_test_thr[comp,:])[0] for gt,comp in zip(idx_tp_gt,idx_tp_comp)])
-        isdiff = diffneur == 0
-        isdiff = isdiff and np.linalg.norm(corrs) < sensitivity
+        corrs = np.array([scipy.stats.pearsonr(
+            C_gt_thr[gt,:],C_test_thr[comp,:])[0] for gt,comp in zip(idx_tp_gt,idx_tp_comp)])
+        isdiff = True if (diffneur == 0 and (np.linalg.norm(corrs) < sensitivity))else False
         info= {'isdifferent':int(isdiff),
                               'diff_data': { 'performance':performance_off_on,
                                              'corelations':corrs.tolist(),
@@ -470,8 +499,7 @@ def plotrig(init, curr,timer,sensitivity):
             pl.ylabel('pixels')    
         except : 
             print("not able to plot")
-        return info   
-                                    
+        return info
                 
 
    
