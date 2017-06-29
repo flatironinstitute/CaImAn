@@ -53,7 +53,7 @@ from caiman.tests.comparison import comparison
 
 
 
-params_movie = {'fname': ['./example_movies/demoSue2x.tif'],
+params_movie = {'fname': [u'./example_movies/demoSue2x.tif'],
                'niter_rig': 1,
                'max_shifts': (3, 3),  # maximum allow rigid shift
                'splits_rig': 20,  # for parallelization split the movies in  num_splits chuncks across time
@@ -148,10 +148,12 @@ def create():
 
     A shorter version than the demo pipeline that calls comparison for the real test work
 
-        Raises:
-      ---------
-   params_movie, params_cnmf, rig correction, cnmf on patch, cnmf full frame
+    Raise:
+    -----
 
+        ('we now have ground truth\n')
+
+        ('we were not able to read the file to compare it\n')
 
     """
     # \bug
