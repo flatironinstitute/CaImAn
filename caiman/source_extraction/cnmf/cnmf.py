@@ -1,13 +1,26 @@
 # -*- coding: utf-8 -*-
+""" Constrained Nonnegative Matrix Factorization
+
+The general file class which is used to produce a factorization of the Y matrix being the video
+it computes it using all the files inside of cnmf folder.
+Its architecture is similar to the one of scikit-learn calling the function fit to run everything which is part
+ of the structure of the class
+
+ it is calling everyfunction from the cnmf folder
+ you can find out more at how the functions are called and how they are laid out at the ipython notebook
+
+See Also:
+------------
+
+@url http://www.cell.com/neuron/fulltext/S0896-6273(15)01084-3
+.. mage:: docs/img/quickintro.png
+@author andrea giovannucci
 """
-Constrained Nonnegative Matrix Factorization
+#\package Caiman/utils
+#\version   1.0
+#\copyright GNU General Public License v2.0
+#\date Created on Fri Aug 26 15:44:32 2016
 
-Created on Fri Aug 26 15:44:32 2016
-
-@author: agiovann
- 
-
-"""
 from __future__ import division
 from __future__ import print_function
 
@@ -27,22 +40,36 @@ import scipy
 
 
 class CNMF(object):
-    """
-    Source extraction using constrained non-negative matrix factorization.
+    """  Source extraction using constrained non-negative matrix factorization.
+
+
+    The general class which is used to produce a factorization of the Y matrix being the video
+    it computes it using all the files inside of cnmf folder.
+    Its architecture is similar to the one of scikit-learn calling the function fit to run everything which is part
+     of the structure of the class
+
+    it is calling everyfunction from the cnmf folder
+    you can find out more at how the functions are called and how they are laid out at the ipython notebook
+
+    See Also:
+    ------------
+    @url http://www.cell.com/neuron/fulltext/S0896-6273(15)01084-3
+    .. image:: docs/img/quickintro.png
+    @author andrea giovannucci
     """
 
-    def __init__(self, n_processes, k=5, gSig=[4,4], merge_thresh=0.8 , p=2, dview=None, Ain=None, Cin=None, f_in=None,do_merge=True,\
-                                        ssub=2, tsub=2,p_ssub=1, p_tsub=1, method_init= 'greedy_roi',alpha_snmf=None,\
-                                        rf=None,stride=None, memory_fact=1, gnb = 1, only_init_patch=False,\
-                                        method_deconvolution = 'oasis', n_pixels_per_process = 4000, block_size = 20000,
-                                        check_nan = True, skip_refinement = False, normalize_init=True, options_local_NMF = None,
+    def __init__(self, n_processes, k=5, gSig=[4,4], merge_thresh=0.8 , p=2, dview=None,
+                 Ain=None, Cin=None, f_in=None,do_merge=True,
+                 ssub=2, tsub=2,p_ssub=1, p_tsub=1, method_init= 'greedy_roi',alpha_snmf=None,
+                 rf=None,stride=None, memory_fact=1, gnb = 1, only_init_patch=False,
+                 method_deconvolution = 'oasis', n_pixels_per_process = 4000, block_size = 20000,
+                 check_nan = True, skip_refinement = False, normalize_init=True, options_local_NMF = None,
                                         remove_very_bad_comps = False):
         """ 
         Constructor of the CNMF method
 
         Parameters:
         -----------
-
 
         n_processes: int
            number of processed used (if in parallel this controls memory usage)
@@ -93,7 +120,8 @@ class CNMF(object):
             amount of overlap between the patches in pixels
 
         memory_fact: float
-            unitless number accounting how much memory should be used. You will need to try different values to see which one would work the default is OK for a 16 GB system
+            unitless number accounting how much memory should be used. You will
+             need to try different values to see which one would work the default is OK for a 16 GB system
 
         N_samples_fitness: int 
             number of samples over which exceptional events are computed (See utilities.evaluate_components)
@@ -103,7 +131,8 @@ class CNMF(object):
         
         method_deconvolution = 'oasis' or 'cvxpy'
             method used for deconvolution. Suggested 'oasis' see  
-            Friedrich J, Zhou P, Paninski L. Fast Online Deconvolution of Calcium Imaging Data. PLoS Comput Biol. 2017; 13(3):e1005423.
+            Friedrich J, Zhou P, Paninski L. Fast Online Deconvolution of Calcium Imaging Data.
+            PLoS Comput Biol. 2017; 13(3):e1005423.
         
         n_pixels_per_process: int. 
             Number of pixels to be processed in parallel per core (no patch mode). Decrease if memory problems
@@ -118,14 +147,17 @@ class CNMF(object):
             Bool. If true it only performs one iteration of update spatial update temporal instead of two
         
         normalize_init=Bool. 
-            Differences in intensities on the FOV might caus troubles in the initialization when patches are not used, so each pixels can be normalized by its median intensity
+            Differences in intensities on the FOV might caus troubles in the initialization when patches are not used,
+             so each pixels can be normalized by its median intensity
         
         options_local_NMF: 
             experimental, not to be used
 
         remove_very_bad_comps:Bool
-            whether to remove components with very low values of component quality directly on the patch. This might create some minor imprecisions. 
-            Howeverm benefits can be considerable if done because if many components (>2000) are created and joined together, operation that causes a bottleneck
+            whether to remove components with very low values of component quality directly on the patch.
+             This might create some minor imprecisions.
+            Howeverm benefits can be considerable if done because if many components (>2000) are created
+            and joined together, operation that causes a bottleneck
         
         Returns:
         --------
@@ -149,7 +181,9 @@ class CNMF(object):
         self.n_processes=n_processes
         self.rf=rf # half-size of the patches in pixels. rf=25, patches are 50x50
         self.stride=stride #amount of overlap between the patches in pixels   
-        self.memory_fact = memory_fact  #unitless number accounting how much memory should be used. You will need to try different values to see which one would work the default is OK for a 16 GB system
+        # unitless number accounting how much memory should be used.
+        #  You will need to try different values to see which one would work the default is OK for a 16 GB system
+        self.memory_fact = memory_fact
         self.gnb = gnb                        
         self.do_merge=do_merge
         self.alpha_snmf=alpha_snmf
@@ -175,15 +209,30 @@ class CNMF(object):
         """
         This method uses the cnmf algorithm to find sources in data.
 
+        it is calling everyfunction from the cnmf folder
+        you can find out more at how the functions are called and how they are laid out at the ipython notebook
+
         Parameters:
         ----------
         images : mapped np.ndarray of shape (t,x,y[,z]) containing the images that vary over time.
 
         Returns:
         --------
-        self
+        self: updated using the cnmf algorithm with C,A,S,b,f computed according to the given initial values
+
+        Raise:
+        ------
+        raise Exception('You need to provide a memory mapped file as input if you use patches!!')
+
+        See Also:
+        --------
+
+        ..image::docs/img/quickintro.png
+
+        http://www.cell.com/neuron/fulltext/S0896-6273(15)01084-3
 
         """
+        #Todo : to compartiment
         T = images.shape[0]
         dims = images.shape[1:]
         Y = np.transpose(images, list(range(1, len(dims) + 1)) + [0])
@@ -197,7 +246,9 @@ class CNMF(object):
         options = CNMFSetParms(Y, self.n_processes, p=self.p, gSig=self.gSig, K=self.k, ssub=self.ssub, tsub=self.tsub,
                                p_ssub=self.p_ssub, p_tsub=self.p_tsub, method_init=self.method_init,
                                n_pixels_per_process=self.n_pixels_per_process, block_size=self.block_size,
-                               check_nan=self.check_nan, nb=self.gnb, normalize_init = self.normalize_init, options_local_NMF = self.options_local_NMF, remove_very_bad_comps = self.remove_very_bad_comps)
+                               check_nan=self.check_nan, nb=self.gnb, normalize_init = self.normalize_init,
+                               options_local_NMF = self.options_local_NMF,
+                               remove_very_bad_comps = self.remove_very_bad_comps)
 
         self.options = options
         
@@ -212,19 +263,12 @@ class CNMF(object):
 
                 self.Ain, self.Cin, self.b_in, self.f_in, center = initialize_components(
                     Y, **options['init_params'])
-                
-
 
             if self.only_init: # only return values after initialization
                 
                 nA = np.squeeze(np.array(np.sum(np.square(self.Ain),axis=0)))
-        
                 nr=nA.size
                 Cin=scipy.sparse.coo_matrix(self.Cin)
-                
-                
-                
-                
                 YA = (self.Ain.T.dot(Yr).T)*scipy.sparse.spdiags(old_div(1.,nA),0,nr,nr)
                 AA = ((self.Ain.T.dot(self.Ain))*scipy.sparse.spdiags(old_div(1.,nA),0,nr,nr))
                 
@@ -233,25 +277,25 @@ class CNMF(object):
                 self.C = Cin.todense() 
                 
                 if self.remove_very_bad_comps:
-                
+                    print('removing bad components : ')
                     final_frate = 3
                     r_values_min = 0.5  # threshold on space consistency
                     fitness_min = -15  # threshold on time variability
                     fitness_delta_min = -15
                     Npeaks = 10
                     traces = np.array(self.C)
-#                    import pdb;pdb.set_trace()
-                    idx_components, idx_components_bad, fitness_raw, fitness_delta, r_values = components_evaluation.estimate_components_quality(
-                        traces, Y, self.A, np.array(self.C), self.b_in, self.f_in, final_frate = final_frate, Npeaks=Npeaks, r_values_min=r_values_min, fitness_min=fitness_min, fitness_delta_min=fitness_delta_min, return_all = True, N = 5)                    
+                    print('estimating the quality...')
+                    idx_components, idx_components_bad, fitness_raw,\
+                    fitness_delta, r_values = components_evaluation.estimate_components_quality(
+                        traces, Y, self.A, np.array(self.C), self.b_in, self.f_in,
+                        final_frate = final_frate, Npeaks=Npeaks, r_values_min=r_values_min,
+                        fitness_min=fitness_min, fitness_delta_min=fitness_delta_min, return_all = True, N = 5)
     
                     print(('Keeping ' + str(len(idx_components)) +
                            ' and discarding  ' + str(len(idx_components_bad))))
-                    
                     self.C = self.C[idx_components]                    
                     self.A = self.A[:,idx_components]                                  
                     self.YrA = self.YrA[:,idx_components]
-                                                           
-                    
                 
                 self.sn = sn                    
                 self.b = self.b_in
@@ -263,9 +307,9 @@ class CNMF(object):
                 
                 return self
 
-            
             print('update spatial ...')
-            A, b, Cin, self.f_in = update_spatial_components(Yr, self.Cin, self.f_in, self.Ain, sn=sn, dview=self.dview, **options['spatial_params'])
+            A, b, Cin, self.f_in = update_spatial_components(Yr, self.Cin, self.f_in, self.Ain,
+                                                             sn=sn, dview=self.dview, **options['spatial_params'])
 
             print('update temporal ...')
             if not self.skip_refinement:
@@ -283,8 +327,10 @@ class CNMF(object):
                 print('refinement...')
                 if self.do_merge:
                     print('merge components ...')
-                    A, C, nr, merged_ROIs, S, bl, c1, sn1, g1 = merge_components(Yr, A, b, C, f, S, sn, options['temporal_params'], options[
-                                                                                 'spatial_params'], dview=self.dview, bl=bl, c1=c1, sn=neurons_sn, g=g, thr=self.merge_thresh, mx=50, fast_merge=True)
+                    A, C, nr, merged_ROIs, S, bl, c1, sn1, g1 = merge_components(
+                        Yr, A, b, C, f, S, sn, options['temporal_params'], options['spatial_params'],
+                        dview=self.dview, bl=bl, c1=c1, sn=neurons_sn, g=g, thr=self.merge_thresh,
+                        mx=50, fast_merge=True)
                 print((A.shape))
                 print('update spatial ...')
                 A, b, C, f = update_spatial_components(
@@ -294,12 +340,11 @@ class CNMF(object):
                 print('update temporal ...')
                 C, A, b, f, S, bl, c1, neurons_sn, g1, YrA = update_temporal_components(
                     Yr, A, b, C, f, dview=self.dview, bl=None, c1=None, sn=None, g=None, **options['temporal_params'])
-
             else:
-                    C, f, S, bl, c1, neurons_sn, g1, YrA = C, f, S, bl, c1, neurons_sn, g, YrA
+                    g1 = g
+                    # todo : ask for those..
+                    C, f, S, bl, c1, neurons_sn,Yra = C, f, S, bl, c1, neurons_sn, YrA
 
-            
-         
         else:  # use patches
             if self.stride is None:
                 self.stride = np.int(self.rf * 2 * .1)
@@ -316,11 +361,14 @@ class CNMF(object):
                 options['init_params']['alpha_snmf'] = self.alpha_snmf
 
 
-            A, C, YrA, b, f, sn, optional_outputs = run_CNMF_patches(images.filename, dims + (T,), options, rf=self.rf, stride=self.stride,
-                                                                     dview=self.dview, memory_fact=self.memory_fact, gnb=self.gnb)
+            A, C, YrA, b, f, sn, optional_outputs = run_CNMF_patches(images.filename, dims + (T,),
+                                                                     options, rf=self.rf, stride=self.stride,
+                                                                     dview=self.dview, memory_fact=self.memory_fact,
+                                                                     gnb=self.gnb)
 
             options = CNMFSetParms(Y, self.n_processes, p=self.p, gSig=self.gSig, K=A.shape[
-                                   -1], thr=self.merge_thresh, n_pixels_per_process=self.n_pixels_per_process, block_size=self.block_size, check_nan=self.check_nan)
+                                   -1], thr=self.merge_thresh, n_pixels_per_process=self.n_pixels_per_process,
+                                   block_size=self.block_size, check_nan=self.check_nan)
 
             options['temporal_params']['method'] = self.method_deconvolution
 
@@ -328,21 +376,12 @@ class CNMF(object):
             merged_ROIs = [0]
             while len(merged_ROIs) > 0:
                 A, C, nr, merged_ROIs, S, bl, c1, sn_n, g = merge_components(Yr, A, [], np.array(C), [], np.array(
-                    C), [], options['temporal_params'], options['spatial_params'], dview=self.dview, thr=self.merge_thresh, mx=np.Inf)
+                    C), [], options['temporal_params'], options['spatial_params'], dview=self.dview,
+                                                                             thr=self.merge_thresh, mx=np.Inf)
 
             print("update temporal")
             C, A, b, f, S, bl, c1, neurons_sn, g1, YrA = update_temporal_components(
                 Yr, A, b, C, f, dview=self.dview, bl=None, c1=None, sn=None, g=None, **options['temporal_params'])
-
-#           idx_components, fitness, erfc ,r_values, num_significant_samples = evaluate_components(Y,C+YrA,A,N=self.N_samples_fitness,robust_std=self.robust_std,thresh_finess=self.fitness_threshold)
-#           sure_in_idx= idx_components[np.logical_and(np.array(num_significant_samples)>0 ,np.array(r_values)>=self.corr_threshold)]
-#
-#           print ('Keeping ' + str(len(sure_in_idx)) + ' components out of ' + str(len(idx_components)))
-#
-#
-#           A=A[:,sure_in_idx]
-#           C=C[sure_in_idx,:]
-#           YrA=YrA[sure_in_idx]
 
         self.A=A
         self.C=C
