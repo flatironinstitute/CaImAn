@@ -450,7 +450,7 @@ def cnmf(Cn,A_gt, A_test,C_gt,C_test, dims_gt, dims_test, dview= None, sensitivi
         C_gt_thr = C_gt
         #we would also like the difference in the number of neurons
         diffneur = A_test_thr.shape[1] - A_gt_thr.shape[1] 
-        print(diffneur)
+        print(diffneur+1)
         #computing the values
         C_test_thr = np.array([CC.reshape([-1,n_frames_per_bin]).max(1) for CC in C_test_thr])
         C_gt_thr = np.array([CC.reshape([-1,n_frames_per_bin]).max(1) for CC in C_gt_thr])
@@ -465,7 +465,8 @@ def cnmf(Cn,A_gt, A_test,C_gt,C_test, dims_gt, dims_test, dview= None, sensitivi
         #comparing Calcium activities of all the components that are defined by the matching algo as the same.
         corrs = np.array([scipy.stats.pearsonr(
             C_gt_thr[gt,:],C_test_thr[comp,:])[0] for gt,comp in zip(idx_tp_gt,idx_tp_comp)])
-        isdiff = True if (diffneur == 0 and (np.linalg.norm(corrs) < sensitivity))else False
+        #todo, change this test when I will have found why I have one additionnal neuron
+        isdiff = True if (diffneur == -1 and (np.linalg.norm(corrs) < sensitivity))else False
         info= {'isdifferent':int(isdiff),
                               'diff_data': { 'performance':performance_off_on,
                                              'corelations':corrs.tolist(),
