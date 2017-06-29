@@ -143,6 +143,7 @@ ENV/
 #html documentation
 /html
 /docs/html
+/docs/html1
 
 #building part
 /build
@@ -159,9 +160,11 @@ Desktop.ini
 #dev and comparison
 /bin
 #everything from test except one (generated from the User)
-caiman/tests/comparison/tests
+caiman/tests/comparison/tests/
 !caiman/tests/comparison/tests/tosend
+!caiman/tests/comparison/groundtruth.npz
 /dev
+
 
 #generated data from caiman
 /data_storage
