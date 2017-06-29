@@ -42,20 +42,20 @@ file_list=[['./example_movies/demoSue2x.tif','https://www.dropbox.com/s/09z974vk
 
 
 def download_demo(name='./example_movies/demoSue2x.tif'):
-    """downliad a file from the file list with the url of its location 
+    """download a file from the file list with the url of its location
  
  
         using urllib, you can add you own name and location in this global parameter
  
-            Parameters
+            Parameters:
             -----------
  
             name: str
                 the path of the file correspondong to a file in the filelist
  
-        Raises:
+        Raise:
         ---------
-        WrongFolder
+            WrongFolder Exception
  
 
         """
@@ -83,12 +83,13 @@ def download_demo(name='./example_movies/demoSue2x.tif'):
 def val_parse(v):
     """parse values from si tags into python objects if possible from si parse
 
-     Parameters
+     Parameters:
      -----------
      
      v: si tags
 
-     returns
+     returns:
+     -------
 
     v: python object 
 
@@ -120,14 +121,15 @@ def si_parse(imd):
 
     """parse image_description field embedded by scanimage from get iamge description
 
-     Parameters
+     Parameters:
      -----------
      
      imd: image description
 
-     returns
+     returns:
+     -------
 
-        imd: the parsed description
+    imd: the parsed description
 
     """
 
@@ -143,21 +145,27 @@ def get_image_description_SI(fname):
     
     """Given a tif file acquired with Scanimage it returns a dictionary containing the information in the image description field
     
-     Parameters
+     Parameters:
      -----------
      
      fname: name of the file
 
-     returns
+     returns:
+     -------
 
         image_description: information of the image
+
+    Raise:
+    -----
+        ('tifffile package not found, using skimage.external.tifffile')
+
 
     """
 
     image_descriptions=[]
     
     try:
-        
+        #todo check this unresolved reference
         from tifffile import TiffFile
     
     except:

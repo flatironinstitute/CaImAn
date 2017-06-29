@@ -1,12 +1,23 @@
 # -*- coding: utf-8 -*-
-"""
-A set of pre-processing operations in the input dataset:
+""" A set of pre-processing operations in the input dataset:
+
 1. Interpolation of missing data
 2. Indentification of saturated pixels
 3. Estimation of noise level for each imaged voxel
 4. Estimation of global time constants
+
+See Also:
+------------
+
 @authors: agiovann epnev
+@image docs/img/greedyroi.png
 """
+#\package caiman/source_extraction/cnmf
+#\version   1.0
+#\copyright GNU General Public License v2.0
+#\date Created on Tue Jun 30 21:01:17 2015
+
+
 from __future__ import division
 from __future__ import print_function
 
@@ -19,7 +30,6 @@ from builtins import range
 from ...mmapping import load_memmap
 from past.builtins import basestring
 from past.utils import old_div
-#TODO to document file
 
 #%%
 def interpolate_missing_data(Y):
@@ -28,16 +38,19 @@ def interpolate_missing_data(Y):
     Missing data is identified as entries with values NaN
 
     Parameters:
+    ----------
     Y   np.ndarray (3D)
         movie, raw data in 3D format (d1 x d2 x T)
 
     Returns:
+    ------
     Y   np.ndarray (3D)
         movie, data with interpolated entries (d1 x d2 x T)
     coor list
         list of interpolated coordinates
 
-    Raises:
+    Raise:
+    ------
         Exception('The algorithm has not been tested with missing values (NaNs). Remove NaNs and rerun the algorithm.')
     """
     coor=[]
@@ -62,6 +75,7 @@ def find_unsaturated_pixels(Y, saturationValue = None, saturationThreshold = 0.9
     saturationThreshold*saturationValue at least saturationTime fraction of the time.
 
     Inputs:
+    ------
     Y: np.ndarray
         input movie data, either 2D or 3D with time in the last axis
 
@@ -77,7 +91,7 @@ def find_unsaturated_pixels(Y, saturationValue = None, saturationThreshold = 0.9
         region to be considered saturated. Default: 0.005
 
     Output:
-
+    ------
     normalPixels:   nd.array
         list of unsaturated pixels
     """
@@ -95,6 +109,7 @@ def get_noise_fft(Y, noise_range = [0.25,0.5], noise_method = 'logmexp', max_num
     """Estimate the noise level for each pixel by averaging the power spectral density.
 
     Inputs:
+    -------
 
     Y: np.ndarray
 
@@ -112,7 +127,7 @@ def get_noise_fft(Y, noise_range = [0.25,0.5], noise_method = 'logmexp', max_num
             'logmexp': Exponential of the mean of the logarithm of PSD (default)
 
     Output:
-
+    ------
     sn: np.ndarray
         Noise level for each pixel
     """
@@ -152,7 +167,7 @@ def get_noise_fft(Y, noise_range = [0.25,0.5], noise_method = 'logmexp', max_num
 def get_noise_fft_parallel(Y,n_pixels_per_process=100, dview=None, **kwargs):
     """parallel version of get_noise_fft.
 
-    Params:
+    Parameters:
     -------
     Y: ndarray
         input movie (n_pixels x Time). Can be also memory mapped file.
@@ -253,6 +268,16 @@ def fft_psd_parallel(Y,sn_s,i,num_pixels,**kwargs):
 
     **kwargs: dict
         arguments to be passed to get_noise_fft
+
+     Returns:
+     -------
+        idx: list
+            list of the computed pixels
+
+        res: ndarray(double)
+            noise associated to each pixel
+        psx: ndarray
+            position of thoses pixels
     """
     idxs=list(range(i,i+num_pixels))
     res=get_noise_fft(Y[idxs], **kwargs)
@@ -279,6 +304,18 @@ def fft_psd_multithreading(args):
 
     **kwargs: dict
         arguments to be passed to get_noise_fft
+
+    Returns:
+    -------
+        idx: list
+            list of the computed pixels
+
+        res: ndarray(double)
+            noise associated to each pixel
+        psx: ndarray
+            position of thoses pixels
+
+
     """
     (Y,i,num_pixels,kwargs)=args
     if isinstance(Y,basestring):
@@ -296,6 +333,7 @@ def mean_psd(y, method = 'logmexp'):
     Averaging the PSD
 
     Parameters:
+    ----------
 
         y: np.ndarray
              PSD values
@@ -308,6 +346,7 @@ def mean_psd(y, method = 'logmexp'):
              'logmexp': Exponential of the mean of the logarithm of PSD (default)
 
     Returns:
+    -------
         mp: array
             mean psd
     """
@@ -334,7 +373,7 @@ def estimate_time_constant(Y, sn, p = None, lags = 5, include_noise = False, pix
     time constant.
 
     Inputs:
-
+    -------
     Y: np.ndarray (2D)
         input movie data with time in the last axis
 
@@ -351,6 +390,7 @@ def estimate_time_constant(Y, sn, p = None, lags = 5, include_noise = False, pix
         Restrict estimation to these pixels (e.g., remove saturated pixels). Default: All pixels
 
     Output:
+    -------
     g:  np.ndarray (p x 1)
         Discrete time constants
     """
@@ -437,12 +477,56 @@ def nextpow2(value):
         exponent += 1
     return exponent
 
-def preprocess_data(Y, sn = None ,  dview=None, n_pixels_per_process=100,  noise_range = [0.25,0.5], noise_method = 'logmexp', compute_g=False,  p = 2, g = None,  lags = 5, include_noise = False, pixels = None,max_num_samples_fft=3000, check_nan = True):
+def preprocess_data(Y, sn = None ,  dview=None, n_pixels_per_process=100,  noise_range = [0.25,0.5], noise_method = 'logmexp', compute_g=False,  p = 2,  lags = 5, include_noise = False, pixels = None,max_num_samples_fft=3000, check_nan = True):
     """
     Performs the pre-processing operations described above.
 
+    Parameters:
+    ----------
+    Y: ndarray
+        input movie (n_pixels x Time). Can be also memory mapped file.
+
+    n_processes: [optional] int
+        number of processes/threads to use concurrently
+
+    n_pixels_per_process: [optional] int
+        number of pixels to be simultaneously processed by each process
+
+    p: positive integer
+        order of AR process, default: 2
+
+    lags: positive integer
+        number of lags in the past to consider for determining time constants. Default 5
+
+    include_noise: Boolean
+        Flag to include pre-estimated noise value when determining time constants. Default: False
+
+    noise_range: np.ndarray [2 x 1] between 0 and 0.5
+        Range of frequencies compared to Nyquist rate over which the power spectrum is averaged
+        default: [0.25,0.5]
+
+    noise method: string
+        method of averaging the noise.
+        Choices:
+            'mean': Mean
+            'median': Median
+            'logmexp': Exponential of the mean of the logarithm of PSD (default)
+
+    Returns:
+    -------
+        Y: ndarray
+             movie preprocessed (n_pixels x Time). Can be also memory mapped file.
+
+        g:  np.ndarray (p x 1)
+            Discrete time constants
+
+        psx: ndarray
+            position of thoses pixels
+
+        sn_s: ndarray (memory mapped)
+            file where to store the results of computation.
+
     """
-    #TODO: todocument
     if check_nan:
         Y,coor=interpolate_missing_data(Y)
 

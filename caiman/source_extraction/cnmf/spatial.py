@@ -70,7 +70,6 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
 
     dist: [optional] int
 
-
     sn: [optional] float
         noise associated with each pixel if known
 
@@ -82,7 +81,6 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
 
     n_pixels_per_process: [optional] int
         number of pixels to be processed by each thread
-
 
     method: [optional] string
         method used to expand the search for pixels 'ellipse' or 'dilate'
@@ -122,9 +120,8 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
     f: np.ndarray
         same as f_in except if empty component deleted.
 
-    Raises:
+    Raise:
     -------
-
     Exception('You need to define the input dimensions')
 
     Exception('Dimension of Matrix Y must be pixels x time')
@@ -143,7 +140,7 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
 
     Exception("Failed to delete: " + folder)
     """
-
+    print('Initializing update of Spatial Components')
     C = np.array(C)
     if normalize_yyt_one:
         nr_C = np.shape(C)[0]
@@ -160,15 +157,15 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
     # shape transformation and tests
     Y, A_in, C, f, n_pixels_per_process,rank_f,d,T = test(Y, A_in, C, f, n_pixels_per_process,nb)
     start_time = time.time()
-
+    print('computing the distance indicators')
     #we compute the indicator from distance indicator
     ind2_, nr, C, f, b = computing_indicator(Y,A_in,C,f,nb,method,dims,min_size,max_size,dist,expandCore,dview)
-
+    print('memmaping')
     #we create a memory map file if not already the case, we send Cf, a matrix that include background components
     C_name,Y_name,folder = creatememmap(Y,np.vstack((C, f)),dview)
 
     #we create a pixel group array (chunks for the cnmf)for the parrallelization of the process
-    print('Starting Update Spatial Components')
+    print('Updating Spatial Components using lasso lars')
     cct = np.diag(C.dot(C.T))
     pixel_groups = []
     for i in range(0, np.prod(dims) - n_pixels_per_process + 1, n_pixels_per_process):
@@ -187,16 +184,15 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
         for pars in chunk:
             px, idxs_, a = pars
             A_[px, idxs_] = a
-    print('Updated Spatial Components')
 
-    print("threshold")
+    print("thresholding components")
     A_ = threshold_components(A_, dims, dview=dview, medw=medw, thr_method=thr_method,
                               maxthr=maxthr, nrgthr=nrgthr, extract_cc=extract_cc, se=se, ss=ss)
 
     ff = np.where(np.sum(A_, axis=0) == 0)  # remove empty components
     if np.size(ff) > 0:
         ff = ff[0]
-        print('eliminating {} empty spatial components!!'.format(len(ff)))
+        print('eliminating {} empty spatial components'.format(len(ff)))
         A_ = np.delete(A_, list(ff), 1)
         C = np.delete(C, list(ff), 0)
         background_ff = list(filter(lambda i: i > 0, ff - nr))
@@ -216,7 +212,7 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
     print(("--- %s seconds ---" % (time.time() - start_time)))
     try:  # clean up
         # remove temporary file created
-        print("Remove temporary file created")
+        print("Removing tempfiles created")
         shutil.rmtree(folder)
     except:
         raise Exception("Failed to delete: " + folder)
@@ -293,7 +289,6 @@ def regression_ipyparallel(pars):
     _, T = np.shape(C) #initialize values
     As = []
 
-    print('updating lars')
     for y, px in zip(Y, idxs_Y):
         c = C[idxs_C[px], :]
         idx_only_neurons = idxs_C[px]
@@ -320,14 +315,12 @@ def regression_ipyparallel(pars):
 
             As.append((px, idxs_C[px], a))
 
-    print('clearing variables')
     if isinstance(Y_name, basestring):
         del Y
     if isinstance(C_name, basestring):
         del C
     if isinstance(Y_name, basestring):
         gc.collect()
-    print('done!')
     return As
 
 
@@ -372,14 +365,12 @@ def determine_search_location(A, dims, method='ellipse', min_size=3, max_size=8,
     dims: [optional] tuple
              x, y[, z] movie dimensions
 
-
-
     Returns:
     --------
     dist_indicator: np.ndarray
         distance from the cm to search for the spatial footprint
 
-    Raises:
+    Raise:
     -------
     Exception('You cannot pass empty (all zeros) components!')
     """
@@ -419,9 +410,9 @@ def determine_search_location(A, dims, method='ellipse', min_size=3, max_size=8,
             for i in range(nr):
                 pars.append([Coor, cm[i], A[:, i], Vr, dims, dist, max_size, min_size, d])
             if dview is None:
-                res = list(map(contruct_ellipse_parallel, pars))
+                res = list(map(construct_ellipse_parallel, pars))
             else:
-                res = dview.map_sync(contruct_ellipse_parallel, pars)
+                res = dview.map_sync(construct_ellipse_parallel, pars)
             for r in res:
                 dist_indicator.append(r)
 
@@ -481,19 +472,15 @@ def construct_ellipse_parallel(pars):
 
     max_size: [optional] int
 
-
-
     Returns:
     --------
     dist: np.ndarray
          new estimate of spatial footprints
 
-    Raises:
+    Raise:
     -------
     Exception('You cannot pass empty (all zeros) components!')
     """
-
-
     Coor, cm, A_i, Vr, dims, dist, max_size, min_size, d = pars
     dist_cm = coo_matrix(np.hstack([Coor[c].reshape(-1, 1) - cm[k]
                                     for k, c in enumerate(['x', 'y', 'z'][:len(dims)])]))
@@ -525,7 +512,7 @@ def threshold_components(A, dims, medw=None, thr_method='nrg', maxthr=0.1, nrgth
     (iv) Extraction of largest connected component
 
     Parameters:
-
+    ----------
     A:      np.ndarray
         2d matrix with spatial components
 
@@ -556,10 +543,10 @@ def threshold_components(A, dims, medw=None, thr_method='nrg', maxthr=0.1, nrgth
         Binary element for determining connectivity
 
     Returns:
+    --------
         Ath: np.ndarray
             2d matrix with spatial components thresholded
     """
-
     if medw is None:
         medw = (3,) * len(dims)
     if se is None:
@@ -599,6 +586,7 @@ def threshold_components_parallel(pars):
        /!\ need to be called through the function threshold components
 
        Parameters:
+        ---------
         [parsed]
        A:      np.ndarray
            2d matrix with spatial components
@@ -615,22 +603,22 @@ def threshold_components_parallel(pars):
                'nrg' keeps the pixels that contribute up to a specified fraction of the energy
 
        maxthr: [optional] scalar
-
            Threshold of max value
+
        nrgthr: [optional] scalar
            Threshold of energy
 
        extract_cc: [optional] bool
-
            Flag to extract connected components (might want to turn to False for dendritic imaging)
-       se: [optional] np.intarray
 
+       se: [optional] np.intarray
            Morphological closing structuring element
 
        ss: [optinoal] np.intarray
            Binary element for determining connectivity
 
        Returns:
+        -------
            Ath: np.ndarray
                2d matrix with spatial components thresholded
        """
@@ -749,8 +737,8 @@ def lars_regression_noise_old(Yp, X, positive, noise, verbose=False):
                     variance at the end point of the algorithm. The noise is
                     used in the computation of the Cp criterion.
 
-
-     Return:
+     Returns:
+    -------
        Ws: weights from each iteration
        lambdas: lambda_ values at each iteration
 
@@ -758,6 +746,7 @@ def lars_regression_noise_old(Yp, X, positive, noise, verbose=False):
        last_break:     last_break(m) == n means that the last break with m non-zero weights is at Ws(:,:,n)
 
     See Also:
+    -------
         LARS : https://en.wikipedia.org/wiki/Least-angle_regression
         group Lasso :
     """
@@ -1006,7 +995,7 @@ def test(Y, A_in, C, f, n_pixels_per_process,nb):
         same:
          but reshaped and tested
 
-        Raises:
+        Raise:
         -------
         Exception('You need to define the input dimensions')
         Exception('Dimension of Matrix Y must be pixels x time')
@@ -1102,7 +1091,7 @@ if it doesn't follow the rules it will throw an exception that is not supposed t
            same:
             but reshaped and tested
 
-           Raises:
+           Raise:
            -------
            Exception('You need to define the input dimensions')
 

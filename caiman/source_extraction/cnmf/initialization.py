@@ -1,3 +1,4 @@
+
 """ Initialize the component for the CNMF
 
 contain a list of functions to initialize the neurons and the corresponding traces with different set of methods
@@ -37,51 +38,76 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
     This method uses a greedy approach followed by hierarchical alternative least squares (HALS) NMF.
     Optional use of spatio-temporal downsampling to boost speed.
 
-    Parameters
+    Parameters:
     ----------
     Y: np.ndarray
          d1 x d2 [x d3] x T movie, raw data.
+
     K: [optional] int
         number of neurons to extract (default value: 30).
+
     tau: [optional] list,tuple
         standard deviation of neuron size along x and y [and z] (default value: (5,5).
+
     gSiz: [optional] list,tuple
         size of kernel (default 2*tau + 1).
+
     nIter: [optional] int
         number of iterations for shape tuning (default 5).
+
     maxIter: [optional] int
         number of iterations for HALS algorithm (default 5).
+
     ssub: [optional] int
         spatial downsampling factor recommended for large datasets (default 1, no downsampling).
+
     tsub: [optional] int
         temporal downsampling factor recommended for long datasets (default 1, no downsampling).
+
     kernel: [optional] np.ndarray
         User specified kernel for greedyROI (default None, greedy ROI searches for Gaussian shaped neurons)
+
     use_hals: [optional] bool
         Whether to refine components with the hals method
+
     normalize_init: [optional] bool
         Whether to normalize_init data before running the initialization
+
     img: optional [np 2d array]
         Image with which to normalize. If not present use the mean + offset 
-    method: str  
+
+    method: str
         Initialization method 'greedy_roi' or 'sparse_nmf' 
-    max_iter_snmf: int 
+
+    max_iter_snmf: int
         Maximum number of sparse NMF iterations
+
     alpha_snmf: scalar
         Sparsity penalty
 
-    Returns
+    Returns:
     --------
+
     Ain: np.ndarray
         (d1*d2[*d3]) x K , spatial filter of each neuron.
+
     Cin: np.ndarray
         T x K , calcium activity of each neuron.
+
     center: np.ndarray
         K x 2 [or 3] , inferred center of each neuron.
+
     bin: np.ndarray
         (d1*d2[*d3]) x nb, initialization of spatial background.
+
     fin: np.ndarray
-        nb x T matrix, initalization of temporal background.
+        nb x T matrix, initalization of temporal background
+
+    Raise:
+    ------
+        Exception("Unsupported method")
+
+        Exception('You need to define arguments for local NMF')
 
     """
     if method == 'local_nmf':
@@ -133,55 +159,13 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
                     max_iter=max_iter_snmf, tol=1e-10,remove_baseline=True, perc_baseline=perc_baseline_snmf, nb=nb)
         
     elif method == 'local_nmf':
+        #todo check this unresolved reference
         from SourceExtraction.CNMF4Dendrites import CNMF4Dendrites    
         from SourceExtraction.AuxilaryFunctions import GetCentersData
         #Get initialization for components center
         print(Y_ds.transpose([2,0,1]).shape)
         if options_local_NMF is None:
              raise Exception('You need to define arguments for local NMF')
-            
-#            #Define CNMF parameters
-#            mbs=[tsub_lnmf] # temporal downsampling of data in intial phase of NMF
-#            ds=ssub_lnmf # spatial downsampling of data in intial phase of NMF. Ccan be an integer or a list of the size of spatial dimensions
-#            TargetAreaRatio=[0.01,0.06] # target sparsity range for spatial components
-#            #repeats=1 # how many repeations to run NMF algorithm
-#            iters0=[5] #30 number of intial NMF iterations, in which we downsample data and add components
-#            iters=20 #100 number of main NMF iterations, in which we fine tune the components on the full data
-#            lam1_s=10# l1 regularization parameter initialization (for increased sparsity). If zero, we have no l1 sparsity penalty        
-#            bkg_per=0.1 # intialize of background shape at this percentile (over time) of video
-#            sig=Y_ds.shape[:-1] # estiamte size of neuron - bounding box is 3 times this size. If larger then data, we have no bounding box.
-#            MergeThreshold_activity=0.85#merge components if activity is correlated above the this threshold (and sufficiently close)
-#            MergeThreshold_shapes=0.99 #merge components if activity is correlated above the this threshold (and sufficiently close)                    
-#            Connected=True # should we constrain all spatial component to be connected?
-#            SigmaMask=3  # if not [], then update masks so that they are non-zero a radius of SigmaMasks around previous non-zero support of shapes
-
-                                   #Get initialization for components center
-
-#            NumCent=400 # Max number of centers to import from Group Lasso intialization - if 0, we don't run group lasso
-#            cent=GetCentersData(Y_ds.transpose([2,0,1]),NumCent)
-#            
-#            #Define CNMF parameters
-#            mbs=[10] # temporal downsampling of data in intial phase of NMF
-#            ds=1 # spatial downsampling of data in intial phase of NMF. Ccan be an integer or a list of the size of spatial dimensions
-#            TargetAreaRatio=[0.01,0.06] # target sparsity range for spatial components
-#            #repeats=1 # how many repeations to run NMF algorithm
-#            iters0=[5] #30 number of intial NMF iterations, in which we downsample data and add components
-#            iters=20 #100 number of main NMF iterations, in which we fine tune the components on the full data
-#            lam1_s=10# l1 regularization parameter initialization (for increased sparsity). If zero, we have no l1 sparsity penalty
-#            updateLambdaIntervals=2 # update sparsity parameter every updateLambdaIntervals iterations
-#            addComponentsIntervals=1 # in initial NMF phase, add new component every updateLambdaIntervals*addComponentsIntervals iterations
-#            updateRhoIntervals=1 # in main NMF phase, update sparsity learning speed (Rho) every updateLambdaIntervals*updateRhoIntervals iterations
-#            Background_num=1 #number of background components - one of which at every repetion
-#            bkg_per=0.1 # intialize of background shape at this percentile (over time) of video
-#            sig=Y_ds.shape[:-1] # estiamte size of neuron - bounding box is 3 times this size. If larger then data, we have no bounding box.
-#            MergeThreshold_activity=0.85#merge components if activity is correlated above the this threshold (and sufficiently close)
-#            MergeThreshold_shapes=0.99 #merge components if activity is correlated above the this threshold (and sufficiently close)        
-#            Connected=True # should we constrain all spatial component to be connected?
-#            SigmaMask=3  # if not [], then update masks so that they are non-zero a radius of SigmaMasks around previous non-zero support of shapes
-        
-#            cnmf_obj=CNMF4Dendrites(sig=sig, verbose=True,adaptBias=True,TargetAreaRatio=TargetAreaRatio,
-#                     Connected=Connected, SigmaMask=SigmaMask,bkg_per=bkg_per,iters=iters,iters0=iters0, mbs=mbs, 
-#                     ds=ds,lam1_s=lam1_s,MergeThreshold_activity=MergeThreshold_activity,MergeThreshold_shapes=MergeThreshold_shapes)  
         else:
             NumCent=options_local_NMF.pop('NumCent', None)
             # Max number of centers to import from Group Lasso intialization - if 0, we don't run group lasso
@@ -233,10 +217,8 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
 
     if normalize_init is True:
         Ain = Ain * np.reshape(img, (np.prod(d), -1), order='F')
-
         b_in = b_in * np.reshape(img, (np.prod(d), -1), order='F')
-        #TODO: to check unused Y
-        Y = Y * np.reshape(img, d + (-1,), order='F')
+
        
     return Ain, Cin, b_in, f_in, center
 
@@ -252,7 +234,7 @@ def ICA_PCA(Y_ds, nr, sigma_smooth=(.5, .5, .5),  truncate = 2, fun='logcosh', m
         
     
     """
-    #TODO: to document, tocomment (jeremie )
+    print("not a function to use in the moment ICA PCA \n")
     m = scipy.ndimage.gaussian_filter(np.transpose(Y_ds, [2, 0, 1]), sigma=sigma_smooth, mode='nearest', truncate=truncate)
     if remove_baseline:
         bl = np.percentile(m, perc_baseline, axis=0)
@@ -306,17 +288,21 @@ def sparseNMF(Y_ds, nr,  max_iter_snmf=500, alpha=10e2, sigma_smooth=(.5, .5, .5
     """
     Initilaization using sparse NMF
 
-    Parameters
+    Parameters:
     -----------
 
     max_iter_snm: int
         number of iterations
+
     alpha_snmf:
         sparsity regularizer
+
     sigma_smooth_snmf:
         smoothing along z,x, and y (.5,.5,.5)
+
     perc_baseline_snmf:
         percentile to remove frmo movie before NMF
+
     nb: int
         Number of background components    
 
@@ -326,12 +312,13 @@ def sparseNMF(Y_ds, nr,  max_iter_snmf=500, alpha=10e2, sigma_smooth=(.5, .5, .5
     A: np.array
         2d array of size (# of pixels) x nr with the spatial components. Each column is
         ordered columnwise (matlab format, order='F')
+
     C: np.array
         2d array of size nr X T with the temporal components
+
     center: np.array
         2d array of size nr x 2 [ or 3] with the components centroids
     """
-
     m = scipy.ndimage.gaussian_filter(np.transpose(
         Y_ds, [2, 0, 1]), sigma=sigma_smooth, mode='nearest', truncate=truncate)
     if remove_baseline:
@@ -377,30 +364,40 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1):
     """
     Greedy initialization of spatial and temporal components using spatial Gaussian filtering
 
-    Inputs:
+    Parameters:
     --------
+
     Y: np.array
         3d or 4d array of fluorescence data with time appearing in the last axis.
+
     nr: int
         number of components to be found
+
     gSig: scalar or list of integers
         standard deviation of Gaussian kernel along each axis
+
     gSiz: scalar or list of integers
         size of spatial component
+
     nIter: int
         number of iterations when refining estimates
+
     kernel: np.ndarray
         User specified kernel to be used, if present, instead of Gaussian (default None)
+
     nb: int
         Number of background components
 
-    Outputs:
+    Returns:
     -------
+
     A: np.array
         2d array of size (# of pixels) x nr with the spatial components. Each column is
         ordered columnwise (matlab format, order='F')
+
     C: np.array
         2d array of size nr X T with the temporal components
+
     center: np.array
         2d array of size nr x 2 [ or 3] with the components centroids
 
@@ -413,15 +410,6 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1):
 
 
     """
-    debug_ = False
-    if debug_:
-        import os
-        f = open('_LOG_1_' + str(os.getpid()), 'w+')
-        f.write('type_rho:' + str(type(rho)) + '\n')
-        f.write('rho:' + str(np.mean(rho)) + '\n')
-        f.close()
-
-    #TODO: to comment , to deletecommented code
     print("Greedy initialization of spatial and temporal components using spatial Gaussian filtering")
     d = np.shape(Y)
     med = np.median(Y, axis=-1)
@@ -474,9 +462,7 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1):
                 rho[[slice(*a) for a in Mod]]**2, axis=-1)
 
     res = np.reshape(Y, (np.prod(d[0:-1]), d[-1]), order='F') + med.flatten(order='F')[:, None]
-
     model = NMF(n_components=nb, init='random', random_state=0)
-
     b_in = model.fit_transform(np.maximum(res, 0))
     f_in = model.components_.squeeze()
 
@@ -534,14 +520,32 @@ def finetune(Y, cin, nIter=5):
 
 
 def imblur(Y, sig=5, siz=11, nDimBlur=None, kernel=None, opencv = True):
-    """Spatial filtering with a Gaussian or user defined kernel
+    """
+    Spatial filtering with a Gaussian or user defined kernel
+
     The parameters are specified in GreedyROI
 
+    :param Y: np.ndarray
+         d1 x d2 [x d3] x T movie, raw data.
+
+    :param sig: [optional] list,tuple
+        half size of neurons
+
+    :param siz: [optional] list,tuple
+        size of kernel (default 2*tau + 1).
+
+    :param nDimBlur: [optional]
+        if you want to specify the number of dimension
+
+    :param kernel: [optional]
+        if you want to specify a kernel
+
+    :param opencv: [optional]
+        if you want to process to the blur using open cv method
+
+    :return: the blurred image
     """
     # TODO: document (jerem)
-
-    X = np.zeros(np.shape(Y))
-
     if kernel is None:
         if nDimBlur is None:
             nDimBlur = Y.ndim - 1
@@ -585,24 +589,34 @@ def imblur(Y, sig=5, siz=11, nDimBlur=None, kernel=None, opencv = True):
 
 def hals(Y, A, C, b, f, bSiz=3, maxIter=5):
     """ Hierarchical alternating least square method for solving NMF problem
+
     Y = A*C + b*f
 
     input:
-       Y:      d1 X d2 [X d3] X T, raw data. It will be reshaped to (d1*d2[*d3]) X T in this
+    ------
+       Y:      d1 X d2 [X d3] X T, raw data.
+        It will be reshaped to (d1*d2[*d3]) X T in this
        function
+
        A:      (d1*d2[*d3]) X K, initial value of spatial components
+
        C:      K X T, initial value of temporal components
+
        b:      (d1*d2[*d3]) X nb, initial value of background spatial component
+
        f:      nb X T, initial value of background temporal component
+
        bSiz:   int or tuple of int
-       blur size. A box kernel (bSiz X bSiz [X bSiz]) (if int) or bSiz (if tuple) will 
-       be convolved with each neuron's initial spatial component, then all nonzero
+        blur size. A box kernel (bSiz X bSiz [X bSiz]) (if int) or bSiz (if tuple) will
+        be convolved with each neuron's initial spatial component, then all nonzero
        pixels will be picked as pixels to be updated, and the rest will be
        forced to be 0.
+
        maxIter: maximum iteration of iterating HALS.
 
     output:
-    the updated A, C, b, f
+    -------
+        the updated A, C, b, f
 
     @Author: Johannes Friedrich, Andrea Giovannucci
 
