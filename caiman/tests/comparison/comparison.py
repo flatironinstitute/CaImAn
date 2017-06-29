@@ -9,14 +9,18 @@ See Also
  
 Link 
 
-.. image:: dev/kalfon/img/datacomparison.pdf
+\image dev/kalfon/img/datacomparison.pdf
+\author: jeremie KALFON
+\date Created on Tue Jun 30 21:01:17 2015
+\copyright GNU General Public License v2.0
+\package CaImAn/comparison
 """
-#\package CaImAn/comparison
+#
 #\image html dev/kalfon/img/datacomparison.pdf
 #\version   1.0
-#\copyright GNU General Public License v2.0
-#\date Created on Tue Jun 30 21:01:17 2015
-#\author: jeremie KALFON
+#
+#
+#
 
 
 import platform as plt
@@ -196,7 +200,7 @@ class Comparison(object):
             	---------
             
             Example of utilisation on Demo Pipeline
-            	.. image:: caiman/tests/comparison/data.pdf
+\image caiman/tests/comparison/data.pdf
             
 
              Raise:
