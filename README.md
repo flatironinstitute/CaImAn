@@ -90,8 +90,11 @@ Recent advances in calcium imaging acquisition techniques are creating datasets 
     
     ```
  
+
  
-### Demos
+# Example
+
+  ### Demos
 
 * Notebooks : The notebooks provide a simple and friendly way to get into CaImAn and understand its main characteristics. 
 
@@ -108,15 +111,6 @@ Recent advances in calcium imaging acquisition techniques are creating datasets 
 
    
   * /!\ if you want to launch directly the python files, please be advised that your python console still needs to be in the CaImAn folder and not somewhere else. 
-
-
-
-
-
- 
-# Example
-
-  See the file demo_motion_correction.py and demo_caiman_cnmf.py in the root folder
 
 # Contributors:
 
