@@ -93,11 +93,11 @@ Recent advances in calcium imaging acquisition techniques are creating datasets 
  
 ### Demos
 
-*Notebooks : The notebooks provide a simple and friendly way to get into CaImAn and understand its main characteristics. 
+* Notebooks : The notebooks provide a simple and friendly way to get into CaImAn and understand its main characteristics. 
 
-   *you can find them in directly in CaImAn and launch them from your ipython Notebook application:
+   * you can find them in directly in CaImAn and launch them from your ipython Notebook application:
    
-   *to launch jupyter notebook :
+   * to launch jupyter notebook :
    
        ```bash
     
@@ -107,7 +107,7 @@ Recent advances in calcium imaging acquisition techniques are creating datasets 
        ```
 
    
-  */!\ if you want to launch directly the python files, please be advised that your python console still needs to be in the CaImAn folder and not somewhere else. 
+  * /!\ if you want to launch directly the python files, please be advised that your python console still needs to be in the CaImAn folder and not somewhere else. 
 
 
 
