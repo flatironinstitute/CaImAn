@@ -224,8 +224,8 @@ def update_temporal_components(Y, A, b, Cin, fin, bl=None, c1=None, g=None, sn=N
     parrllcomp, len_parrllcomp = update_order_greedy(AA[:nr,:][:,:nr])
 
     print("entering the deconvolution ")
-    C, S, bl, nr, YrA, c1, sn, g = update_iteration(parrllcomp, len_parrllcomp, nb,C, S, bl, nr,
-                      ITER, YrA, c1, sn, g, Cin, T, nA, dview, debug,AA, kwargs)
+    C, S, bl, YrA, c1, sn, g = update_iteration(parrllcomp, len_parrllcomp, nb,C, S, bl, nr,
+                                                ITER, YrA, c1, sn, g, Cin, T, nA, dview, debug,AA, kwargs)
 
     ff = np.where(np.sum(C, axis=1) == 0)  # remove empty components
     if np.size(ff) > 0: # Eliminating empty temporal components

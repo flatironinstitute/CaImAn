@@ -62,7 +62,7 @@ def get_nonzero_subarray(arr,mask):
     return arr.toarray()[x.min():x.max()+1, y.min():y.max()+1]
     
 #%%
-def extract_motor_components_OF(m, n_components, mask = None,  resize_fact= .5, only_magnitude = False, max_iter = 1000, verbose = False, method_factorization = 'nmf'):
+def extract_motor_components_OF(m, n_components, mask = None,  resize_fact= .5, only_magnitude = False, max_iter = 1000, verbose = False, method_factorization = 'nmf',max_iter_DL=-30):
         
     if mask is not None:
         
@@ -87,7 +87,7 @@ def extract_motor_components_OF(m, n_components, mask = None,  resize_fact= .5, 
         else:
             of = of_or 
             
-    spatial_filter_, time_trace_, norm_fact = extract_components(of,n_components=n_components,verbose = verbose ,normalize_std=False,max_iter=max_iter, method_factorization = method_factorization)
+    spatial_filter_, time_trace_, norm_fact = extract_components(of,n_components=n_components,verbose = verbose ,normalize_std=False,max_iter=max_iter, method_factorization = method_factorization, max_iter_DL=max_iter_DL)
   
     return  spatial_filter_, time_trace_, of_or
     #%%
@@ -309,7 +309,7 @@ def extract_components(mov_tot,n_components=6,normalize_std=True,max_iter_DL=-30
         import spams
         newm = np.asfortranarray(newm,dtype = np.float32)    
 #        (time_trace, spatial_filter) = spams.nnsc(newm,return_lasso=True,K=n_components,lambda1=None,iter=-5)
-        time_trace = spams.trainDL(newm,K=n_components, mode=0, lambda1 = 1 , posAlpha = True, iter = max_iter_DL)  
+        time_trace = spams.trainDL(newm,K=n_components, mode=0, lambda1 = 1, posAlpha = True, iter = max_iter_DL)  
 #        import pdb
 #        pdb.set_trace()              
         spatial_filter = spams.lasso(newm, D = time_trace,return_reg_path = False, lambda1 = 0.01, mode = spams.spams_wrap.PENALTY,  pos=True)
