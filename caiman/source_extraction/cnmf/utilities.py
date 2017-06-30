@@ -551,9 +551,10 @@ def app_vertex_cover(A):
 
 
 def update_order(A):
-    """Determines the update order of the temporal components given the spatial
+    """Determines the update order of the temporal components
 
-    components by creating a nest of random approximate vertex covers
+    this, given the spatial components, by creating a nest of random approximate vertex covers
+    Basically we can update the components that are not overlapping, in parallel
 
      Input:
      -------
@@ -562,10 +563,10 @@ def update_order(A):
 
      Outputs:
      ---------
-     O:   list of sets
+     parllcomp:   list of sets
           list of subsets of components. The components of each subset can be updated in parallel
 
-     lo:  list
+     len_parrllcomp:  list
           length of each subset
 
     @authors: Eftychios A. Pnevmatikakis, Simons Foundation, 2015
@@ -576,8 +577,8 @@ def update_order(A):
     F = (AA) > 0
     F = F.toarray()
     rem_ind = np.arange(K)
-    O = []
-    lo = []
+    parllcomp = []
+    len_parrllcomp = []
     while len(rem_ind) > 0:
         L = np.sort(app_vertex_cover(F[rem_ind, :][:, rem_ind]))
         if L.size:
@@ -587,16 +588,17 @@ def update_order(A):
             ord_ind = set(rem_ind)
             rem_ind = []
 
-        O.append(ord_ind)
-        lo.append(len(ord_ind))
+        parllcomp.append(ord_ind)
+        len_parrllcomp.append(len(ord_ind))
 
-    return O[::-1], lo[::-1]
+    return parllcomp[::-1], len_parrllcomp[::-1]
 
 
 def update_order_greedy(A,flag_AA = True):
-    """Determines the update order of the temporal components given the spatial
+    """Determines the update order of the temporal components
 
-    components using a greedy method
+    this, given the spatial components using a greedy method
+    Basically we can update the components that are not overlapping, in parallel
 
     Input:
      -------
@@ -609,19 +611,19 @@ def update_order_greedy(A,flag_AA = True):
 
      Outputs:
      ---------
-     O:   list of sets
+     parllcomp:   list of sets
           list of subsets of components. The components of each subset can be updated in parallel
 
-     lo:  list
+     len_parrllcomp:  list
           length of each subset
 
     @author: Eftychios A. Pnevmatikakis, Simons Foundation, 2017
     """
     K = np.shape(A)[-1]
-    O = []
+    parllcomp = []
     for i in range(K):
         new_list = True
-        for ls in O:
+        for ls in parllcomp:
             if flag_AA:
                 if A[i,ls].nnz == 0:
                     ls.append(i)
@@ -634,11 +636,9 @@ def update_order_greedy(A,flag_AA = True):
                     break
 
         if new_list:
-            O.append([i])
-
-    lo = [len(ls) for ls in O]
-    return O,lo
-
+            parllcomp.append([i])
+    len_parrllcomp = [len(ls) for ls in parllcomp]
+    return parllcomp,len_parrllcomp
 
 
 #%%
