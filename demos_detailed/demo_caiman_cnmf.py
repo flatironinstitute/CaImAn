@@ -199,6 +199,7 @@ idx_components = np.union1d(idx_components_r, idx_components_raw)
 idx_components = np.union1d(idx_components, idx_components_delta)
 #idx_blobs = np.intersect1d(idx_components, idx_blobs)
 idx_components_bad = np.setdiff1d(list(range(len(traces))), idx_components)
+
 print(' ***** ')
 print((len(traces)))
 print((len(idx_components)))

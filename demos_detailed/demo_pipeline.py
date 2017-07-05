@@ -141,12 +141,12 @@ from caiman.motion_correction import tile_and_correct, motion_correction_piecewi
 
 
 params_movie = {'fname': [u'./example_movies/demoMovieJ.tif'],
-                'max_shifts': (2, 2),  # maximum allow rigid shift (2,2)
+                'max_shifts': (1, 1),  # maximum allow rigid shift (2,2)
                 'niter_rig': 1,
                 'splits_rig': 14,  # for parallelization split the movies in  num_splits chuncks across time
                 'num_splits_to_process_rig': None,  # if none all the splits are processed and the movie is saved
                 'strides': (48, 48),  # intervals at which patches are laid out for motion correction
-                'overlaps': (24, 24),  # overlap between pathes (size of patch strides+overlaps)
+                'overlaps': (12, 12),  # overlap between pathes (size of patch strides+overlaps)
                 'splits_els': 14,  # for parallelization split the movies in  num_splits chuncks across time
                 'num_splits_to_process_els': [14, None],  # if none all the splits are processed and the movie is saved
                 'upsample_factor_grid': 3,  # upsample factor to avoid smearing when merging patches
@@ -320,7 +320,7 @@ m_els.resize(1, 1, downsample_ratio).play(
 pl.imshow(m_els.local_correlations(eight_neighbours=True, swap_dim=False))
 # TODO: show screenshot 7
 # %% visualize raw, rigid and pw-rigid motion correted moviews
-downsample_factor = params_movie['downsample_ratio']
+downsample_factor = params_display['downsample_ratio']
 # TODO : todocument
 cm.concatenate(
     [m_orig.resize(1, 1, downsample_factor) + offset_mov, m_rig.resize(1, 1, downsample_factor), m_els.resize(
@@ -330,7 +330,7 @@ cm.concatenate(
 final_size = np.subtract(mc.total_template_els.shape, 2 * bord_px_els)
 winsize = 100
 swap_dim = False
-resize_fact_flow = params_movie['downsample_ratio']
+resize_fact_flow = params_display['downsample_ratio']
 # computationnaly intensive
 # TODO: todocument
 tmpl, correlations, flows_orig, norms, smoothness = cm.motion_correction.compute_metrics_motion_correction(
@@ -460,7 +460,7 @@ if np.sum(np.isnan(images)) > 0:
 # %% correlation image
 Cn = cm.local_correlations(Y)
 Cn[np.isnan(Cn)] = 0
-pl.imshow(Cn, cmap='gray', vmax=.65)
+pl.imshow(Cn, cmap='gray', vmax=.95)
 # TODO: show screenshot 11
 
 # %% some parameter settings

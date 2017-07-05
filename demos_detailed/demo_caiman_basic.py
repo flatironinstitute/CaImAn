@@ -41,7 +41,7 @@ K = 35  # number of neurons expected per patch
 gSig = [7, 7]  # expected half size of neurons
 merge_thresh = 0.8  # merging threshold, max correlation allowed
 p = 2  # order of the autoregressive system
-cnm = cm.cnmf.CNMF(n_processes, method_init='greedy_roi', k=K, gSig=gSig, merge_thresh=merge_thresh,
+cnm = cnmf.CNMF(n_processes, method_init='greedy_roi', k=K, gSig=gSig, merge_thresh=merge_thresh,
                 p=p, dview=dview, Ain=None,method_deconvolution='oasis')
 cnm = cnm.fit(images)
 A, C, b, f, YrA, sn = cnm.A, cnm.C, cnm.b, cnm.f, cnm.YrA, cnm.sn
