@@ -199,8 +199,6 @@ idx_components = np.union1d(idx_components_r, idx_components_raw)
 idx_components = np.union1d(idx_components, idx_components_delta)
 #idx_blobs = np.intersect1d(idx_components, idx_blobs)
 idx_components_bad = np.setdiff1d(list(range(len(traces))), idx_components)
-from caiman.utils.visualization import nb_view_patches
-traces_fluo=nb_view_patches(Yr,A.tocsc()[:,idx_components].todense(),C[idx_components],b,f,dims[0],dims[1],thr = 0.9,image_neurons=None)
 print(' ***** ')
 print((len(traces)))
 print((len(idx_components)))
