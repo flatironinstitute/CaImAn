@@ -20,7 +20,9 @@ import sklearn
 import warnings
 import numpy as np
 import scipy as sp
-from sklearn.decomposition import NMF, IncrementalPCA, FastICA
+from sklearn.decomposition import NMF
+from sklearn.decomposition import incremental_pca  , FastICA
+
 from sklearn.cluster import KMeans
 from sklearn.metrics.pairwise import euclidean_distances
 import pylab as plt
@@ -118,7 +120,7 @@ class movie(ts.timeseries):
                        method='opencv',
                        remove_blanks=False,interpolation='cubic'):
 
-        '''
+        """
         Extract shifts and motion corrected movie automatically,
         for more control consider the functions extract_shifts and apply_shifts
         Disclaimer, it might change the object itself.
@@ -141,7 +143,7 @@ class movie(ts.timeseries):
         shifts : tuple, contains x & y shifts and correlation with template
         xcorrs: cross correlation of the movies with the template
         template= the computed template
-        '''
+        """
 
         # adjust the movie so that valuse are non negative
         #        min_val = np.percentile(self, 8)
@@ -189,7 +191,7 @@ class movie(ts.timeseries):
 
 
     def bin_median(self,window=10):
-        ''' compute median of 3D array in along axis o by binning values
+        """ compute median of 3D array in along axis o by binning values
         Parameters
         ----------
 
@@ -205,7 +207,7 @@ class movie(ts.timeseries):
         img: 
             median image   
 
-        '''
+        """
         T,d1,d2=np.shape(self)
         num_windows=np.int(old_div(T,window))
         num_frames=num_windows*window
@@ -497,9 +499,9 @@ class movie(ts.timeseries):
         return self,movie(movBL,fr=self.fr,start_time=self.start_time,meta_data=self.meta_data,file_name=self.file_name)
 
     def NonnegativeMatrixFactorization(self,n_components=30, init='nndsvd', beta=1,tol=5e-7, sparseness='components',**kwargs):
-        '''
+        """
         See documentation for scikit-learn NMF
-        '''
+        """
 
         minmov=np.min(self)
         if np.min(self)<0:
@@ -567,7 +569,7 @@ class movie(ts.timeseries):
 #            pl.imshow(np.reshape(mm.todense(),(d1,d2),order='F'),cmap=pl.cm.gray)
 
     def IPCA(self, components = 50, batch =1000):
-        '''
+        """
         Iterative Principal Component analysis, see sklearn.decomposition.incremental_pca
         Parameters:
         ------------
@@ -578,7 +580,7 @@ class movie(ts.timeseries):
         eigenseries: principal components (pixel time series) and associated singular values
         eigenframes: eigenframes are obtained by multiplying the projected frame matrix by the projected movie (whitened frames?)
         proj_frame_vectors:the reduced version of the movie vectors using only the principal component projection
-        '''
+        """
         # vectorize the images
         num_frames, h, w = np.shape(self);
         frame_size = h * w;
@@ -607,7 +609,7 @@ class movie(ts.timeseries):
         return eigenseries, eigenframes, proj_frame_vectors
 
     def IPCA_stICA(self, componentsPCA=50,componentsICA = 40, batch = 1000, mu = 1, ICAfun = 'logcosh', **kwargs):
-        '''
+        """
         Compute PCA + ICA a la Mukamel 2009.
 
 
@@ -621,7 +623,7 @@ class movie(ts.timeseries):
 
         Returns:
         ind_frames [components, height, width] = array of independent component "eigenframes"
-        '''
+        """
         eigenseries, eigenframes,_proj = self.IPCA(componentsPCA, batch)
         # normalize the series
 
@@ -650,16 +652,16 @@ class movie(ts.timeseries):
         return ind_frames
 
     def IPCA_denoise(self, components = 50, batch = 1000):
-        '''
+        """
         Create a denoise version of the movie only using the first 'components' components
-        '''
+        """
         _, _, clean_vectors = self.IPCA(components, batch)
         self = self.__class__(np.reshape(np.float32(clean_vectors.T), np.shape(self)),**self.__dict__)
         return self
 
     def IPCA_io(self, n_components=50, fun='logcosh', max_iter=1000, tol=1e-20):
-        ''' DO NOT USE STILL UNDER DEVELOPMENT
-        '''
+        """ DO NOT USE STILL UNDER DEVELOPMENT
+        """
         pca_comp=n_components;
         [T,d1,d2]=self.shape
         M=np.reshape(self,(T,d1*d2))
@@ -1053,7 +1055,7 @@ class movie(ts.timeseries):
 
 
 def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None,num_frames_sub_idx=np.inf, var_name_hdf5 = 'mov', in_memory = False):
-    '''
+    """
     load movie from file. SUpports a variety of formats. tif, hdf5, npy and memory mapped. Matlab is experimental. 
 
     Parameters
@@ -1086,7 +1088,7 @@ def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None,
     -------
     mov: calblitz.movie
 
-    '''
+    """
 
     # case we load movie from file
     if os.path.exists(file_name):
@@ -1130,7 +1132,7 @@ def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None,
 
             # When everything done, release the capture
             cap.release()
-            cv2.destroyAllWindows()
+            cv2.destroyAllWindows()  
 
         elif extension == '.npy': # load npy file
             if fr is None:
@@ -1255,7 +1257,7 @@ def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None,
 def load_movie_chain(file_list, fr=30, start_time=0,
                      meta_data=None, subindices=None,
                      bottom=0, top=0, left=0, right=0):
-    ''' load movies from list of file names
+    """ load movies from list of file names
     Parameters:
     ----------
     file_list: list 
@@ -1271,7 +1273,7 @@ def load_movie_chain(file_list, fr=30, start_time=0,
     movie: cm.movie
         movie corresponding to the concatenation og the input files
         
-    '''
+    """
     mov = []
     for f in tqdm(file_list):
         m = load(f, fr=fr, start_time=start_time,
@@ -1285,20 +1287,20 @@ def load_movie_chain(file_list, fr=30, start_time=0,
 
 
 def loadmat_sbx(filename):
-    '''
+    """
     this function should be called instead of direct spio.loadmat
     as it cures the problem of not properly recovering python dictionaries
     from mat files. It calls the function check keys to cure all entries
     which are still mat-objects
-    '''
+    """
     data_ = loadmat(filename, struct_as_record=False, squeeze_me=True)
     return _check_keys(data_)
 
 def _check_keys(dict):
-    '''
+    """
     checks if entries in dictionary rare mat-objects. If yes
     todict is called to change them to nested dictionaries
-    '''
+    """
 
     for key in dict:
         if isinstance(dict[key], scipy.io.matlab.mio5_params.mat_struct):
@@ -1307,9 +1309,9 @@ def _check_keys(dict):
     return dict
 
 def _todict(matobj):
-    '''
+    """
     A recursive function which constructs from matobjects nested dictionaries
-    '''
+    """
 
     dict = {}
     for strg in matobj._fieldnames:
@@ -1321,9 +1323,9 @@ def _todict(matobj):
     return dict
 
 def sbxread(filename,k = 0, n_frames=np.inf):
-    '''
+    """
     Input: filename should be full path excluding .sbx
-    '''
+    """
     # Check if contains .sbx and if so just truncate
     if '.sbx' in filename:
         filename = filename[:-4]
@@ -1366,9 +1368,9 @@ def sbxread(filename,k = 0, n_frames=np.inf):
     return x.transpose([2,1,0])
 
 def sbxreadskip(filename,skip):
-    '''
+    """
     Input: filename should be full path excluding .sbx
-    '''
+    """
     # Check if contains .sbx and if so just truncate
     if '.sbx' in filename:
         filename = filename[:-4]
@@ -1417,9 +1419,9 @@ def sbxreadskip(filename,skip):
     return x.transpose([2,1,0])
 
 def sbxshape(filename):
-    '''
+    """
     Input: filename should be full path excluding .sbx
-    '''
+    """
     # Check if contains .sbx and if so just truncate
     if '.sbx' in filename:
         filename = filename[:-4]
