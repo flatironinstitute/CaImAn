@@ -4,11 +4,15 @@ Class representing a time series.
 
     Example of usage
 
-    Parameters
+    Parameters:
     ----------
+
     input_arr: np.ndarray
+
     start_time: time beginning movie
+
     fr: frame rate
+
     meta_data: dictionary including any custom meta data
 
 
@@ -26,9 +30,9 @@ import pickle as cpk
 try:
     plt.ion()
 except:
-    1;
+    1
 
-from scipy.io import loadmat,savemat
+from scipy.io import savemat
 
 
 
@@ -39,22 +43,43 @@ class timeseries(np.ndarray):
 
     Example of usage
 
-    Parameters
+    Parameters:
     ----------
     input_arr: np.ndarray
+
     fr: frame rate
+
     start_time: time beginning movie
 
     meta_data: dictionary including any custom meta data
 
+    Raise:
+    -----
+    Exception('You need to specify the frame rate')
     """
 
     def __new__(cls, input_arr, fr=30,start_time=0,file_name=None, meta_data=None):
-        #
+        """
+            Class representing a time series.
 
+            Example of usage
+
+            Parameters:
+            ----------
+            input_arr: np.ndarray
+
+            fr: frame rate
+
+            start_time: time beginning movie
+
+            meta_data: dictionary including any custom meta data
+
+            Raise:
+            -----
+            Exception('You need to specify the frame rate')
+            """
         if fr is None:
             raise Exception('You need to specify the frame rate')
-
 
         obj = np.asarray(input_arr).view(cls)
         # add the new attribute to the created instance
@@ -64,41 +89,43 @@ class timeseries(np.ndarray):
         if type(file_name) is list:
             obj.file_name = file_name
         else:
-            obj.file_name = [file_name];
+            obj.file_name = [file_name]
 
         if type(meta_data) is list:
             obj.meta_data = meta_data
         else:
-            obj.meta_data = [meta_data];
+            obj.meta_data = [meta_data]
 
         return obj
+
 
     @property
     def time(self):
         return np.linspace(self.start_time,1/self.fr*self.shape[0],self.shape[0])
 
     def __array_prepare__(self, out_arr, context=None):
-#        print 'In __array_prepare__:'
-#        print '   self is %s' % type(self)
-#        print '   out_arr is %s' % type(out_arr)
-        inputs=context[1];
-        frRef=None;
-        startRef=None;
+        # todo: todocument
+        inputs=context[1]
+        frRef=None
+        startRef=None
         for inp in inputs:
             if type(inp) is timeseries:
                 if frRef is None:
                     frRef=inp.fr
                 else:
                     if not (frRef-inp.fr) == 0:
-                        raise ValueError('Frame rates of input vectors do not match. You cannot perform operations on time series with different frame rates.')
+                        raise ValueError('Frame rates of input vectors do not match.'
+                                         ' You cannot perform operations on time series with different frame rates.')
                 if startRef is None:
                     startRef=inp.start_time
                 else:
                     if not (startRef-inp.start_time) == 0:
-                        warnings.warn('start_time of input vectors do not match: ignore if this is what desired.',UserWarning)
+                        warnings.warn('start_time of input vectors do not match: ignore if this is what desired.'
+                                      ,UserWarning)
 
         # then just call the parent
         return np.ndarray.__array_prepare__(self, out_arr, context)
+
 
     def __array_finalize__(self, obj):
         # see InfoArray.__array_finalize__ for comments
@@ -109,31 +136,28 @@ class timeseries(np.ndarray):
         self.file_name = getattr(obj, 'file_name', None)
         self.meta_data = getattr(obj, 'meta_data', None)
 
-#    def __array_wrap__(self, out_arr, context=None):
-#        print 'In __array_wrap__:'
-#        print '   self is %s' % type(self)
-#        print '   arr is %s' % type(out_arr)
-#        print context
-#        # then just call the parent
-#        return np.ndarray.__array_wrap__(self, out_arr, context)
-#
+
     def save(self,file_name, to32 = True):
-        '''
+        """
         Save the timeseries in various formats
 
-        parameters
+        parameters:
         ----------
         file_name: str
             name of file. Possible formats are tif, avi, npz and hdf5
+
         to32: Bool
             whether to transform to 32 bits
 
-        '''
+        Raise:
+        -----
+        raise Exception('Extension Unknown')
+
+        """
         name,extension = os.path.splitext(file_name)[:2]
         print(extension)
 
         if extension == '.tif': # load avi file
-    #            raise Exception('not implemented')
             try:
                 
                 from tifffile import imsave
@@ -152,7 +176,8 @@ class timeseries(np.ndarray):
                 imsave(file_name, self)
 
         elif extension == '.npz':
-            np.savez(file_name,input_arr=self, start_time=self.start_time,fr=self.fr,meta_data=self.meta_data,file_name=self.file_name)
+            np.savez(file_name,input_arr=self, start_time=self.start_time,fr=self.fr,meta_data=self.meta_data,
+                     file_name=self.file_name)
 
 
         elif extension == '.avi':
@@ -173,9 +198,11 @@ class timeseries(np.ndarray):
             else:
                 f_name=''
             if self.meta_data[0] is None:
-                savemat(file_name,{'input_arr':np.rollaxis(self,axis=0,start=3), 'start_time':self.start_time,'fr':self.fr,'meta_data':[],'file_name':f_name})
+                savemat(file_name,{'input_arr':np.rollaxis(self,axis=0,start=3), 'start_time':self.start_time,
+                                   'fr':self.fr,'meta_data':[],'file_name':f_name})
             else:
-                savemat(file_name,{'input_arr':np.rollaxis(self,axis=0,start=3), 'start_time':self.start_time,'fr':self.fr,'meta_data':self.meta_data,'file_name':f_name})
+                savemat(file_name,{'input_arr':np.rollaxis(self,axis=0,start=3), 'start_time':self.start_time,
+                                   'fr':self.fr,'meta_data':self.meta_data,'file_name':f_name})
 
         elif extension == '.hdf5':
             with h5py.File(file_name, "w") as f:
@@ -186,9 +213,7 @@ class timeseries(np.ndarray):
                     dset.attrs["file_name"]=[a.encode('utf8') for a in self.file_name]
                 except:
                     print('No file name saved')
-
                 dset.attrs["meta_data"]=cpk.dumps(self.meta_data)
-
         else:
             print(extension)
             raise Exception('Extension Unknown')
@@ -198,10 +223,11 @@ def concatenate(*args, **kwargs):
     """
     Concatenate movies
 
-    Parameters
-    ---------------------------
+    Parameters:
+    -----------
     mov: XMovie object
     """
+    #todo: todocument return
 
     obj = []
     frRef = None

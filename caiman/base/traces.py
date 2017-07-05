@@ -26,24 +26,26 @@ class trace(ts.timeseries):
 
     TODO
 
-    Parameters
+    Parameters:
     ----------
     input_trace: np.ndarray (time x ncells)
+
     start_time: time beginning trace
+
     fr: frame rate
+
     meta_data: dictionary including any custom meta data
 
     """
     def __new__(cls, input_arr,**kwargs):
-        #                                     
         return super(trace, cls).__new__(cls, input_arr, **kwargs)
 
 
     @staticmethod
     def load(file_name):
-        '''
+        """
         load movie from file
-        '''
+        """
         return trace(**np.load(file_name))  
 
 
@@ -51,16 +53,22 @@ class trace(ts.timeseries):
     def computeDFF(self,window_sec=5,minQuantile=20):
         """ 
         compute the DFF of the movie
+
         In order to compute the baseline frames are binned according to the window length parameter
         and then the intermediate values are interpolated. 
-        Parameters
+
+        Parameters:
         ----------
         secsWindow: length of the windows used to compute the quantile
+
         quantilMin : value of the quantile
 
+        Raise:
+        -----
+        ValueError("All traces must be positive")
+
+        ValueError("The window must be shorter than the total length")
         """
-
-
         if np.min(self)<=0:
             raise ValueError("All traces must be positive")
 
@@ -93,18 +101,21 @@ class trace(ts.timeseries):
 
         author: ben deverett
 
-        Parameters
+        Parameters:
         ----------
         stacked : bool 
             for multiple columns of data, stack instead of overlaying
+
         subtract_minimum : bool
             subtract minimum from each individual trace
+
         cmap : matplotlib.LinearSegmentedColormap
             color map for display. Options are found in pl.colormaps(), and are accessed as pl.cm.my_favourite_map
+
         kwargs : dict
             any arguments accepted by matplotlib.plot
 
-        Returns
+        Returns:
         -------
         The matplotlib axes object corresponding to the data plot
         """
@@ -132,14 +143,11 @@ class trace(ts.timeseries):
         [l.set_color(c) for l,c in zip(ax2.get_yticklabels(), colors)]
 
         pl.gcf().canvas.draw()
-
         return ax
 
 
     def extract_epochs(self,trigs=None,tb=1,ta=1):
         raise Exception('Not Implemented. Look at movie resize')   
-
-
 
 
 if __name__ == "__main__":
