@@ -14,6 +14,7 @@ from scipy.sparse import csc_matrix
 from scipy.stats import norm
 import scipy
 
+
 def estimate_noise_mode(traces,robust_std=False,use_mode_fast=False, return_all = False):
     """ estimate the noise in the traces under assumption that signals are sparse and only positive. The last dimension should be time. 
 
@@ -48,12 +49,19 @@ def estimate_noise_mode(traces,robust_std=False,use_mode_fast=False, return_all 
     else:
         return sd_r    
 #
+
+
+
+
 #%%
 def compute_event_exceptionality(traces,robust_std=False,N=5,use_mode_fast=False):
     """
-    Define a metric and order components according to the probabilty if some "exceptional events" (like a spike). Suvh probability is defined as the likeihood of observing the actual trace value over N samples given an estimated noise distribution. 
-    The function first estimates the noise distribution by considering the dispersion around the mode. This is done only using values lower than the mode. The estimation of the noise std is made robust by using the approximation std=iqr/1.349. 
-    Then, the probavility of having N consecutive eventsis estimated. This probability is used to order the components.
+    Define a metric and order components according to the probabilty if some "exceptional events" (like a spike). 
+    Suvh probability is defined as the likeihood of observing the actual trace value over N samples given an estimated noise distribution. 
+    The function first estimates the noise distribution by considering the dispersion around the mode. 
+    This is done only using values lower than the mode. The estimation of the noise std is made robust by using the approximation std=iqr/1.349. 
+    Then, the probavility of having N consecutive eventsis estimated.
+    This probability is used to order the components.
 
     Parameters:    
     -----------
@@ -112,7 +120,7 @@ def compute_event_exceptionality(traces,robust_std=False,N=5,use_mode_fast=False
 
     # compute z value
     z = old_div((traces - md[:, None]), (3 * sd_r[:, None]))
-    # probability of observing values larger or equal to z given notmal
+    # probability of observing values larger or equal to z given normal
     # distribution with mean md and std sd_r
     erf = 1 - norm.cdf(z)
     # use logarithm so that multiplication becomes sum
@@ -196,9 +204,14 @@ def classify_components_ep(Y,A,C,b,f,Athresh = 0.1,Npeaks = 5, tB=-5, tA = 25, t
     return rval,significant_samples
 #%%
 def evaluate_components(Y, traces, A, C, b, f, final_frate, remove_baseline = True, N = 5, robust_std = False, Athresh = 0.1, Npeaks = 5, thresh_C = 0.3):
-    """ Define a metric and order components according to the probabilty if some "exceptional events" (like a spike). Suvh probability is defined as the likeihood of observing the actual trace value over N samples given an estimated noise distribution. 
-    The function first estimates the noise distribution by considering the dispersion around the mode. This is done only using values lower than the mode. The estimation of the noise std is made robust by using the approximation std=iqr/1.349. 
-    Then, the probavility of having N consecutive eventsis estimated. This probability is used to order the components. 
+    """ Define a metric and order components according to the probabilty if some "exceptional events" (like a spike).
+    
+    Such probability is defined as the likeihood of observing the actual trace value over N samples given an estimated noise distribution. 
+    The function first estimates the noise distribution by considering the dispersion around the mode.
+    This is done only using values lower than the mode.
+    The estimation of the noise std is made robust by using the approximation std=iqr/1.349. 
+    Then, the probavility of having N consecutive eventsis estimated.
+    This probability is used to order the components. 
     The algorithm also measures the reliability of the spatial mask by comparing the filters in A with the average of the movies over samples where exceptional events happen, after  removing (if possible)
     frames when neighboring neurons were active
 

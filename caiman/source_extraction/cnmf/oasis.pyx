@@ -19,26 +19,30 @@ def oasisAR1(np.ndarray[DOUBLE, ndim=1] y, DOUBLE g, DOUBLE lam=0, DOUBLE s_min=
     Solves the sparse non-negative deconvolution problem
     min 1/2|c-y|^2 + lam |s|_1 subject to s_t = c_t-g c_{t-1} >=s_min or =0
 
-    Parameters
+    Parameters:
     ----------
     y : array of float
         One dimensional array containing the fluorescence intensities with
         one entry per time-bin.
+
     g : float
         Parameter of the AR(1) process that models the fluorescence impulse response.
+
     lam : float, optional, default 0
         Sparsity penalty parameter lambda.
+
     s_min : float, optional, default 0
         Minimal non-zero activity within each bin (minimal 'spike size').
 
-    Returns
+    Returns:
     -------
     c : array of float
         The inferred denoised fluorescence signal at each time-bin.
+
     s : array of float
         Discretized deconvolved neural activity (spikes)
 
-    References
+    References:
     ----------
     * Friedrich J and Paninski L, NIPS 2016
     * Friedrich J, Zhou P, and Paninski L, arXiv 2016
@@ -99,43 +103,55 @@ def constrained_oasisAR1(np.ndarray[DOUBLE, ndim=1] y, DOUBLE g, DOUBLE sn,
     Solves the noise constrained sparse non-negative deconvolution problem
     min |s|_1 subject to |c-y|^2 = sn^2 T and s_t = c_t-g c_{t-1} >= 0
 
-    Parameters
+    Parameters:
     ----------
     y : array of float
         One dimensional array containing the fluorescence intensities (with baseline
         already subtracted, if known, see optimize_b) with one entry per time-bin.
+
     g : float
         Parameter of the AR(1) process that models the fluorescence impulse response.
+
     sn : float
         Standard deviation of the noise distribution.
+
     optimize_b : bool, optional, default False
         Optimize baseline if True else it is set to 0, see y.
+
     b_nonneg: bool, optional, default True
         Enforce strictly non-negative baseline if True.
+
     optimize_g : int, optional, default 0
         Number of large, isolated events to consider for optimizing g.
         No optimization if optimize_g=0.
+
     decimate : int, optional, default 1
         Decimation factor for estimating hyper-parameters faster on decimated data.
+
     max_iter : int, optional, default 5
         Maximal number of iterations.
+
     penalty : int, optional, default 1
         Sparsity penalty. 1: min |s|_1  0: min |s|_0
 
-    Returns
+    Returns:
     -------
     c : array of float
         The inferred denoised fluorescence signal at each time-bin.
+
     s : array of float
         Discretized deconvolved neural activity (spikes).
+
     b : float
         Fluorescence baseline value.
+
     g : float
         Parameter of the AR(1) process that models the fluorescence impulse response.
+
     lam : float
         Sparsity penalty parameter lambda of dual problem.
 
-    References
+    References:
     ----------
     * Friedrich J and Paninski L, NIPS 2016
     * Friedrich J, Zhou P, and Paninski L, arXiv 2016

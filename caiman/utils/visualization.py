@@ -1,9 +1,13 @@
 # -*- coding: utf-8 -*-
+""" List of plotting functions to visualize what's happening in the code
+ 
+ 
 """
-\date Created on Mon Oct 17 14:50:22 2016
-
-\author agiovann
-"""
+#\package Caiman/utils
+#\version   1.0
+#\copyright GNU General Public License v2.0
+#\date Created on Tue Jun 30 21:01:17 2016
+#\author: andrea giovannucci
 from __future__ import division
 from __future__ import print_function
 from builtins import str
@@ -25,12 +29,6 @@ import matplotlib as mpl
 try:
     import bokeh
     import bokeh.plotting as bpl
-    try:
-        from bokeh.io import vform, hplot
-    except:
-        # newer version of bokeh does not use vform & hplot, instead uses column & row
-        from bokeh.layouts import column as vform
-        from bokeh.layouts import row as hplot
     from bokeh.models import CustomJS, ColumnDataSource, Range1d
 except:
     print("Bokeh could not be loaded. Either it is not installed or you are not running within a notebook")
@@ -42,28 +40,39 @@ from ..summary_images import local_correlations
 def view_patches(Yr, A, C, b, f, d1, d2, YrA=None, secs=1):
     """view spatial and temporal components (secs=0 interactive)
 
-     Parameters
+     Parameters:
      -----------
      Yr:        np.ndarray
             movie in format pixels (d) x frames (T)
+
      A:     sparse matrix
                 matrix of spatial components (d x K)
+
      C:     np.ndarray
                 matrix of temporal components (K x T)
+
      b:     np.ndarray
                 spatial background (vector of length d)
 
      f:     np.ndarray
                 temporal background (vector of length T)
+
      d1,d2: np.ndarray
                 frame dimensions
+
      YrA:   np.ndarray
                  ROI filtered residual as it is given from update_temporal_components
                  If not given, then it is computed (K x T)
+
      secs:  float
                 number of seconds in between component scrolling. secs=0 means interactive (click to scroll)
+
      imgs:  np.ndarray
                 background image for contour plotting. Default is the image of all spatial components (d1 x d2)
+    
+    See Also:
+    ------------
+    ..image:: doc/img/
 
     """
     pl.ion()
@@ -72,10 +81,6 @@ def view_patches(Yr, A, C, b, f, d1, d2, YrA=None, secs=1):
     A2 = A.copy()
     A2.data **= 2
     nA2 = np.sqrt(np.array(A2.sum(axis=0))).squeeze()
-    #A = A*spdiags(1/nA2,0,nr,nr)
-    #C = spdiags(nA2,0,nr,nr)*C
-    #b = np.squeeze(b)
-    #f = np.squeeze(f)
     if YrA is None:
         Y_r = np.array(A.T * np.matrix(Yr) - (A.T * np.matrix(b[:, np.newaxis])) * np.matrix(
             f[np.newaxis]) - (A.T.dot(A)) * np.matrix(C) + C)
@@ -116,14 +121,15 @@ def view_patches(Yr, A, C, b, f, d1, d2, YrA=None, secs=1):
             ax2.set_title('Temporal background ' + str(i - nr + 1))
 
 
-def nb_view_patches(Yr, A, C, b, f, d1, d2, image_neurons=None, thr=0.99, denoised_color=None):
-    '''
-    Interactive plotting utility for ipython notbook
+def nb_view_patches(Yr, A, C, b, f, d1, d2, image_neurons=None, thr=0.99, denoised_color=None,cmap='jet'):
+    """
+    Interactive plotting utility for ipython notebook
 
-    Parameters
+    Parameters:
     -----------
     Yr: np.ndarray
         movie
+
     A,C,b,f: np.ndarrays
         outputs of matrix factorization algorithm
 
@@ -139,8 +145,10 @@ def nb_view_patches(Yr, A, C, b, f, d1, d2, image_neurons=None, thr=0.99, denois
     denoised_color: string or None
         color name (e.g. 'red') or hex color code (e.g. '#F0027F')
 
-    '''
-    colormap = cm.get_cmap("jet")  # choose any matplotlib colormap here
+    cmap: string
+        name of colormap (e.g. 'viridis') used to plot image_neurons
+    """
+    colormap = cm.get_cmap(cmap)
     grayp = [mpl.colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
     nr, T = C.shape
     nA2 = np.ravel(A.power(2).sum(0))
@@ -151,40 +159,35 @@ def nb_view_patches(Yr, A, C, b, f, d1, d2, image_neurons=None, thr=0.99, denois
                     (A.T * np.matrix(b[:, np.newaxis])) * np.matrix(f[np.newaxis]) -
                     A.T.dot(A) * np.matrix(C)) + C)
 
-    bpl.output_notebook()
     x = np.arange(T)
     z = old_div(np.squeeze(np.array(Y_r[:, :].T)), 100)
     if image_neurons is None:
         image_neurons = A.mean(1).reshape((d1, d2), order='F')
 
     coors = get_contours(A, (d1, d2), thr)
-    pl.close()
     cc1 = [cor['coordinates'][:, 0] for cor in coors]
     cc2 = [cor['coordinates'][:, 1] for cor in coors]
     c1 = cc1[0]
     c2 = cc2[0]
-    npoints = list(range(len(c1)))
 
-    source = ColumnDataSource(data=dict(x=x, y=z[:, 0], y2=C[0] / 100,
-                                        z=z.tolist(), z2=(C.T / 100).tolist()))
-    source2 = ColumnDataSource(data=dict(x=npoints, c1=c1, c2=c2))
+    # split sources up, such that Bokeh does not warn
+    # "ColumnDataSource's columns must be of the same length"
+    source = ColumnDataSource(data=dict(x=x, y=z[:, 0], y2=C[0] / 100))
+    source_ = ColumnDataSource(data=dict(z=z.T, z2=C / 100))
+    source2 = ColumnDataSource(data=dict(c1=c1, c2=c2))
     source2_ = ColumnDataSource(data=dict(cc1=cc1, cc2=cc2))
 
-    plot = bpl.figure(plot_width=600, plot_height=300)
-    plot.line('x', 'y', source=source, line_width=1, line_alpha=0.6)
-    if denoised_color is not None:
-        plot.line('x', 'y2', source=source, line_width=1, line_alpha=0.6, color=denoised_color)
-
-    callback = CustomJS(args=dict(source=source, source2=source2, source2_=source2_), code="""
-            var data = source.get('data');
+    callback = CustomJS(args=dict(source=source, source_=source_, source2=source2, source2_=source2_), code="""
+            var data = source.get('data')
+            var data_ = source_.get('data')
             var f = cb_obj.get('value')-1
             x = data['x']
             y = data['y']
             y2 = data['y2']
 
             for (i = 0; i < x.length; i++) {
-                y[i] = data['z'][i][f]
-                y2[i] = data['z2'][i][f]
+                y[i] = data_['z'][i+f*x.length]
+                y2[i] = data_['z2'][i+f*x.length]
             }
 
             var data2_ = source2_.get('data');
@@ -198,12 +201,17 @@ def nb_view_patches(Yr, A, C, b, f, d1, d2, image_neurons=None, thr=0.99, denois
                    c1[i] = cc1[f][i]
                    c2[i] = cc2[f][i]
             }
-            source2.trigger('change');
-            source.trigger('change');
+            source2.trigger('change')
+            source.trigger('change')
         """)
 
-    slider = bokeh.models.Slider(start=1, end=Y_r.shape[
-                                 0], value=1, step=1, title="Neuron Number", callback=callback)
+    plot = bpl.figure(plot_width=600, plot_height=300)
+    plot.line('x', 'y', source=source, line_width=1, line_alpha=0.6)
+    if denoised_color is not None:
+        plot.line('x', 'y2', source=source, line_width=1, line_alpha=0.6, color=denoised_color)
+
+    slider = bokeh.models.Slider(start=1, end=Y_r.shape[0], value=1, step=1,
+                                 title="Neuron Number", callback=callback)
     xr = Range1d(start=0, end=image_neurons.shape[1])
     yr = Range1d(start=image_neurons.shape[0], end=0)
     plot1 = bpl.figure(x_range=xr, y_range=yr, plot_width=300, plot_height=300)
@@ -212,9 +220,7 @@ def nb_view_patches(Yr, A, C, b, f, d1, d2, image_neurons=None, thr=0.99, denois
                 y=image_neurons.shape[0], dw=d2, dh=d1, palette=grayp)
     plot1.patch('c1', 'c2', alpha=0.6, color='purple', line_width=2, source=source2)
 
-    layout = vform(slider, hplot(plot1, plot))
-
-    bpl.show(layout)
+    bpl.show(bokeh.layouts.layout([[slider], [bokeh.layouts.row(plot1, plot)]]))
 
     return Y_r
 
@@ -222,22 +228,27 @@ def nb_view_patches(Yr, A, C, b, f, d1, d2, image_neurons=None, thr=0.99, denois
 def get_contours(A, dims, thr=0.9):
     """Gets contour of spatial components and returns their coordinates
 
-     Parameters
+     Parameters:
      -----------
      A:   np.ndarray or sparse matrix
                Matrix of Spatial components (d x K)
-     dims: tuple of ints
+     
+	 dims: tuple of ints
                Spatial dimensions of movie (x, y[, z])
-     thr: scalar between 0 and 1
+     
+	 thr: scalar between 0 and 1
                Energy threshold for computing contours (default 0.9)
 
-     Returns
+     Returns:
      --------
      Coor: list of coordinates with center of mass and
             contour plot coordinates (per layer) for each component
+            
+        
     """
     A = csc_matrix(A)
     d, nr = np.shape(A)
+    #if we are on a 3D video
     if len(dims) == 3:
         d1, d2, d3 = dims
         x, y = np.mgrid[0:d2:1, 0:d3:1]
@@ -246,22 +257,31 @@ def get_contours(A, dims, thr=0.9):
         x, y = np.mgrid[0:d1:1, 0:d2:1]
 
     coordinates = []
+    #get the center of mass of neurons( patches )
     cm = np.asarray([center_of_mass(a.toarray().reshape(dims, order='F')) for a in A.T])
+    #for each patches
     for i in range(nr):
         pars = dict()
-        indx = np.argsort(A.data[A.indptr[i]:A.indptr[i + 1]])[::-1]
-        cumEn = np.cumsum(A.data[A.indptr[i]:A.indptr[i + 1]][indx]**2)
+        #we compute the cumulative sum of the energy of the Ath component that has been ordered from least to highest
+        patch_data = A.data[A.indptr[i]:A.indptr[i + 1]]
+        indx = np.argsort(patch_data)[::-1]
+        cumEn = np.cumsum(patch_data[indx]**2)
+        #we work with normalized values
         cumEn /= cumEn[-1]
         Bvec = np.ones(d)
+        #we put it in a similar matrix
         Bvec[A.indices[A.indptr[i]:A.indptr[i + 1]][indx]] = cumEn
         Bmat = np.reshape(Bvec, dims, order='F')
         pars['coordinates'] = []
+        # for each dimensions we draw the contour
         for B in (Bmat if len(dims) == 3 else [Bmat]):
-            c = mpl._cntr.Cntr(y, x, B)
-            nlist = c.trace(thr)
+            #plotting the contour usgin matplotlib undocumented function around the thr threshold
+            nlist = mpl._cntr.Cntr(y, x, B).trace(thr)
+
+            #vertices will be the first half of the list
             vertices = nlist[:len(nlist) // 2]
             # this fix is necessary for having disjoint figures and borders plotted correctly
-            v = np.atleast_2d([None, None])  # Bokeh does not accept nan in list, only in np arrays
+            v = np.atleast_2d([np.nan, np.nan])
             for k, vtx in enumerate(vertices):
                 num_close_coords = np.sum(np.isclose(vtx[0, :], vtx[-1, :]))
                 if num_close_coords < 2:
@@ -273,13 +293,7 @@ def get_contours(A, dims, thr=0.9):
                     else:
                         # case one is border
                         vtx = np.concatenate((vtx, vtx[0, np.newaxis]), axis=0)
-
-                if k == 0:
-                    v = vtx
-                else:
-                    v = np.concatenate((v, vtx), axis=0)
-                    # Probably needed for disjoint figures, but Bokeh does not accept nan in list
-                    # v = np.concatenate((v, vtx, np.atleast_2d([np.nan, np.nan])), axis=0)
+                v = np.concatenate((v, vtx, np.atleast_2d([np.nan, np.nan])), axis=0)
 
             pars['coordinates'] = v if len(dims) == 2 else (pars['coordinates'] + [v])
         pars['CoM'] = np.squeeze(cm[i, :])
@@ -288,12 +302,12 @@ def get_contours(A, dims, thr=0.9):
     return coordinates
 
 
-def nb_view_patches3d(Y_r, A, C, b, f, dims, image_type='mean', Yr=None,
-                      max_projection=False, axis=0, thr=0.9, denoised_color=None):
-    '''
+def nb_view_patches3d(Y_r, A, C, dims, image_type='mean', Yr=None,
+                      max_projection=False, axis=0, thr=0.9, denoised_color=None,cmap='jet'):
+    """
     Interactive plotting utility for ipython notbook
 
-    Parameters
+    Parameters:
     -----------
     Y_r: np.ndarray
         residual of each trace
@@ -305,7 +319,7 @@ def nb_view_patches3d(Y_r, A, C, b, f, dims, image_type='mean', Yr=None,
         dimensions of movie (x, y and z)
 
     image_type: 'mean', 'max' or 'corr'
-        image to be overlaid to neurons 
+        image to be overlaid to neurons
         (average of shapes, maximum of shapes or nearest neigbor correlation of raw data)
 
     Yr: np.ndarray
@@ -323,9 +337,11 @@ def nb_view_patches3d(Y_r, A, C, b, f, dims, image_type='mean', Yr=None,
     denoised_color: string or None
         color name (e.g. 'red') or hex color code (e.g. '#F0027F')
 
-    '''
+    cmap: string
+        name of colormap (e.g. 'viridis') used to plot image_neurons
+    """
+
     bokeh.io.curdoc().clear()  # prune old orphaned models, otherwise filesize blows up
-    T = Y_r.shape[-1]
     d = A.shape[0]
     order = list(range(4))
     order.insert(0, order.pop(axis))
@@ -333,52 +349,29 @@ def nb_view_patches3d(Y_r, A, C, b, f, dims, image_type='mean', Yr=None,
     index_permut = np.reshape(np.arange(d), dims, order='F').transpose(
         order[:-1]).reshape(d, order='F')
     A = csc_matrix(A)[index_permut, :]
-#    Yr = Yr.reshape(dims + (-1,), order='F').transpose(order).reshape((d, T), order='F')
-# A = A.reshape(dims + (-1,), order='F').transpose(order).reshape((d, -1),
-# order='F')# A[index_permut,:]
-
-#    Yr = Yr.reshape(dims + (-1,), order='F').transpose(order).reshape((d, T), order='F')
-#    A = A.reshape(dims + (-1,), order='F').transpose(order).reshape((d, -1), order='F')
     dims = tuple(np.array(dims)[order[:3]])
     d1, d2, d3 = dims
-    colormap = cm.get_cmap("jet")  # choose any matplotlib colormap here
+    colormap = cm.get_cmap(cmap)
     grayp = [mpl.colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
     nr, T = C.shape
-#    nA2 = A.power(2).sum(axis=0)
-    b = np.squeeze(b)
-    f = np.squeeze(f)
 
-#    Y_r = np.array(spdiags(1. / nA2, 0, nr, nr) *
-#                   (A.T * np.matrix(Yr) - (A.T * np.matrix(b[:, np.newaxis])) *
-#                    np.matrix(f[np.newaxis]) - (A.T.dot(A)) * np.matrix(C)) + C)
-
-    # bpl.output_notebook()
     x = np.arange(T)
-    z = np.squeeze(np.array(Y_r[:, :].T)) / 100
 
-
-#    index_permut = np.reshape(np.arange(d),dims,order = 'F')
-
-#    k = np.reshape(np.array(A), dims + (A.shape[1],), order='F')
-#    k = A[index_permut,:]
-
-    source = ColumnDataSource(data=dict(x=x, y=z[:, 0], y2=C[0] / 100,
-                                        z=z.tolist(), z2=(C.T / 100).tolist()))
+    source = ColumnDataSource(data=dict(x=x, y=Y_r[0] / 100, y2=C[0] / 100))
+    source_ = ColumnDataSource(data=dict(z=Y_r / 100, z2=C / 100))
+    sourceN = ColumnDataSource(data=dict(N=[nr], nan=np.array([np.nan])))
 
     if max_projection:
         if image_type == 'corr':
-
             tmp = [(local_correlations(
                 Yr.reshape(dims + (-1,), order='F'))[:, ::-1]).max(i)
                 for i in range(3)]
 
         elif image_type == 'mean':
-
             tmp = [(np.array(A.mean(axis=1)).reshape(dims, order='F')[:, ::-1]).max(i)
                    for i in range(3)]
 
         elif image_type == 'max':
-
             tmp = [(A.max(axis=1).toarray().reshape(dims, order='F')[:, ::-1]).max(i)
                    for i in range(3)]
 
@@ -399,37 +392,45 @@ def nb_view_patches3d(Y_r, A, C, b, f, dims, image_type='mean', Yr=None,
         coors = [get_contours(proj_[i], tmp[i].shape, thr=thr) for i in range(3)]
 
         pl.close()
-        cc1 = [[list(cor['coordinates'][:, 0] + offset1) for cor in coors[0]],
-               [list(cor['coordinates'][:, 1]) for cor in coors[2]],
-               [list(cor['coordinates'][:, 0] + offset1) for cor in coors[1]]]
-        cc2 = [[list(cor['coordinates'][:, 1]) for cor in coors[0]],
-               [list(cor['coordinates'][:, 0]) for cor in coors[2]],
-               [list(cor['coordinates'][:, 1] + offset2) for cor in coors[1]]]
-        K = np.max([[len(c) for c in cc] for cc in cc1])
-        c1x = [np.nan] * K
-        c2x = [np.nan] * K
-        c1y = [np.nan] * K
-        c2y = [np.nan] * K
-        c1z = [np.nan] * K
-        c2z = [np.nan] * K
-        c1x[:len(cc1[0][0])] = cc1[0][0]
-        c2x[:len(cc2[0][0])] = cc2[0][0]
-        c1y[:len(cc1[1][0])] = cc1[1][0]
-        c2y[:len(cc2[1][0])] = cc2[1][0]
-        c1z[:len(cc1[2][0])] = cc1[2][0]
-        c2z[:len(cc2[2][0])] = cc2[2][0]
+        K = np.max([[len(cor['coordinates']) for cor in cc] for cc in coors])
+        cc1 = np.nan * np.zeros(np.shape(coors) + (K,))
+        cc2 = np.nan * np.zeros(np.shape(coors) + (K,))
+        for i, cor in enumerate(coors[0]):
+            cc1[0, i, :len(cor['coordinates'])] = cor['coordinates'][:, 0] + offset1
+            cc2[0, i, :len(cor['coordinates'])] = cor['coordinates'][:, 1]
+        for i, cor in enumerate(coors[2]):
+            cc1[1, i, :len(cor['coordinates'])] = cor['coordinates'][:, 1]
+            cc2[1, i, :len(cor['coordinates'])] = cor['coordinates'][:, 0]
+        for i, cor in enumerate(coors[1]):
+            cc1[2, i, :len(cor['coordinates'])] = cor['coordinates'][:, 0] + offset1
+            cc2[2, i, :len(cor['coordinates'])] = cor['coordinates'][:, 1] + offset2
+
+        # c1x = np.nan * np.zeros(K)
+        # c2x = np.nan * np.zeros(K)
+        # c1y = np.nan * np.zeros(K)
+        # c2y = np.nan * np.zeros(K)
+        # c1z = np.nan * np.zeros(K)
+        # c2z = np.nan * np.zeros(K)
+        c1x = cc1[0][0]
+        c2x = cc2[0][0]
+        c1y = cc1[1][0]
+        c2y = cc2[1][0]
+        c1z = cc1[2][0]
+        c2z = cc2[2][0]
         source2_ = ColumnDataSource(data=dict(cc1=cc1, cc2=cc2))
         source2 = ColumnDataSource(data=dict(c1x=c1x, c1y=c1y, c1z=c1z,
                                              c2x=c2x, c2y=c2y, c2z=c2z))
-        callback = CustomJS(args=dict(source=source, source2=source2,
-                                      source2_=source2_), code="""
+        callback = CustomJS(args=dict(source=source, source_=source_, sourceN=sourceN,
+                                      source2=source2, source2_=source2_), code="""
                 var data = source.get('data');
+                var data_ = source_.get('data');
                 var f = cb_obj.get('value')-1
+                x = data['x']
                 y = data['y']
                 y2 = data['y2']
-                for (i = 0; i < y.length; i++) {
-                    y[i] = data['z'][i][f];
-                    y2[i] = data['z2'][i][f];
+                for (i = 0; i < x.length; i++) {
+                    y[i] = data_['z'][i+f*x.length]
+                    y2[i] = data_['z2'][i+f*x.length]
                 }
 
                 var data2_ = source2_.get('data');
@@ -442,38 +443,34 @@ def nb_view_patches3d(Y_r, A, C, b, f, dims, image_type='mean', Yr=None,
                 c2z = data2['c2z'];
                 cc1 = data2_['cc1'];
                 cc2 = data2_['cc2'];
-                for (i = 0; i < cc1[0][f].length; i++) {
-                       c1x[i] = cc1[0][f][i]
-                       c2x[i] = cc2[0][f][i]
+                var N = sourceN.get('data')['N'][0];
+                for (i = 0; i < c1x.length; i++) {
+                       c1x[i] = cc1[f*c1x.length + i]
+                       c2x[i] = cc2[f*c1x.length + i]
                 }
-                for (i = 0; i < cc1[1][f].length; i++) {
-                       c1y[i] = cc1[1][f][i]
-                       c2y[i] = cc2[1][f][i]
+                for (i = 0; i < c1x.length; i++) {
+                       c1y[i] = cc1[N*c1y.length + f*c1y.length + i]
+                       c2y[i] = cc2[N*c1y.length + f*c1y.length + i]
                 }
-                for (i = 0; i < cc1[2][f].length; i++) {
-                       c1z[i] = cc1[2][f][i]
-                       c2z[i] = cc2[2][f][i]
+                for (i = 0; i < c1x.length; i++) {
+                       c1z[i] = cc1[2*N*c1z.length + f*c1z.length + i]
+                       c2z[i] = cc2[2*N*c1z.length + f*c1z.length + i]
                 }
                 source2.trigger('change');
                 source.trigger('change');
             """)
-
     else:
 
         if image_type == 'corr':
-
-            image_neurons = local_correlations(Yr.reshape(dims + (-1,), order='F'))[:, ::-1]
+            image_neurons = local_correlations(Yr.reshape(dims + (-1,), order='F'))[:-1, ::-1]
 
         elif image_type == 'mean':
-
             image_neurons = np.array(A.mean(axis=1)).reshape(dims, order='F')[:, ::-1]
 
         elif image_type == 'max':
-
             image_neurons = A.max(axis=1).toarray().reshape(dims, order='F')[:, ::-1]
 
         else:
-
             raise ValueError('image_type must be mean, max or corr')
 
         cmap = bokeh.models.mappers.LinearColorMapper([mpl.colors.rgb2hex(m)
@@ -481,62 +478,88 @@ def nb_view_patches3d(Y_r, A, C, b, f, dims, image_type='mean', Yr=None,
         cmap.high = image_neurons.max()
         coors = get_contours(A, dims, thr=thr)
         pl.close()
-        cc1 = [[list(l[:, 0]) for l in n['coordinates']] for n in coors]
-        cc2 = [[list(l[:, 1]) for l in n['coordinates']] for n in coors]
+        cc1 = [[(l[:, 0]) for l in n['coordinates']] for n in coors]
+        cc2 = [[(l[:, 1]) for l in n['coordinates']] for n in coors]
+        length = np.ravel([map(len, cc) for cc in cc1])
+        idx = np.cumsum(np.concatenate([[0], length[:-1]]))
+        cc1 = np.concatenate(map(np.concatenate, cc1))
+        cc2 = np.concatenate(map(np.concatenate, cc2))
         linit = int(round(coors[0]['CoM'][0]))  # pick initial layer in which first neuron lies
-        c1 = cc1[0][linit]
-        c2 = cc2[0][linit]
-        source2_ = ColumnDataSource(data=dict(cc1=cc1, cc2=cc2))
+        K = length.max()
+        c1 = np.nan * np.zeros(K)
+        c2 = np.nan * np.zeros(K)
+        c1[:length[linit]] = cc1[idx[linit]:idx[linit] + length[linit]]
+        c2[:length[linit]] = cc2[idx[linit]:idx[linit] + length[linit]]
         source2 = ColumnDataSource(data=dict(c1=c1, c2=c2))
-        x = list(range(d2))
-        y = list(range(d3))
+        source2_ = ColumnDataSource(data=dict(cc1=cc1, cc2=cc2))
+        source2_idx = ColumnDataSource(data=dict(idx=idx, length=length))
         source3 = ColumnDataSource(
-            data=dict(image=[image_neurons[linit].tolist()], im=[image_neurons.tolist()],
-                      xx=[x], yy=[y], x=[0], y=[d2], dw=[d3], dh=[d2]))
-        # source3 = ColumnDataSource(
-        #     data=dict(image=[image_neurons[linit]], im=[map(list, image_neurons)],
-        #               xx=[x], yy=[y], x=[0], y=[d2], dw=[d3], dh=[d2]))
-
-        callback = CustomJS(args=dict(source=source, source2=source2,
-                                      source2_=source2_), code="""
-                var data = source.get('data');
-                var f = slider_neuron.get('value')-1;
-                var l = slider_layer.get('value')-1;
+            data=dict(image=[image_neurons[linit]], im=[image_neurons],
+                      x=[0], y=[d2], dw=[d3], dh=[d2]))
+        callback = CustomJS(args=dict(source=source, source_=source_, sourceN=sourceN,
+                                      source2=source2, source2_=source2_, source2_idx=source2_idx),
+                            code="""
+                var data = source.data;
+                var data_ = source_.data;
+                var f = slider_neuron.value-1;
+                var l = slider_layer.value-1;
+                x = data['x']
                 y = data['y']
                 y2 = data['y2']
-                for (i = 0; i < y.length; i++) {
-                    y[i] = data['z'][i][f];
-                    y2[i] = data['z2'][i][f];
+                for (i = 0; i < x.length; i++) {
+                    y[i] = data_['z'][i+f*x.length]
+                    y2[i] = data_['z2'][i+f*x.length]
                 }
 
-                var data2 = source2.get('data');
-                var data2_ = source2_.get('data');
+                var data2 = source2.data;
+                var data2_ = source2_.data;
+                var data2_idx = source2_idx.data;
+                var idx = data2_idx['idx'];
                 c1 = data2['c1'];
                 c2 = data2['c2'];
+                var nz = idx.length / sourceN.data['N'][0];
+                var nan = sourceN.data['nan'][0];
                 for (i = 0; i < c1.length; i++) {
-                       c1[i] = data2_['cc1'][f][l][i];
-                       c2[i] = data2_['cc2'][f][l][i];
+                       c1[i] = nan;
+                       c2[i] = nan;
+                }
+                for (i = 0; i < data2_idx['length'][l+f*nz]; i++) {
+                       c1[i] = data2_['cc1'][idx[l+f*nz] + i];
+                       c2[i] = data2_['cc2'][idx[l+f*nz] + i];
                 }
                 source2.trigger('change');
                 source.trigger('change');
             """)
 
-        callback_layer = CustomJS(args=dict(source=source3, source2=source2, source2_=source2_), code="""
-                var f = slider_neuron.get('value')-1;
-                var l = slider_layer.get('value')-1;
-                var image = source.get('data')['image'][0];
-                for (var i = 0; i < source.get('data')['xx'][0].length; i++) {
-                    for (var j = 0; j < source.get('data')['yy'][0].length; j++){
-                        image[i][j] = source.get('data')['im'][0][l][i][j];
+        callback_layer = CustomJS(args=dict(source=source3, sourceN=sourceN, source2=source2,
+                                            source2_=source2_, source2_idx=source2_idx), code="""
+                var f = slider_neuron.value-1;
+                var l = slider_layer.value-1;
+                var dh = source.data['dh'][0];
+                var dw = source.data['dw'][0];
+                var image = source.data['image'][0];
+                var images = source.data['im'][0];
+                for (var i = 0; i < x.length; i++) {
+                    for (var j = 0; j < dw; j++){
+                        image[i*dh+j] = images[l*dh*dw + i*dh + j];
                     }
                 }
-                var data2 = source2.get('data');
-                var data2_ = source2_.get('data');
+
+                var data2 = source2.data;
+                var data2_ = source2_.data;
+                var data2_idx = source2_idx.data;
+                var idx = data2_idx['idx']
                 c1 = data2['c1'];
                 c2 = data2['c2'];
+                var nz = idx.length / sourceN.data['N'][0];
+                var nan = sourceN.data['nan'][0];
                 for (i = 0; i < c1.length; i++) {
-                       c1[i] = data2_['cc1'][f][l][i];
-                       c2[i] = data2_['cc2'][f][l][i];
+                       c1[i] = nan;
+                       c2[i] = nan;
+                }
+                for (i = 0; i < data2_idx['length'][l+f*nz]; i++) {
+                       c1[i] = data2_['cc1'][idx[l+f*nz] + i];
+                       c2[i] = data2_['cc2'][idx[l+f*nz] + i];
                 }
                 source.trigger('change');
                 source2.trigger('change');
@@ -572,23 +595,21 @@ def nb_view_patches3d(Y_r, A, C, b, f, dims, image_type='mean', Yr=None,
         plot1.patch('c1', 'c2', alpha=0.6, color='purple', line_width=2, source=source2)
         layout = bokeh.layouts.layout([[slider], [slider_layer], [bokeh.layouts.row(plot1, plot)]],
                                       sizing_mode="scale_width")
-
     bpl.show(layout)
 
     return Y_r
 
 
 def nb_imshow(image, cmap='jet'):
-    '''
+    """
     Interactive equivalent of imshow for ipython notebook
-    '''
+    """
     colormap = cm.get_cmap(cmap)  # choose any matplotlib colormap here
     grayp = [mpl.colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
     xr = Range1d(start=0, end=image.shape[1])
     yr = Range1d(start=image.shape[0], end=0)
     p = bpl.figure(x_range=xr, y_range=yr)
-#    p = bpl.figure(x_range=[0,image.shape[1]], y_range=[0,image.shape[0]])
-#    p.image(image=[image], x=0, y=0, dw=image.shape[1], dh=image.shape[0], palette=grayp)
+
     p.image(image=[image[::-1, :]], x=0, y=image.shape[0],
             dw=image.shape[1], dh=image.shape[0], palette=grayp)
 
@@ -597,35 +618,44 @@ def nb_imshow(image, cmap='jet'):
 
 def nb_plot_contour(image, A, d1, d2, thr=None, thr_method='max', maxthr=0.2, nrgthr=0.9,
                     face_color=None, line_color='black', alpha=0.4, line_width=2, **kwargs):
-    '''Interactive Equivalent of plot_contours for ipython notebook
+    """Interactive Equivalent of plot_contours for ipython notebook
 
-    Parameters
+    Parameters:
     -----------
     A:   np.ndarray or sparse matrix
             Matrix of Spatial components (d x K)
+
     Image:  np.ndarray (2D)
             Background image (e.g. mean, correlation)
+
     d1,d2: floats
             dimensions os image
+
     thr: scalar between 0 and 1
             Energy threshold for computing contours
             Kept for backwards compatibility. If not None then thr_method = 'nrg', and nrgthr = thr
+
     thr_method: [optional] string
             Method of thresholding:
                 'max' sets to zero pixels that have value less than a fraction of the max value
                 'nrg' keeps the pixels that contribute up to a specified fraction of the energy
+
     maxthr: [optional] scalar
             Threshold of max value
+
     nrgthr: [optional] scalar
             Threshold of energy
+
     display_number:     Boolean
             Display number of ROIs if checked (default True)
+
     max_number:    int
             Display the number for only the first max_number components (default None, display all numbers)
+
     cmap:     string
             User specifies the colormap (default None, default colormap)
 
-    '''
+    """
     p = nb_imshow(image, cmap='jet')
     center = com(A, d1, d2)
     p.circle(center[:, 1], center[:, 0], size=10, color="black",
@@ -633,7 +663,6 @@ def nb_plot_contour(image, A, d1, d2, thr=None, thr_method='max', maxthr=0.2, nr
     coors = plot_contours(coo_matrix(A), image, thr=thr,
                           thr_method=thr_method, maxthr=maxthr, nrgthr=nrgthr)
     pl.close()
-    #    cc=coors[0]['coordinates'];
     cc1 = [np.clip(cor['coordinates'][:, 0], 0, d2) for cor in coors]
     cc2 = [np.clip(cor['coordinates'][:, 1], 0, d1) for cor in coors]
 
@@ -689,13 +718,11 @@ def display_animation(anim, fps=20):
     pl.close(anim._fig)
     return HTML(anim_to_html(anim, fps=fps))
 #%%
-#%%
 
-
-def view_patches_bar(Yr, A, C, b, f, d1, d2, YrA=None, secs=1, img=None):
+def view_patches_bar(Yr, A, C, b, f, d1, d2, YrA=None, img=None):
     """view spatial and temporal components interactively
 
-     Parameters
+     Parameters:
      -----------
      Yr:    np.ndarray
             movie in format pixels (d) x frames (T)
@@ -725,10 +752,6 @@ def view_patches_bar(Yr, A, C, b, f, d1, d2, YrA=None, secs=1, img=None):
     A2 = A.copy()
     A2.data **= 2
     nA2 = np.sqrt(np.array(A2.sum(axis=0))).squeeze()
-    #A = A*spdiags(1/nA2,0,nr,nr)
-    #C = spdiags(nA2,0,nr,nr)*C
-    #b = np.squeeze(b)
-    #f = np.squeeze(f)
     if YrA is None:
         Y_r = np.array(A.T * np.matrix(Yr) - (A.T * np.matrix(b[:, np.newaxis])) * np.matrix(
             f[np.newaxis]) - (A.T.dot(A)) * np.matrix(C) + C)
@@ -782,7 +805,6 @@ def view_patches_bar(Yr, A, C, b, f, d1, d2, YrA=None, secs=1, img=None):
             ax3.imshow(imgtmp2, interpolation='None', alpha=0.5, cmap=pl.cm.hot)
             ax3.axis('off')
         else:
-            #import pdb; pdb.set_trace()
             ax1.cla()
             ax1.imshow(bkgrnd[:, :, i - nr], interpolation='None')
             ax1.set_title('Spatial background ' + str(i + 1 - nr))
@@ -810,39 +832,48 @@ def view_patches_bar(Yr, A, C, b, f, d1, d2, YrA=None, secs=1, img=None):
 
     s_comp.on_changed(update)
     s_comp.set_val(0)
-    id2 = fig.canvas.mpl_connect('key_release_event', arrow_key_image_control)
+    fig.canvas.mpl_connect('key_release_event', arrow_key_image_control)
     pl.show()
 #%%
 
 
-def plot_contours(A, Cn, thr=None, thr_method='max', maxthr=0.2, nrgthr=0.9, display_numbers=True, max_number=None, cmap=None, swap_dim=False, colors='w', vmin=None, vmax=None, **kwargs):
+def plot_contours(A, Cn, thr=None, thr_method='max', maxthr=0.2, nrgthr=0.9, display_numbers=True, max_number=None,
+                  cmap=None, swap_dim=False, colors='w', vmin=None, vmax=None, **kwargs):
     """Plots contour of spatial components against a background image and returns their coordinates
 
-     Parameters
+     Parameters:
      -----------
      A:   np.ndarray or sparse matrix
                Matrix of Spatial components (d x K)
+
      Cn:  np.ndarray (2D)
                Background image (e.g. mean, correlation)
+
      thr_method: [optional] string
               Method of thresholding: 
                   'max' sets to zero pixels that have value less than a fraction of the max value
                   'nrg' keeps the pixels that contribute up to a specified fraction of the energy
+
      maxthr: [optional] scalar
                 Threshold of max value
+
      nrgthr: [optional] scalar
                 Threshold of energy
+
      thr: scalar between 0 and 1
                Energy threshold for computing contours (default 0.9)
                Kept for backwards compatibility. If not None then thr_method = 'nrg', and nrgthr = thr
+
      display_number:     Boolean
                Display number of ROIs if checked (default True)
+
      max_number:    int
                Display the number for only the first max_number components (default None, display all numbers)
+
      cmap:     string
                User specifies the colormap (default None, default colormap)
 
-     Returns
+     Returns:
      --------
      Coor: list of coordinates with center of mass, contour plot coordinates and bounding box for each component
     """
@@ -868,7 +899,6 @@ def plot_contours(A, Cn, thr=None, thr_method='max', maxthr=0.2, nrgthr=0.9, dis
     x, y = np.mgrid[0:d1:1, 0:d2:1]
 
     ax = pl.gca()
-    # Cn[np.isnan(Cn)]=0
     if vmax is None and vmin is None:
         pl.imshow(Cn, interpolation=None, cmap=cmap,
                   vmin=np.percentile(Cn[~np.isnan(Cn)], 1), vmax=np.percentile(Cn[~np.isnan(Cn)], 99))
@@ -919,8 +949,6 @@ def plot_contours(A, Cn, thr=None, thr_method='max', maxthr=0.2, nrgthr=0.9, dis
                     #import ipdb; ipdb.set_trace()
 
             v = np.concatenate((v, vtx, np.atleast_2d([np.nan, np.nan])), axis=0)
-#        p = cs.collections[0].get_paths()[0]
-#        v = p.vertices
 
         pars['CoM'] = np.squeeze(cm[i, :])
         pars['coordinates'] = v

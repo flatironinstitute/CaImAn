@@ -26,7 +26,7 @@ from .mmapping import load_memmap
 def get_patches_from_image(img,shapes,overlaps):
     d1,d2 = np.shape(img)
     rf =  np.divide(shapes,2)
-    _,coords_2d  = extract_patch_coordinates(d1,d2,rf=rf,stride = overlaps)
+    _,coords_2d = extract_patch_coordinates(d1,d2,rf=rf,stride = overlaps)
     imgs = np.empty(coords_2d.shape[:2],dtype = np.object)
 
     for idx_0,count_0 in enumerate(coords_2d):
@@ -38,7 +38,7 @@ def get_patches_from_image(img,shapes,overlaps):
 def extract_patch_coordinates_old(d1,d2,rf=(7,7),stride = (2,2)):
     """
     Function that partition the FOV in patches and return the indexed in 2D and 1D (flatten, order='F') formats
-    Parameters
+    Parameters:
     ----------
     d1,d2: int
         dimensions of the original matrix that will be  divided in patches
@@ -48,7 +48,6 @@ def extract_patch_coordinates_old(d1,d2,rf=(7,7),stride = (2,2)):
         degree of overlap of the patches
     """
     coords_flat=[]
-    coords_2d=[]
     rf1,rf2 = rf
     stride1,stride2 = stride
     iter_0 = list(range(rf1,d1-rf1,2*rf1-stride1))+[d1-rf1]
@@ -61,7 +60,6 @@ def extract_patch_coordinates_old(d1,d2,rf=(7,7),stride = (2,2)):
 
 
             coords_y = np.array(list(range(yy - rf2, yy + rf2 + 1)))
-#            print([xx - rf1, xx + rf1 + 1,yy - rf2, yy + rf2 + 1])
             coords_y = coords_y[(coords_y >= 0) & (coords_y < d2)]
 
             idxs = np.meshgrid( coords_x,coords_y)
@@ -156,14 +154,13 @@ def extract_rois_patch(file_name,d1,d2,rf=5,stride = 5):
         A2[idx_,count]=flt[:,1][:,np.newaxis]
         C1.append(ca[0,:])
         C2.append(ca[1,:])
-#        pl.imshow(np.reshape(flt[:,0],d,order='F'),vmax=10)
-#        pl.pause(.1)
+
 
 
     return A1,A2,C1,C2
 #%%
 def apply_to_patch(mmap_file, shape, dview, rf , stride , function, *args, **kwargs):
-    '''
+    """
     apply function to patches in parallel or not
 
     Parameters
@@ -189,7 +186,7 @@ def apply_to_patch(mmap_file, shape, dview, rf , stride , function, *args, **kwa
     Returns
     -------
     results
-    '''
+    """
 
     (T,d1,d2)=shape
     d=d1*d2
@@ -271,7 +268,7 @@ def function_place_holder(args_in):
 
 #%%
 def start_server(slurm_script=None, ipcluster="ipcluster", ncpus = None):
-    '''
+    """
     programmatically start the ipyparallel server
 
     Parameters
@@ -281,7 +278,7 @@ def start_server(slurm_script=None, ipcluster="ipcluster", ncpus = None):
     ipcluster : str
         ipcluster binary file name; requires 4 path separators on Windows. ipcluster="C:\\\\Anaconda2\\\\Scripts\\\\ipcluster.exe"
          Default: "ipcluster"
-    '''
+    """
     sys.stdout.write("Starting cluster...")
     sys.stdout.flush()
     if ncpus is None:
@@ -292,7 +289,7 @@ def start_server(slurm_script=None, ipcluster="ipcluster", ncpus = None):
             p1 = subprocess.Popen("ipcluster start -n {0}".format(ncpus), shell=True, close_fds=(os.name != 'nt'))
         else:
             p1 = subprocess.Popen(shlex.split("{0} start -n {1}".format(ipcluster, ncpus)), shell=True, close_fds=(os.name != 'nt'))
-#
+
         # Check that all processes have started
         time.sleep(1)
         client = ipyparallel.Client()
@@ -338,14 +335,14 @@ def shell_source(script):
 
 
 def stop_server( ipcluster='ipcluster',pdir=None,profile=None):
-    '''
+    """
     programmatically stops the ipyparallel server
     Parameters
      ----------
      ipcluster : str
          ipcluster binary file name; requires 4 path separators on Windows
          Default: "ipcluster"
-    '''
+    """
     sys.stdout.write("Stopping cluster...\n")
     sys.stdout.flush()
     try:
@@ -404,9 +401,9 @@ def stop_server( ipcluster='ipcluster',pdir=None,profile=None):
     sys.stdout.write(" done\n")
 #%%
 def setup_cluster(backend = 'local',n_processes = None,single_thread = False):
-    ''' Restart if necessary the pipyparallel cluster, and manages the case of SLURM
+    """ Restart if necessary the pipyparallel cluster, and manages the case of SLURM
 
-    '''
+    """
     #backend; 'local' or 'SLURM'. SLURM is experimental! You need to modify the script SLURM/slurmStart.sh
     if n_processes is None:
         if backend == 'SLURM':
@@ -442,5 +439,4 @@ def setup_cluster(backend = 'local',n_processes = None,single_thread = False):
 
         print(('Using ' + str(len(c)) + ' processes'))
         dview = c[:len(c)]
-
     return c,dview,n_processes
