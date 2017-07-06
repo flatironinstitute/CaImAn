@@ -215,9 +215,9 @@ upsample_factor_grid = params_movie['upsample_factor_grid']
 max_deviation_rigid = params_movie['max_deviation_rigid']
 
 # %% download movie if not there
-# if fname == 'example_movies/demoSue2x.tif':
+if fname == 'example_movies/demoSue2x.tif':
 # TODO: todocument
-# download_demo()
+     download_demo()
 # TODO: todocument
 m_orig = cm.load_movie_chain(fname[:1])
 

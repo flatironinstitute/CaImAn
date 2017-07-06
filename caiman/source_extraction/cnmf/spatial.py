@@ -440,8 +440,6 @@ def determine_search_location(A, dims, method='ellipse', min_size=3, max_size=8,
 
 
 # %%
-
-
 def construct_ellipse_parallel(pars):
     """update spatial footprints and background through Basis Pursuit Denoising
 
@@ -509,7 +507,7 @@ def threshold_components(A, dims, medw=None, thr_method='nrg', maxthr=0.1, nrgth
     (i) Median filtering
     (ii) Thresholding
     (iii) Morphological closing of spatial support
-    (iv) Extraction of largest connected component
+    (iv) Extraction of largest connected component ( to remove small unconnected pixel )
 
     Parameters:
     ----------
@@ -582,7 +580,7 @@ def threshold_components_parallel(pars):
        (i) Median filtering
        (ii) Thresholding
        (iii) Morphological closing of spatial support
-       (iv) Extraction of largest connected component
+       (iv) Extraction of largest connected component ( to remove small unconnected pixel )
        /!\ need to be called through the function threshold components
 
        Parameters:
@@ -646,11 +644,11 @@ def threshold_components_parallel(pars):
     # we do that to have a full closed structure even if the values have been trehsolded
     BW = binary_closing(BW.astype(np.int), structure=se)
 
-    # if we have deleted the elemnt
+    # if we have deleted the element
     if BW.max() == 0:
         return Ath2, i
     #
-    if extract_cc:
+    if extract_cc: # we want to extract the largest connected component ( to remove small unconnected pixel )
         # we extract each future as independent with the cross structuring elemnt
         labeled_array, num_features = label(BW, structure=ss)
         labeled_array = np.squeeze(np.reshape(labeled_array, (d, 1)))

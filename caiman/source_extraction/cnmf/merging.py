@@ -197,7 +197,7 @@ sn: float
                     computedC = Acsc.T.dot(computedA).T.dot(Ctmp) / (computedA.T * computedA)
                     computedA = Acsc.dot(Ctmp.dot(computedC.T)) / (computedC * computedC.T)
 
-                # then we re-normalize them using A_to_norm
+                # then we de-normalize them using A_to_norm
                 A_to_norm = np.sqrt(computedA.T.dot(computedA)[0, 0] / Acsc.power(2).sum(0).max())
                 computedA /= A_to_norm
                 computedC *= A_to_norm
