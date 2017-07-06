@@ -1,4 +1,5 @@
-
+#!/bin/bash
+#to lauch to install the file
 git clone https://github.com/simonsfoundation/CaImAn
 cd CaImAn/
 git pull

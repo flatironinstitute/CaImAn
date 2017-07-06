@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """Extract neural activity from a fluorescence trace using a constrained deconvolution approach
+
 Created on Tue Sep  1 16:11:25 2015
 @author: Eftychios A. Pnevmatikakis, based on an implementation by T. Machado,  Andrea Giovannucci & Ben Deverett
 """
@@ -27,65 +28,96 @@ def constrained_foopsi(fluor, bl=None,  c1=None, g=None,  sn=None, p=None, metho
     It relies on a noise constrained deconvolution approach
 
 
-    Parameters
+    Parameters:
     ----------
+
     fluor: np.ndarray
         One dimensional array containing the fluorescence intensities with
         one entry per time-bin.
+
     bl: [optional] float
         Fluorescence baseline value. If no value is given, then bl is estimated
         from the data.
+
     c1: [optional] float
         value of calcium at time 0
+
     g: [optional] list,float
         Parameters of the AR process that models the fluorescence impulse response.
         Estimated from the data if no value is given
+
     sn: float, optional
         Standard deviation of the noise distribution.  If no value is given,
         then sn is estimated from the data.
+
     p: int
         order of the autoregression model
+
     method: [optional] string
         solution method for basis projection pursuit 'cvx' or 'cvxpy' or 'oasis'
+
     bas_nonneg: bool
         baseline strictly non-negative
+
     noise_range:  list of two elms
         frequency range for averaging noise PSD
+
     noise_method: string
         method of averaging noise PSD
+
     lags: int
         number of lags for estimating time constants
+
     fudge_factor: float
         fudge factor for reducing time constant bias
+
     verbosity: bool
          display optimization details
+
     solvers: list string
         primary and secondary (if problem unfeasible for approx solution) solvers
         to be used with cvxpy, default is ['ECOS','SCS']
+
     optimize_g : [optional] int, only applies to method 'oasis'
         Number of large, isolated events to consider for optimizing g.
         If optimize_g=0 (default) the provided or estimated g is not further optimized.
+
     penalty : [optional] int, default 1, only applies to method 'oasis'
         Sparsity penalty. 1: min |s|_1  0: min |s|_0
 
-    Returns
+    Returns:
     -------
     c: np.ndarray float
         The inferred denoised fluorescence signal at each time-bin.
+
     bl, c1, g, sn : As explained above
+
     sp: ndarray of float
         Discretized deconvolved neural activity (spikes)
 
-    References
+    Raise:
+    ------
+    Exception("You must specify the value of p")
+
+    Exception('OASIS is currently only implemented for p=1 and p=2')
+
+    Exception('Undefined Deconvolution Method')
+
+    References:
     ----------
     * Pnevmatikakis et al. 2016. Neuron, in press, http://dx.doi.org/10.1016/j.neuron.2015.11.037
     * Machado et al. 2015. Cell 162(2):338-350
+
+    \image: docs/img/deconvolution.png
+    \image: docs/img/evaluationcomponent.png
+
     """
 
     if p is None:
         raise Exception("You must specify the value of p")
 
     if g is None or sn is None:
+        #Estimate noise standard deviation and AR coefficients if they are not present
         g, sn = estimate_parameters(fluor, p=p, sn=sn, g=g, range_ff=noise_range,
                                     method=noise_method, lags=lags, fudge_factor=fudge_factor)
     if p == 0:
@@ -94,13 +126,13 @@ def constrained_foopsi(fluor, bl=None,  c1=None, g=None,  sn=None, p=None, metho
         bl = 0
         c = np.maximum(fluor, 0)
         sp = c.copy()
-    else:
+
+    else: #choose a source extraction method
         if method == 'cvx':
             c, bl, c1, g, sn, sp = cvxopt_foopsi(
                 fluor, b=bl, c1=c1, g=g, sn=sn, p=p, bas_nonneg=bas_nonneg, verbosity=verbosity)
 
         elif method == 'cvxpy':
-
             c, bl, c1, g, sn, sp = cvxpy_foopsi(
                 fluor, g, sn, b=bl, c1=c1, bas_nonneg=bas_nonneg, solvers=solvers)
 
@@ -114,7 +146,9 @@ def constrained_foopsi(fluor, bl=None,  c1=None, g=None,  sn=None, p=None, metho
                 else:
                     c, sp, _, g, _ = constrained_oasisAR1(
                         fluor - bl, g[0], sn, optimize_b=False, penalty=penalty)
+
                 c1 = c[0]
+
                 # remove intial calcium to align with the other foopsi methods
                 # it is added back in function constrained_foopsi_parallel of temporal.py
                 c -= c1 * g**np.arange(len(fluor))
@@ -147,9 +181,7 @@ def G_inv_mat(x, mode, NT, gs, gd_vec, bas_flag=True, c1_flag=True):
     if mode == 1:
         b = lfilter(np.array([1]), np.concatenate([np.array([1.]), -gs]), x[:NT]
                     ) + bas_flag * x[NT - 1 + bas_flag] + c1_flag * gd_vec * x[-1]
-        #b = np.dot(Emat,b)
     elif mode == 2:
-        #x = np.dot(Emat.T,x)
         b = np.hstack((np.flipud(lfilter(np.array([1]), np.concatenate([np.array(
             [1.]), -gs]), np.flipud(x))), np.ones(bas_flag) * np.sum(x), np.ones(c1_flag) * np.sum(gd_vec * x)))
 
@@ -214,12 +246,9 @@ def cvxopt_foopsi(fluor, b, c1, g, sn, p, bas_nonneg, verbosity):
     # solve problem
     try:
         prob.solve(solver='mosek', verbose=verbosity)
-        sel_solver = 'mosek'
-#        prob.solve(solver='gurobi', verbose=verbosity)
-#        sel_solver = 'gurobi'
+
     except ImportError:
         warn('MOSEK is not installed. Spike inference may be VERY slow!')
-        sel_solver = []
         prob.solver_selection()
         prob.solve(verbose=verbosity)
 
@@ -266,36 +295,56 @@ def cvxopt_foopsi(fluor, b, c1, g, sn, p, bas_nonneg, verbosity):
 
 
 def cvxpy_foopsi(fluor, g, sn, b=None, c1=None, bas_nonneg=True, solvers=None):
-    '''Solves the deconvolution problem using the cvxpy package and the ECOS/SCS library.
+    """Solves the deconvolution problem using the cvxpy package and the ECOS/SCS library.
+
+
     Parameters:
     -----------
     fluor: ndarray
         fluorescence trace
+
     g: list of doubles
         parameters of the autoregressive model, cardinality equivalent to p
+
     sn: double
         estimated noise level
+
     b: double
         baseline level. If None it is estimated.
+
     c1: double
         initial value of calcium. If None it is estimated.
+
     bas_nonneg: boolean
         should the baseline be estimated
+
     solvers: tuple of two strings
         primary and secondary solvers to be used. Can be choosen between ECOS, SCS, CVXOPT
 
     Returns:
     --------
+
     c: estimated calcium trace
+
     b: estimated baseline
+
     c1: esimtated initial calcium value
+
     g: esitmated parameters of the autoregressive model
+
     sn: estimated noise level
+
     sp: estimated spikes
 
-    '''
+    Raise:
+    -----
+    ImportError('cvxpy solver requires installation of cvxpy. Not working in windows at the moment.')
+
+    ValueError('Problem solved suboptimally or unfeasible')
+
+    """
+    #todo: check the result and gen_vector vars
     try:
-        
         import cvxpy as cvx
         
     except ImportError:
@@ -354,14 +403,14 @@ def cvxpy_foopsi(fluor, g, sn, b=None, c1=None, bas_nonneg=True, solvers=None):
 
         print(('PROBLEM STATUS:' + prob.status))
         sys.stdout.flush()
-    except (ValueError, cvx.SolverError) as err:     # if solvers fail to solve the problem
-        #         print(err)
-        #         sys.stdout.flush()
+    except (ValueError, cvx.SolverError):     # if solvers fail to solve the problem
+
         lam = old_div(sn, 500)
         constraints = constraints[:-1]
         objective = cvx.Minimize(cvx.norm(-c + fluor - b - gd_vec *
                                           c1, 2) + lam * cvx.norm(G * c, 1))
         prob = cvx.Problem(objective, constraints)
+
         try:  # in case scs was not installed properly
             try:
                 print('TRYING AGAIN ECOS')
@@ -372,9 +421,9 @@ def cvxpy_foopsi(fluor, g, sn, b=None, c1=None, bas_nonneg=True, solvers=None):
                 result = prob.solve(solver=solvers[1])
         except:
             sys.stderr.write(
-                '***** SCS solver failed, try installing and compiling SCS for much faster performance. Otherwise set the solvers in tempora_params to ["ECOS","CVXOPT"]')
+                '***** SCS solver failed, try installing and compiling SCS for much faster performance. '
+                'Otherwise set the solvers in tempora_params to ["ECOS","CVXOPT"]')
             sys.stderr.flush()
-            #result = prob.solve(solver='CVXOPT')
             raise
 
         if not (prob.status == 'optimal' or prob.status == 'optimal_inaccurate'):
@@ -384,7 +433,6 @@ def cvxpy_foopsi(fluor, g, sn, b=None, c1=None, bas_nonneg=True, solvers=None):
             b = 0
             c1 = 0
             return c, b, c1, g, sn, sp
-            #raise Exception('Problem could not be solved')
 
     sp = np.squeeze(np.asarray(G * c.value))
     c = np.squeeze(np.asarray(c.value))
@@ -401,28 +449,34 @@ def _nnls(KK, Ky, s=None, mask=None, tol=1e-9, max_iter=None):
     Solve non-negative least squares problem
     ``argmin_s || Ks - y ||_2`` for ``s>=0``
 
-    Parameters
+    Parameters:
     ----------
+
     KK : array, shape (n, n)
         Dot-product of design matrix K transposed and K, K'K
+
     Ky : array, shape (n,)
         Dot-product of design matrix K transposed and target vector y, K'y
+
     s : None or array, shape (n,), optional, default None
         Initialization of deconvolved neural activity.
+
     mask : array of bool, shape (n,), optional, default (True,)*n
         Mask to restrict potential spike times considered.
+
     tol : float, optional, default 1e-9
         Tolerance parameter.
+
     max_iter : None or int, optional, default None
         Maximum number of iterations before termination.
         If None (default), it is set to len(KK).
 
-    Returns
+    Returns:
     -------
     s : array, shape (n,)
         Discretized deconvolved neural activity (spikes)
 
-    References
+    References:
     ----------
     * Lawson C and Hanson RJ, SIAM 1987
     * Bro R and DeJong S, J Chemometrics 1997
@@ -447,6 +501,7 @@ def _nnls(KK, Ky, s=None, mask=None, tol=1e-9, max_iter=None):
     for i in range(max_iter):  # max(l) is checked at the end, should do at least one iteration
         w = np.argmax(l)
         P[w] = True
+
         try:  # likely unnnecessary try-except-clause for robustness sake
             mu = np.linalg.inv(KK[P][:, P]).dot(Ky[P])
         except:
@@ -476,38 +531,46 @@ def onnls(y, g, lam=0, shift=100, window=None, mask=None, tol=1e-9, max_iter=Non
     Solves the sparse non-negative deconvolution problem
     ``argmin_s 1/2|Ks-y|^2 + lam |s|_1`` for ``s>=0``
 
-    Parameters
+    Parameters:
     ----------
     y : array of float, shape (T,)
         One dimensional array containing the fluorescence intensities with
         one entry per time-bin.
+
     g : array, shape (p,)
         if p in (1,2):
             Parameter(s) of the AR(p) process that models the fluorescence impulse response.
         else:
             Kernel that models the fluorescence impulse response.
+
     lam : float, optional, default 0
         Sparsity penalty parameter lambda.
+
     shift : int, optional, default 100
         Number of frames by which to shift window from on run of NNLS to the next.
+
     window : int, optional, default None (200 or larger dependend on g)
         Window size.
+
     mask : array of bool, shape (n,), optional, default (True,)*n
         Mask to restrict potential spike times considered.
+
     tol : float, optional, default 1e-9
         Tolerance parameter.
+
     max_iter : None or int, optional, default None
         Maximum number of iterations before termination.
         If None (default), it is set to window size.
 
-    Returns
+    Returns:
     -------
     c : array of float, shape (T,)
         The inferred denoised fluorescence signal at each time-bin.
+
     s : array of float, shape (T,)
         Discretized deconvolved neural activity (spikes).
 
-    References
+    References:
     ----------
     * Friedrich J and Paninski L, NIPS 2016
     * Bro R and DeJong S, J Chemometrics 1997
@@ -524,12 +587,14 @@ def onnls(y, g, lam=0, shift=100, window=None, mask=None, tol=1e-9, max_iter=Non
         w = window
     w = min(T, w)
     K = np.zeros((w, w))
+
     if len(g) == 1:  # kernel for AR(1)
         _y = y - lam * (1 - g[0])
         _y[-1] = y[-1] - lam
         h = np.exp(log(g[0]) * np.arange(w))
         for i in range(w):
             K[i:, i] = h[:w - i]
+
     elif len(g) == 2:  # kernel for AR(2)
         _y = y - lam * (1 - g[0] - g[1])
         _y[-2] = y[-2] - lam * (1 - g[0])
@@ -543,6 +608,7 @@ def onnls(y, g, lam=0, shift=100, window=None, mask=None, tol=1e-9, max_iter=Non
                  np.exp(log(r) * np.arange(1, w + 1))) / (d - r)
         for i in range(w):
             K[i:, i] = h[:w - i]
+
     else:  # arbitrary kernel
         h = g
         for i in range(w):
@@ -556,6 +622,7 @@ def onnls(y, g, lam=0, shift=100, window=None, mask=None, tol=1e-9, max_iter=Non
     for i in range(0, max(1, T - w), shift):
         s[i:i + w] = _nnls(KK, K.T.dot(_y[i:i + w]), s[i:i + w], mask=mask[i:i + w],
                            tol=tol, max_iter=max_iter)[:w]
+
         # subtract contribution of spikes already committed to
         _y[i:i + w] -= K[:, :shift].dot(s[i:i + shift])
     s[i + shift:] = _nnls(KK[-(T - i - shift):, -(T - i - shift):],
@@ -574,49 +641,65 @@ def constrained_oasisAR2(y, g, sn, optimize_b=True, b_nonneg=True, optimize_g=0,
     Solves the noise constrained sparse non-negative deconvolution problem
     min |s|_1 subject to |c-y|^2 = sn^2 T and s_t = c_t-g1 c_{t-1}-g2 c_{t-2} >= 0
 
-    Parameters
+    Parameters:
     ----------
     y : array of float
         One dimensional array containing the fluorescence intensities (with baseline
         already subtracted) with one entry per time-bin.
+
     g : (float, float)
         Parameters of the AR(2) process that models the fluorescence impulse response.
+
     sn : float
         Standard deviation of the noise distribution.
+
     optimize_b : bool, optional, default True
         Optimize baseline if True else it is set to 0, see y.
+
     b_nonneg: bool, optional, default True
         Enforce strictly non-negative baseline if True.
+
     optimize_g : int, optional, default 0
         Number of large, isolated events to consider for optimizing g.
         No optimization if optimize_g=0.
+
     decimate : int, optional, default 5
         Decimation factor for estimating hyper-parameters faster on decimated data.
+
     shift : int, optional, default 100
         Number of frames by which to shift window from on run of NNLS to the next.
+
     window : int, optional, default None (200 or larger dependend on g)
         Window size.
+
     tol : float, optional, default 1e-9
         Tolerance parameter.
+
     max_iter : int, optional, default 1
         Maximal number of iterations.
+
     penalty : int, optional, default 1
         Sparsity penalty. 1: min |s|_1  0: min |s|_0
 
-    Returns
+    Returns:
     -------
+
     c : array of float
         The inferred denoised fluorescence signal at each time-bin.
+
     s : array of float
         Discretized deconvolved neural activity (spikes).
+
     b : float
         Fluorescence baseline value.
+
     (g1, g2) : tuple of float
         Parameters of the AR(2) process that models the fluorescence impulse response.
+
     lam : float
         Sparsity penalty parameter lambda of dual problem.
 
-    References
+    References:
     ----------
     * Friedrich J and Paninski L, NIPS 2016
     * Friedrich J, Zhou P, and Paninski L, arXiv 2016
@@ -639,6 +722,7 @@ def constrained_oasisAR2(y, g, sn, optimize_b=True, b_nonneg=True, optimize_g=0,
     elif decimate == 0:  # need to run AR1 anyways for estimating AR coeffs
         decimate = 1
     thresh = sn * sn * T
+
     # get initial estimate of b and lam on downsampled data using AR1 model
     if decimate > 0:
         from caiman.source_extraction.cnmf.oasis import oasisAR1, constrained_oasisAR1
@@ -668,9 +752,6 @@ def constrained_oasisAR2(y, g, sn, optimize_b=True, b_nonneg=True, optimize_g=0,
         # this window size seems necessary and sufficient
         possible_spikes = [x + np.arange(-2, 3) for x in np.where(s > s.max() / 10.)[0]]
         ff = np.array(possible_spikes, dtype=np.int).ravel()
-        # ff = np.hstack([a * decimate + np.arange(-decimate, decimate)
-        #                 for a in np.where(s > 1e-6)[0]])
-
         ff = np.unique(ff[(ff >= 0) * (ff < T)])
         mask = np.zeros(T, dtype=bool)
         mask[ff] = True
@@ -680,15 +761,17 @@ def constrained_oasisAR2(y, g, sn, optimize_b=True, b_nonneg=True, optimize_g=0,
         mask = None
     if b_nonneg:
         b = max(b, 0)
+
     # run ONNLS
     c, s = onnls(y - b, g, lam=lam, mask=mask, shift=shift, window=window, tol=tol)
 
     if not optimize_b:  # don't optimize b, just the dual variable lambda
-        for i in range(max_iter - 1):
+        for _ in range(max_iter - 1):
             res = y - c
             RSS = res.dot(res)
             if np.abs(RSS - thresh) < 1e-4 * thresh:
                 break
+
             # calc shift dlam, here attributed to sparsity penalty
             tmp = np.empty(T)
             ls = np.append(np.where(s > 1e-6)[0], T)
@@ -696,6 +779,7 @@ def constrained_oasisAR2(y, g, sn, optimize_b=True, b_nonneg=True, optimize_g=0,
             tmp[:l] = (1 + d) / (1 + d**l) * np.exp(log(d) * np.arange(l))  # first pool
             for i, f in enumerate(ls[:-1]):  # all other pools
                 l = ls[i + 1] - f - 1
+
                 # if and elif correct last 2 time points for |s|_1 instead |c|_1
                 if i == len(ls) - 2:  # last pool
                     tmp[f] = (1. / f_lam if l == 0 else
@@ -718,6 +802,7 @@ def constrained_oasisAR2(y, g, sn, optimize_b=True, b_nonneg=True, optimize_g=0,
                 db = (-bb + sqrt(bb * bb - aa * cc)) / aa
             except:
                 db = -bb / aa
+
             # perform shift
             b += db
             c, s = onnls(y - b, g, lam=lam, mask=mask, shift=shift, window=window, tol=tol)
@@ -730,7 +815,7 @@ def constrained_oasisAR2(y, g, sn, optimize_b=True, b_nonneg=True, optimize_g=0,
         b += db
         lam -= db / (1 - g[0] - g[1])
         g_converged = False
-        for i in range(max_iter - 1):
+        for _ in range(max_iter - 1):
             res = y - c - b
             RSS = res.dot(res)
             if np.abs(RSS - thresh) < 1e-4 * thresh:
@@ -752,11 +837,13 @@ def constrained_oasisAR2(y, g, sn, optimize_b=True, b_nonneg=True, optimize_g=0,
                 db = (-bb + sqrt(bb * bb - aa * cc)) / aa
             except:
                 db = -bb / aa
+
             # perform shift
             if b_nonneg:
                 db = max(db, -b)
             b += db
             c, s = onnls(y - b, g, lam=lam, mask=mask, shift=shift, window=window, tol=tol)
+
             # update b and lam
             db = max(np.mean(y - c), 0 if b_nonneg else -np.inf) - b
             b += db
@@ -786,6 +873,7 @@ def constrained_oasisAR2(y, g, sn, optimize_b=True, b_nonneg=True, optimize_g=0,
                 g = (d + r, -d * r)
                 c, s = onnls(y - b, g, lam=lam, mask=mask,
                              shift=shift, window=window, tol=tol)
+
                 # update b and lam
                 db = max(np.mean(y - c), 0 if b_nonneg else -np.inf) - b
                 b += db
@@ -804,6 +892,7 @@ def constrained_oasisAR2(y, g, sn, optimize_b=True, b_nonneg=True, optimize_g=0,
                 tmp[f] = (g11[:l].dot(y[f:f + l]) - g11g12[l - 1] * tmp[f - 1]) / g11g11[l - 1]
                 tmp[f + 1:f + l] = g11[1:l] * tmp[f] + g12[1:l] * tmp[f - 1]
             return tmp
+
         spikesizes = np.sort(s[s > 1e-6])
         i = len(spikesizes) // 2
         l = 0
@@ -831,16 +920,25 @@ def estimate_parameters(fluor, p=2, sn=None, g=None, range_ff=[0.25, 0.5],
                         method='logmexp', lags=5, fudge_factor=1.):
     """
     Estimate noise standard deviation and AR coefficients if they are not present
+
+    Parameters:
+    -----------
+
     p: positive integer
         order of AR system
+
     sn: float
         noise standard deviation, estimated if not provided.
+
     lags: positive integer
         number of additional lags where he autocovariance is computed
+
     range_ff : (1,2) array, nonnegative, max value <= 0.5
         range of frequency (x Nyquist rate) over which the spectrum is averaged
+
     method: string
         method of averaging: Mean, median, exponentiated mean of logvalues (default)
+
     fudge_factor: float (0< fudge_factor <= 1)
         shrinkage factor to reduce bias
     """
@@ -860,22 +958,29 @@ def estimate_parameters(fluor, p=2, sn=None, g=None, range_ff=[0.25, 0.5],
 def estimate_time_constant(fluor, p=2, sn=None, lags=5, fudge_factor=1.):
     """
     Estimate AR model parameters through the autocovariance function
-    Inputs
-    ----------
+
+    Inputs:
+    --------
+
     fluor        : nparray
         One dimensional array containing the fluorescence intensities with
         one entry per time-bin.
+
     p            : positive integer
         order of AR system
+
     sn           : float
         noise standard deviation, estimated if not provided.
+
     lags         : positive integer
         number of additional lags where he autocovariance is computed
+
     fudge_factor : float (0< fudge_factor <= 1)
         shrinkage factor to reduce bias
 
-    Return
+    Returns:
     -----------
+
     g       : estimated coefficients of the AR process
     """
 
@@ -888,7 +993,6 @@ def estimate_time_constant(fluor, p=2, sn=None, lags=5, fudge_factor=1.):
 
     A = scipy.linalg.toeplitz(xc[lags + np.arange(lags)],
                               xc[lags + np.arange(p)]) - sn**2 * np.eye(lags, p)
-    # print A, xc
     g = np.linalg.lstsq(A, xc[lags + 1:])[0]
     gr = np.roots(np.concatenate([np.array([1]), -g.flatten()]))
     gr = old_div((gr + gr.conjugate()), 2.)
@@ -903,17 +1007,21 @@ def estimate_time_constant(fluor, p=2, sn=None, lags=5, fudge_factor=1.):
 def GetSn(fluor, range_ff=[0.25, 0.5], method='logmexp'):
     """    
     Estimate noise power through the power spectral density over the range of large frequencies    
-    Inputs
+
+    Inputs:
     ----------
+
     fluor    : nparray
         One dimensional array containing the fluorescence intensities with
         one entry per time-bin.
+
     range_ff : (1,2) array, nonnegative, max value <= 0.5
         range of frequency (x Nyquist rate) over which the spectrum is averaged  
+
     method   : string
         method of averaging: Mean, median, exponentiated mean of logvalues (default)
 
-    Return
+    Returns:
     -----------
     sn       : noise standard deviation
     """
@@ -935,13 +1043,16 @@ def GetSn(fluor, range_ff=[0.25, 0.5], method='logmexp'):
 def axcov(data, maxlag=5):
     """
     Compute the autocovariance of data at lag = -maxlag:0:maxlag
-    Parameters
+
+    Parameters:
     ----------
     data : array
         Array containing fluorescence data
+
     maxlag : int
         Number of lags to use in autocovariance calculation
-    Returns
+
+    Returns:
     -------
     axcov : array
         Autocovariances computed from -maxlag:0:maxlag
@@ -954,17 +1065,18 @@ def axcov(data, maxlag=5):
     xcov = np.fft.ifft(np.square(np.abs(xcov)))
     xcov = np.concatenate([xcov[np.arange(xcov.size - maxlag, xcov.size)],
                            xcov[np.arange(0, maxlag + 1)]])
-    #xcov = xcov/np.concatenate([np.arange(T-maxlag,T+1),np.arange(T-1,T-maxlag-1,-1)])
     return np.real(old_div(xcov, T))
 
 
 def nextpow2(value):
     """
     Find exponent such that 2^exponent is equal to or greater than abs(value).
-    Parameters
+
+    Parameters:
     ----------
     value : int
-    Returns
+
+    Returns:
     -------
     exponent : int
     """

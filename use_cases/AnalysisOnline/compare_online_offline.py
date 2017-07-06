@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 """
 Created on Mon Apr 24 09:54:35 2017
-
 @author: agiovann
 """
 
@@ -343,6 +342,4 @@ for poor in poor_perf[:]:
     pl.rcParams['pdf.fonttype'] = 42
         
     
-    
-
         

@@ -1593,7 +1593,6 @@ def motion_correct_batch_rigid(fname, max_shifts, dview = None, splits = 56 ,num
     """
 
     m = cm.load(fname,subindices=slice(0,None,10))
-
     if m.shape[0]<300:
         m = cm.load(fname,subindices=slice(0,None,1))
     elif m.shape[0]<500:
@@ -1706,7 +1705,6 @@ def motion_correct_batch_pwrigid(fname, max_shifts, strides, overlaps, add_to_mo
         inferred rigid shifts to corrrect the movie
 
     """
-
 
     if template is None:
         raise Exception('You need to initialize the template with a good estimate. See the motion_correct_batch_rigid function')

@@ -6,9 +6,6 @@ Created on Thu Oct 22 13:22:26 2015
 """
 from __future__ import division
 from __future__ import print_function
-
-
-
 #%%
 from builtins import map
 from builtins import zip
@@ -27,6 +24,10 @@ from skimage.morphology import watershed
 from scipy import ndimage as ndi
 from skimage.draw import polygon
 import pylab as pl
+import zipfile
+import tempfile
+import shutil
+import os 
 #from cell_magic_wand import cell_magic_wand,cell_magic_wand_3d_IOU
 #%%
 def com(A, d1, d2):
@@ -74,7 +75,7 @@ def get_distance_from_A(masks_gt,masks_comp, min_dist = 10 ):
     return distance_masks([A_ben,A_cnmf],[cm_ben,cm_cnmf], min_dist )  
 #%%
 def nf_match_neurons_in_binary_masks(masks_gt,masks_comp,thresh_cost=.7, min_dist = 10, print_assignment= False, plot_results = False, Cn=None, labels = None, cmap = 'viridis'):
-    '''
+    """
     Match neurons expressed as binary masks. Uses Hungarian matching algorithm
 
     Parameters:
@@ -105,7 +106,7 @@ def nf_match_neurons_in_binary_masks(masks_gt,masks_comp,thresh_cost=.7, min_dis
         indeces true pos ground truth mask 
 
     idx_tp_2:
-        indeces ground truth comp
+        indeces true pos comp
 
     idx_fn_1:
         indeces false neg
@@ -115,17 +116,20 @@ def nf_match_neurons_in_binary_masks(masks_gt,masks_comp,thresh_cost=.7, min_dis
 
     performance:  
 
-    '''
+    """
     #%%
     ncomps,d1,d2 = np.shape(masks_gt)
     dims = d1,d2
+    #transpose to have a list of components, then reshaping it to have a 1D matrix red in the Fortran style
     A_ben = scipy.sparse.csc_matrix(np.reshape(masks_gt[:].transpose([1,2,0]),(np.prod(dims),-1,),order='F'))
     A_cnmf = scipy.sparse.csc_matrix(np.reshape(masks_comp[:].transpose([1,2,0]),(np.prod(dims),-1,),order='F'))
-
+    #have the center if mass of each element of the two masks
     cm_ben = [ scipy.ndimage.center_of_mass(mm) for mm in masks_gt]
     cm_cnmf = [ scipy.ndimage.center_of_mass(mm) for mm in masks_comp]
     #%% find distances and matches
+    #find the distance between each masks
     D=distance_masks([A_ben,A_cnmf],[cm_ben,cm_cnmf], min_dist )    
+    
     matches,costs=find_matches(D,print_assignment=print_assignment)
     matches=matches[0]
     costs=costs[0]
@@ -156,33 +160,36 @@ def nf_match_neurons_in_binary_masks(masks_gt,masks_comp,thresh_cost=.7, min_dis
     idx_tp_gt,idx_tp_comp, idx_fn_gt, idx_fp_comp = idx_tp_ben,idx_tp_cnmf, idx_fn, idx_fp_cnmf
 
     if plot_results:
-        pl.rcParams['pdf.fonttype'] = 42
-        font = {'family' : 'Myriad Pro',
-                'weight' : 'regular',
-                'size'   : 20}
-        pl.rc('font', **font)
-        lp,hp = np.nanpercentile(Cn,[5,95])
-        pl.subplot(1,2,1)
-        pl.imshow(Cn,vmin=lp,vmax=hp, cmap = cmap)
-#        pl.colorbar()
-        [pl.contour(mm,levels=[0],colors='w',linewidths=1) for mm in masks_comp[idx_tp_comp]] 
-        [pl.contour(mm,levels=[0],colors='r',linewidths=1) for mm in masks_gt[idx_tp_gt]] 
-        if labels is None:
-            pl.title('MATCHES')
-        else:
-            pl.title('MATCHES: '+labels[1]+'(w), ' + labels[0] + '(r)')
-        #pl.legend([comp_str,'GT'])
-        pl.axis('off')
-        pl.subplot(1,2,2)
-        pl.imshow(Cn,vmin=lp,vmax=hp, cmap = cmap)
-        [pl.contour(mm,levels=[0],colors='w',linewidths=1) for mm in masks_comp[idx_fp_comp]] 
-        [pl.contour(mm,levels=[0],colors='r',linewidths=1) for mm in masks_gt[idx_fn]] 
-        if labels is None:
-            pl.title('FALSE POSITIVE (w), FALSE NEGATIVE (r)')
-        else:
-            pl.title(labels[1]+'(w), ' + labels[0] + '(r)')
-        #pl.legend([comp_str,'GT'])
-        pl.axis('off')
+        try :
+            pl.rcParams['pdf.fonttype'] = 42
+            font = {'family' : 'Myriad Pro',
+                    'weight' : 'regular',
+                    'size'   : 10}
+            pl.rc('font', **font)
+            lp,hp = np.nanpercentile(Cn,[5,95])
+            pl.subplot(1,2,1)
+            pl.imshow(Cn,vmin=lp,vmax=hp, cmap = cmap)
+    #        pl.colorbar()
+            [pl.contour(mm,levels=[0],colors='w',linewidths=1) for mm in masks_comp[idx_tp_comp]] 
+            [pl.contour(mm,levels=[0],colors='r',linewidths=1) for mm in masks_gt[idx_tp_gt]] 
+            if labels is None:
+                pl.title('MATCHES')
+            else:
+                pl.title('MATCHES: '+labels[1]+'(w), ' + labels[0] + '(r)')
+            #pl.legend([comp_str,'GT'])
+            pl.axis('off')
+            pl.subplot(1,2,2)
+            pl.imshow(Cn,vmin=lp,vmax=hp, cmap = cmap)
+            [pl.contour(mm,levels=[0],colors='w',linewidths=1) for mm in masks_comp[idx_fp_comp]] 
+            [pl.contour(mm,levels=[0],colors='r',linewidths=1) for mm in masks_gt[idx_fn_gt]] 
+            if labels is None:
+                pl.title('FALSE POSITIVE (w), FALSE NEGATIVE (r)')
+            else:
+                pl.title(labels[1]+'(w), ' + labels[0] + '(r)')
+            #pl.legend([comp_str,'GT'])
+            pl.axis('off')
+        except :
+            print("not able to plot precision recall usually because we are on travis")
     return  idx_tp_gt,idx_tp_comp, idx_fn_gt, idx_fp_comp, performance 
 
 
@@ -212,32 +219,39 @@ def distance_masks(M_s,cm_s,max_dist):
     D_s=[]
 
     for M1,M2,cm1,cm2 in zip(M_s[:-1],M_s[1:],cm_s[:-1],cm_s[1:]):
+        #better with a function that calls itself
         print('New Pair **')
+        #not to interfer with M_s
         M1= M1.copy()[:,:]
         M2= M2.copy()[:,:]
+        #take the last dimension's number (x*y)
         d_1=np.shape(M1)[-1]
         d_2=np.shape(M2)[-1]
         D = np.ones((d_1,d_2));
 
         cm1=np.array(cm1)
         cm2=np.array(cm2)
-        for i in range(d_1):
-            if i%100==0:
-                print(i)
-            k=M1[:,np.repeat(i,d_2)]+M2
+        for i in range(d_1): #for each components of gt
+            k=M1[:,np.repeat(i,d_2)]+M2  # k is correlation matrix of this neuron to every other of the test
     #        h=M1[:,np.repeat(i,d_2)].copy()
     #        h.multiply(M2)
-            for j  in range(d_2): 
-
-                dist = np.linalg.norm(cm1[i]-cm2[j])
+            for j  in range(d_2): #for each components on the tests
+                #
+                dist = np.linalg.norm(cm1[i]-cm2[j]) # we compute the distance of this one to the other ones
                 if dist<max_dist:
+                    #union matrix of the ith neuron to the jth one 
                     union = k[:,j].sum()
+                    #we could have used OR for union and AND for intersection while converting the matrice into real boolean before 
     #                intersection = h[:,j].nnz
+                    #product of the two elements' matrices
+                    #we multiply the boolean values from the jth omponent to the ith
                     intersection= np.array(M1[:,i].T.dot(M2[:,j]).todense()).squeeze()
         ##            intersect= np.sum(np.logical_xor(M1[:,i],M2[:,j]))
         ##            union=np.sum(np.logical_or(M1[:,i],M2[:,j]))
+                    #if we don't have even a union this is pointless
                     if union  > 0:
                         #intersection is removed from union since union contains twice the overlaping area
+                        #having the values in this format 0-1 is helpfull for the hungarian algorithm that follows
                         D[i,j] = 1-1.*intersection/(union-intersection)
                     else:
 #                        print 'empty component: setting distance to max'
@@ -258,6 +272,7 @@ def find_matches(D_s, print_assignment=False):
     costs=[]
     t_start=time.time()
     for ii,D in enumerate(D_s):
+        #we make a copy not to set changes in the original
         DD=D.copy()    
         if np.sum(np.where(np.isnan(DD)))>0:
             raise Exception('Distance Matrix contains NaN, not allowed!')
@@ -265,11 +280,13 @@ def find_matches(D_s, print_assignment=False):
 
     #    indexes = m.compute(DD)
 #        indexes = linear_assignment(DD)
+        #we do the hungarian
         indexes = linear_sum_assignment(DD)
         indexes2=[(ind1,ind2) for ind1,ind2 in zip(indexes[0],indexes[1])]
         matches.append(indexes)
         DD=D.copy()   
         total = []
+        #we want to extract those informations from the hungarian algo
         for row, column in indexes2:
             value = DD[row,column]
             if print_assignment:
@@ -278,7 +295,7 @@ def find_matches(D_s, print_assignment=False):
         print(('FOV: %d, shape: %d,%d total cost: %f' % (ii, DD.shape[0],DD.shape[1], np.sum(total))))
         print((time.time()-t_start))
         costs.append(total)      
-
+        #we send back the results in the format we want
     return matches,costs
 
 #%%
@@ -489,7 +506,7 @@ def nf_read_roi(fileobj):
 #%%
 def nf_read_roi_zip(fname,dims):
 
-    import zipfile
+#    import zipfile
     with zipfile.ZipFile(fname) as zf:
         coords = [nf_read_roi(zf.open(n))
                     for n in zf.namelist()]
@@ -507,7 +524,41 @@ def nf_read_roi_zip(fname,dims):
 
     masks = np.array([tomask(s-1) for s in coords])
     return masks
+#%%
+def nf_merge_roi_zip(fnames, idx_to_keep, new_fold):    
 
+    """
+    Create a zip file containing ROIs for ImageJ by combining elements from a list of ROI zip files
+    
+    Parameters:
+    -----------
+        fnames: str
+            list of zip files containing ImageJ rois
+        idx_to_keep:   list of lists
+            for each zip file index of elements to keep
+        new_fold: str
+            name of the output zip file (without .zip extension)
+    
+    """    
+    folders_rois = []
+    files_to_keep = []
+    # unzip the files and keep only the ones that are requested
+    for fn,idx in zip(fnames,idx_to_keep):
+        dirpath = tempfile.mkdtemp()
+        folders_rois.append(dirpath)        
+        with zipfile.ZipFile(fn) as zf:
+            name_rois = zf.namelist()            
+        zip_ref = zipfile.ZipFile(fn, 'r')
+        zip_ref.extractall(dirpath)                
+        files_to_keep.append([os.path.join(dirpath,ff) for ff in np.array(name_rois)[idx]])
+        zip_ref.close()
+    
+    os.makedirs(new_fold)
+    for fls in files_to_keep:
+        for fl in fls:
+            shutil.move(fl,new_fold)
+    shutil.make_archive(new_fold, 'zip', new_fold)        
+    shutil.rmtree(new_fold)    
 #%%    
 def extract_binary_masks_blob(A,  neuron_radius,dims,num_std_threshold=1, minCircularity= 0.5, minInertiaRatio = 0.2,minConvexity = .8):
     """
@@ -718,73 +769,103 @@ def extractROIsFromPCAICA(spcomps, numSTD=4, gaussiansigmax=2 , gaussiansigmay=2
     return allMasks,maskgrouped 
 
 #%% threshold and remove spurious components    
-def threshold_components(A_s,shape,min_size=5,max_size=np.inf,max_perc=.3):        
-    """
-    Threshold components output of a CNMF algorithm (A matrices)
+#def threshold_components(A_s,shape,min_size=5,max_size=np.inf,max_perc=.3):        
+#    """
+#    Threshold components output of a CNMF algorithm (A matrices)
+#
+#    Parameters:
+#    ----------
+#
+#    A_s: list 
+#        list of A matrice output from CNMF
+#
+#    min_size: int
+#        min size of the component in pixels
+#
+#    max_size: int
+#        max size of the component in pixels
+#
+#    max_perc: float        
+#        fraction of the maximum of each component used to threshold 
+#
+#
+#    Returns:
+#    -------        
+#
+#    B_s: list of the thresholded components
+#
+#    lab_imgs: image representing the components in ndimage format
+#
+#    cm_s: center of masses of each components
+#    """
+#
+#    B_s=[]
+#    lab_imgs=[]
+#
+#    cm_s=[]
+#    for A_ in A_s:
+#        print('*')
+#        max_comps=A_.max(0).todense().T
+#        tmp=[]
+#        cm=[]
+#        lim=np.zeros(shape)
+#        for idx,a in enumerate(A_.T):        
+#            #create mask by thresholding to 50% of the max
+#            print(idx)
+#            mask=np.reshape(a.todense()>(max_comps[idx]*max_perc),shape)        
+#            label_im, nb_labels = ndi.label(mask)
+#            sizes = ndi.sum(mask, label_im, list(range(nb_labels + 1)))            
+#            l_largest=(label_im==np.argmax(sizes))
+#            cm.append(scipy.ndimage.measurements.center_of_mass(l_largest,l_largest))
+#            lim[l_largest] = (idx+1)
+#    #       #remove connected components that are too small
+#            mask_size=np.logical_or(sizes<min_size,sizes>max_size)
+#            if np.sum(mask_size[1:])>1:
+#                print(('removing ' + str( np.sum(mask_size[1:])-1) + ' components'))
+#            remove_pixel=mask_size[label_im]
+#            label_im[remove_pixel] = 0           
+#
+#            label_im=(label_im>0)*1    
+#
+#            tmp.append(label_im.flatten())
+#
+#
+#        cm_s.append(cm)    
+#        lab_imgs.append(lim)        
+#        B_s.append(csc.csc_matrix(np.array(tmp)).T)
+#
+#    return B_s, lab_imgs, cm_s         
 
+#%% remove duplicate ROIs from manually annotated files
+
+def detect_duplicates(file_name,dist_thr = 0.1, FOV = (512,512)):
+    """
+    Removes duplicate ROIs from file file_name
     Parameters:
-    ----------
-
-    A_s: list 
-        list of A matrice output from CNMF
-
-    min_size: int
-        min size of the component in pixels
-
-    max_size: int
-        max size of the component in pixels
-
-    max_perc: float        
-        fraction of the maximum of each component used to threshold 
-
-
+    -----------
+        file_name:  .zip file with all rois
+        dist_thr:   distance threshold for duplicate detection
+        FOV:        dimensions of the FOV
+    
     Returns:
-    -------        
-
-    B_s: list of the thresholded components
-
-    lab_imgs: image representing the components in ndimage format
-
-    cm_s: center of masses of each components
-    """
-
-    B_s=[]
-    lab_imgs=[]
-
-    cm_s=[]
-    for A_ in A_s:
-        print('*')
-        max_comps=A_.max(0).todense().T
-        tmp=[]
-        cm=[]
-        lim=np.zeros(shape)
-        for idx,a in enumerate(A_.T):        
-            #create mask by thresholding to 50% of the max
-            print(idx)
-            mask=np.reshape(a.todense()>(max_comps[idx]*max_perc),shape)        
-            label_im, nb_labels = ndi.label(mask)
-            sizes = ndi.sum(mask, label_im, list(range(nb_labels + 1)))            
-            l_largest=(label_im==np.argmax(sizes))
-            cm.append(scipy.ndimage.measurements.center_of_mass(l_largest,l_largest))
-            lim[l_largest] = (idx+1)
-    #       #remove connected components that are too small
-            mask_size=np.logical_or(sizes<min_size,sizes>max_size)
-            if np.sum(mask_size[1:])>1:
-                print(('removing ' + str( np.sum(mask_size[1:])-1) + ' components'))
-            remove_pixel=mask_size[label_im]
-            label_im[remove_pixel] = 0           
-
-            label_im=(label_im>0)*1    
-
-            tmp.append(label_im.flatten())
-
-
-        cm_s.append(cm)    
-        lab_imgs.append(lim)        
-        B_s.append(csc.csc_matrix(np.array(tmp)).T)
-
-    return B_s, lab_imgs, cm_s         
-
+    --------
+        ind         : list of indeces with duplicate entries
+        ind_keep    : list of kept indeces
+    """    
+    
+    rois = nf_read_roi_zip(file_name,FOV)
+    cm = [scipy.ndimage.center_of_mass(mm) for mm in rois]
+    sp_rois = scipy.sparse.csc_matrix(np.reshape(rois,(rois.shape[0],np.prod(FOV))).T)
+    D = distance_masks([sp_rois,sp_rois],[cm,cm], 10)[0]
+    np.fill_diagonal(D,1)
+    indeces = np.where(D<dist_thr)      # pairs of duplicate indeces
+    ind = list(np.unique(indeces[1][indeces[1]>indeces[0]]))
+    ind_keep = list(set(range(D.shape[0]))-set(ind))
+    duplicates = list(np.unique(np.concatenate((indeces[0],indeces[1]))))
+    
+    return duplicates, ind_keep
+    
+    
 #%%
 #def get_roi_from_spatial_component(sp_comp, min_radius, max_radius, roughness=2, zoom_factor=1, center_range=2,z_step=1,thresh_iou=.4):
 #     
