@@ -981,12 +981,12 @@ def get_noise(data, method='diff2_med'):
 #                         'comment': 'CNMF-E is cool!'}
 #             writer = mpeg_writer(fps=options.fr, metadata=metadata)
 #             writer.saving(h_fig, mpeg_name)
+#             # TO BE DONE
 #
 #     # creating variables for storing the results
 #     if not K:
 #         K = np.int32((ind_search.size - ind_search.sum())/10)  # maximum
-#         # number of
-#         # neurons
+#         # number of neurons
 #
 #     Ain = np.zeros(shape=(d1*d2, K))
 #     Cin = np.zeros(shape=(K, total_frames))
@@ -1072,8 +1072,8 @@ def get_noise(data, method='diff2_med'):
 #     center = 1
 #     # return
 #     return results, center, cn0, pnr, save_avi
-#
-#
+
+
 
 
 def extract_ac(data_filtered, data_raw, ind_ctr, sz):
