@@ -136,6 +136,20 @@ Recent advances in calcium imaging acquisition techniques are creating datasets 
    
   * /!\ if you want to launch directly the python files, please be advised that your python console still needs to be in the CaImAn folder and not somewhere else. 
 
+
+# Testing
+
+* As of today, all of the commits needs to be previously tested before asking for a pull request. Call 'nosetests' program from inside of your CaImAn folder to look for defects. 
+
+  ### general_test
+
+   * This test will run the entire CaImAn program and look for differences against the original one. If your changes have made significant differences able to be recognise by this test. You are left with two choices : 
+   
+       * Either it is a desired on purpose changement of the code. You will then need to submit your pull request. Adding to it the generated folder in tests/comparison/tests that you will need to rename 'tosend'
+    
+       * Else it is an unplanned difference that has been found by the tests. In this situation, happy debugging. 
+   
+   
 # Contributors:
 
 * Giovannucci, Andrea. **Simons Foundation** 
@@ -144,6 +158,7 @@ Recent advances in calcium imaging acquisition techniques are creating datasets 
 * Cobos, Erick. **Baylor College of Medicine**
 * Staneva, Valentina. **eScience Institute**
 * Deverett, Ben. **Princeton University**
+* Kalfon, Jérémie. **University of Kent** , **ECE paris** 
 
 
 Please refer to the following wiki [page](https://github.com/simonsfoundation/CaImAn/wiki/Processing-large-datasets) or read in the testing section below.
