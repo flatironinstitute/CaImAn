@@ -60,7 +60,7 @@ from caiman.tests.comparison import comparison
 from caiman.motion_correction import tile_and_correct, motion_correction_piecewise
 
 # @params params_movie set parameters and create template by RIGID MOTION CORRECTION
-# params_movie = {'fname': ['/Users/jeremie/CaImAn/example_movies/demoSue2x.tif'],
+# params_movie = {'fname': ['./example_movies/demoSue2x.tif'],
 #                'niter_rig': 1,
 #                'max_shifts': (3, 3),  # maximum allow rigid shift
 #                'splits_rig': 20,  # for parallelization split the movies in  num_splits chuncks across time
