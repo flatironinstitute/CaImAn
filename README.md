@@ -46,7 +46,30 @@ Recent advances in calcium imaging acquisition techniques are creating datasets 
 ### Installation
 
 
-* Installation on posix (Mac and Linux)
+* Installation on Mac 
+
+   * Download and install Anaconda (Python 2.7 or Python 3.5) <http://docs.continuum.io/anaconda/install>
+
+   ```bash
+   
+   git clone https://github.com/simonsfoundation/CaImAn
+   cd CaImAn/
+   git pull
+   
+   EITHER
+   conda create -n CaImAn python=3.5 --file requirements_conda.txt   (For Python 3)
+   OR
+   conda create -n CaImAn ipython --file requirements_conda.txt   (For Python 2) 
+   
+   source activate CaImAn
+   pip install -r requirements_pip.txt
+   conda install -c menpo opencv3=3.1.0
+   python setup.py build_ext -i
+   conda install bokeh
+   ```
+
+
+* Installation on Linux 
 
    * Download and install Anaconda (Python 2.7 or Python 3.5) <http://docs.continuum.io/anaconda/install>
 
@@ -58,8 +81,9 @@ Recent advances in calcium imaging acquisition techniques are creating datasets 
    conda create -n CaImAn ipython --file requirements_conda.txt    
    source activate CaImAn
    pip install -r requirements_pip.txt
-   conda install -c menpo opencv3=3.1.0
+   conda install -c menpo opencv3=3.2.0
    python setup.py build_ext -i
+   conda install bokeh
    ```
 
    * To make the package available from everywhere and have it working *efficiently* under any configuration ALWAYS run these lines before starting spyder:
