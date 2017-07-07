@@ -262,7 +262,7 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
         print(f)
 
         if is_3D:
-            import tifffile
+            #import tifffile
 #            print("Using tifffile library instead of skimage because of  3D")
 
             if idx_xy is None:
