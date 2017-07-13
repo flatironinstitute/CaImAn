@@ -3,6 +3,7 @@ numpy
 scipy
 ipython
 ipyparallel
+jupyter
 matplotlib
 scikit-image
 scikit-learn
