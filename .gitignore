@@ -161,6 +161,9 @@ caiman/tests/comparison/tests/
 !caiman/tests/comparison/groundtruth.npz
 /dev
 
+#htmls
+docs/html/*
+
 
 #generated data from caiman
 /data_storage
