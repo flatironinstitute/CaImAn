@@ -223,21 +223,21 @@ def Params(Y, K=30, gSig=[5, 5], ssub=2, tsub=2, p=1, p_ssub=2, p_tsub=2,
 
     options['params_movie'] = {
            'fname': [u'./example_movies/'+name+'.tif'],
-           'max_shifts': (1, 1),  # maximum allow rigid shift (2,2)
-           'niter_rig': 1,
-           'splits_rig': 14,  # for parallelization split the movies in  num_splits chuncks across time
-           'num_splits_to_process_rig': None,  # if none all the splits are processed and the movie is saved
-           'strides': (48, 48),  # intervals at which patches are laid out for motion correction
-           'overlaps': (12, 12),  # overlap between pathes (size of patch strides+overlaps)
-           'splits_els': 14,  # for parallelization split the movies in  num_splits chuncks across time
-           'num_splits_to_process_els': [14, None],
+           'max_shifts': (1, 1),  # maximum allow rigid shift (2,2) #@inferrable
+           'niter_rig': 1, #@inferrable
+           'splits_rig': 14,  # for parallelization split the movies in  num_splits chuncks across time #@inferrable
+           'num_splits_to_process_rig': None,  # if none all the splits are processed and the movie is saved #@inferrable
+           'strides': (48, 48),  # intervals at which patches are laid out for motion correction #@inferrable???
+           'overlaps': (12, 12),  # overlap between pathes (size of patch strides+overlaps)  #@inferrable???
+           'splits_els': 14,  # for parallelization split the movies in  num_splits chuncks across time  #@inferrable
+           'num_splits_to_process_els': [14, None], #@inferrable
            # if none all the splits are processed and the movie is saved
-           'upsample_factor_grid': 3,  # upsample factor to avoid smearing when merging patches
-           'max_deviation_rigid': 1,  # maximum deviation allowed for patch with respect to rigid shift
+           'upsample_factor_grid': 3,  # upsample factor to avoid smearing when merging patches  #@inferrable
+           'max_deviation_rigid': 1,  # maximum deviation allowed for patch with respect to rigid shift  #@inferrable
            'p': p,  # order of the autoregressive system
            'merge_thresh': 0.8,  # merging threshold, max correlation allow
-           'rf': 20,  # half-size of the patches in pixels. rf=25, patches are 50x50    20
-           'stride_cnmf': (gSig[0]+gSig[1])/2,  # amounpl.it of overlap between the patches in pixels
+           'rf': 20,  # half-size of the patches in pixels. rf=25, patches are 50x50    20  #@inferrable
+           'stride_cnmf': (gSig[0]+gSig[1])/2,  # amounpl.it of overlap between the patches in pixels #@inferrable
            'K': 6,  # number of components per patch
            'is_dendrites': False,  # if dendritic. In this case you need to set init_method to sparse_nmf
            'init_method': method_init,
@@ -246,16 +246,16 @@ def Params(Y, K=30, gSig=[5, 5], ssub=2, tsub=2, p=1, p_ssub=2, p_tsub=2,
            'final_frate': 10,
            'r_values_min_patch': .7,  # threshold on space consistency
            'fitness_min_patch': -40,  # threshold on time variability
-           # threshold on time variability (if nonsparse activity)
+           # threshold on derivative of time variability (if nonsparse activity)
            'fitness_delta_min_patch': -40,
-           'Npeaks': 10,
+           'Npeaks': 10, #@inferrable
            'r_values_min_full': .85,
            'fitness_min_full': - 50,
            'fitness_delta_min_full': - 50,
-           'only_init_patch': True,
-           'gnb': 1,
-           'memory_fact': 1,
-           'n_chunks': 10
+           'only_init_patch': True, #@inferrable
+           'gnb': 1, # number of background components
+#           'memory_fact': 1,
+           'n_chunks': 10 #??
                                }
     options['params_display'] = {
         'downsample_ratio': .2,
