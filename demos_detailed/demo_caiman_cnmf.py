@@ -52,15 +52,13 @@ else:
     alpha_snmf=None #10e2  # this controls sparsity
 
 #%% FOR LOADING ALL TIFF FILES IN A FILE AND SAVING THEM ON A SINGLE MEMORY MAPPABLE FILE
-fnames = []
+fnames = ['demoMovieJ.tif']
 base_folder = './example_movies/'  # folder containing the demo files
-for file in glob.glob(os.path.join(base_folder, '*.tif')):
-    if file.endswith("ie.tif"):
-        fnames.append(os.path.abspath(file))        
-fnames.sort()
-if len(fnames) == 0:
-    raise Exception("Could not find any file")
 
+download_demo(fnames[0])
+fnames = [os.path.abspath(os.path.join(base_folder,fnames[0]))]
+# TODO: todocument
+m_orig = cm.load_movie_chain(fnames[:1])
 print(fnames)  
 fnames=fnames
 #%%

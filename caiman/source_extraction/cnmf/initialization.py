@@ -26,6 +26,7 @@ import scipy
 from scipy.ndimage.measurements import center_of_mass
 import caiman
 import cv2
+import sys
 from scipy.ndimage.filters import correlate
 #%%
 def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter=5, maxIter=5, nb=1,
@@ -563,10 +564,16 @@ def imblur(Y, sig=5, siz=11, nDimBlur=None, kernel=None, opencv = True):
             if X.ndim > 2:
                 #if we are on a video we repeat for each frame
                 for frame in range(X.shape[-1]):
-                    X[:,:,frame] = cv2.GaussianBlur(X[:,:,frame],tuple(siz),sig[0],sig[1],cv2.BORDER_CONSTANT,0)               
+                    if sys.version_info >= (3, 0):
+                        X[:,:,frame] = cv2.GaussianBlur(X[:,:,frame],tuple(siz),sig[0],None,sig[1],cv2.BORDER_CONSTANT)
+                    else:
+                        X[:,:,frame] = cv2.GaussianBlur(X[:,:,frame],tuple(siz),sig[0],sig[1],cv2.BORDER_CONSTANT,0)               
                 
             else:
-                X = cv2.GaussianBlur(X,tuple(siz),sig[0],sig[1],cv2.BORDER_CONSTANT,0) 
+                if sys.version_info >= (3, 0):
+                    X = cv2.GaussianBlur(X,tuple(siz),sig[0],None,sig[1],cv2.BORDER_CONSTANT) 
+                else:
+                    X = cv2.GaussianBlur(X,tuple(siz),sig[0],sig[1],cv2.BORDER_CONSTANT,0) 
         else:                
             for i in range(nDimBlur):
                 h = np.exp(

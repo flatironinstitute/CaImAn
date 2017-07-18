@@ -60,63 +60,86 @@ from caiman.tests.comparison import comparison
 from caiman.motion_correction import tile_and_correct, motion_correction_piecewise
 
 # @params params_movie set parameters and create template by RIGID MOTION CORRECTION
-# params_movie = {'fname': ['./example_movies/demoSue2x.tif'],
-#                'niter_rig': 1,
-#                'max_shifts': (3, 3),  # maximum allow rigid shift
-#                'splits_rig': 20,  # for parallelization split the movies in  num_splits chuncks across time
-#                # if none all the splits are processed and the movie is saved
-#                'num_splits_to_process_rig': None,
-#                # intervals at which patches are laid out for motion correction
-#                'strides': (48, 48),
-#                # overlap between pathes (size of patch strides+overlaps)
-#                'overlaps': (24, 24),
-#                'splits_els': 28,  # for parallelization split the movies in  num_splits chuncks across time
-#                # if none all the splits are processed and the movie is saved
-#                'num_splits_to_process_els': [14, None],
-#                'upsample_factor_grid': 6,  # upsample factor to avoid smearing when merging patches
-#                # maximum deviation allowed for patch with respect to rigid
-#                # shift
-#                'max_deviation_rigid': 2,
-#                'p': 1,  # order of the autoregressive system
-#                'merge_thresh': 0.8,  # merging threshold, max correlation allowed
-#                'rf': 15,  # half-size of the patches in pixels. rf=25, patches are 50x50
-#                'stride_cnmf': 6,  # amounpl.it of overlap between the patches in pixels
-#                'K': 4,  # number of components per patch
-#                # if dendritic. In this case you need to set init_method to
-#                # sparse_nmf
-#                'is_dendrites': False,
-#                'init_method': 'greedy_roi',
-#                'gSig': [4, 4],  # expected half size of neurons
-#                'alpha_snmf': None,  # this controls sparsity
-#                'final_frate': 30
-#                }
-# %%
+params_movie = {'fname': ['Sue_2x_3000_40_-46.tif'],
+               'niter_rig': 1,
+               'max_shifts': (3, 3),  # maximum allow rigid shift
+               'splits_rig': 20,  # for parallelization split the movies in  num_splits chuncks across time
+               # if none all the splits are processed and the movie is saved
+               'num_splits_to_process_rig': None,
+               # intervals at which patches are laid out for motion correction
+               'strides': (48, 48),
+               # overlap between pathes (size of patch strides+overlaps)
+               'overlaps': (24, 24),
+               'splits_els': 28,  # for parallelization split the movies in  num_splits chuncks across time
+               # if none all the splits are processed and the movie is saved
+               'num_splits_to_process_els': [14, None],
+               'upsample_factor_grid': 6,  # upsample factor to avoid smearing when merging patches
+               # maximum deviation allowed for patch with respect to rigid
+               # shift
+               'max_deviation_rigid': 2,
+               'p': 1,  # order of the autoregressive system
+               'merge_thresh': 0.8,  # merging threshold, max correlation allowed
+               'rf': 15,  # half-size of the patches in pixels. rf=25, patches are 50x50
+               'stride_cnmf': 6,  # amounpl.it of overlap between the patches in pixels
+               'K': 4,  # number of components per patch
+               # if dendritic. In this case you need to set init_method to
+               # sparse_nmf
+               'is_dendrites': False,
+               'init_method': 'greedy_roi',
+               'gSig': [4, 4],  # expected half size of neurons
+               'alpha_snmf': None,  # this controls sparsity
+               'final_frate': 30,
+               'r_values_min_patch': .7,  # threshold on space consistency
+               'fitness_min_patch': -40,  # threshold on time variability
+                # threshold on time variability (if nonsparse activity)
+               'fitness_delta_min_patch': -40,
+               'Npeaks': 10,
+               'r_values_min_full': .85,
+               'fitness_min_full': - 50,
+               'fitness_delta_min_full': - 50,
+               'only_init_patch': True,
+               'gnb': 1,
+               'memory_fact': 1,
+               'n_chunks': 10
+               }
 
+#%%
+# params_movie = {'fname': ['demoMovieJ.tif'],
+#                 'max_shifts': (1, 1),  # maximum allow rigid shift (2,2)
+#                 'niter_rig': 1,
+#                 'splits_rig': 14,  # for parallelization split the movies in  num_splits chuncks across time
+#                 'num_splits_to_process_rig': None,  # if none all the splits are processed and the movie is saved
+#                 'strides': (48, 48),  # intervals at which patches are laid out for motion correction
+#                 'overlaps': (12, 12),  # overlap between pathes (size of patch strides+overlaps)
+#                 'splits_els': 14,  # for parallelization split the movies in  num_splits chuncks across time
+#                 'num_splits_to_process_els': [14, None],  # if none all the splits are processed and the movie is saved
+#                 'upsample_factor_grid': 3,  # upsample factor to avoid smearing when merging patches
+#                 'max_deviation_rigid': 1,  # maximum deviation allowed for patch with respect to rigid shift
+#                 'p': 1,  # order of the autoregressive system
+#                 'merge_thresh': 0.8,  # merging threshold, max correlation allow
+#                 'rf': 20,  # half-size of the patches in pixels. rf=25, patches are 50x50    20
+#                 'stride_cnmf': 5,  # amounpl.it of overlap between the patches in pixels
+#                 'K': 6,  # number of components per patch
+#                 'is_dendrites': False,  # if dendritic. In this case you need to set init_method to sparse_nmf
+#                 'init_method': 'greedy_roi',
+#                 'gSig': [6, 6],  # expected half size of neurons
+#                 'alpha_snmf': None,  # this controls sparsity
+#                 'final_frate': 10,
+#                 'r_values_min_patch': .7,  # threshold on space consistency
+#                 'fitness_min_patch': -40,  # threshold on time variability
+#                 # threshold on time variability (if nonsparse activity)
+#                 'fitness_delta_min_patch': -40,
+#                 'Npeaks': 10,
+#                 'r_values_min_full': .85,
+#                 'fitness_min_full': - 50,
+#                 'fitness_delta_min_full': - 50,
+#                 'only_init_patch': True,
+#                 'gnb': 1,
+#                 'memory_fact': 1,
+#                 'n_chunks': 10
 
-# params_movie = {'fname':'example_movies/Sue_2000.tif',
-#                'max_shifts':(12,12), # maximum allow rigid shift
-#                'niter_rig':0,
-#                'splits_rig':28, # for parallelization split the movies in  num_splits chuncks across time
-#                'num_splits_to_process_rig':None, # if none all the splits are processed and the movie is saved
-#                'strides': (80,80), # intervals at which patches are laid out for motion correction
-#                'overlaps': (48,48), # overlap between pathes (size of patch strides+overlaps)
-#                'splits_els':28, # for parallelization split the movies in  num_splits chuncks across time
-#                'num_splits_to_process_els':[14,None], # if none all the splits are processed and the movie is saved
-#                'upsample_factor_grid':3, # upsample factor to avoid smearing when merging patches
-#                'max_deviation_rigid':7, #maximum deviation allowed for patch with respect to rigid shift
-# 'p': 1, # order of the autoregressive system
-# 'merge_thresh' : 0.8,  # merging threshold, max correlation allowed
-# 'rf' : 15,  # half-size of the patches in pixels. rf=25, patches are 50x50
-# 'stride_cnmf' : 6,  # amounpl.it of overlap between the patches in pixels
-# 'K' : 4,  #  number of components per patch
-# 'is_dendrites': False,  # if dendritic. In this case you need to set init_method to sparse_nmf
-# 'init_method' : 'greedy_roi',
-# 'gSig' : [4, 4],  # expected half size of neurons
-# 'alpha_snmf' : None,  # this controls sparsity
-# 'final_frate' : 30
-#                }
-# %%
-#
+#                 }
+# %% MULTIFILE
 # all_names = glob.glob(
 #    '/mnt/ceph/neuro/Sue/k53/k53_20160530_RSM_125um_41mW_zoom2p2_00001_000*.tif')
 # all_names.sort()
@@ -138,49 +161,11 @@ from caiman.motion_correction import tile_and_correct, motion_correction_piecewi
 #                 'alpha_snmf' : None,  # this controls sparsity
 #                 'final_frate' : 30
 #                }
-
-
-params_movie = {'fname': [u'./example_movies/demoMovieJ.tif'],
-                'max_shifts': (1, 1),  # maximum allow rigid shift (2,2)
-                'niter_rig': 1,
-                'splits_rig': 14,  # for parallelization split the movies in  num_splits chuncks across time
-                'num_splits_to_process_rig': None,  # if none all the splits are processed and the movie is saved
-                'strides': (48, 48),  # intervals at which patches are laid out for motion correction
-                'overlaps': (12, 12),  # overlap between pathes (size of patch strides+overlaps)
-                'splits_els': 14,  # for parallelization split the movies in  num_splits chuncks across time
-                'num_splits_to_process_els': [14, None],  # if none all the splits are processed and the movie is saved
-                'upsample_factor_grid': 3,  # upsample factor to avoid smearing when merging patches
-                'max_deviation_rigid': 1,  # maximum deviation allowed for patch with respect to rigid shift
-                'p': 1,  # order of the autoregressive system
-                'merge_thresh': 0.8,  # merging threshold, max correlation allow
-                'rf': 20,  # half-size of the patches in pixels. rf=25, patches are 50x50    20
-                'stride_cnmf': 5,  # amounpl.it of overlap between the patches in pixels
-                'K': 6,  # number of components per patch
-                'is_dendrites': False,  # if dendritic. In this case you need to set init_method to sparse_nmf
-                'init_method': 'greedy_roi',
-                'gSig': [6, 6],  # expected half size of neurons
-                'alpha_snmf': None,  # this controls sparsity
-                'final_frate': 10,
-                'r_values_min_patch': .7,  # threshold on space consistency
-                'fitness_min_patch': -40,  # threshold on time variability
-                # threshold on time variability (if nonsparse activity)
-                'fitness_delta_min_patch': -40,
-                'Npeaks': 10,
-                'r_values_min_full': .85,
-                'fitness_min_full': - 50,
-                'fitness_delta_min_full': - 50,
-                'only_init_patch': True,
-                'gnb': 1,
-                'memory_fact': 1,
-                'n_chunks': 10
-
-                }
+#%%
 params_display = {
     'downsample_ratio': .2,
     'thr_plot': 0.9
 }
-
-# %% load movie (in memory!)
 
 # TODO: do find&replace on those parameters and delete this paragrph
 
@@ -215,9 +200,10 @@ upsample_factor_grid = params_movie['upsample_factor_grid']
 max_deviation_rigid = params_movie['max_deviation_rigid']
 
 # %% download movie if not there
-if fname == 'example_movies/demoSue2x.tif':
-# TODO: todocument
-     download_demo()
+if fname[0] in ['Sue_2x_3000_40_-46.tif','demoMovieJ.tif']:
+    # TODO: todocument
+    download_demo(fname[0])
+    fname = [os.path.join('example_movies',fname[0])]
 # TODO: todocument
 m_orig = cm.load_movie_chain(fname[:1])
 
@@ -241,8 +227,6 @@ comp.dims = np.shape(m_orig)[1:]
 # movie must be mostly positive for this to work
 # TODO : document
 # setting timer to see how the changement in functions make the code react on a same computer.
-
-
 
 min_mov = cm.load(fname[0], subindices=range(400)).min()
 mc_list = []
@@ -394,7 +378,7 @@ c, dview, n_processes = cm.cluster.setup_cluster(
     backend='local', n_processes=None, single_thread=False)
 # %% save each chunk in F format
 t1 = time.time()
-if not params_movie.has_key('max_shifts'):
+if not 'max_shifts' in params_movie:
     fnames = params_movie['fname']
     border_to_0 = 0
 else:  # elif not params_movie.has_key('overlaps'):
@@ -495,7 +479,7 @@ t1 = time.time()
 # TODO: todocument
 # TODO: warnings 3
 cnm = cnmf.CNMF(n_processes=1, k=K, gSig=gSig, merge_thresh=params_movie['merge_thresh'], p=params_movie['p'],
-                dview=None, rf=rf, stride=stride_cnmf, memory_fact=params_movie['memory_fact'],
+                dview=dview, rf=rf, stride=stride_cnmf, memory_fact=1,
                 method_init=init_method, alpha_snmf=alpha_snmf, only_init_patch=params_movie['only_init_patch'],
                 gnb=params_movie['gnb'], method_deconvolution='oasis')
 comp.cnmpatch = copy.copy(cnm)
@@ -531,7 +515,6 @@ print(('Keeping ' + str(len(idx_components)) +
        ' and discarding  ' + str(len(idx_components_bad))))
 # %%
 # TODO: show screenshot 13
-
 pl.figure()
 crd = plot_contours(A_tot.tocsc()[:, idx_components], Cn, thr=params_display['thr_plot'])
 # %%
@@ -539,7 +522,7 @@ A_tot = A_tot.tocsc()[:, idx_components]
 C_tot = C_tot[idx_components]
 # %% rerun updating the components to refine
 t1 = time.time()
-cnm = cnmf.CNMF(n_processes=1, k=A_tot.shape, gSig=gSig, merge_thresh=merge_thresh, p=p, dview=None, Ain=A_tot,
+cnm = cnmf.CNMF(n_processes=1, k=A_tot.shape, gSig=gSig, merge_thresh=merge_thresh, p=p, dview=dview, Ain=A_tot,
                 Cin=C_tot,
                 f_in=f_tot, rf=None, stride=None, method_deconvolution='oasis')
 

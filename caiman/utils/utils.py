@@ -34,44 +34,52 @@ except:
 
 
 
-file_list=[['./example_movies/demoSue2x.tif','https://www.dropbox.com/s/09z974vkeg3t5gn/Sue_2x_3000_40_-46.tif?dl=1']
-          ,['./example_movies/demoMovieJ.tif','https://www.dropbox.com/s/8j1cnqubye3asmu/demoMovieJ.tif?dl=1']
-          ,['./example_movies/demoMovie.tif','https://www.dropbox.com/s/obmtq7305ug4dh7/demoMovie.tif?dl=1']]
 
 
 
 
-def download_demo(name='./example_movies/demoSue2x.tif'):
+
+def download_demo(name='Sue_2x_3000_40_-46.tif'):
     """download a file from the file list with the url of its location
  
  
-        using urllib, you can add you own name and location in this global parameter
+    using urllib, you can add you own name and location in this global parameter
  
-            Parameters:
-            -----------
+        Parameters:
+        -----------
  
-            name: str
-                the path of the file correspondong to a file in the filelist
+        name: str
+            the path of the file correspondong to a file in the filelist (''Sue_2x_3000_40_-46.tif' or 'demoMovieJ.tif')
  
-        Raise:
-        ---------
-            WrongFolder Exception
+    Raise:
+    ---------
+        WrongFolder Exception
  
 
-        """
-#\bug       
-#\warning  
-    global file_list
-    if os.path.exists('./example_movies'):
-        for f in file_list:
-            if (not(os.path.exists(f[0])) and name==f[0]):        
-                url = f[1]
-                print("downloading "+f[0]+"with urllib")
+    """
+   
+    
+    #\bug       
+    #\warning  
+    
+    file_dict = {'Sue_2x_3000_40_-46.tif':'https://www.dropbox.com/s/09z974vkeg3t5gn/Sue_2x_3000_40_-46.tif?dl=1',
+                 'demoMovieJ.tif':'https://www.dropbox.com/s/8j1cnqubye3asmu/demoMovieJ.tif?dl=1'}
+    #          ,['./example_movies/demoMovie.tif','https://www.dropbox.com/s/obmtq7305ug4dh7/demoMovie.tif?dl=1']]
+    base_folder = './example_movies'
+    if os.path.exists(base_folder):
+         path_movie = os.path.join(base_folder,name)
+         if not os.path.exists(path_movie):        
+                url = file_dict[name]
+                print( "downloading "+ name +"with urllib" )
                 f = urlopen(url)
                 data = f.read()
-                with open(name, "wb") as code:
+                with open(path_movie, "wb") as code:
                     code.write(data)
+         else:
+             
+             print("File already downloaded")
     else:
+
          raise Exception('You must be in caiman folder')
 #    print("downloading with requests")
 #    r = requests.get(url)
