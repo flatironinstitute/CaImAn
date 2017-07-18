@@ -1,0 +1,9 @@
+<map id="tile_and_correct" name="tile_and_correct">
+<area shape="rect" id="node2" href="$namespacecaiman_1_1motion__correction.html#a0700d66a3a6b2556b1c712daf9c18a9b" title="register_translation" alt="" coords="177,31,313,57"/>
+<area shape="rect" id="node5" href="$namespacecaiman_1_1motion__correction.html#a54e0e94e8c54dadcad8bc6688e46c590" title="apply_shift_iteration" alt="" coords="175,81,315,108"/>
+<area shape="rect" id="node6" href="$namespacecaiman_1_1motion__correction.html#ad4fabc7e2b2082da438e99a60ca41d96" title="apply_shifts_dft" alt="" coords="188,132,303,159"/>
+<area shape="rect" id="node7" href="$namespacecaiman_1_1motion__correction.html#aef362667b31a29dfcc1a0c35c87f01ad" title="efficiently and lazily slides a window across the image Parameters img:ndarray 2D image that needs to..." alt="" coords="384,212,496,239"/>
+<area shape="rect" id="node8" href="$namespacecaiman_1_1motion__correction.html#a88ef513cfa324fc8548e4fb46d7a67e5" title="create a matrix that is used to normalize the intersection of the stiched patches ..." alt="" coords="171,234,320,275"/>
+<area shape="rect" id="node3" href="$namespacecaiman_1_1motion__correction.html#aa339d12f180017a763175f450816f158" title="_upsampled_dft" alt="" coords="381,5,499,32"/>
+<area shape="rect" id="node4" href="$namespacecaiman_1_1motion__correction.html#a09859fe5f2beba321b5397662b26651b" title="_compute_phasediff" alt="" coords="369,56,511,83"/>
+</map>

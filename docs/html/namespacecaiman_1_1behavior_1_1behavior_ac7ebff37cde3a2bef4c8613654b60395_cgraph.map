@@ -1,0 +1,7 @@
+<map id="normalize_components" name="normalize_components">
+<area shape="rect" id="node2" href="$namespacecaiman_1_1behavior_1_1behavior.html#a513c5d7fc1e56d74ff55d4f74ee836a3" title="main" alt="" coords="213,81,264,108"/>
+<area shape="rect" id="node3" href="$namespacecaiman_1_1behavior_1_1behavior.html#ac24ea957986e39f33ac3ceb78ed989d1" title="Create a mask from a the convex polygon enclosed between selected points. " alt="" coords="349,5,427,32"/>
+<area shape="rect" id="node4" href="$namespacecaiman_1_1behavior_1_1behavior.html#a8f9ed50a7ba21081b068bf7967f74e09" title="This function compute the optical flow of behavioral movies using the opencv cv2.calcOpticalFlowFarne..." alt="" coords="313,56,463,83"/>
+<area shape="rect" id="node5" href="$namespacecaiman_1_1behavior_1_1behavior.html#ab7ca16e11cc59cf634fcdd9a2c6848f6" title="From optical flow images can extract spatial and temporal components. " alt="" coords="317,107,459,133"/>
+<area shape="rect" id="node6" href="$namespacecaiman_1_1behavior_1_1behavior.html#abd4cdefdebaf9128bc642c37c14eeec1" title="%% single featureflow,. " alt="" coords="326,157,450,184"/>
+</map>

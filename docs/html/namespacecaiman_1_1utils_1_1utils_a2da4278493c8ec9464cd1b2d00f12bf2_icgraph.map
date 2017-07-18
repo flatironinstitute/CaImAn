@@ -1,0 +1,4 @@
+<map id="val_parse" name="val_parse">
+<area shape="rect" id="node2" href="$namespacecaiman_1_1utils_1_1utils.html#acb92eaecdc1f6d8e00bc14c21dceef9a" title="parse image_description field embedded by scanimage from get iamge description " alt="" coords="133,5,205,32"/>
+<area shape="rect" id="node3" href="$namespacecaiman_1_1utils_1_1utils.html#a58634e5943a08214b6dd54cd6a10110f" title="Given a tif file acquired with Scanimage it returns a dictionary containing the information in the im..." alt="" coords="253,5,429,32"/>
+</map>

@@ -1,0 +1,28 @@
+var motion__correction_8py =
+[
+    [ "MotionCorrect", "classcaiman_1_1motion__correction_1_1_motion_correct.html", "classcaiman_1_1motion__correction_1_1_motion_correct" ],
+    [ "_compute_error", "motion__correction_8py.html#a683f5ee23e529946b17f6a87ae45e0a4", null ],
+    [ "_compute_phasediff", "motion__correction_8py.html#a09859fe5f2beba321b5397662b26651b", null ],
+    [ "_upsampled_dft", "motion__correction_8py.html#aa339d12f180017a763175f450816f158", null ],
+    [ "apply_shift_iteration", "motion__correction_8py.html#a54e0e94e8c54dadcad8bc6688e46c590", null ],
+    [ "apply_shift_online", "motion__correction_8py.html#af84483b6805cfea4c866952cd5fc801c", null ],
+    [ "apply_shifts_dft", "motion__correction_8py.html#ad4fabc7e2b2082da438e99a60ca41d96", null ],
+    [ "bin_median", "motion__correction_8py.html#a089b96a369b9ee10a01d01e3df54c3bb", null ],
+    [ "compute_flow_single_frame", "motion__correction_8py.html#ab468f81cbf77caf649a1aa60b21fecdd", null ],
+    [ "compute_metrics_motion_correction", "motion__correction_8py.html#a93dc0dbba76cd31384bb0fdca775fff6", null ],
+    [ "create_weight_matrix_for_blending", "motion__correction_8py.html#a88ef513cfa324fc8548e4fb46d7a67e5", null ],
+    [ "iqr", "motion__correction_8py.html#add17b575eb5d81897f4653cab5f2c8e5", null ],
+    [ "motion_correct_batch_pwrigid", "motion__correction_8py.html#a29956f4cd15f5c59388862472d370986", null ],
+    [ "motion_correct_batch_rigid", "motion__correction_8py.html#aa13476234008dda16f62dc69804dab54", null ],
+    [ "motion_correct_iteration", "motion__correction_8py.html#acc77134c68d447075e79102eca9649e1", null ],
+    [ "motion_correct_online", "motion__correction_8py.html#a178e8317ba3a15bd5e072132ce6fa9f3", null ],
+    [ "motion_correct_online_multifile", "motion__correction_8py.html#aef9c5f795aeb47c5b86066492953fc4f", null ],
+    [ "motion_correct_parallel", "motion__correction_8py.html#a7d2c5818773d564a27f831175498ee9a", null ],
+    [ "motion_correction_piecewise", "motion__correction_8py.html#a0609d5c64bb9cae41d945bbc89535d2a", null ],
+    [ "process_movie_parallel", "motion__correction_8py.html#ac516b7c059d60b6dd4ba80de17f659bb", null ],
+    [ "register_translation", "motion__correction_8py.html#a0700d66a3a6b2556b1c712daf9c18a9b", null ],
+    [ "sliding_window", "motion__correction_8py.html#aef362667b31a29dfcc1a0c35c87f01ad", null ],
+    [ "tile_and_correct", "motion__correction_8py.html#aea060208c09f0e4fb01e6d31b9acf36f", null ],
+    [ "tile_and_correct_wrapper", "motion__correction_8py.html#a9c4d6e518f42c395cb58a08d2ff21f45", null ],
+    [ "opencv", "motion__correction_8py.html#ab04c428554c372b6f5a453c673f56cc8", null ]
+];

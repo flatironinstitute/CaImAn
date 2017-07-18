@@ -140,11 +140,6 @@ ENV/
 #VCS
 *.idea
 
-#html documentation
-/html
-/docs/html
-/docs/html1
-
 #building part
 /build
 

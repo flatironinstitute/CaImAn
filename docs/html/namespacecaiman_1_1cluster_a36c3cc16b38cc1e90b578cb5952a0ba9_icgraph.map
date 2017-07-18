@@ -1,0 +1,6 @@
+<map id="start_server" name="start_server">
+<area shape="rect" id="node2" href="$namespacecaiman_1_1cluster.html#a1dcb2a098d3e274cb3acd433ddc58953" title="Restart if necessary the pipyparallel cluster, and manages the case of SLURM. " alt="" coords="196,5,297,32"/>
+<area shape="rect" id="node3" href="$namespacecaiman_1_1tests_1_1test__demo.html#ac5c3950ffe101e5dfa9c5ca2087dfc73" title="caiman.tests.test_demo.demo" alt="" coords="147,56,347,83"/>
+<area shape="rect" id="node4" href="$namespacecaiman_1_1tests_1_1test__demo.html#a96a59f0aebd7425caeb0e5c4c0286d46" title="caiman.tests.test_demo.test\l_single_thread" alt="" coords="395,15,583,57"/>
+<area shape="rect" id="node5" href="$namespacecaiman_1_1tests_1_1test__demo.html#a9b4f91fe22f45c31c9f0d6decc982909" title="caiman.tests.test_demo.test\l_parallel" alt="" coords="395,81,583,122"/>
+</map>

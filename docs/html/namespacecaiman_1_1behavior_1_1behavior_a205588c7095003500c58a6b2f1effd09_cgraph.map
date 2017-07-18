@@ -1,0 +1,5 @@
+<map id="extract_motor_components_OF" name="extract_motor_components_OF">
+<area shape="rect" id="node2" href="$namespacecaiman_1_1behavior_1_1behavior.html#a9f94bc446f69340cee7623808f58cdbc" title="get_nonzero_subarray" alt="" coords="265,5,421,32"/>
+<area shape="rect" id="node3" href="$namespacecaiman_1_1behavior_1_1behavior.html#a8f9ed50a7ba21081b068bf7967f74e09" title="This function compute the optical flow of behavioral movies using the opencv cv2.calcOpticalFlowFarne..." alt="" coords="267,56,418,83"/>
+<area shape="rect" id="node4" href="$namespacecaiman_1_1behavior_1_1behavior.html#ab7ca16e11cc59cf634fcdd9a2c6848f6" title="From optical flow images can extract spatial and temporal components. " alt="" coords="271,107,414,133"/>
+</map>

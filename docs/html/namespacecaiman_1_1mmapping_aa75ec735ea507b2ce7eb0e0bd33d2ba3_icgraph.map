@@ -1,0 +1,7 @@
+<map id="parallel_dot_product" name="parallel_dot_product">
+<area shape="rect" id="node2" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1spatial.html#ac4b406f52054893ed2518a761921d4f4" title="update spatial footprints and background through Basis Pursuit Denoising " alt="" coords="219,5,512,46"/>
+<area shape="rect" id="node4" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1temporal.html#ae56ee735c5b8f6fdaca8baaee1371d58" title="Update temporal components and background given spatial components using a block coordinate descent a..." alt="" coords="212,70,519,111"/>
+<area shape="rect" id="node5" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1utilities.html#a280d064e1a9888eca4b375647d031491" title="Compute DFF function from cnmf output. " alt="" coords="197,136,533,163"/>
+<area shape="rect" id="node3" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1merging.html#ad08adf2e086a22ef379b10ed3ee36936" title="Merging of spatially overlapping components that have highly correlated temporal activity The correla..." alt="" coords="585,34,885,75"/>
+<area shape="rect" id="node6" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1utilities.html#aea3aa78c7c153170012079014e1f4895" title="caiman.source_extraction.cnmf.utilities.compute\lDFF_traces" alt="" coords="582,129,887,170"/>
+</map>

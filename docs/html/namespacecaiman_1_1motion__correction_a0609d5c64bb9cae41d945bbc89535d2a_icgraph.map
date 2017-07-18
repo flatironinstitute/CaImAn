@@ -1,0 +1,5 @@
+<map id="motion_correction_piecewise" name="motion_correction_piecewise">
+<area shape="rect" id="node2" href="$namespacecaiman_1_1motion__correction.html#a29956f4cd15f5c59388862472d370986" title="Function that perform memory efficient hyper parallelized rigid motion corrections while also saving ..." alt="" coords="259,5,410,46"/>
+<area shape="rect" id="node4" href="$namespacecaiman_1_1motion__correction.html#a9c4d6e518f42c395cb58a08d2ff21f45" title="tile_and_correct_wrapper" alt="" coords="249,71,421,97"/>
+<area shape="rect" id="node3" href="$namespacecaiman_1_1motion__correction.html#aa13476234008dda16f62dc69804dab54" title="Function that perform memory efficient hyper parallelized rigid motion corrections while also saving ..." alt="" coords="470,5,621,46"/>
+</map>

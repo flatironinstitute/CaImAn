@@ -1,0 +1,4 @@
+<map id="greedyROI" name="greedyROI">
+<area shape="rect" id="node2" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1initialization.html#ac8f4ada67920c28ee00d92af03cb4f8b" title="Spatial filtering with a Gaussian or user defined kernel The parameters are specified in GreedyROI..." alt="" coords="147,5,205,32"/>
+<area shape="rect" id="node3" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1initialization.html#a34abf87100936b47d488cefbb9def7e9" title="Fine tuning of components within greedyROI using rank&#45;1 NMF. " alt="" coords="141,56,211,83"/>
+</map>

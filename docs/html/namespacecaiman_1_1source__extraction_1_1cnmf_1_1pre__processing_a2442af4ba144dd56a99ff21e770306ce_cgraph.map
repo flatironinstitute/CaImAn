@@ -1,0 +1,5 @@
+<map id="fft_psd_multithreading" name="fft_psd_multithreading">
+<area shape="rect" id="node2" href="$namespacecaiman_1_1mmapping.html#aeb2ed62e4a9028089a2eec09d392707f" title="Load a memory mapped file created by the function save_memmap. " alt="" coords="208,5,368,46"/>
+<area shape="rect" id="node3" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1pre__processing.html#a4ac9105671d13333d3a5ac455d1cc0d5" title="Estimate the noise level for each pixel by averaging the power spectral density. " alt="" coords="239,71,337,97"/>
+<area shape="rect" id="node4" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1pre__processing.html#a0f1c3f32c6192896b14b1691f8f4ce2f" title="Averaging the PSD. " alt="" coords="417,71,501,97"/>
+</map>

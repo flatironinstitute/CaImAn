@@ -1,0 +1,5 @@
+<map id="mean_psd" name="mean_psd">
+<area shape="rect" id="node2" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1pre__processing.html#a4ac9105671d13333d3a5ac455d1cc0d5" title="Estimate the noise level for each pixel by averaging the power spectral density. " alt="" coords="139,31,237,57"/>
+<area shape="rect" id="node3" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1pre__processing.html#a60e1d4914937573be521e9c8d2a7cd31" title="helper function to parallelize get_noise_fft " alt="" coords="307,5,419,32"/>
+<area shape="rect" id="node4" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1pre__processing.html#a2442af4ba144dd56a99ff21e770306ce" title="helper function to parallelize get_noise_fft " alt="" coords="286,56,439,83"/>
+</map>

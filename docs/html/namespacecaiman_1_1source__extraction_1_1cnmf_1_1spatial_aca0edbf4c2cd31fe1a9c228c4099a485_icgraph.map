@@ -1,0 +1,6 @@
+<map id="determine_search_location" name="determine_search_location">
+<area shape="rect" id="node2" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1spatial.html#af3e32db8a5aeabf7269b756732a5e5a1" title="update spatial footprints and background through Basis Pursuit Denoising " alt="" coords="237,5,389,32"/>
+<area shape="rect" id="node3" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1spatial.html#aecc215caf3e87682f452e93ca491a477" title="compute the indices of the distance from the cm to search for the spatial component (calling determin..." alt="" coords="243,56,384,83"/>
+<area shape="rect" id="node4" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1spatial.html#ac4b406f52054893ed2518a761921d4f4" title="update spatial footprints and background through Basis Pursuit Denoising " alt="" coords="437,56,627,83"/>
+<area shape="rect" id="node5" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1merging.html#ad08adf2e086a22ef379b10ed3ee36936" title="Merging of spatially overlapping components that have highly correlated temporal activity The correla..." alt="" coords="675,49,975,90"/>
+</map>

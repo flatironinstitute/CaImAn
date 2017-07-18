@@ -1,0 +1,4 @@
+<map id="update_order_greedy" name="update_order_greedy">
+<area shape="rect" id="node2" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1temporal.html#ae56ee735c5b8f6fdaca8baaee1371d58" title="Update temporal components and background given spatial components using a block coordinate descent a..." alt="" coords="203,5,509,46"/>
+<area shape="rect" id="node3" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1merging.html#ad08adf2e086a22ef379b10ed3ee36936" title="Merging of spatially overlapping components that have highly correlated temporal activity The correla..." alt="" coords="558,5,858,46"/>
+</map>

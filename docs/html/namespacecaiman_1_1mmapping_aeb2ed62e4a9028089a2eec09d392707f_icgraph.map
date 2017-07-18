@@ -1,0 +1,18 @@
+<map id="load_memmap" name="load_memmap">
+<area shape="rect" id="node2" href="$namespacecaiman_1_1cluster.html#a0791f5c2482e1707e24578a03446a69d" title="caiman.cluster.function\l_place_holder" alt="" coords="243,5,402,46"/>
+<area shape="rect" id="node3" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1map__reduce.html#af6abfd3565abe5dcb4298e6c55cac9d1" title="Function that is run for each patches. " alt="" coords="205,70,441,111"/>
+<area shape="rect" id="node4" href="$namespacecaiman_1_1mmapping.html#a0501b5275136a4c678312e5b2902deb2" title="From small memory mappable files creates a large one. " alt="" coords="252,136,393,163"/>
+<area shape="rect" id="node5" href="$namespacecaiman_1_1mmapping.html#a68a1fd663ff256d832c0355f4f851124" title="save_portion" alt="" coords="273,187,372,213"/>
+<area shape="rect" id="node6" href="$namespacecaiman_1_1mmapping.html#a14d47c076020d7d3adf2599ed3354e4b" title="dot_place_holder" alt="" coords="261,237,385,264"/>
+<area shape="rect" id="node13" href="$namespacecaiman_1_1base_1_1movies.html#a6d585c260307278135a0b4b09440b313" title="load movie from file. " alt="" coords="237,288,409,315"/>
+<area shape="rect" id="node15" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1pre__processing.html#a2442af4ba144dd56a99ff21e770306ce" title="helper function to parallelize get_noise_fft " alt="" coords="208,339,437,381"/>
+<area shape="rect" id="node16" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1spatial.html#af3e32db8a5aeabf7269b756732a5e5a1" title="update spatial footprints and background through Basis Pursuit Denoising " alt="" coords="165,405,480,446"/>
+<area shape="rect" id="node17" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1spatial.html#a894e2773dd1e79c2efac3c759ff2fe9c" title="memmap the C and Y objects in parallel " alt="" coords="529,411,874,437"/>
+<area shape="rect" id="node7" href="$namespacecaiman_1_1mmapping.html#aa75ec735ea507b2ce7eb0e0bd33d2ba3" title="Chunk matrix product between matrix and column vectors A memory mapped ndarray pixels x time b time x..." alt="" coords="630,233,773,260"/>
+<area shape="rect" id="node8" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1spatial.html#ac4b406f52054893ed2518a761921d4f4" title="update spatial footprints and background through Basis Pursuit Denoising " alt="" coords="944,321,1237,362"/>
+<area shape="rect" id="node10" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1temporal.html#ae56ee735c5b8f6fdaca8baaee1371d58" title="Update temporal components and background given spatial components using a block coordinate descent a..." alt="" coords="937,255,1244,297"/>
+<area shape="rect" id="node11" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1utilities.html#a280d064e1a9888eca4b375647d031491" title="Compute DFF function from cnmf output. " alt="" coords="923,204,1259,231"/>
+<area shape="rect" id="node9" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1merging.html#ad08adf2e086a22ef379b10ed3ee36936" title="Merging of spatially overlapping components that have highly correlated temporal activity The correla..." alt="" coords="1310,291,1610,333"/>
+<area shape="rect" id="node12" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1utilities.html#aea3aa78c7c153170012079014e1f4895" title="caiman.source_extraction.cnmf.utilities.compute\lDFF_traces" alt="" coords="1307,197,1613,238"/>
+<area shape="rect" id="node14" href="$namespacecaiman_1_1base_1_1movies.html#a5a35758b31edb4a9b2105a058a0882a6" title="load movies from list of file names " alt="" coords="615,285,787,326"/>
+</map>

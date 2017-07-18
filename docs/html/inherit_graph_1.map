@@ -1,0 +1,6 @@
+<map id="Graphical Class Hierarchy" name="Graphical Class Hierarchy">
+<area shape="rect" id="node2" href="$classcaiman_1_1motion__correction_1_1_motion_correct.html" title="class implementing motion correction operations " alt="" coords="113,5,218,32"/>
+<area shape="rect" id="node3" href="$classcaiman_1_1source__extraction_1_1cnmf_1_1cnmf_1_1_c_n_m_f.html" title="Source extraction using constrained non&#45;negative matrix factorization. " alt="" coords="135,56,195,83"/>
+<area shape="rect" id="node4" href="$classcaiman_1_1source__extraction_1_1cnmf_1_1cnmf__optional__outputs_1_1_c_n_m_f.html" title="Source extraction using constrained non&#45;negative matrix factorization. " alt="" coords="135,107,195,133"/>
+<area shape="rect" id="node5" href="$classcaiman_1_1tests_1_1comparison_1_1comparison_1_1_comparison.html" title="Comparison It is used for comparison the modification on the CaImAn program. " alt="" coords="119,157,212,184"/>
+</map>

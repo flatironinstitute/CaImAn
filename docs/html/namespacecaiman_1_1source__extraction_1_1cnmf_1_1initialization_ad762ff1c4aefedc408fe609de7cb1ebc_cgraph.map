@@ -1,0 +1,10 @@
+<map id="initialize_components" name="initialize_components">
+<area shape="rect" id="node2" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1initialization.html#a7dd7bbb01fcb5237fc7d7674b870c9ae" title="Greedy initialization of spatial and temporal components using spatial Gaussian filtering. " alt="" coords="205,31,291,57"/>
+<area shape="rect" id="node5" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1initialization.html#aaedc4182f94a08193a9a93e9931bbb37" title="Hierarchical alternating least square method for solving NMF problem Y = A*C + b*f. " alt="" coords="225,81,271,108"/>
+<area shape="rect" id="node6" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1initialization.html#a12935eff3707e6c9e0e56b2152a90bd5" title="sparseNMF" alt="" coords="203,132,293,159"/>
+<area shape="rect" id="node8" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1initialization.html#a88bfdfe3cc85c90317fb6d8d6c09f792" title="Initialization using ICA and PCA. " alt="" coords="209,183,287,209"/>
+<area shape="rect" id="node3" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1initialization.html#ac8f4ada67920c28ee00d92af03cb4f8b" title="Spatial filtering with a Gaussian or user defined kernel The parameters are specified in GreedyROI..." alt="" coords="396,5,455,32"/>
+<area shape="rect" id="node4" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1initialization.html#a34abf87100936b47d488cefbb9def7e9" title="Fine tuning of components within greedyROI using rank&#45;1 NMF. " alt="" coords="391,56,460,83"/>
+<area shape="rect" id="node7" href="$namespacecaiman_1_1base_1_1rois.html#ae37bc9f1a4e815bd7d8e44a2334883a2" title="Calculation of the center of mass for spatial components. " alt="" coords="349,132,501,159"/>
+<area shape="rect" id="node9" href="$namespacecaiman_1_1base_1_1rois.html#af61f5029359cfa66389c5234b9a9ad99" title="caiman.base.rois.extract\lROIsFromPCAICA" alt="" coords="342,183,509,225"/>
+</map>

@@ -1,0 +1,8 @@
+<map id="com" name="com">
+<area shape="rect" id="node2" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1utilities.html#ad671b2e9120b3437304b3149d174f625" title="Plots contour of spatial components. " alt="" coords="102,5,410,46"/>
+<area shape="rect" id="node5" href="$namespacecaiman_1_1utils_1_1visualization.html#aa6b9002875d7d86524868e7d795a4f3f" title="Interactive Equivalent of plot_contours for ipython notebook. " alt="" coords="533,95,720,137"/>
+<area shape="rect" id="node7" href="$namespacecaiman_1_1utils_1_1visualization.html#ad48f24a70009a82e7a8cafa02e283a0e" title="Plots contour of spatial components against a background image and returns their coordinates. " alt="" coords="159,122,353,163"/>
+<area shape="rect" id="node3" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1utilities.html#a280d064e1a9888eca4b375647d031491" title="Compute DFF function from cnmf output. " alt="" coords="459,12,795,39"/>
+<area shape="rect" id="node4" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1utilities.html#aea3aa78c7c153170012079014e1f4895" title="caiman.source_extraction.cnmf.utilities.compute\lDFF_traces" alt="" coords="843,5,1149,46"/>
+<area shape="rect" id="node6" href="$namespacecaiman_1_1utils_1_1visualization.html#ac95a3a5e8c3bee95392831c57548fc04" title="Interactive equivalent of imshow for ipython notebook. " alt="" coords="903,95,1089,137"/>
+</map>

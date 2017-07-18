@@ -1,0 +1,26 @@
+var searchData=
+[
+  ['c',['C',['../classcaiman_1_1source__extraction_1_1cnmf_1_1cnmf_1_1_c_n_m_f.html#aaa53ca0b650dfd85c4f59fa156f7a2cc',1,'caiman.source_extraction.cnmf.cnmf.CNMF.C()'],['../classcaiman_1_1source__extraction_1_1cnmf_1_1cnmf__optional__outputs_1_1_c_n_m_f.html#aaa53ca0b650dfd85c4f59fa156f7a2cc',1,'caiman.source_extraction.cnmf.cnmf_optional_outputs.CNMF.C()'],['../namespacepipeline__multifile.html#ae0323a9039add2978bf5b49550572c7c',1,'pipeline_multifile.c()'],['../namespacecaiman_1_1tests_1_1test__general.html#aaa53ca0b650dfd85c4f59fa156f7a2cc',1,'caiman.tests.test_general.C()'],['../namespacepipeline__multifile.html#aaa53ca0b650dfd85c4f59fa156f7a2cc',1,'pipeline_multifile.C()']]],
+  ['c0',['c0',['../classcaiman_1_1gui_1_1gui_1_1_g_u_i.html#a570288aed3d1eede9a0f7000e4f0b6cc',1,'caiman::gui::gui::GUI']]],
+  ['c1',['c1',['../classcaiman_1_1gui_1_1gui_1_1_g_u_i.html#a74fc5f6f852574d24cbca8153258784c',1,'caiman.gui.gui.GUI.c1()'],['../classcaiman_1_1source__extraction_1_1cnmf_1_1cnmf_1_1_c_n_m_f.html#a74fc5f6f852574d24cbca8153258784c',1,'caiman.source_extraction.cnmf.cnmf.CNMF.c1()']]],
+  ['c_5ffull',['C_full',['../classcaiman_1_1tests_1_1comparison_1_1comparison_1_1_comparison.html#af6ddaa40980f94fd4d2a4261f58eb26a',1,'caiman::tests::comparison::comparison::Comparison']]],
+  ['c_5fpatch',['C_patch',['../classcaiman_1_1tests_1_1comparison_1_1comparison_1_1_comparison.html#a5e6e833f7396f4c442f38696779b8350',1,'caiman::tests::comparison::comparison::Comparison']]],
+  ['c_5ftot',['C_tot',['../namespacecaiman_1_1tests_1_1test__general.html#a035140d1953bd0abea6d49df4144cf4b',1,'caiman.tests.test_general.C_tot()'],['../namespacepipeline__multifile.html#a035140d1953bd0abea6d49df4144cf4b',1,'pipeline_multifile.C_tot()']]],
+  ['c_5ftot_5ffull',['C_tot_full',['../namespacecaiman_1_1tests_1_1test__general.html#a76f54e7ace8391428ec4a2101ce5c426',1,'caiman::tests::test_general']]],
+  ['check_5fnan',['check_nan',['../classcaiman_1_1source__extraction_1_1cnmf_1_1cnmf_1_1_c_n_m_f.html#aad1319465916200b3ae2606be6505ba3',1,'caiman::source_extraction::cnmf::cnmf::CNMF']]],
+  ['cin',['Cin',['../classcaiman_1_1source__extraction_1_1cnmf_1_1cnmf_1_1_c_n_m_f.html#a928d18deb976d5eb0e7434f797cab176',1,'caiman.source_extraction.cnmf.cnmf.CNMF.Cin()'],['../classcaiman_1_1source__extraction_1_1cnmf_1_1cnmf__optional__outputs_1_1_c_n_m_f.html#a928d18deb976d5eb0e7434f797cab176',1,'caiman.source_extraction.cnmf.cnmf_optional_outputs.CNMF.Cin()']]],
+  ['classifiers',['classifiers',['../namespacesetup.html#a6b43ae64a9080a1ac074dbd3c294bf9d',1,'setup']]],
+  ['cmap',['cmap',['../classcaiman_1_1gui_1_1gui_1_1_g_u_i.html#a4c8205fdd592e54d9c16836d2ff77988',1,'caiman.gui.gui.GUI.cmap()'],['../namespacepipeline__multifile.html#a4c8205fdd592e54d9c16836d2ff77988',1,'pipeline_multifile.cmap()'],['../namespace_demo_motion_correction_parallel.html#a4c8205fdd592e54d9c16836d2ff77988',1,'DemoMotionCorrectionParallel.cmap()']]],
+  ['cn',['Cn',['../namespacecaiman_1_1tests_1_1test__general.html#a814939980bc59d2ee5dcef6cfe5f39c7',1,'caiman.tests.test_general.Cn()'],['../namespacepipeline__multifile.html#a814939980bc59d2ee5dcef6cfe5f39c7',1,'pipeline_multifile.Cn()']]],
+  ['cnm',['cnm',['../namespacecaiman_1_1tests_1_1test__general.html#a11a67521c3c3ae68ebdff99d1b60569b',1,'caiman.tests.test_general.cnm()'],['../namespacepipeline__multifile.html#a11a67521c3c3ae68ebdff99d1b60569b',1,'pipeline_multifile.cnm()']]],
+  ['cnmpatch',['cnmpatch',['../classcaiman_1_1tests_1_1comparison_1_1comparison_1_1_comparison.html#abf5687e1e27b905e89b370336043f5d5',1,'caiman.tests.comparison.comparison.Comparison.cnmpatch()'],['../namespacecaiman_1_1tests_1_1test__general.html#abf5687e1e27b905e89b370336043f5d5',1,'caiman.tests.test_general.cnmpatch()']]],
+  ['codec',['codec',['../classcaiman_1_1base_1_1timeseries_1_1timeseries.html#a44e22bda6025b5c1e9372ab419de0bf6',1,'caiman::base::timeseries::timeseries']]],
+  ['comparison',['comparison',['../classcaiman_1_1tests_1_1comparison_1_1comparison_1_1_comparison.html#ac360ae7ad52be4fd45d8df8111e47f46',1,'caiman::tests::comparison::comparison::Comparison']]],
+  ['coord_5fshifts_5fels',['coord_shifts_els',['../classcaiman_1_1motion__correction_1_1_motion_correct.html#a2c72b5dbd92e1c41440d9e041a26038a',1,'caiman.motion_correction.MotionCorrect.coord_shifts_els()'],['../namespacepipeline__multifile.html#a2c72b5dbd92e1c41440d9e041a26038a',1,'pipeline_multifile.coord_shifts_els()']]],
+  ['copyright',['copyright',['../namespaceconf.html#a6ad5f3290c14149f679301b770fa13f9',1,'conf']]],
+  ['corr_5fthreshold',['corr_threshold',['../classcaiman_1_1source__extraction_1_1cnmf_1_1cnmf__optional__outputs_1_1_c_n_m_f.html#a2f1279e3eed9a0897083558a57457a09',1,'caiman::source_extraction::cnmf::cnmf_optional_outputs::CNMF']]],
+  ['corss',['corss',['../namespace_demo_motion_correction_parallel.html#a72a6410228c50880a209a87c8a1a525a',1,'DemoMotionCorrectionParallel']]],
+  ['count',['count',['../namespacepipeline__multifile.html#ad43c3812e6d13e0518d9f8b8f463ffcf',1,'pipeline_multifile']]],
+  ['crd',['crd',['../namespacepipeline__multifile.html#a71f1310bd7eec55f1a110c31ec982eb9',1,'pipeline_multifile']]],
+  ['current_5froi',['current_roi',['../classcaiman_1_1gui_1_1gui_1_1_g_u_i.html#ac03974fc4ede5ce0c95d5b649c73a1b9',1,'caiman::gui::gui::GUI']]]
+];

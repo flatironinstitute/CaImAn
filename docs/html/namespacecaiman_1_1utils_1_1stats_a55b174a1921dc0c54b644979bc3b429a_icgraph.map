@@ -1,0 +1,9 @@
+<map id="_hsm" name="_hsm">
+<area shape="rect" id="node2" href="$namespacecaiman_1_1utils_1_1stats.html#ad89811d5260ec000aff655f547770d16" title="Robust estimator of the mode of a data set using the half&#45;sample mode. " alt="" coords="110,20,239,47"/>
+<area shape="rect" id="node8" href="$namespacecaiman_1_1utils_1_1stats.html#ad63c9de399766045f2623d9ec6653709" title="Robust estimator of the mode of a data set using the half&#45;sample mode. " alt="" coords="125,71,225,97"/>
+<area shape="rect" id="node3" href="$namespacecaiman_1_1components__evaluation.html#a115ea8d0f9c41cb31cb7fe05535f65f7" title="estimate the noise in the traces under assumption that signals are sparse and only positive..." alt="" coords="288,5,552,46"/>
+<area shape="rect" id="node4" href="$namespacecaiman_1_1components__evaluation.html#a967e8c445c84976814609f9c120153a2" title="caiman.components_evaluation.compute\l_event_exceptionality" alt="" coords="288,70,552,111"/>
+<area shape="rect" id="node5" href="$namespacecaiman_1_1components__evaluation.html#ad2a8435be788c8e75130e41f884adb0f" title="Define a metric and order components according to the probabilty if some &quot;exceptional events&quot; (like a..." alt="" coords="600,70,864,111"/>
+<area shape="rect" id="node6" href="$namespacecaiman_1_1components__evaluation.html#a57b89e19503abe333d5767d462266e7a" title="caiman.components_evaluation.estimate\l_components_quality" alt="" coords="912,70,1176,111"/>
+<area shape="rect" id="node7" href="$namespacecaiman_1_1tests_1_1comparison_1_1create__gt.html#a6d8adb7810bd5f7de466b0a661a69743" title="the function that will create a groundtruth " alt="" coords="1224,70,1435,111"/>
+</map>

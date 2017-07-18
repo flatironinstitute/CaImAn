@@ -1,0 +1,11 @@
+<map id="create" name="create">
+<area shape="rect" id="node2" href="$namespacecaiman_1_1utils_1_1utils.html#ad85f6584fdf1f79402cac4987e2b0771" title="download a file from the file list with the url of its location " alt="" coords="133,52,355,79"/>
+<area shape="rect" id="node3" href="$namespacecaiman_1_1components__evaluation.html#a57b89e19503abe333d5767d462266e7a" title="caiman.components_evaluation.estimate\l_components_quality" alt="" coords="112,103,376,145"/>
+<area shape="rect" id="node4" href="$namespacecaiman_1_1components__evaluation.html#ad2a8435be788c8e75130e41f884adb0f" title="Define a metric and order components according to the probabilty if some &quot;exceptional events&quot; (like a..." alt="" coords="424,103,688,145"/>
+<area shape="rect" id="node5" href="$namespacecaiman_1_1components__evaluation.html#a967e8c445c84976814609f9c120153a2" title="caiman.components_evaluation.compute\l_event_exceptionality" alt="" coords="736,70,1000,111"/>
+<area shape="rect" id="node9" href="$namespacecaiman_1_1components__evaluation.html#ad0d76d63424939fa0004f5cc800f0105" title="caiman.components_evaluation.classify\l_components_ep" alt="" coords="739,135,997,177"/>
+<area shape="rect" id="node6" href="$namespacecaiman_1_1utils_1_1stats.html#ad89811d5260ec000aff655f547770d16" title="Robust estimator of the mode of a data set using the half&#45;sample mode. " alt="" coords="1085,5,1246,46"/>
+<area shape="rect" id="node8" href="$namespacecaiman_1_1utils_1_1stats.html#ad63c9de399766045f2623d9ec6653709" title="Robust estimator of the mode of a data set using the half&#45;sample mode. " alt="" coords="1085,70,1246,111"/>
+<area shape="rect" id="node7" href="$namespacecaiman_1_1utils_1_1stats.html#a55b174a1921dc0c54b644979bc3b429a" title="caiman.utils.stats._hsm" alt="" coords="1331,45,1491,72"/>
+<area shape="rect" id="node10" href="$namespacecaiman_1_1components__evaluation.html#aa88632c960b46b09e3e8d4120ac3bc16" title="caiman.components_evaluation.find\l_activity_intervals" alt="" coords="1048,135,1283,177"/>
+</map>

@@ -1,0 +1,6 @@
+<map id="calc_min" name="calc_min">
+<area shape="rect" id="node2" href="$classcaiman_1_1base_1_1movies_1_1movie.html#a6b814991c1e80b06b507789d0c6bee52" title="motion_correct" alt="" coords="129,56,239,83"/>
+<area shape="rect" id="node3" href="$classcaiman_1_1base_1_1movies_1_1movie.html#a187e0ed2f4ef1c7f0a7715a5bc80585e" title="Performs motion corretion using the opencv matchtemplate function. " alt="" coords="289,5,389,32"/>
+<area shape="rect" id="node4" href="$classcaiman_1_1base_1_1movies_1_1movie.html#aa607b03e52751c0449b36e7b5a738d3d" title="Apply precomputed shifts to a movie, using subpixels adjustment (cv2.INTER_CUBIC function) ..." alt="" coords="293,56,385,83"/>
+<area shape="rect" id="node5" href="$classcaiman_1_1base_1_1movies_1_1movie.html#a72c8c961677a019b2c4e955e73d39158" title="Crop movie. " alt="" coords="437,81,485,108"/>
+</map>

@@ -1,0 +1,45 @@
+var files =
+[
+    [ "behavior.py", "behavior_8py.html", "behavior_8py" ],
+    [ "cluster.py", "cluster_8py.html", "cluster_8py" ],
+    [ "cnmf.py", "cnmf_8py.html", [
+      [ "CNMF", "classcaiman_1_1source__extraction_1_1cnmf_1_1cnmf_1_1_c_n_m_f.html", "classcaiman_1_1source__extraction_1_1cnmf_1_1cnmf_1_1_c_n_m_f" ]
+    ] ],
+    [ "cnmf_optional_outputs.py", "cnmf__optional__outputs_8py.html", [
+      [ "CNMF", "classcaiman_1_1source__extraction_1_1cnmf_1_1cnmf__optional__outputs_1_1_c_n_m_f.html", "classcaiman_1_1source__extraction_1_1cnmf_1_1cnmf__optional__outputs_1_1_c_n_m_f" ]
+    ] ],
+    [ "comparison.py", "comparison_8py.html", "comparison_8py" ],
+    [ "components_evaluation.py", "components__evaluation_8py.html", "components__evaluation_8py" ],
+    [ "conf.py", "conf_8py.html", "conf_8py" ],
+    [ "create_gt.py", "create__gt_8py.html", "create__gt_8py" ],
+    [ "deconvolution.py", "deconvolution_8py.html", "deconvolution_8py" ],
+    [ "DemoMotionCorrectionParallel.py", "_demo_motion_correction_parallel_8py.html", "_demo_motion_correction_parallel_8py" ],
+    [ "gui.py", "gui_8py.html", "gui_8py" ],
+    [ "labelling.py", "labelling_8py.html", "labelling_8py" ],
+    [ "map_reduce.py", "map__reduce_8py.html", "map__reduce_8py" ],
+    [ "merging.py", "merging_8py.html", "merging_8py" ],
+    [ "mmapping.py", "mmapping_8py.html", "mmapping_8py" ],
+    [ "motion_correction.py", "motion__correction_8py.html", "motion__correction_8py" ],
+    [ "movies.py", "movies_8py.html", "movies_8py" ],
+    [ "pipeline_multifile.py", "pipeline__multifile_8py.html", "pipeline__multifile_8py" ],
+    [ "pre_processing.py", "pre__processing_8py.html", "pre__processing_8py" ],
+    [ "rois.py", "rois_8py.html", "rois_8py" ],
+    [ "setup.py", "setup_8py.html", "setup_8py" ],
+    [ "spatial.py", "spatial_8py.html", "spatial_8py" ],
+    [ "stats.py", "stats_8py.html", "stats_8py" ],
+    [ "summary_images.py", "summary__images_8py.html", "summary__images_8py" ],
+    [ "temporal.py", "temporal_8py.html", "temporal_8py" ],
+    [ "test_deconvolution.py", "test__deconvolution_8py.html", "test__deconvolution_8py" ],
+    [ "test_demo.py", "test__demo_8py.html", "test__demo_8py" ],
+    [ "test_general.py", "test__general_8py.html", "test__general_8py" ],
+    [ "test_import.py", "test__import_8py.html", "test__import_8py" ],
+    [ "test_pre_processing.py", "test__pre__processing_8py.html", "test__pre__processing_8py" ],
+    [ "test_spatial.py", "test__spatial_8py.html", null ],
+    [ "test_temporal.py", "test__temporal_8py.html", "test__temporal_8py" ],
+    [ "test_toydata.py", "test__toydata_8py.html", "test__toydata_8py" ],
+    [ "timeseries.py", "timeseries_8py.html", "timeseries_8py" ],
+    [ "traces.py", "traces_8py.html", "traces_8py" ],
+    [ "utilities.py", "utilities_8py.html", "utilities_8py" ],
+    [ "utils.py", "utils_8py.html", "utils_8py" ],
+    [ "visualization.py", "visualization_8py.html", "visualization_8py" ]
+];
