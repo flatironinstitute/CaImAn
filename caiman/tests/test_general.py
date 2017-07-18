@@ -73,8 +73,8 @@ params_movie = {'fname':[u'./example_movies/demoSue2x.tif'],
                'max_deviation_rigid': 2,
                'p': 1,  # order of the autoregressive system
                'merge_thresh': 0.8,  # merging threshold, max correlation allowed
-               'rf': 15,  # half-size of the patches in pixels. rf=25, patches are 50x50
-               'stride_cnmf': 6,  # amounpl.it of overlap between the patches in pixels
+               'rf': 25,  # half-size of the patches in pixels. rf=25, patches are 50x50
+               'stride_cnmf': 3,  # amounpl.it of overlap between the patches in pixels
                'K': 4,  # number of components per patch
                # if dendritic. In this case you need to set init_method to
                # sparse_nmf
@@ -83,7 +83,7 @@ params_movie = {'fname':[u'./example_movies/demoSue2x.tif'],
                'gSig': [4, 4],  # expected half size of neurons
                'alpha_snmf': None,  # this controls sparsity
                'final_frate': 30,
-                'r_values_min_patch' : .7,  # threshold on space consistency
+                'r_values_min_patch' : .4,  # threshold on space consistency
                 'fitness_min_patch' : -40,  # threshold on time variability
 # threshold on time variability (if nonsparse activity)
                 'fitness_delta_min_patch' : -40,
