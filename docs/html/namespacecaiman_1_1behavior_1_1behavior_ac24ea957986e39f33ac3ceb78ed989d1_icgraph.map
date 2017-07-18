@@ -1,4 +1,0 @@
-<map id="select_roi" name="select_roi">
-<area shape="rect" id="node2" href="$namespacecaiman_1_1behavior_1_1behavior.html#a513c5d7fc1e56d74ff55d4f74ee836a3" title="main" alt="" coords="133,5,184,32"/>
-<area shape="rect" id="node3" href="$namespacecaiman_1_1behavior_1_1behavior.html#ac7ebff37cde3a2bef4c8613654b60395" title="Normalize the components using the std of the components obtaining using biunary masks. " alt="" coords="232,5,392,32"/>
-</map>

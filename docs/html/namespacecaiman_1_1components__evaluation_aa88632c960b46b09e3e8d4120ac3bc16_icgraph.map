@@ -1,6 +1,0 @@
-<map id="find_activity_intervals" name="find_activity_intervals">
-<area shape="rect" id="node2" href="$namespacecaiman_1_1components__evaluation.html#ad0d76d63424939fa0004f5cc800f0105" title="classify_components_ep" alt="" coords="203,12,371,39"/>
-<area shape="rect" id="node3" href="$namespacecaiman_1_1components__evaluation.html#ad2a8435be788c8e75130e41f884adb0f" title="Define a metric and order components according to the probabilty if some &quot;exceptional events&quot; (like a..." alt="" coords="419,12,571,39"/>
-<area shape="rect" id="node4" href="$namespacecaiman_1_1components__evaluation.html#a57b89e19503abe333d5767d462266e7a" title="estimate_components\l_quality" alt="" coords="619,5,771,46"/>
-<area shape="rect" id="node5" href="$namespacecaiman_1_1tests_1_1comparison_1_1create__gt.html#a6d8adb7810bd5f7de466b0a661a69743" title="the function that will create a groundtruth " alt="" coords="819,5,1029,46"/>
-</map>

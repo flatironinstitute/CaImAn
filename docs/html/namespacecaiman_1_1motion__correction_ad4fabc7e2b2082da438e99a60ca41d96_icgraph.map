@@ -1,5 +1,0 @@
-<map id="apply_shifts_dft" name="apply_shifts_dft">
-<area shape="rect" id="node2" href="$namespacecaiman_1_1motion__correction.html#aea060208c09f0e4fb01e6d31b9acf36f" title="perform piecewise rigid motion correction iteration, by 1) dividing the FOV in patches 2) motion corr..." alt="" coords="168,12,285,39"/>
-<area shape="rect" id="node3" href="$namespacecaiman_1_1motion__correction.html#a88ef513cfa324fc8548e4fb46d7a67e5" title="create a matrix that is used to normalize the intersection of the stiched patches ..." alt="" coords="345,5,495,46"/>
-<area shape="rect" id="node4" href="$namespacecaiman_1_1motion__correction.html#a9c4d6e518f42c395cb58a08d2ff21f45" title="tile_and_correct_wrapper" alt="" coords="334,71,506,97"/>
-</map>

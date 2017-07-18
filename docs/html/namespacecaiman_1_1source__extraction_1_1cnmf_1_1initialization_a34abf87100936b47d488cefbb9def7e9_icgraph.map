@@ -1,5 +1,0 @@
-<map id="finetune" name="finetune">
-<area shape="rect" id="node2" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1initialization.html#a7dd7bbb01fcb5237fc7d7674b870c9ae" title="Greedy initialization of spatial and temporal components using spatial Gaussian filtering. " alt="" coords="123,35,210,61"/>
-<area shape="rect" id="node3" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1initialization.html#ad762ff1c4aefedc408fe609de7cb1ebc" title="Initalize components. " alt="" coords="339,5,488,32"/>
-<area shape="rect" id="node4" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1utilities.html#ad671b2e9120b3437304b3149d174f625" title="Plots contour of spatial components against a background image and allows to interactively add novel ..." alt="" coords="259,57,567,98"/>
-</map>

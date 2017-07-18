@@ -1,5 +1,0 @@
-<map id="crop" name="crop">
-<area shape="rect" id="node2" href="$classcaiman_1_1base_1_1movies_1_1movie.html#a6b814991c1e80b06b507789d0c6bee52" title="motion_correct" alt="" coords="243,5,354,32"/>
-<area shape="rect" id="node4" href="$classcaiman_1_1base_1_1movies_1_1movie.html#aa607b03e52751c0449b36e7b5a738d3d" title="Apply precomputed shifts to a movie, using subpixels adjustment (cv2.INTER_CUBIC function) ..." alt="" coords="102,31,194,57"/>
-<area shape="rect" id="node3" href="$classcaiman_1_1base_1_1movies_1_1movie.html#aa86d1dcb1864827b0701c996d7956ae0" title="calc_min" alt="" coords="403,5,477,32"/>
-</map>

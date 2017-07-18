@@ -1,5 +1,0 @@
-<map id="motion_correction_online" name="motion_correction_online">
-<area shape="rect" id="node2" href="$namespacecaiman_1_1motion__correction.html#a178e8317ba3a15bd5e072132ce6fa9f3" title="caiman.motion_correction.motion\l_correct_online" alt="" coords="224,38,443,79"/>
-<area shape="rect" id="node3" href="$namespacecaiman_1_1motion__correction.html#a089b96a369b9ee10a01d01e3df54c3bb" title="compute median of 3D array in along axis o by binning values Parameters " alt="" coords="502,5,698,46"/>
-<area shape="rect" id="node4" href="$namespacecaiman_1_1motion__correction.html#acc77134c68d447075e79102eca9649e1" title="caiman.motion_correction.motion\l_correct_iteration" alt="" coords="491,70,709,111"/>
-</map>

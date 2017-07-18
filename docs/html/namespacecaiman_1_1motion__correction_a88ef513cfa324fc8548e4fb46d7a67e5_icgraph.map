@@ -1,4 +1,0 @@
-<map id="create_weight_matrix_for_blending" name="create_weight_matrix_for_blending">
-<area shape="rect" id="node2" href="$namespacecaiman_1_1motion__correction.html#aea060208c09f0e4fb01e6d31b9acf36f" title="perform piecewise rigid motion correction iteration, by 1) dividing the FOV in patches 2) motion corr..." alt="" coords="203,12,320,39"/>
-<area shape="rect" id="node3" href="$namespacecaiman_1_1motion__correction.html#a9c4d6e518f42c395cb58a08d2ff21f45" title="tile_and_correct_wrapper" alt="" coords="369,12,541,39"/>
-</map>

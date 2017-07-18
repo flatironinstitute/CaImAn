@@ -1,4 +1,0 @@
-<map id="fft_psd_parallel" name="fft_psd_parallel">
-<area shape="rect" id="node2" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1pre__processing.html#a4ac9105671d13333d3a5ac455d1cc0d5" title="Estimate the noise level for each pixel by averaging the power spectral density. " alt="" coords="165,5,264,32"/>
-<area shape="rect" id="node3" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1pre__processing.html#a0f1c3f32c6192896b14b1691f8f4ce2f" title="Averaging the PSD. " alt="" coords="313,5,397,32"/>
-</map>

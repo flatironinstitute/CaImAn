@@ -1,5 +1,0 @@
-<map id="isin" name="isin">
-<area shape="rect" id="node2" href="$classcaiman_1_1gui_1_1gui_1_1_g_u_i.html#a06508ecd0b0e41023403958b0d08f995" title="caiman.gui.gui.GUI.get\l_current_roi" alt="" coords="96,5,253,46"/>
-<area shape="rect" id="node3" href="$classcaiman_1_1gui_1_1gui_1_1_g_u_i.html#af25f6f83cd7cf2d40b222224a9230542" title="caiman.gui.gui.GUI.plot\l_current_traces" alt="" coords="301,5,461,46"/>
-<area shape="rect" id="node4" href="$classcaiman_1_1gui_1_1gui_1_1_g_u_i.html#a211940967eecd3ffe6da9a52fb45c242" title="caiman.gui.gui.GUI.evt_zoom" alt="" coords="509,12,707,39"/>
-</map>

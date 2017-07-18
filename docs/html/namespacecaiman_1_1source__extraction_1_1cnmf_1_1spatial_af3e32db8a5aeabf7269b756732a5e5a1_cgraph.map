@@ -1,7 +1,0 @@
-<map id="regression_ipyparallel" name="regression_ipyparallel">
-<area shape="rect" id="node2" href="$namespacecaiman_1_1mmapping.html#aeb2ed62e4a9028089a2eec09d392707f" title="Load a memory mapped file created by the function save_memmap. " alt="" coords="217,5,377,46"/>
-<area shape="rect" id="node3" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1spatial.html#a6f8a2090fe45b30f032bf6ec1a91c1ce" title="Run LARS for regression problems with LASSO penalty, with optional positivity constraints. " alt="" coords="209,71,386,97"/>
-<area shape="rect" id="node5" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1spatial.html#a86e3328b66dc7efa75c0646f02815ab4" title="Nonnegative least square with L0 penalty. " alt="" coords="263,121,332,148"/>
-<area shape="rect" id="node6" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1spatial.html#aca0edbf4c2cd31fe1a9c228c4099a485" title="compute the indices of the distance from the cm to search for the spatial component ..." alt="" coords="206,172,389,199"/>
-<area shape="rect" id="node4" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1spatial.html#a14912eb4a48c8e566545bb4392341d04" title="calculate the vectoe to travel along " alt="" coords="438,71,514,97"/>
-</map>

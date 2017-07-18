@@ -1,4 +1,0 @@
-<map id="motion_correct_batch_rigid" name="motion_correct_batch_rigid">
-<area shape="rect" id="node2" href="$namespacecaiman_1_1motion__correction.html#a29956f4cd15f5c59388862472d370986" title="Function that perform memory efficient hyper parallelized rigid motion corrections while also saving ..." alt="" coords="206,5,357,46"/>
-<area shape="rect" id="node3" href="$namespacecaiman_1_1motion__correction.html#a0609d5c64bb9cae41d945bbc89535d2a" title="motion_correction_piecewise" alt="" coords="406,12,599,39"/>
-</map>

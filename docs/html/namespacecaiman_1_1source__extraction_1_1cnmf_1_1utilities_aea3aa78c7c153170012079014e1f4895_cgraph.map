@@ -1,8 +1,0 @@
-<map id="computeDFF_traces" name="computeDFF_traces">
-<area shape="rect" id="node2" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1utilities.html#a280d064e1a9888eca4b375647d031491" title="Compute DFF function from cnmf output. " alt="" coords="198,41,301,68"/>
-<area shape="rect" id="node3" href="$namespacecaiman_1_1mmapping.html#aa75ec735ea507b2ce7eb0e0bd33d2ba3" title="Chunk matrix product between matrix and column vectors A memory mapped ndarray pixels x time b time x..." alt="" coords="359,5,537,46"/>
-<area shape="rect" id="node6" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1utilities.html#ad671b2e9120b3437304b3149d174f625" title="Plots contour of spatial components. " alt="" coords="350,71,546,97"/>
-<area shape="rect" id="node4" href="$namespacecaiman_1_1mmapping.html#a14d47c076020d7d3adf2599ed3354e4b" title="caiman.mmapping.dot\l_place_holder" alt="" coords="595,5,749,46"/>
-<area shape="rect" id="node5" href="$namespacecaiman_1_1mmapping.html#aeb2ed62e4a9028089a2eec09d392707f" title="Load a memory mapped file created by the function save_memmap. " alt="" coords="797,5,957,46"/>
-<area shape="rect" id="node7" href="$namespacecaiman_1_1base_1_1rois.html#ae37bc9f1a4e815bd7d8e44a2334883a2" title="Calculation of the center of mass for spatial components. " alt="" coords="596,71,748,97"/>
-</map>

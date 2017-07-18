@@ -1,5 +1,0 @@
-<map id="nextpow2" name="nextpow2">
-<area shape="rect" id="node2" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1pre__processing.html#a60941191e5c55d29e33ed6fa698f1844" title="Compute the autocovariance of data at lag = &#45;maxlag:0:maxlag. " alt="" coords="134,5,191,32"/>
-<area shape="rect" id="node3" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1pre__processing.html#a1b73b814ed1bd025323df1f86b4e083b" title="estimate_time_constant" alt="" coords="240,5,403,32"/>
-<area shape="rect" id="node4" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1pre__processing.html#a3e16282450cc890b37ad043d09f385c1" title="Performs the pre&#45;processing operations described above. " alt="" coords="451,5,573,32"/>
-</map>

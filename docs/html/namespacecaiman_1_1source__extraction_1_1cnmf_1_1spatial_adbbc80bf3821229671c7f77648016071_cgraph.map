@@ -1,8 +1,0 @@
-<map id="basis_denoising" name="basis_denoising">
-<area shape="rect" id="node2" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1spatial.html#ab7b90a8cbd754f9c03b13cf1709eebd4" title="update spatial footprints and background through Basis Pursuit Denoising " alt="" coords="171,81,360,108"/>
-<area shape="rect" id="node3" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1spatial.html#aca0edbf4c2cd31fe1a9c228c4099a485" title="restrict search location to subset of pixels " alt="" coords="409,5,591,32"/>
-<area shape="rect" id="node4" href="$namespacecaiman_1_1mmapping.html#aeb2ed62e4a9028089a2eec09d392707f" title="Load a memory mapped file created by the function save_memmap. " alt="" coords="843,91,1003,133"/>
-<area shape="rect" id="node5" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1spatial.html#a3fa5db8c88b06457233eb35dbcea3588" title="threshold_components" alt="" coords="421,107,579,133"/>
-<area shape="rect" id="node6" href="$namespacecaiman_1_1mmapping.html#aa75ec735ea507b2ce7eb0e0bd33d2ba3" title="Chunk matrix product between matrix and column vectors A memory mapped ndarray pixels x time b time x..." alt="" coords="411,158,589,199"/>
-<area shape="rect" id="node7" href="$namespacecaiman_1_1mmapping.html#a14d47c076020d7d3adf2599ed3354e4b" title="caiman.mmapping.dot\l_place_holder" alt="" coords="641,133,794,174"/>
-</map>

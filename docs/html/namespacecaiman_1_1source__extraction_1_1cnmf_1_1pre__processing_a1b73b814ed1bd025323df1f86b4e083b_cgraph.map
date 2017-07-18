@@ -1,4 +1,0 @@
-<map id="estimate_time_constant" name="estimate_time_constant">
-<area shape="rect" id="node2" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1pre__processing.html#a60941191e5c55d29e33ed6fa698f1844" title="Compute the autocovariance of data at lag = &#45;maxlag:0:maxlag. " alt="" coords="217,5,274,32"/>
-<area shape="rect" id="node3" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1pre__processing.html#aebcfd66f32d95838dfa847044ee22a2b" title="Find exponent such that 2^exponent is equal to or greater than abs(value). " alt="" coords="323,5,402,32"/>
-</map>

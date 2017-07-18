@@ -1,9 +1,0 @@
-<map id="estimate_components_quality" name="estimate_components_quality">
-<area shape="rect" id="node2" href="$namespacecaiman_1_1components__evaluation.html#ad2a8435be788c8e75130e41f884adb0f" title="Define a metric and order components according to the probabilty if some &quot;exceptional events&quot; (like a..." alt="" coords="205,105,357,132"/>
-<area shape="rect" id="node3" href="$namespacecaiman_1_1components__evaluation.html#a967e8c445c84976814609f9c120153a2" title="compute_event_exceptionality" alt="" coords="406,77,607,104"/>
-<area shape="rect" id="node7" href="$namespacecaiman_1_1components__evaluation.html#ad0d76d63424939fa0004f5cc800f0105" title="classify_components_ep" alt="" coords="423,132,591,159"/>
-<area shape="rect" id="node4" href="$namespacecaiman_1_1utils_1_1stats.html#ad89811d5260ec000aff655f547770d16" title="Robust estimator of the mode of a data set using the half&#45;sample mode. " alt="" coords="657,5,818,46"/>
-<area shape="rect" id="node6" href="$namespacecaiman_1_1utils_1_1stats.html#ad63c9de399766045f2623d9ec6653709" title="Robust estimator of the mode of a data set using the half&#45;sample mode. " alt="" coords="657,70,818,111"/>
-<area shape="rect" id="node5" href="$namespacecaiman_1_1utils_1_1stats.html#a55b174a1921dc0c54b644979bc3b429a" title="caiman.utils.stats._hsm" alt="" coords="867,45,1027,72"/>
-<area shape="rect" id="node8" href="$namespacecaiman_1_1components__evaluation.html#aa88632c960b46b09e3e8d4120ac3bc16" title="find_activity_intervals" alt="" coords="663,136,812,163"/>
-</map>

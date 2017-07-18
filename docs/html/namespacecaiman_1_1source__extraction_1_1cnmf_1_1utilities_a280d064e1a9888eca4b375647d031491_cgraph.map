@@ -1,7 +1,0 @@
-<map id="extract_DF_F" name="extract_DF_F">
-<area shape="rect" id="node2" href="$namespacecaiman_1_1mmapping.html#aa75ec735ea507b2ce7eb0e0bd33d2ba3" title="Chunk matrix product between matrix and column vectors A memory mapped ndarray pixels x time b time x..." alt="" coords="167,5,345,46"/>
-<area shape="rect" id="node5" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1utilities.html#ad671b2e9120b3437304b3149d174f625" title="Plots contour of spatial components. " alt="" coords="158,71,354,97"/>
-<area shape="rect" id="node3" href="$namespacecaiman_1_1mmapping.html#a14d47c076020d7d3adf2599ed3354e4b" title="caiman.mmapping.dot\l_place_holder" alt="" coords="403,5,557,46"/>
-<area shape="rect" id="node4" href="$namespacecaiman_1_1mmapping.html#aeb2ed62e4a9028089a2eec09d392707f" title="Load a memory mapped file created by the function save_memmap. " alt="" coords="605,5,765,46"/>
-<area shape="rect" id="node6" href="$namespacecaiman_1_1base_1_1rois.html#ae37bc9f1a4e815bd7d8e44a2334883a2" title="Calculation of the center of mass for spatial components. " alt="" coords="404,71,556,97"/>
-</map>

@@ -1,5 +1,0 @@
-<map id="nb_plot_contour" name="nb_plot_contour">
-<area shape="rect" id="node2" href="$namespacecaiman_1_1utils_1_1visualization.html#ac95a3a5e8c3bee95392831c57548fc04" title="Interactive equivalent of imshow for ipython notebook. " alt="" coords="178,5,267,32"/>
-<area shape="rect" id="node3" href="$namespacecaiman_1_1base_1_1rois.html#ae37bc9f1a4e815bd7d8e44a2334883a2" title="Calculation of the center of mass for spatial components. " alt="" coords="323,81,475,108"/>
-<area shape="rect" id="node4" href="$namespacecaiman_1_1utils_1_1visualization.html#ad48f24a70009a82e7a8cafa02e283a0e" title="Plots contour of spatial components against a background image and returns their coordinates. " alt="" coords="171,107,274,133"/>
-</map>

@@ -1,6 +1,0 @@
-<map id="estimate_parameters" name="estimate_parameters">
-<area shape="rect" id="node2" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1deconvolution.html#a16b9a254776edd0d9093ee35b1ef17a2" title="GetSn" alt="" coords="411,5,471,32"/>
-<area shape="rect" id="node3" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1deconvolution.html#a7a73db2b3e0e88f4a5f30f80944c1319" title="estimate_time_constant" alt="" coords="200,56,363,83"/>
-<area shape="rect" id="node4" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1deconvolution.html#a458da977dee6e97910a1b006e899b309" title="axcov" alt="" coords="413,56,470,83"/>
-<area shape="rect" id="node5" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1deconvolution.html#a8d83696f273bd0121651cf48a6b899ae" title="nextpow2" alt="" coords="521,56,599,83"/>
-</map>

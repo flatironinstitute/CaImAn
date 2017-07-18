@@ -1,6 +1,0 @@
-<map id="extract_patch_coordinates" name="extract_patch_coordinates">
-<area shape="rect" id="node2" href="$namespacecaiman_1_1cluster.html#a37de3dc274656637965b654ffc856e2f" title="get_patches_from_image" alt="" coords="265,5,437,32"/>
-<area shape="rect" id="node3" href="$namespacecaiman_1_1cluster.html#a3114f02c5f8ee0d53d6c818d3ee69e2c" title="extract_rois_patch" alt="" coords="285,56,416,83"/>
-<area shape="rect" id="node4" href="$namespacecaiman_1_1cluster.html#a225b519413ba9700997a06cfa2469ff4" title="apply function to patches in parallel or not " alt="" coords="295,107,407,133"/>
-<area shape="rect" id="node5" href="$namespacecaiman_1_1source__extraction_1_1cnmf_1_1map__reduce.html#affc25cb11b12edae4343574054636eee" title="Function that runs CNMF in patches. " alt="" coords="233,158,469,199"/>
-</map>
