@@ -56,21 +56,11 @@ from caiman.tests.comparison import Comparison
 #GLOBAL VAR
 params_movie = {'fname':['Sue_2x_3000_40_-46.tif'],
                 'niter_rig': 1,
-               'max_shifts': (3, 3),  # maximum allow rigid shift
+               'max_shifts': (8, 8),  # maximum allow rigid shift
                'splits_rig': 20,  # for parallelization split the movies in  num_splits chuncks across time
                # if none all the splits are processed and the movie is saved
                'num_splits_to_process_rig': None,
                # intervals at which patches are laid out for motion correction
-               'strides': (48, 48),
-               # overlap between pathes (size of patch strides+overlaps)
-               'overlaps': (24, 24),
-               'splits_els': 28,  # for parallelization split the movies in  num_splits chuncks across time
-               # if none all the splits are processed and the movie is saved
-               'num_splits_to_process_els': [14, None],
-               'upsample_factor_grid': 6,  # upsample factor to avoid smearing when merging patches
-               # maximum deviation allowed for patch with respect to rigid
-               # shift
-               'max_deviation_rigid': 2,
                'p': 1,  # order of the autoregressive system
                'merge_thresh': 0.8,  # merging threshold, max correlation allowed
                'rf': 15,  # half-size of the patches in pixels. rf=25, patches are 50x50
