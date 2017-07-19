@@ -49,7 +49,7 @@ import copy
 from caiman.source_extraction.cnmf import cnmf as cnmf
 from caiman.motion_correction import MotionCorrect
 from caiman.components_evaluation import estimate_components_quality
-from caiman.tests.comparison import Comparison
+from caiman.tests.comparison import comparison
 
 
 
@@ -150,18 +150,12 @@ def create():
     max_shifts = params_movie['max_shifts']
     splits_rig = params_movie['splits_rig']
     num_splits_to_process_rig = params_movie['num_splits_to_process_rig']
-    strides = params_movie['strides']
-    overlaps = params_movie['overlaps']
-    splits_els = params_movie['splits_els']
-    num_splits_to_process_els = params_movie['num_splits_to_process_els']
-    upsample_factor_grid = params_movie['upsample_factor_grid']
-    max_deviation_rigid = params_movie['max_deviation_rigid']
 
     download_demo(fname[0])
     fname = os.path.join('example_movies', fname[0])
     m_orig = cm.load(fname)
     min_mov = m_orig[:400].min()
-    comp = Comparison()
+    comp = comparison.Comparison()
     comp.dims = np.shape(m_orig)[1:]
 
     ################ RIG CORRECTION #################
@@ -170,10 +164,6 @@ def create():
                        max_shifts=max_shifts, niter_rig=niter_rig
                        , splits_rig=splits_rig,
                        num_splits_to_process_rig=num_splits_to_process_rig,
-                       strides=strides, overlaps=overlaps, splits_els=splits_els,
-                       num_splits_to_process_els=num_splits_to_process_els,
-                       upsample_factor_grid=upsample_factor_grid
-                       , max_deviation_rigid=max_deviation_rigid,
                        shifts_opencv=True, nonneg_movie=True)
     mc.motion_correct_rigid(save_movie=True)
     m_rig = cm.load(mc.fname_tot_rig)
