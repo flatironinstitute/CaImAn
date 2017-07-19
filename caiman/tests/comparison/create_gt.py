@@ -52,7 +52,6 @@ from caiman.components_evaluation import estimate_components_quality
 from caiman.tests.comparison import comparison
 
 
-
 #GLOBAL VAR
 params_movie = {'fname':['Sue_2x_3000_40_-46.tif'],
                 'niter_rig': 1,
