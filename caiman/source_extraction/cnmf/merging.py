@@ -153,7 +153,7 @@ sn: float
 
     if list_conxcomp.ndim > 1:
         cor = np.zeros((np.shape(list_conxcomp)[1], 1))
-        for i in range(np.size(cor)): #
+        for i in range(np.size(cor)):
             fm = np.where(list_conxcomp[:, i])[0]
             for j1 in range(np.size(fm)):
                 for j2 in range(j1 + 1, np.size(fm)):
