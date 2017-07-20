@@ -294,7 +294,64 @@ def evaluate_components(Y, traces, A, C, b, f, final_frate, remove_baseline = Tr
 #%%
 def estimate_components_quality(traces, Y, A, C, b, f, final_frate = 30, Npeaks=10, r_values_min = .95,
                                 fitness_min = -100,fitness_delta_min = -100, return_all = False, N =5):
-    # todo todocument
+    """ Define a metric and order components according to the probabilty if some "exceptional events" (like a spike).
+
+    Such probability is defined as the likeihood of observing the actual trace value over N samples given an estimated noise distribution.
+    The function first estimates the noise distribution by considering the dispersion around the mode.
+    This is done only using values lower than the mode.
+    The estimation of the noise std is made robust by using the approximation std=iqr/1.349.
+    Then, the probavility of having N consecutive eventsis estimated.
+    This probability is used to order the components.
+    The algorithm also measures the reliability of the spatial mask by comparing the filters in A
+     with the average of the movies over samples where exceptional events happen, after  removing (if possible)
+    frames when neighboring neurons were active
+
+    Parameters:
+    ----------
+    Y: ndarray
+        movie x,y,t
+
+    A,C,b,f: various types
+        outputs of cnmf
+
+    traces: ndarray
+        Fluorescence traces
+
+    N: int
+        N number of consecutive events probability multiplied
+
+    Npeaks: int
+
+    r_values_min: list
+        minimum correlation between component and spatial mask obtained by averaging important points
+
+    fitness_min: ndarray
+        minimum acceptable quality of components (the lesser the better) on the raw trace
+
+    fitness_delta_min: ndarray
+        minimum acceptable the quality of components (the lesser the better) on diff(trace)
+
+    thresh_C: float
+        fraction of the maximum of C that is used as minimum peak height
+
+    Returns:
+    -------
+    idx_components: ndarray
+        the components ordered according to the fitness
+
+    idx_components_bad: ndarray
+        the components ordered according to the fitness
+
+    fitness_raw: ndarray
+        value estimate of the quality of components (the lesser the better) on the raw trace
+
+    fitness_delta: ndarray
+        value estimate of the quality of components (the lesser the better) on diff(trace)
+
+    r_values: list
+        float values representing correlation between component and spatial mask obtained by averaging important points
+
+    """
 
     fitness_raw, fitness_delta, erfc_raw, erfc_delta, r_values, significant_samples = \
         evaluate_components(Y, traces, A, C, b, f, final_frate, remove_baseline=True,
