@@ -257,8 +257,10 @@ def get_contours(A, dims, thr=0.9):
         x, y = np.mgrid[0:d1:1, 0:d2:1]
 
     coordinates = []
+
     #get the center of mass of neurons( patches )
     cm = np.asarray([center_of_mass(a.toarray().reshape(dims, order='F')) for a in A.T])
+
     #for each patches
     for i in range(nr):
         pars = dict()
@@ -266,9 +268,11 @@ def get_contours(A, dims, thr=0.9):
         patch_data = A.data[A.indptr[i]:A.indptr[i + 1]]
         indx = np.argsort(patch_data)[::-1]
         cumEn = np.cumsum(patch_data[indx]**2)
+
         #we work with normalized values
         cumEn /= cumEn[-1]
         Bvec = np.ones(d)
+
         #we put it in a similar matrix
         Bvec[A.indices[A.indptr[i]:A.indptr[i + 1]][indx]] = cumEn
         Bmat = np.reshape(Bvec, dims, order='F')
@@ -339,6 +343,11 @@ def nb_view_patches3d(Y_r, A, C, dims, image_type='mean', Yr=None,
 
     cmap: string
         name of colormap (e.g. 'viridis') used to plot image_neurons
+
+    Raise:
+    ------
+    ValueError("image_type must be 'mean', 'max' or 'corr'")
+
     """
 
     bokeh.io.curdoc().clear()  # prune old orphaned models, otherwise filesize blows up
@@ -405,12 +414,6 @@ def nb_view_patches3d(Y_r, A, C, dims, image_type='mean', Yr=None,
             cc1[2, i, :len(cor['coordinates'])] = cor['coordinates'][:, 0] + offset1
             cc2[2, i, :len(cor['coordinates'])] = cor['coordinates'][:, 1] + offset2
 
-        # c1x = np.nan * np.zeros(K)
-        # c2x = np.nan * np.zeros(K)
-        # c1y = np.nan * np.zeros(K)
-        # c2y = np.nan * np.zeros(K)
-        # c1z = np.nan * np.zeros(K)
-        # c2z = np.nan * np.zeros(K)
         c1x = cc1[0][0]
         c2x = cc2[0][0]
         c1y = cc1[1][0]
@@ -703,6 +706,7 @@ VIDEO_TAG = """<video controls>
 
 
 def anim_to_html(anim, fps=20):
+    # todo: todocument
     if not hasattr(anim, '_encoded_video'):
         with NamedTemporaryFile(suffix='.mp4') as f:
             anim.save(f.name, fps=fps, extra_args=['-vcodec', 'libx264'])
@@ -726,17 +730,22 @@ def view_patches_bar(Yr, A, C, b, f, d1, d2, YrA=None, img=None):
      -----------
      Yr:    np.ndarray
             movie in format pixels (d) x frames (T)
+
      A:     sparse matrix
                 matrix of spatial components (d x K)
+
      C:     np.ndarray
                 matrix of temporal components (K x T)
+
      b:     np.ndarray
                 spatial background (vector of length d)
 
      f:     np.ndarray
                 temporal background (vector of length T)
+
      d1,d2: np.ndarray
                 frame dimensions
+
      YrA:   np.ndarray
                  ROI filtered residual as it is given from update_temporal_components
                  If not given, then it is computed (K x T)

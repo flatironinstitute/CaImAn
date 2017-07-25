@@ -1,9 +1,24 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Thu Oct 20 12:07:09 2016
+""" functions related to the creation and management of the cluster
 
-@author: agiovann
+This file contains
+
+We put arrays o   qwn disk as raw bytes, extending along the first dimension.
+Alongside each array x we ensure the value x.dtype which stores the string
+Description h
+
+See Also:
+------------
+
+@url
+.. image::
+@author andrea giovannucci
 """
+# \package caiman
+# \version   1.0
+# \copyright GNU General Public License v2.0
+# \date Created on Thu Oct 20 12:07:09 2016
+
 from __future__ import print_function
 from builtins import zip
 from builtins import str
@@ -24,6 +39,7 @@ from .mmapping import load_memmap
 
 #%%
 def get_patches_from_image(img,shapes,overlaps):
+    #todo todocument
     d1,d2 = np.shape(img)
     rf =  np.divide(shapes,2)
     _,coords_2d = extract_patch_coordinates(d1,d2,rf=rf,stride = overlaps)
@@ -37,13 +53,18 @@ def get_patches_from_image(img,shapes,overlaps):
 #%%
 def extract_patch_coordinates_old(d1,d2,rf=(7,7),stride = (2,2)):
     """
-    Function that partition the FOV in patches and return the indexed in 2D and 1D (flatten, order='F') formats
+    Function that partition the FOV in patches
+
+    and return the indexed in 2D and 1D (flatten, order='F') formats
+
     Parameters:
     ----------
     d1,d2: int
         dimensions of the original matrix that will be  divided in patches
+
     rf: int
         radius of receptive field, corresponds to half the size of the square patch
+
     stride: int
         degree of overlap of the patches
     """
@@ -73,13 +94,18 @@ def extract_patch_coordinates_old(d1,d2,rf=(7,7),stride = (2,2)):
 #%%
 def extract_patch_coordinates(dims, rf, stride):
     """
-    Function that partition the FOV in patches and return the indexed in 2D and 1D (flatten, order='F') formats
-    Parameters
+    Function that partition the FOV in patches
+
+    and return the indexed in 2D and 1D (flatten, order='F') formats
+
+    Parameters:
     ----------
     dims: tuple of int
         dimensions of the original matrix that will be  divided in patches
+
     rf: tuple of int
         radius of receptive field, corresponds to half the size of the square patch
+
     stride: tuple of int
         degree of overlap of the patches
     """
@@ -99,7 +125,6 @@ def extract_patch_coordinates(dims, rf, stride):
                 coords[count_0, count_1] = idxs
                 shapes.append(idxs[0].shape[::-1])
 
-
                 coords_ = np.ravel_multi_index(idxs, dims, order='F')
                 coords_flat.append(coords_.flatten())
             else:  # 3D data
@@ -117,53 +142,14 @@ def extract_patch_coordinates(dims, rf, stride):
         assert(len(c) == np.prod(shapes[i]))
 
     return map(np.sort, coords_flat), shapes
-#%%
-def extract_rois_patch(file_name,d1,d2,rf=5,stride = 5):
-    idx_flat,idx_2d=extract_patch_coordinates(d1, d2, rf=rf,stride = stride)
-    perctl=95
-    n_components=2
-    tol=1e-6
-    max_iter=5000
-    args_in=[]
-    for id_f,id_2d in zip(idx_flat[:],idx_2d[:]):
-        args_in.append((file_name, id_f,id_2d, perctl,n_components,tol,max_iter))
-    st=time.time()
-    print((len(idx_flat)))
-    try:
-        if 1:
-            c = Client()
-            dview=c[:]
-            file_res = dview.map_sync(nmf_patches, args_in)
-        else:
-            file_res = list(map(nmf_patches, args_in))
-    finally:
-        dview.results.clear()
-        c.purge_results('all')
-        c.purge_everything()
-        c.close()
-
-    print((time.time()-st))
-
-    A1=lil_matrix((d1*d2,len(file_res)))
-    C1=[]
-    A2=lil_matrix((d1*d2,len(file_res)))
-    C2=[]
-    for count,f in enumerate(file_res):
-        idx_,flt,ca,d=f
-        A1[idx_,count]=flt[:,0][:,np.newaxis]
-        A2[idx_,count]=flt[:,1][:,np.newaxis]
-        C1.append(ca[0,:])
-        C2.append(ca[1,:])
 
 
-
-    return A1,A2,C1,C2
 #%%
 def apply_to_patch(mmap_file, shape, dview, rf , stride , function, *args, **kwargs):
     """
     apply function to patches in parallel or not
 
-    Parameters
+    Parameters:
     ----------
     file_name: string
         full path to an npy file (2D, pixels x time) containing the movie
@@ -182,12 +168,15 @@ def apply_to_patch(mmap_file, shape, dview, rf , stride , function, *args, **kwa
     dview: ipyparallel view on client
         if None
 
-
-    Returns
+    Returns:
     -------
     results
-    """
 
+    Raise:
+    -----
+    Exception('Something went wrong')
+
+    """
     (T,d1,d2)=shape
     d=d1*d2
 
@@ -202,8 +191,6 @@ def apply_to_patch(mmap_file, shape, dview, rf , stride , function, *args, **kwa
     else:
         stride1=stride
         stride2=stride
-
-
 
     idx_flat,idx_2d=extract_patch_coordinates(d1, d2, rf=(rf1,rf2), stride = (stride1,stride2))
 
@@ -220,34 +207,23 @@ def apply_to_patch(mmap_file, shape, dview, rf , stride , function, *args, **kwa
     for id_f,id_2d in zip(idx_flat[:],idx_2d[:]):
 
         args_in.append((mmap_file.filename, id_f,id_2d, function, args, kwargs))
-
-
-
     print((len(idx_flat)))
-
-
     if dview is not None:
-
         try:
-
             file_res = dview.map_sync(function_place_holder, args_in)
-
             dview.results.clear()
 
         except:
-            print('Something went wrong')
-            raise
+            raise Exception('Something went wrong')
         finally:
             print('You may think that it went well but reality is harsh')
-
-
     else:
 
         file_res = list(map(function_place_holder, args_in))
-
     return file_res, idx_flat, shape_grid
 #%%
 def function_place_holder(args_in):
+    #todo: todocument
 
     file_name, idx_,shapes,function, args, kwargs = args_in
     Yr, _, _ = load_memmap(file_name)
@@ -271,10 +247,11 @@ def start_server(slurm_script=None, ipcluster="ipcluster", ncpus = None):
     """
     programmatically start the ipyparallel server
 
-    Parameters
+    Parameters:
     ----------
     ncpus: int
         number of processors
+
     ipcluster : str
         ipcluster binary file name; requires 4 path separators on Windows. ipcluster="C:\\\\Anaconda2\\\\Scripts\\\\ipcluster.exe"
          Default: "ipcluster"
@@ -286,9 +263,9 @@ def start_server(slurm_script=None, ipcluster="ipcluster", ncpus = None):
 
     if slurm_script is None:
         if ipcluster == "ipcluster":
-            p1 = subprocess.Popen("ipcluster start -n {0}".format(ncpus), shell=True, close_fds=(os.name != 'nt'))
+            subprocess.Popen("ipcluster start -n {0}".format(ncpus), shell=True, close_fds=(os.name != 'nt'))
         else:
-            p1 = subprocess.Popen(shlex.split("{0} start -n {1}".format(ipcluster, ncpus)), shell=True, close_fds=(os.name != 'nt'))
+            subprocess.Popen(shlex.split("{0} start -n {1}".format(ipcluster, ncpus)), shell=True, close_fds=(os.name != 'nt'))
 
         # Check that all processes have started
         time.sleep(1)
@@ -314,13 +291,11 @@ def start_server(slurm_script=None, ipcluster="ipcluster", ncpus = None):
 
 
 #%%
-
-
 def shell_source(script):
-    """Sometime you want to emulate the action of "source" in bash,
-    settings some environment variables. Here is a way to do it."""
+    """Sometime you want to emulate the action of "source"
 
-
+    in bash, settings some environment variables. Here is a way to do it.
+    """
     pipe = subprocess.Popen(". %s; env" % script,  stdout=subprocess.PIPE, shell=True)
     output = pipe.communicate()[0]
     env = dict()
@@ -328,7 +303,6 @@ def shell_source(script):
         lsp = line.split("=", 1)
         if len(lsp) > 1:
             env[lsp[0]] = lsp[1]
-#    env = dict((line.split("=", 1) for line in output.splitlines()))
     os.environ.update(env)
     pipe.stdout.close()
 #%%
@@ -337,11 +311,13 @@ def shell_source(script):
 def stop_server( ipcluster='ipcluster',pdir=None,profile=None):
     """
     programmatically stops the ipyparallel server
-    Parameters
+
+    Parameters:
      ----------
      ipcluster : str
          ipcluster binary file name; requires 4 path separators on Windows
          Default: "ipcluster"
+
     """
     sys.stdout.write("Stopping cluster...\n")
     sys.stdout.flush()
@@ -353,7 +329,6 @@ def stop_server( ipcluster='ipcluster',pdir=None,profile=None):
         is_slurm = False
 
     if is_slurm:
-
         if pdir is None and profile is None:
             pdir, profile = os.environ['IPPPDIR'], os.environ['IPPPROFILE']
         c = Client(ipython_dir=pdir, profile=profile)
@@ -404,7 +379,8 @@ def setup_cluster(backend = 'local',n_processes = None,single_thread = False):
     """ Restart if necessary the pipyparallel cluster, and manages the case of SLURM
 
     """
-    #backend; 'local' or 'SLURM'. SLURM is experimental! You need to modify the script SLURM/slurmStart.sh
+    #todo: todocument
+
     if n_processes is None:
         if backend == 'SLURM':
             n_processes = np.int(os.environ.get('SLURM_NPROCS'))
@@ -416,11 +392,6 @@ def setup_cluster(backend = 'local',n_processes = None,single_thread = False):
         dview = None
         c = None
     else:
-        try:
-            c.close()
-        except:
-            print('Client did not exist, creating one')
-
         sys.stdout.flush()
 
         if backend == 'SLURM':
@@ -440,3 +411,48 @@ def setup_cluster(backend = 'local',n_processes = None,single_thread = False):
         print(('Using ' + str(len(c)) + ' processes'))
         dview = c[:len(c)]
     return c,dview,n_processes
+
+
+# %%
+"""
+def extract_rois_patch(file_name,d1,d2,rf=5,stride = 5):
+
+    #todo: todocument
+
+    idx_flat,idx_2d=extract_patch_coordinates(d1, d2, rf=rf,stride = stride)
+    perctl=95
+    n_components=2
+    tol=1e-6
+    max_iter=5000
+    args_in=[]
+    for id_f,id_2d in zip(idx_flat[:],idx_2d[:]):
+        args_in.append((file_name, id_f,id_2d, perctl,n_components,tol,max_iter))
+    st=time.time()
+    print((len(idx_flat)))
+    try:
+        c = Client()
+        dview=c[:]
+        file_res = dview.map_sync(nmf_patches, args_in)
+    except:
+            file_res = list(map(nmf_patches, args_in))
+    finally:
+        dview.results.clear()
+        c.purge_results('all')
+        c.purge_everything()
+        c.close()
+
+    print((time.time()-st))
+
+    A1=lil_matrix((d1*d2,len(file_res)))
+    C1=[]
+    A2=lil_matrix((d1*d2,len(file_res)))
+    C2=[]
+    for count,f in enumerate(file_res):
+        idx_,flt,ca,d=f
+        A1[idx_,count]=flt[:,0][:,np.newaxis]
+        A2[idx_,count]=flt[:,1][:,np.newaxis]
+        C1.append(ca[0,:])
+        C2.append(ca[1,:])
+
+    return A1,A2,C1,C2
+"""

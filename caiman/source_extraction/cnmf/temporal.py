@@ -52,6 +52,8 @@ def make_G_matrix(T, g):
 
 def constrained_foopsi_parallel(arg_in):
     """ necessary for parallel computation of the function  constrained_foopsi
+
+        the most likely discretized spike train underlying a fluorescence trace
     """
 
     Ytemp, nT, jj_, bl, c1, g, sn, argss = arg_in
@@ -350,21 +352,16 @@ def update_iteration (parrllcomp, len_parrllcomp, nb,C, S, bl, nr,
 """
 
     for _ in range(ITER):
-        P_ = []
         for count, jo_ in enumerate(parrllcomp):
             #INITIALIZE THE PARAMS
             jo = np.array(list(jo_))
             Ytemp = YrA[:, jo.flatten()] + Cin[jo, :].T
             Ctemp = np.zeros((np.size(jo), T))
             Stemp = np.zeros((np.size(jo), T))
-            btemp = np.zeros((np.size(jo), 1))
-            sntemp = btemp.copy()
-            c1temp = btemp.copy()
-            gtemp = np.zeros((np.size(jo), kwargs['p']))
             nT = nA[jo]
             args_in = [(np.squeeze(np.array(Ytemp[:, jj])), nT[jj], jj, None,
                         None, None, None, kwargs) for jj in range(len(jo))]
-            #computing the
+            #computing the most likely discretized spike train underlying a fluorescence trace
             if dview is not None:
                 if debug:
                     results = dview.map_async(constrained_foopsi_parallel, args_in)
@@ -379,27 +376,14 @@ def update_iteration (parrllcomp, len_parrllcomp, nb,C, S, bl, nr,
                     results = dview.map_sync(constrained_foopsi_parallel, args_in)
             else:
                 results = list(map(constrained_foopsi_parallel, args_in))
-
+            #unparsing and updating the result
             for chunk in results:
-                pars = dict()
                 C_, Sp_, Ytemp_, cb_, c1_, sn_, gn_, jj_ = chunk
                 Ctemp[jj_, :] = C_[None, :]
-                Stemp[jj_, :] = Sp_
-                Ytemp[:, jj_] = Ytemp_
-                btemp[jj_] = cb_
-                c1temp[jj_] = c1_
-                sntemp[jj_] = sn_
-                gtemp[jj_, :] = gn_.T
                 bl[jo[jj_]] = cb_
                 c1[jo[jj_]] = c1_
                 sn[jo[jj_]] = sn_
                 g[jo[jj_]] = gn_.T if kwargs['p'] > 0 else []
-                pars['b'] = cb_
-                pars['c1'] = c1_
-                pars['neuron_sn'] = sn_
-                pars['gn'] = gtemp[jj_, np.abs(gtemp[jj_, :]) > 0]
-                pars['neuron_id'] = jo[jj_]
-                P_.append(pars)
 
             YrA -= AA[jo, :].T.dot(Ctemp - C[jo, :]).T
             C[jo, :] = Ctemp.copy()
@@ -418,7 +402,7 @@ def update_iteration (parrllcomp, len_parrllcomp, nb,C, S, bl, nr,
         if old_div(scipy.linalg.norm(Cin - C, 'fro'), scipy.linalg.norm(C, 'fro')) <= 1e-3:
             print("stopping: overall temporal component not changing significantly")
             break
-        else:
+        else: #we keep Cin and do the iteration once more
             Cin = C
 
     return C, S, bl, YrA, c1, sn, g

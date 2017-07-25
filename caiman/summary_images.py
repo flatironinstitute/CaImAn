@@ -1,9 +1,21 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Thu Oct 20 11:41:21 2016
+""" functions that creates image from a video file
 
-@author: agiovann
+for plotting purposes mainly, reutrn correlation images ( local or max )
+
+See Also:
+------------
+
+@url
+.. image::
+@author andrea giovannucci
 """
+# \package caiman
+# \version   1.0
+# \copyright GNU General Public License v2.0
+# \date Created on Thu Oct 20 11:41:21 2016
+
+
 from __future__ import division
 from builtins import range
 from past.utils import old_div
@@ -15,24 +27,28 @@ from scipy.ndimage.filters import correlate, convolve
 def max_correlation_image(Y,bin_size = 1000, eight_neighbours = True, swap_dim = True):
     """Computes the max-correlation image for the input dataset Y  with bin_size
 
-    Parameters
+    Parameters:
     -----------
 
     Y:  np.ndarray (3D or 4D)
         Input movie data in 3D or 4D format
+
     bin_size: scalar (integer)
          Length of bin_size (if last bin is smaller than bin_size < 2 bin_size is increased to impose uniform bins)
+
     eight_neighbours: Boolean
         Use 8 neighbors if true, and 4 if false for 3D data (default = True)
         Use 6 neighbors for 4D data, irrespectively
+
     swap_dim: Boolean
         True indicates that time is listed in the last axis of Y (matlab format)
         and moves it in the front
 
-    Returns
+    Returns:
     --------
 
-    Cn: d1 x d2 [x d3] matrix, max correlation image
+    Cn: d1 x d2 [x d3] matrix,
+        max correlation image
 
     """
 
@@ -50,7 +66,8 @@ def max_correlation_image(Y,bin_size = 1000, eight_neighbours = True, swap_dim =
         n_bins = T//bin_size
         Cn_bins = np.zeros(((n_bins,)+Y.shape[1:]))
         for i in range(n_bins):
-            Cn_bins[i] = local_correlations_fft(Y[i*bin_size:(i+1)*bin_size],eight_neighbours=eight_neighbours,swap_dim=False)
+            Cn_bins[i] = local_correlations_fft(Y[i*bin_size:(i+1)*bin_size],
+                                                eight_neighbours=eight_neighbours,swap_dim=False)
             print(i*bin_size)
     
         Cn = np.max(Cn_bins,axis=0)
@@ -59,19 +76,21 @@ def max_correlation_image(Y,bin_size = 1000, eight_neighbours = True, swap_dim =
 def local_correlations_fft(Y, eight_neighbours=True, swap_dim=True):
     """Computes the correlation image for the input dataset Y  using a faster FFT based method
 
-    Parameters
+    Parameters:
     -----------
 
     Y:  np.ndarray (3D or 4D)
         Input movie data in 3D or 4D format
+
     eight_neighbours: Boolean
         Use 8 neighbors if true, and 4 if false for 3D data (default = True)
         Use 6 neighbors for 4D data, irrespectively
+
     swap_dim: Boolean
         True indicates that time is listed in the last axis of Y (matlab format)
         and moves it in the front
 
-    Returns
+    Returns:
     --------
 
     Cn: d1 x d2 [x d3] matrix, cross-correlation with adjacent pixels
@@ -109,19 +128,21 @@ def local_correlations_fft(Y, eight_neighbours=True, swap_dim=True):
 def local_correlations(Y, eight_neighbours=True, swap_dim=True):
     """Computes the correlation image for the input dataset Y
 
-    Parameters
+    Parameters:
     -----------
 
     Y:  np.ndarray (3D or 4D)
         Input movie data in 3D or 4D format
+
     eight_neighbours: Boolean
         Use 8 neighbors if true, and 4 if false for 3D data (default = True)
         Use 6 neighbors for 4D data, irrespectively
+
     swap_dim: Boolean
         True indicates that time is listed in the last axis of Y (matlab format)
         and moves it in the front
 
-    Returns
+    Returns:
     --------
 
     rho: d1 x d2 [x d3] matrix, cross-correlation with adjacent pixels

@@ -380,10 +380,13 @@ def see(filename=None):
             filename:
                 ( just give the number or name)
              
-            	See Also:
-            	--------- 
-            	.. image:: caiman/tests/comparison/data.pdf
+            See Also:
+            ---------
+            @image html caiman/tests/comparison/data.pdf
+
                 """
+
+
         if filename == None:
             dr='./caiman/tests/comparison/groundtruth.npz'
         else:
