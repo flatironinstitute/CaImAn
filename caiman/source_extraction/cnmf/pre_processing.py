@@ -151,13 +151,13 @@ def get_noise_fft(Y, noise_range = [0.25,0.5], noise_method = 'logmexp', max_num
         xdft = np.fft.rfft(Y,axis=-1)
         psdx = (old_div(1.,T))*abs(xdft)**2
         psdx[...,1:] *= 2
-        sn = mean_psd(psdx[...,ind], method = noise_method)
+        sn = mean_psd(psdx[...,ind[:psdx.shape[-1]]], method = noise_method)
 
     else:
         xdft = np.fliplr(np.fft.rfft(Y))
         psdx = (old_div(1.,T))*(xdft**2)
         psdx[1:] *=2
-        sn = mean_psd(psdx[ind], method = noise_method)
+        sn = mean_psd(psdx[ind[:psdx.shape[0]]], method = noise_method)
 
     return sn, psdx
 
