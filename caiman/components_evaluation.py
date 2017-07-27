@@ -13,6 +13,7 @@ from .utils.stats import mode_robust, mode_robust_fast
 from scipy.sparse import csc_matrix
 from scipy.stats import norm
 import scipy
+import cv2
 
 
 def estimate_noise_mode(traces,robust_std=False,use_mode_fast=False, return_all = False):
@@ -147,6 +148,10 @@ def find_activity_intervals(C,Npeaks = 5, tB=-5, tA = 25, thres = 0.3):
     K,T = np.shape(C)
     L = []
     for i in range(K):
+        if np.sum(np.abs(np.diff(C[i,:])))==0:
+            L.append([])        
+            print('empyty component at:'+str(i))
+            continue
         indexes = peakutils.indexes(C[i,:],thres=thres)        
         srt_ind = indexes[np.argsort(C[i,indexes])][::-1]
         srt_ind = srt_ind[:Npeaks]
@@ -178,7 +183,9 @@ def classify_components_ep(Y,A,C,b,f,Athresh = 0.1,Npeaks = 5, tB=-5, tA = 25, t
     rval = np.zeros(K)
 
     significant_samples=[]
-    for i in range(K):      
+    for i in range(K):
+        if i%200 == 0:
+            print('components evaluated:'+str(i))
         if LOC[i] is not None:
             atemp = A[:,i].toarray().flatten()
             ovlp_cmp = np.where(AA[:,i]>Athresh)[0]
@@ -192,8 +199,8 @@ def classify_components_ep(Y,A,C,b,f,Athresh = 0.1,Npeaks = 5, tB=-5, tA = 25, t
              
 
             px = np.where(atemp>0)[0]
-
-            mY = np.mean(Y[px,:][:,indexes],axis=-1)
+            ysqr = np.array(Y[px,:])
+            mY = np.mean(ysqr[:,indexes],axis=-1)
             significant_samples.append(indexes)
             #rval[i] = np.corrcoef(mY,atemp[px])[0,1]
             rval[i] = scipy.stats.pearsonr(mY,atemp[px])[0]
@@ -282,7 +289,10 @@ def evaluate_components(Y, traces, A, C, b, f, final_frate, remove_baseline = Tr
     print('Removing Baseline')
     if remove_baseline:
         num_samps_bl=np.minimum(old_div(np.shape(traces)[-1],5),800)
-        traces = traces - scipy.ndimage.percentile_filter(traces,8,size=[1,num_samps_bl])
+#        traces1 = traces - scipy.ndimage.percentile_filter(traces,8,size=[1,num_samps_bl])
+        num_chunks_baseline = traces.shape[-1]//num_samps_bl
+        traces -= cv2.resize(np.vstack([np.percentile(g,8,axis=0)[None,:] for g in list(chunker(traces.T,num_chunks_baseline))]),traces.shape).T
+        print('Num chunks baseline:'+str(num_chunks_baseline))
 
     print('Computing event exceptionality')    
     fitness_raw, erfc_raw,std_rr, _ = compute_event_exceptionality(traces,robust_std=robust_std,N=N)
@@ -293,11 +303,15 @@ def evaluate_components(Y, traces, A, C, b, f, final_frate, remove_baseline = Tr
 
     return fitness_raw, fitness_delta, erfc_raw, erfc_delta, r_values, significant_samples    
 #%%
-def estimate_components_quality(traces, Y, A, C, b, f, final_frate = 30, Npeaks=10, r_values_min = .95,fitness_min = -100,fitness_delta_min = -100, return_all = False, N =5):
+def chunker(seq, size):
+    for pos in xrange(0, len(seq), size):
+        yield seq[pos:pos + size]
+#%%
+def estimate_components_quality(traces, Y, A, C, b, f, final_frate = 30, Npeaks=10, r_values_min = .95,fitness_min = -100,fitness_delta_min = -100, return_all = False, N =5,  remove_baseline = True):
  
     fitness_raw, fitness_delta, erfc_raw, erfc_delta, r_values, significant_samples = \
-        evaluate_components(Y, traces, A, C, b, f, final_frate, remove_baseline=True,
-                                          N=N, robust_std=False, Athresh=0.1, Npeaks=Npeaks,  thresh_C=0.3)
+        evaluate_components(Y, traces, A, C, b, f, final_frate, remove_baseline=remove_baseline,
+                                          N=N, robust_std=False, Athresh=0.1, Npeaks=Npeaks,  thresh_C=0.3 )
     
     idx_components_r = np.where(r_values >= r_values_min)[0]  # threshold on space consistency
     idx_components_raw = np.where(fitness_raw < fitness_min)[0] # threshold on time variability
