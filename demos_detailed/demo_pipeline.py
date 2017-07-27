@@ -232,7 +232,7 @@ min_mov = cm.load(fname[0], subindices=range(400)).min()
 mc_list = []
 new_templ = None
 for each_file in fname:
-    # TODO: needinfo how the classes works
+# TODO: needinfo how the classes works
     mc = MotionCorrect(each_file, min_mov,
                        dview=dview, max_shifts=max_shifts, niter_rig=niter_rig, splits_rig=splits_rig,
                        num_splits_to_process_rig=num_splits_to_process_rig,

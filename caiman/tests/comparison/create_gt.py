@@ -52,24 +52,13 @@ from caiman.components_evaluation import estimate_components_quality
 from caiman.tests.comparison import comparison
 
 
-
-params_movie = {'fname': [u'./example_movies/demoSue2x.tif'],
-               'niter_rig': 1,
+#GLOBAL VAR
+params_movie = {'fname':['Sue_2x_3000_40_-46.tif'],
+                'niter_rig': 1,
                'max_shifts': (3, 3),  # maximum allow rigid shift
                'splits_rig': 20,  # for parallelization split the movies in  num_splits chuncks across time
                # if none all the splits are processed and the movie is saved
                'num_splits_to_process_rig': None,
-               # intervals at which patches are laid out for motion correction
-               'strides': (48, 48),
-               # overlap between pathes (size of patch strides+overlaps)
-               'overlaps': (24, 24),
-               'splits_els': 28,  # for parallelization split the movies in  num_splits chuncks across time
-               # if none all the splits are processed and the movie is saved
-               'num_splits_to_process_els': [14, None],
-               'upsample_factor_grid': 6,  # upsample factor to avoid smearing when merging patches
-               # maximum deviation allowed for patch with respect to rigid
-               # shift
-               'max_deviation_rigid': 2,
                'p': 1,  # order of the autoregressive system
                'merge_thresh': 0.8,  # merging threshold, max correlation allowed
                'rf': 15,  # half-size of the patches in pixels. rf=25, patches are 50x50
@@ -82,26 +71,24 @@ params_movie = {'fname': [u'./example_movies/demoSue2x.tif'],
                'gSig': [4, 4],  # expected half size of neurons
                'alpha_snmf': None,  # this controls sparsity
                'final_frate': 30,
-               'r_values_min_patch' : .7,  # threshold on space consistency
-               'fitness_min_patch' : -40,  # threshold on time variability
+                'r_values_min_patch' : .7,  # threshold on space consistency
+                'fitness_min_patch' : -40,  # threshold on time variability
 # threshold on time variability (if nonsparse activity)
-               'fitness_delta_min_patch' : -40,
-               'Npeaks': 10,
-               'r_values_min_full' : .85,
-               'fitness_min_full' : - 50,
-               'fitness_delta_min_full' : - 50,
-               'only_init_patch':True,
-               'gnb':1,
-               'memory_fact':1,
-               'n_chunks':10
-               }
-# %%
+                'fitness_delta_min_patch' : -40,
+                'Npeaks': 10,
+                'r_values_min_full' : .85,
+                'fitness_min_full' : - 50,
+                'fitness_delta_min_full' : - 50,
+                'only_init_patch':True,
+                'gnb':1,
+                'memory_fact':1,
+                'n_chunks':10
+                }
+params_display={
+        'downsample_ratio':.2,
+        'thr_plot':0.9
+        }
 
-
-
-
-
-# #GLOBAL VAR
 # params_movie = {'fname': [u'./example_movies/demoMovieJ.tif'],
 #                 'max_shifts': (2, 2),  # maximum allow rigid shift (2,2)
 #                 'niter_rig': 1,
@@ -137,10 +124,6 @@ params_movie = {'fname': [u'./example_movies/demoSue2x.tif'],
 #                 'n_chunks': 10
 #
 #                 }
-params_display={
-        'downsample_ratio':.2,
-        'thr_plot':0.9
-        }
 
 def create():
     """ the function that will create a groundtruth
@@ -166,34 +149,24 @@ def create():
     max_shifts = params_movie['max_shifts']
     splits_rig = params_movie['splits_rig']
     num_splits_to_process_rig = params_movie['num_splits_to_process_rig']
-    strides = params_movie['strides']
-    overlaps = params_movie['overlaps']
-    splits_els = params_movie['splits_els']
-    num_splits_to_process_els = params_movie['num_splits_to_process_els']
-    upsample_factor_grid = params_movie['upsample_factor_grid']
-    max_deviation_rigid = params_movie['max_deviation_rigid']
 
     download_demo(fname[0])
-    m_orig = cm.load_movie_chain(fname[:1])
-    min_mov = cm.load(fname[0], subindices=range(400)).min()
+    fname = os.path.join('example_movies', fname[0])
+    m_orig = cm.load(fname)
+    min_mov = m_orig[:400].min()
     comp = comparison.Comparison()
     comp.dims = np.shape(m_orig)[1:]
 
     ################ RIG CORRECTION #################
     t1 = time.time()
-    for each_file in fname:
-        mc = MotionCorrect(each_file, min_mov,
-                           max_shifts=max_shifts, niter_rig=niter_rig
-                           , splits_rig=splits_rig,
-                           num_splits_to_process_rig=num_splits_to_process_rig,
-                           strides=strides, overlaps=overlaps, splits_els=splits_els,
-                           num_splits_to_process_els=num_splits_to_process_els,
-                           upsample_factor_grid=upsample_factor_grid
-                           , max_deviation_rigid=max_deviation_rigid,
-                           shifts_opencv=True, nonneg_movie=True)
-        mc.motion_correct_rigid(save_movie=True)
-        m_rig = cm.load(mc.fname_tot_rig)
-        bord_px_rig = np.ceil(np.max(mc.shifts_rig)).astype(np.int)
+    mc = MotionCorrect(fname, min_mov,
+                       max_shifts=max_shifts, niter_rig=niter_rig
+                       , splits_rig=splits_rig,
+                       num_splits_to_process_rig=num_splits_to_process_rig,
+                       shifts_opencv=True, nonneg_movie=True)
+    mc.motion_correct_rigid(save_movie=True)
+    m_rig = cm.load(mc.fname_tot_rig)
+    bord_px_rig = np.ceil(np.max(mc.shifts_rig)).astype(np.int)
     comp.comparison['rig_shifts']['timer'] = time.time() - t1
     comp.comparison['rig_shifts']['ourdata'] = mc.shifts_rig
     ###########################################

@@ -140,11 +140,6 @@ ENV/
 #VCS
 *.idea
 
-#html documentation
-/html
-/docs/html
-/docs/html1
-
 #building part
 /build
 
@@ -165,6 +160,9 @@ caiman/tests/comparison/tests/
 !caiman/tests/comparison/tests/tosend/*
 !caiman/tests/comparison/groundtruth.npz
 /dev
+
+#htmls
+docs/html/*
 
 
 #generated data from caiman

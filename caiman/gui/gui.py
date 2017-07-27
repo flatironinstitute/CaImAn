@@ -26,18 +26,33 @@ class GUI(animation.TimedAnimation):
         interface for viewing a movie and its associated roi, traces, other things
 
         implementation is only through matplotlib, and is non-blocking
-
         backend affects performance somewhat dramatically. have achieved decent performance with qt5agg and tkagg
+
+         Methods:
+         -------
+
+
+        Attributes:
+        ----------
+            roi_kept : boolean array of length of supplied roi, indicating whether or not roi should be kept based on user input
+
+
     """
+    #todo: todocument *14
     def __init__(self, mov, roi, traces, images={}, cmap=pl.cm.viridis, **kwargs):
         """
             Parameters:
+            ---------
                 mov : 3d np array, 0'th axis is time/frames
+
                 roi : 3d np array, one roi per item in 0'th axis, each of which is a True/False mask indicating roi (True=inside roi)
+
                 traces : 2d np array, 0'th axis is time, 1st axis is sources
+
                 images: dictionary of still images
 
             Attributes:
+            ----------
                 roi_kept : boolean array of length of supplied roi, indicating whether or not roi should be kept based on user input
 
         """
@@ -57,6 +72,7 @@ class GUI(animation.TimedAnimation):
         NR,NC = 128,32
         gs = gridspec.GridSpec(nrows=NR, ncols=NC)
         gs.update(wspace=0.1, hspace=0.1, left=.04, right=.96, top=.98, bottom=.02)
+
         # movie axes
         self.ax_contrast0 = self.fig.add_subplot(gs[0:5,0:NC//3])
         self.ax_contrast1 = self.fig.add_subplot(gs[5:10,0:NC//3])
@@ -65,6 +81,7 @@ class GUI(animation.TimedAnimation):
         self.ax_img = self.fig.add_subplot(gs[55:100,0:NC//3])
         self.ax_img.axis('off')
         self.axs_imbuts = [self.fig.add_subplot(gs[110:128,idx*2:idx*2+2]) for idx,i in enumerate(self.images)]
+
         # trace axes
         self.ax_trcs = self.fig.add_subplot(gs[0:64,NC//2:])
         self.ax_trc = self.fig.add_subplot(gs[65:85,NC//2:])
@@ -114,7 +131,6 @@ class GUI(animation.TimedAnimation):
 
     @property
     def frame_seq(self):
-        #print (time.clock()-self.t0)
         self._idx += 1
         if self._idx == len(self.mov):
             self._idx = 0
@@ -134,9 +150,7 @@ class GUI(animation.TimedAnimation):
 
     def _draw_frame(self, d):
         self.t0 = time.clock()
-
         self.movdata.set_data(d)
-
         # blit
         self._drawn_artists = self.always_draw
         for da in self._drawn_artists:
@@ -203,6 +217,7 @@ class GUI(animation.TimedAnimation):
     def remove_roi(self, evt):
         self.current_roi = self.get_current_roi()
         self.roi_kept[self.current_roi] = False
+
         # update
         if np.sum(self.roi_kept):
             proi = pretty_roi(self.roi_orig[self.roi_kept])
@@ -225,14 +240,15 @@ class GUI(animation.TimedAnimation):
             self.ax_trcs.plot((t-t.min())+lastmax, color=c)
             lastmax = np.max(t)
         self.ax_trcs.set_ylim([0,lastmax])
-        #self.fig.canvas.draw_idle()
+
+
 #%%
 if __name__ == '__main__':
+    # todo: load and fname ??
     # load data
     mov = load(fname,fr=30)
     mean,minn,maxx = mov.mean(axis=0),mov.min(axis=0),mov.max(axis=0)
     roi = np.load('/Users/ben/Desktop/roi.npy')
-    tr = np.random.random([3000,3])#np.load('/Users/ben/Desktop/tr.npy') roi
-
+    tr = np.random.random([3000,3])
     # run interface
     intfc = GUI(mov, roi, tr, images=dict(mean=mean,min=minn,max=maxx))

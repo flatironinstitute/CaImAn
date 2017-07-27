@@ -140,6 +140,9 @@ def constrained_foopsi(fluor, bl=None,  c1=None, g=None,  sn=None, p=None, metho
             from caiman.source_extraction.cnmf.oasis import constrained_oasisAR1
             if p == 1:
                 if bl is None:
+                    #Infer the most likely discretized spike train underlying an AR(1) fluorescence trace
+                    #Solves the noise constrained sparse non-negative deconvolution problem
+                    #min |s|_1 subject to |c-y|^2 = sn^2 T and s_t = c_t-g c_{t-1} >= 0
                     c, sp, bl, g, _ = constrained_oasisAR1(
                         fluor, g[0], sn, optimize_b=True, b_nonneg=bas_nonneg,
                         optimize_g=optimize_g, penalty=penalty)
@@ -712,8 +715,7 @@ def constrained_oasisAR2(y, g, sn, optimize_b=True, b_nonneg=True, optimize_g=0,
 
     if not optimize_g:
         g11 = (np.exp(log(d) * np.arange(1, T + 1)) * np.arange(1, T + 1)) if d == r else \
-            (np.exp(log(d) * np.arange(1, T + 1)) -
-             np.exp(log(r) * np.arange(1, T + 1))) / (d - r)
+            (np.exp(log(d) * np.arange(1, T + 1)) - np.exp(log(r) * np.arange(1, T + 1))) / (d - r)
         g12 = np.append(0, g[1] * g11[:-1])
         g11g11 = np.cumsum(g11 * g11)
         g11g12 = np.cumsum(g11 * g12)

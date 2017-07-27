@@ -48,29 +48,19 @@ import copy
 from caiman.source_extraction.cnmf import cnmf as cnmf
 from caiman.motion_correction import MotionCorrect
 from caiman.components_evaluation import estimate_components_quality
-from caiman.tests.comparison import Comparison
+from caiman.tests.comparison import comparison
 
 
 
 
 #GLOBAL VAR
-params_movie = {'fname':[u'./example_movies/demoSue2x.tif'],
+params_movie = {'fname':['Sue_2x_3000_40_-46.tif'],
                 'niter_rig': 1,
                'max_shifts': (3, 3),  # maximum allow rigid shift
                'splits_rig': 20,  # for parallelization split the movies in  num_splits chuncks across time
                # if none all the splits are processed and the movie is saved
                'num_splits_to_process_rig': None,
                # intervals at which patches are laid out for motion correction
-               'strides': (48, 48),
-               # overlap between pathes (size of patch strides+overlaps)
-               'overlaps': (24, 24),
-               'splits_els': 28,  # for parallelization split the movies in  num_splits chuncks across time
-               # if none all the splits are processed and the movie is saved
-               'num_splits_to_process_els': [14, None],
-               'upsample_factor_grid': 6,  # upsample factor to avoid smearing when merging patches
-               # maximum deviation allowed for patch with respect to rigid
-               # shift
-               'max_deviation_rigid': 2,
                'p': 1,  # order of the autoregressive system
                'merge_thresh': 0.8,  # merging threshold, max correlation allowed
                'rf': 15,  # half-size of the patches in pixels. rf=25, patches are 50x50
@@ -106,12 +96,6 @@ params_display={
 #                 'niter_rig': 1,
 #                 'splits_rig': 14,  # for parallelization split the movies in  num_splits chuncks across time
 #                 'num_splits_to_process_rig': None,  # if none all the splits are processed and the movie is saved
-#                 'strides': (48, 48),  # intervals at which patches are laid out for motion correction
-#                 'overlaps': (24, 24),  # overlap between pathes (size of patch strides+overlaps)
-#                 'splits_els': 14,  # for parallelization split the movies in  num_splits chuncks across time
-#                 'num_splits_to_process_els': [14, None],  # if none all the splits are processed and the movie is saved
-#                 'upsample_factor_grid': 3,  # upsample factor to avoid smearing when merging patches
-#                 'max_deviation_rigid': 1,  # maximum deviation allowed for patch with respect to rigid shift
 #                 'p': 1,  # order of the autoregressive system
 #                 'merge_thresh': 0.8,  # merging threshold, max correlation allow
 #                 'rf': 20,  # half-size of the patches in pixels. rf=25, patches are 50x50    20
@@ -173,37 +157,27 @@ def test_general():
     max_shifts = params_movie['max_shifts']
     splits_rig = params_movie['splits_rig']
     num_splits_to_process_rig = params_movie['num_splits_to_process_rig']
-    strides = params_movie['strides']
-    overlaps = params_movie['overlaps']
-    splits_els = params_movie['splits_els'] 
-    num_splits_to_process_els = params_movie['num_splits_to_process_els']
-    upsample_factor_grid = params_movie['upsample_factor_grid'] 
-    max_deviation_rigid = params_movie['max_deviation_rigid']
-    
+
     download_demo(fname[0])
-    m_orig = cm.load_movie_chain(fname[:1])
-    min_mov = cm.load(fname[0], subindices=range(400)).min()
-    comp=Comparison()
+    fname = os.path.join('example_movies', fname[0])
+    m_orig = cm.load(fname)
+    min_mov = m_orig[:400].min()
+    comp=comparison.Comparison()
     comp.dims = np.shape(m_orig)[1:]
-    
+
 
 ################ RIG CORRECTION #################
     t1 = time.time()
-    for each_file in fname:
-        mc = MotionCorrect(each_file, min_mov,
-                       max_shifts=max_shifts, niter_rig=niter_rig
-                       , splits_rig=splits_rig, 
-                       num_splits_to_process_rig=num_splits_to_process_rig, 
-                       strides= strides, overlaps= overlaps, splits_els=splits_els,
-                       num_splits_to_process_els=num_splits_to_process_els, 
-                       upsample_factor_grid=upsample_factor_grid
-                       , max_deviation_rigid=max_deviation_rigid, 
-                       shifts_opencv = True, nonneg_movie = True)
-        mc.motion_correct_rigid(save_movie=True)
+    mc = MotionCorrect(fname, min_mov,
+                   max_shifts=max_shifts, niter_rig=niter_rig
+                   , splits_rig=splits_rig,
+                   num_splits_to_process_rig=num_splits_to_process_rig,
+                   shifts_opencv = True, nonneg_movie = True)
+    mc.motion_correct_rigid(save_movie=True)
     m_rig = cm.load(mc.fname_tot_rig)
     bord_px_rig = np.ceil(np.max(mc.shifts_rig)).astype(np.int)
     comp.comparison['rig_shifts']['timer'] = time.time() - t1
-    comp.comparison['rig_shifts']['ourdata'] = mc.shifts_rig 
+    comp.comparison['rig_shifts']['ourdata'] = mc.shifts_rig
 ###########################################    
     
 
@@ -328,11 +302,23 @@ def test_general():
     for log_file in log_files:
         os.remove(log_file)
 ############ assertions ##################
-    assert(not comp.information['differences']['params_movie']),"you ned to set the same movie paramters than the ground truth to have a real comparison (use the comp.see() function to explore it)"
-    assert(not comp.information['differences']['params_cnm']),"you need to set the same cnmf paramters than the ground truth to have a real comparison (use the comp.see() function to explore it)"
-    assert(not comp.information['diff']['rig']['isdifferent']),"the rigid shifts are different from the groundtruth "
-    assert(not comp.information['diff']['cnmpatch']['isdifferent']),"the cnmf on patch produces different  results than the groundtruth "
-    assert(not comp.information['diff']['cnmfull']['isdifferent']),"the cnmf full frame produces different  results than the groundtruth "
+    pb = False
+    if (comp.information['differences']['params_movie']) :
+        print("you ned to set the same movie paramters than the ground truth to have a real comparison (use the comp.see() function to explore it)")
+        pb =True
+    if (comp.information['differences']['params_cnm']):
+        print("you need to set the same cnmf paramters than the ground truth to have a real comparison (use the comp.see() function to explore it)")
+        pb = True
+    if (comp.information['diff']['rig']['isdifferent']):
+        print("the rigid shifts are different from the groundtruth ")
+        pb = True
+    if (comp.information['diff']['cnmpatch']['isdifferent']):
+        print("the cnmf on patch produces different  results than the groundtruth ")
+        pb = True
+    if (comp.information['diff']['cnmfull']['isdifferent']):
+        print("the cnmf full frame produces different  results than the groundtruth ")
+        pb = True
+    assert (not pb)
 
 
 
