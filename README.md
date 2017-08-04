@@ -271,7 +271,7 @@ C. Using notebook.
 Documentation
 ========
 
-Documentation of the code can be found [here](http://agiovann.github.io/Constrained_NMF)
+Documentation of the code can be found [here](http://simonsfoundation.github.io/CaImAn/)
 
 Dependencies
 ========
