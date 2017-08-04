@@ -307,7 +307,7 @@ def chunker(seq, size):
         yield seq[pos:pos + size]
 #%%
 def estimate_components_quality(traces, Y, A, C, b, f, final_frate = 30, Npeaks=10, r_values_min = .95,
-                                fitness_min = -100,fitness_delta_min = -100, return_all = False, N =5):
+                                fitness_min = -100,fitness_delta_min = -100, return_all = False, N =5, remove_baseline = True):
     """ Define a metric and order components according to the probabilty if some "exceptional events" (like a spike).
 
     Such probability is defined as the likeihood of observing the actual trace value over N samples given an estimated noise distribution.
