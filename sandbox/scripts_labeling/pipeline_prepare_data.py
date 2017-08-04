@@ -107,64 +107,6 @@ params_movie = {'fname': fls,
                'n_chunks': 10
                }
 #%%
-# params_movie = {'fname': ['demoMovieJ.tif'],
-#                 'max_shifts': (1, 1),  # maximum allow rigid shift (2,2)
-#                 'niter_rig': 1,
-#                 'splits_rig': 14,  # for parallelization split the movies in  num_splits chuncks across time
-#                 'num_splits_to_process_rig': None,  # if none all the splits are processed and the movie is saved
-#                 'strides': (48, 48),  # intervals at which patches are laid out for motion correction
-#                 'overlaps': (12, 12),  # overlap between pathes (size of patch strides+overlaps)
-#                 'splits_els': 14,  # for parallelization split the movies in  num_splits chuncks across time
-#                 'num_splits_to_process_els': [14, None],  # if none all the splits are processed and the movie is saved
-#                 'upsample_factor_grid': 3,  # upsample factor to avoid smearing when merging patches
-#                 'max_deviation_rigid': 1,  # maximum deviation allowed for patch with respect to rigid shift
-#                 'p': 1,  # order of the autoregressive system
-#                 'merge_thresh': 0.8,  # merging threshold, max correlation allow
-#                 'rf': 20,  # half-size of the patches in pixels. rf=25, patches are 50x50    20
-#                 'stride_cnmf': 5,  # amounpl.it of overlap between the patches in pixels
-#                 'K': 6,  # number of components per patch
-#                 'is_dendrites': False,  # if dendritic. In this case you need to set init_method to sparse_nmf
-#                 'init_method': 'greedy_roi',
-#                 'gSig': [6, 6],  # expected half size of neurons
-#                 'alpha_snmf': None,  # this controls sparsity
-#                 'final_frate': 10,
-#                 'r_values_min_patch': .7,  # threshold on space consistency
-#                 'fitness_min_patch': -40,  # threshold on time variability
-#                 # threshold on time variability (if nonsparse activity)
-#                 'fitness_delta_min_patch': -40,
-#                 'Npeaks': 10,
-#                 'r_values_min_full': .85,
-#                 'fitness_min_full': - 50,
-#                 'fitness_delta_min_full': - 50,
-#                 'only_init_patch': True,
-#                 'gnb': 1,
-#                 'memory_fact': 1,
-#                 'n_chunks': 10
-
-#                 }
-# %% MULTIFILE
-# all_names = glob.glob(
-#    '/mnt/ceph/neuro/Sue/k53/k53_20160530_RSM_125um_41mW_zoom2p2_00001_000*.tif')
-# all_names.sort()
-# all_names = all_names[:]
-# print(all_names)
-# params_movie = {'fname':all_names,
-#                'max_shifts':(20,20), # maximum allow rigid shift
-#                'niter_rig':1,
-#                'splits_rig':10, # for parallelization split the movies in  num_splits chuncks across time
-#                'num_splits_to_process_rig':None, # if none all the splits are processed and the movie is saved
-#                 'p': 1, # order of the autoregressive system
-#                 'merge_thresh' : 0.8,  # merging threshold, max correlation allowed
-#                 'rf' : 14,  # half-size of the patches in pixels. rf=25, patches are 50x50
-#                 'stride_cnmf' : 4,  # amounpl.it of overlap between the patches in pixels
-#                 'K' : 6,  #  number of components per patch
-#                 'is_dendrites': False,  # if dendritic. In this case you need to set init_method to sparse_nmf
-#                 'init_method' : 'greedy_roi',
-#                 'gSig' : [7, 7],  # expected half size of neurons
-#                 'alpha_snmf' : None,  # this controls sparsity
-#                 'final_frate' : 30
-#                }
-#%%
 params_display = {
     'downsample_ratio': .2,
     'thr_plot': 0.9
@@ -223,10 +165,6 @@ c, dview, n_processes = cm.cluster.setup_cluster(
 
 # %% INITIALIZING
 t1 = time.time()
-# we want to compare it using comp
-comp = comparison.Comparison()
-comp.dims = np.shape(m_orig)[1:]
-
 # movie must be mostly positive for this to work
 # TODO : document
 # setting timer to see how the changement in functions make the code react on a same computer.
@@ -257,8 +195,7 @@ for each_file in fname:
     pl.pause(.1)
     mc_list.append(mc)
 # we are going to keep this part because it helps the user understand what we need.
-comp.comparison['rig_shifts']['timer'] = time.time() - t1
-comp.comparison['rig_shifts']['ourdata'] = mc.shifts_rig
+
 # needhelp why it is not the same as in the notebooks ?
 # TODO: show screenshot 2,3
 
@@ -289,14 +226,61 @@ c, dview, n_processes = cm.cluster.setup_cluster(
 # %% save each chunk in F format
 import os
 folders = os.walk('.').next()[1]
+folders.remove(folders[-4])
+folders.remove(folders[1])
 for fold in folders:    
     print('********************')
-    fls = glob.glob(os.path.join(fold,'images','mmap/*'))
+    fls = glob.glob(os.path.join(fold,'images','mmap/*order_F_*'))
     fls.sort()    
     print(len(fls))
     print([fl.split('/')[-1] for fl in  fls])    
-    fname_new = cm.save_memmap_join(fls, base_name='Yr', n_chunks=params_movie['n_chunks'], dview=dview)
+    fnames = fls
+    border_to_0 = 0
+    m_els = cm.load(fnames[0])    
+    idx_xy = None
+    # TODO: needinfo
+    add_to_movie = -np.nanmin(m_els) + 1  # movie must be positive
+    # if you need to remove frames from the beginning of each file
+    remove_init = 0
+    # downsample movie in time: use .2 or .1 if file is large and you want a quick answer
+    downsample_factor = 1
+    base_name = fnames[0].split('/')[-1][:-4]
+    # TODO: todocument
+    name_new = cm.save_memmap_each(fnames, dview=dview, base_name=base_name, resize_fact=(
+        1, 1, downsample_factor), remove_init=remove_init, idx_xy=idx_xy, add_to_movie=add_to_movie,
+                                   border_to_0=border_to_0)
     
+    
+    fname_new = cm.save_memmap_join(name_new, base_name='Yr', n_chunks=100, dview=dview)
+    
+#%%
+folders = os.walk('.').next()[1]    
+fls_for_each =  []
+count= 0
+for fold in folders:    
+    count+=1
+    print('********************')
+    fls = glob.glob(os.path.join(fold,'images','mmap/*.mmap'))
+    fls.sort()
+    fls  = [os.path.abspath(fl) for fl in fls]  
+    print(len(fls))
+    print([fl.split('/')[-1] for fl in  fls])    
+    fls_for_each.append(fls)
+#%%
+def create_correlation_image(fl_group):
+    import caiman as cm
+    cimg = cm.load_movie_chain(fl_group).local_correlations(eight_neighbours = True,swap_dim = False)        
+#    vm = (np.percentile(cimg[~np.isnan(cimg)],90))
+#    pl.imshow(cimg,vmax = vm)
+#    pl.pause(1)
+    return cimg
+
+# %% restart cluster to clean up memory
+# TODO: todocument
+c, dview, n_processes = cm.cluster.setup_cluster(
+    backend='local', n_processes=None, single_thread=False)
+#%%
+correlation_images = list(dview.map_sync(create_correlation_image,fls))
 #%%
 matches = []
 for root, dirnames, filenames in os.walk('.', topdown = False):

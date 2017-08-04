@@ -22,10 +22,10 @@ corr_img =  cm.load('projections/correlation_image.tif')
 new_templ = cm.load('projections/median_projection.tif')
 regions = nf_read_roi_zip('regions/joined_consensus_active_regions.zip',new_templ.shape)
 
-pl.imshow(new_templ/np.nanmax(new_templ),cmap = 'gray',vmin =0.3,vmax = .5)
+pl.imshow(new_templ/np.nanmax(new_templ),cmap = 'gray',vmin =0.01,vmax = .3)
 #pl.imshow(corr_img/np.nanmax(corr_img),cmap = 'gray',vmax = .25)
 
-pl.imshow(regions.sum(0),alpha =.3,cmap = 'hot',vmax = 3)
+pl.imshow(regions.sum(0),alpha =.1,cmap = 'hot',vmax = 3)
 
 #%%
 new_templ = cm.load('projections/median_projection.tif')

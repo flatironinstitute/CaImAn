@@ -40,12 +40,16 @@ from caiman.components_evaluation import evaluate_components
 from caiman.utils.visualization import plot_contours,view_patches_bar
 from caiman.base.rois import extract_binary_masks_blob
 #%%
-c,dview,n_processes = cm.cluster.setup_cluster(backend = 'local',n_processes = None,single_thread = True)
+c,dview,n_processes = cm.cluster.setup_cluster(backend = 'local',n_processes = None,single_thread = False)
 #%%
 min_size_neuro = 50
+max_size_neuro = 550
 n_frames_per_bin = 10
-#offline_file = '/opt/local/Data/JGauthier-J115/offline_results/results_analysis_offline_JEFF_90k.npz'
-offline_file = '/opt/local/Data/Sue/k53/Yr_d1_512_d2_512_d3_1_order_C_frames_116043_.results_analysis.npz'
+
+#n_frames_per_bin = 10
+offline_file = '/opt/local/Data/JGauthier-J115/offline_results/results_analysis_offline_JEFF_90k.npz'
+#offline_file = '/opt/local/Data/Sue/k53/Yr_d1_512_d2_512_d3_1_order_C_frames_116043_.results_analysis.npz'
+#offline_file = '/mnt/ceph/neuro/labeling/neurofinder.02.00/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_8000_.results_analysis.npz'
 
 #%%
 with np.load(offline_file) as ld:
@@ -58,15 +62,22 @@ with np.load(offline_file) as ld:
     f_off = f
 
 #%%
-#if offline_file == '/opt/local/Data/Sue/k53/Yr_d1_512_d2_512_d3_1_order_C_frames_116043_.results_analysis.npz':
-#    idx_components_raw = np.where(r_values >= .95)[0]
-#    idx_components_raw = np.where(fitness_raw < -75)[0]
-#    idx_components_delta = np.where(fitness_delta < -75)[0]
-#    
-#else:
-idx_components_r = np.where(r_values >= .95)[0]
-idx_components_raw = np.where(fitness_raw < -55)[0]
-idx_components_delta = np.where(fitness_delta < -55)[0]
+if offline_file == '/opt/local/Data/Sue/k53/Yr_d1_512_d2_512_d3_1_order_C_frames_116043_.results_analysis.npz':
+    idx_components_r = np.where(r_values >= .95)[0]
+    idx_components_raw = np.where(fitness_raw < -75)[0]
+    idx_components_delta = np.where(fitness_delta < -75)[0]
+    
+elif offline_file == '/opt/local/Data/JGauthier-J115/offline_results/results_analysis_offline_JEFF_90k.npz':
+    idx_components_r = np.where(r_values >= .95)[0]
+    idx_components_raw = np.where(fitness_raw < -55)[0]
+    idx_components_delta = np.where(fitness_delta < -55)[0]
+
+    
+    
+else:
+    idx_components_r = np.where(r_values >= .8)[0]
+    idx_components_raw = np.where(fitness_raw < -40)[0]
+    idx_components_delta = np.where(fitness_delta < -40)[0]
 
 
 #min_radius = gSig[0] - 2
@@ -83,11 +94,14 @@ print(' ***** ')
 print((len(r_values)))
 print((len(idx_components)))  
 #%%
-A_off = A_off.toarray()[:,idx_components]
-#A_off = A_off[:,idx_components]
+try:
+    A_off = A_off.toarray()[:,idx_components]
+except:
+    A_off = A_off[:,idx_components]
 C_off = C_off[idx_components]
 #    OASISinstances = OASISinstances[()]
 #%%
+pl.figure()
 crd = plot_contours(scipy.sparse.coo_matrix(A_off), Cn, thr=0.9)
 
 #%%
@@ -99,8 +113,8 @@ A_off_thr = cm.source_extraction.cnmf.spatial.threshold_components(A_off[:, :], 
 
 A_off_thr = A_off_thr > 0  
 size_neurons = A_off_thr.sum(0)
-A_off_thr = A_off_thr[:,size_neurons>min_size_neuro]
-C_off_thr = C_off[size_neurons>min_size_neuro,:116000]
+A_off_thr = A_off_thr[:,(size_neurons>min_size_neuro) & (size_neurons<max_size_neuro)]
+C_off_thr = C_off[(size_neurons>min_size_neuro) & (size_neurons<max_size_neuro),:116000]
 print(A_off_thr.shape)
 
 C_off_thr = np.array([CC.reshape([-1,n_frames_per_bin]).max(1) for CC in C_off_thr])
@@ -112,7 +126,8 @@ pl.imshow(A_off_thr.sum(-1).reshape(dims_off,order = 'F'))
 #with np.load('results_full_movie_online_may5/results_analysis_online_JEFF_90k.take7_no_batch.npz') as ld:
 #online_file ='/opt/local/privateCaImAn/JEFF_MAY_14_AFT_BETTER_INIT_UPDATES_NO_STATS/results_analysis_online_JEFF_LAST_90000.npz'
 #online_file ='/mnt/ceph/neuro/DataForPublications/OnlineCNMF/Jeff/EP_linux/results_analysis_online_JEFF_LAST__DS_2_90000.npz'
-online_file ='/mnt/ceph/neuro/SUE_results_online_DS/results_analysis_online_SUE__DS_2_116043.npz'
+online_file  = '/opt/local/privateCaImAn/RES_NIPS_JEFF_r_val_0.85_fitness_-40-20/results_analysis_online_JEFF_DS_2.npz'
+#online_file ='/mnt/ceph/neuro/SUE_results_online_DS/results_analysis_online_SUE__DS_2_116043.npz'
 
 with np.load(online_file) as ld:
 
@@ -150,22 +165,53 @@ C_on_thr = np.array([CC.reshape([-1,n_frames_per_bin]).max(1) for CC in C_on_thr
 #%%  
 pl.figure()
 pl.imshow(A_on_thr.sum(-1).reshape(dims_on,order = 'F'))
+#%%
+roi_cons = np.load('/mnt/ceph/neuro/labeling/neurofinder.02.00/regions/joined_consensus_active_regions.npy')
+print(roi_cons.shape)
+pl.imshow(roi_cons.sum(0))
+#%%
+roi_cons = nf_read_roi_zip('/mnt/ceph/neuro/labeling/neurofinder.02.00/regions/ben_active_regions_nd_natalia_active_regions_nd__sonia_active_regions_nd__lindsey_active_regions_nd_matches.zip',Cn.shape)
+print(roi_cons.shape)
+#%% SUE
+roi_cons = nf_read_roi_zip('/mnt/ceph/neuro/labeling/k53_20160530/regions/ben_active_regions_nd_natalia_active_regions_nd__sonia_active_regions_nd__lindsey_active_regions_nd_matches.zip',Cn.shape)
+print(roi_cons.shape)
+#%%
+roi_cons = np.load('/mnt/ceph/neuro/labeling/J115_2015-12-09_L01_ELS/regions/joined_consensus_active_regions.npy')
+#roi_cons = np.load('/mnt/ceph/neuro/labeling/k53_20160530/regions/joined_consensus_active_regions.npy')
+print(roi_cons.shape)
+#%%
+roi_cons = nf_read_roi_zip('/mnt/ceph/neuro/labeling/J115_2015-12-09_L01_ELS/regions/ben_active_regions_nd_natalia_active_regions_nd__sonia_active_regions_nd__lindsey_active_regions_nd_matches.zip',Cn.shape)
+#roi_cons = np.load('/mnt/ceph/neuro/labeling/k53_20160530/regions/joined_consensus_active_regions.npy')
+print(roi_cons.shape)
 #%% load labelers
-roi_rs = nf_read_roi_zip('/mnt/ceph/neuro/labeling/k53_20160530/regions/sonia_active_regions.zip',Cn.shape)
+roi_rs = nf_read_roi_zip('/mnt/ceph/neuro/labeling/k53_20160530/regions/intermediate_regions/sonia_active_regions.zip',Cn.shape)
 print(roi_rs.shape)
-roi_bs = nf_read_roi_zip('/mnt/ceph/neuro/labeling/k53_20160530/regions/lindsey_active_regions.zip',Cn.shape)
+roi_bs = nf_read_roi_zip('/mnt/ceph/neuro/labeling/k53_20160530/regions/intermediate_regions/lindsey_active_regions.zip',Cn.shape)
 print(roi_bs.shape)
+roi_ds = nf_read_roi_zip('/mnt/ceph/neuro/labeling/k53_20160530/regions/intermediate_regions/natalia_active_regions.zip',Cn.shape)
+print(roi_bs.shape)
+
 #roi_ds = nf_read_roi_zip('/mnt/ceph/neuro/labeling/J115_2015-12-09_L01/regions/natalia_active_regions_els.zip',Cn.shape)
 #print(roi_ds.shape)
 #%%
-roi_rs = nf_read_roi_zip('/mnt/ceph/neuro/labeling/J115_2015-12-09_L01/regions/sonia_active_regions_els.zip',Cn.shape)
+roi_rs = nf_read_roi_zip('/mnt/ceph/neuro/labeling/J115_2015-12-09_L01_ELS/regions/intermediate_regions/sonia_active_regions.zip',Cn.shape)
 print(roi_rs.shape)
-roi_bs = nf_read_roi_zip('/mnt/ceph/neuro/labeling/J115_2015-12-09_L01/regions/lindsey_active_regions_els.zip',Cn.shape)
+roi_bs = nf_read_roi_zip('/mnt/ceph/neuro/labeling/J115_2015-12-09_L01_ELS/regions/intermediate_regions/lindsey_active_regions.zip',Cn.shape)
 print(roi_bs.shape)
-roi_ds = nf_read_roi_zip('/mnt/ceph/neuro/labeling/J115_2015-12-09_L01/regions/natalia_active_regions_els.zip',Cn.shape)
+roi_ds = nf_read_roi_zip('/mnt/ceph/neuro/labeling/J115_2015-12-09_L01_ELS/regions/intermediate_regions/natalia_active_regions.zip',Cn.shape)
 print(roi_ds.shape)
 #%%
-plot_results = True
+plot_results = False
+#%%
+pl.figure(figsize=(30,20))
+tp_gt, tp_comp, fn_gt, fp_comp, performance_cons_off =  cm.base.rois.nf_match_neurons_in_binary_masks(roi_cons,A_off_thr[:,:].reshape([dims_off[0],dims_off[1],-1],order = 'F').transpose([2,0,1])*1.,thresh_cost=.7, min_dist = 10,
+                                                                              print_assignment= False,plot_results=plot_results ,Cn=Cn, labels = ['Cons','Offline'])
+pl.rcParams['pdf.fonttype'] = 42
+font = {'family' : 'Myriad Pro',
+        'weight' : 'regular',
+        'size'   : 20}
+pl.rc('font', **font)
+
 #%%
 pl.figure(figsize=(30,20))
 tp_gt, tp_comp, fn_gt, fp_comp, performance_rs_on =  cm.base.rois.nf_match_neurons_in_binary_masks(roi_rs,A_on_thr[:,:].reshape([dims_on[0],dims_on[1],-1],order = 'F').transpose([2,0,1])*1.,thresh_cost=.7, min_dist = 10,
@@ -186,14 +232,14 @@ font = {'family' : 'Myriad Pro',
 pl.rc('font', **font)
 
 #%%
-#pl.figure(figsize=(30,20))
-#_,_, _, _, performance_ds_on =  cm.base.rois.nf_match_neurons_in_binary_masks(roi_ds,A_on_thr[:,:].reshape([dims_on[0],dims_on[1],-1],order = 'F').transpose([2,0,1])*1.,thresh_cost=.7, min_dist = 10,
-#                                                                              print_assignment= False,plot_results=plot_results ,Cn=Cn, labels = ['DS','Online'])
-#pl.rcParams['pdf.fonttype'] = 42
-#font = {'family' : 'Myriad Pro',
-#        'weight' : 'regular',
-#        'size'   : 20}
-#pl.rc('font', **font)
+pl.figure(figsize=(30,20))
+tp_gt, tp_comp, fn_gt, fp_comp, performance_ds_on =  cm.base.rois.nf_match_neurons_in_binary_masks(roi_ds,A_on_thr[:,:].reshape([dims_on[0],dims_on[1],-1],order = 'F').transpose([2,0,1])*1.,thresh_cost=.7, min_dist = 10,
+                                                                              print_assignment= False,plot_results=plot_results ,Cn=Cn, labels = ['DS','Online'])
+pl.rcParams['pdf.fonttype'] = 42
+font = {'family' : 'Myriad Pro',
+        'weight' : 'regular',
+        'size'   : 20}
+pl.rc('font', **font)
 ##%%
 #pl.figure(figsize=(30,20))
 #_,_, _, _, performance_ds_off =  cm.base.rois.nf_match_neurons_in_binary_masks(roi_ds,A_off_thr[:,:].reshape([dims_off[0],dims_off[1],-1],order = 'F').transpose([2,0,1])*1.,
@@ -204,7 +250,15 @@ pl.rc('font', **font)
 #        'size'   : 20}
 #pl.rc('font', **font)
 
-
+#%%
+pl.figure(figsize=(30,20))
+_,_, _, _, performance_rcons_nf =  cm.base.rois.nf_match_neurons_in_binary_masks(roi_cons,roi_nf,
+                                                                               thresh_cost=.7, min_dist = 10, print_assignment= False,plot_results=plot_results ,Cn=Cn, labels = ['Cons','NeuroF'])
+pl.rcParams['pdf.fonttype'] = 42
+font = {'family' : 'Myriad Pro',
+        'weight' : 'regular',
+        'size'   : 20}
+pl.rc('font', **font)
 
 
 #%%
@@ -234,6 +288,15 @@ pl.rc('font', **font)
 #        'weight' : 'regular',
 #        'size'   : 20}
 #pl.rc('font', **font)
+#%%
+pl.figure(figsize=(30,20))
+_,_, _, _, performance_bs_on =  cm.base.rois.nf_match_neurons_in_binary_masks(roi_cons,A_on_thr[:,:].reshape([dims_on[0],dims_on[1],-1],order = 'F').transpose([2,0,1])*1.,thresh_cost=.7, min_dist = 10,
+                                                                              print_assignment= False,plot_results=plot_results ,Cn=Cn, labels = ['Consensus','Online'])
+pl.rcParams['pdf.fonttype'] = 42
+font = {'family' : 'Myriad Pro',
+        'weight' : 'regular',
+        'size'   : 20}
+pl.rc('font', **font)
 #%%
 pl.figure(figsize=(30,20))
 _,_, _, _, performance_bs_on =  cm.base.rois.nf_match_neurons_in_binary_masks(roi_bs,A_on_thr[:,:].reshape([dims_on[0],dims_on[1],-1],order = 'F').transpose([2,0,1])*1.,thresh_cost=.7, min_dist = 10,
