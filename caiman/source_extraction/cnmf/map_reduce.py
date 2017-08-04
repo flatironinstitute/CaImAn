@@ -111,6 +111,8 @@ def cnmf_patches(args_in):
     images = np.reshape(Yr.T, [timesteps] + list(dims), order='F')
     images = images[slices]
 
+    gnb_in_patch = 1# options['init_params']['nb']
+
     if (np.sum(np.abs(np.diff(images.reshape(timesteps, -1).T)))) > 0.1:
 
         cnm = cnmf.CNMF(n_processes = 1, k = options['init_params']['K'], gSig = options['init_params']['gSig'],
@@ -119,7 +121,7 @@ def cnmf_patches(args_in):
                 ssub = options['init_params']['ssub'], tsub = options['init_params']['tsub'],
                 p_ssub = options['patch_params']['ssub'], p_tsub = options['patch_params']['tsub'],
                 method_init = options['init_params']['method'], alpha_snmf = options['init_params']['alpha_snmf'],
-                rf=None,stride=None, memory_fact=1, gnb = options['init_params']['nb'],
+                rf=None,stride=None, memory_fact=1, gnb = gnb_in_patch,
                 only_init_patch = options['patch_params']['only_init'],
                 method_deconvolution =  options['temporal_params']['method'],
                 n_pixels_per_process = options['preprocess_params']['n_pixels_per_process'],
@@ -139,7 +141,7 @@ def cnmf_patches(args_in):
 
 
 #%%
-def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, gnb = 1, dview=None, memory_fact=1):
+def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, gnb = 1, dview=None, memory_fact=1, border_pix = 0):
     """Function that runs CNMF in patches
 
      Either in parallel or sequentially, and return the result for each.
@@ -215,12 +217,12 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, gnb = 1, dvie
     options['temporal_params']['n_pixels_per_process']=np.int(old_div(np.prod(rfs),memory_fact))
     nb = options['spatial_params']['nb']
 
-    idx_flat,idx_2d=extract_patch_coordinates(dims, rfs, strides)
+    idx_flat,idx_2d=extract_patch_coordinates(dims, rfs, strides, border_pix = border_pix)
     args_in=[]
     for id_f,id_2d in zip(idx_flat,idx_2d):        
-        print(id_2d)
+#        print(id_2d)
         args_in.append((file_name, id_f,id_2d, options))
-
+    print(id_2d)
     st=time.time()
     if dview is not None:
         try:
@@ -259,7 +261,7 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, gnb = 1, dvie
     #INITIALIZING
     C_tot=np.zeros((count,T))
     YrA_tot=np.zeros((count,T))
-    F_tot=np.zeros((nb*num_patches,T))
+    F_tot=np.zeros((num_patches,T))
     mask=np.zeros(d)
     sn_tot=np.zeros((d))
 
@@ -343,6 +345,7 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, gnb = 1, dvie
     f = np.r_[np.atleast_2d(np.mean(F_tot,axis=0)),np.random.rand(gnb-1,T)]
 
     for _ in range(100):
+        f /= np.sqrt((f**2).sum(1)[:,None])
         b = np.fmax(Bm.dot(F_tot.dot(f.T)).dot(np.linalg.inv(f.dot(f.T))),0)
         f = np.fmax(np.linalg.inv(b.T.dot(b)).dot((Bm.T.dot(b)).T.dot(F_tot)),0)
 

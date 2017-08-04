@@ -92,7 +92,7 @@ def extract_patch_coordinates_old(d1,d2,rf=(7,7),stride = (2,2)):
 
     return coords_flat,coords_2d
 #%%
-def extract_patch_coordinates(dims, rf, stride):
+def extract_patch_coordinates(dims, rf, stride, border_pix = 0):
     """
     Function that partition the FOV in patches
 
@@ -109,25 +109,38 @@ def extract_patch_coordinates(dims, rf, stride):
     stride: tuple of int
         degree of overlap of the patches
     """
+    dims_large = dims
+    dims = np.array(dims)-border_pix*2
+    
     coords_flat = []
     shapes = []
     iters = [list(range(rf[i], dims[i] - rf[i], 2 * rf[i] - stride[i])) + [dims[i] - rf[i]]
              for i in range(len(dims))]
+    
     coords = np.empty(list(map(len, iters)) + [len(dims)], dtype=np.object)
     for count_0, xx in enumerate(iters[0]):
         coords_x = np.arange(xx - rf[0], xx + rf[0] + 1)
-        coords_x = coords_x[(coords_x >= 0) & (coords_x < dims[0])]
+        coords_x = coords_x[(coords_x >= 0) & (coords_x < dims[0])]      
+        coords_x += border_pix
+        
         for count_1, yy in enumerate(iters[1]):
             coords_y = np.arange(yy - rf[1], yy + rf[1] + 1)
             coords_y = coords_y[(coords_y >= 0) & (coords_y < dims[1])]
+            coords_y += border_pix
+            
             if len(dims) == 2:
                 idxs = np.meshgrid(coords_x, coords_y)
+                
                 coords[count_0, count_1] = idxs
                 shapes.append(idxs[0].shape[::-1])
 
-                coords_ = np.ravel_multi_index(idxs, dims, order='F')
+                coords_ = np.ravel_multi_index(idxs, dims_large, order='F')
                 coords_flat.append(coords_.flatten())
             else:  # 3D data
+            
+                if border_pix > 0:
+                    raise Exception('The parameter border pix must be set to 0 for 3D data since border removal is not implemented')
+                    
                 for count_2, zz in enumerate(iters[2]):
                     coords_z = np.arange(zz - rf[2], zz + rf[2] + 1)
                     coords_z = coords_z[(coords_z >= 0) & (coords_z < dims[2])]
@@ -140,6 +153,7 @@ def extract_patch_coordinates(dims, rf, stride):
 
     for i, c in enumerate(coords_flat):
         assert(len(c) == np.prod(shapes[i]))
+
 
     return map(np.sort, coords_flat), shapes
 

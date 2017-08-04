@@ -64,7 +64,7 @@ class CNMF(object):
                  rf=None,stride=None, memory_fact=1, gnb = 1, only_init_patch=False,
                  method_deconvolution = 'oasis', n_pixels_per_process = 4000, block_size = 20000,
                  check_nan = True, skip_refinement = False, normalize_init=True, options_local_NMF = None,
-                                        remove_very_bad_comps = False):
+                                        remove_very_bad_comps = False, border_pix = 0):
         """ 
         Constructor of the CNMF method
 
@@ -158,6 +158,9 @@ class CNMF(object):
              This might create some minor imprecisions.
             Howeverm benefits can be considerable if done because if many components (>2000) are created
             and joined together, operation that causes a bottleneck
+                        
+        border_pix : int    
+            number of pixels to not consider in the borders
         
         Returns:
         --------
@@ -203,6 +206,7 @@ class CNMF(object):
         self.sn = None
         self.g = None
         self.remove_very_bad_comps = remove_very_bad_comps
+        self.border_pix = border_pix
 
 
     def fit(self, images):
@@ -364,7 +368,7 @@ class CNMF(object):
             A, C, YrA, b, f, sn, optional_outputs = run_CNMF_patches(images.filename, dims + (T,),
                                                                      options, rf=self.rf, stride=self.stride,
                                                                      dview=self.dview, memory_fact=self.memory_fact,
-                                                                     gnb=self.gnb)
+                                                                     gnb=self.gnb, border_pix = self.border_pix)
 
             options = CNMFSetParms(Y, self.n_processes, p=self.p, gSig=self.gSig, K=A.shape[
                                    -1], thr=self.merge_thresh, n_pixels_per_process=self.n_pixels_per_process,
