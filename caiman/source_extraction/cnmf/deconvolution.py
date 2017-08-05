@@ -19,7 +19,6 @@ from math import log, sqrt, exp
 import sys
 #%%
 
-
 def constrained_foopsi(fluor, bl=None,  c1=None, g=None,  sn=None, p=None, method='oasis', bas_nonneg=True,
                        noise_range=[.25, .5], noise_method='logmexp', lags=5, fudge_factor=1.,
                        verbosity=False, solvers=None, optimize_g=0, penalty=1, **kwargs):
@@ -346,11 +345,11 @@ def cvxpy_foopsi(fluor, g, sn, b=None, c1=None, bas_nonneg=True, solvers=None):
     #todo: check the result and gen_vector vars
     try:
         import cvxpy as cvx
-        
+
     except ImportError:
-        
+
         raise ImportError('cvxpy solver requires installation of cvxpy. Not working in windows at the moment.')
-    
+
     if solvers is None:
         solvers = ['ECOS', 'SCS']
 
@@ -581,8 +580,8 @@ def onnls(y, g, lam=0, shift=100, window=None, mask=None, tol=1e-9, max_iter=Non
         mask = np.ones(T, dtype=bool)
     if window is None:
         w = max(200, len(g) if len(g) > 2 else
-                int(-5 / log(g[0] if len(g) == 1 else
-                             (g[0] + sqrt(g[0] * g[0] + 4 * g[1])) / 2)))
+        int(-5 / log(g[0] if len(g) == 1 else
+                     (g[0] + sqrt(g[0] * g[0] + 4 * g[1])) / 2)))
     else:
         w = window
     w = min(T, w)
@@ -1086,3 +1085,69 @@ def nextpow2(value):
     while avalue > np.power(2, exponent):
         exponent += 1
     return exponent
+
+
+def deconvolve_ca(y=[], options=None, **args):
+    """
+    a wrapper for deconvolving calcium trace
+
+    Args:
+        y: fluorescence trace, a vector
+        options: dictionary for storing all parameters used for deconvolution
+        **args: extra options to be updated.
+
+    Returns:
+
+    """
+    # default options
+    if not options:
+        options = {'bl': None,
+                   'c1': None,
+                   'g': None,
+                   'sn': None,
+                   'p': 1,
+                   'approach': 'constrained foopsi',
+                   'method': 'oasis',
+                   'bas_nonneg': True,
+                   'noise_range': [.25, .5],
+                   'noise_method': 'logmexp',
+                   'lags': 5,
+                   'fudge_factor': 1.0,
+                   'verbosity': None,
+                   'solvers': None,
+                   'optimize_g': 1,
+                   'penalty': 1}
+
+    # update options
+    for key in args.keys():
+        options[key] = args[key]
+
+    if len(y) == 0:
+        # return default parameters for deconvolution
+        return options
+
+    # run deconvolution
+    y = np.array(y).squeeze().astype(np.float64)
+
+    if options['approach'].lower() == 'constrained foopsi':
+        # constrained foopsi
+        c, baseline, c1, g, sn, spike = \
+            constrained_foopsi(y, options['bl'], options['c1'],
+                               options['g'], options['sn'],
+                               options['p'], options['method'],
+                               options['bas_nonneg'],
+                               options['noise_range'],
+                               options['noise_method'],
+                               options['lags'],
+                               options['fudge_factor'],
+                               options['verbosity'],
+                               options['solvers'],
+                               options['optimize_g'],
+                               options['penalty'])
+        options['g'] = g
+        options['sn'] = sn
+    elif options['approach'].lower() == 'threshold foopsi':
+        # foopsi with a threshold on spike size
+        pass
+
+    return c, spike, options, baseline, c1
