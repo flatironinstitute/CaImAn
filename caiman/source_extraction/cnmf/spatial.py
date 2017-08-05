@@ -208,7 +208,14 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
                  A_.dot(coo_matrix(C[:nr, :]).dot(f.T))
     else:
         Y_resf = np.dot(Y, f.T) - A_.dot(coo_matrix(C[:nr, :]).dot(f.T))
-    b = np.fmax(Y_resf.dot(np.linalg.inv(f.dot(f.T))), 0)  # update baseline based on residual
+        
+    if False:       
+        b = np.fmax(Y_resf.dot(np.linalg.inv(f.dot(f.T))), 0)  # update baseline based on residual
+    else:
+        
+        self.Ab, self.ind_A = update_shapes(
+                self.CY, self.CC, self.Ab, self.ind_A, indicator_components=indicator_components)
+    
     print(("--- %s seconds ---" % (time.time() - start_time)))
     try:  # clean up
         # remove temporary file created
@@ -218,6 +225,47 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
         raise Exception("Failed to delete: " + folder)
     return A_, b, C, f
 
+#%%
+def update_shapes_bcgrnd(CY, CC, Ab, ind_A, indicator_components = None):
+    D, M = Ab.shape
+    N = len(ind_A)
+    for _ in range(3):  # !! check which value is necessary
+        if indicator_components is None:
+            idx_comp = range(N)
+        else:
+            idx_comp = np.where(indicator_components)[0]
+            
+        for m in idx_comp:  # neurons
+            ind_pixels = ind_A[m]
+            if scipy.sparse.isspmatrix_csc(Ab):
+                Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]] = np.maximum(
+                    Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]] +
+                    ((CY[m, ind_pixels] - Ab.dot(CC[m])[ind_pixels]) / CC[m, m]), 0)
+                # normalize
+                Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]] /= \
+                    max(1, sqrt(Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]]
+                                .dot(Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]])))
+                # N.B. Ab[ind_pixels].dot(CC[m]) is slower for csc matrix due to indexing rows
+            else:
+                tmp = np.maximum(
+                    Ab[ind_pixels, m] + ((CY[m, ind_pixels] - Ab[ind_pixels].dot(CC[m])) /
+                                         CC[m, m]), 0)
+                # normalize
+                Ab[ind_pixels, m] /= max(1, sqrt(tmp.dot(tmp)))
+                # N.B. why does selecting only overlapping neurons help surprisingly little, i.e
+                # Ab[ind_pixels][:, overlap[m]].dot(CC[overlap[m], m])
+                # where overlap[m] are the indices of all neurons overlappping with & including m?
+            # sparsify ??
+        for m in range(N, M):  # background
+            if scipy.sparse.isspmatrix_csc(Ab):
+                sl = slice(Ab.indptr[m], None if m == M - 1 else Ab.indptr[m + 1])
+                ind_pixels = Ab.indices[sl]
+                Ab.data[sl] = np.maximum(
+                    Ab.data[sl] + ((CY[m, ind_pixels] - Ab.dot(CC[m])[ind_pixels]) /
+                                   CC[m, m]), 0)
+            else:
+                Ab[:, m] = np.maximum(Ab[:, m] + ((CY[m] - CC[m].dot(Ab.T)) / CC[m, m]), 0)
+    return Ab, ind_A
 
 # %%lars_regression_noise_ipyparallel
 def regression_ipyparallel(pars):
