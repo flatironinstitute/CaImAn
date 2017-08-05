@@ -336,18 +336,28 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, gnb = 1, dvie
     optional_outputs['B'] = B_tot
     optional_outputs['F'] = F_tot
     optional_outputs['mask'] = mask
+    
+    
+    if False:
+    
+        print("Generating background")
+        Im = scipy.sparse.csr_matrix((old_div(1.,mask),(np.arange(d),np.arange(d))))
+        Bm = Im.dot(B_tot)
+        A_tot = Im.dot(A_tot)
+    
+        f = np.r_[np.atleast_2d(np.mean(F_tot,axis=0)),np.random.rand(gnb-1,T)]
+    
+        for _ in range(100):
+            f /= np.sqrt((f**2).sum(1)[:,None])
+            b = np.fmax(Bm.dot(F_tot.dot(f.T)).dot(np.linalg.inv(f.dot(f.T))),0)
+            f = np.fmax(np.linalg.inv(b.T.dot(b)).dot((Bm.T.dot(b)).T.dot(F_tot)),0)
+        
 
-    print("Generating background")
-    Im = scipy.sparse.csr_matrix((old_div(1.,mask),(np.arange(d),np.arange(d))))
-    Bm = Im.dot(B_tot)
-    A_tot = Im.dot(A_tot)
-
-    f = np.r_[np.atleast_2d(np.mean(F_tot,axis=0)),np.random.rand(gnb-1,T)]
-
-    for _ in range(100):
-        f /= np.sqrt((f**2).sum(1)[:,None])
-        b = np.fmax(Bm.dot(F_tot.dot(f.T)).dot(np.linalg.inv(f.dot(f.T))),0)
-        f = np.fmax(np.linalg.inv(b.T.dot(b)).dot((Bm.T.dot(b)).T.dot(F_tot)),0)
+    else:
+        b = B_tot
+        f = F_tot
+        print('TEST!!!')
+        
 
     return A_tot,C_tot,YrA_tot,b,f,sn_tot, optional_outputs
 
