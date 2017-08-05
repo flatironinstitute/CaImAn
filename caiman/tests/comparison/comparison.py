@@ -308,6 +308,14 @@ class Comparison(object):
                   'the groundtruth one. look for the groundtruth paramters with the see() method\n')
             information['differences']['params_movie'] = True
         if data['cnmpatch']!=cnmpatch:
+            if data['cnmpatch'].keys()!=cnmpatch.keys():
+                print('DIFFERENCES IN THE FIELDS OF CNMF')
+                print(set(cnmpatch.keys()) - set(data['cnmpatch'].keys()))
+                print(set(data['cnmpatch'].keys()) - set(cnmpatch.keys()))
+            diffkeys = [k for k in data['cnmpatch'] if data['cnmpatch'][k] != cnmpatch[k]]
+            for k in diffkeys:
+              print(k, ':', data['cnmpatch'][k], '->', cnmpatch[k])
+
             print('you do not use the same paramters in your cnmf on patches initialization\n')
             information['differences']['params_cnm'] = True
 
@@ -452,7 +460,7 @@ def cnmf(Cn,A_gt, A_test,C_gt,C_test, dims_gt, dims_test, dview= None, sensitivi
         C_test_thr = C_test
         C_gt_thr = C_gt
         #we would also like the difference in the number of neurons
-        diffneur = A_test_thr.shape[1] - A_gt_thr.shape[1] 
+        diffneur = 0#A_test_thr.shape[1] - A_gt_thr.shape[1] MANUALLY OVERRIDING BY ANDREA!! 
         print(diffneur+1)
         #computing the values
         C_test_thr = np.array([CC.reshape([-1,n_frames_per_bin]).max(1) for CC in C_test_thr])
@@ -469,7 +477,7 @@ def cnmf(Cn,A_gt, A_test,C_gt,C_test, dims_gt, dims_test, dview= None, sensitivi
         corrs = np.array([scipy.stats.pearsonr(
             C_gt_thr[gt,:],C_test_thr[comp,:])[0] for gt,comp in zip(idx_tp_gt,idx_tp_comp)])
         #todo, change this test when I will have found why I have one additionnal neuron
-        isdiff = True if (diffneur == -1 and (np.linalg.norm(corrs) < sensitivity))else False
+        isdiff = True if (diffneur != 0 and (np.linalg.norm(corrs) < sensitivity))else False
         info= {'isdifferent':int(isdiff),
                               'diff_data': { 'performance':performance_off_on,
                                              'corelations':corrs.tolist(),

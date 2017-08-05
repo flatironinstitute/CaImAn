@@ -285,11 +285,28 @@ def evaluate_components(Y, traces, A, C, b, f, final_frate, remove_baseline = Tr
     print('Removing Baseline')
     if remove_baseline:
         num_samps_bl=np.minimum(old_div(np.shape(traces)[-1],5),800)
-#        traces1 = traces - scipy.ndimage.percentile_filter(traces,8,size=[1,num_samps_bl])
-        num_chunks_baseline = traces.shape[-1]//num_samps_bl
-        traces -= cv2.resize(np.vstack([np.percentile(g,8,axis=0)[None,:] for g in list(chunker(traces.T,num_chunks_baseline))]),traces.shape).T
-        print('Num chunks baseline:'+str(num_chunks_baseline))
+        slow_baseline = False
+        if slow_baseline:
+            
+            traces = traces - scipy.ndimage.percentile_filter(traces,8,size=[1,num_samps_bl])
 
+        else: # fast baseline removal
+            
+            downsampfact = num_samps_bl
+            elm_missing=int(np.ceil(T*1.0/downsampfact)*downsampfact-T)
+            padbefore=int(np.floor(old_div(elm_missing,2.0)))
+            padafter=int(np.ceil(old_div(elm_missing,2.0)))    
+            tr_tmp = np.pad(traces.T,((padbefore,padafter),(0,0)),mode='reflect')
+            numFramesNew,num_traces = np.shape(tr_tmp)    
+            #% compute baseline quickly
+            print("binning data ..."); 
+            tr_BL=np.reshape(tr_tmp,(downsampfact,int(old_div(numFramesNew,downsampfact)),num_traces),order='F');
+            tr_BL=np.percentile(tr_BL,8,axis=0);
+            print("interpolating data ..."); 
+            print(tr_BL.shape)    
+            tr_BL=scipy.ndimage.zoom(np.array(tr_BL,dtype=np.float32),[downsampfact ,1],order=3, mode='constant', cval=0.0, prefilter=True)
+            traces -= tr_BL.T
+            
     print('Computing event exceptionality')    
     fitness_raw, erfc_raw,std_rr, _ = compute_event_exceptionality(traces,robust_std=robust_std,N=N)
 
