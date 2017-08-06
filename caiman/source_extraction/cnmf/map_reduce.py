@@ -63,8 +63,10 @@ def cnmf_patches(args_in):
             unitless number accounting how much memory should be used.
             It represents the fration of patch processed in a single thread.
              You will need to try different values to see which one would work
-
-
+             
+        low_rank_background: bool
+            if True the background is approximated with gnb components. If false every patch keeps its background (overlaps are randomly assigned to one spatial component only)
+    
         Returns:
         -------
         A_tot: matrix containing all the componenents from all the patches
@@ -141,7 +143,7 @@ def cnmf_patches(args_in):
 
 
 #%%
-def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, gnb = 1, dview=None, memory_fact=1, border_pix = 0):
+def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, gnb = 1, dview=None, memory_fact=1, border_pix = 0, low_rank_background = True):
     """Function that runs CNMF in patches
 
      Either in parallel or sequentially, and return the result for each.
@@ -182,7 +184,9 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, gnb = 1, dvie
         It represents the fration of patch processed in a single thread.
          You will need to try different values to see which one would work
 
-
+    low_rank_background: bool
+        if True the background is approximated with gnb components. If false every patch keeps its background (overlaps are randomly assigned to one spatial component only)
+    
     Returns:
     -------
     A_tot: matrix containing all the components from all the patches
@@ -338,9 +342,11 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, gnb = 1, dvie
     optional_outputs['mask'] = mask
     
     
-    if False:
+ 
+    print("Generating background")
     
-        print("Generating background")
+    if low_rank_background:
+
         Im = scipy.sparse.csr_matrix((old_div(1.,mask),(np.arange(d),np.arange(d))))
         Bm = Im.dot(B_tot)
         A_tot = Im.dot(A_tot)
@@ -354,11 +360,34 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, gnb = 1, dvie
         
 
     else:
+        
+        nA = np.ravel(np.sqrt(A_tot.power(2).sum(0)))
+        A_tot /= nA
+        A_tot = scipy.sparse.coo_matrix(A_tot)
+        C_tot *= nA[:, None]
+        YrA_tot *= nA[:, None]    
+        nB = np.ravel(np.sqrt(B_tot.power(2).sum(0)))    
+        B_tot /= nB
+        B_tot = np.array(B_tot,dtype = np.float32)
+#        B_tot = scipy.sparse.coo_matrix(B_tot)
+        F_tot *= nB[:, None]
+        
+        processed_idx = set([])
+        for _b in np.arange(B_tot.shape[-1]):
+            idx_mask = np.where(B_tot[:,_b])[0]
+            idx_mask_repeat = processed_idx.intersection(idx_mask)
+            processed_idx = processed_idx.union(idx_mask)            
+            if  len(idx_mask_repeat) > 0:                
+                B_tot[np.array(list(idx_mask_repeat), dtype = np.int),_b] = 0
+
+            
         b = B_tot
         f = F_tot
-        print('TEST!!!')
+        print()
+        print('******** USING ONE BACKGROUND PER PATCH ******')
         
-
+    print("Generating background DONE")    
+    
     return A_tot,C_tot,YrA_tot,b,f,sn_tot, optional_outputs
 
 
