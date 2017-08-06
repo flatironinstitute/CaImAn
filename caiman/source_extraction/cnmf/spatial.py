@@ -31,12 +31,12 @@ from scipy.ndimage.morphology import binary_closing
 from scipy.ndimage.measurements import label
 
 
-def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, min_size=3, max_size=8, dist=3,
+def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, b_in = None, min_size=3, max_size=8, dist=3,
                               normalize_yyt_one=True,
                               method='ellipse', expandCore=None, dview=None, n_pixels_per_process=128,
                               medw=(3, 3), thr_method='nrg', maxthr=0.1, nrgthr=0.9999, extract_cc=True,
                               se=np.ones((3, 3), dtype=np.int), ss=np.ones((3, 3), dtype=np.int), nb=1,
-                              method_ls='lasso_lars'):
+                              method_ls='lasso_lars', update_background_components = True, low_rank_background= True):
     """update spatial footprints and background through Basis Pursuit Denoising 
 
     for each pixel i solve the problem
@@ -61,6 +61,9 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
         spatial profile of background activity. If A_in is boolean then it defines the spatial support of A. 
         Otherwise it is used to determine it through determine_search_location
 
+    b_in: np.ndarray
+        you can pass background as input, especially in the case of one background per patch, since it will update using hals    
+    
     dims: [optional] tuple
         x, y[, z] movie dimensions
 
@@ -105,7 +108,15 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
 
         normalize_yyt_one: bool
             wheter to norrmalize the C and A matrices so that diag(C*C.T) are ones
-
+    
+    update_background_components:bool
+        whether to update the background components
+        
+    low_rank_background:bool
+        whether to update the using a low rank approximation. In the False case all the nonzero elements of the background components are updated using hals    
+        (to be used with one background per patch)
+    
+        
     Returns:
     --------
     A: np.ndarray
@@ -159,7 +170,9 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
     start_time = time.time()
     print('computing the distance indicators')
     #we compute the indicator from distance indicator
-    ind2_, nr, C, f, b = computing_indicator(Y,A_in,C,f,nb,method,dims,min_size,max_size,dist,expandCore,dview)
+    ind2_, nr, C, f, b_ = computing_indicator(Y,A_in,C,f,nb,method,dims,min_size,max_size,dist,expandCore,dview)#
+    if b_in is None:
+        b_in = b_
     print('memmaping')
     #we create a memory map file if not already the case, we send Cf, a matrix that include background components
     C_name,Y_name,folder = creatememmap(Y,np.vstack((C, f)),dview)
@@ -203,18 +216,25 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
     A_ = coo_matrix(A_)
 
     print("Computing residuals")
-    if 'memmap' in str(type(Y)):
+    if 'memmap' in str(type(Y)):        
         Y_resf = parallel_dot_product(Y, f.T, block_size=1000, dview=dview) - \
                  A_.dot(coo_matrix(C[:nr, :]).dot(f.T))
     else:
+        #Y*f' - A*(C*f')
         Y_resf = np.dot(Y, f.T) - A_.dot(coo_matrix(C[:nr, :]).dot(f.T))
+    
+    if update_background_components:
         
-    if False:       
-        b = np.fmax(Y_resf.dot(np.linalg.inv(f.dot(f.T))), 0)  # update baseline based on residual
+        if low_rank_background:       
+            b = np.fmax(Y_resf.dot(np.linalg.inv(f.dot(f.T))), 0)  # update baseline based on residual
+        else:        
+            ind_b = [np.where(_b)[0] for _b in b_in.T]
+            b = HALS4shape_bckgrnd(Y_resf, b_in, f, ind_b)
+    
     else:
-        
-        self.Ab, self.ind_A = update_shapes(
-                self.CY, self.CC, self.Ab, self.ind_A, indicator_components=indicator_components)
+        if b_in is None:
+            raise Exception('If you set the update_background_components you have to pass as input to update_spatial')
+        b = b_in    
     
     print(("--- %s seconds ---" % (time.time() - start_time)))
     try:  # clean up
@@ -226,46 +246,18 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
     return A_, b, C, f
 
 #%%
-def update_shapes_bcgrnd(CY, CC, Ab, ind_A, indicator_components = None):
-    D, M = Ab.shape
-    N = len(ind_A)
-    for _ in range(3):  # !! check which value is necessary
-        if indicator_components is None:
-            idx_comp = range(N)
-        else:
-            idx_comp = np.where(indicator_components)[0]
-            
-        for m in idx_comp:  # neurons
-            ind_pixels = ind_A[m]
-            if scipy.sparse.isspmatrix_csc(Ab):
-                Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]] = np.maximum(
-                    Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]] +
-                    ((CY[m, ind_pixels] - Ab.dot(CC[m])[ind_pixels]) / CC[m, m]), 0)
-                # normalize
-                Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]] /= \
-                    max(1, sqrt(Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]]
-                                .dot(Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]])))
-                # N.B. Ab[ind_pixels].dot(CC[m]) is slower for csc matrix due to indexing rows
-            else:
-                tmp = np.maximum(
-                    Ab[ind_pixels, m] + ((CY[m, ind_pixels] - Ab[ind_pixels].dot(CC[m])) /
-                                         CC[m, m]), 0)
-                # normalize
-                Ab[ind_pixels, m] /= max(1, sqrt(tmp.dot(tmp)))
-                # N.B. why does selecting only overlapping neurons help surprisingly little, i.e
-                # Ab[ind_pixels][:, overlap[m]].dot(CC[overlap[m], m])
-                # where overlap[m] are the indices of all neurons overlappping with & including m?
-            # sparsify ??
-        for m in range(N, M):  # background
-            if scipy.sparse.isspmatrix_csc(Ab):
-                sl = slice(Ab.indptr[m], None if m == M - 1 else Ab.indptr[m + 1])
-                ind_pixels = Ab.indices[sl]
-                Ab.data[sl] = np.maximum(
-                    Ab.data[sl] + ((CY[m, ind_pixels] - Ab.dot(CC[m])[ind_pixels]) /
-                                   CC[m, m]), 0)
-            else:
-                Ab[:, m] = np.maximum(Ab[:, m] + ((CY[m] - CC[m].dot(Ab.T)) / CC[m, m]), 0)
-    return Ab, ind_A
+def HALS4shape_bckgrnd(Y_resf, B, F, ind_B, iters=5):
+        K = B.shape[-1]
+        U = Y_resf.T
+        V = F.dot(F.T)
+        for _ in range(iters):
+            for m in range(K):  # neurons
+                ind_pixels = ind_B[m]
+
+                B[ind_pixels, m] = np.clip(B[ind_pixels, m] +
+                                           ((U[m, ind_pixels] - V[m].dot(B[ind_pixels].T)) /
+                                            V[m, m]), 0, np.inf)            
+        return B
 
 # %%lars_regression_noise_ipyparallel
 def regression_ipyparallel(pars):
@@ -1157,12 +1149,12 @@ if it doesn't follow the rules it will throw an exception that is not supposed t
 
            Exception("Failed to delete: " + folder)
            """
-    b=[]
+    b = None
     if A_in.dtype == bool:
         dist_indicator = A_in.copy()
         print("spatial support for each components given by the user")
         # we compute C,B,f,Y if we have boolean for A matrix
-        if C is None:
+        if C is None:            
             dist_indicator_av = old_div(dist_indicator.astype('float32'), np.sum(dist_indicator, axis=0))
             model = NMF(n_components=nb, init='random', random_state=0)
             f = model.components_.squeeze()

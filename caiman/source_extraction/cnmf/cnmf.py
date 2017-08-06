@@ -59,12 +59,12 @@ class CNMF(object):
     """
 
     def __init__(self, n_processes, k=5, gSig=[4,4], merge_thresh=0.8 , p=2, dview=None,
-                 Ain=None, Cin=None, f_in=None,do_merge=True,
+                 Ain=None, Cin=None, b_in = None, f_in=None,do_merge=True,
                  ssub=2, tsub=2,p_ssub=1, p_tsub=1, method_init= 'greedy_roi',alpha_snmf=None,
                  rf=None,stride=None, memory_fact=1, gnb = 1, only_init_patch=False,
                  method_deconvolution = 'oasis', n_pixels_per_process = 4000, block_size = 20000,
                  check_nan = True, skip_refinement = False, normalize_init=True, options_local_NMF = None,
-                                        remove_very_bad_comps = False, border_pix = 0):
+                                        remove_very_bad_comps = False, border_pix = 0, low_rank_background = True):
         """ 
         Constructor of the CNMF method
 
@@ -159,8 +159,15 @@ class CNMF(object):
             Howeverm benefits can be considerable if done because if many components (>2000) are created
             and joined together, operation that causes a bottleneck
                         
-        border_pix : int    
+        border_pix:int    
             number of pixels to not consider in the borders
+        
+        low_rank_background:bool
+            if True the background is approximated with gnb components. If false every patch keeps its background (overlaps are randomly assigned to one spatial component only)
+            
+        low_rank_background:bool
+            whether to update the using a low rank approximation. In the False case all the nonzero elements of the background components are updated using hals    
+            (to be used with one background per patch)
         
         Returns:
         --------
@@ -198,6 +205,7 @@ class CNMF(object):
         self.skip_refinement = skip_refinement
         self.normalize_init = normalize_init
         self.options_local_NMF = options_local_NMF
+        self.b_in = b_in
         self.A=None
         self.C=None
         self.S=None
@@ -312,7 +320,7 @@ class CNMF(object):
                 return self
 
             print('update spatial ...')
-            A, b, Cin, self.f_in = update_spatial_components(Yr, self.Cin, self.f_in, self.Ain,
+            A, b, Cin, self.f_in = update_spatial_components(Yr, C = self.Cin, f = self.f_in, b_in = self.b_in, A_in = self.Ain,
                                                              sn=sn, dview=self.dview, **options['spatial_params'])
 
             print('update temporal ...')
@@ -338,7 +346,7 @@ class CNMF(object):
                 print((A.shape))
                 print('update spatial ...')
                 A, b, C, f = update_spatial_components(
-                    Yr, C, f, A, sn=sn, dview=self.dview, **options['spatial_params'])
+                    Yr, C = C, f = f, A_in = A, sn=sn, b_in = b, dview=self.dview, **options['spatial_params'])
                 # set it back to original value to perform full deconvolution
                 options['temporal_params']['p'] = self.p
                 print('update temporal ...')
@@ -347,7 +355,7 @@ class CNMF(object):
             else:
                     g1 = g
                     # todo : ask for those..
-                    C, f, S, bl, c1, neurons_sn,Yra = C, f, S, bl, c1, neurons_sn, YrA
+                    C, f, S, bl, c1, neurons_sn, Yra = C, f, S, bl, c1, neurons_sn, YrA
 
         else:  # use patches
             if self.stride is None:

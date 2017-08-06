@@ -73,7 +73,7 @@ params_movie = {'fname': ['Sue_2x_3000_40_-46.tif'],
                'splits_els': 28,  # for parallelization split the movies in  num_splits chuncks across time
                # if none all the splits are processed and the movie is saved
                'num_splits_to_process_els': [14, None],
-               'upsample_factor_grid': 6,  # upsample factor to avoid smearing when merging patches
+               'upsample_factor_grid': 4,  # upsample factor to avoid smearing when merging patches
                # maximum deviation allowed for patch with respect to rigid
                # shift
                'max_deviation_rigid': 2,
@@ -90,13 +90,13 @@ params_movie = {'fname': ['Sue_2x_3000_40_-46.tif'],
                'alpha_snmf': None,  # this controls sparsity
                'final_frate': 30,
                'r_values_min_patch': .7,  # threshold on space consistency
-               'fitness_min_patch': -40,  # threshold on time variability
+               'fitness_min_patch': -20,  # threshold on time variability
                 # threshold on time variability (if nonsparse activity)
-               'fitness_delta_min_patch': -40,
+               'fitness_delta_min_patch': -20,
                'Npeaks': 10,
-               'r_values_min_full': .85,
-               'fitness_min_full': - 50,
-               'fitness_delta_min_full': - 50,
+               'r_values_min_full': .8,
+               'fitness_min_full': - 40,
+               'fitness_delta_min_full': - 40,
                'only_init_patch': True,
                'gnb': 1,
                'memory_fact': 1,
@@ -122,7 +122,7 @@ params_movie = {'fname': ['demoMovieJ.tif'],
                  'K': 6,  # number of components per patch
                  'is_dendrites': False,  # if dendritic. In this case you need to set init_method to sparse_nmf
                  'init_method': 'greedy_roi',
-                 'gSig': [6, 6],  # expected half size of neurons
+                 'gSig': [5, 5],  # expected half size of neurons
                  'alpha_snmf': None,  # this controls sparsity
                  'final_frate': 10,
                  'r_values_min_patch': .7,  # threshold on space consistency
@@ -137,34 +137,12 @@ params_movie = {'fname': ['demoMovieJ.tif'],
                  'gnb': 2,
                  'memory_fact': 1,
                  'n_chunks': 10
-
                  }
-# %% MULTIFILE
-# all_names = glob.glob(
-#    '/mnt/ceph/neuro/Sue/k53/k53_20160530_RSM_125um_41mW_zoom2p2_00001_000*.tif')
-# all_names.sort()
-# all_names = all_names[:]
-# print(all_names)
-# params_movie = {'fname':all_names,
-#                'max_shifts':(20,20), # maximum allow rigid shift
-#                'niter_rig':1,
-#                'splits_rig':10, # for parallelization split the movies in  num_splits chuncks across time
-#                'num_splits_to_process_rig':None, # if none all the splits are processed and the movie is saved
-#                 'p': 1, # order of the autoregressive system
-#                 'merge_thresh' : 0.8,  # merging threshold, max correlation allowed
-#                 'rf' : 14,  # half-size of the patches in pixels. rf=25, patches are 50x50
-#                 'stride_cnmf' : 4,  # amounpl.it of overlap between the patches in pixels
-#                 'K' : 6,  #  number of components per patch
-#                 'is_dendrites': False,  # if dendritic. In this case you need to set init_method to sparse_nmf
-#                 'init_method' : 'greedy_roi',
-#                 'gSig' : [7, 7],  # expected half size of neurons
-#                 'alpha_snmf' : None,  # this controls sparsity
-#                 'final_frate' : 30
-#                }
+
 #%%
 params_display = {
     'downsample_ratio': .2,
-    'thr_plot': 0.9
+    'thr_plot': 0.8
 }
 
 # TODO: do find&replace on those parameters and delete this paragrph
@@ -220,9 +198,6 @@ c, dview, n_processes = cm.cluster.setup_cluster(
 
 # %% INITIALIZING
 t1 = time.time()
-# we want to compare it using comp
-comp = comparison.Comparison()
-comp.dims = np.shape(m_orig)[1:]
 
 # movie must be mostly positive for this to work
 # TODO : document
@@ -234,7 +209,7 @@ new_templ = None
 for each_file in fname:
 # TODO: needinfo how the classes works
     mc = MotionCorrect(each_file, min_mov,
-                       dview=dview, max_shifts=max_shifts, niter_rig=niter_rig, splits_rig=splits_rig,
+                       dview=dview, max_shifts=max_shifts, niter_rig=niter_rig, splits_rig=splits_rig,template = new_templ,
                        num_splits_to_process_rig=num_splits_to_process_rig,
                        strides=strides, overlaps=overlaps, splits_els=splits_els,
                        num_splits_to_process_els=num_splits_to_process_els,
@@ -250,8 +225,6 @@ for each_file in fname:
     pl.pause(.1)
     mc_list.append(mc)
 # we are going to keep this part because it helps the user understand what we need.
-comp.comparison['rig_shifts']['timer'] = time.time() - t1
-comp.comparison['rig_shifts']['ourdata'] = mc.shifts_rig
 # needhelp why it is not the same as in the notebooks ?
 # TODO: show screenshot 2,3
 
@@ -481,7 +454,7 @@ t1 = time.time()
 cnm = cnmf.CNMF(n_processes=1, k=K, gSig=gSig, merge_thresh=params_movie['merge_thresh'], p=params_movie['p'],
                 dview=dview, rf=rf, stride=stride_cnmf, memory_fact=1,
                 method_init=init_method, alpha_snmf=alpha_snmf, only_init_patch=params_movie['only_init_patch'],
-                gnb=params_movie['gnb'], method_deconvolution='oasis',border_pix = 4) 
+                gnb=params_movie['gnb'], method_deconvolution='oasis',border_pix = 2) 
 cnm = cnm.fit(images)
 
 A_tot = cnm.A
@@ -520,12 +493,11 @@ C_tot = C_tot[idx_components]
 # %% rerun updating the components to refine
 t1 = time.time()
 cnm = cnmf.CNMF(n_processes=1, k=A_tot.shape, gSig=gSig, merge_thresh=merge_thresh, p=p, dview=dview, Ain=A_tot,
-                Cin=C_tot,
+                Cin=C_tot, b_in = b_tot,
                 f_in=f_tot, rf=None, stride=None, method_deconvolution='oasis',gnb = params_movie['gnb'])
 
 cnm = cnm.fit(images)
-#comp.comparison['cnmf_full_frame']['timer'] = time.time() - t1
-#comp.comparison['cnmf_full_frame']['ourdata'] = [cnm.A.copy(), cnm.C.copy()]
+
 # %%
 A, C, b, f, YrA, sn = cnm.A, cnm.C, cnm.b, cnm.f, cnm.YrA, cnm.sn
 # %% again recheck quality of components, stricter criteria
@@ -549,7 +521,6 @@ np.savez(os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:
          idx_components_bad=idx_components_bad,
          fitness_raw=fitness_raw, fitness_delta=fitness_delta, r_values=r_values)
 # we save it
-comp.save_with_compare(istruth=True, params=params_movie, Cn=Cn, dview=dview)
 # %%
 # TODO: show screenshot 14
 pl.subplot(1, 2, 1)
@@ -558,12 +529,10 @@ pl.subplot(1, 2, 2)
 crd = plot_contours(A.tocsc()[:, idx_components_bad], Cn, thr=params_display['thr_plot'])
 # %%
 # TODO: needinfo
-view_patches_bar(Yr, scipy.sparse.coo_matrix(A.tocsc()[:, idx_components]), C[
-                                                                            idx_components, :], b, f, dims[0], dims[1],
+view_patches_bar(Yr, scipy.sparse.coo_matrix(A.tocsc()[:, idx_components]), C[idx_components, :], b, f, dims[0], dims[1],
                  YrA=YrA[idx_components, :], img=Cn)
 # %%
-view_patches_bar(Yr, scipy.sparse.coo_matrix(A.tocsc()[:, idx_components_bad]), C[
-                                                                                idx_components_bad, :], b, f, dims[0],
+view_patches_bar(Yr, scipy.sparse.coo_matrix(A.tocsc()[:, idx_components_bad]), C[idx_components_bad, :], b, f, dims[0],
                  dims[1], YrA=YrA[idx_components_bad, :], img=Cn)
 # %% STOP CLUSTER and clean up log files
 # TODO: todocument
