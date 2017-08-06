@@ -10,12 +10,12 @@ CaImAn
 
 
 
-A Computational toolbox for large scale **Ca**lcium **Im**aging **An**alysis*
+A Computational toolbox for large scale **Ca**lcium **Im**aging **An**alysis* and behavioral analysis
 
 
 
 
-Recent advances in calcium imaging acquisition techniques are creating datasets of the order of Terabytes/week. Memory and computationally efficient algorithms are required to analyze in reasonable amount of time terabytes of data. This projects implements a set of essential methods required in the calcium imaging movies analysis pipeline. Fast and scalable algorithms are implemented for motion correction, movie manipulation and source and spike extraction.
+Recent advances in calcium imaging acquisition techniques are creating datasets of the order of Terabytes/week. Memory and computationally efficient algorithms are required to analyze in reasonable amount of time terabytes of data. This projects implements a set of essential methods required in the calcium imaging movies analysis pipeline. Fast and scalable algorithms are implemented for motion correction, movie manipulation and source and spike extraction. CaImAn also contains some routine to the analyisi of behavior from video cameras. In summary, CaImAn provides a general purpose tool to handle large movies, with special emphasis tools for calcium imaging and behavioral datasets. 
 
 
 ### Features
@@ -43,7 +43,15 @@ Recent advances in calcium imaging acquisition techniques are creating datasets 
     * spikes can be inferred from fluorescence traces
     * also works in online mode (i.e. one sample at a time)
 
-### Installation
+* Behavioral Analysis ([paper](http://www.sciencedirect.com/science/article/pii/S0165027017302509))
+
+    * unsupervised algorithms based on optical flow and NMF to automatically extract motor kinetics 
+    * scales to large datasets since it exploits online dictionary learning  (Mairal et. Al, [link](http://spams-devel.gforge.inria.fr/))
+    * we also developed a tool for acquiring movies at high speed with low cost equipment ([package](https://github.com/bensondaled/eyeblink)) 
+
+
+
+### Installation for calcium imaging
 
 
 * Installation on Mac 
@@ -114,6 +122,10 @@ Recent advances in calcium imaging acquisition techniques are creating datasets 
     
     ```
  
+### Installation for behavioral analysis
+* Installation on Linux (windows and mac os are problematic with anaconda at the moment)
+   * create a new environment (suggested for safety) and follow the instructions for the calcium imaging installation
+   * Install spams, as explained [here](http://spams-devel.gforge.inria.fr/). Installation is not straightforward and it might take some trials to get it right
 
  
 # Example
@@ -122,7 +134,7 @@ Recent advances in calcium imaging acquisition techniques are creating datasets 
 
 * Notebooks : The notebooks provide a simple and friendly way to get into CaImAn and understand its main characteristics. 
 
-   * you can find them in directly in CaImAn and launch them from your ipython Notebook application:
+   * you can find them in directly in CaImAn folder and launch them from your ipython Notebook application:
    
    * to launch jupyter notebook :
    
@@ -132,22 +144,18 @@ Recent advances in calcium imaging acquisition techniques are creating datasets 
         conda launch jupyter
     
        ```
-
+* demo files are to be found also in the demos_detailed subfolder. We suggest to try demo_pipeline.py first since it contains most of the tasks required by calcium imaging. For behavior use demo_behavior.py
    
   * /!\ if you want to launch directly the python files, please be advised that your python console still needs to be in the CaImAn folder and not somewhere else. 
 
 
 # Testing
 
-* As of today, all of the commits needs to be previously tested before asking for a pull request. Call 'nosetests' program from inside of your CaImAn folder to look for defects. 
+* As of today, all of the commits needs to be previously tested before asking for a pull request. Call 'nosetests' program from inside of your CaImAn folder to look for errors. 
 
   ### general_test
 
-   * This test will run the entire CaImAn program and look for differences against the original one. If your changes have made significant differences able to be recognise by this test. You are left with two choices : 
-   
-       * Either it is a desired on purpose changement of the code. You will then need to submit your pull request. Adding to it the generated folder in tests/comparison/tests that you will need to rename 'tosend'
-    
-       * Else it is an unplanned difference that has been found by the tests. In this situation, happy debugging. 
+   * This test will run the entire CaImAn program and look for differences against the original one. If your changes have made significant differences able to be recognise by this test.  
    
    
 # Contributors:
@@ -173,6 +181,9 @@ Pnevmatikakis, E.A., Gao, Y., Soudry, D., Pfau, D., Lacefield, C., ... & Paninsk
 
 Friedrich J. and Paninski L. Fast active set methods for online spike inference from calcium imaging. NIPS, 29:1984-1992, 2016. [PDF](https://papers.nips.cc/paper/6505-fast-active-set-methods-for-online-spike-inference-from-calcium-imaging). [Github repository](https://github.com/j-friedrich/OASIS).
 
+# Behavioral analysis
+
+Giovannucci, A., Pnevmatikakis, E. A., Deverett, B., Pereira, T., Fondriest, J., Brady, M. J., ... & Masip, D. (2017). Automated gesture tracking in head-fixed mice. Journal of Neuroscience Methods.
 
 Code description and related packages
 =======
@@ -183,6 +194,8 @@ Some tools that are currently available in Matlab and not in Python are at the f
 
 - [MCMC spike inference](https://github.com/epnev/continuous_time_ca_sampler) 
 - [Group LASSO initialization and spatial CNMF](https://github.com/danielso/ROI_detect)
+
+
 
 
 Troubleshooting
