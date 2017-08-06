@@ -1085,7 +1085,7 @@ class movie(ts.timeseries):
 
 
 
-def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None, var_name_hdf5 = 'mov', in_memory = False):
+def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None, var_name_hdf5 = 'mov', in_memory = False, is_behavior = False):
     """
     load movie from file. SUpports a variety of formats. tif, hdf5, npy and memory mapped. Matlab is experimental. 
 
@@ -1222,19 +1222,31 @@ def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None,
                     return movie(f['quietBlock'][subindices],fr=fr)
             
         elif extension== '.h5':
-              with h5py.File(file_name, "r") as f:
-                if 'imaging' in f.keys():  
-                    if subindices is None:
-                        images = np.array(f['imaging']).squeeze()
-                        if images.ndim>3:
-                            images = images[:,0]
-                    else:
-                        images = np.array(f['imaging'][subindices]).squeeze()
-                        if images.ndim>3:
-                            images = images[:,0]
-                            
-                    return movie(images.astype(np.float32))
-                
+              if is_behavior:
+                  with h5py.File(file_name, "r") as f:
+                      kk = f.keys()
+                      kk.sort(key = lambda x: np.int(x.split('_')[-1]))
+                      input_arr = []
+                      for trial in kk:
+                          print('Loading ' + trial)
+                          input_arr.append(np.array(f[trial]['mov']))
+                          
+                      input_arr = np.vstack(input_arr)    
+                  
+              else:
+                  with h5py.File(file_name, "r") as f:
+                    if 'imaging' in f.keys():  
+                        if subindices is None:
+                            images = np.array(f['imaging']).squeeze()
+                            if images.ndim>3:
+                                images = images[:,0]
+                        else:
+                            images = np.array(f['imaging'][subindices]).squeeze()
+                            if images.ndim>3:
+                                images = images[:,0]
+                                
+                        return movie(images.astype(np.float32))
+                    
         elif extension == '.mmap':
 
             filename=os.path.split(file_name)[-1]

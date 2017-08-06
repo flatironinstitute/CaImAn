@@ -1,5 +1,5 @@
 future
-numpy
+numpy=1.12.1
 scipy
 ipython
 ipyparallel
@@ -10,3 +10,4 @@ scikit-learn
 h5py
 cython
 spyder
+nose
