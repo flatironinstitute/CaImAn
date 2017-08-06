@@ -110,7 +110,7 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
             wheter to norrmalize the C and A matrices so that diag(C*C.T) are ones
     
     update_background_components:bool
-        whether to update the background components
+        whether to update the background components in the spatial phase
         
     low_rank_background:bool
         whether to update the using a low rank approximation. In the False case all the nonzero elements of the background components are updated using hals    

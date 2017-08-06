@@ -64,7 +64,7 @@ class CNMF(object):
                  rf=None,stride=None, memory_fact=1, gnb = 1, only_init_patch=False,
                  method_deconvolution = 'oasis', n_pixels_per_process = 4000, block_size = 20000,
                  check_nan = True, skip_refinement = False, normalize_init=True, options_local_NMF = None,
-                                        remove_very_bad_comps = False, border_pix = 0, low_rank_background = True):
+                                        remove_very_bad_comps = False, border_pix = 0, low_rank_background = True, update_background_components = True):
         """ 
         Constructor of the CNMF method
 
@@ -164,10 +164,10 @@ class CNMF(object):
         
         low_rank_background:bool
             if True the background is approximated with gnb components. If false every patch keeps its background (overlaps are randomly assigned to one spatial component only)
+             In the False case all the nonzero elements of the background components are updated using hals (to be used with one background per patch)
             
-        low_rank_background:bool
-            whether to update the using a low rank approximation. In the False case all the nonzero elements of the background components are updated using hals    
-            (to be used with one background per patch)
+        update_background_components:bool
+            whether to update the background components during the spatial phase           
         
         Returns:
         --------
@@ -215,6 +215,8 @@ class CNMF(object):
         self.g = None
         self.remove_very_bad_comps = remove_very_bad_comps
         self.border_pix = border_pix
+        self.low_rank_background = low_rank_background 
+        self.update_background_components = update_background_components 
 
 
     def fit(self, images):
@@ -260,7 +262,8 @@ class CNMF(object):
                                n_pixels_per_process=self.n_pixels_per_process, block_size=self.block_size,
                                check_nan=self.check_nan, nb=self.gnb, normalize_init = self.normalize_init,
                                options_local_NMF = self.options_local_NMF,
-                               remove_very_bad_comps = self.remove_very_bad_comps)
+                               remove_very_bad_comps = self.remove_very_bad_comps, low_rank_background = self.low_rank_background, 
+                               update_background_components = self.update_background_components)
 
         self.options = options
         
@@ -372,11 +375,11 @@ class CNMF(object):
             if self.alpha_snmf is not None:
                 options['init_params']['alpha_snmf'] = self.alpha_snmf
 
-
+            
             A, C, YrA, b, f, sn, optional_outputs = run_CNMF_patches(images.filename, dims + (T,),
                                                                      options, rf=self.rf, stride=self.stride,
                                                                      dview=self.dview, memory_fact=self.memory_fact,
-                                                                     gnb=self.gnb, border_pix = self.border_pix)
+                                                                     gnb=self.gnb, border_pix = self.border_pix, low_rank_background = self.low_rank_background)
 
             options = CNMFSetParms(Y, self.n_processes, p=self.p, gSig=self.gSig, K=A.shape[
                                    -1], thr=self.merge_thresh, n_pixels_per_process=self.n_pixels_per_process,
