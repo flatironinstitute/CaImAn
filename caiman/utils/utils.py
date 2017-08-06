@@ -63,7 +63,8 @@ def download_demo(name='Sue_2x_3000_40_-46.tif'):
     #\warning  
     
     file_dict = {'Sue_2x_3000_40_-46.tif':'https://www.dropbox.com/s/09z974vkeg3t5gn/Sue_2x_3000_40_-46.tif?dl=1',
-                 'demoMovieJ.tif':'https://www.dropbox.com/s/8j1cnqubye3asmu/demoMovieJ.tif?dl=1'}
+                 'demoMovieJ.tif':'https://www.dropbox.com/s/8j1cnqubye3asmu/demoMovieJ.tif?dl=1',
+                 'demo_behavior.h5':'https://www.dropbox.com/s/53jmhc9sok35o82/movie_behavior.h5?dl=1'}
     #          ,['./example_movies/demoMovie.tif','https://www.dropbox.com/s/obmtq7305ug4dh7/demoMovie.tif?dl=1']]
     base_folder = './example_movies'
     if os.path.exists(base_folder):
