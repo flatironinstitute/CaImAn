@@ -1,5 +1,5 @@
 future
-numpy=1.12.1
+numpy
 scipy
 ipython
 ipyparallel
