@@ -238,48 +238,11 @@ or issues related to SCS type
  conda install openblas 
  ```
  
-**CVXOPT**:
-
-If you are on Windows and don't manage to install or compile cvxopt, a simple solution is to download the right binary [there](http://www.lfd.uci.edu/~gohlke/pythonlibs/#cvxopt) and install the library by typing:
-
-```
-pip install cvxopt-1.1.7-XXXX.whl
-```
-
 Test the system
 ----------------
 
-**SINGLE PATCH**
-
-In case you used installation af point 1 above you will need to download the test files from
-<https://github.com/agiovann/Constrained_NMF/releases/download/v0.3/Demo.zip>
-
-A. Go into the cloned folder, type `python demo.py`
-
-B. Using the Spyder (type `conda install spyder`) IDE.
-
-    1. Unzip the file Demo.zip (you do not need this step if you installed dusing method 2 above, just enter the Constrained_NMF folder and you will find all the required files there).
-    2. Open the file demo.py with spyder
-    3. change the base_folder variable to point to the folder you just unzipped
-    3. Run the cells one by one inspecting the output
-    4. Remember to stop the cluster (last three lines of file). You can also stop it manually by typing in a terminal
-    'ipcluster stop'
-
-C. Using notebook.
-
-    1. Unzip the file Demo.zip (you do not need this step if you installed dusing method 3 above, just enter the Constrained_NMF folder and you will find all the required files there).
-    2. type `ipython notebook`
-    3. open the notebook called demoCNMF.ipynb 
-    4. change the base_folder variable to point to the folder you just unzipped
-    5. and run cell by cell inspecting the result
-    6. Remember to stop the cluster (last three lines of file). You can also stop it manually by typing in a terminal
-    'ipcluster stop'
 
 
-**MULTI PATCH**
-+ Download the two demo movies [here](https://github.com/agiovann/Constrained_NMF/releases/download/v0.4-alpha/Patch_demo.zip) (courtesy of Dr. Sue Ann Koay from the Tank Lab, Princeton Neuroscience Institute, Princeton. NJ). Unzip the folder. Then in Spyder open the file demo_patches.py, and change the base_folder variable to point to the folder you just unzipped. 
-+ Run one by one the cells (delimited by '#%%') 
-+ Inspect the results. The demo will start a cluster and process pathes of the movie (more details [here](https://github.com/agiovann/Constrained_NMF/wiki/Processing-large-datasets)) in parallel (cse.map_reduce.run_CNMF_patches). Afterwards, it will merge the results back together and proceed to firstly merge potentially overlaping components (cse.merge_components) from different patches, secondly to update the spatial extent of the joined spatial components (cse.spatial.update_spatial_components), and finally denoising the traces (cse.temporal.update_temporal_components). THe final bit is used for visualization. 
 
 Documentation
 ========
@@ -297,18 +260,19 @@ The code uses the following libraries
 - [cvxpy](http://www.cvxpy.org/) for solving optimization problems
 - [ipyparallel](http://ipyparallel.readthedocs.org/en/latest/) for parallel processing
 - [opencv](http://opencv.org/) for efficient image manipulation and visualization
+- [Spams](http://spams-devel.gforge.inria.fr/) for online dictionary learning
 
 External Dependencies
 ============
 
-For the constrained deconvolution method (```deconvolution.constrained_foopsi```)  various solvers can be used, each of which requires some additional packages:
+For the constrained deconvolution method (```deconvolution.constrained_foopsi```)  various solvers can be used, some of which requires  additional packages:
 
 1. ```'cvxpy'```: (default) For this option, the following packages are needed:
-  * [CVXOPT](http://cvxopt.org/) Required.
-  * [CVXPY](http://www.cvxpy.org/) Required.
+  * [CVXOPT](http://cvxopt.org/) optional.
+  * [CVXPY](http://www.cvxpy.org/) optional.
 2. ```'cvx'```: For this option, the following packages are needed:
-  * [CVXOPT](http://cvxopt.org/) Required.
-  * [PICOS](http://picos.zib.de/) Required.
+  * [CVXOPT](http://cvxopt.org/) optional.
+  * [PICOS](http://picos.zib.de/) optional.
 
 In general ```'cvxpy'``` can be faster, when using the 'ECOS' or 'SCS' sovlers, which are included with the CVXPY installation.
 
