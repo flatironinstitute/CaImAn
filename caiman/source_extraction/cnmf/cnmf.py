@@ -28,7 +28,7 @@ from builtins import str
 from builtins import object
 from past.utils import old_div
 import numpy as np
-from .utilities import  CNMFSetParms
+from .utilities import CNMFSetParms
 from .pre_processing import preprocess_data
 from .initialization import initialize_components
 from .merging import merge_components
@@ -58,13 +58,13 @@ class CNMF(object):
     @author andrea giovannucci
     """
 
-    def __init__(self, n_processes, k=5, gSig=[4,4], merge_thresh=0.8 , p=2, dview=None,
-                 Ain=None, Cin=None, f_in=None,do_merge=True,
-                 ssub=2, tsub=2,p_ssub=1, p_tsub=1, method_init= 'greedy_roi',alpha_snmf=None,
-                 rf=None,stride=None, memory_fact=1, gnb = 1, only_init_patch=False,
-                 method_deconvolution = 'oasis', n_pixels_per_process = 4000, block_size = 20000,
-                 check_nan = True, skip_refinement = False, normalize_init=True, options_local_NMF = None,
-                                        remove_very_bad_comps = False):
+    def __init__(self, n_processes, k=5, gSig=[4, 4], merge_thresh=0.8, p=2, dview=None,
+                 Ain=None, Cin=None, f_in=None, do_merge=True,
+                 ssub=2, tsub=2, p_ssub=1, p_tsub=1, method_init='greedy_roi', alpha_snmf=None,
+                 rf=None, stride=None, memory_fact=1, gnb=1, only_init_patch=False,
+                 method_deconvolution='oasis', n_pixels_per_process=4000, block_size=20000,
+                 check_nan=True, skip_refinement=False, normalize_init=True, options_local_NMF=None,
+                 remove_very_bad_comps=False):
         """ 
         Constructor of the CNMF method
 
@@ -128,28 +128,28 @@ class CNMF(object):
 
         only_init_patch= boolean
             only run initialization on patches
-        
+
         method_deconvolution = 'oasis' or 'cvxpy'
             method used for deconvolution. Suggested 'oasis' see  
             Friedrich J, Zhou P, Paninski L. Fast Online Deconvolution of Calcium Imaging Data.
             PLoS Comput Biol. 2017; 13(3):e1005423.
-        
+
         n_pixels_per_process: int. 
             Number of pixels to be processed in parallel per core (no patch mode). Decrease if memory problems
-        
+
         block_size: int. 
             Number of pixels to be used to perform residual computation in blocks. Decrease if memory problems
-        
+
         check_nan: Boolean. 
             Check if file contains NaNs (costly for very large files so could be turned off)
-        
+
         skip_refinement: 
             Bool. If true it only performs one iteration of update spatial update temporal instead of two
-        
+
         normalize_init=Bool. 
             Differences in intensities on the FOV might caus troubles in the initialization when patches are not used,
              so each pixels can be normalized by its median intensity
-        
+
         options_local_NMF: 
             experimental, not to be used
 
@@ -158,52 +158,52 @@ class CNMF(object):
              This might create some minor imprecisions.
             Howeverm benefits can be considerable if done because if many components (>2000) are created
             and joined together, operation that causes a bottleneck
-        
+
         Returns:
         --------
         self
         """
 
-        self.k = k #number of neurons expected per FOV (or per patch if patches_pars is not None
-        self.gSig=gSig # expected half size of neurons
-        self.merge_thresh=merge_thresh # merging threshold, max correlation allowed
-        self.p=p #order of the autoregressive system
-        self.dview=dview
-        self.Ain=Ain
-        self.Cin=Cin
-        self.f_in=f_in
+        self.k = k  # number of neurons expected per FOV (or per patch if patches_pars is not None
+        self.gSig = gSig  # expected half size of neurons
+        self.merge_thresh = merge_thresh  # merging threshold, max correlation allowed
+        self.p = p  # order of the autoregressive system
+        self.dview = dview
+        self.Ain = Ain
+        self.Cin = Cin
+        self.f_in = f_in
 
-        self.ssub=ssub
-        self.tsub=tsub
-        self.p_ssub=p_ssub
-        self.p_tsub=p_tsub
-        self.method_init= method_init
-        self.n_processes=n_processes
-        self.rf=rf # half-size of the patches in pixels. rf=25, patches are 50x50
-        self.stride=stride #amount of overlap between the patches in pixels   
+        self.ssub = ssub
+        self.tsub = tsub
+        self.p_ssub = p_ssub
+        self.p_tsub = p_tsub
+        self.method_init = method_init
+        self.n_processes = n_processes
+        self.rf = rf  # half-size of the patches in pixels. rf=25, patches are 50x50
+        self.stride = stride  # amount of overlap between the patches in pixels
         # unitless number accounting how much memory should be used.
-        #  You will need to try different values to see which one would work the default is OK for a 16 GB system
+        # You will need to try different values to see which one would work the
+        # default is OK for a 16 GB system
         self.memory_fact = memory_fact
-        self.gnb = gnb                        
-        self.do_merge=do_merge
-        self.alpha_snmf=alpha_snmf
-        self.only_init=only_init_patch
-        self.method_deconvolution=method_deconvolution
+        self.gnb = gnb
+        self.do_merge = do_merge
+        self.alpha_snmf = alpha_snmf
+        self.only_init = only_init_patch
+        self.method_deconvolution = method_deconvolution
         self.n_pixels_per_process = n_pixels_per_process
         self.block_size = block_size
         self.check_nan = check_nan
         self.skip_refinement = skip_refinement
         self.normalize_init = normalize_init
         self.options_local_NMF = options_local_NMF
-        self.A=None
-        self.C=None
-        self.S=None
-        self.b=None
-        self.f=None
+        self.A = None
+        self.C = None
+        self.S = None
+        self.b = None
+        self.f = None
         self.sn = None
         self.g = None
         self.remove_very_bad_comps = remove_very_bad_comps
-
 
     def fit(self, images):
         """
@@ -232,7 +232,7 @@ class CNMF(object):
         http://www.cell.com/neuron/fulltext/S0896-6273(15)01084-3
 
         """
-        #Todo : to compartiment
+        # Todo : to compartiment
         T = images.shape[0]
         dims = images.shape[1:]
         Y = np.transpose(images, list(range(1, len(dims) + 1)) + [0])
@@ -246,16 +246,16 @@ class CNMF(object):
         options = CNMFSetParms(Y, self.n_processes, p=self.p, gSig=self.gSig, K=self.k, ssub=self.ssub, tsub=self.tsub,
                                p_ssub=self.p_ssub, p_tsub=self.p_tsub, method_init=self.method_init,
                                n_pixels_per_process=self.n_pixels_per_process, block_size=self.block_size,
-                               check_nan=self.check_nan, nb=self.gnb, normalize_init = self.normalize_init,
-                               options_local_NMF = self.options_local_NMF,
-                               remove_very_bad_comps = self.remove_very_bad_comps)
+                               check_nan=self.check_nan, nb=self.gnb, normalize_init=self.normalize_init,
+                               options_local_NMF=self.options_local_NMF,
+                               remove_very_bad_comps=self.remove_very_bad_comps)
 
         self.options = options
-        
+
         if self.rf is None:  # no patches
             print('preprocessing ...')
             Yr, sn, g, psx = preprocess_data(Yr, dview=self.dview, **options['preprocess_params'])
-            
+
             if self.Ain is None:
                 print('initializing ...')
                 if self.alpha_snmf is not None:
@@ -264,18 +264,18 @@ class CNMF(object):
                 self.Ain, self.Cin, self.b_in, self.f_in, center = initialize_components(
                     Y, **options['init_params'])
 
-            if self.only_init: # only return values after initialization
-                
-                nA = np.squeeze(np.array(np.sum(np.square(self.Ain),axis=0)))
-                nr=nA.size
-                Cin=scipy.sparse.coo_matrix(self.Cin)
-                YA = (self.Ain.T.dot(Yr).T)*scipy.sparse.spdiags(old_div(1.,nA),0,nr,nr)
-                AA = ((self.Ain.T.dot(self.Ain))*scipy.sparse.spdiags(old_div(1.,nA),0,nr,nr))
-                
-                self.YrA = YA - Cin.T.dot(AA)      
-                self.A = self.Ain 
-                self.C = Cin.todense() 
-                
+            if self.only_init:  # only return values after initialization
+
+                nA = np.squeeze(np.array(np.sum(np.square(self.Ain), axis=0)))
+                nr = nA.size
+                Cin = scipy.sparse.coo_matrix(self.Cin)
+                YA = (self.Ain.T.dot(Yr).T) * scipy.sparse.spdiags(old_div(1., nA), 0, nr, nr)
+                AA = ((self.Ain.T.dot(self.Ain)) * scipy.sparse.spdiags(old_div(1., nA), 0, nr, nr))
+
+                self.YrA = YA - Cin.T.dot(AA)
+                self.A = self.Ain
+                self.C = Cin.todense()
+
                 if self.remove_very_bad_comps:
                     print('removing bad components : ')
                     final_frate = 3
@@ -286,25 +286,25 @@ class CNMF(object):
                     traces = np.array(self.C)
                     print('estimating the quality...')
                     idx_components, idx_components_bad, fitness_raw,\
-                    fitness_delta, r_values = components_evaluation.estimate_components_quality(
-                        traces, Y, self.A, np.array(self.C), self.b_in, self.f_in,
-                        final_frate = final_frate, Npeaks=Npeaks, r_values_min=r_values_min,
-                        fitness_min=fitness_min, fitness_delta_min=fitness_delta_min, return_all = True, N = 5)
-    
+                        fitness_delta, r_values = components_evaluation.estimate_components_quality(
+                            traces, Y, self.A, np.array(self.C), self.b_in, self.f_in,
+                            final_frate=final_frate, Npeaks=Npeaks, r_values_min=r_values_min,
+                            fitness_min=fitness_min, fitness_delta_min=fitness_delta_min, return_all=True, N=5)
+
                     print(('Keeping ' + str(len(idx_components)) +
                            ' and discarding  ' + str(len(idx_components_bad))))
-                    self.C = self.C[idx_components]                    
-                    self.A = self.A[:,idx_components]                                  
-                    self.YrA = self.YrA[:,idx_components]
-                
-                self.sn = sn                    
+                    self.C = self.C[idx_components]
+                    self.A = self.A[:, idx_components]
+                    self.YrA = self.YrA[:, idx_components]
+
+                self.sn = sn
                 self.b = self.b_in
-                self.f = self.f_in    
-                self.g = g    
+                self.f = self.f_in
+                self.g = g
                 self.bl = None
                 self.c1 = None
                 self.neurons_sn = None
-                
+
                 return self
 
             print('update spatial ...')
@@ -328,7 +328,8 @@ class CNMF(object):
                 if self.do_merge:
                     print('merge components ...')
                     A, C, nr, merged_ROIs, S, bl, c1, sn1, g1 = merge_components(
-                        Yr, A, b, C, f, S, sn, options['temporal_params'], options['spatial_params'],
+                        Yr, A, b, C, f, S, sn, options[
+                            'temporal_params'], options['spatial_params'],
                         dview=self.dview, bl=bl, c1=c1, sn=neurons_sn, g=g, thr=self.merge_thresh,
                         mx=50, fast_merge=True)
                 print((A.shape))
@@ -341,9 +342,9 @@ class CNMF(object):
                 C, A, b, f, S, bl, c1, neurons_sn, g1, YrA = update_temporal_components(
                     Yr, A, b, C, f, dview=self.dview, bl=None, c1=None, sn=None, g=None, **options['temporal_params'])
             else:
-                    g1 = g
-                    # todo : ask for those..
-                    C, f, S, bl, c1, neurons_sn,Yra = C, f, S, bl, c1, neurons_sn, YrA
+                g1 = g
+                # todo : ask for those..
+                C, f, S, bl, c1, neurons_sn, Yra = C, f, S, bl, c1, neurons_sn, YrA
 
         else:  # use patches
             if self.stride is None:
@@ -359,7 +360,6 @@ class CNMF(object):
 
             if self.alpha_snmf is not None:
                 options['init_params']['alpha_snmf'] = self.alpha_snmf
-
 
             A, C, YrA, b, f, sn, optional_outputs = run_CNMF_patches(images.filename, dims + (T,),
                                                                      options, rf=self.rf, stride=self.stride,
@@ -377,19 +377,19 @@ class CNMF(object):
             while len(merged_ROIs) > 0:
                 A, C, nr, merged_ROIs, S, bl, c1, sn_n, g = merge_components(Yr, A, [], np.array(C), [], np.array(
                     C), [], options['temporal_params'], options['spatial_params'], dview=self.dview,
-                                                                             thr=self.merge_thresh, mx=np.Inf)
+                    thr=self.merge_thresh, mx=np.Inf)
 
             print("update temporal")
             C, A, b, f, S, bl, c1, neurons_sn, g1, YrA = update_temporal_components(
                 Yr, A, b, C, f, dview=self.dview, bl=None, c1=None, sn=None, g=None, **options['temporal_params'])
 
-        self.A=A
-        self.C=C
-        self.b=b
-        self.f=f
+        self.A = A
+        self.C = C
+        self.b = b
+        self.f = f
         self.S = S
-        self.YrA=YrA
-        self.sn=sn
+        self.YrA = YrA
+        self.sn = sn
         self.g = g1
         self.bl = bl
         self.c1 = c1
