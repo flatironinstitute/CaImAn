@@ -911,7 +911,8 @@ def greedyROI_corr(data=None, max_number=None, g_size=15, g_sig=3,
                         print(num_neurons - 1, 'neurons have been initialized')
 
     print('In total, ', num_neurons, 'neurons were initialized.')
-    A = np.reshape(Ain[:num_neurons], (-1, d1 * d2)).transpose()
+    # A = np.reshape(Ain[:num_neurons], (-1, d1 * d2)).transpose()
+    A = np.reshape(Ain[:num_neurons], (-1, d1 * d2), order='F').transpose()
     C = Cin[:num_neurons]
     # C_raw = Cin_raw[:num_neurons]
     # S = Sin[:num_neurons]
@@ -920,9 +921,9 @@ def greedyROI_corr(data=None, max_number=None, g_size=15, g_sig=3,
     B = data.reshape((-1, total_frames), order='F') - A.dot(C)
     if ring_model:
         W, b0 = compute_W(data.reshape((-1, total_frames), order='F'),
-                          A, C, (d1, d2), int(np.round(ring_size_factor * g_sig)))
-
+                          A, C, (d1, d2), int(np.round(ring_size_factor * g_size / 2.)))
         B = b0[:, None] + W.dot(B - b0[:, None])
+
     model = NMF(n_components=nb, init='random', random_state=0)
     b_in = model.fit_transform(np.maximum(B, 0))
     f_in = model.components_.squeeze()
@@ -965,7 +966,7 @@ def extract_ac(data_filtered, data_raw, ind_ctr, patch_dims):
     X = np.hstack([ci - ci.mean(), y_bg - y_bg.mean(), np.ones(ci.shape)])
     XX = np.dot(X.transpose(), X)
     Xy = np.dot(X.transpose(), data_raw)
-    ai = np.linalg.lstsq(XX, Xy)[0][0]
+    ai = scipy.linalg.lstsq(XX, Xy)[0][0]
     ai = ai.reshape(patch_dims)
     ai[ai < 0] = 0
 
@@ -1126,7 +1127,7 @@ def compute_W(Y, A, C, dims, radius):
         inside = (x >= 0) * (x < dims[0]) * (y >= 0) * (y < dims[1])
         return np.ravel_multi_index((x[inside], y[inside]), dims, order='F')
 
-    b0 = Y.mean(1) - A.dot(C.mean(1))
+    b0 = np.array(Y.mean(1)) - A.dot(C.mean(1))
 
     indices = []
     data = []
@@ -1135,9 +1136,9 @@ def compute_W(Y, A, C, dims, radius):
         index = get_indices_of_pixels_on_ring(p)
         indices += list(index)
         B = Y[index] - A[index].dot(C) - b0[index, None]
-        data += list(np.linalg.inv(B.dot(B.T) + 1e-12 * np.eye(len(index))).
+        data += list(np.linalg.inv(np.array(B.dot(B.T)) + 1e-9 * np.eye(len(index))).
                      dot(B.dot(Y[p] - A[p].dot(C).ravel() - b0[p])))
-        # np.linalg.lstsq seems less robust but scipy version would be (slower) alternative
+        # np.linalg.lstsq seems less robust but scipy version would be (robust but for the problem size slower) alternative
         # data += list(scipy.linalg.lstsq(B.T, Y[p] - A[p].dot(C) - b0[p], check_finite=False)[0])
         indptr.append(len(indices))
     return spr.csr_matrix((data, indices, indptr), dtype='float32'), b0
