@@ -38,8 +38,7 @@ import cv2
 def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter=5, maxIter=5, nb=1,
                           kernel=None, use_hals=True, normalize_init=True, img=None, method='greedy_roi',
                           max_iter_snmf=500, alpha_snmf=10e2, sigma_smooth_snmf=(.5, .5, .5),
-                          perc_baseline_snmf=20, options_local_NMF=None,
-                          ring_model=False, min_corr=.8, ring_size_factor=1.5):
+                          perc_baseline_snmf=20, options_local_NMF=None, **kwargs):
     """
     Initalize components
 
@@ -52,7 +51,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
          d1 x d2 [x d3] x T movie, raw data.
 
     K: [optional] int
-        number of neurons to extract (default value: 30).
+        number of neurons to extract (default value: 30). Maximal number for method 'corr_pnr'.
 
     tau: [optional] list,tuple
         standard deviation of neuron size along x and y [and z] (default value: (5,5).
@@ -82,10 +81,10 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
         Whether to normalize_init data before running the initialization
 
     img: optional [np 2d array]
-        Image with which to normalize. If not present use the mean + offset 
+        Image with which to normalize. If not present use the mean + offset
 
     method: str
-        Initialization method 'greedy_roi' or 'sparse_nmf' 
+        Initialization method 'greedy_roi' or 'sparse_nmf'
 
     max_iter_snmf: int
         Maximum number of sparse NMF iterations
@@ -158,8 +157,8 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
             print('(Hals) Refining Components...')
             Ain, Cin, b_in, f_in = hals(Y_ds, Ain, Cin, b_in, f_in, maxIter=maxIter)
     elif method == 'corr_pnr':
-        Ain, Cin, _, b_in, f_in = greedyROI_corr(Y_ds, g_size=gSiz[0], g_sig=gSig[0], min_corr=min_corr,
-                                                 ring_size_factor=ring_size_factor, ring_model=ring_model, nb=nb)
+        Ain, Cin, _, b_in, f_in = greedyROI_corr(Y_ds, max_number=K,
+                                                 g_size=gSiz[0], g_sig=gSig[0], nb=nb, **kwargs)
 
     elif method == 'sparse_nmf':
         Ain, Cin, _, b_in, f_in = sparseNMF(Y_ds, nr=K, nb=nb, max_iter_snmf=max_iter_snmf, alpha=alpha_snmf,
@@ -680,7 +679,7 @@ def hals(Y, A, C, b, f, bSiz=3, maxIter=5):
     return Ab[:, :-nb], Cf[:-nb], Ab[:, -nb:], Cf[-nb:].reshape(nb, -1)
 
 
-def greedyROI_corr(data=None, max_number=None, g_size=15, g_sig=3,
+def greedyROI_corr(data, max_number=None, g_size=15, g_sig=3,
                    center_psf=True, min_corr=0.8, min_pnr=10,
                    seed_method='auto', deconvolve_options=None,
                    min_pixel=3, bd=1, thresh_init=2,
@@ -921,7 +920,7 @@ def greedyROI_corr(data=None, max_number=None, g_size=15, g_sig=3,
     B = data.reshape((-1, total_frames), order='F') - A.dot(C)
     if ring_model:
         W, b0 = compute_W(data.reshape((-1, total_frames), order='F'),
-                          A, C, (d1, d2), int(np.round(ring_size_factor * g_size / 2.)))
+                          A, C, (d1, d2), int(np.round(ring_size_factor * g_size)))
         B = b0[:, None] + W.dot(B - b0[:, None])
 
     model = NMF(n_components=nb, init='random', random_state=0)
