@@ -32,8 +32,12 @@ from caiman.source_extraction.cnmf.deconvolution import deconvolve_ca
 from caiman.source_extraction.cnmf.pre_processing import get_noise_fft as \
     get_noise_fft
 import cv2
+import sys
 #%%
 
+if sys.version_info >= (3, 0):
+    def xrange(*args, **kwargs):
+        return iter(range(*args, **kwargs))
 
 def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter=5, maxIter=5, nb=1,
                           kernel=None, use_hals=True, normalize_init=True, img=None, method='greedy_roi',
@@ -866,9 +870,9 @@ def greedyROI_corr(data=None, max_number=None, g_size=15, g_sig=3,
                     Sin[num_neurons] = si
                 else:
                     # no deconvolution
-                    ci = ci_raw
+                    ci = ci_raw -np.median(ci_raw)
                     ci[ci < 0] = 0
-                    Cin[num_neurons] = ci_raw.squeeze()
+                    Cin[num_neurons] = ci.squeeze()
 
                 # remove the spatial-temporal activity of the initialized
                 # and update correlation image & PNR image
