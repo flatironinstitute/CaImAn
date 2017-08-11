@@ -37,6 +37,7 @@ from .temporal import update_temporal_components
 from .map_reduce import run_CNMF_patches
 from caiman import components_evaluation
 import scipy
+import psutil
 
 
 class CNMF(object):
@@ -65,7 +66,7 @@ class CNMF(object):
                  method_deconvolution='oasis', n_pixels_per_process=4000, block_size=20000,
                  check_nan=True, skip_refinement=False, normalize_init=True, options_local_NMF=None,
                  remove_very_bad_comps=False, border_pix=0, low_rank_background=True, update_background_components=True):
-        """ 
+        """
         Constructor of the CNMF method
 
         Parameters:
@@ -95,11 +96,11 @@ class CNMF(object):
         ssub: int
             downsampleing factor in space
 
-        tsub: int 
+        tsub: int
              downsampling factor in time
 
         p_ssub: int
-            downsampling factor in space for patches 
+            downsampling factor in space for patches
 
         method_init: str
            can be greedy_roi or sparse_nmf
@@ -107,8 +108,8 @@ class CNMF(object):
         alpha_snmf: float
             weight of the sparsity regularization
 
-        p_tsub: int 
-             downsampling factor in time for patches     
+        p_tsub: int
+             downsampling factor in time for patches
 
         rf: int
             half-size of the patches in pixels. rf=25, patches are 50x50
@@ -123,34 +124,34 @@ class CNMF(object):
             unitless number accounting how much memory should be used. You will
              need to try different values to see which one would work the default is OK for a 16 GB system
 
-        N_samples_fitness: int 
+        N_samples_fitness: int
             number of samples over which exceptional events are computed (See utilities.evaluate_components)
 
         only_init_patch= boolean
             only run initialization on patches
 
         method_deconvolution = 'oasis' or 'cvxpy'
-            method used for deconvolution. Suggested 'oasis' see  
+            method used for deconvolution. Suggested 'oasis' see
             Friedrich J, Zhou P, Paninski L. Fast Online Deconvolution of Calcium Imaging Data.
             PLoS Comput Biol. 2017; 13(3):e1005423.
 
-        n_pixels_per_process: int. 
+        n_pixels_per_process: int.
             Number of pixels to be processed in parallel per core (no patch mode). Decrease if memory problems
 
-        block_size: int. 
+        block_size: int.
             Number of pixels to be used to perform residual computation in blocks. Decrease if memory problems
 
-        check_nan: Boolean. 
+        check_nan: Boolean.
             Check if file contains NaNs (costly for very large files so could be turned off)
 
-        skip_refinement: 
+        skip_refinement:
             Bool. If true it only performs one iteration of update spatial update temporal instead of two
 
-        normalize_init=Bool. 
+        normalize_init=Bool.
             Differences in intensities on the FOV might caus troubles in the initialization when patches are not used,
              so each pixels can be normalized by its median intensity
 
-        options_local_NMF: 
+        options_local_NMF:
             experimental, not to be used
 
         remove_very_bad_comps:Bool
@@ -159,7 +160,7 @@ class CNMF(object):
             Howeverm benefits can be considerable if done because if many components (>2000) are created
             and joined together, operation that causes a bottleneck
 
-        border_pix:int    
+        border_pix:int
             number of pixels to not consider in the borders
 
         low_rank_background:bool
@@ -167,7 +168,7 @@ class CNMF(object):
              In the False case all the nonzero elements of the background components are updated using hals (to be used with one background per patch)
 
         update_background_components:bool
-            whether to update the background components during the spatial phase           
+            whether to update the background components during the spatial phase
 
         Returns:
         --------
@@ -218,6 +219,16 @@ class CNMF(object):
         self.border_pix = border_pix
         self.low_rank_background = low_rank_background
         self.update_background_components = update_background_components
+        self.options = CNMFSetParms((512, 512, 1000), n_processes, p=p, gSig=gSig, K=k,
+                                    ssub=ssub, tsub=tsub, p_ssub=p_ssub, p_tsub=p_tsub,
+                                    method_init=method_init,
+                                    n_pixels_per_process=n_pixels_per_process,
+                                    block_size=block_size, check_nan=check_nan, nb=gnb,
+                                    normalize_init=normalize_init,
+                                    options_local_NMF=options_local_NMF,
+                                    remove_very_bad_comps=remove_very_bad_comps,
+                                    low_rank_background=low_rank_background,
+                                    update_background_components=update_background_components)
 
     def fit(self, images):
         """
@@ -254,18 +265,40 @@ class CNMF(object):
         print((T,) + dims)
 
         # Make sure filename is pointed correctly (numpy sets it to None sometimes)
-        Y.filename = images.filename
-        Yr.filename = images.filename
+        try:
+            Y.filename = images.filename
+            Yr.filename = images.filename
+        except AttributeError:  # if no memmapping cause working with small data
+            pass
 
-        options = CNMFSetParms(Y, self.n_processes, p=self.p, gSig=self.gSig, K=self.k, ssub=self.ssub, tsub=self.tsub,
-                               p_ssub=self.p_ssub, p_tsub=self.p_tsub, method_init=self.method_init,
-                               n_pixels_per_process=self.n_pixels_per_process, block_size=self.block_size,
-                               check_nan=self.check_nan, nb=self.gnb, normalize_init=self.normalize_init,
-                               options_local_NMF=self.options_local_NMF,
-                               remove_very_bad_comps=self.remove_very_bad_comps, low_rank_background=self.low_rank_background,
-                               update_background_components=self.update_background_components)
+        # update/set all options that depend on data dimensions
+        self.options['spatial_params']['dims'] = dims  # number of rows, columns [and depths]
+        self.options['spatial_params']['medw'] = (3,) * len(dims)  # window of median filter
+        # Morphological closing structuring element
+        self.options['spatial_params']['se'] = np.ones((3,) * len(dims), dtype=np.uint8)
+        # Binary element for determining connectivity
+        self.options['spatial_params']['ss'] = np.ones((3,) * len(dims), dtype=np.uint8)
 
-        self.options = options
+        print(('using ' + str(self.n_processes) + ' processes'))
+        if self.n_pixels_per_process is None:
+            avail_memory_per_process = psutil.virtual_memory()[1] / 2.**30 / self.n_processes
+            mem_per_pix = 3.6977678498329843e-09
+            self.n_pixels_per_process = np.int(avail_memory_per_process / 8. / mem_per_pix / T)
+            self.n_pixels_per_process = np.int(np.minimum(
+                self.n_pixels_per_process, np.prod(dims) // self.n_processes))
+        self.options['preprocess_params']['n_pixels_per_process'] = self.n_pixels_per_process
+        self.options['spatial_params']['n_pixels_per_process'] = self.n_pixels_per_process
+
+        if self.block_size is None:
+            self.block_size = self.n_pixels_per_process
+        # number of pixels to process at the same time for dot product. Make it
+        # smaller if memory problems
+        self.options['temporal_params']['block_size'] = self.block_size
+
+        print(('using ' + str(self.n_pixels_per_process) + ' pixels per process'))
+        print(('using ' + str(self.block_size) + ' block_size'))
+
+        options = self.options
 
         if self.rf is None:  # no patches
             print('preprocessing ...')

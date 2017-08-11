@@ -24,7 +24,7 @@ from builtins import str
 from builtins import range
 from past.utils import old_div
 import numpy as np
-from scipy.sparse import diags,spdiags,issparse
+from scipy.sparse import diags, spdiags, issparse
 from .initialization import greedyROI
 from ...base.rois import com
 import pylab as pl
@@ -32,11 +32,12 @@ import psutil
 import scipy
 from ...mmapping import parallel_dot_product
 
+
 #%%
 def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], ssub=2, tsub=2, p=2, p_ssub=2, p_tsub=2,
-                 thr=0.8, method_init='greedy_roi', nb=1, n_pixels_per_process=1000, block_size=1000,
+                 thr=0.8, method_init='greedy_roi', nb=1, n_pixels_per_process=None, block_size=None,
                  check_nan=True, normalize_init=True, options_local_NMF=None, remove_very_bad_comps=False,
-                 alpha_snmf=10e2, update_background_components = True, low_rank_background= True):
+                 alpha_snmf=10e2, update_background_components=True, low_rank_background=True):
     """Dictionary for setting the CNMF parameters.
 
     Any parameter that is not set get a default value specified
@@ -152,10 +153,10 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], ssub=2, tsub=2, p=2, p_ssub=
         ss: np.ones((3,)*len(dims), dtype=np.uint8)
             Binary element for determining connectivity
 
-         
+
         update_background_components:bool
             whether to update the background components in the spatial phase
-        
+
         low_rank_background:bool
             whether to update the using a low rank approximation. In the False case all the nonzero elements of the background components are updated using hals    
             (to be used with one background per patch) 
@@ -210,26 +211,26 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], ssub=2, tsub=2, p=2, p_ssub=
     else:
         dims, T = Y.shape[:-1], Y.shape[-1]
 
-    print(('using ' + str(n_processes) + ' processes'))
-    if n_pixels_per_process is None:
-        avail_memory_per_process = np.array(psutil.virtual_memory()[1])/2.**30/n_processes
-        mem_per_pix = 3.6977678498329843e-09
-        n_pixels_per_process = np.int(avail_memory_per_process/8./mem_per_pix/T)
-        n_pixels_per_process = np.int(np.minimum(n_pixels_per_process,np.prod(dims) // n_processes))
+    # print(('using ' + str(n_processes) + ' processes'))
+    # if n_pixels_per_process is None:
+    #     avail_memory_per_process = np.array(psutil.virtual_memory()[1])/2.**30/n_processes
+    #     mem_per_pix = 3.6977678498329843e-09
+    #     n_pixels_per_process = np.int(avail_memory_per_process/8./mem_per_pix/T)
+    #     n_pixels_per_process = np.int(np.minimum(n_pixels_per_process,np.prod(dims) // n_processes))
 
-    if block_size is None:
-        block_size = n_pixels_per_process
+    # if block_size is None:
+    #     block_size = n_pixels_per_process
 
-    print(('using ' + str(n_pixels_per_process) + ' pixels per process'))
-    print(('using ' + str(block_size) + ' block_size'))
+    # print(('using ' + str(n_pixels_per_process) + ' pixels per process'))
+    # print(('using ' + str(block_size) + ' block_size'))
 
     options = dict()
     options['patch_params'] = {
         'ssub': p_ssub,             # spatial downsampling factor
         'tsub': p_tsub,              # temporal downsampling factor
-        'only_init' : True,
-        'skip_refinement' : False,
-        'remove_very_bad_comps' : remove_very_bad_comps
+        'only_init': True,
+        'skip_refinement': False,
+        'remove_very_bad_comps': remove_very_bad_comps
     }
 
     options['preprocess_params'] = {'sn': None,                  # noise level for each pixel
@@ -237,16 +238,17 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], ssub=2, tsub=2, p=2, p_ssub=
                                     'noise_range': [0.25, 0.5],
                                     # averaging method ('mean','median','logmexp')
                                     'noise_method': 'mean',
-                                    'max_num_samples_fft': 3*1024,
+                                    'max_num_samples_fft': 3 * 1024,
                                     'n_pixels_per_process': n_pixels_per_process,
                                     'compute_g': False,            # flag for estimating global time constant
                                     'p': p,                        # order of AR indicator dynamics
-                                    # number of autocovariance lags to be considered for time constant estimation
+                                    # number of autocovariance lags to be considered for time
+                                    # constant estimation
                                     'lags': 5,
                                     'include_noise': False,        # flag for using noise values when estimating g
                                     'pixels': None,
                                     # pixels to be excluded due to saturation
-                                    'check_nan' : check_nan
+                                    'check_nan': check_nan
 
                                     }
     gSig = gSig if gSig is not None else [-1, -1]
@@ -259,12 +261,12 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], ssub=2, tsub=2, p=2, p_ssub=
                               'nIter': 5,               # number of refinement iterations
                               'kernel': None,           # user specified template for greedyROI
                               'maxIter': 5,              # number of HALS iterations
-                              'method' : method_init,     # can be greedy_roi or sparse_nmf, local_NMF
-                              'max_iter_snmf' : 500,
-                              'alpha_snmf' : alpha_snmf,
-                              'sigma_smooth_snmf' : (.5,.5,.5),
+                              'method': method_init,     # can be greedy_roi or sparse_nmf, local_NMF
+                              'max_iter_snmf': 500,
+                              'alpha_snmf': alpha_snmf,
+                              'sigma_smooth_snmf': (.5, .5, .5),
                               'perc_baseline_snmf': 20,
-                              'nb' : nb,                 # number of background components
+                              'nb': nb,                 # number of background components
                               # whether to pixelwise equalize the movies during initialization
                               'normalize_init': normalize_init,
                               # dictionary with parameters to pass to local_NMF initializaer
@@ -274,29 +276,35 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], ssub=2, tsub=2, p=2, p_ssub=
     options['spatial_params'] = {
         'dims': dims,                   # number of rows, columns [and depths]
         # method for determining footprint of spatial components ('ellipse' or 'dilate')
-        'method': 'dilate',#'ellipse', 'dilate',
+        'method': 'dilate',  # 'ellipse', 'dilate',
         'dist': 3,                       # expansion factor of ellipse
         'n_pixels_per_process': n_pixels_per_process,   # number of pixels to be processed by eacg worker
-        'medw' : (3,)*len(dims),                                # window of median filter
-        'thr_method' : 'nrg',                           #  Method of thresholding ('max' or 'nrg')
-        'maxthr' : 0.1,                                 # Max threshold
-        'nrgthr' : 0.9999,                              # Energy threshold
+        'medw': (3,) * len(dims),                                # window of median filter
+        'thr_method': 'nrg',  # Method of thresholding ('max' or 'nrg')
+        'maxthr': 0.1,                                 # Max threshold
+        'nrgthr': 0.9999,                              # Energy threshold
         # Flag to extract connected components (might want to turn to False for dendritic imaging)
-        'extract_cc' : True,
-        'se' : np.ones((3,)*len(dims), dtype=np.uint8),           # Morphological closing structuring element
-        'ss' : np.ones((3,)*len(dims), dtype=np.uint8),           # Binary element for determining connectivity
-        'nb' : nb,                                      # number of background components
-        'method_ls':'lasso_lars',               # 'nnls_L0'. Nonnegative least square with L0 penalty
-                                               #'lasso_lars' lasso lars function from scikit learn
-                                                #'lasso_lars_old' lasso lars from old implementation, will be deprecated
-        'update_background_components': update_background_components,# whether to update the background components in the spatial phase
-        'low_rank_background': low_rank_background  #whether to update the using a low rank approximation. In the False case all the nonzero elements of the background components are updated using hals    
-                                     #(to be used with one background per patch)                                        
-        }
+        'extract_cc': True,
+        # Morphological closing structuring element
+        'se': np.ones((3,) * len(dims), dtype=np.uint8),
+        # Binary element for determining connectivity
+        'ss': np.ones((3,) * len(dims), dtype=np.uint8),
+        'nb': nb,                                      # number of background components
+        'method_ls': 'lasso_lars',               # 'nnls_L0'. Nonnegative least square with L0 penalty
+        #'lasso_lars' lasso lars function from scikit learn
+        #'lasso_lars_old' lasso lars from old implementation, will be deprecated
+        # whether to update the background components in the spatial phase
+        'update_background_components': update_background_components,
+        # whether to update the using a low rank approximation. In the False case
+        # all the nonzero elements of the background components are updated using
+        # hals
+        'low_rank_background': low_rank_background
+        #(to be used with one background per patch)
+    }
     options['temporal_params'] = {
         'ITER': 2,                   # block coordinate descent iterations
         # method for solving the constrained deconvolution problem ('oasis','cvx' or 'cvxpy')
-        'method':'oasis', #'cvxpy', # 'oasis'
+        'method': 'oasis',  # 'cvxpy', # 'oasis'
         # if method cvxpy, primary and secondary (if problem unfeasible for approx
         # solution) solvers to be used with cvxpy, can be 'ECOS','SCS' or 'CVXOPT'
         'solvers': ['ECOS', 'SCS'],
@@ -309,95 +317,98 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], ssub=2, tsub=2, p=2, p_ssub=
         'noise_method': 'mean',   # averaging method ('mean','median','logmexp')
         'lags': 5,                   # number of autocovariance lags to be considered for time constant estimation
         'fudge_factor': .96,         # bias correction factor (between 0 and 1, close to 1)
-        'nb' : nb,                   # number of background components
+        'nb': nb,                   # number of background components
         'verbosity': False,
-        # number of pixels to process at the same time for dot product. Make it smaller if memory problems
-        'block_size' : block_size
+        # number of pixels to process at the same time for dot product. Make it
+        # smaller if memory problems
+        'block_size': block_size
     }
     options['merging'] = {
         'thr': thr,
     }
     return options
-#%%
-def computeDFF_traces(Yr, A, C,  bl, quantileMin = 8, frames_window = 200):
-    extract_DF_F(Yr, A, C,  bl, quantileMin , frames_window )
+
 
 #%%
-def extract_DF_F(Yr, A, C,  bl, quantileMin = 8, frames_window = 200, block_size = 400, dview = None):
-        """ Compute DFF function from cnmf output.
-
-         Disclaimer: it might be memory inefficient
-
-        Parameters:
-        -----------
-        Yr: ndarray (2D)
-            movie pixels X time
-
-        A: scipy.sparse.coo_matrix
-            spatial components (from cnmf cnm.A)
-
-        C: ndarray
-            temporal components (from cnmf cnm.C)
-
-        bl: ndarray
-            baseline for each component (from cnmf cnm.bl)
-
-        quantile_min: float
-            quantile minimum of the
-
-        frammes_window: int
-            number of frames for running quantile
-
-        Returns:
-        -------
-
-        Cdf:
-            the computed Calcium acitivty to the derivative of f
-
-        See Also:
-        -------
-
-        ..image::docs/img/onlycnmf.png
-
-        """
-        nA = np.array(np.sqrt(A.power(2).sum(0)).T)
-        A = scipy.sparse.coo_matrix(A/nA.T)
-        C = C*nA
-        bl = (bl*nA.T).squeeze()
-        nA = np.array(np.sqrt(A.power(2).sum(0)).T)
+def computeDFF_traces(Yr, A, C, bl, quantileMin=8, frames_window=200):
+    extract_DF_F(Yr, A, C,  bl, quantileMin, frames_window)
 
 
-        T = C.shape[-1]
-        if 'memmap' in str(type(Yr)):
-            if block_size >= 500:
-                print('Forcing single thread for memory issues')
-                dview_res = None
-            else:
-                print('Using thread. If memory issues set block_size larger than 500')
-                dview_res = dview
+#%%
+def extract_DF_F(Yr, A, C,  bl, quantileMin=8, frames_window=200, block_size=400, dview=None):
+    """ Compute DFF function from cnmf output.
 
-            AY = parallel_dot_product(Yr, A, dview=dview_res, block_size=block_size,
-                                      transpose=True).T
+     Disclaimer: it might be memory inefficient
+
+    Parameters:
+    -----------
+    Yr: ndarray (2D)
+        movie pixels X time
+
+    A: scipy.sparse.coo_matrix
+        spatial components (from cnmf cnm.A)
+
+    C: ndarray
+        temporal components (from cnmf cnm.C)
+
+    bl: ndarray
+        baseline for each component (from cnmf cnm.bl)
+
+    quantile_min: float
+        quantile minimum of the
+
+    frammes_window: int
+        number of frames for running quantile
+
+    Returns:
+    -------
+
+    Cdf:
+        the computed Calcium acitivty to the derivative of f
+
+    See Also:
+    -------
+
+    ..image::docs/img/onlycnmf.png
+
+    """
+    nA = np.array(np.sqrt(A.power(2).sum(0)).T)
+    A = scipy.sparse.coo_matrix(A / nA.T)
+    C = C * nA
+    bl = (bl * nA.T).squeeze()
+    nA = np.array(np.sqrt(A.power(2).sum(0)).T)
+
+    T = C.shape[-1]
+    if 'memmap' in str(type(Yr)):
+        if block_size >= 500:
+            print('Forcing single thread for memory issues')
+            dview_res = None
         else:
-            AY = A.T.dot(Yr)
+            print('Using thread. If memory issues set block_size larger than 500')
+            dview_res = dview
 
-        bas_val = bl[None,:]
-        Bas = np.repeat(bas_val,T,0).T
-        AA = A.T.dot(A)
-        AA.setdiag(0)
-        Cf = (C-Bas)*(nA**2)
-        C2 = AY - AA.dot(C)
+        AY = parallel_dot_product(Yr, A, dview=dview_res, block_size=block_size,
+                                  transpose=True).T
+    else:
+        AY = A.T.dot(Yr)
 
+    bas_val = bl[None, :]
+    Bas = np.repeat(bas_val, T, 0).T
+    AA = A.T.dot(A)
+    AA.setdiag(0)
+    Cf = (C - Bas) * (nA**2)
+    C2 = AY - AA.dot(C)
 
-        if frames_window is None or  frames_window > T:
-            Df = np.percentile(C2,quantileMin, axis = 1)
-            C_df = Cf/Df[:,None]
+    if frames_window is None or frames_window > T:
+        Df = np.percentile(C2, quantileMin, axis=1)
+        C_df = Cf / Df[:, None]
 
-        else:
-            Df = scipy.ndimage.percentile_filter(C2, quantileMin, (frames_window,1))
-            C_df = Cf/Df
+    else:
+        Df = scipy.ndimage.percentile_filter(C2, quantileMin, (frames_window, 1))
+        C_df = Cf / Df
 
-        return C_df
+    return C_df
+
 
 #%%
 def manually_refine_components(Y, xxx_todo_changeme, A, C, Cn, thr=0.9, display_numbers=True,
@@ -529,8 +540,6 @@ def manually_refine_components(Y, xxx_todo_changeme, A, C, Cn, thr=0.9, display_
     return A, C
 
 
-
-
 #%%
 def app_vertex_cover(A):
     """ Finds an approximate vertex cover for a symmetric graph with adjacency matrix A.
@@ -602,7 +611,7 @@ def update_order(A):
     return parllcomp[::-1], len_parrllcomp[::-1]
 
 
-def update_order_greedy(A,flag_AA = True):
+def update_order_greedy(A, flag_AA=True):
     """Determines the update order of the temporal components
 
     this, given the spatial components using a greedy method
@@ -633,12 +642,12 @@ def update_order_greedy(A,flag_AA = True):
         new_list = True
         for ls in parllcomp:
             if flag_AA:
-                if A[i,ls].nnz == 0:
+                if A[i, ls].nnz == 0:
                     ls.append(i)
                     new_list = False
                     break
             else:
-                if (A[:,i].T.dot(A[:,ls])).nnz == 0:
+                if (A[:, i].T.dot(A[:, ls])).nnz == 0:
                     ls.append(i)
                     new_list = False
                     break
@@ -646,7 +655,7 @@ def update_order_greedy(A,flag_AA = True):
         if new_list:
             parllcomp.append([i])
     len_parrllcomp = [len(ls) for ls in parllcomp]
-    return parllcomp,len_parrllcomp
+    return parllcomp, len_parrllcomp
 
 
 #%%
@@ -687,11 +696,8 @@ def order_components(A, C):
     return A_or, C_or, srt
 
 
-
 #%%
-
-
-#def save_mat_in_chuncks(Yr, num_chunks, shape, mat_name='mat', axis=0):
+# def save_mat_in_chuncks(Yr, num_chunks, shape, mat_name='mat', axis=0):
 #    """ save hdf5 matrix in chunks
 #
 #    Parameters
@@ -729,9 +735,6 @@ def order_components(A, C):
 #        prev = prev + mm.shape[0]
 #
 #    return {'names': names, 'idxs': idxs, 'axis': axis, 'shape': shape}
-
-
-
 
 
 # def evaluate_components(A,Yr,psx):
@@ -781,9 +784,7 @@ def order_components(A, C):
 #    end
 
 
-
-
-#def extract_DF_F(Y, A, C, i=None):
+# def extract_DF_F(Y, A, C, i=None):
 #    """Extract DF/F values from spatial/temporal components and background
 #
 #     Parameters
