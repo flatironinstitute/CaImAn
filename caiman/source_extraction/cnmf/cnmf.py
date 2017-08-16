@@ -62,10 +62,11 @@ class CNMF(object):
     def __init__(self, n_processes, k=5, gSig=[4, 4], merge_thresh=0.8, p=2, dview=None,
                  Ain=None, Cin=None, b_in=None, f_in=None, do_merge=True,
                  ssub=2, tsub=2, p_ssub=1, p_tsub=1, method_init='greedy_roi', alpha_snmf=None,
-                 rf=None, stride=None, memory_fact=1, gnb=1, only_init_patch=False,
+                 rf=None, stride=None, memory_fact=1, gnb=1, nb_patch=1, only_init_patch=False,
                  method_deconvolution='oasis', n_pixels_per_process=4000, block_size=20000,
                  check_nan=True, skip_refinement=False, normalize_init=True, options_local_NMF=None,
-                 remove_very_bad_comps=False, border_pix=0, low_rank_background=True, update_background_components=True):
+                 remove_very_bad_comps=False, border_pix=0, low_rank_background=True,
+                 update_background_components=True):
         """
         Constructor of the CNMF method
 
@@ -116,6 +117,9 @@ class CNMF(object):
 
         gnb: int
             number of global background components
+
+        nb_patch: int
+            number of background components per patch
 
         stride: int
             amount of overlap between the patches in pixels
@@ -224,7 +228,7 @@ class CNMF(object):
                                     method_init=method_init,
                                     n_pixels_per_process=n_pixels_per_process,
                                     block_size=block_size, check_nan=check_nan, nb=gnb,
-                                    normalize_init=normalize_init,
+                                    nb_patch=nb_patch, normalize_init=normalize_init,
                                     options_local_NMF=options_local_NMF,
                                     remove_very_bad_comps=remove_very_bad_comps,
                                     low_rank_background=low_rank_background,
@@ -414,11 +418,11 @@ class CNMF(object):
                                                                      dview=self.dview, memory_fact=self.memory_fact,
                                                                      gnb=self.gnb, border_pix=self.border_pix, low_rank_background=self.low_rank_background)
 
-            options = CNMFSetParms(Y, self.n_processes, p=self.p, gSig=self.gSig, K=A.shape[
-                                   -1], thr=self.merge_thresh, n_pixels_per_process=self.n_pixels_per_process,
-                                   block_size=self.block_size, check_nan=self.check_nan)
+            # options = CNMFSetParms(Y, self.n_processes, p=self.p, gSig=self.gSig, K=A.shape[
+            #                        -1], thr=self.merge_thresh, n_pixels_per_process=self.n_pixels_per_process,
+            #                        block_size=self.block_size, check_nan=self.check_nan)
 
-            options['temporal_params']['method'] = self.method_deconvolution
+            # options['temporal_params']['method'] = self.method_deconvolution
 
             print("merging")
             merged_ROIs = [0]

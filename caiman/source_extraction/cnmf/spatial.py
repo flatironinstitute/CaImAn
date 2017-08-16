@@ -212,8 +212,7 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
         A_ = np.delete(A_, list(ff), 1)
         C = np.delete(C, list(ff), 0)
         background_ff = list(filter(lambda i: i > 0, ff - nr))
-        if update_background_components:
-            f = np.delete(f, background_ff, 0)
+        f = np.delete(f, background_ff, 0)
         nr = nr - (len(ff) - len(background_ff))
 
     A_ = A_[:, :nr]
@@ -240,7 +239,10 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
         if b_in is None:
             raise Exception(
                 'If you set the update_background_components you have to pass as input to update_spatial')
-        b = b_in
+        try:
+            b = np.delete(b_in, background_ff, 0)
+        except NameError:
+            b = b_in
 
     print(("--- %s seconds ---" % (time.time() - start_time)))
     try:  # clean up

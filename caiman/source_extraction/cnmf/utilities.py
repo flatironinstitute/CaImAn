@@ -35,7 +35,7 @@ from ...mmapping import parallel_dot_product
 
 #%%
 def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], ssub=2, tsub=2, p=2, p_ssub=2, p_tsub=2,
-                 thr=0.8, method_init='greedy_roi', nb=1, n_pixels_per_process=None, block_size=None,
+                 thr=0.8, method_init='greedy_roi', nb=1, nb_patch=1, n_pixels_per_process=None, block_size=None,
                  check_nan=True, normalize_init=True, options_local_NMF=None, remove_very_bad_comps=False,
                  alpha_snmf=10e2, update_background_components=True, low_rank_background=True):
     """Dictionary for setting the CNMF parameters.
@@ -230,7 +230,8 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], ssub=2, tsub=2, p=2, p_ssub=
         'tsub': p_tsub,              # temporal downsampling factor
         'only_init': True,
         'skip_refinement': False,
-        'remove_very_bad_comps': remove_very_bad_comps
+        'remove_very_bad_comps': remove_very_bad_comps,
+        'nb': nb_patch
     }
 
     options['preprocess_params'] = {'sn': None,                  # noise level for each pixel

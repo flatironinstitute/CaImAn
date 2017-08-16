@@ -39,6 +39,7 @@ if sys.version_info >= (3, 0):
     def xrange(*args, **kwargs):
         return iter(range(*args, **kwargs))
 
+
 def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter=5, maxIter=5, nb=1,
                           kernel=None, use_hals=True, normalize_init=True, img=None, method='greedy_roi',
                           max_iter_snmf=500, alpha_snmf=10e2, sigma_smooth_snmf=(.5, .5, .5),
@@ -869,7 +870,7 @@ def greedyROI_corr(data, max_number=None, g_size=15, g_sig=3,
                     Sin[num_neurons] = si
                 else:
                     # no deconvolution
-                    ci = ci_raw -np.median(ci_raw)
+                    ci = ci_raw - np.median(ci_raw)
                     ci[ci < 0] = 0
                     Cin[num_neurons] = ci.squeeze()
 
@@ -927,7 +928,7 @@ def greedyROI_corr(data, max_number=None, g_size=15, g_sig=3,
                           A, C, (d1, d2), int(np.round(ring_size_factor * g_size)))
         B = b0[:, None] + W.dot(B - b0[:, None])
 
-    model = NMF(n_components=nb, init='random', random_state=0)
+    model = NMF(n_components=nb)  # , init='random', random_state=0)
     b_in = model.fit_transform(np.maximum(B, 0))
     f_in = model.components_.squeeze()
 
