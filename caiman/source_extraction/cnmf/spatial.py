@@ -152,27 +152,32 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
     Exception("Failed to delete: " + folder)
     """
     print('Initializing update of Spatial Components')
-    C = np.array(C)
-    if normalize_yyt_one:
-        nr_C = np.shape(C)[0]
-        d = scipy.sparse.lil_matrix((nr_C, nr_C))
-        d.setdiag(np.sqrt(np.sum(C ** 2, 1)))
-        A_in = A_in * d
-        C = old_div(C, np.sqrt(np.sum(C ** 2, 1)[:, np.newaxis]))
+    
 
     if expandCore is None:
         expandCore = iterate_structure(generate_binary_structure(2, 1), 2).astype(int)
+    
     if dims is None:
         raise Exception('You need to define the input dimensions')
 
     # shape transformation and tests
     Y, A_in, C, f, n_pixels_per_process,rank_f,d,T = test(Y, A_in, C, f, n_pixels_per_process,nb)
+
     start_time = time.time()
     print('computing the distance indicators')
     #we compute the indicator from distance indicator
-    ind2_, nr, C, f, b_ = computing_indicator(Y,A_in,C,f,nb,method,dims,min_size,max_size,dist,expandCore,dview)#
+    ind2_, nr, C, f, b_, A_in = computing_indicator(Y,A_in,C,f,nb,method,dims,min_size,max_size,dist,expandCore,dview)#
+    if normalize_yyt_one and C is not None:
+        C = np.array(C)
+        nr_C = np.shape(C)[0]
+        d_ = scipy.sparse.lil_matrix((nr_C, nr_C))
+        d_.setdiag(np.sqrt(np.sum(C ** 2, 1)))
+        A_in = A_in * d_
+        C = old_div(C, np.sqrt(np.sum(C ** 2, 1)[:, np.newaxis]))
+ 
     if b_in is None:
         b_in = b_
+    
     print('memmaping')
     #we create a memory map file if not already the case, we send Cf, a matrix that include background components
     C_name,Y_name,folder = creatememmap(Y,np.vstack((C, f)),dview)
@@ -193,10 +198,12 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
         dview.results.clear()
     else:
         parallel_result = list(map(regression_ipyparallel, pixel_groups))
+    
     for chunk in parallel_result:
         for pars in chunk:
             px, idxs_, a = pars
             A_[px, idxs_] = a
+   
 
     print("thresholding components")
     A_ = threshold_components(A_, dims, dview=dview, medw=medw, thr_method=thr_method,
@@ -1073,10 +1080,12 @@ def test(Y, A_in, C, f, n_pixels_per_process,nb):
 
     if A_in is None:
         A_in = np.ones((d, np.shape(C)[1]), dtype=bool)
+    
     if n_pixels_per_process > d:
         print('The number of pixels per process (n_pixels_per_process)'
               ' is larger than the total number of pixels!! Decreasing suitably.')
         n_pixels_per_process = d
+    
     if f is not None:
         nb = f.shape[0]
 
@@ -1086,8 +1095,8 @@ def test(Y, A_in, C, f, n_pixels_per_process,nb):
 def computing_indicator(Y,A_in,C,f,nb,method,dims,min_size,max_size,dist,expandCore,dview):
     """compute the indices of the distance from the cm to search for the spatial component (calling determine_search_location)
 
-does it by following an ellipse from the cm or doing a step by step dilatation around the cm
-if it doesn't follow the rules it will throw an exception that is not supposed to be catch by spatial.
+    does it by following an ellipse from the cm or doing a step by step dilatation around the cm
+    if it doesn't follow the rules it will throw an exception that is not supposed to be catch by spatial.
 
 
            Parameters:
@@ -1154,14 +1163,20 @@ if it doesn't follow the rules it will throw an exception that is not supposed t
         dist_indicator = A_in.copy()
         print("spatial support for each components given by the user")
         # we compute C,B,f,Y if we have boolean for A matrix
-        if C is None:            
-            dist_indicator_av = old_div(dist_indicator.astype('float32'), np.sum(dist_indicator, axis=0))
-            model = NMF(n_components=nb, init='random', random_state=0)
-            f = model.components_.squeeze()
-            Y_resf = np.dot(Y, f.T)
-            b = np.fmax(Y_resf.dot(np.linalg.inv(f.dot(f.T))), 0)
-            C = np.fmax(csr_matrix(dist_indicator_av.T).dot(Y) - np.outer(dist_indicator_av.T.dot(b), f), 0)
+        if C is None:  # if C is none we approximate C, b and f from the binary mask
+            dist_indicator_av = old_div(dist_indicator.astype('float32'), np.sum(dist_indicator.astype('float32'), axis=0))
+            px = (np.sum(dist_indicator,axis = 1)>0);
+            not_px = np.setdiff1d(np.arange(np.prod(dims)),px)
+
+            f = np.mean(Y[not_px ,:],0)
             f = np.atleast_2d(f)
+
+            Y_resf = np.dot(Y, f.T)
+            b = np.maximum(Y_resf, 0)/(np.linalg.norm(f)**2)
+            C = np.maximum(csr_matrix(dist_indicator_av.T).dot(Y) - dist_indicator_av.T.dot(b).dot(f), 0)
+            A_in = scipy.sparse.coo_matrix(A_in.astype(np.float32))
+
+            
 
     else:
         dist_indicator = determine_search_location(
@@ -1176,7 +1191,9 @@ if it doesn't follow the rules it will throw an exception that is not supposed t
     ind2_ = [np.hstack((np.where(iid_)[0], nr + np.arange(f.shape[0])))
              if np.size(np.where(iid_)[0]) > 0 else [] for iid_ in dist_indicator]
 
-    return ind2_,nr,C,f,b
+    
+    
+    return ind2_,nr,C,f,b,A_in
 
 
 def creatememmap(Y,Cf,dview):

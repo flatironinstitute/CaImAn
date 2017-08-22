@@ -141,7 +141,7 @@ def compute_event_exceptionality(traces,robust_std=False,N=5,use_mode_fast=False
 
 
 #%%
-def find_activity_intervals(C,Npeaks = 5, tB=-5, tA = 25, thres = 0.3):
+def find_activity_intervals(C,Npeaks = 5, tB=-3, tA = 10, thres = 0.3):
 #todo todocument
     import peakutils
     K,T = np.shape(C)
@@ -170,7 +170,7 @@ def find_activity_intervals(C,Npeaks = 5, tB=-5, tA = 25, thres = 0.3):
 
 
 #%%
-def classify_components_ep(Y,A,C,b,f,Athresh = 0.1,Npeaks = 5, tB=-5, tA = 25, thres = 0.3):
+def classify_components_ep(Y,A,C,b,f,Athresh = 0.1,Npeaks = 5, tB=-3, tA = 10, thres = 0.3):
     # todo todocument
 
     K,T = np.shape(C)
@@ -189,18 +189,25 @@ def classify_components_ep(Y,A,C,b,f,Athresh = 0.1,Npeaks = 5, tB=-5, tA = 25, t
             print('components evaluated:'+str(i))
         if LOC[i] is not None:
             atemp = A[:,i].toarray().flatten()
+            atemp[np.isnan(atemp)] = np.nanmean(atemp)
             ovlp_cmp = np.where(AA[:,i]>Athresh)[0]
             indexes = set(LOC[i])
             for cnt,j in enumerate(ovlp_cmp):
                 if LOC[j] is not None:
                     indexes = indexes - set(LOC[j])
-
+            
+            if len(indexes) == 0:
+                indexes = set(LOC[i])
+                print('Neuron:' + str(i) + ' includes overlaping spiking neurons')
+                
             indexes = np.array(list(indexes)).astype(np.int)
             px = np.where(atemp>0)[0]
             ysqr = np.array(Y[px,:])
+            ysqr[np.isnan(ysqr)] = np.nanmean(ysqr) 
             mY = np.mean(ysqr[:,indexes],axis=-1)
             significant_samples.append(indexes)
             rval[i] = scipy.stats.pearsonr(mY,atemp[px])[0]
+
         else:            
             rval[i] = 0
             significant_samples.append(0)
@@ -275,6 +282,7 @@ def evaluate_components(Y, traces, A, C, b, f, final_frate, remove_baseline = Tr
     """
     tB = np.minimum(-2, np.floor( -5. / 30 * final_frate))
     tA = np.maximum(5, np.ceil(25. / 30 * final_frate))
+    print('tB:'+str(tB)+',tA:'+str(tA))
     dims,T=np.shape(Y)[:-1],np.shape(Y)[-1]
     
     Yr=np.reshape(Y,(np.prod(dims),T),order='F')    

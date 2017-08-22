@@ -293,7 +293,7 @@ class CNMF(object):
                 
                 if self.remove_very_bad_comps:
                     print('removing bad components : ')
-                    final_frate = 3
+                    final_frate = 10
                     r_values_min = 0.5  # threshold on space consistency
                     fitness_min = -15  # threshold on time variability
                     fitness_delta_min = -15
