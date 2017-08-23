@@ -309,11 +309,14 @@ def evaluate_components(Y, traces, A, C, b, f, final_frate, remove_baseline = Tr
             #% compute baseline quickly
             print("binning data ..."); 
             tr_BL=np.reshape(tr_tmp,(downsampfact,int(old_div(numFramesNew,downsampfact)),num_traces),order='F');
-            tr_BL=np.percentile(tr_BL,8,axis=0);
+            tr_BL=np.percentile(tr_BL,8,axis=0)            
             print("interpolating data ..."); 
             print(tr_BL.shape)    
             tr_BL=scipy.ndimage.zoom(np.array(tr_BL,dtype=np.float32),[downsampfact ,1],order=3, mode='constant', cval=0.0, prefilter=True)
-            traces -= tr_BL.T
+            if padafter==0:
+                traces -= tr_BL.T
+            else:
+                traces -= tr_BL[padbefore:-padafter].T
             
     print('Computing event exceptionality')    
     fitness_raw, erfc_raw,std_rr, _ = compute_event_exceptionality(traces,robust_std=robust_std,N=N)

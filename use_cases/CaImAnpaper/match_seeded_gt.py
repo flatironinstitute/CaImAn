@@ -58,53 +58,6 @@ from caiman.components_evaluation import evaluate_components
 
 from caiman.tests.comparison import comparison
 from caiman.motion_correction import tile_and_correct, motion_correction_piecewise
-#%%
-# @params params_movie set parameters and create template by RIGID MOTION CORRECTION
-#params_movie = {'fname': ['Sue_2x_3000_40_-46.tif'],
-#               'niter_rig': 1,
-#               'max_shifts': (3, 3),  # maximum allow rigid shift
-#               'splits_rig': 20,  # for parallelization split the movies in  num_splits chuncks across time
-#               # if none all the splits are processed and the movie is saved
-#               'num_splits_to_process_rig': None,
-#               # intervals at which patches are laid out for motion correction
-#               'strides': (48, 48),
-#               # overlap between pathes (size of patch strides+overlaps)
-#               'overlaps': (24, 24),
-#               'splits_els': 28,  # for parallelization split the movies in  num_splits chuncks across time
-#               # if none all the splits are processed and the movie is saved
-#               'num_splits_to_process_els': [14, None],
-#               'upsample_factor_grid': 4,  # upsample factor to avoid smearing when merging patches
-#               # maximum deviation allowed for patch with respect to rigid
-#               # shift
-#               'max_deviation_rigid': 2,
-#               'p': 1,  # order of the autoregressive system
-#               'merge_thresh': 0.8,  # merging threshold, max correlation allowed
-#               'rf': 15,  # half-size of the patches in pixels. rf=25, patches are 50x50
-#               'stride_cnmf': 6,  # amounpl.it of overlap between the patches in pixels
-#               'K': 4,  # number of components per patch
-#               # if dendritic. In this case you need to set init_method to
-#               # sparse_nmf
-#               'is_dendrites': False,
-#               'init_method': 'greedy_roi',
-#               'gSig': [4, 4],  # expected half size of neurons
-#               'alpha_snmf': None,  # this controls sparsity
-#               'final_frate': 30,
-#               'r_values_min_patch': .7,  # threshold on space consistency
-#               'fitness_min_patch': -20,  # threshold on time variability
-#                # threshold on time variability (if nonsparse activity)
-#               'fitness_delta_min_patch': -20,
-#               'Npeaks': 10,
-#               'r_values_min_full': .8,
-#               'fitness_min_full': - 40,
-#               'fitness_delta_min_full': - 40,
-#               'only_init_patch': True,
-#               'gnb': 2,
-#               'memory_fact': 1,
-#               'n_chunks': 10,
-#               'update_background_components': True,# whether to update the background components in the spatial phase
-#               'low_rank_background': True  #whether to update the using a low rank approximation. In the False case all the nonzero elements of the background components are updated using hals    
-#                                     #(to be used with one background per patch)                              
-#               }
 
 #%%
 params_movie = {'fname': '/mnt/ceph/neuro/labeling/neurofinder.03.00.test/images/final_map/Yr_d1_498_d2_467_d3_1_order_C_frames_2250_.mmap',
@@ -115,13 +68,13 @@ params_movie = {'fname': '/mnt/ceph/neuro/labeling/neurofinder.03.00.test/images
                  'K': 4,  # number of components per patch
                  'is_dendrites': False,  # if dendritic. In this case you need to set init_method to sparse_nmf
                  'init_method': 'greedy_roi',
-                 'gSig': [10, 10],  # expected half size of neurons
+                 'gSig': [8,8],  # expected half size of neurons
                  'alpha_snmf': None,  # this controls sparsity
                  'final_frate': 10,
                  'r_values_min_patch': .5,  # threshold on space consistency
                  'fitness_min_patch': -10,  # threshold on time variability
                  # threshold on time variability (if nonsparse activity)
-                 'fitness_delta_min_patch': -7,
+                 'fitness_delta_min_patch': -5,
                  'Npeaks': 5,
                  'r_values_min_full': .8,
                  'fitness_min_full': - 40,
@@ -134,7 +87,92 @@ params_movie = {'fname': '/mnt/ceph/neuro/labeling/neurofinder.03.00.test/images
                  'low_rank_background': True #whether to update the using a low rank approximation. In the False case all the nonzero elements of the background components are updated using hals    
                                      #(to be used with one background per patch)          
                  }
-
+#%%
+params_movie = {'fname': '/mnt/ceph/neuro/labeling/neurofinder.04.00.test/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_3000_.mmap',
+                 'p': 1,  # order of the autoregressive system
+                 'merge_thresh': 0.8,  # merging threshold, max correlation allow
+                 'rf': 20,  # half-size of the patches in pixels. rf=25, patches are 50x50    20
+                 'stride_cnmf': 10,  # amounpl.it of overlap between the patches in pixels
+                 'K': 5,  # number of components per patch
+                 'is_dendrites': False,  # if dendritic. In this case you need to set init_method to sparse_nmf
+                 'init_method': 'greedy_roi',
+                 'gSig': [5,5],  # expected half size of neurons
+                 'alpha_snmf': None,  # this controls sparsity
+                 'final_frate': 10,
+                 'r_values_min_patch': .5,  # threshold on space consistency
+                 'fitness_min_patch': -10,  # threshold on time variability
+                 # threshold on time variability (if nonsparse activity)
+                 'fitness_delta_min_patch': -10,
+                 'Npeaks': 5,
+                 'r_values_min_full': .8,
+                 'fitness_min_full': - 40,
+                 'fitness_delta_min_full': - 40,
+                 'only_init_patch': True,
+                 'gnb': 2,
+                 'memory_fact': 1,
+                 'n_chunks': 10,
+                 'update_background_components': True,# whether to update the background components in the spatial phase
+                 'low_rank_background': True #whether to update the using a low rank approximation. In the False case all the nonzero elements of the background components are updated using hals    
+                                     #(to be used with one background per patch)          
+                 }
+#%% packer
+#params_movie = {'fname': '/mnt/ceph/neuro/labeling/packer.001/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_9900_.mmap',
+#                 'p': 1,  # order of the autoregressive system
+#                 'merge_thresh': 0.99,  # merging threshold, max correlation allow
+#                 'rf': 15,  # half-size of the patches in pixels. rf=25, patches are 50x50    20
+#                 'stride_cnmf': 10,  # amounpl.it of overlap between the patches in pixels
+#                 'K': 6,  # number of components per patch
+#                 'is_dendrites': False,  # if dendritic. In this case you need to set init_method to sparse_nmf
+#                 'init_method': 'greedy_roi',
+#                 'gSig': [6,6],  # expected half size of neurons
+#                 'alpha_snmf': None,  # this controls sparsity
+#                 'final_frate': 30,
+#                 'r_values_min_patch': .5,  # threshold on space consistency
+#                 'fitness_min_patch': -10,  # threshold on time variability
+#                 # threshold on time variability (if nonsparse activity)
+#                 'fitness_delta_min_patch': -10,
+#                 'Npeaks': 5,
+#                 'r_values_min_full': .8,
+#                 'fitness_min_full': - 40,
+#                 'fitness_delta_min_full': - 40,
+#                 'only_init_patch': True,
+#                 'gnb': 2,
+#                 'memory_fact': 1,
+#                 'n_chunks': 10,
+#                 'update_background_components': True,# whether to update the background components in the spatial phase
+#                 'low_rank_background': True #whether to update the using a low rank approximation. In the False case all the nonzero elements of the background components are updated using hals    
+#                                     #(to be used with one background per patch)          
+#                 }
+#%% neurofinder 02.00
+params_movie = {'fname': '/mnt/ceph/neuro/labeling/neurofinder.02.00/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_8000_.mmap',
+                 'p': 1,  # order of the autoregressive system
+                 'merge_thresh': 0.8,  # merging threshold, max correlation allow
+                 'rf': 20,  # half-size of the patches in pixels. rf=25, patches are 50x50    20
+                 'stride_cnmf': 10,  # amounpl.it of overlap between the patches in pixels
+                 'K': 6,  # number of components per patch
+                 'is_dendrites': False,  # if dendritic. In this case you need to set init_method to sparse_nmf
+                 'init_method': 'greedy_roi',
+                 'gSig': [5,5],  # expected half size of neurons
+                 'alpha_snmf': None,  # this controls sparsity
+                 'final_frate': 10,
+                 'r_values_min_patch': .5,  # threshold on space consistency
+                 'fitness_min_patch': -10,  # threshold on time variability
+                 # threshold on time variability (if nonsparse activity)
+                 'fitness_delta_min_patch': -10,
+                 'Npeaks': 5,
+                 'r_values_min_full': .8,
+                 'fitness_min_full': - 40,
+                 'fitness_delta_min_full': - 40,
+                 'only_init_patch': True,
+                 'gnb': 2,
+                 'memory_fact': 1,
+                 'n_chunks': 10,
+                 'update_background_components': True,# whether to update the background components in the spatial phase
+                 'low_rank_background': True, #whether to update the using a low rank approximation. In the False case all the nonzero elements of the background components are updated using hals    
+                                     #(to be used with one background per patch)     
+                'swap_dim':False,
+                'crop_pix':10
+                 }
 #%%
 params_display = {
     'downsample_ratio': .2,
@@ -163,10 +201,12 @@ m_images = cm.movie(images)
 
 # TODO: show screenshot 10
 # %% correlation image
-Cn = cm.local_correlations(Y)
-Cn[np.isnan(Cn)] = 0
+if m_images.shape[0]<10000:
+    Cn = m_images.local_correlations(swap_dim = params_movie['swap_dim'], frames_per_chunk = 1500)
+    Cn[np.isnan(Cn)] = 0
+else:
+    Cn = np.array(cm.load(('/'.join(fname_new.split('/')[:-3]+['projections','correlation_image_better.tif'])))).squeeze()
 pl.imshow(Cn, cmap='gray', vmax=.95)
-# TODO: show screenshot 11
 
 # %% some parameter settings
 # order of the autoregressive fit to calcium imaging in general one (slow gcamps) or two (fast gcamps fast scanning)
@@ -202,7 +242,7 @@ t1 = time.time()
 cnm = cnmf.CNMF(n_processes=1, k=K, gSig=gSig, merge_thresh=params_movie['merge_thresh'], p=params_movie['p'],
                 dview=dview, rf=rf, stride=stride_cnmf, memory_fact=1,
                 method_init=init_method, alpha_snmf=alpha_snmf, only_init_patch=params_movie['only_init_patch'],
-                gnb=params_movie['gnb'], method_deconvolution='oasis',border_pix = 2, low_rank_background = params_movie['low_rank_background']) 
+                gnb=params_movie['gnb'], method_deconvolution='oasis',border_pix =  params_movie['crop_pix'], low_rank_background = params_movie['low_rank_background']) 
 cnm = cnm.fit(images)
 
 A_tot = cnm.A
@@ -264,7 +304,7 @@ print(' ***** ')
 print((len(traces)))
 print((len(idx_components)))
 # %% save results
-np.savez(os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:-4] + 'results_analysis.npz'), Cn=Cn,
+np.savez(os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:-4] + 'results_analysis.npz'), Cn=Cn, fname_new = fname_new,
          A=A,
          C=C, b=b, f=f, YrA=YrA, sn=sn, d1=d1, d2=d2, idx_components=idx_components,
          idx_components_bad=idx_components_bad,
@@ -283,42 +323,6 @@ view_patches_bar(Yr, scipy.sparse.coo_matrix(A.tocsc()[:, idx_components]), C[id
 # %%
 view_patches_bar(Yr, scipy.sparse.coo_matrix(A.tocsc()[:, idx_components_bad]), C[idx_components_bad, :], b, f, dims[0],
                  dims[1], YrA=YrA[idx_components_bad, :], img=Cn)
-# %% STOP CLUSTER and clean up log files
-# TODO: todocument
-cm.stop_server()
-
-log_files = glob.glob('*_LOG_*')
-for log_file in log_files:
-    os.remove(log_file)
-# %% reconstruct denoised movie
-denoised = cm.movie(A.dot(C) + b.dot(f)).reshape(dims + (-1,), order='F').transpose([2, 0, 1])
-# %%
-# TODO: show screenshot 15
-denoised.play(gain=10, offset=0, fr=50, magnification=4)
-#%% background only 
-denoised = cm.movie(b.dot(f)).reshape(dims + (-1,), order='F').transpose([2, 0, 1])
-denoised.play(gain=2, offset=0, fr=50, magnification=4)
-
-
-# %% reconstruct denoised movie without background
-denoised = cm.movie(A.dot(C)).reshape(dims + (-1,), order='F').transpose([2, 0, 1])
-# %%
-# TODO: show screenshot 16
-denoised.play(gain=10, offset=0, fr=100, magnification=2)
-#%% show background(s)
-BB  = cm.movie(b.reshape(dims+(-1,), order = 'F').transpose(2,0,1))
-BB.play(gain=2, offset=0, fr=2, magnification=4)
-BB.zproject()
-
-#%% *************************************************************************************************************************#%%
-
-#%% *************************************************************************************************************************#%%
-
-#%% *************************************************************************************************************************#%%
-
-#%% *************************************************************************************************************************#%%
-
-#%% *************************************************************************************************************************#%%
 
 #%% LOAD DATA
 params_display = {
@@ -327,8 +331,8 @@ params_display = {
 }
 
 
-analysis_file = '/mnt/ceph/neuro/jeremie_analysis/neurofinder.03.00.test/Yr_d1_498_d2_467_d3_1_order_C_frames_2250_._results_analysis.npz'
-with np.load(analysis_file) as ld:
+#analysis_file = '/mnt/ceph/neuro/jeremie_analysis/neurofinder.03.00.test/Yr_d1_498_d2_467_d3_1_order_C_frames_2250_._results_analysis.npz'
+with np.load(os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:-4] + 'results_analysis.npz')) as ld:
     print(ld.keys())
     locals().update(ld) 
     dims_off = d1,d2    
@@ -336,9 +340,9 @@ with np.load(analysis_file) as ld:
     dims = (d1,d2)
     
 #%%    
-idx_components_r = np.where((r_values >= .85))[0]
-idx_components_raw = np.where(fitness_raw < -0)[0]
-idx_components_delta = np.where(fitness_delta < -0)[0]    
+idx_components_r = np.where((r_values >= .5))[0]
+idx_components_raw = np.where(fitness_raw < -5)[0]
+idx_components_delta = np.where(fitness_delta < -5)[0]    
 #idx_and_condition_1 = np.where((r_values >= .65) & ((fitness_raw < -20) | (fitness_delta < -20)) )[0]
 
 idx_components = np.union1d(idx_components_r, idx_components_raw)
@@ -360,29 +364,69 @@ crd = plot_contours(A.tocsc()[:, idx_components_bad], Cn, thr=params_display['th
 #%%
 c, dview, n_processes = cm.cluster.setup_cluster(
     backend='local', n_processes=None, single_thread=False)
-#%% thredshold components
-min_size_neuro = 5**2*np.pi
-max_size_neuro = 15**2*np.pi
-A_thr = cm.source_extraction.cnmf.spatial.threshold_components(A.tocsc()[:,idx_components].toarray(), dims, medw=None, thr_method='max', maxthr=0.2, nrgthr=0.99, extract_cc=True,
-                         se=None, ss=None, dview=dview) 
 
-A_thr = A_thr > 0  
-size_neurons = A_thr.sum(0)
-A_thr = A_thr[:,(size_neurons>min_size_neuro) & (size_neurons<max_size_neuro)]
-print(A_thr.shape)
 #%%
-crd = plot_contours(scipy.sparse.coo_matrix(A_thr*1.), Cn, thr=.99, vmax = 0.35)
+gt_file = os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:-4] + 'match_masks.npz')
+with np.load(gt_file) as ld:
+    print(ld.keys())
+    locals().update(ld)
+    A_gt = scipy.sparse.coo_matrix(A_gt[()])
+    dims = (d1,d2)
 #%%
-roi_cons = np.load('/mnt/ceph/neuro/labeling/neurofinder.03.00.test/regions/joined_consensus_active_regions.npy')
-print(roi_cons.shape)
-pl.imshow(roi_cons.sum(0))
+view_patches_bar(Yr, scipy.sparse.coo_matrix(A_gt.toarray()[:,idx_components_gt]), C_gt[idx_components_gt], b, f, dims[0], dims[1],YrA=YrA_gt[idx_components_gt], img=Cn)
+    
 #%%
-#%%
+from sklearn.preprocessing import normalize
+
+dist_A = (normalize(A_gt.tocsc()[:,idx_components_gt],axis = 0).T.dot(normalize(A.tocsc()[:,:],axis = 0))).toarray()
+dist_C = normalize(C_gt[idx_components_gt],axis = 1).dot(normalize(C[:],axis = 1).T)
+dist_A = dist_A*(dist_A>0)
+
 pl.figure(figsize=(30,20))
-tp_gt, tp_comp, fn_gt, fp_comp, performance_cons_off =  cm.base.rois.nf_match_neurons_in_binary_masks(roi_cons,A_thr[:,:].reshape([dims[0],dims[1],-1],order = 'F').transpose([2,0,1])*1.,thresh_cost=.7, min_dist = 10,
-                                                                              print_assignment= False,plot_results=True,Cn=Cn, labels = ['GT','Offline'])
+tp_gt, tp_comp, fn_gt, fp_comp, performance_cons_off =  cm.base.rois.nf_match_neurons_in_binary_masks(A_gt.toarray()[:,idx_components_gt].reshape([dims[0],dims[1],-1],order = 'F').transpose([2,0,1]),
+                                                                              A.toarray()[:,:].reshape([dims[0],dims[1],-1],order = 'F').transpose([2,0,1]),thresh_cost=.7, min_dist = 10,
+                                                                              print_assignment= False,plot_results=True,Cn=Cn, labels = ['GT','Offline'], D = [1 - dist_A*(dist_C>.8)])
 pl.rcParams['pdf.fonttype'] = 42
 font = {'family' : 'Myriad Pro',
         'weight' : 'regular',
         'size'   : 20}
 pl.rc('font', **font)
+#%%
+# TODO: needinfo
+idx_final = tp_comp[np.where(dist_A[tp_gt,tp_comp]>0.7)[0]]
+view_patches_bar(Yr, scipy.sparse.coo_matrix(A.toarray()[:,idx_final]), C[idx_final], b, f, dims[0], dims[1],YrA=YrA[idx_final], img=Cn)
+#%%
+view_patches_bar(Yr, scipy.sparse.coo_matrix(A.toarray()[:,fp_comp]), C[fp_comp], b, f, dims[0], dims[1],YrA=YrA[fp_comp], img=Cn)
+#%%
+view_patches_bar(Yr, scipy.sparse.coo_matrix(A_gt.toarray()[:,fn_gt]), C_gt[fn_gt], b_gt, f_gt, dims[0], dims[1],YrA=YrA_gt[fn_gt], img=Cn)
+#%%
+pl.hist(r_values[tp_comp],30)
+#%%
+np.savez(os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:-4] + '_training_set.npz'), fname_new = fname_new, 
+             A_seeded = A_gt.tocsc()[:,idx_components_gt], C_seeded = C_gt[idx_components_gt], YrA_seeded = YrA_gt[idx_components_gt],
+             A_matched = A.tocsc()[:,idx_final], C_matched = C[idx_final], YrA_matched=YrA[idx_final],
+             A_unmatched = A_gt.tocsc()[:,fn_gt], C_unmatched = C_gt[fn_gt], YrA_unmatched = YrA_gt[fn_gt], 
+             A_negative = A.tocsc()[:,fp_comp], C_negative =  C[fp_comp], YrA_negative = YrA[fp_comp], 
+             r_values = r_values, fitness_delta = fitness_delta, fitness_raw = fitness_raw, Cn = Cn, dims = dims
+             )
+#%% 
+with np.load(os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:-4] + '_training_set.npz')) as ld:
+    print(ld.keys())
+    locals().update(ld)
+    fname_new = fname_new[()]
+
+thr = 0.98    
+# TODO: show screenshot 14
+pl.subplot(1, 3, 1)
+crd = plot_contours(A_matched[()], Cn, thr=thr)
+pl.subplot(1, 3, 2)
+crd = plot_contours(A_unmatched[()], Cn, thr=thr)    
+pl.subplot(1, 3, 3)
+crd = plot_contours(A_negative[()], Cn, thr=thr)    
+#%%
+pl.subplot(1, 3, 1)
+crd = pl.imshow(A_matched[()].sum(1).reshape(dims,order='F'), vmax = A_matched[()].max()*.2)
+pl.subplot(1, 3, 2)
+crd = pl.imshow(A_unmatched[()].sum(1).reshape(dims,order='F'), vmax = A_unmatched[()].max()*.2)    
+pl.subplot(1, 3, 3)
+crd = pl.imshow(A_negative[()].sum(1).reshape(dims,order='F'), vmax = A_negative[()].max()*.2)    
