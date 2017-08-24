@@ -39,6 +39,8 @@ def pipeline(D):
     gSig = [2, 2, 2][:D]  # expected half size of neurons
     p = 1  # order of the autoregressive system
     options = cnmf.utilities.CNMFSetParms(Y, n_processes, p=p, gSig=gSig, K=K)
+    options['preprocess_params']['n_pixels_per_process'] = np.prod(dims)
+    options['spatial_params']['n_pixels_per_process'] = np.prod(dims)
     options['spatial_params']['thr_method'] = 'nrg'
     options['spatial_params']['extract_cc'] = False
     options['temporal_params']['method'] = 'oasis'
