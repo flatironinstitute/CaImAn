@@ -57,7 +57,7 @@ def max_correlation_image(Y,bin_size = 1000, eight_neighbours = True, swap_dim =
 
     if swap_dim:
         Y = np.transpose(Y, tuple(np.hstack((Y.ndim - 1, list(range(Y.ndim))[:-1]))))
-    
+
     T = Y.shape[0]
     if T <= bin_size:
         Cn_bins = local_correlations_fft(Y,eight_neighbours=eight_neighbours,swap_dim = False)
@@ -65,14 +65,14 @@ def max_correlation_image(Y,bin_size = 1000, eight_neighbours = True, swap_dim =
     else:
         if T%bin_size < bin_size/2.:
             bin_size = T//(T//bin_size)
-    
+
         n_bins = T//bin_size
         Cn_bins = np.zeros(((n_bins,)+Y.shape[1:]))
         for i in range(n_bins):
             Cn_bins[i] = local_correlations_fft(Y[i*bin_size:(i+1)*bin_size],
                                                 eight_neighbours=eight_neighbours,swap_dim=False)
             print(i*bin_size)
-    
+
         Cn = np.max(Cn_bins,axis=0)
         return Cn
 
@@ -99,14 +99,14 @@ def local_correlations_fft(Y, eight_neighbours=True, swap_dim=True):
     Cn: d1 x d2 [x d3] matrix, cross-correlation with adjacent pixels
 
     """
-    
+
     if swap_dim:
         Y = np.transpose(Y, tuple(np.hstack((Y.ndim - 1, list(range(Y.ndim))[:-1]))))
-    
+
     Y = Y.astype('float32')
     Y -= np.mean(Y,axis = 0)
     Y /= np.std(Y,axis = 0)
-                        
+
     if Y.ndim == 4:
         if eight_neighbours:
             sz = np.ones((3,3,3),dtype='float32')
@@ -119,15 +119,15 @@ def local_correlations_fft(Y, eight_neighbours=True, swap_dim=True):
             sz[1,1] = 0
         else:
             sz = np.array([[0,1,0],[1,0,1],[0,1,0]],dtype='float32')
-        
+
     Yconv = convolve(Y,sz[np.newaxis,:],mode='constant')
     MASK = convolve(np.ones(Y.shape[1:],dtype='float32'),sz,mode='constant')
-    Cn =  np.mean(Yconv*Y,axis=0)/MASK                       
-        
+    Cn =  np.mean(Yconv*Y,axis=0)/MASK
+
     return Cn
-            
-    
-    
+
+
+
 def local_correlations(Y, eight_neighbours=True, swap_dim=True):
     """Computes the correlation image for the input dataset Y
 
@@ -208,111 +208,57 @@ def local_correlations(Y, eight_neighbours=True, swap_dim=True):
     return rho
 
 
-def local_correlation(video_data, sz=None, d1=None, d2=None,
-                      normalized=False, chunk_size=3000):
+def correlation_pnr(Y, gSig=None, center_psf=True, swap_dim=True):
     """
-    compute location correlations of the video data
-    Args:
-        video_data: T*d1*d2 3d array  or T*(d1*d2) matrix
-        sz: method for computing location correlation {4, 8, [dmin, dmax]}
-            4: use the 4 nearest neighbors
-            8: use the 8 nearest neighbors
-            [dmin, dmax]: use neighboring pixels with distances in [dmin, dmax]
-        d1: row number
-        d2: column number
-        normalized: boolean
-            if True: avoid the step of normalizing data
-        chunk_size: integer
-            divide long data into small chunks for faster running time
-
-    Returns:
-        d1*d2 matrix, the desired correlation image
-
-    """
-    total_frames = video_data.shape[0]
-    if total_frames > chunk_size:
-        # too many frames, compute correlation images in chunk mode
-        n_chunk = np.floor(total_frames / chunk_size)
-
-        cn = np.zeros(shape=(n_chunk, d1, d2))
-        for idx in np.arange(n_chunk):
-            cn[idx,] = local_correlation(
-                video_data[chunk_size * idx + np.arange(
-                    chunk_size),], sz, d1, d2, normalized)
-        return np.max(cn, axis=0)
-
-    # reshape data
-    data = video_data.copy().astype('float32')
-
-    if data.ndim == 2:
-        data = data.reshape(total_frames, d1, d2)
-    else:
-        _, d1, d2 = data.shape
-
-    # normalize data
-    if not normalized:
-        data -= np.mean(data, axis=0)
-        data_std = np.std(data, axis=0)
-        data_std[data_std == 0] = np.inf
-        data /= data_std
-
-    # construct a matrix indicating the locations of neighbors
-    if (not sz) or (sz == 8):
-        mask = np.array([[1, 1, 1], [1, 0, 1], [1, 1, 1]])
-    elif sz == 4:
-        mask = np.array([[0, 1, 0], [1, 0, 1], [0, 1, 0]])
-    elif len(sz) == 2:
-        sz = np.array(sz)
-        temp = np.arange(-sz.max(), sz.max() + 1).reshape(2 * sz.max() + 1, 0)
-        tmp_dist = np.sqrt(temp ** 2 + temp.transpose() ** 2)
-        mask = (tmp_dist >= sz.min()) & (tmp_dist < sz.max())
-    else:
-        mask = np.array([[1, 1, 1], [1, 0, 1], [1, 1, 1]])
-
-    # compute local correlations
-    data_filter = data.copy().astype('float32')
-    for idx, img in enumerate(data_filter):
-        data_filter[idx] = cv2.filter2D(img, -1, mask, borderType=0)
-
-    return np.divide(np.mean(data_filter * data, axis=0), cv2.filter2D(
-        np.ones(shape=(d1, d2)), -1, mask, borderType=1))
-
-
-def correlation_pnr_filtered(data, gSig=4, gSiz=15, center_psf=True):
-    """
-    compute the correlation image and the peak-to-noise ratio (PNR) image
+    compute the correlation image and the peak-to-noise ratio (PNR) image.
+    If gSig is provided, then spatially filtered the video.
 
     Args:
-        data: 2d or 3d numpy array.
-            video data
-        options: C-like struct variable
-            it requires at least 5 fields: d1, d2, gSiz, gSig, thresh_init
+        Y:  np.ndarray (3D or 4D).
+            Input movie data in 3D or 4D format
+        gSig:  scalar or vector.
+            gaussian width. If gSig == None, no spatial filtering
+        center_psf: Boolearn
+            True indicates subtracting the mean of the filtering kernel
+        swap_dim: Boolean
+            True indicates that time is listed in the last axis of Y (matlab format)
+            and moves it in the front
 
     Returns:
-        cn: d1*d2 matrix
-            local correlation image
-        pnr: d1*d2 matrix
-            PNR image
-        psf: gSiz*gSiz matrix
-            kernel used for filtering data
+        cn: np.ndarray (2D or 3D).
+            local correlation image of the spatially filtered (or not)
+            data
+        pnr: np.ndarray (2D or 3D).
+            peak-to-noise ratios of all pixels/voxels
 
     """
+    if swap_dim:
+        Y = np.transpose(Y, tuple(np.hstack((Y.ndim - 1, list(range(Y.ndim))[:-1]))))
 
     # parameters
-    sig = 3
-    T, d1, d2 = data.shape
-    data_raw = data.reshape(-1, d1, d2).astype('float32')
-
-    # create a spatial filter for removing background
-    psf = gen_filter_kernel(width=gSiz, sigma=gSig, center=center_psf)
+    T, d1, d2 = Y.shape
+    data_raw = Y.reshape(-1, d1, d2).astype('float32')
 
     # filter data
     data_filtered = data_raw.copy()
-    for idx, img in enumerate(data_filtered):
-        data_filtered[idx, ] = cv2.filter2D(img, -1, psf, borderType=1)
+    if gSig:
+        if not isinstance(gSig, list):
+            gSig = [gSig, gSig]
+        gSiz = tuple([(3*i)//2 * 2+1 for i in gSig])
+        # create a spatial filter for removing background
+        # psf = gen_filter_kernel(width=gSiz, sigma=gSig, center=center_psf)
+
+        if center_psf:
+            for idx, img in enumerate(data_filtered):
+                data_filtered[idx, ] = cv2.GaussianBlur(img, ksize=gSiz, sigmaX=gSig[0], sigmaY=gSig[1], borderType=1) \
+                                       - cv2.boxFilter(img, ddepth=-1, ksize=gSiz, borderType=1)
+            # data_filtered[idx, ] = cv2.filter2D(img, -1, psf, borderType=1)
+        else:
+            for idx, img in enumerate(data_filtered):
+                data_filtered[idx, ] = cv2.GaussianBlur(img, ksize=gSiz, sigmaX=gSig[0], sigmaY=gSig[1], borderType=1)
 
     # compute peak-to-noise ratio
-    data_filtered -= np.median(data_filtered, axis=0)
+    data_filtered -= np.mean(data_filtered, axis=0)
     data_max = np.max(data_filtered, axis=0)
     data_std = get_noise_fft(data_filtered.transpose())[0].transpose()
     # data_std = get_noise(data_filtered, method='diff2_med')
@@ -321,39 +267,10 @@ def correlation_pnr_filtered(data, gSig=4, gSiz=15, center_psf=True):
 
     # remove small values
     tmp_data = data_filtered.copy() / data_std
-    tmp_data[tmp_data < sig] = 0
+    tmp_data[tmp_data < 1] = 0
 
     # compute correlation image
-    cn = local_correlation(tmp_data, d1=d1, d2=d2)
+    # cn = local_correlation(tmp_data, d1=d1, d2=d2)
+    cn = local_correlations_fft(tmp_data, swap_dim=False)
 
-    # return
-    return cn, pnr, psf
-
-
-def gen_filter_kernel(width=16, sigma=4, center=True):
-    """
-    create a gaussian kernel for spatially filtering the raw data
-
-    Args:
-        width: (float)
-            width of the kernel
-        sigma: (float)
-            gaussian width of the kernel
-        center:
-            if True, subtract the mean of gaussian kernel
-
-    Returns:
-        psf: (2D numpy array, width x width)
-            the desired kernel
-
-    """
-    rmax = (width - 1) / 2.0
-    y, x = np.ogrid[-rmax:(rmax + 1), -rmax:(rmax + 1)]
-    psf = np.exp(-(x * x + y * y) / (2 * sigma * sigma))
-    psf = psf / psf.sum()
-    if center:
-        idx = (psf >= psf[0].max())
-        psf[idx] -= psf[idx].mean()
-        psf[~idx] = 0
-
-    return psf
+    return cn, pnr
