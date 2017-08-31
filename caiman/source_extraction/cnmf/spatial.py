@@ -152,7 +152,7 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
     Exception("Failed to delete: " + folder)
     """
     print('Initializing update of Spatial Components')
-    
+
 
     if expandCore is None:
         expandCore = iterate_structure(generate_binary_structure(2, 1), 2).astype(int)
@@ -160,13 +160,14 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
     if dims is None:
         raise Exception('You need to define the input dimensions')
 
+    
     # shape transformation and tests
     Y, A_in, C, f, n_pixels_per_process,rank_f,d,T = test(Y, A_in, C, f, n_pixels_per_process,nb)
 
     start_time = time.time()
     print('computing the distance indicators')
     #we compute the indicator from distance indicator
-    ind2_, nr, C, f, b_, A_in = computing_indicator(Y,A_in,C,f,nb,method,dims,min_size,max_size,dist,expandCore,dview)#
+    ind2_, nr, C, f, b_, A_in = computing_indicator(Y,A_in,b_in,C,f,nb,method,dims,min_size,max_size,dist,expandCore,dview)#
     if normalize_yyt_one and C is not None:
         C = np.array(C)
         nr_C = np.shape(C)[0]
@@ -188,10 +189,10 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
     pixel_groups = []
     for i in range(0, np.prod(dims) - n_pixels_per_process + 1, n_pixels_per_process):
         pixel_groups.append([Y_name, C_name, sn, ind2_, list(
-            range(i, i + n_pixels_per_process)), method_ls, cct, rank_f])
+            range(i, i + n_pixels_per_process)), method_ls, cct,])
     if i < np.prod(dims):
             pixel_groups.append([Y_name, C_name, sn, ind2_, list(
-            range(i, np.prod(dims))), method_ls, cct, rank_f])
+            range(i, np.prod(dims))), method_ls, cct])
     A_ = np.zeros((d, nr + np.size(f, 0)))    #init A_
     if dview is not None:
         parallel_result = dview.map_sync(regression_ipyparallel, pixel_groups)
@@ -208,20 +209,26 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
     print("thresholding components")
     A_ = threshold_components(A_, dims, dview=dview, medw=medw, thr_method=thr_method,
                               maxthr=maxthr, nrgthr=nrgthr, extract_cc=extract_cc, se=se, ss=ss)
+    
+ 
 
     ff = np.where(np.sum(A_, axis=0) == 0)  # remove empty components
     if np.size(ff) > 0:
         ff = ff[0]
         print('eliminating {} empty spatial components'.format(len(ff)))
-        A_ = np.delete(A_, list(ff), 1)
-        C = np.delete(C, list(ff), 0)
-        background_ff = list(filter(lambda i: i > 0, ff - nr))
-        f = np.delete(f, background_ff, 0)
-        nr = nr - (len(ff) - len(background_ff))
+        A_ = np.delete(A_, list(ff[ff<nr]), 1)
+        C = np.delete(C, list(ff[ff<nr]), 0)
+        if low_rank_background:
+            background_ff = list(filter(lambda i: i >= nb, ff - nr))
+            f = np.delete(f, background_ff, 0)            
+        else:
+            background_ff = list(filter(lambda i: i >= 0, ff - nr))
+            f = np.delete(f, background_ff, 0)
+            b_in = np.delete(b_in, background_ff, 1)
 
+            
     A_ = A_[:, :nr]
     A_ = coo_matrix(A_)
-
     print("Computing residuals")
     if 'memmap' in str(type(Y)):        
         Y_resf = parallel_dot_product(Y, f.T, block_size=1000, dview=dview) - \
@@ -232,7 +239,7 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
     
     if update_background_components:
         
-        if low_rank_background:       
+        if b_in is None:       
             b = np.fmax(Y_resf.dot(np.linalg.inv(f.dot(f.T))), 0)  # update baseline based on residual
         else:        
             ind_b = [np.where(_b)[0] for _b in b_in.T]
@@ -250,6 +257,9 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
         shutil.rmtree(folder)
     except:
         raise Exception("Failed to delete: " + folder)
+        
+        
+    
     return A_, b, C, f
 
 #%%
@@ -320,7 +330,7 @@ def regression_ipyparallel(pars):
     import gc
     from sklearn import linear_model
 
-    Y_name, C_name, noise_sn, idxs_C, idxs_Y, method_least_square, cct, rank_f = pars
+    Y_name, C_name, noise_sn, idxs_C, idxs_Y, method_least_square, cct = pars
     #we load from the memmap file
     if isinstance(Y_name, basestring):
         Y, _, _ = load_memmap(Y_name)
@@ -334,14 +344,19 @@ def regression_ipyparallel(pars):
         C = C_name
 
     _, T = np.shape(C) #initialize values
+    
     As = []
-
+#    rank_f = len(C)-len(cct)
     for y, px in zip(Y, idxs_Y):
         c = C[idxs_C[px], :]
         idx_only_neurons = idxs_C[px]
-        cct_ = cct[idx_only_neurons[:-rank_f]]
-
+        if len(idx_only_neurons)>0:
+            cct_ = cct[idx_only_neurons[idx_only_neurons<len(cct)]]
+        else:
+            cct_ = []
+            
         if np.size(c) > 0:
+            
             sn = noise_sn[px] ** 2 * T
             if method_least_square == 'lasso_lars_old':  # lasso lars from old implementation, will be deprecated
                 a = lars_regression_noise_old(y, c.T, 1, sn)[2]
@@ -354,6 +369,7 @@ def regression_ipyparallel(pars):
                 clf = linear_model.LassoLars(alpha=lambda_lasso, positive=True)
                 a_lrs = clf.fit(np.array(c.T), np.ravel(y))
                 a = a_lrs.coef_
+                
             else:
                 raise Exception('Least Square Method not found!' + method_least_square)
 
@@ -362,12 +378,15 @@ def regression_ipyparallel(pars):
 
             As.append((px, idxs_C[px], a))
 
+
     if isinstance(Y_name, basestring):
         del Y
     if isinstance(C_name, basestring):
         del C
     if isinstance(Y_name, basestring):
         gc.collect()
+    
+        
     return As
 
 
@@ -483,6 +502,7 @@ def determine_search_location(A, dims, method='ellipse', min_size=3, max_size=8,
     else:
         dist_indicator = True * np.ones((d, nr))
 
+    
     return dist_indicator
 
 
@@ -1063,10 +1083,12 @@ def test(Y, A_in, C, f, n_pixels_per_process,nb):
             raise Exception('Dimension of Matrix C must be neurons x time')
 
     if f is not None:
-        f = np.atleast_2d(f)
+        
+        f = np.atleast_2d(f)        
         if f.shape[1] == 1:
             raise Exception('Dimension of Matrix f must be background comps x time ')
-
+        
+            
     if (A_in is None) and (C is None):
         raise Exception('Either A or C need to be determined')
 
@@ -1092,7 +1114,7 @@ def test(Y, A_in, C, f, n_pixels_per_process,nb):
     return Y, A_in, C, f, n_pixels_per_process, nb,d,T
 
 
-def computing_indicator(Y,A_in,C,f,nb,method,dims,min_size,max_size,dist,expandCore,dview):
+def computing_indicator(Y,A_in,b,C,f,nb,method,dims,min_size,max_size,dist,expandCore,dview):
     """compute the indices of the distance from the cm to search for the spatial component (calling determine_search_location)
 
     does it by following an ellipse from the cm or doing a step by step dilatation around the cm
@@ -1158,8 +1180,9 @@ def computing_indicator(Y,A_in,C,f,nb,method,dims,min_size,max_size,dist,expandC
 
            Exception("Failed to delete: " + folder)
            """
-    b = None
+    
     if A_in.dtype == bool:
+
         dist_indicator = A_in.copy()
         print("spatial support for each components given by the user")
         # we compute C,B,f,Y if we have boolean for A matrix
@@ -1175,24 +1198,33 @@ def computing_indicator(Y,A_in,C,f,nb,method,dims,min_size,max_size,dist,expandC
             b = np.maximum(Y_resf, 0)/(np.linalg.norm(f)**2)
             C = np.maximum(csr_matrix(dist_indicator_av.T).dot(Y) - dist_indicator_av.T.dot(b).dot(f), 0)
             A_in = scipy.sparse.coo_matrix(A_in.astype(np.float32))
-
+            nr, _ = np.shape(C)  # number of neurons
+            ind2_ = [np.hstack((np.where(iid_)[0], nr + np.arange(f.shape[0])))
+                 if np.size(np.where(iid_)[0]) > 0 else [] for iid_ in dist_indicator]
             
 
     else:
-        dist_indicator = determine_search_location(
-            A_in, dims, method=method, min_size=min_size, max_size=max_size, dist=dist, expandCore=expandCore,
-            dview=dview)
-        print("found spatial support for each component")
         if C is None:
             raise Exception('You need to provide estimate of C and f')
 
-    nr, _ = np.shape(C)  # number of neurons
-    # if we are in the defined distance ind2_ = we give the distance accepted values
-    ind2_ = [np.hstack((np.where(iid_)[0], nr + np.arange(f.shape[0])))
-             if np.size(np.where(iid_)[0]) > 0 else [] for iid_ in dist_indicator]
+        nr, _ = np.shape(C)  # number of neurons    
 
+        if b is None:
+            dist_indicator = determine_search_location(
+                A_in, dims, method=method, min_size=min_size, max_size=max_size, dist=dist, expandCore=expandCore,
+                dview=dview)
+        else:
+            dist_indicator = determine_search_location(
+                scipy.sparse.hstack([A_in,scipy.sparse.coo_matrix(b)]), dims, method=method, min_size=min_size, max_size=max_size, dist=dist, expandCore=expandCore,
+                dview=dview)
+            
+            
+        print("found spatial support for each component")
+        
     
-    
+        ind2_ = [np.where(iid_)[0]
+                     if (np.size(np.where(iid_)[0]) > 0) and (np.min(np.where(iid_)[0])<nr) else [] for iid_ in dist_indicator]
+
     return ind2_,nr,C,f,b,A_in
 
 

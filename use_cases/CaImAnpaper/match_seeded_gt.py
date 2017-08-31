@@ -9,7 +9,9 @@
 #\date Created on Mon Nov 21 15:53:15 2016
 #\author agiovann
 #toclean
+"""
 
+"""
 from __future__ import division
 from __future__ import print_function
 from builtins import zip
@@ -173,6 +175,8 @@ params_movie = {'fname': '/mnt/ceph/neuro/labeling/neurofinder.02.00/images/fina
                 'swap_dim':False,
                 'crop_pix':10
                  }
+
+
 #%%
 params_display = {
     'downsample_ratio': .2,
@@ -329,8 +333,10 @@ params_display = {
     'downsample_ratio': .2,
     'thr_plot': 0.8
 }
-
-
+try:
+    fname_new = fname_new[()]
+except:
+    pass
 #analysis_file = '/mnt/ceph/neuro/jeremie_analysis/neurofinder.03.00.test/Yr_d1_498_d2_467_d3_1_order_C_frames_2250_._results_analysis.npz'
 with np.load(os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:-4] + 'results_analysis.npz')) as ld:
     print(ld.keys())
@@ -338,8 +344,30 @@ with np.load(os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[
     dims_off = d1,d2    
     A = scipy.sparse.coo_matrix(A[()])
     dims = (d1,d2)
+    gSig = params_movie['gSig']
+    fname_new = fname_new[()]
+
     
-#%%    
+
+#%%
+from caiman.components_evaluation import evaluate_components_CNN
+predictions,final_crops = evaluate_components_CNN(A,dims,gSig,model_name = 'use_cases/CaImAnpaper/cnn_model')
+#%%
+cm.movie(final_crops).play(gain=3,magnification = 6,fr=5)
+#%%
+cm.movie(np.squeeze(final_crops[np.where(predictions[:,1]>=0.5)[0]])).play(gain=2., magnification = 5,fr=5)
+#%%
+cm.movie(np.squeeze(final_crops[np.where(predictions[:,0]>=0.5)[0]])).play(gain=2., magnification = 5,fr=5)
+#%%
+thresh = .5
+idx_components_cnn = np.where(predictions[:,1]>=thresh)[0]
+idx_components_bad_cnn = np.where(predictions[:,0]>(1-thresh))[0]
+
+print(' ***** ')
+print((len(final_crops)))
+print((len(idx_components_cnn)))
+#print((len(idx_blobs)))    
+#%% 
 idx_components_r = np.where((r_values >= .5))[0]
 idx_components_raw = np.where(fitness_raw < -5)[0]
 idx_components_delta = np.where(fitness_delta < -5)[0]    

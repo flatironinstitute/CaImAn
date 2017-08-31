@@ -35,6 +35,7 @@ from caiman.source_extraction.cnmf import cnmf as cnmf
 from caiman.source_extraction.cnmf.utilities import extract_DF_F
 from caiman.components_evaluation import evaluate_components
 from caiman.utils.visualization import plot_contours,view_patches_bar
+from caiman.utils.utils import download_demo
 #%%
 
 c,dview,n_processes = cm.cluster.setup_cluster(backend = 'local',n_processes = None,single_thread = False)
@@ -120,7 +121,7 @@ else:
     #%% RUN ALGORITHM ON PATCHES
 
     cnm = cnmf.CNMF(n_processes, k=K, gSig=gSig, merge_thresh=0.8, p=0, dview=dview, Ain=None, rf=rf, stride=stride, memory_fact=1,
-                    method_init=init_method, alpha_snmf=alpha_snmf, only_init_patch=True, gnb=1,method_deconvolution='oasis')
+                    method_init=init_method, alpha_snmf=alpha_snmf, only_init_patch=True, gnb=1,method_deconvolution='oasis', low_rank_background = False)
     cnm = cnm.fit(images)
 
     A_tot = cnm.A
@@ -134,6 +135,7 @@ else:
     #%%
     pl.figure()
     crd = plot_contours(A_tot, Cn, thr=0.9)
+    
     #%%
     final_frate = 10# approx final rate  (after eventual downsampling )
     Npeaks = 10
@@ -166,12 +168,13 @@ else:
                  YrA_tot=YrA_tot, sn_tot=sn_tot, d1=d1, d2=d2, b_tot=b_tot, f=f_tot)
 
     #%%
-    cnm = cnmf.CNMF(n_processes, k=A_tot.shape, gSig=gSig, merge_thresh=merge_thresh, p=p, dview=dview, Ain=A_tot, Cin=C_tot,
-                    f_in=f_tot, rf=None, stride=None, method_deconvolution='oasis')
+    cnm = cnmf.CNMF(n_processes, k=A_tot.shape, gSig=gSig, merge_thresh=merge_thresh, p=p, dview=dview, Ain=A_tot, Cin=C_tot, b_in = b_tot,
+                    f_in=f_tot, rf=None, stride=None, method_deconvolution='oasis', gnb = 1,  low_rank_background = False)
     cnm = cnm.fit(images)
 
-#%%
+    #%
 A, C, b, f, YrA, sn = cnm.A, cnm.C, cnm.b, cnm.f, cnm.YrA, cnm.sn
+
 #%%
 final_frate = 10
 

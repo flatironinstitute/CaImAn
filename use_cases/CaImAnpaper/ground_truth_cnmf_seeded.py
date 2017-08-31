@@ -9,7 +9,9 @@
 #\date Created on Mon Nov 21 15:53:15 2016
 #\author agiovann
 #toclean
-
+"""
+Prepare ground truth built by matching with the results of CNMF
+"""
 from __future__ import division
 from __future__ import print_function
 from builtins import zip
@@ -174,9 +176,44 @@ params_movie = {'fname': ['/mnt/ceph/neuro/labeling/neurofinder.04.00.test/image
 #                                     #(to be used with one background per patch)          
 #                 'swap_dim':False #for some movies needed
 #                 }
+
 #%% neurofinder.02.00
 params_movie = {'fname': ['/mnt/ceph/neuro/labeling/neurofinder.02.00/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_8000_.mmap'],
                 'gtname':['/mnt/ceph/neuro/labeling/neurofinder.02.00/regions/joined_consensus_active_regions.npy'],
+                 'merge_thresh': .8,  # merging threshold, max correlation allow
+                 'final_frate': 10,    
+                 'gnb': 1,
+                 'update_background_components': True,# whether to update the background components in the spatial phase
+                 'low_rank_background': True, #whether to update the using a low rank approximation. In the False case all the nonzero elements of the background components are updated using hals    
+                                     #(to be used with one background per patch)  
+                 'swap_dim':False #for some movies needed
+                 }
+#%% yuste: used kernel = np.ones((radius//4,radius//4),np.uint8)
+params_movie = {'fname': ['/mnt/ceph/neuro/labeling/yuste.Single_150u/images/final_map/Yr_d1_200_d2_256_d3_1_order_C_frames_3000_.mmap'],
+                'gtname':['/mnt/ceph/neuro/labeling/yuste.Single_150u/regions/joined_consensus_active_regions.npy'],
+                 'p': 1,  # order of the autoregressive system
+                 'merge_thresh': 1,  # merging threshold, max correlation allow
+                 'final_frate': 10,
+#                 'r_values_min_patch': .7,  # threshold on space consistency
+#                 'fitness_min_patch': -20,  # threshold on time variability
+#                 # threshold on time variability (if nonsparse activity)
+#                 'fitness_delta_min_patch': -20,
+#                 'Npeaks': 10,
+#                 'r_values_min_full': .8,
+#                 'fitness_min_full': - 40,
+#                 'fitness_delta_min_full': - 40,
+#                 'only_init_patch': True,
+                 'gnb': 1,
+#                 'memory_fact': 1,
+#                 'n_chunks': 10,
+                 'update_background_components': True,# whether to update the background components in the spatial phase
+                 'low_rank_background': True, #whether to update the using a low rank approximation. In the False case all the nonzero elements of the background components are updated using hals    
+                                     #(to be used with one background per patch)  
+                 'swap_dim':False #for some movies needed
+                 }
+#%% neurofinder 01 01
+params_movie = {'fname': ['/mnt/ceph/neuro/labeling/neurofinder.00.00/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_2936_.mmap'],
+                'gtname':['/mnt/ceph/neuro/labeling/neurofinder.00.00/regions/joined_consensus_active_regions.npy'],
                  'p': 1,  # order of the autoregressive system
                  'merge_thresh': 1,  # merging threshold, max correlation allow
                  'final_frate': 10,
@@ -315,3 +352,4 @@ np.savez(os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:
          A_gt=A, C_gt=C, b_gt=b, f_gt=f, YrA_gt=YrA, d1=d1, d2=d2, idx_components_gt=idx_size_neuro[tp_comp],
          idx_components_bad_gt=idx_size_neuro[fp_comp], fname_new = fname_new)
 
+#% now use the script match_seeded_gt if you want to create a training set

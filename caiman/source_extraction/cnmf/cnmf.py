@@ -393,10 +393,16 @@ class CNMF(object):
                 A, C, nr, merged_ROIs, S, bl, c1, sn_n, g = merge_components(Yr, A, [], np.array(C), [], np.array(
                     C), [], options['temporal_params'], options['spatial_params'], dview=self.dview,
                                                                              thr=self.merge_thresh, mx=np.Inf)
+            
+#            print('update spatial ...')
+#            A, b, C, f = update_spatial_components(
+#                    Yr, C = C, f = f, A_in = A, sn=sn, b_in = b, dview=self.dview, **options['spatial_params'])            
 
             print("update temporal")
             C, A, b, f, S, bl, c1, neurons_sn, g1, YrA = update_temporal_components(
                 Yr, A, b, C, f, dview=self.dview, bl=None, c1=None, sn=None, g=None, **options['temporal_params'])
+            
+            
 
         self.A=A
         self.C=C

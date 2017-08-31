@@ -216,8 +216,9 @@ def nf_match_neurons_in_binary_masks(masks_gt,masks_comp,thresh_cost=.7, min_dis
             else:
                 pl.title(labels[1]+'(w), ' + labels[0] + '(r)')
             pl.axis('off')
-        except :
+        except Exception, e:
             print("not able to plot precision recall usually because we are on travis")
+            print(e)
     return  idx_tp_gt,idx_tp_comp, idx_fn_gt, idx_fp_comp, performance 
 
 #%% threshold

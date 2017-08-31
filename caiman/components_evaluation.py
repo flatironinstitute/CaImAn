@@ -14,7 +14,11 @@ from scipy.sparse import csc_matrix
 from scipy.stats import norm
 import scipy
 import cv2
-
+try:
+	import json as simplejson
+	from keras.models import model_from_json
+except:
+	print('KERAS NOT INSTALLED. IF YOU WANT TO USE THE CNN BASED COMPONENT CLASSIFIER (experimental) CONTACT THE DEVELOPERS')
 
 def estimate_noise_mode(traces,robust_std=False,use_mode_fast=False, return_all = False):
     """ estimate the noise in the traces under assumption that signals are sparse and only positive. The last dimension should be time. 
@@ -213,6 +217,27 @@ def classify_components_ep(Y,A,C,b,f,Athresh = 0.1,Npeaks = 5, tB=-3, tA = 10, t
             significant_samples.append(0)
 
     return rval,significant_samples
+#%%
+def evaluate_components_CNN(A,dims,gSig,model_name = 'use_cases/CaImAnpaper/cnn_model', patch_size = 50):
+    """ evaluate component quality using a CNN network
+    
+    """
+    json_file = open(model_name +'.json', 'r')
+    loaded_model_json = json_file.read()
+    json_file.close()
+    loaded_model = model_from_json(loaded_model_json)
+    loaded_model.load_weights(model_name +'.h5')
+    print("Loaded model from disk")
+    half_crop = np.minimum(gSig[0]*4+1,patch_size)
+    dims = np.array(dims)
+    coms = [scipy.ndimage.center_of_mass(mm.toarray().reshape(dims,order='F')) for mm in A.tocsc().T]    
+    coms = np.maximum(coms,half_crop)
+    coms = np.array([np.minimum(cms,dims-half_crop) for cms in coms])
+    crop_imgs = [mm.toarray().reshape(dims,order='F')[com[0]-half_crop:com[0]+half_crop, com[1]-half_crop:com[1]+half_crop] for mm,com in zip(A.tocsc().T,coms) ]
+    final_crops = np.array([cv2.resize(im/np.linalg.norm(im),(patch_size ,patch_size )) for im in crop_imgs])
+    predictions = loaded_model.predict(final_crops[:,:,:,np.newaxis], batch_size=32, verbose=1)
+
+    return predictions,final_crops
 #%%
 def evaluate_components(Y, traces, A, C, b, f, final_frate, remove_baseline = True, N = 5, robust_std = False,
                         Athresh = 0.1, Npeaks = 5, thresh_C = 0.3):
