@@ -76,6 +76,7 @@ def max_correlation_image(Y,bin_size = 1000, eight_neighbours = True, swap_dim =
         Cn = np.max(Cn_bins,axis=0)
         return Cn
 
+
 def local_correlations_fft(Y, eight_neighbours=True, swap_dim=True):
     """Computes the correlation image for the input dataset Y  using a faster FFT based method
 
@@ -125,7 +126,6 @@ def local_correlations_fft(Y, eight_neighbours=True, swap_dim=True):
     Cn =  np.mean(Yconv*Y,axis=0)/MASK
 
     return Cn
-
 
 
 def local_correlations(Y, eight_neighbours=True, swap_dim=True):
@@ -244,18 +244,18 @@ def correlation_pnr(Y, gSig=None, center_psf=True, swap_dim=True):
     if gSig:
         if not isinstance(gSig, list):
             gSig = [gSig, gSig]
-        gSiz = tuple([(3*i)//2 * 2+1 for i in gSig])
+        ksize = tuple([(3*i)//2 * 2+1 for i in gSig])
         # create a spatial filter for removing background
-        # psf = gen_filter_kernel(width=gSiz, sigma=gSig, center=center_psf)
+        # psf = gen_filter_kernel(width=ksize, sigma=gSig, center=center_psf)
 
         if center_psf:
             for idx, img in enumerate(data_filtered):
-                data_filtered[idx, ] = cv2.GaussianBlur(img, ksize=gSiz, sigmaX=gSig[0], sigmaY=gSig[1], borderType=1) \
-                                       - cv2.boxFilter(img, ddepth=-1, ksize=gSiz, borderType=1)
+                data_filtered[idx, ] = cv2.GaussianBlur(img, ksize=ksize, sigmaX=gSig[0], sigmaY=gSig[1], borderType=1) \
+                                       - cv2.boxFilter(img, ddepth=-1, ksize=ksize, borderType=1)
             # data_filtered[idx, ] = cv2.filter2D(img, -1, psf, borderType=1)
         else:
             for idx, img in enumerate(data_filtered):
-                data_filtered[idx, ] = cv2.GaussianBlur(img, ksize=gSiz, sigmaX=gSig[0], sigmaY=gSig[1], borderType=1)
+                data_filtered[idx, ] = cv2.GaussianBlur(img, ksize=ksize, sigmaX=gSig[0], sigmaY=gSig[1], borderType=1)
 
     # compute peak-to-noise ratio
     data_filtered -= np.mean(data_filtered, axis=0)
@@ -267,7 +267,7 @@ def correlation_pnr(Y, gSig=None, center_psf=True, swap_dim=True):
 
     # remove small values
     tmp_data = data_filtered.copy() / data_std
-    tmp_data[tmp_data < 1] = 0
+    tmp_data[tmp_data < 3] = 0
 
     # compute correlation image
     # cn = local_correlation(tmp_data, d1=d1, d2=d2)

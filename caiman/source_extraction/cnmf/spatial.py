@@ -18,8 +18,10 @@ from scipy.sparse import coo_matrix, csc_matrix, csr_matrix
 from scipy.sparse import spdiags
 from scipy.linalg import eig
 from scipy.ndimage.morphology import generate_binary_structure, iterate_structure
+from scipy.ndimage import label, binary_dilation
 from sklearn.decomposition import NMF
 from warnings import warn
+import numpy as np
 import scipy
 import time
 import tempfile
@@ -1253,6 +1255,40 @@ def creatememmap(Y, Cf, dview):
             raise Exception('Not implemented consistently')
     return C_name, Y_name, folder
 
+
+def circular_constraint(img_original):
+    img = img_original.copy()
+    nr, nc = img.shape
+    [rsub, csub] = img.nonzero()
+    if len(rsub) == 0:
+        return img
+
+    rmin = np.min(rsub)
+    rmax = np.max(rsub)+1
+    cmin = np.min(csub)
+    cmax = np.max(csub) + 1
+
+    if (rmax-rmin < 1) or (cmax-cmin < 1):
+        return img
+
+    if rmin == 0 and rmax == nr and cmin == 0 and cmax == nc:
+        ind_max = np.argmax(img)
+        y0, x0 = np.unravel_index(ind_max, [nr, nc])
+        vmax = img[y0, x0]
+        x, y = np.meshgrid(np.arange(nc), np.arange(nr))
+        fy, fx = np.gradient(img)
+        ind = ((fx*(x0-x) + fy*(y0-y) < 0) & (img < vmax/2))
+        img[ind] = 0
+
+        # # remove isolated pixels
+        l, _ = label(img)
+        ind = binary_dilation(l == l[y0, x0])
+        img[~ind] = 0
+    else:
+        tmp_img = circular_constraint(img[rmin:rmax, cmin:cmax])
+        img[rmin:rmax, cmin:cmax] = tmp_img
+
+    return img
 # %% lars_regression_noise_parallel
 # def basis_denoising(y, c, boh, sn, id2_, px):
 #     if np.size(c) > 0:
