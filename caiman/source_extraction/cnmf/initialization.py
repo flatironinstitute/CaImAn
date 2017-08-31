@@ -28,11 +28,13 @@ import caiman
 import cv2
 import sys
 from scipy.ndimage.filters import correlate
+import scipy.signal
 #%%
 def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter=5, maxIter=5, nb=1,
                           kernel=None, use_hals=True, normalize_init=True, img=None, method='greedy_roi',
                           max_iter_snmf=500, alpha_snmf=10e2, sigma_smooth_snmf=(.5, .5, .5),
-                          perc_baseline_snmf=20, options_local_NMF = None):
+                          perc_baseline_snmf=20, options_local_NMF = None, rolling_sum = False,
+                          rolling_length = 100):
     """
     Initalize components
 
@@ -85,7 +87,13 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
 
     alpha_snmf: scalar
         Sparsity penalty
+        
+    rolling_sum: boolean
+        Detect new components based on a rolling sum of pixel activity (default: True)        
 
+    rolling_length: int
+        Length of rolling window (default: 100)
+        
     Returns:
     --------
 
@@ -145,7 +153,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
     print('Roi Extraction...')
     if method == 'greedy_roi':
         Ain, Cin, _, b_in, f_in = greedyROI(
-            Y_ds, nr=K, gSig=gSig, gSiz=gSiz, nIter=nIter, kernel=kernel, nb=nb)
+            Y_ds, nr=K, gSig=gSig, gSiz=gSiz, nIter=nIter, kernel=kernel, nb=nb, rolling_sum=rolling_sum,rolling_length=rolling_length)
 
         if use_hals:
             print('(Hals) Refining Components...')
@@ -361,7 +369,7 @@ def sparseNMF(Y_ds, nr,  max_iter_snmf=500, alpha=10e2, sigma_smooth=(.5, .5, .5
 #%%
 
 
-def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1):
+def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1, rolling_sum = False, rolling_length = 100):
     """
     Greedy initialization of spatial and temporal components using spatial Gaussian filtering
 
@@ -388,6 +396,12 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1):
 
     nb: int
         Number of background components
+        
+    rolling_max: boolean
+        Detect new components based on a rolling sum of pixel activity (default: True)
+        
+    rolling_length: int
+        Length of rolling window (default: 100)
 
     Returns:
     -------
@@ -423,7 +437,12 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1):
     center = np.zeros((nr, Y.ndim - 1))
 
     rho = imblur(Y, sig=gSig, siz=gSiz, nDimBlur=Y.ndim - 1, kernel=kernel)
-    v = np.sum(rho**2, axis=-1)
+    if rolling_sum:
+        rolling_filter = np.ones((rolling_length))/rolling_length
+        rho_s = scipy.signal.lfilter(rolling_filter,1.,rho**2)
+        v = np.amax(rho_s,axis=-1)
+    else:
+        v = np.sum(rho**2, axis=-1)
 
     for k in range(nr):
         #we take the highest value of the blurred total image and we define it as the center of the neuron
@@ -457,10 +476,13 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1):
             dataTemp = np.zeros(ModLen)
             dataTemp[[slice(*a) for a in Lag]] = coef
             dataTemp = imblur(dataTemp[..., np.newaxis], sig=gSig, siz=gSiz, kernel=kernel)
-            temp = dataTemp * score.reshape([1] * (Y.ndim - 1) + [-1])
+            temp = dataTemp * score.reshape([1] * (Y.ndim - 1) + [-1])            
             rho[[slice(*a) for a in Mod]] -= temp.copy()
-            v[[slice(*a) for a in Mod]] = np.sum(
-                rho[[slice(*a) for a in Mod]]**2, axis=-1)
+            if rolling_sum:
+                rho_filt = scipy.signal.lfilter(rolling_filter,1.,rho[[slice(*a) for a in Mod]]**2)
+                v[[slice(*a) for a in Mod]] = np.amax(rho_filt,axis=-1)
+            else:
+                v[[slice(*a) for a in Mod]] = np.sum(rho[[slice(*a) for a in Mod]]**2, axis=-1)
 
     res = np.reshape(Y, (np.prod(d[0:-1]), d[-1]), order='F') + med.flatten(order='F')[:, None]
     model = NMF(n_components=nb, init='random', random_state=0)
