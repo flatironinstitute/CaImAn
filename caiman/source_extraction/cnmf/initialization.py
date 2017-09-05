@@ -326,7 +326,7 @@ def sparseNMF(Y_ds, nr,  max_iter_snmf=500, alpha=10e2, sigma_smooth=(.5, .5, .5
         percentile to remove frmo movie before NMF
 
     nb: int
-        Number of background components    
+        Number of background components
 
     Returns:
     -------
@@ -691,37 +691,125 @@ def hals(Y, A, C, b, f, bSiz=3, maxIter=5):
 def greedyROI_corr(data, max_number=None, gSiz=15, gSig=None,
                    center_psf=True, min_corr=0.8, min_pnr=10,
                    seed_method='auto', deconvolve_options=None,
-                   min_pixel=3, bd=1, thresh_init=2, swap_dim=True,
-                   save_video=False, ring_size_factor=1.5, ring_model=True,
-                   nb=1):
+                   min_pixel=3, bd=1, thresh_init=2, save_video=False,
+                   video_name='initialization.mp4', ring_size_factor=1.5, ring_model=False, nb=1):
     """
-    using greedy method to initialize neurons by selecting pixels with large
-    local correlation and large peak-to-noise ratio
+    initialize neurons based on pixels' local correlations and peak-to-noise ratios.
 
     Args:
-        data: d1*d2*T np.ndarray, the data
-        max_number: maximum number of neurons to be initialized
-        gSiz: size of the gaussian kernel
-        gSig:  gaussian width
-        center_psf: Boolean; center the gaussian kernel or not
-        min_corr: float, minimum local corr. coeff. for detecting a seed pixel
-        min_pnr: float, minimum pnr for detecting a seed pixel
-        seed_method: str, {'auto', 'manual'}. method for choosing seed pixels
-        deconvolve_options: C-style struct variable for deconvolving traces
-        min_pixel: integer; minimum number of nonzero pixels for each neuron
-        bd: edge of the boundary
-        thresh_init: threshold for removing small values when computing
-            local correlation image.
 
+        *** see init_neurons_corr_pnr for descriptions of following input arguments ***
+        data:
+        max_number:
+        gSiz:
+        gSig:
+        center_psf:
+        min_corr:
+        min_pnr:
+        seed_method:
+        deconvolve_options:
+        min_pixel:
+        bd:
+        thresh_init:
+        swap_dim:
+        save_video:
+        video_name:
+        *** see init_neurons_corr_pnr for descriptions of above input arguments ***
 
-    nb: int
-        Number of background components
+        ring_size_factor: float
+            it's the ratio between the ring radius and neuron diameters.
+        ring_model: Boolean
+            True indicates using ring model to estimate the background
+            components.
+        nb: integer
+            number of background components for approximating the background using NMF model
 
     Returns:
 
     """
 
-    if not deconvolve_options:
+    A, C, _, _, center = init_neurons_corr_pnr(data, max_number, gSiz, gSig,
+                                               center_psf, min_corr, min_pnr,
+                                               seed_method, deconvolve_options,
+                                               min_pixel, bd, thresh_init,
+                                               False, save_video, video_name)
+
+    d1, d2, total_frame = data.shape
+
+    B = data.reshape((-1, total_frames), order='F') - A.dot(C)
+    if ring_model:
+        W, b0 = compute_W(data.reshape((-1, total_frames), order='F'),
+                          A, C, (d1, d2), int(np.round(ring_size_factor * g_size)))
+        B = b0[:, None] + W.dot(B - b0[:, None])
+
+    model = NMF(n_components=nb)  # , init='random', random_state=0)
+    b_in = model.fit_transform(np.maximum(B, 0))
+    f_in = model.components_.squeeze()
+
+    return A, C, center.T, b_in, f_in
+
+
+def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
+                          center_psf=True, min_corr=0.8, min_pnr=10,
+                          seed_method='auto', deconvolve_options=None,
+                          min_pixel=3, bd=1, thresh_init=2, swap_dim=True,
+                          save_video=False, video_name='initialization.mp4'):
+    """
+    using greedy method to initialize neurons by selecting pixels with large
+    local correlation and large peak-to-noise ratio
+    Args:
+        data: np.ndarray (3D)
+            the data used for initializing neurons. its dimension can be
+            d1*d2*T or T*d1*d2. If it's the latter, swap_dim should be
+            False; otherwise, True.
+        max_number: integer
+            maximum number of neurons to be detected. If None, then the
+            algorithm will stop when all pixels are below the thresholds.
+        gSiz: float
+            average diameter of a neuron
+        gSig: float number or a vector with two elements.
+            gaussian width of the gaussian kernel used for spatial filtering.
+        center_psf: Boolean
+            True indicates centering the filtering kernel for background
+            removal. This is useful for data with large background
+            fluctuations.
+        min_corr: float
+            minimum local correlation coefficients for selecting a seed pixel.
+        min_pnr: float
+            minimum peak-to-noise ratio for selecting a seed pixel.
+        seed_method: str {'auto', 'manual'}
+            methods for choosing seed pixels.
+        deconvolve_options: dict
+            all options for deconvolving temporal traces.
+        min_pixel: integer
+            minimum number of nonzero pixels for one neuron.
+        bd: integer
+            pixels that are bd pixels away from the boundary will be ignored for initializing neurons.
+        thresh_init: float
+            pixel values smaller than thresh_init*noise will be set as 0
+            when computing the local correlation image.
+        swap_dim: Boolean
+            True indicates that time is listed in the last axis of Y (matlab
+            format)
+        save_video: Boolean
+            save the initialization procedure if it's True
+        video_name: str
+            name of the video to be saved.
+
+    Returns:
+        A: np.ndarray (d1*d2*T)
+            spatial components of all neurons
+        C: np.ndarray (K*T)
+            nonnegative and denoised temporal components of all neurons
+        C_raw: np.ndarray (K*T)
+            raw calcium traces of all neurons
+        S: np.ndarray (K*T)
+            deconvolved calcium traces of all neurons
+        center: np.ndarray
+            center localtions of all neurons
+    """
+
+    if deconvolve_options is None:
         deconvolve_options = {'bl': None,
                               'c1': None,
                               'g': None,
@@ -753,13 +841,12 @@ def greedyROI_corr(data, max_number=None, gSiz=15, gSig=None,
             gSig = [gSig, gSig]
         ksize = tuple([(3*i)//2 * 2+1 for i in gSig])
         # create a spatial filter for removing background
-        # psf = gen_filter_kernel(width=gSiz, sigma=gSig, center=center_psf)
 
         if center_psf:
             for idx, img in enumerate(data_filtered):
                 data_filtered[idx, ] = cv2.GaussianBlur(img, ksize=ksize, sigmaX=gSig[0], sigmaY=gSig[1], borderType=1) \
                                        - cv2.boxFilter(img, ddepth=-1, ksize=ksize, borderType=1)
-            # data_filtered[idx, ] = cv2.filter2D(img, -1, psf, borderType=1)
+                # data_filtered[idx, ] = cv2.filter2D(img, -1, psf, borderType=1)
         else:
             for idx, img in enumerate(data_filtered):
                 data_filtered[idx, ] = cv2.GaussianBlur(img, ksize=ksize, sigmaX=gSig[0], sigmaY=gSig[1], borderType=1)
@@ -818,7 +905,7 @@ def greedyROI_corr(data, max_number=None, gSiz=15, gSig=None,
         # visualize the initialization procedure.
         fig = plt.figure(figsize=(12, 8), facecolor=(0.9, 0.9, 0.9))
         # with writer.saving(fig, "initialization.mp4", 150):
-        writer.setup(fig, "initialization.mp4", 150)
+        writer.setup(fig, video_name, 150)
 
         ax_cn = plt.subplot2grid((2, 3), (0, 0))
         ax_cn.imshow(cn)
@@ -973,8 +1060,8 @@ def greedyROI_corr(data, max_number=None, gSiz=15, gSig=None,
                         ai_filtered = cv2.GaussianBlur(tmp_img, ksize=ksize,
                                                        sigmaX=gSig[0],
                                                        sigmaY=gSig[1], borderType=1) \
-                                    - cv2.boxFilter(tmp_img, ddepth=-1,
-                                                    ksize=ksize, borderType=1)
+                                      - cv2.boxFilter(tmp_img, ddepth=-1,
+                                                      ksize=ksize, borderType=1)
                     else:
                         ai_filtered = cv2.GaussianBlur(tmp_img, ksize=ksize,
                                                        sigmaX=gSig[0],
@@ -1016,24 +1103,12 @@ def greedyROI_corr(data, max_number=None, gSiz=15, gSig=None,
 
     print('In total, ', num_neurons, 'neurons were initialized.')
     # A = np.reshape(Ain[:num_neurons], (-1, d1 * d2)).transpose()
-    A = np.reshape(Ain[:num_neurons], (-1, d1 * d2), order='F').transpose()
+    A = np.reshape(Ain[:num_neurons], (-1, d1 * d2)).transpose()
     C = Cin[:num_neurons]
     C_raw = Cin_raw[:num_neurons]
     S = Sin[:num_neurons]
     center = center[:, :num_neurons]
 
-    # B = data.reshape((-1, total_frames), order='F') - A.dot(C)
-    # if ring_model:
-    #     W, b0 = compute_W(data.reshape((-1, total_frames), order='F'),
-    #                       A, C, (d1, d2), int(np.round(ring_size_factor * g_size)))
-    #     B = b0[:, None] + W.dot(B - b0[:, None])
-    #
-    # model = NMF(n_components=nb)  # , init='random', random_state=0)
-    # b_in = model.fit_transform(np.maximum(B, 0))
-    # f_in = model.components_.squeeze()
-
-    # return A, C, center[::-1].T, b_in, f_in
-    # return results
     if save_video:
         plt.close()
         writer.finish()
@@ -1080,39 +1155,6 @@ def extract_ac(data_filtered, data_raw, ind_ctr, patch_dims):
 
     # post-process neuron shape
     ai = circular_constraint(ai)
-    # l, _ = bwlabel(ai > np.median(ai))
-    # ai[l != l.ravel()[ind_ctr]] = 0
 
     # return results
     return ai, ci.reshape(len(ci)), True
-
-
-def gen_filter_kernel(width=16, sigma=4, center=True):
-    """
-    create a gaussian kernel for spatially filtering the raw data
-
-    Args:
-        width: (float)
-            width of the kernel
-        sigma: (float)
-            gaussian width of the kernel
-        center:
-            if True, subtract the mean of gaussian kernel
-
-    Returns:
-        psf: (2D numpy array, width x width)
-            the desired kernel
-
-    """
-    rmax = (width - 1) / 2.0
-    y, x = np.ogrid[-rmax:(rmax + 1), -rmax:(rmax + 1)]
-    psf = np.exp(-(x * x + y * y) / (2 * sigma * sigma))
-    psf = psf / psf.sum()
-    if center:
-        idx = (psf >= psf[0].max())
-        psf[idx] -= psf[idx].mean()
-        psf[~idx] = 0
-
-    return psf
-
-

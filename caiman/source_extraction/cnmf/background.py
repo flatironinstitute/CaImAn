@@ -46,63 +46,83 @@ if sys.version_info >= (3, 0):
 #     return b, f
 
 
+# #
+# def ring_filter_data(Y, W, b0=None):
+#     """
+#     filter data using ring model Yhat=W*(Y-b0*1') + b0*1'
+#     Args:
+#         Y: np.ndarray (2D)
+#             movie, raw data in 2D (pixels X time)
+#         W: np.ndarray (2D)
+#             d*d weight matrix, where d is the number of pixels.
 #
-# def compute_W(Y, dims, radius):
+#     Returns:
+#         Yhat: np.ndarray (2D)
+#             filtered matrix with the same dimension as Y
+#     """
+#     if b0 is None:
+#         b0 = np.array(Y.mean(1))
+#     temp = b0 - W.dot(b0)
+#     Yhat = W.dot(Y) - temp[:, None]
+#     return Yhat
+#
+#
+# def ring_fit(Y, dims, radius):
 #     """compute background according to ring model
 #
 #     solves the problem
 #         min_{W,b0} ||X-W*X|| with X = Y - b0*1'
 #     subject to
 #         W(i,j) = 0 for each pixel j that is not in ring around pixel i
-    # Problem parallelizes over pixels i
-    # Fluctuating background activity is W*X, constant baselines b0.
-    #
-    # Parameters:
-    # ----------
-    # Y: np.ndarray (2D or 3D)
-    #     movie, raw data in 2D or 3D (pixels x time).
-    #
-    # dims: tuple
-    #     x, y[, z] movie dimensions
-    #
-    # radius: int
-    #     radius of ring
-    #
-    # Returns:
-    # --------
-    # W: scipy.sparse.csr_matrix (pixels x pixels)
-    #     estimate of weight matrix for fluctuating background
-    #
-    # b0: np.ndarray (pixels,)
-    #     estimate of constant background baselines
-    # """
-    # ring = disk(radius+1, dtype=bool)
-    # ring[1:-1, 1:-1] -= disk(radius, dtype=bool)
-    # ringidx = [i - radius - 1 for i in np.nonzero(ring)]
-    #
-    # def get_indices_of_pixels_on_ring(pixel):
-    #     pixel = np.unravel_index(pixel, dims, order='F')
-    #     x = pixel[0] + ringidx[0]
-    #     y = pixel[1] + ringidx[1]
-    #     inside = (x >= 0) * (x < dims[0]) * (y >= 0) * (y < dims[1])
-    #     return np.ravel_multi_index((x[inside], y[inside]), dims, order='F')
-    #
-    # b0 = np.array(Y.mean(1)) #- A.dot(C.mean(1))
-    #
-    # indices = []
-    # data = []
-    # indptr = [0]
-    # for p in xrange(np.prod(dims)):
-    #     index = get_indices_of_pixels_on_ring(p)
-    #     indices += list(index)
-    #     B = Y[index] - b0[index, None] # - A[index].dot(C)
-    #     data += list(np.linalg.inv(np.array(B.dot(B.T)) + 1e-9 * np.eye(len(index))).
-    #                  dot(B.dot(Y[p]  - b0[p])))
-    #     # np.linalg.lstsq seems less robust but scipy version would be (robust but for the problem size slower) alternative
-    #     # data += list(scipy.linalg.lstsq(B.T, Y[p] - A[p].dot(C) - b0[p], check_finite=False)[0])
-    #     indptr.append(len(indices))
-    # return spr.csr_matrix((data, indices, indptr), dtype='float32'), b0
-
+#     Problem parallelizes over pixels i
+#     Fluctuating background activity is W*X, constant baselines b0.
+#
+#     Parameters:
+#     ----------
+#     Y: np.ndarray (2D or 3D)
+#         movie, raw data in 2D or 3D (pixels x time).
+#
+#     dims: tuple
+#         x, y[, z] movie dimensions
+#
+#     radius: int
+#         radius of ring
+#
+#     Returns:
+#     --------
+#     W: scipy.sparse.csr_matrix (pixels x pixels)
+#         estimate of weight matrix for fluctuating background
+#
+#     b0: np.ndarray (pixels,)
+#         estimate of constant background baselines
+#     """
+#     ring = disk(radius+1, dtype=bool)
+#     ring[1:-1, 1:-1] -= disk(radius, dtype=bool)
+#     ringidx = [i - radius - 1 for i in np.nonzero(ring)]
+#
+#     def get_indices_of_pixels_on_ring(pixel):
+#         pixel = np.unravel_index(pixel, dims)
+#         x = pixel[0] + ringidx[0]
+#         y = pixel[1] + ringidx[1]
+#         inside = (x >= 0) * (x < dims[0]) * (y >= 0) * (y < dims[1])
+#         return np.ravel_multi_index((x[inside], y[inside]), dims)
+#
+#     b0 = np.array(Y.mean(1))
+#
+#     indices = []
+#     data = []
+#     indptr = [0]
+#     for p in xrange(np.prod(dims)):
+#         index = get_indices_of_pixels_on_ring(p)
+#         indices += list(index)
+#         B = Y[index] - b0[index, None]
+#         data += list(np.linalg.inv(np.array(B.dot(B.T)) + 1e-9 * np.eye(len(index))).
+#                      dot(B.dot(Y[p] - b0[p])))
+#         # np.linalg.lstsq seems less robust but scipy version would be (robust but for the problem size slower) alternative
+#         # data += list(scipy.linalg.lstsq(B.T, Y[p] - A[p].dot(C) - b0[p], check_finite=False)[0])
+#         indptr.append(len(indices))
+#     return spr.csr_matrix((data, indices, indptr), dtype='float32'), b0
+#
 
 def compute_W(Y, A, C, dims, radius):
     """compute background according to ring model
