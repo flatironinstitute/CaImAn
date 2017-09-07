@@ -34,10 +34,12 @@ from ...mmapping import parallel_dot_product
 
 
 #%%
-def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], ssub=2, tsub=2, p=2, p_ssub=2, p_tsub=2,
+def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], gSiz = None, ssub=2, tsub=2, p=2, p_ssub=2, p_tsub=2,
                  thr=0.8, method_init='greedy_roi', nb=1, nb_patch=1, n_pixels_per_process=None, block_size=None,
                  check_nan=True, normalize_init=True, options_local_NMF=None, remove_very_bad_comps=False,
-                 alpha_snmf=10e2, update_background_components=True, low_rank_background=True):
+                 alpha_snmf=10e2, update_background_components=True, 
+                 low_rank_background=True, min_corr = .85, min_pnr = 20, deconvolve_options_init = None,
+                 ring_size_factor = 1.5, center_psf = True):
     """Dictionary for setting the CNMF parameters.
 
     Any parameter that is not set get a default value specified
@@ -252,11 +254,13 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], ssub=2, tsub=2, p=2, p_ssub=
                                     'check_nan': check_nan
 
                                     }
+    
     gSig = gSig if gSig is not None else [-1, -1]
+    
 
     options['init_params'] = {'K': K,                  # number of components
                               'gSig': gSig,                               # size of bounding box
-                              'gSiz': [int(round((x * 2) + 1)) for x in gSig],
+                              'gSiz': [np.int(np.round((x * 2) + 1)) for x in gSig] if gSiz is  None else gSiz,
                               'ssub': ssub,             # spatial downsampling factor
                               'tsub': tsub,             # temporal downsampling factor
                               'nIter': 5,               # number of refinement iterations
@@ -271,7 +275,12 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], ssub=2, tsub=2, p=2, p_ssub=
                               # whether to pixelwise equalize the movies during initialization
                               'normalize_init': normalize_init,
                               # dictionary with parameters to pass to local_NMF initializaer
-                              'options_local_NMF': options_local_NMF
+                              'options_local_NMF': options_local_NMF,
+                              'min_corr': min_corr,
+                              'min_pnr' : min_pnr,
+                              'deconvolve_options_init' : deconvolve_options_init,
+                              'ring_size_factor': ring_size_factor,
+                              'center_psf' : center_psf,                              
                               }
 
     options['spatial_params'] = {

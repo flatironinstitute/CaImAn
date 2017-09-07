@@ -116,7 +116,7 @@ def cnmf_patches(args_in):
 
     if (np.sum(np.abs(np.diff(images.reshape(timesteps, -1).T)))) > 0.1:
 
-        cnm = cnmf.CNMF(n_processes=1, k=options['init_params']['K'], gSig=options['init_params']['gSig'],
+        cnm = cnmf.CNMF(n_processes=1, k=options['init_params']['K'], gSig=options['init_params']['gSig'], gSiz = options['init_params']['gSiz'],
                         merge_thresh=options['merging']['thr'], p=p, dview=None,  Ain=None,  Cin=None,
                         f_in=None, do_merge=True,
                         ssub=options['init_params']['ssub'], tsub=options['init_params']['tsub'],
@@ -133,7 +133,11 @@ def cnmf_patches(args_in):
                         skip_refinement=options['patch_params']['skip_refinement'],
                         options_local_NMF=options['init_params']['options_local_NMF'],
                         normalize_init=options['init_params']['normalize_init'],
-                        remove_very_bad_comps=options['patch_params']['remove_very_bad_comps'],)
+                        remove_very_bad_comps=options['patch_params']['remove_very_bad_comps'],
+                        min_corr = options['init_params']['min_corr'], min_pnr = options['init_params']['min_pnr'],
+                        deconvolve_options_init = options['init_params']['deconvolve_options_init'],
+                        ring_size_factor = options['init_params']['ring_size_factor'],
+                        center_psf = options['init_params']['center_psf'])
         
 
         cnm = cnm.fit(images)

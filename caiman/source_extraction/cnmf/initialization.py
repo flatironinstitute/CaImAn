@@ -47,7 +47,9 @@ if sys.version_info >= (3, 0):
 def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter=5, maxIter=5, nb=1,
                           kernel=None, use_hals=True, normalize_init=True, img=None, method='greedy_roi',
                           max_iter_snmf=500, alpha_snmf=10e2, sigma_smooth_snmf=(.5, .5, .5),
-                          perc_baseline_snmf=20, options_local_NMF=None, **kwargs):
+                          perc_baseline_snmf=20, options_local_NMF=None,
+                          min_corr=0.8, min_pnr=10, deconvolve_options_init = None,
+                          ring_size_factor=1.5,center_psf = True):
     """
     Initalize components
 
@@ -100,7 +102,31 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
 
     alpha_snmf: scalar
         Sparsity penalty
-
+        
+         
+    center_psf: Boolean
+            True indicates centering the filtering kernel for background
+            removal. This is useful for data with large background
+            fluctuations.
+   
+    min_corr: float
+        minimum local correlation coefficients for selecting a seed pixel.
+    
+    
+    min_pnr: float
+        minimum peak-to-noise ratio for selecting a seed pixel.
+    
+    
+    deconvolve_options: dict
+            all options for deconvolving temporal traces, in general just pass options['temporal_params']    
+        
+    ring_size_factor: float
+            it's the ratio between the ring radius and neuron diameters.
+        
+    nb: integer
+        number of background components for approximating the background using NMF model
+    
+    
     Returns:
     --------
 
@@ -118,6 +144,8 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
 
     fin: np.ndarray
         nb x T matrix, initalization of temporal background
+        
+ 
 
     Raise:
     ------
@@ -140,8 +168,9 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
     gSig = np.round(np.asarray(gSig) / ssub).astype(np.int)
     gSiz = np.round(np.asarray(gSiz) / ssub).astype(np.int)
 
-    print('Noise Normalization')
+    
     if normalize_init is True:
+        print('Noise Normalization')
         if img is None:
             img = np.mean(Y, axis=-1)
             img += np.median(img)
@@ -167,7 +196,8 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
             Ain, Cin, b_in, f_in = hals(Y_ds, Ain, Cin, b_in, f_in, maxIter=maxIter)
     elif method == 'corr_pnr':
         Ain, Cin, _, b_in, f_in = greedyROI_corr(Y_ds, max_number=K,
-                                                 gSiz=gSiz[0], gSig=gSig[0], nb=nb, **kwargs)
+                                                 gSiz=gSiz[0], gSig=gSig[0], nb=nb, deconvolve_options= deconvolve_options_init, min_corr = min_corr,
+                                                 min_pnr = min_pnr, ring_size_factor = ring_size_factor, center_psf = center_psf)
 
     elif method == 'sparse_nmf':
         Ain, Cin, _, b_in, f_in = sparseNMF(Y_ds, nr=K, nb=nb, max_iter_snmf=max_iter_snmf, alpha=alpha_snmf,
@@ -210,7 +240,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
 
     K = np.shape(Ain)[-1]
     ds = Y_ds.shape[:-1]
-
+    
     Ain = np.reshape(Ain, ds + (K,), order='F')
 
     if len(ds) == 2:
@@ -688,11 +718,11 @@ def hals(Y, A, C, b, f, bSiz=3, maxIter=5):
     return Ab[:, :-nb], Cf[:-nb], Ab[:, -nb:], Cf[-nb:].reshape(nb, -1)
 
 
-def greedyROI_corr(data, max_number=None, gSiz=15, gSig=None,
-                   center_psf=True, min_corr=0.8, min_pnr=10,
+def greedyROI_corr(data, max_number=None, gSiz=None, gSig=None,
+                   center_psf=True, min_corr=None, min_pnr=None,
                    seed_method='auto', deconvolve_options=None,
-                   min_pixel=3, bd=1, thresh_init=2, save_video=False,
-                   video_name='initialization.mp4', ring_size_factor=1.5, ring_model=False, nb=1):
+                   min_pixel=3, bd=0, thresh_init=2, save_video=False,
+                   video_name='initialization.mp4', ring_size_factor=None, nb=1):
     """
     initialize neurons based on pixels' local correlations and peak-to-noise ratios.
 
@@ -727,29 +757,56 @@ def greedyROI_corr(data, max_number=None, gSiz=15, gSig=None,
     Returns:
 
     """
+    
+    
+    if min_corr is None or min_pnr is None:
+        raise Exception('Either min_corr or min_pnr are None. Both of them must be real numbers.')
 
+#    print([gSig,gSiz,max_number, center_psf,min_corr,min_pixel,min_pnr])
+#    lsls
+#    gSig = 3   # gaussian width of a 2D gaussian kernel, which approximates a neuron 
+#    gSiz = 10  # average diameter of a neuron 
+#    min_corr = 0.8
+#    min_pnr = 10
+#    save_video = False 
+#    import os
+#    if not os.path.exists('tmp'): 
+#        os.mkdir('tmp')
+#    video_name = os.path.join('tmp', 'initialization.mp4')
+#    from caiman.source_extraction.cnmf.initialization import init_neurons_corr_pnr
+#    A, C, _, _, center =  init_neurons_corr_pnr(data.transpose([2,0,1]), max_number=255,gSiz=gSiz, gSig=gSig,
+#                       center_psf=True, min_corr=min_corr, min_pnr=min_pnr, swap_dim = False, save_video = save_video,
+#                                                    video_name = video_name, min_pixel=3)    
     A, C, _, _, center = init_neurons_corr_pnr(data, max_number = max_number, gSiz = gSiz, gSig = gSig,
                                                center_psf = center_psf, min_corr = min_corr, min_pnr = min_pnr,
                                                seed_method = seed_method, deconvolve_options = deconvolve_options,
                                                min_pixel = min_pixel, bd = bd, thresh_init = thresh_init,
                                                swap_dim = True, save_video = save_video, video_name = video_name)
 
+#    import caiman as cm
+#    cn_raw = cm.summary_images.local_correlations_fft(data.transpose([2,0,1]), swap_dim=False)
+#    _ = cm.utils.visualization.plot_contours(A, cn_raw.T, thr=0.9)
+#    plt.ginput()
+#    plt.close()
+    
     d1, d2, total_frames = data.shape
 
     B = data.reshape((-1, total_frames), order='F') - A.dot(C)
-    if ring_model:
+    
+    if ring_size_factor is not None:
         W, b0 = compute_W(data.reshape((-1, total_frames), order='F'),
-                          A, C, (d1, d2), int(np.round(ring_size_factor * g_size)))
+                          A, C, (d1, d2), int(np.round(ring_size_factor * gSiz)))
+        
         B = b0[:, None] + W.dot(B - b0[:, None])        
-        R = data - A.dot(C) - B
-        if max_number is not None:
-            max_number -= A.shape[-1]
-            
-        A_R, C_R, _, _, center_R = init_neurons_corr_pnr(R, max_number = max_number, gSiz = gSiz, gSig = gSig,
-                                               center_psf = center_psf, min_corr = min_corr, min_pnr = min_pnr,
-                                               seed_method = seed_method, deconvolve_options = deconvolve_options,
-                                               min_pixel = min_pixel, bd = bd, thresh_init = thresh_init,
-                                               swap_dim = True, save_video = save_video, video_name = video_name)
+#        R = data - A.dot(C) - B
+#        if max_number is not None:
+#            max_number -= A.shape[-1]
+#            
+#        A_R, C_R, _, _, center_R = init_neurons_corr_pnr(R, max_number = max_number, gSiz = gSiz, gSig = gSig,
+#                                               center_psf = center_psf, min_corr = min_corr, min_pnr = min_pnr,
+#                                               seed_method = seed_method, deconvolve_options = deconvolve_options,
+#                                               min_pixel = min_pixel, bd = bd, thresh_init = thresh_init,
+#                                               swap_dim = True, save_video = save_video, video_name = video_name)
         
         
 
@@ -762,8 +819,8 @@ def greedyROI_corr(data, max_number=None, gSiz=15, gSig=None,
     b_in = model.fit_transform(np.maximum(B, 0))
     f_in = model.components_.squeeze()
 
-    
-    return A, C, center.T, b_in, f_in
+    A = A.reshape((d1, d2,A.shape[-1])).transpose([1,0,2]).reshape((d1*d2,A.shape[-1])),
+    return  A, C, center.T, b_in, f_in
 
 
 def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
@@ -846,7 +903,7 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
     # parameters
     if swap_dim:
         d1, d2, total_frames = data.shape
-        data_raw = np.transpose(data, [2, 0, 1]).astype('float32')
+        data_raw = np.transpose(data.copy(), [2, 0, 1]).astype('float32')
     else:
         total_frames, d1, d2 = data.shape
         data_raw = data.copy().astype('float32')
@@ -894,11 +951,14 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
 
     # pixels near the boundaries are ignored because of artifacts
     ind_bd = np.zeros(shape=(d1, d2)).astype(np.bool)  # indicate boundary pixels
-    ind_bd[:bd, :] = True
-    ind_bd[-bd:, :] = True
-    ind_bd[:, :bd] = True
-    ind_bd[:, -bd:] = True
+    if bd > 0:
+        ind_bd[:bd, :] = True
+        ind_bd[-bd:, :] = True
+        ind_bd[:, :bd] = True
+        ind_bd[:, -bd:] = True
+        
     ind_search[ind_bd] = 1
+   
 
     # creating variables for storing the results
     if not max_number:

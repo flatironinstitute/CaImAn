@@ -59,14 +59,15 @@ class CNMF(object):
     @author andrea giovannucci
     """
 
-    def __init__(self, n_processes, k=5, gSig=[4, 4], merge_thresh=0.8, p=2, dview=None,
+    def __init__(self, n_processes, k=5, gSig=[4, 4], gSiz = None, merge_thresh=0.8, p=2, dview=None,
                  Ain=None, Cin=None, b_in=None, f_in=None, do_merge=True,
                  ssub=2, tsub=2, p_ssub=1, p_tsub=1, method_init='greedy_roi', alpha_snmf=None,
                  rf=None, stride=None, memory_fact=1, gnb=1, nb_patch=1, only_init_patch=False,
                  method_deconvolution='oasis', n_pixels_per_process=4000, block_size=20000,
                  check_nan=True, skip_refinement=False, normalize_init=True, options_local_NMF=None,
                  remove_very_bad_comps=False, border_pix=0, low_rank_background=True,
-                 update_background_components=True):
+                 update_background_components=True, min_corr = .85, min_pnr = 20,
+                 deconvolve_options_init = None, ring_size_factor = 1.5, center_psf = True):
         """
         Constructor of the CNMF method
 
@@ -173,6 +174,19 @@ class CNMF(object):
 
         update_background_components:bool
             whether to update the background components during the spatial phase
+            
+        min_corr: float
+            minimal correlation peak for 1-photon imaging initialization
+            
+        min_pnr: float
+            minimal peak  to noise ratio for 1-photon imaging initialization
+            
+         deconvolve_options: dict
+            all options for deconvolving temporal traces, in general just pass options['temporal_params']    
+        
+        ring_size_factor: float
+            it's the ratio between the ring radius and neuron diameters.    
+            
 
         Returns:
         --------
@@ -181,6 +195,8 @@ class CNMF(object):
 
         self.k = k  # number of neurons expected per FOV (or per patch if patches_pars is not None
         self.gSig = gSig  # expected half size of neurons
+        self.gSiz = gSiz  # expected half size of neurons
+
         self.merge_thresh = merge_thresh  # merging threshold, max correlation allowed
         self.p = p  # order of the autoregressive system
         self.dview = dview
@@ -223,8 +239,14 @@ class CNMF(object):
         self.border_pix = border_pix
         self.low_rank_background = low_rank_background
         self.update_background_components = update_background_components
+        self.min_corr = min_corr 
+        self.min_pnr = min_pnr 
+        self.deconvolve_options_init = deconvolve_options_init
+        self.ring_size_factor = ring_size_factor 
+        self.center_psf = center_psf
+        self.nb_patch = nb_patch
         
-        self.options = CNMFSetParms((512, 512, 1000), n_processes, p=p, gSig=gSig, K=k,
+        self.options = CNMFSetParms((512, 512, 1000), n_processes, p=p, gSig=gSig, gSiz = gSiz, K=k,
                                     ssub=ssub, tsub=tsub, p_ssub=p_ssub, p_tsub=p_tsub,
                                     method_init=method_init,
                                     n_pixels_per_process=n_pixels_per_process,
@@ -233,7 +255,9 @@ class CNMF(object):
                                     options_local_NMF=options_local_NMF,
                                     remove_very_bad_comps=remove_very_bad_comps,
                                     low_rank_background=low_rank_background,
-                                    update_background_components=update_background_components)
+                                    update_background_components=update_background_components, 
+                                    min_corr= min_corr, min_pnr = min_pnr, deconvolve_options_init = deconvolve_options_init,
+                                    ring_size_factor=ring_size_factor, center_psf = center_psf)
 
     def fit(self, images):
         """

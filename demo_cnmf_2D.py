@@ -94,18 +94,30 @@ s_cn_max.on_changed(update)
 s_cn_min.on_changed(update)
 s_pnr_max.on_changed(update)
 s_pnr_min.on_changed(update)
+
 #%%
-# INIT patches
-cnm = cnmf.CNMF(2, method_init='corr_pnr', k=None, gSig=(3,3), merge_thresh=.8,
+cnm = cnmf.CNMF(n_processes = 2, method_init='corr_pnr', k=8, gSig=(3,3), gSiz = (10,10), merge_thresh=.8,
                 p=1, dview=None, tsub=1, ssub=1, Ain=None, rf=(20,20), stride=(10,10),
                 only_init_patch=True, gnb=10, nb_patch=3, method_deconvolution='oasis', 
-                low_rank_background=False, update_background_components=False)
+                low_rank_background=False, update_background_components=False, min_corr = .8, 
+                min_pnr = 10, normalize_init = False, deconvolve_options_init = None, 
+                ring_size_factor = None, center_psf = True)
+
+
 #%%
-cnm.options['init_params']['gSiz'] = (10, 10)
-cnm.options['init_params']['gSig'] = (3, 3)
-cnm.options['init_params']['min_corr'] = .85
-cnm.options['init_params']['min_pnr'] = 20
-cnm.options['init_params']['normalize_init']=False
+cnm = cnmf.CNMF(n_processes = 2, method_init='corr_pnr', k=80, gSig=(3,3), gSiz = (10,10), merge_thresh=.8,
+                p=1, dview=None, tsub=1, ssub=1, Ain=None, rf=(64,64), stride=(0,0),
+                only_init_patch=True, gnb=10, nb_patch=3, method_deconvolution='oasis', 
+                low_rank_background=False, update_background_components=False, min_corr = .8, 
+                min_pnr = 10, normalize_init = False, deconvolve_options_init = None, 
+                ring_size_factor = None, center_psf = True)
+
+#%%
+#cnm.options['init_params']['gSiz'] = (10, 10)
+#cnm.options['init_params']['gSig'] = (3, 3)
+#cnm.options['init_params']['min_corr'] = .85
+#cnm.options['init_params']['min_pnr'] = 20
+#cnm.options['init_params']['normalize_init']=False
 #%%
 memmap = True  # must be True for patches
 if memmap:
@@ -115,3 +127,6 @@ if memmap:
 else:
     cnm.fit(Y)
 #%%    
+crd = cm.utils.visualization.plot_contours(cnm.A, cn_filter, thr=.99, vmax = 0.95)
+#%%
+plt.imshow(cnm.A.sum(-1).reshape(dims,order='F'))
