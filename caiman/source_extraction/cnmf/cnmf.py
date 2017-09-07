@@ -223,6 +223,7 @@ class CNMF(object):
         self.border_pix = border_pix
         self.low_rank_background = low_rank_background
         self.update_background_components = update_background_components
+        
         self.options = CNMFSetParms((512, 512, 1000), n_processes, p=p, gSig=gSig, K=k,
                                     ssub=ssub, tsub=tsub, p_ssub=p_ssub, p_tsub=p_tsub,
                                     method_init=method_init,
@@ -373,7 +374,7 @@ class CNMF(object):
             options['temporal_params']['method'] = self.method_deconvolution
 
             C, A, b, f, S, bl, c1, neurons_sn, g, YrA = update_temporal_components(
-                Yr, A, b, Cin, self.f_in, dview=self.dview, **options['temporal_params'])
+                Yr, A, b, Cin, self.f_in, dview=self.dview, **ß['temporal_params'])
 
             if not self.skip_refinement:
                 print('refinement...')
@@ -416,7 +417,8 @@ class CNMF(object):
             A, C, YrA, b, f, sn, optional_outputs = run_CNMF_patches(images.filename, dims + (T,),
                                                                      options, rf=self.rf, stride=self.stride,
                                                                      dview=self.dview, memory_fact=self.memory_fact,
-                                                                     gnb=self.gnb, border_pix=self.border_pix, low_rank_background=self.low_rank_background)
+                                                                     gnb=self.gnb, border_pix=self.border_pix, 
+                                                                     low_rank_background=self.low_rank_background)
 
             # options = CNMFSetParms(Y, self.n_processes, p=self.p, gSig=self.gSig, K=A.shape[
             #                        -1], thr=self.merge_thresh, n_pixels_per_process=self.n_pixels_per_process,

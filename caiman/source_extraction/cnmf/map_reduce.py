@@ -133,7 +133,8 @@ def cnmf_patches(args_in):
                         skip_refinement=options['patch_params']['skip_refinement'],
                         options_local_NMF=options['init_params']['options_local_NMF'],
                         normalize_init=options['init_params']['normalize_init'],
-                        remove_very_bad_comps=options['patch_params']['remove_very_bad_comps'])
+                        remove_very_bad_comps=options['patch_params']['remove_very_bad_comps'],)
+        
 
         cnm = cnm.fit(images)
         return idx_, shapes, scipy.sparse.coo_matrix(cnm.A),\

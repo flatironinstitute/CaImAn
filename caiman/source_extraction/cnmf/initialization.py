@@ -728,24 +728,41 @@ def greedyROI_corr(data, max_number=None, gSiz=15, gSig=None,
 
     """
 
-    A, C, _, _, center = init_neurons_corr_pnr(data, max_number, gSiz, gSig,
-                                               center_psf, min_corr, min_pnr,
-                                               seed_method, deconvolve_options,
-                                               min_pixel, bd, thresh_init,
-                                               False, save_video, video_name)
+    A, C, _, _, center = init_neurons_corr_pnr(data, max_number = max_number, gSiz = gSiz, gSig = gSig,
+                                               center_psf = center_psf, min_corr = min_corr, min_pnr = min_pnr,
+                                               seed_method = seed_method, deconvolve_options = deconvolve_options,
+                                               min_pixel = min_pixel, bd = bd, thresh_init = thresh_init,
+                                               swap_dim = True, save_video = save_video, video_name = video_name)
 
-    d1, d2, total_frame = data.shape
+    d1, d2, total_frames = data.shape
 
     B = data.reshape((-1, total_frames), order='F') - A.dot(C)
     if ring_model:
         W, b0 = compute_W(data.reshape((-1, total_frames), order='F'),
                           A, C, (d1, d2), int(np.round(ring_size_factor * g_size)))
-        B = b0[:, None] + W.dot(B - b0[:, None])
+        B = b0[:, None] + W.dot(B - b0[:, None])        
+        R = data - A.dot(C) - B
+        if max_number is not None:
+            max_number -= A.shape[-1]
+            
+        A_R, C_R, _, _, center_R = init_neurons_corr_pnr(R, max_number = max_number, gSiz = gSiz, gSig = gSig,
+                                               center_psf = center_psf, min_corr = min_corr, min_pnr = min_pnr,
+                                               seed_method = seed_method, deconvolve_options = deconvolve_options,
+                                               min_pixel = min_pixel, bd = bd, thresh_init = thresh_init,
+                                               swap_dim = True, save_video = save_video, video_name = video_name)
+        
+        
 
+ 
+        
+        
+    
+    
     model = NMF(n_components=nb)  # , init='random', random_state=0)
     b_in = model.fit_transform(np.maximum(B, 0))
     f_in = model.components_.squeeze()
 
+    
     return A, C, center.T, b_in, f_in
 
 
@@ -829,7 +846,7 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
     # parameters
     if swap_dim:
         d1, d2, total_frames = data.shape
-        data_raw = data.transpose(data, [2, 0, 1]).astype('float32')
+        data_raw = np.transpose(data, [2, 0, 1]).astype('float32')
     else:
         total_frames, d1, d2 = data.shape
         data_raw = data.copy().astype('float32')
