@@ -785,14 +785,16 @@ def greedyROI_corr(data, max_number=None, gSiz=None, gSig=None, center_psf=True,
     B = data.reshape((-1, total_frames), order='F') - A.dot(C)
 
     if ring_size_factor is not None:
+        # background according to ringmodel
         W, b0 = compute_W(data.reshape((-1, total_frames), order='F'),
                           A, C, (d1, d2), int(np.round(ring_size_factor * gSiz)))
-
         B = b0[:, None] + W.dot(B - b0[:, None])
+
+        # find more neurons in residual
         R = data - (A.dot(C) + B).reshape(data.shape, order='F')
-        plt.imshow(np.std(B, -1).reshape((d1, d2), order='F'))
-        plt.show()
-        if max_number is None or max_number > A.shape[-1]:
+        if max_number is not None: 
+            max_number -= A.shape[-1]
+        if max_number is not 0:
             A_R, C_R, _, _, center_R = init_neurons_corr_pnr(
                 R, max_number=max_number, gSiz=gSiz, gSig=gSig,
                 center_psf=center_psf, min_corr=min_corr, min_pnr=min_pnr,
@@ -811,6 +813,11 @@ def greedyROI_corr(data, max_number=None, gSiz=None, gSig=None, center_psf=True,
             b_in=np.zeros((d1 * d2, 0), np.float32),
             dview=None, **options['spatial_params'])
         A = A.toarray()
+        
+        # background according to ringmodel
+        W, b0 = compute_W(data.reshape((-1, total_frames), order='F'),
+                          A, C, (d1, d2), int(np.round(ring_size_factor * gSiz)))
+        B = b0[:, None] + W.dot(B - b0[:, None])
 
     model = NMF(n_components=nb)  # , init='random', random_state=0)
     b_in = model.fit_transform(np.maximum(B, 0))

@@ -27,6 +27,8 @@ import bokeh.plotting as bpl
 from bokeh.models import CustomJS, ColumnDataSource, Range1d
 from bokeh.io import output_notebook, reset_output
 import os 
+import scipy
+
 #%%
 def show_img(ax, img): 
     from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -94,15 +96,16 @@ s_cn_max.on_changed(update)
 s_cn_min.on_changed(update)
 s_pnr_max.on_changed(update)
 s_pnr_min.on_changed(update)
-
 #%%
-cnm = cnmf.CNMF(n_processes = 2, method_init='corr_pnr', k=10, gSig=(3,3), gSiz = (10,10), merge_thresh=.8,
-                p=1, dview=None, tsub=1, ssub=1, Ain=None, rf=(15,15), stride=(10,10),
+c, dview, n_processes = cm.cluster.setup_cluster(
+    backend='local', n_processes=None, single_thread=False)
+#%%
+cnm = cnmf.CNMF(n_processes = 2, method_init='corr_pnr', k=20, gSig=(3,3), gSiz = (10,10), merge_thresh=.8,
+                p=1, dview=dview, tsub=1, ssub=1, Ain=None, rf=(25,25), stride=(10,10),
                 only_init_patch=True, gnb=10, nb_patch=3, method_deconvolution='oasis', 
                 low_rank_background=False, update_background_components=False, min_corr = .8, 
                 min_pnr = 10, normalize_init = False, deconvolve_options_init = None, 
                 ring_size_factor = 1.5, center_psf = True)
-
 
 #%%
 cnm = cnmf.CNMF(n_processes = 2, method_init='corr_pnr', k=155, gSig=(3,3), gSiz = (10,10), merge_thresh=.8,
@@ -126,7 +129,37 @@ if memmap:
     cnm.fit(Yr.T.reshape((T,) + dims, order='F'))
 else:
     cnm.fit(Y)
-#%%    
-crd = cm.utils.visualization.plot_contours(cnm.A, cn_filter, thr=.99, vmax = 0.95)
 #%%
-plt.imshow(cnm.A.sum(-1).reshape(dims,order='F'))
+A, C, b, f, YrA, sn = cnm.A, cnm.C, cnm.b, cnm.f, cnm.YrA, cnm.sn
+
+#%%    
+crd = cm.utils.visualization.plot_contours(A, cn_filter, thr=.99, vmax = 0.95)
+#%%
+plt.imshow(A.sum(-1).reshape(dims,order='F'))
+# %% DISCARD LOW QUALITY COMPONENT
+final_frate = 10
+r_values_min = 0.1  # threshold on space consistency
+fitness_min = - 10  # threshold on time variability
+# threshold on time variability (if nonsparse activity)
+fitness_delta_min = - 10
+Npeaks = 10
+traces = C + YrA
+# TODO: todocument
+idx_components, idx_components_bad = cm.components_evaluation.estimate_components_quality(
+    traces, Yr, A, C, b, f, final_frate=final_frate, Npeaks=Npeaks, r_values_min=r_values_min,
+    fitness_min=fitness_min, fitness_delta_min=fitness_delta_min)
+
+print(('Keeping ' + str(len(idx_components)) + ' and discarding  ' + str(len(idx_components_bad))))
+#%%
+# TODO: show screenshot 14
+pl.subplot(1, 2, 1)
+crd = cm.utils.visualization.plot_contours(A.tocsc()[:, idx_components], cn_filter, thr=.99)
+pl.subplot(1, 2, 2)
+crd = cm.utils.visualization.plot_contours(A.tocsc()[:, idx_components_bad], cn_filter, thr=.99)
+#%%
+cm.utils.visualization.view_patches_bar(Yr, scipy.sparse.coo_matrix(A.tocsc()[:, idx_components]), C[
+                               idx_components, :], b, f, dims[0], dims[1], YrA=YrA[idx_components, :], img=cn_filter)
+#%%
+cm.utils.visualization.view_patches_bar(Yr, scipy.sparse.coo_matrix(A.tocsc()[:, idx_components_bad]), C[
+                               idx_components_bad, :], b, f, dims[0], dims[1], YrA=YrA[idx_components_bad, :], img=cn_filter)    
+    
