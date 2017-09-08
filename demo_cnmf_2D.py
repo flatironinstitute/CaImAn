@@ -96,21 +96,21 @@ s_pnr_max.on_changed(update)
 s_pnr_min.on_changed(update)
 
 #%%
-cnm = cnmf.CNMF(n_processes = 2, method_init='corr_pnr', k=8, gSig=(3,3), gSiz = (10,10), merge_thresh=.8,
-                p=1, dview=None, tsub=1, ssub=1, Ain=None, rf=(20,20), stride=(10,10),
+cnm = cnmf.CNMF(n_processes = 2, method_init='corr_pnr', k=10, gSig=(3,3), gSiz = (10,10), merge_thresh=.8,
+                p=1, dview=None, tsub=1, ssub=1, Ain=None, rf=(15,15), stride=(10,10),
                 only_init_patch=True, gnb=10, nb_patch=3, method_deconvolution='oasis', 
                 low_rank_background=False, update_background_components=False, min_corr = .8, 
                 min_pnr = 10, normalize_init = False, deconvolve_options_init = None, 
-                ring_size_factor = None, center_psf = True)
+                ring_size_factor = 1.5, center_psf = True)
 
 
 #%%
-cnm = cnmf.CNMF(n_processes = 2, method_init='corr_pnr', k=80, gSig=(3,3), gSiz = (10,10), merge_thresh=.8,
+cnm = cnmf.CNMF(n_processes = 2, method_init='corr_pnr', k=1, gSig=(3,3), gSiz = (10,10), merge_thresh=.8,
                 p=1, dview=None, tsub=1, ssub=1, Ain=None, rf=(64,64), stride=(0,0),
                 only_init_patch=True, gnb=10, nb_patch=3, method_deconvolution='oasis', 
                 low_rank_background=False, update_background_components=False, min_corr = .8, 
                 min_pnr = 10, normalize_init = False, deconvolve_options_init = None, 
-                ring_size_factor = None, center_psf = True)
+                ring_size_factor = 1.5, center_psf = True)
 
 #%%
 #cnm.options['init_params']['gSiz'] = (10, 10)

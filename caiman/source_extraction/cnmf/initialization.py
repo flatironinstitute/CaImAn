@@ -788,14 +788,19 @@ def greedyROI_corr(data, max_number=None, gSiz=None, gSig=None,
 #    plt.close()
 
     d1, d2, total_frames = data.shape
-
+    A = A.reshape((d1, d2, A.shape[-1])).transpose([1, 0, 2]).reshape((d1*d2, A.shape[-1]))
     B = data.reshape((-1, total_frames), order='F') - A.dot(C)
-
+    
     if ring_size_factor is not None:
         W, b0 = compute_W(data.reshape((-1, total_frames), order='F'),
                           A, C, (d1, d2), int(np.round(ring_size_factor * gSiz)))
 
         B = b0[:, None] + W.dot(B - b0[:, None])
+        scipy.io.savemat('1p_demo_python_initialization.mat',{'B':B,'A':A,'C':C})
+        import pylab as pl
+        pl.imshow(np.std(B,-1).reshape([d1,d2],order = 'F'),vmin = 9, vmax = 18.5);pl.pause(10)
+        import pdb
+        pdb.set_trace()
 #        R = data - A.dot(C) - B
 #        if max_number is not None:
 #            max_number -= A.shape[-1]
@@ -810,7 +815,7 @@ def greedyROI_corr(data, max_number=None, gSiz=None, gSig=None,
     b_in = model.fit_transform(np.maximum(B, 0))
     f_in = model.components_.squeeze()
 
-    A = A.reshape((d1, d2, A.shape[-1])).transpose([1, 0, 2]).reshape((d1*d2, A.shape[-1])),
+    
     return A, C, center.T, b_in, f_in
 
 
