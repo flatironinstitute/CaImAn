@@ -789,7 +789,7 @@ def greedyROI_corr(data, max_number=None, gSiz=None, gSig=None,
 #    plt.close()
 
     d1, d2, total_frames = data.shape
-    A = A.reshape((d1, d2, A.shape[-1])).transpose([1, 0, 2]).reshape((d1*d2, A.shape[-1]))
+#    A = A.reshape((d1, d2, A.shape[-1])).transpose([1, 0, 2]).reshape((d1*d2, A.shape[-1]))
     B = data.reshape((-1, total_frames), order='F') - A.dot(C)
     
     if ring_size_factor is not None:
@@ -798,8 +798,8 @@ def greedyROI_corr(data, max_number=None, gSiz=None, gSig=None,
 
         B = b0[:, None] + W.dot(B - b0[:, None])
         R = data - (A.dot(C) + B).reshape(data.shape, order='F')
-#        plt.imshow(R.mean(-1))
-#        plt.show()
+        plt.imshow(np.std(B,-1).reshape((d1,d2),order = 'F'))
+        plt.show()
         if max_number is None or max_number > A.shape[-1]:
             A_R, C_R, _, _, center_R = init_neurons_corr_pnr(
                 R, max_number=max_number, gSiz=gSiz, gSig=gSig,
@@ -1184,7 +1184,7 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
 
     print('In total, ', num_neurons, 'neurons were initialized.')
     # A = np.reshape(Ain[:num_neurons], (-1, d1 * d2)).transpose()
-    A = np.reshape(Ain[:num_neurons], (-1, d1 * d2)).transpose()
+    A = np.reshape(Ain[:num_neurons], (-1, d1 * d2), order = 'F').transpose()
     C = Cin[:num_neurons]
     C_raw = Cin_raw[:num_neurons]
     S = Sin[:num_neurons]

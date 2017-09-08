@@ -105,7 +105,7 @@ cnm = cnmf.CNMF(n_processes = 2, method_init='corr_pnr', k=10, gSig=(3,3), gSiz 
 
 
 #%%
-cnm = cnmf.CNMF(n_processes = 2, method_init='corr_pnr', k=255, gSig=(3,3), gSiz = (10,10), merge_thresh=.8,
+cnm = cnmf.CNMF(n_processes = 2, method_init='corr_pnr', k=155, gSig=(3,3), gSiz = (10,10), merge_thresh=.8,
                 p=1, dview=None, tsub=1, ssub=1, Ain=None, rf=(64,64), stride=(0,0),
                 only_init_patch=True, gnb=10, nb_patch=3, method_deconvolution='oasis', 
                 low_rank_background=False, update_background_components=False, min_corr = .8, 
