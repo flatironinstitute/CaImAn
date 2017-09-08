@@ -218,6 +218,7 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
         print('eliminating {} empty spatial components'.format(len(ff)))
         A_ = np.delete(A_, list(ff[ff<nr]), 1)
         C = np.delete(C, list(ff[ff<nr]), 0)
+        nr = nr - len(ff[ff<nr])
         if low_rank_background:
             background_ff = list(filter(lambda i: i >= nb, ff - nr))
             f = np.delete(f, background_ff, 0)            
@@ -1189,9 +1190,15 @@ def computing_indicator(Y,A_in,b,C,f,nb,method,dims,min_size,max_size,dist,expan
         if C is None:  # if C is none we approximate C, b and f from the binary mask
             dist_indicator_av = old_div(dist_indicator.astype('float32'), np.sum(dist_indicator.astype('float32'), axis=0))
             px = (np.sum(dist_indicator,axis = 1)>0);
-            not_px = np.setdiff1d(np.arange(np.prod(dims)),px)
-
-            f = np.mean(Y[not_px ,:],0)
+            not_px = 1-px
+            if Y.shape[-1]<30000:
+                f = Y[not_px ,:].mean(0)
+            else:# momory mapping fails here for some reasons
+                print('estimating f')
+                f = 0
+                for xxx in not_px:                    
+                    f = (f+Y[xxx])/2
+                
             f = np.atleast_2d(f)
 
             Y_resf = np.dot(Y, f.T)

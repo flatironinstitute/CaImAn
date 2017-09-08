@@ -438,10 +438,12 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1, 
 
     rho = imblur(Y, sig=gSig, siz=gSiz, nDimBlur=Y.ndim - 1, kernel=kernel)
     if rolling_sum:
+        print('USING ROLLING SUM FOR INITIALIZATION....')
         rolling_filter = np.ones((rolling_length))/rolling_length
         rho_s = scipy.signal.lfilter(rolling_filter,1.,rho**2)
         v = np.amax(rho_s,axis=-1)
     else:
+        print('USING TOTAL SUM FOR INITIALIZATION....')
         v = np.sum(rho**2, axis=-1)
 
     for k in range(nr):

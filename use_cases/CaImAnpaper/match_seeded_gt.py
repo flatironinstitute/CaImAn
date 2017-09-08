@@ -458,3 +458,17 @@ pl.subplot(1, 3, 2)
 crd = pl.imshow(A_unmatched[()].sum(1).reshape(dims,order='F'), vmax = A_unmatched[()].max()*.2)    
 pl.subplot(1, 3, 3)
 crd = pl.imshow(A_negative[()].sum(1).reshape(dims,order='F'), vmax = A_negative[()].max()*.2)    
+#%%
+masks_sue = scipy.io.loadmat('/mnt/xfs1/home/agiovann/Downloads/yuste_sue_masks.mat')
+    
+#%%
+with h5py.File('/mnt/xfs1/home/agiovann/Downloads/yuste_1.protoroi.mat')as f:
+    print(f.keys())
+    print(list(f['repository']))
+    proto = f['prototypes']
+    print(list(proto['params']))
+    print(proto.keys())
+    spatial = proto['spatial']
+    print(spatial.keys())
+    locals().update((dict(spatial.attrs.iteritems())))
+    locals().update({k:np.array(l) for k,l in spatial.iteritems()})

@@ -1296,7 +1296,7 @@ def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None,
 
 def load_movie_chain(file_list, fr=30, start_time=0,
                      meta_data=None, subindices=None,
-                     bottom=0, top=0, left=0, right=0):
+                     bottom=0, top=0, left=0, right=0, channel = None):
     """ load movies from list of file names
 
     Parameters:
@@ -1319,8 +1319,15 @@ def load_movie_chain(file_list, fr=30, start_time=0,
     for f in tqdm(file_list):
         m = load(f, fr=fr, start_time=start_time,
                  meta_data=meta_data, subindices=subindices, in_memory = True)
+        if channel is not None:
+            print(m.shape)
+            m = m[channel].squeeze()
+            print(m.shape)
+            
+            
         if m.ndim == 2:
             m = m[np.newaxis, :, :]
+        
         tm, h, w = np.shape(m)
         m = m[:, top:h-bottom, left:w-right]
         mov.append(m)
