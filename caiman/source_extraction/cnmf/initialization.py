@@ -43,7 +43,7 @@ if sys.version_info >= (3, 0):
         return iter(range(*args, **kwargs))
 
 
-def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter=5, maxIter=5, nb=1,
+def initialize_components(Y, sn = None, options_total = None, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter=5, maxIter=5, nb=1,
                           kernel=None, use_hals=True, normalize_init=True, img=None, method='greedy_roi',
                           max_iter_snmf=500, alpha_snmf=10e2, sigma_smooth_snmf=(.5, .5, .5),
                           perc_baseline_snmf=20, options_local_NMF=None,
@@ -125,7 +125,12 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
     nb: integer
         number of background components for approximating the background using NMF model
 
-
+    sn: ndarray
+        per pixel noise
+        
+    options_total: dict
+        the option dictionary
+        
     Returns:
     --------
 

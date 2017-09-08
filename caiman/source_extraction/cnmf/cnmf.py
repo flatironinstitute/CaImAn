@@ -339,7 +339,7 @@ class CNMF(object):
                     options['init_params']['alpha_snmf'] = self.alpha_snmf
 
                 self.Ain, self.Cin, self.b_in, self.f_in, center = initialize_components(
-                    Y, **options['init_params'])
+                    Y, sn = sn, options_total = options, **options['init_params'])
 
             if self.only_init:  # only return values after initialization
 
