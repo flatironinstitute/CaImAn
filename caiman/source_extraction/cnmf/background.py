@@ -124,7 +124,7 @@ if sys.version_info >= (3, 0):
 #     return spr.csr_matrix((data, indices, indptr), dtype='float32'), b0
 #
 
-def compute_W(Y, A, C, dims, radius, data_fits_in_memory=False):
+def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True):
     """compute background according to ring model
     solves the problem
         min_{W,b0} ||X-W*X|| with X = Y - A*C - b0*1'

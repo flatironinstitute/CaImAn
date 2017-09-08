@@ -399,7 +399,7 @@ def update_iteration (parrllcomp, len_parrllcomp, nb,C, S, bl, nr,
         if dview is not None:
             dview.results.clear()
 
-        if old_div(scipy.linalg.norm(Cin - C, 'fro'), scipy.linalg.norm(C, 'fro')) <= 1e-3:
+        if scipy.linalg.norm(Cin - C, 'fro') <= 1e-3 * scipy.linalg.norm(C, 'fro'):
             print("stopping: overall temporal component not changing significantly")
             break
         else: #we keep Cin and do the iteration once more

@@ -154,21 +154,22 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
     Exception("Failed to delete: " + folder)
     """
     print('Initializing update of Spatial Components')
-    
 
     if expandCore is None:
         expandCore = iterate_structure(generate_binary_structure(2, 1), 2).astype(int)
-    
+
     if dims is None:
         raise Exception('You need to define the input dimensions')
 
     # shape transformation and tests
-    Y, A_in, C, f, n_pixels_per_process,rank_f,d,T = test(Y, A_in, C, f, n_pixels_per_process,nb)
+    Y, A_in, C, f, n_pixels_per_process, rank_f, d, T = test(
+        Y, A_in, C, f, n_pixels_per_process, nb)
 
     start_time = time.time()
     print('computing the distance indicators')
-    #we compute the indicator from distance indicator
-    ind2_, nr, C, f, b_, A_in = computing_indicator(Y,A_in,C,f,nb,method,dims,min_size,max_size,dist,expandCore,dview)#
+    # we compute the indicator from distance indicator
+    ind2_, nr, C, f, b_, A_in = computing_indicator(
+        Y, A_in, C, f, nb, method, dims, min_size, max_size, dist, expandCore, dview)
     if normalize_yyt_one and C is not None:
         C = np.array(C)
         nr_C = np.shape(C)[0]
@@ -176,10 +177,10 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
         d_.setdiag(np.sqrt(np.sum(C ** 2, 1)))
         A_in = A_in * d_
         C = old_div(C, np.sqrt(np.sum(C ** 2, 1)[:, np.newaxis]))
- 
+
     if b_in is None:
         b_in = b_
-    
+
     print('memmaping')
     # we create a memory map file if not already the case, we send Cf, a
     # matrix that include background components
@@ -201,12 +202,11 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
         dview.results.clear()
     else:
         parallel_result = list(map(regression_ipyparallel, pixel_groups))
-    
+
     for chunk in parallel_result:
         for pars in chunk:
             px, idxs_, a = pars
             A_[px, idxs_] = a
-   
 
     print("thresholding components")
     A_ = threshold_components(A_, dims, dview=dview, medw=medw, thr_method=thr_method,
@@ -360,7 +360,8 @@ def regression_ipyparallel(pars):
                 a = nnls_L0(c.T, y, 1.2 * sn)
 
             elif method_least_square == 'lasso_lars':  # lasso lars function from scikit learn
-                lambda_lasso = .5 * noise_sn[px] * np.sqrt(np.max(cct_)) / T
+                lambda_lasso = 0 if np.size(cct_) == 0 else \
+                    .5 * noise_sn[px] * np.sqrt(np.max(cct_)) / T
                 clf = linear_model.LassoLars(alpha=lambda_lasso, positive=True)
                 a_lrs = clf.fit(np.array(c.T), np.ravel(y))
                 a = a_lrs.coef_
@@ -1090,12 +1091,12 @@ def test(Y, A_in, C, f, n_pixels_per_process, nb):
 
     if A_in is None:
         A_in = np.ones((d, np.shape(C)[1]), dtype=bool)
-    
+
     if n_pixels_per_process > d:
         print('The number of pixels per process (n_pixels_per_process)'
               ' is larger than the total number of pixels!! Decreasing suitably.')
         n_pixels_per_process = d
-    
+
     if f is not None:
         nb = f.shape[0]
 
@@ -1174,19 +1175,19 @@ def computing_indicator(Y, A_in, C, f, nb, method, dims, min_size, max_size, dis
         print("spatial support for each components given by the user")
         # we compute C,B,f,Y if we have boolean for A matrix
         if C is None:  # if C is none we approximate C, b and f from the binary mask
-            dist_indicator_av = old_div(dist_indicator.astype('float32'), np.sum(dist_indicator.astype('float32'), axis=0))
-            px = (np.sum(dist_indicator,axis = 1)>0);
-            not_px = np.setdiff1d(np.arange(np.prod(dims)),px)
+            dist_indicator_av = old_div(dist_indicator.astype(
+                'float32'), np.sum(dist_indicator.astype('float32'), axis=0))
+            px = (np.sum(dist_indicator, axis=1) > 0)
+            not_px = np.setdiff1d(np.arange(np.prod(dims)), px)
 
-            f = np.mean(Y[not_px ,:],0)
+            f = np.mean(Y[not_px, :], 0)
             f = np.atleast_2d(f)
 
             Y_resf = np.dot(Y, f.T)
-            b = np.maximum(Y_resf, 0)/(np.linalg.norm(f)**2)
-            C = np.maximum(csr_matrix(dist_indicator_av.T).dot(Y) - dist_indicator_av.T.dot(b).dot(f), 0)
+            b = np.maximum(Y_resf, 0) / (np.linalg.norm(f)**2)
+            C = np.maximum(csr_matrix(dist_indicator_av.T).dot(
+                Y) - dist_indicator_av.T.dot(b).dot(f), 0)
             A_in = scipy.sparse.coo_matrix(A_in.astype(np.float32))
-
-            
 
     else:
         dist_indicator = determine_search_location(
@@ -1264,11 +1265,11 @@ def circular_constraint(img_original):
         return img
 
     rmin = np.min(rsub)
-    rmax = np.max(rsub)+1
+    rmax = np.max(rsub) + 1
     cmin = np.min(csub)
     cmax = np.max(csub) + 1
 
-    if (rmax-rmin < 1) or (cmax-cmin < 1):
+    if (rmax - rmin < 1) or (cmax - cmin < 1):
         return img
 
     if rmin == 0 and rmax == nr and cmin == 0 and cmax == nc:
@@ -1277,7 +1278,7 @@ def circular_constraint(img_original):
         vmax = img[y0, x0]
         x, y = np.meshgrid(np.arange(nc), np.arange(nr))
         fy, fx = np.gradient(img)
-        ind = ((fx*(x0-x) + fy*(y0-y) < 0) & (img < vmax/2))
+        ind = ((fx * (x0 - x) + fy * (y0 - y) < 0) & (img < vmax / 2))
         img[ind] = 0
 
         # # remove isolated pixels
