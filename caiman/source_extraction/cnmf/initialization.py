@@ -26,8 +26,6 @@ from scipy.ndimage.filters import correlate
 import scipy.sparse as spr
 import scipy
 import caiman
-from caiman.source_extraction.cnmf.temporal import update_temporal_components
-from caiman.source_extraction.cnmf.spatial import update_spatial_components
 from caiman.source_extraction.cnmf.deconvolution import deconvolve_ca
 from caiman.source_extraction.cnmf.pre_processing import get_noise_fft
 from caiman.source_extraction.cnmf.background import compute_W
@@ -803,11 +801,11 @@ def greedyROI_corr(data, max_number=None, gSiz=None, gSig=None, center_psf=True,
                 swap_dim=True, save_video=save_video, video_name=video_name)
             A = np.concatenate((A, A_R), 1)
             C = np.concatenate((C, C_R), 0)
-        C, A = update_temporal_components(
+        C, A = caiman.source_extraction.cnmf.temporal.update_temporal_components(
             data.reshape((-1, total_frames), order='F') - B, spr.csc_matrix(A),
             np.zeros((d1 * d2, 0), np.float32), C, np.zeros((0, total_frames), np.float32),
             dview=None, bl=None, c1=None, sn=None, g=None, **options['temporal_params'])[:2]
-        A, _, C, _ = update_spatial_components(
+        A, _, C, _ = caiman.source_extraction.cnmf.spatial.update_spatial_components(
             data.reshape((-1, total_frames), order='F') - B, C=C,
             f=np.zeros((0, total_frames), np.float32), A_in=A, sn=sn,
             b_in=np.zeros((d1 * d2, 0), np.float32),
