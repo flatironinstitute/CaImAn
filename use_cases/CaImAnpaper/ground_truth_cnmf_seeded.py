@@ -194,18 +194,7 @@ params_movie = {'fname': ['/mnt/ceph/neuro/labeling/yuste.Single_150u/images/fin
                  'p': 1,  # order of the autoregressive system
                  'merge_thresh': 1,  # merging threshold, max correlation allow
                  'final_frate': 10,
-#                 'r_values_min_patch': .7,  # threshold on space consistency
-#                 'fitness_min_patch': -20,  # threshold on time variability
-#                 # threshold on time variability (if nonsparse activity)
-#                 'fitness_delta_min_patch': -20,
-#                 'Npeaks': 10,
-#                 'r_values_min_full': .8,
-#                 'fitness_min_full': - 40,
-#                 'fitness_delta_min_full': - 40,
-#                 'only_init_patch': True,
                  'gnb': 1,
-#                 'memory_fact': 1,
-#                 'n_chunks': 10,
                  'update_background_components': True,# whether to update the background components in the spatial phase
                  'low_rank_background': True, #whether to update the using a low rank approximation. In the False case all the nonzero elements of the background components are updated using hals    
                                      #(to be used with one background per patch)  
@@ -234,6 +223,35 @@ params_movie = {'fname': ['/mnt/ceph/neuro/labeling/neurofinder.00.00/images/fin
                                      #(to be used with one background per patch)  
                  'swap_dim':False #for some movies needed
                  }
+#%% k56
+params_movie = {'fname': ['/opt/local/Data/labeling/k53_20160530/Yr_d1_512_d2_512_d3_1_order_C_frames_116043_.mmap'],
+                'gtname':['/mnt/ceph/neuro/labeling/k53_20160530/regions/joined_consensus_active_regions.npy'],
+                 'p': 1,  # order of the autoregressive system
+                 'merge_thresh': 1,  # merging threshold, max correlation allow
+                 'final_frate': 30,
+                 'gnb': 1,
+                 'update_background_components': True,# whether to update the background components in the spatial phase
+                 'low_rank_background': True, #whether to update the using a low rank approximation. In the False case all the nonzero elements of the background components are updated using hals    
+                                     #(to be used with one background per patch)  
+                 'swap_dim':False #for some movies needed
+                 }
+
+#%% yuste: sue ann = np.ones((radius//4,radius//4),np.uint8)
+params_movie = {'fname': ['/mnt/ceph/neuro/labeling/yuste.Single_150u/images/final_map/Yr_d1_200_d2_256_d3_1_order_C_frames_3000_.mmap'],
+                'gtname':['/mnt/ceph/neuro/labeling/yuste.Single_150u/regions/joined_consensus_active_regions.npy'],
+                'seed_name':['/mnt/xfs1/home/agiovann/Downloads/yuste_sue_masks.mat'],
+                 'p': 1,  # order of the autoregressive system
+                 'merge_thresh': 1,  # merging threshold, max correlation allow
+                 'final_frate': 10,
+                 'gnb': 1,
+                 'update_background_components': True,# whether to update the background components in the spatial phase
+                 'low_rank_background': True, #whether to update the using a low rank approximation. In the False case all the nonzero elements of the background components are updated using hals    
+                                     #(to be used with one background per patch)  
+                 'swap_dim':False, #for some movies needed
+                 'kernel':None
+                 }
+
+
 #%%
 params_display = {
     'downsample_ratio': .2,
@@ -258,22 +276,31 @@ if m_images.shape[0]<10000:
     Cn = m_images.local_correlations(swap_dim = params_movie['swap_dim'], frames_per_chunk = 1500)
     Cn[np.isnan(Cn)] = 0
 else:
-    Cn = np.array(cm.load(('/'.join(fname_new.split('/')[:-3]+['projections','correlation_image_better.tif'])))).squeeze()
+    Cn = np.array(cm.load(('/'.join(params_movie['gt_name'].split('/')[:-3]+['projections','correlation_image.tif'])))).squeeze()
 pl.imshow(Cn, cmap='gray', vmax=.95)
 # TODO: show screenshot 11
 #%%
 import cv2
-roi_cons = np.load(params_movie['gtname'][0])
+if not '.mat' in params_movie['seed_name'][0]:
+    roi_cons = np.load(params_movie['seed_name'][0])
+else:
+    roi_cons = scipy.io.loadmat(params_movie['seed_name'][0])['comps'].reshape((dims[1],dims[0],-1),order='F').transpose([2,1,0])*1.
+    
 radius  = np.int(np.median(np.sqrt(np.sum(roi_cons,(1,2))/np.pi)))
+
 print(radius)
 #roi_cons = caiman.base.rois.nf_read_roi_zip('/mnt/ceph/neuro/labeling/neurofinder.03.00.test/regions/ben_active_regions_nd_sonia_active_regions_nd__lindsey_active_regions_nd_matches.zip',dims)
 #roi_cons = np.concatenate([roi_cons, caiman.base.rois.nf_read_roi_zip('/mnt/ceph/neuro/labeling/neurofinder.03.00.test/regions/intermediate_regions/ben_active_regions_nd_sonia_active_regions_nd__lindsey_active_regions_nd_1_mismatches.zip',dims)],0)
+
 print(roi_cons.shape)
-kernel = np.ones((radius//1,radius//1),np.uint8)
 pl.imshow(roi_cons.sum(0))
-roi_cons = np.vstack([cv2.dilate(rr,kernel,iterations = 1)[np.newaxis,:,:]>0 for rr in roi_cons])*1.
-pl.imshow(roi_cons.sum(0),alpha = 0.5)
-A_in = np.reshape(roi_cons.transpose([1,2,0]),(-1,roi_cons.shape[0]),order = 'F')
+
+if params_movie['kernel'] is not None: # kernel usually two
+    kernel = np.ones((radius//params_movie['kernel'],radius//params_movie['kernel']),np.uint8)
+    roi_cons = np.vstack([cv2.dilate(rr,kernel,iterations = 1)[np.newaxis,:,:]>0 for rr in roi_cons])*1.
+    pl.imshow(roi_cons.sum(0),alpha = 0.5)
+
+A_in = np.reshape(roi_cons.transpose([2,1,0]),(-1,roi_cons.shape[0]),order = 'C')
 pl.figure()
 crd = plot_contours(A_in, Cn, thr=.99999)
 
@@ -284,17 +311,14 @@ p = params_movie['p']
 merge_thresh = params_movie['merge_thresh']
 
 # %% Extract spatial and temporal components on patches
-t1 = time.time()
 # TODO: todocument
-# TODO: warnings 3
-
 if images.shape[0]>10000:
     check_nan = False
 else:
     check_nan = True
     
 cnm = cnmf.CNMF(check_nan = check_nan, n_processes=1, k=A_in.shape[-1], gSig=[radius,radius], merge_thresh=params_movie['merge_thresh'], p=params_movie['p'], Ain = A_in.astype(np.bool),
-                dview=dview, rf=None, stride=None, gnb=params_movie['gnb'], method_deconvolution='oasis',border_pix = 0, low_rank_background = params_movie['low_rank_background']) 
+                dview=dview, rf=None, stride=None, gnb=params_movie['gnb'], method_deconvolution='oasis',border_pix = 0, low_rank_background = params_movie['low_rank_background'], n_pixels_per_process = 1000) 
 cnm = cnm.fit(images)
 
 A = cnm.A
@@ -339,7 +363,7 @@ pl.imshow(roi_cons.sum(0))
 #%% compare CNMF sedded with ground truth
 pl.figure(figsize=(30,20))
 tp_gt, tp_comp, fn_gt, fp_comp, performance_cons_off =  cm.base.rois.nf_match_neurons_in_binary_masks(roi_cons,A_thr[:,:].reshape([dims[0],dims[1],-1],order = 'F').transpose([2,0,1])*1.,thresh_cost=.7, min_dist = 10,
-                                                                              print_assignment= False,plot_results=True,Cn=Cn, labels = ['GT','Offline'])
+                                                                              print_assignment= False,plot_results=False,Cn=Cn, labels = ['GT','Offline'])
 pl.rcParams['pdf.fonttype'] = 42
 font = {'family' : 'Myriad Pro',
         'weight' : 'regular',
