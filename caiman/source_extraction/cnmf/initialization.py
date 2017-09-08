@@ -29,7 +29,6 @@ import caiman
 from caiman.source_extraction.cnmf.deconvolution import deconvolve_ca
 from caiman.source_extraction.cnmf.pre_processing import get_noise_fft
 from caiman.source_extraction.cnmf.background import compute_W
-from caiman import summary_images as sm
 from caiman.source_extraction.cnmf.spatial import circular_constraint
 import cv2
 import sys
@@ -48,8 +47,8 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
                           kernel=None, use_hals=True, normalize_init=True, img=None, method='greedy_roi',
                           max_iter_snmf=500, alpha_snmf=10e2, sigma_smooth_snmf=(.5, .5, .5),
                           perc_baseline_snmf=20, options_local_NMF=None,
-                          min_corr=0.8, min_pnr=10, deconvolve_options_init = None,
-                          ring_size_factor=1.5,center_psf = True):
+                          min_corr=0.8, min_pnr=10, deconvolve_options_init=None,
+                          ring_size_factor=1.5, center_psf=True):
     """
     Initalize components
 
@@ -102,31 +101,31 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
 
     alpha_snmf: scalar
         Sparsity penalty
-        
-         
+
+
     center_psf: Boolean
             True indicates centering the filtering kernel for background
             removal. This is useful for data with large background
             fluctuations.
-   
+
     min_corr: float
         minimum local correlation coefficients for selecting a seed pixel.
-    
-    
+
+
     min_pnr: float
         minimum peak-to-noise ratio for selecting a seed pixel.
-    
-    
+
+
     deconvolve_options: dict
             all options for deconvolving temporal traces, in general just pass options['temporal_params']    
-        
+
     ring_size_factor: float
             it's the ratio between the ring radius and neuron diameters.
-        
+
     nb: integer
         number of background components for approximating the background using NMF model
-    
-    
+
+
     Returns:
     --------
 
@@ -144,8 +143,8 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
 
     fin: np.ndarray
         nb x T matrix, initalization of temporal background
-        
- 
+
+
 
     Raise:
     ------
@@ -168,7 +167,6 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
     gSig = np.round(np.asarray(gSig) / ssub).astype(np.int)
     gSiz = np.round(np.asarray(gSiz) / ssub).astype(np.int)
 
-    
     if normalize_init is True:
         print('Noise Normalization')
         if img is None:
@@ -196,8 +194,9 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
             Ain, Cin, b_in, f_in = hals(Y_ds, Ain, Cin, b_in, f_in, maxIter=maxIter)
     elif method == 'corr_pnr':
         Ain, Cin, _, b_in, f_in = greedyROI_corr(Y_ds, max_number=K,
-                                                 gSiz=gSiz[0], gSig=gSig[0], nb=nb, deconvolve_options= deconvolve_options_init, min_corr = min_corr,
-                                                 min_pnr = min_pnr, ring_size_factor = ring_size_factor, center_psf = center_psf)
+                                                 gSiz=gSiz[0], gSig=gSig[
+                                                     0], nb=nb, deconvolve_options=deconvolve_options_init, min_corr=min_corr,
+                                                 min_pnr=min_pnr, ring_size_factor=ring_size_factor, center_psf=center_psf)
 
     elif method == 'sparse_nmf':
         Ain, Cin, _, b_in, f_in = sparseNMF(Y_ds, nr=K, nb=nb, max_iter_snmf=max_iter_snmf, alpha=alpha_snmf,
@@ -240,7 +239,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
 
     K = np.shape(Ain)[-1]
     ds = Y_ds.shape[:-1]
-    
+
     Ain = np.reshape(Ain, ds + (K,), order='F')
 
     if len(ds) == 2:
@@ -757,70 +756,62 @@ def greedyROI_corr(data, max_number=None, gSiz=None, gSig=None,
     Returns:
 
     """
-    
-    
+
     if min_corr is None or min_pnr is None:
         raise Exception('Either min_corr or min_pnr are None. Both of them must be real numbers.')
 
 #    print([gSig,gSiz,max_number, center_psf,min_corr,min_pixel,min_pnr])
 #    lsls
-#    gSig = 3   # gaussian width of a 2D gaussian kernel, which approximates a neuron 
-#    gSiz = 10  # average diameter of a neuron 
+#    gSig = 3   # gaussian width of a 2D gaussian kernel, which approximates a neuron
+#    gSiz = 10  # average diameter of a neuron
 #    min_corr = 0.8
 #    min_pnr = 10
-#    save_video = False 
+#    save_video = False
 #    import os
-#    if not os.path.exists('tmp'): 
+#    if not os.path.exists('tmp'):
 #        os.mkdir('tmp')
 #    video_name = os.path.join('tmp', 'initialization.mp4')
 #    from caiman.source_extraction.cnmf.initialization import init_neurons_corr_pnr
 #    A, C, _, _, center =  init_neurons_corr_pnr(data.transpose([2,0,1]), max_number=255,gSiz=gSiz, gSig=gSig,
 #                       center_psf=True, min_corr=min_corr, min_pnr=min_pnr, swap_dim = False, save_video = save_video,
-#                                                    video_name = video_name, min_pixel=3)    
-    A, C, _, _, center = init_neurons_corr_pnr(data, max_number = max_number, gSiz = gSiz, gSig = gSig,
-                                               center_psf = center_psf, min_corr = min_corr, min_pnr = min_pnr,
-                                               seed_method = seed_method, deconvolve_options = deconvolve_options,
-                                               min_pixel = min_pixel, bd = bd, thresh_init = thresh_init,
-                                               swap_dim = True, save_video = save_video, video_name = video_name)
+#                                                    video_name = video_name, min_pixel=3)
+    A, C, _, _, center = init_neurons_corr_pnr(data, max_number=max_number, gSiz=gSiz, gSig=gSig,
+                                               center_psf=center_psf, min_corr=min_corr, min_pnr=min_pnr,
+                                               seed_method=seed_method, deconvolve_options=deconvolve_options,
+                                               min_pixel=min_pixel, bd=bd, thresh_init=thresh_init,
+                                               swap_dim=True, save_video=save_video, video_name=video_name)
 
 #    import caiman as cm
 #    cn_raw = cm.summary_images.local_correlations_fft(data.transpose([2,0,1]), swap_dim=False)
 #    _ = cm.utils.visualization.plot_contours(A, cn_raw.T, thr=0.9)
 #    plt.ginput()
 #    plt.close()
-    
+
     d1, d2, total_frames = data.shape
 
     B = data.reshape((-1, total_frames), order='F') - A.dot(C)
-    
+
     if ring_size_factor is not None:
         W, b0 = compute_W(data.reshape((-1, total_frames), order='F'),
                           A, C, (d1, d2), int(np.round(ring_size_factor * gSiz)))
-        
-        B = b0[:, None] + W.dot(B - b0[:, None])        
+
+        B = b0[:, None] + W.dot(B - b0[:, None])
 #        R = data - A.dot(C) - B
 #        if max_number is not None:
 #            max_number -= A.shape[-1]
-#            
+#
 #        A_R, C_R, _, _, center_R = init_neurons_corr_pnr(R, max_number = max_number, gSiz = gSiz, gSig = gSig,
 #                                               center_psf = center_psf, min_corr = min_corr, min_pnr = min_pnr,
 #                                               seed_method = seed_method, deconvolve_options = deconvolve_options,
 #                                               min_pixel = min_pixel, bd = bd, thresh_init = thresh_init,
-#                                               swap_dim = True, save_video = save_video, video_name = video_name)
-        
-        
+# swap_dim = True, save_video = save_video, video_name = video_name)
 
- 
-        
-        
-    
-    
     model = NMF(n_components=nb)  # , init='random', random_state=0)
     b_in = model.fit_transform(np.maximum(B, 0))
     f_in = model.components_.squeeze()
 
-    A = A.reshape((d1, d2,A.shape[-1])).transpose([1,0,2]).reshape((d1*d2,A.shape[-1])),
-    return  A, C, center.T, b_in, f_in
+    A = A.reshape((d1, d2, A.shape[-1])).transpose([1, 0, 2]).reshape((d1*d2, A.shape[-1])),
+    return A, C, center.T, b_in, f_in
 
 
 def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
@@ -919,11 +910,12 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
         if center_psf:
             for idx, img in enumerate(data_filtered):
                 data_filtered[idx, ] = cv2.GaussianBlur(img, ksize=ksize, sigmaX=gSig[0], sigmaY=gSig[1], borderType=1) \
-                                       - cv2.boxFilter(img, ddepth=-1, ksize=ksize, borderType=1)
+                    - cv2.boxFilter(img, ddepth=-1, ksize=ksize, borderType=1)
                 # data_filtered[idx, ] = cv2.filter2D(img, -1, psf, borderType=1)
         else:
             for idx, img in enumerate(data_filtered):
-                data_filtered[idx, ] = cv2.GaussianBlur(img, ksize=ksize, sigmaX=gSig[0], sigmaY=gSig[1], borderType=1)
+                data_filtered[idx, ] = cv2.GaussianBlur(img, ksize=ksize, sigmaX=gSig[
+                                                        0], sigmaY=gSig[1], borderType=1)
     else:
         data_filtered = data_raw
 
@@ -938,7 +930,7 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
     tmp_data[tmp_data < thresh_init * noise_pixel] = 0
 
     # compute correlation image
-    cn = sm.local_correlations_fft(tmp_data, swap_dim=False)
+    cn = caiman.summary_images.local_correlations_fft(tmp_data, swap_dim=False)
     cn[np.isnan(cn)] = 0  # remove abnormal pixels
 
     # screen seed pixels as neuron centers
@@ -956,9 +948,8 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
         ind_bd[-bd:, :] = True
         ind_bd[:, :bd] = True
         ind_bd[:, -bd:] = True
-        
+
     ind_search[ind_bd] = 1
-   
 
     # creating variables for storing the results
     if not max_number:
@@ -1137,8 +1128,8 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
                         ai_filtered = cv2.GaussianBlur(tmp_img, ksize=ksize,
                                                        sigmaX=gSig[0],
                                                        sigmaY=gSig[1], borderType=1) \
-                                      - cv2.boxFilter(tmp_img, ddepth=-1,
-                                                      ksize=ksize, borderType=1)
+                            - cv2.boxFilter(tmp_img, ddepth=-1,
+                                            ksize=ksize, borderType=1)
                     else:
                         ai_filtered = cv2.GaussianBlur(tmp_img, ksize=ksize,
                                                        sigmaX=gSig[0],
@@ -1160,9 +1151,11 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
 
                 # update correlation image
                 data_filtered_box[data_filtered_box < thresh_init * noise_box] = 0
-                cn_box = sm.local_correlations_fft(data_filtered_box, swap_dim=False)
+                cn_box = caiman.summary_images.local_correlations_fft(
+                    data_filtered_box, swap_dim=False)
                 cn_box[np.isnan(cn_box) | (cn_box < 0)] = 0
-                cn[r_min:r_max, c_min:c_max] = cn_box[(r_min - r2_min):(r_max - r2_min), (c_min - c2_min):(c_max - c2_min)]
+                cn[r_min:r_max, c_min:c_max] = cn_box[
+                    (r_min - r2_min):(r_max - r2_min), (c_min - c2_min):(c_max - c2_min)]
                 cn_box = cn[r2_min:r2_max, c2_min:c2_max]
                 cn_box[cn_box < min_corr] = 0
 
