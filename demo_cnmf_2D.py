@@ -43,6 +43,21 @@ def show_img(ax, img):
     plt.colorbar(im, cax=cax)
 #%%
 fname = './example_movies/data_endoscope.tif'
+gSig = 3   # gaussian width of a 2D gaussian kernel, which approximates a neuron
+gSiz = 10  # average diameter of a neuron
+min_corr=.8
+min_pnr=10
+#fname = '/opt/local/Data/1photon/3168_PAG_TIFF.tif'
+fname = '/opt/local/Data/1photon/Yr_d1_190_d2_198_d3_1_order_F_frames_35992_.mmap'
+gSig = 3   # gaussian width of a 2D gaussian kernel, which approximates a neuron
+gSiz = 16  # average diameter of a neuron
+min_corr=.6
+min_pnr=10
+
+# If True, the background can be roughly removed. This is useful when the background is strong.
+center_psf = True
+
+
 Y = cm.load(fname)
 T, d1, d2 = Y.shape
 print('The dimension of data is ', Y.shape)
@@ -51,18 +66,15 @@ ax = plt.axes()
 ax.axis('off')
 show_img(ax, Y[100, ])
 #%%
-# parameters
-gSig = 3   # gaussian width of a 2D gaussian kernel, which approximates a neuron
-gSiz = 10  # average diameter of a neuron
-# If True, the background can be roughly removed. This is useful when the background is strong.
-center_psf = True
+
 
 # show correlation image of the raw data; show correlation image and PNR image of the filtered data
-cn_raw = cm.summary_images.local_correlations_fft(Y, swap_dim=False)
+cn_raw = cm.summary_images.max_correlation_image(Y, swap_dim=False,bin_size = 3000)
+#%% TAKES MEMORY!!!
 cn_filter, pnr = cm.summary_images.correlation_pnr(
     Y, gSig=gSig, center_psf=center_psf, swap_dim=False)
 plt.figure(figsize=(10, 5))
-
+#%%
 for i, (data, title) in enumerate(((Y.mean(0), 'Mean image (raw)'),
                                    (Y.max(0), 'Max projection (raw)'),
                                    (cn_raw[1:-1, 1:-1], 'Correlation (raw)'),
@@ -100,19 +112,20 @@ def update(val):
     im_cn.set_clim([s_cn_min.val, s_cn_max.val])
     im_pnr.set_clim([s_pnr_min.val, s_pnr_max.val])
     fig.canvas.draw_idle()
+    
 s_cn_max.on_changed(update)
 s_cn_min.on_changed(update)
 s_pnr_max.on_changed(update)
 s_pnr_min.on_changed(update)
 #%%
-c, dview, n_processes = cm.cluster.setup_cluster(
-    backend='local', n_processes=None, single_thread=False)
+c, dview, n_processes = cm.cluster.setup_cluster(backend='local', n_processes=None, single_thread=False)
+
 #%%
-cnm = cnmf.CNMF(n_processes=2, method_init='corr_pnr', k=20, gSig=(3, 3), gSiz=(10, 10), merge_thresh=.8,
-                p=1, dview=None, tsub=1, ssub=1, Ain=None, rf=(25, 25), stride=(10, 10),
+cnm = cnmf.CNMF(n_processes=2, method_init='corr_pnr', k=10, gSig=(3, 3), gSiz=(10, 10), merge_thresh=.8,
+                p=1, dview=dview, tsub=1, ssub=1, Ain=None, rf=(15, 15), stride=(10, 10),
                 only_init_patch=True, gnb=10, nb_patch=3, method_deconvolution='oasis',
-                low_rank_background=False, update_background_components=False, min_corr=.8,
-                min_pnr=10, normalize_init=False, deconvolve_options_init=None,
+                low_rank_background=False, update_background_components=False, min_corr=min_corr,
+                min_pnr=min_pnr, normalize_init=False, deconvolve_options_init=None,
                 ring_size_factor=1.5, center_psf=True)
 
 #%%
@@ -132,14 +145,16 @@ cnm = cnmf.CNMF(n_processes=2, method_init='corr_pnr', k=20, gSig=(3, 3), gSiz=(
 #%%
 memmap = True  # must be True for patches
 if memmap:
-    fname_new = cm.save_memmap([fname], base_name='Yr')
+    if '.mmap' in fname:
+        fname_new = fname
+    else:
+        fname_new = cm.save_memmap([fname], base_name='Yr')
     Yr, dims, T = cm.load_memmap(fname_new)
     cnm.fit(Yr.T.reshape((T,) + dims, order='F'))
 else:
     cnm.fit(Y)
 #%%
 A_tot, C_tot, b_tot, f_tot, YrA_tot, sn = cnm.A, cnm.C, cnm.b, cnm.f, cnm.YrA, cnm.sn
-
 #%%
 crd = cm.utils.visualization.plot_contours(A_tot, cn_filter, thr=.95, vmax=0.95)
 #%%
@@ -200,7 +215,11 @@ crd = cm.utils.visualization.plot_contours(A.tocsc()[:, idx_components], cn_filt
 pl.subplot(1, 2, 2)
 crd = cm.utils.visualization.plot_contours(A.tocsc()[:, idx_components_bad], cn_filter, thr=.95)
 #%%
-plt.imshow(A.sum(-1).reshape(dims, order='F'))
+plt.imshow(A.sum(-1).reshape(dims, order='F'), vmax = 200)
 #%%
+idx_components = np.where(np.array([scipy.stats.pearsonr(c,c_)[0] for c,c_ in zip(C,C_tot)])*np.array([scipy.stats.pearsonr(c,c_)[0] for c,c_ in zip(A.T.toarray(),A_tot.T.toarray())])<.8)[0]
 cm.utils.visualization.view_patches_bar(
-    Yr, scipy.sparse.coo_matrix(A.tocsc()), C, b, f, dims[0], dims[1], YrA=YrA, img=cn_filter)
+    Yr, scipy.sparse.coo_matrix(A.tocsc()[:,idx_components]), C[idx_components], b, f, dims[0], dims[1], YrA=YrA[idx_components], img=cn_filter)
+pl.figure()
+cm.utils.visualization.view_patches_bar(
+    Yr, scipy.sparse.coo_matrix(A_tot.tocsc()[:,idx_components]), C_tot[idx_components], b_tot, f_tot, dims[0], dims[1], YrA=YrA_tot[idx_components], img=cn_filter)
