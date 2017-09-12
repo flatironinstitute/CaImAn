@@ -247,17 +247,22 @@ def initialize_components(Y, sn=None, options_total=None, K=30, gSig=[5, 5], gSi
     K = np.shape(Ain)[-1]
     ds = Y_ds.shape[:-1]
 
-    Ain = np.reshape(Ain, ds + (K,), order='F')
 
-    if len(ds) == 2:
-        Ain = resize(Ain, d + (K,), order=1)
+    
+    if Ain.size > 0:
+        
+        Ain = np.reshape(Ain, ds + (K,), order='F')
 
-    else:  # resize only deals with 2D images, hence apply resize twice
-        Ain = np.reshape([resize(a, d[1:] + (K,), order=1)
-                          for a in Ain], (ds[0], d[1] * d[2], K), order='F')
-        Ain = resize(Ain, (d[0], d[1] * d[2], K), order=1)
-
-    Ain = np.reshape(Ain, (np.prod(d), K), order='F')
+        if len(ds) == 2:
+            Ain = resize(Ain, d + (K,), order=1)
+    
+        else:  # resize only deals with 2D images, hence apply resize twice
+            Ain = np.reshape([resize(a, d[1:] + (K,), order=1)
+                              for a in Ain], (ds[0], d[1] * d[2], K), order='F')
+            Ain = resize(Ain, (d[0], d[1] * d[2], K), order=1)
+    
+        Ain = np.reshape(Ain, (np.prod(d), K), order='F')
+        
     b_in = np.reshape(b_in, ds + (nb,), order='F')
 
     if len(ds) == 2:
@@ -268,12 +273,20 @@ def initialize_components(Y, sn=None, options_total=None, K=30, gSig=[5, 5], gSi
         b_in = resize(b_in, (d[0], d[1] * d[2], nb), order=1)
 
     b_in = np.reshape(b_in, (np.prod(d), nb), order='F')
-    Cin = resize(Cin, [K, T])
+    
+    if Ain.size > 0:
+        Cin = resize(Cin , [K, T])
+        center = np.asarray([center_of_mass(a.reshape(d, order='F')) for a in Ain.T])
+    else:
+        center = []
+        
     f_in = resize(np.atleast_2d(f_in), [nb, T])
-    center = np.asarray([center_of_mass(a.reshape(d, order='F')) for a in Ain.T])
+    
 
     if normalize_init is True:
-        Ain = Ain * np.reshape(img, (np.prod(d), -1), order='F')
+        if Ain.size > 0:
+            Ain = Ain * np.reshape(img, (np.prod(d), -1), order='F')
+            
         b_in = b_in * np.reshape(img, (np.prod(d), -1), order='F')
 
     return Ain, Cin, b_in, f_in, center
@@ -762,10 +775,10 @@ def greedyROI_corr(data, max_number=None, gSiz=None, gSig=None, center_psf=True,
     Returns:
 
     """
-
     if min_corr is None or min_pnr is None:
         raise Exception('Either min_corr or min_pnr are None. Both of them must be real numbers.')
 
+    print('Init one photon')
     A, C, _, _, center = init_neurons_corr_pnr(
         data, max_number=max_number, gSiz=gSiz, gSig=gSig,
         center_psf=center_psf, min_corr=min_corr, min_pnr=min_pnr,
@@ -780,19 +793,23 @@ def greedyROI_corr(data, max_number=None, gSiz=None, gSig=None, center_psf=True,
 #    plt.close()
 
     d1, d2, total_frames = data.shape
-    B = data.reshape((-1, total_frames), order='F') - A.dot(C)
+    B = np.array(data.reshape((-1, total_frames), order='F') - A.dot(C),dtype=np.float32)
 
     if ring_size_factor is not None:
         # background according to ringmodel
+        print('Compute Background')
         W, b0 = compute_W(data.reshape((-1, total_frames), order='F'),
                           A, C, (d1, d2), int(np.round(ring_size_factor * gSiz)))
+        
         B = b0[:, None] + W.dot(B - b0[:, None])
 
         # find more neurons in residual
+        print('Compute Residuals')
         R = data - (A.dot(C) + B).reshape(data.shape, order='F')
         if max_number is not None: 
             max_number -= A.shape[-1]
         if max_number is not 0:
+            print('Initialization again')
             A_R, C_R, _, _, center_R = init_neurons_corr_pnr(
                 R, max_number=max_number, gSiz=gSiz, gSig=gSig,
                 center_psf=center_psf, min_corr=min_corr, min_pnr=min_pnr,
@@ -801,24 +818,28 @@ def greedyROI_corr(data, max_number=None, gSiz=None, gSig=None, center_psf=True,
                 swap_dim=True, save_video=save_video, video_name=video_name)
             A = np.concatenate((A, A_R), 1)
             C = np.concatenate((C, C_R), 0)
-        
+        print('Update spatial')
         C, A = caiman.source_extraction.cnmf.temporal.update_temporal_components(
             np.array(data.reshape((-1, total_frames), order='F') - B), spr.csc_matrix(A),
             np.zeros((d1 * d2, 0), np.float32), C, np.zeros((0, total_frames), np.float32),
             dview=None, bl=None, c1=None, sn=None, g=None, **options['temporal_params'])[:2]
+        print('Update Temporal')
         A, _, C, _ = caiman.source_extraction.cnmf.spatial.update_spatial_components(
             np.array(data.reshape((-1, total_frames), order='F') - B), C=C,
             f=np.zeros((0, total_frames), np.float32), A_in=A, sn=sn,
             b_in=np.zeros((d1 * d2, 0), np.float32),
             dview=None, **options['spatial_params'])
         A = A.toarray()
-        
+        print('Compute Background Again')
+
         # background according to ringmodel
         W, b0 = compute_W(data.reshape((-1, total_frames), order='F'),
                           A, C, (d1, d2), int(np.round(ring_size_factor * gSiz)))
         B = b0[:, None] + W.dot(B - b0[:, None])
 
-    model = NMF(n_components=nb)  # , init='random', random_state=0)
+    print('Estimate low rank Background')
+
+    model = NMF(n_components=nb,init = 'nndsvdar')  # , init='random', random_state=0)
     b_in = model.fit_transform(np.maximum(B, 0))
     f_in = model.components_.squeeze()
 
@@ -939,10 +960,10 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
     # remove small values and only keep pixels with large fluorescence signals
     tmp_data = np.copy(data_filtered)
     tmp_data[tmp_data < thresh_init * noise_pixel] = 0
-
     # compute correlation image
     cn = caiman.summary_images.local_correlations_fft(tmp_data, swap_dim=False)
-    cn[np.isnan(cn)] = 0  # remove abnormal pixels
+    del(tmp_data)
+#    cn[np.isnan(cn)] = 0  # remove abnormal pixels
 
     # screen seed pixels as neuron centers
     v_search = cn * pnr
@@ -966,10 +987,10 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
     if not max_number:
         # maximum number of neurons
         max_number = np.int32((ind_search.size - ind_search.sum()) / 5)
-    Ain = np.zeros(shape=(max_number, d1, d2))  # neuron shapes
-    Cin = np.zeros(shape=(max_number, total_frames))  # de-noised traces
-    Sin = np.zeros(shape=(max_number, total_frames))  # spiking # activity
-    Cin_raw = np.zeros(shape=(max_number, total_frames))  # raw traces
+    Ain = np.zeros(shape=(max_number, d1, d2),dtype = np.float32)  # neuron shapes
+    Cin = np.zeros(shape=(max_number, total_frames),dtype = np.float32)  # de-noised traces
+    Sin = np.zeros(shape=(max_number, total_frames),dtype = np.float32)  # spiking # activity
+    Cin_raw = np.zeros(shape=(max_number, total_frames),dtype = np.float32)  # raw traces
     center = np.zeros(shape=(2, max_number))  # neuron centers
 
     num_neurons = 0  # number of initialized neurons

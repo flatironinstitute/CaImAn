@@ -188,7 +188,7 @@ def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True):
         # np.linalg.lstsq seems less robust but scipy version would be (robust but for the problem size slower) alternative
         # data += list(scipy.linalg.lstsq(B.T, Y[p] - A[p].dot(C) - b0[p], check_finite=False)[0])
         indptr.append(len(indices))
-    return spr.csr_matrix((data, indices, indptr), dtype='float32'), b0
+    return spr.csr_matrix((data, indices, indptr), dtype='float32'), b0.astype(np.float32)
 
 
 # def compute_W_parallel(Y, A, C, dims, radius, dview=None, n_pixels_per_process=128,
