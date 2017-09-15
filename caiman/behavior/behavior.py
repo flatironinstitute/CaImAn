@@ -1,12 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-OPTICAL FLOW
-
 Created on Wed Mar 16 16:31:55 2016
-
+OPTICAL FLOW
 @author: agiovann
 """
-
 from __future__ import division
 from __future__ import print_function
 #%%
@@ -22,29 +19,26 @@ from sklearn.decomposition import NMF,PCA,DictionaryLearning
 import time
 import scipy
 from scipy.sparse import coo_matrix
-
-
 #%% dense flow
 def select_roi(img,n_rois=1):
     """
     Create a mask from a the convex polygon enclosed between selected points
 
-    Parameters:
+    Parameters
     ----------
     img: 2D ndarray
         image used to select the points for the mask
-
     n_rois: int
         number of rois to select
 
-    Returns:
+    Returns
     -------
     mask: list
         each element is an the mask considered a ROIs
     """
 
-    masks=[]
-    for _ in range(n_rois):
+    masks=[];
+    for n in range(n_rois):
         fig=pl.figure()
         pl.imshow(img,cmap=pl.cm.gray)
         pts = fig.ginput(0, timeout=0)
@@ -52,36 +46,37 @@ def select_roi(img,n_rois=1):
         pts = np.asarray(pts, dtype=np.int32)
         cv2.fillConvexPoly(mask, pts, (1,1,1), lineType=cv2.LINE_AA)
         masks.append(mask)
+        #data=np.float32(data)
         pl.close()
 
     return masks
-
-
 #%%
 def to_polar(x,y):
     mag, ang = cv2.cartToPolar(x, y)
     return mag,ang
-
 #%%
 def get_nonzero_subarray(arr,mask):
-    x, y = mask.nonzero()
+    
+    x, y = mask.nonzero()   
+    
     return arr.toarray()[x.min():x.max()+1, y.min():y.max()+1]
     
 #%%
-def extract_motor_components_OF(m, n_components, mask = None,  resize_fact= .5, only_magnitude = False, max_iter = 1000,
-                                verbose = False, method_factorization = 'nmf',max_iter_DL=-30):
-        #todo todocument
+def extract_motor_components_OF(m, n_components, mask = None,  resize_fact= .5, only_magnitude = False, max_iter = 1000, verbose = False, method_factorization = 'nmf'):
+        
     if mask is not None:
+        
         mask = coo_matrix(np.array(mask).squeeze())
         ms = [get_nonzero_subarray(mask.multiply(fr),mask) for fr in m]
         ms = np.dstack(ms)
         ms = cm.movie(ms.transpose([2,0,1]))
 
     else:
-        ms = m
+        
+        ms = m    
+
     of_or = compute_optical_flow(ms,do_show=False,polar_coord=False) 
-    of_or = np.concatenate([cm.movie(of_or[0]).resize(resize_fact,resize_fact,1)[np.newaxis,:,:,:],
-                            cm.movie(of_or[1]).resize(resize_fact,resize_fact,1)[np.newaxis,:,:,:]],axis = 0)
+    of_or = np.concatenate([cm.movie(of_or[0]).resize(resize_fact,resize_fact,1)[np.newaxis,:,:,:],cm.movie(of_or[1]).resize(resize_fact,resize_fact,1)[np.newaxis,:,:,:]],axis = 0)
 
     if only_magnitude:
         of = np.sqrt(of[0]**2+of[1]**2)
@@ -92,19 +87,13 @@ def extract_motor_components_OF(m, n_components, mask = None,  resize_fact= .5, 
         else:
             of = of_or 
             
-    spatial_filter_, time_trace_, norm_fact = extract_components(of,n_components=n_components,verbose = verbose ,
-                                                                 normalize_std=False,max_iter=max_iter,
-                                                                 method_factorization = method_factorization,
-                                                                 max_iter_DL=max_iter_DL)
+    spatial_filter_, time_trace_, norm_fact = extract_components(of,n_components=n_components,verbose = verbose ,normalize_std=False,max_iter=max_iter, method_factorization = method_factorization)
   
-    return spatial_filter_, time_trace_, of_or
-
-
-#%%
-def extract_magnitude_and_angle_from_OF(spatial_filter_, time_trace_, of_or,
-                                        num_std_mag_for_angle = .6, sav_filter_size =3, only_magnitude = False):
-    # todo todocument
-
+    return  spatial_filter_, time_trace_, of_or
+    #%%
+def extract_magnitude_and_angle_from_OF(spatial_filter_, time_trace_, of_or, num_std_mag_for_angle = .6, sav_filter_size =3, only_magnitude = False):
+    
+    
     mags = []
     dircts = []
     dircts_thresh = []
@@ -135,39 +124,34 @@ def extract_magnitude_and_angle_from_OF(spatial_filter_, time_trace_, of_or,
         if not only_magnitude:
             dirct[mag<num_std_mag_for_angle*np.nanstd(mag)] = np.nan
 
+   
         mags.append(mag)
         dircts.append(dirct_orig)
         dircts_thresh.append(dirct)
         spatial_masks_thr.append(spatial_mask)
+      
+    
+    
     
     return mags, dircts, dircts_thresh, spatial_masks_thr
-
-
     
 #%%
-def compute_optical_flow(m,mask = None,polar_coord=True,do_show=False,do_write=False,file_name=None,gain_of=None,
-                         frate=30,pyr_scale=.1,levels=3 , winsize=25,iterations=3,poly_n=7,poly_sigma=1.5):
+def compute_optical_flow(m,mask = None,polar_coord=True,do_show=False,do_write=False,file_name=None,gain_of=None,frate=30,pyr_scale=.1,levels=3 , winsize=25,iterations=3,poly_n=7,poly_sigma=1.5):
     """
     This function compute the optical flow of behavioral movies using the opencv cv2.calcOpticalFlowFarneback function 
 
-    Parameters:
+    Parameters
     ----------
-
     m: 3D ndarray:
         input movie
-
     mask: 2D ndarray
         mask selecting relevant pixels       
-
     polar_coord: boolean
         wheather to return the coordinate in polar coordinates (or cartesian)
-
     do_show: bool
         show flow movie
-
-    do_write: bool
+    do_write: bool 
         save flow movie
-
     frate: double
         frame rate saved movie
 
@@ -176,13 +160,10 @@ def compute_optical_flow(m,mask = None,polar_coord=True,do_show=False,do_write=F
 
 
 
-    Returns:
+    Returns
     --------
     mov_tot: 4D ndarray containing the movies of the two coordinates
 
-    Raise:
-    -----
-    Exception('You need to provide file name (.avi) when saving video')
 
     """        
     prvs=np.uint8(m[0])
@@ -210,12 +191,13 @@ def compute_optical_flow(m,mask = None,polar_coord=True,do_show=False,do_write=F
         else:
             raise Exception('You need to provide file name (.avi) when saving video')
 
+
+
     for counter,next_ in enumerate(m):
         if counter%100 == 0:
             print(counter)          
         frame2 = cv2.cvtColor(np.uint8(next_), cv2.COLOR_GRAY2RGB)    
-        flow = cv2.calcOpticalFlowFarneback(prvs,next_, None, pyr_scale, levels, winsize, iterations, poly_n,
-                                            poly_sigma, 0)
+        flow = cv2.calcOpticalFlowFarneback(prvs,next_, None, pyr_scale, levels, winsize, iterations, poly_n, poly_sigma, 0)    
 
         if polar_coord:    
             coord_1, coord_2 = cv2.cartToPolar(flow[...,0], flow[...,1])
@@ -246,6 +228,7 @@ def compute_optical_flow(m,mask = None,polar_coord=True,do_show=False,do_write=F
             if k == 27:
                 break
 
+
         mov_tot[0,counter]=coord_1
         mov_tot[1,counter]=coord_2
 
@@ -266,7 +249,7 @@ def extract_components(mov_tot,n_components=6,normalize_std=True,max_iter_DL=-30
     """
     From optical flow images can extract spatial and temporal components
 
-    Parameters:
+    Parameters
     ----------
     mov_tot: ndarray (can be 3 or 4D)
         contains the optical flow values, either in cartesian or polar, either one (3D) or both (4D coordinates)
@@ -281,7 +264,7 @@ def extract_components(mov_tot,n_components=6,normalize_std=True,max_iter_DL=-30
     normalize_output_traces: boolean
         whether to normalize the behavioral traces so that they match the units in the movie
 
-    Returns:
+    Return
     -------
     spatial_filter: ndarray
         set of spatial inferred filters     
@@ -300,10 +283,13 @@ def extract_components(mov_tot,n_components=6,normalize_std=True,max_iter_DL=-30
             mov_tot=old_div(mov_tot,norm_fact[:,np.newaxis,np.newaxis,np.newaxis])
         else:
             norm_fact=np.array([ 1.,  1.])
+
         c,T,d1,d2=np.shape(mov_tot)
+        newm=np.concatenate([mov_tot[0,:,:,:],mov_tot[1,:,:,:]],axis=0)
 
     else:
         norm_fact=1
+        normalize_std=False
         T,d1,d2=np.shape(mov_tot)
         c=1
 
@@ -312,6 +298,7 @@ def extract_components(mov_tot,n_components=6,normalize_std=True,max_iter_DL=-30
 
     if method_factorization == 'nmf':
         nmf=NMF(n_components=n_components,**kwargs)
+        #    nmf=DictionaryLearning(n_components=n_components,**kwargs)
 
         time_trace=nmf.fit_transform(newm)
         spatial_filter=nmf.components_
@@ -321,93 +308,38 @@ def extract_components(mov_tot,n_components=6,normalize_std=True,max_iter_DL=-30
         
         import spams
         newm = np.asfortranarray(newm,dtype = np.float32)    
-        time_trace = spams.trainDL(newm,K=n_components, mode=0, lambda1 = 1, posAlpha = True, iter = max_iter_DL)
-
-        spatial_filter = spams.lasso(newm, D = time_trace,return_reg_path = False, lambda1 = 0.01,
-                                     mode = spams.spams_wrap.PENALTY,  pos=True)
-
+#        (time_trace, spatial_filter) = spams.nnsc(newm,return_lasso=True,K=n_components,lambda1=None,iter=-5)
+        time_trace = spams.trainDL(newm,K=n_components, mode=0, lambda1 = 1 , posAlpha = True, iter = max_iter_DL)  
+#        import pdb
+#        pdb.set_trace()              
+        spatial_filter = spams.lasso(newm, D = time_trace,return_reg_path = False, lambda1 = 0.01, mode = spams.spams_wrap.PENALTY,  pos=True)
+#
         spatial_filter=np.concatenate([np.reshape(sp,(d1,d2))[np.newaxis,:,:] for sp in spatial_filter.toarray()],axis=0)
 
     time_trace=[np.reshape(ttr,(c,T)).T for ttr in time_trace.T]
+#    time_trace=[np.reshape(ttr,(c,T)).T for ttr in time_trace]
 
     el_t=time.time()-tt
     print(el_t)
+
+    # best approx pl.plot(np.sum(np.reshape(time_trace[0],[d1,d2])*mov_tot[0],axis=(1,2))/np.sum(comp*2))
     return spatial_filter,time_trace,norm_fact
-
-
-
-def plot_components(sp_filt,t_trace):
-    # todo: todocument
-    pl.figure()
-    count=0
-    for comp,tr in zip(sp_filt,t_trace):
-        count+=1    
-        pl.subplot(6,2,count)
-        pl.imshow(comp)
-        count+=1            
-        pl.subplot(6,2,count)
-        pl.plot(tr)
+#%%
 
 
 #%%
-def normalize_components(t_trace,sp_filt,num_std=2):
-    """ 
-    Normalize the components using the std of the components obtaining using biunary masks
-    """
-    # todo: todocument
-    coor_1=[]
-    coor_2=[]  
-    new_t_trace=[]
-    for t,s in zip(t_trace,sp_filt):
-        print((1))
-        thr=np.mean(s)+num_std*np.std(s)
-        t=t.T
-        t1=t[0]/np.std(t[0])*np.std(old_div(np.sum((s>thr)*mov_tot[0],axis=(1,2)),np.sum((s>thr))))
-        t2=t[1]/np.std(t[1])*np.std(old_div(np.sum((s>thr)*mov_tot[1],axis=(1,2)),np.sum((s>thr))))
-        coor_1.append(t1)
-        coor_2.append(t2)
-        new_t_trace.append(np.vstack([t1,t2]).T)
-
-    coor_1=np.array(coor_1)    
-    coor_2=np.array(coor_2)
-
-    return new_t_trace,coor_1,coor_2
 
 
-#%%
-if __name__ == "__main__":
-    # todo: main ??
-    main()
-
-#%%    
-def main():
-    mmat=loadmat('mov_AG051514-01-060914 C.mat')['mov']
-    m=cm.movie(mmat.transpose((2,0,1)),fr=120)
-    mask=select_roi(m[0])
-    if 1:
-        mov_tot=compute_optical_flow(m[:3000],mask)
-    else:
-        mov_tot=compute_optical_flow(m[:3000],mask,polar_coord=False)
-
-    sp_filt,t_trace,norm_fact=extract_components(mov_tot)
-    plot_components(sp_filt,t_trace)
-    id_comp=1
-    pl.plot(old_div(np.sum(np.reshape(sp_filt[id_comp]>1,[d1,d2])*mov_tot[1],axis=(1,2)),np.sum(sp_filt[id_comp]>1)))
-    pl.plot(t_trace[id_comp][:,1]) 
-
-
-
-
-##%% single featureflow,. seems not towork
+##%% single featureflow,. seems not towork 
 #feature_params = dict( maxCorners = 100,
 #                       qualityLevel = 0.3,
 #                       minDistance = 7,
 #                       blockSize = 7 )
-#
+#   
 #lk_params = dict( winSize  = (15,15),
 #                  maxLevel = 2,
 #                  criteria = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 10, 0.03))
-#
+#                  
 #
 #color = np.random.randint(0,255,(100,3))
 #old_gray=m[0]
@@ -448,3 +380,63 @@ def main():
 #    p0 = good_new.reshape(-1,1,2)
 #
 #%%
+def plot_components(sp_filt,t_trace):
+    pl.figure()
+    count=0
+    for comp,tr in zip(sp_filt,t_trace):
+        count+=1    
+        pl.subplot(6,2,count)
+        pl.imshow(comp)
+        count+=1            
+        pl.subplot(6,2,count)
+        pl.plot(tr)    
+#%%
+def normalize_components(t_trace,sp_filt,num_std=2):
+    """ 
+    Normalize the components using the std of the components obtaining using biunary masks
+    """
+    coor_1=[]
+    coor_2=[]  
+    new_t_trace=[]
+    for t,s in zip(t_trace,sp_filt):
+        print((1))
+        thr=np.mean(s)+num_std*np.std(s)
+        t=t.T
+        t1=t[0]/np.std(t[0])*np.std(old_div(np.sum((s>thr)*mov_tot[0],axis=(1,2)),np.sum((s>thr))))
+        t2=t[1]/np.std(t[1])*np.std(old_div(np.sum((s>thr)*mov_tot[1],axis=(1,2)),np.sum((s>thr))))
+        coor_1.append(t1)
+        coor_2.append(t2)
+        new_t_trace.append(np.vstack([t1,t2]).T)
+
+    coor_1=np.array(coor_1)    
+    coor_2=np.array(coor_2)
+
+    return new_t_trace,coor_1,coor_2
+
+
+#%%
+if __name__ == "__main__":
+    main()
+#%%    
+def main():
+    #%
+    mmat=loadmat('mov_AG051514-01-060914 C.mat')['mov']
+    m=cm.movie(mmat.transpose((2,0,1)),fr=120)
+    mask=select_roi(m[0])
+    if 1:
+        mov_tot=compute_optical_flow(m[:3000],mask)
+    else:
+        mov_tot=compute_optical_flow(m[:3000],mask,polar_coord=False)
+
+    sp_filt,t_trace,norm_fact=extract_components(mov_tot)
+
+    new_t_trace,coor_1,coor_2 = normalize_components(t_trace,sp_filt)   
+    plot_components(sp_filt,t_trace)
+
+
+    #%
+    id_comp=1
+    pl.plot(old_div(np.sum(np.reshape(sp_filt[id_comp]>1,[d1,d2])*mov_tot[1],axis=(1,2)),np.sum(sp_filt[id_comp]>1)))
+    pl.plot(t_trace[id_comp][:,1]) 
+
+

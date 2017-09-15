@@ -1,644 +1,300 @@
-    ##@package demos  
-#\brief      for the user/programmer to understand and try the code
-#\details    all of other usefull functions (demos available on jupyter notebook) -*- coding: utf-8 -*- 
-#\version   1.0
-#\pre       EXample.First initialize the system.
-#\bug       
-#\warning   
-#\copyright GNU General Public License v2.0 
-#\date Created on Mon Nov 21 15:53:15 2016
-#\author agiovann
-#toclean
+# -*- coding: utf-8 -*-
+"""
+Created on Wed Feb 24 18:39:45 2016
 
+@author: Andrea Giovannucci
+
+For explanation consult at https://github.com/agiovann/Constrained_NMF/releases/download/v0.4-alpha/Patch_demo.zip
+and https://github.com/agiovann/Constrained_NMF
+
+"""
 from __future__ import division
 from __future__ import print_function
-from builtins import zip
+#%%
 from builtins import str
-from builtins import map
 from builtins import range
 from past.utils import old_div
-import cv2
-import glob
-
-try:
-    cv2.setNumThreads(1)
-except:
-    print('Open CV is naturally single threaded')
-
 try:
     if __IPYTHON__:
-        print(1)
-        # this is used for debugging purposes only. allows to reload classes
-        # when changed
+        # this is used for debugging purposes only. allows to reload classes when changed
         get_ipython().magic('load_ext autoreload')
         get_ipython().magic('autoreload 2')
-except NameError:
-    print('Not IPYTHON')
-    pass
-import caiman as cm
-import numpy as np
-import os
-import time
-import pylab as pl
-import psutil
+except:
+    print('NOT IPYTHON')
+
+import matplotlib as mpl
+mpl.use('TKAgg')
+from matplotlib import pyplot as plt
+#plt.ion()
+
 import sys
-from ipyparallel import Client
-from skimage.external.tifffile import TiffFile
+import numpy as np
+import ca_source_extraction as cse
+
+#sys.path.append('../SPGL1_python_port')
+#%
+from time import time
+from scipy.sparse import coo_matrix
+import pylab as pl
+import glob
+import os
 import scipy
-import copy
+from ipyparallel import Client
+import calblitz as cb
+#%% download example
+import urllib.request, urllib.parse, urllib.error
+import shutil
 
-from caiman.utils.utils import download_demo
-from caiman.base.rois import extract_binary_masks_blob
-from caiman.utils.visualization import plot_contours, view_patches_bar
-from caiman.source_extraction.cnmf import cnmf as cnmf
-from caiman.motion_correction import MotionCorrect
-from caiman.components_evaluation import estimate_components_quality
+if not os.path.exists('PPC.tif'):
+    url = "https://www.dropbox.com/s/z8rj5dekrl6yxfr/PPC.tif?dl=1"  # dl=1 is important
+    u = urllib.request.urlretrieve(url)
+    shutil.move(u[0],'./PPC.tif')
 
-from caiman.components_evaluation import evaluate_components,evaluate_components_CNN
+#%% load and motion correct movie
+m=cb.load('PPC.tif',fr=30)    
+m -= np.min(m)
+play_movie = False
 
-from caiman.tests.comparison import comparison
-from caiman.motion_correction import tile_and_correct, motion_correction_piecewise
+if play_movie:
+    m.play(backend='opencv',magnification=2,fr=60,gain=5.)
 #%%
-# @params params_movie set parameters and create template by RIGID MOTION CORRECTION
-params_movie = {'fname': ['Sue_2x_3000_40_-46.tif'],
-               'niter_rig': 1,
-               'max_shifts': (3, 3),  # maximum allow rigid shift
-               'splits_rig': 20,  # for parallelization split the movies in  num_splits chuncks across time
-               # if none all the splits are processed and the movie is saved
-               'num_splits_to_process_rig': None,
-               # intervals at which patches are laid out for motion correction
-               'strides': (48, 48),
-               # overlap between pathes (size of patch strides+overlaps)
-               'overlaps': (24, 24),
-               'splits_els': 28,  # for parallelization split the movies in  num_splits chuncks across time
-               # if none all the splits are processed and the movie is saved
-               'num_splits_to_process_els': [14, None],
-               'upsample_factor_grid': 4,  # upsample factor to avoid smearing when merging patches
-               # maximum deviation allowed for patch with respect to rigid
-               # shift
-               'max_deviation_rigid': 2,
-               'p': 1,  # order of the autoregressive system
-               'merge_thresh': 0.8,  # merging threshold, max correlation allowed
-               'rf': 15,  # half-size of the patches in pixels. rf=25, patches are 50x50
-               'stride_cnmf': 6,  # amounpl.it of overlap between the patches in pixels
-               'K': 4,  # number of components per patch
-               # if dendritic. In this case you need to set init_method to
-               # sparse_nmf
-               'is_dendrites': False,
-               'init_method': 'greedy_roi',
-               'gSig': [4, 4],  # expected half size of neurons
-               'alpha_snmf': None,  # this controls sparsity
-               'final_frate': 30,
-               'r_values_min_patch': .7,  # threshold on space consistency
-               'fitness_min_patch': -20,  # threshold on time variability
-                # threshold on time variability (if nonsparse activity)
-               'fitness_delta_min_patch': -20,
-               'Npeaks': 10,
-               'r_values_min_full': .8,
-               'fitness_min_full': - 40,
-               'fitness_delta_min_full': - 40,
-               'only_init_patch': True,
-               'gnb': 2,
-               'memory_fact': 1,
-               'n_chunks': 10,
-               'update_background_components': True,# whether to update the background components in the spatial phase
-               'low_rank_background': True  #whether to update the using a low rank approximation. In the False case all the nonzero elements of the background components are updated using hals    
-                                     #(to be used with one background per patch)                              
-               }
+max_w=25 # max pixel shift in width direction
+max_h=25
+mc,shifts,corrs, template = m.motion_correct(max_shift_w=max_w,max_shift_h=max_h,remove_blanks=True)
 
+if play_movie:
+    mc.play(backend='opencv',magnification=2,fr=60,gain=5.)
 #%%
-params_movie = {'fname': ['demoMovieJ.tif'],
-                 'max_shifts': (1, 1),  # maximum allow rigid shift (2,2)
-                 'niter_rig': 1,
-                 'splits_rig': 14,  # for parallelization split the movies in  num_splits chuncks across time
-                 'num_splits_to_process_rig': None,  # if none all the splits are processed and the movie is saved
-                 'strides': (48, 48),  # intervals at which patches are laid out for motion correction
-                 'overlaps': (12, 12),  # overlap between pathes (size of patch strides+overlaps)
-                 'splits_els': 14,  # for parallelization split the movies in  num_splits chuncks across time
-                 'num_splits_to_process_els': [14, None],  # if none all the splits are processed and the movie is saved
-                 'upsample_factor_grid': 3,  # upsample factor to avoid smearing when merging patches
-                 'max_deviation_rigid': 1,  # maximum deviation allowed for patch with respect to rigid shift
-                 'p': 1,  # order of the autoregressive system
-                 'merge_thresh': 0.8,  # merging threshold, max correlation allow
-                 'rf': 14,  # half-size of the patches in pixels. rf=25, patches are 50x50    20
-                 'stride_cnmf': 10,  # amounpl.it of overlap between the patches in pixels
-                 'K': 6,  # number of components per patch
-                 'is_dendrites': False,  # if dendritic. In this case you need to set init_method to sparse_nmf
-                 'init_method': 'greedy_roi',
-                 'gSig': [5, 5],  # expected half size of neurons
-                 'alpha_snmf': None,  # this controls sparsity
-                 'final_frate': 10,
-                 'r_values_min_patch': .7,  # threshold on space consistency
-                 'fitness_min_patch': -20,  # threshold on time variability
-                 # threshold on time variability (if nonsparse activity)
-                 'fitness_delta_min_patch': -20,
-                 'Npeaks': 10,
-                 'r_values_min_full': .8,
-                 'fitness_min_full': - 40,
-                 'fitness_delta_min_full': - 40,
-                 'only_init_patch': True,
-                 'gnb': 2,
-                 'memory_fact': 1,
-                 'n_chunks': 10,
-                 'update_background_components': True,# whether to update the background components in the spatial phase
-                 'low_rank_background': True #whether to update the using a low rank approximation. In the False case all the nonzero elements of the background components are updated using hals    
-                                     #(to be used with one background per patch)          
-                 }
+mc.save('PPC_mc.tif')
+fnames=['PPC_mc.tif']
 
-#%%
-params_display = {
-    'downsample_ratio': .2,
-    'thr_plot': 0.8
-}
-# TODO: do find&replace on those parameters and delete this paragrph
-
-# @params fname name of the movie
-fname = params_movie['fname']
-niter_rig = params_movie['niter_rig']
-# @params max_shifts maximum allow rigid shift
-max_shifts = params_movie['max_shifts']
-
-# @params splits_rig for parallelization split the movies in  num_splits chuncks across time
-splits_rig = params_movie['splits_rig']
-
-# @params num_splits_to_process_ri if none all the splits are processed and the movie is saved
-num_splits_to_process_rig = params_movie['num_splits_to_process_rig']
-
-# @params strides intervals at which patches are laid out for motion correction
-strides = params_movie['strides']
-
-# @ prams overlaps overlap between pathes (size of patch strides+overlaps)
-overlaps = params_movie['overlaps']
-
-# @params splits_els for parallelization split the movies in  num_splits chuncks across time
-splits_els = params_movie['splits_els']
-
-# @params num_splits_to_process_els  if none all the splits are processed and the movie is saved
-num_splits_to_process_els = params_movie['num_splits_to_process_els']
-
-# @params upsample_factor_grid upsample factor to avoid smearing when merging patches
-upsample_factor_grid = params_movie['upsample_factor_grid']
-
-# @params max_deviation_rigid maximum deviation allowed for patch with respect to rigid shift
-max_deviation_rigid = params_movie['max_deviation_rigid']
-
-# %% download movie if not there
-if fname[0] in ['Sue_2x_3000_40_-46.tif','demoMovieJ.tif']:
-    # TODO: todocument
-    download_demo(fname[0])
-    fname = [os.path.join('example_movies',fname[0])]
-# TODO: todocument
-m_orig = cm.load_movie_chain(fname[:1])
-
-# %% play movie
-downsample_ratio = params_display['downsample_ratio']
-offset_mov = -np.min(m_orig[:100])
-m_orig.resize(1, 1, downsample_ratio).play(
-    gain=10, offset=offset_mov, fr=30, magnification=2)
-
-# %% RUN ANALYSIS
-c, dview, n_processes = cm.cluster.setup_cluster(
-    backend='local', n_processes=None, single_thread=False)
-
-# %% INITIALIZING
-t1 = time.time()
-# movie must be mostly positive for this to work
-# TODO : document
-# setting timer to see how the changement in functions make the code react on a same computer.
-
-min_mov = cm.load(fname[0], subindices=range(400)).min()
-mc_list = []
-new_templ = None
-for each_file in fname:
-# TODO: needinfo how the classes works
-    mc = MotionCorrect(each_file, min_mov,
-                       dview=dview, max_shifts=max_shifts, niter_rig=niter_rig, splits_rig=splits_rig,
-                       num_splits_to_process_rig=num_splits_to_process_rig,
-                       strides=strides, overlaps=overlaps, splits_els=splits_els,
-                       num_splits_to_process_els=num_splits_to_process_els,
-                       upsample_factor_grid=upsample_factor_grid, max_deviation_rigid=max_deviation_rigid,
-                       shifts_opencv=True, nonneg_movie=True)
-    mc.motion_correct_rigid(save_movie=True,template = new_templ)
-    new_templ = mc.total_template_rig
-    m_rig = cm.load(mc.fname_tot_rig)
-    bord_px_rig = np.ceil(np.max(mc.shifts_rig)).astype(np.int)
-
-    # TODO : needinfo
-    pl.imshow(new_templ, cmap='gray')
-    pl.pause(.1)
-    mc_list.append(mc)
-# we are going to keep this part because it helps the user understand what we need.
-# needhelp why it is not the same as in the notebooks ?
-# TODO: show screenshot 2,3
-
-# %%
-# load motion corrected movie
-m_rig = cm.load(mc.fname_tot_rig)
-pl.imshow(mc.total_template_rig, cmap='gray')
-# %% visualize templates
-cm.movie(np.array(mc.templates_rig)).play(
-    fr=10, gain=5, magnification=2, offset=offset_mov)
-# %% plot rigid shifts
-pl.close()
-pl.plot(mc.shifts_rig)
-pl.legend(['x shifts', 'y shifts'])
-pl.xlabel('frames')
-pl.ylabel('pixels')
-# %% inspect movie
-downsample_ratio = params_display['downsample_ratio']
-# TODO: todocument
-offset_mov = -np.min(m_orig[:100])
-m_rig.resize(1, 1, downsample_ratio).play(
-    gain=10, offset=offset_mov * .25, fr=30, magnification=2, bord_px=bord_px_rig)
-# %%
-# a computing intensive but parralellized part
-t1 = time.time()
-mc.motion_correct_pwrigid(save_movie=True,
-                          template=mc.total_template_rig, show_template=True)
-# TODO: change var name els= pwr
-m_els = cm.load(mc.fname_tot_els)
-pl.imshow(mc.total_template_els, cmap='gray')
-# TODO: show screenshot 5
-# TODO: bug sometimes saying there is no y_shifts_els
-bord_px_els = np.ceil(np.maximum(np.max(np.abs(mc.x_shifts_els)),
-                                 np.max(np.abs(mc.y_shifts_els)))).astype(np.int)
-# %% visualize elastic shifts
-pl.close()
-pl.subplot(2, 1, 1)
-pl.plot(mc.x_shifts_els)
-pl.ylabel('x shifts (pixels)')
-pl.subplot(2, 1, 2)
-pl.plot(mc.y_shifts_els)
-pl.ylabel('y_shifts (pixels)')
-pl.xlabel('frames')
-# TODO: show screenshot 6
-# %% play corrected and downsampled movie
-downsample_ratio = 0.2
-m_els.resize(1, 1, downsample_ratio).play(
-    gain=10, offset=0, fr=30, magnification=2, bord_px=bord_px_els)
-# %% local correlation
-pl.imshow(m_els.local_correlations(eight_neighbours=True, swap_dim=False))
-# TODO: show screenshot 7
-# %% visualize raw, rigid and pw-rigid motion correted moviews
-downsample_factor = params_display['downsample_ratio']
-# TODO : todocument
-cm.concatenate(
-    [m_orig.resize(1, 1, downsample_factor) + offset_mov, m_rig.resize(1, 1, downsample_factor), m_els.resize(
-        1, 1, downsample_factor)], axis=2).play(fr=60, gain=5, magnification=4, offset=0)
-# TODO: show screenshot 8
-# %% compute metrics for the results, just to check that motion correction worked properly
-final_size = np.subtract(mc.total_template_els.shape, 2 * bord_px_els)
-winsize = 100
-swap_dim = False
-resize_fact_flow = params_display['downsample_ratio']
-# computationnaly intensive
-# TODO: todocument
-tmpl, correlations, flows_orig, norms, smoothness = cm.motion_correction.compute_metrics_motion_correction(
-    mc.fname_tot_els, final_size[0], final_size[1], swap_dim, winsize=winsize, play_flow=False,
-    resize_fact_flow=resize_fact_flow)
-tmpl, correlations, flows_orig, norms, smoothness = cm.motion_correction.compute_metrics_motion_correction(
-    mc.fname_tot_rig, final_size[0], final_size[1], swap_dim, winsize=winsize, play_flow=False,
-    resize_fact_flow=resize_fact_flow)
-tmpl, correlations, flows_orig, norms, smoothness = cm.motion_correction.compute_metrics_motion_correction(
-    fname[0], final_size[0], final_size[1], swap_dim, winsize=winsize, play_flow=False,
-    resize_fact_flow=resize_fact_flow)
-# %% plot the results of metrics
-fls = [mc.fname_tot_els[:-4] + '_metrics.npz', mc.fname_tot_rig[:-4] +
-       '_metrics.npz', mc.fname[:-4] + '_metrics.npz']
-# %%
-for cnt, fl, metr in zip(range(len(fls)), fls, ['pw_rigid', 'rigid', 'raw']):
-    with np.load(fl) as ld:
-        print(ld.keys())
-        #        pl.figure()
-        print(fl)
-        print(str(np.mean(ld['norms'])) + '+/-' + str(np.std(ld['norms'])) +
-              ' ; ' + str(ld['smoothness']) + ' ; ' + str(ld['smoothness_corr']))
-        # here was standing an iftrue ..
-        pl.subplot(len(fls), 4, 1 + 4 * cnt)
-        pl.ylabel(metr)
+#%% start cluster for efficient computation
+single_thread=False
+backend='local'
+if single_thread:
+    dview=None
+else:    
+    try:
+        c.close()
+    except:
+        print('C was not existing, creating one')
+    print("Stopping  cluster to avoid unnencessary use of memory....")
+    sys.stdout.flush()  
+    if backend == 'SLURM':
         try:
-            mean_img = np.mean(
-                cm.load(fl[:-12] + 'mmap'), 0)[12:-12, 12:-12]
+            cse.utilities.stop_server(is_slurm=True)
         except:
-            try:
-                mean_img = np.mean(
-                    cm.load(fl[:-12] + '.tif'), 0)[12:-12, 12:-12]
-            except:
-                mean_img = np.mean(
-                    cm.load(fl[:-12] + 'hdf5'), 0)[12:-12, 12:-12]
+            print('Nothing to stop')
+        slurm_script='/mnt/xfs1/home/agiovann/SOFTWARE/Constrained_NMF/SLURM/slurmStart.sh'
+        cse.utilities.start_server(slurm_script=slurm_script)
+        pdir, profile = os.environ['IPPPDIR'], os.environ['IPPPROFILE']
+        c = Client(ipython_dir=pdir, profile=profile)        
+    else:
+        cse.utilities.stop_server()
+        cse.utilities.start_server()        
+        c=Client()
+    n_processes=len(c)
+    print(('Using '+ str(len(c)) + ' processes'))
+    dview=c[:len(c)]
 
-        lq, hq = np.nanpercentile(mean_img, [.5, 99.5])
-        pl.imshow(mean_img, vmin=lq, vmax=hq)
-        pl.title('Mean')
-        #        pl.plot(ld['correlations'])
-
-        pl.subplot(len(fls), 4, 4 * cnt + 2)
-        pl.imshow(ld['img_corr'], vmin=0, vmax=.35)
-        pl.title('Corr image')
-        #        pl.colorbar()
-        pl.subplot(len(fls), 4, 4 * cnt + 3)
-        #
-        pl.plot(ld['norms'])
-        pl.xlabel('frame')
-        pl.ylabel('norm opt flow')
-        pl.subplot(len(fls), 4, 4 * cnt + 4)
-        flows = ld['flows']
-        pl.imshow(np.mean(
-            np.sqrt(flows[:, :, :, 0] ** 2 + flows[:, :, :, 1] ** 2), 0), vmin=0, vmax=0.3)
-        pl.colorbar()
-        pl.title('Mean optical flow')
-# TODO: show screenshot 9
-# %% restart cluster to clean up memory
-# TODO: todocument
-c, dview, n_processes = cm.cluster.setup_cluster(
-    backend='local', n_processes=None, single_thread=False)
-# %% save each chunk in F format
-t1 = time.time()
-if not 'max_shifts' in params_movie:
-    fnames = params_movie['fname']
-    border_to_0 = 0
-else:  # elif not params_movie.has_key('overlaps'):
-    fnames = [mc.fname_tot_rig]
-    border_to_0 = bord_px_rig
-    m_els = m_rig
-# else:
-#   fnames = [mc.fname_tot_els]
-#  border_to_0 = bord_px_els
-
-# if you need to crop the borders use slicing
-# idx_x=slice(border_nan,-border_nan,None)
-# idx_y=slice(border_nan,-border_nan,None)
-# idx_xy=(idx_x,idx_y)
-idx_xy = None
-# TODO: needinfo
-add_to_movie = -np.nanmin(m_els) + 1  # movie must be positive
-# if you need to remove frames from the beginning of each file
-remove_init = 0
-# downsample movie in time: use .2 or .1 if file is large and you want a quick answer
-downsample_factor = 1
-base_name = fname[0].split('/')[-1][:-4]
-# TODO: todocument
-name_new = cm.save_memmap_each(fnames, dview=dview, base_name=base_name, resize_fact=(
-    1, 1, downsample_factor), remove_init=remove_init, idx_xy=idx_xy, add_to_movie=add_to_movie,
-                               border_to_0=border_to_0)
-name_new.sort()
+#%%
+downsample_factor=.5 # use .2 or .1 if file is large and you want a quick answer
+idx_xy=None
+base_name='Yr'
+name_new=cse.utilities.save_memmap_each(fnames, dview=dview,base_name=base_name, resize_fact=(1, 1, downsample_factor), remove_init=0,idx_xy=idx_xy )
+name_new.sort(key=lambda fn: np.int(fn[len(base_name):fn.find('_')]))
 print(name_new)
+#%%
+n_chunks=6 # increase this number if you have memory issues at this point
+fname_new=cse.utilities.save_memmap_join(name_new,base_name='Yr', n_chunks=6, dview=dview)
+#%%
+#fname_new='Yr_d1_501_d2_398_d3_1_order_F_frames_369_.mmap'
+Yr,dims,T=cse.utilities.load_memmap(fname_new)
+d1,d2=dims
+Y=np.reshape(Yr,dims+(T,),order='F')
+#%%
+Cn = cse.utilities.local_correlations(Y[:,:,:3000])
+pl.imshow(Cn,cmap='gray')  
 
-# %% if multiple files were saved in C format, now put them together in a single large file.
-if len(name_new) > 1:
-    fname_new = cm.save_memmap_join(
+#%%
+rf=10 # half-size of the patches in pixels. rf=25, patches are 50x50
+stride = 2 #amounpl.it of overlap between the patches in pixels    
+K=6 # number of neurons expected per patch
+gSig=[4,4] # expected half size of neurons
+merge_thresh=0.8 # merging threshold, max correlation allowed
+p=2 #order of the autoregressive system
+memory_fact=1; #unitless number accounting how much memory should be used. You will need to try different values to see which one would work the default is OK for a 16 GB system
+save_results=False
+#%% RUN ALGORITHM ON PATCHES
+options_patch = cse.utilities.CNMFSetParms(Y,n_processes,p=0,gSig=gSig,K=K,ssub=1,tsub=4,thr=merge_thresh)
+A_tot,C_tot,YrA_tot,b,f,sn_tot, optional_outputs = cse.map_reduce.run_CNMF_patches(fname_new, (d1, d2, T), options_patch,rf=rf,stride = stride,
+                                                                        dview=dview,memory_fact=memory_fact)
+print(('Number of components:' + str(A_tot.shape[-1])))      
+#%%
+if save_results:
+    np.savez('results_analysis_patch.npz',A_tot=A_tot.todense(), C_tot=C_tot, sn_tot=sn_tot,d1=d1,d2=d2,b=b,f=f)    
+#%% if you have many components this might take long!
+if False:
+    pl.figure()
+    crd = cse.utilities.plot_contours(A_tot,Cn,thr=0.9)
+#%% set parameters for full field of view analysis
+options = cse.utilities.CNMFSetParms(Y,n_processes,p=0,gSig=gSig,K=A_tot.shape[-1],thr=merge_thresh)
+pix_proc=np.minimum(np.int((d1*d2)/n_processes/(old_div(T,2000.))),np.int(old_div((d1*d2),n_processes))) # regulates the amount of memory used
+options['spatial_params']['n_pixels_per_process']=pix_proc
+options['temporal_params']['n_pixels_per_process']=pix_proc
+#%% merge spatially overlaping and temporally correlated components      
+A_m,C_m,nr_m,merged_ROIs,S_m,bl_m,c1_m,sn_m,g_m=cse.merge_components(Yr,A_tot,[],np.array(C_tot),[],np.array(C_tot),[],options['temporal_params'],options['spatial_params'],dview=dview,thr=options['merging']['thr'],mx=np.Inf)     
+#%% update temporal to get Y_r
+options['temporal_params']['p']=0
+options['temporal_params']['fudge_factor']=0.96 #change ifdenoised traces time constant is wrong
+options['temporal_params']['backend']='ipyparallel'
+C_m,A_m,b,f_m,S_m,bl_m,c1_m,neurons_sn_m,g2_m,YrA_m = cse.temporal.update_temporal_components(Yr,A_m,b,C_m,f,dview=dview,bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
 
-        name_new, base_name='Yr', n_chunks=params_movie['n_chunks'], dview=dview)
-else:
-    print('One file only, not saving!')
-    fname_new = name_new[0]
+#%% get rid of evenrually noisy components. 
+# But check by visual inspection to have a feeling fot the threshold. Try to be loose, you will be able to get rid of more of them later!
+final_frate = 30
+tB = np.minimum(-2,np.floor(-5./30*final_frate))
+tA = np.maximum(5,np.ceil(25./30*final_frate))
+Npeaks=10
+traces=C_m+YrA_m
+#        traces_a=traces-scipy.ndimage.percentile_filter(traces,8,size=[1,np.shape(traces)[-1]/5])
+#        traces_b=np.diff(traces,axis=1)
+fitness_raw, fitness_delta, erfc_raw, erfc_delta, r_values, significant_samples =\
+             cse.utilities.evaluate_components(Y, traces, A_m, C_m, b, f_m, \
+             remove_baseline=True, N=5, robust_std=False, Athresh = 0.1, Npeaks = Npeaks, tB=tB, tA = tA, thresh_C = 0.3)
 
-# %% LOAD MEMMAP FILE
-# fname_new='Yr_d1_501_d2_398_d3_1_order_F_frames_369_.mmap'
-Yr, dims, T = cm.load_memmap(fname_new)
-d1, d2 = dims
-images = np.reshape(Yr.T, [T] + list(dims), order='F')
-# TODO: needinfo
-Y = np.reshape(Yr, dims + (T,), order='F')
-m_images = cm.movie(images)
+idx_components_r=np.where(r_values>=.5)[0]
+idx_components_raw=np.where(fitness_raw<-20)[0]        
+idx_components_delta=np.where(fitness_delta<-10)[0]   
 
-# TODO: show screenshot 10
-# %%  checks on movies
-# computationnally intensive
-if np.min(images) < 0:
-    # TODO: should do this in an automatic fashion with a while loop at the 367 line
-    raise Exception('Movie too negative, add_to_movie should be larger')
-if np.sum(np.isnan(images)) > 0:
-    # TODO: same here
-    raise Exception('Movie contains nan! You did not remove enough borders')
-# %% correlation image
-# TODO: needinfo it is not the same and not used
-# for fff in fname_new:
-#    Cn = cm.movie(images[:1000]).local_correlations(eight_neighbours=True,swap_dim=True)
-#    #Cn[np.isnan(Cn)] = 0
-#    pl.imshow(Cn, cmap='gray', vmax=.35)
-# %% correlation image
-Cn = cm.local_correlations(Y)
-Cn[np.isnan(Cn)] = 0
-pl.imshow(Cn, cmap='gray', vmax=.95)
-# TODO: show screenshot 11
 
-# %% some parameter settings
-# order of the autoregressive fit to calcium imaging in general one (slow gcamps) or two (fast gcamps fast scanning)
-p = params_movie['p']
-# merging threshold, max correlation allowed
-merge_thresh = params_movie['merge_thresh']
-# half-size of the patches in pixels. rf=25, patches are 50x50
-rf = params_movie['rf']
-# amounpl.it of overlap between the patches in pixels
-stride_cnmf = params_movie['stride_cnmf']
-# number of components per patch
-K = params_movie['K']
-# if dendritic. In this case you need to set init_method to sparse_nmf
-is_dendrites = params_movie['is_dendrites']
-# iinit method can be greedy_roi for round shapes or sparse_nmf for denritic data
-init_method = params_movie['init_method']
-# expected half size of neurons
-gSig = params_movie['gSig']
-# this controls sparsity
-alpha_snmf = params_movie['alpha_snmf']
-# frame rate of movie (even considering eventual downsampling)
-final_frate = params_movie['final_frate']
+idx_components=np.union1d(idx_components_r,idx_components_raw)
+idx_components=np.union1d(idx_components,idx_components_delta)  
+idx_components_bad=np.setdiff1d(list(range(len(traces))),idx_components)
 
-if params_movie['is_dendrites'] == True:
-    if params_movie['init_method'] is not 'sparse_nmf':
-        raise Exception('dendritic requires sparse_nmf')
-    if params_movie['alpha_snmf'] is None:
-        raise Exception('need to set a value for alpha_snmf')
-# %% Extract spatial and temporal components on patches
-t1 = time.time()
-border_pix = 0 # if motion correction introduces problems at the border remove pixels from border
-# TODO: todocument
-# TODO: warnings 3
-cnm = cnmf.CNMF(n_processes=1, k=K, gSig=gSig, merge_thresh=params_movie['merge_thresh'], p=params_movie['p'],
-                dview=dview, rf=rf, stride=stride_cnmf, memory_fact=1,
-                method_init=init_method, alpha_snmf=alpha_snmf, only_init_patch=params_movie['only_init_patch'],
-                gnb=params_movie['gnb'], method_deconvolution='oasis',border_pix = border_pix, low_rank_background = params_movie['low_rank_background']) 
-cnm = cnm.fit(images)
-
-A_tot = cnm.A
-C_tot = cnm.C
-YrA_tot = cnm.YrA
-b_tot = cnm.b
-f_tot = cnm.f
-sn_tot = cnm.sn
-print(('Number of components:' + str(A_tot.shape[-1])))
-# %%
-pl.figure()
-# TODO: show screenshot 12`
-# TODO : change the way it is used
-crd = plot_contours(A_tot, Cn, thr=params_display['thr_plot'])
-# %% DISCARD LOW QUALITY COMPONENT
-final_frate = params_movie['final_frate']
-r_values_min = params_movie['r_values_min_patch']  # threshold on space consistency
-fitness_min = params_movie['fitness_delta_min_patch']  # threshold on time variability
-# threshold on time variability (if nonsparse activity)
-fitness_delta_min = params_movie['fitness_delta_min_patch']
-Npeaks = params_movie['Npeaks']
-traces = C_tot + YrA_tot
-# TODO: todocument
-idx_components, idx_components_bad = estimate_components_quality(
-    traces, Y, A_tot, C_tot, b_tot, f_tot, final_frate=final_frate, Npeaks=Npeaks, r_values_min=r_values_min,
-    fitness_min=fitness_min, fitness_delta_min=fitness_delta_min)
-print(('Keeping ' + str(len(idx_components)) +
-       ' and discarding  ' + str(len(idx_components_bad))))
-# %%
-# TODO: show screenshot 13
-pl.figure()
-crd = plot_contours(A_tot.tocsc()[:, idx_components], Cn, thr=params_display['thr_plot'])
-# %%
-A_tot = A_tot.tocsc()[:, idx_components]
-C_tot = C_tot[idx_components]
-# %% rerun updating the components to refine
-t1 = time.time()
-cnm = cnmf.CNMF(n_processes=1, k=A_tot.shape, gSig=gSig, merge_thresh=merge_thresh, p=p, dview=dview, Ain=A_tot,
-                Cin=C_tot, b_in = b_tot,
-                f_in=f_tot, rf=None, stride=None, method_deconvolution='oasis',gnb = params_movie['gnb'],
-                low_rank_background = params_movie['low_rank_background'], update_background_components = params_movie['update_background_components'],check_nan = True)
-
-cnm = cnm.fit(images)
-
-# %%
-A, C, b, f, YrA, sn = cnm.A, cnm.C, cnm.b, cnm.f, cnm.YrA, cnm.sn
-# %% again recheck quality of components, stricter criteria
-final_frate = params_movie['final_frate']
-r_values_min = params_movie['r_values_min_full']  # threshold on space consistency
-fitness_min = params_movie['fitness_min_full']  # threshold on time variability
-# threshold on time variability (if nonsparse activity)
-fitness_delta_min = params_movie['fitness_delta_min_full']
-Npeaks = params_movie['Npeaks']
-traces = C + YrA
-idx_components, idx_components_bad, fitness_raw, fitness_delta, r_values = estimate_components_quality(
-    traces, Y, A, C, b, f, final_frate=final_frate, Npeaks=Npeaks, r_values_min=r_values_min, fitness_min=fitness_min,
-    fitness_delta_min=fitness_delta_min, return_all=True)
 print(' ***** ')
 print((len(traces)))
 print((len(idx_components)))
-# %% save results
-np.savez(os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:-4] + 'results_analysis.npz'), Cn=Cn,
-         A=A,
-         C=C, b=b, f=f, YrA=YrA, sn=sn, d1=d1, d2=d2, idx_components=idx_components,
-         idx_components_bad=idx_components_bad,
-         fitness_raw=fitness_raw, fitness_delta=fitness_delta, r_values=r_values)
-# we save it
-# %%
-# TODO: show screenshot 14
-pl.subplot(1, 2, 1)
-crd = plot_contours(A.tocsc()[:, idx_components], Cn, thr=params_display['thr_plot'])
-pl.subplot(1, 2, 2)
-crd = plot_contours(A.tocsc()[:, idx_components_bad], Cn, thr=params_display['thr_plot'])
-# %%
-# TODO: needinfo
-view_patches_bar(Yr, scipy.sparse.coo_matrix(A.tocsc()[:, idx_components]), C[idx_components, :], b, f, dims[0], dims[1],
-                 YrA=YrA[idx_components, :], img=Cn)
-# %%
-view_patches_bar(Yr, scipy.sparse.coo_matrix(A.tocsc()[:, idx_components_bad]), C[idx_components_bad, :], b, f, dims[0],
-                 dims[1], YrA=YrA[idx_components_bad, :], img=Cn)
-# %% STOP CLUSTER and clean up log files
-# TODO: todocument
-cm.stop_server()
+#%%
+A_m=A_m[:,idx_components]
+C_m=C_m[idx_components,:]   
 
-log_files = glob.glob('*_LOG_*')
+#%% display components  DO NOT RUN IF YOU HAVE TOO MANY COMPONENTS
+pl.figure()
+crd = cse.utilities.plot_contours(A_m,Cn,thr=0.9)
+#%%
+print(('Number of components:' + str(A_m.shape[-1])))  
+#%% UPDATE SPATIAL COMPONENTS
+t1 = time()
+A2,b2,C2,f = cse.spatial.update_spatial_components(Yr, C_m, f, A_m, sn=sn_tot,dview=dview, **options['spatial_params'])
+print((time() - t1))
+#%% UPDATE TEMPORAL COMPONENTS
+options['temporal_params']['p']=p
+options['temporal_params']['fudge_factor']=0.96 #change ifdenoised traces time constant is wrong
+C2,A2,b2,f2,S2,bl2,c12,neurons_sn2,g21,YrA = cse.temporal.update_temporal_components(Yr,A2,b2,C2,f,dview=dview, bl=None,c1=None,sn=None,g=None,**options['temporal_params'])
+#%% Order components
+#A_or, C_or, srt = cse.utilities.order_components(A2,C2)
+#%% stop server and remove log files
+cse.utilities.stop_server(is_slurm = (backend == 'SLURM')) 
+log_files=glob.glob('Yr*_LOG_*')
 for log_file in log_files:
     os.remove(log_file)
-# %% reconstruct denoised movie
-denoised = cm.movie(A.dot(C) + b.dot(f)).reshape(dims + (-1,), order='F').transpose([2, 0, 1])
-# %%
-# TODO: show screenshot 15
-denoised.play(gain=10, offset=0, fr=50, magnification=4)
-#%% background only 
-denoised = cm.movie(b.dot(f)).reshape(dims + (-1,), order='F').transpose([2, 0, 1])
-denoised.play(gain=2, offset=0, fr=50, magnification=4)
+#%% order components according to a quality threshold and only select the ones wiht quality larger than quality_threshold. 
+B = np.minimum(-2,np.floor(-5./30*final_frate))
+tA = np.maximum(5,np.ceil(25./30*final_frate))
+Npeaks=10
+traces=C2+YrA
+#        traces_a=traces-scipy.ndimage.percentile_filter(traces,8,size=[1,np.shape(traces)[-1]/5])
+#        traces_b=np.diff(traces,axis=1)
+fitness_raw, fitness_delta, erfc_raw, erfc_delta, r_values, significant_samples = cse.utilities.evaluate_components(Y, traces, A2, C2, b2, f2, remove_baseline=True, N=5, robust_std=False, Athresh = 0.1, Npeaks = Npeaks, tB=tB, tA = tA, thresh_C = 0.3)
+
+idx_components_r=np.where(r_values>=.6)[0]
+idx_components_raw=np.where(fitness_raw<-60)[0]        
+idx_components_delta=np.where(fitness_delta<-20)[0]   
 
 
-# %% reconstruct denoised movie without background
-denoised = cm.movie(A.dot(C)).reshape(dims + (-1,), order='F').transpose([2, 0, 1])
-# %%
-# TODO: show screenshot 16
-denoised.play(gain=10, offset=0, fr=100, magnification=2)
-#%% show background(s)
-BB  = cm.movie(b.reshape(dims+(-1,), order = 'F').transpose(2,0,1))
-BB.play(gain=2, offset=0, fr=2, magnification=4)
-BB.zproject()
-
-#%% *************************************************************************************************************************#%%
-
-#%% *************************************************************************************************************************#%%
-
-#%% *************************************************************************************************************************#%%
-
-#%% *************************************************************************************************************************#%%
-
-#%% *************************************************************************************************************************#%%
-
-#%% LOAD DATA
-params_display = {
-    'downsample_ratio': .2,
-    'thr_plot': 0.8
-}
+min_radius=gSig[0]-2
+masks_ws,idx_blobs,idx_non_blobs=cse.utilities.extract_binary_masks_blob(
+A2.tocsc(), min_radius, dims, num_std_threshold=1, 
+minCircularity= 0.6, minInertiaRatio = 0.2,minConvexity =.8)
 
 
-analysis_file = '/mnt/ceph/neuro/jeremie_analysis/neurofinder.03.00.test/Yr_d1_498_d2_467_d3_1_order_C_frames_2250_._results_analysis.npz'
-with np.load(analysis_file) as ld:
-    print(ld.keys())
-    locals().update(ld) 
-    dims_off = d1,d2    
-    A = scipy.sparse.coo_matrix(A[()])
-    dims = (d1,d2)
-    
-#%%    
-idx_components_r = np.where((r_values >= .85))[0]
-idx_components_raw = np.where(fitness_raw < -40)[0]
-idx_components_delta = np.where(fitness_delta < -40)[0]    
-#idx_and_condition_1 = np.where((r_values >= .65) & ((fitness_raw < -20) | (fitness_delta < -20)) )[0]
 
-idx_components = np.union1d(idx_components_r, idx_components_raw)
-idx_components = np.union1d(idx_components, idx_components_delta)
-#idx_components = np.union1d(idx_components, idx_and_condition_1)
-#idx_components = np.union1d(idx_components, idx_and_condition_2)
 
-#idx_blobs = np.intersect1d(idx_components, idx_blobs)
-idx_components_bad = np.setdiff1d(list(range(len(r_values))), idx_components)
+idx_components=np.union1d(idx_components_r,idx_components_raw)
+idx_components=np.union1d(idx_components,idx_components_delta)  
+idx_blobs=np.intersect1d(idx_components,idx_blobs)   
+idx_components_bad=np.setdiff1d(list(range(len(traces))),idx_components)
 
 print(' ***** ')
-print((len(r_values)))
-print((len(idx_components)))  
+print((len(traces)))
+print((len(idx_components)))
+print((len(idx_blobs)))
+#%% visualize components
+pl.figure();
+pl.subplot(1,3,1)
+crd = cse.utilities.plot_contours(A2.tocsc()[:,idx_components],Cn,thr=0.9)
+pl.subplot(1,3,2)
+crd = cse.utilities.plot_contours(A2.tocsc()[:,idx_blobs],Cn,thr=0.9)
+pl.subplot(1,3,3)
+crd = cse.utilities.plot_contours(A2.tocsc()[:,idx_components_bad],Cn,thr=0.9)
 #%%
-pl.subplot(1, 2, 1)
-crd = plot_contours(A.tocsc()[:, idx_components], Cn, thr=params_display['thr_plot'], vmax = 0.35)
-pl.subplot(1, 2, 2)
-crd = plot_contours(A.tocsc()[:, idx_components_bad], Cn, thr=params_display['thr_plot'], vmax = 0.35)
+cse.utilities.view_patches_bar(Yr,scipy.sparse.coo_matrix(A2.tocsc()[:,idx_components]),C2[idx_components,:],b2,f2, dims[0],dims[1], YrA=YrA[idx_components,:],img=Cn)  
 #%%
-c, dview, n_processes = cm.cluster.setup_cluster(
-    backend='local', n_processes=None, single_thread=False)
-#%% thredshold components
-min_size_neuro = 5**2*np.pi
-max_size_neuro = 15**2*np.pi
-A_thr = cm.source_extraction.cnmf.spatial.threshold_components(A.tocsc()[:,idx_components].toarray(), dims, medw=None, thr_method='max', maxthr=0.2, nrgthr=0.99, extract_cc=True,
-                         se=None, ss=None, dview=dview) 
+cse.utilities.view_patches_bar(Yr,scipy.sparse.coo_matrix(A2.tocsc()[:,idx_components_bad]),C2[idx_components_bad,:],b2,f2, dims[0],dims[1], YrA=YrA[idx_components_bad,:],img=Cn)  
+#%% STOP CLUSTER
+pl.close()
+if not single_thread:    
+    c.close()
+    cse.utilities.stop_server()
+#%% save analysis results in python and matlab format
+if save_results:
+    np.savez('results_analysis.npz',Cn=Cn,A_tot=A_tot.todense(), C_tot=C_tot, sn_tot=sn_tot, A2=A2.todense(),C2=C2,b2=b2,S2=S2,f2=f2,bl2=bl2,c12=c12, neurons_sn2=neurons_sn2, g21=g21,YrA=YrA,d1=d1,d2=d2,idx_components=idx_components, fitness=fitness, erfc=erfc)    
+    scipy.io.savemat('output_analysis_matlab.mat',{'A2':A2,'C2':C2 , 'YrA':YrA, 'S2': S2 ,'YrA': YrA, 'd1':d1,'d2':d2,'idx_components':idx_components, 'fitness':fitness })
+#%% 
 
-A_thr = A_thr > 0  
-size_neurons = A_thr.sum(0)
-A_thr = A_thr[:,(size_neurons>min_size_neuro) & (size_neurons<max_size_neuro)]
-print(A_thr.shape)
-#%%
-crd = plot_contours(scipy.sparse.coo_matrix(A_thr*1.), Cn, thr=.99, vmax = 0.35)
-#%%
-roi_cons = np.load('/mnt/ceph/neuro/labeling/neurofinder.03.00.test/regions/joined_consensus_active_regions.npy')
-print(roi_cons.shape)
-pl.imshow(roi_cons.sum(0))
-#%%
-#%%
-pl.figure(figsize=(30,20))
-tp_gt, tp_comp, fn_gt, fp_comp, performance_cons_off =  cm.base.rois.nf_match_neurons_in_binary_masks(roi_cons,A_thr[:,:].reshape([dims[0],dims[1],-1],order = 'F').transpose([2,0,1])*1.,thresh_cost=.7, min_dist = 10,
-                                                                              print_assignment= False,plot_results=True,Cn=Cn, labels = ['GT','Offline'])
-pl.rcParams['pdf.fonttype'] = 42
-font = {'family' : 'Myriad Pro',
-        'weight' : 'regular',
-        'size'   : 20}
-pl.rc('font', **font)
+
+#%% RELOAD COMPONENTS!
+#load_results=True
+#if load_results:
+#    import sys
+#    import numpy as np
+#    import ca_source_extraction as cse
+#    from scipy.sparse import coo_matrix
+#    import scipy
+#    import pylab as pl
+#    import calblitz as cb
+#    
+#    
+#    
+#    with np.load('results_analysis.npz')  as ld:
+#          locals().update(ld)
+#    
+#    fname_new=glob.glob('Yr0*_.mmap')[0]
+#    
+#    Yr,(d1,d2),T=cse.utilities.load_memmap(fname_new)
+#    d,T=np.shape(Yr)
+#    Y=np.reshape(Yr,(d1,d2,T),order='F') # 3D version of the movie
+#    
+#    dims=(d1,d2)
+#    traces=C2+YrA
+#    idx_components, fitness, erfc,r_values,num_significant_samples = cse.utilities.evaluate_components(traces,N=5,robust_std=False)
+#    #cse.utilities.view_patches(Yr,coo_matrix(A_or),C_or,b2,f2,d1,d2,YrA = YrA[srt,:], secs=1)
+#    cse.utilities.view_patches_bar(Yr,scipy.sparse.coo_matrix(A2[:,idx_components]),C2[idx_components,:],b2,f2, d1,d2, YrA=YrA[idx_components,:])  
+##%% only select blob-like structures
+#min_radius=3
+#masks_ws,pos_examples,neg_examples=cse.utilities.extract_binary_masks_blob(
+#scipy.sparse.coo_matrix(A2).tocsc()[:,:], min_radius, dims, num_std_threshold=1, 
+#minCircularity= 0.5, minInertiaRatio = 0.2,minConvexity = .8)
+#np.savez(os.path.join(os.path.split(fname_new)[0],'regions_CNMF.npz'),masks_ws=masks_ws,pos_examples=pos_examples,neg_examples=neg_examples)
+##%% visualize them
+#pl.subplot(1,2,1)
+#final_masks=np.array(masks_ws)[pos_examples]
+#pl.imshow(np.reshape(final_masks.max(0),dims,order='F'),vmax=1)
+#pl.title('Positive examples')
+#pl.subplot(1,2,2)
+#neg_examples_masks=np.array(masks_ws)[neg_examples]
+#pl.imshow(np.reshape(neg_examples_masks.max(0),dims,order='F'),vmax=1)
+#pl.title('Negative examples')
+##%% visualize them again
+#cse.utilities.view_patches_bar(Yr,scipy.sparse.coo_matrix(A2.tocsc()[:,pos_examples]),C2[pos_examples,:],b2,f2, d1,d2, YrA=YrA[pos_examples,:])  

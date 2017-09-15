@@ -10,12 +10,12 @@ CaImAn
 
 
 
-A Computational toolbox for large scale **Ca**lcium **Im**aging **An**alysis* and behavioral analysis
+A Computational toolbox for large scale **Ca**lcium **Im**aging **An**alysis*
 
 
 
 
-Recent advances in calcium imaging acquisition techniques are creating datasets of the order of Terabytes/week. Memory and computationally efficient algorithms are required to analyze in reasonable amount of time terabytes of data. This projects implements a set of essential methods required in the calcium imaging movies analysis pipeline. Fast and scalable algorithms are implemented for motion correction, movie manipulation and source and spike extraction. CaImAn also contains some routine to the analyisi of behavior from video cameras. In summary, CaImAn provides a general purpose tool to handle large movies, with special emphasis tools for calcium imaging and behavioral datasets. 
+Recent advances in calcium imaging acquisition techniques are creating datasets of the order of Terabytes/week. Memory and computationally efficient algorithms are required to analyze in reasonable amount of time terabytes of data. This projects implements a set of essential methods required in the calcium imaging movies analysis pipeline. Fast and scalable algorithms are implemented for motion correction, movie manipulation and source and spike extraction.
 
 
 ### Features
@@ -43,41 +43,10 @@ Recent advances in calcium imaging acquisition techniques are creating datasets 
     * spikes can be inferred from fluorescence traces
     * also works in online mode (i.e. one sample at a time)
 
-* Behavioral Analysis ([paper](http://www.sciencedirect.com/science/article/pii/S0165027017302509))
-
-    * unsupervised algorithms based on optical flow and NMF to automatically extract motor kinetics 
-    * scales to large datasets since it exploits online dictionary learning  (Mairal et. Al, [link](http://spams-devel.gforge.inria.fr/))
-    * we also developed a tool for acquiring movies at high speed with low cost equipment ([package](https://github.com/bensondaled/eyeblink)) 
+### Installation
 
 
-
-### Installation for calcium imaging
-
-
-* Installation on Mac 
-
-   * Download and install Anaconda (Python 2.7 or Python 3.5) <http://docs.continuum.io/anaconda/install>
-
-   ```bash
-   
-   git clone https://github.com/simonsfoundation/CaImAn
-   cd CaImAn/
-   git pull
-   
-   EITHER
-   conda create -n CaImAn python=3.5 --file requirements_conda.txt   (For Python 3)
-   OR
-   conda create -n CaImAn ipython --file requirements_conda.txt   (For Python 2) 
-   
-   source activate CaImAn
-   pip install -r requirements_pip.txt
-   conda install -c menpo opencv3=3.1.0
-   python setup.py build_ext -i
-   conda install bokeh
-   ```
-
-
-* Installation on Linux 
+* Installation on posix (Mac and Linux)
 
    * Download and install Anaconda (Python 2.7 or Python 3.5) <http://docs.continuum.io/anaconda/install>
 
@@ -89,9 +58,8 @@ Recent advances in calcium imaging acquisition techniques are creating datasets 
    conda create -n CaImAn ipython --file requirements_conda.txt    
    source activate CaImAn
    pip install -r requirements_pip.txt
-   conda install -c menpo opencv3=3.2.0
+   conda install -c menpo opencv3=3.1.0
    python setup.py build_ext -i
-   conda install bokeh
    ```
 
    * To make the package available from everywhere and have it working *efficiently* under any configuration ALWAYS run these lines before starting spyder:
@@ -102,7 +70,7 @@ Recent advances in calcium imaging acquisition techniques are creating datasets 
    export OPENBLAS_NUM_THREADS=1
    ```
 
-* Installation on posix (Windows)
+* Installation on posix (Mac and Linux)
 
 
    * Download and install Anaconda (Python 2.7) <http://docs.continuum.io/anaconda/install>, GIT (<https://git-scm.com/>) and Microsoft Visual C++ Compiler for Python 2.7 <https://www.microsoft.com/en-us/download/details.aspx?id=44266>
@@ -121,43 +89,11 @@ Recent advances in calcium imaging acquisition techniques are creating datasets 
     conda update --all
     
     ```
- 
-### Installation for behavioral analysis
-* Installation on Linux (windows and mac os are problematic with anaconda at the moment)
-   * create a new environment (suggested for safety) and follow the instructions for the calcium imaging installation
-   * Install spams, as explained [here](http://spams-devel.gforge.inria.fr/). Installation is not straightforward and it might take some trials to get it right
-
- 
+    
 # Example
 
-  ### Demos
+  See the file demo_motion_correction.py and demo_caiman_cnmf.py in the root folder
 
-* Notebooks : The notebooks provide a simple and friendly way to get into CaImAn and understand its main characteristics. 
-
-   * you can find them in directly in CaImAn folder and launch them from your ipython Notebook application:
-   
-   * to launch jupyter notebook :
-   
-       ```bash
-    
-        source activate CaImAn
-        conda launch jupyter
-    
-       ```
-* demo files are to be found also in the demos_detailed subfolder. We suggest to try demo_pipeline.py first since it contains most of the tasks required by calcium imaging. For behavior use demo_behavior.py
-   
-  * /!\ if you want to launch directly the python files, please be advised that your python console still needs to be in the CaImAn folder and not somewhere else. 
-
-
-# Testing
-
-* As of today, all of the commits needs to be previously tested before asking for a pull request. Call 'nosetests' program from inside of your CaImAn folder to look for errors. 
-
-  ### general_test
-
-   * This test will run the entire CaImAn program and look for differences against the original one. If your changes have made significant differences able to be recognise by this test.  
-   
-   
 # Contributors:
 
 * Giovannucci, Andrea. **Simons Foundation** 
@@ -166,7 +102,6 @@ Recent advances in calcium imaging acquisition techniques are creating datasets 
 * Cobos, Erick. **Baylor College of Medicine**
 * Staneva, Valentina. **eScience Institute**
 * Deverett, Ben. **Princeton University**
-* Kalfon, Jérémie. **University of Kent** , **ECE paris** 
 
 
 Please refer to the following wiki [page](https://github.com/simonsfoundation/CaImAn/wiki/Processing-large-datasets) or read in the testing section below.
@@ -181,9 +116,6 @@ Pnevmatikakis, E.A., Gao, Y., Soudry, D., Pfau, D., Lacefield, C., ... & Paninsk
 
 Friedrich J. and Paninski L. Fast active set methods for online spike inference from calcium imaging. NIPS, 29:1984-1992, 2016. [PDF](https://papers.nips.cc/paper/6505-fast-active-set-methods-for-online-spike-inference-from-calcium-imaging). [Github repository](https://github.com/j-friedrich/OASIS).
 
-# Behavioral analysis
-
-Giovannucci, A., Pnevmatikakis, E. A., Deverett, B., Pereira, T., Fondriest, J., Brady, M. J., ... & Masip, D. (2017). Automated gesture tracking in head-fixed mice. Journal of Neuroscience Methods.
 
 Code description and related packages
 =======
@@ -194,8 +126,6 @@ Some tools that are currently available in Matlab and not in Python are at the f
 
 - [MCMC spike inference](https://github.com/epnev/continuous_time_ca_sampler) 
 - [Group LASSO initialization and spatial CNMF](https://github.com/danielso/ROI_detect)
-
-
 
 
 Troubleshooting
@@ -238,16 +168,53 @@ or issues related to SCS type
  conda install openblas 
  ```
  
+**CVXOPT**:
+
+If you are on Windows and don't manage to install or compile cvxopt, a simple solution is to download the right binary [there](http://www.lfd.uci.edu/~gohlke/pythonlibs/#cvxopt) and install the library by typing:
+
+```
+pip install cvxopt-1.1.7-XXXX.whl
+```
+
 Test the system
 ----------------
 
+**SINGLE PATCH**
+
+In case you used installation af point 1 above you will need to download the test files from
+<https://github.com/agiovann/Constrained_NMF/releases/download/v0.3/Demo.zip>
+
+A. Go into the cloned folder, type `python demo.py`
+
+B. Using the Spyder (type `conda install spyder`) IDE.
+
+    1. Unzip the file Demo.zip (you do not need this step if you installed dusing method 2 above, just enter the Constrained_NMF folder and you will find all the required files there).
+    2. Open the file demo.py with spyder
+    3. change the base_folder variable to point to the folder you just unzipped
+    3. Run the cells one by one inspecting the output
+    4. Remember to stop the cluster (last three lines of file). You can also stop it manually by typing in a terminal
+    'ipcluster stop'
+
+C. Using notebook.
+
+    1. Unzip the file Demo.zip (you do not need this step if you installed dusing method 3 above, just enter the Constrained_NMF folder and you will find all the required files there).
+    2. type `ipython notebook`
+    3. open the notebook called demoCNMF.ipynb 
+    4. change the base_folder variable to point to the folder you just unzipped
+    5. and run cell by cell inspecting the result
+    6. Remember to stop the cluster (last three lines of file). You can also stop it manually by typing in a terminal
+    'ipcluster stop'
 
 
+**MULTI PATCH**
++ Download the two demo movies [here](https://github.com/agiovann/Constrained_NMF/releases/download/v0.4-alpha/Patch_demo.zip) (courtesy of Dr. Sue Ann Koay from the Tank Lab, Princeton Neuroscience Institute, Princeton. NJ). Unzip the folder. Then in Spyder open the file demo_patches.py, and change the base_folder variable to point to the folder you just unzipped. 
++ Run one by one the cells (delimited by '#%%') 
++ Inspect the results. The demo will start a cluster and process pathes of the movie (more details [here](https://github.com/agiovann/Constrained_NMF/wiki/Processing-large-datasets)) in parallel (cse.map_reduce.run_CNMF_patches). Afterwards, it will merge the results back together and proceed to firstly merge potentially overlaping components (cse.merge_components) from different patches, secondly to update the spatial extent of the joined spatial components (cse.spatial.update_spatial_components), and finally denoising the traces (cse.temporal.update_temporal_components). THe final bit is used for visualization. 
 
 Documentation
 ========
 
-Documentation of the code can be found [here](http://simonsfoundation.github.io/CaImAn/)
+Documentation of the code can be found [here](http://agiovann.github.io/Constrained_NMF)
 
 Dependencies
 ========
@@ -260,19 +227,18 @@ The code uses the following libraries
 - [cvxpy](http://www.cvxpy.org/) for solving optimization problems
 - [ipyparallel](http://ipyparallel.readthedocs.org/en/latest/) for parallel processing
 - [opencv](http://opencv.org/) for efficient image manipulation and visualization
-- [Spams](http://spams-devel.gforge.inria.fr/) for online dictionary learning
 
 External Dependencies
 ============
 
-For the constrained deconvolution method (```deconvolution.constrained_foopsi```)  various solvers can be used, some of which requires  additional packages:
+For the constrained deconvolution method (```deconvolution.constrained_foopsi```)  various solvers can be used, each of which requires some additional packages:
 
 1. ```'cvxpy'```: (default) For this option, the following packages are needed:
-  * [CVXOPT](http://cvxopt.org/) optional.
-  * [CVXPY](http://www.cvxpy.org/) optional.
+  * [CVXOPT](http://cvxopt.org/) Required.
+  * [CVXPY](http://www.cvxpy.org/) Required.
 2. ```'cvx'```: For this option, the following packages are needed:
-  * [CVXOPT](http://cvxopt.org/) optional.
-  * [PICOS](http://picos.zib.de/) optional.
+  * [CVXOPT](http://cvxopt.org/) Required.
+  * [PICOS](http://picos.zib.de/) Required.
 
 In general ```'cvxpy'``` can be faster, when using the 'ECOS' or 'SCS' sovlers, which are included with the CVXPY installation.
 
