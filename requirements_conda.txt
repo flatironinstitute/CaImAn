@@ -8,4 +8,4 @@ scikit-image
 scikit-learn
 h5py
 cython
-spyder
+spyder=3.1
