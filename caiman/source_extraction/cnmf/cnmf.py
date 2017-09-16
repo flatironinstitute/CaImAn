@@ -65,7 +65,7 @@ class CNMF(object):
                  method_deconvolution = 'oasis', n_pixels_per_process = 4000, block_size = 20000,
                  check_nan = True, skip_refinement = False, normalize_init=True, options_local_NMF = None,
                  remove_very_bad_comps = False, border_pix = 0, low_rank_background = True, update_background_components = True,
-                 rolling_sum = False, rolling_length = 100):
+                 rolling_sum = True, rolling_length = 100):
         """ 
         Constructor of the CNMF method
 
