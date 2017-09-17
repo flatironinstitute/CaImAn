@@ -20,6 +20,8 @@ from builtins import str
 from past.utils import old_div
 get_ipython().magic('load_ext autoreload')
 get_ipython().magic('autoreload 2')
+import caiman as cm
+#%%
 import matplotlib.pyplot as plt
 import ca_source_extraction as cse
 import calblitz as cb

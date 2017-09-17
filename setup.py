@@ -3,6 +3,7 @@ from os import path
 #import os
 import numpy as np
 from Cython.Build import cythonize
+from setuptools.extension import Extension
 
 """
     Installation script for anaconda installers
@@ -14,6 +15,13 @@ with open('README.md', 'r') as rmf:
     readme = rmf.read()
 
 #incdir = os.path.join(get_python_inc(plat_specific=1), 'Numerical')
+
+# compile with:     python setup.py build_ext -i
+# clean up with:    python setup.py clean --all
+ext_modules = [Extension("caiman.source_extraction.cnmf.oasis",
+                         sources=["caiman/source_extraction/cnmf/oasis.pyx"],
+                         include_dirs=[np.get_include()],
+                         language="c++")]
 
 setup(
     name='CaImAn',
@@ -49,9 +57,6 @@ setup(
                  ('', ['README.md'])],
     # 'matplotlib', 'scikit-learn', 'scikit-image', 'ipyparallel','scikit-learn','ipython','scipy','numpy'],#,'bokeh','jupyter','tifffile','cvxopt','picos', 'joblib>=0.8.4'],
     install_requires=['python==2.7.*'],
-    include_dirs=[np.get_include()],
-    # compile with:     python setup.py build_ext -i
-    # clean up with:    python setup.py clean --all
-    ext_modules=cythonize("caiman/source_extraction/cnmf/oasis.pyx")
+    ext_modules=cythonize(ext_modules)
 
 )

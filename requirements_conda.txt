@@ -3,11 +3,9 @@ numpy
 scipy
 ipython
 ipyparallel
-jupyter
 matplotlib
 scikit-image
 scikit-learn
 h5py
 cython
-spyder
-nose
+spyder=3.1

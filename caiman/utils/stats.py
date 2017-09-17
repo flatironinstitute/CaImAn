@@ -26,7 +26,9 @@ def mode_robust_fast(inputData,axis=None):
     if axis is not None:
 
         fnc = lambda x: mode_robust_fast(x)
+
         dataMode = np.apply_along_axis(fnc, axis, inputData)
+
     else:
         # Create the function that we can use for the half-sample mode        
         data = inputData.ravel()        
@@ -65,14 +67,16 @@ def mode_robust(inputData, axis=None, dtype=None):
                     return data[1]
             else:
 
-                wMin = np.inf
+                #            wMin = data[-1] - data[0]
+#                wMin = np.inf
                 N = data.size // 2 + data.size % 2
 
-                for i in range(0, N):
-                    w = data[i + N - 1] - data[i]
-                    if w < wMin:
-                        wMin = w
-                        j = i
+#                for i in range(0, N):
+#                    w = data[i + N - 1] - data[i]
+#                    if w < wMin:
+#                        wMin = w
+#                        j = i
+                j = numpy.argmin(data[N-1:2*N-1] - data[:N])
 
                 return _hsm(data[j:j + N])
 
@@ -108,6 +112,7 @@ def _hsm(data):
             return data[1]
     else:
 
+        #            wMin = data[-1] - data[0]
         wMin = np.inf
         N = old_div(data.size, 2) + data.size % 2
 
