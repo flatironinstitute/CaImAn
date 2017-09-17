@@ -46,12 +46,15 @@ class CNMF(object):
                  rf=None, stride=None, memory_fact=1, gnb=1, only_init_patch=False,
                  method_deconvolution='oasis', n_pixels_per_process=4000, block_size=20000, check_nan=True,
                  skip_refinement=False, normalize_init=True, options_local_NMF=None,
+                 remove_very_bad_comps = False, border_pix = 0, low_rank_background = True, update_background_components = True,
+                 rolling_sum = True, rolling_length = 100,
                  minibatch_shape=100, minibatch_suff_stat=3,
                  update_num_comps=True, rval_thr=0.9, thresh_fitness_delta=-20,
                  thresh_fitness_raw=-40, thresh_overlap=.5,
                  max_comp_update_shape=np.inf, num_times_comp_updated=np.inf,
                  batch_update_suff_stat=False, thresh_s_min=None, s_min=None):
         """
+
         Constructor of the CNMF method
 
         Parameters:
