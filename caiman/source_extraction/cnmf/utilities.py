@@ -579,50 +579,73 @@ def app_vertex_cover(A):
     return np.asarray(L)
 
 
-
-def update_order(A):
-    """Determines the update order of the temporal components
-
-    this, given the spatial components, by creating a nest of random approximate vertex covers
-    Basically we can update the components that are not overlapping, in parallel
-
+def update_order(A, new_a = None, prev_list = None):
+    '''Determines the update order of the temporal components given the spatial
+    components by creating a nest of random approximate vertex covers
      Input:
      -------
      A:    np.ndarray
           matrix of spatial components (d x K)
+     new_a: sparse array
+          spatial component that is added, in order to efficiently update the orders in online scenarios
+     prev_list: list of list
+          orders from previous iteration, you need to pass if new_a is not None 
 
      Outputs:
      ---------
-     parllcomp:   list of sets
+     O:   list of sets
           list of subsets of components. The components of each subset can be updated in parallel
-
-     len_parrllcomp:  list
+     lo:  list
           length of each subset
 
-    @authors: Eftychios A. Pnevmatikakis, Simons Foundation, 2015
-    """
+    Written by Eftychios A. Pnevmatikakis, Simons Foundation, 2015
+    '''
     K = np.shape(A)[-1]
-    AA = A.T * A
-    AA.setdiag(0)
-    F = (AA) > 0
-    F = F.toarray()
-    rem_ind = np.arange(K)
-    parllcomp = []
-    len_parrllcomp = []
-    while len(rem_ind) > 0:
-        L = np.sort(app_vertex_cover(F[rem_ind, :][:, rem_ind]))
-        if L.size:
-            ord_ind = set(rem_ind) - set(rem_ind[L])
-            rem_ind = rem_ind[L]
-        else:
-            ord_ind = set(rem_ind)
-            rem_ind = []
-
-        parllcomp.append(ord_ind)
-        len_parrllcomp.append(len(ord_ind))
-
-    return parllcomp[::-1], len_parrllcomp[::-1]
-
+    if new_a is None and prev_list is None:
+        
+        AA = A.T * A
+        AA.setdiag(0)
+        F = (AA) > 0
+        F = F.toarray()
+        rem_ind = np.arange(K)
+        O = []
+        lo = []
+        while len(rem_ind) > 0:
+            L = np.sort(app_vertex_cover(F[rem_ind, :][:, rem_ind]))
+            if L.size:
+                ord_ind = set(rem_ind) - set(rem_ind[L])
+                rem_ind = rem_ind[L]
+            else:
+                ord_ind = set(rem_ind)
+                rem_ind = []
+    
+            O.append(ord_ind)
+            lo.append(len(ord_ind))
+    
+        return O[::-1], lo[::-1]
+    
+    else:
+        
+        if new_a is  None or prev_list is None:
+            raise Exception('In the online update order you need to provide both new_a and prev_list')
+        
+        counter = 0
+        AA = A.T.dot(new_a)
+        for group in prev_list:
+            
+#            AA = A[:,list(group)].T.dot(new_a)
+            if AA[list(group)].sum() == 0:                
+                group.append(K)
+                counter+=1
+                break
+        
+        if counter == 0:
+            prev_list.append([K])
+        
+#        prev_list.sort(key=len)
+        count_list = [len(gr) for gr in prev_list]
+        
+        return prev_list, count_list
 
 
 

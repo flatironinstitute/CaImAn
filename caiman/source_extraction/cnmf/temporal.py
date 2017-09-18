@@ -377,13 +377,14 @@ def update_iteration (parrllcomp, len_parrllcomp, nb,C, S, bl, nr,
                 results = list(map(constrained_foopsi_parallel, args_in))
             #unparsing and updating the result
             for chunk in results:
-                C_, Sp_, Ytemp_, cb_, c1_, sn_, gn_, jj_ = chunk
+                C_, Sp_, Ytemp_, cb_, c1_, sn_, gn_,lam_, jj_ = chunk
                 Ctemp[jj_, :] = C_[None, :]
                 bl[jo[jj_]] = cb_
                 c1[jo[jj_]] = c1_
                 sn[jo[jj_]] = sn_
                 g[jo[jj_]] = gn_.T if kwargs['p'] > 0 else []
 
+				lam[jo[jj_]] = lam_
             YrA -= AA[jo, :].T.dot(Ctemp - C[jo, :]).T
             C[jo, :] = Ctemp.copy()
             S[jo, :] = Stemp
@@ -404,4 +405,27 @@ def update_iteration (parrllcomp, len_parrllcomp, nb,C, S, bl, nr,
         else: #we keep Cin and do the iteration once more
             Cin = C
 
-    return C, S, bl, YrA, c1, sn, g
+#    A = A.toarray()
+#    ff = np.where(np.sum(C, axis=1) == 0)  # remove empty components
+#    if np.size(ff) > 0:
+#        ff = ff[0]
+#        print('eliminating {} empty temporal components!!'.format(len(ff)))
+#        A = np.delete(A, list(ff), 1)
+#        C = np.delete(C, list(ff), 0)
+#        YrA = np.delete(YrA, list(ff), 1)
+#        S = np.delete(S, list(ff), 0)
+#        sn =  np.delete(sn, list(ff))
+#       g = np.delete(g, list(ff))
+#        bl = np.delete(bl, list(ff))
+#        c1 = np.delete(c1, list(ff))
+#        lam =  np.delete(lam, list(ff))
+
+#        background_ff = list(filter(lambda i: i > 0, ff - nr))
+#        nr = nr - (len(ff) - len(background_ff))
+
+#    b = A[:, nr:]
+#    A = coo_matrix(A[:,:nr])
+#    f = C[nr:,:]
+#    C = C[:nr,:]
+#    YrA = np.array(YrA[:,:nr]).T    
+    return C, S, bl, YrA, c1, sn, g, lam
