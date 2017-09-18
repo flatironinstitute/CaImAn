@@ -214,6 +214,28 @@ class timeseries(np.ndarray):
                 except:
                     print('No file name saved')
                 dset.attrs["meta_data"]=cpk.dumps(self.meta_data)
+
+        elif extension == '.mmap':
+            base_name=name
+            
+            T = self.shape[0]
+            dims = self.shape[1:]
+            Yr = np.transpose(self, list(range(1, len(dims) + 1)) + [0])
+            Yr = np.reshape(Yr, (np.prod(dims), T), order='F')
+            
+                      
+            fname_tot = base_name + '_d1_' + str(dims[0]) + '_d2_' + str(dims[1]) + '_d3_' + str(
+                1 if len(dims) == 2 else dims[2]) + '_order_' + str(order) +  '_frames_' + str(T) + '_.mmap'
+            fname_tot = os.path.join(os.path.split(file_name)[0],fname_tot)         
+            big_mov = np.memmap(fname_tot, mode='w+', dtype=np.float32,
+                                shape=(np.prod(dims), T), order=order)
+        
+            big_mov[:] = np.asarray(Yr, dtype=np.float32)
+            big_mov.flush()
+            del big_mov
+            return fname_tot
+        
+            
         else:
             print(extension)
             raise Exception('Extension Unknown')

@@ -58,7 +58,7 @@ def constrained_foopsi_parallel(arg_in):
 
     Ytemp, nT, jj_, bl, c1, g, sn, argss = arg_in
     T = np.shape(Ytemp)[0]
-    cc_, cb_, c1_, gn_, sn_, sp_ = constrained_foopsi(Ytemp, bl=bl, c1=c1, g=g, sn=sn, **argss)
+    cc_, cb_, c1_, gn_, sn_, sp_,lam_ = constrained_foopsi(Ytemp, bl=bl, c1=c1, g=g, sn=sn, **argss)
     gd_ = np.max(np.real(np.roots(np.hstack((1, -gn_.T)))))
     gd_vec = gd_**list(range(T))
 
@@ -70,8 +70,7 @@ def constrained_foopsi_parallel(arg_in):
 
 
 #%%
-def update_temporal_components(Y, A, b, Cin, fin, bl=None, c1=None, g=None, sn=None, nb=1, ITER=2,
-                               block_size=20000, debug=False, dview=None, **kwargs):
+def update_temporal_components(Y, A, b, Cin, fin, bl=None, c1=None, g=None, sn=None, nb=1, ITER=2, block_size=20000, debug=False, dview=None, **kwargs):
     """Update temporal components and background given spatial components using a block coordinate descent approach.
 
     Parameters:
@@ -177,11 +176,10 @@ def update_temporal_components(Y, A, b, Cin, fin, bl=None, c1=None, g=None, sn=N
     YrA: np.ndarray
             matrix of spatial component filtered raw data, after all contributions have been removed.
             YrA corresponds to the residual trace for each component and is used for faster plotting (K x T)
-
-    Raise:
-    -----
-        Exception("You have to provide a value for p")
-
+    
+	lam: np.ndarray
+        Automatically tuned sparsity parameter
+		
     """
 
     if 'p' not in kwargs or kwargs['p'] is None:
@@ -205,6 +203,7 @@ def update_temporal_components(Y, A, b, Cin, fin, bl=None, c1=None, g=None, sn=N
 
     if sn is None:
         sn = np.repeat(None, nr)
+    lam=np.repeat(None,nr)                        
     A = scipy.sparse.hstack((A, b)).tocsc()
     S = np.zeros(np.shape(Cin))
     Cin = np.vstack((Cin, fin))

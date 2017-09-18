@@ -33,10 +33,19 @@ from scipy.ndimage.morphology import binary_closing
 from scipy.ndimage.measurements import label
 
 
-def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, b_in = None, min_size=3, max_size=8, dist=3,
-                              normalize_yyt_one=True,
+
+def basis_denoising(y, c, boh, sn, id2_, px):
+    if np.size(c) > 0:
+        _, _, a, _, _ = lars_regression_noise(y, c, 1, sn)
+    else:
+        return (None, None, None)
+    return a, px, id2_
+#%% update_spatial_components (in parallel)
+
+
+def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, min_size=3, max_size=8, dist=3, normalize_yyt_one=True,
                               method='ellipse', expandCore=None, dview=None, n_pixels_per_process=128,
-                              medw=(3, 3), thr_method='nrg', maxthr=0.1, nrgthr=0.9999, extract_cc=True,
+                              medw=(3, 3), thr_method='nrg', maxthr=0.1, nrgthr=0.9999, extract_cc=True, b_in = None,
                               se=np.ones((3, 3), dtype=np.int), ss=np.ones((3, 3), dtype=np.int), nb=1,
                               method_ls='lasso_lars', update_background_components = True, low_rank_background= True):
     """update spatial footprints and background through Basis Pursuit Denoising 
@@ -382,7 +391,7 @@ def regression_ipyparallel(pars):
 
             As.append((px, idxs_C[px], a))
 
-
+    print('clearing variables')
     if isinstance(Y_name, basestring):
         del Y
     if isinstance(C_name, basestring):
@@ -820,6 +829,7 @@ def lars_regression_noise_old(Yp, X, positive, noise, verbose=False):
         group Lasso :
     """
     #INITAILIZATION
+    T = len(Yp)  # of time steps
     k = 1
     Yp = np.squeeze(np.asarray(Yp))
     # necessary for matrix multiplications
@@ -843,6 +853,7 @@ def lars_regression_noise_old(Yp, X, positive, noise, verbose=False):
     flag = 0
     while 1:
         if flag == 1:
+            W_lam = 0
             break
             # % calculate new gradient component if necessary
         if i > 0 and new >= 0 and visited_set[new] == 0:  # AG NOT CLEAR HERE
@@ -877,7 +888,9 @@ def lars_regression_noise_old(Yp, X, positive, noise, verbose=False):
             gamma_plus[gamma_plus > lambda_] = np.inf
             gp_min, gp_min_ind = np.min(gamma_plus), np.argmin(gamma_plus)
 
-            if not positive:
+            if positive:
+                gm_min = np.inf  # % don't consider new directions that would grow negative
+            else:
                 gamma_minus[active_set == 1] = np.inf
                 gamma_minus[gamma_minus > lambda_] = np.inf
                 gamma_minus[gamma_minus <= 0] = np.inf
@@ -947,11 +960,11 @@ def lars_regression_noise_old(Yp, X, positive, noise, verbose=False):
 
         i = i + 1
 
+    Ws_old = Ws
     # end main loop
 
-    # %% final calculation of mus
-    temp = Ws
-    Ws = np.asarray(np.swapaxes(np.swapaxes(temp, 0, 1), 1, 2))
+    #%% final calculation of mus
+    Ws = np.asarray(np.swapaxes(np.swapaxes(Ws_old, 0, 1), 1, 2))
     if flag == 0:
         if i > 0:
             Ws = np.squeeze(Ws[:, :, :len(lambdas)])
@@ -1015,6 +1028,8 @@ def calcAvec(new, dQ, W, lambda_, active_set, M,positive):
         eigMm = Mm
     if any(eigMm < 0):
         np.min(eigMm)
+        #%error('The matrix Mm has negative eigenvalues')
+        flag = 1
 
     b = np.sign(W)
     if new >= 0:
@@ -1024,6 +1039,15 @@ def calcAvec(new, dQ, W, lambda_, active_set, M,positive):
         avec = np.linalg.solve(Mm, b)
     else:
         avec = old_div(b, Mm)
+
+    if positive:
+        if new >= 0:
+            in_ = np.sum(active_set[:new])
+            if avec[in_] < 0:
+                # new;
+                #%error('new component of a is negative')
+                flag = 1
+
     one_vec = np.ones(W.shape)
     dQa = np.zeros(W.shape)
     for j in range(len(r)):

@@ -135,6 +135,7 @@ else:
     #%%
     pl.figure()
     crd = plot_contours(A_tot, Cn, thr=0.9)
+    
     #%%
     final_frate = 10# approx final rate  (after eventual downsampling )
     Npeaks = 10
@@ -171,8 +172,9 @@ else:
                     f_in=f_tot, rf=None, stride=None, method_deconvolution='oasis', gnb = 1,  low_rank_background = False)
     cnm = cnm.fit(images)
 
-#%%
+    #%
 A, C, b, f, YrA, sn = cnm.A, cnm.C, cnm.b, cnm.f, cnm.YrA, cnm.sn
+
 #%%
 final_frate = 10
 

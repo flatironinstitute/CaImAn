@@ -11,7 +11,8 @@ Created on Tue Sep  8 16:23:57 2015
 from __future__ import division
 from __future__ import print_function
 from builtins import range
-from scipy.sparse import coo_matrix, csgraph, csc_matrix, lil_matrix
+from past.utils import old_div
+from scipy.sparse import coo_matrix,csgraph,csc_matrix, lil_matrix
 import scipy
 import numpy as np
 from .spatial import update_spatial_components
@@ -21,8 +22,7 @@ from .deconvolution import constrained_foopsi
 #%%
 
 
-def merge_components(Y, A, b, C, f, S, sn_pix, temporal_params, spatial_params, dview=None, thr=0.85,
-                     fast_merge=True, mx=1000, bl=None, c1=None, sn=None, g=None):
+def merge_components(Y, A, b, C, f, S, sn_pix, temporal_params, spatial_params, dview=None, thr=0.85, fast_merge=True, mx=1000, bl=None, c1=None, sn=None, g=None):
     """ Merging of spatially overlapping components that have highly correlated temporal activity
 
     The correlation threshold for merging overlapping components is user specified in thr

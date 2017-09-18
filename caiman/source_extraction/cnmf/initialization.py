@@ -43,11 +43,11 @@ if sys.version_info >= (3, 0):
         return iter(range(*args, **kwargs))
 
 
-def initialize_components(Y, sn=None, options_total=None, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter=5, maxIter=5, nb=1,
+def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter=5, maxIter=5, nb=1,
                           kernel=None, use_hals=True, normalize_init=True, img=None, method='greedy_roi',
                           max_iter_snmf=500, alpha_snmf=10e2, sigma_smooth_snmf=(.5, .5, .5),
                           perc_baseline_snmf=20, options_local_NMF=None,  rolling_sum = False,
-                          rolling_length = 100,
+                          rolling_length = 100, sn=None, options_total=None,
                           min_corr=0.8, min_pnr=10, deconvolve_options_init=None,
                           ring_size_factor=1.5, center_psf=True):
     """
@@ -481,7 +481,7 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1, 
     center: np.array
         2d array of size nr x 2 [ or 3] with the components centroids
 
-    @Author: Eftychios A. Pnevmatikakis based on a matlab implementation by Yuanjun Gao
+    Author: Eftychios A. Pnevmatikakis and Andrea Giovannucci based on a matlab implementation by Yuanjun Gao
             Simons Foundation, 2015
 
     See Also:

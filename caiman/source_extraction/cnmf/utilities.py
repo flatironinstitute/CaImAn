@@ -579,6 +579,7 @@ def app_vertex_cover(A):
     return np.asarray(L)
 
 
+
 def update_order(A):
     """Determines the update order of the temporal components
 
@@ -622,6 +623,46 @@ def update_order(A):
 
     return parllcomp[::-1], len_parrllcomp[::-1]
 
+
+
+
+
+#%%
+def order_components(A, C):
+    """Order components based on their maximum temporal value and size
+
+    Parameters:
+    -----------
+    A:   sparse matrix (d x K)
+         spatial components
+
+    C:   matrix or np.ndarray (K x T)
+         temporal components
+
+    Returns:
+    -------
+    A_or:  np.ndarray
+        ordered spatial components
+
+    C_or:  np.ndarray
+        ordered temporal components
+
+    srt:   np.ndarray
+        sorting mapping
+
+    """
+    A = np.array(A.todense())
+    nA2 = np.sqrt(np.sum(A**2, axis=0))
+    K = len(nA2)
+    A = np.array(np.matrix(A) * spdiags(old_div(1, nA2), 0, K, K))
+    nA4 = np.sum(A**4, axis=0)**0.25
+    C = np.array(spdiags(nA2, 0, K, K) * np.matrix(C))
+    mC = np.ndarray.max(np.array(C), axis=1)
+    srt = np.argsort(nA4 * mC)[::-1]
+    A_or = A[:, srt] * spdiags(nA2[srt], 0, K, K)
+    C_or = spdiags(old_div(1., nA2[srt]), 0, K, K) * (C[srt, :])
+
+    return A_or, C_or, srt
 
 def update_order_greedy(A, flag_AA=True):
     """Determines the update order of the temporal components
@@ -668,165 +709,3 @@ def update_order_greedy(A, flag_AA=True):
             parllcomp.append([i])
     len_parrllcomp = [len(ls) for ls in parllcomp]
     return parllcomp, len_parrllcomp
-
-
-#%%
-def order_components(A, C):
-    """Order components based on their maximum temporal value and size
-
-    Parameters:
-    -----------
-    A:   sparse matrix (d x K)
-         spatial components
-
-    C:   matrix or np.ndarray (K x T)
-         temporal components
-
-    Returns:
-    -------
-    A_or:  np.ndarray
-        ordered spatial components
-
-    C_or:  np.ndarray
-        ordered temporal components
-
-    srt:   np.ndarray
-        sorting mapping
-
-    """
-    A = np.array(A.todense())
-    nA2 = np.sqrt(np.sum(A**2, axis=0))
-    K = len(nA2)
-    A = np.array(np.matrix(A) * spdiags(old_div(1, nA2), 0, K, K))
-    nA4 = np.sum(A**4, axis=0)**0.25
-    C = np.array(spdiags(nA2, 0, K, K) * np.matrix(C))
-    mC = np.ndarray.max(np.array(C), axis=1)
-    srt = np.argsort(nA4 * mC)[::-1]
-    A_or = A[:, srt] * spdiags(nA2[srt], 0, K, K)
-    C_or = spdiags(old_div(1., nA2[srt]), 0, K, K) * (C[srt, :])
-
-    return A_or, C_or, srt
-
-
-#%%
-# def save_mat_in_chuncks(Yr, num_chunks, shape, mat_name='mat', axis=0):
-#    """ save hdf5 matrix in chunks
-#
-#    Parameters
-#    ----------
-#    file_name: str
-#        file_name of the hdf5 file to be chunked
-#    shape: tuples
-#        shape of the original chunked matrix
-#    idx: list
-#        indexes to slice matrix along axis
-#    mat_name: [optional] string
-#        name prefix for temporary files
-#    axis: int
-#        axis along which to slice the matrix
-#
-#    Returns
-#    ---------
-#    name of the saved file
-#
-#    """
-#
-#    Yr = np.array_split(Yr, num_chunks, axis=axis)
-#    print "splitting array..."
-#    folder = tempfile.mkdtemp()
-#    prev = 0
-#    idxs = []
-#    names = []
-#    for mm in Yr:
-#        mm = np.array(mm)
-#        idxs.append(np.array(range(prev, prev + mm.shape[0])).T)
-#        new_name = os.path.join(folder, mat_name + '_' + str(prev) + '_' + str(len(idxs[-1])))
-#        print "Saving " + new_name
-#        np.save(new_name, mm)
-#        names.append(new_name)
-#        prev = prev + mm.shape[0]
-#
-#    return {'names': names, 'idxs': idxs, 'axis': axis, 'shape': shape}
-
-
-# def evaluate_components(A,Yr,psx):
-#
-#    #%% clustering components
-#    Ys=Yr
-#
-#    #[sn,psx] = get_noise_fft(Ys,options);
-#    #P.sn = sn(:);
-#    #fprintf('  done \n');
-#    psdx = np.sqrt(psx[:,3:]);
-#    X = psdx[:,1:np.minimum(np.shape(psdx)[1],1500)];
-#    #P.psdx = X;
-#    X = X-np.mean(X,axis=1)[:,np.newaxis]#     bsxfun(@minus,X,mean(X,2));     % center
-#    X = X/(+1e-5+np.std(X,axis=1)[:,np.newaxis])
-#
-#    from sklearn.cluster import KMeans
-#    from sklearn.decomposition import PCA,NMF
-#    from sklearn.mixture import GMM
-#    pc=PCA(n_components=5)
-#    nmf=NMF(n_components=2)
-#    nmr=nmf.fit_transform(X)
-#
-#    cp=pc.fit_transform(X)
-#    gmm=GMM(n_components=2)
-#
-#    Cx1=gmm.fit_predict(cp)
-#
-#    L=gmm.predict_proba(cp)
-#
-#    km=KMeans(n_clusters=2)
-#    Cx=km.fit_transform(X)
-#    Cx=km.fit_transform(cp)
-#    Cx=km.cluster_centers_
-#    L=km.labels_
-#    ind=np.argmin(np.mean(Cx[:,-49:],axis=1))
-#    active_pixels = (L==ind)
-#    centroids = Cx;
-#
-#    ff = false(1,size(Am,2));
-#    for i = 1:size(Am,2)
-#        a1 = Am(:,i);
-#        a2 = Am(:,i).*Pm.active_pixels(:);
-#        if sum(a2.^2) >= cl_thr^2*sum(a1.^2)
-#            ff(i) = true;
-#        end
-#    end
-
-
-# def extract_DF_F(Y, A, C, i=None):
-#    """Extract DF/F values from spatial/temporal components and background
-#
-#     Parameters
-#     -----------
-#     Y: np.ndarray
-#           input data (d x T)
-#     A: sparse matrix of np.ndarray
-#           Set of spatial including spatial background (d x K)
-#     C: matrix
-#           Set of temporal components including background (K x T)
-#
-#     Returns
-#     -----------
-#     C_df: matrix
-#          temporal components in the DF/F domain
-#     Df:  np.ndarray
-#          vector with baseline values for each trace
-#    """
-#    A2 = A.copy()
-#    A2.data **= 2
-#    nA2 = np.squeeze(np.array(A2.sum(axis=0)))
-#    A = A * diags(old_div(1, nA2), 0)
-#    C = diags(nA2, 0) * C
-#
-#    # if i is None:
-#    #    i = np.argmin(np.max(A,axis=0))
-#
-#    Y = np.matrix(Y)
-#    Yf = A.transpose() * (Y - A * C)  # + A[:,i]*C[i,:])
-#    Df = np.median(np.array(Yf), axis=1)
-#    C_df = diags(old_div(1, Df), 0) * C
-#
-#    return C_df, Df

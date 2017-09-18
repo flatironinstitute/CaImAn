@@ -94,7 +94,9 @@ def constrained_foopsi(fluor, bl=None,  c1=None, g=None,  sn=None, p=None, metho
 
     sp: ndarray of float
         Discretized deconvolved neural activity (spikes)
-
+    
+	lam: float
+		Regularization parameter	
     Raise:
     ------
     Exception("You must specify the value of p")
@@ -120,6 +122,7 @@ def constrained_foopsi(fluor, bl=None,  c1=None, g=None,  sn=None, p=None, metho
         #Estimate noise standard deviation and AR coefficients if they are not present
         g, sn = estimate_parameters(fluor, p=p, sn=sn, g=g, range_ff=noise_range,
                                     method=noise_method, lags=lags, fudge_factor=fudge_factor)
+    lam = None
     if p == 0:
         c1 = 0
         g = np.array(0)
@@ -143,12 +146,12 @@ def constrained_foopsi(fluor, bl=None,  c1=None, g=None,  sn=None, p=None, metho
                     #Infer the most likely discretized spike train underlying an AR(1) fluorescence trace
                     #Solves the noise constrained sparse non-negative deconvolution problem
                     #min |s|_1 subject to |c-y|^2 = sn^2 T and s_t = c_t-g c_{t-1} >= 0
-                    c, sp, bl, g, _ = constrained_oasisAR1(
-                        fluor, g[0], sn, optimize_b=True, b_nonneg=bas_nonneg,
+                    c, sp, bl, g, lam = constrained_oasisAR1(
+                        fluor.astype(np.float32), g[0], sn, optimize_b=True, b_nonneg=bas_nonneg,
                         optimize_g=optimize_g, penalty=penalty)
                 else:
-                    c, sp, _, g, _ = constrained_oasisAR1(
-                        fluor - bl, g[0], sn, optimize_b=False, penalty=penalty)
+                    c, sp, _, g, lam = constrained_oasisAR1(
+                        fluor.astype(np.float32) - bl, g[0], sn, optimize_b=False, penalty=penalty)
 
                 c1 = c[0]
 
@@ -157,11 +160,11 @@ def constrained_foopsi(fluor, bl=None,  c1=None, g=None,  sn=None, p=None, metho
                 c -= c1 * g**np.arange(len(fluor))
             elif p == 2:
                 if bl is None:
-                    c, sp, bl, g, _ = constrained_oasisAR2(
+                    c, sp, bl, g, lam = constrained_oasisAR2(
                         fluor, g, sn, optimize_b=True, b_nonneg=bas_nonneg,
                         optimize_g=optimize_g, penalty=penalty)
                 else:
-                    c, sp, _, g, _ = constrained_oasisAR2(
+                    c, sp, _, g, lam = constrained_oasisAR2(
                         fluor - bl, g, sn, optimize_b=False, penalty=penalty)
                 c1 = c[0]
                 d = (g[0] + sqrt(g[0] * g[0] + 4 * g[1])) / 2
@@ -173,7 +176,7 @@ def constrained_foopsi(fluor, bl=None,  c1=None, g=None,  sn=None, p=None, metho
         else:
             raise Exception('Undefined Deconvolution Method')
 
-    return c, bl, c1, g, sn, sp
+    return c, bl, c1, g, sn, sp, lam
 
 
 def G_inv_mat(x, mode, NT, gs, gd_vec, bas_flag=True, c1_flag=True):
