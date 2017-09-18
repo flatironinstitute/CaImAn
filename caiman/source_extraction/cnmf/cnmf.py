@@ -239,14 +239,14 @@ class CNMF(object):
         self.update_background_components = update_background_components 
         self.rolling_sum = rolling_sum
         self.rolling_length = rolling_length
-		self.min_corr = min_corr
+        self.min_corr = min_corr
         self.min_pnr = min_pnr
         self.deconvolve_options_init = deconvolve_options_init
         self.ring_size_factor = ring_size_factor
         self.center_psf = center_psf
         self.nb_patch = nb_patch
 
-        self.options = CNMFSetParms(Y, n_processes, p=p, gSig=gSig, gSiz=gSiz, 
+        self.options = CNMFSetParms((1,1,1), n_processes, p=p, gSig=gSig, gSiz=gSiz, 
 									K=k, ssub=ssub, tsub=tsub, 
                                     p_ssub=p_ssub, p_tsub=p_tsub, method_init=method_init,
                                     n_pixels_per_process=n_pixels_per_process, block_size=block_size,                                    
