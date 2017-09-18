@@ -46,7 +46,8 @@ if sys.version_info >= (3, 0):
 def initialize_components(Y, sn=None, options_total=None, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter=5, maxIter=5, nb=1,
                           kernel=None, use_hals=True, normalize_init=True, img=None, method='greedy_roi',
                           max_iter_snmf=500, alpha_snmf=10e2, sigma_smooth_snmf=(.5, .5, .5),
-                          perc_baseline_snmf=20, options_local_NMF=None,
+                          perc_baseline_snmf=20, options_local_NMF=None,  rolling_sum = False,
+                          rolling_length = 100,
                           min_corr=0.8, min_pnr=10, deconvolve_options_init=None,
                           ring_size_factor=1.5, center_psf=True):
     """
@@ -91,19 +92,24 @@ def initialize_components(Y, sn=None, options_total=None, K=30, gSig=[5, 5], gSi
         Whether to normalize_init data before running the initialization
 
     img: optional [np 2d array]
-        Image with which to normalize. If not present use the mean + offset
+        Image with which to normalize. If not present use the mean + offset 
 
     method: str
-        Initialization method 'greedy_roi' or 'sparse_nmf'
+        Initialization method 'greedy_roi' or 'sparse_nmf' 
 
     max_iter_snmf: int
         Maximum number of sparse NMF iterations
 
     alpha_snmf: scalar
         Sparsity penalty
+        
+    rolling_sum: boolean
+        Detect new components based on a rolling sum of pixel activity (default: True)        
 
-
-    center_psf: Boolean
+    rolling_length: int
+		Length of rolling window (default: 100)
+		
+	center_psf: Boolean
             True indicates centering the filtering kernel for background
             removal. This is useful for data with large background
             fluctuations.
@@ -149,8 +155,6 @@ def initialize_components(Y, sn=None, options_total=None, K=30, gSig=[5, 5], gSi
     fin: np.ndarray
         nb x T matrix, initalization of temporal background
 
-
-
     Raise:
     ------
         Exception("Unsupported method")
@@ -161,7 +165,7 @@ def initialize_components(Y, sn=None, options_total=None, K=30, gSig=[5, 5], gSi
     if method == 'local_nmf':
         tsub_lnmf = tsub
         ssub_lnmf = ssub
-        tsub = 1
+        tsub = 1 
         ssub = 1
 
     if gSiz is None:
@@ -192,7 +196,7 @@ def initialize_components(Y, sn=None, options_total=None, K=30, gSig=[5, 5], gSi
     print('Roi Extraction...')
     if method == 'greedy_roi':
         Ain, Cin, _, b_in, f_in = greedyROI(
-            Y_ds, nr=K, gSig=gSig, gSiz=gSiz, nIter=nIter, kernel=kernel, nb=nb)
+            Y_ds, nr=K, gSig=gSig, gSiz=gSiz, nIter=nIter, kernel=kernel, nb=nb, rolling_sum=rolling_sum,rolling_length=rolling_length)
 
         if use_hals:
             print('(Hals) Refining Components...')
@@ -306,8 +310,7 @@ def ICA_PCA(Y_ds, nr, sigma_smooth=(.5, .5, .5),  truncate=2, fun='logcosh', max
 
     """
     print("not a function to use in the moment ICA PCA \n")
-    m = scipy.ndimage.gaussian_filter(np.transpose(
-        Y_ds, [2, 0, 1]), sigma=sigma_smooth, mode='nearest', truncate=truncate)
+    m = scipy.ndimage.gaussian_filter(np.transpose(Y_ds, [2, 0, 1]), sigma=sigma_smooth, mode='nearest', truncate=truncate)
     if remove_baseline:
         bl = np.percentile(m, perc_baseline, axis=0)
         m1 = np.maximum(0, m - bl)
@@ -315,35 +318,37 @@ def ICA_PCA(Y_ds, nr, sigma_smooth=(.5, .5, .5),  truncate=2, fun='logcosh', max
         bl = 0
         m1 = m
     pca_comp = nr
-
+    
     T, d1, d2 = np.shape(m1)
     d = d1 * d2
     yr = np.reshape(m1, [T, d], order='F')
 
-    [U, S, V] = scipy.sparse.linalg.svds(yr, pca_comp)
+    [U,S,V] = scipy.sparse.linalg.svds(yr,pca_comp)
     S = np.diag(S)
-    whiteningMatrix = np.dot(scipy.linalg.inv(S), U.T)
-    whitesig = np.dot(whiteningMatrix, yr)
+    whiteningMatrix = np.dot(scipy.linalg.inv(S),U.T)
+    whitesig =  np.dot(whiteningMatrix,yr)
     f_ica = FastICA(whiten=False, fun=fun, max_iter=max_iter, tol=tol)
     S_ = f_ica.fit_transform(whitesig.T)
     A_in = f_ica.mixing_
-    A_in = np.dot(A_in, whitesig)
+    A_in = np.dot(A_in,whitesig)
 
-    masks = np.reshape(A_in.T, (d1, d2, pca_comp), order='F').transpose([2, 0, 1])
+    masks = np.reshape(A_in.T,(d1,d2,pca_comp),order = 'F').transpose([2,0,1])
 
     masks = np.array(caiman.base.rois.extractROIsFromPCAICA(masks)[0])
 
     if masks.size > 0:
         C_in = caiman.base.movies.movie(m1).extract_traces_from_masks(np.array(masks)).T
-        A_in = np.reshape(masks, [-1, d1 * d2], order='F').T
-
+        A_in = np.reshape(masks,[-1,d1*d2],order = 'F').T
+    
     else:
+        
+        A_in = np.zeros([d1*d2,pca_comp])     
+        C_in = np.zeros([pca_comp,T])
 
-        A_in = np.zeros([d1 * d2, pca_comp])
-        C_in = np.zeros([pca_comp, T])
+
 
     m1 = yr.T - A_in.dot(C_in) + np.maximum(0, bl.flatten())[:, np.newaxis]
-
+    
     model = NMF(n_components=nb, init='random', random_state=0)
 
     b_in = model.fit_transform(np.maximum(m1, 0))
@@ -353,9 +358,7 @@ def ICA_PCA(Y_ds, nr, sigma_smooth=(.5, .5, .5),  truncate=2, fun='logcosh', max
 
     return A_in, C_in, center, b_in, f_in
 #%%
-
-
-def sparseNMF(Y_ds, nr,  max_iter_snmf=500, alpha=10e2, sigma_smooth=(.5, .5, .5), remove_baseline=True, perc_baseline=20, nb=1, truncate=2):
+def sparseNMF(Y_ds, nr,  max_iter_snmf=500, alpha=10e2, sigma_smooth=(.5, .5, .5), remove_baseline=True, perc_baseline=20, nb=1, truncate = 2 ):
     """
     Initilaization using sparse NMF
 
@@ -375,7 +378,7 @@ def sparseNMF(Y_ds, nr,  max_iter_snmf=500, alpha=10e2, sigma_smooth=(.5, .5, .5
         percentile to remove frmo movie before NMF
 
     nb: int
-        Number of background components
+        Number of background components    
 
     Returns:
     -------
@@ -431,7 +434,7 @@ def sparseNMF(Y_ds, nr,  max_iter_snmf=500, alpha=10e2, sigma_smooth=(.5, .5, .5
 #%%
 
 
-def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1):
+def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1, rolling_sum = False, rolling_length = 100):
     """
     Greedy initialization of spatial and temporal components using spatial Gaussian filtering
 
@@ -458,6 +461,12 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1):
 
     nb: int
         Number of background components
+        
+    rolling_max: boolean
+        Detect new components based on a rolling sum of pixel activity (default: True)
+        
+    rolling_length: int
+        Length of rolling window (default: 100)
 
     Returns:
     -------
@@ -493,7 +502,14 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1):
     center = np.zeros((nr, Y.ndim - 1))
 
     rho = imblur(Y, sig=gSig, siz=gSiz, nDimBlur=Y.ndim - 1, kernel=kernel)
-    v = np.sum(rho**2, axis=-1)
+    if rolling_sum:
+        print('USING ROLLING SUM FOR INITIALIZATION....')
+        rolling_filter = np.ones((rolling_length))/rolling_length
+        rho_s = scipy.signal.lfilter(rolling_filter,1.,rho**2)
+        v = np.amax(rho_s,axis=-1)
+    else:
+        print('USING TOTAL SUM FOR INITIALIZATION....')
+        v = np.sum(rho**2, axis=-1)
 
     for k in range(nr):
         # we take the highest value of the blurred total image and we define it as
@@ -528,10 +544,13 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1):
             dataTemp = np.zeros(ModLen)
             dataTemp[[slice(*a) for a in Lag]] = coef
             dataTemp = imblur(dataTemp[..., np.newaxis], sig=gSig, siz=gSiz, kernel=kernel)
-            temp = dataTemp * score.reshape([1] * (Y.ndim - 1) + [-1])
+            temp = dataTemp * score.reshape([1] * (Y.ndim - 1) + [-1])            
             rho[[slice(*a) for a in Mod]] -= temp.copy()
-            v[[slice(*a) for a in Mod]] = np.sum(
-                rho[[slice(*a) for a in Mod]]**2, axis=-1)
+            if rolling_sum:
+                rho_filt = scipy.signal.lfilter(rolling_filter,1.,rho[[slice(*a) for a in Mod]]**2)
+                v[[slice(*a) for a in Mod]] = np.amax(rho_filt,axis=-1)
+            else:
+                v[[slice(*a) for a in Mod]] = np.sum(rho[[slice(*a) for a in Mod]]**2, axis=-1)
 
     res = np.reshape(Y, (np.prod(d[0:-1]), d[-1]), order='F') + med.flatten(order='F')[:, None]
     model = NMF(n_components=nb, init='random', random_state=0)
@@ -634,13 +653,19 @@ def imblur(Y, sig=5, siz=11, nDimBlur=None, kernel=None, opencv=True):
         X = Y.copy()
         if opencv and nDimBlur == 2:
             if X.ndim > 2:
-                # if we are on a video we repeat for each frame
+                #if we are on a video we repeat for each frame
                 for frame in range(X.shape[-1]):
-                    X[:, :, frame] = cv2.GaussianBlur(X[:, :, frame], tuple(siz), sig[
-                                                      0], sig[1], cv2.BORDER_CONSTANT, 0)
+                    if sys.version_info >= (3, 0):
+                        X[:,:,frame] = cv2.GaussianBlur(X[:,:,frame],tuple(siz),sig[0],None,sig[1],cv2.BORDER_CONSTANT)
+                    else:
+                        X[:,:,frame] = cv2.GaussianBlur(X[:,:,frame],tuple(siz),sig[0],sig[1],cv2.BORDER_CONSTANT,0)               
+                
             else:
-                X = cv2.GaussianBlur(X, tuple(siz), sig[0], sig[1], cv2.BORDER_CONSTANT, 0)
-        else:
+                if sys.version_info >= (3, 0):
+                    X = cv2.GaussianBlur(X,tuple(siz),sig[0],None,sig[1],cv2.BORDER_CONSTANT) 
+                else:
+                    X = cv2.GaussianBlur(X,tuple(siz),sig[0],sig[1],cv2.BORDER_CONSTANT,0) 
+        else:                
             for i in range(nDimBlur):
                 h = np.exp(
                     old_div(-np.arange(-np.floor(old_div(siz[i], 2)), np.floor(old_div(siz[i], 2)) + 1)**2, (2 * sig[i]**2)))

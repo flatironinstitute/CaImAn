@@ -703,7 +703,7 @@ class movie(ts.timeseries):
         return mask
 
 
-    def local_correlations(self,eight_neighbours=False,swap_dim=True):
+    def local_correlations(self,eight_neighbours=False,swap_dim=True, frames_per_chunk = 1500):
         """Computes the correlation image for the input dataset Y
 
             Parameters:
@@ -729,20 +729,20 @@ class movie(ts.timeseries):
         T = self.shape[0]
         Cn = np.zeros(self.shape[1:])
         if T<=3000:
-            Cn = si.local_correlations(self, eight_neighbours=eight_neighbours, swap_dim=swap_dim)
+            Cn = si.local_correlations(np.array(self), eight_neighbours=eight_neighbours, swap_dim=swap_dim)
         else:
-            n_chunks = T//1500
-            frames_per_chunk = 1500
+            
+            n_chunks = T//frames_per_chunk
             for jj,mv in enumerate(range(n_chunks-1)):
                 print('number of chunks:' + str(jj) + ' frames: ' + str([mv*frames_per_chunk,(mv+1)*frames_per_chunk]))
-                rho = si.local_correlations(self[mv*frames_per_chunk:(mv+1)*frames_per_chunk],
+                rho = si.local_correlations(np.array(self[mv*frames_per_chunk:(mv+1)*frames_per_chunk]),
                                             eight_neighbours=eight_neighbours, swap_dim=swap_dim)
                 Cn = np.maximum(Cn,rho)    
                 pl.imshow(Cn,cmap='gray')  
                 pl.pause(.1)
             
             print('number of chunks:' + str(n_chunks-1) + ' frames: ' + str([(n_chunks-1)*frames_per_chunk,T]))
-            rho = si.local_correlations(self[(n_chunks-1)*frames_per_chunk:], eight_neighbours=eight_neighbours,
+            rho = si.local_correlations(np.array(self[(n_chunks-1)*frames_per_chunk:]), eight_neighbours=eight_neighbours,
                                         swap_dim=swap_dim)
             Cn = np.maximum(Cn,rho)    
             pl.imshow(Cn,cmap='gray')  
@@ -1296,7 +1296,7 @@ def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None,
 
 def load_movie_chain(file_list, fr=30, start_time=0,
                      meta_data=None, subindices=None,
-                     bottom=0, top=0, left=0, right=0):
+                     bottom=0, top=0, left=0, right=0, channel = None):
     """ load movies from list of file names
 
     Parameters:
@@ -1319,8 +1319,15 @@ def load_movie_chain(file_list, fr=30, start_time=0,
     for f in tqdm(file_list):
         m = load(f, fr=fr, start_time=start_time,
                  meta_data=meta_data, subindices=subindices, in_memory = True)
+        if channel is not None:
+            print(m.shape)
+            m = m[channel].squeeze()
+            print(m.shape)
+            
+            
         if m.ndim == 2:
             m = m[np.newaxis, :, :]
+        
         tm, h, w = np.shape(m)
         m = m[:, top:h-bottom, left:w-right]
         mov.append(m)

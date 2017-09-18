@@ -87,7 +87,7 @@ def get_distance_from_A(masks_gt,masks_comp, min_dist = 10 ):
     return distance_masks([A_ben,A_cnmf],[cm_ben,cm_cnmf], min_dist )  
 #%%
 def nf_match_neurons_in_binary_masks(masks_gt,masks_comp,thresh_cost=.7, min_dist = 10, print_assignment= False,
-                                     plot_results = False, Cn=None, labels = None, cmap = 'viridis'):
+                                     plot_results = False, Cn=None, labels = None, cmap = 'viridis', D = None):
     """
     Match neurons expressed as binary masks. Uses Hungarian matching algorithm
 
@@ -113,6 +113,9 @@ def nf_match_neurons_in_binary_masks(masks_gt,masks_comp,thresh_cost=.7, min_dis
     Cn: 
         correlation image or median
 
+    D: list of ndarrays
+	list of distances matrices
+
     Returns:
     --------
     idx_tp_1:
@@ -130,6 +133,7 @@ def nf_match_neurons_in_binary_masks(masks_gt,masks_comp,thresh_cost=.7, min_dis
     performance:  
 
     """
+   
     ncomps,d1,d2 = np.shape(masks_gt)
     dims = d1,d2
 
@@ -141,9 +145,21 @@ def nf_match_neurons_in_binary_masks(masks_gt,masks_comp,thresh_cost=.7, min_dis
     cm_ben = [ scipy.ndimage.center_of_mass(mm) for mm in masks_gt]
     cm_cnmf = [ scipy.ndimage.center_of_mass(mm) for mm in masks_comp]
 
-    #%% find distances and matches
-    # find the distance between each masks
-    D=distance_masks([A_ben,A_cnmf],[cm_ben,cm_cnmf], min_dist )    
+    
+    if D is None:
+        #% find distances and matches
+        # find the distance between each masks
+        D=distance_masks([A_ben,A_cnmf],[cm_ben,cm_cnmf], min_dist )  
+        level = 0.98
+    else:
+        level = .98
+        
+        
+          
+    
+    
+        
+    
     
     matches,costs=find_matches(D,print_assignment=print_assignment)
     matches=matches[0]
@@ -184,8 +200,8 @@ def nf_match_neurons_in_binary_masks(masks_gt,masks_comp,thresh_cost=.7, min_dis
             lp,hp = np.nanpercentile(Cn,[5,95])
             pl.subplot(1,2,1)
             pl.imshow(Cn,vmin=lp,vmax=hp, cmap = cmap)
-            [pl.contour(mm,levels=[0],colors='w',linewidths=1) for mm in masks_comp[idx_tp_comp]]
-            [pl.contour(mm,levels=[0],colors='r',linewidths=1) for mm in masks_gt[idx_tp_gt]] 
+            [pl.contour(norm_nrg(mm),levels=[level],colors='w',linewidths=1) for mm in masks_comp[idx_tp_comp]]
+            [pl.contour(norm_nrg(mm),levels=[level],colors='r',linewidths=1) for mm in masks_gt[idx_tp_gt]] 
             if labels is None:
                 pl.title('MATCHES')
             else:
@@ -193,18 +209,30 @@ def nf_match_neurons_in_binary_masks(masks_gt,masks_comp,thresh_cost=.7, min_dis
             pl.axis('off')
             pl.subplot(1,2,2)
             pl.imshow(Cn,vmin=lp,vmax=hp, cmap = cmap)
-            [pl.contour(mm,levels=[0],colors='w',linewidths=1) for mm in masks_comp[idx_fp_comp]] 
-            [pl.contour(mm,levels=[0],colors='r',linewidths=1) for mm in masks_gt[idx_fn_gt]] 
+            [pl.contour(norm_nrg(mm),levels=[level],colors='w',linewidths=1) for mm in masks_comp[idx_fp_comp]] 
+            [pl.contour(norm_nrg(mm),levels=[level],colors='r',linewidths=1) for mm in masks_gt[idx_fn_gt]] 
             if labels is None:
                 pl.title('FALSE POSITIVE (w), FALSE NEGATIVE (r)')
             else:
                 pl.title(labels[1]+'(w), ' + labels[0] + '(r)')
             pl.axis('off')
-        except :
+        except Exception as e:
             print("not able to plot precision recall usually because we are on travis")
+            print(e)
     return  idx_tp_gt,idx_tp_comp, idx_fn_gt, idx_fp_comp, performance 
 
-
+#%% threshold
+def norm_nrg(a_):
+    
+    a = a_.copy()
+    dims = a.shape
+    a = a.reshape(-1,order = 'F')
+    indx = np.argsort(a, axis=None)[::-1]
+    cumEn = np.cumsum(a.flatten()[indx]**2)
+    cumEn /= cumEn[-1]
+    a = np.zeros(np.prod(dims))
+    a[indx] = cumEn
+    return a.reshape(dims,order = 'F')
 
 #%% compute mask distances
 def distance_masks(M_s,cm_s,max_dist):

@@ -63,10 +63,10 @@ def cnmf_patches(args_in):
             unitless number accounting how much memory should be used.
             It represents the fration of patch processed in a single thread.
              You will need to try different values to see which one would work
-
+             
         low_rank_background: bool
             if True the background is approximated with gnb components. If false every patch keeps its background (overlaps are randomly assigned to one spatial component only)
-
+    
         Returns:
         -------
         A_tot: matrix containing all the componenents from all the patches
@@ -106,8 +106,7 @@ def cnmf_patches(args_in):
     # for 2d a rectangle/square, for 3d a rectangular cuboid/cube, etc.
     upper_left_corner = min(idx_)
     lower_right_corner = max(idx_)
-    indices = np.unravel_index([upper_left_corner, lower_right_corner],
-                               dims, order='F')  # indices as tuples
+    indices = np.unravel_index([upper_left_corner, lower_right_corner], dims, order='F')  # indices as tuples
     slices = [slice(min_dim, max_dim + 1) for min_dim, max_dim in indices]
     slices.insert(0, slice(timesteps))  # insert slice for timesteps, equivalent to :
 
@@ -120,10 +119,8 @@ def cnmf_patches(args_in):
                         merge_thresh=options['merging']['thr'], p=p, dview=None,  Ain=None,  Cin=None,
                         f_in=None, do_merge=True,
                         ssub=options['init_params']['ssub'], tsub=options['init_params']['tsub'],
-                        p_ssub=options['patch_params'][
-                            'ssub'], p_tsub=options['patch_params']['tsub'],
-                        method_init=options['init_params'][
-                            'method'], alpha_snmf=options['init_params']['alpha_snmf'],
+                        p_ssub=options['patch_params']['ssub'], p_tsub=options['patch_params']['tsub'],
+					    method_init=options['init_params']['method'], alpha_snmf=options['init_params']['alpha_snmf'],
                         rf=None, stride=None, memory_fact=1, gnb=options['patch_params']['nb'],
                         only_init_patch=options['patch_params']['only_init'],
                         method_deconvolution=options['temporal_params']['method'],
@@ -134,6 +131,8 @@ def cnmf_patches(args_in):
                         options_local_NMF=options['init_params']['options_local_NMF'],
                         normalize_init=options['init_params']['normalize_init'],
                         remove_very_bad_comps=options['patch_params']['remove_very_bad_comps'],
+						rolling_sum = options['init_params']['rolling_sum'],
+                		rolling_length = options['init_params']['rolling_length']
                         min_corr = options['init_params']['min_corr'], min_pnr = options['init_params']['min_pnr'],
                         deconvolve_options_init = options['init_params']['deconvolve_options_init'],
                         ring_size_factor = options['init_params']['ring_size_factor'],
@@ -141,15 +140,15 @@ def cnmf_patches(args_in):
         
 
         cnm = cnm.fit(images)
-        return idx_, shapes, scipy.sparse.coo_matrix(cnm.A),\
-            cnm.b, cnm.C, cnm.f, cnm.S, cnm.bl, cnm.c1,\
-            cnm.neurons_sn, cnm.g, cnm.sn, cnm.options, cnm.YrA.T
+        return idx_,shapes,scipy.sparse.coo_matrix(cnm.A),\
+               cnm.b,cnm.C,cnm.f,cnm.S,cnm.bl,cnm.c1,\
+               cnm.neurons_sn,cnm.g,cnm.sn,cnm.options,cnm.YrA.T
     else:
         return None
 
 
 #%%
-def run_CNMF_patches(file_name, shape, options, rf=16, stride=4, gnb=1, dview=None, memory_fact=1, border_pix=0, low_rank_background=True):
+def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, gnb = 1, dview=None, memory_fact=1, border_pix = 0, low_rank_background = True):
     """Function that runs CNMF in patches
 
      Either in parallel or sequentially, and return the result for each.
@@ -192,7 +191,7 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride=4, gnb=1, dview=No
 
     low_rank_background: bool
         if True the background is approximated with gnb components. If false every patch keeps its background (overlaps are randomly assigned to one spatial component only)
-
+    
     Returns:
     -------
     A_tot: matrix containing all the components from all the patches
@@ -222,8 +221,7 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride=4, gnb=1, dview=No
     else:
         strides = stride
 
-    options['preprocess_params']['n_pixels_per_process'] = np.int(
-        old_div(np.prod(rfs), memory_fact))
+    options['preprocess_params']['n_pixels_per_process'] = np.int(old_div(np.prod(rfs), memory_fact))
     options['spatial_params']['n_pixels_per_process'] = np.int(old_div(np.prod(rfs), memory_fact))
     options['temporal_params']['n_pixels_per_process'] = np.int(old_div(np.prod(rfs), memory_fact))
     nb = options['spatial_params']['nb']
@@ -309,8 +307,7 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride=4, gnb=1, dview=No
             F_tot[patch_id * nb_patch:(patch_id + 1) * nb_patch] = f
 
             for ii in range(np.shape(A)[-1]):
-                new_comp = old_div(A.tocsc()[:, ii], np.sqrt(
-                    np.sum(np.array(A.tocsc()[:, ii].todense())**2)))
+                new_comp = old_div(A.tocsc()[:, ii], np.sqrt(np.sum(np.array(A.tocsc()[:, ii].todense())**2)))
                 if new_comp.sum() > 0:
                     a_tot.append(new_comp.toarray().flatten())
                     idx_tot_A.append(idx_)

@@ -33,12 +33,12 @@ from scipy.ndimage.morphology import binary_closing
 from scipy.ndimage.measurements import label
 
 
-def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, b_in=None, min_size=3, max_size=8, dist=3,
+def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, b_in = None, min_size=3, max_size=8, dist=3,
                               normalize_yyt_one=True,
                               method='ellipse', expandCore=None, dview=None, n_pixels_per_process=128,
                               medw=(3, 3), thr_method='nrg', maxthr=0.1, nrgthr=0.9999, extract_cc=True,
                               se=np.ones((3, 3), dtype=np.int), ss=np.ones((3, 3), dtype=np.int), nb=1,
-                              method_ls='lasso_lars', update_background_components=True, low_rank_background=True):
+                              method_ls='lasso_lars', update_background_components = True, low_rank_background= True):
     """update spatial footprints and background through Basis Pursuit Denoising 
 
     for each pixel i solve the problem
@@ -65,7 +65,7 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
 
     b_in: np.ndarray
         you can pass background as input, especially in the case of one background per patch, since it will update using hals    
-
+    
     dims: [optional] tuple
         x, y[, z] movie dimensions
 
@@ -110,15 +110,15 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
 
         normalize_yyt_one: bool
             wheter to norrmalize the C and A matrices so that diag(C*C.T) are ones
-
+    
     update_background_components:bool
         whether to update the background components in the spatial phase
-
+        
     low_rank_background:bool
         whether to update the using a low rank approximation. In the False case all the nonzero elements of the background components are updated using hals    
         (to be used with one background per patch)
-
-
+    
+        
     Returns:
     --------
     A: np.ndarray
@@ -162,14 +162,12 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
         raise Exception('You need to define the input dimensions')
 
     # shape transformation and tests
-    Y, A_in, C, f, n_pixels_per_process, rank_f, d, T = test(
-        Y, A_in, C, f, n_pixels_per_process, nb)
+    Y, A_in, C, f, n_pixels_per_process, rank_f, d, T = test(Y, A_in, C, f, n_pixels_per_process, nb)
 
     start_time = time.time()
     print('computing the distance indicators')
     # we compute the indicator from distance indicator
-    ind2_, nr, C, f, b_, A_in = computing_indicator(
-        Y, A_in, C, f, nb, method, dims, min_size, max_size, dist, expandCore, dview)
+    ind2_, nr, C, f, b_, A_in = computing_indicator(Y, A_in, b_in, C, f, nb, method, dims, min_size, max_size, dist, expandCore, dview)
     if normalize_yyt_one and C is not None:
         C = np.array(C)
         nr_C = np.shape(C)[0]
@@ -192,11 +190,11 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
     pixel_groups = []
     for i in range(0, np.prod(dims) - n_pixels_per_process + 1, n_pixels_per_process):
         pixel_groups.append([Y_name, C_name, sn, ind2_, list(
-            range(i, i + n_pixels_per_process)), method_ls, cct, rank_f])
+            range(i, i + n_pixels_per_process)), method_ls, cct,])
     if i < np.prod(dims):
-        pixel_groups.append([Y_name, C_name, sn, ind2_, list(
-            range(i, np.prod(dims))), method_ls, cct, rank_f])
-    A_ = np.zeros((d, nr + np.size(f, 0)))  # init A_
+            pixel_groups.append([Y_name, C_name, sn, ind2_, list(
+            range(i, np.prod(dims))), method_ls, cct])
+    A_ = np.zeros((d, nr + np.size(f, 0)))    #init A_
     if dview is not None:
         parallel_result = dview.map_sync(regression_ipyparallel, pixel_groups)
         dview.results.clear()
@@ -216,11 +214,16 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
     if np.size(ff) > 0:
         ff = ff[0]
         print('eliminating {} empty spatial components'.format(len(ff)))
-        A_ = np.delete(A_, list(ff), 1)
-        C = np.delete(C, list(ff), 0)
-        background_ff = list(filter(lambda i: i > 0, ff - nr))
-        f = np.delete(f, background_ff, 0)
-        nr = nr - (len(ff) - len(background_ff))
+        A_ = np.delete(A_, list(ff[ff<nr]), 1)
+        C = np.delete(C, list(ff[ff<nr]), 0)
+        nr = nr - len(ff[ff<nr])
+        if low_rank_background:
+            background_ff = list(filter(lambda i: i >= nb, ff - nr))
+            f = np.delete(f, background_ff, 0)            
+        else:
+            background_ff = list(filter(lambda i: i >= 0, ff - nr))
+            f = np.delete(f, background_ff, 0)
+            b_in = np.delete(b_in, background_ff, 1)
 
     A_ = A_[:, :nr]
     A_ = coo_matrix(A_)
@@ -235,7 +238,7 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
 
     if update_background_components:
 
-        if low_rank_background:
+        if b_in is None:
             # update baseline based on residual
             b = np.fmax(Y_resf.dot(np.linalg.inv(f.dot(f.T))), 0)
         else:
@@ -244,12 +247,11 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
 
     else:
         if b_in is None:
-            raise Exception(
-                'If you set the update_background_components you have to pass as input to update_spatial')
-        try:
-            b = np.delete(b_in, background_ff, 0)
-        except NameError:
-            b = b_in
+            raise Exception('If you set the update_background_components to True you have to pass them as input to update_spatial')
+        #try:
+        #    b = np.delete(b_in, background_ff, 0)
+        #except NameError:
+        b = b_in
 
     print(("--- %s seconds ---" % (time.time() - start_time)))
     try:  # clean up
@@ -258,6 +260,9 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
         shutil.rmtree(folder)
     except:
         raise Exception("Failed to delete: " + folder)
+        
+        
+    
     return A_, b, C, f
 
 
@@ -330,8 +335,8 @@ def regression_ipyparallel(pars):
     import gc
     from sklearn import linear_model
 
-    Y_name, C_name, noise_sn, idxs_C, idxs_Y, method_least_square, cct, rank_f = pars
-    # we load from the memmap file
+    Y_name, C_name, noise_sn, idxs_C, idxs_Y, method_least_square, cct = pars
+    #we load from the memmap file
     if isinstance(Y_name, basestring):
         Y, _, _ = load_memmap(Y_name)
         Y = np.array(Y[idxs_Y, :])
@@ -349,8 +354,11 @@ def regression_ipyparallel(pars):
     for y, px in zip(Y, idxs_Y):
         c = C[idxs_C[px], :]
         idx_only_neurons = idxs_C[px]
-        cct_ = cct[idx_only_neurons[:-rank_f]]
-
+        if len(idx_only_neurons)>0:
+            cct_ = cct[idx_only_neurons[idx_only_neurons<len(cct)]]
+        else:
+            cct_ = []
+            
         if np.size(c) > 0:
             sn = noise_sn[px] ** 2 * T
             if method_least_square == 'lasso_lars_old':  # lasso lars from old implementation, will be deprecated
@@ -365,6 +373,7 @@ def regression_ipyparallel(pars):
                 clf = linear_model.LassoLars(alpha=lambda_lasso, positive=True)
                 a_lrs = clf.fit(np.array(c.T), np.ravel(y))
                 a = a_lrs.coef_
+                
             else:
                 raise Exception('Least Square Method not found!' + method_least_square)
 
@@ -373,12 +382,15 @@ def regression_ipyparallel(pars):
 
             As.append((px, idxs_C[px], a))
 
+
     if isinstance(Y_name, basestring):
         del Y
     if isinstance(C_name, basestring):
         del C
     if isinstance(Y_name, basestring):
         gc.collect()
+    
+        
     return As
 
 
@@ -494,6 +506,7 @@ def determine_search_location(A, dims, method='ellipse', min_size=3, max_size=8,
     else:
         dist_indicator = True * np.ones((d, nr))
 
+    
     return dist_indicator
 
 
@@ -706,8 +719,7 @@ def threshold_components_parallel(pars):
     if BW.max() == 0:
         return Ath2, i
     #
-    # we want to extract the largest connected component ( to remove small unconnected pixel )
-    if extract_cc:
+    if extract_cc: # we want to extract the largest connected component ( to remove small unconnected pixel )
         # we extract each future as independent with the cross structuring elemnt
         labeled_array, num_features = label(BW, structure=ss)
         labeled_array = np.squeeze(np.reshape(labeled_array, (d, 1)))
@@ -771,6 +783,7 @@ def nnls_L0(X, Yp, noise):
             W_lam[eliminate[np.argmin(np.array(eliminate)[:, 1])][0]] = 0
 
 
+
 # %% lars_regression_noise
 def lars_regression_noise_old(Yp, X, positive, noise, verbose=False):
     """
@@ -806,7 +819,7 @@ def lars_regression_noise_old(Yp, X, positive, noise, verbose=False):
         LARS : https://en.wikipedia.org/wiki/Least-angle_regression
         group Lasso :
     """
-    # INITAILIZATION
+    #INITAILIZATION
     k = 1
     Yp = np.squeeze(np.asarray(Yp))
     # necessary for matrix multiplications
@@ -848,10 +861,10 @@ def lars_regression_noise_old(Yp, X, positive, noise, verbose=False):
             if lambda_ < 0:
                 print('All negative directions!')
                 break
-        else:  # 2 : Find the predictor x_{j} most correlated with y
+        else:# 2 : Find the predictor x_{j} most correlated with y
 
             # % calculate vector to travel along
-            avec, gamma_plus, gamma_minus = calcAvec(new, dQ, W, lambda_, active_set, M, positive)
+            avec, gamma_plus, gamma_minus = calcAvec(new, dQ, W, lambda_, active_set, M,positive)
             # % calculate time of travel and next new direction
             if new == -1:  # % if we just dropped a direction we don't allow it to emerge
                 if dropped_sign == 1:  # % with the same sign
@@ -883,7 +896,7 @@ def lars_regression_noise_old(Yp, X, positive, noise, verbose=False):
             gamma_zero_full[active_set == 1] = gamma_zero
             gamma_zero_full[gamma_zero_full <= 0] = np.inf
             gz_min, gz_min_ind = np.min(gamma_zero_full), np.argmin(gamma_zero_full)
-            # 4: Increase Wj,Wk in their joint least squares direction, until some other predictor x_{m}
+            #4: Increase Wj,Wk in their joint least squares direction, until some other predictor x_{m}
             # has as much correlation with the residual r. (see 5)
             if gz_min < g_min:
                 if verbose:
@@ -917,7 +930,7 @@ def lars_regression_noise_old(Yp, X, positive, noise, verbose=False):
         lambdas.append(lambda_)
         Ws.append(W.copy())
         # 5 : Take residuals r=y-y_  along the way. Stop when some other predictor x_{k}
-        # has as much correlation with  r as x_{j} has.
+        #has as much correlation with  r as x_{j} has.
         if len((Yp - np.dot(X, W)).shape) > 2:
             res = scipy.linalg.norm(np.squeeze(Yp - np.dot(X, W)), 'fro') ** 2
         else:
@@ -967,7 +980,7 @@ def lars_regression_noise_old(Yp, X, positive, noise, verbose=False):
 
 
 # %% auxiliary functions
-def calcAvec(new, dQ, W, lambda_, active_set, M, positive):
+def calcAvec(new, dQ, W, lambda_, active_set, M,positive):
     """
     calculate the vectoe to travel along
 
@@ -1022,7 +1035,7 @@ def calcAvec(new, dQ, W, lambda_, active_set, M, positive):
     return avec, gamma_plus, gamma_minus
 
 
-def test(Y, A_in, C, f, n_pixels_per_process, nb):
+def test(Y, A_in, C, f, n_pixels_per_process,nb):
     """test the shape of each matrix, reshape them, test the number of pixel per process
 
         if it doesn't follow the rules it will throw an exception that is not supposed to be catch by spatial.
@@ -1074,10 +1087,12 @@ def test(Y, A_in, C, f, n_pixels_per_process, nb):
             raise Exception('Dimension of Matrix C must be neurons x time')
 
     if f is not None:
-        f = np.atleast_2d(f)
+        
+        f = np.atleast_2d(f)        
         if f.shape[1] == 1:
             raise Exception('Dimension of Matrix f must be background comps x time ')
-
+        
+            
     if (A_in is None) and (C is None):
         raise Exception('Either A or C need to be determined')
 
@@ -1091,19 +1106,19 @@ def test(Y, A_in, C, f, n_pixels_per_process, nb):
 
     if A_in is None:
         A_in = np.ones((d, np.shape(C)[1]), dtype=bool)
-
+    
     if n_pixels_per_process > d:
         print('The number of pixels per process (n_pixels_per_process)'
               ' is larger than the total number of pixels!! Decreasing suitably.')
         n_pixels_per_process = d
-
+    
     if f is not None:
         nb = f.shape[0]
 
-    return Y, A_in, C, f, n_pixels_per_process, nb, d, T
+    return Y, A_in, C, f, n_pixels_per_process, nb,d,T
 
 
-def computing_indicator(Y, A_in, C, f, nb, method, dims, min_size, max_size, dist, expandCore, dview):
+def computing_indicator(Y, A_in, b, C, f, nb, method, dims, min_size, max_size, dist, expandCore, dview):
     """compute the indices of the distance from the cm to search for the spatial component (calling determine_search_location)
 
     does it by following an ellipse from the cm or doing a step by step dilatation around the cm
@@ -1169,38 +1184,56 @@ def computing_indicator(Y, A_in, C, f, nb, method, dims, min_size, max_size, dis
 
            Exception("Failed to delete: " + folder)
            """
-    b = None
+
     if A_in.dtype == bool:
+
         dist_indicator = A_in.copy()
         print("spatial support for each components given by the user")
         # we compute C,B,f,Y if we have boolean for A matrix
         if C is None:  # if C is none we approximate C, b and f from the binary mask
-            dist_indicator_av = old_div(dist_indicator.astype(
-                'float32'), np.sum(dist_indicator.astype('float32'), axis=0))
-            px = (np.sum(dist_indicator, axis=1) > 0)
-            not_px = np.setdiff1d(np.arange(np.prod(dims)), px)
-
-            f = np.mean(Y[not_px, :], 0)
+            dist_indicator_av = old_div(dist_indicator.astype('float32'), np.sum(dist_indicator.astype('float32'), axis=0))
+            px = (np.sum(dist_indicator,axis = 1)>0);
+            not_px = 1-px
+            if Y.shape[-1]<30000:
+                f = Y[not_px ,:].mean(0)
+            else:# momory mapping fails here for some reasons
+                print('estimating f')
+                f = 0
+                for xxx in not_px:                    
+                    f = (f+Y[xxx])/2
+                
             f = np.atleast_2d(f)
 
             Y_resf = np.dot(Y, f.T)
-            b = np.maximum(Y_resf, 0) / (np.linalg.norm(f)**2)
-            C = np.maximum(csr_matrix(dist_indicator_av.T).dot(
-                Y) - dist_indicator_av.T.dot(b).dot(f), 0)
+            b = np.maximum(Y_resf, 0)/(np.linalg.norm(f)**2)
+            C = np.maximum(csr_matrix(dist_indicator_av.T).dot(Y) - dist_indicator_av.T.dot(b).dot(f), 0)
             A_in = scipy.sparse.coo_matrix(A_in.astype(np.float32))
+            nr, _ = np.shape(C)  # number of neurons
+            ind2_ = [np.hstack((np.where(iid_)[0], nr + np.arange(f.shape[0])))
+                 if np.size(np.where(iid_)[0]) > 0 else [] for iid_ in dist_indicator]
+            
 
     else:
-        dist_indicator = determine_search_location(
-            A_in, dims, method=method, min_size=min_size, max_size=max_size, dist=dist, expandCore=expandCore,
-            dview=dview)
-        print("found spatial support for each component")
         if C is None:
             raise Exception('You need to provide estimate of C and f')
 
-    nr, _ = np.shape(C)  # number of neurons
-    # if we are in the defined distance ind2_ = we give the distance accepted values
-    ind2_ = [np.hstack((np.where(iid_)[0], nr + np.arange(f.shape[0])))
-             if np.size(np.where(iid_)[0]) > 0 else [] for iid_ in dist_indicator]
+        nr, _ = np.shape(C)  # number of neurons    
+
+        if b is None:
+            dist_indicator = determine_search_location(
+                A_in, dims, method=method, min_size=min_size, max_size=max_size, dist=dist, expandCore=expandCore,
+                dview=dview)
+        else:
+            dist_indicator = determine_search_location(
+                scipy.sparse.hstack([A_in,scipy.sparse.coo_matrix(b)]), dims, method=method, min_size=min_size, max_size=max_size, dist=dist, expandCore=expandCore,
+                dview=dview)
+            
+            
+        print("found spatial support for each component")
+        
+    
+        ind2_ = [np.where(iid_)[0]
+                     if (np.size(np.where(iid_)[0]) > 0) and (np.min(np.where(iid_)[0])<nr) else [] for iid_ in dist_indicator]
 
     return ind2_, nr, C, f, b, A_in
 

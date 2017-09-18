@@ -37,7 +37,7 @@ from ...mmapping import parallel_dot_product
 def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], gSiz = None, ssub=2, tsub=2, p=2, p_ssub=2, p_tsub=2,
                  thr=0.8, method_init='greedy_roi', nb=1, nb_patch=1, n_pixels_per_process=None, block_size=None,
                  check_nan=True, normalize_init=True, options_local_NMF=None, remove_very_bad_comps=False,
-                 alpha_snmf=10e2, update_background_components=True, 
+                 alpha_snmf=10e2, update_background_components=True, low_rank_background= True, rolling_sum = False
                  low_rank_background=True, min_corr = .85, min_pnr = 20, deconvolve_options_init = None,
                  ring_size_factor = 1.5, center_psf = True):
     """Dictionary for setting the CNMF parameters.
@@ -119,7 +119,7 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], gSiz = None, ssub=2, tsub=2,
         whether to pixelwise equalize the movies during initialization
 
     options_local_NMF:
-        dictionary with parameters to pass to local_NMF initializaer
+        dictionary with parameters to pass to local_NMF initializer
 
     SPATIAL PARAMS##########
 
@@ -276,7 +276,9 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], gSiz = None, ssub=2, tsub=2,
                               'normalize_init': normalize_init,
                               # dictionary with parameters to pass to local_NMF initializaer
                               'options_local_NMF': options_local_NMF,
-                              'min_corr': min_corr,
+                              'rolling_sum': rolling_sum,
+                              'rolling_length': 100,
+							  'min_corr': min_corr,
                               'min_pnr' : min_pnr,
                               'deconvolve_options_init' : deconvolve_options_init,
                               'ring_size_factor': ring_size_factor,

@@ -54,57 +54,57 @@ from caiman.source_extraction.cnmf import cnmf as cnmf
 from caiman.motion_correction import MotionCorrect
 from caiman.components_evaluation import estimate_components_quality
 
-from caiman.components_evaluation import evaluate_components
+from caiman.components_evaluation import evaluate_components,evaluate_components_CNN
 
 from caiman.tests.comparison import comparison
 from caiman.motion_correction import tile_and_correct, motion_correction_piecewise
 #%%
 # @params params_movie set parameters and create template by RIGID MOTION CORRECTION
-#params_movie = {'fname': ['Sue_2x_3000_40_-46.tif'],
-#               'niter_rig': 1,
-#               'max_shifts': (3, 3),  # maximum allow rigid shift
-#               'splits_rig': 20,  # for parallelization split the movies in  num_splits chuncks across time
-#               # if none all the splits are processed and the movie is saved
-#               'num_splits_to_process_rig': None,
-#               # intervals at which patches are laid out for motion correction
-#               'strides': (48, 48),
-#               # overlap between pathes (size of patch strides+overlaps)
-#               'overlaps': (24, 24),
-#               'splits_els': 28,  # for parallelization split the movies in  num_splits chuncks across time
-#               # if none all the splits are processed and the movie is saved
-#               'num_splits_to_process_els': [14, None],
-#               'upsample_factor_grid': 4,  # upsample factor to avoid smearing when merging patches
-#               # maximum deviation allowed for patch with respect to rigid
-#               # shift
-#               'max_deviation_rigid': 2,
-#               'p': 1,  # order of the autoregressive system
-#               'merge_thresh': 0.8,  # merging threshold, max correlation allowed
-#               'rf': 15,  # half-size of the patches in pixels. rf=25, patches are 50x50
-#               'stride_cnmf': 6,  # amounpl.it of overlap between the patches in pixels
-#               'K': 4,  # number of components per patch
-#               # if dendritic. In this case you need to set init_method to
-#               # sparse_nmf
-#               'is_dendrites': False,
-#               'init_method': 'greedy_roi',
-#               'gSig': [4, 4],  # expected half size of neurons
-#               'alpha_snmf': None,  # this controls sparsity
-#               'final_frate': 30,
-#               'r_values_min_patch': .7,  # threshold on space consistency
-#               'fitness_min_patch': -20,  # threshold on time variability
-#                # threshold on time variability (if nonsparse activity)
-#               'fitness_delta_min_patch': -20,
-#               'Npeaks': 10,
-#               'r_values_min_full': .8,
-#               'fitness_min_full': - 40,
-#               'fitness_delta_min_full': - 40,
-#               'only_init_patch': True,
-#               'gnb': 2,
-#               'memory_fact': 1,
-#               'n_chunks': 10,
-#               'update_background_components': True,# whether to update the background components in the spatial phase
-#               'low_rank_background': True  #whether to update the using a low rank approximation. In the False case all the nonzero elements of the background components are updated using hals    
-#                                     #(to be used with one background per patch)                              
-#               }
+params_movie = {'fname': ['Sue_2x_3000_40_-46.tif'],
+               'niter_rig': 1,
+               'max_shifts': (3, 3),  # maximum allow rigid shift
+               'splits_rig': 20,  # for parallelization split the movies in  num_splits chuncks across time
+               # if none all the splits are processed and the movie is saved
+               'num_splits_to_process_rig': None,
+               # intervals at which patches are laid out for motion correction
+               'strides': (48, 48),
+               # overlap between pathes (size of patch strides+overlaps)
+               'overlaps': (24, 24),
+               'splits_els': 28,  # for parallelization split the movies in  num_splits chuncks across time
+               # if none all the splits are processed and the movie is saved
+               'num_splits_to_process_els': [14, None],
+               'upsample_factor_grid': 4,  # upsample factor to avoid smearing when merging patches
+               # maximum deviation allowed for patch with respect to rigid
+               # shift
+               'max_deviation_rigid': 2,
+               'p': 1,  # order of the autoregressive system
+               'merge_thresh': 0.8,  # merging threshold, max correlation allowed
+               'rf': 15,  # half-size of the patches in pixels. rf=25, patches are 50x50
+               'stride_cnmf': 6,  # amounpl.it of overlap between the patches in pixels
+               'K': 4,  # number of components per patch
+               # if dendritic. In this case you need to set init_method to
+               # sparse_nmf
+               'is_dendrites': False,
+               'init_method': 'greedy_roi',
+               'gSig': [4, 4],  # expected half size of neurons
+               'alpha_snmf': None,  # this controls sparsity
+               'final_frate': 30,
+               'r_values_min_patch': .7,  # threshold on space consistency
+               'fitness_min_patch': -20,  # threshold on time variability
+                # threshold on time variability (if nonsparse activity)
+               'fitness_delta_min_patch': -20,
+               'Npeaks': 10,
+               'r_values_min_full': .8,
+               'fitness_min_full': - 40,
+               'fitness_delta_min_full': - 40,
+               'only_init_patch': True,
+               'gnb': 2,
+               'memory_fact': 1,
+               'n_chunks': 10,
+               'update_background_components': True,# whether to update the background components in the spatial phase
+               'low_rank_background': True  #whether to update the using a low rank approximation. In the False case all the nonzero elements of the background components are updated using hals    
+                                     #(to be used with one background per patch)                              
+               }
 
 #%%
 params_movie = {'fname': ['demoMovieJ.tif'],
@@ -120,7 +120,7 @@ params_movie = {'fname': ['demoMovieJ.tif'],
                  'max_deviation_rigid': 1,  # maximum deviation allowed for patch with respect to rigid shift
                  'p': 1,  # order of the autoregressive system
                  'merge_thresh': 0.8,  # merging threshold, max correlation allow
-                 'rf': 15,  # half-size of the patches in pixels. rf=25, patches are 50x50    20
+                 'rf': 14,  # half-size of the patches in pixels. rf=25, patches are 50x50    20
                  'stride_cnmf': 10,  # amounpl.it of overlap between the patches in pixels
                  'K': 6,  # number of components per patch
                  'is_dendrites': False,  # if dendritic. In this case you need to set init_method to sparse_nmf
@@ -452,12 +452,13 @@ if params_movie['is_dendrites'] == True:
         raise Exception('need to set a value for alpha_snmf')
 # %% Extract spatial and temporal components on patches
 t1 = time.time()
+border_pix = 0 # if motion correction introduces problems at the border remove pixels from border
 # TODO: todocument
 # TODO: warnings 3
 cnm = cnmf.CNMF(n_processes=1, k=K, gSig=gSig, merge_thresh=params_movie['merge_thresh'], p=params_movie['p'],
                 dview=dview, rf=rf, stride=stride_cnmf, memory_fact=1,
                 method_init=init_method, alpha_snmf=alpha_snmf, only_init_patch=params_movie['only_init_patch'],
-                gnb=params_movie['gnb'], method_deconvolution='oasis',border_pix = 2, low_rank_background = params_movie['low_rank_background']) 
+                gnb=params_movie['gnb'], method_deconvolution='oasis',border_pix = border_pix, low_rank_background = params_movie['low_rank_background']) 
 cnm = cnm.fit(images)
 
 A_tot = cnm.A
@@ -498,7 +499,7 @@ t1 = time.time()
 cnm = cnmf.CNMF(n_processes=1, k=A_tot.shape, gSig=gSig, merge_thresh=merge_thresh, p=p, dview=dview, Ain=A_tot,
                 Cin=C_tot, b_in = b_tot,
                 f_in=f_tot, rf=None, stride=None, method_deconvolution='oasis',gnb = params_movie['gnb'],
-                low_rank_background = params_movie['low_rank_background'], update_background_components = params_movie['update_background_components'])
+                low_rank_background = params_movie['low_rank_background'], update_background_components = params_movie['update_background_components'],check_nan = True)
 
 cnm = cnm.fit(images)
 

@@ -7,7 +7,7 @@ Created on Fri Jul 14 09:42:20 2017
 """
 from caiman.base.rois import nf_read_roi_zip
 # data transformation because of motion correction mismatch in shape
-# sue k37
+#%% sue k37
 new_templ = cm.load('projections/median_projection.tif')
 regions = nf_read_roi_zip('regions/joined_consensus_active_regions.zip',new_templ.shape)
 

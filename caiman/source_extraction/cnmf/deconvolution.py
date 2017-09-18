@@ -19,6 +19,7 @@ from math import log, sqrt, exp
 import sys
 #%%
 
+
 def constrained_foopsi(fluor, bl=None,  c1=None, g=None,  sn=None, p=None, method='oasis', bas_nonneg=True,
                        noise_range=[.25, .5], noise_method='logmexp', lags=5, fudge_factor=1.,
                        verbosity=False, solvers=None, optimize_g=0, penalty=1, **kwargs):
@@ -348,11 +349,11 @@ def cvxpy_foopsi(fluor, g, sn, b=None, c1=None, bas_nonneg=True, solvers=None):
     #todo: check the result and gen_vector vars
     try:
         import cvxpy as cvx
-
+        
     except ImportError:
-
+        
         raise ImportError('cvxpy solver requires installation of cvxpy. Not working in windows at the moment.')
-
+    
     if solvers is None:
         solvers = ['ECOS', 'SCS']
 
@@ -583,8 +584,8 @@ def onnls(y, g, lam=0, shift=100, window=None, mask=None, tol=1e-9, max_iter=Non
         mask = np.ones(T, dtype=bool)
     if window is None:
         w = max(200, len(g) if len(g) > 2 else
-        int(-5 / log(g[0] if len(g) == 1 else
-                     (g[0] + sqrt(g[0] * g[0] + 4 * g[1])) / 2)))
+                int(-5 / log(g[0] if len(g) == 1 else
+                             (g[0] + sqrt(g[0] * g[0] + 4 * g[1])) / 2)))
     else:
         w = window
     w = min(T, w)
