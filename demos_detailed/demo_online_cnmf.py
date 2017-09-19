@@ -74,20 +74,20 @@ c, dview, n_processes = cm.cluster.setup_cluster(
 #             '/opt/local/Data/Sue/k59_20161121_MMP_150um_47mW940nm_zoom4p2_*_g.tif']
 
 
-fls_starts = ['/opt/local/Data/JGauthier-J115/mmap_files/Yr_reduced*.mmap',
-              '/opt/local/privateCaImAn/example_movies/demoMovie.tif',
-              '/opt/local/Data/Sue/k53/k53_20160530_RSM_125um_41mW_zoom2p2_00001_000*.tif',
-              '/opt/local/Data/Sue/k53/k53_crop.tif',
-              '/opt/local/Data/Johannes/johannes_bad.tif',
-              '/opt/local/Data/Sue/k59_20161121_MMP_150um_47mW940nm_zoom4p2_*_g.tif']
-
-
-#fls_starts = ['/Users/agiovann/data/J115_2015_12_09/Yr_reduced*.mmap',
+#fls_starts = ['/opt/local/Data/JGauthier-J115/mmap_files/Yr_reduced*.mmap',
 #              '/opt/local/privateCaImAn/example_movies/demoMovie.tif',
 #              '/opt/local/Data/Sue/k53/k53_20160530_RSM_125um_41mW_zoom2p2_00001_000*.tif',
 #              '/opt/local/Data/Sue/k53/k53_crop.tif',
 #              '/opt/local/Data/Johannes/johannes_bad.tif',
 #              '/opt/local/Data/Sue/k59_20161121_MMP_150um_47mW940nm_zoom4p2_*_g.tif']
+
+
+fls_starts = ['/Users/agiovann/data/J115_2015_12_09/Yr_reduced*.mmap',
+              '/opt/local/privateCaImAn/example_movies/demoMovie.tif',
+              '/opt/local/Data/Sue/k53/k53_20160530_RSM_125um_41mW_zoom2p2_00001_000*.tif',
+              '/opt/local/Data/Sue/k53/k53_crop.tif',
+              '/opt/local/Data/Johannes/johannes_bad.tif',
+              '/opt/local/Data/Sue/k59_20161121_MMP_150um_47mW940nm_zoom4p2_*_g.tif']
 
 fls_start = fls_starts[0]
 fls = glob.glob(fls_start)
@@ -247,6 +247,7 @@ p = 1  # order of the autoregressive system
 new_dims = (d1, d2)
 base_name = '/'.join(fls[0].split('/')[:-1]) + '/' + \
     fls[0].split('/')[-1][:4] + '_' + str(init_files) + '.mmap'
+    
 fname_new = Y[:initbatch].save(base_name, order='C')
 #%%
 Yr, dims, T = cm.load_memmap(fname_new)
