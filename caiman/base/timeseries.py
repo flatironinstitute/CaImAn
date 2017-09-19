@@ -137,7 +137,7 @@ class timeseries(np.ndarray):
         self.meta_data = getattr(obj, 'meta_data', None)
 
 
-    def save(self,file_name, to32 = True):
+    def save(self,file_name, to32 = True, order= 'F'):
         """
         Save the timeseries in various formats
 
@@ -148,6 +148,9 @@ class timeseries(np.ndarray):
 
         to32: Bool
             whether to transform to 32 bits
+			
+		order: 'F' or 'C'
+			C or Fortran order	
 
         Raise:
         -----
@@ -176,8 +179,7 @@ class timeseries(np.ndarray):
                 imsave(file_name, self)
 
         elif extension == '.npz':
-            np.savez(file_name,input_arr=self, start_time=self.start_time,fr=self.fr,meta_data=self.meta_data,
-                     file_name=self.file_name)
+            np.savez(file_name,input_arr=self, start_time=self.start_time,fr=self.fr,meta_data=self.meta_data,file_name=self.file_name)
 
 
         elif extension == '.avi':
@@ -198,11 +200,9 @@ class timeseries(np.ndarray):
             else:
                 f_name=''
             if self.meta_data[0] is None:
-                savemat(file_name,{'input_arr':np.rollaxis(self,axis=0,start=3), 'start_time':self.start_time,
-                                   'fr':self.fr,'meta_data':[],'file_name':f_name})
+                savemat(file_name,{'input_arr':np.rollaxis(self,axis=0,start=3), 'start_time':self.start_time,'fr':self.fr,'meta_data':[],'file_name':f_name})
             else:
-                savemat(file_name,{'input_arr':np.rollaxis(self,axis=0,start=3), 'start_time':self.start_time,
-                                   'fr':self.fr,'meta_data':self.meta_data,'file_name':f_name})
+                savemat(file_name,{'input_arr':np.rollaxis(self,axis=0,start=3), 'start_time':self.start_time,'fr':self.fr,'meta_data':self.meta_data,'file_name':f_name})
 
         elif extension == '.hdf5':
             with h5py.File(file_name, "w") as f:
