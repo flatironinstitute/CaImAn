@@ -68,6 +68,11 @@ from cv2 import idft as ifftn
 opencv = True
 from numpy.fft import ifftshift
 import itertools
+try:
+    profile
+except:
+    profile = lambda a: a
+    
 #%%
 class MotionCorrect(object):
      """

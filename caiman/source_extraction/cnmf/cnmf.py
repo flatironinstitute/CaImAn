@@ -83,8 +83,8 @@ class CNMF(object):
                  max_comp_update_shape=np.inf, num_times_comp_updated=np.inf,
                  batch_update_suff_stat=False, thresh_s_min=None, s_min=None,
                  remove_very_bad_comps=False, border_pix=0, low_rank_background=True, 
-                 update_background_components=True, rolling_sum = True, rolling_length = 100
-				 min_corr=.85, min_pnr=20, deconvolve_options_init=None, ring_size_factor=1.5,
+                 update_background_components=True, rolling_sum = True, rolling_length = 100,
+                 min_corr=.85, min_pnr=20, deconvolve_options_init=None, ring_size_factor=1.5,
 				 center_psf=True):
         """
         Constructor of the CNMF method
@@ -265,7 +265,7 @@ class CNMF(object):
         self.update_background_components = update_background_components 
         self.rolling_sum = rolling_sum
         self.rolling_length = rolling_length
-		self.minibatch_shape = minibatch_shape
+        self.minibatch_shape = minibatch_shape
         self.minibatch_suff_stat = minibatch_suff_stat
         self.update_num_comps = update_num_comps
         self.rval_thr = rval_thr

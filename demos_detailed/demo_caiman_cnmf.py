@@ -40,7 +40,6 @@ from caiman.utils.utils import download_demo
 
 c,dview,n_processes = cm.cluster.setup_cluster(backend = 'local',n_processes = None,single_thread = False)
 #%%
-
 is_patches=True
 is_dendrites=False 
 
@@ -107,6 +106,7 @@ if not is_patches:
     cnm = cnm.fit(images)
     crd = plot_contours(cnm.A, Cn, thr=0.9)
     C_dff = extract_DF_F(Yr, cnm.A, cnm.C, cnm.bl, quantileMin = 8, frames_window = 200, dview = dview)
+    pl.figure()
     pl.plot(C_dff.T)
     #%%
 else:
@@ -172,7 +172,7 @@ else:
                     f_in=f_tot, rf=None, stride=None, method_deconvolution='oasis', gnb = 1,  low_rank_background = False)
     cnm = cnm.fit(images)
 
-    #%
+#%
 A, C, b, f, YrA, sn = cnm.A, cnm.C, cnm.b, cnm.f, cnm.YrA, cnm.sn
 
 #%%

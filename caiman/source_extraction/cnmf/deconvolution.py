@@ -147,11 +147,11 @@ def constrained_foopsi(fluor, bl=None,  c1=None, g=None,  sn=None, p=None, metho
                     #Solves the noise constrained sparse non-negative deconvolution problem
                     #min |s|_1 subject to |c-y|^2 = sn^2 T and s_t = c_t-g c_{t-1} >= 0
                     c, sp, bl, g, lam = constrained_oasisAR1(
-                        fluor.astype(np.float32), g[0], sn, optimize_b=True, b_nonneg=bas_nonneg,
+                        fluor, g[0], sn, optimize_b=True, b_nonneg=bas_nonneg,
                         optimize_g=optimize_g, penalty=penalty)
                 else:
                     c, sp, _, g, lam = constrained_oasisAR1(
-                        fluor.astype(np.float32) - bl, g[0], sn, optimize_b=False, penalty=penalty)
+                        fluor - bl, g[0], sn, optimize_b=False, penalty=penalty)
 
                 c1 = c[0]
 

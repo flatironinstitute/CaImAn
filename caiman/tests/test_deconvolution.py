@@ -57,7 +57,7 @@ def foo(method, p):
         y, c, s = [a[0] for a in gen_data(g, sn)]
         res = constrained_foopsi(y, g=g, sn=sn, p=p, method=method)
         npt.assert_allclose(np.corrcoef(res[0], c)[0, 1], 1, [.01, .1][i])
-        npt.assert_allclose(np.corrcoef(res[-1], s)[0, 1], 1, [.03, .3][i])
+        npt.assert_allclose(np.corrcoef(res[-2], s)[0, 1], 1, [.03, .3][i])
     print(['\n', ''][p - 1] + ' %5s AR%d   %.4fs' % (method, p, time() - t))
 
 
