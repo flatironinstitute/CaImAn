@@ -66,8 +66,6 @@ ax = plt.axes()
 ax.axis('off')
 show_img(ax, Y[100, ])
 #%%
-
-
 # show correlation image of the raw data; show correlation image and PNR image of the filtered data
 cn_raw = cm.summary_images.max_correlation_image(Y, swap_dim=False,bin_size = 3000)
 #%% TAKES MEMORY!!!

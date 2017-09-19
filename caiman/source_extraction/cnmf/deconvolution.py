@@ -147,11 +147,11 @@ def constrained_foopsi(fluor, bl=None,  c1=None, g=None,  sn=None, p=None, metho
                     #Solves the noise constrained sparse non-negative deconvolution problem
                     #min |s|_1 subject to |c-y|^2 = sn^2 T and s_t = c_t-g c_{t-1} >= 0
                     c, sp, bl, g, lam = constrained_oasisAR1(
-                        fluor, g[0], sn, optimize_b=True, b_nonneg=bas_nonneg,
+                        fluor.astype(np.float32), g[0], sn, optimize_b=True, b_nonneg=bas_nonneg,
                         optimize_g=optimize_g, penalty=penalty)
                 else:
                     c, sp, _, g, lam = constrained_oasisAR1(
-                        fluor - bl, g[0], sn, optimize_b=False, penalty=penalty)
+                        (fluor - bl).astype(np.float32), g[0], sn, optimize_b=False, penalty=penalty)
 
                 c1 = c[0]
 
@@ -161,11 +161,11 @@ def constrained_foopsi(fluor, bl=None,  c1=None, g=None,  sn=None, p=None, metho
             elif p == 2:
                 if bl is None:
                     c, sp, bl, g, lam = constrained_oasisAR2(
-                        fluor, g, sn, optimize_b=True, b_nonneg=bas_nonneg,
+                        fluor.astype(np.float32), g, sn, optimize_b=True, b_nonneg=bas_nonneg,
                         optimize_g=optimize_g, penalty=penalty)
                 else:
                     c, sp, _, g, lam = constrained_oasisAR2(
-                        fluor - bl, g, sn, optimize_b=False, penalty=penalty)
+                        (fluor - bl).astype(np.float32), g, sn, optimize_b=False, penalty=penalty)
                 c1 = c[0]
                 d = (g[0] + sqrt(g[0] * g[0] + 4 * g[1])) / 2
                 c -= c1 * d**np.arange(len(fluor))
@@ -1137,7 +1137,7 @@ def deconvolve_ca(y=[], options=None, **args):
 
     if options['approach'].lower() == 'constrained foopsi':
         # constrained foopsi
-        c, baseline, c1, g, sn, spike = \
+        c, baseline, c1, g, sn, spike, lam_ = \
             constrained_foopsi(y, options['bl'], options['c1'],
                                options['g'], options['sn'],
                                options['p'], options['method'],
@@ -1152,6 +1152,7 @@ def deconvolve_ca(y=[], options=None, **args):
                                options['penalty'])
         options['g'] = g
         options['sn'] = sn
+        options['sn'] = lam_
     elif options['approach'].lower() == 'threshold foopsi':
         # foopsi with a threshold on spike size
         pass

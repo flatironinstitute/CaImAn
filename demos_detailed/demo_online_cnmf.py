@@ -257,7 +257,6 @@ Y = np.reshape(Yr, dims + (T,), order='F')
 Cn2 = cm.local_correlations(Y)
 pl.imshow(Cn2)
 #%% RUN ALGORITHM ON PATCHES
-
 pl.close('all')
 cnm_init = cnmf.CNMF(n_processes, method_init='greedy_roi', k=K, gSig=gSig, merge_thresh=merge_thresh,
                      p=0, dview=dview, Ain=None, rf=rf, stride=stride, method_deconvolution='oasis', skip_refinement=False,
@@ -486,7 +485,7 @@ for ffll in end_files:  # np.array(fls)[np.array([1,2,3,4,5,-5,-4,-3,-2,-1])]:
     A, b = cnm2.Ab[:, cnm2.gnb:], cnm2.Ab[:, :cnm2.gnb].toarray()
     C, f = cnm2.C_on[cnm2.gnb:cnm2.M, :], cnm2.C_on[:cnm2.gnb, :]
     noisyC = cnm2.C_on[:cnm2.M, :]
-    if t % 10000 == 9999:
+    if t % 1000 == 999:
         pl.cla()
         crd = cm.utils.visualization.plot_contours(A, Cn, thr=0.9)
         pl.pause(1)
