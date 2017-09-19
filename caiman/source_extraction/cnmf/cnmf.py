@@ -42,7 +42,7 @@ from .online_cnmf import RingBuffer, HALS4activity, demix_and_deconvolve
 from .online_cnmf import init_shapes_and_sufficient_stats, update_shapes, update_num_components
 import scipy
 import psutil
-import oasis
+from caiman.source_extraction.cnmf import oasis
 import pylab as pl
 from time import time
 
