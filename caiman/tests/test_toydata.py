@@ -21,7 +21,7 @@ def gen_data(D=3, noise=.5, T=300, framerate=30, firerate=2.):
     for i in range(N):
         trueA[tuple(centers[i]) + (i,)] = 1.
     tmp = np.zeros(dims)
-    tmp[tuple(d / 2 for d in dims)] = 1.
+    tmp[tuple(d // 2 for d in dims)] = 1.
     z = np.linalg.norm(gaussian_filter(tmp, sig).ravel())
     trueA = 10 * gaussian_filter(trueA, sig + (0,)) / z
     Yr = bkgrd + noise * np.random.randn(*(np.prod(dims), T)) + \
@@ -44,6 +44,7 @@ def pipeline(D):
     options['spatial_params']['thr_method'] = 'nrg'
     options['spatial_params']['extract_cc'] = False
     options['temporal_params']['method'] = 'oasis'
+    options['temporal_params']['block_size'] = np.prod(dims)
 
     # PREPROCESS DATA AND INITIALIZE COMPONENTS
     Yr, sn, g, psx = cnmf.pre_processing.preprocess_data(
