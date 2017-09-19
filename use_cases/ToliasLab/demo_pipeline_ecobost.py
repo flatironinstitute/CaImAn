@@ -216,7 +216,7 @@ if isscreen:
         fr=10, gain=1, magnification=1, offset=offset_mov)
     # %% plot rigid shifts
     pl.close()
-    pl.plot(np.vstack([mc.shifts_rig for mc in mc_list])
+    pl.plot(np.vstack([mc.shifts_rig for mc in mc_list]))
     pl.legend(['x shifts', 'y shifts'])
     pl.xlabel('frames')
     pl.ylabel('pixels')
