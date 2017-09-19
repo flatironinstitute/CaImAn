@@ -1,4 +1,4 @@
-    ##@package demos  
+##@package demos  
 #\brief      for the user/programmer to understand and try the code
 #\details    all of other usefull functions (demos available on jupyter notebook) -*- coding: utf-8 -*- 
 #\version   1.0
@@ -61,24 +61,24 @@ from caiman.motion_correction import tile_and_correct, motion_correction_piecewi
 #%%
 # @params params_movie set parameters and create template by RIGID MOTION CORRECTION
 isscreen = False
-#fls = glob.glob('/home/andrea/CaImAn/example_movies/12741_1_00003_0000*.tif')
-fls = glob.glob('/home/andrea/CaImAn/example_movies/13800_1_0001_00002_0000*.tif')
+fls = glob.glob('/tmp/12741_1_00003_0000*.tif')
+#fls = glob.glob('/tmp/13800_1_0001_00002_0000*.tif')
 fls.sort()
 fls = fls[:2]
 print(fls)
 params_movie = {'fname': fls,
                'niter_rig': 1,
                'max_shifts': (10, 10),  # maximum allow rigid shift
-               'splits_rig': 8,  # for parallelization split the movies in  num_splits chuncks across time
+               'splits_rig': 28,  # for parallelization split the movies in  num_splits chuncks across time
                # if none all the splits are processed and the movie is saved
                'num_splits_to_process_rig': None,
                # intervals at which patches are laid out for motion correction
                'strides': (48, 48),
                # overlap between pathes (size of patch strides+overlaps)
                'overlaps': (24, 24),
-               'splits_els': 8,  # for parallelization split the movies in  num_splits chuncks across time
+               'splits_els': 28,  # for parallelization split the movies in  num_splits chuncks across time
                # if none all the splits are processed and the movie is saved
-               'num_splits_to_process_els': [4, None],
+               'num_splits_to_process_els': [14, None],
                'upsample_factor_grid': 4,  # upsample factor to avoid smearing when merging patches
                # maximum deviation allowed for patch with respect to rigid
                # shift
@@ -178,10 +178,10 @@ t1 = time.time()
 min_mov = cm.load(fname[0], subindices=range(400)).min()
 mc_list = []
 new_templ = None
-iter_ = 0
-for each_file in fname[:1] + fname:
-    iter_ += 1
-# TODO: needinfo how the classes works
+print('Start motion correction loop')
+for each_file in fname:
+    print(each_file)
+    # TODO: needinfo how the classes works
     mc = MotionCorrect(each_file, min_mov,
                        dview=dview, max_shifts=max_shifts, niter_rig=niter_rig, splits_rig=splits_rig,
                        num_splits_to_process_rig=num_splits_to_process_rig,
@@ -189,17 +189,24 @@ for each_file in fname[:1] + fname:
                        num_splits_to_process_els=num_splits_to_process_els,
                        upsample_factor_grid=upsample_factor_grid, max_deviation_rigid=max_deviation_rigid,
                        shifts_opencv=True, nonneg_movie=True)
+
     mc.motion_correct_rigid(save_movie=True,template = new_templ)
+    print("DONE")
     new_templ = mc.total_template_rig
     m_rig = cm.load(mc.fname_tot_rig)
     bord_px_rig = np.ceil(np.max(mc.shifts_rig)).astype(np.int)
-    if iter_ > 1:
-        # TODO : needinfo
-        if isscreen:
-            pl.imshow(new_templ, cmap='gray')
-            pl.pause(.1)
-        mc_list.append(mc)
-        print(time.time() - t1)
+
+    # TODO : needinfo
+    if isscreen:
+        pl.imshow(new_templ, cmap='gray')
+        pl.pause(.1)
+
+    mc_list.append(mc)
+    print(time.time() - t1)
+
+
+    
+        
 # we are going to keep this part because it helps the user understand what we need.
 # needhelp why it is not the same as in the notebooks ?
 # TODO: show screenshot 2,3
