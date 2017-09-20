@@ -199,7 +199,7 @@ class MotionCorrect(object):
 
         
     
-     def motion_correct_pwrigid(self,save_movie = True, template=None, show_template = True):  
+     def motion_correct_pwrigid(self,save_movie = True, template=None, show_template = False):  
         """Perform pw-rigid motion correction
 
         Parameters:
@@ -236,8 +236,8 @@ class MotionCorrect(object):
              print('generating template by rigid motion correction')
              self = self.motion_correct_rigid()   
              self.total_template_els = self.total_template_rig.copy()
-             pl.imshow(self.total_template_els)        
-             pl.pause(1)
+#             pl.imshow(self.total_template_els)        
+#             pl.pause(1)
         else:
              self.total_template_els = template
             
@@ -849,7 +849,7 @@ def process_movie_parallel(arg_in):
 
     type_input = str(type(fname)) 
     if 'movie' in type_input:        
-        print((type(fname)))
+#        print((type(fname)))
         Yr=fname
 
     elif ('ndarray' in type_input):        
@@ -860,36 +860,37 @@ def process_movie_parallel(arg_in):
         raise Exception('Unkown input type:' + type_input)
 
     if Yr.ndim>1:
-        print('loaded')
+#        print('loaded')
         if apply_smooth:
-            print('applying smoothing')
+#            print('applying smoothing')
             Yr=Yr.bilateral_blur_2D(diameter=10,sigmaColor=10000,sigmaSpace=0)
 
-        print('Remove BL')
+#        print('Remove BL')
         if margins_out!=0:
             Yr=Yr[:,margins_out:-margins_out,margins_out:-margins_out] # borders create troubles
 
-        print('motion correcting')
+#        print('motion correcting')
 
         Yr,shifts,xcorrs,template=Yr.motion_correct(max_shift_w=max_shift_w, max_shift_h=max_shift_h,
                                                     method='opencv',template=template,remove_blanks=remove_blanks)
+        
         if ('movie' in type_input) or ('ndarray' in type_input):
-            print('Returning Values')
+#            print('Returning Values')
             return Yr, shifts, xcorrs, template
 
         else:     
 
-            print('median computing')
+#            print('median computing')
             template=Yr.bin_median()
-            print('saving')
+#            print('saving')
             idx_dot=len(fname.split('.')[-1])
             if save_hdf5:
                 Yr.save(fname[:-idx_dot]+'hdf5')
-            print('saving 2')
+#            print('saving 2')
             np.savez(fname[:-idx_dot]+'npz',shifts=shifts,xcorrs=xcorrs,template=template)
-            print('deleting')
+#            print('deleting')
             del Yr
-            print('done!')
+#            print('done!')
             return fname[:-idx_dot] 
     else:
         return None

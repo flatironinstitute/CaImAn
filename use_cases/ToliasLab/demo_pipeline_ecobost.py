@@ -35,6 +35,9 @@ try:
 except NameError:
     print('Not IPYTHON')
     pass
+
+import matplotlib
+matplotlib.use('Agg')
 import caiman as cm
 import numpy as np
 import os
@@ -61,7 +64,7 @@ from caiman.motion_correction import tile_and_correct, motion_correction_piecewi
 #%%
 # @params params_movie set parameters and create template by RIGID MOTION CORRECTION
 isscreen = False
-fls = glob.glob('/tmp/12741_1_00003_0000*.tif')
+fls = glob.glob('/home/andrea/CaImAn/example_movies/12741_1_00003_0000*.tif')
 #fls = glob.glob('/tmp/13800_1_0001_00002_0000*.tif')
 fls.sort()
 fls = fls[:2]
