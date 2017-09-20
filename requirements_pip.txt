@@ -1,6 +1,2 @@
 peakutils
 tqdm
-tifffile
-numba 
-pyqtgraph 
-cvxopt 

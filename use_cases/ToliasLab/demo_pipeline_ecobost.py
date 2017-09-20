@@ -64,6 +64,7 @@ from caiman.motion_correction import tile_and_correct, motion_correction_piecewi
 #%%
 # @params params_movie set parameters and create template by RIGID MOTION CORRECTION
 isscreen = False
+#fls = ['/home/andrea/CaImAn/example_movies/demoMovieJ.tif','/home/andrea/CaImAn/example_movies/demoMovieJ.tif']
 fls = glob.glob('/home/andrea/CaImAn/example_movies/12741_1_00003_0000*.tif')
 #fls = glob.glob('/tmp/13800_1_0001_00002_0000*.tif')
 fls.sort()
@@ -170,7 +171,7 @@ if isscreen:
 
 # %% RUN ANALYSIS
 c, dview, n_processes = cm.cluster.setup_cluster(
-    backend='local', n_processes=None, single_thread=False)
+    backend='local', n_processes=None, single_thread=True)
 
 # %% INITIALIZING
 t1 = time.time()
