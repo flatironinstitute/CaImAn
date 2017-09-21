@@ -36,9 +36,10 @@ from caiman.source_extraction.cnmf.utilities import extract_DF_F
 from caiman.components_evaluation import evaluate_components
 from caiman.utils.visualization import plot_contours,view_patches_bar
 from caiman.utils.utils import download_demo
-#%%
-
-c,dview,n_processes = cm.cluster.setup_cluster(backend = 'local',n_processes = None,single_thread = False)
+from caiman.cluster import setup_cluster
+# %% RUN ANALYSIS
+c, dview, n_processes = setup_cluster(
+    backend='local', n_processes=None, single_thread=False)
 #%%
 is_patches=True
 is_dendrites=False 
