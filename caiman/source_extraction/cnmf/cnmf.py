@@ -763,7 +763,10 @@ class CNMF(object):
                 if self.N >= self.expected_comps:
                     self.expected_comps += 200
                     self.CY.resize([self.expected_comps + nb_, self.CY.shape[-1]])
-                    self.C_on.resize([self.expected_comps + nb_, self.C_on.shape[-1]])
+                    # refcheck can trigger "ValueError: cannot resize an array references or is referenced
+                    #                       by another array in this way.  Use the resize function"
+                    # np.resize didn't work, but refcheck=False seems fine
+                    self.C_on.resize([self.expected_comps + nb_, self.C_on.shape[-1]], refcheck=False)
                     self.noisyC.resize([self.expected_comps + nb_, self.C_on.shape[-1]])
                     if use_dense:  # resize won't work due to contingency issue
                         # self.Ab_dense.resize([self.CY.shape[-1], self.expected_comps+nb_])
