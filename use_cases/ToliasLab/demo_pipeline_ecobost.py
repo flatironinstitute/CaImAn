@@ -239,6 +239,7 @@ if isscreen:
 # TODO: show screenshot 9
 # %% restart cluster to clean up memory
 # TODO: todocument
+
 c, dview, n_processes = cm.cluster.setup_cluster(
     backend='local', n_processes=None, single_thread=False)
 # %% save each chunk in F format
