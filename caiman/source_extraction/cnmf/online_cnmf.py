@@ -23,20 +23,84 @@ from time import time
 from math import log, sqrt, ceil
 
 import caiman as cm
-from .initialization import imblur
+from .initialization import imblur, initialize_components
 from .spatial import determine_search_location
 import scipy
+from scipy.sparse import coo_matrix
 from caiman.components_evaluation import compute_event_exceptionality
 from .utilities import update_order
 import cv2
 from sklearn.utils.extmath import fast_dot
 from caiman.source_extraction.cnmf import oasis 
+#from caiman.source_extraction.cnmf import cnmf
 
 try:
     profile
 except:
     profile = lambda a: a
 
+
+#%%
+def bare_initialization(Y, init_batch = 1000, k = 1, method_init = 'greedy_roi', gnb = 1, gSig = [5,5], motion_flag = False):
+    """
+    Quick and dirty initialization for OnACID, bypassing entirely CNMF
+    Inputs:
+    -------
+    Y               movie object or np.array
+                    matrix of data
+                    
+    init_batch      int
+                    number of frames to process
+                    
+    method_init     string
+                    initialization method
+                    
+    k               int
+                    number of components to find
+                    
+    gnb             int
+                    number of background components
+                    
+    gSig            [int,int]
+                    half-size of component
+                    
+    motion_flag     bool
+                    also perform motion correction
+                    
+    Output:
+    -------
+        cnm_init    object
+                    caiman CNMF-like object to initialize OnACID
+    """
+    
+    if motion_flag:
+        Y = Y[:init_batch]
+    else:
+        Y = Y[:init_batch]           
+    
+    Ain, Cin, b_in, f_in, center = initialize_components(Y, K=k, gSig=gSig, nb = gnb, method= method_init)
+    Ain = coo_matrix(Ain)
+    b_in = np.array(b_in)
+    Yr = np.reshape(Y, (Ain.shape[0],Y.shape[-1]), order='F')
+    nA = (Ain.power(2).sum(axis=0))
+    nr = nA.size
+
+    YA = scipy.sparse.spdiags(old_div(1.,nA),0,nr,nr)*(Ain.T.dot(Yr) - (Ain.T.dot(b_in)).dot(f_in))
+    AA = scipy.sparse.spdiags(old_div(1.,nA),0,nr,nr)*(Ain.T.dot(Ain))
+    YrA = YA - AA.T.dot(Cin)
+    
+    cnm_init = cm.source_extraction.cnmf.cnmf.CNMF(2, k=k, gSig=gSig, Ain=Ain, Cin=Cin, b_in=np.array(b_in), f_in=f_in, method_init = method_init)
+    cnm_init.A, cnm_init.C, cnm_init.b, cnm_init.f, cnm_init.S, cnm_init.YrA = Ain, Cin, b_in, f_in, np.max(np.atleast_2d(Cin),0), YrA
+    cnm_init.g = np.ones(k)*0.9
+    cnm_init.bl = np.zeros(k)
+    cnm_init.c1 = np.zeros(k)
+    cnm_init.neurons_sn = np.std(YrA,axis=-1)
+    cnm_init.lam = np.zeros(k)
+    cnm_init.dims = Y.shape[:-1]
+    cnm_init.initbatch = init_batch
+    cnm_init.gnb = gnb
+    
+    return cnm_init
 
 #%% Generate data
 def gen_data(dims=(48, 48), N=10, sig=(3, 3), gamma=.95, noise=.3, T=1000,

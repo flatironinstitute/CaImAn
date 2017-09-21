@@ -577,7 +577,7 @@ class CNMF(object):
         self.A2 /= nA
         self.C2 *= nA[:, None]
         self.YrA2 *= nA[:, None]
-        self.S2 *= nA[:, None]
+#        self.S2 *= nA[:, None]
         self.neurons_sn2 *= nA
         self.lam2 *= nA
         z = np.sqrt([b.T.dot(b) for b in self.b2.T])
