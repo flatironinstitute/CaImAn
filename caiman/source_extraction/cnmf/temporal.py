@@ -58,7 +58,7 @@ def constrained_foopsi_parallel(arg_in):
 
     Ytemp, nT, jj_, bl, c1, g, sn, argss = arg_in
     T = np.shape(Ytemp)[0]
-    cc_, cb_, c1_, gn_, sn_, sp_ = constrained_foopsi(Ytemp, bl=bl, c1=c1, g=g, sn=sn, **argss)
+    cc_, cb_, c1_, gn_, sn_, sp_,lam_ = constrained_foopsi(Ytemp, bl=bl, c1=c1, g=g, sn=sn, **argss)
     gd_ = np.max(np.real(np.roots(np.hstack((1, -gn_.T)))))
     gd_vec = gd_**list(range(T))
 
@@ -66,12 +66,11 @@ def constrained_foopsi_parallel(arg_in):
     Sp_ = sp_[:T].T
     Ytemp_ = Ytemp - C_.T
 
-    return C_, Sp_, Ytemp_, cb_, c1_, sn_, gn_, jj_
+    return C_, Sp_, Ytemp_, cb_, c1_, sn_, gn_, jj_, lam_
 
 
 #%%
-def update_temporal_components(Y, A, b, Cin, fin, bl=None, c1=None, g=None, sn=None, nb=1, ITER=2,
-                               block_size=20000, debug=False, dview=None, **kwargs):
+def update_temporal_components(Y, A, b, Cin, fin, bl=None, c1=None, g=None, sn=None, nb=1, ITER=2, block_size=20000, debug=False, dview=None, **kwargs):
     """Update temporal components and background given spatial components using a block coordinate descent approach.
 
     Parameters:
@@ -177,11 +176,10 @@ def update_temporal_components(Y, A, b, Cin, fin, bl=None, c1=None, g=None, sn=N
     YrA: np.ndarray
             matrix of spatial component filtered raw data, after all contributions have been removed.
             YrA corresponds to the residual trace for each component and is used for faster plotting (K x T)
-
-    Raise:
-    -----
-        Exception("You have to provide a value for p")
-
+    
+	lam: np.ndarray
+        Automatically tuned sparsity parameter
+		
     """
 
     if 'p' not in kwargs or kwargs['p'] is None:
@@ -205,6 +203,7 @@ def update_temporal_components(Y, A, b, Cin, fin, bl=None, c1=None, g=None, sn=N
 
     if sn is None:
         sn = np.repeat(None, nr)
+                           
     A = scipy.sparse.hstack((A, b)).tocsc()
     S = np.zeros(np.shape(Cin))
     Cin = np.vstack((Cin, fin))
@@ -226,7 +225,7 @@ def update_temporal_components(Y, A, b, Cin, fin, bl=None, c1=None, g=None, sn=N
     parrllcomp, len_parrllcomp = update_order_greedy(AA[:nr,:][:,:nr])
 
     print("entering the deconvolution ")
-    C, S, bl, YrA, c1, sn, g = update_iteration(parrllcomp, len_parrllcomp, nb,C, S, bl, nr,
+    C, S, bl, YrA, c1, sn, g, lam = update_iteration(parrllcomp, len_parrllcomp, nb,C, S, bl, nr,
                                                 ITER, YrA, c1, sn, g, Cin, T, nA, dview, debug,AA, kwargs)
 
     ff = np.where(np.sum(C, axis=1) == 0)  # remove empty components
@@ -244,6 +243,7 @@ def update_temporal_components(Y, A, b, Cin, fin, bl=None, c1=None, g=None, sn=N
         g = np.delete(g, list(ff))
         bl = np.delete(bl, list(ff))
         c1 = np.delete(c1, list(ff))
+        lam =  np.delete(lam, list(ff))
 
         background_ff = list(filter(lambda i: i > 0, ff - nr))
         nr = nr - (len(ff) - len(background_ff))
@@ -254,7 +254,7 @@ def update_temporal_components(Y, A, b, Cin, fin, bl=None, c1=None, g=None, sn=N
     C = C[:nr, :]
     YrA = np.array(YrA[:, :nr]).T
 
-    return C, A, b, f, S, bl, c1, sn, g, YrA
+    return C, A, b, f, S, bl, c1, sn, g, YrA ,lam
 
 
 
@@ -351,7 +351,9 @@ def update_iteration (parrllcomp, len_parrllcomp, nb,C, S, bl, nr,
             YrA corresponds to the residual trace for each component and is used for faster plotting (K x T)
 """
 
+    lam=np.repeat(None,nr)
     for _ in range(ITER):
+		 
         for count, jo_ in enumerate(parrllcomp):
             #INITIALIZE THE PARAMS
             jo = np.array(list(jo_))
@@ -378,13 +380,14 @@ def update_iteration (parrllcomp, len_parrllcomp, nb,C, S, bl, nr,
                 results = list(map(constrained_foopsi_parallel, args_in))
             #unparsing and updating the result
             for chunk in results:
-                C_, Sp_, Ytemp_, cb_, c1_, sn_, gn_, jj_ = chunk
+                C_, Sp_, Ytemp_, cb_, c1_, sn_, gn_, jj_,lam_ = chunk
                 Ctemp[jj_, :] = C_[None, :]
                 bl[jo[jj_]] = cb_
                 c1[jo[jj_]] = c1_
                 sn[jo[jj_]] = sn_
                 g[jo[jj_]] = gn_.T if kwargs['p'] > 0 else []
-
+                lam[jo[jj_]] = lam_
+            
             YrA -= AA[jo, :].T.dot(Ctemp - C[jo, :]).T
             C[jo, :] = Ctemp.copy()
             S[jo, :] = Stemp
@@ -399,10 +402,10 @@ def update_iteration (parrllcomp, len_parrllcomp, nb,C, S, bl, nr,
         if dview is not None:
             dview.results.clear()
 
-        if old_div(scipy.linalg.norm(Cin - C, 'fro'), scipy.linalg.norm(C, 'fro')) <= 1e-3:
+        if scipy.linalg.norm(Cin - C, 'fro') <= 1e-3 * scipy.linalg.norm(C, 'fro'):
             print("stopping: overall temporal component not changing significantly")
             break
         else: #we keep Cin and do the iteration once more
             Cin = C
-
-    return C, S, bl, YrA, c1, sn, g
+  
+    return C, S, bl, YrA, c1, sn, g, lam

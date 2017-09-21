@@ -21,7 +21,7 @@ def gen_data(D=3, noise=.5, T=300, framerate=30, firerate=2.):
     for i in range(N):
         trueA[tuple(centers[i]) + (i,)] = 1.
     tmp = np.zeros(dims)
-    tmp[tuple(d / 2 for d in dims)] = 1.
+    tmp[tuple(d // 2 for d in dims)] = 1.
     z = np.linalg.norm(gaussian_filter(tmp, sig).ravel())
     trueA = 10 * gaussian_filter(trueA, sig + (0,)) / z
     Yr = bkgrd + noise * np.random.randn(*(np.prod(dims), T)) + \
@@ -39,9 +39,12 @@ def pipeline(D):
     gSig = [2, 2, 2][:D]  # expected half size of neurons
     p = 1  # order of the autoregressive system
     options = cnmf.utilities.CNMFSetParms(Y, n_processes, p=p, gSig=gSig, K=K)
+    options['preprocess_params']['n_pixels_per_process'] = np.prod(dims)
+    options['spatial_params']['n_pixels_per_process'] = np.prod(dims)
     options['spatial_params']['thr_method'] = 'nrg'
     options['spatial_params']['extract_cc'] = False
     options['temporal_params']['method'] = 'oasis'
+    options['temporal_params']['block_size'] = np.prod(dims)
 
     # PREPROCESS DATA AND INITIALIZE COMPONENTS
     Yr, sn, g, psx = cnmf.pre_processing.preprocess_data(
@@ -54,7 +57,7 @@ def pipeline(D):
         Yr, Cin, f_in, Ain, sn=sn, **options['spatial_params'])
 
     # UPDATE TEMPORAL COMPONENTS
-    C, A, b, f, S, bl, c1, neurons_sn, g, YrA = cnmf.temporal.update_temporal_components(
+    C, A, b, f, S, bl, c1, neurons_sn, g, YrA, lam_ = cnmf.temporal.update_temporal_components(
         Yr, A, b, Cin, f_in, bl=None, c1=None, sn=None, g=None, **options['temporal_params'])
 
     # VERIFY HIGH CORRELATION WITH GROUND TRUTH

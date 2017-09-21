@@ -94,7 +94,9 @@ def constrained_foopsi(fluor, bl=None,  c1=None, g=None,  sn=None, p=None, metho
 
     sp: ndarray of float
         Discretized deconvolved neural activity (spikes)
-
+    
+	lam: float
+		Regularization parameter	
     Raise:
     ------
     Exception("You must specify the value of p")
@@ -120,6 +122,7 @@ def constrained_foopsi(fluor, bl=None,  c1=None, g=None,  sn=None, p=None, metho
         #Estimate noise standard deviation and AR coefficients if they are not present
         g, sn = estimate_parameters(fluor, p=p, sn=sn, g=g, range_ff=noise_range,
                                     method=noise_method, lags=lags, fudge_factor=fudge_factor)
+    lam = None
     if p == 0:
         c1 = 0
         g = np.array(0)
@@ -143,12 +146,12 @@ def constrained_foopsi(fluor, bl=None,  c1=None, g=None,  sn=None, p=None, metho
                     #Infer the most likely discretized spike train underlying an AR(1) fluorescence trace
                     #Solves the noise constrained sparse non-negative deconvolution problem
                     #min |s|_1 subject to |c-y|^2 = sn^2 T and s_t = c_t-g c_{t-1} >= 0
-                    c, sp, bl, g, _ = constrained_oasisAR1(
-                        fluor, g[0], sn, optimize_b=True, b_nonneg=bas_nonneg,
+                    c, sp, bl, g, lam = constrained_oasisAR1(
+                        fluor.astype(np.float32), g[0], sn, optimize_b=True, b_nonneg=bas_nonneg,
                         optimize_g=optimize_g, penalty=penalty)
                 else:
-                    c, sp, _, g, _ = constrained_oasisAR1(
-                        fluor - bl, g[0], sn, optimize_b=False, penalty=penalty)
+                    c, sp, _, g, lam = constrained_oasisAR1(
+                        (fluor - bl).astype(np.float32), g[0], sn, optimize_b=False, penalty=penalty)
 
                 c1 = c[0]
 
@@ -157,12 +160,12 @@ def constrained_foopsi(fluor, bl=None,  c1=None, g=None,  sn=None, p=None, metho
                 c -= c1 * g**np.arange(len(fluor))
             elif p == 2:
                 if bl is None:
-                    c, sp, bl, g, _ = constrained_oasisAR2(
-                        fluor, g, sn, optimize_b=True, b_nonneg=bas_nonneg,
+                    c, sp, bl, g, lam = constrained_oasisAR2(
+                        fluor.astype(np.float32), g, sn, optimize_b=True, b_nonneg=bas_nonneg,
                         optimize_g=optimize_g, penalty=penalty)
                 else:
-                    c, sp, _, g, _ = constrained_oasisAR2(
-                        fluor - bl, g, sn, optimize_b=False, penalty=penalty)
+                    c, sp, _, g, lam = constrained_oasisAR2(
+                        (fluor - bl).astype(np.float32), g, sn, optimize_b=False, penalty=penalty)
                 c1 = c[0]
                 d = (g[0] + sqrt(g[0] * g[0] + 4 * g[1])) / 2
                 c -= c1 * d**np.arange(len(fluor))
@@ -173,7 +176,7 @@ def constrained_foopsi(fluor, bl=None,  c1=None, g=None,  sn=None, p=None, metho
         else:
             raise Exception('Undefined Deconvolution Method')
 
-    return c, bl, c1, g, sn, sp
+    return c, bl, c1, g, sn, sp, lam
 
 
 def G_inv_mat(x, mode, NT, gs, gd_vec, bas_flag=True, c1_flag=True):
@@ -1088,3 +1091,70 @@ def nextpow2(value):
     while avalue > np.power(2, exponent):
         exponent += 1
     return exponent
+
+
+def deconvolve_ca(y=[], options=None, **args):
+    """
+    a wrapper for deconvolving calcium trace
+
+    Args:
+        y: fluorescence trace, a vector
+        options: dictionary for storing all parameters used for deconvolution
+        **args: extra options to be updated.
+
+    Returns:
+
+    """
+    # default options
+    if not options:
+        options = {'bl': None,
+                   'c1': None,
+                   'g': None,
+                   'sn': None,
+                   'p': 1,
+                   'approach': 'constrained foopsi',
+                   'method': 'oasis',
+                   'bas_nonneg': True,
+                   'noise_range': [.25, .5],
+                   'noise_method': 'logmexp',
+                   'lags': 5,
+                   'fudge_factor': 1.0,
+                   'verbosity': None,
+                   'solvers': None,
+                   'optimize_g': 1,
+                   'penalty': 1}
+
+    # update options
+    for key in args.keys():
+        options[key] = args[key]
+
+    if len(y) == 0:
+        # return default parameters for deconvolution
+        return options
+
+    # run deconvolution
+    y = np.array(y).squeeze().astype(np.float64)
+
+    if options['approach'].lower() == 'constrained foopsi':
+        # constrained foopsi
+        c, baseline, c1, g, sn, spike, lam_ = \
+            constrained_foopsi(y, options['bl'], options['c1'],
+                               options['g'], options['sn'],
+                               options['p'], options['method'],
+                               options['bas_nonneg'],
+                               options['noise_range'],
+                               options['noise_method'],
+                               options['lags'],
+                               options['fudge_factor'],
+                               options['verbosity'],
+                               options['solvers'],
+                               options['optimize_g'],
+                               options['penalty'])
+        options['g'] = g
+        options['sn'] = sn
+        options['sn'] = lam_
+    elif options['approach'].lower() == 'threshold foopsi':
+        # foopsi with a threshold on spike size
+        pass
+
+    return c, spike, options, baseline, c1

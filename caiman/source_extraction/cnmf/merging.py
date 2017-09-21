@@ -11,7 +11,8 @@ Created on Tue Sep  8 16:23:57 2015
 from __future__ import division
 from __future__ import print_function
 from builtins import range
-from scipy.sparse import coo_matrix, csgraph, csc_matrix, lil_matrix
+from past.utils import old_div
+from scipy.sparse import coo_matrix,csgraph,csc_matrix, lil_matrix
 import scipy
 import numpy as np
 from .spatial import update_spatial_components
@@ -21,8 +22,7 @@ from .deconvolution import constrained_foopsi
 #%%
 
 
-def merge_components(Y, A, b, C, f, S, sn_pix, temporal_params, spatial_params, dview=None, thr=0.85,
-                     fast_merge=True, mx=1000, bl=None, c1=None, sn=None, g=None):
+def merge_components(Y, A, b, C, f, S, sn_pix, temporal_params, spatial_params, dview=None, thr=0.85, fast_merge=True, mx=1000, bl=None, c1=None, sn=None, g=None):
     """ Merging of spatially overlapping components that have highly correlated temporal activity
 
     The correlation threshold for merging overlapping components is user specified in thr
@@ -207,10 +207,10 @@ sn: float
                 indx = np.argmax(C_to_norm)
                 # we then compute the traces ( deconvolution ) to have a clean c and noise in the background
                 if g is not None:
-                    computedC, bm, cm, gm, sm, ss = constrained_foopsi(
+                    computedC, bm, cm, gm, sm, ss, lam_ = constrained_foopsi(
                         np.array(computedC).squeeze(), g=g[merged_ROI[indx]], **temporal_params)
                 else:
-                    computedC, bm, cm, gm, sm, ss = constrained_foopsi(
+                    computedC, bm, cm, gm, sm, ss, lam_ = constrained_foopsi(
                         np.array(computedC).squeeze(), g=None, **temporal_params)
 
                 A_merged[:, i] = computedA
@@ -232,7 +232,7 @@ sn: float
                 computedA_2 = (computedA_1).mean(axis=0)
                 ff = np.nonzero(A_merged[:, i])[0]
 
-                computedC, _, _, __, _, bl__, c1__, sn__, g__, YrA = update_temporal_components(
+                computedC, _, _, __, _, bl__, c1__, sn__, g__, YrA, lam_ = update_temporal_components(
                     np.asarray(Y_res[ff, :]), A_merged[ff, i], b[ff],
                     computedA_2, f, dview=dview, bl=None, c1=None, sn=None, g=None, **temporal_params)
 
@@ -241,7 +241,7 @@ sn: float
 
                 A_merged[:, i] = computedA.tocsr()
 
-                computedC, _, _, _, _, ss, bl__, c1__, sn__, g__, YrA = update_temporal_components(
+                computedC, _, _, _, _, ss, bl__, c1__, sn__, g__, YrA, lam_ = update_temporal_components(
                     Y_res[ff, :], A_merged[ff, i], bb[ff], computedC, f, dview=dview, bl=bl__,
                     c1=c1__, sn=sn__, g=g__, **temporal_params)
 

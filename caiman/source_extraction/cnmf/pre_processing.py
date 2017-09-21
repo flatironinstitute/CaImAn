@@ -253,9 +253,8 @@ def fft_psd_parallel(Y,sn_s,i,num_pixels,**kwargs):
 
     Parameters:
     -----------
-
-    Y: ndarray
-        input movie (n_pixels x Time), can be also memory mapped file
+	Y: ndarray
+		input movie (n_pixels x Time), can be also memory mapped file
 
     sn_s: ndarray (memory mapped)
         file where to store the results of computation.
@@ -268,6 +267,7 @@ def fft_psd_parallel(Y,sn_s,i,num_pixels,**kwargs):
 
     **kwargs: dict
         arguments to be passed to get_noise_fft
+        
 
      Returns:
      -------

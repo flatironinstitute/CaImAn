@@ -18,8 +18,10 @@ from scipy.sparse import coo_matrix, csc_matrix, csr_matrix
 from scipy.sparse import spdiags
 from scipy.linalg import eig
 from scipy.ndimage.morphology import generate_binary_structure, iterate_structure
+from scipy.ndimage import label, binary_dilation
 from sklearn.decomposition import NMF
 from warnings import warn
+import numpy as np
 import scipy
 import time
 import tempfile
@@ -31,10 +33,19 @@ from scipy.ndimage.morphology import binary_closing
 from scipy.ndimage.measurements import label
 
 
-def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, b_in = None, min_size=3, max_size=8, dist=3,
-                              normalize_yyt_one=True,
+
+def basis_denoising(y, c, boh, sn, id2_, px):
+    if np.size(c) > 0:
+        _, _, a, _, _ = lars_regression_noise(y, c, 1, sn)
+    else:
+        return (None, None, None)
+    return a, px, id2_
+#%% update_spatial_components (in parallel)
+
+
+def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, min_size=3, max_size=8, dist=3, normalize_yyt_one=True,
                               method='ellipse', expandCore=None, dview=None, n_pixels_per_process=128,
-                              medw=(3, 3), thr_method='nrg', maxthr=0.1, nrgthr=0.9999, extract_cc=True,
+                              medw=(3, 3), thr_method='nrg', maxthr=0.1, nrgthr=0.9999, extract_cc=True, b_in = None,
                               se=np.ones((3, 3), dtype=np.int), ss=np.ones((3, 3), dtype=np.int), nb=1,
                               method_ls='lasso_lars', update_background_components = True, low_rank_background= True):
     """update spatial footprints and background through Basis Pursuit Denoising 
@@ -153,21 +164,19 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
     """
     print('Initializing update of Spatial Components')
 
-
     if expandCore is None:
         expandCore = iterate_structure(generate_binary_structure(2, 1), 2).astype(int)
-    
+
     if dims is None:
         raise Exception('You need to define the input dimensions')
 
-    
     # shape transformation and tests
-    Y, A_in, C, f, n_pixels_per_process,rank_f,d,T = test(Y, A_in, C, f, n_pixels_per_process,nb)
+    Y, A_in, C, f, n_pixels_per_process, rank_f, d, T = test(Y, A_in, C, f, n_pixels_per_process, nb)
 
     start_time = time.time()
     print('computing the distance indicators')
-    #we compute the indicator from distance indicator
-    ind2_, nr, C, f, b_, A_in = computing_indicator(Y,A_in,b_in,C,f,nb,method,dims,min_size,max_size,dist,expandCore,dview)#
+    # we compute the indicator from distance indicator
+    ind2_, nr, C, f, b_, A_in = computing_indicator(Y, A_in, b_in, C, f, nb, method, dims, min_size, max_size, dist, expandCore, dview)
     if normalize_yyt_one and C is not None:
         C = np.array(C)
         nr_C = np.shape(C)[0]
@@ -175,15 +184,16 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
         d_.setdiag(np.sqrt(np.sum(C ** 2, 1)))
         A_in = A_in * d_
         C = old_div(C, np.sqrt(np.sum(C ** 2, 1)[:, np.newaxis]))
- 
+
     if b_in is None:
         b_in = b_
-    
-    print('memmaping')
-    #we create a memory map file if not already the case, we send Cf, a matrix that include background components
-    C_name,Y_name,folder = creatememmap(Y,np.vstack((C, f)),dview)
 
-    #we create a pixel group array (chunks for the cnmf)for the parrallelization of the process
+    print('memmaping')
+    # we create a memory map file if not already the case, we send Cf, a
+    # matrix that include background components
+    C_name, Y_name, folder = creatememmap(Y, np.vstack((C, f)), dview)
+
+    # we create a pixel group array (chunks for the cnmf)for the parrallelization of the process
     print('Updating Spatial Components using lasso lars')
     cct = np.diag(C.dot(C.T))
     pixel_groups = []
@@ -199,18 +209,15 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
         dview.results.clear()
     else:
         parallel_result = list(map(regression_ipyparallel, pixel_groups))
-    
+
     for chunk in parallel_result:
         for pars in chunk:
             px, idxs_, a = pars
             A_[px, idxs_] = a
-   
 
     print("thresholding components")
     A_ = threshold_components(A_, dims, dview=dview, medw=medw, thr_method=thr_method,
                               maxthr=maxthr, nrgthr=nrgthr, extract_cc=extract_cc, se=se, ss=ss)
-    
- 
 
     ff = np.where(np.sum(A_, axis=0) == 0)  # remove empty components
     if np.size(ff) > 0:
@@ -227,30 +234,34 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
             f = np.delete(f, background_ff, 0)
             b_in = np.delete(b_in, background_ff, 1)
 
-            
     A_ = A_[:, :nr]
     A_ = coo_matrix(A_)
+
     print("Computing residuals")
-    if 'memmap' in str(type(Y)):        
+    if 'memmap' in str(type(Y)):
         Y_resf = parallel_dot_product(Y, f.T, block_size=1000, dview=dview) - \
-                 A_.dot(coo_matrix(C[:nr, :]).dot(f.T))
+            A_.dot(coo_matrix(C[:nr, :]).dot(f.T))
     else:
-        #Y*f' - A*(C*f')
+        # Y*f' - A*(C*f')
         Y_resf = np.dot(Y, f.T) - A_.dot(coo_matrix(C[:nr, :]).dot(f.T))
-    
+
     if update_background_components:
-        
-        if b_in is None:       
-            b = np.fmax(Y_resf.dot(np.linalg.inv(f.dot(f.T))), 0)  # update baseline based on residual
-        else:        
+
+        if b_in is None:
+            # update baseline based on residual
+            b = np.fmax(Y_resf.dot(np.linalg.inv(f.dot(f.T))), 0)
+        else:
             ind_b = [np.where(_b)[0] for _b in b_in.T]
             b = HALS4shape_bckgrnd(Y_resf, b_in, f, ind_b)
-    
+
     else:
         if b_in is None:
-            raise Exception('If you set the update_background_components you have to pass as input to update_spatial')
-        b = b_in    
-    
+            raise Exception('If you set the update_background_components to True you have to pass them as input to update_spatial')
+        #try:
+        #    b = np.delete(b_in, background_ff, 0)
+        #except NameError:
+        b = b_in
+
     print(("--- %s seconds ---" % (time.time() - start_time)))
     try:  # clean up
         # remove temporary file created
@@ -263,19 +274,21 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
     
     return A_, b, C, f
 
+
 #%%
 def HALS4shape_bckgrnd(Y_resf, B, F, ind_B, iters=5):
-        K = B.shape[-1]
-        U = Y_resf.T
-        V = F.dot(F.T)
-        for _ in range(iters):
-            for m in range(K):  # neurons
-                ind_pixels = ind_B[m]
+    K = B.shape[-1]
+    U = Y_resf.T
+    V = F.dot(F.T)
+    for _ in range(iters):
+        for m in range(K):  # neurons
+            ind_pixels = ind_B[m]
 
-                B[ind_pixels, m] = np.clip(B[ind_pixels, m] +
-                                           ((U[m, ind_pixels] - V[m].dot(B[ind_pixels].T)) /
-                                            V[m, m]), 0, np.inf)            
-        return B
+            B[ind_pixels, m] = np.clip(B[ind_pixels, m] +
+                                       ((U[m, ind_pixels] - V[m].dot(B[ind_pixels].T)) /
+                                        V[m, m]), 0, np.inf)
+    return B
+
 
 # %%lars_regression_noise_ipyparallel
 def regression_ipyparallel(pars):
@@ -344,10 +357,9 @@ def regression_ipyparallel(pars):
     else:
         C = C_name
 
-    _, T = np.shape(C) #initialize values
-    
+    _, T = np.shape(C)  # initialize values
     As = []
-#    rank_f = len(C)-len(cct)
+
     for y, px in zip(Y, idxs_Y):
         c = C[idxs_C[px], :]
         idx_only_neurons = idxs_C[px]
@@ -357,7 +369,6 @@ def regression_ipyparallel(pars):
             cct_ = []
             
         if np.size(c) > 0:
-            
             sn = noise_sn[px] ** 2 * T
             if method_least_square == 'lasso_lars_old':  # lasso lars from old implementation, will be deprecated
                 a = lars_regression_noise_old(y, c.T, 1, sn)[2]
@@ -366,7 +377,8 @@ def regression_ipyparallel(pars):
                 a = nnls_L0(c.T, y, 1.2 * sn)
 
             elif method_least_square == 'lasso_lars':  # lasso lars function from scikit learn
-                lambda_lasso = .5 * noise_sn[px] * np.sqrt(np.max(cct_)) / T
+                lambda_lasso = 0 if np.size(cct_) == 0 else \
+                    .5 * noise_sn[px] * np.sqrt(np.max(cct_)) / T
                 clf = linear_model.LassoLars(alpha=lambda_lasso, positive=True)
                 a_lrs = clf.fit(np.array(c.T), np.ravel(y))
                 a = a_lrs.coef_
@@ -379,7 +391,7 @@ def regression_ipyparallel(pars):
 
             As.append((px, idxs_C[px], a))
 
-
+    print('clearing variables')
     if isinstance(Y_name, basestring):
         del Y
     if isinstance(C_name, basestring):
@@ -817,6 +829,7 @@ def lars_regression_noise_old(Yp, X, positive, noise, verbose=False):
         group Lasso :
     """
     #INITAILIZATION
+    T = len(Yp)  # of time steps
     k = 1
     Yp = np.squeeze(np.asarray(Yp))
     # necessary for matrix multiplications
@@ -840,6 +853,7 @@ def lars_regression_noise_old(Yp, X, positive, noise, verbose=False):
     flag = 0
     while 1:
         if flag == 1:
+            W_lam = 0
             break
             # % calculate new gradient component if necessary
         if i > 0 and new >= 0 and visited_set[new] == 0:  # AG NOT CLEAR HERE
@@ -874,7 +888,9 @@ def lars_regression_noise_old(Yp, X, positive, noise, verbose=False):
             gamma_plus[gamma_plus > lambda_] = np.inf
             gp_min, gp_min_ind = np.min(gamma_plus), np.argmin(gamma_plus)
 
-            if not positive:
+            if positive:
+                gm_min = np.inf  # % don't consider new directions that would grow negative
+            else:
                 gamma_minus[active_set == 1] = np.inf
                 gamma_minus[gamma_minus > lambda_] = np.inf
                 gamma_minus[gamma_minus <= 0] = np.inf
@@ -944,11 +960,11 @@ def lars_regression_noise_old(Yp, X, positive, noise, verbose=False):
 
         i = i + 1
 
+    Ws_old = Ws
     # end main loop
 
-    # %% final calculation of mus
-    temp = Ws
-    Ws = np.asarray(np.swapaxes(np.swapaxes(temp, 0, 1), 1, 2))
+    #%% final calculation of mus
+    Ws = np.asarray(np.swapaxes(np.swapaxes(Ws_old, 0, 1), 1, 2))
     if flag == 0:
         if i > 0:
             Ws = np.squeeze(Ws[:, :, :len(lambdas)])
@@ -1012,6 +1028,8 @@ def calcAvec(new, dQ, W, lambda_, active_set, M,positive):
         eigMm = Mm
     if any(eigMm < 0):
         np.min(eigMm)
+        #%error('The matrix Mm has negative eigenvalues')
+        flag = 1
 
     b = np.sign(W)
     if new >= 0:
@@ -1021,6 +1039,15 @@ def calcAvec(new, dQ, W, lambda_, active_set, M,positive):
         avec = np.linalg.solve(Mm, b)
     else:
         avec = old_div(b, Mm)
+
+    if positive:
+        if new >= 0:
+            in_ = np.sum(active_set[:new])
+            if avec[in_] < 0:
+                # new;
+                #%error('new component of a is negative')
+                flag = 1
+
     one_vec = np.ones(W.shape)
     dQa = np.zeros(W.shape)
     for j in range(len(r)):
@@ -1115,7 +1142,7 @@ def test(Y, A_in, C, f, n_pixels_per_process,nb):
     return Y, A_in, C, f, n_pixels_per_process, nb,d,T
 
 
-def computing_indicator(Y,A_in,b,C,f,nb,method,dims,min_size,max_size,dist,expandCore,dview):
+def computing_indicator(Y, A_in, b, C, f, nb, method, dims, min_size, max_size, dist, expandCore, dview):
     """compute the indices of the distance from the cm to search for the spatial component (calling determine_search_location)
 
     does it by following an ellipse from the cm or doing a step by step dilatation around the cm
@@ -1181,7 +1208,7 @@ def computing_indicator(Y,A_in,b,C,f,nb,method,dims,min_size,max_size,dist,expan
 
            Exception("Failed to delete: " + folder)
            """
-    
+
     if A_in.dtype == bool:
 
         dist_indicator = A_in.copy()
@@ -1232,10 +1259,10 @@ def computing_indicator(Y,A_in,b,C,f,nb,method,dims,min_size,max_size,dist,expan
         ind2_ = [np.where(iid_)[0]
                      if (np.size(np.where(iid_)[0]) > 0) and (np.min(np.where(iid_)[0])<nr) else [] for iid_ in dist_indicator]
 
-    return ind2_,nr,C,f,b,A_in
+    return ind2_, nr, C, f, b, A_in
 
 
-def creatememmap(Y,Cf,dview):
+def creatememmap(Y, Cf, dview):
     """memmap the C and Y objects in parallel
 
            the memmaped object will be red during parallelized computation such as the regression function
@@ -1284,8 +1311,42 @@ def creatememmap(Y,Cf,dview):
             np.save(Y_name, Y)
             Y, _, _, _ = load_memmap(Y_name)
             raise Exception('Not implemented consistently')
-    return C_name,Y_name,folder
+    return C_name, Y_name, folder
 
+
+def circular_constraint(img_original):
+    img = img_original.copy()
+    nr, nc = img.shape
+    [rsub, csub] = img.nonzero()
+    if len(rsub) == 0:
+        return img
+
+    rmin = np.min(rsub)
+    rmax = np.max(rsub) + 1
+    cmin = np.min(csub)
+    cmax = np.max(csub) + 1
+
+    if (rmax - rmin < 1) or (cmax - cmin < 1):
+        return img
+
+    if rmin == 0 and rmax == nr and cmin == 0 and cmax == nc:
+        ind_max = np.argmax(img)
+        y0, x0 = np.unravel_index(ind_max, [nr, nc])
+        vmax = img[y0, x0]
+        x, y = np.meshgrid(np.arange(nc), np.arange(nr))
+        fy, fx = np.gradient(img)
+        ind = ((fx * (x0 - x) + fy * (y0 - y) < 0) & (img < vmax / 2))
+        img[ind] = 0
+
+        # # remove isolated pixels
+        l, _ = label(img)
+        ind = binary_dilation(l == l[y0, x0])
+        img[~ind] = 0
+    else:
+        tmp_img = circular_constraint(img[rmin:rmax, cmin:cmax])
+        img[rmin:rmax, cmin:cmax] = tmp_img
+
+    return img
 # %% lars_regression_noise_parallel
 # def basis_denoising(y, c, boh, sn, id2_, px):
 #     if np.size(c) > 0:

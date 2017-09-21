@@ -137,7 +137,7 @@ class timeseries(np.ndarray):
         self.meta_data = getattr(obj, 'meta_data', None)
 
 
-    def save(self,file_name, to32 = True):
+    def save(self,file_name, to32 = True, order= 'F'):
         """
         Save the timeseries in various formats
 
@@ -148,6 +148,9 @@ class timeseries(np.ndarray):
 
         to32: Bool
             whether to transform to 32 bits
+			
+		order: 'F' or 'C'
+			C or Fortran order	
 
         Raise:
         -----
@@ -176,8 +179,7 @@ class timeseries(np.ndarray):
                 imsave(file_name, self)
 
         elif extension == '.npz':
-            np.savez(file_name,input_arr=self, start_time=self.start_time,fr=self.fr,meta_data=self.meta_data,
-                     file_name=self.file_name)
+            np.savez(file_name,input_arr=self, start_time=self.start_time,fr=self.fr,meta_data=self.meta_data,file_name=self.file_name)
 
 
         elif extension == '.avi':
@@ -198,11 +200,9 @@ class timeseries(np.ndarray):
             else:
                 f_name=''
             if self.meta_data[0] is None:
-                savemat(file_name,{'input_arr':np.rollaxis(self,axis=0,start=3), 'start_time':self.start_time,
-                                   'fr':self.fr,'meta_data':[],'file_name':f_name})
+                savemat(file_name,{'input_arr':np.rollaxis(self,axis=0,start=3), 'start_time':self.start_time,'fr':self.fr,'meta_data':[],'file_name':f_name})
             else:
-                savemat(file_name,{'input_arr':np.rollaxis(self,axis=0,start=3), 'start_time':self.start_time,
-                                   'fr':self.fr,'meta_data':self.meta_data,'file_name':f_name})
+                savemat(file_name,{'input_arr':np.rollaxis(self,axis=0,start=3), 'start_time':self.start_time,'fr':self.fr,'meta_data':self.meta_data,'file_name':f_name})
 
         elif extension == '.hdf5':
             with h5py.File(file_name, "w") as f:
@@ -214,6 +214,28 @@ class timeseries(np.ndarray):
                 except:
                     print('No file name saved')
                 dset.attrs["meta_data"]=cpk.dumps(self.meta_data)
+
+        elif extension == '.mmap':
+            base_name=name
+            
+            T = self.shape[0]
+            dims = self.shape[1:]
+            Yr = np.transpose(self, list(range(1, len(dims) + 1)) + [0])
+            Yr = np.reshape(Yr, (np.prod(dims), T), order='F')
+            
+                      
+            fname_tot = base_name + '_d1_' + str(dims[0]) + '_d2_' + str(dims[1]) + '_d3_' + str(
+                1 if len(dims) == 2 else dims[2]) + '_order_' + str(order) +  '_frames_' + str(T) + '_.mmap'
+            fname_tot = os.path.join(os.path.split(file_name)[0],fname_tot)         
+            big_mov = np.memmap(fname_tot, mode='w+', dtype=np.float32,
+                                shape=(np.prod(dims), T), order=order)
+        
+            big_mov[:] = np.asarray(Yr, dtype=np.float32)
+            big_mov.flush()
+            del big_mov
+            return fname_tot
+        
+            
         else:
             print(extension)
             raise Exception('Extension Unknown')
