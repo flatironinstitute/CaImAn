@@ -41,7 +41,8 @@ except:
 
 
 #%%
-def bare_initialization(Y, init_batch = 1000, k = 1, method_init = 'greedy_roi', gnb = 1, gSig = [5,5], motion_flag = False):
+def bare_initialization(Y, init_batch = 1000, k = 1, method_init = 'greedy_roi', gnb = 1,
+                        gSig = [5,5], motion_flag = False, **kwargs):
     """
     Quick and dirty initialization for OnACID, bypassing entirely CNMF
     Inputs:
@@ -89,9 +90,9 @@ def bare_initialization(Y, init_batch = 1000, k = 1, method_init = 'greedy_roi',
     AA = scipy.sparse.spdiags(old_div(1.,nA),0,nr,nr)*(Ain.T.dot(Ain))
     YrA = YA - AA.T.dot(Cin)
     
-    cnm_init = cm.source_extraction.cnmf.cnmf.CNMF(2, k=k, gSig=gSig, Ain=Ain, Cin=Cin, b_in=np.array(b_in), f_in=f_in, method_init = method_init)
+    cnm_init = cm.source_extraction.cnmf.cnmf.CNMF(2, k=k, gSig=gSig, Ain=Ain, Cin=Cin, b_in=np.array(b_in), f_in=f_in, method_init = method_init, **kwargs)
     cnm_init.A, cnm_init.C, cnm_init.b, cnm_init.f, cnm_init.S, cnm_init.YrA = Ain, Cin, b_in, f_in, np.max(np.atleast_2d(Cin),0), YrA
-    cnm_init.g = np.ones(k)*0.9
+    cnm_init.g = np.array([[gg] for gg in np.ones(k)*0.9])
     cnm_init.bl = np.zeros(k)
     cnm_init.c1 = np.zeros(k)
     cnm_init.neurons_sn = np.std(YrA,axis=-1)

@@ -27,10 +27,10 @@ expected_comps = 50
 rf = 16
 stride = 3
 K = 4
-gSig = [10, 10]  # expected half size of neurons
-rval_thr = 0.9
+gSig = [8, 8]  # expected half size of neurons
+rval_thr = .98
 thresh_fitness_delta = -30
-thresh_fitness_raw = -50
+thresh_fitness_raw = -40
 
 fname_new = Y[:initbatch].save('demo.mmap', order='C')
 
@@ -57,9 +57,17 @@ Cn_init = cm.local_correlations(np.reshape(Yr, dims + (T,), order='F'))
 #print(('Number of components:' + str(cnm_init.A.shape[-1])))
 ##%%
 #pl.figure()
-#crd = plot_contours(cnm_init.A.tocsc(), Cn_init, thr=0.9)
 
-cnm_init = bare_initialization(Y[:initbatch].transpose(1, 2, 0),init_batch=initbatch,k=4,gnb=1,gSig=gSig)
+cnm_init = bare_initialization(Y[:initbatch].transpose(1, 2, 0),init_batch=initbatch,k=4,gnb=1,
+                                 gSig=gSig, merge_thresh=0.8,
+                                 p=1, minibatch_shape=100, minibatch_suff_stat=5,
+                                 update_num_comps=True, rval_thr=rval_thr,
+                                 thresh_fitness_delta=thresh_fitness_delta,
+                                 thresh_fitness_raw=thresh_fitness_raw,
+                                 batch_update_suff_stat=True, max_comp_update_shape=5)
+
+crd = plot_contours(cnm_init.A.tocsc(), Cn_init, thr=0.9)
+
 #%% RUN ALGORITHM ONLINE
 cnm = deepcopy(cnm_init)
 cnm._prepare_object(np.asarray(Yr), T1, expected_comps)
