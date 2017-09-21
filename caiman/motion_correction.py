@@ -1827,6 +1827,7 @@ def motion_correct_batch_rigid(fname, max_shifts, dview = None, splits = 56 ,num
     
     
     
+
         new_templ = np.nanmedian(np.dstack([r[-1] for r in res_rig ]),-1)
         print((old_div(np.linalg.norm(new_templ-old_templ),np.linalg.norm(old_templ))))
     
@@ -2085,10 +2086,11 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
       pars.append([fname,fname_tot,idx,shape_mov, template, strides, overlaps, max_shifts, np.array(
           add_to_movie,dtype = np.float32),max_deviation_rigid,upsample_factor_grid,
                    newoverlaps, newstrides, shifts_opencv,nonneg_movie  ])
-
-    if dview is not None:
-        res =dview.map_sync(tile_and_correct_wrapper,pars)
     
+    if dview is not None:
+        print('** Startting parallel motion correction **')
+        res =dview.map_sync(tile_and_correct_wrapper,pars)
+        print('** Finished parallel motion correction **')
     else:
         res = list(map(tile_and_correct_wrapper,pars))
 

@@ -9,7 +9,7 @@
 #\date Created on Mon Nov 21 15:53:15 2016
 #\author agiovann
 #toclean
-
+#%%
 from __future__ import division
 from __future__ import print_function
 from builtins import zip
@@ -65,10 +65,10 @@ from caiman.motion_correction import tile_and_correct, motion_correction_piecewi
 # @params params_movie set parameters and create template by RIGID MOTION CORRECTION
 isscreen = False
 #fls = ['/home/andrea/CaImAn/example_movies/demoMovieJ.tif','/home/andrea/CaImAn/example_movies/demoMovieJ.tif']
-fls = glob.glob('/home/andrea/CaImAn/example_movies/12741_1_00003_0000*.tif')
-#fls = glob.glob('/tmp/13800_1_0001_00002_0000*.tif')
+#fls = glob.glob('/home/andrea/CaImAn/example_movies/12741_1_00003_0000*.tif')
+fls = glob.glob('/home/andrea/CaImAn/example_movies/13800_1_0001_00002_000*.tif')
 fls.sort()
-fls = fls[:2]
+fls = fls[:]
 print(fls)
 params_movie = {'fname': fls,
                'niter_rig': 1,
@@ -160,10 +160,11 @@ if fname[0] in ['Sue_2x_3000_40_-46.tif','demoMovieJ.tif']:
     fname = [os.path.join('example_movies',fname[0])]
 # TODO: todocument
 m_orig = cm.load_movie_chain(fname[:1])
+offset_mov = -np.min(m_orig[:100])
 
+del m_orig
 # %% play movie
 downsample_ratio = params_display['downsample_ratio']
-offset_mov = -np.min(m_orig[:100])
 #%%
 if isscreen:
     m_orig.resize(1, 1, downsample_ratio).play(
@@ -171,7 +172,7 @@ if isscreen:
 
 # %% RUN ANALYSIS
 c, dview, n_processes = cm.cluster.setup_cluster(
-    backend='local', n_processes=None, single_thread=True)
+    backend='local', n_processes=None, single_thread=False)
 
 # %% INITIALIZING
 t1 = time.time()
@@ -206,6 +207,7 @@ for each_file in fname:
         pl.pause(.1)
 
     mc_list.append(mc)
+    t_a = time.time() - t1
     print(time.time() - t1)
 
 
@@ -217,11 +219,14 @@ for each_file in fname:
 
 # %%
 # load motion corrected movie
-m_rig = cm.load(mc.fname_tot_rig)
 if isscreen:
-    m_orig.resize(1,1,.2).play(gain=1, offset=offset_mov, fr=30)
+    m_rig = cm.load(mc_list[-2].fname_tot_rig)
+
+    m_rig.resize(1,1,.2).play(gain=1, offset=offset_mov, fr=30)
 
     pl.imshow(mc.total_template_rig, cmap='gray')
+    #%%
+    cm.movie(np.array([mc_.total_template_rig for mc_ in mc_list])).play(fr=8,gain=1, offset=offset_mov)
     # %% visualize templates
     cm.movie(np.array(mc.templates_rig)).play(
         fr=10, gain=1, magnification=1, offset=offset_mov)
@@ -258,13 +263,14 @@ remove_init = 0
 downsample_factor = 1
 base_name = fname[0].split('/')[-1][:-4]
 # TODO: todocument
-dview_limited = c[:5]
+dview_limited = c[:2]
 name_new = cm.save_memmap_each(fnames, dview=dview_limited, base_name=base_name, resize_fact=(
     1, 1, downsample_factor), remove_init=remove_init, idx_xy=idx_xy, add_to_movie=add_to_movie,
                                border_to_0=border_to_0)
 name_new.sort()
 print(name_new)
 print(time.time()-t1)
+t_b = time.time() - t1
 
 # %% if multiple files were saved in C format, now put them together in a single large file.
 t1 = time.time()
@@ -371,6 +377,7 @@ f_tot = cnm.f
 sn_tot = cnm.sn
 print(('Number of components:' + str(A_tot.shape[-1])))
 print(time.time()-t1)
+t_c = time.time() - t1
 
 # %%
 if isscreen:
@@ -394,6 +401,7 @@ idx_components, idx_components_bad = estimate_components_quality(
 print(('Keeping ' + str(len(idx_components)) +
        ' and discarding  ' + str(len(idx_components_bad))))
 print(time.time()-t1)
+t_d = time.time() - t1
 
 # %%
 # TODO: show screenshot 13
@@ -412,6 +420,7 @@ cnm = cnmf.CNMF(n_processes=1, k=A_tot.shape, gSig=gSig, merge_thresh=merge_thre
 
 cnm = cnm.fit(images)
 print(time.time()-t1)
+t_e = time.time() - t1
 
 # %%
 A, C, b, f, YrA, sn = cnm.A, cnm.C, cnm.b, cnm.f, cnm.YrA, cnm.sn
@@ -434,7 +443,7 @@ np.savez(os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:
          A=A,
          C=C, b=b, f=f, YrA=YrA, sn=sn, d1=d1, d2=d2, idx_components=idx_components,
          idx_components_bad=idx_components_bad,
-         fitness_raw=fitness_raw, fitness_delta=fitness_delta, r_values=r_values)
+         fitness_raw=fitness_raw, fitness_delta=fitness_delta, r_values=r_values, shifts = np.vstack([mc.shifts_rig for mc in mc_list]))
 # we save it
 # %%
 # TODO: show screenshot 14
