@@ -30,7 +30,7 @@ from caiman.components_evaluation import compute_event_exceptionality
 from .utilities import update_order
 import cv2
 from sklearn.utils.extmath import fast_dot
-import oasis
+from caiman.source_extraction.cnmf import oasis 
 
 try:
     profile
