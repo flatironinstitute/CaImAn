@@ -14,8 +14,10 @@ from builtins import range
 from past.utils import old_div
 from scipy.ndimage.filters import gaussian_filter
 from scipy.ndimage import label,center_of_mass
+from skimage.morphology import remove_small_objects, opening, remove_small_holes, closing
 import scipy 
 import numpy as np
+import cv2
 import time
 from scipy.optimize import linear_sum_assignment   
 import json
@@ -58,6 +60,54 @@ def com(A, d1, d2):
     cm[:, 1] = old_div(np.dot(Coor['y'].T, A), A.sum(axis=0))
 
     return cm
+
+#%% 
+def extract_binary_masks_from_structural_channel(Y,min_area_size = 30, min_hole_size = 15, gSig = 5, expand_flag = True):
+    """Extract binary masks by using adaptive thresholding on a structural channel
+    
+    Inputs:
+    ------
+    Y:                  caiman movie object
+                        movie of the structural channel (assumed motion corrected)
+    
+    min_area_size:      int
+                        ignore components with smaller size
+
+    min_hole_size:      int
+                        fill in holes up to that size (donuts)
+                        
+    gSig:               int
+                        average radius of cell
+                        
+    expand_flag:        boolean
+                        expans each binary mask with morphological closing
+                        
+    Output:
+    -------
+    A:                  sparse column format matrix
+                        matrix of binary masks to be used for CNMF seeding
+    """
+    
+    mR = Y.mean(axis=0)
+    img = cv2.blur(mR,(gSig,gSig))
+    img = (img - np.min(img))/(np.max(img)-np.min(img))*255.
+    img = img.astype(np.uint8)
+    
+    th = cv2.adaptiveThreshold(img,np.max(img),cv2.ADAPTIVE_THRESH_GAUSSIAN_C,cv2.THRESH_BINARY,gSig,0)
+    th = remove_small_holes(th>0,min_size = min_hole_size)
+    th = remove_small_objects(th, min_size = min_area_size)
+    areas = label(th)
+    
+    A = np.zeros((np.prod(th.shape),areas[1]),dtype=bool)
+    
+    for i in range(areas[1]):
+        temp = (areas[0]==i+1)
+        if expand_flag:
+            temp = closing(temp, selem = np.ones((2,2)))
+            
+        A[:,i] = temp.flatten('F')
+    
+    return A
 
 
 #%% 
