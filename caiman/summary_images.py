@@ -76,6 +76,9 @@ def max_correlation_image(Y,bin_size = 1000, eight_neighbours = True, swap_dim =
         Cn = np.max(Cn_bins,axis=0)
         return Cn
 
+            
+#%%    
+
 
 def local_correlations_fft(Y, eight_neighbours=True, swap_dim=True):
     """Computes the correlation image for the input dataset Y  using a faster FFT based method
