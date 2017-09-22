@@ -12,81 +12,150 @@ import pylab as pl
 import caiman as cm
 from caiman.components_evaluation import evaluate_components
 from caiman.source_extraction.cnmf import cnmf as cnmf
+from caiman.source_extraction.cnmf.online_cnmf import bare_initialization, seeded_initialization
 import os
+from copy import deepcopy
+from caiman.summary_images import max_correlation_image
 
 #%% construct the seeding matrix
 
 filename = '/Users/epnevmatikakis/Documents/Ca_datasets/Tolias/nuclear/gmc_980_30mw_00001_red.tif'
 Ain = cm.base.rois.extract_binary_masks_from_structural_channel(cm.load(filename))
-
-#%% start cluster
-c,dview,n_processes = cm.cluster.setup_cluster(backend = 'local',n_processes = None,single_thread = False)
-#%% FOR LOADING ALL TIFF FILES IN A FILE AND SAVING THEM ON A SINGLE MEMORY MAPPABLE FILE
-fnames = ['/Users/epnevmatikakis/Documents/Ca_datasets/Tolias/nuclear/gmc_980_30mw_00001_green.tif'] # can actually be a lost of movie to concatenate
-add_to_movie=0 # the movie must be positive!!!
-downsample_factor=2 # use .2 or .1 if file is large and you want a quick answer
-base_name='Yr'
-name_new=cm.save_memmap_each(fnames, dview=dview,base_name=base_name, resize_fact=(1, 1, downsample_factor),add_to_movie=add_to_movie)
-name_new.sort()
-fname_new = cm.save_memmap_join(name_new, base_name='Yr', dview=dview)
-#%% LOAD MEMORY MAPPABLE FILE
-Yr, dims, T = cm.load_memmap(fname_new)
-d1, d2 = dims
-images = np.reshape(Yr.T, [T] + list(dims), order='F')
-Y = np.reshape(Yr, dims + (T,), order='F')
-#%% play movie, press q to quit
-play_movie = False
-if play_movie:     
-    cm.movie(images).play(fr=50,magnification=3,gain=2.)
-#%% movie cannot be negative!
-if np.min(images)<0:
-    raise Exception('Movie too negative, add_to_movie should be larger')
-#%% correlation image. From here infer neuron size and density
-Cn = cm.movie(images)[:3000].local_correlations(swap_dim=False)
-pl.imshow(Cn,cmap='gray')  
+use_online = True
 #%%
 K = 5  # number of neurons expected per patch
 gSig = [7, 7]  # expected half size of neurons
 merge_thresh = 0.8  # merging threshold, max correlation allowed
-p = 2  # order of the autoregressive system
-cnm = cnmf.CNMF(n_processes, method_init='greedy_roi', k=Ain.shape[1], gSig=gSig, merge_thresh=merge_thresh,
-                p=p, dview=dview, Ain=Ain,method_deconvolution='oasis',rolling_sum = False, rf=None)
-cnm = cnm.fit(images)
-A, C, b, f, YrA, sn = cnm.A, cnm.C, cnm.b, cnm.f, cnm.YrA, cnm.sn
+p = 1  # order of the autoregressive system
 #%%
-crd = cm.utils.visualization.plot_contours(cnm.A, Cn, thr=0.9)
-#%% evaluate the quality of the components
-final_frate = 10# approximate frame rate of data
-Npeaks = 10
-traces = C + YrA
-fitness_raw, fitness_delta, erfc_raw, erfc_delta, r_values, significant_samples = \
-    evaluate_components(Y, traces, A, C, b, f,final_frate, remove_baseline=True,
-                                      N=5, robust_std=False, Npeaks=Npeaks, thresh_C=0.3)
+if use_online:
+    #%% prepare parameters
+    rval_thr = .85
+    thresh_fitness_delta = -30
+    thresh_fitness_raw = -30
+    initbatch = 100
+    T1 = 2000
+    expected_comps = 500
+    Y = cm.load(filename, subindices = slice(0,initbatch,None)).astype(np.float32)
+    Yr = Y.transpose(1,2,0).reshape((np.prod(Y.shape[1:]),-1), order='F')
+    
+    Cn_init = Y.local_correlations(swap_dim = False)
+    pl.imshow(Cn_init)
+    
+    #%% run seeded initialization
+    cnm_init = seeded_initialization(Y[:initbatch].transpose(1, 2, 0), Ain = Ain, init_batch=initbatch, gnb=1,
+                                      gSig=gSig, merge_thresh=0.8,
+                                      p=1, minibatch_shape=100, minibatch_suff_stat=5,
+                                      update_num_comps=True, rval_thr=rval_thr,
+                                      thresh_fitness_delta=thresh_fitness_delta,
+                                      thresh_fitness_raw=thresh_fitness_raw,
+                                      batch_update_suff_stat=True, max_comp_update_shape=5)
 
-idx_components_r = np.where(r_values >= .85)[0] # filter based on spatial consistency
-idx_components_raw = np.where(fitness_raw < -50)[0] # filter based on transient size
-idx_components_delta = np.where(fitness_delta < -50)[0] #  filter based on transient derivative size
-idx_components = np.union1d(idx_components_r, idx_components_raw)
-idx_components = np.union1d(idx_components, idx_components_delta)
-idx_components_bad = np.setdiff1d(list(range(len(traces))), idx_components)
-print((len(traces)))
-print((len(idx_components)))
+    crd = cm.utils.visualization.plot_contours(cnm_init.A.tocsc(), Cn_init, thr=0.9)
+    
+    #%% run OnACID
+    cnm = deepcopy(cnm_init)
+    cnm._prepare_object(np.asarray(Yr), T1, expected_comps)
+    cnm.max_comp_update_shape = np.inf
+    cnm.update_num_comps = True
+    t = cnm.initbatch
+    max_shift = 5
+    shifts = []
+    Y_ = cm.load(filename, subindices = slice(t,T1,None)).astype(np.float32)
+    #Y_,shifts, xcorr,_ = Y_.motion_correct(5,5,template =  cnm.Ab.dot(cnm.C_on[:cnm.M, t - 1]).reshape(cnm.dims, order='F'))
+    Cn = max_correlation_image(Y_, swap_dim = False)
 
-#%% visualize components
-# pl.figure();
-pl.subplot(1, 2, 1)
-crd = cm.utils.visualization.plot_contours(A.tocsc()[:, idx_components], Cn, thr=0.9)
-pl.title('selected components')
-pl.subplot(1, 2, 2)
-pl.title('discaded components')
-crd = cm.utils.visualization.plot_contours(A.tocsc()[:, idx_components_bad], Cn, thr=0.9)
-#%% visualize selected components
-cm.utils.visualization.view_patches_bar(Yr, A.tocsc()[:, idx_components], C[
-                               idx_components, :], b, f, dims[0], dims[1], YrA=YrA[idx_components, :], img=Cn)
+    for frame_count, frame in enumerate(Y_):
+        if frame_count%100 == 99:
+            print([frame_count, cnm.Ab.shape])
+        
+#    templ = cnm.Ab.dot(cnm.C_on[:cnm.M, t - 1]).reshape(cnm.dims, order='F')
+#    frame_cor, shift = motion_correct_iteration_fast(frame, templ, max_shift, max_shift)
+#    shifts.append(shift)
+        cnm.fit_next(t, frame.copy().reshape(-1, order='F'))
+        t += 1
 
-#%% STOP CLUSTER and clean up log files   
-cm.stop_server()
+    C = cnm.C_on[cnm.gnb:cnm.M]
+    A = cnm.Ab[:, cnm.gnb:cnm.M]
+    print(('Number of components:' + str(A.shape[-1])))
 
-log_files = glob.glob('Yr*_LOG_*')
-for log_file in log_files:
-    os.remove(log_file)
+    #%% plot some results
+    pl.figure()     
+    crd = cm.utils.visualization.plot_contours(A, Cn, thr=0.9)
+    #%%
+    dims = Y.shape[1:]
+    view_patches_bar(Yr, A, C, cnm.b, cnm.C_on[:cnm.gnb],
+                 dims[0], dims[1], YrA=cnm.noisyC[cnm.gnb:cnm.M] - C, img=Cn)
+
+    
+    #%%
+else:
+    #%% start cluster
+    c,dview,n_processes = cm.cluster.setup_cluster(backend = 'local',n_processes = None,single_thread = False)
+    #%% FOR LOADING ALL TIFF FILES IN A FILE AND SAVING THEM ON A SINGLE MEMORY MAPPABLE FILE
+    fnames = ['/Users/epnevmatikakis/Documents/Ca_datasets/Tolias/nuclear/gmc_980_30mw_00001_green.tif'] # can actually be a lost of movie to concatenate
+    add_to_movie=0 # the movie must be positive!!!
+    downsample_factor= .5 # use .2 or .1 if file is large and you want a quick answer
+    base_name='Yr'
+    name_new=cm.save_memmap_each(fnames, dview=dview,base_name=base_name, resize_fact=(1, 1, downsample_factor),add_to_movie=add_to_movie)
+    name_new.sort()
+    fname_new = cm.save_memmap_join(name_new, base_name='Yr', dview=dview)
+    #%% LOAD MEMORY MAPPABLE FILE
+    Yr, dims, T = cm.load_memmap(fname_new)
+    d1, d2 = dims
+    images = np.reshape(Yr.T, [T] + list(dims), order='F')
+    Y = np.reshape(Yr, dims + (T,), order='F')
+    #%% play movie, press q to quit
+    play_movie = False
+    if play_movie:     
+        cm.movie(images).play(fr=50,magnification=3,gain=2.)
+    #%% movie cannot be negative!
+    if np.min(images)<0:
+        raise Exception('Movie too negative, add_to_movie should be larger')
+    #%% correlation image. From here infer neuron size and density
+    Cn = cm.movie(images)[:3000].local_correlations(swap_dim=False)
+    pl.imshow(Cn,cmap='gray')  
+    #%%
+
+    cnm = cnmf.CNMF(n_processes, method_init='greedy_roi', k=Ain.shape[1], gSig=gSig, merge_thresh=merge_thresh,
+                    p=p, dview=dview, Ain=Ain,method_deconvolution='oasis',rolling_sum = False, rf=None)
+    cnm = cnm.fit(images)
+    A, C, b, f, YrA, sn = cnm.A, cnm.C, cnm.b, cnm.f, cnm.YrA, cnm.sn
+    #%%
+    crd = cm.utils.visualization.plot_contours(cnm.A, Cn, thr=0.9)
+    #%% evaluate the quality of the components
+    final_frate = 10# approximate frame rate of data
+    Npeaks = 10
+    traces = C + YrA
+    fitness_raw, fitness_delta, erfc_raw, erfc_delta, r_values, significant_samples = \
+        evaluate_components(Y, traces, A, C, b, f,final_frate, remove_baseline=True,
+                                          N=5, robust_std=False, Npeaks=Npeaks, thresh_C=0.3)
+    
+    idx_components_r = np.where(r_values >= .85)[0] # filter based on spatial consistency
+    idx_components_raw = np.where(fitness_raw < -50)[0] # filter based on transient size
+    idx_components_delta = np.where(fitness_delta < -50)[0] #  filter based on transient derivative size
+    idx_components = np.union1d(idx_components_r, idx_components_raw)
+    idx_components = np.union1d(idx_components, idx_components_delta)
+    idx_components_bad = np.setdiff1d(list(range(len(traces))), idx_components)
+    print((len(traces)))
+    print((len(idx_components)))
+    
+    #%% visualize components
+    # pl.figure();
+    pl.subplot(1, 2, 1)
+    crd = cm.utils.visualization.plot_contours(A.tocsc()[:, idx_components], Cn, thr=0.9)
+    pl.title('selected components')
+    pl.subplot(1, 2, 2)
+    pl.title('discaded components')
+    crd = cm.utils.visualization.plot_contours(A.tocsc()[:, idx_components_bad], Cn, thr=0.9)
+    #%% visualize selected components
+    cm.utils.visualization.view_patches_bar(Yr, A.tocsc()[:, idx_components], C[
+                                   idx_components, :], b, f, dims[0], dims[1], YrA=YrA[idx_components, :], img=Cn)
+    
+    #%% STOP CLUSTER and clean up log files   
+    cm.stop_server()
+    
+    log_files = glob.glob('Yr*_LOG_*')
+    for log_file in log_files:
+        os.remove(log_file)
+        

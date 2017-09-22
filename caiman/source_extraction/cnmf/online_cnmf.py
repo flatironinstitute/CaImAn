@@ -7,15 +7,6 @@ from builtins import str
 from builtins import range
 from past.utils import old_div
 import numpy as np
-try:
-    if __IPYTHON__:
-        print('Debugging!')
-        # this is used for debugging purposes only. allows to reload classes when changed
-        get_ipython().magic('load_ext autoreload')
-        get_ipython().magic('autoreload 2')
-except NameError:
-    print('Not IPYTHON')
-    pass
 
 from scipy.ndimage.filters import gaussian_filter, median_filter, uniform_filter
 import matplotlib.pyplot as pl
@@ -174,7 +165,7 @@ def seeded_initialization(Y, Ain, dims = None, init_batch = 1000, gnb = 1, **kwa
     YrA = YA - AA.T.dot(Cin)
     
     cnm_init = cm.source_extraction.cnmf.cnmf.CNMF(2, Ain=Ain, Cin=Cin, b_in=np.array(b_in), f_in=f_in, **kwargs)
-    cnm_init.A, cnm_init.C, cnm_init.b, cnm_init.f, cnm_init.S, cnm_init.YrA = Ain, Cin, b_in, f_in, np.max(np.atleast_2d(Cin),0), YrA
+    cnm_init.A, cnm_init.C, cnm_init.b, cnm_init.f, cnm_init.S, cnm_init.YrA = Ain, Cin, b_in, f_in, np.fmax(np.atleast_2d(Cin),0), YrA
     cnm_init.g = np.array([[gg] for gg in np.ones(nr)*0.9])
     cnm_init.bl = np.zeros(nr)
     cnm_init.c1 = np.zeros(nr)
