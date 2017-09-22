@@ -39,7 +39,7 @@ Yr = Y.transpose(1,2,0).reshape((np.prod(Y.shape[1:]),-1), order='F')
 Cn_init = Y.local_correlations(swap_dim = False)
 pl.imshow(Cn_init)
 #%%
-Cn = max_correlation_image(cm.load(fname, subindices = range(T1)).astype(np.float32), swap_dim = False)
+Cn = max_correlation_image(cm.load(fname, subindices = slice(0,T1,None)).astype(np.float32), swap_dim = False)
 #%%
 cnm_init = bare_initialization(Y[:initbatch].transpose(1, 2, 0),init_batch=initbatch,k=1,gnb=1,
                                  gSig=gSig, merge_thresh=0.8,
@@ -58,11 +58,11 @@ cnm.update_num_comps = True
 t = cnm.initbatch
 max_shift = 5
 shifts = []
-Y_ = cm.load(fname, subindices = range(t,T1)).astype(np.float32)
+Y_ = cm.load(fname, subindices = slice(t,T1,None)).astype(np.float32)
 for frame_count, frame in enumerate(Y_):
-    templ = cnm.Ab.dot(cnm.C_on[:cnm.M, t - 1]).reshape(cnm.dims, order='F')
-    frame_cor, shift = motion_correct_iteration_fast(frame, templ, max_shift, max_shift)
-    shifts.append(shift)
+#    templ = cnm.Ab.dot(cnm.C_on[:cnm.M, t - 1]).reshape(cnm.dims, order='F')
+#    frame_cor, shift = motion_correct_iteration_fast(frame, templ, max_shift, max_shift)
+#    shifts.append(shift)
     cnm.fit_next(t, frame.copy().reshape(-1, order='F'))
     t += 1
 
