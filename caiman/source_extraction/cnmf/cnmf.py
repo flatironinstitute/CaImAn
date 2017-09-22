@@ -76,16 +76,16 @@ class CNMF(object):
                  ssub=2, tsub=2, p_ssub=1, p_tsub=1, method_init='greedy_roi', alpha_snmf=None,
                  rf=None, stride=None, memory_fact=1, gnb=1, nb_patch=1, only_init_patch=False,
                  method_deconvolution='oasis', n_pixels_per_process=4000, block_size=20000,
-                 check_nan=True, skip_refinement=False, normalize_init=True, options_local_NMF=None,
-                 minibatch_shape=100, minibatch_suff_stat=3,
-                 update_num_comps=True, rval_thr=0.9, thresh_fitness_delta=-20,
-                 thresh_fitness_raw=-40, thresh_overlap=.5,
+                 check_nan=True, skip_refinement=False, normalize_init=True, options_local_NMF=None, 
+				 minibatch_shape=100, minibatch_suff_stat=3,
+                 update_num_comps=True, rval_thr=0.9, thresh_fitness_delta=-20, 
+				 thresh_fitness_raw=-40, thresh_overlap=.5,
                  max_comp_update_shape=np.inf, num_times_comp_updated=np.inf,
                  batch_update_suff_stat=False, thresh_s_min=None, s_min=None,
-                 remove_very_bad_comps=False, border_pix=0, low_rank_background=True,
-                 update_background_components=True, rolling_sum=True, rolling_length=100,
+                 remove_very_bad_comps=False, border_pix=0, low_rank_background=True, 
+                 update_background_components=True, rolling_sum = True, rolling_length = 100,
                  min_corr=.85, min_pnr=20, deconvolve_options_init=None, ring_size_factor=1.5,
-                 center_psf=True):
+				 center_psf=True):
         """
         Constructor of the CNMF method
 
@@ -116,11 +116,11 @@ class CNMF(object):
         ssub: int
             downsampleing factor in space
 
-        tsub: int
+        tsub: int 
              downsampling factor in time
 
         p_ssub: int
-            downsampling factor in space for patches
+            downsampling factor in space for patches 
 
         method_init: str
            can be greedy_roi or sparse_nmf
@@ -128,8 +128,8 @@ class CNMF(object):
         alpha_snmf: float
             weight of the sparsity regularization
 
-        p_tsub: int
-             downsampling factor in time for patches
+        p_tsub: int 
+             downsampling factor in time for patches     
 
         rf: int
             half-size of the patches in pixels. rf=25, patches are 50x50
@@ -147,34 +147,34 @@ class CNMF(object):
             unitless number accounting how much memory should be used. You will
              need to try different values to see which one would work the default is OK for a 16 GB system
 
-        N_samples_fitness: int
+        N_samples_fitness: int 
             number of samples over which exceptional events are computed (See utilities.evaluate_components)
 
         only_init_patch= boolean
             only run initialization on patches
-
+        
         method_deconvolution = 'oasis' or 'cvxpy'
             method used for deconvolution. Suggested 'oasis' see  
             Friedrich J, Zhou P, Paninski L. Fast Online Deconvolution of Calcium Imaging Data.
             PLoS Comput Biol. 2017; 13(3):e1005423.
-
+        
         n_pixels_per_process: int. 
             Number of pixels to be processed in parallel per core (no patch mode). Decrease if memory problems
-
+        
         block_size: int. 
             Number of pixels to be used to perform residual computation in blocks. Decrease if memory problems
-
+        
         check_nan: Boolean. 
             Check if file contains NaNs (costly for very large files so could be turned off)
-
+        
         skip_refinement: 
             Bool. If true it only performs one iteration of update spatial update temporal instead of two
-
+        
         normalize_init=Bool. 
             Differences in intensities on the FOV might caus troubles in the initialization when patches are not used,
              so each pixels can be normalized by its median intensity
-
-        options_local_NMF:
+        
+        options_local_NMF: 
             experimental, not to be used
 
         remove_very_bad_comps:Bool
@@ -182,14 +182,14 @@ class CNMF(object):
              This might create some minor imprecisions.
             Howeverm benefits can be considerable if done because if many components (>2000) are created
             and joined together, operation that causes a bottleneck
-
+                        
         border_pix:int    
             number of pixels to not consider in the borders
-
+        
         low_rank_background:bool
             if True the background is approximated with gnb components. If false every patch keeps its background (overlaps are randomly assigned to one spatial component only)
              In the False case all the nonzero elements of the background components are updated using hals (to be used with one background per patch)
-
+            
         update_background_components:bool
             whether to update the background components during the spatial phase           
 
@@ -205,47 +205,46 @@ class CNMF(object):
         ring_size_factor: float
             it's the ratio between the ring radius and neuron diameters.    
 
-        max_comp_update_shape:
-             threshold number of components after which selective updating starts (using the parameter num_times_comp_updated)
+		max_comp_update_shape:
+			 threshold number of components after which selective updating starts (using the parameter num_times_comp_updated)
 
-        num_times_comp_updated:
+	    num_times_comp_updated:
             number of times each component is updated. In inf components are updated at every initbatch time steps
-
-        expected_comps: int
+		
+		expected_comps: int
             number of expected components (try to exceed the expected)
-
+			
         Returns:
         --------
         self
         """
 
-        self.k = k  # number of neurons expected per FOV (or per patch if patches_pars is not None
-        self.gSig = gSig  # expected half size of neurons
+        self.k = k #number of neurons expected per FOV (or per patch if patches_pars is not None
+        self.gSig=gSig # expected half size of neurons
         self.gSiz = gSiz  # expected half size of neurons
-        self.merge_thresh = merge_thresh  # merging threshold, max correlation allowed
-        self.p = p  # order of the autoregressive system
-        self.dview = dview
-        self.Ain = Ain
-        self.Cin = Cin
-        self.f_in = f_in
+        self.merge_thresh=merge_thresh # merging threshold, max correlation allowed
+        self.p=p #order of the autoregressive system
+        self.dview=dview
+        self.Ain=Ain
+        self.Cin=Cin
+        self.f_in=f_in
 
-        self.ssub = ssub
-        self.tsub = tsub
-        self.p_ssub = p_ssub
-        self.p_tsub = p_tsub
-        self.method_init = method_init
-        self.n_processes = n_processes
-        self.rf = rf  # half-size of the patches in pixels. rf=25, patches are 50x50
-        self.stride = stride  # amount of overlap between the patches in pixels
+        self.ssub=ssub
+        self.tsub=tsub
+        self.p_ssub=p_ssub
+        self.p_tsub=p_tsub
+        self.method_init= method_init
+        self.n_processes=n_processes
+        self.rf=rf # half-size of the patches in pixels. rf=25, patches are 50x50
+        self.stride=stride #amount of overlap between the patches in pixels   
         # unitless number accounting how much memory should be used.
-        # You will need to try different values to see which one would work the
-        # default is OK for a 16 GB system
+        #  You will need to try different values to see which one would work the default is OK for a 16 GB system
         self.memory_fact = memory_fact
-        self.gnb = gnb
-        self.do_merge = do_merge
-        self.alpha_snmf = alpha_snmf
-        self.only_init = only_init_patch
-        self.method_deconvolution = method_deconvolution
+        self.gnb = gnb                        
+        self.do_merge=do_merge
+        self.alpha_snmf=alpha_snmf
+        self.only_init=only_init_patch
+        self.method_deconvolution=method_deconvolution
         self.n_pixels_per_process = n_pixels_per_process
         self.block_size = block_size
         self.check_nan = check_nan
@@ -253,17 +252,17 @@ class CNMF(object):
         self.normalize_init = normalize_init
         self.options_local_NMF = options_local_NMF
         self.b_in = b_in
-        self.A = None
-        self.C = None
-        self.S = None
-        self.b = None
-        self.f = None
+        self.A=None
+        self.C=None
+        self.S=None
+        self.b=None
+        self.f=None
         self.sn = None
         self.g = None
         self.remove_very_bad_comps = remove_very_bad_comps
         self.border_pix = border_pix
-        self.low_rank_background = low_rank_background
-        self.update_background_components = update_background_components
+        self.low_rank_background = low_rank_background 
+        self.update_background_components = update_background_components 
         self.rolling_sum = rolling_sum
         self.rolling_length = rolling_length
         self.minibatch_shape = minibatch_shape
@@ -278,7 +277,7 @@ class CNMF(object):
         self.num_times_comp_updated = num_times_comp_updated
         self.max_comp_update_shape = max_comp_update_shape
         self.batch_update_suff_stat = batch_update_suff_stat
-
+		
         self.min_corr = min_corr
         self.min_pnr = min_pnr
         self.deconvolve_options_init = deconvolve_options_init
@@ -286,16 +285,16 @@ class CNMF(object):
         self.center_psf = center_psf
         self.nb_patch = nb_patch
 
-        self.options = CNMFSetParms((1, 1, 1), n_processes, p=p, gSig=gSig, gSiz=gSiz,
-                                    K=k, ssub=ssub, tsub=tsub,
+        self.options = CNMFSetParms((1,1,1), n_processes, p=p, gSig=gSig, gSiz=gSiz, 
+									K=k, ssub=ssub, tsub=tsub, 
                                     p_ssub=p_ssub, p_tsub=p_tsub, method_init=method_init,
-                                    n_pixels_per_process=n_pixels_per_process, block_size=block_size,
+                                    n_pixels_per_process=n_pixels_per_process, block_size=block_size,                                    
                                     check_nan=check_nan, nb=gnb,
                                     nb_patch=nb_patch, normalize_init=normalize_init,
                                     options_local_NMF=options_local_NMF,
                                     remove_very_bad_comps=remove_very_bad_comps,
                                     low_rank_background=low_rank_background,
-                                    update_background_components=update_background_components, rolling_sum=self.rolling_sum,
+                                    update_background_components=update_background_components, rolling_sum = self.rolling_sum,
                                     min_corr=min_corr, min_pnr=min_pnr, deconvolve_options_init=deconvolve_options_init,
                                     ring_size_factor=ring_size_factor, center_psf=center_psf)
 
@@ -380,7 +379,7 @@ class CNMF(object):
                     options['init_params']['alpha_snmf'] = self.alpha_snmf
 
                 self.Ain, self.Cin, self.b_in, self.f_in, center = initialize_components(
-                    Y, sn=sn, options_total=options, **options['init_params'])
+                    Y, sn = sn, options_total = options, **options['init_params'])
 
             if self.only_init:  # only return values after initialization
 
@@ -404,10 +403,10 @@ class CNMF(object):
                     traces = np.array(self.C)
                     print('estimating the quality...')
                     idx_components, idx_components_bad, fitness_raw,\
-                        fitness_delta, r_values = components_evaluation.estimate_components_quality(
-                            traces, Y, self.A, np.array(self.C), self.b_in, self.f_in,
-                            final_frate=final_frate, Npeaks=Npeaks, r_values_min=r_values_min,
-                            fitness_min=fitness_min, fitness_delta_min=fitness_delta_min, return_all=True, N=5)
+                    fitness_delta, r_values = components_evaluation.estimate_components_quality(
+                    	traces, Y, self.A, np.array(self.C), self.b_in, self.f_in,
+                        final_frate=final_frate, Npeaks=Npeaks, r_values_min=r_values_min,
+                        fitness_min=fitness_min, fitness_delta_min=fitness_delta_min, return_all=True, N=5)
 
                     print(('Keeping ' + str(len(idx_components)) +
                            ' and discarding  ' + str(len(idx_components_bad))))
@@ -438,7 +437,7 @@ class CNMF(object):
             print('deconvolution ...')
             options['temporal_params']['method'] = self.method_deconvolution
 
-            C, A, b, f, S, bl, c1, neurons_sn, g, YrA, lam = update_temporal_components(
+            C, A, b, f, S, bl, c1, neurons_sn, g, YrA, lam  = update_temporal_components(
                 Yr, A, b, Cin, self.f_in, dview=self.dview, **options['temporal_params'])
 
             if not self.skip_refinement:
@@ -483,7 +482,8 @@ class CNMF(object):
                                                                      options, rf=self.rf, stride=self.stride,
                                                                      dview=self.dview, memory_fact=self.memory_fact,
                                                                      gnb=self.gnb, border_pix=self.border_pix,
-                                                                     low_rank_background=self.low_rank_background)
+																	 low_rank_background=self.low_rank_background)
+                                                                     
 
             # options = CNMFSetParms(Y, self.n_processes, p=self.p, gSig=self.gSig, K=A.shape[
             #                        -1], thr=self.merge_thresh, n_pixels_per_process=self.n_pixels_per_process,
@@ -497,11 +497,10 @@ class CNMF(object):
                 A, C, nr, merged_ROIs, S, bl, c1, sn_n, g = merge_components(Yr, A, [], np.array(C), [], np.array(
                     C), [], options['temporal_params'], options['spatial_params'], dview=self.dview,
                     thr=self.merge_thresh, mx=np.Inf)
-
+            
 #            print('update spatial ...')
 #            A, b, C, f = update_spatial_components(
-# Yr, C = C, f = f, A_in = A, sn=sn, b_in = b, dview=self.dview,
-# **options['spatial_params'])
+#                    Yr, C = C, f = f, A_in = A, sn=sn, b_in = b, dview=self.dview, **options['spatial_params'])            
 
             print("update temporal")
             C, A, b, f, S, bl, c1, neurons_sn, g1, YrA, lam = update_temporal_components(
@@ -602,8 +601,8 @@ class CNMF(object):
         self.noisyC[self.gnb:self.M, :self.initbatch] = self.C2 + self.YrA2
         self.noisyC[:self.gnb, :self.initbatch] = self.f2
 
-        # next line requires some estimate of the spike size, e.g. running OASIS with penalty=0
-        # or s_min from histogram a la Deneux et al (2016)
+         # next line requires some estimate of the spike size, e.g. running OASIS with penalty=0
+         # or s_min from histogram a la Deneux et al (2016)
 #        self.OASISinstances = [oasis.OASIS(
 #            g=g if g is not None else (gam[0] if self.p == 1 else gam),
 #            s_min=self.thresh_s_min * sn if s_min is None else s_min,
@@ -767,8 +766,7 @@ class CNMF(object):
                     # refcheck can trigger "ValueError: cannot resize an array references or is referenced
                     #                       by another array in this way.  Use the resize function"
                     # np.resize didn't work, but refcheck=False seems fine
-                    self.C_on.resize([self.expected_comps + nb_,
-                                      self.C_on.shape[-1]], refcheck=False)
+                    self.C_on.resize([self.expected_comps + nb_, self.C_on.shape[-1]], refcheck=False)
                     self.noisyC.resize([self.expected_comps + nb_, self.C_on.shape[-1]])
                     if use_dense:  # resize won't work due to contingency issue
                         # self.Ab_dense.resize([self.CY.shape[-1], self.expected_comps+nb_])
