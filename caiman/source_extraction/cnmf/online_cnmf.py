@@ -7,15 +7,6 @@ from builtins import str
 from builtins import range
 from past.utils import old_div
 import numpy as np
-try:
-    if __IPYTHON__:
-        print('Debugging!')
-        # this is used for debugging purposes only. allows to reload classes when changed
-        get_ipython().magic('load_ext autoreload')
-        get_ipython().magic('autoreload 2')
-except NameError:
-    print('Not IPYTHON')
-    pass
 
 from scipy.ndimage.filters import gaussian_filter, median_filter, uniform_filter
 import matplotlib.pyplot as pl
@@ -23,15 +14,17 @@ from time import time
 from math import log, sqrt, ceil
 
 import caiman as cm
-from .initialization import imblur, initialize_components
+from .initialization import imblur, initialize_components, hals
 from .spatial import determine_search_location
 import scipy
-from scipy.sparse import coo_matrix
+from scipy.sparse import coo_matrix, csc_matrix
 from caiman.components_evaluation import compute_event_exceptionality
 from .utilities import update_order
 import cv2
 from sklearn.utils.extmath import fast_dot
-from caiman.source_extraction.cnmf import oasis 
+from caiman.source_extraction.cnmf import oasis
+from sklearn.decomposition import NMF 
+from sklearn.preprocessing import normalize
 #from caiman.source_extraction.cnmf import cnmf
 
 try:
@@ -103,6 +96,89 @@ def bare_initialization(Y, init_batch = 1000, k = 1, method_init = 'greedy_roi',
     
     return cnm_init
 
+#%%
+def seeded_initialization(Y, Ain, dims = None, init_batch = 1000, gnb = 1, **kwargs):
+    """
+    Initialization for OnACID based on a set of user given binary masks. 
+    Inputs:
+    -------
+    Y               movie object or np.array
+                    matrix of data
+    
+    Ain             bool np.array
+                    2d np.array with binary masks
+    
+    dims            tuple
+                    dimensions of FOV
+                    
+    init_batch      int
+                    number of frames to process
+                    
+    gnb             int
+                    number of background components
+                    
+    Output:
+    -------
+        cnm_init    object
+                    caiman CNMF-like object to initialize OnACID
+    """
+
+    def HALS4shapes(Yr, A, C, iters=2):
+        K = A.shape[-1]
+        ind_A = A>0
+        U = C.dot(Yr.T)
+        V = C.dot(C.T)
+        for _ in range(iters):
+            for m in range(K):  # neurons
+                ind_pixels = np.squeeze(ind_A[:, m])
+                A[ind_pixels, m] = np.clip(A[ind_pixels, m] +
+                                           ((U[m, ind_pixels] - V[m].dot(A[ind_pixels].T)) /
+                                            V[m, m]), 0, np.inf)
+                
+        return A    
+
+    if dims is None:
+        dims = Y.shape[:-1]
+               
+    px = (np.sum(Ain > 0, axis = 1) > 0);
+    not_px = 1-px
+    
+    Yr = np.reshape(Y,(Ain.shape[0],Y.shape[-1]), order='F')
+    model = NMF(n_components = gnb, init='nndsvdar')    
+    b_temp = model.fit_transform(np.maximum(Yr[not_px,:], 0))
+    f_in = model.components_.squeeze()
+    f_in = np.atleast_2d(f_in)
+    Y_resf = np.dot(Yr, f_in.T)
+    b_in = np.maximum(Y_resf, 0)/(np.linalg.norm(f_in)**2)
+    
+    Ain = normalize(Ain.astype('float32'),axis=0,norm='l1')
+
+    Cin = np.maximum(Ain.T.dot(Yr) - (Ain.T.dot(b_in)).dot(f_in), 0)
+    Ain = HALS4shapes(Yr - b_in.dot(f_in), Ain, Cin, iters=5)
+    Ain, Cin, b_in, f_in = hals(Yr, Ain, Cin, b_in, f_in)
+    Ain = csc_matrix(Ain)
+    nA = (Ain.power(2).sum(axis=0))
+    nr = nA.size
+
+    YA = scipy.sparse.spdiags(old_div(1.,nA),0,nr,nr)*(Ain.T.dot(Yr) - (Ain.T.dot(b_in)).dot(f_in))
+    AA = scipy.sparse.spdiags(old_div(1.,nA),0,nr,nr)*(Ain.T.dot(Ain))
+    YrA = YA - AA.T.dot(Cin)
+    
+    cnm_init = cm.source_extraction.cnmf.cnmf.CNMF(2, Ain=Ain, Cin=Cin, b_in=np.array(b_in), f_in=f_in, **kwargs)
+    cnm_init.A, cnm_init.C, cnm_init.b, cnm_init.f, cnm_init.S, cnm_init.YrA = Ain, Cin, b_in, f_in, np.fmax(np.atleast_2d(Cin),0), YrA
+    cnm_init.g = np.array([[gg] for gg in np.ones(nr)*0.9])
+    cnm_init.bl = np.zeros(nr)
+    cnm_init.c1 = np.zeros(nr)
+    cnm_init.neurons_sn = np.std(YrA,axis=-1)
+    cnm_init.lam = np.zeros(nr)
+    cnm_init.dims = Y.shape[:-1]
+    cnm_init.initbatch = init_batch
+    cnm_init.gnb = gnb
+    
+    return cnm_init
+       
+    
+    
 #%% Generate data
 def gen_data(dims=(48, 48), N=10, sig=(3, 3), gamma=.95, noise=.3, T=1000,
              framerate=30, firerate=.5, seed=3, cmap='jet'):
