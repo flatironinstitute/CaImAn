@@ -38,41 +38,19 @@ def save_object(obj, filename):
 
 
 def load_object(filename):
-    with open(filename, 'r') as input_obj:
+    with open(filename, 'rb') as input_obj:
         obj = pickle.load(input_obj)
     return obj
 
 
+
 #%%
-
-
-# fls_starts = ['/opt/matlab/python/Data/Jeff/Yr_reduced*.mmap',
-#              '/opt/local/privateCaImAn/example_movies/demoMovie.tif',\
-#             '/opt/matlab/python/Data/Sue/k53_20160530_RSM_125um_41mW_zoom2p2_00001_000*.tif',
-#             '/opt/local/Data/Sue/k53/k53_crop.tif',
-#             '/opt/local/Data/Johannes/johannes_bad.tif',
-#             '/opt/local/Data/Sue/k59_20161121_MMP_150um_47mW940nm_zoom4p2_*_g.tif']
-
-
-#fls_starts = ['/opt/local/Data/JGauthier-J115/mmap_files/Yr_reduced*.mmap',
-#              '/opt/local/privateCaImAn/example_movies/demoMovie.tif',
-#              '/opt/local/Data/Sue/k53/k53_20160530_RSM_125um_41mW_zoom2p2_00001_000*.tif',
-#              '/opt/local/Data/Sue/k53/k53_crop.tif',
-#              '/opt/local/Data/Johannes/johannes_bad.tif',
-#              '/opt/local/Data/Sue/k59_20161121_MMP_150um_47mW940nm_zoom4p2_*_g.tif']
-
-
-fls_starts = ['/Users/agiovann/data/J115_2015_12_09/Yr_reduced*.mmap',
-              '/home/andrea/CaImAn/example_movies/demoMovie.tif',
-              '/opt/local/Data/Sue/k53/k53_20160530_RSM_125um_41mW_zoom2p2_00001_000*.tif',
-              '/opt/local/Data/Sue/k53/k53_crop.tif',
-              '/opt/local/Data/Johannes/johannes_bad.tif',
-              '/opt/local/Data/Sue/k59_20161121_MMP_150um_47mW940nm_zoom4p2_*_g.tif',
-              '/home/andrea/CaImAn/example_movies/13592_3_0000_slice1.hdf5',
-              'example_movies/14062_1_00004_00001_slice1.hdf5'
+fls_starts = ['/home/andrea/CaImAn/example_movies/demoMovie.tif', # quick demo
+              'example_movies/13592_3_0000_slice1.hdf5', # Mesoscope
+              'example_movies/14062_1_00004_00001_slice1.hdf5' #dense labeling
               ]
 
-fls_start = fls_starts[7]
+fls_start = fls_starts[2]
 fls = glob.glob(fls_start)
 fls.sort()
 print(fls)
@@ -84,104 +62,25 @@ try:
 except:
     pass
 if fls_start == fls_starts[0]:
-    ds = 2
-    gSig = [7, 7]  # expected half size of neurons
-    gSig = tuple(np.array(gSig) // ds + 1)
-    init_files = 1
-    online_files = 89
-    initbatch = 1000
-    T1 = 90000
-    expected_comps = 1200
-    rval_thr = 0.9
-    thresh_fitness_delta = -30
-    thresh_fitness_raw = -50
-    mot_corr = False
-    rf = 16 // ds
-    stride = 6 // ds
-    K = 5
-elif fls_start == fls_starts[1]:
-    ds = 1
-    init_files = 1
-    online_files = 0
-    initbatch = 400
-    T1 = 2000
-    expected_comps = 50
-    rf = 16
-    stride = 3
-    K = 4
+    ds = 1 # downampling
+    init_files = 1 # number of files used for initialization
+    online_files = 0 # number of files used for online
+    initbatch = 400 # number f frames for initialization
+    T1 = 2000 #total number of frames
+    expected_comps = 100 # exaggerate here
+    K = 4 #initial number of components
     gSig = [6, 6]  # expected half size of neurons
     rval_thr = 0.9
     thresh_fitness_delta = -30
     thresh_fitness_raw = -50
     mot_corr = False
-elif fls_start == fls_starts[2]:
-    ds = 2
-    init_files = 1
-    online_files = 38
-    initbatch = 3000
-    T1 = 117000
-    expected_comps = 1200
-    rval_thr = 0.9
-    thresh_fitness_delta = -30
-    thresh_fitness_raw = -50
-    max_shift = 20 // ds
-    mot_corr = True
-    gSig = tuple(np.array([7, 7]) // ds + 1)  # expected half size of neurons
-    rf = 14 // ds
-    stride = 4 // ds
-    K = 4
-    merge_thresh = 0.8
-    p = 1
-elif fls_start == fls_starts[3]:
-    init_files = 1
-    online_files = 0
-    initbatch = 1000
-    T1 = 3000
-    expected_comps = 1200
-    rval_thr = 0.9
-    thresh_fitness_delta = -50
-    thresh_fitness_raw = -50
-    max_shift = 6
-    mot_corr = True
-    rf = 14
-    stride = 6
-    K = 6
-    gSig = [4, 4]
-    merge_thresh = 0.8
-    p = 1
 
-elif fls_start == fls_starts[4]:
-    K = 200  # number of neurons expected per patch
-    gSig = [7, 7]  # expected half size of neurons
-    init_files = 1
-    online_files = 0
-    initbatch = 1000
-    T1 = 3000
-    expected_comps = 1400
-    rval_thr = 0.9
-    thresh_fitness_delta = -30
-    thresh_fitness_raw = -50
-    max_shift = 15
-    mot_corr = True
-elif fls_start == fls_starts[5]:
-    K = 20  # number of neurons expected per patch
-    gSig = [3, 3]  # expected half size of neurons
-    init_files = 1
-    online_files = 0
-    initbatch = 200
-    T1 = 2000
-    expected_comps = 120
-    rval_thr = 0.9
-    thresh_fitness_delta = -50
-    thresh_fitness_raw = -50
-    max_shift = None
-    mot_corr = False
-elif fls_start == fls_starts[6]:
+elif fls_start == fls_starts[1]:
     ds = 1
     init_files = 1
     online_files = 0
     initbatch = 300
-    T1 = 5000
+    T1 = 18000
     expected_comps = 1000
     rval_thr = 0.85
     thresh_fitness_delta = -30
@@ -192,7 +91,7 @@ elif fls_start == fls_starts[6]:
     K = 50
     merge_thresh = 0.8
     p = 1
-elif fls_start == fls_starts[7]:
+elif fls_start == fls_starts[2]:
     ds = 1
     init_files = 1
     online_files = 0
@@ -204,13 +103,13 @@ elif fls_start == fls_starts[7]:
     thresh_fitness_raw = -30
     max_shift = 10 // ds
     mot_corr = True
-    gSig = tuple(np.array([3, 3]) // ds + 1)  # expected half size of neurons
+    gSig = tuple(np.array([10, 10]) // ds + 1)  # expected half size of neurons
     K = 50
     merge_thresh = 0.8
     p = 1
 else:
     raise Exception('File not defined')
-#%%
+#%% initialize movie
 if ds > 1:
     Y = cm.load(fls[0], subindices = slice(0,initbatch,None)).astype(np.float32).resize(1. / ds, 1. / ds)
 else:
@@ -247,14 +146,16 @@ new_dims = (d1, d2)
 Cn_init = Y.local_correlations(swap_dim = False)
 pl.imshow(Cn_init)
 
-#%%
+#%% initialize OnAcid
 cnm_init = bare_initialization(Y[:initbatch].transpose(1, 2, 0),init_batch=initbatch,k=K,gnb=1,
                                  gSig=gSig, merge_thresh=0.8,
                                  p=1, minibatch_shape=100, minibatch_suff_stat=5,
                                  update_num_comps=True, rval_thr=rval_thr,
                                  thresh_fitness_delta=thresh_fitness_delta,
                                  thresh_fitness_raw=thresh_fitness_raw,
-                                 batch_update_suff_stat=True, max_comp_update_shape=5)
+                                 batch_update_suff_stat=True, max_comp_update_shape=5, 
+                                 deconv_flag = False,
+                                 simultaneously=False, n_refit=0)
 
 crd = plot_contours(cnm_init.A.tocsc(), Cn_init, thr=0.9)
 
@@ -274,19 +175,12 @@ cnm_init._prepare_object(np.asarray(Yr), T1, expected_comps,
                            idx_components=None)
 Cf = np.r_[cnm_init.C_on[:, :initbatch], cnm_init.f2]
 #%%
-if mot_corr:
-    np.savez('results_analysis_online_SUE_' + '_DS_' + str(ds) + '_init_.npz',
-             Cn=Cn_init, Ab=cnm_init.Ab, Cf=Cf, b=cnm_init.b2, f=cnm_init.f2,
-             dims=cnm_init.dims, noisyC=cnm_init.noisyC, shifts=mc[1], templ=mc[2])
-else:
-    np.savez('results_analysis_online_JEFF_' + '_DS_' + str(ds) + '_init_.npz',
-             Cn=Cn_init, Ab=cnm_init.Ab, Cf=Cf, b=cnm_init.b2, f=cnm_init.f2,
-             dims=cnm_init.dims, noisyC=cnm_init.noisyC)
-#%%
 # pl.figure(figsize=(20,13))
 plot_contours = False
 compute_cn = False
 play_reconstr = True
+resize_fact = .5
+
 cnm2 = load_object(fls[0][:-4] + '_DS_' + str(ds) + '.pkl')
 cnm2._prepare_object(np.asarray(Yr), T1, expected_comps, idx_components=None)
 cnm2.max_comp_update_shape = np.inf
@@ -370,10 +264,10 @@ for ffll in end_files:  # np.array(fls)[np.array([1,2,3,4,5,-5,-4,-3,-2,-1])]:
             comps_frame = A.dot(C[:,t-1]).reshape(cnm2.dims, order = 'F')*img_norm/np.max(img_norm)
             bgkrnd_frame = b.dot(f[:,t-1]).reshape(cnm2.dims, order = 'F')*img_norm/np.max(img_norm)
             all_comps = (np.array(A.sum(-1)).reshape(cnm2.dims, order = 'F'))*3#*img_norm/np.max(img_norm)
-            frame_comp_1 = cv2.resize(np.concatenate([(frame)/np.max(img_norm),all_comps],axis = -1),(cnm2.dims[0]//2,cnm2.dims[1]))
-            frame_comp_2 = cv2.resize(np.concatenate([comps_frame,comps_frame+bgkrnd_frame],axis = -1),(cnm2.dims[0]//2,cnm2.dims[1]))
-#            cv2.imshow('frame',np.concatenate([frame_comp_1,frame_comp_2],axis=-1))
-            cv2.imshow('frame',np.concatenate([frame_comp_1],axis=-1))
+            frame_comp_1 = cv2.resize(np.concatenate([(frame)/np.max(img_norm),all_comps],axis = -1),(np.int(cnm2.dims[1]*resize_fact),np.int(cnm2.dims[0]*resize_fact) )).T
+            frame_comp_2 = cv2.resize(np.concatenate([comps_frame,comps_frame+bgkrnd_frame],axis = -1),(np.int(cnm2.dims[1]*resize_fact),np.int(cnm2.dims[0]*resize_fact) )).T
+            cv2.imshow('frame',np.concatenate([frame_comp_1,frame_comp_2],axis=-1))
+#            cv2.imshow('frame',np.concatenate([frame_comp_1],axis=-1))
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
                 
@@ -391,74 +285,23 @@ for ffll in end_files:  # np.array(fls)[np.array([1,2,3,4,5,-5,-4,-3,-2,-1])]:
 
 cv2.destroyAllWindows()
 #%%
-save = True
-if save:
-    if mot_corr:
-        np.savez('results_analysis_online_SUE_DS_MOT_CORR.npz',
-                 Cn=Cn, Ab=cnm2.Ab, Cf=cnm2.C_on, b=cnm2.b, f=cnm2.f,
-                 dims=cnm2.dims, tottime=tottime, noisyC=cnm2.noisyC, shifts=shifts)
-    else:
-        np.savez('results_analysis_online_JEFF_DS_2.npz',
-                 Cn=Cn, Ab=cnm2.Ab, Cf=cnm2.C_on, b=cnm2.b, f=cnm2.f,
-                 dims=cnm2.dims, tottime=tottime, noisyC=cnm2.noisyC)
+np.savez('results_analysis_online_MOT_CORR.npz',
+         Cn=Cn, Ab=cnm2.Ab, Cf=cnm2.C_on, b=cnm2.b, f=cnm2.f,
+         dims=cnm2.dims, tottime=tottime, noisyC=cnm2.noisyC, shifts=shifts)
 
 #%%
-if False:
-    import cv2
-    tottime = []
-    for t in range(initbatch, T1):
-        if t % 10 == 0:
-            print(t)
-        t1 = time()
-        frame = Yr[:, t].copy()
-    #    frame = cv2.resize(frame.reshape(dims,order = 'F'),(244,244))
-        cnm2.fit_next(t, frame.reshape(-1, order='F'))
-        tottime.append(time() - t1)
-
-    print((T1 - initbatch) / np.sum(tottime))
-    # pl.figure()
-    # pl.plot(tottime)
-    #%%
-    A, b = cnm2.Ab[:, cnm2.gnb:], cnm2.Ab[:, :cnm2.gnb].toarray()
-    C, f = cnm2.C_on[cnm2.gnb:cnm2.M, :], cnm2.C_on[:cnm2.gnb, :]
-    b_trace = [osi.b for osi in cnm2.OASISinstances]
-    #%%
-    # Cn = Y.local_correlations(eight_neighbours = True,swap_dim=False)
-    # resCn = cv2.resize(Cn, (244, 244))
-    pl.figure()
-    crd = cm.utils.visualization.plot_contours(A, Cn, thr=0.9)
-    #%%m = 
-    view_patches_bar(Yr, scipy.sparse.coo_matrix(A.tocsc()[:, :]), C[:, :], b, f,
-                     dims[0], dims[1], YrA=cnm2.noisyC[cnm2.gnb:cnm2.M] - C, img=Cn)
-    #%%
-
-    #%%
-    with np.load('results_full_movie_online_may5/results_analysis_online_JEFF_90k.take7_no_batch.npz') as ld:
-        print(ld.keys())
-        locals().update(ld)
-        Ab = Ab[()]
-    #    OASISinstances = OASISinstances[()]
-        C_on = Cf
-        A, b = cnm2.Ab[:, cnm2.gnb:], cnm2.Ab[:, :cnm2.gnb].toarray()
-        C, f = cnm2.C_on[cnm2.gnb:cnm2.M, :], cnm2.C_on[:cnm2.gnb, :]
+A, b = cnm2.Ab[:, cnm2.gnb:], cnm2.Ab[:, :cnm2.gnb].toarray()
+C, f = cnm2.C_on[cnm2.gnb:cnm2.M, :], cnm2.C_on[:cnm2.gnb, :]
+b_trace = [osi.b for osi in cnm2.OASISinstances]
 #%%
-    pl.figure()
-    crd = cm.utils.visualization.plot_contours(A, Cn, thr=0.9)
-
+# Cn = Y.local_correlations(eight_neighbours = True,swap_dim=False)
+# resCn = cv2.resize(Cn, (244, 244))
+pl.figure()
+crd = cm.utils.visualization.plot_contours(A, Cn, thr=0.9)
+#%%m = 
+view_patches_bar(Yr, scipy.sparse.coo_matrix(A.tocsc()[:, :]), C[:, :], b, f,
+                 dims[0], dims[1], YrA=cnm2.noisyC[cnm2.gnb:cnm2.M] - C, img=Cn)
 #%%
-    view_patches_bar(None, scipy.sparse.coo_matrix(A.tocsc()[:, :]), C[:, :], b, f,
-                     dims[0], dims[1], YrA=cnm2.noisyC[cnm2.gnb:cnm2.M] - C, img=Cn)
-    #%%
-    with np.load('results_analysis_offline_JEFF_90k.npz') as ld:
-        print(ld.keys())
-        locals().update(ld)
-    view_patches_bar(None, scipy.sparse.coo_matrix(A), C[:, :], b, f, d1, d2, YrA=YrA, img=Cn)
-    #%%
-    fls_ld = glob.glob('results_analysis_online_JEFF_LAST__DS_2_*0.npz')
-    fls_ld.sort(key=lambda x: np.int(x.split('_')[-1][:-5]))
-    print(fls_ld)
-    for fl in fls_ld:
-        with np.load(fl) as ld:
-            pl.plot(1 / scipy.sparse.linalg.norm(ld['Ab'][()], axis=0))
-            pl.pause(1)
-            break
+
+
+

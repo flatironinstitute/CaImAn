@@ -85,7 +85,8 @@ class CNMF(object):
                  remove_very_bad_comps=False, border_pix=0, low_rank_background=True, 
                  update_background_components=True, rolling_sum = True, rolling_length = 100,
                  min_corr=.85, min_pnr=20, deconvolve_options_init=None, ring_size_factor=1.5,
-				 center_psf=True):
+				 center_psf=True,  use_dense=True, deconv_flag = True,
+                 simultaneously=False, n_refit=0):
         """
         Constructor of the CNMF method
 
@@ -213,6 +214,16 @@ class CNMF(object):
 		
 		expected_comps: int
             number of expected components (try to exceed the expected)
+            
+        deconv_flag :    bool, optional
+            If True, deconvolution is also performed using OASIS
+
+        simultaneously : bool, optional
+            If true, demix and denoise/deconvolve simultaneously. Slower but can be more accurate.
+
+        n_refit : int, optional
+            Number of pools (cf. oasis.pyx) prior to the last one that are refitted when
+            simultaneously demixing and denoising/deconvolving.
 			
         Returns:
         --------
@@ -277,6 +288,11 @@ class CNMF(object):
         self.num_times_comp_updated = num_times_comp_updated
         self.max_comp_update_shape = max_comp_update_shape
         self.batch_update_suff_stat = batch_update_suff_stat
+        self.use_dense=use_dense
+        self.deconv_flag = deconv_flag
+        self.simultaneously=simultaneously
+        self.n_refit=n_refit
+        
 		
         self.min_corr = min_corr
         self.min_pnr = min_pnr
@@ -665,8 +681,7 @@ class CNMF(object):
         return self
 
     @profile
-    def fit_next(self, t, frame_in, num_iters_hals=3, use_dense=True, deconv_flag = True,
-                 simultaneously=False, n_refit=0):
+    def fit_next(self, t, frame_in, num_iters_hals=3):
         """
         This method fits the next frame using the online cnmf algorithm and updates the object.
 
@@ -681,15 +696,7 @@ class CNMF(object):
         num_iters_hals: int, optional
             maximal number of iterations for HALS (NNLS via blockCD)
             
-        deconv_flag :    bool, optional
-            If True, deconvolution is also performed using OASIS
-
-        simultaneously : bool, optional
-            If true, demix and denoise/deconvolve simultaneously. Slower but can be more accurate.
-
-        n_refit : int, optional
-            Number of pools (cf. oasis.pyx) prior to the last one that are refitted when
-            simultaneously demixing and denoising/deconvolving.
+        
         """
 
         t_start = time()
@@ -702,15 +709,15 @@ class CNMF(object):
 #        print(np.max(1/scipy.sparse.linalg.norm(self.Ab,axis = 0)))
         self.Yr_buf.append(frame)
         
-        if not deconv_flag:
+        if not self.deconv_flag:
             simultaneously = False
         
-        if not simultaneously:
+        if not self.simultaneously:
             # get noisy fluor value via NNLS (project data on shapes & demix)
             C_in = self.noisyC[:self.M, t - 1].copy()
             self.noisyC[:self.M, t] = HALS4activity(
                 frame, self.Ab, C_in, self.AtA, iters=num_iters_hals, groups=self.groups)
-            if deconv_flag:
+            if self.deconv_flag:
             # denoise & deconvolve
                 for i, o in enumerate(self.OASISinstances):
                     o.fit_next(self.noisyC[nb_ + i, t])
@@ -725,14 +732,14 @@ class CNMF(object):
             self.C_on[:, t] = self.C_on[:, t - 1]
             self.noisyC[:, t] = self.C_on[:, t - 1]
             self.AtY_buf = np.concatenate((self.AtY_buf[:, 1:], self.Ab.T.dot(frame)[:, None]), 1) \
-                if n_refit else self.Ab.T.dot(frame)[:, None]
+                if self.n_refit else self.Ab.T.dot(frame)[:, None]
             # demix, denoise & deconvolve
             (self.C_on[:self.M, t + 1 - mbs:t + 1], self.noisyC[:self.M, t + 1 - mbs:t + 1],
                 self.OASISinstances) = demix_and_deconvolve(
                 self.C_on[:self.M, t + 1 - mbs:t + 1],
                 self.noisyC[:self.M, t + 1 - mbs:t + 1],
                 self.AtY_buf, self.AtA, self.OASISinstances, iters=num_iters_hals,
-                n_refit=n_refit)
+                n_refit=self.n_refit)
             for i, o in enumerate(self.OASISinstances):
                 self.C_on[nb_ + i, t - o.get_l_of_last_pool() + 1: t + 1] = o.get_c_of_last_pool()
 
@@ -763,7 +770,7 @@ class CNMF(object):
                 groups=self.groups, batch_update_suff_stat=self.batch_update_suff_stat, gnb=self.gnb,
                 sn=self.sn, g=np.mean(self.g) if self.p == 1 else np.mean(self.g, 0),
                 lam=self.lam.mean(), thresh_s_min=self.thresh_s_min, s_min=self.s_min,
-                Ab_dense=self.Ab_dense[:, :self.M] if use_dense else None,
+                Ab_dense=self.Ab_dense[:, :self.M] if self.use_dense else None,
                 oases=self.OASISinstances)
 
             num_added = len(self.ind_A) - self.N
@@ -779,7 +786,7 @@ class CNMF(object):
                     # np.resize didn't work, but refcheck=False seems fine
                     self.C_on.resize([self.expected_comps + nb_, self.C_on.shape[-1]], refcheck=False)
                     self.noisyC.resize([self.expected_comps + nb_, self.C_on.shape[-1]])
-                    if use_dense:  # resize won't work due to contingency issue
+                    if self.use_dense:  # resize won't work due to contingency issue
                         # self.Ab_dense.resize([self.CY.shape[-1], self.expected_comps+nb_])
                         self.Ab_dense = np.zeros((self.CY.shape[-1], self.expected_comps + nb_),
                                                  dtype=np.float32)
@@ -797,16 +804,16 @@ class CNMF(object):
                     # N.B. OASISinstances are already updated within update_num_components
                     self.C_on[_ct, t - mbs + 1:t +
                               1] = self.OASISinstances[_ct - nb_].get_c(mbs)
-                    if simultaneously and n_refit:
+                    if self.simultaneously and self.n_refit:
                         self.AtY_buf = np.concatenate((
                             self.AtY_buf, [Ab_.data[Ab_.indptr[_ct]:Ab_.indptr[_ct + 1]].dot(
                                 self.Yr_buf.T[Ab_.indices[Ab_.indptr[_ct]:Ab_.indptr[_ct + 1]]])]))
-                    if use_dense:  # much faster than Ab_[:, self.N + nb_ - num_added:].toarray()
+                    if self.use_dense:  # much faster than Ab_[:, self.N + nb_ - num_added:].toarray()
                         self.Ab_dense[Ab_.indices[Ab_.indptr[_ct]:Ab_.indptr[_ct + 1]],
                                       _ct] = Ab_.data[Ab_.indptr[_ct]:Ab_.indptr[_ct + 1]]
 
                 # set the update counter to 0 for components that are overlaping the newly added
-                if use_dense:
+                if self.use_dense:
                     idx_overlap = np.concatenate([
                         self.Ab_dense[self.ind_A[_ct], nb_:self.M - num_added].T.dot(
                             self.Ab_dense[self.ind_A[_ct], _ct + nb_]).nonzero()[0]
@@ -859,7 +866,7 @@ class CNMF(object):
                 else:
                     indicator_components = None
 
-                if use_dense:
+                if self.use_dense:
                     # update dense Ab and sparse Ab simultaneously;
                     # this is faster than calling update_shapes with sparse Ab only
                     Ab_, self.ind_A, self.Ab_dense[:, :self.M] = update_shapes(
@@ -882,7 +889,7 @@ class CNMF(object):
                     indicator_components = candidates[:self.N // mbs + 1]
                     self.update_counter[indicator_components] += 1
 
-                    if use_dense:
+                    if self.use_dense:
                         # update dense Ab and sparse Ab simultaneously;
                         # this is faster than calling update_shapes with sparse Ab only
                         Ab_, self.ind_A, self.Ab_dense[:, :self.M] = update_shapes(
