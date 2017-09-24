@@ -110,7 +110,7 @@ params_movie = {'fname': fls,
                'only_init_patch': True,
                'gnb': 2,
                'memory_fact': 1,
-               'n_chunks': 20,
+               'n_chunks': 50,
                'update_background_components': True,# whether to update the background components in the spatial phase
                'low_rank_background': True  #whether to update the using a low rank approximation. In the False case all the nonzero elements of the background components are updated using hals    
                                      #(to be used with one background per patch)                              
@@ -282,7 +282,7 @@ else:
     print('One file only, not saving!')
     fname_new = name_new[0]
 print(time.time()-t1)
-
+t_b_1 = time.time() - t1
 # %% LOAD MEMMAP FILE
 # fname_new='Yr_d1_501_d2_398_d3_1_order_F_frames_369_.mmap'
 Yr, dims, T = cm.load_memmap(fname_new)
