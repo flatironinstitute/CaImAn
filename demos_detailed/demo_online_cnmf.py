@@ -27,7 +27,7 @@ from caiman.source_extraction.cnmf.online_cnmf import RingBuffer
 from caiman.components_evaluation import evaluate_components
 import cv2
 from caiman.utils.visualization import plot_contours
-import cPickle as pickle
+import pickle as pickle
 import glob
 
 
@@ -87,9 +87,11 @@ fls_starts = ['/Users/agiovann/data/J115_2015_12_09/Yr_reduced*.mmap',
               '/opt/local/Data/Sue/k53/k53_20160530_RSM_125um_41mW_zoom2p2_00001_000*.tif',
               '/opt/local/Data/Sue/k53/k53_crop.tif',
               '/opt/local/Data/Johannes/johannes_bad.tif',
-              '/opt/local/Data/Sue/k59_20161121_MMP_150um_47mW940nm_zoom4p2_*_g.tif']
+              '/opt/local/Data/Sue/k59_20161121_MMP_150um_47mW940nm_zoom4p2_*_g.tif',
+              '/home/andrea/CaImAn/example_movies/13800_1_0001_00002_0000*.tif'
+              ]
 
-fls_start = fls_starts[0]
+fls_start = fls_starts[-1]
 fls = glob.glob(fls_start)
 fls.sort()
 print(fls)
@@ -193,6 +195,24 @@ elif fls_start == fls_starts[5]:
     thresh_fitness_raw = -50
     max_shift = None
     mot_corr = False
+elif fls_start == fls_starts[5]:
+    ds = 2
+    init_files = 1
+    online_files = 38
+    initbatch = 3000
+    T1 = 117000
+    expected_comps = 1200
+    rval_thr = 0.9
+    thresh_fitness_delta = -30
+    thresh_fitness_raw = -50
+    max_shift = 20 // ds
+    mot_corr = True
+    gSig = tuple(np.array([7, 7]) // ds + 1)  # expected half size of neurons
+    rf = 14 // ds
+    stride = 4 // ds
+    K = 4
+    merge_thresh = 0.8
+    p = 1
 else:
     raise Exception('File not defined')
 #%%

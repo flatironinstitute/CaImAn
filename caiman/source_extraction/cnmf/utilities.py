@@ -640,7 +640,9 @@ def update_order(A, new_a = None, prev_list = None):
                 break
         
         if counter == 0:
-            prev_list.append([K])
+            if prev_list is not None:
+                prev_list = list(prev_list)
+                prev_list.append([K])
         
 #        prev_list.sort(key=len)
         count_list = [len(gr) for gr in prev_list]

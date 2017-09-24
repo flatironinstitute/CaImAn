@@ -577,7 +577,7 @@ class CNMF(object):
         self.A2 /= nA
         self.C2 *= nA[:, None]
         self.YrA2 *= nA[:, None]
-        self.S2 *= nA[:, None]
+#        self.S2 *= nA[:, None]
         self.neurons_sn2 *= nA
         self.lam2 *= nA
         z = np.sqrt([b.T.dot(b) for b in self.b2.T])
@@ -665,7 +665,7 @@ class CNMF(object):
         return self
 
     @profile
-    def fit_next(self, t, frame_in, num_iters_hals=3, use_dense=True,
+    def fit_next(self, t, frame_in, num_iters_hals=3, use_dense=True, deconv_flag = True,
                  simultaneously=False, n_refit=0):
         """
         This method fits the next frame using the online cnmf algorithm and updates the object.
@@ -680,6 +680,9 @@ class CNMF(object):
 
         num_iters_hals: int, optional
             maximal number of iterations for HALS (NNLS via blockCD)
+            
+        deconv_flag :    bool, optional
+            If True, deconvolution is also performed using OASIS
 
         simultaneously : bool, optional
             If true, demix and denoise/deconvolve simultaneously. Slower but can be more accurate.
@@ -698,17 +701,25 @@ class CNMF(object):
         frame = frame_in.astype(np.float32)
 #        print(np.max(1/scipy.sparse.linalg.norm(self.Ab,axis = 0)))
         self.Yr_buf.append(frame)
-
+        
+        if not deconv_flag:
+            simultaneously = False
+        
         if not simultaneously:
             # get noisy fluor value via NNLS (project data on shapes & demix)
             C_in = self.noisyC[:self.M, t - 1].copy()
             self.noisyC[:self.M, t] = HALS4activity(
                 frame, self.Ab, C_in, self.AtA, iters=num_iters_hals, groups=self.groups)
+            if deconv_flag:
             # denoise & deconvolve
-            for i, o in enumerate(self.OASISinstances):
-                o.fit_next(self.noisyC[nb_ + i, t])
-                self.C_on[nb_ + i, t - o.get_l_of_last_pool() + 1: t + 1] = o.get_c_of_last_pool()
-            self.C_on[:nb_, t] = self.noisyC[:nb_, t]
+                for i, o in enumerate(self.OASISinstances):
+                    o.fit_next(self.noisyC[nb_ + i, t])
+                    self.C_on[nb_ + i, t - o.get_l_of_last_pool() + 1: t + 1] = o.get_c_of_last_pool()
+                self.C_on[:nb_, t] = self.noisyC[:nb_, t]
+            else:
+            # just denoise
+                self.C_on[:, t] = self.noisyC[:, t]
+                
         else:
             # update buffer, initialize C with previous value
             self.C_on[:, t] = self.C_on[:, t - 1]

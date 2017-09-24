@@ -86,6 +86,9 @@ def extract_binary_masks_from_structural_channel(Y,min_area_size = 30, min_hole_
     -------
     A:                  sparse column format matrix
                         matrix of binary masks to be used for CNMF seeding
+                        
+    mR:                 np.array
+                        mean image used to detect cell boundaries
     """
     
     mR = Y.mean(axis=0)
@@ -107,7 +110,7 @@ def extract_binary_masks_from_structural_channel(Y,min_area_size = 30, min_hole_
             
         A[:,i] = temp.flatten('F')
     
-    return A
+    return A, mR
 
 
 #%% 
