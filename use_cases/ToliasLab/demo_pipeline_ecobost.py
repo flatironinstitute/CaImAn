@@ -1,15 +1,4 @@
-##@package demos  
-#\brief      for the user/programmer to understand and try the code
-#\details    all of other usefull functions (demos available on jupyter notebook) -*- coding: utf-8 -*- 
-#\version   1.0
-#\pre       EXample.First initialize the system.
-#\bug       
-#\warning   
-#\copyright GNU General Public License v2.0 
-#\date Created on Mon Nov 21 15:53:15 2016
-#\author agiovann
-#toclean
-#%%
+#%% test for OFFLINE CNMF
 from __future__ import division
 from __future__ import print_function
 from builtins import zip
