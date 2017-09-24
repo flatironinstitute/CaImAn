@@ -26,17 +26,22 @@ initbatch = 100
 T1 = 5000
 expected_comps = 500
 K = 1
-gSig = [3, 3]  # expected half size of neurons
-rval_thr = .85
+gSig = [2, 2]  # expected half size of neurons
+rval_thr = .9
 thresh_fitness_delta = -30
 thresh_fitness_raw = -30
 
 Y = cm.load(fname, subindices = slice(0,initbatch,None)).astype(np.float32)
 Yr = Y.transpose(1,2,0).reshape((np.prod(Y.shape[1:]),-1), order='F')
 
+img_min = Y.min()
+Y -= img_min
+img_norm = np.std(Y, axis=0)
+img_norm += np.median(img_norm)
+Y = Y / img_norm[None, :, :]
+
 Cn_init = Y.local_correlations(swap_dim = False)
 pl.imshow(Cn_init)
-#%%
 #%%
 cnm_init = bare_initialization(Y[:initbatch].transpose(1, 2, 0),init_batch=initbatch,k=K,gnb=1,
                                  gSig=gSig, merge_thresh=0.8,
@@ -47,10 +52,13 @@ cnm_init = bare_initialization(Y[:initbatch].transpose(1, 2, 0),init_batch=initb
                                  batch_update_suff_stat=True, max_comp_update_shape=5)
 
 crd = plot_contours(cnm_init.A.tocsc(), Cn_init, thr=0.9)
+
 #%% RUN ALGORITHM ONLINE
 cnm = deepcopy(cnm_init)
 cnm._prepare_object(np.asarray(Yr), T1, expected_comps)
+pl.imshow( cnm.Ab.dot(cnm.C_on[:cnm.M, initbatch-1]).reshape(cnm.dims, order='F'))
 cnm.max_comp_update_shape = np.inf
+#%%
 cnm.update_num_comps = True
 t = cnm.initbatch
 max_shift = 5

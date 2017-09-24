@@ -162,13 +162,13 @@ if fname[0] in ['Sue_2x_3000_40_-46.tif','demoMovieJ.tif']:
 m_orig = cm.load_movie_chain(fname[:1])
 offset_mov = -np.min(m_orig[:100])
 
-del m_orig
 # %% play movie
 downsample_ratio = params_display['downsample_ratio']
 #%%
 if isscreen:
     m_orig.resize(1, 1, downsample_ratio).play(
-            gain=3, offset=offset_mov, fr=30, magnification=1)
+            gain=1, offset=offset_mov, fr=30, magnification=1)
+del m_orig
 
 # %% RUN ANALYSIS
 c, dview, n_processes = cm.cluster.setup_cluster(
