@@ -655,7 +655,7 @@ class CNMF(object):
         self.AtA = (self.Ab.T.dot(self.Ab)).toarray()
         self.AtY_buf = self.Ab.T.dot(self.Yr_buf.T)
         self.sv = np.sum(self.rho_buf.get_last_frames(self.initbatch), 0)
-        self.groups = map(list, update_order(self.Ab)[0])
+        self.groups = list(map(list, update_order(self.Ab)[0]))
         # self.update_counter = np.zeros(self.N)
         self.update_counter = .5**(-np.linspace(0, 1, self.N, dtype=np.float32))
         self.time_neuron_added = []

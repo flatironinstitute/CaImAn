@@ -1,5 +1,5 @@
 future
-numpy
+numpy==1.12.1
 scipy
 ipython
 ipyparallel
@@ -9,5 +9,5 @@ scikit-image
 scikit-learn
 h5py
 cython
-spyder
+spyder==3.1.2
 nose
