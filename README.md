@@ -121,6 +121,10 @@ Recent advances in calcium imaging acquisition techniques are creating datasets 
     conda update --all
     
     ```
+### Installation neural network component classifier
+ ```bash
+ conda install -c conda-forge keras
+ ```
  
 ### Installation for behavioral analysis
 * Installation on Linux (windows and mac os are problematic with anaconda at the moment)
