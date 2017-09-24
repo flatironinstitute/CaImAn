@@ -36,15 +36,16 @@ import os
 from copy import deepcopy
 from caiman.summary_images import max_correlation_image
 
-#%% construct the seeding matrix using the structural channel
+#%% construct the seeding matrix using the structural channel (note that some components are missed - thresholding can be improved)
+
 
 filename = 'example_movies/gmc_980_30mw_00001_red.tif'
-Ain, mR = cm.base.rois.extract_binary_masks_from_structural_channel(cm.load(filename))
-pl.figure(); crd = cm.utils.visualization.plot_contours(Ain.astype('float32'), mR, thr=0.95)
+Ain, mR = cm.base.rois.extract_binary_masks_from_structural_channel(cm.load(filename), expand_method='dilation', selem=np.ones((3,3)))
+pl.figure(); crd = cm.utils.visualization.plot_contours(Ain.astype('float32'), mR, thr=0.99)
 pl.title('Contour plots of detected ROIs in the structural channel')
 
 #%% choose whether to use online algorithm (OnACID) or offline (CNMF)
-use_online = True
+use_online = False
 
 #%% some common parameters
 K = 5  # number of neurons expected per patch (nuisance parameter in this case)
@@ -55,7 +56,7 @@ p = 1  # order of the autoregressive system
 if use_online:
     #%% prepare parameters
     fnames = 'example_movies/gmc_980_30mw_00001_green.tif'
-    rval_thr = .85
+    rval_thr = .95
     thresh_fitness_delta = -30
     thresh_fitness_raw = -30
     initbatch = 100         # use the first initbatch frames to initialize OnACID
@@ -115,7 +116,7 @@ if use_online:
     dims = Y.shape[1:]
     cm.utils.visualization.view_patches_bar(Yr, A, C, cnm.b, cnm.C_on[:cnm.gnb],
                                             dims[0], dims[1], YrA=cnm.noisyC[cnm.gnb:cnm.M] - C, img=Cn)
-    
+#%%    
 else:  # run offline CNMF algorithm
     #%% start cluster    
     c,dview,n_processes = cm.cluster.setup_cluster(backend = 'local',n_processes = None,single_thread = False)
@@ -169,7 +170,7 @@ else:  # run offline CNMF algorithm
     # a lot of components will be removed because presumably they are not active
     # during these 2000 frames of the experiment
     
-    final_frate = 10# approximate frame rate of data
+    final_frate = 15 # approximate frame rate of data
     Npeaks = 10
     traces = C + YrA
     fitness_raw, fitness_delta, erfc_raw, erfc_delta, r_values, significant_samples = \

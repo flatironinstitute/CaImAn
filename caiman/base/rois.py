@@ -14,7 +14,7 @@ from builtins import range
 from past.utils import old_div
 from scipy.ndimage.filters import gaussian_filter
 from scipy.ndimage import label,center_of_mass
-from skimage.morphology import remove_small_objects, opening, remove_small_holes, closing
+from skimage.morphology import remove_small_objects, opening, remove_small_holes, closing, dilation
 import scipy 
 import numpy as np
 import cv2
@@ -62,7 +62,7 @@ def com(A, d1, d2):
     return cm
 
 #%% 
-def extract_binary_masks_from_structural_channel(Y,min_area_size = 30, min_hole_size = 15, gSig = 5, expand_flag = True):
+def extract_binary_masks_from_structural_channel(Y,min_area_size = 30, min_hole_size = 15, gSig = 5, expand_method = 'closing', selem = np.ones((3,3))):
     """Extract binary masks by using adaptive thresholding on a structural channel
     
     Inputs:
@@ -79,8 +79,11 @@ def extract_binary_masks_from_structural_channel(Y,min_area_size = 30, min_hole_
     gSig:               int
                         average radius of cell
                         
-    expand_flag:        boolean
-                        expans each binary mask with morphological closing
+    expand_method:      string
+                        method to expand binary masks (morphological closing or dilation)
+                        
+    selem:              np.array
+                        morphological element with which to expand binary masks
                         
     Output:
     -------
@@ -105,8 +108,10 @@ def extract_binary_masks_from_structural_channel(Y,min_area_size = 30, min_hole_
     
     for i in range(areas[1]):
         temp = (areas[0]==i+1)
-        if expand_flag:
-            temp = closing(temp, selem = np.ones((2,2)))
+        if expand_method is 'dilation':
+            temp = dilation(temp, selem = selem)
+        elif expand_method is 'closing':
+            temp = dilation(temp, selem = selem)
             
         A[:,i] = temp.flatten('F')
     
