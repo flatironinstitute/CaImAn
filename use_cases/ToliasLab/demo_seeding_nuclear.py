@@ -1,10 +1,29 @@
 #!/usr/bin/env python2
 # -*- coding: utf-8 -*-
 """
-Created on Wed Sep 20 18:50:11 2017
+
+Demo for detecting ROIs in a structural channel and then seeding CNMF with them.
+Detection happens through simple adaptive thresholding of the mean image and 
+could potentially be improved. Then the structural channel is processed. Both
+offline and online approaches are included. 
+
+The offline approach will only use the seeded masks, whereas online will also 
+search for new components during the analysis.
+
+The demo assumes that both channels are motion corrected prior to the analysis. 
 
 @author: epnevmatikakis
 """
+
+try:
+    if __IPYTHON__:
+        print('Debugging!')
+        # this is used for debugging purposes only. allows to reload classes when changed
+        get_ipython().magic('load_ext autoreload')
+        get_ipython().magic('autoreload 2')
+except NameError:
+    print('Not IPYTHON')
+    pass
 
 import numpy as np
 import glob
@@ -12,36 +31,39 @@ import pylab as pl
 import caiman as cm
 from caiman.components_evaluation import evaluate_components
 from caiman.source_extraction.cnmf import cnmf as cnmf
-from caiman.source_extraction.cnmf.online_cnmf import bare_initialization, seeded_initialization
+from caiman.source_extraction.cnmf.online_cnmf import seeded_initialization
 import os
 from copy import deepcopy
 from caiman.summary_images import max_correlation_image
 
-#%% construct the seeding matrix
+#%% construct the seeding matrix using the structural channel
 
 filename = '/Users/epnevmatikakis/Documents/Ca_datasets/Tolias/nuclear/gmc_980_30mw_00001_red.tif'
-Ain = cm.base.rois.extract_binary_masks_from_structural_channel(cm.load(filename))
+Ain, mR = cm.base.rois.extract_binary_masks_from_structural_channel(cm.load(filename))
+pl.figure(); crd = cm.utils.visualization.plot_contours(Ain.astype('float32'), mR, thr=0.95)
+pl.title('Contour plots of detected ROIs in the structural channel')
+
+#%% choose whether to use online algorithm (OnACID) or offline (CNMF)
 use_online = True
-#%%
-K = 5  # number of neurons expected per patch
+
+#%% some common parameters
+K = 5  # number of neurons expected per patch (nuisance parameter in this case)
 gSig = [7, 7]  # expected half size of neurons
 merge_thresh = 0.8  # merging threshold, max correlation allowed
 p = 1  # order of the autoregressive system
 #%%
 if use_online:
     #%% prepare parameters
+    fnames = '/Users/epnevmatikakis/Documents/Ca_datasets/Tolias/nuclear/gmc_980_30mw_00001_green.tif'
     rval_thr = .85
     thresh_fitness_delta = -30
     thresh_fitness_raw = -30
-    initbatch = 100
-    T1 = 2000
-    expected_comps = 500
-    Y = cm.load(filename, subindices = slice(0,initbatch,None)).astype(np.float32)
+    initbatch = 100         # use the first initbatch frames to initialize OnACID
+    T1 = 2000               # length of dataset (currently needed to allocate matrices)
+    expected_comps = 500    # maximum number of components
+    Y = cm.load(fnames, subindices = slice(0,initbatch,None)).astype(np.float32)
     Yr = Y.transpose(1,2,0).reshape((np.prod(Y.shape[1:]),-1), order='F')
-    
-    Cn_init = Y.local_correlations(swap_dim = False)
-    pl.imshow(Cn_init)
-    
+        
     #%% run seeded initialization
     cnm_init = seeded_initialization(Y[:initbatch].transpose(1, 2, 0), Ain = Ain, init_batch=initbatch, gnb=1,
                                       gSig=gSig, merge_thresh=0.8,
@@ -50,29 +72,34 @@ if use_online:
                                       thresh_fitness_delta=thresh_fitness_delta,
                                       thresh_fitness_raw=thresh_fitness_raw,
                                       batch_update_suff_stat=True, max_comp_update_shape=5)
-
-    crd = cm.utils.visualization.plot_contours(cnm_init.A.tocsc(), Cn_init, thr=0.9)
     
+    Cn_init = Y.local_correlations(swap_dim = False)
+    pl.figure();
+    crd = cm.utils.visualization.plot_contours(cnm_init.A.tocsc(), Cn_init, thr=0.9);
+    pl.title('Contour plots of detected ROIs in the structural channel')
+
+        # contour plot after seeded initialization. Note how the contours are not clean since there is no activity
+        # for most of the ROIs during the first initbatch frames
     #%% run OnACID
     cnm = deepcopy(cnm_init)
-    cnm._prepare_object(np.asarray(Yr), T1, expected_comps)
+    cnm._prepare_object(np.asarray(Yr), T1, expected_comps) # prepare the object to run OnACID
     cnm.max_comp_update_shape = np.inf
     cnm.update_num_comps = True
     t = cnm.initbatch
-    max_shift = 5
-    shifts = []
-    Y_ = cm.load(filename, subindices = slice(t,T1,None)).astype(np.float32)
-    #Y_,shifts, xcorr,_ = Y_.motion_correct(5,5,template =  cnm.Ab.dot(cnm.C_on[:cnm.M, t - 1]).reshape(cnm.dims, order='F'))
+
+    Y_ = cm.load(fnames, subindices = slice(t,T1,None)).astype(np.float32)
+    
     Cn = max_correlation_image(Y_, swap_dim = False)
 
     for frame_count, frame in enumerate(Y_):
         if frame_count%100 == 99:
             print([frame_count, cnm.Ab.shape])
-        
-#    templ = cnm.Ab.dot(cnm.C_on[:cnm.M, t - 1]).reshape(cnm.dims, order='F')
+
+#   no motion correction here        
+#    templ = cnm.Ab.dot(cnm.C_on[:cnm.M, t - 1]).reshape(cnm.dims, order='F') 
 #    frame_cor, shift = motion_correct_iteration_fast(frame, templ, max_shift, max_shift)
 #    shifts.append(shift)
-        cnm.fit_next(t, frame.copy().reshape(-1, order='F'))
+        cnm.fit_next(t, frame.copy().reshape(-1, order='F'), simultaneously=True)
         t += 1
 
     C = cnm.C_on[cnm.gnb:cnm.M]
@@ -82,17 +109,19 @@ if use_online:
     #%% plot some results
     pl.figure()     
     crd = cm.utils.visualization.plot_contours(A, Cn, thr=0.9)
-    #%%
-    dims = Y.shape[1:]
-    view_patches_bar(Yr, A, C, cnm.b, cnm.C_on[:cnm.gnb],
-                 dims[0], dims[1], YrA=cnm.noisyC[cnm.gnb:cnm.M] - C, img=Cn)
+    pl.title('Contour plots of components in the functional channel')
 
+    #%% view components. Last components are the components added by OnACID
+    dims = Y.shape[1:]
+    cm.utils.visualization.view_patches_bar(Yr, A, C, cnm.b, cnm.C_on[:cnm.gnb],
+                                            dims[0], dims[1], YrA=cnm.noisyC[cnm.gnb:cnm.M] - C, img=Cn)
     
-    #%%
-else:
-    #%% start cluster
+else:  # run offline CNMF algorithm
+    #%% start cluster    
     c,dview,n_processes = cm.cluster.setup_cluster(backend = 'local',n_processes = None,single_thread = False)
+    
     #%% FOR LOADING ALL TIFF FILES IN A FILE AND SAVING THEM ON A SINGLE MEMORY MAPPABLE FILE
+    
     fnames = ['/Users/epnevmatikakis/Documents/Ca_datasets/Tolias/nuclear/gmc_980_30mw_00001_green.tif'] # can actually be a lost of movie to concatenate
     add_to_movie=0 # the movie must be positive!!!
     downsample_factor= .5 # use .2 or .1 if file is large and you want a quick answer
@@ -100,30 +129,46 @@ else:
     name_new=cm.save_memmap_each(fnames, dview=dview,base_name=base_name, resize_fact=(1, 1, downsample_factor),add_to_movie=add_to_movie)
     name_new.sort()
     fname_new = cm.save_memmap_join(name_new, base_name='Yr', dview=dview)
+    
     #%% LOAD MEMORY MAPPABLE FILE
+    
     Yr, dims, T = cm.load_memmap(fname_new)
     d1, d2 = dims
     images = np.reshape(Yr.T, [T] + list(dims), order='F')
     Y = np.reshape(Yr, dims + (T,), order='F')
+    
     #%% play movie, press q to quit
+   
     play_movie = False
     if play_movie:     
         cm.movie(images).play(fr=50,magnification=3,gain=2.)
+    
     #%% movie cannot be negative!
+    
     if np.min(images)<0:
         raise Exception('Movie too negative, add_to_movie should be larger')
+    
     #%% correlation image. From here infer neuron size and density
+    
     Cn = cm.movie(images)[:3000].local_correlations(swap_dim=False)
-    pl.imshow(Cn,cmap='gray')  
-    #%%
+    
+    #%% run  seeded CNMF 
 
     cnm = cnmf.CNMF(n_processes, method_init='greedy_roi', k=Ain.shape[1], gSig=gSig, merge_thresh=merge_thresh,
                     p=p, dview=dview, Ain=Ain,method_deconvolution='oasis',rolling_sum = False, rf=None)
     cnm = cnm.fit(images)
     A, C, b, f, YrA, sn = cnm.A, cnm.C, cnm.b, cnm.f, cnm.YrA, cnm.sn
-    #%%
+    
+    #%% plot contours of components
+    
+    pl.figure();
     crd = cm.utils.visualization.plot_contours(cnm.A, Cn, thr=0.9)
-    #%% evaluate the quality of the components
+    pl.title('Contour plots against correlation image')
+    
+    #%% evaluate the quality of the components 
+    # a lot of components will be removed because presumably they are not active
+    # during these 2000 frames of the experiment
+    
     final_frate = 10# approximate frame rate of data
     Npeaks = 10
     traces = C + YrA
