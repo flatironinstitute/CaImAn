@@ -45,7 +45,7 @@ pl.figure(); crd = cm.utils.visualization.plot_contours(Ain.astype('float32'), m
 pl.title('Contour plots of detected ROIs in the structural channel')
 
 #%% choose whether to use online algorithm (OnACID) or offline (CNMF)
-use_online = False
+use_online = True
 
 #%% some common parameters
 K = 5  # number of neurons expected per patch (nuisance parameter in this case)
