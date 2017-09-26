@@ -123,7 +123,7 @@ Recent advances in calcium imaging acquisition techniques are creating datasets 
     ```
 ### Installation neural network component classifier
  ```bash
- conda install -c conda-forge keras
+ conda install -c conda-forge tensorflow keras
  ```
  
 ### Installation for behavioral analysis
