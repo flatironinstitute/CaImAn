@@ -1,7 +1,7 @@
-from caiman.source_extraction import cnmf as cnmf
 import numpy.testing as npt
 import numpy as np
 from scipy.ndimage.filters import gaussian_filter
+from caiman.source_extraction import cnmf as cnmf
 
 
 def gen_data(D=3, noise=.5, T=300, framerate=30, firerate=2.):
