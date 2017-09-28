@@ -25,6 +25,7 @@ from sklearn.utils.extmath import fast_dot
 from caiman.source_extraction.cnmf import oasis
 from sklearn.decomposition import NMF 
 from sklearn.preprocessing import normalize
+import pickle
 #from caiman.source_extraction.cnmf import cnmf
 
 try:
@@ -1253,3 +1254,15 @@ def initialize_movie_online(Y, K, gSig, rf, stride, base_name,
     
 
     return cnm_refine, Cn2, fname_new
+    
+#%%
+def save_object(obj, filename):
+    with open(filename, 'wb') as output:
+        pickle.dump(obj, output, pickle.HIGHEST_PROTOCOL)
+
+
+def load_object(filename):
+    with open(filename, 'rb') as input_obj:
+        obj = pickle.load(input_obj)
+    return obj
+    
