@@ -70,7 +70,7 @@ def download_demo(name='Sue_2x_3000_40_-46.tif',save_folder= ''):
     if os.path.exists(base_folder):        
          if not os.path.isdir(os.path.join(base_folder,save_folder)):
              os.makedirs(os.path.join(base_folder,save_folder))
-         path_movie = os.path.join(base_folder,name)
+         path_movie = os.path.join(base_folder,save_folder,name)
          if not os.path.exists(path_movie):        
                 url = file_dict[name]
                 print( "downloading "+ name +"with urllib" )

@@ -20,6 +20,7 @@ from time import time
 import caiman as cm
 from caiman.source_extraction import cnmf as cnmf
 from caiman.utils.visualization import view_patches_bar
+from caiman.utils.utils import download_demo
 import pylab as pl
 import scipy
 from caiman.motion_correction import motion_correct_iteration_fast
@@ -29,9 +30,14 @@ import glob
 from caiman.source_extraction.cnmf.online_cnmf import bare_initialization, initialize_movie_online, load_object, save_object, RingBuffer
 from copy import deepcopy
 
-#%%  list all files to be processed
+#%%  download and list all files to be processed
 
-folder_name = './example_movies/Mesoscope'          # folder where files are located
+fld_name = 'Mesoscope'                              # folder inside ./example_movies where files will be saved
+download_demo('Tolias_mesoscope_1.hdf5',fld_name)
+download_demo('Tolias_mesoscope_2.hdf5',fld_name)
+download_demo('Tolias_mesoscope_3.hdf5',fld_name)
+
+folder_name = './example_movies/'+fld_name          # folder where files are located
 extension = 'hdf5'                                  # extension of files
 fls = glob.glob(folder_name+'/*' + extension)       # read all files to be processed 
 
@@ -53,7 +59,7 @@ thresh_fitness_raw = -40                            #
 mot_corr = True                                     # flag for online motion correction 
 max_shift = np.ceil(10./ds_factor)                  # maximum allowed shift during motion correction
 gnb = 1                                             # number of background components
-epochs = 2                                          # number of passes over the data
+epochs = 1                                          # number of passes over the data
 len_file = 1000                                     # upper bound for number of frames in each file (used right below)
 T1 = len(fls)*len_file*epochs                       # total length of all files (if not known use a large number, then truncate at the end)
 gSig = tuple(np.ceil(np.array(gSig)/ds_factor).astype('int'))
