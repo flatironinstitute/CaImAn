@@ -14,22 +14,22 @@ A Computational toolbox for large scale **Ca**lcium **Im**aging data **An**alysi
 Recent advances in calcium imaging acquisition techniques are creating datasets of the order of Terabytes/week. Memory and computationally efficient algorithms are required to analyze in reasonable amount of time terabytes of data. This projects implements a set of essential methods required in the calcium imaging movies analysis pipeline. Fast and scalable algorithms are implemented for motion correction, movie manipulation, and source and spike extraction. CaImAn also contains some routine to the analyisis of behavior from video cameras. In summary, CaImAn provides a general purpose tool to handle large movies, with special emphasis tools for two-photon and one-photon calcium imaging and behavioral datasets. 
 
 
-### Features
+## Features
 
-* Handling of very large datasets
+* **Handling of very large datasets**
 
     * Memory mapping 
     * Parallel processing in patches
     * Frame-by-frame online processing
     * opencv-based efficient movie playing and resizing
 
-* Motion correction
+* **Motion correction**
 
     * Fast parallelizable open-cv and fft-based motion correction of large movies
     * Run also in online mode (i.e. one frame at a time)
     * non rigid motion correction
 
-* Source extraction 
+* **Source extraction** 
 
     * identification of pixes associated to each neuron/neuronal structure
     * deals with heavily overlaping and neuroopil contaminated movies 
@@ -37,19 +37,19 @@ Recent advances in calcium imaging acquisition techniques are creating datasets 
     * separates different sources based on Nonnegative Matrix Factorization algorithms
     * selection of inferred sources using a pre-trained convolutional neural network classifier
 
-* Denoising, deconvolution and spike extraction
+* **Denoising, deconvolution and spike extraction**
 
     * spikes can be inferred from fluorescence traces
     * also works in online mode (i.e. one sample at a time)
 
-* Behavioral Analysis ([paper](http://www.sciencedirect.com/science/article/pii/S0165027017302509))
+* **Behavioral Analysis**
 
     * unsupervised algorithms based on optical flow and NMF to automatically extract motor kinetics 
     * scales to large datasets by exploiting online dictionary learning
-    * we also developed a tool for acquiring movies at high speed with low cost equipment ([package](https://github.com/bensondaled/eyeblink)) 
+    * we also developed a tool for acquiring movies at high speed with low cost equipment [[package]](https://github.com/bensondaled/eyeblink). 
 
 
-### Installation for calcium imaging data analysis
+## Installation for calcium imaging data analysis
 
 
 * Installation on Mac 
@@ -119,7 +119,7 @@ Recent advances in calcium imaging acquisition techniques are creating datasets 
     conda update --all
     
     ```
- ### Installation neural network component classifier
+### Installation neural network component classifier
  ```bash
  conda install -c conda-forge tensorflow keras
  ```
@@ -129,10 +129,8 @@ Recent advances in calcium imaging acquisition techniques are creating datasets 
    * create a new environment (suggested for safety) and follow the instructions for the calcium imaging installation
    * Install spams, as explained [here](http://spams-devel.gforge.inria.fr/). Installation is not straightforward and it might take some trials to get it right
 
- 
-# Example
 
-  ### Demos
+## Demos
 
 * Notebooks : The notebooks provide a simple and friendly way to get into CaImAn and understand its main characteristics. 
 
@@ -150,9 +148,9 @@ Recent advances in calcium imaging acquisition techniques are creating datasets 
    
   * /!\ if you want to launch directly the python files, please be advised that your python console still needs to be in the CaImAn folder and not somewhere else. 
 
-# Testing
+## Testing
 
-* As of today, all of the commits needs to be previously tested before asking for a pull request. Call 'nosetests' program from inside of your CaImAn folder to look for errors. 
+* All of the commits and pull requests need to be previously tested before asking for a pull request. Call 'nosetests' program from inside of your CaImAn folder to look for errors. 
 
   ### general_test
 
@@ -171,11 +169,11 @@ Recent advances in calcium imaging acquisition techniques are creating datasets 
 
 A complete list of contributors can be found [here](https://github.com/simonsfoundation/CaImAn/graphs/contributors).
 
-### References
+# References
 
 The following references provide the theoretical background and original code for the included methods. 
 
-# Deconvolution and demixing of calcium imaging data
+### Deconvolution and demixing of calcium imaging data
 
 Pnevmatikakis, E.A., Soudry, D., Gao, Y., Machado, T., Merel, J., ... & Paninski, L. (2016). Simultaneous denoising, deconvolution, and demixing of calcium imaging data. Neuron 89(2):285-299, [[paper]](http://dx.doi.org/10.1016/j.neuron.2015.11.037), [[Github repository]](https://github.com/epnev/ca_source_extraction). 
 
@@ -185,20 +183,19 @@ Zhou, P., Resendez, S. L., Stuber, G. D., Kass, R. E., & Paninski, L. (2016). Ef
 
 Friedrich J. and Paninski L. Fast active set methods for online spike inference from calcium imaging. NIPS, 29:1984-1992, 2016. [[paper]](https://papers.nips.cc/paper/6505-fast-active-set-methods-for-online-spike-inference-from-calcium-imaging), [[Github repository]](https://github.com/j-friedrich/OASIS).
 
-# Online Analysis
+### Online Analysis
 
 Giovannucci, A., Friedrich J., Kaufman M., Churchland A., Chklovskii D., Paninski L., & Pnevmatikakis E.A. (2017). OnACID: Online analysis of calcium imaging data in real data. NIPS 2017, to appear.
 
-# Motion Correction
+### Motion Correction
 
 Pnevmatikakis, E.A., and Giovannucci A. (2017). NoRMCorre: An online algorithm for piecewise rigid motion correction of calcium imaging data. Journal of Neuroscience Methods, 291:83-92 [[paper]](https://doi.org/10.1016/j.jneumeth.2017.07.031), [[Github repository]](https://github.com/simonsfoundation/normcorre).
 
-# Behavioral analysis
+### Behavioral analysis
 
 Giovannucci, A., Pnevmatikakis, E. A., Deverett, B., Pereira, T., Fondriest, J., Brady, M. J., ... & Masip, D. (2017). Automated gesture tracking in head-fixed mice. Journal of Neuroscience Methods, in press. [[paper]](https://doi.org/10.1016/j.jneumeth.2017.07.014)
 
-Related packages
-=======
+## Related packages
 
 The implementation of this package is developed in parallel with a MATLAB toobox, which can be found [here](https://github.com/epnev/ca_source_extraction). 
 
@@ -208,8 +205,7 @@ Some tools that are currently available in Matlab but have been ported to CaImAn
 - [Group LASSO initialization and spatial CNMF](https://github.com/danielso/ROI_detect)
 
 
-Troubleshooting
-----------------
+## Troubleshooting
 
 **Python 3 and spyder**
 if spyder crashes on mac os run 
@@ -252,15 +248,14 @@ Test the system
 ----------------
 
 
-Documentation & Wiki
-========
+# Documentation & Wiki
 
 Documentation of the code can be found [here](http://simonsfoundation.github.io/CaImAn/). 
 Moreover, our [wiki page](https://github.com/simonsfoundation/CaImAn/wiki) covers some aspects of the code.
 
 
-Dependencies
-========
+## Dependencies
+
 The code uses the following libraries
 - [NumPy](http://www.numpy.org/)
 - [SciPy](http://www.scipy.org/)
@@ -284,20 +279,26 @@ For the constrained deconvolution method (```deconvolution.constrained_foopsi```
 In general ```'cvxpy'``` can be faster, when using the 'ECOS' or 'SCS' sovlers, which are included with the CVXPY installation. Note that these dependencies are circumvented by using the OASIS algoritm for deconvolution.
 
 
-Citation
-========
+# Acknowledgements
+
+Special thanks to the following people for letting us use their datasets for our various demo files:
+
+* Weijian Yang, Darcy Peterka, Rafael Yuste, Columbia University
+* Sue Ann Koay, David Tank, Princeton University
+* Manolis Froudarakis, Jake Reimers, Andreas Tolias, Baylor College of Medicine
+
+# Citation
 
 If you use this code please cite the corresponding papers where original methods appeared (see References above), as well as the following abstract:
 
 Giovannucci, A., Friedrich, J., Deverett, B., Staneva, V., Chklovskii, D., & Pnevmatikakis, E. (2017). CaImAn: An open source toolbox for large scale calcium imaging data analysis on standalone machines. Cosyne Abstracts.
 
-Questions, comments, issues
-=======
+# Questions, comments, issues
+
 Please use the gitter chat room (use the button above) for questions and comments and create an issue for any bugs you might encounter.
 
 
-License
-=======
+# License
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
