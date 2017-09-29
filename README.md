@@ -9,7 +9,7 @@ CaImAn
 <a href='https://travis-ci.org/simonsfoundation/CaImAn'><img src='https://secure.travis-ci.org/simonsfoundation/CaImAn.png?branch=master'></a>
 
 
-A Computational toolbox for large scale **Ca**lcium **Im**aging data **An**alysis* and behavioral analysis.
+A Computational toolbox for large scale **Ca**lcium **Im**aging data **An**alysis and behavioral analysis.
 
 Recent advances in calcium imaging acquisition techniques are creating datasets of the order of Terabytes/week. Memory and computationally efficient algorithms are required to analyze in reasonable amount of time terabytes of data. This projects implements a set of essential methods required in the calcium imaging movies analysis pipeline. Fast and scalable algorithms are implemented for motion correction, movie manipulation, and source and spike extraction. CaImAn also contains some routine to the analyisis of behavior from video cameras. In summary, CaImAn provides a general purpose tool to handle large movies, with special emphasis tools for two-photon and one-photon calcium imaging and behavioral datasets. 
 
@@ -31,22 +31,22 @@ Recent advances in calcium imaging acquisition techniques are creating datasets 
 
 * **Source extraction** 
 
-    * separates different sources based on constrained nonnegative matrix Factorization (CNMF) [[1-2]](#ref)
-    * deals with heavily overlaping and neuroopil contaminated movies     
-    * suitable for both 2-photon [[1]](#ref) and 1-photon [[3]](#ref) calcium imaging data
-    * selection of inferred sources using a pre-trained convolutional neural network classifier
+    * Separates different sources based on constrained nonnegative matrix Factorization (CNMF) [[1-2]](#ref)
+    * Deals with heavily overlaping and neuroopil contaminated movies     
+    * Suitable for both 2-photon [[1]](#ref) and 1-photon [[3]](#ref) calcium imaging data
+    * Selection of inferred sources using a pre-trained convolutional neural network classifier
     * Online processing available [[5]](#ref)
 
 * **Denoising, deconvolution and spike extraction**
 
-    * spikes can be inferred from fluorescence traces [[1]](#ref)
-    * also works in online mode (i.e. one sample at a time) [[4]](#ref)
+    * Inferres neural activity from fluorescence traces [[1]](#ref)
+    * Also works in online mode (i.e. one sample at a time) [[4]](#ref)
 
 * **Behavioral Analysis** [[7]](#ref)
 
-    * unsupervised algorithms based on optical flow and NMF to automatically extract motor kinetics 
-    * scales to large datasets by exploiting online dictionary learning
-    * we also developed a tool for acquiring movies at high speed with low cost equipment [[package]](https://github.com/bensondaled/eyeblink). 
+    * Unsupervised algorithms based on optical flow and NMF to automatically extract motor kinetics 
+    * Scales to large datasets by exploiting online dictionary learning
+    * We also developed a tool for acquiring movies at high speed with low cost equipment [[Github repository]](https://github.com/bensondaled/eyeblink). 
 
 
 ## Installation for calcium imaging data analysis
