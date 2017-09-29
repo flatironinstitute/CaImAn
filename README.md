@@ -243,16 +243,6 @@ or issues related to SCS type
  conda install accelerate
  conda install openblas 
  ```
- 
-Test the system
-----------------
-
-
-# Documentation & Wiki
-
-Documentation of the code can be found [here](http://simonsfoundation.github.io/CaImAn/). 
-Moreover, our [wiki page](https://github.com/simonsfoundation/CaImAn/wiki) covers some aspects of the code.
-
 
 ## Dependencies
 
@@ -278,6 +268,11 @@ For the constrained deconvolution method (```deconvolution.constrained_foopsi```
 
 In general ```'cvxpy'``` can be faster, when using the 'ECOS' or 'SCS' sovlers, which are included with the CVXPY installation. Note that these dependencies are circumvented by using the OASIS algoritm for deconvolution.
 
+
+# Documentation & Wiki
+
+Documentation of the code can be found [here](http://simonsfoundation.github.io/CaImAn/). 
+Moreover, our [wiki page](https://github.com/simonsfoundation/CaImAn/wiki) covers some aspects of the code.
 
 # Acknowledgements
 
