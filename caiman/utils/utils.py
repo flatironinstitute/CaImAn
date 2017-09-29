@@ -31,15 +31,9 @@ try:
     from urllib2 import urlopen as urlopen
 except:
     from urllib.request import urlopen as urlopen
+  
 
-
-
-
-
-
-
-
-def download_demo(name='Sue_2x_3000_40_-46.tif'):
+def download_demo(name='Sue_2x_3000_40_-46.tif',save_folder= ''):
     """download a file from the file list with the url of its location
  
  
@@ -50,6 +44,9 @@ def download_demo(name='Sue_2x_3000_40_-46.tif'):
  
         name: str
             the path of the file correspondong to a file in the filelist (''Sue_2x_3000_40_-46.tif' or 'demoMovieJ.tif')
+            
+        save_folder: str
+            folder inside ./example_movies to which the files will be saved. Will be created if it doesn't exist
  
     Raise:
     ---------
@@ -69,9 +66,11 @@ def download_demo(name='Sue_2x_3000_40_-46.tif'):
                  'Tolias_mesoscope_2.hdf5':'https://www.dropbox.com/s/i233b485uxq8wn6/Tolias_mesoscope_2.hdf5?dl=1',
                  'Tolias_mesoscope_3.hdf5':'https://www.dropbox.com/s/4fxiqnbg8fovnzt/Tolias_mesoscope_3.hdf5?dl=1'}
     #          ,['./example_movies/demoMovie.tif','https://www.dropbox.com/s/obmtq7305ug4dh7/demoMovie.tif?dl=1']]
-    base_folder = './example_movies'
-    if os.path.exists(base_folder):
-         path_movie = os.path.join(base_folder,name)
+    base_folder = './example_movies'    
+    if os.path.exists(base_folder):        
+         if not os.path.isdir(os.path.join(base_folder,save_folder)):
+             os.makedirs(os.path.join(base_folder,save_folder))
+         path_movie = os.path.join(base_folder,save_folder,name)
          if not os.path.exists(path_movie):        
                 url = file_dict[name]
                 print( "downloading "+ name +"with urllib" )
