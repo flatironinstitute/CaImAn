@@ -9,7 +9,7 @@ CaImAn
 <a href='https://travis-ci.org/simonsfoundation/CaImAn'><img src='https://secure.travis-ci.org/simonsfoundation/CaImAn.png?branch=master'></a>
 
 
-A Computational toolbox for large scale **Ca**lcium **Im**aging data **An**alysis* and behavioral analysis.
+A Computational toolbox for large scale **Ca**lcium **Im**aging data **An**alysis and behavioral analysis.
 
 Recent advances in calcium imaging acquisition techniques are creating datasets of the order of Terabytes/week. Memory and computationally efficient algorithms are required to analyze in reasonable amount of time terabytes of data. This projects implements a set of essential methods required in the calcium imaging movies analysis pipeline. Fast and scalable algorithms are implemented for motion correction, movie manipulation, and source and spike extraction. CaImAn also contains some routine to the analyisis of behavior from video cameras. In summary, CaImAn provides a general purpose tool to handle large movies, with special emphasis tools for two-photon and one-photon calcium imaging and behavioral datasets. 
 
@@ -20,33 +20,33 @@ Recent advances in calcium imaging acquisition techniques are creating datasets 
 
     * Memory mapping 
     * Parallel processing in patches
-    * Frame-by-frame online processing
-    * opencv-based efficient movie playing and resizing
+    * Frame-by-frame online processing [[5]](#ref)
+    * OpenCV-based efficient movie playing and resizing
 
-* **Motion correction**
+* **Motion correction** [[6]](#ref)
 
-    * Fast parallelizable open-cv and fft-based motion correction of large movies
-    * Run also in online mode (i.e. one frame at a time)
-    * non rigid motion correction
+    * Fast parallelizable OpenCV and FFT-based motion correction of large movies
+    * Can be run also in online mode (i.e. one frame at a time)
+    * Corrects for non-rigid artifacts due to raster scanning or non-uniform brain motion
 
 * **Source extraction** 
 
-    * identification of pixes associated to each neuron/neuronal structure
-    * deals with heavily overlaping and neuroopil contaminated movies 
-    * suitable for both 2-photon and 1-photon calcium imaging data
-    * separates different sources based on Nonnegative Matrix Factorization algorithms
-    * selection of inferred sources using a pre-trained convolutional neural network classifier
+    * Separates different sources based on constrained nonnegative matrix Factorization (CNMF) [[1-2]](#ref)
+    * Deals with heavily overlaping and neuroopil contaminated movies     
+    * Suitable for both 2-photon [[1]](#ref) and 1-photon [[3]](#ref) calcium imaging data
+    * Selection of inferred sources using a pre-trained convolutional neural network classifier
+    * Online processing available [[5]](#ref)
 
 * **Denoising, deconvolution and spike extraction**
 
-    * spikes can be inferred from fluorescence traces
-    * also works in online mode (i.e. one sample at a time)
+    * Inferres neural activity from fluorescence traces [[1]](#ref)
+    * Also works in online mode (i.e. one sample at a time) [[4]](#ref)
 
-* **Behavioral Analysis**
+* **Behavioral Analysis** [[7]](#ref)
 
-    * unsupervised algorithms based on optical flow and NMF to automatically extract motor kinetics 
-    * scales to large datasets by exploiting online dictionary learning
-    * we also developed a tool for acquiring movies at high speed with low cost equipment [[package]](https://github.com/bensondaled/eyeblink). 
+    * Unsupervised algorithms based on optical flow and NMF to automatically extract motor kinetics 
+    * Scales to large datasets by exploiting online dictionary learning
+    * We also developed a tool for acquiring movies at high speed with low cost equipment [[Github repository]](https://github.com/bensondaled/eyeblink). 
 
 
 ## Installation for calcium imaging data analysis
@@ -175,25 +175,25 @@ The following references provide the theoretical background and original code fo
 
 ### Deconvolution and demixing of calcium imaging data
 
-Pnevmatikakis, E.A., Soudry, D., Gao, Y., Machado, T., Merel, J., ... & Paninski, L. (2016). Simultaneous denoising, deconvolution, and demixing of calcium imaging data. Neuron 89(2):285-299, [[paper]](http://dx.doi.org/10.1016/j.neuron.2015.11.037), [[Github repository]](https://github.com/epnev/ca_source_extraction). 
+<a name="ref"></a>[1] Pnevmatikakis, E.A., Soudry, D., Gao, Y., Machado, T., Merel, J., ... & Paninski, L. (2016). Simultaneous denoising, deconvolution, and demixing of calcium imaging data. Neuron 89(2):285-299, [[paper]](http://dx.doi.org/10.1016/j.neuron.2015.11.037), [[Github repository]](https://github.com/epnev/ca_source_extraction). 
 
-Pnevmatikakis, E.A., Gao, Y., Soudry, D., Pfau, D., Lacefield, C., ... & Paninski, L. (2014). A structured matrix factorization framework for large scale calcium imaging data analysis. arXiv preprint arXiv:1409.2903. [[paper]](http://arxiv.org/abs/1409.2903). 
+<a name="ref"></a>[2] Pnevmatikakis, E.A., Gao, Y., Soudry, D., Pfau, D., Lacefield, C., ... & Paninski, L. (2014). A structured matrix factorization framework for large scale calcium imaging data analysis. arXiv preprint arXiv:1409.2903. [[paper]](http://arxiv.org/abs/1409.2903). 
 
-Zhou, P., Resendez, S. L., Stuber, G. D., Kass, R. E., & Paninski, L. (2016). Efficient and accurate extraction of in vivo calcium signals from microendoscopic video data. arXiv preprint arXiv:1605.07266. [[paper]](https://arxiv.org/abs/1605.07266), [[Github repository]](https://github.com/zhoupc/CNMF_E).
+<a name="ref"></a>[3] Zhou, P., Resendez, S. L., Stuber, G. D., Kass, R. E., & Paninski, L. (2016). Efficient and accurate extraction of in vivo calcium signals from microendoscopic video data. arXiv preprint arXiv:1605.07266. [[paper]](https://arxiv.org/abs/1605.07266), [[Github repository]](https://github.com/zhoupc/CNMF_E).
 
-Friedrich J. and Paninski L. Fast active set methods for online spike inference from calcium imaging. NIPS, 29:1984-1992, 2016. [[paper]](https://papers.nips.cc/paper/6505-fast-active-set-methods-for-online-spike-inference-from-calcium-imaging), [[Github repository]](https://github.com/j-friedrich/OASIS).
+<a name="ref"></a>[4] Friedrich J. and Paninski L. Fast active set methods for online spike inference from calcium imaging. NIPS, 29:1984-1992, 2016. [[paper]](https://papers.nips.cc/paper/6505-fast-active-set-methods-for-online-spike-inference-from-calcium-imaging), [[Github repository]](https://github.com/j-friedrich/OASIS).
 
 ### Online Analysis
 
-Giovannucci, A., Friedrich J., Kaufman M., Churchland A., Chklovskii D., Paninski L., & Pnevmatikakis E.A. (2017). OnACID: Online analysis of calcium imaging data in real data. NIPS 2017, to appear.
+<a name="ref"></a>[5] Giovannucci, A., Friedrich J., Kaufman M., Churchland A., Chklovskii D., Paninski L., & Pnevmatikakis E.A. (2017). OnACID: Online analysis of calcium imaging data in real data. NIPS 2017, to appear.
 
 ### Motion Correction
 
-Pnevmatikakis, E.A., and Giovannucci A. (2017). NoRMCorre: An online algorithm for piecewise rigid motion correction of calcium imaging data. Journal of Neuroscience Methods, 291:83-92 [[paper]](https://doi.org/10.1016/j.jneumeth.2017.07.031), [[Github repository]](https://github.com/simonsfoundation/normcorre).
+<a name="ref"></a>[6] Pnevmatikakis, E.A., and Giovannucci A. (2017). NoRMCorre: An online algorithm for piecewise rigid motion correction of calcium imaging data. Journal of Neuroscience Methods, 291:83-92 [[paper]](https://doi.org/10.1016/j.jneumeth.2017.07.031), [[Github repository]](https://github.com/simonsfoundation/normcorre).
 
 ### Behavioral analysis
 
-Giovannucci, A., Pnevmatikakis, E. A., Deverett, B., Pereira, T., Fondriest, J., Brady, M. J., ... & Masip, D. (2017). Automated gesture tracking in head-fixed mice. Journal of Neuroscience Methods, in press. [[paper]](https://doi.org/10.1016/j.jneumeth.2017.07.014).
+<a name="ref"></a>[7] Giovannucci, A., Pnevmatikakis, E. A., Deverett, B., Pereira, T., Fondriest, J., Brady, M. J., ... & Masip, D. (2017). Automated gesture tracking in head-fixed mice. Journal of Neuroscience Methods, in press. [[paper]](https://doi.org/10.1016/j.jneumeth.2017.07.014).
 
 ## Related packages
 
@@ -290,7 +290,7 @@ Giovannucci, A., Friedrich, J., Deverett, B., Staneva, V., Chklovskii, D., & Pne
 
 # Questions, comments, issues
 
-Please use the gitter chat room (use the button above) for questions and comments and create an issue for any bugs you might encounter.
+Please use the [gitter chat room](https://gitter.im/agiovann/Constrained_NMF) for questions and comments and create an issue for any bugs you might encounter.
 
 # License
 
