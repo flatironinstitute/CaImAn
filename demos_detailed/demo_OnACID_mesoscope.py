@@ -1,9 +1,11 @@
 #!/usr/bin/env python2
 # -*- coding: utf-8 -*-
 """
-Complete pipeline for online processing using OnACID
+Complete pipeline for online processing using OnACID. 
 
-@author: agiovann and epnev
+@author: Andrea Giovannucci @agiovann and Eftychios Pnevmatikakis @epnev
+Special thanks to Andreas Tolias and his lab at Baylor College of Medicine 
+for sharing their data used in this demo.
 """
 import numpy as np
 try:
@@ -41,14 +43,14 @@ folder_name = './example_movies/'+fld_name          # folder where files are loc
 extension = 'hdf5'                                  # extension of files
 fls = glob.glob(folder_name+'/*' + extension)       # read all files to be processed 
 
-print(fls)
+print(fls)                                          # your list of files should look something like this
 
 #%%   Set up some parameters
 
 ds_factor = 1                                       # spatial downsampling factor (increases speed but may lose some fine structure)
 init_files = 1                                      # number of files used for initialization
 online_files = len(fls) - 1                         # number of files used for online
-initbatch = 300                                     # number of frames for initialization (presumably from the first file)
+initbatch = 200                                     # number of frames for initialization (presumably from the first file)
 expected_comps = 300                                # maximum number of expected components used for memory pre-allocation (exaggerate here)
 K = 2                                               # initial number of components
 gSig = tuple(np.ceil(np.array([4 , 4])/ds_factor))  # expected half size of neurons
@@ -57,7 +59,7 @@ rval_thr = 0.85                                     # correlation threshold for 
 thresh_fitness_delta = -30                          # event exceptionality thresholds 
 thresh_fitness_raw = -40                            #
 mot_corr = True                                     # flag for online motion correction 
-max_shift = np.ceil(10./ds_factor)                  # maximum allowed shift during motion correction
+max_shift = np.ceil(10./ds_factor).astype('int')    # maximum allowed shift during motion correction
 gnb = 1                                             # number of background components
 epochs = 1                                          # number of passes over the data
 len_file = 1000                                     # upper bound for number of frames in each file (used right below)
@@ -130,7 +132,9 @@ tottime = []
 Cn = Cn_init.copy()
 
 plot_contours_flag = False               # flag for plotting contours of detected components at the end of each file
-play_reconstr = True                     # flag for showing video with results online
+play_reconstr = True                     # flag for showing video with results online (turn off flags for improving speed)
+save_movie = False                       # flag for saving movie (file could be quite large..)
+movie_name = folder_name + '/output.avi' # name of movie to be saved
 resize_fact = 1.2                        # image resizing factor
 
 if online_files == 0:                    # check whether there are any additional files
@@ -142,6 +146,10 @@ else:
     init_batc_iter = [initbatch] + [0]*online_files     # where to start reading at each file
 
 shifts = []
+if save_movie and play_reconstr:
+    fourcc = cv2.VideoWriter_fourcc('8', 'B', 'P', 'S') 
+    out = cv2.VideoWriter(movie_name,fourcc, 30.0, tuple([int(2*x*resize_fact) for x in cnm2.dims]))
+
 for iter in range(epochs):
     if iter > 0:
         process_files = fls[:init_files + online_files]     # if not on first epoch process all files from scratch
@@ -204,14 +212,26 @@ for iter in range(epochs):
                 comps_frame = A.dot(C[:,t-1]).reshape(cnm2.dims, order = 'F')*img_norm/np.max(img_norm)   # inferred activity due to components (no background)
                 bgkrnd_frame = b.dot(f[:,t-1]).reshape(cnm2.dims, order = 'F')*img_norm/np.max(img_norm)  # denoised frame (components + background)
                 all_comps = (np.array(A.sum(-1)).reshape(cnm2.dims, order = 'F'))                         # spatial shapes
-                frame_comp_1 = cv2.resize(np.concatenate([frame_/np.max(img_norm),all_comps],axis = -1),(2*np.int(cnm2.dims[1]*resize_fact),np.int(cnm2.dims[0]*resize_fact) ))
-                frame_comp_2 = cv2.resize(np.concatenate([comps_frame,comps_frame+bgkrnd_frame],axis = -1),(2*np.int(cnm2.dims[1]*resize_fact),np.int(cnm2.dims[0]*resize_fact) ))
-                cv2.imshow('frame',np.concatenate([frame_comp_1,frame_comp_2],axis=0).T)
+                frame_comp_1 = cv2.resize(np.concatenate([frame_/np.max(img_norm),all_comps*3.],axis = -1),(2*np.int(cnm2.dims[1]*resize_fact),np.int(cnm2.dims[0]*resize_fact) ))
+                frame_comp_2 = cv2.resize(np.concatenate([comps_frame*10.,comps_frame+bgkrnd_frame],axis = -1),(2*np.int(cnm2.dims[1]*resize_fact),np.int(cnm2.dims[0]*resize_fact) ))
+                frame_pn = np.concatenate([frame_comp_1,frame_comp_2],axis=0).T
+                vid_frame = np.repeat(frame_pn[:,:,None],3,axis=-1)
+                vid_frame = np.minimum((vid_frame*255.),255).astype('u1')
+                cv2.putText(vid_frame,'Raw Data',(5,20),fontFace = 5, fontScale = 1.2, color = (0,255,0), thickness = 1)
+                cv2.putText(vid_frame,'Inferred Activity',(np.int(cnm2.dims[0]*resize_fact) + 5,20),fontFace = 5, fontScale = 1.2, color = (0,255,0), thickness = 1)
+                cv2.putText(vid_frame,'Identified Components',(5,np.int(cnm2.dims[1]*resize_fact)  + 20),fontFace = 5, fontScale = 1.2, color = (0,255,0), thickness = 1)
+                cv2.putText(vid_frame,'Denoised Data',(np.int(cnm2.dims[0]*resize_fact) + 5 ,np.int(cnm2.dims[1]*resize_fact)  + 20),fontFace = 5, fontScale = 1.2, color = (0,255,0), thickness = 1)
+                cv2.putText(vid_frame,'Frame = '+str(t),(vid_frame.shape[1]//2-vid_frame.shape[1]//10,vid_frame.shape[0]-20),fontFace = 5, fontScale = 1.2, color = (0,255,255), thickness = 1)                
+                if save_movie:
+                    out.write(vid_frame)
+                cv2.imshow('frame',vid_frame)                
                 if cv2.waitKey(1) & 0xFF == ord('q'):
                     break                                
     
         print('Cumulative processing speed is ' + str((t - initbatch) / np.sum(tottime))[:5] + ' frames per second.')
-
+        
+if save_movie:
+    out.release()
 cv2.destroyAllWindows()
 #%%  save results (optional)
 save_results = False
@@ -223,8 +243,8 @@ if save_results:
 
 #%% extract results from the objects and do some plotting
 A, b = cnm2.Ab[:, cnm2.gnb:], cnm2.Ab[:, :cnm2.gnb].toarray()
-C, f = cnm2.C_on[cnm2.gnb:cnm2.M, t-t/epochs:t], cnm2.C_on[:cnm2.gnb, t-t/epochs:t]
-noisyC = cnm2.noisyC[:,t-t/epochs:t]
+C, f = cnm2.C_on[cnm2.gnb:cnm2.M, t-t//epochs:t], cnm2.C_on[:cnm2.gnb, t-t//epochs:t]
+noisyC = cnm2.noisyC[:,t-t//epochs:t]
 b_trace = [osi.b for osi in cnm2.OASISinstances]
 
 pl.figure()
