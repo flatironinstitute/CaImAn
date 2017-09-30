@@ -26,6 +26,7 @@ from caiman.source_extraction.cnmf import oasis
 from sklearn.decomposition import NMF 
 from sklearn.preprocessing import normalize
 #from caiman.source_extraction.cnmf import cnmf
+import oasis
 
 try:
     profile
@@ -650,50 +651,50 @@ def plot_shapes(Ab, dims, num_comps=15, size=(15, 15), comps_per_row=None,
 
 
 @profile
-def update_shapes(CY, CC, Ab, ind_A, indicator_components=None, Ab_dense=None, update_bkgrd=True):
+def update_shapes(CY, CC, Ab, ind_A, indicator_components=None, Ab_dense=None, update_bkgrd=True, iters=3):
     D, M = Ab.shape
     N = len(ind_A)
     nb = M - N
-    # for _ in range(3):  # it's presumably better to run just 1 iter but update more neurons
-    if indicator_components is None:
-        idx_comp = range(nb, M)
-    else:
-        idx_comp = np.where(indicator_components)[0] + nb
+    for _ in range(iters):  # it's presumably better to run just 1 iter but update more neurons
+        if indicator_components is None:
+            idx_comp = range(nb, M)
+        else:
+            idx_comp = np.where(indicator_components)[0] + nb
 
-    if Ab_dense is None:
-        for m in idx_comp:  # neurons
-            ind_pixels = ind_A[m - nb]
-            Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]] = np.maximum(
-                Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]] +
-                ((CY[m, ind_pixels] - Ab.dot(CC[m])[ind_pixels]) / CC[m, m]), 0)
-            # normalize
-            Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]] /= \
-                max(1, sqrt(Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]]
-                            .dot(Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]])))
-            # N.B. Ab[ind_pixels].dot(CC[m]) is slower for csc matrix due to indexing rows
-    else:
-        for m in idx_comp:  # neurons
-            ind_pixels = ind_A[m - nb]
-            tmp = np.maximum(Ab_dense[ind_pixels, m] + ((CY[m, ind_pixels] -
-                                                         Ab_dense[ind_pixels].dot(CC[m])) /
-                                                        CC[m, m]), 0)
-            # normalize
-            Ab_dense[ind_pixels, m] = tmp / max(1, sqrt(tmp.dot(tmp)))
-            Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]] = Ab_dense[ind_pixels, m]
-        # Ab.data[Ab.indptr[nb]:] = np.concatenate(
-        #     [Ab_dense[ind_A[m - nb], m] for m in range(nb, M)])
-        # N.B. why does selecting only overlapping neurons help surprisingly little, i.e
-        # Ab[ind_pixels][:, overlap[m]].dot(CC[overlap[m], m])
-        # where overlap[m] are the indices of all neurons overlappping with & including m?
-        # sparsify ??
-    if update_bkgrd:
-        for m in range(nb):  # background
-            sl = slice(Ab.indptr[m], Ab.indptr[m + 1])
-            ind_pixels = Ab.indices[sl]
-            Ab.data[sl] = np.maximum(
-                Ab.data[sl] + ((CY[m, ind_pixels] - Ab.dot(CC[m])[ind_pixels]) / CC[m, m]), 0)
-            if Ab_dense is not None:
-                Ab_dense[ind_pixels, m] = Ab.data[sl]
+        if Ab_dense is None:
+            for m in idx_comp:  # neurons
+                ind_pixels = ind_A[m - nb]
+                Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]] = np.maximum(
+                    Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]] +
+                    ((CY[m, ind_pixels] - Ab.dot(CC[m])[ind_pixels]) / CC[m, m]), 0)
+                # normalize
+                Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]] /= \
+                    max(1, sqrt(Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]]
+                                .dot(Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]])))
+                # N.B. Ab[ind_pixels].dot(CC[m]) is slower for csc matrix due to indexing rows
+        else:
+            for m in idx_comp:  # neurons
+                ind_pixels = ind_A[m - nb]
+                tmp = np.maximum(Ab_dense[ind_pixels, m] + ((CY[m, ind_pixels] -
+                                                             Ab_dense[ind_pixels].dot(CC[m])) /
+                                                            CC[m, m]), 0)
+                # normalize
+                Ab_dense[ind_pixels, m] = tmp / max(1, sqrt(tmp.dot(tmp)))
+                Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]] = Ab_dense[ind_pixels, m]
+            # Ab.data[Ab.indptr[nb]:] = np.concatenate(
+            #     [Ab_dense[ind_A[m - nb], m] for m in range(nb, M)])
+            # N.B. why does selecting only overlapping neurons help surprisingly little, i.e
+            # Ab[ind_pixels][:, overlap[m]].dot(CC[overlap[m], m])
+            # where overlap[m] are the indices of all neurons overlappping with & including m?
+            # sparsify ??
+        if update_bkgrd:
+            for m in range(nb):  # background
+                sl = slice(Ab.indptr[m], Ab.indptr[m + 1])
+                ind_pixels = Ab.indices[sl]
+                Ab.data[sl] = np.maximum(
+                    Ab.data[sl] + ((CY[m, ind_pixels] - Ab.dot(CC[m])[ind_pixels]) / CC[m, m]), 0)
+                if Ab_dense is not None:
+                    Ab_dense[ind_pixels, m] = Ab.data[sl]
 
     return Ab, ind_A, Ab_dense
 
@@ -706,7 +707,7 @@ class RingBuffer(np.ndarray):
     def __new__(cls, input_array, num_els):
         obj = np.asarray(input_array).view(cls)
         obj.max_ = num_els
-        obj.cur = 0
+        obj.cur = num_els - 1  # 0 ?
         if input_array.shape[0] != num_els:
             print([input_array.shape[0], num_els])
             raise Exception('The first dimension should equal num_els')
@@ -729,7 +730,7 @@ class RingBuffer(np.ndarray):
         return np.concatenate([self[self.cur:], self[:self.cur]], axis=0)
 
     def get_first(self):
-        return self[self.cur]
+        return self[(self.cur + 1) % self.max_]  # return self[self.cur] ?
 
     def get_last_frames(self, num_frames):
         if self.cur >= num_frames:
@@ -1052,8 +1053,10 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
 #                ind_a = np.reshape(ind_a > 1e-10, (np.prod(dims),), order='F')
 #                indeces_good = np.where(ind_a)[0]#np.where(determine_search_location(Ain,dims))[0]
                 if not useOASIS:
-                    oas = oasis.OASIS(g=g, b=np.mean(bl), lam=lam, s_min=s_min,
-                                      num_empty_samples=t + 1 - len(cin_res))
+		    oas = oasis.OASIS(g, 0, .5, num_empty_samples=t + 1 - len(cin_res))
+		    # TODO: be smarter about parameters
+                    # oas = oasis.OASIS(g=g, b=np.mean(bl), lam=lam, s_min=s_min,
+                    #                   num_empty_samples=t + 1 - len(cin_res))
                     for yt in cin_res:
                         oas.fit_next(yt)
                 oases.append(oas)
