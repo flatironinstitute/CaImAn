@@ -28,8 +28,8 @@ rf = 16
 stride = 3
 K = 4
 gSig = [6, 6]  # expected half size of neurons
-rval_thr = 0.93
-thresh_fitness_delta = -30
+rval_thr = 0.95
+thresh_fitness_delta = -50
 thresh_fitness_raw = -50
 
 fname_new = Y[:initbatch].save('demo.mmap', order='C')
