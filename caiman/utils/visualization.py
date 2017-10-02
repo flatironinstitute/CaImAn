@@ -491,10 +491,10 @@ def nb_view_patches3d(Y_r, A, C, dims, image_type='mean', Yr=None,
         pl.close()
         cc1 = [[(l[:, 0]) for l in n['coordinates']] for n in coors]
         cc2 = [[(l[:, 1]) for l in n['coordinates']] for n in coors]
-        length = np.ravel([map(len, cc) for cc in cc1])
+        length = np.ravel([list(map(len, cc)) for cc in cc1])
         idx = np.cumsum(np.concatenate([[0], length[:-1]]))
-        cc1 = np.concatenate(map(np.concatenate, cc1))
-        cc2 = np.concatenate(map(np.concatenate, cc2))
+        cc1 = np.concatenate(list(map(np.concatenate, cc1)))
+        cc2 = np.concatenate(list(map(np.concatenate, cc2)))
         linit = int(round(coors[0]['CoM'][0]))  # pick initial layer in which first neuron lies
         K = length.max()
         c1 = np.nan * np.zeros(K)

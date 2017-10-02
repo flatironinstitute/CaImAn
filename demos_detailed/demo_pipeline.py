@@ -616,7 +616,7 @@ crd = plot_contours(A.tocsc()[:, idx_components_bad], Cn, thr=params_display['th
 #%%
 c, dview, n_processes = cm.cluster.setup_cluster(
     backend='local', n_processes=None, single_thread=False)
-#%% thredshold components
+#%% threshold components
 min_size_neuro = 5**2*np.pi
 max_size_neuro = 15**2*np.pi
 A_thr = cm.source_extraction.cnmf.spatial.threshold_components(A.tocsc()[:,idx_components].toarray(), dims, medw=None, thr_method='max', maxthr=0.2, nrgthr=0.99, extract_cc=True,
