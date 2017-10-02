@@ -56,22 +56,16 @@ Recent advances in calcium imaging acquisition techniques are creating datasets 
 
    * Download and install Anaconda (Python 2.7 or Python 3.5) <http://docs.continuum.io/anaconda/install>
 
-   ```bash
+    ```bash
    
    git clone https://github.com/simonsfoundation/CaImAn
    cd CaImAn/
-   git pull
-   
-   EITHER
-   conda create -n CaImAn python=3.5 --file requirements_conda.txt   (For Python 3)
-   OR
-   conda create -n CaImAn ipython --file requirements_conda.txt   (For Python 2) 
-   
-   source activate CaImAn
-   pip install -r requirements_pip.txt
-   conda install -c menpo opencv3=3.1.0
-   python setup.py build_ext -i
-   conda install bokeh
+   conda env create -f environment_mac.yml -n caiman
+   source activate caiman
+   (ONLY FOR PYTHON 2) conda install numpy==1.12  
+   (ONLY FOR PYTHON 2) conda install spyder=3.1
+   conda install -c conda-forge tensorflow keras
+   python setup.py build_ext -i   
    ```
 
 
@@ -83,14 +77,11 @@ Recent advances in calcium imaging acquisition techniques are creating datasets 
    
    git clone https://github.com/simonsfoundation/CaImAn
    cd CaImAn/
-   git pull
-   conda create -n CaImAn ipython --file requirements_conda.txt    
-   source activate CaImAn
-   pip install -r requirements_pip.txt
-   conda install -c menpo opencv3=3.2.0
-   python setup.py build_ext -i
-   conda install bokeh
+   conda env create -f environment.yml -n caiman
+   source activate caiman   
+   python setup.py build_ext -i   
    ```
+
 
    * To make the package available from everywhere and have it working *efficiently* under any configuration ALWAYS run these lines before starting spyder:
 
@@ -100,7 +91,7 @@ Recent advances in calcium imaging acquisition techniques are creating datasets 
    export OPENBLAS_NUM_THREADS=1
    ```
 
-* Installation on posix (Windows)
+* Installation on  Windows (OUTDATED, NEEDS TESTING)
 
 
    * Download and install Anaconda (Python 2.7) <http://docs.continuum.io/anaconda/install>, GIT (<https://git-scm.com/>) and Microsoft Visual C++ Compiler for Python 2.7 <https://www.microsoft.com/en-us/download/details.aspx?id=44266>
@@ -110,19 +101,12 @@ Recent advances in calcium imaging acquisition techniques are creating datasets 
     git clone  https://github.com/simonsfoundation/CaImAn
     cd CaImAn
     git pull
-    conda update conda
-    conda create -n CaImAn ipython --file requirements_conda.txt    
-    activate CaImAn
-    pip install -r requirements_pip.txt
-    conda install -c menpo opencv3=3.1.0
-    python setup.py build_ext -i
-    conda update --all
-    
+    conda env create -f environment_mac.yml -n caiman
+    source activate caiman   
+    conda install -c conda-forge tensorflow keras
+    python setup.py build_ext -i       
     ```
-### Installation neural network component classifier
- ```bash
- conda install -c conda-forge tensorflow keras
- ```
+
  
 ### Installation for behavioral analysis
 * Installation on Linux (windows and mac os are problematic with anaconda at the moment)
