@@ -107,7 +107,6 @@ Recent advances in calcium imaging acquisition techniques are creating datasets 
     conda install -c conda-forge tensorflow keras
     python setup.py build_ext -i       
     ```
-    
  
 ### Installation for behavioral analysis
 * Installation on Linux (windows and mac os are problematic with anaconda at the moment)
