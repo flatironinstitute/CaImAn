@@ -1,7 +1,6 @@
-from __future__ import print_function
-from ..source_extraction import cnmf as cnmf
 import numpy.testing as npt
 import numpy as np
+from caiman.source_extraction import cnmf as cnmf
 
 
 # at this stage interpolate_missing_data returns alsways an error when
@@ -33,4 +32,4 @@ def test_axcov():
     C = cnmf.pre_processing.axcov(data, maxlag)
     print(C)
 
-    npt.assert_allclose(C,np.concatenate((np.zeros(maxlag),np.array([1]),np.zeros(maxlag))), atol = 1)
+    npt.assert_allclose(C, np.concatenate((np.zeros(maxlag), np.array([1]), np.zeros(maxlag))), atol=1)

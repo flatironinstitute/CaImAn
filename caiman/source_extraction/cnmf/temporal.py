@@ -13,6 +13,7 @@ from past.utils import old_div
 from scipy.sparse import spdiags, coo_matrix  # ,csgraph
 import scipy
 import numpy as np
+import platform
 from .deconvolution import constrained_foopsi
 from .utilities import update_order_greedy
 import sys
@@ -364,7 +365,7 @@ def update_iteration (parrllcomp, len_parrllcomp, nb,C, S, bl, nr,
             args_in = [(np.squeeze(np.array(Ytemp[:, jj])), nT[jj], jj, None,
                         None, None, None, kwargs) for jj in range(len(jo))]
             #computing the most likely discretized spike train underlying a fluorescence trace
-            if dview is not None:
+            if dview is not None and platform.system()!='Darwin':
                 if debug:
                     results = dview.map_async(constrained_foopsi_parallel, args_in)
                     results.get()

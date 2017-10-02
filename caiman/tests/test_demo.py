@@ -1,34 +1,31 @@
-from __future__ import print_function
-import caiman as cm
-from ..source_extraction import cnmf as cnmf
-from ..cluster import start_server, stop_server
 import numpy.testing as npt
 import numpy as np
-import psutil
-from ipyparallel import Client
+import os
+import caiman as cm
+from caiman.source_extraction import cnmf
 
 
 def demo(parallel=False):
 
-    # roughly number of cores on your machine minus 1
-    n_processes = np.maximum(psutil.cpu_count() - 2, 1)
     p = 2  # order of the AR model (in general 1 or 2)
-    stop_server()
     if parallel:
-        start_server()
-        c = Client()
+        c, dview, n_processes = cm.cluster.setup_cluster(
+            backend='local', n_processes=None, single_thread=False)
+    else:
+        n_processes, dview = 2, None
 
     # LOAD MOVIE AND MEMORYMAP
-    fname_new = cm.save_memmap(['example_movies/demoMovie.tif'], base_name='Yr')
+    fname_new = cm.save_memmap([os.path.abspath(cm.__path__[0][:-7]) +
+                                '/example_movies/demoMovie.tif'], base_name='Yr')
     Yr, dims, T = cm.load_memmap(fname_new)
     # INIT
     cnm = cnmf.CNMF(n_processes, method_init='greedy_roi', k=30, gSig=[4, 4], merge_thresh=.8,
-                    p=p, dview=c[:] if parallel else None, Ain=None, method_deconvolution='oasis')
+                    p=p, dview=dview, Ain=None, method_deconvolution='oasis')
     # FIT
     images = np.reshape(Yr.T, [T] + list(dims), order='F')
     cnm = cnm.fit(images)
     if parallel:
-        stop_server()
+        cm.cluster.stop_server()
 
     # verifying the spatial components
     npt.assert_allclose(cnm.A.sum(), 31913160, 1e-2)
