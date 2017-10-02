@@ -123,6 +123,12 @@ pl.figure()
 pl.imshow(A_off_thr.sum(-1).reshape(dims_off,order = 'F'))
 
 #%%
+if False:
+    online_file  = 'results_analysis_online_JEFF_DS_2_1.0.npz'
+    with np.load(online_file) as ld:
+        print(ld.keys())
+        locals().update(ld)
+#%%
 #with np.load('results_full_movie_online_may5/results_analysis_online_JEFF_90k.take7_no_batch.npz') as ld:
 #online_file ='/opt/local/privateCaImAn/JEFF_MAY_14_AFT_BETTER_INIT_UPDATES_NO_STATS/results_analysis_online_JEFF_LAST_90000.npz'
 #online_file ='/mnt/ceph/neuro/DataForPublications/OnlineCNMF/Jeff/EP_linux/results_analysis_online_JEFF_LAST__DS_2_90000.npz'
@@ -139,8 +145,9 @@ with np.load(online_file) as ld:
         Ab = scipy.sparse.csc_matrix(np.concatenate([cv2.resize(Ab[:,comp_id].toarray().reshape(dims_on, order= 'F'),dims_off[::-1]).reshape((-1,1),order = 'F') for comp_id in range(Ab.shape[-1])],axis=1))
         Cn = cv2.resize(Cn,dims_off[::-1])
         dims_on = dims_off
-#    OASISinstances = OASISinstances[()]
-    
+        
+#    OASISinstances = OASISinstances[()]    
+     
     C_on = Cf
     A_on,b_on = Ab[:,:-1],Ab[:,-1].toarray()
     C_on, f_on = C_on[:-1,:], C_on[-1:,:]
