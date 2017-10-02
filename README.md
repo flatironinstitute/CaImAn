@@ -138,12 +138,10 @@ Recent advances in calcium imaging acquisition techniques are creating datasets 
 
 * All of the commits and pull requests need to be previously tested before asking for a pull request. Call 'nosetests' program from inside of your CaImAn folder to look for errors. 
    For python3 on mac OS x nosetests does not work properly. If you need to test, then type the following from within the CaImAn folder:
-    ```bash
-
-       cd caiman/tests
-       ls test_*py | while read t; do nosetests --nologcapture ${t%%.py}; done;
-    
-       ```
+```bash
+cd caiman/tests
+ls test_*py | while read t; do nosetests --nologcapture ${t%%.py}; done;
+```
 
   ### general_test
 
