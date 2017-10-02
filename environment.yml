@@ -16,6 +16,8 @@ dependencies:
 - spyder
 - nose
 - bokeh
+- tensorflow
+- keras
 - tqdm
 - opencv3 
 - pip:
