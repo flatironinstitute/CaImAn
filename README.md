@@ -101,19 +101,12 @@ Recent advances in calcium imaging acquisition techniques are creating datasets 
     git clone  https://github.com/simonsfoundation/CaImAn
     cd CaImAn
     git pull
-    conda update conda
-    conda create -n CaImAn ipython --file requirements_conda.txt    
-    activate CaImAn
-    pip install -r requirements_pip.txt
-    conda install -c menpo opencv3=3.1.0
-    python setup.py build_ext -i
-    conda update --all
-    
+    conda env create -f environment_mac.yml -n caiman
+    source activate caiman   
+    conda install -c conda-forge tensorflow keras
+    python setup.py build_ext -i       
     ```
-### Installation neural network component classifier
- ```bash
- 
- ```
+    
  
 ### Installation for behavioral analysis
 * Installation on Linux (windows and mac os are problematic with anaconda at the moment)
