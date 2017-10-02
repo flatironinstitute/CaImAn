@@ -79,6 +79,7 @@ Recent advances in calcium imaging acquisition techniques are creating datasets 
    cd CaImAn/
    conda env create -f environment.yml -n caiman
    source activate caiman   
+   (ONLY FOR PYTHON 2) conda install spyder=3.1
    python setup.py build_ext -i   
    ```
 
