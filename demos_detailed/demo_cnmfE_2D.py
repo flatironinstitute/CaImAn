@@ -118,9 +118,9 @@ c, dview, n_processes = cm.cluster.setup_cluster(
 
 
 #%%
-cnm = cnmf.CNMF(n_processes=n_processes, method_init='corr_pnr', k=10, gSig=(3, 3), gSiz=(10, 10), merge_thresh=.8,
-                p=1, dview=dview, tsub=1, ssub=1, Ain=None, rf=(15, 15), stride=(10, 10),
-                only_init_patch=True, gnb=10, nb_patch=3, method_deconvolution='oasis',
+cnm = cnmf.CNMF(n_processes=n_processes, method_init='corr_pnr', k=25, gSig=(3, 3), gSiz=(10, 10), merge_thresh=.8,
+                p=1, dview=dview, tsub=1, ssub=1, Ain=None, rf=(25, 25), stride=(25, 25),
+                only_init_patch=True, gnb=10, nb_patch=6, method_deconvolution='oasis',
                 low_rank_background=False, update_background_components=False, min_corr=min_corr,
                 min_pnr=min_pnr, normalize_init=False, deconvolve_options_init=None,
                 ring_size_factor=1.5, center_psf=True)
@@ -163,9 +163,9 @@ plt.imshow(A_tot.sum(-1).reshape(dims, order='F'))
 # %% DISCARD LOW QUALITY COMPONENT
 final_frate = 10
 r_values_min = 0.1  # threshold on space consistency
-fitness_min = - 10  # threshold on time variability
+fitness_min = - 20  # threshold on time variability
 # threshold on time variability (if nonsparse activity)
-fitness_delta_min = - 10
+fitness_delta_min = - 20
 Npeaks = 10
 traces = C_tot + YrA_tot
 # TODO: todocument
@@ -221,6 +221,7 @@ idx_components = np.where(np.array([scipy.stats.pearsonr(c, c_)[0] for c, c_ in 
 cm.utils.visualization.view_patches_bar(
     Yr, coo_matrix(A.tocsc()[:, idx_components]), C[idx_components],
     b, f, dims[0], dims[1], YrA=YrA[idx_components], img=cn_filter)
+#%%
 plt.figure()
 cm.utils.visualization.view_patches_bar(
     Yr, coo_matrix(A_tot.tocsc()[:, idx_components]), C_tot[idx_components],
