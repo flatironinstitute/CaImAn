@@ -20,10 +20,10 @@ Recent advances in calcium imaging acquisition techniques are creating datasets 
 
     * Memory mapping 
     * Parallel processing in patches
-    * Frame-by-frame online processing [[5]](#ref)
+    * Frame-by-frame online processing [[5]](#onacid)
     * OpenCV-based efficient movie playing and resizing
 
-* **Motion correction** [[6]](#ref)
+* **Motion correction** [[6]](#normcorre)
 
     * Fast parallelizable OpenCV and FFT-based motion correction of large movies
     * Can be run also in online mode (i.e. one frame at a time)
@@ -31,23 +31,27 @@ Recent advances in calcium imaging acquisition techniques are creating datasets 
 
 * **Source extraction** 
 
-    * Separates different sources based on constrained nonnegative matrix Factorization (CNMF) [[1-2]](#ref)
+    * Separates different sources based on constrained nonnegative matrix Factorization (CNMF) [[1-2]](#neuron)
     * Deals with heavily overlaping and neuroopil contaminated movies     
-    * Suitable for both 2-photon [[1]](#ref) and 1-photon [[3]](#ref) calcium imaging data
+    * Suitable for both 2-photon [[1]](#neuron) and 1-photon [[3]](#cnmfe) calcium imaging data
     * Selection of inferred sources using a pre-trained convolutional neural network classifier
-    * Online processing available [[5]](#ref)
+    * Online processing available [[5]](#onacid)
 
 * **Denoising, deconvolution and spike extraction**
 
-    * Inferres neural activity from fluorescence traces [[1]](#ref)
-    * Also works in online mode (i.e. one sample at a time) [[4]](#ref)
+    * Inferres neural activity from fluorescence traces [[1]](#neuron)
+    * Also works in online mode (i.e. one sample at a time) [[4]](#oasis)
 
-* **Behavioral Analysis** [[7]](#ref)
+* **Behavioral Analysis** [[7]](#behavior)
 
     * Unsupervised algorithms based on optical flow and NMF to automatically extract motor kinetics 
     * Scales to large datasets by exploiting online dictionary learning
     * We also developed a tool for acquiring movies at high speed with low cost equipment [[Github repository]](https://github.com/bensondaled/eyeblink). 
 
+
+## New: Online analysis
+
+We recently incorporated a Python implementation of the OnACID [[5]](#onacid) algorithm, that enables processing data in an online mode and in real time. Check the script ```demos_detailed/demo_OnACID_mesoscope.py``` or the notebook ```demo_OnACID_mesoscope.ipynb``` for an application on two-photon mesoscope data provided by the Tolias lab (Baylor College of Medicine).
 
 ## Installation for calcium imaging data analysis
 
@@ -166,25 +170,25 @@ The following references provide the theoretical background and original code fo
 
 ### Deconvolution and demixing of calcium imaging data
 
-<a name="ref"></a>[1] Pnevmatikakis, E.A., Soudry, D., Gao, Y., Machado, T., Merel, J., ... & Paninski, L. (2016). Simultaneous denoising, deconvolution, and demixing of calcium imaging data. Neuron 89(2):285-299, [[paper]](http://dx.doi.org/10.1016/j.neuron.2015.11.037), [[Github repository]](https://github.com/epnev/ca_source_extraction). 
+<a name="neuron"></a>[1] Pnevmatikakis, E.A., Soudry, D., Gao, Y., Machado, T., Merel, J., ... & Paninski, L. (2016). Simultaneous denoising, deconvolution, and demixing of calcium imaging data. Neuron 89(2):285-299, [[paper]](http://dx.doi.org/10.1016/j.neuron.2015.11.037), [[Github repository]](https://github.com/epnev/ca_source_extraction). 
 
-<a name="ref"></a>[2] Pnevmatikakis, E.A., Gao, Y., Soudry, D., Pfau, D., Lacefield, C., ... & Paninski, L. (2014). A structured matrix factorization framework for large scale calcium imaging data analysis. arXiv preprint arXiv:1409.2903. [[paper]](http://arxiv.org/abs/1409.2903). 
+<a name="struct"></a>[2] Pnevmatikakis, E.A., Gao, Y., Soudry, D., Pfau, D., Lacefield, C., ... & Paninski, L. (2014). A structured matrix factorization framework for large scale calcium imaging data analysis. arXiv preprint arXiv:1409.2903. [[paper]](http://arxiv.org/abs/1409.2903). 
 
-<a name="ref"></a>[3] Zhou, P., Resendez, S. L., Stuber, G. D., Kass, R. E., & Paninski, L. (2016). Efficient and accurate extraction of in vivo calcium signals from microendoscopic video data. arXiv preprint arXiv:1605.07266. [[paper]](https://arxiv.org/abs/1605.07266), [[Github repository]](https://github.com/zhoupc/CNMF_E).
+<a name="cnmfe"></a>[3] Zhou, P., Resendez, S. L., Stuber, G. D., Kass, R. E., & Paninski, L. (2016). Efficient and accurate extraction of in vivo calcium signals from microendoscopic video data. arXiv preprint arXiv:1605.07266. [[paper]](https://arxiv.org/abs/1605.07266), [[Github repository]](https://github.com/zhoupc/CNMF_E).
 
-<a name="ref"></a>[4] Friedrich J. and Paninski L. Fast active set methods for online spike inference from calcium imaging. NIPS, 29:1984-1992, 2016. [[paper]](https://papers.nips.cc/paper/6505-fast-active-set-methods-for-online-spike-inference-from-calcium-imaging), [[Github repository]](https://github.com/j-friedrich/OASIS).
+<a name="oasis"></a>[4] Friedrich J. and Paninski L. Fast active set methods for online spike inference from calcium imaging. NIPS, 29:1984-1992, 2016. [[paper]](https://papers.nips.cc/paper/6505-fast-active-set-methods-for-online-spike-inference-from-calcium-imaging), [[Github repository]](https://github.com/j-friedrich/OASIS).
 
 ### Online Analysis
 
-<a name="ref"></a>[5] Giovannucci, A., Friedrich J., Kaufman M., Churchland A., Chklovskii D., Paninski L., & Pnevmatikakis E.A. (2017). OnACID: Online analysis of calcium imaging data in real data. NIPS 2017, to appear.
+<a name="onacid"></a>[5] Giovannucci, A., Friedrich J., Kaufman M., Churchland A., Chklovskii D., Paninski L., & Pnevmatikakis E.A. (2017). OnACID: Online analysis of calcium imaging data in real data. NIPS 2017, to appear. [[paper]](https://www.biorxiv.org/content/early/2017/10/02/193383)
 
 ### Motion Correction
 
-<a name="ref"></a>[6] Pnevmatikakis, E.A., and Giovannucci A. (2017). NoRMCorre: An online algorithm for piecewise rigid motion correction of calcium imaging data. Journal of Neuroscience Methods, 291:83-92 [[paper]](https://doi.org/10.1016/j.jneumeth.2017.07.031), [[Github repository]](https://github.com/simonsfoundation/normcorre).
+<a name="normcorre"></a>[6] Pnevmatikakis, E.A., and Giovannucci A. (2017). NoRMCorre: An online algorithm for piecewise rigid motion correction of calcium imaging data. Journal of Neuroscience Methods, 291:83-92 [[paper]](https://doi.org/10.1016/j.jneumeth.2017.07.031), [[Github repository]](https://github.com/simonsfoundation/normcorre).
 
 ### Behavioral analysis
 
-<a name="ref"></a>[7] Giovannucci, A., Pnevmatikakis, E. A., Deverett, B., Pereira, T., Fondriest, J., Brady, M. J., ... & Masip, D. (2017). Automated gesture tracking in head-fixed mice. Journal of Neuroscience Methods, in press. [[paper]](https://doi.org/10.1016/j.jneumeth.2017.07.014).
+<a name="behavior"></a>[7] Giovannucci, A., Pnevmatikakis, E. A., Deverett, B., Pereira, T., Fondriest, J., Brady, M. J., ... & Masip, D. (2017). Automated gesture tracking in head-fixed mice. Journal of Neuroscience Methods, in press. [[paper]](https://doi.org/10.1016/j.jneumeth.2017.07.014).
 
 ## Related packages
 
