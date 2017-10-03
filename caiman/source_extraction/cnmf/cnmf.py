@@ -514,9 +514,12 @@ class CNMF(object):
                     C), [], options['temporal_params'], options['spatial_params'], dview=self.dview,
                     thr=self.merge_thresh, mx=np.Inf)
             
-#            print('update spatial ...')
-#            A, b, C, f = update_spatial_components(
-#                    Yr, C = C, f = f, A_in = A, sn=sn, b_in = b, dview=self.dview, **options['spatial_params'])            
+   
+            options['spatial_params']['se'] = np.ones((1,) * len(dims), dtype=np.uint8)    
+            options['spatial_params']['update_background_components'] = True
+            print('update spatial ...')
+            A, b, C, f = update_spatial_components(
+                    Yr, C = C, f = f, A_in = A, sn=sn, b_in = b, dview=self.dview, **options['spatial_params'])            
 
             print("update temporal")
             C, A, b, f, S, bl, c1, neurons_sn, g1, YrA, lam = update_temporal_components(

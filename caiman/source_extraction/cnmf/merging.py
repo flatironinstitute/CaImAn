@@ -184,6 +184,7 @@ sn: float
 
             #we l2 the traces to have normalization values
             C_to_norm = np.sqrt([computedC.dot(computedC) for computedC in C[merged_ROI]])
+#            fast_merge = False
             if fast_merge:
                 # from here we are computing initial values for C and A
                 Acsc = A.tocsc()[:, merged_ROI]
@@ -193,7 +194,7 @@ sn: float
                 #we normalize the values of different A's to be able to compare them efficiently. we then sum them
                 computedA = Acsc.dot(scipy.sparse.diags(C_to_norm, 0, (len(C_to_norm), len(C_to_norm)))).sum(axis=1)
 
-                for _ in range(10): # we operate a rank one NMF, refining it multiple times (see cnmf demos )
+                for _ in range(20): # we operate a rank one NMF, refining it multiple times (see cnmf demos )
                     computedC = Acsc.T.dot(computedA).T.dot(Ctmp) / (computedA.T * computedA)
                     computedA = Acsc.dot(Ctmp.dot(computedC.T)) / (computedC * computedC.T)
 
@@ -220,7 +221,8 @@ sn: float
                 c1_merged[i] = cm
                 sn_merged[i] = sm
                 g_merged[i, :] = gm
-            else:
+            else:                
+                
                 A_merged[:, i] = lil_matrix((A.tocsc()[:, merged_ROI].dot(
                     scipy.sparse.diags(C_to_norm, 0, (len(C_to_norm), len(C_to_norm))))).sum(axis=1))
 
