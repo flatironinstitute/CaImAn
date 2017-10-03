@@ -25,8 +25,7 @@ RUN CONDA_SSL_VERIFY=false conda update pyopenssl
 # RUN git clone --recursive -b dev https://github.com/agiovann/Constrained_NMF.git
 ADD . /CaImAn
 WORKDIR /CaImAn/
-RUN conda env create -f environment.yml -n caiman
-RUN source activate caiman
+RUN conda env update -f environment.yml -n root
 #RUN conda install --file requirements_conda.txt
 #RUN pip install -r requirements_pip.txt
 RUN apt-get install libc6-i386
