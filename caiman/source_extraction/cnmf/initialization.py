@@ -870,7 +870,7 @@ def greedyROI_corr(data, max_number=None, gSiz=None, gSig=None, center_psf=True,
             np.zeros((d1 * d2, 0), np.float32), C, np.zeros((0, total_frames), np.float32),
             dview=None, bl=None, c1=None, sn=None, g=None, **options['temporal_params'])[:2]
         print('Update Spatial')
-        options['spatial_params']['se']: np.ones((1,) * len(dims), dtype=np.uint8)
+        options['spatial_params']['se'] = np.ones((1,) * len((d1,d2)), dtype=np.uint8)
         A, _, C, _ = caiman.source_extraction.cnmf.spatial.update_spatial_components(
             np.array(data.reshape((-1, total_frames), order='F') - B), C=C,
             f=np.zeros((0, total_frames), np.float32), A_in=A, sn=sn,
