@@ -56,7 +56,7 @@ We recently incorporated a Python implementation of the OnACID [[5]](#onacid) al
 ## Installation for calcium imaging data analysis
 
 
-* Installation on Mac 
+* Installation on Mac (**Suggested PYTHON 2.7**)
 
    * Download and install Anaconda (Python 2.7 or Python 3.5) <http://docs.continuum.io/anaconda/install>
 
@@ -71,6 +71,7 @@ We recently incorporated a Python implementation of the OnACID [[5]](#onacid) al
    conda install -c conda-forge tensorflow keras
    python setup.py build_ext -i   
    ```
+   **Python 3 is currently giving issues** when running in parallel mode (dview is not None) because of bugs in Python/ipyparallel/numpy interaction. We suggest to stick to 2 until this message disappear. If you solve the issue please let us know.
 
 
 * Installation on Linux 
