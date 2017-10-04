@@ -25,8 +25,6 @@ from sklearn.utils.extmath import fast_dot
 from caiman.source_extraction.cnmf import oasis
 from sklearn.decomposition import NMF 
 from sklearn.preprocessing import normalize
-#from caiman.source_extraction.cnmf import cnmf
-import oasis
 
 try:
     profile
@@ -698,16 +696,15 @@ def update_shapes(CY, CC, Ab, ind_A, indicator_components=None, Ab_dense=None, u
 
     return Ab, ind_A, Ab_dense
 
+
 #%%
-
-
 class RingBuffer(np.ndarray):
     """ implements ring buffer efficiently"""
 
     def __new__(cls, input_array, num_els):
         obj = np.asarray(input_array).view(cls)
         obj.max_ = num_els
-        obj.cur = num_els - 1  # 0 ?
+        obj.cur = num_els - 1
         if input_array.shape[0] != num_els:
             print([input_array.shape[0], num_els])
             raise Exception('The first dimension should equal num_els')
@@ -730,7 +727,7 @@ class RingBuffer(np.ndarray):
         return np.concatenate([self[self.cur:], self[:self.cur]], axis=0)
 
     def get_first(self):
-        return self[(self.cur + 1) % self.max_]  # return self[self.cur] ?
+        return self[(self.cur + 1) % self.max_]
 
     def get_last_frames(self, num_frames):
         if self.cur >= num_frames:
@@ -981,7 +978,7 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
             # Ain = scipy.sparse.csc_matrix((np.prod(dims), 1), dtype=np.float32)
             Ain[indeces, :] = ain[:, None]
 
-            cin_circ = np.roll(cin, -Yres_buf.cur, axis=0)
+            cin_circ = cin.get_ordered()
 
     #        indeces_good = (Ain[indeces]>0.01).nonzero()[0]
 
@@ -1021,7 +1018,7 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
             if s_min is None:  # use thresh_s_min * noise estimate
                 s_min = 0 if thresh_s_min is None else thresh_s_min * sqrt((ain**2).dot(sn[indeces]**2))  # *
 #                                     sqrt((1-g**2) / (1-g**10))
-            cin_res = np.roll(cin_res, -Yres_buf.cur, axis=0)
+            cin_res = cin_res.get_ordered()
             if useOASIS:
                 oas = oasis.OASIS(g=g, s_min=s_min,
                                   num_empty_samples=t + 1 - len(cin_res))
@@ -1053,8 +1050,8 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
 #                ind_a = np.reshape(ind_a > 1e-10, (np.prod(dims),), order='F')
 #                indeces_good = np.where(ind_a)[0]#np.where(determine_search_location(Ain,dims))[0]
                 if not useOASIS:
-		    oas = oasis.OASIS(g, 0, .5, num_empty_samples=t + 1 - len(cin_res))
-		    # TODO: be smarter about parameters
+                    oas = oasis.OASIS(g, 0, .5, num_empty_samples=t + 1 - len(cin_res))
+                    # TODO: be smarter about parameters
                     # oas = oasis.OASIS(g=g, b=np.mean(bl), lam=lam, s_min=s_min,
                     #                   num_empty_samples=t + 1 - len(cin_res))
                     for yt in cin_res:

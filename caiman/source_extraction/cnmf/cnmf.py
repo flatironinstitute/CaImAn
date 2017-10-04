@@ -85,7 +85,7 @@ class CNMF(object):
                  remove_very_bad_comps=False, border_pix=0, low_rank_background=True, 
                  update_background_components=True, rolling_sum = True, rolling_length = 100,
                  min_corr=.85, min_pnr=20, deconvolve_options_init=None, ring_size_factor=1.5,
-				 center_psf=True,  use_dense=False, deconv_flag = True,
+				 center_psf=True,  use_dense=True, deconv_flag = True,
                  simultaneously=False, n_refit=0):
         """
         Constructor of the CNMF method
@@ -539,7 +539,7 @@ class CNMF(object):
         return self
 
     def _prepare_object(self, Yr, T, expected_comps, new_dims=None, idx_components=None,
-                        g=None, lam=None, s_min=None, bl=None, use_dense=False):
+                        g=None, lam=None, s_min=None, bl=None, use_dense=True):
 
         self.expected_comps = expected_comps
 
@@ -672,8 +672,8 @@ class CNMF(object):
         self.AtY_buf = self.Ab.T.dot(self.Yr_buf.T)
         self.sv = np.sum(self.rho_buf.get_last_frames(self.initbatch), 0)
         self.groups = list(map(list, update_order(self.Ab)[0]))
-        self.update_counter = np.zeros(self.N)
-        # self.update_counter = .5**(-np.linspace(0, 1, self.N, dtype=np.float32))  # for distributed shape-update
+        # self.update_counter = np.zeros(self.N)
+        self.update_counter = .5**(-np.linspace(0, 1, self.N, dtype=np.float32))
         self.time_neuron_added = []
         for nneeuu in range(self.N):
             self.time_neuron_added.append((nneeuu, self.initbatch))
@@ -681,7 +681,7 @@ class CNMF(object):
         return self
 
     @profile
-    def fit_next(self, t, frame_in, num_iters_hals=5):
+    def fit_next(self, t, frame_in, num_iters_hals=3):
         """
         This method fits the next frame using the online cnmf algorithm and updates the object.
 
@@ -859,10 +859,9 @@ class CNMF(object):
                 print('Updating Shapes')
 
                 if self.N > self.max_comp_update_shape:
-                    count_stats = (10./(10 + self.update_counter))
-                    indicator_components = np.where(count_stats >= np.random.random(len(count_stats)))[0]
-                    # indicator_components = np.where(self.update_counter <=
-                    #                                 self.num_times_comp_updated)[0]
+                    indicator_components = np.where(self.update_counter <=
+                                                    self.num_times_comp_updated)[0]
+                    # np.random.choice(self.N,10,False)
                     self.update_counter[indicator_components] += 1
                 else:
                     indicator_components = None
