@@ -704,7 +704,7 @@ class RingBuffer(np.ndarray):
     def __new__(cls, input_array, num_els):
         obj = np.asarray(input_array).view(cls)
         obj.max_ = num_els
-        obj.cur = num_els - 1
+        obj.cur = 0  # was num_els-1 (?)
         if input_array.shape[0] != num_els:
             print([input_array.shape[0], num_els])
             raise Exception('The first dimension should equal num_els')
@@ -727,7 +727,7 @@ class RingBuffer(np.ndarray):
         return np.concatenate([self[self.cur:], self[:self.cur]], axis=0)
 
     def get_first(self):
-        return self[(self.cur + 1) % self.max_]
+        return self[self.cur]
 
     def get_last_frames(self, num_frames):
         if self.cur >= num_frames:
