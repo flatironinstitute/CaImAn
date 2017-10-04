@@ -71,7 +71,7 @@ We recently incorporated a Python implementation of the OnACID [[5]](#onacid) al
    conda install -c conda-forge tensorflow keras
    python setup.py build_ext -i   
    ```
-   **Python 3 is currently giving issues** when running in parallel mode (dview is not None) because of bugs in Python/ipyparallel/numpy interaction. We suggest to stick to 2 until this message disappear. If you solve the issue please let us know. If you really want to use we had success using conda-forge channel instead of anaconda. You can try that if you are desperate.  
+   **Python 3 is currently giving issues** when running in parallel mode (dview is not None) because of bugs in Python/ipyparallel/numpy interaction. We suggest to stick to 2 until this message disappear. If you really want to use it we had some success using conda-forge channel instead of anaconda. You can try that if you are desperate.  
 
 
 * Installation on Linux 
