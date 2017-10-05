@@ -662,15 +662,15 @@ class CNMF(object):
 
         self.Yr_buf = RingBuffer(Yr[:, self.initbatch - self.minibatch_shape:
                                     self.initbatch].T.copy(), self.minibatch_shape)
-        self.Yres_buf = RingBuffer(self.Yr_buf.get_ordered() - self.Ab.dot(
+        self.Yres_buf = RingBuffer(self.Yr_buf - self.Ab.dot(
             self.C_on[:self.M, self.initbatch - self.minibatch_shape:self.initbatch]).T, self.minibatch_shape)
-        self.rho_buf = imblur(self.Yres_buf.get_ordered().T.reshape(
+        self.rho_buf = imblur(self.Yres_buf.T.reshape(
             self.dims2 + (-1,), order='F'), sig=self.gSig, siz=self.gSiz, nDimBlur=2)**2
         self.rho_buf = np.reshape(self.rho_buf, (self.dims2[0] * self.dims2[1], -1)).T
         self.rho_buf = RingBuffer(self.rho_buf, self.minibatch_shape)
         self.AtA = (self.Ab.T.dot(self.Ab)).toarray()
         self.AtY_buf = self.Ab.T.dot(self.Yr_buf.T)
-        self.sv = np.sum(self.rho_buf.get_last_frames(self.initbatch), 0)
+        self.sv = np.sum(self.rho_buf.get_last_frames(min(self.initbatch, self.minibatch_shape) - 1), 0)
         self.groups = list(map(list, update_order(self.Ab)[0]))
         # self.update_counter = np.zeros(self.N)
         self.update_counter = .5**(-np.linspace(0, 1, self.N, dtype=np.float32))

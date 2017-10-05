@@ -704,7 +704,7 @@ class RingBuffer(np.ndarray):
     def __new__(cls, input_array, num_els):
         obj = np.asarray(input_array).view(cls)
         obj.max_ = num_els
-        obj.cur = 0  # was num_els-1 (?)
+        obj.cur = 0
         if input_array.shape[0] != num_els:
             print([input_array.shape[0], num_els])
             raise Exception('The first dimension should equal num_els')
