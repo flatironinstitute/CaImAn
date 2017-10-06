@@ -338,7 +338,7 @@ def motion_correct_online_multifile(list_files,add_to_movie,order = 'C', **kwarg
         kwargs_['template'] = template
         kwargs_['save_base_name'] = file_[:-4]
         tffl = tifffile.TiffFile(file_)
-        shifts,xcorrs,template, fname_tot  =  motion_correct_online(tffl,add_to_movie,**kwargs_)
+        shifts,xcorrs,template, fname_tot  =  motion_correct_online(tffl,add_to_movie,**kwargs_)[0:4]
         all_names.append(fname_tot)
         all_shifts.append(shifts)
         all_xcorrs.append(xcorrs)
