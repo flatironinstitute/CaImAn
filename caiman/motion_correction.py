@@ -1973,9 +1973,17 @@ def tile_and_correct_wrapper(params):
     name, extension = os.path.splitext(img_name)[:2]
     
     if extension == '.tif' or extension == '.tiff':  # check if tiff file
-        imgs = imread(img_name,key = idxs)
-        mc = np.zeros(imgs.shape,dtype = np.float32)
-        shift_info = []
+        try:
+            imgs = imread(img_name,key = idxs)
+            mc = np.zeros(imgs.shape,dtype = np.float32)
+            shift_info = []
+        except IndexError as ie:
+            #if IndexError exception, then tiff movie is likely formatted as single-page
+            #so will just read as numpy array and get frames via indexing into the array
+            imgs_tmp = imread(img_name)
+            imgs = np.take(imgs_tmp, idxs, axis=0)
+            mc = np.zeros(imgs.shape,dtype = np.float32)
+            shift_info = []
     elif extension == '.sbx':  # check if sbx file
         imgs = cm.base.movies.sbxread(name, idxs[0], len(idxs))
         mc = np.zeros(imgs.shape,dtype = np.float32)
