@@ -84,7 +84,7 @@ def bare_initialization(Y, init_batch = 1000, k = 1, method_init = 'greedy_roi',
     YrA = YA - AA.T.dot(Cin)
     
     cnm_init = cm.source_extraction.cnmf.cnmf.CNMF(2, k=k, gSig=gSig, Ain=Ain, Cin=Cin, b_in=np.array(b_in), f_in=f_in, method_init = method_init, **kwargs)
-    cnm_init.A, cnm_init.C, cnm_init.b, cnm_init.f, cnm_init.S, cnm_init.YrA = Ain, Cin, b_in, f_in, np.max(np.atleast_2d(Cin),0), YrA
+    cnm_init.A, cnm_init.C, cnm_init.b, cnm_init.f, cnm_init.S, cnm_init.YrA = Ain, Cin, b_in, f_in, np.maximum(np.atleast_2d(Cin),0), YrA
     cnm_init.g = np.array([[gg] for gg in np.ones(k)*0.9])
     cnm_init.bl = np.zeros(k)
     cnm_init.c1 = np.zeros(k)
