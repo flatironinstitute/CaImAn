@@ -617,20 +617,21 @@ class CNMF(object):
         self.noisyC[self.gnb:self.M, :self.initbatch] = self.C2 + self.YrA2
         self.noisyC[:self.gnb, :self.initbatch] = self.f2
 
-         # next line requires some estimate of the spike size, e.g. running OASIS with penalty=0
-         # or s_min from histogram a la Deneux et al (2016)
-#        self.OASISinstances = [oasis.OASIS(
-#            g=g if g is not None else (gam[0] if self.p == 1 else gam),
-#            s_min=self.thresh_s_min * sn if s_min is None else s_min,
-#            b=b if bl is None else bl)
-#            for gam, sn, b in zip(self.g2, self.neurons_sn2, self.bl2)]
-#         # using L1 instead of min spikesize with lambda obtained from fit on init batch
+        # if no parameter for calculating the spike size threshold is given, then use L1 penalty
+        if s_min is None and self.s_min is None and self.thresh_s_min is None:
+            use_L1 = True
+        else:
+            use_L1 = False
         self.OASISinstances = [oasis.OASIS(
             g=g if g is not None else (gam[0] if self.p == 1 else gam),
-            lam=l if lam is None else lam,
-            s_min=0 if s_min is None else s_min,
+            lam=0 if not use_L1 else (l if lam is None else lam),
+            # if no explicit value for s_min,  use thresh_s_min * noise estimate * sqrt(1-gamma)
+            s_min=0 if use_L1 else (s_min if s_min is not None else
+                                    (self.s_min if self.s_min is not None else
+                                     (self.thresh_s_min * sn * np.sqrt(1 - gam)))),
             b=b if bl is None else bl)
-            for gam, l, b in zip(self.g2, self.lam2, self.bl2)]
+            for gam, l, b, sn in zip(self.g2, self.lam2, self.bl2, self.neurons_sn2)]
+
 
         for i, o in enumerate(self.OASISinstances):
             o.fit(self.noisyC[i + self.gnb, :self.initbatch])
@@ -769,7 +770,7 @@ class CNMF(object):
                 thresh_fitness_raw=self.thresh_fitness_raw, thresh_overlap=self.thresh_overlap,
                 groups=self.groups, batch_update_suff_stat=self.batch_update_suff_stat, gnb=self.gnb,
                 sn=self.sn, g=np.mean(self.g2) if self.p == 1 else np.mean(self.g2, 0),
-                lam=self.lam.mean(), thresh_s_min=self.thresh_s_min, s_min=self.s_min,
+                lam=self.lam2.mean(), thresh_s_min=self.thresh_s_min, s_min=self.s_min,
                 Ab_dense=self.Ab_dense[:, :self.M] if self.use_dense else None,
                 oases=self.OASISinstances)
 

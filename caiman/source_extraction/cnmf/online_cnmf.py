@@ -907,7 +907,7 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                           rval_thr=0.875, bSiz=3, robust_std=False,
                           N_samples_exceptionality=5, remove_baseline=True,
                           thresh_fitness_delta=-20, thresh_fitness_raw=-20, thresh_overlap=0.5,
-                          batch_update_suff_stat=False, sn=None, g=None, lam=0, thresh_s_min=6,
+                          batch_update_suff_stat=False, sn=None, g=None, lam=0, thresh_s_min=None,
                           s_min=None, Ab_dense=None, max_num_added=1):
 
     gHalf = np.array(gSiz) // 2
@@ -1016,9 +1016,10 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                     # print('Overlap at step' + str(t) + ' ' + str(cc))
                     break
 
-            if s_min is None:  # use thresh_s_min * noise estimate
-                s_min = 0 if thresh_s_min is None else thresh_s_min * sqrt((ain**2).dot(sn[indeces]**2))  # *
-#                                     sqrt((1-g**2) / (1-g**10))
+            if s_min is None:  # use thresh_s_min * noise estimate * sqrt(1-gamma)
+                s_min = 0 if thresh_s_min is None else thresh_s_min * \
+                    sqrt((ain**2).dot(sn[indeces]**2)) * sqrt(1 - g)
+
             cin_res = cin_res.get_ordered()
             if useOASIS:
                 oas = oasis.OASIS(g=g, s_min=s_min,
@@ -1051,14 +1052,18 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
 #                ind_a = np.reshape(ind_a > 1e-10, (np.prod(dims),), order='F')
 #                indeces_good = np.where(ind_a)[0]#np.where(determine_search_location(Ain,dims))[0]
                 if not useOASIS:
-                    oas = oasis.OASIS(g, 0, .5, num_empty_samples=t + 1 - len(cin_res))
-                    # TODO: be smarter about parameters
-                    # oas = oasis.OASIS(g=g, b=np.mean(bl), lam=lam, s_min=s_min,
-                    #                   num_empty_samples=t + 1 - len(cin_res))
+                    # TODO: decide on a line to use for setting the parameters
+                    # # lambda from init batch (e.g. mean of lambdas)  or  s_min if either s_min or s_min_thresh are given
+                    # oas = oasis.OASIS(g, lam if s_min==0 else 0, s_min, num_empty_samples=t + 1 - len(cin_res))
+                    # or
+                    # lambda from Selesnick's 3*sigma*|K| rule
+                    # use noise estimate from init batch or use std_rr?
+                    oas = oasis.OASIS(g, 3 * sqrt((ain**2).dot(sn[indeces]**2)) / sqrt(1 - g**2) if s_min == 0 else 0,
+                                      s_min, num_empty_samples=t + 1 - len(cin_res))
                     for yt in cin_res:
                         oas.fit_next(yt)
                 oases.append(oas)
-
+                
                 Ain_csc = scipy.sparse.csc_matrix((ain, (indeces, [0] * len(indeces))),
                                                   (np.prod(dims), 1), dtype=np.float32)
 
