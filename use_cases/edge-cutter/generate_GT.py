@@ -19,7 +19,9 @@ fname_new = '/mnt/ceph/neuro/labeling/neurofinder.02.00/images/final_map/Yr_d1_5
 fname_new = '/mnt/ceph/neuro/labeling/yuste.Single_150u/images/final_map/Yr_d1_200_d2_256_d3_1_order_C_frames_3000_.mmap'
 fname_new = '/mnt/ceph/neuro/labeling/neurofinder.00.00/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_2936_.mmap'
 fname_new = '/mnt/ceph/neuro/labeling/neurofinder.01.01/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_1825_.mmap'
-#%% you sort out how to deal with these big beasts
+
+gt_file = os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:-4] + 'match_masks.npz')
+#%% you guys sort out how to deal with these big beasts
 fname_new = glob.glob('/mnt/ceph/neuro/labeling/k53_20160530/images/mmap/*.mmap')
 fname_new.sort()
 gt_file = '/mnt/ceph/neuro/labeling/k53_20160530/Yr_d1_512_d2_512_d3_1_order_C_frames_116043_.match_masks.npz'
@@ -32,8 +34,7 @@ fname_new = glob.glob('/mnt/ceph/neuro/labeling/J123_2015-11-20_L01_0/images/mma
 fname_new.sort()
 gt_file = '/mnt/ceph/neuro/labeling/J123_2015-11-20_L01_0/images/final_map/Yr_d1_458_d2_477_d3_1_order_C_frames_41000_.match_masks.npz'
 #%%
-#gt_file = os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:-4] + 'match_masks.npz')
-
+#
 with np.load(gt_file, encoding = 'latin1') as ld:
     print(ld.keys())
     locals().update(ld)
