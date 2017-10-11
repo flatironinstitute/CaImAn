@@ -23,7 +23,7 @@ except:
     from skimage.external import tifffile as tifffile
 
 #%%
-def load_memmap(filename):
+def load_memmap(filename,mode = 'r'):
     """ Load a memory mapped file created by the function save_memmap
     
     Parameters:
@@ -58,7 +58,7 @@ def load_memmap(filename):
 
         d1, d2, d3, T, order = int(fpart[-9]), int(fpart[-7]), int(fpart[-5]), int(fpart[-1]), fpart[-3]
 
-        Yr = np.memmap(file_to_load, mode='r', shape=(
+        Yr = np.memmap(file_to_load, mode=mode, shape=(
             d1 * d2 * d3, T), dtype=np.float32, order=order)
 
         return (Yr, (d1, d2 ), T) if d3 == 1 else (Yr, (d1, d2, d3), T)

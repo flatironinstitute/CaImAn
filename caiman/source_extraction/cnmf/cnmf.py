@@ -85,7 +85,8 @@ class CNMF(object):
                  remove_very_bad_comps=False, border_pix=0, low_rank_background=True, 
                  update_background_components=True, rolling_sum = True, rolling_length = 100,
                  min_corr=.85, min_pnr=20, deconvolve_options_init=None, ring_size_factor=1.5,
-				 center_psf=True):
+				 center_psf=True,  use_dense=True, deconv_flag = True,
+                 simultaneously=False, n_refit=0):
         """
         Constructor of the CNMF method
 
@@ -213,6 +214,16 @@ class CNMF(object):
 		
 		expected_comps: int
             number of expected components (try to exceed the expected)
+            
+        deconv_flag :    bool, optional
+            If True, deconvolution is also performed using OASIS
+
+        simultaneously : bool, optional
+            If true, demix and denoise/deconvolve simultaneously. Slower but can be more accurate.
+
+        n_refit : int, optional
+            Number of pools (cf. oasis.pyx) prior to the last one that are refitted when
+            simultaneously demixing and denoising/deconvolving.
 			
         Returns:
         --------
@@ -277,6 +288,11 @@ class CNMF(object):
         self.num_times_comp_updated = num_times_comp_updated
         self.max_comp_update_shape = max_comp_update_shape
         self.batch_update_suff_stat = batch_update_suff_stat
+        self.use_dense=use_dense
+        self.deconv_flag = deconv_flag
+        self.simultaneously=simultaneously
+        self.n_refit=n_refit
+        
 		
         self.min_corr = min_corr
         self.min_pnr = min_pnr
@@ -577,7 +593,7 @@ class CNMF(object):
         self.A2 /= nA
         self.C2 *= nA[:, None]
         self.YrA2 *= nA[:, None]
-        self.S2 *= nA[:, None]
+#        self.S2 *= nA[:, None]
         self.neurons_sn2 *= nA
         self.lam2 *= nA
         z = np.sqrt([b.T.dot(b) for b in self.b2.T])
@@ -601,21 +617,21 @@ class CNMF(object):
         self.noisyC[self.gnb:self.M, :self.initbatch] = self.C2 + self.YrA2
         self.noisyC[:self.gnb, :self.initbatch] = self.f2
 
-         # next line requires some estimate of the spike size, e.g. running OASIS with penalty=0
-         # or s_min from histogram a la Deneux et al (2016)
-#        self.OASISinstances = [oasis.OASIS(
-#            g=g if g is not None else (gam[0] if self.p == 1 else gam),
-#            s_min=self.thresh_s_min * sn if s_min is None else s_min,
-#            b=b if bl is None else bl)
-#            for gam, sn, b in zip(self.g2, self.neurons_sn2, self.bl2)]
-#         # using L1 instead of min spikesize with lambda obtained from fit on init batch
+        # if no parameter for calculating the spike size threshold is given, then use L1 penalty
+        if s_min is None and self.s_min is None and self.thresh_s_min is None:
+            use_L1 = True
+        else:
+            use_L1 = False
         self.OASISinstances = [oasis.OASIS(
             g=np.ravel(g)[0] if g is not None else gam[0],
-            lam=l if lam is None else lam,
-            s_min=0 if s_min is None else s_min,
+            lam=0 if not use_L1 else (l if lam is None else lam),
+            # if no explicit value for s_min,  use thresh_s_min * noise estimate * sqrt(1-gamma)
+            s_min=0 if use_L1 else (s_min if s_min is not None else
+                                    (self.s_min if self.s_min is not None else
+                                     (self.thresh_s_min * sn * np.sqrt(1 - gam)))),
             b=b if bl is None else bl,
             g2=0 if self.p == 1 else (np.ravel(g)[1] if g is not None else gam[1]))
-            for gam, l, b in zip(self.g2, self.lam2, self.bl2)]
+            for gam, l, b, sn in zip(self.g2, self.lam2, self.bl2, self.neurons_sn2)]
 
         for i, o in enumerate(self.OASISinstances):
             o.fit(self.noisyC[i + self.gnb, :self.initbatch])
@@ -647,16 +663,16 @@ class CNMF(object):
 
         self.Yr_buf = RingBuffer(Yr[:, self.initbatch - self.minibatch_shape:
                                     self.initbatch].T.copy(), self.minibatch_shape)
-        self.Yres_buf = RingBuffer(self.Yr_buf.get_ordered() - self.Ab.dot(
+        self.Yres_buf = RingBuffer(self.Yr_buf - self.Ab.dot(
             self.C_on[:self.M, self.initbatch - self.minibatch_shape:self.initbatch]).T, self.minibatch_shape)
-        self.rho_buf = imblur(self.Yres_buf.get_ordered().T.reshape(
+        self.rho_buf = imblur(self.Yres_buf.T.reshape(
             self.dims2 + (-1,), order='F'), sig=self.gSig, siz=self.gSiz, nDimBlur=2)**2
         self.rho_buf = np.reshape(self.rho_buf, (self.dims2[0] * self.dims2[1], -1)).T
         self.rho_buf = RingBuffer(self.rho_buf, self.minibatch_shape)
         self.AtA = (self.Ab.T.dot(self.Ab)).toarray()
         self.AtY_buf = self.Ab.T.dot(self.Yr_buf.T)
-        self.sv = np.sum(self.rho_buf.get_last_frames(self.initbatch), 0)
-        self.groups = map(list, update_order(self.Ab)[0])
+        self.sv = np.sum(self.rho_buf.get_last_frames(min(self.initbatch, self.minibatch_shape) - 1), 0)
+        self.groups = list(map(list, update_order(self.Ab)[0]))
         # self.update_counter = np.zeros(self.N)
         self.update_counter = .5**(-np.linspace(0, 1, self.N, dtype=np.float32))
         self.time_neuron_added = []
@@ -666,8 +682,7 @@ class CNMF(object):
         return self
 
     @profile
-    def fit_next(self, t, frame_in, num_iters_hals=3, use_dense=True,
-                 simultaneously=False, n_refit=0):
+    def fit_next(self, t, frame_in, num_iters_hals=3):
         """
         This method fits the next frame using the online cnmf algorithm and updates the object.
 
@@ -681,13 +696,8 @@ class CNMF(object):
 
         num_iters_hals: int, optional
             maximal number of iterations for HALS (NNLS via blockCD)
-
-        simultaneously : bool, optional
-            If true, demix and denoise/deconvolve simultaneously. Slower but can be more accurate.
-
-        n_refit : int, optional
-            Number of pools (cf. oasis.pyx) prior to the last one that are refitted when
-            simultaneously demixing and denoising/deconvolving.
+            
+        
         """
 
         t_start = time()
@@ -699,30 +709,38 @@ class CNMF(object):
         frame = frame_in.astype(np.float32)
 #        print(np.max(1/scipy.sparse.linalg.norm(self.Ab,axis = 0)))
         self.Yr_buf.append(frame)
-
-        if not simultaneously:
+        
+        if not self.deconv_flag:
+            simultaneously = False
+        
+        if not self.simultaneously:
             # get noisy fluor value via NNLS (project data on shapes & demix)
             C_in = self.noisyC[:self.M, t - 1].copy()
             self.noisyC[:self.M, t] = HALS4activity(
                 frame, self.Ab, C_in, self.AtA, iters=num_iters_hals, groups=self.groups)
+            if self.deconv_flag:
             # denoise & deconvolve
-            for i, o in enumerate(self.OASISinstances):
-                o.fit_next(self.noisyC[nb_ + i, t])
-                self.C_on[nb_ + i, t - o.get_l_of_last_pool() + 1: t + 1] = o.get_c_of_last_pool()
-            self.C_on[:nb_, t] = self.noisyC[:nb_, t]
+                for i, o in enumerate(self.OASISinstances):
+                    o.fit_next(self.noisyC[nb_ + i, t])
+                    self.C_on[nb_ + i, t - o.get_l_of_last_pool() + 1: t + 1] = o.get_c_of_last_pool()
+                self.C_on[:nb_, t] = self.noisyC[:nb_, t]
+            else:
+            # just denoise
+                self.C_on[:, t] = self.noisyC[:, t]
+                
         else:
             # update buffer, initialize C with previous value
             self.C_on[:, t] = self.C_on[:, t - 1]
             self.noisyC[:, t] = self.C_on[:, t - 1]
             self.AtY_buf = np.concatenate((self.AtY_buf[:, 1:], self.Ab.T.dot(frame)[:, None]), 1) \
-                if n_refit else self.Ab.T.dot(frame)[:, None]
+                if self.n_refit else self.Ab.T.dot(frame)[:, None]
             # demix, denoise & deconvolve
             (self.C_on[:self.M, t + 1 - mbs:t + 1], self.noisyC[:self.M, t + 1 - mbs:t + 1],
                 self.OASISinstances) = demix_and_deconvolve(
                 self.C_on[:self.M, t + 1 - mbs:t + 1],
                 self.noisyC[:self.M, t + 1 - mbs:t + 1],
                 self.AtY_buf, self.AtA, self.OASISinstances, iters=num_iters_hals,
-                n_refit=n_refit)
+                n_refit=self.n_refit)
             for i, o in enumerate(self.OASISinstances):
                 self.C_on[nb_ + i, t - o.get_l_of_last_pool() + 1: t + 1] = o.get_c_of_last_pool()
 
@@ -751,9 +769,9 @@ class CNMF(object):
                 thresh_fitness_delta=self.thresh_fitness_delta,
                 thresh_fitness_raw=self.thresh_fitness_raw, thresh_overlap=self.thresh_overlap,
                 groups=self.groups, batch_update_suff_stat=self.batch_update_suff_stat, gnb=self.gnb,
-                sn=self.sn, g=np.mean(self.g) if self.p == 1 else np.mean(self.g, 0),
-                lam=self.lam.mean(), thresh_s_min=self.thresh_s_min, s_min=self.s_min,
-                Ab_dense=self.Ab_dense[:, :self.M] if use_dense else None,
+                sn=self.sn, g=np.mean(self.g2) if self.p == 1 else np.mean(self.g2, 0),
+                lam=self.lam2.mean(), thresh_s_min=self.thresh_s_min, s_min=self.s_min,
+                Ab_dense=self.Ab_dense[:, :self.M] if self.use_dense else None,
                 oases=self.OASISinstances)
 
             num_added = len(self.ind_A) - self.N
@@ -769,7 +787,7 @@ class CNMF(object):
                     # np.resize didn't work, but refcheck=False seems fine
                     self.C_on.resize([self.expected_comps + nb_, self.C_on.shape[-1]], refcheck=False)
                     self.noisyC.resize([self.expected_comps + nb_, self.C_on.shape[-1]])
-                    if use_dense:  # resize won't work due to contingency issue
+                    if self.use_dense:  # resize won't work due to contingency issue
                         # self.Ab_dense.resize([self.CY.shape[-1], self.expected_comps+nb_])
                         self.Ab_dense = np.zeros((self.CY.shape[-1], self.expected_comps + nb_),
                                                  dtype=np.float32)
@@ -787,16 +805,16 @@ class CNMF(object):
                     # N.B. OASISinstances are already updated within update_num_components
                     self.C_on[_ct, t - mbs + 1:t +
                               1] = self.OASISinstances[_ct - nb_].get_c(mbs)
-                    if simultaneously and n_refit:
+                    if self.simultaneously and self.n_refit:
                         self.AtY_buf = np.concatenate((
                             self.AtY_buf, [Ab_.data[Ab_.indptr[_ct]:Ab_.indptr[_ct + 1]].dot(
                                 self.Yr_buf.T[Ab_.indices[Ab_.indptr[_ct]:Ab_.indptr[_ct + 1]]])]))
-                    if use_dense:  # much faster than Ab_[:, self.N + nb_ - num_added:].toarray()
+                    if self.use_dense:  # much faster than Ab_[:, self.N + nb_ - num_added:].toarray()
                         self.Ab_dense[Ab_.indices[Ab_.indptr[_ct]:Ab_.indptr[_ct + 1]],
                                       _ct] = Ab_.data[Ab_.indptr[_ct]:Ab_.indptr[_ct + 1]]
 
                 # set the update counter to 0 for components that are overlaping the newly added
-                if use_dense:
+                if self.use_dense:
                     idx_overlap = np.concatenate([
                         self.Ab_dense[self.ind_A[_ct], nb_:self.M - num_added].T.dot(
                             self.Ab_dense[self.ind_A[_ct], _ct + nb_]).nonzero()[0]
@@ -849,7 +867,7 @@ class CNMF(object):
                 else:
                     indicator_components = None
 
-                if use_dense:
+                if self.use_dense:
                     # update dense Ab and sparse Ab simultaneously;
                     # this is faster than calling update_shapes with sparse Ab only
                     Ab_, self.ind_A, self.Ab_dense[:, :self.M] = update_shapes(
@@ -861,8 +879,6 @@ class CNMF(object):
 
                 self.AtA = (Ab_.T.dot(Ab_)).toarray()
 
-            self.Ab = Ab_
-
         else:  # distributed shape update
             self.update_counter *= .5**(1. / mbs)
             # if not num_added:
@@ -872,7 +888,7 @@ class CNMF(object):
                     indicator_components = candidates[:self.N // mbs + 1]
                     self.update_counter[indicator_components] += 1
 
-                    if use_dense:
+                    if self.use_dense:
                         # update dense Ab and sparse Ab simultaneously;
                         # this is faster than calling update_shapes with sparse Ab only
                         Ab_, self.ind_A, self.Ab_dense[:, :self.M] = update_shapes(

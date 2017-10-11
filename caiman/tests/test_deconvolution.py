@@ -1,7 +1,7 @@
-from ..source_extraction.cnmf.deconvolution import constrained_foopsi
 import numpy.testing as npt
 import numpy as np
 from time import time
+from caiman.source_extraction.cnmf.deconvolution import constrained_foopsi
 
 
 def gen_data(g=[.95], sn=.2, T=1000, framerate=30, firerate=.5, b=10, N=1, seed=0):

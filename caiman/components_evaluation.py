@@ -239,7 +239,7 @@ def evaluate_components_CNN(A,dims,gSig,model_name = 'use_cases/CaImAnpaper/cnn_
     dims = np.array(dims)
     coms = [scipy.ndimage.center_of_mass(mm.toarray().reshape(dims,order='F')) for mm in A.tocsc().T]    
     coms = np.maximum(coms,half_crop)
-    coms = np.array([np.minimum(cms,dims-half_crop) for cms in coms])
+    coms = np.array([np.minimum(cms,dims-half_crop) for cms in coms]).astype(np.int)
     crop_imgs = [mm.toarray().reshape(dims,order='F')[com[0]-half_crop:com[0]+half_crop, com[1]-half_crop:com[1]+half_crop] for mm,com in zip(A.tocsc().T,coms) ]
     final_crops = np.array([cv2.resize(im/np.linalg.norm(im),(patch_size ,patch_size )) for im in crop_imgs])
     predictions = loaded_model.predict(final_crops[:,:,:,np.newaxis], batch_size=32, verbose=1)

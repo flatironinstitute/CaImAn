@@ -350,10 +350,10 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, gnb = 1, dvie
     optional_outputs['mask'] = mask
 
     print("Generating background")
+    Im = scipy.sparse.csr_matrix((old_div(1., mask), (np.arange(d), np.arange(d))))
 
     if low_rank_background:
 
-        Im = scipy.sparse.csr_matrix((old_div(1., mask), (np.arange(d), np.arange(d))))
         Bm = Im.dot(B_tot)
         A_tot = Im.dot(A_tot)
 
@@ -370,7 +370,11 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, gnb = 1, dvie
             except np.linalg.LinAlgError:  # singular matrix
                 f = np.fmax(scipy.linalg.lstsq(b, Bm.toarray())[0].dot(F_tot), 0)
     else:
-
+        ecobost_mode = False
+        if ecobost_mode:
+            Bm = Im.dot(B_tot)
+            A_tot = Im.dot(A_tot)
+        
         nA = np.ravel(np.sqrt(A_tot.power(2).sum(0)))
         A_tot /= nA
         A_tot = scipy.sparse.coo_matrix(A_tot)
@@ -381,19 +385,20 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, gnb = 1, dvie
         B_tot = np.array(B_tot, dtype=np.float32)
 #        B_tot = scipy.sparse.coo_matrix(B_tot)
         F_tot *= nB[:, None]
-
-        processed_idx = set([])
-        processed_idx_prev = set([])  # needed if a patch has more than 1 background component
-        for _b in np.arange(B_tot.shape[-1]):
-            idx_mask = np.where(B_tot[:, _b])[0]
-            idx_mask_repeat = processed_idx.intersection(idx_mask)
-            if len(idx_mask_repeat) < len(idx_mask):
-                processed_idx_prev = processed_idx
-            else:
-                idx_mask_repeat = processed_idx_prev.intersection(idx_mask)
-            processed_idx = processed_idx.union(idx_mask)
-            if len(idx_mask_repeat) > 0:
-                B_tot[np.array(list(idx_mask_repeat), dtype=np.int), _b] = 0
+        
+        if not ecobost_mode:
+            processed_idx = set([])
+            processed_idx_prev = set([])  # needed if a patch has more than 1 background component
+            for _b in np.arange(B_tot.shape[-1]):
+                idx_mask = np.where(B_tot[:, _b])[0]
+                idx_mask_repeat = processed_idx.intersection(idx_mask)
+                if len(idx_mask_repeat) < len(idx_mask):
+                    processed_idx_prev = processed_idx
+                else:
+                    idx_mask_repeat = processed_idx_prev.intersection(idx_mask)
+                processed_idx = processed_idx.union(idx_mask)
+                if len(idx_mask_repeat) > 0:
+                    B_tot[np.array(list(idx_mask_repeat), dtype=np.int), _b] = 0
 
         b = B_tot
         f = F_tot

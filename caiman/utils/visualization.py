@@ -121,7 +121,7 @@ def view_patches(Yr, A, C, b, f, d1, d2, YrA=None, secs=1):
             ax2.set_title('Temporal background ' + str(i - nr + 1))
 
 
-def nb_view_patches(Yr, A, C, b, f, d1, d2, image_neurons=None, thr=0.99, denoised_color=None,cmap='jet'):
+def nb_view_patches(Yr, A, C, b, f, d1, d2, YrA = None, image_neurons=None, thr=0.99, denoised_color=None,cmap='jet'):
     """
     Interactive plotting utility for ipython notebook
 
@@ -135,6 +135,10 @@ def nb_view_patches(Yr, A, C, b, f, d1, d2, image_neurons=None, thr=0.99, denois
 
     d1,d2: floats
         dimensions of movie (x and y)
+
+    YrA:   np.ndarray
+        ROI filtered residual as it is given from update_temporal_components
+        If not given, then it is computed (K x T)        
 
     image_neurons: np.ndarray
         image to be overlaid to neurons (for instance the average)
@@ -154,10 +158,14 @@ def nb_view_patches(Yr, A, C, b, f, d1, d2, image_neurons=None, thr=0.99, denois
     nA2 = np.ravel(A.power(2).sum(0))
     b = np.squeeze(b)
     f = np.squeeze(f)
-    Y_r = np.array(spdiags(old_div(1, nA2), 0, nr, nr) *
+    if YrA is None:
+        Y_r = np.array(spdiags(old_div(1, nA2), 0, nr, nr) *
                    (A.T * np.matrix(Yr) -
                     (A.T * np.matrix(b[:, np.newaxis])) * np.matrix(f[np.newaxis]) -
                     A.T.dot(A) * np.matrix(C)) + C)
+    else:
+        Y_r = C + YrA
+            
 
     x = np.arange(T)
     z = old_div(np.squeeze(np.array(Y_r[:, :].T)), 100)
@@ -483,10 +491,10 @@ def nb_view_patches3d(Y_r, A, C, dims, image_type='mean', Yr=None,
         pl.close()
         cc1 = [[(l[:, 0]) for l in n['coordinates']] for n in coors]
         cc2 = [[(l[:, 1]) for l in n['coordinates']] for n in coors]
-        length = np.ravel([map(len, cc) for cc in cc1])
+        length = np.ravel([list(map(len, cc)) for cc in cc1])
         idx = np.cumsum(np.concatenate([[0], length[:-1]]))
-        cc1 = np.concatenate(map(np.concatenate, cc1))
-        cc2 = np.concatenate(map(np.concatenate, cc2))
+        cc1 = np.concatenate(list(map(np.concatenate, cc1)))
+        cc2 = np.concatenate(list(map(np.concatenate, cc2)))
         linit = int(round(coors[0]['CoM'][0]))  # pick initial layer in which first neuron lies
         K = length.max()
         c1 = np.nan * np.zeros(K)

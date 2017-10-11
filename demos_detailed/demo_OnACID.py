@@ -28,8 +28,8 @@ rf = 16
 stride = 3
 K = 4
 gSig = [6, 6]  # expected half size of neurons
-rval_thr = 0.9
-thresh_fitness_delta = -30
+rval_thr = 0.95
+thresh_fitness_delta = -50
 thresh_fitness_raw = -50
 
 fname_new = Y[:initbatch].save('demo.mmap', order='C')
@@ -77,6 +77,6 @@ print(('Number of components:' + str(A.shape[-1])))
 #%%
 pl.figure()
 crd = cm.utils.visualization.plot_contours(A, Cn, thr=0.9)
-#%%
+    #%%
 view_patches_bar(Yr, A, C, cnm.b, cnm.f,
                  dims[0], dims[1], YrA=cnm.noisyC[cnm.gnb:cnm.M] - C, img=Cn)

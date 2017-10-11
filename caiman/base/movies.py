@@ -1138,7 +1138,10 @@ def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None,
 
         if extension == '.tif' or extension == '.tiff':  # load avi file
             if subindices is not None:
-                input_arr = imread(file_name)[subindices, :, :]
+                if type(subindices) is list:
+                    input_arr = imread(file_name)[subindices[0], subindices[1], subindices[2]]
+                else:
+                    input_arr = imread(file_name)[subindices, :, :]
             else:
                 input_arr = imread(file_name)
             input_arr = np.squeeze(input_arr)

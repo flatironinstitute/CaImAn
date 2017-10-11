@@ -25,10 +25,10 @@ ext_modules = [Extension("caiman.source_extraction.cnmf.oasis",
 
 setup(
     name='CaImAn',
-    version='0.1',
-    author='Andrea Giovannucci, Eftychios Pnevmatikakis, Johannes Friedrich, Valentina Staneva, Ben Deverett',
-    author_email='agiovannucci@simonsfoundation.org',
-    url='https://github.com/agiovann/Constrained_NMF',
+    version='1.0',
+    author='Andrea Giovannucci, Eftychios Pnevmatikakis, Johannes Friedrich, Valentina Staneva, Ben Deverett, Erick Cobos, Jeremie Kalfon',
+    author_email='agiovannucci@flatironinstitute.org',
+    url='https://github.com/simonsfoundation/CaImAn',
     license='GPL-2',
     description='Advanced algorithms for ROI detection and deconvolution of Calcium Imaging datasets.',
     long_description=readme,
@@ -38,10 +38,10 @@ setup(
         #   3 - Alpha
         #   4 - Beta
         #   5 - Production/Stable
-        'Development Status :: 3 - Alpha',
+        'Development Status :: 4 - Beta',
 
         # Indicate who your project is intended for
-        'Intended Audience :: Testers',
+        'Intended Audience :: Researchers',
         'Topic :: Calcium Imaging :: Analysis Tools',
 
         # Pick your license as you wish (should match "license" above)
@@ -49,14 +49,13 @@ setup(
 
         # Specify the Python versions you support here. In particular, ensure
         # that you indicate whether you support Python 2, Python 3 or both.
-        'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 2,3',
     ],
     keywords='fluorescence calcium ca imaging deconvolution ROI identification',
     packages=['caiman'],
     data_files=[	('', ['LICENSE.txt']),
                  ('', ['README.md'])],
-    # 'matplotlib', 'scikit-learn', 'scikit-image', 'ipyparallel','scikit-learn','ipython','scipy','numpy'],#,'bokeh','jupyter','tifffile','cvxopt','picos', 'joblib>=0.8.4'],
-    install_requires=['python==2.7.*'],
+    install_requires=[''],
     ext_modules=cythonize(ext_modules)
 
 )

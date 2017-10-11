@@ -553,7 +553,8 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1, 
                 v[[slice(*a) for a in Mod]] = np.sum(rho[[slice(*a) for a in Mod]]**2, axis=-1)
 
     res = np.reshape(Y, (np.prod(d[0:-1]), d[-1]), order='F') + med.flatten(order='F')[:, None]
-    model = NMF(n_components=nb, init='random', random_state=0)
+#    model = NMF(n_components=nb, init='random', random_state=0)    
+    model = NMF(n_components=nb, init='nndsvdar')
     b_in = model.fit_transform(np.maximum(res, 0))
     f_in = model.components_.squeeze()
 
@@ -1184,13 +1185,13 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
                     if center_psf:
                         ai_filtered = cv2.GaussianBlur(tmp_img, ksize=ksize,
                                                        sigmaX=gSig[0],
-                                                       sigmaY=gSig[1], borderType=1) \
+                                                       sigmaY=gSig[1], borderType=cv2.BORDER_REFLECT) \
                             - cv2.boxFilter(tmp_img, ddepth=-1,
-                                            ksize=ksize, borderType=1)
+                                            ksize=ksize, borderType=cv2.BORDER_REFLECT)
                     else:
                         ai_filtered = cv2.GaussianBlur(tmp_img, ksize=ksize,
                                                        sigmaX=gSig[0],
-                                                       sigmaY=gSig[1], borderType=1)
+                                                       sigmaY=gSig[1], borderType=cv2.BORDER_REFLECT)
                     # update the filtered data
                     data_filtered[:, r2_min:r2_max, c2_min:c2_max] -= \
                         ai_filtered[np.newaxis, ...] * ci[..., np.newaxis, np.newaxis]

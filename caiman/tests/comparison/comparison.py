@@ -239,7 +239,8 @@ class Comparison(object):
 
         }
 
-        file_path = "./caiman/tests/comparison/groundtruth.npz"
+        rootdir = os.path.abspath(cm.__path__[0])[:-7]
+        file_path = rootdir + "/caiman/tests/comparison/groundtruth.npz"
 
         # OPENNINGS
         # if we want to set this data as truth
@@ -276,7 +277,7 @@ class Comparison(object):
                 return
         # creating the FOLDER to store our data
         i = 0
-        dr = './caiman/tests/comparison/tests/'
+        dr = rootdir + '/caiman/tests/comparison/tests/'
         for name in os.listdir(dr):
             i += 1
         i = str(i)
@@ -354,7 +355,7 @@ class Comparison(object):
             print("\n")
 
 # SAving of everything
-        file_path = "./caiman/tests/comparison/tests/"+i+"/"+i+".npz"
+        file_path = rootdir + "/caiman/tests/comparison/tests/"+i+"/"+i+".npz"
         np.savez(file_path, information=information, A_full=self.comparison['cnmf_full_frame']['ourdata'][0],
                  C_full=self.comparison['cnmf_full_frame']['ourdata'][
                      1], A_patch=self.comparison['cnmf_on_patch']['ourdata'][0],
@@ -384,7 +385,7 @@ def see(filename=None):
     if filename == None:
         dr = './caiman/tests/comparison/groundtruth.npz'
     else:
-        dr = './caiman/tests/comparison/tests/'
+        dr = os.path.abspath(cm.__path__[0]) + '/tests/comparison/tests/'
         dr = dr+filename+'/'+filename+'.npz'
 
         print(dr)

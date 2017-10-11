@@ -39,7 +39,7 @@ Cn = cm.movie(images)[:3000].local_correlations(swap_dim=False)
 pl.imshow(Cn,cmap='gray')  
 #%%
 K = 35  # number of neurons expected per patch
-gSig = [7, 7]  # expected half size of neurons
+gSig = [6, 6]  # expected half size of neurons
 merge_thresh = 0.8  # merging threshold, max correlation allowed
 p = 2  # order of the autoregressive system
 cnm = cnmf.CNMF(n_processes, method_init='greedy_roi', k=K, gSig=gSig, merge_thresh=merge_thresh,
