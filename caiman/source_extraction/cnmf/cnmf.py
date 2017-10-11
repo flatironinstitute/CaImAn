@@ -610,10 +610,11 @@ class CNMF(object):
 #            for gam, sn, b in zip(self.g2, self.neurons_sn2, self.bl2)]
 #         # using L1 instead of min spikesize with lambda obtained from fit on init batch
         self.OASISinstances = [oasis.OASIS(
-            g=g if g is not None else (gam[0] if self.p == 1 else gam),
+            g=np.ravel(g)[0] if g is not None else gam[0],
             lam=l if lam is None else lam,
             s_min=0 if s_min is None else s_min,
-            b=b if bl is None else bl)
+            b=b if bl is None else bl,
+            g2=0 if self.p == 1 else (np.ravel(g)[1] if g is not None else gam[1]))
             for gam, l, b in zip(self.g2, self.lam2, self.bl2)]
 
         for i, o in enumerate(self.OASISinstances):

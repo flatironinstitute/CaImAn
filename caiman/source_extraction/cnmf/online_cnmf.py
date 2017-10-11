@@ -911,8 +911,9 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
 #                ind_a = np.reshape(ind_a > 1e-10, (np.prod(dims),), order='F')
 #                indeces_good = np.where(ind_a)[0]#np.where(determine_search_location(Ain,dims))[0]
                 if not useOASIS:
-                    oas = oasis.OASIS(g=g, b=np.mean(bl), lam=lam, s_min=s_min,
-                                      num_empty_samples=t + 1 - len(cin_res))
+                    oas = oasis.OASIS(g=np.ravel(g)[0], b=np.mean(bl), lam=lam, s_min=s_min,
+                                      num_empty_samples=t + 1 - len(cin_res),
+                                      g2=0 if np.ravel(g).size == 1 else np.ravel(g)[1])
                     for yt in cin_res:
                         oas.fit_next(yt)
                 oases.append(oas)
