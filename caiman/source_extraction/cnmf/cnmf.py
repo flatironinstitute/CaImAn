@@ -617,20 +617,21 @@ class CNMF(object):
         self.noisyC[self.gnb:self.M, :self.initbatch] = self.C2 + self.YrA2
         self.noisyC[:self.gnb, :self.initbatch] = self.f2
 
-         # next line requires some estimate of the spike size, e.g. running OASIS with penalty=0
-         # or s_min from histogram a la Deneux et al (2016)
-#        self.OASISinstances = [oasis.OASIS(
-#            g=g if g is not None else (gam[0] if self.p == 1 else gam),
-#            s_min=self.thresh_s_min * sn if s_min is None else s_min,
-#            b=b if bl is None else bl)
-#            for gam, sn, b in zip(self.g2, self.neurons_sn2, self.bl2)]
-#         # using L1 instead of min spikesize with lambda obtained from fit on init batch
+        # if no parameter for calculating the spike size threshold is given, then use L1 penalty
+        if s_min is None and self.s_min is None and self.thresh_s_min is None:
+            use_L1 = True
+        else:
+            use_L1 = False
         self.OASISinstances = [oasis.OASIS(
             g=g if g is not None else (gam[0] if self.p == 1 else gam),
-            lam=l if lam is None else lam,
-            s_min=0 if s_min is None else s_min,
+            lam=0 if not use_L1 else (l if lam is None else lam),
+            # if no explicit value for s_min,  use thresh_s_min * noise estimate * sqrt(1-gamma)
+            s_min=0 if use_L1 else (s_min if s_min is not None else
+                                    (self.s_min if self.s_min is not None else
+                                     (self.thresh_s_min * sn * np.sqrt(1 - gam)))),
             b=b if bl is None else bl)
-            for gam, l, b in zip(self.g2, self.lam2, self.bl2)]
+            for gam, l, b, sn in zip(self.g2, self.lam2, self.bl2, self.neurons_sn2)]
+
 
         for i, o in enumerate(self.OASISinstances):
             o.fit(self.noisyC[i + self.gnb, :self.initbatch])
@@ -662,15 +663,15 @@ class CNMF(object):
 
         self.Yr_buf = RingBuffer(Yr[:, self.initbatch - self.minibatch_shape:
                                     self.initbatch].T.copy(), self.minibatch_shape)
-        self.Yres_buf = RingBuffer(self.Yr_buf.get_ordered() - self.Ab.dot(
+        self.Yres_buf = RingBuffer(self.Yr_buf - self.Ab.dot(
             self.C_on[:self.M, self.initbatch - self.minibatch_shape:self.initbatch]).T, self.minibatch_shape)
-        self.rho_buf = imblur(self.Yres_buf.get_ordered().T.reshape(
+        self.rho_buf = imblur(self.Yres_buf.T.reshape(
             self.dims2 + (-1,), order='F'), sig=self.gSig, siz=self.gSiz, nDimBlur=2)**2
         self.rho_buf = np.reshape(self.rho_buf, (self.dims2[0] * self.dims2[1], -1)).T
         self.rho_buf = RingBuffer(self.rho_buf, self.minibatch_shape)
         self.AtA = (self.Ab.T.dot(self.Ab)).toarray()
         self.AtY_buf = self.Ab.T.dot(self.Yr_buf.T)
-        self.sv = np.sum(self.rho_buf.get_last_frames(self.initbatch), 0)
+        self.sv = np.sum(self.rho_buf.get_last_frames(min(self.initbatch, self.minibatch_shape) - 1), 0)
         self.groups = list(map(list, update_order(self.Ab)[0]))
         # self.update_counter = np.zeros(self.N)
         self.update_counter = .5**(-np.linspace(0, 1, self.N, dtype=np.float32))
@@ -768,8 +769,8 @@ class CNMF(object):
                 thresh_fitness_delta=self.thresh_fitness_delta,
                 thresh_fitness_raw=self.thresh_fitness_raw, thresh_overlap=self.thresh_overlap,
                 groups=self.groups, batch_update_suff_stat=self.batch_update_suff_stat, gnb=self.gnb,
-                sn=self.sn, g=np.mean(self.g) if self.p == 1 else np.mean(self.g, 0),
-                lam=self.lam.mean(), thresh_s_min=self.thresh_s_min, s_min=self.s_min,
+                sn=self.sn, g=np.mean(self.g2) if self.p == 1 else np.mean(self.g2, 0),
+                lam=self.lam2.mean(), thresh_s_min=self.thresh_s_min, s_min=self.s_min,
                 Ab_dense=self.Ab_dense[:, :self.M] if self.use_dense else None,
                 oases=self.OASISinstances)
 
@@ -877,8 +878,6 @@ class CNMF(object):
                                                        indicator_components=indicator_components)
 
                 self.AtA = (Ab_.T.dot(Ab_)).toarray()
-
-            self.Ab = Ab_
 
         else:  # distributed shape update
             self.update_counter *= .5**(1. / mbs)
