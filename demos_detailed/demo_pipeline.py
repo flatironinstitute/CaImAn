@@ -1,4 +1,4 @@
-    ##@package demos  
+##@package demos  
 #\brief      for the user/programmer to understand and try the code
 #\details    all of other usefull functions (demos available on jupyter notebook) -*- coding: utf-8 -*- 
 #\version   1.0

@@ -554,7 +554,8 @@ def nf_read_roi(fileobj):
 
     magic = fileobj.read(4)
     if magic != 'Iout':
-        raise IOError('Magic number not found')
+#        raise IOError('Magic number not found')
+        print('Magic number not found')
     version = get16()
 
     # It seems that the roi type field occupies 2 Bytes, but only one is used
