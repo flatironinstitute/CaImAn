@@ -11,12 +11,28 @@ import caiman as cm
 import scipy
 import pylab as pl
 import cv2
+import glob
 #%%
-params_movie = {'fname': '/mnt/ceph/neuro/labeling/neurofinder.03.00.test/images/final_map/Yr_d1_498_d2_467_d3_1_order_C_frames_2250_.mmap'}
-fname_new = params_movie['fname']
+fname_new = '/mnt/ceph/neuro/labeling/neurofinder.03.00.test/images/final_map/Yr_d1_498_d2_467_d3_1_order_C_frames_2250_.mmap'
+fname_new = '/mnt/ceph/neuro/labeling/neurofinder.04.00.test/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_3000_.mmap'
+fname_new = '/mnt/ceph/neuro/labeling/neurofinder.02.00/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_8000_.mmap'
+fname_new = '/mnt/ceph/neuro/labeling/yuste.Single_150u/images/final_map/Yr_d1_200_d2_256_d3_1_order_C_frames_3000_.mmap'
+fname_new = '/mnt/ceph/neuro/labeling/neurofinder.00.00/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_2936_.mmap'
+fname_new = '/mnt/ceph/neuro/labeling/neurofinder.01.01/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_1825_.mmap'
+#%% you sort out how to deal with these big beasts
+fname_new = glob.glob('/mnt/ceph/neuro/labeling/k53_20160530/images/mmap/*.mmap')
+fname_new.sort()
+gt_file = '/mnt/ceph/neuro/labeling/k53_20160530/Yr_d1_512_d2_512_d3_1_order_C_frames_116043_.match_masks.npz'
 
+fname_new = glob.glob('/mnt/ceph/neuro/labeling/J115_2015-12-09_L01_ELS/images/mmap/*.mmap')
+fname_new.sort()
+gt_file = ' /mnt/ceph/neuro/labeling/J115_2015-12-09_L01_ELS/images/final_map/Yr_d1_463_d2_472_d3_1_order_C_frames_90000_.match_masks.npz'
+
+fname_new = glob.glob('/mnt/ceph/neuro/labeling/J123_2015-11-20_L01_0/images/mmap/*.mmap')
+fname_new.sort()
+gt_file = '/mnt/ceph/neuro/labeling/J123_2015-11-20_L01_0/images/final_map/Yr_d1_458_d2_477_d3_1_order_C_frames_41000_.match_masks.npz'
 #%%
-gt_file = os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:-4] + 'match_masks.npz')
+#gt_file = os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:-4] + 'match_masks.npz')
 
 with np.load(gt_file, encoding = 'latin1') as ld:
     print(ld.keys())
@@ -30,7 +46,7 @@ with np.load(gt_file, encoding = 'latin1') as ld:
 
     A_gt_thr = cm.source_extraction.cnmf.spatial.threshold_components(A_gt.tocsc()[:,:].toarray(), dims, medw=None, thr_method='max', maxthr=0.2, nrgthr=0.99, extract_cc=True,
                      se=None, ss=None, dview=None)                
-
+#%%
 crd = cm.utils.visualization.plot_contours(A_gt, Cn, thr=.99)
 #%%
 Yr, dims, T = cm.load_memmap(fname_new)

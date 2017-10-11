@@ -369,7 +369,7 @@ params_movie = {'fname': '/mnt/ceph/neuro/labeling/J123_2015-11-20_L01_0/images/
                  }
 
 #%% Jan AMG
-params_movie = {'fname': '/opt/local/Data/Jan/Jan-AMG_exp3_001/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_115897_.mmap',
+params_movie = {'fname': '/opt/local/Data/Jan/Jan-AMG_exp3_001/Yr_d1_512_d2_512_d3_1_order_C_frames_115897_.mmap',
                 'gtname':'/mnt/ceph/neuro/labeling/Jan-AMG_exp3_001/regions/joined_consensus_active_regions.npy',
                  'p': 1,  # order of the autoregressive system
                  'merge_thresh': 0.8,  # merging threshold, max correlation allow
@@ -392,7 +392,7 @@ params_movie = {'fname': '/opt/local/Data/Jan/Jan-AMG_exp3_001/images/final_map/
                  'only_init_patch': True,
                  'gnb': 2,
                  'memory_fact': 1,
-                 'n_chunks': 10,
+                 'n_chunks': 30,
                  'update_background_components': True,# whether to update the background components in the spatial phase
                  'low_rank_background': True, #whether to update the using a low rank approximation. In the False case all the nonzero elements of the background components are updated using hals    
                                      #(to be used with one background per patch)     
@@ -515,6 +515,7 @@ if 'seed_name' in params_movie:
     
     # %% Extract spatial and temporal components
     # TODO: todocument
+    t1 = time.time()
     if images.shape[0]>10000:
         check_nan = False
     else:
@@ -531,7 +532,7 @@ if 'seed_name' in params_movie:
     f = cnm.f
     sn = cnm.sn
     print(('Number of components:' + str(A.shape[-1])))
-    
+    t_patch = time.time() - t1
     # %% again recheck quality of components, stricter criteria
     final_frate = params_movie['final_frate']
     r_values_min = params_movie['r_values_min_full']  # threshold on space consistency
@@ -593,6 +594,10 @@ else:
     f_tot = cnm.f
     sn_tot = cnm.sn
     print(('Number of components:' + str(A_tot.shape[-1])))
+    t_patch = time.time() - t1
+
+    c, dview, n_processes = cm.cluster.setup_cluster(
+    backend='local', n_processes=None, single_thread=False)
     # %%
     pl.figure()
     # TODO: show screenshot 12`
@@ -630,10 +635,12 @@ else:
     cnm = cnmf.CNMF(n_processes=1, k=A_tot.shape, gSig=gSig, merge_thresh=merge_thresh, p=p, dview=dview, Ain=A_tot,
                     Cin=C_tot, b_in = b_tot,
                     f_in=f_tot, rf=None, stride=None, method_deconvolution='oasis',gnb = params_movie['gnb'],
-                    low_rank_background = params_movie['low_rank_background'], update_background_components = params_movie['update_background_components'])
+                    low_rank_background = params_movie['low_rank_background'], 
+                    update_background_components = params_movie['update_background_components'], check_nan=check_nan)
     
     cnm = cnm.fit(images)
-    
+    t_refine = time.time() - t1
+
     #%
     A, C, b, f, YrA, sn = cnm.A, cnm.C, cnm.b, cnm.f, cnm.YrA, cnm.sn
     # %% again recheck quality of components, stricter criteria
