@@ -153,29 +153,6 @@ params_movie = {'fname': ['/mnt/ceph/neuro/labeling/Yi.data.001/images/final_map
                  'low_rank_background': True #whether to update the using a low rank approximation. In the False case all the nonzero elements of the background components are updated using hals    
                                      #(to be used with one background per patch)          
                  }
-#%% sue k37, not nice because few events
-#params_movie = {'fname': ['/mnt/ceph/neuro/labeling/k37_20160109_AM_150um_65mW_zoom2p2_00001_1-16/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_48000_.mmap'],
-#                'gtname':['/mnt/ceph/neuro/labeling/k37_20160109_AM_150um_65mW_zoom2p2_00001_1-16/regions/joined_consensus_active_regions.npy'],
-#                 'p': 1,  # order of the autoregressive system
-#                 'merge_thresh': 1,  # merging threshold, max correlation allow
-#                 'final_frate': 30,
-##                 'r_values_min_patch': .7,  # threshold on space consistency
-##                 'fitness_min_patch': -20,  # threshold on time variability
-##                 # threshold on time variability (if nonsparse activity)
-##                 'fitness_delta_min_patch': -20,
-##                 'Npeaks': 10,
-##                 'r_values_min_full': .8,
-##                 'fitness_min_full': - 40,
-##                 'fitness_delta_min_full': - 40,
-##                 'only_init_patch': True,
-#                 'gnb': 1,
-##                 'memory_fact': 1,
-##                 'n_chunks': 10,
-#                 'update_background_components': True,# whether to update the background components in the spatial phase
-#                 'low_rank_background': True, #whether to update the using a low rank approximation. In the False case all the nonzero elements of the background components are updated using hals    
-#                                     #(to be used with one background per patch)          
-#                 'swap_dim':False #for some movies needed
-#                 }
 
 #%% neurofinder.02.00
 params_movie = {'fname': ['/mnt/ceph/neuro/labeling/neurofinder.02.00/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_8000_.mmap'],
@@ -309,8 +286,25 @@ params_movie = {'fname': ['/mnt/ceph/neuro/labeling/Jan-AMG_exp3_001/images/fina
                  'low_rank_background': True, #whether to update the using a low rank approximation. In the False case all the nonzero elements of the background components are updated using hals    
                                      #(to be used with one background per patch)  
                  'swap_dim':False, #for some movies needed
-                 'kernel':None
+                 'kernel':None,
+                 'crop_pix':8,
                  }
+#%% sue k37, not nice because few events
+params_movie = {'fname': ['/mnt/ceph/neuro/labeling/k37_20160109_AM_150um_65mW_zoom2p2_00001_1-16/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_48000_.mmap'],
+                'gtname':['/mnt/ceph/neuro/labeling/k37_20160109_AM_150um_65mW_zoom2p2_00001_1-16/regions/joined_consensus_active_regions.npy'],
+                'seed_name':['/mnt/ceph/neuro/labeling/k37_20160109_AM_150um_65mW_zoom2p2_00001_1-16/regions/joined_consensus_active_regions.npy'],
+                 'p': 1,  # order of the autoregressive system
+                 'merge_thresh': 1,  # merging threshold, max correlation allow
+                 'final_frate': 30,
+                 'gnb': 2,
+                 'update_background_components': True,# whether to update the background components in the spatial phase
+                 'low_rank_background': True, #whether to update the using a low rank approximation. In the False case all the nonzero elements of the background components are updated using hals    
+                                     #(to be used with one background per patch)  
+                 'swap_dim':False, #for some movies needed
+                 'kernel':None,
+                 'crop_pix':7,
+                 }
+
 #%%
 params_display = {
     'downsample_ratio': .2,
@@ -335,7 +329,7 @@ if m_images.shape[0]<10000:
     Cn = m_images.local_correlations(swap_dim = params_movie['swap_dim'], frames_per_chunk = 1500)
     Cn[np.isnan(Cn)] = 0
 else:
-    Cn = np.array(cm.load(('/'.join(params_movie['gtname'][0].split('/')[:-2]+['projections','correlation_image.tif'])))).squeeze()
+    Cn = np.array(cm.load(('/'.join(params_movie['gtname'][0].split('/')[:-2]+['projections','correlation_image_better.tif'])))).squeeze()
 pl.imshow(Cn, cmap='gray', vmax=.95)
 # TODO: show screenshot 11
 #%%

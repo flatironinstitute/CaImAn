@@ -12,7 +12,7 @@ import scipy
 import pylab as pl
 import cv2
 import glob
-#%%
+#%% file name
 fname_new = '/mnt/ceph/neuro/labeling/neurofinder.03.00.test/images/final_map/Yr_d1_498_d2_467_d3_1_order_C_frames_2250_.mmap'
 fname_new = '/mnt/ceph/neuro/labeling/neurofinder.04.00.test/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_3000_.mmap'
 fname_new = '/mnt/ceph/neuro/labeling/neurofinder.02.00/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_8000_.mmap'
@@ -34,7 +34,6 @@ fname_new = glob.glob('/mnt/ceph/neuro/labeling/J123_2015-11-20_L01_0/images/mma
 fname_new.sort()
 gt_file = '/mnt/ceph/neuro/labeling/J123_2015-11-20_L01_0/images/final_map/Yr_d1_458_d2_477_d3_1_order_C_frames_41000_.match_masks.npz'
 #%%
-#
 with np.load(gt_file, encoding = 'latin1') as ld:
     print(ld.keys())
     locals().update(ld)

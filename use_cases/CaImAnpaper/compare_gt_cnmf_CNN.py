@@ -373,7 +373,7 @@ params_movie = {'fname': '/opt/local/Data/Jan/Jan-AMG_exp3_001/Yr_d1_512_d2_512_
                 'gtname':'/mnt/ceph/neuro/labeling/Jan-AMG_exp3_001/regions/joined_consensus_active_regions.npy',
                  'p': 1,  # order of the autoregressive system
                  'merge_thresh': 0.8,  # merging threshold, max correlation allow
-                 'rf': 20,  # half-size of the patches in pixels. rf=25, patches are 50x50    20
+                 'rf': 25,  # half-size of the patches in pixels. rf=25, patches are 50x50    20
                  'stride_cnmf': 10,  # amounpl.it of overlap between the patches in pixels
                  'K': 6,  # number of components per patch
                  'is_dendrites': False,  # if dendritic. In this case you need to set init_method to sparse_nmf
@@ -397,7 +397,39 @@ params_movie = {'fname': '/opt/local/Data/Jan/Jan-AMG_exp3_001/Yr_d1_512_d2_512_
                  'low_rank_background': True, #whether to update the using a low rank approximation. In the False case all the nonzero elements of the background components are updated using hals    
                                      #(to be used with one background per patch)     
                  'swap_dim':False,
-                 'crop_pix':2,
+                 'crop_pix':8,
+                 'filter_after_patch':True
+                 }
+#%%
+params_movie = {'fname': '/mnt/ceph/neuro/labeling/k37_20160109_AM_150um_65mW_zoom2p2_00001_1-16/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_48000_.mmap',
+                'gtname':'/mnt/ceph/neuro/labeling/k37_20160109_AM_150um_65mW_zoom2p2_00001_1-16/regions/joined_consensus_active_regions.npy',
+                 'p': 1,  # order of the autoregressive system
+                 'merge_thresh': 0.8,  # merging threshold, max correlation allow
+                 'rf': 20,  # half-size of the patches in pixels. rf=25, patches are 50x50    20
+                 'stride_cnmf': 10,  # amounpl.it of overlap between the patches in pixels
+                 'K': 7,  # number of components per patch
+                 'is_dendrites': False,  # if dendritic. In this case you need to set init_method to sparse_nmf
+                 'init_method': 'greedy_roi',
+                 'gSig': [7,7],  # expected half size of neurons
+                 'alpha_snmf': None,  # this controls sparsity
+                 'final_frate':30,
+                 'r_values_min_patch': .5,  # threshold on space consistency
+                 'fitness_min_patch': -10,  # threshold on time variability
+                 # threshold on time variability (if nonsparse activity)
+                 'fitness_delta_min_patch': -10,
+                 'Npeaks': 5,
+                 'r_values_min_full': .8,
+                 'fitness_min_full': - 40,
+                 'fitness_delta_min_full': - 40,
+                 'only_init_patch': True,
+                 'gnb': 1,
+                 'memory_fact': 1,
+                 'n_chunks': 30,
+                 'update_background_components': True,# whether to update the background components in the spatial phase
+                 'low_rank_background': True, #whether to update the using a low rank approximation. In the False case all the nonzero elements of the background components are updated using hals    
+                                     #(to be used with one background per patch)     
+                 'swap_dim':False,
+                 'crop_pix':8,
                  'filter_after_patch':True
                  }
 #%% yuste: sue ann
@@ -644,6 +676,7 @@ else:
     #%
     A, C, b, f, YrA, sn = cnm.A, cnm.C, cnm.b, cnm.f, cnm.YrA, cnm.sn
     # %% again recheck quality of components, stricter criteria
+    t1 = time.time()
     final_frate = params_movie['final_frate']
     r_values_min = params_movie['r_values_min_full']  # threshold on space consistency
     fitness_min = params_movie['fitness_min_full']  # threshold on time variability
@@ -654,6 +687,7 @@ else:
     idx_components, idx_components_bad, fitness_raw, fitness_delta, r_values = estimate_components_quality(
         traces, Y, A, C, b, f, final_frate=final_frate, Npeaks=Npeaks, r_values_min=r_values_min, fitness_min=fitness_min,
         fitness_delta_min=fitness_delta_min, return_all=True)
+    t_eva_comps = time.time() - t1
     print(' ***** ')
     print((len(traces)))
     print((len(idx_components)))
@@ -793,7 +827,6 @@ idx_components = np.setdiff1d(idx_components,bad_comps)
 
 #idx_blobs = np.intersect1d(idx_components, idx_blobs)
 idx_components_bad = np.setdiff1d(list(range(len(r_values))), idx_components)
-
 
 print(' ***** ')
 print((len(r_values)))

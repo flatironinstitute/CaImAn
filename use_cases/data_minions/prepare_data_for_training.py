@@ -59,6 +59,8 @@ from caiman.base.rois import com
 #from keras.preprocessing.image import ImageDataGenerator
 from caiman.utils.image_preprocessing_keras import ImageDataGenerator
 from sklearn.preprocessing import normalize
+from keras.models import model_from_json
+
 #%%
 import itertools
 
@@ -70,16 +72,43 @@ def grouper(n, iterable, fillvalue=None):
 with np.load('/mnt/home/agiovann/Dropbox/Data_minions/ground_truth_components_minions.npz') as ld:
     print(ld.keys())
     locals().update(ld)
-#%% curate once more. Remove wrong negatives or wrong positives
-negatives = np.where(labels_gt==1)[0]
+#%% Existing classifier
+def run_classifier(msks, model_name = 'use_cases/CaImAnpaper/cnn_model'):
+    json_file = open(model_name +'.json', 'r')
+    loaded_model_json = json_file.read()
+    json_file.close()
+    loaded_model = model_from_json(loaded_model_json)
+    loaded_model.load_weights(model_name +'.h5')
+    print("Loaded model from disk")    
+    return loaded_model.predict(msks, batch_size=32, verbose=1)
+
+predictions = run_classifier(all_masks_gt)
+#%% show results classifier
+pl.figure(figsize=(20,30))
+is_positive = 0
+for a in grouper(100,np.where(predictions[:,is_positive]>.5)[0]):
+     a_ = [aa for aa in a if aa is not None]
+     img_mont_ = all_masks_gt[np.array(a_)].squeeze()
+     shps_img = img_mont_.shape
+     img_mont = montage2d(img_mont_)
+     shps_img_mont = np.array(img_mont.shape)//50
+     pl.imshow(img_mont)    
+     inp = pl.pause(.1)    
+     pl.cla()
+#%% Curate data. Remove wrong negatives or wrong positives
+is_positive = 0 # should be 0 when processing negatives
+to_be_checked = np.where(labels_gt==is_positive)[0] 
+
 wrong = []
 count = 0
-for a in grouper(50,negatives):
-    print(np.max(a))
+for a in grouper(50,to_be_checked):
+
+    a_ = [aa for aa in a if aa is not None]
+    a_ = np.array(a_)[np.array(a_)>0].astype(np.int)
+    print(np.max(a_))
     print(count)
-    a = np.array(a)[np.array(a)>0].astype(np.int)
     count+=1
-    img_mont_ = all_masks_gt[np.array(a)].squeeze()
+    img_mont_ = all_masks_gt[np.array(a_)].squeeze()
     shps_img = img_mont_.shape
     img_mont = montage2d(img_mont_)
     shps_img_mont = np.array(img_mont.shape)//50
@@ -88,23 +117,32 @@ for a in grouper(50,negatives):
     inp = pl.ginput(n=0,timeout = -100000)    
     imgs_to_exclude = []
     inp = np.ceil(np.array(inp)/50).astype(np.int)-1
-    if len(inp)>0:
-        
+    if len(inp)>0:        
         imgs_to_exclude = img_mont_[np.ravel_multi_index([inp[:,1],inp[:,0]],shps_img_mont)]
 #        pl.imshow(montage2d(imgs_to_exclude))    
-        wrong.append(np.array(a)[np.ravel_multi_index([inp[:,1],inp[:,0]],shps_img_mont)])
-    np.save('temp_label_pos_minions.npy',wrong)    
+        wrong.append(np.array(a_)[np.ravel_multi_index([inp[:,1],inp[:,0]],shps_img_mont)])
+    if is_positive:
+        np.save('temp_label_pos_minions.npy',wrong)    
+    else:
+        np.save('temp_label_neg_minions.npy',wrong)    
     pl.close()
-#%%
+
+
+
+
+
+
+
+#%% 
 pl.imshow(montage2d(all_masks_gt[np.concatenate(wrong)].squeeze()))
 #%% 
 lab_pos_wrong = np.load('temp_label_pos_minions.npy')
-lab_neg_wrong = np.load('temp_label_neg_plus_minions.npy')
+lab_neg_wrong = np.load('temp_label_neg_minions.npy')
 
 labels_gt_cur = labels_gt.copy()
 labels_gt_cur[np.concatenate(lab_pos_wrong)] = 0
 labels_gt_cur[np.concatenate(lab_neg_wrong)] = 1
 
-np.savez('ground_truth_comoponents_curated_minions.npz',all_masks_gt = all_masks_gt,labels_gt_cur = labels_gt_cur)
+np.savez('ground_truth_components_curated_minions.npz',all_masks_gt = all_masks_gt,labels_gt_cur = labels_gt_cur)
 #%%
 pl.imshow(montage2d(all_masks_gt[labels_gt_cur==0].squeeze()))
