@@ -13,13 +13,28 @@ import pylab as pl
 import cv2
 import glob
 #%% file name
-fname_new = '/mnt/ceph/neuro/labeling/neurofinder.03.00.test/images/final_map/Yr_d1_498_d2_467_d3_1_order_C_frames_2250_.mmap'
-fname_new = '/mnt/ceph/neuro/labeling/neurofinder.04.00.test/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_3000_.mmap'
-fname_new = '/mnt/ceph/neuro/labeling/neurofinder.02.00/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_8000_.mmap'
-fname_new = '/mnt/ceph/neuro/labeling/yuste.Single_150u/images/final_map/Yr_d1_200_d2_256_d3_1_order_C_frames_3000_.mmap'
-fname_new = '/mnt/ceph/neuro/labeling/neurofinder.00.00/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_2936_.mmap'
-fname_new = '/mnt/ceph/neuro/labeling/neurofinder.01.01/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_1825_.mmap'
+inputs = [{'fname':'/mnt/ceph/neuro/labeling/neurofinder.03.00.test/images/final_map/Yr_d1_498_d2_467_d3_1_order_C_frames_2250_.mmap', 'gSig' : [8,8]},
+          {'fname':'/mnt/ceph/neuro/labeling/neurofinder.04.00.test/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_3000_.mmap', 'gSig' : [5,5]},
+          {'fname':'/mnt/ceph/neuro/labeling/neurofinder.02.00/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_8000_.mmap', 'gSig' : [5,5]},
+          {'fname':'/mnt/ceph/neuro/labeling/yuste.Single_150u/images/final_map/Yr_d1_200_d2_256_d3_1_order_C_frames_3000_.mmap', 'gSig' : [5,5]},
+          {'fname':'/mnt/ceph/neuro/labeling/neurofinder.00.00/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_2936_.mmap', 'gSig' : [6,6]},
+          {'fname':'/mnt/ceph/neuro/labeling/neurofinder.01.01/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_1825_.mmap', 'gSig' : [6,6]},
+          {'fname': '/mnt/ceph/neuro/labeling/k53_20160530/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_116043_.mmap', 'gSig':[6,6]}, 
+          {'fname': '/mnt/ceph/neuro/labeling/J115_2015-12-09_L01_ELS/images/final_map/Yr_d1_463_d2_472_d3_1_order_C_frames_90000_.mmap', 'gSig':[7,7]}, 
+          {'fname': '/mnt/ceph/neuro/labeling/J123_2015-11-20_L01_0/images/final_map/Yr_d1_458_d2_477_d3_1_order_C_frames_41000_.mmap', 'gSig':[12,12]}]
 
+
+
+
+#fname_new = '/mnt/ceph/neuro/labeling/neurofinder.03.00.test/images/final_map/Yr_d1_498_d2_467_d3_1_order_C_frames_2250_.mmap'
+#fname_new = '/mnt/ceph/neuro/labeling/neurofinder.04.00.test/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_3000_.mmap'
+#fname_new = '/mnt/ceph/neuro/labeling/neurofinder.02.00/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_8000_.mmap'
+#fname_new = '/mnt/ceph/neuro/labeling/yuste.Single_150u/images/final_map/Yr_d1_200_d2_256_d3_1_order_C_frames_3000_.mmap'
+#fname_new = '/mnt/ceph/neuro/labeling/neurofinder.00.00/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_2936_.mmap'
+#fname_new = '/mnt/ceph/neuro/labeling/neurofinder.01.01/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_1825_.mmap'
+
+fname_new = inputs[0]['fname']
+gSig = inputs[0]['gSig']
 gt_file = os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:-4] + 'match_masks.npz')
 #%% you guys sort out how to deal with these big beasts
 fname_new = glob.glob('/mnt/ceph/neuro/labeling/k53_20160530/images/mmap/*.mmap')
@@ -58,10 +73,10 @@ m_orig  = cm.movie(images)
 #%%
 idx_exclude = np.arange(100)
 idx_comps = np.setdiff1d(np.arange(A_gt.shape[-1]),idx_exclude)
-final_frate = 10
-r_values_min = .8  # threshold on space consistency
-fitness_min = -20  # threshold on time variability    
-fitness_delta_min = -20
+#final_frate = 10
+#r_values_min = .8  # threshold on space consistency
+#fitness_min = -20  # threshold on time variability    
+#fitness_delta_min = -20
 Npeaks = 5
 #%%
 traces_gt = YrA_gt + C_gt
@@ -93,7 +108,6 @@ m_res = m_orig - cm.movie(np.reshape(A_gt.tocsc()[:,idx_comps].dot(C_gt[idx_comp
 max_mov = m_res.max() 
 #%%
 m_res.play()
- 
 #%%
 count_start = 1
 bin_ = 1
@@ -105,7 +119,7 @@ for count in range(count_start,T):
     cms = [np.array(scipy.ndimage.center_of_mass(np.reshape(a.toarray(),dims,order = 'F'))).astype(np.int) for a in  A_gt.tocsc()[:,idx_exclude[active]].T]
     for cm__ in cms:
         cm_=cm__[::]
-        img_temp = cv2.rectangle(img_temp,(cm_[1]-10, cm_[0]-10),(cm_[1]+10, cm_[0]+10),1)
+        img_temp = cv2.rectangle(img_temp,(cm_[1]-gSig[0], cm_[0]-gSig[0]),(cm_[1]+gSig[0], cm_[0]+gSig[0]),1)
     
-    cv2.imshow('frame', cv2.resize(img_temp*3,(dims[1]*2,dims[0]*2)))
+    cv2.imshow('frame', cv2.resize(img_temp*2,(dims[1]*2,dims[0]*2)))
     cv2.waitKey(100)
