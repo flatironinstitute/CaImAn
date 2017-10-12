@@ -103,21 +103,21 @@ cdef class OASIS:
             self.r = (g - sqrt(g * g + 4 * g2)) / 2
             ld = log(self.d)
             if self.d == self.r:
-                for k in range(1, 1001):
-                    self.h[k] = exp(ld * k) * k
+                for k in range(1000):
+                    self.h[k] = exp(ld * k) * (k + 1)
             else:
                 lr = log(self.r)
                 lg = self.d - self.r
-                self.g12[0] = 0
-                for k in range(1, 1000):
+                for k in range(1, 1001):
                     self.h[k - 1] = (exp(ld * k) - exp(lr * k)) / lg
-                    self.g12[k] = g2 * self.h[k - 1]
-                self.h[k] = (exp(ld * (k + 1)) - exp(lr * (k + 1))) / lg
-                self.g11g11[0] = 1  # h[0] * h[0]
-                self.g11g12[0] = 0  # h[0] * g12[0]
-                for k in range(1, 1000):
-                    self.g11g11[k] = self.g11g11[k - 1] + self.h[k] * self.h[k]
-                    self.g11g12[k] = self.g11g12[k - 1] + self.h[k] * self.g12[k]
+            self.g12[0] = 0
+            for k in range(1, 1000):
+                self.g12[k] = g2 * self.h[k - 1]
+            self.g11g11[0] = 1  # h[0] * h[0]
+            self.g11g12[0] = 0  # h[0] * g12[0]
+            for k in range(1, 1000):
+                self.g11g11[k] = self.g11g11[k - 1] + self.h[k] * self.h[k]
+                self.g11g12[k] = self.g11g12[k - 1] + self.h[k] * self.g12[k]
             if num_empty_samples > 0:
                 newpool.v, newpool.w, newpool.t, newpool.l = 0, 0, 0, num_empty_samples
                 self.P.push_back(newpool)
@@ -126,7 +126,7 @@ cdef class OASIS:
             else:
                 self.t = 0
                 self.i = -1
-            self._y = []
+            self._y = [0] * num_empty_samples
 
     def fit_next(self, yt):
         """

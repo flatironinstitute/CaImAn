@@ -628,7 +628,7 @@ class CNMF(object):
             # if no explicit value for s_min,  use thresh_s_min * noise estimate * sqrt(1-gamma)
             s_min=0 if use_L1 else (s_min if s_min is not None else
                                     (self.s_min if self.s_min is not None else
-                                     (self.thresh_s_min * sn * np.sqrt(1 - gam)))),
+                                     (self.thresh_s_min * sn * np.sqrt(1 - np.sum(gam))))),
             b=b if bl is None else bl,
             g2=0 if self.p == 1 else (np.ravel(g)[1] if g is not None else gam[1]))
             for gam, l, b, sn in zip(self.g2, self.lam2, self.bl2, self.neurons_sn2)]
