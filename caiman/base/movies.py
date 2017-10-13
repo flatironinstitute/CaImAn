@@ -444,7 +444,7 @@ class movie(ts.timeseries):
         t,h,w=self.shape
         return self[crop_begin:t-crop_end,crop_top:h-crop_bottom,crop_left:w-crop_right]
 
-    def computeDFF(self,secsWindow=5,quantilMin=8,method='only_baseline',order='C'):
+    def computeDFF(self,secsWindow=5,quantilMin=8,method='only_baseline',order='F'):
         """
         compute the DFF of the movie or remove baseline
 
@@ -491,7 +491,7 @@ class movie(ts.timeseries):
         print("interpolating data ..."); sys.stdout.flush()
         print((movBL.shape))
 
-        movBL=scipy.ndimage.zoom(np.array(movBL,dtype=np.float32),[downsampfact ,1, 1],order=0, mode='constant', cval=0.0, prefilter=False)
+        movBL=scipy.ndimage.zoom(np.array(movBL,dtype=np.float32),[downsampfact ,1, 1],order=1, mode='constant', cval=0.0, prefilter=False)
 
         #% compute DF/F
         if method == 'delta_f_over_sqrt_f':
