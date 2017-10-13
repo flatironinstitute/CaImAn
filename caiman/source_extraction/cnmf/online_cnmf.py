@@ -1016,9 +1016,13 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                     # print('Overlap at step' + str(t) + ' ' + str(cc))
                     break
 
-            if s_min is None:  # use thresh_s_min * noise estimate * sqrt(1-gamma)
+            if s_min is None:  # use thresh_s_min * noise estimate * sqrt(1-sum(gamma))
+            # the formula has been obtained by running OASIS with s_min=0 and lambda=0 on Gaussin noise.
+            # e.g. 1 * sigma * sqrt(1-sum(gamma)) corresponds roughly to the root mean square (non-zero) spike size, sqrt(<s^2>)
+            #      2 * sigma * sqrt(1-sum(gamma)) corresponds roughly to the 95% percentile of (non-zero) spike sizes
+            #      3 * sigma * sqrt(1-sum(gamma)) corresponds roughly to the 99.7% percentile of (non-zero) spike sizes
                 s_min = 0 if thresh_s_min is None else thresh_s_min * \
-                    sqrt((ain**2).dot(sn[indeces]**2)) * sqrt(1 - g)
+                    sqrt((ain**2).dot(sn[indeces]**2)) * sqrt(1 - np.sum(g))
 
             cin_res = cin_res.get_ordered()
             if useOASIS:
@@ -1054,20 +1058,24 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                 if not useOASIS:
                     # TODO: decide on a line to use for setting the parameters
                     # # lambda from init batch (e.g. mean of lambdas)  or  s_min if either s_min or s_min_thresh are given
-                    # oas = oasis.OASIS(g, lam if s_min==0 else 0, s_min, num_empty_samples=t + 1 - len(cin_res))
+                    # oas = oasis.OASIS(g=np.ravel(g)[0], lam if s_min==0 else 0, s_min, num_empty_samples=t + 1 - len(cin_res),
+                    #                   g2=0 if np.size(g) == 1 else g[1])
                     # or
                     # lambda from Selesnick's 3*sigma*|K| rule
                     # use noise estimate from init batch or use std_rr?
 #                    sn_ = sqrt((ain**2).dot(sn[indeces]**2)) / sqrt(1 - g**2)
                     sn_ = std_rr
-
-                    oas = oasis.OASIS(g, 3 * sn_ if s_min == 0 else 0,
-                                      s_min, num_empty_samples=t + 1 - len(cin_res))
+                    oas = oasis.OASIS(np.ravel(g)[0], 3 * sn_ /
+                                      (sqrt(1 - g**2) if np.size(g) == 1 else 
+                                        sqrt((1 + g[1]) * ((1 - g[1])**2 - g[0]**2) / (1-g[1])))
+                                      if s_min == 0 else 0,
+                                      s_min, num_empty_samples=t + 1 - len(cin_res),
+                                      g2=0 if np.size(g) == 1 else g[1])
                     for yt in cin_res:
                         oas.fit_next(yt)
                         
                 oases.append(oas)
-                
+
                 Ain_csc = scipy.sparse.csc_matrix((ain, (indeces, [0] * len(indeces))),
                                                   (np.prod(dims), 1), dtype=np.float32)
 
