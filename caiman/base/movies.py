@@ -444,7 +444,7 @@ class movie(ts.timeseries):
         t,h,w=self.shape
         return self[crop_begin:t-crop_end,crop_top:h-crop_bottom,crop_left:w-crop_right]
 
-    def computeDFF(self,secsWindow=5,quantilMin=8,method='only_baseline',order='C'):
+    def computeDFF(self,secsWindow=5,quantilMin=8,method='only_baseline',order='F'):
         """
         compute the DFF of the movie or remove baseline
 
@@ -473,39 +473,42 @@ class movie(ts.timeseries):
         print("computing minimum ..."); sys.stdout.flush()
         if np.min(self)<=0 and method != 'only_baseline':
             raise ValueError("All pixels must be positive")
-
+        
         numFrames,linePerFrame,pixPerLine=np.shape(self)
         downsampfact=int(secsWindow*self.fr);
+        print(downsampfact)
         elm_missing=int(np.ceil(numFrames*1.0/downsampfact)*downsampfact-numFrames)
         padbefore=int(np.floor(old_div(elm_missing,2.0)))
         padafter=int(np.ceil(old_div(elm_missing,2.0)))
 
         print(('Inizial Size Image:' + np.str(np.shape(self)))); sys.stdout.flush()
-        self=movie(np.pad(self,((padbefore,padafter),(0,0),(0,0)),mode='reflect'),**self.__dict__)
-        numFramesNew,linePerFrame,pixPerLine=np.shape(self)
+        mov_out=movie(np.pad(self.astype(np.float32),((padbefore,padafter),(0,0),(0,0)),mode='reflect'),**self.__dict__)
+        mov_out[:padbefore] = mov_out[padbefore+1]
+        mov_out[-padafter:] = mov_out[-padafter-1]
+        numFramesNew,linePerFrame,pixPerLine=np.shape(mov_out)
 
         #% compute baseline quickly
         print("binning data ..."); sys.stdout.flush()
-        movBL=np.reshape(self,(downsampfact,int(old_div(numFramesNew,downsampfact)),linePerFrame,pixPerLine),order=order);
+        movBL=np.reshape(mov_out.copy(),(downsampfact,int(old_div(numFramesNew,downsampfact)),linePerFrame,pixPerLine),order=order);
         movBL=np.percentile(movBL,quantilMin,axis=0);
         print("interpolating data ..."); sys.stdout.flush()
         print((movBL.shape))
-
-        movBL=scipy.ndimage.zoom(np.array(movBL,dtype=np.float32),[downsampfact ,1, 1],order=0, mode='constant', cval=0.0, prefilter=False)
-
+        movBL = scipy.ndimage.zoom(np.array(movBL,dtype=np.float32),[downsampfact ,1, 1],order=1, mode='constant', cval=0.0, prefilter=False)
+#        movBL = movie(movBL).resize(1,1,downsampfact, interpolation = 4)
+        
         #% compute DF/F
         if method == 'delta_f_over_sqrt_f':
-            self=old_div((self-movBL),np.sqrt(movBL))
+            mov_out = old_div((mov_out-movBL),np.sqrt(movBL))
         elif method == 'delta_f_over_f':
-            self=old_div((self-movBL),movBL)
+            mov_out = old_div((mov_out-movBL),movBL)
         elif method  =='only_baseline':
-            self=(self-movBL)
+            mov_out = (mov_out-movBL)
         else:
             raise Exception('Unknown method')
 
-        self=self[padbefore:len(movBL)-padafter,:,:];
+        mov_out=mov_out[padbefore:len(movBL)-padafter,:,:];
         print(('Final Size Movie:' +  np.str(self.shape)))
-        return self,movie(movBL,fr=self.fr,start_time=self.start_time,meta_data=self.meta_data,file_name=self.file_name)
+        return mov_out,movie(movBL,fr=self.fr,start_time=self.start_time,meta_data=self.meta_data,file_name=self.file_name)
 
     def NonnegativeMatrixFactorization(self,n_components=30, init='nndsvd', beta=1,tol=5e-7, sparseness='components',**kwargs):
         """
