@@ -22,6 +22,10 @@ cdef struct Pool:
     Py_ssize_t l
 
 
+cdef min1000(a):
+    return a if a < 1000 else 1000
+
+
 cdef class OASIS:
     """
     Deconvolution class implementing OASIS
@@ -32,20 +36,25 @@ cdef class OASIS:
 
     Parameters
     ----------
-    g : float or (float, float)
-        Parameter of the AR(1) or AR(2) process that models the fluorescence impulse response.
+    g : float
+        Parameter of the AR(1) or 1st parameter of the AR(2) process that models the fluorescence impulse response.
     lam : float, optional, default 0
         Sparsity penalty parameter lambda.
     s_min : float, optional, default 0
         Minimal non-zero activity within each bin (minimal 'spike size').
     b : float, optional, default 0
         Baseline that is substracted.
+    num_empty_samples : int
+        Number of elapsed frames until neuron is added and OASIS initialized
+    g2 : float
+        0 for AR(1) or 2nd parameter of the AR(2) process that models the fluorescence impulse response.
+
 
     Attributes
     ----------
     g, lam, smin, b: see Parameters above
     p : order of the AR process
-    P : list of 4-tuples of (float, float, int, int)
+    P : vector of struct of (float, float, int, int)
         Pools of the active set method, i.e. a sufficient statistics.
     t : int
         Number of processed time steps.
@@ -68,7 +77,7 @@ cdef class OASIS:
         SINGLE v, w, g, lam, s_min, b, g2, d, r, yt
         vector[Pool] P
         unsigned int t
-        SINGLE[1000] h, g12, g11g11, g11g12
+        SINGLE[1000] h, g12, g11g11, g11g12  # assume kernel length <= 1000
         vector[SINGLE] _y
 
     def __init__(self, g, lam=0, s_min=0, b=0, num_empty_samples=0, g2=0):
@@ -134,7 +143,7 @@ cdef class OASIS:
         """
         cdef Pool newpool
         cdef Py_ssize_t j, k
-        cdef np.ndarray[SINGLE, ndim = 1] h, g12, g11g11, g11g12
+        cdef np.ndarray[SINGLE, ndim= 1] h, g12, g11g11, g11g12
         cdef SINGLE tmp
         if self.g2 == 0:  # AR(1)
             newpool.v = yt - self.b - self.lam * (1 - self.g)
@@ -159,48 +168,34 @@ cdef class OASIS:
             self.t += 1
             self.i += 1
             while (self.i > 0 and  # backtrack until violations fixed
-                   (((self.h[self.P[self.i - 1].l] * self.P[self.i - 1].v +
-                      self.g12[self.P[self.i - 1].l] * self.P[self.i - 2].w) >
-                     self.P[self.i].v - self.s_min) if self.i > 1 else
+                   ((((self.P[self.i - 1].v * self.d**(self.P[self.i - 1].l + 1) /
+                       (self.d - self.r)) if self.P[self.i - 1].l >= 1000 else
+                       (self.h[self.P[self.i - 1].l] * self.P[self.i - 1].v +
+                        self.g12[self.P[self.i - 1].l] * self.P[self.i - 2].w)) >
+                       self.P[self.i].v - self.s_min)
+                    if self.i > 1 else
                     (self.P[self.i - 1].w * self.d > self.P[self.i].v - self.s_min))):
                 self.i -= 1
                 # merge two pools
                 self.P[self.i].l += self.P[self.i + 1].l
                 k = self.P[self.i].l - 1
-                if self.P[self.i].l >= 1000:  # precomputed kernel too short -> update to req. len
-                    h = (np.exp(log(self.d) * np.arange(1, k + 3, dtype=np.float32)) -
-                         np.exp(log(self.r) * np.arange(1, k + 3, dtype=np.float32))) /\
-                        (self.d - self.r)
-                    g12 = np.append(0, self.g2 * h[:-1]).astype(np.float32)
-                    g11g11 = np.cumsum(h * h)
-                    g11g12 = np.cumsum(h * g12)
-                    if self.i > 0:
-                        self.P[self.i].v = (h[:self.P[self.i].l].dot(
-                            self._y[self.P[self.i].t:self.P[self.i].t + self.P[self.i].l]) -
-                            g11g12[k] * self.P[self.i - 1].w) / g11g11[k]
-                        self.P[self.i].w = (h[k] * self.P[self.i].v +
-                                            g12[k] * self.P[self.i - 1].w)
-                    else:  # update first pool
-                        self.P[0].v = fmax(0, np.exp(log(self.d) * np.arange(self.P[0].l)).
-                                           dot(self._y[:self.P[0].l]) * (1 - self.d * self.d) /
-                                           (1 - self.d**(2 * self.P[0].l)))
-                        self.P[0].w = self.d**k * self.P[0].v
-                else:
-                    if self.i > 0:
-                        tmp = 0
-                        for j in range(self.P[self.i].l):
-                            tmp += self.h[j] * self._y[self.P[self.i].t + j]
-                        self.P[self.i].v = ((tmp - self.g11g12[k] * self.P[self.i - 1].w) /
-                                            self.g11g11[k])
-                        self.P[self.i].w = (self.h[k] * self.P[self.i].v +
-                                            self.g12[k] * self.P[self.i - 1].w)
-                    else:  # update first pool
-                        tmp = 0
-                        for j in range(self.P[self.i].l):
-                            tmp += self.d**j * self._y[j]
-                        self.P[self.i].v = fmax(0, tmp * (1 - self.d * self.d) /
-                                                (1 - self.d**(2 * self.P[self.i].l)))
-                        self.P[self.i].w = self.d**k * self.P[self.i].v
+                if self.i > 0:
+                    if k >= 1000:
+                        k = 999  # precomputed kernel shorter than ISI -> simply truncate
+                    tmp = 0
+                    for j in range(min1000(self.P[self.i].l)):
+                        tmp += self.h[j] * self._y[self.P[self.i].t + j]
+                    self.P[self.i].v = ((tmp - self.g11g12[k] * self.P[self.i - 1].w) /
+                                        self.g11g11[k])
+                    self.P[self.i].w = (self.h[k] * self.P[self.i].v +
+                                        self.g12[k] * self.P[self.i - 1].w)
+                else:  # update first pool
+                    tmp = 0
+                    for j in range(self.P[self.i].l):
+                        tmp += self.d**j * self._y[j]
+                    self.P[self.i].v = fmax(0, tmp * (1 - self.d * self.d) /
+                                            (1 - self.d**(2 * self.P[self.i].l)))
+                    self.P[self.i].w = self.d**k * self.P[self.i].v
                 self.P.pop_back()
 
     def fit_next_tmp(self, yt, num):
@@ -208,10 +203,9 @@ cdef class OASIS:
         fit next time step t temporarily and return denoised calcium for last num time steps
         """
         cdef Pool newpool
-        cdef np.ndarray[SINGLE, ndim = 1] c
+        cdef np.ndarray[SINGLE, ndim= 1] c
         cdef Py_ssize_t t, j, k, tmp2
         cdef SINGLE tmp
-        # if self.p == 1:
         newpool.v = yt - self.b - self.lam * (1 - self.g)
         newpool.w, newpool.t, newpool.l = 1, self.t, 1
         j = self.i
@@ -269,8 +263,8 @@ cdef class OASIS:
         """
         return denoised calcium for last num time steps
         """
-        cdef np.ndarray[SINGLE, ndim = 1] c
-        cdef Py_ssize_t t, j, k
+        cdef np.ndarray[SINGLE, ndim= 1] c
+        cdef Py_ssize_t t, j, k, tmp2
         cdef SINGLE tmp
         t = num
         c = np.zeros(t, dtype='float32')
@@ -279,30 +273,50 @@ cdef class OASIS:
             while t > 0:
                 tmp = fmax(self.P[j].v / self.P[j].w, 0)
                 if self.P[j].l <= t:
-                    for k in range(self.P[j].l):
+                    for k in range(min1000(self.P[j].l)):
                         c[k + t - self.P[j].l] = tmp * self.h[k]
+                    # # more accurate exponential decay, but maybe simple truncation suffices
+                    # for k in range(1000 + t - self.P[j].l, t):
+                    #     c[k] = c[k - 1] * self.g
                 else:
-                    if self.P[j].l <= 1000:
-                        for k in range(t):
-                            c[k] = tmp * self.h[k + self.P[j].l - t]
-                    else:
-                        for k in range(t):
-                            c[k] = tmp * self.g**(k + self.P[j].l - t)
+                    tmp2 = 1000 - self.P[j].l + t
+                    for k in range(t if t < tmp2 else tmp2):
+                        c[k] = tmp * self.h[k + self.P[j].l - t]
+                    # # more accurate exponential decay, but maybe simple truncation c[k]=0 suffices
+                    # if tmp2 <= 0:
+                    #     c[0] = tmp * self.g**(self.P[j].l - t)
+                    #     for k in range(1, t):
+                    #         c[k] = c[k - 1] * self.g
+                    # else:
+                    #     for k in range(tmp2, t):
+                    #         c[k] = c[k - 1] * self.g
                 t -= self.P[j].l
                 j -= 1
         else:  # AR(2)
             while t > 0:
                 if j == 0:  # first pool
                     for k in range(t):
-                        c[k] = self.P[j].v * self.d**(k + self.P[j].l - t)
+                        c[k] = self.P[0].v * self.d**(k + self.P[0].l - t)
                 elif self.P[j].l <= t:
-                    for k in range(self.P[j].l):
+                    for k in range(min1000(self.P[j].l)):
                         c[k + t - self.P[j].l] = self.h[k] * self.P[j].v + \
                             self.g12[k] * self.P[j - 1].w
+                    # # more accurate exponential decay, but maybe simple truncation suffices
+                    # for k in range(1000, self.P[j].l):
+                    #     c[k] = c[k - 1] * self.d
                 else:
-                    for k in range(t):
+                    tmp2 = 1000 - self.P[j].l + t
+                    for k in range(t if t < tmp2 else tmp2):
                         c[k] = self.h[k + self.P[j].l - t] * self.P[j].v + \
                             self.g12[k + self.P[j].l - t] * self.P[j - 1].w
+                    # # more accurate exponential decay, but maybe simple truncation c[k]=0 suffices
+                    # if tmp2 <= 0:
+                    #     c[0] = self.P[j].v * self.d**(self.P[j].l - t + 1) / (self.d - self.r)
+                    #     for k in range(1, t):
+                    #         c[k] = c[k - 1] * self.d
+                    # else:
+                    #     for k in range(tmp2, t):
+                    #         c[k] = c[k - 1] * self.d
                 t -= self.P[j].l
                 j -= 1
         return c
@@ -311,7 +325,7 @@ cdef class OASIS:
         """
         return deconvolved activity for last num time steps
         """
-        cdef np.ndarray[SINGLE, ndim = 1] s
+        cdef np.ndarray[SINGLE, ndim= 1] s
         cdef Py_ssize_t t, j
         j = self.i
         t = num - self.P[j].l
@@ -325,8 +339,14 @@ cdef class OASIS:
         else:  # AR(2)
             while t > 0:
                 if j > 1:
-                    s[t] = (self.P[j].v - (self.h[self.P[j - 1].l] * self.P[j - 1].v +
-                                           self.g12[self.P[j - 1].l] * self.P[j - 2].w))
+                    if self.P[j - 1].l >= 1000:
+                        s[t] = self.P[j].v
+                        # # more accurate exponential decay
+                        # s[t] = self.P[j].v - (self.d**(self.P[j - 1].l+1) /
+                        #                       (self.d - self.r) * self.P[j - 1].v)
+                    else:
+                        s[t] = self.P[j].v - (self.h[self.P[j - 1].l] * self.P[j - 1].v +
+                                              self.g12[self.P[j - 1].l] * self.P[j - 2].w)
                 else:  # j==1; spike at the beginning of 2nd pool
                     s[t] = (self.P[1].v - self.P[0].w * self.d)
                     return s
@@ -344,23 +364,27 @@ cdef class OASIS:
         """
         return denoised calcium of last pool, i.e. the part of c that actually changed
         """
-        cdef np.ndarray[SINGLE, ndim = 1] c
+        cdef np.ndarray[SINGLE, ndim= 1] c
         cdef Py_ssize_t k
         cdef SINGLE tmp
         c = np.zeros(self.P[self.i].l, dtype='float32')
         if self.g2 == 0:  # AR(1)
             tmp = self.P[self.i].v / self.P[self.i].w
-            for k in range(self.P[self.i].l if self.P[self.i].l < 1000 else 1000):
+            for k in range(min1000(self.P[self.i].l)):
                 c[k] = tmp * self.h[k]
-            for k in range(1000, self.P[self.i].l):
-                c[k] = tmp * self.g**k
+            # # more accurate exponential decay instead truncation
+            # for k in range(1000, self.P[self.i].l):
+            #     c[k] = c[k - 1] * self.g
         else:  # AR(2)
             if self.i == 0:  # first pool
                 for k in range(self.P[0].l):
                     c[k] = self.P[0].v * self.d**k
             else:
-                for k in range(self.P[self.i].l):
+                for k in range(min1000(self.P[self.i].l)):
                     c[k] = self.h[k] * self.P[self.i].v + self.g12[k] * self.P[self.i - 1].w
+                # # more accurate exponential decay instead truncation
+                # for k in range(1000, self.P[self.i].l):
+                #     c[k] = c[k - 1] * self.d
         return c
 
     def remove_last_pool(self):
@@ -375,8 +399,20 @@ cdef class OASIS:
         self.P[self.i - idx_from_end].v = val
 
     @property
+    def P(self):
+        cdef Py_ssize_t j
+        tmp = []
+        for j in range(self.i+1):
+            tmp.append([self.P[j].v, self.P[j].w, self.P[j].t, self.P[j].l])
+        return tmp
+
+    @property
     def g(self):
         return self.g
+
+    @property
+    def g2(self):
+        return self.g2
 
     @property
     def lam(self):
@@ -399,28 +435,40 @@ cdef class OASIS:
         """
         construct and return full calcium trace
         """
-        cdef np.ndarray[SINGLE, ndim = 1] c
+        cdef np.ndarray[SINGLE, ndim= 1] c
         cdef Py_ssize_t j, k
         cdef SINGLE tmp
         if self.g2 == 0:  # AR(1)
             c = np.zeros(self.P[self.i].t + self.P[self.i].l, dtype='float32')
             for j in range(self.i + 1):
                 tmp = fmax(self.P[j].v, 0) / self.P[j].w
-                for k in range(self.P[j].l if self.P[j].l <= 1000 else 1000):
+                for k in range(min1000(self.P[j].l)):
                     c[k + self.P[j].t] = tmp * self.h[k]
-                if self.P[j].l > 1000:
-                    for k in range(1000, self.P[j].l):
-                        c[k + self.P[j].t] = tmp * self.g**k
+                # # more accurate exponential decay instead truncation
+                # for k in range(1000, self.P[j].l):
+                #     c[k + self.P[j].t] = tmp * self.g**k
             return c
         else:  # AR(2)
-            return self.get_c(self.P[self.i].t + self.P[self.i].l)
+            c = np.zeros(self.P[self.i].t + self.P[self.i].l, dtype='float32')
+            # first pool
+            c[0] = self.P[0].v
+            for k in range(1, self.P[0].l):
+                c[k] = c[k - 1] * self.d
+            # remaining pools
+            for j in range(1, self.i + 1):
+                for k in range(min1000(self.P[j].l)):
+                    c[k + self.P[j].t] = self.h[k] * self.P[j].v + self.g12[k] * self.P[j - 1].w
+                # # more accurate exponential decay instead truncation
+                # for k in range(1000, self.P[j].l):
+                #     c[k + self.P[j].t] = c[k + self.P[j].t - 1] * self.d
+            return c
 
     @property
     def s(self):
         """
         construct and return full deconvolved activity, 'spike rates'
         """
-        cdef np.ndarray[SINGLE, ndim = 1] s
+        cdef np.ndarray[SINGLE, ndim= 1] s
         cdef Py_ssize_t j
         if self.g2 == 0:  # AR(1)
             s = np.zeros(self.P[self.i].t + self.P[self.i].l, dtype='float32')
@@ -467,7 +515,7 @@ def oasisAR1(np.ndarray[SINGLE, ndim=1] y, SINGLE g, SINGLE lam=0, SINGLE s_min=
     cdef:
         Py_ssize_t i, j, k, t, T
         SINGLE tmp
-        np.ndarray[SINGLE, ndim= 1] c, s
+        np.ndarray[SINGLE, ndim = 1] c, s
         vector[Pool] P
         Pool newpool
 
@@ -562,8 +610,8 @@ def constrained_oasisAR1(np.ndarray[SINGLE, ndim=1] y, SINGLE g, SINGLE sn,
         unsigned int ma, count, T
         SINGLE thresh, v, w, RSS, aa, bb, cc, lam, dlam, b, db, dphi
         bool g_converged
-        np.ndarray[SINGLE, ndim= 1] c, s, res, tmp, fluor, h
-        np.ndarray[long, ndim= 1] ff, ll
+        np.ndarray[SINGLE, ndim = 1] c, s, res, tmp, fluor, h
+        np.ndarray[long, ndim = 1] ff, ll
         vector[Pool] P
         Pool newpool
 
