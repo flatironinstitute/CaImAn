@@ -139,7 +139,7 @@ movie_name = folder_name + '/output.avi' # name of movie to be saved
 resize_fact = 1.2                        # image resizing factor
 
 if online_files == 0:                    # check whether there are any additional files
-    process_files = fls[init_files]      # end processing at this file
+    process_files = fls[:init_files]     # end processing at this file
     init_batc_iter = [initbatch]         # place where to start
     end_batch = T1              
 else:
