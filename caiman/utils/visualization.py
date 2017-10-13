@@ -24,8 +24,10 @@ from scipy.sparse import issparse, spdiags, coo_matrix, csc_matrix
 from matplotlib.widgets import Slider
 from ..base.rois import com
 from scipy.ndimage.measurements import center_of_mass
+from scipy.ndimage.filters import median_filter
 import matplotlib.cm as cm
 import matplotlib as mpl
+from math import sqrt, ceil
 try:
     import bokeh
     import bokeh.plotting as bpl
@@ -982,3 +984,27 @@ def plot_contours(A, Cn, thr=None, thr_method='max', maxthr=0.2, nrgthr=0.9, dis
                 ax.text(cm[i, 1], cm[i, 0], str(i + 1), color=colors)
 
     return coordinates
+
+
+def plot_shapes(Ab, dims, num_comps=15, size=(15, 15), comps_per_row=None,
+                cmap='viridis', smoother=lambda s: median_filter(s, 3)):
+
+    def GetBox(centers, R, dims):
+        D = len(R)
+        box = np.zeros((D, 2), dtype=int)
+        for dd in range(D):
+            box[dd, 0] = max((centers[dd] - R[dd], 0))
+            box[dd, 1] = min((centers[dd] + R[dd] + 1, dims[dd]))
+        return box
+
+    nx = int(sqrt(num_comps) * 1.3) if comps_per_row is None else comps_per_row
+    ny = int(ceil(num_comps / float(nx)))
+    pl.figure(figsize=(nx, ny))
+    for i, a in enumerate(Ab.T[:num_comps]):
+        ax = pl.subplot(ny, nx, i + 1)
+        s = a.toarray().reshape(dims, order='F')
+        box = GetBox(np.array(center_of_mass(s), dtype=np.int16), size, dims)
+        pl.imshow(smoother(s[list(map(lambda a: slice(*a), box))]),
+                  cmap=cmap, interpolation='nearest')
+        ax.axis('off')
+    pl.subplots_adjust(0, 0, 1, 1, .06, .06)

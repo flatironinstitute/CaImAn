@@ -8,20 +8,15 @@ from builtins import range
 from past.utils import old_div
 import numpy as np
 
-from scipy.ndimage.filters import gaussian_filter, median_filter, uniform_filter
-import matplotlib.pyplot as pl
-from time import time
-from math import log, sqrt, ceil
+from scipy.ndimage.filters import gaussian_filter
+from math import sqrt
 
 import caiman as cm
 from .initialization import imblur, initialize_components, hals
-from .spatial import determine_search_location
 import scipy
 from scipy.sparse import coo_matrix, csc_matrix
 from caiman.components_evaluation import compute_event_exceptionality
 from .utilities import update_order
-import cv2
-from sklearn.utils.extmath import fast_dot
 from caiman.source_extraction.cnmf import oasis
 from sklearn.decomposition import NMF
 from sklearn.preprocessing import normalize
@@ -95,6 +90,7 @@ def bare_initialization(Y, init_batch = 1000, k = 1, method_init = 'greedy_roi',
     cnm_init.gnb = gnb
     
     return cnm_init
+
 
 #%%
 def seeded_initialization(Y, Ain, dims = None, init_batch = 1000, gnb = 1, **kwargs):
@@ -177,53 +173,6 @@ def seeded_initialization(Y, Ain, dims = None, init_batch = 1000, gnb = 1, **kwa
     
     return cnm_init
        
-    
-    
-#%% Generate data
-def gen_data(dims=(48, 48), N=10, sig=(3, 3), gamma=.95, noise=.3, T=1000,
-             framerate=30, firerate=.5, seed=3, cmap='jet'):
-    from ghalton import GeneralizedHalton
-    bkgrd = 10  # fluorescence baseline
-    np.random.seed(seed)
-    boundary = 4
-    centers = boundary + (np.array(GeneralizedHalton(2, seed).get(N)) *
-                          (np.array(dims) - 2 * boundary)).astype(int)
-    trueA = np.zeros(dims + (N,))
-    trueS = np.random.rand(N, T) < firerate / float(framerate)
-    trueS[:, 0] = 0
-    trueC = trueS.astype(float)
-    for i in range(1, T):
-        trueC[:, i] += gamma * trueC[:, i - 1]
-    for i in range(N):
-        trueA[tuple(centers[i]) + (i,)] = 1.
-    trueA = gaussian_filter(trueA, sig + (0,))
-    trueA = trueA.reshape((-1, N), order='F')
-    trueA /= np.linalg.norm(trueA, 2, 0)
-    Yr = bkgrd + noise * np.random.randn(*(np.prod(dims), T)) + trueA.dot(trueC)
-    if cmap:
-        Y = np.reshape(Yr, dims + (T,), order='F')
-        Cn = cm.local_correlations(Y)
-        pl.figure(figsize=(20, 3))
-        pl.plot(trueC.T)
-        pl.figure(figsize=(20, 3))
-        pl.plot((trueA.T.dot(Yr - bkgrd) / np.sum(trueA**2, 0).reshape(-1, 1)).T)
-        pl.figure(figsize=(12, 4))
-        pl.subplot(131)
-        pl.scatter(*centers.T[::-1], c='g')
-        pl.imshow(Y[:T // 10 * 10].reshape(dims + (T // 10, 10)).mean(-1).max(-1), cmap=cmap)
-        pl.title('Max')
-        pl.subplot(132)
-        pl.scatter(*centers.T[::-1], c='g')
-        pl.imshow(Y.mean(-1), cmap=cmap)
-        pl.title('Mean')
-        pl.subplot(133)
-        pl.scatter(*centers.T[::-1], c='g')
-        pl.imshow(Cn, cmap=cmap)
-        pl.title('Correlation')
-        pl.show()
-    trueb = bkgrd * np.ones((np.prod(dims), 1), order='F')
-    return Yr, trueC, trueS, trueA, trueb, centers, dims
-
 
 # definitions for demixed time series extraction and denoising/deconvolving
 @profile
@@ -330,8 +279,10 @@ def demix_and_deconvolve(C, noisyC, AtY, AtA, OASISinstances, iters=3, n_refit=n
     Parameters
     ----------
     C : ndarray of float
-        Buffer containing the fluorescence intensities.
+        Buffer containing the denoised fluorescence intensities.
         All elements up to and excluding the last one have been denoised in earlier calls.
+    noisyC : ndarray of float
+        Buffer containing the undenoised fluorescence intensities.
     AtY : ndarray of float
         Buffer containing the projections of data Y on shapes A.
     AtA : ndarray of float
@@ -393,199 +344,8 @@ def demix_and_deconvolve(C, noisyC, AtY, AtA, OASISinstances, iters=3, n_refit=n
     return C, noisyC, OASISinstances
 
 
-class OASIS(object):
-    """
-    Deconvolution class implementing OASIS
-    Infer the most likely discretized spike train underlying an AR(1) fluorescence trace
 
-    Solves the sparse non-negative deconvolution problem
-    min 1/2|c-y|^2 + lam |s|_1 subject to s_t = c_t-g c_{t-1} >=s_min or =0
-
-    Parameters
-    ----------
-    g : float or (float, float)
-        Parameter of the AR(1) or AR(2) process that models the fluorescence impulse response.
-    lam : float, optional, default 0
-        Sparsity penalty parameter lambda.
-    s_min : float, optional, default 0
-        Minimal non-zero activity within each bin (minimal 'spike size').
-    b : float, optional, default 0
-        Baseline that is substracted.
-
-    Attributes
-    ----------
-    g, lam, smin, b: see Parameters above
-    p : order of the AR process
-    P : list of 4-tuples of (float, float, int, int)
-        Pools of the active set method, i.e. a sufficient statistics.
-    T : int
-        Number of processed time steps.
-    h : array of float
-        Explicit calcium kernel to avoid duplicated recalculations.
-    d : float
-        Decay factor. Only for AR(2).
-    r : float
-        Rise factor. Only for AR(2).
-    g12, g11g11, g11g12 : arrays of float
-        Precomputed quantitites related to the calcium kernel. Only for AR(2).
-
-    References
-    ----------
-    * Friedrich J and Paninski L, NIPS 2016
-    * Friedrich J, Zhou P, and Paninski L, PLOS Computational Biology 2017
-    """
-
-    def __init__(self, g, lam=0, s_min=0, b=0, num_empty_samples=None):
-        # save the parameters as attributes
-        self.p = len(np.ravel(g))
-        self.g = g
-        self.lam = lam
-        self.s_min = s_min
-        self.b = b
-        self.P = []
-        self.T = 0
-        # precompute
-        if self.p == 1:
-            # calc explicit kernel h just once; length should be >=max ISI
-            self.h = np.exp(log(g) * np.arange(1000))  # fast g**np.arange(K) for large K
-            if num_empty_samples is not None:
-                suff_stat = (1 - self.g**(2 * num_empty_samples)) / (1 - self.g**2)
-                self.P.append([0, suff_stat, 0, num_empty_samples])
-                self.T = num_empty_samples
-
-        else:
-            g1, g2 = g
-            self.d = (g1 + sqrt(g1 * g1 + 4 * g2)) / 2
-            self.r = (g1 - sqrt(g1 * g1 + 4 * g2)) / 2
-            if self.d == self.r:
-                h = np.exp(log(self.d) * np.arange(1, 1001)) * np.arange(1, 1001)
-            else:
-                h = (np.exp(log(self.d) * np.arange(1, 1001)) -
-                     np.exp(log(self.r) * np.arange(1, 1001))) / (self.d - self.r)
-            self.g12 = np.append(0, g2 * h[:-1])
-            self.g11g11 = np.cumsum(h * h)
-            self.g11g12 = np.cumsum(h * self.g12)
-            self.h = h
-            self._y = []
-
-    @profile
-    def fit_next(self, yt):
-        """
-        fit next time step t
-        """
-        P = self.P
-        i = len(P)
-        if self.p == 1:
-            g = self.g
-            P.append([yt - self.b - self.lam * (1 - g), 1, self.T, 1])
-            self.T += 1
-            while (i > 0 and  # backtrack until violations fixed
-                   (P[i - 1][0] / P[i - 1][1] * g**P[i - 1][3] + self.s_min >
-                    P[i][0] / P[i][1])):
-                i -= 1
-                # merge two pools
-                l = P.pop()
-                P[i][0] += l[0] * g**P[i][3]
-                P[i][1] += l[1] * g**(2 * P[i][3])
-                P[i][3] += l[3]
-        else:
-            self._y.append(yt - self.b - self.lam * (1 - sum(self.g)))
-            P.append([max(0, self._y[-1])] * 2 + [self.T, 1])
-            self.T += 1
-            while (i > 0 and  # backtrack until violations fixed
-                   (((self.h[P[i - 1][3]] * P[i - 1][0] + self.g12[P[i - 1][3]] * P[i - 2][1]) >
-                     P[i][0] - self.s_min) if i > 1 else
-                    (P[i - 1][1] * self.d > P[i][0] - self.s_min))):
-                i -= 1
-                # merge two pools
-                P[i][3] += P[i + 1][3]
-                l = P[i][3] - 1
-                if P[i][3] >= len(self.h):  # precomputed kernel too short -> update to req. len
-                    # just truncating and padding zeros is hardly any faster
-                    self.h = (np.exp(log(self.d) * np.arange(1, l + 3)) -
-                              np.exp(log(self.r) * np.arange(1, l + 3))) / (self.d - self.r)
-                    self.g12 = np.append(0, self.g[1] * self.h[:-1])
-                    self.g11g11 = np.cumsum(self.h * self.h)
-                    self.g11g12 = np.cumsum(self.h * self.g12)
-                if i > 0:
-                    P[i][0] = (self.h[:l + 1].dot(self._y[P[i][2]:P[i][2] + P[i][3]]) -
-                               self.g11g12[l] * P[i - 1][1]) / self.g11g11[l]
-                    P[i][1] = (self.h[l] * P[i][0] + self.g12[l] * P[i - 1][1])
-                else:  # update first pool
-                    P[i][0] = max(0, np.exp(log(self.d) * np.arange(l + 1)).
-                                  dot(self._y[:P[i][3]]) * (1 - self.d * self.d) /
-                                  (1 - self.d**(2 * (l + 1))))
-                    P[i][1] = self.d**l * P[i][0]
-                P.pop()
-
-    def fit(self, y):
-        """
-        fit all time steps
-        """
-        for yt in y:
-            self.fit_next(yt)
-        return self
-
-    def get_c(self, num=None):
-        """
-        return denoised calcium for last num time steps
-        """
-        t = self.T if num is None else num
-        tmp = np.zeros(t, dtype=np.float32)
-        if self.p == 1:
-            for v, w, f, l in self.P[::-1]:
-                try:
-                    tmp[max(t - l, 0):t] = max(v, 0) / w * self.h[l - min(l, t):l]
-                except ValueError:  # if precomputed kernel too short
-                    tmp[max(t - l, 0):t] = max(v, 0) / w * self.g**np.arange(l - min(l, t), l)
-                t -= l
-                if t < 1:
-                    return tmp
-        else:
-            z = len(self.P)
-            for i, (v, last, f, l) in enumerate(self.P[::-1]):
-                if i < z - 1:
-                    tmp[max(t - l, 0):t + min(0, len(self.h) - l)] = \
-                        self.h[max(0, l - t):l] * v + \
-                        self.g12[max(0, l - t):l] * self.P[z - 2 - i][1]
-                    t -= l
-                    if t < 1:
-                        return tmp
-                else:  # 1st pool
-                    tmp[max(t - l, 0):t] = v * self.d**np.arange(max(0, l - t), l)
-                    return tmp
-
-    def get_s(self, num=None):
-        """
-        return deconvolved activity for last num time steps
-        """
-        t = self.T if num is None else num
-        tmp = np.zeros(t, dtype=np.float32)
-        if self.p == 1:
-            for i, (v, w, f, l) in enumerate(self.P[::-1]):
-                t -= l
-                if t < 1:
-                    return tmp
-                tmp[t] = v / w - self.P[-2 - i][0] / \
-                    self.P[-2 - i][1] * self.g**self.P[-2 - i][3]
-        else:
-            P = self.P
-            for i in range(len(P) - 1, 0, -1):
-                t -= P[i][3]
-                if t < 1:
-                    return tmp
-                if i > 1:
-                    tmp[t] = (P[i][0] - (self.g11[P[i - 1][3]] * P[i - 1][0] +
-                                         self.g12[P[i - 1][3]] * P[i - 2][1]))
-                else:  # spike at the beginning of 2nd pool
-                    tmp[t] = (P[1][0] - P[0][0] * self.d**P[0][3])
-                    return tmp
-            return tmp
-
-
-# ## Estimate shapes on small initial batch
-
-
+#%% Estimate shapes on small initial batch
 def init_shapes_and_sufficient_stats(Y, A, C, b, f, bSiz=3):
     # smooth the components
     dims, T = np.shape(Y)[:-1], np.shape(Y)[-1]
@@ -622,31 +382,6 @@ def init_shapes_and_sufficient_stats(Y, A, C, b, f, bSiz=3):
     #         Ab[:, m] = np.clip(Ab[:, m] + ((CY[m] - CC[m].dot(Ab.T)) /
     #                                        CC[m, m]), 0, np.inf)
     return Ab, ind_A, CY, CC
-
-
-def GetBox(centers, R, dims):
-    D = len(R)
-    box = np.zeros((D, 2), dtype=int)
-    for dd in range(D):
-        box[dd, 0] = max((centers[dd] - R[dd], 0))
-        box[dd, 1] = min((centers[dd] + R[dd] + 1, dims[dd]))
-    return box
-
-
-def plot_shapes(Ab, dims, num_comps=15, size=(15, 15), comps_per_row=None,
-                cmap='viridis', smoother=lambda s: median_filter(s, 3)):
-    from scipy.ndimage.measurements import center_of_mass
-    nx = int(sqrt(num_comps) * 1.3) if comps_per_row is None else comps_per_row
-    ny = int(ceil(num_comps / float(nx)))
-    pl.figure(figsize=(nx, ny))
-    for i, a in enumerate(Ab.T[:num_comps]):
-        ax = pl.subplot(ny, nx, i + 1)
-        s = a.toarray().reshape(dims, order='F')
-        box = GetBox(np.array(center_of_mass(s), dtype=np.int16), size, dims)
-        pl.imshow(smoother(s[list(map(lambda a: slice(*a), box))]),
-                  cmap=cmap, interpolation='nearest')
-        ax.axis('off')
-    pl.subplots_adjust(0, 0, 1, 1, .06, .06)
 
 
 @profile
@@ -736,134 +471,8 @@ class RingBuffer(np.ndarray):
         else:
             return np.concatenate([self[(self.cur - num_frames):], self[:self.cur]], axis=0)
 
-#%%
-#@profile
-# def run_online(Yr, Ab, C, noisyC, CY, CC, ind_A, initbatch, OASISinstances, gSig, dims, gamma, update_num_comps = False, lam=0, s_min=.5, minibatch_shape=100, minibatch_suff_stat=10, rval_thr = 0.875,  thresh_fitness_delta = -30, thresh_fitness_raw = -30):
-#    t1 = time()
-#    N = Ab.shape[-1]-1
-#    T = Yr.shape[-1]
-#    gSiz = np.add(1,np.multiply(gSig,2))
-#    Cf = np.vstack([C,noisyC[-1,:]])
-#
-#    Yr_buf = RingBuffer(Yr[:,initbatch-minibatch_shape:initbatch].T.copy(),minibatch_shape)
-#    Yres_buf = RingBuffer(Yr_buf.get_ordered() - Ab.dot(Cf[:,initbatch-minibatch_shape:initbatch]).T, minibatch_shape)
-#    rho_buf = imblur(Yres_buf.get_ordered().T.reshape(dims+(-1,),order = 'F'), sig=gSig, siz=gSiz, nDimBlur=2)**2
-#    rho_buf = np.reshape(rho_buf,(dims[0]*dims[1],-1)).T
-#    rho_buf = RingBuffer(rho_buf,minibatch_shape)
-#    Cf_temp = np.array([1])
-#    for t in xrange(initbatch, T):
-#        # get next frame
-#        if t%10 == 0:
-#            print('frame '+str(t))
-# pl.cla()
-# pl.imshow(Ab[:,:-1].sum(1).T.reshape(dims,order = 'F'),vmax=.3)
-# pl.imshow(CY)
-# pl.axis('auto')
-# if firstime:
-# pl.colorbar()
-# firstime = False
-# pl.subplot(2,1,1)
-# pl.cla()
-# pl.plot(Cf_temp.T)
-# pl.subplot(2,1,2)
-# pl.cla()
-# pl.plot(Cf[:,t-minibatch_shape:t].T)
-# pl.pause(.01)
-#
-#
-#        frame = Yr[:, t].copy()
-#        Yr_buf.append(frame)
-#        # get noisy fluor value via NNLS (project data on shapes & demix)
-#        if t == 0:
-#            C_in = np.ones(N + 1)
-#            num_iters = 30
-#        else:
-#            C_in = noisyC[:, t - 1].copy()
-#            num_iters = 5
-#
-#
-#        noisyC[:, t] = HALS4activity(frame, Ab,  C_in, iters=num_iters)  # !! check which value is necessary
-#
-#        #Solve C = argmin_C ||Yr-AC|| using block-coordinate decent
-#        #Transform to trace and then use gradient descent
-# clf.coef_ = C_in
-# clf.fit(Ab, frame)
-# noisyC[:, t] = clf.coef_
-#
-#
-#        # denoise & deconvolve
-#        for i, o in enumerate(OASISinstances):
-#            o.fit_next(noisyC[i, t])
-#
-#
-#        cf = np.asarray([o.get_c(minibatch_shape) for o in OASISinstances])
-#        Cf[:-1,(t-minibatch_shape+1):(t+1)] = cf
-#        Cf[-1,t] = noisyC[-1, t]
-#
-# ccf = noisyC[:,t-10:t]
-#
-#        ccf = Cf[:,t-minibatch_suff_stat:t]
-# part = fast_dot(ccf,Yr[:, t-minibatch_suff_stat:t].T)
-#        part = np.dot(ccf,Yr[:, t-minibatch_suff_stat:t].T)
-#        CY *= ((t*1.-1)/t)
-#        part *= (1./(t*minibatch_suff_stat))
-#        CY += part
-#
-#
-# part = ccf.dot(Yr[:, t-minibatch_suff_stat:t].T)
-# CY = ((t*1.-1)/t) * CY + (1./(t*minibatch_suff_stat)) * part
-#        CC = ((t*1.-1)/t) * CC + (1./(t*minibatch_suff_stat)) * ccf.dot(ccf.T)
-##
-#
-#        if update_num_comps:
-#
-#            res_frame = frame - Ab.dot(noisyC[:,t])
-#            Yres_buf.append(res_frame)
-#
-#            res_frame = np.reshape(res_frame,dims,order = 'F')
-#
-#            rho = imblur(res_frame, sig=gSig, siz=gSiz, nDimBlur=2)**2
-#            rho = np.reshape(rho,np.prod(dims))
-#            rho_buf.append(rho)
-#
-#
-#            Ab, Cf_temp, Yres_buf, rhos_buf, CC, CY, ind_A = update_num_components(t,Ab,Cf[:,(t-minibatch_shape+1):(t+1)],Yres_buf, Yr_buf, rho_buf, dims,gSig, gSiz, ind_A, CY, CC,\
-#                                                                                    rval_thr = rval_thr,  thresh_fitness_delta = thresh_fitness_delta, thresh_fitness_raw = thresh_fitness_raw)
-#
-#            num_added = len(ind_A)-N
-#
-#
-#            for _ in range(num_added):
-#
-#                print('*** adding component')
-#                Cf = np.insert(Cf,-1,0,axis = 0)
-#                noisyC = np.insert(noisyC,-1,0,axis=0)
-#
-#                noisyC[N,(t-minibatch_shape+1):(t+1)] = Cf_temp[N,:]
-#                oas = OASIS(np.mean(gamma), 0, .5)
-#                oas.fit(noisyC[N,:t+1])
-#
-#                Cf[N,(t-minibatch_shape+1):(t+1)] = oas.get_c(minibatch_shape)
-#                OASISinstances.append(oas)
-#
-#                N = N + 1
-#
-#
-#
-#
-#        # update shapes
-#        if (t - initbatch) % minibatch_shape ==  minibatch_shape - 1:
-#            print('Updating Shapes')
-#            c = np.asarray([o.get_c(minibatch_shape) for o in OASISinstances] + [noisyC[-1, t - minibatch_shape + 1:t + 1]])
-#
-#            Ab, ind_A = update_shapes(CY, CC, Ab, ind_A, dims)
-#            print(time()-t1)
-#
-#    return Cf, Ab, CC, CY, OASISinstances
 
 #%%
-
-
 def csc_append(a, b):
     """ Takes in 2 csc_matrices and appends the second one to the right of the first one.
     Much faster than scipy.sparse.vstack but assumes the type to be csc and overwrites
@@ -901,6 +510,7 @@ def rank1nmf(Ypx, ain):
     return ain, cin, cin_res
 
 
+#%%
 @profile
 def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                           dims, gSig, gSiz, ind_A, CY, CC, groups, oases, gnb=1,
@@ -1150,6 +760,8 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
             num_added = max_num_added
 
     return Ab, Cf, Yres_buf, rho_buf, CC, CY, ind_A, sv, groups
+
+
 #%%
 def initialize_movie_online(Y, K, gSig, rf, stride, base_name, 
                      p = 1, merge_thresh = 0.95, rval_thr_online = 0.9, thresh_fitness_delta_online = -30, thresh_fitness_raw_online = -50, 
