@@ -1,6 +1,5 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 from os import path
-#import os
 import numpy as np
 from Cython.Build import cythonize
 from setuptools.extension import Extension
@@ -14,8 +13,6 @@ here = path.abspath(path.dirname(__file__))
 with open('README.md', 'r') as rmf:
     readme = rmf.read()
 
-#incdir = os.path.join(get_python_inc(plat_specific=1), 'Numerical')
-
 # compile with:     python setup.py build_ext -i
 # clean up with:    python setup.py clean --all
 ext_modules = [Extension("caiman.source_extraction.cnmf.oasis",
@@ -24,7 +21,7 @@ ext_modules = [Extension("caiman.source_extraction.cnmf.oasis",
                          language="c++")]
 
 setup(
-    name='CaImAn',
+    name='caiman',
     version='1.0',
     author='Andrea Giovannucci, Eftychios Pnevmatikakis, Johannes Friedrich, Valentina Staneva, Ben Deverett, Erick Cobos, Jeremie Kalfon',
     author_email='agiovannucci@flatironinstitute.org',
@@ -52,9 +49,9 @@ setup(
         'Programming Language :: Python :: 2,3',
     ],
     keywords='fluorescence calcium ca imaging deconvolution ROI identification',
-    packages=['caiman'],
-    data_files=[	('', ['LICENSE.txt']),
-                 ('', ['README.md'])],
+    packages=find_packages(exclude=['use_cases', 'use_cases.*']),
+    data_files=[('', ['LICENSE.txt']),
+                ('', ['README.md'])],
     install_requires=[''],
     ext_modules=cythonize(ext_modules)
 
