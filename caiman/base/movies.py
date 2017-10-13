@@ -493,9 +493,11 @@ class movie(ts.timeseries):
         movBL=np.percentile(movBL,quantilMin,axis=0);
         print("interpolating data ..."); sys.stdout.flush()
         print((movBL.shape))
-        movBL = scipy.ndimage.zoom(np.array(movBL,dtype=np.float32),[downsampfact ,1, 1],order=1, mode='constant', cval=0.0, prefilter=False)
+        movBL=scipy.ndimage.zoom(np.array(movBL,dtype=np.float32),[downsampfact ,1, 1],order=1, mode='constant', cval=0.0, prefilter=False)
 #        movBL = movie(movBL).resize(1,1,downsampfact, interpolation = 4)
         
+
+
         #% compute DF/F
         if method == 'delta_f_over_sqrt_f':
             mov_out = old_div((mov_out-movBL),np.sqrt(movBL))
