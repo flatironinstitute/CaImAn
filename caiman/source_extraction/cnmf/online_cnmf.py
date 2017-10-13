@@ -1058,10 +1058,14 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                     # or
                     # lambda from Selesnick's 3*sigma*|K| rule
                     # use noise estimate from init batch or use std_rr?
-                    oas = oasis.OASIS(g, 3 * sqrt((ain**2).dot(sn[indeces]**2)) / sqrt(1 - g**2) if s_min == 0 else 0,
+#                    sn_ = sqrt((ain**2).dot(sn[indeces]**2)) / sqrt(1 - g**2)
+                    sn_ = std_rr
+
+                    oas = oasis.OASIS(g, 3 * sn_ if s_min == 0 else 0,
                                       s_min, num_empty_samples=t + 1 - len(cin_res))
                     for yt in cin_res:
                         oas.fit_next(yt)
+                        
                 oases.append(oas)
                 
                 Ain_csc = scipy.sparse.csc_matrix((ain, (indeces, [0] * len(indeces))),

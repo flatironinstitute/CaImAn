@@ -19,9 +19,9 @@ inputs = [{'fname':'/mnt/ceph/neuro/labeling/neurofinder.03.00.test/images/final
           {'fname':'/mnt/ceph/neuro/labeling/yuste.Single_150u/images/final_map/Yr_d1_200_d2_256_d3_1_order_C_frames_3000_.mmap', 'gSig' : [5,5]},
           {'fname':'/mnt/ceph/neuro/labeling/neurofinder.00.00/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_2936_.mmap', 'gSig' : [6,6]},
           {'fname':'/mnt/ceph/neuro/labeling/neurofinder.01.01/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_1825_.mmap', 'gSig' : [6,6]},
-          {'fname': '/mnt/ceph/neuro/labeling/k53_20160530/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_116043_.mmap', 'gSig':[6,6]}, 
-          {'fname': '/mnt/ceph/neuro/labeling/J115_2015-12-09_L01_ELS/images/final_map/Yr_d1_463_d2_472_d3_1_order_C_frames_90000_.mmap', 'gSig':[7,7]}, 
-          {'fname': '/mnt/ceph/neuro/labeling/J123_2015-11-20_L01_0/images/final_map/Yr_d1_458_d2_477_d3_1_order_C_frames_41000_.mmap', 'gSig':[12,12]}]
+          {'fname': '/mnt/ceph/neuro/labeling/k53_20160530/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_116043_.mmap', 'gSig':[6,6]}, # SEE BELOW
+          {'fname': '/mnt/ceph/neuro/labeling/J115_2015-12-09_L01_ELS/images/final_map/Yr_d1_463_d2_472_d3_1_order_C_frames_90000_.mmap', 'gSig':[7,7]}, # SEE BELOW 
+          {'fname': '/mnt/ceph/neuro/labeling/J123_2015-11-20_L01_0/images/final_map/Yr_d1_458_d2_477_d3_1_order_C_frames_41000_.mmap', 'gSig':[12,12]}] # SEE BELOW
 
 
 
@@ -71,7 +71,7 @@ images = np.reshape(Yr.T, [T] + list(dims), order='F')
 Y = np.reshape(Yr, dims + (T,), order='F')
 m_orig  = cm.movie(images)
 #%%
-idx_exclude = np.arange(100)
+idx_exclude = np.arange(100) # neurons that are displayed
 idx_comps = np.setdiff1d(np.arange(A_gt.shape[-1]),idx_exclude)
 #final_frate = 10
 #r_values_min = .8  # threshold on space consistency
@@ -109,8 +109,8 @@ max_mov = m_res.max()
 #%%
 m_res.play()
 #%%
-count_start = 1
-bin_ = 1
+count_start = 20
+#bin_ = 10
 for count in range(count_start,T):
     img_temp = (m_res[count-count_start:count].copy().mean(0)/max_mov).astype(np.float32)
 #    img_temp = m_res[count].copy().astype(np.float32)/max_mov

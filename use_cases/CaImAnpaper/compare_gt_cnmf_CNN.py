@@ -407,7 +407,7 @@ params_movie = {'fname': '/mnt/ceph/neuro/labeling/k37_20160109_AM_150um_65mW_zo
                  'merge_thresh': 0.8,  # merging threshold, max correlation allow
                  'rf': 20,  # half-size of the patches in pixels. rf=25, patches are 50x50    20
                  'stride_cnmf': 10,  # amounpl.it of overlap between the patches in pixels
-                 'K': 7,  # number of components per patch
+                 'K': 5,  # number of components per patch
                  'is_dendrites': False,  # if dendritic. In this case you need to set init_method to sparse_nmf
                  'init_method': 'greedy_roi',
                  'gSig': [6,6],  # expected half size of neurons
@@ -422,11 +422,11 @@ params_movie = {'fname': '/mnt/ceph/neuro/labeling/k37_20160109_AM_150um_65mW_zo
                  'fitness_min_full': - 40,
                  'fitness_delta_min_full': - 40,
                  'only_init_patch': True,
-                 'gnb': 1,
+                 'gnb': 2,
                  'memory_fact': 1,
                  'n_chunks': 30,
                  'update_background_components': True,# whether to update the background components in the spatial phase
-                 'low_rank_background': False, #whether to update the using a low rank approximation. In the False case all the nonzero elements of the background components are updated using hals    
+                 'low_rank_background': True, #whether to update the using a low rank approximation. In the False case all the nonzero elements of the background components are updated using hals    
                                      #(to be used with one background per patch)     
                  'swap_dim':False,
                  'crop_pix':8,
