@@ -633,15 +633,16 @@ class CNMF(object):
             use_L1 = True
         else:
             use_L1 = False
-        self.OASISinstances = [oasis.OASIS(
-            g=np.ravel(g)[0] if g is not None else gam[0],
+            
+        self.OASISinstances = [oasis.OASIS(            
+            g = np.ravel(0.01) if self.p == 0 else (np.ravel(g)[0] if g is not None else gam[0]),
             lam=0 if not use_L1 else (l if lam is None else lam),
             # if no explicit value for s_min,  use thresh_s_min * noise estimate * sqrt(1-gamma)
             s_min=0 if use_L1 else (s_min if s_min is not None else
                                     (self.s_min if self.s_min is not None else
                                      (self.thresh_s_min * sn * np.sqrt(1 - np.sum(gam))))),
             b=b if bl is None else bl,
-            g2=0 if self.p == 1 else (np.ravel(g)[1] if g is not None else gam[1]))
+            g2=0 if self.p < 2 else (np.ravel(g)[1] if g is not None else gam[1]))
             for gam, l, b, sn in zip(self.g2, self.lam2, self.bl2, self.neurons_sn2)]
 
         for i, o in enumerate(self.OASISinstances):

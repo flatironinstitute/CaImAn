@@ -483,8 +483,8 @@ class movie(ts.timeseries):
 
         print(('Inizial Size Image:' + np.str(np.shape(self)))); sys.stdout.flush()
         mov_out=movie(np.pad(self.astype(np.float32),((padbefore,padafter),(0,0),(0,0)),mode='reflect'),**self.__dict__)
-        mov_out[:padbefore] = mov_out[padbefore+1]
-        mov_out[-padafter:] = mov_out[-padafter-1]
+        #mov_out[:padbefore] = mov_out[padbefore+1]
+        #mov_out[-padafter:] = mov_out[-padafter-1]
         numFramesNew,linePerFrame,pixPerLine=np.shape(mov_out)
 
         #% compute baseline quickly
