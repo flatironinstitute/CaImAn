@@ -146,41 +146,41 @@ np.savez('ground_truth_components_curated_minions.npz',all_masks_gt = all_masks_
 #%%
 pl.imshow(montage2d(all_masks_gt[labels_gt_cur==0].squeeze()))
 #%% POSSIBILITY OF DIVIDING DATASETS IN 3 classes
-def measure_trace_quality(traces_in):
-    downsampfact = 500
-    T = traces_in.shape[-1]
-    elm_missing=int(np.ceil(T*1.0/downsampfact)*downsampfact-T)
-    padbefore=int(np.floor(elm_missing/2))
-    padafter=int(np.ceil(elm_missing/2))    
-    tr_tmp = np.pad(traces_in.T,((padbefore,padafter),(0,0)),mode='reflect')
-    numFramesNew,num_traces = np.shape(tr_tmp)    
-    #% compute baseline quickly
-    print("binning data ..."); 
-    tr_BL=np.reshape(tr_tmp,(downsampfact,int(numFramesNew/downsampfact),num_traces),order='F');
-    tr_BL=np.percentile(tr_BL,8,axis=0)            
-    print("interpolating data ..."); 
-    print(tr_BL.shape)    
-    tr_BL=scipy.ndimage.zoom(np.array(tr_BL,dtype=np.float32),[downsampfact ,1],order=3, mode='constant', cval=0.0, prefilter=True)
-    if padafter==0:
-        traces_in -= tr_BL.T
-    else:
-        traces_in -= tr_BL[padbefore:-padafter].T
+# def measure_trace_quality(traces_in):
+#     downsampfact = 500
+#     T = traces_in.shape[-1]
+#     elm_missing=int(np.ceil(T*1.0/downsampfact)*downsampfact-T)
+#     padbefore=int(np.floor(elm_missing/2))
+#     padafter=int(np.ceil(elm_missing/2))    
+#     tr_tmp = np.pad(traces_in.T,((padbefore,padafter),(0,0)),mode='reflect')
+#     numFramesNew,num_traces = np.shape(tr_tmp)    
+#     #% compute baseline quickly
+#     print("binning data ..."); 
+#     tr_BL=np.reshape(tr_tmp,(downsampfact,int(numFramesNew/downsampfact),num_traces),order='F');
+#     tr_BL=np.percentile(tr_BL,8,axis=0)            
+#     print("interpolating data ..."); 
+#     print(tr_BL.shape)    
+#     tr_BL=scipy.ndimage.zoom(np.array(tr_BL,dtype=np.float32),[downsampfact ,1],order=3, mode='constant', cval=0.0, prefilter=True)
+#     if padafter==0:
+#         traces_in -= tr_BL.T
+#     else:
+#         traces_in -= tr_BL[padbefore:-padafter].T
 
-    fitness,exceptionality,sd_r,md = cm.components_evaluation.compute_event_exceptionality(traces_in,robust_std=False,N=5,use_mode_fast=False)
-    return fitness,exceptionality,sd_r,md 
-#%%
-qualities = []
-count = 0
-T_cur = traces_gt[0].size
-tr_tmp = []
-for tr in traces_gt:
-    count+=1
-    if T_cur == tr.size:
-        tr_tmp.append(tr)        
-    else:    
-        print(count)    
-        T_cur = tr.size
-        q = measure_trace_quality(np.array(tr_tmp))
-        qualities += q
-        tr_tmp = [tr]
+#     fitness,exceptionality,sd_r,md = cm.components_evaluation.compute_event_exceptionality(traces_in,robust_std=False,N=5,use_mode_fast=False)
+#     return fitness,exceptionality,sd_r,md 
+# #%%
+# qualities = []
+# count = 0
+# T_cur = traces_gt[0].size
+# tr_tmp = []
+# for tr in traces_gt:
+#     count+=1
+#     if T_cur == tr.size:
+#         tr_tmp.append(tr)        
+#     else:    
+#         print(count)    
+#         T_cur = tr.size
+#         q = measure_trace_quality(np.array(tr_tmp))
+#         qualities += q
+#         tr_tmp = [tr]
     
