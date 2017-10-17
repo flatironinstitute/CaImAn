@@ -14,6 +14,7 @@ from scipy.sparse import csc_matrix
 from scipy.stats import norm
 import scipy
 import cv2
+import itertools
 try:
 	import json as simplejson
 	from keras.models import model_from_json
@@ -366,8 +367,30 @@ def chunker(seq, size):
     for pos in xrange(0, len(seq), size):
         yield seq[pos:pos + size]
 #%%
+
+def grouper(n, iterable, fillvalue=None):
+    "grouper(3, 'ABCDEFG', 'x') --> ABC DEF Gxx"
+    args = [iter(iterable)] * n
+    return itertools.zip_longest(*args, fillvalue=fillvalue)
+#%%
+def evaluate_components_placeholder(params):
+    import caiman as cm
+    import numpy as np
+    fname, traces, A, C, b, f, final_frate, remove_baseline, N, robust_std, Athresh, Npeaks, thresh_C = params
+    Yr, dims, T = cm.load_memmap(fname)
+    d1, d2 = dims
+    images = np.reshape(Yr.T, [T] + list(dims), order='F')
+    Y = np.reshape(Yr, dims + (T,), order='F')
+    fitness_raw, fitness_delta, erfc_raw, erfc_delta, r_values, significant_samples = \
+        evaluate_components(Y, traces, A, C, b, f, final_frate, remove_baseline=remove_baseline,
+                                          N=N, robust_std=robust_std, Athresh=Athresh, Npeaks=Npeaks,  thresh_C=thresh_C)
+        
+    return fitness_raw, fitness_delta, [], [], r_values, significant_samples 
+        
+#%%
 def estimate_components_quality(traces, Y, A, C, b, f, final_frate = 30, Npeaks=10, r_values_min = .95,
-                                fitness_min = -100,fitness_delta_min = -100, return_all = False, N =5, remove_baseline = True):
+                                fitness_min = -100,fitness_delta_min = -100, return_all = False, N =5,
+                                remove_baseline = True, dview = None, robust_std = False,Athresh=0.1,thresh_C=0.3, num_traces_per_group = 20):
     """ Define a metric and order components according to the probabilty if some "exceptional events" (like a spike).
 
     Such probability is defined as the likeihood of observing the actual trace value over N samples given an estimated noise distribution.
@@ -427,10 +450,52 @@ def estimate_components_quality(traces, Y, A, C, b, f, final_frate = 30, Npeaks=
 
     """
 
-    fitness_raw, fitness_delta, erfc_raw, erfc_delta, r_values, significant_samples = \
-        evaluate_components(Y, traces, A, C, b, f, final_frate, remove_baseline=remove_baseline,
-                                          N=N, robust_std=False, Athresh=0.1, Npeaks=Npeaks,  thresh_C=0.3 )
+
+    if 'memmap' not in str(type(Y)):
+        
+        print('NOT MEMORY MAPPED. FALLING BACK ON SINGLE CORE IMPLEMENTATION')
+        fitness_raw, fitness_delta, erfc_raw, erfc_delta, r_values, significant_samples = \
+            evaluate_components(Y, traces, A, C, b, f, final_frate, remove_baseline=remove_baseline,
+                                              N=N, robust_std=False, Athresh=0.1, Npeaks=Npeaks,  thresh_C=0.3 )
+        
+    else: # memory mapped case    
+        
+        Ncomp = A.shape[-1]   
+        groups = grouper(num_traces_per_group, range(Ncomp))
+        params = []
+        for g in groups:
+            idx = list(g)
+            idx = list(filter(None.__ne__, idx))     
+            params.append([Y.filename,traces[idx],A.tocsc()[:,idx],C[idx],b,f,final_frate,remove_baseline,N,robust_std,Athresh,Npeaks,thresh_C])
+        
+        if dview is None:
+            res = map(evaluate_components_placeholder,params)
+        else:
+            print('EVALUATING IN PARALLEL... NOT RETURNING ERFCs')
+            res = dview.map_sync(evaluate_components_placeholder,params)
+        
+        fitness_raw = []
+        fitness_delta = [] 
+        erfc_raw = []
+        erfc_delta = [] 
+        r_values = []
+        significant_samples = []
+        
+        for r_ in res:
+            fitness_raw__, fitness_delta__, erfc_raw__, erfc_delta__, r_values__, significant_samples__ = r_                
+            fitness_raw = np.concatenate([fitness_raw,fitness_raw__])
+            fitness_delta = np.concatenate([fitness_delta, fitness_delta__])
+            r_values = np.concatenate([r_values ,r_values__])
+            significant_samples = np.concatenate([significant_samples,significant_samples__])
     
+            if len(erfc_raw) == 0:
+                erfc_raw = erfc_raw__
+                erfc_delta = erfc_delta__
+            else:
+                erfc_raw = np.concatenate([erfc_raw, erfc_raw__],axis = 0)
+                erfc_delta = np.concatenate([erfc_delta, erfc_delta__],axis = 0)
+            
+
     idx_components_r = np.where(r_values >= r_values_min)[0]  # threshold on space consistency
     idx_components_raw = np.where(fitness_raw < fitness_min)[0] # threshold on time variability
     idx_components_delta = np.where(fitness_delta < fitness_delta_min)[0] # threshold on time variability (if nonsparse activity)

@@ -47,7 +47,7 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
                               method='ellipse', expandCore=None, dview=None, n_pixels_per_process=128,
                               medw=(3, 3), thr_method='nrg', maxthr=0.1, nrgthr=0.9999, extract_cc=True, b_in = None,
                               se=np.ones((3, 3), dtype=np.int), ss=np.ones((3, 3), dtype=np.int), nb=1,
-                              method_ls='lasso_lars', update_background_components = True, low_rank_background= True):
+                              method_ls='lasso_lars', update_background_components = True, low_rank_background= True, block_size=1000, num_blocks_per_run = 20):
     """update spatial footprints and background through Basis Pursuit Denoising 
 
     for each pixel i solve the problem
@@ -239,7 +239,7 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
 
     print("Computing residuals")
     if 'memmap' in str(type(Y)):
-        Y_resf = parallel_dot_product(Y, f.T, block_size=1000, dview=dview) - \
+        Y_resf = parallel_dot_product(Y, f.T, dview=dview, block_size=block_size, num_blocks_per_run = num_blocks_per_run) - \
             A_.dot(coo_matrix(C[:nr, :]).dot(f.T))
     else:
         # Y*f' - A*(C*f')

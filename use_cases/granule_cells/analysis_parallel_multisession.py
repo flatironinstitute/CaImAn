@@ -196,7 +196,7 @@ if False:
 #        print("ERROR in:"+base_folder)                
 
 #%%
-with np.load('eyeblink_35_37.npz')  as ld:
+with np.load('/mnt/ceph/users/agiovann/ImagingData/eyeblink/eyeblink_35_37.npz',encoding = 'latin1')  as ld:
     print((list(ld.keys())))
     locals().update(ld)     
 
@@ -222,7 +222,7 @@ pos_examples_chunks=pos_examples_chunks[idx_sorted]#[:27]
 #        templ_file=glob.glob(os.path.join())
 
 #%%
-talmo_file_name=['/mnt/xfs1/home/agiovann/dropbox/final_outputs/b35.mat','/mnt/xfs1/home/agiovann/dropbox/final_outputs/b37.mat']
+talmo_file_name=['/mnt/ceph/users/agiovann/ImagingData/eyeblink/b35.mat','/mnt/ceph/users/agiovann/ImagingData/eyeblink/b37.mat']
 
 
 def unroll_Talmo_data(matr_list,is_nose=False):
@@ -278,7 +278,7 @@ for tr_fl,tr_bh,eye,whe,tm,fl,nm,pos_examples,A in zip(triggers_chunk_fluo, trig
     sess_name_chunks.append(nm.split('#')[0].split('/')[-2])
     animal_chunks.append(nm.split('#')[0].split('/')[-3])
 
-    idx_sess = np.where([sess_name_chunks[-1] == xp for xp in exptNames_TM])[0]
+    idx_sess = np.where([sess_name_chunks[-1] == xp for xp in exptNames_TM])[0].squeeze()
     wheel_tmp=wheel_mms_TM[idx_sess]
     nose_tmp=nose_vel_TM[idx_sess]
     time_TM_tmp=timestamps_TM[idx_sess]
@@ -354,7 +354,7 @@ if False:
 
     np.savez('good_neurons_chunk.npz',good_neurons_chunk=good_neurons_chunk)    
 else:
-    with np.load('good_neurons_chunk.npz')  as ld:
+    with np.load('/mnt/ceph/users/agiovann/ImagingData/eyeblink/good_neurons_chunk.npz')  as ld:
         good_neurons_chunk=ld['good_neurons_chunk']
 #%%           
 #triggers_chunk_fluo=  triggers_chunk_fluo[idx_sorted]
@@ -519,7 +519,7 @@ for tr_fl, tr_bh, eye, whe, tm, fl, nm, pos_examples, A, tiff_names, timestamps_
     # compute periods of activity for each neuron
     f_mat_bl_erfc=f_mat_bl_part.transpose([1,0,2]).reshape((-1,np.shape(f_mat_bl_part)[0]*np.shape(f_mat_bl_part)[-1]))            
     f_mat_bl_erfc[np.isnan(f_mat_bl_erfc)]=0            
-    fitness, f_mat_bl_erfc,_ = compute_event_exceptionality(f_mat_bl_erfc)
+    fitness, f_mat_bl_erfc,_,_ = compute_event_exceptionality(f_mat_bl_erfc)
     f_mat_bl_erfc=f_mat_bl_erfc.reshape([-1, np.shape(f_mat_bl_part)[0], np.shape(f_mat_bl_part)[-1]]).transpose([1,0,2])        
 
 
@@ -613,7 +613,7 @@ mouse_now=''
 session_now=''
 session_id = 0
 compute_redundancy = False
-check_timing= True
+check_timing=False
 redundancy=[]
 max_fluo_range=np.inf
 #single_session = True
@@ -636,7 +636,7 @@ for tr_fl, tr_bh, eye, whe, tm, fl, nm, pos_examples, A, tiff_names, timestamps_
     zip(triggers_chunk_fluo, triggers_chunk_bh, eyelid_chunk, wheel_chunk,\
      tm_behav, fluo_chunk,names_chunks,good_neurons_chunk,A_chunks,tiff_names_chunks,\
      timestamps_TM_chunk,wheel_mms_TM_chunk,nose_vel_TM_chunk):
-    if  nm !=  session_nice_trials[-1]:
+    if  nm not in session_nice_trials[-1]:
         print(nm)
         continue  
 #        1       
@@ -777,7 +777,7 @@ for tr_fl, tr_bh, eye, whe, tm, fl, nm, pos_examples, A, tiff_names, timestamps_
     # compute periods of activity for each neuron
     f_mat_bl_erfc=f_mat_bl_part.transpose([1,0,2]).reshape((-1,np.shape(f_mat_bl_part)[0]*np.shape(f_mat_bl_part)[-1]))            
     f_mat_bl_erfc[np.isnan(f_mat_bl_erfc)]=0            
-    fitness, f_mat_bl_erfc,_ = compute_event_exceptionality(f_mat_bl_erfc)
+    fitness, f_mat_bl_erfc,_,_ = compute_event_exceptionality(f_mat_bl_erfc)
     f_mat_bl_erfc=f_mat_bl_erfc.reshape([-1, np.shape(f_mat_bl_part)[0], np.shape(f_mat_bl_part)[-1]]).transpose([1,0,2])        
 
 
@@ -1223,7 +1223,7 @@ mat_summaries=[
 '/mnt/xfs1/home/agiovann/imaging/eyeblink/MAT_SUMMARIES/gc-AG052014-02/python_out.mat',
 '/mnt/xfs1/home/agiovann/imaging/eyeblink/MAT_SUMMARIES/AG052014-01/python_out.mat',
 '/mnt/xfs1/home/agiovann/imaging/eyeblink/MAT_SUMMARIES/AG051514-01/python_out.mat']
-for mat_summary in mat_summaries[-1:]:
+for mat_summary in mat_summaries[:]:
     ld=scipy.io.loadmat(mat_summary)
     cr_ampl_dic=dict()
     cr_ampl_dic['trials']=np.array([a[0][0][0] for a in ld['python_trials']])
@@ -1333,7 +1333,7 @@ for mat_summary in mat_summaries[-1:]:
 
         f_mat_bl_erfc=mat_fluo.transpose([1,0,2]).reshape((-1,np.shape(mat_fluo)[0]*np.shape(mat_fluo)[-1]))            
         f_mat_bl_erfc[np.isnan(f_mat_bl_erfc)]=0            
-        fitness, f_mat_bl_erfc,_ = compute_event_exceptionality(f_mat_bl_erfc)
+        fitness, f_mat_bl_erfc,_, _ = compute_event_exceptionality(f_mat_bl_erfc)
         f_mat_bl_erfc=f_mat_bl_erfc.reshape(-1, np.shape(mat_fluo)[0], np.shape(mat_fluo)[-1]).transpose([1,0,2])
 
 
@@ -1500,10 +1500,13 @@ for mat_summary in mat_summaries[-1:]:
             pl.xlabel('time lag granule - eyelid (s)')
             pl.ylabel('Cell count N=' +str(np.sum([CR_eye_fluo>min_r_CR])))
             pl.xlim([-.1,.2])
-            lsl
+            
+            if False:
+                break
             #pl.ylim([3,8])
-            all_neurons_lag=np.concatenate([np.load(a) for a in ['timing_lag_AG051501_sec.npy','timing_lag_b35_sec.npy','timing_lag_b37_sec.npy','timing_lag_gc-AGGC6f-031213-03_sec.npy']])
-            all_nose_lag=np.concatenate([np.load(a)['arr_0'] for a in ['lags_AG051515-01.npy.npz','lags_b37.npy.npz']])
+            all_neurons_lag=np.concatenate([np.load(a) for a in ['/mnt/ceph/users/agiovann/ImagingData/eyeblink/timing_lag_AG051501_sec.npy','/mnt/ceph/users/agiovann/ImagingData/eyeblink/timing_lag_b35_sec.npy','/mnt/ceph/users/agiovann/ImagingData/eyeblink/timing_lag_b37_sec.npy',
+                                            '/mnt/ceph/users/agiovann/ImagingData/eyeblink/timing_lag_gc-AGGC6f-031213-03_sec.npy']])
+            all_nose_lag=np.concatenate([np.load(a)['arr_0'] for a in ['/mnt/ceph/users/agiovann/ImagingData/eyeblink/lags_AG051515-01.npy.npz','/mnt/ceph/users/agiovann/ImagingData/eyeblink/lags_b37.npy.npz']])
 
             pl.hist(all_neurons_lag,bins=np.arange(-.3,.3,.032))
             pl.hist(all_nose_lag,bins=np.arange(-.3,.3,.032))
@@ -1853,10 +1856,11 @@ font = {'family' : 'Myriad Pro',
 pl.rc('font', **font)
 
 #%%
-
+pl.close('all')
 grouped_session=cr_ampl.groupby(['mouse','session'])  
 
-grouped_session.mean().loc['b35'][['ampl_eyelid_CR','perc_CR']].plot(kind='line',subplots=True,layout=(2,1),marker='o',markersize=15,xticks=list(range(len(grouped_session.mean().loc['b35']))))
+if False:
+    grouped_session.mean().loc['b35'][['ampl_eyelid_CR','perc_CR']].plot(kind='line',subplots=True,layout=(2,1),marker='o',markersize=15,xticks=list(range(len(grouped_session.mean().loc['b35']))))
 grouped_session.mean().loc['b37'][['ampl_eyelid_CR','perc_CR']].plot(kind='line',subplots=True,layout=(2,1),marker='o',markersize=15,xticks=list(range(len(grouped_session.mean().loc['b37']))))
 grouped_session.mean().loc['gc-AGGC6f-031213-03'][['ampl_eyelid_CR','perc_CR']].plot(kind='line',subplots=True,layout=(2,1),marker='o',markersize=15,xticks=list(range(len(grouped_session.mean().loc['gc-AGGC6f-031213-03']))))
 grouped_session.mean().loc['gc-AG052014-02'][['ampl_eyelid_CR','perc_CR']].plot(kind='line',subplots=True,layout=(2,1),marker='o',markersize=15,xticks=list(range(len(grouped_session.mean().loc['gc-AG052014-02']))))
