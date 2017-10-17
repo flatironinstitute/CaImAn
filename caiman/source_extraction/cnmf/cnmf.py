@@ -75,7 +75,7 @@ class CNMF(object):
                  Ain=None, Cin=None, b_in=None, f_in=None, do_merge=True,
                  ssub=2, tsub=2, p_ssub=1, p_tsub=1, method_init='greedy_roi', alpha_snmf=None,
                  rf=None, stride=None, memory_fact=1, gnb=1, nb_patch=1, only_init_patch=False,
-                 method_deconvolution='oasis', n_pixels_per_process=4000, block_size=20000,
+                 method_deconvolution='oasis', n_pixels_per_process=4000, block_size=5000, num_blocks_per_run = 20,
                  check_nan=True, skip_refinement=False, normalize_init=True, options_local_NMF=None, 
 				 minibatch_shape=100, minibatch_suff_stat=3,
                  update_num_comps=True, rval_thr=0.9, thresh_fitness_delta=-20, 
@@ -164,6 +164,9 @@ class CNMF(object):
         
         block_size: int. 
             Number of pixels to be used to perform residual computation in blocks. Decrease if memory problems
+            
+        num_blocks_per_run: int
+            In case of memory problems you can reduce this numbers, controlling the number of blocks processed in parallel during residual computing
         
         check_nan: Boolean. 
             Check if file contains NaNs (costly for very large files so could be turned off)
@@ -258,6 +261,7 @@ class CNMF(object):
         self.method_deconvolution=method_deconvolution
         self.n_pixels_per_process = n_pixels_per_process
         self.block_size = block_size
+        self.num_blocks_per_run = num_blocks_per_run 
         self.check_nan = check_nan
         self.skip_refinement = skip_refinement
         self.normalize_init = normalize_init
@@ -304,7 +308,7 @@ class CNMF(object):
         self.options = CNMFSetParms((1,1,1), n_processes, p=p, gSig=gSig, gSiz=gSiz, 
 									K=k, ssub=ssub, tsub=tsub, 
                                     p_ssub=p_ssub, p_tsub=p_tsub, method_init=method_init,
-                                    n_pixels_per_process=n_pixels_per_process, block_size=block_size,                                    
+                                    n_pixels_per_process=n_pixels_per_process,                                    
                                     check_nan=check_nan, nb=gnb,
                                     nb_patch=nb_patch, normalize_init=normalize_init,
                                     options_local_NMF=options_local_NMF,
@@ -374,11 +378,18 @@ class CNMF(object):
         self.options['preprocess_params']['n_pixels_per_process'] = self.n_pixels_per_process
         self.options['spatial_params']['n_pixels_per_process'] = self.n_pixels_per_process
 
-        if self.block_size is None:
-            self.block_size = self.n_pixels_per_process
+#        if self.block_size is None:
+#            self.block_size = self.n_pixels_per_process
+#            
+#        if self.num_blocks_per_run is None:
+#           self.num_blocks_per_run = 20 
+        
         # number of pixels to process at the same time for dot product. Make it
         # smaller if memory problems
         self.options['temporal_params']['block_size'] = self.block_size
+        self.options['temporal_params']['num_blocks_per_run'] = self.num_blocks_per_run 
+        self.options['spatial_params']['block_size'] = self.block_size
+        self.options['spatial_params']['num_blocks_per_run'] = self.num_blocks_per_run 
 
         print(('using ' + str(self.n_pixels_per_process) + ' pixels per process'))
         print(('using ' + str(self.block_size) + ' block_size'))
