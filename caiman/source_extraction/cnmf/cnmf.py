@@ -878,6 +878,8 @@ class CNMF(object):
                                                        indicator_components=indicator_components)
 
                 self.AtA = (Ab_.T.dot(Ab_)).toarray()
+                if self.n_refit:
+                    self.AtY_buf = Ab_.T.dot(self.Yr_buf.T)
 
         else:  # distributed shape update
             self.update_counter *= .5**(1. / mbs)

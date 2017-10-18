@@ -485,7 +485,11 @@ cdef class OASIS:
         return c
 
     def remove_last_pool(self):
+        cdef Py_ssize_t k
         self.t -= self.P[self.i].l
+        if self.g2 != 0:
+            for k in range(self.P[self.i].l):
+                self._y.pop_back()
         self.i -= 1
         self.P.pop_back()
 
