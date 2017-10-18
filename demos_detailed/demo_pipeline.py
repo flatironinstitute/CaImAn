@@ -42,24 +42,15 @@ import numpy as np
 import os
 import time
 import pylab as pl
-import psutil
-import sys
-from ipyparallel import Client
-from skimage.external.tifffile import TiffFile
 import scipy
-import copy
 
 from caiman.utils.utils import download_demo
-from caiman.base.rois import extract_binary_masks_blob
 from caiman.utils.visualization import plot_contours, view_patches_bar
 from caiman.source_extraction.cnmf import cnmf as cnmf
 from caiman.motion_correction import MotionCorrect
 from caiman.components_evaluation import estimate_components_quality
+from caiman.source_extraction.cnmf.utilities import extract_DF_F
 
-from caiman.components_evaluation import evaluate_components,evaluate_components_CNN
-
-from caiman.tests.comparison import comparison
-from caiman.motion_correction import tile_and_correct, motion_correction_piecewise
 #%%
 # @params params_movie set parameters and create template by RIGID MOTION CORRECTION
 params_movie = {'fname': ['Sue_2x_3000_40_-46.tif'],
@@ -529,9 +520,9 @@ print(' ***** ')
 print((len(traces)))
 print((len(idx_components)))
 # %% save results
+Cdf = extract_DF_F(Yr=Yr, A=A, C=C, bl=cnm.bl)
 np.savez(os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:-4] + 'results_analysis.npz'), Cn=Cn,
-         A=A,
-         C=C, b=b, f=f, YrA=YrA, sn=sn, d1=d1, d2=d2, idx_components=idx_components,
+         A=A, Cdf = Cdf, C=C, b=b, f=f, YrA=YrA, sn=sn, d1=d1, d2=d2, idx_components=idx_components,
          idx_components_bad=idx_components_bad,
          fitness_raw=fitness_raw, fitness_delta=fitness_delta, r_values=r_values)
 # we save it
@@ -576,3 +567,4 @@ if play_movie:
     BB  = cm.movie(b.reshape(dims+(-1,), order = 'F').transpose(2,0,1))
     BB.play(gain=2, offset=0, fr=2, magnification=4)
     BB.zproject()
+
