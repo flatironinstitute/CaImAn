@@ -1462,8 +1462,17 @@ def create_weight_matrix_for_blending(img, overlaps, strides):
 #%%
 def low_pass_filter_space(img_orig,gSig_filt):
     ksize = tuple([(3 * i) // 2 * 2 + 1 for i in gSig_filt])
-    return cv2.GaussianBlur(img_orig, ksize=ksize, sigmaX=gSig_filt[0],sigmaY=gSig_filt[1], borderType=cv2.BORDER_REFLECT) \
-                            - cv2.boxFilter(img_orig, ddepth=-1,ksize=ksize, borderType=cv2.BORDER_REFLECT)        
+    #return cv2.GaussianBlur(img_orig, ksize=ksize, sigmaX=gSig_filt[0],sigmaY=gSig_filt[1], borderType=cv2.BORDER_REFLECT) \
+    #                        - cv2.boxFilter(img_orig, ddepth=-1,ksize=ksize, borderType=cv2.BORDER_REFLECT, normalize = True)                                   
+    ker = cv2.getGaussianKernel(ksize[0], gSig_filt[0])
+    ker2D = ker.dot(ker.T)    
+    nz = np.nonzero(ker2D>=ker2D[:,0].max())
+    zz = np.nonzero(ker2D<ker2D[:,0].max())
+    ker2D[nz] -= ker2D[nz].mean()
+    ker2D[zz] = 0
+    #ker -= ker.mean()
+    #return cv2.sepFilter2D(np.array(img_orig,dtype=np.float32),-1,kernelX = ker, kernelY = ker, borderType=cv2.BORDER_REFLECT)
+    return cv2.filter2D(np.array(img_orig,dtype=np.float32),-1,ker2D, borderType=cv2.BORDER_REFLECT)
 #%% 
 def tile_and_correct(img,template, strides, overlaps,max_shifts, newoverlaps = None, newstrides = None, upsample_factor_grid=4,
                 upsample_factor_fft=10,show_movie=False,max_deviation_rigid=2,add_to_movie=0, shifts_opencv = False, gSig_filt = None):
