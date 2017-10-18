@@ -12,6 +12,8 @@
 
 from __future__ import division
 from __future__ import print_function
+import matplotlib
+matplotlib.use('TkAgg')
 from builtins import zip
 from builtins import str
 from builtins import map
@@ -148,7 +150,8 @@ params_movie = {'fname': ['Sue_2x_3000_40_-46.tif'],
 #%%
 params_display = {
     'downsample_ratio': .2,
-    'thr_plot': 0.8
+    'thr_plot': 0.8,
+    'play_movie': False
 }
 # TODO: do find&replace on those parameters and delete this paragrph
 
@@ -182,6 +185,7 @@ upsample_factor_grid = params_movie['upsample_factor_grid']
 # @params max_deviation_rigid maximum deviation allowed for patch with respect to rigid shift
 max_deviation_rigid = params_movie['max_deviation_rigid']
 
+play_movie = params_display['play_movie']
 # %% download movie if not there
 if fname[0] in ['Sue_2x_3000_40_-46.tif','demoMovieJ.tif']:
     # TODO: todocument
@@ -191,10 +195,11 @@ if fname[0] in ['Sue_2x_3000_40_-46.tif','demoMovieJ.tif']:
 m_orig = cm.load_movie_chain(fname[:1])
 
 # %% play movie
-downsample_ratio = params_display['downsample_ratio']
-offset_mov = -np.min(m_orig[:100])
-m_orig.resize(1, 1, downsample_ratio).play(
-    gain=10, offset=offset_mov, fr=30, magnification=2)
+if play_movie:
+    downsample_ratio = params_display['downsample_ratio']
+    offset_mov = -np.min(m_orig[:100])
+    m_orig.resize(1, 1, downsample_ratio).play(
+        gain=10, offset=offset_mov, fr=30, magnification=2)
 
 # %% RUN ANALYSIS
 c, dview, n_processes = cm.cluster.setup_cluster(
@@ -236,8 +241,9 @@ for each_file in fname:
 m_rig = cm.load(mc.fname_tot_rig)
 pl.imshow(mc.total_template_rig, cmap='gray')
 # %% visualize templates
-cm.movie(np.array(mc.templates_rig)).play(
-    fr=10, gain=5, magnification=2, offset=offset_mov)
+if play_movie:
+    cm.movie(np.array(mc.templates_rig)).play(
+        fr=10, gain=5, magnification=2, offset=offset_mov)
 # %% plot rigid shifts
 pl.close()
 pl.plot(mc.shifts_rig)
@@ -248,8 +254,9 @@ pl.ylabel('pixels')
 downsample_ratio = params_display['downsample_ratio']
 # TODO: todocument
 offset_mov = -np.min(m_orig[:100])
-m_rig.resize(1, 1, downsample_ratio).play(
-    gain=10, offset=offset_mov * .25, fr=30, magnification=2, bord_px=bord_px_rig)
+if play_movie:
+    m_rig.resize(1, 1, downsample_ratio).play(
+        gain=10, offset=offset_mov * .25, fr=30, magnification=2, bord_px=bord_px_rig)
 # %%
 # a computing intensive but parralellized part
 t1 = time.time()
@@ -273,19 +280,21 @@ pl.ylabel('y_shifts (pixels)')
 pl.xlabel('frames')
 # TODO: show screenshot 6
 # %% play corrected and downsampled movie
-downsample_ratio = 0.2
-m_els.resize(1, 1, downsample_ratio).play(
-    gain=10, offset=0, fr=30, magnification=2, bord_px=bord_px_els)
+if play_movie:
+    downsample_ratio = 0.2
+    m_els.resize(1, 1, downsample_ratio).play(
+        gain=10, offset=0, fr=30, magnification=2, bord_px=bord_px_els)
 # %% local correlation
 pl.imshow(m_els.local_correlations(eight_neighbours=True, swap_dim=False))
 # TODO: show screenshot 7
 # %% visualize raw, rigid and pw-rigid motion correted moviews
-downsample_factor = params_display['downsample_ratio']
-# TODO : todocument
-cm.concatenate(
-    [m_orig.resize(1, 1, downsample_factor) + offset_mov, m_rig.resize(1, 1, downsample_factor), m_els.resize(
-        1, 1, downsample_factor)], axis=2).play(fr=60, gain=5, magnification=4, offset=0)
-# TODO: show screenshot 8
+if play_movie:
+    downsample_factor = params_display['downsample_ratio']
+    # TODO : todocument
+    cm.concatenate(
+        [m_orig.resize(1, 1, downsample_factor) + offset_mov, m_rig.resize(1, 1, downsample_factor), m_els.resize(
+            1, 1, downsample_factor)], axis=2).play(fr=60, gain=5, magnification=4, offset=0)
+    # TODO: show screenshot 8
 # %% compute metrics for the results, just to check that motion correction worked properly
 final_size = np.subtract(mc.total_template_els.shape, 2 * bord_px_els)
 winsize = 100
@@ -458,7 +467,7 @@ border_pix = 0 # if motion correction introduces problems at the border remove p
 cnm = cnmf.CNMF(n_processes=1, k=K, gSig=gSig, merge_thresh=params_movie['merge_thresh'], p=params_movie['p'],
                 dview=dview, rf=rf, stride=stride_cnmf, memory_fact=1,
                 method_init=init_method, alpha_snmf=alpha_snmf, only_init_patch=params_movie['only_init_patch'],
-                gnb=params_movie['gnb'], method_deconvolution='oasis',border_pix = border_pix, low_rank_background = params_movie['low_rank_background']) 
+                gnb=params_movie['gnb'], method_deconvolution='oasis',border_pix = border_pix, low_rank_background = params_movie['low_rank_background'])
 cnm = cnm.fit(images)
 
 A_tot = cnm.A
@@ -549,19 +558,21 @@ for log_file in log_files:
 # %% reconstruct denoised movie
 denoised = cm.movie(A.dot(C) + b.dot(f)).reshape(dims + (-1,), order='F').transpose([2, 0, 1])
 # %%
+if play_movie:
 # TODO: show screenshot 15
-denoised.play(gain=10, offset=0, fr=50, magnification=4)
-#%% background only 
-denoised = cm.movie(b.dot(f)).reshape(dims + (-1,), order='F').transpose([2, 0, 1])
-denoised.play(gain=2, offset=0, fr=50, magnification=4)
+    denoised.play(gain=10, offset=0, fr=50, magnification=4)
+    #%% background only
+    denoised = cm.movie(b.dot(f)).reshape(dims + (-1,), order='F').transpose([2, 0, 1])
+    denoised.play(gain=2, offset=0, fr=50, magnification=4)
 
 
 # %% reconstruct denoised movie without background
 denoised = cm.movie(A.dot(C)).reshape(dims + (-1,), order='F').transpose([2, 0, 1])
 # %%
 # TODO: show screenshot 16
-denoised.play(gain=10, offset=0, fr=100, magnification=2)
-#%% show background(s)
-BB  = cm.movie(b.reshape(dims+(-1,), order = 'F').transpose(2,0,1))
-BB.play(gain=2, offset=0, fr=2, magnification=4)
-BB.zproject()
+if play_movie:
+    denoised.play(gain=10, offset=0, fr=100, magnification=2)
+    #%% show background(s)
+    BB  = cm.movie(b.reshape(dims+(-1,), order = 'F').transpose(2,0,1))
+    BB.play(gain=2, offset=0, fr=2, magnification=4)
+    BB.zproject()

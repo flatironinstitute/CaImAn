@@ -14,7 +14,10 @@ from scipy.sparse import csc_matrix
 from scipy.stats import norm
 import scipy
 import cv2
-import itertools
+try:
+    from itertools import zip_longest
+except ImportError:
+    from itertools import izip_longest as zip_longest
 try:
 	import json as simplejson
 	from keras.models import model_from_json
@@ -371,7 +374,7 @@ def chunker(seq, size):
 def grouper(n, iterable, fillvalue=None):
     "grouper(3, 'ABCDEFG', 'x') --> ABC DEF Gxx"
     args = [iter(iterable)] * n
-    return itertools.zip_longest(*args, fillvalue=fillvalue)
+    return zip_longest(*args, fillvalue=fillvalue)
 #%%
 def evaluate_components_placeholder(params):
     import caiman as cm
@@ -465,7 +468,7 @@ def estimate_components_quality(traces, Y, A, C, b, f, final_frate = 30, Npeaks=
         params = []
         for g in groups:
             idx = list(g)
-            idx = list(filter(None.__ne__, idx))     
+            idx = [item for item in idx if item is not None]
             params.append([Y.filename,traces[idx],A.tocsc()[:,idx],C[idx],b,f,final_frate,remove_baseline,N,robust_std,Athresh,Npeaks,thresh_C])
         
         if dview is None:
