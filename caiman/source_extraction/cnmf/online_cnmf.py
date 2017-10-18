@@ -195,82 +195,8 @@ def HALS4activity(Yr, A, C, AtA, iters=5, tol=1e-3, groups=None):
     return C
 
 
-# @profile
-# def demix_and_deconvolve(C, AtY, AtA, OASISinstances, iters=5, n_refit=np.inf):
-#     """
-#     Solve C = argmin_C ||Y-AC|| subject to C following AR(p) dynamics
-#     using OASIS within block-coordinate decent
-#     Newly fits the last elements in buffers C and AtY and possibly refits earlier elements.
-
-#     Parameters
-#     ----------
-#     C : ndarray of float
-#         Buffer containing the fluorescence intensities.
-#         All elements up to and excluding the last one have been denoised in earlier calls.
-#     AtY : ndarray of float
-#         Buffer containing the projections of data Y on shapes A.
-#     AtA : ndarray of float
-#         Overlap matrix of shapes A.
-#     OASISinstances : list of OASIS objects
-#         Objects for deconvolution and denoising
-#     iters : int, optional
-#         Number of iterations.
-#     n_refit : int, optional
-#         Number of previous OASIS pools to refit
-#         (0 fits only last pool, np.inf all pools fully within buffer)
-#     """
-#     T = OASISinstances[0].t + 1
-#     len_buffer = C.shape[1]
-#     nb = AtY.shape[0] - len(OASISinstances)
-#     if n_refit == 0:
-#         for i in range(iters):
-#             for m in range(AtY.shape[0]):
-#                 c = C[m, -1] + (AtY[m, -1] - AtA[m].dot(C[:, -1])) / AtA[m, m]
-#                 if m >= nb:
-#                     n = m - nb
-#                     if i == iters - 1:  # commit
-#                         OASISinstances[n].fit_next(c)
-#                         l = OASISinstances[n].get_l_of_last_pool()
-#                         if l < len_buffer:
-#                             C[m, -l:] = OASISinstances[n].get_c_of_last_pool()
-#                         else:
-#                             C[m] = OASISinstances[n].get_c(len_buffer)
-#                     else:  # temporary non-commited update of most recent frame
-#                         C[m] = OASISinstances[n].fit_next_tmp(c, len_buffer)
-#                 else:
-#                     C[m, -1] = c  # no need to enforce max(c, 0) for background, is it?
-#     else:
-# overlap = np.sum(AtA[nb:, nb:] > .1, 0) > 1  # !threshold .1 assumes
-# normalized A (|A|_2=1)
-
-#         def refit(o):
-#             # remove last pools
-#             tmp = 0
-#             while tmp < n_refit and o.t - o.get_l_of_last_pool() > T - len_buffer:
-#                 o.remove_last_pool()
-#                 tmp += 1
-#             # refit last pools
-#             for cc in c[o.t - T + len_buffer:-1]:
-#                 o.fit_next(cc)
-#         for i in range(iters):
-#             for m in range(AtY.shape[0]):
-#                 c = C[m] + (AtY[m] - AtA[m].dot(C)) / AtA[m, m]
-#                 if m >= nb:
-#                     n = m - nb
-#                     if overlap[n]:
-#                         refit(OASISinstances[n])
-#                     if i == iters - 1:  # commit
-#                         OASISinstances[n].fit_next(c[-1])
-#                         C[m] = OASISinstances[n].get_c(len_buffer)
-#                     else:  # temporary non-commited update of most recent frame
-#                         C[m] = OASISinstances[n].fit_next_tmp(c[-1], len_buffer)
-#                 else:
-#                     C[m] = c  # no need to enforce max(c, 0) for background, is it?
-#     return C, OASISinstances
-
-
 @profile
-def demix_and_deconvolve(C, noisyC, AtY, AtA, OASISinstances, iters=3, n_refit=np.inf):
+def demix_and_deconvolve(C, noisyC, AtY, AtA, OASISinstances, iters=3, n_refit=0):
     """
     Solve C = argmin_C ||Y-AC|| subject to C following AR(p) dynamics
     using OASIS within block-coordinate decent
@@ -342,7 +268,6 @@ def demix_and_deconvolve(C, noisyC, AtY, AtA, OASISinstances, iters=3, n_refit=n
                 else:
                     C[m] = noisyC[m]  # no need to enforce max(c, 0) for background, is it?
     return C, noisyC, OASISinstances
-
 
 
 #%% Estimate shapes on small initial batch
