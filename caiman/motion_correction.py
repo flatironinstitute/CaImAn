@@ -1789,7 +1789,7 @@ def compute_metrics_motion_correction(fname,final_size_x,final_size_y, swap_dim,
 #%%
 def motion_correct_batch_rigid(fname, max_shifts, dview = None, splits = 56 ,num_splits_to_process = None, num_iter = 1,
                                 template = None, shifts_opencv = False, save_movie_rigid = False, add_to_movie = None,
-                               nonneg_movie = False, gSig_filt = None):
+                               nonneg_movie = False, gSig_filt = None, subidx=slice(None, None, 1)):
     """
     Function that perform memory efficient hyper parallelized rigid motion corrections while also saving a memory mappable file
 
@@ -1821,7 +1821,10 @@ def motion_correct_batch_rigid(fname, max_shifts, dview = None, splits = 56 ,num
 
     save_movie_rigid: boolean
          toggle save movie
-    
+
+    subidx: slice
+        Indices to slice
+
     Returns:
     --------    
     fname_tot_rig: str
@@ -1832,21 +1835,24 @@ def motion_correct_batch_rigid(fname, max_shifts, dview = None, splits = 56 ,num
         list of produced templates, one per batch
     
     shifts: list
-        inferred rigid shifts to corrrect the movie
+        inferred rigid shifts to correct the movie
 
     Raise:
     -----
         Exception('The movie contains nans. Nans are not allowed!')
     
     """
-    m = cm.load(fname,subindices=slice(0,None,10))
+    corrected_slicer = slice(subidx.start, subidx.stop, subidx.step*10)
+    m = cm.load(fname,subindices=corrected_slicer)
     
     if m.shape[0]<300:
-        m = cm.load(fname,subindices=slice(0,None,1))
+        m = cm.load(fname,subindices=corrected_slicer)
     elif m.shape[0]<500:
-        m = cm.load(fname,subindices=slice(0,None,5))
+        corrected_slicer = slice(subidx.start, subidx.stop, subidx.step*5)
+        m = cm.load(fname,subindices=corrected_slicer)
     else:
-        m = cm.load(fname,subindices=slice(0,None,30))
+        corrected_slicer = slice(subidx.start, subidx.stop, subidx.step*30)
+        m = cm.load(fname,subindices=corrected_slicer)
     
     if template is None:   
         if gSig_filt is not None:
@@ -2025,14 +2031,18 @@ def tile_and_correct_wrapper(params):
         1 #'Open CV is naturally single threaded'
 
     img_name,  out_fname,idxs, shape_mov, template, strides, overlaps, max_shifts,\
-        add_to_movie,max_deviation_rigid,upsample_factor_grid, newoverlaps, newstrides,shifts_opencv,nonneg_movie, gSig_filt  = params
+        add_to_movie,max_deviation_rigid,upsample_factor_grid, newoverlaps, newstrides, \
+        shifts_opencv,nonneg_movie, gSig_filt, is_fiji = params
 
     import os
 
     name, extension = os.path.splitext(img_name)[:2]
     
     if extension == '.tif' or extension == '.tiff':  # check if tiff file
-        imgs = imread(img_name,key = idxs)
+        if is_fiji:
+            imgs = imread(img_name)[idxs]
+        else:
+            imgs = imread(img_name, key=idxs)
         mc = np.zeros(imgs.shape,dtype = np.float32)
         shift_info = []
     elif extension == '.sbx':  # check if sbx file
@@ -2082,10 +2092,12 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
     import os
     import h5py
     name, extension = os.path.splitext(fname)[:2]
+    is_fiji = False
 
     if extension == '.tif' or extension == '.tiff':  # check if tiff file
         with tifffile.TiffFile(fname) as tf:
-           if len(tf) == 1:
+           if len(tf) == 1:  # Fiji-generated TIF
+               is_fiji = True
                T,d1,d2 = tf[0].shape
            else:    
                d1,d2 = tf[0].shape
@@ -2144,7 +2156,7 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
     for idx in idxs:
       pars.append([fname,fname_tot,idx,shape_mov, template, strides, overlaps, max_shifts, np.array(
           add_to_movie,dtype = np.float32),max_deviation_rigid,upsample_factor_grid,
-                   newoverlaps, newstrides, shifts_opencv,nonneg_movie, gSig_filt])
+                   newoverlaps, newstrides, shifts_opencv,nonneg_movie, gSig_filt, is_fiji])
     
     if dview is not None:
         print('** Startting parallel motion correction **')
