@@ -12,6 +12,8 @@
 
 from __future__ import division
 from __future__ import print_function
+import matplotlib
+matplotlib.use('TkAgg')
 from builtins import zip
 from builtins import str
 from builtins import map
@@ -53,6 +55,7 @@ from caiman.utils.visualization import plot_contours, view_patches_bar
 from caiman.source_extraction.cnmf import cnmf as cnmf
 from caiman.motion_correction import MotionCorrect
 from caiman.components_evaluation import estimate_components_quality
+from caiman.source_extraction.cnmf.utilities import extract_DF_F
 
 from caiman.components_evaluation import evaluate_components,evaluate_components_CNN
 
@@ -102,8 +105,10 @@ params_movie = {'fname': ['Sue_2x_3000_40_-46.tif'],
                'memory_fact': 1,
                'n_chunks': 10,
                'update_background_components': True,# whether to update the background components in the spatial phase
-               'low_rank_background': True  #whether to update the using a low rank approximation. In the False case all the nonzero elements of the background components are updated using hals    
-                                     #(to be used with one background per patch)                              
+               'low_rank_background': True,  #whether to update the using a low rank approximation. In the False case all the nonzero elements of the background components are updated using hals
+                                     #(to be used with one background per patch)
+                'num_of_channels': 1,
+                'channel_of_neurons': 1
                }
 
 #%%
@@ -520,9 +525,9 @@ print(' ***** ')
 print((len(traces)))
 print((len(idx_components)))
 # %% save results
+Cdf = extract_DF_F(Yr=Yr, A=A, C=C, bl=cnm.bl)
 np.savez(os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:-4] + 'results_analysis.npz'), Cn=Cn,
-         A=A,
-         C=C, b=b, f=f, YrA=YrA, sn=sn, d1=d1, d2=d2, idx_components=idx_components,
+         A=A, Cdf = Cdf, C=C, b=b, f=f, YrA=YrA, sn=sn, d1=d1, d2=d2, idx_components=idx_components,
          idx_components_bad=idx_components_bad,
          fitness_raw=fitness_raw, fitness_delta=fitness_delta, r_values=r_values)
 # we save it
