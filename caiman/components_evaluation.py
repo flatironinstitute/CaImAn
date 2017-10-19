@@ -371,7 +371,11 @@ def chunker(seq, size):
 def grouper(n, iterable, fillvalue=None):
     "grouper(3, 'ABCDEFG', 'x') --> ABC DEF Gxx"
     args = [iter(iterable)] * n
-    return itertools.zip_longest(*args, fillvalue=fillvalue)
+    try:  # py3
+        return itertools.zip_longest(*args, fillvalue=fillvalue)
+    except:  # py2
+        return itertools.izip_longest(*args, fillvalue=fillvalue)
+
 #%%
 def evaluate_components_placeholder(params):
     import caiman as cm
@@ -465,7 +469,8 @@ def estimate_components_quality(traces, Y, A, C, b, f, final_frate = 30, Npeaks=
         params = []
         for g in groups:
             idx = list(g)
-            idx = list(filter(None.__ne__, idx))     
+            # idx = list(filter(None.__ne__, idx))
+            idx = list(filter(lambda a: a is not None, idx))    
             params.append([Y.filename,traces[idx],A.tocsc()[:,idx],C[idx],b,f,final_frate,remove_baseline,N,robust_std,Athresh,Npeaks,thresh_C])
         
         if dview is None:

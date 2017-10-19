@@ -519,7 +519,7 @@ def parallel_dot_product(A,b,block_size=5000,dview=None,transpose=False, num_blo
                 for res in results:
                     output[res[0]] = res[1] 
             
-            results.clear()
+            dview.clear()
             
     return output
 
