@@ -491,7 +491,7 @@ def estimate_components_quality(traces, Y, A, C, b, f, final_frate = 30, Npeaks=
             fitness_raw = np.concatenate([fitness_raw,fitness_raw__])
             fitness_delta = np.concatenate([fitness_delta, fitness_delta__])
             r_values = np.concatenate([r_values ,r_values__])
-            significant_samples = np.concatenate([significant_samples,significant_samples__])
+            # significant_samples = np.concatenate([significant_samples,significant_samples__])
     
             if len(erfc_raw) == 0:
                 erfc_raw = erfc_raw__
