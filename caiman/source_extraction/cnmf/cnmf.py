@@ -86,7 +86,7 @@ class CNMF(object):
                  update_background_components=True, rolling_sum = True, rolling_length = 100,
                  min_corr=.85, min_pnr=20, deconvolve_options_init=None, ring_size_factor=1.5,
 				 center_psf=True,  use_dense=True, deconv_flag = True,
-                 simultaneously=False, n_refit=0):
+                 simultaneously=False, n_refit=0, N_samples_exceptionality = 5):
         """
         Constructor of the CNMF method
 
@@ -227,6 +227,9 @@ class CNMF(object):
         n_refit : int, optional
             Number of pools (cf. oasis.pyx) prior to the last one that are refitted when
             simultaneously demixing and denoising/deconvolving.
+            
+        N_samples_exceptionality : int, optional
+            Number of consecutives intervals to be considered when testing new neuron candidates
 			
         Returns:
         --------
@@ -296,7 +299,7 @@ class CNMF(object):
         self.deconv_flag = deconv_flag
         self.simultaneously=simultaneously
         self.n_refit=n_refit
-        
+        self.N_samples_exceptionality = N_samples_exceptionality
 		
         self.min_corr = min_corr
         self.min_pnr = min_pnr
@@ -550,7 +553,7 @@ class CNMF(object):
         return self
 
     def _prepare_object(self, Yr, T, expected_comps, new_dims=None, idx_components=None,
-                        g=None, lam=None, s_min=None, bl=None, use_dense=True):
+                        g=None, lam=None, s_min=None, bl=None, use_dense=True, N_samples_exceptionality = 5):
 
         self.expected_comps = expected_comps
 
@@ -569,6 +572,7 @@ class CNMF(object):
         self.neurons_sn2 = self.neurons_sn[idx_components]
         self.lam2 = self.lam[idx_components]
         self.dims2 = self.dims
+        self.N_samples_exceptionality = N_samples_exceptionality
 
         self.N = self.A2.shape[-1]
         self.M = self.gnb + self.N
@@ -784,7 +788,7 @@ class CNMF(object):
                 sn=self.sn, g=np.mean(self.g2) if self.p == 1 else np.mean(self.g2, 0),
                 lam=self.lam2.mean(), thresh_s_min=self.thresh_s_min, s_min=self.s_min,
                 Ab_dense=self.Ab_dense[:, :self.M] if self.use_dense else None,
-                oases=self.OASISinstances)
+                oases=self.OASISinstances, N_samples_exceptionality=self.N_samples_exceptionality)
 
             num_added = len(self.ind_A) - self.N
 
