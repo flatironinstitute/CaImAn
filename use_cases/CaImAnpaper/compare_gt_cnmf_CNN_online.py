@@ -474,7 +474,7 @@ p = params_movie[ind_dataset]['p']                  # order of AR indicator dyna
 rval_thr = global_params['rval_thr']                # correlation threshold for new component inclusion
 gnb = global_params['gnb']                          # number of background components
 epochs = global_params['epochs']                    # number of passes over the data
-T1 = params_movie[ind_dataset]['T1'] *epochs        # total length of all files (if not known use a large number, then truncate at the end)
+T1 = params_movie[ind_dataset]['T1']*len(fls)*epochs        # total length of all files (if not known use a large number, then truncate at the end)
 #minibatch_length = int(global_params['batch_length_dt']*params_movie[ind_dataset]['fr']*params_movie[ind_dataset]['decay_time'])
 
 #%%    Initialize movie
