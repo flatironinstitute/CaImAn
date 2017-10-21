@@ -894,6 +894,42 @@ class CNMF(object):
                                                        indicator_components=indicator_components)
 
                 self.AtA = (Ab_.T.dot(Ab_)).toarray()
+                
+                ind_zero = list(np.where(self.AtA.diagonal()<1e-10)[0])
+                if len(ind_zero) > 0:
+                    ind_zero.sort()
+                    ind_zero = ind_zero[::-1]
+                    ind_keep = list(set(range(Ab_.shape[-1])) - set(ind_zero))
+                    ind_keep.sort()
+                    
+                    if self.use_dense: 
+                        self.Ab_dense = np.delete(self.Ab_dense,ind_zero,axis=1)
+                    self.AtA = np.delete(self.AtA,ind_zero,axis=0)
+                    self.AtA = np.delete(self.AtA,ind_zero,axis=1)
+                    self.CY = np.delete(self.CY,ind_zero,axis=0)
+                    self.CC = np.delete(self.CC,ind_zero,axis=0)
+                    self.CC = np.delete(self.CC,ind_zero,axis=1)
+                    self.M -= len(ind_zero)
+                    self.N -= len(ind_zero)                    
+                    self.noisyC = np.delete(self.noisyC,ind_zero,axis=0)
+                    for ii in ind_zero: 
+                        del self.OASISinstances[ii-self.gnb] 
+                        #del self.ind_A[ii-self.gnb]
+                    
+                    self.C_on = np.delete(self.C_on,ind_zero,axis=0)
+                    self.AtY_buf = np.delete(self.AtY_buf,ind_zero,axis=0)
+                    print(1)
+                    #import pdb
+                    #pdb.set_trace()
+                    #Ab_ = Ab_[:,ind_keep]
+                    Ab_ = scipy.sparse.csc_matrix(Ab_[:,ind_keep])
+                    #Ab_ = scipy.sparse.csc_matrix(self.Ab_dense[:,:self.M])
+                    self.Ab_dense_copy = self.Ab_dense
+                    self.Ab_copy = Ab_
+                    self.Ab = Ab_
+                    self.ind_A = list([(self.Ab.indices[self.Ab.indptr[ii]:self.Ab.indptr[ii+1]]) for ii in range(self.gnb,self.M)])
+                    self.groups = list(map(list, update_order(Ab_)[0]))
+                
                 if self.n_refit:
                     self.AtY_buf = Ab_.T.dot(self.Yr_buf.T)
 

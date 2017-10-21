@@ -45,15 +45,29 @@ except:
     print('Open CV is naturally single threaded')
 
 
+#%% Select a dataset
+# 0: neuforinder.03.00.test
+# 1: neurofinder.04.00.test
+# 2: neurofinder.02.00
+# 3: yuste
+# 4: neurofinder.00.00
+# 5: neurofinder,01.01
+# 6: sue_ann_k53_20160530
+# 7: J115
+# 8: J123
+
+ind_dataset = 6
+
 
 #%% set some global parameters here
 
 global_params = {'min_SNR': 1.8,        # minimum SNR when considering adding a new neuron
                  'gnb' : 2,             # number of background components   
                  'epochs' : 2,          # number of passes over the data
-                 'rval_thr' : 0.80,     # spatial correlation threshold
+                 'rval_thr' : 0.8,      # spatial correlation threshold
                  'batch_length_dt': 10, # length of mini batch for OnACID in decay time units (length would be batch_length_dt*decay_time*fr)
-                 'max_thr': 0.30        # parameter for thresholding components when cleaning up shapes
+                 'max_thr': 0.30,       # parameter for thresholding components when cleaning up shapes
+                 'mot_corr' : False,    # flag for motion correction (set to False to compare directly on the same FOV)
                  }
 
 params_movie = [{}]*10        # set up list of dictionaries
@@ -248,17 +262,21 @@ params_movie[5] = {'fname': '/mnt/ceph/neuro/labeling/neurofinder.01.01/images/f
                  'filter_after_patch':True
                  }
 #% Sue Ann k56
-params_movie[6] = {'fname': '/opt/local/Data/labeling/k53_20160530/Yr_d1_512_d2_512_d3_1_order_C_frames_116043_.mmap',
-                'folder_name':'/opt/local/Data/labeling/k53_20160530/',
-                'gtname':'/mnt/ceph/neuro/labeling/k53_20160530/regions/joined_consensus_active_regions.npy',
+params_movie[6] = {'fname': '/mnt/ceph/neuro/labeling/k53_20160530/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_116043_.mmap',
+                 'folder_name':'/mnt/ceph/neuro/labeling/k53_20160530/',
+                 'gtname':'/mnt/ceph/neuro/labeling/k53_20160530/regions/joined_consensus_active_regions.npy',
                  'p': 1,  # order of the autoregressive system
+                 'T1': 3000, # number of frames per file
+                 'fr': 30, 
+                 'decay_time' : 0.3,
+                 'gSig': [8,8],  # expected half size of neurons
+                 'gnb' : 2,
                  'merge_thresh': 0.8,  # merging threshold, max correlation allow
                  'rf': 20,  # half-size of the patches in pixels. rf=25, patches are 50x50    20
                  'stride_cnmf': 10,  # amounpl.it of overlap between the patches in pixels
                  'K': 9,  # number of components per patch
                  'is_dendrites': False,  # if dendritic. In this case you need to set init_method to sparse_nmf
-                 'init_method': 'greedy_roi',
-                 'gSig': [6,6],  # expected half size of neurons
+                 'init_method': 'greedy_roi',                 
                  'alpha_snmf': None,  # this controls sparsity
                  'final_frate': 30,
                  'r_values_min_patch': .5,  # threshold on space consistency
@@ -270,7 +288,6 @@ params_movie[6] = {'fname': '/opt/local/Data/labeling/k53_20160530/Yr_d1_512_d2_
                  'fitness_min_full': - 40,
                  'fitness_delta_min_full': - 40,
                  'only_init_patch': True,
-                 'gnb': 2,
                  'memory_fact': 1,
                  'n_chunks': 10,
                  'update_background_components': True,# whether to update the background components in the spatial phase
@@ -415,30 +432,31 @@ params_movie[8] = {'fname': '/mnt/ceph/neuro/labeling/J123_2015-11-20_L01_0/imag
 #                 }
 
 
-#%% Select a dataset
-# 0: neuforinder.03.00.test
-# 1: neurofinder.04.00.test
-# 2: neurofinder.02.00
-# 3: yuste
-# 4: neurofinder.00.00
-# 5: neurofinder,01.01
-# 6: sue_ann_k56
-# 7: J115
-# 8: J123
 
-ind_dataset = 4
-
-#%% convert mmaps into tifs
-
-fls = glob.glob(params_movie[ind_dataset]['folder_name']+'images/mmap/*.mmap')
-for file_count, ffll in enumerate(fls):
-    fl_temp = cm.movie(np.array(cm.load(ffll)))
-    fl_temp.save(fls[file_count][:-4]+'tif')
+##% convert mmaps into tifs
+#import os.path
+#
+#for ind_dataset in range(9):
+#    fls = glob.glob(params_movie[ind_dataset]['folder_name']+'images/mmap/*.mmap')
+#    for file_count, ffll in enumerate(fls):
+#        file_name = '/'.join(ffll.split('/')[:-2]+['mmap_tifs']+[ffll.split('/')[-1][:-4]+'tif'])
+#        if not os.path.isfile(file_name):
+#            fl_temp = cm.movie(np.array(cm.load(ffll)))        
+#            fl_temp.save(file_name)
+#        print(file_name)
+#    print(ind_dataset)
 #%%  download and list all files to be processed
-fls = glob.glob('/'.join( params_movie[ind_dataset]['fname'].split('/')[:-3]+['images','tifs','*.tif']))
+
+mot_corr = global_params['mot_corr']
+
+if mot_corr:
+    fls = glob.glob('/'.join( params_movie[ind_dataset]['fname'].split('/')[:-3]+['images','tifs','*.tif']))
+    template = cm.load( '/'.join( params_movie[ind_dataset]['fname'].split('/')[:-3]+['projections','median_projection.tif']))
+else:
+    fls = glob.glob('/'.join( params_movie[ind_dataset]['fname'].split('/')[:-3]+['images','mmap_tifs','*.tif']))
+
 fls.sort()
 print(fls)  
-template = cm.load( '/'.join( params_movie[ind_dataset]['fname'].split('/')[:-3]+['projections','median_projection.tif']))                                      
 
 #%% Set up some parameters
 ds_factor = 1                                                        # spatial downsampling factor (increases speed but may lose some fine structure)
@@ -446,30 +464,28 @@ gSig = tuple(np.ceil(np.array(params_movie[ind_dataset]['gSig'])/ds_factor).asty
 init_files = 1                                                       # number of files used for initialization
 online_files = len(fls) - 1                                          # number of files used for online
 initbatch = 200                                                      # number of frames for initialization (presumably from the first file)
-expected_comps = 3000                                                # maximum number of expected components used for memory pre-allocation (exaggerate here)
+expected_comps = 4000                                                # maximum number of expected components used for memory pre-allocation (exaggerate here)
 K = 2                                                                # initial number of components
 N_samples = np.ceil(params_movie[ind_dataset]['fr']*params_movie[ind_dataset]['decay_time'])   # number of timesteps to consider when testing new neuron candidates
 pr_inc = 1 - scipy.stats.norm.cdf(global_params['min_SNR'])           # inclusion probability of noise transient
-thresh_fitness_raw = np.log(pr_inc)*N_samples       # 
-thresh_fitness_delta = -1.                          # event exceptionality thresholds 
+thresh_fitness_raw = np.log(pr_inc)*N_samples       # event exceptionality threshold
+thresh_fitness_delta = -80.                         # make this very neutral 
 p = params_movie[ind_dataset]['p']                  # order of AR indicator dynamics
 rval_thr = global_params['rval_thr']                # correlation threshold for new component inclusion
-mot_corr = True                                     # flag for online motion correction 
-max_shift = np.ceil(5./ds_factor).astype('int')     # maximum allowed shift during motion correction
-gnb = global_params['gnb']                                               # number of background components
+gnb = global_params['gnb']                          # number of background components
 epochs = global_params['epochs']                    # number of passes over the data
-#len_file = m.shape[0]                              # upper bound for number of frames in each file (used right below)
 T1 = params_movie[ind_dataset]['T1'] *epochs        # total length of all files (if not known use a large number, then truncate at the end)
-minibatch_length = int(global_params['batch_length_dt']*params_movie[ind_dataset]['fr']*params_movie[ind_dataset]['decay_time'])
+#minibatch_length = int(global_params['batch_length_dt']*params_movie[ind_dataset]['fr']*params_movie[ind_dataset]['decay_time'])
 
 #%%    Initialize movie
-mot_corr = True
+
 if ds_factor > 1:                                   # load only the first initbatch frames and possibly downsample them
     Y = cm.load(fls[0], subindices = slice(0,initbatch,None)).astype(np.float32).resize(1. / ds_factor, 1. / ds_factor)
 else:
     Y =  cm.load(fls[0], subindices = slice(0,initbatch,None)).astype(np.float32)
     
 if mot_corr:                                        # perform motion correction on the first initbatch frames
+    max_shift = np.ceil(5./ds_factor).astype('int')     # maximum allowed shift during motion correction
     mc = Y.motion_correct(max_shift, max_shift, template = template)
     Y = mc[0].astype(np.float32)
     borders = np.max(mc[1])
@@ -487,7 +503,7 @@ dims = (d1, d2)                                     # dimensions of FOV
 Yr = Y.to_2D().T                                    # convert data into 2D array                                    
 
 Cn_init = Y.local_correlations(swap_dim = False)    # compute correlation image
-#pl.imshow(Cn_init); pl.title('Correlation Image on initial batch'); pl.colorbar()
+#pl.figure(); pl.imshow(Cn_init); pl.title('Correlation Image on initial batch'); pl.colorbar()
 
 #%% initialize OnACID with bare initialization
 
@@ -521,9 +537,9 @@ tottime = []
 Cn = Cn_init.copy()
 
 plot_contours_flag = False               # flag for plotting contours of detected components at the end of each file
-play_reconstr = False                     # flag for showing video with results online (turn off flags for improving speed)
+play_reconstr = False                    # flag for showing video with results online (turn off flags for improving speed)
 save_movie = False                       # flag for saving movie (file could be quite large..)
-#movie_name = folder_name + '/output.avi' # name of movie to be saved
+movie_name = params_movie[ind_dataset]['folder_name'] + 'output.avi' # name of movie to be saved
 resize_fact = 1.2                        # image resizing factor
 
 if online_files == 0:                    # check whether there are any additional files
@@ -588,7 +604,9 @@ for iter in range(epochs):
             tottime.append(time() - t1)                             # store time
     
             t += 1
-            
+            #if t>=4500:
+            #    break
+                    
             if t % 1000 == 0 and plot_contours_flag:
                 pl.cla()
                 A = cnm2.Ab[:, cnm2.gnb:]
@@ -640,11 +658,14 @@ b_trace = [osi.b for osi in cnm2.OASISinstances]
 
 #pl.figure()
 #crd = cm.utils.visualization.plot_contours(A, Cn, thr=0.9)
-#view_patches_bar(Yr, scipy.sparse.coo_matrix(A.tocsc()[:, :]), C[:, :], b, f,
-#                 dims[0], dims[1], YrA=noisyC[cnm2.gnb:cnm2.M] - C, img=Cn)
+
+#%%
+
+view_patches_bar(Yr, scipy.sparse.coo_matrix(A.tocsc()[:, :]), C[:, :], b, f,
+                 dims[0], dims[1], YrA=noisyC[cnm2.gnb:cnm2.M] - C, img=Cn)
 
 #%% load, threshold and filter for size ground truth
-
+global_params['max_thr'] = 0.4
 c, dview, n_processes = cm.cluster.setup_cluster(backend='local', n_processes=None, single_thread = True)
 
 gt_file = os.path.join(os.path.split(params_movie[ind_dataset]['fname'])[0], os.path.split(params_movie[ind_dataset]['fname'])[1][:-4] + 'match_masks.npz')
@@ -658,7 +679,7 @@ with np.load(gt_file, encoding = 'latin1') as ld:
     A_gt = scipy.sparse.coo_matrix(A_gt[()])
     dims = (d1,d2)
     
-A_gt_thr = cm.source_extraction.cnmf.spatial.threshold_components(A_gt.tocsc()[:,:].toarray(), dims, medw=None, thr_method='max', maxthr=global_params['max_thr'], nrgthr=0.99, extract_cc=True,
+A_gt_thr = cm.source_extraction.cnmf.spatial.threshold_components(A_gt.tocsc()[:,:].toarray(), dims, medw=None, thr_method='max', maxthr=global_params['max_thr'], extract_cc=True,
                          se=None, ss=None, dview=None) 
 
 A_gt_thr_bin = A_gt_thr > 0
@@ -667,7 +688,7 @@ idx_size_neurons_gt = np.where((size_neurons_gt>min_size_neuro) & (size_neurons_
 print(A_gt_thr.shape)     
 #%% filter for size found neurons
 
-A_thr = cm.source_extraction.cnmf.spatial.threshold_components(A.tocsc()[:,:].toarray(), dims, medw=None, thr_method='max', maxthr=global_params['max_thr'], nrgthr=0.99, extract_cc=True,
+A_thr = cm.source_extraction.cnmf.spatial.threshold_components(A.tocsc()[:,:].toarray(), dims, medw=None, thr_method='max', maxthr=global_params['max_thr'], extract_cc=True,
                          se=None, ss=None, dview=dview) 
 A_thr_bin = A_thr > 0  
 size_neurons = A_thr_bin.sum(0)

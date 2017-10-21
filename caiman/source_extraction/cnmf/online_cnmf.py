@@ -221,6 +221,7 @@ def demix_and_deconvolve(C, noisyC, AtY, AtA, OASISinstances, iters=3, n_refit=0
         Number of previous OASIS pools to refit
         0 fits only last pool, np.inf all pools fully (i.e. starting) within buffer
     """
+    AtA += np.finfo(float).eps
     T = OASISinstances[0].t + 1
     len_buffer = C.shape[1]
     nb = AtY.shape[0] - len(OASISinstances)
@@ -330,6 +331,7 @@ def update_shapes(CY, CC, Ab, ind_A, indicator_components=None, Ab_dense=None, u
                 Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]] /= \
                     max(1, sqrt(Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]]
                                 .dot(Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]])))
+                ind_A[m-nb] = Ab.indices[slice(Ab.indptr[m], Ab.indptr[m + 1])]
                 # N.B. Ab[ind_pixels].dot(CC[m]) is slower for csc matrix due to indexing rows
         else:
             for m in idx_comp:  # neurons
@@ -338,8 +340,10 @@ def update_shapes(CY, CC, Ab, ind_A, indicator_components=None, Ab_dense=None, u
                                                              Ab_dense[ind_pixels].dot(CC[m])) /
                                                             CC[m, m]), 0)
                 # normalize
-                Ab_dense[ind_pixels, m] = tmp / max(1, sqrt(tmp.dot(tmp)))
+                tmp *= 1e-3/min(1e-3,sqrt(tmp.dot(tmp))+np.finfo(float).eps)
+                Ab_dense[ind_pixels, m] = tmp / max(1, sqrt(tmp.dot(tmp)))                
                 Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]] = Ab_dense[ind_pixels, m]
+                ind_A[m-nb] = Ab.indices[slice(Ab.indptr[m], Ab.indptr[m + 1])]
             # Ab.data[Ab.indptr[nb]:] = np.concatenate(
             #     [Ab_dense[ind_A[m - nb], m] for m in range(nb, M)])
             # N.B. why does selecting only overlapping neurons help surprisingly little, i.e
@@ -416,7 +420,7 @@ def corr(a, b):
     """
     a -= a.mean()
     b -= b.mean()
-    return a.dot(b) / sqrt(a.dot(a) * b.dot(b))
+    return a.dot(b) / sqrt(a.dot(a) * b.dot(b) + np.finfo(float).eps)
 
 
 def rank1nmf(Ypx, ain):
@@ -425,7 +429,7 @@ def rank1nmf(Ypx, ain):
         cin_res = ain.T.dot(Ypx)  # / ain.dot(ain)
         cin = np.maximum(cin_res, 0)
         ain = np.maximum(Ypx.dot(cin.T), 0)
-        ain /= sqrt(ain.dot(ain))
+        ain /= sqrt(ain.dot(ain)+ np.finfo(float).eps)
         # nc = cin.dot(cin)
         # ain = np.maximum(Ypx.dot(cin.T) / nc, 0)
         # tmp = cin - cin_old
