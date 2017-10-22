@@ -5,7 +5,7 @@ except ModuleNotFoundError:
 
 from demos_detailed.demo_pipeline import main_pipeline
 
-foldername = Path(r'/data/David/rat_#919_280917/1')  # Enter path to folder containing all files
+foldername = Path(r'.')  # Enter path to folder containing all files
 all_files = [str(filename) for filename in foldername.rglob('*.tif')]  # Filter out unwanted files in the .rglob parameter
 print("The following files were found: \n{}".format(all_files))
 
