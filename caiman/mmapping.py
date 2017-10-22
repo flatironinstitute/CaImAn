@@ -533,7 +533,7 @@ def dot_place_holder(par):
     A_, _, _  = load_memmap(A_name)    
     b_ = pickle.loads(b_).astype(np.float32)
   
-    print((idx_to_pass[-1]))
+    # print((idx_to_pass[-1]))
     if 'sparse' in str(type(b_)):
         if transpose:     
             outp = (b_.T.tocsc()[:,idx_to_pass].dot(A_[idx_to_pass])).T.astype(np.float32)  
