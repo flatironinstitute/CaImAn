@@ -243,7 +243,7 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
     Parameters:
     ----------
         filenames: list
-            list of tif files
+            list of tif files or list of numpy arrays
 
         base_name: str
             the base used to build the file name. IT MUST NOT CONTAIN "_"    
@@ -274,21 +274,22 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
     #TODO: can be done online    
     Ttot = 0
     for idx, f in enumerate(filenames):
-        print(f)
+        if isinstance(f, str):
+            print(f)
 
         if is_3D:
             #import tifffile
 #            print("Using tifffile library instead of skimage because of  3D")
-
+            Yr = f if isinstance(f, str) else tifffile.imread(f)
             if idx_xy is None:
-                Yr = tifffile.imread(f)[remove_init:]
+                Yr = Yr[remove_init:]
             elif len(idx_xy) == 2:
-                Yr = tifffile.imread(f)[remove_init:, idx_xy[0], idx_xy[1]]
+                Yr = Yr[remove_init:, idx_xy[0], idx_xy[1]]
             else:
-                Yr = tifffile.imread(f)[remove_init:, idx_xy[0], idx_xy[1], idx_xy[2]]
+                Yr = Yr[remove_init:, idx_xy[0], idx_xy[1], idx_xy[2]]
 
         else:
-            Yr=cm.load(f,fr=1,in_memory = True)            
+            Yr = cm.load(f, fr=1, in_memory=True) if isinstance(f, str) else cm.movie(f)
             if xy_shifts is not None:
                 Yr=Yr.apply_shifts(xy_shifts,interpolation='cubic',remove_blanks=False)
 
@@ -323,7 +324,8 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
         if idx == 0:
             fname_tot = base_name + '_d1_' + str(dims[0]) + '_d2_' + str(dims[1]) + '_d3_' + str(
                 1 if len(dims) == 2 else dims[2]) + '_order_' + str(order)
-            fname_tot = os.path.join(os.path.split(f)[0],fname_tot)         
+            if isinstance(f, str):
+                fname_tot = os.path.join(os.path.split(f)[0], fname_tot)
             big_mov = np.memmap(fname_tot, mode='w+', dtype=np.float32,
                                 shape=(np.prod(dims), T), order=order)
         else:
