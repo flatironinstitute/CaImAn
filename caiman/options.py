@@ -23,6 +23,8 @@ from __future__ import print_function
 import numpy as np
 import caiman as cm
 import psutil
+from collections import namedtuple
+from tifffile import TiffFile
 
 #%%
 def Params(Y, K=30, gSig=[5, 5], ssub=2, tsub=2, p=1, p_ssub=2, p_tsub=2,
@@ -356,3 +358,27 @@ def Params(Y, K=30, gSig=[5, 5], ssub=2, tsub=2, p=1, p_ssub=2, p_tsub=2,
 #%%
 
 #desave
+
+def loader_params(params_movie, fname):
+    """
+    Create a loader named tuple with variables required for loading files
+    :param params_movie: params_movie from the pipeline function
+    :param fname: Filename
+    :return: Loader
+    """
+    Loader = namedtuple('Loader', ('subindices', 'var_name_hdf5', 'fps', 'all'))
+    metadata = None
+    fps = 30
+    if fname.endswith('.tif') or fname.endswith('.tiff'):
+        try:
+            with TiffFile(fname) as f:
+                metadata = f.scanimage_metadata
+                fps = metadata['SI.hRoiManager.scanFrameRate']
+        except Exception:
+            pass
+    loading_params = Loader(subindices=slice(params_movie['channel_of_neurons'] - 1,
+                                             None,
+                                             params_movie['num_of_channels']),
+                            var_name_hdf5=params_movie['var_name_hdf5'],
+                            fps=fps, all=metadata)
+    return loading_params
