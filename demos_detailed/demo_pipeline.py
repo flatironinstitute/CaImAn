@@ -43,8 +43,8 @@ import os
 import time
 import pylab as pl
 import scipy
-from collections import namedtuple
 
+from caiman.options import loader_params
 from caiman.utils.utils import download_demo
 from caiman.utils.visualization import plot_contours, view_patches_bar
 from caiman.source_extraction.cnmf import cnmf as cnmf
@@ -52,6 +52,7 @@ from caiman.motion_correction import MotionCorrect
 from caiman.components_evaluation import estimate_components_quality
 from caiman.source_extraction.cnmf.utilities import extract_DF_F
 from caiman.gui.find_files_to_parse import FileFinder
+
 
 
 def main_pipeline(params_movie, params_display):
@@ -94,11 +95,7 @@ def main_pipeline(params_movie, params_display):
     play_movie = params_display['play_movie']
 
     # %% Loading parameters
-    Loader = namedtuple('Loader', ('subindices', 'var_name_hdf5'))
-    loading_params = Loader(subindices=slice(params_movie['channel_of_neurons']-1,
-                                             None,
-                                             params_movie['num_of_channels']),
-                            var_name_hdf5=params_movie['var_name_hdf5'])
+    load_params = loader_params(params_movie, fname[0])
 
     # %% download movie if not there
     if fname[0] in ['Sue_2x_3000_40_-46.tif','demoMovieJ.tif']:
@@ -106,10 +103,10 @@ def main_pipeline(params_movie, params_display):
         download_demo(fname[0])
         fname = [os.path.join('example_movies',fname[0])]
     # TODO: todocument
-    m_orig = cm.load_movie_chain(fname[:1])
 
     # %% play movie
     if play_movie:
+        m_orig = cm.load_movie_chain(fname[:1])
         downsample_ratio = params_display['downsample_ratio']
         offset_mov = -np.min(m_orig[:100])
         m_orig.resize(1, 1, downsample_ratio).play(
@@ -124,8 +121,10 @@ def main_pipeline(params_movie, params_display):
     # movie must be mostly positive for this to work
     # TODO : document
     # setting timer to see how the changement in functions make the code react on a same computer.
-
-    min_mov = cm.load(fname[0], subindices=range(400)).min()
+    try:
+        min_mov = m_orig[:400, Ellipsis].min()
+    except NameError:
+        min_mov = None
     mc_list = []
     new_templ = None
     for each_file in fname:
@@ -137,9 +136,8 @@ def main_pipeline(params_movie, params_display):
                            num_splits_to_process_els=num_splits_to_process_els,
                            upsample_factor_grid=upsample_factor_grid, max_deviation_rigid=max_deviation_rigid,
                            shifts_opencv=True, nonneg_movie=True)
-        mc.motion_correct_rigid(save_movie=True,template = new_templ)
+        mc.motion_correct_rigid(save_movie=True, template=new_templ)
         new_templ = mc.total_template_rig
-        m_rig = cm.load(mc.fname_tot_rig)
         bord_px_rig = np.ceil(np.max(mc.shifts_rig)).astype(np.int)
 
         # TODO : needinfo
@@ -167,8 +165,8 @@ def main_pipeline(params_movie, params_display):
     # %% inspect movie
     downsample_ratio = params_display['downsample_ratio']
     # TODO: todocument
-    offset_mov = -np.min(m_orig[:100])
     if play_movie:
+        offset_mov = -np.min(m_orig[:100])
         m_rig.resize(1, 1, downsample_ratio).play(
             gain=10, offset=offset_mov * .25, fr=30, magnification=2, bord_px=bord_px_rig)
     # %%
@@ -378,10 +376,11 @@ def main_pipeline(params_movie, params_display):
     border_pix = 0 # if motion correction introduces problems at the border remove pixels from border
     # TODO: todocument
     # TODO: warnings 3
-    cnm = cnmf.CNMF(n_processes=1, k=K, gSig=gSig, merge_thresh=params_movie['merge_thresh'], p=params_movie['p'],
-                    dview=dview, rf=rf, stride=stride_cnmf, memory_fact=1,
+    cnm = cnmf.CNMF(n_processes=n_processes, k=K, gSig=gSig, merge_thresh=params_movie['merge_thresh'],
+                    p=params_movie['p'], dview=dview, rf=rf, stride=stride_cnmf, memory_fact=1,
                     method_init=init_method, alpha_snmf=alpha_snmf, only_init_patch=params_movie['only_init_patch'],
-                    gnb=params_movie['gnb'], method_deconvolution='oasis',border_pix = border_pix, low_rank_background = params_movie['low_rank_background'])
+                    gnb=params_movie['gnb'], method_deconvolution='oasis',border_pix=border_pix,
+                    low_rank_background=params_movie['low_rank_background'])
     cnm = cnm.fit(images)
 
     A_tot = cnm.A
@@ -419,10 +418,10 @@ def main_pipeline(params_movie, params_display):
     C_tot = C_tot[idx_components]
     # %% rerun updating the components to refine
     t1 = time.time()
-    cnm = cnmf.CNMF(n_processes=1, k=A_tot.shape, gSig=gSig, merge_thresh=merge_thresh, p=p, dview=dview, Ain=A_tot,
-                    Cin=C_tot, b_in = b_tot,
-                    f_in=f_tot, rf=None, stride=None, method_deconvolution='oasis',gnb = params_movie['gnb'],
-                    low_rank_background = params_movie['low_rank_background'], update_background_components = params_movie['update_background_components'],check_nan = True)
+    cnm = cnmf.CNMF(n_processes=n_processes, k=A_tot.shape, gSig=gSig, merge_thresh=merge_thresh, p=p, dview=dview,
+                    Ain=A_tot, Cin=C_tot, b_in=b_tot, f_in=f_tot, rf=None, stride=None, method_deconvolution='oasis',
+                    gnb = params_movie['gnb'], low_rank_background=params_movie['low_rank_background'],
+                    update_background_components=params_movie['update_background_components'], check_nan=True)
 
     cnm = cnm.fit(images)
 
