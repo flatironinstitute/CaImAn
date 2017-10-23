@@ -66,7 +66,7 @@ except:
 
 
 @profile
-def compute_event_exceptionality(traces,robust_std=False,N=5,use_mode_fast=False):
+def compute_event_exceptionality(traces,robust_std=False,N=5,use_mode_fast=False, sigma_factor = 3.):
     """
     Define a metric and order components according to the probabilty if some "exceptional events" (like a spike). 
 
@@ -89,6 +89,9 @@ def compute_event_exceptionality(traces,robust_std=False,N=5,use_mode_fast=False
 
     N: int
         N number of consecutive events
+    
+    sigma_factor: float
+        multiplicative factor for noise estimate (added for backwards compatibility)
 
     Returns:
     --------
@@ -132,14 +135,16 @@ def compute_event_exceptionality(traces,robust_std=False,N=5,use_mode_fast=False
         sd_r = np.sqrt(old_div(np.sum(ff1**2, 1), Ns))
 
     # compute z value
-    z = old_div((traces - md[:, None]), (3 * sd_r[:, None]))
+    z = old_div((traces - md[:, None]), (sigma_factor * sd_r[:, None]))
 
     # probability of observing values larger or equal to z given normal
     # distribution with mean md and std sd_r
-    erf = 1 - norm.cdf(z)
+    #erf = 1 - norm.cdf(z)
 
     # use logarithm so that multiplication becomes sum
-    erf = np.log(erf)
+    #erf = np.log(erf)
+    erf = scipy.special.log_ndtr(-z)  # compute with this numerically stable function
+    
     filt = np.ones(N)
 
     # moving sum
@@ -248,7 +253,7 @@ def evaluate_components_CNN(A,dims,gSig,model_name = 'use_cases/CaImAnpaper/cnn_
     return predictions,final_crops
 #%%
 def evaluate_components(Y, traces, A, C, b, f, final_frate, remove_baseline = True, N = 5, robust_std = False,
-                        Athresh = 0.1, Npeaks = 5, thresh_C = 0.3):
+                        Athresh = 0.1, Npeaks = 5, thresh_C = 0.3,  sigma_factor = 3.):
     """ Define a metric and order components according to the probabilty if some "exceptional events" (like a spike).
     
     Such probability is defined as the likeihood of observing the actual trace value over N samples given an estimated noise distribution. 
@@ -283,11 +288,13 @@ def evaluate_components(Y, traces, A, C, b, f, final_frate, remove_baseline = Tr
         threshold on overlap of A (between 0 and 1)
 
     Npeaks: int
-
-   
+        Number of local maxima to consider   
 
     thresh_C: float
         fraction of the maximum of C that is used as minimum peak height        
+        
+    sigma_factor: float
+        multiplicative factor for noise 
 
     Returns:
     -------
@@ -321,7 +328,7 @@ def evaluate_components(Y, traces, A, C, b, f, final_frate, remove_baseline = Tr
     Yr=np.reshape(Y,(np.prod(dims),T),order='F')    
 
     print('Computing event exceptionality delta')
-    fitness_delta, erfc_delta,std_rr, _ = compute_event_exceptionality(np.diff(traces,axis=1),robust_std=robust_std,N=N)
+    fitness_delta, erfc_delta,std_rr, _ = compute_event_exceptionality(np.diff(traces,axis=1),robust_std=robust_std,N=N,sigma_factor = sigma_factor)
 
     print('Removing Baseline')
     if remove_baseline:
@@ -352,7 +359,7 @@ def evaluate_components(Y, traces, A, C, b, f, final_frate, remove_baseline = Tr
                 traces -= tr_BL[padbefore:-padafter].T
             
     print('Computing event exceptionality')    
-    fitness_raw, erfc_raw,std_rr, _ = compute_event_exceptionality(traces,robust_std=robust_std,N=N)
+    fitness_raw, erfc_raw,std_rr, _ = compute_event_exceptionality(traces,robust_std=robust_std,N=N, sigma_factor = sigma_factor)
 
     print('Evaluating spatial footprint')
     # compute the overlap between spatial and movie average across samples with significant events
