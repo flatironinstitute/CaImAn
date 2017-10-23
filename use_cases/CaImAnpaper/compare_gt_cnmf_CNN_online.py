@@ -61,10 +61,10 @@ ind_dataset = 6
 
 #%% set some global parameters here
 
-global_params = {'min_SNR': 1.8,        # minimum SNR when considering adding a new neuron
-                 'gnb' : 2,             # number of background components   
+global_params = {'min_SNR': 2.5,        # minimum SNR when considering adding a new neuron
+                 'gnb' : 1,             # number of background components   
                  'epochs' : 2,          # number of passes over the data
-                 'rval_thr' : 0.8,      # spatial correlation threshold
+                 'rval_thr' : 0.7,      # spatial correlation threshold
                  'batch_length_dt': 10, # length of mini batch for OnACID in decay time units (length would be batch_length_dt*decay_time*fr)
                  'max_thr': 0.30,       # parameter for thresholding components when cleaning up shapes
                  'mot_corr' : False,    # flag for motion correction (set to False to compare directly on the same FOV)
@@ -665,7 +665,7 @@ view_patches_bar(Yr, scipy.sparse.coo_matrix(A.tocsc()[:, :]), C[:, :], b, f,
                  dims[0], dims[1], YrA=noisyC[cnm2.gnb:cnm2.M] - C, img=Cn)
 
 #%% load, threshold and filter for size ground truth
-global_params['max_thr'] = 0.4
+global_params['max_thr'] = 0.30
 c, dview, n_processes = cm.cluster.setup_cluster(backend='local', n_processes=None, single_thread = True)
 
 gt_file = os.path.join(os.path.split(params_movie[ind_dataset]['fname'])[0], os.path.split(params_movie[ind_dataset]['fname'])[1][:-4] + 'match_masks.npz')

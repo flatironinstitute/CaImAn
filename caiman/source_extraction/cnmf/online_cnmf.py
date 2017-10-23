@@ -229,7 +229,7 @@ def demix_and_deconvolve(C, noisyC, AtY, AtA, OASISinstances, iters=3, n_refit=0
         for i in range(iters):
             for m in range(AtY.shape[0]):
                 noisyC[m, -1] = C[m, -1] + (AtY[m, -1] - AtA[m].dot(C[:, -1])) / AtA[m, m]
-                if m >= nb:
+                if m >= nb and i > 0:                    
                     n = m - nb
                     if i == iters - 1:  # commit
                         OASISinstances[n].fit_next(noisyC[m, -1])
@@ -239,9 +239,9 @@ def demix_and_deconvolve(C, noisyC, AtY, AtA, OASISinstances, iters=3, n_refit=0
                         else:
                             C[m] = OASISinstances[n].get_c(len_buffer)
                     else:  # temporary non-commited update of most recent frame
-                        C[m] = OASISinstances[n].fit_next_tmp(noisyC[m, -1], len_buffer)
+                        C[m] = OASISinstances[n].fit_next_tmp(noisyC[m, -1], len_buffer)                
                 else:
-                    C[m, -1] = noisyC[m, -1]  # no need to enforce max(c, 0) for background, is it?
+                    C[m, -1] = np.maximum(noisyC[m, -1],0)  # no need to enforce max(c, 0) for background, is it?
     else:
         overlap = np.sum(AtA[nb:, nb:] > .1, 0) > 1  # !threshold .1 assumes normalized A (|A|_2=1)
 
@@ -340,6 +340,7 @@ def update_shapes(CY, CC, Ab, ind_A, indicator_components=None, Ab_dense=None, u
                                                              Ab_dense[ind_pixels].dot(CC[m])) /
                                                             CC[m, m]), 0)
                 # normalize
+                #if tmp.dot(tmp) > 0:
                 tmp *= 1e-3/min(1e-3,sqrt(tmp.dot(tmp))+np.finfo(float).eps)
                 Ab_dense[ind_pixels, m] = tmp / max(1, sqrt(tmp.dot(tmp)))                
                 Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]] = Ab_dense[ind_pixels, m]
@@ -436,6 +437,8 @@ def rank1nmf(Ypx, ain):
         # if tmp.dot(tmp) < 1e-6 * nc:
         #     break
         # cin_old = cin.copy()
+    cin_res = ain.T.dot(Ypx)  # / ain.dot(ain)
+    cin = np.maximum(cin_res, 0)
     return ain, cin, cin_res
 
 
