@@ -18,7 +18,6 @@ import numpy as np
 from skimage.morphology import disk
 import scipy.sparse as spr
 import sys
-from sklearn.decomposition import NMF
 
 if sys.version_info >= (3, 0):
     def xrange(*args, **kwargs):
@@ -154,13 +153,6 @@ def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True):
     b0: np.ndarray (pixels,)
         estimate of constant background baselines
     """
-    # ring = (disk(radius + 1) -
-    #         np.concatenate([np.zeros((1, 2 * radius + 3), dtype=bool),
-    #                         np.concatenate([np.zeros((2 * radius + 1, 1), dtype=bool),
-    #                                         disk(radius),
-    #                                         np.zeros((2 * radius + 1, 1), dtype=bool)], 1),
-    #                         np.zeros((1, 2 * radius + 3), dtype=bool)]))
-    # ringidx = [i - radius - 1 for i in np.nonzero(ring)]
 
     ring = disk(radius + 1, dtype=bool)
     ring[1:-1, 1:-1] -= disk(radius, dtype=bool)
@@ -244,12 +236,8 @@ def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True):
 #     if dview is not None and Y_name is None:
 #         raise Exception('must provide filename of memmapped file if dview is not None')
 
-#     ring = (disk(radius + 1) -
-#             np.concatenate([np.zeros((1, 2 * radius + 3), dtype=bool),
-#                             np.concatenate([np.zeros((2 * radius + 1, 1), dtype=bool),
-#                                             disk(radius),
-#                                             np.zeros((2 * radius + 1, 1), dtype=bool)], 1),
-#                             np.zeros((1, 2 * radius + 3), dtype=bool)]))
+#     ring = disk(radius + 1, dtype=bool)
+#     ring[1:-1, 1:-1] -= disk(radius, dtype=bool)
 #     ringidx = [i - radius - 1 for i in np.nonzero(ring)]
 
 #     b0 = Y.mean(1) - A.dot(C.mean(1))

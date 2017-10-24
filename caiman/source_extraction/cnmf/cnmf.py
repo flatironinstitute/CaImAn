@@ -75,7 +75,7 @@ class CNMF(object):
                  Ain=None, Cin=None, b_in=None, f_in=None, do_merge=True,
                  ssub=2, tsub=2, p_ssub=1, p_tsub=1, method_init='greedy_roi', alpha_snmf=None,
                  rf=None, stride=None, memory_fact=1, gnb=1, nb_patch=1, only_init_patch=False,
-                 method_deconvolution='oasis', n_pixels_per_process=4000, block_size=20000,
+                 method_deconvolution='oasis', n_pixels_per_process=4000, block_size=5000, num_blocks_per_run = 20,
                  check_nan=True, skip_refinement=False, normalize_init=True, options_local_NMF=None, 
 				 minibatch_shape=100, minibatch_suff_stat=3,
                  update_num_comps=True, rval_thr=0.9, thresh_fitness_delta=-20, 
@@ -164,6 +164,9 @@ class CNMF(object):
         
         block_size: int. 
             Number of pixels to be used to perform residual computation in blocks. Decrease if memory problems
+            
+        num_blocks_per_run: int
+            In case of memory problems you can reduce this numbers, controlling the number of blocks processed in parallel during residual computing
         
         check_nan: Boolean. 
             Check if file contains NaNs (costly for very large files so could be turned off)
@@ -258,6 +261,7 @@ class CNMF(object):
         self.method_deconvolution=method_deconvolution
         self.n_pixels_per_process = n_pixels_per_process
         self.block_size = block_size
+        self.num_blocks_per_run = num_blocks_per_run 
         self.check_nan = check_nan
         self.skip_refinement = skip_refinement
         self.normalize_init = normalize_init
@@ -304,7 +308,7 @@ class CNMF(object):
         self.options = CNMFSetParms((1,1,1), n_processes, p=p, gSig=gSig, gSiz=gSiz, 
 									K=k, ssub=ssub, tsub=tsub, 
                                     p_ssub=p_ssub, p_tsub=p_tsub, method_init=method_init,
-                                    n_pixels_per_process=n_pixels_per_process, block_size=block_size,                                    
+                                    n_pixels_per_process=n_pixels_per_process,                                    
                                     check_nan=check_nan, nb=gnb,
                                     nb_patch=nb_patch, normalize_init=normalize_init,
                                     options_local_NMF=options_local_NMF,
@@ -374,11 +378,18 @@ class CNMF(object):
         self.options['preprocess_params']['n_pixels_per_process'] = self.n_pixels_per_process
         self.options['spatial_params']['n_pixels_per_process'] = self.n_pixels_per_process
 
-        if self.block_size is None:
-            self.block_size = self.n_pixels_per_process
+#        if self.block_size is None:
+#            self.block_size = self.n_pixels_per_process
+#            
+#        if self.num_blocks_per_run is None:
+#           self.num_blocks_per_run = 20 
+        
         # number of pixels to process at the same time for dot product. Make it
         # smaller if memory problems
         self.options['temporal_params']['block_size'] = self.block_size
+        self.options['temporal_params']['num_blocks_per_run'] = self.num_blocks_per_run 
+        self.options['spatial_params']['block_size'] = self.block_size
+        self.options['spatial_params']['num_blocks_per_run'] = self.num_blocks_per_run 
 
         print(('using ' + str(self.n_pixels_per_process) + ' pixels per process'))
         print(('using ' + str(self.block_size) + ' block_size'))
@@ -598,7 +609,8 @@ class CNMF(object):
         self.YrA2 *= nA[:, None]
 #        self.S2 *= nA[:, None]
         self.neurons_sn2 *= nA
-        self.lam2 *= nA
+        if self.p:
+            self.lam2 *= nA
         z = np.sqrt([b.T.dot(b) for b in self.b2.T])
         self.f2 *= z[:, None]
         self.b2 /= z
@@ -620,24 +632,29 @@ class CNMF(object):
         self.noisyC[self.gnb:self.M, :self.initbatch] = self.C2 + self.YrA2
         self.noisyC[:self.gnb, :self.initbatch] = self.f2
 
-         # next line requires some estimate of the spike size, e.g. running OASIS with penalty=0
-         # or s_min from histogram a la Deneux et al (2016)
-#        self.OASISinstances = [oasis.OASIS(
-#            g=g if g is not None else (gam[0] if self.p == 1 else gam),
-#            s_min=self.thresh_s_min * sn if s_min is None else s_min,
-#            b=b if bl is None else bl)
-#            for gam, sn, b in zip(self.g2, self.neurons_sn2, self.bl2)]
-#         # using L1 instead of min spikesize with lambda obtained from fit on init batch
-        self.OASISinstances = [oasis.OASIS(
-            g=g if g is not None else (gam[0] if self.p == 1 else gam),
-            lam=l if lam is None else lam,
-            s_min=0 if s_min is None else s_min,
-            b=b if bl is None else bl)
-            for gam, l, b in zip(self.g2, self.lam2, self.bl2)]
+        if self.p:
+            # if no parameter for calculating the spike size threshold is given, then use L1 penalty
+            if s_min is None and self.s_min is None and self.thresh_s_min is None:
+                use_L1 = True
+            else:
+                use_L1 = False
+                
+            self.OASISinstances = [oasis.OASIS(            
+                g = np.ravel(0.01) if self.p == 0 else (np.ravel(g)[0] if g is not None else gam[0]),
+                lam=0 if not use_L1 else (l if lam is None else lam),
+                # if no explicit value for s_min,  use thresh_s_min * noise estimate * sqrt(1-gamma)
+                s_min=0 if use_L1 else (s_min if s_min is not None else
+                                        (self.s_min if self.s_min is not None else
+                                         (self.thresh_s_min * sn * np.sqrt(1 - np.sum(gam))))),
+                b=b if bl is None else bl,
+                g2=0 if self.p < 2 else (np.ravel(g)[1] if g is not None else gam[1]))
+                for gam, l, b, sn in zip(self.g2, self.lam2, self.bl2, self.neurons_sn2)]
 
-        for i, o in enumerate(self.OASISinstances):
-            o.fit(self.noisyC[i + self.gnb, :self.initbatch])
-            self.C_on[i, :self.initbatch] = o.c
+            for i, o in enumerate(self.OASISinstances):
+                o.fit(self.noisyC[i + self.gnb, :self.initbatch])
+                self.C_on[i, :self.initbatch] = o.c
+        else:
+            self.C_on[:self.N, :self.initbatch] = self.C2
 
         self.Ab, self.ind_A, self.CY, self.CC = init_shapes_and_sufficient_stats(
             Yr[:, :self.initbatch].reshape(self.dims2 + (-1,), order='F'), self.A2,
@@ -665,15 +682,15 @@ class CNMF(object):
 
         self.Yr_buf = RingBuffer(Yr[:, self.initbatch - self.minibatch_shape:
                                     self.initbatch].T.copy(), self.minibatch_shape)
-        self.Yres_buf = RingBuffer(self.Yr_buf.get_ordered() - self.Ab.dot(
+        self.Yres_buf = RingBuffer(self.Yr_buf - self.Ab.dot(
             self.C_on[:self.M, self.initbatch - self.minibatch_shape:self.initbatch]).T, self.minibatch_shape)
-        self.rho_buf = imblur(self.Yres_buf.get_ordered().T.reshape(
+        self.rho_buf = imblur(self.Yres_buf.T.reshape(
             self.dims2 + (-1,), order='F'), sig=self.gSig, siz=self.gSiz, nDimBlur=2)**2
         self.rho_buf = np.reshape(self.rho_buf, (self.dims2[0] * self.dims2[1], -1)).T
         self.rho_buf = RingBuffer(self.rho_buf, self.minibatch_shape)
         self.AtA = (self.Ab.T.dot(self.Ab)).toarray()
         self.AtY_buf = self.Ab.T.dot(self.Yr_buf.T)
-        self.sv = np.sum(self.rho_buf.get_last_frames(self.initbatch), 0)
+        self.sv = np.sum(self.rho_buf.get_last_frames(min(self.initbatch, self.minibatch_shape) - 1), 0)
         self.groups = list(map(list, update_order(self.Ab)[0]))
         # self.update_counter = np.zeros(self.N)
         self.update_counter = .5**(-np.linspace(0, 1, self.N, dtype=np.float32))
@@ -711,24 +728,17 @@ class CNMF(object):
         frame = frame_in.astype(np.float32)
 #        print(np.max(1/scipy.sparse.linalg.norm(self.Ab,axis = 0)))
         self.Yr_buf.append(frame)
-        
-        if not self.deconv_flag:
-            simultaneously = False
-        
-        if not self.simultaneously:
+
+        if (not self.simultaneously) or self.p == 0:
             # get noisy fluor value via NNLS (project data on shapes & demix)
             C_in = self.noisyC[:self.M, t - 1].copy()
-            self.noisyC[:self.M, t] = HALS4activity(
+            self.C_on[:self.M, t], self.noisyC[:self.M, t] = HALS4activity(
                 frame, self.Ab, C_in, self.AtA, iters=num_iters_hals, groups=self.groups)
-            if self.deconv_flag:
+            if self.p:
             # denoise & deconvolve
                 for i, o in enumerate(self.OASISinstances):
                     o.fit_next(self.noisyC[nb_ + i, t])
                     self.C_on[nb_ + i, t - o.get_l_of_last_pool() + 1: t + 1] = o.get_c_of_last_pool()
-                self.C_on[:nb_, t] = self.noisyC[:nb_, t]
-            else:
-            # just denoise
-                self.C_on[:, t] = self.noisyC[:, t]
                 
         else:
             # update buffer, initialize C with previous value
@@ -771,10 +781,10 @@ class CNMF(object):
                 thresh_fitness_delta=self.thresh_fitness_delta,
                 thresh_fitness_raw=self.thresh_fitness_raw, thresh_overlap=self.thresh_overlap,
                 groups=self.groups, batch_update_suff_stat=self.batch_update_suff_stat, gnb=self.gnb,
-                sn=self.sn, g=np.mean(self.g) if self.p == 1 else np.mean(self.g, 0),
-                lam=self.lam.mean(), thresh_s_min=self.thresh_s_min, s_min=self.s_min,
+                sn=self.sn, g=np.mean(self.g2) if self.p == 1 else np.mean(self.g2, 0),
+                thresh_s_min=self.thresh_s_min, s_min=self.s_min,
                 Ab_dense=self.Ab_dense[:, :self.M] if self.use_dense else None,
-                oases=self.OASISinstances)
+                oases=self.OASISinstances if self.p else None)
 
             num_added = len(self.ind_A) - self.N
 
@@ -804,9 +814,12 @@ class CNMF(object):
 
                 for _ct in range(self.M - num_added, self.M):
                     self.time_neuron_added.append((_ct - nb_, t))
-                    # N.B. OASISinstances are already updated within update_num_components
-                    self.C_on[_ct, t - mbs + 1:t +
-                              1] = self.OASISinstances[_ct - nb_].get_c(mbs)
+                    if self.p:
+                        # N.B. OASISinstances are already updated within update_num_components
+                        self.C_on[_ct, t - mbs + 1: t + 1] = self.OASISinstances[_ct - nb_].get_c(mbs)
+                    else:
+                        self.C_on[_ct, t - mbs + 1: t + 1] = np.maximum(0,
+                            self.noisyC[_ct, t - mbs + 1: t + 1])
                     if self.simultaneously and self.n_refit:
                         self.AtY_buf = np.concatenate((
                             self.AtY_buf, [Ab_.data[Ab_.indptr[_ct]:Ab_.indptr[_ct + 1]].dot(
@@ -880,8 +893,8 @@ class CNMF(object):
                                                        indicator_components=indicator_components)
 
                 self.AtA = (Ab_.T.dot(Ab_)).toarray()
-
-            self.Ab = Ab_
+                if self.n_refit:
+                    self.AtY_buf = Ab_.T.dot(self.Yr_buf.T)
 
         else:  # distributed shape update
             self.update_counter *= .5**(1. / mbs)

@@ -1207,13 +1207,13 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
                     if center_psf:
                         ai_filtered = cv2.GaussianBlur(tmp_img, ksize=ksize,
                                                        sigmaX=gSig[0],
-                                                       sigmaY=gSig[1], borderType=1) \
+                                                       sigmaY=gSig[1], borderType=cv2.BORDER_REFLECT) \
                             - cv2.boxFilter(tmp_img, ddepth=-1,
-                                            ksize=ksize, borderType=1)
+                                            ksize=ksize, borderType=cv2.BORDER_REFLECT)
                     else:
                         ai_filtered = cv2.GaussianBlur(tmp_img, ksize=ksize,
                                                        sigmaX=gSig[0],
-                                                       sigmaY=gSig[1], borderType=1)
+                                                       sigmaY=gSig[1], borderType=cv2.BORDER_REFLECT)
                     # update the filtered data
                     data_filtered[:, r2_min:r2_max, c2_min:c2_max] -= \
                         ai_filtered[np.newaxis, ...] * ci[..., np.newaxis, np.newaxis]

@@ -71,7 +71,7 @@ def constrained_foopsi_parallel(arg_in):
 
 
 #%%
-def update_temporal_components(Y, A, b, Cin, fin, bl=None, c1=None, g=None, sn=None, nb=1, ITER=2, block_size=20000, debug=False, dview=None, **kwargs):
+def update_temporal_components(Y, A, b, Cin, fin, bl=None, c1=None, g=None, sn=None, nb=1, ITER=2, block_size=5000, num_blocks_per_run = 20, debug=False, dview=None, **kwargs):
     """Update temporal components and background given spatial components using a block coordinate descent approach.
 
     Parameters:
@@ -212,10 +212,11 @@ def update_temporal_components(Y, A, b, Cin, fin, bl=None, c1=None, g=None, sn=N
     nA = np.ravel(A.power(2).sum(axis=0))
 
     print('Generating residuals')
-    dview_res = None if block_size >= 500 else dview
+#    dview_res = None if block_size >= 500 else dview
     if 'memmap' in str(type(Y)):
-        YA = parallel_dot_product(Y, A, dview=dview_res, block_size=block_size,
-                                  transpose=True) * spdiags(old_div(1., nA), 0, nr + nb, nr + nb)
+        
+        YA = parallel_dot_product(Y, A, dview=dview, block_size=block_size,
+                                  transpose=True, num_blocks_per_run=num_blocks_per_run) * spdiags(old_div(1., nA), 0, nr + nb, nr + nb)
     else:
         YA = (A.T.dot(Y).T) * spdiags(old_div(1., nA), 0, nr + nb, nr + nb)
 
