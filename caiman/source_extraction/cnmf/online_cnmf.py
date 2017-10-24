@@ -176,23 +176,26 @@ def seeded_initialization(Y, Ain, dims = None, init_batch = 1000, gnb = 1, **kwa
 
 # definitions for demixed time series extraction and denoising/deconvolving
 @profile
-def HALS4activity(Yr, A, C, AtA, iters=5, tol=1e-3, groups=None):
+def HALS4activity(Yr, A, noisyC, AtA, iters=5, tol=1e-3, groups=None):
     """Solve C = argmin_C ||Yr-AC|| using block-coordinate decent"""
 
     AtY = A.T.dot(Yr)
     num_iters = 0
-    C_old = np.zeros(C.shape, dtype=np.float32)
+    C_old = np.zeros_like(noisyC)
+    C = noisyC.copy()
     norm = lambda c: sqrt(c.ravel().dot(c.ravel()))  # faster than np.linalg.norm
     while (norm(C_old - C) >= tol * norm(C_old)) and (num_iters < iters):
         C_old[:] = C
         if groups is None:
             for m in range(len(AtY)):
-                C[m] = max(C[m] + (AtY[m] - AtA[m].dot(C)) / AtA[m, m], 0)
+                noisyC[m] = C[m] + (AtY[m] - AtA[m].dot(C)) / AtA[m, m]
+                C[m] = max(noisyC[m], 0)
         else:
             for m in groups:
-                C[m] = np.maximum(C[m] + (AtY[m] - AtA[m].dot(C)) / AtA.diagonal()[m], 0)
+                noisyC[m] = C[m] + (AtY[m] - AtA[m].dot(C)) / AtA.diagonal()[m]
+                C[m] = np.maximum(noisyC[m], 0)
         num_iters += 1
-    return C
+    return C, noisyC
 
 
 @profile
@@ -442,7 +445,7 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                           rval_thr=0.875, bSiz=3, robust_std=False,
                           N_samples_exceptionality=5, remove_baseline=True,
                           thresh_fitness_delta=-20, thresh_fitness_raw=-20, thresh_overlap=0.5,
-                          batch_update_suff_stat=False, sn=None, g=None, lam=0, thresh_s_min=None,
+                          batch_update_suff_stat=False, sn=None, g=None, thresh_s_min=None,
                           s_min=None, Ab_dense=None, max_num_added=1):
 
     gHalf = np.array(gSiz) // 2
@@ -590,26 +593,22 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
 #                ind_a = uniform_filter(np.reshape(Ain.toarray(), dims, order='F'), size=bSiz)
 #                ind_a = np.reshape(ind_a > 1e-10, (np.prod(dims),), order='F')
 #                indeces_good = np.where(ind_a)[0]#np.where(determine_search_location(Ain,dims))[0]
-                if not useOASIS:
-                    # TODO: decide on a line to use for setting the parameters
-                    # # lambda from init batch (e.g. mean of lambdas)  or  s_min if either s_min or s_min_thresh are given
-                    # oas = oasis.OASIS(g=np.ravel(g)[0], lam if s_min==0 else 0, s_min, num_empty_samples=t + 1 - len(cin_res),
-                    #                   g2=0 if np.size(g) == 1 else g[1])
-                    # or
-                    # lambda from Selesnick's 3*sigma*|K| rule
-                    # use noise estimate from init batch or use std_rr?
-#                    sn_ = sqrt((ain**2).dot(sn[indeces]**2)) / sqrt(1 - g**2)
-                    sn_ = std_rr
-                    oas = oasis.OASIS(np.ravel(g)[0], 3 * sn_ /
-                                      (sqrt(1 - g**2) if np.size(g) == 1 else 
-                                        sqrt((1 + g[1]) * ((1 - g[1])**2 - g[0]**2) / (1-g[1])))
-                                      if s_min == 0 else 0,
-                                      s_min, num_empty_samples=t + 1 - len(cin_res),
-                                      g2=0 if np.size(g) == 1 else g[1])
-                    for yt in cin_res:
-                        oas.fit_next(yt)
-                        
-                oases.append(oas)
+                if oases is not None:
+                    if not useOASIS:
+                        # lambda from Selesnick's 3*sigma*|K| rule
+                        # use noise estimate from init batch or use std_rr?
+    #                    sn_ = sqrt((ain**2).dot(sn[indeces]**2)) / sqrt(1 - g**2)
+                        sn_ = std_rr
+                        oas = oasis.OASIS(np.ravel(g)[0], 3 * sn_ /
+                                          (sqrt(1 - g**2) if np.size(g) == 1 else 
+                                            sqrt((1 + g[1]) * ((1 - g[1])**2 - g[0]**2) / (1-g[1])))
+                                          if s_min == 0 else 0,
+                                          s_min, num_empty_samples=t + 1 - len(cin_res),
+                                          g2=0 if np.size(g) == 1 else g[1])
+                        for yt in cin_res:
+                            oas.fit_next(yt)
+                            
+                    oases.append(oas)
 
                 Ain_csc = scipy.sparse.csc_matrix((ain, (indeces, [0] * len(indeces))),
                                                   (np.prod(dims), 1), dtype=np.float32)
