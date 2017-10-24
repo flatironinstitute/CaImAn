@@ -388,12 +388,12 @@ class movie(ts.timeseries):
             if method == 'opencv':
                 M = np.float32([[1,0,sh_y_n],[0,1,sh_x_n]])
                 min_,max_ = np.min(frame),np.max(frame)
-                self[i] = np.clip(cv2.warpAffine(frame,M,(w,h),flags=interpolation),min_,max_)
+                self[i] = np.clip(cv2.warpAffine(frame,M,(w,h),flags=interpolation,borderMode = cv2.BORDER_REFLECT),min_,max_)
 
             elif method == 'skimage':
 
                 tform = AffineTransform(translation=(-sh_y_n,-sh_x_n))
-                self[i] = warp(frame, tform,preserve_range=True,order=interpolation)
+                self[i] = warp(frame, tform,preserve_range=True,order=interpolation, borderMode = cv2.BORDER_REFLECT)
 
             else:
                 raise Exception('Unknown shift  application method')

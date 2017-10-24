@@ -536,7 +536,7 @@ def motion_correct_iteration(img,template,frame_num,max_shift_w=25,
 
     M = np.float32([[1,0,sh_y_n],[0,1,sh_x_n]])
     min_,max_ = np.min(img),np.max(img)
-    new_img = np.clip(cv2.warpAffine(img,M,(w_i,h_i),flags=cv2.INTER_CUBIC),min_,max_)
+    new_img = np.clip(cv2.warpAffine(img,M,(w_i,h_i),flags=cv2.INTER_CUBIC, borderMode = cv2.BORDER_REFLECT),min_,max_)
 
     new_templ=template*frame_num/(frame_num + 1) + 1./(frame_num + 1)*new_img     
     shift=[sh_x_n,sh_y_n]
@@ -577,7 +577,7 @@ def motion_correct_iteration_fast(img,template,max_shift_w=10,max_shift_h=10):
 
     M = np.float32([[1,0,sh_y_n],[0,1,sh_x_n]])
     
-    new_img = cv2.warpAffine(img,M,(w_i,h_i),flags=cv2.INTER_CUBIC)
+    new_img = cv2.warpAffine(img,M,(w_i,h_i),flags=cv2.INTER_CUBIC, borderMode = cv2.BORDER_REFLECT)
 
     shift=[sh_x_n,sh_y_n]
 

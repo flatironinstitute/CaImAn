@@ -101,15 +101,15 @@ for a in grouper(100,np.where(predictions[:,is_positive]>.95)[0]):
      break
      
 #%% Curate data. Remove wrong negatives or wrong positives
-is_positive = 0 # should be 0 when processing negatives
+is_positive = 2 # should be 0 when processing negatives
 to_be_checked = np.where(labels_gt==is_positive)[0] 
-
+to_be_checked = to_be_checked[to_be_checked<1000]
 wrong = []
 count = 0
 for a in grouper(50,to_be_checked):
 
     a_ = [aa for aa in a if aa is not None]
-    a_ = np.array(a_)[np.array(a_)>0].astype(np.int)
+    a_ = np.array(a_).astype(np.int)
     print(np.max(a_))
     print(count)
     count+=1
