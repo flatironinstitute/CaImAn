@@ -144,7 +144,7 @@ def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True):
     radius: int
         radius of ring
     data_fits_in_memory: [optional] bool
-            If true, use faster but more memory consuming computation
+        If true, use faster but more memory consuming computation
 
     Returns:
     --------
