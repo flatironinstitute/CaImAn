@@ -86,7 +86,7 @@ class CNMF(object):
                  update_background_components=True, rolling_sum = True, rolling_length = 100,
                  min_corr=.85, min_pnr=20, deconvolve_options_init=None, ring_size_factor=1.5,
 				 center_psf=True,  use_dense=True, deconv_flag = True,
-                 simultaneously=False, n_refit=0):
+                 simultaneously=False, n_refit=0, N_samples_exceptionality = 5):
         """
         Constructor of the CNMF method
 
@@ -227,6 +227,9 @@ class CNMF(object):
         n_refit : int, optional
             Number of pools (cf. oasis.pyx) prior to the last one that are refitted when
             simultaneously demixing and denoising/deconvolving.
+            
+        N_samples_exceptionality : int, optional
+            Number of consecutives intervals to be considered when testing new neuron candidates
 			
         Returns:
         --------
@@ -296,7 +299,7 @@ class CNMF(object):
         self.deconv_flag = deconv_flag
         self.simultaneously=simultaneously
         self.n_refit=n_refit
-        
+        self.N_samples_exceptionality = N_samples_exceptionality
 		
         self.min_corr = min_corr
         self.min_pnr = min_pnr
@@ -550,7 +553,7 @@ class CNMF(object):
         return self
 
     def _prepare_object(self, Yr, T, expected_comps, new_dims=None, idx_components=None,
-                        g=None, lam=None, s_min=None, bl=None, use_dense=True):
+                        g=None, lam=None, s_min=None, bl=None, use_dense=True, N_samples_exceptionality = 5):
 
         self.expected_comps = expected_comps
 
@@ -569,6 +572,7 @@ class CNMF(object):
         self.neurons_sn2 = self.neurons_sn[idx_components]
         self.lam2 = self.lam[idx_components]
         self.dims2 = self.dims
+        self.N_samples_exceptionality = N_samples_exceptionality
 
         self.N = self.A2.shape[-1]
         self.M = self.gnb + self.N
@@ -781,7 +785,8 @@ class CNMF(object):
                 sn=self.sn, g=np.mean(self.g2) if self.p == 1 else np.mean(self.g2, 0),
                 thresh_s_min=self.thresh_s_min, s_min=self.s_min,
                 Ab_dense=self.Ab_dense[:, :self.M] if self.use_dense else None,
-                oases=self.OASISinstances if self.p else None)
+                oases=self.OASISinstances if self.p else None, N_samples_exceptionality=self.N_samples_exceptionality)
+
 
             num_added = len(self.ind_A) - self.N
 
@@ -890,6 +895,42 @@ class CNMF(object):
                                                        indicator_components=indicator_components)
 
                 self.AtA = (Ab_.T.dot(Ab_)).toarray()
+                
+                ind_zero = list(np.where(self.AtA.diagonal()<1e-10)[0])
+                if len(ind_zero) > 0:
+                    ind_zero.sort()
+                    ind_zero = ind_zero[::-1]
+                    ind_keep = list(set(range(Ab_.shape[-1])) - set(ind_zero))
+                    ind_keep.sort()
+                    
+                    if self.use_dense: 
+                        self.Ab_dense = np.delete(self.Ab_dense,ind_zero,axis=1)
+                    self.AtA = np.delete(self.AtA,ind_zero,axis=0)
+                    self.AtA = np.delete(self.AtA,ind_zero,axis=1)
+                    self.CY = np.delete(self.CY,ind_zero,axis=0)
+                    self.CC = np.delete(self.CC,ind_zero,axis=0)
+                    self.CC = np.delete(self.CC,ind_zero,axis=1)
+                    self.M -= len(ind_zero)
+                    self.N -= len(ind_zero)                    
+                    self.noisyC = np.delete(self.noisyC,ind_zero,axis=0)
+                    for ii in ind_zero: 
+                        del self.OASISinstances[ii-self.gnb] 
+                        #del self.ind_A[ii-self.gnb]
+                    
+                    self.C_on = np.delete(self.C_on,ind_zero,axis=0)
+                    self.AtY_buf = np.delete(self.AtY_buf,ind_zero,axis=0)
+                    print(1)
+                    #import pdb
+                    #pdb.set_trace()
+                    #Ab_ = Ab_[:,ind_keep]
+                    Ab_ = scipy.sparse.csc_matrix(Ab_[:,ind_keep])
+                    #Ab_ = scipy.sparse.csc_matrix(self.Ab_dense[:,:self.M])
+                    self.Ab_dense_copy = self.Ab_dense
+                    self.Ab_copy = Ab_
+                    self.Ab = Ab_
+                    self.ind_A = list([(self.Ab.indices[self.Ab.indptr[ii]:self.Ab.indptr[ii+1]]) for ii in range(self.gnb,self.M)])
+                    self.groups = list(map(list, update_order(Ab_)[0]))
+                
                 if self.n_refit:
                     self.AtY_buf = Ab_.T.dot(self.Yr_buf.T)
 

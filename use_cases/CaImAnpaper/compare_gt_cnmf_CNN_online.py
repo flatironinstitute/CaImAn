@@ -7,6 +7,8 @@ Complete pipeline for online processing using OnACID.
 Special thanks to Andreas Tolias and his lab at Baylor College of Medicine 
 for sharing their data used in this demo.
 """
+from __future__ import division
+from __future__ import print_function
 import numpy as np
 try:
     if __IPYTHON__:
@@ -32,72 +34,50 @@ import glob
 from caiman.source_extraction.cnmf.online_cnmf import bare_initialization, initialize_movie_online, RingBuffer
 #from caiman.source_extraction.cnmf.online_cnmf import load_object, save_object
 from copy import deepcopy
-import glob,os
-#%%
-#!/usr/bin/env python2
-# -*- coding: utf-8 -*-
-"""
-Created on Fri Aug 25 14:49:36 2017
+import os
 
-@author: agiovann
-"""
-
-"""
-
-"""
-from __future__ import division
-from __future__ import print_function
-from builtins import zip
 from builtins import str
-from builtins import map
 from builtins import range
-from past.utils import old_div
-import cv2
-import glob
 
 try:
     cv2.setNumThreads(1)
 except:
     print('Open CV is naturally single threaded')
 
-try:
-    if __IPYTHON__:
-        print(1)
-        # this is used for debugging purposes only. allows to reload classes
-        # when changed
-        get_ipython().magic('load_ext autoreload')
-        get_ipython().magic('autoreload 2')
-except NameError:
-    print('Not IPYTHON')
-    pass
-import caiman as cm
-import numpy as np
-import os
-import time
-import pylab as pl
-import psutil
-import sys
-from ipyparallel import Client
-from skimage.external.tifffile import TiffFile
-import scipy
-import copy
 
-from caiman.utils.utils import download_demo
-from caiman.base.rois import extract_binary_masks_blob
-from caiman.utils.visualization import plot_contours, view_patches_bar
-from caiman.source_extraction.cnmf import cnmf as cnmf
-from caiman.motion_correction import MotionCorrect
-from caiman.components_evaluation import estimate_components_quality
-from caiman.cluster import setup_cluster
-from caiman.components_evaluation import evaluate_components
+#%% Select a dataset
+# 0: neuforinder.03.00.test
+# 1: neurofinder.04.00.test
+# 2: neurofinder.02.00
+# 3: yuste
+# 4: neurofinder.00.00
+# 5: neurofinder,01.01
+# 6: sue_ann_k53_20160530
+# 7: J115
+# 8: J123
 
-from caiman.tests.comparison import comparison
-from caiman.motion_correction import tile_and_correct, motion_correction_piecewise
+ind_dataset = 6
 
-#%%
-params_movie = {'fname': '/mnt/ceph/neuro/labeling/neurofinder.03.00.test/images/final_map/Yr_d1_498_d2_467_d3_1_order_C_frames_2250_.mmap',
+
+#%% set some global parameters here
+
+global_params = {'min_SNR': 2.5,        # minimum SNR when considering adding a new neuron
+                 'gnb' : 1,             # number of background components   
+                 'epochs' : 2,          # number of passes over the data
+                 'rval_thr' : 0.7,      # spatial correlation threshold
+                 'batch_length_dt': 10, # length of mini batch for OnACID in decay time units (length would be batch_length_dt*decay_time*fr)
+                 'max_thr': 0.30,       # parameter for thresholding components when cleaning up shapes
+                 'mot_corr' : False,    # flag for motion correction (set to False to compare directly on the same FOV)
+                 }
+
+params_movie = [{}]*10        # set up list of dictionaries
+#% neurofinder.03.00.test
+params_movie[0] = {'fname': '/mnt/ceph/neuro/labeling/neurofinder.03.00.test/images/final_map/Yr_d1_498_d2_467_d3_1_order_C_frames_2250_.mmap',
+                 'folder_name' : '/mnt/ceph/neuro/labeling/neurofinder.03.00.test/',
                  'p': 1,  # order of the autoregressive system
-                 'gSig': [8,8],  # expected half size of neurons              
+                 'fr': 7,
+                 'decay_time': 0.4,
+                 'gSig': [12,12],  # expected half size of neurons              
                  'final_frate': 10,                 
                  'Npeaks': 5,
                  'r_values_min_full': .8,
@@ -108,76 +88,91 @@ params_movie = {'fname': '/mnt/ceph/neuro/labeling/neurofinder.03.00.test/images
                  'swap_dim':False,
                  'T1': 2250
                  }
-#%%
-params_movie = {'fname': '/mnt/ceph/neuro/labeling/neurofinder.04.00.test/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_3000_.mmap',
+#% neurofinder.04.00.test
+params_movie[1] = {'fname': '/mnt/ceph/neuro/labeling/neurofinder.04.00.test/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_3000_.mmap',
+                 'folder_name' : '/mnt/ceph/neuro/labeling/neurofinder.04.00.test/',
                  'p': 1,  # order of the autoregressive system
+                 'fr': 8, 
+                 'gSig': [7,7],  # expected half size of neurons
+                 'decay_time' : 0.5, # rough length of a transient
+                 'gnb' : 2,
+                 'T1' : 3000,
+                 
+                 'alpha_snmf': None,  # this controls sparsity
+                 'final_frate': 10,
+                 'r_values_min_patch': .5,  # threshold on space consistency
+                 'fitness_min_patch': -10,  # threshold on time variability
+                 # threshold on time variability (if nonsparse activity)
+                 'fitness_delta_min_patch': -10,
+                 'Npeaks': 5,
                  'merge_thresh': 0.8,  # merging threshold, max correlation allow
                  'rf': 20,  # half-size of the patches in pixels. rf=25, patches are 50x50    20
                  'stride_cnmf': 10,  # amounpl.it of overlap between the patches in pixels
                  'K': 5,  # number of components per patch
                  'is_dendrites': False,  # if dendritic. In this case you need to set init_method to sparse_nmf
-                 'init_method': 'greedy_roi',
-                 'gSig': [5,5],  # expected half size of neurons
-                 'alpha_snmf': None,  # this controls sparsity
-                 'final_frate': 10,
-                 'r_values_min_patch': .5,  # threshold on space consistency
-                 'fitness_min_patch': -10,  # threshold on time variability
-                 # threshold on time variability (if nonsparse activity)
-                 'fitness_delta_min_patch': -10,
-                 'Npeaks': 5,
+                 'init_method': 'greedy_roi',                
                  'r_values_min_full': .8,
                  'fitness_min_full': - 40,
                  'fitness_delta_min_full': - 40,
                  'only_init_patch': True,
-                 'gnb': 2,
                  'memory_fact': 1,
                  'n_chunks': 10,
                  'update_background_components': True,# whether to update the background components in the spatial phase
                  'low_rank_background': True #whether to update the using a low rank approximation. In the False case all the nonzero elements of the background components are updated using hals    
-                                     #(to be used with one background per patch)          
                  }
 
-#%% neurofinder 02.00
-params_movie = {'fname': '/mnt/ceph/neuro/labeling/neurofinder.02.00/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_8000_.mmap',
+#% neurofinder 02.00
+params_movie[2] = {'fname': '/mnt/ceph/neuro/labeling/neurofinder.02.00/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_8000_.mmap',
+                 'folder_name' : '/mnt/ceph/neuro/labeling/neurofinder.02.00/',
                  'p': 1,  # order of the autoregressive system
+                 'fr' : 30, # imaging rate in Hz                 
+                 'gSig': [8,8],  # expected half size of neuron
+                 'decay_time': 0.3,                 
+                 'gnb': 2,          
+                 'T1':8000,
+                 'r_values_min_full': .8,
+                 
                  'merge_thresh': 0.8,  # merging threshold, max correlation allow
                  'rf': 20,  # half-size of the patches in pixels. rf=25, patches are 50x50    20
                  'stride_cnmf': 10,  # amounpl.it of overlap between the patches in pixels
                  'K': 6,  # number of components per patch
                  'is_dendrites': False,  # if dendritic. In this case you need to set init_method to sparse_nmf
-                 'init_method': 'greedy_roi',
-                 'gSig': [5,5],  # expected half size of neurons
+                 'init_method': 'greedy_roi',            
                  'alpha_snmf': None,  # this controls sparsity
                  'final_frate': 10,
                  'r_values_min_patch': .5,  # threshold on space consistency
                  'fitness_min_patch': -10,  # threshold on time variability
                  # threshold on time variability (if nonsparse activity)
                  'fitness_delta_min_patch': -10,
-                 'Npeaks': 5,
-                 'r_values_min_full': .8,
-                 'fitness_min_full': - 40,
-                 'fitness_delta_min_full': - 40,
+                 'Npeaks': 5,              
                  'only_init_patch': True,
-                 'gnb': 2,
                  'memory_fact': 1,
                  'n_chunks': 10,
                  'update_background_components': True,# whether to update the background components in the spatial phase
                  'low_rank_background': True, #whether to update the using a low rank approximation. In the False case all the nonzero elements of the background components are updated using hals    
                                      #(to be used with one background per patch)     
-                'swap_dim':False,
-                'crop_pix':10
+                 'swap_dim':False,
+                 'fitness_min_full': - 40,
+                 'fitness_delta_min_full': - 40,
+                 'crop_pix':10                 
                  }
 
-#%% yuste
-params_movie = {'fname': '/mnt/ceph/neuro/labeling/yuste.Single_150u/images/final_map/Yr_d1_200_d2_256_d3_1_order_C_frames_3000_.mmap',
+#% yuste
+params_movie[3] = {'fname': '/mnt/ceph/neuro/labeling/yuste.Single_150u/images/final_map/Yr_d1_200_d2_256_d3_1_order_C_frames_3000_.mmap',
+                 'folder_name': '/mnt/ceph/neuro/labeling/yuste.Single_150u/', 
                  'p': 1,  # order of the autoregressive system
+                 'fr' : 10,
+                 'decay_time' : 0.75,
+                 'T1' : 3000,
+                 'gnb': 2,
+                 'gSig': [7,7],  # expected half size of neurons
+                 
                  'merge_thresh': 0.8,  # merging threshold, max correlation allow
                  'rf': 15,  # half-size of the patches in pixels. rf=25, patches are 50x50    20
                  'stride_cnmf': 10,  # amounpl.it of overlap between the patches in pixels
                  'K': 8,  # number of components per patch
                  'is_dendrites': False,  # if dendritic. In this case you need to set init_method to sparse_nmf
                  'init_method': 'greedy_roi',
-                 'gSig': [5,5],  # expected half size of neurons
                  'alpha_snmf': None,  # this controls sparsity
                  'final_frate': 10,
                  'r_values_min_patch': .5,  # threshold on space consistency
@@ -189,7 +184,6 @@ params_movie = {'fname': '/mnt/ceph/neuro/labeling/yuste.Single_150u/images/fina
                  'fitness_min_full': - 40,
                  'fitness_delta_min_full': - 40,
                  'only_init_patch': True,
-                 'gnb': 2,
                  'memory_fact': 1,
                  'n_chunks': 10,
                  'update_background_components': True,# whether to update the background components in the spatial phase
@@ -200,16 +194,22 @@ params_movie = {'fname': '/mnt/ceph/neuro/labeling/yuste.Single_150u/images/fina
                  }
 
 
-#%% neurofinder 00.00
-params_movie = {'fname': '/mnt/ceph/neuro/labeling/neurofinder.00.00/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_2936_.mmap',
+#% neurofinder.00.00
+params_movie[4] = {'fname': '/mnt/ceph/neuro/labeling/neurofinder.00.00/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_2936_.mmap',
+                 'folder_name':  '/mnt/ceph/neuro/labeling/neurofinder.00.00/',
                  'p': 1,  # order of the autoregressive system
+                 'decay_time' : 0.4, 
+                 'fr' : 8,
+                 'gSig': [8,8],  # expected half size of neurons
+                 'gnb': 2,
+                 'T1' : 2936,
+                 
                  'merge_thresh': 0.8,  # merging threshold, max correlation allow
                  'rf': 20,  # half-size of the patches in pixels. rf=25, patches are 50x50    20
                  'stride_cnmf': 10,  # amounpl.it of overlap between the patches in pixels
                  'K': 6,  # number of components per patch
                  'is_dendrites': False,  # if dendritic. In this case you need to set init_method to sparse_nmf
                  'init_method': 'greedy_roi',
-                 'gSig': [6,6],  # expected half size of neurons
                  'alpha_snmf': None,  # this controls sparsity
                  'final_frate': 10,
                  'r_values_min_patch': .5,  # threshold on space consistency
@@ -220,8 +220,7 @@ params_movie = {'fname': '/mnt/ceph/neuro/labeling/neurofinder.00.00/images/fina
                  'r_values_min_full': .8,
                  'fitness_min_full': - 40,
                  'fitness_delta_min_full': - 40,
-                 'only_init_patch': True,
-                 'gnb': 2,
+                 'only_init_patch': True,                 
                  'memory_fact': 1,
                  'n_chunks': 10,
                  'update_background_components': True,# whether to update the background components in the spatial phase
@@ -230,8 +229,9 @@ params_movie = {'fname': '/mnt/ceph/neuro/labeling/neurofinder.00.00/images/fina
                  'swap_dim':False,
                  'crop_pix':10
                  }
-#%% neurofinder 01.01
-params_movie = {'fname': '/mnt/ceph/neuro/labeling/neurofinder.01.01/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_1825_.mmap',
+#% neurofinder.01.01
+params_movie[5] = {'fname': '/mnt/ceph/neuro/labeling/neurofinder.01.01/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_1825_.mmap',
+                 'folder_name': '/mnt/ceph/neuro/labeling/neurofinder.01.01/',
                  'p': 1,  # order of the autoregressive system
                  'merge_thresh': 0.9,  # merging threshold, max correlation allow
                  'rf': 20,  # half-size of the patches in pixels. rf=25, patches are 50x50    20
@@ -261,17 +261,22 @@ params_movie = {'fname': '/mnt/ceph/neuro/labeling/neurofinder.01.01/images/fina
                  'crop_pix':2,
                  'filter_after_patch':True
                  }
-#%% Sue Ann k56
-params_movie = {'fname': '/opt/local/Data/labeling/k53_20160530/Yr_d1_512_d2_512_d3_1_order_C_frames_116043_.mmap',
-                'gtname':'/mnt/ceph/neuro/labeling/k53_20160530/regions/joined_consensus_active_regions.npy',
+#% Sue Ann k56
+params_movie[6] = {'fname': '/mnt/ceph/neuro/labeling/k53_20160530/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_116043_.mmap',
+                 'folder_name':'/mnt/ceph/neuro/labeling/k53_20160530/',
+                 'gtname':'/mnt/ceph/neuro/labeling/k53_20160530/regions/joined_consensus_active_regions.npy',
                  'p': 1,  # order of the autoregressive system
+                 'T1': 3000, # number of frames per file
+                 'fr': 30, 
+                 'decay_time' : 0.3,
+                 'gSig': [8,8],  # expected half size of neurons
+                 'gnb' : 2,
                  'merge_thresh': 0.8,  # merging threshold, max correlation allow
                  'rf': 20,  # half-size of the patches in pixels. rf=25, patches are 50x50    20
                  'stride_cnmf': 10,  # amounpl.it of overlap between the patches in pixels
                  'K': 9,  # number of components per patch
                  'is_dendrites': False,  # if dendritic. In this case you need to set init_method to sparse_nmf
-                 'init_method': 'greedy_roi',
-                 'gSig': [6,6],  # expected half size of neurons
+                 'init_method': 'greedy_roi',                 
                  'alpha_snmf': None,  # this controls sparsity
                  'final_frate': 30,
                  'r_values_min_patch': .5,  # threshold on space consistency
@@ -283,7 +288,6 @@ params_movie = {'fname': '/opt/local/Data/labeling/k53_20160530/Yr_d1_512_d2_512
                  'fitness_min_full': - 40,
                  'fitness_delta_min_full': - 40,
                  'only_init_patch': True,
-                 'gnb': 2,
                  'memory_fact': 1,
                  'n_chunks': 10,
                  'update_background_components': True,# whether to update the background components in the spatial phase
@@ -294,8 +298,9 @@ params_movie = {'fname': '/opt/local/Data/labeling/k53_20160530/Yr_d1_512_d2_512
                  'filter_after_patch':True
                  }
 
-#%% J115
-params_movie = {'fname': '/mnt/ceph/neuro/labeling/J115_2015-12-09_L01_ELS/images/final_map/Yr_d1_463_d2_472_d3_1_order_C_frames_90000_.mmap',
+#% J115
+params_movie[7] = {'fname': '/mnt/ceph/neuro/labeling/J115_2015-12-09_L01_ELS/images/final_map/Yr_d1_463_d2_472_d3_1_order_C_frames_90000_.mmap',
+                'folder_name':'/mnt/ceph/neuro/labeling/J115_2015-12-09_L01_ELS/',
                 'gtname':'/mnt/ceph/neuro/labeling/J115_2015-12-09_L01_ELS/regions/joined_consensus_active_regions.npy',
                  'p': 1,  # order of the autoregressive system
                  'merge_thresh': 0.8,  # merging threshold, max correlation allow
@@ -327,8 +332,9 @@ params_movie = {'fname': '/mnt/ceph/neuro/labeling/J115_2015-12-09_L01_ELS/image
                  'filter_after_patch':True
                  }
 
-#%% J123
-params_movie = {'fname': '/mnt/ceph/neuro/labeling/J123_2015-11-20_L01_0/images/final_map/Yr_d1_458_d2_477_d3_1_order_C_frames_41000_.mmap',
+#% J123
+params_movie[8] = {'fname': '/mnt/ceph/neuro/labeling/J123_2015-11-20_L01_0/images/final_map/Yr_d1_458_d2_477_d3_1_order_C_frames_41000_.mmap',
+                'folder_name':'/mnt/ceph/neuro/labeling/J123_2015-11-20_L01_0/',
                 'gtname':'/mnt/ceph/neuro/labeling/J123_2015-11-20_L01_0/regions/joined_consensus_active_regions.npy',
                  'p': 1,  # order of the autoregressive system
                  'merge_thresh': 0.8,  # merging threshold, max correlation allow
@@ -424,29 +430,53 @@ params_movie = {'fname': '/mnt/ceph/neuro/labeling/J123_2015-11-20_L01_0/images/
 #                 'crop_pix':8,
 #                 'filter_after_patch':True
 #                 }
+
+
+
+##% convert mmaps into tifs
+#import os.path
+#
+#for ind_dataset in range(9):
+#    fls = glob.glob(params_movie[ind_dataset]['folder_name']+'images/mmap/*.mmap')
+#    for file_count, ffll in enumerate(fls):
+#        file_name = '/'.join(ffll.split('/')[:-2]+['mmap_tifs']+[ffll.split('/')[-1][:-4]+'tif'])
+#        if not os.path.isfile(file_name):
+#            fl_temp = cm.movie(np.array(cm.load(ffll)))        
+#            fl_temp.save(file_name)
+#        print(file_name)
+#    print(ind_dataset)
 #%%  download and list all files to be processed
-fls = glob.glob('/'.join( params_movie['fname'].split('/')[:-3]+['images','tifs','*.tif']))
+
+mot_corr = global_params['mot_corr']
+
+if mot_corr:
+    fls = glob.glob('/'.join( params_movie[ind_dataset]['fname'].split('/')[:-3]+['images','tifs','*.tif']))
+    template = cm.load( '/'.join( params_movie[ind_dataset]['fname'].split('/')[:-3]+['projections','median_projection.tif']))
+else:
+    fls = glob.glob('/'.join( params_movie[ind_dataset]['fname'].split('/')[:-3]+['images','mmap_tifs','*.tif']))
+
 fls.sort()
 print(fls)  
-template = cm.load( '/'.join( params_movie['fname'].split('/')[:-3]+['projections','median_projection.tif']))                                      
+
 #%% Set up some parameters
-ds_factor = 1                                       # spatial downsampling factor (increases speed but may lose some fine structure)
-init_files = 1                                      # number of files used for initialization
-online_files = len(fls) - 1                         # number of files used for online
-initbatch = 200                                     # number of frames for initialization (presumably from the first file)
-expected_comps = 3000                                # maximum number of expected components used for memory pre-allocation (exaggerate here)
-K = 2                                               # initial number of components
-gSig = tuple(np.ceil(np.array(params_movie['gSig'])/ds_factor).astype(np.int))  # expected half size of neurons
-p = params_movie['p']                                                 # order of AR indicator dynamics
-rval_thr = 0.85                                     # correlation threshold for new component inclusion
-thresh_fitness_delta = -30                          # event exceptionality thresholds 
-thresh_fitness_raw = -40                            #
-mot_corr = True                                     # flag for online motion correction 
-max_shift = np.ceil(10./ds_factor).astype('int')    # maximum allowed shift during motion correction
-gnb = params_movie['gnb']                                               # number of background components
-epochs = 2                                          # number of passes over the data
-#len_file = m.shape[0]                              # upper bound for number of frames in each file (used right below)
-T1 = params_movie['T1'] *epochs                          # total length of all files (if not known use a large number, then truncate at the end)
+ds_factor = 1                                                        # spatial downsampling factor (increases speed but may lose some fine structure)
+gSig = tuple(np.ceil(np.array(params_movie[ind_dataset]['gSig'])/ds_factor).astype(np.int))  # expected half size of neurons
+init_files = 1                                                       # number of files used for initialization
+online_files = len(fls) - 1                                          # number of files used for online
+initbatch = 200                                                      # number of frames for initialization (presumably from the first file)
+expected_comps = 4000                                                # maximum number of expected components used for memory pre-allocation (exaggerate here)
+K = 2                                                                # initial number of components
+N_samples = np.ceil(params_movie[ind_dataset]['fr']*params_movie[ind_dataset]['decay_time'])   # number of timesteps to consider when testing new neuron candidates
+pr_inc = 1 - scipy.stats.norm.cdf(global_params['min_SNR'])           # inclusion probability of noise transient
+thresh_fitness_raw = np.log(pr_inc)*N_samples       # event exceptionality threshold
+thresh_fitness_delta = -80.                         # make this very neutral 
+p = params_movie[ind_dataset]['p']                  # order of AR indicator dynamics
+rval_thr = global_params['rval_thr']                # correlation threshold for new component inclusion
+gnb = global_params['gnb']                          # number of background components
+epochs = global_params['epochs']                    # number of passes over the data
+T1 = params_movie[ind_dataset]['T1']*len(fls)*epochs        # total length of all files (if not known use a large number, then truncate at the end)
+#minibatch_length = int(global_params['batch_length_dt']*params_movie[ind_dataset]['fr']*params_movie[ind_dataset]['decay_time'])
+
 #%%    Initialize movie
 
 if ds_factor > 1:                                   # load only the first initbatch frames and possibly downsample them
@@ -455,6 +485,7 @@ else:
     Y =  cm.load(fls[0], subindices = slice(0,initbatch,None)).astype(np.float32)
     
 if mot_corr:                                        # perform motion correction on the first initbatch frames
+    max_shift = np.ceil(5./ds_factor).astype('int')     # maximum allowed shift during motion correction
     mc = Y.motion_correct(max_shift, max_shift, template = template)
     Y = mc[0].astype(np.float32)
     borders = np.max(mc[1])
@@ -470,11 +501,9 @@ Y = Y / img_norm[None, :, :]                        # normalize data
 _, d1, d2 = Y.shape
 dims = (d1, d2)                                     # dimensions of FOV
 Yr = Y.to_2D().T                                    # convert data into 2D array                                    
-merge_thresh = 0.8                                  # merging threshold, max correlation allowed
-p = 1                                               # order of the autoregressive system
 
 Cn_init = Y.local_correlations(swap_dim = False)    # compute correlation image
-pl.imshow(Cn_init); pl.title('Correlation Image on initial batch'); pl.colorbar()
+#pl.figure(); pl.imshow(Cn_init); pl.title('Correlation Image on initial batch'); pl.colorbar()
 
 #%% initialize OnACID with bare initialization
 
@@ -483,26 +512,20 @@ cnm_init = bare_initialization(Y[:initbatch].transpose(1, 2, 0), init_batch=init
                                  update_num_comps = True, rval_thr=rval_thr,
                                  thresh_fitness_delta = thresh_fitness_delta,
                                  thresh_fitness_raw = thresh_fitness_raw,
-                                 batch_update_suff_stat=True, max_comp_update_shape = 5, 
-                                 deconv_flag = False,
-                                 simultaneously=False, n_refit=0)
+                                 batch_update_suff_stat=True, max_comp_update_shape = 10, 
+                                 deconv_flag = True,
+                                 simultaneously=True, n_refit=0)
 
-crd = plot_contours(cnm_init.A.tocsc(), Cn_init, thr=0.9)
+#crd = plot_contours(cnm_init.A.tocsc(), Cn_init, thr=0.9)
 
-#%% Plot initialization results
+#% Plot initialization results
 
-A, C, b, f, YrA, sn = cnm_init.A, cnm_init.C, cnm_init.b, cnm_init.f, cnm_init.YrA, cnm_init.sn
+#A, C, b, f, YrA, sn = cnm_init.A, cnm_init.C, cnm_init.b, cnm_init.f, cnm_init.YrA, cnm_init.sn
 #view_patches_bar(Yr, scipy.sparse.coo_matrix(A.tocsc()[:, :]), C[:, :], b, f, dims[0], dims[1], YrA=YrA[:, :], img=Cn_init)
 
-#%% Prepare object for OnACID
+#% Prepare object for OnACID
 
-save_init = False     # flag for saving initialization object. Useful if you want to check OnACID with different parameters but same initialization
-if save_init:   
-    cnm_init.dview = None
-    save_object(cnm_init, fls[0][:-4] + '_DS_' + str(ds_factor) + '.pkl')
-    cnm_init = load_object(fls[0][:-4] + '_DS_' + str(ds_factor) + '.pkl')
-    
-cnm_init._prepare_object(np.asarray(Yr), T1, expected_comps, idx_components=None)
+cnm_init._prepare_object(np.asarray(Yr[:,:initbatch]), T1, expected_comps, idx_components=None, N_samples_exceptionality = int(N_samples))
 
 #%% Run OnACID and optionally plot results in real time
 
@@ -514,9 +537,9 @@ tottime = []
 Cn = Cn_init.copy()
 
 plot_contours_flag = False               # flag for plotting contours of detected components at the end of each file
-play_reconstr = False                     # flag for showing video with results online (turn off flags for improving speed)
+play_reconstr = False                    # flag for showing video with results online (turn off flags for improving speed)
 save_movie = False                       # flag for saving movie (file could be quite large..)
-#movie_name = folder_name + '/output.avi' # name of movie to be saved
+movie_name = params_movie[ind_dataset]['folder_name'] + 'output.avi' # name of movie to be saved
 resize_fact = 1.2                        # image resizing factor
 
 if online_files == 0:                    # check whether there are any additional files
@@ -581,7 +604,9 @@ for iter in range(epochs):
             tottime.append(time() - t1)                             # store time
     
             t += 1
-            
+            #if t>=4500:
+            #    break
+                    
             if t % 1000 == 0 and plot_contours_flag:
                 pl.cla()
                 A = cnm2.Ab[:, cnm2.gnb:]
@@ -616,12 +641,14 @@ if save_movie:
     out.release()
 cv2.destroyAllWindows()
 #%%  save results (optional)
-save_results = True
+
+save_results = False
 
 if save_results:
-    np.savez('results_analysis_online_MOT_CORR.npz',
+    np.savez(params_movie[ind_dataset]['folder_name']+'results_analysis_online_MOT_CORR.npz',
              Cn=Cn, Ab=cnm2.Ab, Cf=cnm2.C_on, b=cnm2.b, f=cnm2.f,
-             dims=cnm2.dims, tottime=tottime, noisyC=cnm2.noisyC, shifts=shifts, img=Cn)
+             dims=cnm2.dims, tottime=tottime, noisyC=cnm2.noisyC, shifts=shifts, img=Cn, 
+             params_movie = params_movie[ind_dataset], global_params = global_params)
 
 #%% extract results from the objects and do some plotting
 A, b = cnm2.Ab[:, cnm2.gnb:], cnm2.Ab[:, :cnm2.gnb].toarray()
@@ -629,42 +656,65 @@ C, f = cnm2.C_on[cnm2.gnb:cnm2.M, t-t//epochs:t], cnm2.C_on[:cnm2.gnb, t-t//epoc
 noisyC = cnm2.noisyC[:,t-t//epochs:t]
 b_trace = [osi.b for osi in cnm2.OASISinstances]
 
-pl.figure()
-crd = cm.utils.visualization.plot_contours(A, Cn, thr=0.9)
+#pl.figure()
+#crd = cm.utils.visualization.plot_contours(A, Cn, thr=0.9)
+
+#%%
+
 view_patches_bar(Yr, scipy.sparse.coo_matrix(A.tocsc()[:, :]), C[:, :], b, f,
                  dims[0], dims[1], YrA=noisyC[cnm2.gnb:cnm2.M] - C, img=Cn)
-#%% 
-c, dview, n_processes = cm.cluster.setup_cluster(backend='local', n_processes=None, single_thread=False)
-#%%LOAD AND TRHESHOLD GROUND TRUTH
-gt_file = os.path.join(os.path.split(params_movie['fname'])[0], os.path.split(params_movie['fname'])[1][:-4] + 'match_masks.npz')
-min_size_neuro = 3*2*np.pi
-max_size_neuro = (2*gSig[0])**2*np.pi
+
+#%% load, threshold and filter for size ground truth
+global_params['max_thr'] = 0.30
+c, dview, n_processes = cm.cluster.setup_cluster(backend='local', n_processes=None, single_thread = True)
+
+gt_file = os.path.join(os.path.split(params_movie[ind_dataset]['fname'])[0], os.path.split(params_movie[ind_dataset]['fname'])[1][:-4] + 'match_masks.npz')
+min_radius = gSig[0]/2.          # minimum acceptable radius
+max_radius = 2.*gSig[0]          # maximum acceptable radius
+min_size_neuro = min_radius**2*np.pi
+max_size_neuro = max_radius**2*np.pi
 with np.load(gt_file, encoding = 'latin1') as ld:
     print(ld.keys())
     locals().update(ld)
     A_gt = scipy.sparse.coo_matrix(A_gt[()])
     dims = (d1,d2)
     
-A_gt_thr = cm.source_extraction.cnmf.spatial.threshold_components(A_gt.tocsc()[:,:].toarray(), dims, medw=None, thr_method='max', maxthr=0.2, nrgthr=0.99, extract_cc=True,
+A_gt_thr = cm.source_extraction.cnmf.spatial.threshold_components(A_gt.tocsc()[:,:].toarray(), dims, medw=None, thr_method='max', maxthr=global_params['max_thr'], extract_cc=True,
                          se=None, ss=None, dview=None) 
+
+A_gt_thr_bin = A_gt_thr > 0
+size_neurons_gt = A_gt_thr_bin.sum(0)
+idx_size_neurons_gt = np.where((size_neurons_gt>min_size_neuro) & (size_neurons_gt < max_size_neuro) )[0]
 print(A_gt_thr.shape)     
-#%%   remove small neurons 
-min_size_neuro = 3*2*np.pi
-max_size_neuro = (2*gSig[0])**2*np.pi
-A_thr = cm.source_extraction.cnmf.spatial.threshold_components(A.tocsc()[:,:].toarray(), dims, medw=None, thr_method='max', maxthr=0.2, nrgthr=0.99, extract_cc=True,
+#%% filter for size found neurons
+
+A_thr = cm.source_extraction.cnmf.spatial.threshold_components(A.tocsc()[:,:].toarray(), dims, medw=None, thr_method='max', maxthr=global_params['max_thr'], extract_cc=True,
                          se=None, ss=None, dview=dview) 
-A_thr = A_thr > 0  
-size_neurons = A_thr.sum(0)
-idx_size_neuro = np.where((size_neurons>min_size_neuro) & (size_neurons<max_size_neuro) )[0]
+A_thr_bin = A_thr > 0  
+size_neurons = A_thr_bin.sum(0)
+idx_size_neurons = np.where((size_neurons>min_size_neuro) & (size_neurons<max_size_neuro))[0]
 #A_thr = A_thr[:,idx_size_neuro]
 print(A_thr.shape)
-#%% 
+
+#%% compute results 
+
+use_cnn = False  # Use CNN classifier
+if use_cnn:    
+    from caiman.components_evaluation import evaluate_components_CNN
+    predictions,final_crops = evaluate_components_CNN(A,dims,gSig,model_name = 'use_cases/CaImAnpaper/cnn_model')
+    thresh_cnn = .05
+    idx_components_cnn = np.where(predictions[:,1]>=thresh_cnn)[0]
+    idx_neurons = np.intersect1d(idx_components_cnn,idx_size_neurons)
+else:
+    idx_neurons = idx_size_neurons.copy()
+        
+
 plot_results = True
 if plot_results:
     pl.figure(figsize=(30,20))
 
-tp_gt, tp_comp, fn_gt, fp_comp, performance_cons_off =  cm.base.rois.nf_match_neurons_in_binary_masks(A_gt_thr.reshape([dims[0],dims[1],-1],order = 'F').transpose([2,0,1])*1.,
-                                                                              A_thr.reshape([dims[0],dims[1],-1],order = 'F').transpose([2,0,1])*1.,thresh_cost=.7, min_dist = 10,
+tp_gt, tp_comp, fn_gt, fp_comp, performance_cons_off =  cm.base.rois.nf_match_neurons_in_binary_masks(A_gt_thr_bin[:,idx_size_neurons_gt].reshape([dims[0],dims[1],-1],order = 'F').transpose([2,0,1])*1.,
+                                                                              A_thr_bin[:,idx_neurons].reshape([dims[0],dims[1],-1],order = 'F').transpose([2,0,1])*1.,thresh_cost=.7, min_dist = 10,
                                                                               print_assignment= False,plot_results=plot_results,Cn=Cn, labels = ['GT','Offline'])
 
 pl.rcParams['pdf.fonttype'] = 42
