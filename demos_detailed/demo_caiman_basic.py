@@ -67,7 +67,7 @@ Npeaks = 10
 traces = C + YrA
 fitness_raw, fitness_delta, erfc_raw, erfc_delta, r_values, significant_samples = \
     evaluate_components(Y, traces, A, C, b, f,final_frate, remove_baseline=True,
-                                      N=5, robust_std=False, Npeaks=Npeaks, thresh_C=0.3, sigma_factor = 1.)
+                                      N=5, robust_std=False, Npeaks=Npeaks, thresh_C=0.3, sigma_factor = 3.)
 
 idx_components_r = np.where(r_values >= .85)[0] # filter based on spatial consistency
 idx_components_raw = np.where(fitness_raw < -50)[0] # filter based on transient size

@@ -174,7 +174,7 @@ def create():
 
 
 
-    if not params_movie.has_key('max_shifts'):
+    if not ('max_shifts' in params_movie):
         fnames = params_movie['fname']
         border_to_0 = 0
     else:  # elif not params_movie.has_key('overlaps'):
