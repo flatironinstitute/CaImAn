@@ -909,7 +909,7 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
     b_in = model.fit_transform(np.maximum(B, 0))
     f_in = model.components_.squeeze()
 
-    return A, C, center.T, b_in, f_in
+    return A, np.array(C), center.T, b_in, f_in
 
 
 def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
