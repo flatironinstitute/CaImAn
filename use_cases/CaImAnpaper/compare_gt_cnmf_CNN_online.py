@@ -56,15 +56,15 @@ except:
 # 7: J115
 # 8: J123
 
-ind_dataset = 7
+ind_dataset = 0
 
 
 #%% set some global parameters here
 
-global_params = {'min_SNR': 5.0,        # minimum SNR when considering adding a new neuron
+global_params = {'min_SNR': 2.5,        # minimum SNR when considering adding a new neuron
                  'gnb' : 2,             # number of background components   
                  'epochs' : 2,          # number of passes over the data
-                 'rval_thr' : 0.90,     # spatial correlation threshold
+                 'rval_thr' : 0.70,     # spatial correlation threshold
                  'batch_length_dt': 10, # length of mini batch for OnACID in decay time units (length would be batch_length_dt*decay_time*fr)
                  'max_thr': 0.30,       # parameter for thresholding components when cleaning up shapes
                  'mot_corr' : False,    # flag for motion correction (set to False to compare directly on the same FOV)
@@ -74,6 +74,7 @@ params_movie = [{}]*10        # set up list of dictionaries
 #% neurofinder.03.00.test
 params_movie[0] = {'fname': '/mnt/ceph/neuro/labeling/neurofinder.03.00.test/images/final_map/Yr_d1_498_d2_467_d3_1_order_C_frames_2250_.mmap',
                  'folder_name' : '/mnt/ceph/neuro/labeling/neurofinder.03.00.test/',
+                 'ds_factor': 1,
                  'p': 1,  # order of the autoregressive system
                  'fr': 7,
                  'decay_time': 0.4,
@@ -84,6 +85,7 @@ params_movie[0] = {'fname': '/mnt/ceph/neuro/labeling/neurofinder.03.00.test/ima
 #% neurofinder.04.00.test
 params_movie[1] = {'fname': '/mnt/ceph/neuro/labeling/neurofinder.04.00.test/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_3000_.mmap',
                  'folder_name' : '/mnt/ceph/neuro/labeling/neurofinder.04.00.test/',
+                 'ds_factor' : 1,
                  'p': 1,  # order of the autoregressive system
                  'fr': 8, 
                  'gSig': [7,7],  # expected half size of neurons
@@ -95,6 +97,7 @@ params_movie[1] = {'fname': '/mnt/ceph/neuro/labeling/neurofinder.04.00.test/ima
 #% neurofinder 02.00
 params_movie[2] = {'fname': '/mnt/ceph/neuro/labeling/neurofinder.02.00/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_8000_.mmap',
                  'folder_name' : '/mnt/ceph/neuro/labeling/neurofinder.02.00/',
+                 'ds_factor' : 1,
                  'p': 1,  # order of the autoregressive system
                  'fr' : 30, # imaging rate in Hz                 
                  'gSig': [8,8],  # expected half size of neuron
@@ -106,6 +109,7 @@ params_movie[2] = {'fname': '/mnt/ceph/neuro/labeling/neurofinder.02.00/images/f
 #% yuste
 params_movie[3] = {'fname': '/mnt/ceph/neuro/labeling/yuste.Single_150u/images/final_map/Yr_d1_200_d2_256_d3_1_order_C_frames_3000_.mmap',
                  'folder_name': '/mnt/ceph/neuro/labeling/yuste.Single_150u/', 
+                 'ds_factor' : 1,
                  'p': 1,  # order of the autoregressive system
                  'fr' : 10,
                  'decay_time' : 0.75,
@@ -118,6 +122,7 @@ params_movie[3] = {'fname': '/mnt/ceph/neuro/labeling/yuste.Single_150u/images/f
 #% neurofinder.00.00
 params_movie[4] = {'fname': '/mnt/ceph/neuro/labeling/neurofinder.00.00/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_2936_.mmap',
                  'folder_name':  '/mnt/ceph/neuro/labeling/neurofinder.00.00/',
+                 'ds_factor' : 1,
                  'p': 1,  # order of the autoregressive system
                  'decay_time' : 0.4, 
                  'fr' : 8,
@@ -189,7 +194,7 @@ params_movie[8] = {'fname': '/mnt/ceph/neuro/labeling/J123_2015-11-20_L01_0/imag
 #%%  download and list all files to be processed
 
 mot_corr = global_params['mot_corr']
-use_VST = True
+use_VST = False
 
 if mot_corr:
     fls = glob.glob('/'.join( params_movie[ind_dataset]['fname'].split('/')[:-3]+['images','tifs','*.tif']))
@@ -212,8 +217,9 @@ initbatch = 200                                                      # number of
 expected_comps = 4000                                                # maximum number of expected components used for memory pre-allocation (exaggerate here)
 K = 2                                                                # initial number of components
 N_samples = np.ceil(params_movie[ind_dataset]['fr']*params_movie[ind_dataset]['decay_time'])   # number of timesteps to consider when testing new neuron candidates
-pr_inc = 1 - scipy.stats.norm.cdf(global_params['min_SNR'])           # inclusion probability of noise transient
-thresh_fitness_raw = np.log(pr_inc)*N_samples       # event exceptionality threshold
+#pr_inc = 1 - scipy.stats.norm.cdf(global_params['min_SNR'])           # inclusion probability of noise transient
+#thresh_fitness_raw = np.log(pr_inc)*N_samples       # event exceptionality threshold
+thresh_fitness_raw = scipy.special.log_ndtr(-global_params['min_SNR'])*N_samples
 thresh_fitness_delta = -80.                         # make this very neutral 
 p = params_movie[ind_dataset]['p']                  # order of AR indicator dynamics
 rval_thr = global_params['rval_thr']                # correlation threshold for new component inclusion
@@ -390,10 +396,16 @@ cv2.destroyAllWindows()
 save_results = False
 
 if save_results:
-    np.savez(params_movie[ind_dataset]['folder_name']+'results_analysis_online_MOT_CORR.npz',
+    np.savez(params_movie[ind_dataset]['folder_name']+'images/tiff_VST/results_analysis_online_MOT_CORR_rval_NOVST_'+str(10*global_params['rval_thr'])+'_minSNR_'+str(10*global_params['min_SNR'])+'.npz',
              Cn=Cn, Ab=cnm2.Ab, Cf=cnm2.C_on, b=cnm2.b, f=cnm2.f,
              dims=cnm2.dims, tottime=tottime, noisyC=cnm2.noisyC, shifts=shifts, img=Cn, 
              params_movie = params_movie[ind_dataset], global_params = global_params)
+
+##%%
+#
+#with np.load(params_movie[ind_dataset]['folder_name']+'images/tiff_VST/results_analysis_online_MOT_CORR.npz') as ld:
+#    print(ld.keys())
+#    locals().update(ld)
 
 #%% extract results from the objects and do some plotting
 A, b = cnm2.Ab[:, cnm2.gnb:], cnm2.Ab[:, :cnm2.gnb].toarray()
@@ -410,7 +422,7 @@ view_patches_bar(Yr, scipy.sparse.coo_matrix(A.tocsc()[:, :]), C[:, :], b, f,
                  dims[0], dims[1], YrA=noisyC[cnm2.gnb:cnm2.M] - C, img=Cn)
 
 #%% load, threshold and filter for size ground truth
-#global_params['max_thr'] = 0.30
+global_params['max_thr'] = 0.2
 c, dview, n_processes = cm.cluster.setup_cluster(backend='local', n_processes=None, single_thread = True)
 
 gt_file = os.path.join(os.path.split(params_movie[ind_dataset]['fname'])[0], os.path.split(params_movie[ind_dataset]['fname'])[1][:-4] + 'match_masks.npz')
@@ -433,10 +445,10 @@ with np.load(gt_file, encoding = 'latin1') as ld:
 if ds_factor > 1:
     A_gt = cm.movie(np.reshape(A_gt,dims_or+(-1,),order='F')).transpose(2,0,1).resize(1./ds_factor,1./ds_factor)
     pl.figure(); pl.imshow(A_gt.sum(0))
-    A_gt2 = np.array(np.reshape(A_gt,(A_gt.shape[0],-1),order='F')).T
+    A_gt = np.array(np.reshape(A_gt,(A_gt.shape[0],-1),order='F')).T
     Cn_orig = cv2.resize(Cn_orig,None,fx=1./ds_factor,fy=1./ds_factor)
         
-A_gt_thr = cm.source_extraction.cnmf.spatial.threshold_components(A_gt2, dims, medw=None, thr_method='max', maxthr=global_params['max_thr'], extract_cc=True,
+A_gt_thr = cm.source_extraction.cnmf.spatial.threshold_components(A_gt, dims, medw=None, thr_method='max', nrgthr = 0.95, maxthr=global_params['max_thr'], extract_cc=True,
                          se=None, ss=None, dview=None) 
 
 A_gt_thr_bin = A_gt_thr > 0
@@ -445,8 +457,9 @@ idx_size_neurons_gt = np.where((size_neurons_gt>min_size_neuro) & (size_neurons_
 print(A_gt_thr.shape)     
 #%% filter for size found neurons
 
-A_thr = cm.source_extraction.cnmf.spatial.threshold_components(A.tocsc()[:,:].toarray(), dims, medw=None, thr_method='max', maxthr=global_params['max_thr'], extract_cc=True,
-                         se=None, ss=None, dview=dview) 
+A_thr = cm.source_extraction.cnmf.spatial.threshold_components(A.tocsc()[:,:].toarray(), dims, medw=None, thr_method='max', nrgthr = 0.95, maxthr=global_params['max_thr'], extract_cc=True,
+                         se=None, ss=None, dview=dview)
+
 A_thr_bin = A_thr > 0  
 size_neurons = A_thr_bin.sum(0)
 idx_size_neurons = np.where((size_neurons>min_size_neuro) & (size_neurons<max_size_neuro))[0]
@@ -472,7 +485,7 @@ if plot_results:
 
 tp_gt, tp_comp, fn_gt, fp_comp, performance_cons_off =  cm.base.rois.nf_match_neurons_in_binary_masks(A_gt_thr_bin[:,idx_size_neurons_gt].reshape([dims[0],dims[1],-1],order = 'F').transpose([2,0,1])*1.,
                                                                               A_thr_bin[:,idx_neurons].reshape([dims[0],dims[1],-1],order = 'F').transpose([2,0,1])*1.,thresh_cost=.7, min_dist = 10,
-                                                                              print_assignment= False,plot_results=plot_results,Cn=Cn_orig, labels = ['GT','Offline'])
+                                                                              print_assignment= False,plot_results=plot_results,Cn=Cn_orig, labels = ['GT','Offline'], enclosed_thr = None)
 
 pl.rcParams['pdf.fonttype'] = 42
 font = {'family' : 'Arial',
