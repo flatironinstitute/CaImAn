@@ -196,7 +196,8 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
     print('Roi Extraction...')
     if method == 'greedy_roi':
         Ain, Cin, _, b_in, f_in = greedyROI(
-            Y_ds, nr=K, gSig=gSig, gSiz=gSiz, nIter=nIter, kernel=kernel, nb=nb, rolling_sum=rolling_sum, rolling_length=rolling_length)
+            Y_ds, nr=K, gSig=gSig, gSiz=gSiz, nIter=nIter, kernel=kernel, nb=nb,
+            rolling_sum=rolling_sum, rolling_length=rolling_length)
 
         if use_hals:
             print('(Hals) Refining Components...')
@@ -205,7 +206,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
         Ain, Cin, _, b_in, f_in = greedyROI_corr(
             Y, Y_ds, max_number=K, gSiz=gSiz[0], gSig=gSig[0], min_corr=min_corr, min_pnr=min_pnr,
             deconvolve_options=deconvolve_options_init, ring_size_factor=ring_size_factor,
-            center_psf=center_psf, options=options_total, sn=sn, nb=nb)
+            center_psf=center_psf, options=options_total, sn=sn, nb=nb, ssub=ssub)
 
     elif method == 'sparse_nmf':
         Ain, Cin, _, b_in, f_in = sparseNMF(
@@ -767,7 +768,7 @@ def hals(Y, A, C, b, f, bSiz=3, maxIter=5):
 def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=True,
                    min_corr=None, min_pnr=None, seed_method='auto', deconvolve_options=None,
                    min_pixel=3, bd=0, thresh_init=2, ring_size_factor=None, nb=1, options=None,
-                   sn=None, save_video=False, video_name='initialization.mp4'):
+                   sn=None, save_video=False, video_name='initialization.mp4', ssub=1):
     """
     initialize neurons based on pixels' local correlations and peak-to-noise ratios.
 
@@ -808,7 +809,8 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
     print('Init one photon')
     A, C, _, _, center = init_neurons_corr_pnr(
         Y_ds, max_number=max_number, gSiz=gSiz, gSig=gSig,
-        center_psf=center_psf, min_corr=min_corr, min_pnr=min_pnr,
+        center_psf=center_psf, min_corr=min_corr,
+        min_pnr=min_pnr * np.sqrt(np.size(Y) / np.size(Y_ds)),
         seed_method=seed_method, deconvolve_options=deconvolve_options,
         min_pixel=min_pixel, bd=bd, thresh_init=thresh_init,
         swap_dim=True, save_video=save_video, video_name=video_name)
@@ -819,6 +821,7 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
 #    plt.ginput()
 #    plt.close()
 
+    dims = Y.shape[:2]
     d1, d2, total_frames = Y_ds.shape
     B = np.array(Y_ds.reshape((-1, total_frames), order='F') - A.dot(C), dtype=np.float32)
 
@@ -856,7 +859,9 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
         options['spatial_params']['dims'] = (d1, d2)
         A, _, C, _ = caiman.source_extraction.cnmf.spatial.update_spatial_components(
             np.array(Y_ds.reshape((-1, total_frames), order='F') - B), C=C,
-            f=np.zeros((0, total_frames), np.float32), A_in=A, sn=sn,
+            f=np.zeros((0, total_frames), np.float32), A_in=A,
+            sn=downscale_local_mean(sn.reshape(dims, order='F'),
+                                    tuple([ssub] * len(dims))).ravel() / ssub,
             b_in=np.zeros((d1 * d2, 0), np.float32),
             dview=None, **options['spatial_params'])
 #        A = A.toarray()
@@ -868,7 +873,6 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
         B = b0[:, None] + W.dot(B - b0[:, None])
 
         # 2nd iteration on non-decimated data
-        dims = Y.shape[:2]
         T = Y.shape[-1]
         K = C.shape[0]
         A = np.reshape(A.toarray(), (d1, d2, -1), order='F')
@@ -1132,6 +1136,12 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
             # roughly check whether this is a good seed pixel
             y0 = data_filtered[:, r, c]
             if np.max(y0) < thresh_init * noise_pixel[r, c]:
+                v_search[r, c] = 0
+                continue
+
+            if Ain[:, r, c].sum() > 0 and np.max([scipy.stats.pearsonr(y0, cc)[0]
+                                                  for cc in Cin_raw[Ain[:, r, c] > 0]]) > .7:
+                v_search[r, c] = 0
                 continue
 
             # crop a small box for estimation of ai and ci
@@ -1224,14 +1234,14 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
                     tmp_img = Ain[num_neurons, r2_min:r2_max, c2_min:c2_max]
                     if center_psf:
                         ai_filtered = cv2.GaussianBlur(tmp_img, ksize=ksize,
-                                                       sigmaX=gSig[0],
-                                                       sigmaY=gSig[1], borderType=cv2.BORDER_REFLECT) \
+                                                       sigmaX=gSig[0], sigmaY=gSig[1],
+                                                       borderType=cv2.BORDER_REFLECT) \
                             - cv2.boxFilter(tmp_img, ddepth=-1,
                                             ksize=ksize, borderType=cv2.BORDER_REFLECT)
                     else:
                         ai_filtered = cv2.GaussianBlur(tmp_img, ksize=ksize,
-                                                       sigmaX=gSig[0],
-                                                       sigmaY=gSig[1], borderType=cv2.BORDER_REFLECT)
+                                                       sigmaX=gSig[0], sigmaY=gSig[1],
+                                                       borderType=cv2.BORDER_REFLECT)
                     # update the filtered data
                     data_filtered[:, r2_min:r2_max, c2_min:c2_max] -= \
                         ai_filtered[np.newaxis, ...] * ci[..., np.newaxis, np.newaxis]
@@ -1259,6 +1269,8 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
 
                 # update v_search
                 v_search[r2_min:r2_max, c2_min:c2_max] = cn_box * pnr_box
+                # avoid searching nearby pixels
+                # v_search[r_min:r_max, c_min:c_max] *= (ai < np.max(ai) / 2.)
 
                 # increase the number of detected neurons
                 num_neurons += 1  #

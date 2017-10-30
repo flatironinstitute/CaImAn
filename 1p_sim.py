@@ -8,6 +8,7 @@ import numpy as np
 from scipy.io import loadmat
 from operator import itemgetter
 import matplotlib.pyplot as plt
+from scipy.ndimage import center_of_mass
 import caiman as cm
 from caiman.source_extraction import cnmf
 
@@ -31,7 +32,7 @@ min_corr = .9
 min_pnr = 15
 # If True, the background can be roughly removed. This is useful when the background is strong.
 center_psf = True
-
+K = 200
 
 #%%
 c, dview, n_processes = cm.cluster.setup_cluster(
@@ -46,7 +47,7 @@ c, dview, n_processes = cm.cluster.setup_cluster(
 #                 min_pnr=min_pnr, normalize_init=False, deconvolve_options_init=None,
 #                 ring_size_factor=1.5, center_psf=True)
 
-cnm = cnmf.CNMF(n_processes=n_processes, method_init='corr_pnr', k=200, gSig=(3, 3), gSiz=(10, 10),
+cnm = cnmf.CNMF(n_processes=n_processes, method_init='corr_pnr', k=K, gSig=(gSig, gSig), gSiz=(gSiz, gSiz),
                 merge_thresh=.8, p=1, dview=dview, tsub=1, ssub=1, Ain=None,
                 only_init_patch=True, gnb=10, nb_patch=6, method_deconvolution='oasis',
                 low_rank_background=False, update_background_components=False, min_corr=min_corr,
@@ -94,3 +95,12 @@ corA_cnmfe = np.array([np.corrcoef(A_cnmfe.toarray()[:, n], A[:, n])[0, 1] for n
 
 print(corC.mean(), corA.mean())
 print(corC_cnmfe.mean(), corA_cnmfe.mean())
+
+
+tc = [center_of_mass(a.reshape(dims, order='F')) for a in A.T]
+center = [center_of_mass(a.reshape(dims, order='F')) for a in cnm.A.T]
+plt.figure(figsize=(15, 15))
+plt.imshow(A.sum(-1).reshape(dims, order='F'))
+plt.scatter(*np.transpose(tc)[::-1], marker='x', s=90, c='k', label='true centers')
+plt.scatter(*np.transpose(center)[::-1], c='w', label='inferred centers')
+plt.legend()
