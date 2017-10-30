@@ -157,7 +157,7 @@ def nb_view_patches(Yr, A, C, b, f, d1, d2, YrA = None, image_neurons=None, thr=
     colormap = cm.get_cmap(cmap)
     grayp = [mpl.colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
     nr, T = C.shape
-    nA2 = np.ravel(A.power(2).sum(0))
+    nA2 = np.ravel(np.power(A,2).sum(0)) if type(A) == np.ndarray else np.ravel(A.power(2).sum(0))
     b = np.squeeze(b)
     f = np.squeeze(f)
     if YrA is None:
