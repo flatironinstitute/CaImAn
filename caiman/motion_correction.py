@@ -286,10 +286,10 @@ class MotionCorrect(object):
         
         if rigid_shifts is True:
             if self.shifts_opencv:
-                m_reg = np.stack([apply_shift_iteration(img, shift) for img, shift in zip(Y, self.shifts_rig)], axis=0)
+                m_reg = [apply_shift_iteration(img, shift) for img, shift in zip(Y, self.shifts_rig)]
             else:
                 m_reg = [apply_shifts_dft(img,(
-                            sh[0],sh[1]), 0, is_freq = False, border_nan=True)  for img, sh, dffphs in zip(
+                            sh[0],sh[1]), 0, is_freq = False, border_nan=True)  for img, sh in zip(
                             Y, self.shifts_rig) ]
         else:
             dims_grid = tuple(np.max(np.stack(self.coord_shifts_els[0],axis=1),axis=1) - np.min(np.stack(self.coord_shifts_els[0],axis=1),axis=1) + 1)
@@ -300,9 +300,8 @@ class MotionCorrect(object):
             m_reg = [cv2.remap(img, 
                         -np.resize(shiftY, dims)+x_grid, -np.resize(shiftX, dims)+y_grid, cv2.INTER_CUBIC) 
                         for img, shiftX, shiftY in zip(Y, shifts_x, shifts_y)]
-            m_reg = np.stack(m_reg,axis=0)
             
-        return cm.movie(m_reg)
+        return cm.movie(np.stack(m_reg,axis=0))
 
 
 
