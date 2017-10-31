@@ -260,6 +260,51 @@ class MotionCorrect(object):
         
         return self
 
+     
+     def apply_shifts_movie(self, fname, rigid_shifts = True):
+        """
+        Applies shifts found by registering one file to a different file. Useful 
+        for cases when shifts computed from a structural channel are applied to a 
+        functional channel. Currently only application of shifts through openCV is 
+        supported.
+    
+        Parameters:
+        -----------
+        fname: str
+            name of the movie to motion correct. It should not contain nans. All the loadable formats from CaImAn are acceptable
+            
+        rigid_shifts: bool
+            apply rigid or pw-rigid shifts (must exist in the mc object)    
+        
+        Returns:
+        ----------
+        m_reg: caiman movie object
+            caiman movie object with applied shifts (not memory mapped)
+        """
+        
+        Y = cm.load(fname).astype(np.float32)
+        
+        if rigid_shifts is True:
+            if self.shifts_opencv:
+                m_reg = np.stack([apply_shift_iteration(img, shift) for img, shift in zip(Y, self.shifts_rig)], axis=0)
+            else:
+                m_reg = [apply_shifts_dft(img,(
+                            sh[0],sh[1]), 0, is_freq = False, border_nan=True)  for img, sh, dffphs in zip(
+                            Y, self.shifts_rig) ]
+        else:
+            dims_grid = tuple(np.max(np.stack(self.coord_shifts_els[0],axis=1),axis=1) - np.min(np.stack(self.coord_shifts_els[0],axis=1),axis=1) + 1)
+            shifts_x = np.stack([np.reshape(_sh_,dims_grid,order='C').astype(np.float32) for _sh_ in self.x_shifts_els], axis = 0)
+            shifts_y = np.stack([np.reshape(_sh_,dims_grid,order='C').astype(np.float32) for _sh_ in self.y_shifts_els], axis = 0)
+            dims = Y.shape[1:]
+            x_grid, y_grid = np.meshgrid(np.arange(0., dims[0]).astype(np.float32), np.arange(0., dims[1]).astype(np.float32))
+            m_reg = [cv2.remap(img, 
+                        -np.resize(shiftY, dims)+x_grid, -np.resize(shiftX, dims)+y_grid, cv2.INTER_CUBIC) 
+                        for img, shiftX, shiftY in zip(Y, shifts_x, shifts_y)]
+            m_reg = np.stack(m_reg,axis=0)
+            
+        return cm.movie(m_reg)
+
+
 
 #%%
 def apply_shift_iteration(img,shift,border_nan=False, border_type = cv2.BORDER_REFLECT):
@@ -2167,42 +2212,3 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
 
 
     return fname_tot, res   
-
-
-def apply_shifts_movie(fname, mc, rigid_shifts = True):
-    """
-    Applies shifts found by registering one file to a different file. Useful 
-    for cases when shifts computed from a structural channel are applied to a 
-    functional channel. Currently only application of shifts through openCV is 
-    supported.
-
-    Parameters:
-    -----------
-    fname: str
-        name of the movie to motion correct. It should not contain nans. All the loadable formats from CaImAn are acceptable
-        
-    mc: object
-        motion correction object
-        
-    rigid_shifts: bool
-        apply rigid or pw-rigid shifts (must exist in the mc object)    
-    
-    Returns:
-    ----------
-    m_reg: caiman movie object
-        caiman movie object with applied shifts (not memory mapped)
-    """
-    
-    Y = cm.load(fname).astype(np.float32)
-    
-    if rigid_shifts is True:
-        m_reg = np.stack([apply_shift_iteration(img,shift) for ind, (img,shift) in enumerate(zip(Y,mc.shifts_rig))],axis=0)
-    else:
-        dims_grid = tuple(np.max(np.stack(mc.coord_shifts_els[0],axis=1),axis=1) - np.min(np.stack(mc.coord_shifts_els[0],axis=1),axis=1) + 1)
-        shifts_x = np.stack([np.reshape(_sh_,dims_grid,order='C').astype(np.float32) for _sh_ in mc.x_shifts_els], axis = 0)
-        shifts_y = np.stack([np.reshape(_sh_,dims_grid,order='C').astype(np.float32) for _sh_ in mc.y_shifts_els], axis = 0)
-        dims = Y.shape[1:]
-        x_grid, y_grid = np.meshgrid(np.arange(0., dims[0]).astype(np.float32), np.arange(0., dims[1]).astype(np.float32))
-        m_reg = np.stack([cv2.remap(img,-np.resize(shiftY,dims)+x_grid,-np.resize(shiftX,dims)+y_grid,cv2.INTER_CUBIC, None, cv2.BORDER_CONSTANT) for ind, (img,shiftX,shiftY) in enumerate(zip(Y,shifts_x,shifts_y))],axis=0)
-        
-    return cm.movie(m_reg)
