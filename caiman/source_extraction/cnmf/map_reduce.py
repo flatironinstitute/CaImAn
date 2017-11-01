@@ -353,10 +353,12 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, gnb = 1, dvie
 
     Im = scipy.sparse.csr_matrix((old_div(1., mask), (np.arange(d), np.arange(d))))
     A_tot = Im.dot(A_tot)
-    B_tot = Im.dot(B_tot)
+    import pdb
+    pdb.set_trace()
+    
     
     if low_rank_background:
-        
+        B_tot = Im.dot(B_tot)
         Bm = (B_tot)
         
         f = np.r_[np.atleast_2d(np.mean(F_tot, axis=0)), np.random.rand(gnb - 1, T)]
@@ -384,18 +386,18 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, gnb = 1, dvie
 #        B_tot = scipy.sparse.coo_matrix(B_tot)
         F_tot *= nB[:, None]
 
-#        processed_idx = set([])
-#        processed_idx_prev = set([])  # needed if a patch has more than 1 background component
-#        for _b in np.arange(B_tot.shape[-1]):
-#            idx_mask = np.where(B_tot[:, _b])[0]
-#            idx_mask_repeat = processed_idx.intersection(idx_mask)
-#            if len(idx_mask_repeat) < len(idx_mask):
-#                processed_idx_prev = processed_idx
-#            else:
-#                idx_mask_repeat = processed_idx_prev.intersection(idx_mask)
-#            processed_idx = processed_idx.union(idx_mask)
-#            if len(idx_mask_repeat) > 0:
-#                B_tot[np.array(list(idx_mask_repeat), dtype=np.int), _b] = 0
+        processed_idx = set([])
+        processed_idx_prev = set([])  # needed if a patch has more than 1 background component
+        for _b in np.arange(B_tot.shape[-1]):
+            idx_mask = np.where(B_tot[:, _b])[0]
+            idx_mask_repeat = processed_idx.intersection(idx_mask)
+            if len(idx_mask_repeat) < len(idx_mask):
+                processed_idx_prev = processed_idx
+            else:
+                idx_mask_repeat = processed_idx_prev.intersection(idx_mask)
+            processed_idx = processed_idx.union(idx_mask)
+            if len(idx_mask_repeat) > 0:
+                B_tot[np.array(list(idx_mask_repeat), dtype=np.int), _b] = 0
 
         b = B_tot
         f = F_tot
