@@ -278,7 +278,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
     b_in = np.reshape(b_in, (np.prod(d), nb), order='F')
 
     if Ain.size > 0:
-        Cin = resize(Cin, [K, T])
+        Cin = resize(Cin.astype(float), [K, T])
         center = np.asarray([center_of_mass(a.reshape(d, order='F')) for a in Ain.T])
     else:
         center = []
@@ -823,14 +823,13 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
 
     dims = Y.shape[:2]
     d1, d2, total_frames = Y_ds.shape
-    B = np.array(Y_ds.reshape((-1, total_frames), order='F') - A.dot(C), dtype=np.float32)
+    B = Y_ds.reshape((-1, total_frames), order='F') - A.dot(C)
 
     if ring_size_factor is not None:
         # background according to ringmodel
         print('Compute Background')
         W, b0 = compute_W(Y_ds.reshape((-1, total_frames), order='F'),
                           A, C, (d1, d2), int(np.round(ring_size_factor * gSiz)))
-
         B = b0[:, None] + W.dot(B - b0[:, None])
 
         # find more neurons in residual
@@ -864,27 +863,34 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
                                     tuple([ssub] * len(dims))).ravel() / ssub,
             b_in=np.zeros((d1 * d2, 0), np.float32),
             dview=None, **options['spatial_params'])
-#        A = A.toarray()
+        A = A.astype(np.float32)
 
         print('Compute Background Again')
         # background according to ringmodel
         W, b0 = compute_W(Y_ds.reshape((-1, total_frames), order='F'),
                           A, C, (d1, d2), int(np.round(ring_size_factor * gSiz)))
-        B = b0[:, None] + W.dot(B - b0[:, None])
 
         # 2nd iteration on non-decimated data
         T = Y.shape[-1]
         K = C.shape[0]
-        A = np.reshape(A.toarray(), (d1, d2, -1), order='F')
-        A = resize(A, dims + (K,), order=1).reshape((-1, K), order='F')
+        tsub = int(round(float(T) / total_frames))
+        if T > total_frames:
+            C = np.repeat(C, tsub, 1)[:T]
+            Ys = downscale_local_mean(Y, (ssub, ssub, 1)).reshape((-1, T), order='F')
+            # N.B: upsampling B in space is fine, but upsampling in time doesn't work well,
+            # cause the error in upsampled background can be of similar size as neural signal
+            B = Ys - A.dot(C)
+        B = b0[:, None] + W.dot(B - b0[:, None])
         B = np.reshape(B, (d1, d2, -1), order='F')
-        Bmax = B.max()  # for resize Images of type float must be between -1 and 1
-        B = resize(B / Bmax, dims + (T,), order=1).reshape((-1, T), order='F') * Bmax
-        C = resize(C, [K, T])
+        B = (np.repeat(np.repeat(B, ssub, 0), ssub, 1)[:dims[0], :dims[1]]
+             .reshape((-1, T), order='F'))
+        A = A.toarray().reshape((d1, d2, -1), order='F')
+        A = spr.csc_matrix(np.repeat(np.repeat(A, ssub, 0), ssub, 1)[:dims[0], :dims[1]]
+                           .reshape((-1, K), order='F'))
 
         print('Update Temporal')
         C, A = caiman.source_extraction.cnmf.temporal.update_temporal_components(
-            np.array(Y.reshape((-1, T), order='F') - B), spr.csc_matrix(A),
+            np.array(Y.reshape((-1, T), order='F') - B), A,
             np.zeros((np.prod(dims), 0), np.float32), C, np.zeros((0, T), np.float32),
             dview=None, bl=None, c1=None, sn=None, g=None, **options['temporal_params'])[:2]
         print('Update Spatial')
@@ -895,17 +901,19 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
             f=np.zeros((0, T), np.float32), A_in=A, sn=sn,
             b_in=np.zeros((np.prod(dims), 0), np.float32),
             dview=None, **options['spatial_params'])
-        A = A.toarray()
+        A = A.astype(np.float32)
+        nA = np.ravel(np.sqrt(A.power(2).sum(0)))
+        A = np.array(A / nA)
+        C *= nA[:, None]
 
         print('Compute Background Again')  # on decimated data
-        A_ds = resize(np.reshape(A, dims + (-1,), order='F'), (d1, d2, K), order=1)
+        A_ds = downscale_local_mean(np.reshape(A, dims + (-1,), order='F'), (ssub, ssub, 1))
         A_ds = np.reshape(A_ds, (-1, K), order='F')
-        C_ds = resize(C, [K, total_frames])
-        B = np.array(Y_ds.reshape((-1, total_frames), order='F') -
-                     A_ds.dot(C_ds), dtype=np.float32)
         # background according to ringmodel
         W, b0 = compute_W(Y_ds.reshape((-1, total_frames), order='F'),
-                          A_ds, C_ds, (d1, d2), int(np.round(ring_size_factor * gSiz)))
+                          A_ds, downscale_local_mean(C, (1, tsub)), (d1, d2),
+                          int(np.round(ring_size_factor * gSiz)))
+        B = (Ys if T > total_frames else Y_ds.reshape((-1, total_frames), order='F')) - A_ds.dot(C)
         B = b0[:, None] + W.dot(B - b0[:, None])
 
     print('Estimate low rank Background')
@@ -913,7 +921,7 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
     b_in = model.fit_transform(np.maximum(B, 0))
     f_in = model.components_.squeeze()
 
-    return A, np.array(C), center.T, b_in, f_in
+    return A, C, center.T, b_in, f_in
 
 
 def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
