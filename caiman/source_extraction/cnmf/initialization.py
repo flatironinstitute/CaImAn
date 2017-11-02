@@ -291,7 +291,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
 
         b_in = b_in * np.reshape(img, (np.prod(d), -1), order='F')
 
-    return Ain, Cin, b_in, f_in, center
+    return scipy.sparse.csc_matrix(Ain), Cin, b_in, f_in, center
 
 #%%
 

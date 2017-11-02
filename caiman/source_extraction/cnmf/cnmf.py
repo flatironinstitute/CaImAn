@@ -86,7 +86,7 @@ class CNMF(object):
                  update_background_components=True, rolling_sum = True, rolling_length = 100,
                  min_corr=.85, min_pnr=20, deconvolve_options_init=None, ring_size_factor=1.5,
 				 center_psf=True,  use_dense=True, deconv_flag = True,
-                 simultaneously=False, n_refit=0):
+                 simultaneously=False, n_refit=0, del_duplicates=False):
         """
         Constructor of the CNMF method
 
@@ -304,6 +304,7 @@ class CNMF(object):
         self.ring_size_factor = ring_size_factor
         self.center_psf = center_psf
         self.nb_patch = nb_patch
+        self.del_duplicates = del_duplicates
 
         self.options = CNMFSetParms((1,1,1), n_processes, p=p, gSig=gSig, gSiz=gSiz, 
 									K=k, ssub=ssub, tsub=tsub, 
@@ -410,7 +411,7 @@ class CNMF(object):
 
             if self.only_init:  # only return values after initialization
 
-                nA = np.squeeze(np.array(np.sum(np.square(self.Ain), axis=0)))
+                nA = np.squeeze(self.Ain.power(2).sum(axis=0))
                 nr = nA.size
                 Cin = scipy.sparse.coo_matrix(self.Cin)
                 YA = (self.Ain.T.dot(Yr).T) * scipy.sparse.spdiags(old_div(1., nA), 0, nr, nr)
@@ -505,12 +506,11 @@ class CNMF(object):
             if self.alpha_snmf is not None:
                 options['init_params']['alpha_snmf'] = self.alpha_snmf
 
-            A, C, YrA, b, f, sn, optional_outputs = run_CNMF_patches(images.filename, dims + (T,),
-                                                                     options, rf=self.rf, stride=self.stride,
-                                                                     dview=self.dview, memory_fact=self.memory_fact,
-                                                                     gnb=self.gnb, border_pix=self.border_pix,
-																	 low_rank_background=self.low_rank_background)
-                                                                     
+            A, C, YrA, b, f, sn, optional_outputs = run_CNMF_patches(
+                images.filename, dims + (T,), options, rf=self.rf, stride=self.stride,
+                dview=self.dview, memory_fact=self.memory_fact, gnb=self.gnb,
+                border_pix=self.border_pix, low_rank_background=self.low_rank_background,
+                del_duplicates=self.del_duplicates)
 
             # options = CNMFSetParms(Y, self.n_processes, p=self.p, gSig=self.gSig, K=A.shape[
             #                        -1], thr=self.merge_thresh, n_pixels_per_process=self.n_pixels_per_process,
@@ -521,20 +521,22 @@ class CNMF(object):
             print("merging")
             merged_ROIs = [0]
             while len(merged_ROIs) > 0:
-                A, C, nr, merged_ROIs, S, bl, c1, sn_n, g = merge_components(Yr, A, [], np.array(C), [], np.array(
-                    C), [], options['temporal_params'], options['spatial_params'], dview=self.dview,
+                A, C, nr, merged_ROIs, S, bl, c1, neurons_sn, g = merge_components(
+                    Yr, A, [], np.array(C), [], np.array(C), [],
+                    options['temporal_params'], options['spatial_params'], dview=self.dview,
                     thr=self.merge_thresh, mx=np.Inf)
-            
-   
-            options['spatial_params']['se'] = np.ones((1,) * len(dims), dtype=np.uint8)    
-            options['spatial_params']['update_background_components'] = True
-            print('update spatial ...')
-            A, b, C, f = update_spatial_components(
-                    Yr, C = C, f = f, A_in = A, sn=sn, b_in = b, dview=self.dview, **options['spatial_params'])            
 
-            print("update temporal")
-            C, A, b, f, S, bl, c1, neurons_sn, g1, YrA, lam = update_temporal_components(
-                Yr, A, b, C, f, dview=self.dview, bl=None, c1=None, sn=None, g=None, **options['temporal_params'])
+            if not (self.options['init_params']['method'] == 'corr_pnr' and
+                    self.options['init_params']['ring_size_factor'] is not None):
+                options['spatial_params']['se'] = np.ones((1,) * len(dims), dtype=np.uint8)    
+                options['spatial_params']['update_background_components'] = True
+                print('update spatial ...')
+                A, b, C, f = update_spatial_components(
+                        Yr, C = C, f = f, A_in = A, sn=sn, b_in = b, dview=self.dview, **options['spatial_params'])            
+
+                print("update temporal")
+                C, A, b, f, S, bl, c1, neurons_sn, g, YrA, self.lam = update_temporal_components(
+                    Yr, A, b, C, f, dview=self.dview, bl=None, c1=None, sn=None, g=None, **options['temporal_params'])
 
         self.A = A
         self.C = C
@@ -543,11 +545,10 @@ class CNMF(object):
         self.S = S
         self.YrA = YrA
         self.sn = sn
-        self.g = g1
+        self.g = g
         self.bl = bl
         self.c1 = c1
         self.neurons_sn = neurons_sn
-        self.lam = lam
         self.dims = dims
 
         return self

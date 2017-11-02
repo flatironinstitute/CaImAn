@@ -63,10 +63,10 @@ def cnmf_patches(args_in):
             unitless number accounting how much memory should be used.
             It represents the fration of patch processed in a single thread.
              You will need to try different values to see which one would work
-             
+
         low_rank_background: bool
             if True the background is approximated with gnb components. If false every patch keeps its background (overlaps are randomly assigned to one spatial component only)
-    
+
         Returns:
         -------
         A_tot: matrix containing all the componenents from all the patches
@@ -106,7 +106,8 @@ def cnmf_patches(args_in):
     # for 2d a rectangle/square, for 3d a rectangular cuboid/cube, etc.
     upper_left_corner = min(idx_)
     lower_right_corner = max(idx_)
-    indices = np.unravel_index([upper_left_corner, lower_right_corner], dims, order='F')  # indices as tuples
+    indices = np.unravel_index([upper_left_corner, lower_right_corner],
+                               dims, order='F')  # indices as tuples
     slices = [slice(min_dim, max_dim + 1) for min_dim, max_dim in indices]
     slices.insert(0, slice(timesteps))  # insert slice for timesteps, equivalent to :
 
@@ -115,12 +116,12 @@ def cnmf_patches(args_in):
 
     if (np.sum(np.abs(np.diff(images.reshape(timesteps, -1).T)))) > 0.1:
 
-        cnm = cnmf.CNMF(n_processes=1, k=options['init_params']['K'], gSig=options['init_params']['gSig'], gSiz = options['init_params']['gSiz'],
-                        merge_thresh=options['merging']['thr'], p=p, dview=None,  Ain=None,  Cin=None,
+        cnm = cnmf.CNMF(n_processes=1, k=options['init_params']['K'], gSig=options['init_params']['gSig'], gSiz=options['init_params']['gSiz'],
+                        merge_thresh=options['merging']['thr'], p=p, dview=None, Ain=None, Cin=None,
                         f_in=None, do_merge=True,
                         ssub=options['init_params']['ssub'], tsub=options['init_params']['tsub'],
                         p_ssub=options['patch_params']['ssub'], p_tsub=options['patch_params']['tsub'],
-					    method_init=options['init_params']['method'], alpha_snmf=options['init_params']['alpha_snmf'],
+                        method_init=options['init_params']['method'], alpha_snmf=options['init_params']['alpha_snmf'],
                         rf=None, stride=None, memory_fact=1, gnb=options['patch_params']['nb'],
                         only_init_patch=options['patch_params']['only_init'],
                         method_deconvolution=options['temporal_params']['method'],
@@ -131,24 +132,24 @@ def cnmf_patches(args_in):
                         options_local_NMF=options['init_params']['options_local_NMF'],
                         normalize_init=options['init_params']['normalize_init'],
                         remove_very_bad_comps=options['patch_params']['remove_very_bad_comps'],
-					    rolling_sum = options['init_params']['rolling_sum'],
-                		rolling_length = options['init_params']['rolling_length'],
-                        min_corr = options['init_params']['min_corr'], min_pnr = options['init_params']['min_pnr'],
-                        deconvolve_options_init = options['init_params']['deconvolve_options_init'],
-                        ring_size_factor = options['init_params']['ring_size_factor'],
-                        center_psf = options['init_params']['center_psf'])
-        
+                        rolling_sum=options['init_params']['rolling_sum'],
+                        rolling_length=options['init_params']['rolling_length'],
+                        min_corr=options['init_params']['min_corr'], min_pnr=options['init_params']['min_pnr'],
+                        deconvolve_options_init=options['init_params']['deconvolve_options_init'],
+                        ring_size_factor=options['init_params']['ring_size_factor'],
+                        center_psf=options['init_params']['center_psf'])
 
         cnm = cnm.fit(images)
-        return idx_,shapes,scipy.sparse.coo_matrix(cnm.A),\
-               cnm.b,cnm.C,cnm.f,cnm.S,cnm.bl,cnm.c1,\
-               cnm.neurons_sn,cnm.g,cnm.sn,cnm.options,cnm.YrA.T
+        return [idx_, shapes, scipy.sparse.coo_matrix(cnm.A),
+                cnm.b, cnm.C, cnm.f, cnm.S, cnm.bl, cnm.c1,
+                cnm.neurons_sn, cnm.g, cnm.sn, cnm.options, cnm.YrA.T]
     else:
         return None
 
 
 #%%
-def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, gnb = 1, dview=None, memory_fact=1, border_pix = 0, low_rank_background = True):
+def run_CNMF_patches(file_name, shape, options, rf=16, stride=4, gnb=1, dview=None, memory_fact=1,
+                     border_pix=0, low_rank_background=True, del_duplicates=False):
     """Function that runs CNMF in patches
 
      Either in parallel or sequentially, and return the result for each.
@@ -191,7 +192,12 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, gnb = 1, dvie
 
     low_rank_background: bool
         if True the background is approximated with gnb components. If false every patch keeps its background (overlaps are randomly assigned to one spatial component only)
-    
+
+    del_duplicates: bool
+        if True keeps only neurons in each patch that are well centered within the patch.
+        I.e. neurons that are closer to the center of another patch are removed to
+        avoid duplicates, cause the other patch should already account for them.
+
     Returns:
     -------
     A_tot: matrix containing all the components from all the patches
@@ -221,16 +227,22 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, gnb = 1, dvie
     else:
         strides = stride
 
-    options['preprocess_params']['n_pixels_per_process'] = np.int(old_div(np.prod(rfs), memory_fact))
+    options['preprocess_params']['n_pixels_per_process'] = np.int(
+        old_div(np.prod(rfs), memory_fact))
     options['spatial_params']['n_pixels_per_process'] = np.int(old_div(np.prod(rfs), memory_fact))
     options['temporal_params']['n_pixels_per_process'] = np.int(old_div(np.prod(rfs), memory_fact))
     nb = options['spatial_params']['nb']
 
     idx_flat, idx_2d = extract_patch_coordinates(dims, rfs, strides, border_pix=border_pix)
     args_in = []
+    patch_centers = []
     for id_f, id_2d in zip(idx_flat, idx_2d):
         #        print(id_2d)
         args_in.append((file_name, id_f, id_2d, options))
+        if del_duplicates:
+            foo = np.zeros(d, dtype=bool)
+            foo[id_f] = 1
+            patch_centers.append(scipy.ndimage.center_of_mass(foo.reshape(dims, order='F')))
     print(id_2d)
     st = time.time()
     if dview is not None:
@@ -252,18 +264,38 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, gnb = 1, dvie
     count_bgr = 0
     patch_id = 0
     num_patches = len(file_res)
-    for fff in file_res:
+    for jj, fff in enumerate(file_res):
         if fff is not None:
             idx_, shapes, A, b, C, f, S, bl, c1, neurons_sn, g, sn, _, YrA = fff
             for _ in range(np.shape(b)[-1]):
                 count_bgr += 1
 
-            for ii in range(np.shape(A)[-1]):
+            A = A.tocsc()
+            if del_duplicates:
+                keep = []
+                for ii in range(np.shape(A)[-1]):
+                    neuron_center = (np.array(scipy.ndimage.center_of_mass(
+                        A[:, ii].toarray().reshape(shapes, order='F'))) -
+                        np.array(shapes) / 2. + np.array(patch_centers[jj]))
+                    if np.argmin([np.linalg.norm(neuron_center - p) for p in
+                                  np.array(patch_centers)]) == jj:
+                        keep.append(ii)
+                A = A[:, keep]
+                file_res[jj][2] = A
+                file_res[jj][4] = C[keep]
+                if S is not None:
+                    file_res[jj][6] = S[keep]
+                    file_res[jj][7] = bl[keep]
+                    file_res[jj][8] = c1[keep]
+                    file_res[jj][9] = neurons_sn[keep]
+                    file_res[jj][10] = g[keep]
+                file_res[jj][-1] = YrA[keep]
 
-                new_comp = scipy.sparse.csc_matrix(old_div(A.tocsc()[:, ii], np.sqrt(np.sum(
-                    np.array(A.tocsc()[:, ii].todense())**2))))
-                if new_comp.sum() > 0:
-                    count += 1
+            # for ii in range(np.shape(A)[-1]):
+            #     new_comp = A[:, ii] / np.sqrt(A[:, ii].power(2).sum())
+            #     if new_comp.sum() > 0:
+            #         count += 1
+            count += np.sum(A.sum(0) > 0)
 
             patch_id += 1
 
@@ -287,6 +319,7 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, gnb = 1, dvie
         if fff is not None:
 
             idx_, shapes, A, b, C, f, S, bl, c1, neurons_sn, g, sn, _, YrA = fff
+            A = A.tocsc()
 
             sn_tot[idx_] = sn
             f_tot.append(f)
@@ -307,7 +340,7 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, gnb = 1, dvie
             F_tot[patch_id * nb_patch:(patch_id + 1) * nb_patch] = f
 
             for ii in range(np.shape(A)[-1]):
-                new_comp = old_div(A.tocsc()[:, ii], np.sqrt(np.sum(np.array(A.tocsc()[:, ii].todense())**2)))
+                new_comp = A[:, ii]  # / np.sqrt(A[:, ii].power(2).sum())
                 if new_comp.sum() > 0:
                     a_tot.append(new_comp.toarray().flatten())
                     idx_tot_A.append(idx_)
@@ -354,11 +387,11 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, gnb = 1, dvie
     Im = scipy.sparse.csr_matrix((old_div(1., mask), (np.arange(d), np.arange(d))))
     A_tot = Im.dot(A_tot)
     B_tot = Im.dot(B_tot)
-    
+
     if low_rank_background:
-        
+
         Bm = (B_tot)
-        
+
         f = np.r_[np.atleast_2d(np.mean(F_tot, axis=0)), np.random.rand(gnb - 1, T)]
 
         for _ in range(100):
