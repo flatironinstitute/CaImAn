@@ -905,11 +905,16 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
         B = b0[:, None] + W.dot(B - b0[:, None])
 
     print('Estimate low rank Background')
-    model = NMF(n_components=nb, init='nndsvdar')  # , init='random', random_state=0)
-    b_in = model.fit_transform(np.maximum(B, 0))
-    #f_in = model.components_.squeeze()
-    #f_in = np.linalg.lstsq(b_in.T.dot(b_in),b_in.T.dot(B))[0]
-    f_in = np.linalg.lstsq(b_in,B)[0]
+    
+    use_NMF = True
+    if use_NMF:
+        model = NMF(n_components=nb, init='nndsvdar')  # , init='random', random_state=0)
+        b_in = model.fit_transform(np.maximum(B, 0))
+        #f_in = model.components_.squeeze()
+        f_in = np.linalg.lstsq(b_in,B)[0]
+    else:
+        b_in, s_in, f_in = spr.linalg.svds(B,k=nb)
+        f_in *= s_in[:,np.newaxis]
 
     return A, np.array(C), center.T, b_in, f_in
 
