@@ -207,7 +207,7 @@ sn: float
                     computedA = np.maximum(Acsc.dot(Ctmp.dot(computedC.T)) / (computedC * computedC.T), 0)
             else:
                 print('Simple Merging Take Best Neuron')
-                computedC = Ctmp[indx]
+                computedC = Ctmp[indx]*len(merged_ROI)
                 computedA = Acsc[:,indx]
                 
             # then we de-normalize them using A_to_norm
