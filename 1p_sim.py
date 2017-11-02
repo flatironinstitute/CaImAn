@@ -12,7 +12,7 @@ import caiman as cm
 from caiman.source_extraction import cnmf
 import itertools
 from past.utils import old_div
-
+import scipy
 
 #%%
 def get_mapping(inferredC, trueC, A):
@@ -80,13 +80,13 @@ test_sim = loadmat(fname)
 A, C, b, A_cnmfe, f, C_cnmfe, Craw_cnmfe, b0, sn, Yr, S_cnmfe = itemgetter(
     'A', 'C', 'b', 'A_cnmfe', 'f', 'C_cnmfe',
     'Craw_cnmfe', 'b0', 'sn', 'Y', 'S_cnmfe')(test_sim)
-dims = (253, 316)
-Y = Yr.T.reshape((-1,) + dims, order='F')
+dims_in = (253, 316)
+Y = Yr.T.reshape((-1,) + dims_in, order='F')
 
-plt.imshow(Y[0])
-cm.movie(Y).play(fr=30, magnification=2)
-plt.figure(figsize=(20, 4))
-plt.plot(C.T)
+#plt.imshow(Y[0])
+#cm.movie(Y).play(fr=30, magnification=2)
+#plt.figure(figsize=(20, 4))
+#plt.plot(C.T)
 
 
 gSig = 3   # gaussian width of a 2D gaussian kernel, which approximates a neuron
@@ -96,30 +96,43 @@ min_pnr = 15
 # If True, the background can be roughly removed. This is useful when the background is strong.
 center_psf = True
 
-fname_new = cm.save_memmap([Y], base_name='Yr')
+whole_FOV = True
+if whole_FOV:
+    fname_new = cm.save_memmap([Y], base_name='Yr')
+    dims = dims_in
+else:
+    fname_new = cm.save_memmap([Y], base_name='Yr',idx_xy=(slice(96,2*96),slice(96,2*96)))
+    dims = (96,96)
+    Yr, dims, T = cm.load_memmap(fname_new)
+    Y = Yr.T.reshape((T,) + dims, order='F')
+
+cn_filter, pnr = cm.summary_images.correlation_pnr(Y, gSig=gSig, center_psf=center_psf, swap_dim=False)
 #%%
 c, dview, n_processes = cm.cluster.setup_cluster(
     backend='local', n_processes=None, single_thread=False)
 #%%
 patches = True
 if patches:
-    cnm = cnmf.CNMF(n_processes=n_processes, method_init='corr_pnr', k=35, gSig=(3, 3), gSiz=(10, 10),
+    cnm = cnmf.CNMF(n_processes=n_processes, method_init='corr_pnr', k=20, gSig=(3, 3), gSiz=(10, 10),
                     merge_thresh=.8, p=1, dview=dview, tsub=1, ssub=1, Ain=None, rf=(32, 32), stride=(32, 32),
                     only_init_patch=True, gnb=6, nb_patch=3, method_deconvolution='oasis',
-                    low_rank_background=True, update_background_components=False, min_corr=min_corr,
+                    low_rank_background=False, update_background_components=False, min_corr=min_corr,
                     min_pnr=min_pnr, normalize_init=False, deconvolve_options_init=None,
                     ring_size_factor=1.5, center_psf=True)
    
     memmap = True  # must be True for patches
-    if memmap:
-        if '.mmap' in fname:
-            fname_new = fname
+    if whole_FOV:
+        if memmap:
+            if '.mmap' in fname_new:
+                fname = fname_new
+            else:
+                fname_new = cm.save_memmap([fname], base_name='Yr')
+            Yr, dims, T = cm.load_memmap(fname_new)
+            cnm.fit(Yr.T.reshape((T,) + dims, order='F'))
         else:
-            fname_new = cm.save_memmap([fname], base_name='Yr')
-        Yr, dims, T = cm.load_memmap(fname_new)
-        cnm.fit(Yr.T.reshape((T,) + dims, order='F'))
+            cnm.fit(Y)  
     else:
-        cnm.fit(Y)  
+        cnm.fit(Y)
     #%%
     A_, C_, b_, f_, YrA_, sn_ = cnm.A, cnm.C, cnm.b, cnm.f, cnm.YrA, cnm.sn 
     Ab = scipy.sparse.hstack((A_, b_)).tocsc()
@@ -144,19 +157,20 @@ if patches:
         r_values_min=r_values_min, fitness_min=fitness_min, fitness_delta_min=fitness_delta_min, dview=dview)
     
     print(('Keeping ' + str(len(idx_components)) + ' and discarding  ' + str(len(idx_components_bad))))
+
     #%%
+    plt.figure();
     crd = cm.utils.visualization.plot_contours(A_.tocsc()[:, idx_components], cn_filter, thr=.95)
     #%%
-    import scipy
-    cm.utils.visualization.view_patches_bar(Yr, scipy.sparse.coo_matrix(A_.tocsc()[:, idx_components]), C_[idx_components, :],
-    b_, f_, dims[0], dims[1], YrA=YrA_[idx_components, :], img=cn_filter)
+    cm.utils.visualization.view_patches_bar(Yr - A_[:,idx_components_bad]*C_[idx_components_bad], scipy.sparse.coo_matrix(A_.tocsc()[:, idx_components]), C_[idx_components, :],
+                                            b_, f_, dims[0], dims[1], YrA=YrA, img=cn_filter)
     #%%
     A_ = A_.tocsc()[:,idx_components]
     C_ = C_[idx_components]
     YrA_ = YrA_[idx_components]
     #%%
-    cm.utils.visualization.view_patches_bar(Yr, scipy.sparse.coo_matrix(A), C,
-                                            b, f, dims[0], dims[1], YrA=Craw_cnmfe, img=cn_filter)
+    cm.utils.visualization.view_patches_bar(Yr, scipy.sparse.coo_matrix(A_cnmfe), C_cnmfe,
+                                            np.hstack((b,b0)), np.vstack((f,np.ones((1,f.shape[-1])))), dims_in[0], dims_in[1], YrA=Craw_cnmfe, img=cn_filter)
 #%%    
 else:    
     #%%
@@ -167,9 +181,9 @@ else:
     #                 min_pnr=min_pnr, normalize_init=False, deconvolve_options_init=None,
     #                 ring_size_factor=1.5, center_psf=True)
     
-    cnm = cnmf.CNMF(n_processes=n_processes, method_init='corr_pnr', k=200, gSig=(3, 3), gSiz=(10, 10),
+    cnm2 = cnmf.CNMF(n_processes=n_processes, method_init='corr_pnr', k=300, gSig=(3, 3), gSiz=(10, 10),
                     merge_thresh=.8, p=1, dview=dview, tsub=1, ssub=1, Ain=None,
-                    only_init_patch=True, gnb=10, nb_patch=6, method_deconvolution='oasis',
+                    only_init_patch=True, gnb=20, nb_patch=6, method_deconvolution='oasis',
                     low_rank_background=False, update_background_components=False, min_corr=min_corr,
                     min_pnr=min_pnr, normalize_init=False, deconvolve_options_init=None,
                     ring_size_factor=1.5, center_psf=True)
@@ -178,21 +192,25 @@ else:
     #%
     
     Yr, dims, T = cm.load_memmap(fname_new)
-    cnm.fit(Yr.T.reshape((T,) + dims, order='F'))
+    cnm2.fit(Yr.T.reshape((T,) + dims, order='F'))
 
 
-A_, C_, b_, f_, YrA_, sn_ = cnm.A, cnm.C, cnm.b, cnm.f, cnm.YrA, cnm.sn  
+    A_2, C_2, b_2, f_2, YrA_2, sn_2 = cnm2.A, cnm2.C, cnm2.b, cnm2.f, cnm2.YrA, cnm2.sn  
+    
+    Ab2 = scipy.sparse.csc_matrix(np.hstack((A_2, b_2)))
+    Cf2 = np.vstack((C_2, f_2))
+    nA2 = np.ravel(np.sqrt(Ab2.power(2).sum(axis=0)))
+    YA2 = cm.mmapping.parallel_dot_product(Yr, Ab2, dview=dview, block_size=1000,
+                                  transpose=True, num_blocks_per_run=5) * scipy.sparse.spdiags(old_div(1., nA2), 0, Ab2.shape[-1], Ab2.shape[-1])
+    
+    AA2 = ((Ab2.T.dot(Ab2)) * scipy.sparse.spdiags(old_div(1., nA2), 0, Ab2.shape[-1], Ab2.shape[-1])).tocsr()
+    YrA_2 = (YA2 - (AA2.dot(Cf2)).T)[:,:A_2.shape[-1]].T       
+    
 #%%
-
+cm.utils.visualization.view_patches_bar(Yr, scipy.sparse.coo_matrix(A_2/nA2[np.newaxis,:A_2.shape[-1]]), np.array(C_2)*nA2[:A_2.shape[-1],np.newaxis], b_2, f_2, dims[0], dims[1], YrA = np.array(YrA_2), img=cn_filter)
 #%%
-cn_filter, pnr = cm.summary_images.correlation_pnr(
-    Y, gSig=gSig, center_psf=center_psf, swap_dim=False)
-#%%
-import scipy
-cm.utils.visualization.view_patches_bar(Yr, scipy.sparse.coo_matrix(A_), C_,b_, f_, dims[0], dims[1], YrA=YrA_, img=cn_filter)
-#%%
-crd = cm.utils.visualization.plot_contours(A_, cn_filter, thr=.95, vmax=0.95)
-plt.imshow(A_.sum(-1).reshape(dims, order='F'))
+crd = cm.utils.visualization.plot_contours(A_2, cn_filter, thr=.95, vmax=0.95)
+plt.imshow(cn_filter)
 #%%
 
 # mapping of neuron indices to ground truth indices
@@ -219,7 +237,8 @@ N, T = C.shape
 mapIdx= get_mapping(C_, C, A)
 mapIdx= mapIdx.astype(np.int)
 corC = np.array([np.corrcoef(C_[mapIdx[n]], C[n])[0, 1] for n in range(N)])
-corA = np.array([np.corrcoef(A_[:, mapIdx[n]].squeeze(), A[:, n])[0, 1] for n in range(N)])
+#corA = np.array([np.corrcoef(A_[:, mapIdx[n]].squeeze(), A[:, n])[0, 1] for n in range(N)])
+corA = np.array([np.corrcoef(A_[:, mapIdx[n]].toarray().flatten(), A[:, n])[0, 1] for n in range(N)])
 
 corC_cnmfe = np.array([np.corrcoef(C_cnmfe[n], C[n])[0, 1] for n in range(N)])
 corA_cnmfe = np.array([np.corrcoef(A_cnmfe.toarray()[:, n], A[:, n])[0, 1] for n in range(N)])
