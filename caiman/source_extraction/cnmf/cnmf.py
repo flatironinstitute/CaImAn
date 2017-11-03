@@ -35,7 +35,8 @@ from .merging import merge_components
 from .spatial import update_spatial_components
 from .temporal import update_temporal_components
 from .map_reduce import run_CNMF_patches
-from caiman import components_evaluation
+from caiman import components_evaluation, mmapping
+from caiman.utils.visualization import view_patches_bar
 from .initialization import imblur
 import cv2
 from .online_cnmf import RingBuffer, HALS4activity, demix_and_deconvolve
@@ -742,7 +743,7 @@ class CNMF(object):
         return self
 
     @profile
-    def fit_next(self, t, frame_in, num_iters_hals=3):
+    def fit_next(self, t, frame_in, num_iters_hals=3):        
         """
         This method fits the next frame using the online cnmf algorithm and updates the object.
 
@@ -963,6 +964,105 @@ class CNMF(object):
 
                 self.Ab = Ab_
             self.time_spend += time() - t_start
+            
+    
+    def compute_residuals(self, Yr):
+        """compute residual for each component (variable YrA)
+    
+         Parameters:
+         -----------
+         Yr :    np.ndarray
+                 movie in format pixels (d) x frames (T)
+    
+        """
+        
+        if 'csc_matrix' not in str(type(self.A)):
+            self.A = scipy.sparse.csc_matrix(self.A)
+        if 'array' not in str(type(self.b)):
+            self.b = self.b.toarray()
+        if 'array' not in str(type(self.C)):
+            self.C = self.C.toarray()
+        if 'array' not in str(type(self.f)):
+            self.f = self.f.toarray()
+        
+        Ab = scipy.sparse.hstack((self.A, self.b)).tocsc()        
+        nA2 = np.ravel(Ab.power(2).sum(axis=0))
+        nA2_inv_mat = scipy.sparse.spdiags(1./nA2,0,nA2.shape[0],nA2.shape[0])
+        Cf = np.vstack((self.C, self.f))
+        YA = mmapping.parallel_dot_product(Yr, Ab, dview=self.dview, block_size=2000,
+                                      transpose=True, num_blocks_per_run=5)*nA2_inv_mat
+        
+        AA = Ab.T.dot(Ab)*nA2_inv_mat       
+        self.YrA = (YA - (AA.T.dot(Cf)).T)[:,:self.A.shape[-1]].T
+        
+        return self
+
+
+    def normalize_components(self):
+        """ normalize components such that spatial components have norm 1
+        """
+        if 'csc_matrix' not in str(type(self.A)):
+            self.A = scipy.sparse.csc_matrix(self.A)
+        if 'array' not in str(type(self.b)):
+            self.b = self.b.toarray()
+        if 'array' not in str(type(self.C)):
+            self.C = self.C.toarray()
+        if 'array' not in str(type(self.f)):
+            self.f = self.f.toarray()
+        
+        nA = np.sqrt(np.ravel(self.A.power(2).sum(axis=0)))
+        nA_mat = scipy.sparse.spdiags(nA,0,nA.shape[0],nA.shape[0])
+        nA_inv_mat = scipy.sparse.spdiags(1./nA,0,nA.shape[0],nA.shape[0])                
+        self.A = self.A*nA_inv_mat
+        self.C = nA_mat*self.C
+        if self.YrA is not None:
+            self.YrA = nA_mat*self.YrA
+        if self.bl is not None:
+            self.bl = nA*self.bl
+        if self.c1 is not None:
+            self.c1 = nA*self.c1
+        if self.neurons_sn is not None:
+            self.neurons_sn *= nA*self.neurons_sn
+            
+        nB = np.sqrt(np.ravel((self.b**2).sum(axis=0)))
+        nB_mat = scipy.sparse.spdiags(nB,0,nB.shape[0],nB.shape[0])
+        nB_inv_mat = scipy.sparse.spdiags(1./nB,0,nB.shape[0],nB.shape[0])                
+        self.b = self.b*nB_inv_mat
+        self.f = nB_mat*self.f
+        
+    
+    def view_patches(self, Yr, dims, img = None):
+
+        """view spatial and temporal components interactively
+    
+         Parameters:
+         -----------
+         Yr :    np.ndarray
+                 movie in format pixels (d) x frames (T)
+    
+         dims :  tuple
+                 dimensions of the FOV
+    
+         img :   np.ndarray
+                 background image for contour plotting. Default is the mean image of all spatial components (d1 x d2)
+    
+        """
+        if 'csc_matrix' not in str(type(self.A)):
+            self.A = scipy.sparse.csc_matrix(self.A)
+        if 'array' not in str(type(self.b)):
+            self.b = self.b.toarray()
+            
+        pl.ion()
+        nr, T = self.C.shape
+        #nb = self.f.shape[0]
+        
+        if self.YrA is None:
+            self.compute_residuals(Yr)
+        
+        if img is None:
+            img = np.reshape(np.array(self.A.mean(axis=1)),dims,order='F')
+    
+        view_patches_bar(Yr, self.A, self.C, self.b, self.f, dims[0], dims[1], YrA=self.YrA, img=img)
 
 
 def scale(y):
