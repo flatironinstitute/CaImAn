@@ -98,10 +98,7 @@ N, T = C.shape
 dims_in = (253, 316)
 Y = Yr.T.reshape((-1,) + dims_in, order='F')
 
-# plt.imshow(Y[0])
 # cm.movie(Y).play(fr=30, magnification=2)
-# plt.figure(figsize=(20, 4))
-# plt.plot(C.T)
 
 
 gSig = 3   # gaussian width of a 2D gaussian kernel, which approximates a neuron
@@ -161,14 +158,8 @@ else:
 
 cnm.fit(Y)
 
-Ab = scipy.sparse.hstack((cnm.A, cnm.b)).tocsc()
-Cf = np.vstack((cnm.C, cnm.f))
-nA = np.ravel(Ab.power(2).sum(axis=0))
-YA = cm.mmapping.parallel_dot_product(Yr, Ab, dview=dview, block_size=1000,
-                                      transpose=True, num_blocks_per_run=5) * \
-    scipy.sparse.spdiags(1. / nA, 0, Ab.shape[-1], Ab.shape[-1])
-AA = ((Ab.T.dot(Ab)) * scipy.sparse.spdiags(1. / nA, 0, Ab.shape[-1], Ab.shape[-1])).tocsr()
-YrA_ = (YA - (AA.T.dot(Cf)).T)[:, :cnm.A.shape[-1]].T
+cnm.compute_residuals(Yr)
+
 
 if patches:
     # %% DISCARD LOW QUALITY COMPONENT
@@ -178,7 +169,7 @@ if patches:
     # threshold on time variability (if nonsparse activity)
     fitness_delta_min = - 20
     Npeaks = 5
-    traces = cnm.C + YrA_
+    traces = cnm.C + cnm.YrA
     # TODO: todocument
     idx_components, idx_components_bad = cm.components_evaluation.estimate_components_quality(
         traces, Yr, cnm.A, cnm.C, cnm.b, cnm.f, final_frate=final_frate, Npeaks=Npeaks,
@@ -191,9 +182,8 @@ if patches:
 
 
 #%%
-cm.utils.visualization.view_patches_bar(Yr, scipy.sparse.coo_matrix(
-    cnm.A / nA[np.newaxis, :cnm.A.shape[-1]]), cnm.C * nA[:cnm.A.shape[-1], np.newaxis],
-    cnm.b, cnm.f, dims[0], dims[1], YrA=np.array(YrA_), img=cn_filter)
+cm.utils.visualization.view_patches_bar(Yr, cnm.A, cnm.C, cnm.b, cnm.f,
+                                        dims[0], dims[1], YrA=cnm.YrA, img=cn_filter)
 
 
 #%%
