@@ -5,6 +5,7 @@ except:
     print('NOT IPYTHON')
 
 import numpy as np
+import scipy
 from scipy.io import loadmat
 from operator import itemgetter
 import matplotlib.pyplot as plt
@@ -14,58 +15,7 @@ import caiman as cm
 from caiman.source_extraction import cnmf
 
 
-test_sim = loadmat('test_sim.mat')
-A, C, b, A_cnmfe, f, C_cnmfe, Craw_cnmfe, b0, sn, Yr, S_cnmfe = itemgetter(
-    'A', 'C', 'b', 'A_cnmfe', 'f', 'C_cnmfe',
-    'Craw_cnmfe', 'b0', 'sn', 'Y', 'S_cnmfe')(test_sim)
-dims = (253, 316)
-N, T = C.shape
-Y = Yr.T.reshape((-1,) + dims, order='F')
-
-plt.imshow(Y[0])
-cm.movie(Y).play(fr=30, magnification=2)
-plt.figure(figsize=(20, 4))
-plt.plot(C.T)
-
-
-gSig = 3   # gaussian width of a 2D gaussian kernel, which approximates a neuron
-gSiz = 10  # average diameter of a neuron
-min_corr = .9
-min_pnr = 15
-# If True, the background can be roughly removed. This is useful when the background is strong.
-center_psf = True
-K = 200
-
-
 #%%
-fname_new = cm.save_memmap([Y], base_name='Yr')
-Yr, dims, T = cm.load_memmap(fname_new)
-
-cn_filter, pnr = cm.summary_images.correlation_pnr(
-    Y, gSig=gSig, center_psf=center_psf, swap_dim=False)
-
-
-#%%
-c, dview, n_processes = cm.cluster.setup_cluster(
-    backend='local', n_processes=None, single_thread=False)
-
-
-#%%  no patches
-cnm = cnmf.CNMF(n_processes=n_processes, method_init='corr_pnr', k=K,
-                gSig=(gSig, gSig), gSiz=(gSiz, gSiz),
-                merge_thresh=.8, p=1, dview=dview, tsub=1, ssub=1, Ain=None,
-                only_init_patch=True, gnb=10, nb_patch=6, method_deconvolution='oasis',
-                low_rank_background=False, update_background_components=False, min_corr=min_corr,
-                min_pnr=min_pnr, normalize_init=False, deconvolve_options_init=None,
-                ring_size_factor=1.5, center_psf=True)
-
-cnm.fit(Yr.T.reshape((T,) + dims, order='F'))
-
-crd = cm.utils.visualization.plot_contours(cnm.A, cn_filter, thr=.95, vmax=0.95)
-plt.imshow(cnm.A.sum(-1).reshape(dims, order='F'))
-
-
-# mapping of neuron indices to ground truth indices
 def get_mapping(inferredC, trueC, A):
     """
     finds the mapping that maps each true neuron to the best inferred one
@@ -138,6 +88,117 @@ def plot_centers():
     plt.legend()
 
 
+#%%
+fname = 'test_sim.mat'
+test_sim = loadmat(fname)
+A, C, b, A_cnmfe, f, C_cnmfe, Craw_cnmfe, b0, sn, Yr, S_cnmfe = itemgetter(
+    'A', 'C', 'b', 'A_cnmfe', 'f', 'C_cnmfe',
+    'Craw_cnmfe', 'b0', 'sn', 'Y', 'S_cnmfe')(test_sim)
+N, T = C.shape
+dims_in = (253, 316)
+Y = Yr.T.reshape((-1,) + dims_in, order='F')
+
+# plt.imshow(Y[0])
+# cm.movie(Y).play(fr=30, magnification=2)
+# plt.figure(figsize=(20, 4))
+# plt.plot(C.T)
+
+
+gSig = 3   # gaussian width of a 2D gaussian kernel, which approximates a neuron
+gSiz = 10  # average diameter of a neuron
+min_corr = .9
+min_pnr = 15
+# If True, the background can be roughly removed. This is useful when the background is strong.
+center_psf = True
+K = 200
+
+
+#%%
+whole_FOV = True
+if whole_FOV:
+    fname_new = cm.save_memmap([Y], base_name='Yr')
+    dims = dims_in
+else:
+    fname_new = cm.save_memmap([Y], base_name='Yr', idx_xy=(slice(96, 2 * 96), slice(96, 2 * 96)))
+    dims = (96, 96)
+Yr, dims, T = cm.load_memmap(fname_new)
+Y = Yr.T.reshape((T,) + dims, order='F')
+
+cn_filter, pnr = cm.summary_images.correlation_pnr(
+    Y, gSig=gSig, center_psf=center_psf, swap_dim=False)
+
+
+#%%
+c, dview, n_processes = cm.cluster.setup_cluster(
+    backend='local', n_processes=None, single_thread=False)
+
+
+#%%
+patches = True
+if patches:
+    # cnm = cnmf.CNMF(n_processes=n_processes, method_init='corr_pnr', k=20, gSig=(3, 3), gSiz=(10, 10),
+    #                 merge_thresh=.8, p=1, dview=dview, tsub=1, ssub=1, Ain=None, rf=(32, 32), stride=(32, 32),
+    #                 only_init_patch=True, gnb=6, nb_patch=3, method_deconvolution='oasis',
+    #                 low_rank_background=False, update_background_components=False, min_corr=min_corr,
+    #                 min_pnr=min_pnr, normalize_init=False, deconvolve_options_init=None,
+    #                 ring_size_factor=1.5, center_psf=True)
+    cnm = cnmf.CNMF(n_processes=n_processes, method_init='corr_pnr', k=120,
+                    gSig=(gSig, gSig), gSiz=(gSiz, gSiz), merge_thresh=.7,
+                    p=1, dview=dview, tsub=1, ssub=2, Ain=None, rf=(100, 100), stride=(25, 25),
+                    only_init_patch=True, gnb=10, nb_patch=6, method_deconvolution='oasis',
+                    low_rank_background=False, update_background_components=False, min_corr=min_corr,
+                    min_pnr=min_pnr, normalize_init=False, deconvolve_options_init=None,
+                    ring_size_factor=1.5, center_psf=True, del_duplicates=True)
+
+else:
+    cnm = cnmf.CNMF(n_processes=n_processes, method_init='corr_pnr', k=K,
+                    gSig=(gSig, gSig), gSiz=(gSiz, gSiz),
+                    merge_thresh=.8, p=1, dview=dview, tsub=1, ssub=1, Ain=None,
+                    only_init_patch=True, gnb=20, nb_patch=6, method_deconvolution='oasis',
+                    low_rank_background=False, update_background_components=False, min_corr=min_corr,
+                    min_pnr=min_pnr, normalize_init=False, deconvolve_options_init=None,
+                    ring_size_factor=1.5, center_psf=True)
+
+cnm.fit(Y)
+
+Ab = scipy.sparse.hstack((cnm.A, cnm.b)).tocsc()
+Cf = np.vstack((cnm.C, cnm.f))
+nA = np.ravel(Ab.power(2).sum(axis=0))
+YA = cm.mmapping.parallel_dot_product(Yr, Ab, dview=dview, block_size=1000,
+                                      transpose=True, num_blocks_per_run=5) * \
+    scipy.sparse.spdiags(1. / nA, 0, Ab.shape[-1], Ab.shape[-1])
+AA = ((Ab.T.dot(Ab)) * scipy.sparse.spdiags(1. / nA, 0, Ab.shape[-1], Ab.shape[-1])).tocsr()
+YrA_ = (YA - (AA.T.dot(Cf)).T)[:, :cnm.A.shape[-1]].T
+
+if patches:
+    # %% DISCARD LOW QUALITY COMPONENT
+    final_frate = 10
+    r_values_min = 0.1  # threshold on space consistency
+    fitness_min = -20  # threshold on time variability
+    # threshold on time variability (if nonsparse activity)
+    fitness_delta_min = - 20
+    Npeaks = 5
+    traces = cnm.C + YrA_
+    # TODO: todocument
+    idx_components, idx_components_bad = cm.components_evaluation.estimate_components_quality(
+        traces, Yr, cnm.A, cnm.C, cnm.b, cnm.f, final_frate=final_frate, Npeaks=Npeaks,
+        r_values_min=r_values_min, fitness_min=fitness_min, fitness_delta_min=fitness_delta_min, dview=dview)
+
+    print(('Keeping ' + str(len(idx_components)) +
+           ' and discarding  ' + str(len(idx_components_bad))))
+    cnm.A = cnm.A[:, idx_components]
+    cnm.C = cnm.C[idx_components]
+
+
+#%%
+cm.utils.visualization.view_patches_bar(Yr, scipy.sparse.coo_matrix(
+    cnm.A / nA[np.newaxis, :cnm.A.shape[-1]]), cnm.C * nA[:cnm.A.shape[-1], np.newaxis],
+    cnm.b, cnm.f, dims[0], dims[1], YrA=np.array(YrA_), img=cn_filter)
+
+
+#%%
+crd = cm.utils.visualization.plot_contours(cnm.A, cn_filter, thr=.95, vmax=0.95)
+
 mapIdx = get_mapping(cnm.C, C, A).astype(int)
 
 corC = np.array([np.corrcoef(cnm.C[mapIdx[n]], C[n])[0, 1] for n in range(N)])
@@ -149,29 +210,7 @@ corA_cnmfe = np.array([np.corrcoef(A_cnmfe.toarray()[:, n], A[:, n])[0, 1] for n
 print(corC.mean(), corA.mean())
 print(corC_cnmfe.mean(), corA_cnmfe.mean())
 
-plot_centers()
-
-
-#%% patches
-cnm = cnmf.CNMF(n_processes=n_processes, method_init='corr_pnr', k=120,
-                gSig=(gSig, gSig), gSiz=(gSiz, gSiz), merge_thresh=.7,
-                p=1, dview=dview, tsub=1, ssub=2, Ain=None, rf=(100, 100), stride=(25, 25),
-                only_init_patch=True, gnb=10, nb_patch=6, method_deconvolution='oasis',
-                low_rank_background=False, update_background_components=False, min_corr=min_corr,
-                min_pnr=min_pnr, normalize_init=False, deconvolve_options_init=None,
-                ring_size_factor=1.5, center_psf=True, del_duplicates=True)
-
-cnm.fit(Yr.T.reshape((T,) + dims, order='F'))
-
-mapIdx = get_mapping(cnm.C, C, A).astype(int)
-
-corC = np.array([np.corrcoef(cnm.C[mapIdx[n]], C[n])[0, 1] for n in range(N)])
-corA = np.array([np.corrcoef(cnm.A.toarray()[:, mapIdx[n]], A[:, n])[0, 1] for n in range(N)])
-
-corC_cnmfe = np.array([np.corrcoef(C_cnmfe[n], C[n])[0, 1] for n in range(N)])
-corA_cnmfe = np.array([np.corrcoef(A_cnmfe.toarray()[:, n], A[:, n])[0, 1] for n in range(N)])
-
-print(corC.mean(), corA.mean())
-print(corC_cnmfe.mean(), corA_cnmfe.mean())
+print(np.median(corC), np.median(corA))
+print(np.median(corC_cnmfe), np.median(corA_cnmfe))
 
 plot_centers()
