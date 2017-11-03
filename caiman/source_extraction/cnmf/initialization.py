@@ -889,10 +889,10 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
                            .reshape((-1, K), order='F'))
 
         print('Update Temporal')
-        C, A = caiman.source_extraction.cnmf.temporal.update_temporal_components(
+        C, A, b__, f__, S__, bl__, c1__, neurons_sn__, g1__, YrA__, lam__ = caiman.source_extraction.cnmf.temporal.update_temporal_components(
             np.array(Y.reshape((-1, T), order='F') - B), A,
             np.zeros((np.prod(dims), 0), np.float32), C, np.zeros((0, T), np.float32),
-            dview=None, bl=None, c1=None, sn=None, g=None, **options['temporal_params'])[:2]
+            dview=None, bl=None, c1=None, sn=None, g=None, **options['temporal_params'])
         print('Update Spatial')
         options['spatial_params']['dims'] = dims
         options['spatial_params']['se'] = np.ones((1,) * len((d1, d2)), dtype=np.uint8)
@@ -917,9 +917,16 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
         B = b0[:, None] + W.dot(B - b0[:, None])
 
     print('Estimate low rank Background')
-    model = NMF(n_components=nb, init='nndsvdar')  # , init='random', random_state=0)
-    b_in = model.fit_transform(np.maximum(B, 0))
-    f_in = model.components_.squeeze()
+    
+    use_NMF = True
+    if use_NMF:
+        model = NMF(n_components=nb, init='nndsvdar')  # , init='random', random_state=0)
+        b_in = model.fit_transform(np.maximum(B, 0))
+        #f_in = model.components_.squeeze()
+        f_in = np.linalg.lstsq(b_in,B)[0]
+    else:
+        b_in, s_in, f_in = spr.linalg.svds(B,k=nb)
+        f_in *= s_in[:,np.newaxis]
 
     return A, C, center.T, b_in, f_in
 

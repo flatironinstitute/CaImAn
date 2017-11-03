@@ -323,7 +323,7 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], gSiz = None, ssub=2, tsub=2,
         'p': p,                      # order of AR indicator dynamics
         'memory_efficient': False,
         # flag for setting non-negative baseline (otherwise b >= min(y))
-        'bas_nonneg': True,
+        'bas_nonneg': False,
         # range of normalized frequencies over which to average
         'noise_range': [.25, .5],
         'noise_method': 'mean',   # averaging method ('mean','median','logmexp')

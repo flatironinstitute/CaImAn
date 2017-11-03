@@ -386,12 +386,21 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride=4, gnb=1, dview=No
 
     Im = scipy.sparse.csr_matrix((old_div(1., mask), (np.arange(d), np.arange(d))))
     A_tot = Im.dot(A_tot)
-    B_tot = Im.dot(B_tot)
+    nA = np.ravel(np.sqrt(A_tot.power(2).sum(0)))
+    
+    A_tot /= nA
+    A_tot = scipy.sparse.coo_matrix(A_tot)
+    C_tot *= nA[:, None]
+    YrA_tot *= nA[:, None]    
+    
 
-    if low_rank_background:
-
-        Bm = (B_tot)
-
+    if low_rank_background is None:
+        b = Im.dot(B_tot)
+        f = F_tot
+        print("Leaving background components intact")
+    elif low_rank_background:
+        print("Compressing background components with a low rank NMF")
+        Bm = Im.dot(B_tot)        
         f = np.r_[np.atleast_2d(np.mean(F_tot, axis=0)), np.random.rand(gnb - 1, T)]
 
         for _ in range(100):
@@ -405,36 +414,28 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride=4, gnb=1, dview=No
             except np.linalg.LinAlgError:  # singular matrix
                 f = np.fmax(scipy.linalg.lstsq(b, Bm.toarray())[0].dot(F_tot), 0)
     else:
-
-        nA = np.ravel(np.sqrt(A_tot.power(2).sum(0)))
-        A_tot /= nA
-        A_tot = scipy.sparse.coo_matrix(A_tot)
-        C_tot *= nA[:, None]
-        YrA_tot *= nA[:, None]
+        print('Removing overlapping background components from different patches')
         nB = np.ravel(np.sqrt(B_tot.power(2).sum(0)))
         B_tot /= nB
         B_tot = np.array(B_tot, dtype=np.float32)
 #        B_tot = scipy.sparse.coo_matrix(B_tot)
         F_tot *= nB[:, None]
 
-#        processed_idx = set([])
-#        processed_idx_prev = set([])  # needed if a patch has more than 1 background component
-#        for _b in np.arange(B_tot.shape[-1]):
-#            idx_mask = np.where(B_tot[:, _b])[0]
-#            idx_mask_repeat = processed_idx.intersection(idx_mask)
-#            if len(idx_mask_repeat) < len(idx_mask):
-#                processed_idx_prev = processed_idx
-#            else:
-#                idx_mask_repeat = processed_idx_prev.intersection(idx_mask)
-#            processed_idx = processed_idx.union(idx_mask)
-#            if len(idx_mask_repeat) > 0:
-#                B_tot[np.array(list(idx_mask_repeat), dtype=np.int), _b] = 0
+        processed_idx = set([])
+        processed_idx_prev = set([])  # needed if a patch has more than 1 background component
+        for _b in np.arange(B_tot.shape[-1]):
+            idx_mask = np.where(B_tot[:, _b])[0]
+            idx_mask_repeat = processed_idx.intersection(idx_mask)
+            if len(idx_mask_repeat) < len(idx_mask):
+                processed_idx_prev = processed_idx
+            else:
+                idx_mask_repeat = processed_idx_prev.intersection(idx_mask)
+            processed_idx = processed_idx.union(idx_mask)
+            if len(idx_mask_repeat) > 0:
+                B_tot[np.array(list(idx_mask_repeat), dtype=np.int), _b] = 0
 
         b = B_tot
         f = F_tot
-        print()
-        print('******** USING ONE BACKGROUND PER PATCH ******')
-
-    print("Generating background DONE")
-
+       
+    
     return A_tot, C_tot, YrA_tot, b, f, sn_tot, optional_outputs

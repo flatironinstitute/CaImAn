@@ -518,25 +518,64 @@ class CNMF(object):
 
             # options['temporal_params']['method'] = self.method_deconvolution
 
-            print("merging")
-            merged_ROIs = [0]
-            while len(merged_ROIs) > 0:
-                A, C, nr, merged_ROIs, S, bl, c1, neurons_sn, g = merge_components(
-                    Yr, A, [], np.array(C), [], np.array(C), [],
-                    options['temporal_params'], options['spatial_params'], dview=self.dview,
-                    thr=self.merge_thresh, mx=np.Inf)
+# <<<<<<< HEAD
+#             print("merging")
+#             merged_ROIs = [0]
+#             while len(merged_ROIs) > 0:
+#                 A, C, nr, merged_ROIs, S, bl, c1, neurons_sn, g = merge_components(
+#                     Yr, A, [], np.array(C), [], np.array(C), [],
+#                     options['temporal_params'], options['spatial_params'], dview=self.dview,
+#                     thr=self.merge_thresh, mx=np.Inf)
 
-            if not (self.options['init_params']['method'] == 'corr_pnr' and
-                    self.options['init_params']['ring_size_factor'] is not None):
-                options['spatial_params']['se'] = np.ones((1,) * len(dims), dtype=np.uint8)    
-                options['spatial_params']['update_background_components'] = True
-                print('update spatial ...')
-                A, b, C, f = update_spatial_components(
-                        Yr, C = C, f = f, A_in = A, sn=sn, b_in = b, dview=self.dview, **options['spatial_params'])            
+#             if not (self.options['init_params']['method'] == 'corr_pnr' and
+#                     self.options['init_params']['ring_size_factor'] is not None):
+#                 options['spatial_params']['se'] = np.ones((1,) * len(dims), dtype=np.uint8)    
+#                 options['spatial_params']['update_background_components'] = True
+#                 print('update spatial ...')
+#                 A, b, C, f = update_spatial_components(
+#                         Yr, C = C, f = f, A_in = A, sn=sn, b_in = b, dview=self.dview, **options['spatial_params'])            
+
+#                 print("update temporal")
+#                 C, A, b, f, S, bl, c1, neurons_sn, g, YrA, self.lam = update_temporal_components(
+#                     Yr, A, b, C, f, dview=self.dview, bl=None, c1=None, sn=None, g=None, **options['temporal_params'])
+# =======
+            
+            
+   
+#            options['spatial_params']['se'] = np.ones((1,) * len(dims), dtype=np.uint8)    
+#            options['spatial_params']['update_background_components'] = True
+#            print('update spatial ...')
+#            A, b, C, f = update_spatial_components(
+#                    Yr, C = C, f = f, A_in = A, sn=sn, b_in = b, dview=self.dview, **options['spatial_params'])            
+            
+            if self.center_psf: #merge taking best neuron
+                print("merging")
+                merged_ROIs = [0]
+                while len(merged_ROIs) > 0:
+                    A, C, nr, merged_ROIs, S, bl, c1, sn_n, g = merge_components(Yr, A, [], np.array(C), [], np.array(
+                        C), [], options['temporal_params'], options['spatial_params'], dview=self.dview,
+                        thr=self.merge_thresh, mx=np.Inf, fast_merge = False)
+
+                g1 = g
+                neurons_sn = sn_n    
+                lam = None
+                YrA = None
+                
+                
+            else:
+                
+                print("merging")
+                merged_ROIs = [0]
+                while len(merged_ROIs) > 0:
+                    A, C, nr, merged_ROIs, S, bl, c1, sn_n, g = merge_components(Yr, A, [], np.array(C), [], np.array(
+                        C), [], options['temporal_params'], options['spatial_params'], dview=self.dview,
+                        thr=self.merge_thresh, mx=np.Inf)
 
                 print("update temporal")
-                C, A, b, f, S, bl, c1, neurons_sn, g, YrA, self.lam = update_temporal_components(
-                    Yr, A, b, C, f, dview=self.dview, bl=None, c1=None, sn=None, g=None, **options['temporal_params'])
+                C, A, b, f, S, bl, c1, neurons_sn, g1, YrA, lam = update_temporal_components(
+                        Yr, A, b, C, f, dview=self.dview, bl=None, c1=None, sn=None, g=None, **options['temporal_params'])
+                
+# >>>>>>> onep4efty
 
         self.A = A
         self.C = C
@@ -545,10 +584,11 @@ class CNMF(object):
         self.S = S
         self.YrA = YrA
         self.sn = sn
-        self.g = g
+        self.g = g1
         self.bl = bl
         self.c1 = c1
         self.neurons_sn = neurons_sn
+        self.lam = lam
         self.dims = dims
 
         return self
