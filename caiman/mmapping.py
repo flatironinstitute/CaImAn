@@ -129,7 +129,10 @@ def save_memmap_each(fnames, dview=None, base_name=None, resize_fact=(1, 1, 1), 
                          xy_shifts[idx], add_to_movie, border_to_0])
 
     if dview is not None:
-        fnames_new = dview.map_sync(save_place_holder, pars)
+        if 'multiprocessing' in str(type(dview)):
+            fnames_new = dview.map_async(save_place_holder, pars).get(9999999)
+        else:
+            fnames_new = dview.map_sync(save_place_holder, pars)
     else:
         fnames_new = list(map(save_place_holder, pars))
 
@@ -191,7 +194,10 @@ def save_memmap_join(mmap_fnames, base_name=None, n_chunks=20, dview=None, async
     pars[-1][-1] = d
 
     if dview is not None:
-        dview.map_sync(save_portion, pars)
+        if 'multiprocessing' in str(type(dview)):
+            dview.map_async(save_portion, pars).get(9999999)            
+        else:
+            dview.map_sync(save_portion, pars)
     else:
         list(map(save_portion, pars))
 
@@ -509,8 +515,12 @@ def parallel_dot_product(A, b, block_size=5000, dview=None, transpose=False, num
         #        b = pickle.loads(b)
 
         for itera in range(0, len(pars), num_blocks_per_run):
-
-            results = dview.map_sync(dot_place_holder, pars[itera:itera + num_blocks_per_run])
+            
+            if 'multiprocessing' in str(type(dview)):
+                results = dview.map_async(dot_place_holder, pars[itera:itera + num_blocks_per_run]).get(9999999)
+            else:
+                results = dview.map_sync(dot_place_holder, pars[itera:itera + num_blocks_per_run])
+                
             print('Processed:' + str([itera, itera + len(results)]))
 
             if transpose:
@@ -526,7 +536,8 @@ def parallel_dot_product(A, b, block_size=5000, dview=None, transpose=False, num
                 for res in results:
                     output[res[0]] = res[1]
 
-            dview.clear()
+            if not('multiprocessing' in str(type(dview))):
+                dview.clear()
 
     return output
 

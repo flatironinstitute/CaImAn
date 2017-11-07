@@ -15,13 +15,6 @@ Link
 \copyright GNU General Public License v2.0
 \package CaImAn/comparison
 """
-#
-#\image html dev/kalfon/img/datacomparison.pdf
-#\version   1.0
-#
-#
-#
-
 
 import platform as plt
 import datetime

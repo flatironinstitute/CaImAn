@@ -13,7 +13,6 @@
 from __future__ import division
 from __future__ import print_function
 import matplotlib
-matplotlib.use('TkAgg')
 from builtins import zip
 from builtins import str
 from builtins import map
@@ -546,7 +545,7 @@ view_patches_bar(Yr, scipy.sparse.coo_matrix(A.tocsc()[:, idx_components_bad]), 
                  dims[1], YrA=YrA[idx_components_bad, :], img=Cn)
 # %% STOP CLUSTER and clean up log files
 # TODO: todocument
-cm.stop_server()
+cm.stop_server(dview=dview)
 
 log_files = glob.glob('*_LOG_*')
 for log_file in log_files:

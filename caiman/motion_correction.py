@@ -931,14 +931,17 @@ def motion_correct_parallel(file_names,fr=10,template=None,margins_out=0,
 
     try:
         if dview is not None:
-            file_res = dview.map_sync(process_movie_parallel, args_in)                         
-            dview.results.clear()
+            if 'multiprocessing' in str(type(dview)):
+                file_res = dview.map_async(process_movie_parallel, args_in).get(9999999)
+            else:
+                file_res = dview.map_sync(process_movie_parallel, args_in)                         
+                dview.results.clear()
         else:
             file_res = list(map(process_movie_parallel, args_in))        
 
     except:
         try:
-            if dview is not None:
+            if (dview is not None) and not ('multiprocessing' in str(type(dview))):
                 dview.results.clear()       
 
         except UnboundLocalError as uberr:
@@ -2160,7 +2163,10 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
     
     if dview is not None:
         print('** Startting parallel motion correction **')
-        res =dview.map_sync(tile_and_correct_wrapper,pars)
+        if 'multiprocessing' in str(type(dview)):
+            res = dview.map_async(tile_and_correct_wrapper,pars).get(9999999)
+        else:
+            res = dview.map_sync(tile_and_correct_wrapper,pars)
         print('** Finished parallel motion correction **')
     else:
         res = list(map(tile_and_correct_wrapper,pars))

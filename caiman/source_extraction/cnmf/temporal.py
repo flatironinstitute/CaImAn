@@ -366,7 +366,10 @@ def update_iteration (parrllcomp, len_parrllcomp, nb,C, S, bl, nr,
             args_in = [(np.squeeze(np.array(Ytemp[:, jj])), nT[jj], jj, None,
                         None, None, None, kwargs) for jj in range(len(jo))]
             #computing the most likely discretized spike train underlying a fluorescence trace
-            if dview is not None and platform.system()!='Darwin':
+            if 'multiprocessing' in str(type(dview)):                
+                results = dview.map_async(constrained_foopsi_parallel, args_in).get(9999999)                    
+            
+            elif dview is not None and platform.system()!='Darwin':                                    
                 if debug:
                     results = dview.map_async(constrained_foopsi_parallel, args_in)
                     results.get()
@@ -378,6 +381,7 @@ def update_iteration (parrllcomp, len_parrllcomp, nb,C, S, bl, nr,
                         sys.stderr.flush()
                 else:
                     results = dview.map_sync(constrained_foopsi_parallel, args_in)
+            
             else:
                 results = list(map(constrained_foopsi_parallel, args_in))
             #unparsing and updating the result
@@ -401,7 +405,7 @@ def update_iteration (parrllcomp, len_parrllcomp, nb,C, S, bl, nr,
             YrA -= AA[ii, :].T.dot((cc - Cin[ii])[None, :]).T
             C[ii, :] = cc
 
-        if dview is not None:
+        if dview is not None and not('multiprocessing' in str(type(dview))):
             dview.results.clear()
 
         if scipy.linalg.norm(Cin - C, 'fro') <= 1e-3 * scipy.linalg.norm(C, 'fro'):

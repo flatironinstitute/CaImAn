@@ -233,7 +233,10 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride=4, gnb=1, dview=No
     options['temporal_params']['n_pixels_per_process'] = np.int(old_div(np.prod(rfs), memory_fact))
     nb = options['spatial_params']['nb']
 
+
+
     idx_flat, idx_2d = extract_patch_coordinates(dims, rfs, strides, border_pix=border_pix)
+    idx_flat, idx_2d = list(idx_flat), list(idx_2d)
     args_in = []
     patch_centers = []
     for id_f, id_2d in zip(idx_flat, idx_2d):
@@ -246,14 +249,17 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride=4, gnb=1, dview=No
     print(id_2d)
     st = time.time()
     if dview is not None:
-        try:
-            file_res = dview.map_sync(cnmf_patches, args_in)
-            dview.results.clear()
-        except:
-            print('Something went wrong')
-            raise
-        finally:
-            print('You may think that it went well but reality is harsh')
+        if 'multiprocessing' in str(type(dview)):
+            file_res = dview.map_async(cnmf_patches, args_in).get(9999999)
+        else:
+            try:
+                file_res = dview.map_sync(cnmf_patches, args_in)
+                dview.results.clear()
+            except:
+                print('Something went wrong')
+                raise
+            finally:
+                print('You may think that it went well but reality is harsh')
 
     else:
         file_res = list(map(cnmf_patches, args_in))

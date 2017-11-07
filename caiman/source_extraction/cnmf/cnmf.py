@@ -86,7 +86,7 @@ class CNMF(object):
                  remove_very_bad_comps=False, border_pix=0, low_rank_background=True, 
                  update_background_components=True, rolling_sum = True, rolling_length = 100,
                  min_corr=.85, min_pnr=20, deconvolve_options_init=None, ring_size_factor=1.5,
-				 center_psf=True,  use_dense=True, deconv_flag = True,
+				 center_psf=False,  use_dense=True, deconv_flag = True,
                  simultaneously=False, n_refit=0, del_duplicates=False):
         """
         Constructor of the CNMF method
@@ -591,7 +591,7 @@ class CNMF(object):
         self.neurons_sn = neurons_sn
         self.lam = lam
         self.dims = dims
-
+        
         return self
 
     def _prepare_object(self, Yr, T, expected_comps, new_dims=None, idx_components=None,
