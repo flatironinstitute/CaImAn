@@ -314,7 +314,7 @@ Giovannucci, A., Friedrich, J., Deverett, B., Staneva, V., Chklovskii, D., & Pne
 
 # Questions, comments, issues
 
-Please use the [gitter chat room](https://gitter.im/agiovann/Constrained_NMF) for questions and comments and create an issue for any bugs you might encounter.
+Please use the [gitter chat room](https://gitter.im/agiovann/Constrained_NMF) for questions and comments and create an issue for any bugs you might encounter
 
 # License
 
