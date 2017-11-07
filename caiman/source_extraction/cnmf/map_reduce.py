@@ -246,14 +246,17 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride=4, gnb=1, dview=No
     print(id_2d)
     st = time.time()
     if dview is not None:
-        try:
-            file_res = dview.map_sync(cnmf_patches, args_in)
-            dview.results.clear()
-        except:
-            print('Something went wrong')
-            raise
-        finally:
-            print('You may think that it went well but reality is harsh')
+        if 'multiprocessing' in str(type(dview)):
+            file_res = dview.map(cnmf_patches, args_in)
+        else:
+            try:
+                file_res = dview.map_sync(cnmf_patches, args_in)
+                dview.results.clear()
+            except:
+                print('Something went wrong')
+                raise
+            finally:
+                print('You may think that it went well but reality is harsh')
 
     else:
         file_res = list(map(cnmf_patches, args_in))

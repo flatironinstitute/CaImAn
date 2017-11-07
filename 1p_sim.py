@@ -126,10 +126,15 @@ cn_filter, pnr = cm.summary_images.correlation_pnr(
 
 
 #%%
-c, dview, n_processes = cm.cluster.setup_cluster(
-    backend='local', n_processes=None, single_thread=False)
-
-
+c, dview, n_processes = cm.cluster.setup_cluster(n_processes=None, single_thread=False)
+#%%
+#from multiprocessing import Pool
+#try:
+#    dview.terminate()
+#except:
+#    print('No Pool Running')
+#n_processes = 5
+#dview = Pool(n_processes)
 #%%
 patches = True
 if patches:
@@ -159,8 +164,7 @@ else:
 cnm.fit(Y)
 
 cnm.compute_residuals(Yr)
-
-
+#%%
 if patches:
     # %% DISCARD LOW QUALITY COMPONENT
     final_frate = 10

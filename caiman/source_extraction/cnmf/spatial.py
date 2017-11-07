@@ -205,8 +205,11 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
             range(i, np.prod(dims))), method_ls, cct])
     A_ = np.zeros((d, nr + np.size(f, 0)))    #init A_
     if dview is not None:
-        parallel_result = dview.map_sync(regression_ipyparallel, pixel_groups)
-        dview.results.clear()
+        if 'multiprocessing' in str(type(dview)):
+            parallel_result = dview.map(regression_ipyparallel, pixel_groups)
+        else:
+            parallel_result = dview.map_sync(regression_ipyparallel, pixel_groups)
+            dview.results.clear()
     else:
         parallel_result = list(map(regression_ipyparallel, pixel_groups))
 
@@ -491,7 +494,10 @@ def determine_search_location(A, dims, method='ellipse', min_size=3, max_size=8,
             if dview is None:
                 res = list(map(construct_ellipse_parallel, pars))
             else:
-                res = dview.map_sync(construct_ellipse_parallel, pars)
+                if 'multiprocessing' in str(type(dview)):
+                    res = dview.map(construct_ellipse_parallel, pars)
+                else:
+                    res = dview.map_sync(construct_ellipse_parallel, pars)
             for r in res:
                 dist_indicator.append(r)
 
@@ -639,10 +645,13 @@ def threshold_components(A, dims, medw=None, thr_method='nrg', maxthr=0.1, nrgth
     pars = []
     # fo each neurons
     for i in range(nr):
-        pars.append([A[:, i], i, dims, medw, d, thr_method, se, ss, maxthr, nrgthr, extract_cc])
+        pars.append([scipy.sparse.csc_matrix(A[:, i]), i, dims, medw, d, thr_method, se, ss, maxthr, nrgthr, extract_cc])
 
     if dview is not None:
-        res = dview.map_async(threshold_components_parallel, pars)
+        if 'multiprocessing' in str(type(dview)):
+            res = dview.map(threshold_components_parallel, pars)
+        else:
+            res = dview.map_async(threshold_components_parallel, pars)
     else:
         res = list(map(threshold_components_parallel, pars))
 
@@ -702,6 +711,7 @@ def threshold_components_parallel(pars):
        """
 
     A_i, i, dims, medw, d, thr_method, se, ss, maxthr, nrgthr, extract_cc = pars
+    A_i = A_i.toarray()
     # we reshape this one dimension column of the 2d components into the 2D that
     A_temp = np.reshape(A_i, dims[::-1])
     # we apply a median filter of size medw
