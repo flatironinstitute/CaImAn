@@ -397,7 +397,7 @@ def update_iteration (parrllcomp, len_parrllcomp, nb,C, S, bl, nr,
                    str(nr) + ' temporal components updated'))
 
         for ii in np.arange(nr, nr + nb):
-            cc = np.maximum(YrA[:, ii] + Cin[ii], 0)
+            cc = np.maximum(YrA[:, ii] + Cin[ii], -np.Inf)
             YrA -= AA[ii, :].T.dot((cc - Cin[ii])[None, :]).T
             C[ii, :] = cc
 

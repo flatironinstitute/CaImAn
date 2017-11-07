@@ -10,10 +10,11 @@ from operator import itemgetter
 import matplotlib.pyplot as plt
 import caiman as cm
 from caiman.source_extraction import cnmf
+from caiman.source_extraction.cnmf.utilities import compute_residuals
 import itertools
 from past.utils import old_div
-
-
+import pylab as pl
+import scipy
 #%%
 def get_mapping(inferredC, trueC, A):
    """
@@ -81,10 +82,11 @@ A, C, b, A_cnmfe, f, C_cnmfe, Craw_cnmfe, b0, sn, Yr, S_cnmfe = itemgetter(
     'A', 'C', 'b', 'A_cnmfe', 'f', 'C_cnmfe',
     'Craw_cnmfe', 'b0', 'sn', 'Y', 'S_cnmfe')(test_sim)
 dims = (253, 316)
+
 Y = Yr.T.reshape((-1,) + dims, order='F')
 
 plt.imshow(Y[0])
-cm.movie(Y).play(fr=30, magnification=2)
+#cm.movie(Y).play(fr=30, magnification=2)
 plt.figure(figsize=(20, 4))
 plt.plot(C.T)
 
@@ -96,46 +98,42 @@ min_pnr = 15
 # If True, the background can be roughly removed. This is useful when the background is strong.
 center_psf = True
 
-fname_new = cm.save_memmap([Y], base_name='Yr')
+fname_new = cm.save_memmap([Y], base_name='Yr',idx_xy=(slice(96,2*96),slice(96,2*96)))
+dims = (96,96)
+#fname_new = cm.save_memmap([Y], base_name='Yr')
+
+Yr, dims, T = cm.load_memmap(fname_new)
+Y = Yr.T.reshape((T,) + dims, order='F')
+#%%
+cn_filter, pnr = cm.summary_images.correlation_pnr(
+    Y, gSig=gSig, center_psf=center_psf, swap_dim=False)
 #%%
 c, dview, n_processes = cm.cluster.setup_cluster(
-    backend='local', n_processes=None, single_thread=False)
+    backend='local', n_processes=12, single_thread=False)
 #%%
 patches = True
 if patches:
-    cnm = cnmf.CNMF(n_processes=n_processes, method_init='corr_pnr', k=35, gSig=(3, 3), gSiz=(10, 10),
+    cnm = cnmf.CNMF(n_processes=n_processes, method_init='corr_pnr', k=25, gSig=(3, 3), gSiz=(10, 10),
                     merge_thresh=.8, p=1, dview=dview, tsub=1, ssub=1, Ain=None, rf=(32, 32), stride=(32, 32),
-                    only_init_patch=True, gnb=6, nb_patch=3, method_deconvolution='oasis',
+                    only_init_patch=True, gnb=6, nb_patch=6, method_deconvolution='oasis',
                     low_rank_background=True, update_background_components=False, min_corr=min_corr,
                     min_pnr=min_pnr, normalize_init=False, deconvolve_options_init=None,
                     ring_size_factor=1.5, center_psf=True)
    
-    memmap = True  # must be True for patches
-    if memmap:
-        if '.mmap' in fname:
-            fname_new = fname
-        else:
-            fname_new = cm.save_memmap([fname], base_name='Yr')
-        Yr, dims, T = cm.load_memmap(fname_new)
-        cnm.fit(Yr.T.reshape((T,) + dims, order='F'))
-    else:
-        cnm.fit(Y)  
-    #%%
-    A_, C_, b_, f_, YrA_, sn_ = cnm.A, cnm.C, cnm.b, cnm.f, cnm.YrA, cnm.sn 
-    Ab = scipy.sparse.hstack((A_, b_)).tocsc()
-    Cf = np.vstack((C_, f_))
-    nA = np.ravel(Ab.power(2).sum(axis=0))
-    YA = cm.mmapping.parallel_dot_product(Yr, Ab, dview=dview, block_size=1000,
-                                  transpose=True, num_blocks_per_run=5) * scipy.sparse.spdiags(old_div(1., nA), 0, Ab.shape[-1], Ab.shape[-1])
+
     
-    AA = ((Ab.T.dot(Ab)) * scipy.sparse.spdiags(old_div(1., nA), 0, Ab.shape[-1], Ab.shape[-1])).tocsr()
-    YrA_ = (YA - (AA.T.dot(Cf)).T)[:,:A_.shape[-1]].T        
+    cnm.fit(Y)
+    #%%
+    import scipy
+    A_, C_, b_, f_, YrA_, sn_ = scipy.sparse.coo_matrix(cnm.A), cnm.C, cnm.b, cnm.f, cnm.YrA, cnm.sn 
+         
+    YrA_ = compute_residuals(np.array(Yr), A_,b_,C_,f_, dview = dview)        
 #%%    ## %% DISCARD LOW QUALITY COMPONENT
     final_frate = 10
-    r_values_min = 0.1  # threshold on space consistency
-    fitness_min = -20  # threshold on time variability
+    r_values_min = .9  # threshold on space consistency
+    fitness_min = -1  # threshold on time variability
     # threshold on time variability (if nonsparse activity)
-    fitness_delta_min = - 20
+    fitness_delta_min = - 1
     Npeaks = 5
     traces = C_ + YrA_
     # TODO: todocument
@@ -155,6 +153,8 @@ if patches:
     C_ = C_[idx_components]
     YrA_ = YrA_[idx_components]
     #%%
+    YrA_GT = compute_residuals(np.array(Yr), A,b,C,f, dview = None)    
+
     cm.utils.visualization.view_patches_bar(Yr, scipy.sparse.coo_matrix(A), C,
                                             b, f, dims[0], dims[1], YrA=Craw_cnmfe, img=cn_filter)
 #%%    
@@ -184,9 +184,7 @@ else:
 A_, C_, b_, f_, YrA_, sn_ = cnm.A, cnm.C, cnm.b, cnm.f, cnm.YrA, cnm.sn  
 #%%
 
-#%%
-cn_filter, pnr = cm.summary_images.correlation_pnr(
-    Y, gSig=gSig, center_psf=center_psf, swap_dim=False)
+
 #%%
 import scipy
 cm.utils.visualization.view_patches_bar(Yr, scipy.sparse.coo_matrix(A_), C_,b_, f_, dims[0], dims[1], YrA=YrA_, img=cn_filter)
@@ -218,11 +216,17 @@ N, T = C.shape
 #mapIdx = mapIdx.astype(int)
 mapIdx= get_mapping(C_, C, A)
 mapIdx= mapIdx.astype(np.int)
-corC = np.array([np.corrcoef(C_[mapIdx[n]], C[n])[0, 1] for n in range(N)])
-corA = np.array([np.corrcoef(A_[:, mapIdx[n]].squeeze(), A[:, n])[0, 1] for n in range(N)])
+if False:
+    corC = np.array([np.corrcoef(C_[mapIdx[n]], C[n])[0, 1] for n in range(N)])
+    corA = np.array([np.corrcoef(A_[:, mapIdx[n]].toarray().squeeze(), A[:, n])[0, 1] for n in range(N)])
+    corC_cnmfe = np.array([np.corrcoef(C_cnmfe[n], C[n])[0, 1] for n in range(N)])
+    corA_cnmfe = np.array([np.corrcoef(A_cnmfe.toarray()[:, n], A[:, n])[0, 1] for n in range(N)])
 
-corC_cnmfe = np.array([np.corrcoef(C_cnmfe[n], C[n])[0, 1] for n in range(N)])
-corA_cnmfe = np.array([np.corrcoef(A_cnmfe.toarray()[:, n], A[:, n])[0, 1] for n in range(N)])
+else:
+    corC = np.array([np.corrcoef(C_[mapIdx[n]]+YrA_[mapIdx[n]], C[n]+YrA_GT[n])[0, 1] for n in range(N)])
+    corA = np.array([np.corrcoef(A_[:, mapIdx[n]].toarray().squeeze(), A[:, n])[0, 1] for n in range(N)])
+    corC_cnmfe = np.array([np.corrcoef(Craw_cnmfe[n], C[n]+YrA_GT[n])[0, 1] for n in range(N)])
+    corA_cnmfe = np.array([np.corrcoef(A_cnmfe.toarray()[:, n], A[:, n])[0, 1] for n in range(N)])
 
 print(np.median(corC), np.median(corA))
 print(np.median(corC_cnmfe), np.median(corA_cnmfe))

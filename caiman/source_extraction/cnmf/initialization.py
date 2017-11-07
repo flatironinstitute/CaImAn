@@ -35,7 +35,6 @@ import sys
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
-import pdb
 #%%
 
 if sys.version_info >= (3, 0):
@@ -206,7 +205,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
             Y, Y_ds, max_number=K, gSiz=gSiz[0], gSig=gSig[0], min_corr=min_corr, min_pnr=min_pnr,
             deconvolve_options=deconvolve_options_init, ring_size_factor=ring_size_factor,
             center_psf=center_psf, options=options_total, sn=sn, nb=nb)
-
+        
     elif method == 'sparse_nmf':
         Ain, Cin, _, b_in, f_in = sparseNMF(
             Y_ds, nr=K, nb=nb, max_iter_snmf=max_iter_snmf, alpha=alpha_snmf,
@@ -289,6 +288,8 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
             Ain = Ain * np.reshape(img, (np.prod(d), -1), order='F')
 
         b_in = b_in * np.reshape(img, (np.prod(d), -1), order='F')
+    
+    
 
     return Ain, Cin, b_in, f_in, center
 
@@ -910,7 +911,6 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
     #f_in = model.components_.squeeze()
     #f_in = np.linalg.lstsq(b_in.T.dot(b_in),b_in.T.dot(B))[0]
     f_in = np.linalg.lstsq(b_in,B)[0]
-
     return A, np.array(C), center.T, b_in, f_in
 
 

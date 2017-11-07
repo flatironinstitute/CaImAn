@@ -142,7 +142,7 @@ def cnmf_patches(args_in):
         cnm = cnm.fit(images)
         return idx_,shapes,scipy.sparse.coo_matrix(cnm.A),\
                cnm.b,cnm.C,cnm.f,cnm.S,cnm.bl,cnm.c1,\
-               cnm.neurons_sn,cnm.g,cnm.sn,cnm.options,cnm.YrA.T
+               cnm.neurons_sn,cnm.g,cnm.sn,cnm.options,cnm.YrA
     else:
         return None
 
@@ -308,6 +308,7 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, gnb = 1, dvie
 
             for ii in range(np.shape(A)[-1]):
                 new_comp = old_div(A.tocsc()[:, ii], np.sqrt(np.sum(np.array(A.tocsc()[:, ii].todense())**2)))
+                new_comp = A.tocsc()[:, ii]
                 if new_comp.sum() > 0:
                     a_tot.append(new_comp.toarray().flatten())
                     idx_tot_A.append(idx_)
@@ -353,9 +354,8 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, gnb = 1, dvie
 
     Im = scipy.sparse.csr_matrix((old_div(1., mask), (np.arange(d), np.arange(d))))
     A_tot = Im.dot(A_tot)
-    import pdb
-    pdb.set_trace()
-    
+
+
     
     if low_rank_background:
         B_tot = Im.dot(B_tot)
@@ -370,11 +370,17 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, gnb = 1, dvie
             except np.linalg.LinAlgError:  # singular matrix
                 b = np.fmax(Bm.dot(scipy.linalg.lstsq(f.T, F_tot.T)[0].T), 0)
             try:
-                f = np.fmax(np.linalg.inv(b.T.dot(b)).dot((Bm.T.dot(b)).T.dot(F_tot)), 0)
+                f = np.linalg.inv(b.T.dot(b)).dot((Bm.T.dot(b)).T.dot(F_tot))
             except np.linalg.LinAlgError:  # singular matrix
-                f = np.fmax(scipy.linalg.lstsq(b, Bm.toarray())[0].dot(F_tot), 0)
+                f = scipy.linalg.lstsq(b, Bm.toarray())[0].dot(F_tot)
+                
+        nB = np.ravel(np.sqrt((b**2).sum(0)))        
+        b /= nB
+        b = np.array(b, dtype=np.float32)
+#        B_tot = scipy.sparse.coo_matrix(B_tot)
+        f *= nB[:, None]    
     else:
-
+        
         nA = np.ravel(np.sqrt(A_tot.power(2).sum(0)))
         A_tot /= nA
         A_tot = scipy.sparse.coo_matrix(A_tot)
@@ -403,7 +409,8 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, gnb = 1, dvie
         f = F_tot
         print()
         print('******** USING ONE BACKGROUND PER PATCH ******')
-
+        
     print("Generating background DONE")
-
+    
+    
     return A_tot, C_tot, YrA_tot, b, f, sn_tot, optional_outputs

@@ -28,7 +28,7 @@ from builtins import str
 from builtins import object
 from past.utils import old_div
 import numpy as np
-from .utilities import CNMFSetParms, update_order
+from .utilities import CNMFSetParms, update_order, normalize_AC, compute_residuals
 from .pre_processing import preprocess_data
 from .initialization import initialize_components
 from .merging import merge_components
@@ -42,7 +42,7 @@ from .online_cnmf import RingBuffer, HALS4activity, demix_and_deconvolve
 from .online_cnmf import init_shapes_and_sufficient_stats, update_shapes, update_num_components
 import scipy
 import psutil
-from caiman.source_extraction.cnmf import oasis
+
 import pylab as pl
 from time import time
 
@@ -409,16 +409,18 @@ class CNMF(object):
                     Y, sn = sn, options_total = options, **options['init_params'])
 
             if self.only_init:  # only return values after initialization
-
-                nA = np.squeeze(np.array(np.sum(np.square(self.Ain), axis=0)))
-                nr = nA.size
-                Cin = scipy.sparse.coo_matrix(self.Cin)
-                YA = (self.Ain.T.dot(Yr).T) * scipy.sparse.spdiags(old_div(1., nA), 0, nr, nr)
-                AA = ((self.Ain.T.dot(self.Ain)) * scipy.sparse.spdiags(old_div(1., nA), 0, nr, nr))
-
-                self.YrA = YA - Cin.T.dot(AA)
+                
+                
+                self.YrA = compute_residuals(Yr,self.Ain,self.b_in,self.Cin,self.f_in, dview=self.dview, block_size=1000, num_blocks_per_run=5)
+#                nA = np.squeeze(np.array(np.sum(np.square(self.Ain), axis=0)))
+#                nr = nA.size
+#                Cin = scipy.sparse.coo_matrix(self.Cin)
+#                YA = (self.Ain.T.dot(Yr).T) * scipy.sparse.spdiags(old_div(1., nA), 0, nr, nr)
+#                AA = ((self.Ain.T.dot(self.Ain)) * scipy.sparse.spdiags(old_div(1., nA), 0, nr, nr))
+#
+#                self.YrA = YA - Cin.T.dot(AA)
                 self.A = self.Ain
-                self.C = Cin.todense()
+                self.C = self.Cin
 
                 if self.remove_very_bad_comps:
                     print('removing bad components : ')
@@ -439,8 +441,12 @@ class CNMF(object):
                            ' and discarding  ' + str(len(idx_components_bad))))
                     self.C = self.C[idx_components]
                     self.A = self.A[:, idx_components]
-                    self.YrA = self.YrA[:, idx_components]
-
+                    self.YrA = self.YrA[idx_components]
+                    
+                    
+                    
+                
+                    
                 self.sn = sn
                 self.b = self.b_in
                 self.f = self.f_in
@@ -448,7 +454,8 @@ class CNMF(object):
                 self.bl = None
                 self.c1 = None
                 self.neurons_sn = None
-                
+
+                self.A, self.C, self.YrA, self.b, self.f = normalize_AC(self.A,self.C,self.YrA,self.b,self.f)
                 return self
 
             print('update spatial ...')
@@ -512,7 +519,7 @@ class CNMF(object):
 																	 low_rank_background=self.low_rank_background)
                                                                      
             
-
+            
             # options = CNMFSetParms(Y, self.n_processes, p=self.p, gSig=self.gSig, K=A.shape[
             #                        -1], thr=self.merge_thresh, n_pixels_per_process=self.n_pixels_per_process,
             #                        block_size=self.block_size, check_nan=self.check_nan)
@@ -534,13 +541,26 @@ class CNMF(object):
                 while len(merged_ROIs) > 0:
                     A, C, nr, merged_ROIs, S, bl, c1, sn_n, g = merge_components(Yr, A, [], np.array(C), [], np.array(
                         C), [], options['temporal_params'], options['spatial_params'], dview=self.dview,
-                        thr=self.merge_thresh, mx=np.Inf, fast_merge = False)
+                        thr=self.merge_thresh, mx=np.Inf, fast_merge = True)
 
                 g1 = g
                 neurons_sn = sn_n    
                 lam = None
                 YrA = None
+                print("update temporal")
+                C, A, b, f, S, bl, c1, neurons_sn, g1, YrA, lam = update_temporal_components(
+                        Yr, A, b, C, f, dview=self.dview, bl=None, c1=None, sn=None, g=None, **options['temporal_params'])
                 
+                options['spatial_params']['se'] = np.ones((1,) * len(dims), dtype=np.uint8)    
+                options['spatial_params']['update_background_components'] = True
+                print('update spatial ...')
+                A, b, C, f = update_spatial_components(
+                        Yr, C = C, f = f, A_in = A, sn=sn, b_in = b, dview=self.dview, **options['spatial_params'])       
+                
+                print("update temporal")
+                C, A, b, f, S, bl, c1, neurons_sn, g1, YrA, lam = update_temporal_components(
+                        Yr, A, b, C, f, dview=self.dview, bl=None, c1=None, sn=None, g=None, **options['temporal_params'])
+                              
                 
             else:
                 
@@ -569,9 +589,14 @@ class CNMF(object):
         self.neurons_sn = neurons_sn
         self.lam = lam
         self.dims = dims
+        
+        self.A, self.C, self.YrA, self.b, self.f = normalize_AC(self.A,self.C,self.YrA,self.b,self.f)
 
         return self
-
+    
+    
+            
+            
     def _prepare_object(self, Yr, T, expected_comps, new_dims=None, idx_components=None,
                         g=None, lam=None, s_min=None, bl=None, use_dense=True):
 
