@@ -367,7 +367,7 @@ def update_iteration (parrllcomp, len_parrllcomp, nb,C, S, bl, nr,
                         None, None, None, kwargs) for jj in range(len(jo))]
             #computing the most likely discretized spike train underlying a fluorescence trace
             if 'multiprocessing' in str(type(dview)):                
-                results = dview.map(constrained_foopsi_parallel, args_in)                    
+                results = dview.map_async(constrained_foopsi_parallel, args_in).get(9999999)                    
             
             elif dview is not None and platform.system()!='Darwin':                                    
                 if debug:

@@ -130,7 +130,7 @@ def save_memmap_each(fnames, dview=None, base_name=None, resize_fact=(1, 1, 1), 
 
     if dview is not None:
         if 'multiprocessing' in str(type(dview)):
-            fnames_new = dview.map(save_place_holder, pars)
+            fnames_new = dview.map_async(save_place_holder, pars).get(9999999)
         else:
             fnames_new = dview.map_sync(save_place_holder, pars)
     else:
@@ -195,7 +195,7 @@ def save_memmap_join(mmap_fnames, base_name=None, n_chunks=20, dview=None, async
 
     if dview is not None:
         if 'multiprocessing' in str(type(dview)):
-            dview.map(save_portion, pars)            
+            dview.map_async(save_portion, pars).get(9999999)            
         else:
             dview.map_sync(save_portion, pars)
     else:
@@ -517,7 +517,7 @@ def parallel_dot_product(A, b, block_size=5000, dview=None, transpose=False, num
         for itera in range(0, len(pars), num_blocks_per_run):
             
             if 'multiprocessing' in str(type(dview)):
-                results = dview.map(dot_place_holder, pars[itera:itera + num_blocks_per_run])
+                results = dview.map_async(dot_place_holder, pars[itera:itera + num_blocks_per_run]).get(9999999)
             else:
                 results = dview.map_sync(dot_place_holder, pars[itera:itera + num_blocks_per_run])
                 
