@@ -53,7 +53,7 @@ else:
     alpha_snmf=None #10e2  # this controls sparsity
 
 #%% FOR LOADING ALL TIFF FILES IN A FILE AND SAVING THEM ON A SINGLE MEMORY MAPPABLE FILE
-fnames = ['Sue_3000.tif']
+fnames = ['demoMovieJ.tif']
 base_folder = './example_movies/'  # folder containing the demo files
 
 download_demo(fnames[0])
