@@ -184,6 +184,8 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
 
         Y = old_div(Y, np.reshape(img, d + (-1,), order='F'))
         alpha_snmf /= np.mean(img)
+    else:
+        Y = np.array(Y)
 
     # spatial downsampling
     mean_val = np.mean(Y)
@@ -1198,9 +1200,10 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
                 ax_traces.set_title('The fluo. trace at the seed pixel')
 
                 writer.grab_frame()
-
+           
             [ai, ci_raw, ind_success] = extract_ac(data_filtered_box,
                                                    data_raw_box, ind_ctr, patch_dims)
+            
             if (np.sum(ai > 0) < min_pixel) or (not ind_success):
                 # bad initialization. discard and continue
                 continue
@@ -1332,24 +1335,22 @@ def extract_ac(data_filtered, data_raw, ind_ctr, patch_dims):
     ci = np.mean(data_filtered[:, ind_neuron], axis=1).reshape(-1, 1)
     # initialize temporal activity of the neural
     ci -= np.median(ci)
-
     if np.linalg.norm(ci) == 0:  # avoid empty results
         return None, None, False
 
     # roughly estimate the background fluctuation
     y_bg = np.median(data_raw[:, ind_bg], axis=1).reshape(-1, 1)
-
     # extract spatial components
     # pdb.set_trace()
-    X = np.hstack([ci - ci.mean(), y_bg - y_bg.mean(), np.ones(ci.shape)])
-    XX = np.dot(X.transpose(), X)
-    Xy = np.dot(X.transpose(), data_raw)
-    ai = scipy.linalg.lstsq(XX, Xy)[0][0]
+    X = np.hstack([ci - ci.mean(), y_bg - y_bg.mean(), np.ones(ci.shape)])    
+    XX = np.dot(X.transpose(), X)  
+    Xy = np.dot(X.T, data_raw)       
+    ai = scipy.linalg.lstsq(XX, Xy)[0][0]    
     ai = ai.reshape(patch_dims)
     ai[ai < 0] = 0
 
     # post-process neuron shape
     ai = circular_constraint(ai)
-
+    
     # return results
     return ai, ci.reshape(len(ci)), True

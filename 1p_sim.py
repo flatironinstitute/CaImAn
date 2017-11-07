@@ -111,13 +111,15 @@ K = 200
 
 
 #%%
-whole_FOV = True
+whole_FOV = False
 if whole_FOV:
     fname_new = cm.save_memmap([Y], base_name='Yr')
     dims = dims_in
 else:
-    fname_new = cm.save_memmap([Y], base_name='Yr', idx_xy=(slice(96, 2 * 96), slice(96, 2 * 96)))
-    dims = (96, 96)
+    
+    fname_new = cm.save_memmap([Y], base_name='Yr', idx_xy=(slice(120, 2 * 120), slice(120, 2 * 120)))
+    dims = (120, 120)
+
 Yr, dims, T = cm.load_memmap(fname_new)
 Y = Yr.T.reshape((T,) + dims, order='F')
 
@@ -126,15 +128,11 @@ cn_filter, pnr = cm.summary_images.correlation_pnr(
 
 
 #%%
-c, dview, n_processes = cm.cluster.setup_cluster(n_processes=None, single_thread=False)
-#%%
-#from multiprocessing import Pool
-#try:
-#    dview.terminate()
-#except:
-#    print('No Pool Running')
-#n_processes = 5
-#dview = Pool(n_processes)
+try:
+    dview.terminate()
+except:
+    pass        
+c, dview, n_processes = cm.cluster.setup_cluster(backend = 'local',n_processes=None, single_thread=False)
 #%%
 patches = True
 if patches:
@@ -144,14 +142,15 @@ if patches:
     #                 low_rank_background=False, update_background_components=False, min_corr=min_corr,
     #                 min_pnr=min_pnr, normalize_init=False, deconvolve_options_init=None,
     #                 ring_size_factor=1.5, center_psf=True)
-    cnm = cnmf.CNMF(n_processes=n_processes, method_init='corr_pnr', k=120,
+    cnm = cnmf.CNMF(n_processes=n_processes, method_init='corr_pnr', k=70,
                     gSig=(gSig, gSig), gSiz=(gSiz, gSiz), merge_thresh=.7,
-                    p=1, dview=dview, tsub=1, ssub=2, Ain=None, rf=(100, 100), stride=(25, 25),
+                    p=1, dview=dview, tsub=1, ssub=1, Ain=None, rf=(50, 50), stride=(50, 50),
                     only_init_patch=True, gnb=10, nb_patch=6, method_deconvolution='oasis',
                     low_rank_background=False, update_background_components=False, min_corr=min_corr,
                     min_pnr=min_pnr, normalize_init=False, deconvolve_options_init=None,
                     ring_size_factor=1.5, center_psf=True, del_duplicates=True)
-
+    
+#    cnm.n_pixels_per_process=300
 else:
     cnm = cnmf.CNMF(n_processes=n_processes, method_init='corr_pnr', k=K,
                     gSig=(gSig, gSig), gSiz=(gSiz, gSiz),
@@ -168,10 +167,10 @@ cnm.compute_residuals(Yr)
 if patches:
     # %% DISCARD LOW QUALITY COMPONENT
     final_frate = 10
-    r_values_min = 0.1  # threshold on space consistency
-    fitness_min = -20  # threshold on time variability
+    r_values_min = 0.8  # threshold on space consistency
+    fitness_min = -30  # threshold on time variability
     # threshold on time variability (if nonsparse activity)
-    fitness_delta_min = - 20
+    fitness_delta_min = - 30
     Npeaks = 5
     traces = cnm.C + cnm.YrA
     # TODO: todocument
@@ -183,7 +182,7 @@ if patches:
            ' and discarding  ' + str(len(idx_components_bad))))
     cnm.A = cnm.A[:, idx_components]
     cnm.C = cnm.C[idx_components]
-
+    cnm.YrA = cnm.YrA[idx_components]
 
 #%%
 cm.utils.visualization.view_patches_bar(Yr, cnm.A, cnm.C, cnm.b, cnm.f,
@@ -208,3 +207,5 @@ print(np.median(corC), np.median(corA))
 print(np.median(corC_cnmfe), np.median(corA_cnmfe))
 
 plot_centers()
+#%%
+cm.stop_server(dview=dview)
