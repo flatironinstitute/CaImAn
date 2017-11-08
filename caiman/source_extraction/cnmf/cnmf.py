@@ -419,7 +419,7 @@ class CNMF(object):
                 self.YrA = compute_residuals(Yr,self.Ain,self.b_in,self.Cin,self.f_in, dview=self.dview, block_size=1000, num_blocks_per_run=5)
 
                 self.A = self.Ain
-                self.C = Cin.toarray()
+                self.C = self.Cin
 
                 if self.remove_very_bad_comps:
                     print('removing bad components : ')

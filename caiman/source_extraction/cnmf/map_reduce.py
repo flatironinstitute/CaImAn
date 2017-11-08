@@ -423,7 +423,7 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride=4, gnb=1, dview=No
         f *= nB[:, None]    
     else:
         print('Removing overlapping background components from different patches')
-		nA = np.ravel(np.sqrt(A_tot.power(2).sum(0)))
+        nA = np.ravel(np.sqrt(A_tot.power(2).sum(0)))
         A_tot /= nA
         A_tot = scipy.sparse.coo_matrix(A_tot)
         C_tot *= nA[:, None]
