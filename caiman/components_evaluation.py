@@ -480,11 +480,15 @@ def estimate_components_quality(traces, Y, A, C, b, f, final_frate = 30, Npeaks=
             idx = list(filter(lambda a: a is not None, idx))    
             params.append([Y.filename,traces[idx],A.tocsc()[:,idx],C[idx],b,f,final_frate,remove_baseline,N,robust_std,Athresh,Npeaks,thresh_C])
         
-        if dview is None:
+        if dview is None:            
             res = map(evaluate_components_placeholder,params)
         else:
+            
             print('EVALUATING IN PARALLEL... NOT RETURNING ERFCs')
-            res = dview.map_sync(evaluate_components_placeholder,params)
+            if 'multiprocessing' in str(type(dview)):
+                res = dview.map_async(evaluate_components_placeholder,params).get(9999999)
+            else:
+                res = dview.map_sync(evaluate_components_placeholder,params)
         
         fitness_raw = []
         fitness_delta = [] 

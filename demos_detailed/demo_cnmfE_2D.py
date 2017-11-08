@@ -118,9 +118,9 @@ c, dview, n_processes = cm.cluster.setup_cluster(
 
 
 #%%
-cnm = cnmf.CNMF(n_processes=n_processes, method_init='corr_pnr', k=25, gSig=(3, 3), gSiz=(10, 10), merge_thresh=.8,
+cnm = cnmf.CNMF(n_processes=n_processes, method_init='corr_pnr', k=35, gSig=(3, 3), gSiz=(10, 10), merge_thresh=.8,
                 p=1, dview=dview, tsub=1, ssub=1, Ain=None, rf=(25, 25), stride=(25, 25),
-                only_init_patch=True, gnb=10, nb_patch=6, method_deconvolution='oasis',
+                only_init_patch=True, gnb=5, nb_patch=3, method_deconvolution='oasis',
                 low_rank_background=False, update_background_components=False, min_corr=min_corr,
                 min_pnr=min_pnr, normalize_init=False, deconvolve_options_init=None,
                 ring_size_factor=1.5, center_psf=True)
@@ -152,77 +152,69 @@ if memmap:
     cnm.fit(Yr.T.reshape((T,) + dims, order='F'))
 else:
     cnm.fit(Y)
-#%%
-A_tot, C_tot, b_tot, f_tot, YrA_tot, sn = cnm.A, cnm.C, cnm.b, cnm.f, cnm.YrA, cnm.sn
-#%%
-crd = cm.utils.visualization.plot_contours(A_tot, cn_filter, thr=.95, vmax=0.95)
-#%%
-plt.imshow(A_tot.sum(-1).reshape(dims, order='F'))
-
-
-# %% DISCARD LOW QUALITY COMPONENT
-final_frate = 10
-r_values_min = 0.1  # threshold on space consistency
-fitness_min = - 20  # threshold on time variability
-# threshold on time variability (if nonsparse activity)
-fitness_delta_min = - 20
-Npeaks = 10
-traces = C_tot + YrA_tot
-# TODO: todocument
-idx_components, idx_components_bad = cm.components_evaluation.estimate_components_quality(
-    traces, Yr, A_tot, C_tot, b_tot, f_tot, final_frate=final_frate, Npeaks=Npeaks,
-    r_values_min=r_values_min, fitness_min=fitness_min, fitness_delta_min=fitness_delta_min)
-
-print(('Keeping ' + str(len(idx_components)) + ' and discarding  ' + str(len(idx_components_bad))))
-#%%
-plt.subplot(1, 2, 1)
-crd = cm.utils.visualization.plot_contours(A_tot.tocsc()[:, idx_components], cn_filter, thr=.95)
-plt.subplot(1, 2, 2)
-crd = cm.utils.visualization.plot_contours(
-    A_tot.tocsc()[:, idx_components_bad], cn_filter, thr=.95)
-#%%
-cm.utils.visualization.view_patches_bar(
-    Yr, coo_matrix(A_tot.tocsc()[:, idx_components]), C_tot[idx_components, :],
-    b_tot, f_tot, dims[0], dims[1], YrA=YrA_tot[idx_components, :], img=cn_filter)
-#%%
-cm.utils.visualization.view_patches_bar(
-    Yr, coo_matrix(A_tot.tocsc()[:, idx_components_bad]), C_tot[idx_components_bad, :],
-    b_tot, f_tot, dims[0], dims[1], YrA=YrA_tot[idx_components_bad, :], img=cn_filter)
-
-
-# %% rerun updating the components to refine
-cnm = cnmf.CNMF(n_processes=1, k=A_tot.shape, gSig=[gSig, gSig], merge_thresh=0.8, p=1,
-                dview=dview, Ain=A_tot, Cin=C_tot, b_in=b_tot,
-                f_in=f_tot, rf=None, stride=None, method_deconvolution='oasis', gnb=None,
-                low_rank_background=False, update_background_components=False)
-
-memmap = True  # must be True for patches
-if memmap:
-    fname_new = cm.save_memmap([fname], base_name='Yr')
-    Yr, dims, T = cm.load_memmap(fname_new)
-    cnm.fit(Yr.T.reshape((T,) + dims, order='F'))
-else:
-    cnm.fit(Y)
+##%%
+#A_tot, C_tot, b_tot, f_tot, YrA_tot, sn = cnm.A, cnm.C, cnm.b, cnm.f, cnm.YrA, cnm.sn
+##%%
+#crd = cm.utils.visualization.plot_contours(A_tot, cn_filter, thr=.95, vmax=0.95)
+##%%
+#plt.imshow(A_tot.sum(-1).reshape(dims, order='F'))
+#
+#
+## %% DISCARD LOW QUALITY COMPONENT
+#final_frate = 10
+#r_values_min = 0.1  # threshold on space consistency
+#fitness_min = - 20  # threshold on time variability
+## threshold on time variability (if nonsparse activity)
+#fitness_delta_min = - 20
+#Npeaks = 10
+#traces = C_tot + YrA_tot
+## TODO: todocument
+#idx_components, idx_components_bad = cm.components_evaluation.estimate_components_quality(
+#    traces, Yr, A_tot, C_tot, b_tot, f_tot, final_frate=final_frate, Npeaks=Npeaks,
+#    r_values_min=r_values_min, fitness_min=fitness_min, fitness_delta_min=fitness_delta_min)
+#
+#print(('Keeping ' + str(len(idx_components)) + ' and discarding  ' + str(len(idx_components_bad))))
+##%%
+#plt.subplot(1, 2, 1)
+#crd = cm.utils.visualization.plot_contours(A_tot.tocsc()[:, idx_components], cn_filter, thr=.95)
+#plt.subplot(1, 2, 2)
+#crd = cm.utils.visualization.plot_contours(
+#    A_tot.tocsc()[:, idx_components_bad], cn_filter, thr=.95)
+##%%
+#cm.utils.visualization.view_patches_bar(
+#    Yr, coo_matrix(A_tot.tocsc()[:, idx_components]), C_tot[idx_components, :],
+#    b_tot, f_tot, dims[0], dims[1], YrA=YrA_tot[idx_components, :], img=cn_filter)
+##%%
+#cm.utils.visualization.view_patches_bar(
+#    Yr, coo_matrix(A_tot.tocsc()[:, idx_components_bad]), C_tot[idx_components_bad, :],
+#    b_tot, f_tot, dims[0], dims[1], YrA=YrA_tot[idx_components_bad, :], img=cn_filter)
+#
+#
+## %% rerun updating the components to refine
+#cnm = cnmf.CNMF(n_processes=1, k=A_tot.shape, gSig=[gSig, gSig], merge_thresh=0.8, p=1,
+#                dview=dview, Ain=A_tot, Cin=C_tot, b_in=b_tot,
+#                f_in=f_tot, rf=None, stride=None, method_deconvolution='oasis', gnb=None,
+#                low_rank_background=False, update_background_components=False)
+#
+#memmap = True  # must be True for patches
+#if memmap:
+#    fname_new = cm.save_memmap([fname], base_name='Yr')
+#    Yr, dims, T = cm.load_memmap(fname_new)
+#    cnm.fit(Yr.T.reshape((T,) + dims, order='F'))
+#else:
+#    cnm.fit(Y)
 
 
 #%%
 A, C, b, f, YrA, sn = cnm.A, cnm.C, cnm.b, cnm.f, cnm.YrA, cnm.sn
 #%%
-idx_components = range(np.shape(A)[-1])
-plt.subplot(1, 2, 1)
-crd = cm.utils.visualization.plot_contours(A.tocsc()[:, idx_components], cn_filter, thr=.95)
-plt.subplot(1, 2, 2)
-crd = cm.utils.visualization.plot_contours(A.tocsc()[:, idx_components_bad], cn_filter, thr=.95)
+pl.figure()
+crd = cm.utils.visualization.plot_contours(A.tocsc()[:, idx_components], cn_filter, thr=.9)
+
 #%%
 plt.imshow(A.sum(-1).reshape(dims, order='F'), vmax=200)
 #%%
-idx_components = np.where(np.array([scipy.stats.pearsonr(c, c_)[0] for c, c_ in zip(C, C_tot)]) * np.array(
-    [scipy.stats.pearsonr(c, c_)[0] for c, c_ in zip(A.T.toarray(), A_tot.T.toarray())]) < .8)[0]
+idx_components = np.arange(A.shape[-1])
 cm.utils.visualization.view_patches_bar(
     Yr, coo_matrix(A.tocsc()[:, idx_components]), C[idx_components],
     b, f, dims[0], dims[1], YrA=YrA[idx_components], img=cn_filter)
-#%%
-plt.figure()
-cm.utils.visualization.view_patches_bar(
-    Yr, coo_matrix(A_tot.tocsc()[:, idx_components]), C_tot[idx_components],
-    b_tot, f_tot, dims[0], dims[1], YrA=YrA_tot[idx_components], img=cn_filter)
