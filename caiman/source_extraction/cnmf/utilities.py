@@ -734,3 +734,78 @@ def update_order_greedy(A, flag_AA=True):
             parllcomp.append([i])
     len_parrllcomp = [len(ls) for ls in parllcomp]
     return parllcomp, len_parrllcomp
+#%%
+def compute_residuals(Yr_mmap_file, A_,b_,C_,f_, dview=None, block_size=1000, num_blocks_per_run=5):    
+    '''compute residuals from memory mapped file and output of CNMF
+        Params:
+        -------            
+        A_,b_,C_,f_: 
+                from CNMF
+        
+        block_size: int
+            number of pixels processed together
+        
+        num_blocks_per_run: int
+            nnumber of parallel blocks processes 
+        
+        Return:
+        -------
+        YrA: ndarray
+            residuals per neuron
+    '''
+    if not ('sparse' in str(type(A_))):
+        A_ = scipy.sparse.coo_matrix(A_)
+
+    Ab = scipy.sparse.hstack((A_, b_)).tocsc()
+
+    Cf = np.vstack((C_, f_))
+
+    nA = np.ravel(Ab.power(2).sum(axis=0))
+
+    if 'mmap' in str(type(Yr_mmap_file)):
+        YA = parallel_dot_product(Yr_mmap_file, Ab, dview=dview, block_size=block_size,
+                            transpose=True, num_blocks_per_run=num_blocks_per_run) * scipy.sparse.spdiags(old_div(1., nA), 0, Ab.shape[-1], Ab.shape[-1])
+    else:
+        YA = (Ab.T.dot(Yr_mmap_file)).T * spdiags(old_div(1., nA), 0, Ab.shape[-1], Ab.shape[-1])
+
+    AA = ((Ab.T.dot(Ab)) * scipy.sparse.spdiags(old_div(1., nA), 0, Ab.shape[-1], Ab.shape[-1])).tocsr()
+
+    return (YA - (AA.T.dot(Cf)).T)[:,:A_.shape[-1]].T  
+#%%
+def normalize_AC(A,C,YrA,b,f):
+    """ Normalize to unit norm A and b
+    Parameters:
+    ----------
+    A,C,Yr,b,f: 
+        outputs of CNMF
+    """
+    if 'sparse' in str(type(A)):
+        nA = np.ravel(np.sqrt(A.power(2).sum(0)))
+    else:
+        nA = np.ravel(np.sqrt((A**2).sum(0)))
+    
+    if A is not None:
+        A /= nA
+    
+    if C is not None:
+        C = np.array(C)
+        C *= nA[:, None]
+    
+    if YrA is not None:
+        YrA = np.array(YrA)
+        YrA *= nA[:, None]
+    
+    if b is not None:
+        b = np.array(b)
+        if 'sparse' in str(type(A)):
+            nB = np.ravel(np.sqrt(b.power(2).sum(0)))
+        else:
+            nB = np.ravel(np.sqrt((b**2).sum(0)))
+
+        b = np.atleast_2d(b)
+        f = np.atleast_2d(f)
+        b /= nB[np.newaxis,:] 
+        f *= nB[:,np.newaxis] 
+                         
+    
+    return A,C,YrA,b,f

@@ -142,7 +142,7 @@ def cnmf_patches(args_in):
         cnm = cnm.fit(images)
         return [idx_, shapes, scipy.sparse.coo_matrix(cnm.A),
                 cnm.b, cnm.C, cnm.f, cnm.S, cnm.bl, cnm.c1,
-                cnm.neurons_sn, cnm.g, cnm.sn, cnm.options, cnm.YrA.T]
+                cnm.neurons_sn, cnm.g, cnm.sn, cnm.options, cnm.YrA]
     else:
         return None
 
@@ -236,7 +236,6 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride=4, gnb=1, dview=No
 
 
     idx_flat, idx_2d = extract_patch_coordinates(dims, rfs, strides, border_pix=border_pix)
-    idx_flat, idx_2d = list(idx_flat), list(idx_2d)
     args_in = []
     patch_centers = []
     for id_f, id_2d in zip(idx_flat, idx_2d):
@@ -392,12 +391,8 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride=4, gnb=1, dview=No
 
     Im = scipy.sparse.csr_matrix((old_div(1., mask), (np.arange(d), np.arange(d))))
     A_tot = Im.dot(A_tot)
-    nA = np.ravel(np.sqrt(A_tot.power(2).sum(0)))
-    
-    A_tot /= nA
-    A_tot = scipy.sparse.coo_matrix(A_tot)
-    C_tot *= nA[:, None]
-    YrA_tot *= nA[:, None]    
+
+
     
 
     if low_rank_background is None:
@@ -406,7 +401,8 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride=4, gnb=1, dview=No
         print("Leaving background components intact")
     elif low_rank_background:
         print("Compressing background components with a low rank NMF")
-        Bm = Im.dot(B_tot)        
+        B_tot = Im.dot(B_tot)
+        Bm = (B_tot)        
         f = np.r_[np.atleast_2d(np.mean(F_tot, axis=0)), np.random.rand(gnb - 1, T)]
 
         for _ in range(100):
@@ -416,11 +412,22 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride=4, gnb=1, dview=No
             except np.linalg.LinAlgError:  # singular matrix
                 b = np.fmax(Bm.dot(scipy.linalg.lstsq(f.T, F_tot.T)[0].T), 0)
             try:
-                f = np.fmax(np.linalg.inv(b.T.dot(b)).dot((Bm.T.dot(b)).T.dot(F_tot)), 0)
+                f = np.linalg.inv(b.T.dot(b)).dot((Bm.T.dot(b)).T.dot(F_tot))
             except np.linalg.LinAlgError:  # singular matrix
-                f = np.fmax(scipy.linalg.lstsq(b, Bm.toarray())[0].dot(F_tot), 0)
+                f = scipy.linalg.lstsq(b, Bm.toarray())[0].dot(F_tot)
+                
+        nB = np.ravel(np.sqrt((b**2).sum(0)))        
+        b /= nB
+        b = np.array(b, dtype=np.float32)
+#        B_tot = scipy.sparse.coo_matrix(B_tot)
+        f *= nB[:, None]    
     else:
         print('Removing overlapping background components from different patches')
+		nA = np.ravel(np.sqrt(A_tot.power(2).sum(0)))
+        A_tot /= nA
+        A_tot = scipy.sparse.coo_matrix(A_tot)
+        C_tot *= nA[:, None]
+        YrA_tot *= nA[:, None]
         nB = np.ravel(np.sqrt(B_tot.power(2).sum(0)))
         B_tot /= nB
         B_tot = np.array(B_tot, dtype=np.float32)
@@ -442,6 +449,9 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride=4, gnb=1, dview=No
 
         b = B_tot
         f = F_tot
-       
+
+        print('******** USING ONE BACKGROUND PER PATCH ******')
+        
+    print("Generating background DONE")
     
     return A_tot, C_tot, YrA_tot, b, f, sn_tot, optional_outputs

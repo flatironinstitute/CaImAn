@@ -136,19 +136,19 @@ c, dview, n_processes = cm.cluster.setup_cluster(backend = 'local',n_processes=N
 #%%
 patches = True
 if patches:
-    # cnm = cnmf.CNMF(n_processes=n_processes, method_init='corr_pnr', k=20, gSig=(3, 3), gSiz=(10, 10),
-    #                 merge_thresh=.8, p=1, dview=dview, tsub=1, ssub=1, Ain=None, rf=(32, 32), stride=(32, 32),
-    #                 only_init_patch=True, gnb=6, nb_patch=3, method_deconvolution='oasis',
-    #                 low_rank_background=False, update_background_components=False, min_corr=min_corr,
-    #                 min_pnr=min_pnr, normalize_init=False, deconvolve_options_init=None,
-    #                 ring_size_factor=1.5, center_psf=True)
-    cnm = cnmf.CNMF(n_processes=n_processes, method_init='corr_pnr', k=70,
-                    gSig=(gSig, gSig), gSiz=(gSiz, gSiz), merge_thresh=.7,
-                    p=1, dview=dview, tsub=1, ssub=1, Ain=None, rf=(50, 50), stride=(50, 50),
-                    only_init_patch=True, gnb=10, nb_patch=6, method_deconvolution='oasis',
-                    low_rank_background=False, update_background_components=False, min_corr=min_corr,
-                    min_pnr=min_pnr, normalize_init=False, deconvolve_options_init=None,
-                    ring_size_factor=1.5, center_psf=True, del_duplicates=True)
+     cnm = cnmf.CNMF(n_processes=n_processes, method_init='corr_pnr', k=2, gSig=(3, 3), gSiz=(10, 10),
+                     merge_thresh=.8, p=1, dview=dview, tsub=1, ssub=1, Ain=None, rf=(32, 32), stride=(32, 32),
+                     only_init_patch=True, gnb=16, nb_patch=16, method_deconvolution='oasis',
+                     low_rank_background=True, update_background_components=False, min_corr=min_corr,
+                     min_pnr=min_pnr, normalize_init=False, deconvolve_options_init=None,
+                     ring_size_factor=1.5, center_psf=True, del_duplicates=True)
+    #cnm = cnmf.CNMF(n_processes=n_processes, method_init='corr_pnr', k=70,
+    #                gSig=(gSig, gSig), gSiz=(gSiz, gSiz), merge_thresh=.7,
+    #                p=1, dview=dview, tsub=1, ssub=1, Ain=None, rf=(50, 50), stride=(50, 50),
+    #                only_init_patch=True, gnb=10, nb_patch=6, method_deconvolution='oasis',
+    #                low_rank_background=False, update_background_components=False, min_corr=min_corr,
+    #                min_pnr=min_pnr, normalize_init=False, deconvolve_options_init=None,
+    #                ring_size_factor=1.5, center_psf=True, del_duplicates=True)
     
 #    cnm.n_pixels_per_process=300
 else:
@@ -193,15 +193,18 @@ cm.utils.visualization.view_patches_bar(Yr, cnm.A, cnm.C, cnm.b, cnm.f,
 crd = cm.utils.visualization.plot_contours(cnm.A, cn_filter, thr=.95, vmax=0.95)
 
 mapIdx = get_mapping(cnm.C, C, A).astype(int)
+if False:
+    corC = np.array([np.corrcoef(C_[mapIdx[n]], C[n])[0, 1] for n in range(N)])
+    corA = np.array([np.corrcoef(A_[:, mapIdx[n]].toarray().squeeze(), A[:, n])[0, 1] for n in range(N)])
+    corC_cnmfe = np.array([np.corrcoef(C_cnmfe[n], C[n])[0, 1] for n in range(N)])
+    corA_cnmfe = np.array([np.corrcoef(A_cnmfe.toarray()[:, n], A[:, n])[0, 1] for n in range(N)])
 
-corC = np.array([np.corrcoef(cnm.C[mapIdx[n]], C[n])[0, 1] for n in range(N)])
-corA = np.array([np.corrcoef(cnm.A.toarray()[:, mapIdx[n]], A[:, n])[0, 1] for n in range(N)])
+else:
+    corC = np.array([np.corrcoef(C_[mapIdx[n]]+YrA_[mapIdx[n]], C[n]+YrA_GT[n])[0, 1] for n in range(N)])
+    corA = np.array([np.corrcoef(A_[:, mapIdx[n]].toarray().squeeze(), A[:, n])[0, 1] for n in range(N)])
+    corC_cnmfe = np.array([np.corrcoef(Craw_cnmfe[n], C[n]+YrA_GT[n])[0, 1] for n in range(N)])
+    corA_cnmfe = np.array([np.corrcoef(A_cnmfe.toarray()[:, n], A[:, n])[0, 1] for n in range(N)])
 
-corC_cnmfe = np.array([np.corrcoef(C_cnmfe[n], C[n])[0, 1] for n in range(N)])
-corA_cnmfe = np.array([np.corrcoef(A_cnmfe.toarray()[:, n], A[:, n])[0, 1] for n in range(N)])
-
-print(corC.mean(), corA.mean())
-print(corC_cnmfe.mean(), corA_cnmfe.mean())
 
 print(np.median(corC), np.median(corA))
 print(np.median(corC_cnmfe), np.median(corA_cnmfe))

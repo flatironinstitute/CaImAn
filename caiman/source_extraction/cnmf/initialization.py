@@ -35,7 +35,6 @@ import sys
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
-import pdb
 #%%
 
 if sys.version_info >= (3, 0):
@@ -825,13 +824,14 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
 
     dims = Y.shape[:2]
     d1, d2, total_frames = Y_ds.shape
-    B = Y_ds.reshape((-1, total_frames), order='F') - A.dot(C)
+    B = np.array(Y_ds.reshape((-1, total_frames), order='F') - A.dot(C), dtype=np.float32)
 
     if ring_size_factor is not None:
         # background according to ringmodel
         print('Compute Background')
         W, b0 = compute_W(Y_ds.reshape((-1, total_frames), order='F'),
                           A, C, (d1, d2), int(np.round(ring_size_factor * gSiz)))
+
         B = b0[:, None] + W.dot(B - b0[:, None])
 
         # find more neurons in residual
@@ -892,7 +892,7 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
 
         print('Update Temporal')
         C, A, b__, f__, S__, bl__, c1__, neurons_sn__, g1__, YrA__, lam__ = caiman.source_extraction.cnmf.temporal.update_temporal_components(
-            np.array(Y.reshape((-1, T), order='F') - B), A,
+            np.array(Y.reshape((-1, T), order='F') - B), spr.csc_matrix(A),
             np.zeros((np.prod(dims), 0), np.float32), C, np.zeros((0, T), np.float32),
             dview=None, bl=None, c1=None, sn=None, g=None, **options['temporal_params'])
         print('Update Spatial')
