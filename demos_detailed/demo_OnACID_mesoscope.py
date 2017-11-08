@@ -103,7 +103,7 @@ cnm_init = bare_initialization(Y[:initbatch].transpose(1, 2, 0), init_batch=init
                                  thresh_fitness_delta = thresh_fitness_delta,
                                  thresh_fitness_raw = thresh_fitness_raw,
                                  batch_update_suff_stat=True, max_comp_update_shape = 5, 
-                                 deconv_flag = False,
+                                 deconv_flag = False, use_dense = True,
                                  simultaneously=False, n_refit=0)
 
 crd = plot_contours(cnm_init.A.tocsc(), Cn_init, thr=0.9)
@@ -133,7 +133,7 @@ tottime = []
 Cn = Cn_init.copy()
 
 plot_contours_flag = False               # flag for plotting contours of detected components at the end of each file
-play_reconstr = True                     # flag for showing video with results online (turn off flags for improving speed)
+play_reconstr = False                    # flag for showing video with results online (turn off flags for improving speed)
 save_movie = False                       # flag for saving movie (file could be quite large..)
 movie_name = folder_name + '/output.avi' # name of movie to be saved
 resize_fact = 1.2                        # image resizing factor
@@ -147,6 +147,7 @@ else:
     init_batc_iter = [initbatch] + [0]*online_files     # where to start reading at each file
 
 shifts = []
+show_residuals = True
 if save_movie and play_reconstr:
     fourcc = cv2.VideoWriter_fourcc('8', 'B', 'P', 'S') 
     out = cv2.VideoWriter(movie_name,fourcc, 30.0, tuple([int(2*x*resize_fact) for x in cnm2.dims]))
@@ -212,7 +213,11 @@ for iter in range(epochs):
                 C, f = cnm2.C_on[cnm2.gnb:cnm2.M, :], cnm2.C_on[:cnm2.gnb, :]
                 comps_frame = A.dot(C[:,t-1]).reshape(cnm2.dims, order = 'F')*img_norm/np.max(img_norm)   # inferred activity due to components (no background)
                 bgkrnd_frame = b.dot(f[:,t-1]).reshape(cnm2.dims, order = 'F')*img_norm/np.max(img_norm)  # denoised frame (components + background)
-                all_comps = (np.array(A.sum(-1)).reshape(cnm2.dims, order = 'F'))                         # spatial shapes
+                if show_residuals:
+                    all_comps = np.reshape(cnm2.Yres_buf.mean(0),cnm2.dims, order='F')*img_norm/np.max(img_norm)
+                    all_comps = np.minimum(np.maximum(all_comps*10,0),255)
+                else:
+                    all_comps = (np.array(A.sum(-1)).reshape(cnm2.dims, order = 'F'))                         # spatial shapes
                 frame_comp_1 = cv2.resize(np.concatenate([frame_/np.max(img_norm),all_comps*3.],axis = -1),(2*np.int(cnm2.dims[1]*resize_fact),np.int(cnm2.dims[0]*resize_fact) ))
                 frame_comp_2 = cv2.resize(np.concatenate([comps_frame*10.,comps_frame+bgkrnd_frame],axis = -1),(2*np.int(cnm2.dims[1]*resize_fact),np.int(cnm2.dims[0]*resize_fact) ))
                 frame_pn = np.concatenate([frame_comp_1,frame_comp_2],axis=0).T

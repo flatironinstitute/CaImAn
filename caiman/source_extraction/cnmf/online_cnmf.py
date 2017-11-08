@@ -453,8 +453,76 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                           N_samples_exceptionality=5, remove_baseline=True,
                           thresh_fitness_delta=-20, thresh_fitness_raw=-20, thresh_overlap=0.5,
                           batch_update_suff_stat=False, sn=None, g=None, thresh_s_min=None,
-                          s_min=None, Ab_dense=None, max_num_added=1):
-
+                          s_min=None, Ab_dense=None, max_num_added=3, min_num_trial = 3):
+    """
+    Search for and incorporate new components.
+    Parameters
+    ----------
+    t:                      int
+        timestep index
+    sv:                     np.array
+        residual buffer standard deviation
+    Ab:                     scipy.sparse.csc_matrix
+        spatial background and components
+    Cf:                     np.array
+        temporal background and components
+    Yres_buf:               ring buffer
+        residual buffer
+    Y_buf:                  ring buffer
+        data bugger
+    rho_buf:                ring buffer
+        spatial smoothed data buffer
+    dims:                   tuple 
+        dimensions of FOV
+    gSig:                   list
+        half size of neuron
+    gSiz:                   list
+        half size of search window
+    ind_A:                  list of int arrays
+        non-zero entries for each spatial component
+    CY:                     np.array
+        covariance matrix between data and traces
+    CC:                     np.array
+        autocovariance matrix for traces
+    groups:                 list of lists
+        sets of spatially non-overlapping components
+    oases:                  lists
+        OASIS objects
+    gnb:                    int
+        number of background components
+    rval_thr:               float
+        spatial correlation threshold
+    bSiz:                   int
+        size of expansion factor for new component (not used)
+    robust_std:             bool
+        method for estimating noise trace
+    N_samples_exc:          int
+        number of samples taken for computing exceptionality
+    remove_baseline:        bool
+        remove baseline from candidate trace
+    thresh_fitness_delta:   float
+        fitness delta threshold
+    thresh_fitness_raw:     float
+        exceptionality threshold
+    thresh_overlap:         float
+        spatial overlap threshold for rejecting candidate component
+    batch_update_suff_stat: bool
+        update sufficient statistics in batch when adding a component
+    sn:                     float
+        noise level of trace
+    g:                      float
+        time constant of new trace
+    thresh_s_min:           float
+    s_min:                  float
+        min spike value
+    Ab_dense:               np.array
+        dense representation of spatial components
+    max_num_added:          int
+        maximum number of new components allowed
+    min_num_trial:          int
+        minimum number of components to be tested
+    """
+    
     gHalf = np.array(gSiz) // 2
 
     M = np.shape(Ab)[-1]
@@ -468,10 +536,10 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
 
     sv -= rho_buf.get_first()
     sv += rho_buf.get_last_frames(1).squeeze()
-
+    cnt = 0
     num_added = 0
     while num_added < max_num_added:
-
+        cnt += 1
         if first:
             sv_ = sv.copy()  # np.sum(rho_buf,0)
             first = False
@@ -491,6 +559,10 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
         indeces = np.ravel_multi_index(np.ix_(np.arange(ijSig[0][0], ijSig[0][1]),
                                               np.arange(ijSig[1][0], ijSig[1][1])),
                                        dims, order='F').ravel()
+    
+        indeces_ = np.ravel_multi_index(np.ix_(np.arange(ijSig[0][0], ijSig[0][1]),
+                                              np.arange(ijSig[1][0], ijSig[1][1])),
+                                       dims, order='C').ravel()
 
         Ypx = Yres_buf.T[indeces, :]
 
@@ -500,16 +572,6 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
             break
 
         ain /= sqrt(na)
-
-#        new_res = sv_.copy()
-#        new_res[ np.ravel_multi_index(arr, dims, order='C')] = 10000
-#        cv2.imshow('untitled', 0.1*cv2.resize(new_res.reshape(dims,order = 'C'),(512,512))/2000)
-#        cv2.waitKey(1)
-
-#        for iter_ in range(15):
-#            cin_res = ain.T.dot(Ypx) / ain.dot(ain)
-#            cin = np.maximum(cin_res, 0)
-#            ain = np.maximum(Ypx.dot(cin.T) / cin.dot(cin), 0)
 
         ain, cin, cin_res = rank1nmf(Ypx, ain)  # expects and returns normalized ain
 
@@ -529,14 +591,6 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
     #        indeces_good = (Ain[indeces]>0.01).nonzero()[0]
 
             # rval = np.corrcoef(ain, np.mean(Ypx, -1))[0, 1]
-
-# rval =
-# np.corrcoef(Ain[indeces_good].toarray().squeeze(),np.mean(Yres[indeces_good,:],-1))[0,1]
-
-        # if rval > rval_thr:
-            #            pl.cla()
-            #            _ = cm.utils.visualization.plot_contours(Ain, sv.reshape(dims), thr=0.95)
-            #            pl.pause(0.01)
 
             useOASIS = False  # whether to use faster OASIS for cell detection
             if Ab_dense is None:
@@ -619,11 +673,11 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
 
                 Ain_csc = scipy.sparse.csc_matrix((ain, (indeces, [0] * len(indeces))),
                                                   (np.prod(dims), 1), dtype=np.float32)
-
-                if Ab_dense is None:
-                    groups = update_order(Ab, Ain, groups)[0]
-                else:
-                    groups = update_order(Ab_dense[indeces], ain, groups)[0]
+                
+                #if Ab_dense is None:
+                groups = update_order(Ab, Ain, groups)[0]
+                #else:
+                #    groups = update_order(Ab_dense[indeces], ain, groups)[0]
                 csc_append(Ab, Ain_csc)  # faster version of scipy.sparse.hstack
                 ind_A.append(Ab.indices[Ab.indptr[M]:Ab.indptr[M + 1]])
 
@@ -683,12 +737,20 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                 sv_[ind_vb] -= updt_res_sum
 
             else:
-
-                num_added = max_num_added
+                if cnt > min_num_trial:
+                    num_added = max_num_added
+                else:                    
+                    first = False
+                    num_added = 0
+                    sv_[indeces_] = -np.inf
 
         else:
-
-            num_added = max_num_added
+            if cnt > min_num_trial:
+                num_added = max_num_added
+            else:                    
+                first = False
+                num_added = 0
+                sv_[indeces_] = -np.inf
 
     return Ab, Cf, Yres_buf, rho_buf, CC, CY, ind_A, sv, groups
 
