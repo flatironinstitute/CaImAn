@@ -56,15 +56,15 @@ except:
 # 7: J115
 # 8: J123
 
-ind_dataset = 2
+ind_dataset = 8
 use_VST = False
 plot_results = False
 
 #%% set some global parameters here
 
-global_params = {'min_SNR': 1.5,        # minimum SNR when considering adding a new neuron
+global_params = {'min_SNR': 6,          # minimum SNR when considering adding a new neuron
                  'gnb' : 2,             # number of background components   
-                 'rval_thr' : 0.70,     # spatial correlation threshold
+                 'rval_thr' : 0.90,     # spatial correlation threshold
                  'batch_length_dt': 10, # length of mini batch for OnACID in decay time units (length would be batch_length_dt*decay_time*fr)
                  'max_thr': 0.30,       # parameter for thresholding components when cleaning up shapes
                  'mot_corr' : False,    # flag for motion correction (set to False to compare directly on the same FOV)
@@ -79,7 +79,7 @@ params_movie[0] = {'fname': '/mnt/ceph/neuro/labeling/neurofinder.03.00.test/ima
                  'p': 1,  # order of the autoregressive system
                  'fr': 7,
                  'decay_time': 0.4,
-                 'gSig': [12,12],  # expected half size of neurons              
+                 'gSig': [11,11],  # expected half size of neurons              
                  'gnb': 2,
                  'T1': 2250
                  }
@@ -185,7 +185,7 @@ params_movie[8] = {'fname': '/mnt/ceph/neuro/labeling/J123_2015-11-20_L01_0/imag
                  'fr' : 30,
                  'T1' : 1000,
                  'decay_time' : 0.5,
-                 'gSig': [12,12]
+                 'gSig': [11,11]
                  }
 
 
@@ -233,7 +233,7 @@ epochs = params_movie[ind_dataset]['epochs']                         # number of
 T1 = params_movie[ind_dataset]['T1']*len(fls)*epochs                 # total length of all files (if not known use a large number, then truncate at the end)
 
 N_samples = np.ceil(params_movie[ind_dataset]['fr']*params_movie[ind_dataset]['decay_time'])   # number of timesteps to consider when testing new neuron candidates
-min_SNR = global_params['min_SNR']*np.sqrt(T1/2500.)                                      # adaptive way to set threshold (will be equal to min_SNR) 
+min_SNR = global_params['min_SNR']#*np.sqrt(T1/2500.)                                      # adaptive way to set threshold (will be equal to min_SNR) 
 #pr_inc = 1 - scipy.stats.norm.cdf(global_params['min_SNR'])           # inclusion probability of noise transient
 #thresh_fitness_raw = np.log(pr_inc)*N_samples       # event exceptionality threshold
 thresh_fitness_raw = scipy.special.log_ndtr(-min_SNR)*N_samples
@@ -284,7 +284,8 @@ cnm_init = bare_initialization(Y[:initbatch].transpose(1, 2, 0), init_batch=init
                                  deconv_flag = deconv_flag,
                                  simultaneously=False, n_refit=0)
 
-cnm_init._prepare_object(np.asarray(Yr[:,:initbatch]), T1, expected_comps, idx_components=None, N_samples_exceptionality = int(N_samples))
+cnm_init._prepare_object(np.asarray(Yr[:,:initbatch]), T1, expected_comps, idx_components=None, N_samples_exceptionality = int(N_samples),
+                         max_num_added = 1, min_num_trial = 2)
 
 if plot_results:   # plot initialization results
     A, C, b, f, YrA, sn = cnm_init.A, cnm_init.C, cnm_init.b, cnm_init.f, cnm_init.YrA, cnm_init.sn
@@ -446,7 +447,7 @@ if load_results:
             A = A[()]
 
 #%% load, threshold and filter for size ground truth
-#global_params['max_thr'] = 0.25
+#global_params['max_thr'] = 0.2
 c, dview, n_processes = cm.cluster.setup_cluster(backend='local', n_processes=None, single_thread = True)
 
 gt_file = os.path.join(os.path.split(params_movie[ind_dataset]['fname'])[0], os.path.split(params_movie[ind_dataset]['fname'])[1][:-4] + 'match_masks.npz')

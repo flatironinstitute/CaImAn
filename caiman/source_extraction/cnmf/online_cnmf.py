@@ -343,11 +343,11 @@ def update_shapes(CY, CC, Ab, ind_A, indicator_components=None, Ab_dense=None, u
                                                              Ab_dense[ind_pixels].dot(CC[m])) /
                                                             CC[m, m]), 0)
                 # normalize
-                #if tmp.dot(tmp) > 0:
-                tmp *= 1e-3/min(1e-3,sqrt(tmp.dot(tmp))+np.finfo(float).eps)
-                Ab_dense[ind_pixels, m] = tmp / max(1, sqrt(tmp.dot(tmp)))                
-                Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]] = Ab_dense[ind_pixels, m]
-                ind_A[m-nb] = Ab.indices[slice(Ab.indptr[m], Ab.indptr[m + 1])]
+                if tmp.dot(tmp) > 0:
+                    tmp *= 1e-3/min(1e-3,sqrt(tmp.dot(tmp))+np.finfo(float).eps)
+                    Ab_dense[ind_pixels, m] = tmp / max(1, sqrt(tmp.dot(tmp)))                
+                    Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]] = Ab_dense[ind_pixels, m]
+                    ind_A[m-nb] = Ab.indices[slice(Ab.indptr[m], Ab.indptr[m + 1])]
             # Ab.data[Ab.indptr[nb]:] = np.concatenate(
             #     [Ab_dense[ind_A[m - nb], m] for m in range(nb, M)])
             # N.B. why does selecting only overlapping neurons help surprisingly little, i.e
@@ -428,6 +428,7 @@ def corr(a, b):
 
 
 def rank1nmf(Ypx, ain):
+    """ performs a rank 1 NMF to determine candidate components. """
     # cin_old = -1
     for _ in range(15):
         cin_res = ain.T.dot(Ypx)  # / ain.dot(ain)
@@ -435,12 +436,11 @@ def rank1nmf(Ypx, ain):
         ain = np.maximum(Ypx.dot(cin.T), 0)
         ain /= sqrt(ain.dot(ain)+ np.finfo(float).eps)
         # nc = cin.dot(cin)
-        # ain = np.maximum(Ypx.dot(cin.T) / nc, 0)
         # tmp = cin - cin_old
         # if tmp.dot(tmp) < 1e-6 * nc:
         #     break
         # cin_old = cin.copy()
-    cin_res = ain.T.dot(Ypx)  # / ain.dot(ain)
+    cin_res = ain.T.dot(Ypx)  
     cin = np.maximum(cin_res, 0)
     return ain, cin, cin_res
 
@@ -453,7 +453,7 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                           N_samples_exceptionality=5, remove_baseline=True,
                           thresh_fitness_delta=-20, thresh_fitness_raw=-20, thresh_overlap=0.5,
                           batch_update_suff_stat=False, sn=None, g=None, thresh_s_min=None,
-                          s_min=None, Ab_dense=None, max_num_added=3, min_num_trial = 3):
+                          s_min=None, Ab_dense=None, max_num_added=1, min_num_trial = 2):
     """
     Search for and incorporate new components.
     Parameters
@@ -552,10 +552,7 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
         ijSig = [[max(ij[0] - gHalf[0], 0), min(ij[0] + gHalf[0] + 1, dims[0])],
                  [max(ij[1] - gHalf[1], 0), min(ij[1] + gHalf[1] + 1, dims[1])]]
 
-        # xySig = np.meshgrid(*[np.arange(s[0], s[1]) for s in ijSig], indexing='xy')
-        # arr = np.array([np.reshape(s, (1, np.size(s)), order='F').squeeze()
-        #                 for s in xySig], dtype=np.int)
-        # indeces = np.ravel_multi_index(arr, dims, order='F')
+
         indeces = np.ravel_multi_index(np.ix_(np.arange(ijSig[0][0], ijSig[0][1]),
                                               np.arange(ijSig[1][0], ijSig[1][1])),
                                        dims, order='F').ravel()
