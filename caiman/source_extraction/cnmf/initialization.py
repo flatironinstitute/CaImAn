@@ -807,7 +807,7 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
     if min_corr is None or min_pnr is None:
         raise Exception('Either min_corr or min_pnr are None. Both of them must be real numbers.')
 
-    print('Init one photon')
+    print('One photon initialization..')
     A, C, _, _, center = init_neurons_corr_pnr(
         Y_ds, max_number=max_number, gSiz=gSiz, gSig=gSig,
         center_psf=center_psf, min_corr=min_corr,
@@ -1296,7 +1296,7 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
                     continue_searching = False
                     break
                 else:
-                    if num_neurons % 10 == 1:
+                    if num_neurons % 100 == 1:
                         print(num_neurons - 1, 'neurons have been initialized')
 
     print('In total, ', num_neurons, 'neurons were initialized.')

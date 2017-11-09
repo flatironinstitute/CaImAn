@@ -137,59 +137,36 @@ except:
 c, dview, n_processes = cm.cluster.setup_cluster(
     backend='local', n_processes=None, single_thread=False)
 #%%
-patches = True
-if patches:
-    cnm = cnmf.CNMF(n_processes=n_processes, method_init='corr_pnr', k=25,
-                    gSig=(3, 3), gSiz=(10, 10), merge_thresh=.8, p=1, dview=dview,
-                    tsub=1, ssub=1, Ain=None, rf=(32, 32), stride=(32, 32), only_init_patch=True,
-                    gnb=16, nb_patch=16, method_deconvolution='oasis', low_rank_background=True,
-                    update_background_components=False, min_corr=min_corr, min_pnr=min_pnr,
-                    normalize_init=False, deconvolve_options_init=None,
-                    ring_size_factor=1.5, center_psf=True, del_duplicates=True)
-    # cnm = cnmf.CNMF(n_processes=n_processes, method_init='corr_pnr', k=70,
-    #                 gSig=(gSig, gSig), gSiz=(gSiz, gSiz), merge_thresh=.7, p=1, dview=dview,
-    #                 tsub=1, ssub=1, Ain=None, rf=(50, 50), stride=(50, 50), only_init_patch=True,
-    #                 gnb=10, nb_patch=6, method_deconvolution='oasis', low_rank_background=False,
-    #                 update_background_components=False, min_corr=min_corr, min_pnr=min_pnr,
-    #                 normalize_init=False, deconvolve_options_init=None,
-    #                 ring_size_factor=1.5, center_psf=True, del_duplicates=True)
-
-#    cnm.n_pixels_per_process=300
-else:
-    cnm = cnmf.CNMF(n_processes=n_processes, method_init='corr_pnr', k=K,
-                    gSig=(gSig, gSig), gSiz=(gSiz, gSiz), merge_thresh=.8, p=1, dview=dview,
-                    tsub=1, ssub=1, Ain=None, only_init_patch=True,
-                    gnb=20, nb_patch=6, method_deconvolution='oasis', low_rank_background=False,
-                    update_background_components=False, min_corr=min_corr, min_pnr=min_pnr,
-                    normalize_init=False, deconvolve_options_init=None,
-                    ring_size_factor=1.5, center_psf=True)
+cnm = cnmf.CNMF(n_processes=n_processes, method_init='corr_pnr', k=50,
+                gSig=(3, 3), gSiz=(10, 10), merge_thresh=.8, p=1, dview=dview,
+                tsub=1, ssub=1, Ain=None, rf=(50, 50), stride=(32, 32), only_init_patch=True,
+                gnb=16, nb_patch=16, method_deconvolution='oasis', low_rank_background=True,
+                update_background_components=False, min_corr=min_corr, min_pnr=min_pnr,
+                normalize_init=False, deconvolve_options_init=None,
+                ring_size_factor=1.5, center_psf=True, del_duplicates=True)
 
 cnm.fit(Y)
 
-cnm.compute_residuals(Yr)
-#%%
-cnm.YrA = compute_residuals(np.array(Yr), cnm.A, cnm.b, cnm.C, cnm.f, dview=dview)
-#%%
-if patches:
-    # %% DISCARD LOW QUALITY COMPONENT
-    final_frate = 10
-    r_values_min = 0.9  # threshold on space consistency
-    fitness_min = -1000  # threshold on time variability
-    # threshold on time variability (if nonsparse activity)
-    fitness_delta_min = - 1000
-    Npeaks = 5
-    traces = cnm.C + cnm.YrA
-    # TODO: todocument
-    idx_components, idx_components_bad = cm.components_evaluation.estimate_components_quality(
-        traces, Yr, cnm.A, cnm.C, cnm.b, cnm.f, final_frate=final_frate, Npeaks=Npeaks,
-        r_values_min=r_values_min, fitness_min=fitness_min, fitness_delta_min=fitness_delta_min, dview=dview)
+# %% DISCARD LOW QUALITY COMPONENT
+final_frate = 10
+r_values_min = 0.9  # threshold on space consistency
+fitness_min = -100 # threshold on time variability
+# threshold on time variability (if nonsparse activity)
+fitness_delta_min = - 100
+Npeaks = 5
+traces = cnm.C + cnm.YrA
+# TODO: todocument
+idx_components, idx_components_bad = cm.components_evaluation.estimate_components_quality(
+    traces, Yr, cnm.A, cnm.C, cnm.b, cnm.f, final_frate=final_frate, Npeaks=Npeaks,
+    r_values_min=r_values_min, fitness_min=fitness_min, fitness_delta_min=fitness_delta_min, dview=dview)
 
-    print(('Keeping ' + str(len(idx_components)) +
-           ' and discarding  ' + str(len(idx_components_bad))))
-    cnm.A = cnm.A[:, idx_components]
-    cnm.C = cnm.C[idx_components]
-    cnm.YrA = cnm.YrA[idx_components]
+print(('Keeping ' + str(len(idx_components)) +
+       ' and discarding  ' + str(len(idx_components_bad))))
 
+
+    
+#%% 
+A_,C_,YrA_, b_, f_ = cnm.A[:, idx_components], cnm.C[idx_components], cnm.YrA[idx_components], cnm.b, cnm.f
 #%%
 YrA_GT = compute_residuals(np.array(Yr) - b0, A, b, C, f, dview=None)
 
@@ -197,16 +174,14 @@ cm.utils.visualization.view_patches_bar(Yr, A, C, b, f,
                                         dims[0], dims[1], YrA=YrA_GT, img=cn_filter)
 
 #%%
-cm.utils.visualization.view_patches_bar(Yr, cnm.A, cnm.C, cnm.b, cnm.f,
-                                        dims[0], dims[1], YrA=cnm.YrA, img=cn_filter)
-
-
+cm.utils.visualization.view_patches_bar(Yr, A_, C_, b_, f_,
+                                        dims[0], dims[1], YrA=YrA_, img=cn_filter)
 #%%
 
-mapIdx = get_mapping(cnm.C, C, A).astype(int)
+mapIdx = get_mapping(C_, C, A).astype(int)
 if True:
-    corC = np.array([np.corrcoef(cnm.C[mapIdx[n]], C[n])[0, 1] for n in range(N)])
-    corA = np.array([np.corrcoef(cnm.A[:, mapIdx[n]].toarray().squeeze(), A[:, n])[0, 1]
+    corC = np.array([np.corrcoef(C_[mapIdx[n]], C[n])[0, 1] for n in range(N)])
+    corA = np.array([np.corrcoef(A_[:, mapIdx[n]].toarray().squeeze(), A[:, n])[0, 1]
                      for n in range(N)])
     corC_cnmfe = np.array([np.corrcoef(C_cnmfe[n], C[n])[0, 1] for n in range(N)])
     corA_cnmfe = np.array([np.corrcoef(A_cnmfe.toarray()[:, n], A[:, n])[0, 1] for n in range(N)])
@@ -215,24 +190,19 @@ if True:
         [np.corrcoef(A_cnmfe_patch.toarray()[:, n], A[:, n])[0, 1] for n in range(N)])
 
 else:
-    corC = np.array([np.corrcoef(cnm.C[mapIdx[n]] + cnm.YrA[mapIdx[n]],
-                                 C[n] + YrA_GT[n])[0, 1] for n in range(N)])
-    corA = np.array([np.corrcoef(cnm.A[:, mapIdx[n]].toarray().squeeze(), A[:, n])[0, 1]
-                     for n in range(N)])
+    corC = np.array([np.corrcoef(C_[mapIdx[n]] + YrA_[mapIdx[n]], C[n] + YrA_GT[n])[0, 1] for n in range(N)])
+    corA = np.array([np.corrcoef(A_[:, mapIdx[n]].toarray().squeeze(), A[:, n])[0, 1] for n in range(N)])
     corC_cnmfe = np.array([np.corrcoef(Craw_cnmfe[n], C[n] + YrA_GT[n])[0, 1] for n in range(N)])
     corA_cnmfe = np.array([np.corrcoef(A_cnmfe.toarray()[:, n], A[:, n])[0, 1] for n in range(N)])
-    corC_cnmfe_patch = np.array(
-        [np.corrcoef(Craw_cnmfe_patch[n], C[n] + YrA_GT[n])[0, 1] for n in range(N)])
-    corA_cnmfe_patch = np.array(
-        [np.corrcoef(A_cnmfe_patch.toarray()[:, n], A[:, n])[0, 1] for n in range(N)])
+    corC_cnmfe_patch = np.array([np.corrcoef(Craw_cnmfe_patch[n], C[n] + YrA_GT[n])[0, 1] for n in range(N)])
+    corA_cnmfe_patch = np.array([np.corrcoef(A_cnmfe_patch.toarray()[:, n], A[:, n])[0, 1] for n in range(N)])
 
 
 print(np.median(corC), np.median(corA))
 print(np.median(corC_cnmfe), np.median(corA_cnmfe))
 print(np.median(corC_cnmfe_patch), np.median(corA_cnmfe_patch))
-
 #%%
-crd = cm.utils.visualization.plot_contours(cnm.A, cn_filter, thr=.95, vmax=0.95)
+crd = cm.utils.visualization.plot_contours(A_, cn_filter, thr=.95, vmax=0.95)
 plot_centers()
 #%%
 cm.stop_server(dview=dview)
