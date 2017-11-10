@@ -101,6 +101,8 @@ def cnmf_patches(args_in):
 
     logger.info('Read file')
     Yr, dims, timesteps = load_memmap(file_name)
+    
+#    print(Yr)
 
     # slicing array (takes the min and max index in n-dimensional space and cuts the box they define)
     # for 2d a rectangle/square, for 3d a rectangular cuboid/cube, etc.
@@ -321,7 +323,7 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride = 4, gnb = 1, dvie
         else:
             empty += 1
 
-    print('Skipped %d Empty Patch', empty)
+    print('Skipped', empty, 'Empty Patch')
     idx_tot_B = np.concatenate(idx_tot_B)
     b_tot = np.concatenate(b_tot)
     idx_ptr_B = np.cumsum(np.array(idx_ptr_B))

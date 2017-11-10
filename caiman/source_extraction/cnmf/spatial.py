@@ -643,6 +643,7 @@ def threshold_components(A, dims, medw=None, thr_method='nrg', maxthr=0.1, nrgth
 
     if dview is not None:
         res = dview.map_async(threshold_components_parallel, pars)
+        dview.wait(res)
     else:
         res = list(map(threshold_components_parallel, pars))
 
