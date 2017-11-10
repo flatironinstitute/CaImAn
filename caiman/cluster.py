@@ -36,7 +36,8 @@ import sys
 import os
 import numpy as np
 from .mmapping import load_memmap
-
+from multiprocessing import Pool            
+import multiprocessing
 #%%
 def get_patches_from_image(img,shapes,overlaps):
     #todo todocument
@@ -330,7 +331,7 @@ def shell_source(script):
 #%%
 
 
-def stop_server( ipcluster='ipcluster',pdir=None,profile=None):
+def stop_server(ipcluster='ipcluster',pdir=None,profile=None, dview = None):
     """
     programmatically stops the ipyparallel server
 
@@ -341,65 +342,72 @@ def stop_server( ipcluster='ipcluster',pdir=None,profile=None):
          Default: "ipcluster"
 
     """
-    sys.stdout.write("Stopping cluster...\n")
-    sys.stdout.flush()
-    try:
-        pdir, profile = os.environ['IPPPDIR'], os.environ['IPPPROFILE']
-        is_slurm = True
-    except:
-        print('NOT SLURM')
-        is_slurm = False
-
-    if is_slurm:
-        if pdir is None and profile is None:
-            pdir, profile = os.environ['IPPPDIR'], os.environ['IPPPROFILE']
-        c = Client(ipython_dir=pdir, profile=profile)
-        ee = c[:]
-        ne = len(ee)
-        print(('Shutting down %d engines.' % (ne)))
-        c.close()
-        c.shutdown(hub=True)
-        shutil.rmtree('profile_' + str(profile))
-        try:
-            shutil.rmtree('./log/')
-        except:
-            print('creating log folder')
-
-        files = glob.glob('*.log')
-        os.mkdir('./log')
-
-        for fl in files:
-            shutil.move(fl, './log/')
-
+    if 'multiprocessing' in str(type(dview)):
+        dview.terminate()
     else:
-        if ipcluster == "ipcluster":
-            proc = subprocess.Popen("ipcluster stop", shell=True, stderr=subprocess.PIPE, close_fds=(os.name != 'nt'))
+        sys.stdout.write("Stopping cluster...\n")
+        sys.stdout.flush()
+        try:
+            pdir, profile = os.environ['IPPPDIR'], os.environ['IPPPROFILE']
+            is_slurm = True
+        except:
+            print('NOT SLURM')
+            is_slurm = False
+    
+        if is_slurm:
+            if pdir is None and profile is None:
+                pdir, profile = os.environ['IPPPDIR'], os.environ['IPPPROFILE']
+            c = Client(ipython_dir=pdir, profile=profile)
+            ee = c[:]
+            ne = len(ee)
+            print(('Shutting down %d engines.' % (ne)))
+            c.close()
+            c.shutdown(hub=True)
+            shutil.rmtree('profile_' + str(profile))
+            try:
+                shutil.rmtree('./log/')
+            except:
+                print('creating log folder')
+    
+            files = glob.glob('*.log')
+            os.mkdir('./log')
+    
+            for fl in files:
+                shutil.move(fl, './log/')
+    
         else:
-            proc = subprocess.Popen(shlex.split(ipcluster + " stop"),
-                                    shell=True, stderr=subprocess.PIPE, close_fds=(os.name != 'nt'))
-
-        line_out = proc.stderr.readline()
-        if b'CRITICAL' in line_out:
-            sys.stdout.write("No cluster to stop...")
-            sys.stdout.flush()
-        elif b'Stopping' in line_out:
-            st = time.time()
-            sys.stdout.write('Waiting for cluster to stop...')
-            while (time.time() - st) < 4:
-                sys.stdout.write('.')
+            if ipcluster == "ipcluster":
+                proc = subprocess.Popen("ipcluster stop", shell=True, stderr=subprocess.PIPE, close_fds=(os.name != 'nt'))
+            else:
+                proc = subprocess.Popen(shlex.split(ipcluster + " stop"),
+                                        shell=True, stderr=subprocess.PIPE, close_fds=(os.name != 'nt'))
+    
+            line_out = proc.stderr.readline()
+            if b'CRITICAL' in line_out:
+                sys.stdout.write("No cluster to stop...")
                 sys.stdout.flush()
-                time.sleep(1)
-        else:
-            print(line_out)
-            print('**** Unrecognized Syntax in ipcluster output, waiting for server to stop anyways ****')
-
-        proc.stderr.close()
+            elif b'Stopping' in line_out:
+                st = time.time()
+                sys.stdout.write('Waiting for cluster to stop...')
+                while (time.time() - st) < 4:
+                    sys.stdout.write('.')
+                    sys.stdout.flush()
+                    time.sleep(1)
+            else:
+                print(line_out)
+                print('**** Unrecognized Syntax in ipcluster output, waiting for server to stop anyways ****')
+    
+            proc.stderr.close()
 
     sys.stdout.write(" done\n")
 #%%
-def setup_cluster(backend = 'local',n_processes = None,single_thread = False):
+def setup_cluster(backend = 'multiprocessing',n_processes = None,single_thread = False):
     """ Restart if necessary the pipyparallel cluster, and manages the case of SLURM
 
+    Parameters:
+    ----------
+    backend: str
+        'multiprocessing', 'ipyparallel', and 'SLURM'
     """
     #todo: todocument
 
@@ -425,13 +433,21 @@ def setup_cluster(backend = 'local',n_processes = None,single_thread = False):
             start_server(slurm_script=slurm_script, ncpus=n_processes)
             pdir, profile = os.environ['IPPPDIR'], os.environ['IPPPROFILE']
             c = Client(ipython_dir=pdir, profile=profile)
-        else:
+        elif backend is 'ipyparallel':
             stop_server()
             start_server(ncpus=n_processes)
             c = Client()
+            print(('Using ' + str(len(c)) + ' processes'))
+            dview = c[:len(c)]
 
-        print(('Using ' + str(len(c)) + ' processes'))
-        dview = c[:len(c)]
+        elif (backend is 'multiprocessing') or (backend is 'local'):
+            if len (multiprocessing.active_children())>0:
+                raise Exception('A cluster is already runnning. Terminate with dview.terminate() if you want to restart.')
+            c = None
+            dview = Pool(n_processes)
+        else:
+            raise Exception('Unknown Backend')
+        
     return c,dview,n_processes
 
 

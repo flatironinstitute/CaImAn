@@ -14,6 +14,7 @@ from scipy.sparse import csc_matrix
 from scipy.stats import norm
 import scipy
 import cv2
+import itertools
 try:
 	import json as simplejson
 	from keras.models import model_from_json
@@ -65,7 +66,7 @@ except:
 
 
 @profile
-def compute_event_exceptionality(traces,robust_std=False,N=5,use_mode_fast=False):
+def compute_event_exceptionality(traces,robust_std=False,N=5,use_mode_fast=False, sigma_factor = 3.):
     """
     Define a metric and order components according to the probabilty if some "exceptional events" (like a spike). 
 
@@ -88,6 +89,9 @@ def compute_event_exceptionality(traces,robust_std=False,N=5,use_mode_fast=False
 
     N: int
         N number of consecutive events
+    
+    sigma_factor: float
+        multiplicative factor for noise estimate (added for backwards compatibility)
 
     Returns:
     --------
@@ -131,14 +135,16 @@ def compute_event_exceptionality(traces,robust_std=False,N=5,use_mode_fast=False
         sd_r = np.sqrt(old_div(np.sum(ff1**2, 1), Ns))
 
     # compute z value
-    z = old_div((traces - md[:, None]), (3 * sd_r[:, None]))
+    z = old_div((traces - md[:, None]), (sigma_factor * sd_r[:, None]))
 
     # probability of observing values larger or equal to z given normal
     # distribution with mean md and std sd_r
-    erf = 1 - norm.cdf(z)
+    #erf = 1 - norm.cdf(z)
 
     # use logarithm so that multiplication becomes sum
-    erf = np.log(erf)
+    #erf = np.log(erf)
+    erf = scipy.special.log_ndtr(-z)  # compute with this numerically stable function
+    
     filt = np.ones(N)
 
     # moving sum
@@ -247,7 +253,7 @@ def evaluate_components_CNN(A,dims,gSig,model_name = 'use_cases/CaImAnpaper/cnn_
     return predictions,final_crops
 #%%
 def evaluate_components(Y, traces, A, C, b, f, final_frate, remove_baseline = True, N = 5, robust_std = False,
-                        Athresh = 0.1, Npeaks = 5, thresh_C = 0.3):
+                        Athresh = 0.1, Npeaks = 5, thresh_C = 0.3,  sigma_factor = 3.):
     """ Define a metric and order components according to the probabilty if some "exceptional events" (like a spike).
     
     Such probability is defined as the likeihood of observing the actual trace value over N samples given an estimated noise distribution. 
@@ -282,11 +288,13 @@ def evaluate_components(Y, traces, A, C, b, f, final_frate, remove_baseline = Tr
         threshold on overlap of A (between 0 and 1)
 
     Npeaks: int
-
-   
+        Number of local maxima to consider   
 
     thresh_C: float
         fraction of the maximum of C that is used as minimum peak height        
+        
+    sigma_factor: float
+        multiplicative factor for noise 
 
     Returns:
     -------
@@ -320,7 +328,7 @@ def evaluate_components(Y, traces, A, C, b, f, final_frate, remove_baseline = Tr
     Yr=np.reshape(Y,(np.prod(dims),T),order='F')    
 
     print('Computing event exceptionality delta')
-    fitness_delta, erfc_delta,std_rr, _ = compute_event_exceptionality(np.diff(traces,axis=1),robust_std=robust_std,N=N)
+    fitness_delta, erfc_delta,std_rr, _ = compute_event_exceptionality(np.diff(traces,axis=1),robust_std=robust_std,N=N,sigma_factor = sigma_factor)
 
     print('Removing Baseline')
     if remove_baseline:
@@ -351,7 +359,7 @@ def evaluate_components(Y, traces, A, C, b, f, final_frate, remove_baseline = Tr
                 traces -= tr_BL[padbefore:-padafter].T
             
     print('Computing event exceptionality')    
-    fitness_raw, erfc_raw,std_rr, _ = compute_event_exceptionality(traces,robust_std=robust_std,N=N)
+    fitness_raw, erfc_raw,std_rr, _ = compute_event_exceptionality(traces,robust_std=robust_std,N=N, sigma_factor = sigma_factor)
 
     print('Evaluating spatial footprint')
     # compute the overlap between spatial and movie average across samples with significant events
@@ -366,8 +374,34 @@ def chunker(seq, size):
     for pos in xrange(0, len(seq), size):
         yield seq[pos:pos + size]
 #%%
+
+def grouper(n, iterable, fillvalue=None):
+    "grouper(3, 'ABCDEFG', 'x') --> ABC DEF Gxx"
+    args = [iter(iterable)] * n
+    try:  # py3
+        return itertools.zip_longest(*args, fillvalue=fillvalue)
+    except:  # py2
+        return itertools.izip_longest(*args, fillvalue=fillvalue)
+
+#%%
+def evaluate_components_placeholder(params):
+    import caiman as cm
+    import numpy as np
+    fname, traces, A, C, b, f, final_frate, remove_baseline, N, robust_std, Athresh, Npeaks, thresh_C = params
+    Yr, dims, T = cm.load_memmap(fname)
+    d1, d2 = dims
+    images = np.reshape(Yr.T, [T] + list(dims), order='F')
+    Y = np.reshape(Yr, dims + (T,), order='F')
+    fitness_raw, fitness_delta, erfc_raw, erfc_delta, r_values, significant_samples = \
+        evaluate_components(Y, traces, A, C, b, f, final_frate, remove_baseline=remove_baseline,
+                                          N=N, robust_std=robust_std, Athresh=Athresh, Npeaks=Npeaks,  thresh_C=thresh_C)
+        
+    return fitness_raw, fitness_delta, [], [], r_values, significant_samples 
+        
+#%%
 def estimate_components_quality(traces, Y, A, C, b, f, final_frate = 30, Npeaks=10, r_values_min = .95,
-                                fitness_min = -100,fitness_delta_min = -100, return_all = False, N =5, remove_baseline = True):
+                                fitness_min = -100,fitness_delta_min = -100, return_all = False, N =5,
+                                remove_baseline = True, dview = None, robust_std = False,Athresh=0.1,thresh_C=0.3, num_traces_per_group = 20):
     """ Define a metric and order components according to the probabilty if some "exceptional events" (like a spike).
 
     Such probability is defined as the likeihood of observing the actual trace value over N samples given an estimated noise distribution.
@@ -427,10 +461,57 @@ def estimate_components_quality(traces, Y, A, C, b, f, final_frate = 30, Npeaks=
 
     """
 
-    fitness_raw, fitness_delta, erfc_raw, erfc_delta, r_values, significant_samples = \
-        evaluate_components(Y, traces, A, C, b, f, final_frate, remove_baseline=remove_baseline,
-                                          N=N, robust_std=False, Athresh=0.1, Npeaks=Npeaks,  thresh_C=0.3 )
+
+    if 'memmap' not in str(type(Y)):
+        
+        print('NOT MEMORY MAPPED. FALLING BACK ON SINGLE CORE IMPLEMENTATION')
+        fitness_raw, fitness_delta, erfc_raw, erfc_delta, r_values, significant_samples = \
+            evaluate_components(Y, traces, A, C, b, f, final_frate, remove_baseline=remove_baseline,
+                                              N=N, robust_std=False, Athresh=0.1, Npeaks=Npeaks,  thresh_C=0.3 )
+        
+    else: # memory mapped case    
+        
+        Ncomp = A.shape[-1]   
+        groups = grouper(num_traces_per_group, range(Ncomp))
+        params = []
+        for g in groups:
+            idx = list(g)
+            # idx = list(filter(None.__ne__, idx))
+            idx = list(filter(lambda a: a is not None, idx))    
+            params.append([Y.filename,traces[idx],A.tocsc()[:,idx],C[idx],b,f,final_frate,remove_baseline,N,robust_std,Athresh,Npeaks,thresh_C])
+        
+        if dview is None:            
+            res = map(evaluate_components_placeholder,params)
+        else:
+            
+            print('EVALUATING IN PARALLEL... NOT RETURNING ERFCs')
+            if 'multiprocessing' in str(type(dview)):
+                res = dview.map_async(evaluate_components_placeholder,params).get(9999999)
+            else:
+                res = dview.map_sync(evaluate_components_placeholder,params)
+        
+        fitness_raw = []
+        fitness_delta = [] 
+        erfc_raw = []
+        erfc_delta = [] 
+        r_values = []
+        significant_samples = []
+        
+        for r_ in res:
+            fitness_raw__, fitness_delta__, erfc_raw__, erfc_delta__, r_values__, significant_samples__ = r_                
+            fitness_raw = np.concatenate([fitness_raw,fitness_raw__])
+            fitness_delta = np.concatenate([fitness_delta, fitness_delta__])
+            r_values = np.concatenate([r_values ,r_values__])
+            # significant_samples = np.concatenate([significant_samples,significant_samples__])
     
+            if len(erfc_raw) == 0:
+                erfc_raw = erfc_raw__
+                erfc_delta = erfc_delta__
+            else:
+                erfc_raw = np.concatenate([erfc_raw, erfc_raw__],axis = 0)
+                erfc_delta = np.concatenate([erfc_delta, erfc_delta__],axis = 0)
+            
+
     idx_components_r = np.where(r_values >= r_values_min)[0]  # threshold on space consistency
     idx_components_raw = np.where(fitness_raw < fitness_min)[0] # threshold on time variability
     idx_components_delta = np.where(fitness_delta < fitness_delta_min)[0] # threshold on time variability (if nonsparse activity)

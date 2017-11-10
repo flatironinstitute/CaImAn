@@ -50,6 +50,7 @@ n_frames_per_bin = 10
 offline_file = '/opt/local/Data/JGauthier-J115/offline_results/results_analysis_offline_JEFF_90k.npz'
 #offline_file = '/opt/local/Data/Sue/k53/Yr_d1_512_d2_512_d3_1_order_C_frames_116043_.results_analysis.npz'
 #offline_file = '/mnt/ceph/neuro/labeling/neurofinder.02.00/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_8000_.results_analysis.npz'
+offline_file = '/mnt/home/agiovann/SOFTWARE/privateCaImAn/Yr_d1_498_d2_467_d3_1_order_C_frames_2250_.results_analysis.npz'
 
 #%%
 with np.load(offline_file) as ld:
@@ -132,7 +133,9 @@ if False:
 #with np.load('results_full_movie_online_may5/results_analysis_online_JEFF_90k.take7_no_batch.npz') as ld:
 #online_file ='/opt/local/privateCaImAn/JEFF_MAY_14_AFT_BETTER_INIT_UPDATES_NO_STATS/results_analysis_online_JEFF_LAST_90000.npz'
 #online_file ='/mnt/ceph/neuro/DataForPublications/OnlineCNMF/Jeff/EP_linux/results_analysis_online_JEFF_LAST__DS_2_90000.npz'
-online_file  = '/opt/local/privateCaImAn/RES_NIPS_JEFF_r_val_0.85_fitness_-40-20/results_analysis_online_JEFF_DS_2.npz'
+#online_file  = '/opt/local/privateCaImAn/RES_NIPS_JEFF_r_val_0.85_fitness_-40-20/results_analysis_online_JEFF_DS_2.npz'
+online_file  = '/mnt/home/agiovann/SOFTWARE/privateCaImAn/results_analysis_online_neurofinder.03.00t.npz'
+
 #online_file ='/mnt/ceph/neuro/SUE_results_online_DS/results_analysis_online_SUE__DS_2_116043.npz'
 
 with np.load(online_file) as ld:
@@ -149,8 +152,9 @@ with np.load(online_file) as ld:
 #    OASISinstances = OASISinstances[()]    
      
     C_on = Cf
-    A_on,b_on = Ab[:,:-1],Ab[:,-1].toarray()
-    C_on, f_on = C_on[:-1,:], C_on[-1:,:]
+    A_on,b_on = Ab[:,:N],Ab[:,N:M].toarray()
+    C_on, f_on = C_on[:N,:], C_on[N:M,:]
+
     print(A_on.shape)
 #%%
 pl.figure()
@@ -158,7 +162,7 @@ pl.imshow(Cn)
 crd = plot_contours(scipy.sparse.coo_matrix(A_on), Cn, thr=0.9)    
 #%%
 view_patches_bar(None, scipy.sparse.coo_matrix(A_on.tocsc()[:, :]), C_on[
-                               :, :], b_on, f_on, dims_on[0], dims_on[1], YrA=noisyC[:-1]-C_on, img=Cn)    
+                               :, :], b_on, f_on, dims_on[0], dims_on[1], YrA=noisyC[:N]-C_on, img=Cn)    
 #%%
 A_on_thr = cm.source_extraction.cnmf.spatial.threshold_components(A_on.toarray(), dims_on, medw=None, thr_method='max', maxthr=0.2, nrgthr=0.99, extract_cc=True,
                          se=None, ss=None, dview=dview) 
@@ -174,6 +178,10 @@ pl.figure()
 pl.imshow(A_on_thr.sum(-1).reshape(dims_on,order = 'F'))
 #%%
 roi_cons = np.load('/mnt/ceph/neuro/labeling/neurofinder.02.00/regions/joined_consensus_active_regions.npy')
+print(roi_cons.shape)
+pl.imshow(roi_cons.sum(0))
+#%%
+roi_cons = np.load('/mnt/ceph/neuro/labeling/neurofinder.03.00.test/regions/joined_consensus_active_regions.npy')
 print(roi_cons.shape)
 pl.imshow(roi_cons.sum(0))
 #%%

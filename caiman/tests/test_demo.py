@@ -25,12 +25,12 @@ def demo(parallel=False):
     images = np.reshape(Yr.T, [T] + list(dims), order='F')
     cnm = cnm.fit(images)
     if parallel:
-        cm.cluster.stop_server()
+        cm.cluster.stop_server(dview=dview)
 
     # verifying the spatial components
-    npt.assert_allclose(cnm.A.sum(), 31913160, 1e-2)
+    npt.assert_allclose(cnm.A.sum(), 281.1, 1e-2)
     # verifying the temporal components
-    npt.assert_allclose(cnm.C.sum(), 640.5, 1e-2)
+    npt.assert_allclose(cnm.C.sum(), 66271668, 1e-2)
 
 
 def test_single_thread():

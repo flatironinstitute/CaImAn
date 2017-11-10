@@ -20,12 +20,14 @@ from tempfile import NamedTemporaryFile
 from IPython.display import HTML
 import sys
 from warnings import warn
-from scipy.sparse import issparse, spdiags, coo_matrix, csc_matrix
+from scipy.sparse import issparse, spdiags, coo_matrix, csc_matrix, hstack
 from matplotlib.widgets import Slider
 from ..base.rois import com
 from scipy.ndimage.measurements import center_of_mass
+from scipy.ndimage.filters import median_filter
 import matplotlib.cm as cm
 import matplotlib as mpl
+from math import sqrt, ceil
 try:
     import bokeh
     import bokeh.plotting as bpl
@@ -155,7 +157,7 @@ def nb_view_patches(Yr, A, C, b, f, d1, d2, YrA = None, image_neurons=None, thr=
     colormap = cm.get_cmap(cmap)
     grayp = [mpl.colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
     nr, T = C.shape
-    nA2 = np.ravel(A.power(2).sum(0))
+    nA2 = np.ravel(np.power(A,2).sum(0)) if type(A) == np.ndarray else np.ravel(A.power(2).sum(0))
     b = np.squeeze(b)
     f = np.squeeze(f)
     if YrA is None:
@@ -764,35 +766,30 @@ def view_patches_bar(Yr, A, C, b, f, d1, d2, YrA=None, img=None):
     """
 
     pl.ion()
+    if 'csc_matrix' not in str(type(A)):
+        A = csc_matrix(A)
+    if 'array' not in str(type(b)):
+        b = b.toarray()
+        
     nr, T = C.shape
     nb = f.shape[0]
-    A2 = A.copy()
-    A2.data **= 2
-    nA2 = np.sqrt(np.array(A2.sum(axis=0))).squeeze()
+    nA2 = np.sqrt(np.array(A.power(2).sum(axis=0))).squeeze()
+    
     if YrA is None:
-        Y_r = np.array(A.T * np.matrix(Yr) - (A.T * np.matrix(b[:, np.newaxis])) * np.matrix(
-            f[np.newaxis]) - (A.T.dot(A)) * np.matrix(C) + C)
+        Y_r = spdiags(old_div(1, nA2), 0, nr, nr)*(A.T.dot(Yr) - (A.T.dot(b)).dot(f) - (A.dot(A)).dot(C)) + C
     else:
         Y_r = YrA + C
 
-    A = A * spdiags(old_div(1, nA2), 0, nr, nr)
-    A = A.todense()
-    imgs = np.reshape(np.array(A), (d1, d2, nr), order='F')
     if img is None:
-        img = np.mean(imgs[:, :, :-1], axis=-1)
+        img = np.reshape(np.array(A.mean(axis=1)),(d1,d2),order='F')
 
-    bkgrnd = np.reshape(b, (d1, d2) + (nb,), order='F')
     fig = pl.figure(figsize=(10, 10))
 
     axcomp = pl.axes([0.05, 0.05, 0.9, 0.03])
 
     ax1 = pl.axes([0.05, 0.55, 0.4, 0.4])
-#    ax1.axis('off')
     ax3 = pl.axes([0.55, 0.55, 0.4, 0.4])
-#    ax1.axis('off')
     ax2 = pl.axes([0.05, 0.1, 0.9, 0.4])
-#    axcolor = 'lightgoldenrodyellow'
-#    axcomp = pl.axes([0.25, 0.1, 0.65, 0.03], axisbg=axcolor)
 
     s_comp = Slider(axcomp, 'Component', 0, nr + nb - 1, valinit=0)
     vmax = np.percentile(img, 98)
@@ -804,14 +801,14 @@ def view_patches_bar(Yr, A, C, b, f, d1, d2, YrA=None, img=None):
         if i < nr:
 
             ax1.cla()
-            imgtmp = imgs[:, :, i]
+            imgtmp = np.reshape(A[:,i].toarray(),(d1,d2),order='F')
             ax1.imshow(imgtmp, interpolation='None', cmap=pl.cm.gray)
             ax1.set_title('Spatial component ' + str(i + 1))
             ax1.axis('off')
 
             ax2.cla()
-            ax2.plot(np.arange(T), np.squeeze(np.array(Y_r[i, :])), 'c', linewidth=3)
-            ax2.plot(np.arange(T), np.squeeze(np.array(C[i, :])), 'r', linewidth=2)
+            ax2.plot(np.arange(T), Y_r[i], 'c', linewidth=3)
+            ax2.plot(np.arange(T), C[i], 'r', linewidth=2)
             ax2.set_title('Temporal component ' + str(i + 1))
             ax2.legend(labels=['Filtered raw data', 'Inferred trace'])
 
@@ -823,7 +820,8 @@ def view_patches_bar(Yr, A, C, b, f, d1, d2, YrA=None, img=None):
             ax3.axis('off')
         else:
             ax1.cla()
-            ax1.imshow(bkgrnd[:, :, i - nr], interpolation='None')
+            bkgrnd = np.reshape(b[:,i-nr],(d1,d2),order='F')
+            ax1.imshow(bkgrnd, interpolation='None')
             ax1.set_title('Spatial background ' + str(i + 1 - nr))
             ax1.axis('off')
 
@@ -982,3 +980,27 @@ def plot_contours(A, Cn, thr=None, thr_method='max', maxthr=0.2, nrgthr=0.9, dis
                 ax.text(cm[i, 1], cm[i, 0], str(i + 1), color=colors)
 
     return coordinates
+
+
+def plot_shapes(Ab, dims, num_comps=15, size=(15, 15), comps_per_row=None,
+                cmap='viridis', smoother=lambda s: median_filter(s, 3)):
+
+    def GetBox(centers, R, dims):
+        D = len(R)
+        box = np.zeros((D, 2), dtype=int)
+        for dd in range(D):
+            box[dd, 0] = max((centers[dd] - R[dd], 0))
+            box[dd, 1] = min((centers[dd] + R[dd] + 1, dims[dd]))
+        return box
+
+    nx = int(sqrt(num_comps) * 1.3) if comps_per_row is None else comps_per_row
+    ny = int(ceil(num_comps / float(nx)))
+    pl.figure(figsize=(nx, ny))
+    for i, a in enumerate(Ab.T[:num_comps]):
+        ax = pl.subplot(ny, nx, i + 1)
+        s = a.toarray().reshape(dims, order='F')
+        box = GetBox(np.array(center_of_mass(s), dtype=np.int16), size, dims)
+        pl.imshow(smoother(s[list(map(lambda a: slice(*a), box))]),
+                  cmap=cmap, interpolation='nearest')
+        ax.axis('off')
+    pl.subplots_adjust(0, 0, 1, 1, .06, .06)

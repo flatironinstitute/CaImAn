@@ -47,7 +47,7 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
                               method='ellipse', expandCore=None, dview=None, n_pixels_per_process=128,
                               medw=(3, 3), thr_method='nrg', maxthr=0.1, nrgthr=0.9999, extract_cc=True, b_in = None,
                               se=np.ones((3, 3), dtype=np.int), ss=np.ones((3, 3), dtype=np.int), nb=1,
-                              method_ls='lasso_lars', update_background_components = True, low_rank_background= True):
+                              method_ls='lasso_lars', update_background_components = True, low_rank_background= True, block_size=1000, num_blocks_per_run = 20):
     """update spatial footprints and background through Basis Pursuit Denoising 
 
     for each pixel i solve the problem
@@ -205,8 +205,11 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
             range(i, np.prod(dims))), method_ls, cct])
     A_ = np.zeros((d, nr + np.size(f, 0)))    #init A_
     if dview is not None:
-        parallel_result = dview.map_sync(regression_ipyparallel, pixel_groups)
-        dview.results.clear()
+        if 'multiprocessing' in str(type(dview)):
+            parallel_result = dview.map_async(regression_ipyparallel, pixel_groups).get(9999999)
+        else:
+            parallel_result = dview.map_sync(regression_ipyparallel, pixel_groups)
+            dview.results.clear()
     else:
         parallel_result = list(map(regression_ipyparallel, pixel_groups))
 
@@ -239,7 +242,7 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
 
     print("Computing residuals")
     if 'memmap' in str(type(Y)):
-        Y_resf = parallel_dot_product(Y, f.T, block_size=1000, dview=dview) - \
+        Y_resf = parallel_dot_product(Y, f.T, dview=dview, block_size=block_size, num_blocks_per_run = num_blocks_per_run) - \
             A_.dot(coo_matrix(C[:nr, :]).dot(f.T))
     else:
         # Y*f' - A*(C*f')
@@ -391,7 +394,6 @@ def regression_ipyparallel(pars):
 
             As.append((px, idxs_C[px], a))
 
-    print('clearing variables')
     if isinstance(Y_name, basestring):
         del Y
     if isinstance(C_name, basestring):
@@ -491,7 +493,10 @@ def determine_search_location(A, dims, method='ellipse', min_size=3, max_size=8,
             if dview is None:
                 res = list(map(construct_ellipse_parallel, pars))
             else:
-                res = dview.map_sync(construct_ellipse_parallel, pars)
+                if 'multiprocessing' in str(type(dview)):
+                    res = dview.map_async(construct_ellipse_parallel, pars).get(9999999)
+                else:
+                    res = dview.map_sync(construct_ellipse_parallel, pars)
             for r in res:
                 dist_indicator.append(r)
 
@@ -639,10 +644,13 @@ def threshold_components(A, dims, medw=None, thr_method='nrg', maxthr=0.1, nrgth
     pars = []
     # fo each neurons
     for i in range(nr):
-        pars.append([A[:, i], i, dims, medw, d, thr_method, se, ss, maxthr, nrgthr, extract_cc])
+        pars.append([scipy.sparse.csc_matrix(A[:, i]), i, dims, medw, d, thr_method, se, ss, maxthr, nrgthr, extract_cc])
 
     if dview is not None:
-        res = dview.map_async(threshold_components_parallel, pars)
+        if 'multiprocessing' in str(type(dview)):
+            res = dview.map_async(threshold_components_parallel, pars).get(9999999)
+        else:
+            res = dview.map_async(threshold_components_parallel, pars)
         dview.wait(res)
     else:
         res = list(map(threshold_components_parallel, pars))
@@ -703,6 +711,7 @@ def threshold_components_parallel(pars):
        """
 
     A_i, i, dims, medw, d, thr_method, se, ss, maxthr, nrgthr, extract_cc = pars
+    A_i = A_i.toarray()
     # we reshape this one dimension column of the 2d components into the 2D that
     A_temp = np.reshape(A_i, dims[::-1])
     # we apply a median filter of size medw
@@ -1253,9 +1262,6 @@ def computing_indicator(Y, A_in, b, C, f, nb, method, dims, min_size, max_size, 
                 scipy.sparse.hstack([A_in,scipy.sparse.coo_matrix(b)]), dims, method=method, min_size=min_size, max_size=max_size, dist=dist, expandCore=expandCore,
                 dview=dview)
             
-            
-        print("found spatial support for each component")
-        
     
         ind2_ = [np.where(iid_)[0]
                      if (np.size(np.where(iid_)[0]) > 0) and (np.min(np.where(iid_)[0])<nr) else [] for iid_ in dist_indicator]
