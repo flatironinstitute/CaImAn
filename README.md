@@ -105,22 +105,21 @@ We recently incorporated a Python implementation of the OnACID [[5]](#onacid) al
    * Microsoft Build Tools for Visual Studio 2017 https://www.visualstudio.com/downloads/#build-tools-for-visual-studio-2017
    * reboot.
 
-    ```bash
-    
-    git clone  https://github.com/simonsfoundation/CaImAn
-    cd CaImAn
-    git pull
-    ```
+   ```bash
+   git clone  https://github.com/simonsfoundation/CaImAn
+   cd CaImAn
+   git pull
+   ```
    
   * start>programs>anaconda3>anaconda prompt   
-    ```bash
-    conda env create -f environment_mac.yml -n caiman
-    activate caiman   
-    conda install -c conda-forge tensorflow keras
-    python setup.py build_ext -i
-    conda install numba
-    jupyter notebook --NotebookApp.iopub_data_rate_limit=1.0e10     
-    ```
+  ```bash
+  conda env create -f environment_mac.yml -n caiman
+  activate caiman   
+  conda install -c conda-forge tensorflow keras
+  python setup.py build_ext -i
+  conda install numba
+  jupyter notebook --NotebookApp.iopub_data_rate_limit=1.0e10     
+  ```
 
  
 ### Installation for behavioral analysis
