@@ -79,10 +79,17 @@ def get_mapping(inferredC, trueC, A):
 
 
 def plot_centers():
-    tc = [center_of_mass(a.reshape(dims, order='F')) for a in A.T]
+    tc = np.array([center_of_mass(a.reshape(dims_in, order='F')) for a in A.T])
+    if not whole_FOV:
+        tc -= dims
     center = [center_of_mass(a.reshape(dims, order='F')) for a in cnm.A.toarray().T]
     plt.figure(figsize=(15, 15))
-    plt.imshow(A.sum(-1).reshape(dims, order='F'))
+    if whole_FOV:
+        plt.imshow(A.sum(-1).reshape(dims_in, order='F'))
+    else:
+        plt.imshow(A.sum(-1).reshape(dims_in, order='F')[dims[0]:2 * dims[0], dims[1]:2 * dims[1]])
+        plt.xlim(0,dims[0])
+        plt.ylim(0,dims[1])
     plt.scatter(*np.transpose(tc)[::-1], marker='x', lw=3, s=100, c='r', label='true centers')
     plt.scatter(*np.transpose(center)[::-1], c='w', label='inferred centers')
     plt.legend()

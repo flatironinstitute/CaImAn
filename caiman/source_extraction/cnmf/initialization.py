@@ -19,7 +19,7 @@ from builtins import range
 from past.utils import old_div
 import numpy as np
 from sklearn.decomposition import NMF, FastICA
-from skimage.transform import downscale_local_mean, resize
+from skimage.transform import resize
 import scipy.ndimage as nd
 from scipy.ndimage.measurements import center_of_mass
 from scipy.ndimage.filters import correlate
@@ -30,6 +30,7 @@ from caiman.source_extraction.cnmf.deconvolution import deconvolve_ca
 from caiman.source_extraction.cnmf.pre_processing import get_noise_fft
 from caiman.source_extraction.cnmf.background import compute_W
 from caiman.source_extraction.cnmf.spatial import circular_constraint
+from caiman.utils.utils import downscale
 import cv2
 import sys
 import matplotlib
@@ -187,10 +188,9 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
         Y = np.array(Y)
 
     # spatial downsampling
-    mean_val = np.mean(Y)
     if ssub != 1 or tsub != 1:
         print("Spatial Downsampling ...")
-        Y_ds = downscale_local_mean(Y, tuple([ssub] * len(d) + [tsub]), cval=mean_val)
+        Y_ds = downscale(Y, tuple([ssub] * len(d) + [tsub]))
     else:
         Y_ds = Y
 
@@ -823,7 +823,9 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
 #    plt.close()
 
     dims = Y.shape[:2]
+    T = Y.shape[-1]
     d1, d2, total_frames = Y_ds.shape
+    tsub = int(round(float(T) / total_frames))
     B = np.array(Y_ds.reshape((-1, total_frames), order='F') - A.dot(C), dtype=np.float32)
 
     if ring_size_factor is not None:
@@ -861,8 +863,8 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
         A, _, C, _ = caiman.source_extraction.cnmf.spatial.update_spatial_components(
             np.array(Y_ds.reshape((-1, total_frames), order='F') - B), C=C,
             f=np.zeros((0, total_frames), np.float32), A_in=A,
-            sn=downscale_local_mean(sn.reshape(dims, order='F'),
-                                    tuple([ssub] * len(dims))).ravel() / ssub,
+            sn=np.sqrt(downscale((sn**2).reshape(dims, order='F'),
+                                 tuple([ssub] * len(dims))).ravel() / tsub) / ssub,
             b_in=np.zeros((d1 * d2, 0), np.float32),
             dview=None, **options['spatial_params'])
         A = A.astype(np.float32)
@@ -873,12 +875,10 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
                           A, C, (d1, d2), int(np.round(ring_size_factor * gSiz)))
 
         # 2nd iteration on non-decimated data
-        T = Y.shape[-1]
         K = C.shape[0]
-        tsub = int(round(float(T) / total_frames))
         if T > total_frames:
             C = np.repeat(C, tsub, 1)[:T]
-            Ys = downscale_local_mean(Y, (ssub, ssub, 1)).reshape((-1, T), order='F')
+            Ys = downscale(Y, (ssub, ssub, 1)).reshape((-1, T), order='F')
             # N.B: upsampling B in space is fine, but upsampling in time doesn't work well,
             # cause the error in upsampled background can be of similar size as neural signal
             B = Ys - A.dot(C)
@@ -891,10 +891,11 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
                            .reshape((-1, K), order='F'))
 
         print('Update Temporal')
-        C, A, b__, f__, S__, bl__, c1__, neurons_sn__, g1__, YrA__, lam__ = caiman.source_extraction.cnmf.temporal.update_temporal_components(
-            np.array(Y.reshape((-1, T), order='F') - B), spr.csc_matrix(A),
-            np.zeros((np.prod(dims), 0), np.float32), C, np.zeros((0, T), np.float32),
-            dview=None, bl=None, c1=None, sn=None, g=None, **options['temporal_params'])
+        C, A, b__, f__, S__, bl__, c1__, neurons_sn__, g1__, YrA__, lam__ = \
+            caiman.source_extraction.cnmf.temporal.update_temporal_components(
+                np.array(Y.reshape((-1, T), order='F') - B), spr.csc_matrix(A),
+                np.zeros((np.prod(dims), 0), np.float32), C, np.zeros((0, T), np.float32),
+                dview=None, bl=None, c1=None, sn=None, g=None, **options['temporal_params'])
         print('Update Spatial')
         options['spatial_params']['dims'] = dims
         options['spatial_params']['se'] = np.ones((1,) * len((d1, d2)), dtype=np.uint8)
@@ -909,26 +910,26 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
         C *= nA[:, None]
 
         print('Compute Background Again')  # on decimated data
-        A_ds = downscale_local_mean(np.reshape(A, dims + (-1,), order='F'), (ssub, ssub, 1))
+        A_ds = downscale(np.reshape(A, dims + (-1,), order='F'), (ssub, ssub, 1))
         A_ds = np.reshape(A_ds, (-1, K), order='F')
         # background according to ringmodel
         W, b0 = compute_W(Y_ds.reshape((-1, total_frames), order='F'),
-                          A_ds, downscale_local_mean(C, (1, tsub)), (d1, d2),
+                          A_ds, downscale(C, (1, tsub)), (d1, d2),
                           int(np.round(ring_size_factor * gSiz)))
         B = (Ys if T > total_frames else Y_ds.reshape((-1, total_frames), order='F')) - A_ds.dot(C)
         B = b0[:, None] + W.dot(B - b0[:, None])
 
     print('Estimate low rank Background')
-    
+
     use_NMF = True
     if use_NMF:
         model = NMF(n_components=nb, init='nndsvdar')  # , init='random', random_state=0)
         b_in = model.fit_transform(np.maximum(B, 0))
         #f_in = model.components_.squeeze()
-        f_in = np.linalg.lstsq(b_in,B)[0]
+        f_in = np.linalg.lstsq(b_in, B)[0]
     else:
-        b_in, s_in, f_in = spr.linalg.svds(B,k=nb)
-        f_in *= s_in[:,np.newaxis]
+        b_in, s_in, f_in = spr.linalg.svds(B, k=nb)
+        f_in *= s_in[:, np.newaxis]
 
     return A, C, center.T, b_in, f_in
 
@@ -1200,10 +1201,10 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
                 ax_traces.set_title('The fluo. trace at the seed pixel')
 
                 writer.grab_frame()
-           
+
             [ai, ci_raw, ind_success] = extract_ac(data_filtered_box,
                                                    data_raw_box, ind_ctr, patch_dims)
-            
+
             if (np.sum(ai > 0) < min_pixel) or (not ind_success):
                 # bad initialization. discard and continue
                 continue
@@ -1342,15 +1343,15 @@ def extract_ac(data_filtered, data_raw, ind_ctr, patch_dims):
     y_bg = np.median(data_raw[:, ind_bg], axis=1).reshape(-1, 1)
     # extract spatial components
     # pdb.set_trace()
-    X = np.hstack([ci - ci.mean(), y_bg - y_bg.mean(), np.ones(ci.shape)])    
-    XX = np.dot(X.transpose(), X)  
-    Xy = np.dot(X.T, data_raw)       
-    ai = scipy.linalg.lstsq(XX, Xy)[0][0]    
+    X = np.hstack([ci - ci.mean(), y_bg - y_bg.mean(), np.ones(ci.shape)])
+    XX = np.dot(X.transpose(), X)
+    Xy = np.dot(X.T, data_raw)
+    ai = scipy.linalg.lstsq(XX, Xy)[0][0]
     ai = ai.reshape(patch_dims)
     ai[ai < 0] = 0
 
     # post-process neuron shape
     ai = circular_constraint(ai)
-    
+
     # return results
     return ai, ci.reshape(len(ci)), True

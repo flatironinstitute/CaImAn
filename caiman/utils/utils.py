@@ -1,11 +1,11 @@
 """ pure utilitaries(other)
- 
- all of other usefull functions 
- 
+
+ all of other usefull functions
+
 See Also
 ------------
 https://docs.python.org/2/library/urllib.html
- 
+
 """
 #\package Caiman/utils
 #\version   1.0
@@ -101,7 +101,7 @@ def val_parse(v):
      returns:
      -------
 
-    v: python object 
+    v: python object
 
     """
 
@@ -296,3 +296,29 @@ def load_object(filename):
     with open(filename, 'rb') as input_obj:
         obj = pickle.load(input_obj)
     return obj
+
+
+def downscale(Y, ds):
+    """downscaling without zero padding
+    faster version of skimage.transform._warps.block_reduce(Y, ds, np.nanmean, np.nan)"""
+    size = np.ceil(np.array(Y.shape) / np.array(ds, dtype=float)).astype(int) * np.array(ds)
+    tmp = np.nan * np.zeros(size, dtype=Y.dtype)
+    if Y.ndim == 2:
+        d = Y.shape
+        tmp[:d[0], :d[1]] = Y
+        return np.nanmean(np.nanmean(
+            tmp.reshape(size[0] / ds[0], ds[0], size[1] / ds[1], ds[1]), 1), 2)
+    elif Y.ndim == 3:
+        d = Y.shape
+        tmp[:d[0], :d[1], :d[2]] = Y
+        return np.nanmean(np.nanmean(np.nanmean(
+            tmp.reshape(size[0] / ds[0], ds[0], size[1] / ds[1], ds[1],
+                        size[2] / ds[2], ds[2]), 1), 2), 3)
+    elif Y.ndim == 4:
+        d = Y.shape
+        tmp[:d[0], :d[1], :d[2], :d[3]] = Y
+        return np.nanmean(np.nanmean(np.nanmean(np.nanmean(
+            tmp.reshape(size[0] / ds[0], ds[0], size[1] / ds[1], ds[1],
+                        size[2] / ds[2], ds[2], size[3] / ds[3], ds[3]), 1), 2), 3), 4)
+    else:
+        raise NotImplementedError
