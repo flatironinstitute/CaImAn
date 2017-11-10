@@ -29,8 +29,7 @@ from caiman.motion_correction import motion_correct_iteration_fast
 import cv2
 from caiman.utils.visualization import plot_contours
 import glob
-from caiman.source_extraction.cnmf.online_cnmf import bare_initialization, initialize_movie_online, RingBuffer
-#from caiman.source_extraction.cnmf.online_cnmf import load_object, save_object
+from caiman.source_extraction.cnmf.online_cnmf import bare_initialization, initialize_movie_online, load_object, save_object, RingBuffer
 from copy import deepcopy
 
 #%%  download and list all files to be processed
@@ -139,7 +138,7 @@ movie_name = folder_name + '/output.avi' # name of movie to be saved
 resize_fact = 1.2                        # image resizing factor
 
 if online_files == 0:                    # check whether there are any additional files
-    process_files = fls[:init_files]     # end processing at this file
+    process_files = fls[init_files]      # end processing at this file
     init_batc_iter = [initbatch]         # place where to start
     end_batch = T1              
 else:

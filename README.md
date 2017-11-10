@@ -56,7 +56,7 @@ We recently incorporated a Python implementation of the OnACID [[5]](#onacid) al
 ## Installation for calcium imaging data analysis
 
 
-* Installation on Mac (**Suggested PYTHON 2.7**)
+* Installation on Mac 
 
    * Download and install Anaconda (Python 2.7 or Python 3.5) <http://docs.continuum.io/anaconda/install>
 
@@ -71,7 +71,6 @@ We recently incorporated a Python implementation of the OnACID [[5]](#onacid) al
    conda install -c conda-forge tensorflow keras
    python setup.py build_ext -i   
    ```
-   **Python 3 is currently giving issues** when running in parallel mode (dview is not None) because of bugs in Python/ipyparallel/numpy interaction. We suggest to stick to 2 until this message disappear. If you really want to use it we had some success using conda-forge channel instead of anaconda. You can try that if you are desperate.  
 
 
 * Installation on Linux 
@@ -96,50 +95,31 @@ We recently incorporated a Python implementation of the OnACID [[5]](#onacid) al
    export MKL_NUM_THREADS=1
    export OPENBLAS_NUM_THREADS=1
    ```
+ 
 
-* Installation on  Windows 
+* Installation on Windows
 
-  (Python 3)
 
-   * Download and install Anaconda (Python 3.6) <http://docs.continuum.io/anaconda/install>, 
-   * GIT (<https://git-scm.com/>) and 
-   * Microsoft Build Tools for Visual Studio 2017 <https://www.visualstudio.com/downloads/#build-tools-for-visual-studio-2017>
+   * Download and install Anaconda (Python 3.6) http://docs.continuum.io/anaconda/install, 
+   * GIT (https://git-scm.com/) and 
+   * Microsoft Build Tools for Visual Studio 2017 https://www.visualstudio.com/downloads/#build-tools-for-visual-studio-2017
    * reboot.
 
-    ```bash
-    
-    git clone  https://github.com/simonsfoundation/CaImAn
-    cd CaImAn
-    git pull
-    ```
-	start>programs>anaconda3>anaconda prompt
-	
-	```bash
-    
-	conda env create -f environment_mac.yml -n caiman
-    activate caiman   
-    conda install -c conda-forge tensorflow keras
-    python setup.py build_ext -i       
-	conda install numba
-	jupyter notebook --NotebookApp.iopub_data_rate_limit=1.0e10
-    ```
-
-
-(OUTDATED, NEEDS TESTING)
-
-	(Python 2.7)
-   * Download and install Anaconda (Python 2.7) <http://docs.continuum.io/anaconda/install>, GIT (<https://git-scm.com/>) and Microsoft Visual C++ Compiler for Python 2.7 <https://www.microsoft.com/en-us/download/details.aspx?id=44266>
-
-    ```bash
-    
-    git clone  https://github.com/simonsfoundation/CaImAn
-    cd CaImAn
-    git pull
-    conda env create -f environment_mac.yml -n caiman
-    activate caiman   
-    conda install -c conda-forge tensorflow keras
-    python setup.py build_ext -i       
-    ```
+   ```bash
+   git clone  https://github.com/simonsfoundation/CaImAn
+   cd CaImAn
+   git pull
+   ```
+   
+  * start>programs>anaconda3>anaconda prompt   
+  ```bash
+  conda env create -f environment_mac.yml -n caiman
+  activate caiman   
+  conda install -c conda-forge tensorflow keras
+  python setup.py build_ext -i
+  conda install numba
+  jupyter notebook --NotebookApp.iopub_data_rate_limit=1.0e10     
+  ```
 
  
 ### Installation for behavioral analysis

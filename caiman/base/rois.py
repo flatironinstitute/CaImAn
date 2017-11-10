@@ -145,7 +145,7 @@ def get_distance_from_A(masks_gt,masks_comp, min_dist = 10 ):
     return distance_masks([A_ben,A_cnmf],[cm_ben,cm_cnmf], min_dist )  
 #%%
 def nf_match_neurons_in_binary_masks(masks_gt,masks_comp,thresh_cost=.7, min_dist = 10, print_assignment= False,
-                                     plot_results = False, Cn=None, labels = None, cmap = 'viridis', D = None, enclosed_thr = None):
+                                     plot_results = False, Cn=None, labels = None, cmap = 'viridis', D = None):
     """
     Match neurons expressed as binary masks. Uses Hungarian matching algorithm
 
@@ -173,9 +173,6 @@ def nf_match_neurons_in_binary_masks(masks_gt,masks_comp,thresh_cost=.7, min_dis
 
     D: list of ndarrays
 	list of distances matrices
-    
-    enclosed_thr: float
-        if not None set distance to at most the specified value when ground truth is a subset of inferred        
 
     Returns:
     --------
@@ -210,7 +207,7 @@ def nf_match_neurons_in_binary_masks(masks_gt,masks_comp,thresh_cost=.7, min_dis
     if D is None:
         #% find distances and matches
         # find the distance between each masks
-        D=distance_masks([A_ben,A_cnmf],[cm_ben,cm_cnmf], min_dist, enclosed_thr = enclosed_thr)  
+        D=distance_masks([A_ben,A_cnmf],[cm_ben,cm_cnmf], min_dist )  
         level = 0.98
     else:
         level = .98
@@ -296,7 +293,7 @@ def norm_nrg(a_):
     return a.reshape(dims,order = 'F')
 
 #%% compute mask distances
-def distance_masks(M_s,cm_s,max_dist,enclosed_thr = None):
+def distance_masks(M_s,cm_s,max_dist):
     """
     Compute distance matrix based on an intersection over union metric. Matrix are compared in order,
     with matrix i compared with matrix i+1
@@ -312,10 +309,6 @@ def distance_masks(M_s,cm_s,max_dist,enclosed_thr = None):
     max_dist: float
         maximum distance among centroids allowed between components. This corresponds to a distance
         at which two components are surely disjoined
-        
-    enclosed_thr: float
-        if not None set distance to at most the specified value when ground truth is a subset of inferred 
-        
 
     Returns:
     --------
@@ -344,8 +337,6 @@ def distance_masks(M_s,cm_s,max_dist,enclosed_thr = None):
 
         cmgt_comp=np.array(cmgt_comp)
         cmtest_comp=np.array(cmtest_comp)
-        if enclosed_thr is not None:
-            gt_val = gt_comp.T.dot(gt_comp).diagonal()
         for i in range(nb_gt):
             #for each components of gt
             k=gt_comp[:,np.repeat(i,nb_test)]+test_comp
@@ -369,9 +360,6 @@ def distance_masks(M_s,cm_s,max_dist,enclosed_thr = None):
                         #intersection is removed from union since union contains twice the overlaping area
                         #having the values in this format 0-1 is helpfull for the hungarian algorithm that follows
                         D[i,j] = 1-1.*intersection/(union-intersection)
-                        if enclosed_thr is not None:                            
-                            if intersection == gt_val[i]:
-                                D[i,j] = min(D[i,j],0.5)
                     else:
                         D[i,j] = 1.
 
@@ -566,8 +554,7 @@ def nf_read_roi(fileobj):
 
     magic = fileobj.read(4)
     if magic != 'Iout':
-#        raise IOError('Magic number not found')
-        print('Magic number not found')
+        raise IOError('Magic number not found')
     version = get16()
 
     # It seems that the roi type field occupies 2 Bytes, but only one is used

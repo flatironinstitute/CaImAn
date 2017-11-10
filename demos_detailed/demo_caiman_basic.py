@@ -5,19 +5,6 @@ Created on Wed Feb 24 18:39:45 2016
 @author: Andrea Giovannucci
 
 """
-from __future__ import print_function
-from builtins import str
-from builtins import range
-try:
-    if __IPYTHON__:
-        print('Debugging!')
-        # this is used for debugging purposes only. allows to reload classes when changed
-        get_ipython().magic('load_ext autoreload')
-        get_ipython().magic('autoreload 2')
-except NameError:
-    print('Not IPYTHON')
-    pass
-
 import numpy as np
 import glob
 import pylab as pl
@@ -67,7 +54,7 @@ Npeaks = 10
 traces = C + YrA
 fitness_raw, fitness_delta, erfc_raw, erfc_delta, r_values, significant_samples = \
     evaluate_components(Y, traces, A, C, b, f,final_frate, remove_baseline=True,
-                                      N=5, robust_std=False, Npeaks=Npeaks, thresh_C=0.3, sigma_factor = 3.)
+                                      N=5, robust_std=False, Npeaks=Npeaks, thresh_C=0.3)
 
 idx_components_r = np.where(r_values >= .85)[0] # filter based on spatial consistency
 idx_components_raw = np.where(fitness_raw < -50)[0] # filter based on transient size

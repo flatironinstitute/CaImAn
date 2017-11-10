@@ -71,7 +71,7 @@ def constrained_foopsi_parallel(arg_in):
 
 
 #%%
-def update_temporal_components(Y, A, b, Cin, fin, bl=None, c1=None, g=None, sn=None, nb=1, ITER=2, block_size=5000, num_blocks_per_run = 20, debug=False, dview=None, **kwargs):
+def update_temporal_components(Y, A, b, Cin, fin, bl=None, c1=None, g=None, sn=None, nb=1, ITER=2, block_size=20000, debug=False, dview=None, **kwargs):
     """Update temporal components and background given spatial components using a block coordinate descent approach.
 
     Parameters:
@@ -212,11 +212,10 @@ def update_temporal_components(Y, A, b, Cin, fin, bl=None, c1=None, g=None, sn=N
     nA = np.ravel(A.power(2).sum(axis=0))
 
     print('Generating residuals')
-#    dview_res = None if block_size >= 500 else dview
+    dview_res = None if block_size >= 500 else dview
     if 'memmap' in str(type(Y)):
-        
-        YA = parallel_dot_product(Y, A, dview=dview, block_size=block_size,
-                                  transpose=True, num_blocks_per_run=num_blocks_per_run) * spdiags(old_div(1., nA), 0, nr + nb, nr + nb)
+        YA = parallel_dot_product(Y, A, dview=dview_res, block_size=block_size,
+                                  transpose=True) * spdiags(old_div(1., nA), 0, nr + nb, nr + nb)
     else:
         YA = (A.T.dot(Y).T) * spdiags(old_div(1., nA), 0, nr + nb, nr + nb)
 
@@ -366,10 +365,7 @@ def update_iteration (parrllcomp, len_parrllcomp, nb,C, S, bl, nr,
             args_in = [(np.squeeze(np.array(Ytemp[:, jj])), nT[jj], jj, None,
                         None, None, None, kwargs) for jj in range(len(jo))]
             #computing the most likely discretized spike train underlying a fluorescence trace
-            if 'multiprocessing' in str(type(dview)):                
-                results = dview.map_async(constrained_foopsi_parallel, args_in).get(9999999)                    
-            
-            elif dview is not None and platform.system()!='Darwin':                                    
+            if dview is not None and platform.system()!='Darwin':
                 if debug:
                     results = dview.map_async(constrained_foopsi_parallel, args_in)
                     results.get()
@@ -381,7 +377,6 @@ def update_iteration (parrllcomp, len_parrllcomp, nb,C, S, bl, nr,
                         sys.stderr.flush()
                 else:
                     results = dview.map_sync(constrained_foopsi_parallel, args_in)
-            
             else:
                 results = list(map(constrained_foopsi_parallel, args_in))
             #unparsing and updating the result
@@ -401,11 +396,11 @@ def update_iteration (parrllcomp, len_parrllcomp, nb,C, S, bl, nr,
                    str(nr) + ' temporal components updated'))
 
         for ii in np.arange(nr, nr + nb):
-            cc = np.maximum(YrA[:, ii] + Cin[ii], -np.Inf)
+            cc = np.maximum(YrA[:, ii] + Cin[ii], 0)
             YrA -= AA[ii, :].T.dot((cc - Cin[ii])[None, :]).T
             C[ii, :] = cc
 
-        if dview is not None and not('multiprocessing' in str(type(dview))):
+        if dview is not None:
             dview.results.clear()
 
         if scipy.linalg.norm(Cin - C, 'fro') <= 1e-3 * scipy.linalg.norm(C, 'fro'):

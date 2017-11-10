@@ -20,6 +20,8 @@ from __future__ import print_function
 from builtins import str
 from builtins import range
 import matplotlib
+
+matplotlib.use('agg')
 from caiman.utils.utils import download_demo
 import cv2
 import glob
@@ -172,7 +174,7 @@ def create():
 
 
 
-    if not ('max_shifts' in params_movie):
+    if not params_movie.has_key('max_shifts'):
         fnames = params_movie['fname']
         border_to_0 = 0
     else:  # elif not params_movie.has_key('overlaps'):

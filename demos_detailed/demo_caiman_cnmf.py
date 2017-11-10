@@ -122,7 +122,7 @@ else:
     #%% RUN ALGORITHM ON PATCHES
 
     cnm = cnmf.CNMF(n_processes, k=K, gSig=gSig, merge_thresh=0.8, p=0, dview=dview, Ain=None, rf=rf, stride=stride, memory_fact=1,
-                    method_init=init_method, alpha_snmf=alpha_snmf, only_init_patch=True, gnb=2,method_deconvolution='oasis', low_rank_background = True)
+                    method_init=init_method, alpha_snmf=alpha_snmf, only_init_patch=True, gnb=1,method_deconvolution='oasis', low_rank_background = False)
     cnm = cnm.fit(images)
 
     A_tot = cnm.A
@@ -169,7 +169,7 @@ else:
 
     #%%
     cnm = cnmf.CNMF(n_processes, k=A_tot.shape, gSig=gSig, merge_thresh=merge_thresh, p=p, dview=dview, Ain=A_tot, Cin=C_tot, b_in = b_tot,
-                    f_in=f_tot, rf=None, stride=None, method_deconvolution='oasis', gnb = 2,  low_rank_background = True)
+                    f_in=f_tot, rf=None, stride=None, method_deconvolution='oasis', gnb = 1,  low_rank_background = False)
     cnm = cnm.fit(images)
 
 #%
@@ -180,11 +180,11 @@ final_frate = 10
 
 Npeaks = 10
 traces = C + YrA
-
-idx_components,idx_components_bad, fitness_raw, fitness_delta, r_values = cm.components_evaluation.estimate_components_quality(traces, Y, A, C, b, f, final_frate = final_frate,   
-                                Npeaks=10, r_values_min = .85,
-                                fitness_min = -30,fitness_delta_min = -30, return_all = True, N =5,
-                                remove_baseline = True, dview = dview, robust_std = False,Athresh=0.1,thresh_C=0.3, num_traces_per_group = 20)
+#        traces_a=traces-scipy.ndimage.percentile_filter(traces,8,size=[1,np.shape(traces)[-1]/5])
+#        traces_b=np.diff(traces,axis=1)
+fitness_raw, fitness_delta, erfc_raw, erfc_delta, r_values, significant_samples = \
+    evaluate_components(Y, traces, A, C, b, f, final_frate, remove_baseline=True,
+                                      N=5, robust_std=False, Athresh=0.1, Npeaks=Npeaks,  thresh_C=0.3)
 #%%
 from caiman.components_evaluation import evaluate_components_CNN
 predictions,final_crops = evaluate_components_CNN(A,dims,gSig,model_name = 'use_cases/CaImAnpaper/cnn_model')

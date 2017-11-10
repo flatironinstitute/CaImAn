@@ -18,15 +18,16 @@ See Also:
 
 from __future__ import division
 from builtins import range
+from past.utils import old_div
 import numpy as np
-from scipy.ndimage.filters import convolve
+from scipy.ndimage.filters import correlate, convolve
 import cv2
 from caiman.source_extraction.cnmf.pre_processing import get_noise_fft, get_noise_fft_parallel
 import pdb
 #%%
 
 
-def max_correlation_image(Y, bin_size=1000, eight_neighbours=True, swap_dim=True):
+def max_correlation_image(Y,bin_size = 1000, eight_neighbours = True, swap_dim = True):
     """Computes the max-correlation image for the input dataset Y  with bin_size
 
     Parameters:
@@ -59,25 +60,27 @@ def max_correlation_image(Y, bin_size=1000, eight_neighbours=True, swap_dim=True
 
     T = Y.shape[0]
     if T <= bin_size:
-        Cn_bins = local_correlations_fft(Y, eight_neighbours=eight_neighbours, swap_dim=False)
+        Cn_bins = local_correlations_fft(Y,eight_neighbours=eight_neighbours,swap_dim = False)
         return Cn_bins
     else:
-        if T % bin_size < bin_size / 2.:
-            bin_size = T // (T // bin_size)
+        if T%bin_size < bin_size/2.:
+            bin_size = T//(T//bin_size)
 
-        n_bins = T // bin_size
-        Cn_bins = np.zeros(((n_bins,) + Y.shape[1:]))
+        n_bins = T//bin_size
+        Cn_bins = np.zeros(((n_bins,)+Y.shape[1:]))
         for i in range(n_bins):
-            Cn_bins[i] = local_correlations_fft(Y[i * bin_size:(i + 1) * bin_size],
-                                                eight_neighbours=eight_neighbours, swap_dim=False)
-            print(i * bin_size)
+            Cn_bins[i] = local_correlations_fft(Y[i*bin_size:(i+1)*bin_size],
+                                                eight_neighbours=eight_neighbours,swap_dim=False)
+            print(i*bin_size)
 
-        Cn = np.max(Cn_bins, axis=0)
+        Cn = np.max(Cn_bins,axis=0)
         return Cn
 
+            
+#%%    
 
-#%%
-def local_correlations_fft(Y, eight_neighbours=True, swap_dim=True, opencv=True):
+
+def local_correlations_fft(Y, eight_neighbours=True, swap_dim=True):
     """Computes the correlation image for the input dataset Y  using a faster FFT based method
 
     Parameters:
@@ -94,9 +97,6 @@ def local_correlations_fft(Y, eight_neighbours=True, swap_dim=True, opencv=True)
         True indicates that time is listed in the last axis of Y (matlab format)
         and moves it in the front
 
-    opencv: Boolean
-        If True process using open cv method
-
     Returns:
     --------
 
@@ -108,35 +108,26 @@ def local_correlations_fft(Y, eight_neighbours=True, swap_dim=True, opencv=True)
         Y = np.transpose(Y, tuple(np.hstack((Y.ndim - 1, list(range(Y.ndim))[:-1]))))
 
     Y = Y.astype('float32')
-    Y -= np.mean(Y, axis=0)
-    Ystd = np.std(Y, axis=0)
-    Ystd[Ystd == 0] = np.inf
-    Y /= Ystd
+    Y -= np.mean(Y,axis = 0)
+    Y /= np.std(Y,axis = 0)
 
     if Y.ndim == 4:
         if eight_neighbours:
-            sz = np.ones((3, 3, 3), dtype='float32')
-            sz[1, 1, 1] = 0
+            sz = np.ones((3,3,3),dtype='float32')
+            sz[1,1,1] = 0
         else:
-            sz = np.array([[[0, 0, 0], [0, 1, 0], [0, 0, 0]],
-                           [[0, 1, 0], [1, 0, 1], [0, 1, 0]],
-                           [[0, 0, 0], [0, 1, 0], [0, 0, 0]]], dtype='float32')
+            sz = np.array([[[0,0,0],[0,1,0],[0,0,0]],[[0,1,0],[1,0,1],[0,1,0]],[[0,0,0],[0,1,0],[0,0,0]]],dtype='float32')
     else:
         if eight_neighbours:
-            sz = np.ones((3, 3), dtype='float32')
-            sz[1, 1] = 0
+            sz = np.ones((3,3),dtype='float32')
+            sz[1,1] = 0
         else:
-            sz = np.array([[0, 1, 0], [1, 0, 1], [0, 1, 0]], dtype='float32')
+            sz = np.array([[0,1,0],[1,0,1],[0,1,0]],dtype='float32')
 
-    if opencv and Y.ndim == 3:
-        Yconv = Y.copy()
-        for idx, img in enumerate(Yconv):
-            Yconv[idx] = cv2.filter2D(img, -1, sz, borderType=0)
-        MASK = cv2.filter2D(np.ones(Y.shape[1:], dtype='float32'), -1, sz, borderType=0)
-    else:
-        Yconv = convolve(Y, sz[np.newaxis, :], mode='constant')
-        MASK = convolve(np.ones(Y.shape[1:], dtype='float32'), sz, mode='constant')
-    Cn = np.mean(Yconv * Y, axis=0) / MASK
+    Yconv = convolve(Y,sz[np.newaxis,:],mode='constant')
+    MASK = convolve(np.ones(Y.shape[1:],dtype='float32'),sz,mode='constant')
+    Cn =  np.mean(Yconv*Y,axis=0)/MASK
+
     return Cn
 
 
@@ -168,7 +159,7 @@ def local_correlations(Y, eight_neighbours=True, swap_dim=True):
         Y = np.transpose(Y, tuple(np.hstack((Y.ndim - 1, list(range(Y.ndim))[:-1]))))
 
     rho = np.zeros(np.shape(Y)[1:])
-    w_mov = (Y - np.mean(Y, axis=0)) / np.std(Y, axis=0)
+    w_mov = old_div((Y - np.mean(Y, axis=0)), np.std(Y, axis=0))
 
     rho_h = np.mean(np.multiply(w_mov[:, :-1, :], w_mov[:, 1:, :]), axis=0)
     rho_w = np.mean(np.multiply(w_mov[:, :, :-1], w_mov[:, :, 1:]), axis=0)
@@ -256,19 +247,18 @@ def correlation_pnr(Y, gSig=None, center_psf=True, swap_dim=True):
     if gSig:
         if not isinstance(gSig, list):
             gSig = [gSig, gSig]
-        ksize = tuple([(3 * i) // 2 * 2 + 1 for i in gSig])
+        ksize = tuple([(3*i)//2 * 2+1 for i in gSig])
         # create a spatial filter for removing background
         # psf = gen_filter_kernel(width=ksize, sigma=gSig, center=center_psf)
 
         if center_psf:
             for idx, img in enumerate(data_filtered):
                 data_filtered[idx, ] = cv2.GaussianBlur(img, ksize=ksize, sigmaX=gSig[0], sigmaY=gSig[1], borderType=1) \
-                    - cv2.boxFilter(img, ddepth=-1, ksize=ksize, borderType=1)
+                                       - cv2.boxFilter(img, ddepth=-1, ksize=ksize, borderType=1)
             # data_filtered[idx, ] = cv2.filter2D(img, -1, psf, borderType=1)
         else:
             for idx, img in enumerate(data_filtered):
-                data_filtered[idx, ] = cv2.GaussianBlur(
-                    img, ksize=ksize, sigmaX=gSig[0], sigmaY=gSig[1], borderType=1)
+                data_filtered[idx, ] = cv2.GaussianBlur(img, ksize=ksize, sigmaX=gSig[0], sigmaY=gSig[1], borderType=1)
 
     # compute peak-to-noise ratio
     data_filtered -= np.mean(data_filtered, axis=0)
