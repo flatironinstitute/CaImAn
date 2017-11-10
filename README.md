@@ -112,9 +112,8 @@ We recently incorporated a Python implementation of the OnACID [[5]](#onacid) al
     git pull
     ```
    
-start>programs>anaconda3>anaconda prompt   
+  * start>programs>anaconda3>anaconda prompt   
     ```bash
-        
     conda env create -f environment_mac.yml -n caiman
     activate caiman   
     conda install -c conda-forge tensorflow keras
