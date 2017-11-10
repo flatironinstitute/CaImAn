@@ -394,7 +394,6 @@ def regression_ipyparallel(pars):
 
             As.append((px, idxs_C[px], a))
 
-    print('clearing variables')
     if isinstance(Y_name, basestring):
         del Y
     if isinstance(C_name, basestring):
@@ -1262,9 +1261,6 @@ def computing_indicator(Y, A_in, b, C, f, nb, method, dims, min_size, max_size, 
                 scipy.sparse.hstack([A_in,scipy.sparse.coo_matrix(b)]), dims, method=method, min_size=min_size, max_size=max_size, dist=dist, expandCore=expandCore,
                 dview=dview)
             
-            
-        print("found spatial support for each component")
-        
     
         ind2_ = [np.where(iid_)[0]
                      if (np.size(np.where(iid_)[0]) > 0) and (np.min(np.where(iid_)[0])<nr) else [] for iid_ in dist_indicator]
