@@ -86,7 +86,7 @@ params_movie = {'fname': '/mnt/ceph/neuro/labeling/neurofinder.03.00.test/images
                  'low_rank_background': True, #whether to update the using a low rank approximation. In the False case all the nonzero elements of the background components are updated using hals    
                                      #(to be used with one background per patch)  
                  'swap_dim':False,
-                                     
+                 'crop_pix' : 0,                        
                  }
 #%%
 params_movie = {'fname': '/mnt/ceph/neuro/labeling/neurofinder.04.00.test/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_3000_.mmap',
@@ -113,6 +113,8 @@ params_movie = {'fname': '/mnt/ceph/neuro/labeling/neurofinder.04.00.test/images
                  'memory_fact': 1,
                  'n_chunks': 10,
                  'update_background_components': True,# whether to update the background components in the spatial phase
+                 'swap_dim':False,
+                 'crop_pix' : 0,
                  'low_rank_background': True #whether to update the using a low rank approximation. In the False case all the nonzero elements of the background components are updated using hals    
                                      #(to be used with one background per patch)          
                  }
@@ -629,7 +631,7 @@ else:
     sn_tot = cnm.sn
     print(('Number of components:' + str(A_tot.shape[-1])))
     t_patch = time.time() - t1
-
+    dview.terminate()
     c, dview, n_processes = cm.cluster.setup_cluster(
     backend='local', n_processes=None, single_thread=False)
     # %%
@@ -694,7 +696,7 @@ else:
     print((len(traces)))
     print((len(idx_components)))
     # %% save results
-    np.savez(os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:-4] + 'results_analysis.npz'), Cn=Cn, fname_new = fname_new,
+    np.savez(os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:-4] + 'results_analysis_after_merge.npz'), Cn=Cn, fname_new = fname_new,
              A=A,
              C=C, b=b, f=f, YrA=YrA, sn=sn, d1=d1, d2=d2, idx_components=idx_components,
              idx_components_bad=idx_components_bad,
@@ -722,7 +724,7 @@ params_display = {
 }
 fn_old = fname_new 
 #analysis_file = '/mnt/ceph/neuro/jeremie_analysis/neurofinder.03.00.test/Yr_d1_498_d2_467_d3_1_order_C_frames_2250_._results_analysis.npz'
-with np.load(os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:-4] + 'results_analysis.npz'), encoding = 'latin1') as ld:
+with np.load(os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:-4] + 'results_analysis_after_merge.npz'), encoding = 'latin1') as ld:
     print(ld.keys())
     locals().update(ld) 
     dims_off = d1,d2    
@@ -772,7 +774,7 @@ crd = plot_contours(A_gt_thr, Cn, thr=.99)
         
 #%%
 from caiman.components_evaluation import evaluate_components_CNN
-predictions,final_crops = evaluate_components_CNN(A,dims,gSig,model_name = 'use_cases/CaImAnpaper/cnn_model')
+predictions,final_crops = evaluate_components_CNN(A,dims,gSig)
 #%%
 threshold = .95
 from caiman.utils.visualization import matrixMontage
@@ -853,7 +855,9 @@ crd = plot_contours(A.tocsc()[:, idx_components_bad], Cn, thr=params_display['th
 #        'size'   : 20}
 #pl.rc('font', **font)
 #from sklearn.preprocessing import normalize
-
+#%%
+np.savez(os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:-4] + 'results_comparison_cnn_after_merge.npz'),tp_gt = tp_gt, tp_comp = tp_comp, fn_gt = fn_gt, fp_comp = fp_comp, performance_cons_off = performance_cons_off,idx_components = idx_components, A_gt = A_gt, C_gt = C_gt
+        , b_gt = b_gt , f_gt = f_gt, dims = dims, YrA_gt = YrA_gt, A = A, C = C, b = b, f = f, YrA = YrA, Cn = Cn)
 
 #%%
 plot_results = True
@@ -875,9 +879,7 @@ font = {'family' : 'Arial',
 
 pl.rc('font', **font)
 print({a:b.astype(np.float16) for a,b in performance_cons_off.items()})
-#%%
-np.savez(os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:-4] + 'results_comparison_cnn.npz'),tp_gt = tp_gt, tp_comp = tp_comp, fn_gt = fn_gt, fp_comp = fp_comp, performance_cons_off = performance_cons_off,idx_components = idx_components, A_gt = A_gt, C_gt = C_gt
-        , b_gt = b_gt , f_gt = f_gt, dims = dims, YrA_gt = YrA_gt, A = A, C = C, b = b, f = f, YrA = YrA, Cn = Cn)
+
 #%%
 view_patches_bar(Yr, scipy.sparse.coo_matrix(A_gt.tocsc()[:, fn_gt]), C_gt[fn_gt, :], b_gt, f_gt, dims[0], dims[1],
                  YrA=YrA_gt[fn_gt, :], img=Cn)

@@ -388,6 +388,7 @@ def update_iteration (parrllcomp, len_parrllcomp, nb,C, S, bl, nr,
             for chunk in results:
                 C_, Sp_, Ytemp_, cb_, c1_, sn_, gn_, jj_,lam_ = chunk
                 Ctemp[jj_, :] = C_[None, :]
+                Stemp[jj_, :] = Sp_[None,:]
                 bl[jo[jj_]] = cb_
                 c1[jo[jj_]] = c1_
                 sn[jo[jj_]] = sn_

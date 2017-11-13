@@ -217,7 +217,10 @@ class timeseries(np.ndarray):
                     dset.attrs["file_name"]=[a.encode('utf8') for a in self.file_name]
                 except:
                     print('No file name saved')
-                dset.attrs["meta_data"]=cpk.dumps(self.meta_data)
+                if self.meta_data[0] is not None:      
+                    print(self.meta_data)
+                    dset.attrs["meta_data"]=cpk.dumps(self.meta_data)
+                    
 
         elif extension == '.mmap':
             base_name=name
