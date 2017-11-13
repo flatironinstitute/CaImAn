@@ -307,18 +307,18 @@ def downscale(Y, ds):
         d = Y.shape
         tmp[:d[0], :d[1]] = Y
         return np.nanmean(np.nanmean(
-            tmp.reshape(size[0] / ds[0], ds[0], size[1] / ds[1], ds[1]), 1), 2)
+            tmp.reshape(np.int(size[0] / ds[0]), ds[0], np.int(size[1] / ds[1]), ds[1]), 1), 2)
     elif Y.ndim == 3:
         d = Y.shape
         tmp[:d[0], :d[1], :d[2]] = Y
         return np.nanmean(np.nanmean(np.nanmean(
-            tmp.reshape(size[0] / ds[0], ds[0], size[1] / ds[1], ds[1],
-                        size[2] / ds[2], ds[2]), 1), 2), 3)
+            tmp.reshape(np.int(size[0] / ds[0]), ds[0], np.int(size[1] / ds[1]), ds[1],
+                        np.int(size[2] / ds[2]), ds[2]), 1), 2), 3)
     elif Y.ndim == 4:
         d = Y.shape
         tmp[:d[0], :d[1], :d[2], :d[3]] = Y
         return np.nanmean(np.nanmean(np.nanmean(np.nanmean(
-            tmp.reshape(size[0] / ds[0], ds[0], size[1] / ds[1], ds[1],
-                        size[2] / ds[2], ds[2], size[3] / ds[3], ds[3]), 1), 2), 3), 4)
+            tmp.reshape(np.int(size[0] / ds[0]), ds[0], np.int(size[1] / ds[1]), ds[1],
+                        np.int(size[2] / ds[2]), ds[2], np.int(size[3] / ds[3]), ds[3]), 1), 2), 3), 4)
     else:
         raise NotImplementedError
