@@ -20,6 +20,7 @@ from past.utils import old_div
 import numpy as np
 from sklearn.decomposition import NMF, FastICA
 from skimage.transform import resize
+from skimage.morphology import disk
 import scipy.ndimage as nd
 from scipy.ndimage.measurements import center_of_mass
 from scipy.ndimage.filters import correlate
@@ -28,7 +29,6 @@ import scipy
 import caiman
 from caiman.source_extraction.cnmf.deconvolution import deconvolve_ca
 from caiman.source_extraction.cnmf.pre_processing import get_noise_fft
-from caiman.source_extraction.cnmf.background import compute_W
 from caiman.source_extraction.cnmf.spatial import circular_constraint
 from caiman.utils.utils import downscale
 import cv2
@@ -838,13 +838,13 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
 
         # find more neurons in residual
         print('Compute Residuals')
-        R = Y_ds - (A.dot(C) + B).reshape(Y_ds.shape, order='F')
         if max_number is not None:
             max_number -= A.shape[-1]
         if max_number is not 0:
             print('Initialization again')
             A_R, C_R, _, _, center_R = init_neurons_corr_pnr(
-                R, max_number=max_number, gSiz=gSiz, gSig=gSig,
+                Y_ds - (A.dot(C) + B).reshape(Y_ds.shape, order='F'),
+                max_number=max_number, gSiz=gSiz, gSig=gSig,
                 center_psf=center_psf, min_corr=min_corr, min_pnr=min_pnr,
                 seed_method=seed_method, deconvolve_options=deconvolve_options,
                 min_pixel=min_pixel, bd=bd, thresh_init=thresh_init,
@@ -877,7 +877,7 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
         # 2nd iteration on non-decimated data
         K = C.shape[0]
         if T > total_frames:
-            C = np.repeat(C, tsub, 1)[:T]
+            C = np.repeat(C, tsub, 1)[:, :T]
             Ys = downscale(Y, (ssub, ssub, 1)).reshape((-1, T), order='F')
             # N.B: upsampling B in space is fine, but upsampling in time doesn't work well,
             # cause the error in upsampled background can be of similar size as neural signal
@@ -886,9 +886,9 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
         B = np.reshape(B, (d1, d2, -1), order='F')
         B = (np.repeat(np.repeat(B, ssub, 0), ssub, 1)[:dims[0], :dims[1]]
              .reshape((-1, T), order='F'))
-        A = A.toarray().reshape((d1, d2, -1), order='F')
+        A = A.toarray().reshape((d1, d2, K), order='F')
         A = spr.csc_matrix(np.repeat(np.repeat(A, ssub, 0), ssub, 1)[:dims[0], :dims[1]]
-                           .reshape((-1, K), order='F'))
+                           .reshape((np.prod(dims), K), order='F'))
 
         print('Update Temporal')
         C, A, b__, f__, S__, bl__, c1__, neurons_sn__, g1__, YrA__, lam__ = \
@@ -911,7 +911,7 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
 
         print('Compute Background Again')  # on decimated data
         A_ds = downscale(np.reshape(A, dims + (-1,), order='F'), (ssub, ssub, 1))
-        A_ds = np.reshape(A_ds, (-1, K), order='F')
+        A_ds = np.reshape(A_ds, (d1 * d2, K), order='F')
         # background according to ringmodel
         W, b0 = compute_W(Y_ds.reshape((-1, total_frames), order='F'),
                           A_ds, downscale(C, (1, tsub)), (d1, d2),
@@ -1014,10 +1014,10 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
     # parameters
     if swap_dim:
         d1, d2, total_frames = data.shape
-        data_raw = np.transpose(data.copy(), [2, 0, 1]).astype('float32')
+        data_raw = np.transpose(data, [2, 0, 1])
     else:
         total_frames, d1, d2 = data.shape
-        data_raw = data.copy().astype('float32')
+        data_raw = data
 
     if gSig:
         # spatially filter data
@@ -1052,6 +1052,8 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
     cn = caiman.summary_images.local_correlations_fft(tmp_data, swap_dim=False)
     del(tmp_data)
 #    cn[np.isnan(cn)] = 0  # remove abnormal pixels
+
+    data_raw = data_raw.copy()  # make required copy here, after memory intensive computation of cn
 
     # screen seed pixels as neuron centers
     v_search = cn * pnr
@@ -1163,10 +1165,10 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
                 continue
 
             # crop a small box for estimation of ai and ci
-            r_min = np.max([0, r - gSiz])
-            r_max = np.min([d1, r + gSiz + 1])
-            c_min = np.max([0, c - gSiz])
-            c_max = np.min([d2, c + gSiz + 1])
+            r_min = max(0, r - gSiz)
+            r_max = min(d1, r + gSiz + 1)
+            c_min = max(0, c - gSiz)
+            c_max = min(d2, c + gSiz + 1)
             nr = r_max - r_min
             nc = c_max - c_min
             patch_dims = (nr, nc)  # patch dimension
@@ -1179,10 +1181,10 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
                                            dims=(nr, nc))
 
             # neighbouring pixels to update after initializing one neuron
-            r2_min = np.max([0, r - 2 * gSiz])
-            r2_max = np.min([d1, r + 2 * gSiz + 1])
-            c2_min = np.max([0, c - 2 * gSiz])
-            c2_max = np.min([d2, c + 2 * gSiz + 1])
+            r2_min = max(0, r - 2 * gSiz)
+            r2_max = min(d1, r + 2 * gSiz + 1)
+            c2_min = max(0, c - 2 * gSiz)
+            c2_max = min(d2, c + 2 * gSiz + 1)
 
             if save_video:
                 ax_pnr_cn.cla()
@@ -1355,3 +1357,63 @@ def extract_ac(data_filtered, data_raw, ind_ctr, patch_dims):
 
     # return results
     return ai, ci.reshape(len(ci)), True
+
+
+def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True):
+    """compute background according to ring model
+    solves the problem
+        min_{W,b0} ||X-W*X|| with X = Y - A*C - b0*1'
+    subject to
+        W(i,j) = 0 for each pixel j that is not in ring around pixel i
+    Problem parallelizes over pixels i
+    Fluctuating background activity is W*X, constant baselines b0.
+    Parameters:
+    ----------
+    Y: np.ndarray (2D or 3D)
+        movie, raw data in 2D or 3D (pixels x time).
+    A: np.ndarray or sparse matrix
+        spatial footprint of each neuron.
+    C: np.ndarray
+        calcium activity of each neuron.
+    dims: tuple
+        x, y[, z] movie dimensions
+    radius: int
+        radius of ring
+    data_fits_in_memory: [optional] bool
+        If true, use faster but more memory consuming computation
+
+    Returns:
+    --------
+    W: scipy.sparse.csr_matrix (pixels x pixels)
+        estimate of weight matrix for fluctuating background
+    b0: np.ndarray (pixels,)
+        estimate of constant background baselines
+    """
+
+    ring = disk(radius + 1, dtype=bool)
+    ring[1:-1, 1:-1] -= disk(radius, dtype=bool)
+    ringidx = [i - radius - 1 for i in np.nonzero(ring)]
+
+    def get_indices_of_pixels_on_ring(pixel):
+        pixel = np.unravel_index(pixel, dims, order='F')
+        x = pixel[0] + ringidx[0]
+        y = pixel[1] + ringidx[1]
+        inside = (x >= 0) * (x < dims[0]) * (y >= 0) * (y < dims[1])
+        return np.ravel_multi_index((x[inside], y[inside]), dims, order='F')
+
+    b0 = np.array(Y.mean(1)) - A.dot(C.mean(1))
+    X = Y - A.dot(C) - b0[:, None] if data_fits_in_memory else None
+
+    indices = []
+    data = []
+    indptr = [0]
+    for p in xrange(np.prod(dims)):
+        index = get_indices_of_pixels_on_ring(p)
+        indices += list(index)
+        B = Y[index] - A[index].dot(C) - b0[index, None] if X is None else X[index]
+        data += list(np.linalg.inv(np.array(B.dot(B.T)) + 1e-9 * np.eye(len(index), dtype='float32')).
+                     dot(B.dot(Y[p] - A[p].dot(C).ravel() - b0[p] if X is None else X[p])))
+        # np.linalg.lstsq seems less robust but scipy version would be (robust but for the problem size slower) alternative
+        # data += list(scipy.linalg.lstsq(B.T, Y[p] - A[p].dot(C) - b0[p], check_finite=False)[0])
+        indptr.append(len(indices))
+    return spr.csr_matrix((data, indices, indptr), dtype='float32'), b0.astype(np.float32)
