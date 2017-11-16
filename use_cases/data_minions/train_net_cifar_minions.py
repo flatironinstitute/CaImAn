@@ -78,16 +78,17 @@ from caiman.utils.image_preprocessing_keras import ImageDataGenerator
 #%%
 
 # the data, shuffled and split between train and test sets
-with np.load('ground_truth_components_curated_minions.npz') as ld:
-    all_masks_gt = ld['all_masks_gt']
+with np.load('/mnt/home/jshangying/CaImAn/final_label/ground_truth_components_curated_minions_1.npz') as ld:
+    all_masks_gt = ld['all_masks_gt_cur']
     labels_gt = ld['labels_gt_cur']
-
+    all_masks_gt = all_masks_gt[labels_gt<3] 
+    labels_gt = labels_gt[labels_gt<3] 
     
 #%%
     
 batch_size = 128
-num_classes = 2
-epochs = 5000
+num_classes = 3
+epochs = 2000
 test_fraction = 0.25
 augmentation = True
 # input image dimensions
@@ -194,6 +195,7 @@ print('Test loss:', score[0])
 print('Test accuracy:', score[1])
 
 #%% Save model and weights
+import datetime
 save_dir = 'use_cases/CaImAnpaper/'
 model_name = str(datetime.datetime.now()).replace(' ','-').replace(':','-')
 model_json = model.to_json()
@@ -212,11 +214,12 @@ model.save(model_path)
 print('Saved trained model at %s ' % model_path)
 
 #%% visualize_results 
-
 predictions = model.predict(all_masks_gt, batch_size=32, verbose=1)
 cm.movie(np.squeeze(all_masks_gt[np.where(predictions[:,0]>=0.5)[0]])).play(gain=3., magnification = 5, fr = 10)
 #%%
 cm.movie(np.squeeze(all_masks_gt[np.where(predictions[:,1]>=0.5)[0]])).play(gain=3., magnification = 5, fr =10)
+#%%
+cm.movie(np.squeeze(all_masks_gt[np.where(predictions[:,2]>=0.5)[0]])).play(gain=3., magnification = 5, fr =10)
 
 #%% retrieve and test
 json_file = open(json_path, 'r')
@@ -238,8 +241,19 @@ print('Test accuracy:', score[1])
 #%%
 from skimage.util.montage import montage2d
 predictions = loaded_model.predict(all_masks_gt, batch_size=32, verbose=1)
-cm.movie(np.squeeze(all_masks_gt[np.where(predictions[:,1]<0.1)[0]])).play(gain=3., magnification = 5, fr = 10)
 #%%
-pl.imshow(montage2d(all_masks_gt[np.where((labels_gt==0)&(predictions[:,1]>=0.5)&(predictions[:,1]>=0.5))[0]].squeeze()))
+classes = np.argmax(predictions,axis=1)
 #%%
-pl.imshow(montage2d(all_masks_gt[np.where((labels_gt==1)&(predictions[:,0]>=0.5)&(predictions[:,0]>=0.5))[0]].squeeze()))
+pl.imshow(montage2d(all_masks_gt[np.where((classes!=2)&((labels_gt==2)))[0]].squeeze()))
+#%%
+pl.imshow(montage2d(all_masks_gt[np.where((classes==1)&((labels_gt!=1)))[0]].squeeze()))
+#%%
+
+cm.movie(np.squeeze(all_masks_gt[np.where(predictions[:,0]<0.5)[0]])).play(gain=3., magnification = 5, fr = 10)
+#%%
+pl.imshow(montage2d(all_masks_gt[np.where((labels_gt==2)&(predictions[:,1]>=0.05))[0]].squeeze()))
+#%%
+pl.imshow(montage2d(all_masks_gt[np.where((labels_gt==2)&(predictions[:,1]>0.05))[0]].squeeze()))
+#%%
+pl.imshow(montage2d(all_masks_gt[np.where((predictions[:,1]>0.1))[0]].squeeze()))
+
