@@ -87,7 +87,7 @@ from keras.layers.core import Lambda
 from keras.models import Model
 
 import tensorflow as tf
-#%%
+#%% model FULL FOV
 def get_conv(input_shape=(48,48,1), filename=None):
     model = Sequential()
 #    model.add(Lambda(lambda x: (x-np.mean(x))/np.std(x),input_shape=input_shape, output_shape=input_shape))
@@ -112,19 +112,6 @@ def get_conv(input_shape=(48,48,1), filename=None):
 
 heatmodel = get_conv(input_shape=(None,None,1), filename='use_cases/edge-cutter/residual_net_2classes_FOV.h5')
 import matplotlib.pylab as plt
-#%% 
-json_path = 'use_cases/edge-cutter/residual_classifier_2classes.json'
-model_path = 'use_cases/edge-cutter/residual_classifier_2classes.h5'
-json_file = open(json_path, 'r')
-loaded_model_json = json_file.read()
-json_file.close()
-loaded_model = model_from_json(loaded_model_json)
-loaded_model.load_weights(model_path)
-opt = keras.optimizers.rmsprop(lr=0.0001, decay=1e-6)
-loaded_model.compile(loss=keras.losses.categorical_crossentropy,
-              optimizer=opt,
-              metrics=['accuracy'])    
-#%%    
 def locate(data, plot = False, rectangle = False):
 #    data = cv2.cvtColor(cv2.imread("test1.jpg"), cv2.COLOR_BGR2RGB)
     
@@ -147,12 +134,24 @@ def locate(data, plot = False, rectangle = False):
             cv2.rectangle(data, (i*6,j*6), (i*6+48,j*6+48),1)
             
     return heatmap, data
-#%%
-annotated,hmap = locate(data[:,:,None].copy())
-
-plt.title("Augmented")    
-plt.imshow(annotated.squeeze())
-plt.show()
+#%% MODEL CLASSIFIER ON PATCH
+json_path = 'use_cases/edge-cutter/residual_classifier_2classes.json'
+model_path = 'use_cases/edge-cutter/residual_classifier_2classes.h5'
+json_file = open(json_path, 'r')
+loaded_model_json = json_file.read()
+json_file.close()
+loaded_model = model_from_json(loaded_model_json)
+loaded_model.load_weights(model_path)
+opt = keras.optimizers.rmsprop(lr=0.0001, decay=1e-6)
+loaded_model.compile(loss=keras.losses.categorical_crossentropy,
+              optimizer=opt,
+              metrics=['accuracy'])   
+#%% 
+#annotated,hmap = locate(data[:,:,None].copy())
+#
+#plt.title("Augmented")    
+#plt.imshow(annotated.squeeze())
+#plt.show()
 #%%
 REGENERATE = False
 if REGENERATE:
@@ -197,8 +196,6 @@ fname_new = '/mnt/ceph/neuro/labeling/neurofinder.03.00.test/images/final_map/Yr
 gSig = [8,8]
 gt_file = os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:-4] + 'match_masks.npz')
 base_name = fname_new.split('/')[5]
-#%%
-
 maxT = 8100
 with np.load(gt_file, encoding = 'latin1') as ld:
     print(ld.keys())
@@ -224,8 +221,6 @@ images = np.reshape(Yr.T, [T] + list(dims), order='F')
 # TODO: needinfo
 Y = np.reshape(Yr, dims + (T,), order='F')
 m_orig  = np.array(images)
-#%%
-
 patch_size = 50    
 half_crop = np.minimum(gSig[0]*4+1,patch_size)//2
 idx_included = np.arange(A_gt.shape[-1]) 
