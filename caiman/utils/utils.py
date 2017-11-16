@@ -301,24 +301,49 @@ def load_object(filename):
 def downscale(Y, ds):
     """downscaling without zero padding
     faster version of skimage.transform._warps.block_reduce(Y, ds, np.nanmean, np.nan)"""
-    size = np.ceil(np.array(Y.shape) / np.array(ds, dtype=float)).astype(int) * np.array(ds)
-    tmp = np.nan * np.zeros(size, dtype=Y.dtype)
-    if Y.ndim == 2:
-        d = Y.shape
-        tmp[:d[0], :d[1]] = Y
-        return np.nanmean(np.nanmean(
-            tmp.reshape(np.int(size[0] / ds[0]), ds[0], np.int(size[1] / ds[1]), ds[1]), 1), 2)
-    elif Y.ndim == 3:
-        d = Y.shape
-        tmp[:d[0], :d[1], :d[2]] = Y
-        return np.nanmean(np.nanmean(np.nanmean(
-            tmp.reshape(np.int(size[0] / ds[0]), ds[0], np.int(size[1] / ds[1]), ds[1],
-                        np.int(size[2] / ds[2]), ds[2]), 1), 2), 3)
-    elif Y.ndim == 4:
-        d = Y.shape
-        tmp[:d[0], :d[1], :d[2], :d[3]] = Y
-        return np.nanmean(np.nanmean(np.nanmean(np.nanmean(
-            tmp.reshape(np.int(size[0] / ds[0]), ds[0], np.int(size[1] / ds[1]), ds[1],
-                        np.int(size[2] / ds[2]), ds[2], np.int(size[3] / ds[3]), ds[3]), 1), 2), 3), 4)
-    else:
-        raise NotImplementedError
+
+    if Y.ndim > 3:
+        # raise NotImplementedError
+        # slower and more memory intensive version using skimage
+        from skimage.transform._warps import block_reduce
+        return block_reduce(Y, ds, np.nanmean, np.nan)
+    elif Y.ndim == 1:
+        Y = Y[:, None, None]
+        ds = (ds, 1, 1)
+    elif Y.ndim == 2:
+        Y = Y[..., None]
+        ds = tuple(ds) + (1,)
+    q = np.array(Y.shape) // np.array(ds)
+    r = np.array(Y.shape) % np.array(ds)
+    s = q * np.array(ds)
+    Y_ds = np.zeros(q + (r > 0), dtype=Y.dtype)
+    Y_ds[:q[0], :q[1], :q[2]] = (Y[:s[0], :s[1], :s[2]]
+                                 .reshape(q[0], ds[0], q[1], ds[1], q[2], ds[2])
+                                 .mean(1).mean(2).mean(3))
+    if r[0]:
+        Y_ds[-1, :q[1], :q[2]] = (Y[-r[0]:, :s[1], :s[2]]
+                                  .reshape(r[0], q[1], ds[1], q[2], ds[2])
+                                  .mean(0).mean(1).mean(2))
+        if r[1]:
+            Y_ds[-1, -1, :q[2]] = (Y[-r[0]:, -r[1]:, :s[2]]
+                                   .reshape(r[0], r[1], q[2], ds[2])
+                                   .mean(0).mean(0).mean(1))
+            if r[2]:
+                Y_ds[-1, -1, -1] = Y[-r[0]:, -r[1]:, -r[2]:].mean()
+        if r[2]:
+            Y_ds[-1, :q[1], -1] = (Y[-r[0]:, :s[1]:, -r[2]:]
+                                   .reshape(r[0], q[1], ds[1], r[2])
+                                   .mean(0).mean(1).mean(1))
+    if r[1]:
+        Y_ds[:q[0], -1, :q[2]] = (Y[:s[0], -r[1]:, :s[2]]
+                                  .reshape(q[0], ds[0], r[1], q[2], ds[2])
+                                  .mean(1).mean(1).mean(2))
+        if r[2]:
+            Y_ds[:q[0], -1, -1] = (Y[:s[0]:, -r[1]:, -r[2]:]
+                                   .reshape(q[0], ds[0], r[1], r[2])
+                                   .mean(1).mean(1).mean(1))
+    if r[2]:
+        Y_ds[:q[0], :q[1], -1] = (Y[:s[0], :s[1], -r[2]:]
+                                  .reshape(q[0], ds[0], q[1], ds[1], r[2])
+                                  .mean(1).mean(2).mean(2))
+    return Y_ds.squeeze()
