@@ -38,6 +38,11 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 #%%
 
+try:
+    profile
+except:
+    def profile(a): return a
+
 if sys.version_info >= (3, 0):
     def xrange(*args, **kwargs):
         return iter(range(*args, **kwargs))
@@ -766,6 +771,7 @@ def hals(Y, A, C, b, f, bSiz=3, maxIter=5):
     return Ab[:, :-nb], Cf[:-nb], Ab[:, -nb:], Cf[-nb:].reshape(nb, -1)
 
 
+@profile
 def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=True,
                    min_corr=None, min_pnr=None, seed_method='auto', deconvolve_options=None,
                    min_pixel=3, bd=0, thresh_init=2, ring_size_factor=None, nb=1, options=None,
@@ -826,7 +832,7 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
     T = Y.shape[-1]
     d1, d2, total_frames = Y_ds.shape
     tsub = int(round(float(T) / total_frames))
-    B = np.array(Y_ds.reshape((-1, total_frames), order='F') - A.dot(C), dtype=np.float32)
+    B = Y_ds.reshape((-1, total_frames), order='F') - A.dot(C)
 
     if ring_size_factor is not None:
         # background according to ringmodel
@@ -834,7 +840,8 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
         W, b0 = compute_W(Y_ds.reshape((-1, total_frames), order='F'),
                           A, C, (d1, d2), int(np.round(ring_size_factor * gSiz)))
 
-        B = b0[:, None] + W.dot(B - b0[:, None])
+        B = -b0[:, None] - W.dot(B - b0[:, None])  # "-B"
+        B += Y_ds.reshape((-1, total_frames), order='F')  # "Y-B"
 
         # find more neurons in residual
         print('Compute Residuals')
@@ -843,7 +850,7 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
         if max_number is not 0:
             print('Initialization again')
             A_R, C_R, _, _, center_R = init_neurons_corr_pnr(
-                Y_ds - (A.dot(C) + B).reshape(Y_ds.shape, order='F'),
+                (B - A.dot(C)).reshape(Y_ds.shape, order='F'),
                 max_number=max_number, gSiz=gSiz, gSig=gSig,
                 center_psf=center_psf, min_corr=min_corr, min_pnr=min_pnr,
                 seed_method=seed_method, deconvolve_options=deconvolve_options,
@@ -855,14 +862,13 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
         # 1st iteration on decimated data
         print('Update Temporal')
         C, A = caiman.source_extraction.cnmf.temporal.update_temporal_components(
-            np.array(Y_ds.reshape((-1, total_frames), order='F') - B), spr.csc_matrix(A),
+            B, spr.csc_matrix(A),
             np.zeros((d1 * d2, 0), np.float32), C, np.zeros((0, total_frames), np.float32),
             dview=None, bl=None, c1=None, sn=None, g=None, **options['temporal_params'])[:2]
         print('Update Spatial')
         options['spatial_params']['dims'] = (d1, d2)
         A, _, C, _ = caiman.source_extraction.cnmf.spatial.update_spatial_components(
-            np.array(Y_ds.reshape((-1, total_frames), order='F') - B), C=C,
-            f=np.zeros((0, total_frames), np.float32), A_in=A,
+            B, C=C, f=np.zeros((0, total_frames), np.float32), A_in=A,
             sn=np.sqrt(downscale((sn**2).reshape(dims, order='F'),
                                  tuple([ssub] * len(dims))).ravel() / tsub) / ssub,
             b_in=np.zeros((d1 * d2, 0), np.float32),
@@ -872,36 +878,39 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
         print('Compute Background Again')
         # background according to ringmodel
         W, b0 = compute_W(Y_ds.reshape((-1, total_frames), order='F'),
-                          A, C, (d1, d2), int(np.round(ring_size_factor * gSiz)))
+                          A.toarray(), C, (d1, d2), int(np.round(ring_size_factor * gSiz)))
 
         # 2nd iteration on non-decimated data
         K = C.shape[0]
         if T > total_frames:
             C = np.repeat(C, tsub, 1)[:, :T]
-            Ys = downscale(Y, (ssub, ssub, 1)).reshape((-1, T), order='F')
+            Ys = (Y if ssub == 1 else downscale(Y, (ssub, ssub, 1))).reshape((-1, T), order='F')
             # N.B: upsampling B in space is fine, but upsampling in time doesn't work well,
             # cause the error in upsampled background can be of similar size as neural signal
             B = Ys - A.dot(C)
-        B = b0[:, None] + W.dot(B - b0[:, None])
-        B = np.reshape(B, (d1, d2, -1), order='F')
-        B = (np.repeat(np.repeat(B, ssub, 0), ssub, 1)[:dims[0], :dims[1]]
-             .reshape((-1, T), order='F'))
-        A = A.toarray().reshape((d1, d2, K), order='F')
-        A = spr.csc_matrix(np.repeat(np.repeat(A, ssub, 0), ssub, 1)[:dims[0], :dims[1]]
-                           .reshape((np.prod(dims), K), order='F'))
+        else:
+            B = Y_ds.reshape((-1, T), order='F') - A.dot(C)
+        B = -b0[:, None] - W.dot(B - b0[:, None])  # "-B"
+        if ssub > 1:
+            B = np.reshape(B, (d1, d2, -1), order='F')
+            B = (np.repeat(np.repeat(B, ssub, 0), ssub, 1)[:dims[0], :dims[1]]
+                 .reshape((-1, T), order='F'))
+            A = A.toarray().reshape((d1, d2, K), order='F')
+            A = spr.csc_matrix(np.repeat(np.repeat(A, ssub, 0), ssub, 1)[:dims[0], :dims[1]]
+                               .reshape((np.prod(dims), K), order='F'))
 
         print('Update Temporal')
+        B += Y.reshape((-1, T), order='F')  # "Y-B"
         C, A, b__, f__, S__, bl__, c1__, neurons_sn__, g1__, YrA__, lam__ = \
             caiman.source_extraction.cnmf.temporal.update_temporal_components(
-                np.array(Y.reshape((-1, T), order='F') - B), spr.csc_matrix(A),
+                B, spr.csc_matrix(A),
                 np.zeros((np.prod(dims), 0), np.float32), C, np.zeros((0, T), np.float32),
                 dview=None, bl=None, c1=None, sn=None, g=None, **options['temporal_params'])
         print('Update Spatial')
         options['spatial_params']['dims'] = dims
         options['spatial_params']['se'] = np.ones((1,) * len((d1, d2)), dtype=np.uint8)
         A, _, C, _ = caiman.source_extraction.cnmf.spatial.update_spatial_components(
-            np.array(Y.reshape((-1, T), order='F') - B), C=C,
-            f=np.zeros((0, T), np.float32), A_in=A, sn=sn,
+            B, C=C, f=np.zeros((0, T), np.float32), A_in=A, sn=sn,
             b_in=np.zeros((np.prod(dims), 0), np.float32),
             dview=None, **options['spatial_params'])
         A = A.astype(np.float32)
@@ -934,6 +943,7 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
     return A, C, center.T, b_in, f_in
 
 
+@profile
 def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
                           center_psf=True, min_corr=0.8, min_pnr=10,
                           seed_method='auto', deconvolve_options=None,
@@ -1359,6 +1369,7 @@ def extract_ac(data_filtered, data_raw, ind_ctr, patch_dims):
     return ai, ci.reshape(len(ci)), True
 
 
+@profile
 def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True):
     """compute background according to ring model
     solves the problem
