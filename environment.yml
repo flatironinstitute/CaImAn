@@ -19,8 +19,7 @@ dependencies:
 - tensorflow
 - keras
 - tqdm
-- opencv3 
+- opencv3
 - pip:
   - tifffile
   - peakutils
-

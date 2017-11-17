@@ -225,7 +225,7 @@ def get_noise_fft_parallel(Y,n_pixels_per_process=100, dview=None, **kwargs):
     
     else:        
         if 'multiprocessing' in str(type(dview)):
-            results = dview.map_async(fft_psd_multithreading, argsin).get(9999999)
+            results = dview.map_async(fft_psd_multithreading, argsin).get(4294967)
         else:
             ne = len(dview)
             print(('Running on %d engines.'%(ne)))
