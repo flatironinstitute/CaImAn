@@ -133,8 +133,8 @@ tottime = []
 Cn = Cn_init.copy()
 
 plot_contours_flag = False               # flag for plotting contours of detected components at the end of each file
-play_reconstr = False                    # flag for showing video with results online (turn off flags for improving speed)
-save_movie = False                       # flag for saving movie (file could be quite large..)
+play_reconstr = True                    # flag for showing video with results online (turn off flags for improving speed)
+save_movie = True                        # flag for saving movie (file could be quite large..)
 movie_name = folder_name + '/output.avi' # name of movie to be saved
 resize_fact = 1.2                        # image resizing factor
 
@@ -149,7 +149,8 @@ else:
 shifts = []
 show_residuals = True
 if save_movie and play_reconstr:
-    fourcc = cv2.VideoWriter_fourcc('8', 'B', 'P', 'S') 
+    #fourcc = cv2.VideoWriter_fourcc('8', 'B', 'P', 'S') 
+    fourcc = cv2.VideoWriter_fourcc(*'XVID')
     out = cv2.VideoWriter(movie_name,fourcc, 30.0, tuple([int(2*x*resize_fact) for x in cnm2.dims]))
 
 for iter in range(epochs):

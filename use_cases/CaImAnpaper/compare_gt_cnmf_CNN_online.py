@@ -62,12 +62,14 @@ plot_results = False
 
 #%% set some global parameters here
 
-global_params = {'min_SNR': 6,          # minimum SNR when considering adding a new neuron
+global_params = {'min_SNR': 2.0,        # minimum SNR when considering adding a new neuron
                  'gnb' : 2,             # number of background components   
-                 'rval_thr' : 0.90,     # spatial correlation threshold
+                 'rval_thr' : 0.80,     # spatial correlation threshold
                  'batch_length_dt': 10, # length of mini batch for OnACID in decay time units (length would be batch_length_dt*decay_time*fr)
                  'max_thr': 0.30,       # parameter for thresholding components when cleaning up shapes
                  'mot_corr' : False,    # flag for motion correction (set to False to compare directly on the same FOV)
+                 'max_num_added' : 1,   # maximum number of new components to be added at each timestep
+                 'min_num_trial' : 1    # minimum number of trials
                  }
 
 params_movie = [{}]*10        # set up list of dictionaries
@@ -75,14 +77,15 @@ params_movie = [{}]*10        # set up list of dictionaries
 params_movie[0] = {'fname': '/mnt/ceph/neuro/labeling/neurofinder.03.00.test/images/final_map/Yr_d1_498_d2_467_d3_1_order_C_frames_2250_.mmap',
                  'folder_name' : '/mnt/ceph/neuro/labeling/neurofinder.03.00.test/',
                  'epochs' : 2,
-                 'ds_factor': 1,
+                 'ds_factor': 2,
                  'p': 1,  # order of the autoregressive system
-                 'fr': 7,
+                 'fr': 20,
                  'decay_time': 0.4,
                  'gSig': [11,11],  # expected half size of neurons              
                  'gnb': 2,
                  'T1': 2250
                  }
+
 #% neurofinder.04.00.test
 params_movie[1] = {'fname': '/mnt/ceph/neuro/labeling/neurofinder.04.00.test/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_3000_.mmap',
                  'folder_name' : '/mnt/ceph/neuro/labeling/neurofinder.04.00.test/',
@@ -234,6 +237,7 @@ T1 = params_movie[ind_dataset]['T1']*len(fls)*epochs                 # total len
 
 N_samples = np.ceil(params_movie[ind_dataset]['fr']*params_movie[ind_dataset]['decay_time'])   # number of timesteps to consider when testing new neuron candidates
 min_SNR = global_params['min_SNR']#*np.sqrt(T1/2500.)                                      # adaptive way to set threshold (will be equal to min_SNR) 
+min_SNR = 2.33*np.log(T1/4000 + 1.46)
 #pr_inc = 1 - scipy.stats.norm.cdf(global_params['min_SNR'])           # inclusion probability of noise transient
 #thresh_fitness_raw = np.log(pr_inc)*N_samples       # event exceptionality threshold
 thresh_fitness_raw = scipy.special.log_ndtr(-min_SNR)*N_samples
@@ -241,7 +245,7 @@ thresh_fitness_delta = -80.                         # make this very neutral
 rval_thr = global_params['rval_thr']                # correlation threshold for new component inclusion
 gnb = global_params['gnb']                          # number of background components
 p = params_movie[ind_dataset]['p']                  # order of AR indicator dynamics
-deconv_flag =  p>0
+deconv_flag = p>0
 
 #minibatch_length = int(global_params['batch_length_dt']*params_movie[ind_dataset]['fr']*params_movie[ind_dataset]['decay_time'])
 
@@ -280,12 +284,12 @@ cnm_init = bare_initialization(Y[:initbatch].transpose(1, 2, 0), init_batch=init
                                  update_num_comps = True, rval_thr=rval_thr,
                                  thresh_fitness_delta = thresh_fitness_delta,
                                  thresh_fitness_raw = thresh_fitness_raw,
-                                 batch_update_suff_stat=True, max_comp_update_shape = 10, 
+                                 batch_update_suff_stat=True, max_comp_update_shape = 200, 
                                  deconv_flag = deconv_flag,
-                                 simultaneously=False, n_refit=0)
+                                 simultaneously=True, n_refit=0)
 
 cnm_init._prepare_object(np.asarray(Yr[:,:initbatch]), T1, expected_comps, idx_components=None, N_samples_exceptionality = int(N_samples),
-                         max_num_added = 1, min_num_trial = 2)
+                         max_num_added = global_params['max_num_added'], min_num_trial = global_params['min_num_trial'])
 
 if plot_results:   # plot initialization results
     A, C, b, f, YrA, sn = cnm_init.A, cnm_init.C, cnm_init.b, cnm_init.f, cnm_init.YrA, cnm_init.sn
