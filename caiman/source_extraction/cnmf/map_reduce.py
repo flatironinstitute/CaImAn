@@ -249,7 +249,7 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride=4, gnb=1, dview=No
     st = time.time()
     if dview is not None:
         if 'multiprocessing' in str(type(dview)):
-            file_res = dview.map_async(cnmf_patches, args_in).get(9999999)
+            file_res = dview.map_async(cnmf_patches, args_in).get(4294967)
         else:
             try:
                 file_res = dview.map_sync(cnmf_patches, args_in)
