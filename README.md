@@ -1,7 +1,7 @@
 
 CaImAn
 ======
-<img src="https://github.com/simonsfoundation/CaImAn/blob/master/docs/LOGOS/Caiman_logo_FI.png" width="500" align="right">
+<img src="https://github.com/flatironinstitute/CaImAn/blob/master/docs/LOGOS/Caiman_logo_FI.png" width="500" align="right">
 
 
 [![Join the chat at https://gitter.im/agiovann/SOURCE_EXTRACTION_PYTHON](https://badges.gitter.im/agiovann/SOURCE_EXTRACTION_PYTHON.svg)](https://gitter.im/agiovann/SOURCE_EXTRACTION_PYTHON?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
@@ -62,7 +62,7 @@ We recently incorporated a Python implementation of the OnACID [[5]](#onacid) al
 
     ```bash
    
-   git clone https://github.com/simonsfoundation/CaImAn
+   git clone https://github.com/flatironinstitute/CaImAn
    cd CaImAn/
    conda env create -f environment_mac.yml -n caiman
    source activate caiman
@@ -80,7 +80,7 @@ We recently incorporated a Python implementation of the OnACID [[5]](#onacid) al
 
    ```bash
    
-   git clone https://github.com/simonsfoundation/CaImAn
+   git clone https://github.com/flatironinstitute/CaImAn
    cd CaImAn/
    conda env create -f environment.yml -n caiman
    source activate caiman   
@@ -108,7 +108,7 @@ We recently incorporated a Python implementation of the OnACID [[5]](#onacid) al
 
     ```bash
     
-    git clone  https://github.com/simonsfoundation/CaImAn
+    git clone  https://github.com/flatironinstitute/CaImAn
     cd CaImAn
     git pull
     ```
@@ -132,7 +132,7 @@ We recently incorporated a Python implementation of the OnACID [[5]](#onacid) al
 
     ```bash
     
-    git clone  https://github.com/simonsfoundation/CaImAn
+    git clone  https://github.com/flatironinstitute/CaImAn
     cd CaImAn
     git pull
     conda env create -f environment_mac.yml -n caiman
@@ -191,7 +191,7 @@ ls test_*py | while read t; do nosetests --nologcapture ${t%%.py}; done;
 * Ben Deverett, **Princeton University**
 * Jérémie Kalfon, **University of Kent, ECE paris** 
 
-A complete list of contributors can be found [here](https://github.com/simonsfoundation/CaImAn/graphs/contributors).
+A complete list of contributors can be found [here](https://github.com/flatironinstitute/CaImAn/graphs/contributors).
 
 # References
 
@@ -295,8 +295,8 @@ In general ```'cvxpy'``` can be faster, when using the 'ECOS' or 'SCS' sovlers, 
 
 # Documentation & Wiki
 
-Documentation of the code can be found [here](http://simonsfoundation.github.io/CaImAn/). 
-Moreover, our [wiki page](https://github.com/simonsfoundation/CaImAn/wiki) covers some aspects of the code.
+Documentation of the code can be found [here](http://flatironinstitute.github.io/CaImAn/). 
+Moreover, our [wiki page](https://github.com/flatironinstitute/CaImAn/wiki) covers some aspects of the code.
 
 # Acknowledgements
 
