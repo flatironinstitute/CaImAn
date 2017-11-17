@@ -496,7 +496,7 @@ def estimate_components_quality(traces, Y, A, C, b, f, final_frate = 30, Npeaks=
             
             print('EVALUATING IN PARALLEL... NOT RETURNING ERFCs')
             if 'multiprocessing' in str(type(dview)):
-                res = dview.map_async(evaluate_components_placeholder,params).get(9999999)
+                res = dview.map_async(evaluate_components_placeholder,params).get(4294967)
             else:
                 res = dview.map_sync(evaluate_components_placeholder,params)
         
