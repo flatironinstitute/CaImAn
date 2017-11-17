@@ -56,7 +56,7 @@ except:
 # 7: J115
 # 8: J123
 
-ind_dataset = 2
+ind_dataset = 1
 use_VST = False
 plot_results = False
 
@@ -64,7 +64,7 @@ plot_results = False
 
 global_params = {'min_SNR': 1.5,        # minimum SNR when considering adding a new neuron
                  'gnb' : 2,             # number of background components   
-                 'rval_thr' : 0.70,     # spatial correlation threshold
+                 'rval_thr' : 0.80,     # spatial correlation threshold
                  'batch_length_dt': 10, # length of mini batch for OnACID in decay time units (length would be batch_length_dt*decay_time*fr)
                  'max_thr': 0.30,       # parameter for thresholding components when cleaning up shapes
                  'mot_corr' : False,    # flag for motion correction (set to False to compare directly on the same FOV)
