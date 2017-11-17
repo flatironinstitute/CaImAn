@@ -81,6 +81,7 @@ pipeline {
           }
         }
 
+        /*
         stage('win-python2') {
           agent {
             label 'windows && anaconda2'
@@ -94,6 +95,7 @@ pipeline {
             bat '%CONDA_ENV%\\scripts\\activate %CONDA_ENV% && python setup.py build_ext -i && nosetests -x'
           }
         }
+        */
         stage('win-python3') {
           agent {
             label 'windows && anaconda3'
