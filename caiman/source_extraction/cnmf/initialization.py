@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
 """ Initialize the component for the CNMF
 
-contain a list of functions to initialize the neurons and the corresponding traces with different set of methods
-liek ICA PCA, greedy roi
-
+contain a list of functions to initialize the neurons and the corresponding traces with
+different set of methods like ICA PCA, greedy roi
 
 
 """
@@ -19,7 +18,6 @@ from builtins import range
 from past.utils import old_div
 import numpy as np
 from sklearn.decomposition import NMF, FastICA
-from skimage.transform import resize
 from skimage.morphology import disk
 import scipy.ndimage as nd
 from scipy.ndimage.measurements import center_of_mass
@@ -30,10 +28,9 @@ import caiman
 from caiman.source_extraction.cnmf.deconvolution import deconvolve_ca
 from caiman.source_extraction.cnmf.pre_processing import get_noise_fft
 from caiman.source_extraction.cnmf.spatial import circular_constraint
-from caiman.utils.utils import downscale
+from caiman.utils.utils import downscale, resize
 import cv2
 import sys
-import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 #%%
@@ -64,7 +61,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
     Parameters:
     ----------
     Y: np.ndarray
-         d1 x d2 [x d3] x T movie, raw data.
+        d1 x d2 [x d3] x T movie, raw data.
 
     K: [optional] int
         number of neurons to extract (default value: 30). Maximal number for method 'corr_pnr'.
@@ -88,7 +85,8 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
         temporal downsampling factor recommended for long datasets (default 1, no downsampling).
 
     kernel: [optional] np.ndarray
-        User specified kernel for greedyROI (default None, greedy ROI searches for Gaussian shaped neurons)
+        User specified kernel for greedyROI
+        (default None, greedy ROI searches for Gaussian shaped neurons)
 
     use_hals: [optional] bool
         Whether to refine components with the hals method
@@ -97,10 +95,10 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
         Whether to normalize_init data before running the initialization
 
     img: optional [np 2d array]
-        Image with which to normalize. If not present use the mean + offset 
+        Image with which to normalize. If not present use the mean + offset
 
     method: str
-        Initialization method 'greedy_roi' or 'sparse_nmf' 
+        Initialization method 'greedy_roi' or 'sparse_nmf'
 
     max_iter_snmf: int
         Maximum number of sparse NMF iterations
@@ -109,10 +107,10 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
         Sparsity penalty
 
     rolling_sum: boolean
-        Detect new components based on a rolling sum of pixel activity (default: True)        
+        Detect new components based on a rolling sum of pixel activity (default: True)
 
     rolling_length: int
-                Length of rolling window (default: 100)
+        Length of rolling window (default: 100)
 
     center_psf: Boolean
         True indicates centering the filtering kernel for background
@@ -122,16 +120,14 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
     min_corr: float
         minimum local correlation coefficients for selecting a seed pixel.
 
-
     min_pnr: float
         minimum peak-to-noise ratio for selecting a seed pixel.
 
-
     deconvolve_options: dict
-            all options for deconvolving temporal traces, in general just pass options['temporal_params']    
+        all options for deconvolving temporal traces, in general just pass options['temporal_params']
 
     ring_size_factor: float
-            it's the ratio between the ring radius and neuron diameters.
+        it's the ratio between the ring radius and neuron diameters.
 
     nb: integer
         number of background components for approximating the background using NMF model
@@ -284,12 +280,12 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
     b_in = np.reshape(b_in, (np.prod(d), nb), order='F')
 
     if Ain.size > 0:
-        Cin = resize(Cin.astype(float), [K, T])
+        Cin = resize(Cin.astype(float), (K, T))
         center = np.asarray([center_of_mass(a.reshape(d, order='F')) for a in Ain.T])
     else:
         center = []
 
-    f_in = resize(np.atleast_2d(f_in), [nb, T])
+    f_in = resize(np.atleast_2d(f_in), (nb, T))
 
     if normalize_init is True:
         if Ain.size > 0:
@@ -302,7 +298,8 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
 #%%
 
 
-def ICA_PCA(Y_ds, nr, sigma_smooth=(.5, .5, .5), truncate=2, fun='logcosh', max_iter=1000, tol=1e-10, remove_baseline=True, perc_baseline=20, nb=1):
+def ICA_PCA(Y_ds, nr, sigma_smooth=(.5, .5, .5), truncate=2, fun='logcosh',
+            max_iter=1000, tol=1e-10, remove_baseline=True, perc_baseline=20, nb=1):
     """ Initialization using ICA and PCA. DOES NOT WORK WELL WORK IN PROGRESS"
 
     Parameters:
@@ -363,7 +360,8 @@ def ICA_PCA(Y_ds, nr, sigma_smooth=(.5, .5, .5), truncate=2, fun='logcosh', max_
 #%%
 
 
-def sparseNMF(Y_ds, nr, max_iter_snmf=500, alpha=10e2, sigma_smooth=(.5, .5, .5), remove_baseline=True, perc_baseline=20, nb=1, truncate=2):
+def sparseNMF(Y_ds, nr, max_iter_snmf=500, alpha=10e2, sigma_smooth=(.5, .5, .5),
+              remove_baseline=True, perc_baseline=20, nb=1, truncate=2):
     """
     Initilaization using sparse NMF
 
@@ -383,7 +381,7 @@ def sparseNMF(Y_ds, nr, max_iter_snmf=500, alpha=10e2, sigma_smooth=(.5, .5, .5)
         percentile to remove frmo movie before NMF
 
     nb: int
-        Number of background components    
+        Number of background components
 
     Returns:
     -------
@@ -414,11 +412,11 @@ def sparseNMF(Y_ds, nr, max_iter_snmf=500, alpha=10e2, sigma_smooth=(.5, .5, .5)
     yr = np.reshape(m1, [T, d], order='F')
     C = mdl.fit_transform(yr).T
     A = mdl.components_.T
-    ind_good = np.where(np.logical_and((np.sum(A, 0) * np.std(C, axis=1))
-                                       > 0, np.sum(A > np.mean(A), axis=0) < old_div(d, 3)))[0]
+    ind_good = np.where(np.logical_and((np.sum(A, 0) * np.std(C, axis=1)) > 0,
+                                       np.sum(A > np.mean(A), axis=0) < old_div(d, 3)))[0]
 
-    ind_bad = np.where(np.logical_or((np.sum(A, 0) * np.std(C, axis=1))
-                                     == 0, np.sum(A > np.mean(A), axis=0) > old_div(d, 3)))[0]
+    ind_bad = np.where(np.logical_or((np.sum(A, 0) * np.std(C, axis=1)) == 0,
+                                     np.sum(A > np.mean(A), axis=0) > old_div(d, 3)))[0]
     A_in = np.zeros_like(A)
 
     C_in = np.zeros_like(C)
@@ -439,7 +437,8 @@ def sparseNMF(Y_ds, nr, max_iter_snmf=500, alpha=10e2, sigma_smooth=(.5, .5, .5)
 #%%
 
 
-def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1, rolling_sum=False, rolling_length=100):
+def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1,
+              rolling_sum=False, rolling_length=100):
     """
     Greedy initialization of spatial and temporal components using spatial Gaussian filtering
 
@@ -1039,7 +1038,8 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
 
         if center_psf:
             for idx, img in enumerate(data_filtered):
-                data_filtered[idx, ] = cv2.GaussianBlur(img, ksize=ksize, sigmaX=gSig[0], sigmaY=gSig[1], borderType=1) \
+                data_filtered[idx, ] = cv2.GaussianBlur(img, ksize=ksize, sigmaX=gSig[0],
+                                                        sigmaY=gSig[1], borderType=1) \
                     - cv2.boxFilter(img, ddepth=-1, ksize=ksize, borderType=1)
                 # data_filtered[idx, ] = cv2.filter2D(img, -1, psf, borderType=1)
         else:
@@ -1422,7 +1422,8 @@ def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True):
         index = get_indices_of_pixels_on_ring(p)
         indices += list(index)
         B = Y[index] - A[index].dot(C) - b0[index, None] if X is None else X[index]
-        data += list(np.linalg.inv(np.array(B.dot(B.T)) + 1e-9 * np.eye(len(index), dtype='float32')).
+        data += list(np.linalg.inv(np.array(B.dot(B.T)) +
+                                   1e-9 * np.eye(len(index), dtype='float32')).
                      dot(B.dot(Y[p] - A[p].dot(C).ravel() - b0[p] if X is None else X[p])))
         # np.linalg.lstsq seems less robust but scipy version would be (robust but for the problem size slower) alternative
         # data += list(scipy.linalg.lstsq(B.T, Y[p] - A[p].dot(C) - b0[p], check_finite=False)[0])

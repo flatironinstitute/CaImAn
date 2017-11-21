@@ -24,10 +24,11 @@ from __future__ import print_function
 import numpy as np
 import os
 from scipy.ndimage.filters import gaussian_filter
+import cv2
 try:
-    from urllib2 import urlopen as urlopen
-except:
-    from urllib.request import urlopen as urlopen
+    from urllib2 import urlopen
+except ImportError:
+    from urllib.request import urlopen
 try:  # python2
     import cPickle as pickle
 except ImportError:  # python3
@@ -347,3 +348,22 @@ def downscale(Y, ds):
                                   .reshape(q[0], ds[0], q[1], ds[1], r[2])
                                   .mean(1).mean(2).mean(2))
     return Y_ds.squeeze()
+
+
+def resize(Y, size, order=1):
+    """faster and 3D compatible version of skimage.transform.resize"""
+    if Y.ndim == 2:
+        return cv2.resize(Y, size[::-1], interpolation=order)
+    elif Y.ndim == 3:
+        if np.isfortran(Y):
+            return (cv2.resize(np.array(
+                [cv2.resize(y, size[:2], interpolation=order) for y in Y.T]).T
+                .reshape((-1, Y.shape[-1]), order='F'),
+                (size[-1], np.prod(size[:2])), interpolation=order).reshape(size, order='F'))
+        else:
+            return np.array([cv2.resize(y, size[:0:-1], interpolation=order) for y in
+                             cv2.resize(Y.reshape((len(Y), -1), order='F'),
+                                        (np.prod(Y.shape[1:]), size[0]), interpolation=order)
+                             .reshape((size[0],) + Y.shape[1:], order='F')])
+    else:  # TODO deal with ndim=4
+        raise NotImplementedError
