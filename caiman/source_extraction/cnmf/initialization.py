@@ -280,7 +280,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
     b_in = np.reshape(b_in, (np.prod(d), nb), order='F')
 
     if Ain.size > 0:
-        Cin = resize(Cin.astype(float), (K, T))
+        Cin = resize(Cin, (K, T))
         center = np.asarray([center_of_mass(a.reshape(d, order='F')) for a in Ain.T])
     else:
         center = []
@@ -501,14 +501,14 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1,
     gHalf = np.array(gSiz) // 2
     gSiz = 2 * gHalf + 1
     # we initialize every values to zero
-    A = np.zeros((np.prod(d[0:-1]), nr))
-    C = np.zeros((nr, d[-1]))
+    A = np.zeros((np.prod(d[0:-1]), nr), dtype=np.float32)
+    C = np.zeros((nr, d[-1]), dtype=np.float32)
     center = np.zeros((nr, Y.ndim - 1))
 
     rho = imblur(Y, sig=gSig, siz=gSiz, nDimBlur=Y.ndim - 1, kernel=kernel)
     if rolling_sum:
         print('USING ROLLING SUM FOR INITIALIZATION....')
-        rolling_filter = np.ones((rolling_length)) / rolling_length
+        rolling_filter = np.ones((rolling_length), dtype=np.float32) / rolling_length
         rho_s = scipy.signal.lfilter(rolling_filter, 1., rho**2)
         v = np.amax(rho_s, axis=-1)
     else:
@@ -527,8 +527,8 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1,
         ijSig = [[np.maximum(ij[c] - gHalf[c], 0), np.minimum(ij[c] + gHalf[c] + 1, d[c])]
                  for c in range(len(ij))]
         # we create an array of it (fl like) and compute the trace like the pixel ij trough time
-        dataTemp = np.array(Y[[slice(*a) for a in ijSig]].copy(), dtype=np.float)
-        traceTemp = np.array(np.squeeze(rho[ij]), dtype=np.float)
+        dataTemp = np.array(Y[[slice(*a) for a in ijSig]].copy(), dtype=np.float32)
+        traceTemp = np.array(np.squeeze(rho[ij]), dtype=np.float32)
 
         coef, score = finetune(dataTemp, traceTemp, nIter=nIter)
         C[k, :] = np.squeeze(score)
@@ -560,8 +560,8 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1,
     res = np.reshape(Y, (np.prod(d[0:-1]), d[-1]), order='F') + med.flatten(order='F')[:, None]
 #    model = NMF(n_components=nb, init='random', random_state=0)
     model = NMF(n_components=nb, init='nndsvdar')
-    b_in = model.fit_transform(np.maximum(res, 0))
-    f_in = model.components_.squeeze()
+    b_in = model.fit_transform(np.maximum(res, 0)).astype(np.float32)
+    f_in = model.components_.squeeze().astype(np.float32)
 
     return A, C, center, b_in, f_in
 
@@ -939,7 +939,7 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
         b_in, s_in, f_in = spr.linalg.svds(B, k=nb)
         f_in *= s_in[:, np.newaxis]
 
-    return A, C, center.T, b_in, f_in
+    return A, C, center.T, b_in.astype(np.float32), f_in.astype(np.float32)
 
 
 @profile
@@ -1028,9 +1028,9 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
         total_frames, d1, d2 = data.shape
         data_raw = data
 
+    data_filtered = data_raw.copy()
     if gSig:
         # spatially filter data
-        data_filtered = data_raw.copy()
         if not isinstance(gSig, list):
             gSig = [gSig, gSig]
         ksize = tuple([(3 * i) // 2 * 2 + 1 for i in gSig])
@@ -1046,8 +1046,6 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
             for idx, img in enumerate(data_filtered):
                 data_filtered[idx, ] = cv2.GaussianBlur(img, ksize=ksize, sigmaX=gSig[
                                                         0], sigmaY=gSig[1], borderType=1)
-    else:
-        data_filtered = data_raw
 
     # compute peak-to-noise ratio
     data_filtered -= data_filtered.mean(axis=0)
