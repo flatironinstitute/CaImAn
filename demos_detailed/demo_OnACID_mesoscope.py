@@ -46,24 +46,28 @@ print(fls)                                          # your list of files should 
 
 #%%   Set up some parameters
 
-ds_factor = 1                                       # spatial downsampling factor (increases speed but may lose some fine structure)
-init_files = 1                                      # number of files used for initialization
-online_files = len(fls) - 1                         # number of files used for online
-initbatch = 200                                     # number of frames for initialization (presumably from the first file)
-expected_comps = 300                                # maximum number of expected components used for memory pre-allocation (exaggerate here)
-K = 2                                               # initial number of components
-gSig = tuple(np.ceil(np.array([4 , 4])/ds_factor))  # expected half size of neurons
-p = 1                                               # order of AR indicator dynamics
-rval_thr = 0.85                                     # correlation threshold for new component inclusion
-thresh_fitness_delta = -30                          # event exceptionality thresholds 
-thresh_fitness_raw = -40                            #
-mot_corr = True                                     # flag for online motion correction 
-max_shift = np.ceil(10./ds_factor).astype('int')    # maximum allowed shift during motion correction
-gnb = 2                                             # number of background components
-epochs = 2                                          # number of passes over the data
-len_file = 1000                                     # upper bound for number of frames in each file (used right below)
-T1 = len(fls)*len_file*epochs                       # total length of all files (if not known use a large number, then truncate at the end)
-gSig = tuple(np.ceil(np.array(gSig)/ds_factor).astype('int'))
+ds_factor = 1                                                       # spatial downsampling factor (increases speed but may lose some fine structure)
+init_files = 1                                                      # number of files used for initialization
+online_files = len(fls) - 1                                         # number of files used for online
+initbatch = 200                                                     # number of frames for initialization (presumably from the first file)
+expected_comps = 300                                                # maximum number of expected components used for memory pre-allocation (exaggerate here)
+K = 2                                                               # initial number of components
+gSig = tuple(np.ceil(np.array([4 , 4])/ds_factor))                  # expected half size of neurons
+p = 1                                                               # order of AR indicator dynamics
+rval_thr = 0.85                                                     # correlation threshold for new component inclusion
+fr = 15                                                             # frame rate (Hz)
+decay_time = 0.5                                                    # length of transient event in seconds
+N_samples = np.ceil(fr*decay_time)                                  # number of timesteps to consider when testing new neuron candidates
+min_SNR = 2.5                                                       # minimum SNR for accepting new components
+thresh_fitness_raw = scipy.special.log_ndtr(-min_SNR)*N_samples     # exceptionality threshold
+mot_corr = True                                                     # flag for online motion correction 
+max_shift = np.ceil(10./ds_factor).astype('int')                    # maximum allowed shift during motion correction
+gnb = 2                                                             # number of background components
+epochs = 2                                                          # number of passes over the data
+len_file = 1000                                                     # upper bound for number of frames in each file (used right below)
+T1 = len(fls)*len_file*epochs                                       # total length of all files (if not known use a large number, then truncate at the end)
+gSig = tuple(np.ceil(np.array(gSig)/ds_factor).astype('int'))       # recompute gSig if downsampling is involved
+
 #%%    Initialize movie
 
 if ds_factor > 1:                                   # load only the first initbatch frames and possibly downsample them
@@ -98,7 +102,6 @@ pl.imshow(Cn_init); pl.title('Correlation Image on initial batch'); pl.colorbar(
 cnm_init = bare_initialization(Y[:initbatch].transpose(1, 2, 0), init_batch=initbatch, k=K, gnb=gnb,
                                  gSig=gSig, p=p, minibatch_shape=100, minibatch_suff_stat=5,
                                  update_num_comps = True, rval_thr=rval_thr,
-                                 thresh_fitness_delta = thresh_fitness_delta,
                                  thresh_fitness_raw = thresh_fitness_raw,
                                  batch_update_suff_stat=True, max_comp_update_shape = 5, 
                                  deconv_flag = False, use_dense = True,
@@ -119,7 +122,7 @@ if save_init:
     save_object(cnm_init, fls[0][:-4] + '_DS_' + str(ds_factor) + '.pkl')
     cnm_init = load_object(fls[0][:-4] + '_DS_' + str(ds_factor) + '.pkl')
     
-cnm_init._prepare_object(np.asarray(Yr), T1, expected_comps, idx_components=None, min_num_trial = 2)
+cnm_init._prepare_object(np.asarray(Yr), T1, expected_comps, idx_components=None, min_num_trial = 2, N_samples_exceptionality = int(N_samples))
 
 #%% Run OnACID and optionally plot results in real time
 
