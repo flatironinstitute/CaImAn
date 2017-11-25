@@ -204,7 +204,6 @@ def demix_and_deconvolve(C, noisyC, AtY, AtA, OASISinstances, iters=3, n_refit=0
     Solve C = argmin_C ||Y-AC|| subject to C following AR(p) dynamics
     using OASIS within block-coordinate decent
     Newly fits the last elements in buffers C and AtY and possibly refits earlier elements.
-
     Parameters
     ----------
     C : ndarray of float
@@ -428,7 +427,9 @@ def corr(a, b):
 
 
 def rank1nmf(Ypx, ain):
-    """ performs a rank 1 NMF to determine candidate components. """
+    """
+    perform a fast rank 1 NMF
+    """
     # cin_old = -1
     for _ in range(15):
         cin_res = ain.T.dot(Ypx)  # / ain.dot(ain)
@@ -436,11 +437,12 @@ def rank1nmf(Ypx, ain):
         ain = np.maximum(Ypx.dot(cin.T), 0)
         ain /= sqrt(ain.dot(ain)+ np.finfo(float).eps)
         # nc = cin.dot(cin)
+        # ain = np.maximum(Ypx.dot(cin.T) / nc, 0)
         # tmp = cin - cin_old
         # if tmp.dot(tmp) < 1e-6 * nc:
         #     break
         # cin_old = cin.copy()
-    cin_res = ain.T.dot(Ypx)  
+    cin_res = ain.T.dot(Ypx)  # / ain.dot(ain)
     cin = np.maximum(cin_res, 0)
     return ain, cin, cin_res
 
@@ -451,115 +453,52 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                           dims, gSig, gSiz, ind_A, CY, CC, groups, oases, gnb=1,
                           rval_thr=0.875, bSiz=3, robust_std=False,
                           N_samples_exceptionality=5, remove_baseline=True,
-                          thresh_fitness_delta=-20, thresh_fitness_raw=-20, thresh_overlap=0.5,
+                          thresh_fitness_delta=-80, thresh_fitness_raw=-20, thresh_overlap=0.25,
                           batch_update_suff_stat=False, sn=None, g=None, thresh_s_min=None,
-                          s_min=None, Ab_dense=None, max_num_added=1, min_num_trial = 2):
+                          s_min=None, Ab_dense=None, max_num_added=1, min_num_trial = 1):
+
     """
-    Search for and incorporate new components.
-    Parameters
-    ----------
-    t:                      int
-        timestep index
-    sv:                     np.array
-        residual buffer standard deviation
-    Ab:                     scipy.sparse.csc_matrix
-        spatial background and components
-    Cf:                     np.array
-        temporal background and components
-    Yres_buf:               ring buffer
-        residual buffer
-    Y_buf:                  ring buffer
-        data bugger
-    rho_buf:                ring buffer
-        spatial smoothed data buffer
-    dims:                   tuple 
-        dimensions of FOV
-    gSig:                   list
-        half size of neuron
-    gSiz:                   list
-        half size of search window
-    ind_A:                  list of int arrays
-        non-zero entries for each spatial component
-    CY:                     np.array
-        covariance matrix between data and traces
-    CC:                     np.array
-        autocovariance matrix for traces
-    groups:                 list of lists
-        sets of spatially non-overlapping components
-    oases:                  lists
-        OASIS objects
-    gnb:                    int
-        number of background components
-    rval_thr:               float
-        spatial correlation threshold
-    bSiz:                   int
-        size of expansion factor for new component (not used)
-    robust_std:             bool
-        method for estimating noise trace
-    N_samples_exc:          int
-        number of samples taken for computing exceptionality
-    remove_baseline:        bool
-        remove baseline from candidate trace
-    thresh_fitness_delta:   float
-        fitness delta threshold
-    thresh_fitness_raw:     float
-        exceptionality threshold
-    thresh_overlap:         float
-        spatial overlap threshold for rejecting candidate component
-    batch_update_suff_stat: bool
-        update sufficient statistics in batch when adding a component
-    sn:                     float
-        noise level of trace
-    g:                      float
-        time constant of new trace
-    thresh_s_min:           float
-    s_min:                  float
-        min spike value
-    Ab_dense:               np.array
-        dense representation of spatial components
-    max_num_added:          int
-        maximum number of new components allowed
-    min_num_trial:          int
-        minimum number of components to be tested
+    Checks for new components in the residual buffer and incorporates them if they pass the acceptance tests    
     """
     
+    order_rvl = 'C'
     gHalf = np.array(gSiz) // 2
 
-    M = np.shape(Ab)[-1]
-    N = M - gnb
-
-#    Yres = np.array(Yres_buf).T
-#    Y = np.array(Y_buf).T
-#    rhos = np.array(rho_buf).T
+    M = np.shape(Ab)[-1]        # number of total components (including background)
+    N = M - gnb                 # number of coponents (without background)
 
     first = True
 
     sv -= rho_buf.get_first()
-    sv += rho_buf.get_last_frames(1).squeeze()
-    cnt = 0
+    sv += rho_buf.get_last_frames(1).squeeze()  # update variance of residual buffer
+
     num_added = 0
+    cnt = 0
     while num_added < max_num_added:
-        cnt += 1
+        cnt +=1
         if first:
             sv_ = sv.copy()  # np.sum(rho_buf,0)
             first = False
 
         ind = np.argmax(sv_)
-        ij = np.unravel_index(ind, dims)
+        ij = np.unravel_index(ind, dims,order=order_rvl)
         # ijSig = [[np.maximum(ij[c] - gHalf[c], 0), np.minimum(ij[c] + gHalf[c] + 1, dims[c])]
         #          for c in range(len(ij))]
         # better than above expensive call of numpy and loop creation
         ijSig = [[max(ij[0] - gHalf[0], 0), min(ij[0] + gHalf[0] + 1, dims[0])],
                  [max(ij[1] - gHalf[1], 0), min(ij[1] + gHalf[1] + 1, dims[1])]]
 
-
+        # xySig = np.meshgrid(*[np.arange(s[0], s[1]) for s in ijSig], indexing='xy')
+        # arr = np.array([np.reshape(s, (1, np.size(s)), order='F').squeeze()
+        #                 for s in xySig], dtype=np.int)
+        # indeces = np.ravel_multi_index(arr, dims, order='F')
         indeces = np.ravel_multi_index(np.ix_(np.arange(ijSig[0][0], ijSig[0][1]),
                                               np.arange(ijSig[1][0], ijSig[1][1])),
-                                       dims, order='F').ravel()
+                                       dims, order='F').ravel(order=order_rvl)
     
         indeces_ = np.ravel_multi_index(np.ix_(np.arange(ijSig[0][0], ijSig[0][1]),
                                               np.arange(ijSig[1][0], ijSig[1][1])),
-                                       dims, order='C').ravel()
+                                       dims, order='C').ravel(order=order_rvl)
 
         Ypx = Yres_buf.T[indeces, :]
 
@@ -570,26 +509,24 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
 
         ain /= sqrt(na)
 
-        ain, cin, cin_res = rank1nmf(Ypx, ain)  # expects and returns normalized ain
+#        new_res = sv_.copy()
+#        new_res[ np.ravel_multi_index(arr, dims, order='C')] = 10000
 
-        rval = corr(ain.copy(), np.mean(Ypx, -1))
-#        print(rval)
+        ain, cin, cin_res = rank1nmf(Ypx, ain)                  # expects and returns normalized ain
+        rval = corr(ain.copy(), np.mean(Ypx, -1))               # correlation coefficient                
+
         if rval > rval_thr:
-            # na = sqrt(ain.dot(ain))
-            # ain /= na
-            # cin = na * cin
             # use sparse Ain only later iff it is actually added to Ab
             Ain = np.zeros((np.prod(dims), 1), dtype=np.float32)
-            # Ain = scipy.sparse.csc_matrix((np.prod(dims), 1), dtype=np.float32)
             Ain[indeces, :] = ain[:, None]
 
             cin_circ = cin.get_ordered()
 
     #        indeces_good = (Ain[indeces]>0.01).nonzero()[0]
 
-            # rval = np.corrcoef(ain, np.mean(Ypx, -1))[0, 1]
-
             useOASIS = False  # whether to use faster OASIS for cell detection
+            foo = True        # flag indicating new component has not been rejected yet
+            
             if Ab_dense is None:
                 ff = np.where((Ab.T.dot(Ain).T > thresh_overlap)[:, gnb:])[1] + gnb
             else:
@@ -597,20 +534,20 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
             if ff.size > 0:
                 cc = [corr(cin_circ.copy(), cins) for cins in Cf[ff, :]]
 
-                if np.any(np.array(cc) > .8):
+                if np.any(np.array(cc) > .25):
                     #                    repeat = False
                     # vb = imblur(np.reshape(Ain, dims, order='F'),
                     #             sig=gSig, siz=gSiz, nDimBlur=2)
                     # restrict blurring to region where component is located
-                    vb = np.reshape(Ain, dims, order='F')
+                    vb = np.reshape(Ain, dims, order='C')
                     slices = tuple(slice(max(0, ijs[0] - 2 * sg), min(d, ijs[1] + 2 * sg))
                                    for ijs, sg, d in zip(ijSig, gSig, dims))  # is 2 enough?
                     vb[slices] = imblur(vb[slices], sig=gSig, siz=gSiz, nDimBlur=2)
-                    sv_ -= (vb.ravel()**2) * cin.dot(cin)
-
+                    sv_ -= (vb.ravel(order=order_rvl)**2) * cin.dot(cin)
+                    foo = False         # reject component as duplicate
 #                    pl.imshow(np.reshape(sv,dims));pl.pause(0.001)
-                    # print('Overlap at step' + str(t) + ' ' + str(cc))
-                    break
+                  #  print('Overlap at step' + str(t) + ' ' + str(cc))
+                    #break
 
             if s_min is None:  # use thresh_s_min * noise estimate * sqrt(1-sum(gamma))
             # the formula has been obtained by running OASIS with s_min=0 and lambda=0 on Gaussin noise.
@@ -621,29 +558,24 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                     sqrt((ain**2).dot(sn[indeces]**2)) * sqrt(1 - np.sum(g))
 
             cin_res = cin_res.get_ordered()
-            if useOASIS:
-                oas = oasis.OASIS(g=g, s_min=s_min,
-                                  num_empty_samples=t + 1 - len(cin_res))
-                for yt in cin_res:
-                    oas.fit_next(yt)
-                foo = oas.get_l_of_last_pool() <= t
-                # cc=oas.c
-                # print([np.corrcoef(cin_circ,cins)[0,1] for cins in Cf[overlap[0] > 0]])
-                # print([np.corrcoef(cc,cins)[0,1] for cins in Cf[overlap[0] > 0, ]])
-                # import matplotlib.pyplot as plt
-                # plt.plot(cin_res); plt.plot(cc); plt.show()
-                # import pdb;pdb.set_trace()
-            else:
-                fitness_delta, erfc_delta, std_rr, _ = compute_event_exceptionality(
-                    np.diff(cin_res)[None, :], robust_std=robust_std, N=N_samples_exceptionality)
-                if remove_baseline:
-                    num_samps_bl = min(len(cin_res) // 5, 800)
-                    bl = scipy.ndimage.percentile_filter(cin_res, 8, size=num_samps_bl)
+            if foo:
+                if useOASIS:
+                    oas = oasis.OASIS(g=g, s_min=s_min,
+                                      num_empty_samples=t + 1 - len(cin_res))
+                    for yt in cin_res:
+                        oas.fit_next(yt)
+                    foo = oas.get_l_of_last_pool() <= t
                 else:
-                    bl = 0
-                fitness_raw, erfc_raw, std_rr, _ = compute_event_exceptionality(
-                    (cin_res - bl)[None, :], robust_std=robust_std, N=N_samples_exceptionality)
-                foo = (fitness_delta < thresh_fitness_delta) or (fitness_raw < thresh_fitness_raw)
+                    fitness_delta, erfc_delta, std_rr, _ = compute_event_exceptionality(
+                        np.diff(cin_res)[None, :], robust_std=robust_std, N=N_samples_exceptionality)
+                    if remove_baseline:
+                        num_samps_bl = min(len(cin_res) // 5, 800)
+                        bl = scipy.ndimage.percentile_filter(cin_res, 8, size=num_samps_bl)
+                    else:
+                        bl = 0
+                    fitness_raw, erfc_raw, std_rr, _ = compute_event_exceptionality(
+                        (cin_res - bl)[None, :], robust_std=robust_std, N=N_samples_exceptionality)
+                    foo = (fitness_delta < thresh_fitness_delta) or (fitness_raw < thresh_fitness_raw)
 
             if foo:
                 # print('adding component' + str(N + 1) + ' at timestep ' + str(t))
@@ -670,17 +602,13 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
 
                 Ain_csc = scipy.sparse.csc_matrix((ain, (indeces, [0] * len(indeces))),
                                                   (np.prod(dims), 1), dtype=np.float32)
-                
-                #if Ab_dense is None:
-                groups = update_order(Ab, Ain, groups)[0]
-                #else:
-                #    groups = update_order(Ab_dense[indeces], ain, groups)[0]
+
+                if Ab_dense is None:
+                    groups = update_order(Ab, Ain, groups)[0]
+                else:
+                    groups = update_order(Ab_dense[indeces], ain, groups)[0]
                 csc_append(Ab, Ain_csc)  # faster version of scipy.sparse.hstack
                 ind_A.append(Ab.indices[Ab.indptr[M]:Ab.indptr[M + 1]])
-
-#                ccf = Cf[:,-minibatch_suff_stat:]
-#                CY = ((t*1.-1)/t) * CY + (1./t) * np.dot(ccf, Yr[:, t-minibatch_suff_stat:t].T)/minibatch_suff_stat
-#                CC = ((t*1.-1)/t) * CC + (1./t) * ccf.dot(ccf.T)/minibatch_suff_stat
 
                 tt = t * 1.
 #                if batch_update_suff_stat and Y_buf.cur<len(Y_buf)-1:
@@ -699,10 +627,6 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                 # much faster: exploit that we only access CY[m, ind_pixels],
                 # hence update only these
                 CY[M, indeces] = cin_.dot(Y_buf_[:, indeces]) / tt
-#                CY = np.vstack([CY[:N,:], Y_buf.T.dot(cin / tt)[None,:], CY[ N:,:]])
-#                YC = CY.T
-#                YC = np.hstack([YC[:, :N], Y_buf.T.dot(cin / tt)[:, None], YC[:, N:]])
-#                CY = YC.T
 
                 # preallocate memory for speed up?
                 CC1 = np.hstack([CC, Cf_.dot(cin_circ_ / tt)[:, None]])
@@ -721,11 +645,11 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                 slices = tuple(slice(max(0, ijs[0] - 2 * sg), min(d, ijs[1] + 2 * sg))
                                for ijs, sg, d in zip(ijSig, gSig, dims))  # is 2 enough?
                 vb[slices] = imblur(vb[slices], sig=gSig, siz=gSiz, nDimBlur=2)
-                vb = vb.ravel()
+                vb = vb.ravel(order=order_rvl)
 
                 # ind_vb = np.where(vb)[0]
                 ind_vb = np.ravel_multi_index(np.ix_(*[np.arange(s.start, s.stop)
-                                                       for s in slices]), dims).ravel()
+                                                       for s in slices]), dims, order=order_rvl).ravel(order=order_rvl)
 
                 updt_res = (vb[None, ind_vb].T**2).dot(cin[None, :]**2).T
                 rho_buf[:, ind_vb] -= updt_res
@@ -734,20 +658,18 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                 sv_[ind_vb] -= updt_res_sum
 
             else:
-                if cnt > min_num_trial:
+                if cnt >= min_num_trial:
                     num_added = max_num_added
-                else:                    
+                else:
                     first = False
-                    num_added = 0
-                    sv_[indeces_] = -np.inf
+                    sv_[indeces_] = 0
 
         else:
-            if cnt > min_num_trial:
+            if cnt >= min_num_trial:
                 num_added = max_num_added
-            else:                    
+            else:
                 first = False
-                num_added = 0
-                sv_[indeces_] = -np.inf
+                sv_[indeces_] = 0
 
     return Ab, Cf, Yres_buf, rho_buf, CC, CY, ind_A, sv, groups
 

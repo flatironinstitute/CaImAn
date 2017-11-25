@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 """
 Complete pipeline for online processing using OnACID. 
-
 @author: Andrea Giovannucci @agiovann and Eftychios Pnevmatikakis @epnev
 Special thanks to Andreas Tolias and his lab at Baylor College of Medicine 
 for sharing their data used in this demo.
@@ -20,17 +19,16 @@ except NameError:
 
 from time import time
 import caiman as cm
-from caiman.source_extraction import cnmf as cnmf
+#from caiman.source_extraction import cnmf as cnmf
 from caiman.utils.visualization import view_patches_bar
-from caiman.utils.utils import download_demo
+from caiman.utils.utils import download_demo, load_object, save_object
 import pylab as pl
 import scipy
 from caiman.motion_correction import motion_correct_iteration_fast
 import cv2
 from caiman.utils.visualization import plot_contours
 import glob
-from caiman.source_extraction.cnmf.online_cnmf import bare_initialization, initialize_movie_online, RingBuffer
-#from caiman.source_extraction.cnmf.online_cnmf import load_object, save_object
+from caiman.source_extraction.cnmf.online_cnmf import bare_initialization
 from copy import deepcopy
 
 #%%  download and list all files to be processed
@@ -61,8 +59,8 @@ thresh_fitness_delta = -30                          # event exceptionality thres
 thresh_fitness_raw = -40                            #
 mot_corr = True                                     # flag for online motion correction 
 max_shift = np.ceil(10./ds_factor).astype('int')    # maximum allowed shift during motion correction
-gnb = 1                                             # number of background components
-epochs = 1                                          # number of passes over the data
+gnb = 2                                             # number of background components
+epochs = 2                                          # number of passes over the data
 len_file = 1000                                     # upper bound for number of frames in each file (used right below)
 T1 = len(fls)*len_file*epochs                       # total length of all files (if not known use a large number, then truncate at the end)
 gSig = tuple(np.ceil(np.array(gSig)/ds_factor).astype('int'))
@@ -121,20 +119,21 @@ if save_init:
     save_object(cnm_init, fls[0][:-4] + '_DS_' + str(ds_factor) + '.pkl')
     cnm_init = load_object(fls[0][:-4] + '_DS_' + str(ds_factor) + '.pkl')
     
-cnm_init._prepare_object(np.asarray(Yr), T1, expected_comps, idx_components=None)
+cnm_init._prepare_object(np.asarray(Yr), T1, expected_comps, idx_components=None, min_num_trial = 2)
 
 #%% Run OnACID and optionally plot results in real time
 
 cnm2 = deepcopy(cnm_init)
 cnm2.max_comp_update_shape = np.inf
 cnm2.update_num_comps = True
+cnm2.Ab_epoch = []
 t = cnm2.initbatch
 tottime = []
 Cn = Cn_init.copy()
 
 plot_contours_flag = False               # flag for plotting contours of detected components at the end of each file
-play_reconstr = True                    # flag for showing video with results online (turn off flags for improving speed)
-save_movie = True                        # flag for saving movie (file could be quite large..)
+play_reconstr = False                    # flag for showing video with results online (turn off flags for improving speed)
+save_movie = False                       # flag for saving movie (file could be quite large..)
 movie_name = folder_name + '/output.avi' # name of movie to be saved
 resize_fact = 1.2                        # image resizing factor
 
@@ -148,12 +147,16 @@ else:
 
 shifts = []
 show_residuals = True
+if show_residuals:
+    caption = 'Mean Residual Bufer'
+else:
+    caption = 'Identified Components'
 if save_movie and play_reconstr:
     #fourcc = cv2.VideoWriter_fourcc('8', 'B', 'P', 'S') 
     fourcc = cv2.VideoWriter_fourcc(*'XVID')
     out = cv2.VideoWriter(movie_name,fourcc, 30.0, tuple([int(2*x*resize_fact) for x in cnm2.dims]))
 
-for iter in range(epochs):
+for iter in range(epochs):    
     if iter > 0:
         process_files = fls[:init_files + online_files]     # if not on first epoch process all files from scratch
         init_batc_iter = [0]*(online_files+init_files)      #
@@ -226,7 +229,7 @@ for iter in range(epochs):
                 vid_frame = np.minimum((vid_frame*255.),255).astype('u1')
                 cv2.putText(vid_frame,'Raw Data',(5,20),fontFace = 5, fontScale = 1.2, color = (0,255,0), thickness = 1)
                 cv2.putText(vid_frame,'Inferred Activity',(np.int(cnm2.dims[0]*resize_fact) + 5,20),fontFace = 5, fontScale = 1.2, color = (0,255,0), thickness = 1)
-                cv2.putText(vid_frame,'Identified Components',(5,np.int(cnm2.dims[1]*resize_fact)  + 20),fontFace = 5, fontScale = 1.2, color = (0,255,0), thickness = 1)
+                cv2.putText(vid_frame,caption,(5,np.int(cnm2.dims[1]*resize_fact)  + 20),fontFace = 5, fontScale = 1.2, color = (0,255,0), thickness = 1)
                 cv2.putText(vid_frame,'Denoised Data',(np.int(cnm2.dims[0]*resize_fact) + 5 ,np.int(cnm2.dims[1]*resize_fact)  + 20),fontFace = 5, fontScale = 1.2, color = (0,255,0), thickness = 1)
                 cv2.putText(vid_frame,'Frame = '+str(t),(vid_frame.shape[1]//2-vid_frame.shape[1]//10,vid_frame.shape[0]-20),fontFace = 5, fontScale = 1.2, color = (0,255,255), thickness = 1)                
                 if save_movie:
@@ -236,6 +239,7 @@ for iter in range(epochs):
                     break                                
     
         print('Cumulative processing speed is ' + str((t - initbatch) / np.sum(tottime))[:5] + ' frames per second.')
+    cnm2.Ab_epoch.append(cnm2.Ab.copy())
         
 if save_movie:
     out.release()
