@@ -532,9 +532,9 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
             else:
                 ff = np.where(Ab_dense[indeces, gnb:].T.dot(ain).T > thresh_overlap)[0] + gnb
             if ff.size > 0:
+                foo = False
                 cc = [corr(cin_circ.copy(), cins) for cins in Cf[ff, :]]
-
-                if np.any(np.array(cc) > .25):
+                if np.any(np.array(cc) > .25) and foo:
                     #                    repeat = False
                     # vb = imblur(np.reshape(Ain, dims, order='F'),
                     #             sig=gSig, siz=gSiz, nDimBlur=2)

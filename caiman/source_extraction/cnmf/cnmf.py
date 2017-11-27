@@ -605,7 +605,7 @@ class CNMF(object):
 
     def _prepare_object(self, Yr, T, expected_comps, new_dims=None, idx_components=None,
                         g=None, lam=None, s_min=None, bl=None, use_dense=True, N_samples_exceptionality = 5,
-                        max_num_added = 1, min_num_trial = 2):
+                        max_num_added = 1, min_num_trial = 1):
 
         self.expected_comps = expected_comps
 
