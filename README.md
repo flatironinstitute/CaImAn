@@ -11,7 +11,7 @@ CaImAn
 
 A Computational toolbox for large scale **Ca**lcium **Im**aging data **An**alysis and behavioral analysis.
 
-Recent advances in calcium imaging acquisition techniques are creating datasets of the order of Terabytes/week. Memory and computationally efficient algorithms are required to analyze in reasonable amount of time terabytes of data. This projects implements a set of essential methods required in the calcium imaging movies analysis pipeline. Fast and scalable algorithms are implemented for motion correction, movie manipulation, and source and spike extraction. CaImAn also contains some routine to the analyisis of behavior from video cameras. In summary, CaImAn provides a general purpose tool to handle large movies, with special emphasis tools for two-photon and one-photon calcium imaging and behavioral datasets. 
+Recent advances in calcium imaging acquisition techniques are creating datasets of the order of Terabytes/week. Memory and computationally efficient algorithms are required to analyze in reasonable amount of time terabytes of data. This project implements a set of essential methods required in the calcium imaging movies analysis pipeline. Fast and scalable algorithms are implemented for motion correction, movie manipulation, and source and spike extraction. CaImAn also contains some routines for the analyisis of behavior from video cameras. In summary, CaImAn provides a general purpose tool to handle large movies, with special emphasis on tools for two-photon and one-photon calcium imaging and behavioral datasets. 
 
 
 ## Features
@@ -32,14 +32,14 @@ Recent advances in calcium imaging acquisition techniques are creating datasets 
 * **Source extraction** 
 
     * Separates different sources based on constrained nonnegative matrix Factorization (CNMF) [[1-2]](#neuron)
-    * Deals with heavily overlaping and neuroopil contaminated movies     
+    * Deals with heavily overlapping and neuropil contaminated movies     
     * Suitable for both 2-photon [[1]](#neuron) and 1-photon [[3]](#cnmfe) calcium imaging data
     * Selection of inferred sources using a pre-trained convolutional neural network classifier
     * Online processing available [[5]](#onacid)
 
 * **Denoising, deconvolution and spike extraction**
 
-    * Inferres neural activity from fluorescence traces [[1]](#neuron)
+    * Inferes neural activity from fluorescence traces [[1]](#neuron)
     * Also works in online mode (i.e. one sample at a time) [[4]](#oasis)
 
 * **Behavioral Analysis** [[7]](#behavior)
@@ -71,7 +71,7 @@ We recently incorporated a Python implementation of the OnACID [[5]](#onacid) al
    conda install -c conda-forge tensorflow keras
    python setup.py build_ext -i   
    ```
-   **Python 3 is currently giving issues** when running in parallel mode (dview is not None) because of bugs in Python/ipyparallel/numpy interaction. We suggest to stick to 2 until this message disappear. If you really want to use it we had some success using conda-forge channel instead of anaconda. You can try that if you are desperate.  
+   **Python 3 currently has issues** when running in parallel mode (dview is not None) because of bugs in Python/ipyparallel/numpy interaction. We suggest sticking to Python 2 until this message disappears. If you really want to use it we had some success using conda-forge channel instead of anaconda. You can try that if you are desperate.  
 
 
 * Installation on Linux 
@@ -143,7 +143,7 @@ We recently incorporated a Python implementation of the OnACID [[5]](#onacid) al
 
  
 ### Installation for behavioral analysis
-* Installation on Linux (windows and mac os are problematic with anaconda at the moment)
+* Installation on Linux (Windows and MacOS are problematic with anaconda at the moment)
    * create a new environment (suggested for safety) and follow the instructions for the calcium imaging installation
    * Install spams, as explained [here](http://spams-devel.gforge.inria.fr/). Installation is not straightforward and it might take some trials to get it right
 
@@ -163,14 +163,14 @@ We recently incorporated a Python implementation of the OnACID [[5]](#onacid) al
         (if errors on plotting use this instead) jupyter notebook --NotebookApp.iopub_data_rate_limit=1.0e10
     
        ```
-* demo files are to be found also in the demos_detailed subfolder. We suggest to try demo_pipeline.py first since it contains most of the tasks required by calcium imaging. For behavior use demo_behavior.py
+* demo files are also found in the demos_detailed subfolder. We suggest trying demo_pipeline.py first as it contains most of the tasks required by calcium imaging. For behavior use demo_behavior.py
    
-  * /!\ if you want to launch directly the python files, please be advised that your python console still needs to be in the CaImAn folder and not somewhere else. 
+  * /!\ if you want to directly launch the python files, your python console still must be in the CaImAn directory. 
 
 ## Testing
 
-* All of the commits and pull requests need to be previously tested before asking for a pull request. Call 'nosetests' program from inside of your CaImAn folder to look for errors. 
-   For python3 on mac OS x nosetests does not work properly. If you need to test, then type the following from within the CaImAn folder:
+* All diffs must be tested before asking for a pull request. Call 'nosetests' program from inside of your CaImAn folder to look for errors. 
+   For python3 on MacOS nosetests does not work properly. If you need to test, then type the following from within the CaImAn folder:
 ```bash
 cd caiman/tests
 ls test_*py | while read t; do nosetests --nologcapture ${t%%.py}; done;
@@ -178,7 +178,7 @@ ls test_*py | while read t; do nosetests --nologcapture ${t%%.py}; done;
 
   ### general_test
 
-   * This test will run the entire CaImAn program and look for differences against the original one. If your changes have made significant differences able to be recognise by this test.  
+   * This test will run the entire CaImAn program and look for differences against the original one. If your changes have made significant differences you'll be able to be recognise regressions by this test.  
    
    
 # Contributors:
@@ -232,7 +232,7 @@ Some tools that are currently available in Matlab but have been ported to CaImAn
 ## Troubleshooting
 
 **Python 3 and spyder**
-if spyder crashes on mac os run 
+If spyder crashes on MacOS run 
 ```
 brew install --upgrade openssl
 brew unlink openssl && brew link openssl --force
@@ -240,14 +240,14 @@ brew unlink openssl && brew link openssl --force
 
 **SCS**:
 
-if you get errors compiling scs when installing cvxpy you probably need to create a link to openblas or libgfortran in
+If you get errors compiling scs when installing cvxpy you probably need to create a link to openblas or libgfortran in
 /usr/local/lib/, for instance:
 
 `sudo ln -s  /Library/Frameworks/R.framework/Libraries/libgfortran.3.dylib  /usr/local/lib/libgfortran.2.dylib`
 
 
-**debian fortran compiler problems:**
-if you get the error  gcc: error trying to exec 'cc1plus': execvp: No such file or directory in ubuntu run
+**Debian fortran compiler problems:**
+If you get the error  gcc: error trying to exec 'cc1plus': execvp: No such file or directory in Ubuntu run
 or issues related to SCS type
 
  ```
@@ -255,11 +255,11 @@ or issues related to SCS type
  conda install openblas atlas
  ```
 
- if still there are issues try
+ If there are still issues try
 
   `export LD_LIBRARY_PATH=/path_to_your_home/anaconda2/lib/`
 
- if more problems try 
+ If that does not help, try 
 
  ```
  conda install  atlas (only Ubuntu)
@@ -281,7 +281,7 @@ The code uses the following libraries
 - [cvxpy](http://www.cvxpy.org/) for solving optimization problems (for deconvolution, optional)
 - [Spams](http://spams-devel.gforge.inria.fr/) for online dictionary learning (for behavioral analysis, optional)
 
-For the constrained deconvolution method (```deconvolution.constrained_foopsi```)  various solvers can be used, some of which requires  additional packages:
+For the constrained deconvolution method (```deconvolution.constrained_foopsi```) various solvers can be used, some of which require additional packages:
 
 1. ```'cvxpy'```: (default) For this option, the following packages are needed:
   * [CVXOPT](http://cvxopt.org/) optional.
