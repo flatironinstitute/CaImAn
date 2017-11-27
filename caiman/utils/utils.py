@@ -22,10 +22,11 @@ from __future__ import print_function
 import numpy as np
 import os
 from scipy.ndimage.filters import gaussian_filter
+import cv2
 try:
-    from urllib2 import urlopen as urlopen
-except:
-    from urllib.request import urlopen as urlopen
+    from urllib2 import urlopen
+except ImportError:
+    from urllib.request import urlopen
 try:  # python2
     import cPickle as pickle
 except ImportError:  # python3
@@ -294,6 +295,5 @@ def load_object(filename):
     with open(filename, 'rb') as input_obj:
         obj = pickle.load(input_obj)
     return obj
-
 
 

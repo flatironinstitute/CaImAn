@@ -607,12 +607,12 @@ for params_movie in np.array(params_movies)[:]:
         matrixMontage(np.squeeze(final_crops[np.where(predictions[:,1]>=threshold)[0]]))
         pl.figure()
         matrixMontage(np.squeeze(final_crops[np.where(predictions[:,0]>=threshold)[0]]))
-        #%
+        #%%
         cm.movie(final_crops).play(gain=3,magnification = 6,fr=5)
-        #%
-        cm.movie(np.squeeze(final_crops[np.where(predictions[:,1]>=0.5)[0]])).play(gain=2., magnification = 8,fr=5)
-        #%
-        cm.movie(np.squeeze(final_crops[np.where(predictions[:,0]>=0.95)[0]])).play(gain=4.,magnification=8,fr=5)
+        #%%
+        cm.movie(np.squeeze(final_crops[np.where(predictions[:,1]>=0.95)[0]])).play(gain=2., magnification = 8,fr=5)
+        #%%
+        cm.movie(np.squeeze(final_crops[np.where(predictions[:,0]>=0.95)[0]])).play(gain=4., magnification = 8,fr=5)
     #%%
     min_size_neuro = 3*2*np.pi
     max_size_neuro = (2*gSig[0])**2*np.pi

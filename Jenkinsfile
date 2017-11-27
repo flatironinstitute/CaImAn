@@ -1,5 +1,8 @@
 pipeline {
   agent none
+  options {
+    timeout(time: 1, unit: 'HOURS')
+  }
   stages {
     stage('test') {
       parallel {
@@ -18,7 +21,7 @@ pipeline {
             sh '''#!/bin/bash -ex
               source $CONDA_ENV/bin/activate $CONDA_ENV
               python setup.py build_ext -i
-              nosetests -x
+              nosetests
             '''
           }
         }
@@ -37,7 +40,7 @@ pipeline {
             sh '''#!/bin/bash -ex
               source $CONDA_ENV/bin/activate $CONDA_ENV
               python setup.py build_ext -i
-              nosetests -x
+              nosetests
             '''
           }
         }
@@ -55,9 +58,9 @@ pipeline {
               source $CONDA_ENV/bin/activate $CONDA_ENV
               conda install -q -c conda-forge tensorflow keras
               python setup.py build_ext -i
-              #nosetests -x
+              #nosetests
               cd caiman/tests
-              nosetests -x $(for f in test_*.py ; do echo ${f%.py} ; done)
+              nosetests $(for f in test_*.py ; do echo ${f%.py} ; done)
             '''
           }
         }
@@ -74,13 +77,14 @@ pipeline {
             sh '''#!/bin/bash -ex
               source $CONDA_ENV/bin/activate $CONDA_ENV
               python setup.py build_ext -i
-              #nosetests -x
+              #nosetests
               cd caiman/tests
-              nosetests -x $(for f in test_*.py ; do echo ${f%.py} ; done)
+              nosetests $(for f in test_*.py ; do echo ${f%.py} ; done)
             '''
           }
         }
 
+        /*
         stage('win-python2') {
           agent {
             label 'windows && anaconda2'
@@ -91,9 +95,10 @@ pipeline {
           }
           steps {
             bat '%ANACONDA%\\scripts\\conda env create -q -f environment_mac.yml -p %CONDA_ENV%'
-            bat '%CONDA_ENV%\\scripts\\activate %CONDA_ENV% && python setup.py build_ext -i && nosetests -x'
+            bat '%CONDA_ENV%\\scripts\\activate %CONDA_ENV% && python setup.py build_ext -i && nosetests'
           }
         }
+        */
         stage('win-python3') {
           agent {
             label 'windows && anaconda3'
@@ -104,7 +109,7 @@ pipeline {
           }
           steps {
             bat '%ANACONDA%\\scripts\\conda env create -q -f environment.yml -p %CONDA_ENV%'
-            bat '%CONDA_ENV%\\scripts\\activate %CONDA_ENV% && python setup.py build_ext -i && nosetests -x'
+            bat '%CONDA_ENV%\\scripts\\activate %CONDA_ENV% && python setup.py build_ext -i && nosetests'
           }
         }
       }
