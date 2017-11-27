@@ -97,7 +97,6 @@ pl.imshow(Cn,cmap='gray')
 
 #%%
 if not is_patches:
-    #%%
     K = 35  # number of neurons expected per patch
     gSig = [7, 7]  # expected half size of neurons
     merge_thresh = 0.8  # merging threshold, max correlation allowed
@@ -109,9 +108,7 @@ if not is_patches:
     C_dff = extract_DF_F(Yr, cnm.A, cnm.C, cnm.bl, quantileMin = 8, frames_window = 200, dview = dview)
     pl.figure()
     pl.plot(C_dff.T)
-    #%%
 else:
-    #%%
     rf = 14  # half-size of the patches in pixels. rf=25, patches are 50x50
     stride = 6  # amounpl.it of overlap between the patches in pixels
     K = 6  # number of neurons expected per patch
@@ -119,7 +116,6 @@ else:
     merge_thresh = 0.8  # merging threshold, max correlation allowed
     p = 1  # order of the autoregressive system
     save_results = False
-    #%% RUN ALGORITHM ON PATCHES
 
     cnm = cnmf.CNMF(n_processes, k=K, gSig=gSig, merge_thresh=0.8, p=0, dview=dview, Ain=None, rf=rf, stride=stride, memory_fact=1,
                     method_init=init_method, alpha_snmf=alpha_snmf, only_init_patch=True, gnb=2,method_deconvolution='oasis', low_rank_background = True)
@@ -133,10 +129,8 @@ else:
     sn_tot = cnm.sn
 
     print(('Number of components:' + str(A_tot.shape[-1])))
-    #%%
     pl.figure()
-    crd = plot_contours(A_tot, Cn, thr=0.9)    
-    #%%
+    crd = plot_contours(A_tot, Cn, thr=0.9)
     final_frate = 10# approx final rate  (after eventual downsampling )
     Npeaks = 10
     traces = C_tot + YrA_tot
@@ -155,19 +149,15 @@ else:
 
     print(('Keeping ' + str(len(idx_components)) +
            ' and discarding  ' + str(len(idx_components_bad))))
-    #%%
     pl.figure()
     crd = plot_contours(A_tot.tocsc()[:, idx_components], Cn, thr=0.9)
-    #%%
     A_tot = A_tot.tocsc()[:, idx_components]
     C_tot = C_tot[idx_components]
-    #%%
     save_results = True
     if save_results:
         np.savez('results_analysis_patch.npz', A_tot=A_tot, C_tot=C_tot,
                  YrA_tot=YrA_tot, sn_tot=sn_tot, d1=d1, d2=d2, b_tot=b_tot, f=f_tot)
 
-    #%%
     cnm = cnmf.CNMF(n_processes, k=A_tot.shape, gSig=gSig, merge_thresh=merge_thresh, p=p, dview=dview, Ain=A_tot, Cin=C_tot, b_in = b_tot,
                     f_in=f_tot, rf=None, stride=None, method_deconvolution='oasis', gnb = 2,  low_rank_background = True)
     cnm = cnm.fit(images)
