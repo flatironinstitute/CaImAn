@@ -16,8 +16,6 @@ https://docs.python.org/2/library/urllib.html
 #\author: andrea giovannucci
 #\namespace utils
 #\pre none
-
-
 from __future__ import print_function
 
 
@@ -33,7 +31,7 @@ try:  # python2
 except ImportError:  # python3
     import pickle
 
-
+#%%
 def download_demo(name='Sue_2x_3000_40_-46.tif', save_folder=''):
     """download a file from the file list with the url of its location
 
@@ -298,52 +296,4 @@ def load_object(filename):
     return obj
 
 
-def downscale(Y, ds):
-    """downscaling without zero padding
-    faster version of skimage.transform._warps.block_reduce(Y, ds, np.nanmean, np.nan)"""
 
-    if Y.ndim > 3:
-        # raise NotImplementedError
-        # slower and more memory intensive version using skimage
-        from skimage.transform._warps import block_reduce
-        return block_reduce(Y, ds, np.nanmean, np.nan)
-    elif Y.ndim == 1:
-        Y = Y[:, None, None]
-        ds = (ds, 1, 1)
-    elif Y.ndim == 2:
-        Y = Y[..., None]
-        ds = tuple(ds) + (1,)
-    q = np.array(Y.shape) // np.array(ds)
-    r = np.array(Y.shape) % np.array(ds)
-    s = q * np.array(ds)
-    Y_ds = np.zeros(q + (r > 0), dtype=Y.dtype)
-    Y_ds[:q[0], :q[1], :q[2]] = (Y[:s[0], :s[1], :s[2]]
-                                 .reshape(q[0], ds[0], q[1], ds[1], q[2], ds[2])
-                                 .mean(1).mean(2).mean(3))
-    if r[0]:
-        Y_ds[-1, :q[1], :q[2]] = (Y[-r[0]:, :s[1], :s[2]]
-                                  .reshape(r[0], q[1], ds[1], q[2], ds[2])
-                                  .mean(0).mean(1).mean(2))
-        if r[1]:
-            Y_ds[-1, -1, :q[2]] = (Y[-r[0]:, -r[1]:, :s[2]]
-                                   .reshape(r[0], r[1], q[2], ds[2])
-                                   .mean(0).mean(0).mean(1))
-            if r[2]:
-                Y_ds[-1, -1, -1] = Y[-r[0]:, -r[1]:, -r[2]:].mean()
-        if r[2]:
-            Y_ds[-1, :q[1], -1] = (Y[-r[0]:, :s[1]:, -r[2]:]
-                                   .reshape(r[0], q[1], ds[1], r[2])
-                                   .mean(0).mean(1).mean(1))
-    if r[1]:
-        Y_ds[:q[0], -1, :q[2]] = (Y[:s[0], -r[1]:, :s[2]]
-                                  .reshape(q[0], ds[0], r[1], q[2], ds[2])
-                                  .mean(1).mean(1).mean(2))
-        if r[2]:
-            Y_ds[:q[0], -1, -1] = (Y[:s[0]:, -r[1]:, -r[2]:]
-                                   .reshape(q[0], ds[0], r[1], r[2])
-                                   .mean(1).mean(1).mean(1))
-    if r[2]:
-        Y_ds[:q[0], :q[1], -1] = (Y[:s[0], :s[1], -r[2]:]
-                                  .reshape(q[0], ds[0], q[1], ds[1], r[2])
-                                  .mean(1).mean(2).mean(2))
-    return Y_ds.squeeze()

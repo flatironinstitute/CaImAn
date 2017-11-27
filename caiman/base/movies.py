@@ -1506,24 +1506,3 @@ def to_3D(mov2D,shape,order='F'):
     return np.reshape(mov2D,shape,order=order)
 
 
-
-if __name__ == "__main__":
-    print((1))
-#    mov=movie('/Users/agiovann/Dropbox/Preanalyzed Data/ExamplesDataAnalysis/Andrea/PC1/M_FLUO.tif',fr=15.62,start_time=0,meta_data={'zoom':2,'location':[100, 200, 300]})
-#    mov1=movie('/Users/agiovann/Dropbox/Preanalyzed Data/ExamplesDataAnalysis/Andrea/PC1/M_FLUO.tif',fr=15.62,start_time=0,meta_data={'zoom':2,'location':[100, 200, 300]})
-##    newmov=ts.concatenate([mov,mov1])
-##    mov.save('./test.npz')
-##    mov=movie.load('test.npz')
-#    max_shift=5;
-#    mov,template,shifts,xcorrs=mov.motion_correct(max_shift_h=max_shift,max_shift_w=max_shift,show_movie=0)
-#    max_shift=5;
-#    mov1,template1,shifts1,xcorrs1=mov1.motion_correct(max_shift_h=max_shift,max_shift_w=max_shift,show_movie=0,method='skimage')
-
-#    mov=mov.apply_shifts(shifts)
-#    mov=mov.crop(crop_top=max_shift,crop_bottom=max_shift,crop_left=max_shift,crop_right=max_shift)
-#    mov=mov.resize(fx=.25,fy=.25,fz=.2)
-#    mov=mov.computeDFF()
-#    mov=mov-np.min(mov)
-#    space_components,time_components=mov.NonnegativeMatrixFactorization();
-#    trs=mov.extract_traces_from_masks(1.*(space_components>0.4))
-#    trs=trs.computeDFF()

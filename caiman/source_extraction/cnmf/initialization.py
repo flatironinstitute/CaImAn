@@ -19,25 +19,57 @@ from builtins import range
 from past.utils import old_div
 import numpy as np
 from sklearn.decomposition import NMF, FastICA
-from skimage.transform import resize
 from skimage.morphology import disk
 import scipy.ndimage as nd
 from scipy.ndimage.measurements import center_of_mass
 from scipy.ndimage.filters import correlate
+from skimage.transform import downscale_local_mean
+from skimage.transform import resize as resize_sk
 import scipy.sparse as spr
 import scipy
 import caiman
 from caiman.source_extraction.cnmf.deconvolution import deconvolve_ca
 from caiman.source_extraction.cnmf.pre_processing import get_noise_fft
 from caiman.source_extraction.cnmf.spatial import circular_constraint
-from caiman.utils.utils import downscale
 import cv2
 import sys
-import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 #%%
+def resize(vect, newsize, interpolation=cv2.INTER_LINEAR, order=None, opencv=True):
+    if opencv:
+        if vect.ndim == 2:
+            print(newsize)
+            newvect = cv2.resize(vect,tuple(newsize[::-1]),interpolation = interpolation)
+        else:
+            h,w,t=vect.shape
+            newvect = []
+            print("reshaping in space")
+            for frame in vect.transpose([2,0,1]):
+                newvect.append(cv2.resize(frame,(newsize[1],newsize[0]),interpolation=interpolation))
+                
+            newvect=np.dstack(newvect)
+            
+            
+            h1,w1,t1 = newvect.shape
+            
+            if (h1,w1) != newsize[:-1]:
+                print(newvect.shape)
+                print(newsize)
+                raise Exception("Bad resizing!")
+            
+            if t != newsize: 
+                print("reshaping in time")
+                newvect=np.reshape(newvect,(h1*w1,t1))
+                newvect=cv2.resize(newvect,(newsize[2],h1*w1),interpolation=interpolation)            
+                newvect=np.reshape(newvect,newsize)
 
+    else:
+            return resize_sk(vect, newsize, order = order, mode = 'reflect')        
+        
+    return newvect
+            
+#%%
 try:
     profile
 except:
@@ -193,9 +225,18 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
         Y = np.array(Y)
 
     # spatial downsampling
+    
+
     if ssub != 1 or tsub != 1:
-        print("Spatial Downsampling ...")
-        Y_ds = downscale(Y, tuple([ssub] * len(d) + [tsub]))
+        
+        if  method == 'corr_pnr':
+            print("Spatial Downsampling 1-photon")
+            Y_ds = downscale(Y, tuple([ssub] * len(d) + [tsub]), opencv = False) # this icrements the performance against ground truth and solves border problems       
+        else:
+            print("Spatial Downsampling 2-photon")            
+            Y_ds = downscale(Y, tuple([ssub] * len(d) + [tsub]), opencv = True) # this icrements the performance against ground truth and solves border problems       
+#            mean_val = np.mean(Y)
+#            Y_ds = downscale_local_mean(Y, tuple([ssub] * len(d) + [tsub]), cval=mean_val) # this gives better results against ground truth for 2-photon datasets
     else:
         Y_ds = Y
 
@@ -284,12 +325,12 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
     b_in = np.reshape(b_in, (np.prod(d), nb), order='F')
 
     if Ain.size > 0:
-        Cin = resize(Cin.astype(float), [K, T])
+        Cin = resize(Cin.astype(float), [K, T], order = 1)
         center = np.asarray([center_of_mass(a.reshape(d, order='F')) for a in Ain.T])
     else:
         center = []
 
-    f_in = resize(np.atleast_2d(f_in), [nb, T])
+    f_in = resize(np.atleast_2d(f_in), [nb, T], order = 1)
 
     if normalize_init is True:
         if Ain.size > 0:
@@ -1428,3 +1469,62 @@ def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True):
         # data += list(scipy.linalg.lstsq(B.T, Y[p] - A[p].dot(C) - b0[p], check_finite=False)[0])
         indptr.append(len(indices))
     return spr.csr_matrix((data, indices, indptr), dtype='float32'), b0.astype(np.float32)
+#%%
+def downscale(Y, ds, opencv = False):
+    """downscaling without zero padding
+    faster version of skimage.transform._warps.block_reduce(Y, ds, np.nanmean, np.nan)"""
+    from caiman.base.movies import movie
+    if opencv and (Y.ndim in [2,3]):
+        if Y.ndim == 2:
+            Y = Y[..., None]
+            ds = tuple(ds) + (1,)
+        else:
+            Y_ds = movie(Y).resize(fx = 1./ds[0], fy = 1./ds[1], fz = 1./ds[2], interpolation=cv2.INTER_AREA)
+        print('***** OPENCV!!!!')
+    else:
+        if Y.ndim > 3:
+            # raise NotImplementedError
+            # slower and more memory intensive version using skimage
+            from skimage.transform._warps import block_reduce
+            return block_reduce(Y, ds, np.nanmean, np.nan)
+        elif Y.ndim == 1:
+            Y = Y[:, None, None]
+            ds = (ds, 1, 1)
+        elif Y.ndim == 2:
+            Y = Y[..., None]
+            ds = tuple(ds) + (1,)
+        q = np.array(Y.shape) // np.array(ds)
+        r = np.array(Y.shape) % np.array(ds)
+        s = q * np.array(ds)
+        Y_ds = np.zeros(q + (r > 0), dtype=Y.dtype)
+        Y_ds[:q[0], :q[1], :q[2]] = (Y[:s[0], :s[1], :s[2]]
+                                     .reshape(q[0], ds[0], q[1], ds[1], q[2], ds[2])
+                                     .mean(1).mean(2).mean(3))
+        if r[0]:
+            Y_ds[-1, :q[1], :q[2]] = (Y[-r[0]:, :s[1], :s[2]]
+                                      .reshape(r[0], q[1], ds[1], q[2], ds[2])
+                                      .mean(0).mean(1).mean(2))
+            if r[1]:
+                Y_ds[-1, -1, :q[2]] = (Y[-r[0]:, -r[1]:, :s[2]]
+                                       .reshape(r[0], r[1], q[2], ds[2])
+                                       .mean(0).mean(0).mean(1))
+                if r[2]:
+                    Y_ds[-1, -1, -1] = Y[-r[0]:, -r[1]:, -r[2]:].mean()
+            if r[2]:
+                Y_ds[-1, :q[1], -1] = (Y[-r[0]:, :s[1]:, -r[2]:]
+                                       .reshape(r[0], q[1], ds[1], r[2])
+                                       .mean(0).mean(1).mean(1))
+        if r[1]:
+            Y_ds[:q[0], -1, :q[2]] = (Y[:s[0], -r[1]:, :s[2]]
+                                      .reshape(q[0], ds[0], r[1], q[2], ds[2])
+                                      .mean(1).mean(1).mean(2))
+            if r[2]:
+                Y_ds[:q[0], -1, -1] = (Y[:s[0]:, -r[1]:, -r[2]:]
+                                       .reshape(q[0], ds[0], r[1], r[2])
+                                       .mean(1).mean(1).mean(1))
+        if r[2]:
+            Y_ds[:q[0], :q[1], -1] = (Y[:s[0], :s[1], -r[2]:]
+                                      .reshape(q[0], ds[0], q[1], ds[1], r[2])
+                                      .mean(1).mean(2).mean(2))
+    return Y_ds.squeeze()    
+    

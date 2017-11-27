@@ -233,7 +233,7 @@ epochs = params_movie[ind_dataset]['epochs']                         # number of
 T1 = params_movie[ind_dataset]['T1']*len(fls)*epochs                 # total length of all files (if not known use a large number, then truncate at the end)
 
 N_samples = np.ceil(params_movie[ind_dataset]['fr']*params_movie[ind_dataset]['decay_time'])   # number of timesteps to consider when testing new neuron candidates
-min_SNR = global_params['min_SNR']*np.sqrt(T1/2500.)                                      # adaptive way to set threshold (will be equal to min_SNR) 
+min_SNR = global_params['min_SNR']                                      # adaptive way to set threshold (will be equal to min_SNR) 
 #pr_inc = 1 - scipy.stats.norm.cdf(global_params['min_SNR'])           # inclusion probability of noise transient
 #thresh_fitness_raw = np.log(pr_inc)*N_samples       # event exceptionality threshold
 thresh_fitness_raw = scipy.special.log_ndtr(-min_SNR)*N_samples
