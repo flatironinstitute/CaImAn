@@ -20,7 +20,6 @@ from __future__ import print_function
 from builtins import str
 from builtins import range
 import matplotlib
-matplotlib.use('agg')
 from caiman.utils.utils import download_demo
 import cv2
 import glob
@@ -121,9 +120,7 @@ params_display = {
 
 
 def test_general():
-    """ the function that will do the test 
-
-
+    """  General Test of pipeline with comparison against ground truth
     A shorter version than the demo pipeline that calls comparison for the real test work 
 
 
@@ -300,7 +297,7 @@ def test_general():
 ############ assertions ##################
     pb = False
     if (comp.information['differences']['params_movie']):
-        print("you ned to set the same movie paramters than the ground truth to have a real comparison (use the comp.see() function to explore it)")
+        print("you need to set the same movie paramters than the ground truth to have a real comparison (use the comp.see() function to explore it)")
         pb = True
     if (comp.information['differences']['params_cnm']):
         print("you need to set the same cnmf paramters than the ground truth to have a real comparison (use the comp.see() function to explore it)")
@@ -309,9 +306,10 @@ def test_general():
         print("the rigid shifts are different from the groundtruth ")
         pb = True
     if (comp.information['diff']['cnmpatch']['isdifferent']):
-        print("the cnmf on patch produces different  results than the groundtruth ")
+        print("the cnmf on patch produces different results than the groundtruth ")
         pb = True
     if (comp.information['diff']['cnmfull']['isdifferent']):
         print("the cnmf full frame produces different  results than the groundtruth ")
         pb = True
+        
     assert (not pb)

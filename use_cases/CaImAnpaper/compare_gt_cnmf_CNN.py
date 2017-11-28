@@ -288,8 +288,8 @@ params_movies.append(params_movie.copy())
 all_perfs = []
 reload = False
 plot_on = False
-save_on = False
-for params_movie in np.array(params_movies)[1:2]:
+save_on = True
+for params_movie in np.array(params_movies)[6:7]:
 #    params_movie['gnb'] = 3
     params_display = {
         'downsample_ratio': .2,
@@ -500,7 +500,7 @@ for params_movie in np.array(params_movies)[1:2]:
         print((len(idx_components)))
         # %% save results
         if save_on:
-            np.savez(os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:-4] + 'results_analysis_after_merge_2.npz'), Cn=Cn, fname_new = fname_new,
+            np.savez(os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:-4] + 'results_analysis_after_merge_3.npz'), Cn=Cn, fname_new = fname_new,
                      A=A,
                      C=C, b=b, f=f, YrA=YrA, sn=sn, d1=d1, d2=d2, idx_components=idx_components,
                      idx_components_bad=idx_components_bad,
@@ -527,7 +527,7 @@ for params_movie in np.array(params_movies)[1:2]:
         }
         fn_old = fname_new 
         #analysis_file = '/mnt/ceph/neuro/jeremie_analysis/neurofinder.03.00.test/Yr_d1_498_d2_467_d3_1_order_C_frames_2250_._results_analysis.npz'
-        with np.load(os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:-4] + 'results_analysis_after_merge_2.npz'), encoding = 'latin1') as ld:
+        with np.load(os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:-4] + 'results_analysis_after_merge_3.npz'), encoding = 'latin1') as ld:
             print(ld.keys())
             locals().update(ld) 
             dims_off = d1,d2    
@@ -662,7 +662,7 @@ for params_movie in np.array(params_movies)[1:2]:
         crd = plot_contours(A.tocsc()[:, idx_components_bad], Cn, thr=params_display['thr_plot'], vmax = 0.85)
     #%%
     if save_on:
-        np.savez(os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:-4] + 'results_comparison_cnn_after_merge_2.npz'),tp_gt = tp_gt, tp_comp = tp_comp, fn_gt = fn_gt, fp_comp = fp_comp,
+        np.savez(os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:-4] + 'results_comparison_cnn_after_merge_3.npz'),tp_gt = tp_gt, tp_comp = tp_comp, fn_gt = fn_gt, fp_comp = fp_comp,
                  performance_cons_off = performance_cons_off,idx_components = idx_components, A_gt = A_gt, C_gt = C_gt,
                  b_gt = b_gt , f_gt = f_gt, dims = dims, YrA_gt = YrA_gt, A = A, C = C, b = b, f = f, YrA = YrA, Cn = Cn)
     #%%
