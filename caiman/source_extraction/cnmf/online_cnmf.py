@@ -30,7 +30,7 @@ except:
 
 #%%
 def bare_initialization(Y, init_batch = 1000, k = 1, method_init = 'greedy_roi', gnb = 1,
-                        gSig = [5,5], motion_flag = False, **kwargs):
+                        gSig = [5,5], motion_flag = False, p = 1, **kwargs):
     """
     Quick and dirty initialization for OnACID, bypassing entirely CNMF
     Inputs:
@@ -78,9 +78,10 @@ def bare_initialization(Y, init_batch = 1000, k = 1, method_init = 'greedy_roi',
     AA = scipy.sparse.spdiags(old_div(1.,nA),0,nr,nr)*(Ain.T.dot(Ain))
     YrA = YA - AA.T.dot(Cin)
     
-    cnm_init = cm.source_extraction.cnmf.cnmf.CNMF(2, k=k, gSig=gSig, Ain=Ain, Cin=Cin, b_in=np.array(b_in), f_in=f_in, method_init = method_init, **kwargs)
+    cnm_init = cm.source_extraction.cnmf.cnmf.CNMF(2, k=k, gSig=gSig, Ain=Ain, Cin=Cin, b_in=np.array(b_in), f_in=f_in, method_init = method_init, p = p, **kwargs)
     cnm_init.A, cnm_init.C, cnm_init.b, cnm_init.f, cnm_init.S, cnm_init.YrA = Ain, Cin, b_in, f_in, np.maximum(np.atleast_2d(Cin),0), YrA
-    cnm_init.g = np.array([[gg] for gg in np.ones(k)*0.9])
+    #cnm_init.g = np.array([-np.poly([0.9]*max(p,1))[1:] for gg in np.ones(k)])
+    cnm_init.g = np.array([-np.poly([0.9,0.5][:max(1,p)])[1:] for gg in np.ones(k)])
     cnm_init.bl = np.zeros(k)
     cnm_init.c1 = np.zeros(k)
     cnm_init.neurons_sn = np.std(YrA,axis=-1)
@@ -93,7 +94,7 @@ def bare_initialization(Y, init_batch = 1000, k = 1, method_init = 'greedy_roi',
 
 
 #%%
-def seeded_initialization(Y, Ain, dims = None, init_batch = 1000, gnb = 1, **kwargs):
+def seeded_initialization(Y, Ain, dims = None, init_batch = 1000, gnb = 1, p = 1, **kwargs):
     """
     Initialization for OnACID based on a set of user given binary masks. 
     Inputs:
@@ -160,9 +161,10 @@ def seeded_initialization(Y, Ain, dims = None, init_batch = 1000, gnb = 1, **kwa
     AA = scipy.sparse.spdiags(old_div(1.,nA),0,nr,nr)*(Ain.T.dot(Ain))
     YrA = YA - AA.T.dot(Cin)
     
-    cnm_init = cm.source_extraction.cnmf.cnmf.CNMF(2, Ain=Ain, Cin=Cin, b_in=np.array(b_in), f_in=f_in, **kwargs)
+    cnm_init = cm.source_extraction.cnmf.cnmf.CNMF(2, Ain=Ain, Cin=Cin, b_in=np.array(b_in), f_in=f_in, p = 1, **kwargs)
     cnm_init.A, cnm_init.C, cnm_init.b, cnm_init.f, cnm_init.S, cnm_init.YrA = Ain, Cin, b_in, f_in, np.fmax(np.atleast_2d(Cin),0), YrA
-    cnm_init.g = np.array([[gg] for gg in np.ones(nr)*0.9])
+#    cnm_init.g = np.array([[gg] for gg in np.ones(nr)*0.9])
+    cnm_init.g = np.array([-np.poly([0.9]*max(p,1))[1:] for gg in np.ones(nr)])
     cnm_init.bl = np.zeros(nr)
     cnm_init.c1 = np.zeros(nr)
     cnm_init.neurons_sn = np.std(YrA,axis=-1)
@@ -204,7 +206,6 @@ def demix_and_deconvolve(C, noisyC, AtY, AtA, OASISinstances, iters=3, n_refit=0
     Solve C = argmin_C ||Y-AC|| subject to C following AR(p) dynamics
     using OASIS within block-coordinate decent
     Newly fits the last elements in buffers C and AtY and possibly refits earlier elements.
-
     Parameters
     ----------
     C : ndarray of float
@@ -343,11 +344,11 @@ def update_shapes(CY, CC, Ab, ind_A, indicator_components=None, Ab_dense=None, u
                                                              Ab_dense[ind_pixels].dot(CC[m])) /
                                                             CC[m, m]), 0)
                 # normalize
-                #if tmp.dot(tmp) > 0:
-                tmp *= 1e-3/min(1e-3,sqrt(tmp.dot(tmp))+np.finfo(float).eps)
-                Ab_dense[ind_pixels, m] = tmp / max(1, sqrt(tmp.dot(tmp)))                
-                Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]] = Ab_dense[ind_pixels, m]
-                ind_A[m-nb] = Ab.indices[slice(Ab.indptr[m], Ab.indptr[m + 1])]
+                if tmp.dot(tmp) > 0:
+                    tmp *= 1e-3/min(1e-3,sqrt(tmp.dot(tmp))+np.finfo(float).eps)
+                    Ab_dense[ind_pixels, m] = tmp / max(1, sqrt(tmp.dot(tmp)))                
+                    Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]] = Ab_dense[ind_pixels, m]
+                    ind_A[m-nb] = Ab.indices[slice(Ab.indptr[m], Ab.indptr[m + 1])]
             # Ab.data[Ab.indptr[nb]:] = np.concatenate(
             #     [Ab_dense[ind_A[m - nb], m] for m in range(nb, M)])
             # N.B. why does selecting only overlapping neurons help surprisingly little, i.e
@@ -428,6 +429,9 @@ def corr(a, b):
 
 
 def rank1nmf(Ypx, ain):
+    """
+    perform a fast rank 1 NMF
+    """
     # cin_old = -1
     for _ in range(15):
         cin_res = ain.T.dot(Ypx)  # / ain.dot(ain)
@@ -451,33 +455,35 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                           dims, gSig, gSiz, ind_A, CY, CC, groups, oases, gnb=1,
                           rval_thr=0.875, bSiz=3, robust_std=False,
                           N_samples_exceptionality=5, remove_baseline=True,
-                          thresh_fitness_delta=-20, thresh_fitness_raw=-20, thresh_overlap=0.5,
+                          thresh_fitness_delta=-80, thresh_fitness_raw=-20, thresh_overlap=0.25,
                           batch_update_suff_stat=False, sn=None, g=None, thresh_s_min=None,
-                          s_min=None, Ab_dense=None, max_num_added=1):
+                          s_min=None, Ab_dense=None, max_num_added=1, min_num_trial = 1):
 
+    """
+    Checks for new components in the residual buffer and incorporates them if they pass the acceptance tests    
+    """
+    
+    order_rvl = 'C'
     gHalf = np.array(gSiz) // 2
 
-    M = np.shape(Ab)[-1]
-    N = M - gnb
-
-#    Yres = np.array(Yres_buf).T
-#    Y = np.array(Y_buf).T
-#    rhos = np.array(rho_buf).T
+    M = np.shape(Ab)[-1]        # number of total components (including background)
+    N = M - gnb                 # number of coponents (without background)
 
     first = True
 
     sv -= rho_buf.get_first()
-    sv += rho_buf.get_last_frames(1).squeeze()
+    sv += rho_buf.get_last_frames(1).squeeze()  # update variance of residual buffer
 
     num_added = 0
+    cnt = 0
     while num_added < max_num_added:
-
+        cnt +=1
         if first:
             sv_ = sv.copy()  # np.sum(rho_buf,0)
             first = False
 
         ind = np.argmax(sv_)
-        ij = np.unravel_index(ind, dims)
+        ij = np.unravel_index(ind, dims,order=order_rvl)
         # ijSig = [[np.maximum(ij[c] - gHalf[c], 0), np.minimum(ij[c] + gHalf[c] + 1, dims[c])]
         #          for c in range(len(ij))]
         # better than above expensive call of numpy and loop creation
@@ -490,7 +496,11 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
         # indeces = np.ravel_multi_index(arr, dims, order='F')
         indeces = np.ravel_multi_index(np.ix_(np.arange(ijSig[0][0], ijSig[0][1]),
                                               np.arange(ijSig[1][0], ijSig[1][1])),
-                                       dims, order='F').ravel()
+                                       dims, order='F').ravel(order=order_rvl)
+    
+        indeces_ = np.ravel_multi_index(np.ix_(np.arange(ijSig[0][0], ijSig[0][1]),
+                                              np.arange(ijSig[1][0], ijSig[1][1])),
+                                       dims, order='C').ravel(order=order_rvl)
 
         Ypx = Yres_buf.T[indeces, :]
 
@@ -503,63 +513,43 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
 
 #        new_res = sv_.copy()
 #        new_res[ np.ravel_multi_index(arr, dims, order='C')] = 10000
-#        cv2.imshow('untitled', 0.1*cv2.resize(new_res.reshape(dims,order = 'C'),(512,512))/2000)
-#        cv2.waitKey(1)
 
-#        for iter_ in range(15):
-#            cin_res = ain.T.dot(Ypx) / ain.dot(ain)
-#            cin = np.maximum(cin_res, 0)
-#            ain = np.maximum(Ypx.dot(cin.T) / cin.dot(cin), 0)
+        ain, cin, cin_res = rank1nmf(Ypx, ain)                  # expects and returns normalized ain
+        rval = corr(ain.copy(), np.mean(Ypx, -1))               # correlation coefficient                
 
-        ain, cin, cin_res = rank1nmf(Ypx, ain)  # expects and returns normalized ain
-
-        rval = corr(ain.copy(), np.mean(Ypx, -1))
-#        print(rval)
         if rval > rval_thr:
-            # na = sqrt(ain.dot(ain))
-            # ain /= na
-            # cin = na * cin
             # use sparse Ain only later iff it is actually added to Ab
             Ain = np.zeros((np.prod(dims), 1), dtype=np.float32)
-            # Ain = scipy.sparse.csc_matrix((np.prod(dims), 1), dtype=np.float32)
             Ain[indeces, :] = ain[:, None]
 
             cin_circ = cin.get_ordered()
 
     #        indeces_good = (Ain[indeces]>0.01).nonzero()[0]
 
-            # rval = np.corrcoef(ain, np.mean(Ypx, -1))[0, 1]
-
-# rval =
-# np.corrcoef(Ain[indeces_good].toarray().squeeze(),np.mean(Yres[indeces_good,:],-1))[0,1]
-
-        # if rval > rval_thr:
-            #            pl.cla()
-            #            _ = cm.utils.visualization.plot_contours(Ain, sv.reshape(dims), thr=0.95)
-            #            pl.pause(0.01)
-
             useOASIS = False  # whether to use faster OASIS for cell detection
+            foo = True        # flag indicating new component has not been rejected yet
+            
             if Ab_dense is None:
                 ff = np.where((Ab.T.dot(Ain).T > thresh_overlap)[:, gnb:])[1] + gnb
             else:
                 ff = np.where(Ab_dense[indeces, gnb:].T.dot(ain).T > thresh_overlap)[0] + gnb
             if ff.size > 0:
+                foo = False
                 cc = [corr(cin_circ.copy(), cins) for cins in Cf[ff, :]]
-
-                if np.any(np.array(cc) > .8):
+                if np.any(np.array(cc) > .25) and foo:
                     #                    repeat = False
                     # vb = imblur(np.reshape(Ain, dims, order='F'),
                     #             sig=gSig, siz=gSiz, nDimBlur=2)
                     # restrict blurring to region where component is located
-                    vb = np.reshape(Ain, dims, order='F')
+                    vb = np.reshape(Ain, dims, order='C')
                     slices = tuple(slice(max(0, ijs[0] - 2 * sg), min(d, ijs[1] + 2 * sg))
                                    for ijs, sg, d in zip(ijSig, gSig, dims))  # is 2 enough?
                     vb[slices] = imblur(vb[slices], sig=gSig, siz=gSiz, nDimBlur=2)
-                    sv_ -= (vb.ravel()**2) * cin.dot(cin)
-
+                    sv_ -= (vb.ravel(order=order_rvl)**2) * cin.dot(cin)
+                    foo = False         # reject component as duplicate
 #                    pl.imshow(np.reshape(sv,dims));pl.pause(0.001)
-                    # print('Overlap at step' + str(t) + ' ' + str(cc))
-                    break
+                  #  print('Overlap at step' + str(t) + ' ' + str(cc))
+                    #break
 
             if s_min is None:  # use thresh_s_min * noise estimate * sqrt(1-sum(gamma))
             # the formula has been obtained by running OASIS with s_min=0 and lambda=0 on Gaussin noise.
@@ -570,29 +560,24 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                     sqrt((ain**2).dot(sn[indeces]**2)) * sqrt(1 - np.sum(g))
 
             cin_res = cin_res.get_ordered()
-            if useOASIS:
-                oas = oasis.OASIS(g=g, s_min=s_min,
-                                  num_empty_samples=t + 1 - len(cin_res))
-                for yt in cin_res:
-                    oas.fit_next(yt)
-                foo = oas.get_l_of_last_pool() <= t
-                # cc=oas.c
-                # print([np.corrcoef(cin_circ,cins)[0,1] for cins in Cf[overlap[0] > 0]])
-                # print([np.corrcoef(cc,cins)[0,1] for cins in Cf[overlap[0] > 0, ]])
-                # import matplotlib.pyplot as plt
-                # plt.plot(cin_res); plt.plot(cc); plt.show()
-                # import pdb;pdb.set_trace()
-            else:
-                fitness_delta, erfc_delta, std_rr, _ = compute_event_exceptionality(
-                    np.diff(cin_res)[None, :], robust_std=robust_std, N=N_samples_exceptionality)
-                if remove_baseline:
-                    num_samps_bl = min(len(cin_res) // 5, 800)
-                    bl = scipy.ndimage.percentile_filter(cin_res, 8, size=num_samps_bl)
+            if foo:
+                if useOASIS:
+                    oas = oasis.OASIS(g=g, s_min=s_min,
+                                      num_empty_samples=t + 1 - len(cin_res))
+                    for yt in cin_res:
+                        oas.fit_next(yt)
+                    foo = oas.get_l_of_last_pool() <= t
                 else:
-                    bl = 0
-                fitness_raw, erfc_raw, std_rr, _ = compute_event_exceptionality(
-                    (cin_res - bl)[None, :], robust_std=robust_std, N=N_samples_exceptionality)
-                foo = (fitness_delta < thresh_fitness_delta) or (fitness_raw < thresh_fitness_raw)
+                    fitness_delta, erfc_delta, std_rr, _ = compute_event_exceptionality(
+                        np.diff(cin_res)[None, :], robust_std=robust_std, N=N_samples_exceptionality)
+                    if remove_baseline:
+                        num_samps_bl = min(len(cin_res) // 5, 800)
+                        bl = scipy.ndimage.percentile_filter(cin_res, 8, size=num_samps_bl)
+                    else:
+                        bl = 0
+                    fitness_raw, erfc_raw, std_rr, _ = compute_event_exceptionality(
+                        (cin_res - bl)[None, :], robust_std=robust_std, N=N_samples_exceptionality)
+                    foo = (fitness_delta < thresh_fitness_delta) or (fitness_raw < thresh_fitness_raw)
 
             if foo:
                 # print('adding component' + str(N + 1) + ' at timestep ' + str(t))
@@ -627,10 +612,6 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                 csc_append(Ab, Ain_csc)  # faster version of scipy.sparse.hstack
                 ind_A.append(Ab.indices[Ab.indptr[M]:Ab.indptr[M + 1]])
 
-#                ccf = Cf[:,-minibatch_suff_stat:]
-#                CY = ((t*1.-1)/t) * CY + (1./t) * np.dot(ccf, Yr[:, t-minibatch_suff_stat:t].T)/minibatch_suff_stat
-#                CC = ((t*1.-1)/t) * CC + (1./t) * ccf.dot(ccf.T)/minibatch_suff_stat
-
                 tt = t * 1.
 #                if batch_update_suff_stat and Y_buf.cur<len(Y_buf)-1:
 #                   Y_buf_ = Y_buf[Y_buf.cur+1:,:]
@@ -648,10 +629,6 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                 # much faster: exploit that we only access CY[m, ind_pixels],
                 # hence update only these
                 CY[M, indeces] = cin_.dot(Y_buf_[:, indeces]) / tt
-#                CY = np.vstack([CY[:N,:], Y_buf.T.dot(cin / tt)[None,:], CY[ N:,:]])
-#                YC = CY.T
-#                YC = np.hstack([YC[:, :N], Y_buf.T.dot(cin / tt)[:, None], YC[:, N:]])
-#                CY = YC.T
 
                 # preallocate memory for speed up?
                 CC1 = np.hstack([CC, Cf_.dot(cin_circ_ / tt)[:, None]])
@@ -670,11 +647,11 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                 slices = tuple(slice(max(0, ijs[0] - 2 * sg), min(d, ijs[1] + 2 * sg))
                                for ijs, sg, d in zip(ijSig, gSig, dims))  # is 2 enough?
                 vb[slices] = imblur(vb[slices], sig=gSig, siz=gSiz, nDimBlur=2)
-                vb = vb.ravel()
+                vb = vb.ravel(order=order_rvl)
 
                 # ind_vb = np.where(vb)[0]
                 ind_vb = np.ravel_multi_index(np.ix_(*[np.arange(s.start, s.stop)
-                                                       for s in slices]), dims).ravel()
+                                                       for s in slices]), dims, order=order_rvl).ravel(order=order_rvl)
 
                 updt_res = (vb[None, ind_vb].T**2).dot(cin[None, :]**2).T
                 rho_buf[:, ind_vb] -= updt_res
@@ -683,12 +660,18 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                 sv_[ind_vb] -= updt_res_sum
 
             else:
-
-                num_added = max_num_added
+                if cnt >= min_num_trial:
+                    num_added = max_num_added
+                else:
+                    first = False
+                    sv_[indeces_] = 0
 
         else:
-
-            num_added = max_num_added
+            if cnt >= min_num_trial:
+                num_added = max_num_added
+            else:
+                first = False
+                sv_[indeces_] = 0
 
     return Ab, Cf, Yres_buf, rho_buf, CC, CY, ind_A, sv, groups
 

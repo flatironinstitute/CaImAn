@@ -25,11 +25,13 @@ from skimage.filters import sobel
 from skimage.morphology import watershed
 from scipy import ndimage as ndi
 from skimage.draw import polygon
-import pylab as pl
+import matplotlib.pyplot as pl
+import matplotlib.patches as mpatches
 import zipfile
 import tempfile
 import shutil
 import os 
+from ..motion_correction import tile_and_correct
 
 #%%
 def com(A, d1, d2):
@@ -51,15 +53,15 @@ def com(A, d1, d2):
      cm:  np.ndarray
           center of mass for spatial components (K x 2)
     """
-    nr = np.shape(A)[-1]
+
+    if 'csc_matrix' not in str(type(A)):
+        A = scipy.sparse.csc_matrix(A)
+
     Coor = dict()
     Coor['x'] = np.kron(np.ones((d2, 1)), np.expand_dims(list(range(d1)), axis=1))
     Coor['y'] = np.kron(np.expand_dims(list(range(d2)), axis=1), np.ones((d1, 1)))
-    cm = np.zeros((nr, 2))        # vector for center of mass
-    cm[:, 0] = old_div(np.dot(Coor['x'].T, A), A.sum(axis=0))
-    cm[:, 1] = old_div(np.dot(Coor['y'].T, A), A.sum(axis=0))
-
-    return cm
+    cm = old_div(np.hstack((Coor['x'],Coor['y'])).T * A, A.sum(axis=0)).T
+    return np.array(cm)
 
 #%% 
 def extract_binary_masks_from_structural_channel(Y,min_area_size = 30, min_hole_size = 15, gSig = 5, expand_method = 'closing', selem = np.ones((3,3))):
@@ -143,6 +145,7 @@ def get_distance_from_A(masks_gt,masks_comp, min_dist = 10 ):
     cm_cnmf = [ scipy.ndimage.center_of_mass(mm) for mm in masks_comp]
     
     return distance_masks([A_ben,A_cnmf],[cm_ben,cm_cnmf], min_dist )  
+
 #%%
 def nf_match_neurons_in_binary_masks(masks_gt,masks_comp,thresh_cost=.7, min_dist = 10, print_assignment= False,
                                      plot_results = False, Cn=None, labels = None, cmap = 'viridis', D = None, enclosed_thr = None):
@@ -219,9 +222,6 @@ def nf_match_neurons_in_binary_masks(masks_gt,masks_comp,thresh_cost=.7, min_dis
           
     
     
-        
-    
-    
     matches,costs=find_matches(D,print_assignment=print_assignment)
     matches=matches[0]
     costs=costs[0]
@@ -259,6 +259,8 @@ def nf_match_neurons_in_binary_masks(masks_gt,masks_comp,thresh_cost=.7, min_dis
                     'size'   : 10}
             pl.rc('font', **font)
             lp,hp = np.nanpercentile(Cn,[5,95])
+            ses_1 = mpatches.Patch(color='red', label='Session 1')
+            ses_2 = mpatches.Patch(color='white', label='Session 2')            
             pl.subplot(1,2,1)
             pl.imshow(Cn,vmin=lp,vmax=hp, cmap = cmap)
             [pl.contour(norm_nrg(mm),levels=[level],colors='w',linewidths=1) for mm in masks_comp[idx_tp_comp]]
@@ -267,6 +269,7 @@ def nf_match_neurons_in_binary_masks(masks_gt,masks_comp,thresh_cost=.7, min_dis
                 pl.title('MATCHES')
             else:
                 pl.title('MATCHES: '+labels[1]+'(w), ' + labels[0] + '(r)')
+            pl.legend(handles=[ses_1,ses_2]); pl.show()
             pl.axis('off')
             pl.subplot(1,2,2)
             pl.imshow(Cn,vmin=lp,vmax=hp, cmap = cmap)
@@ -276,12 +279,190 @@ def nf_match_neurons_in_binary_masks(masks_gt,masks_comp,thresh_cost=.7, min_dis
                 pl.title('FALSE POSITIVE (w), FALSE NEGATIVE (r)')
             else:
                 pl.title(labels[1]+'(w), ' + labels[0] + '(r)')
+            pl.legend(handles=[ses_1,ses_2]); pl.show()
             pl.axis('off')
         except Exception as e:
             print("not able to plot precision recall usually because we are on travis")
             print(e)
     return  idx_tp_gt,idx_tp_comp, idx_fn_gt, idx_fp_comp, performance 
 
+#%% register_ROIs largely follows the function nf_match_neurons_in_binary_masks
+
+
+def register_ROIs(A1, A2, dims, template1 = None, template2 = None, align_flag = True, D = None, thresh_cost=.7, max_dist = 10, enclosed_thr = None, 
+                  print_assignment= False, plot_results = False, Cn=None, cmap = 'viridis'):
+    """
+    Register ROIs across different sessions using an intersection over union metric
+    and the Hungarian algorithm for optimal matching
+
+    Parameters:
+    -----------
+
+    A1: ndarray or csc_matrix  # pixels x # of components
+        ROIs from session 1
+
+    A2: ndarray or csc_matrix  # pixels x # of components
+        ROIs from session 2
+
+    dims: list or tuple
+        dimensionality of the FOV
+                
+    template1: ndarray dims
+        template from session 1
+
+    template2: ndarray dims
+        template from session 2
+
+    align_flag: bool
+        align the templates before matching
+
+    D: ndarray
+       	matrix of distances in the event they are pre-computed
+
+    thresh_cost: scalar 
+        maximum distance considered 
+
+    max_dist: scalar
+        max distance between centroids
+
+    enclosed_thr: float
+        if not None set distance to at most the specified value when ground truth is a subset of inferred 
+
+    print_assignment: bool
+        print pairs of matched ROIs
+
+    plot_results: bool    
+        create a plot of matches and mismatches
+
+    Cn: ndarray
+        background image for plotting purposes
+
+    cmap: string
+        colormap for background image
+
+    Returns:
+    --------
+    matched_ROIs1: list
+        indeces of matched ROIs from session 1
+        
+    matched_ROIs2: list
+        indeces of matched ROIs from session 2        
+
+    non_matched1: list
+        indeces of non-matched ROIs from session 1
+
+    non_matched2: list
+        indeces of non-matched ROIs from session 1
+
+    performance:  list
+        (precision, recall, accuracy, f_1 score) with A1 taken as ground truth
+        
+    """
+    
+    if template1 is None or template2 is None:
+        align_flag = False
+    
+    if align_flag:  # first align ROIs from session 2 to the template from session 1
+        template2, shifts, _, xy_grid  = tile_and_correct(template2, template1 - template1.min(), 
+                                                   [int(dims[0]/4),int(dims[1]/4)],[16,16],[10,10], 
+                                                   add_to_movie = template2.min(), shifts_opencv = True)
+        A_2t = np.reshape(A2.toarray(),dims+(-1,),order='F').transpose(2,0,1)
+        dims_grid = tuple(np.max(np.stack(xy_grid,axis=0),axis=0) - np.min(np.stack(xy_grid,axis=0),axis=0) + 1)
+        _sh_ = np.stack(shifts,axis=0)        
+        shifts_x = np.reshape(_sh_[:,1],dims_grid,order='C').astype(np.float32)
+        shifts_y = np.reshape(_sh_[:,0],dims_grid,order='C').astype(np.float32)
+        x_grid, y_grid = np.meshgrid(np.arange(0., dims[0]).astype(np.float32), np.arange(0., dims[1]).astype(np.float32))
+        x_remap = (-np.resize(shifts_x, dims)+x_grid).astype(np.float32)
+        y_remap = (-np.resize(shifts_y, dims)+y_grid).astype(np.float32)
+        A2 = np.stack([cv2.remap(img.astype(np.float32), x_remap, y_remap, cv2.INTER_CUBIC) for img in A_2t],axis=0)
+        A2 = np.reshape(A2.transpose(1,2,0),(A1.shape[0],A_2t.shape[0]),order='F')
+                    
+    if D is None:
+        if 'csc_matrix' not in str(type(A1)):
+                A1 = scipy.sparse.csc_matrix(A1)
+        if 'csc_matrix' not in str(type(A2)):
+                A2 = scipy.sparse.csc_matrix(A2)
+        
+        cm_1 = com(A1, dims[0], dims[1])
+        cm_2 = com(A2, dims[0], dims[1])
+        A1_tr = (A1 > 0).astype(float)
+        A2_tr = (A2 > 0).astype(float)
+        D = distance_masks([A1_tr,A2_tr],[cm_1,cm_2], max_dist, enclosed_thr = enclosed_thr)
+                                          
+    matches,costs=find_matches(D,print_assignment=print_assignment)
+    matches=matches[0]
+    costs=costs[0]
+    
+    #%% store indeces
+    
+    idx_tp = np.where(np.array(costs)<thresh_cost)[0]
+    if len(idx_tp) > 0:
+        matched_ROIs1 = matches[0][idx_tp]    # ground truth
+        matched_ROIs2 = matches[1][idx_tp]   # algorithm - comp 
+        non_matched1 = np.setdiff1d(list(range(D[0].shape[0])),matches[0][idx_tp])
+        non_matched2 = np.setdiff1d(list(range(D[0].shape[1])),matches[1][idx_tp])
+        TP = np.sum(np.array(costs)<thresh_cost)*1.
+    else:
+        TP = 0.
+        plot_results = False
+        matched_ROIs1 = []
+        matched_ROIs2 = []
+        non_matched1 = list(range(D[0].shape[0]))
+        non_matched2 = list(range(D[0].shape[1]))
+        
+    #%% compute precision and recall
+    
+    FN = D[0].shape[0] - TP
+    FP = D[0].shape[1] - TP
+    TN = 0
+
+    performance = dict() 
+    performance['recall'] = old_div(TP,(TP+FN))
+    performance['precision'] = old_div(TP,(TP+FP)) 
+    performance['accuracy'] = old_div((TP+TN),(TP+FP+FN+TN))
+    performance['f1_score'] = 2*TP/(2*TP+FP+FN)
+    print(performance)
+    
+    
+    
+    if plot_results:
+        if Cn is None:
+            if template1 is not None:
+                Cn = template1
+            elif template2 is not None:
+                Cn = template2
+            else:
+                Cn = np.reshape(A1.sum(1)+A2.sum(1),dims,order='F')                    
+        
+        masks_1 = np.reshape(A1.toarray(),dims+(-1,),order='F').transpose(2,0,1)
+        masks_2 = np.reshape(A2.toarray(),dims+(-1,),order='F').transpose(2,0,1)
+#        try : #Plotting function
+        level = 0.98
+        pl.rcParams['pdf.fonttype'] = 42
+        font = {'family' : 'Myriad Pro',
+                'weight' : 'regular',
+                'size'   : 10}
+        pl.rc('font', **font)
+        lp,hp = np.nanpercentile(Cn,[5,95])
+        pl.subplot(1,2,1)
+        pl.imshow(Cn,vmin=lp,vmax=hp, cmap = cmap)
+        [pl.contour(norm_nrg(mm),levels=[level],colors='w',linewidths=1) for mm in masks_1[matched_ROIs1]]
+        [pl.contour(norm_nrg(mm),levels=[level],colors='r',linewidths=1) for mm in masks_2[matched_ROIs2]] 
+        pl.title('Matches')
+        pl.axis('off')
+        pl.subplot(1,2,2)
+        pl.imshow(Cn,vmin=lp,vmax=hp, cmap = cmap)
+        [pl.contour(norm_nrg(mm),levels=[level],colors='w',linewidths=1) for mm in masks_1[non_matched1]] 
+        [pl.contour(norm_nrg(mm),levels=[level],colors='r',linewidths=1) for mm in masks_2[non_matched2]] 
+        pl.title('Mismatches')
+        pl.axis('off')
+#        except Exception as e:
+#            print("not able to plot precision recall usually because we are on travis")
+#            print(e)
+    
+    return matched_ROIs1, matched_ROIs2, non_matched1, non_matched2, performance
+    
+    
 #%% threshold
 def norm_nrg(a_):
     

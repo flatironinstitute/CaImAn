@@ -168,8 +168,14 @@ cdef class OASIS:
             self.t += 1
             self.i += 1
             while (self.i > 0 and  # backtrack until violations fixed
-                   ((((self.P[self.i - 1].v * self.d**(self.P[self.i - 1].l + 1) /
-                       (self.d - self.r)) if self.P[self.i - 1].l >= 1000 else
+                   (((((self.P[self.i - 1].v * self.d**(self.P[self.i - 1].l + 1) /
+                        (self.d - self.r))
+                       if self.d != self.r else
+                       (self.P[self.i - 1].v * self.d**self.P[self.i - 1].l * \
+                        (self.P[self.i - 1].l + 1) -
+                        self.P[self.i - 2].w * self.d**(self.P[self.i - 1].l + 2) * \
+                        (self.P[self.i - 1].l + 1)))
+                       if self.P[self.i - 1].l >= 1000 else
                        (self.h[self.P[self.i - 1].l] * self.P[self.i - 1].v +
                         self.g12[self.P[self.i - 1].l] * self.P[self.i - 2].w)) >
                        self.P[self.i].v - self.s_min)
@@ -264,8 +270,11 @@ cdef class OASIS:
             newpool.w, newpool.t, newpool.l = newpool.v, self.t, 1
             j = self.i
             while (j >= 0 and  # backtrack until violations fixed
-                   ((((self.P[j].v * self.d**(self.P[j].l + 1) /
-                       (self.d - self.r)) if self.P[j].l >= 1000 else
+                   ((((self.P[j].v * self.d**(self.P[j].l + 1) / (self.d - self.r)
+                       if self.d != self.r else
+                       (self.P[j].v * self.d**self.P[j].l * (self.P[j].l + 1)) -
+                       self.P[j - 1].w * self.d**(self.P[j].l + 2) * (self.P[j].l + 1))
+                       if self.P[j].l >= 1000 else
                        (self.h[self.P[j].l] * self.P[j].v +
                         self.g12[self.P[j].l] * self.P[j - 1].w)) >
                        newpool.v - self.s_min)
@@ -282,7 +291,8 @@ cdef class OASIS:
                     for tmp2 in range(k):
                         tmp += self.h[tmp2] * self._y[newpool.t + tmp2]
                     # tmp += self.h[k] * (self._y[newpool.t + k] if newpool.l > 1000 else _yt)
-                    tmp += self.h[k] * (self._y[newpool.t + k] if newpool.t + k < self._y.size() else _yt)
+                    tmp += self.h[k] * (self._y[newpool.t + k] if newpool.t +
+                                        k < self._y.size() else _yt)
                     newpool.v = (tmp - self.g11g12[k] * self.P[j-1].w) / self.g11g11[k]
                     newpool.w = self.h[k] * newpool.v + self.g12[k] * self.P[j-1].w
                 else:  # update first pool
@@ -711,8 +721,8 @@ def constrained_oasisAR1(np.ndarray[SINGLE, ndim=1] y, SINGLE g, SINGLE sn,
         unsigned int ma, count, T
         SINGLE thresh, v, w, RSS, aa, bb, cc, lam, dlam, b, db, dphi
         bool g_converged
-        np.ndarray[SINGLE, ndim= 1] c, s, res, tmp, fluor, h
-        np.ndarray[long, ndim= 1] ff, ll
+        np.ndarray[SINGLE, ndim = 1] c, s, res, tmp, fluor, h
+        np.ndarray[long, ndim = 1] ff, ll
         vector[Pool] P
         Pool newpool
 
