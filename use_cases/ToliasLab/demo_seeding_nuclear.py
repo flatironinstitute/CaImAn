@@ -39,9 +39,9 @@ from caiman.summary_images import max_correlation_image
 #%% construct the seeding matrix using the structural channel (note that some components are missed - thresholding can be improved)
 
 
-filename = 'example_movies/gmc_980_30mw_00001_red.tif'
-Ain, mR = cm.base.rois.extract_binary_masks_from_structural_channel(cm.load(filename), expand_method='dilation', selem=np.ones((3,3)))
-pl.figure(); crd = cm.utils.visualization.plot_contours(Ain.astype('float32'), mR, thr=0.99)
+filename = 'example_movies/gmc_960_30mw_00001_red.tif'
+Ain, mR = cm.base.rois.extract_binary_masks_from_structural_channel(cm.load(filename), expand_method='dilation', selem=np.ones((1,1)))
+pl.figure(); crd = cm.utils.visualization.plot_contours(Ain.astype('float32'), mR, thr=0.99, display_numbers = False)
 pl.title('Contour plots of detected ROIs in the structural channel')
 
 #%% choose whether to use online algorithm (OnACID) or offline (CNMF)

@@ -85,7 +85,9 @@ class CNMF(object):
                  update_background_components=True, rolling_sum = True, rolling_length = 100,
                  min_corr=.85, min_pnr=20, deconvolve_options_init=None, ring_size_factor=1.5,
 				 center_psf=False,  use_dense=True, deconv_flag = True,
-                 simultaneously=False, n_refit=0, N_samples_exceptionality = 5, del_duplicates=False):
+                 simultaneously=False, n_refit=0, del_duplicates=False, N_samples_exceptionality = 5,
+                 max_num_added = 1, min_num_trial = 2):
+
         """
         Constructor of the CNMF method
 
@@ -214,7 +216,7 @@ class CNMF(object):
 	    num_times_comp_updated:
             number of times each component is updated. In inf components are updated at every initbatch time steps
 		
-		expected_comps: int
+    	expected_comps: int
             number of expected components (try to exceed the expected)
             
         deconv_flag :    bool, optional
@@ -232,6 +234,12 @@ class CNMF(object):
 			
 		del_duplicates: Bool
 			whether to delete the duplicated created in initialization	
+            
+        max_num_added : int, optional
+            maximum number of components to be added at each step in OnACID
+        
+        min_num_trial : int, optional
+            minimum numbers of attempts to include a new components in OnACID
 			
         Returns:
         --------
@@ -302,6 +310,8 @@ class CNMF(object):
         self.simultaneously=simultaneously
         self.n_refit=n_refit
         self.N_samples_exceptionality = N_samples_exceptionality
+        self.max_num_added = max_num_added
+        self.min_num_trial = min_num_trial
 		
         self.min_corr = min_corr
         self.min_pnr = min_pnr
@@ -592,7 +602,8 @@ class CNMF(object):
         return self
 
     def _prepare_object(self, Yr, T, expected_comps, new_dims=None, idx_components=None,
-                        g=None, lam=None, s_min=None, bl=None, use_dense=True, N_samples_exceptionality = 5):
+                        g=None, lam=None, s_min=None, bl=None, use_dense=True, N_samples_exceptionality = 5,
+                        max_num_added = 1, min_num_trial = 1):
 
         self.expected_comps = expected_comps
 
@@ -612,6 +623,8 @@ class CNMF(object):
         self.lam2 = self.lam[idx_components]
         self.dims2 = self.dims
         self.N_samples_exceptionality = N_samples_exceptionality
+        self.max_num_added = max_num_added
+        self.min_num_trial = min_num_trial
 
         self.N = self.A2.shape[-1]
         self.M = self.gnb + self.N
@@ -630,7 +643,7 @@ class CNMF(object):
             Yr = new_Yr
             A_new = scipy.sparse.csc_matrix(
                 (np.prod(new_dims), self.A2.shape[-1]), dtype=np.float32)
-            for neur in range(N):
+            for neur in range(self.N):
                 a = self.A2.tocsc()[:, neur].toarray()
                 a = a.reshape(self.dims2, order='F')
                 a = cv2.resize(a, new_dims[::-1]).reshape([-1, 1], order='F')
@@ -824,7 +837,8 @@ class CNMF(object):
                 sn=self.sn, g=np.mean(self.g2) if self.p == 1 else np.mean(self.g2, 0),
                 thresh_s_min=self.thresh_s_min, s_min=self.s_min,
                 Ab_dense=self.Ab_dense[:, :self.M] if self.use_dense else None,
-                oases=self.OASISinstances if self.p else None, N_samples_exceptionality = self.N_samples_exceptionality)
+                oases=self.OASISinstances if self.p else None, N_samples_exceptionality= self.N_samples_exceptionality,
+                max_num_added = self.max_num_added, min_num_trial = self.min_num_trial)
 
             num_added = len(self.ind_A) - self.N
 
