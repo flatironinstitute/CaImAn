@@ -115,4 +115,15 @@ pipeline {
       }
     }
   }
+  post {
+    failure {
+      emailext subject: '$DEFAULT_SUBJECT',
+	       body: '$DEFAULT_CONTENT',
+	       recipientProviders: [
+		 [$class: 'DevelopersRecipientProvider'],
+	       ], 
+	       replyTo: '$DEFAULT_REPLYTO',
+	       to: 'epnevmatikakis@gmail.com, andrea.giovannucci@gmail.com'
+    }
+  }
 }
