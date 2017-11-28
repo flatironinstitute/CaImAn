@@ -48,7 +48,7 @@ print(fls)                                          # your list of files should 
 fr = 15                                                             # frame rate (Hz)
 decay_time = 0.5                                                    # approximate length of transient event in seconds
 gSig = (4,4)                                                        # expected half size of neurons
-p = 2                                                               # order of AR indicator dynamics
+p = 1                                                               # order of AR indicator dynamics
 min_SNR = 2.5                                                       # minimum SNR for accepting new components
 rval_thr = 0.85                                                     # correlation threshold for new component inclusion
 ds_factor = 1                                                       # spatial downsampling factor (increases speed but may lose some fine structure)
