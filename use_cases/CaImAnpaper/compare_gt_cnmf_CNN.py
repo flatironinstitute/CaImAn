@@ -286,10 +286,10 @@ params_movies.append(params_movie.copy())
 #%%
 #params_movie = params_movies[4]
 all_perfs = []
-reload = True
+reload = False
 plot_on = False
 save_on = False
-for params_movie in np.array(params_movies)[:]:
+for params_movie in np.array(params_movies)[3:4]:
 #    params_movie['gnb'] = 3
     params_display = {
         'downsample_ratio': .2,
