@@ -67,7 +67,7 @@ expected_comps = 300                                                # maximum nu
 K = 2                                                               # initial number of components
 N_samples = np.ceil(fr*decay_time)                                  # number of timesteps to consider when testing new neuron candidates
 thresh_fitness_raw = scipy.special.log_ndtr(-min_SNR)*N_samples     # exceptionality threshold
-epochs = 1                                                          # number of passes over the data
+epochs = 2                                                          # number of passes over the data
 len_file = 1000                                                     # upper bound for number of frames in each file (used right below)
 T1 = len(fls)*len_file*epochs                                       # total length of all files (if not known use a large number, then truncate at the end)
 
@@ -94,7 +94,6 @@ Y = Y / img_norm[None, :, :]                        # normalize data
 _, d1, d2 = Y.shape
 dims = (d1, d2)                                     # dimensions of FOV
 Yr = Y.to_2D().T                                    # convert data into 2D array                                    
-merge_thresh = 0.8                                  # merging threshold, max correlation allowed
 
 Cn_init = Y.local_correlations(swap_dim = False)    # compute correlation image
 pl.imshow(Cn_init); pl.title('Correlation Image on initial batch'); pl.colorbar()
@@ -123,7 +122,8 @@ if save_init:
     save_object(cnm_init, fls[0][:-4] + '_DS_' + str(ds_factor) + '.pkl')
     cnm_init = load_object(fls[0][:-4] + '_DS_' + str(ds_factor) + '.pkl')
     
-cnm_init._prepare_object(np.asarray(Yr), T1, expected_comps, idx_components=None, min_num_trial = 2, N_samples_exceptionality = int(N_samples))
+cnm_init._prepare_object(np.asarray(Yr), T1, expected_comps, idx_components=None, 
+                         min_num_trial = 2, N_samples_exceptionality = int(N_samples))
 
 
 #%% create a function for plotting results in real time if needed
