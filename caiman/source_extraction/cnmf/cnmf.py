@@ -627,7 +627,6 @@ class CNMF(object):
         self.N_samples_exceptionality = N_samples_exceptionality
         self.max_num_added = max_num_added
         self.min_num_trial = min_num_trial
-
         self.N = self.A2.shape[-1]
         self.M = self.gnb + self.N
 
@@ -645,7 +644,7 @@ class CNMF(object):
             Yr = new_Yr
             A_new = scipy.sparse.csc_matrix(
                 (np.prod(new_dims), self.A2.shape[-1]), dtype=np.float32)
-            for neur in range(N):
+            for neur in range(self.N):
                 a = self.A2.tocsc()[:, neur].toarray()
                 a = a.reshape(self.dims2, order='F')
                 a = cv2.resize(a, new_dims[::-1]).reshape([-1, 1], order='F')

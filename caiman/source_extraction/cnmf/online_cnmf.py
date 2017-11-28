@@ -30,7 +30,7 @@ except:
 
 #%%
 def bare_initialization(Y, init_batch = 1000, k = 1, method_init = 'greedy_roi', gnb = 1,
-                        gSig = [5,5], motion_flag = False, **kwargs):
+                        gSig = [5,5], motion_flag = False, p = 1, **kwargs):
     """
     Quick and dirty initialization for OnACID, bypassing entirely CNMF
     Inputs:
@@ -78,9 +78,9 @@ def bare_initialization(Y, init_batch = 1000, k = 1, method_init = 'greedy_roi',
     AA = scipy.sparse.spdiags(old_div(1.,nA),0,nr,nr)*(Ain.T.dot(Ain))
     YrA = YA - AA.T.dot(Cin)
     
-    cnm_init = cm.source_extraction.cnmf.cnmf.CNMF(2, k=k, gSig=gSig, Ain=Ain, Cin=Cin, b_in=np.array(b_in), f_in=f_in, method_init = method_init, **kwargs)
+    cnm_init = cm.source_extraction.cnmf.cnmf.CNMF(2, k=k, gSig=gSig, Ain=Ain, Cin=Cin, b_in=np.array(b_in), f_in=f_in, method_init = method_init, p = p, **kwargs)
     cnm_init.A, cnm_init.C, cnm_init.b, cnm_init.f, cnm_init.S, cnm_init.YrA = Ain, Cin, b_in, f_in, np.maximum(np.atleast_2d(Cin),0), YrA
-    cnm_init.g = np.array([[gg] for gg in np.ones(k)*0.9])
+    cnm_init.g = np.array([-np.poly([0.9]*max(p,1))[1:] for gg in np.ones(k)])
     cnm_init.bl = np.zeros(k)
     cnm_init.c1 = np.zeros(k)
     cnm_init.neurons_sn = np.std(YrA,axis=-1)
@@ -93,7 +93,7 @@ def bare_initialization(Y, init_batch = 1000, k = 1, method_init = 'greedy_roi',
 
 
 #%%
-def seeded_initialization(Y, Ain, dims = None, init_batch = 1000, gnb = 1, **kwargs):
+def seeded_initialization(Y, Ain, dims = None, init_batch = 1000, gnb = 1, p = 1, **kwargs):
     """
     Initialization for OnACID based on a set of user given binary masks. 
     Inputs:
@@ -160,9 +160,10 @@ def seeded_initialization(Y, Ain, dims = None, init_batch = 1000, gnb = 1, **kwa
     AA = scipy.sparse.spdiags(old_div(1.,nA),0,nr,nr)*(Ain.T.dot(Ain))
     YrA = YA - AA.T.dot(Cin)
     
-    cnm_init = cm.source_extraction.cnmf.cnmf.CNMF(2, Ain=Ain, Cin=Cin, b_in=np.array(b_in), f_in=f_in, **kwargs)
+    cnm_init = cm.source_extraction.cnmf.cnmf.CNMF(2, Ain=Ain, Cin=Cin, b_in=np.array(b_in), f_in=f_in, p = 1, **kwargs)
     cnm_init.A, cnm_init.C, cnm_init.b, cnm_init.f, cnm_init.S, cnm_init.YrA = Ain, Cin, b_in, f_in, np.fmax(np.atleast_2d(Cin),0), YrA
-    cnm_init.g = np.array([[gg] for gg in np.ones(nr)*0.9])
+#    cnm_init.g = np.array([[gg] for gg in np.ones(nr)*0.9])
+    cnm_init.g = np.array([-np.poly([0.9]*max(p,1))[1:] for gg in np.ones(nr)])
     cnm_init.bl = np.zeros(nr)
     cnm_init.c1 = np.zeros(nr)
     cnm_init.neurons_sn = np.std(YrA,axis=-1)
