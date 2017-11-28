@@ -35,56 +35,56 @@ import sys
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 #%%
-#def resize(Y, size, interpolation=cv2.INTER_LINEAR):
-#    """faster and 3D compatible version of skimage.transform.resize"""
-#    if Y.ndim == 2:
-#        return cv2.resize(Y, tuple(size[::-1]), interpolation=interpolation)
-#    elif Y.ndim == 3:
-#        if np.isfortran(Y):
-#            return (cv2.resize(np.array(
-#                [cv2.resize(y, size[:2], interpolation=interpolation) for y in Y.T]).T
-#                .reshape((-1, Y.shape[-1]), order='F'),
-#                (size[-1], np.prod(size[:2])), interpolation=interpolation).reshape(size, order='F'))
-#        else:
-#            return np.array([cv2.resize(y, size[:0:-1], interpolation=interpolation) for y in
-#                             cv2.resize(Y.reshape((len(Y), -1), order='F'),
-#                                        (np.prod(Y.shape[1:]), size[0]), interpolation=interpolation)
-#                             .reshape((size[0],) + Y.shape[1:], order='F')])
-#    else:  # TODO deal with ndim=4
-#        raise NotImplementedError
+def resize(Y, size, interpolation=cv2.INTER_LINEAR):
+    """faster and 3D compatible version of skimage.transform.resize"""
+    if Y.ndim == 2:
+        return cv2.resize(Y, tuple(size[::-1]), interpolation=interpolation)
+    elif Y.ndim == 3:
+        if np.isfortran(Y):
+            return (cv2.resize(np.array(
+                [cv2.resize(y, size[:2], interpolation=interpolation) for y in Y.T]).T
+                .reshape((-1, Y.shape[-1]), order='F'),
+                (size[-1], np.prod(size[:2])), interpolation=interpolation).reshape(size, order='F'))
+        else:
+            return np.array([cv2.resize(y, size[:0:-1], interpolation=interpolation) for y in
+                             cv2.resize(Y.reshape((len(Y), -1), order='F'),
+                                        (np.prod(Y.shape[1:]), size[0]), interpolation=interpolation)
+                             .reshape((size[0],) + Y.shape[1:], order='F')])
+    else:  # TODO deal with ndim=4
+        raise NotImplementedError
 
 #%%
-def resize(vect, newsize, interpolation=cv2.INTER_LINEAR, order=None, opencv=True):
-    if opencv:
-        if vect.ndim == 2:
-            print(newsize)
-            newvect = cv2.resize(vect,tuple(newsize[::-1]),interpolation = interpolation)
-        else:
-            h,w,t=vect.shape
-            newvect = []
-            print("reshaping in space")
-            for frame in vect.transpose([2,0,1]):
-                newvect.append(cv2.resize(frame,(newsize[1],newsize[0]),interpolation=interpolation))
-                
-            newvect=np.dstack(newvect)
-                        
-            h1,w1,t1 = newvect.shape
-            
-            if (h1,w1) != newsize[:-1]:
-                print(newvect.shape)
-                print(newsize)
-                raise Exception("Bad resizing!")
-            
-            if t != newsize: 
-                print("reshaping in time")
-                newvect=np.reshape(newvect,(h1*w1,t1))
-                newvect=cv2.resize(newvect,(newsize[2],h1*w1),interpolation=interpolation)            
-                newvect=np.reshape(newvect,newsize)
-
-    else:
-            return resize_sk(vect, newsize, order = order, mode = 'reflect')        
-        
-    return newvect
+#def resize(vect, newsize, interpolation=cv2.INTER_LINEAR, order=None, opencv=True):
+#    if opencv:
+#        if vect.ndim == 2:
+#            print(newsize)
+#            newvect = cv2.resize(vect,tuple(newsize[::-1]),interpolation = interpolation)
+#        else:
+#            h,w,t=vect.shape
+#            newvect = []
+#            print("reshaping in space")
+#            for frame in vect.transpose([2,0,1]):
+#                newvect.append(cv2.resize(frame,(newsize[1],newsize[0]),interpolation=interpolation))
+#                
+#            newvect=np.dstack(newvect)
+#                        
+#            h1,w1,t1 = newvect.shape
+#            
+#            if (h1,w1) != newsize[:-1]:
+#                print(newvect.shape)
+#                print(newsize)
+#                raise Exception("Bad resizing!")
+#            
+#            if t != newsize: 
+#                print("reshaping in time")
+#                newvect=np.reshape(newvect,(h1*w1,t1))
+#                newvect=cv2.resize(newvect,(newsize[2],h1*w1),interpolation=interpolation)            
+#                newvect=np.reshape(newvect,newsize)
+#
+#    else:
+#            return resize_sk(vect, newsize, order = order, mode = 'reflect')        
+#        
+#    return newvect
 #%%
 def downscale(Y, ds, opencv = False):
     """downscaling without zero padding
@@ -379,34 +379,34 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
         Ain = np.reshape(Ain, ds + (K,), order='F')
 
         if len(ds) == 2:
-            Ain = resize(Ain, d + (K,), order=1)
+            Ain = resize(Ain, d + (K,))
 
         else:  # resize only deals with 2D images, hence apply resize twice
-            Ain = np.reshape([resize(a, d[1:] + (K,), order=1)
+            Ain = np.reshape([resize(a, d[1:] + (K,))
                               for a in Ain], (ds[0], d[1] * d[2], K), order='F')
-            Ain = resize(Ain, (d[0], d[1] * d[2], K), order=1)
+            Ain = resize(Ain, (d[0], d[1] * d[2], K))
 
         Ain = np.reshape(Ain, (np.prod(d), K), order='F')
 
     b_in = np.reshape(b_in, ds + (nb,), order='F')
 
     if len(ds) == 2:
-        b_in = resize(b_in, d + (nb,), order=1)
+        b_in = resize(b_in, d + (nb,))
     else:
-        b_in = np.reshape([resize(b, d[1:] + (nb,), order=1)
+        b_in = np.reshape([resize(b, d[1:] + (nb,))
                            for b in b_in], (ds[0], d[1] * d[2], nb), order='F')
-        b_in = resize(b_in, (d[0], d[1] * d[2], nb), order=1)
+        b_in = resize(b_in, (d[0], d[1] * d[2], nb))
 
     b_in = np.reshape(b_in, (np.prod(d), nb), order='F')
 
     if Ain.size > 0:
-        Cin = resize(Cin.astype(float), [K, T], order = 1)
+        Cin = resize(Cin.astype(float), [K, T])
 
         center = np.asarray([center_of_mass(a.reshape(d, order='F')) for a in Ain.T])
     else:
         center = []
 
-    f_in = resize(np.atleast_2d(f_in), [nb, T], order = 1)
+    f_in = resize(np.atleast_2d(f_in), [nb, T])
 
 
     if normalize_init is True:
