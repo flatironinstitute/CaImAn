@@ -301,8 +301,8 @@ class Comparison(object):
         if data['cnmpatch'] != cnmpatch:
             if data['cnmpatch'].keys() != cnmpatch.keys():
                 print('DIFFERENCES IN THE FIELDS OF CNMF')
-                print(set(cnmpatch.keys()) - set(data['cnmpatch'].keys()))
-                print(set(data['cnmpatch'].keys()) - set(cnmpatch.keys()))
+#                print(set(cnmpatch.keys()) - set(data['cnmpatch'].keys()))
+#                print(set(data['cnmpatch'].keys()) - set(cnmpatch.keys()))
             diffkeys = [k for k in data['cnmpatch'] if data['cnmpatch'][k] != cnmpatch[k]]
             for k in diffkeys:
                 print(k, ':', data['cnmpatch'][k], '->', cnmpatch[k])

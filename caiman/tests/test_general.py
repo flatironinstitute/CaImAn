@@ -297,10 +297,10 @@ def test_general():
 ############ assertions ##################
     pb = False
     if (comp.information['differences']['params_movie']):
-        print("you need to set the same movie paramters than the ground truth to have a real comparison (use the comp.see() function to explore it)")
+        print("you need to set the same movie parameters than the ground truth to have a real comparison (use the comp.see() function to explore it)")
         pb = True
     if (comp.information['differences']['params_cnm']):
-        print("you need to set the same cnmf paramters than the ground truth to have a real comparison (use the comp.see() function to explore it)")
+        print("you need to set the same cnmf parameters than the ground truth to have a real comparison (use the comp.see() function to explore it)")
         pb = True
     if (comp.information['diff']['rig']['isdifferent']):
         print("the rigid shifts are different from the groundtruth ")
