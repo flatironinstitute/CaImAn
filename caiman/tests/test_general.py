@@ -292,8 +292,11 @@ def test_general():
 #################### ########################
     comp.save_with_compare(istruth=False, params=params_movie, Cn=Cn)
     log_files = glob.glob('*_LOG_*')
-    for log_file in log_files:
-        os.remove(log_file)
+    try:
+        for log_file in log_files:
+            os.remove(log_file)
+    except:
+        print('Cannot remove log files')
 ############ assertions ##################
     pb = False
     if (comp.information['differences']['params_movie']):
