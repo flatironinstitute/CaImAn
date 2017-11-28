@@ -289,7 +289,7 @@ all_perfs = []
 reload = False
 plot_on = False
 save_on = False
-for params_movie in np.array(params_movies)[3:4]:
+for params_movie in np.array(params_movies)[1:2]:
 #    params_movie['gnb'] = 3
     params_display = {
         'downsample_ratio': .2,
