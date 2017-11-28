@@ -976,7 +976,7 @@ def motion_correct_parallel(file_names,fr=10,template=None,margins_out=0,
     try:
         if dview is not None:
             if 'multiprocessing' in str(type(dview)):
-                file_res = dview.map_async(process_movie_parallel, args_in).get(9999999)
+                file_res = dview.map_async(process_movie_parallel, args_in).get(4294967)
             else:
                 file_res = dview.map_sync(process_movie_parallel, args_in)                         
                 dview.results.clear()
@@ -2208,7 +2208,7 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
     if dview is not None:
         print('** Startting parallel motion correction **')
         if 'multiprocessing' in str(type(dview)):
-            res = dview.map_async(tile_and_correct_wrapper,pars).get(9999999)
+            res = dview.map_async(tile_and_correct_wrapper,pars).get(4294967)
         else:
             res = dview.map_sync(tile_and_correct_wrapper,pars)
         print('** Finished parallel motion correction **')

@@ -57,6 +57,7 @@ except:
 # 8: J123
 
 ind_dataset = 8
+
 use_VST = False
 plot_results = False
 
@@ -238,6 +239,7 @@ T1 = params_movie[ind_dataset]['T1']*len(fls)*epochs                 # total len
 N_samples = np.ceil(params_movie[ind_dataset]['fr']*params_movie[ind_dataset]['decay_time'])   # number of timesteps to consider when testing new neuron candidates
 min_SNR = global_params['min_SNR']#*np.sqrt(T1/2500.)                                      # adaptive way to set threshold (will be equal to min_SNR) 
 min_SNR = 2.33*np.log(T1/4000 + 1.46)
+
 #pr_inc = 1 - scipy.stats.norm.cdf(global_params['min_SNR'])           # inclusion probability of noise transient
 #thresh_fitness_raw = np.log(pr_inc)*N_samples       # event exceptionality threshold
 thresh_fitness_raw = scipy.special.log_ndtr(-min_SNR)*N_samples

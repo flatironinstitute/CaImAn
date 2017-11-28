@@ -206,7 +206,7 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
     A_ = np.zeros((d, nr + np.size(f, 0)))    #init A_
     if dview is not None:
         if 'multiprocessing' in str(type(dview)):
-            parallel_result = dview.map_async(regression_ipyparallel, pixel_groups).get(9999999)
+            parallel_result = dview.map_async(regression_ipyparallel, pixel_groups).get(4294967)
         else:
             parallel_result = dview.map_sync(regression_ipyparallel, pixel_groups)
             dview.results.clear()
@@ -394,7 +394,6 @@ def regression_ipyparallel(pars):
 
             As.append((px, idxs_C[px], a))
 
-    print('clearing variables')
     if isinstance(Y_name, basestring):
         del Y
     if isinstance(C_name, basestring):
@@ -495,7 +494,7 @@ def determine_search_location(A, dims, method='ellipse', min_size=3, max_size=8,
                 res = list(map(construct_ellipse_parallel, pars))
             else:
                 if 'multiprocessing' in str(type(dview)):
-                    res = dview.map_async(construct_ellipse_parallel, pars).get(9999999)
+                    res = dview.map_async(construct_ellipse_parallel, pars).get(4294967)
                 else:
                     res = dview.map_sync(construct_ellipse_parallel, pars)
             for r in res:
@@ -649,7 +648,7 @@ def threshold_components(A, dims, medw=None, thr_method='nrg', maxthr=0.1, nrgth
 
     if dview is not None:
         if 'multiprocessing' in str(type(dview)):
-            res = dview.map_async(threshold_components_parallel, pars).get(9999999)
+            res = dview.map_async(threshold_components_parallel, pars).get(4294967)
         else:
             res = dview.map_async(threshold_components_parallel, pars)
     else:
@@ -1262,9 +1261,6 @@ def computing_indicator(Y, A_in, b, C, f, nb, method, dims, min_size, max_size, 
                 scipy.sparse.hstack([A_in,scipy.sparse.coo_matrix(b)]), dims, method=method, min_size=min_size, max_size=max_size, dist=dist, expandCore=expandCore,
                 dview=dview)
             
-            
-        print("found spatial support for each component")
-        
     
         ind2_ = [np.where(iid_)[0]
                      if (np.size(np.where(iid_)[0]) > 0) and (np.min(np.where(iid_)[0])<nr) else [] for iid_ in dist_indicator]

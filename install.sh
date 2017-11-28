@@ -1,6 +1,6 @@
 #!/bin/bash
 #to lauch to install the file
-git clone https://github.com/simonsfoundation/CaImAn
+git clone https://github.com/flatironinstitute/CaImAn
 cd CaImAn/
 git pull
 conda create -n CaImAn ipython --file requirements_conda.txt    

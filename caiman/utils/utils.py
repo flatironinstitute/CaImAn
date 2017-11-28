@@ -1,11 +1,11 @@
 """ pure utilitaries(other)
- 
- all of other usefull functions 
- 
+
+ all of other usefull functions
+
 See Also
 ------------
 https://docs.python.org/2/library/urllib.html
- 
+
 """
 #\package Caiman/utils
 #\version   1.0
@@ -16,24 +16,23 @@ https://docs.python.org/2/library/urllib.html
 #\author: andrea giovannucci
 #\namespace utils
 #\pre none
-
-
 from __future__ import print_function
 
 
 import numpy as np
 import os
 from scipy.ndimage.filters import gaussian_filter
+import cv2
 try:
-    from urllib2 import urlopen as urlopen
-except:
-    from urllib.request import urlopen as urlopen
+    from urllib2 import urlopen
+except ImportError:
+    from urllib.request import urlopen
 try:  # python2
     import cPickle as pickle
 except ImportError:  # python3
     import pickle
 
-
+#%%
 def download_demo(name='Sue_2x_3000_40_-46.tif', save_folder=''):
     """download a file from the file list with the url of its location
 
@@ -101,7 +100,7 @@ def val_parse(v):
      returns:
      -------
 
-    v: python object 
+    v: python object
 
     """
 
@@ -296,3 +295,5 @@ def load_object(filename):
     with open(filename, 'rb') as input_obj:
         obj = pickle.load(input_obj)
     return obj
+
+

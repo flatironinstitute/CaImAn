@@ -7,7 +7,7 @@ package:
   version: "1.0"
 
 source:
-  git_url: https://github.com/simonsfoundation/CaImAn
+  git_url: https://github.com/flatironinstitute/CaImAn
 
 requirements:
   build:
@@ -49,7 +49,7 @@ app:
   summary:  "Caiman: calcium imaging analysis"
 
 about:
-  home: https://github.com/simonsfoundation/CaImAn
+  home: https://github.com/flatironinstitute/CaImAn
   license: BSD
   license_file: LICENSE
 

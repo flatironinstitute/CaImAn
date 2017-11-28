@@ -145,6 +145,24 @@ labels_gt_cur[np.concatenate(lab_neg_wrong)] = 1
 np.savez('ground_truth_components_curated_minions.npz',all_masks_gt = all_masks_gt,labels_gt_cur = labels_gt_cur)
 #%%
 pl.imshow(montage2d(all_masks_gt[labels_gt_cur==0].squeeze()))
+#%% LOAD PROCESSED LABELS
+with np.load('/mnt/home/jshangying/CaImAn/final_label/ground_truth_components_curated_minions_1.npz') as ld:
+    print(ld.keys())
+    locals().update(ld)
+#%%
+pl.figure(figsize=(20,30))
+class_id = 3
+
+for a in grouper(100,np.where(labels_gt_cur==class_id)[0]):
+     a_ = [aa for aa in a if aa is not None]
+     img_mont_ = all_masks_gt[np.array(a_)].squeeze()
+     shps_img = img_mont_.shape
+     img_mont = montage2d(img_mont_)
+     shps_img_mont = np.array(img_mont.shape)//50
+     pl.imshow(img_mont)    
+     inp = pl.pause(1)    
+     pl.cla()
+#     break
 #%% POSSIBILITY OF DIVIDING DATASETS IN 3 classes
 # def measure_trace_quality(traces_in):
 #     downsampfact = 500

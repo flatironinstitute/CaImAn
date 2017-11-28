@@ -1004,3 +1004,50 @@ def plot_shapes(Ab, dims, num_comps=15, size=(15, 15), comps_per_row=None,
                   cmap=cmap, interpolation='nearest')
         ax.axis('off')
     pl.subplots_adjust(0, 0, 1, 1, .06, .06)
+# pick thresholds
+def inspect_correlation_pnr(correlation_image_pnr,pnr_image):
+    """
+    inspect correlation and pnr images to infer the min_corr, min_pnr
+    
+    Parameters:
+    -----------
+    correlation_image_pnr: ndarray
+        correlation image created with caiman.summary_images.correlation_pnr
+        
+    pnr_image: ndarray
+        peak-to-noise image created with caiman.summary_images.correlation_pnr
+
+
+    Returns:
+    -------
+    
+        
+    """
+    fig = pl.figure(figsize=(10, 4))
+    pl.axes([0.05, 0.2, 0.4, 0.7])
+    im_cn = pl.imshow(correlation_image_pnr, cmap='jet')
+    pl.title('correlation image')
+    pl.colorbar()
+    pl.axes([0.5, 0.2, 0.4, 0.7])
+    im_pnr = pl.imshow(pnr_image, cmap='jet')
+    pl.title('PNR')
+    pl.colorbar()
+    
+    s_cn_max = Slider(pl.axes([0.05, 0.01, 0.35, 0.03]), 'vmax',
+                      correlation_image_pnr.min(), correlation_image_pnr.max(), valinit=correlation_image_pnr.max())
+    s_cn_min = Slider(pl.axes([0.05, 0.07, 0.35, 0.03]), 'vmin',
+                      correlation_image_pnr.min(), correlation_image_pnr.max(), valinit=correlation_image_pnr.min())
+    s_pnr_max = Slider(pl.axes([0.5, 0.01, 0.35, 0.03]), 'vmax',
+                       pnr_image.min(), pnr_image.max(), valinit=pnr_image.max())
+    s_pnr_min = Slider(pl.axes([0.5, 0.07, 0.35, 0.03]), 'vmin',
+                       pnr_image.min(), pnr_image.max(), valinit=pnr_image.min())
+    
+    def update(val):
+        im_cn.set_clim([s_cn_min.val, s_cn_max.val])
+        im_pnr.set_clim([s_pnr_min.val, s_pnr_max.val])
+        fig.canvas.draw_idle()
+    
+    s_cn_max.on_changed(update)
+    s_cn_min.on_changed(update)
+    s_pnr_max.on_changed(update)
+    s_pnr_min.on_changed(update)
