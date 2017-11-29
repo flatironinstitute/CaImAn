@@ -1,12 +1,6 @@
 from __future__ import print_function
 #%%
 from builtins import range
-try:
-#    get_ipython().magic(u'load_ext autoreload')
-#    get_ipython().magic(u'autoreload 2')
-    print((1))
-except:
-    print('NOT IPYTHON')
 
 import matplotlib as mpl
 mpl.use('TKAgg')
