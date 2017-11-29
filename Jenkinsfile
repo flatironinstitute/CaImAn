@@ -10,7 +10,7 @@ pipeline {
           agent {
             dockerfile {
               dir "test/linux-python2"
-              args '-v /etc/passwd:/etc/passwd -v /etc/group:/etc/group -v /home/jenkins/.conda/pkgs:/home/jenkins/.conda/pkgs:rw,z'
+              args '-v /etc/passwd:/etc/passwd -v /etc/group:/etc/group -v /home/jenkins/.conda2/pkgs:/home/jenkins/.conda/pkgs:rw,z'
             }
           }
           environment {
@@ -29,7 +29,7 @@ pipeline {
           agent {
             dockerfile {
               dir "test/linux-python3"
-              args '-v /etc/passwd:/etc/passwd -v /etc/group:/etc/group -v /home/jenkins/.conda/pkgs:/home/jenkins/.conda/pkgs:rw,z'
+              args '-v /etc/passwd:/etc/passwd -v /etc/group:/etc/group -v /home/jenkins/.conda3/pkgs:/home/jenkins/.conda/pkgs:rw,z'
             }
           }
           environment {
