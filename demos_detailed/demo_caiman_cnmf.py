@@ -13,7 +13,6 @@ from builtins import range
 try:
     if __IPYTHON__:
         print('Debugging!')
-        # this is used for debugging purposes only. allows to reload classes when changed
         get_ipython().magic('load_ext autoreload')
         get_ipython().magic('autoreload 2')
 except NameError:
@@ -244,7 +243,7 @@ pl.plot(C_dff.T)
 #%% STOP CLUSTER and clean up log files
 cm.stop_server()
 
-log_files = glob.glob('Yr*_LOG_*')
+log_files = glob.glob('*_LOG_*')
 for log_file in log_files:
     os.remove(log_file)
 
