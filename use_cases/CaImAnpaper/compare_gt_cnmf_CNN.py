@@ -214,7 +214,7 @@ params_movie = {'fname': '/mnt/ceph/neuro/labeling/J123_2015-11-20_L01_0/images/
                  'rf': 40,  # half-size of the patches in pixels. rf=25, patches are 50x50    20
                  'stride_cnmf': 20,  # amounpl.it of overlap between the patches in pixels
                  'K': 10,  # number of components per patch
-                 'gSig': [12,12],  # expected half size of neurons
+                 'gSig': [8,12],  # expected half size of neurons
                  'decay_time' : 0.5,
                  'fr' : 30,
                  'n_chunks': 10,
@@ -289,7 +289,7 @@ all_perfs = []
 reload = False
 plot_on = False
 save_on = True
-for params_movie in np.array(params_movies)[6:7]:
+for params_movie in np.array(params_movies)[:]:
 #    params_movie['gnb'] = 3
     params_display = {
         'downsample_ratio': .2,
