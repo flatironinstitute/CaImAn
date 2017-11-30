@@ -559,7 +559,7 @@ class CNMF(object):
                 
                 
                 options['spatial_params']['se'] = np.ones((1,) * len(dims), dtype=np.uint8)    
-                options['spatial_params']['update_background_components'] = True
+#                options['spatial_params']['update_background_components'] = True
                 print('update spatial ...')
                 A, b, C, f = update_spatial_components(
                         Yr, C = C, f = f, A_in = A, sn=sn, b_in = b, dview=self.dview, **options['spatial_params'])       
