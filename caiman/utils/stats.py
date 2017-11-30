@@ -11,7 +11,7 @@ from past.utils import old_div
 try:
     import numba
 except:
-    print("numba not found")
+    pass
 
 import numpy as np    
 
