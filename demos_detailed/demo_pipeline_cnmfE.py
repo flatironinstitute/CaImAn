@@ -109,7 +109,7 @@ cnm = cnmf.CNMF(n_processes=n_processes,
 cnm.fit(Y)
 
 # %% DISCARD LOW QUALITY COMPONENTS
-idx_components, idx_components_bad, fitness_raw, fitness_delta, r_values = estimate_components_quality_auto(
+idx_components, idx_components_bad, comp_SNR, r_values, pred_CNN = estimate_components_quality_auto(
                             Y, cnm.A, cnm.C, cnm.b, cnm.f, cnm.YrA, frate, 
                             decay_time, gSig, dims, dview = dview, 
                             min_SNR=min_SNR, r_values_min = r_values_min, use_cnn = False)

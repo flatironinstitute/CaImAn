@@ -411,7 +411,7 @@ def evaluate_components_placeholder(params):
 #%%
 def estimate_components_quality_auto(Y, A, C, b, f, YrA, frate, decay_time, gSig, dims, dview = None, min_SNR=2, r_values_min = 0.9, 
                                      r_values_lowest = 0, Npeaks = 10, use_cnn = True, thresh_cnn_min = 0.95, thresh_cnn_lowest = 0.1,
-                                     thresh_fitness_delta = -20.):
+                                     thresh_fitness_delta = -80.):
     
         ''' estimates the quality of component automatically
         
@@ -457,50 +457,56 @@ def estimate_components_quality_auto(Y, A, C, b, f, YrA, frate, decay_time, gSig
         Returns:
         --------
         
-        min_SNR: float
-            adaptive way to set threshold (will be equal to min_SNR) 
-
-        r_values_min: float
-            threshold on space consistency
+        idx_components: list
+            list of components that pass the tests
+        
+        idx_components_bad: list
+            list of components that fail the tests
             
-        thresh_fitness_delta: double
-            threshold on time variability (if nonsparse activity)      
+        comp_SNR: float
+            peak-SNR over the length of a transient for each component
             
+        r_values: float
+            space correlation values
+        
+        cnn_values: float
+            prediction values from the CNN classifier               
         '''        
-        N_samples = np.ceil(frate*decay_time).astype(np.int)    # number of timesteps to consider when testing new neuron candidates
-        thresh_fitness_raw = scipy.special.log_ndtr(-min_SNR)*N_samples # inclusion probability of noise transient
+
+        N_samples = np.ceil(frate*decay_time).astype(np.int)                # number of timesteps to consider when testing new neuron candidates
+        thresh_fitness_raw = scipy.special.log_ndtr(-min_SNR)*N_samples     # inclusion probability of noise transient
         
         fitness_min = scipy.special.log_ndtr(-min_SNR)*N_samples  # threshold on time variability        
-        thresh_fitness_raw_reject = scipy.special.log_ndtr(-0.5)*N_samples # maximum accepted value for threshold on exceptionality
+        thresh_fitness_raw_reject = scipy.special.log_ndtr(-0.5)*N_samples      # components with SNR lower than 0.5 will be rejected
         traces = C + YrA
 
         _, _ , fitness_raw, fitness_delta, r_values = estimate_components_quality(
             traces, Y, A, C, b, f, final_frate=frate, Npeaks=Npeaks, r_values_min=r_values_min, fitness_min=fitness_min,
             fitness_delta_min=thresh_fitness_delta, return_all=True, dview = dview, num_traces_per_group = 50, N = N_samples)
        
-        
+        comp_SNR = -norm.ppf(np.exp(fitness_raw/N_samples))
         idx_components_r = np.where((r_values >= r_values_min))[0]
         idx_components_raw = np.where(fitness_raw < thresh_fitness_raw)[0]
-        idx_components_delta = np.where(fitness_delta < thresh_fitness_delta)[0]   
 
         idx_components = []
         if use_cnn: 
-            neuron_class = 1# normally 1
+            neuron_class = 1 # normally 1
             predictions,final_crops = evaluate_components_CNN(A,dims,gSig)
             idx_components_cnn = np.where(predictions[:,neuron_class]>=thresh_cnn_min)[0]
             bad_comps = np.where((r_values <= r_values_lowest) | (fitness_raw >= thresh_fitness_raw_reject) | (predictions[:,neuron_class]<=thresh_cnn_lowest))[0]
             idx_components = np.union1d(idx_components,idx_components_cnn)
+            cnn_values = predictions
         else:
             bad_comps = np.where((r_values <= r_values_lowest) | (fitness_raw >= thresh_fitness_raw_reject))[0]
+            cnn_values = []
     
         idx_components = np.union1d(idx_components, idx_components_r)
         idx_components = np.union1d(idx_components, idx_components_raw)
-        idx_components = np.union1d(idx_components, idx_components_delta)            
-        idx_components = np.setdiff1d(idx_components,bad_comps)
+        #idx_components = np.union1d(idx_components, idx_components_delta)            
+        idx_components = np.setdiff1d(idx_components,bad_comps)        
+        idx_components_bad = np.setdiff1d(list(range(len(r_values))), idx_components)                
         
-        idx_components_bad = np.setdiff1d(list(range(len(r_values))), idx_components)
-        
-        return idx_components.astype(np.int),idx_components_bad.astype(np.int), fitness_raw, fitness_delta, r_values
+        return idx_components.astype(np.int),idx_components_bad.astype(np.int), comp_SNR, r_values, cnn_values
         
     
 #%%
