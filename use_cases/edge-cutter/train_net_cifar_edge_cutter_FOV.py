@@ -127,11 +127,10 @@ with np.load('use_cases/edge-cutter/residual_crops_all_classes.npz') as ld:
     labels_gt = ld['labels_gt']    
     all_masks_gt = all_masks_gt[labels_gt<2]
     labels_gt = labels_gt[labels_gt<2]
-#%%
-    
+#%%    
 batch_size = 128
 num_classes = 2
-epochs = 2
+epochs = 5
 test_fraction = 0.25
 augmentation = True
 # input image dimensions
@@ -164,28 +163,49 @@ print(x_test.shape[0], 'test samples')
 #y_test = keras.utils.to_categorical(y_test, num_classes)
 #%%
 
+#def get_conv(input_shape=(48,48,1), filename=None):
+#    model = Sequential()
+##    model.add(Lambda(lambda x: (x-np.mean(x))/np.std(x),input_shape=input_shape, output_shape=input_shape))
+#    model.add(Conv2D(32, (3, 3), activation='relu', name='conv1', input_shape=input_shape, padding="same"))
+#    model.add(Conv2D(32, (3, 3), activation='relu', name='conv2', padding="same"))
+#    model.add(MaxPooling2D(pool_size=(2,2)))
+#    model.add(Dropout(0.25))
+#    
+#    model.add(Conv2D(48, (3, 3), name = 'conv3', padding='same'))
+#    model.add(Activation('relu'))
+#    model.add(Conv2D(48, (3, 3), name = 'conv4', padding='same'))
+#    model.add(Activation('relu'))
+#    model.add(MaxPooling2D(pool_size=(3, 3)))
+#    model.add(Dropout(0.25))
+#    
+#    model.add(Conv2D(256,(8,8), activation="relu", name="dense1")) # This was Dense(128)
+#    model.add(Dropout(0.5))
+#    model.add(Conv2D(1, (1,1), name="dense2", activation="tanh")) # This was Dense(1)
+#    if filename:
+#        model.load_weights(filename)        
+#    return model
+
 def get_conv(input_shape=(48,48,1), filename=None):
     model = Sequential()
 #    model.add(Lambda(lambda x: (x-np.mean(x))/np.std(x),input_shape=input_shape, output_shape=input_shape))
     model.add(Conv2D(32, (3, 3), activation='relu', name='conv1', input_shape=input_shape, padding="same"))
     model.add(Conv2D(32, (3, 3), activation='relu', name='conv2', padding="same"))
-    model.add(MaxPooling2D(pool_size=(2,2)))
+    model.add(MaxPooling2D(pool_size=(4,4)))
     model.add(Dropout(0.25))
     
-    model.add(Conv2D(48, (3, 3), name = 'conv3', padding='same'))
+    model.add(Conv2D(64, (3, 3), name = 'conv3', padding='same'))
     model.add(Activation('relu'))
-    model.add(Conv2D(48, (3, 3), name = 'conv4', padding='same'))
+    model.add(Conv2D(64, (3, 3), name = 'conv4', padding='same'))
     model.add(Activation('relu'))
-    model.add(MaxPooling2D(pool_size=(3, 3)))
+    model.add(MaxPooling2D(pool_size=(4, 4)))
     model.add(Dropout(0.25))
     
-    model.add(Conv2D(256,(8,8), activation="relu", name="dense1")) # This was Dense(128)
+    model.add(Conv2D(256,(3,3), activation="relu", name="dense1")) # This was Dense(128)
     model.add(Dropout(0.5))
     model.add(Conv2D(1, (1,1), name="dense2", activation="tanh")) # This was Dense(1)
     if filename:
         model.load_weights(filename)        
     return model
-
 
 
 

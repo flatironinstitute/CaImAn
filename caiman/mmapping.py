@@ -293,7 +293,8 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
         if is_3D:
             #import tifffile
             #            print("Using tifffile library instead of skimage because of  3D")
-            Yr = f if isinstance(f, basestring) else tifffile.imread(f)
+
+            Yr = f if not(isinstance(f, basestring)) else tifffile.imread(f)
             if idx_xy is None:
                 Yr = Yr[remove_init:]
             elif len(idx_xy) == 2:
@@ -330,6 +331,7 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
                 Yr = cm.movie(Yr, fr=1)
 
             Yr = Yr.resize(fx=fx, fy=fy, fz=fz)
+
         T, dims = Yr.shape[0], Yr.shape[1:]
         Yr = np.transpose(Yr, list(range(1, len(dims) + 1)) + [0])
         Yr = np.reshape(Yr, (np.prod(dims), T), order='F')

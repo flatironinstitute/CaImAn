@@ -88,31 +88,56 @@ from keras.models import Model
 
 import tensorflow as tf
 #%% model FULL FOV
+#def get_conv(input_shape=(48,48,1), filename=None):
+#    model = Sequential()
+##    model.add(Lambda(lambda x: (x-np.mean(x))/np.std(x),input_shape=input_shape, output_shape=input_shape))
+#    model.add(Conv2D(32, (3, 3), activation='relu', name='conv1', input_shape=input_shape, padding="same"))
+#    model.add(Conv2D(32, (3, 3), activation='relu', name='conv2', padding="same"))
+#    model.add(MaxPooling2D(pool_size=(2,2)))
+#    model.add(Dropout(0.25))
+#    
+#    model.add(Conv2D(48, (3, 3), name = 'conv3', padding='same'))
+#    model.add(Activation('relu'))
+#    model.add(Conv2D(48, (3, 3), name = 'conv4', padding='same'))
+#    model.add(Activation('relu'))
+#    model.add(MaxPooling2D(pool_size=(3, 3)))
+#    model.add(Dropout(0.25))
+#    
+#    model.add(Conv2D(256,(8,8), activation="relu", name="dense1")) # This was Dense(128)
+#    model.add(Dropout(0.5))
+#    model.add(Conv2D(1, (1,1), name="dense2", activation="tanh")) # This was Dense(1)
+#    if filename:
+#        model.load_weights(filename)        
+#    return model
 def get_conv(input_shape=(48,48,1), filename=None):
     model = Sequential()
 #    model.add(Lambda(lambda x: (x-np.mean(x))/np.std(x),input_shape=input_shape, output_shape=input_shape))
     model.add(Conv2D(32, (3, 3), activation='relu', name='conv1', input_shape=input_shape, padding="same"))
     model.add(Conv2D(32, (3, 3), activation='relu', name='conv2', padding="same"))
-    model.add(MaxPooling2D(pool_size=(2,2)))
+    model.add(MaxPooling2D(pool_size=(4,4)))
     model.add(Dropout(0.25))
     
-    model.add(Conv2D(48, (3, 3), name = 'conv3', padding='same'))
+    model.add(Conv2D(64, (3, 3), name = 'conv3', padding='same'))
     model.add(Activation('relu'))
-    model.add(Conv2D(48, (3, 3), name = 'conv4', padding='same'))
+    model.add(Conv2D(64, (3, 3), name = 'conv4', padding='same'))
     model.add(Activation('relu'))
-    model.add(MaxPooling2D(pool_size=(3, 3)))
+    model.add(MaxPooling2D(pool_size=(4, 4)))
     model.add(Dropout(0.25))
     
-    model.add(Conv2D(256,(8,8), activation="relu", name="dense1")) # This was Dense(128)
+    model.add(Conv2D(256,(3,3), activation="relu", name="dense1")) # This was Dense(128)
     model.add(Dropout(0.5))
     model.add(Conv2D(1, (1,1), name="dense2", activation="tanh")) # This was Dense(1)
     if filename:
         model.load_weights(filename)        
     return model
 
-heatmodel = get_conv(input_shape=(None,None,1), filename='use_cases/edge-cutter/residual_net_2classes_FOV.h5')
+
+#heatmodel = get_conv(input_shape=(None,None,1), filename='use_cases/edge-cutter/residual_net_2classes_FOV.h5')
+
+heatmodel = get_conv(input_shape=(None,None,1), filename='use_cases/edge-cutter/residual_new_2classes_FOV_3_3.h5')
+
 import matplotlib.pylab as plt
-def locate(data, plot = False, rectangle = False):
+def locate(data, plot = False, rectangle = False, total_pooling = 16):
 #    data = cv2.cvtColor(cv2.imread("test1.jpg"), cv2.COLOR_BGR2RGB)
     
     heatmap = 1-heatmodel.predict(data.reshape(1,data.shape[0],data.shape[1],data.shape[2]))
@@ -131,10 +156,12 @@ def locate(data, plot = False, rectangle = False):
         y = (yy[heatmap[0,:,:,0]>0.99])
         
         for i,j in zip(x,y):
-            cv2.rectangle(data, (i*6,j*6), (i*6+48,j*6+48),1)
+            cv2.rectangle(data, (i*total_pooling,j*total_pooling), (i*total_pooling+48,j*total_pooling+48),1)
             
     return heatmap, data
 #%% MODEL CLASSIFIER ON PATCH
+#json_path = 'use_cases/edge-cutter/residual_classifier_2classes.json'
+#model_path = 'use_cases/edge-cutter/residual_classifier_2classes.h5'
 json_path = 'use_cases/edge-cutter/residual_classifier_2classes.json'
 model_path = 'use_cases/edge-cutter/residual_classifier_2classes.h5'
 json_file = open(json_path, 'r')
@@ -239,7 +266,7 @@ mean_proj = np.mean(m_res,0)
 std_mov = mean_proj.std()  
 min_mov = np.median(mean_proj)
 #%%
-full_fov = True # will use either the overfeat like (full FOV, train_net_cifar_edge_cutter_FOV.py) network or the single patch one (train_net_cifar_edge_cutter.py)
+full_fov = False # will use either the overfeat like (full FOV, train_net_cifar_edge_cutter_FOV.py) network or the single patch one (train_net_cifar_edge_cutter.py)
 count_start = 30
 dims = np.array(dims)
 #bin_ = 10
@@ -269,7 +296,7 @@ for count in range(count_start,T):
         predictions = loaded_model.predict(np.array(avg_crops )[:,:,:,np.newaxis], batch_size=32, verbose=1) 
         
         for pred,cm_ in zip(predictions,cms_total):
-            if pred[0]>0.75:
+            if pred[0]>0.95:
                 image_orig = cv2.rectangle(image_orig,(cm_[1]-half_crop, cm_[0]-half_crop),(cm_[1]+half_crop, cm_[0]+half_crop),10)
         
     #        
@@ -280,6 +307,6 @@ for count in range(count_start,T):
     #    final_crops = np.array([cv2.resize(im/np.linalg.norm(im),(patch_size ,patch_size)) for im in crop_imgs])
 
     
-    cv2.imshow('frame', cv2.resize(image_orig,(dims[1]*3,dims[0]*3)))
+    cv2.imshow('frame', cv2.resize(image_orig,(dims[1]*2,dims[0]*2)))
     cv2.waitKey(1)
     

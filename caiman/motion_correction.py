@@ -364,7 +364,45 @@ def apply_shift_online(movie_iterable,xy_shifts,save_base_name=None,order='F'):
     else:
         return np.array(new_mov) 
 #%%
-
+def motion_correct_oneP_rigid(filename,gSig_filt,max_shifts, dview=None, splits_rig = 10, save_movie = True):
+    ''' Perform rigid motion correction on one photon imaging movies
+    filename: str
+        name of the file to correct
+        
+    gSig_filt:
+        size of the filter. If algorithm does not work change this parameters
+        
+    max_shifts: tuple of ints
+        max shifts in x and y allowed
+        
+        
+    dview:
+        handle to cluster
+        
+    splits_rig: int
+        number of chunks for parallelizing motion correction (remember that it should hold that length_movie/num_splits_to_process_rig>100)
+        
+    save_movie: bool
+        whether to save the movie in memory mapped format
+    
+    Returns:
+    --------
+    
+    Motion correction object
+    '''
+    min_mov = np.array([cm.motion_correction.low_pass_filter_space(m_,gSig_filt) for m_ in cm.load(filename, subindices=range(400))]).min()    
+    new_templ = None    
+    
+    # TODO: needinfo how the classes works
+    mc = MotionCorrect(filename, min_mov,
+                       dview=dview, max_shifts=max_shifts, niter_rig=1, splits_rig=splits_rig,
+                       num_splits_to_process_rig=None,
+                       shifts_opencv=True, nonneg_movie=True, gSig_filt = gSig_filt)
+    
+    mc.motion_correct_rigid(save_movie=save_movie,template = new_templ)  
+    
+    return mc
+#%%
 
 def motion_correct_online_multifile(list_files,add_to_movie,order = 'C', **kwargs):
     # todo todocument
