@@ -485,28 +485,30 @@ def estimate_components_quality_auto(Y, A, C, b, f, YrA, frate, decay_time, gSig
             fitness_delta_min=thresh_fitness_delta, return_all=True, dview = dview, num_traces_per_group = 50, N = N_samples)
        
         comp_SNR = -norm.ppf(np.exp(fitness_raw/N_samples))
+        comp_SNR_delta = -norm.ppf(np.exp(fitness_delta/N_samples))
         idx_components_r = np.where((r_values >= r_values_min))[0]
         idx_components_raw = np.where(fitness_raw < thresh_fitness_raw)[0]
-
+        idx_components_delta = np.where(fitness_delta < thresh_fitness_delta)[0]         
         idx_components = []
+
         if use_cnn: 
             neuron_class = 1 # normally 1
             predictions,final_crops = evaluate_components_CNN(A,dims,gSig)
             idx_components_cnn = np.where(predictions[:,neuron_class]>=thresh_cnn_min)[0]
             bad_comps = np.where((r_values <= r_values_lowest) | (fitness_raw >= thresh_fitness_raw_reject) | (predictions[:,neuron_class]<=thresh_cnn_lowest))[0]
             idx_components = np.union1d(idx_components,idx_components_cnn)
-            cnn_values = predictions
+            cnn_values = predictions[:,neuron_class]
         else:
             bad_comps = np.where((r_values <= r_values_lowest) | (fitness_raw >= thresh_fitness_raw_reject))[0]
             cnn_values = []
     
         idx_components = np.union1d(idx_components, idx_components_r)
         idx_components = np.union1d(idx_components, idx_components_raw)
-        #idx_components = np.union1d(idx_components, idx_components_delta)            
+        idx_components = np.union1d(idx_components, idx_components_delta)            
         idx_components = np.setdiff1d(idx_components,bad_comps)        
         idx_components_bad = np.setdiff1d(list(range(len(r_values))), idx_components)                
         
-        return idx_components.astype(np.int),idx_components_bad.astype(np.int), comp_SNR, r_values, cnn_values
+        return idx_components.astype(np.int),idx_components_bad.astype(np.int), comp_SNR, comp_SNR_delta, r_values, cnn_values
         
     
 #%%
