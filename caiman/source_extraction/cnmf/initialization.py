@@ -293,6 +293,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
         if img is None:
             img = np.mean(Y, axis=-1)
             img += np.median(img)
+            img += np.finfo(np.float32).eps
 
         Y = old_div(Y, np.reshape(img, d + (-1,), order='F'))
         alpha_snmf /= np.mean(img)
@@ -618,6 +619,7 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1,
     """
     print("Greedy initialization of spatial and temporal components using spatial Gaussian filtering")
     d = np.shape(Y)
+    Y[np.isnan(Y)] = 0
     med = np.median(Y, axis=-1)
     Y = Y - med[..., np.newaxis]
     gHalf = np.array(gSiz) // 2
@@ -679,6 +681,7 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1,
             else:
                 v[[slice(*a) for a in Mod]] = np.sum(rho[[slice(*a) for a in Mod]]**2, axis=-1)
 
+    
     res = np.reshape(Y, (np.prod(d[0:-1]), d[-1]), order='F') + med.flatten(order='F')[:, None]
 #    model = NMF(n_components=nb, init='random', random_state=0)
     model = NMF(n_components=nb, init='nndsvdar')
@@ -730,7 +733,7 @@ def finetune(Y, cin, nIter=5):
     # we compute the multiplication of patches per traces ( non negatively )
     for _ in range(nIter):
         a = np.maximum(np.dot(Y, cin), 0)
-        a = old_div(a, np.sqrt(np.sum(a**2)))  # compute the l2/a
+        a = old_div(a, np.sqrt(np.sum(a**2)) + np.finfo(np.float32).eps)  # compute the l2/a
         # c as the variation of thoses patches
         cin = np.sum(Y * a[..., np.newaxis], tuple(np.arange(Y.ndim - 1)))
 

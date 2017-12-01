@@ -247,13 +247,13 @@ def evaluate_components_CNN(A, dims, gSig, model_name = 'use_cases/CaImAnpaper/c
         loaded_model = model_from_json(loaded_model_json)
         loaded_model.load_weights(model_name +'.h5')
         print("Loaded model from disk")
-
-    half_crop = np.minimum(gSig[0]*4+1,patch_size)
+    half_crop = np.minimum(gSig[0]*4+1, patch_size),
+                np.minimum(gSig[1]*4+1, patch_size)
     dims = np.array(dims)
-    coms = [scipy.ndimage.center_of_mass(mm.toarray().reshape(dims,order='F')) for mm in A.tocsc().T]    
-    coms = np.maximum(coms,half_crop)
-    coms = np.array([np.minimum(cms,dims-half_crop) for cms in coms]).astype(np.int)
-    crop_imgs = [mm.toarray().reshape(dims,order='F')[com[0]-half_crop:com[0]+half_crop, com[1]-half_crop:com[1]+half_crop] for mm,com in zip(A.tocsc().T,coms) ]
+    coms = [scipy.ndimage.center_of_mass(mm.toarray().reshape(dims, order='F')) for mm in A.tocsc().T]  
+    coms = np.maximum(coms, half_crop)
+    coms = np.array([np.minimum(cms, dims-half_crop) for cms in coms]).astype(np.int)
+    crop_imgs = [mm.toarray().reshape(dims,i order='F')[com[0]-half_crop[0]:com[0]+half_crop[0], com[1]-half_crop[1]:com[1]+half_crop[1]] for mm,com in zip(A.tocsc().T,coms) ]
     final_crops = np.array([cv2.resize(im/np.linalg.norm(im),(patch_size ,patch_size )) for im in crop_imgs])
     predictions = loaded_model.predict(final_crops[:,:,:,np.newaxis], batch_size=32, verbose=1)
 
@@ -406,6 +406,108 @@ def evaluate_components_placeholder(params):
     return fitness_raw, fitness_delta, [], [], r_values, significant_samples 
         
 #%%
+def estimate_components_quality_auto(Y, A, C, b, f, YrA, frate, decay_time, gSig, dims, dview = None, min_SNR=2, r_values_min = 0.9, 
+                                     r_values_lowest = 0, Npeaks = 10, use_cnn = True, thresh_cnn_min = 0.95, thresh_cnn_lowest = 0.1,
+                                     thresh_fitness_delta = -80.):
+    
+        ''' estimates the quality of component automatically
+        
+        Parameters:
+        -----------        
+        Y, A, C, b, f, YrA: 
+            from CNMF
+        
+        frate: 
+            frame rate in Hz
+        
+        decay_time:
+            decay time of transients/indocator
+        
+        gSig:
+            same as CNMF parameter
+            
+        dims:
+            same as CNMF parameter
+            
+        dview:
+            same as CNMF parameter
+            
+        min_SNR:
+            adaptive way to set threshold (will be equal to min_SNR) 
+        
+        r_values_min:
+            all r values above this are accepted (spatial consistency metric)             
+            
+        r_values_lowest:
+            all r values above this are rejected (spatial consistency metric)             
+            
+        use_cnn:
+            whether to use CNN to filter components (not for 1 photon data)
+                        
+        thresh_cnn_min:
+            all samples with probabilities larger than this are accepted
+            
+        thresh_cnn_lowest:
+            all samples with probabilities smaller than this are rejected
+        
+        
+        Returns:
+        --------
+        
+        idx_components: list
+            list of components that pass the tests
+        
+        idx_components_bad: list
+            list of components that fail the tests
+            
+        comp_SNR: float
+            peak-SNR over the length of a transient for each component
+            
+        r_values: float
+            space correlation values
+        
+        cnn_values: float
+            prediction values from the CNN classifier               
+        '''        
+
+        N_samples = np.ceil(frate*decay_time).astype(np.int)                # number of timesteps to consider when testing new neuron candidates
+        thresh_fitness_raw = scipy.special.log_ndtr(-min_SNR)*N_samples     # inclusion probability of noise transient
+        
+        fitness_min = scipy.special.log_ndtr(-min_SNR)*N_samples  # threshold on time variability        
+        thresh_fitness_raw_reject = scipy.special.log_ndtr(-0.5)*N_samples      # components with SNR lower than 0.5 will be rejected
+        traces = C + YrA
+
+        _, _ , fitness_raw, fitness_delta, r_values = estimate_components_quality(
+            traces, Y, A, C, b, f, final_frate=frate, Npeaks=Npeaks, r_values_min=r_values_min, fitness_min=fitness_min,
+            fitness_delta_min=thresh_fitness_delta, return_all=True, dview = dview, num_traces_per_group = 50, N = N_samples)
+       
+        comp_SNR = -norm.ppf(np.exp(fitness_raw/N_samples))
+        idx_components_r = np.where((r_values >= r_values_min))[0]
+        idx_components_raw = np.where(fitness_raw < thresh_fitness_raw)[0]
+
+        idx_components = []
+        if use_cnn: 
+            neuron_class = 1 # normally 1
+            predictions,final_crops = evaluate_components_CNN(A,dims,gSig)
+            idx_components_cnn = np.where(predictions[:,neuron_class]>=thresh_cnn_min)[0]
+            bad_comps = np.where((r_values <= r_values_lowest) | (fitness_raw >= thresh_fitness_raw_reject) | (predictions[:,neuron_class]<=thresh_cnn_lowest))[0]
+            idx_components = np.union1d(idx_components,idx_components_cnn)
+            cnn_values = predictions
+        else:
+            bad_comps = np.where((r_values <= r_values_lowest) | (fitness_raw >= thresh_fitness_raw_reject))[0]
+            cnn_values = []
+    
+        idx_components = np.union1d(idx_components, idx_components_r)
+        idx_components = np.union1d(idx_components, idx_components_raw)
+        #idx_components = np.union1d(idx_components, idx_components_delta)            
+        idx_components = np.setdiff1d(idx_components,bad_comps)        
+        idx_components_bad = np.setdiff1d(list(range(len(r_values))), idx_components)                
+        
+        return idx_components.astype(np.int),idx_components_bad.astype(np.int), comp_SNR, r_values, cnn_values
+        
+    
+#%%
+    
 def estimate_components_quality(traces, Y, A, C, b, f, final_frate = 30, Npeaks=10, r_values_min = .95,
                                 fitness_min = -100,fitness_delta_min = -100, return_all = False, N =5,
                                 remove_baseline = True, dview = None, robust_std = False,Athresh=0.1,thresh_C=0.3, num_traces_per_group = 20):

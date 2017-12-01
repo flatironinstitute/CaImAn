@@ -40,7 +40,7 @@ inputs = [{'fname':'/mnt/ceph/neuro/labeling/neurofinder.03.00.test/images/final
 #fname_new = '/mnt/ceph/neuro/labeling/neurofinder.00.00/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_2936_.mmap'
 #fname_new = '/mnt/ceph/neuro/labeling/neurofinder.01.01/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_1825_.mmap'
 
-for inps in inputs[-2:]:
+for inps in inputs[:1]:
     fname_new = inps['fname']
     gSig = inps['gSig']
     gt_file = os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:-4] + 'match_masks.npz')
@@ -261,7 +261,7 @@ for inps in inputs[-2:]:
         #    cv2.imshow('frame', cv2.resize(image_no_neurons*img_temp*3,(dims[1]*3,dims[0]*3)))
         #    cv2.imshow('frame', cv2.resize(img_temp*1,(dims[1]*3,dims[0]*3)))
         #    cv2.waitKey(1)
-        np.savez(base_name+'.npz',all_dubious_crops = all_dubious_crops, all_pos_crops = all_pos_crops, all_neg_crops = all_neg_crops, gSig = gSig)
+#        np.savez(base_name+'.npz',all_dubious_crops = all_dubious_crops, all_pos_crops = all_pos_crops, all_neg_crops = all_neg_crops, gSig = gSig)
         print([len(all_neg_crops),len(all_pos_crops),len(all_dubious_crops)])
         
 #%%

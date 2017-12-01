@@ -559,7 +559,7 @@ class CNMF(object):
                 
                 
                 options['spatial_params']['se'] = np.ones((1,) * len(dims), dtype=np.uint8)    
-                options['spatial_params']['update_background_components'] = True
+#                options['spatial_params']['update_background_components'] = True
                 print('update spatial ...')
                 A, b, C, f = update_spatial_components(
                         Yr, C = C, f = f, A_in = A, sn=sn, b_in = b, dview=self.dview, **options['spatial_params'])       
@@ -605,8 +605,6 @@ class CNMF(object):
                         g=None, lam=None, s_min=None, bl=None, use_dense=True, N_samples_exceptionality = 5,
                         max_num_added = 1, min_num_trial = 1):
 
-        self.expected_comps = expected_comps
-
         if idx_components is None:
             idx_components = range(self.A.shape[-1])
 
@@ -628,6 +626,10 @@ class CNMF(object):
 
         self.N = self.A2.shape[-1]
         self.M = self.gnb + self.N
+        
+        if expected_comps <= self.N + max_num_added:
+            expected_comps = self.N + max_num_added + 200
+        self.expected_comps = expected_comps
 
         if Yr.shape[-1] != self.initbatch:
             raise Exception(
@@ -724,9 +726,9 @@ class CNMF(object):
         self.CY = self.CY.astype(np.float32)
         self.CC = self.CC.astype(np.float32)
         print('Expecting ' + str(self.expected_comps) + ' components')
-        self.CY.resize([self.expected_comps + 1, self.CY.shape[-1]])
+        self.CY.resize([self.expected_comps + self.gnb, self.CY.shape[-1]])
         if use_dense:
-            self.Ab_dense = np.zeros((self.CY.shape[-1], self.expected_comps + 1),
+            self.Ab_dense = np.zeros((self.CY.shape[-1], self.expected_comps + self.gnb),
                                      dtype=np.float32)
             self.Ab_dense[:, :self.Ab.shape[1]] = self.Ab.toarray()
         self.C_on = np.vstack([self.noisyC[:self.gnb, :], self.C_on.astype(np.float32)])
@@ -845,7 +847,7 @@ class CNMF(object):
             if num_added > 0:
                 self.N += num_added
                 self.M += num_added
-                if self.N >= self.expected_comps:
+                if self.N + self.max_num_added > self.expected_comps:
                     self.expected_comps += 200
                     self.CY.resize([self.expected_comps + nb_, self.CY.shape[-1]])
                     # refcheck can trigger "ValueError: cannot resize an array references or is referenced
