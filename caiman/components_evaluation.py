@@ -410,7 +410,7 @@ def evaluate_components_placeholder(params):
         
 #%%
 def estimate_components_quality_auto(Y, A, C, b, f, YrA, frate, decay_time, gSig, dims, dview = None, min_SNR=2, r_values_min = 0.9, 
-                                     r_values_lowest = 0, Npeaks = 10, use_cnn = True, thresh_cnn_min = 0.95, thresh_cnn_lowest = 0.1,
+                                     r_values_lowest = 0.2, Npeaks = 10, use_cnn = True, thresh_cnn_min = 0.95, thresh_cnn_lowest = 0.1,
                                      thresh_fitness_delta = -80.):
     
         ''' estimates the quality of component automatically
@@ -476,7 +476,7 @@ def estimate_components_quality_auto(Y, A, C, b, f, YrA, frate, decay_time, gSig
         N_samples = np.ceil(frate*decay_time).astype(np.int)                # number of timesteps to consider when testing new neuron candidates
         thresh_fitness_raw = scipy.special.log_ndtr(-min_SNR)*N_samples     # inclusion probability of noise transient
         
-        fitness_min = scipy.special.log_ndtr(-min_SNR)*N_samples  # threshold on time variability        
+        fitness_min = scipy.special.log_ndtr(-min_SNR)*N_samples                # threshold on time variability        
         thresh_fitness_raw_reject = scipy.special.log_ndtr(-0.5)*N_samples      # components with SNR lower than 0.5 will be rejected
         traces = C + YrA
 
@@ -495,7 +495,7 @@ def estimate_components_quality_auto(Y, A, C, b, f, YrA, frate, decay_time, gSig
             idx_components_cnn = np.where(predictions[:,neuron_class]>=thresh_cnn_min)[0]
             bad_comps = np.where((r_values <= r_values_lowest) | (fitness_raw >= thresh_fitness_raw_reject) | (predictions[:,neuron_class]<=thresh_cnn_lowest))[0]
             idx_components = np.union1d(idx_components,idx_components_cnn)
-            cnn_values = predictions
+            cnn_values = predictions[:,1]
         else:
             bad_comps = np.where((r_values <= r_values_lowest) | (fitness_raw >= thresh_fitness_raw_reject))[0]
             cnn_values = []
