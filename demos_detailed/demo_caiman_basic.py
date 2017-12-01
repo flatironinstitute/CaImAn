@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
 Stripped demo for running the CNMF source extraction algorithm with CaImAn and
