@@ -3,15 +3,9 @@
 
 This file contains
 
-We put arrays o   qwn disk as raw bytes, extending along the first dimension.
-Alongside each array x we ensure the value x.dtype which stores the string
-Description h
+We put arrays on disk as raw bytes, extending along the first dimension.
+Alongside each array x we ensure the value x.dtype which stores the data type.
 
-See Also:
-------------
-
-@url
-.. image::
 @author andrea giovannucci
 """
 # \package caiman
@@ -52,57 +46,16 @@ def get_patches_from_image(img,shapes,overlaps):
 
     return imgs, coords_2d
 #%%
-def extract_patch_coordinates_old(d1,d2,rf=(7,7),stride = (2,2)):
-    """
-    Function that partition the FOV in patches
-
-    and return the indexed in 2D and 1D (flatten, order='F') formats
-
-    Parameters:
-    ----------
-    d1,d2: int
-        dimensions of the original matrix that will be  divided in patches
-
-    rf: int
-        radius of receptive field, corresponds to half the size of the square patch
-
-    stride: int
-        degree of overlap of the patches
-    """
-    coords_flat=[]
-    rf1,rf2 = rf
-    stride1,stride2 = stride
-    iter_0 = list(range(rf1,d1-rf1,2*rf1-stride1))+[d1-rf1]
-    iter_1 = list(range(rf2,d2-rf2,2*rf2-stride2))+[d2-rf2]
-    coords_2d = np.empty([len(iter_0),len(iter_1),2],dtype=np.object)
-    for count_0,xx in enumerate(iter_0):
-        coords_x=np.array(list(range(xx - rf1, xx + rf1 + 1)))
-        coords_x = coords_x[(coords_x >= 0) & (coords_x < d1)]
-        for count_1,yy in enumerate(iter_1):
-
-
-            coords_y = np.array(list(range(yy - rf2, yy + rf2 + 1)))
-            coords_y = coords_y[(coords_y >= 0) & (coords_y < d2)]
-
-            idxs = np.meshgrid( coords_x,coords_y)
-
-            coords_2d[count_0,count_1,0] = idxs[0]
-            coords_2d[count_0,count_1,1] = idxs[1]
-            coords_ = np.ravel_multi_index(idxs,(d1,d2),order='F')
-            coords_flat.append(coords_.flatten())
-
-    return coords_flat,coords_2d
-#%%
 def extract_patch_coordinates(dims, rf, stride, border_pix = 0):
     """
-    Function that partition the FOV in patches
+    Partition the FOV in patches
 
     and return the indexed in 2D and 1D (flatten, order='F') formats
 
     Parameters:
     ----------
     dims: tuple of int
-        dimensions of the original matrix that will be  divided in patches
+        dimensions of the original matrix that will be divided in patches
 
     rf: tuple of int
         radius of receptive field, corresponds to half the size of the square patch
@@ -307,10 +260,7 @@ def start_server(slurm_script=None, ipcluster="ipcluster", ncpus = None):
 
 #%%
 def shell_source(script):
-    """Sometime you want to emulate the action of "source"
-
-    in bash, settings some environment variables. Here is a way to do it.
-    """
+    """ Run a source-style bash script, copy resulting env vars to current process. """
     pipe = subprocess.Popen(". %s; env" % script,  stdout=subprocess.PIPE, shell=True)
     output = pipe.communicate()[0]
     env = dict()
@@ -394,7 +344,8 @@ def stop_server(ipcluster='ipcluster',pdir=None,profile=None, dview = None):
     sys.stdout.write(" done\n")
 #%%
 def setup_cluster(backend = 'multiprocessing',n_processes = None,single_thread = False):
-    """ Restart if necessary the pipyparallel cluster, and manages the case of SLURM
+    """ If necessary, restart the pipyparallel cluster. If we have a slurm backend,
+        restart that instead.
 
     Parameters:
     ----------
