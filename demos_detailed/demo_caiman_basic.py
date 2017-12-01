@@ -10,12 +10,12 @@ from builtins import str
 from builtins import range
 try:
     if __IPYTHON__:
-        print('Debugging!')
+        print('Running under ipython')
         # this is used for debugging purposes only. allows to reload classes when changed
         get_ipython().magic('load_ext autoreload')
         get_ipython().magic('autoreload 2')
 except NameError:
-    print('Not IPYTHON')
+    print('ipython not detected')
     pass
 
 import numpy as np
@@ -27,12 +27,16 @@ from caiman.source_extraction.cnmf import cnmf as cnmf
 import os
 #%% start cluster
 c,dview,n_processes = cm.cluster.setup_cluster(backend = 'local',n_processes = None,single_thread = False)
-#%% FOR LOADING ALL TIFF FILES IN A FILE AND SAVING THEM ON A SINGLE MEMORY MAPPABLE FILE
-fnames = ['example_movies/demoMovie.tif'] # can actually be a lost of movie to concatenate
-add_to_movie=540 # the movie must be positive!!!
+#%% Loads all TIFFs in the following list and writes them to a memory-mappable file
+fnames = ['example_movies/demoMovie.tif'] # This demo only uses 1, but you could list many
+add_to_movie='auto' # Frame values in the movie must be positive
 downsample_factor=1 # use .2 or .1 if file is large and you want a quick answer
 base_name='Yr'
-name_new=cm.save_memmap_each(fnames, dview=dview,base_name=base_name, resize_fact=(1, 1, downsample_factor),add_to_movie=add_to_movie)
+name_new=cm.save_memmap_each(fnames,
+                             dview=dview,
+                             base_name=base_name,
+                             resize_fact=(1, 1, downsample_factor),
+                             add_to_movie=add_to_movie)
 name_new.sort()
 fname_new = cm.save_memmap_join(name_new, base_name='Yr', dview=dview)
 #%% LOAD MEMORY MAPPABLE FILE
@@ -43,10 +47,10 @@ Y = np.reshape(Yr, dims + (T,), order='F')
 #%% play movie, press q to quit
 play_movie = False
 if play_movie:     
-    cm.movie(images).play(fr=50,magnification=3,gain=2.)
-#%% movie cannot be negative!
+    cm.movie(images).play(fr=50, magnification=3, gain=2.)
+#%% Check to see (unsupported) negative values in the movie frames
 if np.min(images)<0:
-    raise Exception('Movie too negative, add_to_movie should be larger')
+    raise Exception('Movie too negative, increase the add_to_movie value')
 #%% correlation image. From here infer neuron size and density
 Cn = cm.movie(images)[:3000].local_correlations(swap_dim=False)
 pl.imshow(Cn,cmap='gray')  
