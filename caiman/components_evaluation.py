@@ -17,7 +17,7 @@ import cv2
 import itertools
 import json as simplejson
 
-def estimate_noise_mode(traces,robust_std=False,use_mode_fast=False, return_all = False):
+def estimate_noise_mode(traces, robust_std=False, use_mode_fast=False, return_all = False):
     """ estimate the noise in the traces under assumption that signals are sparse and only positive. The last dimension should be time. 
 
     """
@@ -62,14 +62,14 @@ except:
 
 
 @profile
-def compute_event_exceptionality(traces,robust_std=False,N=5,use_mode_fast=False, sigma_factor = 3.):
+def compute_event_exceptionality(traces, robust_std=False, N=5, use_mode_fast=False, sigma_factor = 3.):
     """
-    Define a metric and order components according to the probabilty if some "exceptional events" (like a spike). 
+    Define a metric and order components according to the probability of some "exceptional events" (like a spike). 
 
-    Such probability is defined as the likeihood of observing the actual trace value over N samples given an estimated noise distribution.
+    Such probability is defined as the likelihood of observing the actual trace value over N samples given an estimated noise distribution.
     The function first estimates the noise distribution by considering the dispersion around the mode. 
     This is done only using values lower than the mode. The estimation of the noise std is made robust by using the approximation std=iqr/1.349. 
-    Then, the probavility of having N consecutive eventsis estimated.
+    Then, the probability of having N consecutive events is estimated.
     This probability is used to order the components.
 
     Parameters:    
@@ -150,11 +150,11 @@ def compute_event_exceptionality(traces,robust_std=False,N=5,use_mode_fast=False
     # select the maximum value of such probability for each trace
     fitness = np.min(erfc, 1)
 
-    return fitness,erfc,sd_r,md
+    return fitness, erfc, sd_r,md
 
 
 #%%
-def find_activity_intervals(C,Npeaks = 5, tB=-3, tA = 10, thres = 0.3):
+def find_activity_intervals(C, Npeaks = 5, tB=-3, tA = 10, thres = 0.3):
 #todo todocument
     import peakutils
     K,T = np.shape(C)
@@ -183,23 +183,23 @@ def find_activity_intervals(C,Npeaks = 5, tB=-3, tA = 10, thres = 0.3):
 
 
 #%%
-def classify_components_ep(Y,A,C,b,f,Athresh = 0.1,Npeaks = 5, tB=-3, tA = 10, thres = 0.3):
+def classify_components_ep(Y, A, C, b, f, Athresh = 0.1, Npeaks = 5, tB=-3, tA = 10, thres = 0.3):
     # todo todocument
 
     K,T = np.shape(C)
-    A = csc_matrix(A)
+    A  = csc_matrix(A)
     AA = (A.T*A).toarray() 
-    nA=np.sqrt(np.array(A.power(2).sum(0)))
+    nA = np.sqrt(np.array(A.power(2).sum(0)))
     AA = old_div(AA,np.outer(nA,nA.T))
     AA -= np.eye(K)
     
-    LOC = find_activity_intervals(C, Npeaks = Npeaks, tB=tB, tA = tA, thres = thres)
+    LOC  = find_activity_intervals(C, Npeaks = Npeaks, tB=tB, tA = tA, thres = thres)
     rval = np.zeros(K)
 
     significant_samples=[]
     for i in range(K):
-        if i%200 == 0:
-            print('components evaluated:'+str(i))
+        if i % 200 == 0: # Show status periodically
+            print('components evaluated:' + str(i))
         if LOC[i] is not None:
             atemp = A[:,i].toarray().flatten()
             atemp[np.isnan(atemp)] = np.nanmean(atemp)
@@ -225,9 +225,9 @@ def classify_components_ep(Y,A,C,b,f,Athresh = 0.1,Npeaks = 5, tB=-3, tA = 10, t
             rval[i] = 0
             significant_samples.append(0)
 
-    return rval,significant_samples
+    return rval, significant_samples
 #%%
-def evaluate_components_CNN(A,dims,gSig,model_name = 'use_cases/CaImAnpaper/cnn_model', patch_size = 50, loaded_model = None, isGPU = False):
+def evaluate_components_CNN(A, dims, gSig, model_name = 'use_cases/CaImAnpaper/cnn_model', patch_size = 50, loaded_model = None, isGPU = False):
     """ evaluate component quality using a CNN network
     
     """
@@ -236,13 +236,10 @@ def evaluate_components_CNN(A,dims,gSig,model_name = 'use_cases/CaImAnpaper/cnn_
         os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
     
     try:
-    	
     	from keras.models import model_from_json
     except:
     	print('PROBLEM LOADING KERAS: cannot use classifier')
-        
-        
-        
+
     if loaded_model is None:
         json_file = open(model_name +'.json', 'r')
         loaded_model_json = json_file.read()
@@ -250,13 +247,13 @@ def evaluate_components_CNN(A,dims,gSig,model_name = 'use_cases/CaImAnpaper/cnn_
         loaded_model = model_from_json(loaded_model_json)
         loaded_model.load_weights(model_name +'.h5')
         print("Loaded model from disk")
-        
-    half_crop = np.minimum(gSig[0]*4+1,patch_size),np.minimum(gSig[1]*4+1,patch_size)
+    half_crop = np.minimum(gSig[0]*4+1, patch_size),
+                np.minimum(gSig[1]*4+1, patch_size)
     dims = np.array(dims)
-    coms = [scipy.ndimage.center_of_mass(mm.toarray().reshape(dims,order='F')) for mm in A.tocsc().T]  
-    coms = np.maximum(coms,half_crop)
-    coms = np.array([np.minimum(cms,dims-half_crop) for cms in coms]).astype(np.int)
-    crop_imgs = [mm.toarray().reshape(dims,order='F')[com[0]-half_crop[0]:com[0]+half_crop[0], com[1]-half_crop[1]:com[1]+half_crop[1]] for mm,com in zip(A.tocsc().T,coms) ]
+    coms = [scipy.ndimage.center_of_mass(mm.toarray().reshape(dims, order='F')) for mm in A.tocsc().T]  
+    coms = np.maximum(coms, half_crop)
+    coms = np.array([np.minimum(cms, dims-half_crop) for cms in coms]).astype(np.int)
+    crop_imgs = [mm.toarray().reshape(dims,i order='F')[com[0]-half_crop[0]:com[0]+half_crop[0], com[1]-half_crop[1]:com[1]+half_crop[1]] for mm,com in zip(A.tocsc().T,coms) ]
     final_crops = np.array([cv2.resize(im/np.linalg.norm(im),(patch_size ,patch_size )) for im in crop_imgs])
     predictions = loaded_model.predict(final_crops[:,:,:,np.newaxis], batch_size=32, verbose=1)
 
@@ -264,7 +261,7 @@ def evaluate_components_CNN(A,dims,gSig,model_name = 'use_cases/CaImAnpaper/cnn_
 #%%
 def evaluate_components(Y, traces, A, C, b, f, final_frate, remove_baseline = True, N = 5, robust_std = False,
                         Athresh = 0.1, Npeaks = 5, thresh_C = 0.3,  sigma_factor = 3.):
-    """ Define a metric and order components according to the probabilty if some "exceptional events" (like a spike).
+    """ Define a metric and order components according to the probability of some "exceptional events" (like a spike).
     
     Such probability is defined as the likeihood of observing the actual trace value over N samples given an estimated noise distribution. 
     The function first estimates the noise distribution by considering the dispersion around the mode.
@@ -514,7 +511,7 @@ def estimate_components_quality_auto(Y, A, C, b, f, YrA, frate, decay_time, gSig
 def estimate_components_quality(traces, Y, A, C, b, f, final_frate = 30, Npeaks=10, r_values_min = .95,
                                 fitness_min = -100,fitness_delta_min = -100, return_all = False, N =5,
                                 remove_baseline = True, dview = None, robust_std = False,Athresh=0.1,thresh_C=0.3, num_traces_per_group = 20):
-    """ Define a metric and order components according to the probabilty if some "exceptional events" (like a spike).
+    """ Define a metric and order components according to the probability of some "exceptional events" (like a spike).
 
     Such probability is defined as the likeihood of observing the actual trace value over N samples given an estimated noise distribution.
     The function first estimates the noise distribution by considering the dispersion around the mode.
@@ -590,12 +587,11 @@ def estimate_components_quality(traces, Y, A, C, b, f, final_frate = 30, Npeaks=
             idx = list(g)
             # idx = list(filter(None.__ne__, idx))
             idx = list(filter(lambda a: a is not None, idx))    
-            params.append([Y.filename,traces[idx],A.tocsc()[:,idx],C[idx],b,f,final_frate,remove_baseline,N,robust_std,Athresh,Npeaks,thresh_C])
+            params.append([Y.filename, traces[idx], A.tocsc()[:,idx], C[idx], b, f, final_frate, remove_baseline, N, robust_std, Athresh, Npeaks, thresh_C])
         
         if dview is None:            
             res = map(evaluate_components_placeholder,params)
         else:
-            
             print('EVALUATING IN PARALLEL... NOT RETURNING ERFCs')
             if 'multiprocessing' in str(type(dview)):
                 res = dview.map_async(evaluate_components_placeholder,params).get(4294967)
@@ -622,7 +618,6 @@ def estimate_components_quality(traces, Y, A, C, b, f, final_frate = 30, Npeaks=
             else:
                 erfc_raw = np.concatenate([erfc_raw, erfc_raw__],axis = 0)
                 erfc_delta = np.concatenate([erfc_delta, erfc_delta__],axis = 0)
-            
 
     idx_components_r = np.where(r_values >= r_values_min)[0]  # threshold on space consistency
     idx_components_raw = np.where(fitness_raw < fitness_min)[0] # threshold on time variability
@@ -633,6 +628,6 @@ def estimate_components_quality(traces, Y, A, C, b, f, final_frate = 30, Npeaks=
     idx_components_bad = np.setdiff1d(list(range(len(traces))), idx_components)
     
     if return_all:
-        return idx_components,idx_components_bad, fitness_raw, fitness_delta, r_values 
+        return idx_components, idx_components_bad, fitness_raw, fitness_delta, r_values 
     else:
-        return idx_components,idx_components_bad
+        return idx_components, idx_components_bad

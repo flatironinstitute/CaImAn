@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 """
 Complete demo pipeline for motion correction, source extraction, and 
 deconvolution of two-photon calcium imaging data using the CaImAn package. 
