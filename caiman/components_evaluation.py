@@ -247,8 +247,7 @@ def evaluate_components_CNN(A, dims, gSig, model_name = 'use_cases/CaImAnpaper/c
         loaded_model = model_from_json(loaded_model_json)
         loaded_model.load_weights(model_name +'.h5')
         print("Loaded model from disk")
-    half_crop = np.minimum(gSig[0]*4+1, patch_size),
-                np.minimum(gSig[1]*4+1, patch_size)
+    half_crop = np.minimum(gSig[0]*4+1, patch_size), np.minimum(gSig[1]*4+1, patch_size)
     dims = np.array(dims)
     coms = [scipy.ndimage.center_of_mass(mm.toarray().reshape(dims, order='F')) for mm in A.tocsc().T]  
     coms = np.maximum(coms, half_crop)
