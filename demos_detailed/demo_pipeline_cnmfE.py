@@ -6,18 +6,16 @@ from builtins import str
 from builtins import map
 from builtins import range
 from past.utils import old_div
-
-get_ipython().magic(u'load_ext autoreload')
-get_ipython().magic(u'autoreload 2')    
+try:
+    get_ipython().magic(u'load_ext autoreload')
+    get_ipython().magic(u'autoreload 2')    
+except:
+    print('Not IPYTHON')
+    
 import numpy as np
-from scipy.io import loadmat
-from operator import itemgetter
 import matplotlib.pyplot as plt
-from scipy.ndimage import center_of_mass
-import itertools
 import caiman as cm
 from caiman.source_extraction import cnmf
-from caiman.source_extraction.cnmf.utilities import compute_residuals
 from caiman.utils.utils import download_demo
 from caiman.utils.visualization import inspect_correlation_pnr
 from caiman.components_evaluation import estimate_components_quality_auto
@@ -37,7 +35,7 @@ except:
 
 c, dview, n_processes = cm.cluster.setup_cluster(backend='local', # use this one
                                                  n_processes=24,  # number of process to use, if you go out of memory try to reduce this one
-                                                 )
+                                                 single_thread = False)
 
 #%% download demo file
 base_folder = './example_movies/'  
@@ -76,9 +74,10 @@ Y = Yr.T.reshape((T,) + dims, order='F')
 cn_filter, pnr = cm.summary_images.correlation_pnr(Y, gSig=gSig, swap_dim=False) # change swap dim if output looks weird, it is a problem with tiffile
 #%% inspect the summary images and set the parameters
 inspect_correlation_pnr(cn_filter,pnr)
+#%%
 min_corr = .8 # min correlation of peak (from correlation image)
 min_pnr = 10 # min peak to noise ratio
-min_SNR = 2 # adaptive way to set threshold on the transient size
+min_SNR = 3 # adaptive way to set threshold on the transient size
 r_values_min = 0.85  # threshold on space consistency (if you lower more components will be accepted, potentially with worst quality)
 decay_time = 0.4  #decay time of transients/indocator
 #%%
@@ -122,6 +121,9 @@ print((len(idx_components)))
 crd = cm.utils.visualization.plot_contours(cnm.A, cn_filter, thr=.8, vmax=0.95)
 #%% PLOT ONLY GOOD QUALITY COMPONENTS
 crd = cm.utils.visualization.plot_contours(cnm.A.tocsc()[:,idx_components], cn_filter, thr=.8, vmax=0.95)
+#%% PLOT ONLY BAD QUALITY COMPONENTS
+crd = cm.utils.visualization.plot_contours(cnm.A.tocsc()[:,idx_components_bad], cn_filter, thr=.8, vmax=0.95)
+
 #%% VISUALIZE IN DETAILS COMPONENTS
 cm.utils.visualization.view_patches_bar(Yr,cnm.A[:, idx_components], cnm.C[idx_components],cnm.b, cnm.f,
                                         dims[0], dims[1], YrA=cnm.YrA[idx_components], img=cn_filter)
