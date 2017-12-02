@@ -395,8 +395,8 @@ def evaluate_components_placeholder(params):
     import numpy as np
     fname, traces, A, C, b, f, final_frate, remove_baseline, N, robust_std, Athresh, Npeaks, thresh_C = params
     Yr, dims, T = cm.load_memmap(fname)
-    d1, d2 = dims
-    images = np.reshape(Yr.T, [T] + list(dims), order='F')
+    #d1, d2 = dims
+    #images = np.reshape(Yr.T, [T] + list(dims), order='F')
     Y = np.reshape(Yr, dims + (T,), order='F')
     fitness_raw, fitness_delta, erfc_raw, erfc_delta, r_values, significant_samples = \
         evaluate_components(Y, traces, A, C, b, f, final_frate, remove_baseline=remove_baseline,
