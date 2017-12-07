@@ -117,9 +117,9 @@ def extract_binary_masks_from_structural_channel(Y, min_area_size=30, min_hole_s
 
     for i in range(areas[1]):
         temp = (areas[0] == i + 1)
-        if expand_method is 'dilation':
+        if expand_method == 'dilation':
             temp = dilation(temp, selem=selem)
-        elif expand_method is 'closing':
+        elif expand_method == 'closing':
             temp = dilation(temp, selem=selem)
 
         A[:, i] = temp.flatten('F')
@@ -172,29 +172,29 @@ def nf_match_neurons_in_binary_masks(masks_gt, masks_comp, thresh_cost=.7, min_d
     masks_comp: bool ndarray  components x d1 x d2
         mask to compare to
 
-    thresh_cost: double 
-        max cost accepted 
+    thresh_cost: double
+        max cost accepted
 
     min_dist: min distance between cm
 
     print_assignment:
         for hungarian algorithm
 
-    plot_results: bool    
+    plot_results: bool
 
-    Cn: 
+    Cn:
         correlation image or median
 
     D: list of ndarrays
         list of distances matrices
 
     enclosed_thr: float
-        if not None set distance to at most the specified value when ground truth is a subset of inferred        
+        if not None set distance to at most the specified value when ground truth is a subset of inferred
 
     Returns:
     --------
     idx_tp_1:
-        indeces true pos ground truth mask 
+        indeces true pos ground truth mask
 
     idx_tp_2:
         indeces true pos comp
@@ -205,7 +205,7 @@ def nf_match_neurons_in_binary_masks(masks_gt, masks_comp, thresh_cost=.7, min_d
     idx_fp_2:
         indeces false pos
 
-    performance:  
+    performance:
 
     """
 
@@ -336,19 +336,19 @@ def register_ROIs(A1, A2, dims, template1=None, template2=None, align_flag=True,
     D: ndarray
         matrix of distances in the event they are pre-computed
 
-    thresh_cost: scalar 
-        maximum distance considered 
+    thresh_cost: scalar
+        maximum distance considered
 
     max_dist: scalar
         max distance between centroids
 
     enclosed_thr: float
-        if not None set distance to at most the specified value when ground truth is a subset of inferred 
+        if not None set distance to at most the specified value when ground truth is a subset of inferred
 
     print_assignment: bool
         print pairs of matched ROIs
 
-    plot_results: bool    
+    plot_results: bool
         create a plot of matches and mismatches
 
     Cn: ndarray
@@ -363,7 +363,7 @@ def register_ROIs(A1, A2, dims, template1=None, template2=None, align_flag=True,
         indeces of matched ROIs from session 1
 
     matched_ROIs2: list
-        indeces of matched ROIs from session 2        
+        indeces of matched ROIs from session 2
 
     non_matched1: list
         indeces of non-matched ROIs from session 1
@@ -529,7 +529,7 @@ def distance_masks(M_s, cm_s, max_dist, enclosed_thr=None):
         at which two components are surely disjoined
 
     enclosed_thr: float
-        if not None set distance to at most the specified value when ground truth is a subset of inferred 
+        if not None set distance to at most the specified value when ground truth is a subset of inferred
 
 
     Returns:
@@ -648,10 +648,10 @@ def link_neurons(matches, costs, max_cost=0.6, min_FOV_present=None):
         cost associated to each match in matches
 
     max_cost: float
-        maximum allowed value of the 1- intersection over union metric    
+        maximum allowed value of the 1- intersection over union metric
 
     min_FOV_present: int
-        number of FOVs that must consequently contain the neuron starting from 0. If none 
+        number of FOVs that must consequently contain the neuron starting from 0. If none
         the neuro must be present in each FOV
 
     Returns:
@@ -707,7 +707,7 @@ def nf_load_masks(file_name, dims):
 #%%
 def nf_masks_to_json(binary_masks, json_filename):
     """
-    Take as input a tensor of binary mask and produces json format for neurofinder 
+    Take as input a tensor of binary mask and produces json format for neurofinder
 
     Parameters:
     -----------
@@ -902,7 +902,7 @@ def nf_merge_roi_zip(fnames, idx_to_keep, new_fold):
 
 
 #%%
-def extract_binary_masks_blob(A,  neuron_radius, dims, num_std_threshold=1, minCircularity=0.5,
+def extract_binary_masks_blob(A, neuron_radius, dims, num_std_threshold=1, minCircularity=0.5,
                               minInertiaRatio=0.2, minConvexity=.8):
     """
     Function to extract masks from data. It will also perform a preliminary selectino of good masks based on criteria like shape and size
@@ -936,7 +936,6 @@ def extract_binary_masks_blob(A,  neuron_radius, dims, num_std_threshold=1, minC
     neg_examples:
 
     """
-    import cv2
     params = cv2.SimpleBlobDetector_Params()
     params.minCircularity = minCircularity
     params.minInertiaRatio = minInertiaRatio
@@ -1010,13 +1009,13 @@ def extract_binary_masks_blob(A,  neuron_radius, dims, num_std_threshold=1, minC
 
 
 #%%
-def extract_binary_masks_blob_parallel(A,  neuron_radius, dims, num_std_threshold=1, minCircularity=0.5,
+def extract_binary_masks_blob_parallel(A, neuron_radius, dims, num_std_threshold=1, minCircularity=0.5,
                                        minInertiaRatio=0.2, minConvexity=.8, dview=None):
     # todo todocument
 
     pars = []
     for a in range(A.shape[-1]):
-        pars.append([A[:, a],  neuron_radius, dims, num_std_threshold,
+        pars.append([A[:, a], neuron_radius, dims, num_std_threshold,
                      minCircularity, minInertiaRatio, minConvexity])
     if dview is not None:
         res = dview.map_sync(
@@ -1038,8 +1037,8 @@ def extract_binary_masks_blob_parallel(A,  neuron_radius, dims, num_std_threshol
 
 #%%
 def extract_binary_masks_blob_parallel_place_holder(pars):
-    A,  neuron_radius, dims, num_std_threshold, minCircularity, minInertiaRatio, minConvexity = pars
-    masks_ws, pos_examples, neg_examples = extract_binary_masks_blob(A,  neuron_radius,
+    A, neuron_radius, dims, num_std_threshold, minCircularity, minInertiaRatio, minConvexity = pars
+    masks_ws, pos_examples, neg_examples = extract_binary_masks_blob(A, neuron_radius,
                                                                      dims, num_std_threshold=num_std_threshold, minCircularity=0.5,
                                                                      minInertiaRatio=minInertiaRatio, minConvexity=minConvexity)
     return masks_ws, len(pos_examples), len(neg_examples)
