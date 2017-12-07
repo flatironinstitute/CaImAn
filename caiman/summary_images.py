@@ -55,11 +55,13 @@ def max_correlation_image(Y, bin_size=1000, eight_neighbours=True, swap_dim=True
     """
 
     if swap_dim:
-        Y = np.transpose(Y, tuple(np.hstack((Y.ndim - 1, list(range(Y.ndim))[:-1]))))
+        Y = np.transpose(
+            Y, tuple(np.hstack((Y.ndim - 1, list(range(Y.ndim))[:-1]))))
 
     T = Y.shape[0]
     if T <= bin_size:
-        Cn_bins = local_correlations_fft(Y, eight_neighbours=eight_neighbours, swap_dim=False)
+        Cn_bins = local_correlations_fft(
+            Y, eight_neighbours=eight_neighbours, swap_dim=False)
         return Cn_bins
     else:
         if T % bin_size < bin_size / 2.:
@@ -105,7 +107,8 @@ def local_correlations_fft(Y, eight_neighbours=True, swap_dim=True, opencv=True)
     """
 
     if swap_dim:
-        Y = np.transpose(Y, tuple(np.hstack((Y.ndim - 1, list(range(Y.ndim))[:-1]))))
+        Y = np.transpose(
+            Y, tuple(np.hstack((Y.ndim - 1, list(range(Y.ndim))[:-1]))))
 
     Y = Y.astype('float32')
     Y -= np.mean(Y, axis=0)
@@ -132,10 +135,12 @@ def local_correlations_fft(Y, eight_neighbours=True, swap_dim=True, opencv=True)
         Yconv = Y.copy()
         for idx, img in enumerate(Yconv):
             Yconv[idx] = cv2.filter2D(img, -1, sz, borderType=0)
-        MASK = cv2.filter2D(np.ones(Y.shape[1:], dtype='float32'), -1, sz, borderType=0)
+        MASK = cv2.filter2D(
+            np.ones(Y.shape[1:], dtype='float32'), -1, sz, borderType=0)
     else:
         Yconv = convolve(Y, sz[np.newaxis, :], mode='constant')
-        MASK = convolve(np.ones(Y.shape[1:], dtype='float32'), sz, mode='constant')
+        MASK = convolve(
+            np.ones(Y.shape[1:], dtype='float32'), sz, mode='constant')
     Cn = np.mean(Yconv * Y, axis=0) / MASK
     return Cn
 
@@ -165,7 +170,8 @@ def local_correlations(Y, eight_neighbours=True, swap_dim=True):
     """
 
     if swap_dim:
-        Y = np.transpose(Y, tuple(np.hstack((Y.ndim - 1, list(range(Y.ndim))[:-1]))))
+        Y = np.transpose(
+            Y, tuple(np.hstack((Y.ndim - 1, list(range(Y.ndim))[:-1]))))
 
     rho = np.zeros(np.shape(Y)[1:])
     w_mov = (Y - np.mean(Y, axis=0)) / np.std(Y, axis=0)
@@ -179,7 +185,8 @@ def local_correlations(Y, eight_neighbours=True, swap_dim=True):
     rho[:, 1:] = rho[:, 1:] + rho_w
 
     if Y.ndim == 4:
-        rho_d = np.mean(np.multiply(w_mov[:, :, :, :-1], w_mov[:, :, :, 1:]), axis=0)
+        rho_d = np.mean(np.multiply(
+            w_mov[:, :, :, :-1], w_mov[:, :, :, 1:]), axis=0)
         rho[:, :, :-1] = rho[:, :, :-1] + rho_d
         rho[:, :, 1:] = rho[:, :, 1:] + rho_d
         neighbors = 6 * np.ones(np.shape(Y)[1:])
@@ -192,8 +199,10 @@ def local_correlations(Y, eight_neighbours=True, swap_dim=True):
 
     else:
         if eight_neighbours:
-            rho_d1 = np.mean(np.multiply(w_mov[:, 1:, :-1], w_mov[:, :-1, 1:, ]), axis=0)
-            rho_d2 = np.mean(np.multiply(w_mov[:, :-1, :-1], w_mov[:, 1:, 1:, ]), axis=0)
+            rho_d1 = np.mean(np.multiply(
+                w_mov[:, 1:, :-1], w_mov[:, :-1, 1:, ]), axis=0)
+            rho_d2 = np.mean(np.multiply(
+                w_mov[:, :-1, :-1], w_mov[:, 1:, 1:, ]), axis=0)
             rho[:-1, :-1] = rho[:-1, :-1] + rho_d2
             rho[1:, 1:] = rho[1:, 1:] + rho_d1
             rho[1:, :-1] = rho[1:, :-1] + rho_d1
@@ -245,7 +254,8 @@ def correlation_pnr(Y, gSig=None, center_psf=True, swap_dim=True):
 
     """
     if swap_dim:
-        Y = np.transpose(Y, tuple(np.hstack((Y.ndim - 1, list(range(Y.ndim))[:-1]))))
+        Y = np.transpose(
+            Y, tuple(np.hstack((Y.ndim - 1, list(range(Y.ndim))[:-1]))))
 
     # parameters
     T, d1, d2 = Y.shape

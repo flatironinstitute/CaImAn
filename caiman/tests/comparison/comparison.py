@@ -266,10 +266,11 @@ class Comparison(object):
                     C_full = dt['C_full'][()]
                     C_patch = dt['C_patch'][()]
                     data = dt['information'][()]
-            except (IOError, OSError):  # if we cannot manage to open it or it doesnt exist:
+            # if we cannot manage to open it or it doesnt exist:
+            except (IOError, OSError):
                 # we save but we explain why there were a problem
                 print('we were not able to read the file to compare it\n')
-                file_path = "comparison/tests/NC"+dt+".npz"
+                file_path = "comparison/tests/NC" + dt + ".npz"
                 np.savez(file_path, information=information, A_full=self.comparison['cnmf_full_frame']['ourdata'][0],
                          C_full=self.comparison['cnmf_full_frame']['ourdata'][
                              1], A_patch=self.comparison['cnmf_on_patch']['ourdata'][0],
@@ -281,8 +282,8 @@ class Comparison(object):
         for name in os.listdir(dr):
             i += 1
         i = str(i)
-        if not os.path.exists(dr+i):
-            os.makedirs(dr+i)
+        if not os.path.exists(dr + i):
+            os.makedirs(dr + i)
         information.update({'diff': {}})
         information.update({'differences': {
             'proc': False,
@@ -303,20 +304,22 @@ class Comparison(object):
                 print('DIFFERENCES IN THE FIELDS OF CNMF')
 #                print(set(cnmpatch.keys()) - set(data['cnmpatch'].keys()))
 #                print(set(data['cnmpatch'].keys()) - set(cnmpatch.keys()))
-            diffkeys = [k for k in data['cnmpatch'] if data['cnmpatch'][k] != cnmpatch[k]]
+            diffkeys = [k for k in data['cnmpatch']
+                        if data['cnmpatch'][k] != cnmpatch[k]]
             for k in diffkeys:
                 print(k, ':', data['cnmpatch'][k], '->', cnmpatch[k])
 
-            print('you do not use the same paramters in your cnmf on patches initialization\n')
+            print(
+                'you do not use the same paramters in your cnmf on patches initialization\n')
             information['differences']['params_cnm'] = True
 
         # for rigid
         # plotting part
 
         information['diff'].update({
-            'rig': plotrig(init=rig_shifts, curr=self.comparison['rig_shifts']['ourdata'], timer=self.comparison['rig_shifts']['timer']-data['timer']['rig_shifts'], sensitivity=self.comparison['rig_shifts']['sensitivity'])})
+            'rig': plotrig(init=rig_shifts, curr=self.comparison['rig_shifts']['ourdata'], timer=self.comparison['rig_shifts']['timer'] - data['timer']['rig_shifts'], sensitivity=self.comparison['rig_shifts']['sensitivity'])})
         try:
-            pl.gcf().savefig(dr+str(i)+'/'+'rigidcorrection.pdf')
+            pl.gcf().savefig(dr + str(i) + '/' + 'rigidcorrection.pdf')
             pl.close()
         except:
             print("\n")
@@ -330,9 +333,9 @@ class Comparison(object):
                              dview=dview, sensitivity=self.comparison[
                                  'cnmf_on_patch']['sensitivity'],
                              dims_test=dims_test, dims_gt=dims_gt,
-                             timer=self.comparison['cnmf_on_patch']['timer']-data['timer']['cnmf_on_patch'])})
+                             timer=self.comparison['cnmf_on_patch']['timer'] - data['timer']['cnmf_on_patch'])})
         try:
-            pl.gcf().savefig(dr+i+'/'+'onpatch.pdf')
+            pl.gcf().savefig(dr + i + '/' + 'onpatch.pdf')
             pl.close()
         except:
             print("\n")
@@ -347,15 +350,15 @@ class Comparison(object):
                             dview=dview, sensitivity=self.comparison[
                                 'cnmf_full_frame']['sensitivity'],
                             dims_test=dims_test, dims_gt=dims_gt,
-                            timer=self.comparison['cnmf_full_frame']['timer']-data['timer']['cnmf_full_frame'])})
+                            timer=self.comparison['cnmf_full_frame']['timer'] - data['timer']['cnmf_full_frame'])})
         try:
-            pl.gcf().savefig(dr+i+'/'+'cnmfull.pdf')
+            pl.gcf().savefig(dr + i + '/' + 'cnmfull.pdf')
             pl.close()
         except:
             print("\n")
 
 # SAving of everything
-        file_path = rootdir + "/caiman/tests/comparison/tests/"+i+"/"+i+".npz"
+        file_path = rootdir + "/caiman/tests/comparison/tests/" + i + "/" + i + ".npz"
         np.savez(file_path, information=information, A_full=self.comparison['cnmf_full_frame']['ourdata'][0],
                  C_full=self.comparison['cnmf_full_frame']['ourdata'][
                      1], A_patch=self.comparison['cnmf_on_patch']['ourdata'][0],
@@ -386,7 +389,7 @@ def see(filename=None):
         dr = './caiman/tests/comparison/groundtruth.npz'
     else:
         dr = os.path.abspath(cm.__path__[0]) + '/tests/comparison/tests/'
-        dr = dr+filename+'/'+filename+'.npz'
+        dr = dr + filename + '/' + filename + '.npz'
 
         print(dr)
     with np.load(dr) as dt:
@@ -446,15 +449,17 @@ def cnmf(Cn, A_gt, A_test, C_gt, C_test, dims_gt, dims_test, dview=None, sensiti
     C_test_thr = C_test
     C_gt_thr = C_gt
     # we would also like the difference in the number of neurons
-    diffneur = A_test_thr.shape[1] - A_gt_thr.shape[1] 
+    diffneur = A_test_thr.shape[1] - A_gt_thr.shape[1]
 #    print(diffneur+1)
     # computing the values
-    C_test_thr = np.array([CC.reshape([-1, n_frames_per_bin]).max(1) for CC in C_test_thr])
-    C_gt_thr = np.array([CC.reshape([-1, n_frames_per_bin]).max(1) for CC in C_gt_thr])
+    C_test_thr = np.array(
+        [CC.reshape([-1, n_frames_per_bin]).max(1) for CC in C_test_thr])
+    C_gt_thr = np.array([CC.reshape([-1, n_frames_per_bin]).max(1)
+                         for CC in C_gt_thr])
     maskgt = A_gt_thr[:, :].reshape([dims_gt[0], dims_gt[1], -1],
-                                    order='F').transpose([2, 0, 1])*1.
+                                    order='F').transpose([2, 0, 1]) * 1.
     masktest = A_test_thr[:, :].reshape(
-        [dims_test[0], dims_test[1], -1], order='F').transpose([2, 0, 1])*1.
+        [dims_test[0], dims_test[1], -1], order='F').transpose([2, 0, 1]) * 1.
 
     idx_tp_gt, idx_tp_comp, idx_fn_gt, idx_fp_comp, performance_off_on =  \
         cm.base.rois.nf_match_neurons_in_binary_masks(masks_gt=maskgt,
@@ -462,12 +467,13 @@ def cnmf(Cn, A_gt, A_test, C_gt, C_test, dims_gt, dims_test, dview=None, sensiti
 
     # the pearson's correlation coefficient of the two Calcium activities thresholded
     # comparing Calcium activities of all the components that are defined by
-    
+
     corrs = np.array([scipy.stats.pearsonr(
         C_gt_thr[gt, :], C_test_thr[comp, :])[0] for gt, comp in zip(idx_tp_gt, idx_tp_comp)])
     # todo, change this test when I will have found why I have one additionnal neuron
 
-    isdiff = True if ((np.linalg.norm(corrs) < sensitivity) or (performance_off_on['f1_score']<0.98)) else False
+    isdiff = True if ((np.linalg.norm(corrs) < sensitivity) or (
+        performance_off_on['f1_score'] < 0.98)) else False
     info = {'isdifferent': int(isdiff),
             'diff_data': {'performance': performance_off_on,
                           'corelations': corrs.tolist(),
@@ -483,7 +489,8 @@ def cnmf(Cn, A_gt, A_test, C_gt, C_test, dims_gt, dims_test, dview=None, sensiti
 
 def plotrig(init, curr, timer, sensitivity):
 
-    diff = np.linalg.norm(np.asarray(init)-np.asarray(curr))/np.linalg.norm(init)
+    diff = np.linalg.norm(np.asarray(
+        init) - np.asarray(curr)) / np.linalg.norm(init)
     isdiff = diff > sensitivity
     info = {'isdifferent': int(isdiff),
             'diff_data': diff,
