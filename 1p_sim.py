@@ -35,7 +35,8 @@ def get_mapping(inferredC, trueC, A):
     corT = np.asarray([[np.corrcoef(s, tC)[0, 1]
                         for s in inferredC] for tC in trueC])
     # first assign neurons that have mutually highest correlation
-    noTarget = list(range(len(inferredC)))  # indices that haven't been a target of the mapping yet
+    # indices that haven't been a target of the mapping yet
+    noTarget = list(range(len(inferredC)))
     for _ in range(10):
         if np.any(np.isnan(mapIdx)) and len(noTarget):
             nanIdx = np.where(np.isnan(mapIdx))[0]
@@ -52,7 +53,8 @@ def get_mapping(inferredC, trueC, A):
         nanIdx = np.where(np.isnan(mapIdx))[0]
         block = filter(lambda b: nanIdx[0] in b, blocks)[0]
         idx = list(block.intersection(nanIdx))  # ground truth indices
-        candidates = list([np.argmax(corT[i, noTarget]) for i in idx])  # inferred indices
+        candidates = list([np.argmax(corT[i, noTarget])
+                           for i in idx])  # inferred indices
         if len(candidates) == len(set(candidates)):
             # the easier part: neurons within the group of nearby ones are
             # highly correlated with different inferred neurons
@@ -79,18 +81,22 @@ def get_mapping(inferredC, trueC, A):
 
 
 def plot_centers(inferredA, trueA):
-    tc = np.array([center_of_mass(a.reshape(dims_in, order='F')) for a in trueA.T])
+    tc = np.array([center_of_mass(a.reshape(dims_in, order='F'))
+                   for a in trueA.T])
     if not whole_FOV:
         tc -= dims
-    center = [center_of_mass(a.reshape(dims, order='F')) for a in inferredA.toarray().T]
+    center = [center_of_mass(a.reshape(dims, order='F'))
+              for a in inferredA.toarray().T]
     plt.figure(figsize=(15, 15))
     if whole_FOV:
         plt.imshow(A.sum(-1).reshape(dims_in, order='F'))
     else:
-        plt.imshow(A.sum(-1).reshape(dims_in, order='F')[dims[0]:2 * dims[0], dims[1]:2 * dims[1]])
+        plt.imshow(A.sum(-1).reshape(dims_in, order='F')
+                   [dims[0]:2 * dims[0], dims[1]:2 * dims[1]])
         plt.xlim(0, dims[0])
         plt.ylim(0, dims[1])
-    plt.scatter(*np.transpose(tc)[::-1], marker='x', lw=3, s=100, c='r', label='true centers')
+    plt.scatter(*np.transpose(tc)[::-1], marker='x',
+                lw=3, s=100, c='r', label='true centers')
     plt.scatter(*np.transpose(center)[::-1], c='w', label='inferred centers')
     plt.legend()
 
@@ -202,9 +208,12 @@ if True:
     corC = np.array([np.corrcoef(C_[mapIdx[n]], C[n])[0, 1] for n in range(N)])
     corA = np.array([np.corrcoef(A_[:, mapIdx[n]].toarray().squeeze(), A[:, n])[0, 1]
                      for n in range(N)])
-    corC_cnmfe = np.array([np.corrcoef(C_cnmfe[n], C[n])[0, 1] for n in range(N)])
-    corA_cnmfe = np.array([np.corrcoef(A_cnmfe.toarray()[:, n], A[:, n])[0, 1] for n in range(N)])
-    corC_cnmfe_patch = np.array([np.corrcoef(C_cnmfe_patch[n], C[n])[0, 1] for n in range(N)])
+    corC_cnmfe = np.array([np.corrcoef(C_cnmfe[n], C[n])[0, 1]
+                           for n in range(N)])
+    corA_cnmfe = np.array(
+        [np.corrcoef(A_cnmfe.toarray()[:, n], A[:, n])[0, 1] for n in range(N)])
+    corC_cnmfe_patch = np.array(
+        [np.corrcoef(C_cnmfe_patch[n], C[n])[0, 1] for n in range(N)])
     corA_cnmfe_patch = np.array(
         [np.corrcoef(A_cnmfe_patch.toarray()[:, n], A[:, n])[0, 1] for n in range(N)])
 
@@ -213,8 +222,10 @@ else:
                                  C[n] + YrA_GT[n])[0, 1] for n in range(N)])
     corA = np.array([np.corrcoef(A_[:, mapIdx[n]].toarray().squeeze(), A[:, n])[0, 1]
                      for n in range(N)])
-    corC_cnmfe = np.array([np.corrcoef(Craw_cnmfe[n], C[n] + YrA_GT[n])[0, 1] for n in range(N)])
-    corA_cnmfe = np.array([np.corrcoef(A_cnmfe.toarray()[:, n], A[:, n])[0, 1] for n in range(N)])
+    corC_cnmfe = np.array(
+        [np.corrcoef(Craw_cnmfe[n], C[n] + YrA_GT[n])[0, 1] for n in range(N)])
+    corA_cnmfe = np.array(
+        [np.corrcoef(A_cnmfe.toarray()[:, n], A[:, n])[0, 1] for n in range(N)])
     corC_cnmfe_patch = np.array(
         [np.corrcoef(Craw_cnmfe_patch[n], C[n] + YrA_GT[n])[0, 1] for n in range(N)])
     corA_cnmfe_patch = np.array(

@@ -9,7 +9,7 @@ TRAIN ON DATA EXTRACTED FROM RESIDUALS WITH generate_GT script
 '''
 #%%
 #import os
-#os.chdir('/mnt/home/agiovann/SOFTWARE/CaImAn')
+# os.chdir('/mnt/home/agiovann/SOFTWARE/CaImAn')
 #from __future__ import division
 #from __future__ import print_function
 #from builtins import zip
@@ -78,11 +78,13 @@ from keras.models import Model
 
 import tensorflow as tf
 #%%
+
+
 def make_parallel(model, gpu_count):
     def get_slice(data, idx, parts):
         shape = tf.shape(data)
-        size = tf.concat([ shape[:1] // parts, shape[1:] ],axis=0)
-        stride = tf.concat([ shape[:1] // parts, shape[1:]*0 ],axis=0)
+        size = tf.concat([shape[:1] // parts, shape[1:]], axis=0)
+        stride = tf.concat([shape[:1] // parts, shape[1:] * 0], axis=0)
         start = stride * idx
         return tf.slice(data, start, size)
 
@@ -90,24 +92,25 @@ def make_parallel(model, gpu_count):
     for i in range(len(model.outputs)):
         outputs_all.append([])
 
-    #Place a copy of the model on each GPU, each getting a slice of the batch
+    # Place a copy of the model on each GPU, each getting a slice of the batch
     for i in range(gpu_count):
         with tf.device('/gpu:%d' % i):
             with tf.name_scope('tower_%d' % i) as scope:
 
                 inputs = []
-                #Slice each input into a piece for processing on this GPU
+                # Slice each input into a piece for processing on this GPU
                 for x in model.inputs:
                     input_shape = tuple(x.get_shape().as_list())[1:]
-                    slice_n = Lambda(get_slice, output_shape=input_shape, arguments={'idx':i,'parts':gpu_count})(x)
-                    inputs.append(slice_n)                
+                    slice_n = Lambda(get_slice, output_shape=input_shape, arguments={
+                                     'idx': i, 'parts': gpu_count})(x)
+                    inputs.append(slice_n)
 
                 outputs = model(inputs)
-                
+
                 if not isinstance(outputs, list):
                     outputs = [outputs]
-                
-                #Save all the outputs for merging back together later
+
+                # Save all the outputs for merging back together later
                 for l in range(len(outputs)):
                     outputs_all[l].append(outputs[l])
 
@@ -116,17 +119,19 @@ def make_parallel(model, gpu_count):
         merged = []
         for outputs in outputs_all:
             merged.append(merge(outputs, mode='concat', concat_axis=0))
-            
+
         return Model(input=model.inputs, output=merged)
+
+
 #%%
 # the data, shuffled and split between train and test sets
 with np.load('use_cases/edge-cutter/residual_crops_all_classes.npz') as ld:
-    all_masks_gt = ld['all_masks_gt'][:,1:-1,1:-1]
-    labels_gt = ld['labels_gt']    
-    all_masks_gt = all_masks_gt[labels_gt<2]
-    labels_gt = labels_gt[labels_gt<2]
+    all_masks_gt = ld['all_masks_gt'][:, 1:-1, 1:-1]
+    labels_gt = ld['labels_gt']
+    all_masks_gt = all_masks_gt[labels_gt < 2]
+    labels_gt = labels_gt[labels_gt < 2]
 #%%
-    
+
 batch_size = 128
 num_classes = 2
 epochs = 5
@@ -135,11 +140,12 @@ augmentation = True
 # input image dimensions
 img_rows, img_cols = 50, 50
 
-    
-x_train, x_test, y_train, y_test = train_test_split(all_masks_gt, labels_gt, test_size = test_fraction ) 
+
+x_train, x_test, y_train, y_test = train_test_split(
+    all_masks_gt, labels_gt, test_size=test_fraction)
 
 class_weight = cw.compute_class_weight('balanced', np.unique(y_train), y_train)
-   
+
 if K.image_data_format() == 'channels_first':
     x_train = x_train.reshape(x_train.shape[0], 1, img_rows, img_cols)
     x_test = x_test.reshape(x_test.shape[0], 1, img_rows, img_cols)
@@ -199,18 +205,17 @@ if augmentation:
     print('Using real-time data augmentation.')
     # This will do preprocessing and realtime data augmentation:
     datagen = ImageDataGenerator(
-    #            featurewise_center=True,
-    #            featurewise_std_normalization=True,
-                shear_range=0.3,
-                rotation_range=360,
-                width_shift_range=0.2,
-                height_shift_range=0.2,
-                zoom_range = [0.8,1.2],
-                horizontal_flip=True,
-                vertical_flip=True,
-                random_mult_range = [.25,2]
-                )
-
+        #            featurewise_center=True,
+        #            featurewise_std_normalization=True,
+        shear_range=0.3,
+        rotation_range=360,
+        width_shift_range=0.2,
+        height_shift_range=0.2,
+        zoom_range=[0.8, 1.2],
+        horizontal_flip=True,
+        vertical_flip=True,
+        random_mult_range=[.25, 2]
+    )
 
     # Compute quantities required for feature-wise normalization
     # (std, mean, and principal components if ZCA whitening is applied).
@@ -218,20 +223,20 @@ if augmentation:
 
     # Fit the model on the batches generated by datagen.flow().
     history = model.fit_generator(datagen.flow(x_train, y_train,
-                                     batch_size=batch_size),
-                        steps_per_epoch=x_train.shape[0] // batch_size,
-                        epochs=epochs,
-                        verbose=1,
-                        class_weight = class_weight,
-                        validation_data=(x_test, y_test))
+                                               batch_size=batch_size),
+                                  steps_per_epoch=x_train.shape[0] // batch_size,
+                                  epochs=epochs,
+                                  verbose=1,
+                                  class_weight=class_weight,
+                                  validation_data=(x_test, y_test))
 
 
 else:
     history = model.fit(x_train, y_train,
-              batch_size=batch_size,
-              epochs=epochs,
-              verbose=1,
-              validation_data=(x_test, y_test))
+                        batch_size=batch_size,
+                        epochs=epochs,
+                        verbose=1,
+                        validation_data=(x_test, y_test))
 
 #%%
 score = model.evaluate(x_test, y_test, verbose=0)
@@ -241,34 +246,40 @@ print('Test accuracy:', score[1])
 #%% Save model and weights
 import datetime
 save_dir = 'use_cases/edge-cutter/'
-model_name = str(datetime.datetime.now()).replace(' ','-').replace(':','-')
+model_name = str(datetime.datetime.now()).replace(' ', '-').replace(':', '-')
 model_json = model.to_json()
-json_path = os.path.join(save_dir, model_name+'.json')
+json_path = os.path.join(save_dir, model_name + '.json')
 
 with open(json_path, "w") as json_file:
     json_file.write(simplejson.dumps(simplejson.loads(model_json), indent=4))
 
 print('Saved trained model at %s ' % json_path)
-    
+
 
 if not os.path.isdir(save_dir):
     os.makedirs(save_dir)
-model_path = os.path.join(save_dir, model_name+'.h5')
+model_path = os.path.join(save_dir, model_name + '.h5')
 model.save(model_path)
 print('Saved trained model at %s ' % model_path)
 
-#%% visualize_results 
+#%% visualize_results
 num_sampl = 30000
-predictions = model.predict(all_masks_gt[:num_sampl,:,:,None], batch_size=32, verbose=1)
-cm.movie(np.squeeze(all_masks_gt[np.where(predictions[:num_sampl ,0]>=0.95)[0]])).play(gain=3., magnification = 5, fr = 10)
+predictions = model.predict(
+    all_masks_gt[:num_sampl, :, :, None], batch_size=32, verbose=1)
+cm.movie(np.squeeze(all_masks_gt[np.where(predictions[:num_sampl, 0] >= 0.95)[
+         0]])).play(gain=3., magnification=5, fr=10)
 #%%
-cm.movie(np.squeeze(all_masks_gt[np.where(predictions[:num_sampl,1]>=0.95)[0]])).play(gain=3., magnification = 5, fr =10)
+cm.movie(np.squeeze(all_masks_gt[np.where(predictions[:num_sampl, 1] >= 0.95)[
+         0]])).play(gain=3., magnification=5, fr=10)
 #%%
-pl.imshow(montage2d(all_masks_gt[np.where((labels_gt[:num_sampl]==0)&(predictions[:num_sampl,1]>0.95))[0]].squeeze()))
+pl.imshow(montage2d(all_masks_gt[np.where((labels_gt[:num_sampl] == 0) & (
+    predictions[:num_sampl, 1] > 0.95))[0]].squeeze()))
 #%%
-pl.imshow(montage2d(all_masks_gt[np.where((labels_gt[:num_sampl]==1)&(predictions[:num_sampl,0]>0.95))[0]].squeeze()))
+pl.imshow(montage2d(all_masks_gt[np.where((labels_gt[:num_sampl] == 1) & (
+    predictions[:num_sampl, 0] > 0.95))[0]].squeeze()))
 #%%
-pl.imshow(montage2d(all_masks_gt[np.where((predictions[:num_sampl,0]>0.95))[0]].squeeze()))
+pl.imshow(montage2d(all_masks_gt[np.where(
+    (predictions[:num_sampl, 0] > 0.95))[0]].squeeze()))
 #%% retrieve and test
 json_file = open(json_path, 'r')
 loaded_model_json = json_file.read()
@@ -277,8 +288,8 @@ loaded_model = model_from_json(loaded_model_json)
 loaded_model.load_weights(model_path)
 opt = keras.optimizers.rmsprop(lr=0.0001, decay=1e-6)
 loaded_model.compile(loss=keras.losses.categorical_crossentropy,
-              optimizer=opt,
-              metrics=['accuracy'])
+                     optimizer=opt,
+                     metrics=['accuracy'])
 print("Loaded model from disk")
 score = loaded_model.evaluate(x_test, y_test, verbose=0)
 print('Test loss:', score[0])
@@ -288,9 +299,13 @@ print('Test loss:', score[0])
 print('Test accuracy:', score[1])
 #%%
 from skimage.util.montage import montage2d
-predictions = loaded_model.predict(all_masks_gt[:num_sampl], batch_size=32, verbose=1)
-cm.movie(np.squeeze(all_masks_gt[np.where(predictions[:num_sampl,1]<0.1)[0]])).play(gain=3., magnification = 5, fr = 10)
+predictions = loaded_model.predict(
+    all_masks_gt[:num_sampl], batch_size=32, verbose=1)
+cm.movie(np.squeeze(all_masks_gt[np.where(predictions[:num_sampl, 1] < 0.1)[0]])).play(
+    gain=3., magnification=5, fr=10)
 #%%
-pl.imshow(montage2d(all_masks_gt[np.where((labels_gt[:num_sampl]==0)&(predictions[:num_sampl,1]>=0.5))[0]].squeeze()))
+pl.imshow(montage2d(all_masks_gt[np.where((labels_gt[:num_sampl] == 0) & (
+    predictions[:num_sampl, 1] >= 0.5))[0]].squeeze()))
 #%%
-pl.imshow(montage2d(all_masks_gt[np.where((labels_gt==1)&(predictions[:num_sampl,0]>=0.5)&(predictions[:,0]>=0.5))[0]].squeeze()))
+pl.imshow(montage2d(all_masks_gt[np.where((labels_gt == 1) & (
+    predictions[:num_sampl, 0] >= 0.5) & (predictions[:, 0] >= 0.5))[0]].squeeze()))

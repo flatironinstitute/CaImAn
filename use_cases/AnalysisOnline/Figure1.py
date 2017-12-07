@@ -60,13 +60,15 @@ from caiman.utils.utils import download_demo
 with np.load('/opt/local/privateCaImAn/SUE_MAY15_UPDATE_SHAPES_NOSTATS_SHIFTS20/results_analysis_online_SUE_LAST_117k.npz') as ld:
     locals().update(ld)
     Ab = Ab[()]
-    
+
 #%%
 base_folder = '/opt/local/privateCaImAn/SUE_MAY15_UPDATE_SHAPES_NOSTATS_SHIFTS20'
-files_to_compare = ['results_analysis_online_SUE_6000.npz','results_analysis_online_SUE_10000.npz','results_analysis_online_SUE_114000.npz']
+files_to_compare = ['results_analysis_online_SUE_6000.npz',
+                    'results_analysis_online_SUE_10000.npz', 'results_analysis_online_SUE_114000.npz']
 
 base_folder = '/opt/local/privateCaImAn/JEFF_MAY_14_AFT_BETTER_INIT_UPDATES_NO_STATS/'
-files_to_compare = ['results_analysis_online_JEFF_init_.npz','results_analysis_online_JEFF_LAST_6000.npz','results_analysis_online_JEFF_LAST_90000.npz']
+files_to_compare = ['results_analysis_online_JEFF_init_.npz',
+                    'results_analysis_online_JEFF_LAST_6000.npz', 'results_analysis_online_JEFF_LAST_90000.npz']
 
 count = 0
 As = []
@@ -78,21 +80,21 @@ noisyCs = []
 num_frames = []
 for file_ in files_to_compare:
     print(file_)
-    with np.load(os.path.join(base_folder,file_)) as ld:
+    with np.load(os.path.join(base_folder, file_)) as ld:
         locals().update(ld)
         Ab = Ab[()]
-        A,b = Ab[:,:-1],Ab[:,-1].toarray()
-        C, f = Cf[:-1,:], Cf[-1:,:]        
+        A, b = Ab[:, :-1], Ab[:, -1].toarray()
+        C, f = Cf[:-1, :], Cf[-1:, :]
         As.append(A)
         bs.append(b)
         Cs.append(C)
         fs.append(f)
         Cns.append(Cn)
         noisyCs.append(noisyC)
-        num_frames.append(np.where(~np.isnan(noisyC.sum(0)))[0][-1]+1)
+        num_frames.append(np.where(~np.isnan(noisyC.sum(0)))[0][-1] + 1)
         count += 1
-        pl.subplot(1,3,count)
-        crd = cm.utils.visualization.plot_contours(A, Cn, thr=0.9, vmax =.75)
+        pl.subplot(1, 3, count)
+        crd = cm.utils.visualization.plot_contours(A, Cn, thr=0.9, vmax=.75)
 #        pl.xlim([200,400]);pl.ylim([200,400])
 #        pl.subplot(2,3,2*count)
 #        pl.imshow(A.sum(0).reshape(dims,))
@@ -101,32 +103,36 @@ for file_ in files_to_compare:
 pl.figure()
 count = 0
 idx_neuro = 10
-neuron_groups = [[180],[183,277],[183,277,709]]
-for A,b,C,f, Cn,ftc,noisyC, nfr,ngrp in zip(As,bs,Cs,fs,Cns,files_to_compare, noisyCs, num_frames,neuron_groups):
-    count+=1
-    a = A.tocsc()[:,np.array(ngrp)-1]
-    pl.subplot(3,3,count)
+neuron_groups = [[180], [183, 277], [183, 277, 709]]
+for A, b, C, f, Cn, ftc, noisyC, nfr, ngrp in zip(As, bs, Cs, fs, Cns, files_to_compare, noisyCs, num_frames, neuron_groups):
+    count += 1
+    a = A.tocsc()[:, np.array(ngrp) - 1]
+    pl.subplot(3, 3, count)
 #    pl.imshow(Cn,vmax = 0.7)
-    crd = cm.utils.visualization.plot_contours(a, Cn, thr=0.9, vmax =.7, colors = 'r')
+    crd = cm.utils.visualization.plot_contours(
+        a, Cn, thr=0.9, vmax=.7, colors='r')
 
     pl.ylabel('Correlation Image')
-    pl.xlim([200,400]);pl.ylim([200,400])
+    pl.xlim([200, 400])
+    pl.ylim([200, 400])
 #    pl.colorbar()
-    pl.title('#frames:'+str(nfr))
-    pl.subplot(3,3,3+count)
+    pl.title('#frames:' + str(nfr))
+    pl.subplot(3, 3, 3 + count)
     pl.ylabel('Spatial Components')
-    a = a.sum(1).reshape(dims,order='F')
-    a[a==0] = np.nan
-    pl.imshow(A.tocsc().sum(1).reshape(dims,order='F'),vmax = .2)
-    pl.imshow(a,vmax = .1, alpha =.6, cmap = 'hot')
-    
-    pl.xlim([200,400]);pl.ylim([200,400])
+    a = a.sum(1).reshape(dims, order='F')
+    a[a == 0] = np.nan
+    pl.imshow(A.tocsc().sum(1).reshape(dims, order='F'), vmax=.2)
+    pl.imshow(a, vmax=.1, alpha=.6, cmap='hot')
+
+    pl.xlim([200, 400])
+    pl.ylim([200, 400])
 #    pl.colorbar()
-    pl.subplot(3,3,6+count)
+    pl.subplot(3, 3, 6 + count)
     if count == 3:
-        pl.plot(np.mean(np.reshape(C[np.array(ngrp)-1,:nfr],(3,10,-1),order='F'),axis=1).T)
+        pl.plot(np.mean(np.reshape(
+            C[np.array(ngrp) - 1, :nfr], (3, 10, -1), order='F'), axis=1).T)
     else:
-        pl.plot(C[np.array(ngrp)-1,:nfr].T)
+        pl.plot(C[np.array(ngrp) - 1, :nfr].T)
 #    if nfr<=3000:
 #        pl.plot(noisyC[ngrp,:nfr].T)
 #    else:
@@ -134,5 +140,3 @@ for A,b,C,f, Cn,ftc,noisyC, nfr,ngrp in zip(As,bs,Cs,fs,Cns,files_to_compare, no
     pl.xlabel('frames')
     pl.ylabel('A.U.')
 #    pl.legend(['Denoised','Raw'])
-    
-    

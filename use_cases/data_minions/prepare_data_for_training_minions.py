@@ -64,77 +64,85 @@ from keras.models import model_from_json
 #%%
 import itertools
 
+
 def grouper(n, iterable, fillvalue=None):
     "grouper(3, 'ABCDEFG', 'x') --> ABC DEF Gxx"
     args = [iter(iterable)] * n
     return itertools.zip_longest(*args, fillvalue=fillvalue)
+
+
 #%%
 with np.load('/mnt/ceph/neuro/data_minions/ground_truth_components_minions.npz') as ld:
     print(ld.keys())
     locals().update(ld)
 #%%
-    
+
 #%% Existing classifier
-def run_classifier(msks, model_name = 'use_cases/CaImAnpaper/cnn_model'):
-    json_file = open(model_name +'.json', 'r')
+
+
+def run_classifier(msks, model_name='use_cases/CaImAnpaper/cnn_model'):
+    json_file = open(model_name + '.json', 'r')
     loaded_model_json = json_file.read()
     json_file.close()
     loaded_model = model_from_json(loaded_model_json)
-    loaded_model.load_weights(model_name +'.h5')
-    print("Loaded model from disk")    
+    loaded_model.load_weights(model_name + '.h5')
+    print("Loaded model from disk")
     return loaded_model.predict(msks, batch_size=32, verbose=1)
+
 
 predictions = run_classifier(all_masks_gt)
 #%% show results classifier
-pl.figure(figsize=(20,30))
+pl.figure(figsize=(20, 30))
 is_positive = 0
 
-for a in grouper(100,np.where(predictions[:,is_positive]>.95)[0]):
-     a_ = [aa for aa in a if aa is not None]
-     img_mont_ = all_masks_gt[np.array(a_)].squeeze()
-     shps_img = img_mont_.shape
-     img_mont = montage2d(img_mont_)
-     shps_img_mont = np.array(img_mont.shape)//50
-     pl.imshow(img_mont)    
-     inp = pl.pause(.1)    
+for a in grouper(100, np.where(predictions[:, is_positive] > .95)[0]):
+    a_ = [aa for aa in a if aa is not None]
+    img_mont_ = all_masks_gt[np.array(a_)].squeeze()
+    shps_img = img_mont_.shape
+    img_mont = montage2d(img_mont_)
+    shps_img_mont = np.array(img_mont.shape) // 50
+    pl.imshow(img_mont)
+    inp = pl.pause(.1)
 #     pl.cla()
-     break
-     
+    break
+
 #%% Curate data. Remove wrong negatives or wrong positives
-is_positive = 2 # should be 0 when processing negatives
-to_be_checked = np.where(labels_gt==is_positive)[0] 
-to_be_checked = to_be_checked[to_be_checked<1000]
+is_positive = 2  # should be 0 when processing negatives
+to_be_checked = np.where(labels_gt == is_positive)[0]
+to_be_checked = to_be_checked[to_be_checked < 1000]
 wrong = []
 count = 0
-for a in grouper(50,to_be_checked):
+for a in grouper(50, to_be_checked):
 
     a_ = [aa for aa in a if aa is not None]
     a_ = np.array(a_).astype(np.int)
     print(np.max(a_))
     print(count)
-    count+=1
+    count += 1
     img_mont_ = all_masks_gt[np.array(a_)].squeeze()
     shps_img = img_mont_.shape
     img_mont = montage2d(img_mont_)
-    shps_img_mont = np.array(img_mont.shape)//50
-    pl.figure(figsize=(20,30))
-    pl.imshow(img_mont)    
-    inp = pl.ginput(n=0,timeout = -100000)    
+    shps_img_mont = np.array(img_mont.shape) // 50
+    pl.figure(figsize=(20, 30))
+    pl.imshow(img_mont)
+    inp = pl.ginput(n=0, timeout=-100000)
     imgs_to_exclude = []
-    inp = np.ceil(np.array(inp)/50).astype(np.int)-1
-    if len(inp)>0:        
-        imgs_to_exclude = img_mont_[np.ravel_multi_index([inp[:,1],inp[:,0]],shps_img_mont)]
-#        pl.imshow(montage2d(imgs_to_exclude))    
-        wrong.append(np.array(a_)[np.ravel_multi_index([inp[:,1],inp[:,0]],shps_img_mont)])
+    inp = np.ceil(np.array(inp) / 50).astype(np.int) - 1
+    if len(inp) > 0:
+        imgs_to_exclude = img_mont_[np.ravel_multi_index(
+            [inp[:, 1], inp[:, 0]], shps_img_mont)]
+#        pl.imshow(montage2d(imgs_to_exclude))
+        wrong.append(np.array(a_)[np.ravel_multi_index(
+            [inp[:, 1], inp[:, 0]], shps_img_mont)])
     if is_positive:
-        np.save('temp_label_pos_minions.npy',wrong)    
+        np.save('temp_label_pos_minions.npy', wrong)
     else:
-        np.save('temp_label_neg_minions.npy',wrong)    
+        np.save('temp_label_neg_minions.npy', wrong)
     pl.close()
 
-#%% 
+#%%
 pl.imshow(montage2d(all_masks_gt[np.concatenate(wrong)].squeeze()))
-#%% 
+#%%
 lab_pos_wrong = np.load('temp_label_pos_minions.npy')
 lab_neg_wrong = np.load('temp_label_neg_minions.npy')
 
@@ -142,26 +150,27 @@ labels_gt_cur = labels_gt.copy()
 labels_gt_cur[np.concatenate(lab_pos_wrong)] = 0
 labels_gt_cur[np.concatenate(lab_neg_wrong)] = 1
 
-np.savez('ground_truth_components_curated_minions.npz',all_masks_gt = all_masks_gt,labels_gt_cur = labels_gt_cur)
+np.savez('ground_truth_components_curated_minions.npz',
+         all_masks_gt=all_masks_gt, labels_gt_cur=labels_gt_cur)
 #%%
-pl.imshow(montage2d(all_masks_gt[labels_gt_cur==0].squeeze()))
+pl.imshow(montage2d(all_masks_gt[labels_gt_cur == 0].squeeze()))
 #%% LOAD PROCESSED LABELS
 with np.load('/mnt/home/jshangying/CaImAn/final_label/ground_truth_components_curated_minions_1.npz') as ld:
     print(ld.keys())
     locals().update(ld)
 #%%
-pl.figure(figsize=(20,30))
+pl.figure(figsize=(20, 30))
 class_id = 3
 
-for a in grouper(100,np.where(labels_gt_cur==class_id)[0]):
-     a_ = [aa for aa in a if aa is not None]
-     img_mont_ = all_masks_gt[np.array(a_)].squeeze()
-     shps_img = img_mont_.shape
-     img_mont = montage2d(img_mont_)
-     shps_img_mont = np.array(img_mont.shape)//50
-     pl.imshow(img_mont)    
-     inp = pl.pause(1)    
-     pl.cla()
+for a in grouper(100, np.where(labels_gt_cur == class_id)[0]):
+    a_ = [aa for aa in a if aa is not None]
+    img_mont_ = all_masks_gt[np.array(a_)].squeeze()
+    shps_img = img_mont_.shape
+    img_mont = montage2d(img_mont_)
+    shps_img_mont = np.array(img_mont.shape) // 50
+    pl.imshow(img_mont)
+    inp = pl.pause(1)
+    pl.cla()
 #     break
 #%% POSSIBILITY OF DIVIDING DATASETS IN 3 classes
 # def measure_trace_quality(traces_in):
@@ -169,15 +178,15 @@ for a in grouper(100,np.where(labels_gt_cur==class_id)[0]):
 #     T = traces_in.shape[-1]
 #     elm_missing=int(np.ceil(T*1.0/downsampfact)*downsampfact-T)
 #     padbefore=int(np.floor(elm_missing/2))
-#     padafter=int(np.ceil(elm_missing/2))    
+#     padafter=int(np.ceil(elm_missing/2))
 #     tr_tmp = np.pad(traces_in.T,((padbefore,padafter),(0,0)),mode='reflect')
-#     numFramesNew,num_traces = np.shape(tr_tmp)    
+#     numFramesNew,num_traces = np.shape(tr_tmp)
 #     #% compute baseline quickly
-#     print("binning data ..."); 
+#     print("binning data ...");
 #     tr_BL=np.reshape(tr_tmp,(downsampfact,int(numFramesNew/downsampfact),num_traces),order='F');
-#     tr_BL=np.percentile(tr_BL,8,axis=0)            
-#     print("interpolating data ..."); 
-#     print(tr_BL.shape)    
+#     tr_BL=np.percentile(tr_BL,8,axis=0)
+#     print("interpolating data ...");
+#     print(tr_BL.shape)
 #     tr_BL=scipy.ndimage.zoom(np.array(tr_BL,dtype=np.float32),[downsampfact ,1],order=3, mode='constant', cval=0.0, prefilter=True)
 #     if padafter==0:
 #         traces_in -= tr_BL.T
@@ -185,7 +194,7 @@ for a in grouper(100,np.where(labels_gt_cur==class_id)[0]):
 #         traces_in -= tr_BL[padbefore:-padafter].T
 
 #     fitness,exceptionality,sd_r,md = cm.components_evaluation.compute_event_exceptionality(traces_in,robust_std=False,N=5,use_mode_fast=False)
-#     return fitness,exceptionality,sd_r,md 
+#     return fitness,exceptionality,sd_r,md
 # #%%
 # qualities = []
 # count = 0
@@ -194,11 +203,10 @@ for a in grouper(100,np.where(labels_gt_cur==class_id)[0]):
 # for tr in traces_gt:
 #     count+=1
 #     if T_cur == tr.size:
-#         tr_tmp.append(tr)        
-#     else:    
-#         print(count)    
+#         tr_tmp.append(tr)
+#     else:
+#         print(count)
 #         T_cur = tr.size
 #         q = measure_trace_quality(np.array(tr_tmp))
 #         qualities += q
 #         tr_tmp = [tr]
-    

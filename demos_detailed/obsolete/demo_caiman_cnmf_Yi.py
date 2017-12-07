@@ -36,18 +36,18 @@ pl.ion()
 #%%
 import caiman as cm
 from caiman.components_evaluation import evaluate_components
-from caiman.utils.visualization import plot_contours,view_patches_bar
+from caiman.utils.visualization import plot_contours, view_patches_bar
 from caiman.base.rois import extract_binary_masks_blob
 from caiman.source_extraction import cnmf as cnmf
 #%%
 pl.close('all')
 #%%
-is_dendrites=False # 
+is_dendrites = False
 init_method = 'greedy_roi'
-alpha_snmf=None #10e2  # this controls sparsity
+alpha_snmf = None  # 10e2  # this controls sparsity
 
 #%%
-#backend='SLURM'
+# backend='SLURM'
 backend = 'local'
 if backend == 'SLURM':
     n_processes = np.int(os.environ.get('SLURM_NPROCS'))
@@ -88,28 +88,30 @@ else:
 fnames = []
 base_folder = './'  # folder containing the demo files
 for file in glob.glob(os.path.join(base_folder, '*.tif')):
-    if file.endswith("data2_BL.tif"): # or data1_BL.tif
-        fnames.append(os.path.abspath(file))        
+    if file.endswith("data2_BL.tif"):  # or data1_BL.tif
+        fnames.append(os.path.abspath(file))
 fnames.sort()
 if len(fnames) == 0:
     raise Exception("Could not find any tiff file")
 
-print(fnames)  
-fnames=fnames
+print(fnames)
+fnames = fnames
 #%%
-#idx_x=slice(12,500,None)
-#idx_y=slice(12,500,None)
-#idx_xy=(idx_x,idx_y)
-border_to_0=30 # 28 for data2!!!!
-add_to_movie=500 # the movie must be positive!!!
-downsample_factor=1 # use .2 or .1 if file is large and you want a quick answer
-idx_xy=None
-base_name='Yr'
-name_new=cm.save_memmap_each(fnames, dview=dview,base_name=base_name, resize_fact=(1, 1, downsample_factor), remove_init=0,idx_xy=idx_xy,add_to_movie=add_to_movie,border_to_0=border_to_0)
+# idx_x=slice(12,500,None)
+# idx_y=slice(12,500,None)
+# idx_xy=(idx_x,idx_y)
+border_to_0 = 30  # 28 for data2!!!!
+add_to_movie = 500  # the movie must be positive!!!
+downsample_factor = 1  # use .2 or .1 if file is large and you want a quick answer
+idx_xy = None
+base_name = 'Yr'
+name_new = cm.save_memmap_each(fnames, dview=dview, base_name=base_name, resize_fact=(
+    1, 1, downsample_factor), remove_init=0, idx_xy=idx_xy, add_to_movie=add_to_movie, border_to_0=border_to_0)
 name_new.sort()
 print(name_new)
 #%%
-fname_new = cm.save_memmap_join(name_new, base_name='Yr', n_chunks=12, dview=dview)
+fname_new = cm.save_memmap_join(
+    name_new, base_name='Yr', n_chunks=12, dview=dview)
 #%%
 # fname_new='Yr_d1_501_d2_398_d3_1_order_F_frames_369_.mmap'
 Yr, dims, T = cm.load_memmap(fname_new)
@@ -117,11 +119,11 @@ d1, d2 = dims
 images = np.reshape(Yr.T, [T] + list(dims), order='F')
 Y = np.reshape(Yr, dims + (T,), order='F')
 #%%
-if np.min(images)<0:
+if np.min(images) < 0:
     raise Exception('Movie too negative, add_to_movie should be larger')
 #%%
-Cn = cm.local_correlations(Y[:,:,:3000])
-pl.imshow(Cn,cmap='gray')  
+Cn = cm.local_correlations(Y[:, :, :3000])
+pl.imshow(Cn, cmap='gray')
 
 #%%
 
@@ -137,7 +139,7 @@ save_results = False
 #%% RUN ALGORITHM ON PATCHES
 
 cnm = cnmf.CNMF(n_processes, k=K, gSig=gSig, merge_thresh=0.8, p=0, dview=c[:], Ain=None, rf=rf, stride=stride, memory_fact=memory_fact,
-                method_init=init_method, alpha_snmf=alpha_snmf, only_init_patch=True, gnb=1,method_deconvolution='oasis')
+                method_init=init_method, alpha_snmf=alpha_snmf, only_init_patch=True, gnb=1, method_deconvolution='oasis')
 cnm = cnm.fit(images)
 
 A_tot = cnm.A
@@ -150,7 +152,7 @@ sn_tot = cnm.sn
 print(('Number of components:' + str(A_tot.shape[-1])))
 
 #%%
-final_frate = 1# approx final rate  (after eventual downsampling )
+final_frate = 1  # approx final rate  (after eventual downsampling )
 tB = np.minimum(-2, np.floor(-5. / 30 * final_frate))
 tA = np.maximum(5, np.ceil(25. / 30 * final_frate))
 Npeaks = 10
@@ -192,7 +194,7 @@ cnm = cnm.fit(images)
 #%%
 A, C, b, f, YrA, sn = cnm.A, cnm.C, cnm.b, cnm.f, cnm.YrA, cnm.sn
 #%%
-final_frate=1
+final_frate = 1
 tB = np.minimum(-2, np.floor(-5. / 30 * final_frate))
 tA = np.maximum(5, np.ceil(25. / 30 * final_frate))
 Npeaks = 10
@@ -201,24 +203,24 @@ traces = C + YrA
 #        traces_b=np.diff(traces,axis=1)
 fitness_raw, fitness_delta, erfc_raw, erfc_delta, r_values, significant_samples = \
     evaluate_components(Y, traces, A, C, b, f, remove_baseline=True,
-                                      N=5, robust_std=False, Athresh=0.1, Npeaks=Npeaks, tB=tB, tA=tA, thresh_C=0.3)
+                        N=5, robust_std=False, Athresh=0.1, Npeaks=Npeaks, tB=tB, tA=tA, thresh_C=0.3)
 
 idx_components_r = np.where(r_values >= .5)[0]
 idx_components_raw = np.where(fitness_raw < -40)[0]
 idx_components_delta = np.where(fitness_delta < -20)[0]
 
 
-min_radius = gSig[0] 
-#masks_ws, idx_blobs, idx_non_blobs = extract_binary_masks_blob(
+min_radius = gSig[0]
+# masks_ws, idx_blobs, idx_non_blobs = extract_binary_masks_blob(
 #    A.tocsc(), min_radius, dims, num_std_threshold=1,
 #    minCircularity=0.5, minInertiaRatio=0.2, minConvexity=.7)
 
 #% LOOK FOR BLOB LIKE STRUCTURES!
 masks_ws, is_blob, is_non_blob = cm.base.rois.extract_binary_masks_blob_parallel(A.tocsc(), min_radius, dims, num_std_threshold=1,
-    minCircularity=0.5, minInertiaRatio=0.2, minConvexity=.7,dview=dview)    
+                                                                                 minCircularity=0.5, minInertiaRatio=0.2, minConvexity=.7, dview=dview)
 
-idx_blobs=np.where(is_blob)[0]
-idx_non_blobs=np.where(is_non_blob)[0]     
+idx_blobs = np.where(is_blob)[0]
+idx_non_blobs = np.where(is_non_blob)[0]
 
 idx_components = np.union1d(idx_components_r, idx_components_raw)
 idx_components = np.union1d(idx_components, idx_components_delta)
@@ -232,8 +234,10 @@ print((len(idx_blobs)))
 #%%
 save_results = True
 if save_results:
-    np.savez(os.path.join(os.path.split(fname_new)[0], 'results_analysis.npz'), Cn=Cn, A=A.todense(), C=C, b=b, f=f, YrA=YrA, sn=sn, d1=d1, d2=d2, idx_components=idx_components, idx_components_bad=idx_components_bad)
-    np.savez(os.path.join(os.path.split(fname_new)[0], 'results_blobs.npz'), spatial_comps=A.tocsc().toarray().reshape(dims+(-1,),order='F').transpose([2,0,1]),masks=masks_ws,idx_components=idx_components,idx_blobs=idx_blobs,idx_components_bad=idx_components_bad)
+    np.savez(os.path.join(os.path.split(fname_new)[0], 'results_analysis.npz'), Cn=Cn, A=A.todense(
+    ), C=C, b=b, f=f, YrA=YrA, sn=sn, d1=d1, d2=d2, idx_components=idx_components, idx_components_bad=idx_components_bad)
+    np.savez(os.path.join(os.path.split(fname_new)[0], 'results_blobs.npz'), spatial_comps=A.tocsc().toarray().reshape(
+        dims + (-1,), order='F').transpose([2, 0, 1]), masks=masks_ws, idx_components=idx_components, idx_blobs=idx_blobs, idx_components_bad=idx_components_bad)
 #%% visualize components
 # pl.figure();
 pl.subplot(1, 3, 1)
@@ -244,10 +248,10 @@ pl.subplot(1, 3, 3)
 crd = plot_contours(A.tocsc()[:, idx_components_bad], Cn, thr=0.9)
 #%%
 view_patches_bar(Yr, scipy.sparse.coo_matrix(A.tocsc()[:, idx_components]), C[
-                               idx_components, :], b, f, dims[0], dims[1], YrA=YrA[idx_components, :], img=Cn)
+    idx_components, :], b, f, dims[0], dims[1], YrA=YrA[idx_components, :], img=Cn)
 #%%
 view_patches_bar(Yr, scipy.sparse.coo_matrix(A.tocsc()[:, idx_components_bad]), C[
-                               idx_components_bad, :], b, f, dims[0], dims[1], YrA=YrA[idx_components_bad, :], img=Cn)
+    idx_components_bad, :], b, f, dims[0], dims[1], YrA=YrA[idx_components_bad, :], img=Cn)
 #%% STOP CLUSTER and clean up log files
 pl.close()
 if not single_thread:
@@ -278,24 +282,24 @@ import scipy
 from ipyparallel import Client
 import caiman as cm
 from caiman.components_evaluation import evaluate_components
-from caiman.utils.visualization import plot_contours,view_patches_bar
+from caiman.utils.visualization import plot_contours, view_patches_bar
 from caiman.base.rois import extract_binary_masks_blob
 from caiman.source_extraction import cnmf as cnmf
 
 
 import pylab as pl
-pl.ion()    
+pl.ion()
 
 with np.load('results_analysis.npz') as ld:
     locals().update(ld)
 
-A=scipy.sparse.coo_matrix(A)    
-fname_new='Yr_d1_512_d2_512_d3_1_order_C_frames_3201_.mmap'
+A = scipy.sparse.coo_matrix(A)
+fname_new = 'Yr_d1_512_d2_512_d3_1_order_C_frames_3201_.mmap'
 Yr, dims, T = cm.load_memmap(fname_new)
 d1, d2 = dims
 images = np.reshape(Yr.T, [T] + list(dims), order='F')
 Y = np.reshape(Yr, dims + (T,), order='F')
 gSig = [8, 8]  # expected half size of neurons
-final_frate=1
+final_frate = 1
 with np.load('results_blobs.npz') as ld:
     locals().update(ld)

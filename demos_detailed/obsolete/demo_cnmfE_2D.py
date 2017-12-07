@@ -39,10 +39,10 @@ min_corr = .8
 min_pnr = 10
 fname = '/opt/local/Data/1photon/3168_PAG_TIFF.tif'
 #fname = '/opt/local/Data/1photon/Yr_d1_190_d2_198_d3_1_order_F_frames_35992_.mmap'
- gSig = 3   # gaussian width of a 2D gaussian kernel, which approximates a neuron
- gSiz = 16  # average diameter of a neuron
- min_corr=.6
- min_pnr=10
+    gSig = 3   # gaussian width of a 2D gaussian kernel, which approximates a neuron
+    gSiz = 16  # average diameter of a neuron
+    min_corr = .6
+    min_pnr = 10
 
 # If True, the background can be roughly removed. This is useful when the background is strong.
 center_psf = True
@@ -59,7 +59,8 @@ show_img(ax, Y[100, ])
 
 #%%
 # show correlation image of the raw data; show correlation image and PNR image of the filtered data
-cn_raw = cm.summary_images.max_correlation_image(Y, swap_dim=False, bin_size=3000)
+cn_raw = cm.summary_images.max_correlation_image(
+    Y, swap_dim=False, bin_size=3000)
 #%% TAKES MEMORY!!!
 cn_filter, pnr = cm.summary_images.correlation_pnr(
     Y, gSig=gSig, center_psf=center_psf, swap_dim=False)
@@ -152,56 +153,56 @@ if memmap:
     cnm.fit(Yr.T.reshape((T,) + dims, order='F'))
 else:
     cnm.fit(Y)
-##%%
+# %%
 #A_tot, C_tot, b_tot, f_tot, YrA_tot, sn = cnm.A, cnm.C, cnm.b, cnm.f, cnm.YrA, cnm.sn
-##%%
+# %%
 #crd = cm.utils.visualization.plot_contours(A_tot, cn_filter, thr=.95, vmax=0.95)
-##%%
+# %%
 #plt.imshow(A_tot.sum(-1).reshape(dims, order='F'))
 #
 #
-## %% DISCARD LOW QUALITY COMPONENT
+# %% DISCARD LOW QUALITY COMPONENT
 #final_frate = 10
-#r_values_min = 0.1  # threshold on space consistency
-#fitness_min = - 20  # threshold on time variability
-## threshold on time variability (if nonsparse activity)
+# r_values_min = 0.1  # threshold on space consistency
+# fitness_min = - 20  # threshold on time variability
+# threshold on time variability (if nonsparse activity)
 #fitness_delta_min = - 20
 #Npeaks = 10
 #traces = C_tot + YrA_tot
 ## TODO: todocument
-#idx_components, idx_components_bad = cm.components_evaluation.estimate_components_quality(
+# idx_components, idx_components_bad = cm.components_evaluation.estimate_components_quality(
 #    traces, Yr, A_tot, C_tot, b_tot, f_tot, final_frate=final_frate, Npeaks=Npeaks,
 #    r_values_min=r_values_min, fitness_min=fitness_min, fitness_delta_min=fitness_delta_min)
 #
 #print(('Keeping ' + str(len(idx_components)) + ' and discarding  ' + str(len(idx_components_bad))))
-##%%
+# %%
 #plt.subplot(1, 2, 1)
 #crd = cm.utils.visualization.plot_contours(A_tot.tocsc()[:, idx_components], cn_filter, thr=.95)
 #plt.subplot(1, 2, 2)
-#crd = cm.utils.visualization.plot_contours(
+# crd = cm.utils.visualization.plot_contours(
 #    A_tot.tocsc()[:, idx_components_bad], cn_filter, thr=.95)
-##%%
-#cm.utils.visualization.view_patches_bar(
+# %%
+# cm.utils.visualization.view_patches_bar(
 #    Yr, coo_matrix(A_tot.tocsc()[:, idx_components]), C_tot[idx_components, :],
 #    b_tot, f_tot, dims[0], dims[1], YrA=YrA_tot[idx_components, :], img=cn_filter)
-##%%
-#cm.utils.visualization.view_patches_bar(
+# %%
+# cm.utils.visualization.view_patches_bar(
 #    Yr, coo_matrix(A_tot.tocsc()[:, idx_components_bad]), C_tot[idx_components_bad, :],
 #    b_tot, f_tot, dims[0], dims[1], YrA=YrA_tot[idx_components_bad, :], img=cn_filter)
 #
 #
-## %% rerun updating the components to refine
-#cnm = cnmf.CNMF(n_processes=1, k=A_tot.shape, gSig=[gSig, gSig], merge_thresh=0.8, p=1,
+# %% rerun updating the components to refine
+# cnm = cnmf.CNMF(n_processes=1, k=A_tot.shape, gSig=[gSig, gSig], merge_thresh=0.8, p=1,
 #                dview=dview, Ain=A_tot, Cin=C_tot, b_in=b_tot,
 #                f_in=f_tot, rf=None, stride=None, method_deconvolution='oasis', gnb=None,
 #                low_rank_background=False, update_background_components=False)
 #
-#memmap = True  # must be True for patches
-#if memmap:
+# memmap = True  # must be True for patches
+# if memmap:
 #    fname_new = cm.save_memmap([fname], base_name='Yr')
 #    Yr, dims, T = cm.load_memmap(fname_new)
 #    cnm.fit(Yr.T.reshape((T,) + dims, order='F'))
-#else:
+# else:
 #    cnm.fit(Y)
 
 
@@ -209,7 +210,8 @@ else:
 A, C, b, f, YrA, sn = cnm.A, cnm.C, cnm.b, cnm.f, cnm.YrA, cnm.sn
 #%%
 pl.figure()
-crd = cm.utils.visualization.plot_contours(A.tocsc()[:, idx_components], cn_filter, thr=.9)
+crd = cm.utils.visualization.plot_contours(
+    A.tocsc()[:, idx_components], cn_filter, thr=.9)
 
 #%%
 plt.imshow(A.sum(-1).reshape(dims, order='F'), vmax=200)
