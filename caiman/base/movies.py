@@ -30,13 +30,11 @@ import scipy
 import sklearn
 import warnings
 import numpy as np
-import scipy as sp
 from sklearn.decomposition import NMF
 from sklearn.decomposition import incremental_pca, FastICA
 
 from sklearn.cluster import KMeans
 from sklearn.metrics.pairwise import euclidean_distances
-import pylab as plt
 import h5py
 import pickle as cpk
 from scipy.io import loadmat
@@ -224,8 +222,8 @@ class movie(ts.timeseries):
 
         Returns:
         -------
-        img: 
-            median image   
+        img:
+            median image
 
         """
         T, d1, d2 = np.shape(self)
@@ -437,11 +435,11 @@ class movie(ts.timeseries):
 
         try:
             p0 = (y[0] - y[-1], 1e-6, y[-1])
-            popt, pcov = sp.optimize.curve_fit(expf, x, y, p0=p0)
+            popt, pcov = scipy.optimize.curve_fit(expf, x, y, p0=p0)
             y_fit = expf(x, *popt)
         except:
             p0 = (old_div(float(y[-1] - y[0]), float(x[-1] - x[0])), y[0])
-            popt, pcov = sp.optimize.curve_fit(linf, x, y, p0=p0)
+            popt, pcov = scipy.optimize.curve_fit(linf, x, y, p0=p0)
             y_fit = linf(x, *popt)
 
         norm = y_fit - np.median(y[:])
@@ -997,11 +995,11 @@ class movie(ts.timeseries):
         Exception('Method not implemented')
         """
         # todo: todocument
-        if method is 'mean':
+        if method == 'mean':
             zp = np.mean(self, axis=0)
-        elif method is 'median':
+        elif method == 'median':
             zp = np.median(self, axis=0)
-        elif method is 'std':
+        elif method == 'std':
             zp = np.std(self, axis=0)
         else:
             raise Exception('Method not implemented')
@@ -1031,28 +1029,28 @@ class movie(ts.timeseries):
          Exception('Unknown backend!')
         """
         # todo: todocument
-        if backend is 'pylab':
+        if backend == 'pylab':
             print('*** WARNING *** SPEED MIGHT BE LOW. USE opencv backend if available')
 
         gain *= 1.
         maxmov = np.nanmax(self)
 
-        if backend is 'pylab':
-            plt.ion()
-            fig = plt.figure(1)
+        if backend == 'pylab':
+            pl.ion()
+            fig = pl.figure(1)
             ax = fig.add_subplot(111)
             ax.set_title("Play Movie")
-            im = ax.imshow((offset + self[0]) * gain / maxmov, cmap=plt.cm.gray,
+            im = ax.imshow((offset + self[0]) * gain / maxmov, cmap=pl.cm.gray,
                            vmin=0, vmax=1, interpolation='none')  # Blank starting image
             fig.show()
             im.axes.figure.canvas.draw()
-            plt.pause(1)
+            pl.pause(1)
 
-        if backend is 'notebook':
+        if backend == 'notebook':
             # First set up the figure, the axis, and the plot element we want to animate
-            fig = plt.figure()
-            im = plt.imshow(self[0], interpolation='None', cmap=plt.cm.gray)
-            plt.axis('off')
+            fig = pl.figure()
+            im = pl.imshow(self[0], interpolation='None', cmap=pl.cm.gray)
+            pl.axis('off')
 
             def animate(i):
                 im.set_data(self[i])
@@ -1077,7 +1075,7 @@ class movie(ts.timeseries):
                 if bord_px is not None and np.sum(bord_px) > 0:
                     frame = frame[bord_px:-bord_px, bord_px:-bord_px]
 
-                if backend is 'opencv':
+                if backend == 'opencv':
                     if magnification != 1:
                         frame = cv2.resize(
                             frame, None, fx=magnification, fy=magnification, interpolation=interpolation)
@@ -1088,19 +1086,19 @@ class movie(ts.timeseries):
                         terminated = True
                         break
 
-                elif backend is 'pylab':
+                elif backend == 'pylab':
 
                     im.set_data((offset + frame) * gain / maxmov)
                     ax.set_title(str(iddxx))
-                    plt.axis('off')
+                    pl.axis('off')
                     fig.canvas.draw()
-                    plt.pause(1. / fr * .5)
-                    ev = plt.waitforbuttonpress(1. / fr * .5)
+                    pl.pause(1. / fr * .5)
+                    ev = pl.waitforbuttonpress(1. / fr * .5)
                     if ev is not None:
-                        plt.close()
+                        pl.close()
                         break
 
-                elif backend is 'notebook':
+                elif backend == 'notebook':
                     print('Animated via MP4')
                     break
 
@@ -1113,7 +1111,7 @@ class movie(ts.timeseries):
             if do_loop:
                 looping = True
 
-        if backend is 'opencv':
+        if backend == 'opencv':
             cv2.waitKey(100)
             cv2.destroyAllWindows()
             for i in range(10):
@@ -1122,7 +1120,7 @@ class movie(ts.timeseries):
 
 def load(file_name, fr=30, start_time=0, meta_data=None, subindices=None, shape=None, var_name_hdf5='mov', in_memory=False, is_behavior=False):
     """
-    load movie from file. SUpports a variety of formats. tif, hdf5, npy and memory mapped. Matlab is experimental. 
+    load movie from file. SUpports a variety of formats. tif, hdf5, npy and memory mapped. Matlab is experimental.
 
     Parameters:
     -----------
@@ -1144,7 +1142,7 @@ def load(file_name, fr=30, start_time=0, meta_data=None, subindices=None, shape=
     shape: tuple of two values
         dimension of the movie along x and y if loading from a two dimensional numpy array
 
-    num_frames_sub_idx:     
+    num_frames_sub_idx:
         when reading sbx format (experimental and unstable)
 
     var_name_hdf5: str
@@ -1344,7 +1342,7 @@ def load_movie_chain(file_list, fr=30, start_time=0,
 
     Parameters:
     ----------
-    file_list: list 
+    file_list: list
        file names in string format
 
     the other parameters as in load_movie except

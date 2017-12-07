@@ -276,7 +276,7 @@ def start_server(slurm_script=None, ipcluster="ipcluster", ncpus=None):
 def shell_source(script):
     """ Run a source-style bash script, copy resulting env vars to current process. """
     pipe = subprocess.Popen(". %s; env" %
-                            script,  stdout=subprocess.PIPE, shell=True)
+                            script, stdout=subprocess.PIPE, shell=True)
     output = pipe.communicate()[0]
     env = dict()
     for line in output.splitlines():

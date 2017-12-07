@@ -451,7 +451,7 @@ def parallel_dot_product(A, b, block_size=5000, dview=None, transpose=False, num
                 for res in results:
                     output[res[0]] = res[1]
 
-            if not('multiprocessing' in str(type(dview))):
+            if 'multiprocessing' not in str(type(dview)):
                 dview.clear()
 
     return output

@@ -2,8 +2,8 @@
 """
 @author Andrea Giovannucci,
 
-The functions apply_shifts_dft, register_translation, _compute_error, _compute_phasediff, and _upsampled_dft are from 
-SIMA (https://github.com/losonczylab/sima), licensed under the  GNU GENERAL PUBLIC LICENSE, Version 2, 1991. 
+The functions apply_shifts_dft, register_translation, _compute_error, _compute_phasediff, and _upsampled_dft are from
+SIMA (https://github.com/losonczylab/sima), licensed under the  GNU GENERAL PUBLIC LICENSE, Version 2, 1991.
 These same functions were adapted from sckikit-image, licensed as follows:
 
 Copyright (C) 2011, the scikit-image team
@@ -50,6 +50,7 @@ from past.utils import old_div
 import numpy as np
 import pylab as pl
 import cv2
+import h5py
 
 import collections
 import caiman as cm
@@ -73,6 +74,7 @@ try:
 except:
     def profile(a): return a
 
+from skimage.external.tifffile import imread
 #%%
 
 
@@ -84,13 +86,13 @@ class MotionCorrect(object):
        Parameters:
        ----------
        fname: str
-           path to file to motion correct        
+           path to file to motion correct
 
        min_mov: int16 or float32
-           estimated minimum value of the movie to produce an output that is positive  
+           estimated minimum value of the movie to produce an output that is positive
 
        dview: ipyparallel view object list
-           to perform parallel computing, if NOne will operate in single thread    
+           to perform parallel computing, if NOne will operate in single thread
 
        max_shifts: tuple
            maximum allow rigid shift
@@ -113,7 +115,7 @@ class MotionCorrect(object):
            overlap between pathes (size of patch strides+overlaps)
 
        splits_els':list
-           for parallelization split the movies in  num_splits chuncks across time 
+           for parallelization split the movies in  num_splits chuncks across time
 
        num_splits_to_process_els:list,
            if none all the splits are processed and the movie is saved  otherwise at each iteration
@@ -170,7 +172,7 @@ class MotionCorrect(object):
         Parameters:
         ----------
         template: ndarray 2D
-            if known, one can pass a template to register the frames to             
+            if known, one can pass a template to register the frames to
 
         save_movie_rigid:Bool
             save the movies vs just get the template
@@ -205,7 +207,7 @@ class MotionCorrect(object):
         Parameters:
         ----------
         template: ndarray 2D
-            if known, one can pass a template to register the frames to             
+            if known, one can pass a template to register the frames to
 
         save_movie:Bool
             save the movies vs just get the template
@@ -262,9 +264,9 @@ class MotionCorrect(object):
 
     def apply_shifts_movie(self, fname, rigid_shifts=True):
         """
-        Applies shifts found by registering one file to a different file. Useful 
-        for cases when shifts computed from a structural channel are applied to a 
-        functional channel. Currently only application of shifts through openCV is 
+        Applies shifts found by registering one file to a different file. Useful
+        for cases when shifts computed from a structural channel are applied to a
+        functional channel. Currently only application of shifts through openCV is
         supported.
 
         Parameters:
@@ -273,7 +275,7 @@ class MotionCorrect(object):
             name of the movie to motion correct. It should not contain nans. All the loadable formats from CaImAn are acceptable
 
         rigid_shifts: bool
-            apply rigid or pw-rigid shifts (must exist in the mc object)    
+            apply rigid or pw-rigid shifts (must exist in the mc object)
 
         Returns:
         ----------
@@ -716,7 +718,7 @@ def bin_median(mat, window=10, exclude_nans=False):
 
     Returns:
     -------
-    img: 
+    img:
         median image
 
 
@@ -1029,10 +1031,10 @@ def motion_correct_parallel(file_names, fr=10, template=None, margins_out=0,
         names of he files to be motion corrected
 
     fr: double
-        fr parameters for calcblitz movie 
+        fr parameters for calcblitz movie
 
     margins_out: int
-        number of pixels to remove from the borders    
+        number of pixels to remove from the borders
 
     Returns:
     ------
@@ -1064,7 +1066,7 @@ def motion_correct_parallel(file_names, fr=10, template=None, margins_out=0,
 
     except:
         try:
-            if (dview is not None) and not ('multiprocessing' in str(type(dview))):
+            if (dview is not None) and 'multiprocessing' not in str(type(dview)):
                 dview.results.clear()
 
         except UnboundLocalError as uberr:
@@ -1220,8 +1222,8 @@ def register_translation(src_image, target_image, upsample_factor=1,
                          space="real", shifts_lb=None, shifts_ub=None, max_shifts=(10, 10)):
     """
 
-    adapted from SIMA (https://github.com/losonczylab) and the 
-    scikit-image (http://scikit-image.org/) package. 
+    adapted from SIMA (https://github.com/losonczylab) and the
+    scikit-image (http://scikit-image.org/) package.
 
 
     Unless otherwise specified by LICENSE.txt files in individual
@@ -1448,8 +1450,8 @@ def register_translation(src_image, target_image, upsample_factor=1,
 
 def apply_shifts_dft(src_freq, shifts, diffphase, is_freq=True, border_nan=False):
     """
-    adapted from SIMA (https://github.com/losonczylab) and the 
-    scikit-image (http://scikit-image.org/) package. 
+    adapted from SIMA (https://github.com/losonczylab) and the
+    scikit-image (http://scikit-image.org/) package.
 
 
     Unless otherwise specified by LICENSE.txt files in individual
@@ -1540,7 +1542,7 @@ def sliding_window(image, overlaps, strides):
          dimension of the patch
 
      strides: tuple
-         stride in wach dimension    
+         stride in wach dimension
 
      Returns:
      -------
@@ -1581,7 +1583,7 @@ def create_weight_matrix_for_blending(img, overlaps, strides):
 
     Returns:
     --------
-    weight_mat: normalizing weight matrix    
+    weight_mat: normalizing weight matrix
     """
     shapes = np.add(strides, overlaps)
 
@@ -1648,7 +1650,7 @@ def tile_and_correct(img, template, strides, overlaps, max_shifts, newoverlaps=N
         amount of pixel overlaping between patches along each dimension
 
     max_shifts: tuple
-        max shifts in x and y       
+        max shifts in x and y
 
     newstrides:tuple
         strides between patches along each dimension when upsampling the vector fields
@@ -1659,13 +1661,13 @@ def tile_and_correct(img, template, strides, overlaps, max_shifts, newoverlaps=N
     upsample_factor_grid: int
         if newshapes or newstrides are not specified this is inferred upsampling by a constant factor the cvector field
 
-    upsample_factor_fft: int 
-        resolution of fractional shifts 
+    upsample_factor_fft: int
+        resolution of fractional shifts
 
     show_movie: boolean whether to visualize the original and corrected frame during motion correction
 
     max_deviation_rigid: int
-        maximum deviation in shifts of each patch from the rigid shift (should not be large)    
+        maximum deviation in shifts of each patch from the rigid shift (should not be large)
 
     add_to_movie: if movie is too negative the correction might have some issues. In this case it is good to add values so that it is non negative most of the times
 
@@ -1975,7 +1977,7 @@ def motion_correct_batch_rigid(fname, max_shifts, dview=None, splits=56, num_spl
         name of the movie to motion correct. It should not contain nans. All the loadable formats from CaImAn are acceptable
 
     max_shifts: tuple
-        x and y maximum allowd shifts 
+        x and y maximum allowd shifts
 
     dview: ipyparallel view
         used to perform parallel computing
@@ -1987,10 +1989,10 @@ def motion_correct_batch_rigid(fname, max_shifts, dview=None, splits=56, num_spl
         number of batches to process. when not None, the movie is not saved since only a random subset of batches will be processed
 
     num_iter: int
-        number of iterations to perform. The more iteration the better will be the template. 
+        number of iterations to perform. The more iteration the better will be the template.
 
     template: ndarray
-        if a good approximation of the template to register is available, it can be used 
+        if a good approximation of the template to register is available, it can be used
 
     shifts_opencv: boolean
          toggle the shifts applied with opencv, if yes faster but induces some smoothing
@@ -2002,7 +2004,7 @@ def motion_correct_batch_rigid(fname, max_shifts, dview=None, splits=56, num_spl
         Indices to slice
 
     Returns:
-    --------    
+    --------
     fname_tot_rig: str
 
     total_template:ndarray
@@ -2081,7 +2083,7 @@ def motion_correct_batch_rigid(fname, max_shifts, dview=None, splits=56, num_spl
 #%%
 
 
-def motion_correct_batch_pwrigid(fname, max_shifts, strides, overlaps, add_to_movie, newoverlaps=None,  newstrides=None,
+def motion_correct_batch_pwrigid(fname, max_shifts, strides, overlaps, add_to_movie, newoverlaps=None, newstrides=None,
                                  dview=None, upsample_factor_grid=4, max_deviation_rigid=3,
                                  splits=56, num_splits_to_process=None, num_iter=1,
                                  template=None, shifts_opencv=False, save_movie=False, nonneg_movie=False, gSig_filt=None):
@@ -2106,7 +2108,7 @@ def motion_correct_batch_pwrigid(fname, max_shifts, strides, overlaps, add_to_mo
         strides after upsampling
 
     max_shifts: tuple
-        x and y maximum allowd shifts 
+        x and y maximum allowd shifts
 
     dview: ipyparallel view
         used to perform parallel computing
@@ -2118,10 +2120,10 @@ def motion_correct_batch_pwrigid(fname, max_shifts, strides, overlaps, add_to_mo
         number of batches to process. when not None, the movie is not saved since only a random subset of batches will be processed
 
     num_iter: int
-        number of iterations to perform. The more iteration the better will be the template. 
+        number of iterations to perform. The more iteration the better will be the template.
 
     template: ndarray
-        if a good approximation of the template to register is available, it can be used 
+        if a good approximation of the template to register is available, it can be used
 
     shifts_opencv: boolean
          toggle the shifts applied with opencv, if yes faster but induces some smoothing
@@ -2130,7 +2132,7 @@ def motion_correct_batch_pwrigid(fname, max_shifts, strides, overlaps, add_to_mo
          toggle save movie
 
     Returns:
-    --------    
+    --------
     fname_tot_rig: str
 
     total_template:ndarray
@@ -2199,19 +2201,14 @@ def motion_correct_batch_pwrigid(fname, max_shifts, strides, overlaps, add_to_mo
 def tile_and_correct_wrapper(params):
     # todo todocument
 
-    from skimage.external.tifffile import imread
-    import numpy as np
-    import cv2
     try:
         cv2.setNumThreads(1)
     except:
-        1  # 'Open CV is naturally single threaded'
+        pass  # 'Open CV is naturally single threaded'
 
-    img_name,  out_fname, idxs, shape_mov, template, strides, overlaps, max_shifts,\
+    img_name, out_fname, idxs, shape_mov, template, strides, overlaps, max_shifts,\
         add_to_movie, max_deviation_rigid, upsample_factor_grid, newoverlaps, newstrides, \
         shifts_opencv, nonneg_movie, gSig_filt, is_fiji = params
-
-    import os
 
     name, extension = os.path.splitext(img_name)[:2]
 
@@ -2268,8 +2265,6 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
 
     """
     # todo todocument
-    import os
-    import h5py
     name, extension = os.path.splitext(fname)[:2]
     is_fiji = False
 
