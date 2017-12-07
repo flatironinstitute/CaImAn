@@ -30,7 +30,7 @@ import pickle as cpk
 try:
     plt.ion()
 except:
-    1
+    pass
 
 from scipy.io import savemat
 
@@ -147,7 +147,7 @@ class timeseries(np.ndarray):
             whether to transform to 32 bits
 
                 order: 'F' or 'C'
-                        C or Fortran order	
+                        C or Fortran order
 
         Raise:
         -----

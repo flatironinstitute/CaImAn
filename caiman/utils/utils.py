@@ -108,11 +108,8 @@ def val_parse(v):
     """
 
     try:
-
         return eval(v)
-
     except:
-
         if v == 'true':
             return True
         elif v == 'false':
@@ -121,7 +118,6 @@ def val_parse(v):
             return np.nan
         elif v == 'inf' or v == 'Inf':
             return np.inf
-
         else:
             return v
 
@@ -225,7 +221,7 @@ def gen_data(dims=(48, 48), N=10, sig=(3, 3), tau=1., noise=.3, T=2000,
     trueA /= np.linalg.norm(trueA, 2, 0)
     keep = np.ones(M, dtype=bool)
     overlap = trueA.T.dot(trueA) - np.eye(M)
-    while(keep.sum() > N):
+    while keep.sum() > N:
         keep[np.argmax(overlap * np.outer(keep, keep)) % M] = False
     trueA = trueA[:, keep]
     trueS = np.random.rand(N, T) < firerate / float(framerate)

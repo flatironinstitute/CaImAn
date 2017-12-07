@@ -111,7 +111,7 @@ def extract_patch_coordinates(dims, rf, stride, border_pix=0):
                     coords_flat.append(coords_.flatten())
 
     for i, c in enumerate(coords_flat):
-        assert(len(c) == np.prod(shapes[i]))
+        assert len(c) == np.prod(shapes[i])
 
     return map(np.sort, coords_flat), shapes
 
@@ -395,14 +395,14 @@ def setup_cluster(backend='multiprocessing', n_processes=None, single_thread=Fal
             start_server(slurm_script=slurm_script, ncpus=n_processes)
             pdir, profile = os.environ['IPPPDIR'], os.environ['IPPPROFILE']
             c = Client(ipython_dir=pdir, profile=profile)
-        elif backend is 'ipyparallel':
+        elif backend == 'ipyparallel':
             stop_server()
             start_server(ncpus=n_processes)
             c = Client()
             print(('Using ' + str(len(c)) + ' processes'))
             dview = c[:len(c)]
 
-        elif (backend is 'multiprocessing') or (backend is 'local'):
+        elif (backend == 'multiprocessing') or (backend == 'local'):
             if len(multiprocessing.active_children()) > 0:
                 raise Exception(
                     'A cluster is already runnning. Terminate with dview.terminate() if you want to restart.')

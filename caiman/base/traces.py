@@ -21,7 +21,7 @@ from . import timeseries as ts
 
 
 class trace(ts.timeseries):
-    """ 
+    """
     Class representing a trace.
 
     Example of usage
@@ -50,11 +50,11 @@ class trace(ts.timeseries):
         return trace(**np.load(file_name))
 
     def computeDFF(self, window_sec=5, minQuantile=20):
-        """ 
+        """
         compute the DFF of the movie
 
         In order to compute the baseline frames are binned according to the window length parameter
-        and then the intermediate values are interpolated. 
+        and then the intermediate values are interpolated.
 
         Parameters:
         ----------
@@ -100,7 +100,7 @@ class trace(ts.timeseries):
 
         Parameters:
         ----------
-        stacked : bool 
+        stacked : bool
             for multiple columns of data, stack instead of overlaying
 
         subtract_minimum : bool

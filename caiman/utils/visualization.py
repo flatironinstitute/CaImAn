@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
-""" List of plotting functions to visualize what's happening in the code
- 
- 
-"""
+
+""" List of plotting functions to visualize what's happening in the code """
+
 #\package Caiman/utils
 #\version   1.0
 #\copyright GNU General Public License v2.0
@@ -142,7 +141,7 @@ def nb_view_patches(Yr, A, C, b, f, d1, d2, YrA=None, image_neurons=None, thr=0.
 
     YrA:   np.ndarray
         ROI filtered residual as it is given from update_temporal_components
-        If not given, then it is computed (K x T)        
+        If not given, then it is computed (K x T)
 
     image_neurons: np.ndarray
         image to be overlaid to neurons (for instance the average)
@@ -893,7 +892,7 @@ def plot_contours(A, Cn, thr=None, thr_method='max', maxthr=0.2, nrgthr=0.9, dis
                Background image (e.g. mean, correlation)
 
      thr_method: [optional] string
-              Method of thresholding: 
+              Method of thresholding:
                   'max' sets to zero pixels that have value less than a fraction of the max value
                   'nrg' keeps the pixels that contribute up to a specified fraction of the energy
 

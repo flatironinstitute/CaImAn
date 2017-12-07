@@ -1063,7 +1063,7 @@ class movie(ts.timeseries):
             # call our new function to display the animation
             return visualization.display_animation(anim, fps=fr)
 
-        if fr == None:
+        if fr is None:
             fr = self.fr
 
         looping = True

@@ -973,7 +973,7 @@ def process_movie_parallel(arg_in):
         #        print((type(fname)))
         Yr = fname
 
-    elif ('ndarray' in type_input):
+    elif 'ndarray' in type_input:
         Yr = cm.movie(np.array(fname, dtype=np.float32), fr=fr)
     elif isinstance(fname, basestring):
         Yr = cm.load(fname, fr=fr)

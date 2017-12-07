@@ -5,16 +5,14 @@
 author: Pengcheng Zhou
 email: zhoupc1988@gmail.com
 created: 6/16/17
-last edited: 
+last edited:
 """
 import os
 from collections import OrderedDict
 from PyQt5.QtWidgets import QFileDialog, QWidget, QLabel, QPushButton, \
     QLineEdit, QGridLayout, QApplication
 
-"""
---------------------------------CLASSES--------------------------------
-"""
+# --------------------------------CLASSES--------------------------------
 
 
 class FileOpen(QWidget):
