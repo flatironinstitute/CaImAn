@@ -24,6 +24,8 @@ from caiman.utils.utils import download_demo
 import cv2
 import glob
 
+raise Exception('purposeful failure for testing')
+
 try:
     cv2.setNumThreads(1)
 except:
