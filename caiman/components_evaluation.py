@@ -15,11 +15,9 @@ from scipy.stats import norm
 import scipy
 import cv2
 import itertools
-import json as simplejson
-
 
 def estimate_noise_mode(traces, robust_std=False, use_mode_fast=False, return_all=False):
-    """ estimate the noise in the traces under assumption that signals are sparse and only positive. The last dimension should be time. 
+    """ estimate the noise in the traces under assumption that signals are sparse and only positive. The last dimension should be time.
 
     """
     # todo todocument
@@ -38,7 +36,7 @@ def estimate_noise_mode(traces, robust_std=False, use_mode_fast=False, return_al
         Ns = np.round(np.sum(ff1 > 0, 1) * .5)
         iqr_h = np.zeros(traces.shape[0])
 
-        for idx, el in enumerate(ff1):
+        for idx, _ in enumerate(ff1):
             iqr_h[idx] = ff1[idx, -Ns[idx]]
 
         # approximate standard deviation as iqr/1.349
@@ -65,24 +63,24 @@ except:
 @profile
 def compute_event_exceptionality(traces, robust_std=False, N=5, use_mode_fast=False, sigma_factor=3.):
     """
-    Define a metric and order components according to the probability of some "exceptional events" (like a spike). 
+    Define a metric and order components according to the probability of some "exceptional events" (like a spike).
 
     Such probability is defined as the likelihood of observing the actual trace value over N samples given an estimated noise distribution.
-    The function first estimates the noise distribution by considering the dispersion around the mode. 
-    This is done only using values lower than the mode. The estimation of the noise std is made robust by using the approximation std=iqr/1.349. 
+    The function first estimates the noise distribution by considering the dispersion around the mode.
+    This is done only using values lower than the mode. The estimation of the noise std is made robust by using the approximation std=iqr/1.349.
     Then, the probability of having N consecutive events is estimated.
     This probability is used to order the components.
 
-    Parameters:    
+    Parameters:
     -----------
-    Y: ndarray 
+    Y: ndarray
         movie x,y,t
 
     A: scipy sparse array
-        spatial components    
+        spatial components
 
     traces: ndarray
-        Fluorescence traces 
+        Fluorescence traces
 
     N: int
         N number of consecutive events
@@ -121,7 +119,7 @@ def compute_event_exceptionality(traces, robust_std=False, N=5, use_mode_fast=Fa
         Ns = np.round(np.sum(ff1 > 0, 1) * .5)
         iqr_h = np.zeros(traces.shape[0])
 
-        for idx, el in enumerate(ff1):
+        for idx, _ in enumerate(ff1):
             iqr_h[idx] = ff1[idx, -Ns[idx]]
 
         # approximate standard deviation as iqr/1.349
@@ -273,29 +271,29 @@ def evaluate_components_CNN(A, dims, gSig, model_name='use_cases/CaImAnpaper/cnn
 
 
 def evaluate_components(Y, traces, A, C, b, f, final_frate, remove_baseline=True, N=5, robust_std=False,
-                        Athresh=0.1, Npeaks=5, thresh_C=0.3,  sigma_factor=3.):
+                        Athresh=0.1, Npeaks=5, thresh_C=0.3, sigma_factor=3.):
     """ Define a metric and order components according to the probability of some "exceptional events" (like a spike).
 
-    Such probability is defined as the likeihood of observing the actual trace value over N samples given an estimated noise distribution. 
+    Such probability is defined as the likeihood of observing the actual trace value over N samples given an estimated noise distribution.
     The function first estimates the noise distribution by considering the dispersion around the mode.
     This is done only using values lower than the mode.
-    The estimation of the noise std is made robust by using the approximation std=iqr/1.349. 
+    The estimation of the noise std is made robust by using the approximation std=iqr/1.349.
     Then, the probavility of having N consecutive eventsis estimated.
-    This probability is used to order the components. 
+    This probability is used to order the components.
     The algorithm also measures the reliability of the spatial mask by comparing the filters in A
      with the average of the movies over samples where exceptional events happen, after  removing (if possible)
     frames when neighboring neurons were active
 
     Parameters:
     ----------
-    Y: ndarray 
+    Y: ndarray
         movie x,y,t
 
-    A,C,b,f: various types 
-        outputs of cnmf    
+    A,C,b,f: various types
+        outputs of cnmf
 
     traces: ndarray
-        Fluorescence traces 
+        Fluorescence traces
 
     remove_baseline: bool
         whether to remove the baseline in a rolling fashion *(8 percentile)
@@ -304,17 +302,17 @@ def evaluate_components(Y, traces, A, C, b, f, final_frate, remove_baseline=True
         N number of consecutive events probability multiplied
 
 
-    Athresh: float 
+    Athresh: float
         threshold on overlap of A (between 0 and 1)
 
     Npeaks: int
-        Number of local maxima to consider   
+        Number of local maxima to consider
 
     thresh_C: float
-        fraction of the maximum of C that is used as minimum peak height        
+        fraction of the maximum of C that is used as minimum peak height
 
     sigma_factor: float
-        multiplicative factor for noise 
+        multiplicative factor for noise
 
     Returns:
     -------
@@ -331,7 +329,7 @@ def evaluate_components(Y, traces, A, C, b, f, final_frate, remove_baseline=True
         probability at each time step of observing the N consequtive actual trace values given the distribution of noise on the raw trace
 
     erfc_raw: ndarray
-        probability at each time step of observing the N consequtive actual trace values given the distribution of noise on diff(trace)    
+        probability at each time step of observing the N consequtive actual trace values given the distribution of noise on diff(trace)
 
     r_values: list
         float values representing correlation between component and spatial mask obtained by averaging important points
@@ -417,7 +415,6 @@ def grouper(n, iterable, fillvalue=None):
 
 def evaluate_components_placeholder(params):
     import caiman as cm
-    import numpy as np
     fname, traces, A, C, b, f, final_frate, remove_baseline, N, robust_std, Athresh, Npeaks, thresh_C = params
     Yr, dims, T = cm.load_memmap(fname)
     #d1, d2 = dims
@@ -425,7 +422,7 @@ def evaluate_components_placeholder(params):
     Y = np.reshape(Yr, dims + (T,), order='F')
     fitness_raw, fitness_delta, erfc_raw, erfc_delta, r_values, significant_samples = \
         evaluate_components(Y, traces, A, C, b, f, final_frate, remove_baseline=remove_baseline,
-                            N=N, robust_std=robust_std, Athresh=Athresh, Npeaks=Npeaks,  thresh_C=thresh_C)
+                            N=N, robust_std=robust_std, Athresh=Athresh, Npeaks=Npeaks, thresh_C=thresh_C)
 
     return fitness_raw, fitness_delta, [], [], r_values, significant_samples
 
@@ -438,11 +435,11 @@ def estimate_components_quality_auto(Y, A, C, b, f, YrA, frate, decay_time, gSig
     ''' estimates the quality of component automatically
 
     Parameters:
-    -----------        
-    Y, A, C, b, f, YrA: 
+    -----------
+    Y, A, C, b, f, YrA:
         from CNMF
 
-    frate: 
+    frate:
         frame rate in Hz
 
     decay_time:
@@ -458,13 +455,13 @@ def estimate_components_quality_auto(Y, A, C, b, f, YrA, frate, decay_time, gSig
         same as CNMF parameter
 
     min_SNR:
-        adaptive way to set threshold (will be equal to min_SNR) 
+        adaptive way to set threshold (will be equal to min_SNR)
 
     r_values_min:
-        all r values above this are accepted (spatial consistency metric)             
+        all r values above this are accepted (spatial consistency metric)
 
     r_values_lowest:
-        all r values above this are rejected (spatial consistency metric)             
+        all r values above this are rejected (spatial consistency metric)
 
     use_cnn:
         whether to use CNN to filter components (not for 1 photon data)
@@ -494,7 +491,7 @@ def estimate_components_quality_auto(Y, A, C, b, f, YrA, frate, decay_time, gSig
         space correlation values
 
     cnn_values: float
-        prediction values from the CNN classifier               
+        prediction values from the CNN classifier
     '''
 
     # number of timesteps to consider when testing new neuron candidates
@@ -611,7 +608,7 @@ def estimate_components_quality(traces, Y, A, C, b, f, final_frate=30, Npeaks=10
         print('NOT MEMORY MAPPED. FALLING BACK ON SINGLE CORE IMPLEMENTATION')
         fitness_raw, fitness_delta, erfc_raw, erfc_delta, r_values, significant_samples = \
             evaluate_components(Y, traces, A, C, b, f, final_frate, remove_baseline=remove_baseline,
-                                N=N, robust_std=False, Athresh=0.1, Npeaks=Npeaks,  thresh_C=0.3)
+                                N=N, robust_std=False, Athresh=0.1, Npeaks=Npeaks, thresh_C=0.3)
 
     else:  # memory mapped case
 
