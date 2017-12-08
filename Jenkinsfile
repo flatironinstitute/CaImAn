@@ -117,8 +117,20 @@ pipeline {
   }
   post {
     failure {
-      emailext subject: '$DEFAULT_SUBJECT',
-	       body: '$DEFAULT_CONTENT',
+      emailext subject: '$PROJECT_NAME - $GIT_BRANCH Build # $BUILD_NUMBER - $BUILD_STATUS!',
+	       body: '''$PROJECT_NAME - $GIT_BRANCH Build # $BUILD_NUMBER - $BUILD_STATUS
+
+Check console output at $BUILD_URL to view full results.
+
+Building $GIT_REVISION for $CAUSE
+$JOB_DESCRIPTION
+
+Chages:
+$CHANGES
+
+End of build log:
+${BUILD_LOG,maxLines=60}
+''',
 	       recipientProviders: [
 		 [$class: 'DevelopersRecipientProvider'],
 	       ], 
