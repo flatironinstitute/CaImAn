@@ -12,7 +12,7 @@ from __future__ import division
 from __future__ import print_function
 from builtins import range
 from past.utils import old_div
-from scipy.sparse import coo_matrix,csgraph,csc_matrix, lil_matrix
+from scipy.sparse import coo_matrix, csgraph, csc_matrix, lil_matrix
 import scipy
 import numpy as np
 from .spatial import update_spatial_components, threshold_components
@@ -118,13 +118,17 @@ sn: float
     #tests and initialization
     nr = A.shape[1]
     if bl is not None and len(bl) != nr:
-        raise Exception("The number of elements of bl must match the number of components")
+        raise Exception(
+            "The number of elements of bl must match the number of components")
     if c1 is not None and len(c1) != nr:
-        raise Exception("The number of elements of c1 must match the number of components")
+        raise Exception(
+            "The number of elements of c1 must match the number of components")
     if sn is not None and len(sn) != nr:
-        raise Exception("The number of elements of sn must match the number of components")
+        raise Exception(
+            "The number of elements of sn must match the number of components")
     if g is not None and len(g) != nr:
-        raise Exception("The number of elements of g must match the number of components")
+        raise Exception(
+            "The number of elements of g must match the number of components")
 
     [d, t] = np.shape(Y)
 
@@ -135,20 +139,22 @@ sn: float
     FF2 = A_corr > 0
     C_corr = scipy.sparse.csc_matrix(A_corr.shape)
     for ii in range(nr):
-        overlap_indeces = A_corr[ii,:].nonzero()[1]
-        if len(overlap_indeces)>0:
-            #we chesk the correlation of the calcium traces for eahc overlapping components
-            corr_values = [scipy.stats.pearsonr(C[ii,:],C[jj,:])[0] for jj in overlap_indeces]
-            C_corr[ii,overlap_indeces] = corr_values
-    
-    FF1 = (C_corr+C_corr.T) > thr
+        overlap_indeces = A_corr[ii, :].nonzero()[1]
+        if len(overlap_indeces) > 0:
+            # we chesk the correlation of the calcium traces for eahc overlapping components
+            corr_values = [scipy.stats.pearsonr(C[ii, :], C[jj, :])[
+                0] for jj in overlap_indeces]
+            C_corr[ii, overlap_indeces] = corr_values
+
+    FF1 = (C_corr + C_corr.T) > thr
     FF3 = FF1.multiply(FF2)
 
-    nb, connected_comp = csgraph.connected_components(FF3)  # % extract connected components
+    nb, connected_comp = csgraph.connected_components(
+        FF3)  # % extract connected components
 
     p = temporal_params['p']
     list_conxcomp = []
-    for i in range(nb): # we list them
+    for i in range(nb):  # we list them
         if np.sum(connected_comp == i) > 1:
             list_conxcomp.append((connected_comp == i).T)
     list_conxcomp = np.asarray(list_conxcomp).T
@@ -164,13 +170,14 @@ sn: float
 #        if not fast_merge:
 #            Y_res = Y - A.dot(C) #residuals=background=noise
         if np.size(cor) > 1:
-            ind = np.argsort(np.squeeze(cor))[::-1]  #we get the size (indeces)
+            # we get the size (indeces)
+            ind = np.argsort(np.squeeze(cor))[::-1]
         else:
             ind = [0]
 
         nbmrg = min((np.size(ind), mx))   # number of merging operations
 
-        #we initialize the values
+        # we initialize the values
         A_merged = lil_matrix((d, nbmrg))
         C_merged = np.zeros((nbmrg, t))
         S_merged = np.zeros((nbmrg, t))
@@ -184,37 +191,43 @@ sn: float
             merged_ROI = np.where(list_conxcomp[:, ind[i]])[0]
             merged_ROIs.append(merged_ROI)
 
-            #we l2 the traces to have normalization values
-            C_to_norm = np.sqrt([computedC.dot(computedC) for computedC in C[merged_ROI]])
+            # we l2 the traces to have normalization values
+            C_to_norm = np.sqrt([computedC.dot(computedC)
+                                 for computedC in C[merged_ROI]])
 #            fast_merge = False
-            
+
             # from here we are computing initial values for C and A
             Acsc = A.tocsc()[:, merged_ROI]
             Ctmp = np.array(C)[merged_ROI, :]
             print((merged_ROI.T))
-       
-            #this is a  big normalization value that for every one of the merged neuron
-            C_to_norm = np.sqrt(np.ravel(Acsc.power(2).sum(axis=0)) * np.sum(Ctmp ** 2, axis=1))
+
+            # this is a  big normalization value that for every one of the merged neuron
+            C_to_norm = np.sqrt(np.ravel(Acsc.power(2).sum(
+                axis=0)) * np.sum(Ctmp ** 2, axis=1))
             indx = np.argmax(C_to_norm)
-            
+
             if fast_merge:
-                #we normalize the values of different A's to be able to compare them efficiently. we then sum them
-                computedA = Acsc.dot(scipy.sparse.diags(C_to_norm, 0, (len(C_to_norm), len(C_to_norm)))).sum(axis=1)
-        
-                for _ in range(10): # we operate a rank one NMF, refining it multiple times (see cnmf demos )
-                    computedC = np.maximum(Acsc.T.dot(computedA).T.dot(Ctmp) / (computedA.T * computedA),0)
-                    computedA = np.maximum(Acsc.dot(Ctmp.dot(computedC.T)) / (computedC * computedC.T), 0)
+                # we normalize the values of different A's to be able to compare them efficiently. we then sum them
+                computedA = Acsc.dot(scipy.sparse.diags(
+                    C_to_norm, 0, (len(C_to_norm), len(C_to_norm)))).sum(axis=1)
+
+                # we operate a rank one NMF, refining it multiple times (see cnmf demos )
+                for _ in range(10):
+                    computedC = np.maximum(Acsc.T.dot(computedA).T.dot(
+                        Ctmp) / (computedA.T * computedA), 0)
+                    computedA = np.maximum(
+                        Acsc.dot(Ctmp.dot(computedC.T)) / (computedC * computedC.T), 0)
             else:
                 print('Simple Merging Take Best Neuron')
                 computedC = Ctmp[indx]
-                computedA = Acsc[:,indx]
-                
+                computedA = Acsc[:, indx]
+
             # then we de-normalize them using A_to_norm
-            A_to_norm = np.sqrt(computedA.T.dot(computedA)[0, 0] / Acsc.power(2).sum(0).max())
+            A_to_norm = np.sqrt(computedA.T.dot(computedA)[
+                                0, 0] / Acsc.power(2).sum(0).max())
             computedA /= A_to_norm
             computedC *= A_to_norm
-    
-            
+
             # we then compute the traces ( deconvolution ) to have a clean c and noise in the background
             if g is not None:
                 computedC, bm, cm, gm, sm, ss, lam_ = constrained_foopsi(
@@ -222,23 +235,21 @@ sn: float
             else:
                 computedC, bm, cm, gm, sm, ss, lam_ = constrained_foopsi(
                     np.array(computedC).squeeze(), g=None, **temporal_params)
-                 
-                
+
             A_merged[:, i] = computedA
             C_merged[i, :] = computedC
             S_merged[i, :] = ss[:t]
             bl_merged[i] = bm
             c1_merged[i] = cm
             sn_merged[i] = sm
-            g_merged[i, :] = gm 
-            
-            
-        #we want to remove merged neuron from the initial part and replace them with merged ones
+            g_merged[i, :] = gm
+
+        # we want to remove merged neuron from the initial part and replace them with merged ones
         neur_id = np.unique(np.hstack(merged_ROIs))
         good_neurons = np.setdiff1d(list(range(nr)), neur_id)
         A = scipy.sparse.hstack((A.tocsc()[:, good_neurons], A_merged.tocsc()))
         C = np.vstack((C[good_neurons, :], C_merged))
-        #we continue for the variables
+        # we continue for the variables
         if S is not None:
             S = np.vstack((S[good_neurons, :], S_merged))
         if bl is not None:

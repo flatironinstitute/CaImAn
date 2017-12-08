@@ -94,9 +94,9 @@ def constrained_foopsi(fluor, bl=None,  c1=None, g=None,  sn=None, p=None, metho
 
     sp: ndarray of float
         Discretized deconvolved neural activity (spikes)
-    
-	lam: float
-		Regularization parameter	
+
+        lam: float
+                Regularization parameter	
     Raise:
     ------
     Exception("You must specify the value of p")
@@ -119,7 +119,7 @@ def constrained_foopsi(fluor, bl=None,  c1=None, g=None,  sn=None, p=None, metho
         raise Exception("You must specify the value of p")
 
     if g is None or sn is None:
-        #Estimate noise standard deviation and AR coefficients if they are not present
+        # Estimate noise standard deviation and AR coefficients if they are not present
         g, sn = estimate_parameters(fluor, p=p, sn=sn, g=g, range_ff=noise_range,
                                     method=noise_method, lags=lags, fudge_factor=fudge_factor)
     lam = None
@@ -130,7 +130,7 @@ def constrained_foopsi(fluor, bl=None,  c1=None, g=None,  sn=None, p=None, metho
         c = np.maximum(fluor, 0)
         sp = c.copy()
 
-    else: #choose a source extraction method
+    else:  # choose a source extraction method
         if method == 'cvx':
             c, bl, c1, g, sn, sp = cvxopt_foopsi(
                 fluor, b=bl, c1=c1, g=g, sn=sn, p=p, bas_nonneg=bas_nonneg, verbosity=verbosity)
@@ -143,9 +143,9 @@ def constrained_foopsi(fluor, bl=None,  c1=None, g=None,  sn=None, p=None, metho
             from caiman.source_extraction.cnmf.oasis import constrained_oasisAR1
             if p == 1:
                 if bl is None:
-                    #Infer the most likely discretized spike train underlying an AR(1) fluorescence trace
-                    #Solves the noise constrained sparse non-negative deconvolution problem
-                    #min |s|_1 subject to |c-y|^2 = sn^2 T and s_t = c_t-g c_{t-1} >= 0
+                    # Infer the most likely discretized spike train underlying an AR(1) fluorescence trace
+                    # Solves the noise constrained sparse non-negative deconvolution problem
+                    # min |s|_1 subject to |c-y|^2 = sn^2 T and s_t = c_t-g c_{t-1} >= 0
                     c, sp, bl, g, lam = constrained_oasisAR1(
                         fluor.astype(np.float32), g[0], sn, optimize_b=True, b_nonneg=bas_nonneg,
                         optimize_g=optimize_g, penalty=penalty)
@@ -170,7 +170,8 @@ def constrained_foopsi(fluor, bl=None,  c1=None, g=None,  sn=None, p=None, metho
                 d = (g[0] + sqrt(g[0] * g[0] + 4 * g[1])) / 2
                 c -= c1 * d**np.arange(len(fluor))
             else:
-                raise Exception('OASIS is currently only implemented for p=1 and p=2')
+                raise Exception(
+                    'OASIS is currently only implemented for p=1 and p=2')
             g = np.ravel(g)
 
         else:
@@ -201,7 +202,8 @@ def cvxopt_foopsi(fluor, b, c1, g, sn, p, bas_nonneg, verbosity):
         from cvxopt import matrix, spmatrix, spdiag, solvers
         import picos
     except ImportError:
-        raise ImportError('Constrained Foopsi requires cvxopt and picos packages.')
+        raise ImportError(
+            'Constrained Foopsi requires cvxopt and picos packages.')
 
     T = len(fluor)
 
@@ -209,7 +211,8 @@ def cvxopt_foopsi(fluor, b, c1, g, sn, p, bas_nonneg, verbosity):
     G = spmatrix(1., list(range(T)), list(range(T)), (T, T))
 
     for i in range(p):
-        G = G + spmatrix(-g[i], np.arange(i + 1, T), np.arange(T - i - 1), (T, T))
+        G = G + spmatrix(-g[i], np.arange(i + 1, T),
+                         np.arange(T - i - 1), (T, T))
 
     gr = np.roots(np.concatenate([np.array([1]), -g.flatten()]))
     gd_vec = np.max(gr)**np.arange(T)  # decay vector for initial fluorescence
@@ -349,14 +352,15 @@ def cvxpy_foopsi(fluor, g, sn, b=None, c1=None, bas_nonneg=True, solvers=None):
     ValueError('Problem solved suboptimally or unfeasible')
 
     """
-    #todo: check the result and gen_vector vars
+    # todo: check the result and gen_vector vars
     try:
         import cvxpy as cvx
-        
+
     except ImportError:
-        
-        raise ImportError('cvxpy solver requires installation of cvxpy. Not working in windows at the moment.')
-    
+
+        raise ImportError(
+            'cvxpy solver requires installation of cvxpy. Not working in windows at the moment.')
+
     if solvers is None:
         solvers = ['ECOS', 'SCS']
 
@@ -366,7 +370,8 @@ def cvxpy_foopsi(fluor, g, sn, b=None, c1=None, bas_nonneg=True, solvers=None):
     G = scipy.sparse.dia_matrix((np.ones((1, T)), [0]), (T, T))
 
     for i, gi in enumerate(g):
-        G = G + scipy.sparse.dia_matrix((-gi * np.ones((1, T)), [-1 - i]), (T, T))
+        G = G + \
+            scipy.sparse.dia_matrix((-gi * np.ones((1, T)), [-1 - i]), (T, T))
 
     gr = np.roots(np.concatenate([np.array([1]), -g.flatten()]))
     gd_vec = np.max(gr)**np.arange(T)  # decay vector for initial fluorescence
@@ -398,9 +403,11 @@ def cvxpy_foopsi(fluor, g, sn, b=None, c1=None, bas_nonneg=True, solvers=None):
     thrNoise = sn * np.sqrt(fluor.size)
 
     try:
-        objective = cvx.Minimize(cvx.norm(G * c, 1))  # minimize number of spikes
+        # minimize number of spikes
+        objective = cvx.Minimize(cvx.norm(G * c, 1))
         constraints.append(G * c >= 0)
-        constraints.append(cvx.norm(-c + fluor - b - gd_vec * c1, 2) <= thrNoise)  # constraints
+        constraints.append(
+            cvx.norm(-c + fluor - b - gd_vec * c1, 2) <= thrNoise)  # constraints
         prob = cvx.Problem(objective, constraints)
         result = prob.solve(solver=solvers[0])
 
@@ -520,7 +527,8 @@ def _nnls(KK, Ky, s=None, mask=None, tol=1e-9, max_iter=None):
             try:
                 mu = np.linalg.inv(KK[P][:, P]).dot(Ky[P])
             except:
-                mu = np.linalg.inv(KK[P][:, P] + tol * np.eye(P.sum())).dot(Ky[P])
+                mu = np.linalg.inv(KK[P][:, P] + tol *
+                                   np.eye(P.sum())).dot(Ky[P])
                 print(r'added $\epsilon$I to avoid singularity')
         s[P] = mu.copy()
         l = Ky - KK[:, P].dot(s[P])
@@ -632,7 +640,8 @@ def onnls(y, g, lam=0, shift=100, window=None, mask=None, tol=1e-9, max_iter=Non
         # subtract contribution of spikes already committed to
         _y[i:i + w] -= K[:, :shift].dot(s[i:i + shift])
     s[i + shift:] = _nnls(KK[-(T - i - shift):, -(T - i - shift):],
-                          K[:T - i - shift, :T - i - shift].T.dot(_y[i + shift:]),
+                          K[:T - i - shift, :T - i -
+                              shift].T.dot(_y[i + shift:]),
                           s[i + shift:], mask=mask[i + shift:])
     c = np.zeros_like(s)
     for t in np.where(s > tol)[0]:
@@ -718,7 +727,8 @@ def constrained_oasisAR2(y, g, sn, optimize_b=True, b_nonneg=True, optimize_g=0,
 
     if not optimize_g:
         g11 = (np.exp(log(d) * np.arange(1, T + 1)) * np.arange(1, T + 1)) if d == r else \
-            (np.exp(log(d) * np.arange(1, T + 1)) - np.exp(log(r) * np.arange(1, T + 1))) / (d - r)
+            (np.exp(log(d) * np.arange(1, T + 1)) -
+             np.exp(log(r) * np.arange(1, T + 1))) / (d - r)
         g12 = np.append(0, g[1] * g11[:-1])
         g11g11 = np.cumsum(g11 * g11)
         g11g12 = np.cumsum(g11 * g12)
@@ -755,7 +765,8 @@ def constrained_oasisAR2(y, g, sn, optimize_b=True, b_nonneg=True, optimize_g=0,
         lam *= (1 - d**decimate) / f_lam
 
         # this window size seems necessary and sufficient
-        possible_spikes = [x + np.arange(-2, 3) for x in np.where(s > s.max() / 10.)[0]]
+        possible_spikes = [x + np.arange(-2, 3)
+                           for x in np.where(s > s.max() / 10.)[0]]
         ff = np.array(possible_spikes, dtype=np.int).ravel()
         ff = np.unique(ff[(ff >= 0) * (ff < T)])
         mask = np.zeros(T, dtype=bool)
@@ -768,7 +779,8 @@ def constrained_oasisAR2(y, g, sn, optimize_b=True, b_nonneg=True, optimize_g=0,
         b = max(b, 0)
 
     # run ONNLS
-    c, s = onnls(y - b, g, lam=lam, mask=mask, shift=shift, window=window, tol=tol)
+    c, s = onnls(y - b, g, lam=lam, mask=mask,
+                 shift=shift, window=window, tol=tol)
 
     if not optimize_b:  # don't optimize b, just the dual variable lambda
         for _ in range(max_iter - 1):
@@ -781,7 +793,8 @@ def constrained_oasisAR2(y, g, sn, optimize_b=True, b_nonneg=True, optimize_g=0,
             tmp = np.empty(T)
             ls = np.append(np.where(s > 1e-6)[0], T)
             l = ls[0]
-            tmp[:l] = (1 + d) / (1 + d**l) * np.exp(log(d) * np.arange(l))  # first pool
+            tmp[:l] = (1 + d) / (1 + d**l) * \
+                np.exp(log(d) * np.arange(l))  # first pool
             for i, f in enumerate(ls[:-1]):  # all other pools
                 l = ls[i + 1] - f - 1
 
@@ -810,7 +823,8 @@ def constrained_oasisAR2(y, g, sn, optimize_b=True, b_nonneg=True, optimize_g=0,
 
             # perform shift
             b += db
-            c, s = onnls(y - b, g, lam=lam, mask=mask, shift=shift, window=window, tol=tol)
+            c, s = onnls(y - b, g, lam=lam, mask=mask,
+                         shift=shift, window=window, tol=tol)
             db = np.mean(y - c) - b
             b += db
             lam -= db / f_lam
@@ -829,10 +843,12 @@ def constrained_oasisAR2(y, g, sn, optimize_b=True, b_nonneg=True, optimize_g=0,
             tmp = np.empty(T)
             ls = np.append(np.where(s > 1e-6)[0], T)
             l = ls[0]
-            tmp[:l] = (1 + d) / (1 + d**l) * np.exp(log(d) * np.arange(l))  # first pool
+            tmp[:l] = (1 + d) / (1 + d**l) * \
+                np.exp(log(d) * np.arange(l))  # first pool
             for i, f in enumerate(ls[:-1]):  # all other pools
                 l = ls[i + 1] - f
-                tmp[f] = (Sg11[l - 1] - g11g12[l - 1] * tmp[f - 1]) / g11g11[l - 1]
+                tmp[f] = (Sg11[l - 1] - g11g12[l - 1]
+                          * tmp[f - 1]) / g11g11[l - 1]
                 tmp[f + 1:f + l] = g11[1:l] * tmp[f] + g12[1:l] * tmp[f - 1]
             tmp -= tmp.mean()
             aa = tmp.dot(tmp)
@@ -847,7 +863,8 @@ def constrained_oasisAR2(y, g, sn, optimize_b=True, b_nonneg=True, optimize_g=0,
             if b_nonneg:
                 db = max(db, -b)
             b += db
-            c, s = onnls(y - b, g, lam=lam, mask=mask, shift=shift, window=window, tol=tol)
+            c, s = onnls(y - b, g, lam=lam, mask=mask,
+                         shift=shift, window=window, tol=tol)
 
             # update b and lam
             db = max(np.mean(y - c), 0 if b_nonneg else -np.inf) - b
@@ -894,7 +911,8 @@ def constrained_oasisAR2(y, g, sn, optimize_b=True, b_nonneg=True, optimize_g=0,
                           / (1 - d**(2 * l))) * np.exp(log(d) * np.arange(l))
             for i, f in enumerate(ls[:-1]):  # all other pools
                 l = ls[i + 1] - f
-                tmp[f] = (g11[:l].dot(y[f:f + l]) - g11g12[l - 1] * tmp[f - 1]) / g11g11[l - 1]
+                tmp[f] = (g11[:l].dot(y[f:f + l]) - g11g12[l - 1]
+                          * tmp[f - 1]) / g11g11[l - 1]
                 tmp[f + 1:f + l] = g11[1:l] * tmp[f] + g12[1:l] * tmp[f - 1]
             return tmp
 

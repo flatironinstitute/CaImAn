@@ -87,7 +87,8 @@ def cnmf_patches(args_in):
     from . import cnmf
     file_name, idx_, shapes, options = args_in
 
-    name_log = os.path.basename(file_name[:-5]) + '_LOG_ ' + str(idx_[0]) + '_' + str(idx_[-1])
+    name_log = os.path.basename(
+        file_name[:-5]) + '_LOG_ ' + str(idx_[0]) + '_' + str(idx_[-1])
     logger = logging.getLogger(name_log)
     hdlr = logging.FileHandler('./' + name_log)
     formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
@@ -109,7 +110,8 @@ def cnmf_patches(args_in):
     indices = np.unravel_index([upper_left_corner, lower_right_corner],
                                dims, order='F')  # indices as tuples
     slices = [slice(min_dim, max_dim + 1) for min_dim, max_dim in indices]
-    slices.insert(0, slice(timesteps))  # insert slice for timesteps, equivalent to :
+    # insert slice for timesteps, equivalent to :
+    slices.insert(0, slice(timesteps))
 
     images = np.reshape(Yr.T, [timesteps] + list(dims), order='F')
     images = images[slices]
@@ -229,13 +231,14 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride=4, gnb=1, dview=No
 
     options['preprocess_params']['n_pixels_per_process'] = np.int(
         old_div(np.prod(rfs), memory_fact))
-    options['spatial_params']['n_pixels_per_process'] = np.int(old_div(np.prod(rfs), memory_fact))
-    options['temporal_params']['n_pixels_per_process'] = np.int(old_div(np.prod(rfs), memory_fact))
+    options['spatial_params']['n_pixels_per_process'] = np.int(
+        old_div(np.prod(rfs), memory_fact))
+    options['temporal_params']['n_pixels_per_process'] = np.int(
+        old_div(np.prod(rfs), memory_fact))
     nb = options['spatial_params']['nb']
 
-
-
-    idx_flat, idx_2d = extract_patch_coordinates(dims, rfs, strides, border_pix=border_pix)
+    idx_flat, idx_2d = extract_patch_coordinates(
+        dims, rfs, strides, border_pix=border_pix)
     args_in = []
     patch_centers = []
     for id_f, id_2d in zip(idx_flat, idx_2d):
@@ -244,7 +247,8 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride=4, gnb=1, dview=No
         if del_duplicates:
             foo = np.zeros(d, dtype=bool)
             foo[id_f] = 1
-            patch_centers.append(scipy.ndimage.center_of_mass(foo.reshape(dims, order='F')))
+            patch_centers.append(scipy.ndimage.center_of_mass(
+                foo.reshape(dims, order='F')))
     print(id_2d)
     st = time.time()
     if dview is not None:
@@ -312,7 +316,8 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride=4, gnb=1, dview=No
     mask = np.zeros(d)
     sn_tot = np.zeros((d))
 
-    f_tot, bl_tot, c1_tot, neurons_sn_tot, g_tot, idx_tot, id_patch_tot, shapes_tot = [], [], [], [], [], [], [], []
+    f_tot, bl_tot, c1_tot, neurons_sn_tot, g_tot, idx_tot, id_patch_tot, shapes_tot = [
+    ], [], [], [], [], [], [], []
     patch_id, empty, count_bgr, count = 0, 0, 0, 0
     idx_tot_B, idx_tot_A, a_tot, b_tot = [], [], [], []
     idx_ptr_B, idx_ptr_A = [0], [0]
@@ -363,12 +368,14 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride=4, gnb=1, dview=No
     idx_tot_B = np.concatenate(idx_tot_B)
     b_tot = np.concatenate(b_tot)
     idx_ptr_B = np.cumsum(np.array(idx_ptr_B))
-    B_tot = scipy.sparse.csc_matrix((b_tot, idx_tot_B, idx_ptr_B), shape=(d, count_bgr))
+    B_tot = scipy.sparse.csc_matrix(
+        (b_tot, idx_tot_B, idx_ptr_B), shape=(d, count_bgr))
 
     idx_tot_A = np.concatenate(idx_tot_A)
     a_tot = np.concatenate(a_tot)
     idx_ptr_A = np.cumsum(np.array(idx_ptr_A))
-    A_tot = scipy.sparse.csc_matrix((a_tot, idx_tot_A, idx_ptr_A), shape=(d, count))
+    A_tot = scipy.sparse.csc_matrix(
+        (a_tot, idx_tot_A, idx_ptr_A), shape=(d, count))
 
     C_tot = C_tot[:count, :]
     YrA_tot = YrA_tot[:count, :]
@@ -389,11 +396,9 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride=4, gnb=1, dview=No
 
     print("Generating background")
 
-    Im = scipy.sparse.csr_matrix((old_div(1., mask), (np.arange(d), np.arange(d))))
+    Im = scipy.sparse.csr_matrix(
+        (old_div(1., mask), (np.arange(d), np.arange(d))))
     A_tot = Im.dot(A_tot)
-
-
-    
 
     if low_rank_background is None:
         b = Im.dot(B_tot)
@@ -402,25 +407,27 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride=4, gnb=1, dview=No
     elif low_rank_background:
         print("Compressing background components with a low rank NMF")
         B_tot = Im.dot(B_tot)
-        Bm = (B_tot)        
-        f = np.r_[np.atleast_2d(np.mean(F_tot, axis=0)), np.random.rand(gnb - 1, T)]
+        Bm = (B_tot)
+        f = np.r_[np.atleast_2d(np.mean(F_tot, axis=0)),
+                  np.random.rand(gnb - 1, T)]
 
         for _ in range(100):
             f /= np.sqrt((f**2).sum(1)[:, None])
             try:
-                b = np.fmax(Bm.dot(F_tot.dot(f.T)).dot(np.linalg.inv(f.dot(f.T))), 0)
+                b = np.fmax(Bm.dot(F_tot.dot(f.T)).dot(
+                    np.linalg.inv(f.dot(f.T))), 0)
             except np.linalg.LinAlgError:  # singular matrix
                 b = np.fmax(Bm.dot(scipy.linalg.lstsq(f.T, F_tot.T)[0].T), 0)
             try:
                 f = np.linalg.inv(b.T.dot(b)).dot((Bm.T.dot(b)).T.dot(F_tot))
             except np.linalg.LinAlgError:  # singular matrix
                 f = scipy.linalg.lstsq(b, Bm.toarray())[0].dot(F_tot)
-                
-        nB = np.ravel(np.sqrt((b**2).sum(0)))        
+
+        nB = np.ravel(np.sqrt((b**2).sum(0)))
         b /= nB
         b = np.array(b, dtype=np.float32)
 #        B_tot = scipy.sparse.coo_matrix(B_tot)
-        f *= nB[:, None]    
+        f *= nB[:, None]
     else:
         print('Removing overlapping background components from different patches')
         nA = np.ravel(np.sqrt(A_tot.power(2).sum(0)))
@@ -435,7 +442,8 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride=4, gnb=1, dview=No
         F_tot *= nB[:, None]
 
         processed_idx = set([])
-        processed_idx_prev = set([])  # needed if a patch has more than 1 background component
+        # needed if a patch has more than 1 background component
+        processed_idx_prev = set([])
         for _b in np.arange(B_tot.shape[-1]):
             idx_mask = np.where(B_tot[:, _b])[0]
             idx_mask_repeat = processed_idx.intersection(idx_mask)
@@ -451,7 +459,7 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride=4, gnb=1, dview=No
         f = F_tot
 
         print('******** USING ONE BACKGROUND PER PATCH ******')
-        
+
     print("Generating background DONE")
-    
+
     return A_tot, C_tot, YrA_tot, b, f, sn_tot, optional_outputs

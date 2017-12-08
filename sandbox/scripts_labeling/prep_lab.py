@@ -16,94 +16,93 @@ import calblitz as cb
 import numpy as np
 #%%
 for fl in glob('k36*compress_.tif'):
-    print(fl) 
-    m=cb.load(fl,fr=3)
+    print(fl)
+    m = cb.load(fl, fr=3)
 
-    img=m.local_correlations(eight_neighbours=True)
-    im=cb.movie(img,fr=1)
-    im.save(fl[:-4]+'correlation_image.tif')
+    img = m.local_correlations(eight_neighbours=True)
+    im = cb.movie(img, fr=1)
+    im.save(fl[:-4] + 'correlation_image.tif')
 
-    m=np.array(m)
+    m = np.array(m)
 
-    img=st.skew(m,0)
-    im=cb.movie(img,fr=1)
-    im.save(fl[:-4]+'skew.tif')
+    img = st.skew(m, 0)
+    im = cb.movie(img, fr=1)
+    im.save(fl[:-4] + 'skew.tif')
 
-    img=st.kurtosis(m,0)
-    im=cb.movie(img,fr=1)
-    im.save(fl[:-4]+'kurtosis.tif')
+    img = st.kurtosis(m, 0)
+    im = cb.movie(img, fr=1)
+    im.save(fl[:-4] + 'kurtosis.tif')
 
-    img=np.std(m,0)
-    im=cb.movie(img,fr=1)
-    im.save(fl[:-4]+'std.tif')
+    img = np.std(m, 0)
+    im = cb.movie(img, fr=1)
+    im.save(fl[:-4] + 'std.tif')
 
-    img=np.median(m,0)
-    im=cb.movie(img,fr=1)
-    im.save(fl[:-4]+'median.tif')
+    img = np.median(m, 0)
+    im = cb.movie(img, fr=1)
+    im.save(fl[:-4] + 'median.tif')
 
-
-    img=np.max(m,0)
-    im=cb.movie(img,fr=1)
-    im.save(fl[:-4]+'max.tif')
-
-#%%
-m=cb.load('All.tif',fr=3)
-
-m=cb.load('All_BL.tif',fr=3)
+    img = np.max(m, 0)
+    im = cb.movie(img, fr=1)
+    im.save(fl[:-4] + 'max.tif')
 
 #%%
-m=cb.load('k31_20160104_MMA_150um_65mW_zoom2p2_00001_000_All.tif',fr=3)
+m = cb.load('All.tif', fr=3)
 
-img=m.local_correlations(eight_neighbours=True)
-im=cb.movie(img,fr=1)
+m = cb.load('All_BL.tif', fr=3)
+
+#%%
+m = cb.load('k31_20160104_MMA_150um_65mW_zoom2p2_00001_000_All.tif', fr=3)
+
+img = m.local_correlations(eight_neighbours=True)
+im = cb.movie(img, fr=1)
 im.save('correlation_image.tif')
 
-m=np.array(m)
-img=st.skew(m,0)
-im=cb.movie(img,fr=1)
+m = np.array(m)
+img = st.skew(m, 0)
+im = cb.movie(img, fr=1)
 im.save('skew.tif')
 
-img=st.kurtosis(m,0)
-im=cb.movie(img,fr=1)
+img = st.kurtosis(m, 0)
+im = cb.movie(img, fr=1)
 im.save('kurtosis.tif')
 
-img=np.std(m,0)
-im=cb.movie(img,fr=1)
+img = np.std(m, 0)
+im = cb.movie(img, fr=1)
 im.save('std.tif')
 
-img=np.median(m,0)
-im=cb.movie(img,fr=1)
+img = np.median(m, 0)
+im = cb.movie(img, fr=1)
 im.save('median.tif')
 
 
-img=np.max(m,0)
-im=cb.movie(img,fr=1)
+img = np.max(m, 0)
+im = cb.movie(img, fr=1)
 im.save('max.tif')
 #%%
-m=cb.load('k31_20160104_MMA_150um_65mW_zoom2p2_00001_000_All_BL.tif',fr=3)
+m = cb.load('k31_20160104_MMA_150um_65mW_zoom2p2_00001_000_All_BL.tif', fr=3)
 
-img=m.local_correlations(eight_neighbours=True)
-im=cb.movie(img,fr=1)
+img = m.local_correlations(eight_neighbours=True)
+im = cb.movie(img, fr=1)
 im.save('correlation_image_BL.tif')
-m=np.array(m)
+m = np.array(m)
 
-img=st.skew(m,0)
-im=cb.movie(img,fr=1)
+img = st.skew(m, 0)
+im = cb.movie(img, fr=1)
 im.save('skew_BL.tif')
 
-img=st.kurtosis(m,0)
-im=cb.movie(img,fr=1)
+img = st.kurtosis(m, 0)
+im = cb.movie(img, fr=1)
 im.save('kurtosis_BL.tif')
 
-img=np.std(m,0)
-im=cb.movie(img,fr=1)
+img = np.std(m, 0)
+im = cb.movie(img, fr=1)
 im.save('std_BL.tif')
 
-img=np.median(m,0)
-im=cb.movie(img,fr=1)
+img = np.median(m, 0)
+im = cb.movie(img, fr=1)
 im.save('median_BL.tif')
 
 
-img=np.max(m,0)
-im=cb.movie(img,fr=1)
+img = np.max(m, 0)
+im = cb.movie(img, fr=1)
 im.save('max_BL.tif')

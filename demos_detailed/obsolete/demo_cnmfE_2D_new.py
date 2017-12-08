@@ -23,17 +23,17 @@ import scipy
 
 #%%
 #fname = './example_movies/data_endoscope.tif'
-#gSig = [3,3]   # gaussian width of a 2D gaussian kernel, which approximates a neuron
-#gSiz = [10,10]  # average diameter of a neuron
+# gSig = [3,3]   # gaussian width of a 2D gaussian kernel, which approximates a neuron
+# gSiz = [10,10]  # average diameter of a neuron
 #min_corr = .8
 #min_pnr = 10
 
 #fname = '/opt/local/Data/1photon/3168_PAG_TIFF.tif'
 fname = '/opt/local/Data/1photon/Yr_d1_190_d2_198_d3_1_order_F_frames_35992_.mmap'
-gSig = [3,3]   # gaussian width of a 2D gaussian kernel, which approximates a neuron
-gSiz = [16,16]  # average diameter of a neuron
-min_corr=.6
-min_pnr=10
+gSig = [3, 3]   # gaussian width of a 2D gaussian kernel, which approximates a neuron
+gSiz = [16, 16]  # average diameter of a neuron
+min_corr = .6
+min_pnr = 10
 
 # If True, the background can be roughly removed. This is useful when the background is strong.
 center_psf = True
@@ -52,7 +52,8 @@ ax.axis('off')
 pl.imshow(Y[100])
 #%%
 # show correlation image of the raw data; show correlation image and PNR image of the filtered data
-cn_raw = cm.summary_images.max_correlation_image(Y, swap_dim=False, bin_size=3000)
+cn_raw = cm.summary_images.max_correlation_image(
+    Y, swap_dim=False, bin_size=3000)
 #%% TAKES MEMORY!!!
 cn_filter, pnr = cm.summary_images.correlation_pnr(
     Y, gSig=gSig, center_psf=center_psf, swap_dim=False)
@@ -74,7 +75,7 @@ for i, (data, title) in enumerate(((Y.mean(0), 'Mean image (raw)'),
 
 #%%
 # pick thresholds
-inspect_correlation_pnr(cn_filter,pnr)
+inspect_correlation_pnr(cn_filter, pnr)
 
 #%% start cluster
 try:
@@ -83,7 +84,7 @@ try:
 except:
     pass
 c, dview, n_processes = cm.cluster.setup_cluster(
-        backend='local', n_processes=None, single_thread=False)
+    backend='local', n_processes=None, single_thread=False)
 #%%
 cnm = cnmf.CNMF(n_processes=n_processes, method_init='corr_pnr', k=10,
                 gSig=gSig, gSiz=gSiz, merge_thresh=.8, p=1, dview=dview,
@@ -97,7 +98,7 @@ cnm.fit(Y)
 # %% DISCARD LOW QUALITY COMPONENT
 final_frate = 10
 r_values_min = 0.9  # threshold on space consistency
-fitness_min = -100 # threshold on time variability
+fitness_min = -100  # threshold on time variability
 # threshold on time variability (if nonsparse activity)
 fitness_delta_min = - 100
 Npeaks = 5
@@ -111,11 +112,13 @@ print(('Keeping ' + str(len(idx_components)) +
        ' and discarding  ' + str(len(idx_components_bad))))
 
 
-#%% 
-A_,C_,YrA_, b_, f_ = cnm.A[:, idx_components], cnm.C[idx_components], cnm.YrA[idx_components], cnm.b, cnm.f
+#%%
+A_, C_, YrA_, b_, f_ = cnm.A[:,
+                             idx_components], cnm.C[idx_components], cnm.YrA[idx_components], cnm.b, cnm.f
 #%%
 pl.figure()
-crd = cm.utils.visualization.plot_contours(A_.tocsc()[:, idx_components], cn_filter, thr=.9)
+crd = cm.utils.visualization.plot_contours(
+    A_.tocsc()[:, idx_components], cn_filter, thr=.9)
 
 #%%
 pl.imshow(A_.sum(-1).reshape(dims, order='F'), vmax=200)

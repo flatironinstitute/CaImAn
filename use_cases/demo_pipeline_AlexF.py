@@ -1,14 +1,14 @@
-    ##@package demos  
+# @package demos
 #\brief      for the user/programmer to understand and try the code
-#\details    all of other usefull functions (demos available on jupyter notebook) -*- coding: utf-8 -*- 
+#\details    all of other usefull functions (demos available on jupyter notebook) -*- coding: utf-8 -*-
 #\version   1.0
 #\pre       EXample.First initialize the system.
-#\bug       
-#\warning   
-#\copyright GNU General Public License v2.0 
+#\bug
+#\warning
+#\copyright GNU General Public License v2.0
 #\date Created on Mon Nov 21 15:53:15 2016
 #\author agiovann
-#toclean
+# toclean
 
 from __future__ import division
 from __future__ import print_function
@@ -54,42 +54,45 @@ from caiman.source_extraction.cnmf import cnmf as cnmf
 from caiman.motion_correction import MotionCorrect
 from caiman.components_evaluation import estimate_components_quality
 
-from caiman.components_evaluation import evaluate_components,evaluate_components_CNN
+from caiman.components_evaluation import evaluate_components, evaluate_components_CNN
 
 from caiman.tests.comparison import comparison
 from caiman.motion_correction import tile_and_correct, motion_correction_piecewise
 #%%
 params_movie = {'fname': ['/mnt/ceph/neuro/ImagingData/AlexFanning/Concatenated0711d7b.tif'],
-                 'max_shifts': (3, 3),  # maximum allow rigid shift (2,2)
-                 'niter_rig': 1,
-                 'splits_rig': 14,  # for parallelization split the movies in  num_splits chuncks across time
-                 'num_splits_to_process_rig': None,  # if none all the splits are processed and the movie is saved                 
-                 'p': 1,  # order of the autoregressive system
-                 'merge_thresh': 0.8,  # merging threshold, max correlation allow
-                 'rf': 14,  # half-size of the patches in pixels. rf=25, patches are 50x50    20
-                 'stride_cnmf': 10,  # amounpl.it of overlap between the patches in pixels
-                 'K': 6,  # number of components per patch
-                 'is_dendrites': True,  # if dendritic. In this case you need to set init_method to sparse_nmf
-                 'init_method': 'sparse_nmf',
-                 'gSig': [5, 5],  # expected half size of neurons
-                 'alpha_snmf': 1e-6,  # this controls sparsity
-                 'final_frate': 10,
-                 'r_values_min_patch': .7,  # threshold on space consistency
-                 'fitness_min_patch': -20,  # threshold on time variability
-                 # threshold on time variability (if nonsparse activity)
-                 'fitness_delta_min_patch': -20,
-                 'Npeaks': 10,
-                 'r_values_min_full': .8,
-                 'fitness_min_full': - 40,
-                 'fitness_delta_min_full': - 40,
-                 'only_init_patch': True,
-                 'gnb': 1,
-                 'memory_fact': 1,
-                 'n_chunks': 10,
-                 'update_background_components': True,# whether to update the background components in the spatial phase
-                 'low_rank_background': True #whether to update the using a low rank approximation. In the False case all the nonzero elements of the background components are updated using hals    
-                                     #(to be used with one background per patch)          
-                 }
+                'max_shifts': (3, 3),  # maximum allow rigid shift (2,2)
+                'niter_rig': 1,
+                'splits_rig': 14,  # for parallelization split the movies in  num_splits chuncks across time
+                # if none all the splits are processed and the movie is saved
+                'num_splits_to_process_rig': None,
+                'p': 1,  # order of the autoregressive system
+                'merge_thresh': 0.8,  # merging threshold, max correlation allow
+                'rf': 14,  # half-size of the patches in pixels. rf=25, patches are 50x50    20
+                'stride_cnmf': 10,  # amounpl.it of overlap between the patches in pixels
+                'K': 6,  # number of components per patch
+                # if dendritic. In this case you need to set init_method to sparse_nmf
+                'is_dendrites': True,
+                'init_method': 'sparse_nmf',
+                'gSig': [5, 5],  # expected half size of neurons
+                'alpha_snmf': 1e-6,  # this controls sparsity
+                'final_frate': 10,
+                'r_values_min_patch': .7,  # threshold on space consistency
+                'fitness_min_patch': -20,  # threshold on time variability
+                # threshold on time variability (if nonsparse activity)
+                'fitness_delta_min_patch': -20,
+                'Npeaks': 10,
+                'r_values_min_full': .8,
+                'fitness_min_full': - 40,
+                'fitness_delta_min_full': - 40,
+                'only_init_patch': True,
+                'gnb': 1,
+                'memory_fact': 1,
+                'n_chunks': 10,
+                # whether to update the background components in the spatial phase
+                'update_background_components': True,
+                'low_rank_background': True  # whether to update the using a low rank approximation. In the False case all the nonzero elements of the background components are updated using hals
+                #(to be used with one background per patch)
+                }
 
 #%%
 params_display = {
@@ -113,9 +116,10 @@ num_splits_to_process_rig = params_movie['num_splits_to_process_rig']
 
 # %% download movie if not there
 channel = 0
-m_orig = cm.load_movie_chain(fname[:1], channel = (slice(None),channel,slice(None),slice(None)))
-m_orig.save(fname[0][:-4]+'_channel_'+str(channel)+'.tif')
-fname[0] = fname[0][:-4]+'_channel_'+str(channel)+'.tif'
+m_orig = cm.load_movie_chain(fname[:1], channel=(
+    slice(None), channel, slice(None), slice(None)))
+m_orig.save(fname[0][:-4] + '_channel_' + str(channel) + '.tif')
+fname[0] = fname[0][:-4] + '_channel_' + str(channel) + '.tif'
 # %% play movie
 downsample_ratio = params_display['downsample_ratio']
 offset_mov = -np.min(m_orig[:100])
@@ -136,7 +140,7 @@ min_mov = cm.load(fname[0], subindices=range(400)).min()
 mc_list = []
 new_templ = None
 for each_file in fname:
-# TODO: needinfo how the classes works
+    # TODO: needinfo how the classes works
     for i in range(2):
         mc = MotionCorrect(each_file, min_mov,
                            dview=dview, max_shifts=max_shifts, niter_rig=niter_rig, splits_rig=splits_rig,
@@ -145,7 +149,7 @@ for each_file in fname:
                            num_splits_to_process_els=num_splits_to_process_els,
                            upsample_factor_grid=upsample_factor_grid, max_deviation_rigid=max_deviation_rigid,
                            shifts_opencv=True, nonneg_movie=True)
-        mc.motion_correct_rigid(save_movie=True,template = new_templ)
+        mc.motion_correct_rigid(save_movie=True, template=new_templ)
         new_templ = mc.total_template_rig
         m_rig = cm.load(mc.fname_tot_rig)
         bord_px_rig = np.ceil(np.max(mc.shifts_rig)).astype(np.int)
@@ -153,9 +157,9 @@ for each_file in fname:
     # TODO : needinfo
         pl.imshow(new_templ, cmap='gray')
         pl.pause(.1)
-        
+
     mc_list.append(mc)
-#we are going to keep this part because it helps the user understand what we need.
+# we are going to keep this part because it helps the user understand what we need.
 # needhelp why it is not the same as in the notebooks ?
 # TODO: show screenshot 2,3
 
@@ -227,7 +231,7 @@ base_name = fname[0].split('/')[-1][:-4]
 # TODO: todocument
 name_new = cm.save_memmap_each(fnames, dview=dview, base_name=base_name, resize_fact=(
     1, 1, downsample_factor), remove_init=remove_init, idx_xy=idx_xy, add_to_movie=add_to_movie,
-                               border_to_0=border_to_0)
+    border_to_0=border_to_0)
 name_new.sort()
 print(name_new)
 
@@ -299,13 +303,14 @@ if params_movie['is_dendrites'] == True:
         raise Exception('need to set a value for alpha_snmf')
 # %% Extract spatial and temporal components on patches
 t1 = time.time()
-border_pix = 4 # if motion correction introduces problems at the border remove pixels from border
+border_pix = 4  # if motion correction introduces problems at the border remove pixels from border
 # TODO: todocument
 # TODO: warnings 3
 cnm = cnmf.CNMF(n_processes=1, k=K, gSig=gSig, merge_thresh=params_movie['merge_thresh'], p=params_movie['p'],
                 dview=dview, rf=rf, stride=stride_cnmf, memory_fact=1,
-                method_init=init_method, alpha_snmf=alpha_snmf, only_init_patch=params_movie['only_init_patch'],
-                gnb=params_movie['gnb'], method_deconvolution='oasis',border_pix = border_pix, low_rank_background = params_movie['low_rank_background']) 
+                method_init=init_method, alpha_snmf=alpha_snmf, only_init_patch=params_movie[
+                    'only_init_patch'],
+                gnb=params_movie['gnb'], method_deconvolution='oasis', border_pix=border_pix, low_rank_background=params_movie['low_rank_background'])
 cnm = cnm.fit(images)
 
 A_tot = cnm.A
@@ -321,8 +326,10 @@ pl.figure()
 crd = plot_contours(A_tot, Cn, thr=params_display['thr_plot'])
 # %% DISCARD LOW QUALITY COMPONENT
 final_frate = params_movie['final_frate']
-r_values_min = params_movie['r_values_min_patch']  # threshold on space consistency
-fitness_min = params_movie['fitness_delta_min_patch']  # threshold on time variability
+# threshold on space consistency
+r_values_min = params_movie['r_values_min_patch']
+# threshold on time variability
+fitness_min = params_movie['fitness_delta_min_patch']
 # threshold on time variability (if nonsparse activity)
 fitness_delta_min = params_movie['fitness_delta_min_patch']
 Npeaks = params_movie['Npeaks']
@@ -336,16 +343,17 @@ print(('Keeping ' + str(len(idx_components)) +
 # %%
 # TODO: show screenshot 13
 pl.figure()
-crd = plot_contours(A_tot.tocsc()[:, idx_components], Cn, thr=params_display['thr_plot'])
+crd = plot_contours(
+    A_tot.tocsc()[:, idx_components], Cn, thr=params_display['thr_plot'])
 # %%
 A_tot = A_tot.tocsc()[:, idx_components]
 C_tot = C_tot[idx_components]
 # %% rerun updating the components to refine
 t1 = time.time()
 cnm = cnmf.CNMF(n_processes=1, k=A_tot.shape, gSig=gSig, merge_thresh=merge_thresh, p=p, dview=dview, Ain=A_tot,
-                Cin=C_tot, b_in = b_tot,
-                f_in=f_tot, rf=None, stride=None, method_deconvolution='oasis',gnb = params_movie['gnb'],
-                low_rank_background = params_movie['low_rank_background'], update_background_components = params_movie['update_background_components'],check_nan = True)
+                Cin=C_tot, b_in=b_tot,
+                f_in=f_tot, rf=None, stride=None, method_deconvolution='oasis', gnb=params_movie['gnb'],
+                low_rank_background=params_movie['low_rank_background'], update_background_components=params_movie['update_background_components'], check_nan=True)
 
 cnm = cnm.fit(images)
 
@@ -353,7 +361,8 @@ cnm = cnm.fit(images)
 A, C, b, f, YrA, sn = cnm.A, cnm.C, cnm.b, cnm.f, cnm.YrA, cnm.sn
 # %% again recheck quality of components, stricter criteria
 final_frate = params_movie['final_frate']
-r_values_min = params_movie['r_values_min_full']  # threshold on space consistency
+# threshold on space consistency
+r_values_min = params_movie['r_values_min_full']
 fitness_min = params_movie['fitness_min_full']  # threshold on time variability
 # threshold on time variability (if nonsparse activity)
 fitness_delta_min = params_movie['fitness_delta_min_full']
@@ -375,9 +384,11 @@ np.savez(os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:
 # %%
 # TODO: show screenshot 14
 pl.subplot(1, 2, 1)
-crd = plot_contours(A.tocsc()[:, idx_components], Cn, thr=params_display['thr_plot'])
+crd = plot_contours(A.tocsc()[:, idx_components],
+                    Cn, thr=params_display['thr_plot'])
 pl.subplot(1, 2, 2)
-crd = plot_contours(A.tocsc()[:, idx_components_bad], Cn, thr=params_display['thr_plot'])
+crd = plot_contours(A.tocsc()[:, idx_components_bad],
+                    Cn, thr=params_display['thr_plot'])
 # %%
 # TODO: needinfo
 view_patches_bar(Yr, scipy.sparse.coo_matrix(A.tocsc()[:, idx_components]), C[idx_components, :], b, f, dims[0], dims[1],
@@ -393,22 +404,25 @@ log_files = glob.glob('*_LOG_*')
 for log_file in log_files:
     os.remove(log_file)
 # %% reconstruct denoised movie
-denoised = cm.movie(A.dot(C) + b.dot(f)).reshape(dims + (-1,), order='F').transpose([2, 0, 1])
+denoised = cm.movie(A.dot(C) + b.dot(f)).reshape(dims +
+                                                 (-1,), order='F').transpose([2, 0, 1])
 # %%
 # TODO: show screenshot 15
 denoised.play(gain=10, offset=0, fr=50, magnification=4)
-#%% background only 
-denoised = cm.movie(b.dot(f)).reshape(dims + (-1,), order='F').transpose([2, 0, 1])
+#%% background only
+denoised = cm.movie(b.dot(f)).reshape(
+    dims + (-1,), order='F').transpose([2, 0, 1])
 denoised.play(gain=5, offset=0, fr=20, magnification=4)
 
 
 # %% reconstruct denoised movie without background
-denoised = cm.movie(A.dot(C)).reshape(dims + (-1,), order='F').transpose([2, 0, 1])
+denoised = cm.movie(A.dot(C)).reshape(
+    dims + (-1,), order='F').transpose([2, 0, 1])
 # %%
 # TODO: show screenshot 16
 denoised.play(gain=10, offset=0, fr=100, magnification=5)
 #%% show background(s)
-BB  = cm.movie(b.reshape(dims+(-1,), order = 'F').transpose(2,0,1))
+BB = cm.movie(b.reshape(dims + (-1,), order='F').transpose(2, 0, 1))
 BB.play(gain=2, offset=0, fr=2, magnification=4)
 BB.zproject()
 
@@ -428,10 +442,11 @@ params_display = {
     'thr_plot': 0.8
 }
 
-analysis_file = os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:-4] + 'results_analysis.npz')
+analysis_file = os.path.join(os.path.split(fname_new)[0], os.path.split(
+    fname_new)[1][:-4] + 'results_analysis.npz')
 with np.load(analysis_file) as ld:
     print(ld.keys())
-    locals().update(ld) 
-    dims_off = d1,d2    
+    locals().update(ld)
+    dims_off = d1, d2
     A = scipy.sparse.coo_matrix(A[()])
-    dims = (d1,d2)
+    dims = (d1, d2)
