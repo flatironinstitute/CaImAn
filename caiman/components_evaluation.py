@@ -188,7 +188,7 @@ def find_activity_intervals(C, Npeaks=5, tB=-3, tA=10, thres=0.3):
 def classify_components_ep(Y, A, C, b, f, Athresh=0.1, Npeaks=5, tB=-3, tA=10, thres=0.3):
     # todo todocument
 
-    K, T = np.shape(C)
+    K, _ = np.shape(C)
     A = csc_matrix(A)
     AA = (A.T * A).toarray()
     nA = np.sqrt(np.array(A.power(2).sum(0)))
@@ -207,7 +207,7 @@ def classify_components_ep(Y, A, C, b, f, Athresh=0.1, Npeaks=5, tB=-3, tA=10, t
             atemp[np.isnan(atemp)] = np.nanmean(atemp)
             ovlp_cmp = np.where(AA[:, i] > Athresh)[0]
             indexes = set(LOC[i])
-            for cnt, j in enumerate(ovlp_cmp):
+            for _, j in enumerate(ovlp_cmp):
                 if LOC[j] is not None:
                     indexes = indexes - set(LOC[j])
 
@@ -346,7 +346,7 @@ def evaluate_components(Y, traces, A, C, b, f, final_frate, remove_baseline=True
     Yr = np.reshape(Y, (np.prod(dims), T), order='F')
 
     print('Computing event exceptionality delta')
-    fitness_delta, erfc_delta, std_rr, _ = compute_event_exceptionality(
+    fitness_delta, erfc_delta, _, _ = compute_event_exceptionality(
         np.diff(traces, axis=1), robust_std=robust_std, N=N, sigma_factor=sigma_factor)
 
     print('Removing Baseline')
@@ -384,7 +384,7 @@ def evaluate_components(Y, traces, A, C, b, f, final_frate, remove_baseline=True
                 traces -= tr_BL[padbefore:-padafter].T
 
     print('Computing event exceptionality')
-    fitness_raw, erfc_raw, std_rr, _ = compute_event_exceptionality(
+    fitness_raw, erfc_raw, _, _ = compute_event_exceptionality(
         traces, robust_std=robust_std, N=N, sigma_factor=sigma_factor)
 
     print('Evaluating spatial footprint')
@@ -396,6 +396,7 @@ def evaluate_components(Y, traces, A, C, b, f, final_frate, remove_baseline=True
 
 
 #%%
+# FIXME xrange is python2-specific
 def chunker(seq, size):
     for pos in xrange(0, len(seq), size):
         yield seq[pos:pos + size]
@@ -420,7 +421,7 @@ def evaluate_components_placeholder(params):
     #d1, d2 = dims
     #images = np.reshape(Yr.T, [T] + list(dims), order='F')
     Y = np.reshape(Yr, dims + (T,), order='F')
-    fitness_raw, fitness_delta, erfc_raw, erfc_delta, r_values, significant_samples = \
+    fitness_raw, fitness_delta, _, _, r_values, significant_samples = \
         evaluate_components(Y, traces, A, C, b, f, final_frate, remove_baseline=remove_baseline,
                             N=N, robust_std=robust_std, Athresh=Athresh, Npeaks=Npeaks, thresh_C=thresh_C)
 
@@ -506,7 +507,7 @@ def estimate_components_quality_auto(Y, A, C, b, f, YrA, frate, decay_time, gSig
         -min_std_reject) * N_samples
     traces = C + YrA
 
-    _, _, fitness_raw, fitness_delta, r_values = estimate_components_quality(
+    _, _, fitness_raw, _, r_values = estimate_components_quality(
         traces, Y, A, C, b, f, final_frate=frate, Npeaks=Npeaks, r_values_min=r_values_min, fitness_min=fitness_min,
         fitness_delta_min=thresh_fitness_delta, return_all=True, dview=dview, num_traces_per_group=50, N=N_samples)
 
@@ -517,7 +518,7 @@ def estimate_components_quality_auto(Y, A, C, b, f, YrA, frate, decay_time, gSig
     idx_components = []
     if use_cnn:
         neuron_class = 1  # normally 1
-        predictions, final_crops = evaluate_components_CNN(A, dims, gSig)
+        predictions, _ = evaluate_components_CNN(A, dims, gSig)
         idx_components_cnn = np.where(
             predictions[:, neuron_class] >= thresh_cnn_min)[0]
         bad_comps = np.where((r_values <= r_values_lowest) | (fitness_raw >= thresh_fitness_raw_reject) | (
@@ -606,7 +607,7 @@ def estimate_components_quality(traces, Y, A, C, b, f, final_frate=30, Npeaks=10
     if 'memmap' not in str(type(Y)):
 
         print('NOT MEMORY MAPPED. FALLING BACK ON SINGLE CORE IMPLEMENTATION')
-        fitness_raw, fitness_delta, erfc_raw, erfc_delta, r_values, significant_samples = \
+        fitness_raw, fitness_delta, erfc_raw, erfc_delta, r_values, _ = \
             evaluate_components(Y, traces, A, C, b, f, final_frate, remove_baseline=remove_baseline,
                                 N=N, robust_std=False, Athresh=0.1, Npeaks=Npeaks, thresh_C=0.3)
 
@@ -637,14 +638,12 @@ def estimate_components_quality(traces, Y, A, C, b, f, final_frate=30, Npeaks=10
         erfc_raw = []
         erfc_delta = []
         r_values = []
-        significant_samples = []
 
         for r_ in res:
-            fitness_raw__, fitness_delta__, erfc_raw__, erfc_delta__, r_values__, significant_samples__ = r_
+            fitness_raw__, fitness_delta__, erfc_raw__, erfc_delta__, r_values__, _ = r_
             fitness_raw = np.concatenate([fitness_raw, fitness_raw__])
             fitness_delta = np.concatenate([fitness_delta, fitness_delta__])
             r_values = np.concatenate([r_values, r_values__])
-            # significant_samples = np.concatenate([significant_samples,significant_samples__])
 
             if len(erfc_raw) == 0:
                 erfc_raw = erfc_raw__
