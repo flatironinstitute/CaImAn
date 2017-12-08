@@ -215,7 +215,7 @@ def save_portion(pars):
     print((Yr_tot.shape))
     for f in fnames:
         print(f)
-        Yr, dims, T = load_memmap(f)
+        Yr, _, T = load_memmap(f)
         print((idx_start, idx_end))
         Yr_tot[:, Ttot:Ttot + T] = np.array(Yr[idx_start:idx_end])
         Ttot = Ttot + T
@@ -314,11 +314,8 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
                 Yr = np.array(Yr)[remove_init:, idx_xy[0], idx_xy[1]]
             else:
                 raise Exception('You need to set is_3D=True for 3D data)')
-                Yr = np.array(Yr)[remove_init:, idx_xy[0],
-                                  idx_xy[1], idx_xy[2]]
 
         if border_to_0 > 0:
-
             min_mov = Yr.calc_min()
             Yr[:, :border_to_0, :] = min_mov
             Yr[:, :, :border_to_0] = min_mov
@@ -384,7 +381,6 @@ def parallel_dot_product(A, b, block_size=5000, dview=None, transpose=False, num
     print('parallel dot product block size: ' + str(block_size))
 
     if block_size < d1:
-
         for idx in range(0, d1 - block_size, block_size):
             idx_to_pass = list(range(idx, idx + block_size))
             pars.append([A.filename, idx_to_pass, b, transpose])
@@ -409,22 +405,15 @@ def parallel_dot_product(A, b, block_size=5000, dview=None, transpose=False, num
         if transpose:
             #            b = pickle.loads(b)
             print('Transposing')
-#            output = np.zeros((d2,np.shape(b)[-1]), dtype = np.float32)
-            for counts, pr in enumerate(pars):
-
+            for _, pr in enumerate(pars):
                 iddx, rs = dot_place_holder(pr)
                 output = output + rs
-
         else:
-            #            b = pickle.loads(b)
-            #            output = np.zeros((d1,np.shape(b)[-1]), dtype = np.float32)
-            for counts, pr in enumerate(pars):
+            for _, pr in enumerate(pars):
                 iddx, rs = dot_place_holder(pr)
                 output[iddx] = rs
 
     else:
-        #        b = pickle.loads(b)
-
         for itera in range(0, len(pars), num_blocks_per_run):
 
             if 'multiprocessing' in str(type(dview)):
@@ -439,8 +428,7 @@ def parallel_dot_product(A, b, block_size=5000, dview=None, transpose=False, num
             if transpose:
                 print('Transposing')
 
-                for num_, res in enumerate(results):
-                    #                    print(num_)
+                for _, res in enumerate(results):
                     output += res[1]
 
             else:
@@ -469,20 +457,13 @@ def dot_place_holder(par):
         if transpose:
             outp = (b_.T.tocsc()[:, idx_to_pass].dot(
                 A_[idx_to_pass])).T.astype(np.float32)
-#            del b_
-#            return idx_to_pass, outp
 
         else:
             outp = (b_.T.dot(A_[idx_to_pass].T)).T.astype(np.float32)
-#            del b_
-#            return idx_to_pass,outp
     else:
         if transpose:
             outp = A_[idx_to_pass].dot(b_[idx_to_pass]).astype(np.float32)
-#            del b_
-#            return idx_to_pass, outp
         else:
-
             outp = A_[idx_to_pass].dot(b_).astype(np.float32)
 
     del b_, A_

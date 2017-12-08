@@ -267,7 +267,7 @@ class movie(ts.timeseries):
             warnings.warn('Casting the array to float 32')
             self = np.asanyarray(self, dtype=np.float32)
 
-        n_frames_, h_i, w_i = self.shape
+        _, h_i, w_i = self.shape
 
         ms_w = max_shift_w
         ms_h = max_shift_h

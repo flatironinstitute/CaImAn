@@ -1,7 +1,7 @@
 [MASTER]
 reports=n
 [MESSAGES CONTROL]
-disable=deprecated-module,invalid-name,line-too-long,too-many-locals,bare-except,no-member,redefined-builtin,missing-docstring,too-many-arguments,no-else-return,too-many-branches,too-many-statements,too-many-lines,empty-docstring,bad-continuation,too-many-public-methods,too-many-return-statements,too-many-nested-blocks
+disable=deprecated-module,invalid-name,line-too-long,too-many-locals,bare-except,no-member,redefined-builtin,missing-docstring,too-many-arguments,no-else-return,too-many-branches,too-many-statements,too-many-lines,empty-docstring,bad-continuation,too-many-public-methods,too-many-return-statements,too-many-nested-blocks,attribute-defined-outside-init,dangerous-default-value,unidiomatic-typecheck
 
 # This pylintrc focuses on the more concrete things; unused variables, inconsistent spacing,
 # stuff like that. It is not meant to correct code that's simply complex.
