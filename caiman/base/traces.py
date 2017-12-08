@@ -71,7 +71,7 @@ class trace(ts.timeseries):
         if np.min(self) <= 0:
             raise ValueError("All traces must be positive")
 
-        T, num_neurons = self.shape
+        T, _ = self.shape
         window = int(window_sec * self.fr)
         print(window)
         if window >= T:
@@ -145,7 +145,6 @@ class trace(ts.timeseries):
     def extract_epochs(self, trigs=None, tb=1, ta=1):
         raise Exception('Not Implemented. Look at movie resize')
 
-
 if __name__ == "__main__":
-    tr = trace(3 + np.random.random((2000, 4)), fr=30, start_time=0)
-    tr = tr.computeDFF()
+    tracedata = trace(3 + np.random.random((2000, 4)), fr=30, start_time=0)
+    tracedata_dff = tracedata.computeDFF()

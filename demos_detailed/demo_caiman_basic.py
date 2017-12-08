@@ -2,8 +2,8 @@
 # -*- coding: utf-8 -*-
 """
 Stripped demo for running the CNMF source extraction algorithm with CaImAn and
-evaluation the components. The analysis can be run either in the whole FOV 
-or 
+evaluation the components. The analysis can be run either in the whole FOV
+or
 
 For a complete pipeline (including motion correction) check demo_pipeline.py
 

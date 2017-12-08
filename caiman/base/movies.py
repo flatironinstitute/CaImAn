@@ -30,8 +30,7 @@ import scipy
 import sklearn
 import warnings
 import numpy as np
-from sklearn.decomposition import NMF
-from sklearn.decomposition import incremental_pca, FastICA
+from sklearn.decomposition import NMF, incremental_pca, FastICA
 
 from sklearn.cluster import KMeans
 from sklearn.metrics.pairwise import euclidean_distances
@@ -267,7 +266,7 @@ class movie(ts.timeseries):
             warnings.warn('Casting the array to float 32')
             self = np.asanyarray(self, dtype=np.float32)
 
-        n_frames_, h_i, w_i = self.shape
+        _, h_i, w_i = self.shape
 
         ms_w = max_shift_w
         ms_h = max_shift_h
@@ -385,7 +384,7 @@ class movie(ts.timeseries):
         else:
             raise Exception('Interpolation method not available')
 
-        t, h, w = self.shape
+        _, h, w = self.shape
         for i, frame in enumerate(self):
             if i % 100 == 99:
                 print(("Frame %i" % (i + 1)))
@@ -402,7 +401,7 @@ class movie(ts.timeseries):
 
                 tform = AffineTransform(translation=(-sh_y_n, -sh_x_n))
                 self[i] = warp(frame, tform, preserve_range=True,
-                               order=interpolation, borderMode=cv2.BORDER_REFLECT)
+                               order=interpolation)
 
             else:
                 raise Exception('Unknown shift  application method')
@@ -423,7 +422,7 @@ class movie(ts.timeseries):
             warnings.warn('Casting the array to float 32')
             self = np.asanyarray(self, dtype=np.float32)
 
-        t, h, w = self.shape
+        t, _, _ = self.shape
         x = np.arange(t)
         y = np.median(self.reshape(t, -1), axis=1)
 
@@ -435,11 +434,11 @@ class movie(ts.timeseries):
 
         try:
             p0 = (y[0] - y[-1], 1e-6, y[-1])
-            popt, pcov = scipy.optimize.curve_fit(expf, x, y, p0=p0)
+            popt, _ = scipy.optimize.curve_fit(expf, x, y, p0=p0)
             y_fit = expf(x, *popt)
         except:
             p0 = (old_div(float(y[-1] - y[0]), float(x[-1] - x[0])), y[0])
-            popt, pcov = scipy.optimize.curve_fit(linf, x, y, p0=p0)
+            popt, _ = scipy.optimize.curve_fit(linf, x, y, p0=p0)
             y_fit = linf(x, *popt)
 
         norm = y_fit - np.median(y[:])
@@ -540,7 +539,7 @@ class movie(ts.timeseries):
         Y = Y - np.percentile(Y, 1)
         Y = np.clip(Y, 0, np.Inf)
         estimator = NMF(n_components=n_components, init=init,
-                        beta=beta, tol=tol, sparseness=sparseness, **kwargs)
+                        tol=tol, **kwargs)
         time_components = estimator.fit_transform(Y)
         components_ = estimator.components_
         space_components = np.reshape(components_, (n_components, h, w))
@@ -597,7 +596,7 @@ class movie(ts.timeseries):
 
         space_comps = []
 
-        for idx, mm in enumerate(V):
+        for _, mm in enumerate(V):
             space_comps.append(np.reshape(mm.todense(), (d1, d2), order='F'))
 
         return time_comps, np.array(space_comps)
@@ -689,7 +688,7 @@ class movie(ts.timeseries):
         joint_ics = ica.fit_transform(eigenstuff)
 
         # extract the independent frames
-        num_frames, h, w = np.shape(self)
+        _, h, w = np.shape(self)
         frame_size = h * w
         ind_frames = joint_ics[:frame_size, :]
         ind_frames = np.reshape(ind_frames.T, (componentsICA, h, w))
@@ -971,6 +970,7 @@ class movie(ts.timeseries):
         return self
 
     def resample(self):
+        # FIXME what is this?
         print((1))
 
     def to_2D(self, order='F'):
@@ -1166,8 +1166,7 @@ def load(file_name, fr=30, start_time=0, meta_data=None, subindices=None, shape=
     """
     # case we load movie from file
     if os.path.exists(file_name):
-
-        name, extension = os.path.splitext(file_name)[:2]
+        _, extension = os.path.splitext(file_name)[:2]
 
         if extension == '.tif' or extension == '.tiff':  # load avi file
             if subindices is not None:
@@ -1221,7 +1220,7 @@ def load(file_name, fr=30, start_time=0, meta_data=None, subindices=None, shape=
 
             if input_arr.ndim == 2:
                 if shape is not None:
-                    d, T = np.shape(input_arr)
+                    _, T = np.shape(input_arr)
                     d1, d2 = shape
                     input_arr = np.transpose(np.reshape(
                         input_arr, (d1, d2, T), order='F'), (2, 0, 1))
@@ -1368,7 +1367,7 @@ def load_movie_chain(file_list, fr=30, start_time=0,
         if m.ndim == 2:
             m = m[np.newaxis, :, :]
 
-        tm, h, w = np.shape(m)
+        _, h, w = np.shape(m)
         m = m[:, top:h - bottom, left:w - right]
         mov.append(m)
     return ts.concatenate(mov, axis=0)

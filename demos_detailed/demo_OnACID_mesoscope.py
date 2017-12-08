@@ -1,20 +1,19 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Complete pipeline for online processing using OnACID. 
+Complete pipeline for online processing using OnACID.
 @author: Andrea Giovannucci @agiovann and Eftychios Pnevmatikakis @epnev
-Special thanks to Andreas Tolias and his lab at Baylor College of Medicine 
+Special thanks to Andreas Tolias and his lab at Baylor College of Medicine
 for sharing their data used in this demo.
 """
 import numpy as np
 try:
     if __IPYTHON__:
-        print('Debugging!')
+        print('Detected iPython')
         # this is used for debugging purposes only. allows to reload classes when changed
         get_ipython().magic('load_ext autoreload')
         get_ipython().magic('autoreload 2')
 except NameError:
-    print('Not IPYTHON')
     pass
 
 from time import time

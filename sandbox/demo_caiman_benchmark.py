@@ -153,7 +153,7 @@ print((t_mmap_mc_online_1 - t_mmap_mc_online))
 #%%
 t_mmap_join = time()
 fname_new = cm.mmapping.save_memmap_join(
-    all_names, base_name='Yr_MC_MF_', n_chunks=100, dview=dview, async=False)
+    all_names, base_name='Yr_MC_MF_', n_chunks=100, dview=dview)
 t_mmap_join_1 = time()
 print((t_mmap_join_1 - t_mmap_join))
 #%%

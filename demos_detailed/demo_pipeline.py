@@ -1,15 +1,15 @@
 #!/usr/bin/env python
 """
-Complete demo pipeline for motion correction, source extraction, and 
-deconvolution of two-photon calcium imaging data using the CaImAn package. 
+Complete demo pipeline for motion correction, source extraction, and
+deconvolution of two-photon calcium imaging data using the CaImAn package.
 
 Demo is also available as a jupyter notebook (see demo_pipeline.ipynb)
-Dataset couresy of Sue Ann Koay and David Tank (Princeton University) 
+Dataset couresy of Sue Ann Koay and David Tank (Princeton University)
 
-This demo pertains to two photon data. For a complete analysis pipeline for 
+This demo pertains to two photon data. For a complete analysis pipeline for
 one photon microendoscopic data see demo_pipeline_cnmfE.py
 
-copyright GNU General Public License v2.0 
+copyright GNU General Public License v2.0
 authors: @agiovann and @epnev
 """
 from __future__ import division
@@ -25,13 +25,12 @@ except:
 
 try:
     if __IPYTHON__:
-        print(1)
+        print("Running under iPython")
         # this is used for debugging purposes only. allows to reload classes
         # when changed
         get_ipython().magic('load_ext autoreload')
         get_ipython().magic('autoreload 2')
 except NameError:
-    print('Not IPYTHON')
     pass
 import caiman as cm
 import numpy as np
@@ -158,7 +157,7 @@ c, dview, n_processes = cm.cluster.setup_cluster(
 t1 = time.time()
 
 cnm = cnmf.CNMF(n_processes=1, k=K, gSig=gSig, merge_thresh=merge_thresh,
-                p=0,  dview=dview, rf=rf, stride=stride_cnmf, memory_fact=1,
+                p=0, dview=dview, rf=rf, stride=stride_cnmf, memory_fact=1,
                 method_init=init_method, alpha_snmf=alpha_snmf,
                 only_init_patch=False, gnb=gnb, border_pix=bord_px_els)
 cnm = cnm.fit(images)
@@ -210,7 +209,7 @@ view_patches_bar(Yr, cnm.A.tocsc()[:, idx_components_bad], cnm.C[idx_components_
 A_in, C_in, b_in, f_in = cnm.A[:,
                                idx_components], cnm.C[idx_components], cnm.b, cnm.f
 cnm2 = cnmf.CNMF(n_processes=1, k=A_in.shape[-1], gSig=gSig, p=p, dview=dview,
-                 merge_thresh=merge_thresh,  Ain=A_in, Cin=C_in, b_in=b_in,
+                 merge_thresh=merge_thresh, Ain=A_in, Cin=C_in, b_in=b_in,
                  f_in=f_in, rf=None, stride=None, gnb=gnb,
                  method_deconvolution='oasis', check_nan=True)
 

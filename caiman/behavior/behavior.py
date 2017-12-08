@@ -96,10 +96,10 @@ def extract_motor_components_OF(m, n_components, mask=None, resize_fact=.5, only
         else:
             of = of_or
 
-    spatial_filter_, time_trace_, norm_fact = extract_components(of, n_components=n_components, verbose=verbose,
-                                                                 normalize_std=False, max_iter=max_iter,
-                                                                 method_factorization=method_factorization,
-                                                                 max_iter_DL=max_iter_DL)
+    spatial_filter_, time_trace_, _ = extract_components(of, n_components=n_components, verbose=verbose,
+                                                         normalize_std=False, max_iter=max_iter,
+                                                         method_factorization=method_factorization,
+                                                         max_iter_DL=max_iter_DL)
 
     return spatial_filter_, time_trace_, of_or
 
@@ -206,8 +206,6 @@ def compute_optical_flow(m, mask=None, polar_coord=True, do_show=False, do_write
         data = 1
 
     T, d1, d2 = m.shape
-    angs = np.zeros(T)
-    mags = np.zeros(T)
     mov_tot = np.zeros([2, T, d1, d2])
 
     if do_write:
@@ -346,7 +344,6 @@ def extract_components(mov_tot, n_components=6, normalize_std=True, max_iter_DL=
     print(el_t)
     return spatial_filter, time_trace, norm_fact
 
-
 def plot_components(sp_filt, t_trace):
     # todo: todocument
     pl.figure()
@@ -359,42 +356,13 @@ def plot_components(sp_filt, t_trace):
         pl.subplot(6, 2, count)
         pl.plot(tr)
 
-
-#%%
-def normalize_components(t_trace, sp_filt, num_std=2):
-    """
-    Normalize the components using the std of the components obtaining using biunary masks
-    """
-    # todo: todocument
-    coor_1 = []
-    coor_2 = []
-    new_t_trace = []
-    for t, s in zip(t_trace, sp_filt):
-        print((1))
-        thr = np.mean(s) + num_std * np.std(s)
-        t = t.T
-        t1 = t[0] / np.std(t[0]) * np.std(old_div(np.sum((s > thr)
-                                                         * mov_tot[0], axis=(1, 2)), np.sum((s > thr))))
-        t2 = t[1] / np.std(t[1]) * np.std(old_div(np.sum((s > thr)
-                                                         * mov_tot[1], axis=(1, 2)), np.sum((s > thr))))
-        coor_1.append(t1)
-        coor_2.append(t2)
-        new_t_trace.append(np.vstack([t1, t2]).T)
-
-    coor_1 = np.array(coor_1)
-    coor_2 = np.array(coor_2)
-
-    return new_t_trace, coor_1, coor_2
-
-
 #%%
 if __name__ == "__main__":
-    # todo: main ??
     main()
 
 #%%
 
-
+# FIXME the main() below references undefined variables d1 and d2 and won't work
 def main():
     mmat = loadmat('mov_AG051514-01-060914 C.mat')['mov']
     m = cm.movie(mmat.transpose((2, 0, 1)), fr=120)
@@ -404,61 +372,10 @@ def main():
     else:
         mov_tot = compute_optical_flow(m[:3000], mask, polar_coord=False)
 
-    sp_filt, t_trace, norm_fact = extract_components(mov_tot)
+    sp_filt, t_trace, _ = extract_components(mov_tot)
     plot_components(sp_filt, t_trace)
     id_comp = 1
     pl.plot(old_div(np.sum(np.reshape(sp_filt[id_comp] > 1, [
             d1, d2]) * mov_tot[1], axis=(1, 2)), np.sum(sp_filt[id_comp] > 1)))
     pl.plot(t_trace[id_comp][:, 1])
 
-
-# %% single featureflow,. seems not towork
-# feature_params = dict( maxCorners = 100,
-#                       qualityLevel = 0.3,
-#                       minDistance = 7,
-#                       blockSize = 7 )
-#
-# lk_params = dict( winSize  = (15,15),
-#                  maxLevel = 2,
-#                  criteria = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 10, 0.03))
-#
-#
-#color = np.random.randint(0,255,(100,3))
-# old_gray=m[0]
-#old_frame = cv2.cvtColor(old_gray, cv2.COLOR_GRAY2RGB)
-#
-# p0 = cv2.HoughCircles(old_gray,cv2.HOUGH_GRADIENT,1,20,
-#                            param1=50,param2=30,minRadius=0,maxRadius=0)
-# p0=p0.transpose(1,0,2)[:,:,:-1]
-#p1 = cv2.goodFeaturesToTrack(old_gray, mask = None, **feature_params)
-# Create a mask image for drawing purposes
-#mask = np.zeros_like(old_frame)
-#cv2.namedWindow( "Display window", cv2.WINDOW_NORMAL );
-# for counter,frame_gray in enumerate(m[16000:17000]):
-#    print counter
-#    frame=cv2.cvtColor(frame_gray, cv2.COLOR_GRAY2RGB)
-#    # calculate optical flow
-#    p1, st, err = cv2.calcOpticalFlowPyrLK(old_gray, frame_gray, p0, None, **lk_params)
-#
-#    # Select good points
-#    good_new = p1[st==1]
-#    good_old = p0[st==1]
-#
-#    # draw the tracks
-#    for i,(new,old) in enumerate(zip(good_new,good_old)):
-#        a,b = new.ravel()
-#        c,d = old.ravel()
-#        mask = cv2.line(mask, (a,b),(c,d), color[i].tolist(), 2)
-#        frame = cv2.circle(frame,(a,b),5,color[i].tolist(),-1)
-#    img = cv2.add(frame,mask)
-#
-#    cv2.imshow("Display window",img)
-#    k = cv2.waitKey(30) & 0xff
-#    if k == 27:
-#        break
-#
-#    # Now update the previous frame and previous points
-#    old_gray = frame_gray.copy()
-#    p0 = good_new.reshape(-1,1,2)
-#
-#%%

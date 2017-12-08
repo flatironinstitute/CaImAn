@@ -149,8 +149,7 @@ def apply_to_patch(mmap_file, shape, dview, rf, stride, function, *args, **kwarg
     Exception('Something went wrong')
 
     """
-    (T, d1, d2) = shape
-    d = d1 * d2
+    (_, d1, d2) = shape
 
     if not np.isscalar(rf):
         rf1, rf2 = rf
@@ -206,7 +205,7 @@ def function_place_holder(args_in):
     Yr, _, _ = load_memmap(file_name)
     Yr = Yr[idx_, :]
     Yr.filename = file_name
-    d, T = Yr.shape
+    _, T = Yr.shape
     Y = np.reshape(Yr, (shapes[1], shapes[0], T),
                    order='F').transpose([2, 0, 1])
     [T, d1, d2] = Y.shape
@@ -388,7 +387,7 @@ def setup_cluster(backend='multiprocessing', n_processes=None, single_thread=Fal
 
         if backend == 'SLURM':
             try:
-                stop_server(is_slurm=True)
+                stop_server()
             except:
                 print('Nothing to stop')
             slurm_script = 'SLURM/slurmStart.sh'
@@ -412,48 +411,3 @@ def setup_cluster(backend='multiprocessing', n_processes=None, single_thread=Fal
             raise Exception('Unknown Backend')
 
     return c, dview, n_processes
-
-
-# %%
-"""
-def extract_rois_patch(file_name,d1,d2,rf=5,stride = 5):
-
-    #todo: todocument
-
-    idx_flat,idx_2d=extract_patch_coordinates(d1, d2, rf=rf,stride = stride)
-    perctl=95
-    n_components=2
-    tol=1e-6
-    max_iter=5000
-    args_in=[]
-    for id_f,id_2d in zip(idx_flat[:],idx_2d[:]):
-        args_in.append((file_name, id_f,id_2d, perctl,n_components,tol,max_iter))
-    st=time.time()
-    print((len(idx_flat)))
-    try:
-        c = Client()
-        dview=c[:]
-        file_res = dview.map_sync(nmf_patches, args_in)
-    except:
-            file_res = list(map(nmf_patches, args_in))
-    finally:
-        dview.results.clear()
-        c.purge_results('all')
-        c.purge_everything()
-        c.close()
-
-    print((time.time()-st))
-
-    A1=lil_matrix((d1*d2,len(file_res)))
-    C1=[]
-    A2=lil_matrix((d1*d2,len(file_res)))
-    C2=[]
-    for count,f in enumerate(file_res):
-        idx_,flt,ca,d=f
-        A1[idx_,count]=flt[:,0][:,np.newaxis]
-        A2[idx_,count]=flt[:,1][:,np.newaxis]
-        C1.append(ca[0,:])
-        C2.append(ca[1,:])
-
-    return A1,A2,C1,C2
-"""

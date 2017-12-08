@@ -21,10 +21,8 @@ from builtins import range
 import numpy as np
 from scipy.ndimage.filters import convolve
 import cv2
-from caiman.source_extraction.cnmf.pre_processing import get_noise_fft, get_noise_fft_parallel
-import pdb
+from caiman.source_extraction.cnmf.pre_processing import get_noise_fft
 #%%
-
 
 def max_correlation_image(Y, bin_size=1000, eight_neighbours=True, swap_dim=True):
     """Computes the max-correlation image for the input dataset Y with bin_size
@@ -258,7 +256,7 @@ def correlation_pnr(Y, gSig=None, center_psf=True, swap_dim=True):
             Y, tuple(np.hstack((Y.ndim - 1, list(range(Y.ndim))[:-1]))))
 
     # parameters
-    T, d1, d2 = Y.shape
+    _, d1, d2 = Y.shape
     data_raw = Y.reshape(-1, d1, d2).astype('float32')
 
     # filter data

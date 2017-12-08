@@ -63,7 +63,6 @@ except:
 
 import gc
 import os
-import time
 from cv2 import dft as fftn
 from cv2 import idft as ifftn
 opencv = True
@@ -667,8 +666,6 @@ def motion_correct_iteration_fast(img, template, max_shift_w=10, max_shift_h=10)
     templ_crop = template[max_shift_h:h_i - max_shift_h,
                           max_shift_w:w_i - max_shift_w].astype(np.float32)
 
-    h, w = templ_crop.shape
-
     res = cv2.matchTemplate(img, templ_crop, cv2.TM_CCORR_NORMED)
     top_left = cv2.minMaxLoc(res)[3]
 
@@ -1069,7 +1066,7 @@ def motion_correct_parallel(file_names, fr=10, template=None, margins_out=0,
             if (dview is not None) and 'multiprocessing' not in str(type(dview)):
                 dview.results.clear()
 
-        except UnboundLocalError as uberr:
+        except UnboundLocalError:
             print('could not close client')
 
         raise
@@ -1590,7 +1587,7 @@ def create_weight_matrix_for_blending(img, overlaps, strides):
     max_grid_1, max_grid_2 = np.max(
         np.array([it[:2] for it in sliding_window(img, overlaps, strides)]), 0)
 
-    for grid_1, grid_2, x, y, _ in sliding_window(img, overlaps, strides):
+    for grid_1, grid_2, _, _, _ in sliding_window(img, overlaps, strides):
 
         weight_mat = np.ones(shapes)
 
@@ -2188,8 +2185,8 @@ def motion_correct_batch_pwrigid(fname, max_shifts, strides, overlaps, add_to_mo
     for rr in res_el:
         shift_info_chunk, idxs_chunk, tmpl_chunk = rr
         templates.append(tmpl_chunk)
-        for shift_info, idxs in zip(shift_info_chunk, idxs_chunk):
-            total_shift, start_step, xy_grid = shift_info
+        for shift_info, _ in zip(shift_info_chunk, idxs_chunk):
+            total_shift, _, xy_grid = shift_info
             x_shifts.append(np.array([sh[0] for sh in total_shift]))
             y_shifts.append(np.array([sh[1] for sh in total_shift]))
             coord_shifts.append(xy_grid)
