@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on Wed Sep 20 17:52:23 2017
-Basic demo for the OnACID algorithm using CNMF initialization. For a more 
+Basic demo for the OnACID algorithm using CNMF initialization. For a more
 complete demo check the script demo_OnACID_mesoscope.py
 
 @author: jfriedrich & epnev

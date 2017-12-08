@@ -23,48 +23,27 @@ except:
 
 try:
     if __IPYTHON__:
-        print(1)
+        print("Detected iPython")
         # this is used for debugging purposes only. allows to reload classes
         # when changed
         get_ipython().magic('load_ext autoreload')
         get_ipython().magic('autoreload 2')
 except NameError:
-    print('Not IPYTHON')
     pass
+
 import caiman as cm
 import numpy as np
 import os
 import time
 import pylab as pl
 import psutil
-import sys
 from ipyparallel import Client
 from skimage.external.tifffile import TiffFile
 import scipy
 import copy
 
-try:
-    if __IPYTHON__:
-        print('Debugging!')
-        # this is used for debugging purposes only. allows to reload classes when changed
-        get_ipython().magic('load_ext autoreload')
-        get_ipython().magic('autoreload 2')
-except NameError:
-    print('Not IPYTHON')
-    pass
-
-import sys
-import numpy as np
-import psutil
-import glob
-import os
-import scipy
-from ipyparallel import Client
-# mpl.use('Qt5Agg')
-import pylab as pl
 pl.ion()
 #%
-import caiman as cm
 from caiman.source_extraction.cnmf import cnmf as cnmf
 from caiman.components_evaluation import evaluate_components
 from caiman.utils.visualization import plot_contours, view_patches_bar
