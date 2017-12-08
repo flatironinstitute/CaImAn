@@ -14,7 +14,7 @@ from builtins import range
 from past.utils import old_div
 from scipy.ndimage.filters import gaussian_filter
 from scipy.ndimage import label, center_of_mass
-from skimage.morphology import remove_small_objects, opening, remove_small_holes, closing, dilation
+from skimage.morphology import remove_small_objects, remove_small_holes, dilation
 import scipy
 import numpy as np
 import cv2
@@ -131,7 +131,7 @@ def extract_binary_masks_from_structural_channel(Y, min_area_size=30, min_hole_s
 def mask_to_2d(mask):
     # todo todocument
     if mask.ndim > 2:
-        ncomps, d1, d2 = np.shape(mask)
+        _, d1, d2 = np.shape(mask)
         dims = d1, d2
         return scipy.sparse.coo_matrix(np.reshape(mask[:].transpose([1, 2, 0]), (np.prod(dims), -1,), order='F'))
     else:
@@ -143,7 +143,7 @@ def mask_to_2d(mask):
 def get_distance_from_A(masks_gt, masks_comp, min_dist=10):
     # todo todocument
 
-    ncomps, d1, d2 = np.shape(masks_gt)
+    _, d1, d2 = np.shape(masks_gt)
     dims = d1, d2
     A_ben = scipy.sparse.csc_matrix(np.reshape(
         masks_gt[:].transpose([1, 2, 0]), (np.prod(dims), -1,), order='F'))
@@ -209,7 +209,7 @@ def nf_match_neurons_in_binary_masks(masks_gt, masks_comp, thresh_cost=.7, min_d
 
     """
 
-    ncomps, d1, d2 = np.shape(masks_gt)
+    _, d1, d2 = np.shape(masks_gt)
     dims = d1, d2
 
     # transpose to have a sparse list of components, then reshaping it to have a 1D matrix red in the Fortran style
@@ -668,7 +668,7 @@ def link_neurons(matches, costs, max_cost=0.6, min_FOV_present=None):
     for idx in range(len(matches[0][0])):
         neuron = []
         neuron.append(idx)
-        for match, cost, chk in zip(matches, costs, list(range(1, num_chunks))):
+        for match, cost, _ in zip(matches, costs, list(range(1, num_chunks))):
             rows, cols = match
             m_neur = np.where(rows == neuron[-1])[0].squeeze()
             if m_neur.size > 0:
@@ -745,15 +745,16 @@ def nf_read_roi(fileobj):
 # http://rsbweb.nih.gov/ij/developer/source/ij/io/RoiDecoder.java.html
 # http://rsbweb.nih.gov/ij/developer/source/ij/io/RoiEncoder.java.html
 
-    SPLINE_FIT = 1
-    DOUBLE_HEADED = 2
-    OUTLINE = 4
-    OVERLAY_LABELS = 8
-    OVERLAY_NAMES = 16
-    OVERLAY_BACKGROUNDS = 32
-    OVERLAY_BOLD = 64
+    # TODO: Use an enum
+    #SPLINE_FIT = 1
+    #DOUBLE_HEADED = 2
+    #OUTLINE = 4
+    #OVERLAY_LABELS = 8
+    #OVERLAY_NAMES = 16
+    #OVERLAY_BACKGROUNDS = 32
+    #OVERLAY_BOLD = 64
     SUB_PIXEL_RESOLUTION = 128
-    DRAW_OFFSET = 256
+    #DRAW_OFFSET = 256
 
     pos = [4]
 
@@ -981,7 +982,7 @@ def extract_binary_masks_blob(A, neuron_radius, dims, num_std_threshold=1, minCi
         markers[gray_image > thr_2] = 2
         edges = watershed(elevation_map, markers) - 1
         # only keep largest object
-        label_objects, nb_labels = ndi.label(edges)
+        label_objects, _ = ndi.label(edges)
         sizes = np.bincount(label_objects.ravel())
 
         if len(sizes) > 1:
@@ -992,16 +993,11 @@ def extract_binary_masks_blob(A, neuron_radius, dims, num_std_threshold=1, minCi
             print('empty component')
             edges = np.zeros_like(edges)
 
-        if 1:
-            masks_ws.append(edges)
-            keypoints = detector.detect((edges * 200.).astype(np.uint8))
-        else:
-            masks_ws.append(gray_image)
-            keypoints = detector.detect(gray_image)
+        masks_ws.append(edges)
+        keypoints = detector.detect((edges * 200.).astype(np.uint8))
 
         if len(keypoints) > 0:
             pos_examples.append(count)
-
         else:
             neg_examples.append(count)
 
@@ -1037,7 +1033,7 @@ def extract_binary_masks_blob_parallel(A, neuron_radius, dims, num_std_threshold
 
 #%%
 def extract_binary_masks_blob_parallel_place_holder(pars):
-    A, neuron_radius, dims, num_std_threshold, minCircularity, minInertiaRatio, minConvexity = pars
+    A, neuron_radius, dims, num_std_threshold, _, minInertiaRatio, minConvexity = pars
     masks_ws, pos_examples, neg_examples = extract_binary_masks_blob(A, neuron_radius,
                                                                      dims, num_std_threshold=num_std_threshold, minCircularity=0.5,
                                                                      minInertiaRatio=minInertiaRatio, minConvexity=minConvexity)
@@ -1060,7 +1056,7 @@ def extractROIsFromPCAICA(spcomps, numSTD=4, gaussiansigmax=2, gaussiansigmay=2,
     numSTD: number of standard deviation above the mean of the spatial component to be considered signiificant
     """
 
-    numcomps, width, height = spcomps.shape
+    numcomps, _, _ = spcomps.shape
 
     allMasks = []
     maskgrouped = []
@@ -1121,122 +1117,3 @@ def detect_duplicates(file_name, dist_thr=0.1, FOV=(512, 512)):
     duplicates = list(np.unique(np.concatenate((indeces[0], indeces[1]))))
 
     return duplicates, ind_keep
-
-    # %% threshold and remove spurious components
-    # def threshold_components(A_s,shape,min_size=5,max_size=np.inf,max_perc=.3):
-    #    """
-    #    Threshold components output of a CNMF algorithm (A matrices)
-    #
-    #    Parameters:
-    #    ----------
-    #
-    #    A_s: list
-    #        list of A matrice output from CNMF
-    #
-    #    min_size: int
-    #        min size of the component in pixels
-    #
-    #    max_size: int
-    #        max size of the component in pixels
-    #
-    #    max_perc: float
-    #        fraction of the maximum of each component used to threshold
-    #
-    #
-    #    Returns:
-    #    -------
-    #
-    #    B_s: list of the thresholded components
-    #
-    #    lab_imgs: image representing the components in ndimage format
-    #
-    #    cm_s: center of masses of each components
-    #    """
-    #
-    #    B_s=[]
-    #    lab_imgs=[]
-    #
-    #    cm_s=[]
-    #    for A_ in A_s:
-    #        print('*')
-    #        max_comps=A_.max(0).todense().T
-    #        tmp=[]
-    #        cm=[]
-    #        lim=np.zeros(shape)
-    #        for idx,a in enumerate(A_.T):
-    #            #create mask by thresholding to 50% of the max
-    #            print(idx)
-    #            mask=np.reshape(a.todense()>(max_comps[idx]*max_perc),shape)
-    #            label_im, nb_labels = ndi.label(mask)
-    #            sizes = ndi.sum(mask, label_im, list(range(nb_labels + 1)))
-    #            l_largest=(label_im==np.argmax(sizes))
-    #            cm.append(scipy.ndimage.measurements.center_of_mass(l_largest,l_largest))
-    #            lim[l_largest] = (idx+1)
-    #    #       #remove connected components that are too small
-    #            mask_size=np.logical_or(sizes<min_size,sizes>max_size)
-    #            if np.sum(mask_size[1:])>1:
-    #                print(('removing ' + str( np.sum(mask_size[1:])-1) + ' components'))
-    #            remove_pixel=mask_size[label_im]
-    #            label_im[remove_pixel] = 0
-    #
-    #            label_im=(label_im>0)*1
-    #
-    #            tmp.append(label_im.flatten())
-    #
-    #
-    #        cm_s.append(cm)
-    #        lab_imgs.append(lim)
-    #        B_s.append(csc.csc_matrix(np.array(tmp)).T)
-    #
-    #    return B_s, lab_imgs, cm_s
-
-    # %% remove duplicate ROIs from manually annotated files
-
-    #%%
-# def get_roi_from_spatial_component(sp_comp, min_radius, max_radius, roughness=2, zoom_factor=1, center_range=2,z_step=1,thresh_iou=.4):
-#
-#
-#     if sp_comp.ndim > 2:
-#         center=center_of_mass(sp_comp[0])
-#         roi=cell_magic_wand_3d_IOU(sp_comp,center,min_radius, max_radius, roughness=roughness, zoom_factor=zoom_factor, center_range=center_range, z_step=z_step,thresh_iou=thresh_iou)
-#     else:
-#         center=center_of_mass(sp_comp)
-#         roi=cell_magic_wand(sp_comp,center,min_radius, max_radius, roughness=roughness, zoom_factor=zoom_factor, center_range=center_range)
-#     print sp_comp.shape,roi.shape
-#     pl.subplot(1,2,1)
-#     pl.cla()
-#     if sp_comp.ndim > 2:
-#         pl.imshow(sp_comp[0])
-#     else:
-#         pl.imshow(sp_comp)
-#     pl.subplot(1,2,2)
-#     pl.cla()
-#     pl.imshow(roi)
-# pl.plot(center[1],center[0],'k.')
-#     pl.pause(.3)
-#     print 'Roi Size:' + str(np.sum(roi))
-#     return roi
-# %%
-# def get_roi_from_spatial_component_place_holder(pars):
-#    sp_comp, min_radius, max_radius, roughness, zoom_factor, center_range,z_step,thresh_iou = pars
-#    roi=get_roi_from_spatial_component(sp_comp,min_radius, max_radius, roughness=roughness, zoom_factor=zoom_factor, center_range=center_range,z_step=z_step,thresh_iou=thresh_iou)
-#    return roi
-# %%
-# def get_roi_from_spatial_component_parallel(sp_comps,min_radius, max_radius, other_imgs=None,dview=None, roughness=2, zoom_factor=1, center_range=2,z_step=1,thresh_iou=.4):
-#
-#    pars=[]
-#    for sp_comp in sp_comps:
-#        if other_imgs is None:
-#            pars.append([sp_comp, min_radius, max_radius, roughness, zoom_factor, center_range,z_step,thresh_iou])
-#        else:
-#
-#            pars.append([np.dstack([sp_comp]+other_imgs).transpose(2,0,1), min_radius, max_radius, roughness, zoom_factor, center_range,z_step,thresh_iou])
-#
-#
-#    if dview is not None:
-#        rois=dview.map_sync(get_roi_from_spatial_component_place_holder,pars)
-#
-#    else:
-#        rois=map(get_roi_from_spatial_component_place_holder,pars)
-#
-#    return rois

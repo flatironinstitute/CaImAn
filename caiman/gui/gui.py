@@ -225,7 +225,7 @@ class GUI(animation.TimedAnimation):
 
     def get_current_roi(self):
         croi = np.array([isin(rc, self.ax_mov) for rc in self.roi_centers])
-        croi[self.roi_kept == False] = False
+        croi[self.roi_kept is False] = False
         return croi
 
     def remove_roi(self, evt):
@@ -258,12 +258,13 @@ class GUI(animation.TimedAnimation):
 
 
 #%%
+# FIXME below, load() and fname are not defined
 if __name__ == '__main__':
     # todo: load and fname ??
     # load data
-    mov = load(fname, fr=30)
-    mean, minn, maxx = mov.mean(axis=0), mov.min(axis=0), mov.max(axis=0)
-    roi = np.load('/Users/ben/Desktop/roi.npy')
+    my_mov = load(fname, fr=30)
+    mean, minn, maxx = my_mov.mean(axis=0), my_mov.min(axis=0), my_mov.max(axis=0)
+    my_roi = np.load('/Users/ben/Desktop/roi.npy')
     tr = np.random.random([3000, 3])
     # run interface
-    intfc = GUI(mov, roi, tr, images=dict(mean=mean, min=minn, max=maxx))
+    intfc = GUI(my_mov, my_roi, tr, images=dict(mean=mean, min=minn, max=maxx))

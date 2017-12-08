@@ -47,10 +47,9 @@ def mode_robust(inputData, axis=None, dtype=None):
 
     .. versionadded: 1.0.3
     """
-    import numpy
     if axis is not None:
         def fnc(x): return mode_robust(x, dtype=dtype)
-        dataMode = numpy.apply_along_axis(fnc, axis, inputData)
+        dataMode = np.apply_along_axis(fnc, axis, inputData)
     else:
         # Create the function that we can use for the half-sample mode
         def _hsm(data):
@@ -87,7 +86,7 @@ def mode_robust(inputData, axis=None, dtype=None):
             data = data.astype(dtype)
 
         # The data need to be sorted for this to work
-        data = numpy.sort(data)
+        data = np.sort(data)
 
         # Find the mode
         dataMode = _hsm(data)

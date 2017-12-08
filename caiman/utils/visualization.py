@@ -301,7 +301,7 @@ def get_contours(A, dims, thr=0.9):
             vertices = nlist[:len(nlist) // 2]
             # this fix is necessary for having disjoint figures and borders plotted correctly
             v = np.atleast_2d([np.nan, np.nan])
-            for k, vtx in enumerate(vertices):
+            for _, vtx in enumerate(vertices):
                 num_close_coords = np.sum(np.isclose(vtx[0, :], vtx[-1, :]))
                 if num_close_coords < 2:
                     if num_close_coords == 0:
@@ -724,7 +724,7 @@ def playMatrix(mov, gain=1.0, frate=.033):
 
 
 def matrixMontage(spcomps, *args, **kwargs):
-    numcomps, width, height = spcomps.shape
+    numcomps, _, _ = spcomps.shape
     rowcols = int(np.ceil(np.sqrt(numcomps)))
     for k, comp in enumerate(spcomps):
         pl.subplot(rowcols, rowcols, k + 1)
