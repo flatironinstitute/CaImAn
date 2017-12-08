@@ -135,7 +135,7 @@ def save_memmap_each(fnames, dview=None, base_name=None, resize_fact=(1, 1, 1), 
 
 
 #%%
-def save_memmap_join(mmap_fnames, base_name=None, n_chunks=20, dview=None, asynchronous=False):
+def save_memmap_join(mmap_fnames, base_name=None, n_chunks=20, dview=None):
     """
     From small memory mappable files creates a large one
 
@@ -149,8 +149,6 @@ def save_memmap_join(mmap_fnames, base_name=None, n_chunks=20, dview=None, async
     n_chunks: number of chunks in which to subdivide when saving, smaller requires more memory
 
     dview: cluster handle
-
-    asynchronous: somtimes it will not work asynchrounously, try this if it fails
 
     Returns:
     --------
