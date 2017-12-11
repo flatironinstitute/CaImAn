@@ -749,9 +749,9 @@ class CNMF(object):
         self.Yres_buf = RingBuffer(self.Yr_buf - self.Ab.dot(
             self.C_on[:self.M, self.initbatch - self.minibatch_shape:self.initbatch]).T, self.minibatch_shape)
         self.rho_buf = imblur(self.Yres_buf.T.reshape(
-            self.dims2 + (-1,), order='F'), sig=self.gSig, siz=self.gSiz, nDimBlur=2)**2
+            self.dims2 + (-1,), order='F'), sig=self.gSig, siz=self.gSiz, nDimBlur=len(self.dims2))**2
         self.rho_buf = np.reshape(
-            self.rho_buf, (self.dims2[0] * self.dims2[1], -1)).T
+            self.rho_buf, (np.prod(self.dims2), -1)).T
         self.rho_buf = RingBuffer(self.rho_buf, self.minibatch_shape)
         self.AtA = (self.Ab.T.dot(self.Ab)).toarray()
         self.AtY_buf = self.Ab.T.dot(self.Yr_buf.T)
@@ -840,7 +840,7 @@ class CNMF(object):
             res_frame = np.reshape(res_frame, self.dims2, order='F')
 
             rho = imblur(res_frame, sig=self.gSig,
-                         siz=self.gSiz, nDimBlur=2)**2
+                         siz=self.gSiz, nDimBlur=len(self.dims2))**2
             rho = np.reshape(rho, np.prod(self.dims2))
             self.rho_buf.append(rho)
 

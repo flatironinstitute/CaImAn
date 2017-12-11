@@ -308,8 +308,11 @@ def init_shapes_and_sufficient_stats(Y, A, C, b, f, bSiz=3):
     # Ab = scipy.sparse.hstack([A.astype('float32'), b.astype('float32')]).tocsc()  might be faster
     # closing of shapes to not have holes in index matrix ind_A.
     # do this somehow smarter & faster, e.g. smooth only within patch !!
-    A_smooth = np.transpose([gaussian_filter(a.reshape(
-        dims, order='F'), 2).ravel(order='F') for a in Ab.T])
+    #a = Ab[:,0]
+    #import pdb
+    #pdb.set_trace()
+    A_smooth = np.transpose([gaussian_filter(np.array(a).reshape(
+        dims, order='F'), 0).ravel(order='F') for a in Ab.T])
     A_smooth[A_smooth < 1e-2] = 0
     # set explicity zeros of Ab to small value, s.t. ind_A and Ab.indptr match
     Ab += 1e-6 * A_smooth
@@ -510,20 +513,30 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
         # ijSig = [[np.maximum(ij[c] - gHalf[c], 0), np.minimum(ij[c] + gHalf[c] + 1, dims[c])]
         #          for c in range(len(ij))]
         # better than above expensive call of numpy and loop creation
-        ijSig = [[max(ij[0] - gHalf[0], 0), min(ij[0] + gHalf[0] + 1, dims[0])],
-                 [max(ij[1] - gHalf[1], 0), min(ij[1] + gHalf[1] + 1, dims[1])]]
 
+#        ijSig = [[max(ij[0] - gHalf[0], 0), min(ij[0] + gHalf[0] + 1, dims[0])],
+#                 [max(ij[1] - gHalf[1], 0), min(ij[1] + gHalf[1] + 1, dims[1])]]
+        
+        ijSig = [[max(i - g, 0), min(i+g+1,d)] for i, g, d in zip(ij, gHalf, dims)]
+        
         # xySig = np.meshgrid(*[np.arange(s[0], s[1]) for s in ijSig], indexing='xy')
         # arr = np.array([np.reshape(s, (1, np.size(s)), order='F').squeeze()
         #                 for s in xySig], dtype=np.int)
         # indeces = np.ravel_multi_index(arr, dims, order='F')
-        indeces = np.ravel_multi_index(np.ix_(np.arange(ijSig[0][0], ijSig[0][1]),
-                                              np.arange(ijSig[1][0], ijSig[1][1])),
-                                       dims, order='F').ravel(order=order_rvl)
-
-        indeces_ = np.ravel_multi_index(np.ix_(np.arange(ijSig[0][0], ijSig[0][1]),
-                                               np.arange(ijSig[1][0], ijSig[1][1])),
-                                        dims, order='C').ravel(order=order_rvl)
+        
+#        indeces = np.ravel_multi_index(np.ix_(np.arange(ijSig[0][0], ijSig[0][1]),
+#                                              np.arange(ijSig[1][0], ijSig[1][1])),
+#                                       dims, order='F').ravel(order=order_rvl)
+        
+        indeces = np.ravel_multi_index(np.ix_(*[np.arange(ij[0] , ij[1]) 
+                        for ij in ijSig]), dims, order='F').ravel(order=order_rvl)
+                                               
+        indeces_ = np.ravel_multi_index(np.ix_(*[np.arange(ij[0] , ij[1]) 
+                        for ij in ijSig]), dims, order='C').ravel(order=order_rvl)        
+    
+#        indeces_ = np.ravel_multi_index(np.ix_(np.arange(ijSig[0][0], ijSig[0][1]),
+#                                               np.arange(ijSig[1][0], ijSig[1][1])),
+#                                        dims, order='C').ravel(order=order_rvl)
 
         Ypx = Yres_buf.T[indeces, :]
 
@@ -572,7 +585,7 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                     slices = tuple(slice(max(0, ijs[0] - 2 * sg), min(d, ijs[1] + 2 * sg))
                                    for ijs, sg, d in zip(ijSig, gSig, dims))  # is 2 enough?
                     vb[slices] = imblur(
-                        vb[slices], sig=gSig, siz=gSiz, nDimBlur=2)
+                        vb[slices], sig=gSig, siz=gSiz, nDimBlur= len(dims))
                     sv_ -= (vb.ravel(order=order_rvl)**2) * cin.dot(cin)
                     foo = False         # reject component as duplicate
 #                    pl.imshow(np.reshape(sv,dims));pl.pause(0.001)
@@ -680,7 +693,7 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                 vb = np.reshape(Ain, dims, order='F')
                 slices = tuple(slice(max(0, ijs[0] - 2 * sg), min(d, ijs[1] + 2 * sg))
                                for ijs, sg, d in zip(ijSig, gSig, dims))  # is 2 enough?
-                vb[slices] = imblur(vb[slices], sig=gSig, siz=gSiz, nDimBlur=2)
+                vb[slices] = imblur(vb[slices], sig=gSig, siz=gSiz, nDimBlur= len(dims))
                 vb = vb.ravel(order=order_rvl)
 
                 # ind_vb = np.where(vb)[0]
