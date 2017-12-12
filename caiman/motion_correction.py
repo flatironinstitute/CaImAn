@@ -1177,8 +1177,24 @@ def _upsampled_dft(data, upsampled_region_size,
             ifftshift(np.arange(data.shape[0]))[None, :] -
             np.floor(old_div(data.shape[0], 2)))
     )
+        
+    if data.ndim > 2:
+        pln_kernel = np.exp(
+        (-1j * 2 * np.pi / (data.shape[2] * upsample_factor)) *
+        (np.arange(upsampled_region_size[2])[:, None] - axis_offsets[2]).dot(
+                ifftshift(np.arange(data.shape[2]))[None, :] -
+                np.floor(old_div(data.shape[2], 2))))
 
-    return row_kernel.dot(data).dot(col_kernel)
+    # output = np.tensordot(np.tensordot(row_kernel,data,axes=[1,0]),col_kernel,axes=[1,0])
+    output = np.tensordot(row_kernel, data, axes = [1,0])
+    output = np.tensordot(output, col_kernel, axes = [1,0])
+    
+    if data.ndim > 2:
+        #import pdb
+        #pdb.set_trace()
+        output = np.tensordot(output, pln_kernel, axes = [1,1])
+    #output = row_kernel.dot(data).dot(col_kernel)
+    return output
 
 
 def _compute_phasediff(cross_correlation_max):
@@ -1214,6 +1230,102 @@ def _compute_error(cross_correlation_max, src_amp, target_amp):
 
 #%%
 
+def register_translation_3d(src_image, target_image, space = "real", 
+                            shifts_lb = None, shifts_ub = None, 
+                            max_shifts = [10,10,10], upsample_factor = 1):
+    
+    """ 
+    Simple script for registering translation in 3D. Currently supports only 
+    integer translations.
+    """
+    
+    # images must be the same shape
+    if src_image.shape != target_image.shape:
+        raise ValueError("Error: images must really be same size for "
+                         "register_translation")
+        
+    # assume complex data is already in Fourier space
+    if space.lower() == 'fourier':
+        src_freq = src_image
+        target_freq = target_image
+    # real data needs to be fft'd.
+    elif space.lower() == 'real':
+        src_image_cpx = np.array(
+            src_image, dtype=np.complex64, copy=False)
+        target_image_cpx = np.array(
+            target_image, dtype=np.complex64, copy=False)
+        src_freq = np.fft.fftn(src_image_cpx)
+        target_freq = np.fft.fftn(target_image_cpx)
+    
+    shape = src_freq.shape
+    image_product = src_freq * target_freq.conj()
+    cross_correlation = np.fft.ifftn(image_product)
+    CCmax = cross_correlation.max()
+    new_cross_corr = np.abs(cross_correlation)
+    del cross_correlation
+    
+    if (shifts_lb is not None) or (shifts_ub is not None):
+
+        if (shifts_lb[0] < 0) and (shifts_ub[0] >= 0):
+            new_cross_corr[shifts_ub[0]:shifts_lb[0], :, :] = 0
+        else:
+            new_cross_corr[:shifts_lb[0], :, :] = 0
+            new_cross_corr[shifts_ub[0]:, :, :] = 0
+
+        if (shifts_lb[1] < 0) and (shifts_ub[1] >= 0):
+            new_cross_corr[:, shifts_ub[1]:shifts_lb[1], :] = 0
+        else:
+            new_cross_corr[:, :shifts_lb[1], :] = 0
+            new_cross_corr[:, shifts_ub[1]:, :] = 0
+        
+        if (shifts_lb[2] < 0) and (shifts_ub[2] >= 0):
+            new_cross_corr[:, :, shifts_ub[2]:shifts_lb[2]] = 0
+        else:
+            new_cross_corr[:, :, :shifts_lb[2]] = 0
+            new_cross_corr[:, :, shifts_ub[2]:] = 0
+    else:
+        new_cross_corr[max_shifts[0]:-max_shifts[0], :, :] = 0
+        new_cross_corr[:, max_shifts[1]:-max_shifts[1], :] = 0
+        new_cross_corr[:, :, max_shifts[2]:-max_shifts[2]] = 0
+    
+    maxima = np.unravel_index(np.argmax(new_cross_corr), new_cross_corr.shape)
+    midpoints = np.array([np.fix(axis_size//2) for axis_size in shape])
+
+    shifts = np.array(maxima, dtype=np.float32)
+    shifts[shifts > midpoints] -= np.array(shape)[shifts > midpoints]
+
+    if upsample_factor > 1:
+
+        shifts = old_div(np.round(shifts * upsample_factor), upsample_factor)
+        upsampled_region_size = np.ceil(upsample_factor * 1.5)
+        # Center of output array at dftshift + 1
+        dftshift = np.fix(old_div(upsampled_region_size, 2.0))
+        upsample_factor = np.array(upsample_factor, dtype=np.float64)
+        normalization = (src_freq.size * upsample_factor ** 2)
+        # Matrix multiply DFT around the current shift estimate
+        sample_region_offset = dftshift - shifts * upsample_factor
+
+        cross_correlation = _upsampled_dft(image_product.conj(),
+                                           upsampled_region_size,
+                                           upsample_factor,
+                                           sample_region_offset).conj()
+        cross_correlation /= normalization
+        # Locate maximum and map back to original pixel grid
+        maxima = np.array(np.unravel_index(
+            np.argmax(np.abs(cross_correlation)),
+            cross_correlation.shape),
+            dtype=np.float64)
+        maxima -= dftshift
+        shifts = shifts + old_div(maxima, upsample_factor)
+        CCmax = cross_correlation.max()
+    
+    for dim in range(src_freq.ndim):
+        if shape[dim] == 1:
+            shifts[dim] = 0
+
+    return shifts, src_freq, _compute_phasediff(CCmax)
+
+#%%
 
 def register_translation(src_image, target_image, upsample_factor=1,
                          space="real", shifts_lb=None, shifts_ub=None, max_shifts=(10, 10)):
