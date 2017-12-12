@@ -169,7 +169,7 @@ def create():
     comp.comparison['rig_shifts']['ourdata'] = mc.shifts_rig
     ###########################################
 
-    if not ('max_shifts' in params_movie):
+    if 'max_shifts' not in params_movie:
         fnames = params_movie['fname']
         border_to_0 = 0
     else:  # elif not params_movie.has_key('overlaps'):
