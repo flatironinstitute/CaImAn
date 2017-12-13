@@ -1235,8 +1235,7 @@ def register_translation_3d(src_image, target_image, space = "real",
                             max_shifts = [10,10,10], upsample_factor = 1):
     
     """ 
-    Simple script for registering translation in 3D. Currently supports only 
-    integer translations.
+    Simple script for registering translation in 3D using an FFT approach.
     """
     
     # images must be the same shape
@@ -1557,10 +1556,89 @@ def register_translation(src_image, target_image, upsample_factor=1,
 #%%
 
 
+#def apply_shifts_dft(src_freq, shifts, diffphase, is_freq=True, border_nan=False):
+#    """
+#    adapted from SIMA (https://github.com/losonczylab) and the
+#    scikit-image (http://scikit-image.org/) package.
+#
+#
+#    Unless otherwise specified by LICENSE.txt files in individual
+#    directories, all code is
+#
+#    Copyright (C) 2011, the scikit-image team
+#    All rights reserved.
+#
+#    Redistribution and use in source and binary forms, with or without
+#    modification, are permitted provided that the following conditions are
+#    met:
+#
+#     1. Redistributions of source code must retain the above copyright
+#        notice, this list of conditions and the following disclaimer.
+#     2. Redistributions in binary form must reproduce the above copyright
+#        notice, this list of conditions and the following disclaimer in
+#        the documentation and/or other materials provided with the
+#        distribution.
+#     3. Neither the name of skimage nor the names of its contributors may be
+#        used to endorse or promote products derived from this software without
+#        specific prior written permission.
+#
+#    THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+#    IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+#    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+#    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+#    INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+#    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+#    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+#    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+#    STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+#    IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+#    POSSIBILITY OF SUCH DAMAGE.
+#    apply shifts using inverse dft
+#    src_freq: ndarray
+#        if is_freq it is fourier transform image else original image
+#    shifts: shifts to apply
+#    diffphase: comes from the register_translation output
+#
+#    """
+#    shifts = shifts[::-1]
+#    if not is_freq:
+#        src_freq = np.dstack([np.real(src_freq), np.imag(src_freq)])
+#        src_freq = fftn(src_freq, flags=cv2.DFT_COMPLEX_OUTPUT + cv2.DFT_SCALE)
+#        src_freq = src_freq[:, :, 0] + 1j * src_freq[:, :, 1]
+#        src_freq = np.array(src_freq, dtype=np.complex128, copy=False)
+#
+#    nc, nr = np.shape(src_freq)
+#    Nr = ifftshift(np.arange(-np.fix(old_div(nr, 2.)),
+#                             np.ceil(old_div(nr, 2.))))
+#    Nc = ifftshift(np.arange(-np.fix(old_div(nc, 2.)),
+#                             np.ceil(old_div(nc, 2.))))
+#    Nr, Nc = np.meshgrid(Nr, Nc)
+#
+#    Greg = src_freq * \
+#        np.exp(1j * 2 * np.pi *
+#               (-shifts[0] * 1. * Nr / nr - shifts[1] * 1. * Nc / nc))
+#    Greg = Greg.dot(np.exp(1j * diffphase))
+#    Greg = np.dstack([np.real(Greg), np.imag(Greg)])
+#    new_img = ifftn(Greg)[:, :, 0]
+#    if border_nan:
+#        max_w, max_h, min_w, min_h = 0, 0, 0, 0
+#        max_h, max_w = np.ceil(np.maximum(
+#            (max_h, max_w), shifts)).astype(np.int)
+#        min_h, min_w = np.floor(np.minimum(
+#            (min_h, min_w), shifts)).astype(np.int)
+#        new_img[:max_h, :] = np.nan
+#        if min_h < 0:
+#            new_img[min_h:, :] = np.nan
+#        new_img[:, :max_w] = np.nan
+#        if min_w < 0:
+#            new_img[:, min_w:] = np.nan
+#
+#    return new_img
+
 def apply_shifts_dft(src_freq, shifts, diffphase, is_freq=True, border_nan=False):
     """
-    adapted from SIMA (https://github.com/losonczylab) and the
-    scikit-image (http://scikit-image.org/) package.
+    adapted from SIMA (https://github.com/losonczylab) and the 
+    scikit-image (http://scikit-image.org/) package. 
 
 
     Unless otherwise specified by LICENSE.txt files in individual
@@ -1601,32 +1679,52 @@ def apply_shifts_dft(src_freq, shifts, diffphase, is_freq=True, border_nan=False
     diffphase: comes from the register_translation output
 
     """
-    shifts = shifts[::-1]
+    
+    is3D = len(src_freq.shape) == 3
     if not is_freq:
-        src_freq = np.dstack([np.real(src_freq), np.imag(src_freq)])
-        src_freq = fftn(src_freq, flags=cv2.DFT_COMPLEX_OUTPUT + cv2.DFT_SCALE)
-        src_freq = src_freq[:, :, 0] + 1j * src_freq[:, :, 1]
-        src_freq = np.array(src_freq, dtype=np.complex128, copy=False)
+        if is3D:
+            src_freq = np.fft.fftn(src_freq)
+        else:
+            src_freq = np.dstack([np.real(src_freq), np.imag(src_freq)])
+            src_freq = fftn(src_freq, flags=cv2.DFT_COMPLEX_OUTPUT + cv2.DFT_SCALE)
+            src_freq = src_freq[:, :, 0] + 1j * src_freq[:, :, 1]
+            src_freq = np.array(src_freq, dtype=np.complex128, copy=False)
 
-    nc, nr = np.shape(src_freq)
-    Nr = ifftshift(np.arange(-np.fix(old_div(nr, 2.)),
-                             np.ceil(old_div(nr, 2.))))
-    Nc = ifftshift(np.arange(-np.fix(old_div(nc, 2.)),
-                             np.ceil(old_div(nc, 2.))))
-    Nr, Nc = np.meshgrid(Nr, Nc)
+    if not is3D:
+        shifts = shifts[::-1]
+        nc, nr = np.shape(src_freq)
+        Nr = ifftshift(np.arange(-np.fix(old_div(nr, 2.)), np.ceil(old_div(nr, 2.))))
+        Nc = ifftshift(np.arange(-np.fix(old_div(nc, 2.)), np.ceil(old_div(nc, 2.))))
+        Nr, Nc = np.meshgrid(Nr, Nc)
+        Greg = src_freq * np.exp(1j * 2 * np.pi *
+                                 (-shifts[0] * 1. * Nr / nr - shifts[1] * 1. * Nc / nc))
+    else:
+        shifts = np.array([*shifts[:-1][::-1],shifts[-1]])
+        nc, nr, nd = np.array(np.shape(src_freq), dtype=float)
+        Nr = ifftshift(np.arange(-np.fix(nr / 2.), np.ceil(nr / 2.)))
+        Nc = ifftshift(np.arange(-np.fix(nc / 2.), np.ceil(nc / 2.)))
+        Nd = ifftshift(np.arange(-np.fix(nd / 2.), np.ceil(nd / 2.)))
+        Nr, Nc, Nd = np.meshgrid(Nr, Nc, Nd)
+        Greg = src_freq * np.exp(-1j * 2 * np.pi *
+                                 (-shifts[0] * Nr / nr - shifts[1] * Nc / nc -
+                                  shifts[2] * Nd / nd))
 
-    Greg = src_freq * \
-        np.exp(1j * 2 * np.pi *
-               (-shifts[0] * 1. * Nr / nr - shifts[1] * 1. * Nc / nc))
     Greg = Greg.dot(np.exp(1j * diffphase))
-    Greg = np.dstack([np.real(Greg), np.imag(Greg)])
-    new_img = ifftn(Greg)[:, :, 0]
+    if is3D:
+        new_img = np.real(np.fft.ifftn(Greg))
+    else:
+        Greg = np.dstack([np.real(Greg), np.imag(Greg)])
+        new_img = ifftn(Greg)[:, :, 0]
     if border_nan:
         max_w, max_h, min_w, min_h = 0, 0, 0, 0
-        max_h, max_w = np.ceil(np.maximum(
-            (max_h, max_w), shifts)).astype(np.int)
-        min_h, min_w = np.floor(np.minimum(
-            (min_h, min_w), shifts)).astype(np.int)
+        max_h, max_w = np.ceil(np.maximum((max_h, max_w), shifts[:2])).astype(np.int)
+        min_h, min_w = np.floor(np.minimum((min_h, min_w), shifts[:2])).astype(np.int)
+        if is3D:
+            max_d = np.ceil(np.maximum(0, shifts[2])).astype(np.int)
+            min_d = np.floor(np.minimum(0, shifts[2])).astype(np.int)
+            new_img[:, :, :max_d] = np.nan
+            if min_d < 0:
+                new_img[:, :, min_d:] = np.nan
         new_img[:max_h, :] = np.nan
         if min_h < 0:
             new_img[min_h:, :] = np.nan
@@ -1975,7 +2073,6 @@ def tile_and_correct(img, template, strides, overlaps, max_shifts, newoverlaps=N
                 pass
         return new_img - add_to_movie, total_shifts, start_step, xy_grid
 #%%
-
 
 def compute_flow_single_frame(frame, templ, pyr_scale=.5, levels=3, winsize=100, iterations=15, poly_n=5,
                               poly_sigma=1.2 / 5, flags=0):
