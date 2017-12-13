@@ -1,6 +1,7 @@
 pipeline {
   agent none
   options {
+    disableConcurrentBuilds()
     timeout(time: 1, unit: 'HOURS')
   }
   stages {
@@ -117,8 +118,8 @@ pipeline {
   }
   post {
     failure {
-      emailext subject: '$PROJECT_NAME - $GIT_BRANCH Build # $BUILD_NUMBER - $BUILD_STATUS!',
-	       body: '''$PROJECT_NAME - $GIT_BRANCH Build # $BUILD_NUMBER - $BUILD_STATUS
+      emailext subject: '$PROJECT_NAME - $BRANCH_NAME Build # $BUILD_NUMBER - $BUILD_STATUS',
+	       body: '''$PROJECT_NAME - $BRANCH_NAME Build # $BUILD_NUMBER - $BUILD_STATUS
 
 Check console output at $BUILD_URL to view full results.
 
@@ -135,7 +136,7 @@ ${BUILD_LOG,maxLines=60}
 		 [$class: 'DevelopersRecipientProvider'],
 	       ], 
 	       replyTo: '$DEFAULT_REPLYTO',
-	       to: 'epnevmatikakis@gmail.com, andrea.giovannucci@gmail.com'
+	       to: 'epnevmatikakis@gmail.com, andrea.giovannucci@gmail.com, dsimon@flatironinstitute.org'
     }
   }
 }
