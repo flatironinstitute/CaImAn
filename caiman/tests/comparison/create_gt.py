@@ -169,7 +169,7 @@ def create():
     comp.comparison['rig_shifts']['ourdata'] = mc.shifts_rig
     ###########################################
 
-    if not ('max_shifts' in params_movie):
+    if 'max_shifts' not in params_movie:
         fnames = params_movie['fname']
         border_to_0 = 0
     else:  # elif not params_movie.has_key('overlaps'):
@@ -217,7 +217,7 @@ def create():
     gSig = params_movie['gSig']
     alpha_snmf = params_movie['alpha_snmf']
     if params_movie['is_dendrites'] == True:
-        if params_movie['init_method'] is not 'sparse_nmf':
+        if params_movie['init_method'] != 'sparse_nmf':
             raise Exception('dendritic requires sparse_nmf')
         if params_movie['alpha_snmf'] is None:
             raise Exception('need to set a value for alpha_snmf')

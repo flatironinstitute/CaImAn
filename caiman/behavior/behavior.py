@@ -12,16 +12,16 @@ from __future__ import print_function
 #%%
 from builtins import zip
 from builtins import range
+import time
 from past.utils import old_div
 import caiman as cm
 import numpy as np
 import pylab as pl
-from scipy.io import loadmat
-import cv2
-from sklearn.decomposition import NMF, PCA, DictionaryLearning
-import time
 import scipy
 from scipy.sparse import coo_matrix
+from scipy.io import loadmat
+import cv2
+from sklearn.decomposition import NMF
 
 
 #%% dense flow
@@ -355,27 +355,3 @@ def plot_components(sp_filt, t_trace):
         count += 1
         pl.subplot(6, 2, count)
         pl.plot(tr)
-
-#%%
-if __name__ == "__main__":
-    main()
-
-#%%
-
-# FIXME the main() below references undefined variables d1 and d2 and won't work
-def main():
-    mmat = loadmat('mov_AG051514-01-060914 C.mat')['mov']
-    m = cm.movie(mmat.transpose((2, 0, 1)), fr=120)
-    mask = select_roi(m[0])
-    if 1:
-        mov_tot = compute_optical_flow(m[:3000], mask)
-    else:
-        mov_tot = compute_optical_flow(m[:3000], mask, polar_coord=False)
-
-    sp_filt, t_trace, _ = extract_components(mov_tot)
-    plot_components(sp_filt, t_trace)
-    id_comp = 1
-    pl.plot(old_div(np.sum(np.reshape(sp_filt[id_comp] > 1, [
-            d1, d2]) * mov_tot[1], axis=(1, 2)), np.sum(sp_filt[id_comp] > 1)))
-    pl.plot(t_trace[id_comp][:, 1])
-
