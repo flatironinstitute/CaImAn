@@ -2268,7 +2268,7 @@ def motion_correct_batch_rigid(fname, max_shifts, dview=None, splits=56, num_spl
         fname_tot_rig, res_rig = motion_correction_piecewise(fname, splits, strides=None, overlaps=None,
                                                              add_to_movie=add_to_movie, template=old_templ, max_shifts=max_shifts, max_deviation_rigid=0,
                                                              dview=dview, save_movie=save_movie, base_name=os.path.split(
-                                                                 fname)[-1][:-4] + '_rig_',
+                                                                 fname)[-1][:-4] + '_rig_', subidx = subidx,
                                                              num_splits=num_splits_to_process, shifts_opencv=shifts_opencv, nonneg_movie=nonneg_movie, gSig_filt=gSig_filt)
 
         new_templ = np.nanmedian(np.dstack([r[-1] for r in res_rig]), -1)
@@ -2291,7 +2291,7 @@ def motion_correct_batch_rigid(fname, max_shifts, dview=None, splits=56, num_spl
 
 def motion_correct_batch_pwrigid(fname, max_shifts, strides, overlaps, add_to_movie, newoverlaps=None, newstrides=None,
                                  dview=None, upsample_factor_grid=4, max_deviation_rigid=3,
-                                 splits=56, num_splits_to_process=None, num_iter=1,
+                                 splits=56, num_splits_to_process=None, num_iter=1, 
                                  template=None, shifts_opencv=False, save_movie=False, nonneg_movie=False, gSig_filt=None):
     """
     Function that perform memory efficient hyper parallelized rigid motion corrections while also saving a memory mappable file
@@ -2466,7 +2466,7 @@ def tile_and_correct_wrapper(params):
 def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0, template=None,
                                 max_shifts=(12, 12), max_deviation_rigid=3, newoverlaps=None, newstrides=None,
                                 upsample_factor_grid=4, order='F', dview=None, save_movie=True,
-                                base_name=None, num_splits=None, shifts_opencv=False, nonneg_movie=False, gSig_filt=None):
+                                base_name=None, subidx = None, num_splits=None, shifts_opencv=False, nonneg_movie=False, gSig_filt=None):
     """
 
     """
@@ -2509,7 +2509,12 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
             'Unsupported file extension for parallel motion correction')
 
     if type(splits) is int:
-        idxs = np.array_split(list(range(T)), splits)
+        if subidx is None:
+            rng = range(T)
+        else:
+            rng = range(subidx.__getattribute__('start'),subidx.__getattribute__('stop'))
+            
+        idxs = np.array_split(list(rng), splits)
 
     else:
         idxs = splits

@@ -1336,7 +1336,8 @@ def load(file_name, fr=30, start_time=0, meta_data=None, subindices=None, shape=
 
 def load_movie_chain(file_list, fr=30, start_time=0,
                      meta_data=None, subindices=None,
-                     bottom=0, top=0, left=0, right=0, channel=None):
+                     bottom=0, top=0, left=0, right=0, z_top = 0,
+                     z_bottom = 0, is3D = False, channel=None):
     """ load movies from list of file names
 
     Parameters:
@@ -1346,8 +1347,11 @@ def load_movie_chain(file_list, fr=30, start_time=0,
 
     the other parameters as in load_movie except
 
-    bottom, top, left, right: int
+    bottom, top, left, right, z_top, z_bottom : int
         to load only portion of the field of view
+    
+    is3D : bool
+        flag for 3d data (adds a fourth dimension)
 
     Returns:
     --------
@@ -1364,11 +1368,19 @@ def load_movie_chain(file_list, fr=30, start_time=0,
             m = m[channel].squeeze()
             print(m.shape)
 
-        if m.ndim == 2:
-            m = m[np.newaxis, :, :]
-
-        _, h, w = np.shape(m)
-        m = m[:, top:h - bottom, left:w - right]
+        if not is3D:
+            if m.ndim == 2:
+                m = m[np.newaxis, :, :]
+    
+            _, h, w = np.shape(m)
+            m = m[:, top:h - bottom, left:w - right]
+        else:
+            if m.ndim == 3:
+                m = m[np.newaxis, :, :, :]
+            
+            _, h, w, d = np.shape(m)
+            m = m[:, top:h - bottom, left:w - right, z_top:d - z_bottom]
+                
         mov.append(m)
     return ts.concatenate(mov, axis=0)
 
