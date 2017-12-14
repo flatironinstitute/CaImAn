@@ -739,7 +739,7 @@ class Iterator(object):
     def _flow_index(self, n, batch_size=32, shuffle=False, seed=None):
         # Ensure self.batch_index is 0.
         self.reset()
-        while 1:
+        while True:
             if seed is not None:
                 np.random.seed(seed + self.total_batches_seen)
             if self.batch_index == 0:
