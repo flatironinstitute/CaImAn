@@ -406,8 +406,8 @@ def evaluate_components_placeholder(params):
         
 #%%
 def estimate_components_quality_auto(Y, A, C, b, f, YrA, frate, decay_time, gSig, dims, dview = None, min_SNR=2, r_values_min = 0.9, 
-                                     r_values_lowest = 0.2, Npeaks = 10, use_cnn = True, thresh_cnn_min = 0.95, thresh_cnn_lowest = 0.1,
-                                     thresh_fitness_delta = -80.):
+                                     r_values_lowest = -1, Npeaks = 10, use_cnn = True, thresh_cnn_min = 0.95, thresh_cnn_lowest = 0.1,
+                                     thresh_fitness_delta = -20., min_std_reject = 0.5):
     
         ''' estimates the quality of component automatically
         
@@ -449,7 +449,9 @@ def estimate_components_quality_auto(Y, A, C, b, f, YrA, frate, decay_time, gSig
         thresh_cnn_lowest:
             all samples with probabilities smaller than this are rejected
         
-        
+        min_std_reject:
+            adaptive way to set threshold (like min_SNR but used to discard components with std lower than this value)
+            
         Returns:
         --------
         
@@ -473,7 +475,7 @@ def estimate_components_quality_auto(Y, A, C, b, f, YrA, frate, decay_time, gSig
         thresh_fitness_raw = scipy.special.log_ndtr(-min_SNR)*N_samples     # inclusion probability of noise transient
         
         fitness_min = scipy.special.log_ndtr(-min_SNR)*N_samples                # threshold on time variability        
-        thresh_fitness_raw_reject = scipy.special.log_ndtr(-0.5)*N_samples      # components with SNR lower than 0.5 will be rejected
+        thresh_fitness_raw_reject = scipy.special.log_ndtr(-min_std_reject)*N_samples      # components with SNR lower than 0.5 will be rejected
         traces = C + YrA
 
         _, _ , fitness_raw, fitness_delta, r_values = estimate_components_quality(
