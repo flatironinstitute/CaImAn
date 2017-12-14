@@ -118,12 +118,12 @@ pipeline {
   }
   post {
     failure {
-      emailext subject: '$PROJECT_NAME - $BRANCH_NAME Build # $BUILD_NUMBER - $BUILD_STATUS',
-	       body: '''$PROJECT_NAME - $BRANCH_NAME Build # $BUILD_NUMBER - $BUILD_STATUS
+      emailext subject: '$PROJECT_NAME - Build # $BUILD_NUMBER - $BUILD_STATUS',
+	       body: '''$PROJECT_NAME - Build # $BUILD_NUMBER - $BUILD_STATUS
 
 Check console output at $BUILD_URL to view full results.
 
-Building $GIT_REVISION for $CAUSE
+Building $BRANCH_NAME for $CAUSE
 $JOB_DESCRIPTION
 
 Chages:
