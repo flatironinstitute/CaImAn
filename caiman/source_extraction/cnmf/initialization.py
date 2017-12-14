@@ -90,14 +90,13 @@ def resize(Y, size, interpolation=cv2.INTER_LINEAR):
 
 
 #%%
-
-
 def downscale(Y, ds, opencv=False):
     """downscaling without zero padding
     faster version of skimage.transform._warps.block_reduce(Y, ds, np.nanmean, np.nan)"""
     from caiman.base.movies import movie
-    if opencv and (Y.ndim in [2, 3]):
-        if Y.ndim == 2:
+    d = Y.ndim
+    if opencv and (d in [2, 3]):
+        if d == 2:
             Y = Y[..., None]
             ds = tuple(ds) + (1,)
         else:
@@ -105,7 +104,6 @@ def downscale(Y, ds, opencv=False):
                                    interpolation=cv2.INTER_AREA)
         print('***** OPENCV!!!!')
     else:
-        d = Y.ndim
         if d > 3:
             # raise NotImplementedError
             # slower and more memory intensive version using skimage
