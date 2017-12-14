@@ -292,10 +292,10 @@ all_comp_SNR_raw =[]
 all_comp_SNR_delta = []
 all_predictions = []
 all_labels = []
-reload = True
+reload = False
 plot_on = False
 save_on = False
-for params_movie in np.array(params_movies)[:]:
+for params_movie in np.array(params_movies)[:6]:
 #    params_movie['gnb'] = 3
     params_display = {
         'downsample_ratio': .2,
@@ -430,7 +430,7 @@ for params_movie in np.array(params_movies)[:]:
 #            fitness_delta_min=fitness_delta_min, return_all=True, dview = dview, num_traces_per_group = 50, N = N_samples)
         t_eva_comps = time.time() - t1
         print(' ***** ')
-        print((len(traces)))
+        print((len(C)))
         print((len(idx_components)))
         # %% save results
         if save_on:
