@@ -299,16 +299,17 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
             else:
                 Yr = Yr[remove_init:, idx_xy[0], idx_xy[1], idx_xy[2]]
 
-        else:
+        else:            
             Yr = cm.load(f, fr=1, in_memory=True) if isinstance(f, basestring) else cm.movie(f)
+            
             if xy_shifts is not None:
                 Yr = Yr.apply_shifts(xy_shifts, interpolation='cubic', remove_blanks=False)
-
+                
             if idx_xy is None:
                 if remove_init > 0:
-                    Yr = np.array(Yr)[remove_init:]
+                    Yr = Yr[remove_init:]
             elif len(idx_xy) == 2:
-                Yr = np.array(Yr)[remove_init:, idx_xy[0], idx_xy[1]]
+                Yr = Yr[remove_init:, idx_xy[0], idx_xy[1]]
             else:
                 raise Exception('You need to set is_3D=True for 3D data)')
                 Yr = np.array(Yr)[remove_init:, idx_xy[0], idx_xy[1], idx_xy[2]]
