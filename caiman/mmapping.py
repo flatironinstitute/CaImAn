@@ -68,7 +68,7 @@ def load_memmap(filename, mode='r'):
 
 #%%
 def save_memmap_each(fnames, dview=None, base_name=None, resize_fact=(1, 1, 1), remove_init=0,
-                     idx_xy=None, xy_shifts=None, add_to_movie=0, border_to_0=0):
+                     idx_xy=None, xy_shifts=None, add_to_movie=0, border_to_0=0, order = 'C'):
     """
     Create several memory mapped files using parallel processing
 
@@ -107,7 +107,7 @@ def save_memmap_each(fnames, dview=None, base_name=None, resize_fact=(1, 1, 1), 
         paths to the created memory map files
 
     """
-    order = 'C'
+    
     pars = []
     if xy_shifts is None:
         xy_shifts = [None] * len(fnames)

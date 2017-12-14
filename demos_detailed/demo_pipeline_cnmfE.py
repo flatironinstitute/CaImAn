@@ -27,7 +27,7 @@ frate = 10  # movie frame rate
 gSig = 3   # gaussian width of a 2D gaussian kernel, which approximates a neuron
 gSiz = 10  # average diameter of a neuron
 do_motion_correction_nonrigid = True
-do_motion_correction_rigid = False # in this case it will also save a rigid motion corrected movie 
+do_motion_correction_rigid = False # in this case it will also save a rigid motion corrected movie
 #%% start the cluster
 try:
     dview.terminate()  # stop it if it was running
@@ -41,21 +41,23 @@ c, dview, n_processes = cm.cluster.setup_cluster(backend='local',  # use this on
 #%% download demo file
 base_folder = './example_movies/'
 download_demo(fnames[0])
-fnames = [os.path.abspath(os.path.join(base_folder,fnames[0]))]
-filename_reorder = fnames[0]
+fnames = [os.path.abspath(os.path.join(base_folder, fnames[0]))]
+filename_reorder = fnames
 
 #%% motion correction
 if do_motion_correction_nonrigid or do_motion_correction_rigid:
     # do motion correction rigid
-    mc = motion_correct_oneP_rigid(fnames[0],                        # name of file to motion correct
-                                   # size of filter, xhange this one if algorithm does not work
+    mc = motion_correct_oneP_rigid(fnames,                        # name of file to motion correct
+                                   # size of filter, xhange this one if
+                                   # algorithm does not work
                                    gSig_filt=[gSig] * 2,
                                    # maximum shifts allowed in each direction
                                    max_shifts=[5, 5],
                                    dview=dview,
                                    # number of chunks for parallelizing motion correction (remember that it should hold that length_movie/num_splits_to_process_rig>100)
                                    splits_rig=10,
-                                   save_movie=not(do_motion_correction_rigid))                    # whether to save movie in memory mapped format
+                                   save_movie=not(do_motion_correction_nonrigid)
+                                   )
 
     new_templ = mc.total_template_rig
 
@@ -66,32 +68,59 @@ if do_motion_correction_nonrigid or do_motion_correction_rigid:
     plt.legend(['x shifts', 'y shifts'])
     plt.xlabel('frames')
     plt.ylabel('pixels')
-    
-    bord_px = np.ceil(np.max(mc.shifts_rig)).astype(np.int)     #borders to eliminate from movie because of motion correction    
+
+    bord_px = np.ceil(np.max(mc.shifts_rig)).astype(np.int)     #borders to eliminate from movie because of motion correction
     filename_reorder = mc.fname_tot_rig
-    
+
     # do motion correction nonrigid
     if do_motion_correction_nonrigid:
-        mc = motion_correct_oneP_nonrigid(fnames[0],                    # name of file to motion correct
-                               gSig_filt = [gSig]*2,                 # size of filter, xhange this one if algorithm does not work 
-                               max_shifts = [5,5],                   # maximum shifts allowed in each direction                                
-                               strides = (48, 48),                   # start a new patch for pw-rigid motion correction every x pixels
-                               overlaps = (24, 24),                  # overlap between pathes (size of patch strides+overlaps)
-                               splits_els = 10,                      # number of chunks for parallelizing motion correction (remember that it should hold that length_movie/num_splits_to_process_rig>100) 
-                               upsample_factor_grid = 4,             # upsample factor to avoid smearing when merging patches
-                               max_deviation_rigid = 3,              # maximum deviation allowed for patch with respect to rigid shifts
-                               dview=dview, 
-                               splits_rig = None, 
-                               save_movie = True,                    # whether to save movie in memory mapped format
-                               new_templ = new_templ)                # template to initialize motion correction
-    
-        filename_reorder = mc.fname_tot_els
-        bord_px = np.ceil(np.maximum(np.max(np.abs(mc.x_shifts_els)),
-                                 np.max(np.abs(mc.y_shifts_els)))).astype(np.int)  
+        mc = motion_correct_oneP_nonrigid(
+                          fnames,# name of file to motion correct
+                          # size of filter, change this one if
+                          # algorithm does not work
+                          gSig_filt=[gSig] * 2,
+                          max_shifts=[5, 5], # maximum shifts allowed in each direction
+                          # start a new patch for pw-rigid
+                          # motion correction every x pixels
+                          strides=(48, 48),
+                          # overlap between pathes (size of
+                          # patch strides+overlaps)
+                          overlaps=(24, 24),
+                          splits_els=10,
+                          # number of chunks for parallelizing
+                          # motion correction (remember that it
+                          # should hold that
+                          # length_movie/num_splits_to_process_rig>100)
+                          upsample_factor_grid=4,
+                          # upsample factor to avoid smearing
+                          # when merging patches
+                          max_deviation_rigid=3,
+                          # maximum deviation allowed for patch
+                          # with respect to rigid shifts
+                          dview=dview,
+                          splits_rig=None,
+                          save_movie=True,
+                          # whether to save movie in memory
+                          # mapped format
+                          new_templ=new_templ
+                          # template to initialize motion correction
+                          )
 
-#% create memory mappable file in the right order on the hard drive (C order)
-fname_new = cm.save_memmap([ filename_reorder], base_name='memmap_', order = 'C', border_to_0=bord_px) # transforming memoruy mapped file in C order (efficient to perform computing)
-    
+        filename_reorder = mc.fname_tot_els
+        bord_px = np.ceil(
+            np.maximum(np.max(np.abs(mc.x_shifts_els)),
+                       np.max(np.abs(mc.y_shifts_els)))).astype(np.int)
+
+# create memory mappable file in the right order on the hard drive (C order)
+fname_new = cm.save_memmap_each(
+    filename_reorder,
+    base_name='memmap_',
+    order='C',
+    border_to_0=bord_px,
+    dview=dview)
+fname_new = cm.save_memmap_join(fname_new, base_name='memmap_', dview=dview)
+
+
 # load memory mappable file
 Yr, dims, T = cm.load_memmap(fname_new)
 Y = Yr.T.reshape((T,) + dims, order='F')
@@ -144,9 +173,9 @@ cnm.fit(Y)
 
 # %% DISCARD LOW QUALITY COMPONENTS
 idx_components, idx_components_bad, comp_SNR, r_values, pred_CNN = estimate_components_quality_auto(
-    Y, cnm.A, cnm.C, cnm.b, cnm.f, cnm.YrA, frate,
-    decay_time, gSig, dims, dview=dview,
-    min_SNR=min_SNR, r_values_min=r_values_min, use_cnn=False)
+                            Y, cnm.A, cnm.C, cnm.b, cnm.f, cnm.YrA, frate,
+                            decay_time, gSig, dims, dview = dview,
+                            min_SNR=min_SNR, r_values_min = r_values_min, use_cnn = False)
 
 print(' ***** ')
 print((len(cnm.C)))
