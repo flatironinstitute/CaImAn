@@ -1745,7 +1745,8 @@ def apply_shifts_dft(src_freq, shifts, diffphase, is_freq=True, border_nan=False
         Greg = src_freq * np.exp(1j * 2 * np.pi *
                                  (-shifts[0] * 1. * Nr / nr - shifts[1] * 1. * Nc / nc))
     else:
-        shifts = np.array([*shifts[:-1][::-1],shifts[-1]])
+        #shifts = np.array([*shifts[:-1][::-1],shifts[-1]])
+        shifts = np.array(list(shifts[:-1][::-1]) + [shifts[-1]])
         nc, nr, nd = np.array(np.shape(src_freq), dtype=float)
         Nr = ifftshift(np.arange(-np.fix(nr / 2.), np.ceil(nr / 2.)))
         Nc = ifftshift(np.arange(-np.fix(nc / 2.), np.ceil(nc / 2.)))
@@ -2558,7 +2559,7 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
         if subidx is None:
             rng = range(T)
         else:
-            rng = range(subidx.__getattribute__('start'),subidx.__getattribute__('stop'))
+            rng = range(T)[subidx]
             
         idxs = np.array_split(list(rng), splits)
 
