@@ -414,7 +414,53 @@ def motion_correct_oneP_rigid(filename, gSig_filt, max_shifts, dview=None, split
 
     return mc
 #%%
-
+def motion_correct_oneP_nonrigid(filename, gSig_filt,max_shifts, strides, overlaps, splits_els, 
+                                 upsample_factor_grid, max_deviation_rigid, 
+                                 dview=None, splits_rig = 10, save_movie = True, new_templ = None):
+    
+    ''' Perform rigid motion correction on one photon imaging movies
+    filename: str
+        name of the file to correct
+        
+    gSig_filt:
+        size of the filter. If algorithm does not work change this parameters
+        
+    max_shifts: tuple of ints
+        max shifts in x and y allowed
+        
+        
+    dview:
+        handle to cluster
+        
+    splits_rig: int
+        number of chunks for parallelizing motion correction (remember that it should hold that length_movie/num_splits_to_process_rig>100)
+        
+    save_movie: bool
+        whether to save the movie in memory mapped format
+    
+    Returns:
+    --------
+    
+    Motion correction object
+    '''
+    
+    min_mov = np.array([cm.motion_correction.low_pass_filter_space(m_,gSig_filt) for m_ in cm.load(filename, subindices=range(400))]).min()    
+        
+    
+    # TODO: needinfo how the classes works
+    mc = MotionCorrect(filename, min_mov,
+                       dview=dview, max_shifts=max_shifts, niter_rig=1, splits_rig=splits_rig,
+                       num_splits_to_process_rig=None,
+                       shifts_opencv=True, nonneg_movie=True, gSig_filt = gSig_filt,
+                       strides=strides, overlaps=overlaps, splits_els=splits_els,
+                       upsample_factor_grid=upsample_factor_grid,
+                       max_deviation_rigid=max_deviation_rigid)
+    
+    mc.motion_correct_pwrigid(save_movie=True,template = new_templ)  
+    
+    
+    return mc    
+#%%
 
 def motion_correct_online_multifile(list_files, add_to_movie, order='C', **kwargs):
     # todo todocument
