@@ -94,24 +94,25 @@ def downscale(Y, ds, opencv=False):
     """downscaling without zero padding
     faster version of skimage.transform._warps.block_reduce(Y, ds, np.nanmean, np.nan)"""
     from caiman.base.movies import movie
-    if opencv and (Y.ndim in [2, 3]):
-        if Y.ndim == 2:
+    d = Y.ndim
+    if opencv and (d in [2, 3]):
+        if d == 2:
             Y = Y[..., None]
             ds = tuple(ds) + (1,)
         else:
-            Y_ds = movie(Y).resize(
-                fx=1. / ds[0], fy=1. / ds[1], fz=1. / ds[2], interpolation=cv2.INTER_AREA)
+            Y_ds = movie(Y).resize(fx=1. / ds[0], fy=1. / ds[1], fz=1. / ds[2],
+                                   interpolation=cv2.INTER_AREA)
         print('***** OPENCV!!!!')
     else:
-        if Y.ndim > 3:
+        if d > 3:
             # raise NotImplementedError
             # slower and more memory intensive version using skimage
             from skimage.transform._warps import block_reduce
             return block_reduce(Y, ds, np.nanmean, np.nan)
-        elif Y.ndim == 1:
+        elif d == 1:
             Y = Y[:, None, None]
             ds = (ds, 1, 1)
-        elif Y.ndim == 2:
+        elif d == 2:
             Y = Y[..., None]
             ds = tuple(ds) + (1,)
         q = np.array(Y.shape) // np.array(ds)
@@ -147,7 +148,7 @@ def downscale(Y, ds, opencv=False):
             Y_ds[:q[0], :q[1], -1] = (Y[:s[0], :s[1], -r[2]:]
                                       .reshape(q[0], ds[0], q[1], ds[1], r[2])
                                       .mean(1).mean(2).mean(2))
-    return Y_ds.squeeze()
+    return Y_ds if d == 3 else (Y_ds[:, :, 0] if d == 2 else Y_ds[:, 0, 0])
 
 
 #%%
