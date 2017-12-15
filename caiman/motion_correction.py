@@ -164,6 +164,8 @@ class MotionCorrect(object):
         self.nonneg_movie = nonneg_movie
         self.gSig_filt = gSig_filt
 
+
+
     def motion_correct_rigid(self, template=None, save_movie=False):
         """
         Perform rigid motion correction
@@ -192,15 +194,38 @@ class MotionCorrect(object):
         """
         print('Rigid Motion Correction')
         print(-self.min_mov)
-        self.fname_tot_rig, self.total_template_rig, self.templates_rig, self.shifts_rig = motion_correct_batch_rigid(
-            self.fname, self.max_shifts, dview=self.dview, splits=self.splits_rig,
-            num_splits_to_process=self.num_splits_to_process_rig, num_iter=self.niter_rig, template=template,
-            shifts_opencv=self.shifts_opencv, save_movie_rigid=save_movie, add_to_movie=-self.min_mov,
-            nonneg_movie=self.nonneg_movie, gSig_filt=self.gSig_filt)
+        self.total_template_rig = template
+        self.templates_rig = []
+        self.fname_tot_rig = []
+        self.shifts_rig = []
+
+        for fname_cur in self.fname:
+            _fname_tot_rig, _total_template_rig, _templates_rig, _shifts_rig = motion_correct_batch_rigid(
+                fname_cur,
+                self.max_shifts,
+                dview=self.dview,
+                splits=self.splits_rig,
+                num_splits_to_process=self.num_splits_to_process_rig,
+                num_iter=self.niter_rig,
+                template=self.total_template_rig,
+                shifts_opencv=self.shifts_opencv,
+                save_movie_rigid=save_movie,
+                add_to_movie=-self.min_mov,
+                nonneg_movie=self.nonneg_movie,
+                gSig_filt=self.gSig_filt)
+
+            self.total_template_rig = _total_template_rig
+            self.templates_rig += _templates_rig
+            self.fname_tot_rig += [_fname_tot_rig]
+            self.shifts_rig += _shifts_rig
 
         return self
 
-    def motion_correct_pwrigid(self, save_movie=True, template=None, show_template=False):
+    def motion_correct_pwrigid(
+            self,
+            save_movie=True,
+            template=None,
+            show_template=False):
         """Perform pw-rigid motion correction
 
         Parameters:
@@ -242,23 +267,33 @@ class MotionCorrect(object):
         else:
             self.total_template_els = template
 
-        for num_splits_to_process in self.num_splits_to_process_els:
-            self.fname_tot_els, new_template_els, self.templates_els,\
-                self.x_shifts_els, self.y_shifts_els, self.coord_shifts_els = motion_correct_batch_pwrigid(
-                    self.fname, self.max_shifts, self.strides, self.overlaps, -self.min_mov,
-                    dview=self.dview, upsample_factor_grid=self.upsample_factor_grid,
-                    max_deviation_rigid=self.max_deviation_rigid, splits=self.splits_els,
-                    num_splits_to_process=num_splits_to_process, num_iter=num_iter, template=self.total_template_els,
-                    shifts_opencv=self.shifts_opencv, save_movie=save_movie, nonneg_movie=self.nonneg_movie, gSig_filt=self.gSig_filt)
-            if show_template:
-                pl.imshow(new_template_els)
-                pl.pause(.5)
-            if np.isnan(np.sum(new_template_els)):
-                raise Exception(
-                    'Template contains NaNs, something went wrong. Reconsider the parameters')
+        self.fname_tot_els = []
+        self.templates_els = []
+        self.x_shifts_els = []
+        self.y_shifts_els = []
+        self.coord_shifts_els = []
+        for name_cur in self.fname:
+            for num_splits_to_process in self.num_splits_to_process_els:
+                _fname_tot_els, new_template_els, _templates_els,\
+                    _x_shifts_els, _y_shifts_els, _coord_shifts_els = motion_correct_batch_pwrigid(
+                        name_cur, self.max_shifts, self.strides, self.overlaps, -self.min_mov,
+                        dview=self.dview, upsample_factor_grid=self.upsample_factor_grid,
+                        max_deviation_rigid=self.max_deviation_rigid, splits=self.splits_els,
+                        num_splits_to_process=num_splits_to_process, num_iter=num_iter, template=self.total_template_els,
+                        shifts_opencv=self.shifts_opencv, save_movie=save_movie, nonneg_movie=self.nonneg_movie, gSig_filt=self.gSig_filt)
+                if show_template:
+                    pl.imshow(new_template_els)
+                    pl.pause(.5)
+                if np.isnan(np.sum(new_template_els)):
+                    raise Exception(
+                        'Template contains NaNs, something went wrong. Reconsider the parameters')
 
             self.total_template_els = new_template_els
-
+            self.fname_tot_els += [_fname_tot_els]
+            self.templates_els += _templates_els
+            self.x_shifts_els += _x_shifts_els
+            self.y_shifts_els += _y_shifts_els
+            self.coord_shifts_els += _coord_shifts_els
         return self
 
     def apply_shifts_movie(self, fname, rigid_shifts=True):
@@ -373,8 +408,13 @@ def apply_shift_online(movie_iterable, xy_shifts, save_base_name=None, order='F'
         return np.array(new_mov)
 #%%
 
-
-def motion_correct_oneP_rigid(filename, gSig_filt, max_shifts, dview=None, splits_rig=10, save_movie=True):
+def motion_correct_oneP_rigid(
+        filename,
+        gSig_filt,
+        max_shifts,
+        dview=None,
+        splits_rig=10,
+        save_movie=True):
     ''' Perform rigid motion correction on one photon imaging movies
     filename: str
         name of the file to correct
@@ -401,65 +441,93 @@ def motion_correct_oneP_rigid(filename, gSig_filt, max_shifts, dview=None, split
     Motion correction object
     '''
     min_mov = np.array([cm.motion_correction.low_pass_filter_space(
-        m_, gSig_filt) for m_ in cm.load(filename, subindices=range(400))]).min()
+        m_, gSig_filt) for m_ in cm.load(filename[0], subindices=range(400))]).min()
     new_templ = None
 
     # TODO: needinfo how the classes works
-    mc = MotionCorrect(filename, min_mov,
-                       dview=dview, max_shifts=max_shifts, niter_rig=1, splits_rig=splits_rig,
-                       num_splits_to_process_rig=None,
-                       shifts_opencv=True, nonneg_movie=True, gSig_filt=gSig_filt)
+    mc = MotionCorrect(
+        filename,
+        min_mov,
+        dview=dview,
+        max_shifts=max_shifts,
+        niter_rig=1,
+        splits_rig=splits_rig,
+        num_splits_to_process_rig=None,
+        shifts_opencv=True,
+        nonneg_movie=True,
+        gSig_filt=gSig_filt)
 
     mc.motion_correct_rigid(save_movie=save_movie, template=new_templ)
 
     return mc
 #%%
-def motion_correct_oneP_nonrigid(filename, gSig_filt,max_shifts, strides, overlaps, splits_els, 
-                                 upsample_factor_grid, max_deviation_rigid, 
-                                 dview=None, splits_rig = 10, save_movie = True, new_templ = None):
-    
+
+
+def motion_correct_oneP_nonrigid(
+        filename,
+        gSig_filt,
+        max_shifts,
+        strides,
+        overlaps,
+        splits_els,
+        upsample_factor_grid,
+        max_deviation_rigid,
+        dview=None,
+        splits_rig=10,
+        save_movie=True,
+        new_templ=None):
     ''' Perform rigid motion correction on one photon imaging movies
     filename: str
         name of the file to correct
-        
+
     gSig_filt:
         size of the filter. If algorithm does not work change this parameters
-        
+
     max_shifts: tuple of ints
         max shifts in x and y allowed
-        
-        
+
+
     dview:
         handle to cluster
-        
+
     splits_rig: int
         number of chunks for parallelizing motion correction (remember that it should hold that length_movie/num_splits_to_process_rig>100)
-        
+
     save_movie: bool
         whether to save the movie in memory mapped format
-    
+
     Returns:
     --------
-    
+
     Motion correction object
     '''
-    
-    min_mov = np.array([cm.motion_correction.low_pass_filter_space(m_,gSig_filt) for m_ in cm.load(filename, subindices=range(400))]).min()    
-        
-    
+    if new_templ is None:
+        min_mov = np.array([cm.motion_correction.low_pass_filter_space(
+            m_, gSig_filt) for m_ in cm.load(filename, subindices=range(400))]).min()
+    else:
+        min_mov = np.min(new_templ)
+
     # TODO: needinfo how the classes works
-    mc = MotionCorrect(filename, min_mov,
-                       dview=dview, max_shifts=max_shifts, niter_rig=1, splits_rig=splits_rig,
-                       num_splits_to_process_rig=None,
-                       shifts_opencv=True, nonneg_movie=True, gSig_filt = gSig_filt,
-                       strides=strides, overlaps=overlaps, splits_els=splits_els,
-                       upsample_factor_grid=upsample_factor_grid,
-                       max_deviation_rigid=max_deviation_rigid)
-    
-    mc.motion_correct_pwrigid(save_movie=True,template = new_templ)  
-    
-    
-    return mc    
+    mc = MotionCorrect(
+        filename,
+        min_mov,
+        dview=dview,
+        max_shifts=max_shifts,
+        niter_rig=1,
+        splits_rig=splits_rig,
+        num_splits_to_process_rig=None,
+        shifts_opencv=True,
+        nonneg_movie=True,
+        gSig_filt=gSig_filt,
+        strides=strides,
+        overlaps=overlaps,
+        splits_els=splits_els,
+        upsample_factor_grid=upsample_factor_grid,
+        max_deviation_rigid=max_deviation_rigid)
+
+    mc.motion_correct_pwrigid(save_movie=True, template=new_templ)
+
+    return mc
 #%%
 
 def motion_correct_online_multifile(list_files, add_to_movie, order='C', **kwargs):
@@ -1223,7 +1291,7 @@ def _upsampled_dft(data, upsampled_region_size,
             ifftshift(np.arange(data.shape[0]))[None, :] -
             np.floor(old_div(data.shape[0], 2)))
     )
-        
+
     if data.ndim > 2:
         pln_kernel = np.exp(
         (-1j * 2 * np.pi / (data.shape[2] * upsample_factor)) *
@@ -1234,7 +1302,7 @@ def _upsampled_dft(data, upsampled_region_size,
     # output = np.tensordot(np.tensordot(row_kernel,data,axes=[1,0]),col_kernel,axes=[1,0])
     output = np.tensordot(row_kernel, data, axes = [1,0])
     output = np.tensordot(output, col_kernel, axes = [1,0])
-    
+
     if data.ndim > 2:
         #import pdb
         #pdb.set_trace()
@@ -1276,19 +1344,19 @@ def _compute_error(cross_correlation_max, src_amp, target_amp):
 
 #%%
 
-def register_translation_3d(src_image, target_image, space = "real", 
-                            shifts_lb = None, shifts_ub = None, 
+def register_translation_3d(src_image, target_image, space = "real",
+                            shifts_lb = None, shifts_ub = None,
                             max_shifts = [10,10,10], upsample_factor = 1):
-    
-    """ 
+
+    """
     Simple script for registering translation in 3D using an FFT approach.
     """
-    
+
     # images must be the same shape
     if src_image.shape != target_image.shape:
         raise ValueError("Error: images must really be same size for "
                          "register_translation")
-        
+
     # assume complex data is already in Fourier space
     if space.lower() == 'fourier':
         src_freq = src_image
@@ -1301,14 +1369,14 @@ def register_translation_3d(src_image, target_image, space = "real",
             target_image, dtype=np.complex64, copy=False)
         src_freq = np.fft.fftn(src_image_cpx)
         target_freq = np.fft.fftn(target_image_cpx)
-    
+
     shape = src_freq.shape
     image_product = src_freq * target_freq.conj()
     cross_correlation = np.fft.ifftn(image_product)
     CCmax = cross_correlation.max()
     new_cross_corr = np.abs(cross_correlation)
     del cross_correlation
-    
+
     if (shifts_lb is not None) or (shifts_ub is not None):
 
         if (shifts_lb[0] < 0) and (shifts_ub[0] >= 0):
@@ -1322,7 +1390,7 @@ def register_translation_3d(src_image, target_image, space = "real",
         else:
             new_cross_corr[:, :shifts_lb[1], :] = 0
             new_cross_corr[:, shifts_ub[1]:, :] = 0
-        
+
         if (shifts_lb[2] < 0) and (shifts_ub[2] >= 0):
             new_cross_corr[:, :, shifts_ub[2]:shifts_lb[2]] = 0
         else:
@@ -1332,7 +1400,7 @@ def register_translation_3d(src_image, target_image, space = "real",
         new_cross_corr[max_shifts[0]:-max_shifts[0], :, :] = 0
         new_cross_corr[:, max_shifts[1]:-max_shifts[1], :] = 0
         new_cross_corr[:, :, max_shifts[2]:-max_shifts[2]] = 0
-    
+
     maxima = np.unravel_index(np.argmax(new_cross_corr), new_cross_corr.shape)
     midpoints = np.array([np.fix(axis_size//2) for axis_size in shape])
 
@@ -1363,7 +1431,7 @@ def register_translation_3d(src_image, target_image, space = "real",
         maxima -= dftshift
         shifts = shifts + old_div(maxima, upsample_factor)
         CCmax = cross_correlation.max()
-    
+
     for dim in range(src_freq.ndim):
         if shape[dim] == 1:
             shifts[dim] = 0
@@ -1683,8 +1751,8 @@ def register_translation(src_image, target_image, upsample_factor=1,
 
 def apply_shifts_dft(src_freq, shifts, diffphase, is_freq=True, border_nan=False):
     """
-    adapted from SIMA (https://github.com/losonczylab) and the 
-    scikit-image (http://scikit-image.org/) package. 
+    adapted from SIMA (https://github.com/losonczylab) and the
+    scikit-image (http://scikit-image.org/) package.
 
 
     Unless otherwise specified by LICENSE.txt files in individual
@@ -1725,7 +1793,7 @@ def apply_shifts_dft(src_freq, shifts, diffphase, is_freq=True, border_nan=False
     diffphase: comes from the register_translation output
 
     """
-    
+
     is3D = len(src_freq.shape) == 3
     if not is_freq:
         if is3D:
@@ -2338,7 +2406,7 @@ def motion_correct_batch_rigid(fname, max_shifts, dview=None, splits=56, num_spl
 
 def motion_correct_batch_pwrigid(fname, max_shifts, strides, overlaps, add_to_movie, newoverlaps=None, newstrides=None,
                                  dview=None, upsample_factor_grid=4, max_deviation_rigid=3,
-                                 splits=56, num_splits_to_process=None, num_iter=1, 
+                                 splits=56, num_splits_to_process=None, num_iter=1,
                                  template=None, shifts_opencv=False, save_movie=False, nonneg_movie=False, gSig_filt=None):
     """
     Function that perform memory efficient hyper parallelized rigid motion corrections while also saving a memory mappable file
@@ -2560,7 +2628,7 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
             rng = range(T)
         else:
             rng = range(T)[subidx]
-            
+
         idxs = np.array_split(list(rng), splits)
 
     else:
