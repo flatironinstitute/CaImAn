@@ -62,8 +62,8 @@ def bare_initialization(Y, init_batch=1000, k=1, method_init='greedy_roi', gnb=1
                     caiman CNMF-like object to initialize OnACID
     """
 
-    if motion_flag:
-        Y = Y[:, :, :init_batch]
+    if Y.ndim == 4:  # 3D data
+        Y = Y[:, :, :, :init_batch]
     else:
         Y = Y[:, :, :init_batch]
 
