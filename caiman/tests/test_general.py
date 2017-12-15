@@ -1,12 +1,12 @@
 """ test the principal functions of CaImAn
- 
-use for the nose test and continuous integration devellopment. 
- 
+
+use for the nose test and continuous integration devellopment.
+
 See Also
 ------------
-caiman/tests/comparison/comparison.py 
+caiman/tests/comparison/comparison.py
 
- 
+
 """
 #\package None
 #\version   1.0
@@ -121,7 +121,7 @@ params_display = {
 
 def test_general():
     """  General Test of pipeline with comparison against ground truth
-    A shorter version than the demo pipeline that calls comparison for the real test work 
+    A shorter version than the demo pipeline that calls comparison for the real test work
 
 
 
@@ -183,7 +183,7 @@ def test_general():
         fnames = params_movie['fname']
         border_to_0 = 0
     else:  # elif not params_movie.has_key('overlaps'):
-        fnames = [mc.fname_tot_rig]
+        fnames = mc.fname_tot_rig
         border_to_0 = bord_px_rig
         m_els = m_rig
 
@@ -314,5 +314,5 @@ def test_general():
     if (comp.information['diff']['cnmfull']['isdifferent']):
         print("the cnmf full frame produces different  results than the groundtruth ")
         pb = True
-        
+
     assert (not pb)
