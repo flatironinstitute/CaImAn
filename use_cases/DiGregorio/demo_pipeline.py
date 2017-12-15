@@ -45,9 +45,7 @@ from caiman.source_extraction.cnmf import cnmf as cnmf
 from caiman.motion_correction import MotionCorrect
 from caiman.source_extraction.cnmf.utilities import detrend_df_f
 from caiman.components_evaluation import estimate_components_quality_auto
-
 #%% First setup some parameters
-
 # dataset dependent parameters
 fname = ['GcC_FOV2.tif']  # filename to be processed
 fr = 30                             # imaging rate in frames per second
@@ -64,7 +62,7 @@ upsample_factor_grid = None    # upsample factor to avoid smearing when merging 
 max_deviation_rigid = None     # maximum deviation allowed for patch with respect to rigid shifts
 
 # parameters for source extraction and deconvolution
-p = 1                       # order of the autoregressive system
+p = 2                       # order of the autoregressive system
 gnb = 2                     # number of global background components
 merge_thresh = 0.8          # merging threshold, max correlation allowed
 rf = 50                     # half-size of the patches in pixels. e.g., if rf=25, patches are 50x50
@@ -88,7 +86,6 @@ if fname[0] in ['Sue_2x_3000_40_-46.tif','demoMovieJ.tif']:
 #%% play the movie 
 # playing the movie using opencv. It requires loading the movie in memory. To 
 # close the video press q
-
 m_orig = cm.load_movie_chain(fname[:1])
 downsample_ratio = 0.2
 offset_mov = -np.min(m_orig[:100])
@@ -98,14 +95,12 @@ gain=10, offset=offset_mov, fr=30, magnification=1)
 #%% start a cluster for parallel processing
 c, dview, n_processes = cm.cluster.setup_cluster(
     backend='local', n_processes=None, single_thread=False)
-
-
 #%%% MOTION CORRECTION
 # first we create a motion correction object with the parameters specified
 min_mov = cm.load(fname[0], subindices=range(200)).min() 
         # this will be subtracted from the movie to make it non-negative 
 
-mc = MotionCorrect(fname[0], min_mov,
+mc = MotionCorrect(fname, min_mov,
                    dview=dview, max_shifts=max_shifts, niter_rig=niter_rig,
                    splits_rig=splits_rig, 
                    strides= strides, overlaps= overlaps, splits_els=splits_els,
@@ -115,7 +110,7 @@ mc = MotionCorrect(fname[0], min_mov,
 # note that the file is not loaded in memory
 #%%
 mc.motion_correct_rigid(save_movie=True)
-m_els = cm.load(mc.fname_tot_rig)
+m_els = cm.load(mc.fname_tot_rig[0])
 bord_px_els = np.ceil(np.max(np.abs(mc.shifts_rig))).astype(np.int)  
 fname_cor = mc.fname_tot_rig
 #%% Run piecewise-rigid motion correction using NoRMCorre
@@ -134,7 +129,7 @@ cm.concatenate([m_orig.resize(1, 1, downsample_ratio)+offset_mov,
 
 #%% MEMORY MAPPING
 # memory map the file in order 'C'
-fnames = [fname_cor]   # name of the pw-rigidly corrected file.
+fnames = fname_cor   # name of the pw-rigidly corrected file.
 border_to_0 = bord_px_els     # number of pixels to exclude
 fname_new = cm.save_memmap(fnames, base_name='memmap_', order = 'C',
                            border_to_0 = bord_px_els) # exclude borders
@@ -175,7 +170,7 @@ plt.title('Contour plots of found components')
 #   b) a minimum peak SNR is required over the length of a transient
 #   c) each shape passes a CNN based classifier
 
-idx_components, idx_components_bad, SNR_comp, r_values, cnn_preds = \
+idx_components, idx_components_bad, SNR_comp, SNR_comp_delta, r_values, cnn_preds = \
     estimate_components_quality_auto(images, cnm.A, cnm.C, cnm.b, cnm.f, 
                                      cnm.YrA, fr, decay_time, gSig, dims, 
                                      dview = dview, min_SNR=min_SNR, 
@@ -191,10 +186,10 @@ plt.subplot(122); crd_bad = cm.utils.visualization.plot_contours(cnm.A[:,idx_com
 plt.title('Contour plots of rejected components')
 
 #%% VIEW TRACES (accepted and rejected)
-
 view_patches_bar(Yr, cnm.A.tocsc()[:, idx_components], cnm.C[idx_components], 
                  cnm.b, cnm.f, dims[0], dims[1],YrA=cnm.YrA[idx_components], 
                  img=Cn)
+#%%
 
 view_patches_bar(Yr, cnm.A.tocsc()[:, idx_components_bad], cnm.C[idx_components_bad], 
                  cnm.b, cnm.f, dims[0], dims[1],YrA=cnm.YrA[idx_components_bad], 
@@ -230,4 +225,4 @@ denoised = cm.movie(cnm2.A.dot(cnm2.C) + \
 #%% play along side original data
 cm.concatenate([m_els.resize(1, 1, downsample_ratio),
                 denoised.resize(1, 1, downsample_ratio)], 
-                axis=2).play(fr=60, gain=15, magnification=2, offset=0)  # press q to exit
+                axis=2).play(fr=60, gain=5, magnification=1, offset=0)  # press q to exit
