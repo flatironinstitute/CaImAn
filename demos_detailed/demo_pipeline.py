@@ -127,7 +127,7 @@ cm.concatenate([m_orig.resize(1, 1, downsample_ratio)+offset_mov,
 
 #%% MEMORY MAPPING
 # memory map the file in order 'C'
-fnames = [mc.fname_tot_els]   # name of the pw-rigidly corrected file.
+fnames = mc.fname_tot_els   # name of the pw-rigidly corrected file.
 border_to_0 = bord_px_els     # number of pixels to exclude
 fname_new = cm.save_memmap(fnames, base_name='memmap_', order = 'C',
                            border_to_0 = bord_px_els) # exclude borders
