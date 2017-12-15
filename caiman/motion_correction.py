@@ -143,6 +143,9 @@ class MotionCorrect(object):
         Constructor class for motion correction operations
 
         """
+        if type(fname) is not list:
+            fname = [fname]
+            
         self.fname=fname
         self.dview=dview
         self.max_shifts=max_shifts
@@ -215,6 +218,7 @@ class MotionCorrect(object):
             self.fname_tot_rig += [_fname_tot_rig]
             self.shifts_rig += _shifts_rig
 
+        
         return self
 
      def motion_correct_pwrigid(

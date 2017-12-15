@@ -1090,7 +1090,7 @@ class movie(ts.timeseries):
 
 
 
-def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None, var_name_hdf5 = 'mov', in_memory = False, is_behavior = False):
+def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None, var_name_hdf5 = 'mov', in_memory = False, is_behavior = False, bottom=0, top=0, left=0, right=0, channel = None):
     """
     load movie from file. SUpports a variety of formats. tif, hdf5, npy and memory mapped. Matlab is experimental. 
 
@@ -1137,6 +1137,20 @@ def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None,
     Exception('File not found!')
     """
     # case we load movie from file
+    if type(file_name) is list:
+        if shape is not None:
+            raise Exception('shape not supported for multiple movie input')
+            
+        return load_movie_chain(file_name,fr=fr, start_time=start_time,
+                     meta_data=meta_data, subindices=subindices,
+                     bottom=bottom, top=top, left=left, right=right, channel = channel)
+        
+    if bottom != 0:
+        raise Exception('top bottom etc... not supported for single movie input')
+
+    if channel is not None:
+        raise Exception('channel not supported for single movie input')
+        
     if os.path.exists(file_name):
 
         name, extension = os.path.splitext(file_name)[:2]

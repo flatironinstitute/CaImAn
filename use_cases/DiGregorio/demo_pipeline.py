@@ -74,8 +74,8 @@ is_dendrites = False        # flag for analyzing dendritic data
 alpha_snmf = None           # sparsity penalty for dendritic data analysis through sparse NMF
 
 # parameters for component evaluation
-min_SNR = 2.5               # signal to noise ratio for accepting a component
-rval_thr = 0.8              # space correlation threshold for accepting a component
+min_SNR = 3.5               # signal to noise ratio for accepting a component
+rval_thr = 0.9              # space correlation threshold for accepting a component
 cnn_thr = 0.8               # threshold for CNN based classifier
 
 #%% download the dataset if it's not present in your folder
@@ -221,8 +221,11 @@ for log_file in log_files:
 #%% reconstruct denoised movie
 denoised = cm.movie(cnm2.A.dot(cnm2.C) + \
                     cnm2.b.dot(cnm2.f)).reshape(dims + (-1,), order='F').transpose([2, 0, 1])
+#%%
+denoised = cm.movie(cnm2.A.dot(cnm2.C)).reshape(dims + (-1,), order='F').transpose([2, 0, 1])
+
 
 #%% play along side original data
 cm.concatenate([m_els.resize(1, 1, downsample_ratio),
                 denoised.resize(1, 1, downsample_ratio)], 
-                axis=2).play(fr=60, gain=5, magnification=1, offset=0)  # press q to exit
+                axis=2).play(fr=60, gain=30, magnification=1, offset=0)  # press q to exit
