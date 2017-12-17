@@ -183,7 +183,7 @@ def test_general():
         fnames = params_movie['fname']
         border_to_0 = 0
     else:  # elif not params_movie.has_key('overlaps'):
-        fnames = [mc.fname_tot_rig]
+        fnames = mc.fname_tot_rig
         border_to_0 = bord_px_rig
         m_els = m_rig
 

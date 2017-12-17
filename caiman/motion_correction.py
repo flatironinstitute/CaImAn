@@ -147,18 +147,21 @@ class MotionCorrect(object):
         Constructor class for motion correction operations
 
         """
-        self.fname = fname
-        self.dview = dview
-        self.max_shifts = max_shifts
-        self.niter_rig = niter_rig
-        self.splits_rig = splits_rig
-        self.num_splits_to_process_rig = num_splits_to_process_rig
-        self.strides = strides
-        self.overlaps = overlaps
-        self.splits_els = splits_els
-        self.num_splits_to_process_els = num_splits_to_process_els
-        self.upsample_factor_grid = upsample_factor_grid
-        self.max_deviation_rigid = max_deviation_rigid
+        if type(fname) is not list:
+            fname = [fname]
+            
+        self.fname=fname
+        self.dview=dview
+        self.max_shifts=max_shifts
+        self.niter_rig=niter_rig
+        self.splits_rig=splits_rig
+        self.num_splits_to_process_rig=num_splits_to_process_rig
+        self.strides= strides
+        self.overlaps= overlaps
+        self.splits_els=splits_els
+        self.num_splits_to_process_els=num_splits_to_process_els
+        self.upsample_factor_grid=upsample_factor_grid
+        self.max_deviation_rigid=max_deviation_rigid
         self.shifts_opencv = shifts_opencv
         self.min_mov = min_mov
         self.nonneg_movie = nonneg_movie
