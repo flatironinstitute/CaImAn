@@ -80,9 +80,9 @@ with np.load('use_cases/CaImAnpaper/ground_truth_comoponents_curated.npz') as ld
     all_masks_gt = ld['all_masks_gt']
     labels_gt = ld['labels_gt_cur']
 
-    
+
 #%%
-    
+
 batch_size = 128
 num_classes = 2
 epochs = 5000
@@ -91,11 +91,12 @@ augmentation = True
 # input image dimensions
 img_rows, img_cols = 50, 50
 
-    
-x_train, x_test, y_train, y_test = train_test_split(all_masks_gt, labels_gt, test_size = test_fraction ) 
+
+x_train, x_test, y_train, y_test = train_test_split(
+    all_masks_gt, labels_gt, test_size=test_fraction)
 
 class_weight = cw.compute_class_weight('balanced', np.unique(y_train), y_train)
-   
+
 if K.image_data_format() == 'channels_first':
     x_train = x_train.reshape(x_train.shape[0], 1, img_rows, img_cols)
     x_test = x_test.reshape(x_test.shape[0], 1, img_rows, img_cols)
@@ -152,18 +153,17 @@ if augmentation:
     print('Using real-time data augmentation.')
     # This will do preprocessing and realtime data augmentation:
     datagen = ImageDataGenerator(
-    #            featurewise_center=True,
-    #            featurewise_std_normalization=True,
-                shear_range=0.3,
-                rotation_range=360,
-                width_shift_range=0.2,
-                height_shift_range=0.2,
-                zoom_range = [0.8,1.2],
-                horizontal_flip=True,
-                vertical_flip=True,
-                random_mult_range = [.25,2]
-                )
-
+        #            featurewise_center=True,
+        #            featurewise_std_normalization=True,
+        shear_range=0.3,
+        rotation_range=360,
+        width_shift_range=0.2,
+        height_shift_range=0.2,
+        zoom_range=[0.8, 1.2],
+        horizontal_flip=True,
+        vertical_flip=True,
+        random_mult_range=[.25, 2]
+    )
 
     # Compute quantities required for feature-wise normalization
     # (std, mean, and principal components if ZCA whitening is applied).
@@ -175,7 +175,7 @@ if augmentation:
                         steps_per_epoch=x_train.shape[0] // batch_size,
                         epochs=epochs,
                         verbose=1,
-                        class_weight = class_weight,
+                        class_weight=class_weight,
                         validation_data=(x_test, y_test))
 
 
@@ -193,28 +193,30 @@ print('Test accuracy:', score[1])
 
 #%% Save model and weights
 save_dir = 'use_cases/CaImAnpaper/'
-model_name = str(datetime.datetime.now()).replace(' ','-').replace(':','-')
+model_name = str(datetime.datetime.now()).replace(' ', '-').replace(':', '-')
 model_json = model.to_json()
-json_path = os.path.join(save_dir, model_name+'.json')
+json_path = os.path.join(save_dir, model_name + '.json')
 
 with open(json_path, "w") as json_file:
     json_file.write(simplejson.dumps(simplejson.loads(model_json), indent=4))
 
 print('Saved trained model at %s ' % json_path)
-    
+
 
 if not os.path.isdir(save_dir):
     os.makedirs(save_dir)
-model_path = os.path.join(save_dir, model_name+'.h5')
+model_path = os.path.join(save_dir, model_name + '.h5')
 model.save(model_path)
 print('Saved trained model at %s ' % model_path)
 
-#%% visualize_results 
+#%% visualize_results
 
 predictions = model.predict(all_masks_gt, batch_size=32, verbose=1)
-cm.movie(np.squeeze(all_masks_gt[np.where(predictions[:,0]>=0.5)[0]])).play(gain=3., magnification = 5, fr = 10)
+cm.movie(np.squeeze(all_masks_gt[np.where(predictions[:, 0] >= 0.5)[0]])).play(
+    gain=3., magnification=5, fr=10)
 #%%
-cm.movie(np.squeeze(all_masks_gt[np.where(predictions[:,1]>=0.5)[0]])).play(gain=3., magnification = 5, fr =10)
+cm.movie(np.squeeze(all_masks_gt[np.where(predictions[:, 1] >= 0.5)[0]])).play(
+    gain=3., magnification=5, fr=10)
 
 #%% retrieve and test
 json_file = open(json_path, 'r')
@@ -224,8 +226,8 @@ loaded_model = model_from_json(loaded_model_json)
 loaded_model.load_weights(model_path)
 opt = keras.optimizers.rmsprop(lr=0.0001, decay=1e-6)
 loaded_model.compile(loss=keras.losses.categorical_crossentropy,
-              optimizer=opt,
-              metrics=['accuracy'])
+                     optimizer=opt,
+                     metrics=['accuracy'])
 print("Loaded model from disk")
 score = loaded_model.evaluate(x_test, y_test, verbose=0)
 print('Test loss:', score[0])
@@ -236,8 +238,11 @@ print('Test accuracy:', score[1])
 #%%
 from skimage.util.montage import montage2d
 predictions = loaded_model.predict(all_masks_gt, batch_size=32, verbose=1)
-cm.movie(np.squeeze(all_masks_gt[np.where(predictions[:,1]<0.1)[0]])).play(gain=3., magnification = 5, fr = 10)
+cm.movie(np.squeeze(all_masks_gt[np.where(predictions[:, 1] < 0.1)[0]])).play(
+    gain=3., magnification=5, fr=10)
 #%%
-pl.imshow(montage2d(all_masks_gt[np.where((labels_gt==0)&(predictions[:,1]>=0.5)&(predictions[:,1]>=0.5))[0]].squeeze()))
+pl.imshow(montage2d(all_masks_gt[np.where((labels_gt == 0) & (
+    predictions[:, 1] >= 0.5) & (predictions[:, 1] >= 0.5))[0]].squeeze()))
 #%%
-pl.imshow(montage2d(all_masks_gt[np.where((labels_gt==1)&(predictions[:,0]>=0.5)&(predictions[:,0]>=0.5))[0]].squeeze()))
+pl.imshow(montage2d(all_masks_gt[np.where((labels_gt == 1) & (
+    predictions[:, 0] >= 0.5) & (predictions[:, 0] >= 0.5))[0]].squeeze()))

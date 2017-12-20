@@ -33,6 +33,8 @@ except ImportError:  # python3
     import pickle
 
 #%%
+
+
 def download_demo(name='Sue_2x_3000_40_-46.tif', save_folder=''):
     """download a file from the file list with the url of its location
 
@@ -64,7 +66,7 @@ def download_demo(name='Sue_2x_3000_40_-46.tif', save_folder=''):
                  'Tolias_mesoscope_1.hdf5': 'https://www.dropbox.com/s/t1yt35u0x72py6r/Tolias_mesoscope_1.hdf5?dl=1',
                  'Tolias_mesoscope_2.hdf5': 'https://www.dropbox.com/s/i233b485uxq8wn6/Tolias_mesoscope_2.hdf5?dl=1',
                  'Tolias_mesoscope_3.hdf5': 'https://www.dropbox.com/s/4fxiqnbg8fovnzt/Tolias_mesoscope_3.hdf5?dl=1',
-                 'data_endoscope.tif':'https://www.dropbox.com/s/dcwgwqiwpaz4qgc/data_endoscope.tif?dl=1'}
+                 'data_endoscope.tif': 'https://www.dropbox.com/s/dcwgwqiwpaz4qgc/data_endoscope.tif?dl=1'}
     #          ,['./example_movies/demoMovie.tif','https://www.dropbox.com/s/obmtq7305ug4dh7/demoMovie.tif?dl=1']]
     base_folder = './example_movies'
     if os.path.exists(base_folder):
@@ -106,11 +108,8 @@ def val_parse(v):
     """
 
     try:
-
         return eval(v)
-
     except:
-
         if v == 'true':
             return True
         elif v == 'false':
@@ -119,7 +118,6 @@ def val_parse(v):
             return np.nan
         elif v == 'inf' or v == 'Inf':
             return np.inf
-
         else:
             return v
 
@@ -223,7 +221,7 @@ def gen_data(dims=(48, 48), N=10, sig=(3, 3), tau=1., noise=.3, T=2000,
     trueA /= np.linalg.norm(trueA, 2, 0)
     keep = np.ones(M, dtype=bool)
     overlap = trueA.T.dot(trueA) - np.eye(M)
-    while(keep.sum() > N):
+    while keep.sum() > N:
         keep[np.argmax(overlap * np.outer(keep, keep)) % M] = False
     trueA = trueA[:, keep]
     trueS = np.random.rand(N, T) < firerate / float(framerate)
@@ -232,7 +230,8 @@ def gen_data(dims=(48, 48), N=10, sig=(3, 3), tau=1., noise=.3, T=2000,
         trueS[i, :500 + i * T // N * 2 // 3] = 0
     trueC = trueS.astype('float32')
     for i in range(N):
-        gamma = np.exp(-1. / (tau * framerate))  # * (.9 + .2 * np.random.rand())))
+        # * (.9 + .2 * np.random.rand())))
+        gamma = np.exp(-1. / (tau * framerate))
         for t in range(1, T):
             trueC[i, t] += gamma * trueC[i, t - 1]
 
@@ -247,7 +246,8 @@ def gen_data(dims=(48, 48), N=10, sig=(3, 3), tau=1., noise=.3, T=2000,
                        for i in range(dims[0])] for j in range(dims[0])])
         ch = np.linalg.cholesky(K + 1e-10 * np.eye(dims[0]))
         trueb = 3 * 1e-2 * \
-            np.outer(*ch.dot(np.random.randn(dims[0], 2)).T).ravel().astype('float32')
+            np.outer(
+                *ch.dot(np.random.randn(dims[0], 2)).T).ravel().astype('float32')
         trueb -= trueb.mean()
         trueb += 1
     else:
@@ -270,7 +270,8 @@ def gen_data(dims=(48, 48), N=10, sig=(3, 3), tau=1., noise=.3, T=2000,
         plt.subplot(131)
         plt.scatter(*centers[keep].T[::-1], c='g')
         plt.scatter(*centers[~keep].T[::-1], c='r')
-        plt.imshow(Y[:T // 10 * 10].reshape(dims + (T // 10, 10)).mean(-1).max(-1), cmap=cmap)
+        plt.imshow(Y[:T // 10 * 10].reshape(dims +
+                                            (T // 10, 10)).mean(-1).max(-1), cmap=cmap)
         plt.title('Max')
         plt.subplot(132)
         plt.scatter(*centers[keep].T[::-1], c='g')
@@ -296,5 +297,3 @@ def load_object(filename):
     with open(filename, 'rb') as input_obj:
         obj = pickle.load(input_obj)
     return obj
-
-

@@ -50,42 +50,42 @@ from caiman.components_evaluation import estimate_components_quality
 from caiman.tests.comparison import comparison
 
 
-#GLOBAL VAR
-params_movie = {'fname':['Sue_2x_3000_40_-46.tif'],
+# GLOBAL VAR
+params_movie = {'fname': ['Sue_2x_3000_40_-46.tif'],
                 'niter_rig': 1,
-               'max_shifts': (3, 3),  # maximum allow rigid shift
-               'splits_rig': 20,  # for parallelization split the movies in  num_splits chuncks across time
-               # if none all the splits are processed and the movie is saved
-               'num_splits_to_process_rig': None,
-               'p': 1,  # order of the autoregressive system
-               'merge_thresh': 0.8,  # merging threshold, max correlation allowed
-               'rf': 15,  # half-size of the patches in pixels. rf=25, patches are 50x50
-               'stride_cnmf': 6,  # amounpl.it of overlap between the patches in pixels
-               'K': 4,  # number of components per patch
-               # if dendritic. In this case you need to set init_method to
-               # sparse_nmf
-               'is_dendrites': False,
-               'init_method': 'greedy_roi',
-               'gSig': [4, 4],  # expected half size of neurons
-               'alpha_snmf': None,  # this controls sparsity
-               'final_frate': 30,
-                'r_values_min_patch' : .7,  # threshold on space consistency
-                'fitness_min_patch' : -40,  # threshold on time variability
-# threshold on time variability (if nonsparse activity)
-                'fitness_delta_min_patch' : -40,
+                'max_shifts': (3, 3),  # maximum allow rigid shift
+                'splits_rig': 20,  # for parallelization split the movies in  num_splits chuncks across time
+                # if none all the splits are processed and the movie is saved
+                'num_splits_to_process_rig': None,
+                'p': 1,  # order of the autoregressive system
+                'merge_thresh': 0.8,  # merging threshold, max correlation allowed
+                'rf': 15,  # half-size of the patches in pixels. rf=25, patches are 50x50
+                'stride_cnmf': 6,  # amounpl.it of overlap between the patches in pixels
+                'K': 4,  # number of components per patch
+                # if dendritic. In this case you need to set init_method to
+                # sparse_nmf
+                'is_dendrites': False,
+                'init_method': 'greedy_roi',
+                'gSig': [4, 4],  # expected half size of neurons
+                'alpha_snmf': None,  # this controls sparsity
+                'final_frate': 30,
+                'r_values_min_patch': .7,  # threshold on space consistency
+                'fitness_min_patch': -40,  # threshold on time variability
+                # threshold on time variability (if nonsparse activity)
+                'fitness_delta_min_patch': -40,
                 'Npeaks': 10,
-                'r_values_min_full' : .85,
-                'fitness_min_full' : - 50,
-                'fitness_delta_min_full' : - 50,
-                'only_init_patch':True,
-                'gnb':1,
-                'memory_fact':1,
-                'n_chunks':10
+                'r_values_min_full': .85,
+                'fitness_min_full': - 50,
+                'fitness_delta_min_full': - 50,
+                'only_init_patch': True,
+                'gnb': 1,
+                'memory_fact': 1,
+                'n_chunks': 10
                 }
-params_display={
-        'downsample_ratio':.2,
-        'thr_plot':0.9
-        }
+params_display = {
+    'downsample_ratio': .2,
+    'thr_plot': 0.9
+}
 
 # params_movie = {'fname': [u'./example_movies/demoMovieJ.tif'],
 #                 'max_shifts': (2, 2),  # maximum allow rigid shift (2,2)
@@ -123,6 +123,7 @@ params_display={
 #
 #                 }
 
+
 def create():
     """ the function that will create a groundtruth
 
@@ -158,8 +159,7 @@ def create():
     ################ RIG CORRECTION #################
     t1 = time.time()
     mc = MotionCorrect(fname, min_mov,
-                       max_shifts=max_shifts, niter_rig=niter_rig
-                       , splits_rig=splits_rig,
+                       max_shifts=max_shifts, niter_rig=niter_rig, splits_rig=splits_rig,
                        num_splits_to_process_rig=num_splits_to_process_rig,
                        shifts_opencv=True, nonneg_movie=True)
     mc.motion_correct_rigid(save_movie=True)
@@ -169,10 +169,7 @@ def create():
     comp.comparison['rig_shifts']['ourdata'] = mc.shifts_rig
     ###########################################
 
-
-
-
-    if not ('max_shifts' in params_movie):
+    if 'max_shifts' not in params_movie:
         fnames = params_movie['fname']
         border_to_0 = 0
     else:  # elif not params_movie.has_key('overlaps'):
@@ -187,7 +184,7 @@ def create():
     base_name = fname[0].split('/')[-1][:-4]
     name_new = cm.save_memmap_each(fnames, base_name=base_name, resize_fact=(
         1, 1, downsample_factor), remove_init=remove_init,
-                                   idx_xy=idx_xy, add_to_movie=add_to_movie, border_to_0=border_to_0)
+        idx_xy=idx_xy, add_to_movie=add_to_movie, border_to_0=border_to_0)
     name_new.sort()
 
     if len(name_new) > 1:
@@ -206,7 +203,8 @@ def create():
         raise Exception('Movie too negative, add_to_movie should be larger')
     if np.sum(np.isnan(images)) > 0:
         # TODO: same here
-        raise Exception('Movie contains nan! You did not remove enough borders')
+        raise Exception(
+            'Movie contains nan! You did not remove enough borders')
 
     Cn = cm.local_correlations(Y)
     Cn[np.isnan(Cn)] = 0
@@ -219,17 +217,17 @@ def create():
     gSig = params_movie['gSig']
     alpha_snmf = params_movie['alpha_snmf']
     if params_movie['is_dendrites'] == True:
-        if params_movie['init_method'] is not 'sparse_nmf':
+        if params_movie['init_method'] != 'sparse_nmf':
             raise Exception('dendritic requires sparse_nmf')
         if params_movie['alpha_snmf'] is None:
             raise Exception('need to set a value for alpha_snmf')
-
 
             ################ CNMF PART PATCH #################
     t1 = time.time()
     cnm = cnmf.CNMF(n_processes=1, k=K, gSig=gSig, merge_thresh=params_movie['merge_thresh'], p=params_movie['p'],
                     dview=None, rf=rf, stride=stride_cnmf, memory_fact=params_movie['memory_fact'],
-                    method_init=init_method, alpha_snmf=alpha_snmf, only_init_patch=params_movie['only_init_patch'],
+                    method_init=init_method, alpha_snmf=alpha_snmf, only_init_patch=params_movie[
+                        'only_init_patch'],
                     gnb=params_movie['gnb'], method_deconvolution='oasis')
     comp.cnmpatch = copy.copy(cnm)
     cnm = cnm.fit(images)
@@ -238,11 +236,13 @@ def create():
     YrA_tot = cnm.YrA
     b_tot = cnm.b
     f_tot = cnm.f
-    ######### DISCARDING
+    # DISCARDING
     print(('Number of components:' + str(A_tot.shape[-1])))
     final_frate = params_movie['final_frate']
-    r_values_min = params_movie['r_values_min_patch']  # threshold on space consistency
-    fitness_min = params_movie['fitness_delta_min_patch']  # threshold on time variability
+    # threshold on space consistency
+    r_values_min = params_movie['r_values_min_patch']
+    # threshold on time variability
+    fitness_min = params_movie['fitness_delta_min_patch']
     fitness_delta_min = params_movie['fitness_delta_min_patch']
     Npeaks = params_movie['Npeaks']
     traces = C_tot + YrA_tot
@@ -257,34 +257,33 @@ def create():
     comp.comparison['cnmf_on_patch']['ourdata'] = [A_tot.copy(), C_tot.copy()]
     #################### ########################
 
-
-
-
     ################ CNMF PART FULL #################
     t1 = time.time()
     cnm = cnmf.CNMF(n_processes=1, k=A_tot.shape, gSig=gSig, merge_thresh=merge_thresh, p=p, Ain=A_tot, Cin=C_tot,
                     f_in=f_tot, rf=None, stride=None, method_deconvolution='oasis')
     cnm = cnm.fit(images)
-    ######### DISCARDING
+    # DISCARDING
     A, C, b, f, YrA, sn = cnm.A, cnm.C, cnm.b, cnm.f, cnm.YrA, cnm.sn
     final_frate = params_movie['final_frate']
-    r_values_min = params_movie['r_values_min_full']  # threshold on space consistency
-    fitness_min = params_movie['fitness_delta_min_full']  # threshold on time variability
+    # threshold on space consistency
+    r_values_min = params_movie['r_values_min_full']
+    # threshold on time variability
+    fitness_min = params_movie['fitness_delta_min_full']
     fitness_delta_min = params_movie['fitness_delta_min_full']
     Npeaks = params_movie['Npeaks']
     traces = C + YrA
     idx_components, idx_components_bad, fitness_raw, fitness_delta, r_values = estimate_components_quality(
-    traces, Y, A, C, b, f, final_frate = final_frate, Npeaks = Npeaks, r_values_min = r_values_min, fitness_min = fitness_min,
-    fitness_delta_min = fitness_delta_min, return_all = True)
+        traces, Y, A, C, b, f, final_frate=final_frate, Npeaks=Npeaks, r_values_min=r_values_min, fitness_min=fitness_min,
+        fitness_delta_min=fitness_delta_min, return_all=True)
     ###########
     A_tot_full = A_tot.tocsc()[:, idx_components]
     C_tot_full = C_tot[idx_components]
     comp.comparison['cnmf_full_frame']['timer'] = time.time() - t1
-    comp.comparison['cnmf_full_frame']['ourdata'] = [A_tot_full.copy(), C_tot_full.copy()]
+    comp.comparison['cnmf_full_frame']['ourdata'] = [
+        A_tot_full.copy(), C_tot_full.copy()]
     #################### ########################
     print(comp.dims)
     comp.save_with_compare(istruth=True, params=params_movie, Cn=Cn)
     log_files = glob.glob('*_LOG_*')
     for log_file in log_files:
         os.remove(log_file)
-

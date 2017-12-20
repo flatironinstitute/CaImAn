@@ -5,16 +5,14 @@
 author: Pengcheng Zhou
 email: zhoupc1988@gmail.com
 created: 6/16/17
-last edited: 
+last edited:
 """
 import os
 from collections import OrderedDict
 from PyQt5.QtWidgets import QFileDialog, QWidget, QLabel, QPushButton, \
     QLineEdit, QGridLayout, QApplication
 
-"""
---------------------------------CLASSES--------------------------------
-"""
+# --------------------------------CLASSES--------------------------------
 
 
 class FileOpen(QWidget):
@@ -30,7 +28,7 @@ class FileOpen(QWidget):
             self.pixel_size = [1]
         else:
             self.file_name = pars.file_name
-            if directory!='.':
+            if directory != '.':
                 self.dir_folder = directory
             else:
                 self.dir_folder = pars.dir_folder
@@ -96,11 +94,12 @@ class FileOpen(QWidget):
 
     def done(self):
         self.fr = float(self.fr_line.text())
-        self.pixel_size = [float(i) for i in self.pixel_size_line.text().split(',')]
+        self.pixel_size = [float(i)
+                           for i in self.pixel_size_line.text().split(',')]
         self.close()
-"""
--------------------------------FUNCTIONS-------------------------------
-"""
+
+
+# -------------------------------FUNCTIONS-------------------------------
 
 
 def open_file(directory='.'):
@@ -111,17 +110,15 @@ def open_file(directory='.'):
     app.exec_()
     file_ui.fr = float(file_ui.fr_line.text())
     temp = file_ui.pixel_size_line.text()
-    file_ui.pixel_size = [float(i) for i in temp.split( ',')]
+    file_ui.pixel_size = [float(i) for i in temp.split(',')]
 
     file_info = OrderedDict([('file_name', file_ui.file_name),
-                 ('dir', file_ui.dir_folder),
-                 ('name', file_ui.name),
-                 ('type', file_ui.type),
-                 ('Fs', file_ui.fr),
-                 ('pixel_size', file_ui.pixel_size)])
+                             ('dir', file_ui.dir_folder),
+                             ('name', file_ui.name),
+                             ('type', file_ui.type),
+                             ('Fs', file_ui.fr),
+                             ('pixel_size', file_ui.pixel_size)])
     return file_info
 
 
-"""
-----------------------------------RUN----------------------------------
-"""
+#----------------------------------RUN----------------------------------

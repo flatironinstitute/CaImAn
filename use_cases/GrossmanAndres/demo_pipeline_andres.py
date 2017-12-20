@@ -1,14 +1,14 @@
-    ##@package demos  
+# @package demos
 #\brief      for the user/programmer to understand and try the code
-#\details    all of other usefull functions (demos available on jupyter notebook) -*- coding: utf-8 -*- 
+#\details    all of other usefull functions (demos available on jupyter notebook) -*- coding: utf-8 -*-
 #\version   1.0
 #\pre       EXample.First initialize the system.
-#\bug       
-#\warning   
-#\copyright GNU General Public License v2.0 
+#\bug
+#\warning
+#\copyright GNU General Public License v2.0
 #\date Created on Mon Nov 21 15:53:15 2016
 #\author agiovann
-#toclean
+# toclean
 
 from __future__ import division
 from __future__ import print_function
@@ -60,7 +60,7 @@ from caiman.tests.comparison import comparison
 from caiman.motion_correction import tile_and_correct, motion_correction_piecewise
 #%%
 # @params params_movie set parameters and create template by RIGID MOTION CORRECTION
-#params_movie = {'fname': ['Sue_2x_3000_40_-46.tif'],
+# params_movie = {'fname': ['Sue_2x_3000_40_-46.tif'],
 #               'niter_rig': 1,
 #               'max_shifts': (3, 3),  # maximum allow rigid shift
 #               'splits_rig': 20,  # for parallelization split the movies in  num_splits chuncks across time
@@ -102,48 +102,55 @@ from caiman.motion_correction import tile_and_correct, motion_correction_piecewi
 #               'memory_fact': 1,
 #               'n_chunks': 10,
 #               'update_background_components': True,# whether to update the background components in the spatial phase
-#               'low_rank_background': True  #whether to update the using a low rank approximation. In the False case all the nonzero elements of the background components are updated using hals    
-#                                     #(to be used with one background per patch)                              
+#               'low_rank_background': True  #whether to update the using a low rank approximation. In the False case all the nonzero elements of the background components are updated using hals
+#                                     #(to be used with one background per patch)
 #               }
 
 #%%
 params_movie = {'fname': ['/mnt/ceph/users/agiovann/ImagingData/GrossmanAndres/AG07-04_04-23-17-Burlap-PRE_F400_5400.tif'],
-                 'max_shifts': (12, 12),  # maximum allow rigid shift (2,2)
-                 'niter_rig': 1,
-                 'splits_rig': 14,  # for parallelization split the movies in  num_splits chuncks across time
-                 'num_splits_to_process_rig': None,  # if none all the splits are processed and the movie is saved
-                 'strides': (210, 210),  # intervals at which patches are laid out for motion correction
-                 'overlaps': (32, 32),  # overlap between pathes (size of patch strides+overlaps)
-                 'splits_els': 14,  # for parallelization split the movies in  num_splits chuncks across time
-                 'num_splits_to_process_els': [14, None],  # if none all the splits are processed and the movie is saved
-                 'upsample_factor_grid': 4,  # upsample factor to avoid smearing when merging patches
-                 'max_deviation_rigid': 2,  # maximum deviation allowed for patch with respect to rigid shift
-                 'p': 1,  # order of the autoregressive system
-                 'merge_thresh': 0.8,  # merging threshold, max correlation allow
-                 'rf': 15,  # half-size of the patches in pixels. rf=25, patches are 50x50    20
-                 'stride_cnmf': 10,  # amounpl.it of overlap between the patches in pixels
-                 'K': 6,  # number of components per patch
-                 'is_dendrites': False,  # if dendritic. In this case you need to set init_method to sparse_nmf
-                 'init_method': 'greedy_roi',
-                 'gSig': [5, 5],  # expected half size of neurons
-                 'alpha_snmf': None,  # this controls sparsity
-                 'final_frate': 10,
-                 'r_values_min_patch': .7,  # threshold on space consistency
-                 'fitness_min_patch': -20,  # threshold on time variability
-                 # threshold on time variability (if nonsparse activity)
-                 'fitness_delta_min_patch': -20,
-                 'Npeaks': 10,
-                 'r_values_min_full': .8,
-                 'fitness_min_full': - 40,
-                 'fitness_delta_min_full': - 40,
-                 'only_init_patch': True,
-                 'gnb': 2,
-                 'memory_fact': 1,
-                 'n_chunks': 10,
-                 'update_background_components': True,# whether to update the background components in the spatial phase
-                 'low_rank_background': True #whether to update the using a low rank approximation. In the False case all the nonzero elements of the background components are updated using hals    
-                                     #(to be used with one background per patch)          
-                 }
+                'max_shifts': (12, 12),  # maximum allow rigid shift (2,2)
+                'niter_rig': 1,
+                'splits_rig': 14,  # for parallelization split the movies in  num_splits chuncks across time
+                # if none all the splits are processed and the movie is saved
+                'num_splits_to_process_rig': None,
+                # intervals at which patches are laid out for motion correction
+                'strides': (210, 210),
+                # overlap between pathes (size of patch strides+overlaps)
+                'overlaps': (32, 32),
+                'splits_els': 14,  # for parallelization split the movies in  num_splits chuncks across time
+                # if none all the splits are processed and the movie is saved
+                'num_splits_to_process_els': [14, None],
+                'upsample_factor_grid': 4,  # upsample factor to avoid smearing when merging patches
+                # maximum deviation allowed for patch with respect to rigid shift
+                'max_deviation_rigid': 2,
+                'p': 1,  # order of the autoregressive system
+                'merge_thresh': 0.8,  # merging threshold, max correlation allow
+                'rf': 15,  # half-size of the patches in pixels. rf=25, patches are 50x50    20
+                'stride_cnmf': 10,  # amounpl.it of overlap between the patches in pixels
+                'K': 6,  # number of components per patch
+                # if dendritic. In this case you need to set init_method to sparse_nmf
+                'is_dendrites': False,
+                'init_method': 'greedy_roi',
+                'gSig': [5, 5],  # expected half size of neurons
+                'alpha_snmf': None,  # this controls sparsity
+                'final_frate': 10,
+                'r_values_min_patch': .7,  # threshold on space consistency
+                'fitness_min_patch': -20,  # threshold on time variability
+                # threshold on time variability (if nonsparse activity)
+                'fitness_delta_min_patch': -20,
+                'Npeaks': 10,
+                'r_values_min_full': .8,
+                'fitness_min_full': - 40,
+                'fitness_delta_min_full': - 40,
+                'only_init_patch': True,
+                'gnb': 2,
+                'memory_fact': 1,
+                'n_chunks': 10,
+                # whether to update the background components in the spatial phase
+                'update_background_components': True,
+                'low_rank_background': True  # whether to update the using a low rank approximation. In the False case all the nonzero elements of the background components are updated using hals
+                #(to be used with one background per patch)
+                }
 
 #%%
 params_display = {
@@ -184,10 +191,10 @@ upsample_factor_grid = params_movie['upsample_factor_grid']
 max_deviation_rigid = params_movie['max_deviation_rigid']
 
 # %% download movie if not there
-if fname[0] in ['Sue_2x_3000_40_-46.tif','demoMovieJ.tif']:
+if fname[0] in ['Sue_2x_3000_40_-46.tif', 'demoMovieJ.tif']:
     # TODO: todocument
     download_demo(fname[0])
-    fname = [os.path.join('example_movies',fname[0])]
+    fname = [os.path.join('example_movies', fname[0])]
 # TODO: todocument
 m_orig = cm.load_movie_chain(fname[:1])
 
@@ -211,7 +218,7 @@ min_mov = cm.load(fname[0], subindices=range(400)).min()
 mc_list = []
 new_templ = None
 for each_file in fname:
-# TODO: needinfo how the classes works
+    # TODO: needinfo how the classes works
     mc = MotionCorrect(each_file, min_mov,
                        dview=dview, max_shifts=max_shifts, niter_rig=niter_rig, splits_rig=splits_rig,
                        num_splits_to_process_rig=num_splits_to_process_rig,
@@ -219,7 +226,7 @@ for each_file in fname:
                        num_splits_to_process_els=num_splits_to_process_els,
                        upsample_factor_grid=upsample_factor_grid, max_deviation_rigid=max_deviation_rigid,
                        shifts_opencv=True, nonneg_movie=True)
-    mc.motion_correct_rigid(save_movie=True,template = new_templ)
+    mc.motion_correct_rigid(save_movie=True, template=new_templ)
     new_templ = mc.total_template_rig
     m_rig = cm.load(mc.fname_tot_rig)
     bord_px_rig = np.ceil(np.max(mc.shifts_rig)).astype(np.int)

@@ -13,10 +13,12 @@ try:
 except:
     pass
 
-import numpy as np    
+import numpy as np
 
 #%%
-def mode_robust_fast(inputData,axis=None):
+
+
+def mode_robust_fast(inputData, axis=None):
     """
     Robust estimator of the mode of a data set using the half-sample mode.
 
@@ -25,11 +27,11 @@ def mode_robust_fast(inputData,axis=None):
 
     if axis is not None:
 
-        fnc = lambda x: mode_robust_fast(x)
+        def fnc(x): return mode_robust_fast(x)
         dataMode = np.apply_along_axis(fnc, axis, inputData)
     else:
-        # Create the function that we can use for the half-sample mode        
-        data = inputData.ravel()        
+        # Create the function that we can use for the half-sample mode
+        data = inputData.ravel()
         # The data need to be sorted for this to work
         data = np.sort(data)
         # Find the mode
@@ -37,16 +39,17 @@ def mode_robust_fast(inputData,axis=None):
 
     return dataMode
 #%%
+
+
 def mode_robust(inputData, axis=None, dtype=None):
     """
     Robust estimator of the mode of a data set using the half-sample mode.
 
     .. versionadded: 1.0.3
     """
-    import numpy
     if axis is not None:
-        fnc = lambda x: mode_robust(x, dtype=dtype)
-        dataMode = numpy.apply_along_axis(fnc, axis, inputData)
+        def fnc(x): return mode_robust(x, dtype=dtype)
+        dataMode = np.apply_along_axis(fnc, axis, inputData)
     else:
         # Create the function that we can use for the half-sample mode
         def _hsm(data):
@@ -83,7 +86,7 @@ def mode_robust(inputData, axis=None, dtype=None):
             data = data.astype(dtype)
 
         # The data need to be sorted for this to work
-        data = numpy.sort(data)
+        data = np.sort(data)
 
         # Find the mode
         dataMode = _hsm(data)
@@ -92,6 +95,8 @@ def mode_robust(inputData, axis=None, dtype=None):
 
 #%%
 #@numba.jit("void(f4[:])")
+
+
 def _hsm(data):
     if data.size == 1:
         return data[0]
@@ -117,4 +122,4 @@ def _hsm(data):
                 wMin = w
                 j = i
 
-        return _hsm(data[j:j + N])    
+        return _hsm(data[j:j + N])

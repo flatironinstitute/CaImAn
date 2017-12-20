@@ -33,12 +33,12 @@ from ...mmapping import parallel_dot_product
 
 
 #%%
-def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], gSiz = None, ssub=2, tsub=2, p=2, p_ssub=2, p_tsub=2,
+def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], gSiz=None, ssub=2, tsub=2, p=2, p_ssub=2, p_tsub=2,
                  thr=0.8, method_init='greedy_roi', nb=1, nb_patch=1, n_pixels_per_process=None, block_size=None,
                  check_nan=True, normalize_init=True, options_local_NMF=None, remove_very_bad_comps=False,
-                 alpha_snmf=10e2, update_background_components=True, low_rank_background= True, rolling_sum = False,
-                 min_corr = .85, min_pnr = 20, deconvolve_options_init = None,
-                 ring_size_factor = 1.5, center_psf = True):
+                 alpha_snmf=10e2, update_background_components=True, low_rank_background=True, rolling_sum=False,
+                 min_corr=.85, min_pnr=20, deconvolve_options_init=None,
+                 ring_size_factor=1.5, center_psf=True):
     """Dictionary for setting the CNMF parameters.
 
     Any parameter that is not set get a default value specified
@@ -253,13 +253,12 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], gSiz = None, ssub=2, tsub=2,
                                     'check_nan': check_nan
 
                                     }
-    
+
     gSig = gSig if gSig is not None else [-1, -1]
-    
 
     options['init_params'] = {'K': K,                  # number of components
                               'gSig': gSig,                               # size of bounding box
-                              'gSiz': [np.int(np.round((x * 2) + 1)) for x in gSig] if gSiz is  None else gSiz,
+                              'gSiz': [np.int(np.round((x * 2) + 1)) for x in gSig] if gSiz is None else gSiz,
                               'ssub': ssub,             # spatial downsampling factor
                               'tsub': tsub,             # temporal downsampling factor
                               'nIter': 5,               # number of refinement iterations
@@ -277,11 +276,11 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], gSiz = None, ssub=2, tsub=2,
                               'options_local_NMF': options_local_NMF,
                               'rolling_sum': rolling_sum,
                               'rolling_length': 100,
-							  'min_corr': min_corr,
-                              'min_pnr' : min_pnr,
-                              'deconvolve_options_init' : deconvolve_options_init,
+                              'min_corr': min_corr,
+                              'min_pnr': min_pnr,
+                              'deconvolve_options_init': deconvolve_options_init,
                               'ring_size_factor': ring_size_factor,
-                              'center_psf' : center_psf,                              
+                              'center_psf': center_psf,
                               }
 
     options['spatial_params'] = {
@@ -289,8 +288,10 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], gSiz = None, ssub=2, tsub=2,
         # method for determining footprint of spatial components ('ellipse' or 'dilate')
         'method': 'dilate',  # 'ellipse', 'dilate',
         'dist': 3,                       # expansion factor of ellipse
-        'n_pixels_per_process': n_pixels_per_process,   # number of pixels to be processed by eacg worker
-        'medw': (3,) * len(dims),                                # window of median filter
+        # number of pixels to be processed by eacg worker
+        'n_pixels_per_process': n_pixels_per_process,
+        # window of median filter
+        'medw': (3,) * len(dims),
         'thr_method': 'nrg',  # Method of thresholding ('max' or 'nrg')
         'maxthr': 0.1,                                 # Max threshold
         'nrgthr': 0.9999,                              # Energy threshold
@@ -301,7 +302,8 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], gSiz = None, ssub=2, tsub=2,
         # Binary element for determining connectivity
         'ss': np.ones((3,) * len(dims), dtype=np.uint8),
         'nb': nb,                                      # number of background components
-        'method_ls': 'lasso_lars',               # 'nnls_L0'. Nonnegative least square with L0 penalty
+        # 'nnls_L0'. Nonnegative least square with L0 penalty
+        'method_ls': 'lasso_lars',
         #'lasso_lars' lasso lars function from scikit learn
         #'lasso_lars_old' lasso lars from old implementation, will be deprecated
         # whether to update the background components in the spatial phase
@@ -325,9 +327,12 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], gSiz = None, ssub=2, tsub=2,
         'bas_nonneg': False,
         # range of normalized frequencies over which to average
         'noise_range': [.25, .5],
-        'noise_method': 'mean',   # averaging method ('mean','median','logmexp')
-        'lags': 5,                   # number of autocovariance lags to be considered for time constant estimation
-        'fudge_factor': .96,         # bias correction factor (between 0 and 1, close to 1)
+        # averaging method ('mean','median','logmexp')
+        'noise_method': 'mean',
+        # number of autocovariance lags to be considered for time constant estimation
+        'lags': 5,
+        # bias correction factor (between 0 and 1, close to 1)
+        'fudge_factor': .96,
         'nb': nb,                   # number of background components
         'verbosity': False,
         # number of pixels to process at the same time for dot product. Make it
@@ -415,31 +420,32 @@ def extract_DF_F(Yr, A, C,  bl, quantileMin=8, frames_window=200, block_size=400
         C_df = Cf / Df[:, None]
 
     else:
-        Df = scipy.ndimage.percentile_filter(C2, quantileMin, (frames_window, 1))
+        Df = scipy.ndimage.percentile_filter(
+            C2, quantileMin, (frames_window, 1))
         C_df = Cf / Df
 
     return C_df
 
 
 #%%
-def detrend_df_f(A, b, C, f, YrA = None, quantileMin=8, frames_window=200, block_size=400):
+def detrend_df_f(A, b, C, f, YrA=None, quantileMin=8, frames_window=200, block_size=400):
     """ Compute DF/F signal without using the original data.
     In general much faster than extract_DF_F
-    
+
     Parameters:
     -----------
     A: scipy.sparse.csc_matrix
         spatial components (from cnmf cnm.A)
-    
+
     b: ndarray
         spatial backgrounds
-    
+
     C: ndarray
         temporal components (from cnmf cnm.C)
-    
+
     f: ndarray
         temporal background components    
-    
+
     YrA: ndarray
         residual signals
 
@@ -448,12 +454,12 @@ def detrend_df_f(A, b, C, f, YrA = None, quantileMin=8, frames_window=200, block
 
     frames_window: int
         number of frames for running quantile
-        
+
     Returns:
     ----------
     F_df:
         the computed Calcium acitivty to the derivative of f
-    
+
     """
     if 'csc_matrix' not in str(type(A)):
         A = scipy.sparse.csc_matrix(A)
@@ -463,29 +469,33 @@ def detrend_df_f(A, b, C, f, YrA = None, quantileMin=8, frames_window=200, block
         C = C.toarray()
     if 'array' not in str(type(f)):
         f = f.toarray()
-    
+
     nA = np.sqrt(np.ravel(A.power(2).sum(axis=0)))
     nA_mat = scipy.sparse.spdiags(nA, 0, nA.shape[0], nA.shape[0])
-    nA_inv_mat = scipy.sparse.spdiags(1./nA, 0, nA.shape[0], nA.shape[0])
-    A = A*nA_inv_mat
-    C = nA_mat*C
+    nA_inv_mat = scipy.sparse.spdiags(1. / nA, 0, nA.shape[0], nA.shape[0])
+    A = A * nA_inv_mat
+    C = nA_mat * C
     if YrA is not None:
-        YrA = nA_mat*YrA
-        
+        YrA = nA_mat * YrA
+
     F = C + YrA if YrA is not None else C
     B = A.T.dot(b).dot(f)
     T = C.shape[-1]
     if frames_window is None or frames_window > T:
         Fd = np.percentile(F, quantileMin, axis=1)
         Df = np.percentile(B, quantileMin, axis=1)
-        F_df = (F - Fd) / (Df[:, None] +  Fd[:,None])
+        F_df = (F - Fd) / (Df[:, None] + Fd[:, None])
     else:
-        Fd = scipy.ndimage.percentile_filter(F, quantileMin, (frames_window, 1))
-        Df = scipy.ndimage.percentile_filter(B, quantileMin, (frames_window, 1))
+        Fd = scipy.ndimage.percentile_filter(
+            F, quantileMin, (frames_window, 1))
+        Df = scipy.ndimage.percentile_filter(
+            B, quantileMin, (frames_window, 1))
         F_df = (F - Fd) / (Df + Fd)
     return F_df
-    
+
 #%%
+
+
 def manually_refine_components(Y, xxx_todo_changeme, A, C, Cn, thr=0.9, display_numbers=True,
                                max_number=None, cmap=None, **kwargs):
     """Plots contour of spatial components
@@ -579,8 +589,10 @@ def manually_refine_components(Y, xxx_todo_changeme, A, C, Cn, thr=0.9, display_
             coords_x = np.array(list(range(xx - dx, xx + dx + 1)))
             coords_y = coords_y[(coords_y >= 0) & (coords_y < d1)]
             coords_x = coords_x[(coords_x >= 0) & (coords_x < d2)]
-            a3_tiny = A3[coords_y[0]:coords_y[-1] + 1, coords_x[0]:coords_x[-1] + 1, :]
-            y3_tiny = Y[coords_y[0]:coords_y[-1] + 1, coords_x[0]:coords_x[-1] + 1, :]
+            a3_tiny = A3[coords_y[0]:coords_y[-1] +
+                         1, coords_x[0]:coords_x[-1] + 1, :]
+            y3_tiny = Y[coords_y[0]:coords_y[-1] +
+                        1, coords_x[0]:coords_x[-1] + 1, :]
 
             dy_sz, dx_sz = np.shape(a3_tiny)[:-1]
             y2_tiny = np.reshape(y3_tiny, (dx_sz * dy_sz, T), order='F')
@@ -593,7 +605,8 @@ def manually_refine_components(Y, xxx_todo_changeme, A, C, Cn, thr=0.9, display_
 
             a_f = np.zeros((d, 1))
             idxs = np.meshgrid(coords_y, coords_x)
-            a_f[np.ravel_multi_index(idxs, (d1, d2), order='F').flatten()] = a__
+            a_f[np.ravel_multi_index(
+                idxs, (d1, d2), order='F').flatten()] = a__
 
             A = np.concatenate([A, a_f], axis=1)
             C = np.concatenate([C, c__], axis=0)
@@ -642,7 +655,7 @@ def app_vertex_cover(A):
     return np.asarray(L)
 
 
-def update_order(A, new_a = None, prev_list = None):
+def update_order(A, new_a=None, prev_list=None):
     '''Determines the update order of the temporal components given the spatial
     components by creating a nest of random approximate vertex covers
      Input:
@@ -665,7 +678,7 @@ def update_order(A, new_a = None, prev_list = None):
     '''
     K = np.shape(A)[-1]
     if new_a is None and prev_list is None:
-        
+
         AA = A.T * A
         AA.setdiag(0)
         F = (AA) > 0
@@ -681,38 +694,37 @@ def update_order(A, new_a = None, prev_list = None):
             else:
                 ord_ind = set(rem_ind)
                 rem_ind = []
-    
+
             O.append(ord_ind)
             lo.append(len(ord_ind))
-    
+
         return O[::-1], lo[::-1]
-    
+
     else:
-        
-        if new_a is  None or prev_list is None:
-            raise Exception('In the online update order you need to provide both new_a and prev_list')
-        
+
+        if new_a is None or prev_list is None:
+            raise Exception(
+                'In the online update order you need to provide both new_a and prev_list')
+
         counter = 0
         AA = A.T.dot(new_a)
         for group in prev_list:
-            
-#            AA = A[:,list(group)].T.dot(new_a)
-            if AA[list(group)].sum() == 0:                
+
+            #            AA = A[:,list(group)].T.dot(new_a)
+            if AA[list(group)].sum() == 0:
                 group.append(K)
-                counter+=1
+                counter += 1
                 break
-        
+
         if counter == 0:
             if prev_list is not None:
                 prev_list = list(prev_list)
                 prev_list.append([K])
-        
+
 #        prev_list.sort(key=len)
         count_list = [len(gr) for gr in prev_list]
-        
+
         return prev_list, count_list
-
-
 
 
 #%%
@@ -751,6 +763,7 @@ def order_components(A, C):
     C_or = spdiags(old_div(1., nA2[srt]), 0, K, K) * (C[srt, :])
 
     return A_or, C_or, srt
+
 
 def update_order_greedy(A, flag_AA=True):
     """Determines the update order of the temporal components
@@ -798,19 +811,21 @@ def update_order_greedy(A, flag_AA=True):
     len_parrllcomp = [len(ls) for ls in parllcomp]
     return parllcomp, len_parrllcomp
 #%%
-def compute_residuals(Yr_mmap_file, A_,b_,C_,f_, dview=None, block_size=1000, num_blocks_per_run=5):    
+
+
+def compute_residuals(Yr_mmap_file, A_, b_, C_, f_, dview=None, block_size=1000, num_blocks_per_run=5):
     '''compute residuals from memory mapped file and output of CNMF
         Params:
         -------            
         A_,b_,C_,f_: 
                 from CNMF
-        
+
         block_size: int
             number of pixels processed together
-        
+
         num_blocks_per_run: int
             nnumber of parallel blocks processes 
-        
+
         Return:
         -------
         YrA: ndarray
@@ -827,13 +842,15 @@ def compute_residuals(Yr_mmap_file, A_,b_,C_,f_, dview=None, block_size=1000, nu
 
     if 'mmap' in str(type(Yr_mmap_file)):
         YA = parallel_dot_product(Yr_mmap_file, Ab, dview=dview, block_size=block_size,
-                            transpose=True, num_blocks_per_run=num_blocks_per_run) * scipy.sparse.spdiags(old_div(1., nA), 0, Ab.shape[-1], Ab.shape[-1])
+                                  transpose=True, num_blocks_per_run=num_blocks_per_run) * scipy.sparse.spdiags(old_div(1., nA), 0, Ab.shape[-1], Ab.shape[-1])
     else:
-        YA = (Ab.T.dot(Yr_mmap_file)).T * spdiags(old_div(1., nA), 0, Ab.shape[-1], Ab.shape[-1])
+        YA = (Ab.T.dot(Yr_mmap_file)).T * \
+            spdiags(old_div(1., nA), 0, Ab.shape[-1], Ab.shape[-1])
 
-    AA = ((Ab.T.dot(Ab)) * scipy.sparse.spdiags(old_div(1., nA), 0, Ab.shape[-1], Ab.shape[-1])).tocsr()
+    AA = ((Ab.T.dot(Ab)) * scipy.sparse.spdiags(old_div(1., nA),
+                                                0, Ab.shape[-1], Ab.shape[-1])).tocsr()
 
-    return (YA - (AA.T.dot(Cf)).T)[:,:A_.shape[-1]].T  
+    return (YA - (AA.T.dot(Cf)).T)[:, :A_.shape[-1]].T
 
 
 #%%

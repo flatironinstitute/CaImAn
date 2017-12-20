@@ -213,7 +213,8 @@ def test_general():
         raise Exception('Movie too negative, add_to_movie should be larger')
     if np.sum(np.isnan(images)) > 0:
         # TODO: same here
-        raise Exception('Movie contains nan! You did not remove enough borders')
+        raise Exception(
+            'Movie contains nan! You did not remove enough borders')
 
     Cn = cm.local_correlations(Y)
     Cn[np.isnan(Cn)] = 0
@@ -250,8 +251,10 @@ def test_general():
     # DISCARDING
     print(('Number of components:' + str(A_tot.shape[-1])))
     final_frate = params_movie['final_frate']
-    r_values_min = params_movie['r_values_min_patch']  # threshold on space consistency
-    fitness_min = params_movie['fitness_delta_min_patch']  # threshold on time variability
+    # threshold on space consistency
+    r_values_min = params_movie['r_values_min_patch']
+    # threshold on time variability
+    fitness_min = params_movie['fitness_delta_min_patch']
     fitness_delta_min = params_movie['fitness_delta_min_patch']
     Npeaks = params_movie['Npeaks']
     traces = C_tot + YrA_tot
@@ -275,8 +278,10 @@ def test_general():
     # DISCARDING
     A, C, b, f, YrA, sn = cnm.A, cnm.C, cnm.b, cnm.f, cnm.YrA, cnm.sn
     final_frate = params_movie['final_frate']
-    r_values_min = params_movie['r_values_min_full']  # threshold on space consistency
-    fitness_min = params_movie['fitness_delta_min_full']  # threshold on time variability
+    # threshold on space consistency
+    r_values_min = params_movie['r_values_min_full']
+    # threshold on time variability
+    fitness_min = params_movie['fitness_delta_min_full']
     fitness_delta_min = params_movie['fitness_delta_min_full']
     Npeaks = params_movie['Npeaks']
     traces = C + YrA
@@ -288,7 +293,8 @@ def test_general():
     A_tot_full = A_tot.tocsc()[:, idx_components]
     C_tot_full = C_tot[idx_components]
     comp.comparison['cnmf_full_frame']['timer'] = time.time() - t1
-    comp.comparison['cnmf_full_frame']['ourdata'] = [A_tot_full.copy(), C_tot_full.copy()]
+    comp.comparison['cnmf_full_frame']['ourdata'] = [
+        A_tot_full.copy(), C_tot_full.copy()]
 #################### ########################
     comp.save_with_compare(istruth=False, params=params_movie, Cn=Cn)
     log_files = glob.glob('*_LOG_*')

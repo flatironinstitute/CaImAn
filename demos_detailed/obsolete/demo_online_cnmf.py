@@ -41,6 +41,7 @@ def load_object(filename):
         obj = pickle.load(input_obj)
     return obj
 
+
 #%%
 # Yr, trueC, trueS, trueA, trueb, centers, dims = gen_data(gamma = gamma, noise = noise, sig = gSig, seed = 3)
 # T = Yr.shape[-1]
@@ -74,7 +75,7 @@ c, dview, n_processes = cm.cluster.setup_cluster(
 #             '/opt/local/Data/Sue/k59_20161121_MMP_150um_47mW940nm_zoom4p2_*_g.tif']
 
 
-#fls_starts = ['/opt/local/Data/JGauthier-J115/mmap_files/Yr_reduced*.mmap',
+# fls_starts = ['/opt/local/Data/JGauthier-J115/mmap_files/Yr_reduced*.mmap',
 #              '/opt/local/privateCaImAn/example_movies/demoMovie.tif',
 #              '/opt/local/Data/Sue/k53/k53_20160530_RSM_125um_41mW_zoom2p2_00001_000*.tif',
 #              '/opt/local/Data/Sue/k53/k53_crop.tif',
@@ -236,7 +237,8 @@ else:
 
 #%%
 if ds > 1:
-    Y = cm.load_movie_chain(fls[:init_files])[:initbatch].resize(1. / ds, 1. / ds)
+    Y = cm.load_movie_chain(fls[:init_files])[
+        :initbatch].resize(1. / ds, 1. / ds)
 else:
     Y = cm.load_movie_chain(fls[:init_files])[:initbatch]
 
@@ -267,7 +269,7 @@ p = 1  # order of the autoregressive system
 new_dims = (d1, d2)
 base_name = '/'.join(fls[0].split('/')[:-1]) + '/' + \
     fls[0].split('/')[-1][:4] + '_' + str(init_files) + '.mmap'
-    
+
 fname_new = Y[:initbatch].save(base_name, order='C')
 #%%
 Yr, dims, T = cm.load_memmap(fname_new)
@@ -433,7 +435,8 @@ pl.close('all')
 #%%
 # pl.figure(figsize=(20,13))
 cnm2 = load_object(fls[0][:-4] + '_DS_' + str(ds) + '.pkl')
-cnm2._prepare_object(np.asarray(Yr), T1, expected_comps, idx_components=cnm2.idx_components)
+cnm2._prepare_object(np.asarray(Yr), T1, expected_comps,
+                     idx_components=cnm2.idx_components)
 cnm2.max_comp_update_shape = np.inf
 cnm2.update_num_comps = True
 t = cnm2.initbatch
@@ -489,8 +492,10 @@ for ffll in end_files:  # np.array(fls)[np.array([1,2,3,4,5,-5,-4,-3,-2,-1])]:
         frame_ -= img_min
 
         if mot_corr:
-            templ = cnm2.Ab.dot(cnm2.C_on[:cnm2.M, t - 1]).reshape(cnm2.dims, order='F') * img_norm
-            frame_cor, shift = motion_correct_iteration_fast(frame_, templ, max_shift, max_shift)
+            templ = cnm2.Ab.dot(
+                cnm2.C_on[:cnm2.M, t - 1]).reshape(cnm2.dims, order='F') * img_norm
+            frame_cor, shift = motion_correct_iteration_fast(
+                frame_, templ, max_shift, max_shift)
             shifts.append(shift)
         else:
             templ = None
@@ -584,7 +589,8 @@ if False:
     with np.load('results_analysis_offline_JEFF_90k.npz') as ld:
         print(ld.keys())
         locals().update(ld)
-    view_patches_bar(None, scipy.sparse.coo_matrix(A), C[:, :], b, f, d1, d2, YrA=YrA, img=Cn)
+    view_patches_bar(None, scipy.sparse.coo_matrix(
+        A), C[:, :], b, f, d1, d2, YrA=YrA, img=Cn)
     #%%
     fls_ld = glob.glob('results_analysis_online_JEFF_LAST__DS_2_*0.npz')
     fls_ld.sort(key=lambda x: np.int(x.split('_')[-1][:-5]))

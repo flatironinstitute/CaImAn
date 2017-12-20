@@ -135,7 +135,7 @@ def save_memmap_each(fnames, dview=None, base_name=None, resize_fact=(1, 1, 1), 
 
 
 #%%
-def save_memmap_join(mmap_fnames, base_name=None, n_chunks=20, dview=None, async=False):
+def save_memmap_join(mmap_fnames, base_name=None, n_chunks=20, dview=None):
     """
     From small memory mappable files creates a large one
 
@@ -150,7 +150,6 @@ def save_memmap_join(mmap_fnames, base_name=None, n_chunks=20, dview=None, async
 
     dview: cluster handle
 
-    async: somtimes it will not work asynchrounously, try this if it fails
 
     Returns:
     --------
@@ -170,7 +169,8 @@ def save_memmap_join(mmap_fnames, base_name=None, n_chunks=20, dview=None, async
     if base_name is None:
 
         base_name = mmap_fnames[0]
-        base_name = base_name[:base_name.find('_d1_')] + '-#-' + str(len(mmap_fnames))
+        base_name = base_name[:base_name.find(
+            '_d1_')] + '-#-' + str(len(mmap_fnames))
 
     fname_tot = (base_name + '_d1_' + str(dims[0]) + '_d2_' + str(dims[1]) + '_d3_' +
                  str(1 if len(dims) == 2 else dims[2]) + '_order_' + str(order) +
@@ -179,7 +179,8 @@ def save_memmap_join(mmap_fnames, base_name=None, n_chunks=20, dview=None, async
 
     print(fname_tot)
 
-    big_mov = np.memmap(fname_tot, mode='w+', dtype=np.float32, shape=(d, tot_frames), order='C')
+    big_mov = np.memmap(fname_tot, mode='w+', dtype=np.float32,
+                        shape=(d, tot_frames), order='C')
 
     step = np.int(old_div(d, n_chunks))
     pars = []
@@ -208,13 +209,14 @@ def save_portion(pars):
     # todo: todocument
 
     big_mov, d, tot_frames, fnames, idx_start, idx_end = pars
-    big_mov = np.memmap(big_mov, mode='r+', dtype=np.float32, shape=(d, tot_frames), order='C')
+    big_mov = np.memmap(big_mov, mode='r+', dtype=np.float32,
+                        shape=(d, tot_frames), order='C')
     Ttot = 0
     Yr_tot = np.zeros((idx_end - idx_start, tot_frames))
     print((Yr_tot.shape))
     for f in fnames:
         print(f)
-        Yr, dims, T = load_memmap(f)
+        Yr, _, T = load_memmap(f)
         print((idx_start, idx_end))
         Yr_tot[:, Ttot:Ttot + T] = np.array(Yr[idx_start:idx_end])
         Ttot = Ttot + T
@@ -389,6 +391,8 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
     return fname_new
 
 #%%
+
+
 def parallel_dot_product(A, b, block_size=5000, dview=None, transpose=False, num_blocks_per_run=20):
     # todo: todocument
     """ Chunk matrix product between matrix and column vectors
@@ -406,7 +410,6 @@ def parallel_dot_product(A, b, block_size=5000, dview=None, transpose=False, num
     print('parallel dot product block size: ' + str(block_size))
 
     if block_size < d1:
-
         for idx in range(0, d1 - block_size, block_size):
             idx_to_pass = list(range(idx, idx + block_size))
             pars.append([A.filename, idx_to_pass, b, transpose])
@@ -431,36 +434,30 @@ def parallel_dot_product(A, b, block_size=5000, dview=None, transpose=False, num
         if transpose:
             #            b = pickle.loads(b)
             print('Transposing')
-#            output = np.zeros((d2,np.shape(b)[-1]), dtype = np.float32)
-            for counts, pr in enumerate(pars):
-
+            for _, pr in enumerate(pars):
                 iddx, rs = dot_place_holder(pr)
                 output = output + rs
-
         else:
-            #            b = pickle.loads(b)
-            #            output = np.zeros((d1,np.shape(b)[-1]), dtype = np.float32)
-            for counts, pr in enumerate(pars):
+            for _, pr in enumerate(pars):
                 iddx, rs = dot_place_holder(pr)
                 output[iddx] = rs
 
     else:
-        #        b = pickle.loads(b)
-
         for itera in range(0, len(pars), num_blocks_per_run):
-            
+
             if 'multiprocessing' in str(type(dview)):
-                results = dview.map_async(dot_place_holder, pars[itera:itera + num_blocks_per_run]).get(4294967)
+                results = dview.map_async(
+                    dot_place_holder, pars[itera:itera + num_blocks_per_run]).get(4294967)
             else:
-                results = dview.map_sync(dot_place_holder, pars[itera:itera + num_blocks_per_run])
-                
+                results = dview.map_sync(
+                    dot_place_holder, pars[itera:itera + num_blocks_per_run])
+
             print('Processed:' + str([itera, itera + len(results)]))
 
             if transpose:
                 print('Transposing')
 
-                for num_, res in enumerate(results):
-                    #                    print(num_)
+                for _, res in enumerate(results):
                     output += res[1]
 
             else:
@@ -469,7 +466,7 @@ def parallel_dot_product(A, b, block_size=5000, dview=None, transpose=False, num
                 for res in results:
                     output[res[0]] = res[1]
 
-            if not('multiprocessing' in str(type(dview))):
+            if 'multiprocessing' not in str(type(dview)):
                 dview.clear()
 
     return output
@@ -487,21 +484,15 @@ def dot_place_holder(par):
     print((idx_to_pass[-1]))
     if 'sparse' in str(type(b_)):
         if transpose:
-            outp = (b_.T.tocsc()[:, idx_to_pass].dot(A_[idx_to_pass])).T.astype(np.float32)
-#            del b_
-#            return idx_to_pass, outp
+            outp = (b_.T.tocsc()[:, idx_to_pass].dot(
+                A_[idx_to_pass])).T.astype(np.float32)
 
         else:
             outp = (b_.T.dot(A_[idx_to_pass].T)).T.astype(np.float32)
-#            del b_
-#            return idx_to_pass,outp
     else:
         if transpose:
             outp = A_[idx_to_pass].dot(b_[idx_to_pass]).astype(np.float32)
-#            del b_
-#            return idx_to_pass, outp
         else:
-
             outp = A_[idx_to_pass].dot(b_).astype(np.float32)
 
     del b_, A_
@@ -539,7 +530,8 @@ def save_tif_to_mmap_online(movie_iterable, save_base_name='YrOL_', order='C',
         img = np.array(page, dtype=np.float32)
         new_img = img
         if save_base_name is not None:
-            big_mov[:, count] = np.reshape(new_img, np.prod(dims[1:]), order='F')
+            big_mov[:, count] = np.reshape(
+                new_img, np.prod(dims[1:]), order='F')
         else:
             new_mov.append(new_img)
 
@@ -549,7 +541,8 @@ def save_tif_to_mmap_online(movie_iterable, save_base_name='YrOL_', order='C',
             img[:, -border_to_0:] = 0
             img[-border_to_0:, :] = 0
 
-        big_mov[:, count] = np.reshape(img + add_to_movie, np.prod(dims[1:]), order='F')
+        big_mov[:, count] = np.reshape(
+            img + add_to_movie, np.prod(dims[1:]), order='F')
 
         count += 1
     big_mov.flush()

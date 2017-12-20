@@ -11,7 +11,8 @@ def gen_data(D=3, noise=.5, T=300, framerate=30, firerate=2.):
     bkgrd = 10  # fluorescence baseline
     gamma = .9  # calcium decay time constant
     np.random.seed(5)
-    centers = np.asarray([[np.random.randint(4, x - 4) for x in dims] for i in range(N)])
+    centers = np.asarray([[np.random.randint(4, x - 4)
+                           for x in dims] for i in range(N)])
     trueA = np.zeros(dims + (N,), dtype=np.float32)
     trueS = np.random.rand(N, T) < firerate / float(framerate)
     trueS[:, 0] = 0
@@ -61,7 +62,8 @@ def pipeline(D):
         Yr, A, b, Cin, f_in, bl=None, c1=None, sn=None, g=None, **options['temporal_params'])
 
     # VERIFY HIGH CORRELATION WITH GROUND TRUTH
-    sorting = [np.argmax([np.corrcoef(tc, c)[0, 1] for tc in trueC]) for c in C]
+    sorting = [np.argmax([np.corrcoef(tc, c)[0, 1]
+                          for tc in trueC]) for c in C]
     # verifying the temporal components
     corr = [np.corrcoef(trueC[sorting[i]], C[i])[0, 1] for i in range(N)]
     npt.assert_allclose(corr, 1, .05)
