@@ -1,0 +1,27 @@
+channels:
+- conda-forge
+- defaults
+- menpo
+dependencies:
+- tensorflow
+- keras
+- future
+- numpy
+- scipy
+- ipython
+- ipyparallel
+- jupyter
+- matplotlib
+- scikit-image
+- scikit-learn
+- h5py
+- cython
+- spyder
+- nose
+- bokeh
+- tqdm
+- opencv3
+- pip:
+  - tifffile
+  - peakutils
+
