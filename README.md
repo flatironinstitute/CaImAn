@@ -116,7 +116,6 @@ We recently incorporated a Python implementation of the OnACID [[5]](#onacid) al
     
 	conda env create -f environment_mac.yml -n caiman
     activate caiman   
-    conda install -c conda-forge tensorflow keras
     python setup.py build_ext -i       
 	conda install numba
 	jupyter notebook --NotebookApp.iopub_data_rate_limit=1.0e10
