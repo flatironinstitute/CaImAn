@@ -147,9 +147,14 @@ class MotionCorrect(object):
         Constructor class for motion correction operations
 
         """
+        if 'ndarray' in str(type(fname)):
+            print('Creating file for motion correction "tmp_mov_mot_corr.hdf5"')
+            cm.movie(fname).save('./tmp_mov_mot_corr.hdf5')
+            fname = ['./tmp_mov_mot_corr.hdf5']
+
         if type(fname) is not list:
             fname = [fname]
-            
+
         self.fname=fname
         self.dview=dview
         self.max_shifts=max_shifts
@@ -216,8 +221,9 @@ class MotionCorrect(object):
                 add_to_movie=-self.min_mov,
                 nonneg_movie=self.nonneg_movie,
                 gSig_filt=self.gSig_filt)
+            if template is None:
+                self.total_template_rig = _total_template_rig
 
-            self.total_template_rig = _total_template_rig
             self.templates_rig += _templates_rig
             self.fname_tot_rig += [_fname_tot_rig]
             self.shifts_rig += _shifts_rig
@@ -291,7 +297,9 @@ class MotionCorrect(object):
                     raise Exception(
                         'Template contains NaNs, something went wrong. Reconsider the parameters')
 
-            self.total_template_els = new_template_els
+            if template is None:
+                self.total_template_els = new_template_els
+
             self.fname_tot_els += [_fname_tot_els]
             self.templates_els += _templates_els
             self.x_shifts_els += _x_shifts_els
