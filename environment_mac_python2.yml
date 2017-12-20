@@ -7,7 +7,7 @@ dependencies:
 - tensorflow
 - keras
 - future
-- numpy=1.12
+- numpy
 - scipy
 - ipython
 - ipyparallel
