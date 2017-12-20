@@ -56,7 +56,6 @@ pipeline {
             sh '$ANACONDA2/bin/conda env create -q -f environment_mac_python2.yml -p $CONDA_ENV'
             sh '''#!/bin/bash -ex
               source $CONDA_ENV/bin/activate $CONDA_ENV
-              conda install -q -c conda-forge tensorflow keras
               python setup.py build_ext -i
               #nosetests
               cd caiman/tests

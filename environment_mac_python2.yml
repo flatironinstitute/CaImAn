@@ -7,7 +7,7 @@ dependencies:
 - tensorflow
 - keras
 - future
-- numpy
+- numpy=1.12
 - scipy
 - ipython
 - ipyparallel
@@ -17,7 +17,7 @@ dependencies:
 - scikit-learn
 - h5py
 - cython
-- spyder
+- spyder=3.1
 - nose
 - bokeh
 - tqdm

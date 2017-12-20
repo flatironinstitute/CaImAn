@@ -59,6 +59,7 @@ We recently incorporated a Python implementation of the OnACID [[5]](#onacid) al
 * Installation on Mac
 
    * Download and install Anaconda (Python 2.7 or Python 3.6) <http://docs.continuum.io/anaconda/install>
+     If you wish to use Python 2.7, please use environment_mac_python27.yml below
 
     ```bash
    
@@ -66,8 +67,6 @@ We recently incorporated a Python implementation of the OnACID [[5]](#onacid) al
    cd CaImAn/
    conda env create -f environment_mac.yml -n caiman
    source activate caiman
-   (ONLY FOR PYTHON 2) conda install numpy==1.12  
-   (ONLY FOR PYTHON 2) conda install spyder=3.1
    python setup.py build_ext -i   
    ```
    **Python 3 may have issues** when running in parallel mode (dview is not None) because of bugs in Python/ipyparallel/numpy interaction. Python2 may have fewer issues (edit environment_mac.yml and change the python version there if you wish to use Python 2)
