@@ -159,7 +159,7 @@ def get_distance_from_A(masks_gt, masks_comp, min_dist=10):
 
 
 def nf_match_neurons_in_binary_masks(masks_gt, masks_comp, thresh_cost=.7, min_dist=10, print_assignment=False,
-                                     plot_results=False, Cn=None, labels=None, cmap='viridis', D=None, enclosed_thr=None):
+                                     plot_results=False, Cn=None, labels=['Session 1','Session 2'], cmap='viridis', D=None, enclosed_thr=None):
     """
     Match neurons expressed as binary masks. Uses Hungarian matching algorithm
 
@@ -270,8 +270,8 @@ def nf_match_neurons_in_binary_masks(masks_gt, masks_comp, thresh_cost=.7, min_d
                     'size': 10}
             pl.rc('font', **font)
             lp, hp = np.nanpercentile(Cn, [5, 95])
-            ses_1 = mpatches.Patch(color='red', label='Session 1')
-            ses_2 = mpatches.Patch(color='white', label='Session 2')
+            ses_1 = mpatches.Patch(color='red', label=labels[0])
+            ses_2 = mpatches.Patch(color='white', label=labels[1])
             pl.subplot(1, 2, 1)
             pl.imshow(Cn, vmin=lp, vmax=hp, cmap=cmap)
             [pl.contour(norm_nrg(mm), levels=[level], colors='w', linewidths=1)
