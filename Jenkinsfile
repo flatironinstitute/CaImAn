@@ -57,9 +57,9 @@ pipeline {
             sh '''#!/bin/bash -ex
               source $CONDA_ENV/bin/activate $CONDA_ENV
               python setup.py build_ext -i
-              #nosetests
-              cd caiman/tests
-              nosetests $(for f in test_*.py ; do echo ${f%.py} ; done)
+              nosetests
+              #cd caiman/tests
+              #nosetests $(for f in test_*.py ; do echo ${f%.py} ; done)
             '''
           }
         }
@@ -76,9 +76,9 @@ pipeline {
             sh '''#!/bin/bash -ex
               source $CONDA_ENV/bin/activate $CONDA_ENV
               python setup.py build_ext -i
-              #nosetests
-              cd caiman/tests
-              nosetests $(for f in test_*.py ; do echo ${f%.py} ; done)
+              nosetests
+              #cd caiman/tests
+              #nosetests $(for f in test_*.py ; do echo ${f%.py} ; done)
             '''
           }
         }
