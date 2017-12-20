@@ -1,7 +1,6 @@
 channels:
 - conda-forge
 - defaults
-- menpo
 dependencies:
 - python=3.6
 - tensorflow

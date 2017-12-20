@@ -1,7 +1,6 @@
 channels:
 - conda-forge
 - defaults
-- menpo
 dependencies:
 - python=2.7
 - tensorflow
@@ -21,7 +20,7 @@ dependencies:
 - nose
 - bokeh
 - tqdm
-- opencv3
+- opencv
 - pip:
   - tifffile
   - peakutils
