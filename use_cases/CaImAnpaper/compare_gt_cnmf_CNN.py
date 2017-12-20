@@ -14,6 +14,7 @@ from builtins import range
 from past.utils import old_div
 import cv2
 import glob
+import pickle
 
 try:
     cv2.setNumThreads(1)
@@ -38,7 +39,7 @@ import pylab as pl
 import scipy
 from caiman.utils.visualization import plot_contours, view_patches_bar
 from caiman.source_extraction.cnmf import cnmf as cnmf
-from caiman.components_evaluation import estimate_components_quality
+from caiman.components_evaluation import estimate_components_quality_auto
 from caiman.cluster import setup_cluster
 #%%
 global_params = {'min_SNR': 2,        # minimum SNR when considering adding a new neuron
@@ -290,6 +291,11 @@ params_movies.append(params_movie.copy())
 #%%
 #params_movie = params_movies[4]
 all_perfs = []
+all_rvalues = []
+all_comp_SNR_raw =[] 
+all_comp_SNR_delta = []
+all_predictions = []
+all_labels = []
 reload = False
 plot_on = False
 save_on = False
@@ -516,7 +522,7 @@ for params_movie in np.array(params_movies)[2:3]:
             fitness_delta_min=fitness_delta_min, return_all=True, dview=dview, num_traces_per_group=50, N=N_samples)
         t_eva_comps = time.time() - t1
         print(' ***** ')
-        print((len(traces)))
+        print((len(C)))
         print((len(idx_components)))
         # %% save results
         if save_on:
@@ -524,7 +530,8 @@ for params_movie in np.array(params_movies)[2:3]:
                      A=A,
                      C=C, b=b, f=f, YrA=YrA, sn=sn, d1=d1, d2=d2, idx_components=idx_components,
                      idx_components_bad=idx_components_bad,
-                     fitness_raw=fitness_raw, fitness_delta=fitness_delta, r_values=r_values)
+                     comp_SNR=comp_SNR, comp_SNR_delta=comp_SNR_delta, r_values=r_values, predictionsCNN = predictionsCNN, params_movie = params_movie)
+            
         # %%
         if plot_on:
             pl.subplot(1, 2, 1)
@@ -542,7 +549,8 @@ for params_movie in np.array(params_movies)[2:3]:
                              dims[1], YrA=YrA[idx_components_bad, :], img=Cn)
 
     #%% LOAD DATA
-    if reload:
+    else:
+        
         params_display = {
             'downsample_ratio': .2,
             'thr_plot': 0.8
@@ -609,7 +617,7 @@ for params_movie in np.array(params_movies)[2:3]:
                 final_frate = params_movie['fr']
                 Npeaks = global_params['Npeaks']
                 traces_gt = C_gt + YrA_gt
-                idx_filter_snr, idx_filter_snr_bad, fitness_raw_gt, fitness_delta_gt, r_values_gt = estimate_components_quality(
+                idx_filter_snr, idx_filter_snr_bad, fitness_raw_gt, fitness_delta_gt, r_values_gt = estimate_components_quality_auto(
                     traces_gt, Y, A_gt, C_gt, b_gt, f_gt, final_frate=final_frate, Npeaks=Npeaks, r_values_min=1, fitness_min=-10,
                     fitness_delta_min=-10, return_all=True)
 
@@ -724,7 +732,79 @@ for params_movie in np.array(params_movies)[2:3]:
     print({a: b.astype(np.float16) for a, b in performance_cons_off.items()})
     performance_cons_off['fname_new'] = fname_new
     all_perfs.append(performance_cons_off)
+    all_rvalues.append(r_values)
+    all_comp_SNR_raw.append( comp_SNR)
+    all_comp_SNR_delta.append(comp_SNR_delta )
+    all_predictions.append(predictionsCNN )
+    lbs = np.zeros(len(r_values))
+    lbs[tp_comp] = 1
+    all_labels.append(lbs)
     print(all_perfs)
+    if False:
+        #%% LOGISTIC REGRESSOR
+        from sklearn import linear_model
+        from sklearn.metrics import accuracy_score
+        from sklearn import preprocessing
+        from sklearn import svm
+        from sklearn.neural_network import MLPClassifier
+        from sklearn.model_selection import train_test_split
+        from sklearn.ensemble import RandomForestClassifier
+        
+        X_SNR_delta = (np.clip(np.concatenate(all_comp_SNR_delta),0,20))
+        X_SNR_raw = (np.clip(np.concatenate(all_comp_SNR_raw),0,20))
+        X_r = (np.concatenate(all_rvalues))
+        X_pred = (np.concatenate(all_predictions))
+    #    logreg = linear_model.LogisticRegression( max_iter=100)
+    #    logreg = svm.SVC(kernel = 'rbf')
+        logreg = MLPClassifier(solver='lbfgs', alpha=1e-5,
+                         hidden_layer_sizes=(10,10,5), max_iter = 2000)
+    #    logreg = RandomForestClassifier(max_depth=10)
+        
+        X = np.vstack([X_SNR_delta, X_SNR_raw, X_r, X_pred]).T
+        Y = np.concatenate(all_labels)
+        X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.33)
+    #    X = np.vstack([X_SNR_delta - X_SNR_delta.mean(), X_SNR_raw - X_SNR_raw.mean(), X_r - X_r.mean(), X_pred - X_pred.mean()]).T
+        
+        
+        logreg.fit(X_train, Y_train)
+        Z = logreg.predict(X_test)
+        acc = accuracy_score(Y_test, Z) 
+        print(acc)
+        #%%
+        
+        
+        with open('component_classifier.pkl', 'wb') as fid:
+            pickle.dump(logreg, fid)    
+    # load it again
+        with open('component_classifier.pkl', 'rb') as fid:
+            gnb_loaded = pickle.load(fid)
+        #%%
+        X_SNR_delta = (np.clip(np.concatenate(all_comp_SNR_delta),0,20))
+        X_SNR_raw = (np.clip(np.concatenate(all_comp_SNR_raw),0,20))
+        X_r = (np.concatenate(all_rvalues))
+        X_pred = (np.concatenate(all_predictions))
+        idx_components_r = np.where((X_r >= global_params['rval_thr']))[0]    
+        idx_components_raw = np.where(X_SNR_raw > 2)[0]
+        idx_components_delta = np.where(X_SNR_delta > 1.5)[0]   
+        idx_components_cnn = np.where(X_pred >  global_params['min_cnn_thresh'])[0]
+        bad_comps = np.where((X_r <= global_params['min_rval_thr_rejected']) | (X_SNR_raw <= .5) | (X_pred<=global_params['max_classifier_probability_rejected']))[0]
+        #idx_and_condition_1 = np.where((r_values >= .65) & ((fitness_raw < -20) | (fitness_delta < -20)) )[0]
+        idx_components = np.union1d(idx_components_r, idx_components_raw)
+        idx_components = np.union1d(idx_components, idx_components_delta)
+        idx_components = np.union1d(idx_components,idx_components_cnn)
+        idx_components = np.setdiff1d(idx_components,bad_comps)
+        #idx_components = np.intersect1d(idx_components,idx_size_neuro)
+        #idx_components = np.union1d(idx_components, idx_and_condition_1)
+        #idx_components = np.union1d(idx_components, idx_and_condition_2)
+        lab_manual = np.zeros(len(X_r))
+        lab_manual[idx_components] = 1
+        acc_manual = accuracy_score(Y, lab_manual) 
+        print(acc_manual)
+    #%%
+    if save_on:
+        np.savez(os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:-4] + 'results_comparison_cnn_after_merge_3.npz'),tp_gt = tp_gt, tp_comp = tp_comp, fn_gt = fn_gt, fp_comp = fp_comp,
+                 performance_cons_off = performance_cons_off,idx_components = idx_components, A_gt = A_gt, C_gt = C_gt,
+                 b_gt = b_gt , f_gt = f_gt, dims = dims, YrA_gt = YrA_gt, A = A, C = C, b = b, f = f, YrA = YrA, Cn = Cn)
     #%%
     if plot_on:
         view_patches_bar(Yr, scipy.sparse.coo_matrix(A_gt.tocsc()[:, fn_gt]), C_gt[fn_gt, :], b_gt, f_gt, dims[0], dims[1],

@@ -34,6 +34,8 @@ import cv2
 import sys
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
+
+
 #%%
 
 
@@ -87,6 +89,8 @@ def resize(Y, size, interpolation=cv2.INTER_LINEAR):
 #            return resize_sk(vect, newsize, order = order, mode = 'reflect')
 #
 #    return newvect
+
+
 #%%
 
 
@@ -1072,7 +1076,7 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
         nA = np.ravel(np.sqrt(A.power(2).sum(0)))
         A = np.array(A / nA)
         C *= nA[:, None]
-
+        K = C.shape[0] #need to recompute K as some components may have been eliminated
         print('Compute Background Again')  # on decimated data
         A_ds = downscale(np.reshape(
             A, dims + (-1,), order='F'), (ssub, ssub, 1))

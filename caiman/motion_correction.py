@@ -258,12 +258,14 @@ class MotionCorrect(object):
             self.templates_els: template updated by iterating  over the chunks
             self.x_shifts_els: shifts in x per frame per patch
             self.y_shifts_els: shifts in y per frame per patch
-            self.coord_shifts_els: coordinates associated to the patch for values in x_shifts_els and y_shifts_els
+            self.coord_shifts_els: coordinates associated to the patch for
+            values in x_shifts_els and y_shifts_els
             self.total_template_els: list of templates. one for each chunk
 
         Raise:
         -----
-            Exception('Template contains NaNs, something went wrong. Reconsider the parameters')
+            Exception('Template contains NaNs, something went wrong. Reconsider
+            the parameters')
 
         """
         num_iter = 1

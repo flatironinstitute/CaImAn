@@ -1,12 +1,12 @@
 """ test the principal functions of CaImAn
- 
-use for the nose test and continuous integration devellopment. 
- 
+
+use for the nose test and continuous integration devellopment.
+
 See Also
 ------------
-caiman/tests/comparison/comparison.py 
+caiman/tests/comparison/comparison.py
 
- 
+
 """
 #\package None
 #\version   1.0
@@ -121,7 +121,7 @@ params_display = {
 
 def test_general():
     """  General Test of pipeline with comparison against ground truth
-    A shorter version than the demo pipeline that calls comparison for the real test work 
+    A shorter version than the demo pipeline that calls comparison for the real test work
 
 
 
