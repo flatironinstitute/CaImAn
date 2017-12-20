@@ -181,7 +181,7 @@ print(' ***** ')
 print((len(cnm.C)))
 print((len(idx_components)))
 #%% PLOT ALL COMPONENTS
-crd = cm.utils.visualization.plot_contours(cnm.A, cn_filter, thr=.8, vmax=0.95)
+crd = cm.utils.visualization.plot_contours(cnm.A, cn_filter, thr=.8, vmax=0.99)
 #%% PLOT ONLY GOOD QUALITY COMPONENTS
 crd = cm.utils.visualization.plot_contours(
     cnm.A.tocsc()[:, idx_components], cn_filter, thr=.8, vmax=0.95)
