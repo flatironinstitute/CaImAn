@@ -311,8 +311,8 @@ for fl in glob.glob('*.npz'):
             gSig = ld['gSig']
             # , all_dubious_crops]):
             for class_id, pos in enumerate([all_pos_crops, all_neg_crops]):
-                pos = pos - np.median(pos, axis=(1, 2))[:, None, None]
-                pos = pos / np.std(pos, axis=(1, 2))[:, None, None]
+               # pos = pos - np.median(pos, axis=(1, 2))[:, None, None]
+                #pos = pos / np.std(pos, axis=(1, 2))[:, None, None]
                 total_crops += [cv2.resize(ain / np.linalg.norm(ain),
                                            (patch_size, patch_size)) for ain in pos]
                 total_labels += [class_id] * len(pos)
@@ -323,14 +323,13 @@ for fl in glob.glob('*.npz'):
 rand_perm = np.random.permutation(len(total_crops))
 total_crops = np.array(total_crops)[rand_perm]
 total_labels = np.array(total_labels)[rand_perm]
-np.savez('use_cases/edge-cutter/residual_crops_all_classes_tight.npz',
+np.savez('use_cases/edge-cutter/residual_crops_all_classes_tight_norm.npz',
          all_masks_gt=total_crops, labels_gt=total_labels)
 #%%
-
 pos = np.array(all_neg_crops)[np.random.permutation(len(all_neg_crops))]
 pos = pos - np.median(pos, axis=(1, 2))[:, None, None]
 pos = pos / np.std(pos, axis=(1, 2))[:, None, None]
-cm.movie(pos).play(magnification=7, gain=2, fr=3)
+cm.movie(pos).play(magnification=7, gain=10, fr=3)
 #%%
 crd = cm.utils.visualization.plot_contours(
     A_gt.tocsc()[:, idx_included], Cn, thr=.99)

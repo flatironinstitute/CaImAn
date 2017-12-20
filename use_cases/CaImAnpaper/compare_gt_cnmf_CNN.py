@@ -292,8 +292,8 @@ params_movies.append(params_movie.copy())
 all_perfs = []
 reload = False
 plot_on = False
-save_on = True
-for params_movie in np.array(params_movies)[:]:
+save_on = False
+for params_movie in np.array(params_movies)[2:3]:
     #    params_movie['gnb'] = 3
     params_display = {
         'downsample_ratio': .2,
@@ -732,3 +732,4 @@ for params_movie in np.array(params_movies)[:]:
     #%%
         view_patches_bar(Yr, scipy.sparse.coo_matrix(A.tocsc()[:, idx_components[fp_comp]]), C[idx_components[fp_comp]], b, f, dims[0], dims[1],
                          YrA=YrA[idx_components[fp_comp]], img=Cn)
+#%%
