@@ -69,7 +69,7 @@ We recently incorporated a Python implementation of the OnACID [[5]](#onacid) al
    source activate caiman
    python setup.py build_ext -i   
    ```
-   **Python 3 may have issues** when running in parallel mode (dview is not None) because of bugs in Python/ipyparallel/numpy interaction. Python2 may have fewer issues (edit environment_mac.yml and change the python version there if you wish to use Python 2)
+   **Python 3 may have issues** when running in parallel mode (dview is not None) because of bugs in Python/ipyparallel/numpy interaction. Python2 may have fewer issues
 
 
 * Installation on Linux 
