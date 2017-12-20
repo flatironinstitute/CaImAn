@@ -181,7 +181,7 @@ idx_components, idx_components_bad, SNR_comp, r_values, cnn_preds = \
                                      cnm.YrA, fr, decay_time, gSig, dims,
                                      dview=dview, min_SNR=min_SNR,
                                      r_values_min=rval_thr, use_cnn=False,
-                                     thresh_cnn_lowest=cnn_thr)
+                                     thresh_cnn_min=cnn_thr)
 
 #%% PLOT COMPONENTS
 
