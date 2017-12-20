@@ -3,7 +3,7 @@ channels:
 - defaults
 - menpo
 dependencies:
-- python=3.6
+- python=2.7
 - tensorflow
 - keras
 - future

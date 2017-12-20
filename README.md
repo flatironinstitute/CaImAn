@@ -59,7 +59,7 @@ We recently incorporated a Python implementation of the OnACID [[5]](#onacid) al
 * Installation on Mac
 
    * Download and install Anaconda (Python 2.7 or Python 3.6) <http://docs.continuum.io/anaconda/install>
-     If you wish to use Python 2.7, please use environment_mac_python27.yml below
+     If you wish to use Python 2.7, please use environment_mac_python2.yml below
 
     ```bash
    

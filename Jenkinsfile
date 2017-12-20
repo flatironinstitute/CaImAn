@@ -17,7 +17,7 @@ pipeline {
             CONDA_ENV = "${env.WORKSPACE}/test/${env.STAGE_NAME}"
           }
           steps {
-            sh 'conda env create -q -f environment.yml -p $CONDA_ENV'
+            sh 'conda env create -q -f environment_python2.yml -p $CONDA_ENV'
             sh '''#!/bin/bash -ex
               source $CONDA_ENV/bin/activate $CONDA_ENV
               python setup.py build_ext -i
@@ -93,7 +93,7 @@ pipeline {
             CONDA_ENV = "${env.WORKSPACE}\\test\\${env.STAGE_NAME}"
           }
           steps {
-            bat '%ANACONDA%\\scripts\\conda env create -q -f environment_mac.yml -p %CONDA_ENV%'
+            bat '%ANACONDA%\\scripts\\conda env create -q -f environment_mac_python27.yml -p %CONDA_ENV%'
             bat '%CONDA_ENV%\\scripts\\activate %CONDA_ENV% && python setup.py build_ext -i && nosetests'
           }
         }
