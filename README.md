@@ -59,13 +59,13 @@ We recently incorporated a Python implementation of the OnACID [[5]](#onacid) al
 * Installation on Mac
 
    * Download and install Anaconda (Python 2.7 or Python 3.6) <http://docs.continuum.io/anaconda/install>
-     If you wish to use Python 2.7, please use environment_mac_python2.yml below
+     If you wish to use Python 2.7, please use environment_python2.yml instead of environment.yml
 
     ```bash
    
    git clone https://github.com/flatironinstitute/CaImAn
    cd CaImAn/
-   conda env create -f environment_mac.yml -n caiman
+   conda env create -f environment.yml -n caiman
    source activate caiman
    python setup.py build_ext -i   
    ```
@@ -75,6 +75,7 @@ We recently incorporated a Python implementation of the OnACID [[5]](#onacid) al
 * Installation on Linux 
 
    * Download and install Anaconda (Python 2.7 or Python 3.6) <http://docs.continuum.io/anaconda/install>
+     If you wish to use Python 2.7, please use environment_python2.yml instead of environment.yml
 
    ```bash
    
@@ -82,7 +83,6 @@ We recently incorporated a Python implementation of the OnACID [[5]](#onacid) al
    cd CaImAn/
    conda env create -f environment.yml -n caiman
    source activate caiman   
-   (ONLY FOR PYTHON 2) conda install spyder=3.1
    python setup.py build_ext -i   
    ```
 
@@ -114,7 +114,7 @@ We recently incorporated a Python implementation of the OnACID [[5]](#onacid) al
 	
 	```bash
     
-	conda env create -f environment_mac.yml -n caiman
+	conda env create -f environment.yml -n caiman
     activate caiman   
     python setup.py build_ext -i       
 	conda install numba
@@ -132,9 +132,8 @@ We recently incorporated a Python implementation of the OnACID [[5]](#onacid) al
     git clone  https://github.com/flatironinstitute/CaImAn
     cd CaImAn
     git pull
-    conda env create -f environment_mac.yml -n caiman
+    conda env create -f environment_python2.yml -n caiman
     activate caiman   
-    conda install -c conda-forge tensorflow keras
     python setup.py build_ext -i       
     ```
 

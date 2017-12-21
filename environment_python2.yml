@@ -19,7 +19,7 @@ dependencies:
 - scipy
 - scikit-image
 - scikit-learn
-- spyder
+- spyder=3.1
 - tensorflow
 - tifffile
 - tqdm
