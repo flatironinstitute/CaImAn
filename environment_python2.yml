@@ -3,24 +3,23 @@ channels:
 - defaults
 dependencies:
 - python=2.7
-- tensorflow
-- keras
+- bokeh
+- cython
 - future
-- numpy
-- scipy
+- h5py
 - ipython
 - ipyparallel
 - jupyter
+- keras
 - matplotlib
+- nose
+- numpy
+- opencv
+- peakutils
+- scipy
 - scikit-image
 - scikit-learn
-- h5py
-- cython
 - spyder
-- nose
-- bokeh
+- tensorflow
+- tifffile
 - tqdm
-- opencv
-- pip:
-  - tifffile
-  - peakutils
