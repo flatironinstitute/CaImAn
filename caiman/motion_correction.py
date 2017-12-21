@@ -147,9 +147,14 @@ class MotionCorrect(object):
         Constructor class for motion correction operations
 
         """
+        if 'ndarray' in str(type(fname)):
+            print('Creating file for motion correction "tmp_mov_mot_corr.hdf5"')
+            cm.movie(fname).save('./tmp_mov_mot_corr.hdf5')
+            fname = ['./tmp_mov_mot_corr.hdf5']
+
         if type(fname) is not list:
             fname = [fname]
-            
+
         self.fname=fname
         self.dview=dview
         self.max_shifts=max_shifts
@@ -216,8 +221,9 @@ class MotionCorrect(object):
                 add_to_movie=-self.min_mov,
                 nonneg_movie=self.nonneg_movie,
                 gSig_filt=self.gSig_filt)
+            if template is None:
+                self.total_template_rig = _total_template_rig
 
-            self.total_template_rig = _total_template_rig
             self.templates_rig += _templates_rig
             self.fname_tot_rig += [_fname_tot_rig]
             self.shifts_rig += _shifts_rig
@@ -252,12 +258,14 @@ class MotionCorrect(object):
             self.templates_els: template updated by iterating  over the chunks
             self.x_shifts_els: shifts in x per frame per patch
             self.y_shifts_els: shifts in y per frame per patch
-            self.coord_shifts_els: coordinates associated to the patch for values in x_shifts_els and y_shifts_els
+            self.coord_shifts_els: coordinates associated to the patch for
+            values in x_shifts_els and y_shifts_els
             self.total_template_els: list of templates. one for each chunk
 
         Raise:
         -----
-            Exception('Template contains NaNs, something went wrong. Reconsider the parameters')
+            Exception('Template contains NaNs, something went wrong. Reconsider
+            the parameters')
 
         """
         num_iter = 1
@@ -291,7 +299,9 @@ class MotionCorrect(object):
                     raise Exception(
                         'Template contains NaNs, something went wrong. Reconsider the parameters')
 
-            self.total_template_els = new_template_els
+            if template is None:
+                self.total_template_els = new_template_els
+
             self.fname_tot_els += [_fname_tot_els]
             self.templates_els += _templates_els
             self.x_shifts_els += _x_shifts_els

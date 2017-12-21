@@ -107,7 +107,7 @@ def save_memmap_each(fnames, dview=None, base_name=None, resize_fact=(1, 1, 1), 
         paths to the created memory map files
 
     """
-    
+
     pars = []
     if xy_shifts is None:
         xy_shifts = [None] * len(fnames)
@@ -246,7 +246,7 @@ def save_place_holder(pars):
 def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0, idx_xy=None,
                 order='F', xy_shifts=None, is_3D=False, add_to_movie=0, border_to_0=0, dview = None,
                 n_chunks=20,  async=False):
-    
+
     """ Efficiently write data from a list of tif files into a memory mappable file
 
     Parameters:
@@ -286,14 +286,14 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
     """
     if type(filenames) is not list:
         raise Exception('input should be a list of filenames')
-        
+
     if len(filenames)>1:
         is_inconsistent_order = False
         for file__ in filenames:
             if 'order_' + order not in file__:
                 is_inconsistent_order = True
-           
-        if is_inconsistent_order:         
+
+        if is_inconsistent_order:
             fname_new = cm.save_memmap_each(filenames,
                                         base_name=base_name,
                                         order=order,
@@ -304,23 +304,23 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
                                         idx_xy=idx_xy,
                                         xy_shifts=xy_shifts,
                                         add_to_movie = add_to_movie)
-            
-            
-                         
 
-        fname_new = cm.save_memmap_join(fname_new, base_name=base_name, dview=dview, n_chunks=n_chunks,  async=async)    
-    
-    else:    
+
+
+
+        fname_new = cm.save_memmap_join(fname_new, base_name=base_name, dview=dview, n_chunks=n_chunks)
+
+    else:
     # TODO: can be done online
         Ttot = 0
         for idx, f in enumerate(filenames):
             if isinstance(f, str):
                 print(f)
-    
+
             if is_3D:
                 #import tifffile
                 #            print("Using tifffile library instead of skimage because of  3D")
-    
+
                 Yr = f if not(isinstance(f, basestring)) else tifffile.imread(f)
                 if idx_xy is None:
                     Yr = Yr[remove_init:]
@@ -328,13 +328,13 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
                     Yr = Yr[remove_init:, idx_xy[0], idx_xy[1]]
                 else:
                     Yr = Yr[remove_init:, idx_xy[0], idx_xy[1], idx_xy[2]]
-    
-            else:            
+
+            else:
                 Yr = cm.load(f, fr=1, in_memory=True) if isinstance(f, basestring) else cm.movie(f)
-                
+
                 if xy_shifts is not None:
                     Yr = Yr.apply_shifts(xy_shifts, interpolation='cubic', remove_blanks=False)
-                    
+
                 if idx_xy is None:
                     if remove_init > 0:
                         Yr = Yr[remove_init:]
@@ -343,27 +343,27 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
                 else:
                     raise Exception('You need to set is_3D=True for 3D data)')
                     Yr = np.array(Yr)[remove_init:, idx_xy[0], idx_xy[1], idx_xy[2]]
-    
+
             if border_to_0 > 0:
-    
+
                 min_mov = Yr.calc_min()
                 Yr[:, :border_to_0, :] = min_mov
                 Yr[:, :, :border_to_0] = min_mov
                 Yr[:, :, -border_to_0:] = min_mov
                 Yr[:, -border_to_0:, :] = min_mov
-    
+
             fx, fy, fz = resize_fact
             if fx != 1 or fy != 1 or fz != 1:
-    
+
                 if 'movie' not in str(type(Yr)):
                     Yr = cm.movie(Yr, fr=1)
-    
+
                 Yr = Yr.resize(fx=fx, fy=fy, fz=fz)
-    
+
             T, dims = Yr.shape[0], Yr.shape[1:]
             Yr = np.transpose(Yr, list(range(1, len(dims) + 1)) + [0])
             Yr = np.reshape(Yr, (np.prod(dims), T), order='F')
-    
+
             if idx == 0:
                 fname_tot = base_name + '_d1_' + str(dims[0]) + '_d2_' + str(dims[1]) + '_d3_' + str(
                     1 if len(dims) == 2 else dims[2]) + '_order_' + str(order)
@@ -374,12 +374,12 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
             else:
                 big_mov = np.memmap(fname_tot, dtype=np.float32, mode='r+',
                                     shape=(np.prod(dims), Ttot + T), order=order)
-    
+
             big_mov[:, Ttot:Ttot + T] = np.asarray(Yr, dtype=np.float32) + 1e-10 + add_to_movie
             big_mov.flush()
             del big_mov
             Ttot = Ttot + T
-    
+
         fname_new = fname_tot + '_frames_' + str(Ttot) + '_.mmap'
         try:
             # need to explicitly remove destination on windows
