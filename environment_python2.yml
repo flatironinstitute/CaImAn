@@ -2,7 +2,7 @@ channels:
 - conda-forge
 - defaults
 dependencies:
-- python=3.6
+- python=2.7
 - tensorflow # Must list before keras to preempt default keras backend
 - bokeh
 - cython
@@ -20,6 +20,6 @@ dependencies:
 - scipy
 - scikit-image
 - scikit-learn
-- spyder
+- spyder=3.1
 - tifffile
 - tqdm

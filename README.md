@@ -56,27 +56,26 @@ We recently incorporated a Python implementation of the OnACID [[5]](#onacid) al
 ## Installation for calcium imaging data analysis
 
 
-* Installation on Mac (**Suggested PYTHON 2.7**)
+* Installation on Mac
 
-   * Download and install Anaconda (Python 2.7 or Python 3.5) <http://docs.continuum.io/anaconda/install>
+   * Download and install Anaconda (Python 2.7 or Python 3.6) <http://docs.continuum.io/anaconda/install>
+     If you wish to use Python 2.7, please use environment_python2.yml instead of environment.yml
 
     ```bash
    
    git clone https://github.com/flatironinstitute/CaImAn
    cd CaImAn/
-   conda env create -f environment_mac.yml -n caiman
+   conda env create -f environment.yml -n caiman
    source activate caiman
-   (ONLY FOR PYTHON 2) conda install numpy==1.12  
-   (ONLY FOR PYTHON 2) conda install spyder=3.1
-   conda install -c conda-forge tensorflow keras
    python setup.py build_ext -i   
    ```
-   **Python 3 currently has issues** when running in parallel mode (dview is not None) because of bugs in Python/ipyparallel/numpy interaction. We suggest sticking to Python 2 until this message disappears. If you really want to use it we had some success using conda-forge channel instead of anaconda. You can try that if you are desperate.  
+   **Python 3 may have issues** when running in parallel mode (dview is not None) because of bugs in Python/ipyparallel/numpy interaction. Python2 may have fewer issues
 
 
 * Installation on Linux 
 
-   * Download and install Anaconda (Python 2.7 or Python 3.5) <http://docs.continuum.io/anaconda/install>
+   * Download and install Anaconda (Python 2.7 or Python 3.6) <http://docs.continuum.io/anaconda/install>
+     If you wish to use Python 2.7, please use environment_python2.yml instead of environment.yml
 
    ```bash
    
@@ -84,12 +83,11 @@ We recently incorporated a Python implementation of the OnACID [[5]](#onacid) al
    cd CaImAn/
    conda env create -f environment.yml -n caiman
    source activate caiman   
-   (ONLY FOR PYTHON 2) conda install spyder=3.1
    python setup.py build_ext -i   
    ```
 
 
-   * To make the package available from everywhere and have it working *efficiently* under any configuration ALWAYS run these lines before starting spyder:
+   * To make the package available from everywhere and have it working *efficiently* under any configuration ALWAYS run these commands before starting spyder:
 
    ```bash
    export PYTHONPATH="/path/to/caiman:$PYTHONPATH"
@@ -116,9 +114,8 @@ We recently incorporated a Python implementation of the OnACID [[5]](#onacid) al
 	
 	```bash
     
-	conda env create -f environment_mac.yml -n caiman
+	conda env create -f environment.yml -n caiman
     activate caiman   
-    conda install -c conda-forge tensorflow keras
     python setup.py build_ext -i       
 	conda install numba
 	jupyter notebook --NotebookApp.iopub_data_rate_limit=1.0e10
@@ -135,9 +132,8 @@ We recently incorporated a Python implementation of the OnACID [[5]](#onacid) al
     git clone  https://github.com/flatironinstitute/CaImAn
     cd CaImAn
     git pull
-    conda env create -f environment_mac.yml -n caiman
+    conda env create -f environment_python2.yml -n caiman
     activate caiman   
-    conda install -c conda-forge tensorflow keras
     python setup.py build_ext -i       
     ```
 
