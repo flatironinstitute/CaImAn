@@ -87,7 +87,7 @@ We recently incorporated a Python implementation of the OnACID [[5]](#onacid) al
    ```
 
 
-   * To make the package available from everywhere and have it working *efficiently* under any configuration ALWAYS run these lines before starting spyder:
+   * To make the package available from everywhere and have it working *efficiently* under any configuration ALWAYS run these commands before starting spyder:
 
    ```bash
    export PYTHONPATH="/path/to/caiman:$PYTHONPATH"
