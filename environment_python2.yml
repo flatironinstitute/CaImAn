@@ -3,6 +3,7 @@ channels:
 - defaults
 dependencies:
 - python=2.7
+- tensorflow # Must list before keras to preempt default keras backend
 - bokeh
 - cython
 - future
@@ -20,6 +21,5 @@ dependencies:
 - scikit-image
 - scikit-learn
 - spyder=3.1
-- tensorflow
 - tifffile
 - tqdm
