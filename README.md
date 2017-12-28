@@ -56,7 +56,7 @@ We recently incorporated a Python implementation of the OnACID [[5]](#onacid) al
 ## Installation for calcium imaging data analysis
 
 
-* Installation on Mac (**Suggested PYTHON 2.7**)
+* Installation on Mac (**Suggested PYTHON 3.5**)
 
    * Download and install Anaconda (Python 2.7 or Python 3.5) <http://docs.continuum.io/anaconda/install>
 
@@ -71,7 +71,7 @@ We recently incorporated a Python implementation of the OnACID [[5]](#onacid) al
    conda install -c conda-forge tensorflow keras
    python setup.py build_ext -i   
    ```
-   **Python 3 currently has issues** when running in parallel mode (dview is not None) because of bugs in Python/ipyparallel/numpy interaction. We suggest sticking to Python 2 until this message disappears. If you really want to use it we had some success using conda-forge channel instead of anaconda. You can try that if you are desperate.  
+   **Some possible issues** when running in parallel mode (dview is not None) because of bugs in Python/ipyparallel/numpy interaction, sometimes CaImAn hangs. In this case, we suggest to use dview = None.IN the near future this should be solved, and in the dev branch.  
 
 
 * Installation on Linux 
@@ -125,21 +125,8 @@ We recently incorporated a Python implementation of the OnACID [[5]](#onacid) al
     ```
 
 
-(OUTDATED, NEEDS TESTING)
-
-	(Python 2.7)
-   * Download and install Anaconda (Python 2.7) <http://docs.continuum.io/anaconda/install>, GIT (<https://git-scm.com/>) and Microsoft Visual C++ Compiler for Python 2.7 <https://www.microsoft.com/en-us/download/details.aspx?id=44266>
-
-    ```bash
+  (Python 2.7) not supported in Windows
     
-    git clone  https://github.com/flatironinstitute/CaImAn
-    cd CaImAn
-    git pull
-    conda env create -f environment_mac.yml -n caiman
-    activate caiman   
-    conda install -c conda-forge tensorflow keras
-    python setup.py build_ext -i       
-    ```
 
  
 ### Installation for behavioral analysis
