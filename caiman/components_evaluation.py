@@ -240,6 +240,7 @@ def evaluate_components_CNN(A, dims, gSig, model_name='use_cases/CaImAnpaper/cnn
         os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 
     try:
+        os.environ["KERAS_BACKEND"] = "tensorflow"
         from keras.models import model_from_json
     except:
         print('PROBLEM LOADING KERAS: cannot use classifier')
@@ -432,7 +433,7 @@ def evaluate_components_placeholder(params):
 
 def estimate_components_quality_auto(Y, A, C, b, f, YrA, frate, decay_time, gSig, dims, dview=None, min_SNR=2, r_values_min=0.9,
                                      r_values_lowest=-1, Npeaks=10, use_cnn=True, thresh_cnn_min=0.95, thresh_cnn_lowest=0.1,
-                                     thresh_fitness_delta=-20., min_std_reject=0.5):
+                                     thresh_fitness_delta=-20., min_std_reject=0.5, gSig_range = None):
     ''' estimates the quality of component automatically
 
     Parameters:
@@ -448,6 +449,9 @@ def estimate_components_quality_auto(Y, A, C, b, f, YrA, frate, decay_time, gSig
 
     gSig:
         same as CNMF parameter
+
+    gSig_range: list
+        list of possible neuronal sizes
 
     dims:
         same as CNMF parameter
@@ -518,13 +522,22 @@ def estimate_components_quality_auto(Y, A, C, b, f, YrA, frate, decay_time, gSig
     idx_components = []
     if use_cnn:
         neuron_class = 1  # normally 1
-        predictions, _ = evaluate_components_CNN(A, dims, gSig)
+        if gSig_range is None:
+            predictions, _ = evaluate_components_CNN(A, dims, gSig)
+            predictions = predictions[:, neuron_class]
+        else:
+            predictions = np.zeros(A.shape[-1])
+            for size_range in gSig_range:
+                predictions = np.maximum(predictions,
+                                         evaluate_components_CNN(A, dims, size_range)[0][:, neuron_class])
+
+
         idx_components_cnn = np.where(
-            predictions[:, neuron_class] >= thresh_cnn_min)[0]
+            predictions >= thresh_cnn_min)[0]
         bad_comps = np.where((r_values <= r_values_lowest) | (fitness_raw >= thresh_fitness_raw_reject) | (
-            predictions[:, neuron_class] <= thresh_cnn_lowest))[0]
+            predictions <= thresh_cnn_lowest))[0]
         idx_components = np.union1d(idx_components, idx_components_cnn)
-        cnn_values = predictions[:, 1]
+        cnn_values = predictions
     else:
         bad_comps = np.where((r_values <= r_values_lowest) | (
             fitness_raw >= thresh_fitness_raw_reject))[0]
