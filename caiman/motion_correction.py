@@ -2633,25 +2633,17 @@ def tile_and_correct_wrapper(params):
 
     name, extension = os.path.splitext(img_name)[:2]
 
+    shift_info = []
     if extension == '.tif' or extension == '.tiff':  # check if tiff file
         if is_fiji:
             imgs = imread(img_name)[idxs]
         else:
             imgs = imread(img_name, key=idxs)
-        mc = np.zeros(imgs.shape, dtype=np.float32)
-        shift_info = []
     elif extension == '.sbx':  # check if sbx file
         imgs = cm.base.movies.sbxread(name, idxs[0], len(idxs))
-        mc = np.zeros(imgs.shape, dtype=np.float32)
-        shift_info = []
-    elif extension == '.hdf5':
+    elif extension == '.sima' or extension == '.hdf5' or extension == '.h5':
         imgs = cm.load(img_name, subindices=list(idxs))
-        mc = np.zeros(imgs.shape, dtype=np.float32)
-        shift_info = []
-    elif extension == '.h5':
-        imgs = cm.load(img_name, subindices=list(idxs))
-        mc = np.zeros(imgs.shape, dtype=np.float32)
-        shift_info = []
+    mc = np.zeros(imgs.shape, dtype=np.float32)
     for count, img in enumerate(imgs):
         if count % 10 == 0:
             print(count)
@@ -2707,6 +2699,14 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
         d2 = shape[0]
         T = shape[2]
 
+    elif extension == '.sima':  # check if sbx file
+        import sima
+        dataset = sima.ImagingDataset.load(fname)
+        shape = dataset.sequences[0].shape
+        d1 = shape[2]
+        d2 = shape[3]
+        T = shape[0]
+        del dataset
     elif extension == '.npy':
         raise Exception('Numpy not supported at the moment')
 
