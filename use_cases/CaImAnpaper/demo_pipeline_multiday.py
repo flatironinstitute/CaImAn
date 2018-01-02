@@ -138,9 +138,8 @@ cm.movie(mov_templates)[::10].play(gain = 10., offset = -min_mov_templates, magn
 #%%
 names_tots = glob.glob('/mnt/ceph/neuro/Sue/k53/20160530/*_F_*.mmap')
 names_tots.sort()
+print(names_tots)
 #%%
-from caiman.summary_images import correlation_image_ecobost
-dview.terminate()
 c, dview, n_processes = cm.cluster.setup_cluster(
     backend='local', n_processes=10, single_thread=False)
 
@@ -233,10 +232,10 @@ cnm2 = cnm2.fit(images)
 min_SNR = 2.5               # signal to noise ratio for accepting a component
 rval_thr = 0.85              # space correlation threshold for accepting a component
 cnn_thr = 0.95               # threshold for CNN based classifier
-thresh_cnn_lowest = 0.5
+thresh_cnn_lowest = 0.1
 idx_components, idx_components_bad, SNR_comp, r_values, cnn_preds = \
-    estimate_components_quality_auto(images, cnm.A, cnm.C, cnm.b, cnm.f,
-                                     cnm.YrA, fr, decay_time, gSig, dims,
+    estimate_components_quality_auto(images, cnm2.A, cnm2.C, cnm2.b, cnm2.f,
+                                     cnm2.YrA, fr, decay_time, gSig, dims,
                                      dview=dview, min_SNR=min_SNR,
                                      r_values_min=rval_thr, use_cnn=True,
                                      thresh_cnn_min=cnn_thr, thresh_cnn_lowest = thresh_cnn_lowest)
@@ -251,32 +250,16 @@ np.savez(os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:
 plt.figure()
 plt.subplot(121)
 crd_good = cm.utils.visualization.plot_contours(
-    cnm2.A[:, idx_components], Cn, thr=.8, vmax=0.95)
+    cnm2.A[:, idx_components], Cn, thr=.96, vmax=0.5)
 plt.title('Contour plots of accepted components')
 plt.subplot(122)
 crd_bad = cm.utils.visualization.plot_contours(
-    cnm2.A[:, idx_components_bad], Cn, thr=.8, vmax=0.95)
+    cnm2.A[:, idx_components_bad], Cn, thr=.96, vmax=0.5)
 plt.title('Contour plots of rejected components')
+#%%
 
 #%% Extract DF/F values
 
 F_dff = detrend_df_f(cnm2.A[:, idx_components], cnm2.b, cnm2.C[idx_components], cnm2.f, YrA=cnm2.YrA[idx_components],
                      quantileMin=8, frames_window=250)
 
-#%% Show final traces
-cnm2.view_patches(Yr, dims=dims, img=Cn)
-
-#%% STOP CLUSTER and clean up log files
-cm.stop_server(dview=dview)
-log_files = glob.glob('*_LOG_*')
-for log_file in log_files:
-    os.remove(log_file)
-
-#%% reconstruct denoised movie
-denoised = cm.movie(cnm2.A.dot(cnm2.C) +
-                    cnm2.b.dot(cnm2.f)).reshape(dims + (-1,), order='F').transpose([2, 0, 1])
-
-#%% play along side original data
-cm.concatenate([m_els.resize(1, 1, downsample_ratio),
-                denoised.resize(1, 1, downsample_ratio)],
-               axis=2).play(fr=60, gain=15, magnification=2, offset=0)  # press q to exit
