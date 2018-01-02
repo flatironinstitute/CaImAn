@@ -374,6 +374,9 @@ def register_ROIs(A1, A2, dims, template1=None, template2=None, align_flag=True,
     performance:  list
         (precision, recall, accuracy, f_1 score) with A1 taken as ground truth
 
+    A2: csc_matrix  # pixels x # of components
+        ROIs from session 2 aligned to session 1
+    
     """
 
     if template1 is None or template2 is None:
@@ -492,8 +495,80 @@ def register_ROIs(A1, A2, dims, template1=None, template2=None, align_flag=True,
 #            print("not able to plot precision recall usually because we are on travis")
 #            print(e)
 
-    return matched_ROIs1, matched_ROIs2, non_matched1, non_matched2, performance
+    return matched_ROIs1, matched_ROIs2, non_matched1, non_matched2, performance, A2
 
+#%% register multi session ROIs
+    
+def register_multisession(A, dims, templates = [None], align_flag=True, thresh_cost=.7, max_dist=10, enclosed_thr=None):
+    """
+    Register ROIs across multiple sessions using an intersection over union metric
+    and the Hungarian algorithm for optimal matching. Registration occurs by 
+    aligning session 1 to session 2, keeping the union of the matched and 
+    non-matched components to register with session 3 and so on.
+
+    Parameters:
+    -----------
+
+    A: list of ndarray or csc_matrix matrices # pixels x # of components
+       ROIs from each session
+
+    dims: list or tuple
+        dimensionality of the FOV
+
+    template: list of ndarray matrices of size dims
+        templates from each session
+
+    align_flag: bool
+        align the templates before matching
+
+    thresh_cost: scalar
+        maximum distance considered
+
+    max_dist: scalar
+        max distance between centroids
+
+    enclosed_thr: float
+        if not None set distance to at most the specified value when ground truth is a subset of inferred
+
+    Returns:
+    --------
+    
+    A_union: csc_matrix # pixels x # of total distinct components
+        union of all kept ROIs 
+        
+    matchings: list of lists
+        matchings[i][j] = k means that component j from session i is represented
+        by component k in A_union
+    
+    matched_ROIs1: list
+        indeces of matched ROIs from session 1
+
+    matched_ROIs2: list
+        indeces of matched ROIs from session 2
+
+    non_matched1: list
+        indeces of non-matched ROIs from session 1
+
+    non_matched2: list
+        indeces of non-matched ROIs from session 1
+
+    performance:  list
+        (precision, recall, accuracy, f_1 score) with A1 taken as ground truth
+
+    A2: csc_matrix  # pixels x # of components
+        ROIs from session 2 aligned to session 1
+    
+    """
+    
+    n_sessions = len(A)
+    templates = list(templates)
+    if len(templates) == 1:
+        templates = n_sessions*templates
+        
+    if n_sessions <= 1:
+        raise Exception('number of sessions must be greater than 1')
+
+    A = [scipy.sparse.csc_matrix(a) if 'csc_matrix' not in str(type(a)) else a for a in A]
 
 #%% threshold
 def norm_nrg(a_):
