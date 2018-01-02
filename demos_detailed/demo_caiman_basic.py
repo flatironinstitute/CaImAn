@@ -101,14 +101,14 @@ decay_time = 5.0    # length of transient
 min_SNR = 2.5       # peak SNR for accepted components (if above this, acept)
 rval_thr = 0.90     # space correlation threshold (if above this, accept)
 use_cnn = True     # use the CNN classifier
-min_cnn_thr = 0.10  # if cnn classifier predicts below this value, reject
+min_cnn_thr = 0.95  # if cnn classifier predicts below this value, reject
 
 idx_components, idx_components_bad, SNR_comp, r_values, cnn_preds = \
     estimate_components_quality_auto(images, cnm.A, cnm.C, cnm.b, cnm.f,
                                      cnm.YrA, fr, decay_time, gSig, dims,
                                      dview=dview, min_SNR=min_SNR,
                                      r_values_min=rval_thr, use_cnn=use_cnn,
-                                     thresh_cnn_lowest=min_cnn_thr)
+                                     thresh_cnn_min=min_cnn_thr)
 
 
 #%% visualize selected and rejected components
