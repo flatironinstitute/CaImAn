@@ -68,17 +68,21 @@ plt.figure()
 match2_23, match3_23, mis2_23, mis3_23, perf_23 = register_ROIs(
     A2, A3, dims, plot_results=True, template1=Cn2, template2=Cn3)
 
-#plt.figure()
-#match1_13, match3_13, mis1_13, mis3_13, perf_13 = register_ROIs(
-#    A1, A3, dims, plot_results=True, template1=Cn1, template2=Cn3)
+plt.figure()
+match1_13, match3_13, mis1_13, mis3_13, perf_13 = register_ROIs(
+    A1, A3, dims, plot_results=True, template1=Cn1, template2=Cn3)
 #%%
 match2_12 = list(match2_12)
 match2_23 = list(match2_23)
 # ROIs in session 2 that are registered against both session 1 and session 3
-ind_2 = list(set(match2_12).intersection(match2_23))
-ind_1 = [match1_12[match2_12.index(x)] for x in ind_2]
-ind_3 = [match3_23[match2_23.index(x)] for x in ind_2]
+ind2_12_23 = list(set(match2_12).intersection(match2_23))
 
+ind1_12_23 = [match1_12[match2_12.index(x)] for x in ind2_12_23 ]
+ind3_12_23 = [match3_23[match2_23.index(x)] for x in ind2_12_23 ]
+#%%
+ind_1_tot = np.array(np.unique(np.setdiff1d(list(match1_12)+list(match1_13),ind1_12_23)))
+ind_2_tot = np.array(np.unique(np.setdiff1d(list(match2_12)+list(match2_23),ind2_12_23)))
+ind_3_tot = np.array(np.unique(np.setdiff1d(list(match3_13)+list(match3_23),ind3_12_23)))
 #%% make figure
 def norm_nrg(a_):
 
@@ -113,11 +117,11 @@ plt.rc('font', **font)
 lp, hp = np.nanpercentile(Cn, [5, 98])
 plt.imshow(Cn, vmin=lp, vmax=hp, cmap='gray')
 [plt.contour(norm_nrg(mm), levels=[level], colors='b', linewidths=1)
- for mm in masks_1[ind_1]]
+ for mm in masks_1[ind1_12_23]]
 [plt.contour(norm_nrg(mm), levels=[level], colors='r', linewidths=1)
- for mm in masks_2[ind_2]]
+ for mm in masks_2[ind2_12_23 ]]
 [plt.contour(norm_nrg(mm), levels=[level], colors='y', linewidths=1)
- for mm in masks_3[ind_3]]
+ for mm in masks_3[ind3_12_23]]
 # plt.legend(('Day1','Day2','Day3'))
 plt.title('Matched components across multiple days')
 plt.axis('off')
@@ -129,4 +133,20 @@ plt.legend(handles=[day1, day2, day3], loc=4)
 
 plt.show()
 #%%
-#plt.imshow(np.dstack([masks_1[ind_1].sum(0), masks_2[ind_2].sum(0), masks_3[ind_3].sum(0)]))
+plt.imshow(Cn, vmin=lp, vmax=hp, cmap='gray')
+[plt.contour(norm_nrg(mm), levels=[level], colors='b', linewidths=1)
+ for mm in masks_1[ind_1_tot]]
+[plt.contour(norm_nrg(mm), levels=[level], colors='r', linewidths=1)
+ for mm in masks_2[ind_2_tot]]
+[plt.contour(norm_nrg(mm), levels=[level], colors='y', linewidths=1)
+ for mm in masks_3[ind_3_tot]]
+# plt.legend(('Day1','Day2','Day3'))
+plt.title('Matched components across multiple days')
+plt.axis('off')
+
+day1 = mlines.Line2D([], [], color='b', label='Day 1')
+day2 = mlines.Line2D([], [], color='r', label='Day 2')
+day3 = mlines.Line2D([], [], color='y', label='Day 3')
+plt.legend(handles=[day1, day2, day3], loc=4)
+
+plt.show()
