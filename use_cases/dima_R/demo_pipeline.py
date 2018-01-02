@@ -48,44 +48,40 @@ from caiman.components_evaluation import estimate_components_quality_auto
 #%% First setup some parameters
 
 # dataset dependent parameters
-fname = ['Sue_2x_3000_40_-46.tif']  # filename to be processed
-fr = 30                             # imaging rate in frames per second
+fname = ['JG10982_171121_field3_stim_00002_00001.tif']                          # imaging rate in frames per second
 decay_time = 0.4                    # length of a typical transient in seconds
 
 # motion correction parameters
 niter_rig = 1               # number of iterations for rigid motion correction
-max_shifts = (6, 6)         # maximum allow rigid shift
+max_shifts = (12, 12)         # maximum allow rigid shift
 # for parallelization split the movies in  num_splits chuncks across time
-splits_rig = 56
+splits_rig = 20
 # start a new patch for pw-rigid motion correction every x pixels
 strides = (48, 48)
 # overlap between pathes (size of patch strides+overlaps)
 overlaps = (24, 24)
 # for parallelization split the movies in  num_splits chuncks across time
-splits_els = 56
+splits_els = 20
 upsample_factor_grid = 4    # upsample factor to avoid smearing when merging patches
 # maximum deviation allowed for patch with respect to rigid shifts
 max_deviation_rigid = 3
 
 # parameters for source extraction and deconvolution
 p = 1                       # order of the autoregressive system
-gnb = 2                     # number of global background components
+gnb = 10                     # number of global background components
 merge_thresh = 0.8          # merging threshold, max correlation allowed
 # half-size of the patches in pixels. e.g., if rf=25, patches are 50x50
-rf = 15
+rf = 20
 stride_cnmf = 6             # amount of overlap between the patches in pixels
 K = 4                       # number of components per patch
-gSig = [4, 4]               # expected half size of neurons
+gSig = [5, 5]               # expected half size of neurons
 # initialization method (if analyzing dendritic data using 'sparse_nmf')
 init_method = 'greedy_roi'
 is_dendrites = False        # flag for analyzing dendritic data
 # sparsity penalty for dendritic data analysis through sparse NMF
 alpha_snmf = None
 
-# parameters for component evaluation
-min_SNR = 2.5               # signal to noise ratio for accepting a component
-rval_thr = 0.8              # space correlation threshold for accepting a component
-cnn_thr = 0.8               # threshold for CNN based classifier
+
 
 #%% download the dataset if it's not present in your folder
 if fname[0] in ['Sue_2x_3000_40_-46.tif', 'demoMovieJ.tif']:
@@ -100,13 +96,11 @@ m_orig = cm.load_movie_chain(fname[:1])
 downsample_ratio = 0.2
 offset_mov = -np.min(m_orig[:100])
 m_orig.resize(1, 1, downsample_ratio).play(
-    gain=10, offset=offset_mov, fr=30, magnification=2)
+    gain=10, offset=offset_mov, fr=30, magnification=1)
 
 #%% start a cluster for parallel processing
 c, dview, n_processes = cm.cluster.setup_cluster(
     backend='local', n_processes=None, single_thread=False)
-
-
 #%%% MOTION CORRECTION
 # first we create a motion correction object with the parameters specified
 min_mov = cm.load(fname[0], subindices=range(200)).min()
@@ -122,22 +116,22 @@ mc = MotionCorrect(fname[0], min_mov,
 # note that the file is not loaded in memory
 
 #%% Run piecewise-rigid motion correction using NoRMCorre
-mc.motion_correct_pwrigid(save_movie=True)
-m_els = cm.load(mc.fname_tot_els)
-bord_px_els = np.ceil(np.maximum(np.max(np.abs(mc.x_shifts_els)),
-                                 np.max(np.abs(mc.y_shifts_els)))).astype(np.int)
+mc.motion_correct_rigid(save_movie=True)
+#%%
+m_els = cm.load(mc.fname_tot_rig)
+bord_px_els = np.max(np.ceil(np.abs(mc.shifts_rig))).astype(np.int)
 # maximum shift to be used for trimming against NaNs
 #%% compare with original movie
 cm.concatenate([m_orig.resize(1, 1, downsample_ratio) + offset_mov,
                 m_els.resize(1, 1, downsample_ratio)],
-               axis=2).play(fr=60, gain=15, magnification=2, offset=0)  # press q to exit
+               axis=2).play(fr=60, gain=1, magnification=1, offset=0)  # press q to exit
 
 #%% MEMORY MAPPING
 # memory map the file in order 'C'
-fnames = mc.fname_tot_els   # name of the pw-rigidly corrected file.
+fnames = mc.fname_tot_rig   # name of the pw-rigidly corrected file.
 border_to_0 = bord_px_els     # number of pixels to exclude
 fname_new = cm.save_memmap(fnames, base_name='memmap_', order='C',
-                           border_to_0=bord_px_els)  # exclude borders
+                           border_to_0=border_to_0)  # exclude borders
 
 # now load the file
 Yr, dims, T = cm.load_memmap(fname_new)
@@ -149,7 +143,11 @@ images = np.reshape(Yr.T, [T] + list(dims), order='F')
 dview.terminate()
 c, dview, n_processes = cm.cluster.setup_cluster(
     backend='local', n_processes=None, single_thread=False)
-
+#%%
+Cn = cm.local_correlations(images.transpose(1, 2, 0))
+Cn[np.isnan(Cn)] = 0
+plt.figure()
+plt.imshow(Cn,vmax = np.percentile(Cn,95))
 #%% RUN CNMF ON PATCHES
 
 # First extract spatial and temporal components on patches and combine them
@@ -159,62 +157,62 @@ t1 = time.time()
 cnm = cnmf.CNMF(n_processes=1, k=K, gSig=gSig, merge_thresh=merge_thresh,
                 p=0, dview=dview, rf=rf, stride=stride_cnmf, memory_fact=1,
                 method_init=init_method, alpha_snmf=alpha_snmf,
-                only_init_patch=False, gnb=gnb, border_pix=bord_px_els)
+                only_init_patch=False, gnb=gnb, border_pix=bord_px_els, nb_patch=2, low_rank_background=False)
 cnm = cnm.fit(images)
 
 #%% plot contours of found components
-Cn = cm.local_correlations(images.transpose(1, 2, 0))
-Cn[np.isnan(Cn)] = 0
 plt.figure()
 crd = plot_contours(cnm.A, Cn, thr=0.9)
 plt.title('Contour plots of found components')
 
+#%% RE-RUN seeded CNMF on accepted patches to refine and perform deconvolution
+A_in, C_in, b_in, f_in = cnm.A[:,
+                               :], cnm.C[:], cnm.b, cnm.f
+cnm2 = cnmf.CNMF(n_processes=1, k=A_in.shape[-1], gSig=gSig, p=p, dview=dview,
+                 merge_thresh=merge_thresh, Ain=A_in, Cin=C_in, b_in=b_in,
+                 f_in=f_in, rf=None, stride=None, gnb=gnb,
+                 method_deconvolution='oasis', check_nan=True, low_rank_background=False)
+
+cnm2 = cnm2.fit(images)
 
 #%% COMPONENT EVALUATION
 # the components are evaluated in three ways:
 #   a) the shape of each component must be correlated with the data
 #   b) a minimum peak SNR is required over the length of a transient
 #   c) each shape passes a CNN based classifier
+# parameters for component evaluation
+min_SNR = 1               # signal to noise ratio for accepting a component
+rval_thr = 0.8              # space correlation threshold for accepting a component
+cnn_thr = 0.5               # threshold for CNN based classifier
+
+
 
 idx_components, idx_components_bad, SNR_comp, r_values, cnn_preds = \
-    estimate_components_quality_auto(images, cnm.A, cnm.C, cnm.b, cnm.f,
-                                     cnm.YrA, fr, decay_time, gSig, dims,
+    estimate_components_quality_auto(images, cnm2.A, cnm2.C, cnm2.b, cnm2.f,
+                                     cnm2.YrA, fr, decay_time, gSig, dims,
                                      dview=dview, min_SNR=min_SNR,
                                      r_values_min=rval_thr, use_cnn=False,
-                                     thresh_cnn_min=cnn_thr)
+                                     thresh_cnn_min=cnn_thr, gSig_range = [list(np.add(i*2,a)) for i,a in enumerate([gSig]*5)])
 
 #%% PLOT COMPONENTS
-
 plt.figure()
 plt.subplot(121)
 crd_good = cm.utils.visualization.plot_contours(
-    cnm.A[:, idx_components], Cn, thr=.8, vmax=0.75)
+    cnm2.A[:, idx_components], Cn, thr=.95, vmax=0.25)
 plt.title('Contour plots of accepted components')
 plt.subplot(122)
 crd_bad = cm.utils.visualization.plot_contours(
-    cnm.A[:, idx_components_bad], Cn, thr=.8, vmax=0.75)
+    cnm2.A[:, idx_components_bad], Cn, thr=.95, vmax=0.25)
 plt.title('Contour plots of rejected components')
 
 #%% VIEW TRACES (accepted and rejected)
-
-view_patches_bar(Yr, cnm.A.tocsc()[:, idx_components], cnm.C[idx_components],
-                 cnm.b, cnm.f, dims[0], dims[1], YrA=cnm.YrA[idx_components],
+view_patches_bar(Yr, cnm2.A.tocsc()[:, idx_components], cnm2.C[idx_components],
+                 cnm2.b, cnm2.f, dims[0], dims[1], YrA=cnm2.YrA[idx_components],
                  img=Cn)
 
-view_patches_bar(Yr, cnm.A.tocsc()[:, idx_components_bad], cnm.C[idx_components_bad],
-                 cnm.b, cnm.f, dims[0], dims[1], YrA=cnm.YrA[idx_components_bad],
+view_patches_bar(Yr, cnm2.A.tocsc()[:, idx_components_bad], cnm2.C[idx_components_bad],
+                 cnm2.b, cnm2.f, dims[0], dims[1], YrA=cnm2.YrA[idx_components_bad],
                  img=Cn)
-
-#%% RE-RUN seeded CNMF on accepted patches to refine and perform deconvolution
-A_in, C_in, b_in, f_in = cnm.A[:,
-                               idx_components], cnm.C[idx_components], cnm.b, cnm.f
-cnm2 = cnmf.CNMF(n_processes=1, k=A_in.shape[-1], gSig=gSig, p=p, dview=dview,
-                 merge_thresh=merge_thresh, Ain=A_in, Cin=C_in, b_in=b_in,
-                 f_in=f_in, rf=None, stride=None, gnb=gnb,
-                 method_deconvolution='oasis', check_nan=True)
-
-cnm2 = cnm2.fit(images)
-
 #%% Extract DF/F values
 
 F_dff = detrend_df_f(cnm2.A, cnm2.b, cnm2.C, cnm2.f, YrA=cnm2.YrA,
