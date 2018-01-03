@@ -21,9 +21,9 @@ from scipy.io import loadmat
 from scipy.sparse import csc_matrix
 from glob import glob
 
-files = ['/mnt/ceph/neuro/Sue/k53/20160530/memmap__d1_512_d2_512_d3_1_order_C_frames_27000_.results_analysis.npz',
-         '/mnt/ceph/neuro/Sue/k53/20160531/memmap__d1_512_d2_512_d3_1_order_C_frames_27000_.results_analysis.npz',
-         '/mnt/ceph/neuro/Sue/k53/20160603/memmap__d1_512_d2_512_d3_1_order_C_frames_27000_.results_analysis.npz']
+files = ['/Users/epnevmatikakis/Desktop/untitled folder/20160530/memmap__d1_512_d2_512_d3_1_order_C_frames_27000_.results_analysis.npz',
+         '/Users/epnevmatikakis/Desktop/untitled folder/20160531/memmap__d1_512_d2_512_d3_1_order_C_frames_27000_.results_analysis.npz',
+         '/Users/epnevmatikakis/Desktop/untitled folder/20160603/memmap__d1_512_d2_512_d3_1_order_C_frames_27000_.results_analysis.npz']
 
 #%% load data
 data = []
@@ -53,15 +53,68 @@ crd_good = cm.utils.visualization.plot_contours(
 A1 = csc_matrix(A1 / A1.sum(0))
 A2 = csc_matrix(A2 / A2.sum(0))
 A3 = csc_matrix(A3 / A3.sum(0))
+
 #%% match consecutive pairs
 
-from caiman.base.rois import register_ROIs
+from caiman.base.rois import register_ROIs, register_multisession
 import matplotlib.pyplot as plt
 import matplotlib.lines as mlines
 import numpy as np
 
+
+#%% match using multisession function
 dims = 512, 512
-match1_12, match2_12, mis1_12, mis2_12, perf_12 = register_ROIs(
+
+A_union, assignments, _ = register_multisession([A1, A2, A3], dims, Cns)
+
+triplets = assignments[np.where(np.isnan(assignments).sum(1) == 0)].astype(int)
+    # extract triplets
+    
+matches_13 = assignments[np.intersect1d(
+        np.where(np.isnan(assignments).sum(1) == 1), 
+        np.where(np.isnan(assignments[:,1])))].astype(int)
+    # example on how to extract components that are active on only days 1 and 3
+#%% do some plotting    
+    
+Cn = np.reshape(A1.sum(axis=1) + A2.sum(axis=1) +
+                A3.sum(axis=1), (512, 512), order='F')
+plt.figure()
+masks_1 = np.reshape(A1.toarray(), dims + (-1,),
+                     order='F').transpose(2, 0, 1)
+masks_2 = np.reshape(A2.toarray(), dims + (-1,),
+                     order='F').transpose(2, 0, 1)
+masks_3 = np.reshape(A3.toarray(), dims + (-1,),
+                     order='F').transpose(2, 0, 1)
+#        try : #Plotting function
+level = 0.95
+
+plt.rcParams['pdf.fonttype'] = 42
+font = {'family': 'Myriad Pro',
+        'weight': 'regular',
+        'size': 10}
+plt.rc('font', **font)
+lp, hp = np.nanpercentile(Cn, [5, 98])
+plt.imshow(Cn, vmin=lp, vmax=hp, cmap='gray')
+[plt.contour(norm_nrg(mm), levels=[level], colors='b', linewidths=1)
+ for mm in masks_1[triplets[:,0]]]
+[plt.contour(norm_nrg(mm), levels=[level], colors='r', linewidths=1)
+ for mm in masks_2[triplets[:,1]]]
+[plt.contour(norm_nrg(mm), levels=[level], colors='y', linewidths=1)
+ for mm in masks_3[triplets[:,2]]]
+# plt.legend(('Day1','Day2','Day3'))
+plt.title('Matched components across multiple days')
+plt.axis('off')
+
+day1 = mlines.Line2D([], [], color='b', label='Day 1')
+day2 = mlines.Line2D([], [], color='r', label='Day 2')
+day3 = mlines.Line2D([], [], color='y', label='Day 3')
+plt.legend(handles=[day1, day2, day3], loc=4)
+
+plt.show()    
+#%%
+
+dims = 512, 512
+match1_12, match2_12, mis1_12, mis2_12, perf_12, A2_12 = register_ROIs(
     A1, A2, dims, plot_results=True, template1=Cn1, template2=Cn2)
 plt.figure()
 

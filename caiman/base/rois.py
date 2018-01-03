@@ -369,7 +369,7 @@ def register_ROIs(A1, A2, dims, template1=None, template2=None, align_flag=True,
         indeces of non-matched ROIs from session 1
 
     non_matched2: list
-        indeces of non-matched ROIs from session 1
+        indeces of non-matched ROIs from session 2
 
     performance:  list
         (precision, recall, accuracy, f_1 score) with A1 taken as ground truth
@@ -378,6 +378,11 @@ def register_ROIs(A1, A2, dims, template1=None, template2=None, align_flag=True,
         ROIs from session 2 aligned to session 1
     
     """
+
+    if 'csc_matrix' not in str(type(A1)):
+        A1 = scipy.sparse.csc_matrix(A1)
+    if 'csc_matrix' not in str(type(A2)):
+        A2 = scipy.sparse.csc_matrix(A2)
 
     if template1 is None or template2 is None:
         align_flag = False
@@ -536,28 +541,14 @@ def register_multisession(A, dims, templates = [None], align_flag=True, thresh_c
     A_union: csc_matrix # pixels x # of total distinct components
         union of all kept ROIs 
         
+    assignments: ndarray int of size # of total distinct components x # sessions
+        element [i,j] = k if component k from session j is mapped to component
+        i in the A_union matrix. If there is no much the value is NaN
+    
     matchings: list of lists
         matchings[i][j] = k means that component j from session i is represented
         by component k in A_union
-    
-    matched_ROIs1: list
-        indeces of matched ROIs from session 1
-
-    matched_ROIs2: list
-        indeces of matched ROIs from session 2
-
-    non_matched1: list
-        indeces of non-matched ROIs from session 1
-
-    non_matched2: list
-        indeces of non-matched ROIs from session 1
-
-    performance:  list
-        (precision, recall, accuracy, f_1 score) with A1 taken as ground truth
-
-    A2: csc_matrix  # pixels x # of components
-        ROIs from session 2 aligned to session 1
-    
+        
     """
     
     n_sessions = len(A)
@@ -568,8 +559,35 @@ def register_multisession(A, dims, templates = [None], align_flag=True, thresh_c
     if n_sessions <= 1:
         raise Exception('number of sessions must be greater than 1')
 
-    A = [scipy.sparse.csc_matrix(a) if 'csc_matrix' not in str(type(a)) else a for a in A]
-
+    A = [a.toarray() if 'ndarray' not in str(type(a)) else a for a in A]
+    
+    A_union = A[0].copy()
+    matchings = []
+    matchings.append(list(range(A_union.shape[-1])))
+    
+    for sess in range(1,n_sessions):
+        reg_results = register_ROIs(A[sess], A_union, dims, 
+                                    template1 = templates[sess], 
+                                    template2 = templates[sess-1], align_flag=True, 
+                                    thresh_cost = thresh_cost, max_dist = max_dist, 
+                                    enclosed_thr = enclosed_thr)
+        
+        mat_sess, mat_un, nm_sess, nm_un, _, A2 = reg_results
+        A_union = A2.copy()
+        A_union[:,mat_un] = A[sess][:,mat_sess]
+        #import pdb
+        #pdb.set_trace()
+        A_union = np.concatenate((A_union.toarray(), A[sess][:,nm_sess]), axis = 1)
+        new_match = np.zeros(A[sess].shape[-1], dtype = int)
+        new_match[mat_sess] = mat_un
+        new_match[nm_sess] = range(A2.shape[-1],A_union.shape[-1])
+        matchings.append(new_match.tolist())
+    
+    assignments = np.empty((A_union.shape[-1], n_sessions))*np.nan
+    for sess in range(n_sessions):
+        assignments[matchings[sess],sess] = range(len(matchings[sess]))
+    
+    return A_union, assignments, matchings
 #%% threshold
 def norm_nrg(a_):
 
