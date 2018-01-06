@@ -306,11 +306,13 @@ def nf_match_neurons_in_binary_masks(masks_gt, masks_comp, thresh_cost=.7, min_d
 #%% register_ROIs largely follows the function nf_match_neurons_in_binary_masks
 
 
-def register_ROIs(A1, A2, dims, template1=None, template2=None, align_flag=True, D=None, thresh_cost=.7, max_dist=10, enclosed_thr=None,
-                  print_assignment=False, plot_results=False, Cn=None, cmap='viridis'):
+def register_ROIs(A1, A2, dims, template1=None, template2=None, align_flag=True, 
+                  D=None, max_thr = 0, use_opt_flow = True, thresh_cost=.7, 
+                  max_dist=10, enclosed_thr=None, print_assignment=False, 
+                  plot_results=False, Cn=None, cmap='viridis'):
     """
-    Register ROIs across different sessions using an intersection over union metric
-    and the Hungarian algorithm for optimal matching
+    Register ROIs across different sessions using an intersection over union 
+    metric and the Hungarian algorithm for optimal matching
 
     Parameters:
     -----------
@@ -336,6 +338,12 @@ def register_ROIs(A1, A2, dims, template1=None, template2=None, align_flag=True,
     D: ndarray
         matrix of distances in the event they are pre-computed
 
+    max_thr: scalar
+        max threshold parameter before binarization    
+    
+    use_opt_flow: bool
+        use dense optical flow to align templates
+    
     thresh_cost: scalar
         maximum distance considered
 
@@ -343,7 +351,8 @@ def register_ROIs(A1, A2, dims, template1=None, template2=None, align_flag=True,
         max distance between centroids
 
     enclosed_thr: float
-        if not None set distance to at most the specified value when ground truth is a subset of inferred
+        if not None set distance to at most the specified value when ground 
+        truth is a subset of inferred
 
     print_assignment: bool
         print pairs of matched ROIs
@@ -379,43 +388,66 @@ def register_ROIs(A1, A2, dims, template1=None, template2=None, align_flag=True,
     
     """
 
-    if 'csc_matrix' not in str(type(A1)):
-        A1 = scipy.sparse.csc_matrix(A1)
-    if 'csc_matrix' not in str(type(A2)):
-        A2 = scipy.sparse.csc_matrix(A2)
+#    if 'csc_matrix' not in str(type(A1)):
+#        A1 = scipy.sparse.csc_matrix(A1)
+#    if 'csc_matrix' not in str(type(A2)):
+#        A2 = scipy.sparse.csc_matrix(A2)
+
+    if 'ndarray' not in str(type(A1)):
+        A1 = A1.toarray()
+    if 'ndarray' not in str(type(A2)):
+        A2 = A2.toarray()
 
     if template1 is None or template2 is None:
         align_flag = False
 
+    x_grid, y_grid = np.meshgrid(np.arange(0., dims[0]).astype(
+                np.float32), np.arange(0., dims[1]).astype(np.float32))
+    
     if align_flag:  # first align ROIs from session 2 to the template from session 1
-        template2, shifts, _, xy_grid = tile_and_correct(template2, template1 - template1.min(),
-                                                         [int(
-                                                             dims[0] / 4), int(dims[1] / 4)], [16, 16], [10, 10],
-                                                         add_to_movie=template2.min(), shifts_opencv=True)
-        A_2t = np.reshape(A2.toarray(), dims + (-1,),
-                          order='F').transpose(2, 0, 1)
-        dims_grid = tuple(np.max(np.stack(xy_grid, axis=0), axis=0) -
-                          np.min(np.stack(xy_grid, axis=0), axis=0) + 1)
-        _sh_ = np.stack(shifts, axis=0)
-        shifts_x = np.reshape(_sh_[:, 1], dims_grid,
-                              order='C').astype(np.float32)
-        shifts_y = np.reshape(_sh_[:, 0], dims_grid,
-                              order='C').astype(np.float32)
-        x_grid, y_grid = np.meshgrid(np.arange(0., dims[0]).astype(
-            np.float32), np.arange(0., dims[1]).astype(np.float32))
-        x_remap = (-np.resize(shifts_x, dims) + x_grid).astype(np.float32)
-        y_remap = (-np.resize(shifts_y, dims) + y_grid).astype(np.float32)
+        if use_opt_flow:
+            template1_norm = np.uint8(template1*(template1 > 0)*255)
+            template2_norm = np.uint8(template2*(template2 > 0)*255)
+            flow = cv2.calcOpticalFlowFarneback(np.uint8(template1_norm*255),
+                                                np.uint8(template2_norm*255),
+                                                None,0.5,3,128,3,7,1.5,0)
+            x_remap = (flow[:,:,0] + x_grid).astype(np.float32) 
+            y_remap = (flow[:,:,1] + y_grid).astype(np.float32)
+            
+        else:
+            template2, shifts, _, xy_grid = tile_and_correct(template2, template1 - template1.min(),
+                                                             [int(
+                                                                 dims[0] / 4), int(dims[1] / 4)], [16, 16], [10, 10],
+                                                             add_to_movie=template2.min(), shifts_opencv=True)
+            
+            dims_grid = tuple(np.max(np.stack(xy_grid, axis=0), axis=0) -
+                              np.min(np.stack(xy_grid, axis=0), axis=0) + 1)
+            _sh_ = np.stack(shifts, axis=0)
+            shifts_x = np.reshape(_sh_[:, 1], dims_grid,
+                                  order='C').astype(np.float32)
+            #print(shifts_x)
+            shifts_y = np.reshape(_sh_[:, 0], dims_grid,
+                                  order='C').astype(np.float32)
+            #print(shifts_y)
+            
+            x_remap = (-np.resize(shifts_x, dims) + x_grid).astype(np.float32)
+            y_remap = (-np.resize(shifts_y, dims) + y_grid).astype(np.float32)
+
+        A_2t = np.reshape(A2, dims + (-1,), order='F').transpose(2, 0, 1)
         A2 = np.stack([cv2.remap(img.astype(np.float32), x_remap,
-                                 y_remap, cv2.INTER_CUBIC) for img in A_2t], axis=0)
+                                 y_remap, cv2.INTER_NEAREST) for img in A_2t], axis=0)
         A2 = np.reshape(A2.transpose(1, 2, 0),
                         (A1.shape[0], A_2t.shape[0]), order='F')
+
+    A1 = np.stack([a*(a>max_thr*a.max()) for a in A1.T]).T 
+    A2 = np.stack([a*(a>max_thr*a.max()) for a in A2.T]).T 
 
     if D is None:
         if 'csc_matrix' not in str(type(A1)):
             A1 = scipy.sparse.csc_matrix(A1)
         if 'csc_matrix' not in str(type(A2)):
             A2 = scipy.sparse.csc_matrix(A2)
-
+            
         cm_1 = com(A1, dims[0], dims[1])
         cm_2 = com(A2, dims[0], dims[1])
         A1_tr = (A1 > 0).astype(float)
@@ -504,7 +536,9 @@ def register_ROIs(A1, A2, dims, template1=None, template2=None, align_flag=True,
 
 #%% register multi session ROIs
     
-def register_multisession(A, dims, templates = [None], align_flag=True, thresh_cost=.7, max_dist=10, enclosed_thr=None):
+def register_multisession(A, dims, templates = [None], align_flag=True, 
+                          max_thr = 0, use_opt_flow = True, thresh_cost=.7, 
+                          max_dist=10, enclosed_thr=None):
     """
     Register ROIs across multiple sessions using an intersection over union metric
     and the Hungarian algorithm for optimal matching. Registration occurs by 
@@ -526,6 +560,12 @@ def register_multisession(A, dims, templates = [None], align_flag=True, thresh_c
     align_flag: bool
         align the templates before matching
 
+    max_thr: scalar
+        max threshold parameter before binarization    
+    
+    use_opt_flow: bool
+        use dense optical flow to align templates
+
     thresh_cost: scalar
         maximum distance considered
 
@@ -533,7 +573,8 @@ def register_multisession(A, dims, templates = [None], align_flag=True, thresh_c
         max distance between centroids
 
     enclosed_thr: float
-        if not None set distance to at most the specified value when ground truth is a subset of inferred
+        if not None set distance to at most the specified value when ground 
+        truth is a subset of inferred
 
     Returns:
     --------
@@ -569,14 +610,14 @@ def register_multisession(A, dims, templates = [None], align_flag=True, thresh_c
         reg_results = register_ROIs(A[sess], A_union, dims, 
                                     template1 = templates[sess], 
                                     template2 = templates[sess-1], align_flag=True, 
+                                    max_thr = max_thr, use_opt_flow = use_opt_flow,
                                     thresh_cost = thresh_cost, max_dist = max_dist, 
                                     enclosed_thr = enclosed_thr)
         
         mat_sess, mat_un, nm_sess, nm_un, _, A2 = reg_results
+        print(len(mat_sess))
         A_union = A2.copy()
         A_union[:,mat_un] = A[sess][:,mat_sess]
-        #import pdb
-        #pdb.set_trace()
         A_union = np.concatenate((A_union.toarray(), A[sess][:,nm_sess]), axis = 1)
         new_match = np.zeros(A[sess].shape[-1], dtype = int)
         new_match[mat_sess] = mat_un
@@ -680,7 +721,7 @@ def distance_masks(M_s, cm_s, max_dist, enclosed_thr=None):
                         D[i, j] = 1 - 1. * intersection / \
                             (union - intersection)
                         if enclosed_thr is not None:
-                            if intersection == gt_val[i]:
+                            if intersection == gt_val[j] or intersection == gt_val[i]:
                                 D[i, j] = min(D[i, j], 0.5)
                     else:
                         D[i, j] = 1.
