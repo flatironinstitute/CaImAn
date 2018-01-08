@@ -629,6 +629,46 @@ def register_multisession(A, dims, templates = [None], align_flag=True,
         assignments[matchings[sess],sess] = range(len(matchings[sess]))
     
     return A_union, assignments, matchings
+
+#%% extract active components
+    
+def extract_active_components(assignments, indeces, only = True):
+    """
+    Computes the indeces of components that were active in a specified set of 
+    sessions. 
+    
+    Parameters:
+    -------------
+    
+    assignments: ndarray # of components X # of sessions
+        assignments matrix returned by function register_multisession
+        
+    indeces: list int
+        set of sessions to look for active neurons. Session 1 corresponds to a
+        pythonic index 0 etc
+        
+    only: bool
+        If True return components that were active ONLY in these sessions and
+        where inactive in all the others. If False components can be active
+        in other sessions as well
+        
+    Returns:
+    ---------
+    
+    components: list int
+        indeces of components 
+    
+    """
+    
+    components = np.where(np.isnan(assignments[:,indeces]).sum(-1) == 0)[0]
+            
+    if only:
+        not_inds = list(np.setdiff1d(range(assignments.shape[-1]), indeces))
+        not_comps = np.where(np.isnan(assignments[:,not_inds]).sum(-1) == 
+                             len(not_inds))[0]
+        components = np.intersect1d(components, not_comps)
+    
+    return components
 #%% threshold
 def norm_nrg(a_):
 

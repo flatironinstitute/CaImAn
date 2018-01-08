@@ -107,6 +107,10 @@ def norm_nrg(a_):
     a[indx] = cumEn
     return a.reshape(dims, order='F')
 
+
+#%%
+
+
 #%% figure for main paper. plots triplets and pairs
     
 K_tot = assignments.shape[0]   # total number of components
@@ -258,3 +262,7 @@ day2 = mlines.Line2D([], [], color='b', label='Session 1 (only)')
 day3 = mlines.Line2D([], [], color='w', label='Session 3 (only)')
 plt.legend(handles=[day1, day2, day3], loc=4)
 plt.title('Session 1 vs session 3'); plt.axis('off')         
+
+#%% compute union between sessions 1 and 2 (just for plotting purposes)
+
+A_13, ass_13, mat_13 = register_multisession([A1, A3], dims, [Cn1, Cn3])
