@@ -43,12 +43,13 @@ Cn1, Cn2, Cn3 = Cns
 plt.subplot(1,3,1)
 crd_good = cm.utils.visualization.plot_contours(
     A1, Cn1, thr=.96, vmax=0.5)
+
 plt.subplot(1,3,2)
 crd_good = cm.utils.visualization.plot_contours(
     A2, Cn2, thr=.96, vmax=0.5)
 plt.subplot(1,3,3)
 crd_good = cm.utils.visualization.plot_contours(
-    A3, Cn2, thr=.96, vmax=0.5)
+    A3, Cn3, thr=.96, vmax=0.5)
 #%% normalize matrices
 A1 = csc_matrix(A1 / A1.sum(0))
 A2 = csc_matrix(A2 / A2.sum(0))
@@ -61,15 +62,15 @@ import matplotlib.lines as mlines
 import numpy as np
 
 dims = 512, 512
-match1_12, match2_12, mis1_12, mis2_12, perf_12 = register_ROIs(
+match1_12, match2_12, mis1_12, mis2_12, perf_12, _ = register_ROIs(
     A1, A2, dims, plot_results=True, template1=Cn1, template2=Cn2)
 plt.figure()
 
-match2_23, match3_23, mis2_23, mis3_23, perf_23 = register_ROIs(
+match2_23, match3_23, mis2_23, mis3_23, perf_23, _ = register_ROIs(
     A2, A3, dims, plot_results=True, template1=Cn2, template2=Cn3)
 
 plt.figure()
-match1_13, match3_13, mis1_13, mis3_13, perf_13 = register_ROIs(
+match1_13, match3_13, mis1_13, mis3_13, perf_13, _ = register_ROIs(
     A1, A3, dims, plot_results=True, template1=Cn1, template2=Cn3)
 #%%
 match2_12 = list(match2_12)
@@ -96,9 +97,9 @@ def norm_nrg(a_):
     a[indx] = cumEn
     return a.reshape(dims, order='F')
 #%%
-
-Cn = np.reshape(A1.sum(axis=1) + A2.sum(axis=1) +
-                A3.sum(axis=1), (512, 512), order='F')
+from sklearn.preprocessing import normalize
+Cn = np.reshape(normalize(A1,axis=0).sum(axis=1) + normalize(A2,axis=0).sum(axis=1) +
+                normalize(A3,axis=0).sum(axis=1), (512, 512), order='F')
 plt.figure()
 masks_1 = np.reshape(A1.toarray(), dims + (-1,),
                      order='F').transpose(2, 0, 1)
@@ -143,6 +144,7 @@ plt.imshow(Cn, vmin=lp, vmax=hp, cmap='gray')
 # plt.legend(('Day1','Day2','Day3'))
 plt.title('Matched components across multiple days')
 plt.axis('off')
+mn, mx = np.min(img_1), np.max(img_1)
 
 day1 = mlines.Line2D([], [], color='b', label='Day 1')
 day2 = mlines.Line2D([], [], color='r', label='Day 2')
@@ -150,3 +152,14 @@ day3 = mlines.Line2D([], [], color='y', label='Day 3')
 plt.legend(handles=[day1, day2, day3], loc=4)
 
 plt.show()
+#%%
+from sklearn.preprocessing import normalize
+
+img_1, img_2, img_3 = masks_1.mean(0), masks_2.mean(0), masks_3.mean(0)
+#img_1[img_1 == 0] = np.nan
+#img_2[img_2 == 0] = np.nan
+#img_3[img_3 == 0] = np.nan
+
+plt.imshow(img_2,alpha = 1, cmap = 'Greens',vmax = mx*.5)
+plt.imshow(img_3,alpha = .5, cmap = 'hot',vmax = mx*.99)
+plt.imshow(img_1,alpha = .25, cmap = 'gray',vmax = mx*.25)

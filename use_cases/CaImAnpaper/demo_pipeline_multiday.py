@@ -48,7 +48,7 @@ from caiman.summary_images import correlation_image_ecobost
 #%% First setup some parameters
 
 # dataset dependent parameters
-fname = glob.glob('/mnt/ceph/neuro/Sue/k53/20160530/*0[0-9].tif') +  glob.glob('/mnt/ceph/neuro/Sue/k53/20160531/*0[0-9].tif') +  glob.glob('/mnt/ceph/neuro/Sue/k53/20160603/*0[0-9].tif') # filename to be processed
+fname = glob.glob('/mnt/ceph/neuro/Sue/k53/20160530/*0[0-9].tif') +  glob.glob('/mnt/ceph/neuro/Sue/k53/20160531/*0[0-9].tif') +  glob.glob('/mnt/ceph/neuro/Sue/k53/20160603/*0[0-9].tif') +  glob.glob('/mnt/ceph/neuro/Sue/k53/20160606/*0[0-9].tif') # filename to be processed
 fname.sort()
 fr = 30                             # imaging rate in frames per second
 decay_time = 0.4                    # length of a typical transient in seconds
@@ -107,6 +107,7 @@ c, dview, n_processes = cm.cluster.setup_cluster(
 #%%% MOTION CORRECTION
 # first we create a motion correction object with the parameters specified
 min_mov = cm.load(fname[0], subindices=range(200)).min()
+
 # this will be subtracted from the movie to make it non-negative
 mc = MotionCorrect(fname, min_mov,
                    dview=dview, max_shifts=max_shifts, niter_rig=niter_rig,
@@ -116,7 +117,7 @@ mc = MotionCorrect(fname, min_mov,
                    max_deviation_rigid=max_deviation_rigid,
                    shifts_opencv=True, nonneg_movie=True)
 #%% Run piecewise-rigid motion correction using NoRMCorre
-mc.motion_correct_rigid(save_movie=True)
+mc.motion_correct_rigid(save_movie=True, template = template)
 #%% look at the movie of all the templates to assess if there is deformations
 # or changes in the FOV
 mov_templates = np.array(mc.templates_rig)
@@ -136,7 +137,7 @@ cm.movie(mov_templates)[::10].play(gain = 10., offset = -min_mov_templates, magn
 ##%%
 #cm.load(mc_templ.fname_tot_els)[::100].play(gain = 5., offset = -min_mov_templates, magnification = 2)
 #%%
-names_tots = glob.glob('/mnt/ceph/neuro/Sue/k53/20160530/*_F_*.mmap')
+names_tots = glob.glob('/mnt/ceph/neuro/Sue/k53/20160606/*_F_*.mmap')
 names_tots.sort()
 print(names_tots)
 #%%
