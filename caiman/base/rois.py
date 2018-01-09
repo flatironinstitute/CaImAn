@@ -376,7 +376,7 @@ def register_ROIs(A1, A2, dims, template1=None, template2=None, align_flag=True,
 
     A2: csc_matrix  # pixels x # of components
         ROIs from session 2 aligned to session 1
-    
+
     """
 
     if template1 is None or template2 is None:
@@ -498,12 +498,12 @@ def register_ROIs(A1, A2, dims, template1=None, template2=None, align_flag=True,
     return matched_ROIs1, matched_ROIs2, non_matched1, non_matched2, performance, A2
 
 #%% register multi session ROIs
-    
+
 def register_multisession(A, dims, templates = [None], align_flag=True, thresh_cost=.7, max_dist=10, enclosed_thr=None):
     """
     Register ROIs across multiple sessions using an intersection over union metric
-    and the Hungarian algorithm for optimal matching. Registration occurs by 
-    aligning session 1 to session 2, keeping the union of the matched and 
+    and the Hungarian algorithm for optimal matching. Registration occurs by
+    aligning session 1 to session 2, keeping the union of the matched and
     non-matched components to register with session 3 and so on.
 
     Parameters:
@@ -532,14 +532,14 @@ def register_multisession(A, dims, templates = [None], align_flag=True, thresh_c
 
     Returns:
     --------
-    
+
     A_union: csc_matrix # pixels x # of total distinct components
-        union of all kept ROIs 
-        
+        union of all kept ROIs
+
     matchings: list of lists
         matchings[i][j] = k means that component j from session i is represented
         by component k in A_union
-    
+
     matched_ROIs1: list
         indeces of matched ROIs from session 1
 
@@ -557,14 +557,14 @@ def register_multisession(A, dims, templates = [None], align_flag=True, thresh_c
 
     A2: csc_matrix  # pixels x # of components
         ROIs from session 2 aligned to session 1
-    
+
     """
-    
+
     n_sessions = len(A)
     templates = list(templates)
     if len(templates) == 1:
         templates = n_sessions*templates
-        
+
     if n_sessions <= 1:
         raise Exception('number of sessions must be greater than 1')
 
@@ -1158,8 +1158,102 @@ def extractROIsFromPCAICA(spcomps, numSTD=4, gaussiansigmax=2, gaussiansigmay=2,
             allMasks.append(tmp_mask)
 
     return allMasks, maskgrouped
+#%%
 
 
+def detect_duplicates_and_subsets(binary_masks, predictions=None, r_values=None, dist_thr=0.1, min_dist=10,
+                                  thresh_subset=0.8):
+
+    cm = [scipy.ndimage.center_of_mass(mm) for mm in binary_masks]
+    sp_rois = scipy.sparse.csc_matrix(
+        np.reshape(binary_masks, (binary_masks.shape[0], -1)).T)
+    D = distance_masks([sp_rois, sp_rois], [cm, cm], min_dist)[0]
+    np.fill_diagonal(D, 1)
+    overlap = sp_rois.T.dot(sp_rois).toarray()
+    sz = np.array(sp_rois.sum(0))
+    print(sz.shape)
+    overlap = overlap/sz.T
+    np.fill_diagonal(overlap, 0)
+    # pairs of duplicate indeces
+
+    indeces_orig = np.where((D < dist_thr) | ((overlap) >= thresh_subset))
+    indeces_orig = [(a, b) for a, b in zip(indeces_orig[0], indeces_orig[1])]
+
+    use_max_area = False
+    if predictions is not None:
+        metric = predictions.squeeze()
+    elif r_values is not None:
+        metric = r_values.squeeze()
+    else:
+        metric = sz.squeeze()
+        print('***** USING MAX AREA BY DEFAULT')
+
+    overlap_tmp = overlap.copy() >= thresh_subset
+    overlap_tmp = overlap_tmp*metric[:, None]
+
+    max_idx = np.argmax(overlap_tmp)
+    one, two = np.unravel_index(max_idx, overlap_tmp.shape)
+    max_val = overlap_tmp[one, two]
+
+    indeces_to_keep = []
+    indeces_to_remove = []
+    while max_val > 0:
+        one, two = np.unravel_index(max_idx, overlap_tmp.shape)
+        if metric[one] > metric[two]:
+            #indeces_to_keep.append(one)
+            overlap_tmp[:,two] = 0
+            overlap_tmp[two,:] = 0
+            indeces_to_remove.append(two)
+            #if two in indeces_to_keep:
+            #    indeces_to_keep.remove(two)
+        else:
+            overlap_tmp[:,one] = 0
+            overlap_tmp[one,:] = 0
+            indeces_to_remove.append(one)
+            #indeces_to_keep.append(two)
+            #if one in indeces_to_keep:
+            #    indeces_to_keep.remove(one)
+
+        max_idx = np.argmax(overlap_tmp)
+        one, two = np.unravel_index(max_idx, overlap_tmp.shape)
+        max_val = overlap_tmp[one, two]
+
+    #indeces_to_remove = np.setdiff1d(np.unique(indeces_orig),indeces_to_keep)
+    indeces_to_keep = np.setdiff1d(np.unique(indeces_orig),indeces_to_remove)
+
+#    if len(indeces) > 0:
+#        if use_max_area:
+#            # if is to  deal with tie breaks in case of same area
+#            indeces_keep = np.argmax([[overlap[sec, frst], overlap[frst, sec]]
+#                    for frst, sec in indeces], 1)
+#            indeces_remove = np.argmin([[overlap[sec, frst], overlap[frst, sec]]
+#                    for frst, sec in indeces], 1)
+#
+#
+#        else: #use CNN
+#            indeces_keep = np.argmin([[metric[sec], metric[frst]]
+#                for frst, sec in indeces], 1)
+#            indeces_remove = np.argmax([[metric[sec], metric[frst]]
+#                for frst, sec in indeces], 1)
+#
+#        indeces_keep = np.unique([elms[ik] for ik, elms in
+#                                      zip(indeces_keep, indeces)])
+#        indeces_remove = np.unique([elms[ik] for ik, elms in
+#                                       zip(indeces_remove, indeces)])
+#
+#        multiple_appearance = np.intersect1d(indeces_keep,indeces_remove)
+#        for mapp in multiple_appearance:
+#            indeces_remove.remove(mapp)
+#    else:
+#        indeces_keep = []
+#        indeces_remove = []
+#        indeces_keep = []
+#        indeces_remove = []
+
+
+    return indeces_orig, indeces_to_keep, indeces_to_remove, D, overlap
+
+#%%
 def detect_duplicates(file_name, dist_thr=0.1, FOV=(512, 512)):
     """
     Removes duplicate ROIs from file file_name
@@ -1192,3 +1286,6 @@ def detect_duplicates(file_name, dist_thr=0.1, FOV=(512, 512)):
     duplicates = list(np.unique(np.concatenate((indeces[0], indeces[1]))))
 
     return duplicates, ind_keep
+#%%
+
+
