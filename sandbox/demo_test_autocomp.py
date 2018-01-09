@@ -6,7 +6,7 @@ try:
     %autoreload 2
     print 1
 except:
-    print 'NOT IPYTHON'
+    print('Not launched under iPython')
 
 import matplotlib as mpl
 mpl.use('TKAgg')

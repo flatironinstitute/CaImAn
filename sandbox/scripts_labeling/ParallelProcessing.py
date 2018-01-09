@@ -17,8 +17,8 @@ try:
     get_ipython().magic('autoreload 2')
     print((1))
 except:
+    print('Not launched under iPython')
 
-    print('NOT IPYTHON')
 import matplotlib as mpl
 mpl.use('TKAgg')
 from matplotlib import pyplot as plt

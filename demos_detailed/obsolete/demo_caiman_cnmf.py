@@ -13,14 +13,14 @@ and https://github.com/agiovann/Constrained_NMF
 from __future__ import print_function
 from builtins import str
 from builtins import range
+
 try:
     if __IPYTHON__:
         print('Debugging!')
         get_ipython().magic('load_ext autoreload')
         get_ipython().magic('autoreload 2')
 except NameError:
-    print('Not IPYTHON')
-    pass
+    print('Not launched under iPython')
 
 import numpy as np
 import glob

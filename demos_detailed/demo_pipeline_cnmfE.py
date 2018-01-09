@@ -7,11 +7,12 @@ from builtins import str
 from builtins import map
 from builtins import range
 from past.utils import old_div
+
 try:
     get_ipython().magic(u'load_ext autoreload')
     get_ipython().magic(u'autoreload 2')
 except:
-    print('Not IPYTHON')
+    print('Not launched under iPython')
 
 import numpy as np
 import matplotlib.pyplot as plt

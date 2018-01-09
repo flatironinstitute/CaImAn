@@ -14,7 +14,7 @@ try:
         get_ipython().magic('load_ext autoreload')
         get_ipython().magic('autoreload 2')
 except NameError:
-    print('Not IPYTHON')
+    print('Not launched under iPython')
 
 #%%
 

@@ -8,6 +8,7 @@ Created on Tue May 23 21:41:17 2017
 """
 
 import numpy as np
+
 try:
     if __IPYTHON__:
         print('Debugging!')
@@ -15,7 +16,7 @@ try:
         get_ipython().magic('load_ext autoreload')
         get_ipython().magic('autoreload 2')
 except NameError:
-    print('Not IPYTHON')
+    print('Not launched under iPython')
 
 import caiman as cm
 

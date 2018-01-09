@@ -3,12 +3,13 @@
 from __future__ import print_function
 #%%
 from builtins import str
+
 try:
     get_ipython().magic('load_ext autoreload')
     get_ipython().magic('autoreload 2')
     print((1))
 except:
-    print('NOT IPYTHON')
+    print('Not launched under iPython')
 
 import matplotlib as mpl
 mpl.use('TKAgg')
