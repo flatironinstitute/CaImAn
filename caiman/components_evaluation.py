@@ -509,6 +509,7 @@ def estimate_components_quality_auto(Y, A, C, b, f, YrA, frate, decay_time, gSig
     # components with SNR lower than 0.5 will be rejected
     thresh_fitness_raw_reject = scipy.special.log_ndtr(
         -min_std_reject) * N_samples
+
     traces = C + YrA
 
     _, _, fitness_raw, _, r_values = estimate_components_quality(
@@ -516,8 +517,63 @@ def estimate_components_quality_auto(Y, A, C, b, f, YrA, frate, decay_time, gSig
         fitness_delta_min=thresh_fitness_delta, return_all=True, dview=dview, num_traces_per_group=50, N=N_samples)
 
     comp_SNR = -norm.ppf(np.exp(fitness_raw / N_samples))
+
+#    comp_SNR = scipy.special.log_ndtr(
+#        -fitness_raw) * N_samples
+
+    idx_components, idx_components_bad, cnn_values = select_components_from_metrics(
+                A, dims, gSig, r_values,  comp_SNR, r_values_min,
+                r_values_lowest, min_SNR, min_std_reject,
+                thresh_cnn_min, thresh_cnn_lowest, use_cnn, gSig_range)
+
+
+#    idx_components_r = np.where((r_values >= r_values_min))[0]
+#    idx_components_raw = np.where(fitness_raw < thresh_fitness_raw)[0]
+
+#    idx_components = []
+#    if use_cnn:
+#        neuron_class = 1  # normally 1
+#        if gSig_range is None:
+#            predictions, _ = evaluate_components_CNN(A, dims, gSig)
+#            predictions = predictions[:, neuron_class]
+#        else:
+#            predictions = np.zeros(A.shape[-1])
+#            for size_range in gSig_range:
+#                predictions = np.maximum(predictions,
+#                                         evaluate_components_CNN(A, dims, size_range)[0][:, neuron_class])
+#
+#
+#        idx_components_cnn = np.where(
+#            predictions >= thresh_cnn_min)[0]
+#        bad_comps = np.where((r_values <= r_values_lowest) | (fitness_raw >= thresh_fitness_raw_reject) | (
+#            predictions <= thresh_cnn_lowest))[0]
+#        idx_components = np.union1d(idx_components, idx_components_cnn)
+#        cnn_values = predictions
+#    else:
+#        bad_comps = np.where((r_values <= r_values_lowest) | (
+#            fitness_raw >= thresh_fitness_raw_reject))[0]
+#        cnn_values = []
+#
+#    idx_components = np.union1d(idx_components, idx_components_r)
+#    idx_components = np.union1d(idx_components, idx_components_raw)
+#    #idx_components = np.union1d(idx_components, idx_components_delta)
+#    idx_components = np.setdiff1d(idx_components, bad_comps)
+#    idx_components_bad = np.setdiff1d(
+#        list(range(len(r_values))), idx_components)
+
+    return idx_components, idx_components_bad, comp_SNR, r_values, cnn_values
+#
+
+#%%
+def select_components_from_metrics(A, dims, gSig, r_values,  comp_SNR, r_values_min,
+                                   r_values_lowest, min_SNR, min_std_reject,
+                                   thresh_cnn_min, thresh_cnn_lowest, use_cnn, gSig_range):
+    '''
+
+    '''
+
     idx_components_r = np.where((r_values >= r_values_min))[0]
-    idx_components_raw = np.where(fitness_raw < thresh_fitness_raw)[0]
+    idx_components_raw = np.where(comp_SNR > min_SNR)[0]
 
     idx_components = []
     if use_cnn:
@@ -526,7 +582,7 @@ def estimate_components_quality_auto(Y, A, C, b, f, YrA, frate, decay_time, gSig
             predictions, _ = evaluate_components_CNN(A, dims, gSig)
             predictions = predictions[:, neuron_class]
         else:
-            predictions = np.zeros(A.shape[-1])
+            predictions = np.zeros(len(r_values))
             for size_range in gSig_range:
                 predictions = np.maximum(predictions,
                                          evaluate_components_CNN(A, dims, size_range)[0][:, neuron_class])
@@ -534,13 +590,13 @@ def estimate_components_quality_auto(Y, A, C, b, f, YrA, frate, decay_time, gSig
 
         idx_components_cnn = np.where(
             predictions >= thresh_cnn_min)[0]
-        bad_comps = np.where((r_values <= r_values_lowest) | (fitness_raw >= thresh_fitness_raw_reject) | (
+        bad_comps = np.where((r_values <= r_values_lowest) | (comp_SNR <= min_std_reject) | (
             predictions <= thresh_cnn_lowest))[0]
         idx_components = np.union1d(idx_components, idx_components_cnn)
         cnn_values = predictions
     else:
         bad_comps = np.where((r_values <= r_values_lowest) | (
-            fitness_raw >= thresh_fitness_raw_reject))[0]
+            comp_SNR <= min_std_reject))[0]
         cnn_values = []
 
     idx_components = np.union1d(idx_components, idx_components_r)
@@ -550,8 +606,7 @@ def estimate_components_quality_auto(Y, A, C, b, f, YrA, frate, decay_time, gSig
     idx_components_bad = np.setdiff1d(
         list(range(len(r_values))), idx_components)
 
-    return idx_components.astype(np.int), idx_components_bad.astype(np.int), comp_SNR, r_values, cnn_values
-
+    return idx_components.astype(np.int), idx_components_bad.astype(np.int), cnn_values
 
 #%%
 
