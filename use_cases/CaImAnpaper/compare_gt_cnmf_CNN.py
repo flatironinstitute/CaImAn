@@ -13,9 +13,11 @@ from builtins import map
 from builtins import range
 from past.utils import old_div
 import cv2
-import glob
 import pickle
-
+from caiman.components_evaluation import select_components_from_metrics
+from caiman.base.rois import nf_match_neurons_in_binary_masks
+from caiman.utils.utils import apply_magic_wand
+from caiman.base.rois import detect_duplicates_and_subsets
 try:
     cv2.setNumThreads(1)
 except:
@@ -187,7 +189,7 @@ params_movie = {'fname': '/opt/local/Data/labeling/k53_20160530/Yr_d1_512_d2_512
                  'decay_time' : 0.3,
                  'n_chunks': 10,
                  'swap_dim':False,
-                 'crop_pix':2,
+                 'crop_pix':10,
                  }
 params_movies.append(params_movie.copy())
 #%% J115
@@ -292,10 +294,11 @@ all_comp_SNR_raw =[]
 all_comp_SNR_delta = []
 all_predictions = []
 all_labels = []
-reload = False
+all_results = dict()
+reload = True
 plot_on = False
 save_on = False
-for params_movie in np.array(params_movies)[6:7]:
+for params_movie in np.array(params_movies)[:]:
 #    params_movie['gnb'] = 3
     params_display = {
         'downsample_ratio': .2,
@@ -410,36 +413,102 @@ for params_movie in np.array(params_movies)[6:7]:
                             r_values_min = global_params['rval_thr'], r_values_lowest = global_params['min_rval_thr_rejected'],
                             Npeaks =  global_params['Npeaks'], use_cnn = True, thresh_cnn_min = global_params['min_cnn_thresh'],
                             thresh_cnn_lowest = global_params['max_classifier_probability_rejected'],
-                            thresh_fitness_delta = global_params['max_fitness_delta_accepted'])
+                            thresh_fitness_delta = global_params['max_fitness_delta_accepted'], gSig_range = None)
+#                            [list(np.add(i,a)) for i,a in zip(range(0,1),[gSig]*3)]
 
-#        N_samples = np.ceil(params_movie['fr']*params_movie['decay_time']).astype(np.int)   # number of timesteps to consider when testing new neuron candidates
-#        min_SNR = global_params['min_SNR']                                      # adaptive way to set threshold (will be equal to min_SNR)
-#        #pr_inc = 1 - scipy.stats.norm.cdf(global_params['min_SNR'])           # inclusion probability of noise transient
-#        #thresh_fitness_raw = np.log(pr_inc)*N_samples       # event exceptionality threshold
-#        thresh_fitness_raw = scipy.special.log_ndtr(-min_SNR)*N_samples
-#        thresh_fitness_delta = -20.
-#        t1 = time.time()
-#        final_frate = params_movie['fr']
-#        r_values_min = global_params['rval_thr']  # threshold on space consistency
-#        fitness_min = scipy.special.log_ndtr(-min_SNR)*N_samples  # threshold on time variability
-#        # threshold on time variability (if nonsparse activity)
-#        fitness_delta_min = global_params['max_fitness_delta_accepted']
-#        Npeaks = global_params['Npeaks']
-#        traces = C + YrA
-#        idx_components, idx_components_bad, fitness_raw, fitness_delta, r_values = estimate_components_quality(
-#            traces, Y, A, C, b, f, final_frate=final_frate, Npeaks=Npeaks, r_values_min=r_values_min, fitness_min=fitness_min,
-#            fitness_delta_min=fitness_delta_min, return_all=True, dview = dview, num_traces_per_group = 50, N = N_samples)
+
         t_eva_comps = time.time() - t1
         print(' ***** ')
         print((len(C)))
         print((len(idx_components)))
+        #%%
+    #    all_matches = False
+    #    filter_SNR = False
+        gt_file = os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:-4] + 'match_masks.npz')
+        with np.load(gt_file, encoding = 'latin1') as ld:
+            print(ld.keys())
+    #        locals().update(ld)
+            C_gt = ld['C_gt']
+            YrA_gt = ld['YrA_gt']
+            b_gt = ld['b_gt']
+            f_gt = ld['f_gt']
+            A_gt = scipy.sparse.coo_matrix(ld['A_gt'][()])
+            dims_gt = (ld['d1'],ld['d2'])
+
+            t1 = time.time()
+            idx_components_gt, idx_components_bad_gt, comp_SNR_gt, r_values_gt, predictionsCNN_gt = estimate_components_quality_auto(
+                                Y, A_gt, C_gt, b_gt, f_gt, YrA_gt, params_movie['fr'], params_movie['decay_time'], gSig, dims_gt,
+                                dview = dview, min_SNR=global_params['min_SNR'],
+                                r_values_min = global_params['rval_thr'], r_values_lowest = global_params['min_rval_thr_rejected'],
+                                Npeaks =  global_params['Npeaks'], use_cnn = True, thresh_cnn_min = global_params['min_cnn_thresh'],
+                                thresh_cnn_lowest = global_params['max_classifier_probability_rejected'],
+                                thresh_fitness_delta = global_params['max_fitness_delta_accepted'], gSig_range = None)
+    #                            [list(np.add(i,a)) for i,a in zip(range(0,1),[gSig]*3)]
+
+
+            t_eva_comps = time.time() - t1
+            print(' ***** ')
+            print((len(C)))
+            print((len(idx_components_gt)))
+
+    #            roi_all_match = cm.base.rois.nf_read_roi_zip(glob.glob('/'.join(os.path.split(fname_new)[0].split('/')[:-2]+['regions/*nd_matches.zip']))[0],dims)
+    #    #        roi_1_match = cm.base.rois.nf_read_roi_zip('/mnt/ceph/neuro/labeling/neurofinder.02.00/regions/intermediate_regions/ben_active_regions_nd_natalia_active_regions_nd__sonia_active_regions_nd__lindsey_active_regions_nd_1_mismatches.zip',dims)
+    #    #        roi_all_match = roi_1_match#np.concatenate([roi_all_match, roi_1_match],axis = 0)
+    #            A_gt_thr = roi_all_match.transpose([1,2,0]).reshape((np.prod(dims),-1),order = 'F')
+    #            A_gt = A_gt_thr
+    #        else:
+    #            if filter_SNR: # here you need to adapt to new function estimate_components_quality_auto
+    #                final_frate = params_movie['fr']
+    #                Npeaks = global_params['Npeaks']
+    #                traces_gt = C_gt + YrA_gt
+    #                idx_filter_snr, idx_filter_snr_bad, fitness_raw_gt, fitness_delta_gt, r_values_gt = estimate_components_quality_auto(
+    #                    traces_gt, Y, A_gt, C_gt, b_gt, f_gt, final_frate=final_frate, Npeaks=Npeaks, r_values_min=1, fitness_min=-10,
+    #                    fitness_delta_min=-10, return_all=True)
+    #
+    #                print(len(idx_filter_snr))
+    #                print(len(idx_filter_snr_bad))
+    #                A_gt, C_gt, b_gt, f_gt, traces_gt, YrA_gt = A_gt.tocsc()[:,idx_filter_snr], C_gt[idx_filter_snr], b_gt, f_gt, traces_gt[idx_filter_snr], YrA_gt[idx_filter_snr]
+    #
+    #            A_gt_thr = cm.source_extraction.cnmf.spatial.threshold_components(A_gt.tocsc()[:,:].toarray(), dims, medw=None, thr_method='max', maxthr=0.2, nrgthr=0.99, extract_cc=True,
+    #                             se=None, ss=None, dview=None)
+        #%%
+        min_size_neuro = 3*2*np.pi
+        max_size_neuro = (2*gSig[0])**2*np.pi
+        A_gt_thr = cm.source_extraction.cnmf.spatial.threshold_components(A_gt.tocsc()[:,:], dims_gt, medw=None, thr_method='max', maxthr=0.2, nrgthr=0.99, extract_cc=True,
+                                 se=None, ss=None, dview=dview)
+
+        A_gt_thr = A_gt_thr > 0
+    #    size_neurons_gt = A_gt_thr.sum(0)
+    #    idx_size_neuro_gt = np.where((size_neurons_gt>min_size_neuro) & (size_neurons_gt<max_size_neuro) )[0]
+    #    #A_thr = A_thr[:,idx_size_neuro]
+        print(A_gt_thr.shape)
+        #%%
+        A_thr = cm.source_extraction.cnmf.spatial.threshold_components(A.tocsc()[:,:].toarray(), dims, medw=None, thr_method='max', maxthr=0.2, nrgthr=0.99, extract_cc=True,
+                                 se=None, ss=None, dview=dview)
+
+        A_thr = A_thr > 0
+        size_neurons = A_thr.sum(0)
+#        idx_size_neuro = np.where((size_neurons>min_size_neuro) & (size_neurons<max_size_neuro) )[0]
+    #    A_thr = A_thr[:,idx_size_neuro]
+        print(A_thr.shape)
         # %% save results
         if save_on:
-            np.savez(os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:-4] + 'results_analysis_after_merge_3.npz'), Cn=Cn, fname_new = fname_new,
-                     A=A,
-                     C=C, b=b, f=f, YrA=YrA, sn=sn, d1=d1, d2=d2, idx_components=idx_components,
-                     idx_components_bad=idx_components_bad,
-                     comp_SNR=comp_SNR, comp_SNR_delta=comp_SNR_delta, r_values=r_values, predictionsCNN = predictionsCNN, params_movie = params_movie)
+            np.savez(os.path.join(os.path.split(fname_new)[0],
+                              os.path.split(fname_new)[1][:-4] +
+                              'results_analysis_after_merge_3.npz'),
+                              Cn=Cn, fname_new = fname_new,
+                              A=A, C=C, b=b, f=f, YrA=YrA, sn=sn, d1=d1,
+                              d2=d2, idx_components=idx_components,
+                              idx_components_bad=idx_components_bad,
+                              comp_SNR=comp_SNR,  r_values=r_values,
+                              predictionsCNN = predictionsCNN,
+                              params_movie = params_movie,
+                              A_gt=A_gt, A_gt_thr=A_gt_thr, A_thr=A_thr,
+                              C_gt=C_gt, f_gt=f_gt, b_gt=b_gt, YrA_gt=YrA_gt,
+                              idx_components_gt=idx_components_gt,
+                              idx_components_bad_gt=idx_components_bad_gt,
+                              comp_SNR_gt=comp_SNR_gt,r_values_gt=r_values_gt,
+                              predictionsCNN_gt=predictionsCNN_gt)
 
         # %%
         if plot_on:
@@ -457,81 +526,65 @@ for params_movie in np.array(params_movies)[6:7]:
 
     #%% LOAD DATA
     else:
-
+#%%
         params_display = {
             'downsample_ratio': .2,
             'thr_plot': 0.8
         }
         fn_old = fname_new
         #analysis_file = '/mnt/ceph/neuro/jeremie_analysis/neurofinder.03.00.test/Yr_d1_498_d2_467_d3_1_order_C_frames_2250_._results_analysis.npz'
+        print(os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:-4] + 'results_analysis_after_merge_3.npz'))
+
         with np.load(os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:-4] + 'results_analysis_after_merge_3.npz'), encoding = 'latin1') as ld:
             print(ld.keys())
-            locals().update(ld)
+            ld1 = {k:ld[k] for k in ['d1','d2','A','params_movie','fname_new',
+                   'C','idx_components','idx_components_bad','Cn','b','f','YrA',
+                   'sn','comp_SNR','r_values','predictionsCNN','A_gt','A_gt_thr',
+                   'A_thr','C_gt','b_gt','f_gt','YrA_gt','idx_components_gt',
+                   'idx_components_bad_gt', 'comp_SNR_gt', 'r_values_gt', 'predictionsCNN_gt']}
+            locals().update(ld1)
             dims_off = d1,d2
             A = scipy.sparse.coo_matrix(A[()])
+            A_gt = A_gt[()]
             dims = (d1,d2)
+            try:
+                params_movie = params_movie[()]
+            except:
+                pass
             gSig = params_movie['gSig']
             fname_new = fn_old
+        print(C_gt.shape)
+        print(Y.shape)
 
 
-        idx_components, idx_components_bad, comp_SNR, r_values, predictionsCNN = estimate_components_quality_auto(
-                            Y, A, C, b, f, YrA, params_movie['fr'], params_movie['decay_time'], gSig, dims,
-                            dview = dview, min_SNR=global_params['min_SNR'],
-                            r_values_min = global_params['rval_thr'], r_values_lowest = global_params['min_rval_thr_rejected'],
-                            Npeaks =  global_params['Npeaks'], use_cnn = True, thresh_cnn_min = global_params['min_cnn_thresh'],
-                            thresh_cnn_lowest = global_params['max_classifier_probability_rejected'],
-                            thresh_fitness_delta = global_params['max_fitness_delta_accepted'])
+#        gt_file = os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:-4] + 'match_masks.npz')
+#        with np.load(gt_file, encoding = 'latin1') as ld:
+#            print(ld.keys())
+#    #        locals().update(ld)
+#            C_gt = ld['C_gt']
+#            YrA_gt = ld['YrA_gt']
+#            b_gt = ld['b_gt']
+#            f_gt = ld['f_gt']
+#            A_gt = scipy.sparse.coo_matrix(ld['A_gt'][()])
+#            dims_gt = (ld['d1'],ld['d2'])
+#
+#            t1 = time.time()
+#            idx_components_gt, idx_components_bad_gt, comp_SNR_gt, r_values_gt, predictionsCNN_gt = estimate_components_quality_auto(
+#                                Y, A_gt, C_gt, b_gt, f_gt, YrA_gt, params_movie['fr'], params_movie['decay_time'], gSig, dims_gt,
+#                                dview = dview, min_SNR=global_params['min_SNR'],
+#                                r_values_min = global_params['rval_thr'], r_values_lowest = global_params['min_rval_thr_rejected'],
+#                                Npeaks =  global_params['Npeaks'], use_cnn = True, thresh_cnn_min = global_params['min_cnn_thresh'],
+#                                thresh_cnn_lowest = global_params['max_classifier_probability_rejected'],
+#                                thresh_fitness_delta = global_params['max_fitness_delta_accepted'], gSig_range = None)
+#    #                            [list(np.add(i,a)) for i,a in zip(range(0,1),[gSig]*3)]
+#
+#
+#            t_eva_comps = time.time() - t1
+#            print(' ***** ')
+#            print((len(C)))
+#            print((len(idx_components_gt)))
 
-#        with open('component_classifier.pkl', 'rb') as fid:
-#            total_classifier = pickle.load(fid)
-#            idx_components = total_classifier
-#            X_SNR_delta = np.clip(comp_SNR_delta,0,20)
-#            X_SNR_raw = np.clip(comp_SNR,0,20)
-#            X_r = r_values
-#            X_pred = predictionsCNN
-#            X_all = np.vstack([X_SNR_delta, X_SNR_raw, X_r, X_pred]).T
-#            Y_class =  total_classifier.predict(X_all)
-#            idx_components = np.where(Y_class == 1)[0]
-#            idx_components_bad = np.where(Y_class == 0)[0]
 
-
-        print(' ***** ')
-        print((len(C)))
-        print((len(idx_components)))
-#%%
-    all_matches = False
-    filter_SNR = False
-    gt_file = os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:-4] + 'match_masks.npz')
-    with np.load(gt_file, encoding = 'latin1') as ld:
-        print(ld.keys())
-        locals().update(ld)
-        A_gt = scipy.sparse.coo_matrix(A_gt[()])
-        dims = (d1,d2)
-        try:
-            fname_new = fname_new[()].decode('unicode_escape')
-        except:
-            fname_new = fname_new[()]
-        if all_matches:
-            roi_all_match = cm.base.rois.nf_read_roi_zip(glob.glob('/'.join(os.path.split(fname_new)[0].split('/')[:-2]+['regions/*nd_matches.zip']))[0],dims)
-    #        roi_1_match = cm.base.rois.nf_read_roi_zip('/mnt/ceph/neuro/labeling/neurofinder.02.00/regions/intermediate_regions/ben_active_regions_nd_natalia_active_regions_nd__sonia_active_regions_nd__lindsey_active_regions_nd_1_mismatches.zip',dims)
-    #        roi_all_match = roi_1_match#np.concatenate([roi_all_match, roi_1_match],axis = 0)
-            A_gt_thr = roi_all_match.transpose([1,2,0]).reshape((np.prod(dims),-1),order = 'F')
-            A_gt = A_gt_thr
-        else:
-            if filter_SNR: # here you need to adapt to new function estimate_components_quality_auto
-                final_frate = params_movie['fr']
-                Npeaks = global_params['Npeaks']
-                traces_gt = C_gt + YrA_gt
-                idx_filter_snr, idx_filter_snr_bad, fitness_raw_gt, fitness_delta_gt, r_values_gt = estimate_components_quality_auto(
-                    traces_gt, Y, A_gt, C_gt, b_gt, f_gt, final_frate=final_frate, Npeaks=Npeaks, r_values_min=1, fitness_min=-10,
-                    fitness_delta_min=-10, return_all=True)
-
-                print(len(idx_filter_snr))
-                print(len(idx_filter_snr_bad))
-                A_gt, C_gt, b_gt, f_gt, traces_gt, YrA_gt = A_gt.tocsc()[:,idx_filter_snr], C_gt[idx_filter_snr], b_gt, f_gt, traces_gt[idx_filter_snr], YrA_gt[idx_filter_snr]
-
-            A_gt_thr = cm.source_extraction.cnmf.spatial.threshold_components(A_gt.tocsc()[:,:].toarray(), dims, medw=None, thr_method='max', maxthr=0.2, nrgthr=0.99, extract_cc=True,
-                             se=None, ss=None, dview=None)
     #%%
     if plot_on:
         pl.figure()
@@ -544,52 +597,71 @@ for params_movie in np.array(params_movies)[6:7]:
         matrixMontage(np.squeeze(final_crops[np.where(predictions[:,1]>=threshold)[0]]))
         pl.figure()
         matrixMontage(np.squeeze(final_crops[np.where(predictions[:,0]>=threshold)[0]]))
-        #%%
+        #%
         cm.movie(final_crops).play(gain=3,magnification = 6,fr=5)
-        #%%
+        #%
         cm.movie(np.squeeze(final_crops[np.where(predictions[:,1]>=0.95)[0]])).play(gain=2., magnification = 8,fr=5)
-        #%%
-        cm.movie(np.squeeze(final_crops[np.where(predictions[:,0]>=0.95)[0]])).play(gain=4., magnification = 8,fr=5)
-    #%%
-    min_size_neuro = 3*2*np.pi
-    max_size_neuro = (2*gSig[0])**2*np.pi
-    A_thr = cm.source_extraction.cnmf.spatial.threshold_components(A.tocsc()[:,:].toarray(), dims, medw=None, thr_method='max', maxthr=0.2, nrgthr=0.99, extract_cc=True,
-                             se=None, ss=None, dview=dview)
+        #%
+        cm.movie(np.squeeze(final_crops[np.where(predictions[:,0]>=0.95)[0]])
+                        ).play(gain=4., magnification = 8,fr=5)
 
-    A_thr = A_thr > 0
-    size_neurons = A_thr.sum(0)
-    idx_size_neuro = np.where((size_neurons>min_size_neuro) & (size_neurons<max_size_neuro) )[0]
-    #A_thr = A_thr[:,idx_size_neuro]
-    print(A_thr.shape)
     #%%
-
-#    min_SNR = global_params['min_SNR']                                      # adaptive way to set threshold (will be equal to min_SNR)
-#    thresh_fitness_raw = scipy.special.log_ndtr(-min_SNR)*N_samples
-#    thresh_fitness_delta = global_params['max_fitness_delta_accepted']
-#    thresh_fitness_raw_reject = scipy.special.log_ndtr(-0.5)*N_samples
+#    print(C_gt.shape)
+#    try:
+#        np.savez(os.path.join(os.path.split(fname_new)[0],
+#                              os.path.split(fname_new)[1][:-4] +
+#                              'results_analysis_after_merge_3.npz'),
+#                              Cn=Cn, fname_new = fname_new,
+#                              A=A, C=C, b=b, f=f, YrA=YrA, sn=sn, d1=d1,
+#                              d2=d2, idx_components=idx_components,
+#                              idx_components_bad=idx_components_bad,
+#                              comp_SNR=comp_SNR,  r_values=r_values,
+#                              predictionsCNN = predictionsCNN,
+#                              params_movie = params_movie,
+#                              A_gt=A_gt, A_gt_thr=A_gt_thr, A_thr=A_thr,
+#                              C_gt=C_gt, f_gt=f_gt, b_gt=b_gt, YrA_gt=YrA_gt,
+#                              idx_components_gt=idx_components_gt,
+#                              idx_components_bad_gt=idx_components_bad_gt,
+#                              comp_SNR_gt=comp_SNR_gt,r_values_gt=r_values_gt,
+#                              predictionsCNN_gt=predictionsCNN_gt)
+#    except:
 #
-#    thresh = global_params['min_cnn_thresh']
-#    idx_components_cnn = np.where(predictions[:,neuron_class]>=thresh)[0]
-#    print(' ***** ')
-#    print((len(final_crops)))
-#    print((len(idx_components_cnn)))
-#    #print((len(idx_blobs)))
-#    idx_components_r = np.where((r_values >= global_params['rval_thr']))[0]
-#    idx_components_raw = np.where(fitness_raw < thresh_fitness_raw)[0]
-#    idx_components_delta = np.where(fitness_delta < thresh_fitness_delta)[0]
-#    bad_comps = np.where((r_values <= global_params['min_rval_thr_rejected']) | (fitness_raw >= thresh_fitness_raw_reject) | (predictions[:,neuron_class]<=global_params['max_classifier_probability_rejected']))[0]
-#    #idx_and_condition_1 = np.where((r_values >= .65) & ((fitness_raw < -20) | (fitness_delta < -20)) )[0]
-#    idx_components = np.union1d(idx_components_r, idx_components_raw)
-#    idx_components = np.union1d(idx_components, idx_components_delta)
-#    idx_components = np.union1d(idx_components,idx_components_cnn)
-#    idx_components = np.setdiff1d(idx_components,bad_comps)
-#    #idx_components = np.intersect1d(idx_components,idx_size_neuro)
-#    #idx_components = np.union1d(idx_components, idx_and_condition_1)
-#    #idx_components = np.union1d(idx_components, idx_and_condition_2)
-#    #idx_blobs = np.intersect1d(idx_components, idx_blobs)
-#    idx_components_bad = np.setdiff1d(list(range(len(r_values))), idx_components)
-    print(' ***** ')
-    print((len(r_values)))
+#        np.savez(os.path.join(os.path.split(fname_new[()])[0].decode("utf-8"),
+#                              os.path.split(fname_new[()])[1][:-4].decode("utf-8")
+#                              + 'results_analysis_after_merge_3.npz'), Cn=Cn,
+#                              fname_new = fname_new,
+#                              A=A, C=C, b=b, f=f, YrA=YrA, sn=sn, d1=d1, d2=d2,
+#                              idx_components=idx_components,
+#                              idx_components_bad=idx_components_bad,
+#                              comp_SNR=comp_SNR,  r_values=r_values,
+#                              predictionsCNN=predictionsCNN,
+#                              params_movie=params_movie,
+#                              A_gt=A_gt, A_gt_thr=A_gt_thr, A_thr=A_thr,
+#                              C_gt=C_gt, f_gt=f_gt, b_gt=b_gt, YrA_gt=YrA_gt,
+#                              idx_components_gt=idx_components_gt,
+#                              idx_components_bad_gt=idx_components_bad_gt,
+#                              comp_SNR_gt=comp_SNR_gt, r_values_gt=r_values_gt,
+#                              predictionsCNN_gt=predictionsCNN_gt)
+#
+    #%%
+#    masks_thr_bin = apply_magic_wand(A, gSig, np.array(dims), A_thr=A_thr, coms=None,
+#                                dview=dview, min_frac=0.7, max_frac=1.2)
+#    #%%
+#    masks_gt_thr_bin = apply_magic_wand(A_gt, gSig, np.array(dims), A_thr=(A_gt>0).toarray(), coms=None,
+#                                dview=dview, min_frac=0.7, max_frac=1.2,roughness=2, zoom_factor=1,
+#                                center_range=2)
+    #%%
+    thresh_fitness_raw_reject = 0.5
+#    global_params['max_classifier_probability_rejected'] = .1
+    gSig_range =  [list(np.add(i,a)) for i,a in zip(range(0,1),[gSig]*1)]
+#    global_params['max_classifier_probability_rejected'] = .2
+    idx_components, idx_components_bad, cnn_values =\
+                select_components_from_metrics(
+                A, dims, gSig, r_values,  comp_SNR , global_params['rval_thr'],
+                global_params['min_rval_thr_rejected'], global_params['min_SNR'],
+                thresh_fitness_raw_reject, global_params['min_cnn_thresh'],
+                global_params['max_classifier_probability_rejected'], True, gSig_range)
+
     print((len(idx_components)))
     #%%
 
@@ -599,6 +671,52 @@ for params_movie in np.array(params_movies)[6:7]:
         crd = plot_contours(A.tocsc()[:, idx_components], Cn, thr=params_display['thr_plot'], vmax = 0.85)
         pl.subplot(1, 2, 2)
         crd = plot_contours(A.tocsc()[:, idx_components_bad], Cn, thr=params_display['thr_plot'], vmax = 0.85)
+    #%%  detect duplicates
+    thresh_subset = 0.6
+    duplicates, indeces_keep, indeces_remove, D, overlap = detect_duplicates_and_subsets(
+            A_thr[:,idx_components].reshape([dims[0],dims[1],-1],order = 'F').transpose([2,0,1])*1., predictionsCNN[idx_components], r_values = None,
+            dist_thr=0.1, min_dist = 10,thresh_subset = thresh_subset)
+
+    idx_components_cnmf = idx_components.copy()
+    if len(duplicates) > 0:
+        if plot_on:
+            pl.figure()
+            pl.subplot(1,3,1)
+            pl.imshow(A_thr[:,idx_components].reshape([dims[0],dims[1],-1],order = 'F').transpose([2,0,1])[np.unique(duplicates).flatten()].sum(0))
+            pl.colorbar()
+            pl.subplot(1,3,2)
+            pl.imshow(A_thr[:,idx_components].reshape([dims[0],dims[1],-1],order = 'F').transpose([2,0,1])[np.array(indeces_keep)[:]].sum(0))
+            pl.colorbar()
+            pl.subplot(1,3,3)
+            pl.imshow(A_thr[:,idx_components].reshape([dims[0],dims[1],-1],order = 'F').transpose([2,0,1])[np.array(indeces_remove)[:]].sum(0))
+            pl.colorbar()
+            pl.pause(1)
+        idx_components_cnmf = np.delete(idx_components_cnmf,indeces_remove)
+
+    print('Duplicates CNMF:'+str(len(duplicates)))
+
+    duplicates_gt, indeces_keep_gt, indeces_remove_gt, D_gt, overlap_gt = detect_duplicates_and_subsets(
+            A_gt_thr.reshape([dims[0],dims[1],-1],order = 'F').transpose([2,0,1])*1., predictions = None, r_values = None,
+            dist_thr=0.1, min_dist = 10,thresh_subset = thresh_subset)
+
+    idx_components_gt = np.arange(A_gt_thr.shape[-1])
+    if len(duplicates_gt) > 0:
+        if plot_on:
+            pl.figure()
+            pl.subplot(1,3,1)
+            pl.imshow(A_gt_thr.reshape([dims[0],dims[1],-1],order = 'F').transpose([2,0,1])[np.array(duplicates_gt).flatten()].sum(0))
+            pl.colorbar()
+            pl.subplot(1,3,2)
+            pl.imshow(A_gt_thr.reshape([dims[0],dims[1],-1],order = 'F').transpose([2,0,1])[np.array(indeces_keep_gt)[:]].sum(0))
+            pl.colorbar()
+            pl.subplot(1,3,3)
+            pl.imshow(A_gt_thr.reshape([dims[0],dims[1],-1],order = 'F').transpose([2,0,1])[np.array(indeces_remove_gt)[:]].sum(0))
+            pl.colorbar()
+
+            pl.pause(1)
+        idx_components_gt = np.delete(idx_components_gt,indeces_remove_gt)
+    print('Duplicates gt:'+str(len(duplicates_gt)))
+
 
     #%%
     plot_results = plot_on
@@ -606,10 +724,18 @@ for params_movie in np.array(params_movies)[6:7]:
         pl.figure(figsize=(30,20))
 
 #    idx_components = range(len(r_values))
-    tp_gt, tp_comp, fn_gt, fp_comp, performance_cons_off =  cm.base.rois.nf_match_neurons_in_binary_masks(A_gt_thr[:,:].reshape([dims[0],dims[1],-1],order = 'F').transpose([2,0,1])*1.,
-                                                                                  A_thr[:,idx_components].reshape([dims[0],dims[1],-1],order = 'F').transpose([2,0,1])*1.,thresh_cost=.7, min_dist = 10,
-                                                                                  print_assignment= False,plot_results=plot_results,Cn=Cn, labels = ['GT','Offline'])
-
+#    tp_gt, tp_comp, fn_gt, fp_comp, performance_cons_off =\
+#            nf_match_neurons_in_binary_masks(
+#                    masks_gt_thr_bin*1.,#A_gt_thr[:,:].reshape([dims[0],dims[1],-1],order = 'F').transpose([2,0,1])*1.,
+#                    masks_thr_bin[idx_components]*1., #A_thr[:,idx_components].reshape([dims[0],dims[1],-1],order = 'F')\
+#                    thresh_cost=.8, min_dist = 10,
+#                    print_assignment= False, plot_results=plot_results, Cn=Cn, labels=['GT','Offline'])
+    tp_gt, tp_comp, fn_gt, fp_comp, performance_cons_off =\
+            nf_match_neurons_in_binary_masks(
+                    A_gt_thr[:,idx_components_gt].reshape([dims[0],dims[1],-1],order = 'F').transpose([2,0,1])*1.,
+                    A_thr[:,idx_components_cnmf].reshape([dims[0],dims[1],-1],order = 'F').transpose([2,0,1])*1.,
+                    thresh_cost=.8, min_dist = 10,
+                    print_assignment= False, plot_results=plot_results, Cn=Cn, labels=['GT','Offline'])
     pl.rcParams['pdf.fonttype'] = 42
     font = {'family' : 'Arial',
             'weight' : 'regular',
@@ -625,9 +751,168 @@ for params_movie in np.array(params_movies)[6:7]:
     lbs = np.zeros(len(r_values))
     lbs[tp_comp] = 1
     all_labels.append(lbs)
-    print(all_perfs)
+    print({pf['fname_new'].split('/')[-4]+pf['fname_new'].split('/')[-2]:pf['f1_score'] for pf in all_perfs})
+
+
+    performance_tmp = performance_cons_off.copy()
+    performance_tmp['comp_SNR_gt'] = comp_SNR_gt
+    performance_tmp['comp_SNR'] = comp_SNR
+    performance_tmp['A_gt_thr'] = A_gt_thr
+    performance_tmp['A_thr'] = A_thr
+    performance_tmp['A'] = A
+    performance_tmp['A_gt'] = A_gt
+    performance_tmp['C'] = C
+    performance_tmp['C_gt'] = C_gt
+    performance_tmp['YrA'] = YrA
+    performance_tmp['YrA_gt'] = YrA_gt
+    performance_tmp['predictionsCNN'] = predictionsCNN
+    performance_tmp['predictionsCNN_gt'] = predictionsCNN_gt
+    performance_tmp['r_values'] = r_values
+    performance_tmp['r_values_gt'] = r_values_gt
+    performance_tmp['idx_components_gt'] = idx_components_gt
+    performance_tmp['idx_components_cnmf'] = idx_components_cnmf
+    performance_tmp['tp_gt'] = tp_gt
+    performance_tmp['tp_comp'] = tp_comp
+    performance_tmp['fn_gt'] = fn_gt
+    performance_tmp['fp_comp'] = fp_comp
+
+
+#    performance_SNRs = []
+#    performance_SNRs.append(performance_tmp)
+#    pltt = False
+#    print('*')
+#    for snrs  in range(1,10):
+#        print('******************************')
+##            idx_components_gt_filt = np.delete(idx_components_gt,np.where(comp_SNR_gt[idx_components_gt]<snrs))
+##            idx_components_cnmf_filt = np.delete(idx_components_cnmf,np.where(comp_SNR[idx_components_cnmf]<snrs))
+#        idx_components_gt_filt = np.delete(idx_components_gt,np.where(comp_SNR_gt[idx_components_gt]<snrs))
+#        idx_components_cnmf_filt = np.delete(idx_components_cnmf,np.where(comp_SNR[idx_components_cnmf]<snrs))
+#        print(len(idx_components_cnmf_filt))
+#        print(len(idx_components_gt_filt))
+#
+#        tp_gt, tp_comp, fn_gt, fp_comp, performance_tmp =\
+#            nf_match_neurons_in_binary_masks(
+#                A_gt_thr[:,idx_components_gt_filt].reshape([dims[0],dims[1],-1],order = 'F').transpose([2,0,1])*1.,
+#                A_thr[:,idx_components_cnmf_filt].reshape([dims[0],dims[1],-1],order = 'F').transpose([2,0,1])*1.,
+#                thresh_cost=.8, min_dist = 10,
+#                print_assignment= False, plot_results=pltt, Cn=Cn, labels=['GT','Offline'])
+#
+#        performance_tmp['SNR'] = snrs
+#        performance_tmp['idx_components_gt_filt'] = idx_components_gt_filt
+#        performance_tmp['idx_components_cnmf_filt'] = idx_components_cnmf_filt
+#        performance_tmp['tp_gt'] = tp_gt
+#        performance_tmp['tp_comp'] = tp_comp
+#        performance_tmp['fn_gt'] = fn_gt
+#        performance_tmp['fp_comp'] = fp_comp
+#
+#
+#        performance_SNRs.append(performance_tmp.copy())
+
+    all_results[fname_new.split('/')[-4]+fname_new.split('/')[-2]] = performance_tmp
+    #%% check with multiple SNR:
+
+
         #%%
     if False:
+        #%%
+        if False:
+            np.savez('/mnt/home/agiovann/Dropbox/FiguresAndPapers/PaperCaiman/all_results_Jan_2018.npz',all_results = all_results)
+        #%%
+        with np.load('/mnt/home/agiovann/Dropbox/FiguresAndPapers/PaperCaiman/all_results_variousSNR.npz') as ld:
+            all_results = ld['all_results'][()]
+
+        for k,fl_results in all_results.items():
+            print(k)
+            fl_result_init = fl_results[0]
+            fl_result_1 = fl_results[1]
+            snr_gt = fl_result_init['comp_SNR_gt']
+            snr_cnmf = fl_result_init['comp_SNR']
+            idx_components_gt_filt = fl_result_1['idx_components_gt_filt']
+            idx_components_cnmf_filt = fl_result_1['idx_components_cnmf_filt']
+            tp_gt = fl_result_1['tp_gt']
+            tp_comp = fl_result_1['tp_comp']
+            fn_gt = fl_result_1['fn_gt']
+            fp_comp = fl_result_1['fp_comp']
+
+
+
+        #%%
+        pl.figure()
+        from matplotlib.pyplot import cm as cmap
+        color=cmap.rainbow(np.linspace(0,1,10))
+        i = 0
+        legs = []
+        all_ys = []
+        for k,fl_results in all_results.items():
+            x = []
+            y = []
+            for fl_result in fl_results:
+                print(fl_result.keys())
+                nm = k[:]
+                nm = nm.replace('neurofinder','NF')
+                nm = nm.replace('final_map','')
+                nm = nm.replace('.','')
+                nm = nm.replace('Data','')
+#                print(nm + ':' + str(fl_result['SNR']) + ' ' + str(fl_result['f1_score']))
+                y.append(fl_result['f1_score'])
+                x.append(fl_result['SNR'])
+            all_ys.append(y)
+            pl.plot(x[::1],y[::1], 'o-',color=color[i])
+#            pl.plot(x[::1]+np.random.normal(scale=.07,size=10),y[::1], 'o',color=color[i])
+            pl.ylim([0.5,1])
+            legs.append(nm[:7])
+            i += 1
+
+        pl.plot(x,np.mean(all_ys,0),'ko--')
+        pl.legend(legs+['average'], fontsize=10)
+        pl.xlabel('SNR')
+        pl.ylabel('F1 SCORE')
+        #%%
+        pl.figure()
+        i = 0
+        legs = []
+        for k,fl_results in all_results.items():
+            x = []
+            y = []
+            if 'k53' in k:
+                fl_result_init = fl_results[0]
+                fl_result_1 = fl_results[1]
+                snr_gt = fl_result_init['comp_SNR_gt'][fl_result_1['idx_components_gt_filt'][fl_result_1['tp_gt']]]
+                snr_gt_fn = fl_result_init['comp_SNR_gt'][fl_result_1['idx_components_gt_filt'][fl_result_1['fn_gt']]]
+
+                snr_cnmf = fl_result_init['comp_SNR'][fl_result_1['idx_components_cnmf_filt'][fl_result_1['tp_comp']]]
+                snr_cnmf_fp = fl_result_init['comp_SNR'][fl_result_1['idx_components_cnmf_filt'][fl_result_1['fp_comp']]]
+
+                pl.scatter(snr_gt,snr_cnmf,color='k')
+                pl.scatter(snr_gt_fn,np.random.normal(scale = .5, size=len(snr_gt_fn)),color='r')
+                pl.scatter(np.zeros_like(snr_cnmf_fp),snr_cnmf_fp,color='r')
+                pl.xlabel('SNR GT')
+                pl.ylabel('SNR CaImAn')
+
+        #%%
+        duplicates, ind_keep, D, overlaps, indeces =  cm.base.rois.detect_duplicates_and_subsets(A_thr[:,idx_components].reshape([dims[0],dims[1],-1],order = 'F').transpose([2,0,1])*1., dist_thr=0.1, min_dist = 10,thresh_subset = 0.6)
+        indeces = [[frst,sec] for frst,sec in zip(indeces[0], indeces[1])]
+        indeces_keep = np.argmax([[overlaps[sec,frst],overlaps[frst,sec]] for frst,sec in indeces],1)
+        indeces_keep = np.unique([ elms[ik] for ik,elms in zip(indeces_keep,indeces)])
+
+        duplicates, ind_keep, D, overlaps, indeces =  cm.base.rois.detect_duplicates_and_subsets(A_gt_thr.reshape([dims[0],dims[1],-1],order = 'F').transpose([2,0,1])*1., dist_thr=0.1, min_dist = 10,thresh_subset = 0.5)
+        indeces = [[frst,sec] for frst,sec in zip(indeces[0], indeces[1])]
+        indeces_keep = np.argmax([[overlaps[sec,frst],overlaps[frst,sec]] for frst,sec in indeces],1)
+        indeces_keep_gt = np.unique([ elms[ik] for ik,elms in zip(indeces_keep,indeces)])
+
+
+        #%%
+        pl.figure()
+        pl.subplot(1,2,1)
+        crd = plot_contours(A.tocsc()[:, idx_components[tp_comp]], Cn, thr=0.9, colors='yellow', vmax = 0.85, display_numbers=False,cmap = 'gray')
+        crd = plot_contours(A_gt.tocsc()[:, tp_gt], Cn, thr=params_display['thr_plot'], vmax = 0.25, colors='r', display_numbers=False,cmap = 'gray')
+        pl.subplot(1,2,2)
+        crd = plot_contours(A.tocsc()[:, idx_components[fp_comp]], Cn, thr=0.9, colors='yellow', vmax = 0.85, display_numbers=False,cmap = 'gray')
+        crd = plot_contours(A_gt.tocsc()[:, fn_gt], Cn, thr=params_display['thr_plot'], vmax = 0.25, colors='r', display_numbers=False,cmap = 'gray')
+        #%%
+        pl.figure()
+        crd = plot_contours(A_gt.tocsc(), Cn, thr=0.9, colors='yellow', vmax = 0.85, display_numbers=True,cmap = 'gray')
+
         #%% LOGISTIC REGRESSOR
         from sklearn import linear_model
         from sklearn.metrics import accuracy_score
