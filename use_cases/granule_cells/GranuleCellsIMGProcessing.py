@@ -1,21 +1,25 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
+
 """
 Created on Tue Feb 16 17:56:14 2016
 
 @author: agiovann
 """
+
 from __future__ import print_function
 
 #%%
 from builtins import str
 from builtins import filter
+
 try:
     get_ipython().magic('load_ext autoreload')
     get_ipython().magic('autoreload 2')
     print((1))
 except:
-
     print('NOT IPYTHON')
+
 import matplotlib as mpl
 mpl.use('TKAgg')
 from matplotlib import pyplot as plt

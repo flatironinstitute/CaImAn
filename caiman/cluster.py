@@ -1,4 +1,6 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
+
 """ functions related to the creation and management of the cluster
 
 This file contains
@@ -8,6 +10,7 @@ Alongside each array x we ensure the value x.dtype which stores the data type.
 
 @author andrea giovannucci
 """
+
 # \package caiman
 # \version   1.0
 # \copyright GNU General Public License v2.0

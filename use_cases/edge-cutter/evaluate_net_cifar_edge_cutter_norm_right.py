@@ -1,10 +1,5 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""
-Created on Thu Nov 16 11:42:13 2017
-
-@author: agiovann
-"""
 
 """
 Created on Thu Aug 24 12:30:19 2017
@@ -17,16 +12,8 @@ Created on Thu Aug 24 12:30:19 2017
 Evaluate networks trained with train_net_cifar_edge_cutter_FOV.py and train_net_cifar_edge_cutter.py
 
 '''
+
 #%%
-#import os
-# os.chdir('/mnt/home/agiovann/SOFTWARE/CaImAn')
-#from __future__ import division
-#from __future__ import print_function
-#from builtins import zip
-#from builtins import str
-#from builtins import map
-#from builtins import range
-#from past.utils import old_div
 import cv2
 import glob
 
@@ -44,7 +31,7 @@ try:
         get_ipython().magic('autoreload 2')
 except NameError:
     print('Not IPYTHON')
-    pass
+
 import caiman as cm
 import numpy as np
 import os

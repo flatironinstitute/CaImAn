@@ -1,5 +1,6 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
+
 """
 Created on Fri Jan  5 12:26:31 2018
 
@@ -16,7 +17,7 @@ try:
         get_ipython().magic('autoreload 2')
 except NameError:
     print('Not IPYTHON')
-    pass
+
 import numpy as np
 import pylab as plt
 import caiman as cm

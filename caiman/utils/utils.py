@@ -1,12 +1,15 @@
-""" pure utilitaries(other)
+#!/usr/bin/env python
 
- all of other usefull functions
+""" pure utilities (other)
+
+generally useful functions for CaImAn
 
 See Also
 ------------
 https://docs.python.org/2/library/urllib.html
 
 """
+
 #\package Caiman/utils
 #\version   1.0
 #\bug

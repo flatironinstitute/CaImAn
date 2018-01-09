@@ -1,13 +1,15 @@
+#!/usr/bin/env python
+
 """ create a groundtruth for different videos
 
-use for the nose test and continuous integration devellopment.
+use for nosetests and continuous integration development.
 
 See Also
 ------------
 caiman/tests/comparison/comparison.py
 
-
 """
+
 # \package None
 # \version   1.0
 # \copyright GNU General Public License v2.0

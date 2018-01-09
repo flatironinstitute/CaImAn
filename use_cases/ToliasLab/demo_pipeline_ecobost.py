@@ -1,4 +1,6 @@
+#!/usr/bin/env python
 #%% test for OFFLINE CNMF
+
 from __future__ import division
 from __future__ import print_function
 from builtins import zip
@@ -23,7 +25,6 @@ try:
         get_ipython().magic('autoreload 2')
 except NameError:
     print('Not IPYTHON')
-    pass
 
 import matplotlib
 matplotlib.use('Agg')

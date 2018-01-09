@@ -1,6 +1,8 @@
+#!/usr/bin/env python
+
 """ test the principal functions of CaImAn
 
-use for the nose test and continuous integration devellopment.
+use for nosetests and continuous integration development.
 
 See Also
 ------------

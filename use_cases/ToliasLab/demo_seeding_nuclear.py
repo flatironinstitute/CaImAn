@@ -1,7 +1,7 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""
 
+"""
 Demo for detecting ROIs in a structural channel and then seeding CNMF with them.
 Detection happens through simple adaptive thresholding of the mean image and 
 could potentially be improved. Then the structural channel is processed. Both
@@ -23,7 +23,6 @@ try:
         get_ipython().magic('autoreload 2')
 except NameError:
     print('Not IPYTHON')
-    pass
 
 import numpy as np
 import glob

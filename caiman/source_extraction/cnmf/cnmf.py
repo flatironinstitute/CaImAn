@@ -1,4 +1,6 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
+
 """ Constrained Nonnegative Matrix Factorization
 
 The general file class which is used to produce a factorization of the Y matrix being the video

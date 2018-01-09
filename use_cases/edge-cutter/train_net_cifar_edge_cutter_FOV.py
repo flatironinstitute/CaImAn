@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 """
 Created on Thu Aug 24 12:30:19 2017
 
@@ -9,16 +11,8 @@ Created on Thu Aug 24 12:30:19 2017
 TRAIN ON DATA EXTRACTED FROM RESIDUALS WITH generate_GT script. THIS IS MORE OF A OVERFEAT TYPE OF NETWORK
 
 '''
+
 #%%
-#import os
-# os.chdir('/mnt/home/agiovann/SOFTWARE/CaImAn')
-#from __future__ import division
-#from __future__ import print_function
-#from builtins import zip
-#from builtins import str
-#from builtins import map
-#from builtins import range
-#from past.utils import old_div
 import cv2
 import glob
 
@@ -36,7 +30,7 @@ try:
         get_ipython().magic('autoreload 2')
 except NameError:
     print('Not IPYTHON')
-    pass
+
 import caiman as cm
 import numpy as np
 import os

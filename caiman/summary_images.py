@@ -1,4 +1,6 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
+
 """ functions that creates image from a video file
 
 for plotting purposes mainly, return correlation images ( local or max )
@@ -10,6 +12,7 @@ See Also:
 .. image::
 @author andrea giovannucci
 """
+
 # \package caiman
 # \version   1.0
 # \copyright GNU General Public License v2.0

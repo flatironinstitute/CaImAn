@@ -1,9 +1,12 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
+
 """
 Created on Sat Nov 19 14:29:15 2016
 
 @author: agiovann
 """
+
 from __future__ import print_function
 
 from builtins import zip
@@ -15,7 +18,6 @@ try:
         get_ipython().magic('autoreload 2')
 except NameError:
     print('Not IPYTHON')
-    pass
 
 import sys
 import numpy as np

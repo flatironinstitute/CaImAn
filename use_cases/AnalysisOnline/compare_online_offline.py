@@ -1,5 +1,6 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
+
 """
 Created on Mon Apr 24 09:54:35 2017
 @author: agiovann
@@ -28,7 +29,7 @@ try:
         get_ipython().magic('autoreload 2')
 except NameError:
     print('Not IPYTHON')
-    pass
+
 from caiman.base.rois import nf_read_roi_zip
 import os
 import numpy as np

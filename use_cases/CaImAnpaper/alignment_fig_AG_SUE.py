@@ -1,9 +1,12 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
+
 """
 Created on Thu Nov 16 11:09:24 2017
 Create alignment figure for CaImAn paper
 @author: epnevmatikakis
 """
+
 try:
     if __IPYTHON__:
         print('Debugging!')
@@ -12,7 +15,7 @@ try:
         get_ipython().magic('autoreload 2')
 except NameError:
     print('Not IPYTHON')
-    pass
+
 import numpy as np
 import pylab as plt
 import caiman as cm
@@ -20,10 +23,6 @@ import caiman as cm
 from scipy.io import loadmat
 from scipy.sparse import csc_matrix
 from glob import glob
-
-#files = ['/Users/epnevmatikakis/Desktop/untitled folder/20160530/memmap__d1_512_d2_512_d3_1_order_C_frames_27000_.results_analysis.npz',
-#         '/Users/epnevmatikakis/Desktop/untitled folder/20160531/memmap__d1_512_d2_512_d3_1_order_C_frames_27000_.results_analysis.npz',
-#         '/Users/epnevmatikakis/Desktop/untitled folder/20160603/memmap__d1_512_d2_512_d3_1_order_C_frames_27000_.results_analysis.npz']
 
 files = ['/mnt/ceph/neuro/Sue/k53/20160530/memmap__d1_512_d2_512_d3_1_order_C_frames_27000_.results_analysis.npz',
          '/mnt/ceph/neuro/Sue/k53/20160531/memmap__d1_512_d2_512_d3_1_order_C_frames_27000_.results_analysis.npz',

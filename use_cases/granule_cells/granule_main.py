@@ -1,14 +1,18 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
+
 """
 Created on Sun Jul 24 17:06:17 2016
 
 @author: agiovann
 """
+
 from __future__ import division
 from __future__ import print_function
 from builtins import zip
 from builtins import range
 from past.utils import old_div
+
 try:
     get_ipython().magic('load_ext autoreload')
     get_ipython().magic('autoreload 2')

@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 from . import utilities
 from . import cnmf
 from . import deconvolution

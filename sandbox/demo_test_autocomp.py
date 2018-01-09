@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 #%%
 try:
     %load_ext autoreload

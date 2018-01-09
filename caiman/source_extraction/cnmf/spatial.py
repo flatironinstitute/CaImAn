@@ -1,9 +1,12 @@
+#!/usr/bin/env python
+
 """
 Created on Wed Aug 05 20:38:27 2015
 
 # -*- coding: utf-8 -*-
 @author: agiovann
 """
+
 from __future__ import division
 from __future__ import print_function
 # noinspection PyCompatibility

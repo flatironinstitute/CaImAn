@@ -1,4 +1,6 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
+
 """
 Spyder Editor
 
@@ -9,6 +11,7 @@ This is a temporary script file.
 from __future__ import print_function
 from builtins import str
 from builtins import range
+
 """
 Created on Wed Feb 24 18:39:45 2016
 
@@ -18,6 +21,7 @@ For explanation consult at https://github.com/agiovann/Constrained_NMF/releases/
 and https://github.com/agiovann/Constrained_NMF
 
 """
+
 try:
     if __IPYTHON__:
         print('Debugging!')
