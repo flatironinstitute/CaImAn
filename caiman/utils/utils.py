@@ -20,6 +20,7 @@ from __future__ import print_function
 
 
 import numpy as np
+import scipy
 import os
 from scipy.ndimage.filters import gaussian_filter
 import cv2
@@ -31,6 +32,8 @@ try:  # python2
     import cPickle as pickle
 except ImportError:  # python3
     import pickle
+from ..external.cell_magic_wand import cell_magic_wand
+from ..source_extraction.cnmf.spatial import threshold_components
 
 #%%
 
@@ -297,3 +300,86 @@ def load_object(filename):
     with open(filename, 'rb') as input_obj:
         obj = pickle.load(input_obj)
     return obj
+#%%
+def apply_magic_wand(A, gSig, dims, A_thr=None, coms=None, dview=None,
+                     min_frac=0.7, max_frac=1.0, roughness=2, zoom_factor=1,
+                     center_range=2):
+    """ Apply cell magic Wand to results of CNMF to EASe matching with labels
+
+    Parameters:
+    -----------
+
+    A:
+        output of CNMF
+
+    gSig: tuple
+        input of CNMF (half neuron size)
+
+    A_thr:
+        thresholded version of A
+
+    coms:
+        centers of the magic wand
+
+    dview:
+        for parallelization
+
+    min_frac:
+        fraction of minimum of gSig to take as minimum size
+
+    max_frac:
+        multiplier of maximum of gSig to take as maximum size
+
+    Returns:
+    ---------
+
+    masks: ndarray
+        binary masks
+
+    """
+    if (A_thr is None) and (coms is None):
+        import pdb
+        pdb.set_trace()
+        A_thr = threshold_components(
+                        A.tocsc()[:], dims, medw=None, thr_method='max',
+                        maxthr=0.2, nrgthr=0.99, extract_cc=True,se=None,
+                        ss=None, dview=dview)>0
+
+        coms = [scipy.ndimage.center_of_mass(mm.reshape(dims, order='F')) for
+                mm in A_thr.T]
+
+    if coms is None:
+        coms = [scipy.ndimage.center_of_mass(mm.reshape(dims, order='F')) for
+                mm in A_thr.T]
+
+    min_radius = np.round(np.min(gSig)*min_frac).astype(np.int)
+    max_radius = np.round(max_frac*np.max(gSig)).astype(np.int)
+
+
+    params = []
+    for idx in range(A.shape[-1]):
+        params.append([A.tocsc()[:,idx].toarray().reshape(dims, order='F'),
+            coms[idx], min_radius, max_radius, roughness, zoom_factor, center_range])
+
+    print(len(params))
+
+    if dview is not None:
+        masks = np.array(list(dview.map(cell_magic_wand_wrapper, params)))
+    else:
+        masks = np.array(list(map(cell_magic_wand_wrapper, params)))
+
+#    masks = np.array([cell_magic_wand(
+#            A.tocsc()[:,idx].toarray().reshape(dims, order='F'),
+#            coms[idx], min_radius, max_radius, roughness=roughness,
+#            zoom_factor=zoom_factor, center_range=center_range)
+#            for idx in range(A.shape[-1])])
+
+    return masks
+#%%
+def cell_magic_wand_wrapper(params):
+#     from ..external.cell_magic_wand import cell_magic_wand
+
+      a, com, min_radius, max_radius, roughness, zoom_factor, center_range = params
+      msk = cell_magic_wand(a, com, min_radius, max_radius, roughness,
+                            zoom_factor, center_range)
+      return msk
