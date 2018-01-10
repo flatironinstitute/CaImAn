@@ -1,5 +1,6 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
+
 """
 Created on Thu Aug 24 12:30:19 2017
 
@@ -12,6 +13,7 @@ Gets to 99.25% test accuracy after 12 epochs
 (there is still a lot of margin for parameter tuning).
 16 seconds per epoch on a GRID K520 GPU.
 '''
+
 #%%
 from __future__ import division
 from __future__ import print_function
@@ -36,8 +38,8 @@ try:
         get_ipython().magic('load_ext autoreload')
         get_ipython().magic('autoreload 2')
 except NameError:
-    print('Not IPYTHON')
-    pass
+    print('Not launched under iPython')
+
 import caiman as cm
 import numpy as np
 import os

@@ -1,5 +1,7 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
-""" Suite of functions that are helpfull work with and manage the movie
+
+""" Suite of functions that help manage movie data
 
 Contains the movie class.
 
@@ -10,6 +12,7 @@ See Also:
 .. image::
 @author andrea giovannucci , deep-introspection
 """
+
 # \package caiman/dource_ectraction/cnmf
 # \version   1.0
 # \copyright GNU General Public License v2.0

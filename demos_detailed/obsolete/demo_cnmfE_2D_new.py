@@ -1,16 +1,18 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
+
 """
 Created on Thu Sep  7 13:29:49 2017
 
 @author: agiovann
 """
+
 #%%
 try:
     get_ipython().magic(u'load_ext autoreload')
     get_ipython().magic(u'autoreload 2')
 except:
-    print('NOT IPYTHON')
+    print('Not launched under iPython')
 
 import numpy as np
 import matplotlib.pyplot as pl

@@ -1,13 +1,15 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
+
 """
 Created on Thu Oct 20 15:18:21 2016
 
 @author: agiovann
 """
+
 from builtins import map
 import caiman as cm
 #%%
-
 
 def pre_preprocess_movie_labeling(dview, file_names, median_filter_size=(2, 1, 1),
                                   resize_factors=[.2, .1666666666], diameter_bilateral_blur=4):

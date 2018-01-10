@@ -1,4 +1,6 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
+
 """Merging of spatially overlapping components that are temporally correlated
 Created on Tue Sep  8 16:23:57 2015
 

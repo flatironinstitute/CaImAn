@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+
 """
 Stripped demo for running the CNMF source extraction algorithm with CaImAn and
 evaluation the components. The analysis can be run either in the whole FOV
@@ -12,6 +13,7 @@ Data courtesy of W. Yang, D. Peterka and R. Yuste (Columbia University)
 @authors: @agiovann and @epnev
 
 """
+
 from __future__ import print_function
 from builtins import range
 get_ipython().magic('load_ext autoreload')

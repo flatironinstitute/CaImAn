@@ -1,5 +1,6 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
+
 """
 Created on Fri Jun  2 16:27:17 2017
 
@@ -27,8 +28,7 @@ try:
         get_ipython().magic('load_ext autoreload')
         get_ipython().magic('autoreload 2')
 except NameError:
-    print('Not IPYTHON')
-    pass
+    print('Not launched under iPython')
 
 import caiman as cm
 import numpy as np

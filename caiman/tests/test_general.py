@@ -1,6 +1,8 @@
+#!/usr/bin/env python
+
 """ test the principal functions of CaImAn
 
-use for the nose test and continuous integration devellopment.
+use for nosetests and continuous integration development.
 
 See Also
 ------------
@@ -37,8 +39,8 @@ try:
         get_ipython().magic('load_ext autoreload')
         get_ipython().magic('autoreload 2')
 except NameError:
-    print('Not IPYTHON')
-    pass
+    print('Not launched under iPython')
+
 import caiman as cm
 import numpy as np
 import os

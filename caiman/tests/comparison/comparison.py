@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 """ compare how the elements behave
  
 We create a folder ground truth that possess the same thing than the other

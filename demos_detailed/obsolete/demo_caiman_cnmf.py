@@ -1,4 +1,6 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
+
 """
 Created on Wed Feb 24 18:39:45 2016
 
@@ -7,17 +9,18 @@ Created on Wed Feb 24 18:39:45 2016
 For explanation consult at https://github.com/agiovann/Constrained_NMF/releases/download/v0.4-alpha/Patch_demo.zip
 and https://github.com/agiovann/Constrained_NMF
 """
+
 from __future__ import print_function
 from builtins import str
 from builtins import range
+
 try:
     if __IPYTHON__:
         print('Debugging!')
         get_ipython().magic('load_ext autoreload')
         get_ipython().magic('autoreload 2')
 except NameError:
-    print('Not IPYTHON')
-    pass
+    print('Not launched under iPython')
 
 import numpy as np
 import glob

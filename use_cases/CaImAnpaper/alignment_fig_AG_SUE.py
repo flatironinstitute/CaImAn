@@ -1,9 +1,12 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
+
 """
 Created on Thu Nov 16 11:09:24 2017
 Create alignment figure for CaImAn paper
 @author: epnevmatikakis
 """
+
 try:
     if __IPYTHON__:
         print('Debugging!')
@@ -11,8 +14,8 @@ try:
         get_ipython().magic('load_ext autoreload')
         get_ipython().magic('autoreload 2')
 except NameError:
-    print('Not IPYTHON')
-    pass
+    print('Not launched under iPython')
+
 import numpy as np
 import pylab as plt
 import caiman as cm

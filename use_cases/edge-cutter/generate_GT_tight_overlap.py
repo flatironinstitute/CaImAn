@@ -1,10 +1,12 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
+
 """
 Created on Wed Oct 11 11:35:22 2017
 
 @author: agiovann
 """
+
 import os
 import numpy as np
 import caiman as cm
