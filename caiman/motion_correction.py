@@ -1602,7 +1602,7 @@ def register_translation(src_image, target_image, upsample_factor=1,
         from skcuda.fft import ifft as cudaifft
         try:
             cudactx
-        except:
+        except NameError:
             init_cuda_process()
 
     # assume complex data is already in Fourier space
