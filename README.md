@@ -28,6 +28,7 @@ Recent advances in calcium imaging acquisition techniques are creating datasets 
     * Fast parallelizable OpenCV and FFT-based motion correction of large movies
     * Can be run also in online mode (i.e. one frame at a time)
     * Corrects for non-rigid artifacts due to raster scanning or non-uniform brain motion
+    * FFTs can be computed on GPUs (experimental). Requires pycuda and skcuda to be installed.
 
 * **Source extraction** 
 
