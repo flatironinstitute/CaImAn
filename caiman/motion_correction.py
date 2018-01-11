@@ -179,6 +179,8 @@ class MotionCorrect(object):
         self.nonneg_movie = nonneg_movie
         self.gSig_filt = gSig_filt
         self.use_cuda = use_cuda
+        if self.use_cuda and not HAS_CUDA:
+            print("pycuda is unavailable. Falling back to default FFT.")
 
 
     def motion_correct_rigid(self, template=None, save_movie=False):
