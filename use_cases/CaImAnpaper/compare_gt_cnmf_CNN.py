@@ -719,6 +719,19 @@ for params_movie in np.array(params_movies)[:]:
 
 
     #%%
+    remove_small_neurons = False
+    if remove_small_neurons:
+        min_size_neuro = 3*2*np.pi
+        max_size_neuro = (2*gSig[0])**2*np.pi
+        size_neurons_gt = A_gt_thr.sum(0)
+        idx_size_neuro_gt = np.where((size_neurons_gt>min_size_neuro) & (size_neurons_gt<max_size_neuro) )[0]
+        idx_components_gt = np.intersect1d(idx_components_gt,idx_size_neuro_gt)
+
+        size_neurons = A_thr.sum(0)
+        idx_size_neuro = np.where((size_neurons>min_size_neuro) & (size_neurons<max_size_neuro) )[0]
+        idx_components_cnmf = np.intersect1d(idx_components_cnmf,idx_size_neuro)
+
+
     plot_results = plot_on
     if plot_results:
         pl.figure(figsize=(30,20))
@@ -811,83 +824,205 @@ for params_movie in np.array(params_movies)[:]:
     all_results[fname_new.split('/')[-4]+fname_new.split('/')[-2]] = performance_tmp
     #%% check with multiple SNR:
 
+    def precision_snr(snr_gt, snr_gt_fn, snr_cnmf, snr_cnmf_fp, snr_thrs):
+        all_results_fake = []
+        all_results_OR = []
+        all_results_AND = []
+        for snr_thr in snr_thrs:
+            snr_all_gt = np.array(list(snr_gt) + list(snr_gt_fn) + [0]*len(snr_cnmf_fp))
+            snr_all_cnmf = np.array(list(snr_cnmf) + [0]*len(snr_gt_fn) + list(snr_cnmf_fp))
 
+            ind_gt = np.where(snr_all_gt > snr_thr)[0]  # comps in gt above threshold
+            ind_cnmf = np.where(snr_all_cnmf > snr_thr)[0] # same for cnmf
+
+            # precision: how many detected components above a given SNR are true
+            prec = np.sum(snr_all_gt[ind_cnmf] > 0)/len(ind_cnmf)
+
+            # recall: how many gt components with SNR above the threshold are detected
+            rec = np.sum(snr_all_cnmf[ind_gt] > 0)/len(ind_gt)
+
+            f1 = 2*prec*rec/(prec + rec)
+
+            results_fake = [prec, rec, f1]
+            # f1 score with OR condition
+
+            ind_OR = np.union1d(ind_gt, ind_cnmf)
+                    # indeces of components that are above threshold in either direction
+            ind_gt_OR = np.where(snr_all_gt[ind_OR] > 0)[0]     # gt components
+            ind_cnmf_OR = np.where(snr_all_cnmf[ind_OR] > 0)[0] # cnmf components
+            prec_OR = np.sum(snr_all_gt[ind_OR][ind_cnmf_OR] > 0)/len(ind_cnmf_OR)
+            rec_OR = np.sum(snr_all_cnmf[ind_OR][ind_gt_OR] > 0)/len(ind_gt_OR)
+            f1_OR = 2*prec_OR*rec_OR/(prec_OR + rec_OR)
+
+            results_OR = [prec_OR, rec_OR, f1_OR]
+
+            # f1 score with AND condition
+
+            ind_AND = np.intersect1d(ind_gt, ind_cnmf)
+            ind_fp = np.intersect1d(ind_cnmf, np.where(snr_all_gt == 0)[0])
+            ind_fn = np.intersect1d(ind_gt, np.where(snr_all_cnmf == 0)[0])
+
+            prec_AND = len(ind_AND)/(len(ind_AND) + len(ind_fp))
+            rec_AND = len(ind_AND)/(len(ind_AND) + len(ind_fn))
+            f1_AND = 2*prec_AND*rec_AND/(prec_AND + rec_AND)
+
+            results_AND = [prec_AND, rec_AND, f1_AND]
+            all_results_fake.append(results_fake)
+            all_results_OR.append(results_OR)
+            all_results_AND.append(results_AND)
+
+
+        return np.array(all_results_fake), np.array(all_results_OR), np.array(all_results_AND)
         #%%
     if False:
         #%%
-        if False:
-            np.savez('/mnt/home/agiovann/Dropbox/FiguresAndPapers/PaperCaiman/all_results_Jan_2018.npz',all_results = all_results)
-        #%%
-        with np.load('/mnt/home/agiovann/Dropbox/FiguresAndPapers/PaperCaiman/all_results_variousSNR.npz') as ld:
-            all_results = ld['all_results'][()]
-
-        for k,fl_results in all_results.items():
-            print(k)
-            fl_result_init = fl_results[0]
-            fl_result_1 = fl_results[1]
-            snr_gt = fl_result_init['comp_SNR_gt']
-            snr_cnmf = fl_result_init['comp_SNR']
-            idx_components_gt_filt = fl_result_1['idx_components_gt_filt']
-            idx_components_cnmf_filt = fl_result_1['idx_components_cnmf_filt']
-            tp_gt = fl_result_1['tp_gt']
-            tp_comp = fl_result_1['tp_comp']
-            fn_gt = fl_result_1['fn_gt']
-            fp_comp = fl_result_1['fp_comp']
-
-
-
+        pl.figure()
+        pl.subplot(1,2,1)
+        a1 = plot_contours(A.tocsc()[:, idx_components_cnmf[tp_comp]], Cn, thr=0.9, colors='yellow', vmax = 0.75, display_numbers=False,cmap = 'gray')
+        a2 = plot_contours(A_gt.tocsc()[:, idx_components_gt[tp_gt]], Cn, thr=0.9, vmax = 0.85, colors='r', display_numbers=False,cmap = 'gray')
+        pl.subplot(1,2,2)
+        a3 = plot_contours(A.tocsc()[:, idx_components_cnmf[fp_comp]], Cn, thr=0.9, colors='yellow', vmax = 0.75, display_numbers=False,cmap = 'gray')
+        a4 = plot_contours(A_gt.tocsc()[:, idx_components_gt[fn_gt]], Cn, thr=0.9, vmax = 0.85, colors='r', display_numbers=False,cmap = 'gray')
         #%%
         pl.figure()
+        pl.ylabel('spatial components')
+        idx_comps_high_r = [np.argsort(predictionsCNN[idx_components_cnmf[tp_comp]])[[-6,-5,-4,-3,-2]]]
+        idx_comps_high_r_cnmf = idx_components_cnmf[tp_comp][idx_comps_high_r]
+        idx_comps_high_r_gt = idx_components_gt[tp_gt][idx_comps_high_r]
+        images_nice = (A.tocsc()[:,idx_comps_high_r_cnmf].toarray().reshape(dims+(-1,),order = 'F')).transpose(2,0,1)
+        images_nice_gt =  (A_gt.tocsc()[:,idx_comps_high_r_gt].toarray().reshape(dims+(-1,),order = 'F')).transpose(2,0,1)
+        cms = np.array([scipy.ndimage.center_of_mass(img) for img in images_nice]).astype(np.int)
+        images_nice_crop = [img[cm_[0]-15:cm_[0]+15,cm_[1]-15:cm_[1]+15] for  cm_,img in zip(cms,images_nice)]
+        images_nice_crop_gt = [img[cm_[0]-15:cm_[0]+15,cm_[1]-15:cm_[1]+15] for  cm_,img in zip(cms,images_nice_gt)]
+
+        indexes = [1,3,5,7,9,2,4,6,8,10]
+        count = 0
+        for img in images_nice_crop:
+            pl.subplot(5,2,indexes[count])
+            pl.imshow(img)
+            pl.axis('off')
+            count += 1
+
+        for img in images_nice_crop_gt:
+
+            pl.subplot(5,2,indexes[count])
+            pl.imshow(img)
+            pl.axis('off')
+            count += 1
+        #%%
+        pl.figure()
+        traces_gt = C_gt[idx_comps_high_r_gt]# + YrA_gt[idx_comps_high_r_gt]
+        traces_cnmf = C[idx_comps_high_r_cnmf]# + YrA[idx_comps_high_r_cnmf]
+        traces_gt/=np.max(traces_gt,1)[:,None]
+        traces_cnmf /=np.max(traces_cnmf,1)[:,None]
+        pl.plot(scipy.signal.decimate(traces_cnmf,10,1).T-np.arange(5)*1,'y')
+        pl.plot(scipy.signal.decimate(traces_gt,10,1).T-np.arange(5)*1,'k', linewidth = .5 )
+
+
+
+        #%%
+        if False:
+            np.savez('/mnt/home/agiovann/Dropbox/FiguresAndPapers/PaperCaiman/all_results_Jan_2018.npz',all_results = all_results)
+
+        with np.load('/mnt/home/agiovann/Dropbox/FiguresAndPapers/PaperCaiman/all_results_Jan_2018.npz') as ld:
+            all_results = ld['all_results']
+        #%%
+        f1s = []
+        names = []
+        for folder_out in folders_out[:1]:
+            projection_img_median = folder_out + '/projections/median_projection.tif'
+            projection_img_correlation = folder_out + '/projections/correlation_image.tif'
+            folder_in = folder_out + '/regions'
+            print('********' + folder_out)
+            with np.load(folder_in + '/comparison_labelers_consensus.npz', encoding='latin1') as ld:
+                pf = ld['performance_all'][()]
+                print(pf[list(pf.keys())[0]].keys())
+        #%%
         from matplotlib.pyplot import cm as cmap
-        color=cmap.rainbow(np.linspace(0,1,10))
+        pl.figure()
+
+        color=cmap.jet(np.linspace(0,1,10))
         i = 0
         legs = []
         all_ys = []
+        SNRs = np.arange(0,10)
+        pl.subplot(1,3,1)
+
         for k,fl_results in all_results.items():
-            x = []
-            y = []
-            for fl_result in fl_results:
-                print(fl_result.keys())
-                nm = k[:]
-                nm = nm.replace('neurofinder','NF')
-                nm = nm.replace('final_map','')
-                nm = nm.replace('.','')
-                nm = nm.replace('Data','')
-#                print(nm + ':' + str(fl_result['SNR']) + ' ' + str(fl_result['f1_score']))
-                y.append(fl_result['f1_score'])
-                x.append(fl_result['SNR'])
-            all_ys.append(y)
-            pl.plot(x[::1],y[::1], 'o-',color=color[i])
+            print(k)
+            nm = k[:]
+            nm = nm.replace('neurofinder','NF')
+            nm = nm.replace('final_map','')
+            nm = nm.replace('.','')
+            nm = nm.replace('Data','')
+            idx_components_gt = fl_results['idx_components_gt']
+            idx_components_cnmf = fl_results['idx_components_cnmf']
+            tp_gt = fl_results['tp_gt']
+            tp_comp = fl_results['tp_comp']
+            fn_gt = fl_results['fn_gt']
+            fp_comp = fl_results['fp_comp']
+            comp_SNR = fl_results['comp_SNR']
+            comp_SNR_gt = fl_results['comp_SNR_gt']
+            snr_gt = comp_SNR_gt[idx_components_gt[tp_gt]]
+            snr_gt_fn = comp_SNR_gt[idx_components_gt[fn_gt]]
+            snr_cnmf = comp_SNR[idx_components_cnmf[tp_comp]]
+            snr_cnmf_fp = comp_SNR[idx_components_cnmf[fp_comp]]
+            all_results_fake, all_results_OR, all_results_AND = precision_snr(snr_gt, snr_gt_fn, snr_cnmf, snr_cnmf_fp, SNRs)
+            all_ys.append(all_results_fake[:,-1])
+            pl.fill_between(SNRs,all_results_OR[:,-1],all_results_AND[:,-1], color=color[i], alpha = .1)
+            pl.plot(SNRs,all_results_fake[:,-1], '.-',color=color[i])
 #            pl.plot(x[::1]+np.random.normal(scale=.07,size=10),y[::1], 'o',color=color[i])
             pl.ylim([0.5,1])
             legs.append(nm[:7])
             i += 1
-
-        pl.plot(x,np.mean(all_ys,0),'ko--')
+#            break
+        pl.plot(SNRs,np.mean(all_ys,0),'k--', alpha=1, linewidth = 2)
         pl.legend(legs+['average'], fontsize=10)
-        pl.xlabel('SNR')
+        pl.xlabel('SNR threshold')
+
         pl.ylabel('F1 SCORE')
-        #%%
-        pl.figure()
+        #%
         i = 0
         legs = []
         for k,fl_results in all_results.items():
             x = []
             y = []
             if 'k53' in k:
-                fl_result_init = fl_results[0]
-                fl_result_1 = fl_results[1]
-                snr_gt = fl_result_init['comp_SNR_gt'][fl_result_1['idx_components_gt_filt'][fl_result_1['tp_gt']]]
-                snr_gt_fn = fl_result_init['comp_SNR_gt'][fl_result_1['idx_components_gt_filt'][fl_result_1['fn_gt']]]
+                idx_components_gt = fl_results['idx_components_gt']
+                idx_components_cnmf = fl_results['idx_components_cnmf']
+                tp_gt = fl_results['tp_gt']
+                tp_comp = fl_results['tp_comp']
+                fn_gt = fl_results['fn_gt']
+                fp_comp = fl_results['fp_comp']
+                comp_SNR = fl_results['comp_SNR']
+                comp_SNR_gt = fl_results['comp_SNR_gt']
+                snr_gt = comp_SNR_gt[idx_components_gt[tp_gt]]
+                snr_gt_fn = comp_SNR_gt[idx_components_gt[fn_gt]]
+                snr_cnmf = comp_SNR[idx_components_cnmf[tp_comp]]
+                snr_cnmf_fp = comp_SNR[idx_components_cnmf[fp_comp]]
+                all_results_fake, all_results_OR, all_results_AND = precision_snr(snr_gt, snr_gt_fn, snr_cnmf, snr_cnmf_fp, SNRs)
+                prec_idx = 0
+                recall_idx = 1
+                f1_idx = 2
 
-                snr_cnmf = fl_result_init['comp_SNR'][fl_result_1['idx_components_cnmf_filt'][fl_result_1['tp_comp']]]
-                snr_cnmf_fp = fl_result_init['comp_SNR'][fl_result_1['idx_components_cnmf_filt'][fl_result_1['fp_comp']]]
-
-                pl.scatter(snr_gt,snr_cnmf,color='k')
-                pl.scatter(snr_gt_fn,np.random.normal(scale = .5, size=len(snr_gt_fn)),color='r')
-                pl.scatter(np.zeros_like(snr_cnmf_fp),snr_cnmf_fp,color='r')
+                pl.subplot(1,3,2)
+                pl.scatter(snr_gt,snr_cnmf,color='k', alpha = .15)
+                pl.scatter(snr_gt_fn,np.random.normal(scale = .25, size=len(snr_gt_fn)),color='g', alpha = .15)
+                pl.scatter(np.random.normal(scale = .25, size=len(snr_cnmf_fp)),snr_cnmf_fp,color='g', alpha = .15)
+                pl.fill_between([20,40],[-2,-2],[40,40], alpha = .05, color='r')
+                pl.fill_between([-2,40],[20,20],[40,40], alpha = .05 ,color='b')
                 pl.xlabel('SNR GT')
                 pl.ylabel('SNR CaImAn')
+                pl.subplot(1,3,3)
+                pl.fill_between(SNRs,all_results_OR[:,prec_idx],all_results_AND[:,prec_idx], color='b', alpha = .1)
+                pl.plot(SNRs,all_results_fake[:,prec_idx], '.-',color='b')
+                pl.fill_between(SNRs,all_results_OR[:,recall_idx],all_results_AND[:,recall_idx], color='r', alpha = .1)
+                pl.plot(SNRs,all_results_fake[:,recall_idx], '.-',color= 'r')
+                pl.fill_between(SNRs,all_results_OR[:,f1_idx],all_results_AND[:,f1_idx], color='g', alpha = .1)
+                pl.plot(SNRs,all_results_fake[:,f1_idx], '.-',color='g')
+                pl.legend(['precision','recall','f-1 score'], fontsize = 10)
+                pl.xlabel('SNR threshold')
+
 
         #%%
         duplicates, ind_keep, D, overlaps, indeces =  cm.base.rois.detect_duplicates_and_subsets(A_thr[:,idx_components].reshape([dims[0],dims[1],-1],order = 'F').transpose([2,0,1])*1., dist_thr=0.1, min_dist = 10,thresh_subset = 0.6)
@@ -901,14 +1036,6 @@ for params_movie in np.array(params_movies)[:]:
         indeces_keep_gt = np.unique([ elms[ik] for ik,elms in zip(indeces_keep,indeces)])
 
 
-        #%%
-        pl.figure()
-        pl.subplot(1,2,1)
-        crd = plot_contours(A.tocsc()[:, idx_components[tp_comp]], Cn, thr=0.9, colors='yellow', vmax = 0.85, display_numbers=False,cmap = 'gray')
-        crd = plot_contours(A_gt.tocsc()[:, tp_gt], Cn, thr=params_display['thr_plot'], vmax = 0.25, colors='r', display_numbers=False,cmap = 'gray')
-        pl.subplot(1,2,2)
-        crd = plot_contours(A.tocsc()[:, idx_components[fp_comp]], Cn, thr=0.9, colors='yellow', vmax = 0.85, display_numbers=False,cmap = 'gray')
-        crd = plot_contours(A_gt.tocsc()[:, fn_gt], Cn, thr=params_display['thr_plot'], vmax = 0.25, colors='r', display_numbers=False,cmap = 'gray')
         #%%
         pl.figure()
         crd = plot_contours(A_gt.tocsc(), Cn, thr=0.9, colors='yellow', vmax = 0.85, display_numbers=True,cmap = 'gray')
