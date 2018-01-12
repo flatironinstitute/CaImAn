@@ -75,7 +75,7 @@ font = {'family': 'Myriad Pro',
         'size': 10}
 pl.rc('font', **font)
 
-for folder_out in folders_out[10:]:
+for folder_out in folders_out[:]:
     projection_img_median = folder_out + '/projections/median_projection.tif'
     projection_img_correlation = folder_out + '/projections/correlation_image.tif'
     folder_in = folder_out + '/regions'
@@ -118,7 +118,7 @@ for folder_out in folders_out:
     projection_img_correlation = folder_out + '/projections/correlation_image.tif'
     folder_in = folder_out + '/regions'
     print('********' + folder_out)
-    with np.load(folder_in + '/comparison_labelers_consensus.npz') as ld:
+    with np.load(folder_in + '/comparison_labelers_consensus.npz', encoding='latin1') as ld:
         pf = ld['performance_all'][()]
         for key in pf:
             if pf[key]['f1_score'] <= 1:
