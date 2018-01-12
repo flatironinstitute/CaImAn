@@ -1,4 +1,6 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
+
 """ A set of utilities, mostly for post-processing and visualization
 
 We put arrays on disk as raw bytes, extending along the first dimension.

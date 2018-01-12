@@ -1,10 +1,12 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
+
 """
 Created on Mon Mar 27 14:22:48 2017
 
 @author: agiovann and me
 """
+
 import numpy as np
 try:
     if __IPYTHON__:
@@ -13,8 +15,7 @@ try:
         get_ipython().magic('load_ext autoreload')
         get_ipython().magic('autoreload 2')
 except NameError:
-    print('Not IPYTHON')
-    pass
+    print('Not launched under iPython')
 
 from time import time
 import caiman as cm

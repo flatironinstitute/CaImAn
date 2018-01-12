@@ -1,21 +1,24 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
+
 """
 Created on Sat Nov 19 14:29:15 2016
 
 @author: agiovann
 """
+
 from __future__ import print_function
 
 from builtins import zip
 from builtins import str
+
 try:
     if __IPYTHON__:
         # this is used for debugging purposes only. allows to reload classes when changed
         get_ipython().magic('load_ext autoreload')
         get_ipython().magic('autoreload 2')
 except NameError:
-    print('Not IPYTHON')
-    pass
+    print('Not launched under iPython')
 
 import sys
 import numpy as np

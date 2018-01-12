@@ -1,9 +1,10 @@
+#!/usr/bin/env python
+
 import numpy.testing as npt
 import numpy as np
 import os
 import caiman as cm
 from caiman.source_extraction import cnmf
-
 
 def demo(parallel=False):
 

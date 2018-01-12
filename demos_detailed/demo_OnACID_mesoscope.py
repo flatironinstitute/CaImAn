@@ -1,11 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+
 """
 Complete pipeline for online processing using OnACID.
 @author: Andrea Giovannucci @agiovann and Eftychios Pnevmatikakis @epnev
 Special thanks to Andreas Tolias and his lab at Baylor College of Medicine
 for sharing their data used in this demo.
 """
+
 import numpy as np
 try:
     if __IPYTHON__:

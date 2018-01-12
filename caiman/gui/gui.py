@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 #%%
 from builtins import zip
 import numpy as np

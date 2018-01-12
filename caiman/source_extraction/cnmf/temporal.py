@@ -1,6 +1,7 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""A set of routines for estimating the temporal components, given the spatial components and temporal components
 
+"""A set of routines for estimating the temporal components, given the spatial components and temporal components
 
 @author: agiovann
 """

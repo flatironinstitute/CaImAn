@@ -1,5 +1,6 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
+
 """
 Complete pipeline for online processing using OnACID. 
 
@@ -7,9 +8,11 @@ Complete pipeline for online processing using OnACID.
 Special thanks to Andreas Tolias and his lab at Baylor College of Medicine 
 for sharing their data used in this demo.
 """
+
 from __future__ import division
 from __future__ import print_function
 import numpy as np
+
 try:
     if __IPYTHON__:
         print('Debugging!')
@@ -17,8 +20,8 @@ try:
         get_ipython().magic('load_ext autoreload')
         get_ipython().magic('autoreload 2')
 except NameError:
-    print('Not IPYTHON')
-    pass
+    print('Not launched under iPython')
+
 
 from time import time
 import caiman as cm

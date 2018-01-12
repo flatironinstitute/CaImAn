@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 # -*- coding: utf-8 -*-
 #
 # Ca source separation documentation build configuration file, created by

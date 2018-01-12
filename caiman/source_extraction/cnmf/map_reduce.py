@@ -1,4 +1,6 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
+
 """
 Function for implementing parallel scalable segmentation of two photon imaging data
 

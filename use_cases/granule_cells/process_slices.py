@@ -1,9 +1,12 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
+
 """
 Created on Wed Sep 21 11:30:44 2016
 
 @author: agiovann
 """
+
 from __future__ import division
 from __future__ import print_function
 #%%
@@ -11,12 +14,13 @@ from __future__ import print_function
 from builtins import zip
 from builtins import range
 from past.utils import old_div
+
 try:
     get_ipython().magic('load_ext autoreload')
     get_ipython().magic('autoreload 2')
     print((1))
 except:
-    print('NOT IPYTHON')
+    print('Not launched under iPython')
 
 import matplotlib as mpl
 mpl.use('TKAgg')

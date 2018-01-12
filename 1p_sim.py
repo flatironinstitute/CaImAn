@@ -1,8 +1,10 @@
+#!/usr/bin/env python
+
 try:
     get_ipython().magic(u'load_ext autoreload')
     get_ipython().magic(u'autoreload 2')
 except:
-    print('NOT IPYTHON')
+    print('Not launched under iPython')
 
 import numpy as np
 from scipy.io import loadmat

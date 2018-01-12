@@ -1,4 +1,6 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
+
 """ A set of utilities, mostly for post-processing and visualization
 
 We put arrays on disk as raw bytes, extending along the first dimension.
@@ -12,6 +14,7 @@ See Also:
 .. image::
 @author  epnev
 """
+
 #\package caiman/dource_ectraction/cnmf
 #\version   1.0
 #\copyright GNU General Public License v2.0

@@ -1,4 +1,6 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
+
 """
 Class representing a time series.
 
@@ -18,6 +20,7 @@ Class representing a time series.
 
 author: Andrea Giovannucci
 """
+
 from __future__ import print_function
 #%%
 import os

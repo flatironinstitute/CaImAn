@@ -1,16 +1,14 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
 """
 Created on Tue May 23 21:41:17 2017
 
 @author: epnevmatikakis
 """
-#!/usr/bin/env python2
-# -*- coding: utf-8 -*-
-"""
-Created on Mon Mar 27 14:22:48 2017
 
-@author: agiovann
-"""
 import numpy as np
+
 try:
     if __IPYTHON__:
         print('Debugging!')
@@ -18,8 +16,7 @@ try:
         get_ipython().magic('load_ext autoreload')
         get_ipython().magic('autoreload 2')
 except NameError:
-    print('Not IPYTHON')
-    pass
+    print('Not launched under iPython')
 
 import caiman as cm
 
