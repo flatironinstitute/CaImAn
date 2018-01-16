@@ -132,7 +132,7 @@ We recently incorporated a Python implementation of the OnACID [[5]](#onacid) al
     ```
 
 Alternative environments:
-   * [Using experimental CUDA support] (/README-cuda.md)
+   * [Using experimental CUDA support](/README-cuda.md)
 
 ### Installation for behavioral analysis
 * Installation on Linux (Windows and MacOS are problematic with anaconda at the moment)
