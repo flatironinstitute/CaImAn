@@ -43,3 +43,5 @@ computation (if the needed libraries are involved):
 * motion_correct_batch_rigid()
 * motion_correct_batch_pwrigid()
 * motion_correction_piecewise()
+
+If you have your environment set up correctly, you can add use_cuda=True to the arguments of MotionCorrect() in your code and it will use your GPU for motion correction.
