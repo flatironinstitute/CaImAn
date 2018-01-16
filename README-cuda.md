@@ -30,12 +30,9 @@ distribution of pycuda in a conda repository, and it installs skcuda using pip
 become available for both of these as conda-forge evolves.
 
 # Use
-The CUDA codepaths will only be active if the needed libraries are installed on your
-system. Otherwise non-CUDA codepaths will be active (even if CUDA is requested in our code).
+The CUDA codepaths will only be active if the needed libraries are installed on your system. Otherwise non-CUDA codepaths will be active (even if CUDA is requested in our code).
 
-demo_motion_correction-cuda.ipynb demonstrates use of CUDA in CaImAn.
-
-Outside of that code, the following functions have been extended with a
+The following functions have been extended with a
 use_cuda flag (defaults to false) that if set true will use CUDA for FFT
 computation (if the needed libraries are involved):
 
