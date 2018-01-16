@@ -28,6 +28,7 @@ Recent advances in calcium imaging acquisition techniques are creating datasets 
     * Fast parallelizable OpenCV and FFT-based motion correction of large movies
     * Can be run also in online mode (i.e. one frame at a time)
     * Corrects for non-rigid artifacts due to raster scanning or non-uniform brain motion
+    * FFTs can be computed on GPUs (experimental). Requires pycuda and skcuda to be installed.
 
 * **Source extraction** 
 
@@ -71,7 +72,6 @@ We recently incorporated a Python implementation of the OnACID [[5]](#onacid) al
    ```
    **Python 3 may have issues** when running in parallel mode (dview is not None) because of bugs in Python/ipyparallel/numpy interaction. Python2 may have fewer issues
 
-
 * Installation on Linux 
 
    * Download and install Anaconda (Python 2.7 or Python 3.6) <http://docs.continuum.io/anaconda/install>
@@ -95,7 +95,7 @@ We recently incorporated a Python implementation of the OnACID [[5]](#onacid) al
    export OPENBLAS_NUM_THREADS=1
    ```
 
-* Installation on  Windows 
+* Installation on Windows 
 
   (Python 3)
 
@@ -121,13 +121,7 @@ We recently incorporated a Python implementation of the OnACID [[5]](#onacid) al
 	jupyter notebook --NotebookApp.iopub_data_rate_limit=1.0e10
     ```
 
-
-(OUTDATED, NEEDS TESTING)
-
-	(Python 2.7)
-   * Download and install Anaconda (Python 2.7) <http://docs.continuum.io/anaconda/install>, GIT (<https://git-scm.com/>) and Microsoft Visual C++ Compiler for Python 2.7 <https://www.microsoft.com/en-us/download/details.aspx?id=44266>
-
-    ```bash
+  (Python 2.7) not supported on Windows
     
     git clone  https://github.com/flatironinstitute/CaImAn
     cd CaImAn
