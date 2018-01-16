@@ -67,6 +67,14 @@ import os
 from cv2 import dft as fftn
 from cv2 import idft as ifftn
 opencv = True
+try:
+    import pycuda.gpuarray as gpuarray
+    import pycuda.driver as cudadrv
+    import atexit
+    HAS_CUDA = True
+
+except ImportError:
+    HAS_CUDA = False
 from numpy.fft import ifftshift
 import itertools
 try:
@@ -133,6 +141,9 @@ class MotionCorrect(object):
        nonneg_movie: boolean
            make the SAVED movie and template mostly nonnegative by removing min_mov from movie
 
+       use_cuda : bool, optional
+           Use skcuda.fft (if available). Default: False
+
        Returns:
        -------
        self
@@ -143,7 +154,8 @@ class MotionCorrect(object):
 
     def __init__(self, fname, min_mov, dview=None, max_shifts=(6, 6), niter_rig=1, splits_rig=14, num_splits_to_process_rig=None,
                  strides=(96, 96), overlaps=(32, 32), splits_els=14, num_splits_to_process_els=[7, None],
-                 upsample_factor_grid=4, max_deviation_rigid=3, shifts_opencv=True, nonneg_movie=False, gSig_filt=None):
+                 upsample_factor_grid=4, max_deviation_rigid=3, shifts_opencv=True, nonneg_movie=False, gSig_filt=None,
+                 use_cuda=False):
         """
         Constructor class for motion correction operations
 
@@ -172,7 +184,9 @@ class MotionCorrect(object):
         self.min_mov = min_mov
         self.nonneg_movie = nonneg_movie
         self.gSig_filt = gSig_filt
-
+        self.use_cuda = use_cuda
+        if self.use_cuda and not HAS_CUDA:
+            print("pycuda is unavailable. Falling back to default FFT.")
 
 
     def motion_correct_rigid(self, template=None, save_movie=False):
@@ -221,7 +235,8 @@ class MotionCorrect(object):
                 save_movie_rigid=save_movie,
                 add_to_movie=-self.min_mov,
                 nonneg_movie=self.nonneg_movie,
-                gSig_filt=self.gSig_filt)
+                gSig_filt=self.gSig_filt,
+                use_cuda=self.use_cuda)
             if template is None:
                 self.total_template_rig = _total_template_rig
 
@@ -292,7 +307,8 @@ class MotionCorrect(object):
                         dview=self.dview, upsample_factor_grid=self.upsample_factor_grid,
                         max_deviation_rigid=self.max_deviation_rigid, splits=self.splits_els,
                         num_splits_to_process=num_splits_to_process, num_iter=num_iter, template=self.total_template_els,
-                        shifts_opencv=self.shifts_opencv, save_movie=save_movie, nonneg_movie=self.nonneg_movie, gSig_filt=self.gSig_filt)
+                        shifts_opencv=self.shifts_opencv, save_movie=save_movie, nonneg_movie=self.nonneg_movie, gSig_filt=self.gSig_filt,
+                        use_cuda=self.use_cuda)
                 if show_template:
                     pl.imshow(new_template_els)
                     pl.pause(.5)
@@ -1356,6 +1372,30 @@ def _compute_error(cross_correlation_max, src_amp, target_amp):
         (src_amp * target_amp)
     return np.sqrt(np.abs(error))
 
+def init_cuda_process():
+    """
+    Initialize a PyCUDA context at global scope so that it can be accessed
+    from processes when using multithreading
+    """
+    global cudactx
+
+    cudadrv.init()
+    dev = cudadrv.Device(0)
+    cudactx = dev.make_context()
+    atexit.register(cudactx.pop)
+
+
+def close_cuda_process(n):
+    """
+    Cleanup cuda process
+    """
+
+    import skcuda.misc as cudamisc
+    try:
+        cudamisc.done_context(cudactx)
+    except:
+        pass
+
 #%%
 
 def register_translation_3d(src_image, target_image, space = "real",
@@ -1455,7 +1495,8 @@ def register_translation_3d(src_image, target_image, space = "real",
 #%%
 
 def register_translation(src_image, target_image, upsample_factor=1,
-                         space="real", shifts_lb=None, shifts_ub=None, max_shifts=(10, 10)):
+                         space="real", shifts_lb=None, shifts_ub=None, max_shifts=(10, 10),
+                         use_cuda=False):
     """
 
     adapted from SIMA (https://github.com/losonczylab) and the
@@ -1520,6 +1561,9 @@ def register_translation(src_image, target_image, upsample_factor=1,
         will be FFT'd to compute the correlation, while "fourier" data will
         bypass FFT of input data.  Case insensitive.
 
+    use_cuda : bool, optional
+        Use skcuda.fft (if available). Default: False
+
     Returns:
     -------
     shifts : ndarray
@@ -1561,13 +1605,50 @@ def register_translation(src_image, target_image, upsample_factor=1,
         raise NotImplementedError("Error: register_translation only supports "
                                   "subpixel registration for 2D images")
 
+    if HAS_CUDA and use_cuda:
+        from skcuda.fft import Plan
+        from skcuda.fft import fft as cudafft
+        from skcuda.fft import ifft as cudaifft
+        try:
+            cudactx
+        except NameError:
+            init_cuda_process()
+
     # assume complex data is already in Fourier space
     if space.lower() == 'fourier':
         src_freq = src_image
         target_freq = target_image
     # real data needs to be fft'd.
     elif space.lower() == 'real':
-        if opencv:
+        if HAS_CUDA and use_cuda:
+            # src_image_cpx = np.array(src_image, dtype=np.complex128, copy=False)
+            # target_image_cpx = np.array(target_image, dtype=np.complex128, copy=False)
+
+            image_gpu = gpuarray.to_gpu(np.stack((src_image, target_image)).astype(np.complex128))
+            freq_gpu = gpuarray.empty((2, src_image.shape[0], src_image.shape[1]), dtype=np.complex128)
+            # src_image_gpu = gpuarray.to_gpu(src_image_cpx)
+            # src_freq_gpu = gpuarray.empty(src_image_cpx.shape, np.complex128)
+
+            # target_image_gpu = gpuarray.to_gpu(target_image_cpx)
+            # target_freq_gpu = gpuarray.empty(target_image_cpx.shape, np.complex128)
+
+            plan = Plan(src_image.shape, np.complex128, np.complex128, batch=2)
+            # cudafft(src_image_gpu, src_freq_gpu, plan, scale=True)
+            # cudafft(target_image_gpu, target_freq_gpu, plan, scale=True)
+            cudafft(image_gpu, freq_gpu, plan, scale=True)
+            # src_freq = src_freq_gpu.get()
+            # target_freq = target_freq_gpu.get()
+            freq = freq_gpu.get()
+            src_freq = freq[0, :, :]
+            target_freq = freq[1, :, :]
+
+            # del(src_image_gpu)
+            # del(src_freq_gpu)
+            # del(target_image_gpu)
+            # del(target_freq_gpu)
+            del(image_gpu)
+            del(freq_gpu)
+        elif opencv:
             src_freq_1 = fftn(
                 src_image, flags=cv2.DFT_COMPLEX_OUTPUT + cv2.DFT_SCALE)
             src_freq = src_freq_1[:, :, 0] + 1j * src_freq_1[:, :, 1]
@@ -1592,7 +1673,14 @@ def register_translation(src_image, target_image, upsample_factor=1,
     # Whole-pixel shift - Compute cross-correlation by an IFFT
     shape = src_freq.shape
     image_product = src_freq * target_freq.conj()
-    if opencv:
+    if HAS_CUDA and use_cuda:
+        image_product_gpu = gpuarray.to_gpu(image_product)
+        cross_correlation_gpu = gpuarray.empty(
+            image_product.shape, np.complex128)
+        iplan = Plan(image_product.shape, np.complex128, np.complex128)
+        cudaifft(image_product_gpu, cross_correlation_gpu, iplan, scale=True)
+        cross_correlation = cross_correlation_gpu.get()
+    elif opencv:
 
         image_product_cv = np.dstack(
             [np.real(image_product), np.imag(image_product)])
@@ -1601,8 +1689,6 @@ def register_translation(src_image, target_image, upsample_factor=1,
         cross_correlation = cross_correlation[:,
                                               :, 0] + 1j * cross_correlation[:, :, 1]
     else:
-        shape = src_freq.shape
-        image_product = src_freq * target_freq.conj()
         cross_correlation = ifftn(image_product)
 
     # Locate maximum
@@ -1964,7 +2050,8 @@ def low_pass_filter_space(img_orig, gSig_filt):
 
 
 def tile_and_correct(img, template, strides, overlaps, max_shifts, newoverlaps=None, newstrides=None, upsample_factor_grid=4,
-                     upsample_factor_fft=10, show_movie=False, max_deviation_rigid=2, add_to_movie=0, shifts_opencv=False, gSig_filt=None):
+                     upsample_factor_fft=10, show_movie=False, max_deviation_rigid=2, add_to_movie=0, shifts_opencv=False, gSig_filt=None,
+                     use_cuda=False):
     """ perform piecewise rigid motion correction iteration, by
         1) dividing the FOV in patches
         2) motion correcting each patch separately
@@ -2010,7 +2097,8 @@ def tile_and_correct(img, template, strides, overlaps, max_shifts, newoverlaps=N
     filt_sig_size: tuple
         standard deviation and size of gaussian filter to center filter data in case of one photon imaging data
 
-
+    use_cuda : bool, optional
+        Use skcuda.fft (if available). Default: False
     """
 
 
@@ -2035,7 +2123,7 @@ def tile_and_correct(img, template, strides, overlaps, max_shifts, newoverlaps=N
 
     # compute rigid shifts
     rigid_shts, sfr_freq, diffphase = register_translation(
-        img, template, upsample_factor=upsample_factor_fft, max_shifts=max_shifts)
+        img, template, upsample_factor=upsample_factor_fft, max_shifts=max_shifts, use_cuda=use_cuda)
 
     if max_deviation_rigid == 0:
 
@@ -2081,7 +2169,7 @@ def tile_and_correct(img, template, strides, overlaps, max_shifts, newoverlaps=N
 
         # extract shifts for each patch
         shfts_et_all = [register_translation(
-            a, b, c, shifts_lb=lb_shifts, shifts_ub=ub_shifts, max_shifts=max_shifts) for a, b, c in zip(
+            a, b, c, shifts_lb=lb_shifts, shifts_ub=ub_shifts, max_shifts=max_shifts, use_cuda=use_cuda) for a, b, c in zip(
             imgs, templates, [upsample_factor_fft] * num_tiles)]
         shfts = [sshh[0] for sshh in shfts_et_all]
         diffs_phase = [sshh[2] for sshh in shfts_et_all]
@@ -2302,7 +2390,7 @@ def compute_metrics_motion_correction(fname, final_size_x, final_size_y, swap_di
 #%%
 def motion_correct_batch_rigid(fname, max_shifts, dview=None, splits=56, num_splits_to_process=None, num_iter=1,
                                template=None, shifts_opencv=False, save_movie_rigid=False, add_to_movie=None,
-                               nonneg_movie=False, gSig_filt=None, subidx=slice(None, None, 1)):
+                               nonneg_movie=False, gSig_filt=None, subidx=slice(None, None, 1), use_cuda=False):
     """
     Function that perform memory efficient hyper parallelized rigid motion corrections while also saving a memory mappable file
 
@@ -2337,6 +2425,9 @@ def motion_correct_batch_rigid(fname, max_shifts, dview=None, splits=56, num_spl
 
     subidx: slice
         Indices to slice
+
+    use_cuda : bool, optional
+        Use skcuda.fft (if available). Default: False
 
     Returns:
     --------
@@ -2398,7 +2489,8 @@ def motion_correct_batch_rigid(fname, max_shifts, dview=None, splits=56, num_spl
                                                              add_to_movie=add_to_movie, template=old_templ, max_shifts=max_shifts, max_deviation_rigid=0,
                                                              dview=dview, save_movie=save_movie, base_name=os.path.split(
                                                                  fname)[-1][:-4] + '_rig_', subidx = subidx,
-                                                             num_splits=num_splits_to_process, shifts_opencv=shifts_opencv, nonneg_movie=nonneg_movie, gSig_filt=gSig_filt)
+                                                             num_splits=num_splits_to_process, shifts_opencv=shifts_opencv, nonneg_movie=nonneg_movie, gSig_filt=gSig_filt,
+                                                             use_cuda=use_cuda)
 
         new_templ = np.nanmedian(np.dstack([r[-1] for r in res_rig]), -1)
         if gSig_filt is not None:
@@ -2421,7 +2513,8 @@ def motion_correct_batch_rigid(fname, max_shifts, dview=None, splits=56, num_spl
 def motion_correct_batch_pwrigid(fname, max_shifts, strides, overlaps, add_to_movie, newoverlaps=None, newstrides=None,
                                  dview=None, upsample_factor_grid=4, max_deviation_rigid=3,
                                  splits=56, num_splits_to_process=None, num_iter=1,
-                                 template=None, shifts_opencv=False, save_movie=False, nonneg_movie=False, gSig_filt=None):
+                                 template=None, shifts_opencv=False, save_movie=False, nonneg_movie=False, gSig_filt=None,
+                                 use_cuda=False):
     """
     Function that perform memory efficient hyper parallelized rigid motion corrections while also saving a memory mappable file
 
@@ -2466,6 +2559,9 @@ def motion_correct_batch_pwrigid(fname, max_shifts, strides, overlaps, add_to_mo
     save_movie_rigid: boolean
          toggle save movie
 
+    use_cuda : bool, optional
+        Use skcuda.fft (if available). Default: False
+
     Returns:
     --------
     fname_tot_rig: str
@@ -2509,7 +2605,8 @@ def motion_correct_batch_pwrigid(fname, max_shifts, strides, overlaps, add_to_mo
                                                             newoverlaps=newoverlaps, newstrides=newstrides,
                                                             upsample_factor_grid=upsample_factor_grid, order='F', dview=dview, save_movie=save_movie,
                                                             base_name=os.path.split(fname)[-1][:-4] + '_els_', num_splits=num_splits_to_process,
-                                                            shifts_opencv=shifts_opencv, nonneg_movie=nonneg_movie, gSig_filt=gSig_filt)
+                                                            shifts_opencv=shifts_opencv, nonneg_movie=nonneg_movie, gSig_filt=gSig_filt,
+                                                            use_cuda=use_cuda)
 
         new_templ = np.nanmedian(np.dstack([r[-1] for r in res_el]), -1)
         if gSig_filt is not None:
@@ -2543,29 +2640,21 @@ def tile_and_correct_wrapper(params):
 
     img_name, out_fname, idxs, shape_mov, template, strides, overlaps, max_shifts,\
         add_to_movie, max_deviation_rigid, upsample_factor_grid, newoverlaps, newstrides, \
-        shifts_opencv, nonneg_movie, gSig_filt, is_fiji = params
+        shifts_opencv, nonneg_movie, gSig_filt, is_fiji, use_cuda = params
 
     name, extension = os.path.splitext(img_name)[:2]
 
+    shift_info = []
     if extension == '.tif' or extension == '.tiff':  # check if tiff file
         if is_fiji:
             imgs = imread(img_name)[idxs]
         else:
             imgs = imread(img_name, key=idxs)
-        mc = np.zeros(imgs.shape, dtype=np.float32)
-        shift_info = []
     elif extension == '.sbx':  # check if sbx file
         imgs = cm.base.movies.sbxread(name, idxs[0], len(idxs))
-        mc = np.zeros(imgs.shape, dtype=np.float32)
-        shift_info = []
-    elif extension == '.hdf5':
+    elif extension == '.sima' or extension == '.hdf5' or extension == '.h5':
         imgs = cm.load(img_name, subindices=list(idxs))
-        mc = np.zeros(imgs.shape, dtype=np.float32)
-        shift_info = []
-    elif extension == '.h5':
-        imgs = cm.load(img_name, subindices=list(idxs))
-        mc = np.zeros(imgs.shape, dtype=np.float32)
-        shift_info = []
+    mc = np.zeros(imgs.shape, dtype=np.float32)
     for count, img in enumerate(imgs):
         if count % 10 == 0:
             print(count)
@@ -2575,7 +2664,8 @@ def tile_and_correct_wrapper(params):
                                                                        upsample_factor_grid=upsample_factor_grid,
                                                                        upsample_factor_fft=10, show_movie=False,
                                                                        max_deviation_rigid=max_deviation_rigid,
-                                                                       shifts_opencv=shifts_opencv, gSig_filt=gSig_filt)
+                                                                       shifts_opencv=shifts_opencv, gSig_filt=gSig_filt,
+                                                                       use_cuda=use_cuda)
         shift_info.append([total_shift, start_step, xy_grid])
 
     if out_fname is not None:
@@ -2595,7 +2685,8 @@ def tile_and_correct_wrapper(params):
 def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0, template=None,
                                 max_shifts=(12, 12), max_deviation_rigid=3, newoverlaps=None, newstrides=None,
                                 upsample_factor_grid=4, order='F', dview=None, save_movie=True,
-                                base_name=None, subidx = None, num_splits=None, shifts_opencv=False, nonneg_movie=False, gSig_filt=None):
+                                base_name=None, subidx = None, num_splits=None, shifts_opencv=False, nonneg_movie=False, gSig_filt=None,
+                                use_cuda=False):
     """
 
     """
@@ -2619,6 +2710,14 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
         d2 = shape[0]
         T = shape[2]
 
+    elif extension == '.sima':  # check if sbx file
+        import sima
+        dataset = sima.ImagingDataset.load(fname)
+        shape = dataset.sequences[0].shape
+        d1 = shape[2]
+        d2 = shape[3]
+        T = shape[0]
+        del dataset
     elif extension == '.npy':
         raise Exception('Numpy not supported at the moment')
 
@@ -2669,15 +2768,19 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
                   shape=shape_mov, order=order)
     else:
         fname_tot = None
+
     pars = []
     for idx in idxs:
         pars.append([fname, fname_tot, idx, shape_mov, template, strides, overlaps, max_shifts, np.array(
             add_to_movie, dtype=np.float32), max_deviation_rigid, upsample_factor_grid,
-            newoverlaps, newstrides, shifts_opencv, nonneg_movie, gSig_filt, is_fiji])
+            newoverlaps, newstrides, shifts_opencv, nonneg_movie, gSig_filt, is_fiji, use_cuda])
 
     if dview is not None:
         print('** Startting parallel motion correction **')
-        if 'multiprocessing' in str(type(dview)):
+        if HAS_CUDA and use_cuda:
+            res = dview.map(tile_and_correct_wrapper,pars)
+            dview.map(close_cuda_process, range(len(pars)))
+        elif 'multiprocessing' in str(type(dview)):
             res = dview.map_async(tile_and_correct_wrapper, pars).get(4294967)
         else:
             res = dview.map_sync(tile_and_correct_wrapper, pars)

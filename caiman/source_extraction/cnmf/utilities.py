@@ -709,10 +709,9 @@ def update_order(A, new_a=None, prev_list=None):
                 'In the online update order you need to provide both new_a and prev_list')
 
         counter = 0
+        
         AA = A.T.dot(new_a)
-        for group in prev_list:
-
-            #            AA = A[:,list(group)].T.dot(new_a)
+        for group in prev_list:       
             if AA[list(group)].sum() == 0:
                 group.append(K)
                 counter += 1
@@ -723,7 +722,6 @@ def update_order(A, new_a=None, prev_list=None):
                 prev_list = list(prev_list)
                 prev_list.append([K])
 
-#        prev_list.sort(key=len)
         count_list = [len(gr) for gr in prev_list]
 
         return prev_list, count_list
