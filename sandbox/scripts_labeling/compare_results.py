@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 # -*- coding: utf-8 -*-
 """
 Created on Mon Nov  7 10:50:33 2016
@@ -9,14 +11,14 @@ from __future__ import print_function
 
 #%%
 from past.utils import old_div
+
 try:
     if __IPYTHON__:
         # this is used for debugging purposes only. allows to reload classes when changed
         get_ipython().magic('load_ext autoreload')
         get_ipython().magic('autoreload 2')
 except NameError:
-    print('Not IPYTHON')
-    pass
+    print('Not launched under iPython')
 
 import sys
 import numpy as np

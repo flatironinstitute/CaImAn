@@ -1,4 +1,6 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
+
 """ functions that creates image from a video file
 
 for plotting purposes mainly, return correlation images ( local or max )
@@ -10,6 +12,7 @@ See Also:
 .. image::
 @author andrea giovannucci
 """
+
 # \package caiman
 # \version   1.0
 # \copyright GNU General Public License v2.0
@@ -21,6 +24,7 @@ from builtins import range
 import numpy as np
 from scipy.ndimage.filters import convolve
 import cv2
+import itertools
 from caiman.source_extraction.cnmf.pre_processing import get_noise_fft
 #%%
 
@@ -295,3 +299,116 @@ def correlation_pnr(Y, gSig=None, center_psf=True, swap_dim=True):
     cn = local_correlations_fft(tmp_data, swap_dim=False)
 
     return cn, pnr
+
+
+def iter_chunk_array(arr, chunk_size):
+    if ((arr.shape[0] // chunk_size)-1) > 0:
+        for i in range((arr.shape[0] // chunk_size)-1):
+            yield arr[chunk_size*i:chunk_size*(i+1)]
+        yield arr[chunk_size*(i+1):]
+    else:
+        yield arr
+
+
+def correlation_image_ecobost(mov, chunk_size=1000, dview=None):
+    """ Compute correlation image as Erick. Removes the mean from each chunk
+    before computing the correlation
+    Params:
+    -------
+    mov: ndarray or list of str
+        time x w x h
+
+    chunk_size: int
+        number of frames over which to compute the correlation (not working if
+        passing list of string)
+
+    """
+    # MAP
+    if type(mov) is list:
+        if dview is not None:
+            res = dview.map(map_corr, mov)
+        else:
+            res = map(map_corr, mov)
+
+    else:
+        scan = mov.astype(np.float32)
+        num_frames = scan.shape[0]
+        res = map(map_corr, iter_chunk_array(scan, chunk_size))
+
+    sum_x, sum_sqx, sum_xy, num_frames = [np.sum(np.array(a), 0)
+                                          for a in zip(*res)]
+    # REDUCE
+    # sum_x = chunk_sum # h x w
+    # sum_sqx = chunk_sqsum # h x w
+    # sum_xy = chunk_xysum # h x w x 8
+    denom_factor = np.sqrt(num_frames * sum_sqx - sum_x ** 2)
+    corrs = np.zeros(sum_xy.shape)
+    for k in [0, 1, 2, 3]:
+        rotated_corrs = np.rot90(corrs, k=k)
+        rotated_sum_x = np.rot90(sum_x, k=k)
+        rotated_dfactor = np.rot90(denom_factor, k=k)
+        rotated_sum_xy = np.rot90(sum_xy, k=k)
+
+        # Compute correlation
+        rotated_corrs[1:, :, k] = (num_frames * rotated_sum_xy[1:, :, k] -
+                                   rotated_sum_x[1:] * rotated_sum_x[:-1]) /\
+                                  (rotated_dfactor[1:] * rotated_dfactor[:-1])
+        rotated_corrs[1:, 1:, 4 + k] = (num_frames *rotated_sum_xy[1:, 1:, 4 + k]
+                                       - rotated_sum_x[1:, 1:] * rotated_sum_x[:-1, : -1]) /\
+                                       (rotated_dfactor[1:, 1:] * rotated_dfactor[:-1, :-1])
+
+        # Return back to original orientation
+        corrs = np.rot90(rotated_corrs, k=4 - k)
+        sum_x = np.rot90(rotated_sum_x, k=4 - k)
+        denom_factor = np.rot90(rotated_dfactor, k=4 - k)
+        sum_xy = np.rot90(rotated_sum_xy, k=4 - k)
+
+    correlation_image = np.sum(corrs, axis=-1)
+    # edges
+    norm_factor = 5 * np.ones(correlation_image.shape)
+    # corners
+    norm_factor[[0, -1, 0, -1], [0, -1, -1, 0]] = 3
+    # center
+    norm_factor[1:-1, 1:-1] = 8
+    correlation_image /= norm_factor
+
+    return correlation_image
+
+
+def map_corr(scan):
+    '''This part of the code is in a mapping function that's run over different
+    movies in parallel
+    '''
+    import caiman as cm
+    if type(scan) is str:
+        scan = cm.load(scan)
+
+    # h x w x num_frames
+    chunk = np.array(scan).transpose([1, 2, 0])
+    # Subtract overall brightness per frame
+    chunk -= chunk.mean(axis=(0, 1))
+
+    # Compute sum_x and sum_x^2
+    chunk_sum = np.sum(chunk, axis=-1, dtype=float)
+    chunk_sqsum = np.sum(chunk**2, axis=-1, dtype=float)
+
+    # Compute sum_xy: Multiply each pixel by its eight neighbors
+    chunk_xysum = np.zeros((chunk.shape[0], chunk.shape[1], 8))
+    # amount of 90 degree rotations
+    for k in [0, 1, 2, 3]:
+        rotated_chunk = np.rot90(chunk, k=k)
+        rotated_xysum = np.rot90(chunk_xysum, k=k)
+
+        # Multiply each pixel by one above and by one above to the left
+        rotated_xysum[1:, :, k] = np.sum(rotated_chunk[1:] * rotated_chunk[:-1],
+                                         axis=-1, dtype=float)
+        rotated_xysum[1:, 1:, 4 + k] = np.sum(rotated_chunk[1:, 1:] *
+                                              rotated_chunk[:-1, :-1], axis=-1, dtype=float)
+
+        # Return back to original orientation
+        chunk = np.rot90(rotated_chunk, k=4 - k)
+        chunk_xysum = np.rot90(rotated_xysum, k=4 - k)
+
+    num_frames = chunk.shape[-1]
+
+    return chunk_sum, chunk_sqsum, chunk_xysum, num_frames

@@ -1,14 +1,12 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
+
 """
 Created on Mon Jul 11 10:09:09 2016
 
-
-
-
-
-
 @author: agiovann
 """
+
 from glob import glob
 import scipy.stats as st
 import calblitz as cb

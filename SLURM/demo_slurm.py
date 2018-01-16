@@ -1,12 +1,8 @@
-from __future__ import print_function
-#%%
-try:
-    #    get_ipython().magic(u'load_ext autoreload')
-    #    get_ipython().magic(u'autoreload 2')
-    print((1))
-except:
-    print('NOT IPYTHON')
+#!/usr/bin/env python
 
+from __future__ import print_function
+
+#%%
 import matplotlib as mpl
 mpl.use('TKAgg')
 from matplotlib import pyplot as plt

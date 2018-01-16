@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+
 """
 Created on Wed Sep 20 17:52:23 2017
 Basic demo for the OnACID algorithm using CNMF initialization. For a more

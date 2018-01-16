@@ -1,25 +1,25 @@
 channels:
+- conda-forge
 - defaults
-- menpo
 dependencies:
+- python=3.6
+- tensorflow # Must list before keras to preempt default keras backend
+- bokeh
+- cython
 - future
-- numpy
-- scipy
+- h5py
 - ipython
 - ipyparallel
 - jupyter
+- keras
 - matplotlib
+- nose
+- numpy
+- opencv
+- peakutils
+- scipy
 - scikit-image
 - scikit-learn
-- h5py
-- cython
 - spyder
-- nose
-- bokeh
-- tensorflow
-- keras
+- tifffile
 - tqdm
-- opencv3
-- pip:
-  - tifffile
-  - peakutils

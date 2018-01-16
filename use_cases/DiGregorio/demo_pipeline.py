@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+
 """
 Complete demo pipeline for motion correction, source extraction, and 
 deconvolution of two-photon calcium imaging data using the CaImAn package. 
@@ -12,6 +13,7 @@ one photon microendoscopic data see demo_pipeline_cnmfE.py
 copyright GNU General Public License v2.0 
 authors: @agiovann and @epnev
 """
+
 from __future__ import division
 from __future__ import print_function
 from builtins import range
@@ -31,8 +33,8 @@ try:
         get_ipython().magic('load_ext autoreload')
         get_ipython().magic('autoreload 2')
 except NameError:
-    print('Not IPYTHON')
-    pass
+    print('Not launched under iPython')
+
 import caiman as cm
 import numpy as np
 import os

@@ -1,4 +1,6 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
+
 """
 Created on Wed Feb 24 18:39:45 2016
 
@@ -8,17 +10,19 @@ For explanation consult at https://github.com/agiovann/Constrained_NMF/releases/
 and https://github.com/agiovann/Constrained_NMF
 
 """
+
 from __future__ import division
 from __future__ import print_function
 #%%
 from builtins import str
 from past.utils import old_div
+
 try:
     get_ipython().magic('load_ext autoreload')
     get_ipython().magic('autoreload 2')
     print((1))
 except:
-    print('NOT IPYTHON')
+    print('Not launched under iPython')
 
 import matplotlib as mpl
 mpl.use('TKAgg')

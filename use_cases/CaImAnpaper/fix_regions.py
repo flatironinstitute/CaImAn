@@ -1,10 +1,12 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
+
 """
 Created on Fri Jul 14 09:42:20 2017
 
 @author: agiovann
 """
+
 from caiman.base.rois import nf_read_roi_zip
 # data transformation because of motion correction mismatch in shape
 #%% sue k37

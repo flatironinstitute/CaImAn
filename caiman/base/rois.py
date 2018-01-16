@@ -1,9 +1,12 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
+
 """
 Created on Thu Oct 22 13:22:26 2015
 
 @author: agiovann
 """
+
 from __future__ import division
 from __future__ import print_function
 #%%
@@ -159,7 +162,7 @@ def get_distance_from_A(masks_gt, masks_comp, min_dist=10):
 
 
 def nf_match_neurons_in_binary_masks(masks_gt, masks_comp, thresh_cost=.7, min_dist=10, print_assignment=False,
-                                     plot_results=False, Cn=None, labels=None, cmap='viridis', D=None, enclosed_thr=None):
+                                     plot_results=False, Cn=None, labels=['Session 1','Session 2'], cmap='viridis', D=None, enclosed_thr=None):
     """
     Match neurons expressed as binary masks. Uses Hungarian matching algorithm
 
@@ -270,8 +273,8 @@ def nf_match_neurons_in_binary_masks(masks_gt, masks_comp, thresh_cost=.7, min_d
                     'size': 10}
             pl.rc('font', **font)
             lp, hp = np.nanpercentile(Cn, [5, 95])
-            ses_1 = mpatches.Patch(color='red', label='Session 1')
-            ses_2 = mpatches.Patch(color='white', label='Session 2')
+            ses_1 = mpatches.Patch(color='red', label=labels[0])
+            ses_2 = mpatches.Patch(color='white', label=labels[1])
             pl.subplot(1, 2, 1)
             pl.imshow(Cn, vmin=lp, vmax=hp, cmap=cmap)
             [pl.contour(norm_nrg(mm), levels=[level], colors='w', linewidths=1)
@@ -306,11 +309,13 @@ def nf_match_neurons_in_binary_masks(masks_gt, masks_comp, thresh_cost=.7, min_d
 #%% register_ROIs largely follows the function nf_match_neurons_in_binary_masks
 
 
-def register_ROIs(A1, A2, dims, template1=None, template2=None, align_flag=True, D=None, thresh_cost=.7, max_dist=10, enclosed_thr=None,
-                  print_assignment=False, plot_results=False, Cn=None, cmap='viridis'):
+def register_ROIs(A1, A2, dims, template1=None, template2=None, align_flag=True, 
+                  D=None, max_thr = 0, use_opt_flow = True, thresh_cost=.7, 
+                  max_dist=10, enclosed_thr=None, print_assignment=False, 
+                  plot_results=False, Cn=None, cmap='viridis'):
     """
-    Register ROIs across different sessions using an intersection over union metric
-    and the Hungarian algorithm for optimal matching
+    Register ROIs across different sessions using an intersection over union 
+    metric and the Hungarian algorithm for optimal matching
 
     Parameters:
     -----------
@@ -336,6 +341,12 @@ def register_ROIs(A1, A2, dims, template1=None, template2=None, align_flag=True,
     D: ndarray
         matrix of distances in the event they are pre-computed
 
+    max_thr: scalar
+        max threshold parameter before binarization    
+    
+    use_opt_flow: bool
+        use dense optical flow to align templates
+    
     thresh_cost: scalar
         maximum distance considered
 
@@ -343,7 +354,8 @@ def register_ROIs(A1, A2, dims, template1=None, template2=None, align_flag=True,
         max distance between centroids
 
     enclosed_thr: float
-        if not None set distance to at most the specified value when ground truth is a subset of inferred
+        if not None set distance to at most the specified value when ground 
+        truth is a subset of inferred
 
     print_assignment: bool
         print pairs of matched ROIs
@@ -369,45 +381,76 @@ def register_ROIs(A1, A2, dims, template1=None, template2=None, align_flag=True,
         indeces of non-matched ROIs from session 1
 
     non_matched2: list
-        indeces of non-matched ROIs from session 1
+        indeces of non-matched ROIs from session 2
 
     performance:  list
         (precision, recall, accuracy, f_1 score) with A1 taken as ground truth
 
+    A2: csc_matrix  # pixels x # of components
+        ROIs from session 2 aligned to session 1
+    
     """
+
+#    if 'csc_matrix' not in str(type(A1)):
+#        A1 = scipy.sparse.csc_matrix(A1)
+#    if 'csc_matrix' not in str(type(A2)):
+#        A2 = scipy.sparse.csc_matrix(A2)
+
+    if 'ndarray' not in str(type(A1)):
+        A1 = A1.toarray()
+    if 'ndarray' not in str(type(A2)):
+        A2 = A2.toarray()
 
     if template1 is None or template2 is None:
         align_flag = False
 
+    x_grid, y_grid = np.meshgrid(np.arange(0., dims[0]).astype(
+                np.float32), np.arange(0., dims[1]).astype(np.float32))
+    
     if align_flag:  # first align ROIs from session 2 to the template from session 1
-        template2, shifts, _, xy_grid = tile_and_correct(template2, template1 - template1.min(),
-                                                         [int(
-                                                             dims[0] / 4), int(dims[1] / 4)], [16, 16], [10, 10],
-                                                         add_to_movie=template2.min(), shifts_opencv=True)
-        A_2t = np.reshape(A2.toarray(), dims + (-1,),
-                          order='F').transpose(2, 0, 1)
-        dims_grid = tuple(np.max(np.stack(xy_grid, axis=0), axis=0) -
-                          np.min(np.stack(xy_grid, axis=0), axis=0) + 1)
-        _sh_ = np.stack(shifts, axis=0)
-        shifts_x = np.reshape(_sh_[:, 1], dims_grid,
-                              order='C').astype(np.float32)
-        shifts_y = np.reshape(_sh_[:, 0], dims_grid,
-                              order='C').astype(np.float32)
-        x_grid, y_grid = np.meshgrid(np.arange(0., dims[0]).astype(
-            np.float32), np.arange(0., dims[1]).astype(np.float32))
-        x_remap = (-np.resize(shifts_x, dims) + x_grid).astype(np.float32)
-        y_remap = (-np.resize(shifts_y, dims) + y_grid).astype(np.float32)
+        if use_opt_flow:
+            template1_norm = np.uint8(template1*(template1 > 0)*255)
+            template2_norm = np.uint8(template2*(template2 > 0)*255)
+            flow = cv2.calcOpticalFlowFarneback(np.uint8(template1_norm*255),
+                                                np.uint8(template2_norm*255),
+                                                None,0.5,3,128,3,7,1.5,0)
+            x_remap = (flow[:,:,0] + x_grid).astype(np.float32) 
+            y_remap = (flow[:,:,1] + y_grid).astype(np.float32)
+            
+        else:
+            template2, shifts, _, xy_grid = tile_and_correct(template2, template1 - template1.min(),
+                                                             [int(
+                                                                 dims[0] / 4), int(dims[1] / 4)], [16, 16], [10, 10],
+                                                             add_to_movie=template2.min(), shifts_opencv=True)
+            
+            dims_grid = tuple(np.max(np.stack(xy_grid, axis=0), axis=0) -
+                              np.min(np.stack(xy_grid, axis=0), axis=0) + 1)
+            _sh_ = np.stack(shifts, axis=0)
+            shifts_x = np.reshape(_sh_[:, 1], dims_grid,
+                                  order='C').astype(np.float32)
+            #print(shifts_x)
+            shifts_y = np.reshape(_sh_[:, 0], dims_grid,
+                                  order='C').astype(np.float32)
+            #print(shifts_y)
+            
+            x_remap = (-np.resize(shifts_x, dims) + x_grid).astype(np.float32)
+            y_remap = (-np.resize(shifts_y, dims) + y_grid).astype(np.float32)
+
+        A_2t = np.reshape(A2, dims + (-1,), order='F').transpose(2, 0, 1)
         A2 = np.stack([cv2.remap(img.astype(np.float32), x_remap,
-                                 y_remap, cv2.INTER_CUBIC) for img in A_2t], axis=0)
+                                 y_remap, cv2.INTER_NEAREST) for img in A_2t], axis=0)
         A2 = np.reshape(A2.transpose(1, 2, 0),
                         (A1.shape[0], A_2t.shape[0]), order='F')
+
+    A1 = np.stack([a*(a>max_thr*a.max()) for a in A1.T]).T 
+    A2 = np.stack([a*(a>max_thr*a.max()) for a in A2.T]).T 
 
     if D is None:
         if 'csc_matrix' not in str(type(A1)):
             A1 = scipy.sparse.csc_matrix(A1)
         if 'csc_matrix' not in str(type(A2)):
             A2 = scipy.sparse.csc_matrix(A2)
-
+            
         cm_1 = com(A1, dims[0], dims[1])
         cm_2 = com(A2, dims[0], dims[1])
         A1_tr = (A1 > 0).astype(float)
@@ -492,9 +535,143 @@ def register_ROIs(A1, A2, dims, template1=None, template2=None, align_flag=True,
 #            print("not able to plot precision recall usually because we are on travis")
 #            print(e)
 
-    return matched_ROIs1, matched_ROIs2, non_matched1, non_matched2, performance
+    return matched_ROIs1, matched_ROIs2, non_matched1, non_matched2, performance, A2
 
+#%% register multi session ROIs
+    
+def register_multisession(A, dims, templates = [None], align_flag=True, 
+                          max_thr = 0, use_opt_flow = True, thresh_cost=.7, 
+                          max_dist=10, enclosed_thr=None):
+    """
+    Register ROIs across multiple sessions using an intersection over union metric
+    and the Hungarian algorithm for optimal matching. Registration occurs by 
+    aligning session 1 to session 2, keeping the union of the matched and 
+    non-matched components to register with session 3 and so on.
 
+    Parameters:
+    -----------
+
+    A: list of ndarray or csc_matrix matrices # pixels x # of components
+       ROIs from each session
+
+    dims: list or tuple
+        dimensionality of the FOV
+
+    template: list of ndarray matrices of size dims
+        templates from each session
+
+    align_flag: bool
+        align the templates before matching
+
+    max_thr: scalar
+        max threshold parameter before binarization    
+    
+    use_opt_flow: bool
+        use dense optical flow to align templates
+
+    thresh_cost: scalar
+        maximum distance considered
+
+    max_dist: scalar
+        max distance between centroids
+
+    enclosed_thr: float
+        if not None set distance to at most the specified value when ground 
+        truth is a subset of inferred
+
+    Returns:
+    --------
+    
+    A_union: csc_matrix # pixels x # of total distinct components
+        union of all kept ROIs 
+        
+    assignments: ndarray int of size # of total distinct components x # sessions
+        element [i,j] = k if component k from session j is mapped to component
+        i in the A_union matrix. If there is no much the value is NaN
+    
+    matchings: list of lists
+        matchings[i][j] = k means that component j from session i is represented
+        by component k in A_union
+        
+    """
+    
+    n_sessions = len(A)
+    templates = list(templates)
+    if len(templates) == 1:
+        templates = n_sessions*templates
+        
+    if n_sessions <= 1:
+        raise Exception('number of sessions must be greater than 1')
+
+    A = [a.toarray() if 'ndarray' not in str(type(a)) else a for a in A]
+    
+    A_union = A[0].copy()
+    matchings = []
+    matchings.append(list(range(A_union.shape[-1])))
+    
+    for sess in range(1,n_sessions):
+        reg_results = register_ROIs(A[sess], A_union, dims, 
+                                    template1 = templates[sess], 
+                                    template2 = templates[sess-1], align_flag=True, 
+                                    max_thr = max_thr, use_opt_flow = use_opt_flow,
+                                    thresh_cost = thresh_cost, max_dist = max_dist, 
+                                    enclosed_thr = enclosed_thr)
+        
+        mat_sess, mat_un, nm_sess, nm_un, _, A2 = reg_results
+        print(len(mat_sess))
+        A_union = A2.copy()
+        A_union[:,mat_un] = A[sess][:,mat_sess]
+        A_union = np.concatenate((A_union.toarray(), A[sess][:,nm_sess]), axis = 1)
+        new_match = np.zeros(A[sess].shape[-1], dtype = int)
+        new_match[mat_sess] = mat_un
+        new_match[nm_sess] = range(A2.shape[-1],A_union.shape[-1])
+        matchings.append(new_match.tolist())
+    
+    assignments = np.empty((A_union.shape[-1], n_sessions))*np.nan
+    for sess in range(n_sessions):
+        assignments[matchings[sess],sess] = range(len(matchings[sess]))
+    
+    return A_union, assignments, matchings
+
+#%% extract active components
+    
+def extract_active_components(assignments, indeces, only = True):
+    """
+    Computes the indeces of components that were active in a specified set of 
+    sessions. 
+    
+    Parameters:
+    -------------
+    
+    assignments: ndarray # of components X # of sessions
+        assignments matrix returned by function register_multisession
+        
+    indeces: list int
+        set of sessions to look for active neurons. Session 1 corresponds to a
+        pythonic index 0 etc
+        
+    only: bool
+        If True return components that were active ONLY in these sessions and
+        where inactive in all the others. If False components can be active
+        in other sessions as well
+        
+    Returns:
+    ---------
+    
+    components: list int
+        indeces of components 
+    
+    """
+    
+    components = np.where(np.isnan(assignments[:,indeces]).sum(-1) == 0)[0]
+            
+    if only:
+        not_inds = list(np.setdiff1d(range(assignments.shape[-1]), indeces))
+        not_comps = np.where(np.isnan(assignments[:,not_inds]).sum(-1) == 
+                             len(not_inds))[0]
+        components = np.intersect1d(components, not_comps)
+    
+    return components
 #%% threshold
 def norm_nrg(a_):
 
@@ -587,7 +764,7 @@ def distance_masks(M_s, cm_s, max_dist, enclosed_thr=None):
                         D[i, j] = 1 - 1. * intersection / \
                             (union - intersection)
                         if enclosed_thr is not None:
-                            if intersection == gt_val[i]:
+                            if intersection == gt_val[j] or intersection == gt_val[i]:
                                 D[i, j] = min(D[i, j], 0.5)
                     else:
                         D[i, j] = 1.
@@ -1083,8 +1260,102 @@ def extractROIsFromPCAICA(spcomps, numSTD=4, gaussiansigmax=2, gaussiansigmay=2,
             allMasks.append(tmp_mask)
 
     return allMasks, maskgrouped
+#%%
 
 
+def detect_duplicates_and_subsets(binary_masks, predictions=None, r_values=None, dist_thr=0.1, min_dist=10,
+                                  thresh_subset=0.8):
+
+    cm = [scipy.ndimage.center_of_mass(mm) for mm in binary_masks]
+    sp_rois = scipy.sparse.csc_matrix(
+        np.reshape(binary_masks, (binary_masks.shape[0], -1)).T)
+    D = distance_masks([sp_rois, sp_rois], [cm, cm], min_dist)[0]
+    np.fill_diagonal(D, 1)
+    overlap = sp_rois.T.dot(sp_rois).toarray()
+    sz = np.array(sp_rois.sum(0))
+    print(sz.shape)
+    overlap = overlap/sz.T
+    np.fill_diagonal(overlap, 0)
+    # pairs of duplicate indeces
+
+    indeces_orig = np.where((D < dist_thr) | ((overlap) >= thresh_subset))
+    indeces_orig = [(a, b) for a, b in zip(indeces_orig[0], indeces_orig[1])]
+
+    use_max_area = False
+    if predictions is not None:
+        metric = predictions.squeeze()
+    elif r_values is not None:
+        metric = r_values.squeeze()
+    else:
+        metric = sz.squeeze()
+        print('***** USING MAX AREA BY DEFAULT')
+
+    overlap_tmp = overlap.copy() >= thresh_subset
+    overlap_tmp = overlap_tmp*metric[:, None]
+
+    max_idx = np.argmax(overlap_tmp)
+    one, two = np.unravel_index(max_idx, overlap_tmp.shape)
+    max_val = overlap_tmp[one, two]
+
+    indeces_to_keep = []
+    indeces_to_remove = []
+    while max_val > 0:
+        one, two = np.unravel_index(max_idx, overlap_tmp.shape)
+        if metric[one] > metric[two]:
+            #indeces_to_keep.append(one)
+            overlap_tmp[:,two] = 0
+            overlap_tmp[two,:] = 0
+            indeces_to_remove.append(two)
+            #if two in indeces_to_keep:
+            #    indeces_to_keep.remove(two)
+        else:
+            overlap_tmp[:,one] = 0
+            overlap_tmp[one,:] = 0
+            indeces_to_remove.append(one)
+            #indeces_to_keep.append(two)
+            #if one in indeces_to_keep:
+            #    indeces_to_keep.remove(one)
+
+        max_idx = np.argmax(overlap_tmp)
+        one, two = np.unravel_index(max_idx, overlap_tmp.shape)
+        max_val = overlap_tmp[one, two]
+
+    #indeces_to_remove = np.setdiff1d(np.unique(indeces_orig),indeces_to_keep)
+    indeces_to_keep = np.setdiff1d(np.unique(indeces_orig),indeces_to_remove)
+
+#    if len(indeces) > 0:
+#        if use_max_area:
+#            # if is to  deal with tie breaks in case of same area
+#            indeces_keep = np.argmax([[overlap[sec, frst], overlap[frst, sec]]
+#                    for frst, sec in indeces], 1)
+#            indeces_remove = np.argmin([[overlap[sec, frst], overlap[frst, sec]]
+#                    for frst, sec in indeces], 1)
+#
+#
+#        else: #use CNN
+#            indeces_keep = np.argmin([[metric[sec], metric[frst]]
+#                for frst, sec in indeces], 1)
+#            indeces_remove = np.argmax([[metric[sec], metric[frst]]
+#                for frst, sec in indeces], 1)
+#
+#        indeces_keep = np.unique([elms[ik] for ik, elms in
+#                                      zip(indeces_keep, indeces)])
+#        indeces_remove = np.unique([elms[ik] for ik, elms in
+#                                       zip(indeces_remove, indeces)])
+#
+#        multiple_appearance = np.intersect1d(indeces_keep,indeces_remove)
+#        for mapp in multiple_appearance:
+#            indeces_remove.remove(mapp)
+#    else:
+#        indeces_keep = []
+#        indeces_remove = []
+#        indeces_keep = []
+#        indeces_remove = []
+
+
+    return indeces_orig, indeces_to_keep, indeces_to_remove, D, overlap
+
+#%%
 def detect_duplicates(file_name, dist_thr=0.1, FOV=(512, 512)):
     """
     Removes duplicate ROIs from file file_name

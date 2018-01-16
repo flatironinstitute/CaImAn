@@ -1,13 +1,15 @@
+#!/usr/bin/env python
+
 """ create a groundtruth for different videos
 
-use for the nose test and continuous integration devellopment.
+use for nosetests and continuous integration development.
 
 See Also
 ------------
 caiman/tests/comparison/comparison.py
 
-
 """
+
 # \package None
 # \version   1.0
 # \copyright GNU General Public License v2.0
@@ -37,8 +39,8 @@ try:
         get_ipython().magic('load_ext autoreload')
         get_ipython().magic('autoreload 2')
 except NameError:
-    print('Not IPYTHON')
-    pass
+    print('Not launched under iPython')
+
 import caiman as cm
 import numpy as np
 import os

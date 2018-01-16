@@ -1,4 +1,6 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
+
 """Extract neural activity from a fluorescence trace using a constrained deconvolution approach
 
 Created on Tue Sep  1 16:11:25 2015

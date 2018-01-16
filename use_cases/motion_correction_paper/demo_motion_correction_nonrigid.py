@@ -1,9 +1,12 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
+
 """
 Created on Mon Nov 21 15:53:15 2016
 
 @author: agiovann
 """
+
 from __future__ import division
 from __future__ import print_function
 #%%
@@ -26,8 +29,7 @@ try:
         get_ipython().magic('load_ext autoreload')
         get_ipython().magic('autoreload 2')
 except NameError:
-    print('Not IPYTHON')
-    pass
+    print('Not launched under iPython')
 
 import caiman as cm
 import numpy as np
