@@ -122,7 +122,7 @@ We recently incorporated a Python implementation of the OnACID [[5]](#onacid) al
     ```
 
   (Python 2.7) not supported on Windows
-    
+    ```
     git clone  https://github.com/flatironinstitute/CaImAn
     cd CaImAn
     git pull
@@ -131,7 +131,9 @@ We recently incorporated a Python implementation of the OnACID [[5]](#onacid) al
     python setup.py build_ext -i       
     ```
 
- 
+Alternative environments:
+   * [Using experimental CUDA support] (/README-cuda.md)
+
 ### Installation for behavioral analysis
 * Installation on Linux (Windows and MacOS are problematic with anaconda at the moment)
    * create a new environment (suggested for safety) and follow the instructions for the calcium imaging installation
