@@ -52,7 +52,7 @@ Recent advances in calcium imaging acquisition techniques are creating datasets 
 
 ## New: Online analysis
 
-We recently incorporated a Python implementation of the OnACID [[5]](#onacid) algorithm, that enables processing data in an online mode and in real time. Check the script ```demos_detailed/demo_OnACID_mesoscope.py``` or the notebook ```demo_OnACID_mesoscope.ipynb``` for an application on two-photon mesoscope data provided by the Tolias lab (Baylor College of Medicine).
+We recently incorporated a Python implementation of the OnACID [[5]](#onacid) algorithm, that enables processing data in an online mode and in real time. Check the script ```demos/general/demo_OnACID_mesoscope.py``` or the notebook ```demos/notebooks/demo_OnACID_mesoscope.ipynb``` for an application on two-photon mesoscope data provided by the Tolias lab (Baylor College of Medicine).
 
 ## Installation for calcium imaging data analysis
 
@@ -155,7 +155,7 @@ Alternative environments:
         (if errors on plotting use this instead) jupyter notebook --NotebookApp.iopub_data_rate_limit=1.0e10
     
        ```
-* demo files are also found in the demos_detailed subfolder. We suggest trying demo_pipeline.py first as it contains most of the tasks required by calcium imaging. For behavior use demo_behavior.py
+* demo files are also found in the demos/general subfolder. We suggest trying demo_pipeline.py first as it contains most of the tasks required by calcium imaging. For behavior use demo_behavior.py
    
   * /!\ if you want to directly launch the python files, your python console still must be in the CaImAn directory. 
 
