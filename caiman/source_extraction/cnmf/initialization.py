@@ -174,7 +174,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
                           perc_baseline_snmf=20, options_local_NMF=None, rolling_sum=False,
                           rolling_length=100, sn=None, options_total=None,
                           min_corr=0.8, min_pnr=10, deconvolve_options_init=None,
-                          ring_size_factor=1.5, center_psf=True):
+                          ring_size_factor=1.5, center_psf=True, ssub_B=2, compute_B_3x=True, init_iter=2):
     """
     Initalize components
 
@@ -261,6 +261,15 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
     options_total: dict
         the option dictionary
 
+    ssub_B: int, optional 
+        downsampleing factor for 1-photon imaging background computation
+
+    compute_B_3x: bool, optional=False, 
+        whether to compute background 3x or only 2x for 1-photon imaging
+
+    init_iter: int, optional
+        number of iterations for 1-photon imaging initialization
+
     Returns:
     --------
 
@@ -343,7 +352,8 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
         Ain, Cin, _, b_in, f_in = greedyROI_corr(
             Y, Y_ds, max_number=K, gSiz=gSiz[0], gSig=gSig[0], min_corr=min_corr, min_pnr=min_pnr,
             deconvolve_options=deconvolve_options_init, ring_size_factor=ring_size_factor,
-            center_psf=center_psf, options=options_total, sn=sn, nb=nb, ssub=ssub)
+            center_psf=center_psf, options=options_total, sn=sn, nb=nb, ssub=ssub,
+            ssub_B=ssub_B, compute_B_3x=compute_B_3x, init_iter=init_iter)
 
     elif method == 'sparse_nmf':
         Ain, Cin, _, b_in, f_in = sparseNMF(
@@ -405,16 +415,19 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
 
         Ain = np.reshape(Ain, (np.prod(d), K), order='F')
 
-    b_in = np.reshape(b_in, ds + (nb,), order='F')
+    if nb:
+        b_in = np.reshape(b_in, ds + (nb,), order='F')
 
-    if len(ds) == 2:
-        b_in = resize(b_in, d + (nb,))
-    else:
-        b_in = np.reshape([resize(b, d[1:] + (nb,))
-                           for b in b_in], (ds[0], d[1] * d[2], nb), order='F')
-        b_in = resize(b_in, (d[0], d[1] * d[2], nb))
+        if len(ds) == 2:
+            b_in = resize(b_in, d + (nb,))
+        else:
+            b_in = np.reshape([resize(b, d[1:] + (nb,))
+                               for b in b_in], (ds[0], d[1] * d[2], nb), order='F')
+            b_in = resize(b_in, (d[0], d[1] * d[2], nb))
 
-    b_in = np.reshape(b_in, (np.prod(d), nb), order='F')
+        b_in = np.reshape(b_in, (np.prod(d), nb), order='F')
+
+        f_in = resize(np.atleast_2d(f_in), [nb, T])
 
     if Ain.size > 0:
         Cin = resize(Cin.astype(float), [K, T])
@@ -424,7 +437,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
     else:
         center = []
 
-    f_in = resize(np.atleast_2d(f_in), [nb, T])
+    
 
     if normalize_init is True:
         if Ain.size > 0:
@@ -931,7 +944,8 @@ def hals(Y, A, C, b, f, bSiz=3, maxIter=5):
 def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=True,
                    min_corr=None, min_pnr=None, seed_method='auto', deconvolve_options=None,
                    min_pixel=3, bd=0, thresh_init=2, ring_size_factor=None, nb=1, options=None,
-                   sn=None, save_video=False, video_name='initialization.mp4', ssub=1):
+                   sn=None, save_video=False, video_name='initialization.mp4', ssub=1,
+                   ssub_B=2, compute_B_3x=True, init_iter=2):
     """
     initialize neurons based on pixels' local correlations and peak-to-noise ratios.
 
@@ -962,6 +976,12 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
             components.
         nb: integer
             number of background components for approximating the background using NMF model
+        ssub_B: int, optional 
+            downsampleing factor for 1-photon imaging background computation
+        compute_B_3x: bool, optional=False, 
+            whether to compute background 3x or only 2x for 1-photon imaging
+        init_iter: int, optional
+            number of iterations for 1-photon imaging initialization
 
     Returns:
 
@@ -995,26 +1015,40 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
         # background according to ringmodel
         print('Compute Background')
         W, b0 = compute_W(Y_ds.reshape((-1, total_frames), order='F'),
-                          A, C, (d1, d2), int(np.round(ring_size_factor * gSiz)))
+                          A, C, (d1, d2), ring_size_factor * gSiz, ssub=ssub_B)
 
-        B = -b0[:, None] - W.dot(B - b0[:, None])  # "-B"
+        def compute_B(b0, W, B):
+            if ssub_B == 1:
+                B = -b0[:, None] - W.dot(B - b0[:, None])  # "-B"
+            else:
+                B = -b0[:, None] - (np.repeat(np.repeat(W.dot(
+                    downscale(B.reshape((d1, d2, total_frames), order='F'),
+                              (ssub_B, ssub_B, 1)).reshape((-1, total_frames), order='F') -
+                    downscale(b0.reshape((d1, d2), order='F'),
+                              (ssub_B, ssub_B)).reshape((-1, 1), order='F'))
+                    .reshape(((d1 - 1) // ssub_B + 1, (d2 - 1) // ssub_B + 1, -1), order='F'),
+                    ssub_B, 0), ssub_B, 1)[:d1, :d2].reshape((-1, total_frames), order='F'))  # "-B"
+            return B
+
+        B = compute_B(b0, W, B)  # "-B"
         B += Y_ds.reshape((-1, total_frames), order='F')  # "Y-B"
 
         # find more neurons in residual
-        print('Compute Residuals')
-        if max_number is not None:
-            max_number -= A.shape[-1]
-        if max_number is not 0:
-            print('Initialization again')
-            A_R, C_R, _, _, center_R = init_neurons_corr_pnr(
-                (B - A.dot(C)).reshape(Y_ds.shape, order='F'),
-                max_number=max_number, gSiz=gSiz, gSig=gSig,
-                center_psf=center_psf, min_corr=min_corr, min_pnr=min_pnr,
-                seed_method=seed_method, deconvolve_options=deconvolve_options,
-                min_pixel=min_pixel, bd=bd, thresh_init=thresh_init,
-                swap_dim=True, save_video=save_video, video_name=video_name)
-            A = np.concatenate((A, A_R), 1)
-            C = np.concatenate((C, C_R), 0)
+        # print('Compute Residuals')
+        for _ in range(init_iter - 1):
+            if max_number is not None:
+                max_number -= A.shape[-1]
+            if max_number is not 0:
+                print('Initialization again')
+                A_R, C_R, _, _, center_R = init_neurons_corr_pnr(
+                    (B - A.dot(C)).reshape(Y_ds.shape, order='F'),
+                    max_number=max_number, gSiz=gSiz, gSig=gSig,
+                    center_psf=center_psf, min_corr=min_corr, min_pnr=min_pnr,
+                    seed_method=seed_method, deconvolve_options=deconvolve_options,
+                    min_pixel=min_pixel, bd=bd, thresh_init=thresh_init,
+                    swap_dim=True, save_video=save_video, video_name=video_name)
+                A = np.concatenate((A, A_R), 1)
+                C = np.concatenate((C, C_R), 0)
 
         # 1st iteration on decimated data
         print('Update Temporal')
@@ -1033,10 +1067,15 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
             dview=None, **options['spatial_params'])
         A = A.astype(np.float32)
 
+        print('Merge Components')
+        A, C = caiman.source_extraction.cnmf.merging.merge_components(
+            B, A, [], C, [], C, [], options['temporal_params'], options['spatial_params'],
+            dview=None, thr=options['merging']['thr'], mx=np.Inf, fast_merge=True)[:2]
+
         print('Compute Background Again')
         # background according to ringmodel
         W, b0 = compute_W(Y_ds.reshape((-1, total_frames), order='F'),
-                          A.toarray(), C, (d1, d2), int(np.round(ring_size_factor * gSiz)))
+                          A.toarray(), C, (d1, d2), ring_size_factor * gSiz, ssub=ssub_B)
 
         # 2nd iteration on non-decimated data
         K = C.shape[0]
@@ -1049,7 +1088,10 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
             B = Ys - A.dot(C)
         else:
             B = Y_ds.reshape((-1, T), order='F') - A.dot(C)
-        B = -b0[:, None] - W.dot(B - b0[:, None])  # "-B"
+        # B = -b0[:, None] - W.dot(B - b0[:, None])  # "-B"
+        B = compute_B(b0, W, B)  # "-B"
+        if not compute_B_3x:
+            B0 = -B
         if ssub > 1:
             B = np.reshape(B, (d1, d2, -1), order='F')
             B = (np.repeat(np.repeat(B, ssub, 0), ssub, 1)[:dims[0], :dims[1]]
@@ -1078,31 +1120,39 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
         nA = np.ravel(np.sqrt(A.power(2).sum(0)))
         A = np.array(A / nA)
         C *= nA[:, None]
-        K = C.shape[0] #need to recompute K as some components may have been eliminated
-        print('Compute Background Again')  # on decimated data
-        A_ds = downscale(np.reshape(
-            A, dims + (-1,), order='F'), (ssub, ssub, 1))
-        A_ds = np.reshape(A_ds, (d1 * d2, K), order='F')
-        # background according to ringmodel
-        W, b0 = compute_W(Y_ds.reshape((-1, total_frames), order='F'),
-                          A_ds, downscale(C, (1, tsub)), (d1, d2),
-                          int(np.round(ring_size_factor * gSiz)))
-        B = (Ys if T > total_frames else Y_ds.reshape(
-            (-1, total_frames), order='F')) - A_ds.dot(C)
-        B = b0[:, None] + W.dot(B - b0[:, None])
+        if compute_B_3x:
+            K = C.shape[0]  # need to recompute K as some components may have been eliminated
+            print('Compute Background Again')  # on decimated data
+            A_ds = downscale(np.reshape(
+                A, dims + (-1,), order='F'), (ssub, ssub, 1))
+            A_ds = np.reshape(A_ds, (d1 * d2, K), order='F')
+            # background according to ringmodel
+            W, b0 = compute_W(Y_ds.reshape((-1, total_frames), order='F'),
+                              A_ds, downscale(C, (1, tsub)), (d1, d2),
+                              ring_size_factor * gSiz, ssub=ssub_B)
+            B = (Ys if T > total_frames else Y_ds.reshape(
+                (-1, total_frames), order='F')) - A_ds.dot(C)
+            # B = b0[:, None] + W.dot(B - b0[:, None])
+            B = -compute_B(b0, W, B)  # "B"
+        else:
+            B = B0
 
     print('Estimate low rank Background')
 
     use_NMF = True
-    if use_NMF:
-        # , init='random', random_state=0)
-        model = NMF(n_components=nb, init='nndsvdar')
-        b_in = model.fit_transform(np.maximum(B, 0))
-        #f_in = model.components_.squeeze()
-        f_in = np.linalg.lstsq(b_in, B)[0]
+    if nb:
+        if use_NMF:
+            # , init='random', random_state=0)
+            model = NMF(n_components=nb, init='nndsvdar')
+            b_in = model.fit_transform(np.maximum(B, 0))
+            #f_in = model.components_.squeeze()
+            f_in = np.linalg.lstsq(b_in, B)[0]
+        else:
+            b_in, s_in, f_in = spr.linalg.svds(B, k=nb)
+            f_in *= s_in[:, np.newaxis]
     else:
-        b_in, s_in, f_in = spr.linalg.svds(B, k=nb)
-        f_in *= s_in[:, np.newaxis]
+        b_in = np.empty((A.shape[0], 0))
+        f_in = np.empty((0, T))
 
     return A, C, center.T, b_in.astype(np.float32), f_in.astype(np.float32)
 
@@ -1545,7 +1595,7 @@ def extract_ac(data_filtered, data_raw, ind_ctr, patch_dims):
 
 
 @profile
-def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True):
+def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True, ssub=1, tsub=1):
     """compute background according to ring model
     solves the problem
         min_{W,b0} ||X-W*X|| with X = Y - A*C - b0*1'
@@ -1576,24 +1626,42 @@ def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True):
         estimate of constant background baselines
     """
 
-    ring = disk(radius + 1, dtype=bool)
-    ring[1:-1, 1:-1] -= disk(radius, dtype=bool)
+    T = Y.shape[1]
+    d1 = (dims[0] - 1) // ssub + 1
+    d2 = (dims[1] - 1) // ssub + 1
+
+    radius = int(round(radius / float(ssub)))
+    ring = disk(radius + 1)
+    ring[1:-1, 1:-1] -= disk(radius)
     ringidx = [i - radius - 1 for i in np.nonzero(ring)]
 
     def get_indices_of_pixels_on_ring(pixel):
-        pixel = np.unravel_index(pixel, dims, order='F')
+        pixel = np.unravel_index(pixel, (d1, d2), order='F')
         x = pixel[0] + ringidx[0]
         y = pixel[1] + ringidx[1]
-        inside = (x >= 0) * (x < dims[0]) * (y >= 0) * (y < dims[1])
-        return np.ravel_multi_index((x[inside], y[inside]), dims, order='F')
+        inside = (x >= 0) * (x < d1) * (y >= 0) * (y < d2)
+        return np.ravel_multi_index((x[inside], y[inside]), (d1, d2), order='F')
 
     b0 = np.array(Y.mean(1)) - A.dot(C.mean(1))
-    X = Y - A.dot(C) - b0[:, None] if data_fits_in_memory else None
+
+    if data_fits_in_memory:
+        if ssub == 1 and tsub == 1:
+            X = Y - A.dot(C) - b0[:, None]
+        else:
+            X = downscale(Y.reshape(dims + (-1,), order='F'),
+                          (ssub, ssub, tsub)).reshape((-1, (T - 1) // tsub + 1), order='F') - \
+                downscale(A.reshape(dims + (-1,), order='F'),
+                          (ssub, ssub, 1)).reshape((-1, len(C)), order='F').dot(
+                downscale(C, (1, tsub))) - \
+                downscale(b0.reshape(dims, order='F'),
+                          (ssub, ssub)).reshape((-1, 1), order='F')
+    else:
+        X = None
 
     indices = []
     data = []
     indptr = [0]
-    for p in xrange(np.prod(dims)):
+    for p in xrange(len(X)):
         index = get_indices_of_pixels_on_ring(p)
         indices += list(index)
         B = Y[index] - A[index].dot(C) - \

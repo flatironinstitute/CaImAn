@@ -40,7 +40,7 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], gSiz=None, ssub=2, tsub=2, p
                  check_nan=True, normalize_init=True, options_local_NMF=None, remove_very_bad_comps=False,
                  alpha_snmf=10e2, update_background_components=True, low_rank_background=True, rolling_sum=False,
                  min_corr=.85, min_pnr=20, deconvolve_options_init=None,
-                 ring_size_factor=1.5, center_psf=True):
+                 ring_size_factor=1.5, center_psf=True, ssub_B=2, compute_B_3x=True, init_iter=2):
     """Dictionary for setting the CNMF parameters.
 
     Any parameter that is not set get a default value specified
@@ -283,6 +283,9 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], gSiz=None, ssub=2, tsub=2, p
                               'deconvolve_options_init': deconvolve_options_init,
                               'ring_size_factor': ring_size_factor,
                               'center_psf': center_psf,
+                              'ssub_B': ssub_B,
+                              'compute_B_3x': compute_B_3x,
+                              'init_iter': init_iter
                               }
 
     options['spatial_params'] = {
