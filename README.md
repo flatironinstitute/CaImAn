@@ -71,7 +71,7 @@ We recently incorporated a Python implementation of the OnACID [[5]](#onacid) al
    conda install -c conda-forge tensorflow keras
    python setup.py build_ext -i   
    ```
-   **Some possible issues** when running in parallel mode (dview is not None) because of bugs in Python/ipyparallel/numpy interaction, sometimes CaImAn hangs. In this case, we suggest to use dview = None.IN the near future this should be solved, and in the dev branch.  
+   **Some possible issues** when running in parallel mode (dview is not None) because of bugs in Python/ipyparallel/numpy interaction, sometimes CaImAn hangs. In this case, we suggest to use dview = None. In the near future this should be solved, and currently the dev branch solves the issue (you need to recreate the environment using the instructions in the dev README).  
 
 
 * Installation on Linux 
