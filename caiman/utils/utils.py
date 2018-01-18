@@ -91,7 +91,7 @@ def download_demo(name='Sue_2x_3000_40_-46.tif', save_folder=''):
             print("File already downloaded")
     else:
 
-        raise Exception('You must be in caiman folder')
+        raise Exception('You are in ' + os.getcwd() + ' and must be in caiman folder')
 #    print("downloading with requests")
 #    r = requests.get(url)
 #    with open("code3.tif", "wb") as code:

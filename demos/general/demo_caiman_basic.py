@@ -16,8 +16,15 @@ Data courtesy of W. Yang, D. Peterka and R. Yuste (Columbia University)
 
 from __future__ import print_function
 from builtins import range
-get_ipython().magic('load_ext autoreload')
-get_ipython().magic('autoreload 2')
+
+try:
+    if __IPYTHON__:
+        print("Detected iPython")
+        get_ipython().magic('load_ext autoreload')
+        get_ipython().magic('autoreload 2')
+except NameError:
+    pass
+
 import numpy as np
 import glob
 import matplotlib.pyplot as plt
