@@ -248,7 +248,7 @@ def save_place_holder(pars):
 #%%
 def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0, idx_xy=None,
                 order='F', xy_shifts=None, is_3D=False, add_to_movie=0, border_to_0=0, dview = None,
-                n_chunks=20,  async=False):
+                n_chunks=100,  async=False):
 
     """ Efficiently write data from a list of tif files into a memory mappable file
 
@@ -307,6 +307,8 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
                                         idx_xy=idx_xy,
                                         xy_shifts=xy_shifts,
                                         add_to_movie = add_to_movie)
+        else:
+            fname_new = filenames
 
 
 
