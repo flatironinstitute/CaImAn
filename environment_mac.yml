@@ -19,6 +19,6 @@ dependencies:
 - tqdm
 - opencv3 
 - pip:
-  - tifffile
+  - tifffile==0.12.1
   - peakutils
 
