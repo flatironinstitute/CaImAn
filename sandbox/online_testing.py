@@ -20,39 +20,69 @@ from caiman.components_evaluation import compute_event_exceptionality  # import 
 import scipy
 from skimage.morphology import square
 from skimage.filters import rank
+#%%
+def remove_baseline_fast(traces, bl_percentile=8):
+        traces = traces.astype(np.float32)
+        num_samps_bl = np.minimum(np.shape(traces)[-1]//5, 800)
+        T = traces.shape[-1]
+        downsampfact = num_samps_bl
+        elm_missing = int(np.ceil(T * 1.0 / downsampfact)
+                          * downsampfact - T)
+        padbefore = int(np.floor(elm_missing//2.0))
+        padafter = int(np.ceil(elm_missing// 2.0))
+        tr_tmp = np.pad(
+            traces.T, ((padbefore, padafter), (0, 0)), mode='reflect')
+        numFramesNew, num_traces = np.shape(tr_tmp)
+        #% compute baseline quickly
+        print("binning data ...")
+        tr_BL = np.reshape(tr_tmp, (downsampfact, int(
+            numFramesNew//downsampfact), num_traces), order='F')
+        tr_BL = np.percentile(tr_BL, bl_percentile, axis=0)
+        print("interpolating data ...")
+        print(tr_BL.shape)
+        tr_BL = scipy.ndimage.zoom(np.array(tr_BL, dtype=np.float32), [
+                                   downsampfact, 1], order=3, mode='constant', cval=0.0, prefilter=True)
+        if padafter == 0:
+                traces -= tr_BL.T
+        else:
+                traces -= tr_BL[padbefore:-padafter].T
 
+        return traces.astype(np.float32)
 #%%
 from scipy.stats import norm
-a = cm.load('example_movies/demoMovie.tif')
+#a = cm.load('example_movies/demoMovie.tif')
+a = cm.load('/mnt/ceph/neuro/labeling/yuste.Single_150u/images/tifs/Single_150um_024.tif')
 all_els = []
 for it in range(1):
     print(it)
 #    a = cm.movie(np.random.randn(*mns.shape).astype(np.float32))
-    Yr = cm.movie.to_2D(a).astype(np.float)
+    Yr = remove_baseline_fast(np.array(cm.movie.to_2D(a)).T).T
 
     #%
 #    norm = lambda(x): np.exp(-x**2/2)/np.sqrt(2*np.pi)
     fitness, res, sd_r, md = compute_event_exceptionality(Yr.T)
-    Yr_c = np.clip(-np.log(norm.sf(np.array((Yr - md) /
-                                            sd_r, dtype=np.float))), 0, 1000)
+    Yr_c = -np.log(norm.sf(np.array((Yr - md) /
+                                            sd_r, dtype=np.float)))
     mns = cm.movie(scipy.ndimage.convolve(np.reshape(
-        Yr_c, [-1, 60, 80], order='F'), np.ones([5, 3, 3])))
+        Yr_c, [-1, a.shape[1], a.shape[2]], order='F'), np.ones([5, 3, 3])))
     mns[mns < (38 * np.log10((mns.shape[0])))] = 0
-    all_els.append(np.sum(mns > 0))
+    all_els.append(np.sum(mns > 0)/np.sum(Yr>0))
     print(all_els)
 
 
 #%%
 #m1 = cm.movie((np.array((Yr-md)/sd_r)).reshape([-1,60,80],order = 'F'))*(scipy.ndimage.convolve(mns>0,np.ones([5,3,3])))
 m1 = cm.movie((np.array((Yr - md) / sd_r)
-               ).reshape([-1, 60, 80], order='F')) * (mns > 0)
-
+               ).reshape([-1, a.shape[1],a.shape[2]], order='F')) * (mns > 0)
+#%%
+m1.save('/mnt/ceph/neuro/labeling/yuste.Single_150u/images/tifs/Single_150um_024_sparse.tif')
+#%%
 m1.save('example_movies/demoMovie_sparse.tif')
 #%%
 mov = Yr
 #%%
 mns = -cm.movie(np.reshape(res.clip(-1000, 0),
-                           [80, 60, -1]).transpose([2, 1, 0]))
+                           [m1.shape[0], m1.shape[1], -1]).transpose([2, 1, 0]))
 #mns[mns > 1000] = 1000
 mov = cm.movie.to_2D(mns)
 #%%
