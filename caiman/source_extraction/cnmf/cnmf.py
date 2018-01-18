@@ -86,7 +86,7 @@ class CNMF(object):
                  remove_very_bad_comps=False, border_pix=0, low_rank_background=True,
                  update_background_components=True, rolling_sum=True, rolling_length=100,
                  min_corr=.85, min_pnr=20, deconvolve_options_init=None, ring_size_factor=1.5,
-                 center_psf=False,  use_dense=True, deconv_flag=True,
+                 center_psf=False, use_dense=True, deconv_flag=True,
                  simultaneously=False, n_refit=0, del_duplicates=False, N_samples_exceptionality=5,
                  max_num_added=1, min_num_trial=2, ssub_B=2, compute_B_3x=False, init_iter=2):
         """
@@ -234,7 +234,7 @@ class CNMF(object):
             Number of consecutives intervals to be considered when testing new neuron candidates
 
         del_duplicates: bool
-            whether to delete the duplicated created in initialization	
+            whether to delete the duplicated created in initialization  
 
         max_num_added : int, optional
             maximum number of components to be added at each step in OnACID
@@ -440,16 +440,15 @@ class CNMF(object):
                 if self.alpha_snmf is not None:
                     options['init_params']['alpha_snmf'] = self.alpha_snmf
 
-                self.Ain, self.Cin, self.b_in, self.f_in, center = initialize_components(
+                self.Ain, self.Cin, self.b_in, self.f_in, center, self.S, self.YrA = initialize_components(
                     Y, sn=sn, options_total=options, **options['init_params'])
-
+                
             if self.only_init:  # only return values after initialization
 
-                try:
+                if self.ring_size_factor is None:
                     self.YrA = compute_residuals(
-                        Yr, self.Ain, self.b_in, self.Cin, self.f_in, dview=self.dview, block_size=1000, num_blocks_per_run=5)
-                except:
-                    self.YrA = None
+                        Yr, self.Ain, self.b_in, self.Cin, self.f_in,
+                        dview=self.dview, block_size=1000, num_blocks_per_run=5)
 
                 self.A = self.Ain
                 self.C = self.Cin

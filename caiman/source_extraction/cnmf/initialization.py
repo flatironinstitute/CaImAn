@@ -295,6 +295,8 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
         Exception('You need to define arguments for local NMF')
 
     """
+    S, YrA = None, None
+
     if method == 'local_nmf':
         tsub_lnmf = tsub
         ssub_lnmf = ssub
@@ -302,11 +304,11 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
         ssub = 1
 
     if gSiz is None:
-        gSiz = 2 * np.asarray(gSig) + 1
+        gSiz = 2 * (np.asarray(gSig) + .5).astype(int) + 1
 
     d, T = np.shape(Y)[:-1], np.shape(Y)[-1]
     # rescale according to downsampling factor
-    gSig = np.round(np.asarray(gSig) / ssub).astype(np.int)
+    gSig = np.asarray(gSig, dtype=float) / ssub
     gSiz = np.round(np.asarray(gSiz) / ssub).astype(np.int)
 
     if normalize_init is True:
@@ -349,7 +351,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
             Ain, Cin, b_in, f_in = hals(
                 Y_ds, Ain, Cin, b_in, f_in, maxIter=maxIter)
     elif method == 'corr_pnr':
-        Ain, Cin, _, b_in, f_in = greedyROI_corr(
+        Ain, Cin, _, b_in, f_in, S, YrA = greedyROI_corr(
             Y, Y_ds, max_number=K, gSiz=gSiz[0], gSig=gSig[0], min_corr=min_corr, min_pnr=min_pnr,
             deconvolve_options=deconvolve_options_init, ring_size_factor=ring_size_factor,
             center_psf=center_psf, options=options_total, sn=sn, nb=nb, ssub=ssub,
@@ -445,7 +447,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
 
         b_in = b_in * np.reshape(img, (np.prod(d), -1), order='F')
 
-    return scipy.sparse.csc_matrix(Ain), Cin, b_in, f_in, center
+    return scipy.sparse.csc_matrix(Ain), Cin, b_in, f_in, center, S, YrA
 
 #%%
 
@@ -1102,7 +1104,7 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
 
         print('Update Temporal')
         B += Y.reshape((-1, T), order='F')  # "Y-B"
-        C, A, b__, f__, S__, bl__, c1__, neurons_sn__, g1__, YrA__, lam__ = \
+        C, A, b__, f__, S, bl__, c1__, neurons_sn__, g1__, YrA, lam__ = \
             caiman.source_extraction.cnmf.temporal.update_temporal_components(
                 B, spr.csc_matrix(A),
                 np.zeros((np.prod(dims), 0), np.float32), C, np.zeros(
@@ -1116,10 +1118,8 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
             B, C=C, f=np.zeros((0, T), np.float32), A_in=A, sn=sn,
             b_in=np.zeros((np.prod(dims), 0), np.float32),
             dview=None, **options['spatial_params'])
-        A = A.astype(np.float32)
-        nA = np.ravel(np.sqrt(A.power(2).sum(0)))
-        A = np.array(A / nA)
-        C *= nA[:, None]
+        A = A.astype(np.float32).toarray()
+
         if compute_B_3x:
             K = C.shape[0]  # need to recompute K as some components may have been eliminated
             print('Compute Background Again')  # on decimated data
@@ -1138,7 +1138,6 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
             B = B0
 
     print('Estimate low rank Background')
-
     use_NMF = True
     if nb:
         if use_NMF:
@@ -1154,7 +1153,7 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
         b_in = np.empty((A.shape[0], 0))
         f_in = np.empty((0, T))
 
-    return A, C, center.T, b_in.astype(np.float32), f_in.astype(np.float32)
+    return A, C, center.T, b_in.astype(np.float32), f_in.astype(np.float32), S.astype(np.float32), YrA
 
 
 @profile
@@ -1248,7 +1247,7 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
         # spatially filter data
         if not isinstance(gSig, list):
             gSig = [gSig, gSig]
-        ksize = tuple([(3 * i) // 2 * 2 + 1 for i in gSig])
+        ksize = tuple([int(3 * i / 2) * 2 + 1 for i in gSig])
         # create a spatial filter for removing background
 
         if center_psf:
@@ -1256,7 +1255,6 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
                 data_filtered[idx, ] = cv2.GaussianBlur(img, ksize=ksize, sigmaX=gSig[0],
                                                         sigmaY=gSig[1], borderType=1) \
                     - cv2.boxFilter(img, ddepth=-1, ksize=ksize, borderType=1)
-                # data_filtered[idx, ] = cv2.filter2D(img, -1, psf, borderType=1)
         else:
             for idx, img in enumerate(data_filtered):
                 data_filtered[idx, ] = cv2.GaussianBlur(img, ksize=ksize, sigmaX=gSig[
