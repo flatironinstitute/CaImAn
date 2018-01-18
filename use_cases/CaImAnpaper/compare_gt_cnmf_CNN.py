@@ -46,16 +46,64 @@ from caiman.source_extraction.cnmf import cnmf as cnmf
 from caiman.components_evaluation import estimate_components_quality_auto
 from caiman.cluster import setup_cluster
 #%%
+def precision_snr(snr_gt, snr_gt_fn, snr_cnmf, snr_cnmf_fp, snr_thrs):
+        all_results_fake = []
+        all_results_OR = []
+        all_results_AND = []
+        for snr_thr in snr_thrs:
+            snr_all_gt = np.array(list(snr_gt) + list(snr_gt_fn) + [0]*len(snr_cnmf_fp))
+            snr_all_cnmf = np.array(list(snr_cnmf) + [0]*len(snr_gt_fn) + list(snr_cnmf_fp))
+
+            ind_gt = np.where(snr_all_gt > snr_thr)[0]  # comps in gt above threshold
+            ind_cnmf = np.where(snr_all_cnmf > snr_thr)[0] # same for cnmf
+
+            # precision: how many detected components above a given SNR are true
+            prec = np.sum(snr_all_gt[ind_cnmf] > 0)/len(ind_cnmf)
+
+            # recall: how many gt components with SNR above the threshold are detected
+            rec = np.sum(snr_all_cnmf[ind_gt] > 0)/len(ind_gt)
+
+            f1 = 2*prec*rec/(prec + rec)
+
+            results_fake = [prec, rec, f1]
+            # f1 score with OR condition
+
+            ind_OR = np.union1d(ind_gt, ind_cnmf)
+                    # indeces of components that are above threshold in either direction
+            ind_gt_OR = np.where(snr_all_gt[ind_OR] > 0)[0]     # gt components
+            ind_cnmf_OR = np.where(snr_all_cnmf[ind_OR] > 0)[0] # cnmf components
+            prec_OR = np.sum(snr_all_gt[ind_OR][ind_cnmf_OR] > 0)/len(ind_cnmf_OR)
+            rec_OR = np.sum(snr_all_cnmf[ind_OR][ind_gt_OR] > 0)/len(ind_gt_OR)
+            f1_OR = 2*prec_OR*rec_OR/(prec_OR + rec_OR)
+
+            results_OR = [prec_OR, rec_OR, f1_OR]
+
+            # f1 score with AND condition
+
+            ind_AND = np.intersect1d(ind_gt, ind_cnmf)
+            ind_fp = np.intersect1d(ind_cnmf, np.where(snr_all_gt == 0)[0])
+            ind_fn = np.intersect1d(ind_gt, np.where(snr_all_cnmf == 0)[0])
+
+            prec_AND = len(ind_AND)/(len(ind_AND) + len(ind_fp))
+            rec_AND = len(ind_AND)/(len(ind_AND) + len(ind_fn))
+            f1_AND = 2*prec_AND*rec_AND/(prec_AND + rec_AND)
+
+            results_AND = [prec_AND, rec_AND, f1_AND]
+            all_results_fake.append(results_fake)
+            all_results_OR.append(results_OR)
+            all_results_AND.append(results_AND)
+
+
+        return np.array(all_results_fake), np.array(all_results_OR), np.array(all_results_AND)
+#%%
 global_params = {'min_SNR': 2,        # minimum SNR when considering adding a new neuron
                  'gnb': 2,             # number of background components
                  'rval_thr' : 0.80,     # spatial correlation threshold
                  'min_cnn_thresh' : 0.95,
                  'p' : 1,
                  'min_rval_thr_rejected': 0, # length of mini batch for OnACID in decay time units (length would be batch_length_dt*decay_time*fr)
-#                 'min_fitness_raw_rejected': -4,       # parameter for thresholding components when cleaning up shapes
                  'max_classifier_probability_rejected' : 0.1,    # flag for motion correction (set to False to compare directly on the same FOV)
                  'max_fitness_delta_accepted' : -20,
-#                 'max_fitness_accepted' : -20,
                  'Npeaks' : 5,
                  'min_SNR_patch' : -10,
                  'min_r_val_thr_patch': 0.5,
@@ -69,7 +117,7 @@ global_params = {'min_SNR': 2,        # minimum SNR when considering adding a ne
                  'init_method'  : 'greedy_roi',
                  'filter_after_patch'  :  False
                  }
-
+#%%
 params_movies = []
 #%%
 params_movie = {'fname': '/mnt/ceph/neuro/labeling/neurofinder.03.00.test/images/final_map/Yr_d1_498_d2_467_d3_1_order_C_frames_2250_.mmap',
@@ -79,7 +127,6 @@ params_movie = {'fname': '/mnt/ceph/neuro/labeling/neurofinder.03.00.test/images
                  'stride_cnmf': 10,  # amounpl.it of overlap between the patches in pixels
                  'K': 4,  # number of components per patch
                  'gSig': [8,8],  # expected half size of neurons
-
                  'n_chunks': 10,
                  'swap_dim':False,
                  'crop_pix' : 0,
@@ -103,35 +150,8 @@ params_movie = {'fname': '/mnt/ceph/neuro/labeling/neurofinder.04.00.test/images
                  'decay_time' : 0.5, # rough length of a transient
                  }
 params_movies.append(params_movie.copy())
-#%% neurofinder 02.00
-params_movie = {'fname': '/mnt/ceph/neuro/labeling/neurofinder.02.00/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_8000_.mmap',
-                     # order of the autoregressive system
-                 'merge_thresh': 0.8,  # merging threshold, max correlation allow
-                 'rf': 20,  # half-size of the patches in pixels. rf=25, patches are 50x50    20
-                 'stride_cnmf': 10,  # amounpl.it of overlap between the patches in pixels
-                 'K': 6,  # number of components per patch
-                 'gSig': [5,5],  # expected half size of neurons
-                 'fr' : 30, # imaging rate in Hz
-                 'n_chunks': 10,
-                 'swap_dim':False,
-                 'crop_pix':10,
-                 'decay_time': 0.3,
-                 }
-params_movies.append(params_movie.copy())
-#%% packer
-#params_movie = {'fname': '/mnt/ceph/neuro/labeling/packer.001/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_9900_.mmap',
-#                     # order of the autoregressive system
-#                 'merge_thresh': 0.99,  # merging threshold, max correlation allow
-#                 'rf': 25,  # half-size of the patches in pixels. rf=25, patches are 50x50    20
-#                 'stride_cnmf': 10,  # amounpl.it of overlap between the patches in pixels
-#                 'K': 6,  # number of components per patch
-#                 'gSig': [6,6],  # expected half size of neurons
-#                 'fr': 30,
-#                 'n_chunks': 10,
-#                 'update_background_components': False,# whether to update the background components in the spatial phase
-#                'swap_dim':False,
-#                'crop_pix':0
-#                 }
+
+
 #%% yuste
 params_movie = {'fname': '/mnt/ceph/neuro/labeling/yuste.Single_150u/images/final_map/Yr_d1_200_d2_256_d3_1_order_C_frames_3000_.mmap',
                      # order of the autoregressive system
@@ -163,6 +183,21 @@ params_movie = {'fname': '/mnt/ceph/neuro/labeling/neurofinder.00.00/images/fina
                  'crop_pix':10
                  }
 params_movies.append(params_movie.copy())
+#%% neurofinder 02.00
+params_movie = {'fname': '/opt/local/Data/labeling/neurofinder.02.00/Yr_d1_512_d2_512_d3_1_order_C_frames_8000_.mmap',
+                     # order of the autoregressive system
+                 'merge_thresh': 0.8,  # merging threshold, max correlation allow
+                 'rf': 20,  # half-size of the patches in pixels. rf=25, patches are 50x50    20
+                 'stride_cnmf': 10,  # amounpl.it of overlap between the patches in pixels
+                 'K': 6,  # number of components per patch
+                 'gSig': [5,5],  # expected half size of neurons
+                 'fr' : 30, # imaging rate in Hz
+                 'n_chunks': 10,
+                 'swap_dim':False,
+                 'crop_pix':10,
+                 'decay_time': 0.3,
+                 }
+params_movies.append(params_movie.copy())
 #%% neurofinder 01.01
 params_movie = {'fname': '/mnt/ceph/neuro/labeling/neurofinder.01.01/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_1825_.mmap',
                      # order of the autoregressive system
@@ -191,7 +226,7 @@ params_movie = {'fname': '/opt/local/Data/labeling/k53_20160530/Yr_d1_512_d2_512
                  'decay_time' : 0.3,
                  'n_chunks': 10,
                  'swap_dim':False,
-                 'crop_pix':10,
+                 'crop_pix':2,
                  }
 params_movies.append(params_movie.copy())
 #%% J115
@@ -212,7 +247,7 @@ params_movie = {'fname': '/opt/local/Data/labeling/J115_2015-12-09_L01_ELS/Yr_d1
                  }
 params_movies.append(params_movie.copy())
 #%% J123
-params_movie = {'fname': '/mnt/ceph/neuro/labeling/J123_2015-11-20_L01_0/images/final_map/Yr_d1_458_d2_477_d3_1_order_C_frames_41000_.mmap',
+params_movie = {'fname': '/opt/local/Data/labeling/J123_2015-11-20_L01_0/Yr_d1_458_d2_477_d3_1_order_C_frames_41000_.mmap',
                 'gtname':'/mnt/ceph/neuro/labeling/J123_2015-11-20_L01_0/regions/joined_consensus_active_regions.npy',
                      # order of the autoregressive system
                  'merge_thresh': 0.8,  # merging threshold, max correlation allow
@@ -225,6 +260,22 @@ params_movie = {'fname': '/mnt/ceph/neuro/labeling/J123_2015-11-20_L01_0/images/
                  'n_chunks': 10,
                  'swap_dim':False,
                  'crop_pix':2,
+                 }
+params_movies.append(params_movie.copy())
+#%%
+params_movie = { 'fname': '/opt/local/Data/labeling/k37_20160109_AM_150um_65mW_zoom2p2_00001_1-16/Yr_d1_512_d2_512_d3_1_order_C_frames_48000_.mmap',
+                 'gtname':'/mnt/ceph/neuro/labeling/k37_20160109_AM_150um_65mW_zoom2p2_00001_1-16/regions/joined_consensus_active_regions.npy',
+                     # order of the autoregressive system
+                 'merge_thresh': 0.8,  # merging threshold, max correlation allow
+                 'rf': 20,  # half-size of the patches in pixels. rf=25, patches are 50x50    20
+                 'stride_cnmf': 10,  # amounpl.it of overlap between the patches in pixels
+                 'K': 5,  # number of components per patch
+                 'gSig': [6,6],  # expected half size of neurons
+                 'fr' : 30,
+                 'decay_time' : 0.3,
+                 'n_chunks': 30,
+                 'swap_dim':False,
+                 'crop_pix':8,
                  }
 params_movies.append(params_movie.copy())
 #%% Jan AMG DIPS IN AVERAGE
@@ -242,22 +293,20 @@ params_movies.append(params_movie.copy())
 #                 'crop_pix':8,
 #                 }
 #params_movies.append(params_movie.copy())
-#%%
-params_movie = { 'fname': '/mnt/ceph/neuro/labeling/k37_20160109_AM_150um_65mW_zoom2p2_00001_1-16/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_48000_.mmap',
-                 'gtname':'/mnt/ceph/neuro/labeling/k37_20160109_AM_150um_65mW_zoom2p2_00001_1-16/regions/joined_consensus_active_regions.npy',
-                     # order of the autoregressive system
-                 'merge_thresh': 0.8,  # merging threshold, max correlation allow
-                 'rf': 20,  # half-size of the patches in pixels. rf=25, patches are 50x50    20
-                 'stride_cnmf': 10,  # amounpl.it of overlap between the patches in pixels
-                 'K': 5,  # number of components per patch
-                 'gSig': [6,6],  # expected half size of neurons
-                 'fr' : 30,
-                 'decay_time' : 0.3,
-                 'n_chunks': 30,
-                 'swap_dim':False,
-                 'crop_pix':8,
-                 }
-params_movies.append(params_movie.copy())
+#%% packer
+#params_movie = {'fname': '/mnt/ceph/neuro/labeling/packer.001/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_9900_.mmap',
+#                     # order of the autoregressive system
+#                 'merge_thresh': 0.99,  # merging threshold, max correlation allow
+#                 'rf': 25,  # half-size of the patches in pixels. rf=25, patches are 50x50    20
+#                 'stride_cnmf': 10,  # amounpl.it of overlap between the patches in pixels
+#                 'K': 6,  # number of components per patch
+#                 'gSig': [6,6],  # expected half size of neurons
+#                 'fr': 30,
+#                 'n_chunks': 10,
+#                 'update_background_components': False,# whether to update the background components in the spatial phase
+#                'swap_dim':False,
+#                'crop_pix':0
+#                 }
 #%% yuste: sue ann
 #params_movie = {'fname': '/mnt/ceph/neuro/labeling/yuste.Single_150u/images/final_map/Yr_d1_200_d2_256_d3_1_order_C_frames_3000_.mmap',
 #                'seed_name':'/mnt/xfs1/home/agiovann/Downloads/yuste_sue_masks.mat',
@@ -289,7 +338,6 @@ params_movies.append(params_movie.copy())
 #                 'kernel':None,
 #                 }
 #%%
-#params_movie = params_movies[4]
 all_perfs = []
 all_rvalues = []
 all_comp_SNR_raw =[]
@@ -300,7 +348,7 @@ all_results = dict()
 reload = True
 plot_on = False
 save_on = False
-for params_movie in np.array(params_movies)[:]:
+for params_movie in np.array(params_movies)[7:8]:
 #    params_movie['gnb'] = 3
     params_display = {
         'downsample_ratio': .2,
@@ -391,8 +439,6 @@ for params_movie in np.array(params_movies)[:]:
         # %%
         if plot_on:
             pl.figure()
-            # TODO: show screenshot 12`
-            # TODO : change the way it is used
             crd = plot_contours(A_tot, Cn, thr=params_display['thr_plot'])
 
             # %% rerun updating the components to refine
@@ -437,7 +483,7 @@ for params_movie in np.array(params_movies)[:]:
             A_gt = scipy.sparse.coo_matrix(ld['A_gt'][()])
             dims_gt = (ld['d1'],ld['d2'])
 
-            t1 = time.time()
+#            t1 = time.time()
             idx_components_gt, idx_components_bad_gt, comp_SNR_gt, r_values_gt, predictionsCNN_gt = estimate_components_quality_auto(
                                 Y, A_gt, C_gt, b_gt, f_gt, YrA_gt, params_movie['fr'], params_movie['decay_time'], gSig, dims_gt,
                                 dview = dview, min_SNR=global_params['min_SNR'],
@@ -448,31 +494,11 @@ for params_movie in np.array(params_movies)[:]:
     #                            [list(np.add(i,a)) for i,a in zip(range(0,1),[gSig]*3)]
 
 
-            t_eva_comps = time.time() - t1
             print(' ***** ')
             print((len(C)))
             print((len(idx_components_gt)))
 
-    #            roi_all_match = cm.base.rois.nf_read_roi_zip(glob.glob('/'.join(os.path.split(fname_new)[0].split('/')[:-2]+['regions/*nd_matches.zip']))[0],dims)
-    #    #        roi_1_match = cm.base.rois.nf_read_roi_zip('/mnt/ceph/neuro/labeling/neurofinder.02.00/regions/intermediate_regions/ben_active_regions_nd_natalia_active_regions_nd__sonia_active_regions_nd__lindsey_active_regions_nd_1_mismatches.zip',dims)
-    #    #        roi_all_match = roi_1_match#np.concatenate([roi_all_match, roi_1_match],axis = 0)
-    #            A_gt_thr = roi_all_match.transpose([1,2,0]).reshape((np.prod(dims),-1),order = 'F')
-    #            A_gt = A_gt_thr
-    #        else:
-    #            if filter_SNR: # here you need to adapt to new function estimate_components_quality_auto
-    #                final_frate = params_movie['fr']
-    #                Npeaks = global_params['Npeaks']
-    #                traces_gt = C_gt + YrA_gt
-    #                idx_filter_snr, idx_filter_snr_bad, fitness_raw_gt, fitness_delta_gt, r_values_gt = estimate_components_quality_auto(
-    #                    traces_gt, Y, A_gt, C_gt, b_gt, f_gt, final_frate=final_frate, Npeaks=Npeaks, r_values_min=1, fitness_min=-10,
-    #                    fitness_delta_min=-10, return_all=True)
-    #
-    #                print(len(idx_filter_snr))
-    #                print(len(idx_filter_snr_bad))
-    #                A_gt, C_gt, b_gt, f_gt, traces_gt, YrA_gt = A_gt.tocsc()[:,idx_filter_snr], C_gt[idx_filter_snr], b_gt, f_gt, traces_gt[idx_filter_snr], YrA_gt[idx_filter_snr]
-    #
-    #            A_gt_thr = cm.source_extraction.cnmf.spatial.threshold_components(A_gt.tocsc()[:,:].toarray(), dims, medw=None, thr_method='max', maxthr=0.2, nrgthr=0.99, extract_cc=True,
-    #                             se=None, ss=None, dview=None)
+
         #%%
         min_size_neuro = 3*2*np.pi
         max_size_neuro = (2*gSig[0])**2*np.pi
@@ -497,7 +523,7 @@ for params_movie in np.array(params_movies)[:]:
         if save_on:
             np.savez(os.path.join(os.path.split(fname_new)[0],
                               os.path.split(fname_new)[1][:-4] +
-                              'results_analysis_after_merge_3.npz'),
+                              'results_analysis_after_merge_4.npz'),
                               Cn=Cn, fname_new = fname_new,
                               A=A, C=C, b=b, f=f, YrA=YrA, sn=sn, d1=d1,
                               d2=d2, idx_components=idx_components,
@@ -510,7 +536,9 @@ for params_movie in np.array(params_movies)[:]:
                               idx_components_gt=idx_components_gt,
                               idx_components_bad_gt=idx_components_bad_gt,
                               comp_SNR_gt=comp_SNR_gt,r_values_gt=r_values_gt,
-                              predictionsCNN_gt=predictionsCNN_gt)
+                              predictionsCNN_gt=predictionsCNN_gt,
+                              t_patch=t_patch, t_eva_comps=t_eva_comps,
+                              t_refine=t_refine)
 
         # %%
         if plot_on:
@@ -535,15 +563,16 @@ for params_movie in np.array(params_movies)[:]:
         }
         fn_old = fname_new
         #analysis_file = '/mnt/ceph/neuro/jeremie_analysis/neurofinder.03.00.test/Yr_d1_498_d2_467_d3_1_order_C_frames_2250_._results_analysis.npz'
-        print(os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:-4] + 'results_analysis_after_merge_3.npz'))
+        print(os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:-4] + 'results_analysis_after_merge_4.npz'))
 
-        with np.load(os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:-4] + 'results_analysis_after_merge_3.npz'), encoding = 'latin1') as ld:
+        with np.load(os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:-4] + 'results_analysis_after_merge_4.npz'), encoding = 'latin1') as ld:
             print(ld.keys())
             ld1 = {k:ld[k] for k in ['d1','d2','A','params_movie','fname_new',
                    'C','idx_components','idx_components_bad','Cn','b','f','YrA',
                    'sn','comp_SNR','r_values','predictionsCNN','A_gt','A_gt_thr',
                    'A_thr','C_gt','b_gt','f_gt','YrA_gt','idx_components_gt',
-                   'idx_components_bad_gt', 'comp_SNR_gt', 'r_values_gt', 'predictionsCNN_gt']}
+                   'idx_components_bad_gt', 'comp_SNR_gt', 'r_values_gt', 'predictionsCNN_gt',
+                   't_eva_comps', 't_patch', 't_refine']}
             locals().update(ld1)
             dims_off = d1,d2
             A = scipy.sparse.coo_matrix(A[()])
@@ -555,8 +584,13 @@ for params_movie in np.array(params_movies)[:]:
                 pass
             gSig = params_movie['gSig']
             fname_new = fn_old
+            print([t_eva_comps, t_patch, t_refine])
+
         print(C_gt.shape)
         print(Y.shape)
+        continue
+
+
 
 
 #        gt_file = os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:-4] + 'match_masks.npz')
@@ -607,12 +641,12 @@ for params_movie in np.array(params_movies)[:]:
         cm.movie(np.squeeze(final_crops[np.where(predictions[:,0]>=0.95)[0]])
                         ).play(gain=4., magnification = 8,fr=5)
 
-    #%%
+ #%%
 #    print(C_gt.shape)
 #    try:
 #        np.savez(os.path.join(os.path.split(fname_new)[0],
 #                              os.path.split(fname_new)[1][:-4] +
-#                              'results_analysis_after_merge_3.npz'),
+#                              'results_analysis_after_merge_4.npz'),
 #                              Cn=Cn, fname_new = fname_new,
 #                              A=A, C=C, b=b, f=f, YrA=YrA, sn=sn, d1=d1,
 #                              d2=d2, idx_components=idx_components,
@@ -625,12 +659,14 @@ for params_movie in np.array(params_movies)[:]:
 #                              idx_components_gt=idx_components_gt,
 #                              idx_components_bad_gt=idx_components_bad_gt,
 #                              comp_SNR_gt=comp_SNR_gt,r_values_gt=r_values_gt,
-#                              predictionsCNN_gt=predictionsCNN_gt)
+#                              predictionsCNN_gt=predictionsCNN_gt,
+#                              t_patch=t_patch, t_eva_comps=t_eva_comps,
+#                              t_refine=t_refine)
 #    except:
 #
 #        np.savez(os.path.join(os.path.split(fname_new[()])[0].decode("utf-8"),
 #                              os.path.split(fname_new[()])[1][:-4].decode("utf-8")
-#                              + 'results_analysis_after_merge_3.npz'), Cn=Cn,
+#                              + 'results_analysis_after_merge_4.npz'), Cn=Cn,
 #                              fname_new = fname_new,
 #                              A=A, C=C, b=b, f=f, YrA=YrA, sn=sn, d1=d1, d2=d2,
 #                              idx_components=idx_components,
@@ -643,7 +679,9 @@ for params_movie in np.array(params_movies)[:]:
 #                              idx_components_gt=idx_components_gt,
 #                              idx_components_bad_gt=idx_components_bad_gt,
 #                              comp_SNR_gt=comp_SNR_gt, r_values_gt=r_values_gt,
-#                              predictionsCNN_gt=predictionsCNN_gt)
+#                              predictionsCNN_gt=predictionsCNN_gt,
+#                              t_patch=t_patch, t_eva_comps=t_eva_comps,
+#                              t_refine=t_refine)
 #
     #%%
 #    masks_thr_bin = apply_magic_wand(A, gSig, np.array(dims), A_thr=A_thr, coms=None,
@@ -824,58 +862,8 @@ for params_movie in np.array(params_movies)[:]:
 #        performance_SNRs.append(performance_tmp.copy())
 
     all_results[fname_new.split('/')[-4]+fname_new.split('/')[-2]] = performance_tmp
-    #%% check with multiple SNR:
 
-    def precision_snr(snr_gt, snr_gt_fn, snr_cnmf, snr_cnmf_fp, snr_thrs):
-        all_results_fake = []
-        all_results_OR = []
-        all_results_AND = []
-        for snr_thr in snr_thrs:
-            snr_all_gt = np.array(list(snr_gt) + list(snr_gt_fn) + [0]*len(snr_cnmf_fp))
-            snr_all_cnmf = np.array(list(snr_cnmf) + [0]*len(snr_gt_fn) + list(snr_cnmf_fp))
-
-            ind_gt = np.where(snr_all_gt > snr_thr)[0]  # comps in gt above threshold
-            ind_cnmf = np.where(snr_all_cnmf > snr_thr)[0] # same for cnmf
-
-            # precision: how many detected components above a given SNR are true
-            prec = np.sum(snr_all_gt[ind_cnmf] > 0)/len(ind_cnmf)
-
-            # recall: how many gt components with SNR above the threshold are detected
-            rec = np.sum(snr_all_cnmf[ind_gt] > 0)/len(ind_gt)
-
-            f1 = 2*prec*rec/(prec + rec)
-
-            results_fake = [prec, rec, f1]
-            # f1 score with OR condition
-
-            ind_OR = np.union1d(ind_gt, ind_cnmf)
-                    # indeces of components that are above threshold in either direction
-            ind_gt_OR = np.where(snr_all_gt[ind_OR] > 0)[0]     # gt components
-            ind_cnmf_OR = np.where(snr_all_cnmf[ind_OR] > 0)[0] # cnmf components
-            prec_OR = np.sum(snr_all_gt[ind_OR][ind_cnmf_OR] > 0)/len(ind_cnmf_OR)
-            rec_OR = np.sum(snr_all_cnmf[ind_OR][ind_gt_OR] > 0)/len(ind_gt_OR)
-            f1_OR = 2*prec_OR*rec_OR/(prec_OR + rec_OR)
-
-            results_OR = [prec_OR, rec_OR, f1_OR]
-
-            # f1 score with AND condition
-
-            ind_AND = np.intersect1d(ind_gt, ind_cnmf)
-            ind_fp = np.intersect1d(ind_cnmf, np.where(snr_all_gt == 0)[0])
-            ind_fn = np.intersect1d(ind_gt, np.where(snr_all_cnmf == 0)[0])
-
-            prec_AND = len(ind_AND)/(len(ind_AND) + len(ind_fp))
-            rec_AND = len(ind_AND)/(len(ind_AND) + len(ind_fn))
-            f1_AND = 2*prec_AND*rec_AND/(prec_AND + rec_AND)
-
-            results_AND = [prec_AND, rec_AND, f1_AND]
-            all_results_fake.append(results_fake)
-            all_results_OR.append(results_OR)
-            all_results_AND.append(results_AND)
-
-
-        return np.array(all_results_fake), np.array(all_results_OR), np.array(all_results_AND)
-        #%%
+    #%% CREATE FIGURES
     if False:
         #%%
         pl.figure()
@@ -919,9 +907,23 @@ for params_movie in np.array(params_movies)[:]:
         traces_cnmf /=np.max(traces_cnmf,1)[:,None]
         pl.plot(scipy.signal.decimate(traces_cnmf,10,1).T-np.arange(5)*1,'y')
         pl.plot(scipy.signal.decimate(traces_gt,10,1).T-np.arange(5)*1,'k', linewidth = .5 )
+        #%% mmap timing
+        import glob
+        try:
+            dview.terminate()
+        except:
+            print('No clusters to stop')
 
+        c, dview, n_processes = setup_cluster(
+        backend='local', n_processes=None, single_thread=False)
 
-
+        t1 = time.time()
+        ffllss = list(glob.glob('/opt/local/Data/Sue/k53/orig_tifs/*.tif')[:])
+        ffllss.sort()
+        print(ffllss)
+        fname_new = cm.save_memmap(ffllss, base_name='memmap_', order='C',
+                           border_to_0=0, dview = dview, n_chunks = 80)  # exclude borders
+        t2 = time.time() - t1
         #%%
         if False:
             np.savez('/mnt/home/agiovann/Dropbox/FiguresAndPapers/PaperCaiman/all_results_Jan_2018.npz',all_results = all_results)
@@ -1026,90 +1028,3 @@ for params_movie in np.array(params_movies)[:]:
                 pl.xlabel('SNR threshold')
 
 
-        #%%
-        duplicates, ind_keep, D, overlaps, indeces =  cm.base.rois.detect_duplicates_and_subsets(A_thr[:,idx_components].reshape([dims[0],dims[1],-1],order = 'F').transpose([2,0,1])*1., dist_thr=0.1, min_dist = 10,thresh_subset = 0.6)
-        indeces = [[frst,sec] for frst,sec in zip(indeces[0], indeces[1])]
-        indeces_keep = np.argmax([[overlaps[sec,frst],overlaps[frst,sec]] for frst,sec in indeces],1)
-        indeces_keep = np.unique([ elms[ik] for ik,elms in zip(indeces_keep,indeces)])
-
-        duplicates, ind_keep, D, overlaps, indeces =  cm.base.rois.detect_duplicates_and_subsets(A_gt_thr.reshape([dims[0],dims[1],-1],order = 'F').transpose([2,0,1])*1., dist_thr=0.1, min_dist = 10,thresh_subset = 0.5)
-        indeces = [[frst,sec] for frst,sec in zip(indeces[0], indeces[1])]
-        indeces_keep = np.argmax([[overlaps[sec,frst],overlaps[frst,sec]] for frst,sec in indeces],1)
-        indeces_keep_gt = np.unique([ elms[ik] for ik,elms in zip(indeces_keep,indeces)])
-
-
-        #%%
-        pl.figure()
-        crd = plot_contours(A_gt.tocsc(), Cn, thr=0.9, colors='yellow', vmax = 0.85, display_numbers=True,cmap = 'gray')
-
-        #%% LOGISTIC REGRESSOR
-        from sklearn import linear_model
-        from sklearn.metrics import accuracy_score
-        from sklearn import preprocessing
-        from sklearn import svm
-        from sklearn.neural_network import MLPClassifier
-        from sklearn.model_selection import train_test_split
-        from sklearn.ensemble import RandomForestClassifier
-
-        X_SNR_delta = (np.clip(np.concatenate(all_comp_SNR_delta),0,20))
-        X_SNR_raw = (np.clip(np.concatenate(all_comp_SNR_raw),0,20))
-        X_r = (np.concatenate(all_rvalues))
-        X_pred = (np.concatenate(all_predictions))
-    #    logreg = linear_model.LogisticRegression( max_iter=100)
-    #    logreg = svm.SVC(kernel = 'rbf')
-        logreg = MLPClassifier(solver='lbfgs', alpha=1e-5,
-                         hidden_layer_sizes=(10,10,5), max_iter = 2000)
-    #    logreg = RandomForestClassifier(max_depth=10)
-
-        X = np.vstack([X_SNR_delta, X_SNR_raw, X_r, X_pred]).T
-        Y = np.concatenate(all_labels)
-        X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.33)
-    #    X = np.vstack([X_SNR_delta - X_SNR_delta.mean(), X_SNR_raw - X_SNR_raw.mean(), X_r - X_r.mean(), X_pred - X_pred.mean()]).T
-
-
-        logreg.fit(X_train, Y_train)
-        Z = logreg.predict(X_test)
-        acc = accuracy_score(Y_test, Z)
-        print(acc)
-        #%%
-
-
-        with open('component_classifier.pkl', 'wb') as fid:
-            pickle.dump(logreg, fid)
-    # load it again
-        with open('component_classifier.pkl', 'rb') as fid:
-            gnb_loaded = pickle.load(fid)
-        #%%
-        X_SNR_delta = (np.clip(np.concatenate(all_comp_SNR_delta),0,20))
-        X_SNR_raw = (np.clip(np.concatenate(all_comp_SNR_raw),0,20))
-        X_r = (np.concatenate(all_rvalues))
-        X_pred = (np.concatenate(all_predictions))
-        idx_components_r = np.where((X_r >= global_params['rval_thr']))[0]
-        idx_components_raw = np.where(X_SNR_raw > 2)[0]
-        idx_components_delta = np.where(X_SNR_delta > 1.5)[0]
-        idx_components_cnn = np.where(X_pred >  global_params['min_cnn_thresh'])[0]
-        bad_comps = np.where((X_r <= global_params['min_rval_thr_rejected']) | (X_SNR_raw <= .5) | (X_pred<=global_params['max_classifier_probability_rejected']))[0]
-        #idx_and_condition_1 = np.where((r_values >= .65) & ((fitness_raw < -20) | (fitness_delta < -20)) )[0]
-        idx_components = np.union1d(idx_components_r, idx_components_raw)
-        idx_components = np.union1d(idx_components, idx_components_delta)
-        idx_components = np.union1d(idx_components,idx_components_cnn)
-        idx_components = np.setdiff1d(idx_components,bad_comps)
-        #idx_components = np.intersect1d(idx_components,idx_size_neuro)
-        #idx_components = np.union1d(idx_components, idx_and_condition_1)
-        #idx_components = np.union1d(idx_components, idx_and_condition_2)
-        lab_manual = np.zeros(len(X_r))
-        lab_manual[idx_components] = 1
-        acc_manual = accuracy_score(Y, lab_manual)
-        print(acc_manual)
-        #%%
-        if save_on:
-            np.savez(os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:-4] + 'results_comparison_cnn_after_merge_3.npz'),tp_gt = tp_gt, tp_comp = tp_comp, fn_gt = fn_gt, fp_comp = fp_comp,
-                     performance_cons_off = performance_cons_off,idx_components = idx_components, A_gt = A_gt, C_gt = C_gt,
-                     b_gt = b_gt , f_gt = f_gt, dims = dims, YrA_gt = YrA_gt, A = A, C = C, b = b, f = f, YrA = YrA, Cn = Cn)
-        #%%
-        if plot_on:
-            view_patches_bar(Yr, scipy.sparse.coo_matrix(A_gt.tocsc()[:, fn_gt]), C_gt[fn_gt, :], b_gt, f_gt, dims[0], dims[1],
-                         YrA=YrA_gt[fn_gt, :], img=Cn)
-        #%%
-            view_patches_bar(Yr, scipy.sparse.coo_matrix(A.tocsc()[:, idx_components[fp_comp]]), C[idx_components[fp_comp]], b, f, dims[0], dims[1],
-                         YrA=YrA[idx_components[fp_comp]], img=Cn)
