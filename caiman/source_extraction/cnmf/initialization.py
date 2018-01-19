@@ -1107,8 +1107,7 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
         C, A, b__, f__, S, bl__, c1__, neurons_sn__, g1__, YrA, lam__ = \
             caiman.source_extraction.cnmf.temporal.update_temporal_components(
                 B, spr.csc_matrix(A),
-                np.zeros((np.prod(dims), 0), np.float32), C, np.zeros(
-                    (0, T), np.float32),
+                np.zeros((np.prod(dims), 0), np.float32), C, np.zeros((0, T), np.float32),
                 dview=None, bl=None, c1=None, sn=None, g=None, **options['temporal_params'])
         print('Update Spatial')
         options['spatial_params']['dims'] = dims
@@ -1118,6 +1117,12 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
             B, C=C, f=np.zeros((0, T), np.float32), A_in=A, sn=sn,
             b_in=np.zeros((np.prod(dims), 0), np.float32),
             dview=None, **options['spatial_params'])
+        print('Update Temporal')
+        C, A, b__, f__, S, bl__, c1__, neurons_sn__, g1__, YrA, lam__ = \
+            caiman.source_extraction.cnmf.temporal.update_temporal_components(
+                B, spr.csc_matrix(A),
+                np.zeros((np.prod(dims), 0), np.float32), C, np.zeros((0, T), np.float32),
+                dview=None, bl=None, c1=None, sn=None, g=None, **options['temporal_params'])
         A = A.astype(np.float32).toarray()
 
         if compute_B_3x:
@@ -1664,10 +1669,15 @@ def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True, ssub=1, tsub=1):
         indices += list(index)
         B = Y[index] - A[index].dot(C) - \
             b0[index, None] if X is None else X[index]
-        data += list(np.linalg.inv(np.array(B.dot(B.T)) +
-                                   1e-9 * np.eye(len(index), dtype='float32')).
-                     dot(B.dot(Y[p] - A[p].dot(C).ravel() - b0[p] if X is None else X[p])))
-        # np.linalg.lstsq seems less robust but scipy version would be (robust but for the problem size slower) alternative
-        # data += list(scipy.linalg.lstsq(B.T, Y[p] - A[p].dot(C) - b0[p], check_finite=False)[0])
+        tmp = np.array(B.dot(B.T))
+        try:
+            data += list(np.linalg.inv(tmp + tmp.mean() *
+                                       1e-9 * np.eye(len(index), dtype='float32')).
+                         dot(B.dot(Y[p] - A[p].dot(C).ravel() - b0[p] if X is None else X[p])))
+        except:
+            # np.linalg.lstsq seems less robust but scipy version is
+            # (robust but for the problem size slower) alternative
+            data += list(scipy.linalg.lstsq(B.T, Y[p] - A[p].dot(C) - b0[p]
+                                            if X is None else X[p], check_finite=False)[0])
         indptr.append(len(indices))
     return spr.csr_matrix((data, indices, indptr), dtype='float32'), b0.astype(np.float32)
