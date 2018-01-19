@@ -440,7 +440,7 @@ class CNMF(object):
                 if self.alpha_snmf is not None:
                     options['init_params']['alpha_snmf'] = self.alpha_snmf
 
-                self.Ain, self.Cin, self.b_in, self.f_in, center, self.S, self.YrA = initialize_components(
+                self.Ain, self.Cin, self.b_in, self.f_in, center, extra_1p = initialize_components(
                     Y, sn=sn, options_total=options, **options['init_params'])
                 
             if self.only_init:  # only return values after initialization
@@ -449,6 +449,12 @@ class CNMF(object):
                     self.YrA = compute_residuals(
                         Yr, self.Ain, self.b_in, self.Cin, self.f_in,
                         dview=self.dview, block_size=1000, num_blocks_per_run=5)
+                    self.g = g
+                    self.bl = None
+                    self.c1 = None
+                    self.neurons_sn = None
+                else:
+                    self.S, self.bl, self.c1, self.neurons_sn, self.g, self.YrA = extra_1p
 
                 self.A = self.Ain
                 self.C = self.Cin
@@ -477,10 +483,6 @@ class CNMF(object):
                 self.sn = sn
                 self.b = self.b_in
                 self.f = self.f_in
-                self.g = g
-                self.bl = None
-                self.c1 = None
-                self.neurons_sn = None
 
                 self.A, self.C, self.YrA, self.b, self.f = normalize_AC(
                     self.A, self.C, self.YrA, self.b, self.f)

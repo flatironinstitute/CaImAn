@@ -295,7 +295,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
         Exception('You need to define arguments for local NMF')
 
     """
-    S, YrA = None, None
+    extra_1p = None
 
     if method == 'local_nmf':
         tsub_lnmf = tsub
@@ -351,7 +351,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
             Ain, Cin, b_in, f_in = hals(
                 Y_ds, Ain, Cin, b_in, f_in, maxIter=maxIter)
     elif method == 'corr_pnr':
-        Ain, Cin, _, b_in, f_in, S, YrA = greedyROI_corr(
+        Ain, Cin, _, b_in, f_in, extra_1p = greedyROI_corr(
             Y, Y_ds, max_number=K, gSiz=gSiz[0], gSig=gSig[0], min_corr=min_corr, min_pnr=min_pnr,
             deconvolve_options=deconvolve_options_init, ring_size_factor=ring_size_factor,
             center_psf=center_psf, options=options_total, sn=sn, nb=nb, ssub=ssub,
@@ -447,11 +447,10 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
 
         b_in = b_in * np.reshape(img, (np.prod(d), -1), order='F')
 
-    return scipy.sparse.csc_matrix(Ain), Cin, b_in, f_in, center, S, YrA
+    return scipy.sparse.csc_matrix(Ain), Cin, b_in, f_in, center, extra_1p
+
 
 #%%
-
-
 def ICA_PCA(Y_ds, nr, sigma_smooth=(.5, .5, .5), truncate=2, fun='logcosh',
             max_iter=1000, tol=1e-10, remove_baseline=True, perc_baseline=20, nb=1):
     """ Initialization using ICA and PCA. DOES NOT WORK WELL WORK IN PROGRESS"
@@ -1118,7 +1117,7 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
             b_in=np.zeros((np.prod(dims), 0), np.float32),
             dview=None, **options['spatial_params'])
         print('Update Temporal')
-        C, A, b__, f__, S, bl__, c1__, neurons_sn__, g1__, YrA, lam__ = \
+        C, A, b__, f__, S, bl, c1, neurons_sn, g1, YrA, lam__ = \
             caiman.source_extraction.cnmf.temporal.update_temporal_components(
                 B, spr.csc_matrix(A),
                 np.zeros((np.prod(dims), 0), np.float32), C, np.zeros((0, T), np.float32),
@@ -1158,7 +1157,8 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
         b_in = np.empty((A.shape[0], 0))
         f_in = np.empty((0, T))
 
-    return A, C, center.T, b_in.astype(np.float32), f_in.astype(np.float32), S.astype(np.float32), YrA
+    return (A, C, center.T, b_in.astype(np.float32), f_in.astype(np.float32), 
+        (S.astype(np.float32), bl, c1, neurons_sn, g1, YrA))
 
 
 @profile
