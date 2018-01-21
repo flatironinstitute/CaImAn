@@ -266,6 +266,7 @@ def start_server(slurm_script=None, ipcluster="ipcluster", ncpus=None):
     else:
         shell_source(slurm_script)
         pdir, profile = os.environ['IPPPDIR'], os.environ['IPPPROFILE']
+        print([pdir,profile])
         c = Client(ipython_dir=pdir, profile=profile)
         ee = c[:]
         ne = len(ee)
@@ -277,14 +278,20 @@ def start_server(slurm_script=None, ipcluster="ipcluster", ncpus=None):
 #%%
 def shell_source(script):
     """ Run a source-style bash script, copy resulting env vars to current process. """
-    pipe = subprocess.Popen(". %s; env" %
+    #introduce echo to indicate the  end of the output
+    pipe = subprocess.Popen(". %s; env; echo 'FINISHED_CLUSTER'" %
                             script, stdout=subprocess.PIPE, shell=True)
-    output = pipe.communicate()[0]
+
     env = dict()
-    for line in output.splitlines():
-        lsp = line.split("=", 1)
+    while True:
+        line = pipe.stdout.readline().decode('utf-8').rstrip()
+        if 'FINISHED_CLUSTER' in line: # find the keyword set above to determine the end of the output stream
+            break
+        print(line)
+        lsp = str(line).split("=", 1)
         if len(lsp) > 1:
             env[lsp[0]] = lsp[1]
+
     os.environ.update(env)
     pipe.stdout.close()
 #%%
@@ -394,9 +401,12 @@ def setup_cluster(backend='multiprocessing', n_processes=None, single_thread=Fal
             except:
                 print('Nothing to stop')
             slurm_script = 'SLURM/slurmStart.sh'
+            print([str(n_processes),slurm_script])
             start_server(slurm_script=slurm_script, ncpus=n_processes)
             pdir, profile = os.environ['IPPPDIR'], os.environ['IPPPROFILE']
+            print([pdir, profile])
             c = Client(ipython_dir=pdir, profile=profile)
+            dview = c[:]
         elif backend == 'ipyparallel':
             stop_server()
             start_server(ncpus=n_processes)
