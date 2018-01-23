@@ -360,7 +360,7 @@ n_pixels_per_process=4000
 block_size=5000
 num_blocks_per_run=20
 
-for params_movie in np.array(params_movies)[5:6]:
+for params_movie in np.array(params_movies)[6:7]:
 #    params_movie['gnb'] = 3
     params_display = {
         'downsample_ratio': .2,
