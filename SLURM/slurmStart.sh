@@ -19,7 +19,7 @@ done
 
 [[ ${started} == 1 ]] || { echo "ipcontroller took too long to start. Exiting." ; exit 1 ; }
 
-srun --mem-per-cpu 12000 bash -c '/mnt/xfs1/home/agiovann/anaconda3/envs/caiman_dev/bin/ipengine  --profile='${profile}' --ipython-dir='${pdir}' > ipengine_${SLURM_JOBID}_${SLURM_PROCID}.log 2>&1' &
+srun bash -c '/mnt/xfs1/home/agiovann/anaconda3/envs/caiman_dev/bin/ipengine  --profile='${profile}' --ipython-dir='${pdir}' > ipengine_${SLURM_JOBID}_${SLURM_PROCID}.log 2>&1' &
 #srun bash -c '/mnt/xfs1/bioinfoCentos7/software/installs/python/2.7.10/bin/ipengine  --profile='${profile}' --ipython-dir='${pdir}' > ipengine_${SLURM_JOBID}_${SLURM_PROCID}.log 2>&1 &'
 
 started=0
@@ -32,4 +32,4 @@ done
 [[ ${started} == 1 ]] || { echo "ipengines took too long to start. Exiting." ; exit 1 ; }
 
 export IPPPDIR=${pdir} IPPPROFILE=${profile} 
-return 0
+

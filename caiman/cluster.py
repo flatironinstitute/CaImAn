@@ -261,6 +261,8 @@ def start_server(slurm_script=None, ipcluster="ipcluster", ncpus=None):
 
             time.sleep(1)
             client = ipyparallel.Client()
+        print('Making Sure everything is up and running')
+        time.sleep(10)
         client.close()
 
     else:
