@@ -28,6 +28,7 @@ import itertools
 from caiman.source_extraction.cnmf.pre_processing import get_noise_fft
 #%%
 
+
 def max_correlation_image(Y, bin_size=1000, eight_neighbours=True, swap_dim=True):
     """Computes the max-correlation image for the input dataset Y with bin_size
 
@@ -268,7 +269,7 @@ def correlation_pnr(Y, gSig=None, center_psf=True, swap_dim=True):
     if gSig:
         if not isinstance(gSig, list):
             gSig = [gSig, gSig]
-        ksize = tuple([(3 * i) // 2 * 2 + 1 for i in gSig])
+        ksize = tuple([int(3 * i / 2) * 2 + 1 for i in gSig])
         # create a spatial filter for removing background
         # psf = gen_filter_kernel(width=ksize, sigma=gSig, center=center_psf)
 
@@ -295,17 +296,16 @@ def correlation_pnr(Y, gSig=None, center_psf=True, swap_dim=True):
     tmp_data[tmp_data < 3] = 0
 
     # compute correlation image
-    # cn = local_correlation(tmp_data, d1=d1, d2=d2)
     cn = local_correlations_fft(tmp_data, swap_dim=False)
 
     return cn, pnr
 
 
 def iter_chunk_array(arr, chunk_size):
-    if ((arr.shape[0] // chunk_size)-1) > 0:
-        for i in range((arr.shape[0] // chunk_size)-1):
-            yield arr[chunk_size*i:chunk_size*(i+1)]
-        yield arr[chunk_size*(i+1):]
+    if ((arr.shape[0] // chunk_size) - 1) > 0:
+        for i in range((arr.shape[0] // chunk_size) - 1):
+            yield arr[chunk_size * i:chunk_size * (i + 1)]
+        yield arr[chunk_size * (i + 1):]
     else:
         yield arr
 
@@ -353,8 +353,8 @@ def correlation_image_ecobost(mov, chunk_size=1000, dview=None):
         rotated_corrs[1:, :, k] = (num_frames * rotated_sum_xy[1:, :, k] -
                                    rotated_sum_x[1:] * rotated_sum_x[:-1]) /\
                                   (rotated_dfactor[1:] * rotated_dfactor[:-1])
-        rotated_corrs[1:, 1:, 4 + k] = (num_frames *rotated_sum_xy[1:, 1:, 4 + k]
-                                       - rotated_sum_x[1:, 1:] * rotated_sum_x[:-1, : -1]) /\
+        rotated_corrs[1:, 1:, 4 + k] = (num_frames * rotated_sum_xy[1:, 1:, 4 + k]
+                                        - rotated_sum_x[1:, 1:] * rotated_sum_x[:-1, : -1]) /\
                                        (rotated_dfactor[1:, 1:] * rotated_dfactor[:-1, :-1])
 
         # Return back to original orientation
