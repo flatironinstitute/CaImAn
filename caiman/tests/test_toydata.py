@@ -52,7 +52,7 @@ def pipeline(D):
     # PREPROCESS DATA AND INITIALIZE COMPONENTS
     Yr, sn, g, psx = cnmf.pre_processing.preprocess_data(
         Yr, dview=None, **options['preprocess_params'])
-    Ain, Cin, b_in, f_in, center = cnmf.initialization.initialize_components(
+    Ain, Cin, b_in, f_in, center, _ = cnmf.initialization.initialize_components(
         Y, **options['init_params'])
 
     # UPDATE SPATIAL COMPONENTS

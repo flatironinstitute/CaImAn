@@ -146,7 +146,10 @@ def cnmf_patches(args_in):
                         min_corr=options['init_params']['min_corr'], min_pnr=options['init_params']['min_pnr'],
                         deconvolve_options_init=options['init_params']['deconvolve_options_init'],
                         ring_size_factor=options['init_params']['ring_size_factor'],
-                        center_psf=options['init_params']['center_psf'])
+                        center_psf=options['init_params']['center_psf'],
+                        ssub_B=options['init_params']['ssub_B'],
+                        compute_B_3x=options['init_params']['compute_B_3x'],
+                        init_iter=options['init_params']['init_iter'])
 
         cnm = cnm.fit(images)
         return [idx_, shapes, scipy.sparse.coo_matrix(cnm.A),
