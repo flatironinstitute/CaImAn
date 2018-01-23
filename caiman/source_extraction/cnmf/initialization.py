@@ -295,8 +295,6 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
         Exception('You need to define arguments for local NMF')
 
     """
-    extra_1p = None
-
     if method == 'local_nmf':
         tsub_lnmf = tsub
         ssub_lnmf = ssub
@@ -403,7 +401,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
     K = np.shape(Ain)[-1]
     ds = Y_ds.shape[:-1]
 
-    if Ain.size > 0 and not (method == 'corr_pnr' and ring_size_factor is not None):
+    if Ain.size > 0 and not center_psf:
 
         Ain = np.reshape(Ain, ds + (K,), order='F')
 
@@ -439,15 +437,16 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
     else:
         center = []
 
-    
-
     if normalize_init is True:
         if Ain.size > 0:
             Ain = Ain * np.reshape(img, (np.prod(d), -1), order='F')
 
         b_in = b_in * np.reshape(img, (np.prod(d), -1), order='F')
 
-    return scipy.sparse.csc_matrix(Ain), Cin, b_in, f_in, center, extra_1p
+    if center_psf:
+        return scipy.sparse.csc_matrix(Ain), Cin, b_in, f_in, center, extra_1p
+    else:
+        return scipy.sparse.csc_matrix(Ain), Cin, b_in, f_in, center
 
 
 #%%
