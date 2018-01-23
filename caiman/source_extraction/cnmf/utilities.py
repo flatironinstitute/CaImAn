@@ -234,7 +234,8 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], gSiz=None, ssub=2, tsub=2, p
         'only_init': True,
         'skip_refinement': False,
         'remove_very_bad_comps': remove_very_bad_comps,
-        'nb': nb_patch
+        'nb': nb_patch,
+        'in_memory': True
     }
 
     options['preprocess_params'] = {'sn': None,                  # noise level for each pixel
@@ -709,9 +710,9 @@ def update_order(A, new_a=None, prev_list=None):
                 'In the online update order you need to provide both new_a and prev_list')
 
         counter = 0
-        
+
         AA = A.T.dot(new_a)
-        for group in prev_list:       
+        for group in prev_list:
             if AA[list(group)].sum() == 0:
                 group.append(K)
                 counter += 1

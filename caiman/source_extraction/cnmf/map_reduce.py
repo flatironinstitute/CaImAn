@@ -116,7 +116,12 @@ def cnmf_patches(args_in):
     slices.insert(0, slice(timesteps))
 
     images = np.reshape(Yr.T, [timesteps] + list(dims), order='F')
-    images = images[slices]
+    if options['patch_params']['in_memory']:
+        images = np.array(images[slices],dtype=np.float32)
+    else:
+        images = images[slices]
+
+    logger.info('file loaded')
 
     if (np.sum(np.abs(np.diff(images.reshape(timesteps, -1).T)))) > 0.1:
 
@@ -164,17 +169,17 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride=4, gnb=1, dview=No
      It will then recreate the full frame by listing all the fitted values together
 
     Parameters:
-    ----------        
+    ----------
     file_name: string
-        full path to an npy file (2D, pixels x time) containing the movie        
+        full path to an npy file (2D, pixels x time) containing the movie
 
     shape: tuple of thre elements
-        dimensions of the original movie across y, x, and time 
+        dimensions of the original movie across y, x, and time
 
     options:
         dictionary containing all the parameters for the various algorithms
 
-    rf: int 
+    rf: int
         half-size of the square patch in pixel
 
     stride: int
