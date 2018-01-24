@@ -119,11 +119,11 @@ class CNMF(object):
         ssub: int
             downsampleing factor in space
 
-        tsub: int 
+        tsub: int
              downsampling factor in time
 
         p_ssub: int
-            downsampling factor in space for patches 
+            downsampling factor in space for patches
 
         method_init: str
            can be greedy_roi or sparse_nmf
@@ -131,8 +131,8 @@ class CNMF(object):
         alpha_snmf: float
             weight of the sparsity regularization
 
-        p_tsub: int 
-             downsampling factor in time for patches     
+        p_tsub: int
+             downsampling factor in time for patches
 
         rf: int
             half-size of the patches in pixels. rf=25, patches are 50x50
@@ -150,37 +150,37 @@ class CNMF(object):
             unitless number accounting how much memory should be used. You will
              need to try different values to see which one would work the default is OK for a 16 GB system
 
-        N_samples_fitness: int 
+        N_samples_fitness: int
             number of samples over which exceptional events are computed (See utilities.evaluate_components)
 
         only_init_patch= boolean
             only run initialization on patches
 
         method_deconvolution = 'oasis' or 'cvxpy'
-            method used for deconvolution. Suggested 'oasis' see  
+            method used for deconvolution. Suggested 'oasis' see
             Friedrich J, Zhou P, Paninski L. Fast Online Deconvolution of Calcium Imaging Data.
             PLoS Comput Biol. 2017; 13(3):e1005423.
 
-        n_pixels_per_process: int. 
+        n_pixels_per_process: int.
             Number of pixels to be processed in parallel per core (no patch mode). Decrease if memory problems
 
-        block_size: int. 
+        block_size: int.
             Number of pixels to be used to perform residual computation in blocks. Decrease if memory problems
 
         num_blocks_per_run: int
             In case of memory problems you can reduce this numbers, controlling the number of blocks processed in parallel during residual computing
 
-        check_nan: Boolean. 
+        check_nan: Boolean.
             Check if file contains NaNs (costly for very large files so could be turned off)
 
-        skip_refinement: 
+        skip_refinement:
             Bool. If true it only performs one iteration of update spatial update temporal instead of two
 
-        normalize_init=Bool. 
+        normalize_init=Bool.
             Differences in intensities on the FOV might caus troubles in the initialization when patches are not used,
              so each pixels can be normalized by its median intensity
 
-        options_local_NMF: 
+        options_local_NMF:
             experimental, not to be used
 
         remove_very_bad_comps:Bool
@@ -189,7 +189,7 @@ class CNMF(object):
             Howeverm benefits can be considerable if done because if many components (>2000) are created
             and joined together, operation that causes a bottleneck
 
-        border_pix:int    
+        border_pix:int
             number of pixels to not consider in the borders
 
         low_rank_background:bool
@@ -197,7 +197,7 @@ class CNMF(object):
              In the False case all the nonzero elements of the background components are updated using hals (to be used with one background per patch)
 
         update_background_components:bool
-            whether to update the background components during the spatial phase           
+            whether to update the background components during the spatial phase
 
         min_corr: float
             minimal correlation peak for 1-photon imaging initialization
@@ -206,10 +206,10 @@ class CNMF(object):
             minimal peak  to noise ratio for 1-photon imaging initialization
 
          deconvolve_options: dict
-            all options for deconvolving temporal traces, in general just pass options['temporal_params']    
+            all options for deconvolving temporal traces, in general just pass options['temporal_params']
 
         ring_size_factor: float
-            it's the ratio between the ring radius and neuron diameters.    
+            it's the ratio between the ring radius and neuron diameters.
 
                 max_comp_update_shape:
                          threshold number of components after which selective updating starts (using the parameter num_times_comp_updated)
@@ -234,7 +234,7 @@ class CNMF(object):
             Number of consecutives intervals to be considered when testing new neuron candidates
 
         del_duplicates: bool
-            whether to delete the duplicated created in initialization  
+            whether to delete the duplicated created in initialization
 
         max_num_added : int, optional
             maximum number of components to be added at each step in OnACID
@@ -242,10 +242,10 @@ class CNMF(object):
         min_num_trial : int, optional
             minimum numbers of attempts to include a new components in OnACID
 
-        ssub_B: int, optional 
+        ssub_B: int, optional
             downsampleing factor for 1-photon imaging background computation
 
-        compute_B_3x: bool, optional=False, 
+        compute_B_3x: bool, optional=False,
             whether to compute background 3x or only 2x for 1-photon imaging
 
         init_iter: int, optional
@@ -379,6 +379,9 @@ class CNMF(object):
         dims = images.shape[1:]
         Y = np.transpose(images, list(range(1, len(dims) + 1)) + [0])
         Yr = np.transpose(np.reshape(images, (T, -1), order='F'))
+        if np.isfortran(Yr):
+            raise Exception('The file is in F order, it should be in C order (see save_memmap function')
+
         print((T,) + dims)
 
         # Make sure filename is pointed correctly (numpy sets it to None sometimes)
@@ -446,7 +449,7 @@ class CNMF(object):
                 else:
                     self.Ain, self.Cin, self.b_in, self.f_in, center = initialize_components(
                         Y, sn=sn, options_total=options, **options['init_params'])
-                
+
             if self.only_init:  # only return values after initialization
 
                 if self.center_psf:
