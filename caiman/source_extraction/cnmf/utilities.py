@@ -40,7 +40,7 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], gSiz=None, ssub=2, tsub=2, p
                  check_nan=True, normalize_init=True, options_local_NMF=None, remove_very_bad_comps=False,
                  alpha_snmf=10e2, update_background_components=True, low_rank_background=True, rolling_sum=False,
                  min_corr=.85, min_pnr=20, deconvolve_options_init=None,
-                 ring_size_factor=1.5, center_psf=True, ssub_B=2, compute_B_3x=True, init_iter=2):
+                 ring_size_factor=1.5, center_psf=False, ssub_B=2, compute_B_3x=True, init_iter=2):
     """Dictionary for setting the CNMF parameters.
 
     Any parameter that is not set get a default value specified
@@ -501,7 +501,7 @@ def detrend_df_f(A, b, C, f, YrA=None, quantileMin=8, frames_window=500, block_s
 
 
 #%%
-    
+
 def fast_prct_filt(input_data, level = 8, frames_window = 1000):
     """
     Fast approximate percentage filtering
@@ -509,8 +509,8 @@ def fast_prct_filt(input_data, level = 8, frames_window = 1000):
 
     data = np.atleast_2d(input_data).copy()
     T = np.shape(data)[-1]
-    downsampfact = frames_window 
-    
+    downsampfact = frames_window
+
     elm_missing = int(np.ceil(T * 1.0 / downsampfact)
                               * downsampfact - T)
     padbefore = int(np.floor(elm_missing/2.))
@@ -519,29 +519,29 @@ def fast_prct_filt(input_data, level = 8, frames_window = 1000):
     numFramesNew, num_traces = np.shape(tr_tmp)
     #% compute baseline quickly
 
-    tr_BL = np.reshape(tr_tmp, (downsampfact, int(numFramesNew/downsampfact), 
+    tr_BL = np.reshape(tr_tmp, (downsampfact, int(numFramesNew/downsampfact),
                                 num_traces), order='F')
     #import pdb
     #pdb.set_trace()
     tr_BL = np.percentile(tr_BL, level, axis=0)
-    tr_BL = scipy.ndimage.zoom(np.array(tr_BL, dtype=np.float32), 
-                               [downsampfact, 1], order=3, mode='nearest', 
+    tr_BL = scipy.ndimage.zoom(np.array(tr_BL, dtype=np.float32),
+                               [downsampfact, 1], order=3, mode='nearest',
                                cval=0.0, prefilter=True)
 
     if padafter == 0:
         data -= tr_BL.T
     else:
         data -= tr_BL[padbefore:-padafter].T
-        
+
     return data.squeeze()
 #%%
-    
+
 def detrend_df_f_auto(A, b, C, f, YrA=None, frames_window=1000, use_fast = False):
 
     """
-    Compute DF/F using an automated level of percentile filtering based on 
-    kernel density estimation. 
-    
+    Compute DF/F using an automated level of percentile filtering based on
+    kernel density estimation.
+
     Parameters:
     -----------
     A: scipy.sparse.csc_matrix
@@ -561,7 +561,7 @@ def detrend_df_f_auto(A, b, C, f, YrA=None, frames_window=1000, use_fast = False
 
     frames_window: int
         number of frames for running quantile
-        
+
     use_fast: bool
         flag for using fast approximate percentile filtering
 
@@ -569,7 +569,7 @@ def detrend_df_f_auto(A, b, C, f, YrA=None, frames_window=1000, use_fast = False
     ----------
     F_df:
         the computed Calcium acitivty to the derivative of f
-    
+
     """
     if 'csc_matrix' not in str(type(A)):
         A = scipy.sparse.csc_matrix(A)
@@ -591,32 +591,32 @@ def detrend_df_f_auto(A, b, C, f, YrA=None, frames_window=1000, use_fast = False
     F = C + YrA if YrA is not None else C
     B = A.T.dot(b).dot(f)
     T = C.shape[-1]
-    
+
     data_prct, val = df_percentile(F[:frames_window], axis = 1)
-    
+
     if frames_window is None or frames_window > T:
-        Fd = [np.percentile(f, prctileMin) for f, prctileMin in 
+        Fd = [np.percentile(f, prctileMin) for f, prctileMin in
               zip(F,data_prct)]
-        Df = [np.percentile(f, prctileMin) for f, prctileMin in 
+        Df = [np.percentile(f, prctileMin) for f, prctileMin in
               zip(B,data_prct)]
         F_df = (F - Fd) / (Df[:, None] + Fd[:, None])
     else:
         if use_fast:
-            Fd = np.stack([fast_prct_filt(f, level = prctileMin, 
+            Fd = np.stack([fast_prct_filt(f, level = prctileMin,
                                           frames_window = frames_window) for
                     f, prctileMin in zip(F,data_prct)])
-            Df = np.stack([fast_prct_filt(f, level = prctileMin, 
+            Df = np.stack([fast_prct_filt(f, level = prctileMin,
                                           frames_window = frames_window) for
-                    f, prctileMin in zip(B,data_prct)])  
-        else:  
+                    f, prctileMin in zip(B,data_prct)])
+        else:
             Fd = np.stack([scipy.ndimage.percentile_filter(
                             f, prctileMin, (frames_window)) for f, prctileMin in
                             zip(F,data_prct)])
             Df = np.stack([scipy.ndimage.percentile_filter(
                             f, prctileMin, (frames_window)) for f, prctileMin in
-                            zip(B,data_prct)])         
+                            zip(B,data_prct)])
         F_df = (F - Fd) / (Df + Fd)
-    
+
     return F_df
 
 #%%

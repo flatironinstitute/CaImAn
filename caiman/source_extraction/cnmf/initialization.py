@@ -174,7 +174,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
                           perc_baseline_snmf=20, options_local_NMF=None, rolling_sum=False,
                           rolling_length=100, sn=None, options_total=None,
                           min_corr=0.8, min_pnr=10, deconvolve_options_init=None,
-                          ring_size_factor=1.5, center_psf=True, ssub_B=2, compute_B_3x=True, init_iter=2):
+                          ring_size_factor=1.5, center_psf=False, ssub_B=2, compute_B_3x=True, init_iter=2):
     """
     Initalize components
 
@@ -261,10 +261,10 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
     options_total: dict
         the option dictionary
 
-    ssub_B: int, optional 
+    ssub_B: int, optional
         downsampleing factor for 1-photon imaging background computation
 
-    compute_B_3x: bool, optional=False, 
+    compute_B_3x: bool, optional=False,
         whether to compute background 3x or only 2x for 1-photon imaging
 
     init_iter: int, optional
@@ -442,7 +442,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
             Ain = Ain * np.reshape(img, (np.prod(d), -1), order='F')
 
         b_in = b_in * np.reshape(img, (np.prod(d), -1), order='F')
-
+    print(center_psf)
     if center_psf:
         return scipy.sparse.csc_matrix(Ain), Cin, b_in, f_in, center, extra_1p
     else:
@@ -976,9 +976,9 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
             components.
         nb: integer
             number of background components for approximating the background using NMF model
-        ssub_B: int, optional 
+        ssub_B: int, optional
             downsampleing factor for 1-photon imaging background computation
-        compute_B_3x: bool, optional=False, 
+        compute_B_3x: bool, optional=False,
             whether to compute background 3x or only 2x for 1-photon imaging
         init_iter: int, optional
             number of iterations for 1-photon imaging initialization
@@ -1156,7 +1156,7 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
         b_in = np.empty((A.shape[0], 0))
         f_in = np.empty((0, T))
 
-    return (A, C, center.T, b_in.astype(np.float32), f_in.astype(np.float32), 
+    return (A, C, center.T, b_in.astype(np.float32), f_in.astype(np.float32),
         (S.astype(np.float32), bl, c1, neurons_sn, g1, YrA))
 
 
