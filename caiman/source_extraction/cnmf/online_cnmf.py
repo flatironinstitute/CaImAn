@@ -22,7 +22,7 @@ from .utilities import update_order
 from caiman.source_extraction.cnmf import oasis
 from sklearn.decomposition import NMF
 from sklearn.preprocessing import normalize
-
+import cv2
 
 try:
     profile
@@ -68,8 +68,8 @@ def bare_initialization(Y, init_batch=1000, k=1, method_init='greedy_roi', gnb=1
         Y = Y[:, :, :, :init_batch]
     else:
         Y = Y[:, :, :init_batch]
-
-    Ain, Cin, b_in, f_in, center = initialize_components(
+    
+    Ain, Cin, b_in, f_in, center, _ = initialize_components(
         Y, K=k, gSig=gSig, nb=gnb, method=method_init)
     Ain = coo_matrix(Ain)
     b_in = np.array(b_in)
@@ -484,7 +484,9 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                           N_samples_exceptionality=5, remove_baseline=True,
                           thresh_fitness_delta=-80, thresh_fitness_raw=-20, thresh_overlap=0.25,
                           batch_update_suff_stat=False, sn=None, g=None, thresh_s_min=None,
-                          s_min=None, Ab_dense=None, max_num_added=1, min_num_trial=1):
+                          s_min=None, Ab_dense=None, max_num_added=1, min_num_trial=1,
+                          loaded_model = None, thresh_CNN_noisy = 0.99,
+                          sniper_mode = False):
     """
     Checks for new components in the residual buffer and incorporates them if they pass the acceptance tests    
     """
@@ -549,16 +551,23 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
             break
 
         ain /= sqrt(na)
-
-#        new_res = sv_.copy()
-#        new_res[ np.ravel_multi_index(arr, dims, order='C')] = 10000
-
-        # expects and returns normalized ain
         ain, cin, cin_res = rank1nmf(Ypx, ain)
-        # correlation coefficient
-        rval = corr(ain.copy(), np.mean(Ypx, -1))
 
-        if rval > rval_thr:
+        examine_patch = False
+        if sniper_mode:
+            patch_size = 50          
+            ain2 = ain.copy()
+            ain2 -= np.median(ain2)
+            ain2 = np.reshape(ain2,tuple(np.diff(ijSig).squeeze()),order= 'F')  
+            ain2 = cv2.resize(ain2/np.linalg.norm(ain2),(patch_size ,patch_size))
+            predictions = loaded_model.predict(ain2[np.newaxis,:,:,np.newaxis], batch_size=32, verbose=0) 
+            examine_patch = predictions[0][0]>thresh_CNN_noisy
+        else:
+            rval = corr(ain.copy(), np.mean(Ypx, -1))  
+            examine_patch = rval>rval_thr
+            
+
+        if examine_patch:
             # use sparse Ain only later iff it is actually added to Ab
             Ain = np.zeros((np.prod(dims), 1), dtype=np.float32)
             Ain[indeces, :] = ain[:, None]

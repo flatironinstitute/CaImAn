@@ -88,7 +88,8 @@ class CNMF(object):
                  min_corr=.85, min_pnr=20, deconvolve_options_init=None, ring_size_factor=1.5,
                  center_psf=False, use_dense=True, deconv_flag=True,
                  simultaneously=False, n_refit=0, del_duplicates=False, N_samples_exceptionality=5,
-                 max_num_added=1, min_num_trial=2, ssub_B=2, compute_B_3x=False, init_iter=2):
+                 max_num_added=1, min_num_trial=2, thresh_CNN_noisy=0.99, 
+                 ssub_B=2, compute_B_3x=False, init_iter=2):
         """
         Constructor of the CNMF method
 
@@ -241,6 +242,9 @@ class CNMF(object):
 
         min_num_trial : int, optional
             minimum numbers of attempts to include a new components in OnACID
+            
+        thresh_CNN_noisy: float
+            threshold on the per patch CNN classifier for online algorithm  
 
         ssub_B: int, optional 
             downsampleing factor for 1-photon imaging background computation
@@ -323,6 +327,7 @@ class CNMF(object):
         self.N_samples_exceptionality = N_samples_exceptionality
         self.max_num_added = max_num_added
         self.min_num_trial = min_num_trial
+        self.thresh_CNN_noisy = thresh_CNN_noisy
 
         self.min_corr = min_corr
         self.min_pnr = min_pnr
@@ -620,7 +625,8 @@ class CNMF(object):
 
     def _prepare_object(self, Yr, T, expected_comps, new_dims=None, idx_components=None,
                         g=None, lam=None, s_min=None, bl=None, use_dense=True, N_samples_exceptionality=5,
-                        max_num_added=1, min_num_trial=1):
+                        max_num_added=1, min_num_trial=1, path_to_model = None,
+                        sniper_mode = False):
 
         if idx_components is None:
             idx_components = range(self.A.shape[-1])
@@ -781,6 +787,31 @@ class CNMF(object):
         for nneeuu in range(self.N):
             self.time_neuron_added.append((nneeuu, self.initbatch))
         self.time_spend = 0
+        # setup per patch classifier
+        import keras
+        from keras.models import model_from_json
+        
+        # prepare CNN
+        
+        path = path_to_model.split(".")[:-1]
+        json_path = ".".join(path + ["json"])
+        model_path = ".".join(path + ["h5"])
+        try:
+            json_file = open(json_path, 'r')
+            loaded_model_json = json_file.read()
+            json_file.close()
+            loaded_model = model_from_json(loaded_model_json)
+            loaded_model.load_weights(model_path)
+            opt = keras.optimizers.rmsprop(lr=0.0001, decay=1e-6)
+            loaded_model.compile(loss=keras.losses.categorical_crossentropy,
+                          optimizer=opt, metrics=['accuracy'])   
+        except:
+            print('No model found')
+            loaded_model = None
+            sniper_mode = False
+                
+        self.loaded_model = loaded_model
+        self.sniper_mode = sniper_mode
         return self
 
     @profile
@@ -872,7 +903,9 @@ class CNMF(object):
                 thresh_s_min=self.thresh_s_min, s_min=self.s_min,
                 Ab_dense=self.Ab_dense[:, :self.M] if self.use_dense else None,
                 oases=self.OASISinstances if self.p else None, N_samples_exceptionality=self.N_samples_exceptionality,
-                max_num_added=self.max_num_added, min_num_trial=self.min_num_trial)
+                max_num_added=self.max_num_added, min_num_trial=self.min_num_trial,
+                loaded_model = self.loaded_model, thresh_CNN_noisy = self.thresh_CNN_noisy,
+                sniper_mode = self.sniper_mode)
 
             num_added = len(self.ind_A) - self.N
 
