@@ -185,7 +185,7 @@ import scipy.fftpack
 def kde(data, N=None, MIN=None, MAX=None):
 
     # Parameters to set up the mesh on which to calculate
-    N = 2**14 if N is None else int(2**sci.ceil(sci.log2(N)))
+    N = 2**12 if N is None else int(2**sci.ceil(sci.log2(N)))
     if MIN is None or MAX is None:
         minimum = min(data)
         maximum = max(data)
@@ -228,9 +228,9 @@ def kde(data, N=None, MIN=None, MAX=None):
 
 def fixed_point(t, M, I, a2):
     l=7
-    I = sci.float128(I)
-    M = sci.float128(M)
-    a2 = sci.float128(a2)
+    I = sci.float64(I)
+    M = sci.float64(M)
+    a2 = sci.float64(a2)
     f = 2*sci.pi**(2*l)*sci.sum(I**l*a2*sci.exp(-I*sci.pi**2*t))
     for s in range(l, 1, -1):
         K0 = sci.prod(range(1, 2*s, 2))/sci.sqrt(2*sci.pi)
