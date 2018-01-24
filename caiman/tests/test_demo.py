@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-
+#%%
 import numpy.testing as npt
 import numpy as np
 import os
@@ -17,7 +17,8 @@ def demo(parallel=False):
 
     # LOAD MOVIE AND MEMORYMAP
     fname_new = cm.save_memmap([os.path.abspath(cm.__path__[0][:-7]) +
-                                '/example_movies/demoMovie.tif'], base_name='Yr')
+                                '/example_movies/demoMovie.tif'], base_name='Yr',
+                                order = 'C')
     Yr, dims, T = cm.load_memmap(fname_new)
     # INIT
     cnm = cnmf.CNMF(n_processes, method_init='greedy_roi', k=30, gSig=[4, 4], merge_thresh=.8,
@@ -32,7 +33,10 @@ def demo(parallel=False):
     npt.assert_allclose(cnm.A.sum(), 281.1, 1e-2)
     # verifying the temporal components
     npt.assert_allclose(cnm.C.sum(), 66271668, 1e-2)
-
+    try:
+        dview.terminate()
+    except:
+        pass
 
 def test_single_thread():
     demo()
