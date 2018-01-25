@@ -32,7 +32,7 @@ from ...base.rois import com
 import pylab as pl
 import scipy
 from ...mmapping import parallel_dot_product
-
+from ...utils.stats import df_percentile
 
 #%%
 def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], gSiz=None, ssub=2, tsub=2, p=2, p_ssub=2, p_tsub=2,
@@ -40,7 +40,7 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], gSiz=None, ssub=2, tsub=2, p
                  check_nan=True, normalize_init=True, options_local_NMF=None, remove_very_bad_comps=False,
                  alpha_snmf=10e2, update_background_components=True, low_rank_background=True, rolling_sum=False,
                  min_corr=.85, min_pnr=20, deconvolve_options_init=None,
-                 ring_size_factor=1.5, center_psf=True):
+                 ring_size_factor=1.5, center_psf=False, ssub_B=2, compute_B_3x=True, init_iter=2):
     """Dictionary for setting the CNMF parameters.
 
     Any parameter that is not set get a default value specified
@@ -234,7 +234,8 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], gSiz=None, ssub=2, tsub=2, p
         'only_init': True,
         'skip_refinement': False,
         'remove_very_bad_comps': remove_very_bad_comps,
-        'nb': nb_patch
+        'nb': nb_patch,
+        'in_memory': True
     }
 
     options['preprocess_params'] = {'sn': None,                  # noise level for each pixel
@@ -283,6 +284,9 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], gSiz=None, ssub=2, tsub=2, p
                               'deconvolve_options_init': deconvolve_options_init,
                               'ring_size_factor': ring_size_factor,
                               'center_psf': center_psf,
+                              'ssub_B': ssub_B,
+                              'compute_B_3x': compute_B_3x,
+                              'init_iter': init_iter
                               }
 
     options['spatial_params'] = {
@@ -355,7 +359,7 @@ def computeDFF_traces(Yr, A, C, bl, quantileMin=8, frames_window=200):
 #%%
 def extract_DF_F(Yr, A, C,  bl, quantileMin=8, frames_window=200, block_size=400, dview=None):
     """ Compute DFF function from cnmf output.
-
+s
      Disclaimer: it might be memory inefficient
 
     Parameters:
@@ -430,7 +434,7 @@ def extract_DF_F(Yr, A, C,  bl, quantileMin=8, frames_window=200, block_size=400
 
 
 #%%
-def detrend_df_f(A, b, C, f, YrA=None, quantileMin=8, frames_window=200, block_size=400):
+def detrend_df_f(A, b, C, f, YrA=None, quantileMin=8, frames_window=500, block_size=400):
     """ Compute DF/F signal without using the original data.
     In general much faster than extract_DF_F
 
@@ -493,6 +497,126 @@ def detrend_df_f(A, b, C, f, YrA=None, quantileMin=8, frames_window=200, block_s
         Df = scipy.ndimage.percentile_filter(
             B, quantileMin, (frames_window, 1))
         F_df = (F - Fd) / (Df + Fd)
+    return F_df
+
+
+#%%
+
+def fast_prct_filt(input_data, level = 8, frames_window = 1000):
+    """
+    Fast approximate percentage filtering
+    """
+
+    data = np.atleast_2d(input_data).copy()
+    T = np.shape(data)[-1]
+    downsampfact = frames_window
+
+    elm_missing = int(np.ceil(T * 1.0 / downsampfact)
+                              * downsampfact - T)
+    padbefore = int(np.floor(elm_missing/2.))
+    padafter = int(np.ceil(elm_missing/2.))
+    tr_tmp = np.pad(data.T, ((padbefore, padafter), (0, 0)), mode='reflect')
+    numFramesNew, num_traces = np.shape(tr_tmp)
+    #% compute baseline quickly
+
+    tr_BL = np.reshape(tr_tmp, (downsampfact, int(numFramesNew/downsampfact),
+                                num_traces), order='F')
+    #import pdb
+    #pdb.set_trace()
+    tr_BL = np.percentile(tr_BL, level, axis=0)
+    tr_BL = scipy.ndimage.zoom(np.array(tr_BL, dtype=np.float32),
+                               [downsampfact, 1], order=3, mode='nearest',
+                               cval=0.0, prefilter=True)
+
+    if padafter == 0:
+        data -= tr_BL.T
+    else:
+        data -= tr_BL[padbefore:-padafter].T
+
+    return data.squeeze()
+#%%
+
+def detrend_df_f_auto(A, b, C, f, YrA=None, frames_window=1000, use_fast = False):
+
+    """
+    Compute DF/F using an automated level of percentile filtering based on
+    kernel density estimation.
+
+    Parameters:
+    -----------
+    A: scipy.sparse.csc_matrix
+        spatial components (from cnmf cnm.A)
+
+    b: ndarray
+        spatial backgrounds
+
+    C: ndarray
+        temporal components (from cnmf cnm.C)
+
+    f: ndarray
+        temporal background components
+
+    YrA: ndarray
+        residual signals
+
+    frames_window: int
+        number of frames for running quantile
+
+    use_fast: bool
+        flag for using fast approximate percentile filtering
+
+    Returns:
+    ----------
+    F_df:
+        the computed Calcium acitivty to the derivative of f
+
+    """
+    if 'csc_matrix' not in str(type(A)):
+        A = scipy.sparse.csc_matrix(A)
+    if 'array' not in str(type(b)):
+        b = b.toarray()
+    if 'array' not in str(type(C)):
+        C = C.toarray()
+    if 'array' not in str(type(f)):
+        f = f.toarray()
+
+    nA = np.sqrt(np.ravel(A.power(2).sum(axis=0)))
+    nA_mat = scipy.sparse.spdiags(nA, 0, nA.shape[0], nA.shape[0])
+    nA_inv_mat = scipy.sparse.spdiags(1. / nA, 0, nA.shape[0], nA.shape[0])
+    A = A * nA_inv_mat
+    C = nA_mat * C
+    if YrA is not None:
+        YrA = nA_mat * YrA
+
+    F = C + YrA if YrA is not None else C
+    B = A.T.dot(b).dot(f)
+    T = C.shape[-1]
+
+    data_prct, val = df_percentile(F[:frames_window], axis = 1)
+
+    if frames_window is None or frames_window > T:
+        Fd = [np.percentile(f, prctileMin) for f, prctileMin in
+              zip(F,data_prct)]
+        Df = [np.percentile(f, prctileMin) for f, prctileMin in
+              zip(B,data_prct)]
+        F_df = (F - Fd) / (Df[:, None] + Fd[:, None])
+    else:
+        if use_fast:
+            Fd = np.stack([fast_prct_filt(f, level = prctileMin,
+                                          frames_window = frames_window) for
+                    f, prctileMin in zip(F,data_prct)])
+            Df = np.stack([fast_prct_filt(f, level = prctileMin,
+                                          frames_window = frames_window) for
+                    f, prctileMin in zip(B,data_prct)])
+        else:
+            Fd = np.stack([scipy.ndimage.percentile_filter(
+                            f, prctileMin, (frames_window)) for f, prctileMin in
+                            zip(F,data_prct)])
+            Df = np.stack([scipy.ndimage.percentile_filter(
+                            f, prctileMin, (frames_window)) for f, prctileMin in
+                            zip(B,data_prct)])
+        F_df = (F - Fd) / (Df + Fd)
+
     return F_df
 
 #%%
@@ -709,9 +833,9 @@ def update_order(A, new_a=None, prev_list=None):
                 'In the online update order you need to provide both new_a and prev_list')
 
         counter = 0
-        
+
         AA = A.T.dot(new_a)
-        for group in prev_list:       
+        for group in prev_list:
             if AA[list(group)].sum() == 0:
                 group.append(K)
                 counter += 1

@@ -5,7 +5,7 @@ import numpy as np
 from scipy.ndimage.filters import gaussian_filter
 from caiman.source_extraction import cnmf as cnmf
 
-
+#%%
 def gen_data(D=3, noise=.5, T=300, framerate=30, firerate=2.):
     N = 4  # number of neurons
     dims = [(20, 30), (12, 14, 16)][D - 2]  # size of image
@@ -33,7 +33,7 @@ def gen_data(D=3, noise=.5, T=300, framerate=30, firerate=2.):
 
 
 def pipeline(D):
-    # GENERATE GROUND TRUTH DATA
+    #%% GENERATE GROUND TRUTH DATA
     Yr, trueC, trueS, trueA, centers, dims = gen_data(D)
     N, T = trueC.shape
     Y = np.reshape(Yr, dims + (-1,), order='F')
@@ -73,7 +73,7 @@ def pipeline(D):
     corr = [np.corrcoef(np.reshape(trueA, (-1, 4), order='F')[:, sorting[i]],
                         A.toarray()[:, i])[0, 1] for i in range(N)]
     npt.assert_allclose(corr, 1, .05)
-
+    #%%
 
 def test_2D():
     pipeline(2)

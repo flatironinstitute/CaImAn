@@ -86,9 +86,10 @@ class CNMF(object):
                  remove_very_bad_comps=False, border_pix=0, low_rank_background=True,
                  update_background_components=True, rolling_sum=True, rolling_length=100,
                  min_corr=.85, min_pnr=20, deconvolve_options_init=None, ring_size_factor=1.5,
-                 center_psf=False,  use_dense=True, deconv_flag=True,
+                 center_psf=False, use_dense=True, deconv_flag=True,
                  simultaneously=False, n_refit=0, del_duplicates=False, N_samples_exceptionality=5,
-                 max_num_added=1, min_num_trial=2):
+                 max_num_added=1, min_num_trial=2, thresh_CNN_noisy=0.99, 
+                 ssub_B=2, compute_B_3x=False, init_iter=2):
         """
         Constructor of the CNMF method
 
@@ -119,11 +120,11 @@ class CNMF(object):
         ssub: int
             downsampleing factor in space
 
-        tsub: int 
+        tsub: int
              downsampling factor in time
 
         p_ssub: int
-            downsampling factor in space for patches 
+            downsampling factor in space for patches
 
         method_init: str
            can be greedy_roi or sparse_nmf
@@ -131,8 +132,8 @@ class CNMF(object):
         alpha_snmf: float
             weight of the sparsity regularization
 
-        p_tsub: int 
-             downsampling factor in time for patches     
+        p_tsub: int
+             downsampling factor in time for patches
 
         rf: int
             half-size of the patches in pixels. rf=25, patches are 50x50
@@ -150,37 +151,37 @@ class CNMF(object):
             unitless number accounting how much memory should be used. You will
              need to try different values to see which one would work the default is OK for a 16 GB system
 
-        N_samples_fitness: int 
+        N_samples_fitness: int
             number of samples over which exceptional events are computed (See utilities.evaluate_components)
 
         only_init_patch= boolean
             only run initialization on patches
 
         method_deconvolution = 'oasis' or 'cvxpy'
-            method used for deconvolution. Suggested 'oasis' see  
+            method used for deconvolution. Suggested 'oasis' see
             Friedrich J, Zhou P, Paninski L. Fast Online Deconvolution of Calcium Imaging Data.
             PLoS Comput Biol. 2017; 13(3):e1005423.
 
-        n_pixels_per_process: int. 
+        n_pixels_per_process: int.
             Number of pixels to be processed in parallel per core (no patch mode). Decrease if memory problems
 
-        block_size: int. 
+        block_size: int.
             Number of pixels to be used to perform residual computation in blocks. Decrease if memory problems
 
         num_blocks_per_run: int
             In case of memory problems you can reduce this numbers, controlling the number of blocks processed in parallel during residual computing
 
-        check_nan: Boolean. 
+        check_nan: Boolean.
             Check if file contains NaNs (costly for very large files so could be turned off)
 
-        skip_refinement: 
+        skip_refinement:
             Bool. If true it only performs one iteration of update spatial update temporal instead of two
 
-        normalize_init=Bool. 
+        normalize_init=Bool.
             Differences in intensities on the FOV might caus troubles in the initialization when patches are not used,
              so each pixels can be normalized by its median intensity
 
-        options_local_NMF: 
+        options_local_NMF:
             experimental, not to be used
 
         remove_very_bad_comps:Bool
@@ -189,7 +190,7 @@ class CNMF(object):
             Howeverm benefits can be considerable if done because if many components (>2000) are created
             and joined together, operation that causes a bottleneck
 
-        border_pix:int    
+        border_pix:int
             number of pixels to not consider in the borders
 
         low_rank_background:bool
@@ -197,7 +198,7 @@ class CNMF(object):
              In the False case all the nonzero elements of the background components are updated using hals (to be used with one background per patch)
 
         update_background_components:bool
-            whether to update the background components during the spatial phase           
+            whether to update the background components during the spatial phase
 
         min_corr: float
             minimal correlation peak for 1-photon imaging initialization
@@ -206,10 +207,10 @@ class CNMF(object):
             minimal peak  to noise ratio for 1-photon imaging initialization
 
          deconvolve_options: dict
-            all options for deconvolving temporal traces, in general just pass options['temporal_params']    
+            all options for deconvolving temporal traces, in general just pass options['temporal_params']
 
         ring_size_factor: float
-            it's the ratio between the ring radius and neuron diameters.    
+            it's the ratio between the ring radius and neuron diameters.
 
                 max_comp_update_shape:
                          threshold number of components after which selective updating starts (using the parameter num_times_comp_updated)
@@ -220,7 +221,7 @@ class CNMF(object):
         expected_comps: int
             number of expected components (try to exceed the expected)
 
-        deconv_flag :    bool, optional
+        deconv_flag : bool, optional
             If True, deconvolution is also performed using OASIS
 
         simultaneously : bool, optional
@@ -233,14 +234,26 @@ class CNMF(object):
         N_samples_exceptionality : int, optional
             Number of consecutives intervals to be considered when testing new neuron candidates
 
-                del_duplicates: Bool
-                        whether to delete the duplicated created in initialization	
+        del_duplicates: bool
+            whether to delete the duplicated created in initialization
 
         max_num_added : int, optional
             maximum number of components to be added at each step in OnACID
 
         min_num_trial : int, optional
             minimum numbers of attempts to include a new components in OnACID
+            
+        thresh_CNN_noisy: float
+            threshold on the per patch CNN classifier for online algorithm  
+
+        ssub_B: int, optional
+            downsampleing factor for 1-photon imaging background computation
+
+        compute_B_3x: bool, optional=False,
+            whether to compute background 3x or only 2x for 1-photon imaging
+
+        init_iter: int, optional
+            number of iterations for 1-photon imaging initialization
 
         Returns:
         --------
@@ -314,6 +327,7 @@ class CNMF(object):
         self.N_samples_exceptionality = N_samples_exceptionality
         self.max_num_added = max_num_added
         self.min_num_trial = min_num_trial
+        self.thresh_CNN_noisy = thresh_CNN_noisy
 
         self.min_corr = min_corr
         self.min_pnr = min_pnr
@@ -334,7 +348,8 @@ class CNMF(object):
                                     low_rank_background=low_rank_background,
                                     update_background_components=update_background_components, rolling_sum=self.rolling_sum,
                                     min_corr=min_corr, min_pnr=min_pnr, deconvolve_options_init=deconvolve_options_init,
-                                    ring_size_factor=ring_size_factor, center_psf=center_psf)
+                                    ring_size_factor=ring_size_factor, center_psf=center_psf,
+                                    ssub_B=ssub_B, compute_B_3x=compute_B_3x, init_iter=init_iter)
 
     def fit(self, images):
         """
@@ -369,6 +384,9 @@ class CNMF(object):
         dims = images.shape[1:]
         Y = np.transpose(images, list(range(1, len(dims) + 1)) + [0])
         Yr = np.transpose(np.reshape(images, (T, -1), order='F'))
+        if np.isfortran(Yr):
+            raise Exception('The file is in F order, it should be in C order (see save_memmap function')
+
         print((T,) + dims)
 
         # Make sure filename is pointed correctly (numpy sets it to None sometimes)
@@ -430,13 +448,25 @@ class CNMF(object):
                 if self.alpha_snmf is not None:
                     options['init_params']['alpha_snmf'] = self.alpha_snmf
 
-                self.Ain, self.Cin, self.b_in, self.f_in, center = initialize_components(
-                    Y, sn=sn, options_total=options, **options['init_params'])
+                if self.center_psf:
+                    self.Ain, self.Cin, self.b_in, self.f_in, center, extra_1p = initialize_components(
+                        Y, sn=sn, options_total=options, **options['init_params'])
+                else:
+                    self.Ain, self.Cin, self.b_in, self.f_in, center = initialize_components(
+                        Y, sn=sn, options_total=options, **options['init_params'])
 
             if self.only_init:  # only return values after initialization
 
-                self.YrA = compute_residuals(
-                    Yr, self.Ain, self.b_in, self.Cin, self.f_in, dview=self.dview, block_size=1000, num_blocks_per_run=5)
+                if self.center_psf:
+                    self.S, self.bl, self.c1, self.neurons_sn, self.g, self.YrA = extra_1p
+                else:
+                    self.YrA = compute_residuals(
+                        Yr, self.Ain, self.b_in, self.Cin, self.f_in,
+                        dview=self.dview, block_size=1000, num_blocks_per_run=5)
+                    self.g = g
+                    self.bl = None
+                    self.c1 = None
+                    self.neurons_sn = None
 
                 self.A = self.Ain
                 self.C = self.Cin
@@ -465,10 +495,6 @@ class CNMF(object):
                 self.sn = sn
                 self.b = self.b_in
                 self.f = self.f_in
-                self.g = g
-                self.bl = None
-                self.c1 = None
-                self.neurons_sn = None
 
                 self.A, self.C, self.YrA, self.b, self.f = normalize_AC(
                     self.A, self.C, self.YrA, self.b, self.f)
@@ -606,7 +632,8 @@ class CNMF(object):
 
     def _prepare_object(self, Yr, T, expected_comps, new_dims=None, idx_components=None,
                         g=None, lam=None, s_min=None, bl=None, use_dense=True, N_samples_exceptionality=5,
-                        max_num_added=1, min_num_trial=1):
+                        max_num_added=1, min_num_trial=1, path_to_model = None,
+                        sniper_mode = False):
 
         if idx_components is None:
             idx_components = range(self.A.shape[-1])
@@ -767,6 +794,31 @@ class CNMF(object):
         for nneeuu in range(self.N):
             self.time_neuron_added.append((nneeuu, self.initbatch))
         self.time_spend = 0
+        # setup per patch classifier
+        import keras
+        from keras.models import model_from_json
+        
+        # prepare CNN
+        
+        path = path_to_model.split(".")[:-1]
+        json_path = ".".join(path + ["json"])
+        model_path = ".".join(path + ["h5"])
+        try:
+            json_file = open(json_path, 'r')
+            loaded_model_json = json_file.read()
+            json_file.close()
+            loaded_model = model_from_json(loaded_model_json)
+            loaded_model.load_weights(model_path)
+            opt = keras.optimizers.rmsprop(lr=0.0001, decay=1e-6)
+            loaded_model.compile(loss=keras.losses.categorical_crossentropy,
+                          optimizer=opt, metrics=['accuracy'])   
+        except:
+            print('No model found')
+            loaded_model = None
+            sniper_mode = False
+                
+        self.loaded_model = loaded_model
+        self.sniper_mode = sniper_mode
         return self
 
     @profile
@@ -858,7 +910,9 @@ class CNMF(object):
                 thresh_s_min=self.thresh_s_min, s_min=self.s_min,
                 Ab_dense=self.Ab_dense[:, :self.M] if self.use_dense else None,
                 oases=self.OASISinstances if self.p else None, N_samples_exceptionality=self.N_samples_exceptionality,
-                max_num_added=self.max_num_added, min_num_trial=self.min_num_trial)
+                max_num_added=self.max_num_added, min_num_trial=self.min_num_trial,
+                loaded_model = self.loaded_model, thresh_CNN_noisy = self.thresh_CNN_noisy,
+                sniper_mode = self.sniper_mode)
 
             num_added = len(self.ind_A) - self.N
 

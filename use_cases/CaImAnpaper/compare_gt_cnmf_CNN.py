@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 """
@@ -183,21 +182,7 @@ params_movie = {'fname': '/mnt/ceph/neuro/labeling/neurofinder.00.00/images/fina
                  'crop_pix':10
                  }
 params_movies.append(params_movie.copy())
-#%% neurofinder 02.00
-params_movie = {'fname': '/opt/local/Data/labeling/neurofinder.02.00/Yr_d1_512_d2_512_d3_1_order_C_frames_8000_.mmap',
-                     # order of the autoregressive system
-                 'merge_thresh': 0.8,  # merging threshold, max correlation allow
-                 'rf': 20,  # half-size of the patches in pixels. rf=25, patches are 50x50    20
-                 'stride_cnmf': 10,  # amounpl.it of overlap between the patches in pixels
-                 'K': 6,  # number of components per patch
-                 'gSig': [5,5],  # expected half size of neurons
-                 'fr' : 30, # imaging rate in Hz
-                 'n_chunks': 10,
-                 'swap_dim':False,
-                 'crop_pix':10,
-                 'decay_time': 0.3,
-                 }
-params_movies.append(params_movie.copy())
+
 #%% neurofinder 01.01
 params_movie = {'fname': '/mnt/ceph/neuro/labeling/neurofinder.01.01/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_1825_.mmap',
                      # order of the autoregressive system
@@ -213,8 +198,25 @@ params_movie = {'fname': '/mnt/ceph/neuro/labeling/neurofinder.01.01/images/fina
                  'crop_pix':2,
                  }
 params_movies.append(params_movie.copy())
+#%% neurofinder 02.00
+params_movie = {'fname': '/opt/local/Data/labeling/neurofinder.02.00/Yr_d1_512_d2_512_d3_1_order_C_frames_8000_.mmap',
+#                'fname': '/mnt/ceph/neuro/labeling/neurofinder.02.00/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_8000_.mmap',
+                     # order of the autoregressive system
+                 'merge_thresh': 0.8,  # merging threshold, max correlation allow
+                 'rf': 20,  # half-size of the patches in pixels. rf=25, patches are 50x50    20
+                 'stride_cnmf': 10,  # amounpl.it of overlap between the patches in pixels
+                 'K': 6,  # number of components per patch
+                 'gSig': [5,5],  # expected half size of neurons
+                 'fr' : 30, # imaging rate in Hz
+                 'n_chunks': 10,
+                 'swap_dim':False,
+                 'crop_pix':10,
+                 'decay_time': 0.3,
+                 }
+params_movies.append(params_movie.copy())
 #%% Sue Ann k56
 params_movie = {'fname': '/opt/local/Data/labeling/k53_20160530/Yr_d1_512_d2_512_d3_1_order_C_frames_116043_.mmap',
+                #'fname':'/mnt/ceph/neuro/labeling/k53_20160530/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_116043_.mmap',
                 'gtname':'/mnt/ceph/neuro/labeling/k53_20160530/regions/joined_consensus_active_regions.npy',
                      # order of the autoregressive system
                  'merge_thresh': 0.8,  # merging threshold, max correlation allow
@@ -231,6 +233,7 @@ params_movie = {'fname': '/opt/local/Data/labeling/k53_20160530/Yr_d1_512_d2_512
 params_movies.append(params_movie.copy())
 #%% J115
 params_movie = {'fname': '/opt/local/Data/labeling/J115_2015-12-09_L01_ELS/Yr_d1_463_d2_472_d3_1_order_C_frames_90000_.mmap',
+                #'fname': '/mnt/ceph/neuro/labeling/J115_2015-12-09_L01_ELS/images/final_map/Yr_d1_463_d2_472_d3_1_order_C_frames_90000_.mmap',
                 'gtname':'/mnt/ceph/neuro/labeling/J115_2015-12-09_L01_ELS/regions/joined_consensus_active_regions.npy',
                      # order of the autoregressive system
                  'merge_thresh': 0.8,  # merging threshold, max correlation allow
@@ -248,6 +251,7 @@ params_movie = {'fname': '/opt/local/Data/labeling/J115_2015-12-09_L01_ELS/Yr_d1
 params_movies.append(params_movie.copy())
 #%% J123
 params_movie = {'fname': '/opt/local/Data/labeling/J123_2015-11-20_L01_0/Yr_d1_458_d2_477_d3_1_order_C_frames_41000_.mmap',
+                #'fname': '/mnt/ceph/neuro/labeling/J123_2015-11-20_L01_0/images/final_map/Yr_d1_458_d2_477_d3_1_order_C_frames_41000_.mmap',
                 'gtname':'/mnt/ceph/neuro/labeling/J123_2015-11-20_L01_0/regions/joined_consensus_active_regions.npy',
                      # order of the autoregressive system
                  'merge_thresh': 0.8,  # merging threshold, max correlation allow
@@ -264,6 +268,7 @@ params_movie = {'fname': '/opt/local/Data/labeling/J123_2015-11-20_L01_0/Yr_d1_4
 params_movies.append(params_movie.copy())
 #%%
 params_movie = { 'fname': '/opt/local/Data/labeling/k37_20160109_AM_150um_65mW_zoom2p2_00001_1-16/Yr_d1_512_d2_512_d3_1_order_C_frames_48000_.mmap',
+                 #'fname': '/mnt/ceph/neuro/labeling/J123_2015-11-20_L01_0/images/final_map/Yr_d1_458_d2_477_d3_1_order_C_frames_41000_.mmap',
                  'gtname':'/mnt/ceph/neuro/labeling/k37_20160109_AM_150um_65mW_zoom2p2_00001_1-16/regions/joined_consensus_active_regions.npy',
                      # order of the autoregressive system
                  'merge_thresh': 0.8,  # merging threshold, max correlation allow
@@ -345,10 +350,17 @@ all_comp_SNR_delta = []
 all_predictions = []
 all_labels = []
 all_results = dict()
-reload = True
+reload = False
 plot_on = False
-save_on = False
-for params_movie in np.array(params_movies)[7:8]:
+save_on = True
+backend_patch = 'local'
+backend_refine = 'ipyparallel'
+n_processes = 24
+n_pixels_per_process=4000
+block_size=5000
+num_blocks_per_run=20
+
+for params_movie in np.array(params_movies)[6:7]:
 #    params_movie['gnb'] = 3
     params_display = {
         'downsample_ratio': .2,
@@ -360,12 +372,13 @@ for params_movie in np.array(params_movies)[7:8]:
     print(fname_new)
     # %% RUN ANALYSIS
     try:
+        cm.stop_server()
         dview.terminate()
     except:
         print('No clusters to stop')
 
     c, dview, n_processes = setup_cluster(
-        backend='local', n_processes=None, single_thread=False)
+        backend=backend_patch, n_processes=n_processes, single_thread=False)
     # %% LOAD MEMMAP FILE
     # fname_new='Yr_d1_501_d2_398_d3_1_order_F_frames_369_.mmap'
     Yr, dims, T = cm.load_memmap(fname_new)
@@ -378,15 +391,15 @@ for params_movie in np.array(params_movies)[7:8]:
     #%%
     if not reload:
     # %% correlation image
-        if m_images.shape[0]<10000:
-            Cn = m_images.local_correlations(swap_dim = params_movie['swap_dim'], frames_per_chunk = 1500)
-            Cn[np.isnan(Cn)] = 0
-            check_nan = False
-        else:
-            Cn = np.array(cm.load(('/'.join(params_movie['gtname'].split('/')[:-2]+['projections','correlation_image.tif'])))).squeeze()
-            check_nan = False
-        pl.imshow(Cn, cmap='gray', vmax=.95)
+        if plot_on or save_on:
+            if m_images.shape[0]<10000:
+                Cn = m_images.local_correlations(swap_dim = params_movie['swap_dim'], frames_per_chunk = 1500)
+                Cn[np.isnan(Cn)] = 0
+            else:
+                Cn = np.array(cm.load(('/'.join(params_movie['gtname'].split('/')[:-2]+['projections','correlation_image.tif'])))).squeeze()
+                pl.imshow(Cn, cmap='gray', vmax=.95)
 
+        check_nan = False
         # %% some parameter settings
         # order of the autoregressive fit to calcium imaging in general one (slow gcamps) or two (fast gcamps fast scanning)
         p = global_params['p']
@@ -418,7 +431,7 @@ for params_movie in np.array(params_movies)[7:8]:
         t1 = time.time()
         # TODO: todocument
         # TODO: warnings 3
-        cnm = cnmf.CNMF(n_processes=1, nb_patch = 1, k=K, gSig=gSig, merge_thresh=params_movie['merge_thresh'], p=global_params['p'],
+        cnm = cnmf.CNMF(n_processes=n_processes, nb_patch = 1, k=K, gSig=gSig, merge_thresh=params_movie['merge_thresh'], p=global_params['p'],
                         dview=dview, rf=rf, stride=stride_cnmf, memory_fact=1,
                         method_init=init_method, alpha_snmf=alpha_snmf, only_init_patch=global_params['only_init_patch'],
                         gnb=global_params['gnb'], method_deconvolution='oasis',border_pix =  params_movie['crop_pix'],
@@ -433,9 +446,12 @@ for params_movie in np.array(params_movies)[7:8]:
         sn_tot = cnm.sn
         print(('Number of components:' + str(A_tot.shape[-1])))
         t_patch = time.time() - t1
-        dview.terminate()
+        try:
+            dview.terminate()
+        except:
+            pass
         c, dview, n_processes = cm.cluster.setup_cluster(
-        backend='local', n_processes=None, single_thread=False)
+        backend=backend_refine, n_processes=n_processes, single_thread=False)
         # %%
         if plot_on:
             pl.figure()
@@ -443,11 +459,12 @@ for params_movie in np.array(params_movies)[7:8]:
 
             # %% rerun updating the components to refine
         t1 = time.time()
-        cnm = cnmf.CNMF(n_processes=1, k=A_tot.shape, gSig=gSig, merge_thresh=merge_thresh, p=p, dview=dview, Ain=A_tot,
+        cnm = cnmf.CNMF(n_processes=n_processes, k=A_tot.shape, gSig=gSig, merge_thresh=merge_thresh, p=p, dview=dview, Ain=A_tot,
                         Cin=C_tot, b_in = b_tot,
                         f_in=f_tot, rf=None, stride=None, method_deconvolution='oasis',gnb = global_params['gnb'],
                         low_rank_background = global_params['low_rank_background'],
-                        update_background_components = global_params['update_background_components'], check_nan=check_nan)
+                        update_background_components = global_params['update_background_components'], check_nan=check_nan,
+                            n_pixels_per_process=n_pixels_per_process, block_size= block_size, num_blocks_per_run=num_blocks_per_run)
 
         cnm = cnm.fit(images)
         t_refine = time.time() - t1
@@ -523,7 +540,7 @@ for params_movie in np.array(params_movies)[7:8]:
         if save_on:
             np.savez(os.path.join(os.path.split(fname_new)[0],
                               os.path.split(fname_new)[1][:-4] +
-                              'results_analysis_after_merge_4.npz'),
+                              'results_analysis_after_merge_5.npz'),
                               Cn=Cn, fname_new = fname_new,
                               A=A, C=C, b=b, f=f, YrA=YrA, sn=sn, d1=d1,
                               d2=d2, idx_components=idx_components,
@@ -563,10 +580,11 @@ for params_movie in np.array(params_movies)[7:8]:
         }
         fn_old = fname_new
         #analysis_file = '/mnt/ceph/neuro/jeremie_analysis/neurofinder.03.00.test/Yr_d1_498_d2_467_d3_1_order_C_frames_2250_._results_analysis.npz'
-        print(os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:-4] + 'results_analysis_after_merge_4.npz'))
+# =============================================================================
+#         print(os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:-4] + 'results_analysis_after_merge_5.npz'))
+# =============================================================================
 
-        with np.load(os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:-4] + 'results_analysis_after_merge_4.npz'), encoding = 'latin1') as ld:
-            print(ld.keys())
+        with np.load(os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:-4] + 'results_analysis_after_merge_5.npz'), encoding = 'latin1') as ld:
             ld1 = {k:ld[k] for k in ['d1','d2','A','params_movie','fname_new',
                    'C','idx_components','idx_components_bad','Cn','b','f','YrA',
                    'sn','comp_SNR','r_values','predictionsCNN','A_gt','A_gt_thr',
@@ -584,10 +602,12 @@ for params_movie in np.array(params_movies)[7:8]:
                 pass
             gSig = params_movie['gSig']
             fname_new = fn_old
-            print([t_eva_comps, t_patch, t_refine])
+            print([A.shape])
+            print([ t_patch, t_refine,t_eva_comps])
+            print(t_eva_comps+t_patch + t_refine)
 
-        print(C_gt.shape)
-        print(Y.shape)
+#        print(C_gt.shape)
+#        print(Y.shape)
         continue
 
 
@@ -646,7 +666,7 @@ for params_movie in np.array(params_movies)[7:8]:
 #    try:
 #        np.savez(os.path.join(os.path.split(fname_new)[0],
 #                              os.path.split(fname_new)[1][:-4] +
-#                              'results_analysis_after_merge_4.npz'),
+#                              'results_analysis_after_merge_5.npz'),
 #                              Cn=Cn, fname_new = fname_new,
 #                              A=A, C=C, b=b, f=f, YrA=YrA, sn=sn, d1=d1,
 #                              d2=d2, idx_components=idx_components,
@@ -666,7 +686,7 @@ for params_movie in np.array(params_movies)[7:8]:
 #
 #        np.savez(os.path.join(os.path.split(fname_new[()])[0].decode("utf-8"),
 #                              os.path.split(fname_new[()])[1][:-4].decode("utf-8")
-#                              + 'results_analysis_after_merge_4.npz'), Cn=Cn,
+#                              + 'results_analysis_after_merge_5.npz'), Cn=Cn,
 #                              fname_new = fname_new,
 #                              A=A, C=C, b=b, f=f, YrA=YrA, sn=sn, d1=d1, d2=d2,
 #                              idx_components=idx_components,
@@ -915,7 +935,7 @@ for params_movie in np.array(params_movies)[7:8]:
             print('No clusters to stop')
 
         c, dview, n_processes = setup_cluster(
-        backend='local', n_processes=None, single_thread=False)
+        backend=backend, n_processes=n_processes, single_thread=False)
 
         t1 = time.time()
         ffllss = list(glob.glob('/opt/local/Data/Sue/k53/orig_tifs/*.tif')[:])
@@ -1026,5 +1046,35 @@ for params_movie in np.array(params_movies)[7:8]:
                 pl.plot(SNRs,all_results_fake[:,f1_idx], '.-',color='g')
                 pl.legend(['precision','recall','f-1 score'], fontsize = 10)
                 pl.xlabel('SNR threshold')
+
+#%% performance on desktop
+        plt.close('all')
+        import pylab as plt
+        import numpy as np
+        plt.rcParams['pdf.fonttype'] = 42
+        font = {'family' : 'Arial',
+                'weight' : 'regular',
+                'size'   : 20}
+
+        size = np.log10(np.array([2.1, 3.1,0.6,3.1,8.4,1.9,121.7,78.7,35.8,50.3])*1000)
+        components= np.array([368,935,476,1060,1099,1387,1541,1013,398,1064])
+        t_mmap = np.array([25,41,11,41,135,23,690,510,176,163])
+        t_patch = np.array([20,47,16,48,109,40,1921,978,307,442])
+        t_refine = np.array([140,284,43,279,333,338,1811,882,242,493])
+        t_filter_comps = np.array([9,5,2,5,7,10,177,86,29,59])
+
+        plt.scatter((size),np.log10(t_mmap+t_patch+t_refine+t_filter_comps),s=np.array(components)/10)
+        plt.plot((np.sort(size)),np.log10((np.sort(10**size))/31.45),'--k')
+        plt.xlabel('size log10(MB)')
+        plt.ylabel('time log10(s)')
+        plt.figure()
+        plt.bar((size),(t_mmap), width = 0.05, bottom = 0)
+        plt.bar((size),(t_patch), width = 0.05, bottom = (t_mmap))
+        plt.bar((size),(t_refine), width = 0.05, bottom = (t_mmap+t_patch))
+        plt.bar((size),(t_filter_comps), width = 0.05, bottom = (t_mmap+t_patch+t_refine))
+        plt.xlabel('size (MB)')
+        plt.ylabel('time (s)')
+        plt.legend(['t_mmap','t_patch','t_refine','t_filter_comps','real-time'])
+        plt.plot((np.sort(size)),(10**np.sort(size))/31.45,'--k')
 
 
