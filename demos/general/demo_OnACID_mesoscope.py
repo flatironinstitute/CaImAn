@@ -139,9 +139,10 @@ cnm_init = bare_initialization(Y[:initbatch].transpose(1, 2, 0), init_batch=init
                                update_num_comps=True, rval_thr=rval_thr,
                                thresh_fitness_raw=thresh_fitness_raw,
                                batch_update_suff_stat=True, max_comp_update_shape=max_comp_update_shape,
-                               deconv_flag=False, use_dense=True,
+                               deconv_flag=False, use_dense=False,
                                simultaneously=False, n_refit=0)
 
+cnm2 = deepcopy(cnm_init)
 #%% Plot initialization results
 
 crd = plot_contours(cnm_init.A.tocsc(), Cn_init, thr=0.9)
@@ -157,7 +158,7 @@ if save_init:
     save_object(cnm_init, fls[0][:-4] + '_DS_' + str(ds_factor) + '.pkl')
     cnm_init = load_object(fls[0][:-4] + '_DS_' + str(ds_factor) + '.pkl')
 
-cnm_init._prepare_object(np.asarray(Yr), T1, expected_comps, idx_components=None,
+cnm2._prepare_object(np.asarray(Yr), T1, expected_comps, idx_components=None,
                          min_num_trial=2, N_samples_exceptionality=int(N_samples))
 
 
@@ -200,7 +201,6 @@ def create_frame(cnm2, img_norm, captions):
 
 #%% Run OnACID and optionally plot results in real time
 
-cnm2 = deepcopy(cnm_init)
 cnm2.Ab_epoch = []                       # save the shapes at the end of each epoch
 t = cnm2.initbatch                       # current timestep
 tottime = []
