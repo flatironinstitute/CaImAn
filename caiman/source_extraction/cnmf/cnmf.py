@@ -795,27 +795,29 @@ class CNMF(object):
             self.time_neuron_added.append((nneeuu, self.initbatch))
         self.time_spend = 0
         # setup per patch classifier
-        import keras
-        from keras.models import model_from_json
         
-        # prepare CNN
-        
-        path = path_to_model.split(".")[:-1]
-        json_path = ".".join(path + ["json"])
-        model_path = ".".join(path + ["h5"])
-        try:
-            json_file = open(json_path, 'r')
-            loaded_model_json = json_file.read()
-            json_file.close()
-            loaded_model = model_from_json(loaded_model_json)
-            loaded_model.load_weights(model_path)
-            opt = keras.optimizers.rmsprop(lr=0.0001, decay=1e-6)
-            loaded_model.compile(loss=keras.losses.categorical_crossentropy,
-                          optimizer=opt, metrics=['accuracy'])   
-        except:
-            print('No model found')
+        if path_to_model is None:
             loaded_model = None
             sniper_mode = False
+        else:
+            import keras
+            from keras.models import model_from_json            
+            path = path_to_model.split(".")[:-1]
+            json_path = ".".join(path + ["json"])
+            model_path = ".".join(path + ["h5"])
+            try:
+                json_file = open(json_path, 'r')
+                loaded_model_json = json_file.read()
+                json_file.close()
+                loaded_model = model_from_json(loaded_model_json)
+                loaded_model.load_weights(model_path)
+                opt = keras.optimizers.rmsprop(lr=0.0001, decay=1e-6)
+                loaded_model.compile(loss=keras.losses.categorical_crossentropy,
+                              optimizer=opt, metrics=['accuracy'])   
+            except:
+                print('No model found')
+                loaded_model = None
+                sniper_mode = False
                 
         self.loaded_model = loaded_model
         self.sniper_mode = sniper_mode
