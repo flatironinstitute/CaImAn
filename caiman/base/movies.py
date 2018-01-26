@@ -1279,7 +1279,7 @@ def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None,
         elif extension == '.h5':
             if is_behavior:
                 with h5py.File(file_name, "r") as f:
-                    kk = f.keys()
+                    kk = list(f.keys())
                     kk.sort(key=lambda x: np.int(x.split('_')[-1]))
                     input_arr = []
                     for trial in kk:
