@@ -50,6 +50,7 @@ from caiman.components_evaluation import estimate_components_quality_auto
 #%% First setup some parameters
 
 # dataset dependent parameters
+display_images = False              # Set this to true to show movies and plots
 fname = ['Sue_2x_3000_40_-46.tif']  # filename to be processed
 fr = 30                             # imaging rate in frames per second
 decay_time = 0.4                    # length of a typical transient in seconds
@@ -101,8 +102,9 @@ if fname[0] in ['Sue_2x_3000_40_-46.tif', 'demoMovieJ.tif']:
 m_orig = cm.load_movie_chain(fname[:1])
 downsample_ratio = 0.2
 offset_mov = -np.min(m_orig[:100])
-m_orig.resize(1, 1, downsample_ratio).play(
-    gain=10, offset=offset_mov, fr=30, magnification=2)
+moviehandle = m_orig.resize(1, 1, downsample_ratio)
+if display_images:
+    moviehandle.play(gain=10, offset=offset_mov, fr=30, magnification=2)
 
 #%% start a cluster for parallel processing
 c, dview, n_processes = cm.cluster.setup_cluster(
@@ -130,9 +132,11 @@ bord_px_els = np.ceil(np.maximum(np.max(np.abs(mc.x_shifts_els)),
                                  np.max(np.abs(mc.y_shifts_els)))).astype(np.int)
 # maximum shift to be used for trimming against NaNs
 #%% compare with original movie
-cm.concatenate([m_orig.resize(1, 1, downsample_ratio) + offset_mov,
+moviehandle = cm.concatenate([m_orig.resize(1, 1, downsample_ratio) + offset_mov,
                 m_els.resize(1, 1, downsample_ratio)],
-               axis=2).play(fr=60, gain=15, magnification=2, offset=0)  # press q to exit
+               axis=2)
+if display_images:
+    moviehandle.play(fr=60, gain=15, magnification=2, offset=0)  # press q to exit
 
 #%% MEMORY MAPPING
 # memory map the file in order 'C'
@@ -187,25 +191,27 @@ idx_components, idx_components_bad, SNR_comp, r_values, cnn_preds = \
 
 #%% PLOT COMPONENTS
 
-plt.figure()
-plt.subplot(121)
-crd_good = cm.utils.visualization.plot_contours(
-    cnm.A[:, idx_components], Cn, thr=.8, vmax=0.75)
-plt.title('Contour plots of accepted components')
-plt.subplot(122)
-crd_bad = cm.utils.visualization.plot_contours(
-    cnm.A[:, idx_components_bad], Cn, thr=.8, vmax=0.75)
-plt.title('Contour plots of rejected components')
+if display_images:
+    plt.figure()
+    plt.subplot(121)
+    crd_good = cm.utils.visualization.plot_contours(
+        cnm.A[:, idx_components], Cn, thr=.8, vmax=0.75)
+    plt.title('Contour plots of accepted components')
+    plt.subplot(122)
+    crd_bad = cm.utils.visualization.plot_contours(
+        cnm.A[:, idx_components_bad], Cn, thr=.8, vmax=0.75)
+    plt.title('Contour plots of rejected components')
 
 #%% VIEW TRACES (accepted and rejected)
 
-view_patches_bar(Yr, cnm.A.tocsc()[:, idx_components], cnm.C[idx_components],
-                 cnm.b, cnm.f, dims[0], dims[1], YrA=cnm.YrA[idx_components],
-                 img=Cn)
+if display_images:
+    view_patches_bar(Yr, cnm.A.tocsc()[:, idx_components], cnm.C[idx_components],
+                     cnm.b, cnm.f, dims[0], dims[1], YrA=cnm.YrA[idx_components],
+                     img=Cn)
 
-view_patches_bar(Yr, cnm.A.tocsc()[:, idx_components_bad], cnm.C[idx_components_bad],
-                 cnm.b, cnm.f, dims[0], dims[1], YrA=cnm.YrA[idx_components_bad],
-                 img=Cn)
+    view_patches_bar(Yr, cnm.A.tocsc()[:, idx_components_bad], cnm.C[idx_components_bad],
+                     cnm.b, cnm.f, dims[0], dims[1], YrA=cnm.YrA[idx_components_bad],
+                     img=Cn)
 
 #%% RE-RUN seeded CNMF on accepted patches to refine and perform deconvolution
 A_in, C_in, b_in, f_in = cnm.A[:,
@@ -236,6 +242,8 @@ denoised = cm.movie(cnm2.A.dot(cnm2.C) +
                     cnm2.b.dot(cnm2.f)).reshape(dims + (-1,), order='F').transpose([2, 0, 1])
 
 #%% play along side original data
-cm.concatenate([m_els.resize(1, 1, downsample_ratio),
+moviehandle = cm.concatenate([m_els.resize(1, 1, downsample_ratio),
                 denoised.resize(1, 1, downsample_ratio)],
-               axis=2).play(fr=60, gain=15, magnification=2, offset=0)  # press q to exit
+               axis=2)
+if display_images:
+        moviehandle.play(fr=60, gain=15, magnification=2, offset=0)  # press q to exit
