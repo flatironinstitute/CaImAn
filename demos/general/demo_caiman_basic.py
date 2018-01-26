@@ -10,6 +10,9 @@ For a complete pipeline (including motion correction) check demo_pipeline.py
 
 Data courtesy of W. Yang, D. Peterka and R. Yuste (Columbia University)
 
+This demo is designed to be run under spyder or jupyter; its plotting functions
+are tailored for that environment.
+
 @authors: @agiovann and @epnev
 
 """
