@@ -350,6 +350,7 @@ class CNMF(object):
                                     min_corr=min_corr, min_pnr=min_pnr, deconvolve_options_init=deconvolve_options_init,
                                     ring_size_factor=ring_size_factor, center_psf=center_psf,
                                     ssub_B=ssub_B, compute_B_3x=compute_B_3x, init_iter=init_iter)
+        self.options['merging']['thr'] = merge_thresh
 
     def fit(self, images):
         """
@@ -538,6 +539,7 @@ class CNMF(object):
                 g1 = g
                 # todo : ask for those..
                 C, f, S, bl, c1, neurons_sn, g1, YrA = C, f, S, bl, c1, neurons_sn, g, YrA
+            self.lam = lam
 
         else:  # use patches
             if self.stride is None:
@@ -576,28 +578,45 @@ class CNMF(object):
 #                    Yr, C = C, f = f, A_in = A, sn=sn, b_in = b, dview=self.dview, **options['spatial_params'])
 
             if self.center_psf:  # merge taking best neuron
-                print("merging")
-                merged_ROIs = [0]
-                while len(merged_ROIs) > 0:
-                    A, C, nr, merged_ROIs, S, bl, c1, sn_n, g = merge_components(Yr, A, [], np.array(C), [], np.array(
-                        C), [], options['temporal_params'], options['spatial_params'], dview=self.dview,
-                        thr=self.merge_thresh, mx=np.Inf, fast_merge=True)
+                if self.nb_patch > 0:
+                    print("merging")
+                    merged_ROIs = [0]
+                    while len(merged_ROIs) > 0:
+                        A, C, nr, merged_ROIs, S, bl, c1, sn_n, g = merge_components(
+                            Yr, A, [], np.array(C), [], np.array(C), [],
+                            options['temporal_params'], options['spatial_params'],
+                            dview=self.dview, thr=self.merge_thresh, mx=np.Inf, fast_merge=True)
 
-                print("update temporal")
-                C, A, b, f, S, bl, c1, neurons_sn, g1, YrA, lam = update_temporal_components(
-                    Yr, A, b, C, f, dview=self.dview, bl=None, c1=None, sn=None, g=None, **options['temporal_params'])
+                    print("update temporal")
+                    C, A, b, f, S, bl, c1, neurons_sn, g1, YrA, lam = update_temporal_components(
+                        Yr, A, b, C, f, dview=self.dview, bl=None, c1=None, sn=None, g=None,
+                        **options['temporal_params'])
 
-                options['spatial_params']['se'] = np.ones(
-                    (1,) * len(dims), dtype=np.uint8)
-#                options['spatial_params']['update_background_components'] = True
-                print('update spatial ...')
-                A, b, C, f = update_spatial_components(
-                    Yr, C=C, f=f, A_in=A, sn=sn, b_in=b, dview=self.dview, **options['spatial_params'])
+                    options['spatial_params']['se'] = np.ones(
+                        (1,) * len(dims), dtype=np.uint8)
+    #                options['spatial_params']['update_background_components'] = True
+                    print('update spatial ...')
+                    A, b, C, f = update_spatial_components(
+                        Yr, C=C, f=f, A_in=A, sn=sn, b_in=b, dview=self.dview,
+                        **options['spatial_params'])
 
-                print("update temporal")
-                C, A, b, f, S, bl, c1, neurons_sn, g1, YrA, lam = update_temporal_components(
-                    Yr, A, b, C, f, dview=self.dview, bl=None, c1=None, sn=None, g=None, **options['temporal_params'])
-
+                    print("update temporal")
+                    C, A, b, f, S, bl, c1, neurons_sn, g1, YrA, lam = update_temporal_components(
+                        Yr, A, b, C, f, dview=self.dview, bl=None, c1=None, sn=None, g=None,
+                        **options['temporal_params'])
+                else:
+                    print("merging")
+                    merged_ROIs = [0]
+                    while len(merged_ROIs) > 0:
+                        A, C, nr, merged_ROIs, S, bl, c1, neurons_sn, g1 = merge_components(
+                            Yr, A, [], np.array(C), [], np.array(C), [],
+                            options['temporal_params'], options['spatial_params'],
+                            dview=self.dview, thr=self.merge_thresh, mx=np.Inf, fast_merge=True)
+                        if len(merged_ROIs) > 0:
+                            not_merged = np.setdiff1d(list(range(len(YrA))),
+                                                      np.unique(np.concatenate(merged_ROIs)))
+                            YrA = np.concatenate([YrA[not_merged],
+                                                  np.array([YrA[m].mean(0) for m in merged_ROIs])])
             else:
 
                 print("merging")
@@ -622,7 +641,6 @@ class CNMF(object):
         self.bl = bl
         self.c1 = c1
         self.neurons_sn = neurons_sn
-        self.lam = lam
         self.dims = dims
 
         self.A, self.C, self.YrA, self.b, self.f = normalize_AC(

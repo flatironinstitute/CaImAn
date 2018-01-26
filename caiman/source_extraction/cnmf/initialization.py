@@ -262,9 +262,9 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
         the option dictionary
 
     ssub_B: int, optional
-        downsampleing factor for 1-photon imaging background computation
+        downsampling factor for 1-photon imaging background computation
 
-    compute_B_3x: bool, optional=False,
+    compute_B_3x: bool, optional
         whether to compute background 3x or only 2x for 1-photon imaging
 
     init_iter: int, optional
@@ -977,8 +977,8 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
         nb: integer
             number of background components for approximating the background using NMF model
         ssub_B: int, optional
-            downsampleing factor for 1-photon imaging background computation
-        compute_B_3x: bool, optional=False,
+            downsampling factor for 1-photon imaging background computation
+        compute_B_3x: bool, optional
             whether to compute background 3x or only 2x for 1-photon imaging
         init_iter: int, optional
             number of iterations for 1-photon imaging initialization
@@ -1017,17 +1017,17 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
         W, b0 = compute_W(Y_ds.reshape((-1, total_frames), order='F'),
                           A, C, (d1, d2), ring_size_factor * gSiz, ssub=ssub_B)
 
-        def compute_B(b0, W, B):
+        def compute_B(b0, W, B):  # actually computes -B to efficiently compute Y-B in place
             if ssub_B == 1:
                 B = -b0[:, None] - W.dot(B - b0[:, None])  # "-B"
             else:
                 B = -b0[:, None] - (np.repeat(np.repeat(W.dot(
-                    downscale(B.reshape((d1, d2, total_frames), order='F'),
-                              (ssub_B, ssub_B, 1)).reshape((-1, total_frames), order='F') -
+                    downscale(B.reshape((d1, d2, B.shape[-1]), order='F'),
+                              (ssub_B, ssub_B, 1)).reshape((-1, B.shape[-1]), order='F') -
                     downscale(b0.reshape((d1, d2), order='F'),
                               (ssub_B, ssub_B)).reshape((-1, 1), order='F'))
                     .reshape(((d1 - 1) // ssub_B + 1, (d2 - 1) // ssub_B + 1, -1), order='F'),
-                    ssub_B, 0), ssub_B, 1)[:d1, :d2].reshape((-1, total_frames), order='F'))  # "-B"
+                    ssub_B, 0), ssub_B, 1)[:d1, :d2].reshape((-1, B.shape[-1]), order='F'))  # "-B"
             return B
 
         B = compute_B(b0, W, B)  # "-B"
@@ -1157,7 +1157,7 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
         f_in = np.empty((0, T))
 
     return (A, C, center.T, b_in.astype(np.float32), f_in.astype(np.float32),
-        (S.astype(np.float32), bl, c1, neurons_sn, g1, YrA))
+            (S.astype(np.float32), bl, c1, neurons_sn, g1, YrA))
 
 
 @profile
