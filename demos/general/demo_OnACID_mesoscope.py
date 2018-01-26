@@ -55,7 +55,7 @@ fr = 15
 # approximate length of transient event in seconds
 decay_time = 0.5
 # expected half size of neurons
-gSig = (4, 4)
+gSig = (5, 5)
 # order of AR indicator dynamics
 p = 1
 # minimum SNR for accepting new components
@@ -142,24 +142,12 @@ cnm_init = bare_initialization(Y[:initbatch].transpose(1, 2, 0), init_batch=init
                                deconv_flag=False, use_dense=False,
                                simultaneously=False, n_refit=0)
 
-cnm2 = deepcopy(cnm_init)
 #%% Plot initialization results
 
 crd = plot_contours(cnm_init.A.tocsc(), Cn_init, thr=0.9)
 A, C, b, f, YrA, sn = cnm_init.A, cnm_init.C, cnm_init.b, cnm_init.f, cnm_init.YrA, cnm_init.sn
 view_patches_bar(Yr, scipy.sparse.coo_matrix(
     A.tocsc()[:, :]), C[:, :], b, f, dims[0], dims[1], YrA=YrA[:, :], img=Cn_init)
-
-#%% Prepare object for OnACID
-
-save_init = False     # flag for saving initialization object. Useful if you want to check OnACID with different parameters but same initialization
-if save_init:
-    cnm_init.dview = None
-    save_object(cnm_init, fls[0][:-4] + '_DS_' + str(ds_factor) + '.pkl')
-    cnm_init = load_object(fls[0][:-4] + '_DS_' + str(ds_factor) + '.pkl')
-
-cnm2._prepare_object(np.asarray(Yr), T1, expected_comps, idx_components=None,
-                         min_num_trial=2, N_samples_exceptionality=int(N_samples))
 
 
 #%% create a function for plotting results in real time if needed
@@ -186,6 +174,13 @@ def create_frame(cnm2, img_norm, captions):
     frame_pn = np.concatenate([frame_comp_1, frame_comp_2], axis=0).T
     vid_frame = np.repeat(frame_pn[:, :, None], 3, axis=-1)
     vid_frame = np.minimum((vid_frame * 255.), 255).astype('u1')
+    
+    if show_residuals and cnm2.ind_new:
+        add_v = np.int(cnm2.dims[1]*resize_fact)
+        for ind_new in cnm2.ind_new:
+            cv2.rectangle(vid_frame,(int(ind_new[0][1]*resize_fact),int(ind_new[1][1]*resize_fact)+add_v),
+                                         (int(ind_new[0][0]*resize_fact),int(ind_new[1][0]*resize_fact)+add_v),(255,0,255),2)
+    
     cv2.putText(vid_frame, captions[0], (5, 20), fontFace=5, fontScale=1.2, color=(
         0, 255, 0), thickness=1)
     cv2.putText(vid_frame, captions[1], (np.int(
@@ -198,7 +193,20 @@ def create_frame(cnm2, img_norm, captions):
                                                  10, vid_frame.shape[0] - 20), fontFace=5, fontScale=1.2, color=(0, 255, 255), thickness=1)
     return vid_frame
 
+#%% Prepare object for OnACID
+cnm2 = deepcopy(cnm_init)
 
+save_init = False     # flag for saving initialization object. Useful if you want to check OnACID with different parameters but same initialization
+if save_init:
+    cnm_init.dview = None
+    save_object(cnm_init, fls[0][:-4] + '_DS_' + str(ds_factor) + '.pkl')
+    cnm_init = load_object(fls[0][:-4] + '_DS_' + str(ds_factor) + '.pkl')
+
+cnm2._prepare_object(np.asarray(Yr), T1, expected_comps, idx_components=None,
+                         min_num_trial=3, max_num_added = 3, N_samples_exceptionality=int(N_samples),
+                         path_to_model = 'use_cases/edge-cutter/residual_classifier_2classes.h5',
+                         sniper_mode = True)
+#cnm2.thresh_CNN_noisy = 0.995
 #%% Run OnACID and optionally plot results in real time
 
 cnm2.Ab_epoch = []                       # save the shapes at the end of each epoch
@@ -343,3 +351,7 @@ pl.figure()
 crd = cm.utils.visualization.plot_contours(A, Cn, thr=0.9)
 view_patches_bar(Yr, scipy.sparse.coo_matrix(A.tocsc()[:, :]), C[:, :], b, f,
                  dims[0], dims[1], YrA=noisyC[cnm2.gnb:cnm2.M] - C, img=Cn)
+
+#%%
+
+df_f = detrend_df_f_auto(A,b,C,f,YrA)
