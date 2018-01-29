@@ -8,6 +8,14 @@ from builtins import map
 from builtins import range
 from past.utils import old_div
 
+import os
+import sys
+
+here = os.path.dirname(os.path.realpath(__file__))
+caiman_path = os.path.join(here, "..", "..")
+print("Caiman path detected as " + caiman_path)
+sys.path.append(caiman_path)
+
 try:
     get_ipython().magic(u'load_ext autoreload')
     get_ipython().magic(u'autoreload 2')
@@ -42,9 +50,7 @@ c, dview, n_processes = cm.cluster.setup_cluster(backend='local',  # use this on
                                                  single_thread=False)
 
 #%% download demo file
-base_folder = './example_movies/'
-download_demo(fnames[0])
-fnames = [os.path.abspath(os.path.join(base_folder, fnames[0]))]
+fnames = [download_demo(fnames[0], caiman_base=caiman_path)]
 filename_reorder = fnames
 
 #%% motion correction

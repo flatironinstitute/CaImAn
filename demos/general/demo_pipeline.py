@@ -17,6 +17,15 @@ authors: @agiovann and @epnev
 from __future__ import division
 from __future__ import print_function
 from builtins import range
+
+import os
+import sys
+
+here = os.path.dirname(os.path.realpath(__file__))
+caiman_path = os.path.join(here, "..", "..")
+print("Caiman path detected as " + caiman_path)
+sys.path.append(caiman_path)
+
 import cv2
 import glob
 
@@ -34,9 +43,9 @@ try:
         get_ipython().magic('autoreload 2')
 except NameError:
     pass
+
 import caiman as cm
 import numpy as np
-import os
 import time
 import matplotlib.pyplot as plt
 
@@ -92,8 +101,7 @@ cnn_thr = 0.8               # threshold for CNN based classifier
 
 #%% download the dataset if it's not present in your folder
 if fname[0] in ['Sue_2x_3000_40_-46.tif', 'demoMovieJ.tif']:
-    download_demo(fname[0])
-    fname = [os.path.join('example_movies', fname[0])]
+    fname = [download_demo(fname[0], caiman_base=caiman_path)]
 
 #%% play the movie
 # playing the movie using opencv. It requires loading the movie in memory. To

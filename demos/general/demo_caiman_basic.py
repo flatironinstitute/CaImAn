@@ -20,6 +20,14 @@ are tailored for that environment.
 from __future__ import print_function
 from builtins import range
 
+import os
+import sys
+
+here = os.path.dirname(os.path.realpath(__file__))
+caiman_path = os.path.join(here, "..", "..")
+print("Caiman path detected as " + caiman_path)
+sys.path.append(caiman_path)
+
 try:
     if __IPYTHON__:
         print("Detected iPython")
