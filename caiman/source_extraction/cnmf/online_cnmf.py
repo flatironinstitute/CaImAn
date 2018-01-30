@@ -559,7 +559,7 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                           rval_thr=0.875, bSiz=3, robust_std=False,
                           N_samples_exceptionality=5, remove_baseline=True,
                           thresh_fitness_delta=-80, thresh_fitness_raw=-20, thresh_overlap=0.25,
-                          batch_update_suff_stat=False, sn=None, g=None, thresh_s_min=None,
+                          batch_update_suff_stat=False, sn=None, g=None,
                           s_min=None, Ab_dense=None, max_num_added=1, min_num_trial=1,
                           loaded_model = None, thresh_CNN_noisy = 0.99,
                           sniper_mode = False):
@@ -669,14 +669,15 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                   #  print('Overlap at step' + str(t) + ' ' + str(cc))
                     # break
 
-            # use thresh_s_min * noise estimate * sqrt(1-sum(gamma))
             if s_min is None:
+                s_min = 0
+            # use s_min * noise estimate * sqrt(1-sum(gamma))
+            elif s_min < 0:
                 # the formula has been obtained by running OASIS with s_min=0 and lambda=0 on Gaussin noise.
                 # e.g. 1 * sigma * sqrt(1-sum(gamma)) corresponds roughly to the root mean square (non-zero) spike size, sqrt(<s^2>)
                 #      2 * sigma * sqrt(1-sum(gamma)) corresponds roughly to the 95% percentile of (non-zero) spike sizes
                 #      3 * sigma * sqrt(1-sum(gamma)) corresponds roughly to the 99.7% percentile of (non-zero) spike sizes
-                s_min = 0 if thresh_s_min is None else thresh_s_min * \
-                    sqrt((ain**2).dot(sn[indeces]**2)) * sqrt(1 - np.sum(g))
+                s_min = -s_min * sqrt((ain**2).dot(sn[indeces]**2)) * sqrt(1 - np.sum(g))
 
             cin_res = cin_res.get_ordered()
             if foo:
@@ -717,8 +718,7 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                                           (sqrt(1 - g**2) if np.size(g) == 1 else
                                            sqrt((1 + g[1]) * ((1 - g[1])**2 - g[0]**2) / (1 - g[1])))
                                           if s_min == 0 else 0,
-                                          s_min, num_empty_samples=t +
-                                          1 - len(cin_res),
+                                          s_min, num_empty_samples=t + 1 - len(cin_res),
                                           g2=0 if np.size(g) == 1 else g[1])
                         for yt in cin_res:
                             oas.fit_next(yt)
@@ -732,7 +732,7 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                     groups = update_order(Ab, Ain, groups)[0]
                 else:
                     groups = update_order(Ab_dense[indeces], ain, groups)[0]
-                    Ab_dense = np.hstack((Ab_dense,Ain))
+                    Ab_dense = np.hstack((Ab_dense, Ain))
                 # faster version of scipy.sparse.hstack
                 csc_append(Ab, Ain_csc)
                 ind_A.append(Ab.indices[Ab.indptr[M]:Ab.indptr[M + 1]])
