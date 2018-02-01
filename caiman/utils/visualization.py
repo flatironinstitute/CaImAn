@@ -20,7 +20,7 @@ from tempfile import NamedTemporaryFile
 from IPython.display import HTML
 import sys
 from warnings import warn
-from scipy.sparse import issparse, spdiags, coo_matrix, csc_matrix, hstack
+from scipy.sparse import issparse, spdiags, coo_matrix, csc_matrix
 from matplotlib.widgets import Slider
 from ..base.rois import com
 from scipy.ndimage.measurements import center_of_mass
@@ -172,7 +172,6 @@ def nb_view_patches(Yr, A, C, b, f, d1, d2, YrA=None, image_neurons=None, thr=0.
         Y_r = C + YrA
 
     x = np.arange(T)
-    z = old_div(np.squeeze(np.array(Y_r[:, :].T)), 100)
     if image_neurons is None:
         image_neurons = A.mean(1).reshape((d1, d2), order='F')
 
@@ -184,15 +183,15 @@ def nb_view_patches(Yr, A, C, b, f, d1, d2, YrA=None, image_neurons=None, thr=0.
 
     # split sources up, such that Bokeh does not warn
     # "ColumnDataSource's columns must be of the same length"
-    source = ColumnDataSource(data=dict(x=x, y=z[:, 0], y2=C[0] / 100))
-    source_ = ColumnDataSource(data=dict(z=z.T, z2=C / 100))
+    source = ColumnDataSource(data=dict(x=x, y=Y_r[0] / 100, y2=C[0] / 100))
+    source_ = ColumnDataSource(data=dict(z=Y_r / 100, z2=C / 100))
     source2 = ColumnDataSource(data=dict(c1=c1, c2=c2))
     source2_ = ColumnDataSource(data=dict(cc1=cc1, cc2=cc2))
 
     callback = CustomJS(args=dict(source=source, source_=source_, source2=source2, source2_=source2_), code="""
-            var data = source.get('data')
-            var data_ = source_.get('data')
-            var f = cb_obj.get('value')-1
+            var data = source.data
+            var data_ = source_.data
+            var f = cb_obj.value - 1
             x = data['x']
             y = data['y']
             y2 = data['y2']
@@ -202,8 +201,8 @@ def nb_view_patches(Yr, A, C, b, f, d1, d2, YrA=None, image_neurons=None, thr=0.
                 y2[i] = data_['z2'][i+f*x.length]
             }
 
-            var data2_ = source2_.get('data');
-            var data2 = source2.get('data');
+            var data2_ = source2_.data;
+            var data2 = source2.data;
             c1 = data2['c1'];
             c2 = data2['c2'];
             cc1 = data2_['cc1'];
@@ -213,8 +212,8 @@ def nb_view_patches(Yr, A, C, b, f, d1, d2, YrA=None, image_neurons=None, thr=0.
                    c1[i] = cc1[f][i]
                    c2[i] = cc2[f][i]
             }
-            source2.trigger('change')
-            source.trigger('change')
+            source2.change.emit();
+            source.change.emit();
         """)
 
     plot = bpl.figure(plot_width=600, plot_height=300)
@@ -234,8 +233,10 @@ def nb_view_patches(Yr, A, C, b, f, d1, d2, YrA=None, image_neurons=None, thr=0.
     plot1.patch('c1', 'c2', alpha=0.6, color='purple',
                 line_width=2, source=source2)
 
-    bpl.show(bokeh.layouts.layout(
-        [[slider], [bokeh.layouts.row(plot1, plot)]]))
+    if Y_r.shape[0] > 1:
+        bpl.show(bokeh.layouts.layout([[slider], [bokeh.layouts.row(plot1, plot)]]))
+    else:
+        bpl.show(bokeh.layouts.row(plot1, plot))
 
     return Y_r
 
@@ -450,9 +451,9 @@ def nb_view_patches3d(Y_r, A, C, dims, image_type='mean', Yr=None,
                                              c2x=c2x, c2y=c2y, c2z=c2z))
         callback = CustomJS(args=dict(source=source, source_=source_, sourceN=sourceN,
                                       source2=source2, source2_=source2_), code="""
-                var data = source.get('data');
-                var data_ = source_.get('data');
-                var f = cb_obj.get('value')-1
+                var data = source.data;
+                var data_ = source_.data;
+                var f = cb_obj.value - 1
                 x = data['x']
                 y = data['y']
                 y2 = data['y2']
@@ -461,8 +462,8 @@ def nb_view_patches3d(Y_r, A, C, dims, image_type='mean', Yr=None,
                     y2[i] = data_['z2'][i+f*x.length]
                 }
 
-                var data2_ = source2_.get('data');
-                var data2 = source2.get('data');
+                var data2_ = source2_.data;
+                var data2 = source2.data;
                 c1x = data2['c1x'];
                 c2x = data2['c2x'];
                 c1y = data2['c1y'];
@@ -471,7 +472,7 @@ def nb_view_patches3d(Y_r, A, C, dims, image_type='mean', Yr=None,
                 c2z = data2['c2z'];
                 cc1 = data2_['cc1'];
                 cc2 = data2_['cc2'];
-                var N = sourceN.get('data')['N'][0];
+                var N = sourceN.data['N'][0];
                 for (i = 0; i < c1x.length; i++) {
                        c1x[i] = cc1[f*c1x.length + i]
                        c2x[i] = cc2[f*c1x.length + i]
@@ -484,8 +485,8 @@ def nb_view_patches3d(Y_r, A, C, dims, image_type='mean', Yr=None,
                        c1z[i] = cc1[2*N*c1z.length + f*c1z.length + i]
                        c2z[i] = cc2[2*N*c1z.length + f*c1z.length + i]
                 }
-                source2.trigger('change');
-                source.trigger('change');
+                source2.change.emit();
+                source.change.emit();
             """)
     else:
 
@@ -559,8 +560,8 @@ def nb_view_patches3d(Y_r, A, C, dims, image_type='mean', Yr=None,
                        c1[i] = data2_['cc1'][idx[l+f*nz] + i];
                        c2[i] = data2_['cc2'][idx[l+f*nz] + i];
                 }
-                source2.trigger('change');
-                source.trigger('change');
+                source2.change.emit();
+                source.change.emit();
             """)
 
         callback_layer = CustomJS(args=dict(source=source3, sourceN=sourceN, source2=source2,
@@ -593,8 +594,8 @@ def nb_view_patches3d(Y_r, A, C, dims, image_type='mean', Yr=None,
                        c1[i] = data2_['cc1'][idx[l+f*nz] + i];
                        c2[i] = data2_['cc2'][idx[l+f*nz] + i];
                 }
-                source.trigger('change');
-                source2.trigger('change');
+                source.change.emit()
+                source2.change.emit();
             """)
 
     plot = bpl.figure(plot_width=600, plot_height=300)
@@ -632,6 +633,8 @@ def nb_view_patches3d(Y_r, A, C, dims, image_type='mean', Yr=None,
                     line_width=2, source=source2)
         layout = bokeh.layouts.layout([[slider], [slider_layer], [bokeh.layouts.row(plot1, plot)]],
                                       sizing_mode="scale_width")
+    if Y_r.shape[0] == 1:
+        layout = bokeh.layouts.row(plot1, plot)
     bpl.show(layout)
 
     return Y_r
@@ -1033,8 +1036,6 @@ def plot_shapes(Ab, dims, num_comps=15, size=(15, 15), comps_per_row=None,
                   cmap=cmap, interpolation='nearest')
         ax.axis('off')
     pl.subplots_adjust(0, 0, 1, 1, .06, .06)
-# pick thresholds
-
 
 def inspect_correlation_pnr(correlation_image_pnr, pnr_image):
     """

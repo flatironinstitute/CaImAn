@@ -188,7 +188,6 @@ class MotionCorrect(object):
         if self.use_cuda and not HAS_CUDA:
             print("pycuda is unavailable. Falling back to default FFT.")
 
-
     def motion_correct_rigid(self, template=None, save_movie=False):
         """
         Perform rigid motion correction
@@ -280,8 +279,7 @@ class MotionCorrect(object):
 
         Raise:
         -----
-            Exception('Template contains NaNs, something went wrong. Reconsider
-            the parameters')
+            Exception('Error: Template contains NaNs, Please review the parameters')
 
         """
         num_iter = 1
@@ -289,8 +287,6 @@ class MotionCorrect(object):
             print('generating template by rigid motion correction')
             self = self.motion_correct_rigid()
             self.total_template_els = self.total_template_rig.copy()
-#             pl.imshow(self.total_template_els)
-#             pl.pause(1)
         else:
             self.total_template_els = template
 
@@ -882,222 +878,6 @@ def bin_median(mat, window=10, exclude_nans=False):
 
     return img
 
-
-#%% with buffer
-#    import skimage
-#import cv2
-#
-# mean_online=0
-#
-# count=0
-# bin_size=10
-# count_part=0
-# max_shift_w=25
-# max_shift_h=25
-# multicolor=False
-# show_movie=False
-# square_size=(64,64)
-# fname='/mnt/ceph/neuro/labeling/k37_20160109_AM_150um_65mW_zoom2p2_00001_1-16/images/k37_20160109_AM_150um_65mW_zoom2p2_00001_00001.tif'
-# with skimage.external.tifffile.TiffFile(fname) as tf:
-#    if multicolor:
-#        n_frames_, h_i, w_i = (len(tf)/bin_size,)+tf[0].shape[:2]
-#    else:
-#        n_frames_, h_i, w_i = (len(tf)/bin_size,)+tf[0].shape
-#    buffer_mean=np.zeros((bin_size,h_i,w_i)).astype(np.float32)
-#    means_partials=np.zeros((np.ceil(len(tf)/bin_size)+1,h_i,w_i)).astype(np.float32)
-#
-#
-#    ms_w = max_shift_w
-#    ms_h = max_shift_h
-#    if multicolor:
-#        template=np.median(tf.asarray(slice(0,100,1))[:,:,:,0],0)
-#    else:
-#        template=np.median(tf.asarray(slice(0,100,1)),0)
-#
-#    to_remove=0
-#    if np.percentile(template, 8) < - 0.1:
-#        print('Pixels averages are too negative for template. Removing 1 percentile.')
-#        to_remove=np.percentile(template,1)
-#        template=template-to_remove
-#
-#    means_partials[count_part]=template
-#
-#    template=template[ms_h:h_i-ms_h,ms_w:w_i-ms_w].astype(np.float32)
-#    h, w = template.shape      # template width and height
-#
-#
-#    #% run algorithm, press q to stop it
-#    shifts=[];   # store the amount of shift in each frame
-#    xcorrs=[];
-#    for count,page in enumerate(tf):
-#
-#        if count%bin_size==0 and count>0:
-#
-#            print 'means_partials'
-#            count_part+=1
-#            means_partials[count_part]=np.mean(buffer_mean,0)
-# buffer_mean=np.zeros((bin_size,)+tf[0].shape).astype()
-#            template=np.mean(means_partials[:count_part],0)[ms_h:h_i-ms_h,ms_w:w_i-ms_w]
-#        if multicolor:
-#            buffer_mean[count%bin_size]=page.asarray()[:,:,0]-to_remove
-#        else:
-#            buffer_mean[count%bin_size]=page.asarray()-to_remove
-#
-#        res = cv2.matchTemplate(buffer_mean[count%bin_size],template,cv2.TM_CCORR_NORMED)
-#        top_left = cv2.minMaxLoc(res)[3]
-#
-#        avg_corr=np.mean(res);
-#        sh_y,sh_x = top_left
-#        bottom_right = (top_left[0] + w, top_left[1] + h)
-#
-#        if (0 < top_left[1] < 2 * ms_h-1) & (0 < top_left[0] < 2 * ms_w-1):
-#             # if max is internal, check for subpixel shift using gaussian
-#             # peak registration
-#             log_xm1_y = np.log(res[sh_x-1,sh_y]);
-#             log_xp1_y = np.log(res[sh_x+1,sh_y]);
-#             log_x_ym1 = np.log(res[sh_x,sh_y-1]);
-#             log_x_yp1 = np.log(res[sh_x,sh_y+1]);
-#             four_log_xy = 4*np.log(res[sh_x,sh_y]);
-#
-#             sh_x_n = -(sh_x - ms_h + (log_xm1_y - log_xp1_y) / (2 * log_xm1_y - four_log_xy + 2 * log_xp1_y))
-#             sh_y_n = -(sh_y - ms_w + (log_x_ym1 - log_x_yp1) / (2 * log_x_ym1 - four_log_xy + 2 * log_x_yp1))
-#        else:
-#             sh_x_n = -(sh_x - ms_h)
-#             sh_y_n = -(sh_y - ms_w)
-#
-#        M = np.float32([[1,0,sh_y_n],[0,1,sh_x_n]])
-#        buffer_mean[count%bin_size]= cv2.warpAffine(buffer_mean[count%bin_size],M,(w_i,h_i),flags=cv2.INTER_LINEAR)
-#        if show_movie:
-#            cv2.imshow('frame',(buffer_mean[count%bin_size])*1./300)
-#            cv2.waitKey(int(1./100*1000))
-#        shifts.append([sh_x_n,sh_y_n])
-#        xcorrs.append([avg_corr])
-#        print count
-#
-##        mean_online=mean_online*count*1./(count + 1) + 1./(count + 1)*buffer_mean[count]
-#
-#        count+=1
-
-#%% NON RIGID
-#import scipy
-# chone=cm.load('/Users/agiovann/Documents/MATLAB/Motion_Correction/M_FLUO_1.tif',fr=15)
-# chone=chone[:,8:-8,8:-8]
-# T=np.median(chone,axis=0)
-#Nbasis = 8
-#minIters = 5
-#
-# linear b-splines
-#knots = np.linspace(1,np.shape(T)[0],Nbasis+1);
-#knots = np.hstack([knots[0]-(knots[1]-knots[0]),knots,knots[-1]+(knots[-1]-knots[-2])]);
-#
-# weights=knots[:-2]
-# order=len(knots)-len(weights)-1
-#
-# x=range(T.shape[0])
-#
-#B = np.zeros((len(x),len(weights)))
-# for ii in range(len(knots)-order-1):
-#    B[:,ii] = bin(this.knots,ii,this.order,x);
-# end
-#
-# spl = fastBSpline(knots,knots(1:end-2))
-#
-#
-# B = spl.getBasis((1:size(T,1))');
-# Tnorm = T(:)-mean(T(:));
-# Tnorm = Tnorm/sqrt(sum(Tnorm.^2));
-#B = full(B);
-#
-# lambda = .0001*median(T(:))^2;
-# theI = (eye(Nbasis+1)*lambda);
-#
-# Bi = B(:,1:end-1).*B(:,2:end);
-# allBs = [B.^2,Bi];
-#[xi,yi] = meshgrid(1:size(T,2),1:size(T,1));
-
-#%%
-# def doLucasKanade_singleFrame(T, I, B, allBs, xi, yi, theI, Tnorm, nBasis=4, minIters=5):
-#
-#    maxIters = 50
-#    deltacorr = 0.0005
-#
-#    _ , w = np.shape(T)
-#
-#    #Find optimal image warp via Lucas Kanade
-#    c0 = mycorr(I(:), Tnorm);
-#
-#    for ii = 1:maxIters
-# %Displaced template
-##        Dx = repmat((B*dpx), 1, w);
-##        Dy = repmat((B*dpy), 1, w);
-#
-#        Id = interp2(I, xi, yi, 'linear', 0);
-#
-#        %gradient
-#        [dTx, dTy] = imgradientxy(Id, 'centraldifference');
-#        dTx(:, [1, ]) = 0;
-#        dTy([1, ], :) = 0;
-#
-#        if ii > minIters
-#            c = mycorr(Id(:), Tnorm);
-#            if c - c0 < deltacorr && ii > 1
-#                break;
-#
-#            c0 = c;
-#
-#
-#        del = T - Id;
-#
-#        %special trick for g (easy)
-#        gx = B'*sum(del.*dTx, 2);
-#        gy = B'*sum(del.*dTy, 2);
-#
-#        %special trick for H - harder
-#        Hx = constructH(allBs'*sum(dTx.^2,2), nBasis+1) + theI;
-#        Hy = constructH(allBs'*sum(dTy.^2,2), nBasis+1) + theI;
-#
-#        dpx = Hx\gx;
-#        dpy = Hy\gy;
-#
-#    return [Id, dpx, dpy]
-#
-##         dpx = dpx + damping*dpx_;
-##         dpy = dpy + damping*dpy_;
-#
-#
-#
-# function thec = mycorr(A,B)
-#    meanA = mean(A(:));
-#    A = A(:) - meanA;
-#    A = A / sqrt(sum(A.^2));
-#    thec = A'*B;
-#
-#
-# function H2 = constructH(Hd,ns)
-#%     H2d1 = Hd(1:ns)';
-#%     H2d2 = [Hd(ns+1:);0]';
-#%     H2d3 = [0;Hd(ns+1:)]';
-#%
-#%     if isa(Hd, 'gpuArray')
-#%         H2 = gpuArray.zeros(ns);
-#%     else
-#%         H2 = zeros(ns);
-#%
-#%
-#%     H2((0:ns-1)*ns+(1:ns)) = H2d1;
-#%     H2(((1:ns-1)*ns+(1:ns-1))) = H2d2(1:-1);
-#%     H2(((0:ns-2)*ns+(1:ns-1))+1) = H2d3(2:);
-#
-#    if isa(Hd, 'gpuArray')
-#        H2 = gpuArray.zeros(ns);
-#    else
-#        H2 = zeros(ns);
-#
-#
-#    H2((0:ns-1)*ns+(1:ns)) = Hd(1:ns)';
-#    H2(((1:ns-1)*ns+(1:ns-1))) = Hd(ns+1:)';
-#    H2(((0:ns-2)*ns+(1:ns-1))+1) = Hd(ns+1:)';
-#%%
 def process_movie_parallel(arg_in):
     #todo: todocument
     fname, fr, margins_out, template, max_shift_w, max_shift_h, remove_blanks, apply_smooth, save_hdf5 = arg_in
@@ -1119,7 +899,7 @@ def process_movie_parallel(arg_in):
     elif isinstance(fname, basestring):
         Yr = cm.load(fname, fr=fr)
     else:
-        raise Exception('Unkown input type:' + type_input)
+        raise Exception('Unknown input type:' + type_input)
 
     if Yr.ndim > 1:
         #        print('loaded')
@@ -1769,86 +1549,6 @@ def register_translation(src_image, target_image, upsample_factor=1,
 
 #%%
 
-
-#def apply_shifts_dft(src_freq, shifts, diffphase, is_freq=True, border_nan=False):
-#    """
-#    adapted from SIMA (https://github.com/losonczylab) and the
-#    scikit-image (http://scikit-image.org/) package.
-#
-#
-#    Unless otherwise specified by LICENSE.txt files in individual
-#    directories, all code is
-#
-#    Copyright (C) 2011, the scikit-image team
-#    All rights reserved.
-#
-#    Redistribution and use in source and binary forms, with or without
-#    modification, are permitted provided that the following conditions are
-#    met:
-#
-#     1. Redistributions of source code must retain the above copyright
-#        notice, this list of conditions and the following disclaimer.
-#     2. Redistributions in binary form must reproduce the above copyright
-#        notice, this list of conditions and the following disclaimer in
-#        the documentation and/or other materials provided with the
-#        distribution.
-#     3. Neither the name of skimage nor the names of its contributors may be
-#        used to endorse or promote products derived from this software without
-#        specific prior written permission.
-#
-#    THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
-#    IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-#    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-#    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
-#    INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-#    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-#    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-#    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-#    STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
-#    IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-#    POSSIBILITY OF SUCH DAMAGE.
-#    apply shifts using inverse dft
-#    src_freq: ndarray
-#        if is_freq it is fourier transform image else original image
-#    shifts: shifts to apply
-#    diffphase: comes from the register_translation output
-#
-#    """
-#    shifts = shifts[::-1]
-#    if not is_freq:
-#        src_freq = np.dstack([np.real(src_freq), np.imag(src_freq)])
-#        src_freq = fftn(src_freq, flags=cv2.DFT_COMPLEX_OUTPUT + cv2.DFT_SCALE)
-#        src_freq = src_freq[:, :, 0] + 1j * src_freq[:, :, 1]
-#        src_freq = np.array(src_freq, dtype=np.complex128, copy=False)
-#
-#    nc, nr = np.shape(src_freq)
-#    Nr = ifftshift(np.arange(-np.fix(old_div(nr, 2.)),
-#                             np.ceil(old_div(nr, 2.))))
-#    Nc = ifftshift(np.arange(-np.fix(old_div(nc, 2.)),
-#                             np.ceil(old_div(nc, 2.))))
-#    Nr, Nc = np.meshgrid(Nr, Nc)
-#
-#    Greg = src_freq * \
-#        np.exp(1j * 2 * np.pi *
-#               (-shifts[0] * 1. * Nr / nr - shifts[1] * 1. * Nc / nc))
-#    Greg = Greg.dot(np.exp(1j * diffphase))
-#    Greg = np.dstack([np.real(Greg), np.imag(Greg)])
-#    new_img = ifftn(Greg)[:, :, 0]
-#    if border_nan:
-#        max_w, max_h, min_w, min_h = 0, 0, 0, 0
-#        max_h, max_w = np.ceil(np.maximum(
-#            (max_h, max_w), shifts)).astype(np.int)
-#        min_h, min_w = np.floor(np.minimum(
-#            (min_h, min_w), shifts)).astype(np.int)
-#        new_img[:max_h, :] = np.nan
-#        if min_h < 0:
-#            new_img[min_h:, :] = np.nan
-#        new_img[:, :max_w] = np.nan
-#        if min_w < 0:
-#            new_img[:, min_w:] = np.nan
-#
-#    return new_img
-
 def apply_shifts_dft(src_freq, shifts, diffphase, is_freq=True, border_nan=False):
     """
     adapted from SIMA (https://github.com/losonczylab) and the
@@ -2035,16 +1735,12 @@ def create_weight_matrix_for_blending(img, overlaps, strides):
 #%%
 def low_pass_filter_space(img_orig, gSig_filt):
     ksize = tuple([(3 * i) // 2 * 2 + 1 for i in gSig_filt])
-    # return cv2.GaussianBlur(img_orig, ksize=ksize, sigmaX=gSig_filt[0],sigmaY=gSig_filt[1], borderType=cv2.BORDER_REFLECT) \
-    #                        - cv2.boxFilter(img_orig, ddepth=-1,ksize=ksize, borderType=cv2.BORDER_REFLECT, normalize = True)
     ker = cv2.getGaussianKernel(ksize[0], gSig_filt[0])
     ker2D = ker.dot(ker.T)
     nz = np.nonzero(ker2D >= ker2D[:, 0].max())
     zz = np.nonzero(ker2D < ker2D[:, 0].max())
     ker2D[nz] -= ker2D[nz].mean()
     ker2D[zz] = 0
-    #ker -= ker.mean()
-    # return cv2.sepFilter2D(np.array(img_orig,dtype=np.float32),-1,kernelX = ker, kernelY = ker, borderType=cv2.BORDER_REFLECT)
     return cv2.filter2D(np.array(img_orig, dtype=np.float32), -1, ker2D, borderType=cv2.BORDER_REFLECT)
 #%%
 
@@ -2101,22 +1797,13 @@ def tile_and_correct(img, template, strides, overlaps, max_shifts, newoverlaps=N
         Use skcuda.fft (if available). Default: False
     """
 
-
-#    if (add_to_movie != 0) and gSig_filt is not None:
-#        raise Exception('When gSig_filt or gSiz_filt are used add_to_movie must be zero!')
-
     img = img.astype(np.float64).copy()
     template = template.astype(np.float64).copy()
 
     if gSig_filt is not None:
 
         img_orig = img.copy()
-#        template_orig = template.copy()
         img = low_pass_filter_space(img_orig, gSig_filt)
-        #cv2.GaussianBlur(img_orig, ksize=ksize, sigmaX=gSig_filt[0],sigmaY=gSig_filt[1], borderType=cv2.BORDER_REFLECT) \
-#                            - cv2.boxFilter(img_orig, ddepth=-1,ksize=ksize, borderType=cv2.BORDER_REFLECT)
-#        template = cv2.GaussianBlur(template_orig, ksize=ksize, sigmaX=gSig_filt[0],sigmaY=gSig_filt[1], borderType=cv2.BORDER_REFLECT) \
-#                            - cv2.boxFilter(template_orig, ddepth=-1,ksize=ksize, borderType=cv2.BORDER_REFLECT)
 
     img = img + add_to_movie
     template = template + add_to_movie
@@ -2321,7 +2008,7 @@ def compute_metrics_motion_correction(fname, final_size_x, final_size_y, swap_di
     m = m[:, max_shft_x:max_shft_x_1, max_shft_y:max_shft_y_1]
     if np.sum(np.isnan(m)) > 0:
         print(m.shape)
-        raise Exception('Movie contains nan')
+        raise Exception('Movie contains NaN')
 
     print('Local correlations..')
     img_corr = m.local_correlations(eight_neighbours=True, swap_dim=swap_dim)
@@ -2471,7 +2158,7 @@ def motion_correct_batch_rigid(fname, max_shifts, dview=None, splits=56, num_spl
         add_to_movie = -np.min(template)
 
     if np.isnan(add_to_movie):
-        raise Exception('The movie contains nans. Nans are not allowed!')
+        raise Exception('The movie contains NaNs. NaNs are not allowed!')
     else:
         print('Adding to movie ' + str(add_to_movie))
 
@@ -2586,7 +2273,7 @@ def motion_correct_batch_pwrigid(fname, max_shifts, strides, overlaps, add_to_mo
         new_templ = template
 
     if np.isnan(add_to_movie):
-        raise Exception('The template contains nans. Nans are not allowed!')
+        raise Exception('The template contains NaNs. NaNs are not allowed!')
     else:
         print('Adding to movie ' + str(add_to_movie))
 

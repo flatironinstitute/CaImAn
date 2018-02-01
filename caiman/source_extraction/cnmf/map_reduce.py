@@ -320,10 +320,14 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride=4, gnb=1, dview=No
 
     # INITIALIZING
     nb_patch = options['patch_params']['nb']
-    C_tot = np.zeros((count, T))
-    YrA_tot = np.zeros((count, T))
-    F_tot = np.zeros((num_patches * nb_patch, T))
-    mask = np.zeros(d)
+    C_tot = np.zeros((count, T), dtype=np.float32)
+    if options['init_params']['center_psf']:
+        S_tot = np.zeros((count, T), dtype=np.float32)
+    else:
+         S_tot = None
+    YrA_tot = np.zeros((count, T), dtype=np.float32)
+    F_tot = np.zeros((num_patches * nb_patch, T), dtype=np.float32)
+    mask = np.zeros(d, dtype=np.uint8)
     sn_tot = np.zeros((d))
 
     f_tot, bl_tot, c1_tot, neurons_sn_tot, g_tot, idx_tot, id_patch_tot, shapes_tot = [
@@ -366,6 +370,8 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride=4, gnb=1, dview=No
                     idx_tot_A.append(idx_)
                     idx_ptr_A.append(len(idx_))
                     C_tot[count, :] = C[ii, :]
+                    if options['init_params']['center_psf']:
+                        S_tot[count, :] = S[ii, :]
                     YrA_tot[count, :] = YrA[ii, :]
                     id_patch_tot.append(patch_id)
                     count += 1
@@ -375,11 +381,14 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride=4, gnb=1, dview=No
             empty += 1
 
     print('Skipped %d Empty Patch', empty)
-    idx_tot_B = np.concatenate(idx_tot_B)
-    b_tot = np.concatenate(b_tot)
-    idx_ptr_B = np.cumsum(np.array(idx_ptr_B))
-    B_tot = scipy.sparse.csc_matrix(
-        (b_tot, idx_tot_B, idx_ptr_B), shape=(d, count_bgr))
+    if count_bgr > 0:
+        idx_tot_B = np.concatenate(idx_tot_B)
+        b_tot = np.concatenate(b_tot)
+        idx_ptr_B = np.cumsum(np.array(idx_ptr_B))
+        B_tot = scipy.sparse.csc_matrix(
+            (b_tot, idx_tot_B, idx_ptr_B), shape=(d, count_bgr))
+    else:
+        B_tot = scipy.sparse.csc_matrix((d, count_bgr), dtype=np.float32)
 
     idx_tot_A = np.concatenate(idx_tot_A)
     a_tot = np.concatenate(a_tot)
@@ -397,6 +406,7 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride=4, gnb=1, dview=No
     optional_outputs['c1_tot'] = c1_tot
     optional_outputs['neurons_sn_tot'] = neurons_sn_tot
     optional_outputs['g_tot'] = g_tot
+    optional_outputs['S_tot'] = S_tot
     optional_outputs['idx_tot'] = idx_tot
     optional_outputs['shapes_tot'] = shapes_tot
     optional_outputs['id_patch_tot'] = id_patch_tot
@@ -407,10 +417,15 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride=4, gnb=1, dview=No
     print("Generating background")
 
     Im = scipy.sparse.csr_matrix(
-        (old_div(1., mask), (np.arange(d), np.arange(d))))
-    A_tot = Im.dot(A_tot)
+        (1. / mask, (np.arange(d), np.arange(d))), dtype=np.float32)
 
-    if low_rank_background is None:
+    if not del_duplicates:
+        A_tot = Im.dot(A_tot)
+
+    if count_bgr == 0:
+        b = None
+        f = None
+    elif low_rank_background is None:
         b = Im.dot(B_tot)
         f = F_tot
         print("Leaving background components intact")

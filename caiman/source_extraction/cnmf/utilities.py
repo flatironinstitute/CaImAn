@@ -595,11 +595,11 @@ def detrend_df_f_auto(A, b, C, f, YrA=None, frames_window=1000, use_fast = False
     data_prct, val = df_percentile(F[:frames_window], axis = 1)
 
     if frames_window is None or frames_window > T:
-        Fd = [np.percentile(f, prctileMin) for f, prctileMin in
-              zip(F,data_prct)]
-        Df = [np.percentile(f, prctileMin) for f, prctileMin in
-              zip(B,data_prct)]
-        F_df = (F - Fd) / (Df[:, None] + Fd[:, None])
+        Fd = np.stack([np.percentile(f, prctileMin) for f, prctileMin in
+              zip(F,data_prct)])
+        Df = np.stack([np.percentile(f, prctileMin) for f, prctileMin in
+              zip(B,data_prct)])
+        F_df = (F - Fd[:, None]) / (Df[:, None] + Fd[:, None])
     else:
         if use_fast:
             Fd = np.stack([fast_prct_filt(f, level = prctileMin,
