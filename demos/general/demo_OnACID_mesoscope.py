@@ -8,6 +8,14 @@ Special thanks to Andreas Tolias and his lab at Baylor College of Medicine
 for sharing their data used in this demo.
 """
 
+import os
+import sys
+
+here = os.path.dirname(os.path.realpath(__file__))
+caiman_path = os.path.join(here, "..", "..")
+print("Caiman path detected as " + caiman_path)
+sys.path.append(caiman_path)
+
 import numpy as np
 try:
     if __IPYTHON__:
@@ -40,7 +48,7 @@ download_demo('Tolias_mesoscope_2.hdf5', fld_name)
 download_demo('Tolias_mesoscope_3.hdf5', fld_name)
 
 # folder where files are located
-folder_name = './example_movies/' + fld_name
+folder_name = os.path.join(caiman_path, 'example_movies', fld_name)
 extension = 'hdf5'                                  # extension of files
 # read all files to be processed
 fls = glob.glob(folder_name + '/*' + extension)
@@ -220,7 +228,7 @@ plot_contours_flag = False
 play_reconstr = False
 # flag for saving movie (file could be quite large..)
 save_movie = False
-movie_name = folder_name + '/output.avi'  # name of movie to be saved
+movie_name = os.path.join(folder_name, 'output.avi')  # name of movie to be saved
 resize_fact = 1.2                        # image resizing factor
 
 if online_files == 0:                    # check whether there are any additional files

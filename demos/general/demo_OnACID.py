@@ -9,6 +9,14 @@ complete demo check the script demo_OnACID_mesoscope.py
 @author: jfriedrich & epnev
 """
 
+import os
+import sys
+
+here = os.path.dirname(os.path.realpath(__file__))
+caiman_path = os.path.join(here, "..", "..")
+print("Caiman path detected as " + caiman_path)
+sys.path.append(caiman_path)
+
 import numpy as np
 import pylab as pl
 import caiman as cm
@@ -19,7 +27,7 @@ from scipy.special import log_ndtr
 
 #%% load data
 
-fname = './example_movies/demoMovie.tif'
+fname = os.path.join(caiman_path, 'example_movies', 'demoMovie.tif')
 Y = cm.load(fname).astype(np.float32)                   #
 # used as a background image
 Cn = cm.local_correlations(Y.transpose(1, 2, 0))
@@ -119,7 +127,7 @@ if use_CNN:
     thresh_cnn = 0.1
     from caiman.components_evaluation import evaluate_components_CNN
     predictions, final_crops = evaluate_components_CNN(
-        A, dims, gSig, model_name='use_cases/CaImAnpaper/cnn_model')
+        A, dims, gSig, model_name=os.path.join(caiman_path, 'use_cases', 'CaImAnpaper', 'cnn_model'))
     A_exclude, C_exclude = A[:, predictions[:, 1] <
                              thresh_cnn], C[predictions[:, 1] < thresh_cnn]
     A, C = A[:, predictions[:, 1] >=

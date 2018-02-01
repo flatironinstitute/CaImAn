@@ -8,6 +8,14 @@ from builtins import map
 from builtins import range
 from past.utils import old_div
 
+import os
+import sys
+
+here = os.path.dirname(os.path.realpath(__file__))
+caiman_path = os.path.join(here, "..", "..")
+print("Caiman path detected as " + caiman_path)
+sys.path.append(caiman_path)
+
 try:
     get_ipython().magic(u'load_ext autoreload')
     get_ipython().magic(u'autoreload 2')
@@ -24,6 +32,7 @@ from caiman.components_evaluation import estimate_components_quality_auto
 from caiman.motion_correction import motion_correct_oneP_rigid,motion_correct_oneP_nonrigid
 import os
 #%% Set parameters
+display_images = False # Set to true to show movies and images
 fnames = ['data_endoscope.tif']
 frate = 10  # movie frame rate
 gSig = 3   # gaussian width of a 2D gaussian kernel, which approximates a neuron
@@ -41,9 +50,7 @@ c, dview, n_processes = cm.cluster.setup_cluster(backend='local',  # use this on
                                                  single_thread=False)
 
 #%% download demo file
-base_folder = './example_movies/'
-download_demo(fnames[0])
-fnames = [os.path.abspath(os.path.join(base_folder, fnames[0]))]
+fnames = [download_demo(fnames[0], caiman_base=caiman_path)]
 filename_reorder = fnames
 
 #%% motion correction
@@ -198,17 +205,22 @@ cm.utils.visualization.view_patches_bar(Yr, cnm.A[:, idx_components], cnm.C[idx_
 #%%
 cm.stop_server(dview=dview)
 #%% denoised movie
-cm.movie(np.reshape(cnm.A.tocsc()[:, idx_components].dot(cnm.C[idx_components]) + cnm.b.dot(
-    cnm.f), dims + (-1,), order='F').transpose(2, 0, 1)).play(magnification=3, gain=1.)
+if display_images:
+    cm.movie(np.reshape(cnm.A.tocsc()[:, idx_components].dot(cnm.C[idx_components]) + cnm.b.dot(
+        cnm.f), dims + (-1,), order='F').transpose(2, 0, 1)).play(magnification=3, gain=1.)
 #%% only neurons
-cm.movie(np.reshape(cnm.A.tocsc()[:, idx_components].dot(
-    cnm.C[idx_components]), dims + (-1,), order='F').transpose(2, 0, 1)).play(magnification=3, gain=10.)
+if display_images:
+    cm.movie(np.reshape(cnm.A.tocsc()[:, idx_components].dot(
+        cnm.C[idx_components]), dims + (-1,), order='F').transpose(2, 0, 1)).play(magnification=3, gain=10.)
 #%% only the background
-cm.movie(np.reshape(cnm.b.dot(cnm.f), dims + (-1,),
-                    order='F').transpose(2, 0, 1)).play(magnification=3, gain=1.)
+if display_images:
+    cm.movie(np.reshape(cnm.b.dot(cnm.f), dims + (-1,),
+        order='F').transpose(2, 0, 1)).play(magnification=3, gain=1.)
 #%% residuals
-cm.movie(np.array(Y) - np.reshape(cnm.A.tocsc()[:, :].dot(cnm.C[:]) + cnm.b.dot(
-    cnm.f), dims + (-1,), order='F').transpose(2, 0, 1)).play(magnification=3, gain=10., fr=10)
-#%% eventuall, you can rerun the algorithm on the residuals
-plt.imshow(cm.movie(np.array(Y) - np.reshape(cnm.A.tocsc()[:, :].dot(cnm.C[:]) + cnm.b.dot(
-    cnm.f), dims + (-1,), order='F').transpose(2, 0, 1)).local_correlations(swap_dim=False))
+if display_images:
+    cm.movie(np.array(Y) - np.reshape(cnm.A.tocsc()[:, :].dot(cnm.C[:]) + cnm.b.dot(
+        cnm.f), dims + (-1,), order='F').transpose(2, 0, 1)).play(magnification=3, gain=10., fr=10)
+#%% eventually, you can rerun the algorithm on the residuals
+if display_images:
+    plt.imshow(cm.movie(np.array(Y) - np.reshape(cnm.A.tocsc()[:, :].dot(cnm.C[:]) + cnm.b.dot(
+        cnm.f), dims + (-1,), order='F').transpose(2, 0, 1)).local_correlations(swap_dim=False))

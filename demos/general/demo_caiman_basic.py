@@ -10,12 +10,23 @@ For a complete pipeline (including motion correction) check demo_pipeline.py
 
 Data courtesy of W. Yang, D. Peterka and R. Yuste (Columbia University)
 
+This demo is designed to be run under spyder or jupyter; its plotting functions
+are tailored for that environment.
+
 @authors: @agiovann and @epnev
 
 """
 
 from __future__ import print_function
 from builtins import range
+
+import os
+import sys
+
+here = os.path.dirname(os.path.realpath(__file__))
+caiman_path = os.path.join(here, "..", "..")
+print("Caiman path detected as " + caiman_path)
+sys.path.append(caiman_path)
 
 try:
     if __IPYTHON__:
