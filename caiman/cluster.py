@@ -3,8 +3,6 @@
 
 """ functions related to the creation and management of the cluster
 
-This file contains
-
 We put arrays on disk as raw bytes, extending along the first dimension.
 Alongside each array x we ensure the value x.dtype which stores the data type.
 
@@ -365,7 +363,7 @@ def stop_server(ipcluster='ipcluster', pdir=None, profile=None, dview=None):
             else:
                 print(line_out)
                 print(
-                    '**** Unrecognized Syntax in ipcluster output, waiting for server to stop anyways ****')
+                    '**** Unrecognized syntax in ipcluster output, waiting for server to stop anyways ****')
 
             proc.stderr.close()
 

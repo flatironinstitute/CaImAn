@@ -337,10 +337,6 @@ def correlation_image_ecobost(mov, chunk_size=1000, dview=None):
 
     sum_x, sum_sqx, sum_xy, num_frames = [np.sum(np.array(a), 0)
                                           for a in zip(*res)]
-    # REDUCE
-    # sum_x = chunk_sum # h x w
-    # sum_sqx = chunk_sqsum # h x w
-    # sum_xy = chunk_xysum # h x w x 8
     denom_factor = np.sqrt(num_frames * sum_sqx - sum_x ** 2)
     corrs = np.zeros(sum_xy.shape)
     for k in [0, 1, 2, 3]:
