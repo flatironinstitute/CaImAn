@@ -416,9 +416,10 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride=4, gnb=1, dview=No
 
     print("Generating background")
 
+    Im = scipy.sparse.csr_matrix(
+        (1. / mask, (np.arange(d), np.arange(d))), dtype=np.float32)
+
     if not del_duplicates:
-        Im = scipy.sparse.csr_matrix(
-            (1. / mask, (np.arange(d), np.arange(d))), dtype=np.float32)
         A_tot = Im.dot(A_tot)
 
     if count_bgr == 0:
