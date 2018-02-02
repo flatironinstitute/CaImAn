@@ -20,16 +20,61 @@ import numpy as np
 from .spatial import update_spatial_components, threshold_components
 from .temporal import update_temporal_components
 from .deconvolution import constrained_foopsi
+from .utilities import update_order_greedy
+
 #%%
+def merge_components_placeholder(params):
+    [Y, A,  b, C, f, S, sn_pix,
+     temporal_params, spatial_params,
+     thr, fast_merge, mx, bl, c1,
+     sn, g, subidx] = params
+    A, C, nr, merged_ROIs, S, bl,
+    c1, sn, g = merge_components(Y, A, b, C, f, S, sn_pix, temporal_params, spatial_params,
+                           dview=None, thr=thr, fast_merge=fast_merge, mx=mx, bl=bl,
+                           c1=c1, sn=sn, g=g)
+
+    return A, C, nr, merged_ROIs, S, bl, c1, sn, g
+#%%
+def merge_components_parallel(Y, A, b, C, f, S, sn_pix, temporal_params, spatial_params, dview=None, thr=0.85, fast_merge=True, mx=1000, bl=None, c1=None, sn=None, g=None):
+    parrllcomp, len_parrllcomp = update_order_greedy(A)
+
+    params = [[Y, A.tocsc()[:,subidx],  b, C[subidx], f, S[subidx], sn_pix,
+      temporal_params, spatial_params,
+      thr, fast_merge, mx, bl, c1,
+      sn, g]  for subidx in parrllcomp]
 
 
+    if 'multiprocessing' in str(type(dview)):
+        results = dview.map_async(
+            merge_components_placeholder, params).get(4294967)
+
+    elif dview is not None and platform.system() != 'Darwin':
+
+        results = dview.map_sync(
+                merge_components_placeholder, params)
+
+    else:
+        results = list(map(merge_components_placeholder, params))
+
+    A, C, nr, merged_ROIs, S, bl, c1, sn, g = [itertools.chain(*elm) for elm in zip(*results)]
+    A = scipy.sparse.hstack(A)
+    C = np.vstack(C)
+    S = np.vstack(S)
+    nr = np.sum(nr)
+
+    if dview is not None and not('multiprocessing' in str(type(dview))):
+        dview.results.clear()
+
+    return A, C, nr, merged_ROIs, S, bl, c1, sn, g, subidx
+
+#%%
 def merge_components(Y, A, b, C, f, S, sn_pix, temporal_params, spatial_params, dview=None, thr=0.85, fast_merge=True, mx=1000, bl=None, c1=None, sn=None, g=None):
     """ Merging of spatially overlapping components that have highly correlated temporal activity
 
     The correlation threshold for merging overlapping components is user specified in thr
 
 Parameters:
------------     
+-----------
 
 Y: np.ndarray
      residual movie after subtracting all found components (Y_res = Y - A*C - b*f) (d x T)
@@ -44,7 +89,7 @@ C: np.ndarray
      matrix of temporal components (K x T)
 
 f:     np.ndarray
-     temporal background (vector of length T)     
+     temporal background (vector of length T)
 
 S:     np.ndarray
      matrix of deconvolved activity (spikes) (K x T)
@@ -56,7 +101,7 @@ temporal_params: dictionary
      all the parameters that can be passed to the update_temporal_components function
 
 spatial_params: dictionary
-     all the parameters that can be passed to the update_spatial_components function     
+     all the parameters that can be passed to the update_spatial_components function
 
 thr:   scalar between 0 and 1
      correlation threshold for merging (default 0.85)
@@ -70,13 +115,13 @@ sn_pix:    nd.array
 fast_merge: bool
     if true perform rank 1 merging, otherwise takes best neuron
 
-bl:        
+bl:
      baseline for fluorescence trace for each row in C
-c1:        
+c1:
      initial concentration for each row in C
-g:         
+g:
      discrete time constant for each row in C
-sn:        
+sn:
      noise level for each row in C
 
 Returns:
@@ -92,7 +137,7 @@ nr:    int
     number of components after merging
 
 merged_ROIs: list
-    index of components that have been merged     
+    index of components that have been merged
 
 S:     np.ndarray
         matrix of merged deconvolved activity (spikes) (K x T)
