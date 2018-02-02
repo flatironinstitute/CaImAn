@@ -82,7 +82,7 @@ class CNMF(object):
                  update_num_comps=True, rval_thr=0.9, thresh_fitness_delta=-20,
                  thresh_fitness_raw=-40, thresh_overlap=.5,
                  max_comp_update_shape=np.inf, num_times_comp_updated=np.inf,
-                 batch_update_suff_stat=False, thresh_s_min=None, s_min=None,
+                 batch_update_suff_stat=False, s_min=None,
                  remove_very_bad_comps=False, border_pix=0, low_rank_background=True,
                  update_background_components=True, rolling_sum=True, rolling_length=100,
                  min_corr=.85, min_pnr=20, deconvolve_options_init=None, ring_size_factor=1.5,
@@ -312,7 +312,6 @@ class CNMF(object):
         self.minibatch_suff_stat = minibatch_suff_stat
         self.update_num_comps = update_num_comps
         self.rval_thr = rval_thr
-        self.thresh_s_min = thresh_s_min
         self.s_min = s_min
         self.thresh_fitness_delta = thresh_fitness_delta
         self.thresh_fitness_raw = thresh_fitness_raw
@@ -351,6 +350,7 @@ class CNMF(object):
                                     ring_size_factor=ring_size_factor, center_psf=center_psf,
                                     ssub_B=ssub_B, compute_B_3x=compute_B_3x, init_iter=init_iter)
         self.options['merging']['thr'] = merge_thresh
+        self.options['temporal_params']['s_min'] = s_min
 
     def fit(self, images):
         """
@@ -497,8 +497,8 @@ class CNMF(object):
                 self.b = self.b_in
                 self.f = self.f_in
 
-                self.A, self.C, self.YrA, self.b, self.f = normalize_AC(
-                    self.A, self.C, self.YrA, self.b, self.f)
+                self.A, self.C, self.YrA, self.b, self.f, self.neurons_sn = normalize_AC(
+                    self.A, self.C, self.YrA, self.b, self.f, self.neurons_sn)
                 return self
 
             print('update spatial ...')
@@ -509,6 +509,7 @@ class CNMF(object):
             if not self.skip_refinement:
                 # set this to zero for fast updating without deconvolution
                 options['temporal_params']['p'] = 0
+                options['temporal_params']['s_min'] = None
             else:
                 options['temporal_params']['p'] = self.p
             print('deconvolution ...')
@@ -532,6 +533,7 @@ class CNMF(object):
                     Yr, C=C, f=f, A_in=A, sn=sn, b_in=b, dview=self.dview, **options['spatial_params'])
                 # set it back to original value to perform full deconvolution
                 options['temporal_params']['p'] = self.p
+                options['temporal_params']['s_min'] = self.s_min
                 print('update temporal ...')
                 C, A, b, f, S, bl, c1, neurons_sn, g1, YrA, lam = update_temporal_components(
                     Yr, A, b, C, f, dview=self.dview, bl=None, c1=None, sn=None, g=None, **options['temporal_params'])
@@ -643,8 +645,8 @@ class CNMF(object):
         self.neurons_sn = neurons_sn
         self.dims = dims
 
-        self.A, self.C, self.YrA, self.b, self.f = normalize_AC(
-            self.A, self.C, self.YrA, self.b, self.f)
+        self.A, self.C, self.YrA, self.b, self.f, self.neurons_sn = normalize_AC(
+            self.A, self.C, self.YrA, self.b, self.f, self.neurons_sn)
 
         return self
 
@@ -740,7 +742,7 @@ class CNMF(object):
 
         if self.p:
             # if no parameter for calculating the spike size threshold is given, then use L1 penalty
-            if s_min is None and self.s_min is None and self.thresh_s_min is None:
+            if s_min is None and self.s_min is None:
                 use_L1 = True
             else:
                 use_L1 = False
@@ -749,10 +751,9 @@ class CNMF(object):
                 g=np.ravel(0.01) if self.p == 0 else (
                     np.ravel(g)[0] if g is not None else gam[0]),
                 lam=0 if not use_L1 else (l if lam is None else lam),
-                # if no explicit value for s_min,  use thresh_s_min * noise estimate * sqrt(1-gamma)
                 s_min=0 if use_L1 else (s_min if s_min is not None else
-                                        (self.s_min if self.s_min is not None else
-                                         (self.thresh_s_min * sn * np.sqrt(1 - np.sum(gam))))),
+                                        (self.s_min if self.s_min > 0 else
+                                         (-self.s_min * sn * np.sqrt(1 - np.sum(gam))))),
                 b=b if bl is None else bl,
                 g2=0 if self.p < 2 else (np.ravel(g)[1] if g is not None else gam[1]))
                 for gam, l, b, sn in zip(self.g2, self.lam2, self.bl2, self.neurons_sn2)]
@@ -927,7 +928,7 @@ class CNMF(object):
                 groups=self.groups, batch_update_suff_stat=self.batch_update_suff_stat, gnb=self.gnb,
                 sn=self.sn, g=np.mean(
                     self.g2) if self.p == 1 else np.mean(self.g2, 0),
-                thresh_s_min=self.thresh_s_min, s_min=self.s_min,
+                s_min=self.s_min,
                 Ab_dense=self.Ab_dense[:, :self.M] if self.use_dense else None,
                 oases=self.OASISinstances if self.p else None, N_samples_exceptionality=self.N_samples_exceptionality,
                 max_num_added=self.max_num_added, min_num_trial=self.min_num_trial,

@@ -430,7 +430,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
         f_in = resize(np.atleast_2d(f_in), [nb, T])
 
     if Ain.size > 0:
-        Cin = resize(Cin.astype(float), [K, T])
+        Cin = resize(Cin, [K, T])
 
         center = np.asarray(
             [center_of_mass(a.reshape(d, order='F')) for a in Ain.T])
@@ -1052,11 +1052,12 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
 
         # 1st iteration on decimated data
         print('Update Temporal')
+        o = options['temporal_params'].copy()
+        o['s_min'] = None
         C, A = caiman.source_extraction.cnmf.temporal.update_temporal_components(
-            B, spr.csc_matrix(A),
-            np.zeros((d1 * d2, 0), np.float32), C, np.zeros((0,
-                                                             total_frames), np.float32),
-            dview=None, bl=None, c1=None, sn=None, g=None, **options['temporal_params'])[:2]
+            B, spr.csc_matrix(A), np.zeros((d1 * d2, 0), np.float32),
+            C, np.zeros((0, total_frames), np.float32),
+            dview=None, bl=None, c1=None, sn=None, g=None, **o)[:2]
         print('Update Spatial')
         options['spatial_params']['dims'] = (d1, d2)
         A, _, C, _ = caiman.source_extraction.cnmf.spatial.update_spatial_components(
@@ -1069,8 +1070,10 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
 
         print('Merge Components')
         A, C = caiman.source_extraction.cnmf.merging.merge_components(
-            B, A, [], C, [], C, [], options['temporal_params'], options['spatial_params'],
+            B, A, [], C, [], C, [], o, options['spatial_params'],
             dview=None, thr=options['merging']['thr'], mx=np.Inf, fast_merge=True)[:2]
+        A = A.astype(np.float32)
+        C = C.astype(np.float32)
 
         print('Compute Background Again')
         # background according to ringmodel
@@ -1088,7 +1091,6 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
             B = Ys - A.dot(C)
         else:
             B = Y_ds.reshape((-1, T), order='F') - A.dot(C)
-        # B = -b0[:, None] - W.dot(B - b0[:, None])  # "-B"
         B = compute_B(b0, W, B)  # "-B"
         if not compute_B_3x:
             B0 = -B
@@ -1104,9 +1106,9 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
         B += Y.reshape((-1, T), order='F')  # "Y-B"
         C, A, b__, f__, S, bl__, c1__, neurons_sn__, g1__, YrA, lam__ = \
             caiman.source_extraction.cnmf.temporal.update_temporal_components(
-                B, spr.csc_matrix(A),
+                B, spr.csc_matrix(A, dtype=np.float32),
                 np.zeros((np.prod(dims), 0), np.float32), C, np.zeros((0, T), np.float32),
-                dview=None, bl=None, c1=None, sn=None, g=None, **options['temporal_params'])
+                dview=None, bl=None, c1=None, sn=None, g=None, **o)
         print('Update Spatial')
         options['spatial_params']['dims'] = dims
         options['spatial_params']['se'] = np.ones(
@@ -1118,10 +1120,10 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
         print('Update Temporal')
         C, A, b__, f__, S, bl, c1, neurons_sn, g1, YrA, lam__ = \
             caiman.source_extraction.cnmf.temporal.update_temporal_components(
-                B, spr.csc_matrix(A),
+                B, spr.csc_matrix(A, dtype=np.float32),
                 np.zeros((np.prod(dims), 0), np.float32), C, np.zeros((0, T), np.float32),
                 dview=None, bl=None, c1=None, sn=None, g=None, **options['temporal_params'])
-        A = A.astype(np.float32).toarray()
+        A = A.toarray()
 
         if compute_B_3x:
             K = C.shape[0]  # need to recompute K as some components may have been eliminated
@@ -1135,7 +1137,6 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
                               ring_size_factor * gSiz, ssub=ssub_B)
             B = (Ys if T > total_frames else Y_ds.reshape(
                 (-1, total_frames), order='F')) - A_ds.dot(C)
-            # B = b0[:, None] + W.dot(B - b0[:, None])
             B = -compute_B(b0, W, B)  # "B"
         else:
             B = B0
@@ -1144,7 +1145,6 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
     use_NMF = True
     if nb:
         if use_NMF:
-            # , init='random', random_state=0)
             model = NMF(n_components=nb, init='nndsvdar')
             b_in = model.fit_transform(np.maximum(B, 0))
             #f_in = model.components_.squeeze()
@@ -1237,7 +1237,7 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
                               'verbosity': None,
                               'solvers': None,
                               'optimize_g': 1,
-                              'penalty': 1}
+                              's_min': None}
     # parameters
     if swap_dim:
         d1, d2, total_frames = data.shape
@@ -1261,8 +1261,8 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
                     - cv2.boxFilter(img, ddepth=-1, ksize=ksize, borderType=1)
         else:
             for idx, img in enumerate(data_filtered):
-                data_filtered[idx, ] = cv2.GaussianBlur(img, ksize=ksize, sigmaX=gSig[
-                                                        0], sigmaY=gSig[1], borderType=1)
+                data_filtered[idx, ] = cv2.GaussianBlur(img, ksize=ksize, sigmaX=gSig[0],
+                                                        sigmaY=gSig[1], borderType=1)
 
     # compute peak-to-noise ratio
     data_filtered -= data_filtered.mean(axis=0)

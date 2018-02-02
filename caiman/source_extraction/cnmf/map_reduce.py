@@ -140,6 +140,7 @@ def cnmf_patches(args_in):
                         skip_refinement=options['patch_params']['skip_refinement'],
                         options_local_NMF=options['init_params']['options_local_NMF'],
                         normalize_init=options['init_params']['normalize_init'],
+                        s_min=options['temporal_params']['s_min'],
                         remove_very_bad_comps=options['patch_params']['remove_very_bad_comps'],
                         rolling_sum=options['init_params']['rolling_sum'],
                         rolling_length=options['init_params']['rolling_length'],
@@ -416,9 +417,10 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride=4, gnb=1, dview=No
 
     print("Generating background")
 
+    Im = scipy.sparse.csr_matrix(
+        (1. / mask, (np.arange(d), np.arange(d))), dtype=np.float32)
+
     if not del_duplicates:
-        Im = scipy.sparse.csr_matrix(
-            (1. / mask, (np.arange(d), np.arange(d))), dtype=np.float32)
         A_tot = Im.dot(A_tot)
 
     if count_bgr == 0:

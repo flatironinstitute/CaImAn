@@ -978,7 +978,7 @@ def compute_residuals(Yr_mmap_file, A_, b_, C_, f_, dview=None, block_size=1000,
 
 
 #%%
-def normalize_AC(A, C, YrA, b, f):
+def normalize_AC(A, C, YrA, b, f, neurons_sn):
     """ Normalize to unit norm A and b
     Parameters:
     ----------
@@ -1013,5 +1013,8 @@ def normalize_AC(A, C, YrA, b, f):
         b /= nB[np.newaxis, :]
         f *= nB[:, np.newaxis]
 
-    return csc_matrix(A), C, YrA, b, f
+    if neurons_sn is not None:
+        neurons_sn *= nA
+
+    return csc_matrix(A), C, YrA, b, f, neurons_sn
 #%%

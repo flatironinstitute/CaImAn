@@ -14,6 +14,15 @@ from builtins import str
 from builtins import map
 from builtins import range
 from past.utils import old_div
+
+import os
+import sys
+
+here = os.path.dirname(os.path.realpath(__file__))
+caiman_path = os.path.join(here, "..", "..")
+print("Caiman path detected as " + caiman_path)
+sys.path.append(caiman_path)
+
 import cv2
 import glob
 
@@ -34,7 +43,6 @@ except NameError:
 
 import caiman as cm
 import numpy as np
-import os
 import time
 import pylab as pl
 import psutil
@@ -57,8 +65,7 @@ from caiman.utils.utils import download_demo
 fname = [u'demo_behavior.h5']
 if fname[0] in ['demo_behavior.h5']:
     # TODO: todocument
-    download_demo(fname[0])
-    fname = [os.path.join('example_movies', fname[0])]
+    fname = [download_demo(fname[0], caiman_base=caiman_path)]
 # TODO: todocument
 m = cm.load(fname[0], is_behavior=True)
 

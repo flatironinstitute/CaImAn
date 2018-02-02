@@ -24,7 +24,7 @@ import sys
 
 def constrained_foopsi(fluor, bl=None,  c1=None, g=None,  sn=None, p=None, method='oasis', bas_nonneg=True,
                        noise_range=[.25, .5], noise_method='logmexp', lags=5, fudge_factor=1.,
-                       verbosity=False, solvers=None, optimize_g=0, penalty=1, **kwargs):
+                       verbosity=False, solvers=None, optimize_g=0, s_min=None, **kwargs):
     """ Infer the most likely discretized spike train underlying a fluorescence trace
 
     It relies on a noise constrained deconvolution approach
@@ -84,8 +84,11 @@ def constrained_foopsi(fluor, bl=None,  c1=None, g=None,  sn=None, p=None, metho
         Number of large, isolated events to consider for optimizing g.
         If optimize_g=0 (default) the provided or estimated g is not further optimized.
 
-    penalty : [optional] int, default 1, only applies to method 'oasis'
-        Sparsity penalty. 1: min |s|_1  0: min |s|_0
+    s_min : float, optional, only applies to method 'oasis'
+        Minimal non-zero activity within each bin (minimal 'spike size').
+        For negative values the threshold is |s_min| * sn * sqrt(1-g)
+        If None (default) the standard L1 penalty is used
+        If 0 the threshold is determined automatically such that RSS <= sn^2 T
 
     Returns:
     -------
@@ -97,8 +100,8 @@ def constrained_foopsi(fluor, bl=None,  c1=None, g=None,  sn=None, p=None, metho
     sp: ndarray of float
         Discretized deconvolved neural activity (spikes)
 
-        lam: float
-                Regularization parameter	
+    lam: float
+        Regularization parameter
     Raise:
     ------
     Exception("You must specify the value of p")
@@ -143,6 +146,7 @@ def constrained_foopsi(fluor, bl=None,  c1=None, g=None,  sn=None, p=None, metho
 
         elif method == 'oasis':
             from caiman.source_extraction.cnmf.oasis import constrained_oasisAR1
+            penalty = 1 if s_min is None else 0
             if p == 1:
                 if bl is None:
                     # Infer the most likely discretized spike train underlying an AR(1) fluorescence trace
@@ -150,7 +154,7 @@ def constrained_foopsi(fluor, bl=None,  c1=None, g=None,  sn=None, p=None, metho
                     # min |s|_1 subject to |c-y|^2 = sn^2 T and s_t = c_t-g c_{t-1} >= 0
                     c, sp, bl, g, lam = constrained_oasisAR1(
                         fluor.astype(np.float32), g[0], sn, optimize_b=True, b_nonneg=bas_nonneg,
-                        optimize_g=optimize_g, penalty=penalty)
+                        optimize_g=optimize_g, penalty=penalty, s_min=0 if s_min is None else s_min)
                 else:
                     c, sp, _, g, lam = constrained_oasisAR1(
                         (fluor - bl).astype(np.float32), g[0], sn, optimize_b=False, penalty=penalty)
@@ -1142,7 +1146,7 @@ def deconvolve_ca(y=[], options=None, **args):
                    'verbosity': None,
                    'solvers': None,
                    'optimize_g': 1,
-                   'penalty': 1}
+                   's_min': None}
 
     # update options
     for key in args.keys():
@@ -1169,7 +1173,7 @@ def deconvolve_ca(y=[], options=None, **args):
                                options['verbosity'],
                                options['solvers'],
                                options['optimize_g'],
-                               options['penalty'])
+                               options['s_min'])
         options['g'] = g
         options['sn'] = sn
         options['sn'] = lam_

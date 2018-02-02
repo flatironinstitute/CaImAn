@@ -67,9 +67,6 @@ def load_memmap(filename, mode='r'):
         return (Yr, (d1, d2), T) if d3 == 1 else (Yr, (d1, d2, d3), T)
     else:
         raise Exception('Not implemented consistently')
-        # Yr = np.load(filename, mmap_mode='r')
-        # return Yr, None, None
-
 
 #%%
 def save_memmap_each(fnames, dview=None, base_name=None, resize_fact=(1, 1, 1), remove_init=0,
@@ -368,8 +365,6 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
         else:
             fname_new = filenames
 
-
-
         fname_new = cm.save_memmap_join(fname_new, base_name=base_name, dview=dview, n_chunks=n_chunks)
 
     else:
@@ -380,9 +375,6 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
                 print(f)
 
             if is_3D:
-                #import tifffile
-                #            print("Using tifffile library instead of skimage because of  3D")
-
                 Yr = f if not(isinstance(f, basestring)) else tifffile.imread(f)
                 if idx_xy is None:
                     Yr = Yr[remove_init:]
@@ -392,12 +384,9 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
                     Yr = Yr[remove_init:, idx_xy[0], idx_xy[1], idx_xy[2]]
 
             else:
-
                 Yr = cm.load(f, fr=1, in_memory=True) if (isinstance(f, basestring) or isinstance(f,list))  else cm.movie(f)
-
                 if xy_shifts is not None:
                     Yr = Yr.apply_shifts(xy_shifts, interpolation='cubic', remove_blanks=False)
-
                 if idx_xy is None:
                     if remove_init > 0:
                         Yr = Yr[remove_init:]
@@ -408,7 +397,6 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
                     Yr = np.array(Yr)[remove_init:, idx_xy[0], idx_xy[1], idx_xy[2]]
 
             if border_to_0 > 0:
-
                 min_mov = Yr.calc_min()
                 Yr[:, :border_to_0, :] = min_mov
                 Yr[:, :, :border_to_0] = min_mov
@@ -417,10 +405,8 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
 
             fx, fy, fz = resize_fact
             if fx != 1 or fy != 1 or fz != 1:
-
                 if 'movie' not in str(type(Yr)):
                     Yr = cm.movie(Yr, fr=1)
-
                 Yr = Yr.resize(fx=fx, fy=fy, fz=fz)
 
             T, dims = Yr.shape[0], Yr.shape[1:]
@@ -447,7 +433,6 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
                                     shape=(np.prod(dims), Ttot + T), order=order)
 
                 big_mov[:, Ttot:Ttot + T] = Yr
-#                big_mov.flush()
                 del big_mov
 
             sys.stdout.flush()

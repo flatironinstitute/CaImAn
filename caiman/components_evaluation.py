@@ -216,7 +216,7 @@ def classify_components_ep(Y, A, C, b, f, Athresh=0.1, Npeaks=5, tB=-3, tA=10, t
 
             if len(indexes) == 0:
                 indexes = set(LOC[i])
-                print('Neuron:' + str(i) + ' includes overlaping spiking neurons')
+                print('Neuron:' + str(i) + ' includes overlapping spiking neurons')
 
             indexes = np.array(list(indexes)).astype(np.int)
             px = np.where(atemp > 0)[0]
@@ -422,8 +422,6 @@ def evaluate_components_placeholder(params):
     import caiman as cm
     fname, traces, A, C, b, f, final_frate, remove_baseline, N, robust_std, Athresh, Npeaks, thresh_C = params
     Yr, dims, T = cm.load_memmap(fname)
-    #d1, d2 = dims
-    #images = np.reshape(Yr.T, [T] + list(dims), order='F')
     Y = np.reshape(Yr, dims + (T,), order='F')
     fitness_raw, fitness_delta, _, _, r_values, significant_samples = \
         evaluate_components(Y, traces, A, C, b, f, final_frate, remove_baseline=remove_baseline,
@@ -521,51 +519,12 @@ def estimate_components_quality_auto(Y, A, C, b, f, YrA, frate, decay_time, gSig
 
     comp_SNR = -norm.ppf(np.exp(fitness_raw / N_samples))
 
-#    comp_SNR = scipy.special.log_ndtr(
-#        -fitness_raw) * N_samples
-
     idx_components, idx_components_bad, cnn_values = select_components_from_metrics(
                 A, dims, gSig, r_values,  comp_SNR, r_values_min,
                 r_values_lowest, min_SNR, min_std_reject,
                 thresh_cnn_min, thresh_cnn_lowest, use_cnn, gSig_range)
 
-
-#    idx_components_r = np.where((r_values >= r_values_min))[0]
-#    idx_components_raw = np.where(fitness_raw < thresh_fitness_raw)[0]
-
-#    idx_components = []
-#    if use_cnn:
-#        neuron_class = 1  # normally 1
-#        if gSig_range is None:
-#            predictions, _ = evaluate_components_CNN(A, dims, gSig)
-#            predictions = predictions[:, neuron_class]
-#        else:
-#            predictions = np.zeros(A.shape[-1])
-#            for size_range in gSig_range:
-#                predictions = np.maximum(predictions,
-#                                         evaluate_components_CNN(A, dims, size_range)[0][:, neuron_class])
-#
-#
-#        idx_components_cnn = np.where(
-#            predictions >= thresh_cnn_min)[0]
-#        bad_comps = np.where((r_values <= r_values_lowest) | (fitness_raw >= thresh_fitness_raw_reject) | (
-#            predictions <= thresh_cnn_lowest))[0]
-#        idx_components = np.union1d(idx_components, idx_components_cnn)
-#        cnn_values = predictions
-#    else:
-#        bad_comps = np.where((r_values <= r_values_lowest) | (
-#            fitness_raw >= thresh_fitness_raw_reject))[0]
-#        cnn_values = []
-#
-#    idx_components = np.union1d(idx_components, idx_components_r)
-#    idx_components = np.union1d(idx_components, idx_components_raw)
-#    #idx_components = np.union1d(idx_components, idx_components_delta)
-#    idx_components = np.setdiff1d(idx_components, bad_comps)
-#    idx_components_bad = np.setdiff1d(
-#        list(range(len(r_values))), idx_components)
-
     return idx_components, idx_components_bad, comp_SNR, r_values, cnn_values
-#
 
 #%%
 def select_components_from_metrics(A, dims, gSig, r_values,  comp_SNR, r_values_min,
@@ -604,7 +563,6 @@ def select_components_from_metrics(A, dims, gSig, r_values,  comp_SNR, r_values_
 
     idx_components = np.union1d(idx_components, idx_components_r)
     idx_components = np.union1d(idx_components, idx_components_raw)
-    #idx_components = np.union1d(idx_components, idx_components_delta)
     idx_components = np.setdiff1d(idx_components, bad_comps)
     idx_components_bad = np.setdiff1d(
         list(range(len(r_values))), idx_components)
@@ -723,10 +681,8 @@ def estimate_components_quality(traces, Y, A, C, b, f, final_frate=30, Npeaks=10
                 erfc_raw = np.concatenate([erfc_raw, erfc_raw__], axis=0)
                 erfc_delta = np.concatenate([erfc_delta, erfc_delta__], axis=0)
 
-    idx_components_r = np.where(r_values >= r_values_min)[
-        0]  # threshold on space consistency
-    idx_components_raw = np.where(fitness_raw < fitness_min)[
-        0]  # threshold on time variability
+    idx_components_r = np.where(r_values >= r_values_min)[0]     # threshold on space consistency
+    idx_components_raw = np.where(fitness_raw < fitness_min)[0]  # threshold on time variability
     # threshold on time variability (if nonsparse activity)
     idx_components_delta = np.where(fitness_delta < fitness_delta_min)[0]
 
