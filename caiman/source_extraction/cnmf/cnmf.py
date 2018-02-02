@@ -85,10 +85,10 @@ class CNMF(object):
                  batch_update_suff_stat=False, s_min=None,
                  remove_very_bad_comps=False, border_pix=0, low_rank_background=True,
                  update_background_components=True, rolling_sum=True, rolling_length=100,
-                 min_corr=.85, min_pnr=20, deconvolve_options_init=None, ring_size_factor=1.5,
+                 min_corr=.85, min_pnr=20, ring_size_factor=1.5,
                  center_psf=False, use_dense=True, deconv_flag=True,
                  simultaneously=False, n_refit=0, del_duplicates=False, N_samples_exceptionality=5,
-                 max_num_added=1, min_num_trial=2, thresh_CNN_noisy=0.99, 
+                 max_num_added=1, min_num_trial=2, thresh_CNN_noisy=0.99,
                  ssub_B=2, compute_B_3x=False, init_iter=2):
         """
         Constructor of the CNMF method
@@ -206,9 +206,6 @@ class CNMF(object):
         min_pnr: float
             minimal peak  to noise ratio for 1-photon imaging initialization
 
-         deconvolve_options: dict
-            all options for deconvolving temporal traces, in general just pass options['temporal_params']
-
         ring_size_factor: float
             it's the ratio between the ring radius and neuron diameters.
 
@@ -242,9 +239,9 @@ class CNMF(object):
 
         min_num_trial : int, optional
             minimum numbers of attempts to include a new components in OnACID
-            
+
         thresh_CNN_noisy: float
-            threshold on the per patch CNN classifier for online algorithm  
+            threshold on the per patch CNN classifier for online algorithm
 
         ssub_B: int, optional
             downsampleing factor for 1-photon imaging background computation
@@ -330,7 +327,6 @@ class CNMF(object):
 
         self.min_corr = min_corr
         self.min_pnr = min_pnr
-        self.deconvolve_options_init = deconvolve_options_init
         self.ring_size_factor = ring_size_factor
         self.center_psf = center_psf
         self.nb_patch = nb_patch
@@ -345,8 +341,9 @@ class CNMF(object):
                                     options_local_NMF=options_local_NMF,
                                     remove_very_bad_comps=remove_very_bad_comps,
                                     low_rank_background=low_rank_background,
-                                    update_background_components=update_background_components, rolling_sum=self.rolling_sum,
-                                    min_corr=min_corr, min_pnr=min_pnr, deconvolve_options_init=deconvolve_options_init,
+                                    update_background_components=update_background_components,
+                                    rolling_sum=self.rolling_sum,
+                                    min_corr=min_corr, min_pnr=min_pnr,
                                     ring_size_factor=ring_size_factor, center_psf=center_psf,
                                     ssub_B=ssub_B, compute_B_3x=compute_B_3x, init_iter=init_iter)
         self.options['merging']['thr'] = merge_thresh
@@ -509,7 +506,6 @@ class CNMF(object):
             if not self.skip_refinement:
                 # set this to zero for fast updating without deconvolution
                 options['temporal_params']['p'] = 0
-                options['temporal_params']['s_min'] = None
             else:
                 options['temporal_params']['p'] = self.p
             print('deconvolution ...')
@@ -533,7 +529,6 @@ class CNMF(object):
                     Yr, C=C, f=f, A_in=A, sn=sn, b_in=b, dview=self.dview, **options['spatial_params'])
                 # set it back to original value to perform full deconvolution
                 options['temporal_params']['p'] = self.p
-                options['temporal_params']['s_min'] = self.s_min
                 print('update temporal ...')
                 C, A, b, f, S, bl, c1, neurons_sn, g1, YrA, lam = update_temporal_components(
                     Yr, A, b, C, f, dview=self.dview, bl=None, c1=None, sn=None, g=None, **options['temporal_params'])

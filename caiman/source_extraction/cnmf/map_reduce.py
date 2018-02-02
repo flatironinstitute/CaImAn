@@ -145,7 +145,6 @@ def cnmf_patches(args_in):
                         rolling_sum=options['init_params']['rolling_sum'],
                         rolling_length=options['init_params']['rolling_length'],
                         min_corr=options['init_params']['min_corr'], min_pnr=options['init_params']['min_pnr'],
-                        deconvolve_options_init=options['init_params']['deconvolve_options_init'],
                         ring_size_factor=options['init_params']['ring_size_factor'],
                         center_psf=options['init_params']['center_psf'],
                         ssub_B=options['init_params']['ssub_B'],

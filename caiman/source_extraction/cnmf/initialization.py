@@ -29,7 +29,7 @@ from skimage.transform import resize as resize_sk
 import scipy.sparse as spr
 import scipy
 import caiman
-from caiman.source_extraction.cnmf.deconvolution import deconvolve_ca
+from caiman.source_extraction.cnmf.deconvolution import constrained_foopsi
 from caiman.source_extraction.cnmf.pre_processing import get_noise_fft
 from caiman.source_extraction.cnmf.spatial import circular_constraint
 import cv2
@@ -172,8 +172,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
                           kernel=None, use_hals=True, normalize_init=True, img=None, method='greedy_roi',
                           max_iter_snmf=500, alpha_snmf=10e2, sigma_smooth_snmf=(.5, .5, .5),
                           perc_baseline_snmf=20, options_local_NMF=None, rolling_sum=False,
-                          rolling_length=100, sn=None, options_total=None,
-                          min_corr=0.8, min_pnr=10, deconvolve_options_init=None,
+                          rolling_length=100, sn=None, options_total=None, min_corr=0.8, min_pnr=10,
                           ring_size_factor=1.5, center_psf=False, ssub_B=2, compute_B_3x=True, init_iter=2):
     """
     Initalize components
@@ -245,9 +244,6 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
 
     min_pnr: float
         minimum peak-to-noise ratio for selecting a seed pixel.
-
-    deconvolve_options: dict
-        all options for deconvolving temporal traces, in general just pass options['temporal_params']
 
     ring_size_factor: float
         it's the ratio between the ring radius and neuron diameters.
@@ -351,9 +347,8 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
     elif method == 'corr_pnr':
         Ain, Cin, _, b_in, f_in, extra_1p = greedyROI_corr(
             Y, Y_ds, max_number=K, gSiz=gSiz[0], gSig=gSig[0], min_corr=min_corr, min_pnr=min_pnr,
-            deconvolve_options=deconvolve_options_init, ring_size_factor=ring_size_factor,
-            center_psf=center_psf, options=options_total, sn=sn, nb=nb, ssub=ssub,
-            ssub_B=ssub_B, compute_B_3x=compute_B_3x, init_iter=init_iter)
+            ring_size_factor=ring_size_factor, center_psf=center_psf, options=options_total,
+            sn=sn, nb=nb, ssub=ssub, ssub_B=ssub_B, compute_B_3x=compute_B_3x, init_iter=init_iter)
 
     elif method == 'sparse_nmf':
         Ain, Cin, _, b_in, f_in = sparseNMF(
@@ -843,7 +838,8 @@ def imblur(Y, sig=5, siz=11, nDimBlur=None, kernel=None, opencv=True):
         else:
             for i in range(nDimBlur):
                 h = np.exp(
-                    old_div(-np.arange(-np.floor(old_div(siz[i], 2)), np.floor(old_div(siz[i], 2)) + 1)**2, (2 * sig[i]**2)))
+                    old_div(-np.arange(-np.floor(old_div(siz[i], 2)),
+                                       np.floor(old_div(siz[i], 2)) + 1)**2, (2 * sig[i]**2)))
                 h /= np.sqrt(h.dot(h))
                 shape = [1] * len(Y.shape)
                 shape[i] = -1
@@ -942,7 +938,7 @@ def hals(Y, A, C, b, f, bSiz=3, maxIter=5):
 
 @profile
 def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=True,
-                   min_corr=None, min_pnr=None, seed_method='auto', deconvolve_options=None,
+                   min_corr=None, min_pnr=None, seed_method='auto',
                    min_pixel=3, bd=0, thresh_init=2, ring_size_factor=None, nb=1, options=None,
                    sn=None, save_video=False, video_name='initialization.mp4', ssub=1,
                    ssub_B=2, compute_B_3x=True, init_iter=2):
@@ -960,7 +956,6 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
         min_corr:
         min_pnr:
         seed_method:
-        deconvolve_options:
         min_pixel:
         bd:
         thresh_init:
@@ -991,11 +986,15 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
             'Either min_corr or min_pnr are None. Both of them must be real numbers.')
 
     print('One photon initialization..')
+    o = options['temporal_params'].copy()
+    o['s_min'] = None
+    if o['p'] > 1:
+        o['p'] = 1
     A, C, _, _, center = init_neurons_corr_pnr(
         Y_ds, max_number=max_number, gSiz=gSiz, gSig=gSig,
         center_psf=center_psf, min_corr=min_corr,
         min_pnr=min_pnr * np.sqrt(np.size(Y) / np.size(Y_ds)),
-        seed_method=seed_method, deconvolve_options=deconvolve_options,
+        seed_method=seed_method, deconvolve_options=o,
         min_pixel=min_pixel, bd=bd, thresh_init=thresh_init,
         swap_dim=True, save_video=save_video, video_name=video_name)
 
@@ -1044,7 +1043,7 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
                     (B - A.dot(C)).reshape(Y_ds.shape, order='F'),
                     max_number=max_number, gSiz=gSiz, gSig=gSig,
                     center_psf=center_psf, min_corr=min_corr, min_pnr=min_pnr,
-                    seed_method=seed_method, deconvolve_options=deconvolve_options,
+                    seed_method=seed_method, deconvolve_options=o,
                     min_pixel=min_pixel, bd=bd, thresh_init=thresh_init,
                     swap_dim=True, save_video=save_video, video_name=video_name)
                 A = np.concatenate((A, A_R), 1)
@@ -1052,8 +1051,6 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
 
         # 1st iteration on decimated data
         print('Update Temporal')
-        o = options['temporal_params'].copy()
-        o['s_min'] = None
         C, A = caiman.source_extraction.cnmf.temporal.update_temporal_components(
             B, spr.csc_matrix(A), np.zeros((d1 * d2, 0), np.float32),
             C, np.zeros((0, total_frames), np.float32),
@@ -1221,24 +1218,6 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
             center localtions of all neurons
     """
 
-    if deconvolve_options is None:
-        deconvolve_options = {'bl': None,
-                              'c1': None,
-                              'g': None,
-                              'sn': None,
-                              'p': 1,
-                              'approach': 'constrained foopsi',
-                              'method': 'oasis',
-                              'bas_nonneg': True,
-                              'noise_range': [.25, .5],
-                              'noise_method': 'logmexp',
-                              'lags': 5,
-                              'fudge_factor': 1.0,
-                              'verbosity': None,
-                              'solvers': None,
-                              'optimize_g': 1,
-                              's_min': None}
-    # parameters
     if swap_dim:
         d1, d2, total_frames = data.shape
         data_raw = np.transpose(data, [2, 0, 1])
@@ -1446,10 +1425,10 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
                 center[:, num_neurons] = [c, r]
                 Ain[num_neurons, r_min:r_max, c_min:c_max] = ai
                 Cin_raw[num_neurons] = ci_raw.squeeze()
-                if deconvolve_options:
+                if deconvolve_options['p']:
                     # deconvolution
-                    ci, si, tmp_options, baseline, c1 = \
-                        deconvolve_ca(ci_raw, deconvolve_options)
+                    ci, baseline, c1, _, _, si, _ = \
+                        constrained_foopsi(ci_raw, **deconvolve_options)
                     Cin[num_neurons] = ci
                     Sin[num_neurons] = si
                 else:
@@ -1498,11 +1477,9 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
                     data_filtered[:, r2_min:r2_max, c2_min:c2_max] -= \
                         ai_filtered[np.newaxis, ...] * \
                         ci[..., np.newaxis, np.newaxis]
-                    data_filtered_box = data_filtered[:,
-                                                      r2_min:r2_max, c2_min:c2_max].copy()
+                    data_filtered_box = data_filtered[:, r2_min:r2_max, c2_min:c2_max].copy()
                 else:
-                    data_filtered_box = data_raw[:,
-                                                 r2_min:r2_max, c2_min:c2_max].copy()
+                    data_filtered_box = data_raw[:, r2_min:r2_max, c2_min:c2_max].copy()
 
                 # update PNR image
                 data_filtered_box -= data_filtered_box.mean(axis=0)
