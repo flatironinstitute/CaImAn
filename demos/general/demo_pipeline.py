@@ -21,6 +21,7 @@ from builtins import range
 import os
 import sys
 
+# This is code to detect where CaImAn was installed and modify the import path to suit.
 try:
     __file__ # Normal python sets this, many python IDEs do not
     # Next, step back from this demo to the caiman dir
