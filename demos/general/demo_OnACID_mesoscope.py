@@ -50,6 +50,7 @@ import cv2
 from caiman.utils.visualization import plot_contours
 import glob
 from caiman.source_extraction.cnmf.online_cnmf import bare_initialization
+from caiman.source_extraction.cnmf.utilities import detrend_df_f_auto
 from copy import deepcopy
 
 #%%  download and list all files to be processed
