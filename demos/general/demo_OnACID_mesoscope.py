@@ -290,13 +290,8 @@ plot_contours_flag = False
 # flag for showing video with results online (turn off flags for improving speed)
 play_reconstr = True
 # flag for saving movie (file could be quite large..)
-<<<<<<< HEAD
 save_movie = True
-movie_name = folder_name + '/sniper_meso_0.995.avi'  # name of movie to be saved
-=======
-save_movie = False
-movie_name = os.path.join(folder_name, 'output.avi')  # name of movie to be saved
->>>>>>> df04ef0a07c206193a9c7e7fac37be6adf8966de
+movie_name = os.path.join(folder_name, 'sniper_meso_0.995.avi')  # name of movie to be saved
 resize_fact = 1.2                        # image resizing factor
 
 if online_files == 0:                    # check whether there are any additional files
