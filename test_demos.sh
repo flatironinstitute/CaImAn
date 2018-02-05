@@ -28,10 +28,12 @@ fi
 export MPLCONFIG=ps
 
 for demo in demos/general/*; do
-	echo Testing demo [$demo]
 	if [ $demo == "demos/general/demo_behavior.py" ]; then
-		echo "	Skipping tests: This is an interactive demo"
+		echo "	Skipping tests on $demo: This is interactive"
+	elif [ -d $demo ]; then
+		true
 	else
+		echo Testing demo [$demo]
 		xvfb-run -s "-screen 0 800x600x16" python $demo
 		if [ $? != 0 ]; then
 			echo "	Tests failed with returncode $?"
