@@ -624,7 +624,7 @@ class CNMF(object):
                         thr=self.merge_thresh, mx=np.Inf)
 
                 print("update temporal")
-                C, A, b, f, S, bl, c1, neurons_sn, g1, YrA, lam = update_temporal_components(
+                C, A, b, f, S, bl, c1, neurons_sn, g1, YrA, self.lam = update_temporal_components(
                     Yr, A, b, C, f, dview=self.dview, bl=None, c1=None, sn=None, g=None, **options['temporal_params'])
 
         self.A = A

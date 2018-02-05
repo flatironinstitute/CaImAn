@@ -50,6 +50,7 @@ import cv2
 from caiman.utils.visualization import plot_contours
 import glob
 from caiman.source_extraction.cnmf.online_cnmf import bare_initialization
+from caiman.source_extraction.cnmf.utilities import detrend_df_f_auto
 from copy import deepcopy
 
 #%%  download and list all files to be processed
@@ -290,13 +291,8 @@ plot_contours_flag = False
 # flag for showing video with results online (turn off flags for improving speed)
 play_reconstr = True
 # flag for saving movie (file could be quite large..)
-<<<<<<< HEAD
 save_movie = True
-movie_name = folder_name + '/sniper_meso_0.995.avi'  # name of movie to be saved
-=======
-save_movie = False
-movie_name = os.path.join(folder_name, 'output.avi')  # name of movie to be saved
->>>>>>> df04ef0a07c206193a9c7e7fac37be6adf8966de
+movie_name = os.path.join(folder_name, 'sniper_meso_0.995.avi')  # name of movie to be saved
 resize_fact = 1.2                        # image resizing factor
 
 if online_files == 0:                    # check whether there are any additional files
@@ -435,5 +431,3 @@ view_patches_bar(Yr, scipy.sparse.coo_matrix(A.tocsc()[:, :]), C[:, :], b, f,
                  dims[0], dims[1], YrA=noisyC[cnm2.gnb:cnm2.M] - C, img=Cn)
 
 #%%
-
-df_f = detrend_df_f_auto(A,b,C,f,YrA)
