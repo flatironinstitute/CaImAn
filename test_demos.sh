@@ -35,8 +35,10 @@ for demo in demos/general/*; do
 	else
 		echo Testing demo [$demo]
 		xvfb-run -s "-screen 0 800x600x16" python $demo
-		if [ $? != 0 ]; then
-			echo "	Tests failed with returncode $?"
+		err=$?
+		if [ $err != 0 ]; then
+			echo "	Tests failed with returncode $err"
+			echo "	Failed test is $demo"
 			exit 2
 		fi
 		echo "=========================================="

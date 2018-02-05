@@ -431,5 +431,3 @@ view_patches_bar(Yr, scipy.sparse.coo_matrix(A.tocsc()[:, :]), C[:, :], b, f,
                  dims[0], dims[1], YrA=noisyC[cnm2.gnb:cnm2.M] - C, img=Cn)
 
 #%%
-
-df_f = detrend_df_f_auto(A,b,C,f,YrA)
