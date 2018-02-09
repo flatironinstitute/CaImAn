@@ -178,7 +178,7 @@ bnd_BG = np.percentile(b.dot(f),(0.001,100-0.001))
 
 #%% create a function for plotting results in real time if needed
 
-def create_frame2(cnm2, img_norm, captions):
+def create_frame(cnm2, img_norm, captions):
     A, b = cnm2.Ab[:, cnm2.gnb:], cnm2.Ab[:, :cnm2.gnb].toarray()
     C, f = cnm2.C_on[cnm2.gnb:cnm2.M, :], cnm2.C_on[:cnm2.gnb, :]
     # inferred activity due to components (no background)
@@ -190,7 +190,8 @@ def create_frame2(cnm2, img_norm, captions):
     comps_frame = (comps_frame.copy() - bnd_AC[0])/np.diff(bnd_AC)
     
     if show_residuals:
-        all_comps = np.reshape(cnm2.Yres_buf.mean(0), cnm2.dims, order='F')
+        #all_comps = np.reshape(cnm2.Yres_buf.mean(0), cnm2.dims, order='F')
+        all_comps = np.reshape(cnm2.mean_buff, cnm2.dims, order='F')
         all_comps = np.minimum(np.maximum(all_comps, 0)*2 + 0.25, 255)
     else:
         all_comps = np.array(A.sum(-1)).reshape(cnm2.dims, order='F')
@@ -222,49 +223,6 @@ def create_frame2(cnm2, img_norm, captions):
     return vid_frame
 
 
-#%% create a function for plotting results in real time if needed
-
-def create_frame(cnm2, img_norm, captions):
-    A, b = cnm2.Ab[:, cnm2.gnb:], cnm2.Ab[:, :cnm2.gnb].toarray()
-    C, f = cnm2.C_on[cnm2.gnb:cnm2.M, :], cnm2.C_on[:cnm2.gnb, :]
-    # inferred activity due to components (no background)
-    comps_frame = A.dot(C[:, t - 1]).reshape(cnm2.dims,
-                                             order='F') * img_norm / np.max(img_norm)
-    bgkrnd_frame = b.dot(f[:, t - 1]).reshape(cnm2.dims, order='F') * \
-        img_norm / np.max(img_norm)  # denoised frame (components + background)
-    if show_residuals:
-        all_comps = np.reshape(cnm2.Yres_buf.mean(
-            0), cnm2.dims, order='F') * img_norm / np.max(img_norm)
-        all_comps = np.minimum(np.maximum(all_comps * 10, 0), 255)
-    else:
-        all_comps = np.array(A.sum(-1)).reshape(cnm2.dims, order='F')
-                                              # spatial shapes
-    frame_comp_1 = cv2.resize(np.concatenate([frame_ / np.max(img_norm), all_comps * 3.], axis=-1),
-                              (2 * np.int(cnm2.dims[1] * resize_fact), np.int(cnm2.dims[0] * resize_fact)))
-    frame_comp_2 = cv2.resize(np.concatenate([comps_frame * 10., comps_frame + bgkrnd_frame],
-                                             axis=-1), (2 * np.int(cnm2.dims[1] * resize_fact), np.int(cnm2.dims[0] * resize_fact)))
-    frame_pn = np.concatenate([frame_comp_1, frame_comp_2], axis=0).T
-    vid_frame = np.repeat(frame_pn[:, :, None], 3, axis=-1)
-    vid_frame = np.minimum((vid_frame * 255.), 255).astype('u1')
-    
-    if show_residuals and cnm2.ind_new:
-        add_v = np.int(cnm2.dims[1]*resize_fact)
-        for ind_new in cnm2.ind_new:
-            cv2.rectangle(vid_frame,(int(ind_new[0][1]*resize_fact),int(ind_new[1][1]*resize_fact)+add_v),
-                                         (int(ind_new[0][0]*resize_fact),int(ind_new[1][0]*resize_fact)+add_v),(255,0,255),2)
-    
-    cv2.putText(vid_frame, captions[0], (5, 20), fontFace=5, fontScale=0.8, color=(
-        0, 255, 0), thickness=1)
-    cv2.putText(vid_frame, captions[1], (np.int(
-        cnm2.dims[0] * resize_fact) + 5, 20), fontFace=5, fontScale=0.8, color=(0, 255, 0), thickness=1)
-    cv2.putText(vid_frame, captions[2], (5, np.int(
-        cnm2.dims[1] * resize_fact) + 20), fontFace=5, fontScale=0.8, color=(0, 255, 0), thickness=1)
-    cv2.putText(vid_frame, captions[3], (np.int(cnm2.dims[0] * resize_fact) + 5, np.int(
-        cnm2.dims[1] * resize_fact) + 20), fontFace=5, fontScale=0.8, color=(0, 255, 0), thickness=1)
-    cv2.putText(vid_frame, 'Frame = ' + str(t), (vid_frame.shape[1] // 2 - vid_frame.shape[1] //
-                                                 10, vid_frame.shape[0] - 20), fontFace=5, fontScale=0.8, color=(0, 255, 255), thickness=1)
-    return vid_frame
-
 #%% Prepare object for OnACID
 cnm2 = deepcopy(cnm_init)
 
@@ -288,11 +246,11 @@ Cn = Cn_init.copy()
 
 # flag for plotting contours of detected components at the end of each file
 plot_contours_flag = False
-# flag for showing video with results online (turn off flags for improving speed)
+# flag for showing results video online (turn off flags for improving speed)
 play_reconstr = True
 # flag for saving movie (file could be quite large..)
 save_movie = True
-movie_name = os.path.join(folder_name, 'sniper_meso_0.995.avi')  # name of movie to be saved
+movie_name = os.path.join(folder_name, 'sniper_meso_0.995_new.avi')  # name of movie to be saved
 resize_fact = 1.2                        # image resizing factor
 
 if online_files == 0:                    # check whether there are any additional files
@@ -314,7 +272,7 @@ else:
 captions = ['Raw Data', 'Inferred Activity', caption, 'Denoised Data']
 if save_movie and play_reconstr:
     fourcc = cv2.VideoWriter_fourcc('8', 'B', 'P', 'S')
-    #fourcc = cv2.VideoWriter_fourcc(*'XVID')
+#    fourcc = cv2.VideoWriter_fourcc(*'XVID')
     out = cv2.VideoWriter(movie_name, fourcc, 30.0, tuple(
         [int(2 * x * resize_fact) for x in cnm2.dims]))
 
@@ -387,7 +345,7 @@ for iter in range(epochs):
                 pl.pause(1)
 
             if play_reconstr:                                               # generate movie with the results
-                vid_frame = create_frame2(cnm2, img_norm, captions)
+                vid_frame = create_frame(cnm2, img_norm, captions)
                 if save_movie:
                     out.write(vid_frame)
                     if t-initbatch < 100:
@@ -429,5 +387,3 @@ pl.figure()
 crd = cm.utils.visualization.plot_contours(A, Cn, thr=0.9)
 view_patches_bar(Yr, scipy.sparse.coo_matrix(A.tocsc()[:, :]), C[:, :], b, f,
                  dims[0], dims[1], YrA=noisyC[cnm2.gnb:cnm2.M] - C, img=Cn)
-
-#%%

@@ -791,6 +791,8 @@ class CNMF(object):
                                     self.initbatch].T.copy(), self.minibatch_shape)
         self.Yres_buf = RingBuffer(self.Yr_buf - self.Ab.dot(
             self.C_on[:self.M, self.initbatch - self.minibatch_shape:self.initbatch]).T, self.minibatch_shape)
+        self.mean_buff = self.Yres_buf.mean(0)
+        self.ind_new = []
         self.rho_buf = imblur(self.Yres_buf.T.reshape(
             self.dims2 + (-1,), order='F'), sig=self.gSig, siz=self.gSiz, nDimBlur=len(self.dims2))**2
         self.rho_buf = np.reshape(
@@ -865,7 +867,8 @@ class CNMF(object):
         frame = frame_in.astype(np.float32)
 #        print(np.max(1/scipy.sparse.linalg.norm(self.Ab,axis = 0)))
         self.Yr_buf.append(frame)
-
+        if len(self.ind_new) > 0:
+            self.mean_buff = self.Yres_buf.mean(0)
         if (not self.simultaneously) or self.p == 0:
             # get noisy fluor value via NNLS (project data on shapes & demix)
             C_in = self.noisyC[:self.M, t - 1].copy()
@@ -898,10 +901,12 @@ class CNMF(object):
 
 #        cv2.imshow('untitled', 3*cv2.resize(self.Ab.sum(1).reshape(self.dims,order = 'F'),(512,512)))
 #        cv2.waitKey(1)
-#
+        
+        #self.mean_buff = self.Yres_buf.mean(0)
         if self.update_num_comps:
-
+            
             res_frame = frame - self.Ab.dot(self.noisyC[:self.M, t])
+            self.mean_buff += (res_frame-self.Yres_buf[self.Yres_buf.cur])/self.minibatch_shape
 #            cv2.imshow('untitled', 0.1*cv2.resize(res_frame.reshape(self.dims,order = 'F'),(512,512)))
 #            cv2.waitKey(1)
 #
@@ -932,7 +937,7 @@ class CNMF(object):
 
             num_added = len(self.ind_A) - self.N
 
-            if num_added > 0:
+            if num_added > 0:                
                 self.N += num_added
                 self.M += num_added
                 if self.N + self.max_num_added > self.expected_comps:
