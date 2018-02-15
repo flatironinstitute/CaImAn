@@ -56,13 +56,30 @@ A3 = csc_matrix(A3 / A3.sum(0))
 
 #%% register components across multiple days
 
-from caiman.base.rois import register_multisession
+from caiman.base.rois import register_multisession, extract_active_components, register_ROIs
 import matplotlib.pyplot as plt
 import matplotlib.lines as mlines
 
 dims = 512, 512
 
 A_union, assignments, matchings = register_multisession([A1, A2, A3], dims, Cns)
+
+#%% register backwards
+
+A_back, assignments_back, matchings_back = register_multisession([A3, A2, A1], dims, Cns[::-1])
+
+
+#%%
+
+trip_forw = extract_active_components(assignments, [0,1,2], only = True)
+trip_back = extract_active_components(assignments_back, [0,1,2], only = True)
+
+#%%
+
+matched_ROIs1, matched_ROIs2, non_matched1, non_matched2, performan,_ = register_ROIs(A_union, A_back, dims, 
+                                                                                      template1=Cn3, template2=Cn1,
+                                                                                      plot_results=True,
+                                                                                      thresh_cost=.8)
 
 #%% find components that are active in certain sessions
 
