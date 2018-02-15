@@ -802,6 +802,54 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
     return Ab, Cf, Yres_buf, rho_buf, CC, CY, ind_A, sv, groups, ind_new
 
 
+#%% remove components online
+
+def remove_components_online(ind_rem, gnb, Ab, use_dense, Ab_dense, AtA, CY,
+                             CC, M, N, noisyC, OASISinstances, C_on, exp_comps):
+
+    """
+    Remove components indexed by ind_r (indexing starts at zero)
+
+    ind_rem list
+        indeces of components to be removed (starting from zero)
+    gnb int
+        number of global background components
+    Ab  csc_matrix
+        matrix of components + background
+    use_dense bool
+        use dense representation
+    Ab_dense ndarray
+    """
+
+    ind_rem.sort()
+    ind_rem = [ind + gnb for ind in ind_rem[::-1]]
+    ind_keep = list(set(range(Ab.shape[-1])) - set(ind_rem))
+    ind_keep.sort()
+
+    if use_dense:
+        Ab_dense = np.delete(Ab_dense, ind_rem, axis=1)
+    else:
+        Ab_dense = []
+    AtA = np.delete(AtA, ind_rem, axis=0)
+    AtA = np.delete(AtA, ind_rem, axis=1)
+    CY = np.delete(CY, ind_rem, axis=0)
+    CC = np.delete(CC, ind_rem, axis=0)
+    CC = np.delete(CC, ind_rem, axis=1)
+    M -= len(ind_rem)
+    N -= len(ind_rem)
+    exp_comps -= len(ind_rem)
+    noisyC = np.delete(noisyC, ind_rem, axis=0)
+    for ii in ind_rem:
+        del OASISinstances[ii - gnb]
+#        #del self.ind_A[ii-self.gnb]
+
+    C_on = np.delete(C_on, ind_rem, axis=0)
+    Ab = scipy.sparse.csc_matrix(Ab[:, ind_keep])
+    ind_A = list(
+        [(Ab.indices[Ab.indptr[ii]:Ab.indptr[ii+1]]) for ii in range(gnb, M)])
+    groups = list(map(list, update_order(Ab)[0]))
+
+    return Ab, Ab_dense, CC, CY, M, N, noisyC, OASISinstances, C_on, exp_comps, ind_A, groups, AtA
 #%%
 def initialize_movie_online(Y, K, gSig, rf, stride, base_name,
                             p=1, merge_thresh=0.95, rval_thr_online=0.9, thresh_fitness_delta_online=-30, thresh_fitness_raw_online=-50,

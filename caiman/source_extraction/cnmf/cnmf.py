@@ -40,7 +40,7 @@ from .oasis import OASIS
 import caiman
 from caiman import components_evaluation, mmapping
 import cv2
-from .online_cnmf import RingBuffer, HALS4activity, demix_and_deconvolve
+from .online_cnmf import RingBuffer, HALS4activity, demix_and_deconvolve, remove_components_online
 from .online_cnmf import init_shapes_and_sufficient_stats, update_shapes, update_num_components
 import scipy
 import psutil
@@ -1118,6 +1118,23 @@ class CNMF(object):
 
                 self.Ab = Ab_
             self.time_spend += time() - t_start
+
+    def remove_components(self, ind_rm):
+        """remove a specified list of components from the OnACID CNMF object.
+
+        Parameters:
+        -----------
+        ind_rm :    list
+                    indeces of components to be removed
+        """
+
+        self.Ab, self.Ab_dense, self.CC, self.CY, self.M,\
+        self.N, self.noisyC, self.OASISinstances, self.C_on,\
+        self.expected_comps, self.ind_A,\
+        self.groups, self.AtA = remove_components_online(
+                ind_rm, self.gnb, self.Ab, self.use_dense, self.Ab_dense,
+                self.AtA, self.CY, self.CC, self.M, self.N, self.noisyC,
+                self.OASISinstances, self.C_on, self.expected_comps)
 
     def compute_residuals(self, Yr):
         """compute residual for each component (variable YrA)

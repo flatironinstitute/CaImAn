@@ -43,6 +43,7 @@ from time import time
 import caiman as cm
 from caiman.utils.visualization import view_patches_bar
 from caiman.utils.utils import download_demo, load_object, save_object
+from caiman.components_evaluation import evaluate_components_CNN
 import pylab as pl
 import scipy
 from caiman.motion_correction import motion_correct_iteration_fast
@@ -150,9 +151,9 @@ dims = (d1, d2)                                     # dimensions of FOV
 Yr = Y.to_2D().T                                    # convert data into 2D array
 
 Cn_init = Y.local_correlations(swap_dim=False)    # compute correlation image
-pl.imshow(Cn_init)
-pl.title('Correlation Image on initial batch')
-pl.colorbar()
+#pl.imshow(Cn_init)
+#pl.title('Correlation Image on initial batch')
+#pl.colorbar()
 
 bnd_Y = np.percentile(Y,(0.001,100-0.001))  # plotting boundaries for Y
 
@@ -244,12 +245,16 @@ t = cnm2.initbatch                       # current timestep
 tottime = []
 Cn = Cn_init.copy()
 
+# flag for removing components with bad shapes
+remove_flag = True
+T_rm = 650    # remove bad components every T_rm frames
+rm_thr = 0.1  # CNN classifier removal threshold
 # flag for plotting contours of detected components at the end of each file
 plot_contours_flag = False
 # flag for showing results video online (turn off flags for improving speed)
 play_reconstr = True
 # flag for saving movie (file could be quite large..)
-save_movie = True
+save_movie = False
 movie_name = os.path.join(folder_name, 'sniper_meso_0.995_new.avi')  # name of movie to be saved
 resize_fact = 1.2                        # image resizing factor
 
@@ -330,13 +335,22 @@ for iter in range(epochs):
                 frame_cor = frame_
 
             frame_cor = frame_cor / img_norm                        # normalize data-frame
-            cnm2.fit_next(t, frame_cor.reshape(-1, order='F')
-                          )      # run OnACID on this frame
+            cnm2.fit_next(t, frame_cor.reshape(-1, order='F'))      # run OnACID on this frame
             # store time
             tottime.append(time() - t1)
-
+            
             t += 1
-
+            
+            if t % T_rm == 0 and remove_flag:
+                prd, _ = evaluate_components_CNN(cnm2.Ab[:, gnb:], dims, gSig)
+                ind_rem = np.where(prd[:, 0] < rm_thr)[0].tolist()
+                cnm2.remove_components(ind_rem)
+                print('Removing '+str(len(ind_rem))+' components')
+#                cnm2.Ab, cnm2.Ab_dense, cnm2.CC, cnm2.CY, cnm2.M, \
+#                cnm2.N, cnm2.noisyC, cnm2.OASISinstances, cnm2.C_on, \
+#                cnm2.expected_comps, cnm2.ind_A, cnm2.groups, cnm2.AtA = remove_components_online(ind_rem, gnb, cnm2.Ab, cnm2.use_dense, cnm2.Ab_dense, cnm2.AtA, cnm2.CY,
+#                                                                                                  cnm2.CC, cnm2.M, cnm2.N, cnm2.noisyC, cnm2.OASISinstances, cnm2.C_on, cnm2.expected_comps)
+            
             if t % 1000 == 0 and plot_contours_flag:
                 pl.cla()
                 A = cnm2.Ab[:, cnm2.gnb:]
@@ -367,6 +381,7 @@ for iter in range(epochs):
 if save_movie:
     out.release()
 cv2.destroyAllWindows()
+
 #%%  save results (optional)
 save_results = False
 
