@@ -1188,8 +1188,12 @@ def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None,
                 if type(subindices) is list:
                     input_arr = imread(file_name)[
                         subindices[0], subindices[1], subindices[2]]
+                elif type(subindices) is range:
+                    subidx = slice(subindices.start, subindices.stop,
+                                   subindices.step)
+                    input_arr = imread(file_name)[subidx]
                 else:
-                    input_arr = imread(file_name)[subindices, :, :]
+                    input_arr = imread(file_name)[subindices]
             else:
                 input_arr = imread(file_name)
             input_arr = np.squeeze(input_arr)
