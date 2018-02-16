@@ -343,7 +343,7 @@ for iter in range(epochs):
             
             if t % T_rm == 0 and remove_flag:
                 prd, _ = evaluate_components_CNN(cnm2.Ab[:, gnb:], dims, gSig)
-                ind_rem = np.where(prd[:, 0] < rm_thr)[0].tolist()
+                ind_rem = np.where(prd[:, 1] < rm_thr)[0].tolist()
                 cnm2.remove_components(ind_rem)
                 print('Removing '+str(len(ind_rem))+' components')
 
