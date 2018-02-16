@@ -246,13 +246,13 @@ tottime = []
 Cn = Cn_init.copy()
 
 # flag for removing components with bad shapes
-remove_flag = True
+remove_flag = False
 T_rm = 650    # remove bad components every T_rm frames
 rm_thr = 0.1  # CNN classifier removal threshold
 # flag for plotting contours of detected components at the end of each file
 plot_contours_flag = False
 # flag for showing results video online (turn off flags for improving speed)
-play_reconstr = True
+play_reconstr = False
 # flag for saving movie (file could be quite large..)
 save_movie = False
 movie_name = os.path.join(folder_name, 'sniper_meso_0.995_new.avi')  # name of movie to be saved
@@ -346,11 +346,7 @@ for iter in range(epochs):
                 ind_rem = np.where(prd[:, 0] < rm_thr)[0].tolist()
                 cnm2.remove_components(ind_rem)
                 print('Removing '+str(len(ind_rem))+' components')
-#                cnm2.Ab, cnm2.Ab_dense, cnm2.CC, cnm2.CY, cnm2.M, \
-#                cnm2.N, cnm2.noisyC, cnm2.OASISinstances, cnm2.C_on, \
-#                cnm2.expected_comps, cnm2.ind_A, cnm2.groups, cnm2.AtA = remove_components_online(ind_rem, gnb, cnm2.Ab, cnm2.use_dense, cnm2.Ab_dense, cnm2.AtA, cnm2.CY,
-#                                                                                                  cnm2.CC, cnm2.M, cnm2.N, cnm2.noisyC, cnm2.OASISinstances, cnm2.C_on, cnm2.expected_comps)
-            
+
             if t % 1000 == 0 and plot_contours_flag:
                 pl.cla()
                 A = cnm2.Ab[:, cnm2.gnb:]

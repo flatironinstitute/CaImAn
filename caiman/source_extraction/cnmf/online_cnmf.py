@@ -478,7 +478,7 @@ def rank1nmf(Ypx, ain):
 
 
 #%%
-def get_candidate_components(sv, dims, Yres_buf, min_num_trial = 3, 
+def get_candidate_components(sv, dims2, Yres_buf2, min_num_trial = 3, 
                              gHalf = (5,5), sniper_mode = True, rval_thr = 0.85, 
                              patch_size = 50, loaded_model = None,
                              thresh_CNN_noisy = 0.99):
@@ -494,28 +494,28 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial = 3,
     idx = []
     keep = []
     resize_g = False
+    sv2 = sv.copy()
     for i in range(min_num_trial):
-        ind = np.argmax(sv)
+        ind = np.argmax(sv2)
         #print(i)
-        ij = np.unravel_index(ind, dims, order = 'C')
-        ij = [min(max(ij_val,g_val),dim_val-g_val-1) for ij_val, g_val, dim_val in zip(ij,gHalf,dims)]
-        ind = np.ravel_multi_index(ij, dims, order = 'C')
-        ijSig = [[max(i - g, 0), min(i+g+1,d)] for i, g, d in zip(ij, gHalf, dims)]
-        indeces = np.ravel_multi_index(np.ix_(*[np.arange(ij[0] , ij[1]) 
-                        for ij in ijSig]), dims, order='F').ravel(order = 'C')
-                                               
-        indeces_ = np.ravel_multi_index(np.ix_(*[np.arange(ij[0] , ij[1]) 
-                        for ij in ijSig]), dims, order='C').ravel(order = 'C')
-        Ypx = Yres_buf.T[indeces, :]
+        ij = np.unravel_index(ind, dims2, order = 'C')
+        ij = [min(max(ij_val,g_val),dim_val-g_val-1) for ij_val, g_val, dim_val in zip(ij,gHalf,dims2)]
+        ind = np.ravel_multi_index(ij, dims2, order = 'C')
+        ijSig = [[max(i - g, 0), min(i+g+1,d)] for i, g, d in zip(ij, gHalf, dims2)]
+        indeces = np.ravel_multi_index(np.ix_(*[np.arange(ij[0], ij[1])
+                        for ij in ijSig]), dims2, order='F').ravel(order = 'C')
+
+        indeces_ = np.ravel_multi_index(np.ix_(*[np.arange(ij[0], ij[1])
+                        for ij in ijSig]), dims2, order='C').ravel(order = 'C')
+        Ypx = Yres_buf2.T[indeces, :]
         ain = np.maximum(np.mean(Ypx, 1), 0)
         na = ain.dot(ain)
         if na:
             ain /= sqrt(na)
             ain, cin, cin_res = rank1nmf(Ypx, ain)
-            sv[indeces_] = 0            
+            sv2[indeces_] = 0
             if not sniper_mode:
                 rval = corr(ain.copy(), np.mean(Ypx, -1))
-                #print(rval)
                 if rval > rval_thr:
                     idx.append(ind)
                     Ain.append(ain)
@@ -851,6 +851,8 @@ def remove_components_online(ind_rem, gnb, Ab, use_dense, Ab_dense, AtA, CY,
 
     return Ab, Ab_dense, CC, CY, M, N, noisyC, OASISinstances, C_on, exp_comps, ind_A, groups, AtA
 #%%
+
+
 def initialize_movie_online(Y, K, gSig, rf, stride, base_name,
                             p=1, merge_thresh=0.95, rval_thr_online=0.9, thresh_fitness_delta_online=-30, thresh_fitness_raw_online=-50,
                             rval_thr_init=.5, thresh_fitness_delta_init=-20, thresh_fitness_raw_init=-20,
