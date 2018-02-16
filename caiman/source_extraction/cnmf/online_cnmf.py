@@ -529,7 +529,7 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial = 3,
                 
     if len(Ain)>0:    
         if sniper_mode:
-            Ain = np.stack(Ain)
+            Ain = np.stack(Ain).astype(np.float64)
             Ain2 = Ain.copy()
             Ain2 -= np.median(Ain2,axis=1)[:,None]
             Ain2 /= np.sqrt(np.sum(Ain**2,axis=1))[:,None]
@@ -642,7 +642,7 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
             cin_circ = cin.get_ordered()
 
             useOASIS = False  # whether to use faster OASIS for cell detection
-            foo = True        # flag indicating new component has not been rejected yet
+            accept = True        # flag indicating new component has not been rejected yet
 
             if Ab_dense is None:
                 ff = np.where((Ab.T.dot(Ain).T > thresh_overlap)
@@ -651,9 +651,9 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                 ff = np.where(Ab_dense[indeces, gnb:].T.dot(
                     ain).T > thresh_overlap)[0] + gnb
             if ff.size > 0:
-                foo = False
+                accept = False
                 cc = [corr(cin_circ.copy(), cins) for cins in Cf[ff, :]]
-                if np.any(np.array(cc) > .25) and foo:
+                if np.any(np.array(cc) > .25) and accept:
                     #                    repeat = False
                     # vb = imblur(np.reshape(Ain, dims, order='F'),
                     #             sig=gSig, siz=gSiz, nDimBlur=2)
@@ -664,7 +664,7 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                     vb[slices] = imblur(
                         vb[slices], sig=gSig, siz=gSiz, nDimBlur= len(dims))
                     sv_ -= (vb.ravel(order=order_rvl)**2) * cin.dot(cin)
-                    foo = False         # reject component as duplicate
+                    accept = False         # reject component as duplicate
 #                    pl.imshow(np.reshape(sv,dims));pl.pause(0.001)
                   #  print('Overlap at step' + str(t) + ' ' + str(cc))
                     # break
@@ -680,13 +680,13 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                 s_min = -s_min * sqrt((ain**2).dot(sn[indeces]**2)) * sqrt(1 - np.sum(g))
 
             cin_res = cin_res.get_ordered()
-            if foo:
+            if accept:
                 if useOASIS:
                     oas = oasis.OASIS(g=g, s_min=s_min,
                                       num_empty_samples=t + 1 - len(cin_res))
                     for yt in cin_res:
                         oas.fit_next(yt)
-                    foo = oas.get_l_of_last_pool() <= t
+                    accept = oas.get_l_of_last_pool() <= t
                 else:
                     fitness_delta, erfc_delta, std_rr, _ = compute_event_exceptionality(
                         np.diff(cin_res)[None, :], robust_std=robust_std, N=N_samples_exceptionality)
@@ -698,10 +698,10 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                         bl = 0
                     fitness_raw, erfc_raw, std_rr, _ = compute_event_exceptionality(
                         (cin_res - bl)[None, :], robust_std=robust_std, N=N_samples_exceptionality)
-                    foo = (fitness_delta < thresh_fitness_delta) or (
+                    accept = (fitness_delta < thresh_fitness_delta) or (
                         fitness_raw < thresh_fitness_raw)
 
-            if foo:
+            if accept:
                 # print('adding component' + str(N + 1) + ' at timestep ' + str(t))
                 num_added += 1
                 ind_new.append(ijSig)
