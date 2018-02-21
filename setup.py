@@ -5,6 +5,7 @@ from os import path
 import numpy as np
 from Cython.Build import cythonize
 from setuptools.extension import Extension
+from distutils.command.build_ext import build_ext
 
 """
     Installation script for anaconda installers
@@ -55,6 +56,6 @@ setup(
     data_files=[('', ['LICENSE.txt']),
                 ('', ['README.md'])],
     install_requires=[''],
-    ext_modules=cythonize(ext_modules)
-
+    ext_modules=cythonize(ext_modules),
+    cmdclass={'build_ext': build_ext}
 )
