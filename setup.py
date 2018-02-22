@@ -23,14 +23,21 @@ with open('README.md', 'r') as rmf:
 # environment dir if this was installed with a venv/conda python. This ensures:
 # 1) That they're present somewhere on the system if Caiman is installed this way, and
 # 2) We can programmatically get at them to manage the user's conda data directory.
+#
+# We can access these by using sys.prefix as the base of the directory and constructing from there.
+# Note that if python's packaging standards ever change the install base of data_files to be under the
+# package that made them, we can switch to using the pkg_resources API.
 
+binaries = ['caimandata.py']
 extra_dirs = ['demos', 'use_cases', 'example_movies']
 data_files = [('', ['LICENSE.txt']),
               ('', ['README.md'])]
 for part in extra_dirs:
-	newpart = [(os.path.join("share", "caiman", d), [os.path.join(d,f) for f in files]) for d, folders, files in os.walk(part)]
+	newpart = [("share/caiman/" + d, [os.path.join(d,f) for f in files]) for d, folders, files in os.walk(part)]
 	for newcomponent in newpart:
 		data_files.append(newcomponent)
+
+data_files.append(['bin', binaries])
 ############
 
 # compile with:     python setup.py build_ext -i
