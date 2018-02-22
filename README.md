@@ -68,7 +68,7 @@ We recently incorporated a Python implementation of the OnACID [[5]](#onacid) al
    cd CaImAn/
    conda env create -f environment.yml -n caiman
    source activate caiman
-   python setup.py build_ext -i   
+   pip install .
    ```
    **Python 3 may have issues** when running in parallel mode (dview is not None) because of bugs in Python/ipyparallel/numpy interaction. Python2 may have fewer issues
 
@@ -83,14 +83,13 @@ We recently incorporated a Python implementation of the OnACID [[5]](#onacid) al
    cd CaImAn/
    conda env create -f environment.yml -n caiman
    source activate caiman   
-   python setup.py build_ext -i   
+   pip install .
    ```
 
 
    * To make the package available from everywhere and have it working *efficiently* under any configuration ALWAYS run these commands before starting spyder:
 
    ```bash
-   export PYTHONPATH="/path/to/caiman:$PYTHONPATH"
    export MKL_NUM_THREADS=1
    export OPENBLAS_NUM_THREADS=1
    ```
@@ -116,7 +115,7 @@ We recently incorporated a Python implementation of the OnACID [[5]](#onacid) al
     
 	conda env create -f environment.yml -n caiman
     activate caiman   
-    python setup.py build_ext -i       
+    pip install .
 	conda install numba
 	jupyter notebook --NotebookApp.iopub_data_rate_limit=1.0e10
     ```
@@ -128,11 +127,20 @@ We recently incorporated a Python implementation of the OnACID [[5]](#onacid) al
     git pull
     conda env create -f environment_python2.yml -n caiman
     activate caiman   
-    python setup.py build_ext -i       
+    pip install .
     ```
 
 Alternative environments:
    * [Using experimental CUDA support](/README-cuda.md)
+
+* caimandata
+
+  Once CaImAn is installed, you may want to get a working directory with code samples and datasets; pip installed a caimandata.py command
+  that manages this. If you have not installed Caiman before, you can do "caimandata.py install" and it will place that directory under
+  your home directory in a directory called caiman_data. If you have, some of the demos or datafiles may have changed since your last install,
+  to follow API changes. You can check to see if they have by doing "caimandata.py check". If they have not, you may keep using them. If they have,
+  we recommend moving your old caiman data directory out of the way (or just remove them if you have no precious data) and doing
+  a new data install as per above. 
 
 ### Installation for behavioral analysis
 * Installation on Linux (Windows and MacOS are problematic with anaconda at the moment)
