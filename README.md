@@ -140,7 +140,10 @@ Alternative environments:
   your home directory in a directory called caiman_data. If you have, some of the demos or datafiles may have changed since your last install,
   to follow API changes. You can check to see if they have by doing "caimandata.py check". If they have not, you may keep using them. If they have,
   we recommend moving your old caiman data directory out of the way (or just remove them if you have no precious data) and doing
-  a new data install as per above. 
+  a new data install as per above.
+
+  If you prefer to manage this information somewhere else, the CAIMAN_DATA environment variable can be set to customise it. The caimandata tool
+  and other libraries will respect that.
 
 ### Installation for behavioral analysis
 * Installation on Linux (Windows and MacOS are problematic with anaconda at the moment)
