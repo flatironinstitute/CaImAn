@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 from setuptools import setup, find_packages
+import os
 from os import path
 import numpy as np
 from Cython.Build import cythonize
@@ -15,6 +16,22 @@ here = path.abspath(path.dirname(__file__))
 
 with open('README.md', 'r') as rmf:
     readme = rmf.read()
+
+############
+# This stanza asks for caiman datafiles (demos, movies, ...) to be stashed in "share/caiman", either
+# in the system directory if this was installed with a system python, or inside the virtualenv/conda
+# environment dir if this was installed with a venv/conda python. This ensures:
+# 1) That they're present somewhere on the system if Caiman is installed this way, and
+# 2) We can programmatically get at them to manage the user's conda data directory.
+
+extra_dirs = ['demos', 'use_cases', 'example_movies']
+data_files = [('', ['LICENSE.txt']),
+              ('', ['README.md'])]
+for part in extra_dirs:
+	newpart = [(os.path.join("share", "caiman", d), [os.path.join(d,f) for f in files]) for d, folders, files in os.walk(part)]
+	for newcomponent in newpart:
+		data_files.append(newcomponent)
+############
 
 # compile with:     python setup.py build_ext -i
 # clean up with:    python setup.py clean --all
@@ -53,8 +70,13 @@ setup(
     ],
     keywords='fluorescence calcium ca imaging deconvolution ROI identification',
     packages=find_packages(exclude=['use_cases', 'use_cases.*']),
-    data_files=[('', ['LICENSE.txt']),
-                ('', ['README.md'])],
+    # begin pgunn
+    #package_dir={'caiman': 'caiman'},
+    #package_data={'caiman': ["demos", "use_cases", "use_cases", "use_cases", "example_movies"]},
+    # end pgunn
+    #data_files=[('', ['LICENSE.txt']),
+    #            ('', ['README.md'])],
+    data_files=data_files,
     install_requires=[''],
     ext_modules=cythonize(ext_modules),
     cmdclass={'build_ext': build_ext}
