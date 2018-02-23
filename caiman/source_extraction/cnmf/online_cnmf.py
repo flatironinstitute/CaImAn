@@ -68,7 +68,7 @@ def bare_initialization(Y, init_batch=1000, k=1, method_init='greedy_roi', gnb=1
         Y = Y[:, :, :, :init_batch]
     else:
         Y = Y[:, :, :init_batch]
-    
+
     Ain, Cin, b_in, f_in, center = initialize_components(
         Y, K=k, gSig=gSig, nb=gnb, method=method_init)
     Ain = coo_matrix(Ain)
@@ -103,7 +103,7 @@ def bare_initialization(Y, init_batch=1000, k=1, method_init='greedy_roi', gnb=1
 #%%
 def seeded_initialization(Y, Ain, dims=None, init_batch=1000, gnb=1, p=1, **kwargs):
     """
-    Initialization for OnACID based on a set of user given binary masks. 
+    Initialization for OnACID based on a set of user given binary masks.
     Inputs:
     -------
     Y               movie object or np.array
@@ -478,42 +478,70 @@ def rank1nmf(Ypx, ain):
 
 
 #%%
-def get_candidate_components(sv, dims, Yres_buf, min_num_trial = 3, 
-                             gHalf = (5,5), sniper_mode = True, rval_thr = 0.85, 
+def get_candidate_components(sv, dims, Yres_buf, min_num_trial = 3,
+                             gHalf = (5,5), sniper_mode = True, rval_thr = 0.85,
                              patch_size = 50, loaded_model = None,
                              thresh_CNN_noisy = 0.99):
     """
     Extract new candidate components from them residual buffer and test them
     using space correlation or the CNN classifier. The function run the CNN
-    classifier in batch mode which can bring speed improvements when 
+    classifier in batch mode which can bring speed improvements when
     multiple components are considered in each timestep.
     """
     Ain = []
+    Ain_cnn = []
     Cin = []
     Cin_res = []
     idx = []
     keep = []
-    resize_g = False
+#    resize_g = False
+
+    half_crop_cnn = (np.minimum(gHalf[0] * 4 + 1, patch_size) // 2,np.minimum(gHalf[1] * 4 + 1, patch_size) // 2)
     for i in range(min_num_trial):
         ind = np.argmax(sv)
         #print(i)
         ij = np.unravel_index(ind, dims, order = 'C')
+
         ij = [min(max(ij_val,g_val),dim_val-g_val-1) for ij_val, g_val, dim_val in zip(ij,gHalf,dims)]
+        ij_cnn = [min(max(ij_val,g_val),dim_val-g_val-1) for ij_val, g_val, dim_val in zip(ij,half_crop_cnn,dims)]
+
         ind = np.ravel_multi_index(ij, dims, order = 'C')
+        ind_cnn = np.ravel_multi_index(ij_cnn, dims, order = 'C')
+
         ijSig = [[max(i - g, 0), min(i+g+1,d)] for i, g, d in zip(ij, gHalf, dims)]
-        indeces = np.ravel_multi_index(np.ix_(*[np.arange(ij[0] , ij[1]) 
+        ijSig_cnn = [[max(i - g, 0), min(i+g+1,d)] for i, g, d in zip(ij_cnn, half_crop_cnn, dims)]
+
+        indeces = np.ravel_multi_index(np.ix_(*[np.arange(ij[0] , ij[1])
                         for ij in ijSig]), dims, order='F').ravel(order = 'C')
-                                               
-        indeces_ = np.ravel_multi_index(np.ix_(*[np.arange(ij[0] , ij[1]) 
+
+        indeces_ = np.ravel_multi_index(np.ix_(*[np.arange(ij[0] , ij[1])
                         for ij in ijSig]), dims, order='C').ravel(order = 'C')
+
+        indeces_cnn = np.ravel_multi_index(np.ix_(*[np.arange(ij[0] , ij[1])
+                        for ij in ijSig_cnn]), dims, order='F').ravel(order = 'C')
+
+#        indeces_cnn_ = np.ravel_multi_index(np.ix_(*[np.arange(ij[0] , ij[1])
+#                        for ij in ijSig_cnn]), dims, order='C').ravel(order = 'C')
+
         Ypx = Yres_buf.T[indeces, :]
+        Ypx_cnn = Yres_buf.T[indeces_cnn, :]
+#        import pylab as pl
+#        pl.imshow(np.reshape(Ypx.mean(-1),tuple(np.diff(ijSig).squeeze())))
+#        pl.pause(1)
+        ain_cnn = Ypx_cnn.mean(1)
         ain = np.maximum(np.mean(Ypx, 1), 0)
         na = ain.dot(ain)
         if na:
             ain /= sqrt(na)
             ain, cin, cin_res = rank1nmf(Ypx, ain)
-            sv[indeces_] = 0            
-            if not sniper_mode:
+            sv[indeces_] = 0
+            if sniper_mode:
+                idx.append(ind)
+                Ain.append(ain)
+                Cin.append(cin)
+                Cin_res.append(cin_res)
+                Ain_cnn.append(ain_cnn)
+            else:
                 rval = corr(ain.copy(), np.mean(Ypx, -1))
                 #print(rval)
                 if rval > rval_thr:
@@ -521,34 +549,38 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial = 3,
                     Ain.append(ain)
                     Cin.append(cin)
                     Cin_res.append(cin_res)
-            else:
-                idx.append(ind)
-                Ain.append(ain)
-                Cin.append(cin)
-                Cin_res.append(cin_res)
-                
-    if len(Ain)>0:    
+
+
+
+    if len(Ain_cnn)>0:
         if sniper_mode:
-            Ain = np.stack(Ain)
-            Ain2 = Ain.copy()
+            Ain_cnn = np.stack(Ain_cnn)
+            Ain2 = Ain_cnn
             Ain2 -= np.median(Ain2,axis=1)[:,None]
-            Ain2 /= np.sqrt(np.sum(Ain**2,axis=1))[:,None]
-            Ain2 = np.reshape(Ain2,(-1,) + tuple(np.diff(ijSig).squeeze()),order= 'F')
-            if resize_g:
-                dims_new = tuple(int(dm*15./gH) for dm, gH in zip(tuple(np.diff(ijSig).squeeze()),tuple(gHalf)))
-                Ain2 = np.stack([cv2.resize(ain,dims_new) for ain in Ain2])
-                pad_size_0 = ((50-dims_new[0])//2,50-dims_new[0]-(50-dims_new[0])//2)
-                pad_size_1 = ((50-dims_new[1])//2,50-dims_new[1]-(50-dims_new[1])//2)
-                Ain2 = np.pad(Ain2,((0,0),pad_size_0,pad_size_1),mode='constant')
-            else:
-                Ain2 = np.stack([cv2.resize(ain,(patch_size ,patch_size)) for ain in Ain2])
-            predictions = loaded_model.predict(Ain2[:,:,:,np.newaxis], batch_size=min_num_trial, verbose=0) 
+            Ain2 /= np.std(Ain2,axis=1)[:,None]
+            Ain2 = np.reshape(Ain2,(-1,) + tuple(np.diff(ijSig_cnn).squeeze()),order= 'F')
+#            if resize_g:
+#                dims_new = tuple(int(dm*15./gH) for dm, gH in zip(tuple(np.diff(ijSig).squeeze()),tuple(gHalf)))
+#                Ain2 = np.stack([cv2.resize(ain,dims_new) for ain in Ain2])
+#                pad_size_0 = ((50-dims_new[0])//2,50-dims_new[0]-(50-dims_new[0])//2)
+#                pad_size_1 = ((50-dims_new[1])//2,50-dims_new[1]-(50-dims_new[1])//2)
+#                Ain2 = np.pad(Ain2,((0,0),pad_size_0,pad_size_1),mode='constant')
+#            else:
+            Ain2 = np.stack([cv2.resize(ain,(patch_size ,patch_size)) for ain in Ain2])
+
+            predictions = loaded_model.predict(Ain2[:,:,:,np.newaxis], batch_size=min_num_trial, verbose=0)
+#            import pylab as pl
+#            for idx_cc,pred in enumerate(predictions[:,0]):
+#                if pred>thresh_CNN_noisy:
+#                    pl.imshow(Ain2[idx_cc],cmap='gray',vmin = 0)
+#                    pl.pause(.3)
+
             keep = list(np.where(predictions[:,0]>thresh_CNN_noisy)[0])
-            Ain = Ain[keep]
+            Ain = np.stack(Ain)[keep]
             Cin = [Cin[kp] for kp in keep]
             Cin_res = [Cin_res[kp] for kp in keep]
             idx = list(np.array(idx)[keep])
-        
+
     return Ain, Cin, Cin_res, idx
 
 
@@ -564,7 +596,7 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                           loaded_model = None, thresh_CNN_noisy = 0.99,
                           sniper_mode = False):
     """
-    Checks for new components in the residual buffer and incorporates them if they pass the acceptance tests    
+    Checks for new components in the residual buffer and incorporates them if they pass the acceptance tests
     """
 
     ind_new = []
@@ -596,15 +628,15 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
 
 #        ijSig = [[max(ij[0] - gHalf[0], 0), min(ij[0] + gHalf[0] + 1, dims[0])],
 #                 [max(ij[1] - gHalf[1], 0), min(ij[1] + gHalf[1] + 1, dims[1])]]
-        
+
         ijSig = [[max(i - g, 0), min(i+g+1,d)] for i, g, d in zip(ij, gHalf, dims)]
-        
-        indeces = np.ravel_multi_index(np.ix_(*[np.arange(ij[0] , ij[1]) 
+
+        indeces = np.ravel_multi_index(np.ix_(*[np.arange(ij[0] , ij[1])
                         for ij in ijSig]), dims, order='F').ravel(order=order_rvl)
-                                               
-        indeces_ = np.ravel_multi_index(np.ix_(*[np.arange(ij[0] , ij[1]) 
-                        for ij in ijSig]), dims, order='C').ravel(order=order_rvl)        
-    
+
+        indeces_ = np.ravel_multi_index(np.ix_(*[np.arange(ij[0] , ij[1])
+                        for ij in ijSig]), dims, order='C').ravel(order=order_rvl)
+
 #        indeces_ = np.ravel_multi_index(np.ix_(np.arange(ijSig[0][0], ijSig[0][1]),
 #                                               np.arange(ijSig[1][0], ijSig[1][1])),
 #                                        dims, order='C').ravel(order=order_rvl)
@@ -621,18 +653,18 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
 #
 #        examine_patch = False
 #        if sniper_mode:
-#            patch_size = 50          
+#            patch_size = 50
 #            ain2 = ain.copy()
 #            ain2 -= np.median(ain2)
-#            ain2 = np.reshape(ain2,tuple(np.diff(ijSig).squeeze()),order= 'F')  
+#            ain2 = np.reshape(ain2,tuple(np.diff(ijSig).squeeze()),order= 'F')
 #            ain2 = cv2.resize(ain2/np.linalg.norm(ain2),(patch_size ,patch_size))
-#            predictions = loaded_model.predict(ain2[np.newaxis,:,:,np.newaxis], batch_size=32, verbose=0) 
+#            predictions = loaded_model.predict(ain2[np.newaxis,:,:,np.newaxis], batch_size=32, verbose=0)
 #            examine_patch = predictions[0][0]>thresh_CNN_noisy
 #        else:
-#            rval = corr(ain.copy(), np.mean(Ypx, -1))  
+#            rval = corr(ain.copy(), np.mean(Ypx, -1))
 #            examine_patch = rval>rval_thr
         examine_patch = True
-            
+
 
         if examine_patch:
             # use sparse Ain only later iff it is actually added to Ab
