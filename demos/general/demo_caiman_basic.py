@@ -36,6 +36,7 @@ import matplotlib.pyplot as plt
 import caiman as cm
 from caiman.components_evaluation import estimate_components_quality_auto
 from caiman.source_extraction.cnmf import cnmf as cnmf
+from caiman.paths import caiman_datadir
 
 #%% start a cluster
 
@@ -45,7 +46,8 @@ c, dview, n_processes =\
 
 #%% save files to be processed
 
-fnames = ['example_movies/demoMovie.tif']
+# This datafile is distributed with Caiman
+fnames = [os.path.join(caiman_datadir(), 'example_movies', 'demoMovie.tif')]
 # location of dataset  (can actually be a list of filed to be concatenated)
 add_to_movie = -np.min(cm.load(fnames[0], subindices=range(200))).astype(float)
 # determine minimum value on a small chunk of data
