@@ -21,7 +21,7 @@ https://docs.python.org/2/library/urllib.html
 #\pre none
 from __future__ import print_function
 
-
+from caiman.paths import caiman_datadir
 import numpy as np
 import scipy
 import os
@@ -41,7 +41,7 @@ from ..source_extraction.cnmf.spatial import threshold_components
 #%%
 
 
-def download_demo(name='Sue_2x_3000_40_-46.tif', save_folder='', caiman_base=''):
+def download_demo(name='Sue_2x_3000_40_-46.tif', save_folder=''):
     """download a file from the file list with the url of its location
 
 
@@ -74,7 +74,7 @@ def download_demo(name='Sue_2x_3000_40_-46.tif', save_folder='', caiman_base='')
                  'Tolias_mesoscope_3.hdf5': 'https://www.dropbox.com/s/4fxiqnbg8fovnzt/Tolias_mesoscope_3.hdf5?dl=1',
                  'data_endoscope.tif': 'https://www.dropbox.com/s/dcwgwqiwpaz4qgc/data_endoscope.tif?dl=1'}
     #          ,['./example_movies/demoMovie.tif','https://www.dropbox.com/s/obmtq7305ug4dh7/demoMovie.tif?dl=1']]
-    base_folder = os.path.join(caiman_base, 'example_movies')
+    base_folder = os.path.join(caiman_datadir(), 'example_movies')
     if os.path.exists(base_folder):
         if not os.path.isdir(os.path.join(base_folder, save_folder)):
             os.makedirs(os.path.join(base_folder, save_folder))

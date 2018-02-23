@@ -12,24 +12,6 @@ complete demo check the script demo_OnACID_mesoscope.py
 import os
 import sys
 
-# This is code to detect where CaImAn was installed and modify the import path to suit.
-try:
-    __file__ # Normal python sets this, many python IDEs do not
-    # Next, step back from this demo to the caiman dir
-    caiman_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "..")
-except NameError:
-    if "demos" in os.getcwd(): # We assume we're in demos/general or demos/notebooks
-        caiman_path = os.path.join(os.getcwd(), "..", "..") # Step back to caiman dir
-    else: # Assume we're in the Caiman dir
-        if os.path.isfile(os.path.join("caiman", "__init__.py")):
-            caiman_path = "."
-        else:
-            print("Could not find the caiman install")
-            sys.exit(37)
-    
-print("Caiman path detected as " + caiman_path)
-sys.path.append(caiman_path)
-
 import numpy as np
 import pylab as pl
 import caiman as cm
@@ -37,10 +19,11 @@ from caiman.source_extraction import cnmf as cnmf
 from caiman.utils.visualization import view_patches_bar, plot_contours
 from copy import deepcopy
 from scipy.special import log_ndtr
+frim caiman.paths import caiman_datadir
 
 #%% load data
 
-fname = os.path.join(caiman_path, 'example_movies', 'demoMovie.tif')
+fname = os.path.join(caiman_datadir(), 'example_movies', 'demoMovie.tif')
 Y = cm.load(fname).astype(np.float32)                   #
 # used as a background image
 Cn = cm.local_correlations(Y.transpose(1, 2, 0))
@@ -140,7 +123,7 @@ if use_CNN:
     thresh_cnn = 0.1
     from caiman.components_evaluation import evaluate_components_CNN
     predictions, final_crops = evaluate_components_CNN(
-        A, dims, gSig, model_name=os.path.join(caiman_path, 'use_cases', 'CaImAnpaper', 'cnn_model'))
+        A, dims, gSig, model_name=os.path.join(caiman_datadir(), 'use_cases', 'CaImAnpaper', 'cnn_model'))
     A_exclude, C_exclude = A[:, predictions[:, 1] <
                              thresh_cnn], C[predictions[:, 1] < thresh_cnn]
     A, C = A[:, predictions[:, 1] >=

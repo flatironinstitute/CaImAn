@@ -20,25 +20,6 @@ from builtins import range
 
 import os
 import sys
-
-# This is code to detect where CaImAn was installed and modify the import path to suit.
-try:
-    __file__ # Normal python sets this, many python IDEs do not
-    # Next, step back from this demo to the caiman dir
-    caiman_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "..")
-except NameError:
-    if "demos" in os.getcwd(): # We assume we're in demos/general or demos/notebooks
-        caiman_path = os.path.join(os.getcwd(), "..", "..") # Step back to caiman dir
-    else: # Assume we're in the Caiman dir
-        if os.path.isfile(os.path.join("caiman", "__init__.py")):
-            caiman_path = "."
-        else:
-            print("Could not find the caiman install")
-            sys.exit(37)
-    
-print("Caiman path detected as " + caiman_path)
-sys.path.append(caiman_path)
-
 import cv2
 import glob
 
@@ -114,7 +95,7 @@ cnn_thr = 0.8               # threshold for CNN based classifier
 
 #%% download the dataset if it's not present in your folder
 if fname[0] in ['Sue_2x_3000_40_-46.tif', 'demoMovieJ.tif']:
-    fname = [download_demo(fname[0], caiman_base=caiman_path)]
+    fname = [download_demo(fname[0])]
 
 #%% play the movie
 # playing the movie using opencv. It requires loading the movie in memory. To
