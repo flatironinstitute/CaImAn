@@ -7,7 +7,8 @@ import shutil
 import string
 import sys # for sys.prefix
 
-default_userdir = os.path.join(os.path.expanduser("~"), "caiman_data")
+from caiman.paths import caiman_datadir
+
 sourcedir_base = os.path.join(sys.prefix, "share", "caiman") # Setuptools will drop our datadir off here
 
 ###############
@@ -79,10 +80,7 @@ def handle_args():
 	parser = argparse.ArgumentParser(description="Tool to manage Caiman data directory")
 	parser.add_argument("command", help="Subcommand to run. install/check/clean")
 	cfg = parser.parse_args()
-	if "CAIMAN_DATA" in os.environ:
-		cfg.userdir = os.environ["CAIMAN_DATA"]
-	else:
-		cfg.userdir = default_userdir
+	cfg.userdir = caiman_datadir()
 	return cfg
 
 ###############
