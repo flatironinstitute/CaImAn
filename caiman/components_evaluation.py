@@ -18,6 +18,7 @@ from scipy.stats import norm
 import scipy
 import cv2
 import itertools
+from caiman.paths import caiman_datadir
 
 def estimate_noise_mode(traces, robust_std=False, use_mode_fast=False, return_all=False):
     """ estimate the noise in the traces under assumption that signals are sparse and only positive. The last dimension should be time.
@@ -248,10 +249,19 @@ def evaluate_components_CNN(A, dims, gSig, model_name='use_cases/CaImAnpaper/cnn
     except:
         print('PROBLEM LOADING KERAS: cannot use classifier')
 
+        
     if loaded_model is None:
-        json_file = open(model_name + '.json', 'r')
-        loaded_model_json = json_file.read()
-        json_file.close()
+        if os.path.isfile(os.path.join(caiman_datadir(), model_name + ".json")):
+            model_file    = os.path.join(caiman_datadir(), model_name + ".json")
+            model_weights = os.path.join(caiman_datadir(), model_name + ".h5")
+        elif os.path.isfile(model_name + ".json"):
+            model_file    = model_name + ".json"
+            model_weights = model_name + ".h5"
+        else:
+            raise FileNotFoundError("File for requested model {} not found".format(model_name))
+        with open(model_file, 'r') as json_file:
+            loaded_model_json = json_file.read()
+
         loaded_model = model_from_json(loaded_model_json)
         loaded_model.load_weights(model_name + '.h5')
         loaded_model.compile('sgd', 'mse')
