@@ -532,7 +532,8 @@ def get_candidate_components(sv, dims2, Yres_buf2, min_num_trial = 3,
             Ain = np.stack(Ain).astype(np.float64)
             Ain2 = Ain.copy()
             Ain2 -= np.median(Ain2,axis=1)[:,None]
-            Ain2 /= np.sqrt(np.sum(Ain**2,axis=1))[:,None]
+            #Ain2 /= np.sqrt(np.sum(Ain**2,axis=1))[:,None]
+            Ain2 /= np.std(Ain,axis=1)[:,None]
             Ain2 = np.reshape(Ain2,(-1,) + tuple(np.diff(ijSig).squeeze()),order= 'F')
             if resize_g:
                 dims_new = tuple(int(dm*15./gH) for dm, gH in zip(tuple(np.diff(ijSig).squeeze()),tuple(gHalf)))
@@ -543,7 +544,8 @@ def get_candidate_components(sv, dims2, Yres_buf2, min_num_trial = 3,
             else:
                 Ain2 = np.stack([cv2.resize(ain,(patch_size ,patch_size)) for ain in Ain2])
             predictions = loaded_model.predict(Ain2[:,:,:,np.newaxis], batch_size=min_num_trial, verbose=0) 
-            keep = list(np.where(predictions[:,0]>thresh_CNN_noisy)[0])
+            #keep = list(np.where(predictions[:,0]>thresh_CNN_noisy)[0])
+            keep = list(np.where(predictions[:,-1]<1-thresh_CNN_noisy)[0])
             Ain = Ain[keep]
             Cin = [Cin[kp] for kp in keep]
             Cin_res = [Cin_res[kp] for kp in keep]
