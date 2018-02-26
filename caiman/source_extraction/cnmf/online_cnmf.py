@@ -76,7 +76,6 @@ def bare_initialization(Y, init_batch=1000, k=1, method_init='greedy_roi', gnb=1
     Yr = np.reshape(Y, (Ain.shape[0], Y.shape[-1]), order='F')
     nA = (Ain.power(2).sum(axis=0))
     nr = nA.size
-
     YA = scipy.sparse.spdiags(old_div(1., nA), 0, nr, nr) * \
         (Ain.T.dot(Yr) - (Ain.T.dot(b_in)).dot(f_in))
     AA = scipy.sparse.spdiags(old_div(1., nA), 0, nr, nr) * (Ain.T.dot(Ain))
@@ -479,7 +478,7 @@ def rank1nmf(Ypx, ain):
 
 #%%
 def get_candidate_components(sv, dims, Yres_buf, min_num_trial = 3,
-                             gHalf = (5,5), sniper_mode = True, rval_thr = 0.85,
+                             gSig = (5,5), gHalf = (5,5), sniper_mode = True, rval_thr = 0.85,
                              patch_size = 50, loaded_model = None,
                              thresh_CNN_noisy = 0.99):
     """
@@ -497,8 +496,9 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial = 3,
     ijsig_all = []
     cnn_pos = []
 #    resize_g = False
+    half_crop_cnn = (np.minimum(gSig[0] * 4 + 1, patch_size) // 2,np.minimum(gSig[1] * 4 + 1, patch_size) // 2)
+    half_crop_cnn = tuple(np.array(half_crop_cnn).astype(np.int))
 
-    half_crop_cnn = (np.minimum(gHalf[0] * 4 + 1, patch_size) // 2,np.minimum(gHalf[1] * 4 + 1, patch_size) // 2)
     for i in range(min_num_trial):
         ind = np.argmax(sv)
         #print(i)
@@ -579,11 +579,12 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial = 3,
 #                    pl.pause(.3)
 
             keep = list(np.where(predictions[:,0]>thresh_CNN_noisy)[0])
+            discard = list(np.where(predictions[:,0]<=thresh_CNN_noisy)[0])
             Ain = np.stack(Ain)[keep]
             Cin = [Cin[kp] for kp in keep]
             Cin_res = [Cin_res[kp] for kp in keep]
             idx = list(np.array(idx)[keep])
-            cnn_pos = Ain2[keep]
+            cnn_pos = Ain2[discard]
 
 
     return Ain, Cin, Cin_res, idx, ijsig_all, cnn_pos
@@ -618,7 +619,7 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
     # update variance of residual buffer
     sv += rho_buf.get_last_frames(1).squeeze()
 
-    Ains, Cins, Cins_res, inds, ijsig_all, cnn_pos = get_candidate_components(sv,dims,Yres_buf,min_num_trial,
+    Ains, Cins, Cins_res, inds, ijsig_all, cnn_pos = get_candidate_components(sv,dims,Yres_buf,min_num_trial, gSig,
                                                           gHalf,sniper_mode, rval_thr, 50,
                                                           loaded_model, thresh_CNN_noisy)
 
@@ -676,7 +677,7 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                     # restrict blurring to region where component is located
                     vb = np.reshape(Ain, dims, order='C')
                     slices = tuple(slice(max(0, ijs[0] - 2 * sg), min(d, ijs[1] + 2 * sg))
-                                   for ijs, sg, d in zip(ijSig, gSig, dims))  # is 2 enough?
+                                   for ijs, sg, d in zip(ijSig, gSiz//2, dims))  # is 2 enough?
                     vb[slices] = imblur(
                         vb[slices], sig=gSig, siz=gSiz, nDimBlur= len(dims))
                     sv_ -= (vb.ravel(order=order_rvl)**2) * cin.dot(cin)
@@ -787,7 +788,8 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                 # restrict blurring to region where component is located
                 vb = np.reshape(Ain, dims, order='F')
                 slices = tuple(slice(max(0, ijs[0] - 2 * sg), min(d, ijs[1] + 2 * sg))
-                               for ijs, sg, d in zip(ijSig, gSig, dims))  # is 2 enough?
+                               for ijs, sg, d in zip(ijSig, gSiz//2, dims))  # is 2 enough?
+
                 vb[slices] = imblur(vb[slices], sig=gSig, siz=gSiz, nDimBlur= len(dims))
                 vb = vb.ravel(order=order_rvl)
 

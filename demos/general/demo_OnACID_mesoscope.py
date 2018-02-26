@@ -50,7 +50,8 @@ download_demo('Tolias_mesoscope_3.hdf5', fld_name)
 # folder where files are located
 folder_name = os.path.join(caiman_path, 'example_movies', fld_name)
 extension = 'hdf5'                                  # extension of files
-fls = ['example_movies/Mesoscope/Tolias_mesoscope_1.hdf5']
+fls = ['example_movies/Mesoscope/Tolias_mesoscope_1.hdf5','example_movies/Mesoscope/Tolias_mesoscope_2.hdf5','example_movies/Mesoscope/Tolias_mesoscope_3.hdf5']
+fls = fls[:1]
 # read all files to be processed
 #%%
 fls = ['/mnt/ceph/neuro/zebra/05292014Fish1-4/images/mmap_tifs/Plane17_100_500_400_-350_mc.tif']
@@ -70,7 +71,7 @@ decay_time = 0.5
 
 # expected half size of neurons
 gSig = (8, 8)
-gSig = (2, 2)
+gSig = (2.5, 2.5)
 
 # order of AR indicator dynamics
 p = 1
@@ -85,7 +86,7 @@ ds_factor = 1
 # number of background components
 gnb = 3
 # recompute gSig if downsampling is involved
-gSig = tuple(np.ceil(np.array(gSig) / ds_factor).astype('int'))
+gSig = tuple((np.array(gSig) / ds_factor))#.astype('int'))
 # flag for online motion correction
 mot_corr = True
 # maximum allowed shift during motion correction
@@ -151,7 +152,6 @@ pl.title('Correlation Image on initial batch')
 pl.colorbar()
 
 #%% initialize OnACID with bare initialization
-
 cnm_init = bare_initialization(Y[:initbatch].transpose(1, 2, 0), init_batch=initbatch, k=K, gnb=gnb,
                                gSig=gSig, p=p, minibatch_shape=100, minibatch_suff_stat=5,
                                update_num_comps=True, rval_thr=rval_thr,
@@ -161,7 +161,6 @@ cnm_init = bare_initialization(Y[:initbatch].transpose(1, 2, 0), init_batch=init
                                simultaneously=False, n_refit=0)
 
 #%% Plot initialization results
-
 crd = plot_contours(cnm_init.A.tocsc(), Cn_init, thr=0.9)
 A, C, b, f, YrA, sn = cnm_init.A, cnm_init.C, cnm_init.b, cnm_init.f, cnm_init.YrA, cnm_init.sn
 view_patches_bar(Yr, scipy.sparse.coo_matrix(
@@ -241,7 +240,7 @@ cnm2._prepare_object(np.asarray(Yr), T1, expected_comps, idx_components=None,
                          min_num_trial=3, max_num_added = 3, N_samples_exceptionality=int(N_samples),
                          path_to_model = path_to_model,
                          sniper_mode = True)
-#cnm2.thresh_CNN_noisy = 0.995
+cnm2.thresh_CNN_noisy = 0.75
 #%% Run OnACID and optionally plot results in real time
 cnm2.Ab_epoch = []                       # save the shapes at the end of each epoch
 t = cnm2.initbatch                       # current timestep
@@ -256,7 +255,7 @@ play_reconstr = False
 save_movie = False
 if save_movie:
     movie_name = os.path.join(folder_name, 'output.avi')  # name of movie to be saved
-resize_fact = 1.2                        # image resizing factor
+resize_fact = 2                        # image resizing factor
 
 if online_files == 0:                    # check whether there are any additional files
     process_files = fls[:init_files]     # end processing at this file
@@ -356,7 +355,7 @@ for iter in range(epochs):
                 if save_movie:
                     out.write(vid_frame)
                 cv2.imshow('frame', vid_frame)
-                if cv2.waitKey(50) & 0xFF == ord('q'):
+                if cv2.waitKey(100) & 0xFF == ord('q'):
                     break
 
         print('Cumulative processing speed is ' + str((t - initbatch) /

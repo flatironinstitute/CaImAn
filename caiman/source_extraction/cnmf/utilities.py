@@ -261,7 +261,7 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], gSiz=None, ssub=2, tsub=2, p
 
     options['init_params'] = {'K': K,                  # number of components
                               'gSig': gSig,                               # size of bounding box
-                              'gSiz': [np.int(np.round((x * 2) + 1)) for x in gSig] if gSiz is None else gSiz,
+                              'gSiz': [np.int((np.ceil(x) * 2) + 1) for x in gSig] if gSiz is None else gSiz,
                               'ssub': ssub,             # spatial downsampling factor
                               'tsub': tsub,             # temporal downsampling factor
                               'nIter': 5,               # number of refinement iterations

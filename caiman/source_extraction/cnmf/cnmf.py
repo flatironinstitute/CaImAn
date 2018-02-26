@@ -789,7 +789,7 @@ class CNMF(object):
         self.C_on = np.vstack(
             [self.noisyC[:self.gnb, :], self.C_on.astype(np.float32)])
 
-        self.gSiz = np.add(np.multiply(self.gSig, 2), 1)
+        self.gSiz = np.add(np.multiply(np.ceil(self.gSig).astype(np.int), 2), 1)
 
         self.Yr_buf = RingBuffer(Yr[:, self.initbatch - self.minibatch_shape:
                                     self.initbatch].T.copy(), self.minibatch_shape)
