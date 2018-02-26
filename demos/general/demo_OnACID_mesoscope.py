@@ -50,8 +50,10 @@ download_demo('Tolias_mesoscope_3.hdf5', fld_name)
 # folder where files are located
 folder_name = os.path.join(caiman_path, 'example_movies', fld_name)
 extension = 'hdf5'                                  # extension of files
+fls = ['example_movies/Mesoscope/Tolias_mesoscope_1.hdf5']
 # read all files to be processed
-fls = glob.glob(folder_name + '/*' + extension)
+#%%
+fls = ['/mnt/ceph/neuro/zebra/05292014Fish1-4/images/mmap_tifs/Plane17_100_500_400_-350_mc.tif']
 
 # your list of files should look something like this
 print(fls)
@@ -59,21 +61,29 @@ print(fls)
 #%%   Set up some parameters
 
 # frame rate (Hz)
+fr = 5
 fr = 15
+
 # approximate length of transient event in seconds
+decay_time = 1.5
 decay_time = 0.5
+
 # expected half size of neurons
-gSig = (5, 5)
+gSig = (8, 8)
+gSig = (2, 2)
+
 # order of AR indicator dynamics
 p = 1
 # minimum SNR for accepting new components
 min_SNR = 2.5
 # correlation threshold for new component inclusion
+rval_thr = 0.8
 rval_thr = 0.85
+
 # spatial downsampling factor (increases speed but may lose some fine structure)
 ds_factor = 1
 # number of background components
-gnb = 2
+gnb = 3
 # recompute gSig if downsampling is involved
 gSig = tuple(np.ceil(np.array(gSig) / ds_factor).astype('int'))
 # flag for online motion correction
@@ -102,7 +112,7 @@ thresh_fitness_raw = scipy.special.log_ndtr(-min_SNR) * N_samples
 # number of passes over the data
 epochs = 2
 # upper bound for number of frames in each file (used right below)
-len_file = 1000
+len_file = 1885
 # total length of all files (if not known use a large number, then truncate at the end)
 T1 = len(fls) * len_file * epochs
 
@@ -159,15 +169,21 @@ view_patches_bar(Yr, scipy.sparse.coo_matrix(
 
 
 #%% create a function for plotting results in real time if needed
-
 def create_frame(cnm2, img_norm, captions):
     A, b = cnm2.Ab[:, cnm2.gnb:], cnm2.Ab[:, :cnm2.gnb].toarray()
     C, f = cnm2.C_on[cnm2.gnb:cnm2.M, :], cnm2.C_on[:cnm2.gnb, :]
     # inferred activity due to components (no background)
     comps_frame = A.dot(C[:, t - 1]).reshape(cnm2.dims,
                                              order='F') * img_norm / np.max(img_norm)
+
+#    comps_frame = cnm2.sv.reshape(cnm2.dims, order='C')/5000*255
+#    comps_frame = np.uint8(comps_frame)
+
     bgkrnd_frame = b.dot(f[:, t - 1]).reshape(cnm2.dims, order='F') * \
         img_norm / np.max(img_norm)  # denoised frame (components + background)
+
+
+
     if show_residuals:
         all_comps = np.reshape(cnm2.Yres_buf.mean(
             0), cnm2.dims, order='F') * img_norm / np.max(img_norm)
@@ -175,20 +191,30 @@ def create_frame(cnm2, img_norm, captions):
     else:
         all_comps = (np.array(A.sum(-1)).reshape(cnm2.dims, order='F')
                      )                         # spatial shapes
+
+
     frame_comp_1 = cv2.resize(np.concatenate([frame_ / np.max(img_norm), all_comps * 3.], axis=-1),
                               (2 * np.int(cnm2.dims[1] * resize_fact), np.int(cnm2.dims[0] * resize_fact)))
+
     frame_comp_2 = cv2.resize(np.concatenate([comps_frame * 10., comps_frame + bgkrnd_frame],
                                              axis=-1), (2 * np.int(cnm2.dims[1] * resize_fact), np.int(cnm2.dims[0] * resize_fact)))
+
     frame_pn = np.concatenate([frame_comp_1, frame_comp_2], axis=0).T
     vid_frame = np.repeat(frame_pn[:, :, None], 3, axis=-1)
     vid_frame = np.minimum((vid_frame * 255.), 255).astype('u1')
-    
+
+    if show_residuals and cnm2.ind_new_all:
+        add_v = np.int(cnm2.dims[1]*resize_fact)
+        for ind_new in cnm2.ind_new_all:
+            cv2.rectangle(vid_frame,(int(ind_new[0][1]*resize_fact),int(ind_new[1][1]*resize_fact)+add_v),
+                                         (int(ind_new[0][0]*resize_fact),int(ind_new[1][0]*resize_fact)+add_v),(255,255,255),2)
     if show_residuals and cnm2.ind_new:
         add_v = np.int(cnm2.dims[1]*resize_fact)
         for ind_new in cnm2.ind_new:
             cv2.rectangle(vid_frame,(int(ind_new[0][1]*resize_fact),int(ind_new[1][1]*resize_fact)+add_v),
                                          (int(ind_new[0][0]*resize_fact),int(ind_new[1][0]*resize_fact)+add_v),(255,0,255),2)
-    
+
+
     cv2.putText(vid_frame, captions[0], (5, 20), fontFace=5, fontScale=1.2, color=(
         0, 255, 0), thickness=1)
     cv2.putText(vid_frame, captions[1], (np.int(
@@ -203,7 +229,8 @@ def create_frame(cnm2, img_norm, captions):
 
 #%% Prepare object for OnACID
 cnm2 = deepcopy(cnm_init)
-
+path_to_model = 'use_cases/edge-cutter/residual_classifier_2classes.h5'
+path_to_model = 'use_cases/CaImAnpaper/net_models/sniper_sensitive.h5'
 save_init = False     # flag for saving initialization object. Useful if you want to check OnACID with different parameters but same initialization
 if save_init:
     cnm_init.dview = None
@@ -212,23 +239,23 @@ if save_init:
 
 cnm2._prepare_object(np.asarray(Yr), T1, expected_comps, idx_components=None,
                          min_num_trial=3, max_num_added = 3, N_samples_exceptionality=int(N_samples),
-                         path_to_model = 'use_cases/edge-cutter/residual_classifier_2classes.h5',
+                         path_to_model = path_to_model,
                          sniper_mode = True)
 #cnm2.thresh_CNN_noisy = 0.995
 #%% Run OnACID and optionally plot results in real time
-
 cnm2.Ab_epoch = []                       # save the shapes at the end of each epoch
 t = cnm2.initbatch                       # current timestep
 tottime = []
 Cn = Cn_init.copy()
-
+cnn_pos = []
 # flag for plotting contours of detected components at the end of each file
 plot_contours_flag = False
 # flag for showing video with results online (turn off flags for improving speed)
 play_reconstr = False
 # flag for saving movie (file could be quite large..)
 save_movie = False
-movie_name = os.path.join(folder_name, 'output.avi')  # name of movie to be saved
+if save_movie:
+    movie_name = os.path.join(folder_name, 'output.avi')  # name of movie to be saved
 resize_fact = 1.2                        # image resizing factor
 
 if online_files == 0:                    # check whether there are any additional files
@@ -312,6 +339,7 @@ for iter in range(epochs):
             cnm2.fit_next(t, frame_cor.reshape(-1, order='F')
                           )      # run OnACID on this frame
             # store time
+            cnn_pos.append(cnm2.cnn_pos)
             tottime.append(time() - t1)
 
             t += 1
@@ -328,7 +356,7 @@ for iter in range(epochs):
                 if save_movie:
                     out.write(vid_frame)
                 cv2.imshow('frame', vid_frame)
-                if cv2.waitKey(1) & 0xFF == ord('q'):
+                if cv2.waitKey(50) & 0xFF == ord('q'):
                     break
 
         print('Cumulative processing speed is ' + str((t - initbatch) /

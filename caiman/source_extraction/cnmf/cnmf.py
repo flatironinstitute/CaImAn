@@ -88,7 +88,7 @@ class CNMF(object):
                  min_corr=.85, min_pnr=20, deconvolve_options_init=None, ring_size_factor=1.5,
                  center_psf=False, use_dense=True, deconv_flag=True,
                  simultaneously=False, n_refit=0, del_duplicates=False, N_samples_exceptionality=5,
-                 max_num_added=1, min_num_trial=2, thresh_CNN_noisy=0.99, 
+                 max_num_added=1, min_num_trial=2, thresh_CNN_noisy=0.99,
                  ssub_B=2, compute_B_3x=False, init_iter=2):
         """
         Constructor of the CNMF method
@@ -242,9 +242,9 @@ class CNMF(object):
 
         min_num_trial : int, optional
             minimum numbers of attempts to include a new components in OnACID
-            
+
         thresh_CNN_noisy: float
-            threshold on the per patch CNN classifier for online algorithm  
+            threshold on the per patch CNN classifier for online algorithm
 
         ssub_B: int, optional
             downsampleing factor for 1-photon imaging background computation
@@ -813,13 +813,13 @@ class CNMF(object):
             self.time_neuron_added.append((nneeuu, self.initbatch))
         self.time_spend = 0
         # setup per patch classifier
-        
+
         if path_to_model is None:
             loaded_model = None
             sniper_mode = False
         else:
             import keras
-            from keras.models import model_from_json            
+            from keras.models import model_from_json
             path = path_to_model.split(".")[:-1]
             json_path = ".".join(path + ["json"])
             model_path = ".".join(path + ["h5"])
@@ -831,12 +831,12 @@ class CNMF(object):
                 loaded_model.load_weights(model_path)
                 opt = keras.optimizers.rmsprop(lr=0.0001, decay=1e-6)
                 loaded_model.compile(loss=keras.losses.categorical_crossentropy,
-                              optimizer=opt, metrics=['accuracy'])   
+                              optimizer=opt, metrics=['accuracy'])
             except:
                 print('No model found')
                 loaded_model = None
                 sniper_mode = False
-                
+
         self.loaded_model = loaded_model
         self.sniper_mode = sniper_mode
         return self
@@ -903,6 +903,7 @@ class CNMF(object):
 #        cv2.imshow('untitled', 3*cv2.resize(self.Ab.sum(1).reshape(self.dims,order = 'F'),(512,512)))
 #        cv2.waitKey(1)
 #
+
         if self.update_num_comps:
 
             res_frame = frame - self.Ab.dot(self.noisyC[:self.M, t])
@@ -918,7 +919,7 @@ class CNMF(object):
             rho = np.reshape(rho, np.prod(self.dims2))
             self.rho_buf.append(rho)
 
-            self.Ab, Cf_temp, self.Yres_buf, self.rhos_buf, self.CC, self.CY, self.ind_A, self.sv, self.groups, self.ind_new = update_num_components(
+            self.Ab, Cf_temp, self.Yres_buf, self.rhos_buf, self.CC, self.CY, self.ind_A, self.sv, self.groups, self.ind_new, self.ind_new_all, self.sv, self.cnn_pos = update_num_components(
                 t, self.sv, self.Ab, self.C_on[:self.M, (t - mbs + 1):(t + 1)],
                 self.Yres_buf, self.Yr_buf, self.rho_buf, self.dims2,
                 self.gSig, self.gSiz, self.ind_A, self.CY, self.CC, rval_thr=self.rval_thr,

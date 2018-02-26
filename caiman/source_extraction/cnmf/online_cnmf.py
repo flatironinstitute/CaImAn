@@ -494,6 +494,8 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial = 3,
     Cin_res = []
     idx = []
     keep = []
+    ijsig_all = []
+    cnn_pos = []
 #    resize_g = False
 
     half_crop_cnn = (np.minimum(gHalf[0] * 4 + 1, patch_size) // 2,np.minimum(gHalf[1] * 4 + 1, patch_size) // 2)
@@ -505,8 +507,8 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial = 3,
         ij = [min(max(ij_val,g_val),dim_val-g_val-1) for ij_val, g_val, dim_val in zip(ij,gHalf,dims)]
         ij_cnn = [min(max(ij_val,g_val),dim_val-g_val-1) for ij_val, g_val, dim_val in zip(ij,half_crop_cnn,dims)]
 
-        ind = np.ravel_multi_index(ij, dims, order = 'C')
-        ind_cnn = np.ravel_multi_index(ij_cnn, dims, order = 'C')
+        ind = np.ravel_multi_index(ij, dims, order='C')
+        ind_cnn = np.ravel_multi_index(ij_cnn, dims, order='C')
 
         ijSig = [[max(i - g, 0), min(i+g+1,d)] for i, g, d in zip(ij, gHalf, dims)]
         ijSig_cnn = [[max(i - g, 0), min(i+g+1,d)] for i, g, d in zip(ij_cnn, half_crop_cnn, dims)]
@@ -531,10 +533,11 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial = 3,
         ain_cnn = Ypx_cnn.mean(1)
         ain = np.maximum(np.mean(Ypx, 1), 0)
         na = ain.dot(ain)
+        sv[indeces_] /= 2 #0
         if na:
             ain /= sqrt(na)
             ain, cin, cin_res = rank1nmf(Ypx, ain)
-            sv[indeces_] = 0
+
             if sniper_mode:
                 idx.append(ind)
                 Ain.append(ain)
@@ -550,7 +553,7 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial = 3,
                     Cin.append(cin)
                     Cin_res.append(cin_res)
 
-
+        ijsig_all.append(ijSig)
 
     if len(Ain_cnn)>0:
         if sniper_mode:
@@ -580,8 +583,10 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial = 3,
             Cin = [Cin[kp] for kp in keep]
             Cin_res = [Cin_res[kp] for kp in keep]
             idx = list(np.array(idx)[keep])
+            cnn_pos = Ain2[keep]
 
-    return Ain, Cin, Cin_res, idx
+
+    return Ain, Cin, Cin_res, idx, ijsig_all, cnn_pos
 
 
 #%%
@@ -612,9 +617,12 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
     sv -= rho_buf.get_first()
     # update variance of residual buffer
     sv += rho_buf.get_last_frames(1).squeeze()
-    Ains, Cins, Cins_res, inds = get_candidate_components(sv,dims,Yres_buf,min_num_trial,
+
+    Ains, Cins, Cins_res, inds, ijsig_all, cnn_pos = get_candidate_components(sv,dims,Yres_buf,min_num_trial,
                                                           gHalf,sniper_mode, rval_thr, 50,
                                                           loaded_model, thresh_CNN_noisy)
+
+    ind_new_all = ijsig_all
 
     num_added = len(inds)
     cnt = 0
@@ -637,32 +645,7 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
         indeces_ = np.ravel_multi_index(np.ix_(*[np.arange(ij[0] , ij[1])
                         for ij in ijSig]), dims, order='C').ravel(order=order_rvl)
 
-#        indeces_ = np.ravel_multi_index(np.ix_(np.arange(ijSig[0][0], ijSig[0][1]),
-#                                               np.arange(ijSig[1][0], ijSig[1][1])),
-#                                        dims, order='C').ravel(order=order_rvl)
 
-#        Ypx = Yres_buf.T[indeces, :]
-#
-#        ain = np.maximum(np.mean(Ypx, 1), 0)
-#        na = ain.dot(ain)
-#        if not na:
-#            break
-#
-#        ain /= sqrt(na)
-#        ain, cin, cin_res = rank1nmf(Ypx, ain)
-#
-#        examine_patch = False
-#        if sniper_mode:
-#            patch_size = 50
-#            ain2 = ain.copy()
-#            ain2 -= np.median(ain2)
-#            ain2 = np.reshape(ain2,tuple(np.diff(ijSig).squeeze()),order= 'F')
-#            ain2 = cv2.resize(ain2/np.linalg.norm(ain2),(patch_size ,patch_size))
-#            predictions = loaded_model.predict(ain2[np.newaxis,:,:,np.newaxis], batch_size=32, verbose=0)
-#            examine_patch = predictions[0][0]>thresh_CNN_noisy
-#        else:
-#            rval = corr(ain.copy(), np.mean(Ypx, -1))
-#            examine_patch = rval>rval_thr
         examine_patch = True
 
 
@@ -682,8 +665,9 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
             else:
                 ff = np.where(Ab_dense[indeces, gnb:].T.dot(
                     ain).T > thresh_overlap)[0] + gnb
+
             if ff.size > 0:
-                foo = False
+#                foo = False
                 cc = [corr(cin_circ.copy(), cins) for cins in Cf[ff, :]]
                 if np.any(np.array(cc) > .25) and foo:
                     #                    repeat = False
@@ -811,6 +795,7 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                 ind_vb = np.ravel_multi_index(np.ix_(*[np.arange(s.start, s.stop)
                                                        for s in slices]), dims, order=order_rvl).ravel(order=order_rvl)
 
+
                 updt_res = (vb[None, ind_vb].T**2).dot(cin[None, :]**2).T
                 rho_buf[:, ind_vb] -= updt_res
                 updt_res_sum = np.sum(updt_res, 0)
@@ -822,16 +807,16 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                     num_added = max_num_added
                 else:
                     first = False
-                    sv_[indeces_] = 0
+                    sv_[indeces_] /= 2 #0
 
         else:
             if cnt >= min_num_trial:
                 num_added = max_num_added
             else:
                 first = False
-                sv_[indeces_] = 0
+                sv_[indeces_] /= 2 #0
 
-    return Ab, Cf, Yres_buf, rho_buf, CC, CY, ind_A, sv, groups, ind_new
+    return Ab, Cf, Yres_buf, rho_buf, CC, CY, ind_A, sv, groups, ind_new, ind_new_all, sv, cnn_pos
 
 
 #%%
