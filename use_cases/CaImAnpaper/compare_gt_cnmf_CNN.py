@@ -285,6 +285,18 @@ params_movie = { #'fname': '/opt/local/Data/labeling/k37_20160109_AM_150um_65mW_
                  }
 params_movies.append(params_movie.copy())
 #%%
+def myfun(x):
+    from caiman.source_extraction.cnmf.deconvolution import constrained_foopsi
+    return constrained_foopsi(*x)[5]
+def fun_exc(x):
+    from scipy.stats import norm
+    from caiman.components_evaluation import compute_event_exceptionality
+
+    fluo, param = x
+    N_samples = np.ceil(param['fr'] * param['decay_time']).astype(np.int)
+    ev = compute_event_exceptionality(np.atleast_2d(fluo), N=N_samples)
+    return  -norm.ppf(np.exp(np.array(ev[1]) / N_samples))
+#%%
 all_perfs = []
 all_rvalues = []
 all_comp_SNR_raw =[]
@@ -292,18 +304,18 @@ all_comp_SNR_delta = []
 all_predictions = []
 all_labels = []
 all_results = dict()
-reload = False
+reload = True
 plot_on = False
-save_on = True
+save_on = False
 skip_refinement = False
-backend_patch = 'ipyparallel'
-backend_refine = 'ipyparallel'
+backend_patch = 'local'
+backend_refine = 'local'
 n_processes = 24
 n_pixels_per_process=4000
 block_size=4000
 num_blocks_per_run=10
 
-for params_movie in np.array(params_movies)[2:3]:
+for params_movie in np.array(params_movies)[:]:
 #    params_movie['gnb'] = 3
     params_display = {
         'downsample_ratio': .2,
@@ -313,15 +325,7 @@ for params_movie in np.array(params_movies)[2:3]:
     # @params fname name of the movie
     fname_new = params_movie['fname']
     print(fname_new)
-    # %% RUN ANALYSIS
-    try:
-        cm.stop_server()
-        dview.terminate()
-    except:
-        print('No clusters to stop')
 
-    c, dview, n_processes = setup_cluster(
-        backend=backend_patch, n_processes=n_processes, single_thread=False)
     # %% LOAD MEMMAP FILE
     # fname_new='Yr_d1_501_d2_398_d3_1_order_F_frames_369_.mmap'
     Yr, dims, T = cm.load_memmap(fname_new)
@@ -332,9 +336,18 @@ for params_movie in np.array(params_movies)[2:3]:
     m_images = cm.movie(images)
     # TODO: show screenshot 10
     #%%
+    try:
+        cm.stop_server()
+        dview.terminate()
+    except:
+        print('No clusters to stop')
 
+    c, dview, n_processes = setup_cluster(
+            backend=backend_patch, n_processes=n_processes, single_thread=False)
+    print('Not RELOADING')
     if not reload:
-        print('Not RELOADING')
+        # %% RUN ANALYSIS
+
     # %% correlation image
         if (plot_on or save_on):
             if False and m_images.shape[0]<10000:
@@ -553,13 +566,17 @@ for params_movie in np.array(params_movies)[2:3]:
             print([ t_patch, t_refine,t_eva_comps])
             print(t_eva_comps+t_patch + t_refine)
 
+
 #        print(C_gt.shape)
 #        print(Y.shape)
 
+#        comp_SNR_trace = np.concatenate(dview.map(fun_exc,[[fluor, params_movie] for fluor in (C_gt+YrA_gt)]),0)
+#        pl.hist(np.sum(comp_SNR_trace>2.5,0)/len(comp_SNR_trace),15)
+#        np.savez(fname_new.split('/')[-4]+'_act.npz', comp_SNR_trace=comp_SNR_trace, C_gt=C_gt, A_gt=A_gt, dims=(d1,d2))
 
-
-
-
+        S = dview.map(myfun,[[fluor, None, None, None, None, 2, 'oasis'] for fluor in (C_gt+YrA_gt)])
+        np.savez(fname_new.split('/')[-4]+'_spikes.npz', S=S, C_gt=C_gt, A_gt=A_gt, dims=(d1,d2))
+        continue
 #        gt_file = os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:-4] + 'match_masks.npz')
 #        with np.load(gt_file, encoding = 'latin1') as ld:
 #            print(ld.keys())
@@ -1027,3 +1044,56 @@ for params_movie in np.array(params_movies)[2:3]:
         plt.plot((np.sort(size)),(10**np.sort(size))/31.45,'--k')
 
 
+#%% activity
+import glob
+import numpy as np
+import pylab as pl
+from scipy.signal import savgol_filter
+ffllss = glob.glob('*_act.npz')
+ffllss.sort()
+print(ffllss)
+for thresh in np.arange(1.5,4.5,1):
+    count = 1
+    pl.pause(0.1)
+    for ffll in ffllss:
+
+        with np.load(ffll) as ld:
+            print(ld.keys())
+            locals().update(ld)
+            pl.subplot(3,4,count)
+            count += 1
+            a = np.histogram(np.sum(comp_SNR_trace>thresh,0)/len(comp_SNR_trace),100)
+            pl.plot(a[1][1:][a[0]>0],savgol_filter(a[0][a[0]>0]/comp_SNR_trace.shape[-1],5,3))
+
+            pl.title(ffll)
+
+pl.legend(np.arange(1.5,4.5,1))
+pl.xlabel('fraction active')
+pl.ylabel('fraction of frames')
+#%% spikes
+import glob
+import numpy as np
+import pylab as pl
+from scipy.signal import savgol_filter
+ffllss = glob.glob('*_spikes.npz')
+ffllss.sort()
+print(ffllss)
+for thresh in np.arange(0,.3,.1):
+    count = 1
+    pl.pause(0.1)
+    for ffll in ffllss:
+
+        with np.load(ffll) as ld:
+            print(ld.keys())
+            locals().update(ld)
+            S = S/np.max(S,1)[:,None]
+            pl.subplot(3,4,count)
+            count += 1
+            a = np.histogram(np.sum(S>thresh,0)/len(S),100)
+            pl.plot(a[1][1:][a[0]>0],savgol_filter(a[0][a[0]>0]/S.shape[-1],5,3))
+
+            pl.title(ffll)
+
+pl.legend(np.arange(0,.3,.1))
+pl.xlabel('fraction active')
+pl.ylabel('fraction of frames')

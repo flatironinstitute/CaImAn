@@ -11,11 +11,13 @@ for sharing their data used in this demo.
 import os
 import sys
 
-here = os.path.dirname(os.path.realpath(__file__))
-caiman_path = os.path.join(here, "..", "..")
-print("Caiman path detected as " + caiman_path)
-sys.path.append(caiman_path)
-
+try:
+    here = os.path.dirname(os.path.realpath(__file__))
+    caiman_path = os.path.join(here, "..", "..")
+    print("Caiman path detected as " + caiman_path)
+    sys.path.append(caiman_path)
+except:
+    pass
 import numpy as np
 try:
     if __IPYTHON__:
@@ -51,10 +53,10 @@ download_demo('Tolias_mesoscope_3.hdf5', fld_name)
 folder_name = os.path.join(caiman_path, 'example_movies', fld_name)
 extension = 'hdf5'                                  # extension of files
 fls = ['example_movies/Mesoscope/Tolias_mesoscope_1.hdf5','example_movies/Mesoscope/Tolias_mesoscope_2.hdf5','example_movies/Mesoscope/Tolias_mesoscope_3.hdf5']
-fls = fls[:1]
+fls = fls[:]
 # read all files to be processed
 #%%
-fls = ['/mnt/ceph/neuro/zebra/05292014Fish1-4/images/mmap_tifs/Plane17_100_500_400_-350_mc.tif']
+fls = ['/mnt/ceph/neuro/zebra/05292014Fish1-4/images/mmap_tifs/Plane17_100_500_400_-350_mc_noinit_small.tif']
 
 # your list of files should look something like this
 print(fls)
@@ -63,23 +65,23 @@ print(fls)
 
 # frame rate (Hz)
 fr = 5
-fr = 15
+#fr = 15
 
 # approximate length of transient event in seconds
 decay_time = 1.5
-decay_time = 0.5
+#decay_time = 0.5
 
 # expected half size of neurons
 gSig = (8, 8)
-gSig = (2.5, 2.5)
+#gSig = (2.5, 2.5)
 
 # order of AR indicator dynamics
 p = 1
 # minimum SNR for accepting new components
 min_SNR = 2.5
 # correlation threshold for new component inclusion
-rval_thr = 0.8
-rval_thr = 0.85
+rval_thr = 1
+#rval_thr = 0.85
 
 # spatial downsampling factor (increases speed but may lose some fine structure)
 ds_factor = 1
@@ -103,9 +105,9 @@ online_files = len(fls) - 1
 # number of frames for initialization (presumably from the first file)
 initbatch = 200
 # maximum number of expected components used for memory pre-allocation (exaggerate here)
-expected_comps = 300
+expected_comps = 600
 # initial number of components
-K = 2
+K = 5
 # number of timesteps to consider when testing new neuron candidates
 N_samples = np.ceil(fr * decay_time)
 # exceptionality threshold
@@ -113,12 +115,11 @@ thresh_fitness_raw = scipy.special.log_ndtr(-min_SNR) * N_samples
 # number of passes over the data
 epochs = 2
 # upper bound for number of frames in each file (used right below)
-len_file = 1885
+len_file = 1815#1885
 # total length of all files (if not known use a large number, then truncate at the end)
 T1 = len(fls) * len_file * epochs
 
 #%%    Initialize movie
-
 # load only the first initbatch frames and possibly downsample them
 if ds_factor > 1:
     Y = cm.load(fls[0], subindices=slice(0, initbatch, None)).astype(
@@ -153,7 +154,7 @@ pl.colorbar()
 
 #%% initialize OnACID with bare initialization
 cnm_init = bare_initialization(Y[:initbatch].transpose(1, 2, 0), init_batch=initbatch, k=K, gnb=gnb,
-                               gSig=gSig, p=p, minibatch_shape=100, minibatch_suff_stat=5,
+                               gSig=gSig, p=0, minibatch_shape=100, minibatch_suff_stat=5,
                                update_num_comps=True, rval_thr=rval_thr,
                                thresh_fitness_raw=thresh_fitness_raw,
                                batch_update_suff_stat=True, max_comp_update_shape=max_comp_update_shape,
@@ -175,8 +176,8 @@ def create_frame(cnm2, img_norm, captions):
     comps_frame = A.dot(C[:, t - 1]).reshape(cnm2.dims,
                                              order='F') * img_norm / np.max(img_norm)
 
-#    comps_frame = cnm2.sv.reshape(cnm2.dims, order='C')/5000*255
-#    comps_frame = np.uint8(comps_frame)
+#    comps_frame = cnm2.sv.reshape(cnm2.dims, order='C')/100
+
 
     bgkrnd_frame = b.dot(f[:, t - 1]).reshape(cnm2.dims, order='F') * \
         img_norm / np.max(img_norm)  # denoised frame (components + background)
@@ -237,7 +238,7 @@ if save_init:
     cnm_init = load_object(fls[0][:-4] + '_DS_' + str(ds_factor) + '.pkl')
 
 cnm2._prepare_object(np.asarray(Yr), T1, expected_comps, idx_components=None,
-                         min_num_trial=3, max_num_added = 3, N_samples_exceptionality=int(N_samples),
+                         min_num_trial=20, max_num_added = 10, N_samples_exceptionality=int(N_samples),
                          path_to_model = path_to_model,
                          sniper_mode = True)
 cnm2.thresh_CNN_noisy = 0.75
@@ -255,7 +256,7 @@ play_reconstr = False
 save_movie = False
 if save_movie:
     movie_name = os.path.join(folder_name, 'output.avi')  # name of movie to be saved
-resize_fact = 2                        # image resizing factor
+resize_fact = 1.2                        # image resizing factor
 
 if online_files == 0:                    # check whether there are any additional files
     process_files = fls[:init_files]     # end processing at this file
@@ -383,7 +384,7 @@ b_trace = [osi.b for osi in cnm2.OASISinstances] if hasattr(
     cnm2, 'OASISinstances') else [0] * C.shape[0]
 
 pl.figure()
-crd = cm.utils.visualization.plot_contours(A, Cn, thr=0.9)
+crd = cm.utils.visualization.plot_contours(A, Cn, thr=0.9, vmax = 0.65)
 view_patches_bar(Yr, scipy.sparse.coo_matrix(A.tocsc()[:, :]), C[:, :], b, f,
                  dims[0], dims[1], YrA=noisyC[cnm2.gnb:cnm2.M] - C, img=Cn)
 
