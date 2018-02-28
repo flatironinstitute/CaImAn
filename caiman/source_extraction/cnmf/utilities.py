@@ -39,8 +39,8 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], gSiz=None, ssub=2, tsub=2, p
                  thr=0.8, method_init='greedy_roi', nb=1, nb_patch=1, n_pixels_per_process=None, block_size=None,
                  check_nan=True, normalize_init=True, options_local_NMF=None, remove_very_bad_comps=False,
                  alpha_snmf=10e2, update_background_components=True, low_rank_background=True, rolling_sum=False,
-                 min_corr=.85, min_pnr=20, ring_size_factor=1.5, center_psf=False,
-                 ssub_B=2, compute_B_3x=True, init_iter=2):
+                 min_corr=.85, min_pnr=20, deconvolve_options_init=None,                 
+				 ring_size_factor=1.5, center_psf=False, ssub_B=2, compute_B_3x=True, init_iter=2):
     """Dictionary for setting the CNMF parameters.
 
     Any parameter that is not set get a default value specified
@@ -261,7 +261,7 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], gSiz=None, ssub=2, tsub=2, p
 
     options['init_params'] = {'K': K,                  # number of components
                               'gSig': gSig,                               # size of bounding box
-                              'gSiz': [np.int(np.round((x * 2) + 1)) for x in gSig] if gSiz is None else gSiz,
+                              'gSiz': [np.int((np.ceil(x) * 2) + 1) for x in gSig] if gSiz is None else gSiz,
                               'ssub': ssub,             # spatial downsampling factor
                               'tsub': tsub,             # temporal downsampling factor
                               'nIter': 5,               # number of refinement iterations
@@ -281,6 +281,7 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], gSiz=None, ssub=2, tsub=2, p
                               'rolling_length': 100,
                               'min_corr': min_corr,
                               'min_pnr': min_pnr,
+                              'deconvolve_options_init': deconvolve_options_init,
                               'ring_size_factor': ring_size_factor,
                               'center_psf': center_psf,
                               'ssub_B': ssub_B,
