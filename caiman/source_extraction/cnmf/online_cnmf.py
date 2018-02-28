@@ -69,7 +69,7 @@ def bare_initialization(Y, init_batch=1000, k=1, method_init='greedy_roi', gnb=1
         Y = Y[:, :, :, :init_batch]
     else:
         Y = Y[:, :, :init_batch]
-    
+
     Ain, Cin, b_in, f_in, center = initialize_components(
         Y, K=k, gSig=gSig, nb=gnb, method=method_init)
     Ain = coo_matrix(Ain)
@@ -823,7 +823,7 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                 first = False
 #                    sv_[indeces_] /= 2 #0
 
-     return Ab, Cf, Yres_buf, rho_buf, CC, CY, ind_A, sv, groups, ind_new, ind_new_all, sv, cnn_pos
+    return Ab, Cf, Yres_buf, rho_buf, CC, CY, ind_A, sv, groups, ind_new, ind_new_all, sv, cnn_pos
 
 
 #%% remove components online
