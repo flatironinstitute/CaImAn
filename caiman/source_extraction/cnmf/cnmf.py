@@ -40,7 +40,7 @@ from .oasis import OASIS
 import caiman
 from caiman import components_evaluation, mmapping
 import cv2
-from .online_cnmf import RingBuffer, HALS4activity, demix_and_deconvolve
+from .online_cnmf import RingBuffer, HALS4activity, demix_and_deconvolve, remove_components_online
 from .online_cnmf import init_shapes_and_sufficient_stats, update_shapes, update_num_components
 import scipy
 import psutil
@@ -82,13 +82,13 @@ class CNMF(object):
                  update_num_comps=True, rval_thr=0.9, thresh_fitness_delta=-20,
                  thresh_fitness_raw=-40, thresh_overlap=.5,
                  max_comp_update_shape=np.inf, num_times_comp_updated=np.inf,
-                 batch_update_suff_stat=False, thresh_s_min=None, s_min=None,
+                 batch_update_suff_stat=False, s_min=None,
                  remove_very_bad_comps=False, border_pix=0, low_rank_background=True,
                  update_background_components=True, rolling_sum=True, rolling_length=100,
-                 min_corr=.85, min_pnr=20, deconvolve_options_init=None, ring_size_factor=1.5,
+                 min_corr=.85, min_pnr=20, ring_size_factor=1.5,
                  center_psf=False, use_dense=True, deconv_flag=True,
                  simultaneously=False, n_refit=0, del_duplicates=False, N_samples_exceptionality=5,
-                 max_num_added=1, min_num_trial=2, thresh_CNN_noisy=0.99, 
+                 max_num_added=1, min_num_trial=2, thresh_CNN_noisy=0.99,
                  ssub_B=2, compute_B_3x=False, init_iter=2):
         """
         Constructor of the CNMF method
@@ -206,9 +206,6 @@ class CNMF(object):
         min_pnr: float
             minimal peak  to noise ratio for 1-photon imaging initialization
 
-         deconvolve_options: dict
-            all options for deconvolving temporal traces, in general just pass options['temporal_params']
-
         ring_size_factor: float
             it's the ratio between the ring radius and neuron diameters.
 
@@ -242,9 +239,9 @@ class CNMF(object):
 
         min_num_trial : int, optional
             minimum numbers of attempts to include a new components in OnACID
-            
+
         thresh_CNN_noisy: float
-            threshold on the per patch CNN classifier for online algorithm  
+            threshold on the per patch CNN classifier for online algorithm
 
         ssub_B: int, optional
             downsampleing factor for 1-photon imaging background computation
@@ -312,7 +309,6 @@ class CNMF(object):
         self.minibatch_suff_stat = minibatch_suff_stat
         self.update_num_comps = update_num_comps
         self.rval_thr = rval_thr
-        self.thresh_s_min = thresh_s_min
         self.s_min = s_min
         self.thresh_fitness_delta = thresh_fitness_delta
         self.thresh_fitness_raw = thresh_fitness_raw
@@ -331,7 +327,6 @@ class CNMF(object):
 
         self.min_corr = min_corr
         self.min_pnr = min_pnr
-        self.deconvolve_options_init = deconvolve_options_init
         self.ring_size_factor = ring_size_factor
         self.center_psf = center_psf
         self.nb_patch = nb_patch
@@ -346,11 +341,13 @@ class CNMF(object):
                                     options_local_NMF=options_local_NMF,
                                     remove_very_bad_comps=remove_very_bad_comps,
                                     low_rank_background=low_rank_background,
-                                    update_background_components=update_background_components, rolling_sum=self.rolling_sum,
-                                    min_corr=min_corr, min_pnr=min_pnr, deconvolve_options_init=deconvolve_options_init,
+                                    update_background_components=update_background_components,
+                                    rolling_sum=self.rolling_sum,
+                                    min_corr=min_corr, min_pnr=min_pnr,
                                     ring_size_factor=ring_size_factor, center_psf=center_psf,
                                     ssub_B=ssub_B, compute_B_3x=compute_B_3x, init_iter=init_iter)
         self.options['merging']['thr'] = merge_thresh
+        self.options['temporal_params']['s_min'] = s_min
 
     def fit(self, images):
         """
@@ -497,8 +494,8 @@ class CNMF(object):
                 self.b = self.b_in
                 self.f = self.f_in
 
-                self.A, self.C, self.YrA, self.b, self.f = normalize_AC(
-                    self.A, self.C, self.YrA, self.b, self.f)
+                self.A, self.C, self.YrA, self.b, self.f, self.neurons_sn = normalize_AC(
+                    self.A, self.C, self.YrA, self.b, self.f, self.neurons_sn)
                 return self
 
             print('update spatial ...')
@@ -627,7 +624,7 @@ class CNMF(object):
                         thr=self.merge_thresh, mx=np.Inf)
 
                 print("update temporal")
-                C, A, b, f, S, bl, c1, neurons_sn, g1, YrA, lam = update_temporal_components(
+                C, A, b, f, S, bl, c1, neurons_sn, g1, YrA, self.lam = update_temporal_components(
                     Yr, A, b, C, f, dview=self.dview, bl=None, c1=None, sn=None, g=None, **options['temporal_params'])
 
         self.A = A
@@ -643,8 +640,8 @@ class CNMF(object):
         self.neurons_sn = neurons_sn
         self.dims = dims
 
-        self.A, self.C, self.YrA, self.b, self.f = normalize_AC(
-            self.A, self.C, self.YrA, self.b, self.f)
+        self.A, self.C, self.YrA, self.b, self.f, self.neurons_sn = normalize_AC(
+            self.A, self.C, self.YrA, self.b, self.f, self.neurons_sn)
 
         return self
 
@@ -740,7 +737,7 @@ class CNMF(object):
 
         if self.p:
             # if no parameter for calculating the spike size threshold is given, then use L1 penalty
-            if s_min is None and self.s_min is None and self.thresh_s_min is None:
+            if s_min is None and self.s_min is None:
                 use_L1 = True
             else:
                 use_L1 = False
@@ -749,10 +746,9 @@ class CNMF(object):
                 g=np.ravel(0.01) if self.p == 0 else (
                     np.ravel(g)[0] if g is not None else gam[0]),
                 lam=0 if not use_L1 else (l if lam is None else lam),
-                # if no explicit value for s_min,  use thresh_s_min * noise estimate * sqrt(1-gamma)
                 s_min=0 if use_L1 else (s_min if s_min is not None else
-                                        (self.s_min if self.s_min is not None else
-                                         (self.thresh_s_min * sn * np.sqrt(1 - np.sum(gam))))),
+                                        (self.s_min if self.s_min > 0 else
+                                         (-self.s_min * sn * np.sqrt(1 - np.sum(gam))))),
                 b=b if bl is None else bl,
                 g2=0 if self.p < 2 else (np.ravel(g)[1] if g is not None else gam[1]))
                 for gam, l, b, sn in zip(self.g2, self.lam2, self.bl2, self.neurons_sn2)]
@@ -795,6 +791,8 @@ class CNMF(object):
                                     self.initbatch].T.copy(), self.minibatch_shape)
         self.Yres_buf = RingBuffer(self.Yr_buf - self.Ab.dot(
             self.C_on[:self.M, self.initbatch - self.minibatch_shape:self.initbatch]).T, self.minibatch_shape)
+        self.mean_buff = self.Yres_buf.mean(0)
+        self.ind_new = []
         self.rho_buf = imblur(self.Yres_buf.T.reshape(
             self.dims2 + (-1,), order='F'), sig=self.gSig, siz=self.gSiz, nDimBlur=len(self.dims2))**2
         self.rho_buf = np.reshape(
@@ -869,7 +867,8 @@ class CNMF(object):
         frame = frame_in.astype(np.float32)
 #        print(np.max(1/scipy.sparse.linalg.norm(self.Ab,axis = 0)))
         self.Yr_buf.append(frame)
-
+        if len(self.ind_new) > 0:
+            self.mean_buff = self.Yres_buf.mean(0)
         if (not self.simultaneously) or self.p == 0:
             # get noisy fluor value via NNLS (project data on shapes & demix)
             C_in = self.noisyC[:self.M, t - 1].copy()
@@ -902,10 +901,12 @@ class CNMF(object):
 
 #        cv2.imshow('untitled', 3*cv2.resize(self.Ab.sum(1).reshape(self.dims,order = 'F'),(512,512)))
 #        cv2.waitKey(1)
-#
+        
+        #self.mean_buff = self.Yres_buf.mean(0)
         if self.update_num_comps:
-
+            
             res_frame = frame - self.Ab.dot(self.noisyC[:self.M, t])
+            self.mean_buff += (res_frame-self.Yres_buf[self.Yres_buf.cur])/self.minibatch_shape
 #            cv2.imshow('untitled', 0.1*cv2.resize(res_frame.reshape(self.dims,order = 'F'),(512,512)))
 #            cv2.waitKey(1)
 #
@@ -927,7 +928,7 @@ class CNMF(object):
                 groups=self.groups, batch_update_suff_stat=self.batch_update_suff_stat, gnb=self.gnb,
                 sn=self.sn, g=np.mean(
                     self.g2) if self.p == 1 else np.mean(self.g2, 0),
-                thresh_s_min=self.thresh_s_min, s_min=self.s_min,
+                s_min=self.s_min,
                 Ab_dense=self.Ab_dense[:, :self.M] if self.use_dense else None,
                 oases=self.OASISinstances if self.p else None, N_samples_exceptionality=self.N_samples_exceptionality,
                 max_num_added=self.max_num_added, min_num_trial=self.min_num_trial,
@@ -936,7 +937,7 @@ class CNMF(object):
 
             num_added = len(self.ind_A) - self.N
 
-            if num_added > 0:
+            if num_added > 0:                
                 self.N += num_added
                 self.M += num_added
                 if self.N + self.max_num_added > self.expected_comps:
@@ -1117,6 +1118,23 @@ class CNMF(object):
 
                 self.Ab = Ab_
             self.time_spend += time() - t_start
+
+    def remove_components(self, ind_rm):
+        """remove a specified list of components from the OnACID CNMF object.
+
+        Parameters:
+        -----------
+        ind_rm :    list
+                    indeces of components to be removed
+        """
+
+        self.Ab, self.Ab_dense, self.CC, self.CY, self.M,\
+        self.N, self.noisyC, self.OASISinstances, self.C_on,\
+        self.expected_comps, self.ind_A,\
+        self.groups, self.AtA = remove_components_online(
+                ind_rm, self.gnb, self.Ab, self.use_dense, self.Ab_dense,
+                self.AtA, self.CY, self.CC, self.M, self.N, self.noisyC,
+                self.OASISinstances, self.C_on, self.expected_comps)
 
     def compute_residuals(self, Yr):
         """compute residual for each component (variable YrA)

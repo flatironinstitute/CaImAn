@@ -668,7 +668,7 @@ def oasisAR1(np.ndarray[SINGLE, ndim=1] y, SINGLE g, SINGLE lam=0, SINGLE s_min=
 @cython.cdivision(True)
 def constrained_oasisAR1(np.ndarray[SINGLE, ndim=1] y, SINGLE g, SINGLE sn,
                          bool optimize_b=False, bool b_nonneg=True, int optimize_g=0,
-                         int decimate=1, int max_iter=5, int penalty=1):
+                         int decimate=1, int max_iter=5, int penalty=1, SINGLE s_min=-3):
     """ Infer the most likely discretized spike train underlying an AR(1) fluorescence trace
 
     Solves the noise constrained sparse non-negative deconvolution problem
@@ -696,6 +696,10 @@ def constrained_oasisAR1(np.ndarray[SINGLE, ndim=1] y, SINGLE g, SINGLE sn,
         Maximal number of iterations.
     penalty : int, optional, default 1
         Sparsity penalty. 1: min |s|_1  0: min |s|_0
+    s_min : float, optional, default -3
+        Minimal non-zero activity within each bin (minimal 'spike size').
+        For negative values the threshold is |s_min| * sn * sqrt(1-g)
+        If 0 the threshold is determined automatically such that RSS <= sn^2 T
 
     Returns
     -------
@@ -737,7 +741,6 @@ def constrained_oasisAR1(np.ndarray[SINGLE, ndim=1] y, SINGLE g, SINGLE sn,
     # explicit kernel, useful for constructing solution
     h = np.exp(log(g) * np.arange(T, dtype=np.float32))
     c = np.empty(T, dtype=np.float32)
-    # [value, weight, start time, length] of pool
     lam = 0  # sn/sqrt(1-g*g)
 
     def oasis1strun(np.ndarray[SINGLE, ndim=1] y, SINGLE g, np.ndarray[SINGLE, ndim=1] c):
@@ -1019,36 +1022,40 @@ def constrained_oasisAR1(np.ndarray[SINGLE, ndim=1] y, SINGLE g, SINGLE sn,
         c, P = oasis(P, g, c)
 
     if penalty == 0:  # get (locally optimal) L0 solution
-        lls = [(P[i + 1].v / P[i + 1].w - P[i].v / P[i].w * g**P[i].l)
-               for i in range(P.size() - 1)]
-        pos = [P[i + 1].t for i in np.argsort(lls)[::-1]]
         y = y - b
-        res = -y
-        RSS = y.dot(y)
-        c = np.zeros_like(y)
-        P.resize(0)
-        newpool.v, newpool.w, newpool.t, newpool.l = 0, 1, 0, len(y)
-        P.push_back(newpool)
-        for p in pos:
-            i = 0
-            while P[i].t + P[i].l <= p:
-                i += 1
-            # split current pool at pos
-            j, k = P[i].t, P[i].l
-            q = h[:j - p + k]
-            newpool.v = q.dot(y[p:j + k])
-            newpool.w, newpool.t, newpool.l = q.dot(q), p, j - p + k
-            P.insert(P.begin() + i + 1, newpool)
-            q = h[:p - j]
-            P[i].v, P[i].w, P[i].t, P[i].l = q.dot(y[j:p]), q.dot(q), j, p - j
-            for t in [i, i + 1]:
-                c[P[t].t:P[t].t + P[t].l] = fmax(0, P[t].v) / P[t].w * h[:P[t].l]
-            # calc RSS
-            RSS -= res[j:j + k].dot(res[j:j + k])
-            res[P[i].t:j + k] = c[P[i].t:j + k] - y[P[i].t:j + k]
-            RSS += res[P[i].t:j + k].dot(res[P[i].t:j + k])
-            if RSS < thresh:
-                break
+        if s_min == 0:
+            lls = [(P[i + 1].v / P[i + 1].w - P[i].v / P[i].w * g**P[i].l)
+                   for i in range(P.size() - 1)]
+            pos = [P[i + 1].t for i in np.argsort(lls)[::-1]]
+            res = -y
+            RSS = y.dot(y)
+            c = np.zeros_like(y)
+            P.resize(0)
+            newpool.v, newpool.w, newpool.t, newpool.l = 0, 1, 0, len(y)
+            P.push_back(newpool)
+            for p in pos:
+                i = 0
+                while P[i].t + P[i].l <= p:
+                    i += 1
+                # split current pool at pos
+                j, k = P[i].t, P[i].l
+                q = h[:j - p + k]
+                newpool.v = q.dot(y[p:j + k])
+                newpool.w, newpool.t, newpool.l = q.dot(q), p, j - p + k
+                P.insert(P.begin() + i + 1, newpool)
+                q = h[:p - j]
+                P[i].v, P[i].w, P[i].t, P[i].l = q.dot(y[j:p]), q.dot(q), j, p - j
+                for t in [i, i + 1]:
+                    c[P[t].t:P[t].t + P[t].l] = fmax(0, P[t].v) / P[t].w * h[:P[t].l]
+                # calc RSS
+                RSS -= res[j:j + k].dot(res[j:j + k])
+                res[P[i].t:j + k] = c[P[i].t:j + k] - y[P[i].t:j + k]
+                RSS += res[P[i].t:j + k].dot(res[P[i].t:j + k])
+                if RSS < thresh:
+                    break
+        else:
+            c, s = oasisAR1(y, g, s_min=s_min if s_min >= .5 else
+                            (s_min * np.max(y) if s_min > 0 else -s_min * sn * sqrt(1 - g)))
 
     # construct s
     s = c.copy()
