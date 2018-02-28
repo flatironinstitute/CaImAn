@@ -120,6 +120,7 @@ global_params = {'min_SNR': 2,        # minimum SNR when considering adding a ne
 params_movies = []
 #%%
 params_movie = {'fname': '/mnt/ceph/neuro/labeling/neurofinder.03.00.test/images/final_map/Yr_d1_498_d2_467_d3_1_order_C_frames_2250_.mmap',
+                'gtname':'/mnt/ceph/neuro/labeling/neurofinder.03.00.test/regions/joined_consensus_active_regions.npy',
                      # order of the autoregressive system
                  'merge_thresh': 0.8,  # merging threshold, max correlation allow
                  'rf': 25,  # half-size of the patches in pixels. rf=25, patches are 50x50    20
@@ -135,6 +136,7 @@ params_movie = {'fname': '/mnt/ceph/neuro/labeling/neurofinder.03.00.test/images
 params_movies.append(params_movie.copy())
 #%%
 params_movie = {'fname': '/mnt/ceph/neuro/labeling/neurofinder.04.00.test/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_3000_.mmap',
+                'gtname':'/mnt/ceph/neuro/labeling/neurofinder.04.00.test/regions/joined_consensus_active_regions.npy',
                      # order of the autoregressive system
                  'merge_thresh': 0.8,  # merging threshold, max correlation allow
                  'rf': 20,  # half-size of the patches in pixels. rf=25, patches are 50x50    20
@@ -153,6 +155,7 @@ params_movies.append(params_movie.copy())
 
 #%% yuste
 params_movie = {'fname': '/mnt/ceph/neuro/labeling/yuste.Single_150u/images/final_map/Yr_d1_200_d2_256_d3_1_order_C_frames_3000_.mmap',
+                 'gtname':'/mnt/ceph/neuro/labeling/yuste.Single_150u/regions/joined_consensus_active_regions.npy',
                      # order of the autoregressive system
                  'merge_thresh': 0.8,  # merging threshold, max correlation allow
                  'rf': 15,  # half-size of the patches in pixels. rf=25, patches are 50x50    20
@@ -166,11 +169,9 @@ params_movie = {'fname': '/mnt/ceph/neuro/labeling/yuste.Single_150u/images/fina
                  'crop_pix':0
                  }
 params_movies.append(params_movie.copy())
-
 #%% neurofinder 00.00
 params_movie = {'fname': '/mnt/ceph/neuro/labeling/neurofinder.00.00/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_2936_.mmap',
-                     # order of the autoregressive system
-                 'merge_thresh': 0.8,  # merging threshold, max correlation allow
+                  'gtname':'/mnt/ceph/neuro/labeling/neurofinder.00.00/regions/joined_consensus_active_regions.npy',
                  'rf': 20,  # half-size of the patches in pixels. rf=25, patches are 50x50    20
                  'stride_cnmf': 10,  # amounpl.it of overlap between the patches in pixels
                  'K': 6,  # number of components per patch
@@ -182,10 +183,9 @@ params_movie = {'fname': '/mnt/ceph/neuro/labeling/neurofinder.00.00/images/fina
                  'crop_pix':10
                  }
 params_movies.append(params_movie.copy())
-
 #%% neurofinder 01.01
 params_movie = {'fname': '/mnt/ceph/neuro/labeling/neurofinder.01.01/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_1825_.mmap',
-                     # order of the autoregressive system
+                  'gtname':'/mnt/ceph/neuro/labeling/neurofinder.01.01/regions/joined_consensus_active_regions.npy',
                  'merge_thresh': 0.9,  # merging threshold, max correlation allow
                  'rf': 20,  # half-size of the patches in pixels. rf=25, patches are 50x50    20
                  'stride_cnmf': 10,  # amounpl.it of overlap between the patches in pixels
@@ -199,8 +199,9 @@ params_movie = {'fname': '/mnt/ceph/neuro/labeling/neurofinder.01.01/images/fina
                  }
 params_movies.append(params_movie.copy())
 #%% neurofinder 02.00
-params_movie = {'fname': '/opt/local/Data/labeling/neurofinder.02.00/Yr_d1_512_d2_512_d3_1_order_C_frames_8000_.mmap',
-#                'fname': '/mnt/ceph/neuro/labeling/neurofinder.02.00/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_8000_.mmap',
+params_movie = {#'fname': '/opt/local/Data/labeling/neurofinder.02.00/Yr_d1_512_d2_512_d3_1_order_C_frames_8000_.mmap',
+                'fname': '/mnt/ceph/neuro/labeling/neurofinder.02.00/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_8000_.mmap',
+                 'gtname':'/mnt/ceph/neuro/labeling/neurofinder.02.00/regions/joined_consensus_active_regions.npy',
                      # order of the autoregressive system
                  'merge_thresh': 0.8,  # merging threshold, max correlation allow
                  'rf': 20,  # half-size of the patches in pixels. rf=25, patches are 50x50    20
@@ -215,8 +216,8 @@ params_movie = {'fname': '/opt/local/Data/labeling/neurofinder.02.00/Yr_d1_512_d
                  }
 params_movies.append(params_movie.copy())
 #%% Sue Ann k56
-params_movie = {'fname': '/opt/local/Data/labeling/k53_20160530/Yr_d1_512_d2_512_d3_1_order_C_frames_116043_.mmap',
-                #'fname':'/mnt/ceph/neuro/labeling/k53_20160530/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_116043_.mmap',
+params_movie = {#'fname': '/opt/local/Data/labeling/k53_20160530/Yr_d1_512_d2_512_d3_1_order_C_frames_116043_.mmap',
+                'fname':'/mnt/ceph/neuro/labeling/k53_20160530/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_116043_.mmap',
                 'gtname':'/mnt/ceph/neuro/labeling/k53_20160530/regions/joined_consensus_active_regions.npy',
                      # order of the autoregressive system
                  'merge_thresh': 0.8,  # merging threshold, max correlation allow
@@ -232,8 +233,8 @@ params_movie = {'fname': '/opt/local/Data/labeling/k53_20160530/Yr_d1_512_d2_512
                  }
 params_movies.append(params_movie.copy())
 #%% J115
-params_movie = {'fname': '/opt/local/Data/labeling/J115_2015-12-09_L01_ELS/Yr_d1_463_d2_472_d3_1_order_C_frames_90000_.mmap',
-                #'fname': '/mnt/ceph/neuro/labeling/J115_2015-12-09_L01_ELS/images/final_map/Yr_d1_463_d2_472_d3_1_order_C_frames_90000_.mmap',
+params_movie = {#'fname': '/opt/local/Data/labeling/J115_2015-12-09_L01_ELS/Yr_d1_463_d2_472_d3_1_order_C_frames_90000_.mmap',
+                'fname': '/mnt/ceph/neuro/labeling/J115_2015-12-09_L01_ELS/images/final_map/Yr_d1_463_d2_472_d3_1_order_C_frames_90000_.mmap',
                 'gtname':'/mnt/ceph/neuro/labeling/J115_2015-12-09_L01_ELS/regions/joined_consensus_active_regions.npy',
                      # order of the autoregressive system
                  'merge_thresh': 0.8,  # merging threshold, max correlation allow
@@ -250,8 +251,8 @@ params_movie = {'fname': '/opt/local/Data/labeling/J115_2015-12-09_L01_ELS/Yr_d1
                  }
 params_movies.append(params_movie.copy())
 #%% J123
-params_movie = {'fname': '/opt/local/Data/labeling/J123_2015-11-20_L01_0/Yr_d1_458_d2_477_d3_1_order_C_frames_41000_.mmap',
-                #'fname': '/mnt/ceph/neuro/labeling/J123_2015-11-20_L01_0/images/final_map/Yr_d1_458_d2_477_d3_1_order_C_frames_41000_.mmap',
+params_movie = {#'fname': '/opt/local/Data/labeling/J123_2015-11-20_L01_0/Yr_d1_458_d2_477_d3_1_order_C_frames_41000_.mmap',
+                'fname': '/mnt/ceph/neuro/labeling/J123_2015-11-20_L01_0/images/final_map/Yr_d1_458_d2_477_d3_1_order_C_frames_41000_.mmap',
                 'gtname':'/mnt/ceph/neuro/labeling/J123_2015-11-20_L01_0/regions/joined_consensus_active_regions.npy',
                      # order of the autoregressive system
                  'merge_thresh': 0.8,  # merging threshold, max correlation allow
@@ -267,8 +268,8 @@ params_movie = {'fname': '/opt/local/Data/labeling/J123_2015-11-20_L01_0/Yr_d1_4
                  }
 params_movies.append(params_movie.copy())
 #%%
-params_movie = { 'fname': '/opt/local/Data/labeling/k37_20160109_AM_150um_65mW_zoom2p2_00001_1-16/Yr_d1_512_d2_512_d3_1_order_C_frames_48000_.mmap',
-                 #'fname': '/mnt/ceph/neuro/labeling/J123_2015-11-20_L01_0/images/final_map/Yr_d1_458_d2_477_d3_1_order_C_frames_41000_.mmap',
+params_movie = { #'fname': '/opt/local/Data/labeling/k37_20160109_AM_150um_65mW_zoom2p2_00001_1-16/Yr_d1_512_d2_512_d3_1_order_C_frames_48000_.mmap',
+                 'fname': '/mnt/ceph/neuro/labeling/k37_20160109_AM_150um_65mW_zoom2p2_00001_1-16/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_48000_.mmap',
                  'gtname':'/mnt/ceph/neuro/labeling/k37_20160109_AM_150um_65mW_zoom2p2_00001_1-16/regions/joined_consensus_active_regions.npy',
                      # order of the autoregressive system
                  'merge_thresh': 0.8,  # merging threshold, max correlation allow
@@ -283,65 +284,6 @@ params_movie = { 'fname': '/opt/local/Data/labeling/k37_20160109_AM_150um_65mW_z
                  'crop_pix':8,
                  }
 params_movies.append(params_movie.copy())
-#%% Jan AMG DIPS IN AVERAGE
-#params_movie = {'fname': '/opt/local/Data/Jan/Jan-AMG_exp3_001/Yr_d1_512_d2_512_d3_1_order_C_frames_115897_.mmap',
-#                'gtname':'/mnt/ceph/neuro/labeling/Jan-AMG_exp3_001/regions/joined_consensus_active_regions.npy',
-#                     # order of the autoregressive system
-#                 'merge_thresh': 0.8,  # merging threshold, max correlation allow
-#                 'rf': 25,  # half-size of the patches in pixels. rf=25, patches are 50x50    20
-#                 'stride_cnmf': 10,  # amounpl.it of overlap between the patches in pixels
-#                 'K': 6,  # number of components per patch
-#                 'gSig': [7,7],  # expected half size of neurons
-#                 'fr':30,
-#                 'n_chunks': 30,
-#                 'swap_dim':False,
-#                 'crop_pix':8,
-#                 }
-#params_movies.append(params_movie.copy())
-#%% packer
-#params_movie = {'fname': '/mnt/ceph/neuro/labeling/packer.001/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_9900_.mmap',
-#                     # order of the autoregressive system
-#                 'merge_thresh': 0.99,  # merging threshold, max correlation allow
-#                 'rf': 25,  # half-size of the patches in pixels. rf=25, patches are 50x50    20
-#                 'stride_cnmf': 10,  # amounpl.it of overlap between the patches in pixels
-#                 'K': 6,  # number of components per patch
-#                 'gSig': [6,6],  # expected half size of neurons
-#                 'fr': 30,
-#                 'n_chunks': 10,
-#                 'update_background_components': False,# whether to update the background components in the spatial phase
-#                'swap_dim':False,
-#                'crop_pix':0
-#                 }
-#%% yuste: sue ann
-#params_movie = {'fname': '/mnt/ceph/neuro/labeling/yuste.Single_150u/images/final_map/Yr_d1_200_d2_256_d3_1_order_C_frames_3000_.mmap',
-#                'seed_name':'/mnt/xfs1/home/agiovann/Downloads/yuste_sue_masks.mat',
-#                     # order of the autoregressive system
-#                 'merge_thresh': 1,  # merging threshold, max correlation allow
-#                 'fr': 10,
-#
-#                 'swap_dim':False, #for some movies needed
-#                 'kernel':None,
-#                 }
-##%% SUE neuronfinder00.00
-#params_movie = {'fname': '/mnt/ceph/neuro/labeling/neurofinder.00.00/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_2936_.mmap',
-#                'seed_name':'/mnt/xfs1/home/agiovann/Downloads/neurofinder_00.00_sue_masks.mat',
-#                     # order of the autoregressive system
-#                 'merge_thresh': 1,  # merging threshold, max correlation allow
-#                 'fr': 10,
-#
-#                 'swap_dim':False, #for some movies needed
-#                 'kernel':None,
-#                 }
-##%% SUE neuronfinder02.00
-#params_movie = {'fname': '/mnt/ceph/neuro/labeling/neurofinder.02.00/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_8000_.mmap',
-#                'seed_name':'/mnt/xfs1/home/agiovann/Downloads/neurofinder_02.00_sue_masks.mat',
-#                     # order of the autoregressive system
-#                 'merge_thresh': 1,  # merging threshold, max correlation allow
-#                 'fr': 10,
-#
-#                 'swap_dim':False, #for some movies needed
-#                 'kernel':None,
-#                 }
 #%%
 all_perfs = []
 all_rvalues = []
@@ -353,14 +295,15 @@ all_results = dict()
 reload = False
 plot_on = False
 save_on = True
-backend_patch = 'local'
+skip_refinement = False
+backend_patch = 'ipyparallel'
 backend_refine = 'ipyparallel'
 n_processes = 24
 n_pixels_per_process=4000
-block_size=5000
-num_blocks_per_run=20
+block_size=4000
+num_blocks_per_run=10
 
-for params_movie in np.array(params_movies)[6:7]:
+for params_movie in np.array(params_movies)[2:3]:
 #    params_movie['gnb'] = 3
     params_display = {
         'downsample_ratio': .2,
@@ -389,15 +332,17 @@ for params_movie in np.array(params_movies)[6:7]:
     m_images = cm.movie(images)
     # TODO: show screenshot 10
     #%%
+
     if not reload:
+        print('Not RELOADING')
     # %% correlation image
-        if plot_on or save_on:
-            if m_images.shape[0]<10000:
+        if (plot_on or save_on):
+            if False and m_images.shape[0]<10000:
                 Cn = m_images.local_correlations(swap_dim = params_movie['swap_dim'], frames_per_chunk = 1500)
                 Cn[np.isnan(Cn)] = 0
             else:
                 Cn = np.array(cm.load(('/'.join(params_movie['gtname'].split('/')[:-2]+['projections','correlation_image.tif'])))).squeeze()
-                pl.imshow(Cn, cmap='gray', vmax=.95)
+                #pl.imshow(Cn, cmap='gray', vmax=.95)
 
         check_nan = False
         # %% some parameter settings
@@ -431,11 +376,13 @@ for params_movie in np.array(params_movies)[6:7]:
         t1 = time.time()
         # TODO: todocument
         # TODO: warnings 3
+        print('Strating CNMF')
         cnm = cnmf.CNMF(n_processes=n_processes, nb_patch = 1, k=K, gSig=gSig, merge_thresh=params_movie['merge_thresh'], p=global_params['p'],
                         dview=dview, rf=rf, stride=stride_cnmf, memory_fact=1,
                         method_init=init_method, alpha_snmf=alpha_snmf, only_init_patch=global_params['only_init_patch'],
                         gnb=global_params['gnb'], method_deconvolution='oasis',border_pix =  params_movie['crop_pix'],
-                        low_rank_background = global_params['low_rank_background'], rolling_sum = True, check_nan=check_nan)
+                        low_rank_background = global_params['low_rank_background'], rolling_sum = True, check_nan=check_nan,
+                        block_size=block_size, num_blocks_per_run=num_blocks_per_run)
         cnm = cnm.fit(images)
 
         A_tot = cnm.A
@@ -464,7 +411,7 @@ for params_movie in np.array(params_movies)[6:7]:
                         f_in=f_tot, rf=None, stride=None, method_deconvolution='oasis',gnb = global_params['gnb'],
                         low_rank_background = global_params['low_rank_background'],
                         update_background_components = global_params['update_background_components'], check_nan=check_nan,
-                            n_pixels_per_process=n_pixels_per_process, block_size= block_size, num_blocks_per_run=num_blocks_per_run)
+                            n_pixels_per_process=n_pixels_per_process, block_size= block_size, num_blocks_per_run=num_blocks_per_run, skip_refinement=skip_refinement)
 
         cnm = cnm.fit(images)
         t_refine = time.time() - t1
@@ -540,7 +487,7 @@ for params_movie in np.array(params_movies)[6:7]:
         if save_on:
             np.savez(os.path.join(os.path.split(fname_new)[0],
                               os.path.split(fname_new)[1][:-4] +
-                              'results_analysis_after_merge_5.npz'),
+                              'results_analysis_after_merge_loc_ipy_ceph.npz'),
                               Cn=Cn, fname_new = fname_new,
                               A=A, C=C, b=b, f=f, YrA=YrA, sn=sn, d1=d1,
                               d2=d2, idx_components=idx_components,
@@ -584,7 +531,7 @@ for params_movie in np.array(params_movies)[6:7]:
 #         print(os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:-4] + 'results_analysis_after_merge_5.npz'))
 # =============================================================================
 
-        with np.load(os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:-4] + 'results_analysis_after_merge_5.npz'), encoding = 'latin1') as ld:
+        with np.load(os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:-4] + 'results_analysis_after_merge_loc_ipy_ceph.npz'), encoding = 'latin1') as ld:
             ld1 = {k:ld[k] for k in ['d1','d2','A','params_movie','fname_new',
                    'C','idx_components','idx_components_bad','Cn','b','f','YrA',
                    'sn','comp_SNR','r_values','predictionsCNN','A_gt','A_gt_thr',
@@ -608,7 +555,7 @@ for params_movie in np.array(params_movies)[6:7]:
 
 #        print(C_gt.shape)
 #        print(Y.shape)
-        continue
+
 
 
 
@@ -882,6 +829,8 @@ for params_movie in np.array(params_movies)[6:7]:
 #        performance_SNRs.append(performance_tmp.copy())
 
     all_results[fname_new.split('/')[-4]+fname_new.split('/')[-2]] = performance_tmp
+    print([ t_patch, t_refine,t_eva_comps])
+    print(t_eva_comps+t_patch + t_refine)
 
     #%% CREATE FIGURES
     if False:
