@@ -425,7 +425,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
         f_in = resize(np.atleast_2d(f_in), [nb, T])
 
     if Ain.size > 0:
-        Cin = resize(Cin, [K, T])
+        Cin = resize(Cin.astype(float), [K, T])
 
         center = np.asarray(
             [center_of_mass(a.reshape(d, order='F')) for a in Ain.T])
@@ -823,18 +823,18 @@ def imblur(Y, sig=5, siz=11, nDimBlur=None, kernel=None, opencv=True):
                 for frame in range(X.shape[-1]):
                     if sys.version_info >= (3, 0):
                         X[:, :, frame] = cv2.GaussianBlur(X[:, :, frame], tuple(
-                            siz), sig[0], None, sig[1], cv2.BORDER_CONSTANT)
+                            siz.astype(np.int)), sig[0], None, sig[1], cv2.BORDER_CONSTANT)
                     else:
-                        X[:, :, frame] = cv2.GaussianBlur(X[:, :, frame], tuple(siz), sig[
+                        X[:, :, frame] = cv2.GaussianBlur(X[:, :, frame], tuple(siz.astype(np.int)), sig[
                                                           0], sig[1], cv2.BORDER_CONSTANT, 0)
 
             else:
                 if sys.version_info >= (3, 0):
                     X = cv2.GaussianBlur(
-                        X, tuple(siz), sig[0], None, sig[1], cv2.BORDER_CONSTANT)
+                        X, tuple(siz.astype(np.int)), sig[0], None, sig[1], cv2.BORDER_CONSTANT)
                 else:
                     X = cv2.GaussianBlur(
-                        X, tuple(siz), sig[0], sig[1], cv2.BORDER_CONSTANT, 0)
+                        X, tuple(siz.astype(np.int)), sig[0], sig[1], cv2.BORDER_CONSTANT, 0)
         else:
             for i in range(nDimBlur):
                 h = np.exp(
@@ -1052,9 +1052,10 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
         # 1st iteration on decimated data
         print('Update Temporal')
         C, A = caiman.source_extraction.cnmf.temporal.update_temporal_components(
-            B, spr.csc_matrix(A), np.zeros((d1 * d2, 0), np.float32),
-            C, np.zeros((0, total_frames), np.float32),
-            dview=None, bl=None, c1=None, sn=None, g=None, **o)[:2]
+			B, spr.csc_matrix(A), 
+			np.zeros((d1 * d2, 0), np.float32),
+			C, np.zeros((0, total_frames), np.float32),
+			dview=None, bl=None, c1=None, sn=None, g=None, **o)[:2]
         print('Update Spatial')
         options['spatial_params']['dims'] = (d1, d2)
         A, _, C, _ = caiman.source_extraction.cnmf.spatial.update_spatial_components(
