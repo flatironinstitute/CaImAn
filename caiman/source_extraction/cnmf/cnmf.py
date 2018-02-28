@@ -785,7 +785,7 @@ class CNMF(object):
         self.C_on = np.vstack(
             [self.noisyC[:self.gnb, :], self.C_on.astype(np.float32)])
 
-        self.gSiz = np.add(np.multiply(self.gSig, 2), 1)
+        self.gSiz = np.add(np.multiply(np.ceil(self.gSig).astype(np.int), 2), 1)
 
         self.Yr_buf = RingBuffer(Yr[:, self.initbatch - self.minibatch_shape:
                                     self.initbatch].T.copy(), self.minibatch_shape)
@@ -919,7 +919,7 @@ class CNMF(object):
             rho = np.reshape(rho, np.prod(self.dims2))
             self.rho_buf.append(rho)
 
-            self.Ab, Cf_temp, self.Yres_buf, self.rhos_buf, self.CC, self.CY, self.ind_A, self.sv, self.groups, self.ind_new = update_num_components(
+            self.Ab, Cf_temp, self.Yres_buf, self.rhos_buf, self.CC, self.CY, self.ind_A, self.sv, self.groups, self.ind_new, self.ind_new_all, self.sv, self.cnn_pos = update_num_components(
                 t, self.sv, self.Ab, self.C_on[:self.M, (t - mbs + 1):(t + 1)],
                 self.Yres_buf, self.Yr_buf, self.rho_buf, self.dims2,
                 self.gSig, self.gSiz, self.ind_A, self.CY, self.CC, rval_thr=self.rval_thr,
