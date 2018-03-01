@@ -59,7 +59,7 @@ except:
 # 9: sue_ann_k37
 #10: Jan-AMG_exp3_001
 
-ind_dataset = 11
+ind_dataset = 0
 
 #%% set some global parameters here
 #'use_cases/edge-cutter/binary_cross_bootstrapped.json'
@@ -68,14 +68,15 @@ classif_path = 'use_cases/edge-cutter/binary_cross_bootstrapped.json'
 classif_path = 'use_cases/CaImAnpaper/net_models/sniper_sensitive.json'
 
 global_params = {'min_SNR': .75,        # minimum SNR when considering adding a new neuron
+                 'epochs' : 2,
                  'gnb' : 2,             # number of background components
-                 'rval_thr' : 0.99,     # spatial correlation threshold
+                 'rval_thr' : 1,     # spatial correlation threshold
                  'batch_length_dt': 10, # length of mini batch for OnACID in decay time units (length would be batch_length_dt*decay_time*fr)
                  'max_thr': 0.25,       # parameter for thresholding components when cleaning up shapes
                  'mot_corr' : False,    # flag for motion correction (set to False to compare directly on the same FOV)
                  'min_num_trial' : 3,   # minimum number of times to attempt to add a component
                  'path_to_model' : classif_path, #
-                 'thresh_CNN_noisy' : .75,
+                 'thresh_CNN_noisy' : .5,
                  'sniper_mode' : True,
                  'rm_flag' : False,
                  'T_rm' : 1100
@@ -592,7 +593,7 @@ use_cnn = True  # Use CNN classifier
 if use_cnn:
     from caiman.components_evaluation import evaluate_components_CNN
     predictions,final_crops = evaluate_components_CNN(A,dims,gSig,model_name = 'use_cases/CaImAnpaper/cnn_model')
-    thresh_cnn = 0.1
+    thresh_cnn = 0.05
     idx_components_cnn = np.where(predictions[:,1]>=thresh_cnn)[0]
     idx_neurons = np.intersect1d(idx_components_cnn,idx_size_neurons)
 else:

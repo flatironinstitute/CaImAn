@@ -498,15 +498,16 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial = 3,
     ijsig_all = []
     cnn_pos = []
     r_vals = []
+    local_maxima = []
 #    resize_g = False
     half_crop_cnn = (np.minimum(gSig[0] * 4 + 1, patch_size) // 2,np.minimum(gSig[1] * 4 + 1, patch_size) // 2)
     half_crop_cnn = tuple(np.array(half_crop_cnn).astype(np.int))
 
-    local_maxima = peak_local_max(sv.reshape(dims), min_distance=np.max(np.array(gSig)).astype(np.int), num_peaks=min_num_trial)
-    for i,ij in enumerate(local_maxima):
-#    for i in range(min_num_trial):
-#        ind = np.argmax(sv)
-#        ij = np.unravel_index(ind, dims, order = 'C')
+#    local_maxima = peak_local_max(sv.reshape(dims), min_distance=np.max(np.array(gSig)).astype(np.int), num_peaks=min_num_trial)
+#    for i,ij in enumerate(local_maxima):
+    for i in range(min_num_trial):
+        ind = np.argmax(sv)
+        ij = np.unravel_index(ind, dims, order = 'C')
 
         ij = [min(max(ij_val,g_val),dim_val-g_val-1) for ij_val, g_val, dim_val in zip(ij,gHalf,dims)]
         ij_cnn = [min(max(ij_val,g_val),dim_val-g_val-1) for ij_val, g_val, dim_val in zip(ij,half_crop_cnn,dims)]
@@ -618,18 +619,22 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                                                           loaded_model, thresh_CNN_noisy)
 
 
-    import pylab as pl
-    pl.subplot(1,2,1)
-    pl.imshow(sv.reshape(dims).T, vmax = 5, cmap = 'gray')
-    [pl.plot(*np.unravel_index(ind, dims, order=order_rvl),'ro') for ind in inds]
-    [pl.plot(*mx,'go') for mx in local_max]
-    pl.subplot(1,2,2)
-    pl.imshow(Yres_buf.mean(0).reshape(dims, order='F').T, vmax=1, cmap='gray')
-    pl.pause(0.2)
-    pl.subplot(1,2,1)
-    pl.cla()
-    pl.subplot(1,2,2)
-    pl.cla()
+#    import pylab as pl
+#    pl.subplot(1,2,1)
+#    pl.imshow(sv.reshape(dims).T, vmax = 5, cmap = 'gray')
+#    [pl.plot(*mx,'go') for mx in local_max]
+#    [pl.plot(*np.unravel_index(ind, dims, order=order_rvl),'ro') for ind in inds]
+#
+#    pl.subplot(1,2,2)
+#    pl.imshow(Yres_buf.mean(0).reshape(dims, order='F').T, vmax=1, cmap='gray')
+#    [pl.plot(*mx,'go') for mx in local_max]
+#    [pl.plot(*np.unravel_index(ind, dims, order=order_rvl),'ro') for ind in inds]
+#
+#    pl.pause(0.05)
+#    pl.subplot(1,2,1)
+#    pl.cla()
+#    pl.subplot(1,2,2)
+#    pl.cla()
 
     ind_new_all = ijsig_all
 
