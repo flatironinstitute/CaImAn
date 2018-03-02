@@ -477,12 +477,11 @@ def rank1nmf(Ypx, ain):
     return ain, cin, cin_res
 
 
-
 #%%
-def get_candidate_components(sv, dims, Yres_buf, min_num_trial = 3,
-                             gSig = (5,5), gHalf = (5,5), sniper_mode = True, rval_thr = 0.85,
-                             patch_size = 50, loaded_model = None,
-                             thresh_CNN_noisy = 0.99, use_peak_max = False):
+def get_candidate_components(sv, dims, Yres_buf, min_num_trial=3, gSig=(5, 5),
+                             gHalf=(5, 5), sniper_mode=True, rval_thr=0.85,
+                             patch_size=50, loaded_model=None, test_both=False,
+                             thresh_CNN_noisy=0.99, use_peak_max=False):
     """
     Extract new candidate components from the residual buffer and test them
     using space correlation or the CNN classifier. The function runs the CNN
@@ -497,20 +496,21 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial = 3,
     keep = []
     ijsig_all = []
     cnn_pos = []
-    r_vals = []
     local_maxima = []
+    Y_patch = []
 
-    half_crop_cnn = tuple([int(np.minimum(gs*2, patch_size//2)) for gs in gSig])
-    
+    half_crop_cnn = tuple([int(np.minimum(gs*2, patch_size/2)) for gs in gSig])
+
     if use_peak_max:
         local_maxima = peak_local_max(sv.reshape(dims), min_distance=np.max(np.array(gSig)).astype(np.int), num_peaks=min_num_trial)
-#    for i,ij in enumerate(local_maxima):
+
     for i in range(min_num_trial):
         if use_peak_max:
             ij = local_maxima[i]
         else:
             ind = np.argmax(sv)
-            ij = np.unravel_index(ind, dims, order = 'C')
+            ij = np.unravel_index(ind, dims, order='C')
+            local_maxima.append(ij)
 
         ij = [min(max(ij_val,g_val),dim_val-g_val-1) for ij_val, g_val, dim_val in zip(ij,gHalf,dims)]
         ij_cnn = [min(max(ij_val,g_val),dim_val-g_val-1) for ij_val, g_val, dim_val in zip(ij,half_crop_cnn,dims)]
@@ -520,65 +520,123 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial = 3,
         ijSig = [[max(i - g, 0), min(i+g+1,d)] for i, g, d in zip(ij, gHalf, dims)]
         ijSig_cnn = [[max(i - g, 0), min(i+g+1,d)] for i, g, d in zip(ij_cnn, half_crop_cnn, dims)]
 
-        indeces = np.ravel_multi_index(np.ix_(*[np.arange(ij[0] , ij[1])
+        indeces = np.ravel_multi_index(np.ix_(*[np.arange(ij[0], ij[1])
                         for ij in ijSig]), dims, order='F').ravel(order = 'C')
 
-        indeces_ = np.ravel_multi_index(np.ix_(*[np.arange(ij[0] , ij[1])
+        indeces_ = np.ravel_multi_index(np.ix_(*[np.arange(ij[0], ij[1])
                         for ij in ijSig]), dims, order='C').ravel(order = 'C')
 
-        indeces_cnn = np.ravel_multi_index(np.ix_(*[np.arange(ij[0] , ij[1])
-                        for ij in ijSig_cnn]), dims, order='F').ravel(order = 'C')
-
         Ypx = Yres_buf.T[indeces, :]
-        Ypx_cnn = Yres_buf.T[indeces_cnn, :]
-
-        ain_cnn = Ypx_cnn.mean(1)
         ain = np.maximum(np.mean(Ypx, 1), 0)
+
+        if sniper_mode:
+            indeces_cnn = np.ravel_multi_index(np.ix_(*[np.arange(ij[0], ij[1])
+                            for ij in ijSig_cnn]), dims, order='F').ravel(order = 'C')
+            Ypx_cnn = Yres_buf.T[indeces_cnn, :]
+            ain_cnn = Ypx_cnn.mean(1)
+            compute_corr = test_both
+        else:
+            compute_corr = True  # determine when to compute corr coef
+
         na = ain.dot(ain)
-        sv[indeces_] /= 2 #0
+        sv[indeces_] /= 2  # 0
         if na:
             ain /= sqrt(na)
-            ain, cin, cin_res = rank1nmf(Ypx, ain)
-            rval = corr(ain.copy(), np.mean(Ypx, -1))
-            r_vals.append(rval)
+            Ain.append(ain)
+            Y_patch.append(Ypx)
+            idx.append(ind)
             if sniper_mode:
-                idx.append(ind)
-                Ain.append(ain)
-                Cin.append(cin)
-                Cin_res.append(cin_res)
                 Ain_cnn.append(ain_cnn)
-            else:
+    
 
-                #print(rval)
-                if rval > rval_thr:
-                    idx.append(ind)
-                    Ain.append(ain)
-                    Cin.append(cin)
-                    Cin_res.append(cin_res)
+    if sniper_mode & (len(Ain_cnn) > 0):
+        Ain_cnn = np.stack(Ain_cnn)
+        Ain2 = Ain_cnn
+        Ain2 -= np.median(Ain2,axis=1)[:,None]
+        Ain2 /= np.std(Ain2,axis=1)[:,None]
+        Ain2 = np.reshape(Ain2,(-1,) + tuple(np.diff(ijSig_cnn).squeeze()),order= 'F')
+        Ain2 = np.stack([cv2.resize(ain,(patch_size ,patch_size)) for ain in Ain2])
+        predictions = loaded_model.predict(Ain2[:,:,:,np.newaxis], batch_size=min_num_trial, verbose=0)
+        keep_cnn = list(np.where(predictions[:, 0] > thresh_CNN_noisy)[0])
+        discard = list(np.where(predictions[:, 0] <= thresh_CNN_noisy)[0])
+        cnn_pos = Ain2[discard]
+    else:
+        keep_cnn = []  # list(range(len(Ain_cnn)))
 
-        ijsig_all.append(ijSig)
+    if compute_corr:
+        keep_corr = []
+        for i, (ain, Ypx) in enumerate(zip(Ain, Y_patch)):
+            ain, cin, cin_res = rank1nmf(Ypx, ain)
+            Ain[i] = ain
+            Cin.append(cin)
+            Cin_res.append(cin_res)
+            rval = corr(ain.copy(), np.mean(Ypx, -1))
+            if rval > rval_thr:
+                keep_corr.append(i)
+        keep_final = list(set().union(keep_cnn, keep_corr))
+        Ain = np.stack(Ain)[keep_final]
+        Cin = [Cin[kp] for kp in keep_final]
+        Cin_res = [Cin_res[kp] for kp in keep_final]
+        idx = list(np.array(idx)[keep_final])
+    else:
+        Ain = [Ain[kp] for kp in keep_cnn]
+        Y_patch = [Y_patch[kp] for kp in keep_cnn]
+        idx = list(np.array(idx)[keep_cnn])
+        for i, (ain, Ypx) in enumerate(zip(Ain, Y_patch)):
+            ain, cin, cin_res = rank1nmf(Ypx, ain)
+            Ain[i] = ain
+            Cin.append(cin)
+            Cin_res.append(cin_res)
 
-    if len(Ain_cnn)>0:
-        if sniper_mode:
-            Ain_cnn = np.stack(Ain_cnn)
-            Ain2 = Ain_cnn
-            Ain2 -= np.median(Ain2,axis=1)[:,None]
-            Ain2 /= np.std(Ain2,axis=1)[:,None]
-            Ain2 = np.reshape(Ain2,(-1,) + tuple(np.diff(ijSig_cnn).squeeze()),order= 'F')
 
-
-            Ain2 = np.stack([cv2.resize(ain,(patch_size ,patch_size)) for ain in Ain2])
-
-            predictions = loaded_model.predict(Ain2[:,:,:,np.newaxis], batch_size=min_num_trial, verbose=0)
-
-            keep = list(np.where( (predictions[:,0]>thresh_CNN_noisy) | (np.array(r_vals)>rval_thr))[0])
-            discard = list(np.where(predictions[:,0]<=thresh_CNN_noisy)[0])
-            Ain = np.stack(Ain)[keep]
-            Cin = [Cin[kp] for kp in keep]
-            Cin_res = [Cin_res[kp] for kp in keep]
-            idx = list(np.array(idx)[keep])
-            cnn_pos = Ain2[discard]
-
+#    if compute_corr:
+#        for ain in Ain:
+#            
+#            ain, cin, cin_res = rank1nmf(Ypx, ain)
+#            rval = corr(ain.copy(), np.mean(Ypx, -1))
+#        
+#        if na:
+#            ain /= sqrt(na)
+#            ain, cin, cin_res = rank1nmf(Ypx, ain)
+#            if compute_corr:
+#                rval = corr(ain.copy(), np.mean(Ypx, -1))
+#            else:
+#                rval = 0.
+#
+#            r_vals.append(rval)
+#            if sniper_mode:
+#                idx.append(ind)
+#                Ain.append(ain)
+#                Cin.append(cin)
+#                Cin_res.append(cin_res)
+#                Ain_cnn.append(ain_cnn)
+#            else:
+#                if rval > rval_thr:
+#                    idx.append(ind)
+#                    Ain.append(ain)
+#                    Cin.append(cin)
+#                    Cin_res.append(cin_res)
+#
+#        ijsig_all.append(ijSig)
+#
+#    if len(Ain_cnn)>0:
+#        if sniper_mode:
+#            Ain_cnn = np.stack(Ain_cnn)
+#            Ain2 = Ain_cnn
+#            Ain2 -= np.median(Ain2,axis=1)[:,None]
+#            Ain2 /= np.std(Ain2,axis=1)[:,None]
+#            Ain2 = np.reshape(Ain2,(-1,) + tuple(np.diff(ijSig_cnn).squeeze()),order= 'F')
+#            Ain2 = np.stack([cv2.resize(ain,(patch_size ,patch_size)) for ain in Ain2])
+#
+#            predictions = loaded_model.predict(Ain2[:,:,:,np.newaxis], batch_size=min_num_trial, verbose=0)
+#
+#            keep = list(np.where( (predictions[:,0]>thresh_CNN_noisy) | (np.array(r_vals)>rval_thr))[0])
+#            discard = list(np.where(predictions[:,0]<=thresh_CNN_noisy)[0])
+#            Ain = np.stack(Ain)[keep]
+#            Cin = [Cin[kp] for kp in keep]
+#            Cin_res = [Cin_res[kp] for kp in keep]
+#            idx = list(np.array(idx)[keep])
+#            cnn_pos = Ain2[discard]
 
     return Ain, Cin, Cin_res, idx, ijsig_all, cnn_pos, local_maxima
 
@@ -613,10 +671,10 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
     sv += rho_buf.get_last_frames(1).squeeze()
     sv = np.maximum(sv,0)
 
-
-    Ains, Cins, Cins_res, inds, ijsig_all, cnn_pos, local_max = get_candidate_components(sv,dims,Yres_buf,min_num_trial, gSig,
-                                                          gHalf,sniper_mode, rval_thr, 50,
-                                                          loaded_model, thresh_CNN_noisy)
+    Ains, Cins, Cins_res, inds, ijsig_all, cnn_pos, local_max = get_candidate_components(sv,dims,Yres_buf=Yres_buf,
+                                                          min_num_trial=min_num_trial, gSig=gSig,
+                                                          gHalf=gHalf,sniper_mode=sniper_mode, rval_thr=rval_thr, patch_size=50,
+                                                          loaded_model=loaded_model, thresh_CNN_noisy=thresh_CNN_noisy)
 
     ind_new_all = ijsig_all
 
@@ -640,7 +698,6 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
         Ain[indeces, :] = ain[:, None]
 
         cin_circ = cin.get_ordered()
-
         useOASIS = False  # whether to use faster OASIS for cell detection
         accepted = True   # flag indicating new component has not been rejected yet
 
