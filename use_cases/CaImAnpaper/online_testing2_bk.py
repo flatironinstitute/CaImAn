@@ -2,9 +2,9 @@
 # -*- coding: utf-8 -*-
 
 """
-Complete pipeline for online processing using OnACID. 
+Complete pipeline for online processing using OnACID.
 @author: Andrea Giovannucci @agiovann and Eftychios Pnevmatikakis @epnev
-Special thanks to Andreas Tolias and his lab at Baylor College of Medicine 
+Special thanks to Andreas Tolias and his lab at Baylor College of Medicine
 for sharing their data used in this demo.
 """
 from __future__ import division
@@ -57,22 +57,26 @@ except:
 # 7: J115
 # 8: J123
 # 9: sue_ann_k37
-#10: Jan-AMG_exp3_001    
+#10: Jan-AMG_exp3_001
 
-ind_dataset = 1
+ind_dataset = 6
 
 #%% set some global parameters here
 #'use_cases/edge-cutter/binary_cross_bootstrapped.json'
+classif_path = 'use_cases/edge-cutter/residual_classifier_2classes.json'
+classif_path = 'use_cases/edge-cutter/binary_cross_bootstrapped.json'
+classif_path = 'use_cases/CaImAnpaper/net_models/sniper_sensitive.json'
+
 global_params = {'min_SNR': .75,        # minimum SNR when considering adding a new neuron
-                 'gnb' : 2,             # number of background components   
+                 'gnb' : 2,             # number of background components
                  'epochs' : 2,          # number of passes over the data
-                 'rval_thr' : 0.70,     # spatial correlation threshold
+                 'rval_thr' : 1,     # spatial correlation threshold
                  'batch_length_dt': 10, # length of mini batch for OnACID in decay time units (length would be batch_length_dt*decay_time*fr)
                  'max_thr': 0.25,       # parameter for thresholding components when cleaning up shapes
                  'mot_corr' : False,    # flag for motion correction (set to False to compare directly on the same FOV)
                  'min_num_trial' : 3,   # minimum number of times to attempt to add a component
-                 'path_to_model' : 'use_cases/edge-cutter/sniper_sensitive.json', #'use_cases/edge-cutter/binary_cross_bootstrapped.json', #'use_cases/edge-cutter/residual_classifier_2classes.json',
-                 'thresh_CNN_noisy' : .5,
+                 'path_to_model' : classif_path, #'use_cases/edge-cutter/binary_cross_bootstrapped.json', #'use_cases/edge-cutter/residual_classifier_2classes.json',
+                 'thresh_CNN_noisy' : .75,
                  'sniper_mode' : True,
                  'rm_flag' : False,
                  'T_rm' : 1100
@@ -86,7 +90,7 @@ params_movie[0] = {'fname': '/mnt/ceph/neuro/labeling/neurofinder.03.00.test/ima
                  'p': 1,  # order of the autoregressive system
                  'fr': 7,
                  'decay_time': 0.4,
-                 'gSig': [12,12],  # expected half size of neurons              
+                 'gSig': [12,12],  # expected half size of neurons
                  'gnb': 3,
                  'T1': 2250
                  }
@@ -96,7 +100,7 @@ params_movie[1] = {'fname': '/mnt/ceph/neuro/labeling/neurofinder.04.00.test/ima
                  'epochs' : 2,
                  'ds_factor' : 1,
                  'p': 1,  # order of the autoregressive system
-                 'fr': 8, 
+                 'fr': 8,
                  'gSig': [7,7],  # expected half size of neurons
                  'decay_time' : 0.5, # rough length of a transient
                  'gnb' : 3,
@@ -108,16 +112,16 @@ params_movie[2] = {'fname': '/mnt/ceph/neuro/labeling/neurofinder.02.00/images/f
                  'folder_name' : '/mnt/ceph/neuro/labeling/neurofinder.02.00/',
                  'ds_factor' : 1,
                  'p': 1,  # order of the autoregressive system
-                 'fr' : 30, # imaging rate in Hz                 
+                 'fr' : 30, # imaging rate in Hz
                  'gSig': [8,8],  # expected half size of neuron
-                 'decay_time': 0.3,                 
-                 'gnb': 2,          
-                 'T1':8000,                 
+                 'decay_time': 0.3,
+                 'gnb': 2,
+                 'T1':8000,
                  }
 
 #% yuste
 params_movie[3] = {'fname': '/mnt/ceph/neuro/labeling/yuste.Single_150u/images/final_map/Yr_d1_200_d2_256_d3_1_order_C_frames_3000_.mmap',
-                 'folder_name': '/mnt/ceph/neuro/labeling/yuste.Single_150u/', 
+                 'folder_name': '/mnt/ceph/neuro/labeling/yuste.Single_150u/',
                  'epochs' : 2,
                  'ds_factor' : 1,
                  'p': 1,  # order of the autoregressive system
@@ -125,7 +129,7 @@ params_movie[3] = {'fname': '/mnt/ceph/neuro/labeling/yuste.Single_150u/images/f
                  'decay_time' : .75,
                  'T1' : 3000,
                  'gnb': 3,
-                 'gSig': [5,5],  # expected half size of neurons
+                 'gSig': [7,7],  # expected half size of neurons
                  }
 
 
@@ -134,7 +138,7 @@ params_movie[4] = {'fname': '/mnt/ceph/neuro/labeling/neurofinder.00.00/images/f
                  'folder_name':  '/mnt/ceph/neuro/labeling/neurofinder.00.00/',
                  'ds_factor' : 1,
                  'p': 1,  # order of the autoregressive system
-                 'decay_time' : 0.4, 
+                 'decay_time' : 0.4,
                  'fr' : 16,
                  'gSig': [8,8],  # expected half size of neurons
                  'gnb': 2,
@@ -148,7 +152,7 @@ params_movie[5] = {'fname': '/mnt/ceph/neuro/labeling/neurofinder.01.01/images/f
                  'fr' : 8,
                  'gnb':1,
                  'T1' : 1825,
-                 'decay_time' : 1.4,     
+                 'decay_time' : 1.4,
                  'gSig': [6,6]
                  }
 #% Sue Ann k53
@@ -159,7 +163,7 @@ params_movie[6] = {'fname': '/mnt/ceph/neuro/labeling/k53_20160530/images/final_
                  'ds_factor' : 2,
                  'p': 1,  # order of the autoregressive system
                  'T1': 3000, # number of frames per file
-                 'fr': 30, 
+                 'fr': 30,
                  'decay_time' : 0.4,
                  'gSig': [8,8],  # expected half size of neurons
                  'gnb' : 2,
@@ -170,7 +174,7 @@ params_movie[7] = {'fname': '/mnt/ceph/neuro/labeling/J115_2015-12-09_L01_ELS/im
                 'folder_name':'/mnt/ceph/neuro/labeling/J115_2015-12-09_L01_ELS/',
                 'gtname':'/mnt/ceph/neuro/labeling/J115_2015-12-09_L01_ELS/regions/joined_consensus_active_regions.npy',
                 'epochs' : 1,
-                'ds_factor' : 2, 
+                'ds_factor' : 2,
                 'p': 1,  # order of the autoregressive system
                 'T1' : 1000,
                 'gnb' : 2,
@@ -183,7 +187,7 @@ params_movie[7] = {'fname': '/mnt/ceph/neuro/labeling/J115_2015-12-09_L01_ELS/im
 params_movie[8] = {'fname': '/mnt/ceph/neuro/labeling/J123_2015-11-20_L01_0/images/final_map/Yr_d1_458_d2_477_d3_1_order_C_frames_41000_.mmap',
                 'folder_name':'/mnt/ceph/neuro/labeling/J123_2015-11-20_L01_0/',
                 'gtname':'/mnt/ceph/neuro/labeling/J123_2015-11-20_L01_0/regions/joined_consensus_active_regions.npy',
-                 'ds_factor' : 2, 
+                 'ds_factor' : 2,
                  'epochs' : 1,
                  'thresh_CNN_noisy' : 0.999,
                  'min_num_trial' : 2,
@@ -228,7 +232,7 @@ params_movie[10] = {'fname' : '/mnt/ceph/neuro/labeling/Jan-AMG_exp3_001/images/
 #    for file_count, ffll in enumerate(fls):
 #        file_name = '/'.join(ffll.split('/')[:-2]+['mmap_tifs']+[ffll.split('/')[-1][:-4]+'tif'])
 #        if not os.path.isfile(file_name):
-#            fl_temp = cm.movie(np.array(cm.load(ffll)))        
+#            fl_temp = cm.movie(np.array(cm.load(ffll)))
 #            fl_temp.save(file_name)
 #        print(file_name)
 #    print(ind_dataset)
@@ -247,7 +251,7 @@ else:
         fls = glob.glob('/'.join( params_movie[ind_dataset]['fname'].split('/')[:-3]+['images','tiff_VST','*.tif']))
 
 fls.sort()
-print(fls)  
+print(fls)
 
 #%% Set up some parameters
 ds_factor = params_movie[ind_dataset]['ds_factor']                            # spatial downsampling factor (increases speed but may lose some fine structure)
@@ -262,7 +266,7 @@ min_SNR = 3.0956*np.log(len(fls)*params_movie[ind_dataset]['T1']/(307.85*params_
 N_samples = np.ceil(params_movie[ind_dataset]['fr']*params_movie[ind_dataset]['decay_time'])   # number of timesteps to consider when testing new neuron candidates
 pr_inc = 1 - scipy.stats.norm.cdf(global_params['min_SNR'])           # inclusion probability of noise transient
 thresh_fitness_raw = np.log(pr_inc)*N_samples       # event exceptionality threshold
-thresh_fitness_delta = -80.                         # make this very neutral 
+thresh_fitness_delta = -80.                         # make this very neutral
 p = params_movie[ind_dataset]['p']                  # order of AR indicator dynamics
 #rval_thr = global_params['rval_thr']                # correlation threshold for new component inclusion
 rval_thr = 0.06*np.log(len(fls)*params_movie[ind_dataset]['T1']/(2177.*params_movie[ind_dataset]['fr'])-0.0462) +0.8862
@@ -270,7 +274,7 @@ rval_thr = 0.06*np.log(len(fls)*params_movie[ind_dataset]['T1']/(2177.*params_mo
 try:
     gnb = params_movie[ind_dataset]['gnb']
 except:
-    gnb = global_params['gnb']    
+    gnb = global_params['gnb']
 
 try:
     epochs = params_movie[ind_dataset]['epochs']                     # number of background components
@@ -309,7 +313,7 @@ if ds_factor > 1:                                   # load only the first initba
     Y = cm.load(fls[0], subindices = slice(0,initbatch,None)).astype(np.float32).resize(1. / ds_factor, 1. / ds_factor)
 else:
     Y =  cm.load(fls[0], subindices = slice(0,initbatch,None)).astype(np.float32)
-    
+
 if mot_corr:                                        # perform motion correction on the first initbatch frames
     max_shift = np.ceil(5./ds_factor).astype('int')     # maximum allowed shift during motion correction
     mc = Y.motion_correct(max_shift, max_shift, template = template)
@@ -317,29 +321,29 @@ if mot_corr:                                        # perform motion correction 
     borders = np.max(mc[1])
 else:
     Y = Y.astype(np.float32)
-      
+
 img_min = Y.min()                                   # minimum value of movie. Subtract it to make the data non-negative
 Y -= img_min
-img_norm = np.std(Y, axis=0)                        
+img_norm = np.std(Y, axis=0)
 img_norm += np.median(img_norm)                     # normalizing factor to equalize the FOV
 Y = Y / img_norm[None, :, :]                        # normalize data
 
 _, d1, d2 = Y.shape
 dims = (d1, d2)                                     # dimensions of FOV
-Yr = Y.to_2D().T                                    # convert data into 2D array                                    
+Yr = Y.to_2D().T                                    # convert data into 2D array
 
 t_corr = time()
 Cn_init = Y.local_correlations(swap_dim = False)    # compute correlation image
 timings['corr'] = time() - t_corr
 
 #%% initialize OnACID with bare initialization
-rval_thr = 1
+rval_thr = global_params['rval_thr']
 cnm_init = bare_initialization(Y[:initbatch].transpose(1, 2, 0), init_batch=initbatch, k=K, gnb=gnb,
                                  gSig=gSig, p=p, minibatch_shape=100, minibatch_suff_stat=5,
                                  update_num_comps = True, rval_thr=rval_thr,
                                  thresh_fitness_delta = thresh_fitness_delta,
                                  thresh_fitness_raw = thresh_fitness_raw, use_dense = False,
-                                 batch_update_suff_stat=True, max_comp_update_shape = 200, 
+                                 batch_update_suff_stat=True, max_comp_update_shape = 200,
                                  deconv_flag = True,  thresh_CNN_noisy = thresh_CNN_noisy,
                                  simultaneously = False, n_refit = 0)
 
@@ -363,7 +367,7 @@ cnm2._prepare_object(np.asarray(Yr[:,:initbatch]), T1, expected_comps, idx_compo
 
 timings['init'] = time() - t_init
 #%% Run OnACID and optionally plot results in real time
-
+A_accepted = np.zeros((dims[0]*dims[1],0))
 cnm2.max_comp_update_shape = np.inf
 cnm2.update_num_comps = True
 cnm2.A_epoch = []
@@ -371,6 +375,7 @@ cnm2.added = []
 t = cnm2.initbatch
 tottime = []
 Cn = Cn_init.copy()
+cnn_pos = []
 
 remove_flag = global_params['rm_flag']
 T_rm = global_params['T_rm']
@@ -384,14 +389,14 @@ resize_fact = 1.2                        # image resizing factor
 if online_files == 0:                    # check whether there are any additional files
     process_files = fls[:init_files]     # end processing at this file
     init_batc_iter = [initbatch]         # place where to start
-    end_batch = T1              
+    end_batch = T1
 else:
     process_files = fls[:init_files + online_files]     # additional files
     init_batc_iter = [initbatch] + [0]*online_files     # where to start reading at each file
 
 shifts = []
 if save_movie and play_reconstr:
-    fourcc = cv2.VideoWriter_fourcc('8', 'B', 'P', 'S') 
+    fourcc = cv2.VideoWriter_fourcc('8', 'B', 'P', 'S')
     out = cv2.VideoWriter(movie_name,fourcc, 30.0, tuple([int(2*x*resize_fact) for x in cnm2.dims]))
 
 
@@ -400,25 +405,25 @@ for iter in range(epochs):
     if iter > 0:
         process_files = fls[:init_files + online_files]     # if not on first epoch process all files from scratch
         init_batc_iter = [0]*(online_files+init_files)      #
-        
+
     for file_count, ffll in enumerate(process_files):  # np.array(fls)[np.array([1,2,3,4,5,-5,-4,-3,-2,-1])]:
         print('Now processing file ' + ffll)
         t_load = time()
         Y_ = cm.load(ffll, subindices=slice(init_batc_iter[file_count],T1,None))
         timings['load'] += time() - t_load
-        
+
         if plot_contours_flag:   # update max-correlation (and perform offline motion correction) just for illustration purposes
             if ds_factor > 1:
                 Y_1 = Y_.resize(1. / ds_factor, 1. / ds_factor, 1)
             else:
-                Y_1 = Y_.copy()                    
+                Y_1 = Y_.copy()
                 if mot_corr:
-                    templ = (cnm2.Ab.data[:cnm2.Ab.indptr[1]] * cnm2.C_on[0, t - 1]).reshape(cnm2.dims, order='F') * img_norm        
-                    newcn = (Y_1 - img_min).motion_correct(max_shift, max_shift, template=templ)[0].local_correlations(swap_dim=False)                
+                    templ = (cnm2.Ab.data[:cnm2.Ab.indptr[1]] * cnm2.C_on[0, t - 1]).reshape(cnm2.dims, order='F') * img_norm
+                    newcn = (Y_1 - img_min).motion_correct(max_shift, max_shift, template=templ)[0].local_correlations(swap_dim=False)
                     Cn = np.maximum(Cn, newcn)
                 else:
                     Cn = np.maximum(Cn, Y_1.local_correlations(swap_dim=False))
-    
+
         old_comps = cnm2.N                              # number of existing components
         for frame_count, frame in enumerate(Y_):        # now process each file
             if np.isnan(np.sum(frame)):
@@ -426,14 +431,14 @@ for iter in range(epochs):
             if t % 200 == 0:
                 print('Epoch: ' + str(iter+1) + '. ' + str(t)+' frames have beeen processed in total. '+str(cnm2.N - old_comps)+' new components were added. Total number of components is '+str(cnm2.Ab.shape[-1]-gnb))
                 old_comps = cnm2.N
-    
+
             t1 = time()                                 # count time only for the processing part
-            frame_ = frame.copy().astype(np.float32)    # 
+            frame_ = frame.copy().astype(np.float32)    #
             if ds_factor > 1:
-                frame_ = cv2.resize(frame_, img_norm.shape[::-1])   # downsample if necessary 
-    
+                frame_ = cv2.resize(frame_, img_norm.shape[::-1])   # downsample if necessary
+
             frame_ -= img_min                                       # make data non-negative
-    
+
             if mot_corr:                                            # motion correct
                 templ = cnm2.Ab.dot(cnm2.C_on[:cnm2.M, t - 1]).reshape(cnm2.dims, order='F') * img_norm
                 frame_cor, shift = motion_correct_iteration_fast(frame_, templ, max_shift, max_shift)
@@ -441,15 +446,18 @@ for iter in range(epochs):
             else:
                 templ = None
                 frame_cor = frame_
-    
+
             frame_cor = frame_cor / img_norm                        # normalize data-frame
             cnm2.fit_next(t, frame_cor.reshape(-1, order='F'))      # run OnACID on this frame
+            if len(cnm2.ind_new)>0:
+                A_accepted = np.hstack((A_accepted,cnm2.Ab[:,cnm2.M-len(cnm2.ind_new):cnm2.M].toarray()))
+
             timings['fitn'] += time() - t1
             tottime.append(time() - t1)                             # store time
-            
+            cnn_pos.append(cnm2.cnn_pos)
             t += 1
             #    break
-            
+
             t_remv = time()
             if t % T_rm == 0 and remove_flag and (t + 1000 < T1):
                 prd, _ = evaluate_components_CNN(cnm2.Ab[:, gnb:], dims, gSig)
@@ -457,14 +465,14 @@ for iter in range(epochs):
                 cnm2.remove_components(ind_rem)
                 print('Removing '+str(len(ind_rem))+' components')
             timings['remv'] += time() - t_remv
-            
+
             if t % 1000 == 0 and plot_contours_flag:
             #if t>=4500:tours_flag:
                 pl.cla()
                 A = cnm2.Ab[:, cnm2.gnb:]
                 crd = cm.utils.visualization.plot_contours(A, Cn, thr=0.9)  # update the contour plot every 1000 frames
                 pl.pause(1)
-                
+
             if play_reconstr:                                               # generate movie with the results
                 A, b = cnm2.Ab[:, cnm2.gnb:], cnm2.Ab[:, :cnm2.gnb].toarray()
                 C, f = cnm2.C_on[cnm2.gnb:cnm2.M, :], cnm2.C_on[:cnm2.gnb, :]
@@ -480,17 +488,17 @@ for iter in range(epochs):
                 cv2.putText(vid_frame,'Inferred Activity',(np.int(cnm2.dims[0]*resize_fact) + 5,20),fontFace = 5, fontScale = 1.2, color = (0,255,0), thickness = 1)
                 cv2.putText(vid_frame,'Identified Components',(5,np.int(cnm2.dims[1]*resize_fact)  + 20),fontFace = 5, fontScale = 1.2, color = (0,255,0), thickness = 1)
                 cv2.putText(vid_frame,'Denoised Data',(np.int(cnm2.dims[0]*resize_fact) + 5 ,np.int(cnm2.dims[1]*resize_fact)  + 20),fontFace = 5, fontScale = 1.2, color = (0,255,0), thickness = 1)
-                cv2.putText(vid_frame,'Frame = '+str(t),(vid_frame.shape[1]//2-vid_frame.shape[1]//10,vid_frame.shape[0]-20),fontFace = 5, fontScale = 1.2, color = (0,255,255), thickness = 1)                
+                cv2.putText(vid_frame,'Frame = '+str(t),(vid_frame.shape[1]//2-vid_frame.shape[1]//10,vid_frame.shape[0]-20),fontFace = 5, fontScale = 1.2, color = (0,255,255), thickness = 1)
                 if save_movie:
                     out.write(vid_frame)
-                cv2.imshow('frame',vid_frame)                
+                cv2.imshow('frame',vid_frame)
                 if cv2.waitKey(1) & 0xFF == ord('q'):
-                    break                                
-                
+                    break
+
         print('Cumulative processing speed is ' + str((t - initbatch) / np.sum(tottime))[:5] + ' frames per second.')
     cnm2.A_epoch.append(cnm2.Ab.copy())
-    timings['epoc'].append(time()-t_epoc)    
-        
+    timings['epoc'].append(time()-t_epoc)
+
 if save_movie:
     out.release()
 cv2.destroyAllWindows()
@@ -501,7 +509,7 @@ save_results = False
 if save_results:
     np.savez(params_movie[ind_dataset]['folder_name']+'results_analysis_online_sensitive_EP_05.npz',
              Cn=Cn, Ab=cnm2.Ab, Cf=cnm2.C_on, b=cnm2.b, f=cnm2.f,
-             dims=cnm2.dims, tottime=tottime, noisyC=cnm2.noisyC, shifts=shifts, img=Cn, 
+             dims=cnm2.dims, tottime=tottime, noisyC=cnm2.noisyC, shifts=shifts, img=Cn,
              params_movie = params_movie[ind_dataset], global_params = global_params, timings = timings)
 
 #%% extract results from the objects and do some plotting
@@ -512,7 +520,7 @@ if params_movie[ind_dataset]['p'] > 0:
     b_trace = [osi.b for osi in cnm2.OASISinstances]
 
 pl.figure()
-crd = cm.utils.visualization.plot_contours(A, Cn, thr=0.9)    
+crd = cm.utils.visualization.plot_contours(A, Cn, thr=0.9, display_numbers=False)
 
 #%%
 
@@ -535,7 +543,7 @@ with np.load(gt_file, encoding = 'latin1') as ld:
     d2_or = int(ld['d2'])
     dims_or = (d1_or,d2_or)
     A_gt = ld['A_gt'][()].toarray()
-    Cn_orig = ld['Cn']    
+    Cn_orig = ld['Cn']
     #locals().update(ld)
     #A_gt = scipy.sparse.coo_matrix(A_gt[()])
     #dims = (d1,d2)
@@ -547,31 +555,31 @@ if ds_factor > 1:
     Cn_orig = cv2.resize(Cn_orig,None,fx=1./ds_factor,fy=1./ds_factor)
 else:
     A_gt2 = A_gt.copy()
-        
+
 A_gt_thr = cm.source_extraction.cnmf.spatial.threshold_components(A_gt2, dims, medw=None, thr_method='max', maxthr=global_params['max_thr'], extract_cc=True,
-                         se=None, ss=None, dview=None) 
+                         se=None, ss=None, dview=None)
 
 A_gt_thr_bin = A_gt_thr > 0
 size_neurons_gt = A_gt_thr_bin.sum(0)
 idx_size_neurons_gt = np.where((size_neurons_gt>min_size_neuro) & (size_neurons_gt < max_size_neuro) )[0]
-print(A_gt_thr.shape)     
+print(A_gt_thr.shape)
 #%% filter for size found neurons
 
 A_thr = cm.source_extraction.cnmf.spatial.threshold_components(A.tocsc()[:,:].toarray(), dims, medw=None, thr_method='max', maxthr=global_params['max_thr'], extract_cc=True,
-                         se=None, ss=None, dview=dview) 
-A_thr_bin = A_thr > 0  
+                         se=None, ss=None, dview=dview)
+A_thr_bin = A_thr > 0
 size_neurons = A_thr_bin.sum(0)
 idx_size_neurons = np.where((size_neurons>min_size_neuro) & (size_neurons<max_size_neuro))[0]
 #A_thr = A_thr[:,idx_size_neuro]
 print(A_thr.shape)
 
-#%% compute results 
+#%% compute results
 
 use_cnn = True  # Use CNN classifier
-if use_cnn:    
+if use_cnn:
     from caiman.components_evaluation import evaluate_components_CNN
     predictions,final_crops = evaluate_components_CNN(A,dims,gSig,model_name = 'use_cases/CaImAnpaper/cnn_model')
-    thresh_cnn = .10
+    thresh_cnn = .0
     idx_components_cnn = np.where(predictions[:,1]>=thresh_cnn)[0]
     idx_neurons = np.intersect1d(idx_components_cnn,idx_size_neurons)
 else:
@@ -581,11 +589,11 @@ else:
 #%% detect duplicates
 
 #%%
-   
+
 from caiman.base.rois import detect_duplicates_and_subsets
 
 duplicates, indeces_keep, indeces_remove, D, overlap = detect_duplicates_and_subsets(
-            A_thr_bin[:,idx_neurons].reshape([dims[0],dims[1],-1],order = 'F').transpose([2,0,1])*1., 
+            A_thr_bin[:,idx_neurons].reshape([dims[0],dims[1],-1],order = 'F').transpose([2,0,1])*1.,
             predictions[idx_neurons,1], r_values = None,
             dist_thr=0.1, min_dist = 10, thresh_subset = 0.6)
 
@@ -613,7 +621,7 @@ print('Duplicates CNMF:'+str(len(duplicates)))
 #%%
 
 duplicates_gt, indeces_keep_gt, indeces_remove_gt, D_gt, overlap_gt = detect_duplicates_and_subsets(
-        A_gt_thr_bin[:,idx_size_neurons_gt].reshape([dims[0],dims[1],-1],order = 'F').transpose([2,0,1])*1., 
+        A_gt_thr_bin[:,idx_size_neurons_gt].reshape([dims[0],dims[1],-1],order = 'F').transpose([2,0,1])*1.,
         predictions = None, r_values = None,
         dist_thr=0.1, min_dist = 10,thresh_subset = 0.6)
 
@@ -633,9 +641,9 @@ if len(duplicates_gt) > 0:
         pl.colorbar()
         pl.pause(1)
     idx_components_gt = np.delete(idx_components_gt,indeces_remove_gt)
-print('Duplicates gt:'+str(len(duplicates_gt)))            
+print('Duplicates gt:'+str(len(duplicates_gt)))
 
-#%%    
+#%%
 plot_results = False
 if plot_results:
     pl.figure(figsize=(30,20))
@@ -651,15 +659,17 @@ font = {'family' : 'Arial',
 
 pl.rc('font', **font)
 print({a:b.astype(np.float16) for a,b in performance_cons_off.items()})
-##%%
+#%%
+pl.figure()
+crd = cm.utils.visualization.plot_contours(A_accepted, Cn, thr=0.9, display_numbers=False)
 ## =============================================================================
-## 
+##
 ## =============================================================================
 #with np.load(params_movie[ind_dataset]['folder_name']+'results_analysis_online_standard.npz') as  ld:
 #    print(ld.keys())
 #    locals().update(ld)
-#Ab = Ab[()]    
-##%%    
+#Ab = Ab[()]
+##%%
 #
 #A, b = Ab[:, b.shape[-1]:], Ab[:, :b.shape[-1]].toarray()
 #C, f = Cf[b.shape[-1]:Ab.shape[-1], :], Cf[:b.shape[-1], :]
@@ -675,17 +685,17 @@ print({a:b.astype(np.float16) for a,b in performance_cons_off.items()})
 #with np.load('/mnt/ceph/neuro/labeling/J115_2015-12-09_L01_ELS/images/final_map/Yr_d1_463_d2_472_d3_1_order_C_frames_90000_.results_analysis_after_merge_4.npz') as ld:
 #    print(ld.keys())
 #    Cn = ld['Cn']
-#    C_gt = ld['C_gt']    
-#    
-#    
+#    C_gt = ld['C_gt']
+#
+#
 #with np.load('/mnt/ceph/neuro/DataForPublications/caiman-paper/all_results_Jan_2018.npz') as ld:
-#     all_results = ld['all_results']        
+#     all_results = ld['all_results']
 #     all_results = all_results[()]
-#     
-#ld = all_results['Datak53_20160530']     
+#
+#ld = all_results['Datak53_20160530']
 #ag_idx = ld['idx_components_cnmf'][ld['tp_comp']][np.argsort(ld['predictionsCNN'][ld['idx_components_cnmf'][ld['tp_comp']]])[[-6,-5,-4,-3,-2]]]
-#[np.where(ld['tp_comp']==aaa)[0] for aaa in ag_idx]   
-##pl.imshow(Cn)    
+#[np.where(ld['tp_comp']==aaa)[0] for aaa in ag_idx]
+##pl.imshow(Cn)
 #
 ##%%
 #pl.figure()

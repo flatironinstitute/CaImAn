@@ -593,7 +593,7 @@ use_cnn = True  # Use CNN classifier
 if use_cnn:
     from caiman.components_evaluation import evaluate_components_CNN
     predictions,final_crops = evaluate_components_CNN(A,dims,gSig,model_name = 'use_cases/CaImAnpaper/cnn_model')
-    thresh_cnn = 0.05
+    thresh_cnn = 0.0
     idx_components_cnn = np.where(predictions[:,1]>=thresh_cnn)[0]
     idx_neurons = np.intersect1d(idx_components_cnn,idx_size_neurons)
 else:
@@ -670,7 +670,10 @@ font = {'family' : 'Arial',
 
 pl.rc('font', **font)
 print({a:b.astype(np.float16) for a,b in performance_cons_off.items()})
-##%%
+#%%
+pl.figure()
+crd = cm.utils.visualization.plot_contours(A[:,idx_components_cnmf], cv2.resize(Cn,dims[::-1]), thr=0.9)
+#%%
 ## =============================================================================
 ##
 ## =============================================================================

@@ -479,6 +479,7 @@ def rank1nmf(Ypx, ain):
 
 
 #%%
+@profile
 def get_candidate_components(sv, dims, Yres_buf, min_num_trial = 3,
                              gSig = (5,5), gHalf = (5,5), sniper_mode = True, rval_thr = 0.85,
                              patch_size = 50, loaded_model = None,
@@ -498,6 +499,7 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial = 3,
     ijsig_all = []
     cnn_pos = []
     r_vals = []
+
     local_maxima = []
 #    resize_g = False
     half_crop_cnn = (np.minimum(gSig[0] * 4 + 1, patch_size) // 2,np.minimum(gSig[1] * 4 + 1, patch_size) // 2)
@@ -548,8 +550,6 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial = 3,
                 Cin_res.append(cin_res)
                 Ain_cnn.append(ain_cnn)
             else:
-
-                #print(rval)
                 if rval > rval_thr:
                     idx.append(ind)
                     Ain.append(ain)
@@ -571,16 +571,18 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial = 3,
 
             predictions = loaded_model.predict(Ain2[:,:,:,np.newaxis], batch_size=min_num_trial, verbose=0)
 
-            keep = list(np.where( (predictions[:,0]>thresh_CNN_noisy) | (np.array(r_vals)>rval_thr))[0])
-            discard = list(np.where(predictions[:,0]<=thresh_CNN_noisy)[0])
+            predictions = predictions[:,0]
+            keep = list(np.where( (predictions>thresh_CNN_noisy) | (np.array(r_vals)>rval_thr))[0])
+            discard = list(np.where(predictions<=thresh_CNN_noisy)[0])
             Ain = np.stack(Ain)[keep]
             Cin = [Cin[kp] for kp in keep]
             Cin_res = [Cin_res[kp] for kp in keep]
             idx = list(np.array(idx)[keep])
-            cnn_pos = Ain2[discard]
+            cnn_pos = Ain2[keep]
+    else:
+        predictions = []
 
-
-    return Ain, Cin, Cin_res, idx, ijsig_all, cnn_pos, local_maxima
+    return Ain, Cin, Cin_res, idx, ijsig_all, cnn_pos, local_maxima, predictions, r_vals
 
 
 #%%
@@ -614,19 +616,19 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
 #    sv = np.maximum(sv,0)
 
 
-    Ains, Cins, Cins_res, inds, ijsig_all, cnn_pos, local_max = get_candidate_components(sv,dims,Yres_buf,min_num_trial, gSig,
+    Ains, Cins, Cins_res, inds, ijsig_all, cnn_pos, local_max, prds, rvls = get_candidate_components(sv,dims,Yres_buf,min_num_trial, gSig,
                                                           gHalf,sniper_mode, rval_thr, 50,
                                                           loaded_model, thresh_CNN_noisy)
 
 
 #    import pylab as pl
 #    pl.subplot(1,2,1)
-#    pl.imshow(sv.reshape(dims).T, vmax = 5, cmap = 'gray')
+#    pl.imshow(sv.reshape(dims).T, vmax = 1, cmap = 'gray')
 #    [pl.plot(*mx,'go') for mx in local_max]
 #    [pl.plot(*np.unravel_index(ind, dims, order=order_rvl),'ro') for ind in inds]
 #
 #    pl.subplot(1,2,2)
-#    pl.imshow(Yres_buf.mean(0).reshape(dims, order='F').T, vmax=1, cmap='gray')
+#    pl.imshow(Yres_buf.mean(0).reshape(dims, order='F').T, vmax=.5, cmap='gray')
 #    [pl.plot(*mx,'go') for mx in local_max]
 #    [pl.plot(*np.unravel_index(ind, dims, order=order_rvl),'ro') for ind in inds]
 #
@@ -640,7 +642,7 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
 
     num_added = len(inds)
     cnt = 0
-    for ind, ain, cin, cin_res in zip(inds,Ains,Cins, Cins_res):
+    for ind, ain, cin, cin_res, prd, rvl in zip(inds,Ains,Cins, Cins_res, prds, rvls):
         cnt += 1
         if first:
 #            sv_ = sv.copy()  # np.sum(rho_buf,0)
@@ -724,10 +726,11 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                         cin_res, 8, size=num_samps_bl)
                 else:
                     bl = 0
+
                 fitness_raw, erfc_raw, std_rr, _ = compute_event_exceptionality(
                     (cin_res - bl)[None, :], robust_std=robust_std, N=N_samples_exceptionality)
                 accepted = (fitness_delta < thresh_fitness_delta) or (
-                    fitness_raw < thresh_fitness_raw)
+                    fitness_raw < thresh_fitness_raw) or (prd > 0.98)
 
         if accepted:
             # print('adding component' + str(N + 1) + ' at timestep ' + str(t))

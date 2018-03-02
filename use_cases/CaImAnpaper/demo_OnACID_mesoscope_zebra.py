@@ -11,13 +11,13 @@ for sharing their data used in this demo.
 import os
 import sys
 
-try:
-    here = os.path.dirname(os.path.realpath(__file__))
-    caiman_path = os.path.join(here, "..", "..")
-    print("Caiman path detected as " + caiman_path)
-    sys.path.append(caiman_path)
-except:
-    pass
+#try:
+#    here = os.path.dirname(os.path.realpath(__file__))
+#    caiman_path = os.path.join(here, "..", "..")
+#    print("Caiman path detected as " + caiman_path)
+#    sys.path.append(caiman_path)
+#except:
+#    pass
 import numpy as np
 try:
     if __IPYTHON__:
@@ -44,35 +44,38 @@ from copy import deepcopy
 #%%  download and list all files to be processed
 
 # folder inside ./example_movies where files will be saved
-fld_name = 'Mesoscope'
-download_demo('Tolias_mesoscope_1.hdf5', fld_name)
-download_demo('Tolias_mesoscope_2.hdf5', fld_name)
-download_demo('Tolias_mesoscope_3.hdf5', fld_name)
-
-# folder where files are located
-folder_name = os.path.join(caiman_path, 'example_movies', fld_name)
-extension = 'hdf5'                                  # extension of files
-fls = ['example_movies/Mesoscope/Tolias_mesoscope_1.hdf5','example_movies/Mesoscope/Tolias_mesoscope_2.hdf5','example_movies/Mesoscope/Tolias_mesoscope_3.hdf5']
-fls = fls[:]
+#fld_name = 'Mesoscope'
+#download_demo('Tolias_mesoscope_1.hdf5', fld_name)
+#download_demo('Tolias_mesoscope_2.hdf5', fld_name)
+#download_demo('Tolias_mesoscope_3.hdf5', fld_name)
+#
+## folder where files are located
+#folder_name = os.path.join(caiman_path, 'example_movies', fld_name)
+#extension = 'hdf5'                                  # extension of files
+#fls = ['example_movies/Mesoscope/Tolias_mesoscope_1.hdf5','example_movies/Mesoscope/Tolias_mesoscope_2.hdf5','example_movies/Mesoscope/Tolias_mesoscope_3.hdf5']
+#fls = fls[:]
 # read all files to be processed
 #%%
-fls = ['/mnt/ceph/neuro/zebra/05292014Fish1-4/images/mmap_tifs/Plane17_100_500_400_-350_mc_noinit_small.tif']
-
+#fls = ['/mnt/ceph/neuro/zebra/05292014Fish1-4/images/mmap_tifs/Plane17_100_500_400_-350_mc_noinit_small.tif']
+fls = ['/mnt/ceph/neuro/zebra/05292014Fish1-4/images/mmap_tifs/Plane17_mc.hdf5']
 # your list of files should look something like this
 print(fls)
-
+decay_time = 1.5
+gSig = (8, 8)
+K = 500
+min_num_trial = 100
+rval_thr = 1
 #%%   Set up some parameters
 
 # frame rate (Hz)
-fr = 5
+fr = 2
 #fr = 15
 
 # approximate length of transient event in seconds
-decay_time = 1.5
+
 #decay_time = 0.5
 
 # expected half size of neurons
-gSig = (8, 8)
 #gSig = (2.5, 2.5)
 
 # order of AR indicator dynamics
@@ -80,7 +83,7 @@ p = 1
 # minimum SNR for accepting new components
 min_SNR = 2.5
 # correlation threshold for new component inclusion
-rval_thr = 1
+
 #rval_thr = 0.85
 
 # spatial downsampling factor (increases speed but may lose some fine structure)
@@ -90,7 +93,7 @@ gnb = 3
 # recompute gSig if downsampling is involved
 gSig = tuple((np.array(gSig) / ds_factor))#.astype('int'))
 # flag for online motion correction
-mot_corr = True
+mot_corr = False
 # maximum allowed shift during motion correction
 max_shift = np.ceil(10. / ds_factor).astype('int')
 
@@ -107,13 +110,12 @@ initbatch = 200
 # maximum number of expected components used for memory pre-allocation (exaggerate here)
 expected_comps = 600
 # initial number of components
-K = 10
 # number of timesteps to consider when testing new neuron candidates
 N_samples = np.ceil(fr * decay_time)
 # exceptionality threshold
 thresh_fitness_raw = scipy.special.log_ndtr(-min_SNR) * N_samples
 # number of passes over the data
-epochs = 2
+epochs = 3
 # upper bound for number of frames in each file (used right below)
 len_file = 1815#1885
 # total length of all files (if not known use a large number, then truncate at the end)
@@ -158,7 +160,7 @@ cnm_init = bare_initialization(Y[:initbatch].transpose(1, 2, 0), init_batch=init
                                update_num_comps=True, rval_thr=rval_thr,
                                thresh_fitness_raw=thresh_fitness_raw,
                                batch_update_suff_stat=True, max_comp_update_shape=max_comp_update_shape,
-                               deconv_flag=False, use_dense=False,
+                               deconv_flag=False, use_dense=True,
                                simultaneously=False, n_refit=0)
 
 #%% Plot initialization results
@@ -238,7 +240,7 @@ if save_init:
     cnm_init = load_object(fls[0][:-4] + '_DS_' + str(ds_factor) + '.pkl')
 
 cnm2._prepare_object(np.asarray(Yr), T1, expected_comps, idx_components=None,
-                         min_num_trial=10, max_num_added = 10, N_samples_exceptionality=int(N_samples),
+                         min_num_trial=min_num_trial, max_num_added = min_num_trial, N_samples_exceptionality=int(N_samples),
                          path_to_model = path_to_model,
                          sniper_mode = True)
 cnm2.thresh_CNN_noisy = 0.75
@@ -368,10 +370,10 @@ if save_movie:
     out.release()
 cv2.destroyAllWindows()
 #%%  save results (optional)
-save_results = False
+save_results = True
 
 if save_results:
-    np.savez('results_analysis_online_MOT_CORR.npz',
+    np.savez('results_analysis_online_Plane17_mc_nodivide_sv.npz',
              Cn=Cn, Ab=cnm2.Ab, Cf=cnm2.C_on, b=cnm2.b, f=cnm2.f,
              dims=cnm2.dims, tottime=tottime, noisyC=cnm2.noisyC, shifts=shifts)
 

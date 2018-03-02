@@ -811,13 +811,13 @@ class CNMF(object):
             self.time_neuron_added.append((nneeuu, self.initbatch))
         self.time_spend = 0
         # setup per patch classifier
-        
+
         if path_to_model is None:
             loaded_model = None
             sniper_mode = False
         else:
             import keras
-            from keras.models import model_from_json            
+            from keras.models import model_from_json
             path = path_to_model.split(".")[:-1]
             json_path = ".".join(path + ["json"])
             model_path = ".".join(path + ["h5"])
@@ -829,12 +829,12 @@ class CNMF(object):
                 loaded_model.load_weights(model_path)
                 opt = keras.optimizers.rmsprop(lr=0.0001, decay=1e-6)
                 loaded_model.compile(loss=keras.losses.categorical_crossentropy,
-                              optimizer=opt, metrics=['accuracy'])   
+                              optimizer=opt, metrics=['accuracy'])
             except:
                 print('No model found')
                 loaded_model = None
                 sniper_mode = False
-                
+
         self.loaded_model = loaded_model
         self.sniper_mode = sniper_mode
         return self
@@ -901,10 +901,10 @@ class CNMF(object):
 
 #        cv2.imshow('untitled', 3*cv2.resize(self.Ab.sum(1).reshape(self.dims,order = 'F'),(512,512)))
 #        cv2.waitKey(1)
-        
+
         #self.mean_buff = self.Yres_buf.mean(0)
         if self.update_num_comps:
-            
+
             res_frame = frame - self.Ab.dot(self.noisyC[:self.M, t])
             self.mean_buff += (res_frame-self.Yres_buf[self.Yres_buf.cur])/self.minibatch_shape
 #            cv2.imshow('untitled', 0.1*cv2.resize(res_frame.reshape(self.dims,order = 'F'),(512,512)))
@@ -918,7 +918,6 @@ class CNMF(object):
                          siz=self.gSiz, nDimBlur=len(self.dims2))**2
             rho = np.reshape(rho, np.prod(self.dims2))
             self.rho_buf.append(rho)
-
             self.Ab, Cf_temp, self.Yres_buf, self.rhos_buf, self.CC, self.CY, self.ind_A, self.sv, self.groups, self.ind_new, self.ind_new_all, self.sv, self.cnn_pos = update_num_components(
                 t, self.sv, self.Ab, self.C_on[:self.M, (t - mbs + 1):(t + 1)],
                 self.Yres_buf, self.Yr_buf, self.rho_buf, self.dims2,
@@ -937,7 +936,7 @@ class CNMF(object):
 
             num_added = len(self.ind_A) - self.N
 
-            if num_added > 0:                
+            if num_added > 0:
                 self.N += num_added
                 self.M += num_added
                 if self.N + self.max_num_added > self.expected_comps:
@@ -1071,12 +1070,15 @@ class CNMF(object):
                     self.N -= len(ind_zero)
                     self.noisyC = np.delete(self.noisyC, ind_zero, axis=0)
                     for ii in ind_zero:
-                        del self.OASISinstances[ii - self.gnb]
+                        try:
+                            del self.OASISinstances[ii - self.gnb]
+                        except:
+                            print('Check this line, there might be a problem')
                         #del self.ind_A[ii-self.gnb]
 
                     self.C_on = np.delete(self.C_on, ind_zero, axis=0)
                     self.AtY_buf = np.delete(self.AtY_buf, ind_zero, axis=0)
-                    print(1)
+                    print('WARNING: COMPONENTS ARE APPROACHING ZERO: CHECK OUT!!')
                     #import pdb
                     # pdb.set_trace()
                     #Ab_ = Ab_[:,ind_keep]
