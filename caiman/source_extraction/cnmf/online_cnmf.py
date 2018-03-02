@@ -352,15 +352,25 @@ def update_shapes(CY, CC, Ab, ind_A, indicator_components=None, Ab_dense=None, u
         if Ab_dense is None:
             for m in idx_comp:  # neurons
                 ind_pixels = ind_A[m - nb]
-                Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]] = np.maximum(
-                    Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]] +
+                
+                tmp = np.maximum(Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]] +
                     ((CY[m, ind_pixels] - Ab.dot(CC[m])[ind_pixels]) / CC[m, m]), 0)
-                # normalize
-                Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]] /= \
-                    max(1, sqrt(Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]]
-                                .dot(Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]])))
-                ind_A[m -
-                      nb] = Ab.indices[slice(Ab.indptr[m], Ab.indptr[m + 1])]
+                
+                if tmp.dot(tmp) > 0:
+                    tmp *= 1e-3 / \
+                        min(1e-3, sqrt(tmp.dot(tmp)) + np.finfo(float).eps)
+                    tmp = tmp / max(1, sqrt(tmp.dot(tmp)))
+                    Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]] = tmp
+
+#                    Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]] = np.maximum(
+#                        Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]] +
+#                        ((CY[m, ind_pixels] - Ab.dot(CC[m])[ind_pixels]) / CC[m, m]), 0)
+                    # normalize
+#                    Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]] /= \
+#                        max(1, sqrt(Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]]
+#                                    .dot(Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]])))
+                    ind_A[m -
+                          nb] = Ab.indices[slice(Ab.indptr[m], Ab.indptr[m + 1])]
                 # N.B. Ab[ind_pixels].dot(CC[m]) is slower for csc matrix due to indexing rows
         else:
             for m in idx_comp:  # neurons
@@ -481,7 +491,7 @@ def rank1nmf(Ypx, ain):
 def get_candidate_components(sv, dims, Yres_buf, min_num_trial=3, gSig=(5, 5),
                              gHalf=(5, 5), sniper_mode=True, rval_thr=0.85,
                              patch_size=50, loaded_model=None, test_both=False,
-                             thresh_CNN_noisy=0.99, use_peak_max=False):
+                             thresh_CNN_noisy=0.99, use_peak_max=True):
     """
     Extract new candidate components from the residual buffer and test them
     using space correlation or the CNN classifier. The function runs the CNN
@@ -551,12 +561,18 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial=3, gSig=(5, 5),
 
     if sniper_mode & (len(Ain_cnn) > 0):
         Ain_cnn = np.stack(Ain_cnn)
-        Ain2 = Ain_cnn
+        Ain2 = Ain_cnn.copy()
         Ain2 -= np.median(Ain2,axis=1)[:,None]
         Ain2 /= np.std(Ain2,axis=1)[:,None]
         Ain2 = np.reshape(Ain2,(-1,) + tuple(np.diff(ijSig_cnn).squeeze()),order= 'F')
         Ain2 = np.stack([cv2.resize(ain,(patch_size ,patch_size)) for ain in Ain2])
         predictions = loaded_model.predict(Ain2[:,:,:,np.newaxis], batch_size=min_num_trial, verbose=0)
+        #from skimage.util.montage import montage2d
+        #import pylab as pl
+        #pl.imshow(montage2d(Ain2))
+        #pl.pause(0.2)
+        #import pdb
+        #pdb.set_trace()
         keep_cnn = list(np.where(predictions[:, 0] > thresh_CNN_noisy)[0])
         discard = list(np.where(predictions[:, 0] <= thresh_CNN_noisy)[0])
         cnn_pos = Ain2[discard]
