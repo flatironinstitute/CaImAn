@@ -645,10 +645,12 @@ class CNMF(object):
 
         return self
 
-    def _prepare_object(self, Yr, T, expected_comps, new_dims=None, idx_components=None,
-                        g=None, lam=None, s_min=None, bl=None, use_dense=True, N_samples_exceptionality=5,
-                        max_num_added=1, min_num_trial=1, path_to_model = None,
-                        sniper_mode = False):
+    def _prepare_object(self, Yr, T, expected_comps, new_dims=None,
+                        idx_components=None, g=None, lam=None, s_min=None,
+                        bl=None, use_dense=True, N_samples_exceptionality=5,
+                        max_num_added=1, min_num_trial=1, path_to_model=None,
+                        sniper_mode=False, use_peak_max=False,
+                        test_both=False):
 
         if idx_components is None:
             idx_components = range(self.A.shape[-1])
@@ -721,17 +723,6 @@ class CNMF(object):
             (self.gnb + expected_comps, T), dtype=np.float32)
         self.C_on = np.zeros((expected_comps, T), dtype=np.float32)
 
-#        self.noisyC[:, :self.initbatch] = np.vstack(
-#            [self.C[:, :self.initbatch] + self.YrA, self.f])
-#        Ab_ = scipy.sparse.csc_matrix(np.c_[self.A2, self.b2])
-#        AtA_ = Ab_.T.dot(Ab_)
-#        self.noisyC[:,:self.initbatch] = hals_full(Yr[:, :self.initbatch], Ab_, np.r_[self.C,self.f], iters=3)
-#
-#        for t in xrange(self.initbatch):
-#            if t % 100 == 0:
-#                print(t)
-#            self.noisyC[:, t] = HALS4activity(Yr[:, t], Ab_, np.ones(N + 1) if t == 0 else
-# self.noisyC[:, t - 1].copy(), AtA_, iters=30 if t == 0 else 5)
         self.noisyC[self.gnb:self.M, :self.initbatch] = self.C2 + self.YrA2
         self.noisyC[:self.gnb, :self.initbatch] = self.f2
 
@@ -837,6 +828,8 @@ class CNMF(object):
                 
         self.loaded_model = loaded_model
         self.sniper_mode = sniper_mode
+        self.test_both = test_both
+        self.use_peak_max = use_peak_max
         return self
 
     @profile
@@ -898,9 +891,6 @@ class CNMF(object):
                 self.C_on[nb_ + i, t - o.get_l_of_last_pool() + 1: t +
                           1] = o.get_c_of_last_pool()
 
-
-#        cv2.imshow('untitled', 3*cv2.resize(self.Ab.sum(1).reshape(self.dims,order = 'F'),(512,512)))
-#        cv2.waitKey(1)
         
         #self.mean_buff = self.Yres_buf.mean(0)
         if self.update_num_comps:
@@ -933,7 +923,8 @@ class CNMF(object):
                 oases=self.OASISinstances if self.p else None, N_samples_exceptionality=self.N_samples_exceptionality,
                 max_num_added=self.max_num_added, min_num_trial=self.min_num_trial,
                 loaded_model = self.loaded_model, thresh_CNN_noisy = self.thresh_CNN_noisy,
-                sniper_mode = self.sniper_mode)
+                sniper_mode=self.sniper_mode, use_peak_max=self.use_peak_max,
+                test_both=self.test_both)
 
             num_added = len(self.ind_A) - self.N
 

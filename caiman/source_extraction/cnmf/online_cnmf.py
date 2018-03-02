@@ -491,7 +491,7 @@ def rank1nmf(Ypx, ain):
 def get_candidate_components(sv, dims, Yres_buf, min_num_trial=3, gSig=(5, 5),
                              gHalf=(5, 5), sniper_mode=True, rval_thr=0.85,
                              patch_size=50, loaded_model=None, test_both=False,
-                             thresh_CNN_noisy=0.99, use_peak_max=True):
+                             thresh_CNN_noisy=0.99, use_peak_max=False):
     """
     Extract new candidate components from the residual buffer and test them
     using space correlation or the CNN classifier. The function runs the CNN
@@ -503,7 +503,6 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial=3, gSig=(5, 5),
     Cin = []
     Cin_res = []
     idx = []
-    keep = []
     ijsig_all = []
     cnn_pos = []
     local_maxima = []
@@ -663,51 +662,48 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                           dims, gSig, gSiz, ind_A, CY, CC, groups, oases, gnb=1,
                           rval_thr=0.875, bSiz=3, robust_std=False,
                           N_samples_exceptionality=5, remove_baseline=True,
-                          thresh_fitness_delta=-80, thresh_fitness_raw=-20, thresh_overlap=0.25,
-                          batch_update_suff_stat=False, sn=None, g=None, thresh_s_min=None,
-                          s_min=None, Ab_dense=None, max_num_added=1, min_num_trial=1,
-                          loaded_model = None, thresh_CNN_noisy = 0.99,
-                          sniper_mode = False):
+                          thresh_fitness_delta=-80, thresh_fitness_raw=-20, 
+                          thresh_overlap=0.25, batch_update_suff_stat=False,
+                          sn=None, g=None, thresh_s_min=None, s_min=None,
+                          Ab_dense=None, max_num_added=1, min_num_trial=1,
+                          loaded_model=None, thresh_CNN_noisy=0.99,
+                          sniper_mode=False, use_peak_max=False,
+                          test_both=False):
     """
     Checks for new components in the residual buffer and incorporates them if they pass the acceptance tests
     """
 
     ind_new = []
-    order_rvl = 'C'
     gHalf = np.array(gSiz) // 2
 
     # number of total components (including background)
     M = np.shape(Ab)[-1]
     N = M - gnb                 # number of coponents (without background)
 
-    first = True
-
     sv -= rho_buf.get_first()
     # update variance of residual buffer
     sv += rho_buf.get_last_frames(1).squeeze()
-    sv = np.maximum(sv,0)
+    sv = np.maximum(sv, 0)
 
-    Ains, Cins, Cins_res, inds, ijsig_all, cnn_pos, local_max = get_candidate_components(sv,dims,Yres_buf=Yres_buf,
+    Ains, Cins, Cins_res, inds, ijsig_all, cnn_pos, local_max = get_candidate_components(sv, dims, Yres_buf=Yres_buf,
                                                           min_num_trial=min_num_trial, gSig=gSig,
-                                                          gHalf=gHalf,sniper_mode=sniper_mode, rval_thr=rval_thr, patch_size=50,
-                                                          loaded_model=loaded_model, thresh_CNN_noisy=thresh_CNN_noisy)
+                                                          gHalf=gHalf, sniper_mode=sniper_mode, rval_thr=rval_thr, patch_size=50,
+                                                          loaded_model=loaded_model, thresh_CNN_noisy=thresh_CNN_noisy,
+                                                          use_peak_max=use_peak_max, test_both=test_both)
 
     ind_new_all = ijsig_all
 
     num_added = len(inds)
     cnt = 0
-    for ind, ain, cin, cin_res in zip(inds,Ains,Cins, Cins_res):
+    for ind, ain, cin, cin_res in zip(inds, Ains, Cins, Cins_res):
         cnt += 1
-
-        ij = np.unravel_index(ind, dims, order=order_rvl)
+        ij = np.unravel_index(ind, dims)
 
         ijSig = [[max(i - temp_g, 0), min(i + temp_g + 1, d)] for i, temp_g, d in zip(ij, gHalf, dims)]
 
-        indeces = np.ravel_multi_index(np.ix_(*[np.arange(ij[0] , ij[1])
-                        for ij in ijSig]), dims, order='F').ravel(order=order_rvl)
-
-#        indeces_ = np.ravel_multi_index(np.ix_(*[np.arange(ij[0] , ij[1])
-#                        for ij in ijSig]), dims, order='C').ravel(order=order_rvl)
+        indeces = np.ravel_multi_index(
+                np.ix_(*[np.arange(ij[0], ij[1])
+                       for ij in ijSig]), dims, order='F').ravel()
 
         # use sparse Ain only later iff it is actually added to Ab
         Ain = np.zeros((np.prod(dims), 1), dtype=np.float32)
@@ -758,7 +754,8 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                 else:
                     bl = 0
                 fitness_raw, erfc_raw, std_rr, _ = compute_event_exceptionality(
-                    (cin_res - bl)[None, :], robust_std=robust_std, N=N_samples_exceptionality)
+                    (cin_res - bl)[None, :], robust_std=robust_std,
+                    N=N_samples_exceptionality)
                 accepted = (fitness_delta < thresh_fitness_delta) or (
                     fitness_raw < thresh_fitness_raw)
 
@@ -820,19 +817,18 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
             #             siz=gSiz, nDimBlur=2).ravel()
             # restrict blurring to region where component is located
 #            vb = np.reshape(Ain, dims, order='F')
-            slices = tuple(slice(max(0, ijs[0] - 2 * sg), min(d, ijs[1] + 2 * sg))
+            slices = tuple(slice(max(0, ijs[0] - 2*sg), min(d, ijs[1] + 2*sg))
                            for ijs, sg, d in zip(ijSig, gSiz//2, dims))  # is 2 enough?
 
-            vb_buf = [imblur(vb.reshape(dims,order='F')[slices], sig=gSig, siz=gSiz, nDimBlur= len(dims)) for vb in Yres_buf]
+            vb_buf = [imblur(vb.reshape(dims,order='F')[slices], sig=gSig, siz=gSiz, nDimBlur=len(dims)) for vb in Yres_buf]
             vb_buf2 = np.stack([vb.ravel() for vb in vb_buf])
 
-            ind_vb = np.ravel_multi_index(np.ix_(*[np.arange(s.start, s.stop)
-                                                   for s in slices]), dims, order=order_rvl).ravel(order=order_rvl)
+            ind_vb = np.ravel_multi_index(
+                    np.ix_(*[np.arange(s.start, s.stop)
+                           for s in slices]), dims).ravel()
 
-#            updt_res = (vb[None, ind_vb].T**2).dot(cin[None, :]**2).T
-#            rho_buf[:, ind_vb] -= updt_res
             rho_buf[:, ind_vb] = vb_buf2**2
-            sv[ind_vb] = np.maximum(np.sum(rho_buf[:,ind_vb],0),0)
+            sv[ind_vb] = np.sum(rho_buf[:, ind_vb], 0)
 
     #print(np.min(sv))
     return Ab, Cf, Yres_buf, rho_buf, CC, CY, ind_A, sv, groups, ind_new, ind_new_all, sv, cnn_pos
