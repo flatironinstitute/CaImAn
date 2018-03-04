@@ -241,6 +241,7 @@ cnm2._prepare_object(np.asarray(Yr), T1, expected_comps, idx_components=None,
                          path_to_model = path_to_cnn_residual,
                          sniper_mode = False, use_peak_max=False)
 cnm2.thresh_CNN_noisy = 0.5
+
 #%% Run OnACID and optionally plot results in real time
 epochs = 1
 cnm2.Ab_epoch = []                       # save the shapes at the end of each epoch

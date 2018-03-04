@@ -787,7 +787,6 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
 
             Ain_csc = scipy.sparse.csc_matrix((ain, (indeces, [0] * len(indeces))),
                                               (np.prod(dims), 1), dtype=np.float32)
-
             if Ab_dense is None:
                 groups = update_order(Ab, Ain, groups)[0]
             else:

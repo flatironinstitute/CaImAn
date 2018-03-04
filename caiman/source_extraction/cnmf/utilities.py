@@ -804,26 +804,29 @@ def update_order(A, new_a=None, prev_list=None):
     K = np.shape(A)[-1]
     if new_a is None and prev_list is None:
 
-        AA = A.T * A
-        AA.setdiag(0)
-        F = (AA) > 0
-        F = F.toarray()
-        rem_ind = np.arange(K)
-        O = []
-        lo = []
-        while len(rem_ind) > 0:
-            L = np.sort(app_vertex_cover(F[rem_ind, :][:, rem_ind]))
-            if L.size:
-                ord_ind = set(rem_ind) - set(rem_ind[L])
-                rem_ind = rem_ind[L]
-            else:
-                ord_ind = set(rem_ind)
-                rem_ind = []
-
-            O.append(ord_ind)
-            lo.append(len(ord_ind))
-
-        return O[::-1], lo[::-1]
+#        AA = A.T * A
+#        AA.setdiag(0)
+#        F = (AA) > 0
+#        F = F.toarray()
+#        rem_ind = np.arange(K)
+#        O = []
+#        lo = []
+#        while len(rem_ind) > 0:
+#            L = np.sort(app_vertex_cover(F[rem_ind, :][:, rem_ind]))
+#            if L.size:
+#                ord_ind = set(rem_ind) - set(rem_ind[L])
+#                rem_ind = rem_ind[L]
+#            else:
+#                ord_ind = set(rem_ind)
+#                rem_ind = []
+#
+#            O.append(ord_ind)
+#            lo.append(len(ord_ind))
+#
+#        return O[::-1], lo[::-1]
+        
+        prev_list, count_list = update_order_greedy(A, flag_AA=False)
+        return prev_list, count_list
 
     else:
 
