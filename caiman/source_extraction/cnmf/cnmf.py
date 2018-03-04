@@ -803,7 +803,7 @@ class CNMF(object):
         self.time_spend = 0
         # setup per patch classifier
         
-        if path_to_model is None:
+        if path_to_model is None or sniper_mode is False:
             loaded_model = None
             sniper_mode = False
         else:

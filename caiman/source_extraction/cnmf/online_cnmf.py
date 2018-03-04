@@ -589,7 +589,10 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial=3, gSig=(5, 5),
             if rval > rval_thr:
                 keep_corr.append(i)
         keep_final = list(set().union(keep_cnn, keep_corr))
-        Ain = np.stack(Ain)[keep_final]
+        if len(keep_final) > 0:
+            Ain = np.stack(Ain)[keep_final]
+        else:
+            Ain = []
         Cin = [Cin[kp] for kp in keep_final]
         Cin_res = [Cin_res[kp] for kp in keep_final]
         idx = list(np.array(idx)[keep_final])
