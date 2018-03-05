@@ -780,7 +780,7 @@ def app_vertex_cover(A):
     return np.asarray(L)
 
 
-def update_order(A, new_a=None, prev_list=None):
+def update_order(A, new_a=None, prev_list=None, method='greedy'):
     '''Determines the update order of the temporal components given the spatial
     components by creating a nest of random approximate vertex covers
      Input:
@@ -803,29 +803,11 @@ def update_order(A, new_a=None, prev_list=None):
     '''
     K = np.shape(A)[-1]
     if new_a is None and prev_list is None:
-
-#        AA = A.T * A
-#        AA.setdiag(0)
-#        F = (AA) > 0
-#        F = F.toarray()
-#        rem_ind = np.arange(K)
-#        O = []
-#        lo = []
-#        while len(rem_ind) > 0:
-#            L = np.sort(app_vertex_cover(F[rem_ind, :][:, rem_ind]))
-#            if L.size:
-#                ord_ind = set(rem_ind) - set(rem_ind[L])
-#                rem_ind = rem_ind[L]
-#            else:
-#                ord_ind = set(rem_ind)
-#                rem_ind = []
-#
-#            O.append(ord_ind)
-#            lo.append(len(ord_ind))
-#
-#        return O[::-1], lo[::-1]
         
-        prev_list, count_list = update_order_greedy(A, flag_AA=False)
+        if method is 'greedy':
+            prev_list, count_list = update_order_greedy(A, flag_AA=False)
+        else:
+            prev_list, count_list = update_order_random(A, flag_AA=False)
         return prev_list, count_list
 
     else:
@@ -889,6 +871,38 @@ def order_components(A, C):
     C_or = spdiags(old_div(1., nA2[srt]), 0, K, K) * (C[srt, :])
 
     return A_or, C_or, srt
+
+
+def update_order_random(A, flag_AA=True):
+    """Determies the update order of temporal components using
+    randomized partitions of non-overlapping components
+    """
+    
+    K = np.shape(A)[-1]
+    if flag_AA:
+        AA = A.copy()
+    else:
+        AA = A.T.dot(A)
+        
+    AA.setdiag(0)
+    F = (AA) > 0
+    F = F.toarray()
+    rem_ind = np.arange(K)
+    O = []
+    lo = []
+    while len(rem_ind) > 0:
+        L = np.sort(app_vertex_cover(F[rem_ind, :][:, rem_ind]))
+        if L.size:
+            ord_ind = set(rem_ind) - set(rem_ind[L])
+            rem_ind = rem_ind[L]
+        else:
+            ord_ind = set(rem_ind)
+            rem_ind = []
+
+        O.append(ord_ind)
+        lo.append(len(ord_ind))
+
+    return O[::-1], lo[::-1]    
 
 
 def update_order_greedy(A, flag_AA=True):

@@ -237,7 +237,7 @@ path_to_cnn_residual = 'use_cases/edge-cutter/residual_classifier_2classes.h5'
 path_to_cnn_residual = 'use_cases/edge-cutter/sniper_sensitive.h5'
 
 cnm2._prepare_object(np.asarray(Yr), T1, expected_comps, idx_components=None,
-                         min_num_trial=1, max_num_added = 3, N_samples_exceptionality=int(N_samples),
+                         min_num_trial=3, max_num_added = 3, N_samples_exceptionality=int(N_samples),
                          path_to_model = path_to_cnn_residual,
                          sniper_mode = False, use_peak_max=False)
 cnm2.thresh_CNN_noisy = 0.5

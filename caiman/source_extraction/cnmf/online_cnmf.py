@@ -557,7 +557,6 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial=3, gSig=(5, 5),
             if sniper_mode:
                 Ain_cnn.append(ain_cnn)
     
-
     if sniper_mode & (len(Ain_cnn) > 0):
         Ain_cnn = np.stack(Ain_cnn)
         Ain2 = Ain_cnn.copy()
@@ -566,12 +565,6 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial=3, gSig=(5, 5),
         Ain2 = np.reshape(Ain2,(-1,) + tuple(np.diff(ijSig_cnn).squeeze()),order= 'F')
         Ain2 = np.stack([cv2.resize(ain,(patch_size ,patch_size)) for ain in Ain2])
         predictions = loaded_model.predict(Ain2[:,:,:,np.newaxis], batch_size=min_num_trial, verbose=0)
-        #from skimage.util.montage import montage2d
-        #import pylab as pl
-        #pl.imshow(montage2d(Ain2))
-        #pl.pause(0.2)
-        #import pdb
-        #pdb.set_trace()
         keep_cnn = list(np.where(predictions[:, 0] > thresh_CNN_noisy)[0])
         discard = list(np.where(predictions[:, 0] <= thresh_CNN_noisy)[0])
         cnn_pos = Ain2[discard]
@@ -605,56 +598,6 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial=3, gSig=(5, 5),
             Ain[i] = ain
             Cin.append(cin)
             Cin_res.append(cin_res)
-
-
-#    if compute_corr:
-#        for ain in Ain:
-#            
-#            ain, cin, cin_res = rank1nmf(Ypx, ain)
-#            rval = corr(ain.copy(), np.mean(Ypx, -1))
-#        
-#        if na:
-#            ain /= sqrt(na)
-#            ain, cin, cin_res = rank1nmf(Ypx, ain)
-#            if compute_corr:
-#                rval = corr(ain.copy(), np.mean(Ypx, -1))
-#            else:
-#                rval = 0.
-#
-#            r_vals.append(rval)
-#            if sniper_mode:
-#                idx.append(ind)
-#                Ain.append(ain)
-#                Cin.append(cin)
-#                Cin_res.append(cin_res)
-#                Ain_cnn.append(ain_cnn)
-#            else:
-#                if rval > rval_thr:
-#                    idx.append(ind)
-#                    Ain.append(ain)
-#                    Cin.append(cin)
-#                    Cin_res.append(cin_res)
-#
-#        ijsig_all.append(ijSig)
-#
-#    if len(Ain_cnn)>0:
-#        if sniper_mode:
-#            Ain_cnn = np.stack(Ain_cnn)
-#            Ain2 = Ain_cnn
-#            Ain2 -= np.median(Ain2,axis=1)[:,None]
-#            Ain2 /= np.std(Ain2,axis=1)[:,None]
-#            Ain2 = np.reshape(Ain2,(-1,) + tuple(np.diff(ijSig_cnn).squeeze()),order= 'F')
-#            Ain2 = np.stack([cv2.resize(ain,(patch_size ,patch_size)) for ain in Ain2])
-#
-#            predictions = loaded_model.predict(Ain2[:,:,:,np.newaxis], batch_size=min_num_trial, verbose=0)
-#
-#            keep = list(np.where( (predictions[:,0]>thresh_CNN_noisy) | (np.array(r_vals)>rval_thr))[0])
-#            discard = list(np.where(predictions[:,0]<=thresh_CNN_noisy)[0])
-#            Ain = np.stack(Ain)[keep]
-#            Cin = [Cin[kp] for kp in keep]
-#            Cin_res = [Cin_res[kp] for kp in keep]
-#            idx = list(np.array(idx)[keep])
-#            cnn_pos = Ain2[discard]
 
     return Ain, Cin, Cin_res, idx, ijsig_all, cnn_pos, local_maxima
 
