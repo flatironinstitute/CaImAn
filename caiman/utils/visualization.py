@@ -13,6 +13,7 @@ from __future__ import print_function
 from builtins import str
 from builtins import range
 from past.utils import old_div
+import base64
 import cv2
 import numpy as np
 import pylab as pl
@@ -748,7 +749,7 @@ def anim_to_html(anim, fps=20):
         with NamedTemporaryFile(suffix='.mp4') as f:
             anim.save(f.name, fps=fps, extra_args=['-vcodec', 'libx264'])
             video = open(f.name, "rb").read()
-        anim._encoded_video = video.encode("base64")
+        anim._encoded_video = base64.b64encode(video)
 
     return VIDEO_TAG.format(anim._encoded_video)
 
