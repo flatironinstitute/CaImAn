@@ -254,6 +254,7 @@ def evaluate_components_CNN(A, dims, gSig, model_name='use_cases/CaImAnpaper/cnn
         json_file.close()
         loaded_model = model_from_json(loaded_model_json)
         loaded_model.load_weights(model_name + '.h5')
+        loaded_model.compile('sgd', 'mse')
         print("Loaded model from disk")
     half_crop = np.minimum(
         gSig[0] * 4 + 1, patch_size), np.minimum(gSig[1] * 4 + 1, patch_size)
