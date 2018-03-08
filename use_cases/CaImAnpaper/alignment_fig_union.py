@@ -26,13 +26,16 @@ from scipy.io import loadmat
 from scipy.sparse import csc_matrix
 from glob import glob
 
-#files = ['/Users/epnevmatikakis/Desktop/untitled folder/20160530/memmap__d1_512_d2_512_d3_1_order_C_frames_27000_.results_analysis.npz',
-#         '/Users/epnevmatikakis/Desktop/untitled folder/20160531/memmap__d1_512_d2_512_d3_1_order_C_frames_27000_.results_analysis.npz',
-#         '/Users/epnevmatikakis/Desktop/untitled folder/20160603/memmap__d1_512_d2_512_d3_1_order_C_frames_27000_.results_analysis.npz']
+files = ['/Users/epnevmatikakis/Desktop/untitled folder/20160530/memmap__d1_512_d2_512_d3_1_order_C_frames_27000_.results_analysis.npz',
+         '/Users/epnevmatikakis/Desktop/untitled folder/20160531/memmap__d1_512_d2_512_d3_1_order_C_frames_27000_.results_analysis.npz',
+         '/Users/epnevmatikakis/Desktop/untitled folder/20160603/memmap__d1_512_d2_512_d3_1_order_C_frames_27000_.results_analysis.npz',
+         '/Users/epnevmatikakis/Desktop/untitled folder/20160606/memmap__d1_512_d2_512_d3_1_order_C_frames_27000_.results_analysis.npz',
+         '/Users/epnevmatikakis/Desktop/untitled folder/20160607/memmap__d1_512_d2_512_d3_1_order_C_frames_27000_.results_analysis.npz',
+         '/Users/epnevmatikakis/Desktop/untitled folder/20160608/memmap__d1_512_d2_512_d3_1_order_C_frames_27000_.results_analysis.npz']
 
-files = ['/mnt/ceph/neuro/Sue/k53/20160530/memmap__d1_512_d2_512_d3_1_order_C_frames_27000_.results_analysis.npz',
-         '/mnt/ceph/neuro/Sue/k53/20160531/memmap__d1_512_d2_512_d3_1_order_C_frames_27000_.results_analysis.npz',
-         '/mnt/ceph/neuro/Sue/k53/20160603/memmap__d1_512_d2_512_d3_1_order_C_frames_27000_.results_analysis.npz']
+#files = ['/mnt/ceph/neuro/Sue/k53/20160530/memmap__d1_512_d2_512_d3_1_order_C_frames_27000_.results_analysis.npz',
+#         '/mnt/ceph/neuro/Sue/k53/20160531/memmap__d1_512_d2_512_d3_1_order_C_frames_27000_.results_analysis.npz',
+#         '/mnt/ceph/neuro/Sue/k53/20160603/memmap__d1_512_d2_512_d3_1_order_C_frames_27000_.results_analysis.npz']
 
 #%% load data
 data = []
@@ -46,13 +49,17 @@ for fl in files:
         data.append(A_[:,idx_])
         Cns.append(ld['Cn'])
 
-A1, A2, A3 = data
-Cn1, Cn2, Cn3 = Cns
+#%%
 
-#%% normalize matrices
-A1 = csc_matrix(A1 / A1.sum(0))
-A2 = csc_matrix(A2 / A2.sum(0))
-A3 = csc_matrix(A3 / A3.sum(0))
+A = [csc_matrix(A1 / A1.sum(0)) for A1 in data]
+
+#A1, A2, A3 = data
+#Cn1, Cn2, Cn3 = Cns
+#
+##%% normalize matrices
+#A1 = csc_matrix(A1 / A1.sum(0))
+#A2 = csc_matrix(A2 / A2.sum(0))
+#A3 = csc_matrix(A3 / A3.sum(0))
 
 #%% register components across multiple days
 
@@ -62,24 +69,107 @@ import matplotlib.lines as mlines
 
 dims = 512, 512
 
-A_union, assignments, matchings = register_multisession([A1, A2, A3], dims, Cns)
+A_union, assignments, matchings = register_multisession(A, dims, Cns)
 
 #%% register backwards
 
-A_back, assignments_back, matchings_back = register_multisession([A3, A2, A1], dims, Cns[::-1])
-
+A_back, assignments_back, matchings_back = register_multisession(A[::-1], dims, Cns[::-1])
 
 #%%
-
-trip_forw = extract_active_components(assignments, [0,1,2], only = True)
-trip_back = extract_active_components(assignments_back, [0,1,2], only = True)
+N = len(A)
+trip_forw = extract_active_components(assignments, list(range(N)), only = False)
+trip_back = extract_active_components(assignments_back, list(range(N)), only = True)
 
 #%%
 
 matched_ROIs1, matched_ROIs2, non_matched1, non_matched2, performan,_ = register_ROIs(A_union, A_back, dims, 
-                                                                                      template1=Cn3, template2=Cn1,
+                                                                                      template1=Cns[-1], 
+                                                                                      template2=Cns[0],
                                                                                       plot_results=True,
                                                                                       thresh_cost=.8)
+
+#%% plot neurons that appear in all days
+
+Cn = np.reshape(np.array([A_.sum(axis=1) for A_ in A]).sum(axis=(0,2)), dims,
+                         order='F')
+
+masks = [np.reshape(A_.toarray(), dims + (-1,), 
+         order='F').transpose(2, 0, 1) for A_ in A]
+
+#%%
+level = 0.95
+cl=['b','r','y','m','w','g']
+plt.figure(figsize=(20,10))
+plt.rcParams['pdf.fonttype'] = 42
+font = {'family': 'Myriad Pro',
+        'weight': 'regular',
+        'size': 10}
+plt.rc('font', **font)
+lp, hp = np.nanpercentile(Cns[0], [5, 98])
+plt.subplot(1,2,1)
+plt.imshow(Cns[0], vmin=lp, vmax=hp, cmap='gray')
+for i in range(N):
+    [plt.contour(norm_nrg(mm), levels=[level], colors=cl[i], linewidths=1)
+     for mm in masks[i][list(assignments[trip_forw,i].astype(int))]]
+plt.title('Components tracked across all days (forward)')
+plt.axis('off')    
+    
+plt.subplot(1,2,2)
+plt.imshow(Cns[-1], vmin=lp, vmax=hp, cmap='gray')
+for i in range(N)[::-1]:
+    [plt.contour(norm_nrg(mm), levels=[level], colors=cl[N-1-i], linewidths=1)
+     for mm in masks[N-1-i][list(assignments_back[trip_back,i].astype(int))]]
+plt.title('Components tracked across all days (backward)')
+plt.axis('off')       
+
+day = [mlines.Line2D([], [], color=cl[i], label='Day '+str(i)) for i in range(N)]
+plt.legend(handles=day, loc=4)
+
+
+#%%
+comp_16 = extract_active_components(assignments, [0,N-1], only = False)
+
+plt.figure()
+matched_16_1, matched_16_6, non_matched1, non_matched2, performance,_ = register_ROIs(A[0], A[-1], dims, 
+                                                                                      template1=Cns[0], 
+                                                                                      template2=Cns[-1],
+                                                                                      plot_results=False,
+                                                                                      thresh_cost=.7)
+
+#%%
+
+plt.figure(figsize=(20,10))
+plt.rcParams['pdf.fonttype'] = 42
+font = {'family': 'Myriad Pro',
+        'weight': 'regular',
+        'size': 10}
+plt.rc('font', **font)
+lp, hp = np.nanpercentile(Cns[0], [5, 98])
+plt.subplot(1,2,1)
+plt.imshow(Cns[0], vmin=lp, vmax=hp, cmap='gray')
+for i in [0,N-1]:
+    [plt.contour(norm_nrg(mm), levels=[level], colors=cl[i], linewidths=1)
+     for mm in masks[i][list(assignments[comp_16,i].astype(int))]]
+plt.title('Components tracked across all days (forward)')
+plt.axis('off') 
+
+plt.subplot(1,2,2)
+plt.imshow(Cns[0], vmin=lp, vmax=hp, cmap='gray')
+[plt.contour(norm_nrg(mm), levels=[level], colors=cl[0], linewidths=1)
+     for mm in masks[0][list(matched_16_1)]]
+[plt.contour(norm_nrg(mm), levels=[level], colors=cl[5], linewidths=1)
+     for mm in masks[5][list(matched_16_6)]]
+
+#%%
+
+plt.figure()
+plt.imshow(Cns[0], vmin=lp, vmax=hp, cmap='gray')
+[plt.contour(norm_nrg(mm), levels=[level], colors='r', linewidths=1)
+     for mm in masks[0][df]]
+[plt.contour(norm_nrg(mm), levels=[level], colors='y', linewidths=1)
+     for mm in masks[0][list(assignments[df2,0].astype(int))]]
+
+#%% OLD ANALYSIS
 
 #%% find components that are active in certain sessions
 
