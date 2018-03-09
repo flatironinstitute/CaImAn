@@ -26,16 +26,10 @@ from scipy.io import loadmat
 from scipy.sparse import csc_matrix
 from glob import glob
 
-files = ['/Users/epnevmatikakis/Desktop/untitled folder/20160530/memmap__d1_512_d2_512_d3_1_order_C_frames_27000_.results_analysis.npz',
-         '/Users/epnevmatikakis/Desktop/untitled folder/20160531/memmap__d1_512_d2_512_d3_1_order_C_frames_27000_.results_analysis.npz',
-         '/Users/epnevmatikakis/Desktop/untitled folder/20160603/memmap__d1_512_d2_512_d3_1_order_C_frames_27000_.results_analysis.npz',
-         '/Users/epnevmatikakis/Desktop/untitled folder/20160606/memmap__d1_512_d2_512_d3_1_order_C_frames_27000_.results_analysis.npz',
-         '/Users/epnevmatikakis/Desktop/untitled folder/20160607/memmap__d1_512_d2_512_d3_1_order_C_frames_27000_.results_analysis.npz',
-         '/Users/epnevmatikakis/Desktop/untitled folder/20160608/memmap__d1_512_d2_512_d3_1_order_C_frames_27000_.results_analysis.npz']
+base_folder = '/Users/epnevmatikakis/Desktop/untitled folder/'
+#base_folder = '/mnt/ceph/neuro/Sue/k53/'
 
-#files = ['/mnt/ceph/neuro/Sue/k53/20160530/memmap__d1_512_d2_512_d3_1_order_C_frames_27000_.results_analysis.npz',
-#         '/mnt/ceph/neuro/Sue/k53/20160531/memmap__d1_512_d2_512_d3_1_order_C_frames_27000_.results_analysis.npz',
-#         '/mnt/ceph/neuro/Sue/k53/20160603/memmap__d1_512_d2_512_d3_1_order_C_frames_27000_.results_analysis.npz']
+files = glob(base_folder+'*/*.npz')
 
 #%% load data
 data = []
@@ -49,17 +43,9 @@ for fl in files:
         data.append(A_[:,idx_])
         Cns.append(ld['Cn'])
 
-#%%
+#%% normalize to sum 1 
 
 A = [csc_matrix(A1 / A1.sum(0)) for A1 in data]
-
-#A1, A2, A3 = data
-#Cn1, Cn2, Cn3 = Cns
-#
-##%% normalize matrices
-#A1 = csc_matrix(A1 / A1.sum(0))
-#A2 = csc_matrix(A2 / A2.sum(0))
-#A3 = csc_matrix(A3 / A3.sum(0))
 
 #%% register components across multiple days
 
@@ -98,7 +84,7 @@ masks = [np.reshape(A_.toarray(), dims + (-1,),
 
 #%%
 level = 0.95
-cl=['b','r','y','m','w','g']
+cl=['r','b','y','m','w','g']
 plt.figure(figsize=(20,10))
 plt.rcParams['pdf.fonttype'] = 42
 font = {'family': 'Myriad Pro',
@@ -108,7 +94,7 @@ plt.rc('font', **font)
 lp, hp = np.nanpercentile(Cns[0], [5, 98])
 plt.subplot(1,2,1)
 plt.imshow(Cns[0], vmin=lp, vmax=hp, cmap='gray')
-for i in range(N):
+for i in range(N-1):
     [plt.contour(norm_nrg(mm), levels=[level], colors=cl[i], linewidths=1)
      for mm in masks[i][list(assignments[trip_forw,i].astype(int))]]
 plt.title('Components tracked across all days (forward)')
@@ -116,27 +102,28 @@ plt.axis('off')
     
 plt.subplot(1,2,2)
 plt.imshow(Cns[-1], vmin=lp, vmax=hp, cmap='gray')
-for i in range(N)[::-1]:
+for i in range(N-1)[::-1]:
     [plt.contour(norm_nrg(mm), levels=[level], colors=cl[N-1-i], linewidths=1)
-     for mm in masks[N-1-i][list(assignments_back[trip_back,i].astype(int))]]
+     for mm in masks[N-2-i][list(assignments_back[trip_back,i].astype(int))]]
 plt.title('Components tracked across all days (backward)')
 plt.axis('off')       
 
-day = [mlines.Line2D([], [], color=cl[i], label='Day '+str(i)) for i in range(N)]
-plt.legend(handles=day, loc=4)
+day = [mlines.Line2D([], [], color=cl[i], label='Day '+str(i+1)) for i in range(N)]
+plt.legend(handles=day, loc=3)
 
 
-#%%
-comp_16 = extract_active_components(assignments, [0,N-1], only = False)
+#%% compare an alignment through the union vs direct
 
-plt.figure()
-matched_16_1, matched_16_6, non_matched1, non_matched2, performance,_ = register_ROIs(A[0], A[-1], dims, 
-                                                                                      template1=Cns[0], 
-                                                                                      template2=Cns[-1],
+ind = [1,N-1]
+comp_un = extract_active_components(assignments, ind, only = False)
+
+matched_dir_1, matched_dir_2, non_matched1, non_matched2, performance,_ = register_ROIs(A[ind[0]], A[ind[1]], dims, 
+                                                                                      template1=Cns[ind[0]], 
+                                                                                      template2=Cns[ind[1]],
                                                                                       plot_results=False,
                                                                                       thresh_cost=.7)
 
-#%%
+#%% plot results
 
 plt.figure(figsize=(20,10))
 plt.rcParams['pdf.fonttype'] = 42
@@ -144,21 +131,23 @@ font = {'family': 'Myriad Pro',
         'weight': 'regular',
         'size': 10}
 plt.rc('font', **font)
-lp, hp = np.nanpercentile(Cns[0], [5, 98])
+lp, hp = np.nanpercentile(Cns[ind[0]], [5, 98])
 plt.subplot(1,2,1)
-plt.imshow(Cns[0], vmin=lp, vmax=hp, cmap='gray')
-for i in [0,N-1]:
+plt.imshow(Cns[ind[0]], vmin=lp, vmax=hp, cmap='gray')
+for i in ind:
     [plt.contour(norm_nrg(mm), levels=[level], colors=cl[i], linewidths=1)
-     for mm in masks[i][list(assignments[comp_16,i].astype(int))]]
-plt.title('Components tracked across all days (forward)')
+     for mm in masks[i][list(assignments[comp_un,i].astype(int))]]
+plt.title('Matches through the union')
 plt.axis('off') 
 
 plt.subplot(1,2,2)
-plt.imshow(Cns[0], vmin=lp, vmax=hp, cmap='gray')
+plt.imshow(Cns[ind[0]], vmin=lp, vmax=hp, cmap='gray')
 [plt.contour(norm_nrg(mm), levels=[level], colors=cl[0], linewidths=1)
-     for mm in masks[0][list(matched_16_1)]]
+     for mm in masks[ind[0]][list(matched_dir_1)]]
 [plt.contour(norm_nrg(mm), levels=[level], colors=cl[5], linewidths=1)
-     for mm in masks[5][list(matched_16_6)]]
+     for mm in masks[ind[1]][list(matched_dir_2)]]
+plt.title('Matches direct')
+plt.axis('off') 
 
 #%%
 
