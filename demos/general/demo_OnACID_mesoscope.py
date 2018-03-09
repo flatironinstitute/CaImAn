@@ -78,7 +78,7 @@ fr = 15
 # approximate length of transient event in seconds
 decay_time = 0.5
 # expected half size of neurons
-gSig = (5, 5)
+gSig = (3, 3)
 # order of AR indicator dynamics
 p = 1
 # minimum SNR for accepting new components
@@ -233,13 +233,17 @@ if save_init:
     save_object(cnm_init, fls[0][:-4] + '_DS_' + str(ds_factor) + '.pkl')
     cnm_init = load_object(fls[0][:-4] + '_DS_' + str(ds_factor) + '.pkl')
 
+path_to_cnn_residual = 'use_cases/edge-cutter/residual_classifier_2classes.h5'
+path_to_cnn_residual = 'use_cases/edge-cutter/sniper_sensitive.h5'
+
 cnm2._prepare_object(np.asarray(Yr), T1, expected_comps, idx_components=None,
                          min_num_trial=3, max_num_added = 3, N_samples_exceptionality=int(N_samples),
-                         path_to_model = 'use_cases/edge-cutter/residual_classifier_2classes.h5',
-                         sniper_mode = True)
-cnm2.thresh_CNN_noisy = 0.995
-#%% Run OnACID and optionally plot results in real time
+                         path_to_model = path_to_cnn_residual,
+                         sniper_mode = False, use_peak_max=False)
+cnm2.thresh_CNN_noisy = 0.5
 
+#%% Run OnACID and optionally plot results in real time
+epochs = 1
 cnm2.Ab_epoch = []                       # save the shapes at the end of each epoch
 t = cnm2.initbatch                       # current timestep
 tottime = []

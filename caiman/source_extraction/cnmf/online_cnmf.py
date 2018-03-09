@@ -352,15 +352,25 @@ def update_shapes(CY, CC, Ab, ind_A, indicator_components=None, Ab_dense=None, u
         if Ab_dense is None:
             for m in idx_comp:  # neurons
                 ind_pixels = ind_A[m - nb]
-                Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]] = np.maximum(
-                    Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]] +
+                
+                tmp = np.maximum(Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]] +
                     ((CY[m, ind_pixels] - Ab.dot(CC[m])[ind_pixels]) / CC[m, m]), 0)
-                # normalize
-                Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]] /= \
-                    max(1, sqrt(Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]]
-                                .dot(Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]])))
-                ind_A[m -
-                      nb] = Ab.indices[slice(Ab.indptr[m], Ab.indptr[m + 1])]
+                
+                if tmp.dot(tmp) > 0:
+                    tmp *= 1e-3 / \
+                        min(1e-3, sqrt(tmp.dot(tmp)) + np.finfo(float).eps)
+                    tmp = tmp / max(1, sqrt(tmp.dot(tmp)))
+                    Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]] = tmp
+
+#                    Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]] = np.maximum(
+#                        Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]] +
+#                        ((CY[m, ind_pixels] - Ab.dot(CC[m])[ind_pixels]) / CC[m, m]), 0)
+                    # normalize
+#                    Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]] /= \
+#                        max(1, sqrt(Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]]
+#                                    .dot(Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]])))
+                    ind_A[m -
+                          nb] = Ab.indices[slice(Ab.indptr[m], Ab.indptr[m + 1])]
                 # N.B. Ab[ind_pixels].dot(CC[m]) is slower for csc matrix due to indexing rows
         else:
             for m in idx_comp:  # neurons
@@ -477,15 +487,14 @@ def rank1nmf(Ypx, ain):
     return ain, cin, cin_res
 
 
-
 #%%
-def get_candidate_components(sv, dims, Yres_buf, min_num_trial = 3,
-                             gSig = (5,5), gHalf = (5,5), sniper_mode = True, rval_thr = 0.85,
-                             patch_size = 50, loaded_model = None,
-                             thresh_CNN_noisy = 0.99):
+def get_candidate_components(sv, dims, Yres_buf, min_num_trial=3, gSig=(5, 5),
+                             gHalf=(5, 5), sniper_mode=True, rval_thr=0.85,
+                             patch_size=50, loaded_model=None, test_both=False,
+                             thresh_CNN_noisy=0.99, use_peak_max=False):
     """
-    Extract new candidate components from them residual buffer and test them
-    using space correlation or the CNN classifier. The function run the CNN
+    Extract new candidate components from the residual buffer and test them
+    using space correlation or the CNN classifier. The function runs the CNN
     classifier in batch mode which can bring speed improvements when
     multiple components are considered in each timestep.
     """
@@ -494,91 +503,101 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial = 3,
     Cin = []
     Cin_res = []
     idx = []
-    keep = []
     ijsig_all = []
     cnn_pos = []
-    r_vals = []
     local_maxima = []
-#    resize_g = False
-    half_crop_cnn = (np.minimum(gSig[0] * 4 + 1, patch_size) // 2,np.minimum(gSig[1] * 4 + 1, patch_size) // 2)
-    half_crop_cnn = tuple(np.array(half_crop_cnn).astype(np.int))
+    Y_patch = []
 
-#    local_maxima = peak_local_max(sv.reshape(dims), min_distance=np.max(np.array(gSig)).astype(np.int), num_peaks=min_num_trial)
-#    for i,ij in enumerate(local_maxima):
+    half_crop_cnn = tuple([int(np.minimum(gs*2, patch_size/2)) for gs in gSig])
+
+    if use_peak_max:
+        local_maxima = peak_local_max(sv.reshape(dims), min_distance=np.max(np.array(gSig)).astype(np.int), num_peaks=min_num_trial)
+
     for i in range(min_num_trial):
-        ind = np.argmax(sv)
-        ij = np.unravel_index(ind, dims, order = 'C')
+        if use_peak_max:
+            ij = local_maxima[i]
+        else:
+            ind = np.argmax(sv)
+            ij = np.unravel_index(ind, dims, order='C')
+            local_maxima.append(ij)
 
         ij = [min(max(ij_val,g_val),dim_val-g_val-1) for ij_val, g_val, dim_val in zip(ij,gHalf,dims)]
         ij_cnn = [min(max(ij_val,g_val),dim_val-g_val-1) for ij_val, g_val, dim_val in zip(ij,half_crop_cnn,dims)]
 
         ind = np.ravel_multi_index(ij, dims, order='C')
-        ind_cnn = np.ravel_multi_index(ij_cnn, dims, order='C')
 
         ijSig = [[max(i - g, 0), min(i+g+1,d)] for i, g, d in zip(ij, gHalf, dims)]
         ijSig_cnn = [[max(i - g, 0), min(i+g+1,d)] for i, g, d in zip(ij_cnn, half_crop_cnn, dims)]
 
-        indeces = np.ravel_multi_index(np.ix_(*[np.arange(ij[0] , ij[1])
+        indeces = np.ravel_multi_index(np.ix_(*[np.arange(ij[0], ij[1])
                         for ij in ijSig]), dims, order='F').ravel(order = 'C')
 
-        indeces_ = np.ravel_multi_index(np.ix_(*[np.arange(ij[0] , ij[1])
+        indeces_ = np.ravel_multi_index(np.ix_(*[np.arange(ij[0], ij[1])
                         for ij in ijSig]), dims, order='C').ravel(order = 'C')
 
-        indeces_cnn = np.ravel_multi_index(np.ix_(*[np.arange(ij[0] , ij[1])
-                        for ij in ijSig_cnn]), dims, order='F').ravel(order = 'C')
-
-
-
         Ypx = Yres_buf.T[indeces, :]
-        Ypx_cnn = Yres_buf.T[indeces_cnn, :]
-
-        ain_cnn = Ypx_cnn.mean(1)
         ain = np.maximum(np.mean(Ypx, 1), 0)
+
+        if sniper_mode:
+            indeces_cnn = np.ravel_multi_index(np.ix_(*[np.arange(ij[0], ij[1])
+                            for ij in ijSig_cnn]), dims, order='F').ravel(order = 'C')
+            Ypx_cnn = Yres_buf.T[indeces_cnn, :]
+            ain_cnn = Ypx_cnn.mean(1)
+            compute_corr = test_both
+        else:
+            compute_corr = True  # determine when to compute corr coef
+
         na = ain.dot(ain)
-        sv[indeces_] /= 2 #0
+        sv[indeces_] /= 2  # 0
         if na:
             ain /= sqrt(na)
-            ain, cin, cin_res = rank1nmf(Ypx, ain)
-            rval = corr(ain.copy(), np.mean(Ypx, -1))
-            r_vals.append(rval)
+            Ain.append(ain)
+            Y_patch.append(Ypx)
+            idx.append(ind)
             if sniper_mode:
-                idx.append(ind)
-                Ain.append(ain)
-                Cin.append(cin)
-                Cin_res.append(cin_res)
                 Ain_cnn.append(ain_cnn)
-            else:
+    
+    if sniper_mode & (len(Ain_cnn) > 0):
+        Ain_cnn = np.stack(Ain_cnn)
+        Ain2 = Ain_cnn.copy()
+        Ain2 -= np.median(Ain2,axis=1)[:,None]
+        Ain2 /= np.std(Ain2,axis=1)[:,None]
+        Ain2 = np.reshape(Ain2,(-1,) + tuple(np.diff(ijSig_cnn).squeeze()),order= 'F')
+        Ain2 = np.stack([cv2.resize(ain,(patch_size ,patch_size)) for ain in Ain2])
+        predictions = loaded_model.predict(Ain2[:,:,:,np.newaxis], batch_size=min_num_trial, verbose=0)
+        keep_cnn = list(np.where(predictions[:, 0] > thresh_CNN_noisy)[0])
+        discard = list(np.where(predictions[:, 0] <= thresh_CNN_noisy)[0])
+        cnn_pos = Ain2[discard]
+    else:
+        keep_cnn = []  # list(range(len(Ain_cnn)))
 
-                #print(rval)
-                if rval > rval_thr:
-                    idx.append(ind)
-                    Ain.append(ain)
-                    Cin.append(cin)
-                    Cin_res.append(cin_res)
-
-        ijsig_all.append(ijSig)
-
-    if len(Ain_cnn)>0:
-        if sniper_mode:
-            Ain_cnn = np.stack(Ain_cnn)
-            Ain2 = Ain_cnn
-            Ain2 -= np.median(Ain2,axis=1)[:,None]
-            Ain2 /= np.std(Ain2,axis=1)[:,None]
-            Ain2 = np.reshape(Ain2,(-1,) + tuple(np.diff(ijSig_cnn).squeeze()),order= 'F')
-
-
-            Ain2 = np.stack([cv2.resize(ain,(patch_size ,patch_size)) for ain in Ain2])
-
-            predictions = loaded_model.predict(Ain2[:,:,:,np.newaxis], batch_size=min_num_trial, verbose=0)
-
-            keep = list(np.where( (predictions[:,0]>thresh_CNN_noisy) | (np.array(r_vals)>rval_thr))[0])
-            discard = list(np.where(predictions[:,0]<=thresh_CNN_noisy)[0])
-            Ain = np.stack(Ain)[keep]
-            Cin = [Cin[kp] for kp in keep]
-            Cin_res = [Cin_res[kp] for kp in keep]
-            idx = list(np.array(idx)[keep])
-            cnn_pos = Ain2[discard]
-
+    if compute_corr:
+        keep_corr = []
+        for i, (ain, Ypx) in enumerate(zip(Ain, Y_patch)):
+            ain, cin, cin_res = rank1nmf(Ypx, ain)
+            Ain[i] = ain
+            Cin.append(cin)
+            Cin_res.append(cin_res)
+            rval = corr(ain.copy(), np.mean(Ypx, -1))
+            if rval > rval_thr:
+                keep_corr.append(i)
+        keep_final = list(set().union(keep_cnn, keep_corr))
+        if len(keep_final) > 0:
+            Ain = np.stack(Ain)[keep_final]
+        else:
+            Ain = []
+        Cin = [Cin[kp] for kp in keep_final]
+        Cin_res = [Cin_res[kp] for kp in keep_final]
+        idx = list(np.array(idx)[keep_final])
+    else:
+        Ain = [Ain[kp] for kp in keep_cnn]
+        Y_patch = [Y_patch[kp] for kp in keep_cnn]
+        idx = list(np.array(idx)[keep_cnn])
+        for i, (ain, Ypx) in enumerate(zip(Ain, Y_patch)):
+            ain, cin, cin_res = rank1nmf(Ypx, ain)
+            Ain[i] = ain
+            Cin.append(cin)
+            Cin_res.append(cin_res)
 
     return Ain, Cin, Cin_res, idx, ijsig_all, cnn_pos, local_maxima
 
@@ -589,87 +608,56 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                           dims, gSig, gSiz, ind_A, CY, CC, groups, oases, gnb=1,
                           rval_thr=0.875, bSiz=3, robust_std=False,
                           N_samples_exceptionality=5, remove_baseline=True,
-                          thresh_fitness_delta=-80, thresh_fitness_raw=-20, thresh_overlap=0.25,
-                          batch_update_suff_stat=False, sn=None, g=None, thresh_s_min=None,
-                          s_min=None, Ab_dense=None, max_num_added=1, min_num_trial=1,
-                          loaded_model = None, thresh_CNN_noisy = 0.99,
-                          sniper_mode = False):
+                          thresh_fitness_delta=-80, thresh_fitness_raw=-20, 
+                          thresh_overlap=0.25, batch_update_suff_stat=False,
+                          sn=None, g=None, thresh_s_min=None, s_min=None,
+                          Ab_dense=None, max_num_added=1, min_num_trial=1,
+                          loaded_model=None, thresh_CNN_noisy=0.99,
+                          sniper_mode=False, use_peak_max=False,
+                          test_both=False):
     """
     Checks for new components in the residual buffer and incorporates them if they pass the acceptance tests
     """
 
     ind_new = []
-    order_rvl = 'C'
     gHalf = np.array(gSiz) // 2
 
     # number of total components (including background)
     M = np.shape(Ab)[-1]
     N = M - gnb                 # number of coponents (without background)
 
-    first = True
-
     sv -= rho_buf.get_first()
     # update variance of residual buffer
     sv += rho_buf.get_last_frames(1).squeeze()
-#    sv = np.maximum(sv,0)
+    sv = np.maximum(sv, 0)
 
-
-    Ains, Cins, Cins_res, inds, ijsig_all, cnn_pos, local_max = get_candidate_components(sv,dims,Yres_buf,min_num_trial, gSig,
-                                                          gHalf,sniper_mode, rval_thr, 50,
-                                                          loaded_model, thresh_CNN_noisy)
-
-
-#    import pylab as pl
-#    pl.subplot(1,2,1)
-#    pl.imshow(sv.reshape(dims).T, vmax = 5, cmap = 'gray')
-#    [pl.plot(*mx,'go') for mx in local_max]
-#    [pl.plot(*np.unravel_index(ind, dims, order=order_rvl),'ro') for ind in inds]
-#
-#    pl.subplot(1,2,2)
-#    pl.imshow(Yres_buf.mean(0).reshape(dims, order='F').T, vmax=1, cmap='gray')
-#    [pl.plot(*mx,'go') for mx in local_max]
-#    [pl.plot(*np.unravel_index(ind, dims, order=order_rvl),'ro') for ind in inds]
-#
-#    pl.pause(0.05)
-#    pl.subplot(1,2,1)
-#    pl.cla()
-#    pl.subplot(1,2,2)
-#    pl.cla()
+    Ains, Cins, Cins_res, inds, ijsig_all, cnn_pos, local_max = get_candidate_components(sv, dims, Yres_buf=Yres_buf,
+                                                          min_num_trial=min_num_trial, gSig=gSig,
+                                                          gHalf=gHalf, sniper_mode=sniper_mode, rval_thr=rval_thr, patch_size=50,
+                                                          loaded_model=loaded_model, thresh_CNN_noisy=thresh_CNN_noisy,
+                                                          use_peak_max=use_peak_max, test_both=test_both)
 
     ind_new_all = ijsig_all
 
     num_added = len(inds)
     cnt = 0
-    for ind, ain, cin, cin_res in zip(inds,Ains,Cins, Cins_res):
+    for ind, ain, cin, cin_res in zip(inds, Ains, Cins, Cins_res):
         cnt += 1
-        if first:
-#            sv_ = sv.copy()  # np.sum(rho_buf,0)
-            first = False
-
-        ij = np.unravel_index(ind, dims, order=order_rvl)
-
-#        ijSig = [[max(ij[0] - gHalf[0], 0), min(ij[0] + gHalf[0] + 1, dims[0])],
-#                 [max(ij[1] - gHalf[1], 0), min(ij[1] + gHalf[1] + 1, dims[1])]]
+        ij = np.unravel_index(ind, dims)
 
         ijSig = [[max(i - temp_g, 0), min(i + temp_g + 1, d)] for i, temp_g, d in zip(ij, gHalf, dims)]
 
-        indeces = np.ravel_multi_index(np.ix_(*[np.arange(ij[0] , ij[1])
-                        for ij in ijSig]), dims, order='F').ravel(order=order_rvl)
-
-        indeces_ = np.ravel_multi_index(np.ix_(*[np.arange(ij[0] , ij[1])
-                        for ij in ijSig]), dims, order='C').ravel(order=order_rvl)
-
-
-
+        indeces = np.ravel_multi_index(
+                np.ix_(*[np.arange(ij[0], ij[1])
+                       for ij in ijSig]), dims, order='F').ravel()
 
         # use sparse Ain only later iff it is actually added to Ab
         Ain = np.zeros((np.prod(dims), 1), dtype=np.float32)
         Ain[indeces, :] = ain[:, None]
 
         cin_circ = cin.get_ordered()
-
         useOASIS = False  # whether to use faster OASIS for cell detection
-        accepted = True        # flag indicating new component has not been rejected yet
+        accepted = True   # flag indicating new component has not been rejected yet
 
         if Ab_dense is None:
             ff = np.where((Ab.T.dot(Ain).T > thresh_overlap)
@@ -682,20 +670,7 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
 #                accepted = False
             cc = [corr(cin_circ.copy(), cins) for cins in Cf[ff, :]]
             if np.any(np.array(cc) > .25) and accepted:
-                #                    repeat = False
-                # vb = imblur(np.reshape(Ain, dims, order='F'),
-                #             sig=gSig, siz=gSiz, nDimBlur=2)
-                # restrict blurring to region where component is located
-                vb = np.reshape(Ain, dims, order='C')
-                slices = tuple(slice(max(0, ijs[0] - 2 * sg), min(d, ijs[1] + 2 * sg))
-                               for ijs, sg, d in zip(ijSig, gSiz//2, dims))  # is 2 enough?
-                vb[slices] = imblur(
-                    vb[slices], sig=gSig, siz=gSiz, nDimBlur= len(dims))
-#                    sv_ -= (vb.ravel(order=order_rvl)**2) * cin.dot(cin)
                 accepted = False         # reject component as duplicate
-#                    pl.imshow(np.reshape(sv,dims));pl.pause(0.001)
-              #  print('Overlap at step' + str(t) + ' ' + str(cc))
-                # break
 
         if s_min is None:
             s_min = 0
@@ -725,7 +700,8 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                 else:
                     bl = 0
                 fitness_raw, erfc_raw, std_rr, _ = compute_event_exceptionality(
-                    (cin_res - bl)[None, :], robust_std=robust_std, N=N_samples_exceptionality)
+                    (cin_res - bl)[None, :], robust_std=robust_std,
+                    N=N_samples_exceptionality)
                 accepted = (fitness_delta < thresh_fitness_delta) or (
                     fitness_raw < thresh_fitness_raw)
 
@@ -733,9 +709,7 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
             # print('adding component' + str(N + 1) + ' at timestep ' + str(t))
             num_added += 1
             ind_new.append(ijSig)
-#                ind_a = uniform_filter(np.reshape(Ain.toarray(), dims, order='F'), size=bSiz)
-#                ind_a = np.reshape(ind_a > 1e-10, (np.prod(dims),), order='F')
-#                indeces_good = np.where(ind_a)[0]#np.where(determine_search_location(Ain,dims))[0]
+
             if oases is not None:
                 if not useOASIS:
                     # lambda from Selesnick's 3*sigma*|K| rule
@@ -756,7 +730,6 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
 
             Ain_csc = scipy.sparse.csc_matrix((ain, (indeces, [0] * len(indeces))),
                                               (np.prod(dims), 1), dtype=np.float32)
-
             if Ab_dense is None:
                 groups = update_order(Ab, Ain, groups)[0]
             else:
@@ -767,21 +740,11 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
             ind_A.append(Ab.indices[Ab.indptr[M]:Ab.indptr[M + 1]])
 
             tt = t * 1.
-#                if batch_update_suff_stat and Y_buf.cur<len(Y_buf)-1:
-#                   Y_buf_ = Y_buf[Y_buf.cur+1:,:]
-#                   cin_ = cin[Y_buf.cur+1:]
-#                   n_fr_ = len(cin_)
-#                   cin_circ_= cin_circ[-n_fr_:]
-#                   Cf_ = Cf[:,-n_fr_:]
-#                else:
             Y_buf_ = Y_buf
             cin_ = cin
             Cf_ = Cf
             cin_circ_ = cin_circ
 
-#                CY[M, :] = Y_buf_.T.dot(cin_)[None, :] / tt
-            # much faster: exploit that we only access CY[m, ind_pixels],
-            # hence update only these
             CY[M, indeces] = cin_.dot(Y_buf_[:, indeces]) / tt
 
             # preallocate memory for speed up?
@@ -798,36 +761,21 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
             # vb = imblur(np.reshape(Ain, dims, order='F'), sig=gSig,
             #             siz=gSiz, nDimBlur=2).ravel()
             # restrict blurring to region where component is located
-            vb = np.reshape(Ain, dims, order='F')
-            slices = tuple(slice(max(0, ijs[0] - 2 * sg), min(d, ijs[1] + 2 * sg))
+#            vb = np.reshape(Ain, dims, order='F')
+            slices = tuple(slice(max(0, ijs[0] - 2*sg), min(d, ijs[1] + 2*sg))
                            for ijs, sg, d in zip(ijSig, gSiz//2, dims))  # is 2 enough?
 
-            vb[slices] = imblur(vb[slices], sig=gSig, siz=gSiz, nDimBlur= len(dims))
-            vb = vb.ravel(order=order_rvl)
+            vb_buf = [imblur(vb.reshape(dims,order='F')[slices], sig=gSig, siz=gSiz, nDimBlur=len(dims)) for vb in Yres_buf]
+            vb_buf2 = np.stack([vb.ravel() for vb in vb_buf])
 
-            # ind_vb = np.where(vb)[0]
-            ind_vb = np.ravel_multi_index(np.ix_(*[np.arange(s.start, s.stop)
-                                                   for s in slices]), dims, order=order_rvl).ravel(order=order_rvl)
+            ind_vb = np.ravel_multi_index(
+                    np.ix_(*[np.arange(s.start, s.stop)
+                           for s in slices]), dims).ravel()
 
+            rho_buf[:, ind_vb] = vb_buf2**2
+            sv[ind_vb] = np.sum(rho_buf[:, ind_vb], 0)
 
-            updt_res = (vb[None, ind_vb].T**2).dot(cin[None, :]**2).T
-            rho_buf[:, ind_vb] -= updt_res
-            sv[ind_vb] = np.sum(rho_buf[:,ind_vb],0)
-#            updt_res = (vb[None, indeces_].T**2).dot(cin[None, :]**2).T
-#            rho_buf[:, indeces_] -= updt_res
-#            sv[indeces_] = np.sum(rho_buf[:,indeces_],0)
-#                sv_[ind_vb] = np.sum(rho_buf[:,ind_vb],0)
-            #updt_res_sum = np.sum(updt_res, 0)
-            #sv[ind_vb] -= updt_res_sum
-            #sv_[ind_vb] -= updt_res_sum
-
-        else:
-            if cnt >= min_num_trial:
-                num_added = max_num_added
-            else:
-                first = False
-#                    sv_[indeces_] /= 2 #0
-
+    #print(np.min(sv))
     return Ab, Cf, Yres_buf, rho_buf, CC, CY, ind_A, sv, groups, ind_new, ind_new_all, sv, cnn_pos
 
 
