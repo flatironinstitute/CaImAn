@@ -11,6 +11,7 @@ from past.utils import old_div
 import numpy as np
 
 from scipy.ndimage.filters import gaussian_filter
+from scipy.stats import norm
 from math import sqrt
 
 import caiman as cm
@@ -339,10 +340,15 @@ def init_shapes_and_sufficient_stats(Y, A, C, b, f, bSiz=3):
 
 
 @profile
-def update_shapes(CY, CC, Ab, ind_A, indicator_components=None, Ab_dense=None, update_bkgrd=True, iters=3):
+def update_shapes(CY, CC, Ab, ind_A, sn=None, q=0.75, indicator_components=None, Ab_dense=None, update_bkgrd=True, iters=3):
     D, M = Ab.shape
     N = len(ind_A)
     nb = M - N
+    if sn is None:
+        L = np.zeros((M,D))
+    else:
+        L = norm.ppf(q)*np.outer(np.sqrt(CC.diagonal()), sn)
+        L[:nb] = 0
     for _ in range(iters):  # it's presumably better to run just 1 iter but update more neurons
         if indicator_components is None:
             idx_comp = range(nb, M)
@@ -354,7 +360,7 @@ def update_shapes(CY, CC, Ab, ind_A, indicator_components=None, Ab_dense=None, u
                 ind_pixels = ind_A[m - nb]
                 
                 tmp = np.maximum(Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]] +
-                    ((CY[m, ind_pixels] - Ab.dot(CC[m])[ind_pixels]) / CC[m, m]), 0)
+                    ((CY[m, ind_pixels] - L[m, ind_pixels] - Ab.dot(CC[m])[ind_pixels]) / CC[m, m]), 0)
                 
                 if tmp.dot(tmp) > 0:
                     tmp *= 1e-3 / \
@@ -375,7 +381,7 @@ def update_shapes(CY, CC, Ab, ind_A, indicator_components=None, Ab_dense=None, u
         else:
             for m in idx_comp:  # neurons
                 ind_pixels = ind_A[m - nb]
-                tmp = np.maximum(Ab_dense[ind_pixels, m] + ((CY[m, ind_pixels] -
+                tmp = np.maximum(Ab_dense[ind_pixels, m] + ((CY[m, ind_pixels] - L[m, ind_pixels] -
                                                              Ab_dense[ind_pixels].dot(CC[m])) /
                                                             CC[m, m]), 0)
                 # normalize
