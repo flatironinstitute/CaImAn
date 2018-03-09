@@ -751,7 +751,7 @@ def anim_to_html(anim, fps=20):
             video = open(f.name, "rb").read()
         anim._encoded_video = base64.b64encode(video)
 
-    return VIDEO_TAG.format(anim._encoded_video)
+    return VIDEO_TAG.format(anim._encoded_video.decode('ascii'))
 
 #%%
 
