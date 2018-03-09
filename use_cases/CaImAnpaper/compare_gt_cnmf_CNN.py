@@ -1013,34 +1013,117 @@ for params_movie in np.array(params_movies)[:]:
                 pl.xlabel('SNR threshold')
 
 #%% performance on desktop
-        plt.close('all')
         import pylab as plt
+        plt.close('all')
+
         import numpy as np
         plt.rcParams['pdf.fonttype'] = 42
         font = {'family' : 'Arial',
                 'weight' : 'regular',
                 'size'   : 20}
 
+
+        t_mmap = dict()
+        t_patch = dict()
+        t_refine = dict()
+        t_filter_comps = dict()
+
         size = np.log10(np.array([2.1, 3.1,0.6,3.1,8.4,1.9,121.7,78.7,35.8,50.3])*1000)
         components= np.array([368,935,476,1060,1099,1387,1541,1013,398,1064])
-        t_mmap = np.array([25,41,11,41,135,23,690,510,176,163])
-        t_patch = np.array([20,47,16,48,109,40,1921,978,307,442])
-        t_refine = np.array([140,284,43,279,333,338,1811,882,242,493])
-        t_filter_comps = np.array([9,5,2,5,7,10,177,86,29,59])
+        
+        t_mmap['cluster'] = np.array([np.nan,41,np.nan,np.nan,109,np.nan,561,378,135,212])
+        t_patch['cluster'] = np.array([np.nan,46,np.nan,np.nan,92,np.nan,1063,469,142,372])
+        t_refine['cluster'] = np.array([np.nan,225,np.nan,np.nan,256,np.nan,1065,675,265,422])
+        t_filter_comps['cluster'] = np.array([np.nan,7,np.nan,np.nan,11,np.nan,143,77,30,57])
 
-        plt.scatter((size),np.log10(t_mmap+t_patch+t_refine+t_filter_comps),s=np.array(components)/10)
-        plt.plot((np.sort(size)),np.log10((np.sort(10**size))/31.45),'--k')
-        plt.xlabel('size log10(MB)')
-        plt.ylabel('time log10(s)')
+        t_mmap['desktop'] = np.array([25,41,11,41,135,23,690,510,176,163])
+        t_patch['desktop'] = np.array([21,43,16,48,85,45,2150,949,316,475])
+        t_refine['desktop'] = np.array([105,205,43,279,216,254,1749,837,237,493])
+        t_filter_comps['desktop'] = np.array([3,5,2,5,9,7,246,81,36,38])
+
+
+        t_mmap['laptop'] = np.array([4.7,27,3.6,18,144,11,731,287,125,248])
+        t_patch['laptop'] = np.array([58,84,47,77,174,85,2398,1587,659,1203])
+        t_refine['laptop'] = np.array([195,321,87,236,414,354,5129,3087,807,1550])
+        t_filter_comps['laptop'] = np.array([5,10,5,7,15,11,719,263,74,100])
+        
+#        t_mmap['online'] = np.array([0,0,0,0,0,0,0,0,0,0])
+#        t_patch['online'] = np.array([0,0,0,0,0,0,0,0,0,0])
+#        t_refine['online'] = np.array([0,0,0,0,0,0,0,0,0,0])
+#        t_filter_comps['online'] = np.array([86,468,102,427,1021,190,1498,3694,2662,391])
+        
+        
+        
+        pl.subplot(1,3,1)
+        for key in ['cluster','desktop', 'laptop']:
+            plt.scatter((size),np.log10(t_mmap[key]+t_patch[key]+t_refine[key]+t_filter_comps[key]),s=np.array(components)/10)
+            plt.xlabel('size log_10(MB)')
+            plt.ylabel('time log_10(s)')
+
+        plt.plot((np.sort(size)),np.log10((np.sort(10**size))/31.45),'--.k')
+        plt.legend(['acquisition-time','cluster (112 CPUs)','workstation (24 CPUs)', 'laptop (6 CPUs)'])
+        pl.title('Total execution time')
+        pl.xlim([3.8,5.2])
+        pl.ylim([2.35,4.2])
+
+        counter=2
+        for key in ['cluster','laptop']:
+            pl.subplot(1,3,counter)
+            counter+=1
+            if counter == 3:
+                pl.title('Time per phase (cluster)')
+                plt.ylabel('time (10^3 s)')
+            else:
+                pl.title('Time per phase (workstation)')
+            plt.bar((size),(t_mmap[key]), width = 0.12, bottom = 0)
+            plt.bar((size),(t_patch[key]), width = 0.12, bottom = (t_mmap[key]))
+            plt.bar((size),(t_refine[key]), width = 0.12, bottom = (t_mmap[key]+t_patch[key]))
+            plt.bar((size),(t_filter_comps[key]), width = 0.12, bottom = (t_mmap[key]+t_patch[key]+t_refine[key]))
+            plt.xlabel('size log_10(MB)')
+
+            plt.legend(['mem mapping','patch init','refine sol','quality  filter','acquisition time'])
+            plt.plot((np.sort(size)),(10**np.sort(size))/31.45,'--k')
+            pl.xlim([3.6,5.2])
+
+#%% performance labelers and caiman
+        import pylab as plt
         plt.figure()
-        plt.bar((size),(t_mmap), width = 0.05, bottom = 0)
-        plt.bar((size),(t_patch), width = 0.05, bottom = (t_mmap))
-        plt.bar((size),(t_refine), width = 0.05, bottom = (t_mmap+t_patch))
-        plt.bar((size),(t_filter_comps), width = 0.05, bottom = (t_mmap+t_patch+t_refine))
-        plt.xlabel('size (MB)')
-        plt.ylabel('time (s)')
-        plt.legend(['t_mmap','t_patch','t_refine','t_filter_comps','real-time'])
-        plt.plot((np.sort(size)),(10**np.sort(size))/31.45,'--k')
+        names = ['0300.T',
+        '0400.T',
+        'YT',
+        '0000',
+        '0200',
+        '0101',
+        'k53',
+        'J115',
+        'J123']
+        
+        f1s = dict()
+        f1s['batch'] = [0.77777,0.67,0.7623,0.72391,0.778739,0.7731,0.76578,0.77386,0.6783]
+        f1s['online'] = [0.765,0.686,0.759,0.719,0.776,0.745,0.8,0.82,0.77]
+        f1s['L1'] = [np.nan,np.nan,0.78,np.nan,0.89,0.8,0.89,np.nan,0.85]
+        f1s['L2'] = [0.9,0.69,0.9,0.92,0.87,0.89,0.92,0.93,0.83]
+        f1s['L3'] = [0.85,0.75,0.82,0.83,0.84,0.78,0.93,0.94,0.9]
+        f1s['L4'] = [0.78,0.87,0.79,0.87,0.82,0.75,0.83,0.83,0.91]
+        
+        all_of = ((np.vstack([f1s['L1'],f1s['L2'],f1s['L3'],f1s['L4'],f1s['batch'],f1s['online']])))
+        
+        
+        
+        for i in range(6):
+            pl.plot(i+np.random.random(9)*.2, all_of[i,:],'.')
+            pl.plot([i-.5, i+.5], [np.nanmean(all_of[i,:])]*2,'k')
+        plt.xticks(range(6), ['L1','L2','L3','L4','batch','online'], rotation=45)
+        pl.ylabel('F1-score')
+        
+        #%%
+        some_of = ((np.vstack([f1s['L1'],f1s['L2'],f1s['L3'],f1s['L4']])))
+        
+        for i in range(4):
+            pl.plot(i+np.random.random(9)*.2, some_of[i,:],'.')
+            pl.plot([i-.5, i+.5], [np.nanmean(some_of[i,:])]*2,'k')
+        plt.xticks(range(4), ['L1','L2','L3','L4'], rotation=45)
+        pl.ylabel('F1-score')
 
 
 #%% activity

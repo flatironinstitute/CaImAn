@@ -57,7 +57,7 @@ fls = fls[:]
 # read all files to be processed
 #%%
 fls = ['/mnt/ceph/neuro/zebra/05292014Fish1-4/images/mmap_tifs/Plane17_100_500_400_-350_mc_noinit_small.tif']
-
+fls = ['/mnt/ceph/neuro/zebra/05292014Fish1-4/images/mmap_tifs/Plane17_100_500_400_-350_mc.tif']
 # your list of files should look something like this
 print(fls)
 

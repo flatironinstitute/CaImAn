@@ -15,11 +15,11 @@ dependencies:
 - matplotlib
 - nose
 - numpy
-- opencv
+- opencv=3.2
 - peakutils
 - scipy
 - scikit-image
 - scikit-learn
 - spyder
-- tifffile=0.12.1
+- tifffile
 - tqdm

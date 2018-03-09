@@ -10,6 +10,7 @@ caiman/tests/comparison/comparison.py
 
 
 """
+#%%
 #\package None
 #\version   1.0
 #\copyright GNU General Public License v2.0

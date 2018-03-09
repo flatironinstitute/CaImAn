@@ -51,7 +51,12 @@ from caiman.summary_images import correlation_image_ecobost
 #%% First setup some parameters
 
 # dataset dependent parameters
-fname = glob.glob('/mnt/ceph/neuro/Sue/k53/20160530/*0[0-9].tif') +  glob.glob('/mnt/ceph/neuro/Sue/k53/20160531/*0[0-9].tif') +  glob.glob('/mnt/ceph/neuro/Sue/k53/20160603/*0[0-9].tif') +  glob.glob('/mnt/ceph/neuro/Sue/k53/20160606/*0[0-9].tif') # filename to be processed
+fname = glob.glob('/mnt/ceph/neuro/Sue/k53/20160530/*0[0-9].tif') +\
+        glob.glob('/mnt/ceph/neuro/Sue/k53/20160531/*0[0-9].tif') +\
+        glob.glob('/mnt/ceph/neuro/Sue/k53/20160603/*0[0-9].tif') +\
+        glob.glob('/mnt/ceph/neuro/Sue/k53/20160606/*0[0-9].tif') # filename to be processed
+fname = glob.glob('/mnt/ceph/neuro/Sue/k53/20160607/*0[0-9].tif') +\
+        glob.glob('/mnt/ceph/neuro/Sue/k53/20160608/*0[0-9].tif') # filename to be processed
 fname.sort()
 fr = 30                             # imaging rate in frames per second
 decay_time = 0.4                    # length of a typical transient in seconds
@@ -140,10 +145,11 @@ cm.movie(mov_templates)[::10].play(gain = 10., offset = -min_mov_templates, magn
 ##%%
 #cm.load(mc_templ.fname_tot_els)[::100].play(gain = 5., offset = -min_mov_templates, magnification = 2)
 #%%
-names_tots = glob.glob('/mnt/ceph/neuro/Sue/k53/20160606/*_F_*.mmap')
+names_tots = glob.glob('/mnt/ceph/neuro/Sue/k53/20160608/*_F_*.mmap')
 names_tots.sort()
 print(names_tots)
 #%%
+dview.terminate()
 c, dview, n_processes = cm.cluster.setup_cluster(
     backend='local', n_processes=10, single_thread=False)
 
@@ -202,7 +208,6 @@ idx_components, idx_components_bad, SNR_comp, r_values, cnn_preds = \
                                      thresh_cnn_lowest=cnn_thr)
 
 #%% PLOT COMPONENTS
-
 plt.figure()
 plt.subplot(121)
 crd_good = cm.utils.visualization.plot_contours(
