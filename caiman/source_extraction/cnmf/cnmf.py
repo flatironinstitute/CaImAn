@@ -811,13 +811,13 @@ class CNMF(object):
             self.time_neuron_added.append((nneeuu, self.initbatch))
         self.time_spend = 0
         # setup per patch classifier
-        
+
         if path_to_model is None:
             loaded_model = None
             sniper_mode = False
         else:
             import keras
-            from keras.models import model_from_json            
+            from keras.models import model_from_json
             path = path_to_model.split(".")[:-1]
             json_path = ".".join(path + ["json"])
             model_path = ".".join(path + ["h5"])
@@ -829,12 +829,12 @@ class CNMF(object):
                 loaded_model.load_weights(model_path)
                 opt = keras.optimizers.rmsprop(lr=0.0001, decay=1e-6)
                 loaded_model.compile(loss=keras.losses.categorical_crossentropy,
-                              optimizer=opt, metrics=['accuracy'])   
+                              optimizer=opt, metrics=['accuracy'])
             except:
                 print('No model found')
                 loaded_model = None
                 sniper_mode = False
-                
+
         self.loaded_model = loaded_model
         self.sniper_mode = sniper_mode
         return self
@@ -901,10 +901,10 @@ class CNMF(object):
 
 #        cv2.imshow('untitled', 3*cv2.resize(self.Ab.sum(1).reshape(self.dims,order = 'F'),(512,512)))
 #        cv2.waitKey(1)
-        
+
         #self.mean_buff = self.Yres_buf.mean(0)
         if self.update_num_comps:
-            
+
             res_frame = frame - self.Ab.dot(self.noisyC[:self.M, t])
             self.mean_buff += (res_frame-self.Yres_buf[self.Yres_buf.cur])/self.minibatch_shape
 #            cv2.imshow('untitled', 0.1*cv2.resize(res_frame.reshape(self.dims,order = 'F'),(512,512)))
@@ -937,7 +937,7 @@ class CNMF(object):
 
             num_added = len(self.ind_A) - self.N
 
-            if num_added > 0:                
+            if num_added > 0:
                 self.N += num_added
                 self.M += num_added
                 if self.N + self.max_num_added > self.expected_comps:
@@ -1200,7 +1200,7 @@ class CNMF(object):
         self.b = self.b * nB_inv_mat
         self.f = nB_mat * self.f
 
-    def view_patches(self, Yr, dims, img=None):
+    def view_patches(self, Yr, dims, img=None, idx = None):
         """view spatial and temporal components interactively
 
          Parameters:
@@ -1230,8 +1230,12 @@ class CNMF(object):
         if img is None:
             img = np.reshape(np.array(self.A.mean(axis=1)), dims, order='F')
 
-        caiman.utils.visualization.view_patches_bar(Yr, self.A, self.C, self.b, self.f, dims[
+        if idx is  None:
+            caiman.utils.visualization.view_patches_bar(Yr, self.A, self.C, self.b, self.f, dims[
                                                     0], dims[1], YrA=self.YrA, img=img)
+        else:
+            caiman.utils.visualization.view_patches_bar(Yr, self.A.tocsc()[:,idx], self.C[idx], self.b, self.f, dims[
+                                                    0], dims[1], YrA=self.YrA[idx], img=img)
 
 
 def scale(y):

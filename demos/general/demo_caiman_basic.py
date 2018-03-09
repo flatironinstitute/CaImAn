@@ -37,7 +37,7 @@ except NameError:
         else:
             print("Could not find the caiman install")
             sys.exit(37)
-    
+
 print("Caiman path detected as " + caiman_path)
 sys.path.append(caiman_path)
 
@@ -104,7 +104,7 @@ else:                   # PROCESS THE WHOLE FOV AT ONCE
     stride = None       # will run CNMF on the whole FOV
     K = 30              # number of neurons expected (in the whole FOV)
 
-gSig = [5, 5]           # expected half size of neurons
+gSig = [6, 6]           # expected half size of neurons
 merge_thresh = 0.80     # merging threshold, max correlation allowed
 p = 2                   # order of the autoregressive system
 gnb = 2                 # global background order
