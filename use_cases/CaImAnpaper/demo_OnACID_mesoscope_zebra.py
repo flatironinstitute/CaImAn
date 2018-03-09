@@ -11,13 +11,13 @@ for sharing their data used in this demo.
 import os
 import sys
 
-try:
-    here = os.path.dirname(os.path.realpath(__file__))
-    caiman_path = os.path.join(here, "..", "..")
-    print("Caiman path detected as " + caiman_path)
-    sys.path.append(caiman_path)
-except:
-    pass
+#try:
+#    here = os.path.dirname(os.path.realpath(__file__))
+#    caiman_path = os.path.join(here, "..", "..")
+#    print("Caiman path detected as " + caiman_path)
+#    sys.path.append(caiman_path)
+#except:
+#    pass
 import numpy as np
 try:
     if __IPYTHON__:
@@ -27,6 +27,15 @@ try:
         get_ipython().magic('autoreload 2')
 except NameError:
     pass
+
+from keras import backend as K
+import tensorflow as tf
+config = tf.ConfigProto(intra_op_parallelism_threads=1,
+            inter_op_parallelism_threads=2,
+            allow_soft_placement=False,
+            device_count = {'CPU': 2})
+session = tf.Session(config=config)
+K.set_session(session)
 
 from time import time
 import caiman as cm
@@ -44,35 +53,48 @@ from copy import deepcopy
 #%%  download and list all files to be processed
 
 # folder inside ./example_movies where files will be saved
-fld_name = 'Mesoscope'
-download_demo('Tolias_mesoscope_1.hdf5', fld_name)
-download_demo('Tolias_mesoscope_2.hdf5', fld_name)
-download_demo('Tolias_mesoscope_3.hdf5', fld_name)
-
-# folder where files are located
-folder_name = os.path.join(caiman_path, 'example_movies', fld_name)
-extension = 'hdf5'                                  # extension of files
-fls = ['example_movies/Mesoscope/Tolias_mesoscope_1.hdf5','example_movies/Mesoscope/Tolias_mesoscope_2.hdf5','example_movies/Mesoscope/Tolias_mesoscope_3.hdf5']
-fls = fls[:]
+#fld_name = 'Mesoscope'
+#download_demo('Tolias_mesoscope_1.hdf5', fld_name)
+#download_demo('Tolias_mesoscope_2.hdf5', fld_name)
+#download_demo('Tolias_mesoscope_3.hdf5', fld_name)
+#
+## folder where files are located
+#folder_name = os.path.join(caiman_path, 'example_movies', fld_name)
+#extension = 'hdf5'                                  # extension of files
+#fls = ['example_movies/Mesoscope/Tolias_mesoscope_1.hdf5','example_movies/Mesoscope/Tolias_mesoscope_2.hdf5','example_movies/Mesoscope/Tolias_mesoscope_3.hdf5']
+#fls = fls[:]
 # read all files to be processed
 #%%
-fls = ['/mnt/ceph/neuro/zebra/05292014Fish1-4/images/mmap_tifs/Plane17_100_500_400_-350_mc_noinit_small.tif']
-fls = ['/mnt/ceph/neuro/zebra/05292014Fish1-4/images/mmap_tifs/Plane17_100_500_400_-350_mc.tif']
+ploton = False
+#fls = ['/mnt/ceph/neuro/zebra/05292014Fish1-4/images/mmap_tifs/Plane17_100_500_400_-350_mc_noinit_small.tif']
+#K = 10
+#min_num_trial = 50
+#fls = ['/mnt/ceph/neuro/zebra/05292014Fish1-4/images/mmap_tifs/Plane17_100_500_400_-350_mc_noinit.tif']
+#K = 100
+#min_num_trial = 60
+#
+fls = ['/mnt/ceph/neuro/zebra/05292014Fish1-4/images/mmap_tifs/Plane17.stack.hdf5']
+K = 500
+min_num_trial = 100
 # your list of files should look something like this
 print(fls)
+decay_time = 1.5
+gSig = (9, 9)
+rval_thr = 1
 
+# number of passes over the data
+epochs = 2
 #%%   Set up some parameters
 
 # frame rate (Hz)
-fr = 5
+fr = 2
 #fr = 15
 
 # approximate length of transient event in seconds
-decay_time = 1.5
+
 #decay_time = 0.5
 
 # expected half size of neurons
-gSig = (8, 8)
 #gSig = (2.5, 2.5)
 
 # order of AR indicator dynamics
@@ -80,11 +102,11 @@ p = 1
 # minimum SNR for accepting new components
 min_SNR = 2.5
 # correlation threshold for new component inclusion
-rval_thr = 1
+
 #rval_thr = 0.85
 
 # spatial downsampling factor (increases speed but may lose some fine structure)
-ds_factor = 1
+ds_factor = 2
 # number of background components
 gnb = 3
 # recompute gSig if downsampling is involved
@@ -107,13 +129,11 @@ initbatch = 200
 # maximum number of expected components used for memory pre-allocation (exaggerate here)
 expected_comps = 600
 # initial number of components
-K = 10
 # number of timesteps to consider when testing new neuron candidates
 N_samples = np.ceil(fr * decay_time)
 # exceptionality threshold
 thresh_fitness_raw = scipy.special.log_ndtr(-min_SNR) * N_samples
-# number of passes over the data
-epochs = 2
+
 # upper bound for number of frames in each file (used right below)
 len_file = 1815#1885
 # total length of all files (if not known use a large number, then truncate at the end)
@@ -148,9 +168,10 @@ dims = (d1, d2)                                     # dimensions of FOV
 Yr = Y.to_2D().T                                    # convert data into 2D array
 
 Cn_init = Y.local_correlations(swap_dim=False)    # compute correlation image
-pl.imshow(Cn_init)
-pl.title('Correlation Image on initial batch')
-pl.colorbar()
+if ploton:
+    pl.imshow(Cn_init)
+    pl.title('Correlation Image on initial batch')
+    pl.colorbar()
 
 #%% initialize OnACID with bare initialization
 cnm_init = bare_initialization(Y[:initbatch].transpose(1, 2, 0), init_batch=initbatch, k=K, gnb=gnb,
@@ -162,10 +183,11 @@ cnm_init = bare_initialization(Y[:initbatch].transpose(1, 2, 0), init_batch=init
                                simultaneously=False, n_refit=0)
 
 #%% Plot initialization results
-crd = plot_contours(cnm_init.A.tocsc(), Cn_init, thr=0.9)
-A, C, b, f, YrA, sn = cnm_init.A, cnm_init.C, cnm_init.b, cnm_init.f, cnm_init.YrA, cnm_init.sn
-view_patches_bar(Yr, scipy.sparse.coo_matrix(
-    A.tocsc()[:, :]), C[:, :], b, f, dims[0], dims[1], YrA=YrA[:, :], img=Cn_init)
+if ploton:
+    crd = plot_contours(cnm_init.A.tocsc(), Cn_init, thr=0.9)
+    A, C, b, f, YrA, sn = cnm_init.A, cnm_init.C, cnm_init.b, cnm_init.f, cnm_init.YrA, cnm_init.sn
+    view_patches_bar(Yr, scipy.sparse.coo_matrix(
+        A.tocsc()[:, :]), C[:, :], b, f, dims[0], dims[1], YrA=YrA[:, :], img=Cn_init)
 
 
 #%% create a function for plotting results in real time if needed
@@ -229,8 +251,8 @@ def create_frame(cnm2, img_norm, captions):
 
 #%% Prepare object for OnACID
 cnm2 = deepcopy(cnm_init)
-path_to_model = 'use_cases/edge-cutter/residual_classifier_2classes.h5'
-path_to_model = 'use_cases/CaImAnpaper/net_models/sniper_sensitive.h5'
+path_to_model = '/mnt/home/agiovann/SOFTWARE/CaImAn/use_cases/edge-cutter/residual_classifier_2classes.h5'
+path_to_model = '/mnt/home/agiovann/SOFTWARE/CaImAn/use_cases/CaImAnpaper/net_models/sniper_sensitive.h5'
 save_init = False     # flag for saving initialization object. Useful if you want to check OnACID with different parameters but same initialization
 if save_init:
     cnm_init.dview = None
@@ -238,7 +260,7 @@ if save_init:
     cnm_init = load_object(fls[0][:-4] + '_DS_' + str(ds_factor) + '.pkl')
 
 cnm2._prepare_object(np.asarray(Yr), T1, expected_comps, idx_components=None,
-                         min_num_trial=10, max_num_added = 10, N_samples_exceptionality=int(N_samples),
+                         min_num_trial=min_num_trial, max_num_added = min_num_trial, N_samples_exceptionality=int(N_samples),
                          path_to_model = path_to_model,
                          sniper_mode = True)
 cnm2.thresh_CNN_noisy = 0.75
@@ -251,9 +273,10 @@ cnn_pos = []
 # flag for plotting contours of detected components at the end of each file
 plot_contours_flag = False
 # flag for showing video with results online (turn off flags for improving speed)
-play_reconstr = False
+play_reconstr = True
 # flag for saving movie (file could be quite large..)
-save_movie = False
+save_movie = True
+folder_name = '.'
 if save_movie:
     movie_name = os.path.join(folder_name, 'output.avi')  # name of movie to be saved
 resize_fact = 1.2                        # image resizing factor
@@ -368,26 +391,31 @@ if save_movie:
     out.release()
 cv2.destroyAllWindows()
 #%%  save results (optional)
-save_results = False
+save_results = True
 
 if save_results:
-    np.savez('results_analysis_online_MOT_CORR.npz',
+    np.savez('results_analysis_online_Plane17_mc_new_efty.npz',
              Cn=Cn, Ab=cnm2.Ab, Cf=cnm2.C_on, b=cnm2.b, f=cnm2.f,
              dims=cnm2.dims, tottime=tottime, noisyC=cnm2.noisyC, shifts=shifts)
+#%%
+if ploton:
 
+    m = cm.load(fls)
+    mp = (m.computeDFF(3))
+    Cn = cv2.resize(mp[0].local_correlations(eight_neighbours=True, swap_dim=False),dims[::-1])
 #%% extract results from the objects and do some plotting
-A, b = cnm2.Ab[:, cnm2.gnb:], cnm2.Ab[:, :cnm2.gnb].toarray()
-C, f = cnm2.C_on[cnm2.gnb:cnm2.M, t - t //
-                 epochs:t], cnm2.C_on[:cnm2.gnb, t - t // epochs:t]
-noisyC = cnm2.noisyC[:, t - t // epochs:t]
-b_trace = [osi.b for osi in cnm2.OASISinstances] if hasattr(
-    cnm2, 'OASISinstances') else [0] * C.shape[0]
+if ploton:
+    A, b = cnm2.Ab[:, cnm2.gnb:], cnm2.Ab[:, :cnm2.gnb].toarray()
+    C, f = cnm2.C_on[cnm2.gnb:cnm2.M, t - t //
+                     epochs:t], cnm2.C_on[:cnm2.gnb, t - t // epochs:t]
+    noisyC = cnm2.noisyC[:, t - t // epochs:t]
+    b_trace = [osi.b for osi in cnm2.OASISinstances] if hasattr(
+        cnm2, 'OASISinstances') else [0] * C.shape[0]
 
-pl.figure()
-crd = cm.utils.visualization.plot_contours(A, Cn, thr=0.9, vmax = 0.65)
-view_patches_bar(Yr, scipy.sparse.coo_matrix(A.tocsc()[:, :]), C[:, :], b, f,
-                 dims[0], dims[1], YrA=noisyC[cnm2.gnb:cnm2.M] - C, img=Cn)
+    pl.figure()
+    crd = cm.utils.visualization.plot_contours(A, Cn, thr=0.9, vmax = 0.5)
+    view_patches_bar(Yr, scipy.sparse.coo_matrix(A.tocsc()[:, :]), C[:, :], b, f,
+                     dims[0], dims[1], YrA=noisyC[cnm2.gnb:cnm2.M] - C, img=Cn)
 
 #%%
-
-df_f = detrend_df_f_auto(A,b,C,f,YrA)
+#df_f = detrend_df_f_auto(A,b,C,f,YrA)
