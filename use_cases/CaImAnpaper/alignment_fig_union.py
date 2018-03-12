@@ -55,11 +55,10 @@ import matplotlib.lines as mlines
 
 dims = 512, 512
 
-A_union, assignments, matchings = register_multisession(A, dims, Cns)
-
+A_union, assignments, matchings = register_multisession(A, dims, Cns, max_thr=0)
 #%% register backwards
 
-A_back, assignments_back, matchings_back = register_multisession(A[::-1], dims, Cns[::-1])
+A_back, assignments_back, matchings_back = register_multisession(A[::-1], dims, Cns[::-1], max_thr=0)
 
 #%%
 N = len(A)
@@ -71,8 +70,25 @@ trip_back = extract_active_components(assignments_back, list(range(N)), only = T
 matched_ROIs1, matched_ROIs2, non_matched1, non_matched2, performan,_ = register_ROIs(A_union, A_back, dims, 
                                                                                       template1=Cns[-1], 
                                                                                       template2=Cns[0],
-                                                                                      plot_results=True,
-                                                                                      thresh_cost=.8)
+                                                                                      plot_results=False,
+                                                                                      thresh_cost=.8,
+                                                                                      max_thr=0)
+
+
+#%%
+
+A_union_01, assignments_01, matchings_01 = register_multisession(A, dims, Cns, max_thr=0.1)
+A_back_01, assignments_back_01, matchings_back_01 = register_multisession(A[::-1], dims, Cns[::-1], max_thr=0.1)
+trip_forw_01 = extract_active_components(assignments_01, list(range(N)), only = False)
+trip_back_01 = extract_active_components(assignments_back_01, list(range(N)), only = True)
+pl.figure()
+matched_ROIs1_01, matched_ROIs2_01, non_matched1_01, non_matched2_01, performan_01,_ = register_ROIs(A_union_01, A_back_01, dims, 
+                                                                                                     template1=Cns[-1], 
+                                                                                                     template2=Cns[0],
+                                                                                                     plot_results=True,
+                                                                                                     thresh_cost=.8,
+                                                                                                     max_thr=0.1)
+
 
 #%% plot neurons that appear in all days
 
@@ -94,17 +110,17 @@ plt.rc('font', **font)
 lp, hp = np.nanpercentile(Cns[0], [5, 98])
 plt.subplot(1,2,1)
 plt.imshow(Cns[0], vmin=lp, vmax=hp, cmap='gray')
-for i in range(N-1):
+for i in range(N):
     [plt.contour(norm_nrg(mm), levels=[level], colors=cl[i], linewidths=1)
-     for mm in masks[i][list(assignments[trip_forw,i].astype(int))]]
+     for mm in masks[i][list(assignments_01[trip_forw_01,i].astype(int))]]
 plt.title('Components tracked across all days (forward)')
 plt.axis('off')    
     
 plt.subplot(1,2,2)
 plt.imshow(Cns[-1], vmin=lp, vmax=hp, cmap='gray')
-for i in range(N-1)[::-1]:
+for i in range(N)[::-1]:
     [plt.contour(norm_nrg(mm), levels=[level], colors=cl[N-1-i], linewidths=1)
-     for mm in masks[N-2-i][list(assignments_back[trip_back,i].astype(int))]]
+     for mm in masks[N-1-i][list(assignments_back_01[trip_back_01,i].astype(int))]]
 plt.title('Components tracked across all days (backward)')
 plt.axis('off')       
 
