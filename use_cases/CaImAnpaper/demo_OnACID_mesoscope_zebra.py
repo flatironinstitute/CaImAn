@@ -6,6 +6,8 @@ Complete pipeline for online processing using OnACID.
 @author: Andrea Giovannucci @agiovann and Eftychios Pnevmatikakis @epnev
 Special thanks to Andreas Tolias and his lab at Baylor College of Medicine
 for sharing their data used in this demo.
+
+KERAS_BACKEND=tensorflow; CUDA_VISIBLE_DEVICES=-1; spyder
 """
 
 import os
@@ -28,14 +30,6 @@ try:
 except NameError:
     pass
 
-from keras import backend as K
-import tensorflow as tf
-config = tf.ConfigProto(intra_op_parallelism_threads=1,
-            inter_op_parallelism_threads=2,
-            allow_soft_placement=False,
-            device_count = {'CPU': 2})
-session = tf.Session(config=config)
-K.set_session(session)
 
 from time import time
 import caiman as cm
@@ -49,6 +43,11 @@ from caiman.utils.visualization import plot_contours
 import glob
 from caiman.source_extraction.cnmf.online_cnmf import bare_initialization
 from copy import deepcopy
+#%%
+import sys
+ID = sys.argv[1]
+ID = str(np.int(ID)+1)
+print('Processing ID:'+ str(ID))
 
 #%%  download and list all files to be processed
 
@@ -69,17 +68,22 @@ ploton = False
 #fls = ['/mnt/ceph/neuro/zebra/05292014Fish1-4/images/mmap_tifs/Plane17_100_500_400_-350_mc_noinit_small.tif']
 #K = 10
 #min_num_trial = 50
-#fls = ['/mnt/ceph/neuro/zebra/05292014Fish1-4/images/mmap_tifs/Plane17_100_500_400_-350_mc_noinit.tif']
-#K = 100
-#min_num_trial = 60
+#fls = ['/mnt/ceph/neuro/zebra/05292014Fish1-4/images/mmap_tifs/Plane17_100_500_400_-350_mc_small.tif']
+#K = 10
+#min_num_trial = 5
+#fls = ['/mnt/ceph/neuro/zebra/05292014Fish1-4/images/mmap_tifs/Plane17_100_500_400_-350_mc.tif']
+#K = 200
+#min_num_trial = 20
 #
-fls = ['/mnt/ceph/neuro/zebra/05292014Fish1-4/images/mmap_tifs/Plane17.stack.hdf5']
-K = 500
-min_num_trial = 100
+fls = ['/mnt/ceph/neuro/zebra/05292014Fish1-4/Plane' + str(ID) + '.stack.hdf5']
+mmm = cm.load(fls,subindices = 0)
+#fls = ['/mnt/ceph/neuro/zebra/05292014Fish1-4/images/mmap_tifs/Plane17.stack.hdf5']
+K = np.round(600/1602720*np.prod(mmm.shape)).astype(np.int)
+min_num_trial = np.round(130/1602720*np.prod(mmm.shape)).astype(np.int)
 # your list of files should look something like this
 print(fls)
 decay_time = 1.5
-gSig = (9, 9)
+gSig = (7, 7)
 rval_thr = 1
 
 # number of passes over the data
@@ -135,7 +139,7 @@ N_samples = np.ceil(fr * decay_time)
 thresh_fitness_raw = scipy.special.log_ndtr(-min_SNR) * N_samples
 
 # upper bound for number of frames in each file (used right below)
-len_file = 1815#1885
+len_file = 1885#1885 1815
 # total length of all files (if not known use a large number, then truncate at the end)
 T1 = len(fls) * len_file * epochs
 
@@ -174,6 +178,7 @@ if ploton:
     pl.colorbar()
 
 #%% initialize OnACID with bare initialization
+t1 = time()
 cnm_init = bare_initialization(Y[:initbatch].transpose(1, 2, 0), init_batch=initbatch, k=K, gnb=gnb,
                                gSig=gSig, p=0, minibatch_shape=100, minibatch_suff_stat=5,
                                update_num_comps=True, rval_thr=rval_thr,
@@ -182,6 +187,7 @@ cnm_init = bare_initialization(Y[:initbatch].transpose(1, 2, 0), init_batch=init
                                deconv_flag=False, use_dense=False,
                                simultaneously=False, n_refit=0)
 
+time_init = time() - t1
 #%% Plot initialization results
 if ploton:
     crd = plot_contours(cnm_init.A.tocsc(), Cn_init, thr=0.9)
@@ -259,11 +265,13 @@ if save_init:
     save_object(cnm_init, fls[0][:-4] + '_DS_' + str(ds_factor) + '.pkl')
     cnm_init = load_object(fls[0][:-4] + '_DS_' + str(ds_factor) + '.pkl')
 
+t1 = time()
 cnm2._prepare_object(np.asarray(Yr), T1, expected_comps, idx_components=None,
                          min_num_trial=min_num_trial, max_num_added = min_num_trial, N_samples_exceptionality=int(N_samples),
                          path_to_model = path_to_model,
                          sniper_mode = True)
 cnm2.thresh_CNN_noisy = 0.75
+time_prepare = time() - t1
 #%% Run OnACID and optionally plot results in real time
 cnm2.Ab_epoch = []                       # save the shapes at the end of each epoch
 t = cnm2.initbatch                       # current timestep
@@ -273,12 +281,13 @@ cnn_pos = []
 # flag for plotting contours of detected components at the end of each file
 plot_contours_flag = False
 # flag for showing video with results online (turn off flags for improving speed)
-play_reconstr = True
+play_reconstr = False
 # flag for saving movie (file could be quite large..)
-save_movie = True
+save_movie = False
 folder_name = '.'
 if save_movie:
     movie_name = os.path.join(folder_name, 'output.avi')  # name of movie to be saved
+
 resize_fact = 1.2                        # image resizing factor
 
 if online_files == 0:                    # check whether there are any additional files
@@ -290,7 +299,8 @@ else:
     # where to start reading at each file
     init_batc_iter = [initbatch] + [0] * online_files
 
-
+t1 = time()
+num_comps = []
 shifts = []
 show_residuals = True
 if show_residuals:
@@ -364,7 +374,7 @@ for iter in range(epochs):
             # store time
             cnn_pos.append(cnm2.cnn_pos)
             tottime.append(time() - t1)
-
+            num_comps.append(cnm2.N)
             t += 1
 
             if t % 1000 == 0 and plot_contours_flag:
@@ -391,12 +401,14 @@ if save_movie:
     out.release()
 cv2.destroyAllWindows()
 #%%  save results (optional)
-save_results = True
+save_results = False
 
 if save_results:
-    np.savez('results_analysis_online_Plane17_mc_new_efty.npz',
+    np.savez('/mnt/ceph/neuro/zebra/05292014Fish1-4/results_analysis_online_Plane_NOWAY' + str(ID) + '.npz',
              Cn=Cn, Ab=cnm2.Ab, Cf=cnm2.C_on, b=cnm2.b, f=cnm2.f,
-             dims=cnm2.dims, tottime=tottime, noisyC=cnm2.noisyC, shifts=shifts)
+             dims=cnm2.dims, tottime=tottime, noisyC=cnm2.noisyC, shifts=shifts,
+             num_comps = num_comps,
+             time_prepare=time_prepare, time_init=time_init)
 #%%
 if ploton:
 
@@ -417,5 +429,24 @@ if ploton:
     view_patches_bar(Yr, scipy.sparse.coo_matrix(A.tocsc()[:, :]), C[:, :], b, f,
                      dims[0], dims[1], YrA=noisyC[cnm2.gnb:cnm2.M] - C, img=Cn)
 
+    #%%
+    #df_f = detrend_df_f_auto(A,b,C,f,YrA)
+    A_img = preprocessing.scale(A.toarray(),axis=0).mean(axis=-1).reshape(dims,order='F')
+    crd = cm.utils.visualization.plot_contours(A, A_img, thr=0.9, vmax = 0.1,vmin=-0.01,cmap='gray')
+    #%%
+    pl.imshow(preprocessing.scale(A.toarray(),axis=0).mean(axis=-1).reshape(dims,order='F'),vmin=-.01,vmax=.1,cmap='gray')
 #%%
-#df_f = detrend_df_f_auto(A,b,C,f,YrA)
+from sklearn.preprocessing import normalize
+num_neur = []
+if ploton:
+    for ID in range(1,46):
+#        try:
+            with np.load('/mnt/ceph/neuro/zebra/05292014Fish1-4/results_analysis_online_Plane' + str(ID) + '.npz') as ld:
+                locals().update(ld)
+                pl.subplot(5,9,ID)
+                img = normalize(Ab[()][:,3:],'l1',axis=0).mean(-1).reshape(dims,order = 'F').T
+                pl.imshow(img,cmap='gray',vmin=np.percentile(img,5),vmax=np.percentile(img,99))
+                pl.axis('off')
+                num_neur.append(Ab[()].shape[-1]-3)
+#        except:
+            print(ID)

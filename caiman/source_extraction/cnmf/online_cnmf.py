@@ -339,7 +339,7 @@ def init_shapes_and_sufficient_stats(Y, A, C, b, f, bSiz=3):
 
 
 @profile
-def update_shapes(CY, CC, Ab, ind_A, indicator_components=None, Ab_dense=None, update_bkgrd=True, iters=3):
+def update_shapes(CY, CC, Ab, ind_A, indicator_components=None, Ab_dense=None, update_bkgrd=True, iters=5):
     D, M = Ab.shape
     N = len(ind_A)
     nb = M - N
@@ -352,10 +352,10 @@ def update_shapes(CY, CC, Ab, ind_A, indicator_components=None, Ab_dense=None, u
         if Ab_dense is None:
             for m in idx_comp:  # neurons
                 ind_pixels = ind_A[m - nb]
-                
+
                 tmp = np.maximum(Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]] +
                     ((CY[m, ind_pixels] - Ab.dot(CC[m])[ind_pixels]) / CC[m, m]), 0)
-                
+
                 if tmp.dot(tmp) > 0:
                     tmp *= 1e-3 / \
                         min(1e-3, sqrt(tmp.dot(tmp)) + np.finfo(float).eps)
@@ -556,7 +556,7 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial=3, gSig=(5, 5),
             idx.append(ind)
             if sniper_mode:
                 Ain_cnn.append(ain_cnn)
-    
+
     if sniper_mode & (len(Ain_cnn) > 0):
         Ain_cnn = np.stack(Ain_cnn)
         Ain2 = Ain_cnn.copy()
@@ -608,7 +608,7 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                           dims, gSig, gSiz, ind_A, CY, CC, groups, oases, gnb=1,
                           rval_thr=0.875, bSiz=3, robust_std=False,
                           N_samples_exceptionality=5, remove_baseline=True,
-                          thresh_fitness_delta=-80, thresh_fitness_raw=-20, 
+                          thresh_fitness_delta=-80, thresh_fitness_raw=-20,
                           thresh_overlap=0.25, batch_update_suff_stat=False,
                           sn=None, g=None, thresh_s_min=None, s_min=None,
                           Ab_dense=None, max_num_added=1, min_num_trial=1,
