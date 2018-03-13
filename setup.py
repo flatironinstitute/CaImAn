@@ -31,7 +31,9 @@ with open('README.md', 'r') as rmf:
 binaries = ['caimandata.py']
 extra_dirs = ['demos', 'use_cases', 'example_movies']
 data_files = [('', ['LICENSE.txt']),
-              ('', ['README.md'])]
+              ('', ['README.md']),
+              ('share/caiman/testdata', ['caiman/tests/comparison/groundtruth.npz', 'caiman/tests/comparison/tests/example/example.npz'])
+             ]
 for part in extra_dirs:
 	newpart = [("share/caiman/" + d, [os.path.join(d,f) for f in files]) for d, folders, files in os.walk(part)]
 	for newcomponent in newpart:

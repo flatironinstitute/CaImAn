@@ -157,11 +157,7 @@ def test_general():
     num_splits_to_process_rig = params_movie['num_splits_to_process_rig']
 
     cwd = os.getcwd()
-    rootdir = os.path.abspath(cm.__path__[0])[:-7]
-    os.chdir(rootdir)
-    download_demo(fname[0])
-    os.chdir(cwd)
-    fname = os.path.join(rootdir + '/example_movies', fname[0])
+    fname = download_demo(fname[0])
     m_orig = cm.load(fname)
     min_mov = m_orig[:400].min()
     comp = comparison.Comparison()

@@ -16,10 +16,12 @@ from builtins import range
 from past.utils import old_div
 import numpy as np
 import os
+import sys
 import ipyparallel as parallel
 from itertools import chain
+
 import caiman as cm
-import sys
+from caiman.paths import caiman_datadir
 
 try:
     import tifffile
@@ -29,7 +31,7 @@ except ImportError:
 
 
 #%%
-def load_memmap(filename, mode='r'):
+def load_memmap(filename, mode='r', true_path=False):
     """ Load a memory mapped file created by the function save_memmap
 
     Parameters:
@@ -38,6 +40,9 @@ def load_memmap(filename, mode='r'):
             path of the file to be loaded
         mode: str
             One of 'r', 'r+', 'w+'. How to interact with files
+        true_path: bool (defaults False)
+            If true, use the filename as a literal path, otherwise
+            use the caiman_data directory
 
     Returns:
     --------
@@ -57,9 +62,16 @@ def load_memmap(filename, mode='r'):
 
     """
     if os.path.splitext(filename)[1] == '.mmap':
-        file_to_load = filename
-        filename = os.path.split(filename)[-1]
-        fpart = filename.split('_')[1:-1]
+        if true_path:
+            file_to_load = filename
+            filename = os.path.split(filename)[-1]
+        else:
+            # Strip path components and use CAIMAN_DATA/example_movies
+            # TODO: Eventually get the code to save these in a different dir
+            filename = os.path.split(filename)[-1]
+            file_to_load = os.path.join(caiman_datadir(), 'example_movies', filename)
+
+        fpart = filename.split('_')[1:-1] # The filename encodes the structure of the map
         d1, d2, d3, T, order = int(fpart[-9]), int(fpart[-7]
                                                    ), int(fpart[-5]), int(fpart[-1]), fpart[-3]
         Yr = np.memmap(file_to_load, mode=mode, shape=(
@@ -70,7 +82,7 @@ def load_memmap(filename, mode='r'):
 
 #%%
 def save_memmap_each(fnames, dview=None, base_name=None, resize_fact=(1, 1, 1), remove_init=0,
-                     idx_xy=None, xy_shifts=None, add_to_movie=0, border_to_0=0, order = 'C'):
+                     idx_xy=None, xy_shifts=None, add_to_movie=0, border_to_0=0, order = 'C', true_path=False):
     """
     Create several memory mapped files using parallel processing
 
@@ -103,6 +115,12 @@ def save_memmap_each(fnames, dview=None, base_name=None, resize_fact=(1, 1, 1), 
     border_to_0: int
         number of pixels on the border to set to the minimum of the movie
 
+    order: (undocumented)
+
+    true_path: bool (defaults False)
+        If true, use the filename as a literal path, otherwise
+        use the caiman_data directory
+
     Returns:
     --------
     fnames_tot: list
@@ -114,22 +132,28 @@ def save_memmap_each(fnames, dview=None, base_name=None, resize_fact=(1, 1, 1), 
     if xy_shifts is None:
         xy_shifts = [None] * len(fnames)
 
-    if type(resize_fact)is not list:
+    if type(resize_fact) is not list:
         resize_fact = [resize_fact] * len(fnames)
 
     for idx, f in enumerate(fnames):
+        if true_path:
+            target_file = f
+        else: # Rewrite filename to be in CAIMAN_DATA/example_movies
+            target_file = os.path.split(f)[-1] # Strip leading path
+            target_file = os.path.join(caiman_datadir(), 'example_movies', target_file) # And add new path header
+
         if base_name is not None:
-            pars.append([f, base_name + '{:04d}'.format(idx), resize_fact[idx], remove_init,
+            pars.append([target_file, base_name + '{:04d}'.format(idx), resize_fact[idx], remove_init,
                          idx_xy, order, xy_shifts[idx], add_to_movie, border_to_0])
         else:
-            pars.append([f, os.path.splitext(f)[0], resize_fact[idx], remove_init, idx_xy, order,
+            pars.append([target_file, os.path.splitext(f)[0], resize_fact[idx], remove_init, idx_xy, order,
                          xy_shifts[idx], add_to_movie, border_to_0])
 
+    # Perform the job using whatever computing framework we're set to use
     if dview is not None:
         if 'multiprocessing' in str(type(dview)):
             fnames_new = dview.map_async(save_place_holder, pars).get(4294967)
         else:
-#            fnames_new = dview.map_sync(save_place_holder, pars)
             fnames_new = my_map(dview, save_place_holder, pars)
     else:
         fnames_new = list(map(save_place_holder, pars))
@@ -138,7 +162,7 @@ def save_memmap_each(fnames, dview=None, base_name=None, resize_fact=(1, 1, 1), 
 
 
 #%%
-def save_memmap_join(mmap_fnames, base_name=None, n_chunks=20, dview=None):
+def save_memmap_join(mmap_fnames, base_name=None, n_chunks=20, dview=None, true_path=False):
     """
     From small memory mappable files creates a large one
 
@@ -153,6 +177,9 @@ def save_memmap_join(mmap_fnames, base_name=None, n_chunks=20, dview=None):
 
     dview: cluster handle
 
+    true_path: bool (defaults False)
+        If true, use the filename as a literal path, otherwise
+        use the caiman_data directory
 
     Returns:
     --------
@@ -162,7 +189,7 @@ def save_memmap_join(mmap_fnames, base_name=None, n_chunks=20, dview=None):
     tot_frames = 0
     order = 'C'
     for f in mmap_fnames:
-        Yr, dims, T = load_memmap(f)
+        Yr, dims, T = load_memmap(f, true_path=true_path)
         print((f, T))
         tot_frames += T
         del Yr
@@ -179,6 +206,9 @@ def save_memmap_join(mmap_fnames, base_name=None, n_chunks=20, dview=None):
                  str(1 if len(dims) == 2 else dims[2]) + '_order_' + str(order) +
                  '_frames_' + str(tot_frames) + '_.mmap')
     fname_tot = os.path.join(os.path.split(mmap_fnames[0])[0], fname_tot)
+    if not true_path:
+        fname_tot = os.path.split(fname_tot)[-1] # Strip leading path
+        fname_tot = os.path.join(caiman_datadir(), 'example_movies', fname_tot) # And add new path header
 
     print(fname_tot)
 
@@ -196,7 +226,6 @@ def save_memmap_join(mmap_fnames, base_name=None, n_chunks=20, dview=None):
         if 'multiprocessing' in str(type(dview)):
             dview.map_async(save_portion, pars).get(4294967)
         else:
-            #dview.map_sync(save_portion, pars)
             my_map(dview, save_portion, pars)
 
     else:
@@ -208,7 +237,6 @@ def save_memmap_join(mmap_fnames, base_name=None, n_chunks=20, dview=None):
     del big_mov
     sys.stdout.flush()
     return fname_tot
-
 
 def my_map(dv, func, args):
     v = dv
@@ -273,11 +301,11 @@ def save_portion(pars):
         del big_mov
     else:
         with open(big_mov, 'r+b') as f:
-            f.seek(idx_start*Yr_tot.dtype.itemsize*tot_frames)
+            f.seek(idx_start * Yr_tot.dtype.itemsize * tot_frames)
             f.write(Yr_tot)
-            if f.tell() != idx_end*Yr_tot.dtype.itemsize*tot_frames:
+            if f.tell() != idx_end * Yr_tot.dtype.itemsize * tot_frames:
                     print(f.tell())
-                    print(idx_end*Yr_tot.dtype.itemsize*tot_frames)
+                    print(idx_end * Yr_tot.dtype.itemsize * tot_frames)
                     f.close()
                     raise Exception('Writing at the wrong location!')
 
@@ -303,7 +331,7 @@ def save_place_holder(pars):
 #%%
 def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0, idx_xy=None,
                 order='F', xy_shifts=None, is_3D=False, add_to_movie=0, border_to_0=0, dview = None,
-                n_chunks=100,  async=False):
+                n_chunks=100, async=False, true_path=False):
 
     """ Efficiently write data from a list of tif files into a memory mappable file
 
@@ -336,6 +364,13 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
             whether it is 3D data
         add_to_movie: floating-point
             value to add to each image point, typically to keep negative values out.
+        border_to_0: (undocumented)
+        dview:       (undocumented)
+        n_chunks:    (undocumented)
+        async:       (undocumented)
+        true_path: boolean (default False)
+            Set to true to trust filenames and allow saving them outside the CAIMAN_DATA directory, otherwise
+            their path bits are chopped out and they're put there even if another path is specified.
     Returns:
     -------
         fname_new: the name of the mapped file, the format is such that
@@ -345,33 +380,38 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
     if type(filenames) is not list:
         raise Exception('input should be a list of filenames')
 
-    if len(filenames)>1:
+    if len(filenames) > 1:
         is_inconsistent_order = False
         for file__ in filenames:
             if 'order_' + order not in file__:
                 is_inconsistent_order = True
 
-        if is_inconsistent_order:
+        if is_inconsistent_order: # Here we make a bunch of memmap files in the right order. Same parameters
             fname_new = cm.save_memmap_each(filenames,
-                                        base_name=base_name,
-                                        order=order,
-                                        border_to_0=border_to_0,
-                                        dview=dview,
-                                        resize_fact=resize_fact,
-                                        remove_init=remove_init,
-                                        idx_xy=idx_xy,
-                                        xy_shifts=xy_shifts,
-                                        add_to_movie = add_to_movie)
+                                        base_name    = base_name,
+                                        order        = order,
+                                        border_to_0  = border_to_0,
+                                        dview        = dview,
+                                        resize_fact  = resize_fact,
+                                        remove_init  = remove_init,
+                                        idx_xy       = idx_xy,
+                                        xy_shifts    = xy_shifts,
+                                        add_to_movie = add_to_movie,
+                                        true_path    = true_path)
         else:
             fname_new = filenames
 
-        fname_new = cm.save_memmap_join(fname_new, base_name=base_name, dview=dview, n_chunks=n_chunks)
+        # The goal is to make a single large memmap file, which we do here
+        fname_new = cm.save_memmap_join(fname_new, base_name=base_name, dview=dview, n_chunks=n_chunks, true_path=true_path)
 
     else:
     # TODO: can be done online
         Ttot = 0
         for idx, f in enumerate(filenames):
-            if isinstance(f, str):
+            if isinstance(f, str): # Might not always be filenames. If it is, correct their path if warranted.
+                if not true_path:
+                    f = os.path.split(f)[-1] # Strip leading path
+                    f = os.path.join(caiman_datadir(), 'example_movies', f) # And add new path header
                 print(f)
 
             if is_3D:
@@ -384,7 +424,7 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
                     Yr = Yr[remove_init:, idx_xy[0], idx_xy[1], idx_xy[2]]
 
             else:
-                Yr = cm.load(f, fr=1, in_memory=True) if (isinstance(f, basestring) or isinstance(f,list))  else cm.movie(f)
+                Yr = cm.load(f, fr=1, in_memory=True) if (isinstance(f, basestring) or isinstance(f, list)) else cm.movie(f) # TODO: Rewrite more legibly
                 if xy_shifts is not None:
                     Yr = Yr.apply_shifts(xy_shifts, interpolation='cubic', remove_blanks=False)
                 if idx_xy is None:
@@ -416,10 +456,13 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
 
             if idx == 0:
                 fname_tot = base_name + '_d1_' + str(dims[0]) + '_d2_' + str(dims[1]) + '_d3_' + str(
-                    1 if len(dims) == 2 else dims[2]) + '_order_' + str(order)
+                    1 if len(dims) == 2 else dims[2]) + '_order_' + str(order) # TODO: Rewrite more legibly
                 if isinstance(f, str):
                     fname_tot = os.path.join(os.path.split(f)[0], fname_tot)
-                if  len(filenames) > 1:
+                    if not true_path:
+                        fname_tot = os.path.split(fname_tot)[-1] # Strip leading path
+                        fname_tot = os.path.join(caiman_datadir(), 'example_movies', fname_tot) # And add new path header
+                if len(filenames) > 1:
                     big_mov = np.memmap(fname_tot, mode='w+', dtype=np.float32,
                                     shape=(np.prod(dims), T), order=order)
                     big_mov[:, Ttot:Ttot + T] = Yr
@@ -562,8 +605,8 @@ def save_tif_to_mmap_online(movie_iterable, save_base_name='YrOL_', order='C',
                             add_to_movie=0, border_to_0=0):
     # todo: todocument
 
-    if isinstance(movie_iterable, basestring):
-        with tifffile.TiffFile(movie_iterable) as tf:
+    if isinstance(movie_iterable, basestring): # Allow specifying a filename rather than its data rep
+        with tifffile.TiffFile(movie_iterable) as tf: # And load it if that happens
             movie_iterable = cm.movie(tf)
 
     count = 0
