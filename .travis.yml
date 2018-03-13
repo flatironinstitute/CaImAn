@@ -16,6 +16,8 @@ script:
   - docker ps -a
   - docker run simonsfoundation/caiman /bin/sh -c "nosetests"
 
+notifications:
+    slack: fi-neuro:tJkyI4VL8nm6pDojQWYqGFAS
 
 # whitelist
 branches:

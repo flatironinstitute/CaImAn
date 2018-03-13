@@ -1,7 +1,7 @@
-from caiman.source_extraction import cnmf as cnmf
 import numpy.testing as npt
 import numpy as np
 from scipy.ndimage.filters import gaussian_filter
+from caiman.source_extraction import cnmf as cnmf
 
 
 def gen_data(D=3, noise=.5, T=300, framerate=30, firerate=2.):
@@ -11,7 +11,8 @@ def gen_data(D=3, noise=.5, T=300, framerate=30, firerate=2.):
     bkgrd = 10  # fluorescence baseline
     gamma = .9  # calcium decay time constant
     np.random.seed(5)
-    centers = np.asarray([[np.random.randint(4, x - 4) for x in dims] for i in range(N)])
+    centers = np.asarray([[np.random.randint(4, x - 4)
+                           for x in dims] for i in range(N)])
     trueA = np.zeros(dims + (N,), dtype=np.float32)
     trueS = np.random.rand(N, T) < firerate / float(framerate)
     trueS[:, 0] = 0
@@ -21,7 +22,7 @@ def gen_data(D=3, noise=.5, T=300, framerate=30, firerate=2.):
     for i in range(N):
         trueA[tuple(centers[i]) + (i,)] = 1.
     tmp = np.zeros(dims)
-    tmp[tuple(d / 2 for d in dims)] = 1.
+    tmp[tuple(d // 2 for d in dims)] = 1.
     z = np.linalg.norm(gaussian_filter(tmp, sig).ravel())
     trueA = 10 * gaussian_filter(trueA, sig + (0,)) / z
     Yr = bkgrd + noise * np.random.randn(*(np.prod(dims), T)) + \
@@ -39,9 +40,12 @@ def pipeline(D):
     gSig = [2, 2, 2][:D]  # expected half size of neurons
     p = 1  # order of the autoregressive system
     options = cnmf.utilities.CNMFSetParms(Y, n_processes, p=p, gSig=gSig, K=K)
+    options['preprocess_params']['n_pixels_per_process'] = np.prod(dims)
+    options['spatial_params']['n_pixels_per_process'] = np.prod(dims)
     options['spatial_params']['thr_method'] = 'nrg'
     options['spatial_params']['extract_cc'] = False
     options['temporal_params']['method'] = 'oasis'
+    options['temporal_params']['block_size'] = np.prod(dims)
 
     # PREPROCESS DATA AND INITIALIZE COMPONENTS
     Yr, sn, g, psx = cnmf.pre_processing.preprocess_data(
@@ -54,11 +58,12 @@ def pipeline(D):
         Yr, Cin, f_in, Ain, sn=sn, **options['spatial_params'])
 
     # UPDATE TEMPORAL COMPONENTS
-    C, A, b, f, S, bl, c1, neurons_sn, g, YrA = cnmf.temporal.update_temporal_components(
+    C, A, b, f, S, bl, c1, neurons_sn, g, YrA, lam_ = cnmf.temporal.update_temporal_components(
         Yr, A, b, Cin, f_in, bl=None, c1=None, sn=None, g=None, **options['temporal_params'])
 
     # VERIFY HIGH CORRELATION WITH GROUND TRUTH
-    sorting = [np.argmax([np.corrcoef(tc, c)[0, 1] for tc in trueC]) for c in C]
+    sorting = [np.argmax([np.corrcoef(tc, c)[0, 1]
+                          for tc in trueC]) for c in C]
     # verifying the temporal components
     corr = [np.corrcoef(trueC[sorting[i]], C[i])[0, 1] for i in range(N)]
     npt.assert_allclose(corr, 1, .05)

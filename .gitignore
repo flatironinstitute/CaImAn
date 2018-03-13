@@ -39,11 +39,14 @@ __pycache__/
 *.hdf5
 *.mmap
 *.npz
-
+*.pkl
 
 # C extensions
 *.so
 *.c
+
+#movie tif
+*.tif
 
 # Distribution / packaging
 *__LOG_*

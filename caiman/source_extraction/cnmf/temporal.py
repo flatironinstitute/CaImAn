@@ -13,6 +13,7 @@ from past.utils import old_div
 from scipy.sparse import spdiags, coo_matrix  # ,csgraph
 import scipy
 import numpy as np
+import platform
 from .deconvolution import constrained_foopsi
 from .utilities import update_order_greedy
 import sys
@@ -58,7 +59,8 @@ def constrained_foopsi_parallel(arg_in):
 
     Ytemp, nT, jj_, bl, c1, g, sn, argss = arg_in
     T = np.shape(Ytemp)[0]
-    cc_, cb_, c1_, gn_, sn_, sp_ = constrained_foopsi(Ytemp, bl=bl, c1=c1, g=g, sn=sn, **argss)
+    cc_, cb_, c1_, gn_, sn_, sp_, lam_ = constrained_foopsi(
+        Ytemp, bl=bl, c1=c1, g=g, sn=sn, **argss)
     gd_ = np.max(np.real(np.roots(np.hstack((1, -gn_.T)))))
     gd_vec = gd_**list(range(T))
 
@@ -66,12 +68,11 @@ def constrained_foopsi_parallel(arg_in):
     Sp_ = sp_[:T].T
     Ytemp_ = Ytemp - C_.T
 
-    return C_, Sp_, Ytemp_, cb_, c1_, sn_, gn_, jj_
+    return C_, Sp_, Ytemp_, cb_, c1_, sn_, gn_, jj_, lam_
 
 
 #%%
-def update_temporal_components(Y, A, b, Cin, fin, bl=None, c1=None, g=None, sn=None, nb=1, ITER=2,
-                               block_size=20000, debug=False, dview=None, **kwargs):
+def update_temporal_components(Y, A, b, Cin, fin, bl=None, c1=None, g=None, sn=None, nb=1, ITER=2, block_size=5000, num_blocks_per_run=20, debug=False, dview=None, **kwargs):
     """Update temporal components and background given spatial components using a block coordinate descent approach.
 
     Parameters:
@@ -178,16 +179,15 @@ def update_temporal_components(Y, A, b, Cin, fin, bl=None, c1=None, g=None, sn=N
             matrix of spatial component filtered raw data, after all contributions have been removed.
             YrA corresponds to the residual trace for each component and is used for faster plotting (K x T)
 
-    Raise:
-    -----
-        Exception("You have to provide a value for p")
+        lam: np.ndarray
+        Automatically tuned sparsity parameter
 
     """
 
     if 'p' not in kwargs or kwargs['p'] is None:
         raise Exception("You have to provide a value for p")
 
-    #INITIALIZATION OF VARS
+    # INITIALIZATION OF VARS
     d, T = np.shape(Y)
     nr = np.shape(A)[-1]
     if b is not None:
@@ -205,6 +205,7 @@ def update_temporal_components(Y, A, b, Cin, fin, bl=None, c1=None, g=None, sn=N
 
     if sn is None:
         sn = np.repeat(None, nr)
+
     A = scipy.sparse.hstack((A, b)).tocsc()
     S = np.zeros(np.shape(Cin))
     Cin = np.vstack((Cin, fin))
@@ -212,25 +213,26 @@ def update_temporal_components(Y, A, b, Cin, fin, bl=None, c1=None, g=None, sn=N
     nA = np.ravel(A.power(2).sum(axis=0))
 
     print('Generating residuals')
-    dview_res = None if block_size >= 500 else dview
+#    dview_res = None if block_size >= 500 else dview
     if 'memmap' in str(type(Y)):
-        YA = parallel_dot_product(Y, A, dview=dview_res, block_size=block_size,
-                                  transpose=True) * spdiags(old_div(1., nA), 0, nr + nb, nr + nb)
+
+        YA = parallel_dot_product(Y, A, dview=dview, block_size=block_size,
+                                  transpose=True, num_blocks_per_run=num_blocks_per_run) * spdiags(old_div(1., nA), 0, nr + nb, nr + nb)
     else:
         YA = (A.T.dot(Y).T) * spdiags(old_div(1., nA), 0, nr + nb, nr + nb)
 
     AA = ((A.T.dot(A)) * spdiags(old_div(1., nA), 0, nr + nb, nr + nb)).tocsr()
     YrA = YA - AA.T.dot(Cin).T
 
-    #creating the patch of components to be computed in parrallel
-    parrllcomp, len_parrllcomp = update_order_greedy(AA[:nr,:][:,:nr])
+    # creating the patch of components to be computed in parrallel
+    parrllcomp, len_parrllcomp = update_order_greedy(AA[:nr, :][:, :nr])
 
     print("entering the deconvolution ")
-    C, S, bl, YrA, c1, sn, g = update_iteration(parrllcomp, len_parrllcomp, nb,C, S, bl, nr,
-                                                ITER, YrA, c1, sn, g, Cin, T, nA, dview, debug,AA, kwargs)
+    C, S, bl, YrA, c1, sn, g, lam = update_iteration(parrllcomp, len_parrllcomp, nb, C, S, bl, nr,
+                                                     ITER, YrA, c1, sn, g, Cin, T, nA, dview, debug, AA, kwargs)
 
     ff = np.where(np.sum(C, axis=1) == 0)  # remove empty components
-    if np.size(ff) > 0: # Eliminating empty temporal components
+    if np.size(ff) > 0:  # Eliminating empty temporal components
         ff = ff[0]
         keep = list(range(A.shape[1]))
         for i in ff:
@@ -244,6 +246,7 @@ def update_temporal_components(Y, A, b, Cin, fin, bl=None, c1=None, g=None, sn=N
         g = np.delete(g, list(ff))
         bl = np.delete(bl, list(ff))
         c1 = np.delete(c1, list(ff))
+        lam = np.delete(lam, list(ff))
 
         background_ff = list(filter(lambda i: i > 0, ff - nr))
         nr = nr - (len(ff) - len(background_ff))
@@ -254,12 +257,11 @@ def update_temporal_components(Y, A, b, Cin, fin, bl=None, c1=None, g=None, sn=N
     C = C[:nr, :]
     YrA = np.array(YrA[:, :nr]).T
 
-    return C, A, b, f, S, bl, c1, sn, g, YrA
+    return C, A, b, f, S, bl, c1, sn, g, YrA, lam
 
 
-
-def update_iteration (parrllcomp, len_parrllcomp, nb,C, S, bl, nr,
-                      ITER, YrA, c1, sn, g, Cin, T, nA, dview, debug, AA, kwargs):
+def update_iteration(parrllcomp, len_parrllcomp, nb, C, S, bl, nr,
+                     ITER, YrA, c1, sn, g, Cin, T, nA, dview, debug, AA, kwargs):
     """Update temporal components and background given spatial components using a block coordinate descent approach.
 
     Parameters:
@@ -351,9 +353,11 @@ def update_iteration (parrllcomp, len_parrllcomp, nb,C, S, bl, nr,
             YrA corresponds to the residual trace for each component and is used for faster plotting (K x T)
 """
 
+    lam = np.repeat(None, nr)
     for _ in range(ITER):
+
         for count, jo_ in enumerate(parrllcomp):
-            #INITIALIZE THE PARAMS
+            # INITIALIZE THE PARAMS
             jo = np.array(list(jo_))
             Ytemp = YrA[:, jo.flatten()] + Cin[jo, :].T
             Ctemp = np.zeros((np.size(jo), T))
@@ -361,10 +365,15 @@ def update_iteration (parrllcomp, len_parrllcomp, nb,C, S, bl, nr,
             nT = nA[jo]
             args_in = [(np.squeeze(np.array(Ytemp[:, jj])), nT[jj], jj, None,
                         None, None, None, kwargs) for jj in range(len(jo))]
-            #computing the most likely discretized spike train underlying a fluorescence trace
-            if dview is not None:
+            # computing the most likely discretized spike train underlying a fluorescence trace
+            if 'multiprocessing' in str(type(dview)):
+                results = dview.map_async(
+                    constrained_foopsi_parallel, args_in).get(4294967)
+
+            elif dview is not None and platform.system() != 'Darwin':
                 if debug:
-                    results = dview.map_async(constrained_foopsi_parallel, args_in)
+                    results = dview.map_async(
+                        constrained_foopsi_parallel, args_in)
                     results.get()
                     for outp in results.stdout:
                         print((outp[:-1]))
@@ -373,17 +382,21 @@ def update_iteration (parrllcomp, len_parrllcomp, nb,C, S, bl, nr,
                         print((outp[:-1]))
                         sys.stderr.flush()
                 else:
-                    results = dview.map_sync(constrained_foopsi_parallel, args_in)
+                    results = dview.map_sync(
+                        constrained_foopsi_parallel, args_in)
+
             else:
                 results = list(map(constrained_foopsi_parallel, args_in))
-            #unparsing and updating the result
+            # unparsing and updating the result
             for chunk in results:
-                C_, Sp_, Ytemp_, cb_, c1_, sn_, gn_, jj_ = chunk
+                C_, Sp_, Ytemp_, cb_, c1_, sn_, gn_, jj_, lam_ = chunk
                 Ctemp[jj_, :] = C_[None, :]
+                Stemp[jj_, :] = Sp_[None, :]
                 bl[jo[jj_]] = cb_
                 c1[jo[jj_]] = c1_
                 sn[jo[jj_]] = sn_
                 g[jo[jj_]] = gn_.T if kwargs['p'] > 0 else []
+                lam[jo[jj_]] = lam_
 
             YrA -= AA[jo, :].T.dot(Ctemp - C[jo, :]).T
             C[jo, :] = Ctemp.copy()
@@ -392,17 +405,17 @@ def update_iteration (parrllcomp, len_parrllcomp, nb,C, S, bl, nr,
                    str(nr) + ' temporal components updated'))
 
         for ii in np.arange(nr, nr + nb):
-            cc = np.maximum(YrA[:, ii] + Cin[ii], 0)
+            cc = np.maximum(YrA[:, ii] + Cin[ii], -np.Inf)
             YrA -= AA[ii, :].T.dot((cc - Cin[ii])[None, :]).T
             C[ii, :] = cc
 
-        if dview is not None:
+        if dview is not None and not('multiprocessing' in str(type(dview))):
             dview.results.clear()
 
-        if old_div(scipy.linalg.norm(Cin - C, 'fro'), scipy.linalg.norm(C, 'fro')) <= 1e-3:
+        if scipy.linalg.norm(Cin - C, 'fro') <= 1e-3 * scipy.linalg.norm(C, 'fro'):
             print("stopping: overall temporal component not changing significantly")
             break
-        else: #we keep Cin and do the iteration once more
+        else:  # we keep Cin and do the iteration once more
             Cin = C
 
-    return C, S, bl, YrA, c1, sn, g
+    return C, S, bl, YrA, c1, sn, g, lam

@@ -1,0 +1,25 @@
+channels:
+- defaults
+- menpo
+dependencies:
+- future
+- numpy
+- scipy
+- ipython
+- ipyparallel
+- jupyter
+- matplotlib
+- scikit-image
+- scikit-learn
+- h5py
+- cython
+- spyder
+- nose
+- bokeh
+- tensorflow
+- keras
+- tqdm
+- opencv3
+- pip:
+  - tifffile==0.12.1
+  - peakutils

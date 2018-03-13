@@ -1,48 +1,55 @@
+;; This buffer is for notes you don't want to save, and for Lisp evaluation.
+;; If you want to create a file, visit that file with C-x C-f,
+;; then enter the text in that file's own buffer.
+
 package:
-  name: constrained_nmf
-  version: "0.3"
+  name: caiman
+  version: "1.0"
 
- 
 source:
-  #git_rev: 0.3
-  #git_url: https://github.com/agiovann/Constrained_NMF.git
-  #git_tag: 507cac2
-  path: .
+  git_url: https://github.com/flatironinstitute/CaImAn
 
-  
 requirements:
   build:
-    - python <3
+    - python
     - setuptools
-    - pip 
-            
-  
+    - cython
+
   run:
-    - python <3
+    - python
+    - setuptools
+    - future
     - numpy
     - scipy
-    - openblas
     - ipython
-    - matplotlib
-    - scikit-learn
-    - scikit-image   
     - ipyparallel
-    - jupyter 
-    - bokeh
-    - cvxopt
-    - psutil
-    
-#    - joblib >=0.8.4
-#    - tifffile >=0.7.0        
-#    - picos >=1.1.1
+    - jupyter
+    - matplotlib
+    - scikit-image
+    - scikit-learn
+    - h5py
+    - cython
+    - spyder
+    - nose
+    - bokeh 
+    - tqdm
+    - opencv3=3.2.0 # [py27 or py35]
+    - opencv3=3.1.0 # [py36]
+    - pip:
+      - tifffile
+      - peakutils
 
- 
-#test:
-#    files:
-#      - movies/demoMovie.tif          
-
+test:
+   requires:
+      - nose
+   commands:
+      - nosetests
+  
+app:
+  summary:  "Caiman: calcium imaging analysis"
 
 about:
-  home: http://agiovann.github.io/Constrained_NMF
-  license: GPL2
-  license_file: LICENSE.txt
+  home: https://github.com/flatironinstitute/CaImAn
+  license: BSD
+  license_file: LICENSE
+
