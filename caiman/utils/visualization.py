@@ -37,6 +37,7 @@ except:
     print("Bokeh could not be loaded. Either it is not installed or you are not running within a notebook")
 
 from ..summary_images import local_correlations
+from skimage.measure import find_contours
 
 
 #%%
@@ -192,7 +193,7 @@ def nb_view_patches(Yr, A, C, b, f, d1, d2, YrA=None, image_neurons=None, thr=0.
     callback = CustomJS(args=dict(source=source, source_=source_, source2=source2, source2_=source2_), code="""
             var data = source.data
             var data_ = source_.data
-            var f = cb_obj.value-1
+            var f = cb_obj.value - 1
             x = data['x']
             y = data['y']
             y2 = data['y2']
@@ -233,6 +234,7 @@ def nb_view_patches(Yr, A, C, b, f, d1, d2, YrA=None, image_neurons=None, thr=0.
                 y=image_neurons.shape[0], dw=d2, dh=d1, palette=grayp)
     plot1.patch('c1', 'c2', alpha=0.6, color='purple',
                 line_width=2, source=source2)
+
     if Y_r.shape[0] > 1:
         bpl.show(bokeh.layouts.layout([[slider], [bokeh.layouts.row(plot1, plot)]]))
     else:
@@ -296,11 +298,7 @@ def get_contours(A, dims, thr=0.9):
         pars['coordinates'] = []
         # for each dimensions we draw the contour
         for B in (Bmat if len(dims) == 3 else [Bmat]):
-            # plotting the contour usgin matplotlib undocumented function around the thr threshold
-            nlist = mpl._cntr.Cntr(y, x, B).trace(thr)
-
-            # vertices will be the first half of the list
-            vertices = nlist[:len(nlist) // 2]
+            vertices = find_contours(B.T, thr)
             # this fix is necessary for having disjoint figures and borders plotted correctly
             v = np.atleast_2d([np.nan, np.nan])
             for _, vtx in enumerate(vertices):
@@ -453,7 +451,7 @@ def nb_view_patches3d(Y_r, A, C, dims, image_type='mean', Yr=None,
                                       source2=source2, source2_=source2_), code="""
                 var data = source.data;
                 var data_ = source_.data;
-                var f = cb_obj.value-1
+                var f = cb_obj.value - 1
                 x = data['x']
                 y = data['y']
                 y2 = data['y2']
@@ -594,8 +592,8 @@ def nb_view_patches3d(Y_r, A, C, dims, image_type='mean', Yr=None,
                        c1[i] = data2_['cc1'][idx[l+f*nz] + i];
                        c2[i] = data2_['cc2'][idx[l+f*nz] + i];
                 }
+                source.change.emit()
                 source2.change.emit();
-                source.change.emit();
             """)
 
     plot = bpl.figure(plot_width=600, plot_height=300)
@@ -1036,7 +1034,6 @@ def plot_shapes(Ab, dims, num_comps=15, size=(15, 15), comps_per_row=None,
                   cmap=cmap, interpolation='nearest')
         ax.axis('off')
     pl.subplots_adjust(0, 0, 1, 1, .06, .06)
-
 
 def inspect_correlation_pnr(correlation_image_pnr, pnr_image):
     """
