@@ -103,23 +103,25 @@ class timeseries(np.ndarray):
 
     def __array_prepare__(self, out_arr, context=None):
         # todo: todocument
-        inputs = context[1]
+
         frRef = None
         startRef = None
-        for inp in inputs:
-            if type(inp) is timeseries:
-                if frRef is None:
-                    frRef = inp.fr
-                else:
-                    if not (frRef - inp.fr) == 0:
-                        raise ValueError('Frame rates of input vectors do not match.'
-                                         ' You cannot perform operations on time series with different frame rates.')
-                if startRef is None:
-                    startRef = inp.start_time
-                else:
-                    if not (startRef - inp.start_time) == 0:
-                        warnings.warn(
-                            'start_time of input vectors do not match: ignore if this is what desired.', UserWarning)
+        if context is not None:
+            inputs = context[1]
+            for inp in inputs:
+                if type(inp) is timeseries:
+                    if frRef is None:
+                        frRef = inp.fr
+                    else:
+                        if not (frRef - inp.fr) == 0:
+                            raise ValueError('Frame rates of input vectors do not match.'
+                                             ' You cannot perform operations on time series with different frame rates.')
+                    if startRef is None:
+                        startRef = inp.start_time
+                    else:
+                        if not (startRef - inp.start_time) == 0:
+                            warnings.warn(
+                                'start_time of input vectors do not match: ignore if this is what desired.', UserWarning)
 
         # then just call the parent
         return np.ndarray.__array_prepare__(self, out_arr, context)
