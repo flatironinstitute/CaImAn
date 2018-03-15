@@ -21,8 +21,12 @@ pipeline {
             sh 'conda env create -q -f environment_python2.yml -p $CONDA_ENV'
             sh '''#!/bin/bash -ex
               source $CONDA_ENV/bin/activate $CONDA_ENV
-              python setup.py build_ext -i
-              nosetests
+              pip install .
+              TEMPDIR=$(mktemp -d)
+              CAIMAN_DATA=$TEMPDIR
+              cd $TEMPDIR
+              caimandata.py install
+              nosetests --traverse-namespace caiman
             '''
           }
         }
@@ -40,8 +44,12 @@ pipeline {
             sh 'conda env create -q -f environment.yml -p $CONDA_ENV'
             sh '''#!/bin/bash -ex
               source $CONDA_ENV/bin/activate $CONDA_ENV
-              python setup.py build_ext -i
-              nosetests
+              pip install .
+              TEMPDIR=$(mktemp -d)
+              CAIMAN_DATA=$TEMPDIR
+              cd $TEMPDIR
+              caimandata.py install
+              nosetests --traverse-namespace caiman
             '''
           }
         }
