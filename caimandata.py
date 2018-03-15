@@ -5,6 +5,7 @@ import filecmp
 import os
 import shutil
 import string
+import subprocess
 import sys # for sys.prefix
 
 from caiman.paths import caiman_datadir
