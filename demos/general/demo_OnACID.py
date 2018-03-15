@@ -74,7 +74,7 @@ K = 4
 #%% obtain initial batch file used for initialization
 
 # memory map file (not needed)
-fname_new = Y[:initbatch].save('demo.mmap', order='C')
+fname_new = Y[:initbatch].save(os.path.join(caiman_datadir(), 'example_movies', 'demo.mmap'), order='C')
 Yr, dims, T = cm.load_memmap(fname_new)
 images = np.reshape(Yr.T, [T] + list(dims), order='F')
 Cn_init = cm.local_correlations(np.reshape(Yr, dims + (T,), order='F'))
