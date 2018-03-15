@@ -50,7 +50,11 @@ def do_check_install(targdir):
 		print("OK")
 
 def do_run_nosetests(targdir):
-	runcmd(["nosetests", "--traverse-namespace", "caiman"])
+	out, err, ret = runcmd(["nosetests", "--traverse-namespace", "caiman"])
+	if ret != 0:
+		print("Nosetests failed with return code " + str(ret))
+	else:
+		print("Nosetests success!")
 
 ###############
 #
