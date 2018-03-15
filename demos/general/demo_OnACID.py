@@ -19,7 +19,7 @@ from caiman.source_extraction import cnmf as cnmf
 from caiman.utils.visualization import view_patches_bar, plot_contours
 from copy import deepcopy
 from scipy.special import log_ndtr
-frim caiman.paths import caiman_datadir
+from caiman.paths import caiman_datadir
 
 #%% load data
 
