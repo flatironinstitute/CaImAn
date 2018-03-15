@@ -74,7 +74,7 @@ def comparitor_all_left_only_files(comparitor, path_prepend):
 
 def runcmd(cmdlist, ignore_error=False, verbose=True):
         if verbose:
-                print("runcmd[" + string.join(cmdlist, " ") + "]")
+                print("runcmd[" + " ".join(cmdlist) + "]")
         pipeline = subprocess.Popen(cmdlist, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
         (stdout, stderr) = pipeline.communicate()
         ret = pipeline.returncode
