@@ -48,6 +48,9 @@ def do_check_install(targdir):
 	if ok:
 		print("OK")
 
+def do_run_nosetests(targdir):
+	runcmd(["nosetests", "--traverse-namespace", "caiman"])
+
 ###############
 #
 
@@ -68,12 +71,27 @@ def comparitor_all_left_only_files(comparitor, path_prepend):
 	return ret
 
 ###############
+
+def runcmd(cmdlist, ignore_error=False, verbose=True):
+        if verbose:
+                print("runcmd[" + string.join(cmdlist, " ") + "]")
+        pipeline = subprocess.Popen(cmdlist, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+        (stdout, stderr) = pipeline.communicate()
+        ret = pipeline.returncode
+        if ret != 0 and not ignore_error:
+                print("Error in runcmd: " + stderr)
+                sys.exit(1)
+        return stdout, stderr, ret
+
+###############
 def main():
 	cfg = handle_args()
 	if   cfg.command == 'install':
 		do_install_to(cfg.userdir)
 	elif cfg.command == 'check':
 		do_check_install(cfg.userdir)
+	elif cfg.command == 'test':
+		do_run_nosetests(cfg.userdir)
 	else:
 		raise Exception("Unknown command")
 
