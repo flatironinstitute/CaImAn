@@ -23,7 +23,7 @@ pipeline {
               source $CONDA_ENV/bin/activate $CONDA_ENV
               pip install .
               TEMPDIR=$(mktemp -d)
-              CAIMAN_DATA=$TEMPDIR
+              export CAIMAN_DATA=$TEMPDIR
               cd $TEMPDIR
               caimandata.py install
               nosetests --traverse-namespace caiman
@@ -46,7 +46,7 @@ pipeline {
               source $CONDA_ENV/bin/activate $CONDA_ENV
               pip install .
               TEMPDIR=$(mktemp -d)
-              CAIMAN_DATA=$TEMPDIR
+              export CAIMAN_DATA=$TEMPDIR
               cd $TEMPDIR
               caimandata.py install
               nosetests --traverse-namespace caiman
