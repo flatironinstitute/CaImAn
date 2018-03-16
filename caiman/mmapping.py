@@ -59,9 +59,8 @@ def load_memmap(filename, mode='r'):
 
     """
     if os.path.splitext(filename)[1] == '.mmap':
+        file_to_load = filename
         filename = os.path.split(filename)[-1]
-        file_to_load = os.path.join(caiman_datadir(), 'example_movies', filename)
-
         fpart = filename.split('_')[1:-1] # The filename encodes the structure of the map
         d1, d2, d3, T, order = int(fpart[-9]), int(fpart[-7]
                                                    ), int(fpart[-5]), int(fpart[-1]), fpart[-3]
@@ -123,13 +122,11 @@ def save_memmap_each(fnames, dview=None, base_name=None, resize_fact=(1, 1, 1), 
         resize_fact = [resize_fact] * len(fnames)
 
     for idx, f in enumerate(fnames):
-        target_file = f
-
         if base_name is not None:
-            pars.append([target_file, base_name + '{:04d}'.format(idx), resize_fact[idx], remove_init,
+            pars.append([f, base_name + '{:04d}'.format(idx), resize_fact[idx], remove_init,
                          idx_xy, order, xy_shifts[idx], add_to_movie, border_to_0])
         else:
-            pars.append([target_file, os.path.splitext(f)[0], resize_fact[idx], remove_init, idx_xy, order,
+            pars.append([f, os.path.splitext(f)[0], resize_fact[idx], remove_init, idx_xy, order,
                          xy_shifts[idx], add_to_movie, border_to_0])
 
     # Perform the job using whatever computing framework we're set to use

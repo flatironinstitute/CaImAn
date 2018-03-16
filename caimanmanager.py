@@ -13,14 +13,13 @@ from caiman.paths import caiman_datadir
 sourcedir_base = os.path.join(sys.prefix, "share", "caiman") # Setuptools will drop our datadir off here
 
 ###############
-# caimandata - A tool to manage the caiman data directory for the current user
+# caimanmanager - A tool to manage the caiman install
 #
 # The caiman data directory is a directory, usually under the user's home directory
 # but configurable with the CAIMAN_DATA environment variable, that is used to hold:
 #   - sample movie data
 #   - code samples
 #   - misc json files used by Caiman libraries
-#   - temporary data files
 #
 # Usually you'll want to work out of that directory. If you keep upgrading Caiman, you'll
 # need to deal with API and demo changes; this tool aims to make that easier to manage.
@@ -102,7 +101,7 @@ def main():
 
 def handle_args():
 	parser = argparse.ArgumentParser(description="Tool to manage Caiman data directory")
-	parser.add_argument("command", help="Subcommand to run. install/check/clean")
+	parser.add_argument("command", help="Subcommand to run. install/check/clean/tests")
 	cfg = parser.parse_args()
 	cfg.userdir = caiman_datadir()
 	return cfg

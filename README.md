@@ -133,16 +133,16 @@ We recently incorporated a Python implementation of the OnACID [[5]](#onacid) al
 Alternative environments:
    * [Using experimental CUDA support](/README-cuda.md)
 
-* caimandata
+* caimanmanager
 
-  Once CaImAn is installed, you may want to get a working directory with code samples and datasets; pip installed a caimandata.py command
-  that manages this. If you have not installed Caiman before, you can do "caimandata.py install" and it will place that directory under
+  Once CaImAn is installed, you may want to get a working directory with code samples and datasets; pip installed a caimanmanager.py command
+  that manages this. If you have not installed Caiman before, you can do "caimanmanager.py install" and it will place that directory under
   your home directory in a directory called caiman_data. If you have, some of the demos or datafiles may have changed since your last install,
-  to follow API changes. You can check to see if they have by doing "caimandata.py check". If they have not, you may keep using them. If they have,
+  to follow API changes. You can check to see if they have by doing "caimanmanager.py check". If they have not, you may keep using them. If they have,
   we recommend moving your old caiman data directory out of the way (or just remove them if you have no precious data) and doing
   a new data install as per above.
 
-  If you prefer to manage this information somewhere else, the CAIMAN_DATA environment variable can be set to customise it. The caimandata tool
+  If you prefer to manage this information somewhere else, the CAIMAN_DATA environment variable can be set to customise it. The caimanmanager tool
   and other libraries will respect that.
 
 ### Installation for behavioral analysis
