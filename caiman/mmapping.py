@@ -31,7 +31,7 @@ except ImportError:
 
 
 #%%
-def load_memmap(filename, mode='r', true_path=False):
+def load_memmap(filename, mode='r'):
     """ Load a memory mapped file created by the function save_memmap
 
     Parameters:
@@ -40,9 +40,6 @@ def load_memmap(filename, mode='r', true_path=False):
             path of the file to be loaded
         mode: str
             One of 'r', 'r+', 'w+'. How to interact with files
-        true_path: bool (defaults False)
-            If true, use the filename as a literal path, otherwise
-            use the caiman_data directory
 
     Returns:
     --------
@@ -62,15 +59,10 @@ def load_memmap(filename, mode='r', true_path=False):
 
     """
     if os.path.splitext(filename)[1] == '.mmap':
-        if true_path:
-            file_to_load = filename
-            filename = os.path.split(filename)[-1]
-        else:
-            # Strip path components and use CAIMAN_DATA/example_movies
-            # TODO: Eventually get the code to save these in a different dir
-            filename = os.path.split(filename)[-1]
-            file_to_load = os.path.join(caiman_datadir(), 'example_movies', filename)
-
+        # Strip path components and use CAIMAN_DATA/example_movies
+        # TODO: Eventually get the code to save these in a different dir
+        file_to_load = filename
+        filename = os.path.split(filename)[-1]
         fpart = filename.split('_')[1:-1] # The filename encodes the structure of the map
         d1, d2, d3, T, order = int(fpart[-9]), int(fpart[-7]
                                                    ), int(fpart[-5]), int(fpart[-1]), fpart[-3]
@@ -82,7 +74,7 @@ def load_memmap(filename, mode='r', true_path=False):
 
 #%%
 def save_memmap_each(fnames, dview=None, base_name=None, resize_fact=(1, 1, 1), remove_init=0,
-                     idx_xy=None, xy_shifts=None, add_to_movie=0, border_to_0=0, order = 'C', true_path=False):
+                     idx_xy=None, xy_shifts=None, add_to_movie=0, border_to_0=0, order = 'C'):
     """
     Create several memory mapped files using parallel processing
 
@@ -117,10 +109,6 @@ def save_memmap_each(fnames, dview=None, base_name=None, resize_fact=(1, 1, 1), 
 
     order: (undocumented)
 
-    true_path: bool (defaults False)
-        If true, use the filename as a literal path, otherwise
-        use the caiman_data directory
-
     Returns:
     --------
     fnames_tot: list
@@ -136,17 +124,11 @@ def save_memmap_each(fnames, dview=None, base_name=None, resize_fact=(1, 1, 1), 
         resize_fact = [resize_fact] * len(fnames)
 
     for idx, f in enumerate(fnames):
-        if true_path:
-            target_file = f
-        else: # Rewrite filename to be in CAIMAN_DATA/example_movies
-            target_file = os.path.split(f)[-1] # Strip leading path
-            target_file = os.path.join(caiman_datadir(), 'example_movies', target_file) # And add new path header
-
         if base_name is not None:
-            pars.append([target_file, base_name + '{:04d}'.format(idx), resize_fact[idx], remove_init,
+            pars.append([f, base_name + '{:04d}'.format(idx), resize_fact[idx], remove_init,
                          idx_xy, order, xy_shifts[idx], add_to_movie, border_to_0])
         else:
-            pars.append([target_file, os.path.splitext(f)[0], resize_fact[idx], remove_init, idx_xy, order,
+            pars.append([f, os.path.splitext(f)[0], resize_fact[idx], remove_init, idx_xy, order,
                          xy_shifts[idx], add_to_movie, border_to_0])
 
     # Perform the job using whatever computing framework we're set to use
@@ -162,7 +144,7 @@ def save_memmap_each(fnames, dview=None, base_name=None, resize_fact=(1, 1, 1), 
 
 
 #%%
-def save_memmap_join(mmap_fnames, base_name=None, n_chunks=20, dview=None, true_path=False):
+def save_memmap_join(mmap_fnames, base_name=None, n_chunks=20, dview=None):
     """
     From small memory mappable files creates a large one
 
@@ -177,10 +159,6 @@ def save_memmap_join(mmap_fnames, base_name=None, n_chunks=20, dview=None, true_
 
     dview: cluster handle
 
-    true_path: bool (defaults False)
-        If true, use the filename as a literal path, otherwise
-        use the caiman_data directory
-
     Returns:
     --------
 
@@ -189,7 +167,7 @@ def save_memmap_join(mmap_fnames, base_name=None, n_chunks=20, dview=None, true_
     tot_frames = 0
     order = 'C'
     for f in mmap_fnames:
-        Yr, dims, T = load_memmap(f, true_path=true_path)
+        Yr, dims, T = load_memmap(f)
         print((f, T))
         tot_frames += T
         del Yr
@@ -206,9 +184,6 @@ def save_memmap_join(mmap_fnames, base_name=None, n_chunks=20, dview=None, true_
                  str(1 if len(dims) == 2 else dims[2]) + '_order_' + str(order) +
                  '_frames_' + str(tot_frames) + '_.mmap')
     fname_tot = os.path.join(os.path.split(mmap_fnames[0])[0], fname_tot)
-    if not true_path:
-        fname_tot = os.path.split(fname_tot)[-1] # Strip leading path
-        fname_tot = os.path.join(caiman_datadir(), 'example_movies', fname_tot) # And add new path header
 
     print(fname_tot)
 
@@ -331,7 +306,7 @@ def save_place_holder(pars):
 #%%
 def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0, idx_xy=None,
                 order='F', xy_shifts=None, is_3D=False, add_to_movie=0, border_to_0=0, dview = None,
-                n_chunks=100, async=False, true_path=False):
+                n_chunks=100, async=False):
 
     """ Efficiently write data from a list of tif files into a memory mappable file
 
@@ -368,9 +343,6 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
         dview:       (undocumented)
         n_chunks:    (undocumented)
         async:       (undocumented)
-        true_path: boolean (default False)
-            Set to true to trust filenames and allow saving them outside the CAIMAN_DATA directory, otherwise
-            their path bits are chopped out and they're put there even if another path is specified.
     Returns:
     -------
         fname_new: the name of the mapped file, the format is such that
@@ -396,22 +368,18 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
                                         remove_init  = remove_init,
                                         idx_xy       = idx_xy,
                                         xy_shifts    = xy_shifts,
-                                        add_to_movie = add_to_movie,
-                                        true_path    = true_path)
+                                        add_to_movie = add_to_movie)
         else:
             fname_new = filenames
 
         # The goal is to make a single large memmap file, which we do here
-        fname_new = cm.save_memmap_join(fname_new, base_name=base_name, dview=dview, n_chunks=n_chunks, true_path=true_path)
+        fname_new = cm.save_memmap_join(fname_new, base_name=base_name, dview=dview, n_chunks=n_chunks)
 
     else:
     # TODO: can be done online
         Ttot = 0
         for idx, f in enumerate(filenames):
             if isinstance(f, str): # Might not always be filenames. If it is, correct their path if warranted.
-                if not true_path:
-                    f = os.path.split(f)[-1] # Strip leading path
-                    f = os.path.join(caiman_datadir(), 'example_movies', f) # And add new path header
                 print(f)
 
             if is_3D:
@@ -459,9 +427,6 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
                     1 if len(dims) == 2 else dims[2]) + '_order_' + str(order) # TODO: Rewrite more legibly
                 if isinstance(f, str):
                     fname_tot = os.path.join(os.path.split(f)[0], fname_tot)
-                    if not true_path:
-                        fname_tot = os.path.split(fname_tot)[-1] # Strip leading path
-                        fname_tot = os.path.join(caiman_datadir(), 'example_movies', fname_tot) # And add new path header
                 if len(filenames) > 1:
                     big_mov = np.memmap(fname_tot, mode='w+', dtype=np.float32,
                                     shape=(np.prod(dims), T), order=order)

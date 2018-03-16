@@ -28,7 +28,7 @@ with open('README.md', 'r') as rmf:
 # Note that if python's packaging standards ever change the install base of data_files to be under the
 # package that made them, we can switch to using the pkg_resources API.
 
-binaries = ['caimandata.py']
+binaries = ['caimanmanager.py']
 extra_dirs = ['demos', 'use_cases', 'example_movies']
 data_files = [('', ['LICENSE.txt']),
               ('', ['README.md']),
