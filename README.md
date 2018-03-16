@@ -172,7 +172,7 @@ Alternative environments:
 
 ## Testing
 
-* All diffs must be tested before asking for a pull request. Call 'nosetests --traverse-namespace caiman' program from outside of your CaImAn folder to look for errors. 
+* All diffs must be tested before asking for a pull request. Call 'caimandata.py test' from outside of your CaImAn folder to look for errors. 
    For python3 on MacOS nosetests does not work properly. If you need to test, then type the following from within the CaImAn folder:
 ```bash
 cd caiman/tests

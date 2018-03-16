@@ -21,7 +21,6 @@ import ipyparallel as parallel
 from itertools import chain
 
 import caiman as cm
-from caiman.paths import caiman_datadir
 
 try:
     import tifffile
@@ -379,7 +378,7 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
     # TODO: can be done online
         Ttot = 0
         for idx, f in enumerate(filenames):
-            if isinstance(f, str): # Might not always be filenames. If it is, correct their path if warranted.
+            if isinstance(f, str): # Might not always be filenames.
                 print(f)
 
             if is_3D:
