@@ -44,27 +44,27 @@ import glob
 from caiman.source_extraction.cnmf.online_cnmf import bare_initialization
 from copy import deepcopy
 #%%
-import sys
-ID = sys.argv[1]
-ID = str(np.int(ID)+1)
-print('Processing ID:'+ str(ID))
+try:
+    import sys
+    ID = sys.argv[1]
+    ID = str(np.int(ID)+1)
+    print('Processing ID:'+ str(ID))
+    ploton = False
+    save_results = True
+    save_init = True     # flag for saving initialization object. Useful if you want to check OnACID with different parameters but same initialization
+except:
+    print('ID NOT PASSED')
+    ploton = False
+    save_results = False
+    save_init = False # flag for saving initialization object. Useful if you want to check OnACID with different parameters but same initialization
 
-#%%  download and list all files to be processed
 
-# folder inside ./example_movies where files will be saved
-#fld_name = 'Mesoscope'
-#download_demo('Tolias_mesoscope_1.hdf5', fld_name)
-#download_demo('Tolias_mesoscope_2.hdf5', fld_name)
-#download_demo('Tolias_mesoscope_3.hdf5', fld_name)
-#
-## folder where files are located
-#folder_name = os.path.join(caiman_path, 'example_movies', fld_name)
-#extension = 'hdf5'                                  # extension of files
-#fls = ['example_movies/Mesoscope/Tolias_mesoscope_1.hdf5','example_movies/Mesoscope/Tolias_mesoscope_2.hdf5','example_movies/Mesoscope/Tolias_mesoscope_3.hdf5']
-#fls = fls[:]
-# read all files to be processed
 #%%
-ploton = False
+decay_time = 1.5
+gSig = (6,6)
+rval_thr = 1
+epochs = 1
+
 #fls = ['/mnt/ceph/neuro/zebra/05292014Fish1-4/images/mmap_tifs/Plane17_100_500_400_-350_mc_noinit_small.tif']
 #K = 10
 #min_num_trial = 50
@@ -73,21 +73,25 @@ ploton = False
 #min_num_trial = 5
 #fls = ['/mnt/ceph/neuro/zebra/05292014Fish1-4/images/mmap_tifs/Plane17_100_500_400_-350_mc.tif']
 #K = 200
-#min_num_trial = 20
+#min_num_trial = 30
 #
-fls = ['/mnt/ceph/neuro/zebra/05292014Fish1-4/Plane' + str(ID) + '.stack.hdf5']
-mmm = cm.load(fls,subindices = 0)
+#fls = ['/mnt/ceph/neuro/zebra/05292014Fish1-4/images/mmap_tifs/Plane12_140_280_620_760.tif']
+
 #fls = ['/mnt/ceph/neuro/zebra/05292014Fish1-4/images/mmap_tifs/Plane17.stack.hdf5']
-K = np.round(600/1602720*np.prod(mmm.shape)).astype(np.int)
-min_num_trial = np.round(130/1602720*np.prod(mmm.shape)).astype(np.int)
+fls = ['/mnt/ceph/neuro/zebra/05292014Fish1-4/Plane' + str(ID) + '.stack.hdf5'];
+K = 100
+min_num_trial = 50
+
+mmm = cm.load(fls,subindices = 0)
+dims = mmm.shape
+K = np.maximum(K,np.round(600/1602720*np.prod(mmm.shape)).astype(np.int))
+min_num_trial = np.maximum(min_num_trial,np.round(200/1602720*np.prod(mmm.shape)).astype(np.int))
 # your list of files should look something like this
 print(fls)
-decay_time = 1.5
-gSig = (7, 7)
-rval_thr = 1
+
+print([K,min_num_trial])
 
 # number of passes over the data
-epochs = 2
 #%%   Set up some parameters
 
 # frame rate (Hz)
@@ -142,7 +146,14 @@ thresh_fitness_raw = scipy.special.log_ndtr(-min_SNR) * N_samples
 len_file = 1885#1885 1815
 # total length of all files (if not known use a large number, then truncate at the end)
 T1 = len(fls) * len_file * epochs
-
+#%%
+compute_corr = False
+if compute_corr:
+    m = cm.load(fls)
+    mc = m.motion_correct(10,10)[0]
+    mp = (mc.computeDFF(3))
+    Cn = cv2.resize(mp[0].local_correlations(eight_neighbours=True, swap_dim=False),dims[::-1][:-1])
+    np.save('/mnt/ceph/neuro/zebra/05292014Fish1-4/results_analysis_online_Plane_CN_' + str(ID) + '.npy', Cn)
 #%%    Initialize movie
 # load only the first initbatch frames and possibly downsample them
 if ds_factor > 1:
@@ -259,7 +270,6 @@ def create_frame(cnm2, img_norm, captions):
 cnm2 = deepcopy(cnm_init)
 path_to_model = '/mnt/home/agiovann/SOFTWARE/CaImAn/use_cases/edge-cutter/residual_classifier_2classes.h5'
 path_to_model = '/mnt/home/agiovann/SOFTWARE/CaImAn/use_cases/CaImAnpaper/net_models/sniper_sensitive.h5'
-save_init = False     # flag for saving initialization object. Useful if you want to check OnACID with different parameters but same initialization
 if save_init:
     cnm_init.dview = None
     save_object(cnm_init, fls[0][:-4] + '_DS_' + str(ds_factor) + '.pkl')
@@ -269,7 +279,7 @@ t1 = time()
 cnm2._prepare_object(np.asarray(Yr), T1, expected_comps, idx_components=None,
                          min_num_trial=min_num_trial, max_num_added = min_num_trial, N_samples_exceptionality=int(N_samples),
                          path_to_model = path_to_model,
-                         sniper_mode = True)
+                         sniper_mode = True, use_peak_max = True)
 cnm2.thresh_CNN_noisy = 0.75
 time_prepare = time() - t1
 #%% Run OnACID and optionally plot results in real time
@@ -401,20 +411,20 @@ if save_movie:
     out.release()
 cv2.destroyAllWindows()
 #%%  save results (optional)
-save_results = False
 
 if save_results:
-    np.savez('/mnt/ceph/neuro/zebra/05292014Fish1-4/results_analysis_online_Plane_NOWAY' + str(ID) + '.npz',
+    np.savez('/mnt/ceph/neuro/zebra/05292014Fish1-4/results_analysis_online_1EPOCH_gSig6_equalized_Plane_' + str(ID) + '.npz',
              Cn=Cn, Ab=cnm2.Ab, Cf=cnm2.C_on, b=cnm2.b, f=cnm2.f,
              dims=cnm2.dims, tottime=tottime, noisyC=cnm2.noisyC, shifts=shifts,
              num_comps = num_comps,
              time_prepare=time_prepare, time_init=time_init)
 #%%
 if ploton:
-
     m = cm.load(fls)
+    m = m.motion_correct(10,10)[0]
     mp = (m.computeDFF(3))
-    Cn = cv2.resize(mp[0].local_correlations(eight_neighbours=True, swap_dim=False),dims[::-1])
+    Cn_ = mp[0].local_correlations(eight_neighbours=True, swap_dim=False)
+    Cn_ = cv2.resize(Cn_,dims[::-1])
 #%% extract results from the objects and do some plotting
 if ploton:
     A, b = cnm2.Ab[:, cnm2.gnb:], cnm2.Ab[:, :cnm2.gnb].toarray()
@@ -425,28 +435,165 @@ if ploton:
         cnm2, 'OASISinstances') else [0] * C.shape[0]
 
     pl.figure()
-    crd = cm.utils.visualization.plot_contours(A, Cn, thr=0.9, vmax = 0.5)
+    crd = cm.utils.visualization.plot_contours(A, Cn_, thr=0.9, vmax = 0.75)
     view_patches_bar(Yr, scipy.sparse.coo_matrix(A.tocsc()[:, :]), C[:, :], b, f,
-                     dims[0], dims[1], YrA=noisyC[cnm2.gnb:cnm2.M] - C, img=Cn)
+                     dims[0], dims[1], YrA=noisyC[cnm2.gnb:cnm2.M] - C, img=Cn_)
 
     #%%
     #df_f = detrend_df_f_auto(A,b,C,f,YrA)
-    A_img = preprocessing.scale(A.toarray(),axis=0).mean(axis=-1).reshape(dims,order='F')
+    A_img = scale(A.toarray(),axis=0).mean(axis=-1).reshape(dims,order='F')
     crd = cm.utils.visualization.plot_contours(A, A_img, thr=0.9, vmax = 0.1,vmin=-0.01,cmap='gray')
     #%%
-    pl.imshow(preprocessing.scale(A.toarray(),axis=0).mean(axis=-1).reshape(dims,order='F'),vmin=-.01,vmax=.1,cmap='gray')
-#%%
-from sklearn.preprocessing import normalize
-num_neur = []
+    from sklearn.preprocessing import scale
+    pl.imshow(scale(A.toarray(),axis=0).mean(axis=-1).reshape(dims,order='F'),vmin=-.01,vmax=.1,cmap='gray')
+#%% weighted suff stats
+    #%% WEIGHTED SUFF STAT
 if ploton:
-    for ID in range(1,46):
+    from caiman.components_evaluation import compute_event_exceptionality
+    from scipy.stats import norm
+
+    min_SNR = 2.5
+    N_samples = np.ceil(fr*decay_time).astype(np.int)   # number of timesteps to consider when testing new neuron candidates
+    fitness, erf, noi, what = compute_event_exceptionality(C+cnm2.noisyC[cnm2.gnb:cnm2.M, t - t // epochs:t],N=N_samples)
+    COMP_SNR = -norm.ppf(np.exp(erf/ N_samples))
+    COMP_SNR  = np.vstack([np.ones_like(f),COMP_SNR])
+    COMP_SNR = np.clip(COMP_SNR, a_min = 0, a_max = 100)
+
+    Cf = cnm2.C_on[:cnm2.M, t-t//epochs:t]
+
+    Cf_ = Cf*COMP_SNR
+#    Cf__ = Cf*np.sqrt(COMP_SNR)
+    CC_ = Cf_.dot(Cf.T)
+#    CC_ = Cf__.dot(Cf__.T)
+    CY_ = Cf_.dot([(cv2.resize(yy,dims[::-1]).reshape(-1,order='F')-img_min)/img_norm.reshape(-1, order='F') for yy in Y_])
+
+    Ab_, ind_A_, Ab_dense_ = cm.source_extraction.cnmf.online_cnmf.update_shapes(CY_, CC_, cnm2.Ab.copy(), cnm2.ind_A, indicator_components=None, Ab_dense=None, update_bkgrd=True, iters=55)
+    #%%
+    A_, b_ = Ab_[:, cnm2.gnb:], Ab_[:, :cnm2.gnb].toarray()
+
+    #
+    #view_patches_bar(Yr, scipy.sparse.coo_matrix(A_.tocsc()[:, :]), C[:, :], b_, f,
+    #                 dims[0], dims[1], YrA=noisyC - C, img=Cn)
+    counter = 0
+    for comp1, comp2 in zip(A.T,A_.T):
+        counter += 1
+        if counter > 380:
+            print(scipy.sparse.linalg.norm(comp1-comp2),scipy.sparse.linalg.norm(comp1),scipy.sparse.linalg.norm(comp2))
+            pl.subplot(1,3,1)
+            pl.imshow((comp1-comp2).toarray().reshape(dims, order='F'))
+            pl.subplot(1,3,2)
+            pl.imshow((comp1).toarray().reshape(dims, order='F'),vmax = 0.1)
+            pl.subplot(1,3,3)
+            pl.imshow((comp2).toarray().reshape(dims, order='F'),vmax = 0.1)
+            pl.pause(1)
+            if counter > 390:
+                break
+
+#%% Plane 11
+if ploton:
+    from sklearn.preprocessing import normalize
+    num_neur = []
+    tott = np.zeros_like(tottime)
+    update_comps_time = []
+    tott = []
+    time_per_neuron = []
+    pl.figure()
+    for ID in range(11,12):
 #        try:
-            with np.load('/mnt/ceph/neuro/zebra/05292014Fish1-4/results_analysis_online_Plane' + str(ID) + '.npz') as ld:
+            with np.load('/mnt/ceph/neuro/zebra/05292014Fish1-4/results_analysis_online_1EPOCH_gSig6_equalized_Plane_' + str(ID) + '.npz') as ld:
                 locals().update(ld)
+                print(ld.keys())
                 pl.subplot(5,9,ID)
-                img = normalize(Ab[()][:,3:],'l1',axis=0).mean(-1).reshape(dims,order = 'F').T
-                pl.imshow(img,cmap='gray',vmin=np.percentile(img,5),vmax=np.percentile(img,99))
+#                img = normalize(Ab[()][:,3:],'l1',axis=0).mean(-1).reshape(dims,order = 'F').T
+                Cn_ = np.load('/mnt/ceph/neuro/zebra/05292014Fish1-4/results_analysis_online_Plane_CN_'+str(ID)+ '.npy')
+#
+#                pl.imshow(Cf[3:],aspect = 'auto', vmax = 10)
+                pl.figure();crd = cm.utils.visualization.plot_contours(
+                        Ab[()][:,3:].toarray().reshape(tuple(dims)+(-1,), order = 'F').transpose([1,0,2]).\
+                        reshape((dims[1]*dims[0],-1),order = 'F'), cv2.resize(Cn_,tuple(dims[::-1])).T, thr=0.9, vmax = 0.75,
+                        display_numbers=False)
+#                A_thr = cm.source_extraction.cnmf.spatial.threshold_components(Ab[()].tocsc()[:,gnb:].toarray(), dims, medw=None, thr_method='nrg',
+#                                                                  maxthr=0.3, nrgthr=0.95, extract_cc=True,
+#                                 se=None, ss=None, dview=dview)
+#                np.save('/mnt/ceph/neuro/zebra/05292014Fish1-4/thresholded_components' + str(ID) + '.npy',A_thr)
+                A_thr = np.load('/mnt/ceph/neuro/zebra/05292014Fish1-4/thresholded_components' + str(ID) + '.npy')
+#                img = normalize(Ab[()][:,gnb:].multiply(A_thr),'l1',axis=0).mean(-1).reshape(dims,order = 'F').T
+#                img = Ab[()][:,gnb:].multiply(A_thr).mean(-1).reshape(dims,order = 'F').T
+                Ab_thr = Ab[()][:,gnb:].multiply(A_thr)
+                img = (Ab_thr.dot(scipy.sparse.spdiags(np.minimum(1.0/np.max(Ab_thr,0).toarray(),100),0,Ab_thr.shape[-1],Ab_thr.shape[-1]))).mean(-1).reshape(dims,order = 'F').T
+                pl.imshow(img,vmin=np.percentile(img,5),vmax=np.percentile(img,99.99),cmap = 'gray')
+
+#                A_thr = A_thr > 0
+
+#                pl.imshow(((A_thr*np.random.randint(1,10,A_thr.shape[-1])[None,:]).sum(-1).reshape(dims,order='F')).T, cmap = 'hot', vmin = 0.9, vmax=20)
                 pl.axis('off')
-                num_neur.append(Ab[()].shape[-1]-3)
+                pl.pause(0.05)
+
+                num_neur.append(num_comps[1885-201])
+                tottime = tottime[:1885-201]
+                num_comps = num_comps[:1885-201]
+                update_comps_time.append((np.array(num_comps)[99::100],tottime[99::100].copy()))
+                tottime[99::100] = np.nan
+                tottime[0] = np.nan
+                [(np.where(np.diff([0]+list(num_comps))==cc)[0], tottime[np.where(np.diff([0]+list(num_comps))==cc)[0]]) for cc in range(6)]
+                tott.append(tottime)
+
 #        except:
             print(ID)
+    pl.tight_layout()
+    #%% predictions for Plan 11
+    from skimage.util.montage import  montage2d
+    predictions, final_crops = cm.components_evaluation.evaluate_components_CNN(Ab[()][:,gnb:], dims, np.array(gSig).astype(np.int), model_name='use_cases/CaImAnpaper/cnn_model', patch_size=50, loaded_model=None, isGPU=False)
+    #%%
+    idx = np.argsort(predictions[:,0])[:24]#[[0,1,2,3,5,9]]
+    Ab_part = Ab[()][:,gnb:][:,idx]
+    pl.imshow(montage2d(final_crops[idx]))
+    pl.figure();crd = cm.utils.visualization.plot_contours(
+                        Ab_part.toarray().reshape(tuple(dims)+(-1,), order = 'F').transpose([1,0,2]).\
+                        reshape((dims[1]*dims[0],-1),order = 'F'), cv2.resize(Cn_,tuple(dims[::-1])).T, thr=0.9, vmax = 0.95,
+                        display_numbers=True)
+    #%%
+    pl.imshow(Cf[idx+gnb],aspect = 'auto', vmax = 10)
+
+#%%
+    pl.rcParams['pdf.fonttype'] = 42
+    font = {'family' : 'Arial',
+    'weight' : 'regular',
+    'size'   : 20}
+
+    pl.rc('font', **font)
+    pl.close()
+    pl.subplot(1,2,1)
+    for ttt in update_comps_time:
+        pl.plot(ttt[0],ttt[1],'o')
+    pl.xlabel('number of components')
+    pl.ylabel('time(s)')
+    pl.title('updating shapes')
+    pl.subplot(1,2,2)
+    #for ttt in tott:
+    pl.plot(np.arange(1885-201)*1,np.max(tott,0))
+    pl.plot([0,(1885-201)*1],[1,1],'k--')
+    pl.ylabel('time (s)')
+    pl.xlabel('time (s)')
+    pl.title('neural activity tracking')
+    #%%
+    try:
+#        cm.stop_server()
+        dview.terminate()
+    except:
+        print('No clusters to stop')
+
+    c, dview, n_processes = cm.cluster.setup_cluster(
+            backend='local', n_processes=24)
+
+    A_thr = cm.source_extraction.cnmf.spatial.threshold_components(Ab[()].tocsc()[:,gnb:].toarray(), dims, medw=None, thr_method='nrg',
+                                                                  maxthr=0.3, nrgthr=0.95, extract_cc=True,
+                                 se=None, ss=None, dview=dview)
+
+    A_thr = A_thr > 0
+    size_neurons = A_thr.sum(0)
+#        idx_size_neuro = np.where((size_neurons>min_size_neuro) & (size_neurons<max_size_neuro) )[0]
+#    A_thr = A_thr[:,idx_size_neuro]
+    print(A_thr.shape)
+    #%
+    pl.imshow((A_thr*np.random.randint(1,20,A_thr.shape[-1])[None,:]).sum(-1).reshape(dims,order='F'), cmap = 'tab20c')

@@ -242,11 +242,11 @@ def evaluate_components_CNN(A, dims, gSig, model_name='use_cases/CaImAnpaper/cnn
         import os
         os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 
-    try:
-        os.environ["KERAS_BACKEND"] = "tensorflow"
-        from keras.models import model_from_json
-    except:
-        print('PROBLEM LOADING KERAS: cannot use classifier')
+#    try:
+    os.environ["KERAS_BACKEND"] = "tensorflow"
+    from keras.models import model_from_json
+#    except:
+#        print('PROBLEM LOADING KERAS: cannot use classifier')
 
     if loaded_model is None:
         json_file = open(model_name + '.json', 'r')
