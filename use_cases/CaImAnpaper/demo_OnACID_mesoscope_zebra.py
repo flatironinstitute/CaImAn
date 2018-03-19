@@ -521,7 +521,7 @@ if ploton:
 #                img = Ab[()][:,gnb:].multiply(A_thr).mean(-1).reshape(dims,order = 'F').T
                 Ab_thr = Ab[()][:,gnb:].multiply(A_thr)
                 img = (Ab_thr.dot(scipy.sparse.spdiags(np.minimum(1.0/np.max(Ab_thr,0).toarray(),100),0,Ab_thr.shape[-1],Ab_thr.shape[-1]))).mean(-1).reshape(dims,order = 'F').T
-                pl.imshow(img,vmin=np.percentile(img,5),vmax=np.percentile(img,99.99),cmap = 'gray')
+                pl.imshow(img,vmin=np.percentile(img,5),vmax=np.percentile(img,99.99),cmap = 'hot')
 
 #                A_thr = A_thr > 0
 
@@ -545,15 +545,26 @@ if ploton:
     from skimage.util.montage import  montage2d
     predictions, final_crops = cm.components_evaluation.evaluate_components_CNN(Ab[()][:,gnb:], dims, np.array(gSig).astype(np.int), model_name='use_cases/CaImAnpaper/cnn_model', patch_size=50, loaded_model=None, isGPU=False)
     #%%
-    idx = np.argsort(predictions[:,0])[:24]#[[0,1,2,3,5,9]]
+    idx = np.argsort(predictions[:,0])[:10]#[[0,1,2,3,5,9]]
     Ab_part = Ab[()][:,gnb:][:,idx]
     pl.imshow(montage2d(final_crops[idx]))
     pl.figure();crd = cm.utils.visualization.plot_contours(
                         Ab_part.toarray().reshape(tuple(dims)+(-1,), order = 'F').transpose([1,0,2]).\
                         reshape((dims[1]*dims[0],-1),order = 'F'), cv2.resize(Cn_,tuple(dims[::-1])).T, thr=0.9, vmax = 0.95,
                         display_numbers=True)
+    pl.figure();crd = cm.utils.visualization.plot_contours(
+                        Ab_part.toarray().reshape(tuple(dims)+(-1,), order = 'F').transpose([1,0,2]).\
+                        reshape((dims[1]*dims[0],-1),order = 'F'), img, thr=0.9, display_numbers=True, vmax = .001)
     #%%
-    pl.imshow(Cf[idx+gnb],aspect = 'auto', vmax = 10)
+    count = 0
+    for cf,sp_c in zip(Cf[idx+gnb], final_crops[idx]):
+        pl.subplot(10,2,2*count+1)
+        pl.imshow(sp_c[10:-10,10:-10])
+        pl.axis('off')
+        pl.subplot(10,2,2*count+2)
+        pl.plot(cf)
+        count+=1
+        pl.axis('off')
 
 #%%
     pl.rcParams['pdf.fonttype'] = 42
