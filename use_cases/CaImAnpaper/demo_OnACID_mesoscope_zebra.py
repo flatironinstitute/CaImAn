@@ -214,8 +214,9 @@ def create_frame(cnm2, img_norm, captions):
     # inferred activity due to components (no background)
     comps_frame = A.dot(C[:, t - 1]).reshape(cnm2.dims,
                                              order='F') * img_norm / np.max(img_norm)
-
-#    comps_frame = cnm2.sv.reshape(cnm2.dims, order='C')/100
+    comps_frame_ = A.dot(C[:, t - 1]).reshape(cnm2.dims,
+                                             order='F') * img_norm / np.max(img_norm)/3
+    comps_frame_ = cnm2.sv.reshape(cnm2.dims, order='C')/200
 
 
     bgkrnd_frame = b.dot(f[:, t - 1]).reshape(cnm2.dims, order='F') * \
@@ -225,7 +226,7 @@ def create_frame(cnm2, img_norm, captions):
 
     if show_residuals:
         all_comps = np.reshape(cnm2.Yres_buf.mean(
-            0), cnm2.dims, order='F') * img_norm / np.max(img_norm)
+            0), cnm2.dims, order='F') * img_norm / np.max(img_norm) / 2
         all_comps = np.minimum(np.maximum(all_comps * 10, 0), 255)
     else:
         all_comps = (np.array(A.sum(-1)).reshape(cnm2.dims, order='F')
@@ -235,7 +236,7 @@ def create_frame(cnm2, img_norm, captions):
     frame_comp_1 = cv2.resize(np.concatenate([frame_ / np.max(img_norm), all_comps * 3.], axis=-1),
                               (2 * np.int(cnm2.dims[1] * resize_fact), np.int(cnm2.dims[0] * resize_fact)))
 
-    frame_comp_2 = cv2.resize(np.concatenate([comps_frame * 10., comps_frame + bgkrnd_frame],
+    frame_comp_2 = cv2.resize(np.concatenate([comps_frame_ * 10., comps_frame + bgkrnd_frame],
                                              axis=-1), (2 * np.int(cnm2.dims[1] * resize_fact), np.int(cnm2.dims[0] * resize_fact)))
 
     frame_pn = np.concatenate([frame_comp_1, frame_comp_2], axis=0).T
@@ -246,12 +247,12 @@ def create_frame(cnm2, img_norm, captions):
         add_v = np.int(cnm2.dims[1]*resize_fact)
         for ind_new in cnm2.ind_new_all:
             cv2.rectangle(vid_frame,(int(ind_new[0][1]*resize_fact),int(ind_new[1][1]*resize_fact)+add_v),
-                                         (int(ind_new[0][0]*resize_fact),int(ind_new[1][0]*resize_fact)+add_v),(255,255,255),2)
+                                         (int(ind_new[0][0]*resize_fact),int(ind_new[1][0]*resize_fact)+add_v),(255,255,255),1)
     if show_residuals and cnm2.ind_new:
         add_v = np.int(cnm2.dims[1]*resize_fact)
         for ind_new in cnm2.ind_new:
             cv2.rectangle(vid_frame,(int(ind_new[0][1]*resize_fact),int(ind_new[1][1]*resize_fact)+add_v),
-                                         (int(ind_new[0][0]*resize_fact),int(ind_new[1][0]*resize_fact)+add_v),(255,0,255),2)
+                                         (int(ind_new[0][0]*resize_fact),int(ind_new[1][0]*resize_fact)+add_v),(255,0,255),1)
 
 
     cv2.putText(vid_frame, captions[0], (5, 20), fontFace=5, fontScale=1.2, color=(
@@ -291,7 +292,7 @@ cnn_pos = []
 # flag for plotting contours of detected components at the end of each file
 plot_contours_flag = False
 # flag for showing video with results online (turn off flags for improving speed)
-play_reconstr = False
+play_reconstr = True
 # flag for saving movie (file could be quite large..)
 save_movie = False
 folder_name = '.'
@@ -321,7 +322,7 @@ captions = ['Raw Data', 'Inferred Activity', caption, 'Denoised Data']
 if save_movie and play_reconstr:
     #fourcc = cv2.VideoWriter_fourcc('8', 'B', 'P', 'S')
     fourcc = cv2.VideoWriter_fourcc(*'XVID')
-    out = cv2.VideoWriter(movie_name, fourcc, 30.0, tuple(
+    out = cv2.VideoWriter(movie_name, fourcc, 10.0, tuple(
         [int(2 * x * resize_fact) for x in cnm2.dims]))
 
 for iter in range(epochs):
@@ -399,7 +400,7 @@ for iter in range(epochs):
                 if save_movie:
                     out.write(vid_frame)
                 cv2.imshow('frame', vid_frame)
-                if cv2.waitKey(100) & 0xFF == ord('q'):
+                if cv2.waitKey(50) & 0xFF == ord('q'):
                     break
 
         print('Cumulative processing speed is ' + str((t - initbatch) /

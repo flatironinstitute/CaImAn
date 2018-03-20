@@ -86,6 +86,7 @@ def bare_initialization(Y, init_batch=1000, k=1, method_init='greedy_roi', gnb=1
 
     cnm_init = cm.source_extraction.cnmf.cnmf.CNMF(2, k=k, gSig=gSig, Ain=Ain, Cin=Cin, b_in=np.array(
         b_in), f_in=f_in, method_init=method_init, p=p, **kwargs)
+
     cnm_init.A, cnm_init.C, cnm_init.b, cnm_init.f, cnm_init.S, cnm_init.YrA = Ain, Cin, b_in, f_in, np.maximum(
         np.atleast_2d(Cin), 0), YrA
     #cnm_init.g = np.array([-np.poly([0.9]*max(p,1))[1:] for gg in np.ones(k)])
@@ -491,7 +492,7 @@ def rank1nmf(Ypx, ain):
 def get_candidate_components(sv, dims, Yres_buf, min_num_trial=3, gSig=(5, 5),
                              gHalf=(5, 5), sniper_mode=True, rval_thr=0.85,
                              patch_size=50, loaded_model=None, test_both=False,
-                             thresh_CNN_noisy=0.99, use_peak_max=False, thresh_std_peak_resid = 1):
+                             thresh_CNN_noisy=0.5, use_peak_max=False, thresh_std_peak_resid = 1):
     """
     Extract new candidate components from the residual buffer and test them
     using space correlation or the CNN classifier. The function runs the CNN
@@ -514,19 +515,19 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial=3, gSig=(5, 5),
     if use_peak_max:
 
         img_select_peaks = sv.reshape(dims).copy()
-#        thresh_img_sel = np.median(img_select_peaks) + np.std(img_select_peaks)
-#        plt.subplot(1,5,1)
-#        plt.cla()
-#        plt.imshow(img_select_peaks*(img_select_peaks>thresh_img_sel))
+        plt.subplot(1,3,1)
+        plt.cla()
+        plt.imshow(img_select_peaks)
 
         img_select_peaks = cv2.GaussianBlur(img_select_peaks , ksize=ksize, sigmaX=gSig[0],
-                                                        sigmaY=gSig[1], borderType=cv2.BORDER_REFLECT101) \
-                    - cv2.boxFilter(img_select_peaks, ddepth=-1, ksize=ksize, borderType=cv2.BORDER_REFLECT101)
-#        plt.subplot(1,5,2)
-#        plt.cla()
+                                                        sigmaY=gSig[1], borderType=cv2.BORDER_REPLICATE) \
+                    - cv2.boxFilter(img_select_peaks, ddepth=-1, ksize=ksize, borderType=cv2.BORDER_REPLICATE)
         thresh_img_sel = np.median(img_select_peaks) + thresh_std_peak_resid  * np.std(img_select_peaks)
-#        plt.imshow(img_select_peaks*(img_select_peaks>thresh_img_sel))
-#        plt.pause(.05)
+
+        plt.subplot(1,3,2)
+        plt.cla()
+        plt.imshow(img_select_peaks*(img_select_peaks>thresh_img_sel))
+        plt.pause(.05)
 #        threshold_abs = np.median(img_select_peaks) + np.std(img_select_peaks)
 
 #        img_select_peaks -= np.min(img_select_peaks)
@@ -538,7 +539,7 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial=3, gSig=(5, 5),
 
         local_maxima = peak_local_max(img_select_peaks,
                                       min_distance=np.max(np.array(gSig)).astype(np.int),
-                                      num_peaks=min_num_trial,threshold_abs=thresh_img_sel)
+                                      num_peaks=min_num_trial,threshold_abs=thresh_img_sel, exclude_border = False)
         min_num_trial = np.minimum(len(local_maxima),min_num_trial)
 
 
@@ -803,6 +804,7 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
             M = M + 1
 
             Yres_buf[:, indeces] -= np.outer(cin, ain)
+            Yres_buf[:, indeces] = np.maximum(Yres_buf[:, indeces],0)
             # vb = imblur(np.reshape(Ain, dims, order='F'), sig=gSig,
             #             siz=gSiz, nDimBlur=2).ravel()
             # restrict blurring to region where component is located
@@ -821,7 +823,7 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
 
 
 
-            vb_buf = [imblur(vb.reshape(dims,order='F')[slices][slice_within], sig=gSig, siz=gSiz, nDimBlur=len(dims)) for vb in Yres_buf]
+            vb_buf = [imblur(np.maximum(0,vb.reshape(dims,order='F')[slices][slice_within]), sig=gSig, siz=gSiz, nDimBlur=len(dims)) for vb in Yres_buf]
 
             vb_buf2 = np.stack([vb.ravel() for vb in vb_buf])
 
@@ -830,12 +832,10 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
 #                           for s in slices_small]), dims).ravel()
 
             rho_buf[:, ind_vb] = vb_buf2**2
-#            plt.subplot(1,5,3)
-#            plt.cla()
-#            plt.imshow(sv.reshape(dims),vmax=30)
-#            plt.pause(.05)
+
 
             sv[ind_vb] = np.sum(rho_buf[:, ind_vb], 0)
+#            sv = np.sum([imblur(vb.reshape(dims,order='F'), sig=gSig, siz=gSiz, nDimBlur=len(dims))**2 for vb in Yres_buf], 0).reshape(-1)
 #            plt.subplot(1,5,4)
 #            plt.cla()
 #            plt.imshow(sv.reshape(dims), vmax=30)
@@ -849,6 +849,10 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
 #            plt.pause(.05)
 
     #print(np.min(sv))
+    plt.subplot(1,3,3)
+    plt.cla()
+    plt.imshow(Yres_buf.mean(0).reshape(dims, order = 'F'))
+    plt.pause(.05)
     return Ab, Cf, Yres_buf, rho_buf, CC, CY, ind_A, sv, groups, ind_new, ind_new_all, sv, cnn_pos
 
 
