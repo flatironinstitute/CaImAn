@@ -37,6 +37,7 @@ except:
     print("Bokeh could not be loaded. Either it is not installed or you are not running within a notebook")
 
 from ..summary_images import local_correlations
+from skimage.measure import find_contours
 
 
 #%%
@@ -297,11 +298,7 @@ def get_contours(A, dims, thr=0.9):
         pars['coordinates'] = []
         # for each dimensions we draw the contour
         for B in (Bmat if len(dims) == 3 else [Bmat]):
-            # plotting the contour usgin matplotlib undocumented function around the thr threshold
-            nlist = mpl._cntr.Cntr(y, x, B).trace(thr)
-
-            # vertices will be the first half of the list
-            vertices = nlist[:len(nlist) // 2]
+            vertices = find_contours(B.T, thr)
             # this fix is necessary for having disjoint figures and borders plotted correctly
             v = np.atleast_2d([np.nan, np.nan])
             for _, vtx in enumerate(vertices):
@@ -752,7 +749,7 @@ def anim_to_html(anim, fps=20):
             video = open(f.name, "rb").read()
         anim._encoded_video = base64.b64encode(video)
 
-    return VIDEO_TAG.format(anim._encoded_video)
+    return VIDEO_TAG.format(anim._encoded_video.decode('ascii'))
 
 #%%
 

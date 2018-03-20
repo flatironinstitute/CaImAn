@@ -50,7 +50,7 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
                               medw=(3, 3), thr_method='nrg', maxthr=0.1, nrgthr=0.9999, extract_cc=True, b_in=None,
                               se=np.ones((3, 3), dtype=np.int), ss=np.ones((3, 3), dtype=np.int), nb=1,
                               method_ls='lasso_lars', update_background_components=True, low_rank_background=True, block_size=1000, num_blocks_per_run=20):
-    """update spatial footprints and background through Basis Pursuit Denoising 
+    """update spatial footprints and background through Basis Pursuit Denoising
 
     for each pixel i solve the problem
         [A(i,:),b(i)] = argmin sum(A(i,:))
@@ -71,11 +71,11 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
         temporal profile  of background activity.
 
     A_in: np.ndarray
-        spatial profile of background activity. If A_in is boolean then it defines the spatial support of A. 
+        spatial profile of background activity. If A_in is boolean then it defines the spatial support of A.
         Otherwise it is used to determine it through determine_search_location
 
     b_in: np.ndarray
-        you can pass background as input, especially in the case of one background per patch, since it will update using hals    
+        you can pass background as input, especially in the case of one background per patch, since it will update using hals
 
     dims: [optional] tuple
         x, y[, z] movie dimensions
@@ -105,7 +105,7 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
         if method is dilate this represents the kernel used for expansion
 
     dview: view on ipyparallel client
-            you need to create an ipyparallel client and pass a view on the processors (client = Client(), dview=client[:])            
+            you need to create an ipyparallel client and pass a view on the processors (client = Client(), dview=client[:])
 
     medw, thr_method, maxthr, nrgthr, extract_cc, se, ss: [optional]
         Parameters for components post-processing. Refer to spatial.threshold_components for more details
@@ -115,9 +115,9 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
 
     method_ls:
         method to perform the regression for the basis pursuit denoising.
-             'nnls_L0'. Nonnegative least square with L0 penalty        
+             'nnls_L0'. Nonnegative least square with L0 penalty
              'lasso_lars' lasso lars function from scikit learn
-             'lasso_lars_old' lasso lars from old implementation, will be deprecated 
+             'lasso_lars_old' lasso lars from old implementation, will be deprecated
 
         normalize_yyt_one: bool
             wheter to norrmalize the C and A matrices so that diag(C*C.T) are ones
@@ -126,7 +126,7 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
         whether to update the background components in the spatial phase
 
     low_rank_background:bool
-        whether to update the using a low rank approximation. In the False case all the nonzero elements of the background components are updated using hals    
+        whether to update the using a low rank approximation. In the False case all the nonzero elements of the background components are updated using hals
         (to be used with one background per patch)
 
 
@@ -411,126 +411,7 @@ def regression_ipyparallel(pars):
     return As
 
 
-# %% determine_search_location
-def determine_search_location(A, dims, method='ellipse', min_size=3, max_size=8, dist=3,
-                              expandCore=iterate_structure(generate_binary_structure(2, 1), 2).astype(int), dview=None):
-    """
-    compute the indices of the distance from the cm to search for the spatial component
 
-    does it by following an ellipse from the cm or doing a step by step dilatation around the cm
-
-
-    Parameters:
-    ----------
-    [parsed]
-     cm[i]:
-        center of mass of each neuron
-
-     A[:, i]: the A of each components
-
-     dims:
-        the dimension of each A's ( same usually )
-
-     dist:
-        computed distance matrix
-
-     dims: [optional] tuple
-                x, y[, z] movie dimensions
-
-    method: [optional] string
-            method used to expand the search for pixels 'ellipse' or 'dilate'
-
-    expandCore: [optional]  scipy.ndimage.morphology
-            if method is dilate this represents the kernel used for expansion
-
-    min_size: [optional] int
-
-    max_size: [optional] int
-
-    dist: [optional] int
-
-    dims: [optional] tuple
-             x, y[, z] movie dimensions
-
-    Returns:
-    --------
-    dist_indicator: np.ndarray
-        distance from the cm to search for the spatial footprint
-
-    Raise:
-    -------
-    Exception('You cannot pass empty (all zeros) components!')
-    """
-
-    from scipy.ndimage.morphology import grey_dilation
-
-    # we initialize the values
-    if len(dims) == 2:
-        d1, d2 = dims
-    elif len(dims) == 3:
-        d1, d2, d3 = dims
-    d, nr = np.shape(A)
-    A = csc_matrix(A)
-    dist_indicator = False * np.ones((d, nr))
-
-    if method == 'ellipse':
-        Coor = dict()
-        # we create a matrix of size A.x of each pixel coordinate in A.y and inverse
-        if len(dims) == 2:
-            Coor['x'] = np.kron(np.ones(d2), list(range(d1)))
-            Coor['y'] = np.kron(list(range(d2)), np.ones(d1))
-        elif len(dims) == 3:
-            Coor['x'] = np.kron(np.ones(d3 * d2), list(range(d1)))
-            Coor['y'] = np.kron(
-                np.kron(np.ones(d3), list(range(d2))), np.ones(d1))
-            Coor['z'] = np.kron(list(range(d3)), np.ones(d2 * d1))
-        if not dist == np.inf:  # determine search area for each neuron
-            cm = np.zeros((nr, len(dims)))  # vector for center of mass
-            Vr = []  # cell(nr,1);
-            dist_indicator = []
-            pars = []
-            # for each dim
-            for i, c in enumerate(['x', 'y', 'z'][:len(dims)]):
-                # mass center in this dim = (coor*A)/sum(A)
-                cm[:, i] = old_div(
-                    np.dot(Coor[c], A[:, :nr].todense()), A[:, :nr].sum(axis=0))
-
-            # parrallelizing process of the construct ellipse function
-            for i in range(nr):
-                pars.append([Coor, cm[i], A[:, i], Vr, dims,
-                             dist, max_size, min_size, d])
-            if dview is None:
-                res = list(map(construct_ellipse_parallel, pars))
-            else:
-                if 'multiprocessing' in str(type(dview)):
-                    res = dview.map_async(
-                        construct_ellipse_parallel, pars).get(4294967)
-                else:
-                    res = dview.map_sync(construct_ellipse_parallel, pars)
-            for r in res:
-                dist_indicator.append(r)
-
-            dist_indicator = (np.asarray(dist_indicator)).squeeze().T
-
-        else:
-            dist_indicator = True * np.ones((d, nr))
-
-    elif method == 'dilate':
-        for i in range(nr):
-            A_temp = np.reshape(A[:, i].toarray(), dims[::-1])
-            if len(expandCore) > 0:
-                if len(expandCore.shape) < len(dims):  # default for 3D
-                    expandCore = iterate_structure(
-                        generate_binary_structure(len(dims), 1), 2).astype(int)
-                A_temp = grey_dilation(A_temp, footprint=expandCore)
-            else:
-                A_temp = grey_dilation(A_temp, [1] * len(dims))
-
-            dist_indicator[:, i] = np.squeeze(np.reshape(A_temp, (d, 1))) > 0
-    else:
-        dist_indicator = True * np.ones((d, nr))
-
-    return dist_indicator
 
 
 # %%
@@ -616,7 +497,7 @@ def threshold_components(A, dims, medw=None, thr_method='nrg', maxthr=0.1, nrgth
         window of median filter
 
     thr_method: [optional] string
-        Method of thresholding: 
+        Method of thresholding:
             'max' sets to zero pixels that have value less than a fraction of the max value
             'nrg' keeps the pixels that contribute up to a specified fraction of the energy
 
@@ -1106,7 +987,7 @@ def test(Y, A_in, C, f, n_pixels_per_process, nb):
             temporal profile  of background activity.
 
         A_in: np.ndarray
-            spatial profile of background activity. If A_in is boolean then it defines the spatial support of A. 
+            spatial profile of background activity. If A_in is boolean then it defines the spatial support of A.
             Otherwise it is used to determine it through determine_search_location
 
         n_pixels_per_process: [optional] int
@@ -1171,8 +1052,129 @@ def test(Y, A_in, C, f, n_pixels_per_process, nb):
         nb = f.shape[0]
 
     return Y, A_in, C, f, n_pixels_per_process, nb, d, T
+# %% determine_search_location
+def determine_search_location(A, dims, method='ellipse', min_size=3, max_size=8, dist=3,
+                              expandCore=iterate_structure(generate_binary_structure(2, 1), 2).astype(int), dview=None):
+    """
+    compute the indices of the distance from the cm to search for the spatial component
+
+    does it by following an ellipse from the cm or doing a step by step dilatation around the cm
 
 
+    Parameters:
+    ----------
+    [parsed]
+     cm[i]:
+        center of mass of each neuron
+
+     A[:, i]: the A of each components
+
+     dims:
+        the dimension of each A's ( same usually )
+
+     dist:
+        computed distance matrix
+
+     dims: [optional] tuple
+                x, y[, z] movie dimensions
+
+    method: [optional] string
+            method used to expand the search for pixels 'ellipse' or 'dilate'
+
+    expandCore: [optional]  scipy.ndimage.morphology
+            if method is dilate this represents the kernel used for expansion
+
+    min_size: [optional] int
+
+    max_size: [optional] int
+
+    dist: [optional] int
+
+    dims: [optional] tuple
+             x, y[, z] movie dimensions
+
+    Returns:
+    --------
+    dist_indicator: np.ndarray
+        distance from the cm to search for the spatial footprint
+
+    Raise:
+    -------
+    Exception('You cannot pass empty (all zeros) components!')
+    """
+
+    from scipy.ndimage.morphology import grey_dilation
+
+    # we initialize the values
+    if len(dims) == 2:
+        d1, d2 = dims
+    elif len(dims) == 3:
+        d1, d2, d3 = dims
+    d, nr = np.shape(A)
+    A = csc_matrix(A)
+    dist_indicator = scipy.sparse.csc_matrix((d, nr),dtype= np.float32)
+
+    if method == 'ellipse':
+        Coor = dict()
+        # we create a matrix of size A.x of each pixel coordinate in A.y and inverse
+        if len(dims) == 2:
+            Coor['x'] = np.kron(np.ones(d2), list(range(d1)))
+            Coor['y'] = np.kron(list(range(d2)), np.ones(d1))
+        elif len(dims) == 3:
+            Coor['x'] = np.kron(np.ones(d3 * d2), list(range(d1)))
+            Coor['y'] = np.kron(
+                np.kron(np.ones(d3), list(range(d2))), np.ones(d1))
+            Coor['z'] = np.kron(list(range(d3)), np.ones(d2 * d1))
+        if not dist == np.inf:  # determine search area for each neuron
+            cm = np.zeros((nr, len(dims)))  # vector for center of mass
+            Vr = []  # cell(nr,1);
+            dist_indicator = []
+            pars = []
+            # for each dim
+            for i, c in enumerate(['x', 'y', 'z'][:len(dims)]):
+                # mass center in this dim = (coor*A)/sum(A)
+                cm[:, i] = old_div(
+                    np.dot(Coor[c], A[:, :nr].todense()), A[:, :nr].sum(axis=0))
+
+            # parrallelizing process of the construct ellipse function
+            for i in range(nr):
+                pars.append([Coor, cm[i], A[:, i], Vr, dims,
+                             dist, max_size, min_size, d])
+            if dview is None:
+                res = list(map(construct_ellipse_parallel, pars))
+            else:
+                if 'multiprocessing' in str(type(dview)):
+                    res = dview.map_async(
+                        construct_ellipse_parallel, pars).get(4294967)
+                else:
+                    res = dview.map_sync(construct_ellipse_parallel, pars)
+            for r in res:
+                dist_indicator.append(r)
+
+            dist_indicator = (np.asarray(dist_indicator)).squeeze().T
+
+        else:
+            raise Exception('Not implemented')
+            dist_indicator = True * np.ones((d, nr))
+
+    elif method == 'dilate':
+        for i in range(nr):
+            A_temp = np.reshape(A[:, i].toarray(), dims[::-1])
+            if len(expandCore) > 0:
+                if len(expandCore.shape) < len(dims):  # default for 3D
+                    expandCore = iterate_structure(
+                        generate_binary_structure(len(dims), 1), 2).astype(int)
+                A_temp = grey_dilation(A_temp, footprint=expandCore)
+            else:
+                A_temp = grey_dilation(A_temp, [1] * len(dims))
+
+            dist_indicator[:, i] = scipy.sparse.coo_matrix(np.squeeze(np.reshape(A_temp, (d, 1)))[:,None] > 0)
+    else:
+        raise Exception('Not implemented')
+        dist_indicator = True * np.ones((d, nr))
+
+    return dist_indicator
+#%%
 def computing_indicator(Y, A_in, b, C, f, nb, method, dims, min_size, max_size, dist, expandCore, dview):
     """compute the indices of the distance from the cm to search for the spatial component (calling determine_search_location)
 
@@ -1284,12 +1286,12 @@ def computing_indicator(Y, A_in, b, C, f, nb, method, dims, min_size, max_size, 
                 scipy.sparse.hstack([A_in, scipy.sparse.coo_matrix(b)]), dims, method=method, min_size=min_size, max_size=max_size, dist=dist, expandCore=expandCore,
                 dview=dview)
 
-        ind2_ = [np.where(iid_)[0]
-                 if (np.size(np.where(iid_)[0]) > 0) and (np.min(np.where(iid_)[0]) < nr) else [] for iid_ in dist_indicator]
+        ind2_ = [np.where(iid_.toarray().squeeze())[0]  for iid_ in dist_indicator.tocsr()]
+        ind2_ = [iid_ if (np.size(iid_) > 0) and (np.min(iid_) < nr) else [] for iid_ in ind2_]
 
     return ind2_, nr, C, f, b, A_in
 
-
+#%%
 def creatememmap(Y, Cf, dview):
     """memmap the C and Y objects in parallel
 

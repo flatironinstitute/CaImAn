@@ -59,7 +59,7 @@ except:
 # 9: sue_ann_k37
 #10: Jan-AMG_exp3_001
 
-ind_dataset = 0
+ind_dataset = 11
 
 #%% set some global parameters here
 #'use_cases/edge-cutter/binary_cross_bootstrapped.json'
@@ -231,6 +231,7 @@ params_movie[11] = {'fname': '/mnt/home/agiovann/SOFTWARE/CaImAn/example_movies/
                  'p': 1,  # order of the autoregressive system
                  'fr' : 10,
                  'decay_time' : .75,
+                 'thresh_CNN_noisy' : .95,
                  'T1' : 2000,
                  'gnb': 1,
                  'gSig': [5,5],  # expected half size of neurons
@@ -305,12 +306,12 @@ except:
     epochs = global_params['epochs']                    # number of passes over the data
 
 try:
-    thresh_CNN_noisy = params_movie['ind_dataset']['thresh_CNN_noisy']
+    thresh_CNN_noisy = params_movie[ind_dataset]['thresh_CNN_noisy']
 except:
     thresh_CNN_noisy = global_params['thresh_CNN_noisy']
 
 try:
-    min_num_trial = params_movie['ind_dataset']['min_num_trial']
+    min_num_trial = params_movie[ind_dataset]['min_num_trial']
 except:
     min_num_trial = global_params['min_num_trial']
 
@@ -533,8 +534,13 @@ noisyC = cnm2.noisyC[:,t-t//epochs:t]
 if params_movie[ind_dataset]['p'] > 0:
     b_trace = [osi.b for osi in cnm2.OASISinstances]
 #%%
-pl.figure()
-crd = cm.utils.visualization.plot_contours(A, Cn, thr=0.9)
+
+if ploton:
+    m = cm.load(fls);
+    mdff = m.computeDFF(secsWindow=10)[0]
+    Cn = mdff.local_correlations(eight_neighbours=True, swap_dim=False)
+    pl.figure()
+    crd = cm.utils.visualization.plot_contours(A, Cn, thr=0.9)
 
 #%%
 

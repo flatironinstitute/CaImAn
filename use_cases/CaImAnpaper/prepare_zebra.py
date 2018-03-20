@@ -12,12 +12,12 @@ import numpy as np
 import glob
 import caiman as cm
 
-fnames = glob.glob("/mnt/ceph/users/jfriedrich/data/05292014Fish1-4/*.stack")
+fnames = glob.glob("/mnt/ceph/users/jfriedrich/data/05292014Fish1-4/*30.stack")
 fnames.sort()
 print(fnames)
 #%%
 pl.figure(figsize=(12,10))
-fname = fnames[44]
+fname = fnames[0]
 with open(fname, "r") as f:
     a = np.fromfile(f, dtype=np.uint16)
     b = a.reshape((2048,1096,1885), order = 'F')

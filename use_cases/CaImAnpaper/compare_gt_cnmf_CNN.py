@@ -315,7 +315,7 @@ n_pixels_per_process=4000
 block_size=4000
 num_blocks_per_run=10
 
-for params_movie in np.array(params_movies)[:]:
+for params_movie in np.array(params_movies)[6:7]:
 #    params_movie['gnb'] = 3
     params_display = {
         'downsample_ratio': .2,
@@ -1030,7 +1030,7 @@ for params_movie in np.array(params_movies)[:]:
 
         size = np.log10(np.array([2.1, 3.1,0.6,3.1,8.4,1.9,121.7,78.7,35.8,50.3])*1000)
         components= np.array([368,935,476,1060,1099,1387,1541,1013,398,1064])
-        
+
         t_mmap['cluster'] = np.array([np.nan,41,np.nan,np.nan,109,np.nan,561,378,135,212])
         t_patch['cluster'] = np.array([np.nan,46,np.nan,np.nan,92,np.nan,1063,469,142,372])
         t_refine['cluster'] = np.array([np.nan,225,np.nan,np.nan,256,np.nan,1065,675,265,422])
@@ -1046,14 +1046,14 @@ for params_movie in np.array(params_movies)[:]:
         t_patch['laptop'] = np.array([58,84,47,77,174,85,2398,1587,659,1203])
         t_refine['laptop'] = np.array([195,321,87,236,414,354,5129,3087,807,1550])
         t_filter_comps['laptop'] = np.array([5,10,5,7,15,11,719,263,74,100])
-        
+
 #        t_mmap['online'] = np.array([0,0,0,0,0,0,0,0,0,0])
 #        t_patch['online'] = np.array([0,0,0,0,0,0,0,0,0,0])
 #        t_refine['online'] = np.array([0,0,0,0,0,0,0,0,0,0])
 #        t_filter_comps['online'] = np.array([86,468,102,427,1021,190,1498,3694,2662,391])
-        
-        
-        
+
+
+
         pl.subplot(1,3,1)
         for key in ['cluster','desktop', 'laptop']:
             plt.scatter((size),np.log10(t_mmap[key]+t_patch[key]+t_refine[key]+t_filter_comps[key]),s=np.array(components)/10)
@@ -1097,7 +1097,7 @@ for params_movie in np.array(params_movies)[:]:
         'k53',
         'J115',
         'J123']
-        
+
         f1s = dict()
         f1s['batch'] = [0.77777,0.67,0.7623,0.72391,0.778739,0.7731,0.76578,0.77386,0.6783]
         f1s['online'] = [0.765,0.686,0.759,0.719,0.776,0.745,0.8,0.82,0.77]
@@ -1105,20 +1105,20 @@ for params_movie in np.array(params_movies)[:]:
         f1s['L2'] = [0.9,0.69,0.9,0.92,0.87,0.89,0.92,0.93,0.83]
         f1s['L3'] = [0.85,0.75,0.82,0.83,0.84,0.78,0.93,0.94,0.9]
         f1s['L4'] = [0.78,0.87,0.79,0.87,0.82,0.75,0.83,0.83,0.91]
-        
+
         all_of = ((np.vstack([f1s['L1'],f1s['L2'],f1s['L3'],f1s['L4'],f1s['batch'],f1s['online']])))
-        
-        
-        
+
+
+
         for i in range(6):
             pl.plot(i+np.random.random(9)*.2, all_of[i,:],'.')
             pl.plot([i-.5, i+.5], [np.nanmean(all_of[i,:])]*2,'k')
         plt.xticks(range(6), ['L1','L2','L3','L4','batch','online'], rotation=45)
         pl.ylabel('F1-score')
-        
+
         #%%
         some_of = ((np.vstack([f1s['L1'],f1s['L2'],f1s['L3'],f1s['L4']])))
-        
+
         for i in range(4):
             pl.plot(i+np.random.random(9)*.2, some_of[i,:],'.')
             pl.plot([i-.5, i+.5], [np.nanmean(some_of[i,:])]*2,'k')

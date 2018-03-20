@@ -122,13 +122,31 @@ plt.figure()
 crd = cm.utils.visualization.plot_contours(cnm.A, Cn, thr=0.9)
 plt.title('Contour plots of components')
 
+#%% visualize selected and rejected components
+plt.figure()
+plt.subplot(1, 2, 1)
+cm.utils.visualization.plot_contours(cnm.A[:, :], Cn, thr=0.9)
+plt.title('Selected components')
+plt.subplot(1, 2, 2)
+plt.title('Discaded components')
+cm.utils.visualization.plot_contours(cnm.A[:, :], Cn, thr=0.9)
+
+
+
+#%%
+A_in, C_in, b_in, f_in = cnm.A[:,:], cnm.C[:], cnm.b, cnm.f
+cnm2 = cnmf.CNMF(n_processes=1, k=A_in.shape[-1], gSig=gSig, p=p, dview=dview,
+                 merge_thresh=merge_thresh, Ain=A_in, Cin=C_in, b_in=b_in,
+                 f_in=f_in, rf=None, stride=None, gnb=gnb,
+                 method_deconvolution='oasis', check_nan=True)
+
+cnm2 = cnm2.fit(images)
 #%% COMPONENT EVALUATION
 # the components are evaluated in three ways:
 #   a) the shape of each component must be correlated with the data
 #   b) a minimum peak SNR is required over the length of a transient
 #   c) each shape passes a CNN based classifier (this will pick up only neurons
 #           and filter out active processes)
-
 fr = 10             # approximate frame rate of data
 decay_time = 5.0    # length of transient
 min_SNR = 2.5       # peak SNR for accepted components (if above this, acept)
@@ -142,23 +160,15 @@ idx_components, idx_components_bad, SNR_comp, r_values, cnn_preds = \
                                      dview=dview, min_SNR=min_SNR,
                                      r_values_min=rval_thr, use_cnn=use_cnn,
                                      thresh_cnn_min=min_cnn_thr)
-
-
-#%% visualize selected and rejected components
+#%%
 plt.figure()
-plt.subplot(1, 2, 1)
-cm.utils.visualization.plot_contours(cnm.A[:, idx_components], Cn, thr=0.9)
-plt.title('Selected components')
-plt.subplot(1, 2, 2)
-plt.title('Discaded components')
-cm.utils.visualization.plot_contours(cnm.A[:, idx_components_bad], Cn, thr=0.9)
-
+crd = cm.utils.visualization.plot_contours(cnm2.A.tocsc()[:,idx_components], Cn, thr=0.9)
+plt.title('Contour plots of components')
 #%% visualize selected components
-cm.utils.visualization.view_patches_bar(Yr, cnm.A.tocsc()[:, idx_components],
-                                        cnm.C[idx_components, :], cnm.b, cnm.f,
+cm.utils.visualization.view_patches_bar(Yr, cnm2.A.tocsc()[:, idx_components],
+                                        cnm2.C[idx_components, :], cnm2.b, cnm2.f,
                                         dims[0], dims[1],
-                                        YrA=cnm.YrA[idx_components, :], img=Cn)
-
+                                        YrA=cnm2.YrA[idx_components, :], img=Cn)
 #%% STOP CLUSTER and clean up log files
 cm.stop_server()
 
