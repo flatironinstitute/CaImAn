@@ -650,7 +650,7 @@ class CNMF(object):
                         bl=None, use_dense=True, N_samples_exceptionality=5,
                         max_num_added=1, min_num_trial=1, path_to_model=None,
                         sniper_mode=False, use_peak_max=False,
-                        test_both=False):
+                        test_both=False, q=0.5):
 
         if idx_components is None:
             idx_components = range(self.A.shape[-1])
@@ -670,6 +670,7 @@ class CNMF(object):
         self.N_samples_exceptionality = N_samples_exceptionality
         self.max_num_added = max_num_added
         self.min_num_trial = min_num_trial
+        self.q = q   # sparsity parameter (between 0.5 and 1)
 
         self.N = self.A2.shape[-1]
         self.M = self.gnb + self.N
@@ -782,6 +783,9 @@ class CNMF(object):
                                     self.initbatch].T.copy(), self.minibatch_shape)
         self.Yres_buf = RingBuffer(self.Yr_buf - self.Ab.dot(
             self.C_on[:self.M, self.initbatch - self.minibatch_shape:self.initbatch]).T, self.minibatch_shape)
+        self.sn = np.array(np.std(self.Yres_buf,axis=0))
+        self.vr = np.array(np.var(self.Yres_buf,axis=0))
+        self.mn = self.Yres_buf.mean(0)
         self.mean_buff = self.Yres_buf.mean(0)
         self.ind_new = []
         self.rho_buf = imblur(self.Yres_buf.T.reshape(
@@ -892,9 +896,14 @@ class CNMF(object):
                           1] = o.get_c_of_last_pool()
 
         #self.mean_buff = self.Yres_buf.mean(0)
+        res_frame = frame - self.Ab.dot(self.noisyC[:self.M, t])
+        mn_ = self.mn.copy()
+        self.mn = (t-1)/t*self.mn + res_frame/t
+        self.vr = (t-1)/t*self.vr + (res_frame - mn_)*(res_frame - self.mn)/t
+        self.sn = np.sqrt(self.vr)
+        
         if self.update_num_comps:
-
-            res_frame = frame - self.Ab.dot(self.noisyC[:self.M, t])
+            
             self.mean_buff += (res_frame-self.Yres_buf[self.Yres_buf.cur])/self.minibatch_shape
 #            cv2.imshow('untitled', 0.1*cv2.resize(res_frame.reshape(self.dims,order = 'F'),(512,512)))
 #            cv2.waitKey(1)
@@ -1035,10 +1044,13 @@ class CNMF(object):
                     # this is faster than calling update_shapes with sparse Ab only
                     Ab_, self.ind_A, self.Ab_dense[:, :self.M] = update_shapes(
                         self.CY, self.CC, self.Ab, self.ind_A,
-                        indicator_components, self.Ab_dense[:, :self.M])
+                        indicator_components=indicator_components,
+                        Ab_dense=self.Ab_dense[:, :self.M],
+                        sn=self.sn, q=self.q)
                 else:
                     Ab_, self.ind_A, _ = update_shapes(self.CY, self.CC, Ab_, self.ind_A,
-                                                       indicator_components=indicator_components)
+                                                       indicator_components=indicator_components,
+                                                       sn=self.sn, q=self.q)
 
                 self.AtA = (Ab_.T.dot(Ab_)).toarray()
 

@@ -239,7 +239,7 @@ path_to_cnn_residual = 'use_cases/edge-cutter/sniper_sensitive.h5'
 cnm2._prepare_object(np.asarray(Yr), T1, expected_comps, idx_components=None,
                          min_num_trial=3, max_num_added = 3, N_samples_exceptionality=int(N_samples),
                          path_to_model = path_to_cnn_residual,
-                         sniper_mode = False, use_peak_max=False)
+                         sniper_mode = False, use_peak_max=False, q=0.5)
 cnm2.thresh_CNN_noisy = 0.5
 
 #%% Run OnACID and optionally plot results in real time
@@ -256,7 +256,7 @@ rm_thr = 0.1  # CNN classifier removal threshold
 # flag for plotting contours of detected components at the end of each file
 plot_contours_flag = False
 # flag for showing results video online (turn off flags for improving speed)
-play_reconstr = False
+play_reconstr = True
 # flag for saving movie (file could be quite large..)
 save_movie = False
 movie_name = os.path.join(folder_name, 'sniper_meso_0.995_new.avi')  # name of movie to be saved

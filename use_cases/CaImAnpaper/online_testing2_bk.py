@@ -278,12 +278,12 @@ except:
     epochs = global_params['epochs']                    # number of passes over the data
 
 try:
-    thresh_CNN_noisy = params_movie['ind_dataset']['thresh_CNN_noisy']
+    thresh_CNN_noisy = params_movie[ind_dataset]['thresh_CNN_noisy']
 except:
     thresh_CNN_noisy = global_params['thresh_CNN_noisy']
 
 try:
-    min_num_trial = params_movie['ind_dataset']['min_num_trial']
+    min_num_trial = params_movie[ind_dataset]['min_num_trial']
 except:
     min_num_trial = global_params['min_num_trial']
 
