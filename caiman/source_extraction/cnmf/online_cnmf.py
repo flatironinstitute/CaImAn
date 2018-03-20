@@ -340,7 +340,7 @@ def init_shapes_and_sufficient_stats(Y, A, C, b, f, bSiz=3):
 
 
 @profile
-def update_shapes(CY, CC, Ab, ind_A, sn=None, q=0.75, indicator_components=None, Ab_dense=None, update_bkgrd=True, iters=5):
+def update_shapes(CY, CC, Ab, ind_A, sn=None, q=0.5, indicator_components=None, Ab_dense=None, update_bkgrd=True, iters=5):
 
     D, M = Ab.shape
     N = len(ind_A)
@@ -363,7 +363,7 @@ def update_shapes(CY, CC, Ab, ind_A, sn=None, q=0.75, indicator_components=None,
                 tmp = np.maximum(Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]] +
 
                     ((CY[m, ind_pixels] - L[m, ind_pixels] - Ab.dot(CC[m])[ind_pixels]) / CC[m, m]), 0)
-                
+
 
                 if tmp.dot(tmp) > 0:
                     tmp *= 1e-3 / \
