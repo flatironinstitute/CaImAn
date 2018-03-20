@@ -31,7 +31,7 @@ def do_install_to(targdir):
 	if os.path.isdir(targdir):
 		raise Exception(targdir + " already exists")
 	shutil.copytree(sourcedir_base, targdir)
-	os.makedirs(os.path.join(targdir, 'memmap'), exist_ok=True) # Eventually refactor memmap code to put files here
+	# os.makedirs(os.path.join(targdir, 'memmap'), exist_ok=True) # Under discussion
 	print("Installed " + targdir)
 
 def do_check_install(targdir):
