@@ -29,7 +29,7 @@ with open('README.md', 'r') as rmf:
 # package that made them, we can switch to using the pkg_resources API.
 
 binaries = ['caimanmanager.py']
-extra_dirs = ['demos', 'use_cases', 'example_movies']
+extra_dirs = ['demos', 'docs', 'use_cases', 'example_movies']
 data_files = [('', ['LICENSE.txt']),
               ('', ['README.md']),
               ('share/caiman/testdata', ['caiman/tests/comparison/groundtruth.npz', 'caiman/tests/comparison/tests/example/example.npz'])
