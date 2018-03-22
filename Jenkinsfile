@@ -25,7 +25,7 @@ pipeline {
               TEMPDIR=$(mktemp -d)
               export CAIMAN_DATA=$TEMPDIR
               cd $TEMPDIR
-              caimandata.py install
+              caimanmanager.py install
               nosetests --traverse-namespace caiman
             '''
           }
@@ -48,7 +48,7 @@ pipeline {
               TEMPDIR=$(mktemp -d)
               export CAIMAN_DATA=$TEMPDIR
               cd $TEMPDIR
-              caimandata.py install
+              caimanmanager.py install
               nosetests --traverse-namespace caiman
             '''
           }
@@ -65,8 +65,12 @@ pipeline {
             sh '$ANACONDA2/bin/conda env create -q -f environment_python2.yml -p $CONDA_ENV'
             sh '''#!/bin/bash -ex
               source $CONDA_ENV/bin/activate $CONDA_ENV
-              python setup.py build_ext -i
-              nosetests
+              pip install .
+              TEMPDIR=$(mktemp -d)
+              export CAIMAN_DATA=$TEMPDIR
+              cd $TEMPDIR
+              caimanmanager.py install
+              nosetests --traverse-namespace caiman
             '''
           }
         }
@@ -82,8 +86,12 @@ pipeline {
             sh '$ANACONDA3/bin/conda env create -q -f environment.yml -p $CONDA_ENV'
             sh '''#!/bin/bash -ex
               source $CONDA_ENV/bin/activate $CONDA_ENV
-              python setup.py build_ext -i
-              nosetests
+              pip install .
+              TEMPDIR=$(mktemp -d)
+              export CAIMAN_DATA=$TEMPDIR
+              cd $TEMPDIR
+              caimanmanager.py install
+              nosetests --traverse-namespace caiman
             '''
           }
         }
@@ -99,7 +107,7 @@ pipeline {
           }
           steps {
             bat '%ANACONDA%\\scripts\\conda env create -q -f environment_python27.yml -p %CONDA_ENV%'
-            bat '%CONDA_ENV%\\scripts\\activate %CONDA_ENV% && python setup.py build_ext -i && nosetests'
+            bat '%CONDA_ENV%\\scripts\\activate %CONDA_ENV% && pip install . && caimanmanager.py install && nosetests'
           }
         }
         */
@@ -113,7 +121,7 @@ pipeline {
           }
           steps {
             bat '%ANACONDA%\\scripts\\conda env create -q -f environment.yml -p %CONDA_ENV%'
-            bat '%CONDA_ENV%\\scripts\\activate %CONDA_ENV% && python setup.py build_ext -i && nosetests'
+            bat '%CONDA_ENV%\\scripts\\activate %CONDA_ENV% && pip install . && caimanmanager.py install && nosetests'
           }
         }
       }
