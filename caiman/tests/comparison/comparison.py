@@ -359,8 +359,10 @@ class Comparison(object):
             print("\n")
 
 # Saving of everything
-        os.makedirs(os.path.join(caiman_datadir(), "testdata", i), exist_ok=True)
-        file_path = os.path.join(caiman_datadir(), "testdata", i, i + ".npz")
+        target_dir = os.path.join(caiman_datadir(), "testdata", i)
+        if not os.path.exists(target_dir):
+            os.makedirs(os.path.join(caiman_datadir(), "testdata", i)) # XXX If we ever go Python3, just use the exist_ok flag to os.makedirs
+        file_path = os.path.join(target_dir, i + ".npz")
         np.savez(file_path, information=information, A_full=self.comparison['cnmf_full_frame']['ourdata'][0],
                  C_full=self.comparison['cnmf_full_frame']['ourdata'][
                      1], A_patch=self.comparison['cnmf_on_patch']['ourdata'][0],
