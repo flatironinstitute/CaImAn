@@ -121,7 +121,7 @@ pipeline {
           }
           steps {
             bat '%ANACONDA%\\scripts\\conda env create -q -f environment.yml -p %CONDA_ENV%'
-            bat '%CONDA_ENV%\\scripts\\activate %CONDA_ENV% && pip install . && caimanmanager.py install && nosetests'
+            bat '%CONDA_ENV%\\scripts\\activate %CONDA_ENV% && pip install . && caimanmanager.py install && cd %TEMP% && caimanmanager.py test'
           }
         }
       }
