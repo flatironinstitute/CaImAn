@@ -54,7 +54,7 @@ from caiman.components_evaluation import estimate_components_quality_auto
 
 # dataset dependent parameters
 display_images = False              # Set this to true to show movies and plots
-fname = ['/mnt/ceph/neuro/zebra/05292014Fish1-4/images/mmap_tifs/Plane17_100_500_400_-350_mc_noinit_small.tif']  # filename to be processed
+fname = ['Sue_2x_3000_40_-46.tif']  # filename to be processed
 fr = 30                             # imaging rate in frames per second
 decay_time = 0.4                    # length of a typical transient in seconds
 
