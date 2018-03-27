@@ -130,11 +130,7 @@ We recently incorporated a Python implementation of the OnACID [[5]](#onacid) al
     pip install .
     ```
 
-Alternative environments:
-   * [Using experimental CUDA support](/README-cuda.md)
-
 * caimanmanager
-
   Once CaImAn is installed, you may want to get a working directory with code samples and datasets; pip installed a caimanmanager.py command
   that manages this. If you have not installed Caiman before, you can do "caimanmanager.py install" and it will place that directory under
   your home directory in a directory called caiman_data. If you have, some of the demos or datafiles may have changed since your last install,
@@ -144,6 +140,9 @@ Alternative environments:
 
   If you prefer to manage this information somewhere else, the CAIMAN_DATA environment variable can be set to customise it. The caimanmanager tool
   and other libraries will respect that.
+
+Alternative environments:
+   * [Using experimental CUDA support](/README-cuda.md)
 
 ### Installation for behavioral analysis
 * Installation on Linux (Windows and MacOS are problematic with anaconda at the moment)
@@ -157,13 +156,14 @@ Alternative environments:
 
    * you can find them in directly in CaImAn folder and launch them from your ipython Notebook application:
    
-   * to launch jupyter notebook :
+   * to launch one of the jupyter notebooks:
    
        ```bash
     
         source activate CaImAn
         conda launch jupyter
         (if errors on plotting use this instead) jupyter notebook --NotebookApp.iopub_data_rate_limit=1.0e10
+	(select the notebook from within Jupyter's browser)
     
        ```
 * demo files are also found in the demos/general subfolder. We suggest trying demo_pipeline.py first as it contains most of the tasks required by calcium imaging. For behavior use demo_behavior.py
@@ -172,7 +172,7 @@ Alternative environments:
 
 ## Testing
 
-* All diffs must be tested before asking for a pull request. Call 'caimandata.py test' from outside of your CaImAn folder to look for errors. 
+* All diffs must be tested before asking for a pull request. Call 'caimanmanager.py test' from outside of your CaImAn folder to look for errors. 
    For python3 on MacOS nosetests does not work properly. If you need to test, then type the following from within the CaImAn folder:
 ```bash
 cd caiman/tests
