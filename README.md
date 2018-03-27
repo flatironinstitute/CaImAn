@@ -68,7 +68,7 @@ We recently incorporated a Python implementation of the OnACID [[5]](#onacid) al
    cd CaImAn/
    conda env create -f environment.yml -n caiman
    source activate caiman
-   python setup.py build_ext -i   
+   pip install .
    ```
    **Python 3 may have issues** when running in parallel mode (dview is not None) because of bugs in Python/ipyparallel/numpy interaction. Python2 may have fewer issues
 
@@ -83,14 +83,13 @@ We recently incorporated a Python implementation of the OnACID [[5]](#onacid) al
    cd CaImAn/
    conda env create -f environment.yml -n caiman
    source activate caiman   
-   python setup.py build_ext -i   
+   pip install .
    ```
 
 
    * To make the package available from everywhere and have it working *efficiently* under any configuration ALWAYS run these commands before starting spyder:
 
    ```bash
-   export PYTHONPATH="/path/to/caiman:$PYTHONPATH"
    export MKL_NUM_THREADS=1
    export OPENBLAS_NUM_THREADS=1
    ```
@@ -116,7 +115,7 @@ We recently incorporated a Python implementation of the OnACID [[5]](#onacid) al
     
 	conda env create -f environment.yml -n caiman
     activate caiman   
-    python setup.py build_ext -i       
+    pip install .
 	conda install numba
 	jupyter notebook --NotebookApp.iopub_data_rate_limit=1.0e10
     ```
@@ -128,8 +127,19 @@ We recently incorporated a Python implementation of the OnACID [[5]](#onacid) al
     git pull
     conda env create -f environment_python2.yml -n caiman
     activate caiman   
-    python setup.py build_ext -i       
+    pip install .
     ```
+
+* caimanmanager
+  Once CaImAn is installed, you may want to get a working directory with code samples and datasets; pip installed a caimanmanager.py command
+  that manages this. If you have not installed Caiman before, you can do "caimanmanager.py install" and it will place that directory under
+  your home directory in a directory called caiman_data. If you have, some of the demos or datafiles may have changed since your last install,
+  to follow API changes. You can check to see if they have by doing "caimanmanager.py check". If they have not, you may keep using them. If they have,
+  we recommend moving your old caiman data directory out of the way (or just remove them if you have no precious data) and doing
+  a new data install as per above.
+
+  If you prefer to manage this information somewhere else, the CAIMAN_DATA environment variable can be set to customise it. The caimanmanager tool
+  and other libraries will respect that.
 
 Alternative environments:
    * [Using experimental CUDA support](/README-cuda.md)
@@ -146,13 +156,14 @@ Alternative environments:
 
    * you can find them in directly in CaImAn folder and launch them from your ipython Notebook application:
    
-   * to launch jupyter notebook :
+   * to launch one of the jupyter notebooks:
    
        ```bash
     
         source activate CaImAn
         conda launch jupyter
         (if errors on plotting use this instead) jupyter notebook --NotebookApp.iopub_data_rate_limit=1.0e10
+	(select the notebook from within Jupyter's browser)
     
        ```
 * demo files are also found in the demos/general subfolder. We suggest trying demo_pipeline.py first as it contains most of the tasks required by calcium imaging. For behavior use demo_behavior.py
@@ -161,7 +172,7 @@ Alternative environments:
 
 ## Testing
 
-* All diffs must be tested before asking for a pull request. Call 'nosetests' program from inside of your CaImAn folder to look for errors. 
+* All diffs must be tested before asking for a pull request. Call 'caimanmanager.py test' from outside of your CaImAn folder to look for errors. 
    For python3 on MacOS nosetests does not work properly. If you need to test, then type the following from within the CaImAn folder:
 ```bash
 cd caiman/tests
@@ -170,7 +181,7 @@ ls test_*py | while read t; do nosetests --nologcapture ${t%%.py}; done;
 
   ### general_test
 
-   * This test will run the entire CaImAn program and look for differences against the original one. If your changes have made significant differences you'll be able to be recognise regressions by this test.  
+   * This test will run tests on the CaImAn software and look for output differences against the original. If your changes have made significant differences you'll be able to be recognise regressions by this test.  
    
    
 # Contributors:

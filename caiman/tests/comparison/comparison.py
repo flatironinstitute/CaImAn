@@ -34,6 +34,7 @@ import os
 #############################
 import matplotlib.pyplot as pl
 import caiman as cm
+from caiman.paths import caiman_datadir
 import scipy
 
 
@@ -212,7 +213,7 @@ class Comparison(object):
                 """
         # getting the DATA FOR COMPARISONS
         assert (params != None and self.cnmpatch != None)
-        print('we need the paramters in order to save anything\n')
+        print('we need the parameters in order to save anything\n')
         # actions on the sparse matrix
         cnm = self.cnmpatch.__dict__
         cnmpatch = deletesparse(cnm)
@@ -242,9 +243,9 @@ class Comparison(object):
         }
 
         rootdir = os.path.abspath(cm.__path__[0])[:-7]
-        file_path = rootdir + "/caiman/tests/comparison/groundtruth.npz"
+        file_path = os.path.join(caiman_datadir(), "testdata", "groundtruth.npz")
 
-        # OPENNINGS
+        # OPENINGS
         # if we want to set this data as truth
         if istruth:
                 # we just save it
@@ -255,7 +256,6 @@ class Comparison(object):
                      C_full=self.comparison['cnmf_full_frame']['ourdata'][
                          1], A_patch=self.comparison['cnmf_on_patch']['ourdata'][0],
                      C_patch=self.comparison['cnmf_on_patch']['ourdata'][1], rig_shifts=self.comparison['rig_shifts']['ourdata'])
-            #np.savez('comparison/groundtruth/groundtruth.npz', **information)
             print('we now have ground truth\n')
             return
 
@@ -271,16 +271,17 @@ class Comparison(object):
             # if we cannot manage to open it or it doesnt exist:
             except (IOError, OSError):
                 # we save but we explain why there were a problem
-                print('we were not able to read the file to compare it\n')
-                file_path = "comparison/tests/NC" + dt + ".npz"
+                print('we were not able to read the file ' + str(file_path) + ' to compare it\n')
+                file_path = os.path.join(caiman_datadir(), "testdata", "NC" + dt + ".npz")
                 np.savez(file_path, information=information, A_full=self.comparison['cnmf_full_frame']['ourdata'][0],
                          C_full=self.comparison['cnmf_full_frame']['ourdata'][
                              1], A_patch=self.comparison['cnmf_on_patch']['ourdata'][0],
                          C_patch=self.comparison['cnmf_on_patch']['ourdata'][1], rig_shifts=self.comparison['rig_shifts']['ourdata'])
                 return
         # creating the FOLDER to store our data
+        # XXX Is this still hooked up to anything?
         i = 0
-        dr = rootdir + '/caiman/tests/comparison/tests/'
+        dr = os.path.join(caiman_datadir(), "testdata")
         for name in os.listdir(dr):
             i += 1
         i = str(i)
@@ -304,8 +305,6 @@ class Comparison(object):
         if data['cnmpatch'] != cnmpatch:
             if data['cnmpatch'].keys() != cnmpatch.keys():
                 print('DIFFERENCES IN THE FIELDS OF CNMF')
-#                print(set(cnmpatch.keys()) - set(data['cnmpatch'].keys()))
-#                print(set(data['cnmpatch'].keys()) - set(cnmpatch.keys()))
             diffkeys = [k for k in data['cnmpatch']
                         if data['cnmpatch'][k] != cnmpatch[k]]
             for k in diffkeys:
@@ -359,15 +358,17 @@ class Comparison(object):
         except:
             print("\n")
 
-# SAving of everything
-        file_path = rootdir + "/caiman/tests/comparison/tests/" + i + "/" + i + ".npz"
+# Saving of everything
+        target_dir = os.path.join(caiman_datadir(), "testdata", i)
+        if not os.path.exists(target_dir):
+            os.makedirs(os.path.join(caiman_datadir(), "testdata", i)) # XXX If we ever go Python3, just use the exist_ok flag to os.makedirs
+        file_path = os.path.join(target_dir, i + ".npz")
         np.savez(file_path, information=information, A_full=self.comparison['cnmf_full_frame']['ourdata'][0],
                  C_full=self.comparison['cnmf_full_frame']['ourdata'][
                      1], A_patch=self.comparison['cnmf_on_patch']['ourdata'][0],
                  C_patch=self.comparison['cnmf_on_patch']['ourdata'][1], rig_shifts=self.comparison['rig_shifts']['ourdata'])
 
         self.information = information
-
 
 def see(filename=None):
     """shows you the important data about a certain test file ( just give the number or name)
@@ -388,11 +389,9 @@ def see(filename=None):
             """
 
     if filename == None:
-        dr = './caiman/tests/comparison/groundtruth.npz'
+        dr = os.path.join(caiman_datadir(), "testdata", "groundtruth.npz")
     else:
-        dr = os.path.abspath(cm.__path__[0]) + '/tests/comparison/tests/'
-        dr = dr + filename + '/' + filename + '.npz'
-
+        dr = os.path.join(caiman_datadir(), "testdata", filename, filename + ".npz")
         print(dr)
     with np.load(dr) as dt:
         print('here is the info :\n')

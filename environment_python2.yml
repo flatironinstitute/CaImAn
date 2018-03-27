@@ -12,7 +12,7 @@ dependencies:
 - ipyparallel
 - jupyter
 - keras
-- matplotlib
+- matplotlib=2.0.2
 - nose
 - numpy
 - opencv
