@@ -52,8 +52,37 @@ def do_run_nosetests(targdir):
 	out, err, ret = runcmd(["nosetests", "--traverse-namespace", "caiman"])
 	if ret != 0:
 		print("Nosetests failed with return code " + str(ret))
+		sys.exit(ret)
 	else:
 		print("Nosetests success!")
+
+def do_run_demotests(targdir):
+	out, err, ret = runcmd(["test_demos.sh"])
+	if ret != 0:
+		print("Demos failed with return code " + str(ret))
+		sys.exit(ret)
+	else:
+		print("Demos success!")
+
+def do_nt_run_demotests(targdir):
+	# Windows platform can't run shell scripts, and doing it in batch files
+	# is a terrible idea. So we'll do a minimal implementation of run_demos for
+	# windows inline here.
+	os.environ['MPLCONFIG'] = 'ps' # Not sure this does anything on windows
+	demos = glob.glob('demos/general/*.py') # Should still work on windows I think
+	for demo in demos:
+		print("========================================")
+		print("Testing " + str(demo))
+		if "demo_behavior.py" in demo:
+			print("  Skipping tests on " + demo + ": This is interactive")
+		else:
+			out, err, ret = runcmd(["python", demo], ignore_error=False)
+			if ret != 0:
+				print("  Tests failed with returncode " + str(ret))
+				print("  Failed test is " + str(demo))
+				sys.exit(2)
+			print("===================================")
+	print("Demos succeeded!")
 
 ###############
 #
@@ -96,6 +125,11 @@ def main():
 		do_check_install(cfg.userdir)
 	elif cfg.command == 'test':
 		do_run_nosetests(cfg.userdir)
+	elif cfg.command == 'demotest':
+		if os.name == 'nt':
+			do_nt_run_demotests(cfg.userdir)
+		else:
+			do_run_demotests(cfg.userdir)
 	else:
 		raise Exception("Unknown command")
 
