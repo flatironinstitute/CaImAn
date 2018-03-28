@@ -1,11 +1,9 @@
 #!/bin/bash
 
-# TODO: Set pythonpath to wherever this was unpacked
 ##########################
 # test_demos.sh
 #
-# This is intended to run all the python (.py) demos in the
-# codebase for testing. Jenkins will eventually invoke this.
+# This is intended to test the python (.py) demos
 #
 # dependencies:
 #   xvfb-run - This starts a dummy X server for anything that might
@@ -13,8 +11,6 @@
 #              we test MUST NOT wait for input while showing a movie,
 #              because in the test environment nobody will show up to provide
 #              that input (like clicking things or hitting q)
-
-# TODO: Enter appropriate conda environment, unless my wrapper script does that
 
 # Make sure the xvfb-run command exists before starting demos, so we can give a better
 # error message
