@@ -61,10 +61,11 @@ except:
 
 #%%
 decay_time = 1.5
-gSig = (6,6)
+gSig = (7,7)
 rval_thr = 1
-epochs = 1
-
+epochs = 2
+fr  = 15
+len_file =  2646#1885#1885 1815
 #fls = ['/mnt/ceph/neuro/zebra/05292014Fish1-4/images/mmap_tifs/Plane17_100_500_400_-350_mc_noinit_small.tif']
 #K = 10
 #min_num_trial = 50
@@ -77,25 +78,33 @@ epochs = 1
 #
 #fls = ['/mnt/ceph/neuro/zebra/05292014Fish1-4/images/mmap_tifs/Plane12_140_280_620_760.tif']
 
+
+
 #fls = ['/mnt/ceph/neuro/zebra/05292014Fish1-4/images/mmap_tifs/Plane17.stack.hdf5']
-fls = ['/mnt/ceph/neuro/zebra/05292014Fish1-4/Plane' + str(ID) + '.stack.hdf5'];
-K = 100
-min_num_trial = 50
+#fls = ['/mnt/ceph/neuro/zebra/05292014Fish1-4/Plane' + str(ID) + '.stack.hdf5'];
+#K = 100
+#min_num_trial = 50
+
+fls = ['example_movies/025_003_000_5_green_02_nobord.hdf5']
+
 
 mmm = cm.load(fls,subindices = 0)
 dims = mmm.shape
 K = np.maximum(K,np.round(600/1602720*np.prod(mmm.shape)).astype(np.int))
 min_num_trial = np.maximum(min_num_trial,np.round(200/1602720*np.prod(mmm.shape)).astype(np.int))
 # your list of files should look something like this
-print(fls)
 
+
+
+print(fls)
+K = 30
+min_num_trial = 3
 print([K,min_num_trial])
 
 # number of passes over the data
 #%%   Set up some parameters
-
 # frame rate (Hz)
-fr = 2
+#fr = 2
 #fr = 15
 
 # approximate length of transient event in seconds
@@ -116,7 +125,7 @@ min_SNR = 2.5
 # spatial downsampling factor (increases speed but may lose some fine structure)
 ds_factor = 2
 # number of background components
-gnb = 3
+gnb = 1
 # recompute gSig if downsampling is involved
 gSig = tuple((np.array(gSig) / ds_factor))#.astype('int'))
 # flag for online motion correction
@@ -143,17 +152,16 @@ N_samples = np.ceil(fr * decay_time)
 thresh_fitness_raw = scipy.special.log_ndtr(-min_SNR) * N_samples
 
 # upper bound for number of frames in each file (used right below)
-len_file = 1885#1885 1815
 # total length of all files (if not known use a large number, then truncate at the end)
 T1 = len(fls) * len_file * epochs
 #%%
-compute_corr = False
+compute_corr = True
 if compute_corr:
     m = cm.load(fls)
     mc = m.motion_correct(10,10)[0]
     mp = (mc.computeDFF(3))
-    Cn = cv2.resize(mp[0].local_correlations(eight_neighbours=True, swap_dim=False),dims[::-1][:-1])
-    np.save('/mnt/ceph/neuro/zebra/05292014Fish1-4/results_analysis_online_Plane_CN_' + str(ID) + '.npy', Cn)
+    Cn_ = cv2.resize(mp[0].local_correlations(eight_neighbours=True, swap_dim=False),dims[::-1][:-1])
+    np.save('CN_hires_.npy', Cn_)
 #%%    Initialize movie
 # load only the first initbatch frames and possibly downsample them
 if ds_factor > 1:
@@ -270,7 +278,7 @@ def create_frame(cnm2, img_norm, captions):
 #%% Prepare object for OnACID
 cnm2 = deepcopy(cnm_init)
 path_to_model = '/mnt/home/agiovann/SOFTWARE/CaImAn/use_cases/edge-cutter/residual_classifier_2classes.h5'
-path_to_model = '/mnt/home/agiovann/SOFTWARE/CaImAn/use_cases/CaImAnpaper/net_models/sniper_sensitive.h5'
+path_to_model = 'use_cases/sniper_sensitive.h5'
 if save_init:
     cnm_init.dview = None
     save_object(cnm_init, fls[0][:-4] + '_DS_' + str(ds_factor) + '.pkl')
@@ -281,7 +289,7 @@ cnm2._prepare_object(np.asarray(Yr), T1, expected_comps, idx_components=None,
                          min_num_trial=min_num_trial, max_num_added = min_num_trial, N_samples_exceptionality=int(N_samples),
                          path_to_model = path_to_model,
                          sniper_mode = True, use_peak_max = True)
-cnm2.thresh_CNN_noisy = 0.75
+cnm2.thresh_CNN_noisy = 0.5
 time_prepare = time() - t1
 #%% Run OnACID and optionally plot results in real time
 cnm2.Ab_epoch = []                       # save the shapes at the end of each epoch
@@ -292,7 +300,7 @@ cnn_pos = []
 # flag for plotting contours of detected components at the end of each file
 plot_contours_flag = False
 # flag for showing video with results online (turn off flags for improving speed)
-play_reconstr = True
+play_reconstr = False
 # flag for saving movie (file could be quite large..)
 save_movie = False
 folder_name = '.'
@@ -436,7 +444,7 @@ if ploton:
         cnm2, 'OASISinstances') else [0] * C.shape[0]
 
     pl.figure()
-    crd = cm.utils.visualization.plot_contours(A, Cn_, thr=0.9, vmax = 0.75)
+    crd = cm.utils.visualization.plot_contours(A, Cn_, thr=0.9, vmax = 0.25)
     view_patches_bar(Yr, scipy.sparse.coo_matrix(A.tocsc()[:, :]), C[:, :], b, f,
                      dims[0], dims[1], YrA=noisyC[cnm2.gnb:cnm2.M] - C, img=Cn_)
 
@@ -446,7 +454,7 @@ if ploton:
     crd = cm.utils.visualization.plot_contours(A, A_img, thr=0.9, vmax = 0.1,vmin=-0.01,cmap='gray')
     #%%
     from sklearn.preprocessing import scale
-    pl.imshow(scale(A.toarray(),axis=0).mean(axis=-1).reshape(dims,order='F'),vmin=-.01,vmax=.1,cmap='gray')
+    pl.imshow(scale(A.toarray(),axis=0).mean(axis=-1).reshape(dims,order='F'),vmin=-.01,vmax=.5,cmap='gray')
 #%% weighted suff stats
     #%% WEIGHTED SUFF STAT
 if ploton:

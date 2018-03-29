@@ -59,7 +59,7 @@ except:
 # 9: sue_ann_k37
 #10: Jan-AMG_exp3_001
 
-ind_dataset = 11
+ind_dataset = 3
 
 #%% set some global parameters here
 #'use_cases/edge-cutter/binary_cross_bootstrapped.json'
@@ -530,7 +530,7 @@ if save_results:
 #%% extract results from the objects and do some plotting
 A, b = cnm2.Ab[:, cnm2.gnb:], cnm2.Ab[:, :cnm2.gnb].toarray()
 C, f = cnm2.C_on[cnm2.gnb:cnm2.M, t-t//epochs:t], cnm2.C_on[:cnm2.gnb, t-t//epochs:t]
-noisyC = cnm2.noisyC[:,t-t//epochs:t]
+noisyC = cnm2.noisyC[cnm2.gnb:cnm2.M,t-t//epochs:t]
 if params_movie[ind_dataset]['p'] > 0:
     b_trace = [osi.b for osi in cnm2.OASISinstances]
 #%%
@@ -543,9 +543,50 @@ if ploton:
     crd = cm.utils.visualization.plot_contours(A, Cn, thr=0.9)
 
 #%%
-
 view_patches_bar(Yr, scipy.sparse.coo_matrix(A.tocsc()[:, :]), C[:, :], b, f,
-                 dims[0], dims[1], YrA=noisyC[cnm2.gnb:cnm2.M] - C, img=Cn)
+                 dims[0], dims[1], YrA=noisyC - C, img=Cn)
+#%% WEIGHTED SUFF STAT
+ploton = True
+if ploton:
+    from caiman.components_evaluation import compute_event_exceptionality
+    from scipy.stats import norm
+
+    min_SNR = 2.5
+    N_samples = np.ceil(params_movie[ind_dataset]['fr']*params_movie[ind_dataset]['decay_time']).astype(np.int)   # number of timesteps to consider when testing new neuron candidates
+    fitness, erf, noi, what = compute_event_exceptionality(C+cnm2.noisyC[cnm2.gnb:cnm2.M, t - t // epochs:t],N=N_samples)
+    COMP_SNR = -norm.ppf(np.exp(erf/ N_samples))
+    COMP_SNR  = np.vstack([np.ones_like(f),COMP_SNR])
+    COMP_SNR = np.clip(COMP_SNR, a_min = 0, a_max = 100)
+
+    Cf = cnm2.C_on[:cnm2.M, t-t//epochs:t]
+
+    Cf_ = Cf*COMP_SNR
+#    Cf__ = Cf*np.sqrt(COMP_SNR)
+    CC_ = Cf_.dot(Cf.T)
+#    CC_ = Cf__.dot(Cf__.T)
+    CY_ = Cf_.dot([(cv2.resize(yy,dims[::-1]).reshape(-1,order='F')-img_min)/img_norm.reshape(-1, order='F') for yy in Y_])
+
+    Ab_, ind_A_, Ab_dense_ = cm.source_extraction.cnmf.online_cnmf.update_shapes(CY_, CC_, cnm2.Ab.copy(), cnm2.ind_A, indicator_components=None, Ab_dense=None, update_bkgrd=True, iters=55)
+    #%%
+    A_, b_ = Ab_[:, cnm2.gnb:], Ab_[:, :cnm2.gnb].toarray()
+    pl.figure()
+    #
+    #view_patches_bar(Yr, scipy.sparse.coo_matrix(A_.tocsc()[:, :]), C[:, :], b_, f,
+    #                 dims[0], dims[1], YrA=noisyC - C, img=Cn)
+    counter = 0
+    for comp1, comp2 in zip(A.T,A_.T):
+        counter += 1
+        if counter > 380:
+            print(scipy.sparse.linalg.norm(comp1-comp2),scipy.sparse.linalg.norm(comp1),scipy.sparse.linalg.norm(comp2))
+            pl.subplot(1,3,1)
+            pl.imshow((comp1-comp2).toarray().reshape(dims, order='F'))
+            pl.subplot(1,3,2)
+            pl.imshow((comp1).toarray().reshape(dims, order='F'),vmax = 0.1)
+            pl.subplot(1,3,3)
+            pl.imshow((comp2).toarray().reshape(dims, order='F'),vmax = 0.1)
+            pl.pause(1)
+            if counter > 390:
+                break
 
 #%% load, threshold and filter for size ground truth
 #global_params['max_thr'] = 0.25

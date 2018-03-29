@@ -786,6 +786,7 @@ class CNMF(object):
         self.sn = np.array(np.std(self.Yres_buf,axis=0))
         self.vr = np.array(np.var(self.Yres_buf,axis=0))
         self.mn = self.Yres_buf.mean(0)
+        self.Yres_buf = np.maximum(self.Yres_buf,0)
         self.mean_buff = self.Yres_buf.mean(0)
         self.ind_new = []
         self.rho_buf = imblur(self.Yres_buf.T.reshape(
@@ -806,7 +807,7 @@ class CNMF(object):
             self.time_neuron_added.append((nneeuu, self.initbatch))
         self.time_spend = 0
         # setup per patch classifier
-        
+
         if path_to_model is None or sniper_mode is False:
             loaded_model = None
             sniper_mode = False
@@ -866,6 +867,7 @@ class CNMF(object):
         self.Yr_buf.append(frame)
         if len(self.ind_new) > 0:
             self.mean_buff = self.Yres_buf.mean(0)
+
         if (not self.simultaneously) or self.p == 0:
             # get noisy fluor value via NNLS (project data on shapes & demix)
             C_in = self.noisyC[:self.M, t - 1].copy()
