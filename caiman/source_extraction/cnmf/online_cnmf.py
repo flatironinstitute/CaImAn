@@ -515,19 +515,19 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial=3, gSig=(5, 5),
     if use_peak_max:
 
         img_select_peaks = sv.reshape(dims).copy()
-        plt.subplot(1,3,1)
-        plt.cla()
-        plt.imshow(img_select_peaks)
+#        plt.subplot(1,3,1)
+#        plt.cla()
+#        plt.imshow(img_select_peaks)
 
         img_select_peaks = cv2.GaussianBlur(img_select_peaks , ksize=ksize, sigmaX=gSig[0],
                                                         sigmaY=gSig[1], borderType=cv2.BORDER_REPLICATE) \
                     - cv2.boxFilter(img_select_peaks, ddepth=-1, ksize=ksize, borderType=cv2.BORDER_REPLICATE)
         thresh_img_sel = np.median(img_select_peaks) + thresh_std_peak_resid  * np.std(img_select_peaks)
 
-        plt.subplot(1,3,2)
-        plt.cla()
-        plt.imshow(img_select_peaks*(img_select_peaks>thresh_img_sel))
-        plt.pause(.05)
+#        plt.subplot(1,3,2)
+#        plt.cla()
+#        plt.imshow(img_select_peaks*(img_select_peaks>thresh_img_sel))
+#        plt.pause(.05)
 #        threshold_abs = np.median(img_select_peaks) + np.std(img_select_peaks)
 
 #        img_select_peaks -= np.min(img_select_peaks)
@@ -849,10 +849,10 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
 #            plt.pause(.05)
 
     #print(np.min(sv))
-    plt.subplot(1,3,3)
-    plt.cla()
-    plt.imshow(Yres_buf.mean(0).reshape(dims, order = 'F'))
-    plt.pause(.05)
+#    plt.subplot(1,3,3)
+#    plt.cla()
+#    plt.imshow(Yres_buf.mean(0).reshape(dims, order = 'F'))
+#    plt.pause(.05)
     return Ab, Cf, Yres_buf, rho_buf, CC, CY, ind_A, sv, groups, ind_new, ind_new_all, sv, cnn_pos
 
 
