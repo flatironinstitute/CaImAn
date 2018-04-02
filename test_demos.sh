@@ -23,6 +23,8 @@ fi
 # Tell matplotlib to try to plot less to begin with by specifying a postscript backend
 export MPLCONFIG=ps
 
+cd `dirname ${BASH_SOURCE[0]}`
+
 for demo in demos/general/*; do
 	if [ $demo == "demos/general/demo_behavior.py" ]; then
 		echo "	Skipping tests on $demo: This is interactive"
