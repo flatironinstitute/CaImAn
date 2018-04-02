@@ -57,7 +57,7 @@ def do_run_nosetests(targdir):
 		print("Nosetests success!")
 
 def do_run_demotests(targdir):
-	out, err, ret = runcmd(["test_demos.sh"])
+	out, err, ret = runcmd([os.path.join(caiman_datadir(), "test_demos.sh")])
 	if ret != 0:
 		print("Demos failed with return code " + str(ret))
 		sys.exit(ret)
