@@ -817,19 +817,15 @@ class CNMF(object):
             path = path_to_model.split(".")[:-1]
             json_path = ".".join(path + ["json"])
             model_path = ".".join(path + ["h5"])
-            try:
-                json_file = open(json_path, 'r')
-                loaded_model_json = json_file.read()
-                json_file.close()
-                loaded_model = model_from_json(loaded_model_json)
-                loaded_model.load_weights(model_path)
-                opt = keras.optimizers.rmsprop(lr=0.0001, decay=1e-6)
-                loaded_model.compile(loss=keras.losses.categorical_crossentropy,
-                              optimizer=opt, metrics=['accuracy'])
-            except:
-                print('No model found')
-                loaded_model = None
-                sniper_mode = False
+
+            json_file = open(json_path, 'r')
+            loaded_model_json = json_file.read()
+            json_file.close()
+            loaded_model = model_from_json(loaded_model_json)
+            loaded_model.load_weights(model_path)
+            opt = keras.optimizers.rmsprop(lr=0.0001, decay=1e-6)
+            loaded_model.compile(loss=keras.losses.categorical_crossentropy,
+                          optimizer=opt, metrics=['accuracy'])
 
         self.loaded_model = loaded_model
         self.sniper_mode = sniper_mode
@@ -903,9 +899,9 @@ class CNMF(object):
         self.mn = (t-1)/t*self.mn + res_frame/t
         self.vr = (t-1)/t*self.vr + (res_frame - mn_)*(res_frame - self.mn)/t
         self.sn = np.sqrt(self.vr)
-        
+
         if self.update_num_comps:
-            
+
             self.mean_buff += (res_frame-self.Yres_buf[self.Yres_buf.cur])/self.minibatch_shape
 #            cv2.imshow('untitled', 0.1*cv2.resize(res_frame.reshape(self.dims,order = 'F'),(512,512)))
 #            cv2.waitKey(1)
@@ -914,8 +910,9 @@ class CNMF(object):
 
             res_frame = np.reshape(res_frame, self.dims2, order='F')
 
-            rho = imblur(res_frame, sig=self.gSig,
+            rho = imblur(np.maximum(res_frame,0), sig=self.gSig,
                          siz=self.gSiz, nDimBlur=len(self.dims2))**2
+
             rho = np.reshape(rho, np.prod(self.dims2))
             self.rho_buf.append(rho)
 
