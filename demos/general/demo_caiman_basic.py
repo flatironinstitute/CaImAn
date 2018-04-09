@@ -80,7 +80,7 @@ is_patches = True      # flag for processing in patches or not
 if is_patches:          # PROCESS IN PATCHES AND THEN COMBINE
     rf = 10             # half size of each patch
     stride = 4          # overlap between patches
-    K = 3               # number of components in each patch
+    K = 4               # number of components in each patch
 else:                   # PROCESS THE WHOLE FOV AT ONCE
     rf = None           # setting these parameters to None
     stride = None       # will run CNMF on the whole FOV
@@ -104,14 +104,6 @@ plt.figure()
 crd = cm.utils.visualization.plot_contours(cnm.A, Cn, thr=0.9)
 plt.title('Contour plots of components')
 
-#%% visualize selected and rejected components
-plt.figure()
-plt.subplot(1, 2, 1)
-cm.utils.visualization.plot_contours(cnm.A[:, :], Cn, thr=0.9)
-plt.title('Selected components')
-plt.subplot(1, 2, 2)
-plt.title('Discaded components')
-cm.utils.visualization.plot_contours(cnm.A[:, :], Cn, thr=0.9)
 
 
 
@@ -142,6 +134,15 @@ idx_components, idx_components_bad, SNR_comp, r_values, cnn_preds = \
                                      dview=dview, min_SNR=min_SNR,
                                      r_values_min=rval_thr, use_cnn=use_cnn,
                                      thresh_cnn_min=min_cnn_thr)
+#%% visualize selected and rejected components
+plt.figure()
+plt.subplot(1, 2, 1)
+cm.utils.visualization.plot_contours(cnm2.A[:, idx_components], Cn, thr=0.9)
+plt.title('Selected components')
+plt.subplot(1, 2, 2)
+plt.title('Discaded components')
+cm.utils.visualization.plot_contours(cnm2.A[:, idx_components_bad], Cn, thr=0.9)
+
 #%%
 plt.figure()
 crd = cm.utils.visualization.plot_contours(cnm2.A.tocsc()[:,idx_components], Cn, thr=0.9)
