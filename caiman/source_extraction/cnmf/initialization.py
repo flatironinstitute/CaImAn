@@ -823,18 +823,18 @@ def imblur(Y, sig=5, siz=11, nDimBlur=None, kernel=None, opencv=True):
                 for frame in range(X.shape[-1]):
                     if sys.version_info >= (3, 0):
                         X[:, :, frame] = cv2.GaussianBlur(X[:, :, frame], tuple(
-                            siz.astype(np.int)), sig[0], None, sig[1], cv2.BORDER_REPLICATE)
+                            siz.astype(np.int)), sig[0], None, sig[1], cv2.BORDER_CONSTANT)
                     else:
                         X[:, :, frame] = cv2.GaussianBlur(X[:, :, frame], tuple(siz.astype(np.int)), sig[
-                                                          0], sig[1], cv2.BORDER_REPLICATE, 0)
+                                                          0], sig[1], cv2.BORDER_CONSTANT, 0)
 
             else:
                 if sys.version_info >= (3, 0):
                     X = cv2.GaussianBlur(
-                        X, tuple(siz.astype(np.int)), sig[0], None, sig[1], cv2.BORDER_REPLICATE)
+                        X, tuple(siz.astype(np.int)), sig[0], None, sig[1], cv2.BORDER_CONSTANT)
                 else:
                     X = cv2.GaussianBlur(
-                        X, tuple(siz.astype(np.int)), sig[0], sig[1], cv2.BORDER_REPLICATE, 0)
+                        X, tuple(siz.astype(np.int)), sig[0], sig[1], cv2.BORDER_CONSTANT, 0)
         else:
             for i in range(nDimBlur):
                 h = np.exp(

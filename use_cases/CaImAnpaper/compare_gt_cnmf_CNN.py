@@ -305,7 +305,7 @@ all_comp_SNR_delta = []
 all_predictions = []
 all_labels = []
 all_results = dict()
-reload = True
+reload = False
 plot_on = False
 save_on = False
 skip_refinement = False
@@ -316,7 +316,7 @@ n_pixels_per_process=4000
 block_size=4000
 num_blocks_per_run=10
 
-for params_movie in np.array(params_movies)[7:8]:
+for params_movie in np.array(params_movies)[:]:
 #    params_movie['gnb'] = 3
     params_display = {
         'downsample_ratio': .2,
@@ -501,7 +501,7 @@ for params_movie in np.array(params_movies)[7:8]:
         if save_on:
             np.savez(os.path.join(os.path.split(fname_new)[0],
                               os.path.split(fname_new)[1][:-4] +
-                              'results_analysis_after_merge_loc_ipy_ceph.npz'),
+                              'results_analysis_new_dev.npz'),
                               Cn=Cn, fname_new = fname_new,
                               A=A, C=C, b=b, f=f, YrA=YrA, sn=sn, d1=d1,
                               d2=d2, idx_components=idx_components,
@@ -545,7 +545,7 @@ for params_movie in np.array(params_movies)[7:8]:
 #         print(os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:-4] + 'results_analysis_after_merge_5.npz'))
 # =============================================================================
 
-        with np.load(os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:-4] + 'results_analysis_after_merge_loc_ipy_ceph.npz'), encoding = 'latin1') as ld:
+        with np.load(os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:-4] + 'results_analysis_new_dev.npz'), encoding = 'latin1') as ld:
             ld1 = {k:ld[k] for k in ['d1','d2','A','params_movie','fname_new',
                    'C','idx_components','idx_components_bad','Cn','b','f','YrA',
                    'sn','comp_SNR','r_values','predictionsCNN','A_gt','A_gt_thr',
@@ -574,12 +574,12 @@ for params_movie in np.array(params_movies)[7:8]:
 #        pl.hist(np.sum(comp_SNR_trace>2.5,0)/len(comp_SNR_trace),15)
 #        np.savez(fname_new.split('/')[-4]+'_act.npz', comp_SNR_trace=comp_SNR_trace, C_gt=C_gt, A_gt=A_gt, dims=(d1,d2))
 
-        S_gt = dview.map(myfun,[[fluor, None, None, None, None, 2, 'oasis'] for fluor in (C_gt+YrA_gt)])
-        S = [s[1] for s in S_gt]
-        C = [s[0] for s in S_gt]
-        F = C_gt+YrA_gt
-        np.savez(fname_new.split('/')[-4]+'_spikes.npz', S=S, C=C, A_gt=A_gt, F = F, dims=(d1,d2))
-        continue
+#        S_gt = dview.map(myfun,[[fluor, None, None, None, None, 2, 'oasis'] for fluor in (C_gt+YrA_gt)])
+#        S = [s[1] for s in S_gt]
+#        C = [s[0] for s in S_gt]
+#        F = C_gt+YrA_gt
+#        np.savez(fname_new.split('/')[-4]+'_spikes.npz', S=S, C=C, A_gt=A_gt, F = F, dims=(d1,d2))
+#        continue
 #        gt_file = os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:-4] + 'match_masks.npz')
 #        with np.load(gt_file, encoding = 'latin1') as ld:
 #            print(ld.keys())
@@ -1130,56 +1130,56 @@ for params_movie in np.array(params_movies)[7:8]:
         pl.ylabel('F1-score')
 
 
-#%% activity
-import glob
-import numpy as np
-import pylab as pl
-from scipy.signal import savgol_filter
-ffllss = glob.glob('*_act.npz')
-ffllss.sort()
-print(ffllss)
-for thresh in np.arange(1.5,4.5,1):
-    count = 1
-    pl.pause(0.1)
-    for ffll in ffllss:
+        #%% activity
+        import glob
+        import numpy as np
+        import pylab as pl
+        from scipy.signal import savgol_filter
+        ffllss = glob.glob('*_act.npz')
+        ffllss.sort()
+        print(ffllss)
+        for thresh in np.arange(1.5,4.5,1):
+            count = 1
+            pl.pause(0.1)
+            for ffll in ffllss:
 
-        with np.load(ffll) as ld:
-            print(ld.keys())
-            locals().update(ld)
-            pl.subplot(3,4,count)
-            count += 1
-            a = np.histogram(np.sum(comp_SNR_trace>thresh,0)/len(comp_SNR_trace),100)
-            pl.plot(a[1][1:][a[0]>0],savgol_filter(a[0][a[0]>0]/comp_SNR_trace.shape[-1],5,3))
+                with np.load(ffll) as ld:
+                    print(ld.keys())
+                    locals().update(ld)
+                    pl.subplot(3,4,count)
+                    count += 1
+                    a = np.histogram(np.sum(comp_SNR_trace>thresh,0)/len(comp_SNR_trace),100)
+                    pl.plot(a[1][1:][a[0]>0],savgol_filter(a[0][a[0]>0]/comp_SNR_trace.shape[-1],5,3))
 
-            pl.title(ffll)
+                    pl.title(ffll)
 
-pl.legend(np.arange(1.5,4.5,1))
-pl.xlabel('fraction active')
-pl.ylabel('fraction of frames')
-#%% spikes
-import glob
-import numpy as np
-import pylab as pl
-from scipy.signal import savgol_filter
-ffllss = glob.glob('*_spikes.npz')
-ffllss.sort()
-print(ffllss)
-for thresh in np.arange(0,.3,.1):
-    count = 1
-    pl.pause(0.1)
-    for ffll in ffllss:
+        pl.legend(np.arange(1.5,4.5,1))
+        pl.xlabel('fraction active')
+        pl.ylabel('fraction of frames')
+        #%% spikes
+        import glob
+        import numpy as np
+        import pylab as pl
+        from scipy.signal import savgol_filter
+        ffllss = glob.glob('*_spikes.npz')
+        ffllss.sort()
+        print(ffllss)
+        for thresh in np.arange(0,.3,.1):
+            count = 1
+            pl.pause(0.1)
+            for ffll in ffllss:
 
-        with np.load(ffll) as ld:
-            print(ld.keys())
-            locals().update(ld)
-            S = S/np.max(S,1)[:,None]
-            pl.subplot(3,4,count)
-            count += 1
-            a = np.histogram(np.sum(S>thresh,0)/len(S),100)
-            pl.plot(a[1][1:][a[0]>0],savgol_filter(a[0][a[0]>0]/S.shape[-1],5,3))
+                with np.load(ffll) as ld:
+                    print(ld.keys())
+                    locals().update(ld)
+                    S = S/np.max(S,1)[:,None]
+                    pl.subplot(3,4,count)
+                    count += 1
+                    a = np.histogram(np.sum(S>thresh,0)/len(S),100)
+                    pl.plot(a[1][1:][a[0]>0],savgol_filter(a[0][a[0]>0]/S.shape[-1],5,3))
 
-            pl.title(ffll)
+                    pl.title(ffll)
 
-pl.legend(np.arange(0,.3,.1))
-pl.xlabel('fraction active')
-pl.ylabel('fraction of frames')
+        pl.legend(np.arange(0,.3,.1))
+        pl.xlabel('fraction active')
+        pl.ylabel('fraction of frames')
