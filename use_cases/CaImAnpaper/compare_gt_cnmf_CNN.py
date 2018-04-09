@@ -287,7 +287,8 @@ params_movies.append(params_movie.copy())
 #%%
 def myfun(x):
     from caiman.source_extraction.cnmf.deconvolution import constrained_foopsi
-    return constrained_foopsi(*x)[5]
+    dc = constrained_foopsi(*x)
+    return (dc[0],dc[5])
 def fun_exc(x):
     from scipy.stats import norm
     from caiman.components_evaluation import compute_event_exceptionality
@@ -315,7 +316,7 @@ n_pixels_per_process=4000
 block_size=4000
 num_blocks_per_run=10
 
-for params_movie in np.array(params_movies)[6:7]:
+for params_movie in np.array(params_movies)[7:8]:
 #    params_movie['gnb'] = 3
     params_display = {
         'downsample_ratio': .2,
@@ -573,8 +574,11 @@ for params_movie in np.array(params_movies)[6:7]:
 #        pl.hist(np.sum(comp_SNR_trace>2.5,0)/len(comp_SNR_trace),15)
 #        np.savez(fname_new.split('/')[-4]+'_act.npz', comp_SNR_trace=comp_SNR_trace, C_gt=C_gt, A_gt=A_gt, dims=(d1,d2))
 
-        S = dview.map(myfun,[[fluor, None, None, None, None, 2, 'oasis'] for fluor in (C_gt+YrA_gt)])
-        np.savez(fname_new.split('/')[-4]+'_spikes.npz', S=S, C_gt=C_gt, A_gt=A_gt, dims=(d1,d2))
+        S_gt = dview.map(myfun,[[fluor, None, None, None, None, 2, 'oasis'] for fluor in (C_gt+YrA_gt)])
+        S = [s[1] for s in S_gt]
+        C = [s[0] for s in S_gt]
+        F = C_gt+YrA_gt
+        np.savez(fname_new.split('/')[-4]+'_spikes.npz', S=S, C=C, A_gt=A_gt, F = F, dims=(d1,d2))
         continue
 #        gt_file = os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:-4] + 'match_masks.npz')
 #        with np.load(gt_file, encoding = 'latin1') as ld:
