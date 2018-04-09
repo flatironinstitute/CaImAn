@@ -786,10 +786,10 @@ class CNMF(object):
         self.sn = np.array(np.std(self.Yres_buf,axis=0))
         self.vr = np.array(np.var(self.Yres_buf,axis=0))
         self.mn = self.Yres_buf.mean(0)
-        self.Yres_buf = np.maximum(self.Yres_buf,0)
+        self.Yres_buf = self.Yres_buf
         self.mean_buff = self.Yres_buf.mean(0)
         self.ind_new = []
-        self.rho_buf = imblur(self.Yres_buf.T.reshape(
+        self.rho_buf = imblur(np.maximum(self.Yres_buf.T,0).reshape(
             self.dims2 + (-1,), order='F'), sig=self.gSig, siz=self.gSiz, nDimBlur=len(self.dims2))**2
         self.rho_buf = np.reshape(
             self.rho_buf, (np.prod(self.dims2), -1)).T

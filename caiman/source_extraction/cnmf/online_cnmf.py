@@ -813,7 +813,6 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
             M = M + 1
 
             Yres_buf[:, indeces] -= np.outer(cin, ain)
-            Yres_buf[:, indeces] = np.maximum(Yres_buf[:, indeces],0)
             # vb = imblur(np.reshape(Ain, dims, order='F'), sig=gSig,
             #             siz=gSiz, nDimBlur=2).ravel()
             # restrict blurring to region where component is located
