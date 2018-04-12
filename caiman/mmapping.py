@@ -430,9 +430,8 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
                     big_mov[:, Ttot:Ttot + T] = Yr
                     del big_mov
                 else:
-                    print('SAVING WITH f.write()')
-                    with open(fname_tot, 'wb') as f:
-                        f.write(Yr)
+                    print('SAVING WITH numpy.tofile()')
+                    Yr.tofile(fname_tot)
             else:
                 big_mov = np.memmap(fname_tot, dtype=np.float32, mode='r+',
                                     shape=(np.prod(dims), Ttot + T), order=order)
