@@ -20,7 +20,6 @@ pipeline {
           steps {
             sh 'conda env create -q -f environment_python2.yml -p $CONDA_ENV'
             sh '''#!/bin/bash -ex
-              yum install xorg-x11-server-Xvfb
               source $CONDA_ENV/bin/activate $CONDA_ENV
               pip install .
               TEMPDIR=$(mktemp -d)
@@ -45,7 +44,6 @@ pipeline {
           steps {
             sh 'conda env create -q -f environment.yml -p $CONDA_ENV'
             sh '''#!/bin/bash -ex
-              yum install xorg-x11-server-Xvfb
               source $CONDA_ENV/bin/activate $CONDA_ENV
               pip install .
               TEMPDIR=$(mktemp -d)
