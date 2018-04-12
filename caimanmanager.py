@@ -113,8 +113,8 @@ def runcmd(cmdlist, ignore_error=False, verbose=True):
         ret = pipeline.returncode
         if ret != 0 and not ignore_error:
                 print("Error in runcmd")
-		print("STDOUT: " + str(stdout))
-		print("STDERR: " + str(stderr))
+                print("STDOUT: " + str(stdout))
+                print("STDERR: " + str(stderr))
                 sys.exit(1)
         return stdout, stderr, ret
 
