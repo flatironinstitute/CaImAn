@@ -302,7 +302,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
 
     d, T = np.shape(Y)[:-1], np.shape(Y)[-1]
     # rescale according to downsampling factor
-    gSig = np.asarray(gSig, dtype=float) / ssub
+    gSig = np.round(np.asarray(gSig) / ssub).astype(np.int)
     gSiz = np.round(np.asarray(gSiz) / ssub).astype(np.int)
 
     if normalize_init is True:
@@ -823,18 +823,18 @@ def imblur(Y, sig=5, siz=11, nDimBlur=None, kernel=None, opencv=True):
                 for frame in range(X.shape[-1]):
                     if sys.version_info >= (3, 0):
                         X[:, :, frame] = cv2.GaussianBlur(X[:, :, frame], tuple(
-                            siz.astype(np.int)), sig[0], None, sig[1], cv2.BORDER_CONSTANT)
+                            siz), sig[0], None, sig[1], cv2.BORDER_CONSTANT)
                     else:
-                        X[:, :, frame] = cv2.GaussianBlur(X[:, :, frame], tuple(siz.astype(np.int)), sig[
+                        X[:, :, frame] = cv2.GaussianBlur(X[:, :, frame], tuple(siz), sig[
                                                           0], sig[1], cv2.BORDER_CONSTANT, 0)
 
             else:
                 if sys.version_info >= (3, 0):
                     X = cv2.GaussianBlur(
-                        X, tuple(siz.astype(np.int)), sig[0], None, sig[1], cv2.BORDER_CONSTANT)
+                        X, tuple(siz), sig[0], None, sig[1], cv2.BORDER_CONSTANT)
                 else:
                     X = cv2.GaussianBlur(
-                        X, tuple(siz.astype(np.int)), sig[0], sig[1], cv2.BORDER_CONSTANT, 0)
+                        X, tuple(siz), sig[0], sig[1], cv2.BORDER_CONSTANT, 0)
         else:
             for i in range(nDimBlur):
                 h = np.exp(
