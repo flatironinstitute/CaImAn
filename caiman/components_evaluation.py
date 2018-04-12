@@ -239,8 +239,10 @@ def evaluate_components_CNN(A, dims, gSig, model_name='use_cases/CaImAnpaper/cnn
     """ evaluate component quality using a CNN network
 
     """
+
+    import os
     if not isGPU:
-        import os
+
         os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 
 #    try:
@@ -249,7 +251,7 @@ def evaluate_components_CNN(A, dims, gSig, model_name='use_cases/CaImAnpaper/cnn
 #    except:
 #        print('PROBLEM LOADING KERAS: cannot use classifier')
 
-        
+
     if loaded_model is None:
         if os.path.isfile(os.path.join(caiman_datadir(), model_name + ".json")):
             model_file    = os.path.join(caiman_datadir(), model_name + ".json")
@@ -540,9 +542,8 @@ def estimate_components_quality_auto(Y, A, C, b, f, YrA, frate, decay_time, gSig
 #%%
 def select_components_from_metrics(A, dims, gSig, r_values,  comp_SNR, r_values_min,
                                    r_values_lowest, min_SNR, min_std_reject,
-                                   thresh_cnn_min, thresh_cnn_lowest, use_cnn, gSig_range):
+                                   thresh_cnn_min, thresh_cnn_lowest, use_cnn, gSig_range, neuron_class = 1):
     '''
-
     '''
 
     idx_components_r = np.where((r_values >= r_values_min))[0]
@@ -550,7 +551,7 @@ def select_components_from_metrics(A, dims, gSig, r_values,  comp_SNR, r_values_
 
     idx_components = []
     if use_cnn:
-        neuron_class = 1  # normally 1
+          # normally 1
         if gSig_range is None:
             predictions, _ = evaluate_components_CNN(A, dims, gSig)
             predictions = predictions[:, neuron_class]
