@@ -1,6 +1,10 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
+from __future__ import division
+from __future__ import print_function
+from builtins import zip
+from builtins import str
+from builtins import map
+from builtins import range
+from past.utils import old_div
 """
 Created on Thu Aug 24 12:30:19 2017
 
@@ -14,14 +18,6 @@ Gets to 99.25% test accuracy after 12 epochs
 16 seconds per epoch on a GRID K520 GPU.
 '''
 
-#%%
-from __future__ import division
-from __future__ import print_function
-from builtins import zip
-from builtins import str
-from builtins import map
-from builtins import range
-from past.utils import old_div
 import cv2
 import glob
 
@@ -76,19 +72,28 @@ from caiman.utils.image_preprocessing_keras import ImageDataGenerator
 import json as simplejson
 from keras.models import model_from_json
 from sklearn.utils import class_weight as cw
-#%%
+import datetime
 
+#%%
 # the data, shuffled and split between train and test sets
-with np.load('use_cases/CaImAnpaper/ground_truth_comoponents_curated.npz') as ld:
-    all_masks_gt = ld['all_masks_gt']
+with np.load('/mnt/home/jshangying/CaImAn/final_label/ground_truth_components_curated_minions_cleaned_4.npz') as ld:
+    all_masks_gt = ld['all_masks_gt_cur']
     labels_gt = ld['labels_gt_cur']
+    new_labels_gt = labels_gt.copy()*np.nan
+    new_labels_gt[labels_gt==3] = 1 # dubious neurons
+    new_labels_gt[labels_gt==0] = 1  # good neurons
+    new_labels_gt[labels_gt==1] = 2  # dendrites
+    new_labels_gt[labels_gt==2] = 0  # noise
+    labels_gt = new_labels_gt
+    all_masks_gt = np.concatenate([(mm - np.median(mm))[None,:,:]/np.std(mm) for mm in all_masks_gt],axis=0)
+
 
 
 #%%
 
 batch_size = 128
-num_classes = 2
-epochs = 5000
+num_classes = 3
+epochs = 500
 test_fraction = 0.25
 augmentation = True
 # input image dimensions
@@ -121,36 +126,69 @@ print(x_test.shape[0], 'test samples')
 y_train = keras.utils.to_categorical(y_train, num_classes)
 y_test = keras.utils.to_categorical(y_test, num_classes)
 #%%
+#model = Sequential()
+#model.add(Conv2D(32, kernel_size=(3, 3),
+#                 activation='relu',
+#                 input_shape=input_shape))
+#model.add(Activation('relu'))
+#model.add(Conv2D(32, (3, 3)))
+#model.add(Activation('relu'))
+#model.add(MaxPooling2D(pool_size=(2, 2)))
+#model.add(Dropout(0.25))
+#
+#model.add(Conv2D(64, (3, 3), padding='same'))
+#model.add(Activation('relu'))
+#model.add(Conv2D(64, (3, 3)))
+#model.add(Activation('relu'))
+#model.add(MaxPooling2D(pool_size=(2, 2)))
+#model.add(Dropout(0.25))
+#
+#model.add(Flatten())
+#model.add(Dense(512))
+#model.add(Activation('relu'))
+#model.add(Dropout(0.5))
+#model.add(Dense(num_classes))
+#model.add(Activation('softmax'))
+#
+## initiate RMSprop optimizer
+#opt = keras.optimizers.rmsprop(lr=0.0001, decay=1e-6)
+#
+#model.compile(loss=keras.losses.categorical_crossentropy,
+#              optimizer=opt,
+#              metrics=['accuracy'])
+
+
 model = Sequential()
-model.add(Conv2D(32, kernel_size=(3, 3),
-                 activation='relu',
-                 input_shape=input_shape))
+model.add(Conv2D(48, 3, 3, border_mode='same', input_shape=input_shape))
 model.add(Activation('relu'))
-model.add(Conv2D(32, (3, 3)))
+model.add(Conv2D(48, 3, 3))
 model.add(Activation('relu'))
 model.add(MaxPooling2D(pool_size=(2, 2)))
 model.add(Dropout(0.25))
-
-model.add(Conv2D(64, (3, 3), padding='same'))
+model.add(Conv2D(96, 3, 3, border_mode='same'))
 model.add(Activation('relu'))
-model.add(Conv2D(64, (3, 3)))
+model.add(Conv2D(96, 3, 3))
 model.add(Activation('relu'))
 model.add(MaxPooling2D(pool_size=(2, 2)))
 model.add(Dropout(0.25))
-
+model.add(Conv2D(192, 3, 3, border_mode='same'))
+model.add(Activation('relu'))
+model.add(Conv2D(192, 3, 3))
+model.add(Activation('relu'))
+model.add(MaxPooling2D(pool_size=(2, 2)))
+model.add(Dropout(0.25))
 model.add(Flatten())
 model.add(Dense(512))
 model.add(Activation('relu'))
 model.add(Dropout(0.5))
-model.add(Dense(num_classes))
-model.add(Activation('softmax'))
+model.add(Dense(256))
+model.add(Activation('relu'))
+model.add(Dropout(0.5))
+model.add(Dense(num_classes, activation='softmax'))
 
-# initiate RMSprop optimizer
-opt = keras.optimizers.rmsprop(lr=0.0001, decay=1e-6)
+model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
 
-model.compile(loss=keras.losses.categorical_crossentropy,
-              optimizer=opt,
-              metrics=['accuracy'])
+
 
 if augmentation:
     print('Using real-time data augmentation.')
@@ -240,12 +278,20 @@ print('Test loss:', score[0])
 print('Test accuracy:', score[1])
 #%%
 from skimage.util.montage import montage2d
+#%%
 predictions = loaded_model.predict(all_masks_gt, batch_size=32, verbose=1)
-cm.movie(np.squeeze(all_masks_gt[np.where(predictions[:, 1] < 0.1)[0]])).play(
+cm.movie(np.squeeze(all_masks_gt[np.where(predictions[:, 1] > 0.1)[0]])).play(
     gain=3., magnification=5, fr=10)
 #%%
-pl.imshow(montage2d(all_masks_gt[np.where((labels_gt == 0) & (
-    predictions[:, 1] >= 0.5) & (predictions[:, 1] >= 0.5))[0]].squeeze()))
+for i in range(3):
+    pl.subplot(2,2,i+1)
+    pl.imshow(montage2d(all_masks_gt[np.where((labels_gt ==i) & (
+            predictions[:, i] < 0.1) & (predictions[:, i] < 0.1))[0]].squeeze()))
 #%%
-pl.imshow(montage2d(all_masks_gt[np.where((labels_gt == 1) & (
-    predictions[:, 0] >= 0.5) & (predictions[:, 0] >= 0.5))[0]].squeeze()))
+pl.imshow(montage2d(all_masks_gt[np.where(labels_gt == 3)[0]].squeeze()))
+#%%
+pl.imshow(montage2d(all_masks_gt[np.where(
+    predictions[:, 2] <= 0.25)[0]].squeeze()))
+#%%
+pl.imshow(montage2d(all_masks_gt[np.where((labels_gt == 3) & (
+predictions[:, 3] <= 0.25) & (predictions[:, 3] <= 0.25))[0]].squeeze()))

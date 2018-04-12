@@ -653,6 +653,7 @@ plot_results = False
 if plot_results:
     pl.figure(figsize=(30,20))
 
+
 tp_gt, tp_comp, fn_gt, fp_comp, performance_cons_off =  cm.base.rois.nf_match_neurons_in_binary_masks(A_gt_thr_bin[:,idx_components_gt].reshape([dims[0],dims[1],-1],order = 'F').transpose([2,0,1])*1.,
                                                                               A_thr_bin[:,idx_components_cnmf].reshape([dims[0],dims[1],-1],order = 'F').transpose([2,0,1])*1.,thresh_cost=.8, min_dist = 10,
                                                                               print_assignment= False,plot_results=plot_results,Cn=Cn_orig, labels = ['GT','Offline'])

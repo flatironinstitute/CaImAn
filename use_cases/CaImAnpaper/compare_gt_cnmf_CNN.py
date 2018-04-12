@@ -172,6 +172,7 @@ params_movies.append(params_movie.copy())
 #%% neurofinder 00.00
 params_movie = {'fname': '/mnt/ceph/neuro/labeling/neurofinder.00.00/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_2936_.mmap',
                   'gtname':'/mnt/ceph/neuro/labeling/neurofinder.00.00/regions/joined_consensus_active_regions.npy',
+                  'merge_thresh': 0.8,  # merging threshold, max correlation allow
                  'rf': 20,  # half-size of the patches in pixels. rf=25, patches are 50x50    20
                  'stride_cnmf': 10,  # amounpl.it of overlap between the patches in pixels
                  'K': 6,  # number of components per patch
@@ -259,7 +260,7 @@ params_movie = {#'fname': '/opt/local/Data/labeling/J123_2015-11-20_L01_0/Yr_d1_
                  'rf': 40,  # half-size of the patches in pixels. rf=25, patches are 50x50    20
                  'stride_cnmf': 20,  # amounpl.it of overlap between the patches in pixels
                  'K': 10,  # number of components per patch
-                 'gSig': [8,12],  # expected half size of neurons
+                 'gSig': [10,10],  # expected half size of neurons
                  'decay_time' : 0.5,
                  'fr' : 30,
                  'n_chunks': 10,
@@ -539,6 +540,7 @@ for params_movie in np.array(params_movies)[:]:
             'downsample_ratio': .2,
             'thr_plot': 0.8
         }
+
         fn_old = fname_new
         #analysis_file = '/mnt/ceph/neuro/jeremie_analysis/neurofinder.03.00.test/Yr_d1_498_d2_467_d3_1_order_C_frames_2250_._results_analysis.npz'
 # =============================================================================
@@ -552,6 +554,7 @@ for params_movie in np.array(params_movies)[:]:
                    'A_thr','C_gt','b_gt','f_gt','YrA_gt','idx_components_gt',
                    'idx_components_bad_gt', 'comp_SNR_gt', 'r_values_gt', 'predictionsCNN_gt',
                    't_eva_comps', 't_patch', 't_refine']}
+
             locals().update(ld1)
             dims_off = d1,d2
             A = scipy.sparse.coo_matrix(A[()])
@@ -762,6 +765,9 @@ for params_movie in np.array(params_movies)[:]:
     plot_results = plot_on
     if plot_results:
         pl.figure(figsize=(30,20))
+        Cn_ = Cn
+    else:
+        Cn_ = None
 
 #    idx_components = range(len(r_values))
 #    tp_gt, tp_comp, fn_gt, fp_comp, performance_cons_off =\
@@ -775,7 +781,7 @@ for params_movie in np.array(params_movies)[:]:
                     A_gt_thr[:,idx_components_gt].reshape([dims[0],dims[1],-1],order = 'F').transpose([2,0,1])*1.,
                     A_thr[:,idx_components_cnmf].reshape([dims[0],dims[1],-1],order = 'F').transpose([2,0,1])*1.,
                     thresh_cost=.8, min_dist = 10,
-                    print_assignment= False, plot_results=plot_results, Cn=Cn, labels=['GT','Offline'])
+                    print_assignment= False, plot_results=plot_results, Cn=Cn_, labels=['GT','Offline'])
     pl.rcParams['pdf.fonttype'] = 42
     font = {'family' : 'Arial',
             'weight' : 'regular',
@@ -1104,7 +1110,7 @@ for params_movie in np.array(params_movies)[:]:
 
         f1s = dict()
         f1s['batch'] = [0.77777,0.67,0.7623,0.72391,0.778739,0.7731,0.76578,0.77386,0.6783]
-        f1s['online'] = [0.765,0.686,0.759,0.719,0.776,0.745,0.8,0.82,0.77]
+        f1s['online'] = [0.76,0.678,0.783,0.721,0.769,0.725,0.818,0.805,0.803]
         f1s['L1'] = [np.nan,np.nan,0.78,np.nan,0.89,0.8,0.89,np.nan,0.85]
         f1s['L2'] = [0.9,0.69,0.9,0.92,0.87,0.89,0.92,0.93,0.83]
         f1s['L3'] = [0.85,0.75,0.82,0.83,0.84,0.78,0.93,0.94,0.9]
