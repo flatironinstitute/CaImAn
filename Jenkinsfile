@@ -73,7 +73,6 @@ pipeline {
               cd $TEMPDIR
               caimanmanager.py install
               nosetests --traverse-namespace caiman
-              caimanmanager.py demotest
             '''
           }
         }
@@ -95,7 +94,6 @@ pipeline {
               cd $TEMPDIR
               caimanmanager.py install
               nosetests --traverse-namespace caiman
-              caimanmanager.py demotest
             '''
           }
         }
