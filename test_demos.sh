@@ -26,7 +26,7 @@ if [ $OS == "Linux" ]; then
 		echo "xvfb-run command not found"
 		exit 1
 	fi
-	XVFB="xvfb-run -s -a -e - "
+	XVFB="xvfb-run -a "
 fi
 
 # Tell matplotlib to try to plot less to begin with by specifying a postscript backend
