@@ -1365,7 +1365,7 @@ def circular_constraint(img_original):
         vmax = img[y0, x0]
         x, y = np.meshgrid(np.arange(nc), np.arange(nr))
         fy, fx = np.gradient(img)
-        ind = ((fx * (x0 - x) + fy * (y0 - y) < 0) & (img < vmax / 2))
+        ind = ((fx * (x0 - x) + fy * (y0 - y) < 0) & (img < vmax / 3))
         img[ind] = 0
 
         # # remove isolated pixels

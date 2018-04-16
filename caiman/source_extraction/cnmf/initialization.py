@@ -30,7 +30,7 @@ import scipy.sparse as spr
 import scipy
 import caiman
 from caiman.source_extraction.cnmf.deconvolution import constrained_foopsi
-from caiman.source_extraction.cnmf.pre_processing import get_noise_fft
+from caiman.source_extraction.cnmf.pre_processing import get_noise_fft, get_noise_welch
 from caiman.source_extraction.cnmf.spatial import circular_constraint
 import cv2
 import sys
@@ -1032,6 +1032,22 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
         B = compute_B(b0, W, B)  # "-B"
         B += Y_ds.reshape((-1, total_frames), order='F')  # "Y-B"
 
+        print('Update Spatial')
+        options['spatial_params']['dims'] = (d1, d2)
+        A, _, C, _ = caiman.source_extraction.cnmf.spatial.update_spatial_components(
+            B, C=C, f=np.zeros((0, total_frames), np.float32), A_in=A,
+            sn=np.sqrt(downscale((sn**2).reshape(dims, order='F'),
+                                 tuple([ssub] * len(dims))).ravel() / tsub) / ssub,
+            b_in=np.zeros((d1 * d2, 0), np.float32),
+            dview=None, **options['spatial_params'])
+        A = A.astype(np.float32)
+        print('Update Temporal')
+        C, A = caiman.source_extraction.cnmf.temporal.update_temporal_components(
+            B, spr.csc_matrix(A),
+            np.zeros((d1 * d2, 0), np.float32),
+            C, np.zeros((0, total_frames), np.float32),
+            dview=None, bl=None, c1=None, sn=None, g=None, **o)[:2]
+
         # find more neurons in residual
         # print('Compute Residuals')
         for _ in range(init_iter - 1):
@@ -1046,16 +1062,16 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
                     seed_method=seed_method, deconvolve_options=o,
                     min_pixel=min_pixel, bd=bd, thresh_init=thresh_init,
                     swap_dim=True, save_video=save_video, video_name=video_name)
-                A = np.concatenate((A, A_R), 1)
+                A = spr.coo_matrix(np.concatenate((A.toarray(), A_R), 1))
                 C = np.concatenate((C, C_R), 0)
 
         # 1st iteration on decimated data
-        print('Update Temporal')
-        C, A = caiman.source_extraction.cnmf.temporal.update_temporal_components(
-			B, spr.csc_matrix(A),
-			np.zeros((d1 * d2, 0), np.float32),
-			C, np.zeros((0, total_frames), np.float32),
-			dview=None, bl=None, c1=None, sn=None, g=None, **o)[:2]
+        print('Merge Components')
+        A, C = caiman.source_extraction.cnmf.merging.merge_components(
+            B, A, [], C, [], C, [], o, options['spatial_params'],
+            dview=None, thr=options['merging']['thr'], mx=np.Inf, fast_merge=True)[:2]
+        A = A.astype(np.float32)
+        C = C.astype(np.float32)
         print('Update Spatial')
         options['spatial_params']['dims'] = (d1, d2)
         A, _, C, _ = caiman.source_extraction.cnmf.spatial.update_spatial_components(
@@ -1065,13 +1081,12 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
             b_in=np.zeros((d1 * d2, 0), np.float32),
             dview=None, **options['spatial_params'])
         A = A.astype(np.float32)
-
-        print('Merge Components')
-        A, C = caiman.source_extraction.cnmf.merging.merge_components(
-            B, A, [], C, [], C, [], o, options['spatial_params'],
-            dview=None, thr=options['merging']['thr'], mx=np.Inf, fast_merge=True)[:2]
-        A = A.astype(np.float32)
-        C = C.astype(np.float32)
+        print('Update Temporal')
+        C, A = caiman.source_extraction.cnmf.temporal.update_temporal_components(
+            B, spr.csc_matrix(A),
+            np.zeros((d1 * d2, 0), np.float32),
+            C, np.zeros((0, total_frames), np.float32),
+            dview=None, bl=None, c1=None, sn=None, g=None, **o)[:2]
 
         print('Compute Background Again')
         # background according to ringmodel
@@ -1099,14 +1114,14 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
             A = A.toarray().reshape((d1, d2, K), order='F')
             A = spr.csc_matrix(np.repeat(np.repeat(A, ssub, 0), ssub, 1)[:dims[0], :dims[1]]
                                .reshape((np.prod(dims), K), order='F'))
-
-        print('Update Temporal')
         B += Y.reshape((-1, T), order='F')  # "Y-B"
-        C, A, b__, f__, S, bl__, c1__, neurons_sn__, g1__, YrA, lam__ = \
-            caiman.source_extraction.cnmf.temporal.update_temporal_components(
-                B, spr.csc_matrix(A, dtype=np.float32),
-                np.zeros((np.prod(dims), 0), np.float32), C, np.zeros((0, T), np.float32),
-                dview=None, bl=None, c1=None, sn=None, g=None, **o)
+
+        print('Merge Components')
+        A, C = caiman.source_extraction.cnmf.merging.merge_components(
+            B, A, [], C, [], C, [], o, options['spatial_params'],
+            dview=None, thr=options['merging']['thr'], mx=np.Inf, fast_merge=True)[:2]
+        A = A.astype(np.float32)
+        C = C.astype(np.float32)
         print('Update Spatial')
         options['spatial_params']['dims'] = dims
         options['spatial_params']['se'] = np.ones(
@@ -1163,7 +1178,8 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
                           center_psf=True, min_corr=0.8, min_pnr=10,
                           seed_method='auto', deconvolve_options=None,
                           min_pixel=3, bd=1, thresh_init=2, swap_dim=True,
-                          save_video=False, video_name='initialization.mp4'):
+                          save_video=False, video_name='initialization.mp4',
+                          background_filter='disk', old=False):
     """
     using greedy method to initialize neurons by selecting pixels with large
     local correlation and large peak-to-noise ratio
@@ -1231,23 +1247,37 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
         # spatially filter data
         if not isinstance(gSig, list):
             gSig = [gSig, gSig]
-        ksize = tuple([int(3 * i / 2) * 2 + 1 for i in gSig])
+        ksize = tuple([int(2 * i) * 2 + 1 for i in gSig])
         # create a spatial filter for removing background
 
         if center_psf:
-            for idx, img in enumerate(data_filtered):
-                data_filtered[idx, ] = cv2.GaussianBlur(img, ksize=ksize, sigmaX=gSig[0],
-                                                        sigmaY=gSig[1], borderType=1) \
-                    - cv2.boxFilter(img, ddepth=-1, ksize=ksize, borderType=1)
+            if background_filter == 'box':
+                for idx, img in enumerate(data_filtered):
+                    data_filtered[idx, ] = cv2.GaussianBlur(
+                        img, ksize=ksize, sigmaX=gSig[0], sigmaY=gSig[1], borderType=1) \
+                        - cv2.boxFilter(img, ddepth=-1, ksize=ksize, borderType=1)
+            else:
+                psf = cv2.getGaussianKernel(ksize[0], gSig[0], cv2.CV_32F).dot(
+                    cv2.getGaussianKernel(ksize[1], gSig[1], cv2.CV_32F).T)
+                ind_nonzero = psf >= psf[0].max()
+                psf -= psf[ind_nonzero].mean()
+                psf[~ind_nonzero] = 0
+                for idx, img in enumerate(data_filtered):
+                    data_filtered[idx, ] = cv2.filter2D(img, -1, psf, borderType=1)
         else:
             for idx, img in enumerate(data_filtered):
                 data_filtered[idx, ] = cv2.GaussianBlur(img, ksize=ksize, sigmaX=gSig[0],
                                                         sigmaY=gSig[1], borderType=1)
 
     # compute peak-to-noise ratio
-    data_filtered -= data_filtered.mean(axis=0)
-    data_max = np.max(data_filtered, axis=0)
-    noise_pixel = get_noise_fft(data_filtered.transpose())[0].transpose()
+    if old:
+        data_filtered -= np.mean(data_filtered, axis=0)
+        data_max = np.max(data_filtered, axis=0)
+        noise_pixel = get_noise_fft(data_filtered.T)[0].T
+    else:
+        data_filtered -= np.median(data_filtered, axis=0)
+        data_max = np.max(data_filtered, axis=0)
+        noise_pixel = get_noise_welch(data_filtered.T).T
     pnr = np.divide(data_max, noise_pixel)
 
     # remove small values and only keep pixels with large fluorescence signals
@@ -1297,6 +1327,8 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
     num_neurons = 0  # number of initialized neurons
     continue_searching = True
     min_v_search = min_corr * min_pnr
+    [ii, jj] = np.meshgrid(range(d2), range(d1))
+    pixel_v = ((ii * 10 + jj) * 1e-5).astype(np.float32)
 
     if save_video:
         FFMpegWriter = animation.writers['ffmpeg']
@@ -1337,6 +1369,8 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
         else:
             # local maximum, for identifying seed pixels in following steps
             v_search[(cn < min_corr) | (pnr < min_pnr)] = 0
+            # add an extra value to avoid repeated seed pixels within one ROI.
+            v_search = cv2.medianBlur(v_search, 3) + pixel_v
             v_search[ind_search] = 0
             tmp_kernel = np.ones(shape=tuple([gSiz // 3] * 2))
             v_max = cv2.dilate(v_search, tmp_kernel)
@@ -1365,15 +1399,19 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
                 continue
 
             # roughly check whether this is a good seed pixel
-            y0 = data_filtered[:, r, c]
-            if np.max(y0) < thresh_init * noise_pixel[r, c]:
+            # y0 = data_filtered[:, r, c]
+            # if np.max(y0) < thresh_init * noise_pixel[r, c]:
+            #     v_search[r, c] = 0
+            #     continue
+            y0 = np.diff(data_filtered[:, r, c])
+            if y0.max() < 3 * y0.std():
                 v_search[r, c] = 0
                 continue
 
-            if Ain[:, r, c].sum() > 0 and np.max([scipy.stats.pearsonr(y0, cc)[0]
-                                                  for cc in Cin_raw[Ain[:, r, c] > 0]]) > .7:
-                v_search[r, c] = 0
-                continue
+            # if Ain[:, r, c].sum() > 0 and np.max([scipy.stats.pearsonr(y0, cc)[0]
+            #                                       for cc in Cin_raw[Ain[:, r, c] > 0]]) > .7:
+            #     v_search[r, c] = 0
+            #     continue
 
             # crop a small box for estimation of ai and ci
             r_min = max(0, r - gSiz)
@@ -1434,7 +1472,10 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
                     Sin[num_neurons] = si
                 else:
                     # no deconvolution
-                    baseline = np.median(ci_raw)
+                    # baseline = np.median(ci_raw)
+                    sn = get_noise_welch(ci_raw)
+                    y_diff = np.concatenate([[-1], np.diff(ci_raw)])
+                    baseline = np.median(ci_raw[(y_diff >= 0) * (y_diff < sn)])
                     ci_raw -= baseline
                     ci = ci_raw.copy()
                     ci[ci < 0] = 0
@@ -1455,6 +1496,9 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
 
                     writer.grab_frame()
 
+                # avoid searching nearby pixels
+                ind_search[r_min:r_max, c_min:c_max] += (ai > ai.max() / 2)
+
                 # remove the spatial-temporal activity of the initialized
                 # and update correlation image & PNR image
                 # update the raw data
@@ -1462,33 +1506,32 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
                     ai[np.newaxis, ...] * ci[..., np.newaxis, np.newaxis]
 
                 if gSig:
-                    # spatially filtered the neuron shape
+                    # spatially filter the neuron shape
                     tmp_img = Ain[num_neurons, r2_min:r2_max, c2_min:c2_max]
                     if center_psf:
-                        ai_filtered = cv2.GaussianBlur(tmp_img, ksize=ksize,
-                                                       sigmaX=gSig[0], sigmaY=gSig[1],
-                                                       borderType=cv2.BORDER_REFLECT) \
-                            - cv2.boxFilter(tmp_img, ddepth=-1,
-                                            ksize=ksize, borderType=cv2.BORDER_REFLECT)
+                        if background_filter == 'box':
+                            ai_filtered = cv2.GaussianBlur(tmp_img, ksize=ksize, sigmaX=gSig[0],
+                                                           sigmaY=gSig[1], borderType=1) \
+                                - cv2.boxFilter(tmp_img, ddepth=-1, ksize=ksize, borderType=1)
+                        else:
+                            ai_filtered = cv2.filter2D(tmp_img, -1, psf, borderType=1)
                     else:
-                        ai_filtered = cv2.GaussianBlur(tmp_img, ksize=ksize,
-                                                       sigmaX=gSig[0], sigmaY=gSig[1],
-                                                       borderType=cv2.BORDER_REFLECT)
+                        ai_filtered = cv2.GaussianBlur(tmp_img, ksize=ksize, sigmaX=gSig[0],
+                                                       sigmaY=gSig[1], borderType=1)
                     # update the filtered data
                     data_filtered[:, r2_min:r2_max, c2_min:c2_max] -= \
-                        ai_filtered[np.newaxis, ...] * \
-                        ci[..., np.newaxis, np.newaxis]
+                        ai_filtered[np.newaxis, ...] * ci[..., np.newaxis, np.newaxis]
                     data_filtered_box = data_filtered[:, r2_min:r2_max, c2_min:c2_max].copy()
                 else:
                     data_filtered_box = data_raw[:, r2_min:r2_max, c2_min:c2_max].copy()
 
                 # update PNR image
-                data_filtered_box -= data_filtered_box.mean(axis=0)
+                # data_filtered_box -= data_filtered_box.mean(axis=0)
                 max_box = np.max(data_filtered_box, axis=0)
                 noise_box = noise_pixel[r2_min:r2_max, c2_min:c2_max]
                 pnr_box = np.divide(max_box, noise_box)
-                pnr[r2_min:r2_max, c2_min:c2_max] = pnr_box
                 pnr_box[pnr_box < min_pnr] = 0
+                pnr[r2_min:r2_max, c2_min:c2_max] = pnr_box
 
                 # update correlation image
                 data_filtered_box[data_filtered_box <
@@ -1498,11 +1541,12 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
                 cn_box[np.isnan(cn_box) | (cn_box < 0)] = 0
                 cn[r_min:r_max, c_min:c_max] = cn_box[
                     (r_min - r2_min):(r_max - r2_min), (c_min - c2_min):(c_max - c2_min)]
-                cn_box = cn[r2_min:r2_max, c2_min:c2_max]
                 cn_box[cn_box < min_corr] = 0
+                cn_box = cn[r2_min:r2_max, c2_min:c2_max]
 
                 # update v_search
                 v_search[r2_min:r2_max, c2_min:c2_max] = cn_box * pnr_box
+                v_search[ind_search] = 0
                 # avoid searching nearby pixels
                 # v_search[r_min:r_max, c_min:c_max] *= (ai < np.max(ai) / 2.)
 
@@ -1532,7 +1576,7 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
 
 def extract_ac(data_filtered, data_raw, ind_ctr, patch_dims):
     # parameters
-    min_corr_neuron = 0.7
+    min_corr_neuron = 0.9  # 7
     max_corr_bg = 0.3
     data_filtered = data_filtered.copy()
 
@@ -1550,28 +1594,38 @@ def extract_ac(data_filtered, data_raw, ind_ctr, patch_dims):
     ind_bg = (tmp_corr < max_corr_bg).squeeze()
 
     # extract temporal activity
-    ci = np.mean(data_filtered[:, ind_neuron], axis=1).reshape(-1, 1)
+    ci = np.mean(data_filtered[:, ind_neuron], axis=1)
     # initialize temporal activity of the neural
-    ci -= np.median(ci)
-    if np.linalg.norm(ci) == 0:  # avoid empty results
+    if ci.dot(ci) == 0:  # avoid empty results
         return None, None, False
 
     # roughly estimate the background fluctuation
     y_bg = np.median(data_raw[:, ind_bg], axis=1).reshape(-1, 1)
     # extract spatial components
     # pdb.set_trace()
-    X = np.hstack([ci - ci.mean(), y_bg - y_bg.mean(), np.ones(ci.shape)])
-    XX = np.dot(X.transpose(), X)
+    # X = np.hstack([ci.reshape(-1, 1) - ci.mean(), y_bg - y_bg.mean(), np.ones(y_bg.shape)])
+    X = np.concatenate([ci.reshape(-1, 1), y_bg, np.ones(y_bg.shape, np.float32)], 1)
+    XX = np.dot(X.T, X)
     Xy = np.dot(X.T, data_raw)
-    ai = scipy.linalg.lstsq(XX, Xy)[0][0]
+    try:
+        ai = np.linalg.inv(XX).dot(Xy)[0]
+    except:
+        ai = scipy.linalg.lstsq(XX, Xy)[0][0]
     ai = ai.reshape(patch_dims)
     ai[ai < 0] = 0
 
     # post-process neuron shape
     ai = circular_constraint(ai)
 
+    # remove baseline
+    # ci -= np.median(ci)
+    sn = get_noise_welch(ci)
+    y_diff = np.concatenate([[-1], np.diff(ci)])
+    b = np.median(ci[(y_diff >= 0) * (y_diff < sn)])
+    ci -= b
+
     # return results
-    return ai, ci.reshape(len(ci)), True
+    return ai, ci, True
 
 
 @profile

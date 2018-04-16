@@ -25,7 +25,7 @@ import numpy as np
 from scipy.ndimage.filters import convolve
 import cv2
 import itertools
-from caiman.source_extraction.cnmf.pre_processing import get_noise_fft
+from caiman.source_extraction.cnmf.pre_processing import get_noise_fft, get_noise_welch
 #%%
 
 
@@ -232,7 +232,7 @@ def local_correlations(Y, eight_neighbours=True, swap_dim=True):
     return rho
 
 
-def correlation_pnr(Y, gSig=None, center_psf=True, swap_dim=True):
+def correlation_pnr(Y, gSig=None, center_psf=True, swap_dim=True, background_filter='disk', old=False):
     """
     compute the correlation image and the peak-to-noise ratio (PNR) image.
     If gSig is provided, then spatially filtered the video.
@@ -269,14 +269,23 @@ def correlation_pnr(Y, gSig=None, center_psf=True, swap_dim=True):
     if gSig:
         if not isinstance(gSig, list):
             gSig = [gSig, gSig]
-        ksize = tuple([int(3 * i / 2) * 2 + 1 for i in gSig])
-        # create a spatial filter for removing background
-        # psf = gen_filter_kernel(width=ksize, sigma=gSig, center=center_psf)
+        ksize = tuple([int(2 * i) * 2 + 1 for i in gSig])
 
         if center_psf:
-            for idx, img in enumerate(data_filtered):
-                data_filtered[idx, ] = cv2.GaussianBlur(img, ksize=ksize, sigmaX=gSig[0], sigmaY=gSig[1], borderType=1) \
-                    - cv2.boxFilter(img, ddepth=-1, ksize=ksize, borderType=1)
+            if background_filter == 'box':
+                for idx, img in enumerate(data_filtered):
+                    data_filtered[idx, ] = cv2.GaussianBlur(
+                        img, ksize=ksize, sigmaX=gSig[0], sigmaY=gSig[1], borderType=1) \
+                        - cv2.boxFilter(img, ddepth=-1, ksize=ksize, borderType=1)
+            else:
+                psf = cv2.getGaussianKernel(ksize[0], gSig[0], cv2.CV_32F).dot(
+                    cv2.getGaussianKernel(ksize[1], gSig[1], cv2.CV_32F).T)
+                ind_nonzero = psf >= psf[0].max()
+                psf -= psf[ind_nonzero].mean()
+                psf[~ind_nonzero] = 0
+                for idx, img in enumerate(data_filtered):
+                    data_filtered[idx, ] = cv2.filter2D(img, -1, psf, borderType=1)
+
             # data_filtered[idx, ] = cv2.filter2D(img, -1, psf, borderType=1)
         else:
             for idx, img in enumerate(data_filtered):
@@ -284,10 +293,14 @@ def correlation_pnr(Y, gSig=None, center_psf=True, swap_dim=True):
                     img, ksize=ksize, sigmaX=gSig[0], sigmaY=gSig[1], borderType=1)
 
     # compute peak-to-noise ratio
-    data_filtered -= np.mean(data_filtered, axis=0)
-    data_max = np.max(data_filtered, axis=0)
-    data_std = get_noise_fft(data_filtered.transpose())[0].transpose()
-    # data_std = get_noise(data_filtered, method='diff2_med')
+    if old:
+        data_filtered -= np.mean(data_filtered, axis=0)
+        data_max = np.max(data_filtered, axis=0)
+        data_std = get_noise_fft(data_filtered.T)[0].T
+    else:
+        data_filtered -= np.median(data_filtered, axis=0)
+        data_max = np.max(data_filtered, axis=0)
+        data_std = get_noise_welch(data_filtered.T).T
     pnr = np.divide(data_max, data_std)
     pnr[pnr < 0] = 0
 
