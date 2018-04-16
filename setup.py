@@ -32,6 +32,7 @@ binaries = ['caimanmanager.py']
 extra_dirs = ['demos', 'docs', 'use_cases', 'example_movies']
 data_files = [('', ['LICENSE.txt']),
               ('', ['README.md']),
+              ('share/caiman', ['test_demos.sh']),
               ('share/caiman/testdata', ['caiman/tests/comparison/groundtruth.npz', 'caiman/tests/comparison/tests/example/example.npz'])
              ]
 for part in extra_dirs:
