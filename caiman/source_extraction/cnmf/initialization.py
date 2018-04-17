@@ -31,7 +31,7 @@ import scipy
 import caiman
 from caiman.source_extraction.cnmf.deconvolution import constrained_foopsi
 from caiman.source_extraction.cnmf.pre_processing import get_noise_fft, get_noise_welch
-from caiman.source_extraction.cnmf.spatial import circular_constraint
+from caiman.source_extraction.cnmf.spatial import circular_constraint, connectivity_constraint
 import cv2
 import sys
 import matplotlib.pyplot as plt
@@ -1372,7 +1372,7 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
             # add an extra value to avoid repeated seed pixels within one ROI.
             v_search = cv2.medianBlur(v_search, 3) + pixel_v
             v_search[ind_search] = 0
-            tmp_kernel = np.ones(shape=tuple([gSiz // 3] * 2))
+            tmp_kernel = np.ones(shape=tuple([int(round(gSiz / 4.))] * 2))
             v_max = cv2.dilate(v_search, tmp_kernel)
 
             # automatically select seed pixels as the local maximums
@@ -1616,6 +1616,7 @@ def extract_ac(data_filtered, data_raw, ind_ctr, patch_dims):
 
     # post-process neuron shape
     ai = circular_constraint(ai)
+    ai = connectivity_constraint(ai)
 
     # remove baseline
     # ci -= np.median(ci)
