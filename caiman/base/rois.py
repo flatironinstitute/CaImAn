@@ -39,7 +39,7 @@ from ..motion_correction import tile_and_correct
 #%%
 
 
-def com(A, d1, d2):
+def com(A, d1, d2, d3=None):
     """Calculation of the center of mass for spatial components
 
      Inputs:
@@ -53,21 +53,28 @@ def com(A, d1, d2):
      d2:  int
           number of pixels in y-direction
 
+     d3:  int
+          number of pixels in z-direction
+
      Output:
      -------
      cm:  np.ndarray
-          center of mass for spatial components (K x 2)
+          center of mass for spatial components (K x 2 or 3)
     """
 
     if 'csc_matrix' not in str(type(A)):
         A = scipy.sparse.csc_matrix(A)
-
-    Coor = dict()
-    Coor['x'] = np.kron(
-        np.ones((d2, 1)), np.expand_dims(list(range(d1)), axis=1))
-    Coor['y'] = np.kron(np.expand_dims(
-        list(range(d2)), axis=1), np.ones((d1, 1)))
-    cm = old_div(np.hstack((Coor['x'], Coor['y'])).T * A, A.sum(axis=0)).T
+    
+    if d3 is None:
+        Coor = np.matrix([np.outer(np.ones(d2), np.arange(d1)).ravel(),
+                          np.outer(np.arange(d2), np.ones(d1)).ravel()], dtype=A.dtype)
+    else:
+        Coor = np.matrix([
+            np.outer(np.ones(d3), np.outer(np.ones(d2), np.arange(d1)).ravel()).ravel(),
+            np.outer(np.ones(d3), np.outer(np.arange(d2), np.ones(d1)).ravel()).ravel(),
+            np.outer(np.arange(d3), np.outer(np.ones(d2), np.ones(d1)).ravel()).ravel()],
+            dtype=A.dtype)
+    cm = (Coor * A / A.sum(axis=0)).T
     return np.array(cm)
 
 #%%

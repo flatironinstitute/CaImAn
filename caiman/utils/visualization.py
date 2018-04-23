@@ -243,7 +243,7 @@ def nb_view_patches(Yr, A, C, b, f, d1, d2, YrA=None, image_neurons=None, thr=0.
     return Y_r
 
 
-def get_contours(A, dims, thr=0.9):
+def get_contours(A, dims, thr=0.9, thr_method='nrg', swap_dim=False):
     """Gets contour of spatial components and returns their coordinates
 
      Parameters:
@@ -257,6 +257,11 @@ def get_contours(A, dims, thr=0.9):
          thr: scalar between 0 and 1
                Energy threshold for computing contours (default 0.9)
 
+         thr_method: [optional] string
+              Method of thresholding:
+                  'max' sets to zero pixels that have value less than a fraction of the max value
+                  'nrg' keeps the pixels that contribute up to a specified fraction of the energy
+
      Returns:
      --------
      Coor: list of coordinates with center of mass and
@@ -264,7 +269,8 @@ def get_contours(A, dims, thr=0.9):
 
 
     """
-    A = csc_matrix(A)
+    if 'csc_matrix' not in str(type(A)):
+        A = csc_matrix(A)
     d, nr = np.shape(A)
     # if we are on a 3D video
     if len(dims) == 3:
@@ -277,8 +283,7 @@ def get_contours(A, dims, thr=0.9):
     coordinates = []
 
     # get the center of mass of neurons( patches )
-    cm = np.asarray(
-        [center_of_mass(a.toarray().reshape(dims, order='F')) for a in A.T])
+    cm = com(A, *dims)
 
     # for each patches
     for i in range(nr):
@@ -286,15 +291,23 @@ def get_contours(A, dims, thr=0.9):
         # we compute the cumulative sum of the energy of the Ath component that has been ordered from least to highest
         patch_data = A.data[A.indptr[i]:A.indptr[i + 1]]
         indx = np.argsort(patch_data)[::-1]
-        cumEn = np.cumsum(patch_data[indx]**2)
+        if thr_method == 'nrg':
+            cumEn = np.cumsum(patch_data[indx]**2)
+            # we work with normalized values
+            cumEn /= cumEn[-1]
+            Bvec = np.ones(d)
+            # we put it in a similar matrix
+            Bvec[A.indices[A.indptr[i]:A.indptr[i + 1]][indx]] = cumEn
+        else:
+            if thr_method != 'max':
+                warn("Unknown threshold method. Choosing max")
+            Bvec = np.zeros(d)
+            Bvec[A.indices[A.indptr[i]:A.indptr[i + 1]]] = patch_data / patch_data.max()
 
-        # we work with normalized values
-        cumEn /= cumEn[-1]
-        Bvec = np.ones(d)
-
-        # we put it in a similar matrix
-        Bvec[A.indices[A.indptr[i]:A.indptr[i + 1]][indx]] = cumEn
-        Bmat = np.reshape(Bvec, dims, order='F')
+        if swap_dim:
+            Bmat = np.reshape(Bvec, dims, order='C')
+        else:
+            Bmat = np.reshape(Bvec, dims, order='F')
         pars['coordinates'] = []
         # for each dimensions we draw the contour
         for B in (Bmat if len(dims) == 3 else [Bmat]):
@@ -306,11 +319,8 @@ def get_contours(A, dims, thr=0.9):
                 if num_close_coords < 2:
                     if num_close_coords == 0:
                         # case angle
-                        newpt = np.round(
-                            old_div(vtx[-1, :], [d2, d1])) * [d2, d1]
-                        vtx = np.concatenate(
-                            (vtx, newpt[np.newaxis, :]), axis=0)
-
+                        newpt = np.round(old_div(vtx[-1, :], [d2, d1])) * [d2, d1]
+                        vtx = np.concatenate((vtx, newpt[np.newaxis, :]), axis=0)
                     else:
                         # case one is border
                         vtx = np.concatenate((vtx, vtx[0, np.newaxis]), axis=0)
@@ -921,88 +931,42 @@ def plot_contours(A, Cn, thr=None, thr_method='max', maxthr=0.2, nrgthr=0.9, dis
      --------
      Coor: list of coordinates with center of mass, contour plot coordinates and bounding box for each component
     """
-    if issparse(A):
-        A = np.array(A.todense())
-    else:
-        A = np.array(A)
 
     if swap_dim:
         Cn = Cn.T
         print('Swapping dim')
 
-    d1, d2 = np.shape(Cn)
-    d, nr = np.shape(A)
-    if max_number is None:
-        max_number = nr
-
-    if thr is not None:
+    if thr is None:
+        try:
+            thr = {'nrg': nrgthr, 'max': maxthr}[thr_method]
+        except KeyError:
+            thr = maxthr
+    else:
         thr_method = 'nrg'
-        nrgthr = thr
-        warn("The way to call utilities.plot_contours has changed. Look at the definition for more details.")
-
-    x, y = np.mgrid[0:d1:1, 0:d2:1]
+        warn("The way to call utilities.plot_contours has changed. " +
+             "Look at the definition for more details.")
 
     ax = pl.gca()
     if vmax is None and vmin is None:
         pl.imshow(Cn, interpolation=None, cmap=cmap,
-                  vmin=np.percentile(Cn[~np.isnan(Cn)], 1), vmax=np.percentile(Cn[~np.isnan(Cn)], 99))
+                  vmin=np.percentile(Cn[~np.isnan(Cn)], 1),
+                  vmax=np.percentile(Cn[~np.isnan(Cn)], 99))
     else:
-        pl.imshow(Cn, interpolation=None, cmap=cmap,
-                  vmin=vmin, vmax=vmax)
+        pl.imshow(Cn, interpolation=None, cmap=cmap, vmin=vmin, vmax=vmax)
 
-    coordinates = []
-    cm = com(A, d1, d2)
-    for i in range(np.minimum(nr, max_number)):
-        pars = dict(kwargs)
-        if thr_method == 'nrg':
-            indx = np.argsort(A[:, i], axis=None)[::-1]
-            cumEn = np.cumsum(A[:, i].flatten()[indx]**2)
-            cumEn /= cumEn[-1]
-            Bvec = np.zeros(d)
-            Bvec[indx] = cumEn
-            thr = nrgthr
-
-        else:  # thr_method = 'max'
-            if thr_method != 'max':
-                warn("Unknown threshold method. Choosing max")
-            Bvec = A[:, i].flatten()
-            Bvec /= np.max(Bvec)
-            thr = maxthr
-
-        if swap_dim:
-            Bmat = np.reshape(Bvec, np.shape(Cn), order='C')
-        else:
-            Bmat = np.reshape(Bvec, np.shape(Cn), order='F')
-        cs = pl.contour(y, x, Bmat, [thr], colors=colors)
-        # this fix is necessary for having disjoint figures and borders plotted correctly
-        p = cs.collections[0].get_paths()
-        v = np.atleast_2d([np.nan, np.nan])
-        for pths in p:
-            vtx = pths.vertices
-            num_close_coords = np.sum(np.isclose(vtx[0, :], vtx[-1, :]))
-            if num_close_coords < 2:
-                if num_close_coords == 0:
-                    # case angle
-                    newpt = np.round(old_div(vtx[-1, :], [d2, d1])) * [d2, d1]
-                    #import ipdb; ipdb.set_trace()
-                    vtx = np.concatenate((vtx, newpt[np.newaxis, :]), axis=0)
-
-                else:
-                    # case one is border
-                    vtx = np.concatenate((vtx, vtx[0, np.newaxis]), axis=0)
-                    #import ipdb; ipdb.set_trace()
-
-            v = np.concatenate(
-                (v, vtx, np.atleast_2d([np.nan, np.nan])), axis=0)
-
-        pars['CoM'] = np.squeeze(cm[i, :])
-        pars['coordinates'] = v
-        pars['bbox'] = [np.floor(np.min(v[:, 1])), np.ceil(np.max(v[:, 1])),
-                        np.floor(np.min(v[:, 0])), np.ceil(np.max(v[:, 0]))]
-        pars['neuron_id'] = i + 1
-        coordinates.append(pars)
+    coordinates = get_contours(A, np.shape(Cn), thr, thr_method, swap_dim)
+    for c in coordinates:
+        v = c['coordinates']
+        c['bbox'] = [np.floor(np.nanmin(v[:, 1])), np.ceil(np.nanmax(v[:, 1])),
+                     np.floor(np.nanmin(v[:, 0])), np.ceil(np.nanmax(v[:, 0]))]
+        pl.plot(*v.T, c=colors)
 
     if display_numbers:
+        d1, d2 = np.shape(Cn)
+        d, nr = np.shape(A)
+        cm = com(A, d1, d2)
+        if max_number is None:
+            max_number = A.shape[1]
         for i in range(np.minimum(nr, max_number)):
             if swap_dim:
                 ax.text(cm[i, 0], cm[i, 1], str(i + 1), color=colors)
