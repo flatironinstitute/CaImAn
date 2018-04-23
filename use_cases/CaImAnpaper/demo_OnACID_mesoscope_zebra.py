@@ -490,11 +490,73 @@ if ploton:
             if counter > 390:
                 break
 
+#%% All Planes
+if ploton:
+    from sklearn.preprocessing import normalize
+    num_neur = []
+    #tott = np.zeros_like(tottime)
+    update_comps_time = []
+    tott = []
+    totneursum = 0
+    time_per_neuron = []
+    pl.figure()
+    for ID in range(1,46):
+#        try:
+            with np.load('/mnt/ceph/neuro/zebra/05292014Fish1-4/results_analysis_online_1EPOCH_gSig6_equalized_Plane_' + str(ID) + '.npz') as ld:
+#                locals().update(ld)
+                print(np.sum(ld['tottime'])+ld['time_init'])
+                tottime = ld['tottime']
+                print(ld.keys())
+                totneursum += ld['Cf'].shape[0]-3
+                pl.subplot(5,9,ID)
+#                img = normalize(Ab[()][:,3:],'l1',axis=0).mean(-1).reshape(dims,order = 'F').T
+                Cn_ = np.load('/mnt/ceph/neuro/zebra/05292014Fish1-4/results_analysis_online_Plane_CN_'+str(ID)+ '.npy')
+                pl.imshow(ld['Cf'][3:],aspect = 'auto', vmax = 10)
+                pl.ylim([0,1950])
+                pl.axis('off')
+                pl.pause(0.1)
+
+
+#                pl.figure();crd = cm.utils.visualization.plot_contours(
+#                        Ab[()][:,3:].toarray().reshape(tuple(dims)+(-1,), order = 'F').transpose([1,0,2]).\
+#                        reshape((dims[1]*dims[0],-1),order = 'F'), cv2.resize(Cn_,tuple(dims[::-1])).T, thr=0.9, vmax = 0.75,
+#                        display_numbers=False)
+#                A_thr = cm.source_extraction.cnmf.spatial.threshold_components(Ab[()].tocsc()[:,gnb:].toarray(), dims, medw=None, thr_method='nrg',
+#                                                                  maxthr=0.3, nrgthr=0.95, extract_cc=True,
+#                                 se=None, ss=None, dview=dview)
+#                np.save('/mnt/ceph/neuro/zebra/05292014Fish1-4/thresholded_components' + str(ID) + '.npy',A_thr)
+                A_thr = np.load('/mnt/ceph/neuro/zebra/05292014Fish1-4/thresholded_components' + str(ID) + '.npy')
+#                img = normalize(Ab[()][:,gnb:].multiply(A_thr),'l1',axis=0).mean(-1).reshape(dims,order = 'F').T
+#                img = Ab[()][:,gnb:].multiply(A_thr).mean(-1).reshape(dims,order = 'F').T
+                Ab_thr = Ab[()][:,gnb:].multiply(A_thr)
+                img = (Ab_thr.dot(scipy.sparse.spdiags(np.minimum(1.0/np.max(Ab_thr,0).toarray(),100),0,Ab_thr.shape[-1],Ab_thr.shape[-1]))).mean(-1).reshape(dims,order = 'F').T
+                xx,yy = np.subtract((560,860),img.shape)//2+1
+
+#                pl.imshow(cv2.copyMakeBorder(img,xx,xx,yy,yy, cv2.BORDER_CONSTANT,0),vmin=np.percentile(img,5),vmax=np.percentile(img,99.99),cmap = 'gray')
+
+#                A_thr = A_thr > 0
+
+#                pl.imshow(((A_thr*np.random.randint(1,10,A_thr.shape[-1])[None,:]).sum(-1).reshape(dims,order='F')).T, cmap = 'hot', vmin = 0.9, vmax=20)
+                pl.axis('off')
+                pl.pause(0.05)
+
+                num_neur.append(num_comps[1885-201])
+                tottime = tottime[:1885-201]
+                num_comps = num_comps[:1885-201]
+                update_comps_time.append((np.array(num_comps)[99::100],tottime[99::100].copy()))
+                tottime[99::100] = np.nan
+                tottime[0] = np.nan
+                [(np.where(np.diff([0]+list(num_comps))==cc)[0], tottime[np.where(np.diff([0]+list(num_comps))==cc)[0]]) for cc in range(6)]
+                tott.append(tottime)
+
+#        except:
+            print(ID)
+    pl.tight_layout()
 #%% Plane 11
 if ploton:
     from sklearn.preprocessing import normalize
     num_neur = []
-    tott = np.zeros_like(tottime)
+    #tott = np.zeros_like(tottime)
     update_comps_time = []
     tott = []
     time_per_neuron = []

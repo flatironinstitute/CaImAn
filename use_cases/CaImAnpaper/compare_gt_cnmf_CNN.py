@@ -216,7 +216,7 @@ params_movie = {#'fname': '/opt/local/Data/labeling/neurofinder.02.00/Yr_d1_512_
                  'decay_time': 0.3,
                  }
 params_movies.append(params_movie.copy())
-#%% Sue Ann k56
+#%% Sue Ann k53
 params_movie = {#'fname': '/opt/local/Data/labeling/k53_20160530/Yr_d1_512_d2_512_d3_1_order_C_frames_116043_.mmap',
                 'fname':'/mnt/ceph/neuro/labeling/k53_20160530/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_116043_.mmap',
                 'gtname':'/mnt/ceph/neuro/labeling/k53_20160530/regions/joined_consensus_active_regions.npy',
@@ -306,7 +306,7 @@ all_comp_SNR_delta = []
 all_predictions = []
 all_labels = []
 all_results = dict()
-reload = False
+reload = True
 plot_on = False
 save_on = False
 skip_refinement = False
@@ -316,6 +316,7 @@ n_processes = 24
 n_pixels_per_process=4000
 block_size=4000
 num_blocks_per_run=10
+ALL_CCs = []
 
 for params_movie in np.array(params_movies)[:]:
 #    params_movie['gnb'] = 3
@@ -822,6 +823,8 @@ for params_movie in np.array(params_movies)[:]:
     performance_tmp['fn_gt'] = fn_gt
     performance_tmp['fp_comp'] = fp_comp
 
+    ALL_CCs.append([scipy.stats.pearsonr(a,b)[0] for a, b in zip(C_gt[idx_components_gt[tp_gt]],C[idx_components_cnmf[tp_comp]])])
+
 
 #    performance_SNRs = []
 #    performance_SNRs.append(performance_tmp)
@@ -1040,6 +1043,7 @@ for params_movie in np.array(params_movies)[:]:
 
         size = np.log10(np.array([2.1, 3.1,0.6,3.1,8.4,1.9,121.7,78.7,35.8,50.3])*1000)
         components= np.array([368,935,476,1060,1099,1387,1541,1013,398,1064])
+        components= np.array([368,935,476,1060,1099,1387,1541,1013,398,1064])
 
         t_mmap['cluster'] = np.array([np.nan,41,np.nan,np.nan,109,np.nan,561,378,135,212])
         t_patch['cluster'] = np.array([np.nan,46,np.nan,np.nan,92,np.nan,1063,469,142,372])
@@ -1057,41 +1061,48 @@ for params_movie in np.array(params_movies)[:]:
         t_refine['laptop'] = np.array([195,321,87,236,414,354,5129,3087,807,1550])
         t_filter_comps['laptop'] = np.array([5,10,5,7,15,11,719,263,74,100])
 
-#        t_mmap['online'] = np.array([0,0,0,0,0,0,0,0,0,0])
-#        t_patch['online'] = np.array([0,0,0,0,0,0,0,0,0,0])
-#        t_refine['online'] = np.array([0,0,0,0,0,0,0,0,0,0])
-#        t_filter_comps['online'] = np.array([86,468,102,427,1021,190,1498,3694,2662,391])
+        t_mmap['online'] = np.array([18.98, 85.21458578,  40.50961256,  17.71901989,  85.23642993, 30.11493444,  34.09690762,  18.95380235,  10.85061121,  31.97082043])
+        t_patch['online'] = np.array([75.73,266.81324172,   332.06756997,   114.17053413,   267.06141853, 147.59935951,  3297.18628764,  2573.04009032,   578.88080835, 1725.74687123])
+        t_refine['online'] = np.array([12.41, 91.77891779,    84.74378371,    31.84973955,    89.29527831, 25.1676743 ,  1689.06246471,  1282.98535109,    61.20671248, 322.67962313])
+        t_filter_comps['online'] = np.array([0,0, 0, 0, 0, 0, 0, 0, 0, 0])
 
 
 
-        pl.subplot(1,3,1)
-        for key in ['cluster','desktop', 'laptop']:
+        pl.subplot(1,4,1)
+        for key in ['cluster','desktop', 'laptop','online']:
+            np.log10(t_mmap[key]+t_patch[key]+t_refine[key]+t_filter_comps[key])
             plt.scatter((size),np.log10(t_mmap[key]+t_patch[key]+t_refine[key]+t_filter_comps[key]),s=np.array(components)/10)
             plt.xlabel('size log_10(MB)')
             plt.ylabel('time log_10(s)')
 
         plt.plot((np.sort(size)),np.log10((np.sort(10**size))/31.45),'--.k')
-        plt.legend(['acquisition-time','cluster (112 CPUs)','workstation (24 CPUs)', 'laptop (6 CPUs)'])
+        plt.legend(['acquisition-time','cluster (112 CPUs)','workstation (24 CPUs)', 'laptop (6 CPUs)','online (6 CPUs)'])
         pl.title('Total execution time')
         pl.xlim([3.8,5.2])
         pl.ylim([2.35,4.2])
 
         counter=2
-        for key in ['cluster','laptop']:
-            pl.subplot(1,3,counter)
+        for key in ['cluster','laptop','online']:
+            pl.subplot(1,4,counter)
             counter+=1
             if counter == 3:
                 pl.title('Time per phase (cluster)')
                 plt.ylabel('time (10^3 s)')
-            else:
+            elif counter == 2:
                 pl.title('Time per phase (workstation)')
+            else:
+                pl.title('Time per phase (online)')
+
             plt.bar((size),(t_mmap[key]), width = 0.12, bottom = 0)
             plt.bar((size),(t_patch[key]), width = 0.12, bottom = (t_mmap[key]))
             plt.bar((size),(t_refine[key]), width = 0.12, bottom = (t_mmap[key]+t_patch[key]))
             plt.bar((size),(t_filter_comps[key]), width = 0.12, bottom = (t_mmap[key]+t_patch[key]+t_refine[key]))
             plt.xlabel('size log_10(MB)')
+            if counter == 5:
+                plt.legend(['Initialization','track activity','update shapes'])
+            else:
+                plt.legend(['mem mapping','patch init','refine sol','quality  filter','acquisition time'])
 
-            plt.legend(['mem mapping','patch init','refine sol','quality  filter','acquisition time'])
             plt.plot((np.sort(size)),(10**np.sort(size))/31.45,'--k')
             pl.xlim([3.6,5.2])
 
@@ -1134,9 +1145,57 @@ for params_movie in np.array(params_movies)[:]:
             pl.plot([i-.5, i+.5], [np.nanmean(some_of[i,:])]*2,'k')
         plt.xticks(range(4), ['L1','L2','L3','L4'], rotation=45)
         pl.ylabel('F1-score')
+        #%% check correlation against gounrd truth
+        pl.rcParams['pdf.fonttype'] = 42
+
+        with np.load('/mnt/home/agiovann/Dropbox/FiguresAndPapers/PaperCaiman/ALL_CORRELATIONS_ONLINE_CONSENSUS.npz') as ld:
+            xcorr_online = ld['ALL_CCs']
+            xcorr_offline = list(np.array(xcorr_offline[[0,1,3,4,5,2,6,7,8,9]]))
+
+        with np.load('/mnt/home/agiovann/Dropbox/FiguresAndPapers/PaperCaiman/ALL_CORRELATIONS_OFFLINE_CONSENSUS.npz') as ld:
+            xcorr_offline = ld['ALL_CCs']
+
+        names = ['0300.T',
+                 '0400.T',
+                 'YT',
+                 '0000',
+                 '0200',
+                 '0101',
+                 'k53',
+                 'J115',
+                 'J123']
+
+        pl.subplot(1,2,1)
+
+        pl.hist(np.concatenate(xcorr_online),bins = np.arange(0,1,.01))
+        pl.hist(np.concatenate(xcorr_offline),bins = np.arange(0,1,.01))
+        a = pl.hist(np.concatenate(xcorr_online[:]),bins = np.arange(0,1,.01))
+        a1 = pl.hist(np.concatenate(xcorr_online[:6]),bins = np.arange(0,1,.01))
+        a2 = pl.hist(np.concatenate(xcorr_online)[6:],bins = np.arange(0,1,.01))
+        a3 = pl.hist(np.concatenate(xcorr_offline)[:],bins = np.arange(0,1,.01))
+        a_on_1 = np.cumsum(a2[0]/a2[0].sum())
+        a_on_2 = np.cumsum(a1[0]/a1[0].sum())
+        a_on = np.cumsum(a[0]/a[0].sum())
+        a_off = np.cumsum(a3[0]/a3[0].sum())
+        pl.close()
+        pl.plot(np.arange(0.01,1,.01),a_on);pl.plot(np.arange(0.01,1,.01),a_off)
+        pl.legend(['online', 'offline'])
+        pl.xlabel('correlation (r)')
+        pl.ylabel('cumulative probability')
+        pl.subplot(1,2,2)
+        medians_on = []
+        iqrs_on = []
+        medians_off = []
+        iqrs_off = []
+        for onn,off in zip(xcorr_online,xcorr_offline):
+            medians_on.append(np.median(onn))
+            iqrs_on.append(np.percentile(onn,[25,75]))
+            medians_off.append(np.median(off))
+            iqrs_off.append(np.percentile(off,[25,75]))
 
 
-        #%% activity
+
+        #%% activity MITYA
         import glob
         import numpy as np
         import pylab as pl
@@ -1162,7 +1221,7 @@ for params_movie in np.array(params_movies)[:]:
         pl.legend(np.arange(1.5,4.5,1))
         pl.xlabel('fraction active')
         pl.ylabel('fraction of frames')
-        #%% spikes
+        #%% spikes MITYA
         import glob
         import numpy as np
         import pylab as pl
