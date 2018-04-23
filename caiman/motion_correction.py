@@ -2384,14 +2384,11 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
     if extension == '.tif' or extension == '.tiff':  # check if tiff file
         with tifffile.TiffFile(fname) as tf:
             T = len(tf.pages)
-            d1, d2 = tf.pages[0].shape
-
-#            if len(tf) == 1:  # Fiji-generated TIF
-#                is_fiji = True
-#                T, d1, d2 = tf[0].shape
-#            else:
-#                d1, d2 = tf[0].shape
-#                T = len(tf)
+            if T == 1:  # Fiji-generated TIF
+                is_fiji = True
+                T, d1, d2 = tf[0].shape
+            else:
+                d1, d2 = tf.pages[0].shape
 
     elif extension == '.sbx':  # check if sbx file
 
