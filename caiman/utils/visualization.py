@@ -962,6 +962,8 @@ def plot_contours(A, Cn, thr=None, thr_method='max', maxthr=0.2, nrgthr=0.9, dis
         pl.plot(*v.T, c=colors)
 
     if display_numbers:
+        d1, d2 = np.shape(Cn)
+        d, nr = np.shape(A)
         cm = com(A, d1, d2)
         if max_number is None:
             max_number = A.shape[1]
