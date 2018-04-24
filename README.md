@@ -68,8 +68,10 @@ We recently incorporated a Python implementation of the OnACID [[5]](#onacid) al
    cd CaImAn/
    conda env create -f environment.yml -n caiman
    source activate caiman
-   pip install .
+   pip install . (OR pip install -e . if you want to develop code, in this case also set export CAIMAN_DATA='/Users/agiovann/SOFTWARE/CaImAn/')
    ```
+   
+   
    **Python 3 may have issues** when running in parallel mode (dview is not None) because of bugs in Python/ipyparallel/numpy interaction. Python2 may have fewer issues
 
 * Installation on Linux 
@@ -83,7 +85,7 @@ We recently incorporated a Python implementation of the OnACID [[5]](#onacid) al
    cd CaImAn/
    conda env create -f environment.yml -n caiman
    source activate caiman   
-   pip install .
+   pip install . (OR pip install -e . if you want to develop code, in this case also set export CAIMAN_DATA='/Users/agiovann/SOFTWARE/CaImAn/')
    ```
 
 
@@ -115,7 +117,7 @@ We recently incorporated a Python implementation of the OnACID [[5]](#onacid) al
     
 	conda env create -f environment.yml -n caiman
     activate caiman   
-    pip install .
+    pip install . (OR pip install -e . if you want to develop code, in this case also set export CAIMAN_DATA='/Users/agiovann/SOFTWARE/CaImAn/')
 	conda install numba
 	jupyter notebook --NotebookApp.iopub_data_rate_limit=1.0e10
     ```
@@ -127,7 +129,7 @@ We recently incorporated a Python implementation of the OnACID [[5]](#onacid) al
     git pull
     conda env create -f environment_python2.yml -n caiman
     activate caiman   
-    pip install .
+    pip install . (OR pip install -e . if you want to develop code, in this case also set export CAIMAN_DATA='/Users/agiovann/SOFTWARE/CaImAn/')
     ```
 
 * caimanmanager
