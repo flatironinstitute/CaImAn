@@ -363,13 +363,20 @@ def stop_server(ipcluster='ipcluster', pdir=None, profile=None, dview=None):
 
 
 def setup_cluster(backend='multiprocessing', n_processes=None, single_thread=False):
-    """ If necessary, restart the pipyparallel cluster. If we have a slurm backend,
-        restart that instead.
+    """Setup and/or restart a parallel cluster.
 
     Parameters:
     ----------
     backend: str
-        'multiprocessing', 'ipyparallel', and 'SLURM'
+        'multiprocessing' [alias 'local'], 'ipyparallel', and 'SLURM'
+        ipyparallel and SLURM backends try to restart if cluster running.
+        backend='multiprocessing' raises an exception if a cluster is running.
+
+    Returns:
+    ----------
+        c: ipyparallel.Client object; only used for ipyparallel and SLURM backends, else None
+        dview: ipyparallel dview object, or for multiprocessing: Pool object
+        n_processes: number of workers in dview. None means guess at number of machine cores.
     """
     #todo: todocument
 
