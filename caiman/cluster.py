@@ -32,6 +32,7 @@ import numpy as np
 from .mmapping import load_memmap
 from multiprocessing import Pool
 import multiprocessing
+import platform
 #%%
 
 
@@ -406,7 +407,12 @@ def setup_cluster(backend='multiprocessing', n_processes=None, single_thread=Fal
                 raise Exception(
                     'A cluster is already runnning. Terminate with dview.terminate() if you want to restart.')
             c = None
-            dview = Pool(n_processes)
+            if platform.system() == 'Darwin':
+                mp_start_method = 'forkserver'  # default 'fork' crashes multi-threaded BLAS on Mac
+            else:
+                mp_start_method = None # use default for platform
+            ctx = multiprocessing.get_context(mp_start_method)
+            dview = ctx.Pool(n_processes)
         else:
             raise Exception('Unknown Backend')
 
