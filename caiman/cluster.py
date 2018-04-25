@@ -32,6 +32,7 @@ import numpy as np
 from .mmapping import load_memmap
 from multiprocessing import Pool
 import multiprocessing
+import platform
 #%%
 
 
@@ -362,13 +363,20 @@ def stop_server(ipcluster='ipcluster', pdir=None, profile=None, dview=None):
 
 
 def setup_cluster(backend='multiprocessing', n_processes=None, single_thread=False):
-    """ If necessary, restart the pipyparallel cluster. If we have a slurm backend,
-        restart that instead.
+    """Setup and/or restart a parallel cluster.
 
     Parameters:
     ----------
     backend: str
-        'multiprocessing', 'ipyparallel', and 'SLURM'
+        'multiprocessing' [alias 'local'], 'ipyparallel', and 'SLURM'
+        ipyparallel and SLURM backends try to restart if cluster running.
+        backend='multiprocessing' raises an exception if a cluster is running.
+
+    Returns:
+    ----------
+        c: ipyparallel.Client object; only used for ipyparallel and SLURM backends, else None
+        dview: ipyparallel dview object, or for multiprocessing: Pool object
+        n_processes: number of workers in dview. None means guess at number of machine cores.
     """
     #todo: todocument
 
@@ -406,7 +414,12 @@ def setup_cluster(backend='multiprocessing', n_processes=None, single_thread=Fal
                 raise Exception(
                     'A cluster is already runnning. Terminate with dview.terminate() if you want to restart.')
             c = None
-            dview = Pool(n_processes)
+            if platform.system() == 'Darwin':
+                mp_start_method = 'forkserver'  # default 'fork' crashes multi-threaded BLAS on Mac
+            else:
+                mp_start_method = None # use default for platform
+            ctx = multiprocessing.get_context(mp_start_method)
+            dview = ctx.Pool(n_processes)
         else:
             raise Exception('Unknown Backend')
 
