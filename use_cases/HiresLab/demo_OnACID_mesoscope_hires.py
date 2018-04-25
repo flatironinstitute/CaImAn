@@ -552,7 +552,7 @@ if ploton:
     pl.tight_layout()
     #%% predictions for Plan 11
     from skimage.util.montage import  montage2d
-    predictions, final_crops = cm.components_evaluation.evaluate_components_CNN(Ab[()][:,gnb:], dims, np.array(gSig).astype(np.int), model_name='use_cases/CaImAnpaper/cnn_model', patch_size=50, loaded_model=None, isGPU=False)
+    predictions, final_crops = cm.components_evaluation.evaluate_components_CNN(Ab[()][:,gnb:], dims, np.array(gSig).astype(np.int), model_name='model/cnn_model', patch_size=50, loaded_model=None, isGPU=False)
     #%%
     idx = np.argsort(predictions[:,0])[:10]#[[0,1,2,3,5,9]]
     Ab_part = Ab[()][:,gnb:][:,idx]

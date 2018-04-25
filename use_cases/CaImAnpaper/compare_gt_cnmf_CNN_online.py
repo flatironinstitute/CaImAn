@@ -576,7 +576,7 @@ use_cnn = False  # Use CNN classifier
 if use_cnn:
     from caiman.components_evaluation import evaluate_components_CNN
     predictions, final_crops = evaluate_components_CNN(
-        A, dims, gSig, model_name='use_cases/CaImAnpaper/cnn_model')
+        A, dims, gSig, model_name='model/cnn_model')
     thresh_cnn = .05
     idx_components_cnn = np.where(predictions[:, 1] >= thresh_cnn)[0]
     idx_neurons = np.intersect1d(idx_components_cnn, idx_size_neurons)
