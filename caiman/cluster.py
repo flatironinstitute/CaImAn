@@ -415,11 +415,13 @@ def setup_cluster(backend='multiprocessing', n_processes=None, single_thread=Fal
                     'A cluster is already runnning. Terminate with dview.terminate() if you want to restart.')
             c = None
             if platform.system() == 'Darwin':
-                mp_start_method = 'forkserver'  # default 'fork' crashes multi-threaded BLAS on Mac
-            else:
-                mp_start_method = None # use default for platform
-            ctx = multiprocessing.get_context(mp_start_method)
-            dview = ctx.Pool(n_processes)
+                multiprocessing.set_start_method('forkserver', force=True)
+                #mp_start_method = 'forkserver'  # default 'fork' crashes multi-threaded BLAS on Mac
+            #else:
+                #mp_start_method = None # use default for platform
+            #ctx = multiprocessing.get_context(mp_start_method)
+            #dview = ctx.Pool(n_processes)
+            dview = Pool(n_processes)
         else:
             raise Exception('Unknown Backend')
 
