@@ -33,6 +33,8 @@ import numpy as np
 from .mmapping import load_memmap
 from multiprocessing import Pool
 import multiprocessing
+import platform
+
 #%%
 
 
@@ -418,7 +420,10 @@ def setup_cluster(backend='multiprocessing', n_processes=None, single_thread=Fal
             if len(multiprocessing.active_children()) > 0:
                 raise Exception(
                     'A cluster is already runnning. Terminate with dview.terminate() if you want to restart.')
+            if platform.system() == 'Darwin':
+                multiprocessing.set_start_method('forkserver', force=True)
             c = None
+            
             dview = Pool(n_processes)
         else:
             raise Exception('Unknown Backend')
