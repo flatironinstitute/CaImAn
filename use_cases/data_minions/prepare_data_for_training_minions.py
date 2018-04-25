@@ -82,7 +82,7 @@ with np.load('/mnt/ceph/neuro/data_minions/ground_truth_components_minions.npz')
 #%% Existing classifier
 
 
-def run_classifier(msks, model_name='use_cases/CaImAnpaper/cnn_model'):
+def run_classifier(msks, model_name='model/cnn_model'):
     json_file = open(model_name + '.json', 'r')
     loaded_model_json = json_file.read()
     json_file.close()

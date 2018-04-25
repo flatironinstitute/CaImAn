@@ -29,11 +29,10 @@ with open('README.md', 'r') as rmf:
 # package that made them, we can switch to using the pkg_resources API.
 
 binaries = ['caimanmanager.py']
-extra_dirs = ['demos', 'docs', 'use_cases', 'example_movies']
-data_files = [('', ['LICENSE.txt']),
-              ('', ['README.md']),
-              ('share/caiman', ['test_demos.sh']),
-              ('share/caiman/testdata', ['caiman/tests/comparison/groundtruth.npz', 'caiman/tests/comparison/tests/example/example.npz'])
+extra_dirs = ['demos', 'docs', 'model']
+data_files = [('share/caiman', ['LICENSE.txt', 'README.md', 'test_demos.sh']),
+              ('share/caiman/example_movies', ['example_movies/data_endoscope.tif', 'example_movies/demoMovie.tif', 'example_movies/demoMovieJ.tif']),
+              ('share/caiman/testdata', ['testdata/groundtruth.npz', 'testdata/example.npz'])
              ]
 for part in extra_dirs:
 	newpart = [("share/caiman/" + d, [os.path.join(d,f) for f in files]) for d, folders, files in os.walk(part)]
@@ -80,12 +79,6 @@ setup(
     ],
     keywords='fluorescence calcium ca imaging deconvolution ROI identification',
     packages=find_packages(exclude=['use_cases', 'use_cases.*']),
-    # begin pgunn
-    #package_dir={'caiman': 'caiman'},
-    #package_data={'caiman': ["demos", "use_cases", "use_cases", "use_cases", "example_movies"]},
-    # end pgunn
-    #data_files=[('', ['LICENSE.txt']),
-    #            ('', ['README.md'])],
     data_files=data_files,
     install_requires=[''],
     ext_modules=cythonize(ext_modules),

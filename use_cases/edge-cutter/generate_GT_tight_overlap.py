@@ -103,7 +103,7 @@ for inps in inputs[:5]:
     #%%
     from caiman.components_evaluation import evaluate_components_CNN
     predictions, final_crops = evaluate_components_CNN(
-        A_gt, dims, gSig, model_name='use_cases/CaImAnpaper/cnn_model', isGPU=False)
+        A_gt, dims, gSig, model_name='model/cnn_model', isGPU=False)
     #%%
     thresh = .95
     idx_components_cnn = np.where(predictions[:, 1] >= thresh)[0]
@@ -177,7 +177,7 @@ for inps in inputs[:5]:
 #        if cnn:
 #            import json as simplejson
 #            from keras.models import model_from_json
-#            model_name = 'use_cases/CaImAnpaper/cnn_model'
+#            model_name = 'model/cnn_model'
 #            json_file = open(model_name +'.json', 'r')
 #            loaded_model_json = json_file.read()
 #            json_file.close()

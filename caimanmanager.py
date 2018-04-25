@@ -137,7 +137,7 @@ def main():
 
 def handle_args():
 	parser = argparse.ArgumentParser(description="Tool to manage Caiman data directory")
-	parser.add_argument("command", help="Subcommand to run. install/check/clean/tests")
+	parser.add_argument("command", help="Subcommand to run. install/check/test/demotest")
 	cfg = parser.parse_args()
 	cfg.userdir = caiman_datadir()
 	return cfg
