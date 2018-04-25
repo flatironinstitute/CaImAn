@@ -32,7 +32,7 @@ binaries = ['caimanmanager.py']
 extra_dirs = ['demos', 'docs', 'model']
 data_files = [('share/caiman', ['LICENSE.txt', 'README.md', 'test_demos.sh']),
               ('share/caiman/example_movies', ['example_movies/data_endoscope.tif', 'example_movies/demoMovie.tif', 'example_movies/demoMovieJ.tif']),
-              ('share/caiman/testdata', ['caiman/tests/comparison/groundtruth.npz', 'caiman/tests/comparison/tests/example/example.npz'])
+              ('share/caiman/testdata', ['testdata/groundtruth.npz', 'testdata/example.npz'])
              ]
 for part in extra_dirs:
 	newpart = [("share/caiman/" + d, [os.path.join(d,f) for f in files]) for d, folders, files in os.walk(part)]
