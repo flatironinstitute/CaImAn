@@ -123,7 +123,7 @@ if use_CNN:
     thresh_cnn = 0.1
     from caiman.components_evaluation import evaluate_components_CNN
     predictions, final_crops = evaluate_components_CNN(
-        A, dims, gSig, model_name=os.path.join(caiman_datadir(), 'use_cases', 'CaImAnpaper', 'cnn_model'))
+        A, dims, gSig, model_name=os.path.join(caiman_datadir(), 'model', 'cnn_model'))
     A_exclude, C_exclude = A[:, predictions[:, 1] <
                              thresh_cnn], C[predictions[:, 1] < thresh_cnn]
     A, C = A[:, predictions[:, 1] >=

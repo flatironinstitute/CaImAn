@@ -235,7 +235,7 @@ def classify_components_ep(Y, A, C, b, f, Athresh=0.1, Npeaks=5, tB=-3, tA=10, t
 #%%
 
 
-def evaluate_components_CNN(A, dims, gSig, model_name='use_cases/CaImAnpaper/cnn_model', patch_size=50, loaded_model=None, isGPU=False):
+def evaluate_components_CNN(A, dims, gSig, model_name='model/cnn_model', patch_size=50, loaded_model=None, isGPU=False):
     """ evaluate component quality using a CNN network
 
     """

@@ -183,7 +183,7 @@ idx_components, idx_components_bad, fitness_raw, fitness_delta, r_values = cm.co
 #%%
 from caiman.components_evaluation import evaluate_components_CNN
 predictions, final_crops = evaluate_components_CNN(
-    A, dims, gSig, model_name='use_cases/CaImAnpaper/cnn_model')
+    A, dims, gSig, model_name='model/cnn_model')
 #%%
 threshold = .95
 from caiman.utils.visualization import matrixMontage

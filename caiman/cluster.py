@@ -420,7 +420,7 @@ def setup_cluster(backend='multiprocessing', n_processes=None, single_thread=Fal
             if len(multiprocessing.active_children()) > 0:
                 raise Exception(
                     'A cluster is already runnning. Terminate with dview.terminate() if you want to restart.')
-            if (platform.system() == 'Darwin') and (sys.version_info > (3, 0):
+            if (platform.system() == 'Darwin') and (sys.version_info > (3, 0)):
                 multiprocessing.set_start_method('forkserver', force=True)
             c = None
             
