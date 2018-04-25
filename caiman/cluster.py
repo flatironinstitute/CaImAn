@@ -406,7 +406,8 @@ def setup_cluster(backend='multiprocessing', n_processes=None, single_thread=Fal
                 raise Exception(
                     'A cluster is already runnning. Terminate with dview.terminate() if you want to restart.')
             c = None
-            dview = Pool(n_processes)
+            ctx = multiprocessing.get_context('forkserver')
+            dview = ctx.Pool(n_processes)
         else:
             raise Exception('Unknown Backend')
 
