@@ -6,8 +6,6 @@ CaImAn
 
 [![Join the chat at https://gitter.im/agiovann/SOURCE_EXTRACTION_PYTHON](https://badges.gitter.im/agiovann/SOURCE_EXTRACTION_PYTHON.svg)](https://gitter.im/agiovann/SOURCE_EXTRACTION_PYTHON?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
-<a href='https://travis-ci.org/simonsfoundation/CaImAn'><img src='https://secure.travis-ci.org/simonsfoundation/CaImAn.png?branch=master'></a>
-
 
 A Computational toolbox for large scale **Ca**lcium **Im**aging data **An**alysis and behavioral analysis.
 
@@ -57,39 +55,28 @@ We recently incorporated a Python implementation of the OnACID [[5]](#onacid) al
 ## Installation for calcium imaging data analysis
 
 
-* Installation on Mac
+* Installation on Mac or Linux (Python 3.x)
 
-   * Download and install Anaconda (Python 2.7 or Python 3.6) <http://docs.continuum.io/anaconda/install>
-     If you wish to use Python 2.7, please use environment_python2.yml instead of environment.yml
-
+   * Download and install Anaconda (Python 3.6) <http://docs.continuum.io/anaconda/install>
+     
     ```bash
    
    git clone https://github.com/flatironinstitute/CaImAn
    cd CaImAn/
    conda env create -f environment.yml -n caiman
    source activate caiman
-   pip install . (OR pip install -e . if you want to develop code')
+   pip install .
    ```
-   
-   
-   **Python 3 may have issues** when running in parallel mode (dview is not None) because of bugs in Python/ipyparallel/numpy interaction. Python2 may have fewer issues
-
-* Installation on Linux 
-
-   * Download and install Anaconda (Python 2.7 or Python 3.6) <http://docs.continuum.io/anaconda/install>
-     If you wish to use Python 2.7, please use environment_python2.yml instead of environment.yml
-
-   ```bash
-   
-   git clone https://github.com/flatironinstitute/CaImAn
-   cd CaImAn/
-   conda env create -f environment.yml -n caiman
-   source activate caiman   
-   pip install . (OR pip install -e . if you want to develop code)
+   If you want to develop code then replace the last command with
+   ```
+   pip install -e .
    ```
 
+**Note for Python 2 users:** If you wish to install CaImAn for Python 2.7, please use `environment_python2.yml` instead of `environment.yml` when creating the conda environment.
+While the code is compatible with Python 2.7 all present and future development is done in Python 3, and we expect Python 2.7 compatibility to break at some point.
+   
 
-   * To make the package available from everywhere and have it working *efficiently* under any configuration ALWAYS run these commands before starting spyder:
+**For Linux users:** To make the package available from everywhere and have it working *efficiently* under any configuration ALWAYS run these commands before starting spyder:
 
    ```bash
    export MKL_NUM_THREADS=1
