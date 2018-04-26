@@ -73,7 +73,7 @@ We recently incorporated a Python implementation of the OnACID [[5]](#onacid) al
    ```
 
 **Note for Python 2 users:** If you wish to install CaImAn for Python 2.7, please use `environment_python2.yml` instead of `environment.yml` when creating the conda environment.
-While the code is compatible with Python 2.7 all present and future development is done in Python 3, and we expect Python 2.7 compatibility to break at some point.
+While the code is compatible with Python 2.7 at the moment, all present and future development is done in Python 3, and we expect Python 2.7 compatibility to break at some point.
    
 
 **For Linux users:** To make the package available from everywhere and have it working *efficiently* under any configuration ALWAYS run these commands before starting spyder:
@@ -124,18 +124,9 @@ If you prefer to manage this information somewhere else, the `CAIMAN_DATA` envir
 	conda install numba
 	jupyter notebook --NotebookApp.iopub_data_rate_limit=1.0e10
     ```
-
-  (Python 2.7) not supported on Windows
-    ```
-    git clone  https://github.com/flatironinstitute/CaImAn
-    cd CaImAn
-    git pull
-    conda env create -f environment_python2.yml -n caiman
-    activate caiman   
-    pip install . (OR pip install -e . if you want to develop code)
-    ```
-    
 Then setup ```caimanmanager``` as described above.
+
+For Python 2.7 on Windows follow the same procedure with replacing the file `environment.yml` with `environment_python2.yml` as before.	
 
 Alternative environments:
    * [Using experimental CUDA support](/README-cuda.md)
@@ -148,29 +139,26 @@ Alternative environments:
 
 ## Demos
 
-* Notebooks : The notebooks provide a simple and friendly way to get into CaImAn and understand its main characteristics. 
-
-   * you can find them in directly in CaImAn folder and launch them from your ipython Notebook application:
+* Notebooks: The notebooks provide a simple and friendly way to get into CaImAn and understand its main characteristics. 
+They are located in the `demos/notebooks`. 
    
    * to launch one of the jupyter notebooks:
    
        ```bash
     
         source activate CaImAn
-        conda launch jupyter
-        (if errors on plotting use this instead) jupyter notebook --NotebookApp.iopub_data_rate_limit=1.0e10
-	(select the notebook from within Jupyter's browser)
-    
-       ```
+        jupyter notebook --NotebookApp.iopub_data_rate_limit=1.0e10
+	```
+	and select the notebook from within Jupyter's browser. The argument `--NotebookApp.iopub_data_rate_limit=1.0e10` will prevent any memory issues while plotting on a notebook.
+   
 * demo files are also found in the demos/general subfolder. We suggest trying demo_pipeline.py first as it contains most of the tasks required by calcium imaging. For behavior use demo_behavior.py
    
-  * /!\ if you want to directly launch the python files, your python console still must be in the CaImAn directory. 
+* If you want to directly launch the python files, your python console still must be in the CaImAn directory. 
 
 ## Testing
 
 * All diffs must be tested before asking for a pull request. Call ```python caimanmanager.py test``` from outside of your CaImAn folder to look for errors (you need to pass the path to the caimanmanager.py file). 
-  
-   
+     
 # Contributors:
 
 * Andrea Giovannucci, **Flatiron Institute, Simons Foundation**
