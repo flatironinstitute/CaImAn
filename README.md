@@ -68,7 +68,7 @@ We recently incorporated a Python implementation of the OnACID [[5]](#onacid) al
    cd CaImAn/
    conda env create -f environment.yml -n caiman
    source activate caiman
-   pip install . (OR pip install -e . if you want to develop code, in this case also set export CAIMAN_DATA='/Users/agiovann/SOFTWARE/CaImAn/')
+   pip install . (OR pip install -e . if you want to develop code')
    ```
    
    
@@ -85,7 +85,7 @@ We recently incorporated a Python implementation of the OnACID [[5]](#onacid) al
    cd CaImAn/
    conda env create -f environment.yml -n caiman
    source activate caiman   
-   pip install . (OR pip install -e . if you want to develop code, in this case also set export CAIMAN_DATA='/Users/agiovann/SOFTWARE/CaImAn/')
+   pip install . (OR pip install -e . if you want to develop code)
    ```
 
 
@@ -117,7 +117,7 @@ We recently incorporated a Python implementation of the OnACID [[5]](#onacid) al
     
 	conda env create -f environment.yml -n caiman
     activate caiman   
-    pip install . (OR pip install -e . if you want to develop code, in this case also set export CAIMAN_DATA='/Users/agiovann/SOFTWARE/CaImAn/')
+    pip install . (OR pip install -e . if you want to develop code)
 	conda install numba
 	jupyter notebook --NotebookApp.iopub_data_rate_limit=1.0e10
     ```
@@ -129,12 +129,12 @@ We recently incorporated a Python implementation of the OnACID [[5]](#onacid) al
     git pull
     conda env create -f environment_python2.yml -n caiman
     activate caiman   
-    pip install . (OR pip install -e . if you want to develop code, in this case also set export CAIMAN_DATA='/Users/agiovann/SOFTWARE/CaImAn/')
+    pip install . (OR pip install -e . if you want to develop code)
     ```
 
-* caimanmanager
+** caimanmanager
   Once CaImAn is installed, you may want to get a working directory with code samples and datasets; pip installed a caimanmanager.py command
-  that manages this. If you have not installed Caiman before, you can do "caimanmanager.py install" and it will place that directory under
+  that manages this. If you have not installed Caiman before, you can do "caimanmanager.py install" (o "caimanmanager.py install --inplace" is you used "pip install -e .") and it will place that directory under
   your home directory in a directory called caiman_data. If you have, some of the demos or datafiles may have changed since your last install,
   to follow API changes. You can check to see if they have by doing "caimanmanager.py check". If they have not, you may keep using them. If they have,
   we recommend moving your old caiman data directory out of the way (or just remove them if you have no precious data) and doing
