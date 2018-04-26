@@ -59,8 +59,7 @@ We recently incorporated a Python implementation of the OnACID [[5]](#onacid) al
 
    * Download and install Anaconda (Python 3.6) <http://docs.continuum.io/anaconda/install>
      
-    ```bash
-   
+   ```bash
    git clone https://github.com/flatironinstitute/CaImAn
    cd CaImAn/
    conda env create -f environment.yml -n caiman
@@ -137,12 +136,9 @@ Alternative environments:
 ## Demos
 
 * Notebooks: The notebooks provide a simple and friendly way to get into CaImAn and understand its main characteristics. 
-They are located in the `demos/notebooks`. 
-   
-   * to launch one of the jupyter notebooks:
-   
-       ```bash
-    
+They are located in the `demos/notebooks`. To launch one of the jupyter notebooks:
+        
+	```bash
         source activate CaImAn
         jupyter notebook --NotebookApp.iopub_data_rate_limit=1.0e10
 	```
