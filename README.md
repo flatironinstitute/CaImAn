@@ -55,7 +55,7 @@ We recently incorporated a Python implementation of the OnACID [[5]](#onacid) al
 ## Installation for calcium imaging data analysis
 
 
-* Installation on Mac or Linux (Python 3.x)
+### Installation on Mac or Linux (Python 3.x)
 
    * Download and install Anaconda (Python 3.6) <http://docs.continuum.io/anaconda/install>
      
@@ -83,7 +83,7 @@ While the code is compatible with Python 2.7 at the moment, all present and futu
    export OPENBLAS_NUM_THREADS=1
    ```
 
-* Setting up caimanmanager
+### Setting up caimanmanager
 
   Once CaImAn is installed, you may want to get a working directory with code samples and datasets; pip installed a caimanmanager.py command that manages this. If you have not installed Caiman before, you can do 
   ```
@@ -99,9 +99,7 @@ This will place that directory under your home directory in a directory called c
 
 If you prefer to manage this information somewhere else, the `CAIMAN_DATA` environment variable can be set to customise it. The caimanmanager tool and other libraries will respect that.
 
-* Installation on Windows 
-
-  (Python 3)
+### Installation on Windows (Python 3.x)
 
    * Download and install Anaconda (Python 3.6) <http://docs.continuum.io/anaconda/install>, 
    * GIT (<https://git-scm.com/>) and 
@@ -135,7 +133,6 @@ Alternative environments:
 * Installation on Linux (Windows and MacOS are problematic with anaconda at the moment)
    * create a new environment (suggested for safety) and follow the instructions for the calcium imaging installation
    * Install spams, as explained [here](http://spams-devel.gforge.inria.fr/). Installation is not straightforward and it might take some trials to get it right
-
 
 ## Demos
 
@@ -209,42 +206,7 @@ Some tools that are currently available in Matlab but have been ported to CaImAn
 
 ## Troubleshooting
 
-**Python 3 and spyder**
-If spyder crashes on MacOS run 
-```
-brew install --upgrade openssl
-brew unlink openssl && brew link openssl --force
-```
-
-**SCS**:
-
-If you get errors compiling scs when installing cvxpy you probably need to create a link to openblas or libgfortran in
-/usr/local/lib/, for instance:
-
-`sudo ln -s  /Library/Frameworks/R.framework/Libraries/libgfortran.3.dylib  /usr/local/lib/libgfortran.2.dylib`
-
-
-**Debian fortran compiler problems:**
-If you get the error  gcc: error trying to exec 'cc1plus': execvp: No such file or directory in Ubuntu run
-or issues related to SCS type
-
- ```
- sudo apt-get install g++ libatlas-base-dev gfortran  libopenblas-dev
- conda install openblas atlas
- ```
-
- If there are still issues try
-
-  `export LD_LIBRARY_PATH=/path_to_your_home/anaconda2/lib/`
-
- If that does not help, try 
-
- ```
- conda install  atlas (only Ubuntu)
- pip install 'tifffile>=0.7'
- conda install accelerate
- conda install openblas 
- ```
+A list of known issues can be found [here](https://github.com/flatironinstitute/CaImAn/wiki/Known-Issues). If you still encounter problems please open an issue.
 
 ## Dependencies
 
@@ -268,7 +230,7 @@ For the constrained deconvolution method (```deconvolution.constrained_foopsi```
   * [CVXOPT](http://cvxopt.org/) optional.
   * [PICOS](http://picos.zib.de/) optional.
 
-In general ```'cvxpy'``` can be faster, when using the 'ECOS' or 'SCS' sovlers, which are included with the CVXPY installation. Note that these dependencies are circumvented by using the OASIS algoritm for deconvolution.
+In general ```'cvxpy'``` can be faster, when using the 'ECOS' or 'SCS' solvers, which are included with the CVXPY installation. Note that these dependencies are circumvented by using the OASIS algoritm for deconvolution.
 
 
 # Documentation & Wiki
