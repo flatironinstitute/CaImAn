@@ -27,11 +27,25 @@ sourcedir_base = os.path.join(sys.prefix, "share", "caiman") # Setuptools will d
 ###############
 # commands
 
-def do_install_to(targdir):
+def do_install_to(targdir, inplace=False):
 	if os.path.isdir(targdir):
 		raise Exception(targdir + " already exists")
-	shutil.copytree(sourcedir_base, targdir)
-	# os.makedirs(os.path.join(targdir, 'memmap'), exist_ok=True) # Under discussion
+	if not inplace: # In this case we rely on what setup.py put in the share directory for the module
+		shutil.copytree(sourcedir_base, targdir)
+	else: # here we recreate the other logical path here. Maintenance concern: Keep these reasonably in sync with what's in setup.py
+		extra_files = ['test_demos.sh', 'README.md', 'LICENSE.txt']
+		extra_dirs = ['demos', 'docs', 'model', 'testdata']
+		standard_movies = [
+				os.path.join('example_movies', 'data_endoscope.tif'),
+				os.path.join('example_movies', 'demoMovie.tif'),
+				os.path.join('example_movies', 'demoMovieJ.tif')]
+		for copydir in extra_dirs:
+			shutil.copytree(copydir, os.path.join(targdir, copydir))
+		os.makedirs(os.path.join(targdir, 'example_movies'), exist_ok=True)
+		for stdmovie in standard_movies:
+			shutil.copy(stdmovie, os.path.join(targdir, 'example_movies'))
+		for extrafile in extra_files:
+			shutil.copy(extrafile, targdir)
 	print("Installed " + targdir)
 
 def do_check_install(targdir):
@@ -122,7 +136,7 @@ def runcmd(cmdlist, ignore_error=False, verbose=True):
 def main():
 	cfg = handle_args()
 	if   cfg.command == 'install':
-		do_install_to(cfg.userdir)
+		do_install_to(cfg.userdir, cfg.inplace)
 	elif cfg.command == 'check':
 		do_check_install(cfg.userdir)
 	elif cfg.command == 'test':
@@ -138,7 +152,13 @@ def main():
 def handle_args():
 	parser = argparse.ArgumentParser(description="Tool to manage Caiman data directory")
 	parser.add_argument("command", help="Subcommand to run. install/check/test/demotest")
+	parser.add_argument("--inplace", action='store_true', help="Use only if you did an inplace install of caiman rather than a pure one")
 	cfg = parser.parse_args()
+	if cfg.inplace:
+		# In this configuration, the user did a "pip install -e ." and so the share directory was not made.
+		# We assume the user is running caimanmanager right out of the source tree, and still want to try to
+		# copy the correct files out, which is a little tricky because we never kept track of that before.
+		sourcedir_base = os.getcwd()
 	cfg.userdir = caiman_datadir()
 	return cfg
 
