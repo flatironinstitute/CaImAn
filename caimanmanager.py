@@ -24,6 +24,17 @@ sourcedir_base = os.path.join(sys.prefix, "share", "caiman") # Setuptools will d
 # Usually you'll want to work out of that directory. If you keep upgrading Caiman, you'll
 # need to deal with API and demo changes; this tool aims to make that easier to manage.
 
+##########
+# For in-place caiman installs (which will likely only be used by developers), we need
+# to come up with a similar subset of files that setup.py would install for a normal pip install,
+# focused around the data directory.
+extra_files = ['test_demos.sh', 'README.md', 'LICENSE.txt']
+extra_dirs  = ['demos', 'docs', 'model', 'testdata']
+standard_movies = [
+		os.path.join('example_movies', 'data_endoscope.tif'),
+		os.path.join('example_movies', 'demoMovie.tif'),
+		os.path.join('example_movies', 'demoMovieJ.tif')]
+
 ###############
 # commands
 
@@ -33,12 +44,6 @@ def do_install_to(targdir, inplace=False):
 	if not inplace: # In this case we rely on what setup.py put in the share directory for the module
 		shutil.copytree(sourcedir_base, targdir)
 	else: # here we recreate the other logical path here. Maintenance concern: Keep these reasonably in sync with what's in setup.py
-		extra_files = ['test_demos.sh', 'README.md', 'LICENSE.txt']
-		extra_dirs = ['demos', 'docs', 'model', 'testdata']
-		standard_movies = [
-				os.path.join('example_movies', 'data_endoscope.tif'),
-				os.path.join('example_movies', 'demoMovie.tif'),
-				os.path.join('example_movies', 'demoMovieJ.tif')]
 		for copydir in extra_dirs:
 			shutil.copytree(copydir, os.path.join(targdir, copydir))
 		os.makedirs(os.path.join(targdir, 'example_movies'), exist_ok=True)
@@ -48,7 +53,9 @@ def do_install_to(targdir, inplace=False):
 			shutil.copy(extrafile, targdir)
 	print("Installed " + targdir)
 
-def do_check_install(targdir):
+def do_check_install(targdir, inplace=False):
+	if inplace:
+		sourcedir_base = os.getcwd()
 	ok = True
 	comparitor = filecmp.dircmp(sourcedir_base, targdir)
 	alldiffs = comparitor_all_diff_files(comparitor, '.')
@@ -56,8 +63,13 @@ def do_check_install(targdir):
 		print("These files differ: " + " ,".join(alldiffs))
 		ok = False
 	leftonly = comparitor_all_left_only_files(comparitor, ".")
+	leftonly = list(map(lambda fn: os.path.normpath(fn), leftonly))
+	if inplace: # Need to filter down list
+		leftonly = list(filter(lambda fn: (fn in extra_files) or					# if it is an explicit extra_files in the root of the sourcetree
+					(fn in list(map(lambda mov: os.path.join(mov), standard_movies))) or	# if it is one of the standard movies
+					(fn.split(os.sep)[0] in extra_dirs), leftonly ))			# if it is ANY file in one of the predefined directories
 	if leftonly != []:
-		print("These files don't exist in the target: " + " ,".join(leftonly))
+		print("These files don't exist in the target:\n\t" + "\n\t".join(leftonly))
 		ok = False
 	if ok:
 		print("OK")
@@ -138,7 +150,7 @@ def main():
 	if   cfg.command == 'install':
 		do_install_to(cfg.userdir, cfg.inplace)
 	elif cfg.command == 'check':
-		do_check_install(cfg.userdir)
+		do_check_install(cfg.userdir, cfg.inplace)
 	elif cfg.command == 'test':
 		do_run_nosetests(cfg.userdir)
 	elif cfg.command == 'demotest':
