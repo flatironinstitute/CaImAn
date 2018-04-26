@@ -1612,7 +1612,7 @@ def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True, ssub=1, tsub=1):
 
     radius = int(round(radius / float(ssub)))
     ring = disk(radius + 1)
-    ring[1:-1, 1:-1] -= disk(radius)
+    ring[1:-1, 1:-1] -= np.bitwise_xor(ring[1:-1, 1:-1], disk(radius, dtype=bool))
     ringidx = [i - radius - 1 for i in np.nonzero(ring)]
 
     def get_indices_of_pixels_on_ring(pixel):
