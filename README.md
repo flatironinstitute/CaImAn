@@ -6,8 +6,6 @@ CaImAn
 
 [![Join the chat at https://gitter.im/agiovann/SOURCE_EXTRACTION_PYTHON](https://badges.gitter.im/agiovann/SOURCE_EXTRACTION_PYTHON.svg)](https://gitter.im/agiovann/SOURCE_EXTRACTION_PYTHON?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
-<a href='https://travis-ci.org/simonsfoundation/CaImAn'><img src='https://secure.travis-ci.org/simonsfoundation/CaImAn.png?branch=master'></a>
-
 
 A Computational toolbox for large scale **Ca**lcium **Im**aging data **An**alysis and behavioral analysis.
 
@@ -57,48 +55,50 @@ We recently incorporated a Python implementation of the OnACID [[5]](#onacid) al
 ## Installation for calcium imaging data analysis
 
 
-* Installation on Mac
+### Installation on Mac or Linux (Python 3.x)
 
-   * Download and install Anaconda (Python 2.7 or Python 3.6) <http://docs.continuum.io/anaconda/install>
-     If you wish to use Python 2.7, please use environment_python2.yml instead of environment.yml
-
-    ```bash
-   
+   * Download and install Anaconda (Python 3.6) <http://docs.continuum.io/anaconda/install>
+     
+   ```bash
    git clone https://github.com/flatironinstitute/CaImAn
    cd CaImAn/
    conda env create -f environment.yml -n caiman
    source activate caiman
-   pip install . (OR pip install -e . if you want to develop code')
+   pip install .
    ```
-   
-   
-   **Python 3 may have issues** when running in parallel mode (dview is not None) because of bugs in Python/ipyparallel/numpy interaction. Python2 may have fewer issues
-
-* Installation on Linux 
-
-   * Download and install Anaconda (Python 2.7 or Python 3.6) <http://docs.continuum.io/anaconda/install>
-     If you wish to use Python 2.7, please use environment_python2.yml instead of environment.yml
-
-   ```bash
-   
-   git clone https://github.com/flatironinstitute/CaImAn
-   cd CaImAn/
-   conda env create -f environment.yml -n caiman
-   source activate caiman   
-   pip install . (OR pip install -e . if you want to develop code)
+   If you want to develop code then replace the last command with
+   ```
+   pip install -e .
    ```
 
+**Note for Python 2 users:** If you wish to install CaImAn for Python 2.7, please use `environment_python2.yml` instead of `environment.yml` when creating the conda environment.
+While the code is compatible with Python 2.7 at the moment, all present and future development is done in Python 3, and we expect Python 2.7 compatibility to break at some point.
+   
 
-   * To make the package available from everywhere and have it working *efficiently* under any configuration ALWAYS run these commands before starting spyder:
+**For Linux users:** To make the package available from everywhere and have it working *efficiently* under any configuration ALWAYS run these commands before starting spyder:
 
    ```bash
    export MKL_NUM_THREADS=1
    export OPENBLAS_NUM_THREADS=1
    ```
 
-* Installation on Windows 
+### Setting up caimanmanager
 
-  (Python 3)
+  Once CaImAn is installed, you may want to get a working directory with code samples and datasets; pip installed a caimanmanager.py command that manages this. If you have not installed Caiman before, you can do 
+  ```
+  python caimanmanager.py install
+  ```
+  or 
+  ```
+  python caimanmanager.py install --inplace
+  ```
+  if you used "pip install -e ." 
+  
+This will place that directory under your home directory in a directory called caiman_data. If you have, some of the demos or datafiles may have changed since your last install, to follow API changes. You can check to see if they have by doing `caimanmanager.py check`. If they have not, you may keep using them. If they have, we recommend moving your old caiman data directory out of the way (or just remove them if you have no precious data) and doing a new data install as per above.
+
+If you prefer to manage this information somewhere else, the `CAIMAN_DATA` environment variable can be set to customise it. The caimanmanager tool and other libraries will respect that.
+
+### Installation on Windows (Python 3.x)
 
    * Download and install Anaconda (Python 3.6) <http://docs.continuum.io/anaconda/install>, 
    * GIT (<https://git-scm.com/>) and 
@@ -121,27 +121,9 @@ We recently incorporated a Python implementation of the OnACID [[5]](#onacid) al
 	conda install numba
 	jupyter notebook --NotebookApp.iopub_data_rate_limit=1.0e10
     ```
+Then setup ```caimanmanager``` as described above.
 
-  (Python 2.7) not supported on Windows
-    ```
-    git clone  https://github.com/flatironinstitute/CaImAn
-    cd CaImAn
-    git pull
-    conda env create -f environment_python2.yml -n caiman
-    activate caiman   
-    pip install . (OR pip install -e . if you want to develop code)
-    ```
-
-** caimanmanager
-  Once CaImAn is installed, you may want to get a working directory with code samples and datasets; pip installed a caimanmanager.py command
-  that manages this. If you have not installed Caiman before, you can do "caimanmanager.py install" (o "caimanmanager.py install --inplace" is you used "pip install -e .") and it will place that directory under
-  your home directory in a directory called caiman_data. If you have, some of the demos or datafiles may have changed since your last install,
-  to follow API changes. You can check to see if they have by doing "caimanmanager.py check". If they have not, you may keep using them. If they have,
-  we recommend moving your old caiman data directory out of the way (or just remove them if you have no precious data) and doing
-  a new data install as per above.
-
-  If you prefer to manage this information somewhere else, the CAIMAN_DATA environment variable can be set to customise it. The caimanmanager tool
-  and other libraries will respect that.
+For Python 2.7 on Windows follow the same procedure with replacing the file `environment.yml` with `environment_python2.yml` as before.	
 
 Alternative environments:
    * [Using experimental CUDA support](/README-cuda.md)
@@ -151,42 +133,25 @@ Alternative environments:
    * create a new environment (suggested for safety) and follow the instructions for the calcium imaging installation
    * Install spams, as explained [here](http://spams-devel.gforge.inria.fr/). Installation is not straightforward and it might take some trials to get it right
 
-
 ## Demos
 
-* Notebooks : The notebooks provide a simple and friendly way to get into CaImAn and understand its main characteristics. 
-
-   * you can find them in directly in CaImAn folder and launch them from your ipython Notebook application:
-   
-   * to launch one of the jupyter notebooks:
-   
-       ```bash
-    
+* Notebooks: The notebooks provide a simple and friendly way to get into CaImAn and understand its main characteristics. 
+They are located in the `demos/notebooks`. To launch one of the jupyter notebooks:
+        
+	```bash
         source activate CaImAn
-        conda launch jupyter
-        (if errors on plotting use this instead) jupyter notebook --NotebookApp.iopub_data_rate_limit=1.0e10
-	(select the notebook from within Jupyter's browser)
-    
-       ```
+        jupyter notebook --NotebookApp.iopub_data_rate_limit=1.0e10
+	```
+	and select the notebook from within Jupyter's browser. The argument `--NotebookApp.iopub_data_rate_limit=1.0e10` will prevent any memory issues while plotting on a notebook.
+   
 * demo files are also found in the demos/general subfolder. We suggest trying demo_pipeline.py first as it contains most of the tasks required by calcium imaging. For behavior use demo_behavior.py
    
-  * /!\ if you want to directly launch the python files, your python console still must be in the CaImAn directory. 
+* If you want to directly launch the python files, your python console still must be in the CaImAn directory. 
 
 ## Testing
 
-* All diffs must be tested before asking for a pull request. Call 'caimanmanager.py test' from outside of your CaImAn folder to look for errors (you need to pass the path to the caimanmanager.py file is you are ng in place).
-* You can test all the demo files running 
-   For python3 on MacOS nosetests does not work properly. If you need to test, then type the following from within the CaImAn folder:
-```bash
-cd caiman/tests
-ls test_*py | while read t; do nosetests --nologcapture ${t%%.py}; done;
-```
-
-  ### general_test
-
-   * This test will run tests on the CaImAn software and look for output differences against the original. If your changes have made significant differences you'll be able to be recognise regressions by this test.  
-   
-   
+* All diffs must be tested before asking for a pull request. Call ```python caimanmanager.py test``` from outside of your CaImAn folder to look for errors (you need to pass the path to the caimanmanager.py file). 
+     
 # Contributors:
 
 * Andrea Giovannucci, **Flatiron Institute, Simons Foundation**
@@ -237,42 +202,7 @@ Some tools that are currently available in Matlab but have been ported to CaImAn
 
 ## Troubleshooting
 
-**Python 3 and spyder**
-If spyder crashes on MacOS run 
-```
-brew install --upgrade openssl
-brew unlink openssl && brew link openssl --force
-```
-
-**SCS**:
-
-If you get errors compiling scs when installing cvxpy you probably need to create a link to openblas or libgfortran in
-/usr/local/lib/, for instance:
-
-`sudo ln -s  /Library/Frameworks/R.framework/Libraries/libgfortran.3.dylib  /usr/local/lib/libgfortran.2.dylib`
-
-
-**Debian fortran compiler problems:**
-If you get the error  gcc: error trying to exec 'cc1plus': execvp: No such file or directory in Ubuntu run
-or issues related to SCS type
-
- ```
- sudo apt-get install g++ libatlas-base-dev gfortran  libopenblas-dev
- conda install openblas atlas
- ```
-
- If there are still issues try
-
-  `export LD_LIBRARY_PATH=/path_to_your_home/anaconda2/lib/`
-
- If that does not help, try 
-
- ```
- conda install  atlas (only Ubuntu)
- pip install 'tifffile>=0.7'
- conda install accelerate
- conda install openblas 
- ```
+A list of known issues can be found [here](https://github.com/flatironinstitute/CaImAn/wiki/Known-Issues). If you still encounter problems please open an issue.
 
 ## Dependencies
 
@@ -296,7 +226,7 @@ For the constrained deconvolution method (```deconvolution.constrained_foopsi```
   * [CVXOPT](http://cvxopt.org/) optional.
   * [PICOS](http://picos.zib.de/) optional.
 
-In general ```'cvxpy'``` can be faster, when using the 'ECOS' or 'SCS' sovlers, which are included with the CVXPY installation. Note that these dependencies are circumvented by using the OASIS algoritm for deconvolution.
+In general ```'cvxpy'``` can be faster, when using the 'ECOS' or 'SCS' solvers, which are included with the CVXPY installation. Note that these dependencies are circumvented by using the OASIS algoritm for deconvolution.
 
 
 # Documentation & Wiki
