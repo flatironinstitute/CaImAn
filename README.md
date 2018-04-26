@@ -174,7 +174,8 @@ Alternative environments:
 
 ## Testing
 
-* All diffs must be tested before asking for a pull request. Call 'caimanmanager.py test' from outside of your CaImAn folder to look for errors. 
+* All diffs must be tested before asking for a pull request. Call 'caimanmanager.py test' from outside of your CaImAn folder to look for errors (you need to pass the path to the caimanmanager.py file is you are ng in place).
+* You can test all the demo files running 
    For python3 on MacOS nosetests does not work properly. If you need to test, then type the following from within the CaImAn folder:
 ```bash
 cd caiman/tests
