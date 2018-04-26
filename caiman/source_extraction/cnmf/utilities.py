@@ -27,6 +27,7 @@ from builtins import range
 from past.utils import old_div
 import numpy as np
 from scipy.sparse import spdiags, issparse, csc_matrix
+import scipy.ndimage.morphology as morph
 from .initialization import greedyROI
 from ...base.rois import com
 import pylab as pl
@@ -535,7 +536,9 @@ def fast_prct_filt(input_data, level = 8, frames_window = 1000):
     return data.squeeze()
 #%%
 
-def detrend_df_f_auto(A, b, C, f, YrA=None, frames_window=1000, use_fast = False):
+def detrend_df_f_auto(A, b, C, f, dims=None, YrA=None, use_annulus = True, 
+                      dist1 = 7, dist2 = 5, frames_window=1000, 
+                      use_fast = False):
 
     """
     Compute DF/F using an automated level of percentile filtering based on
@@ -588,7 +591,27 @@ def detrend_df_f_auto(A, b, C, f, YrA=None, frames_window=1000, use_fast = False
         YrA = nA_mat * YrA
 
     F = C + YrA if YrA is not None else C
-    B = A.T.dot(b).dot(f)
+    K = A.shape[-1]
+    A_ann = A.copy()
+
+    if use_annulus:
+        dist1 = 7
+        dist2 = 5
+        X, Y = np.meshgrid(np.arange(-dist1, dist1), np.arange(-dist1, dist1))
+        R = np.sqrt(X**2+Y**2)
+        R[R > dist1] = 0
+        R[R < dist2] = 0
+        R = R.astype('bool')
+
+        for k in range(K):
+            a = A[:, k].toarray().reshape(dims, order='F') > 0
+            a2 = np.bitwise_xor(morph.binary_dilation(a, R), a)
+            a2 = a2.astype(float).flatten(order='F')
+            a2 /= np.sqrt(a2.sum())
+            a2 = scipy.sparse.csc_matrix(a2)
+            A_ann[:, k] = a2.T
+
+    B = A_ann.T.dot(b).dot(f)
     T = C.shape[-1]
 
     data_prct, val = df_percentile(F[:frames_window], axis = 1)
