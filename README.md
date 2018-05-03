@@ -148,6 +148,9 @@ They are located in the `demos/notebooks`. To launch one of the jupyter notebook
    
 * If you want to directly launch the python files, your python console still must be in the CaImAn directory. 
 
+## On Clustering
+Please read [this link](CLUSTER.md) for information on your clustering options and how to avoid trouble with them.
+
 ## Testing
 
 * All diffs must be tested before asking for a pull request. Call ```python caimanmanager.py test``` from outside of your CaImAn folder to look for errors (you need to pass the path to the caimanmanager.py file). 
