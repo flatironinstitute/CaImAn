@@ -149,7 +149,7 @@ They are located in the `demos/notebooks`. To launch one of the jupyter notebook
 * If you want to directly launch the python files, your python console still must be in the CaImAn directory. 
 
 ## On Clustering
-Please read [CLUSTER.md](this doc) for information on your clustering options and how to avoid trouble with them.
+Please read [this link](CLUSTER.md) for information on your clustering options and how to avoid trouble with them.
 
 ## Testing
 
