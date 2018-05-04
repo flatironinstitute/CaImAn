@@ -334,6 +334,10 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
     else:
         Y_ds = Y
 
+    ds = Y_ds.shape[:-1]
+    if nb > min(np.prod(ds), Y_ds.shape[-1]):
+        nb = -1
+
     print('Roi Extraction...')
     if method == 'greedy_roi':
         Ain, Cin, _, b_in, f_in = greedyROI(
@@ -394,7 +398,6 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
         raise Exception("Unsupported method")
 
     K = np.shape(Ain)[-1]
-    ds = Y_ds.shape[:-1]
 
     if Ain.size > 0 and not center_psf:
 
@@ -411,18 +414,21 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
         Ain = np.reshape(Ain, (np.prod(d), K), order='F')
 
     if nb:
-        b_in = np.reshape(b_in, ds + (nb,), order='F')
+        b_in = np.reshape(b_in, ds + (-1,), order='F')
 
         if len(ds) == 2:
-            b_in = resize(b_in, d + (nb,))
+            b_in = resize(b_in, d + (b_in.shape[-1],))
         else:
-            b_in = np.reshape([resize(b, d[1:] + (nb,))
-                               for b in b_in], (ds[0], d[1] * d[2], nb), order='F')
-            b_in = resize(b_in, (d[0], d[1] * d[2], nb))
+            b_in = np.reshape([resize(b, d[1:] + (b_in.shape[-1],))
+                               for b in b_in], (ds[0], d[1] * d[2], -1), order='F')
+            b_in = resize(b_in, (d[0], d[1] * d[2], b_in.shape[-1]))
 
-        b_in = np.reshape(b_in, (np.prod(d), nb), order='F')
+        b_in = np.reshape(b_in, (np.prod(d), -1), order='F')
 
-        f_in = resize(np.atleast_2d(f_in), [nb, T])
+        try:
+            f_in = resize(np.atleast_2d(f_in), [b_in.shape[-1], T])
+        except:
+            f_in = spr.csc_matrix(resize(np.atleast_2d(f_in.toarray()), [b_in.shape[-1], T]))
 
     if Ain.size > 0:
         Cin = resize(Cin.astype(float), [K, T])
@@ -1154,9 +1160,14 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
         else:
             B = B0
 
-    print('Estimate low rank Background')
     use_NMF = True
-    if nb:
+    if nb < 0:
+        print('Return full Background')
+        b_in = B
+        f_in = np.eye(T)  # spr.eye(T)
+    elif nb > 0:
+        print('Estimate low rank Background')
+        print(nb)
         if use_NMF:
             model = NMF(n_components=nb, init='nndsvdar')
             b_in = model.fit_transform(np.maximum(B, 0))

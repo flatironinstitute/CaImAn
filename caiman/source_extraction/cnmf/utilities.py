@@ -34,13 +34,14 @@ import scipy
 from ...mmapping import parallel_dot_product
 from ...utils.stats import df_percentile
 
+
 #%%
 def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], gSiz=None, ssub=2, tsub=2, p=2, p_ssub=2, p_tsub=2,
                  thr=0.8, method_init='greedy_roi', nb=1, nb_patch=1, n_pixels_per_process=None, block_size=None,
                  check_nan=True, normalize_init=True, options_local_NMF=None, remove_very_bad_comps=False,
                  alpha_snmf=10e2, update_background_components=True, low_rank_background=True, rolling_sum=False,
-                 min_corr=.85, min_pnr=20,                  
-				 ring_size_factor=1.5, center_psf=False, ssub_B=2, compute_B_3x=True, init_iter=2):
+                 min_corr=.85, min_pnr=20,
+                 ring_size_factor=1.5, center_psf=False, ssub_B=2, compute_B_3x=True, init_iter=2):
     """Dictionary for setting the CNMF parameters.
 
     Any parameter that is not set get a default value specified
@@ -352,11 +353,11 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], gSiz=None, ssub=2, tsub=2, p
 
 #%%
 def computeDFF_traces(Yr, A, C, bl, quantileMin=8, frames_window=200):
-    extract_DF_F(Yr, A, C,  bl, quantileMin, frames_window)
+    extract_DF_F(Yr, A, C, bl, quantileMin, frames_window)
 
 
 #%%
-def extract_DF_F(Yr, A, C,  bl, quantileMin=8, frames_window=200, block_size=400, dview=None):
+def extract_DF_F(Yr, A, C, bl, quantileMin=8, frames_window=200, block_size=400, dview=None):
     """ Compute DFF function from cnmf output.
 s
      Disclaimer: it might be memory inefficient
@@ -501,7 +502,7 @@ def detrend_df_f(A, b, C, f, YrA=None, quantileMin=8, frames_window=500, block_s
 
 #%%
 
-def fast_prct_filt(input_data, level = 8, frames_window = 1000):
+def fast_prct_filt(input_data, level=8, frames_window=1000):
     """
     Fast approximate percentage filtering
     """
@@ -511,14 +512,14 @@ def fast_prct_filt(input_data, level = 8, frames_window = 1000):
     downsampfact = frames_window
 
     elm_missing = int(np.ceil(T * 1.0 / downsampfact)
-                              * downsampfact - T)
-    padbefore = int(np.floor(elm_missing/2.))
-    padafter = int(np.ceil(elm_missing/2.))
+                      * downsampfact - T)
+    padbefore = int(np.floor(elm_missing / 2.))
+    padafter = int(np.ceil(elm_missing / 2.))
     tr_tmp = np.pad(data.T, ((padbefore, padafter), (0, 0)), mode='reflect')
     numFramesNew, num_traces = np.shape(tr_tmp)
     #% compute baseline quickly
 
-    tr_BL = np.reshape(tr_tmp, (downsampfact, int(numFramesNew/downsampfact),
+    tr_BL = np.reshape(tr_tmp, (downsampfact, int(numFramesNew / downsampfact),
                                 num_traces), order='F')
     #import pdb
     #pdb.set_trace()
@@ -535,8 +536,8 @@ def fast_prct_filt(input_data, level = 8, frames_window = 1000):
     return data.squeeze()
 #%%
 
-def detrend_df_f_auto(A, b, C, f, YrA=None, frames_window=1000, use_fast = False):
 
+def detrend_df_f_auto(A, b, C, f, YrA=None, frames_window=1000, use_fast=False):
     """
     Compute DF/F using an automated level of percentile filtering based on
     kernel density estimation.
@@ -591,29 +592,29 @@ def detrend_df_f_auto(A, b, C, f, YrA=None, frames_window=1000, use_fast = False
     B = A.T.dot(b).dot(f)
     T = C.shape[-1]
 
-    data_prct, val = df_percentile(F[:frames_window], axis = 1)
+    data_prct, val = df_percentile(F[:frames_window], axis=1)
 
     if frames_window is None or frames_window > T:
         Fd = np.stack([np.percentile(f, prctileMin) for f, prctileMin in
-              zip(F,data_prct)])
+                       zip(F, data_prct)])
         Df = np.stack([np.percentile(f, prctileMin) for f, prctileMin in
-              zip(B,data_prct)])
+                       zip(B, data_prct)])
         F_df = (F - Fd[:, None]) / (Df[:, None] + Fd[:, None])
     else:
         if use_fast:
-            Fd = np.stack([fast_prct_filt(f, level = prctileMin,
-                                          frames_window = frames_window) for
-                    f, prctileMin in zip(F,data_prct)])
-            Df = np.stack([fast_prct_filt(f, level = prctileMin,
-                                          frames_window = frames_window) for
-                    f, prctileMin in zip(B,data_prct)])
+            Fd = np.stack([fast_prct_filt(f, level=prctileMin,
+                                          frames_window=frames_window) for
+                           f, prctileMin in zip(F, data_prct)])
+            Df = np.stack([fast_prct_filt(f, level=prctileMin,
+                                          frames_window=frames_window) for
+                           f, prctileMin in zip(B, data_prct)])
         else:
             Fd = np.stack([scipy.ndimage.percentile_filter(
-                            f, prctileMin, (frames_window)) for f, prctileMin in
-                            zip(F,data_prct)])
+                f, prctileMin, (frames_window)) for f, prctileMin in
+                zip(F, data_prct)])
             Df = np.stack([scipy.ndimage.percentile_filter(
-                            f, prctileMin, (frames_window)) for f, prctileMin in
-                            zip(B,data_prct)])
+                f, prctileMin, (frames_window)) for f, prctileMin in
+                zip(B, data_prct)])
         F_df = (F - Fd) / (Df + Fd)
 
     return F_df
@@ -803,7 +804,7 @@ def update_order(A, new_a=None, prev_list=None, method='greedy'):
     '''
     K = np.shape(A)[-1]
     if new_a is None and prev_list is None:
-        
+
         if method is 'greedy':
             prev_list, count_list = update_order_greedy(A, flag_AA=False)
         else:
@@ -877,13 +878,13 @@ def update_order_random(A, flag_AA=True):
     """Determies the update order of temporal components using
     randomized partitions of non-overlapping components
     """
-    
+
     K = np.shape(A)[-1]
     if flag_AA:
         AA = A.copy()
     else:
         AA = A.T.dot(A)
-        
+
     AA.setdiag(0)
     F = (AA) > 0
     F = F.toarray()
@@ -902,7 +903,7 @@ def update_order_random(A, flag_AA=True):
         O.append(ord_ind)
         lo.append(len(ord_ind))
 
-    return O[::-1], lo[::-1]    
+    return O[::-1], lo[::-1]
 
 
 def update_order_greedy(A, flag_AA=True):
@@ -1018,15 +1019,16 @@ def normalize_AC(A, C, YrA, b, f, neurons_sn):
         YrA *= nA[:, None]
 
     if b is not None:
-        b = np.array(b)
-        if 'sparse' in str(type(A)):
+        if 'sparse' in str(type(b)):
             nB = np.ravel(np.sqrt(b.power(2).sum(0)))
+            b = csc_matrix(b)
+            for k, i in enumerate(b.indptr[:-1]):
+                b.data[i:b.indptr[k + 1]] /= nB[k]
         else:
             nB = np.ravel(np.sqrt((b**2).sum(0)))
-
-        b = np.atleast_2d(b)
+            b = np.atleast_2d(b)
+            b /= nB
         f = np.atleast_2d(f)
-        b /= nB[np.newaxis, :]
         f *= nB[:, np.newaxis]
 
     if neurons_sn is not None:
