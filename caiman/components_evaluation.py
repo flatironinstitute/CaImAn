@@ -12,6 +12,7 @@ from __future__ import print_function
 from builtins import range
 from past.utils import old_div
 import numpy as np
+import os
 from .utils.stats import mode_robust, mode_robust_fast
 from scipy.sparse import csc_matrix
 from scipy.stats import norm
@@ -19,6 +20,11 @@ import scipy
 import cv2
 import itertools
 from caiman.paths import caiman_datadir
+
+try:
+    cv2.setNumThreads(0)
+except:
+    pass
 
 def estimate_noise_mode(traces, robust_std=False, use_mode_fast=False, return_all=False):
     """ estimate the noise in the traces under assumption that signals are sparse and only positive. The last dimension should be time.
@@ -235,7 +241,7 @@ def classify_components_ep(Y, A, C, b, f, Athresh=0.1, Npeaks=5, tB=-3, tA=10, t
 #%%
 
 
-def evaluate_components_CNN(A, dims, gSig, model_name='model/cnn_model', patch_size=50, loaded_model=None, isGPU=False):
+def evaluate_components_CNN(A, dims, gSig, model_name=os.path.join(caiman_datadir(), 'model', 'cnn_model'), patch_size=50, loaded_model=None, isGPU=False):
     """ evaluate component quality using a CNN network
 
     """

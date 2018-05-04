@@ -57,6 +57,11 @@ import collections
 import caiman as cm
 
 try:
+    cv2.setNumThreads(0)
+except:
+    pass
+
+try:
     import tifffile
 except:
     print('tifffile package not found, using skimage.external.tifffile')
@@ -2321,7 +2326,7 @@ def tile_and_correct_wrapper(params):
     # todo todocument
 
     try:
-        cv2.setNumThreads(1)
+        cv2.setNumThreads(0)
     except:
         pass  # 'Open CV is naturally single threaded'
 

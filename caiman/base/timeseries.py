@@ -30,6 +30,12 @@ import cv2
 import h5py
 import pylab as plt
 import pickle as cpk
+
+try:
+    cv2.setNumThreads(0)
+except:
+    pass
+
 try:
     plt.ion()
 except:
