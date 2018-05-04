@@ -19,6 +19,11 @@ import pylab as pl
 pl.ion()
 from . import timeseries as ts
 
+try:
+    cv2.setNumThreads(0)
+except:
+    pass
+
 #%%
 
 

@@ -29,6 +29,12 @@ from scipy.ndimage.filters import median_filter
 import matplotlib.cm as cm
 import matplotlib as mpl
 from math import sqrt, ceil
+
+try:
+    cv2.setNumThreads(0)
+except:
+    pass
+
 try:
     import bokeh
     import bokeh.plotting as bpl

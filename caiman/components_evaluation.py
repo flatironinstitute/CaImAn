@@ -21,6 +21,11 @@ import cv2
 import itertools
 from caiman.paths import caiman_datadir
 
+try:
+    cv2.setNumThreads(0)
+except:
+    pass
+
 def estimate_noise_mode(traces, robust_std=False, use_mode_fast=False, return_all=False):
     """ estimate the noise in the traces under assumption that signals are sparse and only positive. The last dimension should be time.
 

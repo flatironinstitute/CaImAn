@@ -25,6 +25,10 @@ from scipy.io import loadmat
 import cv2
 from sklearn.decomposition import NMF
 
+try:
+    cv2.setNumThreads(0)
+except:
+    pass
 
 #%% dense flow
 def select_roi(img, n_rois=1):

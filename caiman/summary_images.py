@@ -26,6 +26,11 @@ from scipy.ndimage.filters import convolve
 import cv2
 import itertools
 from caiman.source_extraction.cnmf.pre_processing import get_noise_fft
+
+try:
+    cv2.setNumThreads(0)
+except:
+    pass
 #%%
 
 
