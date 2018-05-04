@@ -45,6 +45,12 @@ import pylab as pl
 from skimage.external.tifffile import imread
 from tqdm import tqdm
 from . import timeseries
+
+try:
+    cv2.setNumThreads(0)
+except:
+    pass
+
 try:
     import sima
     HAS_SIMA = True

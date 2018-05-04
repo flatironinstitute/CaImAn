@@ -37,6 +37,10 @@ import sys
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
+try:
+    cv2.setNumThreads(0)
+except: 
+    pass
 
 #%%
 

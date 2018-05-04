@@ -27,6 +27,12 @@ import scipy
 import os
 from scipy.ndimage.filters import gaussian_filter
 import cv2
+
+try:
+    cv2.setNumThreads(0)
+except: 
+    pass
+
 try:
     from urllib2 import urlopen
 except ImportError:
