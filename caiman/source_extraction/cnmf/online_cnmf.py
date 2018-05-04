@@ -27,6 +27,12 @@ import cv2
 from skimage.feature import peak_local_max
 import pylab as plt
 from caiman.source_extraction.cnmf.spatial import threshold_components
+
+try:
+    cv2.setNumThreads(0)
+except: 
+    pass
+
 try:
     profile
 except:

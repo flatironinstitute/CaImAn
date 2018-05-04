@@ -27,9 +27,9 @@ import cv2
 import glob
 
 try:
-    cv2.setNumThreads(1)
-except:
-    print('Open CV is naturally single threaded')
+    cv2.setNumThreads(0)
+except: 
+    pass
 
 try:
     if __IPYTHON__:

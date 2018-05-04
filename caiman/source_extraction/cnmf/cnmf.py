@@ -48,6 +48,11 @@ import pylab as pl
 from time import time
 
 try:
+    cv2.setNumThreads(0)
+except: 
+    pass
+
+try:
     profile
 except:
     def profile(a): return a

@@ -156,6 +156,10 @@ def get_noise_fft(Y, noise_range=[0.25, 0.5], noise_method='logmexp', max_num_sa
     if Y.ndim > 1:
         if opencv:
             import cv2
+            try:
+                cv2.setNumThreads(0)
+            except: 
+                pass
             psdx = []
             for y in Y.reshape(-1, T):
                 dft = cv2.dft(y, flags=cv2.DFT_COMPLEX_OUTPUT).squeeze()[
