@@ -1190,7 +1190,7 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
                           seed_method='auto', deconvolve_options=None,
                           min_pixel=3, bd=1, thresh_init=2, swap_dim=True,
                           save_video=False, video_name='initialization.mp4',
-                          background_filter='disk', old=False):
+                          background_filter='disk'):
     """
     using greedy method to initialize neurons by selecting pixels with large
     local correlation and large peak-to-noise ratio
@@ -1281,14 +1281,9 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
                                                         sigmaY=gSig[1], borderType=1)
 
     # compute peak-to-noise ratio
-    if old:
-        data_filtered -= np.mean(data_filtered, axis=0)
-        data_max = np.max(data_filtered, axis=0)
-        noise_pixel = get_noise_fft(data_filtered.T)[0].T
-    else:
-        data_filtered -= np.median(data_filtered, axis=0)
-        data_max = np.max(data_filtered, axis=0)
-        noise_pixel = get_noise_welch(data_filtered.T).T
+    data_filtered -= np.mean(data_filtered, axis=0)
+    data_max = np.max(data_filtered, axis=0)
+    noise_pixel = get_noise_fft(data_filtered.T, noise_method='mean')[0].T
     pnr = np.divide(data_max, noise_pixel)
 
     # remove small values and only keep pixels with large fluorescence signals
