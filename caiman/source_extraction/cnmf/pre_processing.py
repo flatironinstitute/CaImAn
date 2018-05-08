@@ -27,6 +27,7 @@ import shutil
 import tempfile
 
 import numpy as np
+import scipy
 from builtins import map
 from builtins import range
 from ...mmapping import load_memmap
@@ -108,7 +109,50 @@ def find_unsaturated_pixels(Y, saturationValue=None, saturationThreshold=0.9, sa
 
     return normalPixels
 
+
 #%%
+def get_noise_welch(Y, noise_range=[0.25, 0.5], noise_method='logmexp',
+                    max_num_samples_fft=3072):
+    """Estimate the noise level for each pixel by averaging the power spectral density.
+
+    Inputs:
+    -------
+
+    Y: np.ndarray
+
+    Input movie data with time in the last axis
+
+    noise_range: np.ndarray [2 x 1] between 0 and 0.5
+        Range of frequencies compared to Nyquist rate over which the power spectrum is averaged
+        default: [0.25,0.5]
+
+    noise method: string
+        method of averaging the noise.
+        Choices:
+            'mean': Mean
+            'median': Median
+            'logmexp': Exponential of the mean of the logarithm of PSD (default)
+
+    Output:
+    ------
+    sn: np.ndarray
+        Noise level for each pixel
+    """
+    T = Y.shape[-1]
+    if T > max_num_samples_fft:
+        Y = np.concatenate((Y[..., 1:max_num_samples_fft // 3 + 1],
+                            Y[..., np.int(T // 2 - max_num_samples_fft / 3 / 2):
+                            np.int(T // 2 + max_num_samples_fft / 3 / 2)],
+                            Y[..., -max_num_samples_fft // 3:]), axis=-1)
+        T = np.shape(Y)[-1]
+    ff, Pxx = scipy.signal.welch(Y)
+    Pxx = Pxx[..., (ff >= noise_range[0]) & (ff <= noise_range[1])]
+    sn = {
+        'mean': lambda Pxx_ind: np.sqrt(np.mean(Pxx, -1) / 2),
+        'median': lambda Pxx_ind: np.sqrt(np.median(Pxx, -1) / 2),
+        'logmexp': lambda Pxx_ind: np.sqrt(np.exp(np.mean(np.log(Pxx / 2), -1)))
+    }[noise_method](Pxx)
+    return sn
 
 
 def get_noise_fft(Y, noise_range=[0.25, 0.5], noise_method='logmexp', max_num_samples_fft=3072,
@@ -143,7 +187,8 @@ def get_noise_fft(Y, noise_range=[0.25, 0.5], noise_method='logmexp', max_num_sa
 
     if T > max_num_samples_fft:
         Y = np.concatenate((Y[..., 1:max_num_samples_fft // 3 + 1],
-                            Y[..., np.int(T // 2 - max_num_samples_fft / 3 / 2):np.int(T // 2 + max_num_samples_fft / 3 / 2)],
+                            Y[..., np.int(T // 2 - max_num_samples_fft / 3 / 2)
+                                          :np.int(T // 2 + max_num_samples_fft / 3 / 2)],
                             Y[..., -max_num_samples_fft // 3:]), axis=-1)
         T = np.shape(Y)[-1]
 
@@ -505,7 +550,7 @@ def nextpow2(value):
     return exponent
 
 
-def preprocess_data(Y, sn=None,  dview=None, n_pixels_per_process=100,  noise_range=[0.25, 0.5], noise_method='logmexp', compute_g=False,  p=2,  lags=5, include_noise=False, pixels=None, max_num_samples_fft=3000, check_nan=True):
+def preprocess_data(Y, sn=None, dview=None, n_pixels_per_process=100, noise_range=[0.25, 0.5], noise_method='logmexp', compute_g=False, p=2, lags=5, include_noise=False, pixels=None, max_num_samples_fft=3000, check_nan=True):
     """
     Performs the pre-processing operations described above.
 

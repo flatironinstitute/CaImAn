@@ -148,7 +148,6 @@ def cnmf_patches(args_in):
                         ring_size_factor=options['init_params']['ring_size_factor'],
                         center_psf=options['init_params']['center_psf'],
                         ssub_B=options['init_params']['ssub_B'],
-                        compute_B_3x=options['init_params']['compute_B_3x'],
                         init_iter=options['init_params']['init_iter'])
 
         cnm = cnm.fit(images)
@@ -326,7 +325,7 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride=4, gnb=1, dview=No
     else:
          S_tot = None
     YrA_tot = np.zeros((count, T), dtype=np.float32)
-    F_tot = np.zeros((num_patches * nb_patch, T), dtype=np.float32)
+    F_tot = np.zeros((max(0, num_patches * nb_patch), T), dtype=np.float32)
     mask = np.zeros(d, dtype=np.uint8)
     sn_tot = np.zeros((d))
 
@@ -361,7 +360,10 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride=4, gnb=1, dview=No
                 idx_ptr_B.append(len(idx_))
                 # F_tot[patch_id, :] = f[ii, :]
                 count_bgr += 1
-            F_tot[patch_id * nb_patch:(patch_id + 1) * nb_patch] = f
+            if nb_patch >= 0:
+                F_tot[patch_id * nb_patch:(patch_id + 1) * nb_patch] = f
+            else:  # full background per patch
+                F_tot = np.concatenate([F_tot, f])
 
             for ii in range(np.shape(A)[-1]):
                 new_comp = A[:, ii]  # / np.sqrt(A[:, ii].power(2).sum())
