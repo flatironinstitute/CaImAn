@@ -49,7 +49,7 @@ Recent advances in calcium imaging acquisition techniques are creating datasets 
     
 * **Variance Stabilization** [[8]](#vst)
     * Noise parameters estimation under the Poisson-Gaussian noise model
-    * Fast algorithm that scales to large datasets
+    * Fast algorithm that scales to large datasets [github repo](https://github.com/marianotepper/hough-anscombe)
 
 
 ## New: Online analysis
@@ -168,6 +168,7 @@ Please read [this link](CLUSTER.md) for information on your clustering options a
 * Andrea Giovannucci, **Flatiron Institute, Simons Foundation**
 * Eftychios A. Pnevmatikakis, **Flatiron Institute, Simons Foundation** 
 * Johannes Friedrich, **Flatiron Institute, Simons Foundation**
+* Mariano Tepper, **Flatiron Institute, Simons Foundation**
 * Erick, Cobos, **Baylor College of Medicine**
 * Valentina Staneva, **University of Washington**
 * Ben Deverett, **Princeton University**
