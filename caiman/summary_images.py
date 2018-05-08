@@ -24,11 +24,10 @@ from builtins import range
 import numpy as np
 from scipy.ndimage.filters import convolve
 import cv2
-import itertools
-from caiman.source_extraction.cnmf.pre_processing import get_noise_fft, get_noise_welch
+from caiman.source_extraction.cnmf.pre_processing import get_noise_fft
+
+
 #%%
-
-
 def max_correlation_image(Y, bin_size=1000, eight_neighbours=True, swap_dim=True):
     """Computes the max-correlation image for the input dataset Y with bin_size
 
@@ -232,7 +231,7 @@ def local_correlations(Y, eight_neighbours=True, swap_dim=True):
     return rho
 
 
-def correlation_pnr(Y, gSig=None, center_psf=True, swap_dim=True, background_filter='disk', old=False):
+def correlation_pnr(Y, gSig=None, center_psf=True, swap_dim=True, background_filter='disk'):
     """
     compute the correlation image and the peak-to-noise ratio (PNR) image.
     If gSig is provided, then spatially filtered the video.
@@ -293,14 +292,9 @@ def correlation_pnr(Y, gSig=None, center_psf=True, swap_dim=True, background_fil
                     img, ksize=ksize, sigmaX=gSig[0], sigmaY=gSig[1], borderType=1)
 
     # compute peak-to-noise ratio
-    if old:
-        data_filtered -= np.mean(data_filtered, axis=0)
-        data_max = np.max(data_filtered, axis=0)
-        data_std = get_noise_fft(data_filtered.T)[0].T
-    else:
-        data_filtered -= np.median(data_filtered, axis=0)
-        data_max = np.max(data_filtered, axis=0)
-        data_std = get_noise_welch(data_filtered.T).T
+    data_filtered -= data_filtered.mean(axis=0)
+    data_max = np.max(data_filtered, axis=0)
+    data_std = get_noise_fft(data_filtered.T, noise_method='mean')[0].T
     pnr = np.divide(data_max, data_std)
     pnr[pnr < 0] = 0
 

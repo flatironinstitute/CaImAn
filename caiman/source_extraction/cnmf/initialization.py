@@ -352,7 +352,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
         Ain, Cin, _, b_in, f_in, extra_1p = greedyROI_corr(
             Y, Y_ds, max_number=K, gSiz=gSiz[0], gSig=gSig[0], min_corr=min_corr, min_pnr=min_pnr,
             ring_size_factor=ring_size_factor, center_psf=center_psf, options=options_total,
-            sn=sn, nb=nb, ssub=ssub, ssub_B=ssub_B, compute_B_3x=compute_B_3x, init_iter=init_iter)
+            sn=sn, nb=nb, ssub=ssub, ssub_B=ssub_B, init_iter=init_iter)
 
     elif method == 'sparse_nmf':
         Ain, Cin, _, b_in, f_in = sparseNMF(
@@ -947,7 +947,7 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
                    min_corr=None, min_pnr=None, seed_method='auto',
                    min_pixel=3, bd=0, thresh_init=2, ring_size_factor=None, nb=1, options=None,
                    sn=None, save_video=False, video_name='initialization.mp4', ssub=1,
-                   ssub_B=2, compute_B_3x=True, init_iter=2):
+                   ssub_B=2, init_iter=2):
     """
     initialize neurons based on pixels' local correlations and peak-to-noise ratios.
 
@@ -1111,7 +1111,7 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
         else:
             B = Y_ds.reshape((-1, T), order='F') - A.dot(C)
         B = compute_B(b0, W, B)  # "-B"
-        if not compute_B_3x:
+        if nb:
             B0 = -B
         if ssub > 1:
             B = np.reshape(B, (d1, d2, -1), order='F')
@@ -1130,8 +1130,7 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
         C = C.astype(np.float32)
         print('Update Spatial')
         options['spatial_params']['dims'] = dims
-        options['spatial_params']['se'] = np.ones(
-            (1,) * len((d1, d2)), dtype=np.uint8)
+        options['spatial_params']['se'] = np.ones((1,) * len((d1, d2)), dtype=np.uint8)
         A, _, C, _ = caiman.source_extraction.cnmf.spatial.update_spatial_components(
             B, C=C, f=np.zeros((0, T), np.float32), A_in=A, sn=sn,
             b_in=np.zeros((np.prod(dims), 0), np.float32),
@@ -1142,22 +1141,9 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
                 B, spr.csc_matrix(A, dtype=np.float32),
                 np.zeros((np.prod(dims), 0), np.float32), C, np.zeros((0, T), np.float32),
                 dview=None, bl=None, c1=None, sn=None, g=None, **options['temporal_params'])
+        
         A = A.toarray()
-
-        if compute_B_3x:
-            K = C.shape[0]  # need to recompute K as some components may have been eliminated
-            print('Compute Background Again')  # on decimated data
-            A_ds = downscale(np.reshape(
-                A, dims + (-1,), order='F'), (ssub, ssub, 1))
-            A_ds = np.reshape(A_ds, (d1 * d2, K), order='F')
-            # background according to ringmodel
-            W, b0 = compute_W(Y_ds.reshape((-1, total_frames), order='F'),
-                              A_ds, downscale(C, (1, tsub)), (d1, d2),
-                              ring_size_factor * gSiz, ssub=ssub_B)
-            B = (Ys if T > total_frames else Y_ds.reshape(
-                (-1, total_frames), order='F')) - A_ds.dot(C)
-            B = -compute_B(b0, W, B)  # "B"
-        else:
+        if nb:
             B = B0
 
     use_NMF = True
@@ -1281,7 +1267,7 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
                                                         sigmaY=gSig[1], borderType=1)
 
     # compute peak-to-noise ratio
-    data_filtered -= np.mean(data_filtered, axis=0)
+    data_filtered -= data_filtered.mean(axis=0)
     data_max = np.max(data_filtered, axis=0)
     noise_pixel = get_noise_fft(data_filtered.T, noise_method='mean')[0].T
     pnr = np.divide(data_max, noise_pixel)
@@ -1478,11 +1464,6 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
                     Sin[num_neurons] = si
                 else:
                     # no deconvolution
-                    # baseline = np.median(ci_raw)
-                    sn = get_noise_welch(ci_raw)
-                    y_diff = np.concatenate([[-1], np.diff(ci_raw)])
-                    baseline = np.median(ci_raw[(y_diff >= 0) * (y_diff < sn)])
-                    ci_raw -= baseline
                     ci = ci_raw.copy()
                     ci[ci < 0] = 0
                     Cin[num_neurons] = ci.squeeze()
@@ -1608,8 +1589,6 @@ def extract_ac(data_filtered, data_raw, ind_ctr, patch_dims):
     # roughly estimate the background fluctuation
     y_bg = np.median(data_raw[:, ind_bg], axis=1).reshape(-1, 1)
     # extract spatial components
-    # pdb.set_trace()
-    # X = np.hstack([ci.reshape(-1, 1) - ci.mean(), y_bg - y_bg.mean(), np.ones(y_bg.shape)])
     X = np.concatenate([ci.reshape(-1, 1), y_bg, np.ones(y_bg.shape, np.float32)], 1)
     XX = np.dot(X.T, X)
     Xy = np.dot(X.T, data_raw)
