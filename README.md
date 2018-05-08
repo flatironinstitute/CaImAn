@@ -50,7 +50,7 @@ Recent advances in calcium imaging acquisition techniques are creating datasets 
 * **Variance Stabilization** [[8]](#vst)
     * Noise parameters estimation under the Poisson-Gaussian noise model
     * Fast algorithm that scales to large datasets [github repo](https://github.com/marianotepper/hough-anscombe)
-
+    * A basic demo can be found at CaImAn/caiman/external/houghvst/demo_VST.py 
 
 ## New: Online analysis
 
