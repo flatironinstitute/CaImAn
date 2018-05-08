@@ -1021,7 +1021,7 @@ class movie(ts.timeseries):
             eight_neighbours=True)[np.newaxis, :, :] for j in range(T - window)], axis=0), fr=self.fr)
 
     def play(self, gain=1, fr=None, magnification=1, offset=0, interpolation=cv2.INTER_LINEAR,
-             backend='opencv', do_loop=False, bord_px=None):
+             backend='opencv', do_loop=False, bord_px=None, q_max=100, q_min = 0, plot_text = True):
         """
         Play the movie using opencv
 
@@ -1042,14 +1042,22 @@ class movie(ts.timeseries):
             print('*** WARNING *** SPEED MIGHT BE LOW. USE opencv backend if available')
 
         gain *= 1.
-        maxmov = np.nanmax(self)
-
+        if q_max < 100:
+            maxmov = np.nanpercentile(self[0:10], q_max)
+        else:
+            maxmov = np.nanmax(self)
+            
+        if q_min > 0:
+            minmov = np.nanpercentile(self[0:10], q_min)
+        else:
+            minmov = np.nanmin(self)
+            
         if backend == 'pylab':
             pl.ion()
             fig = pl.figure(1)
             ax = fig.add_subplot(111)
             ax.set_title("Play Movie")
-            im = ax.imshow((offset + self[0]) * gain / maxmov, cmap=pl.cm.gray,
+            im = ax.imshow((offset + self[0]) * gain / (maxmov + offset), cmap=pl.cm.gray,
                            vmin=0, vmax=1, interpolation='none')  # Blank starting image
             fig.show()
             im.axes.figure.canvas.draw()
@@ -1088,15 +1096,22 @@ class movie(ts.timeseries):
                     if magnification != 1:
                         frame = cv2.resize(
                             frame, None, fx=magnification, fy=magnification, interpolation=interpolation)
+                    frame = (offset + frame) * gain / maxmov
 
-                    cv2.imshow('frame', (offset + frame) * gain / maxmov)
+                    if plot_text == True:
+                        text_width, text_height = cv2.getTextSize('Frame = ' + str(iddxx), fontFace=5, fontScale = 0.8, thickness=1)[0]
+                        cv2.putText(frame, 'Frame = ' + str(iddxx), ((frame.shape[1] - text_width) // 2, 
+                                    frame.shape[0] - (text_height + 5)), fontFace=5, fontScale=0.8, color=(255, 255, 255), thickness=1)
+
+                    cv2.imshow('frame', frame)
+
                     if cv2.waitKey(int(1. / fr * 1000)) & 0xFF == ord('q'):
                         looping = False
                         terminated = True
                         break
 
                 elif backend == 'pylab':
-
+                    
                     im.set_data((offset + frame) * gain / maxmov)
                     ax.set_title(str(iddxx))
                     pl.axis('off')
@@ -1119,6 +1134,8 @@ class movie(ts.timeseries):
 
             if do_loop:
                 looping = True
+            else:
+                looping = False
 
         if backend == 'opencv':
             cv2.waitKey(100)
