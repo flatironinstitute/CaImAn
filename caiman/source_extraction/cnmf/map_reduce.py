@@ -89,20 +89,21 @@ def cnmf_patches(args_in):
     from . import cnmf
     file_name, idx_, shapes, options = args_in
 
+    logger = logging.getLogger(__name__)
     name_log = os.path.basename(
         file_name[:-5]) + '_LOG_ ' + str(idx_[0]) + '_' + str(idx_[-1])
-    logger = logging.getLogger(name_log)
-    hdlr = logging.FileHandler('./' + name_log)
-    formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
-    hdlr.setFormatter(formatter)
-    logger.addHandler(hdlr)
-    logger.setLevel(logging.INFO)
+    #logger = logging.getLogger(name_log)
+    #hdlr = logging.FileHandler('./' + name_log)
+    #formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
+    #hdlr.setFormatter(formatter)
+    #logger.addHandler(hdlr)
+    #logger.setLevel(logging.INFO)
 
     p = options['temporal_params']['p']
 
-    logger.info('START')
+    logger.debug(name_log+'START')
 
-    logger.info('Read file')
+    logger.debug(name_log+'Read file')
     Yr, dims, timesteps = load_memmap(file_name)
 
     # slicing array (takes the min and max index in n-dimensional space and cuts the box they define)
@@ -121,7 +122,7 @@ def cnmf_patches(args_in):
     else:
         images = images[slices]
 
-    logger.info('file loaded')
+    logger.debug(name_log+'file loaded')
 
     if (np.sum(np.abs(np.diff(images.reshape(timesteps, -1).T)))) > 0.1:
 
