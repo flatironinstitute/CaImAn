@@ -6,7 +6,7 @@ Active development on CaImAn happens on the dev branch, and occasionally we sync
 
 For rapid development, do an in-place install
 =============================================
-People who are not editing CaImAn sources should do an ordinary install with "pip install ." ; people who *are* actively changing CaImAn may find this inconvenient because they don't want to continually uninstall and reinstall the package. They should instead install with "pip install -e ." which performs a "symlink install". If they are editing datafiles that normally go in the ~/caiman_data directory, they might also consider setting the CAIMAN_DATA environment variable to their source dir, so they don't need to use the caimandata.py command to continually uninstall/reinstall the datadir.
+People who are not editing CaImAn sources should do an ordinary install with "pip install ." ; people who *are* actively changing CaImAn may find this inconvenient because they don't want to continually uninstall and reinstall the package. They should instead install with "pip install -e ." which performs a "symlink install". If they are editing datafiles that normally go in the ~/caiman_data directory, they should consider setting the CAIMAN_DATA environment variable to their source dir, so they don't need to use the caimandata.py command to continually uninstall/reinstall the datadir.
 
 Pull Requests
 =============
@@ -16,7 +16,7 @@ Your code should merge cleanly into the codebase; if it does not, you should reb
 
 Test your code first
 ====================
-The caimandata command has code to run the internal test suite on your platform. Please do this for whatever platform(s) you have access to; our Jenkins is not public and it's easier for you to find problems this way than to ask for text logs to be sent to you.
+The caimandata command has code to run the internal test suite on your platform. Please do this for whatever platform(s) you have access to; our Jenkins is not public and it's easier for you to find problems this way than to ask for text logs to be sent to you. You can do this by typing "caimanmanager.py test" (if you're doing a symlink install, caimanmanager will not be in your path and you should invoke it as "python caimanmanager.py test")
 
 Platforms we care about
 =======================
