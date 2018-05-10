@@ -25,7 +25,6 @@ from caiman.utils.utils import download_demo
 from caiman.utils.visualization import inspect_correlation_pnr
 from caiman.components_evaluation import estimate_components_quality_auto
 from caiman.motion_correction import motion_correct_oneP_rigid,motion_correct_oneP_nonrigid
-import os
 #%% Set parameters
 display_images = False # Set to true to show movies and images
 fnames = ['data_endoscope.tif']
@@ -146,14 +145,14 @@ cnm = cnmf.CNMF(n_processes=n_processes,
                 method_init='corr_pnr',                 # use this for 1 photon
                 k=70,                                   # neurons per patch
                 gSig=(3, 3),                            # half size of neuron
-                gSiz=(10, 10),                          # in general 3*gSig+1
-                merge_thresh=.8,                        # threshold for merging
+                gSiz=(13, 13),                          # in general 4*gSig+1
+                merge_thresh=.7,                        # threshold for merging
                 p=1,                                    # order of autoregressive process to fit
                 dview=dview,                            # if None it will run on a single thread
                 # downsampling factor in time for initialization, increase if you have memory problems
                 tsub=2,
                 # downsampling factor in space for initialization, increase if you have memory problems
-                ssub=2,
+                ssub=1,
                 # if you want to initialize with some preselcted components you can pass them here as boolean vectors
                 Ain=None,
                 # half size of the patch (final patch will be 100x100)
@@ -161,7 +160,8 @@ cnm = cnmf.CNMF(n_processes=n_processes,
                 # overlap among patches (keep it at least large as 4 times the neuron size)
                 stride=(20, 20),
                 only_init_patch=True,                   # just leave it as is
-                gnb=16,                                 # number of background components
+                gnb=16,                                 # number of background components       
+                # number of background components per patch, use 0 or -1 for exact background of ring model
                 nb_patch=16,                            # number of background components per patch
                 method_deconvolution='oasis',  # could use 'cvxpy' alternatively
                 low_rank_background=True,  # leave as is
@@ -171,6 +171,8 @@ cnm = cnmf.CNMF(n_processes=n_processes,
                 min_pnr=min_pnr,                        # min peak to noise ration from PNR image
                 normalize_init=False,                   # just leave as is
                 center_psf=True,                        # leave as is for 1 photon
+                ssub_B=2,                               # additional downsampling factor in space for background
+                ring_size_factor=1.4,                   # radius of ring is gSiz*ring_size_factor
                 del_duplicates=True,                    # whether to remove duplicates from initialization
                 border_pix = bord_px)                   # number of pixels to not consider in the borders
 cnm.fit(Y)
