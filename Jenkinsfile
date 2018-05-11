@@ -2,6 +2,7 @@ pipeline {
   agent none
   options {
     disableConcurrentBuilds()
+    buildDiscarder(logRotator(numToKeepStr: '10', daysToKeepStr: '15'))
     timeout(time: 2, unit: 'HOURS')
   }
   stages {
