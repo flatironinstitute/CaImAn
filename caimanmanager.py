@@ -139,9 +139,13 @@ def comparitor_all_left_only_files(comparitor, path_prepend):
 ###############
 
 def runcmd(cmdlist, ignore_error=False, verbose=True):
+	# In most of my codebases, runcmd saves and returns the output.
+	# Here I've modified it to send right to stdout, because nothing
+	# uses the output and because the demos sometimes have issues
+	# with hanging forever
         if verbose:
                 print("runcmd[" + " ".join(cmdlist) + "]")
-        pipeline = subprocess.Popen(cmdlist, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+        pipeline = subprocess.Popen(cmdlist, stdout = sys.stdout, stderr = sys.stdout)
         (stdout, stderr) = pipeline.communicate()
         ret = pipeline.returncode
         if ret != 0 and not ignore_error:
