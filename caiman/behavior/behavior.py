@@ -27,7 +27,7 @@ from sklearn.decomposition import NMF
 
 try:
     cv2.setNumThreads(0)
-except: 
+except:
     pass
 
 #%% dense flow

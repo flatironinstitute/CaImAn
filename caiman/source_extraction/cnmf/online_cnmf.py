@@ -30,7 +30,7 @@ from caiman.source_extraction.cnmf.spatial import threshold_components
 
 try:
     cv2.setNumThreads(0)
-except: 
+except:
     pass
 
 try:

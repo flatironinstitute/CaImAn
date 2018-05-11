@@ -49,7 +49,7 @@ from time import time
 
 try:
     cv2.setNumThreads(0)
-except: 
+except:
     pass
 
 try:
@@ -94,7 +94,7 @@ class CNMF(object):
                  center_psf=False, use_dense=True, deconv_flag=True,
                  simultaneously=False, n_refit=0, del_duplicates=False, N_samples_exceptionality=5,
                  max_num_added=1, min_num_trial=2, thresh_CNN_noisy=0.99,
-                 ssub_B=2, compute_B_3x=False, init_iter=2):
+                 ssub_B=2, init_iter=2):
         """
         Constructor of the CNMF method
 
@@ -251,9 +251,6 @@ class CNMF(object):
         ssub_B: int, optional
             downsampleing factor for 1-photon imaging background computation
 
-        compute_B_3x: bool, optional=False,
-            whether to compute background 3x or only 2x for 1-photon imaging
-
         init_iter: int, optional
             number of iterations for 1-photon imaging initialization
 
@@ -350,7 +347,7 @@ class CNMF(object):
                                     rolling_sum=self.rolling_sum,
                                     min_corr=min_corr, min_pnr=min_pnr,
                                     ring_size_factor=ring_size_factor, center_psf=center_psf,
-                                    ssub_B=ssub_B, compute_B_3x=compute_B_3x, init_iter=init_iter)
+                                    ssub_B=ssub_B, init_iter=init_iter)
         self.options['merging']['thr'] = merge_thresh
         self.options['temporal_params']['s_min'] = s_min
 

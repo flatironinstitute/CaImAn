@@ -28,7 +28,7 @@ import glob
 
 try:
     cv2.setNumThreads(0)
-except: 
+except:
     pass
 
 try:

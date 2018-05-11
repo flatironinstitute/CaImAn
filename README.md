@@ -46,7 +46,11 @@ Recent advances in calcium imaging acquisition techniques are creating datasets 
     * Unsupervised algorithms based on optical flow and NMF to automatically extract motor kinetics 
     * Scales to large datasets by exploiting online dictionary learning
     * We also developed a tool for acquiring movies at high speed with low cost equipment [[Github repository]](https://github.com/bensondaled/eyeblink). 
-
+    
+* **Variance Stabilization** [[8]](#vst)
+    * Noise parameters estimation under the Poisson-Gaussian noise model
+    * Fast algorithm that scales to large datasets
+    * A basic demo can be found at `CaImAn/demos/notebooks/demo_VST.ipynb` 
 
 ## New: Online analysis
 
@@ -164,6 +168,7 @@ Please read [this link](CLUSTER.md) for information on your clustering options a
 * Andrea Giovannucci, **Flatiron Institute, Simons Foundation**
 * Eftychios A. Pnevmatikakis, **Flatiron Institute, Simons Foundation** 
 * Johannes Friedrich, **Flatiron Institute, Simons Foundation**
+* Mariano Tepper, **Flatiron Institute, Simons Foundation**
 * Erick, Cobos, **Baylor College of Medicine**
 * Valentina Staneva, **University of Washington**
 * Ben Deverett, **Princeton University**
@@ -187,15 +192,22 @@ The following references provide the theoretical background and original code fo
 
 ### Online Analysis
 
-<a name="onacid"></a>[5] Giovannucci, A., Friedrich J., Kaufman M., Churchland A., Chklovskii D., Paninski L., & Pnevmatikakis E.A. (2017). OnACID: Online analysis of calcium imaging data in real data. NIPS 2017, to appear. [[paper]](https://www.biorxiv.org/content/early/2017/10/02/193383)
+<a name="onacid"></a>[5] Giovannucci, A., Friedrich J., Kaufman M., Churchland A., Chklovskii D., Paninski L., & Pnevmatikakis E.A. (2017). OnACID: Online analysis of calcium imaging data in real data. NIPS 2017, pp. 2378-2388. [[paper]](http://papers.nips.cc/paper/6832-onacid-online-analysis-of-calcium-imaging-data-in-real-time)
 
 ### Motion Correction
 
 <a name="normcorre"></a>[6] Pnevmatikakis, E.A., and Giovannucci A. (2017). NoRMCorre: An online algorithm for piecewise rigid motion correction of calcium imaging data. Journal of Neuroscience Methods, 291:83-92 [[paper]](https://doi.org/10.1016/j.jneumeth.2017.07.031), [[Github repository]](https://github.com/simonsfoundation/normcorre).
 
-### Behavioral analysis
+### Behavioral Analysis
 
-<a name="behavior"></a>[7] Giovannucci, A., Pnevmatikakis, E. A., Deverett, B., Pereira, T., Fondriest, J., Brady, M. J., ... & Masip, D. (2017). Automated gesture tracking in head-fixed mice. Journal of Neuroscience Methods, in press. [[paper]](https://doi.org/10.1016/j.jneumeth.2017.07.014).
+<a name="behavior"></a>[7] Giovannucci, A., Pnevmatikakis, E. A., Deverett, B., Pereira, T., Fondriest, J., Brady, M. J., ... & Masip, D. (2017). Automated gesture tracking in head-fixed mice. Journal of Neuroscience Methods, 300:184-195. [[paper]](https://doi.org/10.1016/j.jneumeth.2017.07.014).
+
+
+
+### Variance Stabilization
+
+<a name="vst"></a>[8] Tepper, M., Giovannucci, A., and Pnevmatikakis, E (2018). Anscombe meets Hough: Noise variance stabilization via parametric model estimation. In ICASSP, 2018. [[paper]](https://marianotepper.github.io/papers/anscombe-meets-hough.pdf). [[Github repository]](https://github.com/marianotepper/hough-anscombe)
+
 
 ## Related packages
 

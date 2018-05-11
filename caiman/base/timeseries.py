@@ -33,7 +33,7 @@ import pickle as cpk
 
 try:
     cv2.setNumThreads(0)
-except: 
+except:
     pass
 
 try:

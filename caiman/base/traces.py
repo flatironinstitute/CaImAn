@@ -21,7 +21,7 @@ from . import timeseries as ts
 
 try:
     cv2.setNumThreads(0)
-except: 
+except:
     pass
 
 #%%

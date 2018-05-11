@@ -38,7 +38,7 @@ from ..motion_correction import tile_and_correct
 
 try:
     cv2.setNumThreads(0)
-except: 
+except:
     pass
 
 #%%

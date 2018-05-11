@@ -1200,7 +1200,7 @@ for params_movie in np.array(params_movies)[:]:
         import numpy as np
         import pylab as pl
         from scipy.signal import savgol_filter
-        ffllss = glob.glob('*_act.npz')
+        ffllss = glob.glob('/mnt/home/agiovann/SOFTWARE/CaImAnOld/*_act.npz')
         ffllss.sort()
         print(ffllss)
         for thresh in np.arange(1.5,4.5,1):
@@ -1214,7 +1214,7 @@ for params_movie in np.array(params_movies)[:]:
                     pl.subplot(3,4,count)
                     count += 1
                     a = np.histogram(np.sum(comp_SNR_trace>thresh,0)/len(comp_SNR_trace),100)
-                    pl.plot(a[1][1:][a[0]>0],savgol_filter(a[0][a[0]>0]/comp_SNR_trace.shape[-1],5,3))
+                    pl.plot(np.log10(a[1][1:][a[0]>0]),savgol_filter(a[0][a[0]>0]/comp_SNR_trace.shape[-1],5,3))
 
                     pl.title(ffll)
 
@@ -1226,7 +1226,7 @@ for params_movie in np.array(params_movies)[:]:
         import numpy as np
         import pylab as pl
         from scipy.signal import savgol_filter
-        ffllss = glob.glob('*_spikes.npz')
+        ffllss = glob.glob('/mnt/home/agiovann/SOFTWARE/CaImAnOld/*_spikes.npz')
         ffllss.sort()
         print(ffllss)
         for thresh in np.arange(0,.3,.1):
@@ -1241,7 +1241,7 @@ for params_movie in np.array(params_movies)[:]:
                     pl.subplot(3,4,count)
                     count += 1
                     a = np.histogram(np.sum(S>thresh,0)/len(S),100)
-                    pl.plot(a[1][1:][a[0]>0],savgol_filter(a[0][a[0]>0]/S.shape[-1],5,3))
+                    pl.plot(np.log10(a[1][1:][a[0]>0]),savgol_filter(a[0][a[0]>0]/S.shape[-1],5,3))
 
                     pl.title(ffll)
 

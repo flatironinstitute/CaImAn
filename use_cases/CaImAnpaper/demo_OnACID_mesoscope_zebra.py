@@ -214,9 +214,10 @@ def create_frame(cnm2, img_norm, captions):
     # inferred activity due to components (no background)
     comps_frame = A.dot(C[:, t - 1]).reshape(cnm2.dims,
                                              order='F') * img_norm / np.max(img_norm)
+
     comps_frame_ = A.dot(C[:, t - 1]).reshape(cnm2.dims,
                                              order='F') * img_norm / np.max(img_norm)/3
-    comps_frame_ = cnm2.sv.reshape(cnm2.dims, order='C')/200
+#    comps_frame_ = cnm2.sv.reshape(cnm2.dims, order='C')/200
 
 
     bgkrnd_frame = b.dot(f[:, t - 1]).reshape(cnm2.dims, order='F') * \
@@ -269,8 +270,9 @@ def create_frame(cnm2, img_norm, captions):
 
 #%% Prepare object for OnACID
 cnm2 = deepcopy(cnm_init)
-path_to_model = '/mnt/home/agiovann/SOFTWARE/CaImAn/use_cases/edge-cutter/residual_classifier_2classes.h5'
-path_to_model = '/mnt/home/agiovann/SOFTWARE/CaImAn/use_cases/CaImAnpaper/net_models/sniper_sensitive.h5'
+path_to_model os.path.join(caiman_datadir(), 'model', 'cnn_model_online.h5')
+
+
 if save_init:
     cnm_init.dview = None
     save_object(cnm_init, fls[0][:-4] + '_DS_' + str(ds_factor) + '.pkl')
@@ -420,6 +422,20 @@ if save_results:
              num_comps = num_comps,
              time_prepare=time_prepare, time_init=time_init)
 #%%
+reload = False
+if reload:
+    with np.load('/mnt/ceph/neuro/zebra/05292014Fish1-4/results_analysis_online_1EPOCH_gSig6_equalized_Plane_' + str(ID) + '.npz') as ld:
+        locals().update(ld)
+        print(ld.keys())
+        Ab = Ab[()]
+        A, b = Ab[:, gnb:], Ab[:, :gnb].toarray()
+        C, f = Cf[gnb:Ab.shape[-1],:T1], Cf[:gnb, :T1]
+        noisyC = noisyC[:, :T1]
+
+#        m = cm.movie((A.dot(C)+b.dot(f))[:].reshape(list(dims)+[-1],order='F')).transpose([2,0,1])*img_norm[None,:,:]
+        m = cm.movie((A.dot(C))[:].reshape(list(dims)+[-1],order='F')).transpose([2,0,1])*img_norm[None,:,:]
+
+#%%
 if ploton:
     m = cm.load(fls)
     m = m.motion_correct(10,10)[0]
@@ -552,6 +568,87 @@ if ploton:
 #        except:
             print(ID)
     pl.tight_layout()
+    #%% create movies
+    if ploton:
+        from sklearn.preprocessing import normalize
+        num_neur = []
+        #tott = np.zeros_like(tottime)
+        update_comps_time = []
+        tott = []
+        time_per_neuron = []
+        pl.figure()
+        for ID in range(1,46):
+
+    #        try:
+                with np.load('/mnt/ceph/neuro/zebra/05292014Fish1-4/results_analysis_online_1EPOCH_gSig6_equalized_Plane_' + str(ID) + '.npz') as ld:
+                    fls = ['/mnt/ceph/neuro/zebra/05292014Fish1-4/Plane' + str(ID) + '.stack.hdf5']
+                    locals().update(ld)
+                    print(ld.keys())
+                    Ab = Ab[()]
+#                    if ds_factor > 1:
+#                        Y = cm.load(fls[0], subindices=slice(0, initbatch, None)).astype(
+#                            np.float32).resize(1. / ds_factor, 1. / ds_factor)
+#                    else:
+#                        Y = cm.load(fls[0], subindices=slice(
+#                            0, initbatch, None)).astype(np.float32)
+#
+#                    if mot_corr:                                        # perform motion correction on the first initbatch frames
+#                        mc = Y.motion_correct(max_shift, max_shift)
+#                        Y = mc[0].astype(np.float32)
+#                        borders = np.max(mc[1])
+#                    else:
+#                        Y = Y.astype(np.float32)
+#
+#                    # minimum value of movie. Subtract it to make the data non-negative
+#                    img_min = Y.min()
+#                    Y -= img_min
+#                    img_norm = np.std(Y, axis=0)
+#                    # normalizing factor to equalize the FOV
+#                    img_norm += np.median(img_norm)
+
+
+
+                    A_thr = np.load('/mnt/ceph/neuro/zebra/05292014Fish1-4/thresholded_components' + str(ID) + '.npy')
+    #                img = normalize(Ab[()][:,gnb:].multiply(A_thr),'l1',axis=0).mean(-1).reshape(dims,order = 'F').T
+    #                img = Ab[()][:,gnb:].multiply(A_thr).mean(-1).reshape(dims,order = 'F').T
+
+                    A, b = Ab[:, gnb:].multiply(A_thr), Ab[:, :gnb].toarray()
+#                    A, b = Ab[:, gnb:], Ab[:, :gnb].toarray()
+
+                    C, f = Cf[gnb:Ab.shape[-1],:T1], Cf[:gnb, :T1]
+#                    C = C/np.max(C,1)[:,None]
+                    noisyC = noisyC[:, :T1]
+
+                    m = (cm.movie((A.dot(C[:,600:900])).reshape(list(dims)+[-1],order='F')).transpose([2,0,1]))
+                    xx,yy = np.subtract((560,860),dims[::-1])//2+1
+                    m1 = cm.movie(np.concatenate([cv2.copyMakeBorder(img.T,xx,xx,yy,yy, cv2.BORDER_CONSTANT,0).T[None,:860,:560] for img in m],0))
+                    m1.save('/mnt/ceph/neuro/zebra/05292014Fish1-4/thresholded_components_movie_' + str(ID) + '.hdf5')
+
+#%% load each movie and create a super movie
+        movies = []
+        for ID in range(1,41):
+            print(ID)
+            movies.append(cm.load('/mnt/ceph/neuro/zebra/05292014Fish1-4/thresholded_components_movie_' + str(ID) + '.hdf5').astype(np.float32))
+        movies = np.array(movies)
+        movies = movies.transpose([1,0,3,2])
+#%%
+        montmov = []
+        from skimage.util.montage import montage2d
+        for idx,fr in enumerate(movies):
+            print(idx)
+            montmov.append(montage2d(fr,grid_shape=(5,8)).astype(np.float32))
+        movies = []
+        montmov = np.array(montmov)
+        montmov = cm.movie(montmov)
+        #%%
+        montmov = cm.load('/mnt/ceph/neuro/zebra/05292014Fish1-4/thresholded_components_movie_all.hdf5')
+#%% save frames in avi
+
+        import tifffile as tiff
+        for idx,vid_frame in enumerate(montmov):
+            print(idx)
+            tiff.imsave('/mnt/ceph/neuro/zebra/05292014Fish1-4/frames/'+str(idx)+'_.tif',vid_frame)
+
 #%% Plane 11
 if ploton:
     from sklearn.preprocessing import normalize
