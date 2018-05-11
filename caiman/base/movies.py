@@ -1021,7 +1021,7 @@ class movie(ts.timeseries):
             eight_neighbours=True)[np.newaxis, :, :] for j in range(T - window)], axis=0), fr=self.fr)
 
     def play(self, gain=1, fr=None, magnification=1, offset=0, interpolation=cv2.INTER_LINEAR,
-             backend='opencv', do_loop=False, bord_px=None, q_max=100, q_min = 0, plot_text = True):
+             backend='opencv', do_loop=False, bord_px=None, q_max=100, q_min = 0, plot_text = False):
         """
         Play the movie using opencv
 
