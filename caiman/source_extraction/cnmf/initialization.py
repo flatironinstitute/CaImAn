@@ -36,6 +36,8 @@ import cv2
 import sys
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
+from sklearn.utils.extmath import randomized_svd, squared_norm
+from math import sqrt
 
 try:
     cv2.setNumThreads(0)
@@ -561,13 +563,18 @@ def sparseNMF(Y_ds, nr, max_iter_snmf=500, alpha=10e2, sigma_smooth=(.5, .5, .5)
         bl = 0
         m1 = m
 
-    mdl = NMF(n_components=nr, verbose=False, init='nndsvd', tol=1e-10,
-              max_iter=max_iter_snmf, shuffle=True, alpha=alpha, l1_ratio=1)
     T, d1, d2 = np.shape(m1)
     d = d1 * d2
     yr = np.reshape(m1, [T, d], order='F')
+    
+    mdl = NMF(n_components=nr, verbose=False, init='nndsvd', tol=1e-10,
+              max_iter=max_iter_snmf, shuffle=False, alpha=alpha, l1_ratio=1)            
     C = mdl.fit_transform(yr).T
     A = mdl.components_.T
+#    A,C = nnsvd_init(yr, nr, eps = 1e-6)
+#    from caiman.source_extraction.cnmf.spatial import threshold_components
+#    A = threshold_components(A, (d1,d2), dview=None)
+
     ind_good = np.where(np.logical_and((np.sum(A, 0) * np.std(C, axis=1)) > 0,
                                        np.sum(A > np.mean(A), axis=0) < old_div(d, 3)))[0]
 
@@ -1698,3 +1705,54 @@ def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True, ssub=1, tsub=1):
                                             if X is None else X[p], check_finite=False)[0])
         indptr.append(len(indices))
     return spr.csr_matrix((data, indices, indptr), dtype='float32'), b0.astype(np.float32)
+
+#%%
+def nnsvd_init(X,n_components,eps=1e-6,random_state=None):    
+    # NNDSVD initialization from scikit learn package
+    U, S, V = randomized_svd(X, n_components, random_state=random_state)
+    W, H = np.zeros(U.shape), np.zeros(V.shape)
+
+    # The leading singular triplet is non-negative
+    # so it can be used as is for initialization.
+    W[:, 0] = np.sqrt(S[0]) * np.abs(U[:, 0])
+    H[0, :] = np.sqrt(S[0]) * np.abs(V[0, :])
+
+    for j in range(1, n_components):
+        x, y = U[:, j], V[j, :]
+
+        # extract positive and negative parts of column vectors
+        x_p, y_p = np.maximum(x, 0), np.maximum(y, 0)
+        x_n, y_n = np.abs(np.minimum(x, 0)), np.abs(np.minimum(y, 0))
+
+        # and their norms
+        x_p_nrm, y_p_nrm = norm(x_p), norm(y_p)
+        x_n_nrm, y_n_nrm = norm(x_n), norm(y_n)
+
+        m_p, m_n = x_p_nrm * y_p_nrm, x_n_nrm * y_n_nrm
+
+        # choose update
+        if m_p > m_n:
+            u = x_p / x_p_nrm
+            v = y_p / y_p_nrm
+            sigma = m_p
+        else:
+            u = x_n / x_n_nrm
+            v = y_n / y_n_nrm
+            sigma = m_n
+
+        lbd = np.sqrt(S[j] * sigma)
+        W[:, j] = lbd * u
+        H[j, :] = lbd * v
+
+    W[W < eps] = 0
+    H[H < eps] = 0      
+    
+    C = W.T
+    A = H.T
+    return A,C #
+#%%
+def norm(x):
+    """Dot product-based Euclidean norm implementation
+    See: http://fseoane.net/blog/2011/computing-the-vector-norm/
+    """
+    return sqrt(squared_norm(x))
