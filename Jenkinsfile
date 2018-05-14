@@ -67,7 +67,7 @@ pipeline {
           steps {
             sh '$ANACONDA2/bin/conda env create -q -f environment_python2.yml -p $CONDA_ENV'
             sh '''#!/bin/bash -ex
-              source $CONDA_ENV/bin/activate $CONDA_ENV
+              source $ANACONDA2/bin/activate $CONDA_ENV
               pip install .
               TEMPDIR=$(mktemp -d)
               export CAIMAN_DATA=$TEMPDIR/caiman_data
@@ -88,7 +88,7 @@ pipeline {
           steps {
             sh '$ANACONDA3/bin/conda env create -q -f environment.yml -p $CONDA_ENV'
             sh '''#!/bin/bash -ex
-              source $CONDA_ENV/bin/activate $CONDA_ENV
+              source $ANACONDA3/bin/activate $CONDA_ENV
               pip install .
               TEMPDIR=$(mktemp -d)
               export CAIMAN_DATA=$TEMPDIR/caiman_data
