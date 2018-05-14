@@ -63,9 +63,11 @@ except:
 
 try:
     import tifffile
+    from tifffile import imread
 except:
     print('tifffile package not found, using skimage.external.tifffile')
     from skimage.external import tifffile as tifffile
+    from skimage.external.tifffile import imread
 
 import gc
 import os
@@ -87,7 +89,6 @@ try:
 except:
     def profile(a): return a
 
-from skimage.external.tifffile import imread
 #%%
 
 
