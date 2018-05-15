@@ -1800,6 +1800,15 @@ def tile_and_correct(img, template, strides, overlaps, max_shifts, newoverlaps=N
 
     use_cuda : bool, optional
         Use skcuda.fft (if available). Default: False
+
+
+    Returns:
+    -----------------
+    (new_img, total_shifts, start_step, xy_grid)
+
+    new_img: ndarray, corrected image
+
+
     """
 
     img = img.astype(np.float64).copy()
@@ -2323,7 +2332,22 @@ def motion_correct_batch_pwrigid(fname, max_shifts, strides, overlaps, add_to_mo
 
 #%% in parallel
 def tile_and_correct_wrapper(params):
+    """Does motion correction on specified image frames
+
+    Returns:
+    ----------------
+    shift_info:
+    idxs:
+    mean_img: mean over all frames of corrected image (to get individ frames, use out_fname to write them to disk)
+
+    Notes:
+    ----------------
+    Also writes corrected frames to the mmap file specified by out_fname (if not None)
+
+
+    """
     # todo todocument
+
 
     try:
         cv2.setNumThreads(0)
