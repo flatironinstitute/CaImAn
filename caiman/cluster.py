@@ -34,7 +34,10 @@ from .mmapping import load_memmap
 from multiprocessing import Pool
 import multiprocessing
 import platform
+import logging
 
+
+logger = logging.getLogger(__name__)
 #%%
 
 
@@ -238,8 +241,7 @@ def start_server(slurm_script=None, ipcluster="ipcluster", ncpus=None):
         ipcluster binary file name; requires 4 path separators on Windows. ipcluster="C:\\\\Anaconda2\\\\Scripts\\\\ipcluster.exe"
          Default: "ipcluster"
     """
-    sys.stdout.write("Starting cluster...")
-    sys.stdout.flush()
+    logger.info("Starting cluster...")
     if ncpus is None:
         ncpus = psutil.cpu_count()
 
@@ -255,14 +257,12 @@ def start_server(slurm_script=None, ipcluster="ipcluster", ncpus=None):
         time.sleep(1)
         client = ipyparallel.Client()
         while len(client) < ncpus:
-            sys.stdout.write(".")
-            sys.stdout.flush()
             client.close()
 
             time.sleep(1)
             client = ipyparallel.Client()
-        print('Making Sure everything is up and running')
         time.sleep(10)
+        logger.debug('Making sure everything is up and running')
         client.close()
 
     else:
@@ -313,13 +313,12 @@ def stop_server(ipcluster='ipcluster', pdir=None, profile=None, dview=None):
     if 'multiprocessing' in str(type(dview)):
         dview.terminate()
     else:
-        sys.stdout.write("Stopping cluster...\n")
-        sys.stdout.flush()
+        logger.info("Stopping cluster...")
         try:
             pdir, profile = os.environ['IPPPDIR'], os.environ['IPPPROFILE']
             is_slurm = True
         except:
-            print('NOT SLURM')
+            logger.debug('stop_server: not a slurm cluster')
             is_slurm = False
 
         if is_slurm:
@@ -353,11 +352,10 @@ def stop_server(ipcluster='ipcluster', pdir=None, profile=None, dview=None):
 
             line_out = proc.stderr.readline()
             if b'CRITICAL' in line_out:
-                sys.stdout.write("No cluster to stop...")
-                sys.stdout.flush()
+                logger.info("No cluster to stop...")
             elif b'Stopping' in line_out:
                 st = time.time()
-                sys.stdout.write('Waiting for cluster to stop...')
+                logger.debug('Waiting for cluster to stop...')
                 while (time.time() - st) < 4:
                     sys.stdout.write('.')
                     sys.stdout.flush()
@@ -369,7 +367,7 @@ def stop_server(ipcluster='ipcluster', pdir=None, profile=None, dview=None):
 
             proc.stderr.close()
 
-    sys.stdout.write(" done\n")
+    logger.info("stop_cluster(): done")
 #%%
 
 
@@ -419,7 +417,7 @@ def setup_cluster(backend='multiprocessing', n_processes=None, single_thread=Fal
             stop_server()
             start_server(ncpus=n_processes)
             c = Client()
-            print(('Using ' + str(len(c)) + ' processes'))
+            logger.info('Started ipyparallel cluster: Using ' + str(len(c)) + ' processes')
             dview = c[:len(c)]
 
         elif (backend == 'multiprocessing') or (backend == 'local'):
