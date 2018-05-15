@@ -252,17 +252,14 @@ def start_server(slurm_script=None, ipcluster="ipcluster", ncpus=None):
                 "{0} start -n {1}".format(ipcluster, ncpus)), shell=True, close_fds=(os.name != 'nt'))
 
         # Check that all processes have started
-        time.sleep(1)
         client = ipyparallel.Client()
-        while len(client) < ncpus:
+        while len(client) < ncpus:  # client len will get longer as workers start and connect to hub
             sys.stdout.write(".")
             sys.stdout.flush()
-            client.close()
+            time.sleep(0.5)
 
-            time.sleep(1)
-            client = ipyparallel.Client()
         print('Making Sure everything is up and running')
-        time.sleep(10)
+        client.direct_view().execute('__a=1', block=True)  # when done on all, we're set to go
         client.close()
 
     else:
