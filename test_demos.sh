@@ -46,7 +46,7 @@ for demo in demos/general/*; do
 		echo Testing demo [$demo]
 		echo Timestamp is $(date +%s)
 		if [ $OS == "Linux" ]; then
-			xvfb-run --server-args='-screen 0 1024x768x24' -a /usr/bin/time python $demo
+			xvfb-run --server-args='-screen 0 1024x768x24' -a python $demo
 		else
 			python $demo
 		fi
