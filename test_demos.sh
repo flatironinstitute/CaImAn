@@ -16,6 +16,11 @@
 # error message
 OS=$(uname -s)
 
+
+export MKL_NUM_THREADS=1
+export OPENBLAS_NUM_THREADS=1
+
+
 # On Linux we wrap our command with xvfb-run to allow X things to happen
 # and make them effectively no-ops. Not necessary on other platforms.
 
