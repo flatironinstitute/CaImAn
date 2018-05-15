@@ -43,7 +43,6 @@ import caiman as cm
 from caiman.components_evaluation import estimate_components_quality_auto
 from caiman.source_extraction.cnmf import cnmf as cnmf
 from caiman.paths import caiman_datadir
-
 #%% start a cluster
 
 c, dview, n_processes =\

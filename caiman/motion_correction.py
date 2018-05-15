@@ -471,7 +471,7 @@ def motion_correct_oneP_rigid(
 
     Motion correction object
     '''
-    min_mov = np.array([cm.motion_correction.low_pass_filter_space(
+    min_mov = np.array([cm.motion_correction.high_pass_filter_space(
         m_, gSig_filt) for m_ in cm.load(filename[0], subindices=range(400))]).min()
     new_templ = None
 
@@ -533,7 +533,7 @@ def motion_correct_oneP_nonrigid(
     Motion correction object
     '''
     if new_templ is None:
-        min_mov = np.array([cm.motion_correction.low_pass_filter_space(
+        min_mov = np.array([cm.motion_correction.high_pass_filter_space(
             m_, gSig_filt) for m_ in cm.load(filename, subindices=range(400))]).min()
     else:
         min_mov = np.min(new_templ)
@@ -1738,7 +1738,7 @@ def create_weight_matrix_for_blending(img, overlaps, strides):
 
 
 #%%
-def low_pass_filter_space(img_orig, gSig_filt):
+def high_pass_filter_space(img_orig, gSig_filt):
     ksize = tuple([(3 * i) // 2 * 2 + 1 for i in gSig_filt])
     ker = cv2.getGaussianKernel(ksize[0], gSig_filt[0])
     ker2D = ker.dot(ker.T)
@@ -1808,7 +1808,7 @@ def tile_and_correct(img, template, strides, overlaps, max_shifts, newoverlaps=N
     if gSig_filt is not None:
 
         img_orig = img.copy()
-        img = low_pass_filter_space(img_orig, gSig_filt)
+        img = high_pass_filter_space(img_orig, gSig_filt)
 
     img = img + add_to_movie
     template = template + add_to_movie
@@ -2153,7 +2153,7 @@ def motion_correct_batch_rigid(fname, max_shifts, dview=None, splits=56, num_spl
     if template is None:
         if gSig_filt is not None:
             m = cm.movie(
-                np.array([low_pass_filter_space(m_, gSig_filt) for m_ in m]))
+                np.array([high_pass_filter_space(m_, gSig_filt) for m_ in m]))
 
         template = cm.motion_correction.bin_median(
             m.motion_correct(max_shifts[0], max_shifts[1], template=None)[0])
@@ -2186,7 +2186,7 @@ def motion_correct_batch_rigid(fname, max_shifts, dview=None, splits=56, num_spl
 
         new_templ = np.nanmedian(np.dstack([r[-1] for r in res_rig]), -1)
         if gSig_filt is not None:
-            new_templ = low_pass_filter_space(new_templ, gSig_filt)
+            new_templ = high_pass_filter_space(new_templ, gSig_filt)
 
         print((old_div(np.linalg.norm(new_templ - old_templ), np.linalg.norm(old_templ))))
 
@@ -2302,7 +2302,7 @@ def motion_correct_batch_pwrigid(fname, max_shifts, strides, overlaps, add_to_mo
 
         new_templ = np.nanmedian(np.dstack([r[-1] for r in res_el]), -1)
         if gSig_filt is not None:
-            new_templ = low_pass_filter_space(new_templ, gSig_filt)
+            new_templ = high_pass_filter_space(new_templ, gSig_filt)
 
     total_template = new_templ
     templates = []

@@ -50,7 +50,7 @@ from caiman.source_extraction.cnmf import cnmf as cnmf
 from caiman.motion_correction import MotionCorrect
 from caiman.components_evaluation import estimate_components_quality
 from caiman.tests.comparison import comparison
-
+from caiman.paths import caiman_datadir
 
 # GLOBAL VAR
 params_movie = {'fname': ['Sue_2x_3000_40_-46.tif'],
@@ -152,7 +152,7 @@ def create():
     num_splits_to_process_rig = params_movie['num_splits_to_process_rig']
 
     download_demo(fname[0])
-    fname = os.path.join('example_movies', fname[0])
+    fname = os.path.join(caiman_datadir(),'example_movies', fname[0])
     m_orig = cm.load(fname)
     min_mov = m_orig[:400].min()
     comp = comparison.Comparison()
