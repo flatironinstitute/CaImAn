@@ -1678,8 +1678,8 @@ def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True, ssub=1, tsub=1):
             X = downscale(Y.reshape(dims + (-1,), order='F'),
                           (ssub, ssub, tsub)).reshape((-1, (T - 1) // tsub + 1), order='F') - \
                 (downscale(A.reshape(dims + (-1,), order='F'),
-                          (ssub, ssub, 1)).reshape((-1, len(C)), order='F').dot(
-                downscale(C, (1, tsub))) if A.size > 0 else 0) - \
+                           (ssub, ssub, 1)).reshape((-1, len(C)), order='F').dot(
+                    downscale(C, (1, tsub))) if A.size > 0 else 0) - \
                 downscale(b0.reshape(dims, order='F'),
                           (ssub, ssub)).reshape((-1, 1), order='F')
     else:
