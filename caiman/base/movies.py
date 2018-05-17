@@ -42,6 +42,7 @@ import pickle as cpk
 from scipy.io import loadmat
 from matplotlib import animation
 import pylab as pl
+import tifffile
 from skimage.external.tifffile import imread
 from tqdm import tqdm
 from . import timeseries
@@ -1145,7 +1146,9 @@ class movie(ts.timeseries):
 
 
 
-def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None, var_name_hdf5 = 'mov', in_memory = False, is_behavior = False, bottom=0, top=0, left=0, right=0, channel = None):
+def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None, 
+         var_name_hdf5 = 'mov', in_memory = False, is_behavior = False, bottom=0, 
+         top=0, left=0, right=0, channel = None, outtype=np.float32):
     """
     load movie from file. SUpports a variety of formats. tif, hdf5, npy and memory mapped. Matlab is experimental.
 
@@ -1198,7 +1201,7 @@ def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None,
             
         return load_movie_chain(file_name,fr=fr, start_time=start_time,
                      meta_data=meta_data, subindices=subindices,
-                     bottom=bottom, top=top, left=left, right=right, channel = channel)
+                     bottom=bottom, top=top, left=left, right=right, channel = channel, outtype=outtype)
         
     if bottom != 0:
         raise Exception('top bottom etc... not supported for single movie input')
@@ -1210,19 +1213,23 @@ def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None,
         _, extension = os.path.splitext(file_name)[:2]
 
         if extension == '.tif' or extension == '.tiff':  # load avi file
-            if subindices is not None:
-                if type(subindices) is list:
-                    input_arr = imread(file_name)[
-                        subindices[0], subindices[1], subindices[2]]
-                elif type(subindices) is range:
-                    subidx = slice(subindices.start, subindices.stop,
-                                   subindices.step)
-                    input_arr = imread(file_name)[subidx]
+            with tifffile.TiffFile(file_name) as tffl:                
+                if subindices is not None:
+                    if type(subindices) is list:
+                        input_arr  = tffl.asarray(key=subindices[0])[:, subindices[1], subindices[2]]
+                    else:
+                        input_arr  = tffl.asarray(key=subindices)                        
+
+#                    elif type(subindices) is range:
+#                        subidx = slice(subindices.start, subindices.stop,
+#                                       subindices.step)
+#                        input_arr = imread(file_name)[subidx]
+#                    else:
+#                        input_arr = imread(file_name)[subindices]
                 else:
-                    input_arr = imread(file_name)[subindices]
-            else:
-                input_arr = imread(file_name)
-            input_arr = np.squeeze(input_arr)
+                    input_arr = tffl.asarray()
+                    
+                input_arr = np.squeeze(input_arr)  
 
         elif extension == '.avi':  # load avi file
             if subindices is not None:
@@ -1282,7 +1289,7 @@ def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None,
             if subindices is not None:
                 raise Exception('Subindices not implemented')
             with np.load(file_name) as f:
-                return movie(**f)
+                return movie(**f).astype(outtype)
 
         elif extension == '.hdf5':
 
@@ -1292,16 +1299,16 @@ def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None,
                     attrs['meta_data'] = cpk.loads(attrs['meta_data'])
 
                 if subindices is None:
-                    return movie(f[var_name_hdf5], **attrs)
+                    return movie(f[var_name_hdf5], **attrs).astype(outtype)
                 else:
-                    return movie(f[var_name_hdf5][subindices], **attrs)
+                    return movie(f[var_name_hdf5][subindices], **attrs).astype(outtype)
 
         elif extension == '.h5_at':
             with h5py.File(file_name, "r") as f:
                 if subindices is None:
-                    return movie(f['quietBlock'], fr=fr)
+                    return movie(f['quietBlock'], fr=fr).astype(outtype)
                 else:
-                    return movie(f['quietBlock'][subindices], fr=fr)
+                    return movie(f['quietBlock'][subindices], fr=fr).astype(outtype)
 
         elif extension == '.h5':
             if is_behavior:
@@ -1328,7 +1335,7 @@ def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None,
                             if images.ndim > 3:
                                 images = images[:, 0]
 
-                        return movie(images.astype(np.float32))
+                        return movie(images.astype(outtype))
 
         elif extension == '.mmap':
 
@@ -1336,20 +1343,21 @@ def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None,
             Yr, dims, T = load_memmap(os.path.join(
                 os.path.split(file_name)[0], filename))
             images = np.reshape(Yr.T, [T] + list(dims), order='F')
+            
 
             if in_memory:
                 print('loading in memory')
-                images = np.array(images)
+                images = np.array(images).astype(outtype)
 
             print('mmap')
             return movie(images, fr=fr)
 
         elif extension == '.sbx':
             if subindices is not None:
-                return movie(sbxreadskip(file_name[:-4], skip=subindices.step), fr=fr)
+                return movie(sbxreadskip(file_name[:-4], skip=subindices.step), fr=fr).astype(outtype)
             else:
                 print('sbx')
-                return movie(sbxread(file_name[:-4], k=0, n_frames=np.inf), fr=fr)
+                return movie(sbxread(file_name[:-4], k=0, n_frames=np.inf), fr=fr).astype(outtype)
 
         elif extension == '.sima':
             if not HAS_SIMA:
@@ -1361,10 +1369,10 @@ def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None,
                 input_arr = np.empty((
                     dataset.sequences[0].shape[0],
                     dataset.sequences[0].shape[2],
-                    dataset.sequences[0].shape[3]), dtype=np.float32)
+                    dataset.sequences[0].shape[3]), dtype=outtype)
                 for nframe in range(0, dataset.sequences[0].shape[0], frame_step):
                     input_arr[nframe:nframe + frame_step] = np.array(dataset.sequences[0][
-                        nframe:nframe + frame_step, 0, :, :, 0]).astype(np.float32).squeeze()
+                        nframe:nframe + frame_step, 0, :, :, 0]).astype(outtype).squeeze()
             else:
                 input_arr = np.array(dataset.sequences[0])[
                     subindices, :, :, :, :].squeeze()
@@ -1376,13 +1384,13 @@ def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None,
         print(file_name)
         raise Exception('File not found!')
 
-    return movie(input_arr, fr=fr, start_time=start_time, file_name=os.path.split(file_name)[-1], meta_data=meta_data)
+    return movie(input_arr.astype(outtype), fr=fr, start_time=start_time, file_name=os.path.split(file_name)[-1], meta_data=meta_data)
 
 
 def load_movie_chain(file_list, fr=30, start_time=0,
                      meta_data=None, subindices=None,
                      bottom=0, top=0, left=0, right=0, z_top = 0,
-                     z_bottom = 0, is3D = False, channel=None):
+                     z_bottom = 0, is3D = False, channel=None, outtype=np.float32):
     """ load movies from list of file names
 
     Parameters:
@@ -1407,7 +1415,7 @@ def load_movie_chain(file_list, fr=30, start_time=0,
     mov = []
     for f in tqdm(file_list):
         m = load(f, fr=fr, start_time=start_time,
-                 meta_data=meta_data, subindices=subindices, in_memory=True)
+                 meta_data=meta_data, subindices=subindices, in_memory=True, outtype=outtype)
         if channel is not None:
             print(m.shape)
             m = m[channel].squeeze()
