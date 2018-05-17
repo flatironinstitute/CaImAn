@@ -393,11 +393,12 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride=4, gnb=1, dview=No
     else:
         B_tot = scipy.sparse.csc_matrix((d, count_bgr), dtype=np.float32)
 
-    idx_tot_A = np.concatenate(idx_tot_A)
-    a_tot = np.concatenate(a_tot)
-    idx_ptr_A = np.cumsum(np.array(idx_ptr_A))
+    if len(idx_tot_A):
+        idx_tot_A = np.concatenate(idx_tot_A)
+        a_tot = np.concatenate(a_tot)
+        idx_ptr_A = np.cumsum(np.array(idx_ptr_A))
     A_tot = scipy.sparse.csc_matrix(
-        (a_tot, idx_tot_A, idx_ptr_A), shape=(d, count))
+        (a_tot, idx_tot_A, idx_ptr_A), shape=(d, count), dtype=np.float32)
 
     C_tot = C_tot[:count, :]
     YrA_tot = YrA_tot[:count, :]
