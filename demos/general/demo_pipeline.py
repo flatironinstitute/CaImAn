@@ -94,7 +94,7 @@ rval_thr = 0.8              # space correlation threshold for accepting a compon
 cnn_thr = 0.8               # threshold for CNN based classifier
 
 #%% download the dataset if it's not present in your folder
-if fname[0] in ['Sue_2x_3000_40_-46.tif', 'demoMovieJ.tif']:
+if fname[0] in ['Sue_2x_3000_40_-46.tif', 'demoMovie.tif']:
     fname = [download_demo(fname[0])]
 
 #%% play the movie
@@ -138,7 +138,7 @@ moviehandle = cm.concatenate([m_orig.resize(1, 1, downsample_ratio) + offset_mov
                 m_els.resize(1, 1, downsample_ratio)],
                axis=2)
 if display_images:
-    moviehandle.play(fr=60, gain=15, magnification=2, offset=0)  # press q to exit
+    moviehandle.play(fr=60, gain=5, magnification=2, offset=0)  # press q to exit
 
 #%% MEMORY MAPPING
 # memory map the file in order 'C'

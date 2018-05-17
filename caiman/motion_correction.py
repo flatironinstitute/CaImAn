@@ -2362,12 +2362,12 @@ def tile_and_correct_wrapper(params):
 
     shift_info = []
     if extension == '.tif' or extension == '.tiff':  # check if tiff file
-        if is_fiji:
-            imgs = imread(img_name)[idxs]
-        else:
-            imgs = imread(img_name, key=idxs)
+#        with tifffile.TiffFile(img_name) as tffl:
+#            imgs = tffl.asarray(img_name, key=idxs)        
+        imgs = cm.load(img_name, subindices=idxs)
+            
     elif extension == '.sbx':  # check if sbx file
-        imgs = cm.base.movies.sbxread(name, idxs[0], len(idxs))
+        imgs = cm.base.movies.sbxread(img_name, idxs[0], len(idxs))
     elif extension == '.sima' or extension == '.hdf5' or extension == '.h5':
         imgs = cm.load(img_name, subindices=list(idxs))
     mc = np.zeros(imgs.shape, dtype=np.float32)
