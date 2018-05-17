@@ -51,7 +51,9 @@ def remove_baseline_fast(traces, bl_percentile=8):
 #%%
 from scipy.stats import norm
 #a = cm.load('example_movies/demoMovie.tif')
-a = cm.load('/mnt/ceph/neuro/labeling/yuste.Single_150u/images/tifs/Single_150um_024.tif')
+#a = cm.load('/mnt/ceph/neuro/labeling/yuste.Single_150u/images/tifs/Single_150um_024.tif')
+a = cm.load('/Users/agiovann/example_movies_ALL/quietBlock_2_ds_2_2.hdf5')
+
 all_els = []
 for it in range(1):
     print(it)
@@ -66,7 +68,7 @@ for it in range(1):
     mns = cm.movie(scipy.ndimage.convolve(np.reshape(
         Yr_c, [-1, a.shape[1], a.shape[2]], order='F'), np.ones([5, 3, 3])))
     mns[mns < (38 * np.log10((mns.shape[0])))] = 0
-    all_els.append(np.sum(mns > 0)/np.sum(Yr>0))
+    all_els.append(np.sum(mns > 0)/Yr.size)
     print(all_els)
 
 
@@ -75,9 +77,13 @@ for it in range(1):
 m1 = cm.movie((np.array((Yr - md) / sd_r)
                ).reshape([-1, a.shape[1],a.shape[2]], order='F')) * (mns > 0)
 #%%
+m2 = cm.movie((np.array((Yr-md)/sd_r)).reshape(m1.shape,order = 'F'))*(scipy.ndimage.convolve(mns>0,np.ones([5,3,3])))
+#%%
 m1.save('/mnt/ceph/neuro/labeling/yuste.Single_150u/images/tifs/Single_150um_024_sparse.tif')
 #%%
-m1.save('example_movies/demoMovie_sparse.tif')
+m1.save('/Users/agiovann/example_movies_ALL/quietBlock_2_ds_2_2_sparse.tif')
+#%%
+m2.astype(np.float32).save('/Users/agiovann/example_movies_ALL/quietBlock_2_ds_2_2_sparse_thresh.tif')
 #%%
 mov = Yr
 #%%
