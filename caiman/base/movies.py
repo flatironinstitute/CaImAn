@@ -1016,10 +1016,10 @@ class movie(ts.timeseries):
         pl.imshow(zp, cmap=cmap, aspect=aspect, **kwargs)
         return zp
 
-    def local_correlations_movie(self, window=10):
+    def local_correlations_movie(self, window=10,swap_dim=True):
         T, _, _ = self.shape
         return movie(np.concatenate([self[j:j + window, :, :].local_correlations(
-            eight_neighbours=True)[np.newaxis, :, :] for j in range(T - window)], axis=0), fr=self.fr)
+            eight_neighbours=True,swap_dim=swap_dim)[np.newaxis, :, :] for j in range(T - window)], axis=0), fr=self.fr)
 
     def play(self, gain=1, fr=None, magnification=1, offset=0, interpolation=cv2.INTER_LINEAR,
              backend='opencv', do_loop=False, bord_px=None, q_max=100, q_min = 0, plot_text = False):
