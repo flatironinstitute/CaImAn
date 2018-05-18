@@ -26,10 +26,10 @@ from scipy.ndimage.filters import convolve
 import cv2
 from caiman.source_extraction.cnmf.pre_processing import get_noise_fft
 
-try:
-    cv2.setNumThreads(0)
-except:
-    pass
+#try:
+#    cv2.setNumThreads(0)
+#except:
+#    pass
 #%%
 
 
@@ -86,7 +86,7 @@ def max_correlation_image(Y, bin_size=1000, eight_neighbours=True, swap_dim=True
 
 
 #%%
-def local_correlations_fft(Y, eight_neighbours=True, swap_dim=True, opencv=True):
+def local_correlations_fft(Y, eight_neighbours=True, swap_dim=True, opencv=True, rolling_window = None):
     """Computes the correlation image for the input dataset Y using a faster FFT based method
 
     Parameters:
@@ -139,16 +139,29 @@ def local_correlations_fft(Y, eight_neighbours=True, swap_dim=True, opencv=True)
             sz = np.array([[0, 1, 0], [1, 0, 1], [0, 1, 0]], dtype='float32')
 
     if opencv and Y.ndim == 3:
-        Yconv = Y.copy()
-        for idx, img in enumerate(Yconv):
-            Yconv[idx] = cv2.filter2D(img, -1, sz, borderType=0)
+        cv2.setNumThreads(24)
+        Yconv = np.stack([cv2.filter2D(img, -1, sz, borderType=0) for img in Y])
+#        Yconv = Y.copy()
+#        for idx, img in enumerate(Yconv):
+#            Yconv[idx] = cv2.filter2D(img, -1, sz, borderType=0)
         MASK = cv2.filter2D(
             np.ones(Y.shape[1:], dtype='float32'), -1, sz, borderType=0)
     else:
         Yconv = convolve(Y, sz[np.newaxis, :], mode='constant')
         MASK = convolve(
             np.ones(Y.shape[1:], dtype='float32'), sz, mode='constant')
-    Cn = np.mean(Yconv * Y, axis=0) / MASK
+
+    YYconv = Yconv*Y
+    del Y, Yconv
+    if rolling_window is None:
+        Cn = np.mean(YYconv, axis=0) / MASK
+    else:
+        YYconv_cs = np.cumsum(YYconv, axis = 0)
+        del YYconv
+        YYconv_rm = (YYconv_cs[rolling_window:] - YYconv_cs[:-rolling_window])/rolling_window
+        del YYconv_cs
+        Cn = YYconv_rm / MASK
+        
     return Cn
 
 
