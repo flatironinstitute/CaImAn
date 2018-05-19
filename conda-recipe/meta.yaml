@@ -1,0 +1,97 @@
+package:
+  name: caiman
+  version: 1.0.0
+
+source:
+  git_url: https://github.com/flatironinstitute/CaImAn.git
+  #url: https://github.com/outlace/CaImAn/archive/v1.0.1.tar.gz
+  git_tag: notebook_interface
+
+build:
+  number: 1
+  skip: false
+  preserve_egg_dir: True
+  #osx_is_app: True
+
+requirements:
+  build:
+    - python 3.6
+    - setuptools
+    - cython
+    - pip
+    - git
+    - numpy
+
+  run:
+    - python 3.6
+    - setuptools
+    - cython
+    - pip
+    - numpy
+    - ipykernel >=4.8.2
+    - ipython
+    - jupyter
+    - jupyter_client >=5.2.3
+    - widgetsnbextension
+    - tensorflow 1.4.0 # must list before Keras
+    - future
+    - scipy
+    - keras 2.1.5
+    - ipyparallel
+    - matplotlib 2.0.2
+    - scikit-image
+    - scikit-learn
+    - h5py
+    - spyder
+    - nose
+    - bokeh
+    - tqdm
+    - tifffile >=0.12.1
+    - peakutils
+    - tornado 4.5
+#    - opencv 3.2
+    - pandas
+    - bqplot
+    - ffmpeg
+    - av
+    - qgrid
+    - peakutils
+    - traitlets
+    - traittypes
+    - hdf5
+    - typing
+    - appmode
+    #- nb_conda_kernels >=2.1.0
+
+
+#    - pandas
+
+always_include_files:
+  - bin/conda                 [osx]
+  - bin/activate              [osx]
+  - bin/deactivate            [osx]
+  - Scripts/activate.bat      [win]
+  - Scripts/deactivate.bat    [win]
+
+app:
+  #entry: jupyter-notebook                         [not osx]
+  #entry: ${PREFIX}/bin/jupyter-notebook ${PREFIX}/bin/nb_interface/caiman_interface.ipynb
+  entry: ${PREFIX}/bin/jupyter-notebook --NotebookApp.default_url="/apps/${PREFIX}/bin/nb_interface/caiman_interface.ipynb"
+  #entry: open ${PREFIX}/bin/jupyter_mac.command   [osx]
+  #entry: jupyter notebook ${SRC_DIR}/caiman/notebook_interface/caiman_interface.ipynb   [osx]
+  summary: Calcium Imaging Analysis (CaImAn)
+  type: web
+  #own_environment: True
+  cli_opts:
+    - name: port
+      args: --port %s
+      default: 8080
+      summary: Caiman
+
+#  entry: jupyter notebook caiman/notebook_interface/caiman_interface.ipynb                              [osx]
+
+
+about:
+  home: https://github.com/flatironinstitute/CaImAn
+  license: GNU v2.0
+  summary: Calcium Imaging Analysis (CaImAn)
