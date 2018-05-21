@@ -58,10 +58,14 @@ We recently incorporated a Python implementation of the OnACID [[5]](#onacid) al
 
 ## Installation for calcium imaging data analysis
 
-### Install Changes
+### Installation Changes
 In May 2018, the way CaImAn is installed changed; we now register the package with Python's package management facilities rather than rely on people working out of the source tree. If you have an older install, these are things you should be aware of:
 * You should not set PYTHONPATH to the CaImAn source directory any more. If you did this before (in your dotfiles or elsewhere) you should remove that.
 * Unless you're installing with `pip install -e` (documented below), you should no longer work out of your checkout directory. The new install mode expects you to use caimanmanager (also documented below) to manage the demos and the place in which you'll be running code. An installed version of caimanmanager will be added to your path and should not be run out of the checkout directory.
+
+### Upgrading CaImAn
+
+If you want to upgrade CaImAn (and have already used the pip installer to install it) following the instructions given in the [wiki](https://github.com/flatironinstitute/CaImAn/wiki/Updating-CaImAn).
 
 ### Installation on Mac or Linux (Python 3.x)
 
