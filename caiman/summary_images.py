@@ -118,10 +118,23 @@ def local_correlations_fft(Y, eight_neighbours=True, swap_dim=True, opencv=True,
             Y, tuple(np.hstack((Y.ndim - 1, list(range(Y.ndim))[:-1]))))
 
     Y = Y.astype('float32')
-    Y -= np.mean(Y, axis=0)
-    Ystd = np.std(Y, axis=0)
-    Ystd[Ystd == 0] = np.inf
-    Y /= Ystd
+    if rolling_window is None:
+        Y -= np.mean(Y, axis=0)
+        Ystd = np.std(Y, axis=0)
+        Ystd[Ystd == 0] = np.inf
+        Y /= Ystd
+    else:
+        Ysum = np.cumsum(Y, axis=0)
+        Yrm = (Ysum[rolling_window:] - Ysum[:-rolling_window])/rolling_window
+        Y[:rolling_window] -= Yrm[0]
+        Y[rolling_window:] -= Yrm
+        del Yrm, Ysum
+        Ystd = np.cumsum(Y**2, axis=0)
+        Yrst = np.sqrt((Ystd[rolling_window:] - Ystd[:-rolling_window])/rolling_window)
+        Yrst[Yrst == 0] = np.inf
+        Y[:rolling_window] /= Yrst[0]
+        Y[rolling_window:] /= Yrst
+        del Ystd, Yrst
 
     if Y.ndim == 4:
         if eight_neighbours:
@@ -139,11 +152,7 @@ def local_correlations_fft(Y, eight_neighbours=True, swap_dim=True, opencv=True,
             sz = np.array([[0, 1, 0], [1, 0, 1], [0, 1, 0]], dtype='float32')
 
     if opencv and Y.ndim == 3:
-        cv2.setNumThreads(24)
         Yconv = np.stack([cv2.filter2D(img, -1, sz, borderType=0) for img in Y])
-#        Yconv = Y.copy()
-#        for idx, img in enumerate(Yconv):
-#            Yconv[idx] = cv2.filter2D(img, -1, sz, borderType=0)
         MASK = cv2.filter2D(
             np.ones(Y.shape[1:], dtype='float32'), -1, sz, borderType=0)
     else:
@@ -156,12 +165,12 @@ def local_correlations_fft(Y, eight_neighbours=True, swap_dim=True, opencv=True,
     if rolling_window is None:
         Cn = np.mean(YYconv, axis=0) / MASK
     else:
-        YYconv_cs = np.cumsum(YYconv, axis = 0)
+        YYconv_cs = np.cumsum(YYconv, axis=0)
         del YYconv
         YYconv_rm = (YYconv_cs[rolling_window:] - YYconv_cs[:-rolling_window])/rolling_window
         del YYconv_cs
         Cn = YYconv_rm / MASK
-        
+
     return Cn
 
 
