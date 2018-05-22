@@ -416,7 +416,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
 
         Ain = np.reshape(Ain, (np.prod(d), K), order='F')
 
-    if nb:
+    if nb>0:
         b_in = np.reshape(b_in, ds + (-1,), order='F')
 
         if len(ds) == 2:
@@ -1154,7 +1154,7 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
             B = B0
 
     use_NMF = True
-    if nb < 0:
+    if nb == -1:
         print('Return full Background')
         b_in = B
         f_in = np.eye(T)  # spr.eye(T)
@@ -1172,6 +1172,13 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
     else:
         b_in = np.empty((A.shape[0], 0))
         f_in = np.empty((0, T))
+        if nb == -2:
+            print('Return Background as b and W')
+            return (A, C, center.T, b_in.astype(np.float32), f_in.astype(np.float32),
+                    (S.astype(np.float32), bl, c1, neurons_sn, g1, YrA,
+                     W, b0))
+        else:
+            print("Don't Return Background")
 
     return (A, C, center.T, b_in.astype(np.float32), f_in.astype(np.float32),
             (S.astype(np.float32), bl, c1, neurons_sn, g1, YrA))
