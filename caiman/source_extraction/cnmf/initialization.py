@@ -1676,7 +1676,7 @@ def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True, ssub=1, tsub=1):
 
     radius = int(round(radius / float(ssub)))
     ring = disk(radius + 1)
-    ring[1:-1, 1:-1] -= np.bitwise_xor(ring[1:-1, 1:-1], disk(radius, dtype=bool))
+    ring[1:-1, 1:-1] -= disk(radius)
     ringidx = [i - radius - 1 for i in np.nonzero(ring)]
 
     def get_indices_of_pixels_on_ring(pixel):
@@ -1694,9 +1694,9 @@ def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True, ssub=1, tsub=1):
         else:
             X = downscale(Y.reshape(dims + (-1,), order='F'),
                           (ssub, ssub, tsub)).reshape((-1, (T - 1) // tsub + 1), order='F') - \
-                downscale(A.reshape(dims + (-1,), order='F'),
-                          (ssub, ssub, 1)).reshape((-1, len(C)), order='F').dot(
-                downscale(C, (1, tsub))) - \
+                (downscale(A.reshape(dims + (-1,), order='F'),
+                           (ssub, ssub, 1)).reshape((-1, len(C)), order='F').dot(
+                    downscale(C, (1, tsub))) if A.size > 0 else 0) - \
                 downscale(b0.reshape(dims, order='F'),
                           (ssub, ssub)).reshape((-1, 1), order='F')
     else:
@@ -1712,8 +1712,7 @@ def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True, ssub=1, tsub=1):
             b0[index, None] if X is None else X[index]
         tmp = np.array(B.dot(B.T))
         try:
-            data += list(np.linalg.inv(tmp + tmp.mean() *
-                                       1e-9 * np.eye(len(index), dtype='float32')).
+            data += list(np.linalg.inv(tmp).
                          dot(B.dot(Y[p] - A[p].dot(C).ravel() - b0[p] if X is None else X[p])))
         except:
             # np.linalg.lstsq seems less robust but scipy version is

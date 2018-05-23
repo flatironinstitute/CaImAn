@@ -20,6 +20,7 @@ import scipy
 import cv2
 import itertools
 from caiman.paths import caiman_datadir
+import warnings
 
 try:
     cv2.setNumThreads(0)
@@ -552,10 +553,11 @@ def select_components_from_metrics(A, dims, gSig, r_values,  comp_SNR, r_values_
     '''
     '''
 
-    idx_components_r = np.where((r_values >= r_values_min))[0]
+    idx_components_r = np.where(r_values >= r_values_min)[0]
     idx_components_raw = np.where(comp_SNR > min_SNR)[0]
 
     idx_components = []
+
     if use_cnn:
           # normally 1
         if gSig_range is None:
@@ -659,56 +661,58 @@ def estimate_components_quality(traces, Y, A, C, b, f, final_frate=30, Npeaks=10
                                 N=N, robust_std=False, Athresh=0.1, Npeaks=Npeaks, thresh_C=0.3)
 
     else:  # memory mapped case
-
-        Ncomp = A.shape[-1]
-        groups = grouper(num_traces_per_group, range(Ncomp))
-        params = []
-        for g in groups:
-            idx = list(g)
-            # idx = list(filter(None.__ne__, idx))
-            idx = list(filter(lambda a: a is not None, idx))
-            params.append([Y.filename, traces[idx], A.tocsc()[:, idx], C[idx], b, f,
-                           final_frate, remove_baseline, N, robust_std, Athresh, Npeaks, thresh_C])
-
-        if dview is None:
-            res = map(evaluate_components_placeholder, params)
-        else:
-            print('EVALUATING IN PARALLEL... NOT RETURNING ERFCs')
-            if 'multiprocessing' in str(type(dview)):
-                res = dview.map_async(
-                    evaluate_components_placeholder, params).get(4294967)
-            else:
-                res = dview.map_sync(evaluate_components_placeholder, params)
-
         fitness_raw = []
         fitness_delta = []
         erfc_raw = []
         erfc_delta = []
         r_values = []
+        Ncomp = A.shape[-1]
 
-        for r_ in res:
-            fitness_raw__, fitness_delta__, erfc_raw__, erfc_delta__, r_values__, _ = r_
-            fitness_raw = np.concatenate([fitness_raw, fitness_raw__])
-            fitness_delta = np.concatenate([fitness_delta, fitness_delta__])
-            r_values = np.concatenate([r_values, r_values__])
-
-            if len(erfc_raw) == 0:
-                erfc_raw = erfc_raw__
-                erfc_delta = erfc_delta__
+        if Ncomp > 0:
+            groups = grouper(num_traces_per_group, range(Ncomp))
+            params = []
+            for g in groups:
+                idx = list(g)
+                # idx = list(filter(None.__ne__, idx))
+                idx = list(filter(lambda a: a is not None, idx))
+                params.append([Y.filename, traces[idx], A.tocsc()[:, idx], C[idx], b, f,
+                               final_frate, remove_baseline, N, robust_std, Athresh, Npeaks, thresh_C])
+    
+            if dview is None:
+                res = map(evaluate_components_placeholder, params)
             else:
-                erfc_raw = np.concatenate([erfc_raw, erfc_raw__], axis=0)
-                erfc_delta = np.concatenate([erfc_delta, erfc_delta__], axis=0)
+                print('EVALUATING IN PARALLEL... NOT RETURNING ERFCs')
+                if 'multiprocessing' in str(type(dview)):
+                    res = dview.map_async(
+                        evaluate_components_placeholder, params).get(4294967)
+                else:
+                    res = dview.map_sync(evaluate_components_placeholder, params)
+    
+            for r_ in res:
+                fitness_raw__, fitness_delta__, erfc_raw__, erfc_delta__, r_values__, _ = r_
+                fitness_raw = np.concatenate([fitness_raw, fitness_raw__])
+                fitness_delta = np.concatenate([fitness_delta, fitness_delta__])
+                r_values = np.concatenate([r_values, r_values__])
+    
+                if len(erfc_raw) == 0:
+                    erfc_raw = erfc_raw__
+                    erfc_delta = erfc_delta__
+                else:
+                    erfc_raw = np.concatenate([erfc_raw, erfc_raw__], axis=0)
+                    erfc_delta = np.concatenate([erfc_delta, erfc_delta__], axis=0)
+        else:
+            warnings.warn("There were no components to evaluate. Check your parameter settings.")
 
-    idx_components_r = np.where(r_values >= r_values_min)[0]     # threshold on space consistency
-    idx_components_raw = np.where(fitness_raw < fitness_min)[0]  # threshold on time variability
+    idx_components_r = np.where(np.array(r_values) >= r_values_min)[0]     # threshold on space consistency
+    idx_components_raw = np.where(np.array(fitness_raw) < fitness_min)[0]  # threshold on time variability
     # threshold on time variability (if nonsparse activity)
-    idx_components_delta = np.where(fitness_delta < fitness_delta_min)[0]
+    idx_components_delta = np.where(np.array(fitness_delta) < fitness_delta_min)[0]
 
     idx_components = np.union1d(idx_components_r, idx_components_raw)
     idx_components = np.union1d(idx_components, idx_components_delta)
     idx_components_bad = np.setdiff1d(list(range(len(traces))), idx_components)
 
     if return_all:
-        return idx_components, idx_components_bad, fitness_raw, fitness_delta, r_values
+        return idx_components, idx_components_bad, np.array(fitness_raw), np.array(fitness_delta), np.array(r_values)
     else:
         return idx_components, idx_components_bad
