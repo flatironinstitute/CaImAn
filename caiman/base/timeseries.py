@@ -172,8 +172,6 @@ class timeseries(np.ndarray):
         name, extension = os.path.splitext(file_name)[:2]
         print(extension)
 
-        if to32 and not('float32' in str(self.dtype)):
-            mn,mx = np.percentile(self,[.01,99.999])
             
         if extension == '.tif':  # load avi file
 
@@ -187,24 +185,15 @@ class timeseries(np.ndarray):
                     
                     curfr = self[i].copy()
                     if to32 and not('float32' in str(self.dtype)):
-                         curfr = np.clip(curfr, mn, mx)                
-                         curfr = 65536 * (curfr - mn) / (mx - mn)
                          curfr = curfr.astype(np.int32)             
                     
                     tif.save(curfr, compress=compress)
                     
                 
-#            
-#                  
-#                imsave(file_name, self.astype(np.float32))
-#            else:
-#                imsave(file_name, self)
 
         elif extension == '.npz':
             if to32 and not('float32' in str(self.dtype)):
-                input_arr = np.clip(self, mn, mx)                
-                input_arr = 65536 * (input_arr - mn) / (mx - mn)
-                input_arr = input_arr.astype(np.int32)  
+                input_arr = input_arr.astype(np.float32)  
             else:
                 input_arr = np.array(self)    
                 
@@ -235,10 +224,8 @@ class timeseries(np.ndarray):
             else:
                 f_name = ''
             
-            if to32 and not('float32' in str(self.dtype)):
-                input_arr = np.clip(self, mn, mx)                
-                input_arr = 65536 * (input_arr - mn) / (mx - mn)
-                input_arr = input_arr.astype(np.int32) 
+            if to32 and not('float32' in str(self.dtype)):                
+                input_arr = input_arr.astype(np.float32) 
             else:
                 input_arr = np.array(self)    
                 
@@ -251,10 +238,8 @@ class timeseries(np.ndarray):
 
         elif extension == '.hdf5':
             with h5py.File(file_name, "w") as f:
-                if to32 and not('float32' in str(self.dtype)):
-                    input_arr = np.clip(self, mn, mx)                
-                    input_arr = 65536 * (input_arr - mn) / (mx - mn)
-                    input_arr = input_arr.astype(np.int32)  
+                if to32 and not('float32' in str(self.dtype)):                   
+                    input_arr = input_arr.astype(np.float32)  
                 else:
                     input_arr = np.array(self)
                     
@@ -275,10 +260,8 @@ class timeseries(np.ndarray):
 
             T = self.shape[0]
             dims = self.shape[1:]
-            if to32 and not('float32' in str(self.dtype)):
-                input_arr = np.clip(self, mn, mx)                
-                input_arr = 65536 * (input_arr - mn) / (mx - mn)
-                input_arr = input_arr.astype(np.int32)  
+            if to32 and not('float32' in str(self.dtype)):                
+                input_arr = input_arr.astype(np.float32)  
             else:
                 input_arr = np.array(self)
                 
