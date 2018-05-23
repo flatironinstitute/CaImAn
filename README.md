@@ -112,10 +112,9 @@ If you prefer to manage this information somewhere else, the `CAIMAN_DATA` envir
 
 ### Installation on Windows (Python 3.x)
 
-   * Download and install Anaconda (Python 3.6) <http://docs.continuum.io/anaconda/install>, 
-   * GIT (<https://git-scm.com/>) and 
-   * Microsoft Build Tools for Visual Studio 2017 <https://www.visualstudio.com/downloads/#build-tools-for-visual-studio-2017>
-   * reboot.
+   * Download and install Anaconda (Python 3.6) <http://docs.continuum.io/anaconda/install>. We recommend telling conda to modify your PATH variable (it is a checkbox during Anaconda install, off by default)
+   * Use Conda to install git (With "conda install git")
+   * Microsoft Build Tools for Visual Studio 2017 <https://www.visualstudio.com/downloads/#build-tools-for-visual-studio-2017>. Check the "Build Tools" box, and in the detailed view on the right check the "C/C++ CLI Tools" component too.
 
     ```bash
     
