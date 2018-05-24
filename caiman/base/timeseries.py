@@ -43,10 +43,10 @@ except:
 
 from scipy.io import savemat
 try:
-    import tifffile 
-    print('tifffile package not found, using skimage instead for imsave')    
-except:    
-    from skimage.external import tifffile 
+    import tifffile
+    print('tifffile package not found, using skimage instead for imsave')
+except:
+    from skimage.external import tifffile
 
 #%%
 class timeseries(np.ndarray):
@@ -172,31 +172,31 @@ class timeseries(np.ndarray):
         name, extension = os.path.splitext(file_name)[:2]
         print(extension)
 
-            
+
         if extension == '.tif':  # load avi file
 
-                
+
             with tifffile.TiffWriter(file_name, bigtiff=bigtiff, imagej=imagej, software=software) as tif:
-                
-                    
+
+
                 for i in range(self.shape[0]):
                     if i%200 == 0:
                         print(str(i) + ' frames saved')
-                    
+
                     curfr = self[i].copy()
                     if to32 and not('float32' in str(self.dtype)):
-                         curfr = curfr.astype(np.int32)             
-                    
+                         curfr = curfr.astype(np.float32)
+
                     tif.save(curfr, compress=compress)
-                    
-                
+
+
 
         elif extension == '.npz':
             if to32 and not('float32' in str(self.dtype)):
-                input_arr = input_arr.astype(np.float32)  
+                input_arr = input_arr.astype(np.float32)
             else:
-                input_arr = np.array(self)    
-                
+                input_arr = np.array(self)
+
             np.savez(file_name, input_arr=input_arr, start_time=self.start_time,
                      fr=self.fr, meta_data=self.meta_data, file_name=self.file_name)
 
@@ -223,12 +223,12 @@ class timeseries(np.ndarray):
                 f_name = self.file_name
             else:
                 f_name = ''
-            
-            if to32 and not('float32' in str(self.dtype)):                
-                input_arr = input_arr.astype(np.float32) 
+
+            if to32 and not('float32' in str(self.dtype)):
+                input_arr = input_arr.astype(np.float32)
             else:
-                input_arr = np.array(self)    
-                
+                input_arr = np.array(self)
+
             if self.meta_data[0] is None:
                 savemat(file_name, {'input_arr': np.rollaxis(
                     input_arr, axis=0, start=3), 'start_time': self.start_time, 'fr': self.fr, 'meta_data': [], 'file_name': f_name})
@@ -238,11 +238,11 @@ class timeseries(np.ndarray):
 
         elif extension == '.hdf5':
             with h5py.File(file_name, "w") as f:
-                if to32 and not('float32' in str(self.dtype)):                   
-                    input_arr = input_arr.astype(np.float32)  
+                if to32 and not('float32' in str(self.dtype)):
+                    input_arr = input_arr.astype(np.float32)
                 else:
                     input_arr = np.array(self)
-                    
+
                 dset = f.create_dataset("mov", data=input_arr)
                 dset.attrs["fr"] = self.fr
                 dset.attrs["start_time"] = self.start_time
@@ -260,11 +260,11 @@ class timeseries(np.ndarray):
 
             T = self.shape[0]
             dims = self.shape[1:]
-            if to32 and not('float32' in str(self.dtype)):                
-                input_arr = input_arr.astype(np.float32)  
+            if to32 and not('float32' in str(self.dtype)):
+                input_arr = input_arr.astype(np.float32)
             else:
                 input_arr = np.array(self)
-                
+
             input_arr = np.transpose(input_arr, list(range(1, len(dims) + 1)) + [0])
             input_arr = np.reshape(input_arr, (np.prod(dims), T), order='F')
 
