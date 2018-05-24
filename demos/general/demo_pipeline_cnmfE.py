@@ -72,7 +72,7 @@ if do_motion_correction_nonrigid or do_motion_correction_rigid:
     plt.xlabel('frames')
     plt.ylabel('pixels')
 
-    bord_px = np.ceil(np.max(mc.shifts_rig)).astype(np.int)     #borders to eliminate from movie because of motion correction
+    bord_px = np.ceil(np.max(np.abs(mc.shifts_rig))).astype(np.int)     #borders to eliminate from movie because of motion correction
     filename_reorder = mc.fname_tot_rig
 
     # do motion correction nonrigid
@@ -160,7 +160,7 @@ cnm = cnmf.CNMF(n_processes=n_processes,
                 # overlap among patches (keep it at least large as 4 times the neuron size)
                 stride=(20, 20),
                 only_init_patch=True,                   # just leave it as is
-                gnb=16,                                 # number of background components       
+                gnb=16,                                 # number of background components
                 # number of background components per patch, use 0 or -1 for exact background of ring model
                 nb_patch=16,                            # number of background components per patch
                 method_deconvolution='oasis',  # could use 'cvxpy' alternatively

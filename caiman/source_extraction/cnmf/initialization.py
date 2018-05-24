@@ -179,7 +179,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
                           max_iter_snmf=500, alpha_snmf=10e2, sigma_smooth_snmf=(.5, .5, .5),
                           perc_baseline_snmf=20, options_local_NMF=None, rolling_sum=False,
                           rolling_length=100, sn=None, options_total=None, min_corr=0.8, min_pnr=10,
-                          ring_size_factor=1.5, center_psf=False, ssub_B=2, init_iter=2):
+                          ring_size_factor=1.5, center_psf=False, ssub_B=2, init_iter=2, remove_baseline = True):
     """
     Initalize components
 
@@ -360,7 +360,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
     elif method == 'sparse_nmf':
         Ain, Cin, _, b_in, f_in = sparseNMF(
             Y_ds, nr=K, nb=nb, max_iter_snmf=max_iter_snmf, alpha=alpha_snmf,
-            sigma_smooth=sigma_smooth_snmf, remove_baseline=True, perc_baseline=perc_baseline_snmf)
+            sigma_smooth=sigma_smooth_snmf, remove_baseline=remove_baseline, perc_baseline=perc_baseline_snmf)
 
     elif method == 'pca_ica':
         Ain, Cin, _, b_in, f_in = ICA_PCA(
@@ -473,7 +473,7 @@ def ICA_PCA(Y_ds, nr, sigma_smooth=(.5, .5, .5), truncate=2, fun='logcosh',
         bl = np.percentile(m, perc_baseline, axis=0)
         m1 = np.maximum(0, m - bl)
     else:
-        bl = 0
+        bl = np.zeros(m.shape[1:])
         m1 = m
     pca_comp = nr
 
@@ -496,6 +496,7 @@ def ICA_PCA(Y_ds, nr, sigma_smooth=(.5, .5, .5), truncate=2, fun='logcosh',
     masks = np.array(caiman.base.rois.extractROIsFromPCAICA(masks)[0])
 
     if masks.size > 0:
+
         C_in = caiman.base.movies.movie(
             m1).extract_traces_from_masks(np.array(masks)).T
         A_in = np.reshape(masks, [-1, d1 * d2], order='F').T
@@ -508,6 +509,7 @@ def ICA_PCA(Y_ds, nr, sigma_smooth=(.5, .5, .5), truncate=2, fun='logcosh',
     m1 = yr.T - A_in.dot(C_in) + np.maximum(0, bl.flatten())[:, np.newaxis]
 
     model = NMF(n_components=nb, init='random', random_state=0)
+
 
     b_in = model.fit_transform(np.maximum(m1, 0))
     f_in = model.components_.squeeze()
@@ -557,37 +559,45 @@ def sparseNMF(Y_ds, nr, max_iter_snmf=500, alpha=10e2, sigma_smooth=(.5, .5, .5)
     m = scipy.ndimage.gaussian_filter(np.transpose(
         Y_ds, [2, 0, 1]), sigma=sigma_smooth, mode='nearest', truncate=truncate)
     if remove_baseline:
+        print('REMOVING BASELINE')
         bl = np.percentile(m, perc_baseline, axis=0)
         m1 = np.maximum(0, m - bl)
     else:
-        bl = 0
+        print('NOT REMOVING BASELINE')
+        bl = np.zeros(m.shape[1:])
         m1 = m
 
     T, d1, d2 = np.shape(m1)
     d = d1 * d2
     yr = np.reshape(m1, [T, d], order='F')
-    
+#    nndsvd = False
+#    if not nndsvd:
     mdl = NMF(n_components=nr, verbose=False, init='nndsvd', tol=1e-10,
-              max_iter=max_iter_snmf, shuffle=False, alpha=alpha, l1_ratio=1)            
+          max_iter=max_iter_snmf, shuffle=False, alpha=alpha, l1_ratio=1)
     C = mdl.fit_transform(yr).T
     A = mdl.components_.T
-#    A,C = nnsvd_init(yr, nr, eps = 1e-6)
-#    from caiman.source_extraction.cnmf.spatial import threshold_components
+#    else:
+#        A,C = nnsvd_init(yr, nr, eps = 1e-6)
+#        from caiman.source_extraction.cnmf.spatial import threshold_components
 #    A = threshold_components(A, (d1,d2), dview=None)
-
-    ind_good = np.where(np.logical_and((np.sum(A, 0) * np.std(C, axis=1)) > 0,
-                                       np.sum(A > np.mean(A), axis=0) < old_div(d, 3)))[0]
-
-    ind_bad = np.where(np.logical_or((np.sum(A, 0) * np.std(C, axis=1)) == 0,
-                                     np.sum(A > np.mean(A), axis=0) > old_div(d, 3)))[0]
-    A_in = np.zeros_like(A)
-
-    C_in = np.zeros_like(C)
-    A_in[:, ind_good] = A[:, ind_good]
-    C_in[ind_good, :] = C[ind_good, :]
-    A_in = A_in * (A_in > (.1 * np.max(A_in, axis=0))[np.newaxis, :])
-    A_in[:3, ind_bad] = .0001
-    C_in[ind_bad, :3] = .0001
+#    remove_bad = False
+#    if remove_bad:
+#        ind_good = np.where(np.logical_and((np.sum(A, 0) * np.std(C, axis=1)) > 0,
+#                                       np.sum(A > np.mean(A), axis=0) < old_div(d, 3)))[0]
+#
+#        ind_bad = np.where(np.logical_or((np.sum(A, 0) * np.std(C, axis=1)) == 0,
+#                                     np.sum(A > np.mean(A), axis=0) > old_div(d, 3)))[0]
+#        A_in = np.zeros_like(A)
+#
+#        C_in = np.zeros_like(C)
+#        A_in[:, ind_good] = A[:, ind_good]
+#        C_in[ind_good, :] = C[ind_good, :]
+#        A_in = A_in * (A_in > (.1 * np.max(A_in, axis=0))[np.newaxis, :])
+#        A_in[:3, ind_bad] = .0001
+#        C_in[ind_bad, :3] = .0001
+#    else:
+    A_in = A
+    C_in = C
 
     m1 = yr.T - A_in.dot(C_in) + np.maximum(0, bl.flatten())[:, np.newaxis]
     model = NMF(n_components=nb, init='random',
@@ -595,6 +605,13 @@ def sparseNMF(Y_ds, nr, max_iter_snmf=500, alpha=10e2, sigma_smooth=(.5, .5, .5)
     b_in = model.fit_transform(np.maximum(m1, 0))
     f_in = model.components_.squeeze()
     center = caiman.base.rois.com(A_in, d1, d2)
+    #    if remove_baseline:
+#    else:
+#        b_in = A_in[:,:nb]
+#        f_in = f_in[:nb]
+#        np.delete(A_in,range(nb),axis=1)
+#        np.delete(C_in,range(nb),axis=0)
+
 
     return A_in, C_in, center, b_in, f_in
 
@@ -1148,7 +1165,7 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
                 B, spr.csc_matrix(A, dtype=np.float32),
                 np.zeros((np.prod(dims), 0), np.float32), C, np.zeros((0, T), np.float32),
                 dview=None, bl=None, c1=None, sn=None, g=None, **options['temporal_params'])
-        
+
         A = A.toarray()
         if nb:
             B = B0
@@ -1706,7 +1723,7 @@ def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True, ssub=1, tsub=1):
     return spr.csr_matrix((data, indices, indptr), dtype='float32'), b0.astype(np.float32)
 
 #%%
-def nnsvd_init(X,n_components,eps=1e-6,random_state=None):    
+def nnsvd_init(X,n_components,eps=1e-6,random_state=None):
     # NNDSVD initialization from scikit learn package
     U, S, V = randomized_svd(X, n_components, random_state=random_state)
     W, H = np.zeros(U.shape), np.zeros(V.shape)
@@ -1744,8 +1761,8 @@ def nnsvd_init(X,n_components,eps=1e-6,random_state=None):
         H[j, :] = lbd * v
 
     W[W < eps] = 0
-    H[H < eps] = 0      
-    
+    H[H < eps] = 0
+
     C = W.T
     A = H.T
     return A,C #
