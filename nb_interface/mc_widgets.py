@@ -1,5 +1,6 @@
 import ipywidgets as widgets
 import os
+import bqplot
 ##### Motion Correction Widgets
 
 layout_small = widgets.Layout(width="10%")
@@ -145,7 +146,7 @@ mc_strides_widget = widgets.BoundedIntText(
 	min=1,
 	max=100,
     description='Strides:',
-    disabled=False,
+    disabled=True,
 	layout=widgets.Layout(width="20%")
 )
 
@@ -156,7 +157,7 @@ overlaps_widget = widgets.BoundedIntText(
 	min=1,
 	max=1000,
     description='Overlaps:',
-    disabled=False,
+    disabled=True,
 	layout=widgets.Layout(width="20%")
 )
 
@@ -170,16 +171,14 @@ overlaps_widget = widgets.BoundedIntText(
 
 upsample_factor_grid_widget = widgets.BoundedIntText(
     value=4,
-    #description='String:',
-    disabled=False,
+    disabled=True,
 	layout=layout_small
 )
 upsample_factor_box = widgets.HBox([widgets.Label(value="Upsample Factor:"),upsample_factor_grid_widget])
 
 max_deviation_rigid_widget = widgets.BoundedIntText(
     value=3,
-    #description='Max Deviation (Rigid):',
-    disabled=False,
+    disabled=True, #disabled because rigid mode is default
 	layout=layout_small
 )
 max_deviation_box = widgets.HBox([widgets.Label(value="Max Deviation (rigid):"),max_deviation_rigid_widget])
@@ -251,8 +250,30 @@ play_mov_btn = widgets.Button(
 )
 
 
+#Extracted shifts plot
+'''shifts_plot = bqplot.Figure(marks=[bar, line], axes=[ax_x, ax_y], title='API Example',
+       legend_location='bottom-right')'''
 
+sc_x = bqplot.LinearScale()
+sc_y = bqplot.LinearScale(min= (-1 * float(max_shifts_widget.value) / 3), max=(float(max_shifts_widget.value) / 3))
 
-play_mov_btn_box = widgets.VBox()
+xshifts_line = bqplot.Lines(scales={'x': sc_x, 'y': sc_y},
+             stroke_width=3, colors=['red'], display_legend=True, labels=['X Shifts'])
 
-play_mov_btn_box.children = [mc_mov_mag_box, mc_mov_gain_widget, play_mov_btn,]
+yshifts_line = bqplot.Lines(scales={'x': sc_x, 'y': sc_y},
+             stroke_width=3, colors=['orange'], display_legend=True, labels=['Y Shifts'])
+
+ax_x = bqplot.Axis(scale=sc_x, grid_lines='solid', label='X')
+ax_y = bqplot.Axis(scale=sc_y, orientation='vertical',
+            grid_lines='solid', label='Y')
+
+shifts_plot = bqplot.Figure(marks=[xshifts_line, yshifts_line], axes=[ax_x, ax_y], title='MC Extracted Shifts',
+       legend_location='bottom-right')
+
+tb_shifts = bqplot.Toolbar(figure=shifts_plot)
+mc_shifts_box = widgets.VBox([tb_shifts, shifts_plot])
+mc_shifts_box.layout.display = 'None'
+
+mc_results_box = widgets.VBox()
+
+mc_results_box.children = [mc_mov_mag_box, mc_mov_gain_widget, play_mov_btn, mc_shifts_box]

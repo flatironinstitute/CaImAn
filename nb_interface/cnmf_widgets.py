@@ -158,6 +158,14 @@ save_movie_widget = widgets.Checkbox(
 	layout=widgets.Layout(width="30%")
 )
 
+refine_components_widget = widgets.Checkbox(
+	value=True,
+	description='Auto Refine Components',
+	disabled=False,
+	tooltip='Automatically refines the detected components to the most plausible ones',
+	layout=widgets.Layout(width="30%")
+)
+
 ############ Advanced Settings
 '''
 # parameters for source extraction and deconvolution
@@ -295,7 +303,7 @@ basic_row4 = widgets.HBox()
 basic_row4.children = [min_corr_widget, min_pnr_widget]
 
 basic_row5 = widgets.HBox()
-basic_row5.children = [deconv_flag_widget, save_movie_widget]
+basic_row5.children = [deconv_flag_widget, save_movie_widget, refine_components_widget]
 
 cnmf_basic_settings = widgets.VBox()
 cnmf_basic_settings.children = [basic_row0,basic_row1,basic_row2, basic_row3, basic_row4, basic_row5]

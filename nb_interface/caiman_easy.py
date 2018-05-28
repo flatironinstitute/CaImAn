@@ -34,7 +34,9 @@ from caiman_easy_widgets import *
 from typing import Dict, Tuple, List
 import datetime
 from sys import getsizeof
-import threading
+
+import warnings
+warnings.filterwarnings('ignore')
 
 #from ..summary_images import local_correlations
 
@@ -103,10 +105,11 @@ def run_mc(fnames, mc_params, dsfactors, rigid=True, batch=True, scope_type=2):
 	new_templ = None
 	counter = 0
 	tmp_files = [] #list of temporary files that this function may create, so we can delete later
+	mmaps_ = [] #list of memmap'd files created at the end
 	def resave_and_resize(each_file, dsfactors):
 		toTiff = cm.load(each_file)
 		tiff_file = each_file
-		tiff_file = os.path.splitext(each_file)[0] + '_tmp.tif'
+		tiff_file = os.path.splitext(each_file)[0] + '_mc.tif'
 		if any(x < 1 for x in dsfactors):
 			toTiff.resize(*dsfactors).save(tiff_file)
 		else:
@@ -159,10 +162,7 @@ def run_mc(fnames, mc_params, dsfactors, rigid=True, batch=True, scope_type=2):
 			mc_mov = cm.load(mc.fname_tot_els)
 			bord_px_els = np.ceil(np.maximum(np.max(np.abs(mc.x_shifts_els)),
 								 np.max(np.abs(mc.y_shifts_els)))).astype(np.int)
-
 		# TODO : needinfo
-		#pl.imshow(new_templ, cmap='gray')
-		#pl.pause(.1)
 		mc_list.append(mc)
 		#remove generated TIFF, if applicable
 		if is_converted:
@@ -187,22 +187,36 @@ def run_mc(fnames, mc_params, dsfactors, rigid=True, batch=True, scope_type=2):
 					os.remove(old_f.fname_tot_els[0])
 				except PermissionError:
 					print("PermissionError: Cannot delete temporary file. (Non-Fatal)")
-		return [combined_file]
+		return mc_list, [combined_file]
 	else:
-		return mc_list
+		mmaps_final = mmap_f_to_c(mc_list, mc_params['dview'], mode=mode)
+		return mc_list, mmaps_final
 
 def flatten(l):
 	return [item for sublist in l for item in sublist]
 
-def combine_mc_mmaps(mc_list, dview, mode='rig'):
+def extract_fnames_from_mc(mc_list, mode='rig'):
 	if mode=='rig':
 		mc_names = [i.fname_tot_rig for i in mc_list]
 	else:
 		mc_names = [i.fname_tot_els for i in mc_list]
+	return mc_names
+
+def combine_mc_mmaps(mc_list, dview, mode='rig'):
+	mc_names = extract_fnames_from_mc(mc_list, mode)
 	mc_names = flatten(mc_names)
 	mc_mov_name = save_memmap_join(mc_names, base_name='mc_rig', dview=dview)
 	print(mc_mov_name)
 	return mc_mov_name
+
+def mmap_f_to_c(mc_list, dview, mode='rig'):
+	mc_names = extract_fnames_from_mc(mc_list, mode)
+	new_names = []
+	for fname in mc_names:
+		mc_mov_name = save_memmap_join(fname, base_name='mc_rig', dview=dview)
+		new_names.append(mc_mov_name)
+		print(mc_mov_name)
+	return new_names
 
 def resize_mov(Yr, fx=0.521, fy=0.3325):
 	t,h,w = Yr.shape
@@ -258,7 +272,7 @@ def plot_contours(YrDT, cnmf_results, cn_filter):
 		YrA, coo_matrix(A.tocsc()[:, idx_components]), C[idx_components],
 		b, f, dims[0], dims[1], YrA=YrA[idx_components], img=cn_filter)
 
-def filter_rois(YrDT, cnmf_results, dview, gSig, gSiz, fr=0.3, min_SNR=3, r_values_min=0.85,decay_time=0.4, cnn_thr=0.8):
+def filter_rois(YrDT, cnmf_results, dview, gSig, gSiz, fr=0.3, min_SNR=3, r_values_min=0.85,decay_time=0.4, cnn_thr=0.8, min_std_reject=0.5):
 	Yr, dims, T = YrDT
 	A, C, b, f, YrA, sn, idx_components_orig, conv = cnmf_results
 	#final_frate = 20 # approx final rate  (after eventual downsampling )
@@ -285,7 +299,7 @@ def filter_rois(YrDT, cnmf_results, dview, gSig, gSiz, fr=0.3, min_SNR=3, r_valu
 	idx_components, idx_components_bad, comp_SNR, r_values, pred_CNN = estimate_components_quality_auto(
 							Y, A, C, b, f, YrA, fr,
 							decay_time, gSig, dims, dview = dview,
-							min_SNR=min_SNR, r_values_min = r_values_min, thresh_cnn_min=cnn_thr, min_std_reject = 0.5, use_cnn = False)
+							min_SNR=min_SNR, r_values_min = r_values_min, thresh_cnn_min=cnn_thr, min_std_reject = min_std_reject, use_cnn = False)
 	'''	idx_components_r = np.where(r_values >= .5)[0]
 	idx_components_raw = np.where(fitness_raw < -40)[0]
 	idx_components_delta = np.where(fitness_delta < -20)[0]
@@ -298,6 +312,7 @@ def filter_rois(YrDT, cnmf_results, dview, gSig, gSiz, fr=0.3, min_SNR=3, r_valu
 	return idx_components, idx_components_bad
 
 
+#corr_img moved to cnmf_results_logic
 def corr_img(Yr, gSig, center_psf, plot=True):
 	# show correlation image of the raw data; show correlation image and PNR image of the filtered data
 	cn_raw = cm.summary_images.max_correlation_image(Yr, swap_dim=False, bin_size=3000) #default 3000
@@ -323,12 +338,12 @@ def corr_img(Yr, gSig, center_psf, plot=True):
 
 def save_denoised_avi(data, dims, idx_components_keep, working_dir=""):
 	A, C, b, f, YrA, sn, idx_components, conv = data
-	idx_components = idx_components_keep
+	#idx_components = idx_components_keep
 	x = None
 	if type(A) != np.ndarray:
-		x = cm.movie(A.tocsc()[:, idx_components].dot(C[idx_components, :])).reshape(dims + (-1,), order='F').transpose([2, 0, 1])
+		x = cm.movie(A.tocsc()[:, idx_components_keep].dot(C[idx_components_keep, :])).reshape(dims + (-1,), order='F').transpose([2, 0, 1])
 	else:
-		x = cm.movie(A[:, idx_components].dot(C[idx_components, :])).reshape(dims + (-1,), order='F').transpose([2, 0, 1])
+		x = cm.movie(A[:, idx_components_keep].dot(C[idx_components_keep, :])).reshape(dims + (-1,), order='F').transpose([2, 0, 1])
 	currentDT = datetime.datetime.now()
 	ts_ = currentDT.strftime("%Y%m%d_%H_%M_%S")
 	avi_save_path = working_dir + "denoised_" + ts_ + ".avi"

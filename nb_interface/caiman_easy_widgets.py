@@ -1,6 +1,6 @@
 import ipywidgets as widgets
 
-out = widgets.Output(layout={'border': '1px solid black', 'height':'150px', 'overflow-y':'scroll'})
+out = widgets.Output(layout={'border': '1px solid black', 'height':'250px', 'overflow-y':'scroll'})
 
 status_bar_widget = widgets.HTML(
     value="Idle",

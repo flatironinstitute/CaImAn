@@ -22,20 +22,33 @@ from cnmf_widgets import *
 
 
 #delete/refine ROIs control, and save data
-delete_roi_btn = widgets.Button(
+'''delete_roi_btn = widgets.Button(
 	description='Delete ROI',
 	disabled=False,
 	button_style='warning', # 'success', 'info', 'warning', 'danger' or ''
 	tooltip='Exclude ROI'
-)
-delete_list_widget = widgets.SelectMultiple(
+)'''
+'''delete_list_widget = widgets.SelectMultiple(
 	options=[],
 	value=[],
 	rows=3,
 	description='Exclud. ROIs',
 	disabled=False,
 	layout=widgets.Layout(width="18%")
+)'''
+is_edit_widget = widgets.ToggleButtons(
+	options=['View', 'Edit'],
+	description='Mode:',
+	disabled=False,
+	button_style='', # 'success', 'info', 'warning', 'danger' or ''
+	tooltips=['View or refine the results'],
+#     icons=['check'] * 3
 )
+
+# --------EDIT PANEL -------
+from cnmf_results_edit_panel import *
+#- ---- --- ----------------
+
 download_btn = widgets.Button(
 	description='Download Data',
 	disabled=False,
@@ -62,6 +75,8 @@ deconv_chk = widgets.ToggleButtons(
     tooltips=['Denoised/demixed Ca2+ signal', 'Deconvolved Ca2+ signal', 'Plot both'],
 	layout=widgets.Layout(width="18%"),
 )
+
+
 
 #####
 #children = []
@@ -120,12 +135,5 @@ validate_col_residual_btn = widgets.Button(
 	layout=widgets.Layout(width="30%")
 )
 
-#log/console:
-log_widget = widgets.Textarea(
-    value='',
-    description='Console:',
-    disabled=False,
-	layout=widgets.Layout(width="60%", height="100px")
-)
 
 #####

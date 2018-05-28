@@ -28,6 +28,7 @@ class Context: #used to save data related to analysis (not serializable)
 		self.working_cnmf_file = None  #str path
 		self.mc_dsfactors = None  #downsample factors: [x,y,t]
 
+		self.mc_mmaps = [] # list of file names of created mmaps from motion correction
 		self.mc_rig = []    #rigid mc results
 		self.mc_nonrig = [] #non-rigid mc results
 
@@ -63,6 +64,7 @@ class Context: #used to save data related to analysis (not serializable)
 			self.working_dir,
 			self.working_mc_files,
 			self.working_cnmf_file,
+			self.mc_mmaps,
 			self.mc_rig,
 			self.mc_nonrig,
 			self.YrDT,
@@ -88,8 +90,12 @@ class Context: #used to save data related to analysis (not serializable)
 			self.working_dir, self.working_mc_files, self.working_cnmf_file, self.mc_rig, \
 			self.mc_nonrig, self.YrDT, self.cnmf_results, self.idx_components_keep, \
 			self.idx_components_toss, self.cnmf_params, self.correlation_img = tmpd
-		else:
+		elif len(tmpd) == 12: #for backward compatibility
 			self.working_dir, self.working_mc_files, self.working_cnmf_file, self.mc_rig, \
+			self.mc_nonrig, self.YrDT, self.cnmf_results, self.idx_components_keep, \
+			self.idx_components_toss, self.cnmf_params, self.correlation_img, self.mc_dsfactors = tmpd
+		else:
+			self.working_dir, self.working_mc_files, self.working_cnmf_file, self.mc_mmaps, self.mc_rig, \
 			self.mc_nonrig, self.YrDT, self.cnmf_results, self.idx_components_keep, \
 			self.idx_components_toss, self.cnmf_params, self.correlation_img, self.mc_dsfactors = tmpd
 		print("Context loaded from: %s" % (path,))
