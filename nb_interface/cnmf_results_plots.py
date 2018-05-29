@@ -47,7 +47,7 @@ rois = Scatter(scales={'x': scale_x2, 'y': scale_y2}, default_size=30,
 rois.interactions = {'click': 'select'}
 rois.selected_style = {'opacity': 1.0, 'fill': 'Black', 'stroke': 'Black', 'size':30}
 
-roi_slider = IntSlider(min=1, step=1, description='ROI#', value=1)
+#roi_slider = IntSlider(min=1, step=1, description='ROI#', value=1)
 
 
 ######

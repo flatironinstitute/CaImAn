@@ -157,7 +157,7 @@ def run_mc(fnames, mc_params, dsfactors, rigid=True, batch=True, scope_type=2):
 			if scope_type == 1:
 				mc = motion_correct_oneP_nonrigid(tiff_file, **mc_params)
 			else:
-				mc.motion_correct_pwrigid(save_movei=True, template=new_templ)
+				mc.motion_correct_pwrigid(save_movie=True, template=new_templ)
 			new_templ = mc.total_template_els
 			mc_mov = cm.load(mc.fname_tot_els)
 			bord_px_els = np.ceil(np.maximum(np.max(np.abs(mc.x_shifts_els)),
@@ -272,7 +272,9 @@ def plot_contours(YrDT, cnmf_results, cn_filter):
 		YrA, coo_matrix(A.tocsc()[:, idx_components]), C[idx_components],
 		b, f, dims[0], dims[1], YrA=YrA[idx_components], img=cn_filter)
 
-def filter_rois(YrDT, cnmf_results, dview, gSig, gSiz, fr=0.3, min_SNR=3, r_values_min=0.85,decay_time=0.4, cnn_thr=0.8, min_std_reject=0.5):
+def filter_rois(YrDT, cnmf_results, dview, gSig, gSiz, fr=0.3, decay_time=0.4, min_SNR=3, \
+	r_values_min=0.85, cnn_thr=0.8, min_std_reject=0.5, thresh_fitness_delta=-20., thresh_cnn_lowest=0.1, \
+	r_values_lowest=-1):
 	Yr, dims, T = YrDT
 	A, C, b, f, YrA, sn, idx_components_orig, conv = cnmf_results
 	#final_frate = 20 # approx final rate  (after eventual downsampling )
@@ -290,23 +292,21 @@ def filter_rois(YrDT, cnmf_results, dview, gSig, gSiz, fr=0.3, min_SNR=3, r_valu
 	#        traces_a=traces-scipy.ndimage.percentile_filter(traces,8,size=[1,np.shape(traces)[-1]/5])
 	#        traces_b=np.diff(traces,axis=1)
 	Y = np.reshape(Yr, dims + (T,), order='F')
-	print("Debugging (caiman_easy.py line 323 filter_rois): A.shape {0}, C.shape {1}, Y.shape {2}, Yr.shape {3}, idx_components_orig {4}".format(
+	'''	print("Debugging (caiman_easy.py line 323 filter_rois): A.shape {0}, C.shape {1}, Y.shape {2}, Yr.shape {3}, idx_components_orig {4}".format(
 		A.shape,C.shape,Y.shape,Yr.shape,idx_components_orig
-		))
+		))'''
 	'''fitness_raw, fitness_delta, erfc_raw, erfc_delta, r_values, significant_samples = cm.components_evaluation.evaluate_components(
 						Y, traces, A, C, b, f, final_frate, remove_baseline=True, N=5, robust_std=False, Athresh=0.1, Npeaks=Npeaks,  thresh_C=0.3)
 				'''	# %% DISCARD LOW QUALITY COMPONENTS
 	idx_components, idx_components_bad, comp_SNR, r_values, pred_CNN = estimate_components_quality_auto(
 							Y, A, C, b, f, YrA, fr,
 							decay_time, gSig, dims, dview = dview,
-							min_SNR=min_SNR, r_values_min = r_values_min, thresh_cnn_min=cnn_thr, min_std_reject = min_std_reject, use_cnn = False)
-	'''	idx_components_r = np.where(r_values >= .5)[0]
-	idx_components_raw = np.where(fitness_raw < -40)[0]
-	idx_components_delta = np.where(fitness_delta < -20)[0]
-
-	idx_components = np.union1d(idx_components_r, idx_components_raw)
-	idx_components = np.union1d(idx_components, idx_components_delta)
-	idx_components_bad = np.setdiff1d(list(range(len(traces))), idx_components)'''
+							min_SNR=min_SNR, r_values_min = r_values_min, thresh_cnn_min=cnn_thr, \
+							min_std_reject = min_std_reject, use_cnn = False, thresh_cnn_lowest=thresh_cnn_lowest, \
+							thresh_fitness_delta=thresh_fitness_delta, r_values_lowest=r_values_lowest)
+	'''estimate_components_quality_auto(Y, A, C, b, f, YrA, frate, decay_time, gSig, dims, dview=None, min_SNR=2, r_values_min=0.9,
+	                                     r_values_lowest=-1, Npeaks=10, use_cnn=True, thresh_cnn_min=0.95, thresh_cnn_lowest=0.1,
+	                                     thresh_fitness_delta=-20., min_std_reject=0.5, gSig_range = None)'''
 	print(('Keeping ' + str(len(idx_components)) + \
 		   ' and discarding  ' + str(len(idx_components_bad))))
 	return idx_components, idx_components_bad

@@ -36,6 +36,9 @@ from cnmf_widgets import *
 	disabled=False,
 	layout=widgets.Layout(width="18%")
 )'''
+
+roi_slider = IntSlider(min=1, step=1, description='ROI#', value=1)
+
 is_edit_widget = widgets.ToggleButtons(
 	options=['View', 'Edit'],
 	description='Mode:',

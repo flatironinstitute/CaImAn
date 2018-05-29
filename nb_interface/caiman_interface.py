@@ -4,6 +4,7 @@ from bqplot import (
 	LogScale, LinearScale, OrdinalColorScale, ColorAxis,
 	Axis, Scatter, Lines, CATEGORY10, Label, Figure, Tooltip, Toolbar
 )
+from functools import partial #partial function application
 import traitlets
 from sklearn.preprocessing import scale
 import pandas as pd
@@ -341,7 +342,7 @@ def run_cnmf_ui(_):
 	#print("CNMF-E FINISHED!")
 	#update_status("CNMF Finished")
 	#results: A, C, b, f, YrA, sn, idx_components, S
-	refine_results = bool(refine_components_widget.value)
+	refine_results = bool(refine_components_widget.value) #automatically refine results
 	save_movie_bool = bool(save_movie_widget.value)
 	if refine_results:
 		update_status("Automatically refining results...")
@@ -369,6 +370,31 @@ major_cnmf_col.children = [cnmf_file_box, cnmf_settings, run_cnmf_btn]
 # view cnmf results interface
 
 # ---------------------
+
+
+
+def is_edit_changed(changed):
+	if changed['new'] == 'View':
+		fig4.layout.display = ''
+		fig3.layout.display = ''
+		fig2.layout.display = ''
+		edit_panel_widget.layout.display = 'None'
+	else: #Edit mode
+		fig4.layout.display = 'None'
+		fig3.layout.display = 'None'
+		fig2.layout.display = 'None'
+		edit_panel_widget.layout.display = ''
+
+def toggle_deconv(change):
+	if deconv_chk.value == 'Deconvolution':
+		deconv_signal_mark.visible = True
+		signal_mark.visible = False
+	elif deconv_chk.value == 'Both':
+		deconv_signal_mark.visible = True
+		signal_mark.visible = True
+	else:
+		deconv_signal_mark.visible = False
+		signal_mark.visible = True
 
 def download_data_func(_):
 	A, C, b, f, YrA, sn, idx_components, conv = load_context_data(context)
@@ -428,7 +454,9 @@ def gen_image_data(image_np_array, name=""):
 		#print("{0} : {1}".format(name, len(data)))
 		return data
 
-def update_plots(A, C, dims):
+def update_plots(A, C, dims, conv):
+	if type(A) != np.ndarray: #probably sparse array, need to convert to dense array in order to reshape
+		A = A.toarray()
 	#get ROI contours
 	contours = cm.utils.visualization.get_contours(A, (dims[0],dims[1]))
 	centers = np.array([x['CoM'] for x in contours])
@@ -470,6 +498,61 @@ def update_plots(A, C, dims):
 	contour_mark.y = contour_y
 
 
+	####
+	def slider_change(change):
+		contour_mark.x,contour_mark.y = get_contour_coords(change-1)
+		roi_image_mark.image = widgets.Image(value=get_roi_image(A,(change-1),dims))
+		deconv = True if conv is not None else False
+		new_signal = get_signal(change-1, deconv)
+		signal_mark.y = new_signal[0]
+		new_signal_max = new_signal[0].max()
+		if new_signal[1] is not None:
+			deconv_signal_mark.y = new_signal[1]
+		scale_y4.max = new_signal_max + 0.10*new_signal_max
+		return [change-1]
+
+	# View/Edit Section
+
+	full_a_mark.image = widgets.Image(value=gen_image_data(a_image_np, "Full A Mark (2)"))
+
+	l2 = traitlets.directional_link((rois, 'selected'),(roi_slider, 'value'), roi_change)
+	l1 = traitlets.directional_link((roi_slider, 'value'), (rois, 'selected'), slider_change)
+
+def update_btn_click(_):
+	update_status("Updating plots...")
+	min_snr_ = float(min_snr_edit_widget.value)
+	cnnlowest_ = float(cnnlowest_edit_widget_.value)#
+	cnnmin_ = float(cnnmin_edit_widget_.value)#
+	rvallowest_ = float(rvallowest_edit_widget_.value)#
+	rvalmin_ = float(rvalmin_edit_widget_.value)#
+	fitness_delta_ = float(fitness_delta_edit_widget_.value)
+	min_std_reject_ = float(minstdreject_edit_widget_.value) #
+
+	fr_ = float(fr_widget.value)
+	decay_time_ = float(decay_time_widget.value)
+	gSig = int(gSig_edit_widget_.value)
+	gSiz = 12 #isn't actually used, need to fix
+	'''filter_rois(YrDT, cnmf_results, dview, gSig, gSiz, fr=0.3, decay_time=0.4, min_SNR=3, \
+		r_values_min=0.85, cnn_thr=0.8, min_std_reject=0.5, thresh_fitness_delta=-20., thresh_cnn_lowest=0.1, \
+		r_values_lowest=-1)'''
+	context.idx_components_keep, context.idx_components_toss = \
+		filter_rois(context.YrDT, context.cnmf_results, context.dview, gSig, gSiz, fr=fr_, \
+			min_SNR=min_snr_, r_values_min=rvalmin_,decay_time=decay_time_, cnn_thr=cnnmin_, \
+			min_std_reject=min_std_reject_, thresh_fitness_delta=fitness_delta_,thresh_cnn_lowest=cnnlowest_, \
+			r_values_lowest=rvallowest_)
+	A, C, b, f, YrA, sn, idx_components, conv = load_context_data(context)
+	idx_components_keep = context.idx_components_keep
+	A = A[:, idx_components_keep]
+	C = C[idx_components_keep, :]
+	update_plots(A, C, context.YrDT[1], conv)
+	update_status("Idle.")
+
+def roi_change(change):
+	if change is not None:
+		return change[0] + 1
+	else:
+		return 1
+
 def show_cnmf_results_interface(context):
 	#update_status("Launching interactive results viewer...this may take a few moments.")
 	gSig = context.cnmf_params['gSig'][0]
@@ -483,10 +566,7 @@ def show_cnmf_results_interface(context):
 	#A spatial matrix, C temporal matrix, S deconvolution results (if applicable)
 	#print("Mem Size A: {0}, Mem Size C: {1}".format(getsizeof(A), getsizeof(C)))
 	#setup scales
-	'''	scale_x = bqplot.LinearScale(min=0.0, max=1) #for images
-	scale_y = bqplot.LinearScale(min=0.0, max=1) #for images
-	scale_x2 = bqplot.LinearScale(min=0.0, max=dims[1]) #eg 376
-	scale_y2 = bqplot.LinearScale(min=0.0, max=dims[0]) #eg 240'''
+
 	scale_x2.max = dims[1]
 	scale_y2.max = dims[0]
 	#correlation plots
@@ -544,23 +624,6 @@ def show_cnmf_results_interface(context):
 
 	#roi_slider = IntSlider(min=1, max=A.shape[1], step=1, description='ROI#', value=1)
 	roi_slider.max = A.shape[1]
-	def roi_change(change):
-		if change is not None:
-			return change[0] + 1
-		else:
-			return 1
-
-	def toggle_deconv(change):
-		if deconv_chk.value == 'Deconvolution':
-			deconv_signal_mark.visible = True
-			signal_mark.visible = False
-		elif deconv_chk.value == 'Both':
-			deconv_signal_mark.visible = True
-			signal_mark.visible = True
-		else:
-			deconv_signal_mark.visible = False
-			signal_mark.visible = True
-
 
 	contour_x,contour_y = get_contour_coords(0)
 
@@ -612,29 +675,17 @@ def show_cnmf_results_interface(context):
 
 	# View/Edit Section
 
-
-	def is_edit_changed(changed):
-		if changed['new'] == 'View':
-			fig4.layout.display = ''
-			fig3.layout.display = ''
-			fig2.layout.display = ''
-			edit_panel_widget.layout.display = 'None'
-		else: #Edit mode
-			fig4.layout.display = 'None'
-			fig3.layout.display = 'None'
-			fig2.layout.display = 'None'
-			edit_panel_widget.layout.display = ''
-
 	full_a_mark.image = widgets.Image(value=gen_image_data(a_image_np, "Full A Mark (2)"))
 	cor_image_mark.image = widgets.Image(value=gen_image_data(correlation_img[1], "Cor Image mark (2)"))
-	download_btn.on_click(download_data_func)
-	#delete_roi_btn.on_click(delete_roi_func)
-	is_edit_widget.observe(is_edit_changed, names='value')
+
 	l2 = traitlets.directional_link((rois, 'selected'),(roi_slider, 'value'), roi_change)
 	l1 = traitlets.directional_link((roi_slider, 'value'), (rois, 'selected'), slider_change)
 
-	'''view_cnmf_widget = VBox([VBox([HBox([roi_slider, tb0]), HBox([is_edit_widget, deconv_chk, dff_chk, download_btn])]),
-		  HBox([fig, fig4, edit_panel_widget]), HBox([fig2, fig3])])'''
+##########
+download_btn.on_click(download_data_func)
+#delete_roi_btn.on_click(delete_roi_func)
+is_edit_widget.observe(is_edit_changed, names='value')
+update_edit_btn.on_click(update_btn_click)
 
 	#update_status("Idle")
 	#return view_cnmf_widget
