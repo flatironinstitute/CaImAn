@@ -820,7 +820,7 @@ def view_patches_bar(Yr, A, C, b, f, d1, d2, YrA=None, img=None):
 
     if YrA is None:
         Y_r = spdiags(old_div(1, nA2), 0, nr, nr) * (A.T.dot(Yr) -
-                                                     (A.T.dot(b)).dot(f) - (A.dot(A)).dot(C)) + C
+                                                     (A.T.dot(b)).dot(f) - (A.T.dot(A)).dot(C)) + C
     else:
         Y_r = YrA + C
 
@@ -836,7 +836,7 @@ def view_patches_bar(Yr, A, C, b, f, d1, d2, YrA=None, img=None):
     ax2 = pl.axes([0.05, 0.1, 0.9, 0.4])
 
     s_comp = Slider(axcomp, 'Component', 0, nr + nb - 1, valinit=0)
-    vmax = np.percentile(img, 98)
+    vmax = np.percentile(img, 95)
 
     def update(val):
         i = np.int(np.round(s_comp.val))
@@ -846,7 +846,7 @@ def view_patches_bar(Yr, A, C, b, f, d1, d2, YrA=None, img=None):
 
             ax1.cla()
             imgtmp = np.reshape(A[:, i].toarray(), (d1, d2), order='F')
-            ax1.imshow(imgtmp, interpolation='None', cmap=pl.cm.gray)
+            ax1.imshow(imgtmp, interpolation='None', cmap=pl.cm.gray, vmax=np.max(imgtmp)*0.5)
             ax1.set_title('Spatial component ' + str(i + 1))
             ax1.axis('off')
 
