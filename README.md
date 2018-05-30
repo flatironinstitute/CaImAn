@@ -98,7 +98,7 @@ While the code is compatible with Python 2.7 at the moment, all present and futu
 
   Once CaImAn is installed, you may want to get a working directory with code samples and datasets; pip installed a caimanmanager.py command that manages this. If you have not installed Caiman before, you can do 
   ```
-  python caimanmanager.py install
+  caimanmanager.py install
   ```
   or 
   ```
@@ -111,7 +111,7 @@ This will place that directory under your home directory in a directory called c
 If you prefer to manage this information somewhere else, the `CAIMAN_DATA` environment variable can be set to customise it. The caimanmanager tool and other libraries will respect that.
 
 ### Installation on Windows (Python 3.x)
-
+   * Increase the maximum size of your pagefile to 64G or more (http://www.tomshardware.com/faq/id-2864547/manage-virtual-memory-pagefile-windows.html ) - The Windows memmap interface is sensitive to the maximum setting and leaving it at the default can cause errors when processing larger datasets
    * Download and install Anaconda (Python 3.6) <http://docs.continuum.io/anaconda/install>. We recommend telling conda to modify your PATH variable (it is a checkbox during Anaconda install, off by default)
    * Use Conda to install git (With "conda install git")
    * Microsoft Build Tools for Visual Studio 2017 <https://www.visualstudio.com/downloads/#build-tools-for-visual-studio-2017>. Check the "Build Tools" box, and in the detailed view on the right check the "C/C++ CLI Tools" component too.

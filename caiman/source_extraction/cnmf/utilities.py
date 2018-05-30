@@ -26,7 +26,7 @@ from builtins import str
 from builtins import range
 from past.utils import old_div
 import numpy as np
-from scipy.sparse import spdiags, issparse, csc_matrix
+from scipy.sparse import spdiags, issparse, csc_matrix, csr_matrix
 import scipy.ndimage.morphology as morph
 from .initialization import greedyROI
 from ...base.rois import com
@@ -1039,7 +1039,7 @@ def normalize_AC(A, C, YrA, b, f, neurons_sn):
         YrA *= nA[:, None]
 
     if b is not None:
-        if 'sparse' in str(type(b)):
+        if issparse(b):
             nB = np.ravel(np.sqrt(b.power(2).sum(0)))
             b = csc_matrix(b)
             for k, i in enumerate(b.indptr[:-1]):
@@ -1048,8 +1048,13 @@ def normalize_AC(A, C, YrA, b, f, neurons_sn):
             nB = np.ravel(np.sqrt((b**2).sum(0)))
             b = np.atleast_2d(b)
             b /= nB
-        f = np.atleast_2d(f)
-        f *= nB[:, np.newaxis]
+        if issparse(f):
+            f = csr_matrix(f)
+            for k, i in enumerate(f.indptr[:-1]):
+                f.data[i:f.indptr[k + 1]] *= nB[k]            
+        else:
+            f = np.atleast_2d(f)
+            f *= nB[:, np.newaxis]
 
     if neurons_sn is not None:
         neurons_sn *= nA
