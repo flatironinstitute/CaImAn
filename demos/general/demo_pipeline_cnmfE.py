@@ -51,7 +51,7 @@ max_deviation_rigid = 3
 
 # parameters for source extraction and deconvolution
 p = 1               # order of the autoregressive system
-K = 70              # upper bound on number of components per patch, in general None
+K = None            # upper bound on number of components per patch, in general None
 gSig = 3            # gaussian width of a 2D gaussian kernel, which approximates a neuron
 gSiz = 13           # average diameter of a neuron, in general 4*gSig+1
 merge_thresh = .7   # merging threshold, max correlation allowed
@@ -64,12 +64,14 @@ ssub = 1            # downsampling factor in space for initialization,
 #                     increase if you have memory problems
 Ain = None          # if you want to initialize with some preselected components
 #                     you can pass them here as boolean vectors
-gnb = 16            # number of background components if positive,
+low_rank_background = None  # None leaves background of each patch intact,
+#                             True performs global low-rank approximation 
+gnb = -1            # number of background components (rank) if positive,
 #                     else exact ring model with following settings
 #                         gnb=-2: Return background as b and W
 #                         gnb=-1: Return full rank background B
 #                         gnb= 0: Don't return background
-nb_patch = 16       # number of background components per patch,
+nb_patch = -1       # number of background components (rank) per patch,
 #                     use 0 or -1 for exact background of ring model (cf. gnb)
 min_corr = .8       # min peak value from correlation image
 min_pnr = 10        # min peak to noise ration from PNR image
@@ -185,7 +187,7 @@ cnm = cnmf.CNMF(
     gnb=gnb,
     nb_patch=nb_patch,
     method_deconvolution='oasis',       # could use 'cvxpy' alternatively
-    low_rank_background=True,           # leave as is
+    low_rank_background=low_rank_background,
     update_background_components=True,  # sometimes setting to False improve the results
     min_corr=min_corr,
     min_pnr=min_pnr,
@@ -232,19 +234,24 @@ if display_images:
 
 #%% MOVIES
 if display_images:
+    B = cnm.b.dot(cnm.f)
+    if 'sparse' in str(type(B)):
+        B = B.toarray()
 # denoised movie
-    cm.movie(np.reshape(cnm.A.tocsc()[:, idx_components].dot(cnm.C[idx_components]) + cnm.b.dot(
-        cnm.f), dims + (-1,), order='F').transpose(2, 0, 1)).play(magnification=3, gain=1.)
+    cm.movie(np.reshape(cnm.A.tocsc()[:, idx_components].dot(cnm.C[idx_components]) + B,
+                        dims + (-1,), order='F').transpose(2, 0, 1)).play(magnification=3, gain=1.)
 # only neurons
     cm.movie(np.reshape(cnm.A.tocsc()[:, idx_components].dot(
         cnm.C[idx_components]), dims + (-1,), order='F').transpose(2, 0, 1)
     ).play(magnification=3, gain=10.)
 # only the background
-    cm.movie(np.reshape(cnm.b.dot(cnm.f), dims + (-1,),
-                        order='F').transpose(2, 0, 1)).play(magnification=3, gain=1.)
+    cm.movie(np.reshape(B, dims + (-1,), order='F').transpose(2, 0, 1)
+             ).play(magnification=3, gain=1.)
 # residuals
-    cm.movie(np.array(Y) - np.reshape(cnm.A.tocsc()[:, :].dot(cnm.C[:]) + cnm.b.dot(
-        cnm.f), dims + (-1,), order='F').transpose(2, 0, 1)).play(magnification=3, gain=10., fr=10)
+    cm.movie(np.array(Y) - np.reshape(cnm.A.tocsc()[:, :].dot(cnm.C[:]) + B,
+                                      dims + (-1,), order='F').transpose(2, 0, 1)
+             ).play(magnification=3, gain=10., fr=10)
 # eventually, you can rerun the algorithm on the residuals
-    plt.imshow(cm.movie(np.array(Y) - np.reshape(cnm.A.tocsc()[:, :].dot(cnm.C[:]) + cnm.b.dot(
-        cnm.f), dims + (-1,), order='F').transpose(2, 0, 1)).local_correlations(swap_dim=False))
+    plt.imshow(cm.movie(np.array(Y) - np.reshape(cnm.A.tocsc()[:, :].dot(cnm.C[:]) + B,
+                                                 dims + (-1,), order='F').transpose(2, 0, 1)
+                        ).local_correlations(swap_dim=False))
