@@ -98,7 +98,7 @@ While the code is compatible with Python 2.7 at the moment, all present and futu
 
   Once CaImAn is installed, you may want to get a working directory with code samples and datasets; pip installed a caimanmanager.py command that manages this. If you have not installed Caiman before, you can do 
   ```
-  python caimanmanager.py install
+  caimanmanager.py install
   ```
   or 
   ```
