@@ -88,7 +88,7 @@ global_params = {'min_SNR': .75,        # minimum SNR when considering adding a 
                  'max_thr': 0.25,       # parameter for thresholding components when cleaning up shapes
                  'mot_corr' : False,    # flag for motion correction (set to False to compare directly on the same FOV)
                  'min_num_trial' : 5,   # minimum number of times to attempt to add a component
-                 'path_to_model' : '/mnt/home/agiovann/SOFTWARE/CaImAn/use_cases/CaImAnpaper/net_models/sniper_sensitive.json', #'use_cases/edge-cutter/binary_cross_bootstrapped.json', #'use_cases/edge-cutter/residual_classifier_2classes.json',
+                 'path_to_model' : 'model/cnn_model_online.json', #'use_cases/edge-cutter/binary_cross_bootstrapped.json', #'use_cases/edge-cutter/residual_classifier_2classes.json',
                  'use_peak_max' : True,
                  'thresh_CNN_noisy' : .5,
                  'sniper_mode' : True,
@@ -143,7 +143,7 @@ params_movie[3] = {'fname': '/mnt/ceph/neuro/labeling/yuste.Single_150u/images/f
                  'decay_time' : .75,
                  'T1' : 3000,
                  'gnb': 3,
-                 'gSig': [5,5],  # expected half size of neurons
+                 'gSig': [6,6],  # expected half size of neurons
                  }
 
 
@@ -167,7 +167,7 @@ params_movie[5] = {'fname': '/mnt/ceph/neuro/labeling/neurofinder.01.01/images/f
                  'gnb':1,
                  'T1' : 1825,
                  'decay_time' : 1.4,
-                 'gSig': [6,6]
+                 'gSig': [7,7]
                  }
 #% Sue Ann k53
 params_movie[6] = {'fname': '/mnt/ceph/neuro/labeling/k53_20160530/images/final_map/Yr_d1_512_d2_512_d3_1_order_C_frames_116043_.mmap',
@@ -205,7 +205,6 @@ params_movie[8] = {'fname': '/mnt/ceph/neuro/labeling/J123_2015-11-20_L01_0/imag
                 'gtname':'/mnt/ceph/neuro/labeling/J123_2015-11-20_L01_0/regions/joined_consensus_active_regions.npy',
                  'ds_factor' : 2,
                  'epochs' : 1,
-                 'min_num_trial' : 2,
                  'p': 1,  # order of the autoregressive system
                  'fr' : 30,
                  'T1' : 1000,
@@ -256,12 +255,15 @@ ALL_CCs = []
 for ind_dataset in ID[:]:
     mot_corr = global_params['mot_corr']
     use_VST = False
+    use_mmap = True
 
     if mot_corr:
         fls = glob.glob('/'.join( params_movie[ind_dataset]['fname'].split('/')[:-3]+['images','tifs','*.tif']))
         template = cm.load( '/'.join( params_movie[ind_dataset]['fname'].split('/')[:-3]+['projections','median_projection.tif']))
     else:
-        if not use_VST:
+        if use_mmap:
+            fls = glob.glob('/'.join( params_movie[ind_dataset]['fname'].split('/')[:-3]+['images','mmap','*.mmap']))
+        elif not use_VST:
             fls = glob.glob('/'.join( params_movie[ind_dataset]['fname'].split('/')[:-3]+['images','mmap_tifs','*.tif']))
         else:
             fls = glob.glob('/'.join( params_movie[ind_dataset]['fname'].split('/')[:-3]+['images','tiff_VST','*.tif']))
@@ -429,7 +431,7 @@ for ind_dataset in ID[:]:
             for file_count, ffll in enumerate(process_files):  # np.array(fls)[np.array([1,2,3,4,5,-5,-4,-3,-2,-1])]:
                 print('Now processing file ' + ffll)
                 t_load = time()
-                Y_ = cm.load(ffll, subindices=slice(init_batc_iter[file_count],T1,None))
+                Y_ = cm.load(ffll, subindices=slice(init_batc_iter[file_count],T1,None), in_memory=True)
                 timings['load'] += time() - t_load
 
                 if plot_contours_flag:   # update max-correlation (and perform offline motion correction) just for illustration purposes

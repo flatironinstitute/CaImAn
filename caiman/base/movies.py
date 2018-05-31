@@ -1347,7 +1347,8 @@ def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None,
             Yr, dims, T = load_memmap(os.path.join(
                 os.path.split(file_name)[0], filename))
             images = np.reshape(Yr.T, [T] + list(dims), order='F')
-            
+            if subindices is not None:
+                images = images[subindices]
 
             if in_memory:
                 print('loading in memory')
