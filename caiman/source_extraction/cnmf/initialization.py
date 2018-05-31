@@ -1491,12 +1491,16 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
                     # deconvolution
                     ci, baseline, c1, _, _, si, _ = \
                         constrained_foopsi(ci_raw, **deconvolve_options)
+                    if ci.sum() == 0:
+                        continue
                     Cin[num_neurons] = ci
                     Sin[num_neurons] = si
                 else:
                     # no deconvolution
                     ci = ci_raw.copy()
                     ci[ci < 0] = 0
+                    if ci.sum() == 0:
+                        continue
                     Cin[num_neurons] = ci.squeeze()
 
                 if save_video:
