@@ -59,7 +59,7 @@ except:
 # 9: sue_ann_k37
 #10: Jan-AMG_exp3_001
 
-ind_dataset = 8
+ind_dataset = 2
 
 #%% set some global parameters here
 #'use_cases/edge-cutter/binary_cross_bootstrapped.json'
