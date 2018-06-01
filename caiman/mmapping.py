@@ -57,7 +57,7 @@ def load_memmap(filename, mode='r'):
         exception if not in mmap
 
     """
-    if os.path.splitext(filename)[1] == '.mmap':
+    if ('.mmap' in filename):
         # Strip path components and use CAIMAN_DATA/example_movies
         # TODO: Eventually get the code to save these in a different dir
         file_to_load = filename
@@ -69,7 +69,8 @@ def load_memmap(filename, mode='r'):
             d1 * d2 * d3, T), dtype=np.float32, order=order)
         return (Yr, (d1, d2), T) if d3 == 1 else (Yr, (d1, d2, d3), T)
     else:
-        raise Exception('Not implemented consistently')
+        print(filename)
+        raise Exception('Unknown file extension (should be .mmap)')
 
 #%%
 def save_memmap_each(fnames, dview=None, base_name=None, resize_fact=(1, 1, 1), remove_init=0,
@@ -352,8 +353,9 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
     if len(filenames) > 1:
         is_inconsistent_order = False
         for file__ in filenames:
-            if 'order_' + order not in file__:
+            if ('order_' + order not in file__) or ('.mmap' not in file__):
                 is_inconsistent_order = True
+        
 
         if is_inconsistent_order: # Here we make a bunch of memmap files in the right order. Same parameters
             fname_new = cm.save_memmap_each(filenames,
