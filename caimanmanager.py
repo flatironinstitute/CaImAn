@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
 import argparse
 import distutils.dir_util
 import filecmp
@@ -169,6 +170,8 @@ def main():
 			do_nt_run_demotests(cfg.userdir)
 		else:
 			do_run_demotests(cfg.userdir)
+	elif cfg.command == 'help':
+		print("The following are valid subcommands: install, check, test, demotest")
 	else:
 		raise Exception("Unknown command")
 

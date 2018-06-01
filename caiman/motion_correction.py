@@ -56,6 +56,8 @@ import h5py
 import collections
 import caiman as cm
 
+from .mmapping import prepare_shape
+
 try:
     cv2.setNumThreads(0)
 except:
@@ -416,7 +418,7 @@ def apply_shift_online(movie_iterable, xy_shifts, save_base_name=None, order='F'
             1 if len(dims) == 3 else dims[3]) + '_order_' + str(order) + '_frames_' + str(dims[0]) + '_.mmap'
 
         big_mov = np.memmap(fname_tot, mode='w+', dtype=np.float32,
-                            shape=(np.prod(dims[1:]), dims[0]), order=order)
+                            shape=prepare_shape((np.prod(dims[1:]), dims[0])), order=order)
 
     for page, shift in zip(movie_iterable, xy_shifts):
         if 'tifffile' in str(type(movie_iterable[0])):
@@ -659,7 +661,7 @@ def motion_correct_online(movie_iterable, add_to_movie, max_shift_w=25, max_shif
             fname_tot = save_base_name + '_d1_' + str(dims[1]) + '_d2_' + str(dims[2]) + '_d3_' + str(
                 1 if len(dims) == 3 else dims[3]) + '_order_' + str(order) + '_frames_' + str(dims[0]) + '_.mmap'
             big_mov = np.memmap(fname_tot, mode='w+', dtype=np.float32,
-                                shape=(np.prod(dims[1:]), dims[0]), order=order)
+                                shape=prepare_shape((np.prod(dims[1:]), dims[0])), order=order)
 
         else:
             fname_tot = None
@@ -2386,7 +2388,7 @@ def tile_and_correct_wrapper(params):
 
     if out_fname is not None:
         outv = np.memmap(out_fname, mode='r+', dtype=np.float32,
-                         shape=shape_mov, order='F')
+                         shape=prepare_shape(shape_mov), order='F')
         if nonneg_movie:
             bias = np.float32(add_to_movie)
         else:
@@ -2481,7 +2483,7 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
             1 if len(dims) == 2 else dims[2]) + '_order_' + str(order) + '_frames_' + str(T) + '_.mmap'
         fname_tot = os.path.join(os.path.split(fname)[0], fname_tot)
         np.memmap(fname_tot, mode='w+', dtype=np.float32,
-                  shape=shape_mov, order=order)
+                  shape=prepare_shape(shape_mov), order=order)
     else:
         fname_tot = None
 
