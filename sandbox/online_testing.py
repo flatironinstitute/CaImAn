@@ -51,7 +51,10 @@ def remove_baseline_fast(traces, bl_percentile=8):
 #%%
 from scipy.stats import norm
 #a = cm.load('example_movies/demoMovie.tif')
-a = cm.load('/mnt/ceph/neuro/labeling/yuste.Single_150u/images/tifs/Single_150um_024.tif')
+#a = cm.load('/mnt/ceph/neuro/labeling/yuste.Single_150u/images/tifs/Single_150um_024.tif')
+#a = cm.load('/Users/agiovann/example_movies_ALL/quietBlock_2_ds_2_2.hdf5')
+a = cm.load('/mnt/ceph/neuro/labeling/yuste.Single_150u/images/tifs/Yr_d1_200_d2_256_d3_1_order_C_frames_3000_.mmap')
+
 all_els = []
 for it in range(1):
     print(it)
@@ -66,7 +69,7 @@ for it in range(1):
     mns = cm.movie(scipy.ndimage.convolve(np.reshape(
         Yr_c, [-1, a.shape[1], a.shape[2]], order='F'), np.ones([5, 3, 3])))
     mns[mns < (38 * np.log10((mns.shape[0])))] = 0
-    all_els.append(np.sum(mns > 0)/np.sum(Yr>0))
+    all_els.append(np.sum(mns > 0)/Yr.size)
     print(all_els)
 
 
@@ -75,9 +78,19 @@ for it in range(1):
 m1 = cm.movie((np.array((Yr - md) / sd_r)
                ).reshape([-1, a.shape[1],a.shape[2]], order='F')) * (mns > 0)
 #%%
+m2 = cm.movie((np.array((Yr-md)/sd_r)).reshape(m1.shape,order = 'F'))*(scipy.ndimage.convolve(mns>0,np.ones([5,3,3])))
+#%%
+if False:
+    b1 = np.percentile(Yr,20,axis=0).reshape([a.shape[1],a.shape[2]], order='F')
+
+    m1 = cm.movie((np.array((Yr - md))
+               ).reshape([-1, a.shape[1],a.shape[2]], order='F'))
+#%%
 m1.save('/mnt/ceph/neuro/labeling/yuste.Single_150u/images/tifs/Single_150um_024_sparse.tif')
 #%%
-m1.save('example_movies/demoMovie_sparse.tif')
+m1.save('/Users/agiovann/example_movies_ALL/quietBlock_2_ds_2_2_sparse.tif')
+#%%
+m2.astype(np.float32).save('/Users/agiovann/example_movies_ALL/quietBlock_2_ds_2_2_sparse_thresh.tif')
 #%%
 mov = Yr
 #%%
@@ -206,3 +219,45 @@ crd = plot_contours(A.tocsc(), np.mean(images, 0), thr=0.9)
 #%%
 view_patches_bar(Yr, scipy.sparse.coo_matrix(A.tocsc()[:, idx_components]), C[
     idx_components, :], b, f, dims[0], dims[1], YrA=YrA[idx_components, :], img=Cn)
+#%%
+a.fr=10
+m_bg, bg = a.computeDFF(quantilMin=10, secsWindow=10)
+#%%
+bg_ds = bg.resize(.1,.1,1)
+dims_bg = bg_ds.shape[1:]
+#%%
+n_b = 1
+model = NMF(n_components=n_b , init='nndsvdar')
+b_in = model.fit_transform(np.maximum(bg_ds.reshape((-1,np.prod(dims_bg)), order='F').T, 0)).astype(np.float32)
+f_in = model.components_.squeeze().astype(np.float32)
+#%%
+for i in range(n_b ):
+    pl.subplot(1,n_b ,i+1)
+    pl.imshow(b_in.reshape(dims_bg+(-1,),order='F')[:,:,i],vmax = np.mean(b_in[:,i])*3,cmap='gray')
+#%%
+def HALS4activity(Yr, A, C, iters=2):
+        U = A.T.dot(Yr)
+        V = A.T.dot(A)
+        for _ in range(iters):
+            for m in range(len(U)):  # neurons and background
+                C[m] = np.clip(C[m] + (U[m] - V[m].dot(C)) /
+                               V[m, m], 0, np.inf)
+        return C
+
+def HALS4shape(Yr, A, C, iters=2):
+        U = C.dot(Yr.T)
+        V = C.dot(C.T)
+        for _ in range(iters):
+            for m in range(A.shape[-1]):  # background
+                A[:, m] = np.clip(A[:, m] + ((U[m] - V[m].dot(A.T)) /
+                                                     V[m, m]), 0, np.inf)
+        return A
+#%%
+b = np.array([cv2.resize(b_in[:,ii].reshape(dims_bg, order='F'),(a.shape[2],a.shape[1])).flatten(order='F') for ii in range(n_b)]) .T
+f = HALS4activity(Yr.T, b, cv2.resize(f_in,(a.shape[0],n_b)), iters=5)
+b = HALS4shape(Yr.T, b, f, iters=5)
+f = HALS4activity(Yr.T, b, f, iters=5)
+#%%
+for i in range(n_b):
+    pl.subplot(1,n_b ,i+1)
+    pl.imshow(b.reshape((a.shape[1],a.shape[2])+(-1,),order='F')[:,:,i],vmax = np.mean(b[:,i])*3,cmap='gray')

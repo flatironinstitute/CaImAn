@@ -58,10 +58,14 @@ We recently incorporated a Python implementation of the OnACID [[5]](#onacid) al
 
 ## Installation for calcium imaging data analysis
 
-### Install Changes
+### Installation Changes
 In May 2018, the way CaImAn is installed changed; we now register the package with Python's package management facilities rather than rely on people working out of the source tree. If you have an older install, these are things you should be aware of:
 * You should not set PYTHONPATH to the CaImAn source directory any more. If you did this before (in your dotfiles or elsewhere) you should remove that.
 * Unless you're installing with `pip install -e` (documented below), you should no longer work out of your checkout directory. The new install mode expects you to use caimanmanager (also documented below) to manage the demos and the place in which you'll be running code. An installed version of caimanmanager will be added to your path and should not be run out of the checkout directory.
+
+### Upgrading CaImAn
+
+If you want to upgrade CaImAn (and have already used the pip installer to install it) following the instructions given in the [wiki](https://github.com/flatironinstitute/CaImAn/wiki/Updating-CaImAn).
 
 ### Installation on Mac or Linux (Python 3.x)
 
@@ -94,7 +98,7 @@ While the code is compatible with Python 2.7 at the moment, all present and futu
 
   Once CaImAn is installed, you may want to get a working directory with code samples and datasets; pip installed a caimanmanager.py command that manages this. If you have not installed Caiman before, you can do 
   ```
-  python caimanmanager.py install
+  caimanmanager.py install
   ```
   or 
   ```
@@ -107,11 +111,10 @@ This will place that directory under your home directory in a directory called c
 If you prefer to manage this information somewhere else, the `CAIMAN_DATA` environment variable can be set to customise it. The caimanmanager tool and other libraries will respect that.
 
 ### Installation on Windows (Python 3.x)
-
-   * Download and install Anaconda (Python 3.6) <http://docs.continuum.io/anaconda/install>, 
-   * GIT (<https://git-scm.com/>) and 
-   * Microsoft Build Tools for Visual Studio 2017 <https://www.visualstudio.com/downloads/#build-tools-for-visual-studio-2017>
-   * reboot.
+   * Increase the maximum size of your pagefile to 64G or more (http://www.tomshardware.com/faq/id-2864547/manage-virtual-memory-pagefile-windows.html ) - The Windows memmap interface is sensitive to the maximum setting and leaving it at the default can cause errors when processing larger datasets
+   * Download and install Anaconda (Python 3.6) <http://docs.continuum.io/anaconda/install>. We recommend telling conda to modify your PATH variable (it is a checkbox during Anaconda install, off by default)
+   * Use Conda to install git (With "conda install git")
+   * Microsoft Build Tools for Visual Studio 2017 <https://www.visualstudio.com/downloads/#build-tools-for-visual-studio-2017>. Check the "Build Tools" box, and in the detailed view on the right check the "C/C++ CLI Tools" component too.
 
     ```bash
     

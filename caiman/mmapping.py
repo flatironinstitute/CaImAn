@@ -370,6 +370,10 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
             fname_new = filenames
 
         # The goal is to make a single large memmap file, which we do here
+        if order == 'F':
+            raise exception('You cannot merge files in F order, they must be in C order')
+            
+            
         fname_new = cm.save_memmap_join(fname_new, base_name=base_name, dview=dview, n_chunks=n_chunks)
 
     else:
