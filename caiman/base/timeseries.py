@@ -156,7 +156,7 @@ class timeseries(np.ndarray):
         parameters:
         ----------
         file_name: str
-            name of file. Possible formats are tif, avi, npz and hdf5
+            name of file. Possible formats are tif, avi, npz, mmap and hdf5
 
         to32: Bool
             whether to transform to 32 bits
