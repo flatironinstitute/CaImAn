@@ -155,7 +155,10 @@ def run_mc_ui(_):
 		context.mc_rig = mc_results
 	else:
 		context.mc_nonrig = mc_results
+		context.border_pix = np.ceil(np.maximum(np.max(np.abs(mc_results[0].x_shifts_els)), \
+			np.max(np.abs(mc_results[0].y_shifts_els)))).astype(np.int)
 	context.mc_mmaps = mmap_files
+
 	if is_batch:
 		update_status("Motion Correction DONE!", str(mmap_files[0]))
 	else:
@@ -291,7 +294,7 @@ def run_cnmf_ui(_):
 		'Ain':None,
 		'rf': rf_ if is_patches else None, #enables patches;
 		'stride': stride_ if is_patches else None,
-		'only_init_patch': True,
+		'only_init_patch': False,
 		'gnb':gnb_,
 		'nb_patch':gnb_, #number of background components per patch
 		'method_deconvolution':'oasis',
@@ -305,7 +308,8 @@ def run_cnmf_ui(_):
 		'center_psf': True,
 		'deconv_flag': bool(deconv_flag_widget.value),
 		'simultaneously': False,
-		'del_duplicates':True
+		'del_duplicates':True,
+		'border_pix':context.border_pix,
 	}
 	#save params to context
 	context.cnmf_params = cnmf_params
@@ -314,6 +318,8 @@ def run_cnmf_ui(_):
 	filename=os.path.split(context.working_cnmf_file)[-1]
 	# =
 	Yr, dims, T = load_memmap(os.path.join(os.path.split(context.working_cnmf_file)[0],filename))
+	#bord_px_els = np.ceil(np.maximum(np.max(np.abs(mc.x_shifts_els)),
+                                 #np.max(np.abs(mc.y_shifts_els)))).astype(np.int)
 	#get correlation image
 	context.YrDT = Yr, dims, T
 	print("Starting CNMF-E...")

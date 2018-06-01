@@ -31,6 +31,7 @@ class Context: #used to save data related to analysis (not serializable)
 		self.mc_mmaps = [] # list of file names of created mmaps from motion correction
 		self.mc_rig = []    #rigid mc results
 		self.mc_nonrig = [] #non-rigid mc results
+		self.border_pix = 0 #for non-rigid border pixel removal of NaNs
 
 		self.YrDT = None # tuple (Yr, dims, T), Yr: numpy array (memmory mapped file)
 		self.cnmf_results = [] #A, C, b, f, YrA, sn, idx_components, S
@@ -67,6 +68,7 @@ class Context: #used to save data related to analysis (not serializable)
 			self.mc_mmaps,
 			self.mc_rig,
 			self.mc_nonrig,
+			self.border_pix,
 			self.YrDT,
 			self.cnmf_results,
 			self.idx_components_keep,
@@ -94,8 +96,12 @@ class Context: #used to save data related to analysis (not serializable)
 			self.working_dir, self.working_mc_files, self.working_cnmf_file, self.mc_rig, \
 			self.mc_nonrig, self.YrDT, self.cnmf_results, self.idx_components_keep, \
 			self.idx_components_toss, self.cnmf_params, self.correlation_img, self.mc_dsfactors = tmpd
-		else:
+		elif len(tmpd) == 13: #for backward compatibility
 			self.working_dir, self.working_mc_files, self.working_cnmf_file, self.mc_mmaps, self.mc_rig, \
 			self.mc_nonrig, self.YrDT, self.cnmf_results, self.idx_components_keep, \
+			self.idx_components_toss, self.cnmf_params, self.correlation_img, self.mc_dsfactors = tmpd
+		else:
+			self.working_dir, self.working_mc_files, self.working_cnmf_file, self.mc_mmaps, self.mc_rig, \
+			self.mc_nonrig, self.border_pix, self.YrDT, self.cnmf_results, self.idx_components_keep, \
 			self.idx_components_toss, self.cnmf_params, self.correlation_img, self.mc_dsfactors = tmpd
 		print("Context loaded from: %s" % (path,))

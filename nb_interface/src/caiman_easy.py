@@ -168,6 +168,8 @@ def run_mc(fnames, mc_params, dsfactors, rigid=True, batch=True, scope_type=2):
 			mc_mov = cm.load(mc.fname_tot_els)
 			bord_px_els = np.ceil(np.maximum(np.max(np.abs(mc.x_shifts_els)),
 								 np.max(np.abs(mc.y_shifts_els)))).astype(np.int)
+			mc.fname_tot_els = cm.save_memmap(mc.fname_tot_els, base_name='memmap_', order='C',\
+				border_to_0=bord_px_els)  # exclude borders
 		# TODO : needinfo
 		mc_list.append(mc)
 		#remove generated TIFF, if applicable
