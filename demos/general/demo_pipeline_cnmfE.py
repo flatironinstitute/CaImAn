@@ -68,9 +68,9 @@ low_rank_background = None  # None leaves background of each patch intact,
 #                             True performs global low-rank approximation 
 gnb = -1            # number of background components (rank) if positive,
 #                     else exact ring model with following settings
-#                         gnb=-2: Return background as b and W
+#                         gnb= 0: Return background as b and W
 #                         gnb=-1: Return full rank background B
-#                         gnb= 0: Don't return background
+#                         gnb=-2: Don't return background
 nb_patch = -1       # number of background components (rank) per patch,
 #                     use 0 or -1 for exact background of ring model (cf. gnb)
 min_corr = .8       # min peak value from correlation image

@@ -223,6 +223,55 @@ def HALS4activity(Yr, A, noisyC, AtA, iters=5, tol=1e-3, groups=None):
     return C, noisyC
 
 
+def demix1p(y, A, noisyC, AtA, Atb, AtW, AtWA, iters=5, tol=1e-3, groups=None):
+    """
+    Solve C = argmin_C ||Yr-AC-B|| using block-coordinate decent
+    where B = W(Y-AC-b0) + b0  (ring model for 1p data)
+    Parameters
+    ----------
+    y : array of float, shape (x*y[*z],)
+        flattened array of raw data frame
+    A : sparse matrix of float
+        neural shapes
+    noisyC : ndarray of float
+        Initial value of fluorescence intensities.
+    AtA : ndarray of float
+        Overlap matrix of shapes A.
+    Atb : ndarray of float
+        Projection of constant background terms on shapes A: A'(Wb0-b0)
+    AtW : sparse matrix of float, shape (x*y, x*y)
+        Projection of ring matrix W on shapes A
+    AtWA : ndarray of float
+        A'*W*A
+    iters : int, optional
+        Maximal number of iterations.
+    tol : float, optional
+        Tolerance.
+    groups: list of lists
+        groups of components to update in parallel
+    """
+    AtY = A.T.dot(y)
+    AtWyb = AtW.dot(y) - Atb  # Atb is A'(Wb0-b0)
+    num_iters = 0
+    C_old = np.zeros_like(noisyC)
+    C = noisyC.copy()
+    # faster than np.linalg.norm
+    def norm(c): return sqrt(c.ravel().dot(c.ravel()))
+    while (norm(C_old - C) >= tol * norm(C_old)) and (num_iters < iters):
+        C_old[:] = C
+        AtB = AtWyb - AtWA.dot(C)  # A'B = A'WY - A'WAC - A'(Wb0-b0)
+        if groups is None:
+            for m in range(len(AtY)):
+                noisyC[m] = C[m] + (AtY[m] - AtA[m].dot(C) - AtB[m]) / AtA[m, m]
+                C[m] = max(noisyC[m], 0)
+        else:
+            for m in groups:
+                noisyC[m] = C[m] + (AtY[m] - AtA[m].dot(C) - AtB[m]) / AtA.diagonal()[m]
+                C[m] = np.maximum(noisyC[m], 0)           
+        num_iters += 1
+    return C, noisyC
+
+
 @profile
 def demix_and_deconvolve(C, noisyC, AtY, AtA, OASISinstances, iters=3, n_refit=0):
     """
@@ -330,7 +379,7 @@ def init_shapes_and_sufficient_stats(Y, A, C, b, f, bSiz=3):
     Ab = scipy.sparse.csc_matrix(Ab)
     ind_A = [Ab.indices[Ab.indptr[m]:Ab.indptr[m + 1]]
              for m in range(nb, nb + K)]
-    Cf = np.r_[f.reshape(nb, -1), C]
+    Cf = np.r_[f.reshape(nb, -1), C] if f.size else C
     CY = Cf.dot(np.reshape(Y, (np.prod(dims), T), order='F').T)
     CC = Cf.dot(Cf.T)
     # # hals
