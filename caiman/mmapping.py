@@ -144,7 +144,7 @@ def save_memmap_each(fnames, dview=None, base_name=None, resize_fact=(1, 1, 1), 
 
 
 #%%
-def save_memmap_join(mmap_fnames, base_name=None, n_chunks=20, dview=None):
+def save_memmap_join(mmap_fnames, base_name=None, n_chunks=20, dview=None, add_to_mov = 0):
     """
     From small memory mappable files creates a large one
 
@@ -192,7 +192,7 @@ def save_memmap_join(mmap_fnames, base_name=None, n_chunks=20, dview=None):
     step = np.int(old_div(d, n_chunks))
     pars = []
     for ref in range(0, d - step + 1, step):
-        pars.append([fname_tot, d, tot_frames, mmap_fnames, ref, ref + step])
+        pars.append([fname_tot, d, tot_frames, mmap_fnames, ref, ref + step, add_to_mov])
     # last batch should include the leftover pixels
     pars[-1][-1] = d
 
@@ -255,14 +255,15 @@ def my_map(dv, func, args):
 def save_portion(pars):
     # todo: todocument
     use_mmap_save = False
-    big_mov, d, tot_frames, fnames, idx_start, idx_end = pars
+    big_mov, d, tot_frames, fnames, idx_start, idx_end, add_to_mov = pars
     Ttot = 0
     Yr_tot = np.zeros((idx_end - idx_start, tot_frames), dtype = np.float32)
     print((Yr_tot.shape))
     for f in fnames:
         print(f)
         Yr, _, T = load_memmap(f)
-        Yr_tot[:, Ttot:Ttot + T] = np.ascontiguousarray(Yr[idx_start:idx_end], dtype = np.float32)
+
+        Yr_tot[:, Ttot:Ttot + T] = np.ascontiguousarray(Yr[idx_start:idx_end] , dtype = np.float32) + add_to_mov
         Ttot = Ttot + T
         del Yr
 
@@ -355,7 +356,7 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
         for file__ in filenames:
             if ('order_' + order not in file__) or ('.mmap' not in file__):
                 is_inconsistent_order = True
-        
+
 
         if is_inconsistent_order: # Here we make a bunch of memmap files in the right order. Same parameters
             fname_new = cm.save_memmap_each(filenames,
@@ -374,9 +375,9 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
         # The goal is to make a single large memmap file, which we do here
         if order == 'F':
             raise exception('You cannot merge files in F order, they must be in C order')
-            
-            
-        fname_new = cm.save_memmap_join(fname_new, base_name=base_name, dview=dview, n_chunks=n_chunks)
+
+
+        fname_new = cm.save_memmap_join(fname_new, base_name=base_name, dview=dview, n_chunks=n_chunks, add_to_mov = add_to_movie)
 
     else:
     # TODO: can be done online
@@ -423,7 +424,7 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
             T, dims = Yr.shape[0], Yr.shape[1:]
             Yr = np.transpose(Yr, list(range(1, len(dims) + 1)) + [0])
             Yr = np.reshape(Yr, (np.prod(dims), T), order='F')
-            Yr = np.ascontiguousarray(Yr, dtype=np.float32) + 1e-10 + add_to_movie
+            Yr = np.ascontiguousarray(Yr, dtype=np.float32) + 0.0001 + add_to_movie
 
             if idx == 0:
                 fname_tot = base_name + '_d1_' + str(dims[0]) + '_d2_' + str(dims[1]) + '_d3_' + str(
