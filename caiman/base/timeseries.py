@@ -272,7 +272,7 @@ class timeseries(np.ndarray):
                 1 if len(dims) == 2 else dims[2]) + '_order_' + str(order) + '_frames_' + str(T) + '_.mmap'
             fname_tot = os.path.join(os.path.split(file_name)[0], fname_tot)
             big_mov = np.memmap(fname_tot, mode='w+', dtype=np.float32,
-                                shape=(np.prod(dims), T), order=order)
+                                shape=(np.uint64(np.prod(dims)), np.uint64(T)), order=order)
 
             big_mov[:] = np.asarray(input_arr, dtype=np.float32)
             big_mov.flush()
