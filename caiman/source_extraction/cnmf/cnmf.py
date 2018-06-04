@@ -42,6 +42,7 @@ from caiman import components_evaluation, mmapping
 import cv2
 from .online_cnmf import RingBuffer, HALS4activity, demix_and_deconvolve, remove_components_online
 from .online_cnmf import init_shapes_and_sufficient_stats, update_shapes, update_num_components
+from .online_cnmf import demix1p
 import scipy
 import psutil
 import pylab as pl
@@ -758,9 +759,9 @@ class CNMF(object):
             self.C_on[:self.N, :self.initbatch] = self.C2
 
         self.Ab, self.ind_A, self.CY, self.CC = init_shapes_and_sufficient_stats(
-            Yr[:, :self.initbatch].reshape(
-                self.dims2 + (-1,), order='F'), self.A2,
-            self.C_on[:self.N, :self.initbatch], self.b2, self.noisyC[:self.gnb, :self.initbatch])
+            Yr[:, :self.initbatch].reshape(self.dims2 + (-1,), order='F'), self.A2,
+            self.C_on[:self.N, :self.initbatch], self.b2, self.noisyC[:self.gnb, :self.initbatch],
+            W=self.W if self.center_psf else None, b0=self.b0 if self.center_psf else None)
 
         self.CY, self.CC = self.CY * 1. / self.initbatch, 1 * self.CC / self.initbatch
 
@@ -805,6 +806,10 @@ class CNMF(object):
         self.sv = np.sum(self.rho_buf.get_last_frames(
             min(self.initbatch, self.minibatch_shape) - 1), 0)
         self.groups = list(map(list, update_order(self.Ab)[0]))
+        if self.center_psf:
+            self.Atb = self.Ab.T.dot(self.W.dot(self.b0) - self.b0)
+            self.AtW = self.Ab.T.dot(self.W)
+            self.AtWA = self.AtW.dot(self.Ab).toarray()
         # self.update_counter = np.zeros(self.N)
         self.update_counter = .5**(-np.linspace(0, 1,
                                                 self.N, dtype=np.float32))
@@ -873,8 +878,13 @@ class CNMF(object):
         if (not self.simultaneously) or self.p == 0:
             # get noisy fluor value via NNLS (project data on shapes & demix)
             C_in = self.noisyC[:self.M, t - 1].copy()
-            self.C_on[:self.M, t], self.noisyC[:self.M, t] = HALS4activity(
-                frame, self.Ab, C_in, self.AtA, iters=num_iters_hals, groups=self.groups)
+            if self.center_psf:
+                self.C_on[:self.M, t], self.noisyC[:self.M, t] = demix1p(
+                    frame, self.Ab, C_in, self.AtA, Atb=self.Atb, AtW=self.AtW,
+                    AtWA=self.AtWA, iters=num_iters_hals, groups=self.groups)
+            else:
+                self.C_on[:self.M, t], self.noisyC[:self.M, t] = HALS4activity(
+                    frame, self.Ab, C_in, self.AtA, iters=num_iters_hals, groups=self.groups)
             if self.p:
                 # denoise & deconvolve
                 for i, o in enumerate(self.OASISinstances):
@@ -883,6 +893,9 @@ class CNMF(object):
                               1: t + 1] = o.get_c_of_last_pool()
 
         else:
+            if self.center_psf:
+                raise NotImplementedError(
+                    'simultaneous demixing and deconvolution not implemented yet for cnmfE')
             # update buffer, initialize C with previous value
             self.C_on[:, t] = self.C_on[:, t - 1]
             self.noisyC[:, t] = self.C_on[:, t - 1]
@@ -1023,11 +1036,12 @@ class CNMF(object):
             ccf = self.C_on[:self.M, t - self.minibatch_suff_stat:t -
                             self.minibatch_suff_stat + 1]
             y = self.Yr_buf.get_last_frames(self.minibatch_suff_stat)[:1]
+            if self.center_psf:  # subtract background
+                y -= (self.W.dot((y - self.Ab.dot(ccf).T - self.b0).T).T + self.b0)
             # much faster: exploit that we only access CY[m, ind_pixels], hence update only these
             for m in range(self.N):
                 self.CY[m + nb_, self.ind_A[m]] *= (1 - 1. / t)
-                self.CY[m + nb_, self.ind_A[m]] += ccf[m +
-                                                       nb_].dot(y[:, self.ind_A[m]]) / t
+                self.CY[m + nb_, self.ind_A[m]] += ccf[m + nb_].dot(y[:, self.ind_A[m]]) / t
             self.CY[:nb_] = self.CY[:nb_] * (1 - 1. / t) + ccf[:nb_].dot(y / t)
             self.CC = self.CC * (1 - 1. / t) + ccf.dot(ccf.T / t)
 
@@ -1058,6 +1072,10 @@ class CNMF(object):
                                                        sn=self.sn, q=self.q)
 
                 self.AtA = (Ab_.T.dot(Ab_)).toarray()
+                if self.center_psf:
+                    self.Atb = Ab_.T.dot(self.W.dot(self.b0) - self.b0)
+                    self.AtW = Ab_.T.dot(self.W)
+                    self.AtWA = self.AtW.dot(Ab_).toarray()
 
                 ind_zero = list(np.where(self.AtA.diagonal() < 1e-10)[0])
                 if len(ind_zero) > 0:

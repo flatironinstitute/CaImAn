@@ -354,7 +354,7 @@ def demix_and_deconvolve(C, noisyC, AtY, AtA, OASISinstances, iters=3, n_refit=0
 
 
 #%% Estimate shapes on small initial batch
-def init_shapes_and_sufficient_stats(Y, A, C, b, f, bSiz=3):
+def init_shapes_and_sufficient_stats(Y, A, C, b, f, W=None, b0=None, bSiz=3):
     # smooth the components
     dims, T = np.shape(Y)[:-1], np.shape(Y)[-1]
     K = A.shape[1]  # number of neurons
@@ -381,17 +381,10 @@ def init_shapes_and_sufficient_stats(Y, A, C, b, f, bSiz=3):
              for m in range(nb, nb + K)]
     Cf = np.r_[f.reshape(nb, -1), C] if f.size else C
     CY = Cf.dot(np.reshape(Y, (np.prod(dims), T), order='F').T)
+    if W is not None:
+        CY -= Cf.dot(W.dot(np.reshape(Y, (np.prod(dims), T), order='F') -
+                           A.dot(C) - b0[:, None]).T + b0)
     CC = Cf.dot(Cf.T)
-    # # hals
-    # for _ in range(5):
-    #     for m in range(K):  # neurons
-    #         ind_pixels = ind_A[m]
-    #         Ab[ind_pixels, m] = np.clip(
-    #             Ab[ind_pixels, m] + ((CY[m, ind_pixels] - CC[m].dot(Ab[ind_pixels].T)) / CC[m, m]),
-    #             0, np.inf)
-    #     for m in range(K, K + nb):  # background
-    #         Ab[:, m] = np.clip(Ab[:, m] + ((CY[m] - CC[m].dot(Ab.T)) /
-    #                                        CC[m, m]), 0, np.inf)
     return Ab, ind_A, CY, CC
 
 
