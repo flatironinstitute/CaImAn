@@ -458,7 +458,10 @@ class CNMF(object):
             if self.only_init:  # only return values after initialization
 
                 if self.center_psf:
-                    self.S, self.bl, self.c1, self.neurons_sn, self.g, self.YrA = extra_1p
+                    try:
+                        self.S, self.bl, self.c1, self.neurons_sn, self.g, self.YrA = extra_1p
+                    except:
+                        self.S, self.bl, self.c1, self.neurons_sn, self.g, self.YrA, self.W, self.b0 = extra_1p
                 else:
                     self.YrA = compute_residuals(
                         Yr, self.Ain, self.b_in, self.Cin, self.f_in,

@@ -1324,18 +1324,22 @@ def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None,
 
             else:
                 with h5py.File(file_name, "r") as f:
-                    if 'imaging' in f.keys():
+                    if var_name_hdf5 in f.keys():
                         if subindices is None:
-                            images = np.array(f['imaging']).squeeze()
+                            images = np.array(f[var_name_hdf5]).squeeze()
                             if images.ndim > 3:
                                 images = images[:, 0]
                         else:
                             images = np.array(
-                                f['imaging'][subindices]).squeeze()
+                                f[var_name_hdf5][subindices]).squeeze()
                             if images.ndim > 3:
                                 images = images[:, 0]
 
+                        #input_arr = images
                         return movie(images.astype(outtype))
+                    else:
+                        print('KEYS:'+str(f.keys()))
+                        raise Exception('Key not found in hdf5n file')
 
         elif extension == '.mmap':
 
@@ -1343,7 +1347,8 @@ def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None,
             Yr, dims, T = load_memmap(os.path.join(
                 os.path.split(file_name)[0], filename))
             images = np.reshape(Yr.T, [T] + list(dims), order='F')
-            
+            if subindices is not None:
+                images = images[subindices]
 
             if in_memory:
                 print('loading in memory')

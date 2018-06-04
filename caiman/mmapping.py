@@ -29,6 +29,13 @@ except ImportError:
     from skimage.external import tifffile as tifffile
 
 
+def prepare_shape(mytuple):
+    """ This promotes the elements inside a shape into np.uint64. It is intended to prevent overflows
+        with some numpy operations that are sensitive to it, e.g. np.memmap """
+    if not isinstance(mytuple, tuple):
+        raise Exception("Internal error: prepare_shape() passed a non-tuple")
+    return tuple(map(lambda x: np.uint64(x), mytuple))
+
 #%%
 def load_memmap(filename, mode='r'):
     """ Load a memory mapped file created by the function save_memmap
@@ -57,7 +64,7 @@ def load_memmap(filename, mode='r'):
         exception if not in mmap
 
     """
-    if os.path.splitext(filename)[1] == '.mmap':
+    if ('.mmap' in filename):
         # Strip path components and use CAIMAN_DATA/example_movies
         # TODO: Eventually get the code to save these in a different dir
         file_to_load = filename
@@ -65,11 +72,12 @@ def load_memmap(filename, mode='r'):
         fpart = filename.split('_')[1:-1] # The filename encodes the structure of the map
         d1, d2, d3, T, order = int(fpart[-9]), int(fpart[-7]
                                                    ), int(fpart[-5]), int(fpart[-1]), fpart[-3]
-        Yr = np.memmap(file_to_load, mode=mode, shape=(
-            d1 * d2 * d3, T), dtype=np.float32, order=order)
+        Yr = np.memmap(file_to_load, mode=mode, shape=prepare_shape((
+            d1 * d2 * d3, T)), dtype=np.float32, order=order)
         return (Yr, (d1, d2), T) if d3 == 1 else (Yr, (d1, d2, d3), T)
     else:
-        raise Exception('Not implemented consistently')
+        print(filename)
+        raise Exception('Unknown file extension (should be .mmap)')
 
 #%%
 def save_memmap_each(fnames, dview=None, base_name=None, resize_fact=(1, 1, 1), remove_init=0,
@@ -186,7 +194,7 @@ def save_memmap_join(mmap_fnames, base_name=None, n_chunks=20, dview=None):
     print(fname_tot)
 
     big_mov = np.memmap(fname_tot, mode='w+', dtype=np.float32,
-                        shape=(d, tot_frames), order='C')
+                        shape=prepare_shape((d, tot_frames)), order='C')
 
     step = np.int(old_div(d, n_chunks))
     pars = []
@@ -269,7 +277,7 @@ def save_portion(pars):
 
     if use_mmap_save:
         big_mov = np.memmap(big_mov, mode='r+', dtype=np.float32,
-                            shape=(d, tot_frames), order='C')
+                            shape=prepare_shape((d, tot_frames)), order='C')
         big_mov[idx_start:idx_end, :] = Yr_tot
         del big_mov
     else:
@@ -352,8 +360,9 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
     if len(filenames) > 1:
         is_inconsistent_order = False
         for file__ in filenames:
-            if 'order_' + order not in file__:
+            if ('order_' + order not in file__) or ('.mmap' not in file__):
                 is_inconsistent_order = True
+        
 
         if is_inconsistent_order: # Here we make a bunch of memmap files in the right order. Same parameters
             fname_new = cm.save_memmap_each(filenames,
@@ -430,7 +439,7 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
                     fname_tot = os.path.join(os.path.split(f)[0], fname_tot)
                 if len(filenames) > 1:
                     big_mov = np.memmap(fname_tot, mode='w+', dtype=np.float32,
-                                    shape=(np.prod(dims), T), order=order)
+                                    shape=prepare_shape((np.prod(dims), T)), order=order)
                     big_mov[:, Ttot:Ttot + T] = Yr
                     del big_mov
                 else:
@@ -438,7 +447,7 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
                     Yr.tofile(fname_tot)
             else:
                 big_mov = np.memmap(fname_tot, dtype=np.float32, mode='r+',
-                                    shape=(np.prod(dims), Ttot + T), order=order)
+                                    shape=prepare_shape((np.prod(dims), Ttot + T)), order=order)
 
                 big_mov[:, Ttot:Ttot + T] = Yr
                 del big_mov
@@ -584,7 +593,7 @@ def save_tif_to_mmap_online(movie_iterable, save_base_name='YrOL_', order='C',
                  '_frames_' + str(dims[0]) + '_.mmap')
 
     big_mov = np.memmap(fname_tot, mode='w+', dtype=np.float32,
-                        shape=(np.prod(dims[1:]), dims[0]), order=order)
+                        shape=prepare_shape((np.prod(dims[1:]), dims[0])), order=order)
 
     for page in movie_iterable:
         if count % 100 == 0:

@@ -431,7 +431,7 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride=4, gnb=1, dview=No
         f = None
     elif low_rank_background is None:
         b = Im.dot(B_tot)
-        f = F_tot
+        f = scipy.sparse.csr_matrix(F_tot)
         print("Leaving background components intact")
     elif low_rank_background:
         print("Compressing background components with a low rank NMF")
