@@ -1,6 +1,7 @@
 import ipywidgets as widgets
 import os
 import bqplot
+from file_browser import FileBrowserBtn
 ##### Motion Correction Widgets
 
 layout_small = widgets.Layout(width="10%")
@@ -12,6 +13,10 @@ file_selector = widgets.Text(
 	layout=widgets.Layout(width='50%'),
 	disabled=False
 )
+
+mc_file_browser_btn = FileBrowserBtn(desc='Browse')
+mc_file_browser_btn.layout.width='9%'
+
 load_files_btn = widgets.Button(
 	description='Load Files',
 	disabled=False,
@@ -185,7 +190,7 @@ max_deviation_box = widgets.HBox([widgets.Label(value="Max Deviation (rigid):"),
 
 ######        ##########
 file_box = widgets.HBox()
-file_box.children = [file_selector, load_files_btn]
+file_box.children = [file_selector, mc_file_browser_btn, load_files_btn]
 
 ds_factors_box = widgets.HBox()
 ds_factors_box.children = [dsx_widget, dsy_widget, dst_widget]

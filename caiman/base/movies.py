@@ -1047,12 +1047,12 @@ class movie(ts.timeseries):
             maxmov = np.nanpercentile(self[0:10], q_max)
         else:
             maxmov = np.nanmax(self)
-            
+
         if q_min > 0:
             minmov = np.nanpercentile(self[0:10], q_min)
         else:
             minmov = np.nanmin(self)
-            
+
         if backend == 'pylab':
             pl.ion()
             fig = pl.figure(1)
@@ -1101,7 +1101,7 @@ class movie(ts.timeseries):
 
                     if plot_text == True:
                         text_width, text_height = cv2.getTextSize('Frame = ' + str(iddxx), fontFace=5, fontScale = 0.8, thickness=1)[0]
-                        cv2.putText(frame, 'Frame = ' + str(iddxx), ((frame.shape[1] - text_width) // 2, 
+                        cv2.putText(frame, 'Frame = ' + str(iddxx), ((frame.shape[1] - text_width) // 2,
                                     frame.shape[0] - (text_height + 5)), fontFace=5, fontScale=0.8, color=(255, 255, 255), thickness=1)
 
                     cv2.imshow('frame', frame)
@@ -1112,7 +1112,7 @@ class movie(ts.timeseries):
                         break
 
                 elif backend == 'pylab':
-                    
+
                     im.set_data((offset + frame) * gain / maxmov)
                     ax.set_title(str(iddxx))
                     pl.axis('off')
@@ -1146,8 +1146,8 @@ class movie(ts.timeseries):
 
 
 
-def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None, 
-         var_name_hdf5 = 'mov', in_memory = False, is_behavior = False, bottom=0, 
+def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None,
+         var_name_hdf5 = 'mov', in_memory = False, is_behavior = False, bottom=0,
          top=0, left=0, right=0, channel = None, outtype=np.float32):
     """
     load movie from file. SUpports a variety of formats. tif, hdf5, npy and memory mapped. Matlab is experimental.
@@ -1198,27 +1198,27 @@ def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None,
     if type(file_name) is list:
         if shape is not None:
             raise Exception('shape not supported for multiple movie input')
-            
+
         return load_movie_chain(file_name,fr=fr, start_time=start_time,
                      meta_data=meta_data, subindices=subindices,
                      bottom=bottom, top=top, left=left, right=right, channel = channel, outtype=outtype)
-        
+
     if bottom != 0:
         raise Exception('top bottom etc... not supported for single movie input')
 
     if channel is not None:
         raise Exception('channel not supported for single movie input')
-        
+
     if os.path.exists(file_name):
         _, extension = os.path.splitext(file_name)[:2]
 
         if extension == '.tif' or extension == '.tiff':  # load avi file
-            with tifffile.TiffFile(file_name) as tffl:                
+            with tifffile.TiffFile(file_name) as tffl:
                 if subindices is not None:
                     if type(subindices) is list:
                         input_arr  = tffl.asarray(key=subindices[0])[:, subindices[1], subindices[2]]
                     else:
-                        input_arr  = tffl.asarray(key=subindices)                        
+                        input_arr  = tffl.asarray(key=subindices)
 
 #                    elif type(subindices) is range:
 #                        subidx = slice(subindices.start, subindices.stop,
@@ -1228,8 +1228,8 @@ def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None,
 #                        input_arr = imread(file_name)[subindices]
                 else:
                     input_arr = tffl.asarray()
-                    
-                input_arr = np.squeeze(input_arr)  
+
+                input_arr = np.squeeze(input_arr)
 
         elif extension == '.avi':  # load avi file
             if subindices is not None:
@@ -1245,15 +1245,32 @@ def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None,
                 width = int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_WIDTH))
                 height = int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT))
 
-            input_arr = np.zeros((length, height, width), dtype=np.uint8)
-            counter = 0
-            while True:
-                # Capture frame-by-frame
-                ret, frame = cap.read()
-                if not ret:
-                    break
-                input_arr[counter] = frame[:, :, 0]
-                counter = counter + 1
+            cv_failed = False
+            if length == 0 or width == 0 or height == 0: #CV failed to load
+                cv_failed = True
+
+            if not cv_failed:
+                input_arr = np.zeros((length, height, width), dtype=np.uint8)
+                counter = 0
+                while True:
+                    # Capture frame-by-frame
+                    ret, frame = cap.read()
+                    if not ret:
+                        break
+                    input_arr[counter] = frame[:, :, 0]
+                    counter = counter + 1
+            else: #use pims to load movie
+                import pims
+                def rgb2gray(rgb):
+                    return np.dot(rgb[...,:3], [0.299, 0.587, 0.114])
+                pims_movie = pims.Video(file_name)
+                length = len(pims_movie)
+                height, width = pims_movie.frame_shape[0:2] #shape is (h,w,channels)
+                input_arr = np.zeros((length, height, width), dtype=np.uint8)
+                #z2 = np.asarray(z)
+                for i in range(len(pims_movie)): #iterate over frames
+                    input_arr[i] = rgb2gray(pims_movie[i])
+
 
             # When everything done, release the capture
             cap.release()
@@ -1407,7 +1424,7 @@ def load_movie_chain(file_list, fr=30, start_time=0,
 
     bottom, top, left, right, z_top, z_bottom : int
         to load only portion of the field of view
-    
+
     is3D : bool
         flag for 3d data (adds a fourth dimension)
 
@@ -1429,16 +1446,16 @@ def load_movie_chain(file_list, fr=30, start_time=0,
         if not is3D:
             if m.ndim == 2:
                 m = m[np.newaxis, :, :]
-    
+
             _, h, w = np.shape(m)
             m = m[:, top:h - bottom, left:w - right]
         else:
             if m.ndim == 3:
                 m = m[np.newaxis, :, :, :]
-            
+
             _, h, w, d = np.shape(m)
             m = m[:, top:h - bottom, left:w - right, z_top:d - z_bottom]
-                
+
         mov.append(m)
     return ts.concatenate(mov, axis=0)
 

@@ -35,6 +35,8 @@ from typing import Dict, Tuple, List
 import datetime
 from sys import getsizeof
 import pathlib
+import itertools
+import collections
 
 import warnings
 warnings.filterwarnings('ignore')
@@ -61,7 +63,7 @@ def start_procs(n_processes=None):
 
 
 #converts all files to tif for motion correction, unless they're already tif
-#@out.capture()
+@out.capture()
 def load_raw_files(fldr, print_values=False):
 	if os.path.isfile(fldr):
 		if pathlib.Path(fldr).suffix not in ['.tif','.avi', '.tiff']:
@@ -78,7 +80,7 @@ def load_raw_files(fldr, print_values=False):
 			for each_file in files:
 				print(each_file)
 		return files
-
+@out.capture()
 def load_mmap_files(fldr, print_values=False):
 	if os.path.isfile(fldr):
 		if pathlib.Path(fldr).suffix not in ['.mmap']:
@@ -136,8 +138,8 @@ def run_mc(fnames, mc_params, dsfactors, rigid=True, batch=True, scope_type=2):
 			tmp_files.append(tiff_file)
 		#get min_mov
 		if counter == 0:
-			min_mov = np.array([cm.motion_correction.low_pass_filter_space(m_,mc_params['gSig_filt']) for m_ in cm.load(tiff_file, subindices=range(999))]).min()
-			#min_mov = cm.load(tiff_file, subindices=range(400)).min()
+			#min_mov = np.array([cm.motion_correction.low_pass_filter_space(m_,mc_params['gSig_filt']) for m_ in cm.load(tiff_file, subindices=range(999))]).min()
+			min_mov = cm.load(tiff_file, subindices=range(200)).min()
 			print("Min Mov: ", min_mov)
 			print("Motion correcting: " + tiff_file)
 
@@ -151,9 +153,11 @@ def run_mc(fnames, mc_params, dsfactors, rigid=True, batch=True, scope_type=2):
 
 		if rigid:
 			print("Starting RIGID motion correction...")
-			mc.motion_correct_rigid(save_movie=True, template = new_templ)
-			'''mc = motion_correct_oneP_rigid([tiff_file], gSig_filt = mc_params['gSig_filt'], \
-				splits_rig = mc_params['splits_rig'], dview = mc_params['dview'], max_shifts = mc_params['max_shifts'])'''
+			if scope_type == 1:
+				mc = motion_correct_oneP_rigid([tiff_file], gSig_filt = mc_params['gSig_filt'], \
+					splits_rig = mc_params['splits_rig'], dview = mc_params['dview'], max_shifts = mc_params['max_shifts'])
+			else:
+				mc.motion_correct_rigid(save_movie=True, template = new_templ)
 			new_templ = mc.total_template_rig
 			mc_mov = cm.load(mc.fname_tot_rig)
 			bord_px_rig = np.ceil(np.max(mc.shifts_rig)).astype(np.int)
@@ -168,8 +172,10 @@ def run_mc(fnames, mc_params, dsfactors, rigid=True, batch=True, scope_type=2):
 			mc_mov = cm.load(mc.fname_tot_els)
 			bord_px_els = np.ceil(np.maximum(np.max(np.abs(mc.x_shifts_els)),
 								 np.max(np.abs(mc.y_shifts_els)))).astype(np.int)
-			mc.fname_tot_els = cm.save_memmap(mc.fname_tot_els, base_name='memmap_', order='C',\
+			old_name = mc.fname_tot_els[0]
+			mc.fname_tot_els = cm.save_memmap_each(mc.fname_tot_els, base_name='memmap_', order='C',\
 				border_to_0=bord_px_els)  # exclude borders
+			os.remove(old_name)
 		# TODO : needinfo
 		mc_list.append(mc)
 		#remove generated TIFF, if applicable
@@ -200,8 +206,16 @@ def run_mc(fnames, mc_params, dsfactors, rigid=True, batch=True, scope_type=2):
 		mmaps_final = mmap_f_to_c(mc_list, mc_params['dview'], mode=mode)
 		return mc_list, mmaps_final
 
+'''def flatten(l):
+	return [item for sublist in l for item in sublist]'''
+
+#flattens irregular list of lists, e.g. [[1,2],3,[4]] -> [1,2,3,4]
 def flatten(l):
-	return [item for sublist in l for item in sublist]
+    for el in l:
+        if isinstance(el, collections.Iterable) and not isinstance(el, (str, bytes)):
+            yield from flatten(el)
+        else:
+            yield el
 
 def extract_fnames_from_mc(mc_list, mode='rig'):
 	if mode=='rig':
@@ -212,7 +226,10 @@ def extract_fnames_from_mc(mc_list, mode='rig'):
 
 def combine_mc_mmaps(mc_list, dview, mode='rig'):
 	mc_names = extract_fnames_from_mc(mc_list, mode)
-	mc_names = flatten(mc_names)
+	mc_names = list(flatten(mc_names))
+	print(mc_names) #debugging
+	if isinstance(mc_names, list):
+		mc_names = list(mc_names)
 	mc_mov_name = save_memmap_join(mc_names, base_name='mc_rig', dview=dview)
 	print(mc_mov_name)
 	return mc_mov_name

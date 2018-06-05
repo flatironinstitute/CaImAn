@@ -1,6 +1,6 @@
 import ipywidgets as widgets
 import os
-from file_browser import SelectFilesButton
+from file_browser import FileBrowserBtn, DirBrowserBtn
 
 #ds_layout_main = widgets.Layout(width="20%")
 
@@ -12,7 +12,8 @@ workingdir_selector = widgets.Text(
 	disabled=False
 )
 
-wkdir_browser_btn = SelectFilesButton(desc='Browse')
+wkdir_browser_btn = DirBrowserBtn(desc='Browse')
+wkdir_browser_btn.layout.width='9%'
 
 workingdir_btn = widgets.Button(
 	description='Set WkDir',
@@ -27,6 +28,10 @@ context_path_txt = widgets.Text(
 	layout=widgets.Layout(width='35%'),
 	disabled=False
 )
+
+context_browser_btn = FileBrowserBtn(desc='Browse')
+context_browser_btn.layout.width='9%'
+
 context_load_btn = widgets.Button(
 	description='Load Context',
 	disabled=False,
@@ -77,9 +82,9 @@ microscopy_type_box = widgets.HBox([widgets.Label("Microscopy Type:"),microscopy
 # Layout
 
 wkdir_box = widgets.HBox()
-wkdir_box.children = [widgets.Label("Set Working Directory:"), workingdir_selector, workingdir_btn]
+wkdir_box.children = [widgets.Label("Set Working Directory:"), workingdir_selector, wkdir_browser_btn, workingdir_btn]
 context_box = widgets.HBox()
-context_box.children = [widgets.Label("Load context from:"),context_path_txt, context_load_btn, context_save_btn]
+context_box.children = [widgets.Label("Load context from:"),context_path_txt, context_browser_btn, context_load_btn, context_save_btn]
 wkdir_context_box = widgets.VBox()
 main_params = widgets.VBox()
 main_params.children = [main_params_label,widgets.HBox([widgets.Label(value="Frame Rate (frames/sec):"),fr_widget]), \

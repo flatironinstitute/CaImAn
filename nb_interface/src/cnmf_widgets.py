@@ -1,5 +1,6 @@
 import ipywidgets as widgets
 import os
+from file_browser import FileBrowserBtn
 
 
 
@@ -24,6 +25,9 @@ cnmf_file_selector = widgets.Text(
 	disabled=False
 )
 
+cnmf_file_browser_btn = FileBrowserBtn(desc='Browse')
+cnmf_file_browser_btn.layout.width='9%'
+
 cnmf_load_file_btn = widgets.Button(
 	description='Load File',
 	disabled=False,
@@ -32,7 +36,7 @@ cnmf_load_file_btn = widgets.Button(
 	layout=widgets.Layout(width="30%")
 )
 
-cnmf_load_file_box = widgets.HBox([cnmf_file_selector, cnmf_load_file_btn])
+cnmf_load_file_box = widgets.HBox([cnmf_file_selector, cnmf_file_browser_btn, cnmf_load_file_btn])
 
 
 ######

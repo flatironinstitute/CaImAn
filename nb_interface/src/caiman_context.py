@@ -9,7 +9,7 @@ def save_obj(path, obj):
 
 #@out.capture()()
 def load_obj(path):
-    with open(path + '.pkl', 'rb') as f:
+    with open(path, 'rb') as f:
         return pickle.load(f)
 
 #@out.capture()()

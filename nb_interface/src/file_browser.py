@@ -5,6 +5,11 @@ from PyQt5.QtWidgets import QApplication, QWidget, QInputDialog, QLineEdit, QFil
 from PyQt5.QtGui import QIcon
 from PyQt5 import QtCore
 
+'''
+from PyQt5.QtWidgets import QFileDialog
+filepath = str(QFileDialog.getOpenFileName())
+'''
+'''
 class App(QWidget):
 
     def __init__(self,b):
@@ -83,7 +88,45 @@ class SelectFilesButton(widgets.Button):
             w.setWindowTitle('Simple')
             #w.show()
 
-            app.exec_()
+            app.exec_()'''
+
+class FileBrowserBtn(widgets.Button):
+    """A file widget that leverages PyQt5."""
+
+    def __init__(self, desc='Browse'):
+        super(FileBrowserBtn, self).__init__()
+        # Add the selected_files trait
+        self.add_traits(files=traitlets.traitlets.List())
+        # Create the button.
+        self.description = desc
+        self.icon = "square-o"
+        self.style.button_color = "orange"
+        # Set on click behavior.
+        self.on_click(self.select_files)
+
+    @staticmethod
+    def select_files(b):
+            filepath = QFileDialog.getOpenFileName()
+            b.files = [filepath[0]]
+
+class DirBrowserBtn(widgets.Button):
+    """A file widget that leverages PyQt5"""
+
+    def __init__(self, desc='Browse'):
+        super(DirBrowserBtn, self).__init__()
+        # Add the selected_files trait
+        self.add_traits(dir=traitlets.traitlets.List())
+        # Create the button.
+        self.description = desc
+        self.icon = "square-o"
+        self.style.button_color = "orange"
+        # Set on click behavior.
+        self.on_click(self.select_files)
+
+    @staticmethod
+    def select_files(b):
+            dir_ = QFileDialog.getExistingDirectory()
+            b.dir = [dir_]
 
 # my_button = SelectFilesButton()
 # my_button

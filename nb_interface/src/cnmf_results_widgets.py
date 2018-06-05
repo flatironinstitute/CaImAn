@@ -1,6 +1,6 @@
 from ipywidgets import interact, interactive, fixed, interact_manual, HBox, VBox, IntSlider, Play, jslink, Tab
 import ipywidgets as widgets
-from file_browser import SelectFilesButton
+from file_browser import FileBrowserBtn
 import os
 # UX
 
