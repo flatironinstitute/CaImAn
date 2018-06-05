@@ -11,6 +11,8 @@ A Computational toolbox for large scale **Ca**lcium **Im**aging data **An**alysi
 
 Recent advances in calcium imaging acquisition techniques are creating datasets of the order of Terabytes/week. Memory and computationally efficient algorithms are required to analyze in reasonable amount of time terabytes of data. This project implements a set of essential methods required in the calcium imaging movies analysis pipeline. Fast and scalable algorithms are implemented for motion correction, movie manipulation, and source and spike extraction. CaImAn also contains some routines for the analyisis of behavior from video cameras. In summary, CaImAn provides a general purpose tool to handle large movies, with special emphasis on tools for two-photon and one-photon calcium imaging and behavioral datasets. 
 
+## Companion paper
+A paper explaining most of the implementation details and benchmarking can be found at this [link](https://www.biorxiv.org/content/early/2018/06/05/339564)
 
 ## Features
 
@@ -181,7 +183,11 @@ A complete list of contributors can be found [here](https://github.com/flatironi
 
 # References
 
-The following references provide the theoretical background and original code for the included methods. 
+The following references provide the theoretical background and original code for the included methods.
+
+### Software package detailed description and benchmarking
+
+<a name="caiman"></a>[1] Giovannucci A., Friedrich J., Gunn P., Kalfon J., Koay S.A., Taxidis J., Najafi F., Gauthier J.L., Zhou P., Tank D.W., Chklovskii D.B., Pnevmatikakis E.A. (2018). CaImAn: An open source tool for scalable Calcium Imaging data Analysis. bioarXiv preprint. [[paper]](https://doi.org/10.1101/339564)
 
 ### Deconvolution and demixing of calcium imaging data
 
