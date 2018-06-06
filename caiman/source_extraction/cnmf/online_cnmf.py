@@ -15,7 +15,7 @@ from scipy.stats import norm
 from math import sqrt
 
 import caiman as cm
-from .initialization import imblur, initialize_components, hals
+from .initialization import imblur, initialize_components, hals, downscale
 import scipy
 from scipy.sparse import coo_matrix, csc_matrix
 from caiman.components_evaluation import compute_event_exceptionality
@@ -223,7 +223,8 @@ def HALS4activity(Yr, A, noisyC, AtA, iters=5, tol=1e-3, groups=None):
     return C, noisyC
 
 
-def demix1p(y, A, noisyC, AtA, Atb, AtW, AtWA, iters=5, tol=1e-3, groups=None):
+def demix1p(y, A, noisyC, AtA, Atb, AtW, AtWA, iters=5, tol=1e-3,
+            groups=None, dims=None, ssub_B=1):
     """
     Solve C = argmin_C ||Yr-AC-B|| using block-coordinate decent
     where B = W(Y-AC-b0) + b0  (ring model for 1p data)
@@ -251,7 +252,9 @@ def demix1p(y, A, noisyC, AtA, Atb, AtW, AtWA, iters=5, tol=1e-3, groups=None):
         groups of components to update in parallel
     """
     AtY = A.T.dot(y)
-    AtWyb = AtW.dot(y) - Atb  # Atb is A'(Wb0-b0)
+    AtWyb = AtW.dot(y if ssub_B == 1 else downscale(
+        y.reshape(dims, order='F'), [ssub_B] * 2).ravel(order='F') *
+        ssub_B**2) - Atb  # Atb is A'(Wb0-b0)
     num_iters = 0
     C_old = np.zeros_like(noisyC)
     C = noisyC.copy()
@@ -267,7 +270,7 @@ def demix1p(y, A, noisyC, AtA, Atb, AtW, AtWA, iters=5, tol=1e-3, groups=None):
         else:
             for m in groups:
                 noisyC[m] = C[m] + (AtY[m] - AtA[m].dot(C) - AtB[m]) / AtA.diagonal()[m]
-                C[m] = np.maximum(noisyC[m], 0)           
+                C[m] = np.maximum(noisyC[m], 0)
         num_iters += 1
     return C, noisyC
 
@@ -386,7 +389,6 @@ def init_shapes_and_sufficient_stats(Y, A, C, b, f, W=None, b0=None, ssub_B=1, b
             CY -= Cf.dot(W.dot(np.reshape(Y, (-1, T), order='F') -
                                A.dot(C) - b0[:, None]).T + b0)
         else:
-            from caiman.source_extraction.cnmf.initialization import downscale
             d1, d2 = dims
             B = b0[:, None] + (np.repeat(np.repeat(W.dot(
                 downscale(Y - np.asarray(A.dot(C)).reshape(dims + (T,), order='F'),

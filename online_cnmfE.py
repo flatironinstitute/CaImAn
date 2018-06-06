@@ -70,3 +70,47 @@ print(('Number of components:' + str(cnm.Ab.shape[-1])))
 Cn = cm.local_correlations(Y.transpose(1, 2, 0))
 plt.figure()
 crd = cm.utils.visualization.plot_contours(cnm.Ab, Cn, thr=.6)
+
+
+
+
+
+
+
+cnm = deepcopy(cnm_init)
+cnm._prepare_object(np.asarray(Yr[:, :initbatch]), T, expected_comps)
+t = cnm.initbatch
+
+for frame in Y[initbatch:initbatch+10]:
+    if t%1==0:
+        plt.figure()
+        plt.imshow(cnm.CY[0].reshape(dims))
+        plt.show()
+        plt.figure()
+        plt.plot(cnm.C_on[0, initbatch-10:initbatch+30])
+        plt.show()
+    cnm.fit_next(t, frame.copy().reshape(-1, order='F'))
+    t += 1
+
+
+    # ccf = self.C_on[:self.M, t - self.minibatch_suff_stat]
+    # y = self.Yr_buf.get_last_frames(self.minibatch_suff_stat)[0]
+    # if self.center_psf:  # subtract background
+    #     # import pdb;pdb.set_trace()
+    #     if ssub_B == 1:
+    #         y -= (self.W.dot(y - self.Ab.dot(ccf) - self.b0) + self.b0)
+    #     else:
+    #         d1, d2 = self.dims2
+    #         y -= (np.repeat(np.repeat(self.W.dot(
+    #             downscale((y - self.Ab.dot(ccf) - self.b0)
+    #                       .reshape(self.dims2), [ssub_B] * 2)
+    #             .ravel())
+    #             .reshape(((d1 - 1) // ssub_B + 1, (d2 - 1) // ssub_B + 1)),
+    #             ssub_B, 0), ssub_B, 1)[:d1, :d2].ravel() + self.b0)
+    # # much faster: exploit that we only access CY[m, ind_pixels], hence update only these
+    # for m in range(self.N):
+    #     self.CY[m + nb_, self.ind_A[m]] *= (1 - 1. / t)
+    #     self.CY[m + nb_, self.ind_A[m]] += ccf[m + nb_] * y[self.ind_A[m]] / t
+    # self.CY[:nb_] = self.CY[:nb_] * (1 - 1. / t) + np.outer(ccf[:nb_], y / t)
+    # self.CC = self.CC * (1 - 1. / t) + np.outer(ccf, ccf / t)
+            

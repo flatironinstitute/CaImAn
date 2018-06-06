@@ -31,7 +31,7 @@ from builtins import object
 import numpy as np
 from .utilities import CNMFSetParms, update_order, normalize_AC, compute_residuals
 from .pre_processing import preprocess_data
-from .initialization import initialize_components, imblur
+from .initialization import initialize_components, imblur, downscale
 from .merging import merge_components
 from .spatial import update_spatial_components
 from .temporal import update_temporal_components
@@ -814,7 +814,6 @@ class CNMF(object):
                 self.AtW = self.Ab.T.dot(self.W)
                 self.AtWA = self.AtW.dot(self.Ab).toarray()
             else:
-                from caiman.source_extraction.cnmf.initialization import downscale
                 d1, d2 = self.dims2
                 A_ds = scipy.sparse.csc_matrix(downscale(
                     (self.Ab_dense[:, :self.N] if use_dense else self.Ab.toarray()).reshape(
@@ -889,6 +888,7 @@ class CNMF(object):
         nb_ = self.gnb
         Ab_ = self.Ab
         mbs = self.minibatch_shape
+        ssub_B = self.options['init_params']['ssub_B']
         frame = frame_in.astype(np.float32)
 #        print(np.max(1/scipy.sparse.linalg.norm(self.Ab,axis = 0)))
         self.Yr_buf.append(frame)
@@ -901,7 +901,8 @@ class CNMF(object):
             if self.center_psf:
                 self.C_on[:self.M, t], self.noisyC[:self.M, t] = demix1p(
                     frame, self.Ab, C_in, self.AtA, Atb=self.Atb, AtW=self.AtW,
-                    AtWA=self.AtWA, iters=num_iters_hals, groups=self.groups)
+                    AtWA=self.AtWA, iters=num_iters_hals, groups=self.groups,
+                    dims=self.dims2, ssub_B=ssub_B)
             else:
                 self.C_on[:self.M, t], self.noisyC[:self.M, t] = HALS4activity(
                     frame, self.Ab, C_in, self.AtA, iters=num_iters_hals, groups=self.groups)
@@ -1057,7 +1058,17 @@ class CNMF(object):
                             self.minibatch_suff_stat + 1]
             y = self.Yr_buf.get_last_frames(self.minibatch_suff_stat)[:1]
             if self.center_psf:  # subtract background
-                y -= (self.W.dot((y - self.Ab.dot(ccf).T - self.b0).T).T + self.b0)
+                if ssub_B == 1:
+                    y -= (self.W.dot((y - self.Ab.dot(ccf).T - self.b0).T).T + self.b0)
+                else:
+                    d1, d2 = self.dims2
+                    y -= (np.repeat(np.repeat(self.W.dot(
+                        downscale((y.T - self.Ab.dot(ccf) - self.b0[:, None])
+                                  .reshape(self.dims2 + (-1,), order='F'), (ssub_B, ssub_B, 1))
+                        .reshape((-1, len(y)), order='F')).T
+                        .reshape((-1, (d1 - 1) // ssub_B + 1, (d2 - 1) // ssub_B + 1), order='F'),
+                        ssub_B, 1), ssub_B, 2)[:, :d1, :d2]
+                        .reshape((len(y), -1), order='F') + self.b0)
             # much faster: exploit that we only access CY[m, ind_pixels], hence update only these
             for m in range(self.N):
                 self.CY[m + nb_, self.ind_A[m]] *= (1 - 1. / t)
@@ -1093,9 +1104,23 @@ class CNMF(object):
 
                 self.AtA = (Ab_.T.dot(Ab_)).toarray()
                 if self.center_psf:
-                    self.Atb = Ab_.T.dot(self.W.dot(self.b0) - self.b0)
-                    self.AtW = Ab_.T.dot(self.W)
-                    self.AtWA = self.AtW.dot(Ab_).toarray()
+                    if ssub_B == 1:
+                        self.Atb = Ab_.T.dot(self.W.dot(self.b0) - self.b0)
+                        self.AtW = Ab_.T.dot(self.W)
+                        self.AtWA = self.AtW.dot(Ab_).toarray()
+                    else:
+                        d1, d2 = self.dims2
+                        A_ds = scipy.sparse.csc_matrix(downscale(
+                            (self.Ab_dense[:, :self.N] if self.use_dense else Ab_.toarray()).reshape(
+                                (d1, d2, -1), order='F'), (ssub_B, ssub_B, 1)).reshape(
+                            (-1, self.N), order='F'))
+                        self.Atb = Ab_.T.dot(np.repeat(np.repeat(self.W.dot(
+                            downscale(self.b0.reshape(self.dims2, order='F'), [ssub_B] * 2)
+                            .reshape((-1, 1), order='F'))
+                            .reshape(((d1 - 1) // ssub_B + 1, (d2 - 1) // ssub_B + 1), order='F'),
+                            ssub_B, 0), ssub_B, 1)[:d1, :d2].ravel(order='F') - self.b0)
+                        self.AtW = A_ds.T.dot(self.W)
+                        self.AtWA = self.AtW.dot(A_ds).toarray()
 
                 ind_zero = list(np.where(self.AtA.diagonal() < 1e-10)[0])
                 if len(ind_zero) > 0:
