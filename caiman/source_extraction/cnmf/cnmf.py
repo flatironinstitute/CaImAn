@@ -761,7 +761,8 @@ class CNMF(object):
         self.Ab, self.ind_A, self.CY, self.CC = init_shapes_and_sufficient_stats(
             Yr[:, :self.initbatch].reshape(self.dims2 + (-1,), order='F'), self.A2,
             self.C_on[:self.N, :self.initbatch], self.b2, self.noisyC[:self.gnb, :self.initbatch],
-            W=self.W if self.center_psf else None, b0=self.b0 if self.center_psf else None)
+            W=self.W if self.center_psf else None, b0=self.b0 if self.center_psf else None,
+            ssub_B=self.options['init_params']['ssub_B'])
 
         self.CY, self.CC = self.CY * 1. / self.initbatch, 1 * self.CC / self.initbatch
 
@@ -807,9 +808,28 @@ class CNMF(object):
             min(self.initbatch, self.minibatch_shape) - 1), 0)
         self.groups = list(map(list, update_order(self.Ab)[0]))
         if self.center_psf:
-            self.Atb = self.Ab.T.dot(self.W.dot(self.b0) - self.b0)
-            self.AtW = self.Ab.T.dot(self.W)
-            self.AtWA = self.AtW.dot(self.Ab).toarray()
+            ssub_B = self.options['init_params']['ssub_B']
+            if ssub_B == 1:
+                self.Atb = self.Ab.T.dot(self.W.dot(self.b0) - self.b0)
+                self.AtW = self.Ab.T.dot(self.W)
+                self.AtWA = self.AtW.dot(self.Ab).toarray()
+            else:
+                from caiman.source_extraction.cnmf.initialization import downscale
+                d1, d2 = self.dims2
+                A_ds = scipy.sparse.csc_matrix(downscale(
+                    (self.Ab_dense[:, :self.N] if use_dense else self.Ab.toarray()).reshape(
+                        (d1, d2, -1), order='F'), (ssub_B, ssub_B, 1)).reshape(
+                    (-1, self.N), order='F'))
+                self.Atb = self.Ab.T.dot(np.repeat(np.repeat(self.W.dot(
+                    downscale(self.b0.reshape(self.dims2, order='F'), [ssub_B] * 2)
+                    .reshape((-1, 1), order='F'))
+                    .reshape(((d1 - 1) // ssub_B + 1, (d2 - 1) // ssub_B + 1), order='F'),
+                    ssub_B, 0), ssub_B, 1)[:d1, :d2].ravel(order='F') - self.b0)
+                # self.Atb = A_ds.T.dot(self.W.dot(
+                #     downscale(self.b0.reshape(self.dims2, order='F'), [ssub_B] * 2)
+                #     .ravel(order='F'))) * ssub_B**2 - self.Ab.T.dot(self.b0)
+                self.AtW = A_ds.T.dot(self.W)
+                self.AtWA = self.AtW.dot(A_ds).toarray()
         # self.update_counter = np.zeros(self.N)
         self.update_counter = .5**(-np.linspace(0, 1,
                                                 self.N, dtype=np.float32))

@@ -354,13 +354,13 @@ def demix_and_deconvolve(C, noisyC, AtY, AtA, OASISinstances, iters=3, n_refit=0
 
 
 #%% Estimate shapes on small initial batch
-def init_shapes_and_sufficient_stats(Y, A, C, b, f, W=None, b0=None, bSiz=3):
+def init_shapes_and_sufficient_stats(Y, A, C, b, f, W=None, b0=None, ssub_B=1, bSiz=3):
     # smooth the components
     dims, T = np.shape(Y)[:-1], np.shape(Y)[-1]
     K = A.shape[1]  # number of neurons
     nb = b.shape[1]  # number of background components
-    if isinstance(bSiz, (int, float)):
-        bSiz = [bSiz] * len(dims)
+    # if isinstance(bSiz, (int, float)):
+    #     bSiz = [bSiz] * len(dims)
 
     # ind_A = uniform_filter(np.reshape(A, dims + (K,), order='F'), size=bSiz + [0])
     # ind_A = np.reshape(ind_A > 1e-10, (np.prod(dims), K), order='F')
@@ -382,8 +382,20 @@ def init_shapes_and_sufficient_stats(Y, A, C, b, f, W=None, b0=None, bSiz=3):
     Cf = np.r_[f.reshape(nb, -1), C] if f.size else C
     CY = Cf.dot(np.reshape(Y, (np.prod(dims), T), order='F').T)
     if W is not None:
-        CY -= Cf.dot(W.dot(np.reshape(Y, (np.prod(dims), T), order='F') -
-                           A.dot(C) - b0[:, None]).T + b0)
+        if ssub_B == 1:
+            CY -= Cf.dot(W.dot(np.reshape(Y, (-1, T), order='F') -
+                               A.dot(C) - b0[:, None]).T + b0)
+        else:
+            from caiman.source_extraction.cnmf.initialization import downscale
+            d1, d2 = dims
+            B = b0[:, None] + (np.repeat(np.repeat(W.dot(
+                downscale(Y - np.asarray(A.dot(C)).reshape(dims + (T,), order='F'),
+                              (ssub_B, ssub_B, 1)).reshape((-1, T), order='F') -
+                downscale(b0.reshape(dims, order='F'),
+                          (ssub_B, ssub_B)).reshape((-1, 1), order='F'))
+                .reshape(((d1 - 1) // ssub_B + 1, (d2 - 1) // ssub_B + 1, -1), order='F'),
+                ssub_B, 0), ssub_B, 1)[:d1, :d2].reshape((-1, T), order='F'))
+            CY -= Cf.dot(B.T)
     CC = Cf.dot(Cf.T)
     return Ab, ind_A, CY, CC
 
