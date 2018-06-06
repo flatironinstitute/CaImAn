@@ -268,11 +268,15 @@ xshifts_line = bqplot.Lines(scales={'x': sc_x, 'y': sc_y},
 yshifts_line = bqplot.Lines(scales={'x': sc_x, 'y': sc_y},
              stroke_width=3, colors=['orange'], display_legend=True, labels=['Y Shifts'])
 
-ax_x = bqplot.Axis(scale=sc_x, grid_lines='solid', label='X')
-ax_y = bqplot.Axis(scale=sc_y, orientation='vertical',
-            grid_lines='solid', label='Y')
+xshifts_scat = bqplot.marks.Scatter(scales={'x':bqplot.LinearScale(), 'y':bqplot.LinearScale()}, colors=['red'], display_legend=True, labels=['X Shifts'])
+yshifts_scat = bqplot.marks.Scatter(scales={'x':bqplot.LinearScale(), 'y':bqplot.LinearScale()}, colors=['orange'], display_legend=True, labels=['Y Shifts'])
 
-shifts_plot = bqplot.Figure(marks=[xshifts_line, yshifts_line], axes=[ax_x, ax_y], title='MC Extracted Shifts',
+ax_x = bqplot.Axis(scale=sc_x, grid_lines='solid', label='Time/Frames') #Time / Frames
+ax_y = bqplot.Axis(scale=sc_y, orientation='vertical',
+            grid_lines='solid', label='Shift') #shift
+
+#marks=[xshifts_line, yshifts_line]
+shifts_plot = bqplot.Figure(axes=[ax_x, ax_y], title='MC Extracted Shifts',
        legend_location='bottom-right')
 
 tb_shifts = bqplot.Toolbar(figure=shifts_plot)

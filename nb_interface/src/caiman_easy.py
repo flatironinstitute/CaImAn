@@ -57,8 +57,8 @@ from caiman_context import *
 
 #setup cluster
 #@out.capture()()
-def start_procs(n_processes=None):
-	c, dview, n_processes = cm.cluster.setup_cluster(backend='local', n_processes=n_processes, single_thread=False)
+def start_procs(backend='local',n_processes=None):
+	c, dview, n_processes = cm.cluster.setup_cluster(backend=backend, n_processes=n_processes, single_thread=False)
 	return c, dview, n_processes
 
 

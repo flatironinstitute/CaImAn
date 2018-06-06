@@ -22,12 +22,12 @@ from cnmf_results_logic import *
 
 '''
 Interface Code Developed by Brandon Brown in the Khakh Lab at UCLA
-"CaImAn" algorithms developed by Simons Foundation
+"CaImAn" package developed by Simons Foundation
 Nov 2017
 '''
 
 #create context
-context = Context(start_procs(10))
+context = Context(start_procs(backend='local',n_processes=None))
 
 def parse_output(output): #input tupel of dicts
 	out_ = ''
@@ -174,16 +174,31 @@ def plot_shifts(mc_results, is_rigid=True):
 			#update plot marks
 			xshifts_line.x = x_shifts_x
 			xshifts_line.y = x_shifts_y
-		else:
+			yshifts_line.x = y_shifts_x
+			yshifts_line.y = y_shifts_y
+			#add marks to bqplot Figure
+			shifts_plot.marks=[xshifts_line, yshifts_line]
+			#update legend
+			ax_x.label = 'Time / Frames'
+			ax_y.label = 'Shift'
+		else: #non-rigid
 			#'x_shifts_els',
  			#'y_shifts_els'
 			#shifts = np.array(mc_results[0].shifts_nonrig)
 			#x_shifts_x = np.arange(shifts.shape[0])
-			y_shifts_x = np.arange(len(context.mc_nonrig[0].y_shifts_els[0:50]))
-			y_shifts_y = context.mc_nonrig[0].y_shifts_els[0:50]
-			yshifts_line.display_legend = False #hide legend because it gets too crowded in the plot
-		yshifts_line.x = y_shifts_x
-		yshifts_line.y = y_shifts_y
+			x_shifts_mean = np.array([np.mean(x) for x in context.mc_nonrig[0].x_shifts_els])
+			x_shifts_var = np.array([np.var(x) for x in context.mc_nonrig[0].x_shifts_els])
+			y_shifts_mean = np.array([np.mean(y) for y in context.mc_nonrig[0].y_shifts_els])
+			y_shifts_var = np.array([np.var(y) for y in context.mc_nonrig[0].y_shifts_els])
+			xshifts_scat.x = x_shifts_mean
+			xshifts_scat.y = x_shifts_var
+			yshifts_scat.x = y_shifts_mean
+			yshifts_scat.y = y_shifts_var
+			#add marks to bqplot Figure
+			shifts_plot.marks=[xshifts_scat, yshifts_scat]
+			#update legend
+			ax_x.label = 'Patch Shifts Mean'
+			ax_y.label = 'Patch Shifts Variance'
 		# Un-HIDE (display) plot
 		mc_shifts_box.layout.display = ''
 	except Exception as e:
@@ -949,13 +964,15 @@ view_cnmf_results_widget.on_click(view_results_)
 	'gSig_filt' : [int(x) for x in gSigFilter.value.split(',')] #default 9,9  best 6,6,
 	'dsfactors': None #or (1,1,1)   (ds x, ds y, ds t)
 }'''
-from event_logic_v2 import *
-setup_context(context)
+#import event_logic_v2 as event_ui
+#event_ui.setup_context(context)
 
 app_ui = VBox()
 ui_tab = Tab()
-children = [wkdir_context_box,major_col,mc_results_box,major_cnmf_col,view_results_col, validate_col, set_event_widgets()]
-tab_titles = ['Main','Motion Correction','MC Results','CNMF', 'CNMF Results','CNMF Validation', 'Event Detection']
+#children = [wkdir_context_box,major_col,mc_results_box,major_cnmf_col,view_results_col, validate_col, event_ui.set_event_widgets()]
+children = [wkdir_context_box,major_col,mc_results_box,major_cnmf_col,view_results_col, validate_col]
+#tab_titles = ['Main','Motion Correction','MC Results','CNMF', 'CNMF Results','CNMF Validation', 'Event Detection']
+tab_titles = ['Main','Motion Correction','MC Results','CNMF', 'CNMF Results','CNMF Validation']
 ui_tab.children = children
 for i in range(len(children)):
     ui_tab.set_title(i, str(tab_titles[i]))

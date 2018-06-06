@@ -3,6 +3,7 @@ channels:
 - defaults
 dependencies:
 - python=3.6
+- bqplot
 - tensorflow=1.4.0 # Must list before keras to preempt default keras backend
 - bokeh
 - cython
@@ -14,7 +15,7 @@ dependencies:
 - keras=2.1.5
 - matplotlib=2.0.2
 - nose
-- numpy
+- numpy=1.13
 - opencv=3.2
 - peakutils
 - scipy
@@ -24,3 +25,4 @@ dependencies:
 - tifffile
 - tqdm
 - tornado=4.5
+- nb_conda_kernels
