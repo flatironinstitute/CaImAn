@@ -26,6 +26,7 @@ import numpy as np
 import scipy
 import os
 from scipy.ndimage.filters import gaussian_filter
+from tifffile import TiffFile
 import cv2
 
 try:
@@ -164,23 +165,9 @@ def get_image_description_SI(fname):
 
         image_description: information of the image
 
-    Raise:
-    -----
-        ('tifffile package not found, using skimage.external.tifffile')
-
-
     """
 
     image_descriptions = []
-
-    try:
-        # todo check this unresolved reference
-        from tifffile import TiffFile
-
-    except:
-
-        print('tifffile package not found, using skimage.external.tifffile')
-        from skimage.external.tifffile import TiffFile
 
     tf = TiffFile(fname)
 
