@@ -150,7 +150,7 @@ ${BUILD_LOG,maxLines=60}
 		 [$class: 'DevelopersRecipientProvider'],
 	       ], 
 	       replyTo: '$DEFAULT_REPLYTO',
-	       to: 'epnevmatikakis@gmail.com, andrea.giovannucci@gmail.com, dsimon@flatironinstitute.org, pgunn@flatironinstitute.org'
+	       to: 'epnevmatikakis@gmail.com, andrea.giovannucci@gmail.com, pgunn@flatironinstitute.org'
     }
   }
 }
