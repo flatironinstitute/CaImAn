@@ -187,6 +187,8 @@ The following references provide the theoretical background and original code fo
 
 ### Software package detailed description and benchmarking
 
+If you use this code please cite the corresponding papers where original methods appeared (see References below), as well as: 
+
 <a name="caiman"></a>[1] Giovannucci A., Friedrich J., Gunn P., Kalfon J., Koay S.A., Taxidis J., Najafi F., Gauthier J.L., Zhou P., Tank D.W., Chklovskii D.B., Pnevmatikakis E.A. (2018). CaImAn: An open source tool for scalable Calcium Imaging data Analysis. bioarXiv preprint. [[paper]](https://doi.org/10.1101/339564)
 
 ### Deconvolution and demixing of calcium imaging data
@@ -270,11 +272,6 @@ Special thanks to the following people for letting us use their datasets for our
 * Sue Ann Koay, David Tank, Princeton University
 * Manolis Froudarakis, Jake Reimers, Andreas Tolias, Baylor College of Medicine
 
-# Citation
-
-If you use this code please cite the corresponding papers where original methods appeared (see References above), as well as the following abstract:
-
-Giovannucci, A., Friedrich, J., Deverett, B., Staneva, V., Chklovskii, D., & Pnevmatikakis, E. (2017). CaImAn: An open source toolbox for large scale calcium imaging data analysis on standalone machines. Cosyne Abstracts.
 
 # Questions, comments, issues
 
