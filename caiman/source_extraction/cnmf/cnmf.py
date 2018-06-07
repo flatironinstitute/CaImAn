@@ -386,7 +386,8 @@ class CNMF(object):
         Y = np.transpose(images, list(range(1, len(dims) + 1)) + [0])
         Yr = np.transpose(np.reshape(images, (T, -1), order='F'))
         if np.isfortran(Yr):
-            raise Exception('The file is in F order, it should be in C order (see save_memmap function')
+            raise Exception(
+                'The file is in F order, it should be in C order (see save_memmap function')
 
         print((T,) + dims)
 
@@ -758,6 +759,15 @@ class CNMF(object):
         else:
             self.C_on[:self.N, :self.initbatch] = self.C2
 
+        if self.center_psf:
+            ssub_B = self.options['init_params']['ssub_B']
+            X = Yr[:, :self.initbatch] - np.asarray(self.A2.dot(self.C2))
+            self.b0 = X.mean(1)
+            X -= self.b0[:, None]
+            X = downscale(Yr[:, :self.initbatch].reshape(self.dims2 + (-1,), order='F'),
+                          (ssub_B, ssub_B, 1)).reshape((-1, self.initbatch), order='F')
+            self.XXt = X.dot(X.T)
+
         self.Ab, self.ind_A, self.CY, self.CC = init_shapes_and_sufficient_stats(
             Yr[:, :self.initbatch].reshape(self.dims2 + (-1,), order='F'), self.A2,
             self.C_on[:self.N, :self.initbatch], self.b2, self.noisyC[:self.gnb, :self.initbatch],
@@ -790,29 +800,15 @@ class CNMF(object):
         self.Yr_buf = RingBuffer(Yr[:, self.initbatch - self.minibatch_shape:
                                     self.initbatch].T.copy(), self.minibatch_shape)
         self.Yres_buf = RingBuffer(self.Yr_buf - self.Ab.dot(
-            self.C_on[:self.M, self.initbatch - self.minibatch_shape:self.initbatch]).T, self.minibatch_shape)
-        self.sn = np.array(np.std(self.Yres_buf,axis=0))
-        self.vr = np.array(np.var(self.Yres_buf,axis=0))
-        self.mn = self.Yres_buf.mean(0)
-        self.Yres_buf = self.Yres_buf
-        self.mean_buff = self.Yres_buf.mean(0)
-        self.ind_new = []
-        self.rho_buf = imblur(np.maximum(self.Yres_buf.T,0).reshape(
-            self.dims2 + (-1,), order='F'), sig=self.gSig, siz=self.gSiz, nDimBlur=len(self.dims2))**2
-        self.rho_buf = np.reshape(
-            self.rho_buf, (np.prod(self.dims2), -1)).T
-        self.rho_buf = RingBuffer(self.rho_buf, self.minibatch_shape)
-        self.AtA = (self.Ab.T.dot(self.Ab)).toarray()
-        self.AtY_buf = self.Ab.T.dot(self.Yr_buf.T)
-        self.sv = np.sum(self.rho_buf.get_last_frames(
-            min(self.initbatch, self.minibatch_shape) - 1), 0)
-        self.groups = list(map(list, update_order(self.Ab)[0]))
+            self.C_on[:self.M, self.initbatch - self.minibatch_shape:self.initbatch]).T,
+            self.minibatch_shape)
         if self.center_psf:
-            ssub_B = self.options['init_params']['ssub_B']
+            self.Yres_buf -= self.b0
             if ssub_B == 1:
                 self.Atb = self.Ab.T.dot(self.W.dot(self.b0) - self.b0)
                 self.AtW = self.Ab.T.dot(self.W)
                 self.AtWA = self.AtW.dot(self.Ab).toarray()
+                self.Yres_buf -= self.W.dot(self.Yres_buf.T).T
             else:
                 d1, d2 = self.dims2
                 A_ds = scipy.sparse.csc_matrix(downscale(
@@ -829,6 +825,29 @@ class CNMF(object):
                 #     .ravel(order='F'))) * ssub_B**2 - self.Ab.T.dot(self.b0)
                 self.AtW = A_ds.T.dot(self.W)
                 self.AtWA = self.AtW.dot(A_ds).toarray()
+                self.Yres_buf -= np.repeat(np.repeat(self.W.dot(
+                    downscale(self.Yres_buf.T.reshape(
+                        (d1, d2, -1), order='F'), (ssub_B, ssub_B, 1))
+                    .reshape((-1, self.minibatch_shape), order='F'))
+                    .reshape(((d1 - 1) // ssub_B + 1, (d2 - 1) // ssub_B + 1, -1), order='F'),
+                    ssub_B, 0), ssub_B, 1)[:d1, :d2].reshape(-1, self.minibatch_shape, order='F').T
+        self.sn = np.array(np.std(self.Yres_buf, axis=0))
+        self.vr = np.array(np.var(self.Yres_buf, axis=0))
+        self.mn = self.Yres_buf.mean(0)
+        self.Yres_buf = self.Yres_buf
+        self.mean_buff = self.Yres_buf.mean(0)
+        self.ind_new = []
+        self.rho_buf = imblur(np.maximum(self.Yres_buf.T, 0).reshape(
+            self.dims2 + (-1,), order='F'), sig=self.gSig, siz=self.gSiz, nDimBlur=len(self.dims2))**2
+        self.rho_buf = np.reshape(
+            self.rho_buf, (np.prod(self.dims2), -1)).T
+        self.rho_buf = RingBuffer(self.rho_buf, self.minibatch_shape)
+        self.AtA = (self.Ab.T.dot(self.Ab)).toarray()
+        self.AtY_buf = self.Ab.T.dot(self.Yr_buf.T)
+        self.sv = np.sum(self.rho_buf.get_last_frames(
+            min(self.initbatch, self.minibatch_shape) - 1), 0)
+        self.groups = list(map(list, update_order(self.Ab)[0]))
+
         # self.update_counter = np.zeros(self.N)
         self.update_counter = .5**(-np.linspace(0, 1,
                                                 self.N, dtype=np.float32))
@@ -855,7 +874,7 @@ class CNMF(object):
             loaded_model.load_weights(model_path)
             opt = keras.optimizers.rmsprop(lr=0.0001, decay=1e-6)
             loaded_model.compile(loss=keras.losses.categorical_crossentropy,
-                          optimizer=opt, metrics=['accuracy'])
+                                 optimizer=opt, metrics=['accuracy'])
 
         self.loaded_model = loaded_model
         self.sniper_mode = sniper_mode
@@ -889,6 +908,7 @@ class CNMF(object):
         Ab_ = self.Ab
         mbs = self.minibatch_shape
         ssub_B = self.options['init_params']['ssub_B']
+        d1, d2 = self.dims2
         frame = frame_in.astype(np.float32)
 #        print(np.max(1/scipy.sparse.linalg.norm(self.Ab,axis = 0)))
         self.Yr_buf.append(frame)
@@ -935,6 +955,17 @@ class CNMF(object):
 
         #self.mean_buff = self.Yres_buf.mean(0)
         res_frame = frame - self.Ab.dot(self.noisyC[:self.M, t])
+        if self.center_psf:
+            self.b0 = (t-1)/t*self.b0 + res_frame/t
+            # self.Atb = self.Ab.T.dot(self.W.dot(self.b0) - self.b0)
+            res_frame -= self.b0
+            x = res_frame if ssub_B == 1 else downscale(res_frame.reshape(self.dims2, order='F'),
+                                                        [ssub_B] * 2).ravel(order='F')
+            self.XXt += np.outer(x, x)
+            res_frame -= (self.W.dot(x) if ssub_B == 1 else
+                          np.repeat(np.repeat(self.W.dot(x).reshape(
+                              ((d1 - 1) // ssub_B + 1, (d2 - 1) // ssub_B + 1), order='F'),
+                              ssub_B, 0), ssub_B, 1)[:d1, :d2].ravel(order='F'))
         mn_ = self.mn.copy()
         self.mn = (t-1)/t*self.mn + res_frame/t
         self.vr = (t-1)/t*self.vr + (res_frame - mn_)*(res_frame - self.mn)/t
@@ -950,7 +981,7 @@ class CNMF(object):
 
             res_frame = np.reshape(res_frame, self.dims2, order='F')
 
-            rho = imblur(np.maximum(res_frame,0), sig=self.gSig,
+            rho = imblur(np.maximum(res_frame, 0), sig=self.gSig,
                          siz=self.gSiz, nDimBlur=len(self.dims2))**2
 
             rho = np.reshape(rho, np.prod(self.dims2))
@@ -969,7 +1000,7 @@ class CNMF(object):
                 Ab_dense=self.Ab_dense[:, :self.M] if self.use_dense else None,
                 oases=self.OASISinstances if self.p else None, N_samples_exceptionality=self.N_samples_exceptionality,
                 max_num_added=self.max_num_added, min_num_trial=self.min_num_trial,
-                loaded_model = self.loaded_model, thresh_CNN_noisy = self.thresh_CNN_noisy,
+                loaded_model=self.loaded_model, thresh_CNN_noisy=self.thresh_CNN_noisy,
                 sniper_mode=self.sniper_mode, use_peak_max=self.use_peak_max,
                 test_both=self.test_both)
 
@@ -1037,6 +1068,17 @@ class CNMF(object):
 
             ccf = self.C_on[:self.M, t - mbs + 1:t + 1]
             y = self.Yr_buf  # .get_last_frames(mbs)[:]
+            if self.center_psf:  # subtract background
+                if ssub_B == 1:
+                    y -= (self.W.dot((y - self.Ab.dot(ccf).T - self.b0).T).T + self.b0)
+                else:
+                    y -= (np.repeat(np.repeat(self.W.dot(
+                        downscale((y.T - self.Ab.dot(ccf) - self.b0[:, None])
+                                  .reshape(self.dims2 + (-1,), order='F'), (ssub_B, ssub_B, 1))
+                        .reshape((-1, len(y)), order='F')).T
+                        .reshape((-1, (d1 - 1) // ssub_B + 1, (d2 - 1) // ssub_B + 1), order='F'),
+                        ssub_B, 1), ssub_B, 2)[:, :d1, :d2]
+                        .reshape((len(y), -1), order='F') + self.b0)            
 
             # much faster: exploit that we only access CY[m, ind_pixels], hence update only these
             n0 = mbs
@@ -1061,7 +1103,6 @@ class CNMF(object):
                 if ssub_B == 1:
                     y -= (self.W.dot((y - self.Ab.dot(ccf).T - self.b0).T).T + self.b0)
                 else:
-                    d1, d2 = self.dims2
                     y -= (np.repeat(np.repeat(self.W.dot(
                         downscale((y.T - self.Ab.dot(ccf) - self.b0[:, None])
                                   .reshape(self.dims2 + (-1,), order='F'), (ssub_B, ssub_B, 1))
@@ -1199,9 +1240,9 @@ class CNMF(object):
         """
 
         self.Ab, self.Ab_dense, self.CC, self.CY, self.M,\
-        self.N, self.noisyC, self.OASISinstances, self.C_on,\
-        self.expected_comps, self.ind_A,\
-        self.groups, self.AtA = remove_components_online(
+            self.N, self.noisyC, self.OASISinstances, self.C_on,\
+            self.expected_comps, self.ind_A,\
+            self.groups, self.AtA = remove_components_online(
                 ind_rm, self.gnb, self.Ab, self.use_dense, self.Ab_dense,
                 self.AtA, self.CY, self.CC, self.M, self.N, self.noisyC,
                 self.OASISinstances, self.C_on, self.expected_comps)
@@ -1270,7 +1311,7 @@ class CNMF(object):
         self.b = self.b * nB_inv_mat
         self.f = nB_mat * self.f
 
-    def view_patches(self, Yr, dims, img=None, idx = None):
+    def view_patches(self, Yr, dims, img=None, idx=None):
         """view spatial and temporal components interactively
 
          Parameters:
@@ -1300,12 +1341,12 @@ class CNMF(object):
         if img is None:
             img = np.reshape(np.array(self.A.mean(axis=1)), dims, order='F')
 
-        if idx is  None:
+        if idx is None:
             caiman.utils.visualization.view_patches_bar(Yr, self.A, self.C, self.b, self.f, dims[
-                                                    0], dims[1], YrA=self.YrA, img=img)
+                0], dims[1], YrA=self.YrA, img=img)
         else:
-            caiman.utils.visualization.view_patches_bar(Yr, self.A.tocsc()[:,idx], self.C[idx], self.b, self.f, dims[
-                                                    0], dims[1], YrA=self.YrA[idx], img=img)
+            caiman.utils.visualization.view_patches_bar(Yr, self.A.tocsc()[:, idx], self.C[idx], self.b, self.f, dims[
+                0], dims[1], YrA=self.YrA[idx], img=img)
 
 
 def scale(y):
