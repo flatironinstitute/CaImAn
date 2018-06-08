@@ -238,7 +238,7 @@ class movie(ts.timeseries):
         T, d1, d2 = np.shape(self)
         num_windows = np.int(old_div(T, window))
         num_frames = num_windows * window
-        return np.median(np.mean(np.reshape(self[:num_frames], (window, num_windows, d1, d2)), axis=0), axis=0)
+        return np.nanmedian(np.nanmean(np.reshape(self[:num_frames], (window, num_windows, d1, d2)), axis=0), axis=0)
 
     def extract_shifts(self, max_shift_w=5, max_shift_h=5, template=None, method='opencv'):
         """
@@ -1245,15 +1245,30 @@ def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None,
                 width = int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_WIDTH))
                 height = int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT))
 
-            input_arr = np.zeros((length, height, width), dtype=np.uint8)
-            counter = 0
-            while True:
-                # Capture frame-by-frame
-                ret, frame = cap.read()
-                if not ret:
-                    break
-                input_arr[counter] = frame[:, :, 0]
-                counter = counter + 1
+            cv_failed = False
+            if length == 0 or width == 0 or height == 0: #CV failed to load
+                cv_failed = True
+
+            if not cv_failed:
+                input_arr = np.zeros((length, height, width), dtype=np.uint8)
+                counter = 0
+                while True:
+                    # Capture frame-by-frame
+                    ret, frame = cap.read()
+                    if not ret:
+                        break
+                    input_arr[counter] = frame[:, :, 0]
+                    counter = counter + 1
+            else: #use pims to load movie
+                import pims
+                def rgb2gray(rgb):
+                    return np.dot(rgb[...,:3], [0.299, 0.587, 0.114])
+                pims_movie = pims.Video(file_name)
+                length = len(pims_movie)
+                height, width = pims_movie.frame_shape[0:2] #shape is (h,w,channels)
+                input_arr = np.zeros((length, height, width), dtype=np.uint8)
+                for i in range(len(pims_movie)): #iterate over frames
+                    input_arr[i] = rgb2gray(pims_movie[i])
 
             # When everything done, release the capture
             cap.release()

@@ -21,15 +21,17 @@ Class representing a time series.
 author: Andrea Giovannucci
 """
 
-from __future__ import print_function
 #%%
-import os
-import warnings
-import numpy as np
+from __future__ import print_function
 import cv2
 import h5py
+import numpy as np
+import os
 import pylab as plt
 import pickle as cpk
+from scipy.io import savemat
+import tifffile
+import warnings
 
 try:
     cv2.setNumThreads(0)
@@ -40,13 +42,6 @@ try:
     plt.ion()
 except:
     pass
-
-from scipy.io import savemat
-try:
-    import tifffile
-    print('tifffile package not found, using skimage instead for imsave')
-except:
-    from skimage.external import tifffile
 
 #%%
 class timeseries(np.ndarray):

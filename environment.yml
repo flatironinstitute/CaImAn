@@ -24,3 +24,4 @@ dependencies:
 - tifffile
 - tqdm
 - tornado=4.5
+- pims
