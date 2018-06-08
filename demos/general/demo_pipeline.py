@@ -137,8 +137,9 @@ bord_px_els = np.ceil(np.maximum(np.max(np.abs(mc.x_shifts_els)),
 moviehandle = cm.concatenate([m_orig.resize(1, 1, downsample_ratio) + offset_mov,
                 m_els.resize(1, 1, downsample_ratio)],
                axis=2)
+display_images = False
 if display_images:
-    moviehandle.play(fr=60, gain=5, magnification=2, offset=0)  # press q to exit
+    moviehandle.play(fr=60, q_max=99.5, magnification=2, offset=0)  # press q to exit
 
 #%% MEMORY MAPPING
 # memory map the file in order 'C'
