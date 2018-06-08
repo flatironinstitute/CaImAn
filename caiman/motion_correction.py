@@ -83,7 +83,6 @@ try:
     profile
 except:
     def profile(a): return a
-
 #%%
 
 
@@ -156,7 +155,7 @@ class MotionCorrect(object):
     def __init__(self, fname, min_mov, dview=None, max_shifts=(6, 6), niter_rig=1, splits_rig=14, num_splits_to_process_rig=None,
                  strides=(96, 96), overlaps=(32, 32), splits_els=14, num_splits_to_process_els=[7, None],
                  upsample_factor_grid=4, max_deviation_rigid=3, shifts_opencv=True, nonneg_movie=False, gSig_filt=None,
-                 use_cuda=False):
+                 use_cuda=False, border_nan=True):
         """
         Constructor class for motion correction operations
 
@@ -186,6 +185,7 @@ class MotionCorrect(object):
         self.nonneg_movie = nonneg_movie
         self.gSig_filt = gSig_filt
         self.use_cuda = use_cuda
+        self.border_nan = border_nan
         if self.use_cuda and not HAS_CUDA:
             print("pycuda is unavailable. Falling back to default FFT.")
 
@@ -236,7 +236,8 @@ class MotionCorrect(object):
                 add_to_movie=-self.min_mov,
                 nonneg_movie=self.nonneg_movie,
                 gSig_filt=self.gSig_filt,
-                use_cuda=self.use_cuda)
+                use_cuda=self.use_cuda,
+                border_nan=self.border_nan)
             if template is None:
                 self.total_template_rig = _total_template_rig
 
@@ -305,7 +306,7 @@ class MotionCorrect(object):
                         max_deviation_rigid=self.max_deviation_rigid, splits=self.splits_els,
                         num_splits_to_process=num_splits_to_process, num_iter=num_iter, template=self.total_template_els,
                         shifts_opencv=self.shifts_opencv, save_movie=save_movie, nonneg_movie=self.nonneg_movie, gSig_filt=self.gSig_filt,
-                        use_cuda=self.use_cuda)
+                        use_cuda=self.use_cuda, border_nan=self.border_nan)
                 if show_template:
                     pl.imshow(new_template_els)
                     pl.pause(.5)
@@ -323,7 +324,7 @@ class MotionCorrect(object):
             self.coord_shifts_els += _coord_shifts_els
         return self
 
-    def apply_shifts_movie(self, fname, rigid_shifts=True):
+    def apply_shifts_movie(self, fname, rigid_shifts=True, border_nan=True):
         """
         Applies shifts found by registering one file to a different file. Useful
         for cases when shifts computed from a structural channel are applied to a
@@ -348,11 +349,11 @@ class MotionCorrect(object):
 
         if rigid_shifts is True:
             if self.shifts_opencv:
-                m_reg = [apply_shift_iteration(img, shift)
+                m_reg = [apply_shift_iteration(img, shift, border_nan=border_nan)
                          for img, shift in zip(Y, self.shifts_rig)]
             else:
                 m_reg = [apply_shifts_dft(img, (
-                    sh[0], sh[1]), 0, is_freq=False, border_nan=True) for img, sh in zip(
+                    sh[0], sh[1]), 0, is_freq=False, border_nan=border_nan) for img, sh in zip(
                     Y, self.shifts_rig)]
         else:
             dims_grid = tuple(np.max(np.stack(self.coord_shifts_els[0], axis=1), axis=1) - np.min(
@@ -378,21 +379,38 @@ def apply_shift_iteration(img, shift, border_nan=False, border_type=cv2.BORDER_R
     sh_x_n, sh_y_n = shift
     w_i, h_i = img.shape
     M = np.float32([[1, 0, sh_y_n], [0, 1, sh_x_n]])
-    min_, max_ = np.min(img), np.max(img)
+    min_, max_ = np.nanmin(img), np.nanmax(img)
     img = np.clip(cv2.warpAffine(img, M, (h_i, w_i),
                                  flags=cv2.INTER_CUBIC, borderMode=border_type), min_, max_)
-    if border_nan:
+    if border_nan is not False:
         max_w, max_h, min_w, min_h = 0, 0, 0, 0
         max_h, max_w = np.ceil(np.maximum(
             (max_h, max_w), shift)).astype(np.int)
         min_h, min_w = np.floor(np.minimum(
             (min_h, min_w), shift)).astype(np.int)
-        img[:max_h, :] = np.nan
-        if min_h < 0:
-            img[min_h:, :] = np.nan
-        img[:, :max_w] = np.nan
-        if min_w < 0:
-            img[:, min_w:] = np.nan
+        if border_nan is True:
+            img[:max_h, :] = np.nan
+            if min_h < 0:
+                img[min_h:, :] = np.nan
+            img[:, :max_w] = np.nan
+            if min_w < 0:
+                img[:, min_w:] = np.nan
+        elif border_nan == 'min':
+            img[:max_h, :] = min_
+            if min_h < 0:
+                img[min_h:, :] = min_
+            img[:, :max_w] = min_
+            if min_w < 0:
+                img[:, min_w:] = min_
+        elif border_nan == 'copy':
+            if max_h > 0:
+                img[:max_h] = img[max_h]
+            if min_h < 0:
+                img[min_h:] = img[min_h-1]
+            if max_w > 0:
+                img[:, :max_w] = img[:, max_w, np.newaxis]
+            if min_w < 0:
+                img[:, min_w:] = img[:, min_w-1, np.newaxis]
 
     return img
 
@@ -841,7 +859,7 @@ def motion_correct_iteration_fast(img, template, max_shift_w=10, max_shift_h=10)
 #%%
 
 
-def bin_median(mat, window=10, exclude_nans=False):
+def bin_median(mat, window=10, exclude_nans=True):
     """ compute median of 3D array in along axis o by binning values
 
     Parameters:
@@ -1550,7 +1568,7 @@ def register_translation(src_image, target_image, upsample_factor=1,
 
 #%%
 
-def apply_shifts_dft(src_freq, shifts, diffphase, is_freq=True, border_nan=False):
+def apply_shifts_dft(src_freq, shifts, diffphase, is_freq=True, border_nan=True):
     """
     adapted from SIMA (https://github.com/losonczylab) and the
     scikit-image (http://scikit-image.org/) package.
@@ -1608,8 +1626,8 @@ def apply_shifts_dft(src_freq, shifts, diffphase, is_freq=True, border_nan=False
     if not is3D:
         shifts = shifts[::-1]
         nc, nr = np.shape(src_freq)
-        Nr = ifftshift(np.arange(-np.fix(old_div(nr, 2.)), np.ceil(old_div(nr, 2.))))
-        Nc = ifftshift(np.arange(-np.fix(old_div(nc, 2.)), np.ceil(old_div(nc, 2.))))
+        Nr = ifftshift(np.arange(-np.fix(nr/2.), np.ceil(nr/2.)))
+        Nc = ifftshift(np.arange(-np.fix(nc/2.), np.ceil(nc/2.)))
         Nr, Nc = np.meshgrid(Nr, Nc)
         Greg = src_freq * np.exp(1j * 2 * np.pi *
                                  (-shifts[0] * 1. * Nr / nr - shifts[1] * 1. * Nc / nc))
@@ -1631,22 +1649,51 @@ def apply_shifts_dft(src_freq, shifts, diffphase, is_freq=True, border_nan=False
     else:
         Greg = np.dstack([np.real(Greg), np.imag(Greg)])
         new_img = ifftn(Greg)[:, :, 0]
-    if border_nan:
+
+    if border_nan is not False:
         max_w, max_h, min_w, min_h = 0, 0, 0, 0
-        max_h, max_w = np.ceil(np.maximum((max_h, max_w), shifts[:2])).astype(np.int)
-        min_h, min_w = np.floor(np.minimum((min_h, min_w), shifts[:2])).astype(np.int)
+        max_h, max_w = np.ceil(np.maximum(
+            (max_h, max_w), shifts[:2])).astype(np.int)
+        min_h, min_w = np.floor(np.minimum(
+            (min_h, min_w), shifts[:2])).astype(np.int)
         if is3D:
             max_d = np.ceil(np.maximum(0, shifts[2])).astype(np.int)
             min_d = np.floor(np.minimum(0, shifts[2])).astype(np.int)
-            new_img[:, :, :max_d] = np.nan
-            if min_d < 0:
-                new_img[:, :, min_d:] = np.nan
-        new_img[:max_h, :] = np.nan
-        if min_h < 0:
-            new_img[min_h:, :] = np.nan
-        new_img[:, :max_w] = np.nan
-        if min_w < 0:
-            new_img[:, min_w:] = np.nan
+        if border_nan is True:
+            new_img[:max_h, :] = np.nan
+            if min_h < 0:
+                new_img[min_h:, :] = np.nan
+            new_img[:, :max_w] = np.nan
+            if min_w < 0:
+                new_img[:, min_w:] = np.nan
+            if is3D:
+                new_img[:, :, :max_d] = np.nan
+                if min_d < 0:
+                    new_img[:, :, min_d:] = np.nan
+        elif border_nan == 'min':
+            min_ = np.nanmin(new_img)
+            new_img[:max_h, :] = min_
+            if min_h < 0:
+                new_img[min_h:, :] = min_
+            new_img[:, :max_w] = min_
+            if min_w < 0:
+                new_img[:, min_w:] = min_
+            if is3D:
+                new_img[:, :, :max_d] = min_
+                if min_d < 0:
+                    new_img[:, :, min_d:] = min_
+        elif border_nan == 'copy':
+            new_img[:max_h] = new_img[max_h]
+            if min_h < 0:
+                new_img[min_h:] = new_img[min_h-1]
+            if max_w > 0:
+                new_img[:, :max_w] = new_img[:, max_w, np.newaxis]
+            if min_w < 0:
+                new_img[:, min_w:] = new_img[:, min_w-1, np.newaxis]
+            if is3D:
+                new_img[:, :, :max_d] = new_img[:, :, max_d]
+                if min_d < 0:
+                    new_img[:, :, min_d:] = new_img[:, :, min_d-1]
 
     return new_img
 
@@ -1748,7 +1795,7 @@ def high_pass_filter_space(img_orig, gSig_filt):
 
 def tile_and_correct(img, template, strides, overlaps, max_shifts, newoverlaps=None, newstrides=None, upsample_factor_grid=4,
                      upsample_factor_fft=10, show_movie=False, max_deviation_rigid=2, add_to_movie=0, shifts_opencv=False, gSig_filt=None,
-                     use_cuda=False):
+                     use_cuda=False, border_nan=True):
     """ perform piecewise rigid motion correction iteration, by
         1) dividing the FOV in patches
         2) motion correcting each patch separately
@@ -1796,6 +1843,9 @@ def tile_and_correct(img, template, strides, overlaps, max_shifts, newoverlaps=N
 
     use_cuda : bool, optional
         Use skcuda.fft (if available). Default: False
+        
+    border_nan : bool or string, optional
+        specifies how to deal with borders. (True, False, 'copy', 'min')
 
 
     Returns:
@@ -1829,7 +1879,7 @@ def tile_and_correct(img, template, strides, overlaps, max_shifts, newoverlaps=N
                 img = img_orig
 
             new_img = apply_shift_iteration(
-                img, (-rigid_shts[0], -rigid_shts[1]), border_nan=False)
+                img, (-rigid_shts[0], -rigid_shts[1]), border_nan=border_nan)
 
         else:
 
@@ -1838,7 +1888,7 @@ def tile_and_correct(img, template, strides, overlaps, max_shifts, newoverlaps=N
                     'The use of FFT and filtering options have not been tested. Set opencv=True')
 
             new_img = apply_shifts_dft(
-                sfr_freq, (-rigid_shts[0], -rigid_shts[1]), diffphase, border_nan=True)
+                sfr_freq, (-rigid_shts[0], -rigid_shts[1]), diffphase, border_nan=border_nan)
 
         return new_img - add_to_movie, (-rigid_shts[0], -rigid_shts[1]), None, None
     else:
@@ -1919,7 +1969,7 @@ def tile_and_correct(img, template, strides, overlaps, max_shifts, newoverlaps=N
                 imgs = [
                     it[-1] for it in sliding_window(img, overlaps=newoverlaps, strides=newstrides)]
 
-            imgs = [apply_shift_iteration(im, sh, border_nan=True)
+            imgs = [apply_shift_iteration(im, sh, border_nan=border_nan)
                     for im, sh in zip(imgs, total_shifts)]
 
         else:
@@ -1928,7 +1978,7 @@ def tile_and_correct(img, template, strides, overlaps, max_shifts, newoverlaps=N
                     'The use of FFT and filtering options have not been tested. Set opencv=True')
 
             imgs = [apply_shifts_dft(im, (
-                sh[0], sh[1]), dffphs, is_freq=False, border_nan=True) for im, sh, dffphs in zip(
+                sh[0], sh[1]), dffphs, is_freq=False, border_nan=border_nan) for im, sh, dffphs in zip(
                 imgs, total_shifts, total_diffs_phase)]
 
         normalizer = np.zeros_like(img) * np.nan
@@ -1972,7 +2022,7 @@ def tile_and_correct(img, template, strides, overlaps, max_shifts, newoverlaps=N
 
         if show_movie:
             img = apply_shifts_dft(
-                sfr_freq, (-rigid_shts[0], -rigid_shts[1]), diffphase, border_nan=True)
+                sfr_freq, (-rigid_shts[0], -rigid_shts[1]), diffphase, border_nan=border_nan)
             img_show = np.vstack([new_img, img])
 
             img_show = cv2.resize(img_show, None, fx=1, fy=1)
@@ -2087,7 +2137,8 @@ def compute_metrics_motion_correction(fname, final_size_x, final_size_y, swap_di
 #%%
 def motion_correct_batch_rigid(fname, max_shifts, dview=None, splits=56, num_splits_to_process=None, num_iter=1,
                                template=None, shifts_opencv=False, save_movie_rigid=False, add_to_movie=None,
-                               nonneg_movie=False, gSig_filt=None, subidx=slice(None, None, 1), use_cuda=False):
+                               nonneg_movie=False, gSig_filt=None, subidx=slice(None, None, 1), use_cuda=False,
+                               border_nan=True):
     """
     Function that perform memory efficient hyper parallelized rigid motion corrections while also saving a memory mappable file
 
@@ -2187,7 +2238,7 @@ def motion_correct_batch_rigid(fname, max_shifts, dview=None, splits=56, num_spl
                                                              dview=dview, save_movie=save_movie, base_name=os.path.split(
                                                                  fname)[-1][:-4] + '_rig_', subidx = subidx,
                                                              num_splits=num_splits_to_process, shifts_opencv=shifts_opencv, nonneg_movie=nonneg_movie, gSig_filt=gSig_filt,
-                                                             use_cuda=use_cuda)
+                                                             use_cuda=use_cuda, border_nan=border_nan)
 
         new_templ = np.nanmedian(np.dstack([r[-1] for r in res_rig]), -1)
         if gSig_filt is not None:
@@ -2211,7 +2262,7 @@ def motion_correct_batch_pwrigid(fname, max_shifts, strides, overlaps, add_to_mo
                                  dview=None, upsample_factor_grid=4, max_deviation_rigid=3,
                                  splits=56, num_splits_to_process=None, num_iter=1,
                                  template=None, shifts_opencv=False, save_movie=False, nonneg_movie=False, gSig_filt=None,
-                                 use_cuda=False):
+                                 use_cuda=False, border_nan=True):
     """
     Function that perform memory efficient hyper parallelized rigid motion corrections while also saving a memory mappable file
 
@@ -2303,7 +2354,7 @@ def motion_correct_batch_pwrigid(fname, max_shifts, strides, overlaps, add_to_mo
                                                             upsample_factor_grid=upsample_factor_grid, order='F', dview=dview, save_movie=save_movie,
                                                             base_name=os.path.split(fname)[-1][:-4] + '_els_', num_splits=num_splits_to_process,
                                                             shifts_opencv=shifts_opencv, nonneg_movie=nonneg_movie, gSig_filt=gSig_filt,
-                                                            use_cuda=use_cuda)
+                                                            use_cuda=use_cuda, border_nan=border_nan)
 
         new_templ = np.nanmedian(np.dstack([r[-1] for r in res_el]), -1)
         if gSig_filt is not None:
@@ -2352,7 +2403,7 @@ def tile_and_correct_wrapper(params):
 
     img_name, out_fname, idxs, shape_mov, template, strides, overlaps, max_shifts,\
         add_to_movie, max_deviation_rigid, upsample_factor_grid, newoverlaps, newstrides, \
-        shifts_opencv, nonneg_movie, gSig_filt, is_fiji, use_cuda = params
+        shifts_opencv, nonneg_movie, gSig_filt, is_fiji, use_cuda, border_nan = params
 
     name, extension = os.path.splitext(img_name)[:2]
 
@@ -2377,7 +2428,7 @@ def tile_and_correct_wrapper(params):
                                                                        upsample_factor_fft=10, show_movie=False,
                                                                        max_deviation_rigid=max_deviation_rigid,
                                                                        shifts_opencv=shifts_opencv, gSig_filt=gSig_filt,
-                                                                       use_cuda=use_cuda)
+                                                                       use_cuda=use_cuda, border_nan=border_nan)
         shift_info.append([total_shift, start_step, xy_grid])
 
     if out_fname is not None:
@@ -2389,8 +2440,9 @@ def tile_and_correct_wrapper(params):
             bias = 0
         outv[:, idxs] = np.reshape(
             mc.astype(np.float32), (len(imgs), -1), order='F').T + bias
-
-    return shift_info, idxs, np.nanmean(mc, 0)
+    new_temp = np.nanmean(mc, 0)
+    new_temp[np.isnan(new_temp)] = np.nanmin(new_temp)
+    return shift_info, idxs, new_temp
 
 
 #%%
@@ -2398,7 +2450,7 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
                                 max_shifts=(12, 12), max_deviation_rigid=3, newoverlaps=None, newstrides=None,
                                 upsample_factor_grid=4, order='F', dview=None, save_movie=True,
                                 base_name=None, subidx = None, num_splits=None, shifts_opencv=False, nonneg_movie=False, gSig_filt=None,
-                                use_cuda=False):
+                                use_cuda=False, border_nan=True):
     """
 
     """
@@ -2485,10 +2537,10 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
     for idx in idxs:
         pars.append([fname, fname_tot, idx, shape_mov, template, strides, overlaps, max_shifts, np.array(
             add_to_movie, dtype=np.float32), max_deviation_rigid, upsample_factor_grid,
-            newoverlaps, newstrides, shifts_opencv, nonneg_movie, gSig_filt, is_fiji, use_cuda])
+            newoverlaps, newstrides, shifts_opencv, nonneg_movie, gSig_filt, is_fiji, use_cuda, border_nan])
 
     if dview is not None:
-        print('** Startting parallel motion correction **')
+        print('** Starting parallel motion correction **')
         if HAS_CUDA and use_cuda:
             res = dview.map(tile_and_correct_wrapper,pars)
             dview.map(close_cuda_process, range(len(pars)))
