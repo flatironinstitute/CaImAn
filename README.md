@@ -119,6 +119,7 @@ If you prefer to manage this information somewhere else, the `CAIMAN_DATA` envir
    * Microsoft Build Tools for Visual Studio 2017 <https://www.visualstudio.com/downloads/#build-tools-for-visual-studio-2017>. Check the "Build Tools" box, and in the detailed view on the right check the "C/C++ CLI Tools" component too.
 
 Use the following menu item to launch a anaconda-enabled command prompt: start>programs>anaconda3>anaconda prompt
+
     ```bash
     git clone  https://github.com/flatironinstitute/CaImAn
     cd CaImAn
