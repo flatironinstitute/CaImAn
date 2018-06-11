@@ -48,14 +48,18 @@ from builtins import map
 from builtins import str
 from builtins import range
 from past.utils import old_div
-import numpy as np
-import pylab as pl
-import cv2
-import h5py
-
 import collections
-import caiman as cm
+import cv2
+import gc
+import h5py
+import itertools
+import numpy as np
+from numpy.fft import ifftshift
+import os
+import pylab as pl
+import tifffile
 
+import caiman as cm
 from .mmapping import prepare_shape
 
 try:
@@ -63,33 +67,22 @@ try:
 except:
     pass
 
-try:
-    import tifffile
-except:
-    print('tifffile package not found, using skimage.external.tifffile')
-    from skimage.external import tifffile as tifffile
-
-import gc
-import os
 from cv2 import dft as fftn
 from cv2 import idft as ifftn
 opencv = True
+
 try:
     import pycuda.gpuarray as gpuarray
     import pycuda.driver as cudadrv
     import atexit
     HAS_CUDA = True
-
 except ImportError:
     HAS_CUDA = False
-from numpy.fft import ifftshift
-import itertools
+
 try:
     profile
 except:
     def profile(a): return a
-
-from tifffile import imread
 #%%
 
 

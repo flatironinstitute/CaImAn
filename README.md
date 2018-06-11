@@ -118,23 +118,19 @@ If you prefer to manage this information somewhere else, the `CAIMAN_DATA` envir
    * Use Conda to install git (With "conda install git")
    * Microsoft Build Tools for Visual Studio 2017 <https://www.visualstudio.com/downloads/#build-tools-for-visual-studio-2017>. Check the "Build Tools" box, and in the detailed view on the right check the "C/C++ CLI Tools" component too.
 
+Use the following menu item to launch a anaconda-enabled command prompt: start>programs>anaconda3>anaconda prompt
+
     ```bash
-    
     git clone  https://github.com/flatironinstitute/CaImAn
     cd CaImAn
-    git pull
-    ```
-	start>programs>anaconda3>anaconda prompt
-	
-	```bash
-    
-	conda env create -f environment.yml -n caiman
-    activate caiman   
+    conda env create -f environment.yml -n caiman
+    activate caiman
     pip install . (OR pip install -e . if you want to develop code)
-	conda install numba
-	jupyter notebook --NotebookApp.iopub_data_rate_limit=1.0e10
+    copy caimanmanager.py ..
+    conda install numba
+    cd ..
     ```
-Then setup ```caimanmanager``` as described above.
+Then run ```caimanmanager``` as described above to make a data directory.
 
 For Python 2.7 on Windows follow the same procedure with replacing the file `environment.yml` with `environment_python2.yml` as before.	
 

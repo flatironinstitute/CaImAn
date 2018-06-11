@@ -17,16 +17,11 @@ from past.utils import old_div
 import numpy as np
 import os
 import sys
+import tifffile
 import ipyparallel as parallel
 from itertools import chain
 
 import caiman as cm
-
-try:
-    import tifffile
-except ImportError:
-    print('tifffile not found, using skimage.externals')
-    from skimage.external import tifffile as tifffile
 
 
 def prepare_shape(mytuple):
