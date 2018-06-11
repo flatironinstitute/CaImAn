@@ -764,7 +764,7 @@ class CNMF(object):
             X = Yr[:, :self.initbatch] - np.asarray(self.A2.dot(self.C2))
             self.b0 = X.mean(1)
             X -= self.b0[:, None]
-            X = downscale(Yr[:, :self.initbatch].reshape(self.dims2 + (-1,), order='F'),
+            X = downscale(X.reshape(self.dims2 + (-1,), order='F'),
                           (ssub_B, ssub_B, 1)).reshape((-1, self.initbatch), order='F')
             self.XXt = X.dot(X.T)
 
@@ -961,7 +961,7 @@ class CNMF(object):
             res_frame -= self.b0
             x = res_frame if ssub_B == 1 else downscale(res_frame.reshape(self.dims2, order='F'),
                                                         [ssub_B] * 2).ravel(order='F')
-            self.XXt += np.outer(x, x)
+            # self.XXt += np.outer(x, x)
             res_frame -= (self.W.dot(x) if ssub_B == 1 else
                           np.repeat(np.repeat(self.W.dot(x).reshape(
                               ((d1 - 1) // ssub_B + 1, (d2 - 1) // ssub_B + 1), order='F'),
@@ -1070,15 +1070,18 @@ class CNMF(object):
             y = self.Yr_buf  # .get_last_frames(mbs)[:]
             if self.center_psf:  # subtract background
                 if ssub_B == 1:
-                    y -= (self.W.dot((y - self.Ab.dot(ccf).T - self.b0).T).T + self.b0)
+                    x = (y - self.Ab.dot(ccf).T - self.b0).T
+                    y -= self.W.dot(x).T
                 else:
-                    y -= (np.repeat(np.repeat(self.W.dot(
-                        downscale((y.T - self.Ab.dot(ccf) - self.b0[:, None])
-                                  .reshape(self.dims2 + (-1,), order='F'), (ssub_B, ssub_B, 1))
-                        .reshape((-1, len(y)), order='F')).T
-                        .reshape((-1, (d1 - 1) // ssub_B + 1, (d2 - 1) // ssub_B + 1), order='F'),
-                        ssub_B, 1), ssub_B, 2)[:, :d1, :d2]
-                        .reshape((len(y), -1), order='F') + self.b0)            
+                    x = (downscale((y.T - self.Ab.dot(ccf) - self.b0[:, None])
+                                   .reshape(self.dims2 + (-1,), order='F'), (ssub_B, ssub_B, 1))
+                         .reshape((-1, len(y)), order='F'))
+                    y -= np.repeat(np.repeat(
+                        self.W.dot(x).T.reshape((-1, (d1 - 1) // ssub_B + 1,
+                                                 (d2 - 1) // ssub_B + 1), order='F'),
+                        ssub_B, 1), ssub_B, 2)[:, :d1, :d2].reshape((len(y), -1), order='F')
+                y -= self.b0
+                self.XXt += x.dot(x.T)
 
             # much faster: exploit that we only access CY[m, ind_pixels], hence update only these
             n0 = mbs
@@ -1101,15 +1104,18 @@ class CNMF(object):
             y = self.Yr_buf.get_last_frames(self.minibatch_suff_stat)[:1]
             if self.center_psf:  # subtract background
                 if ssub_B == 1:
-                    y -= (self.W.dot((y - self.Ab.dot(ccf).T - self.b0).T).T + self.b0)
+                    x = (y - self.Ab.dot(ccf).T - self.b0).T
+                    y -= self.W.dot(x).T
+                    y -= self.b0
                 else:
-                    y -= (np.repeat(np.repeat(self.W.dot(
-                        downscale((y.T - self.Ab.dot(ccf) - self.b0[:, None])
-                                  .reshape(self.dims2 + (-1,), order='F'), (ssub_B, ssub_B, 1))
-                        .reshape((-1, len(y)), order='F')).T
+                    x = (downscale((y.T - self.Ab.dot(ccf) - self.b0[:, None])
+                                   .reshape(self.dims2 + (-1,), order='F'), (ssub_B, ssub_B, 1))
+                         .reshape((-1, len(y)), order='F'))
+                    y -= (np.repeat(np.repeat(self.W.dot(x).T
                         .reshape((-1, (d1 - 1) // ssub_B + 1, (d2 - 1) // ssub_B + 1), order='F'),
                         ssub_B, 1), ssub_B, 2)[:, :d1, :d2]
                         .reshape((len(y), -1), order='F') + self.b0)
+                self.XXt += x.dot(x.T)
             # much faster: exploit that we only access CY[m, ind_pixels], hence update only these
             for m in range(self.N):
                 self.CY[m + nb_, self.ind_A[m]] *= (1 - 1. / t)
