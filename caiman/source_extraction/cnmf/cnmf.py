@@ -542,8 +542,6 @@ class CNMF(object):
                     Yr, A, b, C, f, dview=self.dview, bl=None, c1=None, sn=None, g=None, **options['temporal_params'])
             else:
                 g1 = g
-                # todo : ask for those..
-                C, f, S, bl, c1, neurons_sn, g1, YrA = C, f, S, bl, c1, neurons_sn, g, YrA
             self.lam = lam
 
         else:  # use patches
@@ -795,7 +793,7 @@ class CNMF(object):
         self.C_on = np.vstack(
             [self.noisyC[:self.gnb, :], self.C_on.astype(np.float32)])
 
-        self.gSiz = np.add(np.multiply(np.ceil(self.gSig).astype(np.int), 2), 1)
+        # self.gSiz = np.add(np.multiply(np.ceil(self.gSig).astype(np.int), 2), 1)
 
         self.Yr_buf = RingBuffer(Yr[:, self.initbatch - self.minibatch_shape:
                                     self.initbatch].T.copy(), self.minibatch_shape)
@@ -880,6 +878,23 @@ class CNMF(object):
         self.sniper_mode = sniper_mode
         self.test_both = test_both
         self.use_peak_max = use_peak_max
+
+        if self.center_psf:
+            from skimage.morphology import disk
+            radius = int(round(self.ring_size_factor * self.gSiz[0] / float(ssub_B)))
+            ring = disk(radius + 1)
+            ring[1:-1, 1:-1] -= disk(radius)
+            self._ringidx = [i - radius - 1 for i in np.nonzero(ring)]
+            self._dims_B = ((self.dims2[0] - 1) // ssub_B + 1, (self.dims[1] - 1) // ssub_B + 1)
+
+            def get_indices_of_pixels_on_ring(self, pixel):
+                pixel = np.unravel_index(pixel, self._dims_B, order='F')
+                x = pixel[0] + self._ringidx[0]
+                y = pixel[1] + self._ringidx[1]
+                inside = (x >= 0) * (x < self._dims_B[0]) * (y >= 0) * (y < self._dims_B[1])
+                return np.ravel_multi_index((x[inside], y[inside]), self._dims_B, order='F')
+            self.get_indices_of_pixels_on_ring = get_indices_of_pixels_on_ring.__get__(self)
+
         return self
 
     @profile
@@ -1151,6 +1166,18 @@ class CNMF(object):
 
                 self.AtA = (Ab_.T.dot(Ab_)).toarray()
                 if self.center_psf:
+                    for p in range(self.W.shape[0]):
+                        index = self.get_indices_of_pixels_on_ring(p)
+                        # for _ in range(3):  # update W via coordinate decent
+                        #     for k, i in enumerate(index):
+                        #         self.W.data[self.W.indptr[p] + k] += ((self.XXt[p, i] -
+                        #                                      self.W.data[self.W.indptr[p]:self.W.indptr[p+1]].dot(self.XXt[index, i])) /
+                        #                                     self.XXt[i, i])
+                        # update W using normal equations
+                        self.W.data[self.W.indptr[p]:self.W.indptr[p + 1]] = \
+                            np.linalg.inv(self.XXt[index[:, None], index]).dot(self.XXt[index, p])
+
+                    # import pdb;pdb.set_trace()
                     if ssub_B == 1:
                         self.Atb = Ab_.T.dot(self.W.dot(self.b0) - self.b0)
                         self.AtW = Ab_.T.dot(self.W)

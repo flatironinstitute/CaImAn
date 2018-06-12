@@ -434,7 +434,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
             f_in = spr.csc_matrix(resize(np.atleast_2d(f_in.toarray()), [b_in.shape[-1], T]))
 
     if Ain.size > 0:
-        Cin = resize(Cin.astype(float), [K, T])
+        Cin = resize(Cin, [K, T])
 
         center = np.asarray(
             [center_of_mass(a.reshape(d, order='F')) for a in Ain.T])
