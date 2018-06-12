@@ -144,6 +144,9 @@ class MotionCorrect(object):
        use_cuda : bool, optional
            Use skcuda.fft (if available). Default: False
 
+       border_nan : bool or string, optional
+           Specifies how to deal with borders. (True, False, 'copy', 'min')
+
        Returns:
        -------
        self
