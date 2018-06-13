@@ -971,8 +971,7 @@ class CNMF(object):
         #self.mean_buff = self.Yres_buf.mean(0)
         res_frame = frame - self.Ab.dot(self.noisyC[:self.M, t])
         if self.center_psf:
-            self.b0 = (t-1)/t*self.b0 + res_frame/t
-            # self.Atb = self.Ab.T.dot(self.W.dot(self.b0) - self.b0)
+            self.b0 = self.b0 * (t-1)/t + res_frame/t
             res_frame -= self.b0
             x = res_frame if ssub_B == 1 else downscale(res_frame.reshape(self.dims2, order='F'),
                                                         [ssub_B] * 2).ravel(order='F')
@@ -1002,26 +1001,36 @@ class CNMF(object):
             rho = np.reshape(rho, np.prod(self.dims2))
             self.rho_buf.append(rho)
 
-            self.Ab, Cf_temp, self.Yres_buf, self.rhos_buf, self.CC, self.CY, self.ind_A, self.sv, self.groups, self.ind_new, self.ind_new_all, self.sv, self.cnn_pos = update_num_components(
+            (self.Ab, Cf_temp, self.Yres_buf, self.rhos_buf, self.CC, self.CY, self.ind_A,
+                self.sv, self.groups, self.ind_new, self.ind_new_all, self.sv, self.cnn_pos) = \
+                update_num_components(
                 t, self.sv, self.Ab, self.C_on[:self.M, (t - mbs + 1):(t + 1)],
                 self.Yres_buf, self.Yr_buf, self.rho_buf, self.dims2,
                 self.gSig, self.gSiz, self.ind_A, self.CY, self.CC, rval_thr=self.rval_thr,
                 thresh_fitness_delta=self.thresh_fitness_delta,
                 thresh_fitness_raw=self.thresh_fitness_raw, thresh_overlap=self.thresh_overlap,
-                groups=self.groups, batch_update_suff_stat=self.batch_update_suff_stat, gnb=self.gnb,
-                sn=self.sn, g=np.mean(
-                    self.g2) if self.p == 1 else np.mean(self.g2, 0),
-                s_min=self.s_min,
-                Ab_dense=self.Ab_dense[:, :self.M] if self.use_dense else None,
-                oases=self.OASISinstances if self.p else None, N_samples_exceptionality=self.N_samples_exceptionality,
+                groups=self.groups, batch_update_suff_stat=self.batch_update_suff_stat,
+                gnb=self.gnb, sn=self.sn,
+                g=np.mean(self.g2) if self.p == 1 else np.mean(self.g2, 0),
+                s_min=self.s_min, Ab_dense=self.Ab_dense[:, :self.M] if self.use_dense else None,
+                oases=self.OASISinstances if self.p else None,
+                N_samples_exceptionality=self.N_samples_exceptionality,
                 max_num_added=self.max_num_added, min_num_trial=self.min_num_trial,
                 loaded_model=self.loaded_model, thresh_CNN_noisy=self.thresh_CNN_noisy,
                 sniper_mode=self.sniper_mode, use_peak_max=self.use_peak_max,
-                test_both=self.test_both)
+                test_both=self.test_both,
+                center_psf=self.center_psf, ssub_B=ssub_B, W=self.W if self.center_psf else None,
+                b0=self.b0 if self.center_psf else None)
 
             num_added = len(self.ind_A) - self.N
 
             if num_added > 0:
+                import matplotlib.pyplot as plt
+                plt.plot(Cf_temp[-num_added:].T)
+                plt.show()
+                plt.imshow(self.Ab.toarray()[:,-1].reshape(self.dims2, order='F'))
+                plt.show()               
+                import pdb;pdb.set_trace()
                 self.N += num_added
                 self.M += num_added
                 if self.N + self.max_num_added > self.expected_comps:
@@ -1055,8 +1064,8 @@ class CNMF(object):
                         self.C_on[_ct, t - mbs + 1: t +
                                   1] = self.OASISinstances[_ct - nb_].get_c(mbs)
                     else:
-                        self.C_on[_ct, t - mbs + 1: t + 1] = np.maximum(0,
-                                                                        self.noisyC[_ct, t - mbs + 1: t + 1])
+                        self.C_on[_ct, t - mbs + 1: t + 1] = np.maximum(
+                            0, self.noisyC[_ct, t - mbs + 1: t + 1])
                     if self.simultaneously and self.n_refit:
                         self.AtY_buf = np.concatenate((
                             self.AtY_buf, [Ab_.data[Ab_.indptr[_ct]:Ab_.indptr[_ct + 1]].dot(
@@ -1065,6 +1074,22 @@ class CNMF(object):
                     if self.use_dense:
                         self.Ab_dense[Ab_.indices[Ab_.indptr[_ct]:Ab_.indptr[_ct + 1]],
                                       _ct] = Ab_.data[Ab_.indptr[_ct]:Ab_.indptr[_ct + 1]]
+
+                if self.center_psf:
+                    A_ds = scipy.sparse.csc_matrix(downscale(
+                        (self.Ab_dense[:, :self.N] if self.use_dense else self.Ab.toarray()).reshape(
+                            (d1, d2, -1), order='F'), (ssub_B, ssub_B, 1)).reshape(
+                        (-1, self.N), order='F'))
+                    self.Atb = self.Ab.T.dot(np.repeat(np.repeat(self.W.dot(
+                        downscale(self.b0.reshape(self.dims2, order='F'), [ssub_B] * 2)
+                        .reshape((-1, 1), order='F'))
+                        .reshape(((d1 - 1) // ssub_B + 1, (d2 - 1) // ssub_B + 1), order='F'),
+                        ssub_B, 0), ssub_B, 1)[:d1, :d2].ravel(order='F') - self.b0)
+                    # self.Atb = A_ds.T.dot(self.W.dot(
+                    #     downscale(self.b0.reshape(self.dims2, order='F'), [ssub_B] * 2)
+                    #     .ravel(order='F'))) * ssub_B**2 - self.Ab.T.dot(self.b0)
+                    self.AtW = A_ds.T.dot(self.W)
+                    self.AtWA = self.AtW.dot(A_ds).toarray()
 
                 # set the update counter to 0 for components that are overlaping the newly added
                 if self.use_dense:
@@ -1108,8 +1133,7 @@ class CNMF(object):
                 self.CY[m + nb_, self.ind_A[m]] += w2 * \
                     ccf[m + nb_].dot(y[:, self.ind_A[m]])
 
-            self.CY[:nb_] = self.CY[:nb_] * w1 + \
-                w2 * ccf[:nb_].dot(y)   # background
+            self.CY[:nb_] = self.CY[:nb_] * w1 + w2 * ccf[:nb_].dot(y)   # background
             self.CC = self.CC * w1 + w2 * ccf.dot(ccf.T)
 
         if not self.batch_update_suff_stat:

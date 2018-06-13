@@ -718,7 +718,7 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                           Ab_dense=None, max_num_added=1, min_num_trial=1,
                           loaded_model=None, thresh_CNN_noisy=0.99,
                           sniper_mode=False, use_peak_max=False,
-                          test_both=False):
+                          test_both=False, center_psf=False, ssub_B=1, W=None, b0=None):
     """
     Checks for new components in the residual buffer and incorporates them if they pass the acceptance tests
     """
@@ -735,11 +735,11 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
     sv += rho_buf.get_last_frames(1).squeeze()
     sv = np.maximum(sv, 0)
 
-    Ains, Cins, Cins_res, inds, ijsig_all, cnn_pos, local_max = get_candidate_components(sv, dims, Yres_buf=Yres_buf,
-                                                          min_num_trial=min_num_trial, gSig=gSig,
-                                                          gHalf=gHalf, sniper_mode=sniper_mode, rval_thr=rval_thr, patch_size=50,
-                                                          loaded_model=loaded_model, thresh_CNN_noisy=thresh_CNN_noisy,
-                                                          use_peak_max=use_peak_max, test_both=test_both)
+    Ains, Cins, Cins_res, inds, ijsig_all, cnn_pos, local_max = get_candidate_components(
+        sv, dims, Yres_buf=Yres_buf, min_num_trial=min_num_trial, gSig=gSig,
+        gHalf=gHalf, sniper_mode=sniper_mode, rval_thr=rval_thr, patch_size=50,
+        loaded_model=loaded_model, thresh_CNN_noisy=thresh_CNN_noisy,
+        use_peak_max=use_peak_max, test_both=test_both)
 
     ind_new_all = ijsig_all
 
@@ -857,12 +857,10 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
             ind_A.append(Ab.indices[Ab.indptr[M]:Ab.indptr[M + 1]])
 
             tt = t * 1.
-            Y_buf_ = Y_buf
+            y = Y_buf.get_ordered()
             cin_ = cin
             Cf_ = Cf
             cin_circ_ = cin_circ
-
-            CY[M, indeces] = cin_.dot(Y_buf_[:, indeces]) / tt
 
             # preallocate memory for speed up?
             CC1 = np.hstack([CC, Cf_.dot(cin_circ_ / tt)[:, None]])
@@ -870,6 +868,23 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                 [(Cf_.dot(cin_circ_)).T, cin_circ_.dot(cin_circ_)]) / tt
             CC = np.vstack([CC1, CC2])
             Cf = np.vstack([Cf, cin_circ])
+
+            if center_psf:  # subtract background
+                if ssub_B == 1:
+                    x = (y - Ab.dot(Cf).T - b0).T
+                    y -= W.dot(x).T
+                else:
+                    d1, d2 = dims
+                    x = (downscale((y.T - Ab.dot(Cf) - b0[:, None])
+                                   .reshape(dims + (-1,), order='F'), (ssub_B, ssub_B, 1))
+                         .reshape((-1, len(y)), order='F'))
+                    y -= np.repeat(np.repeat(
+                        W.dot(x).T.reshape((-1, (d1 - 1) // ssub_B + 1,
+                                            (d2 - 1) // ssub_B + 1), order='F'),
+                        ssub_B, 1), ssub_B, 2)[:, :d1, :d2].reshape((len(y), -1), order='F')
+                y -= b0
+
+            CY[M, indeces] = cin_circ_.dot(y[:, indeces]) / tt
 
             N = N + 1
             M = M + 1
@@ -879,8 +894,8 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
             #             siz=gSiz, nDimBlur=2).ravel()
             # restrict blurring to region where component is located
 #            vb = np.reshape(Ain, dims, order='F')
-            slices = tuple(slice(max(0, ijs[0] - 2*sg), min(d, ijs[1] + 2*sg))
-                           for ijs, sg, d in zip(ijSig, gSiz//2, dims))  # is 2 enough?
+            slices = tuple(slice(max(0, ijs[0] - sg), min(d, ijs[1] + sg))
+                           for ijs, sg, d in zip(ijSig, gSiz, dims))
 
             slice_within = tuple(slice(ijs[0] - sl.start, ijs[1] - sl.start)
                            for ijs, sl in zip(ijSig, slices))
