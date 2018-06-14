@@ -827,6 +827,14 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
             num_added += 1
             ind_new.append(ijSig)
 
+
+            plt.figure(figsize=(15,4))
+            plt.subplot(131)
+            plt.imshow(sv.reshape(dims))
+            plt.subplot(132)
+            plt.imshow(Ain[:,0].reshape(dims, order='F'))
+            
+
             if oases is not None:
                 if not useOASIS:
                     # lambda from Selesnick's 3*sigma*|K| rule
@@ -920,6 +928,10 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
 
 
             sv[ind_vb] = np.sum(rho_buf[:, ind_vb], 0)
+
+            plt.subplot(133)
+            plt.imshow(sv.reshape(dims))
+            plt.show()
 #            sv = np.sum([imblur(vb.reshape(dims,order='F'), sig=gSig, siz=gSiz, nDimBlur=len(dims))**2 for vb in Yres_buf], 0).reshape(-1)
 #            plt.subplot(1,5,4)
 #            plt.cla()

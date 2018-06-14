@@ -793,7 +793,8 @@ class CNMF(object):
         self.C_on = np.vstack(
             [self.noisyC[:self.gnb, :], self.C_on.astype(np.float32)])
 
-        # self.gSiz = np.add(np.multiply(np.ceil(self.gSig).astype(np.int), 2), 1)
+        if self.gSiz is None:
+            self.gSiz = np.add(np.multiply(np.ceil(self.gSig).astype(np.int), 2), 1)
 
         self.Yr_buf = RingBuffer(Yr[:, self.initbatch - self.minibatch_shape:
                                     self.initbatch].T.copy(), self.minibatch_shape)
@@ -845,7 +846,6 @@ class CNMF(object):
         self.sv = np.sum(self.rho_buf.get_last_frames(
             min(self.initbatch, self.minibatch_shape) - 1), 0)
         self.groups = list(map(list, update_order(self.Ab)[0]))
-
         # self.update_counter = np.zeros(self.N)
         self.update_counter = .5**(-np.linspace(0, 1,
                                                 self.N, dtype=np.float32))
@@ -975,7 +975,6 @@ class CNMF(object):
             res_frame -= self.b0
             x = res_frame if ssub_B == 1 else downscale(res_frame.reshape(self.dims2, order='F'),
                                                         [ssub_B] * 2).ravel(order='F')
-            # self.XXt += np.outer(x, x)
             res_frame -= (self.W.dot(x) if ssub_B == 1 else
                           np.repeat(np.repeat(self.W.dot(x).reshape(
                               ((d1 - 1) // ssub_B + 1, (d2 - 1) // ssub_B + 1), order='F'),
@@ -1025,12 +1024,12 @@ class CNMF(object):
             num_added = len(self.ind_A) - self.N
 
             if num_added > 0:
-                import matplotlib.pyplot as plt
-                plt.plot(Cf_temp[-num_added:].T)
-                plt.show()
-                plt.imshow(self.Ab.toarray()[:,-1].reshape(self.dims2, order='F'))
-                plt.show()               
-                import pdb;pdb.set_trace()
+                # import matplotlib.pyplot as plt
+                # plt.plot(Cf_temp[-num_added:].T)
+                # plt.show()
+                # plt.imshow(self.Ab.toarray()[:,-1].reshape(self.dims2, order='F'))
+                # plt.show()               
+                # import pdb;pdb.set_trace()
                 self.N += num_added
                 self.M += num_added
                 if self.N + self.max_num_added > self.expected_comps:
