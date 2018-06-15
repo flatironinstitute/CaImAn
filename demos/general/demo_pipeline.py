@@ -159,7 +159,7 @@ def main():
     # load frames in python format (T x X x Y)
 
 #%% restart cluster to clean up memory
-    dview.terminate()
+    cm.stop_server(dview=dview)
     c, dview, n_processes = cm.cluster.setup_cluster(
         backend='local', n_processes=None, single_thread=False)
 

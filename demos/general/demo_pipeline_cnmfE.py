@@ -94,7 +94,7 @@ def main():
 
 #%% start the cluster
     try:
-        dview.terminate()  # stop it if it was running
+        cm.stop_server(dview=dview)  # stop it if it was running
     except:
         pass
     
