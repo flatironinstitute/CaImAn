@@ -269,8 +269,7 @@ def save_portion(pars):
     for f in fnames:
         print(f)
         Yr, _, T = load_memmap(f)
-
-        Yr_tot[:, Ttot:Ttot + T] = np.ascontiguousarray(Yr[idx_start:idx_end] , dtype = np.float32) + add_to_mov
+        Yr_tot[:, Ttot:Ttot + T] = np.ascontiguousarray(Yr[idx_start:idx_end] , dtype = np.float32) + np.float32(add_to_mov)
         Ttot = Ttot + T
         del Yr
 

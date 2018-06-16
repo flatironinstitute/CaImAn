@@ -737,7 +737,7 @@ class movie(ts.timeseries):
 
         return mask
 
-    def local_correlations(self, eight_neighbours=False, swap_dim=True, frames_per_chunk=1500):
+    def local_correlations(self, eight_neighbours=False, swap_dim=True, frames_per_chunk=1500, order_mean=1):
         """Computes the correlation image for the input dataset Y
 
             Parameters:
@@ -764,7 +764,7 @@ class movie(ts.timeseries):
         Cn = np.zeros(self.shape[1:])
         if T <= 3000:
             Cn = si.local_correlations(
-                np.array(self), eight_neighbours=eight_neighbours, swap_dim=swap_dim)
+                np.array(self), eight_neighbours=eight_neighbours, swap_dim=swap_dim, order_mean=order_mean)
         else:
 
             n_chunks = T // frames_per_chunk
@@ -772,7 +772,7 @@ class movie(ts.timeseries):
                 print('number of chunks:' + str(jj) + ' frames: ' +
                       str([mv * frames_per_chunk, (mv + 1) * frames_per_chunk]))
                 rho = si.local_correlations(np.array(self[mv * frames_per_chunk:(mv + 1) * frames_per_chunk]),
-                                            eight_neighbours=eight_neighbours, swap_dim=swap_dim)
+                                            eight_neighbours=eight_neighbours, swap_dim=swap_dim, order_mean=order_mean)
                 Cn = np.maximum(Cn, rho)
                 pl.imshow(Cn, cmap='gray')
                 pl.pause(.1)
@@ -780,7 +780,7 @@ class movie(ts.timeseries):
             print('number of chunks:' + str(n_chunks - 1) +
                   ' frames: ' + str([(n_chunks - 1) * frames_per_chunk, T]))
             rho = si.local_correlations(np.array(self[(n_chunks - 1) * frames_per_chunk:]), eight_neighbours=eight_neighbours,
-                                        swap_dim=swap_dim)
+                                        swap_dim=swap_dim, order_mean=order_mean)
             Cn = np.maximum(Cn, rho)
             pl.imshow(Cn, cmap='gray')
             pl.pause(.1)
@@ -1016,10 +1016,26 @@ class movie(ts.timeseries):
         pl.imshow(zp, cmap=cmap, aspect=aspect, **kwargs)
         return zp
 
-    def local_correlations_movie(self, window=10,swap_dim=True):
+
+
+    def local_correlations_movie(self, file_name = None, window=10, swap_dim=True, eight_neighbours=True, order_mean = 1, dview = None):
         T, _, _ = self.shape
-        return movie(np.concatenate([self[j:j + window, :, :].local_correlations(
-            eight_neighbours=True,swap_dim=swap_dim)[np.newaxis, :, :] for j in range(T - window)], axis=0), fr=self.fr)
+        params = [[file_name,range(j,j + window), eight_neighbours, swap_dim, order_mean] for j in range(T - window)]
+        if dview is None:
+            parallel_result = [self[j:j + window, :, :].local_correlations(
+                    eight_neighbours=True,swap_dim=swap_dim, order_mean=order_mean)[np.newaxis, :, :] for j in range(T - window)]
+        else:
+            if 'multiprocessing' in str(type(dview)):
+                parallel_result = dview.map_async(
+                        local_correlations_movie_parallel, params).get(4294967)
+            else:
+                parallel_result = dview.map_sync(
+                    local_correlations_movie_parallel, params)
+                dview.results.clear()
+
+        mm = movie(np.concatenate(parallel_result, axis=0),fr=self.fr)
+        return mm
+
 
     def play(self, gain=1, fr=None, magnification=1, offset=0, interpolation=cv2.INTER_LINEAR,
              backend='opencv', do_loop=False, bord_px=None, q_max=100, q_min = 0, plot_text = False):
@@ -1047,12 +1063,12 @@ class movie(ts.timeseries):
             maxmov = np.nanpercentile(self[0:10], q_max)
         else:
             maxmov = np.nanmax(self)
-            
+
         if q_min > 0:
             minmov = np.nanpercentile(self[0:10], q_min)
         else:
             minmov = np.nanmin(self)
-            
+
         if backend == 'pylab':
             pl.ion()
             fig = pl.figure(1)
@@ -1101,7 +1117,7 @@ class movie(ts.timeseries):
 
                     if plot_text == True:
                         text_width, text_height = cv2.getTextSize('Frame = ' + str(iddxx), fontFace=5, fontScale = 0.8, thickness=1)[0]
-                        cv2.putText(frame, 'Frame = ' + str(iddxx), ((frame.shape[1] - text_width) // 2, 
+                        cv2.putText(frame, 'Frame = ' + str(iddxx), ((frame.shape[1] - text_width) // 2,
                                     frame.shape[0] - (text_height + 5)), fontFace=5, fontScale=0.8, color=(255, 255, 255), thickness=1)
 
                     cv2.imshow('frame', frame)
@@ -1112,7 +1128,7 @@ class movie(ts.timeseries):
                         break
 
                 elif backend == 'pylab':
-                    
+
                     im.set_data((offset + frame) * gain / maxmov)
                     ax.set_title(str(iddxx))
                     pl.axis('off')
@@ -1146,8 +1162,8 @@ class movie(ts.timeseries):
 
 
 
-def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None, 
-         var_name_hdf5 = 'mov', in_memory = False, is_behavior = False, bottom=0, 
+def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None,
+         var_name_hdf5 = 'mov', in_memory = False, is_behavior = False, bottom=0,
          top=0, left=0, right=0, channel = None, outtype=np.float32):
     """
     load movie from file. SUpports a variety of formats. tif, hdf5, npy and memory mapped. Matlab is experimental.
@@ -1198,27 +1214,27 @@ def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None,
     if type(file_name) is list:
         if shape is not None:
             raise Exception('shape not supported for multiple movie input')
-            
+
         return load_movie_chain(file_name,fr=fr, start_time=start_time,
                      meta_data=meta_data, subindices=subindices,
                      bottom=bottom, top=top, left=left, right=right, channel = channel, outtype=outtype)
-        
+
     if bottom != 0:
         raise Exception('top bottom etc... not supported for single movie input')
 
     if channel is not None:
         raise Exception('channel not supported for single movie input')
-        
+
     if os.path.exists(file_name):
         _, extension = os.path.splitext(file_name)[:2]
 
         if extension == '.tif' or extension == '.tiff':  # load avi file
-            with tifffile.TiffFile(file_name) as tffl:                
+            with tifffile.TiffFile(file_name) as tffl:
                 if subindices is not None:
                     if type(subindices) is list:
                         input_arr  = tffl.asarray(key=subindices[0])[:, subindices[1], subindices[2]]
                     else:
-                        input_arr  = tffl.asarray(key=subindices)                        
+                        input_arr  = tffl.asarray(key=subindices)
 
 #                    elif type(subindices) is range:
 #                        subidx = slice(subindices.start, subindices.stop,
@@ -1228,8 +1244,8 @@ def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None,
 #                        input_arr = imread(file_name)[subindices]
                 else:
                     input_arr = tffl.asarray()
-                    
-                input_arr = np.squeeze(input_arr)  
+
+                input_arr = np.squeeze(input_arr)
 
         elif extension == '.avi':  # load avi file
             if subindices is not None:
@@ -1422,7 +1438,7 @@ def load_movie_chain(file_list, fr=30, start_time=0,
 
     bottom, top, left, right, z_top, z_bottom : int
         to load only portion of the field of view
-    
+
     is3D : bool
         flag for 3d data (adds a fourth dimension)
 
@@ -1444,16 +1460,16 @@ def load_movie_chain(file_list, fr=30, start_time=0,
         if not is3D:
             if m.ndim == 2:
                 m = m[np.newaxis, :, :]
-    
+
             _, h, w = np.shape(m)
             m = m[:, top:h - bottom, left:w - right]
         else:
             if m.ndim == 3:
                 m = m[np.newaxis, :, :, :]
-            
+
             _, h, w, d = np.shape(m)
             m = m[:, top:h - bottom, left:w - right, z_top:d - z_bottom]
-                
+
         mov.append(m)
     return ts.concatenate(mov, axis=0)
 
@@ -1639,3 +1655,11 @@ def to_3D(mov2D, shape, order='F'):
     transform to 3D a vectorized movie
     """
     return np.reshape(mov2D, shape, order=order)
+
+
+def local_correlations_movie_parallel(params):
+
+        import caiman as cm
+        mv_name, idx, eight_neighbours, swap_dim, order_mean = params
+        mv = cm.load(mv_name,subindices=idx)
+        return mv.local_correlations(eight_neighbours=eight_neighbours, swap_dim=swap_dim, order_mean=order_mean)[None,:,:].astype(np.float32)

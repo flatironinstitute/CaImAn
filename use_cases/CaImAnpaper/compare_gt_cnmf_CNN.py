@@ -593,14 +593,14 @@ for params_movie in np.array(params_movies)[:]:
 #        np.savez(fname_new.split('/')[-4]+'_act.npz', comp_SNR_trace=comp_SNR_trace, C_gt=C_gt, A_gt=A_gt, dims=(d1,d2))
 #        NO F_dff = cm.source_extraction.cnmf.utilities.detrend_df_f_auto(A_gt, b_gt, C_gt, f_gt, YrA=None, dview=dview)
 #        #NO S_gt_old = dview.map(myfun,[[fluor, None, None, None, None, 2, 'oasis'] for fluor in F_dff])
-        S_gt = dview.map(myfun_dff,[[aa.T, cc[None,:], b_gt, f_gt, yra[None,:], None, None, None, None, 2, 'oasis'] for aa,cc,yra in zip(A_gt.tocsc().T,C_gt, YrA_gt)])
-        S = [s[1] for s in S_gt]
-        C = [s[0] for s in S_gt]
-        F = [s[2] for s in S_gt]
-
-
-        np.savez(fname_new.split('/')[-4]+'_spikes_DFF.npz', S=S, C=C, A_gt=A_gt, F = F, dims=(d1,d2))
-        continue
+#        S_gt = dview.map(myfun_dff,[[aa.T, cc[None,:], b_gt, f_gt, yra[None,:], None, None, None, None, 2, 'oasis'] for aa,cc,yra in zip(A_gt.tocsc().T,C_gt, YrA_gt)])
+#        S = [s[1] for s in S_gt]
+#        C = [s[0] for s in S_gt]
+#        F = [s[2] for s in S_gt]
+#
+#
+#        np.savez(fname_new.split('/')[-4]+'_spikes_DFF.npz', S=S, C=C, A_gt=A_gt, F = F, dims=(d1,d2))
+#        continue
 #        gt_file = os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:-4] + 'match_masks.npz')
 #        with np.load(gt_file, encoding = 'latin1') as ld:
 #            print(ld.keys())
