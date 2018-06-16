@@ -238,7 +238,7 @@ class movie(ts.timeseries):
         T, d1, d2 = np.shape(self)
         num_windows = np.int(old_div(T, window))
         num_frames = num_windows * window
-        return np.median(np.mean(np.reshape(self[:num_frames], (window, num_windows, d1, d2)), axis=0), axis=0)
+        return np.nanmedian(np.nanmean(np.reshape(self[:num_frames], (window, num_windows, d1, d2)), axis=0), axis=0)
 
     def extract_shifts(self, max_shift_w=5, max_shift_h=5, template=None, method='opencv'):
         """
