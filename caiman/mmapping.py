@@ -348,10 +348,11 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
         
         n_chunks:    (undocumented)
         
-        slices: slice object
-            slice can be used to select portion of the movis in both x,y and time. 
-            For instance slices = [slice(0,100),slice(0,100),slice(0,100)] will take 
-            the first 100 elements along each dimension. 
+        slices: slice object or list of slice objects
+            slice can be used to select portion of the movies in time and x,y
+            directions. For instance 
+            slices = [slice(0,200),slice(0,100),slice(0,100)] will take 
+            the first 200 frames and the 100 pixels along x and y dimensions. 
     Returns:
     -------
         fname_new: the name of the mapped file, the format is such that
@@ -360,6 +361,9 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
     """
     if type(filenames) is not list:
         raise Exception('input should be a list of filenames')
+
+    if slices is not None:
+        slices = [slice(0, None) if sl is None else sl for sl in slices]
 
     if len(filenames) > 1:
         recompute_each_memmap = False
