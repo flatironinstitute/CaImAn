@@ -34,7 +34,7 @@ import pylab as pl
 import scipy
 from ...mmapping import parallel_dot_product
 from ...utils.stats import df_percentile
-
+import logging
 
 #%%
 def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], gSiz=None, ssub=2, tsub=2, p=2, p_ssub=2, p_tsub=2,
@@ -434,7 +434,8 @@ s
 
 
 #%%
-def detrend_df_f(A, b, C, f, YrA=None, quantileMin=8, frames_window=500, block_size=400):
+def detrend_df_f(A, b, C, f, YrA=None, quantileMin=8, frames_window=500, 
+                 flag_auto=True, use_fast=False):
     """ Compute DF/F signal without using the original data.
     In general much faster than extract_DF_F
 
@@ -444,7 +445,7 @@ def detrend_df_f(A, b, C, f, YrA=None, quantileMin=8, frames_window=500, block_s
         spatial components (from cnmf cnm.A)
 
     b: ndarray
-        spatial backgrounds
+        spatial background components
 
     C: ndarray
         temporal components (from cnmf cnm.C)
@@ -456,10 +457,16 @@ def detrend_df_f(A, b, C, f, YrA=None, quantileMin=8, frames_window=500, block_s
         residual signals
 
     quantile_min: float
-        quantile minimum of the
+        quantile used to estimate the baseline (values in [0,100])
 
     frames_window: int
-        number of frames for running quantile
+        number of frames for computing running quantile
+
+    flag_auto: bool
+        flag for determining quantile automatically
+
+    use_fast: bool
+        flag for using approximate fast percentile filtering
 
     Returns:
     ----------
@@ -467,6 +474,11 @@ def detrend_df_f(A, b, C, f, YrA=None, quantileMin=8, frames_window=500, block_s
         the computed Calcium acitivty to the derivative of f
 
     """
+
+    if C is None:
+        logging.warning("There are no components for DF/F extraction!")
+        return None
+
     if 'csc_matrix' not in str(type(A)):
         A = scipy.sparse.csc_matrix(A)
     if 'array' not in str(type(b)):
@@ -487,16 +499,42 @@ def detrend_df_f(A, b, C, f, YrA=None, quantileMin=8, frames_window=500, block_s
     F = C + YrA if YrA is not None else C
     B = A.T.dot(b).dot(f)
     T = C.shape[-1]
-    if frames_window is None or frames_window > T:
-        Fd = np.percentile(F, quantileMin, axis=1)
-        Df = np.percentile(B, quantileMin, axis=1)
-        F_df = (F - Fd) / (Df[:, None] + Fd[:, None])
+
+    if flag_auto:
+        data_prct, val = df_percentile(F[:frames_window], axis=1)
+        if frames_window is None or frames_window > T:
+            Fd = np.stack([np.percentile(f, prctileMin) for f, prctileMin in
+                           zip(F, data_prct)])
+            Df = np.stack([np.percentile(f, prctileMin) for f, prctileMin in
+                           zip(B, data_prct)])
+            F_df = (F - Fd[:, None]) / (Df[:, None] + Fd[:, None])
+        else:
+            if use_fast:
+                Fd = np.stack([fast_prct_filt(f, level=prctileMin,
+                                              frames_window=frames_window) for
+                               f, prctileMin in zip(F, data_prct)])
+                Df = np.stack([fast_prct_filt(f, level=prctileMin,
+                                              frames_window=frames_window) for
+                               f, prctileMin in zip(B, data_prct)])
+            else:
+                Fd = np.stack([scipy.ndimage.percentile_filter(
+                    f, prctileMin, (frames_window)) for f, prctileMin in
+                    zip(F, data_prct)])
+                Df = np.stack([scipy.ndimage.percentile_filter(
+                    f, prctileMin, (frames_window)) for f, prctileMin in
+                    zip(B, data_prct)])
+            F_df = (F - Fd) / (Df + Fd)
     else:
-        Fd = scipy.ndimage.percentile_filter(
-            F, quantileMin, (frames_window, 1))
-        Df = scipy.ndimage.percentile_filter(
-            B, quantileMin, (frames_window, 1))
-        F_df = (F - Fd) / (Df + Fd)
+        if frames_window is None or frames_window > T:
+            Fd = np.percentile(F, quantileMin, axis=1)
+            Df = np.percentile(B, quantileMin, axis=1)
+            F_df = (F - Fd) / (Df[:, None] + Fd[:, None])
+        else:
+            Fd = scipy.ndimage.percentile_filter(
+                F, quantileMin, (frames_window, 1))
+            Df = scipy.ndimage.percentile_filter(
+                B, quantileMin, (frames_window, 1))
+            F_df = (F - Fd) / (Df + Fd)
     return F_df
 
 

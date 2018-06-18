@@ -29,12 +29,13 @@ from __future__ import print_function
 from builtins import str
 from builtins import object
 import numpy as np
-from .utilities import CNMFSetParms, update_order, normalize_AC, compute_residuals
+from .utilities import CNMFSetParms, update_order, normalize_AC, compute_residuals, detrend_df_f
 from .pre_processing import preprocess_data
 from .initialization import initialize_components, imblur
 from .merging import merge_components
 from .spatial import update_spatial_components
-from .temporal import update_temporal_components
+from .temporal import update_temporal_components, constrained_foopsi_parallel
+from .deconvolution import constrained_foopsi
 from .map_reduce import run_CNMF_patches
 from .oasis import OASIS
 import caiman
@@ -46,6 +47,8 @@ import scipy
 import psutil
 import pylab as pl
 from time import time
+import logging
+import sys
 
 try:
     cv2.setNumThreads(0)
@@ -350,6 +353,7 @@ class CNMF(object):
                                     ssub_B=ssub_B, init_iter=init_iter)
         self.options['merging']['thr'] = merge_thresh
         self.options['temporal_params']['s_min'] = s_min
+        
 
     def fit(self, images):
         """
@@ -841,7 +845,8 @@ class CNMF(object):
     @profile
     def fit_next(self, t, frame_in, num_iters_hals=3):
         """
-        This method fits the next frame using the online cnmf algorithm and updates the object.
+        This method fits the next frame using the online cnmf algorithm and
+        updates the object.
 
         Parameters
         ----------
@@ -1206,7 +1211,7 @@ class CNMF(object):
         self.b = self.b * nB_inv_mat
         self.f = nB_mat * self.f
 
-    def view_patches(self, Yr, dims, img=None, idx = None):
+    def view_patches(self, Yr, dims, img=None, idx=None):
         """view spatial and temporal components interactively
 
          Parameters:
@@ -1218,7 +1223,8 @@ class CNMF(object):
                  dimensions of the FOV
 
          img :   np.ndarray
-                 background image for contour plotting. Default is the mean image of all spatial components (d1 x d2)
+                 background image for contour plotting. Default is the mean 
+                 image of all spatial components (d1 x d2)
 
         """
         if 'csc_matrix' not in str(type(self.A)):
@@ -1243,6 +1249,98 @@ class CNMF(object):
             caiman.utils.visualization.view_patches_bar(Yr, self.A.tocsc()[:,idx], self.C[idx], self.b, self.f, dims[
                                                     0], dims[1], YrA=self.YrA[idx], img=img)
 
+    def detrend_df_f(self, quantileMin=8, frames_window=500,
+                     flag_auto=True, use_fast=False, use_residuals=True):
+        """Computes DF/F normalized fluorescence for the extracted traces. See
+        caiman.source.extraction.utilities.detrend_df_f for details
 
-def scale(y):
-    return (y - np.mean(y)) / (np.max(y) - np.min(y))
+        Parameters:
+        -----------
+        quantile_min: float
+            quantile used to estimate the baseline (values in [0,100])
+
+        frames_window: int
+            number of frames for computing running quantile
+
+        flag_auto: bool
+            flag for determining quantile automatically (different for each
+            trace)
+
+        use_fast: bool
+            flag for using approximate fast percentile filtering
+
+        use_residuals: bool
+            flag for using non-deconvolved traces in DF/F calculation
+
+        Returns:
+        --------
+        self: CNMF object
+            self.F_dff contains the DF/F normalized traces
+        """
+
+        if self.C is None:
+            logging.warning("There are no components for DF/F extraction!")
+            return self
+
+        if use_residuals:
+            R = self.YrA
+        else:
+            R = None
+
+        self.F_dff = detrend_df_f(self.A, self.b, self.C, self.f, R,
+                                  quantileMin=quantileMin,
+                                  frames_window=frames_window,
+                                  flag_auto=flag_auto, use_fast=use_fast)
+        return self
+
+    def deconvolve(self, p=None, method=None, bas_nonneg=None,
+                   noise_method=None, optimize_g=0, s_min=None, **kwargs):
+        """Performs deconvolution on already extracted traces using
+        constrained foopsi.
+        """
+
+        p = self.p if p is None else p
+        method = self.method_deconvolution if method is None else method
+        bas_nonneg = (self.options['temporal_params']['bas_nonneg']
+                      if bas_nonneg is None else bas_nonneg)
+        noise_method = (self.options['temporal_params']['noise_method']
+                        if noise_method is None else noise_method)
+        s_min = self.s_min if s_min is None else s_min
+
+        F = self.C + self.YrA
+        args = dict()
+        args['p'] = p
+        args['method'] = method
+        args['bas_nonneg'] = bas_nonneg
+        args['noise_method'] = noise_method
+        args['s_min'] = s_min
+        args['optimize_g'] = optimize_g
+        args['noise_range'] = self.options['temporal_params']['noise_range']
+        args['fudge_factor'] = self.options['temporal_params']['fudge_factor']
+
+        args_in = [(F[jj], None, jj, None, None, None, None,
+                    args) for jj in range(F.shape[0])]
+
+        if 'multiprocessing' in str(type(self.dview)):
+            results = self.dview.map_async(
+                constrained_foopsi_parallel, args_in).get(4294967)
+        elif self.dview is not None:
+            results = self.dview.map_sync(constrained_foopsi_parallel, args_in)
+        else:
+            results = list(map(constrained_foopsi_parallel, args_in))
+
+        if sys.version_info >= (3, 0):
+            results = list(zip(*results))
+        else:  # python 2
+            results = zip(*results)
+
+        order = list(results[7])
+        self.C = np.stack([results[0][i] for i in order])
+        self.S = np.stack([results[1][i] for i in order])
+        self.bl = [results[3][i] for i in order]
+        self.c1 = [results[4][i] for i in order]
+        self.g = [results[5][i] for i in order]
+        self.neuron_sn = [results[6][i] for i in order]
+        self.lam = [results[8][i] for i in order]
+        self.YrA = F - self.C
+        return self
