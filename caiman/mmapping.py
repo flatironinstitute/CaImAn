@@ -76,7 +76,7 @@ def load_memmap(filename, mode='r'):
 
 #%%
 def save_memmap_each(fnames, dview=None, base_name=None, resize_fact=(1, 1, 1), remove_init=0,
-                     idx_xy=None, xy_shifts=None, add_to_movie=0, border_to_0=0, order = 'C'):
+                     idx_xy=None, xy_shifts=None, add_to_movie=0, border_to_0=0, order = 'C', slices=None):
     """
     Create several memory mapped files using parallel processing
 
@@ -128,10 +128,10 @@ def save_memmap_each(fnames, dview=None, base_name=None, resize_fact=(1, 1, 1), 
     for idx, f in enumerate(fnames):
         if base_name is not None:
             pars.append([f, base_name + '{:04d}'.format(idx), resize_fact[idx], remove_init,
-                         idx_xy, order, xy_shifts[idx], add_to_movie, border_to_0])
+                         idx_xy, order, xy_shifts[idx], add_to_movie, border_to_0, slices])
         else:
             pars.append([f, os.path.splitext(f)[0], resize_fact[idx], remove_init, idx_xy, order,
-                         xy_shifts[idx], add_to_movie, border_to_0])
+                         xy_shifts[idx], add_to_movie, border_to_0, slices])
 
     # Perform the job using whatever computing framework we're set to use
     if dview is not None:
@@ -297,17 +297,17 @@ def save_place_holder(pars):
     # todo: todocument
 
     (f, base_name, resize_fact, remove_init, idx_xy, order,
-        xy_shifts, add_to_movie, border_to_0) = pars
+        xy_shifts, add_to_movie, border_to_0, slices) = pars
 
     return save_memmap([f], base_name=base_name, resize_fact=resize_fact, remove_init=remove_init,
                        idx_xy=idx_xy, order=order, xy_shifts=xy_shifts,
-                       add_to_movie=add_to_movie, border_to_0=border_to_0)
+                       add_to_movie=add_to_movie, border_to_0=border_to_0, slices=slices)
 
 
 #%%
 def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0, idx_xy=None,
                 order='F', xy_shifts=None, is_3D=False, add_to_movie=0, border_to_0=0, dview = None,
-                n_chunks=100):
+                n_chunks=100, slices=None):
 
     """ Efficiently write data from a list of tif files into a memory mappable file
 
@@ -338,11 +338,21 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
 
         is_3D: boolean
             whether it is 3D data
+            
         add_to_movie: floating-point
             value to add to each image point, typically to keep negative values out.
+        
         border_to_0: (undocumented)
+        
         dview:       (undocumented)
+        
         n_chunks:    (undocumented)
+        
+        slices: slice object or list of slice objects
+            slice can be used to select portion of the movies in time and x,y
+            directions. For instance 
+            slices = [slice(0,200),slice(0,100),slice(0,100)] will take 
+            the first 200 frames and the 100 pixels along x and y dimensions. 
     Returns:
     -------
         fname_new: the name of the mapped file, the format is such that
@@ -352,14 +362,22 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
     if type(filenames) is not list:
         raise Exception('input should be a list of filenames')
 
+    if slices is not None:
+        slices = [slice(0, None) if sl is None else sl for sl in slices]
+
     if len(filenames) > 1:
-        is_inconsistent_order = False
+        recompute_each_memmap = False
         for file__ in filenames:
             if ('order_' + order not in file__) or ('.mmap' not in file__):
-                is_inconsistent_order = True
+                recompute_each_memmap  = True
 
 
-        if is_inconsistent_order: # Here we make a bunch of memmap files in the right order. Same parameters
+        if recompute_each_memmap or (remove_init>0) or (idx_xy is not None)\
+                or (xy_shifts is not None) or (add_to_movie>0) or (border_to_0>0)\
+                or slices is not None:
+                    
+            print('RECOMPUTING EACH FILE MEMORY MAP')
+            # Here we make a bunch of memmap files in the right order. Same parameters
             fname_new = cm.save_memmap_each(filenames,
                                         base_name    = base_name,
                                         order        = order,
@@ -369,16 +387,17 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
                                         remove_init  = remove_init,
                                         idx_xy       = idx_xy,
                                         xy_shifts    = xy_shifts,
+                                        slices = slices,
                                         add_to_movie = add_to_movie)
-        else:
+        else:                            
             fname_new = filenames
 
         # The goal is to make a single large memmap file, which we do here
         if order == 'F':
-            raise exception('You cannot merge files in F order, they must be in C order')
+            raise exception('You cannot merge files in F order, they must be in C order for CaImAn')
 
 
-        fname_new = cm.save_memmap_join(fname_new, base_name=base_name, dview=dview, n_chunks=n_chunks, add_to_mov = add_to_movie)
+        fname_new = cm.save_memmap_join(fname_new, base_name=base_name, dview=dview, n_chunks=n_chunks)
 
     else:
     # TODO: can be done online
@@ -389,27 +408,38 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
 
             if is_3D:
                 Yr = f if not(isinstance(f, basestring)) else tifffile.imread(f)
-                if idx_xy is None:
-                    Yr = Yr[remove_init:]
-                elif len(idx_xy) == 2:
-                    Yr = Yr[remove_init:, idx_xy[0], idx_xy[1]]
+                if slices is not None:
+                    Yr = Yr[slices]
                 else:
-                    Yr = Yr[remove_init:, idx_xy[0], idx_xy[1], idx_xy[2]]
+                    if idx_xy is None: #todo remove if not used, superceded by the slices parameter
+                        Yr = Yr[remove_init:]
+                    elif len(idx_xy) == 2: #todo remove if not used, superceded by the slices parameter
+                        Yr = Yr[remove_init:, idx_xy[0], idx_xy[1]]
+                    else: #todo remove if not used, superceded by the slices parameter
+                        Yr = Yr[remove_init:, idx_xy[0], idx_xy[1], idx_xy[2]]
 
             else:
                 Yr = cm.load(f, fr=1, in_memory=True) if (isinstance(f, basestring) or isinstance(f, list)) else cm.movie(f) # TODO: Rewrite more legibly
                 if xy_shifts is not None:
                     Yr = Yr.apply_shifts(xy_shifts, interpolation='cubic', remove_blanks=False)
-                if idx_xy is None:
-                    if remove_init > 0:
-                        Yr = Yr[remove_init:]
-                elif len(idx_xy) == 2:
-                    Yr = Yr[remove_init:, idx_xy[0], idx_xy[1]]
+                    
+                if slices is not None:
+                    Yr = Yr[slices]
                 else:
-                    raise Exception('You need to set is_3D=True for 3D data)')
-                    Yr = np.array(Yr)[remove_init:, idx_xy[0], idx_xy[1], idx_xy[2]]
+                    if idx_xy is None:
+                        if remove_init > 0:
+                            Yr = Yr[remove_init:]
+                    elif len(idx_xy) == 2:
+                        Yr = Yr[remove_init:, idx_xy[0], idx_xy[1]]
+                    else:
+                        raise Exception('You need to set is_3D=True for 3D data)')
+                        Yr = np.array(Yr)[remove_init:, idx_xy[0], idx_xy[1], idx_xy[2]]
 
             if border_to_0 > 0:
+                if slices is not None:  
+                    if type(slices) is list:
+                        raise Exception('You cannot slice in x and y and then use add_to_movie: if you only want to slice in time do not pass in a list but just a slice object')
+                    
                 min_mov = Yr.calc_min()
                 Yr[:, :border_to_0, :] = min_mov
                 Yr[:, :, :border_to_0] = min_mov
