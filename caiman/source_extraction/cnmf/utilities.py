@@ -210,6 +210,39 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], gSiz=None, ssub=2, tsub=2, p
 
         block_size : block_size
             number of pixels to process at the same time for dot product. Make it smaller if memory problems
+            
+    QUALITY EVALUATION PARAMETERS###########
+
+        fr: 30
+            Imaging rate
+
+        decay_time: 0.5
+            length of decay of typical transient (in seconds)
+
+        min_SNR: 2.5
+            trace SNR threshold
+
+        SNR_lowest: 0.5
+            minimum required trace SNR
+
+        rval_thr: 0.8
+            space correlation threshold
+
+        rval_lowest: -1
+            minimum required space correlation
+
+        use_cnn: True
+            flag for using the CNN classifier
+
+        min_cnn_thr: 0.9
+            CNN classifier threshold
+
+        cnn_lowest: 0.1
+            minimum required CNN threshold
+
+        gSig_range: None
+            gSig scale values for CNN classifier
+    
     """
 
     if type(Y) is tuple:
