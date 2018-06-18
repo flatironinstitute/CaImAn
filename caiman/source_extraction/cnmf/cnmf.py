@@ -48,6 +48,7 @@ import psutil
 import pylab as pl
 from time import time
 import logging
+import sys
 
 try:
     cv2.setNumThreads(0)
@@ -1328,14 +1329,18 @@ class CNMF(object):
         else:
             results = list(map(constrained_foopsi_parallel, args_in))
 
-        results = list(zip(*results))
+        if sys.version_info >= (3, 0):
+            results = list(zip(*results))
+        else:  # python 2
+            results = zip(*results)
+
         order = list(results[7])
         self.C = np.stack([results[0][i] for i in order])
         self.S = np.stack([results[1][i] for i in order])
         self.bl = [results[3][i] for i in order]
         self.c1 = [results[4][i] for i in order]
         self.g = [results[5][i] for i in order]
-        self.sn = [results[6][i] for i in order]
+        self.neuron_sn = [results[6][i] for i in order]
         self.lam = [results[8][i] for i in order]
         self.YrA = F - self.C
         return self
