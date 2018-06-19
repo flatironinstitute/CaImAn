@@ -216,9 +216,9 @@ def update_temporal_components(Y, A, b, Cin, fin, bl=None, c1=None, g=None, sn=N
     print('Generating residuals')
 #    dview_res = None if block_size >= 500 else dview
     if 'memmap' in str(type(Y)):
-
-        YA = parallel_dot_product(Y, A, dview=dview, block_size=block_size,
-                                  transpose=True, num_blocks_per_run=num_blocks_per_run) * spdiags(old_div(1., nA), 0, nr + nb, nr + nb)
+        import pdb
+        #pdb.set_trace()
+        YA = parallel_dot_product(Y, A, dview=dview, block_size=block_size,transpose=True, num_blocks_per_run=num_blocks_per_run) * spdiags(old_div(1., nA), 0, nr + nb, nr + nb)
     else:
         YA = (A.T.dot(Y).T) * spdiags(old_div(1., nA), 0, nr + nb, nr + nb)
 
