@@ -969,7 +969,8 @@ class CNMF(object):
                           1] = o.get_c_of_last_pool()
 
         #self.mean_buff = self.Yres_buf.mean(0)
-        res_frame = frame - self.Ab.dot(self.noisyC[:self.M, t])
+        # res_frame = frame - self.Ab.dot(self.noisyC[:self.M, t])
+        res_frame = frame - self.Ab.dot(self.C_on[:self.M, t])
         if self.center_psf:
             self.b0 = self.b0 * (t-1)/t + res_frame/t
             res_frame -= self.b0
@@ -1106,7 +1107,7 @@ class CNMF(object):
             # faster update using minibatch of frames
 
             ccf = self.C_on[:self.M, t - mbs + 1:t + 1]
-            y = self.Yr_buf  # .get_last_frames(mbs)[:]
+            y = self.Yr_buf.copy()  # .get_last_frames(mbs)[:]
             if self.center_psf:  # subtract background
                 if ssub_B == 1:
                     x = (y - self.Ab.dot(ccf).T - self.b0).T
@@ -1137,8 +1138,8 @@ class CNMF(object):
 
         if not self.batch_update_suff_stat:
 
-            ccf = self.C_on[:self.M, t - self.minibatch_suff_stat:t -
-                            self.minibatch_suff_stat + 1]
+            ccf = self.C_on[:self.M, t - self.minibatch_suff_stat + 1:t -
+                            self.minibatch_suff_stat + 2]
             y = self.Yr_buf.get_last_frames(self.minibatch_suff_stat)[:1]
             if self.center_psf:  # subtract background
                 if ssub_B == 1:
@@ -1174,6 +1175,10 @@ class CNMF(object):
                 else:
                     indicator_components = None
 
+                # pl.figure(figsize=(10,4))
+                # pl.subplot(121)
+                # pl.imshow(Ab_[:,-1].toarray().reshape(self.dims, order='F'))
+
                 if self.use_dense:
                     # update dense Ab and sparse Ab simultaneously;
                     # this is faster than calling update_shapes with sparse Ab only
@@ -1186,6 +1191,9 @@ class CNMF(object):
                     Ab_, self.ind_A, _ = update_shapes(self.CY, self.CC, Ab_, self.ind_A,
                                                        indicator_components=indicator_components,
                                                        sn=self.sn, q=self.q)
+                # pl.subplot(122)
+                # pl.imshow(Ab_[:,-1].toarray().reshape(self.dims, order='F'))
+                # pl.show()
 
                 self.AtA = (Ab_.T.dot(Ab_)).toarray()
                 if self.center_psf:
@@ -1200,7 +1208,6 @@ class CNMF(object):
                         self.W.data[self.W.indptr[p]:self.W.indptr[p + 1]] = \
                             np.linalg.inv(self.XXt[index[:, None], index]).dot(self.XXt[index, p])
 
-                    # import pdb;pdb.set_trace()
                     if ssub_B == 1:
                         self.Atb = Ab_.T.dot(self.W.dot(self.b0) - self.b0)
                         self.AtW = Ab_.T.dot(self.W)

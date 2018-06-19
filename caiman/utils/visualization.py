@@ -898,7 +898,7 @@ def view_patches_bar(Yr, A, C, b, f, d1, d2, YrA=None, img=None):
 
 
 def plot_contours(A, Cn, thr=None, thr_method='max', maxthr=0.2, nrgthr=0.9, display_numbers=True, max_number=None,
-                  cmap=None, swap_dim=False, colors='w', vmin=None, vmax=None, **kwargs):
+                  cmap=None, swap_dim=False, color='w', vmin=None, vmax=None, **kwargs):
     """Plots contour of spatial components against a background image and returns their coordinates
 
      Parameters:
@@ -952,6 +952,11 @@ def plot_contours(A, Cn, thr=None, thr_method='max', maxthr=0.2, nrgthr=0.9, dis
         warn("The way to call utilities.plot_contours has changed. " +
              "Look at the definition for more details.")
 
+    for key in ['c', 'colors', 'line_color']:
+        if key in kwargs.keys():
+            color = kwargs[key]
+            kwargs.pop(key)
+
     ax = pl.gca()
     if vmax is None and vmin is None:
         pl.imshow(Cn, interpolation=None, cmap=cmap,
@@ -965,7 +970,7 @@ def plot_contours(A, Cn, thr=None, thr_method='max', maxthr=0.2, nrgthr=0.9, dis
         v = c['coordinates']
         c['bbox'] = [np.floor(np.nanmin(v[:, 1])), np.ceil(np.nanmax(v[:, 1])),
                      np.floor(np.nanmin(v[:, 0])), np.ceil(np.nanmax(v[:, 0]))]
-        pl.plot(*v.T, c=colors)
+        pl.plot(*v.T, c=color, **kwargs)
 
     if display_numbers:
         d1, d2 = np.shape(Cn)
@@ -975,9 +980,9 @@ def plot_contours(A, Cn, thr=None, thr_method='max', maxthr=0.2, nrgthr=0.9, dis
             max_number = A.shape[1]
         for i in range(np.minimum(nr, max_number)):
             if swap_dim:
-                ax.text(cm[i, 0], cm[i, 1], str(i + 1), color=colors)
+                ax.text(cm[i, 0], cm[i, 1], str(i + 1), color=color)
             else:
-                ax.text(cm[i, 1], cm[i, 0], str(i + 1), color=colors)
+                ax.text(cm[i, 1], cm[i, 0], str(i + 1), color=color)
 
     return coordinates
 

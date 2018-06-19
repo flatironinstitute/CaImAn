@@ -41,9 +41,9 @@ cnm_batch.fit(Y)
 
 print(('Number of components:' + str(cnm_batch.A.shape[-1])))
 
-Cn = cm.local_correlations(Y.transpose(1, 2, 0))
+Cn, pnr = cm.summary_images.correlation_pnr(Y, gSig=gSig, center_psf=True, swap_dim=False)
 plt.figure()
-crd = cm.utils.visualization.plot_contours(cnm_batch.A, Cn, thr=.6)
+crd = cm.utils.visualization.plot_contours(cnm_batch.A, Cn, thr=.6, color='r')
 
 
 #%% RUN (offline) CNMF-E algorithm on the initial batch
@@ -54,7 +54,7 @@ if not seeded:
                          merge_thresh=.65, p=1, tsub=1, ssub=1, only_init_patch=True, gnb=0,
                          min_corr=min_corr, min_pnr=min_pnr, normalize_init=False,
                          ring_size_factor=1.4, center_psf=True, ssub_B=2, init_iter=1, s_min=s_min,
-                         minibatch_shape=100, minibatch_suff_stat=5, update_num_comps=False)
+                         minibatch_shape=100, minibatch_suff_stat=5, update_num_comps=True)
 
     cnm_init.fit(Y[:initbatch])
 
@@ -70,9 +70,10 @@ else:  # seeded from batch
 
 print(('Number of components:' + str(cnm_init.A.shape[-1])))
 
-Cn_init = cm.local_correlations(Y[:initbatch].transpose(1, 2, 0))
+Cn_init, pnr_init = cm.summary_images.correlation_pnr(
+    Y[:initbatch], gSig=gSig, center_psf=True, swap_dim=False)
 plt.figure()
-crd = cm.utils.visualization.plot_contours(cnm_init.A, Cn_init, thr=.6)
+crd = cm.utils.visualization.plot_contours(cnm_init.A, Cn_init, thr=.6, color='r')
 
 
 #%% run (online) CNMF-E algorithm
@@ -87,9 +88,8 @@ for frame in Y[initbatch:]:
 
 print(('Number of components:' + str(cnm.Ab.shape[-1])))
 
-Cn = cm.local_correlations(Y.transpose(1, 2, 0))
 plt.figure()
-crd = cm.utils.visualization.plot_contours(cnm.Ab, Cn, thr=.6)
+crd = cm.utils.visualization.plot_contours(cnm.Ab, Cn, thr=.6, color='r')
 
 
 #%% compare online to batch

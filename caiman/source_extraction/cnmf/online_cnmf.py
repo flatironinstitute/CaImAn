@@ -735,6 +735,18 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
     sv += rho_buf.get_last_frames(1).squeeze()
     sv = np.maximum(sv, 0)
 
+    # if t % 50 == 0:
+    #     plt.figure(figsize=(20, 4))
+    #     plt.subplot(141)
+    #     plt.imshow(sv.reshape(dims))
+    #     plt.subplot(142)
+    #     plt.imshow(Yres_buf.mean(0).reshape(dims, order='F'))
+    #     plt.subplot(143)
+    #     plt.imshow((Yres_buf**2).mean(0).reshape(dims, order='F'))
+    #     plt.subplot(144)
+    #     plt.imshow(Ab[:, -1].toarray().reshape(dims, order='F'))
+    #     plt.show()
+
     Ains, Cins, Cins_res, inds, ijsig_all, cnn_pos, local_max = get_candidate_components(
         sv, dims, Yres_buf=Yres_buf, min_num_trial=min_num_trial, gSig=gSig,
         gHalf=gHalf, sniper_mode=sniper_mode, rval_thr=rval_thr, patch_size=50,
@@ -827,13 +839,11 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
             num_added += 1
             ind_new.append(ijSig)
 
-
-            plt.figure(figsize=(15,4))
-            plt.subplot(131)
-            plt.imshow(sv.reshape(dims))
-            plt.subplot(132)
-            plt.imshow(Ain[:,0].reshape(dims, order='F'))
-            
+            # plt.figure(figsize=(15,4))
+            # plt.subplot(131)
+            # plt.imshow(sv.reshape(dims))
+            # plt.subplot(132)
+            # plt.imshow(Ain[:,0].reshape(dims, order='F'))           
 
             if oases is not None:
                 if not useOASIS:
@@ -929,9 +939,10 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
 
             sv[ind_vb] = np.sum(rho_buf[:, ind_vb], 0)
 
-            plt.subplot(133)
-            plt.imshow(sv.reshape(dims))
-            plt.show()
+            # plt.subplot(133)
+            # plt.imshow(sv.reshape(dims))
+            # plt.show()
+
 #            sv = np.sum([imblur(vb.reshape(dims,order='F'), sig=gSig, siz=gSiz, nDimBlur=len(dims))**2 for vb in Yres_buf], 0).reshape(-1)
 #            plt.subplot(1,5,4)
 #            plt.cla()
