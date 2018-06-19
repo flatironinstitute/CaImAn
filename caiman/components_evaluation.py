@@ -454,7 +454,7 @@ def evaluate_components_placeholder(params):
 
 def estimate_components_quality_auto(Y, A, C, b, f, YrA, frate, decay_time, gSig, dims, dview=None, min_SNR=2, r_values_min=0.9,
                                      r_values_lowest=-1, Npeaks=10, use_cnn=True, thresh_cnn_min=0.95, thresh_cnn_lowest=0.1,
-                                     thresh_fitness_delta=-20., min_std_reject=0.5, gSig_range = None):
+                                     thresh_fitness_delta=-20., min_SNR_reject=0.5, gSig_range = None):
     ''' estimates the quality of component automatically
 
     Parameters:
@@ -498,7 +498,7 @@ def estimate_components_quality_auto(Y, A, C, b, f, YrA, frate, decay_time, gSig
     thresh_cnn_lowest:
         all samples with probabilities smaller than this are rejected
 
-    min_std_reject:
+    min_SNR_reject:
         adaptive way to set threshold (like min_SNR but used to discard components with std lower than this value)
 
     Returns:
@@ -529,7 +529,7 @@ def estimate_components_quality_auto(Y, A, C, b, f, YrA, frate, decay_time, gSig
     fitness_min = scipy.special.log_ndtr(-min_SNR) * N_samples
     # components with SNR lower than 0.5 will be rejected
     thresh_fitness_raw_reject = scipy.special.log_ndtr(
-        -min_std_reject) * N_samples
+        -min_SNR_reject) * N_samples
 
     traces = C + YrA
 
@@ -541,14 +541,14 @@ def estimate_components_quality_auto(Y, A, C, b, f, YrA, frate, decay_time, gSig
 
     idx_components, idx_components_bad, cnn_values = select_components_from_metrics(
                 A, dims, gSig, r_values,  comp_SNR, r_values_min,
-                r_values_lowest, min_SNR, min_std_reject,
+                r_values_lowest, min_SNR, min_SNR_reject,
                 thresh_cnn_min, thresh_cnn_lowest, use_cnn, gSig_range)
 
     return idx_components, idx_components_bad, comp_SNR, r_values, cnn_values
 
 #%%
 def select_components_from_metrics(A, dims, gSig, r_values,  comp_SNR, r_values_min,
-                                   r_values_lowest, min_SNR, min_std_reject,
+                                   r_values_lowest, min_SNR, min_SNR_reject,
                                    thresh_cnn_min, thresh_cnn_lowest, use_cnn, gSig_range, neuron_class = 1):
     '''
     '''
@@ -572,13 +572,13 @@ def select_components_from_metrics(A, dims, gSig, r_values,  comp_SNR, r_values_
 
         idx_components_cnn = np.where(
             predictions >= thresh_cnn_min)[0]
-        bad_comps = np.where((r_values <= r_values_lowest) | (comp_SNR <= min_std_reject) | (
+        bad_comps = np.where((r_values <= r_values_lowest) | (comp_SNR <= min_SNR_reject) | (
             predictions <= thresh_cnn_lowest))[0]
         idx_components = np.union1d(idx_components, idx_components_cnn)
         cnn_values = predictions
     else:
         bad_comps = np.where((r_values <= r_values_lowest) | (
-            comp_SNR <= min_std_reject))[0]
+            comp_SNR <= min_SNR_reject))[0]
         cnn_values = []
 
     idx_components = np.union1d(idx_components, idx_components_r)
