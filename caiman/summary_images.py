@@ -174,7 +174,7 @@ def local_correlations_fft(Y, eight_neighbours=True, swap_dim=True, opencv=True,
     return Cn
 
 
-def local_correlations(Y, eight_neighbours=True, swap_dim=True):
+def local_correlations(Y, eight_neighbours=True, swap_dim=True, order_mean=1):
     """Computes the correlation image for the input dataset Y
 
     Parameters:
@@ -208,16 +208,26 @@ def local_correlations(Y, eight_neighbours=True, swap_dim=True):
     rho_h = np.mean(np.multiply(w_mov[:, :-1, :], w_mov[:, 1:, :]), axis=0)
     rho_w = np.mean(np.multiply(w_mov[:, :, :-1], w_mov[:, :, 1:]), axis=0)
 
-    rho[:-1, :] = rho[:-1, :] + rho_h
-    rho[1:, :] = rho[1:, :] + rho_h
-    rho[:, :-1] = rho[:, :-1] + rho_w
-    rho[:, 1:] = rho[:, 1:] + rho_w
+    if order_mean == 0:
+        rho = np.ones(np.shape(Y)[1:])
+        rho_h = rho_h
+        rho_w = rho_w
+        rho[:-1, :] = rho[:-1, :]*rho_h
+        rho[1:, :] = rho[1:, :]*rho_h
+        rho[:, :-1] = rho[:, :-1]*rho_w
+        rho[:, 1:] = rho[:, 1:]*rho_w
+    else:
+        rho[:-1, :] = rho[:-1, :] + rho_h**(order_mean)
+        rho[1:, :] = rho[1:, :] + rho_h**(order_mean)
+        rho[:, :-1] = rho[:, :-1] + rho_w**(order_mean)
+        rho[:, 1:] = rho[:, 1:] + rho_w**(order_mean)
 
     if Y.ndim == 4:
         rho_d = np.mean(np.multiply(
             w_mov[:, :, :, :-1], w_mov[:, :, :, 1:]), axis=0)
         rho[:, :, :-1] = rho[:, :, :-1] + rho_d
         rho[:, :, 1:] = rho[:, :, 1:] + rho_d
+
         neighbors = 6 * np.ones(np.shape(Y)[1:])
         neighbors[0] = neighbors[0] - 1
         neighbors[-1] = neighbors[-1] - 1
@@ -232,10 +242,19 @@ def local_correlations(Y, eight_neighbours=True, swap_dim=True):
                 w_mov[:, 1:, :-1], w_mov[:, :-1, 1:, ]), axis=0)
             rho_d2 = np.mean(np.multiply(
                 w_mov[:, :-1, :-1], w_mov[:, 1:, 1:, ]), axis=0)
-            rho[:-1, :-1] = rho[:-1, :-1] + rho_d2
-            rho[1:, 1:] = rho[1:, 1:] + rho_d1
-            rho[1:, :-1] = rho[1:, :-1] + rho_d1
-            rho[:-1, 1:] = rho[:-1, 1:] + rho_d2
+
+            if order_mean == 0:
+                rho_d1 = rho_d1
+                rho_d2 = rho_d2
+                rho[:-1, :-1] = rho[:-1, :-1]*rho_d2
+                rho[1:, 1:] = rho[1:, 1:]*rho_d1
+                rho[1:, :-1] = rho[1:, :-1]*rho_d1
+                rho[:-1, 1:] = rho[:-1, 1:]*rho_d2
+            else:
+                rho[:-1, :-1] = rho[:-1, :-1] + rho_d2**(order_mean)
+                rho[1:, 1:] = rho[1:, 1:] + rho_d1**(order_mean)
+                rho[1:, :-1] = rho[1:, :-1] + rho_d1**(order_mean)
+                rho[:-1, 1:] = rho[:-1, 1:] + rho_d2**(order_mean)
 
             neighbors = 8 * np.ones(np.shape(Y)[1:3])
             neighbors[0, :] = neighbors[0, :] - 3
@@ -253,7 +272,10 @@ def local_correlations(Y, eight_neighbours=True, swap_dim=True):
             neighbors[:, 0] = neighbors[:, 0] - 1
             neighbors[:, -1] = neighbors[:, -1] - 1
 
-    rho = np.divide(rho, neighbors)
+    if order_mean == 0:
+        rho = np.power(rho, 1./neighbors)
+    else:
+        rho = np.power(np.divide(rho, neighbors),1/order_mean)
 
     return rho
 

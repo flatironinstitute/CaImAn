@@ -34,7 +34,7 @@ import pylab as pl
 import scipy
 from ...mmapping import parallel_dot_product
 from ...utils.stats import df_percentile
-
+import logging
 
 #%%
 def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], gSiz=None, ssub=2, tsub=2, p=2, p_ssub=2, p_tsub=2,
@@ -49,80 +49,81 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], gSiz=None, ssub=2, tsub=2, p
     by the dictionary default options
 
     PRE-PROCESS PARAMS#############
-    sn: None,
-        noise level for each pixel
 
-    noise_range: [0.25, 0.5]
-             range of normalized frequencies over which to average
-
-    noise_method': 'mean'
-             averaging method ('mean','median','logmexp')
-
-    max_num_samples_fft': 3*1024
-
-    n_pixels_per_process: 1000
-
-    compute_g': False
-        flag for estimating global time constant
-
-    p : 2
-         order of AR indicator dynamics
-
-    lags: 5
-        number of autocovariance lags to be considered for time constant estimation
-
-    include_noise: False
-            flag for using noise values when estimating g
-
-    pixels: None
-         pixels to be excluded due to saturation
-
-    check_nan: True
+        sn: None,
+            noise level for each pixel
+    
+        noise_range: [0.25, 0.5]
+                 range of normalized frequencies over which to average
+    
+        noise_method': 'mean'
+                 averaging method ('mean','median','logmexp')
+    
+        max_num_samples_fft': 3*1024
+    
+        n_pixels_per_process: 1000
+    
+        compute_g': False
+            flag for estimating global time constant
+    
+        p : 2
+             order of AR indicator dynamics
+    
+        lags: 5
+            number of autocovariance lags to be considered for time constant estimation
+    
+        include_noise: False
+                flag for using noise values when estimating g
+    
+        pixels: None
+             pixels to be excluded due to saturation
+    
+        check_nan: True
 
     INIT PARAMS###############
 
-    K:     30
-        number of components
-
-    gSig: [5, 5]
-          size of bounding box
-
-    gSiz: [int(round((x * 2) + 1)) for x in gSig],
-
-    ssub:   2
-        spatial downsampling factor
-
-    tsub:   2
-        temporal downsampling factor
-
-    nIter: 5
-        number of refinement iterations
-
-    kernel: None
-        user specified template for greedyROI
-
-    maxIter: 5
-        number of HALS iterations
-
-    method: method_init
-        can be greedy_roi or sparse_nmf, local_NMF
-
-    max_iter_snmf : 500
-
-    alpha_snmf: 10e2
-
-    sigma_smooth_snmf : (.5,.5,.5)
-
-    perc_baseline_snmf: 20
-
-    nb:  1
-        number of background components
-
-    normalize_init:
-        whether to pixelwise equalize the movies during initialization
-
-    options_local_NMF:
-        dictionary with parameters to pass to local_NMF initializer
+        K:     30
+            number of components
+    
+        gSig: [5, 5]
+              size of bounding box
+    
+        gSiz: [int(round((x * 2) + 1)) for x in gSig],
+    
+        ssub:   2
+            spatial downsampling factor
+    
+        tsub:   2
+            temporal downsampling factor
+    
+        nIter: 5
+            number of refinement iterations
+    
+        kernel: None
+            user specified template for greedyROI
+    
+        maxIter: 5
+            number of HALS iterations
+    
+        method: method_init
+            can be greedy_roi or sparse_nmf, local_NMF
+    
+        max_iter_snmf : 500
+    
+        alpha_snmf: 10e2
+    
+        sigma_smooth_snmf : (.5,.5,.5)
+    
+        perc_baseline_snmf: 20
+    
+        nb:  1
+            number of background components
+    
+        normalize_init:
+            whether to pixelwise equalize the movies during initialization
+    
+        options_local_NMF:
+            dictionary with parameters to pass to local_NMF initializer
 
     SPATIAL PARAMS##########
 
@@ -171,7 +172,7 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], gSiz=None, ssub=2, tsub=2, p
             'lasso_lars' lasso lars function from scikit learn
             'lasso_lars_old' lasso lars from old implementation, will be deprecated
 
-        TEMPORAL PARAMS###########
+    TEMPORAL PARAMS###########
 
         ITER: 2
             block coordinate descent iterations
@@ -209,6 +210,39 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], gSiz=None, ssub=2, tsub=2, p
 
         block_size : block_size
             number of pixels to process at the same time for dot product. Make it smaller if memory problems
+            
+    QUALITY EVALUATION PARAMETERS###########
+
+        fr: 30
+            Imaging rate
+
+        decay_time: 0.5
+            length of decay of typical transient (in seconds)
+
+        min_SNR: 2.5
+            trace SNR threshold
+
+        SNR_lowest: 0.5
+            minimum required trace SNR
+
+        rval_thr: 0.8
+            space correlation threshold
+
+        rval_lowest: -1
+            minimum required space correlation
+
+        use_cnn: True
+            flag for using the CNN classifier
+
+        min_cnn_thr: 0.9
+            CNN classifier threshold
+
+        cnn_lowest: 0.1
+            minimum required CNN threshold
+
+        gSig_range: None
+            gSig scale values for CNN classifier
+    
     """
 
     if type(Y) is tuple:
@@ -348,6 +382,18 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], gSiz=None, ssub=2, tsub=2, p
     options['merging'] = {
         'thr': thr,
     }
+    options['quality'] = {
+        'decay_time': 0.5,  # length of decay of typical transient (in seconds)
+        'min_SNR': 2.5,  # transient SNR threshold
+        'SNR_lowest': 0.5,  # minimum accepted SNR value
+        'rval_thr': 0.8,  # space correlation threshold
+        'rval_lowest': -1,  # minimum accepted space correlation
+        'fr': 30,  # imaging frame rate
+        'use_cnn': True,  # use CNN based classifier
+        'min_cnn_thr': 0.9,  # threshold for CNN classifier
+        'cnn_lowest': 0.1,  # minimum accepted value for CNN classifier
+        'gSig_range': None  # range for gSig scale for CNN classifier
+    }
     return options
 
 
@@ -434,7 +480,8 @@ s
 
 
 #%%
-def detrend_df_f(A, b, C, f, YrA=None, quantileMin=8, frames_window=500, block_size=400):
+def detrend_df_f(A, b, C, f, YrA=None, quantileMin=8, frames_window=500, 
+                 flag_auto=True, use_fast=False):
     """ Compute DF/F signal without using the original data.
     In general much faster than extract_DF_F
 
@@ -444,7 +491,7 @@ def detrend_df_f(A, b, C, f, YrA=None, quantileMin=8, frames_window=500, block_s
         spatial components (from cnmf cnm.A)
 
     b: ndarray
-        spatial backgrounds
+        spatial background components
 
     C: ndarray
         temporal components (from cnmf cnm.C)
@@ -456,10 +503,16 @@ def detrend_df_f(A, b, C, f, YrA=None, quantileMin=8, frames_window=500, block_s
         residual signals
 
     quantile_min: float
-        quantile minimum of the
+        quantile used to estimate the baseline (values in [0,100])
 
     frames_window: int
-        number of frames for running quantile
+        number of frames for computing running quantile
+
+    flag_auto: bool
+        flag for determining quantile automatically
+
+    use_fast: bool
+        flag for using approximate fast percentile filtering
 
     Returns:
     ----------
@@ -467,6 +520,11 @@ def detrend_df_f(A, b, C, f, YrA=None, quantileMin=8, frames_window=500, block_s
         the computed Calcium acitivty to the derivative of f
 
     """
+
+    if C is None:
+        logging.warning("There are no components for DF/F extraction!")
+        return None
+
     if 'csc_matrix' not in str(type(A)):
         A = scipy.sparse.csc_matrix(A)
     if 'array' not in str(type(b)):
@@ -487,16 +545,42 @@ def detrend_df_f(A, b, C, f, YrA=None, quantileMin=8, frames_window=500, block_s
     F = C + YrA if YrA is not None else C
     B = A.T.dot(b).dot(f)
     T = C.shape[-1]
-    if frames_window is None or frames_window > T:
-        Fd = np.percentile(F, quantileMin, axis=1)
-        Df = np.percentile(B, quantileMin, axis=1)
-        F_df = (F - Fd) / (Df[:, None] + Fd[:, None])
+
+    if flag_auto:
+        data_prct, val = df_percentile(F[:frames_window], axis=1)
+        if frames_window is None or frames_window > T:
+            Fd = np.stack([np.percentile(f, prctileMin) for f, prctileMin in
+                           zip(F, data_prct)])
+            Df = np.stack([np.percentile(f, prctileMin) for f, prctileMin in
+                           zip(B, data_prct)])
+            F_df = (F - Fd[:, None]) / (Df[:, None] + Fd[:, None])
+        else:
+            if use_fast:
+                Fd = np.stack([fast_prct_filt(f, level=prctileMin,
+                                              frames_window=frames_window) for
+                               f, prctileMin in zip(F, data_prct)])
+                Df = np.stack([fast_prct_filt(f, level=prctileMin,
+                                              frames_window=frames_window) for
+                               f, prctileMin in zip(B, data_prct)])
+            else:
+                Fd = np.stack([scipy.ndimage.percentile_filter(
+                    f, prctileMin, (frames_window)) for f, prctileMin in
+                    zip(F, data_prct)])
+                Df = np.stack([scipy.ndimage.percentile_filter(
+                    f, prctileMin, (frames_window)) for f, prctileMin in
+                    zip(B, data_prct)])
+            F_df = (F - Fd) / (Df + Fd)
     else:
-        Fd = scipy.ndimage.percentile_filter(
-            F, quantileMin, (frames_window, 1))
-        Df = scipy.ndimage.percentile_filter(
-            B, quantileMin, (frames_window, 1))
-        F_df = (F - Fd) / (Df + Fd)
+        if frames_window is None or frames_window > T:
+            Fd = np.percentile(F, quantileMin, axis=1)
+            Df = np.percentile(B, quantileMin, axis=1)
+            F_df = (F - Fd) / (Df[:, None] + Fd[:, None])
+        else:
+            Fd = scipy.ndimage.percentile_filter(
+                F, quantileMin, (frames_window, 1))
+            Df = scipy.ndimage.percentile_filter(
+                B, quantileMin, (frames_window, 1))
+            F_df = (F - Fd) / (Df + Fd)
     return F_df
 
 
