@@ -49,80 +49,81 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], gSiz=None, ssub=2, tsub=2, p
     by the dictionary default options
 
     PRE-PROCESS PARAMS#############
-    sn: None,
-        noise level for each pixel
 
-    noise_range: [0.25, 0.5]
-             range of normalized frequencies over which to average
-
-    noise_method': 'mean'
-             averaging method ('mean','median','logmexp')
-
-    max_num_samples_fft': 3*1024
-
-    n_pixels_per_process: 1000
-
-    compute_g': False
-        flag for estimating global time constant
-
-    p : 2
-         order of AR indicator dynamics
-
-    lags: 5
-        number of autocovariance lags to be considered for time constant estimation
-
-    include_noise: False
-            flag for using noise values when estimating g
-
-    pixels: None
-         pixels to be excluded due to saturation
-
-    check_nan: True
+        sn: None,
+            noise level for each pixel
+    
+        noise_range: [0.25, 0.5]
+                 range of normalized frequencies over which to average
+    
+        noise_method': 'mean'
+                 averaging method ('mean','median','logmexp')
+    
+        max_num_samples_fft': 3*1024
+    
+        n_pixels_per_process: 1000
+    
+        compute_g': False
+            flag for estimating global time constant
+    
+        p : 2
+             order of AR indicator dynamics
+    
+        lags: 5
+            number of autocovariance lags to be considered for time constant estimation
+    
+        include_noise: False
+                flag for using noise values when estimating g
+    
+        pixels: None
+             pixels to be excluded due to saturation
+    
+        check_nan: True
 
     INIT PARAMS###############
 
-    K:     30
-        number of components
-
-    gSig: [5, 5]
-          size of bounding box
-
-    gSiz: [int(round((x * 2) + 1)) for x in gSig],
-
-    ssub:   2
-        spatial downsampling factor
-
-    tsub:   2
-        temporal downsampling factor
-
-    nIter: 5
-        number of refinement iterations
-
-    kernel: None
-        user specified template for greedyROI
-
-    maxIter: 5
-        number of HALS iterations
-
-    method: method_init
-        can be greedy_roi or sparse_nmf, local_NMF
-
-    max_iter_snmf : 500
-
-    alpha_snmf: 10e2
-
-    sigma_smooth_snmf : (.5,.5,.5)
-
-    perc_baseline_snmf: 20
-
-    nb:  1
-        number of background components
-
-    normalize_init:
-        whether to pixelwise equalize the movies during initialization
-
-    options_local_NMF:
-        dictionary with parameters to pass to local_NMF initializer
+        K:     30
+            number of components
+    
+        gSig: [5, 5]
+              size of bounding box
+    
+        gSiz: [int(round((x * 2) + 1)) for x in gSig],
+    
+        ssub:   2
+            spatial downsampling factor
+    
+        tsub:   2
+            temporal downsampling factor
+    
+        nIter: 5
+            number of refinement iterations
+    
+        kernel: None
+            user specified template for greedyROI
+    
+        maxIter: 5
+            number of HALS iterations
+    
+        method: method_init
+            can be greedy_roi or sparse_nmf, local_NMF
+    
+        max_iter_snmf : 500
+    
+        alpha_snmf: 10e2
+    
+        sigma_smooth_snmf : (.5,.5,.5)
+    
+        perc_baseline_snmf: 20
+    
+        nb:  1
+            number of background components
+    
+        normalize_init:
+            whether to pixelwise equalize the movies during initialization
+    
+        options_local_NMF:
+            dictionary with parameters to pass to local_NMF initializer
 
     SPATIAL PARAMS##########
 
@@ -171,7 +172,7 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], gSiz=None, ssub=2, tsub=2, p
             'lasso_lars' lasso lars function from scikit learn
             'lasso_lars_old' lasso lars from old implementation, will be deprecated
 
-        TEMPORAL PARAMS###########
+    TEMPORAL PARAMS###########
 
         ITER: 2
             block coordinate descent iterations
@@ -209,6 +210,39 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], gSiz=None, ssub=2, tsub=2, p
 
         block_size : block_size
             number of pixels to process at the same time for dot product. Make it smaller if memory problems
+            
+    QUALITY EVALUATION PARAMETERS###########
+
+        fr: 30
+            Imaging rate
+
+        decay_time: 0.5
+            length of decay of typical transient (in seconds)
+
+        min_SNR: 2.5
+            trace SNR threshold
+
+        SNR_lowest: 0.5
+            minimum required trace SNR
+
+        rval_thr: 0.8
+            space correlation threshold
+
+        rval_lowest: -1
+            minimum required space correlation
+
+        use_cnn: True
+            flag for using the CNN classifier
+
+        min_cnn_thr: 0.9
+            CNN classifier threshold
+
+        cnn_lowest: 0.1
+            minimum required CNN threshold
+
+        gSig_range: None
+            gSig scale values for CNN classifier
+    
     """
 
     if type(Y) is tuple:
@@ -347,6 +381,18 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], gSiz=None, ssub=2, tsub=2, p
     }
     options['merging'] = {
         'thr': thr,
+    }
+    options['quality'] = {
+        'decay_time': 0.5,  # length of decay of typical transient (in seconds)
+        'min_SNR': 2.5,  # transient SNR threshold
+        'SNR_lowest': 0.5,  # minimum accepted SNR value
+        'rval_thr': 0.8,  # space correlation threshold
+        'rval_lowest': -1,  # minimum accepted space correlation
+        'fr': 30,  # imaging frame rate
+        'use_cnn': True,  # use CNN based classifier
+        'min_cnn_thr': 0.9,  # threshold for CNN classifier
+        'cnn_lowest': 0.1,  # minimum accepted value for CNN classifier
+        'gSig_range': None  # range for gSig scale for CNN classifier
     }
     return options
 
