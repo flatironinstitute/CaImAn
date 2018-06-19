@@ -1422,7 +1422,7 @@ class CNMF(object):
                           use_cnn=None, min_cnn_thr=None,
                           cnn_lowest=None, gSig_range=None):
         """Filters components based on given thresholds without re-computing
-        the quality metrics. If the quality metrics are not present then it 
+        the quality metrics. If the quality metrics are not present then it
         calls self.evaluate components.
         Parameters:
         -----------
@@ -1502,9 +1502,13 @@ class CNMF(object):
 
         self.idx_components, self.idx_components_bad, self.cnn_preds = \
         select_components_from_metrics(self.A, dims, self.gSig, self.r_values,
-                                       self.SNR_comp, rval_thr, rval_lowest,
-                                       min_SNR, SNR_lowest, min_cnn_thr,
-                                       cnn_lowest, use_cnn,
-                                       gSig_range)
+                                       self.SNR_comp, r_values_min=rval_thr,
+                                       r_values_lowest=rval_lowest,
+                                       min_SNR=min_SNR,
+                                       min_SNR_reject=SNR_lowest,
+                                       thresh_cnn_min=min_cnn_thr,
+                                       thresh_cnn_lowest=cnn_lowest,
+                                       use_cnn=use_cnn, gSig_range=gSig_range,
+                                       predictions=self.cnn_preds)
 
         return self

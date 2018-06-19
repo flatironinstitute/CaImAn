@@ -547,10 +547,19 @@ def estimate_components_quality_auto(Y, A, C, b, f, YrA, frate, decay_time, gSig
     return idx_components, idx_components_bad, comp_SNR, r_values, cnn_values
 
 #%%
-def select_components_from_metrics(A, dims, gSig, r_values,  comp_SNR, r_values_min,
-                                   r_values_lowest, min_SNR, min_SNR_reject,
-                                   thresh_cnn_min, thresh_cnn_lowest, use_cnn, gSig_range, neuron_class = 1):
-    '''
+def select_components_from_metrics(A, dims, gSig, r_values, comp_SNR,
+                                   r_values_min=0.8, r_values_lowest=-1,
+                                   min_SNR=2.5, min_SNR_reject=0.5,
+                                   thresh_cnn_min=0.8, thresh_cnn_lowest=0.1,
+                                   use_cnn=True, gSig_range=None,
+                                   neuron_class=1, predictions=None):
+    '''Selects components based on pre-computed metrics. For each metric
+    space correlation, trace SNR, and CNN classifier both an upper and a lower
+    thresholds are considered. A component is accepted if and only if it
+    exceeds the upper threshold for at least one of the metrics and the lower
+    threshold for all metrics. If the CNN classifier values are not provided,
+    or a different scale parameter is used, the values are computed from within
+    the script.
     '''
 
     idx_components_r = np.where(r_values >= r_values_min)[0]
@@ -561,14 +570,14 @@ def select_components_from_metrics(A, dims, gSig, r_values,  comp_SNR, r_values_
     if use_cnn:
           # normally 1
         if gSig_range is None:
-            predictions, _ = evaluate_components_CNN(A, dims, gSig)
-            predictions = predictions[:, neuron_class]
+            if predictions is None:
+                predictions, _ = evaluate_components_CNN(A, dims, gSig)
+                predictions = predictions[:, neuron_class]
         else:
             predictions = np.zeros(len(r_values))
             for size_range in gSig_range:
                 predictions = np.maximum(predictions,
                                          evaluate_components_CNN(A, dims, size_range)[0][:, neuron_class])
-
 
         idx_components_cnn = np.where(
             predictions >= thresh_cnn_min)[0]
