@@ -104,6 +104,8 @@ def cnmf_patches(args_in):
                 file_name[:-5]) + '_LOG_ ' + str(idx_[0]) + '_' + str(idx_[-1])
         Yr, dims, timesteps = load_memmap(file_name)
         images = np.reshape(Yr.T, [timesteps] + list(dims), order='F')
+    elif file_name.filename is None:
+        raise Exception("Internal error: file_name.filename has no value in map_reduce")
     else:
         name_log = os.path.basename(
                 file_name.filename[:-5]) + '_LOG_ ' + str(idx_[0]) + '_' + str(idx_[-1])
