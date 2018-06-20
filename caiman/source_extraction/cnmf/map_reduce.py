@@ -100,15 +100,17 @@ def cnmf_patches(args_in):
     #logger.setLevel(logging.INFO)
 
     if isinstance(file_name, str):
-        name_log = os.path.basename(
-                file_name[:-5]) + '_LOG_ ' + str(idx_[0]) + '_' + str(idx_[-1])
+        if file_name.filename is None:
+            name_log = os.path.basename(
+                    file_name[:-5]) + '_LOG_ ' + str(idx_[0]) + '_' + str(idx_[-1]) 
         Yr, dims, timesteps = load_memmap(file_name)
         images = np.reshape(Yr.T, [timesteps] + list(dims), order='F')
-    elif file_name.filename is None:
-        raise Exception("Internal error: file_name.filename has no value in map_reduce(" + str(file_name) + ")")
+    #elif file_name.filename is None:
+        #raise Exception("Internal error: file_name.filename has no value in map_reduce(" + str(file_name) + ")")
     else:
-        name_log = os.path.basename(
-                file_name.filename[:-5]) + '_LOG_ ' + str(idx_[0]) + '_' + str(idx_[-1])
+        name_log = 'LOG_'
+#        name_log = os.path.basename(
+#                file_name.filename[:-5]) + '_LOG_ ' + str(idx_[0]) + '_' + str(idx_[-1])
         images = file_name
         dims, timesteps = file_name.shape[1:], file_name.shape[0]
 
