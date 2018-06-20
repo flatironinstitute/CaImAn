@@ -394,11 +394,14 @@ class CNMF(object):
         print((T,) + dims)
 
         # Make sure filename is pointed correctly (numpy sets it to None sometimes)
-        if images.filename is not None:
-            Y.filename = images.filename
-            Yr.filename = images.filename
-        else: # if no memmapping cause working with small data
-            print("Warning: images.filename has no value; this may cause issues later in CNMF")
+        try:
+            if images.filename is not None:
+                Y.filename = images.filename
+                Yr.filename = images.filename
+            else: # if no memmapping cause working with small data
+                print("Warning: images.filename has no value; this may cause issues later in CNMF")
+        except AttributeError: # We got a filename instead of an object, which is fine
+            pass
 
         # update/set all options that depend on data dimensions
         # number of rows, columns [and depths]
