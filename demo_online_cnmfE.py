@@ -11,6 +11,8 @@ from copy import deepcopy
 import matplotlib.pyplot as plt
 import numpy as np
 import h5py
+from operator import itemgetter
+from scipy.io import loadmat
 from scipy.stats import pearsonr
 
 gSig = 3   # gaussian width of a 2D gaussian kernel, which approximates a neuron
@@ -29,6 +31,15 @@ T = len(Y)
 dims = Y.shape[1:]
 Yr = Y.T.reshape((-1, T))
 
+# load matlab results
+A, C_raw, C = itemgetter('A', 'C_raw', 'C')(loadmat(
+    '/mnt/home/jfriedrich/CNMF_E/eLife_submission/code/' +
+    'scripts_figures/fig_striatum/results_bk.mat'))
+nA = np.sqrt(A.power(2).sum(0))
+A = A.toarray().reshape((256, 256, -1), order='C')[64:104, 64:128].reshape((-1, A.shape[-1]), order='F')
+A /= nA
+A = A[:, (A**2).sum(0) > .2]
+
 
 #%% RUN (offline) CNMF-E algorithm on the entire batch for sake of comparison
 
@@ -43,7 +54,23 @@ print(('Number of components:' + str(cnm_batch.A.shape[-1])))
 
 Cn, pnr = cm.summary_images.correlation_pnr(Y, gSig=gSig, center_psf=True, swap_dim=False)
 plt.figure()
-crd = cm.utils.visualization.plot_contours(cnm_batch.A, Cn, thr=.6, color='r')
+cm.utils.visualization.plot_contours(A, Cn, thr=.6, lw=3)
+cm.utils.visualization.plot_contours(cnm_batch.A, Cn, thr=.6, color='r')
+cm.base.rois.register_ROIs(A, cnm_batch.A, dims, align_flag=0)
+
+# # discard low quality components
+# idx_components, idx_components_bad = cm.components_evaluation.estimate_components_quality(
+#     cnm_batch.C + cnm_batch.YrA, Yr, cnm_batch.A, cnm_batch.C, cnm_batch.b, cnm_batch.f,
+#     final_frate=10, Npeaks=10, r_values_min=.1, fitness_min=-20, fitness_delta_min=-30)
+# print(('Keeping ' + str(len(idx_components)) +
+#        ' and discarding  ' + str(len(idx_components_bad))))
+# A_b = cnm_batch.A[:, idx_components]
+# C_b = cnm_batch.C[idx_components]
+# cm.base.rois.register_ROIs(A, A_b, dims, align_flag=0)
+
+# plt.figure()
+# crd = cm.utils.visualization.plot_contours(A, Cn, thr=.6, lw=3)
+# crd = cm.utils.visualization.plot_contours(A_b, Cn, thr=.6, color='r')
 
 
 #%% RUN (offline) CNMF-E algorithm on the initial batch
@@ -51,10 +78,12 @@ crd = cm.utils.visualization.plot_contours(cnm_batch.A, Cn, thr=.6, color='r')
 seeded = False
 if not seeded:
     cnm_init = cnmf.CNMF(2, method_init='corr_pnr', k=None, gSig=(gSig, gSig), gSiz=(gSiz, gSiz),
-                         merge_thresh=.65, p=1, tsub=1, ssub=1, only_init_patch=True, gnb=0,
+                         merge_thresh=.8, p=1, tsub=1, ssub=1, only_init_patch=True, gnb=0,
                          min_corr=min_corr, min_pnr=min_pnr, normalize_init=False,
                          ring_size_factor=1.4, center_psf=True, ssub_B=2, init_iter=1, s_min=s_min,
-                         minibatch_shape=100, minibatch_suff_stat=5, update_num_comps=True)
+                         minibatch_shape=100, minibatch_suff_stat=5, update_num_comps=True,
+                         rval_thr=.9, thresh_fitness_delta=-20, thresh_fitness_raw=-40,
+                         batch_update_suff_stat=True)
 
     cnm_init.fit(Y[:initbatch])
 
@@ -73,7 +102,9 @@ print(('Number of components:' + str(cnm_init.A.shape[-1])))
 Cn_init, pnr_init = cm.summary_images.correlation_pnr(
     Y[:initbatch], gSig=gSig, center_psf=True, swap_dim=False)
 plt.figure()
-crd = cm.utils.visualization.plot_contours(cnm_init.A, Cn_init, thr=.6, color='r')
+cm.utils.visualization.plot_contours(A, Cn_init, thr=.6, lw=3)
+cm.utils.visualization.plot_contours(cnm_init.A, Cn_init, thr=.6, color='r')
+cm.base.rois.register_ROIs(A, cnm_init.A, dims, align_flag=0)
 
 
 #%% run (online) CNMF-E algorithm
@@ -89,7 +120,23 @@ for frame in Y[initbatch:]:
 print(('Number of components:' + str(cnm.Ab.shape[-1])))
 
 plt.figure()
+crd = cm.utils.visualization.plot_contours(A, Cn, thr=.6, lw=3)
 crd = cm.utils.visualization.plot_contours(cnm.Ab, Cn, thr=.6, color='r')
+cm.base.rois.register_ROIs(A, cnm.Ab, dims, align_flag=0)
+
+# # discard low quality components
+# idx_components, idx_components_bad = cm.components_evaluation.estimate_components_quality(
+#     cnm.noisyC[:cnm.M], Yr, cnm.Ab, cnm.C_on[:cnm.M], cnm.b, cnm.f,
+#     final_frate=10, Npeaks=10, r_values_min=.1, fitness_min=-20, fitness_delta_min=-30)
+# print(('Keeping ' + str(len(idx_components)) +
+#        ' and discarding  ' + str(len(idx_components_bad))))
+# A_ = cnm.Ab[:, idx_components]
+# C_ = cnm.C_on[idx_components]
+
+# plt.figure()
+# cm.utils.visualization.plot_contours(A, Cn, thr=.6, lw=3)
+# cm.utils.visualization.plot_contours(A_, Cn, thr=.6, color='r')
+# cm.base.rois.register_ROIs(A, A_, dims, align_flag=0)
 
 
 #%% compare online to batch
