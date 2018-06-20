@@ -359,8 +359,8 @@ class CNMF(object):
         """
         This method uses the cnmf algorithm to find sources in data.
 
-        it is calling everyfunction from the cnmf folder
-        you can find out more at how the functions are called and how they are laid out at the ipython notebook
+        it calls every function from the cnmf folder
+        you can find out more at how the functions are called and how they are laid out in the ipython notebook
 
         Parameters:
         ----------
@@ -389,7 +389,7 @@ class CNMF(object):
         Y = np.transpose(images, list(range(1, len(dims) + 1)) + [0])
         Yr = np.transpose(np.reshape(images, (T, -1), order='F'))
         if np.isfortran(Yr):
-            raise Exception('The file is in F order, it should be in C order (see save_memmap function')
+            raise Exception('The file is in F order, it should be in C order - see save_memmap function')
 
         print((T,) + dims)
 
@@ -400,6 +400,7 @@ class CNMF(object):
                 Yr.filename = images.filename
             else: # if no memmapping cause working with small data
                 print("Warning: images.filename has no value; this may cause issues later in CNMF")
+                print("Warning: images object: " + str(images))
         except AttributeError: # We got a filename instead of an object, which is fine
             pass
 
@@ -426,12 +427,6 @@ class CNMF(object):
                 self.n_pixels_per_process, np.prod(dims) // self.n_processes))
         self.options['preprocess_params']['n_pixels_per_process'] = self.n_pixels_per_process
         self.options['spatial_params']['n_pixels_per_process'] = self.n_pixels_per_process
-
-#        if self.block_size is None:
-#            self.block_size = self.n_pixels_per_process
-#
-#        if self.num_blocks_per_run is None:
-#           self.num_blocks_per_run = 20
 
         # number of pixels to process at the same time for dot product. Make it
         # smaller if memory problems
