@@ -1196,7 +1196,7 @@ def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None,
 
     Returns:
     -------
-    mov: calblitz.movie
+    mov: caiman.movie
 
     Raise:
     -----
@@ -1248,9 +1248,8 @@ def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None,
                 input_arr = np.squeeze(input_arr)
 
         elif extension == '.avi':  # load avi file
-            if subindices is not None:
-                raise Exception('Subindices not implemented')
             cap = cv2.VideoCapture(file_name)
+
             try:
                 length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
                 width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -1264,17 +1263,28 @@ def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None,
             cv_failed = False
             if length == 0 or width == 0 or height == 0: #CV failed to load
                 cv_failed = True
-
+            if subindices is not None:
+                if type(subindices) is list:
+                    length = subindices[0].stop - subindices[0].start
+                    start_frame = subindices[0].start
+                else:
+                    length = subindices.stop - subindices.start
+                    start_frame = subindices.start
+            else:
+                start_frame = 0
             if not cv_failed:
                 input_arr = np.zeros((length, height, width), dtype=np.uint8)
                 counter = 0
-                while True:
+                cap.set(1,start_frame)
+                while True and counter < length:
                     # Capture frame-by-frame
                     ret, frame = cap.read()
                     if not ret:
                         break
                     input_arr[counter] = frame[:, :, 0]
                     counter = counter + 1
+                if subindices is not None and type(subindices) is list:
+                    input_arr = input_arr[:,subindices[1],subindices[2]]
             else: #use pims to load movie
                 import pims
                 def rgb2gray(rgb):
