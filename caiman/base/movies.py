@@ -1249,7 +1249,7 @@ def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None,
 
         elif extension == '.avi':  # load avi file
             cap = cv2.VideoCapture(file_name)
-
+                
             try:
                 length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
                 width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -1261,30 +1261,51 @@ def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None,
                 height = int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT))
 
             cv_failed = False
+            dims = [length, height, width]
             if length == 0 or width == 0 or height == 0: #CV failed to load
-                cv_failed = True
+                cv_failed = True            
             if subindices is not None:
-                if type(subindices) is list:
-                    length = subindices[0].stop - subindices[0].start
-                    start_frame = subindices[0].start
-                else:
-                    length = subindices.stop - subindices.start
-                    start_frame = subindices.start
+                if type(subindices) is not list:
+                    subindices = [subindices]
+                for ind, sb in enumerate(subindices):
+                    if type(sb) is range:
+                        subindices[ind] = np.r_[sb]
+                        dims[ind] = subindices[ind].shape[0]
+                    elif type(sb) is slice:
+                        if sb.start is None:
+                            sb = slice(0, sb.stop, sb.step)
+                        if sb.stop is None:
+                            sb = slice(sb.start, dims[ind], sb.step)
+                        subindices[ind] = np.r_[sb]
+                        dims[ind] = subindices[ind].shape[0]
+                    elif type(sb) is np.ndarray:
+                        dims[ind] = sb.shape[0]
+
+                start_frame = subindices[0][0]
             else:
+                subindices = [np.r_[range(dims[0])]]
                 start_frame = 0
             if not cv_failed:
-                input_arr = np.zeros((length, height, width), dtype=np.uint8)
+                input_arr = np.zeros((dims[0], height, width), dtype=np.uint8)
                 counter = 0
-                cap.set(1,start_frame)
-                while True and counter < length:
+                cap.set(1, start_frame)
+                current_frame = start_frame
+                while True and counter < dims[0]:
                     # Capture frame-by-frame
+                    if current_frame != subindices[0][counter]:
+                        current_frame = subindices[0][counter]
+                        cap.set(1, current_frame)
                     ret, frame = cap.read()
                     if not ret:
                         break
                     input_arr[counter] = frame[:, :, 0]
-                    counter = counter + 1
-                if subindices is not None and type(subindices) is list:
-                    input_arr = input_arr[:,subindices[1],subindices[2]]
+                    counter += 1
+                    current_frame += 1
+
+                if len(subindices) > 1:
+                    input_arr = input_arr[:, subindices[1]]
+                if len(subindices) > 2:
+                    input_arr = input_arr[:, :, subindices[2]]
             else: #use pims to load movie
                 import pims
                 def rgb2gray(rgb):
