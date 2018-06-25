@@ -898,7 +898,7 @@ def view_patches_bar(Yr, A, C, b, f, d1, d2, YrA=None, img=None):
 
 
 def plot_contours(A, Cn, thr=None, thr_method='max', maxthr=0.2, nrgthr=0.9, display_numbers=True, max_number=None,
-                  cmap=None, swap_dim=False, colors='w', vmin=None, vmax=None, **kwargs):
+                  cmap=None, swap_dim=False, colors='w', vmin=None, vmax=None, coordinates=None, **kwargs):
     """Plots contour of spatial components against a background image and returns their coordinates
 
      Parameters:
@@ -935,7 +935,7 @@ def plot_contours(A, Cn, thr=None, thr_method='max', maxthr=0.2, nrgthr=0.9, dis
 
      Returns:
      --------
-     Coor: list of coordinates with center of mass, contour plot coordinates and bounding box for each component
+     coordinates: list of coordinates with center of mass, contour plot coordinates and bounding box for each component
     """
 
     if swap_dim:
@@ -960,7 +960,8 @@ def plot_contours(A, Cn, thr=None, thr_method='max', maxthr=0.2, nrgthr=0.9, dis
     else:
         pl.imshow(Cn, interpolation=None, cmap=cmap, vmin=vmin, vmax=vmax)
 
-    coordinates = get_contours(A, np.shape(Cn), thr, thr_method, swap_dim)
+    if coordinates is None:
+        coordinates = get_contours(A, np.shape(Cn), thr, thr_method, swap_dim)
     for c in coordinates:
         v = c['coordinates']
         c['bbox'] = [np.floor(np.nanmin(v[:, 1])), np.ceil(np.nanmax(v[:, 1])),

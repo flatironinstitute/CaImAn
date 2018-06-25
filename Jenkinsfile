@@ -101,33 +101,17 @@ pipeline {
           }
         }
 
-        /*
-        stage('win-python2') {
-          agent {
-            label 'windows && anaconda2'
-          }
-          environment {
-            ANACONDA = "C:\\ProgramData\\Anaconda2"
-            CONDA_ENV = "${env.WORKSPACE}\\test\\${env.STAGE_NAME}"
-          }
-          steps {
-            bat '%ANACONDA%\\scripts\\conda env create -q -f environment_python27.yml -p %CONDA_ENV%'
-            bat '%CONDA_ENV%\\scripts\\activate %CONDA_ENV% && pip install . && caimanmanager.py install && nosetests'
-          }
-        }
-        */
         stage('win-python3') {
           agent {
             label 'windows && anaconda3'
           }
           environment {
-            ANACONDA = "C:\\ProgramData\\Anaconda3"
             CONDA_ENV = "${env.WORKSPACE}\\test\\${env.STAGE_NAME}"
           }
           steps {
-            bat '%ANACONDA%\\scripts\\conda info'
-            bat '%ANACONDA%\\scripts\\conda env create -q -f environment.yml -p %CONDA_ENV%'
-            bat '%CONDA_ENV%\\scripts\\activate %CONDA_ENV% && pip install . && copy caimanmanager.py %TEMP% && cd %TEMP% && set "CAIMAN_DATA=%TEMP%\\caiman_data" && (if exist caiman_data (rmdir caiman_data /s /q) else (echo "Host is fresh")) && python caimanmanager.py install && python caimanmanager.py test'
+            bat '%ANACONDA3%\\scripts\\conda info'
+            bat '%ANACONDA3%\\scripts\\conda env create -q -f environment.yml -p %CONDA_ENV%'
+            bat '%ANACONDA3%\\scripts\\activate %CONDA_ENV% && pip install . && copy caimanmanager.py %TEMP% && cd %TEMP% && set "CAIMAN_DATA=%TEMP%\\caiman_data" && (if exist caiman_data (rmdir caiman_data /s /q) else (echo "Host is fresh")) && python caimanmanager.py install && python caimanmanager.py test'
           }
         }
       }
@@ -153,7 +137,7 @@ ${BUILD_LOG,maxLines=60}
 		 [$class: 'DevelopersRecipientProvider'],
 	       ], 
 	       replyTo: '$DEFAULT_REPLYTO',
-	       to: 'epnevmatikakis@gmail.com, andrea.giovannucci@gmail.com, dsimon@flatironinstitute.org, pgunn@flatironinstitute.org'
+	       to: 'epnevmatikakis@gmail.com, andrea.giovannucci@gmail.com, pgunn@flatironinstitute.org'
     }
   }
 }
