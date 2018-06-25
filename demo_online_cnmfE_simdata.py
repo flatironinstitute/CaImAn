@@ -68,10 +68,20 @@ cnm_batch.fit(Y)
 
 print(('Number of components:' + str(cnm_batch.A.shape[-1])))
 
+
+def tight():
+    plt.xlim(0, dims[1])
+    plt.ylim(0, dims[0])
+    plt.axis('off')
+    plt.xticks([])
+    plt.yticks([])
+
 Cn, pnr = cm.summary_images.correlation_pnr(Y, gSig=gSig, center_psf=True, swap_dim=False)
 plt.figure()
-crd = cm.utils.visualization.plot_contours(A, Cn, thr=.8, lw=3)
+crd = cm.utils.visualization.plot_contours(A, Cn, thr=.8, lw=3, display_numbers=False)
 crd = cm.utils.visualization.plot_contours(cnm_batch.A, Cn, thr=.8, c='r')
+tight()
+plt.savefig('online1p_batch.pdf', pad_inches=0, bbox_inches='tight')
 cm.base.rois.register_ROIs(A, cnm_batch.A, dims, align_flag=0)
 
 
@@ -104,8 +114,10 @@ print(('Number of components:' + str(cnm_init.A.shape[-1])))
 Cn_init, pnr_init = cm.summary_images.correlation_pnr(
     Y[:initbatch], gSig=gSig, center_psf=True, swap_dim=False)
 plt.figure()
-crd = cm.utils.visualization.plot_contours(A, Cn_init, thr=.8, lw=3)
+crd = cm.utils.visualization.plot_contours(A, Cn_init, thr=.8, lw=3, display_numbers=False)
 crd = cm.utils.visualization.plot_contours(cnm_init.A, Cn_init, thr=.8, c='r')
+tight()
+plt.savefig('online1p_init.pdf', pad_inches=0, bbox_inches='tight')
 cm.base.rois.register_ROIs(A, cnm_init.A, dims, align_flag=0)
 
 
@@ -136,25 +148,30 @@ for frame in Y[initbatch:]:
 print(('Number of components:' + str(cnm.Ab.shape[-1])))
 
 plt.figure()
-crd = cm.utils.visualization.plot_contours(A, Cn, thr=.8, lw=3)
+crd = cm.utils.visualization.plot_contours(A, Cn, thr=.8, lw=3, display_numbers=False)
 crd = cm.utils.visualization.plot_contours(cnm.Ab, Cn, thr=.8, c='r')
+tight()
+plt.savefig('online1p_online.pdf', pad_inches=0, bbox_inches='tight')
 cm.base.rois.register_ROIs(A, cnm.Ab, dims, align_flag=0)
 
 
 #%% compare online to batch
 
-print('RSS of W:  online vs init:  {0}'.format((cnm.W - cnm_init.W).power(2).sum()))
-print('            batch vs init:  {0}'.format((cnm_batch.W - cnm_init.W).power(2).sum()))
-print('           online vs batch: {0}'.format((cnm.W - cnm_batch.W).power(2).sum()))
+print('RSS of W:  online vs init:  {0:.4f}'.format((cnm.W - cnm_init.W).power(2).sum()))
+print('            batch vs init:  {0:.4f}'.format((cnm_batch.W - cnm_init.W).power(2).sum()))
+print('           online vs batch: {0:.4f}'.format((cnm.W - cnm_batch.W).power(2).sum()))
 
 
-#%% compare to ground truth traces
+#%% compare to ground truth 
 
 matched_ROIs1b, matched_ROIs2b, non_matched1b, non_matched2b, performanceb, A2b = register_ROIs(
     A, cnm_batch.A, dims, align_flag=False)
 matched_ROIs1, matched_ROIs2, non_matched1, non_matched2, performance, A2 = register_ROIs(
     A, cnm.Ab, dims, align_flag=False)
+matched_ROIs1i, matched_ROIs2i, non_matched1i, non_matched2i, performancei, A2i = register_ROIs(
+    A, cnm_init.A, dims, align_flag=False)
 
+#traces
 cor_batch = [pearsonr(c1, c2)[0] for (c1, c2) in
              np.transpose([C[matched_ROIs1b], cnm_batch.C[matched_ROIs2b]], (1, 0, 2))]
 cor = [pearsonr(c1, c2)[0] for (c1, c2) in
@@ -180,6 +197,22 @@ for i in range(len(C)):
         pass
     if i == 0:
         plt.legend(ncol=3)
+plt.tight_layout()
+plt.savefig('online1p_traces.pdf')
+
+# shapes
+over_batch = [c1.dot(c2) / np.sqrt(c1.dot(c1) * c2.dot(c2)) for (c1, c2) in
+             np.transpose([A.T[matched_ROIs1b],
+                           cnm_batch.A.toarray().T[matched_ROIs2b]], (1, 0, 2))]
+over = [c1.dot(c2) / np.sqrt(c1.dot(c1) * c2.dot(c2)) for (c1, c2) in
+       np.transpose([A.T[matched_ROIs1], cnm.Ab.toarray().T[matched_ROIs2]], (1, 0, 2))]
+over_init = [c1.dot(c2) / np.sqrt(c1.dot(c1) * c2.dot(c2)) for (c1, c2) in
+       np.transpose([A.T[matched_ROIs1i], cnm_init.A.toarray().T[matched_ROIs2i]], (1, 0, 2))]
+
+print('Overlap   mean   median')
+print(' batch:  {0:.4f}  {1:.4f}'.format(np.mean(over_batch), np.median(over_batch)))
+print('online:  {0:.4f}  {1:.4f}'.format(np.mean(over), np.median(over)))
+print('  init:  {0:.4f}  {1:.4f}'.format(np.mean(over_init), np.median(over_init)))
 
 
 #%% sorted ring weights

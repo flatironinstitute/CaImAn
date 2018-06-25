@@ -887,7 +887,7 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
             CC = np.vstack([CC1, CC2])
             Cf = np.vstack([Cf, cin_circ])
 
-            if center_psf:  # subtract background
+            if center_psf:  # subtract background TODO: restrict to region where component is located
                 if ssub_B == 1:
                     x = (y - Ab.dot(Cf).T - b0).T
                     y -= W.dot(x).T

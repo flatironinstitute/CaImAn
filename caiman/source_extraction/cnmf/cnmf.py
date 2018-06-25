@@ -1076,20 +1076,37 @@ class CNMF(object):
                                       _ct] = Ab_.data[Ab_.indptr[_ct]:Ab_.indptr[_ct + 1]]
 
                 if self.center_psf:
-                    A_ds = scipy.sparse.csc_matrix(downscale(
-                        (self.Ab_dense[:, :self.N] if self.use_dense else self.Ab.toarray()).reshape(
-                            (d1, d2, -1), order='F'), (ssub_B, ssub_B, 1)).reshape(
-                        (-1, self.N), order='F'))
-                    self.Atb = self.Ab.T.dot(np.repeat(np.repeat(self.W.dot(
-                        downscale(self.b0.reshape(self.dims2, order='F'), [ssub_B] * 2)
-                        .reshape((-1, 1), order='F'))
-                        .reshape(((d1 - 1) // ssub_B + 1, (d2 - 1) // ssub_B + 1), order='F'),
-                        ssub_B, 0), ssub_B, 1)[:d1, :d2].ravel(order='F') - self.b0)
-                    # self.Atb = A_ds.T.dot(self.W.dot(
-                    #     downscale(self.b0.reshape(self.dims2, order='F'), [ssub_B] * 2)
-                    #     .ravel(order='F'))) * ssub_B**2 - self.Ab.T.dot(self.b0)
-                    self.AtW = A_ds.T.dot(self.W)
-                    self.AtWA = self.AtW.dot(A_ds).toarray()
+                    # # update XXt and W: TODO only update necessary pixels not all!
+                    # x = (y - self.Ab.dot(ccf).T - self.b0).T if ssub_B == 1
+                    #         else (downscale((y.T - self.Ab.dot(ccf) - self.b0[:, None])
+                    #                .reshape(self.dims2 + (-1,), order='F'), (ssub_B, ssub_B, 1))
+                    #      .reshape((-1, len(y)), order='F'))
+
+                    # for p in range(self.W.shape[0]):
+                    #     index = self.get_indices_of_pixels_on_ring(p)
+                    #     self.W.data[self.W.indptr[p]:self.W.indptr[p + 1]] = \
+                    #         np.linalg.inv(self.XXt[index[:, None], index]).dot(self.XXt[index, p])
+
+                    if ssub_B == 1:
+                        self.Atb = Ab_.T.dot(self.W.dot(self.b0) - self.b0)
+                        self.AtW = Ab_.T.dot(self.W)
+                        self.AtWA = self.AtW.dot(Ab_).toarray()
+                    else:
+                        d1, d2 = self.dims2
+                        A_ds = scipy.sparse.csc_matrix(downscale(
+                            (self.Ab_dense[:, :self.N] if self.use_dense else Ab_.toarray()).reshape(
+                                (d1, d2, -1), order='F'), (ssub_B, ssub_B, 1)).reshape(
+                            (-1, self.N), order='F'))
+                        self.Atb = Ab_.T.dot(np.repeat(np.repeat(self.W.dot(
+                            downscale(self.b0.reshape(self.dims2, order='F'), [ssub_B] * 2)
+                            .reshape((-1, 1), order='F'))
+                            .reshape(((d1 - 1) // ssub_B + 1, (d2 - 1) // ssub_B + 1), order='F'),
+                            ssub_B, 0), ssub_B, 1)[:d1, :d2].ravel(order='F') - self.b0)
+                        # self.Atb = A_ds.T.dot(self.W.dot(
+                        #     downscale(self.b0.reshape(self.dims2, order='F'), [ssub_B] * 2)
+                        #     .ravel(order='F'))) * ssub_B**2 - self.Ab.T.dot(self.b0)
+                        self.AtW = A_ds.T.dot(self.W)
+                        self.AtWA = self.AtW.dot(A_ds).toarray()
 
                 # set the update counter to 0 for components that are overlaping the newly added
                 if self.use_dense:

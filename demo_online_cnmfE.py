@@ -52,10 +52,20 @@ cnm_batch.fit(Y)
 
 print(('Number of components:' + str(cnm_batch.A.shape[-1])))
 
+
+def tight():
+    plt.xlim(0, dims[1])
+    plt.ylim(0, dims[0])
+    plt.axis('off')
+    plt.xticks([])
+    plt.yticks([])
+
 Cn, pnr = cm.summary_images.correlation_pnr(Y, gSig=gSig, center_psf=True, swap_dim=False)
 plt.figure()
-cm.utils.visualization.plot_contours(A, Cn, thr=.6, lw=3)
+cm.utils.visualization.plot_contours(A, Cn, thr=.6, lw=3, display_numbers=False)
 cm.utils.visualization.plot_contours(cnm_batch.A, Cn, thr=.6, color='r')
+tight()
+plt.savefig('online1p_striatum_batch.pdf', pad_inches=0, bbox_inches='tight')
 cm.base.rois.register_ROIs(A, cnm_batch.A, dims, align_flag=0)
 
 # # discard low quality components
@@ -102,8 +112,10 @@ print(('Number of components:' + str(cnm_init.A.shape[-1])))
 Cn_init, pnr_init = cm.summary_images.correlation_pnr(
     Y[:initbatch], gSig=gSig, center_psf=True, swap_dim=False)
 plt.figure()
-cm.utils.visualization.plot_contours(A, Cn_init, thr=.6, lw=3)
+cm.utils.visualization.plot_contours(A, Cn_init, thr=.6, lw=3, display_numbers=False)
 cm.utils.visualization.plot_contours(cnm_init.A, Cn_init, thr=.6, color='r')
+tight()
+plt.savefig('online1p_striatum_init.pdf', pad_inches=0, bbox_inches='tight')
 cm.base.rois.register_ROIs(A, cnm_init.A, dims, align_flag=0)
 
 
@@ -120,8 +132,10 @@ for frame in Y[initbatch:]:
 print(('Number of components:' + str(cnm.Ab.shape[-1])))
 
 plt.figure()
-crd = cm.utils.visualization.plot_contours(A, Cn, thr=.6, lw=3)
+crd = cm.utils.visualization.plot_contours(A, Cn, thr=.6, lw=3, display_numbers=False)
 crd = cm.utils.visualization.plot_contours(cnm.Ab, Cn, thr=.6, color='r')
+tight()
+plt.savefig('online1p_striatum_online.pdf', pad_inches=0, bbox_inches='tight')
 cm.base.rois.register_ROIs(A, cnm.Ab, dims, align_flag=0)
 
 # # discard low quality components
