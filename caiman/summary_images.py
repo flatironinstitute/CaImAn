@@ -25,7 +25,6 @@ import numpy as np
 from scipy.ndimage.filters import convolve
 import cv2
 from caiman.source_extraction.cnmf.pre_processing import get_noise_fft
-
 #try:
 #    cv2.setNumThreads(0)
 #except:
@@ -172,6 +171,80 @@ def local_correlations_fft(Y, eight_neighbours=True, swap_dim=True, opencv=True,
         Cn = YYconv_rm / MASK
 
     return Cn
+
+def local_correlations_multicolor(Y, swap_dim=True, order_mean=1):
+    """Computes the correlation image with color depending on orientation 
+
+    Parameters:
+    -----------
+
+    Y:  np.ndarray (3D or 4D)
+        Input movie data in 3D or 4D format
+
+
+    swap_dim: Boolean
+        True indicates that time is listed in the last axis of Y (matlab format)
+        and moves it in the front
+
+    Returns:
+    --------
+
+    rho: d1 x d2 [x d3] matrix, cross-correlation with adjacent pixels
+
+    """
+    if Y.ndim == 4:
+        raise Exception('Not Implemented')
+        
+        
+    if swap_dim:
+        Y = np.transpose(
+            Y, tuple(np.hstack((Y.ndim - 1, list(range(Y.ndim))[:-1]))))
+
+    rho = np.zeros(np.shape(Y)[1:])
+    w_mov = (Y - np.mean(Y, axis=0)) / np.std(Y, axis=0)
+
+    rho_h = np.mean(np.multiply(w_mov[:, :-1, :], w_mov[:, 1:, :]), axis=0)
+    rho_w = np.mean(np.multiply(w_mov[:, :, :-1], w_mov[:, :, 1:]), axis=0)
+    rho_d1 = np.mean(np.multiply(w_mov[:, 1:, :-1], w_mov[:, :-1, 1:, ]), axis=0)
+    rho_d2 = np.mean(np.multiply(w_mov[:, :-1, :-1], w_mov[:, 1:, 1:, ]), axis=0)
+    
+    img = np.zeros(np.shape(Y)[1:]+(3,))
+    
+    rho = np.zeros(np.shape(Y)[1:])
+    rho[:-1, :] = rho[:-1, :] + rho_h**(order_mean)
+    rho[:, :-1] = rho[:, :-1] + rho_w**(order_mean)
+    rho[:-1, :-1] = rho[:-1, :-1] + rho_d2**(order_mean)
+
+    
+    
+#    img[:,:,3] = rho.copy()
+    rho = np.zeros(np.shape(Y)[1:])
+    rho[1:, :] = rho[1:, :] + rho_h**(order_mean)
+    rho[:, 1:] = rho[:, 1:] + rho_w**(order_mean)
+    rho[1:, 1:] = rho[1:, 1:] + rho_d1**(order_mean)
+
+    
+    
+    img[:,:,2] = rho.copy()
+    
+    rho = np.zeros(np.shape(Y)[1:])
+    rho[:-1, :] = rho[:-1, :] + rho_h**(order_mean)
+    rho[:, 1:] = rho[:, 1:] + rho_w**(order_mean)
+    rho[:-1, 1:] = rho[:-1, 1:] + rho_d2**(order_mean)
+
+    
+    img[:,:,1] = rho.copy()
+    
+    rho = np.zeros(np.shape(Y)[1:])
+    rho[1:, :] = rho[1:, :] + rho_h**(order_mean)
+    rho[:, :-1] = rho[:, :-1] + rho_w**(order_mean)    
+    rho[1:, :-1] = rho[1:, :-1] + rho_d1**(order_mean)
+
+    
+    img[:,:,0] = rho.copy()
+    
+    return np.dstack([rho_w[:-1]/2 + rho_h[:,:-1]/2,rho_d1,rho_d2])
+#    return img
 
 
 def local_correlations(Y, eight_neighbours=True, swap_dim=True, order_mean=1):
@@ -464,3 +537,37 @@ def map_corr(scan):
     num_frames = chunk.shape[-1]
 
     return chunk_sum, chunk_sqsum, chunk_xysum, num_frames
+
+def local_correlations_movie(file_name, Tot_frames = None, fr = 10, window=10, swap_dim=True, eight_neighbours=True, order_mean = 1, ismulticolor = False, dview = None):
+        import caiman as cm
+
+        if Tot_frames is None:
+            Tot_frames = cm.load(file_name).shape[0]                        
+            
+        params = [[file_name,range(j,j + window), eight_neighbours, swap_dim, order_mean, ismulticolor] for j in range(Tot_frames - window)]        
+        if dview is None:
+#            parallel_result = [self[j:j + window, :, :].local_correlations(
+#                    eight_neighbours=True,swap_dim=swap_dim, order_mean=order_mean)[np.newaxis, :, :] for j in range(T - window)]
+            parallel_result = list(map(local_correlations_movie_parallel,params))
+
+        else:
+            if 'multiprocessing' in str(type(dview)):
+                parallel_result = dview.map_async(
+                        local_correlations_movie_parallel, params).get(4294967)
+            else:
+                parallel_result = dview.map_sync(
+                    local_correlations_movie_parallel, params)
+                dview.results.clear()
+
+        mm = cm.movie(np.concatenate(parallel_result, axis=0),fr=fr)
+        return mm
+
+def local_correlations_movie_parallel(params):
+        import caiman as cm
+        mv_name, idx, eight_neighbours, swap_dim, order_mean, ismulticolor = params
+        mv = cm.load(mv_name,subindices=idx)
+        if ismulticolor:
+            return local_correlations_multicolor(mv,swap_dim=swap_dim, order_mean=order_mean)[None,:,:].astype(np.float32)
+        else:
+            return local_correlations(mv, eight_neighbours=eight_neighbours, swap_dim=swap_dim, order_mean=order_mean)[None,:,:].astype(np.float32)
+
