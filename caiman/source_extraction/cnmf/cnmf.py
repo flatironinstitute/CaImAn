@@ -904,7 +904,7 @@ class CNMF(object):
                           1] = o.get_c_of_last_pool()
 
         #self.mean_buff = self.Yres_buf.mean(0)
-        res_frame = frame - self.Ab.dot(self.noisyC[:self.M, t])
+        res_frame = frame - self.Ab.dot(self.C_on[:self.M, t])
         mn_ = self.mn.copy()
         self.mn = (t-1)/t*self.mn + res_frame/t
         self.vr = (t-1)/t*self.vr + (res_frame - mn_)*(res_frame - self.mn)/t
@@ -1026,7 +1026,7 @@ class CNMF(object):
 
             ccf = self.C_on[:self.M, t - self.minibatch_suff_stat:t -
                             self.minibatch_suff_stat + 1]
-            y = self.Yr_buf.get_last_frames(self.minibatch_suff_stat)[:1]
+            y = self.Yr_buf.get_last_frames(self.minibatch_suff_stat + 1)[:1]
             # much faster: exploit that we only access CY[m, ind_pixels], hence update only these
             for m in range(self.N):
                 self.CY[m + nb_, self.ind_A[m]] *= (1 - 1. / t)
