@@ -1512,3 +1512,52 @@ class CNMF(object):
                                        predictions=self.cnn_preds)
 
         return self
+
+    def play_movie(self, imgs, q_max=99.75, q_min=2, gain_res=1,
+                   magnification=1, include_bck=True,
+                   frame_range=slice(None)):
+        """Displays a movie with three panels (original data (left panel),
+        reconstructed data (middle panel), residual (right panel))
+        Parameters:
+        -----------
+        imgs: np.array (possibly memory mapped, t,x,y[,z])
+            Imaging data
+
+        q_max: float (values in [0, 100])
+            percentile for maximum plotting value
+
+        q_min: float (values in [0, 100])
+            percentile for minimum plotting value
+
+        gain_res: float
+            amplification factor for residual movie
+
+        magnification: float
+            magnification factor for whole movie
+
+        include_bck: bool
+            flag for including background in original and reconstructed movie
+
+        frame_rage: range or slice or list
+            display only a subset of frames
+
+
+        Returns:
+        --------
+        self (to stop the movie press 'q')
+        """
+        dims = imgs.shape[1:]
+        if 'movie' not in str(type(imgs)):
+            imgs = caiman.movie(imgs)
+        Y_rec = self.A.dot(self.C[:,frame_range]) + self.b.dot(self.f[:,frame_range])
+        Y_rec = Y_rec.reshape(dims + (-1,), order='F')
+        Y_rec = Y_rec.transpose([2, 0, 1])
+        if not include_bck:
+            B = self.b.dot(self.f[:,frame_range])
+            B = B.reshape(dims + (-1,), order='F').transpose([2, 0, 1])
+        else:
+            B = np.zeros_like(Y_rec)
+        Y_res = imgs[frame_range] - Y_rec
+        caiman.concatenate((imgs[frame_range] - B, Y_rec - B, Y_res*gain_res), axis=2).play(q_min=q_min, q_max=q_max, magnification=magnification)
+
+        return self

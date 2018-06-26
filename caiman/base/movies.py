@@ -1074,7 +1074,7 @@ class movie(ts.timeseries):
             fig = pl.figure(1)
             ax = fig.add_subplot(111)
             ax.set_title("Play Movie")
-            im = ax.imshow((offset + self[0]) * gain / (maxmov + offset), cmap=pl.cm.gray,
+            im = ax.imshow((offset + self[0] - minmov) * gain / (maxmov - minmov + offset), cmap=pl.cm.gray,
                            vmin=0, vmax=1, interpolation='none')  # Blank starting image
             fig.show()
             im.axes.figure.canvas.draw()
@@ -1113,7 +1113,7 @@ class movie(ts.timeseries):
                     if magnification != 1:
                         frame = cv2.resize(
                             frame, None, fx=magnification, fy=magnification, interpolation=interpolation)
-                    frame = (offset + frame) * gain / maxmov
+                    frame = (offset + frame - minmov) * gain /(maxmov - minmov)
 
                     if plot_text == True:
                         text_width, text_height = cv2.getTextSize('Frame = ' + str(iddxx), fontFace=5, fontScale = 0.8, thickness=1)[0]
