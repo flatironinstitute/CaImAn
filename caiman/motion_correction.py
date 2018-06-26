@@ -462,7 +462,8 @@ def motion_correct_oneP_rigid(
         max_shifts,
         dview=None,
         splits_rig=10,
-        save_movie=True):
+        save_movie=True,
+        border_nan=True):
     ''' Perform rigid motion correction on one photon imaging movies
     filename: str
         name of the file to correct
@@ -473,7 +474,6 @@ def motion_correct_oneP_rigid(
     max_shifts: tuple of ints
         max shifts in x and y allowed
 
-
     dview:
         handle to cluster
 
@@ -482,6 +482,9 @@ def motion_correct_oneP_rigid(
 
     save_movie: bool
         whether to save the movie in memory mapped format
+
+    border_nan : bool or string, optional
+        Specifies how to deal with borders. (True, False, 'copy', 'min')        
 
     Returns:
     --------
@@ -503,7 +506,8 @@ def motion_correct_oneP_rigid(
         num_splits_to_process_rig=None,
         shifts_opencv=True,
         nonneg_movie=True,
-        gSig_filt=gSig_filt)
+        gSig_filt=gSig_filt,
+        border_nan=border_nan)
 
     mc.motion_correct_rigid(save_movie=save_movie, template=new_templ)
 
@@ -523,7 +527,8 @@ def motion_correct_oneP_nonrigid(
         dview=None,
         splits_rig=10,
         save_movie=True,
-        new_templ=None):
+        new_templ=None,
+        border_nan=True):
     ''' Perform rigid motion correction on one photon imaging movies
     filename: str
         name of the file to correct
@@ -534,7 +539,6 @@ def motion_correct_oneP_nonrigid(
     max_shifts: tuple of ints
         max shifts in x and y allowed
 
-
     dview:
         handle to cluster
 
@@ -543,6 +547,9 @@ def motion_correct_oneP_nonrigid(
 
     save_movie: bool
         whether to save the movie in memory mapped format
+
+   border_nan : bool or string, optional
+       Specifies how to deal with borders. (True, False, 'copy', 'min')        
 
     Returns:
     --------
@@ -571,7 +578,8 @@ def motion_correct_oneP_nonrigid(
         overlaps=overlaps,
         splits_els=splits_els,
         upsample_factor_grid=upsample_factor_grid,
-        max_deviation_rigid=max_deviation_rigid)
+        max_deviation_rigid=max_deviation_rigid,
+        border_nan=border_nan)
 
     mc.motion_correct_pwrigid(save_movie=True, template=new_templ)
 
