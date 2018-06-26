@@ -26,6 +26,8 @@ expected_comps = 200
 
 small = True
 
+save_figs = False
+
 fname = 'test_sim.mat'
 test_sim = loadmat(fname)
 (A, C, b, A_cnmfe, f, C_cnmfe, Craw_cnmfe, b0, sn, Yr, S_cnmfe,
@@ -39,19 +41,23 @@ A /= nA
 C *= nA[:, None]
 
 if small:
-    A = A.reshape(dims + (-1,), order='F')[64:128, 64:160].reshape((-1, A.shape[-1]), order='F')
+    # A = A.reshape(dims + (-1,), order='F')[64:128, 64:160].reshape((-1, A.shape[-1]), order='F')
+    A = A.reshape(dims + (-1,), order='F')[30:158, 20:148].reshape((-1, A.shape[-1]), order='F')
     keep = (A**2).sum(0) > .05
     A = A[:, keep]
     C = C[keep]
 
 try:
-    Yr, dims, T = cm.load_memmap('Yr_d1_64_d2_96_d3_1_order_C_frames_2000_.mmap' if small
+    # Yr, dims, T = cm.load_memmap('Yr_d1_64_d2_96_d3_1_order_C_frames_2000_.mmap' if small
+    #                              else 'Yr_d1_253_d2_316_d3_1_order_C_frames_2000_.mmap')
+    Yr, dims, T = cm.load_memmap('Yr_d1_128_d2_128_d3_1_order_C_frames_2000_.mmap' if small
                                  else 'Yr_d1_253_d2_316_d3_1_order_C_frames_2000_.mmap')
     Y = Yr.T.reshape((T,) + dims, order='F')
 except:
     Y = Yr.T.reshape((-1,) + dims, order='F')
     if small:
-        Y = Y[:, 64:128, 64:160]
+        # Y = Y[:, 64:128, 64:160]
+        Y = Y[:, 30:158, 20:148]
     fname_new = cm.save_memmap([Y], base_name='Yr', order='C')
     Yr, dims, T = cm.load_memmap(fname_new)
     Y = Yr.T.reshape((T,) + dims, order='F')
@@ -81,7 +87,7 @@ plt.figure()
 crd = cm.utils.visualization.plot_contours(A, Cn, thr=.8, lw=3, display_numbers=False)
 crd = cm.utils.visualization.plot_contours(cnm_batch.A, Cn, thr=.8, c='r')
 tight()
-plt.savefig('online1p_batch.pdf', pad_inches=0, bbox_inches='tight')
+plt.savefig('online1p_batch.pdf', pad_inches=0, bbox_inches='tight') if save_figs else plt.show()
 cm.base.rois.register_ROIs(A, cnm_batch.A, dims, align_flag=0)
 
 
@@ -117,7 +123,7 @@ plt.figure()
 crd = cm.utils.visualization.plot_contours(A, Cn_init, thr=.8, lw=3, display_numbers=False)
 crd = cm.utils.visualization.plot_contours(cnm_init.A, Cn_init, thr=.8, c='r')
 tight()
-plt.savefig('online1p_init.pdf', pad_inches=0, bbox_inches='tight')
+plt.savefig('online1p_init.pdf', pad_inches=0, bbox_inches='tight') if save_figs else plt.show()
 cm.base.rois.register_ROIs(A, cnm_init.A, dims, align_flag=0)
 
 
@@ -151,7 +157,7 @@ plt.figure()
 crd = cm.utils.visualization.plot_contours(A, Cn, thr=.8, lw=3, display_numbers=False)
 crd = cm.utils.visualization.plot_contours(cnm.Ab, Cn, thr=.8, c='r')
 tight()
-plt.savefig('online1p_online.pdf', pad_inches=0, bbox_inches='tight')
+plt.savefig('online1p_online.pdf', pad_inches=0, bbox_inches='tight') if save_figs else plt.show()
 cm.base.rois.register_ROIs(A, cnm.Ab, dims, align_flag=0)
 
 

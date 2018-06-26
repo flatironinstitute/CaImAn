@@ -836,7 +836,9 @@ class CNMF(object):
         self.Yres_buf = self.Yres_buf
         self.mean_buff = self.Yres_buf.mean(0)
         self.ind_new = []
-        self.rho_buf = imblur(np.maximum(self.Yres_buf.T, 0).reshape(
+        # self.rho_buf = imblur(np.maximum(self.Yres_buf.T, 0).reshape(
+        #     self.dims2 + (-1,), order='F'), sig=self.gSig, siz=self.gSiz, nDimBlur=len(self.dims2))**2
+        self.rho_buf = imblur(self.Yres_buf.T.reshape(
             self.dims2 + (-1,), order='F'), sig=self.gSig, siz=self.gSiz, nDimBlur=len(self.dims2))**2
         self.rho_buf = np.reshape(
             self.rho_buf, (np.prod(self.dims2), -1)).T
@@ -995,7 +997,7 @@ class CNMF(object):
 
             res_frame = np.reshape(res_frame, self.dims2, order='F')
 
-            rho = imblur(np.maximum(res_frame, 0), sig=self.gSig,
+            rho = imblur(res_frame, sig=self.gSig,
                          siz=self.gSiz, nDimBlur=len(self.dims2))**2
 
             rho = np.reshape(rho, np.prod(self.dims2))
