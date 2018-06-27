@@ -114,7 +114,8 @@ def main():
                                        max_shifts=max_shifts,
                                        dview=dview,
                                        splits_rig=splits_rig,
-                                       save_movie=not(do_motion_correction_nonrigid)
+                                       save_movie=not(do_motion_correction_nonrigid),
+                                       border_nan='copy'
                                        )
     
         new_templ = mc.total_template_rig
@@ -130,7 +131,7 @@ def main():
         # borders to eliminate from movie because of motion correction
         bord_px = np.ceil(np.max(np.abs(mc.shifts_rig))).astype(np.int)
         filename_reorder = mc.fname_tot_rig
-    
+
         # do motion correction nonrigid
         if do_motion_correction_nonrigid:
             mc = motion_correct_oneP_nonrigid(
@@ -144,25 +145,24 @@ def main():
                 max_deviation_rigid=max_deviation_rigid,
                 dview=dview,
                 splits_rig=None,
-                save_movie=True,  # whether to save movie in memory mapped format
-                new_templ=new_templ  # template to initialize motion correction
+                save_movie=True,     # whether to save movie in memory mapped format
+                new_templ=new_templ,  # template to initialize motion correction
+                border_nan='copy'
             )
-    
+
             filename_reorder = mc.fname_tot_els
             bord_px = np.ceil(
                 np.maximum(np.max(np.abs(mc.x_shifts_els)),
                            np.max(np.abs(mc.y_shifts_els)))).astype(np.int)
-    
+
     # create memory mappable file in the right order on the hard drive (C order)
-    fname_new = cm.save_memmap_each(
+    fname_new = cm.save_memmap(
         filename_reorder,
         base_name='memmap_',
         order='C',
         border_to_0=bord_px,
         dview=dview)
-    fname_new = cm.save_memmap_join(fname_new, base_name='memmap_', dview=dview)
-    
-    
+
     # load memory mappable file
     Yr, dims, T = cm.load_memmap(fname_new)
     Y = Yr.T.reshape((T,) + dims, order='F')

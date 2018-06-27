@@ -462,7 +462,8 @@ def motion_correct_oneP_rigid(
         max_shifts,
         dview=None,
         splits_rig=10,
-        save_movie=True):
+        save_movie=True,
+        border_nan=True):
     ''' Perform rigid motion correction on one photon imaging movies
     filename: str
         name of the file to correct
@@ -473,7 +474,6 @@ def motion_correct_oneP_rigid(
     max_shifts: tuple of ints
         max shifts in x and y allowed
 
-
     dview:
         handle to cluster
 
@@ -482,6 +482,9 @@ def motion_correct_oneP_rigid(
 
     save_movie: bool
         whether to save the movie in memory mapped format
+
+    border_nan : bool or string, optional
+        Specifies how to deal with borders. (True, False, 'copy', 'min')        
 
     Returns:
     --------
@@ -503,7 +506,8 @@ def motion_correct_oneP_rigid(
         num_splits_to_process_rig=None,
         shifts_opencv=True,
         nonneg_movie=True,
-        gSig_filt=gSig_filt)
+        gSig_filt=gSig_filt,
+        border_nan=border_nan)
 
     mc.motion_correct_rigid(save_movie=save_movie, template=new_templ)
 
@@ -523,7 +527,8 @@ def motion_correct_oneP_nonrigid(
         dview=None,
         splits_rig=10,
         save_movie=True,
-        new_templ=None):
+        new_templ=None,
+        border_nan=True):
     ''' Perform rigid motion correction on one photon imaging movies
     filename: str
         name of the file to correct
@@ -534,7 +539,6 @@ def motion_correct_oneP_nonrigid(
     max_shifts: tuple of ints
         max shifts in x and y allowed
 
-
     dview:
         handle to cluster
 
@@ -543,6 +547,9 @@ def motion_correct_oneP_nonrigid(
 
     save_movie: bool
         whether to save the movie in memory mapped format
+
+   border_nan : bool or string, optional
+       Specifies how to deal with borders. (True, False, 'copy', 'min')        
 
     Returns:
     --------
@@ -571,7 +578,8 @@ def motion_correct_oneP_nonrigid(
         overlaps=overlaps,
         splits_els=splits_els,
         upsample_factor_grid=upsample_factor_grid,
-        max_deviation_rigid=max_deviation_rigid)
+        max_deviation_rigid=max_deviation_rigid,
+        border_nan=border_nan)
 
     mc.motion_correct_pwrigid(save_movie=True, template=new_templ)
 
@@ -1846,7 +1854,7 @@ def tile_and_correct(img, template, strides, overlaps, max_shifts, newoverlaps=N
 
     use_cuda : bool, optional
         Use skcuda.fft (if available). Default: False
-        
+
     border_nan : bool or string, optional
         specifies how to deal with borders. (True, False, 'copy', 'min')
 
@@ -2413,13 +2421,16 @@ def tile_and_correct_wrapper(params):
     shift_info = []
     if extension == '.tif' or extension == '.tiff':  # check if tiff file
 #        with tifffile.TiffFile(img_name) as tffl:
-#            imgs = tffl.asarray(img_name, key=idxs)        
+#            imgs = tffl.asarray(img_name, key=idxs)
         imgs = cm.load(img_name, subindices=idxs)
-            
+
     elif extension == '.sbx':  # check if sbx file
         imgs = cm.base.movies.sbxread(img_name, idxs[0], len(idxs))
     elif extension == '.sima' or extension == '.hdf5' or extension == '.h5':
         imgs = cm.load(img_name, subindices=list(idxs))
+    elif extension == '.avi':
+        imgs = cm.load(img_name, subindices=np.array(idxs))
+
     mc = np.zeros(imgs.shape, dtype=np.float32)
     for count, img in enumerate(imgs):
         if count % 10 == 0:
@@ -2499,6 +2510,19 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
             else:
                 raise Exception(
                     'Unsupported file key for for h5 files in parallel motion correction')
+    elif extension == '.avi':
+        cap = cv2.VideoCapture(fname)
+        try:
+            T = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            d2 = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+            d1 = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        except:
+            print('Roll back top opencv 2')
+            T = int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_COUNT))
+            d2 = int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_WIDTH))
+            d1 = int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT))
+        cap.release()
+
     else:
         raise Exception(
             'Unsupported file extension for parallel motion correction')

@@ -64,10 +64,10 @@ def main():
     add_to_movie = np.maximum(add_to_movie, 0)
     # if minimum is negative subtract to make the data non-negative
     base_name = 'Yr'
-    name_new = cm.save_memmap_each(fnames, dview=dview, base_name=base_name,
-                                   add_to_movie=add_to_movie)
-    name_new.sort()
-    fname_new = cm.save_memmap_join(name_new, base_name='Yr', dview=dview)
+    fname_new = cm.save_memmap(fnames, dview=dview, base_name=base_name,
+                               order='C',
+                               add_to_movie=add_to_movie)
+
 #%% LOAD MEMORY MAPPABLE FILE
     Yr, dims, T = cm.load_memmap(fname_new)
     d1, d2 = dims
