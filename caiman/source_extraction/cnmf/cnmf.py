@@ -1552,7 +1552,7 @@ class CNMF(object):
         Y_rec = self.A.dot(self.C[:, frame_range])
         Y_rec = Y_rec.reshape(dims + (-1,), order='F')
         Y_rec = Y_rec.transpose([2, 0, 1])
-        if self.gnb >= -1:
+        if self.gnb == -1 or self.gnb > 0:
             B = self.b.dot(self.f[:, frame_range])
             if 'matrix' in str(type(B)):
                 B = B.toarray()
