@@ -1549,15 +1549,23 @@ class CNMF(object):
         dims = imgs.shape[1:]
         if 'movie' not in str(type(imgs)):
             imgs = caiman.movie(imgs)
-        Y_rec = self.A.dot(self.C[:,frame_range]) + self.b.dot(self.f[:,frame_range])
+        Y_rec = self.A.dot(self.C[:, frame_range])
         Y_rec = Y_rec.reshape(dims + (-1,), order='F')
         Y_rec = Y_rec.transpose([2, 0, 1])
-        if not include_bck:
-            B = self.b.dot(self.f[:,frame_range])
+        if self.gnb >= -1:
+            B = self.b.dot(self.f[:, frame_range])
+            if 'matrix' in str(type(B)):
+                B = B.toarray()
+            B = B.reshape(dims + (-1,), order='F').transpose([2, 0, 1])
+        elif self.gnb == -2:
+            B = self.W.dot(imgs[frame_range] - self.A.dot(self.C[:, frame_range]))
             B = B.reshape(dims + (-1,), order='F').transpose([2, 0, 1])
         else:
             B = np.zeros_like(Y_rec)
-        Y_res = imgs[frame_range] - Y_rec
-        caiman.concatenate((imgs[frame_range] - B, Y_rec - B, Y_res*gain_res), axis=2).play(q_min=q_min, q_max=q_max, magnification=magnification)
+        imgs = imgs[:, self.border_pix:-self.border_pix, self.border_pix:-self.border_pix]
+        B = B[:, self.border_pix:-self.border_pix, self.border_pix:-self.border_pix]
+        Y_rec = Y_rec[:, self.border_pix:-self.border_pix, self.border_pix:-self.border_pix]
+        Y_res = imgs[frame_range] - Y_rec - B
+        caiman.concatenate((imgs[frame_range] - (not include_bck)*B, Y_rec + include_bck*B, Y_res*gain_res), axis=2).play(q_min=q_min, q_max=q_max, magnification=magnification)
 
         return self
