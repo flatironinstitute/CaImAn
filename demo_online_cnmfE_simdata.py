@@ -204,7 +204,7 @@ for i in range(len(C)):
     if i == 0:
         plt.legend(ncol=3)
 plt.tight_layout()
-plt.savefig('online1p_traces.pdf')
+plt.savefig('online1p_traces.pdf') if save_figs else plt.show()
 
 # shapes
 over_batch = [c1.dot(c2) / np.sqrt(c1.dot(c1) * c2.dot(c2)) for (c1, c2) in

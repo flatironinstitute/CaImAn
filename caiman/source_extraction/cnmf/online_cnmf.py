@@ -917,40 +917,38 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
             M = M + 1
 
             Yres_buf[:, indeces] -= np.outer(cin, ain)
-            # vb = imblur(np.reshape(Ain, dims, order='F'), sig=gSig,
-            #             siz=gSiz, nDimBlur=2).ravel()
+            
             # restrict blurring to region where component is located
-#            vb = np.reshape(Ain, dims, order='F')
-            slices = tuple(slice(max(0, ijs[0] - sg), min(d, ijs[1] + sg))
+            # update bigger region than neural patch to avoid boundary effects
+            slices_update = tuple(slice(max(0, ijs[0] - sg//2), min(d, ijs[1] + sg//2))
+                           for ijs, sg, d in zip(ijSig, gSiz, dims))
+            # filter even bigger region to avoid boundary effects
+            slices_filter = tuple(slice(max(0, ijs[0] - sg), min(d, ijs[1] + sg))
                            for ijs, sg, d in zip(ijSig, gSiz, dims))
 
             # slice_within = tuple(slice(ijs[0] - sl.start, ijs[1] - sl.start)
             #                for ijs, sl in zip(ijSig, slices))
-
-
+            #
             # ind_vb = np.ravel_multi_index(
             #    np.ix_(*[np.arange(ij[0], ij[1])
             #           for ij in ijSig]), dims, order='C').ravel()
-
-
+            #
             # vb_buf = [np.maximum(0, imblur(vb.reshape(dims,order='F')[slices][slice_within], 
             #     sig=gSig, siz=gSiz, nDimBlur=len(dims))) for vb in Yres_buf]
-
-            # vb_buf2 = np.stack([vb.ravel() for vb in vb_buf])     
-
-#            ind_vb = np.ravel_multi_index(
-#                    np.ix_(*[np.arange(s.start, s.stop)
-#                           for s in slices_small]), dims).ravel()
+            #
+            # vb_buf2 = np.stack([vb.ravel() for vb in vb_buf])
+            #
+            # rho_buf[:, ind_vb] = vb_buf2**2
 
             ind_vb = np.ravel_multi_index(
                 np.ix_(*[np.arange(sl.start, sl.stop)
-                         for sl in slices]), dims, order='C').ravel()
-
-            # rho_buf[:, ind_vb] = vb_buf2**2
+                         for sl in slices_update]), dims, order='C').ravel()
 
             rho_buf[:, ind_vb] = np.stack([imblur(
-                vb.reshape(dims, order='F')[slices], sig=gSig, siz=gSiz,
-                nDimBlur=len(dims)).ravel() for vb in Yres_buf])**2
+                vb.reshape(dims, order='F')[slices_filter], sig=gSig, siz=gSiz,
+                nDimBlur=len(dims))[tuple([slice(slices_update[i].start - slices_filter[i].start,
+                                                 slices_update[i].stop - slices_filter[i].start)
+                                           for i in range(len(dims))])].ravel() for vb in Yres_buf])**2
 
             sv[ind_vb] = np.sum(rho_buf[:, ind_vb], 0)
 

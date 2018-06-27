@@ -15,6 +15,9 @@ from operator import itemgetter
 from scipy.io import loadmat
 from scipy.stats import pearsonr
 
+
+save_figs = False
+
 gSig = 3   # gaussian width of a 2D gaussian kernel, which approximates a neuron
 gSiz = 13  # average diameter of a neuron
 min_corr = .7
@@ -65,7 +68,7 @@ plt.figure()
 cm.utils.visualization.plot_contours(A, Cn, thr=.6, lw=3, display_numbers=False)
 cm.utils.visualization.plot_contours(cnm_batch.A, Cn, thr=.6, color='r')
 tight()
-plt.savefig('online1p_striatum_batch.pdf', pad_inches=0, bbox_inches='tight')
+plt.savefig('online1p_striatum_batch.pdf', pad_inches=0, bbox_inches='tight') if save_figs else plt.show()
 cm.base.rois.register_ROIs(A, cnm_batch.A, dims, align_flag=0)
 
 # # discard low quality components
@@ -115,7 +118,7 @@ plt.figure()
 cm.utils.visualization.plot_contours(A, Cn_init, thr=.6, lw=3, display_numbers=False)
 cm.utils.visualization.plot_contours(cnm_init.A, Cn_init, thr=.6, color='r')
 tight()
-plt.savefig('online1p_striatum_init.pdf', pad_inches=0, bbox_inches='tight')
+plt.savefig('online1p_striatum_init.pdf', pad_inches=0, bbox_inches='tight') if save_figs else plt.show()
 cm.base.rois.register_ROIs(A, cnm_init.A, dims, align_flag=0)
 
 
@@ -135,7 +138,7 @@ plt.figure()
 crd = cm.utils.visualization.plot_contours(A, Cn, thr=.6, lw=3, display_numbers=False)
 crd = cm.utils.visualization.plot_contours(cnm.Ab, Cn, thr=.6, color='r')
 tight()
-plt.savefig('online1p_striatum_online.pdf', pad_inches=0, bbox_inches='tight')
+plt.savefig('online1p_striatum_online.pdf', pad_inches=0, bbox_inches='tight') if save_figs else plt.show()
 cm.base.rois.register_ROIs(A, cnm.Ab, dims, align_flag=0)
 
 # # discard low quality components
