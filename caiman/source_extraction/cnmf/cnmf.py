@@ -359,8 +359,8 @@ class CNMF(object):
         """
         This method uses the cnmf algorithm to find sources in data.
 
-        it is calling everyfunction from the cnmf folder
-        you can find out more at how the functions are called and how they are laid out at the ipython notebook
+        it calls every function from the cnmf folder
+        you can find out more at how the functions are called and how they are laid out in the ipython notebook
 
         Parameters:
         ----------
@@ -389,15 +389,19 @@ class CNMF(object):
         Y = np.transpose(images, list(range(1, len(dims) + 1)) + [0])
         Yr = np.transpose(np.reshape(images, (T, -1), order='F'))
         if np.isfortran(Yr):
-            raise Exception('The file is in F order, it should be in C order (see save_memmap function')
+            raise Exception('The file is in F order, it should be in C order - see save_memmap function')
 
         print((T,) + dims)
 
         # Make sure filename is pointed correctly (numpy sets it to None sometimes)
         try:
-            Y.filename = images.filename
-            Yr.filename = images.filename
-        except AttributeError:  # if no memmapping cause working with small data
+            if images.filename is not None:
+                Y.filename = images.filename
+                Yr.filename = images.filename
+            else: # if no memmapping cause working with small data
+                print("Warning: images.filename has no value; this may cause issues later in CNMF")
+                print("Warning: images object: " + str(images))
+        except AttributeError: # We got a filename instead of an object, which is fine
             pass
 
         # update/set all options that depend on data dimensions
@@ -423,12 +427,6 @@ class CNMF(object):
                 self.n_pixels_per_process, np.prod(dims) // self.n_processes))
         self.options['preprocess_params']['n_pixels_per_process'] = self.n_pixels_per_process
         self.options['spatial_params']['n_pixels_per_process'] = self.n_pixels_per_process
-
-#        if self.block_size is None:
-#            self.block_size = self.n_pixels_per_process
-#
-#        if self.num_blocks_per_run is None:
-#           self.num_blocks_per_run = 20
 
         # number of pixels to process at the same time for dot product. Make it
         # smaller if memory problems
@@ -563,7 +561,7 @@ class CNMF(object):
             if self.alpha_snmf is not None:
                 options['init_params']['alpha_snmf'] = self.alpha_snmf
 
-            A, C, YrA, b, f, sn, optional_outputs = run_CNMF_patches(images.filename, dims + (T,),
+            A, C, YrA, b, f, sn, optional_outputs = run_CNMF_patches(images, dims + (T,),
                                                                      options, rf=self.rf, stride=self.stride,
                                                                      dview=self.dview, memory_fact=self.memory_fact,
                                                                      gnb=self.gnb, border_pix=self.border_pix,

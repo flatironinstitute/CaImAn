@@ -512,15 +512,18 @@ def parallel_dot_product(A, b, block_size=5000, dview=None, transpose=False, num
     if block_size < d1:
         for idx in range(0, d1 - block_size, block_size):
             idx_to_pass = list(range(idx, idx + block_size))
-            pars.append([A.filename, idx_to_pass, b, transpose])
+            #pars.append([A.filename, idx_to_pass, b, transpose])
+            pars.append([A, idx_to_pass, b, transpose])
 
         if (idx + block_size) < d1:
             idx_to_pass = list(range(idx + block_size, d1))
-            pars.append([A.filename, idx_to_pass, b, transpose])
+            #pars.append([A.filename, idx_to_pass, b, transpose])
+            pars.append([A, idx_to_pass, b, transpose])
 
     else:
         idx_to_pass = list(range(d1))
-        pars.append([A.filename, idx_to_pass, b, transpose])
+        #pars.append([A.filename, idx_to_pass, b, transpose])
+        pars.append([A, idx_to_pass, b, transpose])
 
     print('Start product')
     b = pickle.loads(b)
@@ -577,8 +580,13 @@ def dot_place_holder(par):
     # todo: todocument
 
     import pickle
+    import pdb
+    #pdb.set_trace()
     A_name, idx_to_pass, b_, transpose = par
-    A_, _, _ = load_memmap(A_name)
+    if isinstance(A_name, str):
+        A_, _, _ = load_memmap(A_name)
+    else:
+        A_ = A_name
     b_ = pickle.loads(b_).astype(np.float32)
 
     print((idx_to_pass[-1]))

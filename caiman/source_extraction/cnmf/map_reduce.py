@@ -88,10 +88,10 @@ def cnmf_patches(args_in):
     import logging
     from . import cnmf
     file_name, idx_, shapes, options = args_in
+    p = options['temporal_params']['p']
 
     logger = logging.getLogger(__name__)
-    name_log = os.path.basename(
-        file_name[:-5]) + '_LOG_ ' + str(idx_[0]) + '_' + str(idx_[-1])
+    
     #logger = logging.getLogger(name_log)
     #hdlr = logging.FileHandler('./' + name_log)
     #formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
@@ -99,13 +99,23 @@ def cnmf_patches(args_in):
     #logger.addHandler(hdlr)
     #logger.setLevel(logging.INFO)
 
-    p = options['temporal_params']['p']
+    if isinstance(file_name, str):
+        if file_name.filename is None:
+            name_log = os.path.basename(
+                    file_name[:-5]) + '_LOG_ ' + str(idx_[0]) + '_' + str(idx_[-1]) 
+        Yr, dims, timesteps = load_memmap(file_name)
+        images = np.reshape(Yr.T, [timesteps] + list(dims), order='F')
+    #elif file_name.filename is None:
+        #raise Exception("Internal error: file_name.filename has no value in map_reduce(" + str(file_name) + ")")
+    else:
+        name_log = 'LOG_'
+#        name_log = os.path.basename(
+#                file_name.filename[:-5]) + '_LOG_ ' + str(idx_[0]) + '_' + str(idx_[-1])
+        images = file_name
+        dims, timesteps = file_name.shape[1:], file_name.shape[0]
 
     logger.debug(name_log+'START')
-
     logger.debug(name_log+'Read file')
-    Yr, dims, timesteps = load_memmap(file_name)
-
     # slicing array (takes the min and max index in n-dimensional space and cuts the box they define)
     # for 2d a rectangle/square, for 3d a rectangular cuboid/cube, etc.
     upper_left_corner = min(idx_)
@@ -116,7 +126,6 @@ def cnmf_patches(args_in):
     # insert slice for timesteps, equivalent to :
     slices.insert(0, slice(timesteps))
 
-    images = np.reshape(Yr.T, [timesteps] + list(dims), order='F')
     if options['patch_params']['in_memory']:
         images = np.array(images[slices],dtype=np.float32)
     else:
