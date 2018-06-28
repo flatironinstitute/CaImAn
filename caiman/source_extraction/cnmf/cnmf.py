@@ -41,7 +41,7 @@ from .oasis import OASIS
 import caiman
 from caiman import components_evaluation, mmapping
 import cv2
-from .online_cnmf import RingBuffer, HALS4activity, demix_and_deconvolve, remove_components_online
+from .online_cnmf import RingBuffer, HALS4activity, HALS4shapes, demix_and_deconvolve, remove_components_online
 from .online_cnmf import init_shapes_and_sufficient_stats, update_shapes, update_num_components
 import scipy
 import psutil
@@ -1567,5 +1567,105 @@ class CNMF(object):
         Y_rec = Y_rec[:, self.border_pix:-self.border_pix, self.border_pix:-self.border_pix]
         Y_res = imgs[frame_range] - Y_rec - B
         caiman.concatenate((imgs[frame_range] - (not include_bck)*B, Y_rec + include_bck*B, Y_res*gain_res), axis=2).play(q_min=q_min, q_max=q_max, magnification=magnification)
+
+        return self
+
+    def HALS4traces(self, Yr, groups=None, use_groups=False, order=None,
+                    update_bck=True, bck_non_neg=True, **kwargs):
+        """Solves C, f = argmin_C ||Yr-AC-bf|| using block-coordinate decent.
+        Can use groups to update non-overlapping components in parallel or a
+        specified order.
+
+        Parameters
+        ----------
+        Yr : np.array (possibly memory mapped, (x,y,[,z]) x t)
+            Imaging data reshaped in matrix format
+
+        groups : list of sets
+            grouped components to be updated simultaneously
+
+        use_groups : bool
+            flag for using groups
+
+        order : list
+            Update components in that order (used if nonempty and groups=None)
+
+        update_bck : bool
+            Flag for updating temporal background components
+
+        bck_non_neg : bool
+            Require temporal background to be non-negative
+
+        Output:
+        -------
+        self (updated values for self.C, self.f, self.YrA)
+        """
+        if update_bck:
+            Ab = scipy.sparse.hstack([self.b, self.A]).tocsc()
+            try:
+                Cf = np.vstack([self.f, self.C + self.YrA])
+            except():
+                Cf = np.vstack([self.f, self.C])
+        else:
+            Ab = self.A
+            try:
+                Cf = self.C + self.YrA
+            except():
+                Cf = self.C
+            Yr = Yr - self.b.dot(self.f)
+        if (groups is None) and use_groups:
+            groups = list(map(list, update_order(Ab)[0]))
+        self.groups = groups
+        C, noisyC = HALS4activity(Yr, Ab, Cf, groups=self.groups, order=order,
+                                  **kwargs)
+        if update_bck:
+            if bck_non_neg:
+                self.f = C[:self.gnb]
+            else:
+                self.f = noisyC[:self.gnb]
+            self.C = C[self.gnb:]
+            self.YrA = noisyC[self.gnb:] - self.C
+        else:
+            self.C = C
+            self.YrA = noisyC - self.C
+        return self
+
+    def HALS4footprints(self, Yr, update_bck=True, num_iter=2):
+        """Uses hierarchical alternating least squares to update shapes and
+        background
+        Parameters:
+        -----------
+        Yr: np.array (possibly memory mapped, (x,y,[,z]) x t)
+            Imaging data reshaped in matrix format
+
+        update_bck: bool
+            flag for updating spatial background components
+
+        num_iter: int
+            number of iterations
+
+        Returns:
+        --------
+        self (updated values for self.A and self.b)
+        """
+        if update_bck:
+            Ab = np.hstack([self.b, self.A.toarray()])
+            try:
+                Cf = np.vstack([self.f, self.C + self.YrA])
+            except():
+                Cf = np.vstack([self.f, self.C])
+        else:
+            Ab = self.A.toarray()
+            try:
+                Cf = self.C + self.YrA
+            except():
+                Cf = self.C
+            Yr = Yr - self.b.dot(self.f)
+        Ab = HALS4shapes(Yr, Ab, Cf, iters=num_iter)
+        if update_bck:
+            self.A = scipy.sparse.csc_matrix(Ab[:, self.gnb:])
+            self.b = Ab[:, :self.gnb]
+        else:
+            self.A = scipy.sparse.csc_matrix(Ab)
 
         return self

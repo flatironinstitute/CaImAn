@@ -137,20 +137,6 @@ def seeded_initialization(Y, Ain, dims=None, init_batch=1000, gnb=1, p=1, **kwar
                     caiman CNMF-like object to initialize OnACID
     """
 
-    def HALS4shapes(Yr, A, C, iters=2):
-        K = A.shape[-1]
-        ind_A = A > 0
-        U = C.dot(Yr.T)
-        V = C.dot(C.T)
-        V_diag = V.diagonal() + np.finfo(float).eps
-        for _ in range(iters):
-            for m in range(K):  # neurons
-                ind_pixels = np.squeeze(ind_A[:, m])
-                A[ind_pixels, m] = np.clip(A[ind_pixels, m] +
-                                           ((U[m, ind_pixels] - V[m].dot(A[ind_pixels].T)) /
-                                            V_diag[m]), 0, np.inf)
-
-        return A
 
     if dims is None:
         dims = Y.shape[:-1]
@@ -199,27 +185,86 @@ def seeded_initialization(Y, Ain, dims=None, init_batch=1000, gnb=1, p=1, **kwar
     return cnm_init
 
 
+def HALS4shapes(Yr, A, C, iters=2):
+    K = A.shape[-1]
+    ind_A = A > 0
+    U = C.dot(Yr.T)
+    V = C.dot(C.T)
+    V_diag = V.diagonal() + np.finfo(float).eps
+    for _ in range(iters):
+        for m in range(K):  # neurons
+            ind_pixels = np.squeeze(ind_A[:, m])
+            A[ind_pixels, m] = np.clip(A[ind_pixels, m] +
+                                       ((U[m, ind_pixels] - V[m].dot(A[ind_pixels].T)) /
+                                        V_diag[m]), 0, np.inf)
+
+    return A
+
+
 # definitions for demixed time series extraction and denoising/deconvolving
 @profile
-def HALS4activity(Yr, A, noisyC, AtA, iters=5, tol=1e-3, groups=None):
-    """Solve C = argmin_C ||Yr-AC|| using block-coordinate decent"""
+def HALS4activity(Yr, A, noisyC, AtA=None, iters=5, tol=1e-3, groups=None,
+                  order=None):
+    """Solves C = argmin_C ||Yr-AC|| using block-coordinate decent. Can use
+    groups to update non-overlapping components in parallel or a specified
+    order.
+
+    Parameters
+    ----------
+    Yr : np.array (possibly memory mapped, (x,y,[,z]) x t)
+        Imaging data reshaped in matrix format
+
+    A : scipy.sparse.csc_matrix (or np.array) (x,y,[,z]) x # of components)
+        Spatial components and background
+
+    noisyC : np.array  (# of components x t)
+        Temporal traces (including residuals plus background)
+
+    AtA : np.array, optional (# of components x # of components)
+        A.T.dot(A) Overlap matrix of shapes A.
+
+    iters : int, optional
+        Maximum number of iterations.
+
+    tol : float, optional
+        Change tolerance level
+
+    groups : list of sets
+        grouped components to be updated simultaneously
+
+    order : list
+        Update components in that order (used if nonempty and groups=None)
+
+    Output:
+    -------
+    C : np.array (# of components x t)
+        solution of HALS
+
+    noisyC : np.array (# of components x t)
+        solution of HALS + residuals, i.e, (C + YrA)
+    """
 
     AtY = A.T.dot(Yr)
     num_iters = 0
     C_old = np.zeros_like(noisyC)
     C = noisyC.copy()
+    if AtA is None:
+        AtA = A.T.dot(A)
+    AtAd = AtA.diagonal() + np.finfo(np.float32).eps
 
     # faster than np.linalg.norm
     def norm(c): return sqrt(c.ravel().dot(c.ravel()))
     while (norm(C_old - C) >= tol * norm(C_old)) and (num_iters < iters):
         C_old[:] = C
         if groups is None:
-            for m in range(len(AtY)):
-                noisyC[m] = C[m] + (AtY[m] - AtA[m].dot(C)) / AtA[m, m]
-                C[m] = max(noisyC[m], 0)
+            if order is None:
+                order = list(range(AtY.shape[0]))
+            for m in order:
+                noisyC[m] = C[m] + (AtY[m] - AtA[m].dot(C)) / AtAd[m]
+                C[m] = np.maximum(noisyC[m], 0)
         else:
             for m in groups:
-                noisyC[m] = C[m] + (AtY[m] - AtA[m].dot(C)) / AtA.diagonal()[m]
+                noisyC[m] = C[m] + ((AtY[m] - AtA[m].dot(C)).T/AtAd[m]).T
                 C[m] = np.maximum(noisyC[m], 0)
         num_iters += 1
     return C, noisyC
@@ -230,12 +275,14 @@ def demix_and_deconvolve(C, noisyC, AtY, AtA, OASISinstances, iters=3, n_refit=0
     """
     Solve C = argmin_C ||Y-AC|| subject to C following AR(p) dynamics
     using OASIS within block-coordinate decent
-    Newly fits the last elements in buffers C and AtY and possibly refits earlier elements.
+    Newly fits the last elements in buffers C and AtY and possibly refits
+    earlier elements.
     Parameters
     ----------
     C : ndarray of float
         Buffer containing the denoised fluorescence intensities.
-        All elements up to and excluding the last one have been denoised in earlier calls.
+        All elements up to and excluding the last one have been denoised in
+        earlier calls.
     noisyC : ndarray of float
         Buffer containing the undenoised fluorescence intensities.
     AtY : ndarray of float
