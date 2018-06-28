@@ -142,32 +142,34 @@ def seeded_initialization(Y, Ain, dims=None, init_batch=1000, gnb=1, p=1, **kwar
         ind_A = A > 0
         U = C.dot(Yr.T)
         V = C.dot(C.T)
+        V_diag = V.diagonal() + np.finfo(float).eps
         for _ in range(iters):
             for m in range(K):  # neurons
                 ind_pixels = np.squeeze(ind_A[:, m])
                 A[ind_pixels, m] = np.clip(A[ind_pixels, m] +
                                            ((U[m, ind_pixels] - V[m].dot(A[ind_pixels].T)) /
-                                            V[m, m]), 0, np.inf)
+                                            V_diag[m]), 0, np.inf)
 
         return A
 
     if dims is None:
         dims = Y.shape[:-1]
-
     px = (np.sum(Ain > 0, axis=1) > 0)
     not_px = 1 - px
-
+    if 'matrix' in str(type(not_px)):
+        not_px = np.array(not_px).flatten()
     Yr = np.reshape(Y, (Ain.shape[0], Y.shape[-1]), order='F')
-    model = NMF(n_components=gnb, init='nndsvdar')
-    b_temp = model.fit_transform(np.maximum(Yr[not_px, :], 0))
+    model = NMF(n_components=gnb, init='nndsvdar', max_iter=10)
+    b_temp = model.fit_transform(np.maximum(Yr[not_px], 0))
     f_in = model.components_.squeeze()
     f_in = np.atleast_2d(f_in)
     Y_resf = np.dot(Yr, f_in.T)
-    b_in = np.maximum(Y_resf, 0) / (np.linalg.norm(f_in)**2)
-
+#    b_in = np.maximum(Y_resf.dot(np.linalg.inv(f_in.dot(f_in.T))), 0)
+    b_in = np.maximum(np.linalg.solve(f_in.dot(f_in.T), Y_resf.T), 0).T
     Ain = normalize(Ain.astype('float32'), axis=0, norm='l1')
-
     Cin = np.maximum(Ain.T.dot(Yr) - (Ain.T.dot(b_in)).dot(f_in), 0)
+    if 'ndarray' not in str(type(Ain)):
+        Ain = Ain.toarray()
     Ain = HALS4shapes(Yr - b_in.dot(f_in), Ain, Cin, iters=5)
     Ain, Cin, b_in, f_in = hals(Yr, Ain, Cin, b_in, f_in)
     Ain = csc_matrix(Ain)

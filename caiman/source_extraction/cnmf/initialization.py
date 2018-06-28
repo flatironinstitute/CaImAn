@@ -439,6 +439,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
         center = np.asarray(
             [center_of_mass(a.reshape(d, order='F')) for a in Ain.T])
     else:
+        Cin = np.empty((K, T), dtype=np.float32)
         center = []
 
     if normalize_init is True:
@@ -1196,8 +1197,8 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
                      W, b0))
         else:
             print("Don't Return Background")
-
     return (A, C, center.T, b_in.astype(np.float32), f_in.astype(np.float32),
+            None if ring_size_factor is None else
             (S.astype(np.float32), bl, c1, neurons_sn, g1, YrA))
 
 
@@ -1622,7 +1623,8 @@ def extract_ac(data_filtered, data_raw, ind_ctr, patch_dims):
         return None, None, False
 
     # roughly estimate the background fluctuation
-    y_bg = np.median(data_raw[:, ind_bg], axis=1).reshape(-1, 1)
+    y_bg = np.median(data_raw[:, ind_bg], axis=1).reshape(-1, 1)\
+        if np.any(ind_bg) else np.ones((len(ci), 1), np.float32)
     # extract spatial components
     X = np.concatenate([ci.reshape(-1, 1), y_bg, np.ones(y_bg.shape, np.float32)], 1)
     XX = np.dot(X.T, X)
