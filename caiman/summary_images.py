@@ -200,7 +200,7 @@ def local_correlations_multicolor(Y, swap_dim=True, order_mean=1):
         Y = np.transpose(
             Y, tuple(np.hstack((Y.ndim - 1, list(range(Y.ndim))[:-1]))))
 
-    rho = np.zeros(np.shape(Y)[1:])
+#    rho = np.zeros(np.shape(Y)[1:])
     w_mov = (Y - np.mean(Y, axis=0)) / np.std(Y, axis=0)
 
     rho_h = np.mean(np.multiply(w_mov[:, :-1, :], w_mov[:, 1:, :]), axis=0)
@@ -208,43 +208,31 @@ def local_correlations_multicolor(Y, swap_dim=True, order_mean=1):
     rho_d1 = np.mean(np.multiply(w_mov[:, 1:, :-1], w_mov[:, :-1, 1:, ]), axis=0)
     rho_d2 = np.mean(np.multiply(w_mov[:, :-1, :-1], w_mov[:, 1:, 1:, ]), axis=0)
 
-    img = np.zeros(np.shape(Y)[1:]+(3,))
-
-    rho = np.zeros(np.shape(Y)[1:])
-    rho[:-1, :] = rho[:-1, :] + rho_h**(order_mean)
-    rho[:, :-1] = rho[:, :-1] + rho_w**(order_mean)
-    rho[:-1, :-1] = rho[:-1, :-1] + rho_d2**(order_mean)
-
-
-
-#    img[:,:,3] = rho.copy()
-    rho = np.zeros(np.shape(Y)[1:])
-    rho[1:, :] = rho[1:, :] + rho_h**(order_mean)
-    rho[:, 1:] = rho[:, 1:] + rho_w**(order_mean)
-    rho[1:, 1:] = rho[1:, 1:] + rho_d1**(order_mean)
-
-
-
-    img[:,:,2] = rho.copy()
-
-    rho = np.zeros(np.shape(Y)[1:])
-    rho[:-1, :] = rho[:-1, :] + rho_h**(order_mean)
-    rho[:, 1:] = rho[:, 1:] + rho_w**(order_mean)
-    rho[:-1, 1:] = rho[:-1, 1:] + rho_d2**(order_mean)
-
-
-    img[:,:,1] = rho.copy()
-
-    rho = np.zeros(np.shape(Y)[1:])
-    rho[1:, :] = rho[1:, :] + rho_h**(order_mean)
-    rho[:, :-1] = rho[:, :-1] + rho_w**(order_mean)
-    rho[1:, :-1] = rho[1:, :-1] + rho_d1**(order_mean)
-
-
-    img[:,:,0] = rho.copy()
-
-    return np.dstack([rho_w[:-1]/2 + rho_h[:,:-1]/2,rho_d1,rho_d2])
+#    img = np.zeros(np.shape(Y)[1:]+(3,))
+#    rho = np.zeros(np.shape(Y)[1:])
+#    rho[:-1, :] = rho[:-1, :] + rho_h**(order_mean)
+#    rho[:, :-1] = rho[:, :-1] + rho_w**(order_mean)
+#    rho[:-1, :-1] = rho[:-1, :-1] + rho_d2**(order_mean)
+##    img[:,:,3] = rho.copy()
+#    rho = np.zeros(np.shape(Y)[1:])
+#    rho[1:, :] = rho[1:, :] + rho_h**(order_mean)
+#    rho[:, 1:] = rho[:, 1:] + rho_w**(order_mean)
+#    rho[1:, 1:] = rho[1:, 1:] + rho_d1**(order_mean)
+#    img[:,:,2] = rho.copy()
+#    rho = np.zeros(np.shape(Y)[1:])
+#    rho[:-1, :] = rho[:-1, :] + rho_h**(order_mean)
+#    rho[:, 1:] = rho[:, 1:] + rho_w**(order_mean)
+#    rho[:-1, 1:] = rho[:-1, 1:] + rho_d2**(order_mean)
+#    img[:,:,1] = rho.copy()
+#    rho = np.zeros(np.shape(Y)[1:])
+#    rho[1:, :] = rho[1:, :] + rho_h**(order_mean)
+#    rho[:, :-1] = rho[:, :-1] + rho_w**(order_mean)
+#    rho[1:, :-1] = rho[1:, :-1] + rho_d1**(order_mean)
+#    img[:,:,0] = rho.copy()
 #    return img
+
+#    return np.dstack([rho_w[:-1]/2 + rho_h[:,:-1]/2, rho_d1, rho_d2])
+    return np.dstack([rho_h[:,1:]/2, rho_d1/2, rho_d2/2])
 
 
 def local_correlations(Y, eight_neighbours=True, swap_dim=True, order_mean=1):

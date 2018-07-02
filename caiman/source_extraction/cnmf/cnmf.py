@@ -353,7 +353,7 @@ class CNMF(object):
                                     ssub_B=ssub_B, init_iter=init_iter)
         self.options['merging']['thr'] = merge_thresh
         self.options['temporal_params']['s_min'] = s_min
-        
+
 
     def fit(self, images):
         """
@@ -1223,7 +1223,7 @@ class CNMF(object):
                  dimensions of the FOV
 
          img :   np.ndarray
-                 background image for contour plotting. Default is the mean 
+                 background image for contour plotting. Default is the mean
                  image of all spatial components (d1 x d2)
 
         """
@@ -1515,7 +1515,7 @@ class CNMF(object):
 
     def play_movie(self, imgs, q_max=99.75, q_min=2, gain_res=1,
                    magnification=1, include_bck=True,
-                   frame_range=slice(None)):
+                   frame_range=slice(None), save_movie = False, file_name = None):
         """Displays a movie with three panels (original data (left panel),
         reconstructed data (middle panel), residual (right panel))
         Parameters:
@@ -1562,10 +1562,16 @@ class CNMF(object):
             B = B.reshape(dims + (-1,), order='F').transpose([2, 0, 1])
         else:
             B = np.zeros_like(Y_rec)
-        imgs = imgs[:, self.border_pix:-self.border_pix, self.border_pix:-self.border_pix]
-        B = B[:, self.border_pix:-self.border_pix, self.border_pix:-self.border_pix]
-        Y_rec = Y_rec[:, self.border_pix:-self.border_pix, self.border_pix:-self.border_pix]
+        if self.border_pix > 0:
+            imgs = imgs[:, self.border_pix:-self.border_pix, self.border_pix:-self.border_pix]
+            B = B[:, self.border_pix:-self.border_pix, self.border_pix:-self.border_pix]
+            Y_rec = Y_rec[:, self.border_pix:-self.border_pix, self.border_pix:-self.border_pix]
+
         Y_res = imgs[frame_range] - Y_rec - B
-        caiman.concatenate((imgs[frame_range] - (not include_bck)*B, Y_rec + include_bck*B, Y_res*gain_res), axis=2).play(q_min=q_min, q_max=q_max, magnification=magnification)
+
+        if save_movie:
+            caiman.concatenate((imgs[frame_range] - (not include_bck)*B, Y_rec + include_bck*B, Y_res*gain_res), axis=2).save(file_name)
+        else:
+            caiman.concatenate((imgs[frame_range] - (not include_bck)*B, Y_rec + include_bck*B, Y_res*gain_res), axis=2).play(q_min=q_min, q_max=q_max, magnification=magnification)
 
         return self
