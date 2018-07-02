@@ -410,7 +410,9 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], gSiz=None, ssub=2, tsub=2, p
         'thresh_CNN_noisy': 0.9,  # threshold for online CNN classifier
         'epochs': 1,  # number of epochs
         'ds_factor': 1,  # spatial downsampling for faster processing
-        'mot_corr': 10  # maximum shifts during motion correction
+        'motion_correct': True,  # flag for motion correction
+        'max_shifts': 10,  # maximum shifts during motion correction
+        'init_method': 'bare'  # initialization method for first batch
     }
     return options
 

@@ -36,13 +36,14 @@ from .merging import merge_components
 from .spatial import update_spatial_components
 from .temporal import update_temporal_components, constrained_foopsi_parallel
 from caiman.components_evaluation import estimate_components_quality_auto, select_components_from_metrics
+from caiman.motion_correction import motion_correct_iteration_fast
 from .map_reduce import run_CNMF_patches
 from .oasis import OASIS
 import caiman
 from caiman import components_evaluation, mmapping
 import cv2
 from .online_cnmf import RingBuffer, HALS4activity, HALS4shapes, demix_and_deconvolve, remove_components_online
-from .online_cnmf import init_shapes_and_sufficient_stats, update_shapes, update_num_components
+from .online_cnmf import init_shapes_and_sufficient_stats, update_shapes, update_num_components, bare_initialization, seeded_initialization
 import scipy
 import psutil
 import pylab as pl
@@ -659,7 +660,7 @@ class CNMF(object):
                         bl=None, use_dense=True, N_samples_exceptionality=5,
                         max_num_added=1, min_num_trial=1, path_to_model=None,
                         sniper_mode=False, use_peak_max=False,
-                        test_both=False, q=0.5):
+                        test_both=False, q=0.5, **kwargs):
 
         if idx_components is None:
             idx_components = range(self.A.shape[-1])
@@ -759,7 +760,8 @@ class CNMF(object):
                 self.C_on[i, :self.initbatch] = o.c
         else:
             self.C_on[:self.N, :self.initbatch] = self.C2
-
+        import pdb
+        #pdb.set_trace()
         self.Ab, self.ind_A, self.CY, self.CC = init_shapes_and_sufficient_stats(
             Yr[:, :self.initbatch].reshape(
                 self.dims2 + (-1,), order='F'), self.A2,
@@ -1694,4 +1696,106 @@ class CNMF(object):
                     logging.warning("The key %s you provided does not exist! Adding it anyway..", key)
         else:
             logging.warning("The subdictionary you provided does not exist!")
+        return self
+
+    def fit_online(self, fls, init_batch=200, kwargs={}):
+        self.update_options('online', kwargs)
+        Y = caiman.load(fls[0], subindices=slice(0, init_batch,
+                        None)).astype(np.float32)
+        ds_factor = np.maximum(self.options['online']['ds_factor'], 1)
+        if ds_factor > 1:
+            Y.resize(1./ds_factor)
+        mc_flag = self.options['online']['motion_correct']
+
+        if mc_flag:
+            max_shifts = self.options['online']['max_shifts']
+            mc = Y.motion_correct(max_shifts, max_shifts)
+            Y = mc[0].astype(np.float32)
+            shifts = []
+
+        img_min = Y.min()
+        Y -= img_min
+        img_norm = np.std(Y, axis=0)
+        img_norm += np.median(img_norm)  # normalize data to equalize the FOV
+        Y = Y/img_norm[None, :, :]
+
+        _, d1, d2 = Y.shape
+        Yr = Y.to_2D().T        # convert data into 2D array
+
+        if self.options['online']['init_method'] == 'bare':
+            self.A, self.b, self.C, self.f, self.YrA = bare_initialization(Y.transpose(1, 2, 0), gnb=self.gnb, k=self.k, gSig=self.gSig, return_object=False)
+        else:
+            self.A, self.b, self.C, self.f, self.YrA = bare_initialization(Y.transpose(1, 2, 0), gnb=self.gnb, k=self.k, gSig=self.gSig, return_object=False)
+
+        self.S = np.zeros_like(self.C)
+        nr = self.C.shape[0]
+        self.g = np.array([-np.poly([0.9] * max(self.p, 1))[1:]
+                           for gg in np.ones(nr)])
+        self.bl = np.zeros(nr)
+        self.c1 = np.zeros(nr)
+        self.neurons_sn = np.std(self.YrA, axis=-1)
+        self.lam = np.zeros(nr)
+        self.dims = Y.shape[1:]
+        self.initbatch = init_batch
+        T1 = caiman.load(fls[0]).shape[0]*len(fls)
+        self._prepare_object(Yr, T1, **self.options['online'])
+        gnb = self.gnb
+        extra_files = len(fls) - 1
+        epochs = self.options['online']['epochs']
+        init_files = 1
+        t = init_batch
+        self.Ab_epoch = []
+        if extra_files == 0:     # check whether there are any additional files
+            process_files = fls[:init_files]     # end processing at this file
+            init_batc_iter = [init_batch]         # place where to start
+        else:
+            process_files = fls[:init_files + extra_files]   # additional files
+            # where to start reading at each file
+            init_batc_iter = [init_batch] + [0]*extra_files
+        for iter in range(epochs):
+            if iter > 0:
+                # if not on first epoch process all files from scratch
+                process_files = fls[:init_files + extra_files]
+                init_batc_iter = [0] * (extra_files + init_files)
+
+            for file_count, ffll in enumerate(process_files):
+                print('Now processing file ' + ffll)
+                Y_ = caiman.load(ffll, subindices=slice(
+                                    init_batc_iter[file_count], None, None))
+
+                old_comps = self.N     # number of existing components
+                for frame_count, frame in enumerate(Y_):   # now process each file
+                    if np.isnan(np.sum(frame)):
+                        raise Exception('Frame '+str(frame_count)+' contains nan')
+                    if t % 100 == 0:
+                        print('Epoch: ' + str(iter + 1) + '. ' + str(t) + ' frames have beeen processed in total. ' + str(self.N -
+                                                                                                                        old_comps) + ' new components were added. Total number of components is ' + str(self.Ab.shape[-1] - gnb))
+                        old_comps = self.N
+
+                    frame_ = frame.copy().astype(np.float32)
+                    if ds_factor > 1:
+                        frame_ = cv2.resize(frame_, img_norm.shape[::-1])
+                    frame_ -= img_min     # make data non-negative
+
+                    if mc_flag:    # motion correct
+                        templ = self.Ab.dot(
+                            self.C_on[:self.M, t-1]).reshape(self.dims, order='F')*img_norm
+                        frame_cor, shift = motion_correct_iteration_fast(
+                            frame_, templ, max_shifts, max_shifts)
+                        shifts.append(shift)
+                    else:
+                        templ = None
+                        frame_cor = frame_
+
+                    frame_cor = frame_cor/img_norm    # normalize data-frame
+                    self.fit_next(t, frame_cor.reshape(-1, order='F'))
+                    t += 1
+            self.Ab_epoch.append(self.Ab.copy())
+        self.A, self.b = self.Ab[:, self.gnb:], self.Ab[:, :self.gnb].toarray()
+        self.C, self.f = self.C_on[self.gnb:self.M, t - t //
+                         epochs:t], self.C_on[:self.gnb, t - t // epochs:t]
+        noisyC = self.noisyC[self.gnb:self.M, t - t // epochs:t]
+        self.YrA = noisyC - self.C
+        self.bl = [osi.b for osi in self.OASISinstances] if hasattr(
+            self, 'OASISinstances') else [0] * C.shape[0]
         return self
