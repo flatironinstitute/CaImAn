@@ -394,6 +394,24 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], gSiz=None, ssub=2, tsub=2, p
         'cnn_lowest': 0.1,  # minimum accepted value for CNN classifier
         'gSig_range': None  # range for gSig scale for CNN classifier
     }
+    options['online'] = {
+        'expected_comps': 500,  # number of expected components
+        'N_samples_exc': 5,  # number of timesteps to compute trace SNR
+        'use_dense': True,  # flag for representation and storing of A and b
+        'max_num_added': 3,  # maximum number of new components for each frame
+        'min_num_trial': 3,  # number of mew possible components for each frame
+        'path_to_model': None,  # path to CNN model for testing new comps
+        'sniper_mode': True,  # flag for using CNN
+        'use_peak_max': False,  # flag for finding candidate centroids
+        'use_both': False,  # flag for using both CNN and space correlation
+        'init_batch': 200,  # length of mini batch for initialization
+        'simultaneously': False,  # demix and deconvolve simultaneously
+        'n_refit': 0,  # Additional iterations to simultaneously refit
+        'thresh_CNN_noisy': 0.9,  # threshold for online CNN classifier
+        'epochs': 1,  # number of epochs
+        'ds_factor': 1,  # spatial downsampling for faster processing
+        'mot_corr': 10  # maximum shifts during motion correction
+    }
     return options
 
 
