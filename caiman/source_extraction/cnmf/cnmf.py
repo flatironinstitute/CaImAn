@@ -1669,3 +1669,29 @@ class CNMF(object):
             self.A = scipy.sparse.csc_matrix(Ab)
 
         return self
+
+    def update_options(self, subdict, kwargs):
+        """modifies a specified subdictionary in self.options. If a specified
+        parameter does not exist it gets created.
+        Parameters:
+        -----------
+        subdict: string
+            Name of subdictionary ('patch_params', 'preprocess_params',
+                                   'init_params', 'spatial_params', 'merging',
+                                   'temporal_params', 'quality', 'online')
+
+        kwargs: dict
+            Dictionary with parameters to be modified
+
+        Returns:
+        --------
+        self (updated values for self.A and self.b)
+        """
+        if subdict in self.options:
+            for key in kwargs:
+                self.options[subdict][key] = kwargs[key]
+                if key not in self.options[subdict]:
+                    logging.warning("The key %s you provided does not exist! Adding it anyway..", key)
+        else:
+            logging.warning("The subdictionary you provided does not exist!")
+        return self
