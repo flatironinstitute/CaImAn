@@ -26,6 +26,7 @@ from builtins import str
 from builtins import range
 from past.utils import old_div
 import numpy as np
+import os
 from scipy.sparse import spdiags, issparse, csc_matrix, csr_matrix
 import scipy.ndimage.morphology as morph
 from .initialization import greedyROI
@@ -34,6 +35,7 @@ import pylab as pl
 import scipy
 from ...mmapping import parallel_dot_product
 from ...utils.stats import df_percentile
+from ...paths import caiman_datadir
 import logging
 
 #%%
@@ -400,14 +402,14 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], gSiz=None, ssub=2, tsub=2, p
         'use_dense': True,  # flag for representation and storing of A and b
         'max_num_added': 3,  # maximum number of new components for each frame
         'min_num_trial': 3,  # number of mew possible components for each frame
-        'path_to_model': None,  # path to CNN model for testing new comps
+        'path_to_model': os.path.join(caiman_datadir(), 'model', 'cnn_model_online.h5'),  # path to CNN model for testing new comps
         'sniper_mode': True,  # flag for using CNN
         'use_peak_max': False,  # flag for finding candidate centroids
         'use_both': False,  # flag for using both CNN and space correlation
         'init_batch': 200,  # length of mini batch for initialization
         'simultaneously': False,  # demix and deconvolve simultaneously
         'n_refit': 0,  # Additional iterations to simultaneously refit
-        'thresh_CNN_noisy': 0.9,  # threshold for online CNN classifier
+        'thresh_CNN_noisy': 0.5,  # threshold for online CNN classifier
         'epochs': 1,  # number of epochs
         'ds_factor': 1,  # spatial downsampling for faster processing
         'motion_correct': True,  # flag for motion correction

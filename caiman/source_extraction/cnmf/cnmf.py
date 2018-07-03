@@ -50,6 +50,7 @@ import pylab as pl
 from time import time
 import logging
 import sys
+import inspect
 
 try:
     cv2.setNumThreads(0)
@@ -97,7 +98,7 @@ class CNMF(object):
                  min_corr=.85, min_pnr=20, ring_size_factor=1.5,
                  center_psf=False, use_dense=True, deconv_flag=True,
                  simultaneously=False, n_refit=0, del_duplicates=False, N_samples_exceptionality=5,
-                 max_num_added=1, min_num_trial=2, thresh_CNN_noisy=0.99,
+                 max_num_added=1, min_num_trial=2, thresh_CNN_noisy=0.5,
                  ssub_B=2, init_iter=2):
         """
         Constructor of the CNMF method
@@ -1698,8 +1699,39 @@ class CNMF(object):
             logging.warning("The subdictionary you provided does not exist!")
         return self
 
-    def fit_online(self, fls, init_batch=200, kwargs={}):
-        self.update_options('online', kwargs)
+    def fit_online(self, fls, init_batch=200, epochs=1, **kwargs):
+        """Implements the caiman online algorithm on the list of files fls. The
+        files are taken in alpha numerical order and are assumed to each have
+        the same number of frames (except the last one that can be shorter).
+        Caiman online is initialized using the seeded or bare initialization
+        methods.
+        Parameters:
+        -----------
+        fls: list
+            list of files to be processed
+
+        init_batch: int
+            number of frames to be processed during initialization
+
+        epochs: int
+            number of passes over the data
+
+        kwargs: dict
+            additional parameters used to modify options['online']
+
+        Returns:
+        --------
+        self (results of caiman online)
+        """
+        lc = locals()
+        pr = inspect.signature(self.fit_online)
+        params = [k for k, v in pr.parameters.items() if '=' in str(v)]
+        kw2 = {k: lc[k] for k in params}
+        kwargs_new = {**kw2, **kwargs}
+        self.update_options('online', kwargs_new)
+        for key in kwargs_new:
+            if hasattr(self, key):
+                setattr(self, key, kwargs_new[key])
         Y = caiman.load(fls[0], subindices=slice(0, init_batch,
                         None)).astype(np.float32)
         ds_factor = np.maximum(self.options['online']['ds_factor'], 1)
@@ -1737,11 +1769,11 @@ class CNMF(object):
         self.lam = np.zeros(nr)
         self.dims = Y.shape[1:]
         self.initbatch = init_batch
-        T1 = caiman.load(fls[0]).shape[0]*len(fls)
+        epochs = self.options['online']['epochs']
+        T1 = caiman.load(fls[0]).shape[0]*len(fls)*epochs
         self._prepare_object(Yr, T1, **self.options['online'])
         gnb = self.gnb
         extra_files = len(fls) - 1
-        epochs = self.options['online']['epochs']
         init_files = 1
         t = init_batch
         self.Ab_epoch = []
