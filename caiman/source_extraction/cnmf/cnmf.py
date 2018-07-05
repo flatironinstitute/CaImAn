@@ -1787,7 +1787,11 @@ class CNMF(object):
         pr = inspect.signature(self.fit_online)
         params = [k for k, v in pr.parameters.items() if '=' in str(v)]
         kw2 = {k: lc[k] for k in params}
-        kwargs_new = {**kw2, **kwargs}
+        if sys.version_info >= (3, 0):
+            kwargs_new = {**kw2, **kwargs}
+        else:  # python 2.7
+            kwargs_new = kw2.copy()
+            kwargs_new.update(kwargs)
         self.update_options('online', kwargs_new)
         for key in kwargs_new:
             if hasattr(self, key):
