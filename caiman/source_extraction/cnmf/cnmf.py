@@ -99,7 +99,7 @@ class CNMF(object):
                  center_psf=False, use_dense=True, deconv_flag=True,
                  simultaneously=False, n_refit=0, del_duplicates=False, N_samples_exceptionality=5,
                  max_num_added=1, min_num_trial=2, thresh_CNN_noisy=0.5,
-                 ssub_B=2, init_iter=2):
+                 fr=30, decay_time=0.4, min_SNR=2.5, ssub_B=2, init_iter=2):
         """
         Constructor of the CNMF method
 
@@ -331,6 +331,9 @@ class CNMF(object):
         self.max_num_added = max_num_added
         self.min_num_trial = min_num_trial
         self.thresh_CNN_noisy = thresh_CNN_noisy
+        self.fr = fr
+        self.min_SNR = min_SNR
+        self.decay_time = decay_time
 
         self.min_corr = min_corr
         self.min_pnr = min_pnr
@@ -352,6 +355,7 @@ class CNMF(object):
                                     rolling_sum=self.rolling_sum,
                                     min_corr=min_corr, min_pnr=min_pnr,
                                     ring_size_factor=ring_size_factor, center_psf=center_psf,
+                                    fr=fr, min_SNR=min_SNR, decay_time=decay_time,
                                     ssub_B=ssub_B, init_iter=init_iter)
         self.options['merging']['thr'] = merge_thresh
         self.options['temporal_params']['s_min'] = s_min
@@ -1214,20 +1218,69 @@ class CNMF(object):
         self.b = self.b * nB_inv_mat
         self.f = nB_mat * self.f
 
-    def view_patches(self, Yr, dims, img=None, idx=None):
+    def plot_contours(self, img=None, idx=None, crd=None, thr_method='max',
+                      thr='0.2'):
+        """view contour plots for each spatial footprint. 
+        Parameters:
+        -----------
+        img :   np.ndarray
+                background image for contour plotting. Default is the mean
+                image of all spatial components (d1 x d2)
+        idx :   list
+                list of accepted components
+
+        crd :   list
+                list of coordinates (if empty they are computed)
+
+        thr_method : str
+                     thresholding method for computing contours ('max', 'nrg')
+
+        thr : float
+                threshold value
+        """
+        if 'csc_matrix' not in str(type(self.A)):
+            self.A = scipy.sparse.csc_matrix(self.A)
+        if img is None:
+            img = np.reshape(np.array(self.A.mean(1)), self.dims, order='F')
+        if not hasattr(self, 'coordinates'):
+            self.coordinates = caiman.utils.visualization.get_contours(self.A, self.dims, thr=thr, thr_method=thr_method)
+        pl.figure()
+        if idx is None:
+            caiman.utils.visualization.plot_contours(self.A, img, coordinates=self.coordinates)
+        else:
+            if not isinstance(idx, list):
+                idx = idx.tolist()
+            coor_g = [self.coordinates[cr] for cr in idx]
+            bad = list(set(range(self.A.shape[1])) - set(idx))
+            coor_b = [self.coordinates[cr] for cr in bad]
+            pl.subplot(1, 2, 1)
+            caiman.utils.visualization.plot_contours(self.A[:, idx], img,
+                                                     coordinates=coor_g)
+            pl.title('Accepted Components')
+            bad = list(set(range(self.A.shape[1])) - set(idx))
+            pl.subplot(1, 2, 2)
+            caiman.utils.visualization.plot_contours(self.A[:, bad], img,
+                                                     coordinates=coor_b)
+            pl.title('Rejected Components')
+        return self
+
+    def view_components(self, Yr, dims, img=None, idx=None):
         """view spatial and temporal components interactively
 
-         Parameters:
-         -----------
-         Yr :    np.ndarray
-                 movie in format pixels (d) x frames (T)
+        Parameters:
+        -----------
+        Yr :    np.ndarray
+                movie in format pixels (d) x frames (T)
 
-         dims :  tuple
-                 dimensions of the FOV
+        dims :  tuple
+                dimensions of the FOV
 
-         img :   np.ndarray
-                 background image for contour plotting. Default is the mean 
-                 image of all spatial components (d1 x d2)
+        img :   np.ndarray
+                background image for contour plotting. Default is the mean
+                image of all spatial components (d1 x d2)
+
+        idx :   list
+                list of components to be plotted
 
         """
         if 'csc_matrix' not in str(type(self.A)):
@@ -1237,7 +1290,6 @@ class CNMF(object):
 
         pl.ion()
         nr, T = self.C.shape
-        #nb = self.f.shape[0]
 
         if self.YrA is None:
             self.compute_residuals(Yr)
@@ -1245,9 +1297,9 @@ class CNMF(object):
         if img is None:
             img = np.reshape(np.array(self.A.mean(axis=1)), dims, order='F')
 
-        if idx is  None:
-            caiman.utils.visualization.view_patches_bar(Yr, self.A, self.C, self.b, self.f, dims[
-                                                    0], dims[1], YrA=self.YrA, img=img)
+        if idx is None:
+            caiman.utils.visualization.view_patches_bar(Yr, self.A, self.C,
+                    self.b, self.f, dims[0], dims[1], YrA=self.YrA, img=img)
         else:
             caiman.utils.visualization.view_patches_bar(Yr, self.A.tocsc()[:,idx], self.C[idx], self.b, self.f, dims[
                                                     0], dims[1], YrA=self.YrA[idx], img=img)
@@ -1518,7 +1570,7 @@ class CNMF(object):
 
     def play_movie(self, imgs, q_max=99.75, q_min=2, gain_res=1,
                    magnification=1, include_bck=True,
-                   frame_range=slice(None)):
+                   frame_range=slice(None, None, None)):
         """Displays a movie with three panels (original data (left panel),
         reconstructed data (middle panel), residual (right panel))
         Parameters:
@@ -1699,7 +1751,8 @@ class CNMF(object):
             logging.warning("The subdictionary you provided does not exist!")
         return self
 
-    def fit_online(self, fls, init_batch=200, epochs=1, **kwargs):
+    def fit_online(self, fls, init_batch=200, epochs=1, motion_correct=True,
+                   thresh_fitness_raw=None, **kwargs):
         """Implements the caiman online algorithm on the list of files fls. The
         files are taken in alpha numerical order and are assumed to each have
         the same number of frames (except the last one that can be shorter).
@@ -1716,8 +1769,15 @@ class CNMF(object):
         epochs: int
             number of passes over the data
 
+        motion_correct: bool
+            flag for performing motion correction
+
+        thresh_fitness_raw: float
+            threshold for trace SNR (leave to None for automatic computation)
+
         kwargs: dict
             additional parameters used to modify options['online']
+            see options.['online'] for details
 
         Returns:
         --------
@@ -1732,18 +1792,27 @@ class CNMF(object):
         for key in kwargs_new:
             if hasattr(self, key):
                 setattr(self, key, kwargs_new[key])
+        if thresh_fitness_raw is None:
+            thresh_fitness_raw = scipy.special.log_ndtr(
+                    -self.options['online']['min_SNR']) *\
+                    self.options['online']['N_samples_exceptionality']
+            self.thresh_fitness_raw = thresh_fitness_raw
+            self.options['online']['thresh_fitness_raw'] = thresh_fitness_raw
+        if isinstance(fls, str):
+            fls = [fls]
         Y = caiman.load(fls[0], subindices=slice(0, init_batch,
                         None)).astype(np.float32)
         ds_factor = np.maximum(self.options['online']['ds_factor'], 1)
         if ds_factor > 1:
             Y.resize(1./ds_factor)
         mc_flag = self.options['online']['motion_correct']
-
+        shifts = []  # store motion shifts here
+        time_new_comp = []
         if mc_flag:
             max_shifts = self.options['online']['max_shifts']
             mc = Y.motion_correct(max_shifts, max_shifts)
             Y = mc[0].astype(np.float32)
-            shifts = []
+            shifts.extend(mc[1])
 
         img_min = Y.min()
         Y -= img_min
@@ -1755,24 +1824,40 @@ class CNMF(object):
         Yr = Y.to_2D().T        # convert data into 2D array
 
         if self.options['online']['init_method'] == 'bare':
-            self.A, self.b, self.C, self.f, self.YrA = bare_initialization(Y.transpose(1, 2, 0), gnb=self.gnb, k=self.k, gSig=self.gSig, return_object=False)
+            self.A, self.b, self.C, self.f, self.YrA = bare_initialization(
+                    Y.transpose(1, 2, 0), gnb=self.gnb, k=self.k,
+                    gSig=self.gSig, return_object=False)
+            self.S = np.zeros_like(self.C)
+            nr = self.C.shape[0]
+            self.g = np.array([-np.poly([0.9] * max(self.p, 1))[1:]
+                               for gg in np.ones(nr)])
+            self.bl = np.zeros(nr)
+            self.c1 = np.zeros(nr)
+            self.neurons_sn = np.std(self.YrA, axis=-1)
+            self.lam = np.zeros(nr)
+        elif self.options['online']['init_method'] == 'cnmf':
+            self.rf = None
+            self.dview = None
+            self.fit(np.array(Y))
+        elif self.options['online']['init_method'] == 'seeded':
+            self.A, self.b, self.C, self.f, self.YrA = seeded_initialization(
+                    Y.transpose(1, 2, 0), self.Ain, gnb=self.gnb, k=self.k,
+                    gSig=self.gSig, return_object=False)
+            self.S = np.zeros_like(self.C)
+            nr = self.C.shape[0]
+            self.g = np.array([-np.poly([0.9] * max(self.p, 1))[1:]
+                               for gg in np.ones(nr)])
+            self.bl = np.zeros(nr)
+            self.c1 = np.zeros(nr)
+            self.neurons_sn = np.std(self.YrA, axis=-1)
+            self.lam = np.zeros(nr)
         else:
-            self.A, self.b, self.C, self.f, self.YrA = bare_initialization(Y.transpose(1, 2, 0), gnb=self.gnb, k=self.k, gSig=self.gSig, return_object=False)
-
-        self.S = np.zeros_like(self.C)
-        nr = self.C.shape[0]
-        self.g = np.array([-np.poly([0.9] * max(self.p, 1))[1:]
-                           for gg in np.ones(nr)])
-        self.bl = np.zeros(nr)
-        self.c1 = np.zeros(nr)
-        self.neurons_sn = np.std(self.YrA, axis=-1)
-        self.lam = np.zeros(nr)
+            raise Exception('Unknown initialization method!')
         self.dims = Y.shape[1:]
         self.initbatch = init_batch
         epochs = self.options['online']['epochs']
         T1 = caiman.load(fls[0]).shape[0]*len(fls)*epochs
         self._prepare_object(Yr, T1, **self.options['online'])
-        gnb = self.gnb
         extra_files = len(fls) - 1
         init_files = 1
         t = init_batch
@@ -1796,12 +1881,16 @@ class CNMF(object):
                                     init_batc_iter[file_count], None, None))
 
                 old_comps = self.N     # number of existing components
-                for frame_count, frame in enumerate(Y_):   # now process each file
+                for frame_count, frame in enumerate(Y_):   # process each file
                     if np.isnan(np.sum(frame)):
-                        raise Exception('Frame '+str(frame_count)+' contains nan')
+                        raise Exception('Frame ' + str(frame_count) +
+                                        ' contains NaN')
                     if t % 100 == 0:
-                        print('Epoch: ' + str(iter + 1) + '. ' + str(t) + ' frames have beeen processed in total. ' + str(self.N -
-                                                                                                                        old_comps) + ' new components were added. Total number of components is ' + str(self.Ab.shape[-1] - gnb))
+                        print('Epoch: ' + str(iter + 1) + '. ' + str(t) +
+                              ' frames have beeen processed in total. ' +
+                              str(self.N - old_comps) +
+                              ' new components were added. Total # of components is '
+                              + str(self.Ab.shape[-1] - self.gnb))
                         old_comps = self.N
 
                     frame_ = frame.copy().astype(np.float32)
@@ -1829,5 +1918,7 @@ class CNMF(object):
         noisyC = self.noisyC[self.gnb:self.M, t - t // epochs:t]
         self.YrA = noisyC - self.C
         self.bl = [osi.b for osi in self.OASISinstances] if hasattr(
-            self, 'OASISinstances') else [0] * C.shape[0]
+            self, 'OASISinstances') else [0] * self.C.shape[0]
+        self.shifts = shifts
+        
         return self
