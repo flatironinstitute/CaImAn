@@ -23,8 +23,11 @@ from __future__ import division
 from builtins import range
 import numpy as np
 from scipy.ndimage.filters import convolve
+from scipy.sparse import coo_matrix
+from skimage.morphology import disk
 import cv2
 from caiman.source_extraction.cnmf.pre_processing import get_noise_fft
+import caiman as cm
 #try:
 #    cv2.setNumThreads(0)
 #except:
@@ -526,7 +529,7 @@ def map_corr(scan):
 
     return chunk_sum, chunk_sqsum, chunk_xysum, num_frames
 
-def local_correlations_movie(file_name, Tot_frames = None, fr = 10, window=30, stride = 3, swap_dim=True, eight_neighbours=True, order_mean = 1, ismulticolor = False, dview = None):
+def local_correlations_movie_minibatch(file_name, Tot_frames = None, fr = 10, window=30, stride = 3, swap_dim=True, eight_neighbours=True, order_mean = 1, ismulticolor = False, dview = None):
         import caiman as cm
 
         if Tot_frames is None:
@@ -559,3 +562,114 @@ def local_correlations_movie_parallel(params):
         else:
             return local_correlations(mv, eight_neighbours=eight_neighbours, swap_dim=swap_dim, order_mean=order_mean)[None,:,:].astype(np.float32)
 
+
+def prepare_local_correlations(Y, swap_dim=False, eight_neighbours=False):
+    if swap_dim:
+        Y = np.transpose(Y, (Y.ndim - 1,) + tuple(range(Y.ndim - 1)))
+
+    T, d1, d2 = Y.shape
+    Yr = Y.T.reshape(-1, T)
+    sz = np.ones((3, 3), dtype='uint8') if eight_neighbours else disk(1)
+    sz[1, 1] = 0
+    idx = [i - 1 for i in np.nonzero(sz)]
+
+    def get_indices_of_pixels_on_ring(pixel):
+        pixel = np.unravel_index(pixel, (d1, d2), order='F')
+        x = pixel[0] + idx[0]
+        y = pixel[1] + idx[1]
+        inside = (x >= 0) * (x < d1) * (y >= 0) * (y < d2)
+        return np.ravel_multi_index((x[inside], y[inside]), (d1, d2), order='F')
+
+    N = [get_indices_of_pixels_on_ring(p) for p in range(d1 * d2)]
+    col_ind = np.concatenate(N)
+    row_ind = np.concatenate([[i] * len(k) for i, k in enumerate(N)])
+    num_neigbors = np.concatenate([[len(k)] * len(k) for k in N]).astype(Yr.dtype)
+
+    first_moment = Yr.mean(1)
+    second_moment = (Yr**2).mean(1)
+    crosscorr = np.mean(Yr[row_ind] * Yr[col_ind], 1)
+    # slower for small T, less memory intensive, but memory not an issue:
+    # crosscorr = np.array([Yr[r_].dot(Yr[c_])
+    #                       for (r_, c_) in zip(row_ind, col_ind)]) / Yr.shape[1]
+    sig = np.sqrt(second_moment - first_moment**2)
+
+    M = coo_matrix(((crosscorr - first_moment[row_ind] * first_moment[col_ind]) /
+                    (sig[row_ind] * sig[col_ind]) / num_neigbors,
+                    (row_ind, col_ind)), dtype=Yr.dtype)
+    cn = M.dot(np.ones(M.shape[1], dtype=M.dtype)).reshape((d1, d2), order='F')
+
+    return first_moment, second_moment, crosscorr, col_ind, row_ind, num_neigbors, M, cn
+
+
+def update_local_correlations(t, frames, first_moment, second_moment, crosscorr,
+                              col_ind, row_ind, num_neigbors, M, cn, del_frames=None):
+    """updates sufficient statistics in place and returns correlation image"""
+    dims = frames.shape[1:]
+    stride = len(frames)
+    frames = frames.reshape((stride, -1), order='F')
+    if del_frames is None:
+        tmp = 1 - float(stride) / t
+        first_moment *= tmp
+        second_moment *= tmp
+        crosscorr *= tmp
+    else:
+        if stride > 10:
+            del_frames = del_frames.reshape((stride, -1), order='F')
+            first_moment -= del_frames.sum(0) / t
+            second_moment -= (del_frames**2).sum(0) / t
+            crosscorr -= np.sum(del_frames[:, row_ind] * del_frames[:, col_ind], 0) / t
+        else:  # loop is faster
+            for f in del_frames:
+                f = f.ravel(order='F')
+                first_moment -= f / t
+                second_moment -= (f**2) / t
+                crosscorr -= (f[row_ind] * f[col_ind]) / t
+    if stride > 10:
+        frames = frames.reshape((stride, -1), order='F')
+        first_moment += frames.sum(0) / t
+        second_moment += (frames**2).sum(0) / t
+        crosscorr += np.sum(frames[:, row_ind] * frames[:, col_ind], 0) / t
+    else:  # loop is faster
+        for f in frames:
+            f = f.ravel(order='F')
+            first_moment += f / t
+            second_moment += (f**2) / t
+            crosscorr += (f[row_ind] * f[col_ind]) / t
+    sig = np.sqrt(second_moment - first_moment**2)
+    M.data = ((crosscorr - first_moment[row_ind] * first_moment[col_ind]) /
+              (sig[row_ind] * sig[col_ind]) / num_neigbors)
+    cn = M.dot(np.ones(M.shape[1], dtype=M.dtype)).reshape(dims, order='F')
+    return cn
+
+
+def local_correlations_movie(file_name, tot_frames=None, fr=30, window=30, stride=1,
+                             swap_dim=False, eight_neighbours=True, mode='simple'):
+    Y = cm.load(file_name)[:tot_frames]
+    dims = Y.shape[1:]
+    T = len(Y)
+    first_moment, second_moment, crosscorr, col_ind, row_ind, num_neigbors, M, cn = \
+        prepare_local_correlations(Y[:window], swap_dim=swap_dim,
+                                   eight_neighbours=eight_neighbours)
+    corr_movie = np.zeros(((T - window) // stride + 1,) + dims, dtype=Y.dtype)
+    corr_movie[0] = cn
+    if mode == 'simple':
+        for tt in range((T - window) // stride):
+            corr_movie[tt + 1] = update_local_correlations(
+                window, Y[tt * stride + window:(tt + 1) * stride + window],
+                first_moment, second_moment, crosscorr,
+                col_ind, row_ind, num_neigbors, M, cn, Y[tt * stride:(tt + 1) * stride])
+    elif mode == 'exponential':
+        for tt, frames in enumerate(Y[window:window + (T - window) // stride * stride]
+                                    .reshape((-1, stride) + dims)):
+            corr_movie[tt + 1] = update_local_correlations(
+                window, frames, first_moment, second_moment, crosscorr,
+                col_ind, row_ind, num_neigbors, M, cn)
+    elif mode == 'cumulative':
+        for tt, frames in enumerate(Y[window:window + (T - window) // stride * stride]
+                                    .reshape((-1, stride) + dims)):
+            corr_movie[tt + 1] = update_local_correlations(
+                tt + window + 1, frames, first_moment, second_moment, crosscorr,
+                col_ind, row_ind, num_neigbors, M, cn)
+    else:
+        raise Exception('mode of the moving average must be simple, exponential or cumulative')
+    return cm.movie(corr_movie, fr=fr)
