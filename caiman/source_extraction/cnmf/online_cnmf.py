@@ -114,8 +114,9 @@ def bare_initialization(Y, init_batch=1000, k=1, method_init='greedy_roi', gnb=1
 
 
 #%%
-def seeded_initialization(Y, Ain, dims=None, init_batch=1000, gnb=1, p=1,
+def seeded_initialization(Y, Ain, dims=None, init_batch=1000, order_init=None, gnb=1, p=1,
                           return_object=True, **kwargs):
+
     """
     Initialization for OnACID based on a set of user given binary masks.
     Inputs:
@@ -135,12 +136,19 @@ def seeded_initialization(Y, Ain, dims=None, init_batch=1000, gnb=1, p=1,
     gnb             int
                     number of background components
 
+    order_init:     list
+                    order of elements to be initalized using rank1 nmf restricted to the support of
+                    each component
+
     Output:
     -------
         cnm_init    object
                     caiman CNMF-like object to initialize OnACID
     """
 
+
+    if 'ndarray' not in str(type(Ain)):
+        Ain = Ain.toarray()
 
     if dims is None:
         dims = Y.shape[:-1]
@@ -156,12 +164,26 @@ def seeded_initialization(Y, Ain, dims=None, init_batch=1000, gnb=1, p=1,
     Y_resf = np.dot(Yr, f_in.T)
 #    b_in = np.maximum(Y_resf.dot(np.linalg.inv(f_in.dot(f_in.T))), 0)
     b_in = np.maximum(np.linalg.solve(f_in.dot(f_in.T), Y_resf.T), 0).T
-    Ain = normalize(Ain.astype('float32'), axis=0, norm='l1')
-    Cin = np.maximum(Ain.T.dot(Yr) - (Ain.T.dot(b_in)).dot(f_in), 0)
-    if 'ndarray' not in str(type(Ain)):
-        Ain = Ain.toarray()
-    Ain = HALS4shapes(Yr - b_in.dot(f_in), Ain, Cin, iters=5)
-    Ain, Cin, b_in, f_in = hals(Yr, Ain, Cin, b_in, f_in)
+    Yr_no_bg = (Yr - b_in.dot(f_in)).astype(np.float32)
+
+    Cin = np.zeros([Ain.shape[-1],Yr.shape[-1]], dtype = np.float32)
+    if order_init is not None: #initialize using rank-1 nmf for each component
+
+        model_comp = NMF(n_components=1, init='nndsvdar', max_iter=50)
+        for count, idx_in in enumerate(order_init):
+            if count%10 == 0:
+                print(count)
+            idx_domain = np.where(Ain[:,idx_in])[0]
+            Ain[idx_domain,idx_in] = model_comp.fit_transform(\
+                                   np.maximum(Yr_no_bg[idx_domain], 0)).squeeze()
+            Cin[idx_in] = model_comp.components_.squeeze()
+            Yr_no_bg[idx_domain] -= np.outer(Ain[idx_domain, idx_in],Cin[idx_in])
+    else:
+        Ain = normalize(Ain.astype('float32'), axis=0, norm='l1')
+        Cin = np.maximum(Ain.T.dot(Yr) - (Ain.T.dot(b_in)).dot(f_in), 0)
+
+#    Ain = HALS4shapes(Yr_no_bg, Ain, Cin, iters=5)
+    Ain, Cin, b_in, f_in = hals(Yr, Ain, Cin, b_in, f_in, maxIter=8, bSiz=None)
     Ain = csc_matrix(Ain)
     nA = (Ain.power(2).sum(axis=0))
     nr = nA.size
