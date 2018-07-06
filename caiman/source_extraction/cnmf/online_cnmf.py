@@ -738,21 +738,21 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
     # sv = (np.array([imblur(vb.reshape(dims, order='F'), sig=gSig, siz=gSiz, nDimBlur=len(dims))
     #                 for vb in Yres_buf])**2).mean(0).ravel()
 
-    if t % 100 == 0:
-        plt.figure(figsize=(20, 4))
-        plt.subplot(141)
-        plt.colorbar(plt.imshow(sv.reshape(dims)))
-        plt.subplot(142)
-        plt.colorbar(plt.imshow(rho_buf.sum(0).reshape(dims)))
-        plt.subplot(143)
-        # plt.colorbar(plt.imshow((Yres_buf**2).mean(0).reshape(dims, order='F')))
-        plt.colorbar(plt.imshow((np.stack([
-            imblur(vb.reshape(dims, order='F'),
-                   sig=gSig, siz=gSiz, nDimBlur=len(dims))
-            for vb in Yres_buf])**2).sum(0)))
-        plt.subplot(144)
-        plt.colorbar(plt.imshow(Ab[:, -1].toarray().reshape(dims, order='F')))
-        plt.show()
+    # if t % 100 == 0:
+    #     plt.figure(figsize=(20, 4))
+    #     plt.subplot(141)
+    #     plt.colorbar(plt.imshow(sv.reshape(dims)))
+    #     plt.subplot(142)
+    #     plt.colorbar(plt.imshow(rho_buf.sum(0).reshape(dims)))
+    #     plt.subplot(143)
+    #     # plt.colorbar(plt.imshow((Yres_buf**2).mean(0).reshape(dims, order='F')))
+    #     plt.colorbar(plt.imshow((np.stack([
+    #         imblur(vb.reshape(dims, order='F'),
+    #                sig=gSig, siz=gSiz, nDimBlur=len(dims))
+    #         for vb in Yres_buf])**2).sum(0)))
+    #     plt.subplot(144)
+    #     plt.colorbar(plt.imshow(Ab[:, -1].toarray().reshape(dims, order='F')))
+    #     plt.show()
 
     Ains, Cins, Cins_res, inds, ijsig_all, cnn_pos, local_max = get_candidate_components(
         sv, dims, Yres_buf=Yres_buf, min_num_trial=min_num_trial, gSig=gSig,
@@ -846,13 +846,13 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
             num_added += 1
             ind_new.append(ijSig)
 
-            plt.figure(figsize=(20,4))
-            plt.subplot(141)
-            plt.imshow(sv.reshape(dims))
-            plt.subplot(142)
-            plt.imshow(rho_buf.mean(0).reshape(dims))
-            plt.subplot(143)
-            plt.imshow(Ain[:,0].reshape(dims, order='F'))           
+            # plt.figure(figsize=(20,4))
+            # plt.subplot(141)
+            # plt.imshow(sv.reshape(dims))
+            # plt.subplot(142)
+            # plt.imshow(rho_buf.mean(0).reshape(dims))
+            # plt.subplot(143)
+            # plt.imshow(Ain[:,0].reshape(dims, order='F'))           
 
             if oases is not None:
                 if not useOASIS:
@@ -952,9 +952,9 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
 
             sv[ind_vb] = np.sum(rho_buf[:, ind_vb], 0)
 
-            plt.subplot(144)
-            plt.imshow(sv.reshape(dims))
-            plt.show()
+            # plt.subplot(144)
+            # plt.imshow(sv.reshape(dims))
+            # plt.show()
 
 #            sv = np.sum([imblur(vb.reshape(dims,order='F'), sig=gSig, siz=gSiz, nDimBlur=len(dims))**2 for vb in Yres_buf], 0).reshape(-1)
 #            plt.subplot(1,5,4)
