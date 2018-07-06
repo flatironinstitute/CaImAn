@@ -14,10 +14,10 @@ See Also:
 .. image::
 @author  epnev
 """
-#\package caiman/dource_ectraction/cnmf
-#\version   1.0
-#\copyright GNU General Public License v2.0
-#\date Created on Sat Sep 12 15:52:53 2015
+# \package caiman/dource_ectraction/cnmf
+# \version   1.0
+# \copyright GNU General Public License v2.0
+# \date Created on Sat Sep 12 15:52:53 2015
 
 from __future__ import division
 from __future__ import print_function
@@ -26,6 +26,7 @@ from builtins import str
 from builtins import range
 from past.utils import old_div
 import numpy as np
+import os
 from scipy.sparse import spdiags, issparse, csc_matrix, csr_matrix
 import scipy.ndimage.morphology as morph
 from .initialization import greedyROI
@@ -34,15 +35,20 @@ import pylab as pl
 import scipy
 from ...mmapping import parallel_dot_product
 from ...utils.stats import df_percentile
+from ...paths import caiman_datadir
 import logging
 
-#%%
-def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], gSiz=None, ssub=2, tsub=2, p=2, p_ssub=2, p_tsub=2,
-                 thr=0.8, method_init='greedy_roi', nb=1, nb_patch=1, n_pixels_per_process=None, block_size=None,
-                 check_nan=True, normalize_init=True, options_local_NMF=None, remove_very_bad_comps=False,
-                 alpha_snmf=10e2, update_background_components=True, low_rank_background=True, rolling_sum=False,
-                 min_corr=.85, min_pnr=20,
-                 ring_size_factor=1.5, center_psf=False, ssub_B=2, init_iter=2):
+
+# %%
+def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], gSiz=None, ssub=2, tsub=2,
+                 p=2, p_ssub=2, p_tsub=2, thr=0.8, method_init='greedy_roi',
+                 nb=1, nb_patch=1, n_pixels_per_process=None, block_size=None,
+                 check_nan=True, normalize_init=True, options_local_NMF=None,
+                 remove_very_bad_comps=False, alpha_snmf=10e2,
+                 update_background_components=True, low_rank_background=True,
+                 rolling_sum=False, min_corr=.85, min_pnr=20,
+                 ring_size_factor=1.5, center_psf=False, ssub_B=2, init_iter=2,
+                 fr=30, decay_time=0.4, min_SNR=2.5):
     """Dictionary for setting the CNMF parameters.
 
     Any parameter that is not set get a default value specified
@@ -52,62 +58,62 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], gSiz=None, ssub=2, tsub=2, p
 
         sn: None,
             noise level for each pixel
-    
+
         noise_range: [0.25, 0.5]
                  range of normalized frequencies over which to average
-    
+
         noise_method': 'mean'
                  averaging method ('mean','median','logmexp')
-    
+
         max_num_samples_fft': 3*1024
-    
+
         n_pixels_per_process: 1000
-    
+
         compute_g': False
             flag for estimating global time constant
-    
+
         p : 2
              order of AR indicator dynamics
-    
+
         lags: 5
-            number of autocovariance lags to be considered for time constant estimation
-    
+            number of lags to be considered for time constant estimation
+
         include_noise: False
                 flag for using noise values when estimating g
-    
+
         pixels: None
              pixels to be excluded due to saturation
-    
+
         check_nan: True
 
     INIT PARAMS###############
 
         K:     30
             number of components
-    
+
         gSig: [5, 5]
               size of bounding box
-    
+
         gSiz: [int(round((x * 2) + 1)) for x in gSig],
-    
+
         ssub:   2
             spatial downsampling factor
-    
+
         tsub:   2
             temporal downsampling factor
-    
+
         nIter: 5
             number of refinement iterations
-    
+
         kernel: None
             user specified template for greedyROI
-    
+
         maxIter: 5
             number of HALS iterations
-    
+
         method: method_init
             can be greedy_roi or sparse_nmf, local_NMF
-    
+
         max_iter_snmf : 500
     
         alpha_snmf: 10e2
@@ -383,17 +389,47 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], gSiz=None, ssub=2, tsub=2, p
         'thr': thr,
     }
     options['quality'] = {
-        'decay_time': 0.5,  # length of decay of typical transient (in seconds)
-        'min_SNR': 2.5,  # transient SNR threshold
+        'decay_time': decay_time,  # length of decay of typical transient (in seconds)
+        'min_SNR': min_SNR,  # transient SNR threshold
         'SNR_lowest': 0.5,  # minimum accepted SNR value
         'rval_thr': 0.8,  # space correlation threshold
         'rval_lowest': -1,  # minimum accepted space correlation
-        'fr': 30,  # imaging frame rate
+        'fr': fr,  # imaging frame rate
         'use_cnn': True,  # use CNN based classifier
         'min_cnn_thr': 0.9,  # threshold for CNN classifier
         'cnn_lowest': 0.1,  # minimum accepted value for CNN classifier
         'gSig_range': None  # range for gSig scale for CNN classifier
     }
+    options['online'] = {
+        'expected_comps': 500,  # number of expected components
+        'min_SNR': min_SNR,  # minimum SNR for accepting a new trace
+        'N_samples_exceptionality': np.ceil(fr*decay_time).astype('int'),  # timesteps to compute SNR
+        'thresh_fitness_raw': None,  # threshold for trace SNR (computed below)
+        'rval_thr': 0.85,  # space correlation threshold
+        'use_dense': True,  # flag for representation and storing of A and b
+        'max_num_added': 3,  # maximum number of new components for each frame
+        'min_num_trial': 3,  # number of mew possible components for each frame
+        'path_to_model': os.path.join(caiman_datadir(), 'model',
+                                      'cnn_model_online.h5'),
+                                      # path to CNN model for testing new comps
+        'sniper_mode': True,  # flag for using CNN
+        'use_peak_max': False,  # flag for finding candidate centroids
+        'use_both': False,  # flag for using both CNN and space correlation
+        'init_batch': 200,  # length of mini batch for initialization
+        'simultaneously': False,  # demix and deconvolve simultaneously
+        'n_refit': 0,  # Additional iterations to simultaneously refit
+        'thresh_CNN_noisy': 0.5,  # threshold for online CNN classifier
+        'epochs': 1,  # number of epochs
+        'ds_factor': 1,  # spatial downsampling for faster processing
+        'motion_correct': True,  # flag for motion correction
+        'max_shifts': 10,  # maximum shifts during motion correction
+        'minibatch_shape': 100,  # number of frames in each minibatch
+        'update_num_comps': True,  # flag for searching for new components
+        's_min': None,  # minimum spike threshold
+        'init_method': 'bare'  # initialization method for first batch
+    }
+    options['online']['thresh_fitness_raw'] = scipy.special.log_ndtr(-options['online']['min_SNR']) * options['online']['N_samples_exceptionality']
+    options['online']['max_shifts'] = np.int(options['online']['max_shifts']/options['online']['ds_factor'])
     return options
 
 
