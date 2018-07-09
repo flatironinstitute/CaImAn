@@ -154,7 +154,7 @@ def cnmf_patches(args_in):
         cnm = cnm.fit(images)
         return [idx_, shapes, scipy.sparse.coo_matrix(cnm.A),
                 cnm.b, cnm.C, cnm.f, cnm.S, cnm.bl, cnm.c1,
-                cnm.neurons_sn, cnm.g, cnm.sn, cnm.options, cnm.YrA]
+                cnm.neurons_sn, cnm.g, cnm.sn, cnm.params.to_dict(), cnm.YrA]
     else:
         return None
 

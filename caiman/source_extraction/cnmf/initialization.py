@@ -931,7 +931,7 @@ def hals(Y, A, C, b, f, bSiz=3, maxIter=5):
     if bSiz is not None:
         if isinstance(bSiz, (int, float)):
 	   	     bSiz = [bSiz] * len(dims)
-        ind_A = nd.filters.uniform_filter(np.reshape(
+        ind_A = nd.filters.uniform_filter(np.reshape(A,
                 dims + (K,), order='F'), size=bSiz + [0])
         ind_A = np.reshape(ind_A > 1e-10, (np.prod(dims), K), order='F')
     else:
