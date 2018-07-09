@@ -181,8 +181,8 @@ def seeded_initialization(Y, Ain, dims=None, init_batch=1000, order_init=None, g
     else:
         Ain = normalize(Ain.astype('float32'), axis=0, norm='l1')
         Cin = np.maximum(Ain.T.dot(Yr) - (Ain.T.dot(b_in)).dot(f_in), 0)
-
-#    Ain = HALS4shapes(Yr_no_bg, Ain, Cin, iters=5)
+        Ain = HALS4shapes(Yr_no_bg, Ain, Cin, iters=5)
+        
     Ain, Cin, b_in, f_in = hals(Yr, Ain, Cin, b_in, f_in, maxIter=8, bSiz=None)
     Ain = csc_matrix(Ain)
     nA = (Ain.power(2).sum(axis=0))
