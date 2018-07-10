@@ -435,7 +435,6 @@ class CNMFSetParms(object):
 
     def __eq__(self, other):
 
-        print('__eq__ being called in CNMFParms')
         d1 = self.to_dict()
         d2 = other.to_dict()
 
@@ -447,7 +446,6 @@ class CNMFSetParms(object):
             if v1 != v2:
                 return False
 
-        print('__eq__ returning true...')
         return True
 
     def to_dict(self):
