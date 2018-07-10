@@ -450,29 +450,27 @@ class CNMF(object):
             Yr, sn, g, psx = preprocess_data(
                 Yr, dview=self.dview, **self.params.preprocess)
 
+            self.sn = sn
+
             if self.Ain is None:
                 print('initializing ...')
                 if self.alpha_snmf is not None:
                     self.params.init['alpha_snmf'] = self.alpha_snmf
 
-                if self.center_psf:
-                    self.Ain, self.Cin, self.b_in, self.f_in, center, extra_1p = initialize_components(
-                        Y, sn=sn, options_total=self.params.to_dict(), **self.params.init)
-                else:
-                    self.Ain, self.Cin, self.b_in, self.f_in, center = initialize_components(
-                        Y, sn=sn, options_total=self.params.to_dict(), **self.params.init)
+                self.initialize(Y, sn)
 
             if self.only_init:  # only return values after initialization
-
+                self.A = self.Ain
+                self.C = self.Cin
+                self.b = self.b_in
+                self.f = self.f_in
                 if self.center_psf:
                     try:
-                        self.S, self.bl, self.c1, self.neurons_sn, self.g, self.YrA = extra_1p
+                        self.S, self.bl, self.c1, self.neurons_sn, self.g, self.YrA = self.extra_1p
                     except:
-                        self.S, self.bl, self.c1, self.neurons_sn, self.g, self.YrA, self.W, self.b0 = extra_1p
+                        self.S, self.bl, self.c1, self.neurons_sn, self.g, self.YrA, self.W, self.b0 = self.extra_1p
                 else:
-                    self.YrA = compute_residuals(
-                        Yr, self.Ain, self.b_in, self.Cin, self.f_in,
-                        dview=self.dview, block_size=1000, num_blocks_per_run=5)
+                    self.compute_residuals(Yr)
                     self.g = g
                     self.bl = None
                     self.c1 = None
@@ -511,8 +509,7 @@ class CNMF(object):
                 return self
 
             print('update spatial ...')
-            A, b, Cin, self.f_in = update_spatial_components(Yr, C=self.Cin, f=self.f_in, b_in=self.b_in, A_in=self.Ain,
-                                                             sn=sn, dview=self.dview, **self.params.spatial)
+            self.update_spatial(Yr, use_init=True, dview=self.dview, **self.params.spatial)
 
             print('update temporal ...')
             if not self.skip_refinement:
@@ -523,32 +520,29 @@ class CNMF(object):
             print('deconvolution ...')
             self.params.temporal['method'] = self.method_deconvolution
 
-            C, A, b, f, S, bl, c1, neurons_sn, g, YrA, lam = update_temporal_components(
-                Yr, A, b, Cin, self.f_in, dview=self.dview, **self.params.temporal)
+            self.update_temporal(Yr, dview=self.dview, **self.params.temporal)
 
             if not self.skip_refinement:
                 print('refinement...')
                 if self.do_merge:
                     print('merge components ...')
-                    A, C, nr, merged_ROIs, S, bl, c1, sn1, g1 = merge_components(
-                        Yr, A, b, C, f, S, sn, self.params.temporal,
-                            self.params.spatial,
-                        dview=self.dview, bl=bl, c1=c1, sn=neurons_sn, g=g, thr=self.merge_thresh,
-                        mx=50, fast_merge=True)
-                print((A.shape))
+                    print(self.A.shape)
+                    print(self.C.shape)
+                    self.merge_comps(Yr, mx=50, fast_merge=True)
+
+                print((self.A.shape))
+                print(self.C.shape)
                 print('update spatial ...')
-                A, b, C, f = update_spatial_components(
-                    Yr, C=C, f=f, A_in=A, sn=sn, b_in=b, dview=self.dview, **self.params.spatial)
+
+                self.update_spatial(Yr, use_init=False, dview=self.dview, **self.params.spatial)
                 # set it back to original value to perform full deconvolution
                 self.params.temporal['p'] = self.p
                 print('update temporal ...')
-                C, A, b, f, S, bl, c1, neurons_sn, g1, YrA, lam = update_temporal_components(
-                    Yr, A, b, C, f, dview=self.dview, bl=None, c1=None, sn=None, g=None, **self.params.temporal)
+                self.update_temporal(Yr, use_init=False, dview=self.dview, **self.params.temporal)
+
             else:
-                g1 = g
                 # todo : ask for those..
-                C, f, S, bl, c1, neurons_sn, g1, YrA = C, f, S, bl, c1, neurons_sn, g, YrA
-            self.lam = lam
+                C, f, S, bl, c1, neurons_sn, g1, YrA, lam = self.C, self.f, self.S, self.bl, self.c1, self.neurons_sn, self.g, self.YrA, self.lam
 
         else:  # use patches
             if self.stride is None:
@@ -573,84 +567,41 @@ class CNMF(object):
                                                                      low_rank_background=self.low_rank_background,
                                                                      del_duplicates=self.del_duplicates)
 
-            # options = CNMFSetParms(Y, self.n_processes, p=self.p, gSig=self.gSig, K=A.shape[
-            #                        -1], thr=self.merge_thresh, n_pixels_per_process=self.n_pixels_per_process,
-            #                        block_size=self.block_size, check_nan=self.check_nan)
-
-            # self.params.temporal['method'] = self.method_deconvolution
-
-
-#            self.params.spatial['se'] = np.ones((1,) * len(dims), dtype=np.uint8)
-#            self.params.spatial['update_background_components'] = True
-#            print('update spatial ...')
-#            A, b, C, f = update_spatial_components(
-#                    Yr, C = C, f = f, A_in = A, sn=sn, b_in = b, dview=self.dview, **self.params.spatial)
+            self.A, self.C, self.YrA, self.b, self.f, self.sn, self.optional_outputs = A, C, YrA, b, f, sn, optional_outputs
+            self.bl, self.c1, self.g, self.neurons_sn = None, None, None, None
+            print("merging")
+            self.merged_ROIs = [0]
 
             if self.center_psf:  # merge taking best neuron
                 if self.nb_patch > 0:
-                    print("merging")
-                    merged_ROIs = [0]
-                    while len(merged_ROIs) > 0:
-                        A, C, nr, merged_ROIs, S, bl, c1, sn_n, g = merge_components(
-                            Yr, A, [], np.array(C), [], np.array(C), [],
-                            self.params.temporal, self.params.spatial,
-                            dview=self.dview, thr=self.merge_thresh, mx=np.Inf, fast_merge=True)
+
+                    while len(self.merged_ROIs) > 0:
+                        self.merge_comps(Yr, mx=np.Inf, thr=self.merge_thresh, fast_merge=True)
 
                     print("update temporal")
-                    C, A, b, f, S, bl, c1, neurons_sn, g1, YrA, lam = update_temporal_components(
-                        Yr, A, b, C, f, dview=self.dview, bl=None, c1=None, sn=None, g=None,
-                        **self.params.temporal)
+                    self.update_temporal(Yr, use_init=False, **self.params.temporal)
 
-                    self.params.spatial['se'] = np.ones(
-                        (1,) * len(dims), dtype=np.uint8)
-    #                self.params.spatial['update_background_components'] = True
+                    self.params.spatial['se'] = np.ones((1,) * len(dims), dtype=np.uint8)
                     print('update spatial ...')
-                    A, b, C, f = update_spatial_components(
-                        Yr, C=C, f=f, A_in=A, sn=sn, b_in=b, dview=self.dview,
-                        **self.params.spatial)
+                    self.update_spatial(Yr, use_init=False, dview=self.dview, **self.params.spatial)
 
                     print("update temporal")
-                    C, A, b, f, S, bl, c1, neurons_sn, g1, YrA, lam = update_temporal_components(
-                        Yr, A, b, C, f, dview=self.dview, bl=None, c1=None, sn=None, g=None,
-                        **self.params.temporal)
+                    self.update_temporal(Yr, use_init=False, **self.params.temporal)
                 else:
-                    print("merging")
-                    merged_ROIs = [0]
-                    while len(merged_ROIs) > 0:
-                        A, C, nr, merged_ROIs, S, bl, c1, neurons_sn, g1 = merge_components(
-                            Yr, A, [], np.array(C), [], np.array(C), [],
-                            self.params.temporal, self.params.spatial,
-                            dview=self.dview, thr=self.merge_thresh, mx=np.Inf, fast_merge=True)
-                        if len(merged_ROIs) > 0:
-                            not_merged = np.setdiff1d(list(range(len(YrA))),
-                                                      np.unique(np.concatenate(merged_ROIs)))
-                            YrA = np.concatenate([YrA[not_merged],
-                                                  np.array([YrA[m].mean(0) for m in merged_ROIs])])
+                    while len(self.merged_ROIs) > 0:
+                        self.merge_comps(Yr, mx=np.Inf, thr=self.merge_thresh, fast_merge=True)
+                        if len(self.merged_ROIs) > 0:
+                            not_merged = np.setdiff1d(list(range(len(self.YrA))),
+                                                      np.unique(np.concatenate(self.merged_ROIs)))
+                            self.YrA = np.concatenate([self.YrA[not_merged],
+                                                       np.array([self.YrA[m].mean(0) for m in self.merged_ROIs])])
             else:
-
-                print("merging")
-                merged_ROIs = [0]
-                while len(merged_ROIs) > 0:
-                    A, C, nr, merged_ROIs, S, bl, c1, sn_n, g = merge_components(Yr, A, [], np.array(C), [], np.array(
-                        C), [], self.params.temporal, self.params.spatial, dview=self.dview,
-                        thr=self.merge_thresh, mx=np.Inf)
+                
+                while len(self.merged_ROIs) > 0:
+                    self.merge_comps(Yr, mx=np.Inf, thr=self.merge_thresh)
 
                 print("update temporal")
-                C, A, b, f, S, bl, c1, neurons_sn, g1, YrA, self.lam = update_temporal_components(
-                    Yr, A, b, C, f, dview=self.dview, bl=None, c1=None, sn=None, g=None, **self.params.temporal)
-
-        self.A = A
-        self.C = C
-        self.b = b
-        self.f = f
-        self.S = S
-        self.YrA = YrA
-        self.sn = sn
-        self.g = g1
-        self.bl = bl
-        self.c1 = c1
-        self.neurons_sn = neurons_sn
-        self.dims = dims
+                self.update_temporal(Yr, use_init=False, **self.params.temporal)
 
         self.A, self.C, self.YrA, self.b, self.f, self.neurons_sn = normalize_AC(
             self.A, self.C, self.YrA, self.b, self.f, self.neurons_sn)
@@ -1175,7 +1126,10 @@ class CNMF(object):
         nA2_inv_mat = scipy.sparse.spdiags(
             1. / nA2, 0, nA2.shape[0], nA2.shape[0])
         Cf = np.vstack((self.C, self.f))
-        YA = mmapping.parallel_dot_product(Yr, Ab, dview=self.dview, block_size=2000,
+        if 'numpy.ndarray' in str(type(Yr)):
+            YA = (Ab.T.dot(Yr)).T * nA2_inv_mat
+        else:
+            YA = mmapping.parallel_dot_product(Yr, Ab, dview=self.dview, block_size=2000,
                                            transpose=True, num_blocks_per_run=5) * nA2_inv_mat
 
         AA = Ab.T.dot(Ab) * nA2_inv_mat
@@ -1728,15 +1682,116 @@ class CNMF(object):
 
         return self
 
+    def update_temporal(self, Y, use_init=True, **kwargs):
+        """Updates temporal components
+
+        Parameters:
+        -----------
+        Y:  np.array (d1*d2) x T
+            input data
+        
+        """
+        lc = locals()
+        pr = inspect.signature(self.update_temporal)
+        params = [k for k, v in pr.parameters.items() if '=' in str(v)]
+        kw2 = {k: lc[k] for k in params}
+        try:
+            kwargs_new = {**kw2, **kwargs}
+        except():  # python 2.7
+            kwargs_new = kw2.copy()
+            kwargs_new.update(kwargs)
+        self.update_options('temporal', kwargs_new)
+        Cin = self.Cin if use_init else self.C
+        f_in = self.f_in if use_init else self.f
+        self.C, self.A, self.b, self.f, self.S, \
+        self.bl, self.c1, self.neurons_sn, \
+        self.g, self.YrA, self.lam = update_temporal_components(
+                Y, self.A, self.b, Cin, f_in, dview=self.dview,
+                **self.params.temporal)
+        return self
+    
+    def update_spatial(self, Y, use_init=True, **kwargs):
+        """Updates spatial components
+
+        Parameters:
+        -----------
+        Y:  np.array (d1*d2) x T
+            input data
+        use_init: bool
+            use Cin, f_in for computing A, b otherwise use C, f
+            
+        Returns:
+        ---------
+        self
+            modified values self.A, self.b possibly self.C, self.f
+        """
+        lc = locals()
+        pr = inspect.signature(self.update_spatial)
+        params = [k for k, v in pr.parameters.items() if '=' in str(v)]
+        kw2 = {k: lc[k] for k in params}
+        try:
+            kwargs_new = {**kw2, **kwargs}
+        except():  # python 2.7
+            kwargs_new = kw2.copy()
+            kwargs_new.update(kwargs)
+        self.update_options('spatial', kwargs_new)
+        for key in kwargs_new:
+            if hasattr(self, key):
+                setattr(self, key, kwargs_new[key])
+        C = self.Cin if use_init else self.C
+        f = self.f_in if use_init else self.f
+        Ain = self.Ain if use_init else self.A
+        b_in = self.b_in if use_init else self.b_in
+        self.A, self.b, C, f =\
+            update_spatial_components(Y, C=C, f=f, A_in=Ain, b_in=b_in, dview=self.dview,
+                                      sn=self.sn, **self.params.spatial)
+        if use_init:
+            self.Cin, self.f_in = C, f
+        else:
+            self.C, self.f = C, f
+        return self
+
+    def merge_comps(self, Y, thr=None, mx=50, fast_merge=True):
+        """merges components
+        """
+        if thr is not None:
+            self.merge_thresh = thr
+        self.A, self.C, self.nr, self.merged_ROIs, self.S,\
+        self.bl, self.c, self.neurons_sn, self.g =\
+            merge_components(Y, self.A, self.b, self.C, self.f, self.S,
+                             self.sn, self.params.temporal,
+                             self.params.spatial, dview=self.dview,
+                             bl=self.bl, c1=self.c1, sn=self.neurons_sn, 
+                             g=self.g, thr=self.merge_thresh, mx=mx,
+                             fast_merge=fast_merge)
+            
+        return self
+    
+    def initialize(self, Y, sn, **kwargs):
+        """Component initialization
+        """
+        self.update_options('init', kwargs)
+        if self.center_psf:
+            self.Ain, self.Cin, self.b_in, self.f_in, self.center,\
+            self.extra_1p = initialize_components(
+                Y, sn=sn, options_total=self.params.to_dict(),
+                **self.params.init)
+        else:
+            self.Ain, self.Cin, self.b_in, self.f_in, self.center =\
+            initialize_components(Y, sn=sn, options_total=self.params.to_dict(),
+                                  **self.params.init)
+        
+        return self
+    
     def update_options(self, subdict, kwargs):
         """modifies a specified subdictionary in self.params. If a specified
         parameter does not exist it gets created.
         Parameters:
         -----------
         subdict: string
-            Name of subdictionary ('patch_params', 'preprocess_params',
-                                   'init_params', 'spatial_params', 'merging',
-                                   'temporal_params', 'quality', 'online')
+            Name of subdictionary ('patch', 'preprocess',
+                                   'init', 'spatial', 'merging',
+                                   'temporal', 'quality', 'online')
 
         kwargs: dict
             Dictionary with parameters to be modified
@@ -1750,7 +1805,8 @@ class CNMF(object):
             for key in kwargs:
                 if key not in d:
                     logging.warning("The key %s you provided does not exist! Adding it anyway..", key)
-                d[key] = kwargs[key]
+                else:
+                    d[key] = kwargs[key]
         else:
             logging.warning("The subdictionary you provided does not exist!")
         return self

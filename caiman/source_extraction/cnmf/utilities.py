@@ -281,60 +281,60 @@ class CNMFSetParms(object):
         }
 
         self.preprocess = {'sn': None,                  # noise level for each pixel
-                                        # range of normalized frequencies over which to average
-                                        'noise_range': [0.25, 0.5],
-                                        # averaging method ('mean','median','logmexp')
-                                        'noise_method': 'mean',
-                                        'max_num_samples_fft': 3 * 1024,
-                                        'n_pixels_per_process': n_pixels_per_process,
-                                        'compute_g': False,            # flag for estimating global time constant
-                                        'p': p,                        # order of AR indicator dynamics
-                                        # number of autocovariance lags to be considered for time
-                                        # constant estimation
-                                        'lags': 5,
-                                        'include_noise': False,        # flag for using noise values when estimating g
-                                        'pixels': None,
-                                        # pixels to be excluded due to saturation
-                                        'check_nan': check_nan
+                            # range of normalized frequencies over which to average
+                            'noise_range': [0.25, 0.5],
+                            # averaging method ('mean','median','logmexp')
+                            'noise_method': 'mean',
+                            'max_num_samples_fft': 3 * 1024,
+                            'n_pixels_per_process': n_pixels_per_process,
+                            'compute_g': False,            # flag for estimating global time constant
+                            'p': p,                        # order of AR indicator dynamics
+                            # number of autocovariance lags to be considered for time
+                            # constant estimation
+                            'lags': 5,
+                            'include_noise': False,        # flag for using noise values when estimating g
+                            'pixels': None,
+                            # pixels to be excluded due to saturation
+                            'check_nan': check_nan
 
-                                        }
+                            }
 
         gSig = gSig if gSig is not None else [-1, -1]
 
         self.init = {'K': K,                  # number of components
-                                  'gSig': gSig,                               # size of bounding box
-                                  'gSiz': [np.int((np.ceil(x) * 2) + 1) for x in gSig] if gSiz is None else gSiz,
-                                  'ssub': ssub,             # spatial downsampling factor
-                                  'tsub': tsub,             # temporal downsampling factor
-                                  'nIter': 5,               # number of refinement iterations
-                                  'kernel': None,           # user specified template for greedyROI
-                                  'maxIter': 5,              # number of HALS iterations
-                                  'method': method_init,     # can be greedy_roi or sparse_nmf, local_NMF
-                                  'max_iter_snmf': 500,
-                                  'alpha_snmf': alpha_snmf,
-                                  'sigma_smooth_snmf': (.5, .5, .5),
-                                  'perc_baseline_snmf': 20,
-                                  'nb': nb,                 # number of background components
-                                  # whether to pixelwise equalize the movies during initialization
-                                  'normalize_init': normalize_init,
-                                  # dictionary with parameters to pass to local_NMF initializaer
-                                  'options_local_NMF': options_local_NMF,
-                                  'rolling_sum': rolling_sum,
-                                  'rolling_length': 100,
-                                  'min_corr': min_corr,
-                                  'min_pnr': min_pnr,
-                                  'ring_size_factor': ring_size_factor,
-                                  'center_psf': center_psf,
-                                  'ssub_B': ssub_B,
-                                  'init_iter': init_iter
-                                  }
+                      'gSig': gSig,                               # size of bounding box
+                      'gSiz': [np.int((np.ceil(x) * 2) + 1) for x in gSig] if gSiz is None else gSiz,
+                      'ssub': ssub,             # spatial downsampling factor
+                      'tsub': tsub,             # temporal downsampling factor
+                      'nIter': 5,               # number of refinement iterations
+                      'kernel': None,           # user specified template for greedyROI
+                      'maxIter': 5,              # number of HALS iterations
+                      'method': method_init,     # can be greedy_roi or sparse_nmf, local_NMF
+                      'max_iter_snmf': 500,
+                      'alpha_snmf': alpha_snmf,
+                      'sigma_smooth_snmf': (.5, .5, .5),
+                      'perc_baseline_snmf': 20,
+                      'nb': nb,                 # number of background components
+                      # whether to pixelwise equalize the movies during initialization
+                      'normalize_init': normalize_init,
+                      # dictionary with parameters to pass to local_NMF initializaer
+                      'options_local_NMF': options_local_NMF,
+                      'rolling_sum': rolling_sum,
+                      'rolling_length': 100,
+                      'min_corr': min_corr,
+                      'min_pnr': min_pnr,
+                      'ring_size_factor': ring_size_factor,
+                      'center_psf': center_psf,
+                      'ssub_B': ssub_B,
+                      'init_iter': init_iter
+                      }
 
         self.spatial = {
             'dims': dims,                   # number of rows, columns [and depths]
             # method for determining footprint of spatial components ('ellipse' or 'dilate')
             'method': 'dilate',  # 'ellipse', 'dilate',
             'dist': 3,                       # expansion factor of ellipse
-            # number of pixels to be processed by eacg worker
+            # number of pixels to be processed by each worker
             'n_pixels_per_process': n_pixels_per_process,
             # window of median filter
             'medw': (3,) * len(dims),
@@ -347,6 +347,10 @@ class CNMFSetParms(object):
             'se': np.ones((3,) * len(dims), dtype=np.uint8),
             # Binary element for determining connectivity
             'ss': np.ones((3,) * len(dims), dtype=np.uint8),
+            'expandCore': None,
+            'normalize_yyt_one': True,
+            'block_size': 1000,
+            'num_blocks_per_run': 20,
             'nb': nb,                                      # number of background components
             # 'nnls_L0'. Nonnegative least square with L0 penalty
             'method_ls': 'lasso_lars',
@@ -470,7 +474,6 @@ def dict_compare(d1, d2):
     modified = {o : (d1[o], d2[o]) for o in intersect_keys if np.any(d1[o] != d2[o])}
     same = set(o for o in intersect_keys if np.all(d1[o] == d2[o]))
     return added, removed, modified, same
-
 
 #%%
 def computeDFF_traces(Yr, A, C, bl, quantileMin=8, frames_window=200):
