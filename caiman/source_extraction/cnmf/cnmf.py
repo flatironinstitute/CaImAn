@@ -82,10 +82,6 @@ class CNMF(object):
     @author andrea giovannucci
     """
 
-    def __init__(self, params):
-        assert isinstance(params, CNMFSetParms), "Input must be instance of CNMFParams"
-
-
     def __init__(self, n_processes, k=5, gSig=[4, 4], gSiz=None, merge_thresh=0.8, p=2, dview=None,
                  Ain=None, Cin=None, b_in=None, f_in=None, do_merge=True,
                  ssub=2, tsub=2, p_ssub=1, p_tsub=1, method_init='greedy_roi', alpha_snmf=None,
