@@ -112,8 +112,7 @@ K = 30  # number of neurons expected per patch
 gSig = [7, 7]  # expected half size of neurons
 merge_thresh = 0.8  # merging threshold, max correlation allowed
 p = 2  # order of the autoregressive system
-options = cnmf.utilities.CNMFSetParms(
-    Y, n_processes, p=p, gSig=gSig, K=K, ssub=2, tsub=2, nb=1, normalize_init=True)
+options = cnmf.utilities.CNMFParams(dims, K=K, gSig=gSig, ssub=2, tsub=2, p=p, nb=1, normalize_init=True)
 options['preprocess_params']['noise_method'] = 'mean'
 #%% PREPROCESS DATA AND INITIALIZE COMPONENTS
 t1 = time()

@@ -29,7 +29,7 @@ from __future__ import print_function
 from builtins import str
 from builtins import object
 import numpy as np
-from .utilities import CNMFSetParms, update_order, normalize_AC, compute_residuals, detrend_df_f
+from .utilities import CNMFParams, update_order, normalize_AC, compute_residuals, detrend_df_f
 from .pre_processing import preprocess_data
 from .initialization import initialize_components, imblur
 from .merging import merge_components
@@ -81,7 +81,6 @@ class CNMF(object):
     .. image:: docs/img/quickintro.png
     @author andrea giovannucci
     """
-
     def __init__(self, n_processes, k=5, gSig=[4, 4], gSiz=None, merge_thresh=0.8, p=2, dview=None,
                  Ain=None, Cin=None, b_in=None, f_in=None, do_merge=True,
                  ssub=2, tsub=2, p_ssub=1, p_tsub=1, method_init='greedy_roi', alpha_snmf=None,
@@ -90,15 +89,15 @@ class CNMF(object):
                  check_nan=True, skip_refinement=False, normalize_init=True, options_local_NMF=None,
                  minibatch_shape=100, minibatch_suff_stat=3,
                  update_num_comps=True, rval_thr=0.9, thresh_fitness_delta=-20,
-                 thresh_fitness_raw=-40, thresh_overlap=.5,
+                 thresh_fitness_raw=None, thresh_overlap=.5,
                  max_comp_update_shape=np.inf, num_times_comp_updated=np.inf,
                  batch_update_suff_stat=False, s_min=None,
                  remove_very_bad_comps=False, border_pix=0, low_rank_background=True,
                  update_background_components=True, rolling_sum=True, rolling_length=100,
                  min_corr=.85, min_pnr=20, ring_size_factor=1.5,
                  center_psf=False, use_dense=True, deconv_flag=True,
-                 simultaneously=False, n_refit=0, del_duplicates=False, N_samples_exceptionality=5,
-                 max_num_added=1, min_num_trial=2, thresh_CNN_noisy=0.5,
+                 simultaneously=False, n_refit=0, del_duplicates=False, N_samples_exceptionality=None,
+                 max_num_added=3, min_num_trial=2, thresh_CNN_noisy=0.5,
                  fr=30, decay_time=0.4, min_SNR=2.5, ssub_B=2, init_iter=2):
         """
         Constructor of the CNMF method
@@ -264,41 +263,14 @@ class CNMF(object):
         self
         """
 
-        # number of neurons expected per FOV (or per patch if patches_pars is not None
-        self.k = k
-        self.gSig = gSig  # expected half size of neurons
-        self.gSiz = gSiz  # expected half size of neurons
-        self.merge_thresh = merge_thresh  # merging threshold, max correlation allowed
-        self.p = p  # order of the autoregressive system
         self.dview = dview
+
+        # these are variables related to the estimates of traces, footprints, and background
         self.Ain = Ain
         self.Cin = Cin
         self.f_in = f_in
-
-        self.ssub = ssub
-        self.tsub = tsub
-        self.p_ssub = p_ssub
-        self.p_tsub = p_tsub
-        self.method_init = method_init
-        self.n_processes = n_processes
-        self.rf = rf  # half-size of the patches in pixels. rf=25, patches are 50x50
-        self.stride = stride  # amount of overlap between the patches in pixels
-        # unitless number accounting how much memory should be used.
-        #  You will need to try different values to see which one would work the default is OK for a 16 GB system
-        self.memory_fact = memory_fact
-        self.gnb = gnb
-        self.do_merge = do_merge
-        self.alpha_snmf = alpha_snmf
-        self.only_init = only_init_patch
-        self.method_deconvolution = method_deconvolution
-        self.n_pixels_per_process = n_pixels_per_process
-        self.block_size = block_size
-        self.num_blocks_per_run = num_blocks_per_run
-        self.check_nan = check_nan
-        self.skip_refinement = skip_refinement
-        self.normalize_init = normalize_init
-        self.options_local_NMF = options_local_NMF
         self.b_in = b_in
+
         self.A = None
         self.C = None
         self.S = None
@@ -306,59 +278,35 @@ class CNMF(object):
         self.f = None
         self.sn = None
         self.g = None
+
+        # these are member variables related to the CNMF workflow
+        self.only_init = only_init_patch
+        self.skip_refinement = skip_refinement
         self.remove_very_bad_comps = remove_very_bad_comps
-        self.border_pix = border_pix
-        self.low_rank_background = low_rank_background
-        self.update_background_components = update_background_components
-        self.rolling_sum = rolling_sum
-        self.rolling_length = rolling_length
-        self.minibatch_shape = minibatch_shape
-        self.minibatch_suff_stat = minibatch_suff_stat
         self.update_num_comps = update_num_comps
-        self.rval_thr = rval_thr
-        self.s_min = s_min
-        self.thresh_fitness_delta = thresh_fitness_delta
-        self.thresh_fitness_raw = thresh_fitness_raw
-        self.thresh_overlap = thresh_overlap
-        self.num_times_comp_updated = num_times_comp_updated
-        self.max_comp_update_shape = max_comp_update_shape
-        self.batch_update_suff_stat = batch_update_suff_stat
-        self.use_dense = use_dense
-        self.deconv_flag = deconv_flag
-        self.simultaneously = simultaneously
-        self.n_refit = n_refit
-        self.N_samples_exceptionality = N_samples_exceptionality
-        self.max_num_added = max_num_added
-        self.min_num_trial = min_num_trial
-        self.thresh_CNN_noisy = thresh_CNN_noisy
-        self.fr = fr
-        self.min_SNR = min_SNR
-        self.decay_time = decay_time
 
-        self.min_corr = min_corr
-        self.min_pnr = min_pnr
-        self.ring_size_factor = ring_size_factor
-        self.center_psf = center_psf
-        self.nb_patch = nb_patch
-        self.del_duplicates = del_duplicates
-
-        self.params = CNMFSetParms((1, 1, 1), n_processes, p=p, gSig=gSig, gSiz=gSiz,
-                                    K=k, ssub=ssub, tsub=tsub,
-                                    p_ssub=p_ssub, p_tsub=p_tsub, method_init=method_init,
-                                    n_pixels_per_process=n_pixels_per_process,
-                                    check_nan=check_nan, nb=gnb,
-                                    nb_patch=nb_patch, normalize_init=normalize_init,
-                                    options_local_NMF=options_local_NMF,
-                                    remove_very_bad_comps=remove_very_bad_comps,
-                                    low_rank_background=low_rank_background,
-                                    update_background_components=update_background_components,
-                                    rolling_sum=self.rolling_sum,
-                                    min_corr=min_corr, min_pnr=min_pnr,
-                                    ring_size_factor=ring_size_factor, center_psf=center_psf,
-                                    fr=fr, min_SNR=min_SNR, decay_time=decay_time,
-                                    ssub_B=ssub_B, init_iter=init_iter)
-        self.params.merging['thr'] = merge_thresh
-        self.params.temporal['s_min'] = s_min
+        self.params = CNMFParams((1, 1), K=k, n_processes=n_processes, gSig=gSig, gSiz=gSiz, ssub=ssub, tsub=tsub, p=p,
+                                 p_ssub=p_ssub, p_tsub=p_tsub, method_init=method_init, nb=gnb, nb_patch=nb_patch,
+                                 n_pixels_per_process=n_pixels_per_process, block_size=block_size, num_blocks_per_run=num_blocks_per_run,
+                                 check_nan=check_nan,
+                                 normalize_init=normalize_init, options_local_NMF=options_local_NMF,
+                                 remove_very_bad_comps=remove_very_bad_comps,
+                                 update_background_components=update_background_components,
+                                 low_rank_background=low_rank_background, rolling_sum=rolling_sum,
+                                 min_corr=min_corr, min_pnr=min_pnr, ring_size_factor=ring_size_factor,
+                                 center_psf=center_psf, ssub_B=ssub_B, init_iter=init_iter, fr=fr,
+                                 decay_time=decay_time, min_SNR=min_SNR,
+                                 rf=rf, stride=stride, memory_fact=memory_fact, border_pix=border_pix, del_duplicates=del_duplicates,
+                                 thr=merge_thresh, do_merge=do_merge,
+                                 method_deconvolution=method_deconvolution,
+                                 minibatch_shape=minibatch_shape, rolling_length=rolling_length, minibatch_suff_stat=minibatch_suff_stat,
+                                 rval_thr=rval_thr, s_min=s_min,
+                                 thresh_fitness_delta=thresh_fitness_delta, thresh_fitness_raw=thresh_fitness_raw, thresh_overlap=thresh_overlap,
+                                 num_times_comp_updated=num_times_comp_updated, max_comp_update_shape=max_comp_update_shape,
+                                 batch_update_suff_stat=batch_update_suff_stat, use_dense=use_dense, simultaneously=simultaneously,
+                                 n_refit=n_refit, N_samples_exceptionality=N_samples_exceptionality, max_num_added=max_num_added,
+                                 min_num_trial=min_num_trial, thresh_CNN_noisy=thresh_CNN_noisy
+                                 )
 
     def fit(self, images):
         """
@@ -417,35 +365,22 @@ class CNMF(object):
         self.params.spatial['ss'] = np.ones(
             (3,) * len(dims), dtype=np.uint8)
 
-        print(('using ' + str(self.n_processes) + ' processes'))
-        if self.n_pixels_per_process is None:
+        print(('using ' + str(self.params.patch['n_processes']) + ' processes'))
+        if self.params.preprocess['n_pixels_per_process'] is None:
             avail_memory_per_process = psutil.virtual_memory()[
-                1] / 2.**30 / self.n_processes
+                1] / 2.**30 / self.params.patch['n_processes']
             mem_per_pix = 3.6977678498329843e-09
-            self.n_pixels_per_process = np.int(
+            self.params.preprocess['n_pixels_per_process'] = np.int(
                 avail_memory_per_process / 8. / mem_per_pix / T)
-            self.n_pixels_per_process = np.int(np.minimum(
-                self.n_pixels_per_process, np.prod(dims) // self.n_processes))
-        self.params.preprocess['n_pixels_per_process'] = self.n_pixels_per_process
-        self.params.spatial['n_pixels_per_process'] = self.n_pixels_per_process
+            self.params.preprocess['n_pixels_per_process'] = np.int(np.minimum(
+                self.params.preprocess['n_pixels_per_process'], np.prod(dims) // self.params.patch['n_processes']))
+        self.params.preprocess['n_pixels_per_process'] = self.params.preprocess['n_pixels_per_process']
+        self.params.spatial['n_pixels_per_process'] = self.params.preprocess['n_pixels_per_process']
 
-#        if self.block_size is None:
-#            self.block_size = self.n_pixels_per_process
-#
-#        if self.num_blocks_per_run is None:
-#           self.num_blocks_per_run = 20
+        print(('using ' + str(self.params.preprocess['n_pixels_per_process']) + ' pixels per process'))
+        print(('using ' + str(self.params.spatial['block_size']) + ' block_size'))
 
-        # number of pixels to process at the same time for dot product. Make it
-        # smaller if memory problems
-        self.params.temporal['block_size'] = self.block_size
-        self.params.temporal['num_blocks_per_run'] = self.num_blocks_per_run
-        self.params.spatial['block_size'] = self.block_size
-        self.params.spatial['num_blocks_per_run'] = self.num_blocks_per_run
-
-        print(('using ' + str(self.n_pixels_per_process) + ' pixels per process'))
-        print(('using ' + str(self.block_size) + ' block_size'))
-
-        if self.rf is None:  # no patches
+        if self.params.patch['rf'] is None:  # no patches
             print('preprocessing ...')
             Yr, sn, g, psx = preprocess_data(
                 Yr, dview=self.dview, **self.params.preprocess)
@@ -454,9 +389,6 @@ class CNMF(object):
 
             if self.Ain is None:
                 print('initializing ...')
-                if self.alpha_snmf is not None:
-                    self.params.init['alpha_snmf'] = self.alpha_snmf
-
                 self.initialize(Y, sn)
 
             if self.only_init:  # only return values after initialization
@@ -464,7 +396,7 @@ class CNMF(object):
                 self.C = self.Cin
                 self.b = self.b_in
                 self.f = self.f_in
-                if self.center_psf:
+                if self.params.init['center_psf']:
                     try:
                         self.S, self.bl, self.c1, self.neurons_sn, self.g, self.YrA = self.extra_1p
                     except:
@@ -516,15 +448,14 @@ class CNMF(object):
                 # set this to zero for fast updating without deconvolution
                 self.params.temporal['p'] = 0
             else:
-                self.params.temporal['p'] = self.p
+                self.params.temporal['p'] = self.params.preprocess['p']
             print('deconvolution ...')
-            self.params.temporal['method'] = self.method_deconvolution
 
             self.update_temporal(Yr, dview=self.dview, **self.params.temporal)
 
             if not self.skip_refinement:
                 print('refinement...')
-                if self.do_merge:
+                if self.params.merging['do_merge']:
                     print('merge components ...')
                     print(self.A.shape)
                     print(self.C.shape)
@@ -536,7 +467,7 @@ class CNMF(object):
 
                 self.update_spatial(Yr, use_init=False, dview=self.dview, **self.params.spatial)
                 # set it back to original value to perform full deconvolution
-                self.params.temporal['p'] = self.p
+                self.params.temporal['p'] = self.params.preprocess['p']
                 print('update temporal ...')
                 self.update_temporal(Yr, use_init=False, dview=self.dview, **self.params.temporal)
 
@@ -545,10 +476,10 @@ class CNMF(object):
                 C, f, S, bl, c1, neurons_sn, g1, YrA, lam = self.C, self.f, self.S, self.bl, self.c1, self.neurons_sn, self.g, self.YrA, self.lam
 
         else:  # use patches
-            if self.stride is None:
-                self.stride = np.int(self.rf * 2 * .1)
+            if self.params.patch['stride'] is None:
+                self.params.patch['stride'] = np.int(self.params.patch['rf'] * 2 * .1)
                 print(
-                    ('**** Setting the stride to 10% of 2*rf automatically:' + str(self.stride)))
+                    ('**** Setting the stride to 10% of 2*rf automatically:' + str(self.params.patch['stride'])))
 
             if type(images) is np.ndarray:
                 raise Exception(
@@ -557,26 +488,23 @@ class CNMF(object):
             if self.only_init:
                 self.params.patch['only_init'] = True
 
-            if self.alpha_snmf is not None:
-                self.params.init['alpha_snmf'] = self.alpha_snmf
-
             A, C, YrA, b, f, sn, optional_outputs = run_CNMF_patches(images.filename, dims + (T,),
-                                                                     self.params, rf=self.rf, stride=self.stride,
-                                                                     dview=self.dview, memory_fact=self.memory_fact,
-                                                                     gnb=self.gnb, border_pix=self.border_pix,
-                                                                     low_rank_background=self.low_rank_background,
-                                                                     del_duplicates=self.del_duplicates)
+                                                                     self.params,
+                                                                     dview=self.dview, memory_fact=self.params.patch['memory_fact'],
+                                                                     gnb=self.params.init['nb'], border_pix=self.params.patch['border_pix'],
+                                                                     low_rank_background=self.params.patch['low_rank_background'],
+                                                                     del_duplicates=self.params.patch['del_duplicates'])
 
             self.A, self.C, self.YrA, self.b, self.f, self.sn, self.optional_outputs = A, C, YrA, b, f, sn, optional_outputs
             self.bl, self.c1, self.g, self.neurons_sn = None, None, None, None
             print("merging")
             self.merged_ROIs = [0]
 
-            if self.center_psf:  # merge taking best neuron
-                if self.nb_patch > 0:
+            if self.params.init['center_psf']:  # merge taking best neuron
+                if self.params.patch['nb_patch'] > 0:
 
                     while len(self.merged_ROIs) > 0:
-                        self.merge_comps(Yr, mx=np.Inf, thr=self.merge_thresh, fast_merge=True)
+                        self.merge_comps(Yr, mx=np.Inf, thr=self.params.merging['thr'], fast_merge=True)
 
                     print("update temporal")
                     self.update_temporal(Yr, use_init=False, **self.params.temporal)
@@ -589,7 +517,7 @@ class CNMF(object):
                     self.update_temporal(Yr, use_init=False, **self.params.temporal)
                 else:
                     while len(self.merged_ROIs) > 0:
-                        self.merge_comps(Yr, mx=np.Inf, thr=self.merge_thresh, fast_merge=True)
+                        self.merge_comps(Yr, mx=np.Inf, thr=self.params.merging['thr'], fast_merge=True)
                         if len(self.merged_ROIs) > 0:
                             not_merged = np.setdiff1d(list(range(len(self.YrA))),
                                                       np.unique(np.concatenate(self.merged_ROIs)))
@@ -598,7 +526,7 @@ class CNMF(object):
             else:
                 
                 while len(self.merged_ROIs) > 0:
-                    self.merge_comps(Yr, mx=np.Inf, thr=self.merge_thresh)
+                    self.merge_comps(Yr, mx=np.Inf, thr=self.params.merging['thr'])
 
                 print("update temporal")
                 self.update_temporal(Yr, use_init=False, **self.params.temporal)
@@ -610,10 +538,10 @@ class CNMF(object):
 
     def _prepare_object(self, Yr, T, expected_comps, new_dims=None,
                         idx_components=None, g=None, lam=None, s_min=None,
-                        bl=None, use_dense=True, N_samples_exceptionality=5,
+                        bl=None, use_dense=True,
                         max_num_added=1, min_num_trial=1, path_to_model=None,
                         sniper_mode=False, use_peak_max=False,
-                        test_both=False, q=0.5, **kwargs):
+                        test_both=False, q=0.5):
 
         if idx_components is None:
             idx_components = range(self.A.shape[-1])
@@ -630,13 +558,10 @@ class CNMF(object):
         self.neurons_sn2 = self.neurons_sn[idx_components]
         self.lam2 = self.lam[idx_components]
         self.dims2 = self.dims
-        self.N_samples_exceptionality = N_samples_exceptionality
-        self.max_num_added = max_num_added
-        self.min_num_trial = min_num_trial
         self.q = q   # sparsity parameter (between 0.5 and 1)
 
         self.N = self.A2.shape[-1]
-        self.M = self.gnb + self.N
+        self.M = self.params.init['nb'] + self.N
 
         if expected_comps <= self.N + max_num_added:
             expected_comps = self.N + max_num_added + 200
@@ -677,39 +602,39 @@ class CNMF(object):
         self.YrA2 *= nA[:, None]
 #        self.S2 *= nA[:, None]
         self.neurons_sn2 *= nA
-        if self.p:
+        if self.params.preprocess['p']:
             self.lam2 *= nA
         z = np.sqrt([b.T.dot(b) for b in self.b2.T])
         self.f2 *= z[:, None]
         self.b2 /= z
 
         self.noisyC = np.zeros(
-            (self.gnb + expected_comps, T), dtype=np.float32)
+            (self.params.init['nb'] + expected_comps, T), dtype=np.float32)
         self.C_on = np.zeros((expected_comps, T), dtype=np.float32)
 
-        self.noisyC[self.gnb:self.M, :self.initbatch] = self.C2 + self.YrA2
-        self.noisyC[:self.gnb, :self.initbatch] = self.f2
+        self.noisyC[self.params.init['nb']:self.M, :self.initbatch] = self.C2 + self.YrA2
+        self.noisyC[:self.params.init['nb'], :self.initbatch] = self.f2
 
-        if self.p:
+        if self.params.preprocess['p']:
             # if no parameter for calculating the spike size threshold is given, then use L1 penalty
-            if s_min is None and self.s_min is None:
+            if s_min is None and self.params.temporal['s_min'] is None:
                 use_L1 = True
             else:
                 use_L1 = False
 
             self.OASISinstances = [OASIS(
-                g=np.ravel(0.01) if self.p == 0 else (
+                g=np.ravel(0.01) if self.params.preprocess['p'] == 0 else (
                     np.ravel(g)[0] if g is not None else gam[0]),
                 lam=0 if not use_L1 else (l if lam is None else lam),
                 s_min=0 if use_L1 else (s_min if s_min is not None else
-                                        (self.s_min if self.s_min > 0 else
-                                         (-self.s_min * sn * np.sqrt(1 - np.sum(gam))))),
+                                        (self.params.temporal['s_min'] if self.params.temporal['s_min'] > 0 else
+                                         (-self.params.temporal['s_min'] * sn * np.sqrt(1 - np.sum(gam))))),
                 b=b if bl is None else bl,
-                g2=0 if self.p < 2 else (np.ravel(g)[1] if g is not None else gam[1]))
+                g2=0 if self.params.preprocess['p'] < 2 else (np.ravel(g)[1] if g is not None else gam[1]))
                 for gam, l, b, sn in zip(self.g2, self.lam2, self.bl2, self.neurons_sn2)]
 
             for i, o in enumerate(self.OASISinstances):
-                o.fit(self.noisyC[i + self.gnb, :self.initbatch])
+                o.fit(self.noisyC[i + self.params.init['nb'], :self.initbatch])
                 self.C_on[i, :self.initbatch] = o.c
         else:
             self.C_on[:self.N, :self.initbatch] = self.C2
@@ -718,7 +643,7 @@ class CNMF(object):
         self.Ab, self.ind_A, self.CY, self.CC = init_shapes_and_sufficient_stats(
             Yr[:, :self.initbatch].reshape(
                 self.dims2 + (-1,), order='F'), self.A2,
-            self.C_on[:self.N, :self.initbatch], self.b2, self.noisyC[:self.gnb, :self.initbatch])
+            self.C_on[:self.N, :self.initbatch], self.b2, self.noisyC[:self.params.init['nb'], :self.initbatch])
 
         self.CY, self.CC = self.CY * 1. / self.initbatch, 1 * self.CC / self.initbatch
 
@@ -733,20 +658,20 @@ class CNMF(object):
         self.CY = self.CY.astype(np.float32)
         self.CC = self.CC.astype(np.float32)
         print('Expecting ' + str(self.expected_comps) + ' components')
-        self.CY.resize([self.expected_comps + self.gnb, self.CY.shape[-1]])
+        self.CY.resize([self.expected_comps + self.params.init['nb'], self.CY.shape[-1]])
         if use_dense:
-            self.Ab_dense = np.zeros((self.CY.shape[-1], self.expected_comps + self.gnb),
+            self.Ab_dense = np.zeros((self.CY.shape[-1], self.expected_comps + self.params.init['nb']),
                                      dtype=np.float32)
             self.Ab_dense[:, :self.Ab.shape[1]] = self.Ab.toarray()
         self.C_on = np.vstack(
-            [self.noisyC[:self.gnb, :], self.C_on.astype(np.float32)])
+            [self.noisyC[:self.params.init['nb'], :], self.C_on.astype(np.float32)])
 
-        self.gSiz = np.add(np.multiply(np.ceil(self.gSig).astype(np.int), 2), 1)
+        self.params.init['gSiz'] = np.add(np.multiply(np.ceil(self.params.init['gSig']).astype(np.int), 2), 1)
 
-        self.Yr_buf = RingBuffer(Yr[:, self.initbatch - self.minibatch_shape:
-                                    self.initbatch].T.copy(), self.minibatch_shape)
+        self.Yr_buf = RingBuffer(Yr[:, self.initbatch - self.params.online['minibatch_shape']:
+                                    self.initbatch].T.copy(), self.params.online['minibatch_shape'])
         self.Yres_buf = RingBuffer(self.Yr_buf - self.Ab.dot(
-            self.C_on[:self.M, self.initbatch - self.minibatch_shape:self.initbatch]).T, self.minibatch_shape)
+            self.C_on[:self.M, self.initbatch - self.params.online['minibatch_shape']:self.initbatch]).T, self.params.online['minibatch_shape'])
         self.sn = np.array(np.std(self.Yres_buf,axis=0))
         self.vr = np.array(np.var(self.Yres_buf,axis=0))
         self.mn = self.Yres_buf.mean(0)
@@ -754,14 +679,14 @@ class CNMF(object):
         self.mean_buff = self.Yres_buf.mean(0)
         self.ind_new = []
         self.rho_buf = imblur(np.maximum(self.Yres_buf.T,0).reshape(
-            self.dims2 + (-1,), order='F'), sig=self.gSig, siz=self.gSiz, nDimBlur=len(self.dims2))**2
+            self.dims2 + (-1,), order='F'), sig=self.params.init['gSig'], siz=self.params.init['gSiz'], nDimBlur=len(self.dims2))**2
         self.rho_buf = np.reshape(
             self.rho_buf, (np.prod(self.dims2), -1)).T
-        self.rho_buf = RingBuffer(self.rho_buf, self.minibatch_shape)
+        self.rho_buf = RingBuffer(self.rho_buf, self.params.online['minibatch_shape'])
         self.AtA = (self.Ab.T.dot(self.Ab)).toarray()
         self.AtY_buf = self.Ab.T.dot(self.Yr_buf.T)
         self.sv = np.sum(self.rho_buf.get_last_frames(
-            min(self.initbatch, self.minibatch_shape) - 1), 0)
+            min(self.initbatch, self.params.online['minibatch_shape']) - 1), 0)
         self.groups = list(map(list, update_order(self.Ab)[0]))
         # self.update_counter = np.zeros(self.N)
         self.update_counter = .5**(-np.linspace(0, 1,
@@ -820,21 +745,21 @@ class CNMF(object):
         t_start = time()
 
         # locally scoped variables for brevity of code and faster look up
-        nb_ = self.gnb
+        nb_ = self.params.init['nb']
         Ab_ = self.Ab
-        mbs = self.minibatch_shape
+        mbs = self.params.online['minibatch_shape']
         frame = frame_in.astype(np.float32)
 #        print(np.max(1/scipy.sparse.linalg.norm(self.Ab,axis = 0)))
         self.Yr_buf.append(frame)
         if len(self.ind_new) > 0:
             self.mean_buff = self.Yres_buf.mean(0)
 
-        if (not self.simultaneously) or self.p == 0:
+        if (not self.params.online['simultaneously']) or self.params.preprocess['p'] == 0:
             # get noisy fluor value via NNLS (project data on shapes & demix)
             C_in = self.noisyC[:self.M, t - 1].copy()
             self.C_on[:self.M, t], self.noisyC[:self.M, t] = HALS4activity(
                 frame, self.Ab, C_in, self.AtA, iters=num_iters_hals, groups=self.groups)
-            if self.p:
+            if self.params.preprocess['p']:
                 # denoise & deconvolve
                 for i, o in enumerate(self.OASISinstances):
                     o.fit_next(self.noisyC[nb_ + i, t])
@@ -846,14 +771,14 @@ class CNMF(object):
             self.C_on[:, t] = self.C_on[:, t - 1]
             self.noisyC[:, t] = self.C_on[:, t - 1]
             self.AtY_buf = np.concatenate((self.AtY_buf[:, 1:], self.Ab.T.dot(frame)[:, None]), 1) \
-                if self.n_refit else self.Ab.T.dot(frame)[:, None]
+                if self.params.online['n_refit'] else self.Ab.T.dot(frame)[:, None]
             # demix, denoise & deconvolve
             (self.C_on[:self.M, t + 1 - mbs:t + 1], self.noisyC[:self.M, t + 1 - mbs:t + 1],
                 self.OASISinstances) = demix_and_deconvolve(
                 self.C_on[:self.M, t + 1 - mbs:t + 1],
                 self.noisyC[:self.M, t + 1 - mbs:t + 1],
                 self.AtY_buf, self.AtA, self.OASISinstances, iters=num_iters_hals,
-                n_refit=self.n_refit)
+                n_refit=self.params.online['n_refit'])
             for i, o in enumerate(self.OASISinstances):
                 self.C_on[nb_ + i, t - o.get_l_of_last_pool() + 1: t +
                           1] = o.get_c_of_last_pool()
@@ -867,7 +792,7 @@ class CNMF(object):
 
         if self.update_num_comps:
 
-            self.mean_buff += (res_frame-self.Yres_buf[self.Yres_buf.cur])/self.minibatch_shape
+            self.mean_buff += (res_frame-self.Yres_buf[self.Yres_buf.cur])/self.params.online['minibatch_shape']
 #            cv2.imshow('untitled', 0.1*cv2.resize(res_frame.reshape(self.dims,order = 'F'),(512,512)))
 #            cv2.waitKey(1)
 #
@@ -875,8 +800,8 @@ class CNMF(object):
 
             res_frame = np.reshape(res_frame, self.dims2, order='F')
 
-            rho = imblur(np.maximum(res_frame,0), sig=self.gSig,
-                         siz=self.gSiz, nDimBlur=len(self.dims2))**2
+            rho = imblur(np.maximum(res_frame,0), sig=self.params.init['gSig'],
+                         siz=self.params.init['gSiz'], nDimBlur=len(self.dims2))**2
 
             rho = np.reshape(rho, np.prod(self.dims2))
             self.rho_buf.append(rho)
@@ -884,17 +809,18 @@ class CNMF(object):
             self.Ab, Cf_temp, self.Yres_buf, self.rhos_buf, self.CC, self.CY, self.ind_A, self.sv, self.groups, self.ind_new, self.ind_new_all, self.sv, self.cnn_pos = update_num_components(
                 t, self.sv, self.Ab, self.C_on[:self.M, (t - mbs + 1):(t + 1)],
                 self.Yres_buf, self.Yr_buf, self.rho_buf, self.dims2,
-                self.gSig, self.gSiz, self.ind_A, self.CY, self.CC, rval_thr=self.rval_thr,
-                thresh_fitness_delta=self.thresh_fitness_delta,
-                thresh_fitness_raw=self.thresh_fitness_raw, thresh_overlap=self.thresh_overlap,
-                groups=self.groups, batch_update_suff_stat=self.batch_update_suff_stat, gnb=self.gnb,
+                self.params.init['gSig'], self.params.init['gSiz'], self.ind_A, self.CY, self.CC, rval_thr=self.params.online['rval_thr'],
+                thresh_fitness_delta=self.params.online['thresh_fitness_delta'],
+                thresh_fitness_raw=self.params.online['thresh_fitness_raw'], thresh_overlap=self.params.online['thresh_overlap'],
+                groups=self.groups, batch_update_suff_stat=self.params.online['batch_update_suff_stat'], gnb=self.params.init['nb'],
                 sn=self.sn, g=np.mean(
-                    self.g2) if self.p == 1 else np.mean(self.g2, 0),
-                s_min=self.s_min,
-                Ab_dense=self.Ab_dense[:, :self.M] if self.use_dense else None,
-                oases=self.OASISinstances if self.p else None, N_samples_exceptionality=self.N_samples_exceptionality,
-                max_num_added=self.max_num_added, min_num_trial=self.min_num_trial,
-                loaded_model = self.loaded_model, thresh_CNN_noisy = self.thresh_CNN_noisy,
+                    self.g2) if self.params.preprocess['p'] == 1 else np.mean(self.g2, 0),
+                s_min=self.params.temporal['s_min'],
+                Ab_dense=self.Ab_dense[:, :self.M] if self.params.online['use_dense'] else None,
+                oases=self.OASISinstances if self.params.preprocess['p'] else None,
+                N_samples_exceptionality=self.params.online['N_samples_exceptionality'],
+                max_num_added=self.params.online['max_num_added'], min_num_trial=self.params.online['min_num_trial'],
+                loaded_model = self.loaded_model, thresh_CNN_noisy = self.params.online['thresh_CNN_noisy'],
                 sniper_mode=self.sniper_mode, use_peak_max=self.use_peak_max,
                 test_both=self.test_both)
 
@@ -903,7 +829,7 @@ class CNMF(object):
             if num_added > 0:
                 self.N += num_added
                 self.M += num_added
-                if self.N + self.max_num_added > self.expected_comps:
+                if self.N + self.params.online['max_num_added'] > self.expected_comps:
                     self.expected_comps += 200
                     self.CY.resize(
                         [self.expected_comps + nb_, self.CY.shape[-1]])
@@ -914,7 +840,7 @@ class CNMF(object):
                         [self.expected_comps + nb_, self.C_on.shape[-1]], refcheck=False)
                     self.noisyC.resize(
                         [self.expected_comps + nb_, self.C_on.shape[-1]])
-                    if self.use_dense:  # resize won't work due to contingency issue
+                    if self.params.online['use_dense']:  # resize won't work due to contingency issue
                         # self.Ab_dense.resize([self.CY.shape[-1], self.expected_comps+nb_])
                         self.Ab_dense = np.zeros((self.CY.shape[-1], self.expected_comps + nb_),
                                                  dtype=np.float32)
@@ -929,24 +855,24 @@ class CNMF(object):
 
                 for _ct in range(self.M - num_added, self.M):
                     self.time_neuron_added.append((_ct - nb_, t))
-                    if self.p:
+                    if self.params.preprocess['p']:
                         # N.B. OASISinstances are already updated within update_num_components
                         self.C_on[_ct, t - mbs + 1: t +
                                   1] = self.OASISinstances[_ct - nb_].get_c(mbs)
                     else:
                         self.C_on[_ct, t - mbs + 1: t + 1] = np.maximum(0,
                                                                         self.noisyC[_ct, t - mbs + 1: t + 1])
-                    if self.simultaneously and self.n_refit:
+                    if self.params.online['simultaneously'] and self.params.online['n_refit']:
                         self.AtY_buf = np.concatenate((
                             self.AtY_buf, [Ab_.data[Ab_.indptr[_ct]:Ab_.indptr[_ct + 1]].dot(
                                 self.Yr_buf.T[Ab_.indices[Ab_.indptr[_ct]:Ab_.indptr[_ct + 1]]])]))
                     # much faster than Ab_[:, self.N + nb_ - num_added:].toarray()
-                    if self.use_dense:
+                    if self.params.online['use_dense']:
                         self.Ab_dense[Ab_.indices[Ab_.indptr[_ct]:Ab_.indptr[_ct + 1]],
                                       _ct] = Ab_.data[Ab_.indptr[_ct]:Ab_.indptr[_ct + 1]]
 
                 # set the update counter to 0 for components that are overlaping the newly added
-                if self.use_dense:
+                if self.params.online['use_dense']:
                     idx_overlap = np.concatenate([
                         self.Ab_dense[self.ind_A[_ct], nb_:self.M - num_added].T.dot(
                             self.Ab_dense[self.ind_A[_ct], _ct + nb_]).nonzero()[0]
@@ -957,7 +883,7 @@ class CNMF(object):
                 self.update_counter[idx_overlap] = 0
 
         if (t - self.initbatch) % mbs == mbs - 1 and\
-                self.batch_update_suff_stat:
+                self.params.online['batch_update_suff_stat']:
             # faster update using minibatch of frames
 
             ccf = self.C_on[:self.M, t - mbs + 1:t + 1]
@@ -977,11 +903,10 @@ class CNMF(object):
                 w2 * ccf[:nb_].dot(y)   # background
             self.CC = self.CC * w1 + w2 * ccf.dot(ccf.T)
 
-        if not self.batch_update_suff_stat:
+        if not self.params.online['batch_update_suff_stat']:
 
-            ccf = self.C_on[:self.M, t - self.minibatch_suff_stat:t -
-                            self.minibatch_suff_stat + 1]
-            y = self.Yr_buf.get_last_frames(self.minibatch_suff_stat + 1)[:1]
+            ccf = self.C_on[:self.M, t - self.params.online['minibatch_suff_stat']:t - self.params.online['minibatch_suff_stat'] + 1]
+            y = self.Yr_buf.get_last_frames(self.params.online['minibatch_suff_stat'] + 1)[:1]
             # much faster: exploit that we only access CY[m, ind_pixels], hence update only these
             for m in range(self.N):
                 self.CY[m + nb_, self.ind_A[m]] *= (1 - 1. / t)
@@ -995,15 +920,15 @@ class CNMF(object):
             if (t - self.initbatch) % mbs == mbs - 1:
                 print('Updating Shapes')
 
-                if self.N > self.max_comp_update_shape:
+                if self.N > self.params.online['max_comp_update_shape']:
                     indicator_components = np.where(self.update_counter <=
-                                                    self.num_times_comp_updated)[0]
+                                                    self.params.onlines['num_times_comp_updated'])[0]
                     # np.random.choice(self.N,10,False)
                     self.update_counter[indicator_components] += 1
                 else:
                     indicator_components = None
 
-                if self.use_dense:
+                if self.params.online['use_dense']:
                     # update dense Ab and sparse Ab simultaneously;
                     # this is faster than calling update_shapes with sparse Ab only
                     Ab_, self.ind_A, self.Ab_dense[:, :self.M] = update_shapes(
@@ -1025,7 +950,7 @@ class CNMF(object):
                     ind_keep = list(set(range(Ab_.shape[-1])) - set(ind_zero))
                     ind_keep.sort()
 
-                    if self.use_dense:
+                    if self.params.online['use_dense']:
                         self.Ab_dense = np.delete(
                             self.Ab_dense, ind_zero, axis=1)
                     self.AtA = np.delete(self.AtA, ind_zero, axis=0)
@@ -1037,8 +962,8 @@ class CNMF(object):
                     self.N -= len(ind_zero)
                     self.noisyC = np.delete(self.noisyC, ind_zero, axis=0)
                     for ii in ind_zero:
-                        del self.OASISinstances[ii - self.gnb]
-                        #del self.ind_A[ii-self.gnb]
+                        del self.OASISinstances[ii - self.params.init['nb']]
+                        #del self.ind_A[ii-self.params.init['nb']]
 
                     self.C_on = np.delete(self.C_on, ind_zero, axis=0)
                     self.AtY_buf = np.delete(self.AtY_buf, ind_zero, axis=0)
@@ -1052,10 +977,10 @@ class CNMF(object):
                     self.Ab_copy = Ab_
                     self.Ab = Ab_
                     self.ind_A = list(
-                        [(self.Ab.indices[self.Ab.indptr[ii]:self.Ab.indptr[ii + 1]]) for ii in range(self.gnb, self.M)])
+                        [(self.Ab.indices[self.Ab.indptr[ii]:self.Ab.indptr[ii + 1]]) for ii in range(self.params.init['nb'], self.M)])
                     self.groups = list(map(list, update_order(Ab_)[0]))
 
-                if self.n_refit:
+                if self.params.online['n_refit']:
                     self.AtY_buf = Ab_.T.dot(self.Yr_buf.T)
 
         else:  # distributed shape update
@@ -1098,7 +1023,7 @@ class CNMF(object):
         self.N, self.noisyC, self.OASISinstances, self.C_on,\
         self.expected_comps, self.ind_A,\
         self.groups, self.AtA = remove_components_online(
-                ind_rm, self.gnb, self.Ab, self.use_dense, self.Ab_dense,
+                ind_rm, self.params.init['nb'], self.Ab, self.params.online['use_dense'], self.Ab_dense,
                 self.AtA, self.CY, self.CC, self.M, self.N, self.noisyC,
                 self.OASISinstances, self.C_on, self.expected_comps)
 
@@ -1306,13 +1231,13 @@ class CNMF(object):
         constrained foopsi.
         """
 
-        p = self.p if p is None else p
-        method = self.method_deconvolution if method is None else method
+        p = self.params.preprocess['p'] if p is None else p
+        method = self.params.temporal['method'] if method is None else method
         bas_nonneg = (self.params.temporal['bas_nonneg']
                       if bas_nonneg is None else bas_nonneg)
         noise_method = (self.params.temporal['noise_method']
                         if noise_method is None else noise_method)
-        s_min = self.s_min if s_min is None else s_min
+        s_min = self.params.temporal['s_min'] if s_min is None else s_min
 
         F = self.C + self.YrA
         args = dict()
@@ -1410,7 +1335,7 @@ class CNMF(object):
 
         idx_components, idx_components_bad, SNR_comp, r_values, cnn_preds = \
         estimate_components_quality_auto(imgs, self.A, self.C, self.b, self.f,
-                                         self.YrA, fr, decay_time, self.gSig,
+                                         self.YrA, fr, decay_time, self.params.init['gSig'],
                                          dims, dview=self.dview,
                                          min_SNR=min_SNR,
                                          r_values_min=rval_thr,
@@ -1508,7 +1433,7 @@ class CNMF(object):
                                      min_cnn_thr=min_cnn_thr)
 
         self.idx_components, self.idx_components_bad, self.cnn_preds = \
-        select_components_from_metrics(self.A, dims, self.gSig, self.r_values,
+        select_components_from_metrics(self.A, dims, self.params.init['gSig'], self.r_values,
                                        self.SNR_comp, r_values_min=rval_thr,
                                        r_values_lowest=rval_lowest,
                                        min_SNR=min_SNR,
@@ -1560,20 +1485,21 @@ class CNMF(object):
         Y_rec = self.A.dot(self.C[:, frame_range])
         Y_rec = Y_rec.reshape(dims + (-1,), order='F')
         Y_rec = Y_rec.transpose([2, 0, 1])
-        if self.gnb == -1 or self.gnb > 0:
+        if self.params.init['nb'] == -1 or self.params.init['nb'] > 0:
             B = self.b.dot(self.f[:, frame_range])
             if 'matrix' in str(type(B)):
                 B = B.toarray()
             B = B.reshape(dims + (-1,), order='F').transpose([2, 0, 1])
-        elif self.gnb == -2:
+        elif self.params.init['nb'] == -2:
             B = self.W.dot(imgs[frame_range] - self.A.dot(self.C[:, frame_range]))
             B = B.reshape(dims + (-1,), order='F').transpose([2, 0, 1])
         else:
             B = np.zeros_like(Y_rec)
-        if self.border_pix > 0:
-            imgs = imgs[:, self.border_pix:-self.border_pix, self.border_pix:-self.border_pix]
-            B = B[:, self.border_pix:-self.border_pix, self.border_pix:-self.border_pix]
-            Y_rec = Y_rec[:, self.border_pix:-self.border_pix, self.border_pix:-self.border_pix]
+        if self.params.patch['border_pix'] > 0:
+            bpx = self.params.patch['border_pix']
+            imgs = imgs[:, bpx:-bpx, bpx:-bpx]
+            B = B[:, bpx:-bpx, bpx:-bpx]
+            Y_rec = Y_rec[:, bpx:-bpx, bpx:-bpx]
 
         Y_res = imgs[frame_range] - Y_rec - B
 
@@ -1632,11 +1558,11 @@ class CNMF(object):
                                   **kwargs)
         if update_bck:
             if bck_non_neg:
-                self.f = C[:self.gnb]
+                self.f = C[:self.params.init['nb']]
             else:
-                self.f = noisyC[:self.gnb]
-            self.C = C[self.gnb:]
-            self.YrA = noisyC[self.gnb:] - self.C
+                self.f = noisyC[:self.params.init['nb']]
+            self.C = C[self.params.init['nb']:]
+            self.YrA = noisyC[self.params.init['nb']:] - self.C
         else:
             self.C = C
             self.YrA = noisyC - self.C
@@ -1675,8 +1601,8 @@ class CNMF(object):
             Yr = Yr - self.b.dot(self.f)
         Ab = HALS4shapes(Yr, Ab, Cf, iters=num_iter)
         if update_bck:
-            self.A = scipy.sparse.csc_matrix(Ab[:, self.gnb:])
-            self.b = Ab[:, :self.gnb]
+            self.A = scipy.sparse.csc_matrix(Ab[:, self.params.init['nb']:])
+            self.b = Ab[:, :self.params.init['nb']]
         else:
             self.A = scipy.sparse.csc_matrix(Ab)
 
@@ -1755,14 +1681,14 @@ class CNMF(object):
         """merges components
         """
         if thr is not None:
-            self.merge_thresh = thr
+            self.params.merging['thr'] = thr
         self.A, self.C, self.nr, self.merged_ROIs, self.S,\
         self.bl, self.c, self.neurons_sn, self.g =\
             merge_components(Y, self.A, self.b, self.C, self.f, self.S,
                              self.sn, self.params.temporal,
                              self.params.spatial, dview=self.dview,
                              bl=self.bl, c1=self.c1, sn=self.neurons_sn, 
-                             g=self.g, thr=self.merge_thresh, mx=mx,
+                             g=self.g, thr=self.params.merging['thr'], mx=mx,
                              fast_merge=fast_merge)
             
         return self
@@ -1771,7 +1697,7 @@ class CNMF(object):
         """Component initialization
         """
         self.update_options('init', kwargs)
-        if self.center_psf:
+        if self.params.init['center_psf']:
             self.Ain, self.Cin, self.b_in, self.f_in, self.center,\
             self.extra_1p = initialize_components(
                 Y, sn=sn, options_total=self.params.to_dict(),
@@ -1811,8 +1737,7 @@ class CNMF(object):
             logging.warning("The subdictionary you provided does not exist!")
         return self
 
-    def fit_online(self, fls, init_batch=200, epochs=1, motion_correct=True,
-                   thresh_fitness_raw=None, **kwargs):
+    def fit_online(self, fls, init_batch=200, epochs=1, motion_correct=True, **kwargs):
         """Implements the caiman online algorithm on the list of files fls. The
         files are taken in alpha numerical order and are assumed to each have
         the same number of frames (except the last one that can be shorter).
@@ -1831,9 +1756,6 @@ class CNMF(object):
 
         motion_correct: bool
             flag for performing motion correction
-
-        thresh_fitness_raw: float
-            threshold for trace SNR (leave to None for automatic computation)
 
         kwargs: dict
             additional parameters used to modify self.params.online']
@@ -1856,12 +1778,6 @@ class CNMF(object):
         for key in kwargs_new:
             if hasattr(self, key):
                 setattr(self, key, kwargs_new[key])
-        if thresh_fitness_raw is None:
-            thresh_fitness_raw = scipy.special.log_ndtr(
-                    -self.params.online['min_SNR']) *\
-                    self.params.online['N_samples_exceptionality']
-            self.thresh_fitness_raw = thresh_fitness_raw
-            self.params.online['thresh_fitness_raw'] = thresh_fitness_raw
         if isinstance(fls, str):
             fls = [fls]
         Y = caiman.load(fls[0], subindices=slice(0, init_batch,
@@ -1889,27 +1805,27 @@ class CNMF(object):
 
         if self.params.online['init_method'] == 'bare':
             self.A, self.b, self.C, self.f, self.YrA = bare_initialization(
-                    Y.transpose(1, 2, 0), gnb=self.gnb, k=self.k,
-                    gSig=self.gSig, return_object=False)
+                    Y.transpose(1, 2, 0), gnb=self.params.init['nb'], k=self.params.init['K'],
+                    gSig=self.params.init['gSig'], return_object=False)
             self.S = np.zeros_like(self.C)
             nr = self.C.shape[0]
-            self.g = np.array([-np.poly([0.9] * max(self.p, 1))[1:]
+            self.g = np.array([-np.poly([0.9] * max(self.params.preprocess['p'], 1))[1:]
                                for gg in np.ones(nr)])
             self.bl = np.zeros(nr)
             self.c1 = np.zeros(nr)
             self.neurons_sn = np.std(self.YrA, axis=-1)
             self.lam = np.zeros(nr)
         elif self.params.online['init_method'] == 'cnmf':
-            self.rf = None
+            self.params.patch['rf'] = None
             self.dview = None
             self.fit(np.array(Y))
         elif self.params.online['init_method'] == 'seeded':
             self.A, self.b, self.C, self.f, self.YrA = seeded_initialization(
-                    Y.transpose(1, 2, 0), self.Ain, gnb=self.gnb, k=self.k,
-                    gSig=self.gSig, return_object=False)
+                    Y.transpose(1, 2, 0), self.Ain, gnb=self.params.init['nb'], k=self.params.init['k'],
+                    gSig=self.params.init['gSig'], return_object=False)
             self.S = np.zeros_like(self.C)
             nr = self.C.shape[0]
-            self.g = np.array([-np.poly([0.9] * max(self.p, 1))[1:]
+            self.g = np.array([-np.poly([0.9] * max(self.params.preprocess['p'], 1))[1:]
                                for gg in np.ones(nr)])
             self.bl = np.zeros(nr)
             self.c1 = np.zeros(nr)
@@ -1954,7 +1870,7 @@ class CNMF(object):
                               ' frames have beeen processed in total. ' +
                               str(self.N - old_comps) +
                               ' new components were added. Total # of components is '
-                              + str(self.Ab.shape[-1] - self.gnb))
+                              + str(self.Ab.shape[-1] - self.params.init['nb']))
                         old_comps = self.N
 
                     frame_ = frame.copy().astype(np.float32)
@@ -1976,10 +1892,10 @@ class CNMF(object):
                     self.fit_next(t, frame_cor.reshape(-1, order='F'))
                     t += 1
             self.Ab_epoch.append(self.Ab.copy())
-        self.A, self.b = self.Ab[:, self.gnb:], self.Ab[:, :self.gnb].toarray()
-        self.C, self.f = self.C_on[self.gnb:self.M, t - t //
-                         epochs:t], self.C_on[:self.gnb, t - t // epochs:t]
-        noisyC = self.noisyC[self.gnb:self.M, t - t // epochs:t]
+        self.A, self.b = self.Ab[:, self.params.init['nb']:], self.Ab[:, :self.params.init['nb']].toarray()
+        self.C, self.f = self.C_on[self.params.init['nb']:self.M, t - t //
+                         epochs:t], self.C_on[:self.params.init['nb'], t - t // epochs:t]
+        noisyC = self.noisyC[self.params.init['nb']:self.M, t - t // epochs:t]
         self.YrA = noisyC - self.C
         self.bl = [osi.b for osi in self.OASISinstances] if hasattr(
             self, 'OASISinstances') else [0] * self.C.shape[0]
