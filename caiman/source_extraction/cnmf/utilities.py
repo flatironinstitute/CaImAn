@@ -334,7 +334,7 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], gSiz=None, ssub=2, tsub=2,
         # method for determining footprint of spatial components ('ellipse' or 'dilate')
         'method': 'dilate',  # 'ellipse', 'dilate',
         'dist': 3,                       # expansion factor of ellipse
-        # number of pixels to be processed by eacg worker
+        # number of pixels to be processed by each worker
         'n_pixels_per_process': n_pixels_per_process,
         # window of median filter
         'medw': (3,) * len(dims),
@@ -347,6 +347,10 @@ def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], gSiz=None, ssub=2, tsub=2,
         'se': np.ones((3,) * len(dims), dtype=np.uint8),
         # Binary element for determining connectivity
         'ss': np.ones((3,) * len(dims), dtype=np.uint8),
+        'expandCore': None,
+        'normalize_yyt_one': True,
+        'block_size': 1000,
+        'num_blocks_per_run': 20,        
         'nb': nb,                                      # number of background components
         # 'nnls_L0'. Nonnegative least square with L0 penalty
         'method_ls': 'lasso_lars',
