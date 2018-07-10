@@ -477,8 +477,6 @@ class CNMF(object):
                     except:
                         self.S, self.bl, self.c1, self.neurons_sn, self.g, self.YrA, self.W, self.b0 = self.extra_1p
                 else:
-                    import pdb
-                    #pdb.set_trace()
                     self.compute_residuals(Yr)
 #                    self.YrA = compute_residuals(
 #                        Yr, self.Ain, self.b_in, self.Cin, self.f_in,
@@ -521,9 +519,11 @@ class CNMF(object):
                 return self
 
             print('update spatial ...')
-#            A, b, Cin, self.f_in = update_spatial_components(Yr, C=self.Cin, f=self.f_in, b_in=self.b_in, A_in=self.Ain,
-#                                                             sn=sn, dview=self.dview, **options['spatial_params'])
+#            A, b, Cin, f_in = update_spatial_components(Yr, C=self.Cin, f=self.f_in, b_in=self.b_in, A_in=self.Ain,
+#                                                             sn=sn, dview=self.dview, **self.options['spatial_params'])
             self.update_spatial(Yr, use_init=True, dview=self.dview, **self.options['spatial_params'])
+            #import pdb
+            #pdb.set_trace()
 
             print('update temporal ...')
             if not self.skip_refinement:
@@ -665,20 +665,6 @@ class CNMF(object):
                 self.update_temporal(Yr, use_init=False, **self.options['temporal_params'])
 #                C, A, b, f, S, bl, c1, neurons_sn, g1, YrA, self.lam = update_temporal_components(
 #                    Yr, A, b, C, f, dview=self.dview, bl=None, c1=None, sn=None, g=None, **options['temporal_params'])
-
-#        if self.rf is not None:
-#            self.A = A
-#            self.C = C
-#            self.b = b
-#            self.f = f
-#            self.S = S
-#            self.YrA = YrA
-#            self.sn = sn
-#            self.g = g1
-#            self.bl = bl
-#            self.c1 = c1
-#            self.neurons_sn = neurons_sn
-#            self.dims = dims
 
         self.A, self.C, self.YrA, self.b, self.f, self.neurons_sn = normalize_AC(
             self.A, self.C, self.YrA, self.b, self.f, self.neurons_sn)
@@ -1818,8 +1804,9 @@ class CNMF(object):
         C = self.Cin if use_init else self.C
         f = self.f_in if use_init else self.f
         Ain = self.Ain if use_init else self.A
+        b_in = self.b_in if use_init else self.b_in
         self.A, self.b, C, f =\
-            update_spatial_components(Y, C=C, f=f, A_in=Ain, dview=self.dview,
+            update_spatial_components(Y, C=C, f=f, A_in=Ain, b_in=b_in, dview=self.dview,
                                       sn=self.sn, **self.options['spatial_params'])
         if use_init:
             self.Cin, self.f_in = C, f
