@@ -548,7 +548,10 @@ class CNMF(object):
         '''
         if '.hdf5' in filename:
             # keys_types = [(k, type(v)) for k, v in self.__dict__.items()]
+            ptpt = self.optional_outputs
+            self.optional_outputs = None
             save_dict_to_hdf5(self.__dict__, filename)
+            self.optional_outputs = ptpt
 
         else:
             raise Exception("Filename not supported")
