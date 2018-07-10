@@ -22,10 +22,12 @@ See Also:
 from __future__ import division
 from builtins import range
 import numpy as np
-from scipy.ndimage.filters import convolve
+from scipy.ndimage import convolve, generate_binary_structure
+from scipy.sparse import coo_matrix
 import cv2
 from caiman.source_extraction.cnmf.pre_processing import get_noise_fft
-
+import caiman as cm
+print('The above is a dangerous import that can create circular dependencies')
 #try:
 #    cv2.setNumThreads(0)
 #except:
@@ -172,6 +174,68 @@ def local_correlations_fft(Y, eight_neighbours=True, swap_dim=True, opencv=True,
         Cn = YYconv_rm / MASK
 
     return Cn
+
+def local_correlations_multicolor(Y, swap_dim=True, order_mean=1):
+    """Computes the correlation image with color depending on orientation
+
+    Parameters:
+    -----------
+
+    Y:  np.ndarray (3D or 4D)
+        Input movie data in 3D or 4D format
+
+
+    swap_dim: Boolean
+        True indicates that time is listed in the last axis of Y (matlab format)
+        and moves it in the front
+
+    Returns:
+    --------
+
+    rho: d1 x d2 [x d3] matrix, cross-correlation with adjacent pixels
+
+    """
+    if Y.ndim == 4:
+        raise Exception('Not Implemented')
+
+
+    if swap_dim:
+        Y = np.transpose(
+            Y, tuple(np.hstack((Y.ndim - 1, list(range(Y.ndim))[:-1]))))
+
+#    rho = np.zeros(np.shape(Y)[1:])
+    w_mov = (Y - np.mean(Y, axis=0)) / np.std(Y, axis=0)
+
+    rho_h = np.mean(np.multiply(w_mov[:, :-1, :], w_mov[:, 1:, :]), axis=0)
+    rho_w = np.mean(np.multiply(w_mov[:, :, :-1], w_mov[:, :, 1:]), axis=0)
+    rho_d1 = np.mean(np.multiply(w_mov[:, 1:, :-1], w_mov[:, :-1, 1:, ]), axis=0)
+    rho_d2 = np.mean(np.multiply(w_mov[:, :-1, :-1], w_mov[:, 1:, 1:, ]), axis=0)
+
+#    img = np.zeros(np.shape(Y)[1:]+(3,))
+#    rho = np.zeros(np.shape(Y)[1:])
+#    rho[:-1, :] = rho[:-1, :] + rho_h**(order_mean)
+#    rho[:, :-1] = rho[:, :-1] + rho_w**(order_mean)
+#    rho[:-1, :-1] = rho[:-1, :-1] + rho_d2**(order_mean)
+##    img[:,:,3] = rho.copy()
+#    rho = np.zeros(np.shape(Y)[1:])
+#    rho[1:, :] = rho[1:, :] + rho_h**(order_mean)
+#    rho[:, 1:] = rho[:, 1:] + rho_w**(order_mean)
+#    rho[1:, 1:] = rho[1:, 1:] + rho_d1**(order_mean)
+#    img[:,:,2] = rho.copy()
+#    rho = np.zeros(np.shape(Y)[1:])
+#    rho[:-1, :] = rho[:-1, :] + rho_h**(order_mean)
+#    rho[:, 1:] = rho[:, 1:] + rho_w**(order_mean)
+#    rho[:-1, 1:] = rho[:-1, 1:] + rho_d2**(order_mean)
+#    img[:,:,1] = rho.copy()
+#    rho = np.zeros(np.shape(Y)[1:])
+#    rho[1:, :] = rho[1:, :] + rho_h**(order_mean)
+#    rho[:, :-1] = rho[:, :-1] + rho_w**(order_mean)
+#    rho[1:, :-1] = rho[1:, :-1] + rho_d1**(order_mean)
+#    img[:,:,0] = rho.copy()
+#    return img
+
+#    return np.dstack([rho_w[:-1]/2 + rho_h[:,:-1]/2, rho_d1, rho_d2])
+    return np.dstack([rho_h[:,1:]/2, rho_d1/2, rho_d2/2])
 
 
 def local_correlations(Y, eight_neighbours=True, swap_dim=True, order_mean=1):
@@ -464,3 +528,219 @@ def map_corr(scan):
     num_frames = chunk.shape[-1]
 
     return chunk_sum, chunk_sqsum, chunk_xysum, num_frames
+
+
+def prepare_local_correlations(Y, swap_dim=False, eight_neighbours=False):
+    """Computes the correlation image and some statistics to updatre it online
+
+    Parameters:
+    -----------
+
+    Y:  np.ndarray (3D or 4D)
+        Input movie data in 3D or 4D format
+
+    swap_dim: Boolean
+        True indicates that time is listed in the last axis of Y (matlab format)
+        and moves it in the front
+
+    eight_neighbours: Boolean
+        Use 8 neighbors if true, and 4 if false for 3D data
+        Use 18 neighbors if true, and 6 if false for 4D data
+
+    """
+    if swap_dim:
+        Y = np.transpose(Y, (Y.ndim - 1,) + tuple(range(Y.ndim - 1)))
+
+    T = len(Y)
+    dims = Y.shape[1:]
+    Yr = Y.T.reshape(-1, T)
+    if Y.ndim == 4:
+        d1, d2, d3 = dims
+        sz = generate_binary_structure(3, 2 if eight_neighbours else 1)
+        sz[1, 1, 1] = 0
+    else:
+        d1, d2 = dims
+        if eight_neighbours:
+            sz = np.ones((3, 3), dtype='uint8')
+            sz[1, 1] = 0
+        else:
+            sz = np.array([[0, 1, 0], [1, 0, 1], [0, 1, 0]], dtype='uint8')
+
+    idx = [i - 1 for i in np.nonzero(sz)]
+
+    def get_indices_of_neighbors(pixel):
+        pixel = np.unravel_index(pixel, dims, order='F')
+        x = pixel[0] + idx[0]
+        y = pixel[1] + idx[1]
+        if len(dims) == 3:
+            z = pixel[2] + idx[2]
+            inside = (x >= 0) * (x < d1) * (y >= 0) * (y < d2) * (z >= 0) * (z < d3)
+            return np.ravel_multi_index((x[inside], y[inside], z[inside]), dims, order='F')
+        else:
+            inside = (x >= 0) * (x < d1) * (y >= 0) * (y < d2)
+            return np.ravel_multi_index((x[inside], y[inside]), dims, order='F')
+    # more compact but slower code
+    # idx = np.asarray([i - 1 for i in np.nonzero(sz)])
+    # def get_indices_of_neighbors(pixel):
+    #     pixel = np.asarray(np.unravel_index(pixel, dims, order='F'))
+    #     xyz = pixel[:, None] + idx
+    #     inside = np.all([(x >= 0) * (x < d) for (x, d) in zip(xyz, dims)], 0)
+    #     return np.ravel_multi_index(xyz[:, inside], dims, order='F')
+
+    N = [get_indices_of_neighbors(p) for p in range(np.prod(dims))]
+    col_ind = np.concatenate(N)
+    row_ind = np.concatenate([[i] * len(k) for i, k in enumerate(N)])
+    num_neigbors = np.concatenate([[len(k)] * len(k) for k in N]).astype(Yr.dtype)
+
+    first_moment = Yr.mean(1)
+    second_moment = (Yr**2).mean(1)
+    crosscorr = np.mean(Yr[row_ind] * Yr[col_ind], 1)
+    # slower for small T, less memory intensive, but memory not an issue:
+    # crosscorr = np.array([Yr[r_].dot(Yr[c_])
+    #                       for (r_, c_) in zip(row_ind, col_ind)]) / Yr.shape[1]
+    sig = np.sqrt(second_moment - first_moment**2)
+
+    M = coo_matrix(((crosscorr - first_moment[row_ind] * first_moment[col_ind]) /
+                    (sig[row_ind] * sig[col_ind]) / num_neigbors,
+                    (row_ind, col_ind)), dtype=Yr.dtype)
+    cn = M.dot(np.ones(M.shape[1], dtype=M.dtype)).reshape(dims, order='F')
+
+    return first_moment, second_moment, crosscorr, col_ind, row_ind, num_neigbors, M, cn
+
+
+def update_local_correlations(t, frames, first_moment, second_moment, crosscorr,
+                              col_ind, row_ind, num_neigbors, M, cn, del_frames=None):
+    """Updates sufficient statistics in place and returns correlation image"""
+    dims = frames.shape[1:]
+    stride = len(frames)
+    frames = frames.reshape((stride, -1), order='F')
+    if del_frames is None:
+        tmp = 1 - float(stride) / t
+        first_moment *= tmp
+        second_moment *= tmp
+        crosscorr *= tmp
+    else:
+        if stride > 10:
+            del_frames = del_frames.reshape((stride, -1), order='F')
+            first_moment -= del_frames.sum(0) / t
+            second_moment -= (del_frames**2).sum(0) / t
+            crosscorr -= np.sum(del_frames[:, row_ind] * del_frames[:, col_ind], 0) / t
+        else:  # loop is faster
+            for f in del_frames:
+                f = f.ravel(order='F')
+                first_moment -= f / t
+                second_moment -= (f**2) / t
+                crosscorr -= (f[row_ind] * f[col_ind]) / t
+    if stride > 10:
+        frames = frames.reshape((stride, -1), order='F')
+        first_moment += frames.sum(0) / t
+        second_moment += (frames**2).sum(0) / t
+        crosscorr += np.sum(frames[:, row_ind] * frames[:, col_ind], 0) / t
+    else:  # loop is faster
+        for f in frames:
+            f = f.ravel(order='F')
+            first_moment += f / t
+            second_moment += (f**2) / t
+            crosscorr += (f[row_ind] * f[col_ind]) / t
+    sig = np.sqrt(second_moment - first_moment**2)
+    M.data = ((crosscorr - first_moment[row_ind] * first_moment[col_ind]) /
+              (sig[row_ind] * sig[col_ind]) / num_neigbors)
+    cn = M.dot(np.ones(M.shape[1], dtype=M.dtype)).reshape(dims, order='F')
+    return cn
+
+
+def local_correlations_movie(file_name, tot_frames=None, fr=30, window=30, stride=1,
+                             swap_dim=False, eight_neighbours=True, mode='simple'):
+    """
+    Compute an online correlation image as moving average
+
+    Args:
+        Y:  string or np.ndarray (3D or 4D).
+            Input movie filename or data
+        tot_frames: int
+            Number of frames considered
+        fr: int
+            Frame rate
+        window: int
+            Window length in frames
+        stride: int
+            Stride length in frames
+        swap_dim: Boolean
+            True indicates that time is listed in the last axis of Y (matlab format)
+            and moves it in the front
+        eight_neighbours: Boolean
+            Use 8 neighbors if true, and 4 if false for 3D data
+            Use 18 neighbors if true, and 6 if false for 4D data
+        mode: 'simple', 'exponential', or 'cumulative'
+            Mode of moving average
+
+    Returns:
+        corr_movie: cm.movie (3D or 4D).
+            local correlation movie
+
+    """
+    Y = cm.load(file_name) if type(file_name) is str else file_name
+    Y = Y[..., :tot_frames] if swap_dim else Y[:tot_frames]
+    first_moment, second_moment, crosscorr, col_ind, row_ind, num_neigbors, M, cn = \
+        prepare_local_correlations(Y[..., :window] if swap_dim else Y[:window],
+                                   swap_dim=swap_dim, eight_neighbours=eight_neighbours)
+    if swap_dim:
+        Y = np.transpose(Y, (Y.ndim - 1,) + tuple(range(Y.ndim - 1)))
+    T = len(Y)
+    dims = Y.shape[1:]
+    corr_movie = np.zeros(((T - window) // stride + 1,) + dims, dtype=Y.dtype)
+    corr_movie[0] = cn
+    if mode == 'simple':
+        for tt in range((T - window) // stride):
+            corr_movie[tt + 1] = update_local_correlations(
+                window, Y[tt * stride + window:(tt + 1) * stride + window],
+                first_moment, second_moment, crosscorr,
+                col_ind, row_ind, num_neigbors, M, cn, Y[tt * stride:(tt + 1) * stride])
+    elif mode == 'exponential':
+        for tt, frames in enumerate(Y[window:window + (T - window) // stride * stride]
+                                    .reshape((-1, stride) + dims)):
+            corr_movie[tt + 1] = update_local_correlations(
+                window, frames, first_moment, second_moment, crosscorr,
+                col_ind, row_ind, num_neigbors, M, cn)
+    elif mode == 'cumulative':
+        for tt, frames in enumerate(Y[window:window + (T - window) // stride * stride]
+                                    .reshape((-1, stride) + dims)):
+            corr_movie[tt + 1] = update_local_correlations(
+                tt + window + 1, frames, first_moment, second_moment, crosscorr,
+                col_ind, row_ind, num_neigbors, M, cn)
+    else:
+        raise Exception('mode of the moving average must be simple, exponential or cumulative')
+    return cm.movie(corr_movie, fr=fr)
+
+def local_correlations_movie_offline(file_name, Tot_frames = None, fr = 10, window=30, stride = 3, swap_dim=True, eight_neighbours=True, order_mean = 1, ismulticolor = False, dview = None):
+        import caiman as cm
+
+        if Tot_frames is None:
+            Tot_frames = cm.load(file_name).shape[0]
+
+        params = [[file_name,range(j,j + window), eight_neighbours, swap_dim, order_mean, ismulticolor] for j in range(0,Tot_frames - window,stride)]
+        if dview is None:
+#            parallel_result = [self[j:j + window, :, :].local_correlations(
+#                    eight_neighbours=True,swap_dim=swap_dim, order_mean=order_mean)[np.newaxis, :, :] for j in range(T - window)]
+            parallel_result = list(map(local_correlations_movie_parallel,params))
+
+        else:
+            if 'multiprocessing' in str(type(dview)):
+                parallel_result = dview.map_async(
+                        local_correlations_movie_parallel, params).get(4294967)
+            else:
+                parallel_result = dview.map_sync(
+                    local_correlations_movie_parallel, params)
+                dview.results.clear()
+
+        mm = cm.movie(np.concatenate(parallel_result, axis=0),fr=fr)
+        return mm
+
+def local_correlations_movie_parallel(params):
+        import caiman as cm
+        mv_name, idx, eight_neighbours, swap_dim, order_mean, ismulticolor = params
+        mv = cm.load(mv_name,subindices=idx)
+        if ismulticolor:
+            return local_correlations_multicolor(mv,swap_dim=swap_dim, order_mean=order_mean)[None,:,:].astype(np.float32)
+        else:
+            return local_correlations(mv, eight_neighbours=eight_neighbours, swap_dim=swap_dim, order_mean=order_mean)[None,:,:].astype(np.float32)

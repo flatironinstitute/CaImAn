@@ -111,7 +111,7 @@ pipeline {
           steps {
             bat '%ANACONDA3%\\scripts\\conda info'
             bat '%ANACONDA3%\\scripts\\conda env create -q -f environment.yml -p %CONDA_ENV%'
-            bat '%ANACONDA3%\\scripts\\activate %CONDA_ENV% && pip install . && copy caimanmanager.py %TEMP% && cd %TEMP% && set "CAIMAN_DATA=%TEMP%\\caiman_data" && (if exist caiman_data (rmdir caiman_data /s /q) else (echo "Host is fresh")) && python caimanmanager.py install && python caimanmanager.py test'
+            bat '%ANACONDA3%\\scripts\\activate %CONDA_ENV% && pip install . && copy caimanmanager.py %TEMP% && cd %TEMP% && set "CAIMAN_DATA=%TEMP%\\caiman_data" && (if exist caiman_data (rmdir caiman_data /s /q && echo "Removed old caiman_data" ) else (echo "Host is fresh")) && python caimanmanager.py install --force && python caimanmanager.py test'
           }
         }
       }

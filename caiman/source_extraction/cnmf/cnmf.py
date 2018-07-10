@@ -36,19 +36,21 @@ from .merging import merge_components
 from .spatial import update_spatial_components
 from .temporal import update_temporal_components, constrained_foopsi_parallel
 from caiman.components_evaluation import estimate_components_quality_auto, select_components_from_metrics
+from caiman.motion_correction import motion_correct_iteration_fast
 from .map_reduce import run_CNMF_patches
 from .oasis import OASIS
 import caiman
 from caiman import components_evaluation, mmapping
 import cv2
-from .online_cnmf import RingBuffer, HALS4activity, demix_and_deconvolve, remove_components_online
-from .online_cnmf import init_shapes_and_sufficient_stats, update_shapes, update_num_components
+from .online_cnmf import RingBuffer, HALS4activity, HALS4shapes, demix_and_deconvolve, remove_components_online
+from .online_cnmf import init_shapes_and_sufficient_stats, update_shapes, update_num_components, bare_initialization, seeded_initialization
 import scipy
 import psutil
 import pylab as pl
 from time import time
 import logging
 import sys
+import inspect
 
 try:
     cv2.setNumThreads(0)
@@ -80,6 +82,10 @@ class CNMF(object):
     @author andrea giovannucci
     """
 
+    def __init__(self, params):
+        assert isinstance(params, CNMFSetParms), "Input must be instance of CNMFParams"
+
+
     def __init__(self, n_processes, k=5, gSig=[4, 4], gSiz=None, merge_thresh=0.8, p=2, dview=None,
                  Ain=None, Cin=None, b_in=None, f_in=None, do_merge=True,
                  ssub=2, tsub=2, p_ssub=1, p_tsub=1, method_init='greedy_roi', alpha_snmf=None,
@@ -96,8 +102,8 @@ class CNMF(object):
                  min_corr=.85, min_pnr=20, ring_size_factor=1.5,
                  center_psf=False, use_dense=True, deconv_flag=True,
                  simultaneously=False, n_refit=0, del_duplicates=False, N_samples_exceptionality=5,
-                 max_num_added=1, min_num_trial=2, thresh_CNN_noisy=0.99,
-                 ssub_B=2, init_iter=2):
+                 max_num_added=1, min_num_trial=2, thresh_CNN_noisy=0.5,
+                 fr=30, decay_time=0.4, min_SNR=2.5, ssub_B=2, init_iter=2):
         """
         Constructor of the CNMF method
 
@@ -329,6 +335,9 @@ class CNMF(object):
         self.max_num_added = max_num_added
         self.min_num_trial = min_num_trial
         self.thresh_CNN_noisy = thresh_CNN_noisy
+        self.fr = fr
+        self.min_SNR = min_SNR
+        self.decay_time = decay_time
 
         self.min_corr = min_corr
         self.min_pnr = min_pnr
@@ -337,7 +346,7 @@ class CNMF(object):
         self.nb_patch = nb_patch
         self.del_duplicates = del_duplicates
 
-        self.options = CNMFSetParms((1, 1, 1), n_processes, p=p, gSig=gSig, gSiz=gSiz,
+        self.params = CNMFSetParms((1, 1, 1), n_processes, p=p, gSig=gSig, gSiz=gSiz,
                                     K=k, ssub=ssub, tsub=tsub,
                                     p_ssub=p_ssub, p_tsub=p_tsub, method_init=method_init,
                                     n_pixels_per_process=n_pixels_per_process,
@@ -350,10 +359,12 @@ class CNMF(object):
                                     rolling_sum=self.rolling_sum,
                                     min_corr=min_corr, min_pnr=min_pnr,
                                     ring_size_factor=ring_size_factor, center_psf=center_psf,
+                                    fr=fr, min_SNR=min_SNR, decay_time=decay_time,
                                     ssub_B=ssub_B, init_iter=init_iter)
-        self.options['merging']['thr'] = merge_thresh
-        self.options['temporal_params']['s_min'] = s_min
-        
+        self.params.merging['thr'] = merge_thresh
+        self.params.temporal['s_min'] = s_min
+        self.options = self.params.to_dict()
+
 
     def fit(self, images):
         """
@@ -402,14 +413,14 @@ class CNMF(object):
 
         # update/set all options that depend on data dimensions
         # number of rows, columns [and depths]
-        self.options['spatial_params']['dims'] = dims
-        self.options['spatial_params']['medw'] = (
+        self.params.spatial['dims'] = dims
+        self.params.spatial['medw'] = (
             3,) * len(dims)  # window of median filter
         # Morphological closing structuring element
-        self.options['spatial_params']['se'] = np.ones(
+        self.params.spatial['se'] = np.ones(
             (3,) * len(dims), dtype=np.uint8)
         # Binary element for determining connectivity
-        self.options['spatial_params']['ss'] = np.ones(
+        self.params.spatial['ss'] = np.ones(
             (3,) * len(dims), dtype=np.uint8)
 
         print(('using ' + str(self.n_processes) + ' processes'))
@@ -421,8 +432,8 @@ class CNMF(object):
                 avail_memory_per_process / 8. / mem_per_pix / T)
             self.n_pixels_per_process = np.int(np.minimum(
                 self.n_pixels_per_process, np.prod(dims) // self.n_processes))
-        self.options['preprocess_params']['n_pixels_per_process'] = self.n_pixels_per_process
-        self.options['spatial_params']['n_pixels_per_process'] = self.n_pixels_per_process
+        self.params.preprocess['n_pixels_per_process'] = self.n_pixels_per_process
+        self.params.spatial['n_pixels_per_process'] = self.n_pixels_per_process
 
 #        if self.block_size is None:
 #            self.block_size = self.n_pixels_per_process
@@ -432,32 +443,30 @@ class CNMF(object):
 
         # number of pixels to process at the same time for dot product. Make it
         # smaller if memory problems
-        self.options['temporal_params']['block_size'] = self.block_size
-        self.options['temporal_params']['num_blocks_per_run'] = self.num_blocks_per_run
-        self.options['spatial_params']['block_size'] = self.block_size
-        self.options['spatial_params']['num_blocks_per_run'] = self.num_blocks_per_run
+        self.params.temporal['block_size'] = self.block_size
+        self.params.temporal['num_blocks_per_run'] = self.num_blocks_per_run
+        self.params.spatial['block_size'] = self.block_size
+        self.params.spatial['num_blocks_per_run'] = self.num_blocks_per_run
 
         print(('using ' + str(self.n_pixels_per_process) + ' pixels per process'))
         print(('using ' + str(self.block_size) + ' block_size'))
 
-        options = self.options
-
         if self.rf is None:  # no patches
             print('preprocessing ...')
             Yr, sn, g, psx = preprocess_data(
-                Yr, dview=self.dview, **options['preprocess_params'])
+                Yr, dview=self.dview, **self.params.preprocess)
 
             if self.Ain is None:
                 print('initializing ...')
                 if self.alpha_snmf is not None:
-                    options['init_params']['alpha_snmf'] = self.alpha_snmf
+                    self.params.init['alpha_snmf'] = self.alpha_snmf
 
                 if self.center_psf:
                     self.Ain, self.Cin, self.b_in, self.f_in, center, extra_1p = initialize_components(
-                        Y, sn=sn, options_total=options, **options['init_params'])
+                        Y, sn=sn, options_total=self.params.to_dict(), **self.params.init)
                 else:
                     self.Ain, self.Cin, self.b_in, self.f_in, center = initialize_components(
-                        Y, sn=sn, options_total=options, **options['init_params'])
+                        Y, sn=sn, options_total=self.params.to_dict(), **self.params.init)
 
             if self.only_init:  # only return values after initialization
 
@@ -509,38 +518,38 @@ class CNMF(object):
 
             print('update spatial ...')
             A, b, Cin, self.f_in = update_spatial_components(Yr, C=self.Cin, f=self.f_in, b_in=self.b_in, A_in=self.Ain,
-                                                             sn=sn, dview=self.dview, **options['spatial_params'])
+                                                             sn=sn, dview=self.dview, **self.params.spatial)
 
             print('update temporal ...')
             if not self.skip_refinement:
                 # set this to zero for fast updating without deconvolution
-                options['temporal_params']['p'] = 0
+                self.params.temporal['p'] = 0
             else:
-                options['temporal_params']['p'] = self.p
+                self.params.temporal['p'] = self.p
             print('deconvolution ...')
-            options['temporal_params']['method'] = self.method_deconvolution
+            self.params.temporal['method'] = self.method_deconvolution
 
             C, A, b, f, S, bl, c1, neurons_sn, g, YrA, lam = update_temporal_components(
-                Yr, A, b, Cin, self.f_in, dview=self.dview, **options['temporal_params'])
+                Yr, A, b, Cin, self.f_in, dview=self.dview, **self.params.temporal)
 
             if not self.skip_refinement:
                 print('refinement...')
                 if self.do_merge:
                     print('merge components ...')
                     A, C, nr, merged_ROIs, S, bl, c1, sn1, g1 = merge_components(
-                        Yr, A, b, C, f, S, sn, options[
-                            'temporal_params'], options['spatial_params'],
+                        Yr, A, b, C, f, S, sn, self.params.temporal,
+                            self.params.spatial,
                         dview=self.dview, bl=bl, c1=c1, sn=neurons_sn, g=g, thr=self.merge_thresh,
                         mx=50, fast_merge=True)
                 print((A.shape))
                 print('update spatial ...')
                 A, b, C, f = update_spatial_components(
-                    Yr, C=C, f=f, A_in=A, sn=sn, b_in=b, dview=self.dview, **options['spatial_params'])
+                    Yr, C=C, f=f, A_in=A, sn=sn, b_in=b, dview=self.dview, **self.params.spatial)
                 # set it back to original value to perform full deconvolution
-                options['temporal_params']['p'] = self.p
+                self.params.temporal['p'] = self.p
                 print('update temporal ...')
                 C, A, b, f, S, bl, c1, neurons_sn, g1, YrA, lam = update_temporal_components(
-                    Yr, A, b, C, f, dview=self.dview, bl=None, c1=None, sn=None, g=None, **options['temporal_params'])
+                    Yr, A, b, C, f, dview=self.dview, bl=None, c1=None, sn=None, g=None, **self.params.temporal)
             else:
                 g1 = g
                 # todo : ask for those..
@@ -558,13 +567,13 @@ class CNMF(object):
                     'You need to provide a memory mapped file as input if you use patches!!')
 
             if self.only_init:
-                options['patch_params']['only_init'] = True
+                self.params.patch['only_init'] = True
 
             if self.alpha_snmf is not None:
-                options['init_params']['alpha_snmf'] = self.alpha_snmf
+                self.params.init['alpha_snmf'] = self.alpha_snmf
 
             A, C, YrA, b, f, sn, optional_outputs = run_CNMF_patches(images.filename, dims + (T,),
-                                                                     options, rf=self.rf, stride=self.stride,
+                                                                     self.params.to_dict(), rf=self.rf, stride=self.stride,
                                                                      dview=self.dview, memory_fact=self.memory_fact,
                                                                      gnb=self.gnb, border_pix=self.border_pix,
                                                                      low_rank_background=self.low_rank_background,
@@ -574,14 +583,14 @@ class CNMF(object):
             #                        -1], thr=self.merge_thresh, n_pixels_per_process=self.n_pixels_per_process,
             #                        block_size=self.block_size, check_nan=self.check_nan)
 
-            # options['temporal_params']['method'] = self.method_deconvolution
+            # self.params.temporal['method'] = self.method_deconvolution
 
 
-#            options['spatial_params']['se'] = np.ones((1,) * len(dims), dtype=np.uint8)
-#            options['spatial_params']['update_background_components'] = True
+#            self.params.spatial['se'] = np.ones((1,) * len(dims), dtype=np.uint8)
+#            self.params.spatial['update_background_components'] = True
 #            print('update spatial ...')
 #            A, b, C, f = update_spatial_components(
-#                    Yr, C = C, f = f, A_in = A, sn=sn, b_in = b, dview=self.dview, **options['spatial_params'])
+#                    Yr, C = C, f = f, A_in = A, sn=sn, b_in = b, dview=self.dview, **self.params.spatial)
 
             if self.center_psf:  # merge taking best neuron
                 if self.nb_patch > 0:
@@ -590,33 +599,33 @@ class CNMF(object):
                     while len(merged_ROIs) > 0:
                         A, C, nr, merged_ROIs, S, bl, c1, sn_n, g = merge_components(
                             Yr, A, [], np.array(C), [], np.array(C), [],
-                            options['temporal_params'], options['spatial_params'],
+                            self.params.temporal, self.params.spatial,
                             dview=self.dview, thr=self.merge_thresh, mx=np.Inf, fast_merge=True)
 
                     print("update temporal")
                     C, A, b, f, S, bl, c1, neurons_sn, g1, YrA, lam = update_temporal_components(
                         Yr, A, b, C, f, dview=self.dview, bl=None, c1=None, sn=None, g=None,
-                        **options['temporal_params'])
+                        **self.params.temporal)
 
-                    options['spatial_params']['se'] = np.ones(
+                    self.params.spatial['se'] = np.ones(
                         (1,) * len(dims), dtype=np.uint8)
-    #                options['spatial_params']['update_background_components'] = True
+    #                self.params.spatial['update_background_components'] = True
                     print('update spatial ...')
                     A, b, C, f = update_spatial_components(
                         Yr, C=C, f=f, A_in=A, sn=sn, b_in=b, dview=self.dview,
-                        **options['spatial_params'])
+                        **self.params.spatial)
 
                     print("update temporal")
                     C, A, b, f, S, bl, c1, neurons_sn, g1, YrA, lam = update_temporal_components(
                         Yr, A, b, C, f, dview=self.dview, bl=None, c1=None, sn=None, g=None,
-                        **options['temporal_params'])
+                        **self.params.temporal)
                 else:
                     print("merging")
                     merged_ROIs = [0]
                     while len(merged_ROIs) > 0:
                         A, C, nr, merged_ROIs, S, bl, c1, neurons_sn, g1 = merge_components(
                             Yr, A, [], np.array(C), [], np.array(C), [],
-                            options['temporal_params'], options['spatial_params'],
+                            self.params.temporal, self.params.spatial,
                             dview=self.dview, thr=self.merge_thresh, mx=np.Inf, fast_merge=True)
                         if len(merged_ROIs) > 0:
                             not_merged = np.setdiff1d(list(range(len(YrA))),
@@ -629,13 +638,14 @@ class CNMF(object):
                 merged_ROIs = [0]
                 while len(merged_ROIs) > 0:
                     A, C, nr, merged_ROIs, S, bl, c1, sn_n, g = merge_components(Yr, A, [], np.array(C), [], np.array(
-                        C), [], options['temporal_params'], options['spatial_params'], dview=self.dview,
+                        C), [], self.params.temporal, self.params.spatial, dview=self.dview,
                         thr=self.merge_thresh, mx=np.Inf)
 
                 print("update temporal")
                 C, A, b, f, S, bl, c1, neurons_sn, g1, YrA, self.lam = update_temporal_components(
-                    Yr, A, b, C, f, dview=self.dview, bl=None, c1=None, sn=None, g=None, **options['temporal_params'])
+                    Yr, A, b, C, f, dview=self.dview, bl=None, c1=None, sn=None, g=None, **self.params.temporal)
 
+        self.options = self.params.to_dict()
         self.A = A
         self.C = C
         self.b = b
@@ -659,7 +669,7 @@ class CNMF(object):
                         bl=None, use_dense=True, N_samples_exceptionality=5,
                         max_num_added=1, min_num_trial=1, path_to_model=None,
                         sniper_mode=False, use_peak_max=False,
-                        test_both=False, q=0.5):
+                        test_both=False, q=0.5, **kwargs):
 
         if idx_components is None:
             idx_components = range(self.A.shape[-1])
@@ -759,7 +769,8 @@ class CNMF(object):
                 self.C_on[i, :self.initbatch] = o.c
         else:
             self.C_on[:self.N, :self.initbatch] = self.C2
-
+        import pdb
+        #pdb.set_trace()
         self.Ab, self.ind_A, self.CY, self.CC = init_shapes_and_sufficient_stats(
             Yr[:, :self.initbatch].reshape(
                 self.dims2 + (-1,), order='F'), self.A2,
@@ -1211,20 +1222,70 @@ class CNMF(object):
         self.b = self.b * nB_inv_mat
         self.f = nB_mat * self.f
 
-    def view_patches(self, Yr, dims, img=None, idx=None):
+    def plot_contours(self, img=None, idx=None, crd=None, thr_method='max',
+                      thr='0.2'):
+        """view contour plots for each spatial footprint. 
+        Parameters:
+        -----------
+        img :   np.ndarray
+                background image for contour plotting. Default is the mean
+                image of all spatial components (d1 x d2)
+        idx :   list
+                list of accepted components
+
+        crd :   list
+                list of coordinates (if empty they are computed)
+
+        thr_method : str
+                     thresholding method for computing contours ('max', 'nrg')
+
+        thr : float
+                threshold value
+        """
+        if 'csc_matrix' not in str(type(self.A)):
+            self.A = scipy.sparse.csc_matrix(self.A)
+        if img is None:
+            img = np.reshape(np.array(self.A.mean(1)), self.dims, order='F')
+        if not hasattr(self, 'coordinates'):
+            self.coordinates = caiman.utils.visualization.get_contours(self.A, self.dims, thr=thr, thr_method=thr_method)
+        pl.figure()
+        if idx is None:
+            caiman.utils.visualization.plot_contours(self.A, img, coordinates=self.coordinates)
+        else:
+            if not isinstance(idx, list):
+                idx = idx.tolist()
+            coor_g = [self.coordinates[cr] for cr in idx]
+            bad = list(set(range(self.A.shape[1])) - set(idx))
+            coor_b = [self.coordinates[cr] for cr in bad]
+            pl.subplot(1, 2, 1)
+            caiman.utils.visualization.plot_contours(self.A[:, idx], img,
+                                                     coordinates=coor_g)
+            pl.title('Accepted Components')
+            bad = list(set(range(self.A.shape[1])) - set(idx))
+            pl.subplot(1, 2, 2)
+            caiman.utils.visualization.plot_contours(self.A[:, bad], img,
+                                                     coordinates=coor_b)
+            pl.title('Rejected Components')
+        return self
+
+    def view_components(self, Yr, dims, img=None, idx=None):
         """view spatial and temporal components interactively
 
-         Parameters:
-         -----------
-         Yr :    np.ndarray
-                 movie in format pixels (d) x frames (T)
+        Parameters:
+        -----------
+        Yr :    np.ndarray
+                movie in format pixels (d) x frames (T)
 
-         dims :  tuple
-                 dimensions of the FOV
+        dims :  tuple
+                dimensions of the FOV
 
-         img :   np.ndarray
-                 background image for contour plotting. Default is the mean 
-                 image of all spatial components (d1 x d2)
+        img :   np.ndarray
+                background image for contour plotting. Default is the mean
+                image of all spatial components (d1 x d2)
+
+        idx :   list
+                list of components to be plotted
+
 
         """
         if 'csc_matrix' not in str(type(self.A)):
@@ -1234,7 +1295,6 @@ class CNMF(object):
 
         pl.ion()
         nr, T = self.C.shape
-        #nb = self.f.shape[0]
 
         if self.YrA is None:
             self.compute_residuals(Yr)
@@ -1242,9 +1302,9 @@ class CNMF(object):
         if img is None:
             img = np.reshape(np.array(self.A.mean(axis=1)), dims, order='F')
 
-        if idx is  None:
-            caiman.utils.visualization.view_patches_bar(Yr, self.A, self.C, self.b, self.f, dims[
-                                                    0], dims[1], YrA=self.YrA, img=img)
+        if idx is None:
+            caiman.utils.visualization.view_patches_bar(Yr, self.A, self.C,
+                    self.b, self.f, dims[0], dims[1], YrA=self.YrA, img=img)
         else:
             caiman.utils.visualization.view_patches_bar(Yr, self.A.tocsc()[:,idx], self.C[idx], self.b, self.f, dims[
                                                     0], dims[1], YrA=self.YrA[idx], img=img)
@@ -1301,9 +1361,9 @@ class CNMF(object):
 
         p = self.p if p is None else p
         method = self.method_deconvolution if method is None else method
-        bas_nonneg = (self.options['temporal_params']['bas_nonneg']
+        bas_nonneg = (self.params.temporal['bas_nonneg']
                       if bas_nonneg is None else bas_nonneg)
-        noise_method = (self.options['temporal_params']['noise_method']
+        noise_method = (self.params.temporal['noise_method']
                         if noise_method is None else noise_method)
         s_min = self.s_min if s_min is None else s_min
 
@@ -1315,8 +1375,8 @@ class CNMF(object):
         args['noise_method'] = noise_method
         args['s_min'] = s_min
         args['optimize_g'] = optimize_g
-        args['noise_range'] = self.options['temporal_params']['noise_range']
-        args['fudge_factor'] = self.options['temporal_params']['fudge_factor']
+        args['noise_range'] = self.params.temporal['noise_range']
+        args['fudge_factor'] = self.params.temporal['fudge_factor']
 
         args_in = [(F[jj], None, jj, None, None, None, None,
                     args) for jj in range(F.shape[0])]
@@ -1350,7 +1410,7 @@ class CNMF(object):
         """Computes the quality metrics for each component and stores the
         indeces of the components that pass user specified thresholds. The
         various thresholds and parameters can be passed as inputs. If left
-        empty then they are read from self.options['quality']
+        empty then they are read from self.params.quality']
         Parameters:
         -----------
         imgs: np.array (possibly memory mapped, t,x,y[,z])
@@ -1389,16 +1449,16 @@ class CNMF(object):
                 CNN classifier values for each component
         """
         dims = imgs.shape[1:]
-        fr = self.options['quality']['fr'] if fr is None else fr
-        decay_time = (self.options['quality']['decay_time']
+        fr = self.params.quality['fr'] if fr is None else fr
+        decay_time = (self.params.quality['decay_time']
                       if decay_time is None else decay_time)
-        min_SNR = (self.options['quality']['min_SNR']
+        min_SNR = (self.params.quality['min_SNR']
                    if min_SNR is None else min_SNR)
-        rval_thr = (self.options['quality']['rval_thr']
+        rval_thr = (self.params.quality['rval_thr']
                     if rval_thr is None else rval_thr)
-        use_cnn = (self.options['quality']['use_cnn']
+        use_cnn = (self.params.quality['use_cnn']
                    if use_cnn is None else use_cnn)
-        min_cnn_thr = (self.options['quality']['min_cnn_thr']
+        min_cnn_thr = (self.params.quality['min_cnn_thr']
                        if min_cnn_thr is None else min_cnn_thr)
 
         idx_components, idx_components_bad, SNR_comp, r_values, cnn_preds = \
@@ -1474,24 +1534,24 @@ class CNMF(object):
                 CNN classifier values for each component
         """
         dims = imgs.shape[1:]
-        fr = self.options['quality']['fr'] if fr is None else fr
-        decay_time = (self.options['quality']['decay_time']
+        fr = self.params.quality['fr'] if fr is None else fr
+        decay_time = (self.params.quality['decay_time']
                       if decay_time is None else decay_time)
-        min_SNR = (self.options['quality']['min_SNR']
+        min_SNR = (self.params.quality['min_SNR']
                    if min_SNR is None else min_SNR)
-        SNR_lowest = (self.options['quality']['SNR_lowest']
+        SNR_lowest = (self.params.quality['SNR_lowest']
                       if SNR_lowest is None else SNR_lowest)
-        rval_thr = (self.options['quality']['rval_thr']
+        rval_thr = (self.params.quality['rval_thr']
                     if rval_thr is None else rval_thr)
-        rval_lowest = (self.options['quality']['rval_lowest']
+        rval_lowest = (self.params.quality['rval_lowest']
                        if rval_lowest is None else rval_lowest)
-        use_cnn = (self.options['quality']['use_cnn']
+        use_cnn = (self.params.quality['use_cnn']
                    if use_cnn is None else use_cnn)
-        min_cnn_thr = (self.options['quality']['min_cnn_thr']
+        min_cnn_thr = (self.params.quality['min_cnn_thr']
                        if min_cnn_thr is None else min_cnn_thr)
-        cnn_lowest = (self.options['quality']['cnn_lowest']
+        cnn_lowest = (self.params.quality['cnn_lowest']
                       if cnn_lowest is None else cnn_lowest)
-        gSig_range = (self.options['quality']['gSig_range']
+        gSig_range = (self.params.quality['gSig_range']
                       if gSig_range is None else gSig_range)
 
         if not hasattr(self, 'idx_components'):
@@ -1515,7 +1575,8 @@ class CNMF(object):
 
     def play_movie(self, imgs, q_max=99.75, q_min=2, gain_res=1,
                    magnification=1, include_bck=True,
-                   frame_range=slice(None)):
+                   frame_range=slice(None, None, None)):
+
         """Displays a movie with three panels (original data (left panel),
         reconstructed data (middle panel), residual (right panel))
         Parameters:
@@ -1562,10 +1623,317 @@ class CNMF(object):
             B = B.reshape(dims + (-1,), order='F').transpose([2, 0, 1])
         else:
             B = np.zeros_like(Y_rec)
-        imgs = imgs[:, self.border_pix:-self.border_pix, self.border_pix:-self.border_pix]
-        B = B[:, self.border_pix:-self.border_pix, self.border_pix:-self.border_pix]
-        Y_rec = Y_rec[:, self.border_pix:-self.border_pix, self.border_pix:-self.border_pix]
+        if self.border_pix > 0:
+            imgs = imgs[:, self.border_pix:-self.border_pix, self.border_pix:-self.border_pix]
+            B = B[:, self.border_pix:-self.border_pix, self.border_pix:-self.border_pix]
+            Y_rec = Y_rec[:, self.border_pix:-self.border_pix, self.border_pix:-self.border_pix]
+
         Y_res = imgs[frame_range] - Y_rec - B
+
+        
         caiman.concatenate((imgs[frame_range] - (not include_bck)*B, Y_rec + include_bck*B, Y_res*gain_res), axis=2).play(q_min=q_min, q_max=q_max, magnification=magnification)
 
+        return self
+
+    def HALS4traces(self, Yr, groups=None, use_groups=False, order=None,
+                    update_bck=True, bck_non_neg=True, **kwargs):
+        """Solves C, f = argmin_C ||Yr-AC-bf|| using block-coordinate decent.
+        Can use groups to update non-overlapping components in parallel or a
+        specified order.
+
+        Parameters
+        ----------
+        Yr : np.array (possibly memory mapped, (x,y,[,z]) x t)
+            Imaging data reshaped in matrix format
+
+        groups : list of sets
+            grouped components to be updated simultaneously
+
+        use_groups : bool
+            flag for using groups
+
+        order : list
+            Update components in that order (used if nonempty and groups=None)
+
+        update_bck : bool
+            Flag for updating temporal background components
+
+        bck_non_neg : bool
+            Require temporal background to be non-negative
+
+        Output:
+        -------
+        self (updated values for self.C, self.f, self.YrA)
+        """
+        if update_bck:
+            Ab = scipy.sparse.hstack([self.b, self.A]).tocsc()
+            try:
+                Cf = np.vstack([self.f, self.C + self.YrA])
+            except():
+                Cf = np.vstack([self.f, self.C])
+        else:
+            Ab = self.A
+            try:
+                Cf = self.C + self.YrA
+            except():
+                Cf = self.C
+            Yr = Yr - self.b.dot(self.f)
+        if (groups is None) and use_groups:
+            groups = list(map(list, update_order(Ab)[0]))
+        self.groups = groups
+        C, noisyC = HALS4activity(Yr, Ab, Cf, groups=self.groups, order=order,
+                                  **kwargs)
+        if update_bck:
+            if bck_non_neg:
+                self.f = C[:self.gnb]
+            else:
+                self.f = noisyC[:self.gnb]
+            self.C = C[self.gnb:]
+            self.YrA = noisyC[self.gnb:] - self.C
+        else:
+            self.C = C
+            self.YrA = noisyC - self.C
+        return self
+
+    def HALS4footprints(self, Yr, update_bck=True, num_iter=2):
+        """Uses hierarchical alternating least squares to update shapes and
+        background
+        Parameters:
+        -----------
+        Yr: np.array (possibly memory mapped, (x,y,[,z]) x t)
+            Imaging data reshaped in matrix format
+
+        update_bck: bool
+            flag for updating spatial background components
+
+        num_iter: int
+            number of iterations
+
+        Returns:
+        --------
+        self (updated values for self.A and self.b)
+        """
+        if update_bck:
+            Ab = np.hstack([self.b, self.A.toarray()])
+            try:
+                Cf = np.vstack([self.f, self.C + self.YrA])
+            except():
+                Cf = np.vstack([self.f, self.C])
+        else:
+            Ab = self.A.toarray()
+            try:
+                Cf = self.C + self.YrA
+            except():
+                Cf = self.C
+            Yr = Yr - self.b.dot(self.f)
+        Ab = HALS4shapes(Yr, Ab, Cf, iters=num_iter)
+        if update_bck:
+            self.A = scipy.sparse.csc_matrix(Ab[:, self.gnb:])
+            self.b = Ab[:, :self.gnb]
+        else:
+            self.A = scipy.sparse.csc_matrix(Ab)
+
+        return self
+
+    def update_options(self, subdict, kwargs):
+        """modifies a specified subdictionary in self.params.options. If a specified
+        parameter does not exist it gets created.
+        Parameters:
+        -----------
+        subdict: string
+            Name of subdictionary ('patch_params', 'preprocess_params',
+                                   'init_params', 'spatial_params', 'merging',
+                                   'temporal_params', 'quality', 'online')
+
+        kwargs: dict
+            Dictionary with parameters to be modified
+
+        Returns:
+        --------
+        self (updated values for self.A and self.b)
+        """
+        if subdict in self.params.options:
+            for key in kwargs:
+                # TODO fix this
+                self.params.options[subdict][key] = kwargs[key]
+                if key not in self.params.options[subdict]:
+                    logging.warning("The key %s you provided does not exist! Adding it anyway..", key)
+        else:
+            logging.warning("The subdictionary you provided does not exist!")
+        return self
+
+    def fit_online(self, fls, init_batch=200, epochs=1, motion_correct=True,
+                   thresh_fitness_raw=None, **kwargs):
+        """Implements the caiman online algorithm on the list of files fls. The
+        files are taken in alpha numerical order and are assumed to each have
+        the same number of frames (except the last one that can be shorter).
+        Caiman online is initialized using the seeded or bare initialization
+        methods.
+        Parameters:
+        -----------
+        fls: list
+            list of files to be processed
+
+        init_batch: int
+            number of frames to be processed during initialization
+
+        epochs: int
+            number of passes over the data
+
+        motion_correct: bool
+            flag for performing motion correction
+
+        thresh_fitness_raw: float
+            threshold for trace SNR (leave to None for automatic computation)
+
+        kwargs: dict
+            additional parameters used to modify self.params.online']
+            see options.['online'] for details
+
+        Returns:
+        --------
+        self (results of caiman online)
+        """
+        lc = locals()
+        pr = inspect.signature(self.fit_online)
+        params = [k for k, v in pr.parameters.items() if '=' in str(v)]
+        kw2 = {k: lc[k] for k in params}
+        try:
+            kwargs_new = {**kw2, **kwargs}
+        except():  # python 2.7
+            kwargs_new = kw2.copy()
+            kwargs_new.update(kwargs)
+        self.update_options('online', kwargs_new)
+        for key in kwargs_new:
+            if hasattr(self, key):
+                setattr(self, key, kwargs_new[key])
+        if thresh_fitness_raw is None:
+            thresh_fitness_raw = scipy.special.log_ndtr(
+                    -self.params.online['min_SNR']) *\
+                    self.params.online['N_samples_exceptionality']
+            self.thresh_fitness_raw = thresh_fitness_raw
+            self.params.online['thresh_fitness_raw'] = thresh_fitness_raw
+        if isinstance(fls, str):
+            fls = [fls]
+        Y = caiman.load(fls[0], subindices=slice(0, init_batch,
+                        None)).astype(np.float32)
+        ds_factor = np.maximum(self.params.online['ds_factor'], 1)
+        if ds_factor > 1:
+            Y.resize(1./ds_factor)
+        mc_flag = self.params.online['motion_correct']
+        shifts = []  # store motion shifts here
+        time_new_comp = []
+        if mc_flag:
+            max_shifts = self.params.online['max_shifts']
+            mc = Y.motion_correct(max_shifts, max_shifts)
+            Y = mc[0].astype(np.float32)
+            shifts.extend(mc[1])
+
+        img_min = Y.min()
+        Y -= img_min
+        img_norm = np.std(Y, axis=0)
+        img_norm += np.median(img_norm)  # normalize data to equalize the FOV
+        Y = Y/img_norm[None, :, :]
+
+        _, d1, d2 = Y.shape
+        Yr = Y.to_2D().T        # convert data into 2D array
+
+        if self.params.online['init_method'] == 'bare':
+            self.A, self.b, self.C, self.f, self.YrA = bare_initialization(
+                    Y.transpose(1, 2, 0), gnb=self.gnb, k=self.k,
+                    gSig=self.gSig, return_object=False)
+            self.S = np.zeros_like(self.C)
+            nr = self.C.shape[0]
+            self.g = np.array([-np.poly([0.9] * max(self.p, 1))[1:]
+                               for gg in np.ones(nr)])
+            self.bl = np.zeros(nr)
+            self.c1 = np.zeros(nr)
+            self.neurons_sn = np.std(self.YrA, axis=-1)
+            self.lam = np.zeros(nr)
+        elif self.params.online['init_method'] == 'cnmf':
+            self.rf = None
+            self.dview = None
+            self.fit(np.array(Y))
+        elif self.params.online['init_method'] == 'seeded':
+            self.A, self.b, self.C, self.f, self.YrA = seeded_initialization(
+                    Y.transpose(1, 2, 0), self.Ain, gnb=self.gnb, k=self.k,
+                    gSig=self.gSig, return_object=False)
+            self.S = np.zeros_like(self.C)
+            nr = self.C.shape[0]
+            self.g = np.array([-np.poly([0.9] * max(self.p, 1))[1:]
+                               for gg in np.ones(nr)])
+            self.bl = np.zeros(nr)
+            self.c1 = np.zeros(nr)
+            self.neurons_sn = np.std(self.YrA, axis=-1)
+            self.lam = np.zeros(nr)
+        else:
+            raise Exception('Unknown initialization method!')
+        self.dims = Y.shape[1:]
+        self.initbatch = init_batch
+        epochs = self.params.online['epochs']
+        T1 = caiman.load(fls[0]).shape[0]*len(fls)*epochs
+        self._prepare_object(Yr, T1, **self.params.online)
+        extra_files = len(fls) - 1
+        init_files = 1
+        t = init_batch
+        self.Ab_epoch = []
+        if extra_files == 0:     # check whether there are any additional files
+            process_files = fls[:init_files]     # end processing at this file
+            init_batc_iter = [init_batch]         # place where to start
+        else:
+            process_files = fls[:init_files + extra_files]   # additional files
+            # where to start reading at each file
+            init_batc_iter = [init_batch] + [0]*extra_files
+        for iter in range(epochs):
+            if iter > 0:
+                # if not on first epoch process all files from scratch
+                process_files = fls[:init_files + extra_files]
+                init_batc_iter = [0] * (extra_files + init_files)
+
+            for file_count, ffll in enumerate(process_files):
+                print('Now processing file ' + ffll)
+                Y_ = caiman.load(ffll, subindices=slice(
+                                    init_batc_iter[file_count], None, None))
+
+                old_comps = self.N     # number of existing components
+                for frame_count, frame in enumerate(Y_):   # process each file
+                    if np.isnan(np.sum(frame)):
+                        raise Exception('Frame ' + str(frame_count) +
+                                        ' contains NaN')
+                    if t % 100 == 0:
+                        print('Epoch: ' + str(iter + 1) + '. ' + str(t) +
+                              ' frames have beeen processed in total. ' +
+                              str(self.N - old_comps) +
+                              ' new components were added. Total # of components is '
+                              + str(self.Ab.shape[-1] - self.gnb))
+                        old_comps = self.N
+
+                    frame_ = frame.copy().astype(np.float32)
+                    if ds_factor > 1:
+                        frame_ = cv2.resize(frame_, img_norm.shape[::-1])
+                    frame_ -= img_min     # make data non-negative
+
+                    if mc_flag:    # motion correct
+                        templ = self.Ab.dot(
+                            self.C_on[:self.M, t-1]).reshape(self.dims, order='F')*img_norm
+                        frame_cor, shift = motion_correct_iteration_fast(
+                            frame_, templ, max_shifts, max_shifts)
+                        shifts.append(shift)
+                    else:
+                        templ = None
+                        frame_cor = frame_
+
+                    frame_cor = frame_cor/img_norm    # normalize data-frame
+                    self.fit_next(t, frame_cor.reshape(-1, order='F'))
+                    t += 1
+            self.Ab_epoch.append(self.Ab.copy())
+        self.A, self.b = self.Ab[:, self.gnb:], self.Ab[:, :self.gnb].toarray()
+        self.C, self.f = self.C_on[self.gnb:self.M, t - t //
+                         epochs:t], self.C_on[:self.gnb, t - t // epochs:t]
+        noisyC = self.noisyC[self.gnb:self.M, t - t // epochs:t]
+        self.YrA = noisyC - self.C
+        self.bl = [osi.b for osi in self.OASISinstances] if hasattr(
+            self, 'OASISinstances') else [0] * self.C.shape[0]
+        self.shifts = shifts
+        
         return self
