@@ -435,15 +435,20 @@ class CNMFSetParms(object):
 
     def __eq__(self, other):
 
-        d1 = self.to_dict()
-        d2 = other.to_dict()
+        if type(other) != CNMFSetParms:
+            return False
 
-        key_diff = np.setdiff1d(d1.keys(), d2.keys())
+        parent_dict1 = self.to_dict()
+        parent_dict2 = other.to_dict()
+
+        key_diff = np.setdiff1d(parent_dict1.keys(), parent_dict2.keys())
         if len(key_diff) > 0:
             return False
-        for k1,v1 in d1.items():
-            v2 = d2[k1]
-            if v1 != v2:
+
+        for k1,child_dict1 in parent_dict1.items():
+            child_dict2 = parent_dict2[k1]
+            added, removed, modified, same = dict_compare(child_dict1, child_dict2)
+            if len(added) != 0 or len(removed) != 0 or len(modified) != 0 or len(same) != len(child_dict1):
                 return False
 
         return True
@@ -456,6 +461,15 @@ class CNMFSetParms(object):
         }
         
 
+def dict_compare(d1, d2):
+    d1_keys = set(d1.keys())
+    d2_keys = set(d2.keys())
+    intersect_keys = d1_keys.intersection(d2_keys)
+    added = d1_keys - d2_keys
+    removed = d2_keys - d1_keys
+    modified = {o : (d1[o], d2[o]) for o in intersect_keys if np.any(d1[o] != d2[o])}
+    same = set(o for o in intersect_keys if np.all(d1[o] == d2[o]))
+    return added, removed, modified, same
 
 
 #%%
