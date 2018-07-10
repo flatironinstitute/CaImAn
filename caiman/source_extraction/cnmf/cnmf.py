@@ -51,6 +51,8 @@ from time import time
 import logging
 import sys
 import inspect
+from caiman.utils.utils import save_dict_to_hdf5, load_dict_from_hdf5
+from caiman.source_extraction.cnmf.utilities import CNMFSetParms
 
 try:
     cv2.setNumThreads(0)
@@ -535,6 +537,23 @@ class CNMF(object):
             self.A, self.C, self.YrA, self.b, self.f, self.neurons_sn)
 
         return self
+
+
+    def save(self,filename):
+        '''save object in hdf5 file format
+        Parameters:
+        -----------
+        filename: str
+            path to the hdf5 file containing the saved object
+        '''
+        if '.hdf5' in filename:
+            # keys_types = [(k, type(v)) for k, v in self.__dict__.items()]
+            save_dict_to_hdf5(self.__dict__, filename)
+
+        else:
+            raise Exception("Filename not supported")
+
+
 
     def _prepare_object(self, Yr, T, expected_comps, new_dims=None,
                         idx_components=None, g=None, lam=None, s_min=None,
@@ -1902,3 +1921,33 @@ class CNMF(object):
         self.shifts = shifts
         
         return self
+
+
+def load_CNMF(filename, n_processes=1, dview = None):
+    '''load object saved with the CNMF save method
+    Parameters:
+    ----------
+    filename: str
+        hdf5 file name containing the saved object
+    dview: multiprocessingor ipyparallel object
+        useful to set up parllelization in the objects
+
+    '''
+    new_obj = CNMF(n_processes)
+    for key,val in load_dict_from_hdf5(filename).items():
+        if key == 'params':
+            prms = CNMFSetParms((1, 1, 1), n_processes)
+            prms.spatial = val['spatial']
+            prms.temporal = val['temporal']
+            prms.patch = val['patch']
+            prms.preprocess = val['preprocess']
+            prms.init = val['init']
+            prms.merging = val['merging']
+            prms.quality = val['quality']
+            setattr(new_obj, key, prms)
+        elif key == 'dview':
+            setattr(new_obj, key, dview)
+        else:
+            setattr(new_obj, key, val)
+
+    return new_obj

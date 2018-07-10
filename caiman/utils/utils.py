@@ -45,6 +45,9 @@ except ImportError:  # python3
 from ..external.cell_magic_wand import cell_magic_wand
 from ..source_extraction.cnmf.spatial import threshold_components
 
+import h5py
+
+
 #%%
 
 
@@ -373,3 +376,152 @@ def cell_magic_wand_wrapper(params):
       msk = cell_magic_wand(a, com, min_radius, max_radius, roughness,
                             zoom_factor, center_range)
       return msk
+#%% From https://codereview.stackexchange.com/questions/120802/recursively-save-python-dictionaries-to-hdf5-files-using-h5py
+
+
+def save_dict_to_hdf5(dic, filename):
+    ''' Save dictionary to hdf5 file
+    Parameters
+    ----------
+
+    dic: dictionary
+        input (possibly nested) dictionary
+    filename: str
+        file name to save the dictionary to (in hdf5 format for now)
+
+    Returns:
+    -------
+
+
+    '''
+    with h5py.File(filename, 'w') as h5file:
+        recursively_save_dict_contents_to_group(h5file, '/', dic)
+
+def load_dict_from_hdf5(filename):
+    ''' Load dictionary from hdf5 file
+
+    Parameters
+    ----------
+    filename: str
+        input file to load
+
+    Returns:
+    -------
+        dictionary
+
+    '''
+
+    with h5py.File(filename, 'r') as h5file:
+        return recursively_load_dict_contents_from_group(h5file, '/')
+
+
+def recursively_save_dict_contents_to_group(h5file, path, dic):
+    '''
+    Parameters:
+    ----------
+
+    h5file: hdf5 object
+        hdf5 file where to store the dictionary
+
+    path: str
+        path within the hdf5 file structure
+
+    dic: dictionary
+        dictionary to save
+
+    Returns:
+    -------
+    '''
+    # argument type checking
+    if not isinstance(dic, dict):
+        raise ValueError("must provide a dictionary")
+
+    if not isinstance(path, str):
+        raise ValueError("path must be a string")
+
+    if not isinstance(h5file, h5py._hl.files.File):
+        raise ValueError("must be an open h5py file")
+
+    # save items to the hdf5 file
+    for key, item in dic.items():
+        # print(key,item)
+        key = str(key)
+        if key == 'g':
+            print(key + ' is an object type')
+            item = np.array(list(item))
+        if isinstance(item, list):
+            item = np.array(item)
+        if not isinstance(key, str):
+            raise ValueError("dict keys must be strings to save to hdf5")
+        # save strings, numpy.int64, and numpy.float64 types
+        if isinstance(item, (np.int64, np.float64, str, np.float, float, np.float32,int)):
+            h5file[path + key] = item
+            if not h5file[path + key].value == item:
+                raise ValueError('The data representation in the HDF5 file does not match the original dict.')
+        # save numpy arrays
+        elif isinstance(item, np.ndarray):
+            try:
+                h5file[path + key] = item
+            except:
+                item = np.array(item).astype('|S9')
+                h5file[path + key] = item
+            if not np.array_equal(h5file[path + key].value, item):
+                raise ValueError('The data representation in the HDF5 file does not match the original dict.')
+        # save dictionaries
+        elif isinstance(item, dict):
+            recursively_save_dict_contents_to_group(h5file, path + key + '/', item)
+        elif 'sparse' in str(type(item)):
+            print(key + ' is sparse ****')
+            h5file[path + key + '/data'] = item.tocsc().data
+            h5file[path + key + '/indptr'] = item.tocsc().indptr
+            h5file[path + key + '/indices'] = item.tocsc().indices
+            h5file[path + key + '/shape'] = item.tocsc().shape
+        # other types cannot be saved and will result in an error
+        elif item is None or key == 'dview':
+            h5file[path + key] = 'NoneType'
+        elif key in ['dims','medw','sigma_smooth_snmf']:
+            print(key + ' is a tuple ****')
+            h5file[path + key] = np.array(item)
+        elif 'CNMFSetParms' in str(type(item)): # parameter object
+            recursively_save_dict_contents_to_group(h5file, path + key + '/', item.__dict__)
+        else:
+            raise ValueError('Cannot save %s type.' % type(item))
+
+
+def recursively_load_dict_contents_from_group( h5file, path):
+    '''load dictionary from hdf5 object
+    Parameters:
+    ----------
+    h5file: hdf5 object
+        object where dictionary is stored
+    path: str
+        path within the hdf5 file
+    '''
+    ans = {}
+    for key, item in h5file[path].items():
+        if isinstance(item, h5py._hl.dataset.Dataset):
+            val_set = np.nan
+            if isinstance(item.value, str):
+                if item.value == 'NoneType':
+                    ans[key] = None
+                else:
+                    ans[key] = item.value
+            elif key in ['dims', 'medw', 'sigma_smooth_snmf']:
+                ans[key] = tuple(item.value)
+            else:
+                if type(item.value) == np.bool_:
+                    ans[key] = bool(item.value)
+                else:
+                    ans[key] = item.value
+
+        elif isinstance(item, h5py._hl.group.Group):
+            if key == 'A':
+                data =  item[path + key + '/data']
+                indices = item[path + key + '/indices']
+                indptr = item[path + key + '/indptr']
+                shape = item[path + key + '/shape']
+                ans[key] = scipy.sparse.csc_matrix((data[:],indices[:],
+                    indptr[:]), shape[:])
+            else:
+                ans[key] = recursively_load_dict_contents_from_group(h5file, path + key + '/')
+    return ans
