@@ -162,7 +162,7 @@ def cnmf_patches(args_in):
 
 
 #%%
-def run_CNMF_patches(file_name, shape, params, rf=16, stride=4, gnb=1, dview=None, memory_fact=1,
+def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None, memory_fact=1,
                      border_pix=0, low_rank_background=True, del_duplicates=False):
     """Function that runs CNMF in patches
 
@@ -183,12 +183,6 @@ def run_CNMF_patches(file_name, shape, params, rf=16, stride=4, gnb=1, dview=Non
 
     params:
         CNMFParms object containing all the parameters for the various algorithms
-
-    rf: int
-        half-size of the square patch in pixel
-
-    stride: int
-        amount of overlap between patches
 
     gnb: int
         number of global background components
@@ -231,11 +225,17 @@ def run_CNMF_patches(file_name, shape, params, rf=16, stride=4, gnb=1, dview=Non
     d = np.prod(dims)
     T = shape[-1]
 
+    rf = params.patch['rf']
+    if rf is None:
+        rf = 16
     if np.isscalar(rf):
         rfs = [rf] * len(dims)
     else:
         rfs = rf
 
+    stride = params.patch['stride']
+    if stride is None:
+        stride = 4
     if np.isscalar(stride):
         strides = [stride] * len(dims)
     else:

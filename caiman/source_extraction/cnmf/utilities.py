@@ -42,15 +42,21 @@ import logging
 # %%
 class CNMFParams(object):
 
-    def __init__(self, dims, T, n_processes, K=30, gSig=[5, 5], gSiz=None, ssub=2, tsub=2,
-                 p=2, p_ssub=2, p_tsub=2, thr=0.8, method_init='greedy_roi',
-                 nb=1, nb_patch=1, n_pixels_per_process=None, block_size=None,
-                 check_nan=True, normalize_init=True, options_local_NMF=None,
-                 remove_very_bad_comps=False, alpha_snmf=10e2,
-                 update_background_components=True, low_rank_background=True,
-                 rolling_sum=False, min_corr=.85, min_pnr=20,
-                 ring_size_factor=1.5, center_psf=False, ssub_B=2, init_iter=2,
-                 fr=30, decay_time=0.4, min_SNR=2.5):
+    def __init__(self, dims, n_processes=1, K=30, gSig=[5, 5], gSiz=None, ssub=2, tsub=2, p=2, p_ssub=2, p_tsub=2,
+                 thr=0.8, do_merge=True,
+                 method_init='greedy_roi', nb=1, nb_patch=1, del_duplicates=False,
+                 n_pixels_per_process=None, block_size=None, num_blocks_per_run=20, check_nan=True,
+                 normalize_init=True, options_local_NMF=None, remove_very_bad_comps=False, alpha_snmf=10e2,
+                 update_background_components=True, low_rank_background=True, rolling_sum=False, min_corr=.85,
+                 min_pnr=20, ring_size_factor=1.5, center_psf=False, ssub_B=2, init_iter=2, fr=30, decay_time=0.4,
+                 min_SNR=2.5, rf=None, stride=None, memory_fact=1, border_pix=0,
+                 method_deconvolution='oasis',
+                 minibatch_shape=100, rolling_length=100, minibatch_suff_stat=3,
+                 rval_thr=0.8, s_min=None, thresh_fitness_delta=-20, thresh_fitness_raw=None, thresh_overlap=0.5,
+                 num_times_comp_updated=np.inf, max_comp_update_shape=np.inf, batch_update_suff_stat=False,
+                 use_dense=True, simultaneously=False, n_refit=0, N_samples_exceptionality=None,
+                 max_num_added=1, min_num_trial=3, thresh_CNN_noisy=0.5,
+                 ):
         """Dictionary for setting the CNMF parameters.
 
         Any parameter that is not set get a default value specified
@@ -59,6 +65,24 @@ class CNMFParams(object):
         dims: The dimensions of the movie
 
         T: The number of frames in the movie.
+
+        PATCH PARAMS
+            rf: Half-size of patch
+
+            stride: overlap of patch
+
+            memory_fact: A memory factor for patches
+
+            border_pix: Number of pixels to exclude on the border.
+
+            low_rank_background:bool
+                whether to update the using a low rank approximation. In the False case all the nonzero elements of the background components are updated using hals
+                (to be used with one background per patch)
+
+        MERGE PARAMS
+            do_merge: Whether or not to merge
+
+            thr: The merge threshold for spatial correlation.
 
         PRE-PROCESS PARAMS#############
 
@@ -93,6 +117,8 @@ class CNMFParams(object):
             check_nan: True
 
         INIT PARAMS###############
+
+            n_processes: The number of processes to use, determines amount of memory to use.
 
             K:     30
                 number of components
@@ -175,10 +201,6 @@ class CNMFParams(object):
             update_background_components:bool
                 whether to update the background components in the spatial phase
 
-            low_rank_background:bool
-                whether to update the using a low rank approximation. In the False case all the nonzero elements of the background components are updated using hals
-                (to be used with one background per patch)
-
             method_ls:'lasso_lars'
                 'nnls_L0'. Nonnegative least square with L0 penalty
                 'lasso_lars' lasso lars function from scikit learn
@@ -257,18 +279,6 @@ class CNMFParams(object):
         
         """
 
-        # print(('using ' + str(n_processes) + ' processes'))
-        # if n_pixels_per_process is None:
-        #     avail_memory_per_process = np.array(psutil.virtual_memory()[1])/2.**30/n_processes
-        #     mem_per_pix = 3.6977678498329843e-09
-        #     n_pixels_per_process = np.int(avail_memory_per_process/8./mem_per_pix/T)
-        #     n_pixels_per_process = np.int(np.minimum(n_pixels_per_process,np.prod(dims) // n_processes))
-
-        # if block_size is None:
-        #     block_size = n_pixels_per_process
-
-        # print(('using ' + str(n_pixels_per_process) + ' pixels per process'))
-        # print(('using ' + str(block_size) + ' block_size'))
         self.patch = {
             'ssub': p_ssub,             # spatial downsampling factor
             'tsub': p_tsub,              # temporal downsampling factor
@@ -276,7 +286,14 @@ class CNMFParams(object):
             'skip_refinement': False,
             'remove_very_bad_comps': remove_very_bad_comps,
             'nb': nb_patch,
-            'in_memory': True
+            'in_memory': True,
+            'rf': rf,
+            'stride': stride,
+            'memory_fact': memory_fact,
+            'n_processes': n_processes,
+            'border_pix': border_pix,
+            'low_rank_background': low_rank_background,
+            'del_duplicates': del_duplicates
         }
 
         self.preprocess = {'sn': None,                  # noise level for each pixel
@@ -295,12 +312,11 @@ class CNMFParams(object):
                             'pixels': None,
                             # pixels to be excluded due to saturation
                             'check_nan': check_nan
-
                             }
 
         gSig = gSig if gSig is not None else [-1, -1]
 
-        self.init = {'K': K,                  # number of components
+        self.init = {'K': K,                  # number of components,
                       'gSig': gSig,                               # size of bounding box
                       'gSiz': [np.int((np.ceil(x) * 2) + 1) for x in gSig] if gSiz is None else gSiz,
                       'ssub': ssub,             # spatial downsampling factor
@@ -319,7 +335,7 @@ class CNMFParams(object):
                       # dictionary with parameters to pass to local_NMF initializaer
                       'options_local_NMF': options_local_NMF,
                       'rolling_sum': rolling_sum,
-                      'rolling_length': 100,
+                      'rolling_length': rolling_length,
                       'min_corr': min_corr,
                       'min_pnr': min_pnr,
                       'ring_size_factor': ring_size_factor,
@@ -348,8 +364,8 @@ class CNMFParams(object):
             'ss': np.ones((3,) * len(dims), dtype=np.uint8),
             'expandCore': None,
             'normalize_yyt_one': True,
-            'block_size': 1000,
-            'num_blocks_per_run': 20,
+            'block_size': block_size,
+            'num_blocks_per_run': num_blocks_per_run,
             'nb': nb,                                      # number of background components
             # 'nnls_L0'. Nonnegative least square with L0 penalty
             'method_ls': 'lasso_lars',
@@ -357,22 +373,18 @@ class CNMFParams(object):
             #'lasso_lars_old' lasso lars from old implementation, will be deprecated
             # whether to update the background components in the spatial phase
             'update_background_components': update_background_components,
-            # whether to update the using a low rank approximation. In the False case
-            # all the nonzero elements of the background components are updated using
-            # hals
-            'low_rank_background': low_rank_background
-            #(to be used with one background per patch)
         }
 
         self.temporal = {
             'ITER': 2,                   # block coordinate descent iterations
             # method for solving the constrained deconvolution problem ('oasis','cvx' or 'cvxpy')
-            'method': 'oasis',  # 'cvxpy', # 'oasis'
+            'method': method_deconvolution,  # 'cvxpy', # 'oasis'
             # if method cvxpy, primary and secondary (if problem unfeasible for approx
             # solution) solvers to be used with cvxpy, can be 'ECOS','SCS' or 'CVXOPT'
             'solvers': ['ECOS', 'SCS'],
             'p': p,                      # order of AR indicator dynamics
             'memory_efficient': False,
+            'num_blocks_per_run': num_blocks_per_run,
             # flag for setting non-negative baseline (otherwise b >= min(y))
             'bas_nonneg': False,
             # range of normalized frequencies over which to average
@@ -387,16 +399,18 @@ class CNMFParams(object):
             'verbosity': False,
             # number of pixels to process at the same time for dot product. Make it
             # smaller if memory problems
-            'block_size': block_size
+            'block_size': block_size,
+            's_min': s_min,  # minimum spike threshold
         }
         self.merging = {
+            'do_merge': do_merge,
             'thr': thr,
         }
         self.quality = {
             'decay_time': decay_time,  # length of decay of typical transient (in seconds)
             'min_SNR': min_SNR,  # transient SNR threshold
             'SNR_lowest': 0.5,  # minimum accepted SNR value
-            'rval_thr': 0.8,  # space correlation threshold
+            'rval_thr': rval_thr,  # space correlation threshold
             'rval_lowest': -1,  # minimum accepted space correlation
             'fr': fr,  # imaging frame rate
             'use_cnn': True,  # use CNN based classifier
@@ -407,12 +421,12 @@ class CNMFParams(object):
         self.online = {
             'expected_comps': 500,  # number of expected components
             'min_SNR': min_SNR,  # minimum SNR for accepting a new trace
-            'N_samples_exceptionality': np.ceil(fr*decay_time).astype('int'),  # timesteps to compute SNR
+            'N_samples_exceptionality': N_samples_exceptionality,  # timesteps to compute SNR
             'thresh_fitness_raw': None,  # threshold for trace SNR (computed below)
-            'rval_thr': 0.85,  # space correlation threshold
-            'use_dense': True,  # flag for representation and storing of A and b
-            'max_num_added': 3,  # maximum number of new components for each frame
-            'min_num_trial': 3,  # number of mew possible components for each frame
+            'rval_thr': rval_thr,  # space correlation threshold
+            'use_dense': use_dense,  # flag for representation and storing of A and b
+            'max_num_added': max_num_added,  # maximum number of new components for each frame
+            'min_num_trial': min_num_trial,  # number of mew possible components for each frame
             'path_to_model': os.path.join(caiman_datadir(), 'model',
                                           'cnn_model_online.h5'),
                                           # path to CNN model for testing new comps
@@ -420,20 +434,29 @@ class CNMFParams(object):
             'use_peak_max': False,  # flag for finding candidate centroids
             'use_both': False,  # flag for using both CNN and space correlation
             'init_batch': 200,  # length of mini batch for initialization
-            'simultaneously': False,  # demix and deconvolve simultaneously
-            'n_refit': 0,  # Additional iterations to simultaneously refit
-            'thresh_CNN_noisy': 0.5,  # threshold for online CNN classifier
+            'simultaneously': simultaneously,  # demix and deconvolve simultaneously
+            'n_refit': n_refit,  # Additional iterations to simultaneously refit
+            'thresh_CNN_noisy': thresh_CNN_noisy,  # threshold for online CNN classifier
             'epochs': 1,  # number of epochs
             'ds_factor': 1,  # spatial downsampling for faster processing
             'motion_correct': True,  # flag for motion correction
             'max_shifts': 10,  # maximum shifts during motion correction
-            'minibatch_shape': 100,  # number of frames in each minibatch
+            'minibatch_shape': minibatch_shape,  # number of frames in each minibatch
+            'minibatch_suff_stat': minibatch_suff_stat,
             'update_num_comps': True,  # flag for searching for new components
-            's_min': None,  # minimum spike threshold
-            'init_method': 'bare'  # initialization method for first batch
-
+            'init_method': 'bare',  # initialization method for first batch,
+            'thresh_fitness_delta': thresh_fitness_delta,
+            'thresh_overlap': thresh_overlap,
+            'num_times_comp_updated': num_times_comp_updated,
+            'max_comp_update_shape': max_comp_update_shape,
+            'batch_update_suff_stat': batch_update_suff_stat
         }
-        self.online['thresh_fitness_raw'] = scipy.special.log_ndtr(-self.online['min_SNR']) * self.online['N_samples_exceptionality']
+        if N_samples_exceptionality is None:
+            self.online['N_samples_exceptionality'] = np.ceil(fr*decay_time).astype('int')
+        if thresh_fitness_raw is None:
+            self.online['thresh_fitness_raw'] = scipy.special.log_ndtr(-self.online['min_SNR']) * self.online['N_samples_exceptionality']
+        else:
+            self.online['thresh_fitness_raw'] = thresh_fitness_raw
         self.online['max_shifts'] = np.int(self.online['max_shifts']/self.online['ds_factor'])
 
     def __eq__(self, other):
