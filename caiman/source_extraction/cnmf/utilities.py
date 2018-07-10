@@ -433,6 +433,21 @@ class CNMFSetParms(object):
         self.online['thresh_fitness_raw'] = scipy.special.log_ndtr(-self.online['min_SNR']) * self.online['N_samples_exceptionality']
         self.online['max_shifts'] = np.int(self.online['max_shifts']/self.online['ds_factor'])
 
+    def __eq__(self, other):
+
+        d1 = self.to_dict()
+        d2 = other.to_dict()
+
+        key_diff = np.setdiff1d(d1.keys(), d2.keys())
+        if len(key_diff) > 0:
+            return False
+        for k1,v1 in d1.items():
+            v2 = d2[k1]
+            if v1 != v2:
+                return False
+
+        return True
+
     def to_dict(self):
         return {'spatial_params':self.spatial, 'temporal_params':self.temporal,
                 'init_params':self.init, 'preprocess_params':self.preprocess,
