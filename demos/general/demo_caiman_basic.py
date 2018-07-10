@@ -40,7 +40,6 @@ import glob
 import matplotlib.pyplot as plt
 
 import caiman as cm
-from caiman.components_evaluation import estimate_components_quality_auto
 from caiman.source_extraction.cnmf import cnmf as cnmf
 from caiman.paths import caiman_datadir
 
@@ -107,12 +106,9 @@ def main():
                     merge_thresh=merge_thresh, p=p, dview=dview, gnb=gnb,
                     rf=rf, stride=stride, rolling_sum=False)
     cnm = cnm.fit(images)
-
+    cnm.dims = dims
 #%% plot contour plots of components
-
-    plt.figure()
-    crd = cm.utils.visualization.plot_contours(cnm.A, Cn, thr=0.9)
-    plt.title('Contour plots of components')
+    cnm.plot_contours(img=Cn)
 
 #%%
     A_in, C_in, b_in, f_in = cnm.A[:,:], cnm.C[:], cnm.b, cnm.f
@@ -122,6 +118,7 @@ def main():
                      method_deconvolution='oasis', check_nan=True)
     
     cnm2 = cnm2.fit(images)
+    cnm2.dims = dims
 #%% COMPONENT EVALUATION
     # the components are evaluated in three ways:
     #   a) the shape of each component must be correlated with the data
@@ -135,30 +132,19 @@ def main():
     use_cnn = True     # use the CNN classifier
     min_cnn_thr = 0.95  # if cnn classifier predicts below this value, reject
     
-    idx_components, idx_components_bad, SNR_comp, r_values, cnn_preds = \
-        estimate_components_quality_auto(images, cnm.A, cnm.C, cnm.b, cnm.f,
-                                         cnm.YrA, fr, decay_time, gSig, dims,
-                                         dview=dview, min_SNR=min_SNR,
-                                         r_values_min=rval_thr, use_cnn=use_cnn,
-                                         thresh_cnn_min=min_cnn_thr)
-#%% visualize selected and rejected components
-    plt.figure()
-    plt.subplot(1, 2, 1)
-    cm.utils.visualization.plot_contours(cnm2.A[:, idx_components], Cn, thr=0.9)
-    plt.title('Selected components')
-    plt.subplot(1, 2, 2)
-    plt.title('Discaded components')
-    cm.utils.visualization.plot_contours(cnm2.A[:, idx_components_bad], Cn, thr=0.9)
+    cnm2.evaluate_components(images, fr=fr, decay_time=decay_time,
+                             min_SNR=min_SNR, rval_thr=rval_thr,
+                             use_cnn=use_cnn, min_cnn_thr=min_cnn_thr)
 
-#%%
-    plt.figure()
-    crd = cm.utils.visualization.plot_contours(cnm2.A.tocsc()[:,idx_components], Cn, thr=0.9)
-    plt.title('Contour plots of components')
+#%% visualize selected and rejected components
+    cnm2.plot_contours(img=Cn, idx=cnm2.idx_components)
+
 #%% visualize selected components
-    cm.utils.visualization.view_patches_bar(Yr, cnm2.A.tocsc()[:, idx_components],
-                                            cnm2.C[idx_components, :], cnm2.b, cnm2.f,
-                                            dims[0], dims[1],
-                                            YrA=cnm2.YrA[idx_components, :], img=Cn)
+    cnm2.view_components(images, dims, idx=cnm2.idx_components)
+
+#%% play movie with results
+    cnm2.play_movie(images, magnification=4)
+
 #%% STOP CLUSTER and clean up log files
     cm.stop_server()
     

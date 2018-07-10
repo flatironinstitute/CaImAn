@@ -1804,7 +1804,7 @@ class CNMF(object):
             d = getattr(self.params, subdict)
             for key in kwargs:
                 if key not in d:
-                    logging.warning("The key %s you provided does not exist! Adding it anyway..", key)
+                    logging.warning("The key %s you provided does not exist!", key)
                 else:
                     d[key] = kwargs[key]
         else:

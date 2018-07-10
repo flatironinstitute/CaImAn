@@ -27,7 +27,6 @@ import caiman as cm
 from caiman.source_extraction import cnmf
 from caiman.utils.utils import download_demo
 from caiman.utils.visualization import inspect_correlation_pnr
-from caiman.components_evaluation import estimate_components_quality_auto
 from caiman.motion_correction import motion_correct_oneP_rigid, motion_correct_oneP_nonrigid
 
 #%%
@@ -208,61 +207,28 @@ def main():
 
 
 #%% DISCARD LOW QUALITY COMPONENTS
-    idx_components, idx_components_bad, comp_SNR, r_values, pred_CNN = \
-        estimate_components_quality_auto(
-            Y, cnm.A, cnm.C, cnm.b, cnm.f, cnm.YrA, frate,
-            decay_time, gSig, dims, dview=dview,
-            min_SNR=min_SNR, r_values_min=r_values_min, use_cnn=False)
+    cnm.evaluate_components(Y, min_SNR=min_SNR, rval_thr=r_values_min,
+                            use_cnn=False, decay_time=decay_time, fr=frate)
     
     print(' ***** ')
-    print((len(cnm.C)))
-    print((len(idx_components)))
-    
-    cm.stop_server(dview=dview)
+    print('Number of total components: ', len(cnm.C))
+    print('Number of accepted components: ', len(cnm.idx_components))
 
 #%% PLOT COMPONENTS
+    cnm.dims = dims
     if display_images:
-        plt.figure(figsize=(12, 6))
-        plt.subplot(121)
-        crd_good = cm.utils.visualization.plot_contours(
-            cnm.A[:, idx_components], cn_filter, thr=.8, vmax=0.95)
-        plt.title('Contour plots of accepted components')
-        plt.subplot(122)
-        crd_bad = cm.utils.visualization.plot_contours(
-            cnm.A[:, idx_components_bad], cn_filter, thr=.8, vmax=0.95)
-        plt.title('Contour plots of rejected components')
-
-#%% VISUALIZE IN DETAILS COMPONENTS
-        cm.utils.visualization.view_patches_bar(
-            Yr, cnm.A[:, idx_components], cnm.C[idx_components], cnm.b, cnm.f,
-            dims[0], dims[1], YrA=cnm.YrA[idx_components], img=cn_filter)
-
+        cnm.plot_contours(img=cn_filter, idx=cnm.idx_components)
+        cnm.view_components(Y, dims, idx=cnm.idx_components)
 
 #%% MOVIES
     if display_images:
-        B = cnm.b.dot(cnm.f)
-        if 'sparse' in str(type(B)):
-            B = B.toarray()
-    # denoised movie
-        cm.movie(np.reshape(cnm.A.tocsc()[:, idx_components].dot(cnm.C[idx_components]) + B,
-                            dims + (-1,), order='F').transpose(2, 0, 1)).play(magnification=3, gain=1.)
-    # only neurons
-        cm.movie(np.reshape(cnm.A.tocsc()[:, idx_components].dot(
-            cnm.C[idx_components]), dims + (-1,), order='F').transpose(2, 0, 1)
-        ).play(magnification=3, gain=10.)
-    # only the background
-        cm.movie(np.reshape(B, dims + (-1,), order='F').transpose(2, 0, 1)
-                 ).play(magnification=3, gain=1.)
-    # residuals
-        cm.movie(np.array(Y) - np.reshape(cnm.A.tocsc()[:, :].dot(cnm.C[:]) + B,
-                                          dims + (-1,), order='F').transpose(2, 0, 1)
-                 ).play(magnification=3, gain=10., fr=10)
-    # eventually, you can rerun the algorithm on the residuals
-        plt.imshow(cm.movie(np.array(Y) - np.reshape(cnm.A.tocsc()[:, :].dot(cnm.C[:]) + B,
-                                                     dims + (-1,), order='F').transpose(2, 0, 1)
-                            ).local_correlations(swap_dim=False))
+        # fully reconstructed movie
+        cnm.play_movie(Y, magnification=3, include_bck=True, gain_res=10)
+        # movie without background
+        cnm.play_movie(Y, magnification=3, include_bck=False, gain_res=4)
 
-#%%
+#%% STOP SERVER
+    cm.stop_server(dview=dview)
 # This is to mask the differences between running this demo in Spyder
 # versus from the CLI
 if __name__ == "__main__":
