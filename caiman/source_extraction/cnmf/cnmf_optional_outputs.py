@@ -19,7 +19,7 @@ from builtins import str
 from builtins import object
 from past.utils import old_div
 import numpy as np
-from .utilities import local_correlations, CNMFSetParms, order_components, evaluate_components
+from .utilities import local_correlations, CNMFParams, order_components, evaluate_components
 from .pre_processing import preprocess_data
 from .initialization import initialize_components
 from .merging import merge_components
@@ -164,9 +164,9 @@ class CNMF(object):
         Y = np.transpose(images, [1, 2, 0])
         print((T, d1, d2))
 
-        options = CNMFSetParms(Y, self.n_processes, p=self.p, gSig=self.gSig, K=self.k, ssub=self.ssub, tsub=self.tsub,
-                               p_ssub=self.p_ssub, p_tsub=self.p_tsub,
-                               method_init=self.method_init, normalize_init=True)
+        options = CNMFParams(dims, T, self.n_processes, p=self.p, gSig=self.gSig, K=self.k, ssub=self.ssub, tsub=self.tsub,
+                             p_ssub=self.p_ssub, p_tsub=self.p_tsub,
+                             method_init=self.method_init, normalize_init=True)
 
         self.options = options
 
@@ -226,8 +226,8 @@ class CNMF(object):
 
             self.optional_outputs = optional_outputs
 
-            options = CNMFSetParms(Y, self.n_processes, p=self.p,
-                                   gSig=self.gSig, K=A.shape[-1], thr=self.merge_thresh)
+            options = CNMFParams(dims, T, self.n_processes, p=self.p,
+                                 gSig=self.gSig, K=A.shape[-1], thr=self.merge_thresh)
             pix_proc = np.minimum(np.int((d1 * d2) / self.n_processes / (
                 old_div(T, 2000.))), np.int(old_div((d1 * d2), self.n_processes)))  # regulates the amount of memory used
 

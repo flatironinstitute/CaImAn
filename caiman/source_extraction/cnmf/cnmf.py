@@ -29,7 +29,7 @@ from __future__ import print_function
 from builtins import str
 from builtins import object
 import numpy as np
-from .utilities import CNMFSetParms, update_order, normalize_AC, compute_residuals, detrend_df_f
+from .utilities import CNMFParams, update_order, normalize_AC, compute_residuals, detrend_df_f
 from .pre_processing import preprocess_data
 from .initialization import initialize_components, imblur
 from .merging import merge_components
@@ -342,21 +342,21 @@ class CNMF(object):
         self.nb_patch = nb_patch
         self.del_duplicates = del_duplicates
 
-        self.params = CNMFSetParms((1, 1, 1), n_processes, p=p, gSig=gSig, gSiz=gSiz,
-                                    K=k, ssub=ssub, tsub=tsub,
-                                    p_ssub=p_ssub, p_tsub=p_tsub, method_init=method_init,
-                                    n_pixels_per_process=n_pixels_per_process,
-                                    check_nan=check_nan, nb=gnb,
-                                    nb_patch=nb_patch, normalize_init=normalize_init,
-                                    options_local_NMF=options_local_NMF,
-                                    remove_very_bad_comps=remove_very_bad_comps,
-                                    low_rank_background=low_rank_background,
-                                    update_background_components=update_background_components,
-                                    rolling_sum=self.rolling_sum,
-                                    min_corr=min_corr, min_pnr=min_pnr,
-                                    ring_size_factor=ring_size_factor, center_psf=center_psf,
-                                    fr=fr, min_SNR=min_SNR, decay_time=decay_time,
-                                    ssub_B=ssub_B, init_iter=init_iter)
+        self.params = CNMFParams((1, 1), 1, n_processes, p=p, gSig=gSig, gSiz=gSiz,
+                                 K=k, ssub=ssub, tsub=tsub,
+                                 p_ssub=p_ssub, p_tsub=p_tsub, method_init=method_init,
+                                 n_pixels_per_process=n_pixels_per_process,
+                                 check_nan=check_nan, nb=gnb,
+                                 nb_patch=nb_patch, normalize_init=normalize_init,
+                                 options_local_NMF=options_local_NMF,
+                                 remove_very_bad_comps=remove_very_bad_comps,
+                                 low_rank_background=low_rank_background,
+                                 update_background_components=update_background_components,
+                                 rolling_sum=self.rolling_sum,
+                                 min_corr=min_corr, min_pnr=min_pnr,
+                                 ring_size_factor=ring_size_factor, center_psf=center_psf,
+                                 fr=fr, min_SNR=min_SNR, decay_time=decay_time,
+                                 ssub_B=ssub_B, init_iter=init_iter)
         self.params.merging['thr'] = merge_thresh
         self.params.temporal['s_min'] = s_min
 

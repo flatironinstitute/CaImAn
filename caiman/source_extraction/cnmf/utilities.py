@@ -40,9 +40,9 @@ import logging
 
 
 # %%
-class CNMFSetParms(object):
+class CNMFParams(object):
 
-    def __init__(self, Y, n_processes, K=30, gSig=[5, 5], gSiz=None, ssub=2, tsub=2,
+    def __init__(self, dims, T, n_processes, K=30, gSig=[5, 5], gSiz=None, ssub=2, tsub=2,
                  p=2, p_ssub=2, p_tsub=2, thr=0.8, method_init='greedy_roi',
                  nb=1, nb_patch=1, n_pixels_per_process=None, block_size=None,
                  check_nan=True, normalize_init=True, options_local_NMF=None,
@@ -55,6 +55,10 @@ class CNMFSetParms(object):
 
         Any parameter that is not set get a default value specified
         by the dictionary default options
+
+        dims: The dimensions of the movie
+
+        T: The number of frames in the movie.
 
         PRE-PROCESS PARAMS#############
 
@@ -253,11 +257,6 @@ class CNMFSetParms(object):
         
         """
 
-        if type(Y) is tuple:
-            dims, T = Y[:-1], Y[-1]
-        else:
-            dims, T = Y.shape[:-1], Y.shape[-1]
-
         # print(('using ' + str(n_processes) + ' processes'))
         # if n_pixels_per_process is None:
         #     avail_memory_per_process = np.array(psutil.virtual_memory()[1])/2.**30/n_processes
@@ -439,7 +438,7 @@ class CNMFSetParms(object):
 
     def __eq__(self, other):
 
-        if type(other) != CNMFSetParms:
+        if type(other) != CNMFParams:
             return False
 
         parent_dict1 = self.to_dict()
