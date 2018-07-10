@@ -19,7 +19,6 @@ from __future__ import print_function
 from builtins import range
 
 import os
-import sys
 import cv2
 import glob
 
@@ -44,11 +43,8 @@ import time
 
 import caiman as cm
 from caiman.utils.utils import download_demo
-from caiman.utils.visualization import plot_contours, view_patches_bar
 from caiman.source_extraction.cnmf import cnmf as cnmf
 from caiman.motion_correction import MotionCorrect
-from caiman.source_extraction.cnmf.utilities import detrend_df_f
-from caiman.components_evaluation import estimate_components_quality_auto
 
 #%%
 def main():
@@ -122,10 +118,10 @@ def main():
     min_mov = cm.load(fname[0], subindices=range(200)).min()
     # this will be subtracted from the movie to make it non-negative
 
-    mc = MotionCorrect(fname[0], min_mov,
-                       dview=dview, max_shifts=max_shifts, niter_rig=niter_rig,
-                       splits_rig=splits_rig,
-                       strides=strides, overlaps=overlaps, splits_els=splits_els,
+    mc = MotionCorrect(fname[0], min_mov, dview=dview, max_shifts=max_shifts, 
+                       niter_rig=niter_rig, splits_rig=splits_rig,
+                       strides=strides, overlaps=overlaps, 
+                       splits_els=splits_els, border_nan='copy',
                        upsample_factor_grid=upsample_factor_grid,
                        max_deviation_rigid=max_deviation_rigid,
                        shifts_opencv=True, nonneg_movie=True)
@@ -148,7 +144,6 @@ def main():
 #%% MEMORY MAPPING
     # memory map the file in order 'C'
     fnames = mc.fname_tot_els   # name of the pw-rigidly corrected file.
-    border_to_0 = bord_px_els     # number of pixels to exclude
     fname_new = cm.save_memmap(fnames, base_name='memmap_', order='C',
                                border_to_0=bord_px_els)  # exclude borders
 
@@ -167,62 +162,40 @@ def main():
 
     # First extract spatial and temporal components on patches and combine them
     # for this step deconvolution is turned off (p=0)
-    t1 = time.time()
 
     cnm = cnmf.CNMF(n_processes=1, k=K, gSig=gSig, merge_thresh=merge_thresh,
                     p=0, dview=dview, rf=rf, stride=stride_cnmf, memory_fact=1,
                     method_init=init_method, alpha_snmf=alpha_snmf,
                     only_init_patch=False, gnb=gnb, border_pix=bord_px_els)
     cnm = cnm.fit(images)
-
+    cnm.dims = dims
 #%% plot contours of found components
     Cn = cm.local_correlations(images.transpose(1, 2, 0))
     Cn[np.isnan(Cn)] = 0
-    plt.figure()
-    crd = plot_contours(cnm.A, Cn, thr=0.9)
+    cnm.plot_contours(img=Cn)
     plt.title('Contour plots of found components')
-
 
 #%% COMPONENT EVALUATION
     # the components are evaluated in three ways:
     #   a) the shape of each component must be correlated with the data
     #   b) a minimum peak SNR is required over the length of a transient
     #   c) each shape passes a CNN based classifier
-
-    idx_components, idx_components_bad, SNR_comp, r_values, cnn_preds = \
-        estimate_components_quality_auto(images, cnm.A, cnm.C, cnm.b, cnm.f,
-                                         cnm.YrA, fr, decay_time, gSig, dims,
-                                         dview=dview, min_SNR=min_SNR,
-                                         r_values_min=rval_thr, use_cnn=False,
-                                         thresh_cnn_min=cnn_thr)
+    cnm.evaluate_components(images, fr=fr, decay_time=decay_time,
+                            min_SNR=min_SNR, rval_thr=rval_thr,
+                            use_cnn=False, min_cnn_thr=cnn_thr)
 
 #%% PLOT COMPONENTS
-
-    if display_images:
-        plt.figure()
-        plt.subplot(121)
-        crd_good = cm.utils.visualization.plot_contours(
-            cnm.A[:, idx_components], Cn, thr=.8, vmax=0.75)
-        plt.title('Contour plots of accepted components')
-        plt.subplot(122)
-        crd_bad = cm.utils.visualization.plot_contours(
-            cnm.A[:, idx_components_bad], Cn, thr=.8, vmax=0.75)
-        plt.title('Contour plots of rejected components')
+    cnm.plot_contours(img=Cn, idx=cnm.idx_components)
 
 #%% VIEW TRACES (accepted and rejected)
 
     if display_images:
-        view_patches_bar(Yr, cnm.A.tocsc()[:, idx_components], cnm.C[idx_components],
-                         cnm.b, cnm.f, dims[0], dims[1], YrA=cnm.YrA[idx_components],
-                         img=Cn)
-
-        view_patches_bar(Yr, cnm.A.tocsc()[:, idx_components_bad], cnm.C[idx_components_bad],
-                         cnm.b, cnm.f, dims[0], dims[1], YrA=cnm.YrA[idx_components_bad],
-                         img=Cn)
+        cnm.view_components(images, dims, img=Cn, idx=cnm.idx_components)
+        cnm.view_components(images, dims, img=Cn, idx=cnm.idx_components_bad)
 
 #%% RE-RUN seeded CNMF on accepted patches to refine and perform deconvolution
-    A_in, C_in, b_in, f_in = cnm.A[:,
-                                   idx_components], cnm.C[idx_components], cnm.b, cnm.f
+    A_in, C_in, b_in, f_in = cnm.A[:, cnm.idx_components],\
+        cnm.C[cnm.idx_components], cnm.b, cnm.f
     cnm2 = cnmf.CNMF(n_processes=1, k=A_in.shape[-1], gSig=gSig, p=p, dview=dview,
                      merge_thresh=merge_thresh, Ain=A_in, Cin=C_in, b_in=b_in,
                      f_in=f_in, rf=None, stride=None, gnb=gnb,
@@ -231,29 +204,20 @@ def main():
     cnm2 = cnm2.fit(images)
 
 #%% Extract DF/F values
-
-    F_dff = detrend_df_f(cnm2.A, cnm2.b, cnm2.C, cnm2.f, YrA=cnm2.YrA,
-                         quantileMin=8, frames_window=250)
+    cnm2.detrend_df_f(quantileMin=8, frames_window=250)
 
 #%% Show final traces
     cnm2.view_components(Yr, dims=dims, img=Cn)
+
+#%% reconstruct denoised movie (press q to exit)
+    if display_images:
+        cnm2.play_movie(images, gain_res=2, magnification=2)
 
 #%% STOP CLUSTER and clean up log files
     cm.stop_server(dview=dview)
     log_files = glob.glob('*_LOG_*')
     for log_file in log_files:
         os.remove(log_file)
-
-#%% reconstruct denoised movie
-    denoised = cm.movie(cnm2.A.dot(cnm2.C) +
-                        cnm2.b.dot(cnm2.f)).reshape(dims + (-1,), order='F').transpose([2, 0, 1])
-
-#%% play along side original data
-    moviehandle = cm.concatenate([m_els.resize(1, 1, downsample_ratio),
-                    denoised.resize(1, 1, downsample_ratio)],
-                   axis=2)
-    if display_images:
-            moviehandle.play(fr=60, gain=15, magnification=2, offset=0)  # press q to exit
 
 #%%
 # This is to mask the differences between running this demo in Spyder
