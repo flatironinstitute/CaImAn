@@ -567,7 +567,7 @@ class CNMF(object):
                 self.params.init['alpha_snmf'] = self.alpha_snmf
 
             A, C, YrA, b, f, sn, optional_outputs = run_CNMF_patches(images.filename, dims + (T,),
-                                                                     self.params.to_dict(), rf=self.rf, stride=self.stride,
+                                                                     self.params, rf=self.rf, stride=self.stride,
                                                                      dview=self.dview, memory_fact=self.memory_fact,
                                                                      gnb=self.gnb, border_pix=self.border_pix,
                                                                      low_rank_background=self.low_rank_background,
