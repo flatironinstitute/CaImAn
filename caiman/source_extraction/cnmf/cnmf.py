@@ -501,7 +501,7 @@ class CNMF(object):
             self.merged_ROIs = [0]
 
             if self.params.init['center_psf']:  # merge taking best neuron
-                if self.params.patch['nb_patch'] > 0:
+                if self.params.patch['nb'] > 0:
 
                     while len(self.merged_ROIs) > 0:
                         self.merge_comps(Yr, mx=np.Inf, thr=self.params.merging['thr'], fast_merge=True)
