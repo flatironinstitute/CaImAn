@@ -359,8 +359,6 @@ class CNMF(object):
                                     ssub_B=ssub_B, init_iter=init_iter)
         self.params.merging['thr'] = merge_thresh
         self.params.temporal['s_min'] = s_min
-        self.options = self.params.to_dict()
-
 
     def fit(self, images):
         """
@@ -569,7 +567,7 @@ class CNMF(object):
                 self.params.init['alpha_snmf'] = self.alpha_snmf
 
             A, C, YrA, b, f, sn, optional_outputs = run_CNMF_patches(images.filename, dims + (T,),
-                                                                     self.params.to_dict(), rf=self.rf, stride=self.stride,
+                                                                     self.params, rf=self.rf, stride=self.stride,
                                                                      dview=self.dview, memory_fact=self.memory_fact,
                                                                      gnb=self.gnb, border_pix=self.border_pix,
                                                                      low_rank_background=self.low_rank_background,
@@ -641,7 +639,6 @@ class CNMF(object):
                 C, A, b, f, S, bl, c1, neurons_sn, g1, YrA, self.lam = update_temporal_components(
                     Yr, A, b, C, f, dview=self.dview, bl=None, c1=None, sn=None, g=None, **self.params.temporal)
 
-        self.options = self.params.to_dict()
         self.A = A
         self.C = C
         self.b = b
@@ -1732,7 +1729,7 @@ class CNMF(object):
         return self
 
     def update_options(self, subdict, kwargs):
-        """modifies a specified subdictionary in self.params.options. If a specified
+        """modifies a specified subdictionary in self.params. If a specified
         parameter does not exist it gets created.
         Parameters:
         -----------
@@ -1748,12 +1745,12 @@ class CNMF(object):
         --------
         self (updated values for self.A and self.b)
         """
-        if subdict in self.params.options:
+        if hasattr(self.params, subdict):
+            d = getattr(self.params, subdict)
             for key in kwargs:
-                # TODO fix this
-                self.params.options[subdict][key] = kwargs[key]
-                if key not in self.params.options[subdict]:
+                if key not in d:
                     logging.warning("The key %s you provided does not exist! Adding it anyway..", key)
+                d[key] = kwargs[key]
         else:
             logging.warning("The subdictionary you provided does not exist!")
         return self
