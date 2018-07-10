@@ -84,7 +84,6 @@ def main():
     gSig = [4, 4]               # expected half size of neurons
     # initialization method (if analyzing dendritic data using 'sparse_nmf')
     init_method = 'greedy_roi'
-    is_dendrites = False        # flag for analyzing dendritic data
     # sparsity penalty for dendritic data analysis through sparse NMF
     alpha_snmf = None
 

@@ -1438,6 +1438,59 @@ def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None,
     return movie(input_arr.astype(outtype), fr=fr, start_time=start_time, file_name=os.path.split(file_name)[-1], meta_data=meta_data)
 
 
+def get_file_size(file_name, var_name_hdf5=None):
+    if isinstance(file_name, str):
+        if os.path.exists(file_name):
+            _, extension = os.path.splitext(file_name)[:2]
+            if extension == '.tif' or extension == '.tiff':
+                tffl = tifffile.TiffFile(file_name)
+                siz = tffl.series[0].shape
+                T, dims = siz[0], siz[1:]
+            elif extension == '.avi':
+                cap = cv2.VideoCapture(file_name)
+                dims = (0, 0)
+                try:
+                    T = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+                    dims[0] = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+                    dims[1] = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                except:
+                    print('Roll back top opencv 2')
+                    T = int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_COUNT))
+                    dims[0] = int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_WIDTH))
+                    dims[1] = int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT))
+            elif extension == '.mmap':
+                filename = os.path.split(file_name)[-1]
+                Yr, dims, T = load_memmap(os.path.join(
+                        os.path.split(file_name)[0], filename))
+            elif extension == '.h5' or extension == '.hdf5':
+                with h5py.File(file_name, "r") as f:
+                    kk = list(f.keys())
+                    if len(kk)==1:
+                        siz = f[kk[0]].shape
+                    elif var_name_hdf5 in kk:
+                        siz = f[var_name_hdf5].shape
+                    else:
+                        print(kk)
+                        raise Exception('Variable not found. Use one of the above')
+                T, dims = siz[0], siz[1:]
+            else:
+                raise Exception('Unknown file type')
+        else:
+            raise Exception('File not found!')
+    elif isinstance(file_name, list):
+        if len(file_name) == 1:
+            dims, T = get_file_size(file_name[0], var_name_hdf5=var_name_hdf5)
+        else:
+            dims, T = zip(*[get_file_size(fn, var_name_hdf5=var_name_hdf5)
+                for fn in file_name])
+            if len(list(set(dims))) > 1:
+                raise Exception("Files have different FOV sizes.")
+            else:
+                dims = dims[0]
+    else:
+        raise Exception('Unknown input type')
+    return dims, T
+
 def load_movie_chain(file_list, fr=30, start_time=0,
                      meta_data=None, subindices=None,
                      bottom=0, top=0, left=0, right=0, z_top = 0,
