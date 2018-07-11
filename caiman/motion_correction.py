@@ -484,7 +484,7 @@ def motion_correct_oneP_rigid(
         whether to save the movie in memory mapped format
 
     border_nan : bool or string, optional
-        Specifies how to deal with borders. (True, False, 'copy', 'min')        
+        Specifies how to deal with borders. (True, False, 'copy', 'min')
 
     Returns:
     --------
@@ -549,7 +549,7 @@ def motion_correct_oneP_nonrigid(
         whether to save the movie in memory mapped format
 
    border_nan : bool or string, optional
-       Specifies how to deal with borders. (True, False, 'copy', 'min')        
+       Specifies how to deal with borders. (True, False, 'copy', 'min')
 
     Returns:
     --------
@@ -2497,7 +2497,15 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
         T = shape[0]
         del dataset
     elif extension == '.npy':
-        raise Exception('Numpy not supported at the moment')
+        # assumes the data is saved in a 3x3 array for the moment with order
+        # T x h x w
+        array = np.load(fname, memmap_mode='r')
+        shape = array.shape
+
+        try:
+            T, d1, d2 = shape
+        except:
+            raise Exception('only 3d numpy arrays supported right now')
 
     elif extension == '.hdf5':
         with h5py.File(fname) as fl:
