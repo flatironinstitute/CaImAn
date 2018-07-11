@@ -10,30 +10,6 @@ pipeline {
   stages {
     stage('test') {
       parallel {
-        stage('linux-python2') {
-          agent {
-            dockerfile {
-              dir "test/linux-python2"
-              args '-v /etc/passwd:/etc/passwd -v /etc/group:/etc/group -v /home/jenkins/.conda2/pkgs:/home/jenkins/.conda/pkgs:rw,z'
-            }
-          }
-          environment {
-            CONDA_ENV = "${env.WORKSPACE}/test/${env.STAGE_NAME}"
-          }
-          steps {
-            sh 'conda env create -q -f environment_python2.yml -p $CONDA_ENV'
-            sh '''#!/bin/bash -ex
-              source $CONDA_ENV/bin/activate $CONDA_ENV
-              pip install .
-              TEMPDIR=$(mktemp -d)
-              export CAIMAN_DATA=$TEMPDIR/caiman_data
-              cd $TEMPDIR
-              caimanmanager.py install
-              nosetests --traverse-namespace caiman
-              caimanmanager.py demotest
-            '''
-          }
-        }
         stage('linux-python3') {
           agent {
             dockerfile {
@@ -59,26 +35,6 @@ pipeline {
           }
         }
 
-        stage('osx-python2') {
-          agent {
-            label 'osx && anaconda2'
-          }
-          environment {
-            CONDA_ENV = "${env.WORKSPACE}/test/${env.STAGE_NAME}"
-          }
-          steps {
-            sh '$ANACONDA2/bin/conda env create -q -f environment_python2.yml -p $CONDA_ENV'
-            sh '''#!/bin/bash -ex
-              source $ANACONDA2/bin/activate $CONDA_ENV
-              pip install .
-              TEMPDIR=$(mktemp -d)
-              export CAIMAN_DATA=$TEMPDIR/caiman_data
-              cd $TEMPDIR
-              caimanmanager.py install
-              nosetests --traverse-namespace caiman
-            '''
-          }
-        }
         stage('osx-python3') {
           agent {
             label 'osx && anaconda3'
