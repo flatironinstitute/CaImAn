@@ -2426,7 +2426,7 @@ def tile_and_correct_wrapper(params):
 
     elif extension == '.sbx':  # check if sbx file
         imgs = cm.base.movies.sbxread(img_name, idxs[0], len(idxs))
-    elif extension == '.sima' or extension == '.hdf5' or extension == '.h5':
+    elif extension in ('.sima', '.hdf5', '.h5', '.npy'):
         imgs = cm.load(img_name, subindices=list(idxs))
     elif extension == '.avi':
         imgs = cm.load(img_name, subindices=np.array(idxs))
