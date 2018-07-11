@@ -4,6 +4,9 @@ from __future__ import print_function
 # %%
 from builtins import str
 from builtins import range
+
+import caiman.source_extraction.cnmf.params
+
 try:
     if __IPYTHON__:
         # this is used for debugging purposes only. allows to reload classes when changed
@@ -112,7 +115,7 @@ K = 30  # number of neurons expected per patch
 gSig = [7, 7]  # expected half size of neurons
 merge_thresh = 0.8  # merging threshold, max correlation allowed
 p = 2  # order of the autoregressive system
-options = cnmf.utilities.CNMFParams(dims, K=K, gSig=gSig, ssub=2, tsub=2, p=p, nb=1, normalize_init=True)
+options = caiman.source_extraction.cnmf.params.CNMFParams(dims, K=K, gSig=gSig, ssub=2, tsub=2, p=p, nb=1, normalize_init=True)
 options['preprocess_params']['noise_method'] = 'mean'
 #%% PREPROCESS DATA AND INITIALIZE COMPONENTS
 t1 = time()

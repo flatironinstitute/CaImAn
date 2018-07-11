@@ -17,6 +17,9 @@ from __future__ import print_function
 from builtins import str
 from builtins import range
 from past.utils import old_div
+
+import caiman.source_extraction.cnmf.params
+
 try:
     if __IPYTHON__:
         # this is used for debugging purposes only. allows to reload classes when changed
@@ -133,7 +136,7 @@ p = 2  # order of the autoregressive system
 memory_fact = 1  # unitless number accounting how much memory should be used. You will need to try different values to see which one would work the default is OK for a 16 GB system
 save_results = True
 #%% RUN ALGORITHM ON PATCHES
-options_patch = cnmf.utilities.CNMFParams(dims, K=K, gSig=gSig, ssub=1, tsub=4, p=0, thr=merge_thresh)
+options_patch = caiman.source_extraction.cnmf.params.CNMFParams(dims, K=K, gSig=gSig, ssub=1, tsub=4, p=0, thr=merge_thresh)
 A_tot, C_tot, YrA_tot, b, f, sn_tot, optional_outputs = cnmf.map_reduce.run_CNMF_patches(fname_new, (d1, d2, T), options_patch, rf=rf, stride=stride,
                                                                                          dview=dview, memory_fact=memory_fact, gnb=1)
 print(('Number of components:' + str(A_tot.shape[-1])))
@@ -145,7 +148,7 @@ if save_results:
 pl.figure()
 crd = plot_contours(A_tot, Cn, thr=0.9)
 # %% set parameters for full field of view analysis
-options = cnmf.utilities.CNMFParams(dims, K=A_tot.shape[-1], gSig=gSig, p=0, thr=merge_thresh)
+options = caiman.source_extraction.cnmf.params.CNMFParams(dims, K=A_tot.shape[-1], gSig=gSig, p=0, thr=merge_thresh)
 pix_proc = np.minimum(np.int((d1 * d2) / n_processes / (old_div(T, 2000.))),
                       np.int(old_div((d1 * d2), n_processes)))  # regulates the amount of memory used
 options['spatial_params']['n_pixels_per_process'] = pix_proc
