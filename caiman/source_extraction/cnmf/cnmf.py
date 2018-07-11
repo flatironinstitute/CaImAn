@@ -557,7 +557,7 @@ class CNMF(object):
         self.neurons_sn2 = self.neurons_sn[idx_components]
         self.lam2 = self.lam[idx_components]
         self.dims2 = self.dims
-        self.q = q   # sparsity parameter (between 0.5 and 1)
+        self.params.set('online', {'q': q})   # sparsity parameter (between 0.5 and 1)
 
         self.N = self.A2.shape[-1]
         self.M = self.params.get('init', 'nb') + self.N
@@ -715,9 +715,9 @@ class CNMF(object):
                           optimizer=opt, metrics=['accuracy'])
 
         self.loaded_model = loaded_model
-        self.sniper_mode = sniper_mode
-        self.test_both = test_both
-        self.use_peak_max = use_peak_max
+        self.params.set('online', {'sniper_mode': sniper_mode,
+                                   'test_both': test_both,
+                                   'use_peak_max': use_peak_max})
         return self
 
     @profile
@@ -812,6 +812,7 @@ class CNMF(object):
                 thresh_fitness_raw=self.params.get('online', 'thresh_fitness_raw'), thresh_overlap=self.params.get('online', 'thresh_overlap'),
                 groups=self.groups, batch_update_suff_stat=self.params.get('online', 'batch_update_suff_stat'), gnb=self.params.get('init', 'nb'),
                 sn=self.sn, g=np.mean(
+
                     self.g2) if self.params.get('preprocess', 'p') == 1 else np.mean(self.g2, 0),
                 s_min=self.params.get('temporal', 's_min'),
                 Ab_dense=self.Ab_dense[:, :self.M] if self.params.get('online', 'use_dense') else None,
@@ -819,8 +820,8 @@ class CNMF(object):
                 N_samples_exceptionality=self.params.get('online', 'N_samples_exceptionality'),
                 max_num_added=self.params.get('online', 'max_num_added'), min_num_trial=self.params.get('online', 'min_num_trial'),
                 loaded_model = self.loaded_model, thresh_CNN_noisy = self.params.get('online', 'thresh_CNN_noisy'),
-                sniper_mode=self.sniper_mode, use_peak_max=self.use_peak_max,
-                test_both=self.test_both)
+                sniper_mode=self.params.get('online', 'sniper_mode'), use_peak_max=self.params.get('online', 'use_peak_max'),
+                test_both=self.params.get('online', 'test_both'))
 
             num_added = len(self.ind_A) - self.N
 
@@ -933,11 +934,11 @@ class CNMF(object):
                         self.CY, self.CC, self.Ab, self.ind_A,
                         indicator_components=indicator_components,
                         Ab_dense=self.Ab_dense[:, :self.M],
-                        sn=self.sn, q=self.q)
+                        sn=self.sn, q=self.params.get('online', 'q'))
                 else:
                     Ab_, self.ind_A, _ = update_shapes(self.CY, self.CC, Ab_, self.ind_A,
                                                        indicator_components=indicator_components,
-                                                       sn=self.sn, q=self.q)
+                                                       sn=self.sn, q=self.params.get('online', 'q'))
 
                 self.AtA = (Ab_.T.dot(Ab_)).toarray()
 
@@ -990,7 +991,7 @@ class CNMF(object):
                     indicator_components = candidates[:self.N // mbs + 1]
                     self.update_counter[indicator_components] += 1
 
-                    if self.use_dense:
+                    if self.params.get('online', 'use_dense'):
                         # update dense Ab and sparse Ab simultaneously;
                         # this is faster than calling update_shapes with sparse Ab only
                         Ab_, self.ind_A, self.Ab_dense[:, :self.M] = update_shapes(

@@ -106,7 +106,6 @@ def bare_initialization(Y, init_batch=1000, k=1, method_init='greedy_roi', gnb=1
         cnm_init.lam = np.zeros(k)
         cnm_init.dims = Y.shape[:-1]
         cnm_init.initbatch = init_batch
-        cnm_init.gnb = gnb
 
         return cnm_init
     else:
@@ -206,7 +205,6 @@ def seeded_initialization(Y, Ain, dims=None, init_batch=1000, order_init=None, g
         cnm_init.lam = np.zeros(nr)
         cnm_init.dims = Y.shape[:-1]
         cnm_init.initbatch = init_batch
-        cnm_init.gnb = gnb
     
         return cnm_init
     else:
