@@ -29,7 +29,7 @@ from __future__ import print_function
 from builtins import str
 from builtins import object
 import numpy as np
-from .utilities import CNMFParams, update_order, normalize_AC, compute_residuals, detrend_df_f
+from .utilities import CNMFParams, update_order, normalize_AC, detrend_df_f
 from .pre_processing import preprocess_data
 from .initialization import initialize_components, imblur
 from .merging import merge_components
@@ -441,7 +441,7 @@ class CNMF(object):
                 return self
 
             print('update spatial ...')
-            self.update_spatial(Yr, use_init=True, dview=self.dview, **self.params.spatial)
+            self.update_spatial(Yr, use_init=True)
 
             print('update temporal ...')
             if not self.skip_refinement:
@@ -451,7 +451,7 @@ class CNMF(object):
                 self.params.temporal['p'] = self.params.preprocess['p']
             print('deconvolution ...')
 
-            self.update_temporal(Yr, dview=self.dview, **self.params.temporal)
+            self.update_temporal(Yr)
 
             if not self.skip_refinement:
                 print('refinement...')
@@ -465,11 +465,11 @@ class CNMF(object):
                 print(self.C.shape)
                 print('update spatial ...')
 
-                self.update_spatial(Yr, use_init=False, dview=self.dview, **self.params.spatial)
+                self.update_spatial(Yr, use_init=False)
                 # set it back to original value to perform full deconvolution
                 self.params.temporal['p'] = self.params.preprocess['p']
                 print('update temporal ...')
-                self.update_temporal(Yr, use_init=False, dview=self.dview, **self.params.temporal)
+                self.update_temporal(Yr, use_init=False)
 
             else:
                 # todo : ask for those..
@@ -504,20 +504,20 @@ class CNMF(object):
                 if self.params.patch['nb'] > 0:
 
                     while len(self.merged_ROIs) > 0:
-                        self.merge_comps(Yr, mx=np.Inf, thr=self.params.merging['thr'], fast_merge=True)
+                        self.merge_comps(Yr, mx=np.Inf, fast_merge=True)
 
                     print("update temporal")
-                    self.update_temporal(Yr, use_init=False, **self.params.temporal)
+                    self.update_temporal(Yr, use_init=False)
 
                     self.params.spatial['se'] = np.ones((1,) * len(dims), dtype=np.uint8)
                     print('update spatial ...')
-                    self.update_spatial(Yr, use_init=False, dview=self.dview, **self.params.spatial)
+                    self.update_spatial(Yr, use_init=False)
 
                     print("update temporal")
-                    self.update_temporal(Yr, use_init=False, **self.params.temporal)
+                    self.update_temporal(Yr, use_init=False)
                 else:
                     while len(self.merged_ROIs) > 0:
-                        self.merge_comps(Yr, mx=np.Inf, thr=self.params.merging['thr'], fast_merge=True)
+                        self.merge_comps(Yr, mx=np.Inf, fast_merge=True)
                         if len(self.merged_ROIs) > 0:
                             not_merged = np.setdiff1d(list(range(len(self.YrA))),
                                                       np.unique(np.concatenate(self.merged_ROIs)))
@@ -526,10 +526,10 @@ class CNMF(object):
             else:
                 
                 while len(self.merged_ROIs) > 0:
-                    self.merge_comps(Yr, mx=np.Inf, thr=self.params.merging['thr'])
+                    self.merge_comps(Yr, mx=np.Inf)
 
                 print("update temporal")
-                self.update_temporal(Yr, use_init=False, **self.params.temporal)
+                self.update_temporal(Yr, use_init=False)
 
         self.A, self.C, self.YrA, self.b, self.f, self.neurons_sn = normalize_AC(
             self.A, self.C, self.YrA, self.b, self.f, self.neurons_sn)
@@ -638,8 +638,7 @@ class CNMF(object):
                 self.C_on[i, :self.initbatch] = o.c
         else:
             self.C_on[:self.N, :self.initbatch] = self.C2
-        import pdb
-        #pdb.set_trace()
+
         self.Ab, self.ind_A, self.CY, self.CC = init_shapes_and_sufficient_stats(
             Yr[:, :self.initbatch].reshape(
                 self.dims2 + (-1,), order='F'), self.A2,
@@ -1277,8 +1276,7 @@ class CNMF(object):
         self.YrA = F - self.C
         return self
 
-    def evaluate_components(self, imgs, fr=None, decay_time=None, min_SNR=None,
-                            rval_thr=None, use_cnn=None, min_cnn_thr=None):
+    def evaluate_components(self, imgs, **kwargs):
         """Computes the quality metrics for each component and stores the
         indeces of the components that pass user specified thresholds. The
         various thresholds and parameters can be passed as inputs. If left
@@ -1321,26 +1319,17 @@ class CNMF(object):
                 CNN classifier values for each component
         """
         dims = imgs.shape[1:]
-        fr = self.params.quality['fr'] if fr is None else fr
-        decay_time = (self.params.quality['decay_time']
-                      if decay_time is None else decay_time)
-        min_SNR = (self.params.quality['min_SNR']
-                   if min_SNR is None else min_SNR)
-        rval_thr = (self.params.quality['rval_thr']
-                    if rval_thr is None else rval_thr)
-        use_cnn = (self.params.quality['use_cnn']
-                   if use_cnn is None else use_cnn)
-        min_cnn_thr = (self.params.quality['min_cnn_thr']
-                       if min_cnn_thr is None else min_cnn_thr)
-
+        self.update_options('quality', kwargs)        
+        opts = self.params.quality        
         idx_components, idx_components_bad, SNR_comp, r_values, cnn_preds = \
         estimate_components_quality_auto(imgs, self.A, self.C, self.b, self.f,
-                                         self.YrA, fr, decay_time, self.params.init['gSig'],
+                                         self.YrA, opts['fr'], 
+                                         opts['decay_time'], self.params.init['gSig'],
                                          dims, dview=self.dview,
-                                         min_SNR=min_SNR,
-                                         r_values_min=rval_thr,
-                                         use_cnn=use_cnn,
-                                         thresh_cnn_min=min_cnn_thr)
+                                         min_SNR=opts['min_SNR'],
+                                         r_values_min=opts['rval_thr'],
+                                         use_cnn=opts['use_cnn'],
+                                         thresh_cnn_min=opts['min_cnn_thr'])
         self.idx_components = idx_components
         self.idx_components_bad = idx_components_bad
         self.SNR_comp = SNR_comp
@@ -1349,10 +1338,8 @@ class CNMF(object):
 
         return self
 
-    def filter_components(self, imgs, fr=None, decay_time=None, min_SNR=None,
-                          SNR_lowest=None, rval_thr=None, rval_lowest=None,
-                          use_cnn=None, min_cnn_thr=None,
-                          cnn_lowest=None, gSig_range=None):
+
+    def filter_components(self, imgs, **kwargs):
         """Filters components based on given thresholds without re-computing
         the quality metrics. If the quality metrics are not present then it
         calls self.evaluate components.
@@ -1406,42 +1393,44 @@ class CNMF(object):
                 CNN classifier values for each component
         """
         dims = imgs.shape[1:]
-        fr = self.params.quality['fr'] if fr is None else fr
-        decay_time = (self.params.quality['decay_time']
-                      if decay_time is None else decay_time)
-        min_SNR = (self.params.quality['min_SNR']
-                   if min_SNR is None else min_SNR)
-        SNR_lowest = (self.params.quality['SNR_lowest']
-                      if SNR_lowest is None else SNR_lowest)
-        rval_thr = (self.params.quality['rval_thr']
-                    if rval_thr is None else rval_thr)
-        rval_lowest = (self.params.quality['rval_lowest']
-                       if rval_lowest is None else rval_lowest)
-        use_cnn = (self.params.quality['use_cnn']
-                   if use_cnn is None else use_cnn)
-        min_cnn_thr = (self.params.quality['min_cnn_thr']
-                       if min_cnn_thr is None else min_cnn_thr)
-        cnn_lowest = (self.params.quality['cnn_lowest']
-                      if cnn_lowest is None else cnn_lowest)
-        gSig_range = (self.params.quality['gSig_range']
-                      if gSig_range is None else gSig_range)
+        self.update_options('quality', kwargs)
+#        fr = self.params.quality['fr'] if fr is None else fr
+#        decay_time = (self.params.quality['decay_time']
+#                      if decay_time is None else decay_time)
+#        min_SNR = (self.params.quality['min_SNR']
+#                   if min_SNR is None else min_SNR)
+#        SNR_lowest = (self.params.quality['SNR_lowest']
+#                      if SNR_lowest is None else SNR_lowest)
+#        rval_thr = (self.params.quality['rval_thr']
+#                    if rval_thr is None else rval_thr)
+#        rval_lowest = (self.params.quality['rval_lowest']
+#                       if rval_lowest is None else rval_lowest)
+#        use_cnn = (self.params.quality['use_cnn']
+#                   if use_cnn is None else use_cnn)
+#        min_cnn_thr = (self.params.quality['min_cnn_thr']
+#                       if min_cnn_thr is None else min_cnn_thr)
+#        cnn_lowest = (self.params.quality['cnn_lowest']
+#                      if cnn_lowest is None else cnn_lowest)
+#        gSig_range = (self.params.quality['gSig_range']
+#                      if gSig_range is None else gSig_range)
 
-        if not hasattr(self, 'idx_components'):
-            self.evaluate_components(imgs, fr=fr, decay_time=decay_time,
-                                     min_SNR=min_SNR, rval_thr=rval_thr,
-                                     use_cnn=use_cnn,
-                                     min_cnn_thr=min_cnn_thr)
-
+#        if not hasattr(self, 'idx_components'):
+#            self.evaluate_components(imgs, fr=fr, decay_time=decay_time,
+#                                     min_SNR=min_SNR, rval_thr=rval_thr,
+#                                     use_cnn=use_cnn,
+#                                     min_cnn_thr=min_cnn_thr)
+        opts = self.params.quality
         self.idx_components, self.idx_components_bad, self.cnn_preds = \
         select_components_from_metrics(self.A, dims, self.params.init['gSig'], self.r_values,
-                                       self.SNR_comp, r_values_min=rval_thr,
-                                       r_values_lowest=rval_lowest,
-                                       min_SNR=min_SNR,
-                                       min_SNR_reject=SNR_lowest,
-                                       thresh_cnn_min=min_cnn_thr,
-                                       thresh_cnn_lowest=cnn_lowest,
-                                       use_cnn=use_cnn, gSig_range=gSig_range,
-                                       predictions=self.cnn_preds)
+                                       self.SNR_comp, predictions=self.cnn_preds,
+                                       r_values_min=opts['rval_thr'],
+                                       r_values_lowest=opts['rval_lowest'],
+                                       min_SNR=opts['min_SNR'],
+                                       min_SNR_reject=opts['SNR_lowest'],
+                                       thresh_cnn_min=opts['min_cnn_thr'],
+                                       thresh_cnn_lowest=opts['cnn_lowest'],
+                                       use_cnn=opts['use_cnn'],
+                                       gSig_range=opts['gSig_range'])
 
         return self
 
@@ -1677,11 +1666,9 @@ class CNMF(object):
             self.C, self.f = C, f
         return self
 
-    def merge_comps(self, Y, thr=None, mx=50, fast_merge=True):
+    def merge_comps(self, Y, mx=50, fast_merge=True):
         """merges components
         """
-        if thr is not None:
-            self.params.merging['thr'] = thr
         self.A, self.C, self.nr, self.merged_ROIs, self.S,\
         self.bl, self.c, self.neurons_sn, self.g =\
             merge_components(Y, self.A, self.b, self.C, self.f, self.S,
