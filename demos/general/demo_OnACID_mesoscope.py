@@ -167,8 +167,8 @@ def main():
 #%% create a function for plotting results in real time if needed
 
     def create_frame(cnm2, img_norm, captions):
-        A, b = cnm2.Ab[:, cnm2.gnb:], cnm2.Ab[:, :cnm2.gnb].toarray()
-        C, f = cnm2.C_on[cnm2.gnb:cnm2.M, :], cnm2.C_on[:cnm2.gnb, :]
+        A, b = cnm2.Ab[:, gnb:], cnm2.Ab[:, :gnb].toarray()
+        C, f = cnm2.C_on[gnb:cnm2.M, :], cnm2.C_on[:gnb, :]
         # inferred activity due to components (no background)
         frame_plot = (frame_cor.copy() - bnd_Y[0])/np.diff(bnd_Y)
         comps_frame = A.dot(C[:, t - 1]).reshape(cnm2.dims, order='F')        
@@ -338,7 +338,7 @@ def main():
 
                 if t % 1000 == 0 and plot_contours_flag:
                     pl.cla()
-                    A = cnm2.Ab[:, cnm2.gnb:]
+                    A = cnm2.Ab[:, gnb:]
                     # update the contour plot every 1000 frames
                     crd = cm.utils.visualization.plot_contours(A, Cn, thr=0.9)
                     pl.pause(1)
@@ -376,9 +376,9 @@ def main():
                  dims=cnm2.dims, tottime=tottime, noisyC=cnm2.noisyC, shifts=shifts)
 
     #%% extract results from the objects and do some plotting
-    A, b = cnm2.Ab[:, cnm2.gnb:], cnm2.Ab[:, :cnm2.gnb].toarray()
-    C, f = cnm2.C_on[cnm2.gnb:cnm2.M, t - t //
-                     epochs:t], cnm2.C_on[:cnm2.gnb, t - t // epochs:t]
+    A, b = cnm2.Ab[:, gnb:], cnm2.Ab[:, :gnb].toarray()
+    C, f = cnm2.C_on[gnb:cnm2.M, t - t //
+                     epochs:t], cnm2.C_on[:gnb, t - t // epochs:t]
     noisyC = cnm2.noisyC[:, t - t // epochs:t]
     b_trace = [osi.b for osi in cnm2.OASISinstances] if hasattr(
         cnm2, 'OASISinstances') else [0] * C.shape[0]
@@ -386,7 +386,7 @@ def main():
     pl.figure()
     crd = cm.utils.visualization.plot_contours(A, Cn, thr=0.9)
     view_patches_bar(Yr, scipy.sparse.coo_matrix(A.tocsc()[:, :]), C[:, :], b, f,
-                     dims[0], dims[1], YrA=noisyC[cnm2.gnb:cnm2.M] - C, img=Cn)
+                     dims[0], dims[1], YrA=noisyC[gnb:cnm2.M] - C, img=Cn)
 
 #%%
 # This is to mask the differences between running this demo in Spyder
