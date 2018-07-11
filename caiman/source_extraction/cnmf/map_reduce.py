@@ -101,7 +101,7 @@ def cnmf_patches(args_in):
     #logger.addHandler(hdlr)
     #logger.setLevel(logging.INFO)
 
-    p = params.temporal['p']
+    p = params.get('temporal', 'p')
 
     logger.debug(name_log+'START')
 
@@ -119,7 +119,7 @@ def cnmf_patches(args_in):
     slices.insert(0, slice(timesteps))
 
     images = np.reshape(Yr.T, [timesteps] + list(dims), order='F')
-    if params.patch['in_memory']:
+    if params.get('patch', 'in_memory'):
         images = np.array(images[slices],dtype=np.float32)
     else:
         images = images[slices]
@@ -128,30 +128,30 @@ def cnmf_patches(args_in):
 
     if (np.sum(np.abs(np.diff(images.reshape(timesteps, -1).T)))) > 0.1:
 
-        cnm = cnmf.CNMF(n_processes=1, k=params.init['K'], gSig=params.init['gSig'], gSiz=params.init['gSiz'],
-                        merge_thresh=params.merging['thr'], p=p, dview=None, Ain=None, Cin=None,
+        cnm = cnmf.CNMF(n_processes=1, k=params.get('init', 'K'), gSig=params.get('init', 'gSig'), gSiz=params.get('init', 'gSiz'),
+                        merge_thresh=params.get('merging', 'thr'), p=p, dview=None, Ain=None, Cin=None,
                         f_in=None, do_merge=True,
-                        ssub=params.init['ssub'], tsub=params.init['tsub'],
-                        p_ssub=params.patch['ssub'], p_tsub=params.patch['tsub'],
-                        method_init=params.init['method'], alpha_snmf=params.init['alpha_snmf'],
-                        rf=None, stride=None, memory_fact=1, gnb=params.patch['nb'],
-                        only_init_patch=params.patch['only_init'],
-                        method_deconvolution=params.temporal['method'],
-                        n_pixels_per_process=params.preprocess['n_pixels_per_process'],
-                        block_size=params.temporal['block_size'],
-                        check_nan=params.preprocess['check_nan'],
-                        skip_refinement=params.patch['skip_refinement'],
-                        options_local_NMF=params.init['options_local_NMF'],
-                        normalize_init=params.init['normalize_init'],
-                        s_min=params.temporal['s_min'],
-                        remove_very_bad_comps=params.patch['remove_very_bad_comps'],
-                        rolling_sum=params.init['rolling_sum'],
-                        rolling_length=params.init['rolling_length'],
-                        min_corr=params.init['min_corr'], min_pnr=params.init['min_pnr'],
-                        ring_size_factor=params.init['ring_size_factor'],
-                        center_psf=params.init['center_psf'],
-                        ssub_B=params.init['ssub_B'],
-                        init_iter=params.init['init_iter'])
+                        ssub=params.get('init', 'ssub'), tsub=params.get('init', 'tsub'),
+                        p_ssub=params.get('patch', 'ssub'), p_tsub=params.get('patch', 'tsub'),
+                        method_init=params.get('init', 'method'), alpha_snmf=params.get('init', 'alpha_snmf'),
+                        rf=None, stride=None, memory_fact=1, gnb=params.get('patch', 'nb'),
+                        only_init_patch=params.get('patch', 'only_init'),
+                        method_deconvolution=params.get('temporal', 'method'),
+                        n_pixels_per_process=params.get('preprocess', 'n_pixels_per_process'),
+                        block_size=params.get('temporal', 'block_size'),
+                        check_nan=params.get('preprocess', 'check_nan'),
+                        skip_refinement=params.get('patch', 'skip_refinement'),
+                        options_local_NMF=params.get('init', 'options_local_NMF'),
+                        normalize_init=params.get('init', 'normalize_init'),
+                        s_min=params.get('temporal', 's_min'),
+                        remove_very_bad_comps=params.get('patch', 'remove_very_bad_comps'),
+                        rolling_sum=params.get('init', 'rolling_sum'),
+                        rolling_length=params.get('init', 'rolling_length'),
+                        min_corr=params.get('init', 'min_corr'), min_pnr=params.get('init', 'min_pnr'),
+                        ring_size_factor=params.get('init', 'ring_size_factor'),
+                        center_psf=params.get('init', 'center_psf'),
+                        ssub_B=params.get('init', 'ssub_B'),
+                        init_iter=params.get('init', 'init_iter'))
 
         cnm = cnm.fit(images)
         return [idx_, shapes, scipy.sparse.coo_matrix(cnm.A),
@@ -225,7 +225,7 @@ def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None, memory_fact=1,
     d = np.prod(dims)
     T = shape[-1]
 
-    rf = params.patch['rf']
+    rf = params.get('patch', 'rf')
     if rf is None:
         rf = 16
     if np.isscalar(rf):
@@ -233,7 +233,7 @@ def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None, memory_fact=1,
     else:
         rfs = rf
 
-    stride = params.patch['stride']
+    stride = params.get('patch', 'stride')
     if stride is None:
         stride = 4
     if np.isscalar(stride):
@@ -243,13 +243,10 @@ def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None, memory_fact=1,
 
     params_copy = deepcopy(params)
 
-    params_copy.preprocess['n_pixels_per_process'] = np.int(
-        old_div(np.prod(rfs), memory_fact))
-    params_copy.spatial['n_pixels_per_process'] = np.int(
-        old_div(np.prod(rfs), memory_fact))
-    params_copy.temporal['n_pixels_per_process'] = np.int(
-        old_div(np.prod(rfs), memory_fact))
-    nb = params_copy.spatial['nb']
+    npx_per_proc = np.int(old_div(np.prod(rfs), memory_fact))
+    params_copy.set('preprocess', {'n_pixels_per_process': npx_per_proc})
+    params_copy.set('spatial', {'n_pixels_per_process': npx_per_proc})
+    params_copy.set('temporal', {'n_pixels_per_process': npx_per_proc})
 
     idx_flat, idx_2d = extract_patch_coordinates(
         dims, rfs, strides, border_pix=border_pix)
@@ -323,9 +320,9 @@ def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None, memory_fact=1,
             patch_id += 1
 
     # INITIALIZING
-    nb_patch = params.patch['nb']
+    nb_patch = params.get('patch', 'nb')
     C_tot = np.zeros((count, T), dtype=np.float32)
-    if params.init['center_psf']:
+    if params.get('init', 'center_psf'):
         S_tot = np.zeros((count, T), dtype=np.float32)
     else:
          S_tot = None
@@ -377,7 +374,7 @@ def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None, memory_fact=1,
                     idx_tot_A.append(idx_)
                     idx_ptr_A.append(len(idx_))
                     C_tot[count, :] = C[ii, :]
-                    if params.init['center_psf']:
+                    if params.get('init', 'center_psf'):
                         S_tot[count, :] = S[ii, :]
                     YrA_tot[count, :] = YrA[ii, :]
                     id_patch_tot.append(patch_id)

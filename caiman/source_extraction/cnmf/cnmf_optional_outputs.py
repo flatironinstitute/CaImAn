@@ -19,7 +19,8 @@ from builtins import str
 from builtins import object
 from past.utils import old_div
 import numpy as np
-from .utilities import local_correlations, CNMFParams, order_components, evaluate_components
+from .utilities import local_correlations, order_components, evaluate_components
+from caiman.source_extraction.cnmf.params import CNMFParams
 from .pre_processing import preprocess_data
 from .initialization import initialize_components
 from .merging import merge_components

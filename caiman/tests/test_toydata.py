@@ -3,6 +3,8 @@
 import numpy.testing as npt
 import numpy as np
 from scipy.ndimage.filters import gaussian_filter
+
+import caiman.source_extraction.cnmf.params
 from caiman.source_extraction import cnmf as cnmf
 
 #%%
@@ -41,7 +43,7 @@ def pipeline(D):
     K = 4  # number of neurons expected per patch
     gSig = [2, 2, 2][:D]  # expected half size of neurons
     p = 1  # order of the autoregressive system
-    params = cnmf.utilities.CNMFParams(dims, K=K, gSig=gSig, p=p)
+    params = caiman.source_extraction.cnmf.params.CNMFParams(dims, K=K, gSig=gSig, p=p)
     params.preprocess['n_pixels_per_process'] = np.prod(dims)
     params.spatial['n_pixels_per_process'] = np.prod(dims)
     params.spatial['thr_method'] = 'nrg'
