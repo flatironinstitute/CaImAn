@@ -112,8 +112,8 @@ def main():
 
 #%% extract the results
 
-    C, f = cnm.C_on[cnm.gnb:cnm.M], cnm.C_on[:cnm.gnb]
-    A, b = cnm.Ab[:, cnm.gnb:cnm.M], cnm.Ab[:, :cnm.gnb]
+    C, f = cnm.C_on[gnb:cnm.M], cnm.C_on[:gnb]
+    A, b = cnm.Ab[:, gnb:cnm.M], cnm.Ab[:, :gnb]
     print(('Number of components:' + str(A.shape[-1])))
 
 #%% pass through the CNN classifier with a low threshold (keeps clearer neuron shapes and excludes processes)
@@ -128,10 +128,10 @@ def main():
                                  thresh_cnn], C[predictions[:, 1] < thresh_cnn]
         A, C = A[:, predictions[:, 1] >=
                  thresh_cnn], C[predictions[:, 1] >= thresh_cnn]
-        noisyC = cnm.noisyC[cnm.gnb:cnm.M]
+        noisyC = cnm.noisyC[gnb:cnm.M]
         YrA = noisyC[predictions[:, 1] >= thresh_cnn] - C
     else:
-        YrA = cnm.noisyC[cnm.gnb:cnm.M] - C
+        YrA = cnm.noisyC[gnb:cnm.M] - C
 
 #%% plot results
     pl.figure()

@@ -557,7 +557,7 @@ class CNMF(object):
         self.c12 = self.c1[idx_components]
         self.neurons_sn2 = self.neurons_sn[idx_components]
         self.lam2 = self.lam[idx_components]
-        self.dims2 = self.dims
+        self.dims2 = self.params.spatial['dims']
         self.q = q   # sparsity parameter (between 0.5 and 1)
 
         self.N = self.A2.shape[-1]
