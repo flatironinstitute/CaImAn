@@ -198,7 +198,7 @@ class CNMF(object):
             print((A.shape))
 
             A, b, C, f = update_spatial_components(
-                Yr, C, f, A, sn=sn, dview=self.dview, **options['spatial_params'])
+                Yr, C, f, A, sn=sn, dview=self.dview, dims=self.dims,  **options['spatial_params'])
             # set it back to original value to perform full deconvolution
             options['temporal_params']['p'] = self.p
 

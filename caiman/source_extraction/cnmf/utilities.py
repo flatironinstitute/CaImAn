@@ -42,7 +42,7 @@ import logging
 # %%
 class CNMFParams(object):
 
-    def __init__(self, dims, n_processes=1, K=30, gSig=[5, 5], gSiz=None, ssub=2, tsub=2, p=2, p_ssub=2, p_tsub=2,
+    def __init__(self, n_processes=1, K=30, gSig=[5, 5], gSiz=None, ssub=2, tsub=2, p=2, p_ssub=2, p_tsub=2,
                  thr=0.8, do_merge=True,
                  method_init='greedy_roi', nb=1, nb_patch=1, del_duplicates=False,
                  n_pixels_per_process=None, block_size=None, num_blocks_per_run=20, check_nan=True,
@@ -345,23 +345,22 @@ class CNMFParams(object):
                       }
 
         self.spatial = {
-            'dims': dims,                   # number of rows, columns [and depths]
             # method for determining footprint of spatial components ('ellipse' or 'dilate')
             'method': 'dilate',  # 'ellipse', 'dilate',
             'dist': 3,                       # expansion factor of ellipse
             # number of pixels to be processed by each worker
             'n_pixels_per_process': n_pixels_per_process,
             # window of median filter
-            'medw': (3,) * len(dims),
+            'medw': None,
             'thr_method': 'nrg',  # Method of thresholding ('max' or 'nrg')
             'maxthr': 0.1,                                 # Max threshold
             'nrgthr': 0.9999,                              # Energy threshold
             # Flag to extract connected components (might want to turn to False for dendritic imaging)
             'extract_cc': True,
             # Morphological closing structuring element
-            'se': np.ones((3,) * len(dims), dtype=np.uint8),
+            'se': None,
             # Binary element for determining connectivity
-            'ss': np.ones((3,) * len(dims), dtype=np.uint8),
+            'ss': None,
             'expandCore': None,
             'normalize_yyt_one': True,
             'block_size': block_size,

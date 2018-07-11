@@ -1069,13 +1069,12 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
         B += Y_ds.reshape((-1, total_frames), order='F')  # "Y-B"
 
         print('Update Spatial')
-        options['spatial_params']['dims'] = (d1, d2)
         A, _, C, _ = caiman.source_extraction.cnmf.spatial.update_spatial_components(
             B, C=C, f=np.zeros((0, total_frames), np.float32), A_in=A,
             sn=np.sqrt(downscale((sn**2).reshape(dims, order='F'),
                                  tuple([ssub] * len(dims))).ravel() / tsub) / ssub,
             b_in=np.zeros((d1 * d2, 0), np.float32),
-            dview=None, **options['spatial_params'])
+            dview=None, dims=(d1, d2), **options['spatial_params'])
         print('Update Temporal')
         C, A = caiman.source_extraction.cnmf.temporal.update_temporal_components(
             B, spr.csc_matrix(A, dtype=np.float32),
@@ -1108,13 +1107,12 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
         A = A.astype(np.float32)
         C = C.astype(np.float32)
         print('Update Spatial')
-        options['spatial_params']['dims'] = (d1, d2)
         A, _, C, _ = caiman.source_extraction.cnmf.spatial.update_spatial_components(
             B, C=C, f=np.zeros((0, total_frames), np.float32), A_in=A,
             sn=np.sqrt(downscale((sn**2).reshape(dims, order='F'),
                                  tuple([ssub] * len(dims))).ravel() / tsub) / ssub,
             b_in=np.zeros((d1 * d2, 0), np.float32),
-            dview=None, **options['spatial_params'])
+            dview=None, dims=(d1, d2), **options['spatial_params'])
         A = A.astype(np.float32)
         print('Update Temporal')
         C, A = caiman.source_extraction.cnmf.temporal.update_temporal_components(
@@ -1158,12 +1156,11 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
         A = A.astype(np.float32)
         C = C.astype(np.float32)
         print('Update Spatial')
-        options['spatial_params']['dims'] = dims
         options['spatial_params']['se'] = np.ones((1,) * len((d1, d2)), dtype=np.uint8)
         A, _, C, _ = caiman.source_extraction.cnmf.spatial.update_spatial_components(
             B, C=C, f=np.zeros((0, T), np.float32), A_in=A, sn=sn,
             b_in=np.zeros((np.prod(dims), 0), np.float32),
-            dview=None, **options['spatial_params'])
+            dview=None, dims=dims, **options['spatial_params'])
         print('Update Temporal')
         C, A, b__, f__, S, bl, c1, neurons_sn, g1, YrA, lam__ = \
             caiman.source_extraction.cnmf.temporal.update_temporal_components(

@@ -57,7 +57,7 @@ def pipeline(D):
 
     # UPDATE SPATIAL COMPONENTS
     A, b, Cin, f_in = cnmf.spatial.update_spatial_components(
-        Yr, Cin, f_in, Ain, sn=sn, **params.spatial)
+        Yr, Cin, f_in, Ain, sn=sn, dims=dims, **params.spatial)
 
     # UPDATE TEMPORAL COMPONENTS
     C, A, b, f, S, bl, c1, neurons_sn, g, YrA, lam_ = cnmf.temporal.update_temporal_components(

@@ -279,13 +279,17 @@ class CNMF(object):
         self.sn = None
         self.g = None
 
+        # these are movie properties that will be refactored into the Movie object
+        self.dims = None
+        self.initbatch = None
+
         # these are member variables related to the CNMF workflow
         self.only_init = only_init_patch
         self.skip_refinement = skip_refinement
         self.remove_very_bad_comps = remove_very_bad_comps
         self.update_num_comps = update_num_comps
 
-        self.params = CNMFParams((1, 1), K=k, n_processes=n_processes, gSig=gSig, gSiz=gSiz, ssub=ssub, tsub=tsub, p=p,
+        self.params = CNMFParams(K=k, n_processes=n_processes, gSig=gSig, gSiz=gSiz, ssub=ssub, tsub=tsub, p=p,
                                  p_ssub=p_ssub, p_tsub=p_tsub, method_init=method_init, nb=gnb, nb_patch=nb_patch,
                                  n_pixels_per_process=n_pixels_per_process, block_size=block_size, num_blocks_per_run=num_blocks_per_run,
                                  check_nan=check_nan,
@@ -338,13 +342,13 @@ class CNMF(object):
         # Todo : to compartiment
         T = images.shape[0]
         self.initbatch = T
-        dims = images.shape[1:]
-        Y = np.transpose(images, list(range(1, len(dims) + 1)) + [0])
+        self.dims = images.shape[1:]
+        Y = np.transpose(images, list(range(1, len(self.dims) + 1)) + [0])
         Yr = np.transpose(np.reshape(images, (T, -1), order='F'))
         if np.isfortran(Yr):
             raise Exception('The file is in F order, it should be in C order (see save_memmap function')
 
-        print((T,) + dims)
+        print((T,) + self.dims)
 
         # Make sure filename is pointed correctly (numpy sets it to None sometimes)
         try:
@@ -355,15 +359,14 @@ class CNMF(object):
 
         # update/set all options that depend on data dimensions
         # number of rows, columns [and depths]
-        self.params.spatial['dims'] = dims
         self.params.spatial['medw'] = (
-            3,) * len(dims)  # window of median filter
+            3,) * len(self.dims)  # window of median filter
         # Morphological closing structuring element
         self.params.spatial['se'] = np.ones(
-            (3,) * len(dims), dtype=np.uint8)
+            (3,) * len(self.dims), dtype=np.uint8)
         # Binary element for determining connectivity
         self.params.spatial['ss'] = np.ones(
-            (3,) * len(dims), dtype=np.uint8)
+            (3,) * len(self.dims), dtype=np.uint8)
 
         print(('using ' + str(self.params.patch['n_processes']) + ' processes'))
         if self.params.preprocess['n_pixels_per_process'] is None:
@@ -373,7 +376,7 @@ class CNMF(object):
             self.params.preprocess['n_pixels_per_process'] = np.int(
                 avail_memory_per_process / 8. / mem_per_pix / T)
             self.params.preprocess['n_pixels_per_process'] = np.int(np.minimum(
-                self.params.preprocess['n_pixels_per_process'], np.prod(dims) // self.params.patch['n_processes']))
+                self.params.preprocess['n_pixels_per_process'], np.prod(self.dims) // self.params.patch['n_processes']))
         self.params.preprocess['n_pixels_per_process'] = self.params.preprocess['n_pixels_per_process']
         self.params.spatial['n_pixels_per_process'] = self.params.preprocess['n_pixels_per_process']
 
@@ -488,7 +491,7 @@ class CNMF(object):
             if self.only_init:
                 self.params.patch['only_init'] = True
 
-            A, C, YrA, b, f, sn, optional_outputs = run_CNMF_patches(images.filename, dims + (T,),
+            A, C, YrA, b, f, sn, optional_outputs = run_CNMF_patches(images.filename, self.dims + (T,),
                                                                      self.params,
                                                                      dview=self.dview, memory_fact=self.params.patch['memory_fact'],
                                                                      gnb=self.params.init['nb'], border_pix=self.params.patch['border_pix'],
@@ -509,7 +512,7 @@ class CNMF(object):
                     print("update temporal")
                     self.update_temporal(Yr, use_init=False, **self.params.temporal)
 
-                    self.params.spatial['se'] = np.ones((1,) * len(dims), dtype=np.uint8)
+                    self.params.spatial['se'] = np.ones((1,) * len(self.dims), dtype=np.uint8)
                     print('update spatial ...')
                     self.update_spatial(Yr, use_init=False, dview=self.dview, **self.params.spatial)
 
@@ -557,7 +560,7 @@ class CNMF(object):
         self.c12 = self.c1[idx_components]
         self.neurons_sn2 = self.neurons_sn[idx_components]
         self.lam2 = self.lam[idx_components]
-        self.dims2 = self.params.spatial['dims']
+        self.dims2 = self.dims
         self.q = q   # sparsity parameter (between 0.5 and 1)
 
         self.N = self.A2.shape[-1]
@@ -1670,7 +1673,7 @@ class CNMF(object):
         b_in = self.b_in if use_init else self.b_in
         self.A, self.b, C, f =\
             update_spatial_components(Y, C=C, f=f, A_in=Ain, b_in=b_in, dview=self.dview,
-                                      sn=self.sn, **self.params.spatial)
+                                      sn=self.sn, dims=self.dims, **self.params.spatial)
         if use_init:
             self.Cin, self.f_in = C, f
         else:

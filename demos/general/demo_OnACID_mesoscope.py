@@ -222,7 +222,7 @@ def main():
     path_to_cnn_residual = os.path.join(caiman_datadir(), 'model', 'cnn_model_online.h5')
 
     cnm2._prepare_object(np.asarray(Yr), T1, expected_comps, idx_components=None,
-                             min_num_trial=3, max_num_added = 3, N_samples_exceptionality=int(N_samples),
+                             min_num_trial=3, max_num_added = 3,
                              path_to_model = path_to_cnn_residual,
                              sniper_mode = False, use_peak_max=False, q=0.5)
     cnm2.thresh_CNN_noisy = 0.5
