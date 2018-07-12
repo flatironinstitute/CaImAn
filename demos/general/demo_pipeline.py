@@ -58,8 +58,8 @@ def main():
     fr = 30                             # imaging rate in frames per second
     decay_time = 0.4                    # length of a typical transient in seconds
 
-    pwrigid_motion_correct = False
     # motion correction parameters
+    pwrigid_motion_correct = False # flag to select rigid vs pw_rigid motion correction
     niter_rig = 1               # number of iterations for rigid motion correction
     max_shifts = (6, 6)         # maximum allow rigid shift
     # for parallelization split the movies in  num_splits chuncks across time
