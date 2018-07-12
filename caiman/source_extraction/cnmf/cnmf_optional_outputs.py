@@ -19,7 +19,8 @@ from builtins import str
 from builtins import object
 from past.utils import old_div
 import numpy as np
-from .utilities import local_correlations, CNMFParams, order_components, evaluate_components
+from .utilities import local_correlations, order_components, evaluate_components
+from caiman.source_extraction.cnmf.params import CNMFParams
 from .pre_processing import preprocess_data
 from .initialization import initialize_components
 from .merging import merge_components
@@ -198,7 +199,7 @@ class CNMF(object):
             print((A.shape))
 
             A, b, C, f = update_spatial_components(
-                Yr, C, f, A, sn=sn, dview=self.dview, **options['spatial_params'])
+                Yr, C, f, A, sn=sn, dview=self.dview, dims=self.dims,  **options['spatial_params'])
             # set it back to original value to perform full deconvolution
             options['temporal_params']['p'] = self.p
 

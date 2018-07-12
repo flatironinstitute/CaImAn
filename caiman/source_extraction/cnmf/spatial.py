@@ -54,7 +54,7 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
                               ss=np.ones((3, 3), dtype=np.int), nb=1,
                               method_ls='lasso_lars', update_background_components=True, 
                               low_rank_background=True, block_size=1000,
-                              num_blocks_per_run=20, **kwargs):
+                              num_blocks_per_run=20):
     """update spatial footprints and background through Basis Pursuit Denoising
 
     for each pixel i solve the problem

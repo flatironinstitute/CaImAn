@@ -4,6 +4,9 @@ from __future__ import print_function
 # %%
 from builtins import str
 from builtins import range
+
+import caiman.source_extraction.cnmf.params
+
 try:
     if __IPYTHON__:
         # this is used for debugging purposes only. allows to reload classes when changed
@@ -112,7 +115,7 @@ K = 30  # number of neurons expected per patch
 gSig = [7, 7]  # expected half size of neurons
 merge_thresh = 0.8  # merging threshold, max correlation allowed
 p = 2  # order of the autoregressive system
-options = cnmf.utilities.CNMFParams(dims, K=K, gSig=gSig, ssub=2, tsub=2, p=p, nb=1, normalize_init=True)
+options = caiman.source_extraction.cnmf.params.CNMFParams(dims, K=K, gSig=gSig, ssub=2, tsub=2, p=p, nb=1, normalize_init=True)
 options['preprocess_params']['noise_method'] = 'mean'
 #%% PREPROCESS DATA AND INITIALIZE COMPONENTS
 t1 = time()
@@ -139,7 +142,7 @@ pl.show()
 # pl.close()
 t1 = time()
 A, b, Cin, f_in = cm.source_extraction.cnmf.spatial.update_spatial_components(
-    Yr, Cin, f_in, Ain, sn=sn, dview=dview, **options['spatial_params'])
+    Yr, Cin, f_in, Ain, sn=sn, dview=dview, dims=dims, **options['spatial_params'])
 t_elSPATIAL = time() - t1
 pl.figure()
 crd = plot_contours(A, Cn)
@@ -168,7 +171,7 @@ print(t_elMERGE)
 # pl.close()
 t1 = time()
 A2, b2, C2, f = cm.source_extraction.cnmf.spatial.update_spatial_components(
-    Yr, C_m, f, A_m, sn=sn, dview=dview, **options['spatial_params'])
+    Yr, C_m, f, A_m, sn=sn, dview=dview, dims=dims, **options['spatial_params'])
 # set it back to original value to perform full deconvolution
 options['temporal_params']['p'] = p
 C2, A2, b2, f2, S2, bl2, c12, neurons_sn2, g21, YrA = cm.source_extraction.cnmf.temporal.update_temporal_components(

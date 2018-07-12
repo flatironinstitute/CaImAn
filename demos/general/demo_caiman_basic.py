@@ -106,7 +106,6 @@ def main():
                     merge_thresh=merge_thresh, p=p, dview=dview, gnb=gnb,
                     rf=rf, stride=stride, rolling_sum=False)
     cnm = cnm.fit(images)
-    cnm.dims = dims
 #%% plot contour plots of components
     cnm.plot_contours(img=Cn)
 
@@ -119,7 +118,6 @@ def main():
                      method_deconvolution='oasis', check_nan=True)
     
     cnm2 = cnm2.fit(images)
-    cnm2.dims = dims
 #%% COMPONENT EVALUATION
     # the components are evaluated in three ways:
     #   a) the shape of each component must be correlated with the data
