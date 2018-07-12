@@ -949,8 +949,7 @@ def plot_contours(A, Cn, thr=None, thr_method='max', maxthr=0.2, nrgthr=0.9, dis
             thr = maxthr
     else:
         thr_method = 'nrg'
-        warn("The way to call utilities.plot_contours has changed. " +
-             "Look at the definition for more details.")
+
 
     ax = pl.gca()
     if vmax is None and vmin is None:
