@@ -25,4 +25,4 @@ dependencies:
 - tifffile
 - tqdm
 - tornado=4.5
-- x264=20131218
+- x264
