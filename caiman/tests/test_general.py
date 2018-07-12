@@ -241,6 +241,7 @@ def test_general():
                         'only_init_patch'],
                     gnb=params_movie['gnb'], method_deconvolution='oasis')
     comp.cnmpatch = copy.copy(cnm)
+    comp.cnmpatch.estimates = None
     cnm = cnm.fit(images)
     A_tot = cnm.estimates.A
     C_tot = cnm.estimates.C
