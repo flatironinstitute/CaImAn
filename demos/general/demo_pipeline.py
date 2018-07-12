@@ -59,6 +59,7 @@ def main():
     decay_time = 0.4                    # length of a typical transient in seconds
 
     # motion correction parameters
+    pwrigid_motion_correct = False # flag to select rigid vs pw_rigid motion correction
     niter_rig = 1               # number of iterations for rigid motion correction
     max_shifts = (6, 6)         # maximum allow rigid shift
     # for parallelization split the movies in  num_splits chuncks across time
@@ -127,10 +128,19 @@ def main():
     # note that the file is not loaded in memory
 
 #%% Run piecewise-rigid motion correction using NoRMCorre
-    mc.motion_correct_pwrigid(save_movie=True)
-    m_els = cm.load(mc.fname_tot_els)
-    bord_px_els = np.ceil(np.maximum(np.max(np.abs(mc.x_shifts_els)),
+    if pwrigid_motion_correct:
+        mc.motion_correct_pwrigid()(save_movie=True)
+        m_els = cm.load(mc.fname_tot_els)
+        bord_px_els = np.ceil(np.maximum(np.max(np.abs(mc.x_shifts_els)),
                                      np.max(np.abs(mc.y_shifts_els)))).astype(np.int)
+        fnames = mc.fname_tot_els  # name of the pw-rigidly corrected file.
+
+    else:
+        mc.motion_correct_rigid(save_movie=True)
+        m_els = cm.load(mc.fname_tot_rig)
+        bord_px_els = np.ceil(np.max(np.abs(mc.shifts_rig))).astype(np.int)
+        fnames = mc.fname_tot_rig  # name of the rigidly corrected file.
+
     # maximum shift to be used for trimming against NaNs
 #%% compare with original movie
     moviehandle = cm.concatenate([m_orig.resize(1, 1, downsample_ratio) + offset_mov,
@@ -142,7 +152,6 @@ def main():
 
 #%% MEMORY MAPPING
     # memory map the file in order 'C'
-    fnames = mc.fname_tot_els   # name of the pw-rigidly corrected file.
     fname_new = cm.save_memmap(fnames, base_name='memmap_', order='C',
                                border_to_0=bord_px_els)  # exclude borders
 
@@ -184,17 +193,17 @@ def main():
                             use_cnn=False, min_cnn_thr=cnn_thr)
 
 #%% PLOT COMPONENTS
-    cnm.plot_contours(img=Cn, idx=cnm.idx_components)
+    cnm.plot_contours(img=Cn, idx=cnm.estimates.idx_components)
 
 #%% VIEW TRACES (accepted and rejected)
 
     if display_images:
-        cnm.view_components(images, dims, img=Cn, idx=cnm.idx_components)
-        cnm.view_components(images, dims, img=Cn, idx=cnm.idx_components_bad)
+        cnm.view_components(images, dims, img=Cn, idx=cnm.estimates.idx_components)
+        cnm.view_components(images, dims, img=Cn, idx=cnm.estimates.idx_components_bad)
 
 #%% RE-RUN seeded CNMF on accepted patches to refine and perform deconvolution
-    A_in, C_in, b_in, f_in = cnm.A[:, cnm.idx_components],\
-        cnm.C[cnm.idx_components], cnm.b, cnm.f
+    A_in, C_in, b_in, f_in = cnm.estimates.A[:, cnm.estimates.idx_components],\
+        cnm.estimates.C[cnm.estimates.idx_components], cnm.estimates.b, cnm.estimates.f
     cnm2 = cnmf.CNMF(n_processes=1, k=A_in.shape[-1], gSig=gSig, p=p, dview=dview,
                      merge_thresh=merge_thresh, Ain=A_in, Cin=C_in, b_in=b_in,
                      f_in=f_in, rf=None, stride=None, gnb=gnb,

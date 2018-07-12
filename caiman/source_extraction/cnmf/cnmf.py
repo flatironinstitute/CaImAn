@@ -52,6 +52,8 @@ from time import time
 import logging
 import sys
 import inspect
+from caiman.utils.utils import save_dict_to_hdf5, load_dict_from_hdf5
+
 
 try:
     cv2.setNumThreads(0)
@@ -265,20 +267,8 @@ class CNMF(object):
         """
 
         self.dview = dview
+        self.estimates = Estimates(A = Ain, C = Cin, b = b_in, f = f_in)
 
-        # these are variables related to the estimates of traces, footprints, and background
-        self.Ain = Ain
-        self.Cin = Cin
-        self.f_in = f_in
-        self.b_in = b_in
-
-        self.A = None
-        self.C = None
-        self.S = None
-        self.b = None
-        self.f = None
-        self.sn = None
-        self.g = None
 
         # these are movie properties that will be refactored into the Movie object
         self.dims = None
@@ -312,6 +302,7 @@ class CNMF(object):
                                  n_refit=n_refit, N_samples_exceptionality=N_samples_exceptionality, max_num_added=max_num_added,
                                  min_num_trial=min_num_trial, thresh_CNN_noisy=thresh_CNN_noisy
                                  )
+
 
     def fit(self, images):
         """
@@ -381,62 +372,47 @@ class CNMF(object):
 
         if self.params.get('patch', 'rf') is None:  # no patches
             print('preprocessing ...')
-            Yr, sn, g, psx = preprocess_data(
-                Yr, dview=self.dview, **self.params.get_group('preprocess'))
-
-            self.sn = sn
-
-            if self.Ain is None:
+            Yr = self.preprocess(Yr)
+            if self.estimates.A is None:
                 print('initializing ...')
-                self.initialize(Y, sn)
+                self.initialize(Y)
 
             if self.only_init:  # only return values after initialization
-                self.A = self.Ain
-                self.C = self.Cin
-                self.b = self.b_in
-                self.f = self.f_in
-                if self.params.get('init', 'center_psf'):
-                    try:
-                        self.S, self.bl, self.c1, self.neurons_sn, self.g, self.YrA = self.extra_1p
-                    except:
-                        self.S, self.bl, self.c1, self.neurons_sn, self.g, self.YrA, self.W, self.b0 = self.extra_1p
-                else:
+                if not self.params.get('init', 'center_psf'):
                     self.compute_residuals(Yr)
-                    self.g = g
-                    self.bl = None
-                    self.c1 = None
-                    self.neurons_sn = None
+                    self.estimates.bl = None
+                    self.estimates.c1 = None
+                    self.estimates.neurons_sn = None
 
-                self.A = self.Ain
-                self.C = self.Cin
 
                 if self.remove_very_bad_comps:
                     print('removing bad components : ')
+                    #todo update these parameters to reflect the new version of Params
                     final_frate = 10
                     r_values_min = 0.5  # threshold on space consistency
                     fitness_min = -15  # threshold on time variability
                     fitness_delta_min = -15
                     Npeaks = 10
-                    traces = np.array(self.C)
+                    traces = np.array(self.estimates.C)
                     print('estimating the quality...')
                     idx_components, idx_components_bad, fitness_raw,\
                         fitness_delta, r_values = components_evaluation.estimate_components_quality(
-                            traces, Y, self.A, self.C, self.b_in, self.f_in,
+                            traces, Y, self.estimates.A, self.estimates.C, self.estimates.b, self.estimates.f,
                             final_frate=final_frate, Npeaks=Npeaks, r_values_min=r_values_min,
                             fitness_min=fitness_min, fitness_delta_min=fitness_delta_min, return_all=True, N=5)
 
                     print(('Keeping ' + str(len(idx_components)) +
                            ' and discarding  ' + str(len(idx_components_bad))))
-                    self.C = self.C[idx_components]
-                    self.A = self.A[:, idx_components]
-                    self.YrA = self.YrA[idx_components]
+                    self.estimates.C = self.estimates.C[idx_components]
+                    self.estimates.A = self.estimates.A[:, idx_components]
+                    self.estimates.YrA = self.estimates.YrA[idx_components]
 
-                self.sn = sn
-                self.b = self.b_in
-                self.f = self.f_in
 
-                self.A, self.C, self.YrA, self.b, self.f, self.neurons_sn = normalize_AC(
-                    self.A, self.C, self.YrA, self.b, self.f, self.neurons_sn)
+
+                self.estimates.A, self.estimates.C, self.estimates.YrA, self.estimates.b, self.estimates.f, self.estimates.neurons_sn\
+                    = normalize_AC(self.estimates.A, self.estimates.C, self.estimates.YrA, self.estimates.b, self.estimates.f,
+                        self.estimates.neurons_sn)
+
                 return self
 
             print('update spatial ...')
@@ -456,12 +432,12 @@ class CNMF(object):
                 print('refinement...')
                 if self.params.get('merging', 'do_merge'):
                     print('merge components ...')
-                    print(self.A.shape)
-                    print(self.C.shape)
+                    print(self.estimates.A.shape)
+                    print(self.estimates.C.shape)
                     self.merge_comps(Yr, mx=50, fast_merge=True)
 
-                print((self.A.shape))
-                print(self.C.shape)
+                print((self.estimates.A.shape))
+                print(self.estimates.C.shape)
                 print('update spatial ...')
 
                 self.update_spatial(Yr, use_init=False)
@@ -470,9 +446,9 @@ class CNMF(object):
                 print('update temporal ...')
                 self.update_temporal(Yr, use_init=False)
 
-            else:
-                # todo : ask for those..
-                C, f, S, bl, c1, neurons_sn, g1, YrA, lam = self.C, self.f, self.S, self.bl, self.c1, self.neurons_sn, self.g, self.YrA, self.lam
+            # else:
+            #     todo : ask for those..
+                # C, f, S, bl, c1, neurons_sn, g1, YrA, lam = self.C, self.f, self.S, self.bl, self.c1, self.neurons_sn, self.g, self.YrA, self.lam
 
         else:  # use patches
             if self.params.get('patch', 'stride') is None:
@@ -487,17 +463,18 @@ class CNMF(object):
             if self.only_init:
                 self.params.set('patch', {'only_init': True})
 
-            A, C, YrA, b, f, sn, optional_outputs = run_CNMF_patches(images.filename, self.dims + (T,),
+            self.estimates.A, self.estimates.C, self.estimates.YrA, self.estimates.b, self.estimates.f, \
+            self.estimates.sn, self.estimates.optional_outputs = run_CNMF_patches(images.filename, self.dims + (T,),
                                                                      self.params,
                                                                      dview=self.dview, memory_fact=self.params.get('patch', 'memory_fact'),
                                                                      gnb=self.params.get('init', 'nb'), border_pix=self.params.get('patch', 'border_pix'),
                                                                      low_rank_background=self.params.get('patch', 'low_rank_background'),
                                                                      del_duplicates=self.params.get('patch', 'del_duplicates'))
 
-            self.A, self.C, self.YrA, self.b, self.f, self.sn, self.optional_outputs = A, C, YrA, b, f, sn, optional_outputs
-            self.bl, self.c1, self.g, self.neurons_sn = None, None, None, None
+            self.estimates.bl, self.estimates.c1, self.estimates.g, self.estimates.neurons_sn = None, None, None, None
             print("merging")
-            self.merged_ROIs = [0]
+            self.estimates.merged_ROIs = [0]
+
 
             if self.params.get('init', 'center_psf'):  # merge taking best neuron
                 if self.params.get('patch', 'nb') > 0:
@@ -515,25 +492,45 @@ class CNMF(object):
                     print("update temporal")
                     self.update_temporal(Yr, use_init=False)
                 else:
-                    while len(self.merged_ROIs) > 0:
+                    while len(self.estimates.merged_ROIs) > 0:
                         self.merge_comps(Yr, mx=np.Inf, fast_merge=True)
-                        if len(self.merged_ROIs) > 0:
-                            not_merged = np.setdiff1d(list(range(len(self.YrA))),
-                                                      np.unique(np.concatenate(self.merged_ROIs)))
-                            self.YrA = np.concatenate([self.YrA[not_merged],
-                                                       np.array([self.YrA[m].mean(0) for m in self.merged_ROIs])])
+                        if len(self.estimates.merged_ROIs) > 0:
+                            not_merged = np.setdiff1d(list(range(len(self.estimates.YrA))),
+                                                      np.unique(np.concatenate(self.estimates.merged_ROIs)))
+                            self.estimates.YrA = np.concatenate([self.estimates.YrA[not_merged],
+                                                       np.array([self.estimates.YrA[m].mean(0) for m in self.estimates.merged_ROIs])])
             else:
                 
-                while len(self.merged_ROIs) > 0:
+                while len(self.estimates.merged_ROIs) > 0:
                     self.merge_comps(Yr, mx=np.Inf)
 
                 print("update temporal")
                 self.update_temporal(Yr, use_init=False)
 
-        self.A, self.C, self.YrA, self.b, self.f, self.neurons_sn = normalize_AC(
-            self.A, self.C, self.YrA, self.b, self.f, self.neurons_sn)
+        self.estimates.A, self.estimates.C, self.estimates.YrA, self.estimates.b, self.estimates.f, self.estimates.neurons_sn = normalize_AC(
+            self.estimates.A, self.estimates.C, self.estimates.YrA, self.estimates.b, self.estimates.f, self.estimates.neurons_sn)
 
         return self
+
+
+    def save(self,filename):
+        '''save object in hdf5 file format
+        Parameters:
+        -----------
+        filename: str
+            path to the hdf5 file containing the saved object
+        '''
+        if '.hdf5' in filename:
+            # keys_types = [(k, type(v)) for k, v in self.__dict__.items()]
+            ptpt = self.optional_outputs
+            self.optional_outputs = None
+            save_dict_to_hdf5(self.__dict__, filename)
+            self.optional_outputs = ptpt
+
+        else:
+            raise Exception("Filename not supported")
+
+
 
     def _prepare_object(self, Yr, T, expected_comps, new_dims=None,
                         idx_components=None, g=None, lam=None, s_min=None,
@@ -1036,20 +1033,20 @@ class CNMF(object):
 
         """
 
-        if 'csc_matrix' not in str(type(self.A)):
-            self.A = scipy.sparse.csc_matrix(self.A)
-        if 'array' not in str(type(self.b)):
-            self.b = self.b.toarray()
-        if 'array' not in str(type(self.C)):
-            self.C = self.C.toarray()
-        if 'array' not in str(type(self.f)):
-            self.f = self.f.toarray()
+        if 'csc_matrix' not in str(type(self.estimates.A)):
+            self.estimates.A = scipy.sparse.csc_matrix(self.estimates.A)
+        if 'array' not in str(type(self.estimates.b)):
+            self.estimates.b = self.estimates.b.toarray()
+        if 'array' not in str(type(self.estimates.C)):
+            self.estimates.C = self.C.estimates.toarray()
+        if 'array' not in str(type(self.estimates.f)):
+            self.estimates.f = self.estimates.f.toarray()
 
-        Ab = scipy.sparse.hstack((self.A, self.b)).tocsc()
+        Ab = scipy.sparse.hstack((self.estimates.A, self.estimates.b)).tocsc()
         nA2 = np.ravel(Ab.power(2).sum(axis=0))
         nA2_inv_mat = scipy.sparse.spdiags(
             1. / nA2, 0, nA2.shape[0], nA2.shape[0])
-        Cf = np.vstack((self.C, self.f))
+        Cf = np.vstack((self.estimates.C, self.estimates.f))
         if 'numpy.ndarray' in str(type(Yr)):
             YA = (Ab.T.dot(Yr)).T * nA2_inv_mat
         else:
@@ -1057,41 +1054,41 @@ class CNMF(object):
                                            transpose=True, num_blocks_per_run=5) * nA2_inv_mat
 
         AA = Ab.T.dot(Ab) * nA2_inv_mat
-        self.YrA = (YA - (AA.T.dot(Cf)).T)[:, :self.A.shape[-1]].T
+        self.estimates.YrA = (YA - (AA.T.dot(Cf)).T)[:, :self.estimates.A.shape[-1]].T
 
         return self
 
     def normalize_components(self):
         """ normalize components such that spatial components have norm 1
         """
-        if 'csc_matrix' not in str(type(self.A)):
-            self.A = scipy.sparse.csc_matrix(self.A)
-        if 'array' not in str(type(self.b)):
-            self.b = self.b.toarray()
-        if 'array' not in str(type(self.C)):
-            self.C = self.C.toarray()
-        if 'array' not in str(type(self.f)):
-            self.f = self.f.toarray()
+        if 'csc_matrix' not in str(type(self.estimates.A)):
+            self.estimates.A = scipy.sparse.csc_matrix(self.estimates.A)
+        if 'array' not in str(type(self.estimates.b)):
+            self.estimates.b = self.estimates.b.toarray()
+        if 'array' not in str(type(self.estimates.C)):
+            self.estimates.C = self.estimates.C.toarray()
+        if 'array' not in str(type(self.estimates.f)):
+            self.estimates.f = self.estimates.f.toarray()
 
-        nA = np.sqrt(np.ravel(self.A.power(2).sum(axis=0)))
+        nA = np.sqrt(np.ravel(self.estimates.A.power(2).sum(axis=0)))
         nA_mat = scipy.sparse.spdiags(nA, 0, nA.shape[0], nA.shape[0])
         nA_inv_mat = scipy.sparse.spdiags(1. / nA, 0, nA.shape[0], nA.shape[0])
-        self.A = self.A * nA_inv_mat
-        self.C = nA_mat * self.C
-        if self.YrA is not None:
-            self.YrA = nA_mat * self.YrA
-        if self.bl is not None:
-            self.bl = nA * self.bl
-        if self.c1 is not None:
-            self.c1 = nA * self.c1
-        if self.neurons_sn is not None:
-            self.neurons_sn *= nA * self.neurons_sn
+        self.estimates.A = self.estimates.A * nA_inv_mat
+        self.estimates.C = nA_mat * self.estimates.C
+        if self.estimates.YrA is not None:
+            self.estimates.YrA = nA_mat * self.estimates.YrA
+        if self.estimates.bl is not None:
+            self.estimates.bl = nA * self.estimates.bl
+        if self.estimates.c1 is not None:
+            self.estimates.c1 = nA * self.estimates.c1
+        if self.estimates.neurons_sn is not None:
+            self.estimates.neurons_sn *= nA * self.estimates.neurons_sn
 
-        nB = np.sqrt(np.ravel((self.b**2).sum(axis=0)))
+        nB = np.sqrt(np.ravel((self.estimates.b**2).sum(axis=0)))
         nB_mat = scipy.sparse.spdiags(nB, 0, nB.shape[0], nB.shape[0])
         nB_inv_mat = scipy.sparse.spdiags(1. / nB, 0, nB.shape[0], nB.shape[0])
-        self.b = self.b * nB_inv_mat
-        self.f = nB_mat * self.f
+        self.estimates.b = self.estimates.b * nB_inv_mat
+        self.estimates.f = nB_mat * self.estimates.f
 
     def plot_contours(self, img=None, idx=None, crd=None, thr_method='max',
                       thr='0.2'):
@@ -1113,28 +1110,28 @@ class CNMF(object):
         thr : float
                 threshold value
         """
-        if 'csc_matrix' not in str(type(self.A)):
-            self.A = scipy.sparse.csc_matrix(self.A)
+        if 'csc_matrix' not in str(type(self.estimates.A)):
+            self.estimates.A = scipy.sparse.csc_matrix(self.estimates.A)
         if img is None:
-            img = np.reshape(np.array(self.A.mean(1)), self.dims, order='F')
+            img = np.reshape(np.array(self.estimates.A.mean(1)), self.dims, order='F')
         if not hasattr(self, 'coordinates'):
-            self.coordinates = caiman.utils.visualization.get_contours(self.A, self.dims, thr=thr, thr_method=thr_method)
+            self.estimates.coordinates = caiman.utils.visualization.get_contours(self.estimates.A, self.dims, thr=thr, thr_method=thr_method)
         pl.figure()
         if idx is None:
-            caiman.utils.visualization.plot_contours(self.A, img, coordinates=self.coordinates)
+            caiman.utils.visualization.plot_contours(self.estimates.A, img, coordinates=self.estimates.coordinates)
         else:
             if not isinstance(idx, list):
                 idx = idx.tolist()
-            coor_g = [self.coordinates[cr] for cr in idx]
-            bad = list(set(range(self.A.shape[1])) - set(idx))
-            coor_b = [self.coordinates[cr] for cr in bad]
+            coor_g = [self.estimates.coordinates[cr] for cr in idx]
+            bad = list(set(range(self.estimates.A.shape[1])) - set(idx))
+            coor_b = [self.estimates.coordinates[cr] for cr in bad]
             pl.subplot(1, 2, 1)
-            caiman.utils.visualization.plot_contours(self.A[:, idx], img,
+            caiman.utils.visualization.plot_contours(self.estimates.A[:, idx], img,
                                                      coordinates=coor_g)
             pl.title('Accepted Components')
-            bad = list(set(range(self.A.shape[1])) - set(idx))
+            bad = list(set(range(self.estimates.A.shape[1])) - set(idx))
             pl.subplot(1, 2, 2)
-            caiman.utils.visualization.plot_contours(self.A[:, bad], img,
+            caiman.utils.visualization.plot_contours(self.estimates.A[:, bad], img,
                                                      coordinates=coor_b)
             pl.title('Rejected Components')
         return self
@@ -1159,26 +1156,26 @@ class CNMF(object):
 
 
         """
-        if 'csc_matrix' not in str(type(self.A)):
-            self.A = scipy.sparse.csc_matrix(self.A)
-        if 'array' not in str(type(self.b)):
-            self.b = self.b.toarray()
+        if 'csc_matrix' not in str(type(self.estimates.A)):
+            self.estimates.A = scipy.sparse.csc_matrix(self.estimates.A)
+        if 'array' not in str(type(self.estimates.b)):
+            self.estimates.b = self.estimates.b.toarray()
 
         pl.ion()
-        nr, T = self.C.shape
+        nr, T = self.estimates.C.shape
 
-        if self.YrA is None:
+        if self.estimates.YrA is None:
             self.compute_residuals(Yr)
 
         if img is None:
-            img = np.reshape(np.array(self.A.mean(axis=1)), dims, order='F')
+            img = np.reshape(np.array(self.estimates.A.mean(axis=1)), dims, order='F')
 
         if idx is None:
-            caiman.utils.visualization.view_patches_bar(Yr, self.A, self.C,
-                    self.b, self.f, dims[0], dims[1], YrA=self.YrA, img=img)
+            caiman.utils.visualization.view_patches_bar(Yr, self.estimates.A, self.estimates.C,
+                    self.estimates.b, self.estimates.f, dims[0], dims[1], YrA=self.estimates.YrA, img=img)
         else:
-            caiman.utils.visualization.view_patches_bar(Yr, self.A.tocsc()[:,idx], self.C[idx], self.b, self.f, dims[
-                                                    0], dims[1], YrA=self.YrA[idx], img=img)
+            caiman.utils.visualization.view_patches_bar(Yr, self.estimates.A.tocsc()[:,idx], self.estimates.C[idx], self.estimates.b, self.estimates.f, dims[
+                                                    0], dims[1], YrA=self.estimates.YrA[idx], img=img)
 
     def detrend_df_f(self, quantileMin=8, frames_window=500,
                      flag_auto=True, use_fast=False, use_residuals=True):
@@ -1209,16 +1206,16 @@ class CNMF(object):
             self.F_dff contains the DF/F normalized traces
         """
 
-        if self.C is None:
+        if self.estimates.C is None:
             logging.warning("There are no components for DF/F extraction!")
             return self
 
         if use_residuals:
-            R = self.YrA
+            R = self.estimates.YrA
         else:
             R = None
 
-        self.F_dff = detrend_df_f(self.A, self.b, self.C, self.f, R,
+        self.estimates.F_dff = detrend_df_f(self.estimates.A, self.estimates.b, self.estimates.C, self.estimates.f, R,
                                   quantileMin=quantileMin,
                                   frames_window=frames_window,
                                   flag_auto=flag_auto, use_fast=use_fast)
@@ -1238,7 +1235,7 @@ class CNMF(object):
                         if noise_method is None else noise_method)
         s_min = self.params.get('temporal', 's_min') if s_min is None else s_min
 
-        F = self.C + self.YrA
+        F = self.estimates.C + self.estimates.YrA
         args = dict()
         args['p'] = p
         args['method'] = method
@@ -1266,14 +1263,14 @@ class CNMF(object):
             results = zip(*results)
 
         order = list(results[7])
-        self.C = np.stack([results[0][i] for i in order])
-        self.S = np.stack([results[1][i] for i in order])
-        self.bl = [results[3][i] for i in order]
-        self.c1 = [results[4][i] for i in order]
-        self.g = [results[5][i] for i in order]
-        self.neuron_sn = [results[6][i] for i in order]
-        self.lam = [results[8][i] for i in order]
-        self.YrA = F - self.C
+        self.estimates.C = np.stack([results[0][i] for i in order])
+        self.estimates.S = np.stack([results[1][i] for i in order])
+        self.estimates.bl = [results[3][i] for i in order]
+        self.estimates.c1 = [results[4][i] for i in order]
+        self.estimates.g = [results[5][i] for i in order]
+        self.estimates.neuron_sn = [results[6][i] for i in order]
+        self.estimates.lam = [results[8][i] for i in order]
+        self.estimates.YrA = F - self.estimates.C
         return self
 
     def evaluate_components(self, imgs, **kwargs):
@@ -1322,19 +1319,19 @@ class CNMF(object):
         self.params.set('quality', kwargs)
         opts = self.params.get_group('quality')
         idx_components, idx_components_bad, SNR_comp, r_values, cnn_preds = \
-        estimate_components_quality_auto(imgs, self.A, self.C, self.b, self.f,
-                                         self.YrA, opts['fr'], 
+        estimate_components_quality_auto(imgs, self.estimates.A, self.estimates.C, self.estimates.b, self.estimates.f,
+                                         self.estimates.YrA, opts['fr'],
                                          opts['decay_time'], self.params.get('init', 'gSig'),
                                          dims, dview=self.dview,
                                          min_SNR=opts['min_SNR'],
                                          r_values_min=opts['rval_thr'],
                                          use_cnn=opts['use_cnn'],
                                          thresh_cnn_min=opts['min_cnn_thr'])
-        self.idx_components = idx_components
-        self.idx_components_bad = idx_components_bad
-        self.SNR_comp = SNR_comp
-        self.r_values = r_values
-        self.cnn_preds = cnn_preds
+        self.estimates.idx_components = idx_components
+        self.estimates.idx_components_bad = idx_components_bad
+        self.estimates.SNR_comp = SNR_comp
+        self.estimates.r_values = r_values
+        self.estimates.cnn_preds = cnn_preds
 
         return self
 
@@ -1420,9 +1417,9 @@ class CNMF(object):
 #                                     use_cnn=use_cnn,
 #                                     min_cnn_thr=min_cnn_thr)
         opts = self.params.get_group('quality')
-        self.idx_components, self.idx_components_bad, self.cnn_preds = \
-        select_components_from_metrics(self.A, dims, self.params.get('init', 'gSig'), self.r_values,
-                                       self.SNR_comp, predictions=self.cnn_preds,
+        self.estimates.idx_components, self.estimates.idx_components_bad, self.estimates.cnn_preds = \
+        select_components_from_metrics(self.estimates.A, dims, self.params.get('init', 'gSig'), self.estimates.r_values,
+                                       self.estimates.SNR_comp, predictions=self.estimates.cnn_preds,
                                        r_values_min=opts['rval_thr'],
                                        r_values_lowest=opts['rval_lowest'],
                                        min_SNR=opts['min_SNR'],
@@ -1471,16 +1468,16 @@ class CNMF(object):
         dims = imgs.shape[1:]
         if 'movie' not in str(type(imgs)):
             imgs = caiman.movie(imgs)
-        Y_rec = self.A.dot(self.C[:, frame_range])
+        Y_rec = self.estimates.A.dot(self.estimates.C[:, frame_range])
         Y_rec = Y_rec.reshape(dims + (-1,), order='F')
         Y_rec = Y_rec.transpose([2, 0, 1])
         if self.params.get('init', 'nb') == -1 or self.params.get('init', 'nb') > 0:
-            B = self.b.dot(self.f[:, frame_range])
+            B = self.estimates.b.dot(self.estimates.f[:, frame_range])
             if 'matrix' in str(type(B)):
                 B = B.toarray()
             B = B.reshape(dims + (-1,), order='F').transpose([2, 0, 1])
         elif self.params.get('init', 'nb') == -2:
-            B = self.W.dot(imgs[frame_range] - self.A.dot(self.C[:, frame_range]))
+            B = self.estimates.W.dot(imgs[frame_range] - self.estimates.A.dot(self.estimates.C[:, frame_range]))
             B = B.reshape(dims + (-1,), order='F').transpose([2, 0, 1])
         else:
             B = np.zeros_like(Y_rec)
@@ -1528,18 +1525,18 @@ class CNMF(object):
         self (updated values for self.C, self.f, self.YrA)
         """
         if update_bck:
-            Ab = scipy.sparse.hstack([self.b, self.A]).tocsc()
+            Ab = scipy.sparse.hstack([self.estimates.b, self.estimates.A]).tocsc()
             try:
-                Cf = np.vstack([self.f, self.C + self.YrA])
+                Cf = np.vstack([self.estimates.f, self.estimates.C + self.estimates.YrA])
             except():
-                Cf = np.vstack([self.f, self.C])
+                Cf = np.vstack([self.estimates.f, self.estimates.C])
         else:
-            Ab = self.A
+            Ab = self.estimates.A
             try:
-                Cf = self.C + self.YrA
+                Cf = self.estimates.C + self.estimates.YrA
             except():
-                Cf = self.C
-            Yr = Yr - self.b.dot(self.f)
+                Cf = self.estimates.C
+            Yr = Yr - self.estimates.b.dot(self.estimates.f)
         if (groups is None) and use_groups:
             groups = list(map(list, update_order(Ab)[0]))
         self.groups = groups
@@ -1547,14 +1544,14 @@ class CNMF(object):
                                   **kwargs)
         if update_bck:
             if bck_non_neg:
-                self.f = C[:self.params.get('init', 'nb')]
+                self.estimates.f = C[:self.params.get('init', 'nb')]
             else:
-                self.f = noisyC[:self.params.get('init', 'nb')]
-            self.C = C[self.params.get('init', 'nb'):]
-            self.YrA = noisyC[self.params.get('init', 'nb'):] - self.C
+                self.estimates.f = noisyC[:self.params.get('init', 'nb')]
+            self.estimates.C = C[self.params.get('init', 'nb'):]
+            self.estimates.YrA = noisyC[self.params.get('init', 'nb'):] - self.estimates.C
         else:
-            self.C = C
-            self.YrA = noisyC - self.C
+            self.estimates.C = C
+            self.estimates.YrA = noisyC - self.estimates.C
         return self
 
     def HALS4footprints(self, Yr, update_bck=True, num_iter=2):
@@ -1576,24 +1573,24 @@ class CNMF(object):
         self (updated values for self.A and self.b)
         """
         if update_bck:
-            Ab = np.hstack([self.b, self.A.toarray()])
+            Ab = np.hstack([self.estimates.b, self.estimates.A.toarray()])
             try:
-                Cf = np.vstack([self.f, self.C + self.YrA])
+                Cf = np.vstack([self.estimates.f, self.estimates.C + self.estimates.YrA])
             except():
-                Cf = np.vstack([self.f, self.C])
+                Cf = np.vstack([self.estimates.f, self.estimates.C])
         else:
-            Ab = self.A.toarray()
+            Ab = self.estimates.A.toarray()
             try:
-                Cf = self.C + self.YrA
+                Cf = self.estimates.C + self.estimates.YrA
             except():
-                Cf = self.C
-            Yr = Yr - self.b.dot(self.f)
+                Cf = self.estimates.C
+            Yr = Yr - self.estimates.b.dot(self.estimates.f)
         Ab = HALS4shapes(Yr, Ab, Cf, iters=num_iter)
         if update_bck:
-            self.A = scipy.sparse.csc_matrix(Ab[:, self.params.get('init', 'nb'):])
-            self.b = Ab[:, :self.params.get('init', 'nb')]
+            self.estimates.A = scipy.sparse.csc_matrix(Ab[:, self.params.get('init', 'nb'):])
+            self.estimates.b = Ab[:, :self.params.get('init', 'nb')]
         else:
-            self.A = scipy.sparse.csc_matrix(Ab)
+            self.estimates.A = scipy.sparse.csc_matrix(Ab)
 
         return self
 
@@ -1616,12 +1613,12 @@ class CNMF(object):
             kwargs_new = kw2.copy()
             kwargs_new.update(kwargs)
         self.params.set('temporal', kwargs_new)
-        Cin = self.Cin if use_init else self.C
-        f_in = self.f_in if use_init else self.f
-        self.C, self.A, self.b, self.f, self.S, \
-        self.bl, self.c1, self.neurons_sn, \
-        self.g, self.YrA, self.lam = update_temporal_components(
-                Y, self.A, self.b, Cin, f_in, dview=self.dview,
+
+
+        self.estimates.C, self.estimates.A, self.estimates.b, self.estimates.f, self.estimates.S, \
+        self.estimates.bl, self.estimates.c1, self.estimates.neurons_sn, \
+        self.estimates.g, self.estimates.YrA, self.estimates.lam = update_temporal_components(
+                Y, self.estimates.A, self.estimates.b, self.estimates.C, self.estimates.f, dview=self.dview,
                 **self.params.get_group('temporal'))
         return self
     
@@ -1653,47 +1650,51 @@ class CNMF(object):
         for key in kwargs_new:
             if hasattr(self, key):
                 setattr(self, key, kwargs_new[key])
-        C = self.Cin if use_init else self.C
-        f = self.f_in if use_init else self.f
-        Ain = self.Ain if use_init else self.A
-        b_in = self.b_in if use_init else self.b_in
-        self.A, self.b, C, f =\
-            update_spatial_components(Y, C=C, f=f, A_in=Ain, b_in=b_in, dview=self.dview,
-                                      sn=self.sn, dims=self.dims, **self.params.get_group('spatial'))
-        if use_init:
-            self.Cin, self.f_in = C, f
-        else:
-            self.C, self.f = C, f
+
+        self.estimates.A, self.estimates.b, self.estimates.C, self.estimates.f =\
+            update_spatial_components(Y, C=self.estimates.C, f=self.estimates.f, A_in=self.estimates.A,
+                                      b_in=self.estimates.b, dview=self.dview,
+                                      sn=self.estimates.sn, dims=self.dims, **self.params.get_group('spatial'))
+
         return self
 
     def merge_comps(self, Y, mx=50, fast_merge=True):
         """merges components
         """
-        self.A, self.C, self.nr, self.merged_ROIs, self.S,\
-        self.bl, self.c, self.neurons_sn, self.g =\
-            merge_components(Y, self.A, self.b, self.C, self.f, self.S,
-                             self.sn, self.params.get_group('temporal'),
+        self.estimates.A, self.estimates.C, self.estimates.nr, self.estimates.merged_ROIs, self.estimates.S, \
+        self.estimates.bl, self.estimates.c1, self.estimates.neurons_sn, self.estimates.g=\
+            merge_components(Y, self.estimates.A, self.estimates.b, self.estimates.C, self.estimates.f, self.estimates.S,
+                             self.estimates.sn, self.params.get_group('temporal'),
                              self.params.get_group('spatial'), dview=self.dview,
-                             bl=self.bl, c1=self.c1, sn=self.neurons_sn, 
-                             g=self.g, thr=self.params.get('merging', 'thr'), mx=mx,
+                             bl=self.estimates.bl, c1=self.estimates.c1, sn=self.estimates.neurons_sn,
+                             g=self.estimates.g, thr=self.params.get('merging', 'thr'), mx=mx,
                              fast_merge=fast_merge)
             
         return self
     
-    def initialize(self, Y, sn, **kwargs):
+    def initialize(self, Y, **kwargs):
         """Component initialization
         """
         self.params.set('init', kwargs)
+        estim = self.estimates
         if self.params.get('init', 'center_psf'):
-            self.Ain, self.Cin, self.b_in, self.f_in, self.center,\
-            self.extra_1p = initialize_components(
-                Y, sn=sn, options_total=self.params.to_dict(),
+            estim.A, estim.C, estim.b, estim.f, estim.center, \
+            estim.extra_1p = initialize_components(
+                Y, sn=estim.sn, options_total=self.params.to_dict(),
                 **self.params.get_group('init'))
+            try:
+                estim.S, estim.bl, estim.c1, estim.neurons_sn, \
+                estim.g, estim.YrA = estim.extra_1p
+            except:
+                estim.S, estim.bl, estim.c1, estim.neurons_sn, \
+                estim.g, estim.YrA, estim.W, estim.b0 = self.estimates.extra_1p
         else:
-            self.Ain, self.Cin, self.b_in, self.f_in, self.center =\
-            initialize_components(Y, sn=sn, options_total=self.params.to_dict(),
+            estim.A, estim.C, estim.b, estim.f, estim.center =\
+            initialize_components(Y, sn=estim.sn, options_total=self.params.to_dict(),
                                   **self.params.get_group('init'))
-        
+
+        self.estimates = estim
+
         return self
 
     def fit_online(self, fls, init_batch=200, epochs=1, motion_correct=True, **kwargs):
@@ -1861,3 +1862,72 @@ class CNMF(object):
         self.shifts = shifts
         
         return self
+
+    def preprocess(self, Yr):
+        Yr, self.estimates.sn, self.estimates.g, self.estimates.psx = preprocess_data(
+            Yr, dview=self.dview, **self.params.get_group('preprocess'))
+        return Yr
+
+
+def load_CNMF(filename, n_processes=1, dview = None):
+    '''load object saved with the CNMF save method
+    Parameters:
+    ----------
+    filename: str
+        hdf5 file name containing the saved object
+    dview: multiprocessingor ipyparallel object
+        useful to set up parllelization in the objects
+
+    '''
+    new_obj = CNMF(n_processes)
+    for key,val in load_dict_from_hdf5(filename).items():
+        if key == 'params':
+            prms = CNMFSetParms((1, 1, 1), n_processes)
+            prms.spatial = val['spatial']
+            prms.temporal = val['temporal']
+            prms.patch = val['patch']
+            prms.preprocess = val['preprocess']
+            prms.init = val['init']
+            prms.merging = val['merging']
+            prms.quality = val['quality']
+            setattr(new_obj, key, prms)
+        elif key == 'dview':
+            setattr(new_obj, key, dview)
+        else:
+            setattr(new_obj, key, val)
+
+    return new_obj
+
+class Estimates(object):
+    def __init__(self, A=None, b=None, C=None, f=None):
+        # variables related to the estimates of traces, footprints, deconvolution and background
+        self.A = A
+        self.C = C
+        self.f = f
+        self.b = b
+        self.YrA = None
+        self.W = None
+        self.b0 = None
+
+        self.S = None
+        self.sn = None
+        self.g = None
+        self.bl = None
+        self.c1 = None
+        self.neurons_sn = None
+        self.lam = None
+
+        self.center = None
+        self.extra_1p = None
+
+        self.merged_ROIs = None
+        self.coordinates = None
+        self.F_dff = None
+
+        self.idx_components = None
+        self.idx_components_bad = None
+        self.SNR_comp = None
+        self.r_values = None
+        self.cnn_preds = None
+
+

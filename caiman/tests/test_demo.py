@@ -31,9 +31,9 @@ def demo(parallel=False):
         cm.cluster.stop_server(dview=dview)
 
     # verifying the spatial components
-    npt.assert_allclose(cnm.A.sum(), 281.1, 1e-2)
+    npt.assert_allclose(cnm.estimates.A.sum(), 281.1, 1e-2)
     # verifying the temporal components
-    npt.assert_allclose(cnm.C.sum(), 66271668, 1e-2)
+    npt.assert_allclose(cnm.estimates.C.sum(), 66271668, 1e-2)
     try:
         dview.terminate()
     except:

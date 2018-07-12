@@ -154,9 +154,9 @@ def cnmf_patches(args_in):
                         init_iter=params.get('init', 'init_iter'))
 
         cnm = cnm.fit(images)
-        return [idx_, shapes, scipy.sparse.coo_matrix(cnm.A),
-                cnm.b, cnm.C, cnm.f, cnm.S, cnm.bl, cnm.c1,
-                cnm.neurons_sn, cnm.g, cnm.sn, cnm.params.to_dict(), cnm.YrA]
+        return [idx_, shapes, scipy.sparse.coo_matrix(cnm.estimates.A),
+                cnm.estimates.b, cnm.estimates.C, cnm.estimates.f, cnm.estimates.S, cnm.estimates.bl, cnm.estimates.c1,
+                cnm.estimates.neurons_sn, cnm.estimates.g, cnm.estimates.sn, cnm.params.to_dict(), cnm.estimates.YrA]
     else:
         return None
 

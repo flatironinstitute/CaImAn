@@ -109,8 +109,9 @@ def main():
 #%% plot contour plots of components
     cnm.plot_contours(img=Cn)
 
+
 #%%
-    A_in, C_in, b_in, f_in = cnm.A[:,:], cnm.C[:], cnm.b, cnm.f
+    A_in, C_in, b_in, f_in = cnm.estimates.A[:, :], cnm.estimates.C[:], cnm.estimates.b, cnm.estimates.f
     cnm2 = cnmf.CNMF(n_processes=1, k=A_in.shape[-1], gSig=gSig, p=p, dview=dview,
                      merge_thresh=merge_thresh, Ain=A_in, Cin=C_in, b_in=b_in,
                      f_in=f_in, rf=None, stride=None, gnb=gnb,
@@ -135,17 +136,17 @@ def main():
                              use_cnn=use_cnn, min_cnn_thr=min_cnn_thr)
 
 #%% visualize selected and rejected components
-    cnm2.plot_contours(img=Cn, idx=cnm2.idx_components)
+    cnm2.plot_contours(img=Cn, idx=cnm2.estimates.idx_components)
 
 #%% visualize selected components
-    cnm2.view_components(images, dims, idx=cnm2.idx_components)
+    cnm2.view_components(images, dims, idx=cnm2.estimates.idx_components, img=Cn)
 
 #%% play movie with results
     cnm2.play_movie(images, magnification=4)
 
 #%% STOP CLUSTER and clean up log files
-    cm.stop_server()
-    
+    cm.stop_server(dview=dview)
+
     log_files = glob.glob('Yr*_LOG_*')
     for log_file in log_files:
         os.remove(log_file)
