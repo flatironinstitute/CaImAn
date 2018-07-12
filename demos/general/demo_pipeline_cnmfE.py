@@ -42,8 +42,9 @@ def main():
     decay_time = 0.4                 # length of a typical transient in seconds
     
     # motion correction parameters
-    do_motion_correction_nonrigid = True
-    do_motion_correction_rigid = False  # in this case it will also save a rigid motion corrected movie
+    do_motion_correction_nonrigid = False
+    do_motion_correction_rigid = True  # in this case it will also save a rigid motion corrected movie
+
     gSig_filt = (3, 3)   # size of filter, in general gSig (see below),
     #                      change this one if algorithm does not work
     max_shifts = (5, 5)  # maximum allowed rigid shift
@@ -211,14 +212,14 @@ def main():
                             use_cnn=False, decay_time=decay_time, fr=frate)
     
     print(' ***** ')
-    print('Number of total components: ', len(cnm.C))
-    print('Number of accepted components: ', len(cnm.idx_components))
+    print('Number of total components: ', len(cnm.estimates.C))
+    print('Number of accepted components: ', len(cnm.estimates.idx_components))
 
 #%% PLOT COMPONENTS
     cnm.dims = dims
     if display_images:
-        cnm.plot_contours(img=cn_filter, idx=cnm.idx_components)
-        cnm.view_components(Y, dims, idx=cnm.idx_components)
+        cnm.plot_contours(img=cn_filter, idx=cnm.estimates.idx_components)
+        cnm.view_components(Y, dims, idx=cnm.estimates.idx_components)
 
 #%% MOVIES
     if display_images:

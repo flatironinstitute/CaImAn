@@ -242,11 +242,11 @@ def test_general():
                     gnb=params_movie['gnb'], method_deconvolution='oasis')
     comp.cnmpatch = copy.copy(cnm)
     cnm = cnm.fit(images)
-    A_tot = cnm.A
-    C_tot = cnm.C
-    YrA_tot = cnm.YrA
-    b_tot = cnm.b
-    f_tot = cnm.f
+    A_tot = cnm.estimates.A
+    C_tot = cnm.estimates.C
+    YrA_tot = cnm.estimates.YrA
+    b_tot = cnm.estimates.b
+    f_tot = cnm.estimates.f
     # DISCARDING
     print(('Number of components:' + str(A_tot.shape[-1])))
     final_frate = params_movie['final_frate']
@@ -275,7 +275,7 @@ def test_general():
                     f_in=f_tot, rf=None, stride=None, method_deconvolution='oasis')
     cnm = cnm.fit(images)
     # DISCARDING
-    A, C, b, f, YrA, sn = cnm.A, cnm.C, cnm.b, cnm.f, cnm.YrA, cnm.sn
+    A, C, b, f, YrA, sn = cnm.estimates.A, cnm.estimates.C, cnm.estimates.b, cnm.estimates.f, cnm.estimates.YrA, cnm.estimates.sn
     final_frate = params_movie['final_frate']
     # threshold on space consistency
     r_values_min = params_movie['r_values_min_full']
