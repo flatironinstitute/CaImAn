@@ -399,7 +399,7 @@ class CNMFParams(object):
                                           # path to CNN model for testing new comps
             'sniper_mode': True,  # flag for using CNN
             'use_peak_max': False,  # flag for finding candidate centroids
-            'use_both': False,  # flag for using both CNN and space correlation
+            'test_both': False,  # flag for using both CNN and space correlation
             'init_batch': 200,  # length of mini batch for initialization
             'simultaneously': simultaneously,  # demix and deconvolve simultaneously
             'n_refit': n_refit,  # Additional iterations to simultaneously refit

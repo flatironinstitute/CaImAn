@@ -95,15 +95,16 @@ def bare_initialization(Y, init_batch=1000, k=1, method_init='greedy_roi', gnb=1
         cnm_init = cm.source_extraction.cnmf.cnmf.CNMF(2, k=k, gSig=gSig, Ain=Ain, Cin=Cin, b_in=np.array(
             b_in), f_in=f_in, method_init=method_init, p=p, gnb=gnb, **kwargs)
     
-        cnm_init.A, cnm_init.C, cnm_init.b, cnm_init.f, cnm_init.S, cnm_init.YrA = Ain, Cin, b_in, f_in, np.maximum(
-            np.atleast_2d(Cin), 0), YrA
+        cnm_init.estimates.A, cnm_init.estimates.C, cnm_init.estimates.b, cnm_init.estimates.f, cnm_init.estimates.S,\
+            cnm_init.estimates.YrA = Ain, Cin, b_in, f_in, np.maximum(np.atleast_2d(Cin), 0), YrA
+
         #cnm_init.g = np.array([-np.poly([0.9]*max(p,1))[1:] for gg in np.ones(k)])
-        cnm_init.g = np.array([-np.poly([0.9, 0.5][:max(1, p)])[1:]
+        cnm_init.estimates.g = np.array([-np.poly([0.9, 0.5][:max(1, p)])[1:]
                                for gg in np.ones(k)])
-        cnm_init.bl = np.zeros(k)
-        cnm_init.c1 = np.zeros(k)
-        cnm_init.neurons_sn = np.std(YrA, axis=-1)
-        cnm_init.lam = np.zeros(k)
+        cnm_init.estimates.bl = np.zeros(k)
+        cnm_init.estimates.c1 = np.zeros(k)
+        cnm_init.estimates.neurons_sn = np.std(YrA, axis=-1)
+        cnm_init.estimates.lam = np.zeros(k)
         cnm_init.dims = Y.shape[:-1]
         cnm_init.initbatch = init_batch
 
@@ -194,15 +195,15 @@ def seeded_initialization(Y, Ain, dims=None, init_batch=1000, order_init=None, g
     if return_object:
         cnm_init = cm.source_extraction.cnmf.cnmf.CNMF(
             2, Ain=Ain, Cin=Cin, b_in=np.array(b_in), f_in=f_in, p=1, **kwargs)
-        cnm_init.A, cnm_init.C, cnm_init.b, cnm_init.f, cnm_init.S, cnm_init.YrA = Ain, Cin, b_in, f_in, np.fmax(
-            np.atleast_2d(Cin), 0), YrA
+        cnm_init.estimates.A, cnm_init.estimates.C, cnm_init.estimates.b, cnm_init.estimates.f, cnm_init.estimates.S, \
+                cnm_init.estimates.YrA = Ain, Cin, b_in, f_in, np.fmax(np.atleast_2d(Cin), 0), YrA
     #    cnm_init.g = np.array([[gg] for gg in np.ones(nr)*0.9])
-        cnm_init.g = np.array([-np.poly([0.9] * max(p, 1))[1:]
+        cnm_init.estimates.g = np.array([-np.poly([0.9] * max(p, 1))[1:]
                                for gg in np.ones(nr)])
-        cnm_init.bl = np.zeros(nr)
-        cnm_init.c1 = np.zeros(nr)
-        cnm_init.neurons_sn = np.std(YrA, axis=-1)
-        cnm_init.lam = np.zeros(nr)
+        cnm_init.estimates.bl = np.zeros(nr)
+        cnm_init.estimates.c1 = np.zeros(nr)
+        cnm_init.estimates.neurons_sn = np.std(YrA, axis=-1)
+        cnm_init.estimates.lam = np.zeros(nr)
         cnm_init.dims = Y.shape[:-1]
         cnm_init.initbatch = init_batch
     

@@ -94,10 +94,10 @@ def main():
 
     cnm_init = cnm_init.fit(images)
 
-    print(('Number of components:' + str(cnm_init.A.shape[-1])))
+    print(('Number of components:' + str(cnm_init.estimates.A.shape[-1])))
 
     pl.figure()
-    crd = plot_contours(cnm_init.A.tocsc(), Cn_init, thr=0.9)
+    crd = plot_contours(cnm_init.estimates.A.tocsc(), Cn_init, thr=0.9)
 
 #%% run (online) OnACID algorithm
 
@@ -112,8 +112,8 @@ def main():
 
 #%% extract the results
 
-    C, f = cnm.C_on[gnb:cnm.M], cnm.C_on[:gnb]
-    A, b = cnm.Ab[:, gnb:cnm.M], cnm.Ab[:, :gnb]
+    C, f = cnm.estimates.C_on[gnb:cnm.M], cnm.estimates.C_on[:gnb]
+    A, b = cnm.estimates.Ab[:, gnb:cnm.M], cnm.estimates.Ab[:, :gnb]
     print(('Number of components:' + str(A.shape[-1])))
 
 #%% pass through the CNN classifier with a low threshold (keeps clearer neuron shapes and excludes processes)
@@ -128,10 +128,10 @@ def main():
                                  thresh_cnn], C[predictions[:, 1] < thresh_cnn]
         A, C = A[:, predictions[:, 1] >=
                  thresh_cnn], C[predictions[:, 1] >= thresh_cnn]
-        noisyC = cnm.noisyC[gnb:cnm.M]
+        noisyC = cnm.estimates.noisyC[gnb:cnm.M]
         YrA = noisyC[predictions[:, 1] >= thresh_cnn] - C
     else:
-        YrA = cnm.noisyC[gnb:cnm.M] - C
+        YrA = cnm.estimates.noisyC[gnb:cnm.M] - C
 
 #%% plot results
     pl.figure()

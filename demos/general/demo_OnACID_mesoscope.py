@@ -156,8 +156,9 @@ def main():
 
 #%% Plot initialization results
 
-    crd = plot_contours(cnm_init.A.tocsc(), Cn_init, thr=0.9)
-    A, C, b, f, YrA, sn = cnm_init.A, cnm_init.C, cnm_init.b, cnm_init.f, cnm_init.YrA, cnm_init.sn
+    crd = plot_contours(cnm_init.estimates.A.tocsc(), Cn_init, thr=0.9)
+    A, C, b, f, YrA, sn = cnm_init.estimates.A, cnm_init.estimates.C, cnm_init.estimates.b, cnm_init.estimates.f, \
+                          cnm_init.estimates.YrA, cnm_init.estimates.sn
     view_patches_bar(Yr, scipy.sparse.coo_matrix(
         A.tocsc()[:, :]), C[:, :], b, f, dims[0], dims[1], YrA=YrA[:, :], img=Cn_init)
 
@@ -167,8 +168,9 @@ def main():
 #%% create a function for plotting results in real time if needed
 
     def create_frame(cnm2, img_norm, captions):
-        A, b = cnm2.Ab[:, gnb:], cnm2.Ab[:, :gnb].toarray()
-        C, f = cnm2.C_on[gnb:cnm2.M, :], cnm2.C_on[:gnb, :]
+        cnm2_est = cnm2.estimates
+        A, b = cnm2_est.Ab[:, gnb:], cnm2_est.Ab[:, :gnb].toarray()
+        C, f = cnm2_est.C_on[gnb:cnm2.M, :], cnm2_est.C_on[:gnb, :]
         # inferred activity due to components (no background)
         frame_plot = (frame_cor.copy() - bnd_Y[0])/np.diff(bnd_Y)
         comps_frame = A.dot(C[:, t - 1]).reshape(cnm2.dims, order='F')        
@@ -179,7 +181,7 @@ def main():
 
         if show_residuals:
             #all_comps = np.reshape(cnm2.Yres_buf.mean(0), cnm2.dims, order='F')
-            all_comps = np.reshape(cnm2.mean_buff, cnm2.dims, order='F')
+            all_comps = np.reshape(cnm2_est.mean_buff, cnm2.dims, order='F')
             all_comps = np.minimum(np.maximum(all_comps, 0)*2 + 0.25, 255)
         else:
             all_comps = np.array(A.sum(-1)).reshape(cnm2.dims, order='F')
@@ -192,9 +194,9 @@ def main():
         vid_frame = np.repeat(frame_pn[:, :, None], 3, axis=-1)
         vid_frame = np.minimum((vid_frame * 255.), 255).astype('u1')
 
-        if show_residuals and cnm2.ind_new:
+        if show_residuals and cnm2_est.ind_new:
             add_v = np.int(cnm2.dims[1]*resize_fact)
-            for ind_new in cnm2.ind_new:
+            for ind_new in cnm2_est.ind_new:
                 cv2.rectangle(vid_frame,(int(ind_new[0][1]*resize_fact),int(ind_new[1][1]*resize_fact)+add_v),
                                              (int(ind_new[0][0]*resize_fact),int(ind_new[1][0]*resize_fact)+add_v),(255,0,255),2)
 
@@ -224,12 +226,13 @@ def main():
     cnm2._prepare_object(np.asarray(Yr), T1, expected_comps, idx_components=None,
                              min_num_trial=3, max_num_added = 3,
                              path_to_model = path_to_cnn_residual,
-                             sniper_mode = False, use_peak_max=False, q=0.5)
+                             sniper_mode = False, use_peak_max=False)
+
     cnm2.thresh_CNN_noisy = 0.5
 
 #%% Run OnACID and optionally plot results in real time
     epochs = 1
-    cnm2.Ab_epoch = []                       # save the shapes at the end of each epoch
+    cnm2.estimates.Ab_epoch = []                       # save the shapes at the end of each epoch
     t = cnm2.initbatch                       # current timestep
     tottime = []
     Cn = Cn_init.copy()
@@ -289,7 +292,7 @@ def main():
                 else:
                     Y_1 = Y_.copy()
                 if mot_corr:
-                    templ = (cnm2.Ab.data[:cnm2.Ab.indptr[1]] * cnm2.C_on[0, t - 1]).reshape(cnm2.dims, order='F') * img_norm
+                    templ = (cnm2.estimates.Ab.data[:cnm2.estimates.Ab.indptr[1]] * cnm2.estimates.C_on[0, t - 1]).reshape(cnm2.estimates.dims, order='F') * img_norm
                     newcn = (Y_1 - img_min).motion_correct(max_shift, max_shift,
                                                            template=templ)[0].local_correlations(swap_dim=False)
                     Cn = np.maximum(Cn, newcn)
@@ -302,7 +305,7 @@ def main():
                     raise Exception('Frame ' + str(frame_count) + ' contains nan')
                 if t % 100 == 0:
                     print('Epoch: ' + str(iter + 1) + '. ' + str(t) + ' frames have beeen processed in total. ' + str(cnm2.N -
-                                                                                                                      old_comps) + ' new components were added. Total number of components is ' + str(cnm2.Ab.shape[-1] - gnb))
+                           old_comps) + ' new components were added. Total number of components is ' + str(cnm2.estimates.Ab.shape[-1] - gnb))
                     old_comps = cnm2.N
 
                 t1 = time()                                 # count time only for the processing part
@@ -314,8 +317,8 @@ def main():
                 frame_ -= img_min                                       # make data non-negative
 
                 if mot_corr:                                            # motion correct
-                    templ = cnm2.Ab.dot(
-                        cnm2.C_on[:cnm2.M, t - 1]).reshape(cnm2.dims, order='F') * img_norm
+                    templ = cnm2.estimates.Ab.dot(
+                        cnm2.estimates.C_on[:cnm2.M, t - 1]).reshape(cnm2.dims, order='F') * img_norm
                     frame_cor, shift = motion_correct_iteration_fast(
                         frame_, templ, max_shift, max_shift)
                     shifts.append(shift)
@@ -331,14 +334,14 @@ def main():
                 t += 1
                 
                 if t % T_rm == 0 and remove_flag:
-                    prd, _ = evaluate_components_CNN(cnm2.Ab[:, gnb:], dims, gSig)
+                    prd, _ = evaluate_components_CNN(cnm2.estimates.Ab[:, gnb:], dims, gSig)
                     ind_rem = np.where(prd[:, 1] < rm_thr)[0].tolist()
                     cnm2.remove_components(ind_rem)
                     print('Removing '+str(len(ind_rem))+' components')
 
                 if t % 1000 == 0 and plot_contours_flag:
                     pl.cla()
-                    A = cnm2.Ab[:, gnb:]
+                    A = cnm2.estimates.Ab[:, gnb:]
                     # update the contour plot every 1000 frames
                     crd = cm.utils.visualization.plot_contours(A, Cn, thr=0.9)
                     pl.pause(1)
@@ -349,11 +352,11 @@ def main():
                         out.write(vid_frame)
                         if t-initbatch < 100:
                             #for rp in np.int32(np.ceil(np.exp(-np.arange(1,100)/30)*20)):
-                            for rp in range(len(cnm2.ind_new)*2):
+                            for rp in range(len(cnm2.estimates.ind_new)*2):
                                 out.write(vid_frame)
                     cv2.imshow('frame', vid_frame)
                     if t-initbatch < 100:
-                            for rp in range(len(cnm2.ind_new)*2):
+                            for rp in range(len(cnm2.estimates.ind_new)*2):
                                 cv2.imshow('frame', vid_frame)
                     if cv2.waitKey(1) & 0xFF == ord('q'):
                         break
@@ -361,7 +364,7 @@ def main():
             print('Cumulative processing speed is ' + str((t - initbatch) /
                                                           np.sum(tottime))[:5] + ' frames per second.')
         # save the shapes at the end of each epoch
-        cnm2.Ab_epoch.append(cnm2.Ab.copy())
+        cnm2.estimates.Ab_epoch.append(cnm2.estimates.Ab.copy())
 
     if save_movie:
         out.release()
@@ -372,15 +375,15 @@ def main():
 
     if save_results:
         np.savez('results_analysis_online_MOT_CORR.npz',
-                 Cn=Cn, Ab=cnm2.Ab, Cf=cnm2.C_on, b=cnm2.b, f=cnm2.f,
-                 dims=cnm2.dims, tottime=tottime, noisyC=cnm2.noisyC, shifts=shifts)
+                 Cn=Cn, Ab=cnm2.estimates.Ab, Cf=cnm2.estimates.C_on, b=cnm2.estimates.b, f=cnm2.estimates.f,
+                 dims=cnm2.dims, tottime=tottime, noisyC=cnm2.estimates.noisyC, shifts=shifts)
 
     #%% extract results from the objects and do some plotting
-    A, b = cnm2.Ab[:, gnb:], cnm2.Ab[:, :gnb].toarray()
-    C, f = cnm2.C_on[gnb:cnm2.M, t - t //
-                     epochs:t], cnm2.C_on[:gnb, t - t // epochs:t]
-    noisyC = cnm2.noisyC[:, t - t // epochs:t]
-    b_trace = [osi.b for osi in cnm2.OASISinstances] if hasattr(
+    A, b = cnm2.estimates.Ab[:, gnb:], cnm2.estimates.Ab[:, :gnb].toarray()
+    C, f = cnm2.estimates.C_on[gnb:cnm2.M, t - t //
+                     epochs:t], cnm2.estimates.C_on[:gnb, t - t // epochs:t]
+    noisyC = cnm2.estimates.noisyC[:, t - t // epochs:t]
+    b_trace = [osi.b for osi in cnm2.estimates.OASISinstances] if hasattr(
         cnm2, 'OASISinstances') else [0] * C.shape[0]
 
     pl.figure()
