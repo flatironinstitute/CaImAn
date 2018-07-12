@@ -253,7 +253,7 @@ class Comparison(object):
             if os._exists(file_path):
                 os.remove(file_path)
                 print("nothing to remove\n")
-            np.savez(file_path, information=information, A_full=self.comparison['cnmf_full_frame']['ourdata'][0],
+            np.savez_compressed(file_path, information=information, A_full=self.comparison['cnmf_full_frame']['ourdata'][0],
                      C_full=self.comparison['cnmf_full_frame']['ourdata'][
                          1], A_patch=self.comparison['cnmf_on_patch']['ourdata'][0],
                      C_patch=self.comparison['cnmf_on_patch']['ourdata'][1], rig_shifts=self.comparison['rig_shifts']['ourdata'])
@@ -274,7 +274,7 @@ class Comparison(object):
                 # we save but we explain why there were a problem
                 print('we were not able to read the file ' + str(file_path) + ' to compare it\n')
                 file_path = os.path.join(caiman_datadir(), "testdata", "NC" + dt + ".npz")
-                np.savez(file_path, information=information, A_full=self.comparison['cnmf_full_frame']['ourdata'][0],
+                np.savez_compressed(file_path, information=information, A_full=self.comparison['cnmf_full_frame']['ourdata'][0],
                          C_full=self.comparison['cnmf_full_frame']['ourdata'][
                              1], A_patch=self.comparison['cnmf_on_patch']['ourdata'][0],
                          C_patch=self.comparison['cnmf_on_patch']['ourdata'][1], rig_shifts=self.comparison['rig_shifts']['ourdata'])
@@ -365,7 +365,7 @@ class Comparison(object):
         if not os.path.exists(target_dir):
             os.makedirs(os.path.join(caiman_datadir(), "testdata", i)) # XXX If we ever go Python3, just use the exist_ok flag to os.makedirs
         file_path = os.path.join(target_dir, i + ".npz")
-        np.savez(file_path, information=information, A_full=self.comparison['cnmf_full_frame']['ourdata'][0],
+        np.savez_compressed(file_path, information=information, A_full=self.comparison['cnmf_full_frame']['ourdata'][0],
                  C_full=self.comparison['cnmf_full_frame']['ourdata'][
                      1], A_patch=self.comparison['cnmf_on_patch']['ourdata'][0],
                  C_patch=self.comparison['cnmf_on_patch']['ourdata'][1], rig_shifts=self.comparison['rig_shifts']['ourdata'])
