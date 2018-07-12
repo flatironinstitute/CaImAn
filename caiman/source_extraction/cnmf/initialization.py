@@ -434,7 +434,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
             f_in = spr.csc_matrix(resize(np.atleast_2d(f_in.toarray()), [b_in.shape[-1], T]))
 
     if Ain.size > 0:
-        Cin = resize(Cin.astype(float), [K, T])
+        Cin = resize(Cin, [K, T])
 
         center = np.asarray(
             [center_of_mass(a.reshape(d, order='F')) for a in Ain.T])
@@ -1138,7 +1138,7 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
         else:
             B = Y_ds.reshape((-1, T), order='F') - A.dot(C)
         B = compute_B(b0, W, B)  # "-B"
-        if nb:
+        if nb > 0 or nb == -1:
             B0 = -B
         if ssub > 1:
             B = np.reshape(B, (d1, d2, -1), order='F')
@@ -1169,14 +1169,14 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
                 dview=None, bl=None, c1=None, sn=None, g=None, **options['temporal_params'])
 
         A = A.toarray()
-        if nb:
+        if nb > 0 or nb == -1:
             B = B0
 
     use_NMF = True
     if nb == -1:
         print('Return full Background')
         b_in = B
-        f_in = np.eye(T)  # spr.eye(T)
+        f_in = np.eye(T, dtype='float32')  # TODO spr.eye(T, dtype='float32')
     elif nb > 0:
         print('Estimate low rank Background')
         print(nb)
@@ -1191,7 +1191,7 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
     else:
         b_in = np.empty((A.shape[0], 0))
         f_in = np.empty((0, T))
-        if nb == -2:
+        if nb == 0:
             print('Return Background as b and W')
             return (A, C, center.T, b_in.astype(np.float32), f_in.astype(np.float32),
                     (S.astype(np.float32), bl, c1, neurons_sn, g1, YrA,

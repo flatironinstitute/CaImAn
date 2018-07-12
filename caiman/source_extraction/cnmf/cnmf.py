@@ -32,7 +32,7 @@ import numpy as np
 from .utilities import update_order, normalize_AC, detrend_df_f
 from caiman.source_extraction.cnmf.params import CNMFParams
 from .pre_processing import preprocess_data
-from .initialization import initialize_components, imblur
+from .initialization import initialize_components, imblur, downscale
 from .merging import merge_components
 from .spatial import update_spatial_components
 from .temporal import update_temporal_components, constrained_foopsi_parallel
@@ -1466,19 +1466,29 @@ class CNMF(object):
         self (to stop the movie press 'q')
         """
         dims = imgs.shape[1:]
+        ssub_B = int(np.sqrt(np.prod(dims) / self.estimates.W.shape[0]))
         if 'movie' not in str(type(imgs)):
             imgs = caiman.movie(imgs)
+        # 3D->2D: Yr = Y.T.reshape((-1, 1000))
+        # 2D->3D: Y = np.reshape(Yr.T, (-1,) + dims, order='F')
         Y_rec = self.estimates.A.dot(self.estimates.C[:, frame_range])
-        Y_rec = Y_rec.reshape(dims + (-1,), order='F')
-        Y_rec = Y_rec.transpose([2, 0, 1])
+        Y_rec = np.reshape(Y_rec.T, (-1,) + dims, order='F')
         if self.params.get('init', 'nb') == -1 or self.params.get('init', 'nb') > 0:
-            B = self.estimates.b.dot(self.estimates.f[:, frame_range])
+            if scipy.sparse.issparse(self.estimates.f):
+                B = self.estimates.f.T[frame_range].dot(self.estimates.b.T).T
+            else:
+                B = self.estimates.b.dot(self.estimates.f[:, frame_range])
             if 'matrix' in str(type(B)):
                 B = B.toarray()
             B = B.reshape(dims + (-1,), order='F').transpose([2, 0, 1])
-        elif self.params.get('init', 'nb') == -2:
-            B = self.estimates.W.dot(imgs[frame_range] - self.estimates.A.dot(self.estimates.C[:, frame_range]))
-            B = B.reshape(dims + (-1,), order='F').transpose([2, 0, 1])
+        elif self.params.get('init', 'nb') == 0:
+            B = imgs[frame_range] - Y_rec - self.estimates.b0.reshape((-1,) + dims, order='F')
+            if ssub_B > 1:
+                B = downscale(B, (1, ssub_B, ssub_B))
+            B = self.estimates.W.dot(B.T.reshape((-1, len(B)))).T.reshape((-1,) + B.shape[1:], order='F')
+            if ssub_B > 1:
+                B = np.repeat(np.repeat(B, ssub_B, 1), ssub_B, 2)[:, :dims[0], :dims[1]]
+            B += self.estimates.b0.reshape((-1,) + dims, order='F')
         else:
             B = np.zeros_like(Y_rec)
         if self.params.get('patch', 'border_pix') > 0:
@@ -1489,8 +1499,9 @@ class CNMF(object):
 
         Y_res = imgs[frame_range] - Y_rec - B
 
-        
-        caiman.concatenate((imgs[frame_range] - (not include_bck)*B, Y_rec + include_bck*B, Y_res*gain_res), axis=2).play(q_min=q_min, q_max=q_max, magnification=magnification)
+        caiman.concatenate((imgs[frame_range] - (not include_bck) * B,
+                            Y_rec + include_bck * B, Y_res * gain_res), axis=2).play(
+            q_min=q_min, q_max=q_max, magnification=magnification)
 
         return self
 
@@ -1679,15 +1690,15 @@ class CNMF(object):
         estim = self.estimates
         if self.params.get('init', 'center_psf'):
             estim.A, estim.C, estim.b, estim.f, estim.center, \
-            estim.extra_1p = initialize_components(
+            extra_1p = initialize_components(
                 Y, sn=estim.sn, options_total=self.params.to_dict(),
                 **self.params.get_group('init'))
             try:
                 estim.S, estim.bl, estim.c1, estim.neurons_sn, \
-                estim.g, estim.YrA = estim.extra_1p
+                estim.g, estim.YrA = extra_1p
             except:
                 estim.S, estim.bl, estim.c1, estim.neurons_sn, \
-                estim.g, estim.YrA, estim.W, estim.b0 = self.estimates.extra_1p
+                estim.g, estim.YrA, estim.W, estim.b0 = extra_1p
         else:
             estim.A, estim.C, estim.b, estim.f, estim.center =\
             initialize_components(Y, sn=estim.sn, options_total=self.params.to_dict(),
@@ -1918,7 +1929,6 @@ class Estimates(object):
         self.lam = None
 
         self.center = None
-        self.extra_1p = None
 
         self.merged_ROIs = None
         self.coordinates = None
