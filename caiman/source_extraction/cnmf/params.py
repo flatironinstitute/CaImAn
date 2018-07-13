@@ -17,15 +17,16 @@ class CNMFParams(object):
                  normalize_init=True, options_local_NMF=None, remove_very_bad_comps=False, alpha_snmf=10e2,
                  update_background_components=True, low_rank_background=True, rolling_sum=False, min_corr=.85,
                  min_pnr=20, ring_size_factor=1.5, center_psf=False, ssub_B=2, init_iter=2, fr=30, decay_time=0.4,
-                 min_SNR=2.5, rf=None, stride=None, memory_fact=1, border_pix=0,
+                 rf=None, stride=None, memory_fact=1, border_pix=0,
                  method_deconvolution='oasis',
                  minibatch_shape=100, rolling_length=100, minibatch_suff_stat=3,
-                 rval_thr=0.8, s_min=None, thresh_fitness_delta=-20, thresh_fitness_raw=None, thresh_overlap=0.5,
-                 num_times_comp_updated=np.inf, max_comp_update_shape=np.inf, batch_update_suff_stat=False,
-                 use_dense=True, simultaneously=False, n_refit=0, N_samples_exceptionality=None,
-                 max_num_added=1, min_num_trial=3, thresh_CNN_noisy=0.5,
-                 sniper_mode=False, use_peak_max=False, test_both=False,
-                 update_num_comps=True, expected_comps=500
+                 s_min=None, 
+                 N_samples_exceptionality=None, batch_update_suff_stat=False, expected_comps=500,
+                 max_comp_update_shape=np.inf, max_num_added=1, min_SNR=2.5, min_num_trial=3,
+                 n_refit=0, num_times_comp_updated=np.inf, rval_thr=0.8, simultaneously=False,
+                 sniper_mode=False, test_both=False, thresh_CNN_noisy=0.5,
+                 thresh_fitness_delta=-20, thresh_fitness_raw=None, thresh_overlap=0.5,
+                 update_num_comps=True, use_dense=True, use_peak_max=False
                  ):
         """Class for setting the CNMF parameters.
 
