@@ -101,7 +101,8 @@ class CNMF(object):
                  center_psf=False, use_dense=True, deconv_flag=True,
                  simultaneously=False, n_refit=0, del_duplicates=False, N_samples_exceptionality=None,
                  max_num_added=3, min_num_trial=2, thresh_CNN_noisy=0.5,
-                 fr=30, decay_time=0.4, min_SNR=2.5, ssub_B=2, init_iter=2):
+                 fr=30, decay_time=0.4, min_SNR=2.5, ssub_B=2, init_iter=2,
+                 sniper_mode=False, use_peak_max=False, test_both=False, expected_comps=500):
         """
         Constructor of the CNMF method
 
@@ -278,7 +279,6 @@ class CNMF(object):
         self.only_init = only_init_patch
         self.skip_refinement = skip_refinement
         self.remove_very_bad_comps = remove_very_bad_comps
-        self.update_num_comps = update_num_comps
 
         self.params = CNMFParams(K=k, n_processes=n_processes, gSig=gSig, gSiz=gSiz, ssub=ssub, tsub=tsub, p=p,
                                  p_ssub=p_ssub, p_tsub=p_tsub, method_init=method_init, nb=gnb, nb_patch=nb_patch,
@@ -300,7 +300,9 @@ class CNMF(object):
                                  num_times_comp_updated=num_times_comp_updated, max_comp_update_shape=max_comp_update_shape,
                                  batch_update_suff_stat=batch_update_suff_stat, use_dense=use_dense, simultaneously=simultaneously,
                                  n_refit=n_refit, N_samples_exceptionality=N_samples_exceptionality, max_num_added=max_num_added,
-                                 min_num_trial=min_num_trial, thresh_CNN_noisy=thresh_CNN_noisy
+                                 min_num_trial=min_num_trial, thresh_CNN_noisy=thresh_CNN_noisy,
+                                 sniper_mode=sniper_mode, use_peak_max=use_peak_max, test_both=test_both,
+                                 update_num_comps=update_num_comps, expected_comps=expected_comps
                                  )
 
 
@@ -532,12 +534,9 @@ class CNMF(object):
 
 
 
-    def _prepare_object(self, Yr, T, expected_comps, new_dims=None,
+    def _prepare_object(self, Yr, T, new_dims=None,
                         idx_components=None, g=None, lam=None, s_min=None,
-                        bl=None, use_dense=True,
-                        max_num_added=1, min_num_trial=1, path_to_model=None,
-                        sniper_mode=False, use_peak_max=False,
-                        test_both=False):
+                        bl=None):
 
         if idx_components is None:
             idx_components = range(self.estimates.A.shape[-1])
@@ -557,8 +556,9 @@ class CNMF(object):
         self.N = self.estimates.A.shape[-1]
         self.M = self.params.get('init', 'nb') + self.N
 
-        if expected_comps <= self.N + max_num_added:
-            expected_comps = self.N + max_num_added + 200
+        expected_comps = self.params.get('online', 'expected_comps')
+        if expected_comps <= self.N + self.params.get('online', 'max_num_added'):
+            expected_comps = self.N + self.params.get('online', 'max_num_added') + 200
 
         self.expected_comps = expected_comps
 
@@ -653,7 +653,7 @@ class CNMF(object):
         self.estimates.CC = self.estimates.CC.astype(np.float32)
         print('Expecting ' + str(self.expected_comps) + ' components')
         self.estimates.CY.resize([self.expected_comps + self.params.get('init', 'nb'), self.estimates.CY.shape[-1]])
-        if use_dense:
+        if self.params.get('online', 'use_dense'):
             self.estimates.Ab_dense = np.zeros((self.estimates.CY.shape[-1], self.expected_comps + self.params.get('init', 'nb')),
                                      dtype=np.float32)
             self.estimates.Ab_dense[:, :self.estimates.Ab.shape[1]] = self.estimates.Ab.toarray()
@@ -690,13 +690,13 @@ class CNMF(object):
         self.time_spend = 0
         # setup per patch classifier
 
-        if path_to_model is None or sniper_mode is False:
+        if self.params.get('online', 'path_to_model') is None or self.params.get('online', 'sniper_mode') is False:
             loaded_model = None
-            sniper_mode = False
+            self.params.set('online', {'sniper_mode': False})
         else:
             import keras
             from keras.models import model_from_json
-            path = path_to_model.split(".")[:-1]
+            path = self.params.get('online', 'path_to_model').split(".")[:-1]
             json_path = ".".join(path + ["json"])
             model_path = ".".join(path + ["h5"])
 
@@ -707,12 +707,9 @@ class CNMF(object):
             loaded_model.load_weights(model_path)
             opt = keras.optimizers.rmsprop(lr=0.0001, decay=1e-6)
             loaded_model.compile(loss=keras.losses.categorical_crossentropy,
-                          optimizer=opt, metrics=['accuracy'])
+                                 optimizer=opt, metrics=['accuracy'])
 
         self.loaded_model = loaded_model
-        self.params.set('online', {'sniper_mode': sniper_mode,
-                                   'test_both': test_both,
-                                   'use_peak_max': use_peak_max})
         return self
 
     @profile
@@ -783,7 +780,7 @@ class CNMF(object):
         self.estimates.vr = (t-1)/t*self.estimates.vr + (res_frame - mn_)*(res_frame - self.estimates.mn)/t
         self.estimates.sn = np.sqrt(self.estimates.vr)
 
-        if self.update_num_comps:
+        if self.params.get('online', 'update_num_comps'):
 
             self.estimates.mean_buff += (res_frame-self.estimates.Yres_buf[self.estimates.Yres_buf.cur])/self.params.get('online', 'minibatch_shape')
 #            cv2.imshow('untitled', 0.1*cv2.resize(res_frame.reshape(self.dims,order = 'F'),(512,512)))

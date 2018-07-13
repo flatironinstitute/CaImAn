@@ -24,6 +24,8 @@ class CNMFParams(object):
                  num_times_comp_updated=np.inf, max_comp_update_shape=np.inf, batch_update_suff_stat=False,
                  use_dense=True, simultaneously=False, n_refit=0, N_samples_exceptionality=None,
                  max_num_added=1, min_num_trial=3, thresh_CNN_noisy=0.5,
+                 sniper_mode=False, use_peak_max=False, test_both=False,
+                 update_num_comps=True, expected_comps=500
                  ):
         """Dictionary for setting the CNMF parameters.
 
@@ -386,7 +388,7 @@ class CNMFParams(object):
             'gSig_range': None  # range for gSig scale for CNN classifier
         }
         self.online = {
-            'expected_comps': 500,  # number of expected components
+            'expected_comps': expected_comps,  # number of expected components
             'min_SNR': min_SNR,  # minimum SNR for accepting a new trace
             'N_samples_exceptionality': N_samples_exceptionality,  # timesteps to compute SNR
             'thresh_fitness_raw': None,  # threshold for trace SNR (computed below)
@@ -397,9 +399,9 @@ class CNMFParams(object):
             'path_to_model': os.path.join(caiman_datadir(), 'model',
                                           'cnn_model_online.h5'),
                                           # path to CNN model for testing new comps
-            'sniper_mode': True,  # flag for using CNN
-            'use_peak_max': False,  # flag for finding candidate centroids
-            'test_both': False,  # flag for using both CNN and space correlation
+            'sniper_mode': sniper_mode,  # flag for using CNN
+            'use_peak_max': use_peak_max,  # flag for finding candidate centroids
+            'test_both': test_both,  # flag for using both CNN and space correlation
             'init_batch': 200,  # length of mini batch for initialization
             'simultaneously': simultaneously,  # demix and deconvolve simultaneously
             'n_refit': n_refit,  # Additional iterations to simultaneously refit
@@ -410,7 +412,7 @@ class CNMFParams(object):
             'max_shifts': 10,  # maximum shifts during motion correction
             'minibatch_shape': minibatch_shape,  # number of frames in each minibatch
             'minibatch_suff_stat': minibatch_suff_stat,
-            'update_num_comps': True,  # flag for searching for new components
+            'update_num_comps': update_num_comps,  # flag for searching for new components
             'init_method': 'bare',  # initialization method for first batch,
             'thresh_fitness_delta': thresh_fitness_delta,
             'thresh_overlap': thresh_overlap,

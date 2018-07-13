@@ -90,7 +90,8 @@ def main():
                          update_num_comps=True, rval_thr=rval_thr,
                          thresh_fitness_delta=-50, gnb=gnb,
                          thresh_fitness_raw=thresh_fitness_raw,
-                         batch_update_suff_stat=True, max_comp_update_shape=max_comp_update_shape)
+                         batch_update_suff_stat=True, max_comp_update_shape=max_comp_update_shape,
+                         expected_comps=expected_comps)
 
     cnm_init = cnm_init.fit(images)
 
@@ -102,7 +103,7 @@ def main():
 #%% run (online) OnACID algorithm
 
     cnm = deepcopy(cnm_init)
-    cnm._prepare_object(np.asarray(Yr), T1, expected_comps)
+    cnm._prepare_object(np.asarray(Yr), T1)
     t = cnm.initbatch
 
     Y_ = cm.load(fname)[initbatch:].astype(np.float32)
