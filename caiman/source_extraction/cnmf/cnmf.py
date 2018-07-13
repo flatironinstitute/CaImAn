@@ -558,8 +558,7 @@ class CNMF(object):
         expected_comps = self.params.get('online', 'expected_comps')
         if expected_comps <= self.N + self.params.get('online', 'max_num_added'):
             expected_comps = self.N + self.params.get('online', 'max_num_added') + 200
-
-        self.expected_comps = expected_comps
+            self.params.set('online', {'expected_comps': expected_comps})
 
         if Yr.shape[-1] != self.params.get('online', 'init_batch'):
             raise Exception(
@@ -650,10 +649,10 @@ class CNMF(object):
         self.estimates.noisyC = self.estimates.noisyC.astype(np.float32)
         self.estimates.CY = self.estimates.CY.astype(np.float32)
         self.estimates.CC = self.estimates.CC.astype(np.float32)
-        print('Expecting ' + str(self.expected_comps) + ' components')
-        self.estimates.CY.resize([self.expected_comps + self.params.get('init', 'nb'), self.estimates.CY.shape[-1]])
+        print('Expecting ' + str(expected_comps) + ' components')
+        self.estimates.CY.resize([expected_comps + self.params.get('init', 'nb'), self.estimates.CY.shape[-1]])
         if self.params.get('online', 'use_dense'):
-            self.estimates.Ab_dense = np.zeros((self.estimates.CY.shape[-1], self.expected_comps + self.params.get('init', 'nb')),
+            self.estimates.Ab_dense = np.zeros((self.estimates.CY.shape[-1], expected_comps + self.params.get('init', 'nb')),
                                      dtype=np.float32)
             self.estimates.Ab_dense[:, :self.estimates.Ab.shape[1]] = self.estimates.Ab.toarray()
         self.estimates.C_on = np.vstack(
@@ -737,6 +736,7 @@ class CNMF(object):
         nb_ = self.params.get('init', 'nb')
         Ab_ = self.estimates.Ab
         mbs = self.params.get('online', 'minibatch_shape')
+        expected_comps = self.params.get('online', 'expected_comps')
         frame = frame_in.astype(np.float32)
 #        print(np.max(1/scipy.sparse.linalg.norm(self.estimates.Ab,axis = 0)))
         self.estimates.Yr_buf.append(frame)
@@ -819,24 +819,25 @@ class CNMF(object):
             if num_added > 0:
                 self.N += num_added
                 self.M += num_added
-                if self.N + self.params.get('online', 'max_num_added') > self.expected_comps:
-                    self.expected_comps += 200
+                if self.N + self.params.get('online', 'max_num_added') > expected_comps:
+                    expected_comps += 200
+                    self.params.set('online', {'expected_comps': expected_comps})
                     self.estimates.CY.resize(
-                        [self.expected_comps + nb_, self.estimates.CY.shape[-1]])
+                        [expected_comps + nb_, self.estimates.CY.shape[-1]])
                     # refcheck can trigger "ValueError: cannot resize an array references or is referenced
                     #                       by another array in this way.  Use the resize function"
                     # np.resize didn't work, but refcheck=False seems fine
                     self.estimates.C_on.resize(
-                        [self.expected_comps + nb_, self.estimates.C_on.shape[-1]], refcheck=False)
+                        [expected_comps + nb_, self.estimates.C_on.shape[-1]], refcheck=False)
                     self.estimates.noisyC.resize(
-                        [self.expected_comps + nb_, self.estimates.C_on.shape[-1]])
+                        [expected_comps + nb_, self.estimates.C_on.shape[-1]])
                     if self.params.get('online', 'use_dense'):  # resize won't work due to contingency issue
-                        # self.estimates.Ab_dense.resize([self.estimates.CY.shape[-1], self.expected_comps+nb_])
-                        self.estimates.Ab_dense = np.zeros((self.estimates.CY.shape[-1], self.expected_comps + nb_),
+                        # self.estimates.Ab_dense.resize([self.estimates.CY.shape[-1], expected_comps+nb_])
+                        self.estimates.Ab_dense = np.zeros((self.estimates.CY.shape[-1], expected_comps + nb_),
                                                  dtype=np.float32)
                         self.estimates.Ab_dense[:, :Ab_.shape[1]] = Ab_.toarray()
                     print('Increasing number of expected components to:' +
-                          str(self.expected_comps))
+                          str(expected_comps))
                 self.update_counter.resize(self.N)
                 self.estimates.AtA = (Ab_.T.dot(Ab_)).toarray()
 
@@ -1010,12 +1011,15 @@ class CNMF(object):
         """
 
         self.estimates.Ab, self.estimates.Ab_dense, self.estimates.CC, self.estimates.CY, self.M,\
-        self.N, self.estimates.noisyC, self.estimates.OASISinstances, self.estimates.C_on,\
-        self.expected_comps, self.ind_A,\
-        self.estimates.groups, self.estimates.AtA = remove_components_online(
-                ind_rm, self.params.get('init', 'nb'), self.estimates.Ab, self.params.get('online', 'use_dense'), self.estimates.Ab_dense,
-                self.estimates.AtA, self.estimates.CY, self.estimates.CC, self.M, self.N, self.estimates.noisyC,
-                self.estimates.OASISinstances, self.estimates.C_on, self.expected_comps)
+            self.N, self.estimates.noisyC, self.estimates.OASISinstances, self.estimates.C_on,\
+            expected_comps, self.ind_A,\
+            self.estimates.groups, self.estimates.AtA = remove_components_online(
+                ind_rm, self.params.get('init', 'nb'), self.estimates.Ab,
+                self.params.get('online', 'use_dense'), self.estimates.Ab_dense,
+                self.estimates.AtA, self.estimates.CY, self.estimates.CC, self.M, self.N,
+                self.estimates.noisyC, self.estimates.OASISinstances, self.estimates.C_on,
+                self.params.get('online', 'expected_comps'))
+        self.params.set('online', {'expected_comps': expected_comps})
 
     def compute_residuals(self, Yr):
         """compute residual for each component (variable YrA)

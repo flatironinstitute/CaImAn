@@ -402,7 +402,7 @@ class CNMFParams(object):
             'sniper_mode': sniper_mode,  # flag for using CNN
             'use_peak_max': use_peak_max,  # flag for finding candidate centroids
             'test_both': test_both,  # flag for using both CNN and space correlation
-            'init_batch': 200,  # length of mini batch for initialization
+            'init_batch': None,  # length of mini batch for initialization
             'simultaneously': simultaneously,  # demix and deconvolve simultaneously
             'n_refit': n_refit,  # Additional iterations to simultaneously refit
             'thresh_CNN_noisy': thresh_CNN_noisy,  # threshold for online CNN classifier
