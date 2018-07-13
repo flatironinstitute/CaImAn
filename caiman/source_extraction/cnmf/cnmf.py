@@ -273,7 +273,6 @@ class CNMF(object):
 
         # these are movie properties that will be refactored into the Movie object
         self.dims = None
-        self.initbatch = None
 
         # these are member variables related to the CNMF workflow
         self.only_init = only_init_patch
@@ -335,7 +334,7 @@ class CNMF(object):
         """
         # Todo : to compartiment
         T = images.shape[0]
-        self.initbatch = T
+        self.params.set('online', {'init_batch': T})
         self.dims = images.shape[1:]
         Y = np.transpose(images, list(range(1, len(self.dims) + 1)) + [0])
         Yr = np.transpose(np.reshape(images, (T, -1), order='F'))
@@ -562,7 +561,7 @@ class CNMF(object):
 
         self.expected_comps = expected_comps
 
-        if Yr.shape[-1] != self.initbatch:
+        if Yr.shape[-1] != self.params.get('online', 'init_batch'):
             raise Exception(
                 'The movie size used for initialization does not match with the minibatch size')
 
@@ -607,8 +606,8 @@ class CNMF(object):
             (self.params.get('init', 'nb') + expected_comps, T), dtype=np.float32)
         self.estimates.C_on = np.zeros((expected_comps, T), dtype=np.float32)
 
-        self.estimates.noisyC[self.params.get('init', 'nb'):self.M, :self.initbatch] = self.estimates.C + self.estimates.YrA
-        self.estimates.noisyC[:self.params.get('init', 'nb'), :self.initbatch] = self.estimates.f
+        self.estimates.noisyC[self.params.get('init', 'nb'):self.M, :self.params.get('online', 'init_batch')] = self.estimates.C + self.estimates.YrA
+        self.estimates.noisyC[:self.params.get('init', 'nb'), :self.params.get('online', 'init_batch')] = self.estimates.f
 
         if self.params.get('preprocess', 'p'):
             # if no parameter for calculating the spike size threshold is given, then use L1 penalty
@@ -629,17 +628,17 @@ class CNMF(object):
                 for gam, l, b, sn in zip(self.estimates.g, self.estimates.lam, self.estimates.bl, self.estimates.neurons_sn)]
 
             for i, o in enumerate(self.estimates.OASISinstances):
-                o.fit(self.estimates.noisyC[i + self.params.get('init', 'nb'), :self.initbatch])
-                self.estimates.C_on[i, :self.initbatch] = o.c
+                o.fit(self.estimates.noisyC[i + self.params.get('init', 'nb'), :self.params.get('online', 'init_batch')])
+                self.estimates.C_on[i, :self.params.get('online', 'init_batch')] = o.c
         else:
-            self.estimates.C_on[:self.N, :self.initbatch] = self.estimates.C
+            self.estimates.C_on[:self.N, :self.params.get('online', 'init_batch')] = self.estimates.C
 
         self.estimates.Ab, self.ind_A, self.estimates.CY, self.estimates.CC = init_shapes_and_sufficient_stats(
-            Yr[:, :self.initbatch].reshape(
+            Yr[:, :self.params.get('online', 'init_batch')].reshape(
                 self.dims + (-1,), order='F'), self.estimates.A,
-            self.estimates.C_on[:self.N, :self.initbatch], self.estimates.b, self.estimates.noisyC[:self.params.get('init', 'nb'), :self.initbatch])
+            self.estimates.C_on[:self.N, :self.params.get('online', 'init_batch')], self.estimates.b, self.estimates.noisyC[:self.params.get('init', 'nb'), :self.params.get('online', 'init_batch')])
 
-        self.estimates.CY, self.estimates.CC = self.estimates.CY * 1. / self.initbatch, 1 * self.estimates.CC / self.initbatch
+        self.estimates.CY, self.estimates.CC = self.estimates.CY * 1. / self.params.get('online', 'init_batch'), 1 * self.estimates.CC / self.params.get('online', 'init_batch')
 
         self.estimates.A = scipy.sparse.csc_matrix(
             self.estimates.A.astype(np.float32), dtype=np.float32)
@@ -662,10 +661,10 @@ class CNMF(object):
 
         self.params.set('init', {'gSiz': np.add(np.multiply(np.ceil(self.params.get('init', 'gSig')).astype(np.int), 2), 1)})
 
-        self.estimates.Yr_buf = RingBuffer(Yr[:, self.initbatch - self.params.get('online', 'minibatch_shape'):
-                                    self.initbatch].T.copy(), self.params.get('online', 'minibatch_shape'))
+        self.estimates.Yr_buf = RingBuffer(Yr[:, self.params.get('online', 'init_batch') - self.params.get('online', 'minibatch_shape'):
+                                    self.params.get('online', 'init_batch')].T.copy(), self.params.get('online', 'minibatch_shape'))
         self.estimates.Yres_buf = RingBuffer(self.estimates.Yr_buf - self.estimates.Ab.dot(
-            self.estimates.C_on[:self.M, self.initbatch - self.params.get('online', 'minibatch_shape'):self.initbatch]).T, self.params.get('online', 'minibatch_shape'))
+            self.estimates.C_on[:self.M, self.params.get('online', 'init_batch') - self.params.get('online', 'minibatch_shape'):self.params.get('online', 'init_batch')]).T, self.params.get('online', 'minibatch_shape'))
         self.estimates.sn = np.array(np.std(self.estimates.Yres_buf,axis=0))
         self.estimates.vr = np.array(np.var(self.estimates.Yres_buf,axis=0))
         self.estimates.mn = self.estimates.Yres_buf.mean(0)
@@ -679,14 +678,14 @@ class CNMF(object):
         self.estimates.AtA = (self.estimates.Ab.T.dot(self.estimates.Ab)).toarray()
         self.estimates.AtY_buf = self.estimates.Ab.T.dot(self.estimates.Yr_buf.T)
         self.estimates.sv = np.sum(self.estimates.rho_buf.get_last_frames(
-            min(self.initbatch, self.params.get('online', 'minibatch_shape')) - 1), 0)
+            min(self.params.get('online', 'init_batch'), self.params.get('online', 'minibatch_shape')) - 1), 0)
         self.estimates.groups = list(map(list, update_order(self.estimates.Ab)[0]))
         # self.update_counter = np.zeros(self.N)
         self.update_counter = .5**(-np.linspace(0, 1,
                                                 self.N, dtype=np.float32))
         self.time_neuron_added = []
         for nneeuu in range(self.N):
-            self.time_neuron_added.append((nneeuu, self.initbatch))
+            self.time_neuron_added.append((nneeuu, self.params.get('online', 'init_batch')))
         self.time_spend = 0
         # setup per patch classifier
 
@@ -873,7 +872,7 @@ class CNMF(object):
                         Ab_[:, -num_added:])[nb_:-num_added].nonzero()[0]
                 self.update_counter[idx_overlap] = 0
 
-        if (t - self.initbatch) % mbs == mbs - 1 and\
+        if (t - self.params.get('online', 'init_batch')) % mbs == mbs - 1 and\
                 self.params.get('online', 'batch_update_suff_stat'):
             # faster update using minibatch of frames
 
@@ -882,7 +881,7 @@ class CNMF(object):
 
             # much faster: exploit that we only access CY[m, ind_pixels], hence update only these
             n0 = mbs
-            t0 = 0 * self.initbatch
+            t0 = 0 * self.params.get('online', 'init_batch')
             w1 = (t - n0 + t0) * 1. / (t + t0)  # (1 - 1./t)#mbs*1. / t
             w2 = 1. / (t + t0)  # 1.*mbs /t
             for m in range(self.N):
@@ -908,7 +907,7 @@ class CNMF(object):
 
         # update shapes
         if True:  # False:  # bulk shape update
-            if (t - self.initbatch) % mbs == mbs - 1:
+            if (t - self.params.get('online', 'init_batch')) % mbs == mbs - 1:
                 print('Updating Shapes')
 
                 if self.N > self.params.get('online', 'max_comp_update_shape'):
@@ -977,7 +976,7 @@ class CNMF(object):
         else:  # distributed shape update
             self.update_counter *= .5**(1. / mbs)
             # if not num_added:
-            if (not num_added) and (time() - t_start < self.time_spend / (t - self.initbatch + 1)):
+            if (not num_added) and (time() - t_start < self.time_spend / (t - self.params.get('online', 'init_batch') + 1)):
                 candidates = np.where(self.update_counter <= 1)[0]
                 if len(candidates):
                     indicator_components = candidates[:self.N // mbs + 1]
@@ -1801,7 +1800,7 @@ class CNMF(object):
         else:
             raise Exception('Unknown initialization method!')
         self.dims = Y.shape[1:]
-        self.initbatch = init_batch
+        self.params.set('online', {'init_batch': init_batch})
         epochs = self.params.get('online', 'epochs')
         T1 = caiman.load(fls[0]).shape[0]*len(fls)*epochs
         self._prepare_object(Yr, T1, **self.params.get_group('online'))

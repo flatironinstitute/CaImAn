@@ -230,8 +230,8 @@ def main():
 
 #%% Run OnACID and optionally plot results in real time
     epochs = 1
-    cnm2.estimates.Ab_epoch = []                       # save the shapes at the end of each epoch
-    t = cnm2.initbatch                       # current timestep
+    cnm2.estimates.Ab_epoch = []        # save the shapes at the end of each epoch
+    t = initbatch                       # current timestep
     tottime = []
     Cn = Cn_init.copy()
 

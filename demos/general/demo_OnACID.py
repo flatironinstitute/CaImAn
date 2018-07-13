@@ -104,7 +104,7 @@ def main():
 
     cnm = deepcopy(cnm_init)
     cnm._prepare_object(np.asarray(Yr), T1)
-    t = cnm.initbatch
+    t = initbatch
 
     Y_ = cm.load(fname)[initbatch:].astype(np.float32)
     for frame_count, frame in enumerate(Y_):
