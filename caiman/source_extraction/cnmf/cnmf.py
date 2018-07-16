@@ -43,6 +43,7 @@ import cv2
 from .online_cnmf import RingBuffer, HALS4activity, demix_and_deconvolve, remove_components_online
 from .online_cnmf import init_shapes_and_sufficient_stats, update_shapes, update_num_components
 from .online_cnmf import demix1p
+from caiman.summary_images import prepare_local_correlations, update_local_correlations
 import scipy
 import psutil
 import pylab as pl
@@ -897,6 +898,24 @@ class CNMF(object):
                 return np.ravel_multi_index((x[inside], y[inside]), self._dims_B, order='F')
             self.get_indices_of_pixels_on_ring = get_indices_of_pixels_on_ring.__get__(self)
 
+            Yres = Yr[:, :self.initbatch] - self.Ab.dot(self.C_on[:self.M, :self.initbatch])
+            Yres -= self.b0[:, None]
+            if ssub_B == 1:
+                Yres -= self.W.dot(Yres)
+            else:
+                Yres -= np.repeat(np.repeat(self.W.dot(
+                    downscale(Yres.reshape(
+                        (d1, d2, -1), order='F'), (ssub_B, ssub_B, 1))
+                    .reshape((-1, self.initbatch), order='F'))
+                    .reshape(((d1 - 1) // ssub_B + 1, (d2 - 1) // ssub_B + 1, -1), order='F'),
+                    ssub_B, 0), ssub_B, 1)[:d1, :d2].reshape(-1, self.initbatch, order='F')
+            Yres = Yres.reshape((d1, d2, -1), order='F')
+            # Yres = imblur(Yres.reshape((d1, d2, -1), order='F'), sig=self.gSig, siz=self.gSiz,
+            #               nDimBlur=len(self.dims2))
+            (self.first_moment, self.second_moment, self.crosscorr, self.col_ind, self.row_ind,
+                self.num_neigbors, self.corrM, self.corr_img) = prepare_local_correlations(
+                Yres, swap_dim=True, eight_neighbours=False)
+
         return self
 
     @profile
@@ -993,6 +1012,12 @@ class CNMF(object):
 #            cv2.imshow('untitled', 0.1*cv2.resize(res_frame.reshape(self.dims,order = 'F'),(512,512)))
 #            cv2.waitKey(1)
 #
+            self.corr_img = update_local_correlations(
+                t + 1, res_frame.reshape((1,) + self.dims2, order='F'),
+                self.first_moment, self.second_moment, self.crosscorr,
+                self.col_ind, self.row_ind, self.num_neigbors, self.corrM)
+            #, del_frames=self.Yres_buf[self.Yres_buf.cur])
+
             self.Yres_buf.append(res_frame)
 
             res_frame = np.reshape(res_frame, self.dims2, order='F')
@@ -1022,7 +1047,13 @@ class CNMF(object):
                 sniper_mode=self.sniper_mode, use_peak_max=self.use_peak_max,
                 test_both=self.test_both,
                 center_psf=self.center_psf, ssub_B=ssub_B, W=self.W if self.center_psf else None,
-                b0=self.b0 if self.center_psf else None)
+                b0=self.b0 if self.center_psf else None,
+                corr_img=self.corr_img if self.center_psf else None,
+                first_moment=self.first_moment if self.center_psf else None,
+                second_moment=self.second_moment if self.center_psf else None,
+                crosscorr=self.crosscorr if self.center_psf else None,
+                col_ind=self.col_ind if self.center_psf else None,
+                row_ind=self.row_ind if self.center_psf else None)
 
             num_added = len(self.ind_A) - self.N
 

@@ -718,7 +718,9 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                           Ab_dense=None, max_num_added=1, min_num_trial=1,
                           loaded_model=None, thresh_CNN_noisy=0.99,
                           sniper_mode=False, use_peak_max=False,
-                          test_both=False, center_psf=False, ssub_B=1, W=None, b0=None):
+                          test_both=False, center_psf=False, ssub_B=1, W=None, b0=None,
+                          corr_img=None, first_moment=None, second_moment=None,
+                          crosscorr=None, col_ind=None, row_ind=None):
     """
     Checks for new components in the residual buffer and incorporates them if they pass the acceptance tests
     """
@@ -951,6 +953,10 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                                            for i in range(len(dims))])].ravel() for vb in Yres_buf])**2
 
             sv[ind_vb] = np.sum(rho_buf[:, ind_vb], 0)
+
+            if center_psf:
+                # first_moment[indeces] -= cin.mean() * ain
+                first_moment[indeces] -= cin.sum() / t * ain
 
             # plt.subplot(144)
             # plt.imshow(sv.reshape(dims))

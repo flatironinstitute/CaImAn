@@ -524,7 +524,7 @@ def prepare_local_correlations(Y, swap_dim=False, eight_neighbours=False):
 
 
 def update_local_correlations(t, frames, first_moment, second_moment, crosscorr,
-                              col_ind, row_ind, num_neigbors, M, cn, del_frames=None):
+                              col_ind, row_ind, num_neigbors, M, del_frames=None):
     """Updates sufficient statistics in place and returns correlation image"""
     dims = frames.shape[1:]
     stride = len(frames)
