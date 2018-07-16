@@ -1355,7 +1355,7 @@ def circular_constraint(img_original):
     cmin = np.min(csub)
     cmax = np.max(csub) + 1
 
-    if (rmax - rmin < 1) or (cmax - cmin < 1):
+    if (rmax - rmin) * (cmax - cmin) <= 1:
         return img
 
     if rmin == 0 and rmax == nr and cmin == 0 and cmax == nc:
@@ -1363,7 +1363,11 @@ def circular_constraint(img_original):
         y0, x0 = np.unravel_index(ind_max, [nr, nc])
         vmax = img[y0, x0]
         x, y = np.meshgrid(np.arange(nc), np.arange(nr))
-        fy, fx = np.gradient(img)
+        try:
+            fy, fx = np.gradient(img)
+        except ValueError:
+            f = np.gradient(img.ravel()).reshape(nr, nc)
+            (fy, fx) = (f, 0) if nc == 1 else (0, f)
         ind = ((fx * (x0 - x) + fy * (y0 - y) < 0) & (img < vmax / 3))
         img[ind] = 0
 
