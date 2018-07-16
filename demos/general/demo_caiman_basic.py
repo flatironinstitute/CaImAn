@@ -38,14 +38,16 @@ import numpy as np
 import os
 import glob
 import matplotlib.pyplot as plt
+from copy import deepcopy
 
 import caiman as cm
 from caiman.source_extraction.cnmf import cnmf as cnmf
 from caiman.paths import caiman_datadir
+from caiman.source_extraction.cnmf import params as params
 
 #%%
 def main():
-    pass # For compatibility between running under Spyder and the CLI
+    pass  # For compatibility between running under Spyder and the CLI
 
 #%% start a cluster
 
@@ -85,7 +87,7 @@ def main():
 #%% set up some parameters
 
     is_patches = True      # flag for processing in patches or not
-    
+
     if is_patches:          # PROCESS IN PATCHES AND THEN COMBINE
         rf = 10             # half size of each patch
         stride = 4          # overlap between patches
@@ -94,30 +96,29 @@ def main():
         rf = None           # setting these parameters to None
         stride = None       # will run CNMF on the whole FOV
         K = 30              # number of neurons expected (in the whole FOV)
-    
+
     gSig = [6, 6]           # expected half size of neurons
     merge_thresh = 0.80     # merging threshold, max correlation allowed
     p = 2                   # order of the autoregressive system
     gnb = 2                 # global background order
 
+    opts = params.CNMFParams(method_init='greedy_roi', gSig=gSig,
+                    merge_thresh=merge_thresh, p=p, gnb=gnb, k=K,
+                    rf=rf, stride=stride, rolling_sum=False)
 
 #%% Now RUN CNMF
-    cnm = cnmf.CNMF(n_processes, method_init='greedy_roi', k=K, gSig=gSig,
-                    merge_thresh=merge_thresh, p=p, dview=dview, gnb=gnb,
-                    rf=rf, stride=stride, rolling_sum=False)
+    cnm = cnmf.CNMF(n_processes, params=opts, dview=dview)
     cnm = cnm.fit(images)
 #%% plot contour plots of components
     cnm.plot_contours(img=Cn)
 
-
-#%%
-    A_in, C_in, b_in, f_in = cnm.estimates.A[:, :], cnm.estimates.C[:], cnm.estimates.b, cnm.estimates.f
-    cnm2 = cnmf.CNMF(n_processes=1, k=A_in.shape[-1], gSig=gSig, p=p, dview=dview,
-                     merge_thresh=merge_thresh, Ain=A_in, Cin=C_in, b_in=b_in,
-                     f_in=f_in, rf=None, stride=None, gnb=gnb,
-                     method_deconvolution='oasis', check_nan=True)
-    
+#%% copy into a new object and refit
+    cnm.dview = None
+    cnm2 = deepcopy(cnm)
+    cnm2.dview = dview
+    cnm2.params.set('patch', {'rf': None})
     cnm2 = cnm2.fit(images)
+
 #%% COMPONENT EVALUATION
     # the components are evaluated in three ways:
     #   a) the shape of each component must be correlated with the data
@@ -131,10 +132,14 @@ def main():
     use_cnn = True     # use the CNN classifier
     min_cnn_thr = 0.95  # if cnn classifier predicts below this value, reject
     
-    cnm2.evaluate_components(images, fr=fr, decay_time=decay_time,
-                             min_SNR=min_SNR, rval_thr=rval_thr,
-                             use_cnn=use_cnn, min_cnn_thr=min_cnn_thr)
-
+    cnm2.params.set('quality', {'fr': fr,
+                                'decay_time': decay_time,
+                                'min_SNR': min_SNR,
+                                'rval_thr': rval_thr,
+                                'use_cnn': use_cnn,
+                                'min_cnn_thr': min_cnn_thr})
+                                
+    cnm2.evaluate_components(images)
 #%% visualize selected and rejected components
     cnm2.plot_contours(img=Cn, idx=cnm2.estimates.idx_components)
 

@@ -15,14 +15,14 @@ class CNMFParams(object):
                  memory_fact=1, n_processes=1, nb_patch=1, p_ssub=2, p_tsub=2,
                  remove_very_bad_comps=False, rf=None, stride=None,
                  check_nan=True, n_pixels_per_process=None,
-                 K=30, alpha_snmf=10e2, center_psf=False, gSig=[5, 5], gSiz=None,
+                 k=30, alpha_snmf=10e2, center_psf=False, gSig=[5, 5], gSiz=None,
                  init_iter=2, method_init='greedy_roi', min_corr=.85,
-                 min_pnr=20, nb=1, normalize_init=True, options_local_NMF=None,
+                 min_pnr=20, gnb=1, normalize_init=True, options_local_NMF=None,
                  ring_size_factor=1.5, rolling_length=100, rolling_sum=False,
                  ssub=2, ssub_B=2, tsub=2,
-                 block_size=None, num_blocks_per_run=20, update_background_components=True,
+                 block_size=5000, num_blocks_per_run=20, update_background_components=True,
                  method_deconvolution='oasis', p=2, s_min=None,
-                 do_merge=True, thr=0.8,
+                 do_merge=True, merge_thresh=0.8,
                  decay_time=0.4, fr=30, min_SNR=2.5, rval_thr=0.8,
                  N_samples_exceptionality=None, batch_update_suff_stat=False,
                  expected_comps=500, max_comp_update_shape=np.inf, max_num_added=1,
@@ -285,7 +285,7 @@ class CNMFParams(object):
         gSig = gSig if gSig is not None else [-1, -1]
 
         self.init = {
-            'K': K,                   # number of components,
+            'K': k,                   # number of components,
             'alpha_snmf': alpha_snmf,
             'center_psf': center_psf,
             'gSig': gSig,
@@ -299,7 +299,7 @@ class CNMFParams(object):
             'min_corr': min_corr,
             'min_pnr': min_pnr,
             'nIter': 5,               # number of refinement iterations
-            'nb': nb,                 # number of background components
+            'nb': gnb,                # number of background components
             # whether to pixelwise equalize the movies during initialization
             'normalize_init': normalize_init,
             # dictionary with parameters to pass to local_NMF initializaer
@@ -330,7 +330,7 @@ class CNMFParams(object):
             'method_ls': 'lasso_lars',
             # number of pixels to be processed by each worker
             'n_pixels_per_process': n_pixels_per_process,
-            'nb': nb,                        # number of background components
+            'nb': gnb,                        # number of background components
             'normalize_yyt_one': True,
             'nrgthr': 0.9999,                # Energy threshold
             'num_blocks_per_run': num_blocks_per_run,
@@ -357,7 +357,7 @@ class CNMFParams(object):
             # if method cvxpy, primary and secondary (if problem unfeasible for approx
             # solution) solvers to be used with cvxpy, can be 'ECOS','SCS' or 'CVXOPT'
             'method': method_deconvolution,  # 'cvxpy', # 'oasis'
-            'nb': nb,                   # number of background components
+            'nb': gnb,                   # number of background components
             'noise_method': 'mean',     # averaging method ('mean','median','logmexp')
             'noise_range': [.25, .5],   # range of normalized frequencies over which to average
             'num_blocks_per_run': num_blocks_per_run,
@@ -369,7 +369,7 @@ class CNMFParams(object):
 
         self.merging = {
             'do_merge': do_merge,
-            'thr': thr,
+            'thr': merge_thresh,
         }
 
         self.quality = {

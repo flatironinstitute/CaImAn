@@ -102,7 +102,8 @@ class CNMF(object):
                  simultaneously=False, n_refit=0, del_duplicates=False, N_samples_exceptionality=None,
                  max_num_added=3, min_num_trial=2, thresh_CNN_noisy=0.5,
                  fr=30, decay_time=0.4, min_SNR=2.5, ssub_B=2, init_iter=2,
-                 sniper_mode=False, use_peak_max=False, test_both=False, expected_comps=500):
+                 sniper_mode=False, use_peak_max=False, test_both=False,
+                 expected_comps=500, params=None):
         """
         Constructor of the CNMF method
 
@@ -270,7 +271,6 @@ class CNMF(object):
         self.dview = dview
         self.estimates = Estimates(A = Ain, C = Cin, b = b_in, f = f_in)
 
-
         # these are movie properties that will be refactored into the Movie object
         self.dims = None
 
@@ -278,30 +278,33 @@ class CNMF(object):
         self.only_init = only_init_patch
         self.skip_refinement = skip_refinement
         self.remove_very_bad_comps = remove_very_bad_comps
-
-        self.params = CNMFParams(
-            border_pix=border_pix, del_duplicates=del_duplicates, low_rank_background=low_rank_background,
-            memory_fact=memory_fact, n_processes=n_processes, nb_patch=nb_patch, p_ssub=p_ssub, p_tsub=p_tsub,
-            remove_very_bad_comps=remove_very_bad_comps, rf=rf, stride=stride,
-            check_nan=check_nan, n_pixels_per_process=n_pixels_per_process,
-            K=k, center_psf=center_psf, gSig=gSig, gSiz=gSiz,
-            init_iter=init_iter, method_init=method_init, min_corr=min_corr,  min_pnr=min_pnr,
-            nb=gnb, normalize_init=normalize_init, options_local_NMF=options_local_NMF,
-            ring_size_factor=ring_size_factor, rolling_length=rolling_length, rolling_sum=rolling_sum,
-            ssub=ssub, ssub_B=ssub_B, tsub=tsub,
-            block_size=block_size, num_blocks_per_run=num_blocks_per_run,
-            update_background_components=update_background_components,
-            method_deconvolution=method_deconvolution, p=p, s_min=s_min,
-            do_merge=do_merge, thr=merge_thresh,
-            decay_time=decay_time, fr=fr, min_SNR=min_SNR, rval_thr=rval_thr,
-            N_samples_exceptionality=N_samples_exceptionality, batch_update_suff_stat=batch_update_suff_stat,
-            expected_comps=expected_comps, max_comp_update_shape=max_comp_update_shape, max_num_added=max_num_added,
-            min_num_trial=min_num_trial, minibatch_shape=minibatch_shape, minibatch_suff_stat=minibatch_suff_stat,
-            n_refit=n_refit, num_times_comp_updated=num_times_comp_updated, simultaneously=simultaneously,
-            sniper_mode=sniper_mode, test_both=test_both, thresh_CNN_noisy=thresh_CNN_noisy,
-            thresh_fitness_delta=thresh_fitness_delta, thresh_fitness_raw=thresh_fitness_raw, thresh_overlap=thresh_overlap,
-            update_num_comps=update_num_comps, use_dense=use_dense, use_peak_max=use_peak_max
-        )
+        
+        if params is None:
+            self.params = CNMFParams(
+                border_pix=border_pix, del_duplicates=del_duplicates, low_rank_background=low_rank_background,
+                memory_fact=memory_fact, n_processes=n_processes, nb_patch=nb_patch, p_ssub=p_ssub, p_tsub=p_tsub,
+                remove_very_bad_comps=remove_very_bad_comps, rf=rf, stride=stride,
+                check_nan=check_nan, n_pixels_per_process=n_pixels_per_process,
+                k=k, center_psf=center_psf, gSig=gSig, gSiz=gSiz,
+                init_iter=init_iter, method_init=method_init, min_corr=min_corr,  min_pnr=min_pnr,
+                gnb=gnb, normalize_init=normalize_init, options_local_NMF=options_local_NMF,
+                ring_size_factor=ring_size_factor, rolling_length=rolling_length, rolling_sum=rolling_sum,
+                ssub=ssub, ssub_B=ssub_B, tsub=tsub,
+                block_size=block_size, num_blocks_per_run=num_blocks_per_run,
+                update_background_components=update_background_components,
+                method_deconvolution=method_deconvolution, p=p, s_min=s_min,
+                do_merge=do_merge, merge_thresh=merge_thresh,
+                decay_time=decay_time, fr=fr, min_SNR=min_SNR, rval_thr=rval_thr,
+                N_samples_exceptionality=N_samples_exceptionality, batch_update_suff_stat=batch_update_suff_stat,
+                expected_comps=expected_comps, max_comp_update_shape=max_comp_update_shape, max_num_added=max_num_added,
+                min_num_trial=min_num_trial, minibatch_shape=minibatch_shape, minibatch_suff_stat=minibatch_suff_stat,
+                n_refit=n_refit, num_times_comp_updated=num_times_comp_updated, simultaneously=simultaneously,
+                sniper_mode=sniper_mode, test_both=test_both, thresh_CNN_noisy=thresh_CNN_noisy,
+                thresh_fitness_delta=thresh_fitness_delta, thresh_fitness_raw=thresh_fitness_raw, thresh_overlap=thresh_overlap,
+                update_num_comps=update_num_comps, use_dense=use_dense, use_peak_max=use_peak_max
+            )
+        else:
+            self.params = params
 
     def fit(self, images):
         """
