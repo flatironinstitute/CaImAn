@@ -152,7 +152,10 @@ def main():
                                    thresh_fitness_raw=thresh_fitness_raw,
                                    batch_update_suff_stat=True, max_comp_update_shape=max_comp_update_shape,
                                    deconv_flag=False, use_dense=False,
-                                   simultaneously=False, n_refit=0)
+                                   simultaneously=False, n_refit=0,
+                                   max_num_added=3, min_num_trial=3, 
+                                   sniper_mode=False, use_peak_max=False,
+                                   expected_comps=expected_comps)
 
 #%% Plot initialization results
 
@@ -221,19 +224,14 @@ def main():
         save_object(cnm_init, fls[0][:-4] + '_DS_' + str(ds_factor) + '.pkl')
         cnm_init = load_object(fls[0][:-4] + '_DS_' + str(ds_factor) + '.pkl')
 
-    path_to_cnn_residual = os.path.join(caiman_datadir(), 'model', 'cnn_model_online.h5')
-
-    cnm2._prepare_object(np.asarray(Yr), T1, expected_comps, idx_components=None,
-                             min_num_trial=3, max_num_added = 3,
-                             path_to_model = path_to_cnn_residual,
-                             sniper_mode = False, use_peak_max=False)
+    cnm2._prepare_object(np.asarray(Yr), T1, idx_components=None)
 
     cnm2.thresh_CNN_noisy = 0.5
 
 #%% Run OnACID and optionally plot results in real time
     epochs = 1
-    cnm2.estimates.Ab_epoch = []                       # save the shapes at the end of each epoch
-    t = cnm2.initbatch                       # current timestep
+    cnm2.estimates.Ab_epoch = []        # save the shapes at the end of each epoch
+    t = initbatch                       # current timestep
     tottime = []
     Cn = Cn_init.copy()
 

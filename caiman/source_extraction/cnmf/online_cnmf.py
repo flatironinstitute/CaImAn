@@ -106,7 +106,7 @@ def bare_initialization(Y, init_batch=1000, k=1, method_init='greedy_roi', gnb=1
         cnm_init.estimates.neurons_sn = np.std(YrA, axis=-1)
         cnm_init.estimates.lam = np.zeros(k)
         cnm_init.dims = Y.shape[:-1]
-        cnm_init.initbatch = init_batch
+        cnm_init.params.set('online', {'init_batch': init_batch})
 
         return cnm_init
     else:
@@ -205,7 +205,7 @@ def seeded_initialization(Y, Ain, dims=None, init_batch=1000, order_init=None, g
         cnm_init.estimates.neurons_sn = np.std(YrA, axis=-1)
         cnm_init.estimates.lam = np.zeros(nr)
         cnm_init.dims = Y.shape[:-1]
-        cnm_init.initbatch = init_batch
+        cnm_init.params.set('online', {'init_batch': init_batch})
     
         return cnm_init
     else:

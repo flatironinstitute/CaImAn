@@ -101,7 +101,8 @@ class CNMF(object):
                  center_psf=False, use_dense=True, deconv_flag=True,
                  simultaneously=False, n_refit=0, del_duplicates=False, N_samples_exceptionality=None,
                  max_num_added=3, min_num_trial=2, thresh_CNN_noisy=0.5,
-                 fr=30, decay_time=0.4, min_SNR=2.5, ssub_B=2, init_iter=2):
+                 fr=30, decay_time=0.4, min_SNR=2.5, ssub_B=2, init_iter=2,
+                 sniper_mode=False, use_peak_max=False, test_both=False, expected_comps=500):
         """
         Constructor of the CNMF method
 
@@ -272,37 +273,35 @@ class CNMF(object):
 
         # these are movie properties that will be refactored into the Movie object
         self.dims = None
-        self.initbatch = None
 
         # these are member variables related to the CNMF workflow
         self.only_init = only_init_patch
         self.skip_refinement = skip_refinement
         self.remove_very_bad_comps = remove_very_bad_comps
-        self.update_num_comps = update_num_comps
 
-        self.params = CNMFParams(K=k, n_processes=n_processes, gSig=gSig, gSiz=gSiz, ssub=ssub, tsub=tsub, p=p,
-                                 p_ssub=p_ssub, p_tsub=p_tsub, method_init=method_init, nb=gnb, nb_patch=nb_patch,
-                                 n_pixels_per_process=n_pixels_per_process, block_size=block_size, num_blocks_per_run=num_blocks_per_run,
-                                 check_nan=check_nan,
-                                 normalize_init=normalize_init, options_local_NMF=options_local_NMF,
-                                 remove_very_bad_comps=remove_very_bad_comps,
-                                 update_background_components=update_background_components,
-                                 low_rank_background=low_rank_background, rolling_sum=rolling_sum,
-                                 min_corr=min_corr, min_pnr=min_pnr, ring_size_factor=ring_size_factor,
-                                 center_psf=center_psf, ssub_B=ssub_B, init_iter=init_iter, fr=fr,
-                                 decay_time=decay_time, min_SNR=min_SNR,
-                                 rf=rf, stride=stride, memory_fact=memory_fact, border_pix=border_pix, del_duplicates=del_duplicates,
-                                 thr=merge_thresh, do_merge=do_merge,
-                                 method_deconvolution=method_deconvolution,
-                                 minibatch_shape=minibatch_shape, rolling_length=rolling_length, minibatch_suff_stat=minibatch_suff_stat,
-                                 rval_thr=rval_thr, s_min=s_min,
-                                 thresh_fitness_delta=thresh_fitness_delta, thresh_fitness_raw=thresh_fitness_raw, thresh_overlap=thresh_overlap,
-                                 num_times_comp_updated=num_times_comp_updated, max_comp_update_shape=max_comp_update_shape,
-                                 batch_update_suff_stat=batch_update_suff_stat, use_dense=use_dense, simultaneously=simultaneously,
-                                 n_refit=n_refit, N_samples_exceptionality=N_samples_exceptionality, max_num_added=max_num_added,
-                                 min_num_trial=min_num_trial, thresh_CNN_noisy=thresh_CNN_noisy
-                                 )
-
+        self.params = CNMFParams(
+            border_pix=border_pix, del_duplicates=del_duplicates, low_rank_background=low_rank_background,
+            memory_fact=memory_fact, n_processes=n_processes, nb_patch=nb_patch, p_ssub=p_ssub, p_tsub=p_tsub,
+            remove_very_bad_comps=remove_very_bad_comps, rf=rf, stride=stride,
+            check_nan=check_nan, n_pixels_per_process=n_pixels_per_process,
+            K=k, center_psf=center_psf, gSig=gSig, gSiz=gSiz,
+            init_iter=init_iter, method_init=method_init, min_corr=min_corr,  min_pnr=min_pnr,
+            nb=gnb, normalize_init=normalize_init, options_local_NMF=options_local_NMF,
+            ring_size_factor=ring_size_factor, rolling_length=rolling_length, rolling_sum=rolling_sum,
+            ssub=ssub, ssub_B=ssub_B, tsub=tsub,
+            block_size=block_size, num_blocks_per_run=num_blocks_per_run,
+            update_background_components=update_background_components,
+            method_deconvolution=method_deconvolution, p=p, s_min=s_min,
+            do_merge=do_merge, thr=merge_thresh,
+            decay_time=decay_time, fr=fr, min_SNR=min_SNR, rval_thr=rval_thr,
+            N_samples_exceptionality=N_samples_exceptionality, batch_update_suff_stat=batch_update_suff_stat,
+            expected_comps=expected_comps, max_comp_update_shape=max_comp_update_shape, max_num_added=max_num_added,
+            min_num_trial=min_num_trial, minibatch_shape=minibatch_shape, minibatch_suff_stat=minibatch_suff_stat,
+            n_refit=n_refit, num_times_comp_updated=num_times_comp_updated, simultaneously=simultaneously,
+            sniper_mode=sniper_mode, test_both=test_both, thresh_CNN_noisy=thresh_CNN_noisy,
+            thresh_fitness_delta=thresh_fitness_delta, thresh_fitness_raw=thresh_fitness_raw, thresh_overlap=thresh_overlap,
+            update_num_comps=update_num_comps, use_dense=use_dense, use_peak_max=use_peak_max
+        )
 
     def fit(self, images):
         """
@@ -333,7 +332,7 @@ class CNMF(object):
         """
         # Todo : to compartiment
         T = images.shape[0]
-        self.initbatch = T
+        self.params.set('online', {'init_batch': T})
         self.dims = images.shape[1:]
         Y = np.transpose(images, list(range(1, len(self.dims) + 1)) + [0])
         Yr = np.transpose(np.reshape(images, (T, -1), order='F'))
@@ -464,12 +463,12 @@ class CNMF(object):
                 self.params.set('patch', {'only_init': True})
 
             self.estimates.A, self.estimates.C, self.estimates.YrA, self.estimates.b, self.estimates.f, \
-            self.estimates.sn, self.estimates.optional_outputs = run_CNMF_patches(images.filename, self.dims + (T,),
-                                                                     self.params,
-                                                                     dview=self.dview, memory_fact=self.params.get('patch', 'memory_fact'),
-                                                                     gnb=self.params.get('init', 'nb'), border_pix=self.params.get('patch', 'border_pix'),
-                                                                     low_rank_background=self.params.get('patch', 'low_rank_background'),
-                                                                     del_duplicates=self.params.get('patch', 'del_duplicates'))
+                self.estimates.sn, self.estimates.optional_outputs = run_CNMF_patches(
+                    images.filename, self.dims + (T,), self.params,
+                    dview=self.dview, memory_fact=self.params.get('patch', 'memory_fact'),
+                    gnb=self.params.get('init', 'nb'), border_pix=self.params.get('patch', 'border_pix'),
+                    low_rank_background=self.params.get('patch', 'low_rank_background'),
+                    del_duplicates=self.params.get('patch', 'del_duplicates'))
 
             self.estimates.bl, self.estimates.c1, self.estimates.g, self.estimates.neurons_sn = None, None, None, None
             print("merging")
@@ -532,12 +531,9 @@ class CNMF(object):
 
 
 
-    def _prepare_object(self, Yr, T, expected_comps, new_dims=None,
+    def _prepare_object(self, Yr, T, new_dims=None,
                         idx_components=None, g=None, lam=None, s_min=None,
-                        bl=None, use_dense=True,
-                        max_num_added=1, min_num_trial=1, path_to_model=None,
-                        sniper_mode=False, use_peak_max=False,
-                        test_both=False):
+                        bl=None):
 
         if idx_components is None:
             idx_components = range(self.estimates.A.shape[-1])
@@ -557,12 +553,12 @@ class CNMF(object):
         self.N = self.estimates.A.shape[-1]
         self.M = self.params.get('init', 'nb') + self.N
 
-        if expected_comps <= self.N + max_num_added:
-            expected_comps = self.N + max_num_added + 200
+        expected_comps = self.params.get('online', 'expected_comps')
+        if expected_comps <= self.N + self.params.get('online', 'max_num_added'):
+            expected_comps = self.N + self.params.get('online', 'max_num_added') + 200
+            self.params.set('online', {'expected_comps': expected_comps})
 
-        self.expected_comps = expected_comps
-
-        if Yr.shape[-1] != self.initbatch:
+        if Yr.shape[-1] != self.params.get('online', 'init_batch'):
             raise Exception(
                 'The movie size used for initialization does not match with the minibatch size')
 
@@ -607,8 +603,8 @@ class CNMF(object):
             (self.params.get('init', 'nb') + expected_comps, T), dtype=np.float32)
         self.estimates.C_on = np.zeros((expected_comps, T), dtype=np.float32)
 
-        self.estimates.noisyC[self.params.get('init', 'nb'):self.M, :self.initbatch] = self.estimates.C + self.estimates.YrA
-        self.estimates.noisyC[:self.params.get('init', 'nb'), :self.initbatch] = self.estimates.f
+        self.estimates.noisyC[self.params.get('init', 'nb'):self.M, :self.params.get('online', 'init_batch')] = self.estimates.C + self.estimates.YrA
+        self.estimates.noisyC[:self.params.get('init', 'nb'), :self.params.get('online', 'init_batch')] = self.estimates.f
 
         if self.params.get('preprocess', 'p'):
             # if no parameter for calculating the spike size threshold is given, then use L1 penalty
@@ -629,17 +625,17 @@ class CNMF(object):
                 for gam, l, b, sn in zip(self.estimates.g, self.estimates.lam, self.estimates.bl, self.estimates.neurons_sn)]
 
             for i, o in enumerate(self.estimates.OASISinstances):
-                o.fit(self.estimates.noisyC[i + self.params.get('init', 'nb'), :self.initbatch])
-                self.estimates.C_on[i, :self.initbatch] = o.c
+                o.fit(self.estimates.noisyC[i + self.params.get('init', 'nb'), :self.params.get('online', 'init_batch')])
+                self.estimates.C_on[i, :self.params.get('online', 'init_batch')] = o.c
         else:
-            self.estimates.C_on[:self.N, :self.initbatch] = self.estimates.C
+            self.estimates.C_on[:self.N, :self.params.get('online', 'init_batch')] = self.estimates.C
 
         self.estimates.Ab, self.ind_A, self.estimates.CY, self.estimates.CC = init_shapes_and_sufficient_stats(
-            Yr[:, :self.initbatch].reshape(
+            Yr[:, :self.params.get('online', 'init_batch')].reshape(
                 self.dims + (-1,), order='F'), self.estimates.A,
-            self.estimates.C_on[:self.N, :self.initbatch], self.estimates.b, self.estimates.noisyC[:self.params.get('init', 'nb'), :self.initbatch])
+            self.estimates.C_on[:self.N, :self.params.get('online', 'init_batch')], self.estimates.b, self.estimates.noisyC[:self.params.get('init', 'nb'), :self.params.get('online', 'init_batch')])
 
-        self.estimates.CY, self.estimates.CC = self.estimates.CY * 1. / self.initbatch, 1 * self.estimates.CC / self.initbatch
+        self.estimates.CY, self.estimates.CC = self.estimates.CY * 1. / self.params.get('online', 'init_batch'), 1 * self.estimates.CC / self.params.get('online', 'init_batch')
 
         self.estimates.A = scipy.sparse.csc_matrix(
             self.estimates.A.astype(np.float32), dtype=np.float32)
@@ -651,10 +647,10 @@ class CNMF(object):
         self.estimates.noisyC = self.estimates.noisyC.astype(np.float32)
         self.estimates.CY = self.estimates.CY.astype(np.float32)
         self.estimates.CC = self.estimates.CC.astype(np.float32)
-        print('Expecting ' + str(self.expected_comps) + ' components')
-        self.estimates.CY.resize([self.expected_comps + self.params.get('init', 'nb'), self.estimates.CY.shape[-1]])
-        if use_dense:
-            self.estimates.Ab_dense = np.zeros((self.estimates.CY.shape[-1], self.expected_comps + self.params.get('init', 'nb')),
+        print('Expecting ' + str(expected_comps) + ' components')
+        self.estimates.CY.resize([expected_comps + self.params.get('init', 'nb'), self.estimates.CY.shape[-1]])
+        if self.params.get('online', 'use_dense'):
+            self.estimates.Ab_dense = np.zeros((self.estimates.CY.shape[-1], expected_comps + self.params.get('init', 'nb')),
                                      dtype=np.float32)
             self.estimates.Ab_dense[:, :self.estimates.Ab.shape[1]] = self.estimates.Ab.toarray()
         self.estimates.C_on = np.vstack(
@@ -662,10 +658,10 @@ class CNMF(object):
 
         self.params.set('init', {'gSiz': np.add(np.multiply(np.ceil(self.params.get('init', 'gSig')).astype(np.int), 2), 1)})
 
-        self.estimates.Yr_buf = RingBuffer(Yr[:, self.initbatch - self.params.get('online', 'minibatch_shape'):
-                                    self.initbatch].T.copy(), self.params.get('online', 'minibatch_shape'))
+        self.estimates.Yr_buf = RingBuffer(Yr[:, self.params.get('online', 'init_batch') - self.params.get('online', 'minibatch_shape'):
+                                    self.params.get('online', 'init_batch')].T.copy(), self.params.get('online', 'minibatch_shape'))
         self.estimates.Yres_buf = RingBuffer(self.estimates.Yr_buf - self.estimates.Ab.dot(
-            self.estimates.C_on[:self.M, self.initbatch - self.params.get('online', 'minibatch_shape'):self.initbatch]).T, self.params.get('online', 'minibatch_shape'))
+            self.estimates.C_on[:self.M, self.params.get('online', 'init_batch') - self.params.get('online', 'minibatch_shape'):self.params.get('online', 'init_batch')]).T, self.params.get('online', 'minibatch_shape'))
         self.estimates.sn = np.array(np.std(self.estimates.Yres_buf,axis=0))
         self.estimates.vr = np.array(np.var(self.estimates.Yres_buf,axis=0))
         self.estimates.mn = self.estimates.Yres_buf.mean(0)
@@ -679,24 +675,24 @@ class CNMF(object):
         self.estimates.AtA = (self.estimates.Ab.T.dot(self.estimates.Ab)).toarray()
         self.estimates.AtY_buf = self.estimates.Ab.T.dot(self.estimates.Yr_buf.T)
         self.estimates.sv = np.sum(self.estimates.rho_buf.get_last_frames(
-            min(self.initbatch, self.params.get('online', 'minibatch_shape')) - 1), 0)
+            min(self.params.get('online', 'init_batch'), self.params.get('online', 'minibatch_shape')) - 1), 0)
         self.estimates.groups = list(map(list, update_order(self.estimates.Ab)[0]))
         # self.update_counter = np.zeros(self.N)
         self.update_counter = .5**(-np.linspace(0, 1,
                                                 self.N, dtype=np.float32))
         self.time_neuron_added = []
         for nneeuu in range(self.N):
-            self.time_neuron_added.append((nneeuu, self.initbatch))
+            self.time_neuron_added.append((nneeuu, self.params.get('online', 'init_batch')))
         self.time_spend = 0
         # setup per patch classifier
 
-        if path_to_model is None or sniper_mode is False:
+        if self.params.get('online', 'path_to_model') is None or self.params.get('online', 'sniper_mode') is False:
             loaded_model = None
-            sniper_mode = False
+            self.params.set('online', {'sniper_mode': False})
         else:
             import keras
             from keras.models import model_from_json
-            path = path_to_model.split(".")[:-1]
+            path = self.params.get('online', 'path_to_model').split(".")[:-1]
             json_path = ".".join(path + ["json"])
             model_path = ".".join(path + ["h5"])
 
@@ -707,12 +703,9 @@ class CNMF(object):
             loaded_model.load_weights(model_path)
             opt = keras.optimizers.rmsprop(lr=0.0001, decay=1e-6)
             loaded_model.compile(loss=keras.losses.categorical_crossentropy,
-                          optimizer=opt, metrics=['accuracy'])
+                                 optimizer=opt, metrics=['accuracy'])
 
         self.loaded_model = loaded_model
-        self.params.set('online', {'sniper_mode': sniper_mode,
-                                   'test_both': test_both,
-                                   'use_peak_max': use_peak_max})
         return self
 
     @profile
@@ -741,6 +734,7 @@ class CNMF(object):
         nb_ = self.params.get('init', 'nb')
         Ab_ = self.estimates.Ab
         mbs = self.params.get('online', 'minibatch_shape')
+        expected_comps = self.params.get('online', 'expected_comps')
         frame = frame_in.astype(np.float32)
 #        print(np.max(1/scipy.sparse.linalg.norm(self.estimates.Ab,axis = 0)))
         self.estimates.Yr_buf.append(frame)
@@ -783,7 +777,7 @@ class CNMF(object):
         self.estimates.vr = (t-1)/t*self.estimates.vr + (res_frame - mn_)*(res_frame - self.estimates.mn)/t
         self.estimates.sn = np.sqrt(self.estimates.vr)
 
-        if self.update_num_comps:
+        if self.params.get('online', 'update_num_comps'):
 
             self.estimates.mean_buff += (res_frame-self.estimates.Yres_buf[self.estimates.Yres_buf.cur])/self.params.get('online', 'minibatch_shape')
 #            cv2.imshow('untitled', 0.1*cv2.resize(res_frame.reshape(self.dims,order = 'F'),(512,512)))
@@ -823,24 +817,25 @@ class CNMF(object):
             if num_added > 0:
                 self.N += num_added
                 self.M += num_added
-                if self.N + self.params.get('online', 'max_num_added') > self.expected_comps:
-                    self.expected_comps += 200
+                if self.N + self.params.get('online', 'max_num_added') > expected_comps:
+                    expected_comps += 200
+                    self.params.set('online', {'expected_comps': expected_comps})
                     self.estimates.CY.resize(
-                        [self.expected_comps + nb_, self.estimates.CY.shape[-1]])
+                        [expected_comps + nb_, self.estimates.CY.shape[-1]])
                     # refcheck can trigger "ValueError: cannot resize an array references or is referenced
                     #                       by another array in this way.  Use the resize function"
                     # np.resize didn't work, but refcheck=False seems fine
                     self.estimates.C_on.resize(
-                        [self.expected_comps + nb_, self.estimates.C_on.shape[-1]], refcheck=False)
+                        [expected_comps + nb_, self.estimates.C_on.shape[-1]], refcheck=False)
                     self.estimates.noisyC.resize(
-                        [self.expected_comps + nb_, self.estimates.C_on.shape[-1]])
+                        [expected_comps + nb_, self.estimates.C_on.shape[-1]])
                     if self.params.get('online', 'use_dense'):  # resize won't work due to contingency issue
-                        # self.estimates.Ab_dense.resize([self.estimates.CY.shape[-1], self.expected_comps+nb_])
-                        self.estimates.Ab_dense = np.zeros((self.estimates.CY.shape[-1], self.expected_comps + nb_),
+                        # self.estimates.Ab_dense.resize([self.estimates.CY.shape[-1], expected_comps+nb_])
+                        self.estimates.Ab_dense = np.zeros((self.estimates.CY.shape[-1], expected_comps + nb_),
                                                  dtype=np.float32)
                         self.estimates.Ab_dense[:, :Ab_.shape[1]] = Ab_.toarray()
                     print('Increasing number of expected components to:' +
-                          str(self.expected_comps))
+                          str(expected_comps))
                 self.update_counter.resize(self.N)
                 self.estimates.AtA = (Ab_.T.dot(Ab_)).toarray()
 
@@ -876,7 +871,7 @@ class CNMF(object):
                         Ab_[:, -num_added:])[nb_:-num_added].nonzero()[0]
                 self.update_counter[idx_overlap] = 0
 
-        if (t - self.initbatch) % mbs == mbs - 1 and\
+        if (t - self.params.get('online', 'init_batch')) % mbs == mbs - 1 and\
                 self.params.get('online', 'batch_update_suff_stat'):
             # faster update using minibatch of frames
 
@@ -885,7 +880,7 @@ class CNMF(object):
 
             # much faster: exploit that we only access CY[m, ind_pixels], hence update only these
             n0 = mbs
-            t0 = 0 * self.initbatch
+            t0 = 0 * self.params.get('online', 'init_batch')
             w1 = (t - n0 + t0) * 1. / (t + t0)  # (1 - 1./t)#mbs*1. / t
             w2 = 1. / (t + t0)  # 1.*mbs /t
             for m in range(self.N):
@@ -911,7 +906,7 @@ class CNMF(object):
 
         # update shapes
         if True:  # False:  # bulk shape update
-            if (t - self.initbatch) % mbs == mbs - 1:
+            if (t - self.params.get('online', 'init_batch')) % mbs == mbs - 1:
                 print('Updating Shapes')
 
                 if self.N > self.params.get('online', 'max_comp_update_shape'):
@@ -980,7 +975,7 @@ class CNMF(object):
         else:  # distributed shape update
             self.update_counter *= .5**(1. / mbs)
             # if not num_added:
-            if (not num_added) and (time() - t_start < self.time_spend / (t - self.initbatch + 1)):
+            if (not num_added) and (time() - t_start < self.time_spend / (t - self.params.get('online', 'init_batch') + 1)):
                 candidates = np.where(self.update_counter <= 1)[0]
                 if len(candidates):
                     indicator_components = candidates[:self.N // mbs + 1]
@@ -1014,12 +1009,15 @@ class CNMF(object):
         """
 
         self.estimates.Ab, self.estimates.Ab_dense, self.estimates.CC, self.estimates.CY, self.M,\
-        self.N, self.estimates.noisyC, self.estimates.OASISinstances, self.estimates.C_on,\
-        self.expected_comps, self.ind_A,\
-        self.estimates.groups, self.estimates.AtA = remove_components_online(
-                ind_rm, self.params.get('init', 'nb'), self.estimates.Ab, self.params.get('online', 'use_dense'), self.estimates.Ab_dense,
-                self.estimates.AtA, self.estimates.CY, self.estimates.CC, self.M, self.N, self.estimates.noisyC,
-                self.estimates.OASISinstances, self.estimates.C_on, self.expected_comps)
+            self.N, self.estimates.noisyC, self.estimates.OASISinstances, self.estimates.C_on,\
+            expected_comps, self.ind_A,\
+            self.estimates.groups, self.estimates.AtA = remove_components_online(
+                ind_rm, self.params.get('init', 'nb'), self.estimates.Ab,
+                self.params.get('online', 'use_dense'), self.estimates.Ab_dense,
+                self.estimates.AtA, self.estimates.CY, self.estimates.CC, self.M, self.N,
+                self.estimates.noisyC, self.estimates.OASISinstances, self.estimates.C_on,
+                self.params.get('online', 'expected_comps'))
+        self.params.set('online', {'expected_comps': expected_comps})
 
     def compute_residuals(self, Yr):
         """compute residual for each component (variable YrA)
@@ -1804,7 +1802,7 @@ class CNMF(object):
         else:
             raise Exception('Unknown initialization method!')
         self.dims = Y.shape[1:]
-        self.initbatch = init_batch
+        self.params.set('online', {'init_batch': init_batch})
         epochs = self.params.get('online', 'epochs')
         T1 = caiman.load(fls[0]).shape[0]*len(fls)*epochs
         self._prepare_object(Yr, T1, **self.params.get_group('online'))
