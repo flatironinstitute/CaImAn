@@ -279,31 +279,29 @@ class CNMF(object):
         self.skip_refinement = skip_refinement
         self.remove_very_bad_comps = remove_very_bad_comps
 
-        self.params = CNMFParams(K=k, n_processes=n_processes, gSig=gSig, gSiz=gSiz, ssub=ssub, tsub=tsub, p=p,
-                                 p_ssub=p_ssub, p_tsub=p_tsub, method_init=method_init, nb=gnb, nb_patch=nb_patch,
-                                 n_pixels_per_process=n_pixels_per_process, block_size=block_size, num_blocks_per_run=num_blocks_per_run,
-                                 check_nan=check_nan,
-                                 normalize_init=normalize_init, options_local_NMF=options_local_NMF,
-                                 remove_very_bad_comps=remove_very_bad_comps,
-                                 update_background_components=update_background_components,
-                                 low_rank_background=low_rank_background, rolling_sum=rolling_sum,
-                                 min_corr=min_corr, min_pnr=min_pnr, ring_size_factor=ring_size_factor,
-                                 center_psf=center_psf, ssub_B=ssub_B, init_iter=init_iter, fr=fr,
-                                 decay_time=decay_time, min_SNR=min_SNR,
-                                 rf=rf, stride=stride, memory_fact=memory_fact, border_pix=border_pix, del_duplicates=del_duplicates,
-                                 thr=merge_thresh, do_merge=do_merge,
-                                 method_deconvolution=method_deconvolution,
-                                 minibatch_shape=minibatch_shape, rolling_length=rolling_length, minibatch_suff_stat=minibatch_suff_stat,
-                                 rval_thr=rval_thr, s_min=s_min,
-                                 thresh_fitness_delta=thresh_fitness_delta, thresh_fitness_raw=thresh_fitness_raw, thresh_overlap=thresh_overlap,
-                                 num_times_comp_updated=num_times_comp_updated, max_comp_update_shape=max_comp_update_shape,
-                                 batch_update_suff_stat=batch_update_suff_stat, use_dense=use_dense, simultaneously=simultaneously,
-                                 n_refit=n_refit, N_samples_exceptionality=N_samples_exceptionality, max_num_added=max_num_added,
-                                 min_num_trial=min_num_trial, thresh_CNN_noisy=thresh_CNN_noisy,
-                                 sniper_mode=sniper_mode, use_peak_max=use_peak_max, test_both=test_both,
-                                 update_num_comps=update_num_comps, expected_comps=expected_comps
-                                 )
-
+        self.params = CNMFParams(
+            border_pix=border_pix, del_duplicates=del_duplicates, low_rank_background=low_rank_background,
+            memory_fact=memory_fact, n_processes=n_processes, nb_patch=nb_patch, p_ssub=p_ssub, p_tsub=p_tsub,
+            remove_very_bad_comps=remove_very_bad_comps, rf=rf, stride=stride,
+            check_nan=check_nan, n_pixels_per_process=n_pixels_per_process,
+            K=k, center_psf=center_psf, gSig=gSig, gSiz=gSiz,
+            init_iter=init_iter, method_init=method_init, min_corr=min_corr,  min_pnr=min_pnr,
+            nb=gnb, normalize_init=normalize_init, options_local_NMF=options_local_NMF,
+            ring_size_factor=ring_size_factor, rolling_length=rolling_length, rolling_sum=rolling_sum,
+            ssub=ssub, ssub_B=ssub_B, tsub=tsub,
+            block_size=block_size, num_blocks_per_run=num_blocks_per_run,
+            update_background_components=update_background_components,
+            method_deconvolution=method_deconvolution, p=p, s_min=s_min,
+            do_merge=do_merge, thr=merge_thresh,
+            decay_time=decay_time, fr=fr, min_SNR=min_SNR, rval_thr=rval_thr,
+            N_samples_exceptionality=N_samples_exceptionality, batch_update_suff_stat=batch_update_suff_stat,
+            expected_comps=expected_comps, max_comp_update_shape=max_comp_update_shape, max_num_added=max_num_added,
+            min_num_trial=min_num_trial, minibatch_shape=minibatch_shape, minibatch_suff_stat=minibatch_suff_stat,
+            n_refit=n_refit, num_times_comp_updated=num_times_comp_updated, simultaneously=simultaneously,
+            sniper_mode=sniper_mode, test_both=test_both, thresh_CNN_noisy=thresh_CNN_noisy,
+            thresh_fitness_delta=thresh_fitness_delta, thresh_fitness_raw=thresh_fitness_raw, thresh_overlap=thresh_overlap,
+            update_num_comps=update_num_comps, use_dense=use_dense, use_peak_max=use_peak_max
+        )
 
     def fit(self, images):
         """
@@ -465,12 +463,12 @@ class CNMF(object):
                 self.params.set('patch', {'only_init': True})
 
             self.estimates.A, self.estimates.C, self.estimates.YrA, self.estimates.b, self.estimates.f, \
-            self.estimates.sn, self.estimates.optional_outputs = run_CNMF_patches(images.filename, self.dims + (T,),
-                                                                     self.params,
-                                                                     dview=self.dview, memory_fact=self.params.get('patch', 'memory_fact'),
-                                                                     gnb=self.params.get('init', 'nb'), border_pix=self.params.get('patch', 'border_pix'),
-                                                                     low_rank_background=self.params.get('patch', 'low_rank_background'),
-                                                                     del_duplicates=self.params.get('patch', 'del_duplicates'))
+                self.estimates.sn, self.estimates.optional_outputs = run_CNMF_patches(
+                    images.filename, self.dims + (T,), self.params,
+                    dview=self.dview, memory_fact=self.params.get('patch', 'memory_fact'),
+                    gnb=self.params.get('init', 'nb'), border_pix=self.params.get('patch', 'border_pix'),
+                    low_rank_background=self.params.get('patch', 'low_rank_background'),
+                    del_duplicates=self.params.get('patch', 'del_duplicates'))
 
             self.estimates.bl, self.estimates.c1, self.estimates.g, self.estimates.neurons_sn = None, None, None, None
             print("merging")

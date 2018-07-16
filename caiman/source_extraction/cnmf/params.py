@@ -10,20 +10,24 @@ from caiman.source_extraction.cnmf.utilities import dict_compare
 
 class CNMFParams(object):
 
-    def __init__(self, n_processes=1, K=30, gSig=[5, 5], gSiz=None, ssub=2, tsub=2, p=2, p_ssub=2, p_tsub=2,
-                 thr=0.8, do_merge=True,
-                 method_init='greedy_roi', nb=1, nb_patch=1, del_duplicates=False,
-                 n_pixels_per_process=None, block_size=None, num_blocks_per_run=20, check_nan=True,
-                 normalize_init=True, options_local_NMF=None, remove_very_bad_comps=False, alpha_snmf=10e2,
-                 update_background_components=True, low_rank_background=True, rolling_sum=False, min_corr=.85,
-                 min_pnr=20, ring_size_factor=1.5, center_psf=False, ssub_B=2, init_iter=2, fr=30, decay_time=0.4,
-                 rf=None, stride=None, memory_fact=1, border_pix=0,
-                 method_deconvolution='oasis',
-                 minibatch_shape=100, rolling_length=100, minibatch_suff_stat=3,
-                 s_min=None, 
-                 N_samples_exceptionality=None, batch_update_suff_stat=False, expected_comps=500,
-                 max_comp_update_shape=np.inf, max_num_added=1, min_SNR=2.5, min_num_trial=3,
-                 n_refit=0, num_times_comp_updated=np.inf, rval_thr=0.8, simultaneously=False,
+    def __init__(self,
+                 border_pix=0, del_duplicates=False, low_rank_background=True,
+                 memory_fact=1, n_processes=1, nb_patch=1, p_ssub=2, p_tsub=2,
+                 remove_very_bad_comps=False, rf=None, stride=None,
+                 check_nan=True, n_pixels_per_process=None,
+                 K=30, alpha_snmf=10e2, center_psf=False, gSig=[5, 5], gSiz=None,
+                 init_iter=2, method_init='greedy_roi', min_corr=.85,
+                 min_pnr=20, nb=1, normalize_init=True, options_local_NMF=None,
+                 ring_size_factor=1.5, rolling_length=100, rolling_sum=False,
+                 ssub=2, ssub_B=2, tsub=2,
+                 block_size=None, num_blocks_per_run=20, update_background_components=True,
+                 method_deconvolution='oasis', p=2, s_min=None,
+                 do_merge=True, thr=0.8,
+                 decay_time=0.4, fr=30, min_SNR=2.5, rval_thr=0.8,
+                 N_samples_exceptionality=None, batch_update_suff_stat=False,
+                 expected_comps=500, max_comp_update_shape=np.inf, max_num_added=1,
+                 min_num_trial=3, minibatch_shape=100, minibatch_suff_stat=3,
+                 n_refit=0, num_times_comp_updated=np.inf, simultaneously=False,
                  sniper_mode=False, test_both=False, thresh_CNN_noisy=0.5,
                  thresh_fitness_delta=-20, thresh_fitness_raw=None, thresh_overlap=0.5,
                  update_num_comps=True, use_dense=True, use_peak_max=False
@@ -45,11 +49,6 @@ class CNMFParams(object):
             low_rank_background:bool
                 whether to update the using a low rank approximation. In the False case all the nonzero elements of the background components are updated using hals
                 (to be used with one background per patch)
-
-        MERGE PARAMS
-            do_merge: Whether or not to merge
-
-            thr: The merge threshold for spatial correlation.
 
         PRE-PROCESS PARAMS#############
 
@@ -211,6 +210,11 @@ class CNMFParams(object):
 
             block_size : block_size
                 number of pixels to process at the same time for dot product. Make it smaller if memory problems
+
+        MERGE PARAMS
+            do_merge: Whether or not to merge
+
+            thr: The merge threshold for spatial correlation.
 
         QUALITY EVALUATION PARAMETERS###########
 
