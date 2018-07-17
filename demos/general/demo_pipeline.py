@@ -84,7 +84,7 @@ def main():
 #%% play the movie
     # playing the movie using opencv. It requires loading the movie in memory.
     # To close the video press q
-    display_images = True
+    display_images = False
 
     if display_images:
         m_orig = cm.load_movie_chain(fname)
@@ -102,7 +102,7 @@ def main():
     min_mov = cm.load(fname[0], subindices=range(200)).min()
     # this will be subtracted from the movie to make it non-negative
 
-    mc = MotionCorrect(fname[0], min_mov, dview=dview, max_shifts=max_shifts, 
+    mc = MotionCorrect(fname, min_mov, dview=dview, max_shifts=max_shifts, 
                        splits_rig=splits_rig,
                        strides=strides, overlaps=overlaps, 
                        splits_els=splits_els, border_nan='copy',
@@ -127,7 +127,7 @@ def main():
 
     # maximum shift to be used for trimming against NaNs
 #%% compare with original movie
-    display_images = True
+    display_images = False
     if display_images:
         downsample_ratio = 0.2
         moviehandle = cm.concatenate([m_orig.resize(1, 1, downsample_ratio) - min_mov,
@@ -168,9 +168,10 @@ def main():
 
     # parameters for component evaluation
 
-    opts = params.CNMFParams(method_init=method_init, gSig=gSig,
-                    merge_thresh=merge_thresh, p=p, gnb=gnb, k=K,
-                    rf=rf, stride=stride_cnmf, rolling_sum=True)
+    opts = params.CNMFParams(dims=dims, fr=fr, decay_time=decay_time,
+                             method_init=method_init, gSig=gSig,
+                             merge_thresh=merge_thresh, p=p, gnb=gnb, k=K,
+                             rf=rf, stride=stride_cnmf, rolling_sum=True)
 
 #%% RUN CNMF ON PATCHES
 
@@ -209,8 +210,8 @@ def main():
 #%% VIEW TRACES (accepted and rejected)
 
     if display_images:
-        cnm.view_components(images, dims, img=Cn, idx=cnm.estimates.idx_components)
-        cnm.view_components(images, dims, img=Cn, idx=cnm.estimates.idx_components_bad)
+        cnm.view_components(images, img=Cn, idx=cnm.estimates.idx_components)
+        cnm.view_components(images, img=Cn, idx=cnm.estimates.idx_components_bad)
 
 #%% RE-RUN seeded CNMF on accepted patches to refine and perform deconvolution
 

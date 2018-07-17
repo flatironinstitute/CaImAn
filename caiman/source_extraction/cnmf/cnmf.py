@@ -1320,8 +1320,10 @@ class CNMF(object):
         opts = self.params.get_group('quality')
         idx_components, idx_components_bad, SNR_comp, r_values, cnn_preds = \
         estimate_components_quality_auto(imgs, self.estimates.A, self.estimates.C, self.estimates.b, self.estimates.f,
-                                         self.estimates.YrA, opts['fr'],
-                                         opts['decay_time'], self.params.get('init', 'gSig'),
+                                         self.estimates.YrA, 
+                                         self.params.get('data', 'fr'),
+                                         self.params.get('data', 'decay_time'),
+                                         self.params.get('init', 'gSig'),
                                          dims, dview=self.dview,
                                          min_SNR=opts['min_SNR'],
                                          r_values_min=opts['rval_thr'],
@@ -1391,31 +1393,7 @@ class CNMF(object):
         """
         dims = imgs.shape[1:]
         self.params.set('quality', kwargs)
-#        fr = self.params.quality['fr'] if fr is None else fr
-#        decay_time = (self.params.quality['decay_time']
-#                      if decay_time is None else decay_time)
-#        min_SNR = (self.params.quality['min_SNR']
-#                   if min_SNR is None else min_SNR)
-#        SNR_lowest = (self.params.quality['SNR_lowest']
-#                      if SNR_lowest is None else SNR_lowest)
-#        rval_thr = (self.params.quality['rval_thr']
-#                    if rval_thr is None else rval_thr)
-#        rval_lowest = (self.params.quality['rval_lowest']
-#                       if rval_lowest is None else rval_lowest)
-#        use_cnn = (self.params.quality['use_cnn']
-#                   if use_cnn is None else use_cnn)
-#        min_cnn_thr = (self.params.quality['min_cnn_thr']
-#                       if min_cnn_thr is None else min_cnn_thr)
-#        cnn_lowest = (self.params.quality['cnn_lowest']
-#                      if cnn_lowest is None else cnn_lowest)
-#        gSig_range = (self.params.quality['gSig_range']
-#                      if gSig_range is None else gSig_range)
 
-#        if not hasattr(self, 'idx_components'):
-#            self.evaluate_components(imgs, fr=fr, decay_time=decay_time,
-#                                     min_SNR=min_SNR, rval_thr=rval_thr,
-#                                     use_cnn=use_cnn,
-#                                     min_cnn_thr=min_cnn_thr)
         opts = self.params.get_group('quality')
         self.estimates.idx_components, self.estimates.idx_components_bad, self.estimates.cnn_preds = \
         select_components_from_metrics(self.estimates.A, dims, self.params.get('init', 'gSig'), self.estimates.r_values,

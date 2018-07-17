@@ -5,12 +5,11 @@ import numpy as np
 import scipy
 
 from caiman.paths import caiman_datadir
-from caiman.source_extraction.cnmf.utilities import dict_compare
-
+from caiman.source_extraction.cnmf.utilities import dict_compare, get_file_size
 
 class CNMFParams(object):
 
-    def __init__(self,
+    def __init__(self, fnames=None, dims=None, dxy=(1, 1),
                  border_pix=0, del_duplicates=False, low_rank_background=True,
                  memory_fact=1, n_processes=1, nb_patch=1, p_ssub=2, p_tsub=2,
                  remove_very_bad_comps=False, rf=None, stride=None,
@@ -250,6 +249,16 @@ class CNMFParams(object):
 
         """
 
+        self.data = {
+            'fnames': fnames,
+            'dims': dims,
+            'fr': fr,
+            'decay_time': decay_time,
+            'dxy': dxy
+        }
+        if dims is None and fnames is not None:
+            self.data['dims'] = get_file_size(fnames)[0]
+
         self.patch = {
             'border_pix': border_pix,
             'del_duplicates': del_duplicates,
@@ -375,8 +384,8 @@ class CNMFParams(object):
         self.quality = {
             'SNR_lowest': 0.5,         # minimum accepted SNR value
             'cnn_lowest': 0.1,         # minimum accepted value for CNN classifier
-            'decay_time': decay_time,  # length of decay of typical transient (in seconds)
-            'fr': fr,                  # imaging frame rate
+            #'decay_time': decay_time,  # length of decay of typical transient (in seconds)
+            #'fr': fr,                  # imaging frame rate
             'gSig_range': None,        # range for gSig scale for CNN classifier
             'min_SNR': min_SNR,        # transient SNR threshold
             'min_cnn_thr': 0.9,        # threshold for CNN classifier
@@ -426,6 +435,7 @@ class CNMFParams(object):
         else:
             self.online['thresh_fitness_raw'] = thresh_fitness_raw
         self.online['max_shifts'] = np.int(self.online['max_shifts'] / self.online['ds_factor'])
+
 
     def set(self, group, val_dict, set_if_not_exists=False):
         """ Add key-value pairs to a group. Existing key-value pairs will be overwritten
@@ -504,7 +514,7 @@ class CNMFParams(object):
         return True
 
     def to_dict(self):
-        return {'spatial_params': self.spatial, 'temporal_params': self.temporal,
+        return {'data': self.data, 'spatial_params': self.spatial, 'temporal_params': self.temporal,
                 'init_params': self.init, 'preprocess_params': self.preprocess,
                 'patch_params': self.patch, 'online': self.online, 'quality': self.quality,
                 'merging': self.merging

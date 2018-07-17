@@ -23,7 +23,7 @@ import cv2
 
 try:
     cv2.setNumThreads(0)
-except:
+except():
     pass
 
 try:
@@ -87,6 +87,8 @@ def main():
 #%% set up some parameters
 
     is_patches = True      # flag for processing in patches or not
+    fr = 10                # approximate frame rate of data
+    decay_time = 5.0       # length of transient
 
     if is_patches:          # PROCESS IN PATCHES AND THEN COMBINE
         rf = 10             # half size of each patch
@@ -102,9 +104,11 @@ def main():
     p = 2                   # order of the autoregressive system
     gnb = 2                 # global background order
 
-    opts = params.CNMFParams(method_init='greedy_roi', gSig=gSig,
-                    merge_thresh=merge_thresh, p=p, gnb=gnb, k=K,
-                    rf=rf, stride=stride, rolling_sum=False)
+    opts = params.CNMFParams(fnames=fnames,
+                             method_init='greedy_roi', gSig=gSig,
+                             merge_thresh=merge_thresh, p=p, gnb=gnb, k=K,
+                             rf=rf, stride=stride, rolling_sum=False,
+                             fr=fr, decay_time=decay_time)
 
 #%% Now RUN CNMF
     cnm = cnmf.CNMF(n_processes, params=opts, dview=dview)
@@ -125,16 +129,13 @@ def main():
     #   b) a minimum peak SNR is required over the length of a transient
     #   c) each shape passes a CNN based classifier (this will pick up only neurons
     #           and filter out active processes)
-    fr = 10             # approximate frame rate of data
-    decay_time = 5.0    # length of transient
+
     min_SNR = 2.5       # peak SNR for accepted components (if above this, acept)
     rval_thr = 0.90     # space correlation threshold (if above this, accept)
     use_cnn = True     # use the CNN classifier
     min_cnn_thr = 0.95  # if cnn classifier predicts below this value, reject
     
-    cnm2.params.set('quality', {'fr': fr,
-                                'decay_time': decay_time,
-                                'min_SNR': min_SNR,
+    cnm2.params.set('quality', {'min_SNR': min_SNR,
                                 'rval_thr': rval_thr,
                                 'use_cnn': use_cnn,
                                 'min_cnn_thr': min_cnn_thr})
