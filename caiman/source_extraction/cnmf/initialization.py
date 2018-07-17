@@ -416,7 +416,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
 
         Ain = np.reshape(Ain, (np.prod(d), K), order='F')
 
-    if nb>0:
+    if nb > 0 or nb == -1:
         b_in = np.reshape(b_in, ds + (-1,), order='F')
 
         if len(ds) == 2:
