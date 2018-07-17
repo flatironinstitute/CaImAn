@@ -86,13 +86,13 @@ If you want to upgrade CaImAn (and have already used the pip installer to instal
    ```
    pip install -e .
    ```
-
-**For Linux users:** To make the package available from everywhere and have it working *efficiently* under any configuration ALWAYS run these commands before starting spyder:
+   
+**Performance issues:** To make the package working *efficiently* under any configuration ALWAYS run these commands before starting spyder (this is for linux and OSX but environment variables can be set in windows as well):
 
    ```bash
    export MKL_NUM_THREADS=1
    export OPENBLAS_NUM_THREADS=1
-   ```
+   ```   
 
 ### Setting up caimanmanager
 
