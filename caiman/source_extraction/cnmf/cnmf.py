@@ -1162,20 +1162,26 @@ class CNMF(object):
 
         pl.ion()
         nr, T = self.estimates.C.shape
+        nb = 0 if self.params.patch['nb'] <= 0 else self.params.patch['nb']
         dims = self.dims
 
         if self.estimates.YrA is None:
             self.compute_residuals(Yr)
 
         if img is None:
-            img = np.reshape(np.array(self.estimates.A.mean(axis=1)), dims, order='F')
+            img = np.reshape(np.array(self.estimates.A.mean(axis=1)),
+                             dims, order='F')
 
         if idx is None:
-            caiman.utils.visualization.view_patches_bar(Yr, self.estimates.A, self.estimates.C,
-                    self.estimates.b, self.estimates.f, dims[0], dims[1], YrA=self.estimates.YrA, img=img)
+            caiman.utils.visualization.view_patches_bar(Yr, self.estimates.A,
+                            self.estimates.C, self.estimates.b[:, :nb],
+                            self.estimates.f[:nb], dims[0], dims[1],
+                            YrA=self.estimates.YrA, img=img)
         else:
-            caiman.utils.visualization.view_patches_bar(Yr, self.estimates.A.tocsc()[:,idx], self.estimates.C[idx], self.estimates.b, self.estimates.f, dims[
-                                                    0], dims[1], YrA=self.estimates.YrA[idx], img=img)
+            caiman.utils.visualization.view_patches_bar(Yr,
+                self.estimates.A.tocsc()[:, idx], self.estimates.C[idx],
+                self.estimates.b[:, :nb], self.estimates.f[:nb], dims[0],
+                dims[1], YrA=self.estimates.YrA[idx], img=img)
 
     def detrend_df_f(self, quantileMin=8, frames_window=500,
                      flag_auto=True, use_fast=False, use_residuals=True):

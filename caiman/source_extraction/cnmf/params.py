@@ -29,7 +29,8 @@ class CNMFParams(object):
                  n_refit=0, num_times_comp_updated=np.inf, simultaneously=False,
                  sniper_mode=False, test_both=False, thresh_CNN_noisy=0.5,
                  thresh_fitness_delta=-20, thresh_fitness_raw=None, thresh_overlap=0.5,
-                 update_num_comps=True, use_dense=True, use_peak_max=False
+                 update_num_comps=True, use_dense=True, use_peak_max=False,
+                 only_init_patch=False
                  ):
         """Class for setting the CNMF parameters.
 
@@ -267,7 +268,7 @@ class CNMFParams(object):
             'memory_fact': memory_fact,
             'n_processes': n_processes,
             'nb': nb_patch,
-            'only_init': True,
+            'only_init': only_init_patch,
             'remove_very_bad_comps': remove_very_bad_comps,
             'rf': rf,
             'skip_refinement': False,

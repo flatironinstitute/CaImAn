@@ -104,7 +104,7 @@ def main():
     p = 2                   # order of the autoregressive system
     gnb = 2                 # global background order
 
-    opts = params.CNMFParams(fnames=fnames,
+    opts = params.CNMFParams(dims=dims,
                              method_init='greedy_roi', gSig=gSig,
                              merge_thresh=merge_thresh, p=p, gnb=gnb, k=K,
                              rf=rf, stride=stride, rolling_sum=False,
