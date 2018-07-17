@@ -1135,7 +1135,7 @@ class CNMF(object):
             pl.title('Rejected Components')
         return self
 
-    def view_components(self, Yr, dims, img=None, idx=None):
+    def view_components(self, Yr, img=None, idx=None):
         """view spatial and temporal components interactively
 
         Parameters:
@@ -1162,6 +1162,7 @@ class CNMF(object):
 
         pl.ion()
         nr, T = self.estimates.C.shape
+        dims = self.dims
 
         if self.estimates.YrA is None:
             self.compute_residuals(Yr)

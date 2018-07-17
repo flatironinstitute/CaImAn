@@ -144,7 +144,7 @@ def main():
     cnm2.plot_contours(img=Cn, idx=cnm2.estimates.idx_components)
 
 #%% visualize selected components
-    cnm2.view_components(images, dims, idx=cnm2.estimates.idx_components, img=Cn)
+    cnm2.view_components(images, idx=cnm2.estimates.idx_components, img=Cn)
 
 #%% play movie with results
     cnm2.play_movie(images, magnification=4)
