@@ -62,7 +62,7 @@ def main():
 
 #%% start the cluster
     try:
-        cm.stop_server(dview=dview)  # stop it if it was running
+        cm.stop_server()  # stop it if it was running
     except():
         pass
 
@@ -219,15 +219,17 @@ def main():
 #%% PLOT COMPONENTS
     cnm.dims = dims
     if display_images:
-        cnm.plot_contours(img=cn_filter, idx=cnm.estimates.idx_components)
-        cnm.view_components(Y, idx=cnm.estimates.idx_components)
+        cnm.estimates.plot_contours(img=cn_filter, idx=cnm.estimates.idx_components)
+        cnm.estimates.view_components(Y, idx=cnm.estimates.idx_components)
 
 #%% MOVIES
     if display_images:
         # fully reconstructed movie
-        cnm.play_movie(Y, magnification=3, include_bck=True, gain_res=10)
+        cnm.estimates.play_movie(Y, q_max=99.9, magnification=2,
+                                 include_bck=True, gain_res=10, bpx=bord_px)
         # movie without background
-        cnm.play_movie(Y, magnification=3, include_bck=False, gain_res=4)
+        cnm.estimates.play_movie(Y, q_max=99.9, magnification=2,
+                                 include_bck=False, gain_res=4, bpx=bord_px)
 
 #%% STOP SERVER
     cm.stop_server(dview=dview)

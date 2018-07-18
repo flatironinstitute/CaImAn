@@ -10,15 +10,18 @@ import numpy as np
 import matplotlib.pyplot as plt
 import scipy.sparse
 import caiman
+import logging
+from .utilities import detrend_df_f
+
 
 class Estimates(object):
-    def __init__(self, A=None, b=None, C=None, f=None, dims=None):
+    def __init__(self, A=None, b=None, C=None, f=None, R=None, dims=None):
         # variables related to the estimates of traces, footprints, deconvolution and background
         self.A = A
         self.C = C
         self.f = f
         self.b = b
-        self.R = None    # formerly called YrA (residual traces)
+        self.R = R
         self.W = None
         self.b0 = None
 
@@ -31,7 +34,6 @@ class Estimates(object):
         self.lam = None
 
         self.center = None
-        self.extra_1p = None
 
         self.merged_ROIs = None
         self.coordinates = None
@@ -42,10 +44,31 @@ class Estimates(object):
         self.SNR_comp = None
         self.r_values = None
         self.cnn_preds = None
-        
+
+        # online
+
+        self.noisyC = None
+        self.C_on = None
+        self.Ab = None
+        self.Cf = None
+        self.OASISinstances = None
+        self.CY = None
+        self.CC = None
+        self.Ab_dense = None
+        self.Yr_buf = None
+        self.mn = None
+        self.vr = None
+        self.ind_new = None
+        self.rho_buf = None
+        self.AtA = None
+        self.AtY_buf = None
+        self.sv = None
+        self.groups = None
+
         self.dims = dims
-        
-        
+
+
+
     def plot_contours(self, img=None, idx=None, crd=None, thr_method='max',
                       thr='0.2'):
         """view contour plots for each spatial footprint. 
@@ -70,7 +93,7 @@ class Estimates(object):
             self.A = scipy.sparse.csc_matrix(self.A)
         if img is None:
             img = np.reshape(np.array(self.A.mean(1)), self.dims, order='F')
-        if not hasattr(self, 'coordinates'):
+        if self.coordinates is None:  # not hasattr(self, 'coordinates'):
             self.coordinates = caiman.utils.visualization.get_contours(self.A, self.dims, thr=thr, thr_method=thr_method)
         plt.figure()
         if idx is None:
@@ -121,7 +144,10 @@ class Estimates(object):
         nr, T = self.C.shape
 
         if self.R is None:
-            self.compute_residuals(Yr)
+            if self.YrA is None:
+                self.compute_residuals(Yr)
+            else:
+                self.R = self.YrA
 
         if img is None:
             img = np.reshape(np.array(self.A.mean(axis=1)), self.dims, order='F')
@@ -136,7 +162,8 @@ class Estimates(object):
 
     def play_movie(self, imgs, q_max=99.75, q_min=2, gain_res=1,
                    magnification=1, include_bck=True,
-                   frame_range=slice(None, None, None)):
+                   frame_range=slice(None, None, None),
+                   bpx=0):
 
         """Displays a movie with three panels (original data (left panel),
         reconstructed data (middle panel), residual (right panel))
@@ -163,6 +190,8 @@ class Estimates(object):
         frame_rage: range or slice or list
             display only a subset of frames
 
+        bpx: int
+            number of pixels to exclude on each border
 
         Returns:
         --------
@@ -174,7 +203,6 @@ class Estimates(object):
         Y_rec = self.A.dot(self.C[:, frame_range])
         Y_rec = Y_rec.reshape(dims + (-1,), order='F')
         Y_rec = Y_rec.transpose([2, 0, 1])
-        #if self.params.get('init', 'nb') == -1 or self.params.get('init', 'nb') > 0:
         if self.b is not None and self.f is not None:
             B = self.b.dot(self.f[:, frame_range])
             if 'matrix' in str(type(B)):
@@ -185,18 +213,17 @@ class Estimates(object):
             B = B.reshape(dims + (-1,), order='F').transpose([2, 0, 1])
         else:
             B = np.zeros_like(Y_rec)
-        if self.params.get('patch', 'border_pix') > 0:
-            bpx = self.params.get('patch', 'border_pix')
-            imgs = imgs[:, bpx:-bpx, bpx:-bpx]
+        if bpx > 0:
             B = B[:, bpx:-bpx, bpx:-bpx]
             Y_rec = Y_rec[:, bpx:-bpx, bpx:-bpx]
+            imgs = imgs[:, bpx:-bpx, bpx:-bpx]
 
         Y_res = imgs[frame_range] - Y_rec - B
 
         caiman.concatenate((imgs[frame_range] - (not include_bck)*B, Y_rec + include_bck*B, Y_res*gain_res), axis=2).play(q_min=q_min, q_max=q_max, magnification=magnification)
 
         return self
-    
+
     def compute_residuals(self, Yr):
         """compute residual for each component (variable R)
 
@@ -231,4 +258,54 @@ class Estimates(object):
         AA = Ab.T.dot(Ab) * nA2_inv_mat
         self.R = (YA - (AA.T.dot(Cf)).T)[:, :self.A.shape[-1]].T
 
+        return self
+
+    def detrend_df_f(self, quantileMin=8, frames_window=500,
+                     flag_auto=True, use_fast=False, use_residuals=True):
+        """Computes DF/F normalized fluorescence for the extracted traces. See
+        caiman.source.extraction.utilities.detrend_df_f for details
+
+        Parameters:
+        -----------
+        quantile_min: float
+            quantile used to estimate the baseline (values in [0,100])
+
+        frames_window: int
+            number of frames for computing running quantile
+
+        flag_auto: bool
+            flag for determining quantile automatically (different for each
+            trace)
+
+        use_fast: bool
+            flag for using approximate fast percentile filtering
+
+        use_residuals: bool
+            flag for using non-deconvolved traces in DF/F calculation
+
+        Returns:
+        --------
+        self: CNMF object
+            self.estimates.F_dff contains the DF/F normalized traces
+        """
+
+        if self.C is None:
+            logging.warning("There are no components for DF/F extraction!")
+            return self
+
+        if use_residuals:
+            if self.R is None:
+                if self.YrA is None:
+                    R = None
+                else:
+                    R = self.YrA
+            else:
+                R = self.R
+        else:
+            R = None
+
+        self.F_dff = detrend_df_f(self.A, self.b, self.C, self.f, R,
+                                  quantileMin=quantileMin,
+                                  frames_window=frames_window,
+                                  flag_auto=flag_auto, use_fast=use_fast)
         return self

@@ -127,7 +127,6 @@ def main():
 
     # maximum shift to be used for trimming against NaNs
 #%% compare with original movie
-    display_images = False
     if display_images:
         downsample_ratio = 0.2
         moviehandle = cm.concatenate([m_orig.resize(1, 1, downsample_ratio) - min_mov,
@@ -185,7 +184,7 @@ def main():
 #%% plot contours of found components
     Cn = cm.local_correlations(images.transpose(1, 2, 0))
     Cn[np.isnan(Cn)] = 0
-    cnm.plot_contours(img=Cn)
+    cnm.estimates.plot_contours(img=Cn)
     plt.title('Contour plots of found components')
 
 #%% COMPONENT EVALUATION
@@ -205,13 +204,13 @@ def main():
     cnm.evaluate_components(images)
 
 #%% PLOT COMPONENTS
-    cnm.plot_contours(img=Cn, idx=cnm.estimates.idx_components)
+    cnm.estimates.plot_contours(img=Cn, idx=cnm.estimates.idx_components)
 
 #%% VIEW TRACES (accepted and rejected)
 
     if display_images:
-        cnm.view_components(images, img=Cn, idx=cnm.estimates.idx_components)
-        cnm.view_components(images, img=Cn, idx=cnm.estimates.idx_components_bad)
+        cnm.estimates.view_components(images, img=Cn, idx=cnm.estimates.idx_components)
+        cnm.estimates.view_components(images, img=Cn, idx=cnm.estimates.idx_components_bad)
 
 #%% RE-RUN seeded CNMF on accepted patches to refine and perform deconvolution
 
@@ -223,14 +222,17 @@ def main():
     cnm2 = cnm2.fit(images)
 
 #%% Extract DF/F values
-    cnm2.detrend_df_f(quantileMin=8, frames_window=250)
+    cnm2.estimates.detrend_df_f(quantileMin=8, frames_window=250)
 
 #%% Show final traces
-    cnm2.view_components(Yr, img=Cn)
+    cnm2.estimates.view_components(Yr, img=Cn)
 
 #%% reconstruct denoised movie (press q to exit)
     if display_images:
-        cnm2.play_movie(images, q_max=99.9, gain_res=2, magnification=2)
+        cnm2.estimates.play_movie(images, q_max=99.9, gain_res=2,
+                                  magnification=2,
+                                  bpx=border_to_0,
+                                  include_bck=True)
 
 #%% STOP CLUSTER and clean up log files
     cm.stop_server(dview=dview)

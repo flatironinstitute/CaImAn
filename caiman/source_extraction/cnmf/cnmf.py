@@ -29,7 +29,7 @@ from __future__ import print_function
 from builtins import str
 from builtins import object
 import numpy as np
-from .utilities import update_order, normalize_AC, detrend_df_f
+from .utilities import update_order, normalize_AC
 from caiman.source_extraction.cnmf.params import CNMFParams
 from .pre_processing import preprocess_data
 from .initialization import initialize_components, imblur, downscale
@@ -40,6 +40,7 @@ from caiman.components_evaluation import estimate_components_quality_auto, selec
 from caiman.motion_correction import motion_correct_iteration_fast
 from .map_reduce import run_CNMF_patches
 from .oasis import OASIS
+from .estimates import Estimates
 import caiman
 from caiman import components_evaluation, mmapping
 import cv2
@@ -269,7 +270,6 @@ class CNMF(object):
         """
 
         self.dview = dview
-        self.estimates = Estimates(A = Ain, C = Cin, b = b_in, f = f_in)
 
         # these are movie properties that will be refactored into the Movie object
         self.dims = None
@@ -305,6 +305,8 @@ class CNMF(object):
             )
         else:
             self.params = params
+        self.estimates = Estimates(A=Ain, C=Cin, b=b_in, f=f_in,
+                                   dims=self.params.data['dims'])
 
     def fit(self, images):
         """
@@ -1088,143 +1090,6 @@ class CNMF(object):
         nB_inv_mat = scipy.sparse.spdiags(1. / nB, 0, nB.shape[0], nB.shape[0])
         self.estimates.b = self.estimates.b * nB_inv_mat
         self.estimates.f = nB_mat * self.estimates.f
-
-    def plot_contours(self, img=None, idx=None, crd=None, thr_method='max',
-                      thr='0.2'):
-        """view contour plots for each spatial footprint. 
-        Parameters:
-        -----------
-        img :   np.ndarray
-                background image for contour plotting. Default is the mean
-                image of all spatial components (d1 x d2)
-        idx :   list
-                list of accepted components
-
-        crd :   list
-                list of coordinates (if empty they are computed)
-
-        thr_method : str
-                     thresholding method for computing contours ('max', 'nrg')
-
-        thr : float
-                threshold value
-        """
-        if 'csc_matrix' not in str(type(self.estimates.A)):
-            self.estimates.A = scipy.sparse.csc_matrix(self.estimates.A)
-        if img is None:
-            img = np.reshape(np.array(self.estimates.A.mean(1)), self.dims, order='F')
-        if not hasattr(self, 'coordinates'):
-            self.estimates.coordinates = caiman.utils.visualization.get_contours(self.estimates.A, self.dims, thr=thr, thr_method=thr_method)
-        pl.figure()
-        if idx is None:
-            caiman.utils.visualization.plot_contours(self.estimates.A, img, coordinates=self.estimates.coordinates)
-        else:
-            if not isinstance(idx, list):
-                idx = idx.tolist()
-            coor_g = [self.estimates.coordinates[cr] for cr in idx]
-            bad = list(set(range(self.estimates.A.shape[1])) - set(idx))
-            coor_b = [self.estimates.coordinates[cr] for cr in bad]
-            pl.subplot(1, 2, 1)
-            caiman.utils.visualization.plot_contours(self.estimates.A[:, idx], img,
-                                                     coordinates=coor_g)
-            pl.title('Accepted Components')
-            bad = list(set(range(self.estimates.A.shape[1])) - set(idx))
-            pl.subplot(1, 2, 2)
-            caiman.utils.visualization.plot_contours(self.estimates.A[:, bad], img,
-                                                     coordinates=coor_b)
-            pl.title('Rejected Components')
-        return self
-
-    def view_components(self, Yr, img=None, idx=None):
-        """view spatial and temporal components interactively
-
-        Parameters:
-        -----------
-        Yr :    np.ndarray
-                movie in format pixels (d) x frames (T)
-
-        dims :  tuple
-                dimensions of the FOV
-
-        img :   np.ndarray
-                background image for contour plotting. Default is the mean
-                image of all spatial components (d1 x d2)
-
-        idx :   list
-                list of components to be plotted
-
-
-        """
-        if 'csc_matrix' not in str(type(self.estimates.A)):
-            self.estimates.A = scipy.sparse.csc_matrix(self.estimates.A)
-        if 'array' not in str(type(self.estimates.b)):
-            self.estimates.b = self.estimates.b.toarray()
-
-        pl.ion()
-        nr, T = self.estimates.C.shape
-        nb = 0 if self.params.patch['nb'] <= 0 else self.params.patch['nb']
-        dims = self.dims
-
-        if self.estimates.YrA is None:
-            self.compute_residuals(Yr)
-
-        if img is None:
-            img = np.reshape(np.array(self.estimates.A.mean(axis=1)),
-                             dims, order='F')
-
-        if idx is None:
-            caiman.utils.visualization.view_patches_bar(Yr, self.estimates.A,
-                            self.estimates.C, self.estimates.b[:, :nb],
-                            self.estimates.f[:nb], dims[0], dims[1],
-                            YrA=self.estimates.YrA, img=img)
-        else:
-            caiman.utils.visualization.view_patches_bar(Yr,
-                self.estimates.A.tocsc()[:, idx], self.estimates.C[idx],
-                self.estimates.b[:, :nb], self.estimates.f[:nb], dims[0],
-                dims[1], YrA=self.estimates.YrA[idx], img=img)
-
-    def detrend_df_f(self, quantileMin=8, frames_window=500,
-                     flag_auto=True, use_fast=False, use_residuals=True):
-        """Computes DF/F normalized fluorescence for the extracted traces. See
-        caiman.source.extraction.utilities.detrend_df_f for details
-
-        Parameters:
-        -----------
-        quantile_min: float
-            quantile used to estimate the baseline (values in [0,100])
-
-        frames_window: int
-            number of frames for computing running quantile
-
-        flag_auto: bool
-            flag for determining quantile automatically (different for each
-            trace)
-
-        use_fast: bool
-            flag for using approximate fast percentile filtering
-
-        use_residuals: bool
-            flag for using non-deconvolved traces in DF/F calculation
-
-        Returns:
-        --------
-        self: CNMF object
-            self.estimates.F_dff contains the DF/F normalized traces
-        """
-
-        if self.estimates.C is None:
-            logging.warning("There are no components for DF/F extraction!")
-            return self
-
-        if use_residuals:
-            R = self.estimates.YrA
-        else:
-            R = None
-
-        self.estimates.F_dff = detrend_df_f(self.estimates.A, self.estimates.b, self.estimates.C, self.estimates.f, R,
-                                  quantileMin=quantileMin,
-                                  frames_window=frames_window,
-                                  flag_auto=flag_auto, use_fast=use_fast)
         return self
 
     def deconvolve(self, p=None, method=None, bas_nonneg=None,
@@ -1412,81 +1277,6 @@ class CNMF(object):
                                        thresh_cnn_lowest=opts['cnn_lowest'],
                                        use_cnn=opts['use_cnn'],
                                        gSig_range=opts['gSig_range'])
-
-        return self
-
-    def play_movie(self, imgs, q_max=99.75, q_min=2, gain_res=1,
-                   magnification=1, include_bck=True,
-                   frame_range=slice(None, None, None)):
-
-        """Displays a movie with three panels (original data (left panel),
-        reconstructed data (middle panel), residual (right panel))
-        Parameters:
-        -----------
-        imgs: np.array (possibly memory mapped, t,x,y[,z])
-            Imaging data
-
-        q_max: float (values in [0, 100])
-            percentile for maximum plotting value
-
-        q_min: float (values in [0, 100])
-            percentile for minimum plotting value
-
-        gain_res: float
-            amplification factor for residual movie
-
-        magnification: float
-            magnification factor for whole movie
-
-        include_bck: bool
-            flag for including background in original and reconstructed movie
-
-        frame_rage: range or slice or list
-            display only a subset of frames
-
-
-        Returns:
-        --------
-        self (to stop the movie press 'q')
-        """
-        dims = imgs.shape[1:]
-        if 'movie' not in str(type(imgs)):
-            imgs = caiman.movie(imgs)
-        # 3D->2D: Yr = Y.T.reshape((-1, 1000))
-        # 2D->3D: Y = np.reshape(Yr.T, (-1,) + dims, order='F')
-        Y_rec = self.estimates.A.dot(self.estimates.C[:, frame_range])
-        Y_rec = np.reshape(Y_rec.T, (-1,) + dims, order='F')
-        if self.params.get('init', 'nb') == -1 or self.params.get('init', 'nb') > 0:
-            if scipy.sparse.issparse(self.estimates.f):
-                B = self.estimates.f.T[frame_range].dot(self.estimates.b.T).T
-            else:
-                B = self.estimates.b.dot(self.estimates.f[:, frame_range])
-            if 'matrix' in str(type(B)):
-                B = B.toarray()
-            B = B.reshape(dims + (-1,), order='F').transpose([2, 0, 1])
-        elif self.params.get('init', 'nb') == 0:
-            ssub_B = int(np.sqrt(np.prod(dims) / self.estimates.W.shape[0]))
-            B = imgs[frame_range] - Y_rec - self.estimates.b0.reshape((-1,) + dims, order='F')
-            if ssub_B > 1:
-                B = downscale(B, (1, ssub_B, ssub_B))
-            B = self.estimates.W.dot(B.T.reshape((-1, len(B)))).T.reshape(
-                (-1,) + B.shape[1:], order='F')
-            if ssub_B > 1:
-                B = np.repeat(np.repeat(B, ssub_B, 1), ssub_B, 2)[:, :dims[0], :dims[1]]
-            B += self.estimates.b0.reshape((-1,) + dims, order='F')
-        else:
-            B = np.zeros_like(Y_rec)
-        if self.params.get('patch', 'border_pix') > 0:
-            bpx = self.params.get('patch', 'border_pix')
-            imgs = imgs[:, bpx:-bpx, bpx:-bpx]
-            B = B[:, bpx:-bpx, bpx:-bpx]
-            Y_rec = Y_rec[:, bpx:-bpx, bpx:-bpx]
-
-        Y_res = imgs[frame_range] - Y_rec - B
-
-        caiman.concatenate((imgs[frame_range] - (not include_bck) * B,
-                            Y_rec + include_bck * B, Y_res * gain_res), axis=2).play(
-            q_min=q_min, q_max=q_max, magnification=magnification)
 
         return self
 
@@ -1893,56 +1683,4 @@ def load_CNMF(filename, n_processes=1, dview = None):
             setattr(new_obj, key, val)
 
     return new_obj
-
-class Estimates(object):
-    def __init__(self, A=None, b=None, C=None, f=None):
-        # variables related to the estimates of traces, footprints, deconvolution and background
-        self.A = A
-        self.C = C
-        self.f = f
-        self.b = b
-        self.YrA = None
-        self.W = None
-        self.b0 = None
-
-        self.S = None
-        self.sn = None
-        self.g = None
-        self.bl = None
-        self.c1 = None
-        self.neurons_sn = None
-        self.lam = None
-
-        self.center = None
-
-        self.merged_ROIs = None
-        self.coordinates = None
-        self.F_dff = None
-
-        self.idx_components = None
-        self.idx_components_bad = None
-        self.SNR_comp = None
-        self.r_values = None
-        self.cnn_preds = None
-
-        # online
-
-        self.noisyC = None
-        self.C_on = None
-        self.Ab = None
-        self.Cf = None
-        self.OASISinstances = None
-        self.CY = None
-        self.CC = None
-        self.Ab_dense = None
-        self.Yr_buf = None
-        self.mn = None
-        self.vr = None
-        self.ind_new = None
-        self.rho_buf = None
-        self.AtA = None
-        self.AtY_buf = None
-        self.sv = None
-        self.groups = None
-
 

@@ -114,7 +114,7 @@ def main():
     cnm = cnmf.CNMF(n_processes, params=opts, dview=dview)
     cnm = cnm.fit(images)
 #%% plot contour plots of components
-    cnm.plot_contours(img=Cn)
+    cnm.estimates.plot_contours(img=Cn)
 
 #%% copy into a new object and refit
     cnm.dview = None
@@ -142,13 +142,13 @@ def main():
                                 
     cnm2.evaluate_components(images)
 #%% visualize selected and rejected components
-    cnm2.plot_contours(img=Cn, idx=cnm2.estimates.idx_components)
+    cnm2.estimates.plot_contours(img=Cn, idx=cnm2.estimates.idx_components)
 
 #%% visualize selected components
-    cnm2.view_components(images, idx=cnm2.estimates.idx_components, img=Cn)
+    cnm2.estimates.view_components(images, idx=cnm2.estimates.idx_components, img=Cn)
 
 #%% play movie with results
-    cnm2.play_movie(images, magnification=4)
+    cnm2.estimates.play_movie(images, magnification=4)
 
 #%% STOP CLUSTER and clean up log files
     cm.stop_server(dview=dview)
