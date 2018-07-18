@@ -460,7 +460,7 @@ class CNMFParams(object):
             else:
                 if np.any(d[k] != v):
                     logging.warning(
-                        "Changing key {} in group {}, to {}".format(k, group, v))
+                        "Changing key {} in group {} from {} to {}".format(k, group, d[k], v))
                 d[k] = v
 
     def get(self, group, key):
