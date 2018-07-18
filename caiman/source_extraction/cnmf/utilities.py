@@ -32,10 +32,11 @@ from .initialization import greedyROI
 from ...base.rois import com
 import pylab as pl
 import scipy
-from ...mmapping import parallel_dot_product
+from ...mmapping import parallel_dot_product, load_memmap
 from ...utils.stats import df_percentile
 import logging
 import tifffile
+import h5py
 import os
 import cv2
 
@@ -791,7 +792,7 @@ def normalize_AC(A, C, YrA, b, f, neurons_sn):
         if issparse(f):
             f = csr_matrix(f)
             for k, i in enumerate(f.indptr[:-1]):
-                f.data[i:f.indptr[k + 1]] *= nB[k]            
+                f.data[i:f.indptr[k + 1]] *= nB[k]
         else:
             f = np.atleast_2d(f)
             f *= nB[:, np.newaxis]
@@ -800,8 +801,9 @@ def normalize_AC(A, C, YrA, b, f, neurons_sn):
         neurons_sn *= nA
 
     return csc_matrix(A), C, YrA, b, f, neurons_sn
+# %%
 
-#%%
+
 def get_file_size(file_name, var_name_hdf5=None):
     if isinstance(file_name, str):
         if os.path.exists(file_name):
@@ -817,7 +819,7 @@ def get_file_size(file_name, var_name_hdf5=None):
                     T = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
                     dims[0] = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
                     dims[1] = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-                except:
+                except():
                     print('Roll back top opencv 2')
                     T = int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_COUNT))
                     dims[0] = int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_WIDTH))
@@ -829,7 +831,7 @@ def get_file_size(file_name, var_name_hdf5=None):
             elif extension == '.h5' or extension == '.hdf5':
                 with h5py.File(file_name, "r") as f:
                     kk = list(f.keys())
-                    if len(kk)==1:
+                    if len(kk) == 1:
                         siz = f[kk[0]].shape
                     elif var_name_hdf5 in kk:
                         siz = f[var_name_hdf5].shape
@@ -852,7 +854,5 @@ def get_file_size(file_name, var_name_hdf5=None):
             else:
                 dims = dims[0]
     else:
-        import pdb
-        pdb.set_trace()
         raise Exception('Unknown input type')
     return dims, T
