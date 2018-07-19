@@ -29,7 +29,7 @@ from __future__ import print_function
 from builtins import str
 from builtins import object
 import numpy as np
-from .utilities import update_order, normalize_AC
+from .utilities import update_order, normalize_AC, get_file_size
 from caiman.source_extraction.cnmf.params import CNMFParams
 from .pre_processing import preprocess_data
 from .initialization import initialize_components, imblur, downscale
@@ -48,7 +48,6 @@ from .online_cnmf import RingBuffer, HALS4activity, HALS4shapes, demix_and_decon
 from .online_cnmf import init_shapes_and_sufficient_stats, update_shapes, update_num_components, bare_initialization, seeded_initialization
 import scipy
 import psutil
-import pylab as pl
 from time import time
 import logging
 import sys
@@ -637,7 +636,7 @@ class CNMF(object):
 
         self.estimates.Ab, self.ind_A, self.estimates.CY, self.estimates.CC = init_shapes_and_sufficient_stats(
             Yr[:, :self.params.get('online', 'init_batch')].reshape(
-                self.dims + (-1,), order='F'), self.estimates.A,
+                self.params.get('data', 'dims') + (-1,), order='F'), self.estimates.A,
             self.estimates.C_on[:self.N, :self.params.get('online', 'init_batch')], self.estimates.b, self.estimates.noisyC[:self.params.get('init', 'nb'), :self.params.get('online', 'init_batch')])
 
         self.estimates.CY, self.estimates.CC = self.estimates.CY * 1. / self.params.get('online', 'init_batch'), 1 * self.estimates.CC / self.params.get('online', 'init_batch')
@@ -673,9 +672,9 @@ class CNMF(object):
         self.estimates.mean_buff = self.estimates.Yres_buf.mean(0)
         self.estimates.ind_new = []
         self.estimates.rho_buf = imblur(np.maximum(self.estimates.Yres_buf.T,0).reshape(
-            self.dims + (-1,), order='F'), sig=self.params.get('init', 'gSig'), siz=self.params.get('init', 'gSiz'), nDimBlur=len(self.dims))**2
+            self.params.get('data', 'dims') + (-1,), order='F'), sig=self.params.get('init', 'gSig'), siz=self.params.get('init', 'gSiz'), nDimBlur=len(self.params.get('data', 'dims')))**2
         self.estimates.rho_buf = np.reshape(
-            self.estimates.rho_buf, (np.prod(self.dims), -1)).T
+            self.estimates.rho_buf, (np.prod(self.params.get('data', 'dims')), -1)).T
         self.estimates.rho_buf = RingBuffer(self.estimates.rho_buf, self.params.get('online', 'minibatch_shape'))
         self.estimates.AtA = (self.estimates.Ab.T.dot(self.estimates.Ab)).toarray()
         self.estimates.AtY_buf = self.estimates.Ab.T.dot(self.estimates.Yr_buf.T)
@@ -790,17 +789,17 @@ class CNMF(object):
 #
             self.estimates.Yres_buf.append(res_frame)
 
-            res_frame = np.reshape(res_frame, self.dims, order='F')
+            res_frame = np.reshape(res_frame, self.params.get('data', 'dims'), order='F')
 
             rho = imblur(np.maximum(res_frame,0), sig=self.params.get('init', 'gSig'),
-                         siz=self.params.get('init', 'gSiz'), nDimBlur=len(self.dims))**2
+                         siz=self.params.get('init', 'gSiz'), nDimBlur=len(self.params.get('data', 'dims')))**2
 
-            rho = np.reshape(rho, np.prod(self.dims))
+            rho = np.reshape(rho, np.prod(self.params.get('data', 'dims')))
             self.estimates.rho_buf.append(rho)
 
             self.estimates.Ab, Cf_temp, self.estimates.Yres_buf, self.rhos_buf, self.estimates.CC, self.estimates.CY, self.ind_A, self.estimates.sv, self.estimates.groups, self.estimates.ind_new, self.ind_new_all, self.estimates.sv, self.cnn_pos = update_num_components(
                 t, self.estimates.sv, self.estimates.Ab, self.estimates.C_on[:self.M, (t - mbs + 1):(t + 1)],
-                self.estimates.Yres_buf, self.estimates.Yr_buf, self.estimates.rho_buf, self.dims,
+                self.estimates.Yres_buf, self.estimates.Yr_buf, self.estimates.rho_buf, self.params.get('data', 'dims'),
                 self.params.get('init', 'gSig'), self.params.get('init', 'gSiz'), self.ind_A, self.estimates.CY, self.estimates.CC, rval_thr=self.params.get('online', 'rval_thr'),
                 thresh_fitness_delta=self.params.get('online', 'thresh_fitness_delta'),
                 thresh_fitness_raw=self.params.get('online', 'thresh_fitness_raw'), thresh_overlap=self.params.get('online', 'thresh_overlap'),
@@ -1483,7 +1482,79 @@ class CNMF(object):
 
         return self
 
-    def fit_online(self, fls, init_batch=200, epochs=1, motion_correct=True, **kwargs):
+    def initialize_online(self):
+        fls = self.params.get('data', 'fnames')
+        opts = self.params.get_group('online')
+        print(opts['init_batch'])
+        Y = caiman.load(fls[0], subindices=slice(0, opts['init_batch'],
+                        None)).astype(np.float32)
+        ds_factor = np.maximum(opts['ds_factor'], 1)
+        if ds_factor > 1:
+            Y.resize(1./ds_factor)
+        mc_flag = self.params.get('online', 'motion_correct')
+        self.estimates.shifts = []  # store motion shifts here
+        self.estimates.time_new_comp = []
+        if mc_flag:
+            max_shifts = self.params.get('online', 'max_shifts')
+            mc = Y.motion_correct(max_shifts, max_shifts)
+            Y = mc[0].astype(np.float32)
+            self.estimates.shifts.extend(mc[1])
+
+        img_min = Y.min()
+        Y -= img_min
+        img_norm = np.std(Y, axis=0)
+        img_norm += np.median(img_norm)  # normalize data to equalize the FOV
+        Y = Y/img_norm[None, :, :]
+        _, d1, d2 = Y.shape
+        Yr = Y.to_2D().T        # convert data into 2D array
+        self.img_min = img_min
+        self.img_norm = img_norm
+        if self.params.get('online', 'init_method') == 'bare':
+            self.estimates.A, self.estimates.b, self.estimates.C, self.estimates.f, self.estimates.YrA = bare_initialization(
+                    Y.transpose(1, 2, 0), gnb=self.params.get('init', 'nb'), k=self.params.get('init', 'K'),
+                    gSig=self.params.get('init', 'gSig'), return_object=False)
+            self.estimates.S = np.zeros_like(self.estimates.C)
+            nr = self.estimates.C.shape[0]
+            self.estimates.g = np.array([-np.poly([0.9] * max(self.params.get('preprocess', 'p'), 1))[1:]
+                               for gg in np.ones(nr)])
+            self.estimates.bl = np.zeros(nr)
+            self.estimates.c1 = np.zeros(nr)
+            self.estimates.neurons_sn = np.std(self.estimates.YrA, axis=-1)
+            self.estimates.lam = np.zeros(nr)
+        elif self.params.get('online', 'init_method') == 'cnmf':
+            if self.params.get('patch', 'rf') is None:
+                self.dview = None
+                self.fit(np.array(Y))
+            else:
+                f_new = mmapping.save_memmap(fls[:1], base_name='Yr', order='C',
+                                             slices=[slice(0, opts['init_batch']), None, None])
+                Yr, dims_, T_ = mmapping.load_memmap(f_new)
+                Y = np.reshape(Yr.T, [T_] + list(dims_), order='F')
+                self.fit(Y)
+            
+        elif self.params.get('online', 'init_method') == 'seeded':
+            self.estimates.A, self.estimates.b, self.estimates.C, self.estimates.f, self.estimates.YrA = seeded_initialization(
+                    Y.transpose(1, 2, 0), self.estimates.A, gnb=self.params.get('init', 'nb'), k=self.params.get('init', 'k'),
+                    gSig=self.params.get('init', 'gSig'), return_object=False)
+            self.estimates.S = np.zeros_like(self.estimates.C)
+            nr = self.estimates.C.shape[0]
+            self.estimates.g = np.array([-np.poly([0.9] * max(self.params.get('preprocess', 'p'), 1))[1:]
+                               for gg in np.ones(nr)])
+            self.estimates.bl = np.zeros(nr)
+            self.estimates.c1 = np.zeros(nr)
+            self.estimates.neurons_sn = np.std(self.estimates.YrA, axis=-1)
+            self.estimates.lam = np.zeros(nr)
+        else:
+            raise Exception('Unknown initialization method!')
+        dims, Ts = get_file_size(fls[0])
+        self.params.set('data', {'dims': dims})
+        T1 = np.array(Ts).sum()*self.params.get('online', 'epochs')
+        self._prepare_object(Yr, T1)
+        return self
+
+
+    #def fit_online(self, fls, init_batch=200, epochs=1, motion_correct=True, **kwargs):
+    def fit_online(self, **kwargs):
         """Implements the caiman online algorithm on the list of files fls. The
         files are taken in alpha numerical order and are assumed to each have
         the same number of frames (except the last one that can be shorter).
@@ -1511,83 +1582,29 @@ class CNMF(object):
         --------
         self (results of caiman online)
         """
-        lc = locals()
-        pr = inspect.signature(self.fit_online)
-        params = [k for k, v in pr.parameters.items() if '=' in str(v)]
-        kw2 = {k: lc[k] for k in params}
-        try:
-            kwargs_new = {**kw2, **kwargs}
-        except():  # python 2.7
-            kwargs_new = kw2.copy()
-            kwargs_new.update(kwargs)
-        self.params.set('online', kwargs_new)
-        for key in kwargs_new:
-            if hasattr(self, key):
-                setattr(self, key, kwargs_new[key])
-        if isinstance(fls, str):
-            fls = [fls]
-        Y = caiman.load(fls[0], subindices=slice(0, init_batch,
-                        None)).astype(np.float32)
-        ds_factor = np.maximum(self.params.get('online', 'ds_factor'), 1)
-        if ds_factor > 1:
-            Y.resize(1./ds_factor)
-        mc_flag = self.params.get('online', 'motion_correct')
-        shifts = []  # store motion shifts here
-        time_new_comp = []
-        if mc_flag:
-            max_shifts = self.params.get('online', 'max_shifts')
-            mc = Y.motion_correct(max_shifts, max_shifts)
-            Y = mc[0].astype(np.float32)
-            shifts.extend(mc[1])
-
-        img_min = Y.min()
-        Y -= img_min
-        img_norm = np.std(Y, axis=0)
-        img_norm += np.median(img_norm)  # normalize data to equalize the FOV
-        Y = Y/img_norm[None, :, :]
-
-        _, d1, d2 = Y.shape
-        Yr = Y.to_2D().T        # convert data into 2D array
-
-        if self.params.get('online', 'init_method') == 'bare':
-            self.estimates.A, self.estimates.b, self.estimates.C, self.estimates.f, self.estimates.YrA = bare_initialization(
-                    Y.transpose(1, 2, 0), gnb=self.params.get('init', 'nb'), k=self.params.get('init', 'K'),
-                    gSig=self.params.get('init', 'gSig'), return_object=False)
-            self.estimates.S = np.zeros_like(self.estimates.C)
-            nr = self.estimates.C.shape[0]
-            self.estimates.g = np.array([-np.poly([0.9] * max(self.params.get('preprocess', 'p'), 1))[1:]
-                               for gg in np.ones(nr)])
-            self.estimates.bl = np.zeros(nr)
-            self.estimates.c1 = np.zeros(nr)
-            self.estimates.neurons_sn = np.std(self.estimates.YrA, axis=-1)
-            self.estimates.lam = np.zeros(nr)
-        elif self.params.get('online', 'init_method') == 'cnmf':
-            self.params.set('patch', {'rf': None})
-            self.dview = None
-            self.fit(np.array(Y))
-        elif self.params.get('online', 'init_method') == 'seeded':
-            self.estimates.A, self.estimates.b, self.estimates.C, self.estimates.f, self.estimates.YrA = seeded_initialization(
-                    Y.transpose(1, 2, 0), self.estimates.A, gnb=self.params.get('init', 'nb'), k=self.params.get('init', 'k'),
-                    gSig=self.params.get('init', 'gSig'), return_object=False)
-            self.estimates.S = np.zeros_like(self.estimates.C)
-            nr = self.estimates.C.shape[0]
-            self.estimates.g = np.array([-np.poly([0.9] * max(self.params.get('preprocess', 'p'), 1))[1:]
-                               for gg in np.ones(nr)])
-            self.estimates.bl = np.zeros(nr)
-            self.estimates.c1 = np.zeros(nr)
-            self.estimates.neurons_sn = np.std(self.estimates.YrA, axis=-1)
-            self.estimates.lam = np.zeros(nr)
-        else:
-            raise Exception('Unknown initialization method!')
-        self.dims = Y.shape[1:]
-        self.params.set('online', {'init_batch': init_batch})
+#        lc = locals()
+#        pr = inspect.signature(self.fit_online)
+#        params = [k for k, v in pr.parameters.items() if '=' in str(v)]
+#        kw2 = {k: lc[k] for k in params}
+#        try:
+#            kwargs_new = {**kw2, **kwargs}
+#        except():  # python 2.7
+#            kwargs_new = kw2.copy()
+#            kwargs_new.update(kwargs)
+#        self.params.set('data', {'fnames': fls})
+#        self.params.set('online', kwargs_new)
+#        for key in kwargs_new:
+#            if hasattr(self, key):
+#                setattr(self, key, kwargs_new[key])
+        fls = self.params.get('data', 'fnames')
+        init_batch = self.params.get('online', 'init_batch')
         epochs = self.params.get('online', 'epochs')
-        T1 = caiman.load(fls[0]).shape[0]*len(fls)*epochs
-        self._prepare_object(Yr, T1, **self.params.get_group('online'))
+        self.initialize_online()
         extra_files = len(fls) - 1
         init_files = 1
         t = init_batch
         self.Ab_epoch = []
+        max_shifts = self.params.get('online', 'max_shifts')
         if extra_files == 0:     # check whether there are any additional files
             process_files = fls[:init_files]     # end processing at this file
             init_batc_iter = [init_batch]         # place where to start
@@ -1620,21 +1637,21 @@ class CNMF(object):
                         old_comps = self.N
 
                     frame_ = frame.copy().astype(np.float32)
-                    if ds_factor > 1:
-                        frame_ = cv2.resize(frame_, img_norm.shape[::-1])
-                    frame_ -= img_min     # make data non-negative
+                    if self.params.get('online', 'ds_factor') > 1:
+                        frame_ = cv2.resize(frame_, self.img_norm.shape[::-1])
+                    frame_ -= self.img_min     # make data non-negative
 
-                    if mc_flag:    # motion correct
+                    if self.params.get('online', 'motion_correct'):    # motion correct
                         templ = self.estimates.Ab.dot(
-                            self.estimates.C_on[:self.M, t-1]).reshape(self.dims, order='F')*img_norm
+                            self.estimates.C_on[:self.M, t-1]).reshape(self.params.get('data', 'dims'), order='F')*self.img_norm
                         frame_cor, shift = motion_correct_iteration_fast(
                             frame_, templ, max_shifts, max_shifts)
-                        shifts.append(shift)
+                        self.estimates.shifts.append(shift)
                     else:
                         templ = None
                         frame_cor = frame_
 
-                    frame_cor = frame_cor/img_norm    # normalize data-frame
+                    frame_cor = frame_cor/self.img_norm    # normalize data-frame
                     self.fit_next(t, frame_cor.reshape(-1, order='F'))
                     t += 1
             self.Ab_epoch.append(self.estimates.Ab.copy())
@@ -1645,8 +1662,7 @@ class CNMF(object):
         self.estimates.YrA = noisyC - self.estimates.C
         self.estimates.bl = [osi.b for osi in self.estimates.OASISinstances] if hasattr(
             self, 'OASISinstances') else [0] * self.estimates.C.shape[0]
-        self.shifts = shifts
-        
+
         return self
 
     def preprocess(self, Yr):

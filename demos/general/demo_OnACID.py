@@ -10,8 +10,6 @@ complete demo check the script demo_OnACID_mesoscope.py
 """
 
 import os
-import sys
-
 import numpy as np
 import pylab as pl
 import caiman as cm
@@ -90,8 +88,8 @@ def main():
                          update_num_comps=True, rval_thr=rval_thr,
                          thresh_fitness_delta=-50, gnb=gnb,
                          thresh_fitness_raw=thresh_fitness_raw,
-                         batch_update_suff_stat=True, max_comp_update_shape=max_comp_update_shape,
-                         expected_comps=expected_comps)
+                         batch_update_suff_stat=False, max_comp_update_shape=max_comp_update_shape,
+                         expected_comps=expected_comps, dview=None)
 
     cnm_init = cnm_init.fit(images)
 
@@ -103,7 +101,9 @@ def main():
 #%% run (online) OnACID algorithm
 
     cnm = deepcopy(cnm_init)
+    cnm.params.data['dims'] = (60, 80)
     cnm._prepare_object(np.asarray(Yr), T1)
+    
     t = initbatch
 
     Y_ = cm.load(fname)[initbatch:].astype(np.float32)

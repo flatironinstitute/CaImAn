@@ -28,9 +28,9 @@ class CNMFParams(object):
                  min_num_trial=3, minibatch_shape=100, minibatch_suff_stat=3,
                  n_refit=0, num_times_comp_updated=np.inf, simultaneously=False,
                  sniper_mode=False, test_both=False, thresh_CNN_noisy=0.5,
-                 thresh_fitness_delta=-20, thresh_fitness_raw=None, thresh_overlap=0.5,
+                 thresh_fitness_delta=-50, thresh_fitness_raw=None, thresh_overlap=0.5,
                  update_num_comps=True, use_dense=True, use_peak_max=False,
-                 only_init_patch=False
+                 only_init_patch=False, params_dict={},
                  ):
         """Class for setting the CNMF parameters.
 
@@ -257,8 +257,6 @@ class CNMFParams(object):
             'decay_time': decay_time,
             'dxy': dxy
         }
-        if dims is None and fnames is not None:
-            self.data['dims'] = get_file_size(fnames)[0]
 
         self.patch = {
             'border_pix': border_pix,
@@ -292,15 +290,13 @@ class CNMFParams(object):
             'sn': None,                  # noise level for each pixel
         }
 
-        gSig = gSig if gSig is not None else [-1, -1]
-
         self.init = {
             'K': k,                   # number of components,
             'alpha_snmf': alpha_snmf,
             'center_psf': center_psf,
             'gSig': gSig,
             # size of bounding box
-            'gSiz': [np.int((np.ceil(x) * 2) + 1) for x in gSig] if gSiz is None else gSiz,
+            'gSiz': gSiz,
             'init_iter': init_iter,
             'kernel': None,           # user specified template for greedyROI
             'maxIter': 5,             # number of HALS iterations
@@ -385,8 +381,6 @@ class CNMFParams(object):
         self.quality = {
             'SNR_lowest': 0.5,         # minimum accepted SNR value
             'cnn_lowest': 0.1,         # minimum accepted value for CNN classifier
-            #'decay_time': decay_time,  # length of decay of typical transient (in seconds)
-            #'fr': fr,                  # imaging frame rate
             'gSig_range': None,        # range for gSig scale for CNN classifier
             'min_SNR': min_SNR,        # transient SNR threshold
             'min_cnn_thr': 0.9,        # threshold for CNN classifier
@@ -401,7 +395,7 @@ class CNMFParams(object):
             'ds_factor': 1,                    # spatial downsampling for faster processing
             'epochs': 1,                       # number of epochs
             'expected_comps': expected_comps,  # number of expected components
-            'init_batch': None,                # length of mini batch for initialization
+            'init_batch': 200,                 # length of mini batch for initialization
             'init_method': 'bare',             # initialization method for first batch,
             'max_comp_update_shape': max_comp_update_shape,
             'max_num_added': max_num_added,    # maximum number of new components for each frame
@@ -422,21 +416,25 @@ class CNMFParams(object):
             'test_both': test_both,            # flag for using both CNN and space correlation
             'thresh_CNN_noisy': thresh_CNN_noisy,  # threshold for online CNN classifier
             'thresh_fitness_delta': thresh_fitness_delta,
-            'thresh_fitness_raw': None,        # threshold for trace SNR (computed below)
+            'thresh_fitness_raw': thresh_fitness_raw,    # threshold for trace SNR (computed below)
             'thresh_overlap': thresh_overlap,
             'update_num_comps': update_num_comps,  # flag for searching for new components
             'use_dense': use_dense,            # flag for representation and storing of A and b
             'use_peak_max': use_peak_max,      # flag for finding candidate centroids
         }
-        if N_samples_exceptionality is None:
-            self.online['N_samples_exceptionality'] = np.ceil(fr * decay_time).astype('int')
-        if thresh_fitness_raw is None:
+        self.change_params(params_dict)
+        if self.data['dims'] is None and self.data['fnames'] is not None:
+            self.data['dims'] = get_file_size(self.data['fnames'])[0]
+        if self.online['N_samples_exceptionality'] is None:
+            self.online['N_samples_exceptionality'] = np.ceil(self.data['fr'] * self.data['decay_time']).astype('int')
+        if self.online['thresh_fitness_raw'] is None:
             self.online['thresh_fitness_raw'] = scipy.special.log_ndtr(
                 -self.online['min_SNR']) * self.online['N_samples_exceptionality']
-        else:
-            self.online['thresh_fitness_raw'] = thresh_fitness_raw
         self.online['max_shifts'] = np.int(self.online['max_shifts'] / self.online['ds_factor'])
-
+        if self.init['gSig'] is None:
+            self.init['gSig'] = [-1, -1]
+        if self.init['gSiz'] is None:
+            self.init['gSiz'] = [2*gs + 1 for gs in self.init['gSig']]
 
     def set(self, group, val_dict, set_if_not_exists=False):
         """ Add key-value pairs to a group. Existing key-value pairs will be overwritten
@@ -520,3 +518,9 @@ class CNMFParams(object):
                 'patch_params': self.patch, 'online': self.online, 'quality': self.quality,
                 'merging': self.merging
                 }
+
+    def change_params(self, params_dict):
+        print(list(self.__dict__.keys()))
+        for gr in list(self.__dict__.keys()):
+            self.set(gr, params_dict)
+        return self

@@ -361,7 +361,7 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
     """
     if type(filenames) is not list:
         raise Exception('input should be a list of filenames')
-
+    
     if slices is not None:
         slices = [slice(0, None) if sl is None else sl for sl in slices]
 
