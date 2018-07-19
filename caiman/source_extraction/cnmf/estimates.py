@@ -24,6 +24,7 @@ class Estimates(object):
         self.R = R
         self.W = None
         self.b0 = None
+        self.YrA = None
 
         self.S = None
         self.sn = None
@@ -66,6 +67,7 @@ class Estimates(object):
         self.groups = None
 
         self.dims = dims
+        self.shifts = []
 
 
 
