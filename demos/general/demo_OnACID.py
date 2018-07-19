@@ -81,15 +81,16 @@ def main():
 
     #%% RUN (offline) CNMF algorithm on the initial batch
     pl.close('all')
-    cnm_init = cnmf.CNMF(2, k=K, gSig=gSig, merge_thresh=merge_thresh,
+    cnm_init = cnmf.CNMF(2, k=K, gSig=gSig, merge_thresh=merge_thresh, fr=fr,
                          p=p, rf=patch_size // 2, stride=stride, skip_refinement=False,
                          normalize_init=False, options_local_NMF=None,
                          minibatch_shape=100, minibatch_suff_stat=5,
                          update_num_comps=True, rval_thr=rval_thr,
-                         thresh_fitness_delta=-50, gnb=gnb,
+                         thresh_fitness_delta=-50, gnb=gnb, decay_time=decay_time,
                          thresh_fitness_raw=thresh_fitness_raw,
                          batch_update_suff_stat=False, max_comp_update_shape=max_comp_update_shape,
-                         expected_comps=expected_comps, dview=None)
+                         expected_comps=expected_comps, dview=None,
+                         min_SNR=min_SNR)
 
     cnm_init = cnm_init.fit(images)
 

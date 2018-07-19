@@ -24,8 +24,8 @@ class CNMFParams(object):
                  do_merge=True, merge_thresh=0.8,
                  decay_time=0.4, fr=30, min_SNR=2.5, rval_thr=0.8,
                  N_samples_exceptionality=None, batch_update_suff_stat=False,
-                 expected_comps=500, max_comp_update_shape=np.inf, max_num_added=1,
-                 min_num_trial=3, minibatch_shape=100, minibatch_suff_stat=3,
+                 expected_comps=500, max_comp_update_shape=np.inf, max_num_added=3,
+                 min_num_trial=2, minibatch_shape=100, minibatch_suff_stat=5,
                  n_refit=0, num_times_comp_updated=np.inf, simultaneously=False,
                  sniper_mode=False, test_both=False, thresh_CNN_noisy=0.5,
                  thresh_fitness_delta=-50, thresh_fitness_raw=None, thresh_overlap=0.5,
@@ -265,7 +265,7 @@ class CNMFParams(object):
             'low_rank_background': low_rank_background,
             'memory_fact': memory_fact,
             'n_processes': n_processes,
-            'nb': nb_patch,
+            'nb_patch': nb_patch,
             'only_init': only_init_patch,
             'remove_very_bad_comps': remove_very_bad_comps,
             'rf': rf,
@@ -305,7 +305,7 @@ class CNMFParams(object):
             'min_corr': min_corr,
             'min_pnr': min_pnr,
             'nIter': 5,               # number of refinement iterations
-            'nb': gnb,                # number of background components
+            'nb': gnb,                # number of global background components
             # whether to pixelwise equalize the movies during initialization
             'normalize_init': normalize_init,
             # dictionary with parameters to pass to local_NMF initializaer
@@ -375,7 +375,7 @@ class CNMFParams(object):
 
         self.merging = {
             'do_merge': do_merge,
-            'thr': merge_thresh,
+            'merge_thr': merge_thresh,
         }
 
         self.quality = {
@@ -405,6 +405,7 @@ class CNMFParams(object):
             'minibatch_shape': minibatch_shape,  # number of frames in each minibatch
             'minibatch_suff_stat': minibatch_suff_stat,
             'motion_correct': True,            # flag for motion correction
+            'normalize': False,                # normalize frame
             'n_refit': n_refit,                # Additional iterations to simultaneously refit
             # path to CNN model for testing new comps
             'num_times_comp_updated': num_times_comp_updated,
@@ -520,7 +521,6 @@ class CNMFParams(object):
                 }
 
     def change_params(self, params_dict):
-        print(list(self.__dict__.keys()))
         for gr in list(self.__dict__.keys()):
             self.set(gr, params_dict)
         return self

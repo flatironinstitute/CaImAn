@@ -129,7 +129,7 @@ def cnmf_patches(args_in):
         opts = copy(params)
         opts.set('patch', {'n_processes': 1, 'rf': None, 'stride': None})
         for group in ('init', 'temporal', 'spatial'):
-            opts.set(group, {'nb': params.get('patch', 'nb')})
+            opts.set(group, {'nb': params.get('patch', 'nb_patch')})
 
         cnm = cnmf.CNMF(n_processes=1, params=opts)
 
@@ -300,7 +300,7 @@ def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None, memory_fact=1,
             patch_id += 1
 
     # INITIALIZING
-    nb_patch = params.get('patch', 'nb')
+    nb_patch = params.get('patch', 'nb_patch')
     C_tot = np.zeros((count, T), dtype=np.float32)
     if params.get('init', 'center_psf'):
         S_tot = np.zeros((count, T), dtype=np.float32)

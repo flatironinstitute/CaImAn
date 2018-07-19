@@ -960,9 +960,6 @@ class CNMF(object):
 
                     self.estimates.C_on = np.delete(self.estimates.C_on, ind_zero, axis=0)
                     self.estimates.AtY_buf = np.delete(self.estimates.AtY_buf, ind_zero, axis=0)
-                    print(1)
-                    #import pdb
-                    # pdb.set_trace()
                     #Ab_ = Ab_[:,ind_keep]
                     Ab_ = scipy.sparse.csc_matrix(Ab_[:, ind_keep])
                     #Ab_ = scipy.sparse.csc_matrix(self.estimates.Ab_dense[:,:self.M])
@@ -1452,7 +1449,7 @@ class CNMF(object):
                              self.estimates.sn, self.params.get_group('temporal'),
                              self.params.get_group('spatial'), dview=self.dview,
                              bl=self.estimates.bl, c1=self.estimates.c1, sn=self.estimates.neurons_sn,
-                             g=self.estimates.g, thr=self.params.get('merging', 'thr'), mx=mx,
+                             g=self.estimates.g, thr=self.params.get('merging', 'merge_thr'), mx=mx,
                              fast_merge=fast_merge)
             
         return self
@@ -1501,10 +1498,13 @@ class CNMF(object):
             self.estimates.shifts.extend(mc[1])
 
         img_min = Y.min()
-        Y -= img_min
+        
+        if self.params.get('online', 'normalize'):
+            Y -= img_min
         img_norm = np.std(Y, axis=0)
         img_norm += np.median(img_norm)  # normalize data to equalize the FOV
-        Y = Y/img_norm[None, :, :]
+        if self.params.get('online', 'normalize'):
+            Y = Y/img_norm[None, :, :]
         _, d1, d2 = Y.shape
         Yr = Y.to_2D().T        # convert data into 2D array
         self.img_min = img_min
@@ -1528,9 +1528,13 @@ class CNMF(object):
             else:
                 f_new = mmapping.save_memmap(fls[:1], base_name='Yr', order='C',
                                              slices=[slice(0, opts['init_batch']), None, None])
-                Yr, dims_, T_ = mmapping.load_memmap(f_new)
-                Y = np.reshape(Yr.T, [T_] + list(dims_), order='F')
+                Yrm, dims_, T_ = mmapping.load_memmap(f_new)
+                Y = np.reshape(Yrm.T, [T_] + list(dims_), order='F')
                 self.fit(Y)
+                if self.params.get('online', 'normalize'):
+                    self.estimates.A /= self.img_norm.reshape(-1, order='F')[:, np.newaxis]
+                    self.estimates.b /= self.img_norm.reshape(-1, order='F')[:, np.newaxis]
+                    self.estimates.A = scipy.sparse.csc_matrix(self.estimates.A)
             
         elif self.params.get('online', 'init_method') == 'seeded':
             self.estimates.A, self.estimates.b, self.estimates.C, self.estimates.f, self.estimates.YrA = seeded_initialization(
@@ -1639,7 +1643,9 @@ class CNMF(object):
                     frame_ = frame.copy().astype(np.float32)
                     if self.params.get('online', 'ds_factor') > 1:
                         frame_ = cv2.resize(frame_, self.img_norm.shape[::-1])
-                    frame_ -= self.img_min     # make data non-negative
+                    
+                    if self.params.get('online', 'normalize'):
+                        frame_ -= self.img_min     # make data non-negative
 
                     if self.params.get('online', 'motion_correct'):    # motion correct
                         templ = self.estimates.Ab.dot(
@@ -1651,10 +1657,14 @@ class CNMF(object):
                         templ = None
                         frame_cor = frame_
 
-                    frame_cor = frame_cor/self.img_norm    # normalize data-frame
+                    if self.params.get('online', 'normalize'):
+                        frame_cor = frame_cor/self.img_norm    # normalize data-frame
                     self.fit_next(t, frame_cor.reshape(-1, order='F'))
                     t += 1
             self.Ab_epoch.append(self.estimates.Ab.copy())
+        if self.params.get('online', 'normalize'):
+            self.estimates.Ab /= 1./self.img_norm.reshape(-1, order='F')[:,np.newaxis]
+            self.estimates.Ab = scipy.sparse.csc_matrix(self.estimates.Ab)
         self.estimates.A, self.estimates.b = self.estimates.Ab[:, self.params.get('init', 'nb'):], self.estimates.Ab[:, :self.params.get('init', 'nb')].toarray()
         self.estimates.C, self.estimates.f = self.estimates.C_on[self.params.get('init', 'nb'):self.M, t - t //
                          epochs:t], self.estimates.C_on[:self.params.get('init', 'nb'), t - t // epochs:t]
