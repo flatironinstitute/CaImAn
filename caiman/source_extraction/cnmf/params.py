@@ -4,8 +4,8 @@ import os
 import numpy as np
 import scipy
 
-from caiman.paths import caiman_datadir
-from caiman.source_extraction.cnmf.utilities import dict_compare, get_file_size
+from ...paths import caiman_datadir
+from .utilities import dict_compare, get_file_size
 
 class CNMFParams(object):
 

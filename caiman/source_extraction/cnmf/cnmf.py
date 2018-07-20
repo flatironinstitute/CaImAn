@@ -29,31 +29,31 @@ from __future__ import print_function
 from builtins import str
 from builtins import object
 import numpy as np
-from .utilities import update_order, normalize_AC, get_file_size
-from caiman.source_extraction.cnmf.params import CNMFParams
-from .pre_processing import preprocess_data
-from .initialization import initialize_components, imblur, downscale
-from .merging import merge_components
-from .spatial import update_spatial_components
-from .temporal import update_temporal_components, constrained_foopsi_parallel
-from caiman.components_evaluation import estimate_components_quality_auto, select_components_from_metrics
-from caiman.motion_correction import motion_correct_iteration_fast
-from .map_reduce import run_CNMF_patches
-from .oasis import OASIS
-from .estimates import Estimates
-import caiman
-from caiman import components_evaluation, mmapping
 import cv2
-#from .online_cnmf import RingBuffer, HALS4activity, HALS4shapes, demix_and_deconvolve, remove_components_online
-#from .online_cnmf import init_shapes_and_sufficient_stats, update_shapes, update_num_components, bare_initialization, seeded_initialization
 import scipy
 import psutil
 from time import time
 import logging
 import sys
 import inspect
-from caiman.utils.utils import save_dict_to_hdf5, load_dict_from_hdf5
 
+import caiman
+from .map_reduce import run_CNMF_patches
+from .oasis import OASIS
+from .estimates import Estimates
+from .utilities import update_order, normalize_AC, get_file_size
+from .params import CNMFParams
+from .pre_processing import preprocess_data
+from .initialization import initialize_components, imblur, downscale
+from .merging import merge_components
+from .spatial import update_spatial_components
+from .temporal import update_temporal_components, constrained_foopsi_parallel
+from ...components_evaluation import estimate_components_quality_auto, select_components_from_metrics, estimate_components_quality
+from ...motion_correction import motion_correct_iteration_fast
+from ... import mmapping
+from ...utils.utils import save_dict_to_hdf5, load_dict_from_hdf5
+#from .online_cnmf import RingBuffer, HALS4activity, HALS4shapes, demix_and_deconvolve, remove_components_online
+#from .online_cnmf import init_shapes_and_sufficient_stats, update_shapes, update_num_components, bare_initialization, seeded_initialization
 
 try:
     cv2.setNumThreads(0)
@@ -399,7 +399,7 @@ class CNMF(object):
                     traces = np.array(self.estimates.C)
                     print('estimating the quality...')
                     idx_components, idx_components_bad, fitness_raw,\
-                        fitness_delta, r_values = components_evaluation.estimate_components_quality(
+                        fitness_delta, r_values = estimate_components_quality(
                             traces, Y, self.estimates.A, self.estimates.C, self.estimates.b, self.estimates.f,
                             final_frate=final_frate, Npeaks=Npeaks, r_values_min=r_values_min,
                             fitness_min=fitness_min, fitness_delta_min=fitness_delta_min, return_all=True, N=5)
@@ -1483,8 +1483,8 @@ class CNMF(object):
 #        fls = self.params.get('data', 'fnames')
 #        opts = self.params.get_group('online')
 #        print(opts['init_batch'])
-#        Y = caiman.load(fls[0], subindices=slice(0, opts['init_batch'],
-#                        None)).astype(np.float32)
+#        Y = load(fls[0], subindices=slice(0, opts['init_batch'],
+#                 None)).astype(np.float32)
 #        ds_factor = np.maximum(opts['ds_factor'], 1)
 #        if ds_factor > 1:
 #            Y.resize(1./ds_factor)
@@ -1624,7 +1624,7 @@ class CNMF(object):
 #
 #            for file_count, ffll in enumerate(process_files):
 #                print('Now processing file ' + ffll)
-#                Y_ = caiman.load(ffll, subindices=slice(
+#                Y_ = load(ffll, subindices=slice(
 #                                    init_batc_iter[file_count], None, None))
 #
 #                old_comps = self.N     # number of existing components

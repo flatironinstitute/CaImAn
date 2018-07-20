@@ -34,7 +34,7 @@ from sklearn.decomposition import NMF
 from sklearn.preprocessing import normalize
 from time import time
 
-from ... import load
+import caiman
 from ...motion_correction import motion_correct_iteration_fast
 from ... import mmapping
 from ...components_evaluation import compute_event_exceptionality
@@ -74,7 +74,7 @@ class OnACID(object):
         
     fit_next:
         Fit the algorithm on the next data frame
-    
+
     fit_online:
         Run the entire online pipeline on a given list of files
     """
@@ -551,7 +551,7 @@ class OnACID(object):
         fls = self.params.get('data', 'fnames')
         opts = self.params.get_group('online')
         print(opts['init_batch'])
-        Y = load(fls[0], subindices=slice(0, opts['init_batch'],
+        Y = caiman.load(fls[0], subindices=slice(0, opts['init_batch'],
                  None)).astype(np.float32)
         ds_factor = np.maximum(opts['ds_factor'], 1)
         if ds_factor > 1:
@@ -701,7 +701,7 @@ class OnACID(object):
 
             for file_count, ffll in enumerate(process_files):
                 print('Now processing file ' + ffll)
-                Y_ = load(ffll, subindices=slice(init_batc_iter[file_count], None, None))
+                Y_ = caiman.load(ffll, subindices=slice(init_batc_iter[file_count], None, None))
 
                 old_comps = self.N     # number of existing components
                 for frame_count, frame in enumerate(Y_):   # process each file
