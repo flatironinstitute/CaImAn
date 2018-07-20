@@ -2501,7 +2501,8 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
         # T x h x w
         array = np.load(fname, memmap_mode='r')
         shape = array.shape
-
+        del array
+        
         try:
             T, d1, d2 = shape
         except:
