@@ -71,7 +71,7 @@ def main():
                    'nb': gnb,
                    'thr': merge_thresh,
                    'init_batch': init_batch,
-                   'init_method': 'bare',
+                   'init_method': 'cnmf',
                    'rf': patch_size//2,
                    'stride': stride,
                    'normalize': False,
@@ -81,9 +81,7 @@ def main():
     cnm = cnmf.online_cnmf.OnACID(params=opts)
     cnm.dims = (60, 80)
     cnm.fit_online()
-#%% fit with cnmf object
-    cnm2 = cnmf.CNMF(2, params=opts)
-    cnm2.fit_online()
+
 #%% plot contours
     
     print(('Number of components:' + str(cnm.estimates.A.shape[-1])))
