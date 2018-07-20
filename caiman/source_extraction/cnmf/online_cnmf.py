@@ -1,4 +1,18 @@
 #!/usr/bin/env python
+""" Online Constrained Nonnegative Matrix Factorization
+
+The general file class which is used to analyze calcium imaging data in an
+online fashion using the OnACID algorithm. The output of the algorithm
+is storead in an Estimates class
+
+More info:
+------------
+Giovannucci, A., Friedrich, J., Kaufman, M., Churchland, A., Chklovskii, D., 
+Paninski, L., & Pnevmatikakis, E.A. (2017). OnACID: Online analysis of calcium
+imaging data in real time. In Advances in Neural Information Processing Systems 
+(pp. 2381-2391).
+@url http://papers.nips.cc/paper/6832-onacid-online-analysis-of-calcium-imaging-data-in-real-time
+"""
 
 from __future__ import division
 from __future__ import print_function
@@ -8,30 +22,28 @@ from builtins import map
 from builtins import str
 from builtins import range
 from past.utils import old_div
+import cv2
 import numpy as np
-from .utilities import get_file_size
+from scipy.ndimage import percentile_filter
+from scipy.sparse import coo_matrix, csc_matrix, spdiags
 from scipy.ndimage.filters import gaussian_filter
 from scipy.stats import norm
+from skimage.feature import peak_local_max
 from math import sqrt
+from sklearn.decomposition import NMF
+from sklearn.preprocessing import normalize
+from time import time
 
-import caiman
-from caiman.motion_correction import motion_correct_iteration_fast
-from caiman import mmapping
+from ... import load
+from ...motion_correction import motion_correct_iteration_fast
+from ... import mmapping
+from ...components_evaluation import compute_event_exceptionality
 from .initialization import imblur, initialize_components, hals
 from .estimates import Estimates
-import scipy
-from scipy.sparse import coo_matrix, csc_matrix
-from caiman.components_evaluation import compute_event_exceptionality
-from .utilities import update_order
+from .utilities import update_order, get_file_size
 from .params import CNMFParams
 from .oasis import OASIS
 from .cnmf import CNMF
-from . import oasis
-from sklearn.decomposition import NMF
-from sklearn.preprocessing import normalize
-import cv2
-from time import time
-from skimage.feature import peak_local_max
 
 try:
     cv2.setNumThreads(0)
@@ -46,12 +58,25 @@ except:
 
 class OnACID(object):
     """  Source extraction of streaming data using online matrix factorization.
-    Needs commenting
-    See Also:
+    The class can be initialized by passing a "params" object for setting up
+    the relevant parameters and an "Estimates" object for setting an initial
+    state of the algorithm (optional)
+
+    Methods:
     ------------
-    @url http://www.cell.com/neuron/fulltext/S0896-6273(15)01084-3
-    .. image:: docs/img/quickintro.png
-    @author andrea giovannucci
+    initialize_online: 
+
+        Initialize the online algorithm using a provided method, and prepare
+        the online object
+
+    _prepare_object: 
+        Prepare the online object given a set of estimates
+        
+    fit_next:
+        Fit the algorithm on the next data frame
+    
+    fit_online:
+        Run the entire online pipeline on a given list of files
     """
 
     def __init__(self, params=None, estimates=None):
@@ -103,14 +128,13 @@ class OnACID(object):
                 print(tmp.shape)
                 new_Yr[:, ffrr] = tmp.reshape([np.prod(new_dims)], order='F')
             Yr = new_Yr
-            A_new = scipy.sparse.csc_matrix(
-                (np.prod(new_dims), self.estimates.A.shape[-1]), dtype=np.float32)
+            A_new = csc_matrix((np.prod(new_dims), self.estimates.A.shape[-1]), dtype=np.float32)
             for neur in range(self.N):
                 a = self.estimates.A.tocsc()[:, neur].toarray()
                 a = a.reshape(self.dims, order='F')
                 a = cv2.resize(a, new_dims[::-1]).reshape([-1, 1], order='F')
 
-                A_new[:, neur] = scipy.sparse.csc_matrix(a)
+                A_new[:, neur] = csc_matrix(a)
 
             self.estimates.A = A_new
             self.estimates.b = self.estimates.b.reshape(self.dims, order='F')
@@ -169,13 +193,11 @@ class OnACID(object):
 
         self.estimates.CY, self.estimates.CC = self.estimates.CY * 1. / self.params.get('online', 'init_batch'), 1 * self.estimates.CC / self.params.get('online', 'init_batch')
 
-        self.estimates.A = scipy.sparse.csc_matrix(
-            self.estimates.A.astype(np.float32), dtype=np.float32)
+        self.estimates.A = csc_matrix(self.estimates.A.astype(np.float32), dtype=np.float32)
         self.estimates.C = self.estimates.C.astype(np.float32)
         self.estimates.f = self.estimates.f.astype(np.float32)
         self.estimates.b = self.estimates.b.astype(np.float32)
-        self.estimates.Ab = scipy.sparse.csc_matrix(
-            self.estimates.Ab.astype(np.float32), dtype=np.float32)
+        self.estimates.Ab = csc_matrix(self.estimates.Ab.astype(np.float32), dtype=np.float32)
         self.estimates.noisyC = self.estimates.noisyC.astype(np.float32)
         self.estimates.CY = self.estimates.CY.astype(np.float32)
         self.estimates.CC = self.estimates.CC.astype(np.float32)
@@ -485,8 +507,8 @@ class OnACID(object):
                     self.estimates.C_on = np.delete(self.estimates.C_on, ind_zero, axis=0)
                     self.estimates.AtY_buf = np.delete(self.estimates.AtY_buf, ind_zero, axis=0)
                     #Ab_ = Ab_[:,ind_keep]
-                    Ab_ = scipy.sparse.csc_matrix(Ab_[:, ind_keep])
-                    #Ab_ = scipy.sparse.csc_matrix(self.estimates.Ab_dense[:,:self.M])
+                    Ab_ = csc_matrix(Ab_[:, ind_keep])
+                    #Ab_ = csc_matrix(self.estimates.Ab_dense[:,:self.M])
                     self.Ab_dense_copy = self.estimates.Ab_dense
                     self.Ab_copy = Ab_
                     self.estimates.Ab = Ab_
@@ -529,8 +551,8 @@ class OnACID(object):
         fls = self.params.get('data', 'fnames')
         opts = self.params.get_group('online')
         print(opts['init_batch'])
-        Y = caiman.load(fls[0], subindices=slice(0, opts['init_batch'],
-                    None)).astype(np.float32)
+        Y = load(fls[0], subindices=slice(0, opts['init_batch'],
+                 None)).astype(np.float32)
         ds_factor = np.maximum(opts['ds_factor'], 1)
         if ds_factor > 1:
             Y.resize(1./ds_factor)
@@ -591,7 +613,7 @@ class OnACID(object):
                 if self.params.get('online', 'normalize'):
                     self.estimates.A /= self.img_norm.reshape(-1, order='F')[:, np.newaxis]
                     self.estimates.b /= self.img_norm.reshape(-1, order='F')[:, np.newaxis]
-                    self.estimates.A = scipy.sparse.csc_matrix(self.estimates.A)
+                    self.estimates.A = csc_matrix(self.estimates.A)
             
         elif self.params.get('online', 'init_method') == 'seeded':
             self.estimates.A, self.estimates.b, self.estimates.C, self.estimates.f, self.estimates.YrA = seeded_initialization(
@@ -679,7 +701,7 @@ class OnACID(object):
 
             for file_count, ffll in enumerate(process_files):
                 print('Now processing file ' + ffll)
-                Y_ = caiman.load(ffll, subindices=slice(init_batc_iter[file_count], None, None))
+                Y_ = load(ffll, subindices=slice(init_batc_iter[file_count], None, None))
 
                 old_comps = self.N     # number of existing components
                 for frame_count, frame in enumerate(Y_):   # process each file
@@ -718,7 +740,7 @@ class OnACID(object):
             self.Ab_epoch.append(self.estimates.Ab.copy())
         if self.params.get('online', 'normalize'):
             self.estimates.Ab /= 1./self.img_norm.reshape(-1, order='F')[:,np.newaxis]
-            self.estimates.Ab = scipy.sparse.csc_matrix(self.estimates.Ab)
+            self.estimates.Ab = csc_matrix(self.estimates.Ab)
         self.estimates.A, self.estimates.b = self.estimates.Ab[:, self.params.get('init', 'nb'):], self.estimates.Ab[:, :self.params.get('init', 'nb')].toarray()
         self.estimates.C, self.estimates.f = self.estimates.C_on[self.params.get('init', 'nb'):self.M, t - t //
                          epochs:t], self.estimates.C_on[:self.params.get('init', 'nb'), t - t // epochs:t]
@@ -777,9 +799,9 @@ def bare_initialization(Y, init_batch=1000, k=1, method_init='greedy_roi', gnb=1
     nA = (Ain.power(2).sum(axis=0))
     nr = nA.size
 
-    YA = scipy.sparse.spdiags(old_div(1., nA), 0, nr, nr) * \
+    YA = spdiags(old_div(1., nA), 0, nr, nr) * \
         (Ain.T.dot(Yr) - (Ain.T.dot(b_in)).dot(f_in))
-    AA = scipy.sparse.spdiags(old_div(1., nA), 0, nr, nr) * (Ain.T.dot(Ain))
+    AA = spdiags(old_div(1., nA), 0, nr, nr) * (Ain.T.dot(Ain))
     YrA = YA - AA.T.dot(Cin)
     if return_object:
         cnm_init = cm.source_extraction.cnmf.cnmf.CNMF(2, k=k, gSig=gSig, Ain=Ain, Cin=Cin, b_in=np.array(
@@ -878,9 +900,9 @@ def seeded_initialization(Y, Ain, dims=None, init_batch=1000, order_init=None, g
     nA = (Ain.power(2).sum(axis=0))
     nr = nA.size
 
-    YA = scipy.sparse.spdiags(old_div(1., nA), 0, nr, nr) * \
+    YA = spdiags(old_div(1., nA), 0, nr, nr) * \
         (Ain.T.dot(Yr) - (Ain.T.dot(b_in)).dot(f_in))
-    AA = scipy.sparse.spdiags(old_div(1., nA), 0, nr, nr) * (Ain.T.dot(Ain))
+    AA = spdiags(old_div(1., nA), 0, nr, nr) * (Ain.T.dot(Ain))
     YrA = YA - AA.T.dot(Cin)
     if return_object:
         cnm_init = cm.source_extraction.cnmf.cnmf.CNMF(
@@ -1093,7 +1115,7 @@ def init_shapes_and_sufficient_stats(Y, A, C, b, f, bSiz=3):
     A_smooth[A_smooth < 1e-2] = 0
     # set explicity zeros of Ab to small value, s.t. ind_A and Ab.indptr match
     Ab += 1e-6 * A_smooth
-    Ab = scipy.sparse.csc_matrix(Ab)
+    Ab = csc_matrix(Ab)
     ind_A = [Ab.indices[Ab.indptr[m]:Ab.indptr[m + 1]]
              for m in range(nb, nb + K)]
     Cf = np.r_[f.reshape(nb, -1), C]
@@ -1500,8 +1522,8 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
         cin_res = cin_res.get_ordered()
         if accepted:
             if useOASIS:
-                oas = oasis.OASIS(g=g, s_min=s_min,
-                                  num_empty_samples=t + 1 - len(cin_res))
+                oas = OASIS(g=g, s_min=s_min,
+                            num_empty_samples=t + 1 - len(cin_res))
                 for yt in cin_res:
                     oas.fit_next(yt)
                 accepted = oas.get_l_of_last_pool() <= t
@@ -1510,8 +1532,7 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                     np.diff(cin_res)[None, :], robust_std=robust_std, N=N_samples_exceptionality)
                 if remove_baseline:
                     num_samps_bl = min(len(cin_res) // 5, 800)
-                    bl = scipy.ndimage.percentile_filter(
-                        cin_res, 8, size=num_samps_bl)
+                    bl = percentile_filter(cin_res, 8, size=num_samps_bl)
                 else:
                     bl = 0
                 fitness_raw, erfc_raw, std_rr, _ = compute_event_exceptionality(
@@ -1543,9 +1564,9 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                     # use noise estimate from init batch or use std_rr?
                     #                    sn_ = sqrt((ain**2).dot(sn[indeces]**2)) / sqrt(1 - g**2)
                     sn_ = std_rr
-                    oas = oasis.OASIS(np.ravel(g)[0], 3 * sn_ /
-                                      (sqrt(1 - g**2) if np.size(g) == 1 else
-                                       sqrt((1 + g[1]) * ((1 - g[1])**2 - g[0]**2) / (1 - g[1])))
+                    oas = OASIS(np.ravel(g)[0], 3 * sn_ /
+                                (sqrt(1 - g**2) if np.size(g) == 1 else
+                                 sqrt((1 + g[1]) * ((1 - g[1])**2 - g[0]**2) / (1 - g[1])))
                                       if s_min == 0 else 0,
                                       s_min, num_empty_samples=t +
                                       1 - len(cin_res),
@@ -1555,8 +1576,7 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
 
                 oases.append(oas)
 
-            Ain_csc = scipy.sparse.csc_matrix((ain, (indeces, [0] * len(indeces))),
-                                              (np.prod(dims), 1), dtype=np.float32)
+            Ain_csc = csc_matrix((ain, (indeces, [0] * len(indeces))), (np.prod(dims), 1), dtype=np.float32)
             if Ab_dense is None:
                 groups = update_order(Ab, Ain, groups)[0]
             else:
@@ -1678,7 +1698,7 @@ def remove_components_online(ind_rem, gnb, Ab, use_dense, Ab_dense, AtA, CY,
 #        #del self.ind_A[ii-self.gnb]
 
     C_on = np.delete(C_on, ind_rem, axis=0)
-    Ab = scipy.sparse.csc_matrix(Ab[:, ind_keep])
+    Ab = csc_matrix(Ab[:, ind_keep])
     ind_A = list(
         [(Ab.indices[Ab.indptr[ii]:Ab.indptr[ii+1]]) for ii in range(gnb, M)])
     groups = list(map(list, update_order(Ab)[0]))
