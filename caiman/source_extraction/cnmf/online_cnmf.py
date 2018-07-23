@@ -101,6 +101,7 @@ class OnACID(object):
         self.estimates.select_components(idx_components=idx_components)
         self.N = self.estimates.A.shape[-1]
         self.M = self.params.get('init', 'nb') + self.N
+        self.dims = self.params.get('data', 'dims')
 
         expected_comps = self.params.get('online', 'expected_comps')
         if expected_comps <= self.N + self.params.get('online', 'max_num_added'):
@@ -143,7 +144,7 @@ class OnACID(object):
 
         self.estimates.noisyC[self.params.get('init', 'nb'):self.M, :self.params.get('online', 'init_batch')] = self.estimates.C + self.estimates.YrA
         self.estimates.noisyC[:self.params.get('init', 'nb'), :self.params.get('online', 'init_batch')] = self.estimates.f
-
+        self.estimates.dims = self.dims
         if self.params.get('preprocess', 'p'):
             # if no parameter for calculating the spike size threshold is given, then use L1 penalty
             if self.params.get('temporal', 's_min') is None:
@@ -532,9 +533,9 @@ class OnACID(object):
     def initialize_online(self):
         fls = self.params.get('data', 'fnames')
         opts = self.params.get_group('online')
-        print(opts['init_batch'])
         Y = caiman.load(fls[0], subindices=slice(0, opts['init_batch'],
                  None)).astype(np.float32)
+
         ds_factor = np.maximum(opts['ds_factor'], 1)
         if ds_factor > 1:
             Y.resize(1./ds_factor)
@@ -555,6 +556,8 @@ class OnACID(object):
         img_norm += np.median(img_norm)  # normalize data to equalize the FOV
         if self.params.get('online', 'normalize'):
             Y = Y/img_norm[None, :, :]
+        if opts['show_movie']:
+            self.bnd_Y = np.percentile(Y,(0.001,100-0.001))
         _, d1, d2 = Y.shape
         Yr = Y.to_2D().T        # convert data into 2D array
         self.img_min = img_min
@@ -611,10 +614,15 @@ class OnACID(object):
             self.estimates.lam = np.zeros(nr)
         else:
             raise Exception('Unknown initialization method!')
-        dims, Ts = get_file_size(fls[0])
+        dims, Ts = get_file_size(fls)
         self.params.set('data', {'dims': dims})
         T1 = np.array(Ts).sum()*self.params.get('online', 'epochs')
         self._prepare_object(Yr, T1)
+        if opts['show_movie']:
+            self.bnd_AC = np.percentile(self.estimates.A.dot(self.estimates.C),
+                                        (0.001, 100-0.005))
+            self.bnd_BG = np.percentile(self.estimates.b.dot(self.estimates.f),
+                                        (0.001, 100-0.001))
         return self
 
     def fit_online(self, **kwargs):
@@ -718,6 +726,14 @@ class OnACID(object):
                     if self.params.get('online', 'normalize'):
                         frame_cor = frame_cor/self.img_norm    # normalize data-frame
                     self.fit_next(t, frame_cor.reshape(-1, order='F'))
+                    if self.params.get('online', 'show_movie'):
+                        self.t = t
+                        vid_frame = self.create_frame(frame_cor)
+                        cv2.imshow('frame', vid_frame)
+                        for rp in range(len(self.estimates.ind_new)*2):
+                            cv2.imshow('frame', vid_frame)
+                    if cv2.waitKey(1) & 0xFF == ord('q'):
+                        break
                     t += 1
             self.Ab_epoch.append(self.estimates.Ab.copy())
         if self.params.get('online', 'normalize'):
@@ -730,8 +746,62 @@ class OnACID(object):
         self.estimates.YrA = noisyC - self.estimates.C
         self.estimates.bl = [osi.b for osi in self.estimates.OASISinstances] if hasattr(
             self, 'OASISinstances') else [0] * self.estimates.C.shape[0]
-
+        if self.params.get('online', 'show_movie'):
+            cv2.destroyAllWindows()
         return self
+    
+    def create_frame(self, frame_cor, show_residuals=True, resize_fact=1):
+        if show_residuals:
+            caption = 'Mean Residual Buffer'
+        else:
+            caption = 'Identified Components'
+        captions = ['Raw Data', 'Inferred Activity', caption, 'Denoised Data']
+        self.captions = captions
+        est = self.estimates
+        gnb = self.M - self.N
+        A, b = est.Ab[:, gnb:], est.Ab[:, :gnb].toarray()
+        C, f = est.C_on[gnb:self.M, :], est.C_on[:gnb, :]
+        # inferred activity due to components (no background)
+        frame_plot = (frame_cor.copy() - self.bnd_Y[0])/np.diff(self.bnd_Y)
+        comps_frame = A.dot(C[:, self.t - 1]).reshape(self.dims, order='F')        
+        bgkrnd_frame = b.dot(f[:, self.t - 1]).reshape(self.dims, order='F')  # denoised frame (components + background)
+        denoised_frame = comps_frame + bgkrnd_frame
+        denoised_frame = (denoised_frame.copy() - self.bnd_Y[0])/np.diff(self.bnd_Y)
+        comps_frame = (comps_frame.copy() - self.bnd_AC[0])/np.diff(self.bnd_AC)
+
+        if show_residuals:
+            #all_comps = np.reshape(self.Yres_buf.mean(0), self.dims, order='F')
+            all_comps = np.reshape(est.mean_buff, self.dims, order='F')
+            all_comps = np.minimum(np.maximum(all_comps, 0)*2 + 0.25, 255)
+        else:
+            all_comps = np.array(A.sum(-1)).reshape(self.dims, order='F')
+                                                  # spatial shapes
+        frame_comp_1 = cv2.resize(np.concatenate([frame_plot, all_comps * 1.], axis=-1),
+                                  (2 * np.int(self.dims[1] * resize_fact), np.int(self.dims[0] * resize_fact)))
+        frame_comp_2 = cv2.resize(np.concatenate([comps_frame, denoised_frame], axis=-1), 
+                                  (2 * np.int(self.dims[1] * resize_fact), np.int(self.dims[0] * resize_fact)))
+        frame_pn = np.concatenate([frame_comp_1, frame_comp_2], axis=0).T
+        vid_frame = np.repeat(frame_pn[:, :, None], 3, axis=-1)
+        vid_frame = np.minimum((vid_frame * 255.), 255).astype('u1')
+
+        if show_residuals and est.ind_new:
+            add_v = np.int(self.dims[1]*resize_fact)
+            for ind_new in est.ind_new:
+                cv2.rectangle(vid_frame,(int(ind_new[0][1]*resize_fact),int(ind_new[1][1]*resize_fact)+add_v),
+                                             (int(ind_new[0][0]*resize_fact),int(ind_new[1][0]*resize_fact)+add_v),(255,0,255),2)
+
+        cv2.putText(vid_frame, captions[0], (5, 20), fontFace=5, fontScale=0.8, color=(
+            0, 255, 0), thickness=1)
+        cv2.putText(vid_frame, captions[1], (np.int(
+            self.dims[0] * resize_fact) + 5, 20), fontFace=5, fontScale=0.8, color=(0, 255, 0), thickness=1)
+        cv2.putText(vid_frame, captions[2], (5, np.int(
+            self.dims[1] * resize_fact) + 20), fontFace=5, fontScale=0.8, color=(0, 255, 0), thickness=1)
+        cv2.putText(vid_frame, captions[3], (np.int(self.dims[0] * resize_fact) + 5, np.int(
+            self.dims[1] * resize_fact) + 20), fontFace=5, fontScale=0.8, color=(0, 255, 0), thickness=1)
+        cv2.putText(vid_frame, 'Frame = ' + str(self.t), (vid_frame.shape[1] // 2 - vid_frame.shape[1] //
+                                                     10, vid_frame.shape[0] - 20), fontFace=5, fontScale=0.8, color=(0, 255, 255), thickness=1)
+        return vid_frame
+
 
 #%%
 def bare_initialization(Y, init_batch=1000, k=1, method_init='greedy_roi', gnb=1,
@@ -786,7 +856,7 @@ def bare_initialization(Y, init_batch=1000, k=1, method_init='greedy_roi', gnb=1
     AA = spdiags(old_div(1., nA), 0, nr, nr) * (Ain.T.dot(Ain))
     YrA = YA - AA.T.dot(Cin)
     if return_object:
-        cnm_init = cm.source_extraction.cnmf.cnmf.CNMF(2, k=k, gSig=gSig, Ain=Ain, Cin=Cin, b_in=np.array(
+        cnm_init = caiman.source_extraction.cnmf.cnmf.CNMF(2, k=k, gSig=gSig, Ain=Ain, Cin=Cin, b_in=np.array(
             b_in), f_in=f_in, method_init=method_init, p=p, gnb=gnb, **kwargs)
     
         cnm_init.estimates.A, cnm_init.estimates.C, cnm_init.estimates.b, cnm_init.estimates.f, cnm_init.estimates.S,\

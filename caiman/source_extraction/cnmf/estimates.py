@@ -117,7 +117,7 @@ class Estimates(object):
             plt.title('Rejected Components')
         return self
 
-    def view_components(self, Yr, img=None, idx=None):
+    def view_components(self, Yr=None, img=None, idx=None):
         """view spatial and temporal components interactively
 
         Parameters:

@@ -412,6 +412,7 @@ class CNMFParams(object):
             'path_to_model': os.path.join(caiman_datadir(), 'model',
                                           'cnn_model_online.h5'),
             'rval_thr': rval_thr,              # space correlation threshold
+            'show_movie': False,               # display movie online
             'simultaneously': simultaneously,  # demix and deconvolve simultaneously
             'sniper_mode': sniper_mode,        # flag for using CNN
             'test_both': test_both,            # flag for using both CNN and space correlation

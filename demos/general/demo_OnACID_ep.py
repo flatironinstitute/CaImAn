@@ -96,7 +96,7 @@ def main():
         cnm.estimates.plot_contours(img=Cn, idx=cnm.estimates.idx_components)
 #%% plot results
     Y = cm.load(fname[0])
-    cnm.estimates.view_components(Y.reshape((Y.shape[0], -1), order='F').T)
+    cnm.estimates.view_components(img=Cn, idx=cnm.estimates.idx_components)
 
 #%%
 # This is to mask the differences between running this demo in Spyder
