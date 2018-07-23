@@ -338,11 +338,31 @@ class Estimates(object):
         if self.c1 is not None:
             self.c1 = nA * self.c1
         if self.neurons_sn is not None:
-            self.neurons_sn *= nA * self.neurons_sn
+            self.neurons_sn = nA * self.neurons_sn
 
         nB = np.sqrt(np.ravel((self.b**2).sum(axis=0)))
         nB_mat = scipy.sparse.spdiags(nB, 0, nB.shape[0], nB.shape[0])
         nB_inv_mat = scipy.sparse.spdiags(1. / nB, 0, nB.shape[0], nB.shape[0])
         self.b = self.b * nB_inv_mat
         self.f = nB_mat * self.f
+        return self
+
+    def select_components(self, idx_components=None, use_object=False):
+        
+        if use_object:
+            idx_components = self.idx_components
+        if idx_components is None:
+            idx_components = range(self.A.shape[-1])
+
+        self.A = self.A.tocsc()[:, idx_components]
+        self.C = self.C[idx_components]
+        self.S = self.S[idx_components]
+        self.YrA = self.YrA[idx_components]
+        self.R = self.YrA
+        self.g = self.g[idx_components]
+        self.bl = self.bl[idx_components]
+        self.c1 = self.c1[idx_components]
+        self.neurons_sn = self.neurons_sn[idx_components]
+        self.lam = self.lam[idx_components]
+        self.idx_components = None
         return self

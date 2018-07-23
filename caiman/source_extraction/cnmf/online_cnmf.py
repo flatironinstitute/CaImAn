@@ -88,25 +88,17 @@ class OnACID(object):
         if estimates is None:
             self.estimates = Estimates()
 
-    def _prepare_object(self, Yr, T, new_dims=None,
-                        idx_components=None, g=None, lam=None, s_min=None,
-                        bl=None):
+    def _prepare_object(self, Yr, T, new_dims=None, idx_components=None):
 
         if idx_components is None:
             idx_components = range(self.estimates.A.shape[-1])
 
-        self.estimates.A = self.estimates.A.tocsc()[:, idx_components]
-        self.estimates.C = self.estimates.C[idx_components]
-        self.estimates.b = self.estimates.b
-        self.estimates.f = self.estimates.f
-        self.estimates.S = self.estimates.S[idx_components]
-        self.estimates.YrA = self.estimates.YrA[idx_components]
-        self.estimates.g = self.estimates.g[idx_components]
-        self.estimates.bl = self.estimates.bl[idx_components]
-        self.estimates.c1 = self.estimates.c1[idx_components]
-        self.estimates.neurons_sn = self.estimates.neurons_sn[idx_components]
-        self.estimates.lam = self.estimates.lam[idx_components]
-        self.dims = self.dims
+        self.estimates.A = self.estimates.A.astype(np.float32)
+        self.estimates.C = self.estimates.C.astype(np.float32)
+        self.estimates.f = self.estimates.f.astype(np.float32)
+        self.estimates.b = self.estimates.b.astype(np.float32)
+        self.estimates.YrA = self.estimates.YrA.astype(np.float32)
+        self.estimates.select_components(idx_components=idx_components)
         self.N = self.estimates.A.shape[-1]
         self.M = self.params.get('init', 'nb') + self.N
 
@@ -143,18 +135,8 @@ class OnACID(object):
 
             self.dims = new_dims
 
-        nA = np.ravel(np.sqrt(self.estimates.A.power(2).sum(0)))
-        self.estimates.A /= nA
-        self.estimates.C *= nA[:, None]
-        self.estimates.YrA *= nA[:, None]
-#        self.estimates.S *= nA[:, None]
-        self.estimates.neurons_sn *= nA
-        if self.params.get('preprocess', 'p'):
-            self.estimates.lam *= nA
-        z = np.sqrt([b.T.dot(b) for b in self.estimates.b.T])
-        self.estimates.f *= z[:, None]
-        self.estimates.b /= z
-
+        self.estimates.normalize_components()
+        self.estimates.A = self.estimates.A.todense()
         self.estimates.noisyC = np.zeros(
             (self.params.get('init', 'nb') + expected_comps, T), dtype=np.float32)
         self.estimates.C_on = np.zeros((expected_comps, T), dtype=np.float32)
@@ -164,20 +146,29 @@ class OnACID(object):
 
         if self.params.get('preprocess', 'p'):
             # if no parameter for calculating the spike size threshold is given, then use L1 penalty
-            if s_min is None and self.params.get('temporal', 's_min') is None:
+            if self.params.get('temporal', 's_min') is None:
                 use_L1 = True
             else:
                 use_L1 = False
 
+#            self.estimates.OASISinstances = [OASIS(
+#                g=np.ravel(0.01) if self.params.get('preprocess', 'p') == 0 else (
+#                    np.ravel(g)[0] if g is not None else gam[0]),
+#                lam=0 if not use_L1 else (l if lam is None else lam),
+#                s_min=0 if use_L1 else (s_min if s_min is not None else
+#                                        (self.params.get('temporal', 's_min') if self.params.get('temporal', 's_min') > 0 else
+#                                         (-self.params.get('temporal', 's_min') * sn * np.sqrt(1 - np.sum(gam))))),
+#                b=b if bl is None else bl,
+#                g2=0 if self.params.get('preprocess', 'p') < 2 else (np.ravel(g)[1] if g is not None else gam[1]))
+#                for gam, l, b, sn in zip(self.estimates.g, self.estimates.lam, self.estimates.bl, self.estimates.neurons_sn)]
+            
             self.estimates.OASISinstances = [OASIS(
-                g=np.ravel(0.01) if self.params.get('preprocess', 'p') == 0 else (
-                    np.ravel(g)[0] if g is not None else gam[0]),
-                lam=0 if not use_L1 else (l if lam is None else lam),
-                s_min=0 if use_L1 else (s_min if s_min is not None else
-                                        (self.params.get('temporal', 's_min') if self.params.get('temporal', 's_min') > 0 else
-                                         (-self.params.get('temporal', 's_min') * sn * np.sqrt(1 - np.sum(gam))))),
-                b=b if bl is None else bl,
-                g2=0 if self.params.get('preprocess', 'p') < 2 else (np.ravel(g)[1] if g is not None else gam[1]))
+                g=np.ravel(0.01) if self.params.get('preprocess', 'p') == 0 else gam[0],
+                lam=0 if not use_L1 else l,
+                s_min=0 if use_L1 else (self.params.get('temporal', 's_min') if self.params.get('temporal', 's_min') > 0 else
+                                         (-self.params.get('temporal', 's_min') * sn * np.sqrt(1 - np.sum(gam)))),
+                b=b,
+                g2=0 if self.params.get('preprocess', 'p') < 2 else gam[1])
                 for gam, l, b, sn in zip(self.estimates.g, self.estimates.lam, self.estimates.bl, self.estimates.neurons_sn)]
 
             for i, o in enumerate(self.estimates.OASISinstances):
@@ -193,14 +184,6 @@ class OnACID(object):
 
         self.estimates.CY, self.estimates.CC = self.estimates.CY * 1. / self.params.get('online', 'init_batch'), 1 * self.estimates.CC / self.params.get('online', 'init_batch')
 
-        self.estimates.A = csc_matrix(self.estimates.A.astype(np.float32), dtype=np.float32)
-        self.estimates.C = self.estimates.C.astype(np.float32)
-        self.estimates.f = self.estimates.f.astype(np.float32)
-        self.estimates.b = self.estimates.b.astype(np.float32)
-        self.estimates.Ab = csc_matrix(self.estimates.Ab.astype(np.float32), dtype=np.float32)
-        self.estimates.noisyC = self.estimates.noisyC.astype(np.float32)
-        self.estimates.CY = self.estimates.CY.astype(np.float32)
-        self.estimates.CC = self.estimates.CC.astype(np.float32)
         print('Expecting ' + str(expected_comps) + ' components')
         self.estimates.CY.resize([expected_comps + self.params.get('init', 'nb'), self.estimates.CY.shape[-1]])
         if self.params.get('online', 'use_dense'):
@@ -351,7 +334,6 @@ class OnACID(object):
                 thresh_fitness_raw=self.params.get('online', 'thresh_fitness_raw'), thresh_overlap=self.params.get('online', 'thresh_overlap'),
                 groups=self.estimates.groups, batch_update_suff_stat=self.params.get('online', 'batch_update_suff_stat'), gnb=self.params.get('init', 'nb'),
                 sn=self.estimates.sn, g=np.mean(
-
                     self.estimates.g) if self.params.get('preprocess', 'p') == 1 else np.mean(self.estimates.g, 0),
                 s_min=self.params.get('temporal', 's_min'),
                 Ab_dense=self.estimates.Ab_dense[:, :self.M] if self.params.get('online', 'use_dense') else None,
