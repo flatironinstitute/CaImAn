@@ -288,7 +288,7 @@ class Estimates(object):
         Returns:
         --------
         self: CNMF object
-            self.estimates.F_dff contains the DF/F normalized traces
+            self.F_dff contains the DF/F normalized traces
         """
 
         if self.C is None:
@@ -310,4 +310,39 @@ class Estimates(object):
                                   quantileMin=quantileMin,
                                   frames_window=frames_window,
                                   flag_auto=flag_auto, use_fast=use_fast)
+        return self
+
+    def normalize_components(self):
+        """ normalize components such that spatial components have norm 1
+        """
+        if 'csc_matrix' not in str(type(self.A)):
+            self.A = scipy.sparse.csc_matrix(self.A)
+        if 'array' not in str(type(self.b)):
+            self.b = self.b.toarray()
+        if 'array' not in str(type(self.C)):
+            self.C = self.C.toarray()
+        if 'array' not in str(type(self.f)):
+            self.f = self.f.toarray()
+
+        nA = np.sqrt(np.ravel(self.A.power(2).sum(axis=0)))
+        nA_mat = scipy.sparse.spdiags(nA, 0, nA.shape[0], nA.shape[0])
+        nA_inv_mat = scipy.sparse.spdiags(1. / nA, 0, nA.shape[0], nA.shape[0])
+        self.A = self.A * nA_inv_mat
+        self.C = nA_mat * self.C
+        if self.YrA is not None:
+            self.YrA = nA_mat * self.YrA
+        if self.R is not None:
+            self.R = nA_mat * self.R
+        if self.bl is not None:
+            self.bl = nA * self.bl
+        if self.c1 is not None:
+            self.c1 = nA * self.c1
+        if self.neurons_sn is not None:
+            self.neurons_sn *= nA * self.neurons_sn
+
+        nB = np.sqrt(np.ravel((self.b**2).sum(axis=0)))
+        nB_mat = scipy.sparse.spdiags(nB, 0, nB.shape[0], nB.shape[0])
+        nB_inv_mat = scipy.sparse.spdiags(1. / nB, 0, nB.shape[0], nB.shape[0])
+        self.b = self.b * nB_inv_mat
+        self.f = nB_mat * self.f
         return self

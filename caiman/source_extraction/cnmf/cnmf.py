@@ -411,10 +411,10 @@ class CNMF(object):
                     self.estimates.YrA = self.estimates.YrA[idx_components]
 
 
-
-                self.estimates.A, self.estimates.C, self.estimates.YrA, self.estimates.b, self.estimates.f, self.estimates.neurons_sn\
-                    = normalize_AC(self.estimates.A, self.estimates.C, self.estimates.YrA, self.estimates.b, self.estimates.f,
-                        self.estimates.neurons_sn)
+                self.estimates.normalize_components()
+#                self.estimates.A, self.estimates.C, self.estimates.YrA, self.estimates.b, self.estimates.f, self.estimates.neurons_sn\
+#                    = normalize_AC(self.estimates.A, self.estimates.C, self.estimates.YrA, self.estimates.b, self.estimates.f,
+#                        self.estimates.neurons_sn)
 
                 return self
 
@@ -510,9 +510,9 @@ class CNMF(object):
                 print("update temporal")
                 self.update_temporal(Yr, use_init=False)
 
-        self.estimates.A, self.estimates.C, self.estimates.YrA, self.estimates.b, self.estimates.f, self.estimates.neurons_sn = normalize_AC(
-            self.estimates.A, self.estimates.C, self.estimates.YrA, self.estimates.b, self.estimates.f, self.estimates.neurons_sn)
-
+#        self.estimates.A, self.estimates.C, self.estimates.YrA, self.estimates.b, self.estimates.f, self.estimates.neurons_sn = normalize_AC(
+#            self.estimates.A, self.estimates.C, self.estimates.YrA, self.estimates.b, self.estimates.f, self.estimates.neurons_sn)
+        self.estimates.normalize_components()
         return self
 
 
@@ -1055,38 +1055,6 @@ class CNMF(object):
 
         return self
 
-    def normalize_components(self):
-        """ normalize components such that spatial components have norm 1
-        """
-        if 'csc_matrix' not in str(type(self.estimates.A)):
-            self.estimates.A = scipy.sparse.csc_matrix(self.estimates.A)
-        if 'array' not in str(type(self.estimates.b)):
-            self.estimates.b = self.estimates.b.toarray()
-        if 'array' not in str(type(self.estimates.C)):
-            self.estimates.C = self.estimates.C.toarray()
-        if 'array' not in str(type(self.estimates.f)):
-            self.estimates.f = self.estimates.f.toarray()
-
-        nA = np.sqrt(np.ravel(self.estimates.A.power(2).sum(axis=0)))
-        nA_mat = scipy.sparse.spdiags(nA, 0, nA.shape[0], nA.shape[0])
-        nA_inv_mat = scipy.sparse.spdiags(1. / nA, 0, nA.shape[0], nA.shape[0])
-        self.estimates.A = self.estimates.A * nA_inv_mat
-        self.estimates.C = nA_mat * self.estimates.C
-        if self.estimates.YrA is not None:
-            self.estimates.YrA = nA_mat * self.estimates.YrA
-        if self.estimates.bl is not None:
-            self.estimates.bl = nA * self.estimates.bl
-        if self.estimates.c1 is not None:
-            self.estimates.c1 = nA * self.estimates.c1
-        if self.estimates.neurons_sn is not None:
-            self.estimates.neurons_sn *= nA * self.estimates.neurons_sn
-
-        nB = np.sqrt(np.ravel((self.estimates.b**2).sum(axis=0)))
-        nB_mat = scipy.sparse.spdiags(nB, 0, nB.shape[0], nB.shape[0])
-        nB_inv_mat = scipy.sparse.spdiags(1. / nB, 0, nB.shape[0], nB.shape[0])
-        self.estimates.b = self.estimates.b * nB_inv_mat
-        self.estimates.f = nB_mat * self.estimates.f
-        return self
 
     def deconvolve(self, p=None, method=None, bas_nonneg=None,
                    noise_method=None, optimize_g=0, s_min=None, **kwargs):
