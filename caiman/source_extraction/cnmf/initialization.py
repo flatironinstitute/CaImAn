@@ -1729,13 +1729,13 @@ def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True, ssub=1, tsub=1):
             b0[index, None] if X is None else X[index]
         tmp = np.array(B.dot(B.T))
         try:
-            data += list(np.linalg.inv(tmp).
-                         dot(B.dot(Y[p] - A[p].dot(C).ravel() - b0[p] if X is None else X[p])))
+            data = np.concatenate([data, np.linalg.inv(tmp).
+                dot(B.dot(Y[p] - A[p].dot(C).ravel() - b0[p] if X is None else X[p]))])
         except:
             # np.linalg.lstsq seems less robust but scipy version is
             # (robust but for the problem size slower) alternative
-            data += list(scipy.linalg.lstsq(B.T, Y[p] - A[p].dot(C) - b0[p]
-                                            if X is None else X[p], check_finite=False)[0])
+            data = np.concatenate([data, (scipy.linalg.lstsq(B.T, Y[p] - A[p].dot(C) - b0[p]
+                if X is None else X[p], check_finite=False)[0])])
         indptr.append(len(indices))
     return spr.csr_matrix((data, indices, indptr), dtype='float32'), b0.astype(np.float32)
 
