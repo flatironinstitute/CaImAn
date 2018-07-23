@@ -12,7 +12,7 @@ import scipy.sparse
 import caiman
 import logging
 from .utilities import detrend_df_f
-
+from ...components_evaluation import evaluate_components_CNN
 
 class Estimates(object):
     def __init__(self, A=None, b=None, C=None, f=None, R=None, dims=None):
@@ -145,7 +145,7 @@ class Estimates(object):
         plt.ion()
         nr, T = self.C.shape
 
-        if self.R is None:
+        if self.R.shape != [nr, T]:
             if self.YrA is None:
                 self.compute_residuals(Yr)
             else:
@@ -313,7 +313,7 @@ class Estimates(object):
         return self
 
     def normalize_components(self):
-        """ normalize components such that spatial components have norm 1
+        """ Normalizes components such that spatial components have l_2 norm 1
         """
         if 'csc_matrix' not in str(type(self.A)):
             self.A = scipy.sparse.csc_matrix(self.A)
@@ -348,7 +348,22 @@ class Estimates(object):
         return self
 
     def select_components(self, idx_components=None, use_object=False):
-        
+        """Keeps only a selected subset of components and removes the rest.
+        The subset can be either user defined with the variable idx_components
+        or read from the estimates object. The flag use_object determines this
+        choice. If no subset is present then all components are kept.
+        Parameters:
+        -----------
+        idx_components: list
+            indeces of components to be kept
+
+        use_object: bool
+            Flag to use self.idx_components for reading the indeces.
+
+        Returns:
+        --------
+        self: Estimates object
+        """
         if use_object:
             idx_components = self.idx_components
         if idx_components is None:
@@ -365,4 +380,27 @@ class Estimates(object):
         self.neurons_sn = self.neurons_sn[idx_components]
         self.lam = self.lam[idx_components]
         self.idx_components = None
+        return self
+
+    def evaluate_components_CNN(self, params, neuron_class=1):
+        """Estimates the quality of inferred spatial components using a
+        pretrained CNN classifier.
+        Parameters:
+        -----------
+        params: params object
+            see .params for details
+        neuron_class: int
+            class label for neuron shapes
+        Returns:
+        ----------
+        self: Estimates object
+            self.idx_components contains the indeced of components above
+            the required treshold.
+        """
+        dims = params.get('data', 'dims')
+        gSig = params.get('init', 'gSig')
+        min_cnn_thr= params.get('quality', 'min_cnn_thr')
+        predictions = evaluate_components_CNN(self.A, dims, gSig)[0]
+        self.cnn_preds = predictions[:, neuron_class]
+        self.idx_components = np.where(self.cnn_preds >= min_cnn_thr)[0]
         return self

@@ -79,7 +79,6 @@ def main():
     opts = cnmf.params.CNMFParams(params_dict=params_dict)
 #%% fit with online object
     cnm = cnmf.online_cnmf.OnACID(params=opts)
-    cnm.dims = (60, 80)
     cnm.fit_online()
 
 #%% plot contours
@@ -88,27 +87,17 @@ def main():
     Cn = cm.load(fname[0], subindices=slice(0,500)).local_correlations(swap_dim=False)
     cnm.estimates.plot_contours(img=Cn)
 
-##%% pass through the CNN classifier with a low threshold (keeps clearer neuron shapes and excludes processes)
-#    use_CNN = True
-#    if use_CNN:
-#        # threshold for CNN classifier
-#        thresh_cnn = 0.1
-#        from caiman.components_evaluation import evaluate_components_CNN
-#        predictions, final_crops = evaluate_components_CNN(
-#            A, dims, gSig, model_name=os.path.join(caiman_datadir(), 'model', 'cnn_model'))
-#        A_exclude, C_exclude = A[:, predictions[:, 1] <
-#                                 thresh_cnn], C[predictions[:, 1] < thresh_cnn]
-#        A, C = A[:, predictions[:, 1] >=
-#                 thresh_cnn], C[predictions[:, 1] >= thresh_cnn]
-#        noisyC = cnm.estimates.noisyC[gnb:cnm.M]
-#        YrA = noisyC[predictions[:, 1] >= thresh_cnn] - C
-#    else:
-#        YrA = cnm.estimates.noisyC[gnb:cnm.M] - C
-
+#%% pass through the CNN classifier with a low threshold (keeps clearer neuron shapes and excludes processes)
+    use_CNN = True
+    if use_CNN:
+        # threshold for CNN classifier
+        opts.set('quality', {'min_cnn_thr': 0.05})
+        cnm.estimates.evaluate_components_CNN(opts)
+        cnm.estimates.plot_contours(img=Cn, idx=cnm.estimates.idx_components)
 #%% plot results
     Y = cm.load(fname[0])
-    cnm.estimates.view_components(Y.reshape((2000,4800), order='F').T)
-    
+    cnm.estimates.view_components(Y.reshape((Y.shape[0], -1), order='F').T)
+
 #%%
 # This is to mask the differences between running this demo in Spyder
 # versus from the CLI
