@@ -2499,17 +2499,26 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
     elif extension == '.npy':
         raise Exception('Numpy not supported at the moment')
 
-    elif extension == '.hdf5':
+    elif extension in ('.hdf5', '.h5'):
         with h5py.File(fname) as fl:
-            T, d1, d2 = fl['mov'].shape
-
-    elif extension == '.h5':
-        with h5py.File(fname) as fl:
-            if 'imaging' in fl.keys():
-                T, _, d1, d2, _ = fl['imaging'].shape
+            fkeys = list(fl.keys())
+            if len(fkeys)==1:
+                fsiz = fl[fkeys[0]].shape
+            elif 'mov' in fkeys:
+                fsiz = fl['mov'].shape
+            elif 'imaging' in fkeys:
+                fsiz = fl['imaging'].shape
             else:
-                raise Exception(
-                    'Unsupported file key for for h5 files in parallel motion correction')
+                print(fkeys)
+                raise Exception('Unsupported file key')
+            if len(fsiz) == 3:
+                T, d1, d2 = fsiz
+            elif len(fsiz) == 5:
+                T, _, d1, d2, _ = fsiz
+            else:
+                print(fsiz)
+                raise Exception('Unsupported file shape')
+
     elif extension == '.avi':
         cap = cv2.VideoCapture(fname)
         try:
