@@ -1931,12 +1931,25 @@ def tile_and_correct(img, template, strides, overlaps, max_shifts, newoverlaps=N
             imgs, templates, [upsample_factor_fft] * num_tiles)]
         shfts = [sshh[0] for sshh in shfts_et_all]
         diffs_phase = [sshh[2] for sshh in shfts_et_all]
-
         # create a vector field
         shift_img_x = np.reshape(np.array(shfts)[:, 0], dim_grid)
         shift_img_y = np.reshape(np.array(shfts)[:, 1], dim_grid)
         diffs_phase_grid = np.reshape(np.array(diffs_phase), dim_grid)
 
+        if shifts_opencv:
+            if gSig_filt is not None:
+                img = img_orig
+            dims = img.shape
+            x_grid, y_grid = np.meshgrid(np.arange(0., dims[0]).astype(
+                np.float32), np.arange(0., dims[1]).astype(np.float32))
+            m_reg = cv2.remap(img, cv2.resize(shift_img_y.astype(np.float32), dims) + x_grid,
+                              cv2.resize(shift_img_x.astype(np.float32), dims) + y_grid,
+                              cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
+                             # borderValue=add_to_movie)
+            total_shifts = [
+                    (-x, -y) for x, y in zip(shift_img_x.reshape(num_tiles), shift_img_y.reshape(num_tiles))]
+            return m_reg - add_to_movie, total_shifts, None, None
+        
         # create automatically upsample parameters if not passed
         if newoverlaps is None:
             newoverlaps = overlaps
@@ -1974,6 +1987,7 @@ def tile_and_correct(img, template, strides, overlaps, max_shifts, newoverlaps=N
             (-x, -y) for x, y in zip(shift_img_x.reshape(num_tiles), shift_img_y.reshape(num_tiles))]
         total_diffs_phase = [
             dfs for dfs in diffs_phase_grid_us.reshape(num_tiles)]
+
         if shifts_opencv:
             if gSig_filt is not None:
                 img = img_orig
