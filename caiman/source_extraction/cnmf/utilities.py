@@ -696,7 +696,7 @@ def detrend_df_f_auto(A, b, C, f, dims=None, YrA=None, use_annulus = True,
     B = A_ann.T.dot(b).dot(f)
     T = C.shape[-1]
 
-    data_prct, val = df_percentile(F[:frames_window], axis=1)
+    data_prct, val = df_percentile(F[:, :frames_window], axis=1)
 
     if frames_window is None or frames_window > T:
         Fd = np.stack([np.percentile(f, prctileMin) for f, prctileMin in
