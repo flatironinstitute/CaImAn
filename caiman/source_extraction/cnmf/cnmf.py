@@ -274,14 +274,13 @@ class CNMF(object):
         self.dims = None
 
         # these are member variables related to the CNMF workflow
-        self.only_init = only_init_patch
         self.skip_refinement = skip_refinement
         self.remove_very_bad_comps = remove_very_bad_comps
         
         if params is None:
             self.params = CNMFParams(
                 border_pix=border_pix, del_duplicates=del_duplicates, low_rank_background=low_rank_background,
-                memory_fact=memory_fact, n_processes=n_processes, nb_patch=nb_patch, p_ssub=p_ssub, p_tsub=p_tsub,
+                memory_fact=memory_fact, n_processes=n_processes, nb_patch=nb_patch, only_init_patch=only_init_patch, p_ssub=p_ssub, p_tsub=p_tsub,
                 remove_very_bad_comps=remove_very_bad_comps, rf=rf, stride=stride,
                 check_nan=check_nan, n_pixels_per_process=n_pixels_per_process,
                 k=k, center_psf=center_psf, gSig=gSig, gSiz=gSiz,
@@ -380,7 +379,7 @@ class CNMF(object):
                 print('initializing ...')
                 self.initialize(Y)
 
-            if self.only_init:  # only return values after initialization
+            if self.params.get('patch', 'only_init'):  # only return values after initialization
                 if not self.params.get('init', 'center_psf'):
                     self.compute_residuals(Yr)
                     self.estimates.bl = None
@@ -463,9 +462,6 @@ class CNMF(object):
                 raise Exception(
                     'You need to provide a memory mapped file as input if you use patches!!')
 
-            if self.only_init:
-                self.params.set('patch', {'only_init': True})
-
             self.estimates.A, self.estimates.C, self.estimates.YrA, self.estimates.b, self.estimates.f, \
                 self.estimates.sn, self.estimates.optional_outputs = run_CNMF_patches(
                     images.filename, self.dims + (T,), self.params,
@@ -480,7 +476,7 @@ class CNMF(object):
 
 
             if self.params.get('init', 'center_psf'):  # merge taking best neuron
-                if self.params.get('patch', 'nb') > 0:
+                if self.params.get('patch', 'nb_patch') > 0:
 
                     while len(self.merged_ROIs) > 0:
                         self.merge_comps(Yr, mx=np.Inf, fast_merge=True)
