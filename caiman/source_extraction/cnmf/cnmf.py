@@ -338,8 +338,8 @@ class CNMF(object):
             indeces = [indeces]
         if len(indeces) < len(images.shape):
             indeces = indeces + [slice(None)]*(len(images.shape) - len(indeces))
-        dims_orig = images.shape[1:]
-        images = images[indeces]
+#        dims_orig = images.shape[1:]
+#        images = images[indeces]
         T = images.shape[0]
         self.params.set('online', {'init_batch': T})
         self.dims = images.shape[1:]
