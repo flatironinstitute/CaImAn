@@ -143,7 +143,8 @@ def cnmf_patches(args_in):
 
 #%%
 def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None, memory_fact=1,
-                     border_pix=0, low_rank_background=True, del_duplicates=False):
+                     border_pix=0, low_rank_background=True, del_duplicates=False,
+                     indeces=[slice(None)]*3):
     """Function that runs CNMF in patches
 
      Either in parallel or sequentially, and return the result for each.
@@ -229,7 +230,7 @@ def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None, memory_fact=1,
     params_copy.set('temporal', {'n_pixels_per_process': npx_per_proc})
 
     idx_flat, idx_2d = extract_patch_coordinates(
-        dims, rfs, strides, border_pix=border_pix)
+        dims, rfs, strides, border_pix=border_pix, indeces=indeces[1:])
     args_in = []
     patch_centers = []
     for id_f, id_2d in zip(idx_flat, idx_2d):

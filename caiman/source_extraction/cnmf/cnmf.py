@@ -306,7 +306,7 @@ class CNMF(object):
         self.estimates = Estimates(A=Ain, C=Cin, b=b_in, f=f_in,
                                    dims=self.params.data['dims'])
 
-    def fit(self, images):
+    def fit(self, images, indeces=[slice(None), slice(None), slice(None)]):
         """
         This method uses the cnmf algorithm to find sources in data.
 
@@ -333,10 +333,18 @@ class CNMF(object):
         http://www.cell.com/neuron/fulltext/S0896-6273(15)01084-3
 
         """
-        # Todo : to compartiment
+        # Todo : to compartment
+        if isinstance(indeces, slice):
+            indeces = [indeces]
+        if len(indeces) < len(images.shape):
+            indeces = indeces + [slice(None)]*(len(images.shape) - len(indeces))
+        dims_orig = images.shape[1:]
+        images = images[indeces]
         T = images.shape[0]
         self.params.set('online', {'init_batch': T})
         self.dims = images.shape[1:]
+        self.params.data['dims'] = images.shape[1:]
+        #self.estimates.dims = self.dims
         Y = np.transpose(images, list(range(1, len(self.dims) + 1)) + [0])
         Yr = np.transpose(np.reshape(images, (T, -1), order='F'))
         if np.isfortran(Yr):
@@ -447,7 +455,24 @@ class CNMF(object):
                 self.params.set('temporal', {'p': self.params.get('preprocess', 'p')})
                 print('update temporal ...')
                 self.update_temporal(Yr, use_init=False)
-
+            
+            # embed in the whole FOV
+#            FOV = np.zeros(dims_orig, order='F')
+#            import pdb
+#            pdb.set_trace()
+#            FOV[indeces[1:]] = 1
+#            FOV = FOV.flatten()
+#            ind_nz = np.where(FOV>0)[0].tolist()
+#            self.estimates.A = self.estimates.A.tocsc()
+#            A_FOV = scipy.sparse.csc_matrix((FOV.shape[0], self.estimates.A.shape[-1]))
+#            for i in range(self.estimates.A.shape[-1]):
+#                A_FOV[ind_nz, i] = self.estimates.A[:, i]
+#            b_FOV = np.zeros((FOV.shape[0], self.estimates.b.shape[-1]))
+#            b_FOV[ind_nz] = self.estimates.b
+#            self.estimates.A_old = self.estimates.A
+#            self.estimates.b_old = self.estimates.b
+#            self.estimates.A = A_FOV
+#            self.estimates.b = b_FOV
             # else:
             #     todo : ask for those..
                 # C, f, S, bl, c1, neurons_sn, g1, YrA, lam = self.estimates.C, self.estimates.f, self.estimates.S, self.estimates.bl, self.estimates.c1, self.estimates.neurons_sn, self.estimates.g, self.estimates.YrA, self.estimates.lam
@@ -468,7 +493,8 @@ class CNMF(object):
                     dview=self.dview, memory_fact=self.params.get('patch', 'memory_fact'),
                     gnb=self.params.get('init', 'nb'), border_pix=self.params.get('patch', 'border_pix'),
                     low_rank_background=self.params.get('patch', 'low_rank_background'),
-                    del_duplicates=self.params.get('patch', 'del_duplicates'))
+                    del_duplicates=self.params.get('patch', 'del_duplicates'),
+                    indeces=indeces)
 
             self.estimates.bl, self.estimates.c1, self.estimates.g, self.estimates.neurons_sn = None, None, None, None
             print("merging")
@@ -508,7 +534,7 @@ class CNMF(object):
 
 #        self.estimates.A, self.estimates.C, self.estimates.YrA, self.estimates.b, self.estimates.f, self.estimates.neurons_sn = normalize_AC(
 #            self.estimates.A, self.estimates.C, self.estimates.YrA, self.estimates.b, self.estimates.f, self.estimates.neurons_sn)
-        self.estimates.normalize_components()
+        #self.estimates.normalize_components()
         return self
 
 

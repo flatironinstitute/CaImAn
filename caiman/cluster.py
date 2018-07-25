@@ -56,7 +56,7 @@ def get_patches_from_image(img, shapes, overlaps):
 #%%
 
 
-def extract_patch_coordinates(dims, rf, stride, border_pix=0):
+def extract_patch_coordinates(dims, rf, stride, border_pix=0, indeces=[slice(None)]*2):
     """
     Partition the FOV in patches
 
@@ -73,9 +73,12 @@ def extract_patch_coordinates(dims, rf, stride, border_pix=0):
     stride: tuple of int
         degree of overlap of the patches
     """
+    sl_start = [0 if sl.start is None else sl.start for sl in indeces]
+    sl_stop = [dim if sl.stop is None else sl.stop for (sl, dim) in zip(indeces, dims)]
+    sl_step = [1 for sl in indeces]
     dims_large = dims
-    dims = np.array(dims) - border_pix * 2
-
+    dims = np.minimum(np.array(dims) - border_pix, sl_stop) - np.maximum(border_pix, sl_start) 
+    
     coords_flat = []
     shapes = []
     iters = [list(range(rf[i], dims[i] - rf[i], 2 * rf[i] - stride[i])) + [dims[i] - rf[i]]
@@ -85,12 +88,12 @@ def extract_patch_coordinates(dims, rf, stride, border_pix=0):
     for count_0, xx in enumerate(iters[0]):
         coords_x = np.arange(xx - rf[0], xx + rf[0] + 1)
         coords_x = coords_x[(coords_x >= 0) & (coords_x < dims[0])]
-        coords_x += border_pix
+        coords_x += border_pix + np.maximum(sl_start[0], border_pix)
 
         for count_1, yy in enumerate(iters[1]):
             coords_y = np.arange(yy - rf[1], yy + rf[1] + 1)
             coords_y = coords_y[(coords_y >= 0) & (coords_y < dims[1])]
-            coords_y += border_pix
+            coords_y += border_pix + np.maximum(sl_start[1], border_pix)
 
             if len(dims) == 2:
                 idxs = np.meshgrid(coords_x, coords_y)
@@ -118,7 +121,8 @@ def extract_patch_coordinates(dims, rf, stride, border_pix=0):
 
     for i, c in enumerate(coords_flat):
         assert len(c) == np.prod(shapes[i])
-
+#    import pdb
+#    pdb.set_trace()
     return map(np.sort, coords_flat), shapes
 
 
