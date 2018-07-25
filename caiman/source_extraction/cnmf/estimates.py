@@ -12,7 +12,9 @@ import scipy.sparse
 import caiman
 import logging
 from .utilities import detrend_df_f
-from ...components_evaluation import evaluate_components_CNN
+from ...components_evaluation import (
+        evaluate_components_CNN, estimate_components_quality_auto,
+        select_components_from_metrics)
 
 class Estimates(object):
     def __init__(self, A=None, b=None, C=None, f=None, R=None, dims=None):
@@ -144,7 +146,8 @@ class Estimates(object):
 
         plt.ion()
         nr, T = self.C.shape
-
+        if self.R is None:
+            self.R = self.YrA
         if self.R.shape != [nr, T]:
             if self.YrA is None:
                 self.compute_residuals(Yr)
@@ -403,4 +406,139 @@ class Estimates(object):
         predictions = evaluate_components_CNN(self.A, dims, gSig)[0]
         self.cnn_preds = predictions[:, neuron_class]
         self.idx_components = np.where(self.cnn_preds >= min_cnn_thr)[0]
+        return self
+    
+    def evaluate_components(self, imgs, params, dview=None):
+        """Computes the quality metrics for each component and stores the
+        indeces of the components that pass user specified thresholds. The
+        various thresholds and parameters can be passed as inputs. If left
+        empty then they are read from self.params.quality']
+        Parameters:
+        -----------
+        imgs: np.array (possibly memory mapped, t,x,y[,z])
+            Imaging data
+
+        fr: float
+            Imaging rate
+
+        decay_time: float
+            length of decay of typical transient (in seconds)
+
+        min_SNR: float
+            trace SNR threshold
+
+        rval_thr: float
+            space correlation threshold
+
+        use_cnn: bool
+            flag for using the CNN classifier
+
+        min_cnn_thr: float
+            CNN classifier threshold
+
+        Returns:
+        --------
+        self: CNMF object
+            self.idx_components: np.array
+                indeces of accepted components
+            self.idx_components_bad: np.array
+                indeces of rejected components
+            self.SNR_comp: np.array
+                SNR values for each temporal trace
+            self.r_values: np.array
+                space correlation values for each component
+            self.cnn_preds: np.array
+                CNN classifier values for each component
+        """
+        dims = imgs.shape[1:]
+        opts = params.get_group('quality')
+        idx_components, idx_components_bad, SNR_comp, r_values, cnn_preds = \
+        estimate_components_quality_auto(imgs, self.A, self.C, self.b, self.f,
+                                         self.YrA, 
+                                         params.get('data', 'fr'),
+                                         params.get('data', 'decay_time'),
+                                         params.get('init', 'gSig'),
+                                         dims, dview=dview,
+                                         min_SNR=opts['min_SNR'],
+                                         r_values_min=opts['rval_thr'],
+                                         use_cnn=opts['use_cnn'],
+                                         thresh_cnn_min=opts['min_cnn_thr'])
+        self.idx_components = idx_components
+        self.idx_components_bad = idx_components_bad
+        self.SNR_comp = SNR_comp
+        self.r_values = r_values
+        self.cnn_preds = cnn_preds
+
+        return self
+
+
+    def filter_components(self, imgs, **kwargs):
+        """Filters components based on given thresholds without re-computing
+        the quality metrics. If the quality metrics are not present then it
+        calls self.evaluate components.
+        Parameters:
+        -----------
+        imgs: np.array (possibly memory mapped, t,x,y[,z])
+            Imaging data
+
+        fr: float
+            Imaging rate
+
+        decay_time: float
+            length of decay of typical transient (in seconds)
+
+        min_SNR: float
+            trace SNR threshold
+
+        SNR_lowest: float
+            minimum required trace SNR
+
+        rval_thr: float
+            space correlation threshold
+
+        rval_lowest: float
+            minimum required space correlation
+
+        use_cnn: bool
+            flag for using the CNN classifier
+
+        min_cnn_thr: float
+            CNN classifier threshold
+
+        cnn_lowest: float
+            minimum required CNN threshold
+
+        gSig_range: list
+            gSig scale values for CNN classifier
+
+        Returns:
+        --------
+        self: CNMF object
+            self.idx_components: np.array
+                indeces of accepted components
+            self.idx_components_bad: np.array
+                indeces of rejected components
+            self.SNR_comp: np.array
+                SNR values for each temporal trace
+            self.r_values: np.array
+                space correlation values for each component
+            self.cnn_preds: np.array
+                CNN classifier values for each component
+        """
+        dims = imgs.shape[1:]
+        self.params.set('quality', kwargs)
+
+        opts = self.params.get_group('quality')
+        self.idx_components, self.idx_components_bad, self.cnn_preds = \
+        select_components_from_metrics(self.A, dims, self.params.get('init', 'gSig'), self.r_values,
+                                       self.SNR_comp, predictions=self.cnn_preds,
+                                       r_values_min=opts['rval_thr'],
+                                       r_values_lowest=opts['rval_lowest'],
+                                       min_SNR=opts['min_SNR'],
+                                       min_SNR_reject=opts['SNR_lowest'],
+                                       thresh_cnn_min=opts['min_cnn_thr'],
+                                       thresh_cnn_lowest=opts['cnn_lowest'],
+                                       use_cnn=opts['use_cnn'],
+                                       gSig_range=opts['gSig_range'])
+
         return self

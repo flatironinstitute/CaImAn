@@ -210,7 +210,7 @@ def main():
     cnm.params.set('quality', {'min_SNR': min_SNR,
                                'rval_thr': r_values_min,
                                'use_cnn': False})
-    cnm.evaluate_components(Y)
+    cnm.estimates.evaluate_components(Y, cnm.params, dview=dview)
 
     print(' ***** ')
     print('Number of total components: ', len(cnm.estimates.C))

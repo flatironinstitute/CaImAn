@@ -4,10 +4,8 @@
 """
 Stripped demo for running the CNMF source extraction algorithm with CaImAn and
 evaluation the components. The analysis can be run either in the whole FOV
-or
-
-For a complete pipeline (including motion correction) check demo_pipeline.py
-
+or in patches. For a complete pipeline (including motion correction) 
+check demo_pipeline.py
 Data courtesy of W. Yang, D. Peterka and R. Yuste (Columbia University)
 
 This demo is designed to be run under spyder or jupyter; its plotting functions
@@ -77,7 +75,7 @@ def main():
 #%% play movie, press q to quit
     play_movie = False
     if play_movie:
-        cm.movie(images[1400:]).play(fr=50, magnification=4, gain=3.)
+        cm.movie(images).play(fr=50, magnification=4, gain=3.)
 
 #%% correlation image. From here infer neuron size and density
     Cn = cm.movie(images).local_correlations(swap_dim=False)
@@ -140,7 +138,7 @@ def main():
                                 'use_cnn': use_cnn,
                                 'min_cnn_thr': min_cnn_thr})
                                 
-    cnm2.evaluate_components(images)
+    cnm2.estimates.evaluate_components(images, cnm2.params, dview=dview)
 #%% visualize selected and rejected components
     cnm2.estimates.plot_contours(img=Cn, idx=cnm2.estimates.idx_components)
 
