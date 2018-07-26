@@ -236,7 +236,7 @@ def main():
                          quantileMin=8, frames_window=250)
 
 #%% Show final traces
-    cnm2.view_patches(Yr, dims=dims, img=Cn)
+    cnm2.view_components(Yr, dims=dims, img=Cn)
 
 #%% STOP CLUSTER and clean up log files
     cm.stop_server(dview=dview)
