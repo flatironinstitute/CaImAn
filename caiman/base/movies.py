@@ -1018,7 +1018,23 @@ class movie(ts.timeseries):
 
 
 
-    
+    def local_correlations_movie(self, file_name = None, window=10, swap_dim=True, eight_neighbours=True, order_mean = 1, dview = None):
+        T, _, _ = self.shape
+        params = [[file_name,range(j,j + window), eight_neighbours, swap_dim, order_mean] for j in range(T - window)]
+        if dview is None:
+            parallel_result = [self[j:j + window, :, :].local_correlations(
+                    eight_neighbours=True,swap_dim=swap_dim, order_mean=order_mean)[np.newaxis, :, :] for j in range(T - window)]
+        else:
+            if 'multiprocessing' in str(type(dview)):
+                parallel_result = dview.map_async(
+                        local_correlations_movie_parallel, params).get(4294967)
+            else:
+                parallel_result = dview.map_sync(
+                    local_correlations_movie_parallel, params)
+                dview.results.clear()
+
+        mm = movie(np.concatenate(parallel_result, axis=0),fr=self.fr)
+        return mm
 
 
     def play(self, gain=1, fr=None, magnification=1, offset=0, interpolation=cv2.INTER_LINEAR,
@@ -1674,4 +1690,9 @@ def to_3D(mov2D, shape, order='F'):
     return np.reshape(mov2D, shape, order=order)
 
 
+def local_correlations_movie_parallel(params):
 
+        import caiman as cm
+        mv_name, idx, eight_neighbours, swap_dim, order_mean = params
+        mv = cm.load(mv_name,subindices=idx)
+        return mv.local_correlations(eight_neighbours=eight_neighbours, swap_dim=swap_dim, order_mean=order_mean)[None,:,:].astype(np.float32)

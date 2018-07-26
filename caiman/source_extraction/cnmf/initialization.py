@@ -928,15 +928,11 @@ def hals(Y, A, C, b, f, bSiz=3, maxIter=5):
     dims, T = np.shape(Y)[:-1], np.shape(Y)[-1]
     K = A.shape[1]  # number of neurons
     nb = b.shape[1]  # number of background components
-    if bSiz is not None:
-        if isinstance(bSiz, (int, float)):
-	   	     bSiz = [bSiz] * len(dims)
-        ind_A = nd.filters.uniform_filter(np.reshape(A, dims + (K,),
-					order='F'), size=bSiz + [0])
-        ind_A = np.reshape(ind_A > 1e-10, (np.prod(dims), K), order='F')
-    else:
-        ind_A = A>1e-10
-
+    if isinstance(bSiz, (int, float)):
+        bSiz = [bSiz] * len(dims)
+    ind_A = nd.filters.uniform_filter(np.reshape(
+        A, dims + (K,), order='F'), size=bSiz + [0])
+    ind_A = np.reshape(ind_A > 1e-10, (np.prod(dims), K), order='F')
     ind_A = spr.csc_matrix(ind_A)  # indicator of nonnero pixels
 
     def HALS4activity(Yr, A, C, iters=2):
