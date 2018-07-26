@@ -75,7 +75,7 @@ def extract_patch_coordinates(dims, rf, stride, border_pix=0, indeces=[slice(Non
     """
     sl_start = [0 if sl.start is None else sl.start for sl in indeces]
     sl_stop = [dim if sl.stop is None else sl.stop for (sl, dim) in zip(indeces, dims)]
-    sl_step = [1 for sl in indeces]
+    sl_step = [1 for sl in indeces]  # not used
     dims_large = dims
     dims = np.minimum(np.array(dims) - border_pix, sl_stop) - np.maximum(border_pix, sl_start) 
     
