@@ -26,7 +26,8 @@ CaImAn code runs:
 * On Windows (reasonably well supported)
 
 And on:
-* Python 3 (only current target)
+* Python 3 (primary target)
+* Python 2 (secondary target)
 
 Your code should be portable to the platforms above, and we have test suites that provide coverage for this.
 

@@ -5,7 +5,7 @@ Please reproduce your error with setting `dview=None`.
 
 If you need to upgrade CaImAn follow the instructions given in the [wiki](https://github.com/flatironinstitute/CaImAn/wiki/Updating-CaImAn).
 
-- **Tell us about your operating system (Linux/macOS/Windows), Python version (3.x), and working environment (Spyder/Jupyter Notebook/other)**
+- **Tell us about your operating system (Linux/macOS/Windows), Python version (2.7/3.x), and working environment (Spyder/Jupyter Notebook/other)**
 
 
 

@@ -1018,7 +1018,23 @@ class movie(ts.timeseries):
 
 
 
-    
+    def local_correlations_movie(self, file_name = None, window=10, swap_dim=True, eight_neighbours=True, order_mean = 1, dview = None):
+        T, _, _ = self.shape
+        params = [[file_name,range(j,j + window), eight_neighbours, swap_dim, order_mean] for j in range(T - window)]
+        if dview is None:
+            parallel_result = [self[j:j + window, :, :].local_correlations(
+                    eight_neighbours=True,swap_dim=swap_dim, order_mean=order_mean)[np.newaxis, :, :] for j in range(T - window)]
+        else:
+            if 'multiprocessing' in str(type(dview)):
+                parallel_result = dview.map_async(
+                        local_correlations_movie_parallel, params).get(4294967)
+            else:
+                parallel_result = dview.map_sync(
+                    local_correlations_movie_parallel, params)
+                dview.results.clear()
+
+        mm = movie(np.concatenate(parallel_result, axis=0),fr=self.fr)
+        return mm
 
 
     def play(self, gain=1, fr=None, magnification=1, offset=0, interpolation=cv2.INTER_LINEAR,
@@ -1337,17 +1353,16 @@ def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None,
             with np.load(file_name) as f:
                 return movie(**f).astype(outtype)
 
-        elif extension == '.hdf5':
-
-            with h5py.File(file_name, "r") as f:
-                attrs = dict(f[var_name_hdf5].attrs)
-                if meta_data in attrs:
-                    attrs['meta_data'] = cpk.loads(attrs['meta_data'])
-
-                if subindices is None:
-                    return movie(f[var_name_hdf5], **attrs).astype(outtype)
-                else:
-                    return movie(f[var_name_hdf5][subindices], **attrs).astype(outtype)
+#        elif extension in ('.hdf5', '.h5'):
+#            with h5py.File(file_name, "r") as f:
+#                attrs = dict(f[var_name_hdf5].attrs)
+#                if meta_data in attrs:
+#                    attrs['meta_data'] = cpk.loads(attrs['meta_data'])
+#
+#                if subindices is None:
+#                    return movie(f[var_name_hdf5], **attrs).astype(outtype)
+#                else:
+#                    return movie(f[var_name_hdf5][subindices], **attrs).astype(outtype)
 
         elif extension == '.h5_at':
             with h5py.File(file_name, "r") as f:
@@ -1356,7 +1371,7 @@ def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None,
                 else:
                     return movie(f['quietBlock'][subindices], fr=fr).astype(outtype)
 
-        elif extension == '.h5':
+        elif extension in ('.hdf5', '.h5'):
             if is_behavior:
                 with h5py.File(file_name, "r") as f:
                     kk = list(f.keys())
@@ -1370,7 +1385,10 @@ def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None,
 
             else:
                 with h5py.File(file_name, "r") as f:
-                    if var_name_hdf5 in f.keys():
+                    fkeys = list(f.keys())
+                    if len(fkeys) == 1:
+                        var_name_hdf5 = fkeys[0]
+                    if var_name_hdf5 in fkeys:
                         if subindices is None:
                             images = np.array(f[var_name_hdf5]).squeeze()
                             if images.ndim > 3:
@@ -1672,4 +1690,9 @@ def to_3D(mov2D, shape, order='F'):
     return np.reshape(mov2D, shape, order=order)
 
 
+def local_correlations_movie_parallel(params):
 
+        import caiman as cm
+        mv_name, idx, eight_neighbours, swap_dim, order_mean = params
+        mv = cm.load(mv_name,subindices=idx)
+        return mv.local_correlations(eight_neighbours=eight_neighbours, swap_dim=swap_dim, order_mean=order_mean)[None,:,:].astype(np.float32)

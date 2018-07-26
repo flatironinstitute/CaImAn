@@ -9,7 +9,7 @@ Docs on both
 ============
 If you are already reading this, we encourage you to also do independent reading on both.
 * [Ipyparallel docs](https://ipyparallel.readthedocs.io/en/latest/)
-* [Multiprocessing docs](https://docs.python.org/3.4/library/multiprocessing.html)
+* [Multiprocessing docs - Python3](https://docs.python.org/3.4/library/multiprocessing.html)
 
 Multiprocessing has three modes, each of which behaves differently:
 * spawn - The normal on Windows, available on other platforms. Slightly slower, but safer.

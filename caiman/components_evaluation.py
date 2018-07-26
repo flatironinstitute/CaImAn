@@ -686,7 +686,7 @@ def estimate_components_quality(traces, Y, A, C, b, f, final_frate=30, Npeaks=10
                 idx = list(filter(lambda a: a is not None, idx))
                 params.append([Y.filename, traces[idx], A.tocsc()[:, idx], C[idx], b, f,
                                final_frate, remove_baseline, N, robust_std, Athresh, Npeaks, thresh_C])
-
+    
             if dview is None:
                 res = map(evaluate_components_placeholder, params)
             else:
@@ -696,13 +696,13 @@ def estimate_components_quality(traces, Y, A, C, b, f, final_frate=30, Npeaks=10
                         evaluate_components_placeholder, params).get(4294967)
                 else:
                     res = dview.map_sync(evaluate_components_placeholder, params)
-
+    
             for r_ in res:
                 fitness_raw__, fitness_delta__, erfc_raw__, erfc_delta__, r_values__, _ = r_
                 fitness_raw = np.concatenate([fitness_raw, fitness_raw__])
                 fitness_delta = np.concatenate([fitness_delta, fitness_delta__])
                 r_values = np.concatenate([r_values, r_values__])
-
+    
                 if len(erfc_raw) == 0:
                     erfc_raw = erfc_raw__
                     erfc_delta = erfc_delta__

@@ -26,7 +26,6 @@ Link
 
 
 import platform as plt
-import copy
 import datetime
 import numpy as np
 import os
@@ -157,13 +156,13 @@ class Comparison(object):
         """save the comparison as well as the images of the precision recall calculations
 
 
-            depending on if we say this file will be ground truth or not, it wil be saved in either the tests or the ground truth folder
-            if saved in test, a comparison to groundtruth will be added to the object 
+            depending on if we say this file will be ground truth or not, it wil be saved in either the tests or the groung truth folder
+            if saved in test, a comparison to groundtruth will be add to the object 
             this comparison will be on 
                 data : a normized difference of the normalized value of the arrays
                 time : difference
-            in order for this function to work, you must
-                have previously given it the cnm objects after initializing them ( on patch and full frame)
+            in order for this function to work, you need to
+                previously give it the cnm objects after initializing them ( on patch and full frame)
                 give the values of the time and data 
                 have a groundtruth
 
@@ -228,7 +227,7 @@ class Comparison(object):
         plat = str(plat)
         pro = plt.processor()
         pro = str(pro)
-        # we store a big file which contains everything (INFORMATION)
+        # we store a big file which is containing everything ( INFORMATION)
         information = {
             'platform': plat,
             'time': dt,
@@ -295,25 +294,24 @@ class Comparison(object):
             'params_cnm': False}})
         # INFORMATION FOR THE USER
         if data['processor'] != information['processor']:
-            print("you don't have the same processor as groundtruth.. the time difference can vary"
-                  " because of that\n try recreate your own groundtruth before testing. Compare: " + str(data['processor']) + " to " + str(information['processor']) + "\n")
+            print("you don't have the same processor than groundtruth.. the time difference can vary"
+                  " because of that\n try recreate your own groundtruth before testing\n")
             information['differences']['proc'] = True
         if data['params'] != information['params']:
-            print("you are not using the same movie parameters... Things can go wrong\n\n")
-            print('you must use the same parameters to compare your version of the code with '
-                  'the groundtruth one. look for the groundtruth parameters with the see() method\n')
+            print("you do not use the same movie parameters... Things can go wrong\n\n")
+            print('you need to use the same paramters to compare your version of the code with '
+                  'the groundtruth one. look for the groundtruth paramters with the see() method\n')
             information['differences']['params_movie'] = True
-        # We must cleanup some fields to permit an accurate comparison
-        if not normalised_compare_cnmpatches(data['cnmpatch'], cnmpatch):
+        if data['cnmpatch'] != cnmpatch:
             if data['cnmpatch'].keys() != cnmpatch.keys():
-                print('DIFFERENCES IN THE FIELDS OF CNMF') # TODO: Now that we have deeply nested data structures, find a module that gives you tight differences.
+                print('DIFFERENCES IN THE FIELDS OF CNMF')
             diffkeys = [k for k in data['cnmpatch']
                         if data['cnmpatch'][k] != cnmpatch[k]]
             for k in diffkeys:
                 print(k, ':', data['cnmpatch'][k], '->', cnmpatch[k])
 
             print(
-                'you are not using the same parameters in your cnmf on patches initialization\n')
+                'you do not use the same paramters in your cnmf on patches initialization\n')
             information['differences']['params_cnm'] = True
 
         # for rigid
@@ -517,21 +515,3 @@ def plotrig(init, curr, timer, sensitivity):
     except:
         print("not able to plot")
     return info
-
-def normalised_compare_cnmpatches(a, b):
-    # This is designed to copy with fields that make it into these objects that need some normalisation before they
-    # are rightly comparable. To deal with that we do a deepcopy and then inline-normalise. Add any new needed keys
-    # into this code. Right now this is manual, but if we need to do more of this we should turn this into a nice
-    # list of fields to ignore, and another list of fields to perform regular transforms on.
-    mutable_a = copy.deepcopy(a)
-    mutable_b = copy.deepcopy(b)
-
-    if 'options' in mutable_a and 'options' in mutable_b:
-        if 'online' in mutable_a['options'] and 'online' in mutable_b['options']:
-            if 'path_to_model' in mutable_a['options']['online'] and 'path_to_model' in mutable_b['options']['online']:
-                _, mutable_a['options']['online']['path_to_model'] = os.path.split(mutable_a['options']['online']['path_to_model']) # Remove all but the last part
-                _, mutable_b['options']['online']['path_to_model'] = os.path.split(mutable_b['options']['online']['path_to_model'])
-                # print("Normalised A: " + str(mutable_a['options']['online']['path_to_model']))
-                # print("Normalised B: " + str(mutable_b['options']['online']['path_to_model']))
-
-    return mutable_a == mutable_b
