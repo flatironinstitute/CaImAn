@@ -262,6 +262,8 @@ sn: float
                 for _ in range(10):
                     computedC = np.maximum(Acsc.T.dot(computedA).T.dot(
                         Ctmp) / (computedA.T * computedA), 0)
+                    if computedC * computedC.T == 0:
+                        break
                     computedA = np.maximum(
                         Acsc.dot(Ctmp.dot(computedC.T)) / (computedC * computedC.T), 0)
             else:
@@ -291,6 +293,17 @@ sn: float
             sn_merged[i] = sm
             g_merged[i, :] = gm
 
+        empty = np.ravel((C_merged.sum(1) == 0) + (A_merged.sum(0) == 0))
+        if np.any(empty):
+            A_merged = A_merged[:, ~empty]
+            C_merged = C_merged[~empty]
+            S_merged = S_merged[~empty]
+            bl_merged = bl_merged[~empty]
+            c1_merged = c1_merged[~empty]
+            sn_merged = sn_merged[~empty]
+            g_merged = g_merged[~empty]
+
+
         # we want to remove merged neuron from the initial part and replace them with merged ones
         neur_id = np.unique(np.hstack(merged_ROIs))
         good_neurons = np.setdiff1d(list(range(nr)), neur_id)
@@ -307,7 +320,7 @@ sn: float
             sn = np.hstack((sn[good_neurons], np.array(sn_merged).flatten()))
         if g is not None:
             g = np.vstack((np.vstack(g)[good_neurons], g_merged))
-        nr = nr - len(neur_id) + nbmrg
+        nr = nr - len(neur_id) + len(C_merged)
 
     else:
         print('No neurons merged!')
