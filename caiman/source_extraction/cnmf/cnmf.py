@@ -511,7 +511,7 @@ class CNMF(object):
             if self.params.get('init', 'center_psf'):  # merge taking best neuron
                 if self.params.get('patch', 'nb_patch') > 0:
 
-                    while len(self.merged_ROIs) > 0:
+                    while len(self.estimates.merged_ROIs) > 0:
                         self.merge_comps(Yr, mx=np.Inf, fast_merge=True)
 
                     print("update temporal")

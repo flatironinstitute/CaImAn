@@ -322,7 +322,7 @@ class Estimates(object):
             self.A = scipy.sparse.csc_matrix(self.A)
         if 'array' not in str(type(self.C)):
             self.C = self.C.toarray()
-        if 'array' not in str(type(self.f)):
+        if 'array' not in str(type(self.f)) and self.f is not None:
             self.f = self.f.toarray()
 
         nA = np.sqrt(np.ravel(self.A.power(2).sum(axis=0)))
@@ -341,12 +341,13 @@ class Estimates(object):
         if self.neurons_sn is not None:
             self.neurons_sn = nA * self.neurons_sn
 
-        nB = np.sqrt(np.ravel((self.b.power(2) if scipy.sparse.issparse(self.b)
-                     else self.b**2).sum(axis=0)))
-        nB_mat = scipy.sparse.spdiags(nB, 0, nB.shape[0], nB.shape[0])
-        nB_inv_mat = scipy.sparse.spdiags(1. / nB, 0, nB.shape[0], nB.shape[0])
-        self.b = self.b * nB_inv_mat
-        self.f = nB_mat * self.f
+        if self.f is not None:  # 1p with exact ring-model
+            nB = np.sqrt(np.ravel((self.b.power(2) if scipy.sparse.issparse(self.b)
+                         else self.b**2).sum(axis=0)))
+            nB_mat = scipy.sparse.spdiags(nB, 0, nB.shape[0], nB.shape[0])
+            nB_inv_mat = scipy.sparse.spdiags(1. / nB, 0, nB.shape[0], nB.shape[0])
+            self.b = self.b * nB_inv_mat
+            self.f = nB_mat * self.f
         return self
 
     def select_components(self, idx_components=None, use_object=False):
