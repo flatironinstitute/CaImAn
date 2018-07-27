@@ -306,7 +306,7 @@ def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None, memory_fact=1,
     if params.get('init', 'center_psf'):
         S_tot = np.zeros((count, T), dtype=np.float32)
     else:
-         S_tot = None
+        S_tot = None
     YrA_tot = np.zeros((count, T), dtype=np.float32)
     F_tot = np.zeros((max(0, num_patches * nb_patch), T), dtype=np.float32)
     mask = np.zeros(d, dtype=np.uint8)
@@ -339,19 +339,16 @@ def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None, memory_fact=1,
 
             if scipy.sparse.issparse(b):
                 b = scipy.sparse.csc_matrix(b)
-            for ii in range(np.shape(b)[-1]):
-                if scipy.sparse.issparse(b):
-                    bb = b[:, ii].toarray().ravel()
-                    nonzero = (bb != 0)
-                    b_tot.append(bb[nonzero])
-                    idx_tot_B.append(idx_[nonzero])
-                    idx_ptr_B.append(len(idx_[nonzero]))
-                else:
+                b_tot.append(b.data)
+                idx_ptr_B += list(b.indptr[1:] - b.indptr[:-1])
+                idx_tot_B.append(idx_[b.indices])
+            else:
+                for ii in range(np.shape(b)[-1]):
                     b_tot.append(b[:, ii])
                     idx_tot_B.append(idx_)
                     idx_ptr_B.append(len(idx_))
-                # F_tot[patch_id, :] = f[ii, :]
-                count_bgr += 1
+                    # F_tot[patch_id, :] = f[ii, :]
+            count_bgr += b.shape[-1]
             if nb_patch >= 0:
                 F_tot[patch_id * nb_patch:(patch_id + 1) * nb_patch] = f
             else:  # full background per patch
