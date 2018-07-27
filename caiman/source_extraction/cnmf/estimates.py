@@ -320,8 +320,6 @@ class Estimates(object):
         """
         if 'csc_matrix' not in str(type(self.A)):
             self.A = scipy.sparse.csc_matrix(self.A)
-        if 'array' not in str(type(self.b)):
-            self.b = self.b.toarray()
         if 'array' not in str(type(self.C)):
             self.C = self.C.toarray()
         if 'array' not in str(type(self.f)):
@@ -343,7 +341,8 @@ class Estimates(object):
         if self.neurons_sn is not None:
             self.neurons_sn = nA * self.neurons_sn
 
-        nB = np.sqrt(np.ravel((self.b**2).sum(axis=0)))
+        nB = np.sqrt(np.ravel((self.b.power(2) if scipy.sparse.issparse(self.b)
+                     else self.b**2).sum(axis=0)))
         nB_mat = scipy.sparse.spdiags(nB, 0, nB.shape[0], nB.shape[0])
         nB_inv_mat = scipy.sparse.spdiags(1. / nB, 0, nB.shape[0], nB.shape[0])
         self.b = self.b * nB_inv_mat
