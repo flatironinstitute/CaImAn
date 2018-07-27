@@ -424,6 +424,27 @@ class CNMFParams(object):
             'use_dense': use_dense,            # flag for representation and storing of A and b
             'use_peak_max': use_peak_max,      # flag for finding candidate centroids
         }
+        
+        self.motion = {
+            'min_mov': 0, 
+            'max_shifts': (6, 6),
+            'niter_rig': 1,
+            'splits_rig': 14,
+            'pw_rigid': False,
+            'num_splits_to_process_rig': None,
+            'strides': (96, 96), 
+            'overlaps': (32, 32),
+            'splits_els': 14,
+            'num_splits_to_process_els': [7, None],
+            'upsample_factor_grid': 4,
+            'max_deviation_rigid': 3,
+            'shifts_opencv': True,
+            'nonneg_movie': False,
+            'gSig_filt': None,
+            'use_cuda': False,
+            'border_nan': True
+        }
+        
         self.change_params(params_dict)
         if self.data['dims'] is None and self.data['fnames'] is not None:
             self.data['dims'] = get_file_size(self.data['fnames'])[0]
@@ -518,7 +539,7 @@ class CNMFParams(object):
         return {'data': self.data, 'spatial_params': self.spatial, 'temporal_params': self.temporal,
                 'init_params': self.init, 'preprocess_params': self.preprocess,
                 'patch_params': self.patch, 'online': self.online, 'quality': self.quality,
-                'merging': self.merging
+                'merging': self.merging, 'motion': self.motion
                 }
 
     def change_params(self, params_dict):

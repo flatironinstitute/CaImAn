@@ -30,6 +30,7 @@ from builtins import str
 from builtins import object
 import numpy as np
 import cv2
+import os
 import scipy
 import psutil
 from time import time
@@ -49,7 +50,7 @@ from .merging import merge_components
 from .spatial import update_spatial_components
 from .temporal import update_temporal_components, constrained_foopsi_parallel
 from ...components_evaluation import estimate_components_quality_auto, select_components_from_metrics, estimate_components_quality
-from ...motion_correction import motion_correct_iteration_fast
+from ...motion_correction import motion_correct_iteration_fast, MotionCorrect
 from ... import mmapping
 from ...utils.utils import save_dict_to_hdf5, load_dict_from_hdf5
 #from .online_cnmf import RingBuffer, HALS4activity, HALS4shapes, demix_and_deconvolve, remove_components_online
@@ -306,7 +307,43 @@ class CNMF(object):
         self.estimates = Estimates(A=Ain, C=Cin, b=b_in, f=f_in,
                                    dims=self.params.data['dims'])
 
+    def fit_file(self, motion_correct=False, indeces=[slice(None)]*3):
+        
+        fnames = self.params.get('data', 'fnames')
+        if os.path.exists(fnames[0]):
+            _, extension = os.path.splitext(fnames[0])[:2]
+        else:
+            print('File list is:')
+            print(fnames[0])
+            raise Exception('File not found!')
 
+        if extension == '.mmap':
+            fname_new = fnames[0]
+            Yr, dims, T = mmapping.load_memmap(fnames[0])
+            if np.isfortran(Yr):
+                raise Exception('The file should be in C order (see save_memmap function')
+        else:
+            if motion_correct:
+                mc = MotionCorrect(fnames, dview=self.dview, **self.params.motion)
+                mc.motion_correct(save_movie=True)
+                fname_mc = mc.fname_tot_els if self.params.motion['pw_rigid'] else mc.fname_tot_rig
+                if self.params.get('motion', 'pw_rigid'):
+                    b0 = np.ceil(np.maximum(np.max(np.abs(mc.x_shifts_els)),
+                                            np.max(np.abs(mc.y_shifts_els)))).astype(np.int)
+                    self.estimates.shifts = [mc.x_shifts_els, mc.y_shifts_els]
+                else:
+                    b0 = np.ceil(np.max(np.abs(mc.shifts_rig))).astype(np.int)
+                    self.estimates.shifts = mc.shifts_rig
+                fname_new = mmapping.save_memmap(fname_mc, base_name='memmap_', order='C',
+                                                 border_to_0=b0)
+            else:
+                fname_new = mmapping.save_memmap(fnames, base_name='memmap_', order='C')
+                # now load the file
+            Yr, dims, T = mmapping.load_memmap(fname_new)
+
+        images = np.reshape(Yr.T, [T] + list(dims), order='F')
+        self.mmap_file = fname_new
+        return self.fit(images)
     
     def fit(self, images, indeces=[slice(None), slice(None)]):
         """

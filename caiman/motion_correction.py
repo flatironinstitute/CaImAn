@@ -155,10 +155,10 @@ class MotionCorrect(object):
 
        """
 
-    def __init__(self, fname, min_mov, dview=None, max_shifts=(6, 6), niter_rig=1, splits_rig=14, num_splits_to_process_rig=None,
+    def __init__(self, fname, min_mov=None, dview=None, max_shifts=(6, 6), niter_rig=1, splits_rig=14, num_splits_to_process_rig=None,
                  strides=(96, 96), overlaps=(32, 32), splits_els=14, num_splits_to_process_els=[7, None],
                  upsample_factor_grid=4, max_deviation_rigid=3, shifts_opencv=True, nonneg_movie=False, gSig_filt=None,
-                 use_cuda=False, border_nan=True):
+                 use_cuda=False, border_nan=True, pw_rigid=False):
         """
         Constructor class for motion correction operations
 
@@ -189,8 +189,25 @@ class MotionCorrect(object):
         self.gSig_filt = gSig_filt
         self.use_cuda = use_cuda
         self.border_nan = border_nan
+        self.pw_rigid = pw_rigid
         if self.use_cuda and not HAS_CUDA:
             print("pycuda is unavailable. Falling back to default FFT.")
+
+    def motion_correct(self, template=None, save_movie=False):
+        if self.min_mov is None:
+            if self.gSig_filt is None:
+                self.min_mov = np.array([cm.load(self.fname[0],
+                                                 subindices=range(400))]).min()
+            else:
+                self.min_mov = np.array([high_pass_filter_space(m_, self.gSig_filt)
+                    for m_ in cm.load(self.fname[0], subindices=range(400))]).min()
+
+        if self.pw_rigid:
+            return self.motion_correct_pwrigid(template=template,
+                                               save_movie=save_movie)
+        else:
+            return self.motion_correct_rigid(template=template,
+                                             save_movie=save_movie)
 
     def motion_correct_rigid(self, template=None, save_movie=False):
         """
