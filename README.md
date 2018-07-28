@@ -40,7 +40,7 @@ A paper explaining most of the implementation details and benchmarking can be fo
 
 * **Denoising, deconvolution and spike extraction**
 
-    * Inferes neural activity from fluorescence traces [[1]](#neuron)
+    * Infers neural activity from fluorescence traces [[1]](#neuron)
     * Also works in online mode (i.e. one sample at a time) [[4]](#oasis)
 
 * **Behavioral Analysis** [[7]](#behavior)
@@ -85,7 +85,7 @@ If you want to upgrade CaImAn (and have already used the pip installer to instal
    pip install -e .
    ```
   
-**Performance issues:** To make the package working *efficiently* under any configuration ALWAYS run these commands before starting spyder (this is for linux and OSX but environment variables can be set in windows as well):
+**Performance issues:** To make the package work *efficiently* under any configuration ALWAYS run these commands before starting spyder (this is for linux and OSX but environment variables can be set in windows as well):
 
    ```bash
    export MKL_NUM_THREADS=1
@@ -120,16 +120,16 @@ If you prefer to manage this information somewhere else, the `CAIMAN_DATA` envir
 
 Use the following menu item to launch a anaconda-enabled command prompt: start>programs>anaconda3>anaconda prompt
 
-    ```bash
-    git clone  https://github.com/flatironinstitute/CaImAn
-    cd CaImAn
-    conda env create -f environment.yml -n caiman
-    activate caiman
-    pip install . (OR pip install -e . if you want to develop code)
-    copy caimanmanager.py ..
-    conda install numba
-    cd ..
-    ```
+   ```bash
+   git clone  https://github.com/flatironinstitute/CaImAn
+   cd CaImAn
+   conda env create -f environment.yml -n caiman
+   activate caiman
+   pip install . (OR pip install -e . if you want to develop code)
+   copy caimanmanager.py ..
+   conda install numba
+   cd ..
+   ```
 Then run ```caimanmanager``` as described above to make a data directory.
 
 For Python 2.7 on Windows follow the same procedure with replacing the file `environment.yml` with `environment_python2.yml` as before.	
