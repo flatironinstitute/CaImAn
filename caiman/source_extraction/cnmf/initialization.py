@@ -169,10 +169,6 @@ try:
 except:
     def profile(a): return a
 
-if sys.version_info >= (3, 0):
-    def xrange(*args, **kwargs):
-        return iter(range(*args, **kwargs))
-
 
 def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter=5, maxIter=5, nb=1,
                           kernel=None, use_hals=True, normalize_init=True, img=None, method='greedy_roi',
@@ -1722,7 +1718,7 @@ def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True, ssub=1, tsub=1):
     indices = []
     data = []
     indptr = [0]
-    for p in xrange(len(X)):
+    for p in range(len(X)):
         index = get_indices_of_pixels_on_ring(p)
         indices += list(index)
         B = Y[index] - A[index].dot(C) - \

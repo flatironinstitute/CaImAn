@@ -531,15 +531,12 @@ class CNMF(object):
                                                       np.unique(np.concatenate(self.estimates.merged_ROIs)))
                             self.estimates.YrA = np.concatenate([self.estimates.YrA[not_merged],
                                                        np.array([self.estimates.YrA[m].mean(0) for m in self.estimates.merged_ROIs])])
-                    import pdb;pdb.set_trace()
                     if self.params.get('init', 'nb') == 0:
-                        # self.estimates.b0 = Yr.mean(1) - self.estimates.A.dot(
-                        #     self.estimates.C.mean(1))
                         self.estimates.W, self.estimates.b0 = compute_W(
                             Yr, self.estimates.A, self.estimates.C, self.dims,
                             self.params.get('init', 'ring_size_factor') *
-                            np.array(self.params.get('init', 'gSiz')),
-                            ssub=self.params.get('init', 'ssub_B'))
+                            self.params.get('init', 'gSiz')[0],
+                            self.params.get('init', 'ssub_B'))
             else:
                 
                 while len(self.estimates.merged_ROIs) > 0:
