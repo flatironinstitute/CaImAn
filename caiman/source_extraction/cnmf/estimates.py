@@ -15,6 +15,7 @@ from .utilities import detrend_df_f
 from ...components_evaluation import (
         evaluate_components_CNN, estimate_components_quality_auto,
         select_components_from_metrics)
+from .initialization import downscale
 
 class Estimates(object):
     def __init__(self, A=None, b=None, C=None, f=None, R=None, dims=None):
@@ -214,7 +215,19 @@ class Estimates(object):
                 B = B.toarray()
             B = B.reshape(dims + (-1,), order='F').transpose([2, 0, 1])
         elif self.W is not None:
-            B = self.W.dot(imgs[frame_range] - self.A.dot(self.C[:, frame_range]))
+            ssub_B = int(round(np.sqrt(np.prod(dims) / self.W.shape[0])))
+            B = imgs[frame_range].reshape((-1, np.prod(dims)), order='F').T - \
+                self.A.dot(self.C[:, frame_range])
+            if ssub_B==1:
+                B = self.b0[:, None] + self.W.dot(B - self.b0[:, None])
+            else:
+                B = self.b0[:, None] + (np.repeat(np.repeat(self.W.dot(
+                    downscale(B.reshape(dims + (B.shape[-1],), order='F'),
+                              (ssub_B, ssub_B, 1)).reshape((-1, B.shape[-1]), order='F') -
+                    downscale(self.b0.reshape(dims, order='F'),
+                              (ssub_B, ssub_B)).reshape((-1, 1), order='F'))
+                    .reshape(((dims[0] - 1) // ssub_B + 1, (dims[1] - 1) // ssub_B + 1, -1), order='F'),
+                    ssub_B, 0), ssub_B, 1)[:dims[0], :dims[1]].reshape((-1, B.shape[-1]), order='F'))
             B = B.reshape(dims + (-1,), order='F').transpose([2, 0, 1])
         else:
             B = np.zeros_like(Y_rec)

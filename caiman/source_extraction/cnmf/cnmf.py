@@ -533,10 +533,10 @@ class CNMF(object):
                                                        np.array([self.estimates.YrA[m].mean(0) for m in self.estimates.merged_ROIs])])
                     if self.params.get('init', 'nb') == 0:
                         self.estimates.W, self.estimates.b0 = compute_W(
-                            Yr, self.estimates.A, self.estimates.C, self.dims,
+                            Yr, self.estimates.A.toarray(), self.estimates.C, self.dims,
                             self.params.get('init', 'ring_size_factor') *
                             self.params.get('init', 'gSiz')[0],
-                            self.params.get('init', 'ssub_B'))
+                            ssub=self.params.get('init', 'ssub_B'))
             else:
                 
                 while len(self.estimates.merged_ROIs) > 0:
