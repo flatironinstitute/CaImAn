@@ -41,7 +41,8 @@ except:
 
 #%%
 def bare_initialization(Y, init_batch=1000, k=1, method_init='greedy_roi', gnb=1,
-                        gSig=[5, 5], motion_flag=False, p=1, **kwargs):
+                        gSig=[5, 5], motion_flag=False, p=1,
+                        return_object=True, **kwargs):
     """
     Quick and dirty initialization for OnACID, bypassing entirely CNMF
     Inputs:
@@ -90,28 +91,32 @@ def bare_initialization(Y, init_batch=1000, k=1, method_init='greedy_roi', gnb=1
         (Ain.T.dot(Yr) - (Ain.T.dot(b_in)).dot(f_in))
     AA = scipy.sparse.spdiags(old_div(1., nA), 0, nr, nr) * (Ain.T.dot(Ain))
     YrA = YA - AA.T.dot(Cin)
+    if return_object:
+        cnm_init = cm.source_extraction.cnmf.cnmf.CNMF(2, k=k, gSig=gSig, Ain=Ain, Cin=Cin, b_in=np.array(
+            b_in), f_in=f_in, method_init=method_init, p=p, **kwargs)
+    
+        cnm_init.A, cnm_init.C, cnm_init.b, cnm_init.f, cnm_init.S, cnm_init.YrA = Ain, Cin, b_in, f_in, np.maximum(
+            np.atleast_2d(Cin), 0), YrA
+        #cnm_init.g = np.array([-np.poly([0.9]*max(p,1))[1:] for gg in np.ones(k)])
+        cnm_init.g = np.array([-np.poly([0.9, 0.5][:max(1, p)])[1:]
+                               for gg in np.ones(k)])
+        cnm_init.bl = np.zeros(k)
+        cnm_init.c1 = np.zeros(k)
+        cnm_init.neurons_sn = np.std(YrA, axis=-1)
+        cnm_init.lam = np.zeros(k)
+        cnm_init.dims = Y.shape[:-1]
+        cnm_init.initbatch = init_batch
+        cnm_init.gnb = gnb
 
-    cnm_init = cm.source_extraction.cnmf.cnmf.CNMF(2, k=k, gSig=gSig, Ain=Ain, Cin=Cin, b_in=np.array(
-        b_in), f_in=f_in, method_init=method_init, p=p, **kwargs)
-
-    cnm_init.A, cnm_init.C, cnm_init.b, cnm_init.f, cnm_init.S, cnm_init.YrA = Ain, Cin, b_in, f_in, np.maximum(
-        np.atleast_2d(Cin), 0), YrA
-    #cnm_init.g = np.array([-np.poly([0.9]*max(p,1))[1:] for gg in np.ones(k)])
-    cnm_init.g = np.array([-np.poly([0.9, 0.5][:max(1, p)])[1:]
-                           for gg in np.ones(k)])
-    cnm_init.bl = np.zeros(k)
-    cnm_init.c1 = np.zeros(k)
-    cnm_init.neurons_sn = np.std(YrA, axis=-1)
-    cnm_init.lam = np.zeros(k)
-    cnm_init.dims = Y.shape[:-1]
-    cnm_init.initbatch = init_batch
-    cnm_init.gnb = gnb
-
-    return cnm_init
+        return cnm_init
+    else:
+        return Ain, np.array(b_in), Cin, f_in, YrA
 
 
 #%%
-def seeded_initialization(Y, Ain, dims=None, init_batch=1000, gnb=1, p=1, **kwargs):
+def seeded_initialization(Y, Ain, dims=None, init_batch=1000, order_init=None, gnb=1, p=1,
+                          return_object=True, **kwargs):
+
     """
     Initialization for OnACID based on a set of user given binary masks.
     Inputs:
@@ -131,26 +136,19 @@ def seeded_initialization(Y, Ain, dims=None, init_batch=1000, gnb=1, p=1, **kwar
     gnb             int
                     number of background components
 
+    order_init:     list
+                    order of elements to be initalized using rank1 nmf restricted to the support of
+                    each component
+
     Output:
     -------
         cnm_init    object
                     caiman CNMF-like object to initialize OnACID
     """
 
-    def HALS4shapes(Yr, A, C, iters=2):
-        K = A.shape[-1]
-        ind_A = A > 0
-        U = C.dot(Yr.T)
-        V = C.dot(C.T)
-        V_diag = V.diagonal() + np.finfo(float).eps
-        for _ in range(iters):
-            for m in range(K):  # neurons
-                ind_pixels = np.squeeze(ind_A[:, m])
-                A[ind_pixels, m] = np.clip(A[ind_pixels, m] +
-                                           ((U[m, ind_pixels] - V[m].dot(A[ind_pixels].T)) /
-                                            V_diag[m]), 0, np.inf)
 
-        return A
+    if 'ndarray' not in str(type(Ain)):
+        Ain = Ain.toarray()
 
     if dims is None:
         dims = Y.shape[:-1]
@@ -160,18 +158,32 @@ def seeded_initialization(Y, Ain, dims=None, init_batch=1000, gnb=1, p=1, **kwar
         not_px = np.array(not_px).flatten()
     Yr = np.reshape(Y, (Ain.shape[0], Y.shape[-1]), order='F')
     model = NMF(n_components=gnb, init='nndsvdar', max_iter=10)
-    b_temp = model.fit_transform(np.maximum(Yr[not_px], 0))
+    b_temp = model.fit_transform(np.maximum(Yr[not_px], 0), iter=20)
     f_in = model.components_.squeeze()
     f_in = np.atleast_2d(f_in)
     Y_resf = np.dot(Yr, f_in.T)
 #    b_in = np.maximum(Y_resf.dot(np.linalg.inv(f_in.dot(f_in.T))), 0)
     b_in = np.maximum(np.linalg.solve(f_in.dot(f_in.T), Y_resf.T), 0).T
-    Ain = normalize(Ain.astype('float32'), axis=0, norm='l1')
-    Cin = np.maximum(Ain.T.dot(Yr) - (Ain.T.dot(b_in)).dot(f_in), 0)
-    if 'ndarray' not in str(type(Ain)):
-        Ain = Ain.toarray()
-    Ain = HALS4shapes(Yr - b_in.dot(f_in), Ain, Cin, iters=5)
-    Ain, Cin, b_in, f_in = hals(Yr, Ain, Cin, b_in, f_in)
+    Yr_no_bg = (Yr - b_in.dot(f_in)).astype(np.float32)
+
+    Cin = np.zeros([Ain.shape[-1],Yr.shape[-1]], dtype = np.float32)
+    if order_init is not None: #initialize using rank-1 nmf for each component
+
+        model_comp = NMF(n_components=1, init='nndsvdar', max_iter=50)
+        for count, idx_in in enumerate(order_init):
+            if count%10 == 0:
+                print(count)
+            idx_domain = np.where(Ain[:,idx_in])[0]
+            Ain[idx_domain,idx_in] = model_comp.fit_transform(\
+                                   np.maximum(Yr_no_bg[idx_domain], 0)).squeeze()
+            Cin[idx_in] = model_comp.components_.squeeze()
+            Yr_no_bg[idx_domain] -= np.outer(Ain[idx_domain, idx_in],Cin[idx_in])
+    else:
+        Ain = normalize(Ain.astype('float32'), axis=0, norm='l1')
+        Cin = np.maximum(Ain.T.dot(Yr) - (Ain.T.dot(b_in)).dot(f_in), 0)
+        Ain = HALS4shapes(Yr_no_bg, Ain, Cin, iters=5)
+        
+    Ain, Cin, b_in, f_in = hals(Yr, Ain, Cin, b_in, f_in, maxIter=8, bSiz=None)
     Ain = csc_matrix(Ain)
     nA = (Ain.power(2).sum(axis=0))
     nr = nA.size
@@ -180,46 +192,107 @@ def seeded_initialization(Y, Ain, dims=None, init_batch=1000, gnb=1, p=1, **kwar
         (Ain.T.dot(Yr) - (Ain.T.dot(b_in)).dot(f_in))
     AA = scipy.sparse.spdiags(old_div(1., nA), 0, nr, nr) * (Ain.T.dot(Ain))
     YrA = YA - AA.T.dot(Cin)
+    if return_object:
+        cnm_init = cm.source_extraction.cnmf.cnmf.CNMF(
+            2, Ain=Ain, Cin=Cin, b_in=np.array(b_in), f_in=f_in, p=1, **kwargs)
+        cnm_init.A, cnm_init.C, cnm_init.b, cnm_init.f, cnm_init.S, cnm_init.YrA = Ain, Cin, b_in, f_in, np.fmax(
+            np.atleast_2d(Cin), 0), YrA
+    #    cnm_init.g = np.array([[gg] for gg in np.ones(nr)*0.9])
+        cnm_init.g = np.array([-np.poly([0.9] * max(p, 1))[1:]
+                               for gg in np.ones(nr)])
+        cnm_init.bl = np.zeros(nr)
+        cnm_init.c1 = np.zeros(nr)
+        cnm_init.neurons_sn = np.std(YrA, axis=-1)
+        cnm_init.lam = np.zeros(nr)
+        cnm_init.dims = Y.shape[:-1]
+        cnm_init.initbatch = init_batch
+        cnm_init.gnb = gnb
+    
+        return cnm_init
+    else:
+        return Ain, np.array(b_in), Cin, f_in, YrA
 
-    cnm_init = cm.source_extraction.cnmf.cnmf.CNMF(
-        2, Ain=Ain, Cin=Cin, b_in=np.array(b_in), f_in=f_in, p=1, **kwargs)
-    cnm_init.A, cnm_init.C, cnm_init.b, cnm_init.f, cnm_init.S, cnm_init.YrA = Ain, Cin, b_in, f_in, np.fmax(
-        np.atleast_2d(Cin), 0), YrA
-#    cnm_init.g = np.array([[gg] for gg in np.ones(nr)*0.9])
-    cnm_init.g = np.array([-np.poly([0.9] * max(p, 1))[1:]
-                           for gg in np.ones(nr)])
-    cnm_init.bl = np.zeros(nr)
-    cnm_init.c1 = np.zeros(nr)
-    cnm_init.neurons_sn = np.std(YrA, axis=-1)
-    cnm_init.lam = np.zeros(nr)
-    cnm_init.dims = Y.shape[:-1]
-    cnm_init.initbatch = init_batch
-    cnm_init.gnb = gnb
 
-    return cnm_init
+def HALS4shapes(Yr, A, C, iters=2):
+    K = A.shape[-1]
+    ind_A = A > 0
+    U = C.dot(Yr.T)
+    V = C.dot(C.T)
+    V_diag = V.diagonal() + np.finfo(float).eps
+    for _ in range(iters):
+        for m in range(K):  # neurons
+            ind_pixels = np.squeeze(ind_A[:, m])
+            A[ind_pixels, m] = np.clip(A[ind_pixels, m] +
+                                       ((U[m, ind_pixels] - V[m].dot(A[ind_pixels].T)) /
+                                        V_diag[m]), 0, np.inf)
+
+    return A
 
 
 # definitions for demixed time series extraction and denoising/deconvolving
 @profile
-def HALS4activity(Yr, A, noisyC, AtA, iters=5, tol=1e-3, groups=None):
-    """Solve C = argmin_C ||Yr-AC|| using block-coordinate decent"""
+def HALS4activity(Yr, A, noisyC, AtA=None, iters=5, tol=1e-3, groups=None,
+                  order=None):
+    """Solves C = argmin_C ||Yr-AC|| using block-coordinate decent. Can use
+    groups to update non-overlapping components in parallel or a specified
+    order.
+
+    Parameters
+    ----------
+    Yr : np.array (possibly memory mapped, (x,y,[,z]) x t)
+        Imaging data reshaped in matrix format
+
+    A : scipy.sparse.csc_matrix (or np.array) (x,y,[,z]) x # of components)
+        Spatial components and background
+
+    noisyC : np.array  (# of components x t)
+        Temporal traces (including residuals plus background)
+
+    AtA : np.array, optional (# of components x # of components)
+        A.T.dot(A) Overlap matrix of shapes A.
+
+    iters : int, optional
+        Maximum number of iterations.
+
+    tol : float, optional
+        Change tolerance level
+
+    groups : list of sets
+        grouped components to be updated simultaneously
+
+    order : list
+        Update components in that order (used if nonempty and groups=None)
+
+    Output:
+    -------
+    C : np.array (# of components x t)
+        solution of HALS
+
+    noisyC : np.array (# of components x t)
+        solution of HALS + residuals, i.e, (C + YrA)
+    """
 
     AtY = A.T.dot(Yr)
     num_iters = 0
     C_old = np.zeros_like(noisyC)
     C = noisyC.copy()
+    if AtA is None:
+        AtA = A.T.dot(A)
+    AtAd = AtA.diagonal() + np.finfo(np.float32).eps
 
     # faster than np.linalg.norm
     def norm(c): return sqrt(c.ravel().dot(c.ravel()))
     while (norm(C_old - C) >= tol * norm(C_old)) and (num_iters < iters):
         C_old[:] = C
         if groups is None:
-            for m in range(len(AtY)):
-                noisyC[m] = C[m] + (AtY[m] - AtA[m].dot(C)) / AtA[m, m]
-                C[m] = max(noisyC[m], 0)
+            if order is None:
+                order = list(range(AtY.shape[0]))
+            for m in order:
+                noisyC[m] = C[m] + (AtY[m] - AtA[m].dot(C)) / AtAd[m]
+                C[m] = np.maximum(noisyC[m], 0)
         else:
             for m in groups:
-                noisyC[m] = C[m] + (AtY[m] - AtA[m].dot(C)) / AtA.diagonal()[m]
+                noisyC[m] = C[m] + ((AtY[m] - AtA[m].dot(C)).T/AtAd[m]).T
                 C[m] = np.maximum(noisyC[m], 0)
         num_iters += 1
     return C, noisyC
@@ -230,12 +303,14 @@ def demix_and_deconvolve(C, noisyC, AtY, AtA, OASISinstances, iters=3, n_refit=0
     """
     Solve C = argmin_C ||Y-AC|| subject to C following AR(p) dynamics
     using OASIS within block-coordinate decent
-    Newly fits the last elements in buffers C and AtY and possibly refits earlier elements.
+    Newly fits the last elements in buffers C and AtY and possibly refits
+    earlier elements.
     Parameters
     ----------
     C : ndarray of float
         Buffer containing the denoised fluorescence intensities.
-        All elements up to and excluding the last one have been denoised in earlier calls.
+        All elements up to and excluding the last one have been denoised in
+        earlier calls.
     noisyC : ndarray of float
         Buffer containing the undenoised fluorescence intensities.
     AtY : ndarray of float
