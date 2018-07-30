@@ -344,7 +344,17 @@ class CNMF(object):
         images = np.reshape(Yr.T, [T] + list(dims), order='F')
         self.mmap_file = fname_new
         return self.fit(images)
-    
+
+    def refit(self, images):
+        from copy import deepcopy
+        cnm = CNMF(self.params.patch['n_processes'], params=self.params)
+        cnm.dview = self.dview
+        cnm.params.patch['rf'] = None
+        estimates = deepcopy(self.estimates)
+        estimates.select_components(use_object=True)
+        cnm.estimates = estimates
+        return cnm.fit(images)
+
     def fit(self, images, indeces=[slice(None), slice(None)]):
         """
         This method uses the cnmf algorithm to find sources in data.

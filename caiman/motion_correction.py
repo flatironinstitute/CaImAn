@@ -203,11 +203,16 @@ class MotionCorrect(object):
                     for m_ in cm.load(self.fname[0], subindices=range(400))]).min()
 
         if self.pw_rigid:
-            return self.motion_correct_pwrigid(template=template,
-                                               save_movie=save_movie)
+            self.motion_correct_pwrigid(template=template, save_movie=save_movie)
+            b0 = np.ceil(np.maximum(np.max(np.abs(self.x_shifts_els)),
+                                    np.max(np.abs(self.y_shifts_els))))
         else:
-            return self.motion_correct_rigid(template=template,
-                                             save_movie=save_movie)
+            self.motion_correct_rigid(template=template, save_movie=save_movie)
+            b0 = np.ceil(np.max(np.abs(self.shifts_rig)))
+        self.border_to_0 = b0.astype(np.int)
+        self.mmap_file = self.fname_tot_els if self.pw_rigid else self.fname_tot_rig
+        
+        return self
 
     def motion_correct_rigid(self, template=None, save_movie=False):
         """
