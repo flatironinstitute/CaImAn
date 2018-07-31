@@ -94,10 +94,6 @@ If you want to upgrade CaImAn (and have already used the pip installer to instal
    export OPENBLAS_NUM_THREADS=1
    ```   
 
-**Note for Python 2 users:** If you wish to install CaImAn for Python 2.7, please use `environment_python2.yml` instead of `environment.yml` when creating the conda environment.
-While the code is compatible with Python 2.7 at the moment, all present and future development is done in Python 3, and we expect Python 2.7 compatibility to break at some point.
-   
-
 ### Setting up caimanmanager
 
   Once CaImAn is installed, you may want to get a working directory with code samples and datasets; pip installed a caimanmanager.py command that manages this. If you have not installed Caiman before, you can do 
