@@ -39,12 +39,12 @@ class CNMFParams(object):
         when initializing the CNMFParams object. Direct setting of the positional arguments in CNMFParams is only
         present for backwards compatibility reasons and should not be used if possible.
 
-        Parameters
+        Parameters/Attributes
         ----------
 
         Any parameter that is not set get a default value specified
         by the dictionary default options
-        DATA PARAMETERS #####
+        DATA PARAMETERS (CNMFParams.data) #####
 
             fnames: list[str]
                 list of complete paths to files that need to be processed
@@ -61,7 +61,7 @@ class CNMFParams(object):
             dxy: (float, float)
                 spatial resolution of FOV in pixels per um
 
-        PATCH PARAMS ######
+        PATCH PARAMS (CNMFParams.patch)######
 
             rf: int or None, default: None
                 Half-size of patch in pixels. If None, no patches are constructed and the whole FOV is processed jointly
@@ -108,7 +108,7 @@ class CNMFParams(object):
             in_memory: bool, default: True
                 Whether to load patches in memory
 
-        PRE-PROCESS PARAMS#############
+        PRE-PROCESS PARAMS (CNMFParams.preprocess) #############
 
             sn: np.array or None, default: None
                 noise level for each pixel
@@ -143,7 +143,7 @@ class CNMFParams(object):
             check_nan: bool, default: True
                 whether to check for NaNs
 
-        INIT PARAMS###############
+        INIT PARAMS (CNMFParams.init)###############
 
             K: int, default: 30
                 number of components to be found (per patch or whole FOV depending on whether rf=None)
@@ -217,7 +217,7 @@ class CNMFParams(object):
             options_local_NMF: dict
                 dictionary with parameters to pass to local_NMF initializer
 
-        SPATIAL PARAMS##########
+        SPATIAL PARAMS (CNMFParams.spatial) ##########
 
             method: 'dilate'|'ellipse', default: 'dilate'
                 method for expanding footprint of spatial components
@@ -273,7 +273,7 @@ class CNMFParams(object):
             normalize_yyt_one: bool, default: True
                 Whether to normalize the C and A matrices so that diag(C*C.T) = 1 during update spatial
 
-        TEMPORAL PARAMS###########
+        TEMPORAL PARAMS (CNMFParams.temporal)###########
 
             ITER: int, default: 2
                 block coordinate descent iterations
@@ -320,14 +320,14 @@ class CNMFParams(object):
             s_min: float or None, default: None
                 Minimum spike threshold amplitude (computed in the code if used).
 
-        MERGE PARAMS
+        MERGE PARAMS (CNMFParams.merge)#####
             do_merge: bool, default: True
                 Whether or not to merge
 
             thr: float, default: 0.8
                 Trace correlation threshold for merging two components.
 
-        QUALITY EVALUATION PARAMETERS###########
+        QUALITY EVALUATION PARAMETERS (CNMFParams.quality)###########
 
             min_SNR: float, default: 2.5
                 trace SNR threshold. Traces with SNR above this will get accepted
@@ -353,7 +353,7 @@ class CNMFParams(object):
             gSig_range: list or integers, default: None
                 gSig scale values for CNN classifier. In not None, multiple values are tested in the CNN classifier.
 
-        ONLINE CNMF (ONACID) PARAMETERS#####
+        ONLINE CNMF (ONACID) PARAMETERS (CNMFParams.online)#####
 
             N_samples_exceptionality: int, default: np.ceil(decay_time*fr),
                 Number of frames over which trace SNR is computed (usually length of a typical transient)
@@ -448,7 +448,7 @@ class CNMFParams(object):
             use_peak_max: bool, default: False
                 Whether to find candidate centroids using skimage's find local peaks function
 
-        MOTION CORRECTION PARAMETERS####
+        MOTION CORRECTION PARAMETERS (CNMFParams.motion)####
 
             border_nan: bool or str, default: 'copy'
                 flag for allowing NaN in the boundaries. True allows NaN, whereas 'copy' copies the value of the

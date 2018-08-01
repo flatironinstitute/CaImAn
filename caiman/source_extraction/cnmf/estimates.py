@@ -19,6 +19,78 @@ from .initialization import downscale
 
 class Estimates(object):
     def __init__(self, A=None, b=None, C=None, f=None, R=None, dims=None):
+        """Class for storing the variables related to the estimates of spatial footprints, temporal traces,
+        deconvolved neural activity, and background. Quality metrics are also stored. The class has methods
+        for evaluating the quality of each component, DF/F normalization and some basic plotting.
+
+        Parameters/Attributes
+        ---------------------
+        A:  scipy.sparse.csc_matrix (dimensions: # of pixels x # components)
+            set of spatial footprints. Each footprint is represented in a column of A, flattened with order = 'F'
+
+        C:  np.ndarray (dimensions: # of components x # of timesteps)
+            set of temporal traces (each row of C corresponds to a trace)
+
+        f:  np.ndarray (dimensions: # of background components x # of timesteps)
+            set of temporal background components
+
+        b:  np.ndarray or scipy.sparse.csc_matrix (dimensions: # of pixels x # of background components)
+            set of spatial background components, flattened with order = 'F'
+
+        R:  np.ndarray (dimensions: # of components x # of timesteps)
+            set of trace residuals
+
+        YrA:    np.ndarray (dimensions: # of components x # of timesteps)
+            set of trace residuals
+
+        S:  np.ndarray (dimensions: # of components x # of timesteps)
+            set of deconvolved neural activity traces
+
+        F_dff:  np.ndarray (dimensions: # of components x # of timesteps)
+            set of DF/F normalized activity traces (only for 2p)
+
+        W:  scipy.sparse.coo_matrix (dimensions: # of pixels x # of pixels)
+            Ring model matrix (used in 1p processing with greedy_pnr for background computation)
+
+        b0: np.ndarray (dimensions: # of pixels)
+            constant baseline for each pixel
+
+        sn: np.ndarray (dimensions: # of pixels)
+            noise std for each pixel
+
+        g:  list (length: # of components)
+            time constants for each trace
+
+        bl: list (length: # of components)
+            constant baseline for each trace
+
+        c1: list (length: # of components)
+            initial value for each trace
+
+        neurons_sn: list (length: # of components)
+            noise std for each trace
+
+        center: list (length: # of components)
+            centroid coordinate for each spatial footprint
+
+        coordinates: list (length: # of components)
+            contour plot for each spatial footprint
+
+        idx_components: list
+            indeces of accepted components
+
+        idx_components_bad: list
+            indeces of rejected components
+
+        SNR_comp: np.ndarray
+            trace SNR for each component
+
+        r_values: np.ndarray
+            space correlation for each component
+
+        cnn_preds: np.ndarray
+            CNN predictions for each component
+        """
         # variables related to the estimates of traces, footprints, deconvolution and background
         self.A = A
         self.C = C
@@ -127,9 +199,6 @@ class Estimates(object):
         -----------
         Yr :    np.ndarray
                 movie in format pixels (d) x frames (T)
-
-        dims :  tuple
-                dimensions of the FOV
 
         img :   np.ndarray
                 background image for contour plotting. Default is the mean
