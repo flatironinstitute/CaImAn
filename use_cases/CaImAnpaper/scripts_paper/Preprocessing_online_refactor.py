@@ -64,7 +64,7 @@ try:
     save_results = True
 
 except:
-    ID = [0, 3]  # range(6,9)
+    ID = range(9)
     print('ID NOT PASSED')
     plot_on = False
     save_results = False
@@ -72,7 +72,7 @@ except:
 preprocessing_from_scratch = True
 if preprocessing_from_scratch:
     reload = False
-    save_results = False  # set to True if you want to regenerate
+    save_results = True  # set to True if you want to regenerate
 
 mot_corr = False
 base_folder = '/mnt/ceph/users/agiovann/LinuxDropbox/Dropbox/DATA_PAPER_ELIFE/'
@@ -361,6 +361,7 @@ if preprocessing_from_scratch:
         min_size_neuro = min_radius ** 2 * np.pi
         max_size_neuro = max_radius ** 2 * np.pi
 
+
         # %%
         c, dview, n_processes = cm.cluster.setup_cluster(backend='local', n_processes=None, single_thread=True)
         gt_file = os.path.join(base_folder, os.path.split(params_movie[ind_dataset]['fname'])[0],
@@ -373,16 +374,15 @@ if preprocessing_from_scratch:
             C_gt = ld['C_gt']
             Cn_orig = ld['Cn']
             if ds_factor > 1:
-                A_gt = cm.movie(np.reshape(A_gt, dims_or + (-1,), order='F')).transpose(2, 0, 1).resize(1. / ds_factor,
-                                                                                                        1. / ds_factor)
-                A_gt2 = np.array(np.reshape(A_gt, (A_gt.shape[0], -1), order='F')).T
-                Cn_orig = cv2.resize(Cn_orig, None, fx=1. / ds_factor, fy=1. / ds_factor)
+                A_gt2= np.concatenate([cv2.resize(A_gt[:, fr_].reshape(dims_or, order='F'), cnm.dims[::-1]).reshape(-1, order='F')[:,None] for fr_ in range(A_gt.shape[-1])], axis = 1)
+                # A_gt2 = np.reshape(A_gt, (A_gt.shape[0],-1), order='F')
+                Cn_orig = cv2.resize(Cn_orig, cnm.dims[::-1])
             else:
                 A_gt2 = A_gt.copy()
 
         # A_gt_thr = cm.source_extraction.cnmf.spatial.threshold_components(A_gt2, dims, medw=None, thr_method='max', maxthr=global_params['max_thr'], extract_cc=True,
         #                          se=None, ss=None, dview=None)
-        gt_estimate = Estimates(A=scipy.sparse.csc_matrix(A_gt2), b=None, C=C_gt, f=None, R=None, dims=dims_or)
+        gt_estimate = Estimates(A=scipy.sparse.csc_matrix(A_gt2), b=None, C=C_gt, f=None, R=None, dims=cnm.dims)
         gt_estimate.threshold_spatial_components(maxthr=global_params['max_thr'], dview=dview)
         gt_estimate.remove_small_large_neurons(min_size_neuro, max_size_neuro)
         _ = gt_estimate.remove_duplicates(predictions=None, r_values=None, dist_thr=0.1, min_dist=10, thresh_subset=0.6)
@@ -446,7 +446,6 @@ if preprocessing_from_scratch:
 
 else:
     print('**** LOADING PREPROCESSED RESULTS ****')
-    lsls
     with np.load('RESULTS_SUMMARY/all_results_Jan_2018_online.npz') as ld:
         all_results = ld['all_results'][()]
 

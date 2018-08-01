@@ -541,7 +541,7 @@ class OnACID(object):
 
         ds_factor = np.maximum(opts['ds_factor'], 1)
         if ds_factor > 1:
-            Y.resize(1./ds_factor)
+            Y = Y.resize(1./ds_factor, 1./ds_factor)
         mc_flag = self.params.get('online', 'motion_correct')
         self.estimates.shifts = []  # store motion shifts here
         self.estimates.time_new_comp = []
@@ -619,6 +619,7 @@ class OnACID(object):
         else:
             raise Exception('Unknown initialization method!')
         dims, Ts = get_file_size(fls)
+        dims = Y.shape[1:]
         self.params.set('data', {'dims': dims})
         T1 = np.array(Ts).sum()*self.params.get('online', 'epochs')
         self._prepare_object(Yr, T1)
