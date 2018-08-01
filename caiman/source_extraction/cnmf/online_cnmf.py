@@ -538,7 +538,7 @@ class OnACID(object):
 
         ds_factor = np.maximum(opts['ds_factor'], 1)
         if ds_factor > 1:
-            Y.resize(1./ds_factor)
+            Y = Y.resize(1./ds_factor, 1./ds_factor)
         mc_flag = self.params.get('online', 'motion_correct')
         self.estimates.shifts = []  # store motion shifts here
         self.estimates.time_new_comp = []
@@ -615,6 +615,7 @@ class OnACID(object):
         else:
             raise Exception('Unknown initialization method!')
         dims, Ts = get_file_size(fls)
+        dims = Y.shape[1:]
         self.params.set('data', {'dims': dims})
         T1 = np.array(Ts).sum()*self.params.get('online', 'epochs')
         self._prepare_object(Yr, T1)
@@ -1161,7 +1162,6 @@ def init_shapes_and_sufficient_stats(Y, A, C, b, f, bSiz=3):
     # closing of shapes to not have holes in index matrix ind_A.
     # do this somehow smarter & faster, e.g. smooth only within patch !!
     #a = Ab[:,0]
-
     A_smooth = np.transpose([gaussian_filter(np.array(a).reshape(
         dims, order='F'), 0).ravel(order='F') for a in Ab.T])
     A_smooth[A_smooth < 1e-2] = 0

@@ -60,14 +60,14 @@ def main():
     # dataset dependent parameters
     fr = 30             # imaging rate in frames per second
     decay_time = 0.4    # length of a typical transient in seconds
-    dxy = (2., 2.)      # spatial resolution in x and y in (um per pixel)
+    dxy = (1., 1.)      # spatial resolution in x and y in (um per pixel)
     max_shift_um = (12., 12.)           # maximum shift in um
     patch_motion_um = (100., 100.)  # patch size for non-rigid correction in um
 
     # motion correction parameters
-    pw_rigid = True       # flag to select rigid vs pw_rigid motion correction
+    pw_rigid = False       # flag to select rigid vs pw_rigid motion correction
     # maximum allow rigid shift in pixels
-    max_shifts = tuple([int(a/b) for a, b in zip(max_shift_um, dxy)])
+    max_shifts = [int(a/b) for a, b in zip(max_shift_um, dxy)]
     # for parallelization split the movies in  num_splits chuncks across time
     splits_rig = 56
     # start a new patch for pw-rigid motion correction every x pixels
@@ -79,13 +79,30 @@ def main():
     # maximum deviation allowed for patch with respect to rigid shifts
     max_deviation_rigid = 3
 
+    mc_dict = {
+        'fnames': fnames,
+        'fr': fr,
+        'decay_time': decay_time,
+        'dxy': dxy,
+        'pw_rigid': pw_rigid,
+        'max_shifts': max_shifts,
+        'splits_rig': splits_rig,
+        'splits_els': splits_els,
+        'strides': strides,
+        'overlaps': overlaps,
+        'max_deviation_rigid': max_deviation_rigid,
+        'border_nan': 'copy'
+    }
+
+    opts = params.CNMFParams(params_dict=mc_dict)
+
 # %% play the movie
     # playing the movie using opencv. It requires loading the movie in memory.
     # To close the video press q
-    display_images = False
+    display_images = True
 
     if display_images:
-        m_orig = cm.load_movie_chain(fname)
+        m_orig = cm.load_movie_chain(fnames)
         downsample_ratio = 0.2
         moviehandle = m_orig.resize(1, 1, downsample_ratio)
         moviehandle.play(q_max=99.5, fr=60, magnification=2)
@@ -97,11 +114,7 @@ def main():
 # %%% MOTION CORRECTION
     # first we create a motion correction object with the specified parameters
 
-    mc = MotionCorrect(fname, dview=dview, max_shifts=max_shifts,
-                       splits_rig=splits_rig, splits_els=splits_els,
-                       strides=strides, overlaps=overlaps, border_nan='copy',
-                       max_deviation_rigid=max_deviation_rigid,
-                       shifts_opencv=True, nonneg_movie=True, pw_rigid=pw_rigid)
+    mc = MotionCorrect(fnames, dview=dview, **opts.get_group('motion'))
     # note that the file is not loaded in memory
 
 # %% Run (piecewise-rigid motion) correction using NoRMCorre
@@ -112,7 +125,7 @@ def main():
         m_orig = cm.load_movie_chain(fname)
         m_els = cm.load(mc.mmap_file)
         downsample_ratio = 0.2
-        moviehandle = cm.concatenate([m_orig.resize(1, 1, downsample_ratio) - mc.min_mov,
+        moviehandle = cm.concatenate([m_orig.resize(1, 1, downsample_ratio) - mc.min_mov*mc.nonneg_movie,
                                       m_els.resize(1, 1, downsample_ratio)], axis=2)
         moviehandle.play(fr=60, q_max=99.5, magnification=2)  # press q to exit
 
@@ -151,15 +164,15 @@ def main():
                  'fr': fr,
                  'nb': gnb,
                  'rf': rf,
-                 'gSig': gSig,
                  'K': K,
+                 'gSig': gSig,
                  'stride': stride_cnmf,
                  'method_init': method_init,
                  'rolling_sum': True,
                  'merge_thr': merge_thresh,
                  'n_processes': n_processes}
 
-    opts = params.CNMFParams(params_dict=opts_dict)
+    opts.change_params(params_dict=opts_dict)
 # %% RUN CNMF ON PATCHES
     # First extract spatial and temporal components on patches and combine them
     # for this step deconvolution is turned off (p=0)
@@ -169,7 +182,7 @@ def main():
     cnm = cnm.fit(images)
 
 # %% plot contours of found components
-    Cn = cm.local_correlations(images.transpose(1, 2, 0))
+    Cn = cm.local_correlations(images, swap_dim=False)
     Cn[np.isnan(Cn)] = 0
     cnm.estimates.plot_contours(img=Cn)
     plt.title('Contour plots of found components')
@@ -181,11 +194,11 @@ def main():
     #   c) each shape passes a CNN based classifier
     min_SNR = 2.5       # signal to noise ratio for accepting a component
     rval_thr = 0.8      # space correlation threshold for accepting a component
-    cnn_thr = 0.8       # threshold for CNN based classifier
+    cnn_thr = 0.85      # threshold for CNN based classifier
     cnm.params.set('quality', {'decay_time': decay_time,
                                'min_SNR': min_SNR,
                                'rval_thr': rval_thr,
-                               'use_cnn': True,
+                               'use_cnn': False,
                                'min_cnn_thr': cnn_thr})
     cnm.estimates.evaluate_components(images, cnm.params, dview=dview)
 
@@ -202,20 +215,13 @@ def main():
 
 # %% RE-RUN seeded CNMF on accepted patches to refine and perform deconvolution
 
-#    cnm.dview = None
-#    cnm2 = deepcopy(cnm)
-#    cnm2.estimates.select_components(use_object=True)
-#    cnm2.dview = dview
-#    cnm2.params.set('patch', {'rf': None})
-#    cnm2.params.set('temporal', {'p': p})
-#    cnm2 = cnm2.fit(images)
     cnm2 = cnm.refit(images)
 
 # %% Extract DF/F values
     cnm2.estimates.detrend_df_f(quantileMin=8, frames_window=250)
 
 # %% Show final traces
-    cnm2.estimates.view_components(Yr, img=Cn)
+    cnm2.estimates.view_components(img=Cn)
 
 # %% reconstruct denoised movie (press q to exit)
     if display_images:

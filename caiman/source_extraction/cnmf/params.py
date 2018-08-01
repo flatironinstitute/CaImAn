@@ -426,23 +426,23 @@ class CNMFParams(object):
         }
         
         self.motion = {
-            'min_mov': 0, 
-            'max_shifts': (6, 6),
-            'niter_rig': 1,
-            'splits_rig': 14,
-            'pw_rigid': False,
-            'num_splits_to_process_rig': None,
-            'strides': (96, 96), 
-            'overlaps': (32, 32),
-            'splits_els': 14,
+            'border_nan': True,                 # flag for allowing NaN in the boundaries
+            'gSig_filt': None,                  # size of kernel for high pass spatial filtering in 1p data
+            'max_deviation_rigid': 3,           # maximum deviation between rigid and non-rigid
+            'max_shifts': (6, 6),               # maximum shifts per dimension (in pixels)
+            'min_mov': None,                    # minimum value of movie
+            'niter_rig': 1,                     # number of iterations rigid motion correction
+            'nonneg_movie': True,               # flag for producing a non-negative movie
             'num_splits_to_process_els': [7, None],
-            'upsample_factor_grid': 4,
-            'max_deviation_rigid': 3,
-            'shifts_opencv': True,
-            'nonneg_movie': False,
-            'gSig_filt': None,
-            'use_cuda': False,
-            'border_nan': True
+            'num_splits_to_process_rig': None,
+            'overlaps': (32, 32),               # overlap between patches in pw-rigid motion correction
+            'pw_rigid': False,                  # flag for performing pw-rigid motion correction
+            'shifts_opencv': True,              # flag for applying shifts using cubic interpolation (otherwise FFT)
+            'splits_els': 14,                   # number of splits across time for pw-rigid registration
+            'splits_rig': 14,                   # number of splits across time for rigid registration
+            'strides': (96, 96),                # how often to start a new patch in pw-rigid registration
+            'upsample_factor_grid': 4,          # motion field upsampling factor during FFT shifts
+            'use_cuda': False                   # flag for using a GPU
         }
         
         self.change_params(params_dict)
@@ -453,7 +453,7 @@ class CNMFParams(object):
         if self.online['thresh_fitness_raw'] is None:
             self.online['thresh_fitness_raw'] = scipy.special.log_ndtr(
                 -self.online['min_SNR']) * self.online['N_samples_exceptionality']
-        self.online['max_shifts'] = np.int(self.online['max_shifts'] / self.online['ds_factor'])
+        self.online['max_shifts'] = (np.array(self.online['max_shifts']) / self.online['ds_factor']).astype(int)
         if self.init['gSig'] is None:
             self.init['gSig'] = [-1, -1]
         if self.init['gSiz'] is None:

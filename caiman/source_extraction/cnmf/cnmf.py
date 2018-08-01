@@ -308,7 +308,6 @@ class CNMF(object):
                                    dims=self.params.data['dims'])
 
     def fit_file(self, motion_correct=False, indeces=[slice(None)]*3):
-        
         fnames = self.params.get('data', 'fnames')
         if os.path.exists(fnames[0]):
             _, extension = os.path.splitext(fnames[0])[:2]
@@ -321,7 +320,7 @@ class CNMF(object):
             fname_new = fnames[0]
             Yr, dims, T = mmapping.load_memmap(fnames[0])
             if np.isfortran(Yr):
-                raise Exception('The file should be in C order (see save_memmap function')
+                raise Exception('The file should be in C order (see save_memmap function)')
         else:
             if motion_correct:
                 mc = MotionCorrect(fnames, dview=self.dview, **self.params.motion)
@@ -343,9 +342,15 @@ class CNMF(object):
 
         images = np.reshape(Yr.T, [T] + list(dims), order='F')
         self.mmap_file = fname_new
-        return self.fit(images)
+        return self.fit(images, indeces=indeces)
 
     def refit(self, images):
+        """
+        Refits the data using CNMF initialized from a previous interation
+        :param images:
+        :return: cnm
+            a new CNMF object
+        """
         from copy import deepcopy
         cnm = CNMF(self.params.patch['n_processes'], params=self.params)
         cnm.dview = self.dview
