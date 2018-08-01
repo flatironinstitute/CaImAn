@@ -1,4 +1,4 @@
-For better support, please use the template below to submit your issue.
+For better support, please use the template below to submit your issue. When your issue gets resolved please remember to close it.
 
 Sometimes errors while running CNMF occur during parallel processing which prevents the log to provide a meaningful error message.
 Please reproduce your error with setting `dview=None`.
