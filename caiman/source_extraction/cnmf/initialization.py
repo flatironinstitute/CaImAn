@@ -1712,26 +1712,44 @@ def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True, ssub=1, tsub=1):
                     downscale(C, (1, tsub))) if A.size > 0 else 0) - \
                 downscale(b0.reshape(dims, order='F'),
                           (ssub, ssub)).reshape((-1, 1), order='F')
-    else:
-        X = None
 
     indices = []
     data = []
     indptr = [0]
-    for p in range(len(X)):
+    for p in range(d1*d2):
         index = get_indices_of_pixels_on_ring(p)
         indices += list(index)
-        B = Y[index] - A[index].dot(C) - \
-            b0[index, None] if X is None else X[index]
+        if data_fits_in_memory:
+            B = X[index]
+        elif ssub == 1 and tsub == 1:
+            B = Y[index] - A[index].dot(C) - b0[index, None]
+        else:
+            B = downscale(Y.reshape(dims + (-1,), order='F'),
+                          (ssub, ssub, tsub)).reshape((-1, (T - 1) // tsub + 1), order='F')[index] - \
+                (downscale(A.reshape(dims + (-1,), order='F'),
+                           (ssub, ssub, 1)).reshape((-1, len(C)), order='F')[index].dot(
+                    downscale(C, (1, tsub))) if A.size > 0 else 0) - \
+                downscale(b0.reshape(dims, order='F'),
+                          (ssub, ssub)).reshape((-1, 1), order='F')[index]
         tmp = np.array(B.dot(B.T))
+        if data_fits_in_memory:
+            tmp2 = X[p]
+        elif ssub == 1 and tsub == 1:
+            tmp2 = Y[p] - A[p].dot(C).ravel() - b0[p]
+        else:
+            tmp2 = downscale(Y.reshape(dims + (-1,), order='F'),
+                             (ssub, ssub, tsub)).reshape((-1, (T - 1) // tsub + 1), order='F')[p] - \
+                   (downscale(A.reshape(dims + (-1,), order='F'),
+                              (ssub, ssub, 1)).reshape((-1, len(C)), order='F')[p].dot(
+                       downscale(C, (1, tsub))) if A.size > 0 else 0) - \
+                   downscale(b0.reshape(dims, order='F'),
+                             (ssub, ssub)).reshape((-1, 1), order='F')[p]
         try:
-            data += list(np.linalg.inv(tmp).
-                         dot(B.dot(Y[p] - A[p].dot(C).ravel() - b0[p] if X is None else X[p])))
+            data += list(np.linalg.inv(tmp).dot(B.dot(tmp2)))
         except:
             # np.linalg.lstsq seems less robust but scipy version is
             # (robust but for the problem size slower) alternative
-            data += list(scipy.linalg.lstsq(B.T, Y[p] - A[p].dot(C) - b0[p]
-                                            if X is None else X[p], check_finite=False)[0])
+            data += list(scipy.linalg.lstsq(B.T, tmp2, check_finite=False)[0])
         indptr.append(len(indices))
     return spr.csr_matrix((data, indices, indptr), dtype='float32'), b0.astype(np.float32)
 
