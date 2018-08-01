@@ -169,10 +169,6 @@ try:
 except:
     def profile(a): return a
 
-if sys.version_info >= (3, 0):
-    def xrange(*args, **kwargs):
-        return iter(range(*args, **kwargs))
-
 
 def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter=5, maxIter=5, nb=1,
                           kernel=None, use_hals=True, normalize_init=True, img=None, method='greedy_roi',
@@ -416,8 +412,9 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
 
         Ain = np.reshape(Ain, (np.prod(d), K), order='F')
 
-    if nb>0:
-        b_in = np.reshape(b_in, ds + (-1,), order='F')
+    if (nb > 0 or nb == -1) and (ssub != 1 or tsub != 1):
+        sparse_b = spr.issparse(b_in)
+        b_in = np.reshape(b_in.toarray() if sparse_b else b_in, ds + (-1,), order='F')
 
         if len(ds) == 2:
             b_in = resize(b_in, d + (b_in.shape[-1],))
@@ -427,11 +424,13 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
             b_in = resize(b_in, (d[0], d[1] * d[2], b_in.shape[-1]))
 
         b_in = np.reshape(b_in, (np.prod(d), -1), order='F')
+        if sparse_b:
+            b_in = spr.csc_matrix(b_in)
 
-        try:
-            f_in = resize(np.atleast_2d(f_in), [b_in.shape[-1], T])
-        except:
-            f_in = spr.csc_matrix(resize(np.atleast_2d(f_in.toarray()), [b_in.shape[-1], T]))
+        # try:
+        f_in = resize(np.atleast_2d(f_in), [b_in.shape[-1], T])
+        # except:
+        #     f_in = spr.csc_matrix(resize(np.atleast_2d(f_in.toarray()), [b_in.shape[-1], T]))
 
     if Ain.size > 0:
         Cin = resize(Cin, [K, T])
@@ -1175,8 +1174,8 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
     use_NMF = True
     if nb == -1:
         print('Return full Background')
-        b_in = B
-        f_in = np.eye(T, dtype='float32')  # TODO spr.eye(T, dtype='float32')
+        b_in = spr.eye(len(B), dtype='float32')
+        f_in = B
     elif nb > 0:
         print('Estimate low rank Background')
         print(nb)
@@ -1713,26 +1712,44 @@ def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True, ssub=1, tsub=1):
                     downscale(C, (1, tsub))) if A.size > 0 else 0) - \
                 downscale(b0.reshape(dims, order='F'),
                           (ssub, ssub)).reshape((-1, 1), order='F')
-    else:
-        X = None
 
     indices = []
     data = []
     indptr = [0]
-    for p in xrange(len(X)):
+    for p in range(d1*d2):
         index = get_indices_of_pixels_on_ring(p)
         indices += list(index)
-        B = Y[index] - A[index].dot(C) - \
-            b0[index, None] if X is None else X[index]
+        if data_fits_in_memory:
+            B = X[index]
+        elif ssub == 1 and tsub == 1:
+            B = Y[index] - A[index].dot(C) - b0[index, None]
+        else:
+            B = downscale(Y.reshape(dims + (-1,), order='F'),
+                          (ssub, ssub, tsub)).reshape((-1, (T - 1) // tsub + 1), order='F')[index] - \
+                (downscale(A.reshape(dims + (-1,), order='F'),
+                           (ssub, ssub, 1)).reshape((-1, len(C)), order='F')[index].dot(
+                    downscale(C, (1, tsub))) if A.size > 0 else 0) - \
+                downscale(b0.reshape(dims, order='F'),
+                          (ssub, ssub)).reshape((-1, 1), order='F')[index]
         tmp = np.array(B.dot(B.T))
+        if data_fits_in_memory:
+            tmp2 = X[p]
+        elif ssub == 1 and tsub == 1:
+            tmp2 = Y[p] - A[p].dot(C).ravel() - b0[p]
+        else:
+            tmp2 = downscale(Y.reshape(dims + (-1,), order='F'),
+                             (ssub, ssub, tsub)).reshape((-1, (T - 1) // tsub + 1), order='F')[p] - \
+                   (downscale(A.reshape(dims + (-1,), order='F'),
+                              (ssub, ssub, 1)).reshape((-1, len(C)), order='F')[p].dot(
+                       downscale(C, (1, tsub))) if A.size > 0 else 0) - \
+                   downscale(b0.reshape(dims, order='F'),
+                             (ssub, ssub)).reshape((-1, 1), order='F')[p]
         try:
-            data += list(np.linalg.inv(tmp).
-                         dot(B.dot(Y[p] - A[p].dot(C).ravel() - b0[p] if X is None else X[p])))
+            data += list(np.linalg.inv(tmp).dot(B.dot(tmp2)))
         except:
             # np.linalg.lstsq seems less robust but scipy version is
             # (robust but for the problem size slower) alternative
-            data += list(scipy.linalg.lstsq(B.T, Y[p] - A[p].dot(C) - b0[p]
-                                            if X is None else X[p], check_finite=False)[0])
+            data += list(scipy.linalg.lstsq(B.T, tmp2, check_finite=False)[0])
         indptr.append(len(indices))
     return spr.csr_matrix((data, indices, indptr), dtype='float32'), b0.astype(np.float32)
 

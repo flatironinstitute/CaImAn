@@ -45,7 +45,7 @@ from .estimates import Estimates
 from .utilities import update_order, normalize_AC, get_file_size
 from .params import CNMFParams
 from .pre_processing import preprocess_data
-from .initialization import initialize_components, imblur, downscale
+from .initialization import initialize_components, imblur, downscale, compute_W
 from .merging import merge_components
 from .spatial import update_spatial_components
 from .temporal import update_temporal_components, constrained_foopsi_parallel
@@ -563,7 +563,7 @@ class CNMF(object):
             if self.params.get('init', 'center_psf'):  # merge taking best neuron
                 if self.params.get('patch', 'nb_patch') > 0:
 
-                    while len(self.merged_ROIs) > 0:
+                    while len(self.estimates.merged_ROIs) > 0:
                         self.merge_comps(Yr, mx=np.Inf, fast_merge=True)
 
                     print("update temporal")
@@ -583,6 +583,12 @@ class CNMF(object):
                                                       np.unique(np.concatenate(self.estimates.merged_ROIs)))
                             self.estimates.YrA = np.concatenate([self.estimates.YrA[not_merged],
                                                        np.array([self.estimates.YrA[m].mean(0) for m in self.estimates.merged_ROIs])])
+                    if self.params.get('init', 'nb') == 0:
+                        self.estimates.W, self.estimates.b0 = compute_W(
+                            Yr, self.estimates.A.toarray(), self.estimates.C, self.dims,
+                            self.params.get('init', 'ring_size_factor') *
+                            self.params.get('init', 'gSiz')[0],
+                            ssub=self.params.get('init', 'ssub_B'))
             else:
                 
                 while len(self.estimates.merged_ROIs) > 0:
