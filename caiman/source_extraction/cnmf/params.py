@@ -32,7 +32,15 @@ class CNMFParams(object):
                  update_num_comps=True, use_dense=True, use_peak_max=False,
                  only_init_patch=False, params_dict={},
                  ):
-        """Class for setting the CNMF parameters.
+        """Class for setting the processing parameters. All parameters for CNMF, online-CNMF, quality testing,
+        and motion correction can be set here and then used in the various processing pipeline steps.
+        The prefered way to set parameters is by using the set function, where a subclass is determined and a
+        dictionary is passed. The whole dictionary can also be initialized at once by passing a dictionary params_dict
+        when initializing the CNMFParams object. Direct setting of the positional arguments in CNMFParams is only
+        present for backwards compatibility reasons and should not be used if possible.
+
+        Parameters
+        ----------
 
         Any parameter that is not set get a default value specified
         by the dictionary default options
