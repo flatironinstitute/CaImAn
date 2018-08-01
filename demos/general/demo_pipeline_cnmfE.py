@@ -149,14 +149,14 @@ def main():
     #                     increase if you have memory problems
     #                     you can pass them here as boolean vectors
     low_rank_background = None  # None leaves background of each patch intact,
-    #                             True performs global low-rank approximation 
-    gnb = -1            # number of background components (rank) if positive,
+    #                             True performs global low-rank approximation if gnb>0
+    gnb = 0             # number of background components (rank) if positive,
     #                     else exact ring model with following settings
     #                         gnb= 0: Return background as b and W
     #                         gnb=-1: Return full rank background B
     #                         gnb<-1: Don't return background
-    nb_patch = -1       # number of background components (rank) per patch,
-    #                     use 0 or -1 for exact background of ring model (cf. gnb)
+    nb_patch = 0        # number of background components (rank) per patch if gnb>0,
+    #                     else it is set automatically
     min_corr = .8       # min peak value from correlation image
     min_pnr = 10        # min peak to noise ration from PNR image
     ssub_B = 2          # additional downsampling factor in space for background

@@ -438,6 +438,12 @@ class CNMFParams(object):
         if self.init['gSiz'] is None:
             self.init['gSiz'] = [2*gs + 1 for gs in self.init['gSig']]
 
+        if gnb <= 0:
+            logging.warning("gnb={}, hence setting keys nb_patch and low_rank_background ".format(gnb) +
+                            "in group patch automatically.")
+            self.set('patch', {'nb_patch': gnb, 'low_rank_background': None})
+
+
     def set(self, group, val_dict, set_if_not_exists=False):
         """ Add key-value pairs to a group. Existing key-value pairs will be overwritten
             if specified in val_dict, but not deleted.

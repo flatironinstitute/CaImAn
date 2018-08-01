@@ -142,8 +142,6 @@ class Estimates(object):
         """
         if 'csc_matrix' not in str(type(self.A)):
             self.A = scipy.sparse.csc_matrix(self.A)
-        if 'array' not in str(type(self.b)):
-            self.b = self.b.toarray()
 
         plt.ion()
         nr, T = self.C.shape
