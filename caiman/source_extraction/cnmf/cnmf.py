@@ -277,8 +277,8 @@ class CNMF(object):
         if params is None:
             self.params = CNMFParams(
                 border_pix=border_pix, del_duplicates=del_duplicates, low_rank_background=low_rank_background,
-                memory_fact=memory_fact, n_processes=n_processes, nb_patch=nb_patch, only_init_patch=only_init_patch, p_ssub=p_ssub, p_tsub=p_tsub,
-                remove_very_bad_comps=remove_very_bad_comps, rf=rf, stride=stride,
+                memory_fact=memory_fact, n_processes=n_processes, nb_patch=nb_patch, only_init_patch=only_init_patch,
+                p_ssub=p_ssub, p_tsub=p_tsub, remove_very_bad_comps=remove_very_bad_comps, rf=rf, stride=stride,
                 check_nan=check_nan, n_pixels_per_process=n_pixels_per_process,
                 k=k, center_psf=center_psf, gSig=gSig, gSiz=gSiz,
                 init_iter=init_iter, method_init=method_init, min_corr=min_corr,  min_pnr=min_pnr,
