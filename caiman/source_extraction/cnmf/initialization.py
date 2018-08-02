@@ -1727,10 +1727,10 @@ def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True, ssub=1, tsub=1):
         indices += list(index)
         B = Y[index] - A[index].dot(C) - \
             b0[index, None] if X is None else X[index]
-        tmp = np.array(B.dot(B.T)) + np.finfo(np.float32).eps * \
-              np.eye(len(B), dtype='float32')
-        data += list(np.linalg.inv(tmp).
-                dot(B.dot(Y[p] - A[p].dot(C).ravel() - b0[p] if X is None else X[p])))
+        tmp = np.array(B.dot(B.T))
+        tmp += np.diag(tmp).sum() * 1e-5 * np.eye(len(B))
+        data += list(np.linalg.inv(tmp).dot(
+            B.dot(Y[p] - A[p].dot(C).ravel() - b0[p] if X is None else X[p])))
         indptr.append(len(indices))
     return spr.csr_matrix((data, indices, indptr), dtype='float32'), b0.astype(np.float32)
 
