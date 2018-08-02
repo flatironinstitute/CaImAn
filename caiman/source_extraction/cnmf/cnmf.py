@@ -44,6 +44,8 @@ from .map_reduce import run_CNMF_patches
 from .merging import merge_components
 from .params import CNMFParams
 from .pre_processing import preprocess_data
+from .initialization import initialize_components, imblur, downscale, compute_W
+from .merging import merge_components
 from .spatial import update_spatial_components
 from .temporal import update_temporal_components, constrained_foopsi_parallel
 from .utilities import update_order
@@ -307,7 +309,6 @@ class CNMF(object):
                                    dims=self.params.data['dims'])
 
     def fit_file(self, motion_correct=False, indeces=[slice(None)]*3):
-        
         fnames = self.params.get('data', 'fnames')
         if os.path.exists(fnames[0]):
             _, extension = os.path.splitext(fnames[0])[:2]
@@ -352,8 +353,7 @@ class CNMF(object):
             a new CNMF object
         """
         from copy import deepcopy
-        cnm = CNMF(self.params.patch['n_processes'], params=self.params)
-        cnm.dview = dview
+        cnm = CNMF(self.params.patch['n_processes'], params=self.params, dview=dview)
         cnm.params.patch['rf'] = None
         estimates = deepcopy(self.estimates)
         estimates.select_components(use_object=True)

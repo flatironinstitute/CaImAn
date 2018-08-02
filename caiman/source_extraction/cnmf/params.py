@@ -17,7 +17,7 @@ class CNMFParams(object):
                  k=30, alpha_snmf=10e2, center_psf=False, gSig=[5, 5], gSiz=None,
                  init_iter=2, method_init='greedy_roi', min_corr=.85,
                  min_pnr=20, gnb=1, normalize_init=True, options_local_NMF=None,
-                 ring_size_factor=1.5, rolling_length=100, rolling_sum=False,
+                 ring_size_factor=1.5, rolling_length=100, rolling_sum=True,
                  ssub=2, ssub_B=2, tsub=2,
                  block_size=5000, num_blocks_per_run=20, update_background_components=True,
                  method_deconvolution='oasis', p=2, s_min=None,
@@ -32,222 +32,472 @@ class CNMFParams(object):
                  update_num_comps=True, use_dense=True, use_peak_max=False,
                  only_init_patch=False, params_dict={},
                  ):
-        """Class for setting the CNMF parameters.
+        """Class for setting the processing parameters. All parameters for CNMF, online-CNMF, quality testing,
+        and motion correction can be set here and then used in the various processing pipeline steps.
+        The prefered way to set parameters is by using the set function, where a subclass is determined and a
+        dictionary is passed. The whole dictionary can also be initialized at once by passing a dictionary params_dict
+        when initializing the CNMFParams object. Direct setting of the positional arguments in CNMFParams is only
+        present for backwards compatibility reasons and should not be used if possible.
+
+        Parameters/Attributes
+        ----------
 
         Any parameter that is not set get a default value specified
         by the dictionary default options
+        DATA PARAMETERS (CNMFParams.data) #####
 
-        PATCH PARAMS
-            rf: Half-size of patch
+            fnames: list[str]
+                list of complete paths to files that need to be processed
 
-            stride: overlap of patch
+            dims: (int, int), default: computed from fnames
+                dimensions of the FOV in pixels
 
-            memory_fact: A memory factor for patches
+            fr: float, default: 30
+                imaging rate in frames per second
 
-            border_pix: Number of pixels to exclude on the border.
+            decay_time: float, default: 0.4
+                length of typical transient in seconds
 
-            low_rank_background:bool
-                whether to update the using a low rank approximation. In the False case all the nonzero elements of the background components are updated using hals
+            dxy: (float, float)
+                spatial resolution of FOV in pixels per um
+
+        PATCH PARAMS (CNMFParams.patch)######
+
+            rf: int or None, default: None
+                Half-size of patch in pixels. If None, no patches are constructed and the whole FOV is processed jointly
+
+            stride: int or None, default: None
+                Overlap between neighboring patches in pixels.
+
+            nb_patch: int, default: 1
+                Number of (local) background components per patch
+
+            border_pix: int, default: 0
+                Number of pixels to exclude around each border.
+
+            low_rank_background: bool, default: True
+                Whether to update the background using a low rank approximation.
+                If False all the nonzero elements of the background components are updated using hals
                 (to be used with one background per patch)
 
-        PRE-PROCESS PARAMS#############
+            del_duplicates: bool, default: False
+                Delete duplicate components in the overlaping regions between neighboring patches. If False,
+                then merging is used.
 
-            sn: None,
+            only_init: bool, default: False
+                whether to run only the initialization
+
+            skip_refinement: bool, default: False
+                Whether to skip refinement of components (deprecated?)
+
+            remove_very_bad_comps: bool, default: True
+                Whether to remove (very) bad quality components during patch processing
+
+            ssub: float, default: 2
+                Spatial downsampling factor
+
+            tsub: float, default: 2
+                Temporal downsampling factor
+
+            memory_fact: float, default: 1
+                unitless number for increasing the amount of available memory
+
+            n_processes: int
+                Number of processes used for processing patches in parallel
+
+            in_memory: bool, default: True
+                Whether to load patches in memory
+
+        PRE-PROCESS PARAMS (CNMFParams.preprocess) #############
+
+            sn: np.array or None, default: None
                 noise level for each pixel
 
-            noise_range: [0.25, 0.5]
-                     range of normalized frequencies over which to average
+            noise_range: [float, float], default: [.25, .5]
+                range of normalized frequencies over which to compute the PSD for noise determination
 
-            noise_method': 'mean'
-                     averaging method ('mean','median','logmexp')
+            noise_method: 'mean'|'median'|'logmexp', default: 'mean'
+                PSD averaging method for computing the noise std
 
-            max_num_samples_fft': 3*1024
+            max_num_samples_fft: int, default: 3*1024
+                Chunk size for computing the PSD of the data (for memory considerations)
 
-            n_pixels_per_process: 1000
+            n_pixels_per_process: int, default: 1000
+                Number of pixels to be allocated to each process
 
-            compute_g': False
-                flag for estimating global time constant
+            compute_g': bool, default: False
+                whether to estimate global time constant
 
-            p : 2
+            p: int, default: 2
                  order of AR indicator dynamics
 
-            lags: 5
+            lags: int, default: 5
                 number of lags to be considered for time constant estimation
 
-            include_noise: False
+            include_noise: bool, default: False
                     flag for using noise values when estimating g
 
-            pixels: None
+            pixels: list, default: None
                  pixels to be excluded due to saturation
 
-            check_nan: True
+            check_nan: bool, default: True
+                whether to check for NaNs
 
-        INIT PARAMS###############
+        INIT PARAMS (CNMFParams.init)###############
 
-            n_processes: The number of processes to use, determines amount of memory to use.
+            K: int, default: 30
+                number of components to be found (per patch or whole FOV depending on whether rf=None)
 
-            K:     30
-                number of components
+            gSig: [int, int], default: [5, 5]
+                radius of average neurons (in pixels)
 
-            gSig: [5, 5]
-                  size of bounding box
+            gSiz: [int, int], default: [int(round((x * 2) + 1)) for x in gSig],
+                half-size of bounding box for each neuron
 
-            gSiz: [int(round((x * 2) + 1)) for x in gSig],
+            center_psf: bool, default: False
+                whether to use 1p data processing mode. Set to true for 1p
 
-            ssub:   2
+            ssub: float, default: 2
                 spatial downsampling factor
 
-            tsub:   2
+            tsub: float, default: 2
                 temporal downsampling factor
 
-            nIter: 5
-                number of refinement iterations
-
-            kernel: None
-                user specified template for greedyROI
-
-            maxIter: 5
-                number of HALS iterations
-
-            method: method_init
-                can be greedy_roi or sparse_nmf, local_NMF
-
-            max_iter_snmf : 500
-
-            alpha_snmf: 10e2
-
-            sigma_smooth_snmf : (.5,.5,.5)
-
-            perc_baseline_snmf: 20
-
-            nb:  1
+            nb: int, default: 1
                 number of background components
 
-            normalize_init:
-                whether to pixelwise equalize the movies during initialization
+            maxIter: int, default: 5
+                number of HALS iterations during initialization
 
-            options_local_NMF:
+            method: 'greedy_roi'|'greedy_pnr'|'sparse_NMF'|'local_NMF' default: 'greedy_roi'
+                initialization method. use 'greedy_pnr' for 1p processing and 'sparse_NMF' for dendritic processing.
+
+            min_corr: float, default: 0.85
+                minimum value of correlation image for determining a candidate component during greedy_pnr
+
+            min_pnr: float, default: 20
+                minimum value of psnr image for determining a candidate component during greedy_pnr
+
+            ring_size_factor: float, default: 1.5
+                radius of ring (*gSig) for computing background during greedy_pnr
+
+            ssub_B: float, default: 2
+                downsampling factor for background during greedy_pnr
+
+            init_iter: int, default: 2
+                number of iterations during greedy_pnr (1p) initialization
+
+            nIter: int, default: 5
+                number of rank-1 refinement iterations during greedy_roi initialization
+
+            rolling_sum: bool, default: True
+                use rolling sum (as opposed to full sum) for determining candidate centroids during greedy_roi
+
+            rolling_length: int, default: 100
+                width of rolling window for rolling sum option
+
+            kernel: np.array or None, default: None
+                user specified template for greedyROI
+
+            max_iter_snmf : int, default: 500
+                maximum number of iterations for sparse NMF initialization
+
+            alpha_snmf: float, default: 10e2
+                sparse NMF sparsity regularization weight
+
+            sigma_smooth_snmf : (float, float, float), default: (.5,.5,.5)
+                std of Gaussian kernel for smoothing data in sparse_NMF
+
+            perc_baseline_snmf: float, default: 20
+                percentile to be removed from the data in sparse_NMF prior to decomposition
+
+            normalize_init: bool, default: True
+                whether to equalize the movies during initialization
+
+            options_local_NMF: dict
                 dictionary with parameters to pass to local_NMF initializer
 
-        SPATIAL PARAMS##########
+        SPATIAL PARAMS (CNMFParams.spatial) ##########
 
-            dims: dims
-                number of rows, columns [and depths]
+            method: 'dilate'|'ellipse', default: 'dilate'
+                method for expanding footprint of spatial components
 
-            method: 'dilate','ellipse', 'dilate'
-                method for determining footprint of spatial components ('ellipse' or 'dilate')
-
-            dist: 3
+            dist: float, default: 3
                 expansion factor of ellipse
-            n_pixels_per_process: n_pixels_per_process
-                number of pixels to be processed by eacg worker
 
-            medw: (3,)*len(dims)
-                window of median filter
-            thr_method: 'nrg'
-               Method of thresholding ('max' or 'nrg')
+            expandCore: morphological element, default: None(?)
+                morphological element for expanding footprints under dilate
 
-            maxthr: 0.1
+            nb: int, default: 1
+                number of global background components
+
+            n_pixels_per_process: int, default: 1000
+                number of pixels to be processed by each worker
+
+            thr_method: 'nrg'|'max', default: 'max'
+                thresholding method
+
+            maxthr: float, default: 0.1
                 Max threshold
 
-            nrgthr: 0.9999
+            nrgthr: float, default: 0.9999
                 Energy threshold
 
+            extract_cc: bool, default: True
+                whether to extract connected components during thresholding
+                (might want to turn to False for dendritic imaging)
 
-            extract_cc: True
-                Flag to extract connected components (might want to turn to False for dendritic imaging)
+            medw: (int, int) default: None
+                window of median filter (set to (3,)*len(dims) in cnmf.fit)
 
-            se: np.ones((3,)*len(dims), dtype=np.uint8)
-                 Morphological closing structuring element
+            se: np.array or None, default: None
+                 Morphological closing structuring element (set to np.ones((3,)*len(dims), dtype=np.uint8) in cnmf.fit)
 
-            ss: np.ones((3,)*len(dims), dtype=np.uint8)
-                Binary element for determining connectivity
+            ss: np.array or None, default: None
+                Binary element for determining connectivity (set to np.ones((3,)*len(dims), dtype=np.uint8) in cnmf.fit)
 
+            update_background_components: bool, default: True
+                whether to update the spatial background components
 
-            update_background_components:bool
-                whether to update the background components in the spatial phase
-
-            method_ls:'lasso_lars'
+            method_ls: 'lasso_lars'|'nnls_L0'|'lasso_lars_old', default: 'lasso_lars'
                 'nnls_L0'. Nonnegative least square with L0 penalty
                 'lasso_lars' lasso lars function from scikit learn
                 'lasso_lars_old' lasso lars from old implementation, will be deprecated
 
-        TEMPORAL PARAMS###########
+            block_size : int, default: 5000
+                Number of pixels to process at the same time for dot product. Reduce if you face memory problems
 
-            ITER: 2
+            num_blocks_per_run: int, default: 20
+                Parallelization of A'*Y operation
+
+            normalize_yyt_one: bool, default: True
+                Whether to normalize the C and A matrices so that diag(C*C.T) = 1 during update spatial
+
+        TEMPORAL PARAMS (CNMFParams.temporal)###########
+
+            ITER: int, default: 2
                 block coordinate descent iterations
 
-            method:'oasis', 'cvxpy',  'oasis'
+            method: 'oasis'|'cvxpy'|'oasis', default: 'oasis'
                 method for solving the constrained deconvolution problem ('oasis','cvx' or 'cvxpy')
                 if method cvxpy, primary and secondary (if problem unfeasible for approx solution)
 
-            solvers: ['ECOS', 'SCS']
+            solvers: 'ECOS'|'SCS', default: ['ECOS', 'SCS']
                  solvers to be used with cvxpy, can be 'ECOS','SCS' or 'CVXOPT'
 
-            p:
+            p: 0|1|2, default: 2
                 order of AR indicator dynamics
 
             memory_efficient: False
 
-            bas_nonneg: True
-                flag for setting non-negative baseline (otherwise b >= min(y))
+            bas_nonneg: bool, default: True
+                whether to set a non-negative baseline (otherwise b >= min(y))
 
-            noise_range: [.25, .5]
-                range of normalized frequencies over which to average
+            noise_range: [float, float], default: [.25, .5]
+                range of normalized frequencies over which to compute the PSD for noise determination
 
-            noise_method: 'mean'
-                averaging method ('mean','median','logmexp')
+            noise_method: 'mean'|'median'|'logmexp', default: 'mean'
+                PSD averaging method for computing the noise std
 
-            lags: 5,
+            lags: int, default: 5
                 number of autocovariance lags to be considered for time constant estimation
 
-            fudge_factor: .96
-                bias correction factor (between 0 and 1, close to 1)
+            fudge_factor: float (close but smaller than 1) default: .96
+                bias correction factor for discrete time constants
 
-            nb
+            nb: int, default: 1
+                number of global background components
 
-            verbosity: False
+            verbosity: bool, default: False
+                whether to be verbose
 
-            block_size : block_size
-                number of pixels to process at the same time for dot product. Make it smaller if memory problems
+            block_size : int, default: 5000
+                Number of pixels to process at the same time for dot product. Reduce if you face memory problems
 
-        MERGE PARAMS
-            do_merge: Whether or not to merge
+            num_blocks_per_run: int, default: 20
+                Parallelization of A'*Y operation
 
-            thr: The merge threshold for spatial correlation.
+            s_min: float or None, default: None
+                Minimum spike threshold amplitude (computed in the code if used).
 
-        QUALITY EVALUATION PARAMETERS###########
+        MERGE PARAMS (CNMFParams.merge)#####
+            do_merge: bool, default: True
+                Whether or not to merge
 
-            fr: 30
-                Imaging rate
+            thr: float, default: 0.8
+                Trace correlation threshold for merging two components.
 
-            decay_time: 0.5
-                length of decay of typical transient (in seconds)
+        QUALITY EVALUATION PARAMETERS (CNMFParams.quality)###########
 
-            min_SNR: 2.5
-                trace SNR threshold
+            min_SNR: float, default: 2.5
+                trace SNR threshold. Traces with SNR above this will get accepted
 
-            SNR_lowest: 0.5
-                minimum required trace SNR
+            SNR_lowest: float, default: 0.5
+                minimum required trace SNR. Traces with SNR below this will get rejected
 
-            rval_thr: 0.8
-                space correlation threshold
+            rval_thr: float, default: 0.8
+                space correlation threshold. Components with correlation higher than this will get accepted
 
-            rval_lowest: -1
-                minimum required space correlation
+            rval_lowest: float, default: -1
+                minimum required space correlation. Components with correlation below this will get rejected
 
-            use_cnn: True
-                flag for using the CNN classifier
+            use_cnn: bool, default: True
+                flag for using the CNN classifier.
 
-            min_cnn_thr: 0.9
-                CNN classifier threshold
+            min_cnn_thr: float, default: 0.9
+                CNN classifier threshold. Components with score higher than this will get accepted
 
-            cnn_lowest: 0.1
-                minimum required CNN threshold
+            cnn_lowest: float, default: 0.1
+                minimum required CNN threshold. Components with score lower than this will get rejected.
 
-            gSig_range: None
-                gSig scale values for CNN classifier
+            gSig_range: list or integers, default: None
+                gSig scale values for CNN classifier. In not None, multiple values are tested in the CNN classifier.
 
+        ONLINE CNMF (ONACID) PARAMETERS (CNMFParams.online)#####
+
+            N_samples_exceptionality: int, default: np.ceil(decay_time*fr),
+                Number of frames over which trace SNR is computed (usually length of a typical transient)
+
+            batch_update_suff_stat: bool, default: False
+                Whether to update sufficient statistics in batch mode
+
+            ds_factor: int, default: 1,
+                spatial downsampling factor for faster processing (if > 1)
+
+            epochs: int, default: 1,
+                number of times to go over data
+
+            expected_comps: int, default: 500
+                number of expected components (for memory allocation purposes)
+
+            init_batch: int, default: 200,
+                length of mini batch used for initialization
+
+            init_method: 'bare'|'cnmf'|'seeded', default: 'bare',
+                initialization method
+
+            max_comp_update_shape: int, default: np.inf
+                Maximum number of spatial components to be updated at each time
+
+            max_num_added: int, default: 3
+                Maximum number of new components to be added in each frame
+
+            max_shifts: int, default: 10,
+                Maximum shifts for motion correction during online processing
+
+             min_SNR: float, default: 2.5
+                Trace SNR threshold for accepting a new component
+
+            min_num_trial: int, default: 3
+                Number of mew possible components for each frame
+
+            minibatch_shape: int, default: 100
+                Number of frames stored in rolling buffer
+
+            minibatch_suff_stat: int, default: 5
+                mini batch size for updating sufficient statistics
+
+            motion_correct: bool, default: True
+                Whether to perform motion correction during online processing
+
+            normalize: bool, default: False
+                Whether to normalize each frame prior to online processing
+
+            n_refit: int, default: 0
+                Number of additional iterations for computing traces
+
+            num_times_comp_updated: int, default: np.inf
+
+            path_to_model: str, default: os.path.join(caiman_datadir(), 'model', 'cnn_model_online.h5')
+                Path to online CNN classifier
+
+            rval_thr: float, default: 0.8
+                space correlation threshold for accepting a new component
+
+            show_movie: bool, default: False
+                Whether to display movie of online processing
+
+            simultaneously: bool, default: False
+                Whether to demix and deconvolve simultaneously
+
+            sniper_mode: bool, default: False
+                Whether to use the online CNN classifier for screening candidate components (otherwise space
+                correlation is used)
+
+            test_both: bool, default: False
+                Whether to use both the CNN and space correlation for screening new components
+
+            thresh_CNN_noisy: float, default: 0,5,
+                Threshold for the online CNN classifier
+
+            thresh_fitness_delta: float (negative)
+                Derivative test for detecting traces
+
+            thresh_fitness_raw: float (negative), default: computed from min_SNR
+                Threshold value for testing trace SNR
+
+            thresh_overlap: float, default: 0.5
+                Intersection-over-Union space overlap threshold for screening new components
+
+            update_num_comps: bool, default: True
+                Whether to search for new components
+
+            use_dense: bool, default: True
+                Whether to store and represent A and b as a dense matrix
+
+            use_peak_max: bool, default: False
+                Whether to find candidate centroids using skimage's find local peaks function
+
+        MOTION CORRECTION PARAMETERS (CNMFParams.motion)####
+
+            border_nan: bool or str, default: 'copy'
+                flag for allowing NaN in the boundaries. True allows NaN, whereas 'copy' copies the value of the
+                nearest data point.
+
+            gSig_filt: int or None, default: None
+                size of kernel for high pass spatial filtering in 1p data. If None no spatial filtering is performed
+
+            max_deviation_rigid: int, default: 3
+                maximum deviation in pixels between rigid shifts and shifts of individual patches
+
+            max_shifts: (int, int), default: (6,6)
+                maximum shifts per dimension in pixels.
+
+            min_mov: float or None, default: None
+                minimum value of movie. If None it get computed.
+
+            niter_rig: int, default: 1
+                number of iterations rigid motion correction.
+
+            nonneg_movie: bool, default: True
+                flag for producing a non-negative movie.
+
+            num_splits_to_process_els, default: [7, None]
+            num_splits_to_process_rig, default: None
+
+            overlaps: (int, int), default: (24, 24)
+                overlap between patches in pixels in pw-rigid motion correction.
+
+            pw_rigid: bool, default: False
+                flag for performing pw-rigid motion correction.
+
+            shifts_opencv: bool, default: True
+                flag for applying shifts using cubic interpolation (otherwise FFT)
+
+            splits_els: int, default: 14
+                number of splits across time for pw-rigid registration
+
+            splits_rig: int, default: 14
+                number of splits across time for rigid registration
+
+            strides: (int, int), default: (96, 96)
+                how often to start a new patch in pw-rigid registration. Size of each patch will be strides + overlaps
+
+            upsample_factor_grid" int, default: 4
+                motion field upsampling factor during FFT shifts.
+
+            use_cuda: bool, default: False
+                flag for using a GPU.
         """
 
         self.data = {
@@ -342,7 +592,7 @@ class CNMFParams(object):
             'num_blocks_per_run': num_blocks_per_run,
             'se': None,                      # Morphological closing structuring element
             'ss': None,                      # Binary element for determining connectivity
-            'thr_method': 'nrg',             # Method of thresholding ('max' or 'nrg')
+            'thr_method': 'max',             # Method of thresholding ('max' or 'nrg')
             # whether to update the background components in the spatial phase
             'update_background_components': update_background_components,
         }
@@ -426,23 +676,23 @@ class CNMFParams(object):
         }
         
         self.motion = {
-            'min_mov': 0, 
-            'max_shifts': (6, 6),
-            'niter_rig': 1,
-            'splits_rig': 14,
-            'pw_rigid': False,
-            'num_splits_to_process_rig': None,
-            'strides': (96, 96), 
-            'overlaps': (32, 32),
-            'splits_els': 14,
+            'border_nan': 'copy',                 # flag for allowing NaN in the boundaries
+            'gSig_filt': None,                  # size of kernel for high pass spatial filtering in 1p data
+            'max_deviation_rigid': 3,           # maximum deviation between rigid and non-rigid
+            'max_shifts': (6, 6),               # maximum shifts per dimension (in pixels)
+            'min_mov': None,                    # minimum value of movie
+            'niter_rig': 1,                     # number of iterations rigid motion correction
+            'nonneg_movie': True,               # flag for producing a non-negative movie
             'num_splits_to_process_els': [7, None],
-            'upsample_factor_grid': 4,
-            'max_deviation_rigid': 3,
-            'shifts_opencv': True,
-            'nonneg_movie': False,
-            'gSig_filt': None,
-            'use_cuda': False,
-            'border_nan': True
+            'num_splits_to_process_rig': None,
+            'overlaps': (32, 32),               # overlap between patches in pw-rigid motion correction
+            'pw_rigid': False,                  # flag for performing pw-rigid motion correction
+            'shifts_opencv': True,              # flag for applying shifts using cubic interpolation (otherwise FFT)
+            'splits_els': 14,                   # number of splits across time for pw-rigid registration
+            'splits_rig': 14,                   # number of splits across time for rigid registration
+            'strides': (96, 96),                # how often to start a new patch in pw-rigid registration
+            'upsample_factor_grid': 4,          # motion field upsampling factor during FFT shifts
+            'use_cuda': False                   # flag for using a GPU
         }
         
         self.change_params(params_dict)
@@ -453,11 +703,17 @@ class CNMFParams(object):
         if self.online['thresh_fitness_raw'] is None:
             self.online['thresh_fitness_raw'] = scipy.special.log_ndtr(
                 -self.online['min_SNR']) * self.online['N_samples_exceptionality']
-        self.online['max_shifts'] = np.int(self.online['max_shifts'] / self.online['ds_factor'])
+        self.online['max_shifts'] = (np.array(self.online['max_shifts']) / self.online['ds_factor']).astype(int)
         if self.init['gSig'] is None:
             self.init['gSig'] = [-1, -1]
         if self.init['gSiz'] is None:
             self.init['gSiz'] = [2*gs + 1 for gs in self.init['gSig']]
+
+        if gnb <= 0:
+            logging.warning("gnb={}, hence setting keys nb_patch and low_rank_background ".format(gnb) +
+                            "in group patch automatically.")
+            self.set('patch', {'nb_patch': gnb, 'low_rank_background': None})
+
 
     def set(self, group, val_dict, set_if_not_exists=False):
         """ Add key-value pairs to a group. Existing key-value pairs will be overwritten

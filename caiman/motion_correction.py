@@ -157,7 +157,7 @@ class MotionCorrect(object):
 
     def __init__(self, fname, min_mov=None, dview=None, max_shifts=(6, 6), niter_rig=1, splits_rig=14, num_splits_to_process_rig=None,
                  strides=(96, 96), overlaps=(32, 32), splits_els=14, num_splits_to_process_els=[7, None],
-                 upsample_factor_grid=4, max_deviation_rigid=3, shifts_opencv=True, nonneg_movie=False, gSig_filt=None,
+                 upsample_factor_grid=4, max_deviation_rigid=3, shifts_opencv=True, nonneg_movie=True, gSig_filt=None,
                  use_cuda=False, border_nan=True, pw_rigid=False):
         """
         Constructor class for motion correction operations
@@ -203,11 +203,16 @@ class MotionCorrect(object):
                     for m_ in cm.load(self.fname[0], subindices=range(400))]).min()
 
         if self.pw_rigid:
-            return self.motion_correct_pwrigid(template=template,
-                                               save_movie=save_movie)
+            self.motion_correct_pwrigid(template=template, save_movie=save_movie)
+            b0 = np.ceil(np.maximum(np.max(np.abs(self.x_shifts_els)),
+                                    np.max(np.abs(self.y_shifts_els))))
         else:
-            return self.motion_correct_rigid(template=template,
-                                             save_movie=save_movie)
+            self.motion_correct_rigid(template=template, save_movie=save_movie)
+            b0 = np.ceil(np.max(np.abs(self.shifts_rig)))
+        self.border_to_0 = b0.astype(np.int)
+        self.mmap_file = self.fname_tot_els if self.pw_rigid else self.fname_tot_rig
+        
+        return self
 
     def motion_correct_rigid(self, template=None, save_movie=False):
         """

@@ -17,10 +17,82 @@ from ...components_evaluation import (
         evaluate_components_CNN, estimate_components_quality_auto,
         select_components_from_metrics)
 from ...base.rois import detect_duplicates_and_subsets, nf_match_neurons_in_binary_masks
-
+from .initialization import downscale
 
 class Estimates(object):
     def __init__(self, A=None, b=None, C=None, f=None, R=None, dims=None):
+        """Class for storing the variables related to the estimates of spatial footprints, temporal traces,
+        deconvolved neural activity, and background. Quality metrics are also stored. The class has methods
+        for evaluating the quality of each component, DF/F normalization and some basic plotting.
+
+        Parameters/Attributes
+        ---------------------
+        A:  scipy.sparse.csc_matrix (dimensions: # of pixels x # components)
+            set of spatial footprints. Each footprint is represented in a column of A, flattened with order = 'F'
+
+        C:  np.ndarray (dimensions: # of components x # of timesteps)
+            set of temporal traces (each row of C corresponds to a trace)
+
+        f:  np.ndarray (dimensions: # of background components x # of timesteps)
+            set of temporal background components
+
+        b:  np.ndarray or scipy.sparse.csc_matrix (dimensions: # of pixels x # of background components)
+            set of spatial background components, flattened with order = 'F'
+
+        R:  np.ndarray (dimensions: # of components x # of timesteps)
+            set of trace residuals
+
+        YrA:    np.ndarray (dimensions: # of components x # of timesteps)
+            set of trace residuals
+
+        S:  np.ndarray (dimensions: # of components x # of timesteps)
+            set of deconvolved neural activity traces
+
+        F_dff:  np.ndarray (dimensions: # of components x # of timesteps)
+            set of DF/F normalized activity traces (only for 2p)
+
+        W:  scipy.sparse.coo_matrix (dimensions: # of pixels x # of pixels)
+            Ring model matrix (used in 1p processing with greedy_pnr for background computation)
+
+        b0: np.ndarray (dimensions: # of pixels)
+            constant baseline for each pixel
+
+        sn: np.ndarray (dimensions: # of pixels)
+            noise std for each pixel
+
+        g:  list (length: # of components)
+            time constants for each trace
+
+        bl: list (length: # of components)
+            constant baseline for each trace
+
+        c1: list (length: # of components)
+            initial value for each trace
+
+        neurons_sn: list (length: # of components)
+            noise std for each trace
+
+        center: list (length: # of components)
+            centroid coordinate for each spatial footprint
+
+        coordinates: list (length: # of components)
+            contour plot for each spatial footprint
+
+        idx_components: list
+            indeces of accepted components
+
+        idx_components_bad: list
+            indeces of rejected components
+
+        SNR_comp: np.ndarray
+            trace SNR for each component
+
+        r_values: np.ndarray
+            space correlation for each component
+
+        cnn_preds: np.ndarray
+            CNN predictions for each component
+        """
         # variables related to the estimates of traces, footprints, deconvolution and background
         self.A = A
         self.C = C
@@ -132,9 +204,6 @@ class Estimates(object):
         Yr :    np.ndarray
                 movie in format pixels (d) x frames (T)
 
-        dims :  tuple
-                dimensions of the FOV
-
         img :   np.ndarray
                 background image for contour plotting. Default is the mean
                 image of all spatial components (d1 x d2)
@@ -146,8 +215,6 @@ class Estimates(object):
         """
         if 'csc_matrix' not in str(type(self.A)):
             self.A = scipy.sparse.csc_matrix(self.A)
-        if 'array' not in str(type(self.b)):
-            self.b = self.b.toarray()
 
         plt.ion()
         nr, T = self.C.shape
@@ -219,7 +286,19 @@ class Estimates(object):
                 B = B.toarray()
             B = B.reshape(dims + (-1,), order='F').transpose([2, 0, 1])
         elif self.W is not None:
-            B = self.W.dot(imgs[frame_range] - self.A.dot(self.C[:, frame_range]))
+            ssub_B = int(round(np.sqrt(np.prod(dims) / self.W.shape[0])))
+            B = imgs[frame_range].reshape((-1, np.prod(dims)), order='F').T - \
+                self.A.dot(self.C[:, frame_range])
+            if ssub_B==1:
+                B = self.b0[:, None] + self.W.dot(B - self.b0[:, None])
+            else:
+                B = self.b0[:, None] + (np.repeat(np.repeat(self.W.dot(
+                    downscale(B.reshape(dims + (B.shape[-1],), order='F'),
+                              (ssub_B, ssub_B, 1)).reshape((-1, B.shape[-1]), order='F') -
+                    downscale(self.b0.reshape(dims, order='F'),
+                              (ssub_B, ssub_B)).reshape((-1, 1), order='F'))
+                    .reshape(((dims[0] - 1) // ssub_B + 1, (dims[1] - 1) // ssub_B + 1, -1), order='F'),
+                    ssub_B, 0), ssub_B, 1)[:dims[0], :dims[1]].reshape((-1, B.shape[-1]), order='F'))
             B = B.reshape(dims + (-1,), order='F').transpose([2, 0, 1])
         else:
             B = np.zeros_like(Y_rec)
@@ -325,11 +404,9 @@ class Estimates(object):
         """
         if 'csc_matrix' not in str(type(self.A)):
             self.A = scipy.sparse.csc_matrix(self.A)
-        if 'array' not in str(type(self.b)):
-            self.b = self.b.toarray()
         if 'array' not in str(type(self.C)):
             self.C = self.C.toarray()
-        if 'array' not in str(type(self.f)):
+        if 'array' not in str(type(self.f)) and self.f is not None:
             self.f = self.f.toarray()
 
         nA = np.sqrt(np.ravel(self.A.power(2).sum(axis=0)))
@@ -348,11 +425,13 @@ class Estimates(object):
         if self.neurons_sn is not None:
             self.neurons_sn = nA * self.neurons_sn
 
-        nB = np.sqrt(np.ravel((self.b**2).sum(axis=0)))
-        nB_mat = scipy.sparse.spdiags(nB, 0, nB.shape[0], nB.shape[0])
-        nB_inv_mat = scipy.sparse.spdiags(1. / nB, 0, nB.shape[0], nB.shape[0])
-        self.b = self.b * nB_inv_mat
-        self.f = nB_mat * self.f
+        if self.f is not None:  # 1p with exact ring-model
+            nB = np.sqrt(np.ravel((self.b.power(2) if scipy.sparse.issparse(self.b)
+                         else self.b**2).sum(axis=0)))
+            nB_mat = scipy.sparse.spdiags(nB, 0, nB.shape[0], nB.shape[0])
+            nB_inv_mat = scipy.sparse.spdiags(1. / nB, 0, nB.shape[0], nB.shape[0])
+            self.b = self.b * nB_inv_mat
+            self.f = nB_mat * self.f
         return self
 
     def select_components(self, idx_components=None, use_object=False):

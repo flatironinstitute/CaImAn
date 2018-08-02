@@ -1179,7 +1179,6 @@ def init_shapes_and_sufficient_stats(Y, A, C, b, f, bSiz=3):
     # closing of shapes to not have holes in index matrix ind_A.
     # do this somehow smarter & faster, e.g. smooth only within patch !!
     #a = Ab[:,0]
-
     A_smooth = np.transpose([gaussian_filter(np.array(a).reshape(
         dims, order='F'), 0).ravel(order='F') for a in Ab.T])
     A_smooth[A_smooth < 1e-2] = 0
