@@ -265,9 +265,7 @@ def get_noise_fft_parallel(Y, n_pixels_per_process=100, dview=None, **kwargs):
 
     else:
         if dview is not None:
-            raise Exception(
-                'ipyparallel backend only works with memory mapped files')
-
+            raise Exception('parallel processing requires memory mapped files')
         Y_name = Y
 
     argsin = [(Y_name, i, n_pixels_per_process, kwargs) for i in pixel_groups]

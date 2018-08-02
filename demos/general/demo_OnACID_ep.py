@@ -18,7 +18,13 @@ from caiman.utils.visualization import view_patches_bar, plot_contours
 from copy import deepcopy
 from scipy.special import log_ndtr
 from caiman.paths import caiman_datadir
-
+try:
+    if __IPYTHON__:
+        print("Detected iPython")
+        get_ipython().magic('load_ext autoreload')
+        get_ipython().magic('autoreload 2')
+except NameError:
+    pass
 #%%
 def main():
     pass # For compatibility between running under Spyder and the CLI
@@ -77,37 +83,31 @@ def main():
                    'normalize': False,
                    'K': K}
     opts = cnmf.params.CNMFParams(params_dict=params_dict)
-#%% obtain initial batch file used for initialization
-    cnm = cnmf.CNMF(2, params=opts)
+#%% fit with online object
+    cnm = cnmf.online_cnmf.OnACID(params=opts)
     cnm.fit_online()
-    
+
 #%% plot contours
     
     print(('Number of components:' + str(cnm.estimates.A.shape[-1])))
     Cn = cm.load(fname[0], subindices=slice(0,500)).local_correlations(swap_dim=False)
     cnm.estimates.plot_contours(img=Cn)
 
-##%% pass through the CNN classifier with a low threshold (keeps clearer neuron shapes and excludes processes)
-#    use_CNN = True
-#    if use_CNN:
-#        # threshold for CNN classifier
-#        thresh_cnn = 0.1
-#        from caiman.components_evaluation import evaluate_components_CNN
-#        predictions, final_crops = evaluate_components_CNN(
-#            A, dims, gSig, model_name=os.path.join(caiman_datadir(), 'model', 'cnn_model'))
-#        A_exclude, C_exclude = A[:, predictions[:, 1] <
-#                                 thresh_cnn], C[predictions[:, 1] < thresh_cnn]
-#        A, C = A[:, predictions[:, 1] >=
-#                 thresh_cnn], C[predictions[:, 1] >= thresh_cnn]
-#        noisyC = cnm.estimates.noisyC[gnb:cnm.M]
-#        YrA = noisyC[predictions[:, 1] >= thresh_cnn] - C
-#    else:
-#        YrA = cnm.estimates.noisyC[gnb:cnm.M] - C
-
+#%% pass through the CNN classifier with a low threshold (keeps clearer neuron shapes and excludes processes)
+    use_CNN = True
+    if use_CNN:
+        # threshold for CNN classifier
+        opts.set('quality', {'min_cnn_thr': 0.05})
+        cnm.estimates.evaluate_components_CNN(opts)
+        cnm.estimates.plot_contours(img=Cn, idx=cnm.estimates.idx_components)
 #%% plot results
     Y = cm.load(fname[0])
-    cnm.estimates.view_components(Y.reshape((2000,4800), order='F').T)
-    
+    cnm.estimates.view_components(img=Cn, idx=cnm.estimates.idx_components)
+    #%% save_object
+    cnm.save('test.hdf5')
+    #%% load object
+    cnm1 = cm.source_extraction.cnmf.online_cnmf.load_dict_from_hdf5('test.hdf5')
+    cnm1.estimates.plot_contours(img=Cn)
 #%%
 # This is to mask the differences between running this demo in Spyder
 # versus from the CLI

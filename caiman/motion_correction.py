@@ -155,10 +155,10 @@ class MotionCorrect(object):
 
        """
 
-    def __init__(self, fname, min_mov, dview=None, max_shifts=(6, 6), niter_rig=1, splits_rig=14, num_splits_to_process_rig=None,
+    def __init__(self, fname, min_mov=None, dview=None, max_shifts=(6, 6), niter_rig=1, splits_rig=14, num_splits_to_process_rig=None,
                  strides=(96, 96), overlaps=(32, 32), splits_els=14, num_splits_to_process_els=[7, None],
-                 upsample_factor_grid=4, max_deviation_rigid=3, shifts_opencv=True, nonneg_movie=False, gSig_filt=None,
-                 use_cuda=False, border_nan=True):
+                 upsample_factor_grid=4, max_deviation_rigid=3, shifts_opencv=True, nonneg_movie=True, gSig_filt=None,
+                 use_cuda=False, border_nan=True, pw_rigid=False):
         """
         Constructor class for motion correction operations
 
@@ -189,8 +189,30 @@ class MotionCorrect(object):
         self.gSig_filt = gSig_filt
         self.use_cuda = use_cuda
         self.border_nan = border_nan
+        self.pw_rigid = pw_rigid
         if self.use_cuda and not HAS_CUDA:
             print("pycuda is unavailable. Falling back to default FFT.")
+
+    def motion_correct(self, template=None, save_movie=False):
+        if self.min_mov is None:
+            if self.gSig_filt is None:
+                self.min_mov = np.array([cm.load(self.fname[0],
+                                                 subindices=range(400))]).min()
+            else:
+                self.min_mov = np.array([high_pass_filter_space(m_, self.gSig_filt)
+                    for m_ in cm.load(self.fname[0], subindices=range(400))]).min()
+
+        if self.pw_rigid:
+            self.motion_correct_pwrigid(template=template, save_movie=save_movie)
+            b0 = np.ceil(np.maximum(np.max(np.abs(self.x_shifts_els)),
+                                    np.max(np.abs(self.y_shifts_els))))
+        else:
+            self.motion_correct_rigid(template=template, save_movie=save_movie)
+            b0 = np.ceil(np.max(np.abs(self.shifts_rig)))
+        self.border_to_0 = b0.astype(np.int)
+        self.mmap_file = self.fname_tot_els if self.pw_rigid else self.fname_tot_rig
+        
+        return self
 
     def motion_correct_rigid(self, template=None, save_movie=False):
         """
@@ -1931,12 +1953,25 @@ def tile_and_correct(img, template, strides, overlaps, max_shifts, newoverlaps=N
             imgs, templates, [upsample_factor_fft] * num_tiles)]
         shfts = [sshh[0] for sshh in shfts_et_all]
         diffs_phase = [sshh[2] for sshh in shfts_et_all]
-
         # create a vector field
         shift_img_x = np.reshape(np.array(shfts)[:, 0], dim_grid)
         shift_img_y = np.reshape(np.array(shfts)[:, 1], dim_grid)
         diffs_phase_grid = np.reshape(np.array(diffs_phase), dim_grid)
 
+        if shifts_opencv:
+            if gSig_filt is not None:
+                img = img_orig
+            dims = img.shape
+            x_grid, y_grid = np.meshgrid(np.arange(0., dims[0]).astype(
+                np.float32), np.arange(0., dims[1]).astype(np.float32))
+            m_reg = cv2.remap(img, cv2.resize(shift_img_y.astype(np.float32), dims) + x_grid,
+                              cv2.resize(shift_img_x.astype(np.float32), dims) + y_grid,
+                              cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
+                             # borderValue=add_to_movie)
+            total_shifts = [
+                    (-x, -y) for x, y in zip(shift_img_x.reshape(num_tiles), shift_img_y.reshape(num_tiles))]
+            return m_reg - add_to_movie, total_shifts, None, None
+        
         # create automatically upsample parameters if not passed
         if newoverlaps is None:
             newoverlaps = overlaps
@@ -1974,6 +2009,7 @@ def tile_and_correct(img, template, strides, overlaps, max_shifts, newoverlaps=N
             (-x, -y) for x, y in zip(shift_img_x.reshape(num_tiles), shift_img_y.reshape(num_tiles))]
         total_diffs_phase = [
             dfs for dfs in diffs_phase_grid_us.reshape(num_tiles)]
+
         if shifts_opencv:
             if gSig_filt is not None:
                 img = img_orig

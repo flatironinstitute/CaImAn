@@ -201,7 +201,7 @@ def main():
                                'rval_thr': rval_thr,
                                'use_cnn': True,
                                'min_cnn_thr': cnn_thr})
-    cnm.evaluate_components(images)
+    cnm.estimates.evaluate_components(images, cnm.params, dview=dview)
 
 #%% PLOT COMPONENTS
     cnm.estimates.plot_contours(img=Cn, idx=cnm.estimates.idx_components)
