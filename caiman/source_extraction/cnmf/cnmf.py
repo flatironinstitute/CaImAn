@@ -320,7 +320,7 @@ class CNMF(object):
             fname_new = fnames[0]
             Yr, dims, T = mmapping.load_memmap(fnames[0])
             if np.isfortran(Yr):
-                raise Exception('The file should be in C order (see save_memmap function')
+                raise Exception('The file should be in C order (see save_memmap function)')
         else:
             if motion_correct:
                 mc = MotionCorrect(fnames, dview=self.dview, **self.params.motion)
@@ -342,8 +342,24 @@ class CNMF(object):
 
         images = np.reshape(Yr.T, [T] + list(dims), order='F')
         self.mmap_file = fname_new
-        return self.fit(images)
-    
+        return self.fit(images, indeces=indeces)
+
+    def refit(self, images, dview=None):
+        """
+        Refits the data using CNMF initialized from a previous interation
+        :param images:
+        :return: cnm
+            a new CNMF object
+        """
+        from copy import deepcopy
+        cnm = CNMF(self.params.patch['n_processes'], params=self.params)
+        cnm.dview = dview
+        cnm.params.patch['rf'] = None
+        estimates = deepcopy(self.estimates)
+        estimates.select_components(use_object=True)
+        cnm.estimates = estimates
+        return cnm.fit(images)
+
     def fit(self, images, indeces=[slice(None), slice(None)]):
         """
         This method uses the cnmf algorithm to find sources in data.
@@ -547,7 +563,7 @@ class CNMF(object):
             if self.params.get('init', 'center_psf'):  # merge taking best neuron
                 if self.params.get('patch', 'nb_patch') > 0:
 
-                    while len(self.merged_ROIs) > 0:
+                    while len(self.estimates.merged_ROIs) > 0:
                         self.merge_comps(Yr, mx=np.Inf, fast_merge=True)
 
                     print("update temporal")
@@ -567,6 +583,12 @@ class CNMF(object):
                                                       np.unique(np.concatenate(self.estimates.merged_ROIs)))
                             self.estimates.YrA = np.concatenate([self.estimates.YrA[not_merged],
                                                        np.array([self.estimates.YrA[m].mean(0) for m in self.estimates.merged_ROIs])])
+                    if self.params.get('init', 'nb') == 0:
+                        self.estimates.W, self.estimates.b0 = compute_W(
+                            Yr, self.estimates.A.toarray(), self.estimates.C, self.dims,
+                            self.params.get('init', 'ring_size_factor') *
+                            self.params.get('init', 'gSiz')[0],
+                            ssub=self.params.get('init', 'ssub_B'))
             else:
                 
                 while len(self.estimates.merged_ROIs) > 0:
@@ -590,10 +612,10 @@ class CNMF(object):
         '''
         if '.hdf5' in filename:
             # keys_types = [(k, type(v)) for k, v in self.__dict__.items()]
-            ptpt = self.optional_outputs
-            self.optional_outputs = None
+            # ptpt = self.optional_outputs
+            # self.optional_outputs = None
             save_dict_to_hdf5(self.__dict__, filename)
-            self.optional_outputs = ptpt
+            # self.optional_outputs = ptpt
 
         else:
             raise Exception("Filename not supported")

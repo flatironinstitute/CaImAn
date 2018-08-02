@@ -376,7 +376,7 @@ class Estimates(object):
             idx_components = self.idx_components
         if idx_components is None:
             idx_components = range(self.A.shape[-1])
-
+        import pdb
 
         for field in ['C', 'S', 'YrA', 'R', 'g', 'bl', 'c1', 'neurons_sn', 'lam', 'cnn_preds']:
             print(field)
@@ -572,7 +572,7 @@ class Estimates(object):
 
         return self
 
-    def threshold_spatial_components(self, maxthr=0.25, dview=None):
+    def threshold_spatial_components(self, maxthr=0.25, dview=None, **kwargs):
         ''' threshold spatial components. See parameters of spatial.threshold_components
 
         @param medw:
@@ -586,8 +586,9 @@ class Estimates(object):
         '''
 
         if self.A_thr is None:
-            A_thr = threshold_components(self.A, self.dims, medw=None, thr_method='max', maxthr=maxthr,
-                                         extract_cc=True, se=None, ss=None, dview=dview)
+
+            A_thr = threshold_components(self.A, self.dims,  maxthr=maxthr, dview=dview, medw=None, thr_method='max', nrgthr=0.99,
+                                         extract_cc=True, se=None, ss=None, **kwargs)
 
             self.A_thr = A_thr
         else:
