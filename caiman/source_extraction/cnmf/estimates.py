@@ -12,9 +12,11 @@ import scipy.sparse
 import caiman
 import logging
 from .utilities import detrend_df_f
+from .spatial import threshold_components
 from ...components_evaluation import (
         evaluate_components_CNN, estimate_components_quality_auto,
         select_components_from_metrics)
+from ...base.rois import detect_duplicates_and_subsets, nf_match_neurons_in_binary_masks
 from .initialization import downscale
 
 class Estimates(object):
@@ -143,6 +145,8 @@ class Estimates(object):
 
         self.dims = dims
         self.shifts = []
+
+        self.A_thr = None
 
 
 
@@ -451,18 +455,42 @@ class Estimates(object):
             idx_components = self.idx_components
         if idx_components is None:
             idx_components = range(self.A.shape[-1])
+        import pdb
 
-        self.A = self.A.tocsc()[:, idx_components]
-        self.C = self.C[idx_components]
-        self.S = self.S[idx_components]
-        self.YrA = self.YrA[idx_components]
-        self.R = self.YrA
-        self.g = self.g[idx_components]
-        self.bl = self.bl[idx_components]
-        self.c1 = self.c1[idx_components]
-        self.neurons_sn = self.neurons_sn[idx_components]
-        self.lam = self.lam[idx_components]
+        for field in ['C', 'S', 'YrA', 'R', 'g', 'bl', 'c1', 'neurons_sn', 'lam', 'cnn_preds']:
+            print(field)
+            if getattr(self, field) is not None:
+                if type(getattr(self, field)) is list:
+                    setattr(self, field, np.array(getattr(self, field)))
+                if len(getattr(self, field)) == self.A.shape[-1]:
+                    setattr(self, field, getattr(self, field)[idx_components])
+                else:
+                    print('*** Variable ' + field + ' has not the same number of components as A ***')
+
+        for field in ['A', 'A_thr']:
+            print(field)
+            if getattr(self, field) is not None:
+                if 'sparse' in str(type(getattr(self, field))):
+                    setattr(self, field, getattr(self, field).tocsc()[:, idx_components])
+                else:
+                    setattr(self, field, getattr(self, field)[:, idx_components])
+
+
+        # self.A = self.A.tocsc()[:, idx_components]
+        # self.C = self.C[idx_components]
+        # self.S = self.S[idx_components]
+        # self.YrA = self.YrA[idx_components]
+        # self.R = self.YrA
+        # self.g = self.g[idx_components]
+        # self.bl = self.bl[idx_components]
+        # self.c1 = self.c1[idx_components]
+        # self.neurons_sn = self.neurons_sn[idx_components]
+        # self.lam = self.lam[idx_components]
+        #
+        # if self.A_thr is not None:
+        #     self.A_thr = self.A_thr.tocsc()[:, idx_components]
         self.idx_components = None
+        self.idx_components_bad = None
         return self
 
     def evaluate_components_CNN(self, params, neuron_class=1):
@@ -622,3 +650,105 @@ class Estimates(object):
                                        gSig_range=opts['gSig_range'])
 
         return self
+
+    def threshold_spatial_components(self, maxthr=0.25, dview=None, **kwargs):
+        ''' threshold spatial components. See parameters of spatial.threshold_components
+
+        @param medw:
+        @param thr_method:
+        @param maxthr:
+        @param extract_cc:
+        @param se:
+        @param ss:
+        @param dview:
+        @return:
+        '''
+
+        if self.A_thr is None:
+
+            A_thr = threshold_components(self.A, self.dims,  maxthr=maxthr, dview=dview, medw=None, thr_method='max', nrgthr=0.99,
+                                         extract_cc=True, se=None, ss=None, **kwargs)
+
+            self.A_thr = A_thr
+        else:
+            print('A_thr already computed. If you want to recompute set self.A_thr to None')
+
+
+
+    def remove_small_large_neurons(self, min_size_neuro, max_size_neuro):
+        ''' remove neurons that are too large or too smal
+
+        @param min_size_neuro: min size in pixels
+        @param max_size_neuro: max size inpixels
+        @return:
+        '''
+        if self.A_thr is None:
+            raise Exception('You need to compute thresolded components before calling remove_duplicates: use the threshold_components method')
+
+        A_gt_thr_bin = self.A_thr > 0
+        size_neurons_gt = A_gt_thr_bin.sum(0)
+        neurons_to_keep = np.where((size_neurons_gt > min_size_neuro) & (size_neurons_gt < max_size_neuro))[0]
+        self.select_components(idx_components=neurons_to_keep)
+
+
+    def remove_duplicates(self, predictions=None, r_values=None, dist_thr=0.1, min_dist=10, thresh_subset=0.6, plot_duplicates=False):
+        ''' remove neurons that heavily overlapand might be duplicates
+
+        @param predictions:
+        @param r_values:
+        @param dist_thr:
+        @param min_dist:
+        @param thresh_subset:
+        @param plot_duplicates:
+        @return:
+        '''
+        if self.A_thr is None:
+            raise Exception('You need to compute thresolded components before calling remove_duplicates: use the threshold_components method')
+
+        A_gt_thr_bin = (self.A_thr > 0).reshape([self.dims[0], self.dims[1], -1], order='F').transpose([2, 0, 1]) * 1.
+
+        duplicates_gt, indeces_keep_gt, indeces_remove_gt, D_gt, overlap_gt = detect_duplicates_and_subsets(
+            A_gt_thr_bin,predictions=predictions, r_values=r_values,dist_thr=dist_thr, min_dist=min_dist,
+            thresh_subset=thresh_subset)
+
+        if len(duplicates_gt) > 0:
+            if plot_duplicates:
+                plt.figure()
+                plt.subplot(1, 3, 1)
+                plt.imshow(A_gt_thr_bin[np.array(duplicates_gt).flatten()].sum(0))
+                plt.colorbar()
+                plt.subplot(1, 3, 2)
+                plt.imshow(A_gt_thr_bin[np.array(indeces_keep_gt)[:]].sum(0))
+                plt.colorbar()
+                plt.subplot(1, 3, 3)
+                plt.imshow(A_gt_thr_bin[np.array(indeces_remove_gt)[:]].sum(0))
+                plt.colorbar()
+                plt.pause(1)
+            components_to_keep = np.delete(np.arange(self.A.shape[-1]), indeces_remove_gt)
+            self.select_components(idx_components=components_to_keep)
+
+        print('Duplicates gt:' + str(len(duplicates_gt)))
+        return duplicates_gt, indeces_keep_gt, indeces_remove_gt, D_gt, overlap_gt
+
+
+def compare_components(estimate_gt, estimate_cmp,  Cn=None, thresh_cost=.8, min_dist=10, print_assignment=False, labels=['GT', 'CMP'], plot_results=False):
+    if estimate_gt.A_thr is None:
+        raise Exception(
+            'You need to compute thresolded components for first argument before calling remove_duplicates: use the threshold_components method')
+    if estimate_cmp.A_thr is None:
+        raise Exception(
+            'You need to compute thresolded components for second argument before calling remove_duplicates: use the threshold_components method')
+
+
+    if plot_results:
+        plt.figure(figsize=(20, 10))
+
+    dims = estimate_gt.dims
+    A_gt_thr_bin = (estimate_gt.A_thr>0).reshape([dims[0], dims[1], -1], order='F').transpose([2, 0, 1]) * 1.
+    A_thr_bin = (estimate_cmp.A_thr>0).reshape([dims[0], dims[1], -1], order='F').transpose([2, 0, 1]) * 1.
+
+    tp_gt, tp_comp, fn_gt, fp_comp, performance_cons_off = nf_match_neurons_in_binary_masks(
+        A_gt_thr_bin, A_thr_bin, thresh_cost=thresh_cost, min_dist=min_dist, print_assignment=print_assignment,
+        plot_results=plot_results, Cn=Cn, labels=labels)
+
+    return tp_gt, tp_comp, fn_gt, fp_comp, performance_cons_off

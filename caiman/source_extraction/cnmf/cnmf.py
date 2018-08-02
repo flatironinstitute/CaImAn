@@ -26,33 +26,34 @@ See Also:
 from __future__ import division
 from __future__ import print_function
 
-from builtins import str
-from builtins import object
-import numpy as np
-import cv2
-import os
-import scipy
-import psutil
-from time import time
-import logging
-import sys
 import inspect
+import logging
+import os
+import sys
+from builtins import object
+from builtins import str
 
-import caiman
-from .map_reduce import run_CNMF_patches
-from .oasis import OASIS
+import cv2
+import numpy as np
+import psutil
+import scipy
+
 from .estimates import Estimates
-from .utilities import update_order, normalize_AC, get_file_size
+from .initialization import initialize_components
+from .map_reduce import run_CNMF_patches
+from .merging import merge_components
 from .params import CNMFParams
 from .pre_processing import preprocess_data
 from .initialization import initialize_components, imblur, downscale, compute_W
 from .merging import merge_components
 from .spatial import update_spatial_components
 from .temporal import update_temporal_components, constrained_foopsi_parallel
-from ...components_evaluation import estimate_components_quality_auto, select_components_from_metrics, estimate_components_quality
-from ...motion_correction import motion_correct_iteration_fast, MotionCorrect
+from .utilities import update_order
 from ... import mmapping
+from ...components_evaluation import estimate_components_quality
+from ...motion_correction import MotionCorrect
 from ...utils.utils import save_dict_to_hdf5, load_dict_from_hdf5
+
 #from .online_cnmf import RingBuffer, HALS4activity, HALS4shapes, demix_and_deconvolve, remove_components_online
 #from .online_cnmf import init_shapes_and_sufficient_stats, update_shapes, update_num_components, bare_initialization, seeded_initialization
 
@@ -344,7 +345,7 @@ class CNMF(object):
         self.mmap_file = fname_new
         return self.fit(images, indeces=indeces)
 
-    def refit(self, images):
+    def refit(self, images, dview=None):
         """
         Refits the data using CNMF initialized from a previous interation
         :param images:
@@ -352,8 +353,7 @@ class CNMF(object):
             a new CNMF object
         """
         from copy import deepcopy
-        cnm = CNMF(self.params.patch['n_processes'], params=self.params)
-        cnm.dview = self.dview
+        cnm = CNMF(self.params.patch['n_processes'], params=self.params, dview=dview)
         cnm.params.patch['rf'] = None
         estimates = deepcopy(self.estimates)
         estimates.select_components(use_object=True)
@@ -612,10 +612,10 @@ class CNMF(object):
         '''
         if '.hdf5' in filename:
             # keys_types = [(k, type(v)) for k, v in self.__dict__.items()]
-            ptpt = self.optional_outputs
-            self.optional_outputs = None
+            # ptpt = self.optional_outputs
+            # self.optional_outputs = None
             save_dict_to_hdf5(self.__dict__, filename)
-            self.optional_outputs = ptpt
+            # self.optional_outputs = ptpt
 
         else:
             raise Exception("Filename not supported")

@@ -18,7 +18,13 @@ from caiman.utils.visualization import view_patches_bar, plot_contours
 from copy import deepcopy
 from scipy.special import log_ndtr
 from caiman.paths import caiman_datadir
-
+try:
+    if __IPYTHON__:
+        print("Detected iPython")
+        get_ipython().magic('load_ext autoreload')
+        get_ipython().magic('autoreload 2')
+except NameError:
+    pass
 #%%
 def main():
     pass # For compatibility between running under Spyder and the CLI
@@ -97,7 +103,11 @@ def main():
 #%% plot results
     Y = cm.load(fname[0])
     cnm.estimates.view_components(img=Cn, idx=cnm.estimates.idx_components)
-
+    #%% save_object
+    cnm.save('test.hdf5')
+    #%% load object
+    cnm1 = cm.source_extraction.cnmf.online_cnmf.load_dict_from_hdf5('test.hdf5')
+    cnm1.estimates.plot_contours(img=Cn)
 #%%
 # This is to mask the differences between running this demo in Spyder
 # versus from the CLI

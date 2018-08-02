@@ -16,34 +16,37 @@ imaging data in real time. In Advances in Neural Information Processing Systems
 
 from __future__ import division
 from __future__ import print_function
-from past.builtins import basestring
-from builtins import zip
+
 from builtins import map
-from builtins import str
 from builtins import range
-from past.utils import old_div
-import cv2
-import numpy as np
-from scipy.ndimage import percentile_filter
-from scipy.sparse import coo_matrix, csc_matrix, spdiags
-from scipy.ndimage.filters import gaussian_filter
-from scipy.stats import norm
-from skimage.feature import peak_local_max
+from builtins import str
+from builtins import zip
 from math import sqrt
-from sklearn.decomposition import NMF
-from sklearn.preprocessing import normalize
 from time import time
 
+import cv2
+import numpy as np
+from past.utils import old_div
+from scipy.ndimage import percentile_filter
+from scipy.ndimage.filters import gaussian_filter
+from scipy.sparse import coo_matrix, csc_matrix, spdiags
+from scipy.stats import norm
+from skimage.feature import peak_local_max
+from sklearn.decomposition import NMF
+from sklearn.preprocessing import normalize
+
 import caiman
-from ...motion_correction import motion_correct_iteration_fast
+from caiman.source_extraction.cnmf import params
+from .cnmf import CNMF
+from .estimates import Estimates
+from .initialization import imblur, initialize_components, hals
+from .oasis import OASIS
+from .params import CNMFParams
+from .utilities import update_order, get_file_size
 from ... import mmapping
 from ...components_evaluation import compute_event_exceptionality
-from .initialization import imblur, initialize_components, hals
-from .estimates import Estimates
-from .utilities import update_order, get_file_size
-from .params import CNMFParams
-from .oasis import OASIS
-from .cnmf import CNMF
+from ...motion_correction import motion_correct_iteration_fast
+from ...utils.utils import save_dict_to_hdf5, load_dict_from_hdf5
 
 try:
     cv2.setNumThreads(0)
@@ -554,6 +557,7 @@ class OnACID(object):
             Y -= img_min
         img_norm = np.std(Y, axis=0)
         img_norm += np.median(img_norm)  # normalize data to equalize the FOV
+        print('Size frame:' + str(img_norm.shape))
         if self.params.get('online', 'normalize'):
             Y = Y/img_norm[None, :, :]
         if opts['show_movie']:
@@ -625,6 +629,19 @@ class OnACID(object):
             self.bnd_BG = np.percentile(self.estimates.b.dot(self.estimates.f),
                                         (0.001, 100-0.001))
         return self
+
+    def save(self,filename):
+        '''save object in hdf5 file format
+        Parameters:
+        -----------
+        filename: str
+            path to the hdf5 file containing the saved object
+        '''
+        if '.hdf5' in filename:
+            # keys_types = [(k, type(v)) for k, v in self.__dict__.items()]
+            save_dict_to_hdf5(self.__dict__, filename)
+        else:
+            raise Exception("Filename not supported")
 
     def fit_online(self, **kwargs):
         """Implements the caiman online algorithm on the list of files fls. The
@@ -1870,3 +1887,45 @@ def initialize_movie_online(Y, K, gSig, rf, stride, base_name,
 #    save_object(cnm_init,fls[0][:-4]+ '_DS_' + str(ds)+ '_init.pkl')
 
     return cnm_refine, Cn2, fname_new
+
+def load_OnlineCNMF(filename, dview = None):
+    '''load object saved with the CNMF save method
+    Parameters:
+    ----------
+    filename: str
+        hdf5 file name containing the saved object
+    dview: multiprocessingor ipyparallel object
+        useful to set up parllelization in the objects
+
+    '''
+
+    #load params
+
+    for key,val in load_dict_from_hdf5(filename).items():
+        if key == 'params':
+            prms = CNMFParams()
+            prms.data = val['data']
+            prms.patch = val['patch']
+            prms.preprocess = val['preprocess']
+            prms.init = val['init']
+            prms.spatial = val['spatial']
+            prms.temporal = val['temporal']
+            prms.merging = val['merging']
+            prms.quality = val['quality']
+            prms.quality = val['online']
+
+    new_obj = OnACID(params=prms)
+
+    for key, val in load_dict_from_hdf5(filename).items():
+        if key == 'dview':
+            setattr(new_obj, key, dview)
+        elif key == 'estimates':
+            estim = Estimates()
+            for key_est, val_est in val.items():
+                setattr(estim, key_est, val_est)
+            new_obj.estimates = estim
+        else:
+            if key not in ['params', 'estimates']:
+                setattr(new_obj, key, val)
+
+    return new_obj

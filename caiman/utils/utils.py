@@ -444,11 +444,21 @@ def recursively_save_dict_contents_to_group(h5file, path, dic):
 
     # save items to the hdf5 file
     for key, item in dic.items():
+        # print('**')
         # print(key,item)
+        # print(type(item).__name__)
         key = str(key)
+
         if key == 'g':
             print(key + ' is an object type')
             item = np.array(list(item))
+        if key == 'g_tot':
+            item = np.asarray(item, dtype=np.float)
+        if key in ['groups', 'idx_tot', 'ind_A', 'Ab_epoch','coordinates','loaded_model', 'optional_outputs']:
+            print(['groups', 'idx_tot', 'ind_A', 'Ab_epoch', 'coordinates', 'loaded_model', 'optional_outputs',
+                   '** not saved'])
+            continue
+
         if isinstance(item, list):
             item = np.array(item)
         if not isinstance(key, str):
@@ -479,10 +489,10 @@ def recursively_save_dict_contents_to_group(h5file, path, dic):
         # other types cannot be saved and will result in an error
         elif item is None or key == 'dview':
             h5file[path + key] = 'NoneType'
-        elif key in ['dims','medw','sigma_smooth_snmf']:
+        elif key in ['dims','medw', 'sigma_smooth_snmf', 'dxy', 'max_shifts', 'strides', 'overlaps', 'gSig']:
             print(key + ' is a tuple ****')
             h5file[path + key] = np.array(item)
-        elif 'CNMFSetParms' in str(type(item)): # parameter object
+        elif type(item).__name__ in ['CNMFParams', 'Estimates']: # parameter object
             recursively_save_dict_contents_to_group(h5file, path + key + '/', item.__dict__)
         else:
             raise ValueError('Cannot save %s type.' % type(item))
@@ -499,6 +509,7 @@ def recursively_load_dict_contents_from_group( h5file, path):
     '''
     ans = {}
     for key, item in h5file[path].items():
+
         if isinstance(item, h5py._hl.dataset.Dataset):
             val_set = np.nan
             if isinstance(item.value, str):
@@ -506,8 +517,12 @@ def recursively_load_dict_contents_from_group( h5file, path):
                     ans[key] = None
                 else:
                     ans[key] = item.value
-            elif key in ['dims', 'medw', 'sigma_smooth_snmf']:
-                ans[key] = tuple(item.value)
+            elif key in ['dims', 'medw', 'sigma_smooth_snmf', 'dxy', 'max_shifts', 'strides', 'overlaps']:
+
+                if type(item.value) == np.ndarray:
+                    ans[key] = tuple(item.value)
+                else:
+                    ans[key] = item.value
             else:
                 if type(item.value) == np.bool_:
                     ans[key] = bool(item.value)
