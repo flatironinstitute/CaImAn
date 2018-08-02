@@ -57,12 +57,13 @@ pipeline {
           }
         }
 
+	// With the CONDA_ENV variable on windows, you must be careful not to hit the maximum path length. 
         stage('win-python3') {
           agent {
             label 'windows && anaconda3'
           }
           environment {
-            CONDA_ENV = "${env.WORKSPACE}\\test\\${env.STAGE_NAME}"
+            CONDA_ENV = "${env.WORKSPACE}\\conda-envinst"
           }
           steps {
             bat '%ANACONDA3%\\scripts\\conda info'
