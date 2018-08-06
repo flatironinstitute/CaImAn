@@ -472,6 +472,9 @@ class CNMFParams(object):
             nonneg_movie: bool, default: True
                 flag for producing a non-negative movie.
 
+            num_frames_split: int, default: 80
+                split movie every x frames for parallel processing
+
             num_splits_to_process_els, default: [7, None]
             num_splits_to_process_rig, default: None
 
@@ -683,6 +686,7 @@ class CNMFParams(object):
             'min_mov': None,                    # minimum value of movie
             'niter_rig': 1,                     # number of iterations rigid motion correction
             'nonneg_movie': True,               # flag for producing a non-negative movie
+            'num_frames_split': 80,             # split across time every x frames
             'num_splits_to_process_els': [7, None],
             'num_splits_to_process_rig': None,
             'overlaps': (32, 32),               # overlap between patches in pw-rigid motion correction
@@ -698,6 +702,13 @@ class CNMFParams(object):
         self.change_params(params_dict)
         if self.data['dims'] is None and self.data['fnames'] is not None:
             self.data['dims'] = get_file_size(self.data['fnames'])[0]
+        if self.data['fnames'] is not None:
+            T = get_file_size(self.data['fnames'])[1]
+            if len(self.data['fnames'] > 1):
+                T = T[0]
+            num_splits = max(T//self.motion['num_frames_split'])
+            self.motion['splits_els'] = num_splits
+            self.motion['splits_rig'] = num_splits
         if self.online['N_samples_exceptionality'] is None:
             self.online['N_samples_exceptionality'] = np.ceil(self.data['fr'] * self.data['decay_time']).astype('int')
         if self.online['thresh_fitness_raw'] is None:
