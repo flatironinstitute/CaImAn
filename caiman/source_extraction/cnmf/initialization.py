@@ -1751,6 +1751,7 @@ def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True, ssub=1, tsub=1):
             # np.linalg.lstsq seems less robust but scipy version is
             # (robust but for the problem size slower) alternative
             data += list(scipy.linalg.lstsq(B.T, tmp2, check_finite=False)[0])
+
         indptr.append(len(indices))
     return spr.csr_matrix((data, indices, indptr), dtype='float32'), b0.astype(np.float32)
 
