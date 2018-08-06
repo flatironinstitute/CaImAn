@@ -25,8 +25,8 @@ class CNMFParams(object):
                  do_merge=True, merge_thresh=0.8,
                  decay_time=0.4, fr=30, min_SNR=2.5, rval_thr=0.8,
                  N_samples_exceptionality=None, batch_update_suff_stat=False,
-                 expected_comps=500, max_comp_update_shape=np.inf, max_num_added=3,
-                 min_num_trial=2, minibatch_shape=100, minibatch_suff_stat=5,
+                 expected_comps=500, max_comp_update_shape=np.inf, max_num_added=5,
+                 min_num_trial=5, minibatch_shape=100, minibatch_suff_stat=5,
                  n_refit=0, num_times_comp_updated=np.inf, simultaneously=False,
                  sniper_mode=False, test_both=False, thresh_CNN_noisy=0.5,
                  thresh_fitness_delta=-50, thresh_fitness_raw=None, thresh_overlap=0.5,
@@ -380,16 +380,16 @@ class CNMFParams(object):
             max_comp_update_shape: int, default: np.inf
                 Maximum number of spatial components to be updated at each time
 
-            max_num_added: int, default: 3
+            max_num_added: int, default: 5
                 Maximum number of new components to be added in each frame
 
             max_shifts: int, default: 10,
                 Maximum shifts for motion correction during online processing
 
-             min_SNR: float, default: 2.5
+            min_SNR: float, default: 2.5
                 Trace SNR threshold for accepting a new component
 
-            min_num_trial: int, default: 3
+            min_num_trial: int, default: 5
                 Number of mew possible components for each frame
 
             minibatch_shape: int, default: 100
