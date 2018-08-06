@@ -158,31 +158,31 @@ class MotionCorrect(object):
     def __init__(self, fname, min_mov=None, dview=None, max_shifts=(6, 6), niter_rig=1, splits_rig=14, num_splits_to_process_rig=None,
                  strides=(96, 96), overlaps=(32, 32), splits_els=14, num_splits_to_process_els=[7, None],
                  upsample_factor_grid=4, max_deviation_rigid=3, shifts_opencv=True, nonneg_movie=True, gSig_filt=None,
-                 use_cuda=False, border_nan=True, pw_rigid=False):
+                 use_cuda=False, border_nan=True, pw_rigid=False, num_frames_split=80):
         """
         Constructor class for motion correction operations
 
         """
         if 'ndarray' in str(type(fname)):
-            print('Creating file for motion correction "tmp_mov_mot_corr.hdf5"')
+            print('Creating temporary file for motion correction "tmp_mov_mot_corr.hdf5"')
             cm.movie(fname).save('./tmp_mov_mot_corr.hdf5')
             fname = ['./tmp_mov_mot_corr.hdf5']
 
         if type(fname) is not list:
             fname = [fname]
 
-        self.fname=fname
-        self.dview=dview
-        self.max_shifts=max_shifts
-        self.niter_rig=niter_rig
-        self.splits_rig=splits_rig
-        self.num_splits_to_process_rig=num_splits_to_process_rig
-        self.strides= strides
-        self.overlaps= overlaps
-        self.splits_els=splits_els
-        self.num_splits_to_process_els=num_splits_to_process_els
-        self.upsample_factor_grid=upsample_factor_grid
-        self.max_deviation_rigid=max_deviation_rigid
+        self.fname = fname
+        self.dview = dview
+        self.max_shifts = max_shifts
+        self.niter_rig = niter_rig
+        self.splits_rig = splits_rig
+        self.num_splits_to_process_rig = num_splits_to_process_rig
+        self.strides = strides
+        self.overlaps = overlaps
+        self.splits_els = splits_els
+        self.num_splits_to_process_els = num_splits_to_process_els
+        self.upsample_factor_grid = upsample_factor_grid
+        self.max_deviation_rigid = max_deviation_rigid
         self.shifts_opencv = shifts_opencv
         self.min_mov = min_mov
         self.nonneg_movie = nonneg_movie
