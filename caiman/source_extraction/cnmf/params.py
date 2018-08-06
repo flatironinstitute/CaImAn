@@ -3,6 +3,7 @@ import os
 
 import numpy as np
 import scipy
+from scipy.ndimage.morphology import generate_binary_structure, iterate_structure
 
 from ...paths import caiman_datadir
 from .utilities import dict_compare, get_file_size
@@ -169,7 +170,7 @@ class CNMFParams(object):
             maxIter: int, default: 5
                 number of HALS iterations during initialization
 
-            method: 'greedy_roi'|'greedy_pnr'|'sparse_NMF'|'local_NMF' default: 'greedy_roi'
+            method_init: 'greedy_roi'|'greedy_pnr'|'sparse_NMF'|'local_NMF' default: 'greedy_roi'
                 initialization method. use 'greedy_pnr' for 1p processing and 'sparse_NMF' for dendritic processing.
 
             min_corr: float, default: 0.85
@@ -219,7 +220,7 @@ class CNMFParams(object):
 
         SPATIAL PARAMS (CNMFParams.spatial) ##########
 
-            method: 'dilate'|'ellipse', default: 'dilate'
+            method_exp: 'dilate'|'ellipse', default: 'dilate'
                 method for expanding footprint of spatial components
 
             dist: float, default: 3
@@ -278,7 +279,7 @@ class CNMFParams(object):
             ITER: int, default: 2
                 block coordinate descent iterations
 
-            method: 'oasis'|'cvxpy'|'oasis', default: 'oasis'
+            method_deconvolution: 'oasis'|'cvxpy'|'oasis', default: 'oasis'
                 method for solving the constrained deconvolution problem ('oasis','cvx' or 'cvxpy')
                 if method cvxpy, primary and secondary (if problem unfeasible for approx solution)
 
@@ -554,7 +555,7 @@ class CNMFParams(object):
             'kernel': None,           # user specified template for greedyROI
             'maxIter': 5,             # number of HALS iterations
             'max_iter_snmf': 500,
-            'method': method_init,    # can be greedy_roi or sparse_nmf, local_NMF
+            'method_init': method_init,    # can be greedy_roi, greedy_pnr sparse_nmf, local_NMF
             'min_corr': min_corr,
             'min_pnr': min_pnr,
             'nIter': 5,               # number of refinement iterations
@@ -576,13 +577,13 @@ class CNMFParams(object):
         self.spatial = {
             'block_size': block_size,
             'dist': 3,                       # expansion factor of ellipse
-            'expandCore': None,
+            'expandCore': iterate_structure(generate_binary_structure(2, 1), 2).astype(int),
             # Flag to extract connected components (might want to turn to False for dendritic imaging)
             'extract_cc': True,
             'maxthr': 0.1,                   # Max threshold
             'medw': None,                    # window of median filter
             # method for determining footprint of spatial components ('ellipse' or 'dilate')
-            'method': 'dilate',
+            'method_exp': 'dilate',
             # 'nnls_L0'. Nonnegative least square with L0 penalty
             # 'lasso_lars' lasso lars function from scikit learn
             # 'lasso_lars_old' lasso lars from old implementation, will be deprecated
@@ -615,7 +616,7 @@ class CNMFParams(object):
             # method for solving the constrained deconvolution problem ('oasis','cvx' or 'cvxpy')
             # if method cvxpy, primary and secondary (if problem unfeasible for approx
             # solution) solvers to be used with cvxpy, can be 'ECOS','SCS' or 'CVXOPT'
-            'method': method_deconvolution,  # 'cvxpy', # 'oasis'
+            'method_deconvolution': method_deconvolution,  # 'cvxpy', # 'oasis'
             'nb': gnb,                   # number of background components
             'noise_method': 'mean',     # averaging method ('mean','median','logmexp')
             'noise_range': [.25, .5],   # range of normalized frequencies over which to average
@@ -704,9 +705,9 @@ class CNMFParams(object):
             self.data['dims'] = get_file_size(self.data['fnames'])[0]
         if self.data['fnames'] is not None:
             T = get_file_size(self.data['fnames'])[1]
-            if len(self.data['fnames'] > 1):
+            if len(self.data['fnames']) > 1:
                 T = T[0]
-            num_splits = max(T//self.motion['num_frames_split'])
+            num_splits = T//max(self.motion['num_frames_split'],10)
             self.motion['splits_els'] = num_splits
             self.motion['splits_rig'] = num_splits
         if self.online['N_samples_exceptionality'] is None:

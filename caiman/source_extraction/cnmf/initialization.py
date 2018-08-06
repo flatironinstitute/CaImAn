@@ -171,7 +171,7 @@ except:
 
 
 def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter=5, maxIter=5, nb=1,
-                          kernel=None, use_hals=True, normalize_init=True, img=None, method='greedy_roi',
+                          kernel=None, use_hals=True, normalize_init=True, img=None, method_init='greedy_roi',
                           max_iter_snmf=500, alpha_snmf=10e2, sigma_smooth_snmf=(.5, .5, .5),
                           perc_baseline_snmf=20, options_local_NMF=None, rolling_sum=False,
                           rolling_length=100, sn=None, options_total=None, min_corr=0.8, min_pnr=10,
@@ -290,6 +290,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
         Exception('You need to define arguments for local NMF')
 
     """
+    method = method_init
     if method == 'local_nmf':
         tsub_lnmf = tsub
         ssub_lnmf = ssub

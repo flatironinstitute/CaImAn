@@ -35,7 +35,6 @@ except NameError:
 import numpy as np
 import os
 import glob
-import matplotlib.pyplot as plt
 from copy import deepcopy
 
 import caiman as cm
@@ -53,40 +52,12 @@ def main():
         cm.cluster.setup_cluster(backend='local', n_processes=None,
                                  single_thread=False)
 
-#%% save files to be processed
-
-    # This datafile is distributed with Caiman
-    fnames = [os.path.join(caiman_datadir(), 'example_movies', 'demoMovie.tif')]
-    # location of dataset  (can actually be a list of filed to be concatenated)
-    add_to_movie = -np.min(cm.load(fnames[0], subindices=range(200))).astype(float)
-    # determine minimum value on a small chunk of data
-    add_to_movie = np.maximum(add_to_movie, 0)
-    # if minimum is negative subtract to make the data non-negative
-    base_name = 'Yr'
-    fname_new = cm.save_memmap(fnames, dview=dview, base_name=base_name,
-                               order='C',
-                               add_to_movie=add_to_movie)
-
-#%% LOAD MEMORY MAPPABLE FILE
-    Yr, dims, T = cm.load_memmap(fname_new)
-    d1, d2 = dims
-    images = np.reshape(Yr.T, [T] + list(dims), order='F')
-
-#%% play movie, press q to quit
-    play_movie = False
-    if play_movie:
-        cm.movie(images).play(fr=50, magnification=4, gain=3.)
-
-#%% correlation image. From here infer neuron size and density
-    Cn = cm.movie(images).local_correlations(swap_dim=False)
-    plt.imshow(Cn, cmap='gray')
-    plt.title('Correlation Image')
-
 #%% set up some parameters
-
-    is_patches = True      # flag for processing in patches or not
-    fr = 10                # approximate frame rate of data
-    decay_time = 5.0       # length of transient
+    fnames = [os.path.join(caiman_datadir(), 'example_movies', 'demoMovie.tif')]
+                            # file to be analyzed
+    is_patches = True       # flag for processing in patches or not
+    fr = 10                 # approximate frame rate of data
+    decay_time = 5.0        # length of transient
 
     if is_patches:          # PROCESS IN PATCHES AND THEN COMBINE
         rf = 10             # half size of each patch
@@ -113,25 +84,21 @@ def main():
                    'p': p,
                    'nb': gnb}
 
-#    opts = params.CNMFParams(dims=dims,
-#                             method_init='greedy_roi', gSig=gSig,
-#                             merge_thresh=merge_thresh, p=p, gnb=gnb, k=K,
-#                             rf=rf, stride=stride, rolling_sum=False,
-#                             fr=fr, decay_time=decay_time)
     opts = params.CNMFParams(params_dict=params_dict)
 #%% Now RUN CNMF
     cnm = cnmf.CNMF(n_processes, params=opts, dview=dview)
-    cnm = cnm.fit(images)
+    cnm = cnm.fit_file()
 
 #%% plot contour plots of components
+    Cn = cm.load(fnames[0], subindices=range(1000)).local_correlations(swap_dim=False)
     cnm.estimates.plot_contours(img=Cn)
 
-#%% copy into a new object and refit
-    cnm.dview = None
-    cnm2 = deepcopy(cnm)
-    cnm2.dview = dview
-    cnm2.params.set('patch', {'rf': None})
-    cnm2 = cnm2.fit(images)
+#%% load memory mapped file
+    Yr, dims, T = cm.load_memmap(cnm.mmap_file)
+    images = np.reshape(Yr.T, [T] + list(dims), order='F')
+
+#%% refit
+    cnm2 = cnm.refit(images, dview=dview)
 
 #%% COMPONENT EVALUATION
     # the components are evaluated in three ways:
@@ -142,7 +109,7 @@ def main():
 
     min_SNR = 2.5       # peak SNR for accepted components (if above this, acept)
     rval_thr = 0.90     # space correlation threshold (if above this, accept)
-    use_cnn = True     # use the CNN classifier
+    use_cnn = True      # use the CNN classifier
     min_cnn_thr = 0.95  # if cnn classifier predicts below this value, reject
     
     cnm2.params.set('quality', {'min_SNR': min_SNR,

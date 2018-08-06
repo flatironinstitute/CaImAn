@@ -862,7 +862,7 @@ def bare_initialization(Y, init_batch=1000, k=1, method_init='greedy_roi', gnb=1
         Y = Y[:, :, :init_batch]
 
     Ain, Cin, b_in, f_in, center = initialize_components(
-        Y, K=k, gSig=gSig, nb=gnb, method=method_init)
+        Y, K=k, gSig=gSig, nb=gnb, method_init=method_init)
     Ain = coo_matrix(Ain)
     b_in = np.array(b_in)
     Yr = np.reshape(Y, (Ain.shape[0], Y.shape[-1]), order='F')

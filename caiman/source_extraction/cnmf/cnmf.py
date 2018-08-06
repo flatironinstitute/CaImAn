@@ -303,7 +303,7 @@ class CNMF(object):
         self.estimates = Estimates(A=Ain, C=Cin, b=b_in, f=f_in,
                                    dims=self.params.data['dims'])
 
-    def fit_file(self, motion_correct=False, indeces=[slice(None)]*3):
+    def fit_file(self, motion_correct=False, indeces=[slice(None)]*2):
         fnames = self.params.get('data', 'fnames')
         if os.path.exists(fnames[0]):
             _, extension = os.path.splitext(fnames[0])[:2]
@@ -669,14 +669,15 @@ class CNMF(object):
         return self
 
 
-    def deconvolve(self, p=None, method=None, bas_nonneg=None,
+    def deconvolve(self, p=None, method_deconvolution=None, bas_nonneg=None,
                    noise_method=None, optimize_g=0, s_min=None, **kwargs):
         """Performs deconvolution on already extracted traces using
         constrained foopsi.
         """
 
         p = self.params.get('preprocess', 'p') if p is None else p
-        method = self.params.get('temporal', 'method') if method is None else method
+        method_deconvolution = (self.params.get('temporal', 'method_deconvolution')
+                if method_deconvolution is None else method_deconvolution)
         bas_nonneg = (self.params.get('temporal', 'bas_nonneg')
                       if bas_nonneg is None else bas_nonneg)
         noise_method = (self.params.get('temporal', 'noise_method')
@@ -686,7 +687,7 @@ class CNMF(object):
         F = self.estimates.C + self.estimates.YrA
         args = dict()
         args['p'] = p
-        args['method'] = method
+        args['method_deconvolution'] = method_deconvolution
         args['bas_nonneg'] = bas_nonneg
         args['noise_method'] = noise_method
         args['s_min'] = s_min
