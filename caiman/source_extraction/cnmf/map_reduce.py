@@ -390,6 +390,7 @@ def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None, memory_fact=1,
 
     C_tot = C_tot[:count, :]
     YrA_tot = YrA_tot[:count, :]
+    F_tot = F_tot[:count_bgr]
 
     optional_outputs = dict()
     optional_outputs['b_tot'] = b_tot

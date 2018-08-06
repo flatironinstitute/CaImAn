@@ -231,7 +231,7 @@ class timeseries(np.ndarray):
                 savemat(file_name, {'input_arr': np.rollaxis(
                     input_arr, axis=0, start=3), 'start_time': self.start_time, 'fr': self.fr, 'meta_data': self.meta_data, 'file_name': f_name})
 
-        elif extension == '.hdf5':
+        elif extension in ('.hdf5', '.h5'):
             with h5py.File(file_name, "w") as f:
                 if to32 and not('float32' in str(self.dtype)):
                     input_arr = input_arr.astype(np.float32)
