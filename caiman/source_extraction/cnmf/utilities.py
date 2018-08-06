@@ -26,412 +26,33 @@ from builtins import str
 from builtins import range
 from past.utils import old_div
 import numpy as np
-import os
 from scipy.sparse import spdiags, issparse, csc_matrix, csr_matrix
 import scipy.ndimage.morphology as morph
 from .initialization import greedyROI
 from ...base.rois import com
 import pylab as pl
 import scipy
-from ...mmapping import parallel_dot_product
+from ...mmapping import parallel_dot_product, load_memmap
 from ...utils.stats import df_percentile
-from ...paths import caiman_datadir
 import logging
+import tifffile
+import h5py
+import os
+import cv2
 
 
 # %%
-def CNMFSetParms(Y, n_processes, K=30, gSig=[5, 5], gSiz=None, ssub=2, tsub=2,
-                 p=2, p_ssub=2, p_tsub=2, thr=0.8, method_init='greedy_roi',
-                 nb=1, nb_patch=1, n_pixels_per_process=None, block_size=None,
-                 check_nan=True, normalize_init=True, options_local_NMF=None,
-                 remove_very_bad_comps=False, alpha_snmf=10e2,
-                 update_background_components=True, low_rank_background=True,
-                 rolling_sum=False, min_corr=.85, min_pnr=20,
-                 ring_size_factor=1.5, center_psf=False, ssub_B=2, init_iter=2,
-                 fr=30, decay_time=0.4, min_SNR=2.5):
-    """Dictionary for setting the CNMF parameters.
 
-    Any parameter that is not set get a default value specified
-    by the dictionary default options
 
-    PRE-PROCESS PARAMS#############
-
-        sn: None,
-            noise level for each pixel
-
-        noise_range: [0.25, 0.5]
-                 range of normalized frequencies over which to average
-
-        noise_method': 'mean'
-                 averaging method ('mean','median','logmexp')
-
-        max_num_samples_fft': 3*1024
-
-        n_pixels_per_process: 1000
-
-        compute_g': False
-            flag for estimating global time constant
-
-        p : 2
-             order of AR indicator dynamics
-
-        lags: 5
-            number of lags to be considered for time constant estimation
-
-        include_noise: False
-                flag for using noise values when estimating g
-
-        pixels: None
-             pixels to be excluded due to saturation
-
-        check_nan: True
-
-    INIT PARAMS###############
-
-        K:     30
-            number of components
-
-        gSig: [5, 5]
-              size of bounding box
-
-        gSiz: [int(round((x * 2) + 1)) for x in gSig],
-
-        ssub:   2
-            spatial downsampling factor
-
-        tsub:   2
-            temporal downsampling factor
-
-        nIter: 5
-            number of refinement iterations
-
-        kernel: None
-            user specified template for greedyROI
-
-        maxIter: 5
-            number of HALS iterations
-
-        method: method_init
-            can be greedy_roi or sparse_nmf, local_NMF
-
-        max_iter_snmf : 500
-    
-        alpha_snmf: 10e2
-    
-        sigma_smooth_snmf : (.5,.5,.5)
-    
-        perc_baseline_snmf: 20
-    
-        nb:  1
-            number of background components
-    
-        normalize_init:
-            whether to pixelwise equalize the movies during initialization
-    
-        options_local_NMF:
-            dictionary with parameters to pass to local_NMF initializer
-
-    SPATIAL PARAMS##########
-
-        dims: dims
-            number of rows, columns [and depths]
-
-        method: 'dilate','ellipse', 'dilate'
-            method for determining footprint of spatial components ('ellipse' or 'dilate')
-
-        dist: 3
-            expansion factor of ellipse
-        n_pixels_per_process: n_pixels_per_process
-            number of pixels to be processed by eacg worker
-
-        medw: (3,)*len(dims)
-            window of median filter
-        thr_method: 'nrg'
-           Method of thresholding ('max' or 'nrg')
-
-        maxthr: 0.1
-            Max threshold
-
-        nrgthr: 0.9999
-            Energy threshold
-
-
-        extract_cc: True
-            Flag to extract connected components (might want to turn to False for dendritic imaging)
-
-        se: np.ones((3,)*len(dims), dtype=np.uint8)
-             Morphological closing structuring element
-
-        ss: np.ones((3,)*len(dims), dtype=np.uint8)
-            Binary element for determining connectivity
-
-
-        update_background_components:bool
-            whether to update the background components in the spatial phase
-
-        low_rank_background:bool
-            whether to update the using a low rank approximation. In the False case all the nonzero elements of the background components are updated using hals
-            (to be used with one background per patch)
-
-        method_ls:'lasso_lars'
-            'nnls_L0'. Nonnegative least square with L0 penalty
-            'lasso_lars' lasso lars function from scikit learn
-            'lasso_lars_old' lasso lars from old implementation, will be deprecated
-
-    TEMPORAL PARAMS###########
-
-        ITER: 2
-            block coordinate descent iterations
-
-        method:'oasis', 'cvxpy',  'oasis'
-            method for solving the constrained deconvolution problem ('oasis','cvx' or 'cvxpy')
-            if method cvxpy, primary and secondary (if problem unfeasible for approx solution)
-
-        solvers: ['ECOS', 'SCS']
-             solvers to be used with cvxpy, can be 'ECOS','SCS' or 'CVXOPT'
-
-        p:
-            order of AR indicator dynamics
-
-        memory_efficient: False
-
-        bas_nonneg: True
-            flag for setting non-negative baseline (otherwise b >= min(y))
-
-        noise_range: [.25, .5]
-            range of normalized frequencies over which to average
-
-        noise_method: 'mean'
-            averaging method ('mean','median','logmexp')
-
-        lags: 5,
-            number of autocovariance lags to be considered for time constant estimation
-
-        fudge_factor: .96
-            bias correction factor (between 0 and 1, close to 1)
-
-        nb
-
-        verbosity: False
-
-        block_size : block_size
-            number of pixels to process at the same time for dot product. Make it smaller if memory problems
-            
-    QUALITY EVALUATION PARAMETERS###########
-
-        fr: 30
-            Imaging rate
-
-        decay_time: 0.5
-            length of decay of typical transient (in seconds)
-
-        min_SNR: 2.5
-            trace SNR threshold
-
-        SNR_lowest: 0.5
-            minimum required trace SNR
-
-        rval_thr: 0.8
-            space correlation threshold
-
-        rval_lowest: -1
-            minimum required space correlation
-
-        use_cnn: True
-            flag for using the CNN classifier
-
-        min_cnn_thr: 0.9
-            CNN classifier threshold
-
-        cnn_lowest: 0.1
-            minimum required CNN threshold
-
-        gSig_range: None
-            gSig scale values for CNN classifier
-    
-    """
-
-    if type(Y) is tuple:
-        dims, T = Y[:-1], Y[-1]
-    else:
-        dims, T = Y.shape[:-1], Y.shape[-1]
-
-    # print(('using ' + str(n_processes) + ' processes'))
-    # if n_pixels_per_process is None:
-    #     avail_memory_per_process = np.array(psutil.virtual_memory()[1])/2.**30/n_processes
-    #     mem_per_pix = 3.6977678498329843e-09
-    #     n_pixels_per_process = np.int(avail_memory_per_process/8./mem_per_pix/T)
-    #     n_pixels_per_process = np.int(np.minimum(n_pixels_per_process,np.prod(dims) // n_processes))
-
-    # if block_size is None:
-    #     block_size = n_pixels_per_process
-
-    # print(('using ' + str(n_pixels_per_process) + ' pixels per process'))
-    # print(('using ' + str(block_size) + ' block_size'))
-
-    options = dict()
-    options['patch_params'] = {
-        'ssub': p_ssub,             # spatial downsampling factor
-        'tsub': p_tsub,              # temporal downsampling factor
-        'only_init': True,
-        'skip_refinement': False,
-        'remove_very_bad_comps': remove_very_bad_comps,
-        'nb': nb_patch,
-        'in_memory': True
-    }
-
-    options['preprocess_params'] = {'sn': None,                  # noise level for each pixel
-                                    # range of normalized frequencies over which to average
-                                    'noise_range': [0.25, 0.5],
-                                    # averaging method ('mean','median','logmexp')
-                                    'noise_method': 'mean',
-                                    'max_num_samples_fft': 3 * 1024,
-                                    'n_pixels_per_process': n_pixels_per_process,
-                                    'compute_g': False,            # flag for estimating global time constant
-                                    'p': p,                        # order of AR indicator dynamics
-                                    # number of autocovariance lags to be considered for time
-                                    # constant estimation
-                                    'lags': 5,
-                                    'include_noise': False,        # flag for using noise values when estimating g
-                                    'pixels': None,
-                                    # pixels to be excluded due to saturation
-                                    'check_nan': check_nan
-
-                                    }
-
-    gSig = gSig if gSig is not None else [-1, -1]
-
-    options['init_params'] = {'K': K,                  # number of components
-                              'gSig': gSig,                               # size of bounding box
-                              'gSiz': [np.int((np.ceil(x) * 2) + 1) for x in gSig] if gSiz is None else gSiz,
-                              'ssub': ssub,             # spatial downsampling factor
-                              'tsub': tsub,             # temporal downsampling factor
-                              'nIter': 5,               # number of refinement iterations
-                              'kernel': None,           # user specified template for greedyROI
-                              'maxIter': 5,              # number of HALS iterations
-                              'method': method_init,     # can be greedy_roi or sparse_nmf, local_NMF
-                              'max_iter_snmf': 500,
-                              'alpha_snmf': alpha_snmf,
-                              'sigma_smooth_snmf': (.5, .5, .5),
-                              'perc_baseline_snmf': 20,
-                              'nb': nb,                 # number of background components
-                              # whether to pixelwise equalize the movies during initialization
-                              'normalize_init': normalize_init,
-                              # dictionary with parameters to pass to local_NMF initializaer
-                              'options_local_NMF': options_local_NMF,
-                              'rolling_sum': rolling_sum,
-                              'rolling_length': 100,
-                              'min_corr': min_corr,
-                              'min_pnr': min_pnr,
-                              'ring_size_factor': ring_size_factor,
-                              'center_psf': center_psf,
-                              'ssub_B': ssub_B,
-                              'init_iter': init_iter
-                              }
-
-    options['spatial_params'] = {
-        'dims': dims,                   # number of rows, columns [and depths]
-        # method for determining footprint of spatial components ('ellipse' or 'dilate')
-        'method': 'dilate',  # 'ellipse', 'dilate',
-        'dist': 3,                       # expansion factor of ellipse
-        # number of pixels to be processed by eacg worker
-        'n_pixels_per_process': n_pixels_per_process,
-        # window of median filter
-        'medw': (3,) * len(dims),
-        'thr_method': 'nrg',  # Method of thresholding ('max' or 'nrg')
-        'maxthr': 0.1,                                 # Max threshold
-        'nrgthr': 0.9999,                              # Energy threshold
-        # Flag to extract connected components (might want to turn to False for dendritic imaging)
-        'extract_cc': True,
-        # Morphological closing structuring element
-        'se': np.ones((3,) * len(dims), dtype=np.uint8),
-        # Binary element for determining connectivity
-        'ss': np.ones((3,) * len(dims), dtype=np.uint8),
-        'nb': nb,                                      # number of background components
-        # 'nnls_L0'. Nonnegative least square with L0 penalty
-        'method_ls': 'lasso_lars',
-        #'lasso_lars' lasso lars function from scikit learn
-        #'lasso_lars_old' lasso lars from old implementation, will be deprecated
-        # whether to update the background components in the spatial phase
-        'update_background_components': update_background_components,
-        # whether to update the using a low rank approximation. In the False case
-        # all the nonzero elements of the background components are updated using
-        # hals
-        'low_rank_background': low_rank_background
-        #(to be used with one background per patch)
-    }
-    options['temporal_params'] = {
-        'ITER': 2,                   # block coordinate descent iterations
-        # method for solving the constrained deconvolution problem ('oasis','cvx' or 'cvxpy')
-        'method': 'oasis',  # 'cvxpy', # 'oasis'
-        # if method cvxpy, primary and secondary (if problem unfeasible for approx
-        # solution) solvers to be used with cvxpy, can be 'ECOS','SCS' or 'CVXOPT'
-        'solvers': ['ECOS', 'SCS'],
-        'p': p,                      # order of AR indicator dynamics
-        'memory_efficient': False,
-        # flag for setting non-negative baseline (otherwise b >= min(y))
-        'bas_nonneg': False,
-        # range of normalized frequencies over which to average
-        'noise_range': [.25, .5],
-        # averaging method ('mean','median','logmexp')
-        'noise_method': 'mean',
-        # number of autocovariance lags to be considered for time constant estimation
-        'lags': 5,
-        # bias correction factor (between 0 and 1, close to 1)
-        'fudge_factor': .96,
-        'nb': nb,                   # number of background components
-        'verbosity': False,
-        # number of pixels to process at the same time for dot product. Make it
-        # smaller if memory problems
-        'block_size': block_size
-    }
-    options['merging'] = {
-        'thr': thr,
-    }
-    options['quality'] = {
-        'decay_time': decay_time,  # length of decay of typical transient (in seconds)
-        'min_SNR': min_SNR,  # transient SNR threshold
-        'SNR_lowest': 0.5,  # minimum accepted SNR value
-        'rval_thr': 0.8,  # space correlation threshold
-        'rval_lowest': -1,  # minimum accepted space correlation
-        'fr': fr,  # imaging frame rate
-        'use_cnn': True,  # use CNN based classifier
-        'min_cnn_thr': 0.9,  # threshold for CNN classifier
-        'cnn_lowest': 0.1,  # minimum accepted value for CNN classifier
-        'gSig_range': None  # range for gSig scale for CNN classifier
-    }
-    options['online'] = {
-        'expected_comps': 500,  # number of expected components
-        'min_SNR': min_SNR,  # minimum SNR for accepting a new trace
-        'N_samples_exceptionality': np.ceil(fr*decay_time).astype('int'),  # timesteps to compute SNR
-        'thresh_fitness_raw': None,  # threshold for trace SNR (computed below)
-        'rval_thr': 0.85,  # space correlation threshold
-        'use_dense': True,  # flag for representation and storing of A and b
-        'max_num_added': 3,  # maximum number of new components for each frame
-        'min_num_trial': 3,  # number of mew possible components for each frame
-        'path_to_model': os.path.join(caiman_datadir(), 'model',
-                                      'cnn_model_online.h5'),
-                                      # path to CNN model for testing new comps
-        'sniper_mode': True,  # flag for using CNN
-        'use_peak_max': False,  # flag for finding candidate centroids
-        'use_both': False,  # flag for using both CNN and space correlation
-        'init_batch': 200,  # length of mini batch for initialization
-        'simultaneously': False,  # demix and deconvolve simultaneously
-        'n_refit': 0,  # Additional iterations to simultaneously refit
-        'thresh_CNN_noisy': 0.5,  # threshold for online CNN classifier
-        'epochs': 1,  # number of epochs
-        'ds_factor': 1,  # spatial downsampling for faster processing
-        'motion_correct': True,  # flag for motion correction
-        'max_shifts': 10,  # maximum shifts during motion correction
-        'minibatch_shape': 100,  # number of frames in each minibatch
-        'update_num_comps': True,  # flag for searching for new components
-        's_min': None,  # minimum spike threshold
-        'init_method': 'bare'  # initialization method for first batch
-    }
-    options['online']['thresh_fitness_raw'] = scipy.special.log_ndtr(-options['online']['min_SNR']) * options['online']['N_samples_exceptionality']
-    options['online']['max_shifts'] = np.int(options['online']['max_shifts']/options['online']['ds_factor'])
-    return options
-
+def dict_compare(d1, d2):
+    d1_keys = set(d1.keys())
+    d2_keys = set(d2.keys())
+    intersect_keys = d1_keys.intersection(d2_keys)
+    added = d1_keys - d2_keys
+    removed = d2_keys - d1_keys
+    modified = {o : (d1[o], d2[o]) for o in intersect_keys if np.any(d1[o] != d2[o])}
+    same = set(o for o in intersect_keys if np.all(d1[o] == d2[o]))
+    return added, removed, modified, same
 
 #%%
 def computeDFF_traces(Yr, A, C, bl, quantileMin=8, frames_window=200):
@@ -1171,7 +792,7 @@ def normalize_AC(A, C, YrA, b, f, neurons_sn):
         if issparse(f):
             f = csr_matrix(f)
             for k, i in enumerate(f.indptr[:-1]):
-                f.data[i:f.indptr[k + 1]] *= nB[k]            
+                f.data[i:f.indptr[k + 1]] *= nB[k]
         else:
             f = np.atleast_2d(f)
             f *= nB[:, np.newaxis]
@@ -1180,4 +801,58 @@ def normalize_AC(A, C, YrA, b, f, neurons_sn):
         neurons_sn *= nA
 
     return csc_matrix(A), C, YrA, b, f, neurons_sn
-#%%
+# %%
+
+
+def get_file_size(file_name, var_name_hdf5=None):
+    if isinstance(file_name, str):
+        if os.path.exists(file_name):
+            _, extension = os.path.splitext(file_name)[:2]
+            if extension == '.tif' or extension == '.tiff':
+                tffl = tifffile.TiffFile(file_name)
+                siz = tffl.series[0].shape
+                T, dims = siz[0], siz[1:]
+            elif extension == '.avi':
+                cap = cv2.VideoCapture(file_name)
+                dims = (0, 0)
+                try:
+                    T = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+                    dims[0] = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+                    dims[1] = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                except():
+                    print('Roll back top opencv 2')
+                    T = int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_COUNT))
+                    dims[0] = int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_WIDTH))
+                    dims[1] = int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT))
+            elif extension == '.mmap':
+                filename = os.path.split(file_name)[-1]
+                Yr, dims, T = load_memmap(os.path.join(
+                        os.path.split(file_name)[0], filename))
+            elif extension == '.h5' or extension == '.hdf5':
+                with h5py.File(file_name, "r") as f:
+                    kk = list(f.keys())
+                    if len(kk) == 1:
+                        siz = f[kk[0]].shape
+                    elif var_name_hdf5 in kk:
+                        siz = f[var_name_hdf5].shape
+                    else:
+                        print(kk)
+                        raise Exception('Variable not found. Use one of the above')
+                T, dims = siz[0], siz[1:]
+            else:
+                raise Exception('Unknown file type')
+        else:
+            raise Exception('File not found!')
+    elif isinstance(file_name, list):
+        if len(file_name) == 1:
+            dims, T = get_file_size(file_name[0], var_name_hdf5=var_name_hdf5)
+        else:
+            dims, T = zip(*[get_file_size(fn, var_name_hdf5=var_name_hdf5)
+                for fn in file_name])
+            if len(list(set(dims))) > 1:
+                raise Exception("Files have different FOV sizes.")
+            else:
+                dims = dims[0]
+    else:
+        raise Exception('Unknown input type')
+    return dims, T

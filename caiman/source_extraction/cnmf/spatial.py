@@ -44,11 +44,17 @@ def basis_denoising(y, c, boh, sn, id2_, px):
 #%% update_spatial_components (in parallel)
 
 
-def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, min_size=3, max_size=8, dist=3, normalize_yyt_one=True,
-                              method='ellipse', expandCore=None, dview=None, n_pixels_per_process=128,
-                              medw=(3, 3), thr_method='nrg', maxthr=0.1, nrgthr=0.9999, extract_cc=True, b_in=None,
-                              se=np.ones((3, 3), dtype=np.int), ss=np.ones((3, 3), dtype=np.int), nb=1,
-                              method_ls='lasso_lars', update_background_components=True, low_rank_background=True, block_size=1000, num_blocks_per_run=20):
+def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
+                              min_size=3, max_size=8, dist=3,
+                              normalize_yyt_one=True, method_exp='dilate',
+                              expandCore=None, dview=None, n_pixels_per_process=128,
+                              medw=(3, 3), thr_method='max', maxthr=0.1,
+                              nrgthr=0.9999, extract_cc=True, b_in=None,
+                              se=np.ones((3, 3), dtype=np.int),
+                              ss=np.ones((3, 3), dtype=np.int), nb=1,
+                              method_ls='lasso_lars', update_background_components=True, 
+                              low_rank_background=True, block_size=1000,
+                              num_blocks_per_run=20):
     """update spatial footprints and background through Basis Pursuit Denoising
 
     for each pixel i solve the problem
@@ -180,7 +186,7 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None, 
     print('computing the distance indicators')
     # we compute the indicator from distance indicator
     ind2_, nr, C, f, b_, A_in = computing_indicator(
-        Y, A_in, b_in, C, f, nb, method, dims, min_size, max_size, dist, expandCore, dview)
+        Y, A_in, b_in, C, f, nb, method_exp, dims, min_size, max_size, dist, expandCore, dview)
     if normalize_yyt_one and C is not None:
         C = np.array(C)
         nr_C = np.shape(C)[0]
@@ -474,7 +480,7 @@ def construct_ellipse_parallel(pars):
 # %% threshold_components
 
 
-def threshold_components(A, dims, medw=None, thr_method='nrg', maxthr=0.1, nrgthr=0.9999, extract_cc=True,
+def threshold_components(A, dims, medw=None, thr_method='max', maxthr=0.1, nrgthr=0.9999, extract_cc=True,
                          se=None, ss=None, dview=None):
     """
     Post-processing of spatial components which includes the following steps

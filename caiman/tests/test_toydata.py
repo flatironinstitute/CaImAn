@@ -3,6 +3,8 @@
 import numpy.testing as npt
 import numpy as np
 from scipy.ndimage.filters import gaussian_filter
+
+import caiman.source_extraction.cnmf.params
 from caiman.source_extraction import cnmf as cnmf
 
 #%%
@@ -41,27 +43,27 @@ def pipeline(D):
     K = 4  # number of neurons expected per patch
     gSig = [2, 2, 2][:D]  # expected half size of neurons
     p = 1  # order of the autoregressive system
-    options = cnmf.utilities.CNMFSetParms(Y, n_processes, p=p, gSig=gSig, K=K)
-    options['preprocess_params']['n_pixels_per_process'] = np.prod(dims)
-    options['spatial_params']['n_pixels_per_process'] = np.prod(dims)
-    options['spatial_params']['thr_method'] = 'nrg'
-    options['spatial_params']['extract_cc'] = False
-    options['temporal_params']['method'] = 'oasis'
-    options['temporal_params']['block_size'] = np.prod(dims)
+    params = caiman.source_extraction.cnmf.params.CNMFParams(dims=dims, k=K, gSig=gSig, p=p)
+    params.preprocess['n_pixels_per_process'] = np.prod(dims)
+    params.spatial['n_pixels_per_process'] = np.prod(dims)
+    params.spatial['thr_method'] = 'nrg'
+    params.spatial['extract_cc'] = False
+    params.temporal['method'] = 'oasis'
+    params.temporal['block_size'] = np.prod(dims)
 
     # PREPROCESS DATA AND INITIALIZE COMPONENTS
     Yr, sn, g, psx = cnmf.pre_processing.preprocess_data(
-        Yr, dview=None, **options['preprocess_params'])
+        Yr, dview=None, **params.preprocess)
     Ain, Cin, b_in, f_in, center = cnmf.initialization.initialize_components(
-        Y, **options['init_params'])
+        Y, **params.init)
 
     # UPDATE SPATIAL COMPONENTS
     A, b, Cin, f_in = cnmf.spatial.update_spatial_components(
-        Yr, Cin, f_in, Ain, sn=sn, **options['spatial_params'])
+        Yr, Cin, f_in, Ain, sn=sn, dims=dims, **params.spatial)
 
     # UPDATE TEMPORAL COMPONENTS
     C, A, b, f, S, bl, c1, neurons_sn, g, YrA, lam_ = cnmf.temporal.update_temporal_components(
-        Yr, A, b, Cin, f_in, bl=None, c1=None, sn=None, g=None, **options['temporal_params'])
+        Yr, A, b, Cin, f_in, bl=None, c1=None, sn=None, g=None, **params.temporal)
 
     # VERIFY HIGH CORRELATION WITH GROUND TRUTH
     sorting = [np.argmax([np.corrcoef(tc, c)[0, 1]

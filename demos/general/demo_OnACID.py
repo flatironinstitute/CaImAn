@@ -10,8 +10,6 @@ complete demo check the script demo_OnACID_mesoscope.py
 """
 
 import os
-import sys
-
 import numpy as np
 import pylab as pl
 import caiman as cm
@@ -20,125 +18,90 @@ from caiman.utils.visualization import view_patches_bar, plot_contours
 from copy import deepcopy
 from scipy.special import log_ndtr
 from caiman.paths import caiman_datadir
-
+try:
+    if __IPYTHON__:
+        print("Detected iPython")
+        get_ipython().magic('load_ext autoreload')
+        get_ipython().magic('autoreload 2')
+except NameError:
+    pass
 #%%
 def main():
     pass # For compatibility between running under Spyder and the CLI
 
 #%% load data
 
-    fname = os.path.join(caiman_datadir(), 'example_movies', 'demoMovie.tif')
-    Y = cm.load(fname).astype(np.float32)                   #
-    # used as a background image
-    Cn = cm.local_correlations(Y.transpose(1, 2, 0))
-#%% set up some parameters
+    fname = [os.path.join(caiman_datadir(), 'example_movies', 'demoMovie.tif')]
+    
+# %% set up some parameters
 
-    # frame rate (Hz)
-    fr = 10
-    # approximate length of transient event in seconds
-    decay_time = 0.5
-    # expected half size of neurons
-    gSig = [6, 6]
-    # order of AR indicator dynamics
-    p = 1
-    # minimum SNR for accepting new components
-    min_SNR = 3.5
-    # correlation threshold for new component inclusion
-    rval_thr = 0.90
-    # number of background components
-    gnb = 3
-
-    # set up some additional supporting parameters needed for the algorithm (these are default values but change according to dataset characteristics)
-
-    # number of shapes to be updated each time (put this to a finite small value to increase speed)
-    max_comp_update_shape = np.inf
-    # maximum number of expected components used for memory pre-allocation (exaggerate here)
-    expected_comps = 50
-    # number of timesteps to consider when testing new neuron candidates
-    N_samples = np.ceil(fr * decay_time)
-    # exceptionality threshold
-    thresh_fitness_raw = log_ndtr(-min_SNR) * N_samples
-    # total length of file
-    T1 = Y.shape[0]
+    fr = 10  # frame rate (Hz)
+    decay_time = 0.5  # approximate length of transient event in seconds
+    gSig = [6, 6]  # expected half size of neurons
+    p = 1  # order of AR indicator dynamics
+    min_SNR = 3.5  # minimum SNR for accepting new components
+    rval_thr = 0.90  # correlation threshold for new component inclusion
+    gnb = 2  # number of background components
 
     # set up CNMF initialization parameters
 
-    # merging threshold, max correlation allowed
-    merge_thresh = 0.8
-    # number of frames for initialization (presumably from the first file)
-    initbatch = 400
-    # size of patch
-    patch_size = 32
-    # amount of overlap between patches
-    stride = 3
-    # max number of components in each patch
-    K = 4
+    merge_thresh = 0.8  # merging threshold
+    init_batch = 400  # number of frames for initialization
+    patch_size = 32  # size of patch
+    stride = 3  # amount of overlap between patches
+    K = 4  # max number of components in each patch
 
-#%% obtain initial batch file used for initialization
-    # memory map file (not needed)
-    fname_new = Y[:initbatch].save(os.path.join(caiman_datadir(), 'example_movies', 'demo.mmap'), order='C')
-    Yr, dims, T = cm.load_memmap(fname_new)
-    images = np.reshape(Yr.T, [T] + list(dims), order='F')
-    Cn_init = cm.local_correlations(np.reshape(Yr, dims + (T,), order='F'))
+#    opts = cnmf.params.CNMFParams()
+#    opts.set('data', {'fnames': fname,
+#                      'fr': fr,
+#                      'decay_time': decay_time})
+#    opts.set('patch', {'nb': gnb,
+#                       'rf': patch_size//2,
+#                       'stride': stride})
+#    opts.set('online', {'min_SNR': min_SNR,
+#                        'rval_thr': rval_thr,
+#                        'init_batch': init_batch})
+#    opts.set('init', {'gSig': gSig,
+#                      'K': K,
+#                      'nb': gnb})
+#    opts.set('temporal', {'p': p})
+#    opts.set('merging', {'thr': merge_thresh})
 
-    #%% RUN (offline) CNMF algorithm on the initial batch
-    pl.close('all')
-    cnm_init = cnmf.CNMF(2, k=K, gSig=gSig, merge_thresh=merge_thresh,
-                         p=p, rf=patch_size // 2, stride=stride, skip_refinement=False,
-                         normalize_init=False, options_local_NMF=None,
-                         minibatch_shape=100, minibatch_suff_stat=5,
-                         update_num_comps=True, rval_thr=rval_thr,
-                         thresh_fitness_delta=-50, gnb=gnb,
-                         thresh_fitness_raw=thresh_fitness_raw,
-                         batch_update_suff_stat=True, max_comp_update_shape=max_comp_update_shape)
+    params_dict = {'fr': fr,
+                   'fnames': fname,
+                   'decay_time': decay_time,
+                   'gSig': gSig,
+                   'p': p,
+                   'min_SNR': min_SNR,
+                   'rval_thr': rval_thr,
+                   'nb': gnb,
+                   'thr': merge_thresh,
+                   'init_batch': init_batch,
+                   'init_method': 'cnmf',
+                   'rf': patch_size//2,
+                   'stride': stride,
+                   'normalize': False,
+                   'K': K}
+    opts = cnmf.params.CNMFParams(params_dict=params_dict)
+#%% fit with online object
+    cnm = cnmf.online_cnmf.OnACID(params=opts)
+    cnm.fit_online()
 
-    cnm_init = cnm_init.fit(images)
-
-    print(('Number of components:' + str(cnm_init.A.shape[-1])))
-
-    pl.figure()
-    crd = plot_contours(cnm_init.A.tocsc(), Cn_init, thr=0.9)
-
-#%% run (online) OnACID algorithm
-
-    cnm = deepcopy(cnm_init)
-    cnm._prepare_object(np.asarray(Yr), T1, expected_comps)
-    t = cnm.initbatch
-
-    Y_ = cm.load(fname)[initbatch:].astype(np.float32)
-    for frame_count, frame in enumerate(Y_):
-        cnm.fit_next(t, frame.copy().reshape(-1, order='F'))
-        t += 1
-
-#%% extract the results
-
-    C, f = cnm.C_on[cnm.gnb:cnm.M], cnm.C_on[:cnm.gnb]
-    A, b = cnm.Ab[:, cnm.gnb:cnm.M], cnm.Ab[:, :cnm.gnb]
-    print(('Number of components:' + str(A.shape[-1])))
+#%% plot contours
+    
+    print(('Number of components:' + str(cnm.estimates.A.shape[-1])))
+    Cn = cm.load(fname[0], subindices=slice(0,500)).local_correlations(swap_dim=False)
+    cnm.estimates.plot_contours(img=Cn)
 
 #%% pass through the CNN classifier with a low threshold (keeps clearer neuron shapes and excludes processes)
     use_CNN = True
     if use_CNN:
         # threshold for CNN classifier
-        thresh_cnn = 0.1
-        from caiman.components_evaluation import evaluate_components_CNN
-        predictions, final_crops = evaluate_components_CNN(
-            A, dims, gSig, model_name=os.path.join(caiman_datadir(), 'model', 'cnn_model'))
-        A_exclude, C_exclude = A[:, predictions[:, 1] <
-                                 thresh_cnn], C[predictions[:, 1] < thresh_cnn]
-        A, C = A[:, predictions[:, 1] >=
-                 thresh_cnn], C[predictions[:, 1] >= thresh_cnn]
-        noisyC = cnm.noisyC[cnm.gnb:cnm.M]
-        YrA = noisyC[predictions[:, 1] >= thresh_cnn] - C
-    else:
-        YrA = cnm.noisyC[cnm.gnb:cnm.M] - C
-
+        opts.set('quality', {'min_cnn_thr': 0.05})
+        cnm.estimates.evaluate_components_CNN(opts)
+        cnm.estimates.plot_contours(img=Cn, idx=cnm.estimates.idx_components)
 #%% plot results
-    pl.figure()
-    crd = cm.utils.visualization.plot_contours(A, Cn, thr=0.9)
-
-    view_patches_bar(Yr, A, C, b, f,
-                     dims[0], dims[1], YrA, img=Cn)
+    cnm.estimates.view_components(img=Cn, idx=cnm.estimates.idx_components)
 
 #%%
 # This is to mask the differences between running this demo in Spyder

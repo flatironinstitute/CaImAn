@@ -20,6 +20,8 @@ from builtins import zip
 from builtins import str
 from builtins import map
 from builtins import range
+from copy import deepcopy
+
 from past.utils import old_div
 import numpy as np
 import time
@@ -27,7 +29,7 @@ import scipy
 import os
 from ...mmapping import load_memmap
 from ...cluster import extract_patch_coordinates
-
+from copy import copy
 
 #%%
 def cnmf_patches(args_in):
@@ -43,8 +45,8 @@ def cnmf_patches(args_in):
         shape: tuple of thre elements
             dimensions of the original movie across y, x, and time
 
-        options:
-            dictionary containing all the parameters for the various algorithms
+        params:
+            CNMFParms object containing all the parameters for the various algorithms
 
         rf: int
             half-size of the square patch in pixel
@@ -87,7 +89,7 @@ def cnmf_patches(args_in):
 
     import logging
     from . import cnmf
-    file_name, idx_, shapes, options = args_in
+    file_name, idx_, shapes, params = args_in
 
     logger = logging.getLogger(__name__)
     name_log = os.path.basename(
@@ -98,8 +100,6 @@ def cnmf_patches(args_in):
     #hdlr.setFormatter(formatter)
     #logger.addHandler(hdlr)
     #logger.setLevel(logging.INFO)
-
-    p = options['temporal_params']['p']
 
     logger.debug(name_log+'START')
 
@@ -117,7 +117,7 @@ def cnmf_patches(args_in):
     slices.insert(0, slice(timesteps))
 
     images = np.reshape(Yr.T, [timesteps] + list(dims), order='F')
-    if options['patch_params']['in_memory']:
+    if params.get('patch', 'in_memory'):
         images = np.array(images[slices],dtype=np.float32)
     else:
         images = images[slices]
@@ -126,42 +126,25 @@ def cnmf_patches(args_in):
 
     if (np.sum(np.abs(np.diff(images.reshape(timesteps, -1).T)))) > 0.1:
 
-        cnm = cnmf.CNMF(n_processes=1, k=options['init_params']['K'], gSig=options['init_params']['gSig'], gSiz=options['init_params']['gSiz'],
-                        merge_thresh=options['merging']['thr'], p=p, dview=None, Ain=None, Cin=None,
-                        f_in=None, do_merge=True,
-                        ssub=options['init_params']['ssub'], tsub=options['init_params']['tsub'],
-                        p_ssub=options['patch_params']['ssub'], p_tsub=options['patch_params']['tsub'],
-                        method_init=options['init_params']['method'], alpha_snmf=options['init_params']['alpha_snmf'],
-                        rf=None, stride=None, memory_fact=1, gnb=options['patch_params']['nb'],
-                        only_init_patch=options['patch_params']['only_init'],
-                        method_deconvolution=options['temporal_params']['method'],
-                        n_pixels_per_process=options['preprocess_params']['n_pixels_per_process'],
-                        block_size=options['temporal_params']['block_size'],
-                        check_nan=options['preprocess_params']['check_nan'],
-                        skip_refinement=options['patch_params']['skip_refinement'],
-                        options_local_NMF=options['init_params']['options_local_NMF'],
-                        normalize_init=options['init_params']['normalize_init'],
-                        s_min=options['temporal_params']['s_min'],
-                        remove_very_bad_comps=options['patch_params']['remove_very_bad_comps'],
-                        rolling_sum=options['init_params']['rolling_sum'],
-                        rolling_length=options['init_params']['rolling_length'],
-                        min_corr=options['init_params']['min_corr'], min_pnr=options['init_params']['min_pnr'],
-                        ring_size_factor=options['init_params']['ring_size_factor'],
-                        center_psf=options['init_params']['center_psf'],
-                        ssub_B=options['init_params']['ssub_B'],
-                        init_iter=options['init_params']['init_iter'])
+        opts = copy(params)
+        opts.set('patch', {'n_processes': 1, 'rf': None, 'stride': None})
+        for group in ('init', 'temporal', 'spatial'):
+            opts.set(group, {'nb': params.get('patch', 'nb_patch')})
+
+        cnm = cnmf.CNMF(n_processes=1, params=opts)
 
         cnm = cnm.fit(images)
-        return [idx_, shapes, scipy.sparse.coo_matrix(cnm.A),
-                cnm.b, cnm.C, cnm.f, cnm.S, cnm.bl, cnm.c1,
-                cnm.neurons_sn, cnm.g, cnm.sn, cnm.options, cnm.YrA]
+        return [idx_, shapes, scipy.sparse.coo_matrix(cnm.estimates.A),
+                cnm.estimates.b, cnm.estimates.C, cnm.estimates.f, cnm.estimates.S, cnm.estimates.bl, cnm.estimates.c1,
+                cnm.estimates.neurons_sn, cnm.estimates.g, cnm.estimates.sn, cnm.params.to_dict(), cnm.estimates.YrA]
     else:
         return None
 
 
 #%%
-def run_CNMF_patches(file_name, shape, options, rf=16, stride=4, gnb=1, dview=None, memory_fact=1,
-                     border_pix=0, low_rank_background=True, del_duplicates=False):
+def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None, memory_fact=1,
+                     border_pix=0, low_rank_background=True, del_duplicates=False,
+                     indeces=[slice(None)]*3):
     """Function that runs CNMF in patches
 
      Either in parallel or sequentially, and return the result for each.
@@ -176,17 +159,11 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride=4, gnb=1, dview=No
     file_name: string
         full path to an npy file (2D, pixels x time) containing the movie
 
-    shape: tuple of thre elements
+    shape: tuple of three elements
         dimensions of the original movie across y, x, and time
 
-    options:
-        dictionary containing all the parameters for the various algorithms
-
-    rf: int
-        half-size of the square patch in pixel
-
-    stride: int
-        amount of overlap between patches
+    params:
+        CNMFParms object containing all the parameters for the various algorithms
 
     gnb: int
         number of global background components
@@ -229,31 +206,36 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride=4, gnb=1, dview=No
     d = np.prod(dims)
     T = shape[-1]
 
+    rf = params.get('patch', 'rf')
+    if rf is None:
+        rf = 16
     if np.isscalar(rf):
         rfs = [rf] * len(dims)
     else:
         rfs = rf
 
+    stride = params.get('patch', 'stride')
+    if stride is None:
+        stride = 4
     if np.isscalar(stride):
         strides = [stride] * len(dims)
     else:
         strides = stride
 
-    options['preprocess_params']['n_pixels_per_process'] = np.int(
-        old_div(np.prod(rfs), memory_fact))
-    options['spatial_params']['n_pixels_per_process'] = np.int(
-        old_div(np.prod(rfs), memory_fact))
-    options['temporal_params']['n_pixels_per_process'] = np.int(
-        old_div(np.prod(rfs), memory_fact))
-    nb = options['spatial_params']['nb']
+    params_copy = deepcopy(params)
+
+    npx_per_proc = np.int(old_div(np.prod(rfs), memory_fact))
+    params_copy.set('preprocess', {'n_pixels_per_process': npx_per_proc})
+    params_copy.set('spatial', {'n_pixels_per_process': npx_per_proc})
+    params_copy.set('temporal', {'n_pixels_per_process': npx_per_proc})
 
     idx_flat, idx_2d = extract_patch_coordinates(
-        dims, rfs, strides, border_pix=border_pix)
+        dims, rfs, strides, border_pix=border_pix, indeces=indeces[1:])
     args_in = []
     patch_centers = []
     for id_f, id_2d in zip(idx_flat, idx_2d):
         #        print(id_2d)
-        args_in.append((file_name, id_f, id_2d, options))
+        args_in.append((file_name, id_f, id_2d, params_copy))
         if del_duplicates:
             foo = np.zeros(d, dtype=bool)
             foo[id_f] = 1
@@ -319,12 +301,12 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride=4, gnb=1, dview=No
             patch_id += 1
 
     # INITIALIZING
-    nb_patch = options['patch_params']['nb']
+    nb_patch = params.get('patch', 'nb_patch')
     C_tot = np.zeros((count, T), dtype=np.float32)
-    if options['init_params']['center_psf']:
+    if params.get('init', 'center_psf'):
         S_tot = np.zeros((count, T), dtype=np.float32)
     else:
-         S_tot = None
+        S_tot = None
     YrA_tot = np.zeros((count, T), dtype=np.float32)
     F_tot = np.zeros((max(0, num_patches * nb_patch), T), dtype=np.float32)
     mask = np.zeros(d, dtype=np.uint8)
@@ -355,12 +337,18 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride=4, gnb=1, dview=No
             shapes_tot.append(shapes)
             mask[idx_] += 1
 
-            for ii in range(np.shape(b)[-1]):
-                b_tot.append(b[:, ii])
-                idx_tot_B.append(idx_)
-                idx_ptr_B.append(len(idx_))
-                # F_tot[patch_id, :] = f[ii, :]
-                count_bgr += 1
+            if scipy.sparse.issparse(b):
+                b = scipy.sparse.csc_matrix(b)
+                b_tot.append(b.data)
+                idx_ptr_B += list(b.indptr[1:] - b.indptr[:-1])
+                idx_tot_B.append(idx_[b.indices])
+            else:
+                for ii in range(np.shape(b)[-1]):
+                    b_tot.append(b[:, ii])
+                    idx_tot_B.append(idx_)
+                    idx_ptr_B.append(len(idx_))
+                    # F_tot[patch_id, :] = f[ii, :]
+            count_bgr += b.shape[-1]
             if nb_patch >= 0:
                 F_tot[patch_id * nb_patch:(patch_id + 1) * nb_patch] = f
             else:  # full background per patch
@@ -373,7 +361,7 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride=4, gnb=1, dview=No
                     idx_tot_A.append(idx_)
                     idx_ptr_A.append(len(idx_))
                     C_tot[count, :] = C[ii, :]
-                    if options['init_params']['center_psf']:
+                    if params.get('init', 'center_psf'):
                         S_tot[count, :] = S[ii, :]
                     YrA_tot[count, :] = YrA[ii, :]
                     id_patch_tot.append(patch_id)
@@ -432,7 +420,7 @@ def run_CNMF_patches(file_name, shape, options, rf=16, stride=4, gnb=1, dview=No
         f = None
     elif low_rank_background is None:
         b = Im.dot(B_tot)
-        f = scipy.sparse.csr_matrix(F_tot)
+        f = F_tot
         print("Leaving background components intact")
     elif low_rank_background:
         print("Compressing background components with a low rank NMF")

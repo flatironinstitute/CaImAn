@@ -552,7 +552,7 @@ def select_components_from_metrics(A, dims, gSig, r_values, comp_SNR,
                                    min_SNR=2.5, min_SNR_reject=0.5,
                                    thresh_cnn_min=0.8, thresh_cnn_lowest=0.1,
                                    use_cnn=True, gSig_range=None,
-                                   neuron_class=1, predictions=None):
+                                   neuron_class=1, predictions=None, **kwargs):
     '''Selects components based on pre-computed metrics. For each metric
     space correlation, trace SNR, and CNN classifier both an upper and a lower
     thresholds are considered. A component is accepted if and only if it

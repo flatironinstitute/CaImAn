@@ -22,7 +22,7 @@ import sys
 #%%
 
 
-def constrained_foopsi(fluor, bl=None,  c1=None, g=None,  sn=None, p=None, method='oasis', bas_nonneg=True,
+def constrained_foopsi(fluor, bl=None,  c1=None, g=None,  sn=None, p=None, method_deconvolution='oasis', bas_nonneg=True,
                        noise_range=[.25, .5], noise_method='logmexp', lags=5, fudge_factor=1.,
                        verbosity=False, solvers=None, optimize_g=0, s_min=None, **kwargs):
     """ Infer the most likely discretized spike train underlying a fluorescence trace
@@ -55,7 +55,7 @@ def constrained_foopsi(fluor, bl=None,  c1=None, g=None,  sn=None, p=None, metho
     p: int
         order of the autoregression model
 
-    method: [optional] string
+    method_deconvolution: [optional] string
         solution method for basis projection pursuit 'cvx' or 'cvxpy' or 'oasis'
 
     bas_nonneg: bool
@@ -136,15 +136,15 @@ def constrained_foopsi(fluor, bl=None,  c1=None, g=None,  sn=None, p=None, metho
         sp = c.copy()
 
     else:  # choose a source extraction method
-        if method == 'cvx':
+        if method_deconvolution == 'cvx':
             c, bl, c1, g, sn, sp = cvxopt_foopsi(
                 fluor, b=bl, c1=c1, g=g, sn=sn, p=p, bas_nonneg=bas_nonneg, verbosity=verbosity)
 
-        elif method == 'cvxpy':
+        elif method_deconvolution == 'cvxpy':
             c, bl, c1, g, sn, sp = cvxpy_foopsi(
                 fluor, g, sn, b=bl, c1=c1, bas_nonneg=bas_nonneg, solvers=solvers)
 
-        elif method == 'oasis':
+        elif method_deconvolution == 'oasis':
             from caiman.source_extraction.cnmf.oasis import constrained_oasisAR1
             penalty = 1 if s_min is None else 0
             if p == 1:

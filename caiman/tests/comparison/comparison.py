@@ -253,7 +253,7 @@ class Comparison(object):
             if os._exists(file_path):
                 os.remove(file_path)
                 print("nothing to remove\n")
-            np.savez(file_path, information=information, A_full=self.comparison['cnmf_full_frame']['ourdata'][0],
+            np.savez_compressed(file_path, information=information, A_full=self.comparison['cnmf_full_frame']['ourdata'][0],
                      C_full=self.comparison['cnmf_full_frame']['ourdata'][
                          1], A_patch=self.comparison['cnmf_on_patch']['ourdata'][0],
                      C_patch=self.comparison['cnmf_on_patch']['ourdata'][1], rig_shifts=self.comparison['rig_shifts']['ourdata'])
@@ -274,7 +274,7 @@ class Comparison(object):
                 # we save but we explain why there were a problem
                 print('we were not able to read the file ' + str(file_path) + ' to compare it\n')
                 file_path = os.path.join(caiman_datadir(), "testdata", "NC" + dt + ".npz")
-                np.savez(file_path, information=information, A_full=self.comparison['cnmf_full_frame']['ourdata'][0],
+                np.savez_compressed(file_path, information=information, A_full=self.comparison['cnmf_full_frame']['ourdata'][0],
                          C_full=self.comparison['cnmf_full_frame']['ourdata'][
                              1], A_patch=self.comparison['cnmf_on_patch']['ourdata'][0],
                          C_patch=self.comparison['cnmf_on_patch']['ourdata'][1], rig_shifts=self.comparison['rig_shifts']['ourdata'])
@@ -365,7 +365,7 @@ class Comparison(object):
         if not os.path.exists(target_dir):
             os.makedirs(os.path.join(caiman_datadir(), "testdata", i)) # XXX If we ever go Python3, just use the exist_ok flag to os.makedirs
         file_path = os.path.join(target_dir, i + ".npz")
-        np.savez(file_path, information=information, A_full=self.comparison['cnmf_full_frame']['ourdata'][0],
+        np.savez_compressed(file_path, information=information, A_full=self.comparison['cnmf_full_frame']['ourdata'][0],
                  C_full=self.comparison['cnmf_full_frame']['ourdata'][
                      1], A_patch=self.comparison['cnmf_on_patch']['ourdata'][0],
                  C_patch=self.comparison['cnmf_on_patch']['ourdata'][1], rig_shifts=self.comparison['rig_shifts']['ourdata'])
@@ -518,6 +518,7 @@ def plotrig(init, curr, timer, sensitivity):
         print("not able to plot")
     return info
 
+
 def normalised_compare_cnmpatches(a, b):
     # This is designed to copy with fields that make it into these objects that need some normalisation before they
     # are rightly comparable. To deal with that we do a deepcopy and then inline-normalise. Add any new needed keys
@@ -526,12 +527,14 @@ def normalised_compare_cnmpatches(a, b):
     mutable_a = copy.deepcopy(a)
     mutable_b = copy.deepcopy(b)
 
-    if 'options' in mutable_a and 'options' in mutable_b:
-        if 'online' in mutable_a['options'] and 'online' in mutable_b['options']:
-            if 'path_to_model' in mutable_a['options']['online'] and 'path_to_model' in mutable_b['options']['online']:
-                _, mutable_a['options']['online']['path_to_model'] = os.path.split(mutable_a['options']['online']['path_to_model']) # Remove all but the last part
-                _, mutable_b['options']['online']['path_to_model'] = os.path.split(mutable_b['options']['online']['path_to_model'])
-                # print("Normalised A: " + str(mutable_a['options']['online']['path_to_model']))
-                # print("Normalised B: " + str(mutable_b['options']['online']['path_to_model']))
+    if 'params' in mutable_a and 'params' in mutable_b:
+        params_a = mutable_a['params']
+        params_b = mutable_b['params']
+        if hasattr(params_a, 'online') and hasattr(params_b, 'online'):
+            if 'path_to_model' in params_a.online and 'path_to_model' in params_b.online:
+                _, params_a.online['path_to_model'] = os.path.split(params_a.online['path_to_model']) # Remove all but the last part
+                _, params_b.online['path_to_model'] = os.path.split(params_b.online['path_to_model'])
+                # print("Normalised A: " + str(params_a.online['path_to_model']))
+                # print("Normalised B: " + str(params_b.online['path_to_model']))
 
     return mutable_a == mutable_b

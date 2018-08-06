@@ -43,13 +43,12 @@ from scipy.io import loadmat
 from matplotlib import animation
 import pylab as pl
 import tifffile
-from skimage.external.tifffile import imread
 from tqdm import tqdm
 from . import timeseries
 
 try:
     cv2.setNumThreads(0)
-except:
+except():
     pass
 
 try:

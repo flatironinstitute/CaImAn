@@ -1,32 +1,52 @@
 #!/usr/bin/env python
+""" Online Constrained Nonnegative Matrix Factorization
+
+The general file class which is used to analyze calcium imaging data in an
+online fashion using the OnACID algorithm. The output of the algorithm
+is storead in an Estimates class
+
+More info:
+------------
+Giovannucci, A., Friedrich, J., Kaufman, M., Churchland, A., Chklovskii, D., 
+Paninski, L., & Pnevmatikakis, E.A. (2017). OnACID: Online analysis of calcium
+imaging data in real time. In Advances in Neural Information Processing Systems 
+(pp. 2381-2391).
+@url http://papers.nips.cc/paper/6832-onacid-online-analysis-of-calcium-imaging-data-in-real-time
+"""
 
 from __future__ import division
 from __future__ import print_function
-from past.builtins import basestring
-from builtins import zip
+
 from builtins import map
-from builtins import str
 from builtins import range
-from past.utils import old_div
-import numpy as np
-
-from scipy.ndimage.filters import gaussian_filter
-from scipy.stats import norm
+from builtins import str
+from builtins import zip
 from math import sqrt
+from time import time
 
-import caiman as cm
-from .initialization import imblur, initialize_components, hals
-import scipy
-from scipy.sparse import coo_matrix, csc_matrix
-from caiman.components_evaluation import compute_event_exceptionality
-from .utilities import update_order
-from caiman.source_extraction.cnmf import oasis
+import cv2
+import numpy as np
+from past.utils import old_div
+from scipy.ndimage import percentile_filter
+from scipy.ndimage.filters import gaussian_filter
+from scipy.sparse import coo_matrix, csc_matrix, spdiags
+from scipy.stats import norm
+from skimage.feature import peak_local_max
 from sklearn.decomposition import NMF
 from sklearn.preprocessing import normalize
-import cv2
-from skimage.feature import peak_local_max
-import pylab as plt
-from caiman.source_extraction.cnmf.spatial import threshold_components
+
+import caiman
+from caiman.source_extraction.cnmf import params
+from .cnmf import CNMF
+from .estimates import Estimates
+from .initialization import imblur, initialize_components, hals
+from .oasis import OASIS
+from .params import CNMFParams
+from .utilities import update_order, get_file_size
+from ... import mmapping
+from ...components_evaluation import compute_event_exceptionality
+from ...motion_correction import motion_correct_iteration_fast
+from ...utils.utils import save_dict_to_hdf5, load_dict_from_hdf5
 
 try:
     cv2.setNumThreads(0)
@@ -37,6 +57,768 @@ try:
     profile
 except:
     def profile(a): return a
+
+
+class OnACID(object):
+    """  Source extraction of streaming data using online matrix factorization.
+    The class can be initialized by passing a "params" object for setting up
+    the relevant parameters and an "Estimates" object for setting an initial
+    state of the algorithm (optional)
+
+    Methods:
+    ------------
+    initialize_online: 
+
+        Initialize the online algorithm using a provided method, and prepare
+        the online object
+
+    _prepare_object: 
+        Prepare the online object given a set of estimates
+        
+    fit_next:
+        Fit the algorithm on the next data frame
+
+    fit_online:
+        Run the entire online pipeline on a given list of files
+    """
+
+    def __init__(self, params=None, estimates=None):
+        if params is None:
+            self.params = CNMFParams()
+        else:
+            self.params = params
+
+        if estimates is None:
+            self.estimates = Estimates()
+
+    def _prepare_object(self, Yr, T, new_dims=None, idx_components=None):
+
+        if idx_components is None:
+            idx_components = range(self.estimates.A.shape[-1])
+
+        self.estimates.A = self.estimates.A.astype(np.float32)
+        self.estimates.C = self.estimates.C.astype(np.float32)
+        self.estimates.f = self.estimates.f.astype(np.float32)
+        self.estimates.b = self.estimates.b.astype(np.float32)
+        self.estimates.YrA = self.estimates.YrA.astype(np.float32)
+        self.estimates.select_components(idx_components=idx_components)
+        self.N = self.estimates.A.shape[-1]
+        self.M = self.params.get('init', 'nb') + self.N
+        self.dims = self.params.get('data', 'dims')
+
+        expected_comps = self.params.get('online', 'expected_comps')
+        if expected_comps <= self.N + self.params.get('online', 'max_num_added'):
+            expected_comps = self.N + self.params.get('online', 'max_num_added') + 200
+            self.params.set('online', {'expected_comps': expected_comps})
+
+        if Yr.shape[-1] != self.params.get('online', 'init_batch'):
+            raise Exception(
+                'The movie size used for initialization does not match with the minibatch size')
+
+        if new_dims is not None:
+
+            new_Yr = np.zeros([np.prod(new_dims), T])
+            for ffrr in range(T):
+                tmp = cv2.resize(Yr[:, ffrr].reshape(
+                    self.dims, order='F'), new_dims[::-1])
+                print(tmp.shape)
+                new_Yr[:, ffrr] = tmp.reshape([np.prod(new_dims)], order='F')
+            Yr = new_Yr
+            A_new = csc_matrix((np.prod(new_dims), self.estimates.A.shape[-1]), dtype=np.float32)
+            for neur in range(self.N):
+                a = self.estimates.A.tocsc()[:, neur].toarray()
+                a = a.reshape(self.dims, order='F')
+                a = cv2.resize(a, new_dims[::-1]).reshape([-1, 1], order='F')
+
+                A_new[:, neur] = csc_matrix(a)
+
+            self.estimates.A = A_new
+            self.estimates.b = self.estimates.b.reshape(self.dims, order='F')
+            self.estimates.b = cv2.resize(
+                self.estimates.b, new_dims[::-1]).reshape([-1, 1], order='F')
+
+            self.dims = new_dims
+
+        self.estimates.normalize_components()
+        self.estimates.A = self.estimates.A.todense()
+        self.estimates.noisyC = np.zeros(
+            (self.params.get('init', 'nb') + expected_comps, T), dtype=np.float32)
+        self.estimates.C_on = np.zeros((expected_comps, T), dtype=np.float32)
+
+        self.estimates.noisyC[self.params.get('init', 'nb'):self.M, :self.params.get('online', 'init_batch')] = self.estimates.C + self.estimates.YrA
+        self.estimates.noisyC[:self.params.get('init', 'nb'), :self.params.get('online', 'init_batch')] = self.estimates.f
+        self.estimates.dims = self.dims
+        if self.params.get('preprocess', 'p'):
+            # if no parameter for calculating the spike size threshold is given, then use L1 penalty
+            if self.params.get('temporal', 's_min') is None:
+                use_L1 = True
+            else:
+                use_L1 = False
+
+#            self.estimates.OASISinstances = [OASIS(
+#                g=np.ravel(0.01) if self.params.get('preprocess', 'p') == 0 else (
+#                    np.ravel(g)[0] if g is not None else gam[0]),
+#                lam=0 if not use_L1 else (l if lam is None else lam),
+#                s_min=0 if use_L1 else (s_min if s_min is not None else
+#                                        (self.params.get('temporal', 's_min') if self.params.get('temporal', 's_min') > 0 else
+#                                         (-self.params.get('temporal', 's_min') * sn * np.sqrt(1 - np.sum(gam))))),
+#                b=b if bl is None else bl,
+#                g2=0 if self.params.get('preprocess', 'p') < 2 else (np.ravel(g)[1] if g is not None else gam[1]))
+#                for gam, l, b, sn in zip(self.estimates.g, self.estimates.lam, self.estimates.bl, self.estimates.neurons_sn)]
+            
+            self.estimates.OASISinstances = [OASIS(
+                g=np.ravel(0.01) if self.params.get('preprocess', 'p') == 0 else gam[0],
+                lam=0 if not use_L1 else l,
+                s_min=0 if use_L1 else (self.params.get('temporal', 's_min') if self.params.get('temporal', 's_min') > 0 else
+                                         (-self.params.get('temporal', 's_min') * sn * np.sqrt(1 - np.sum(gam)))),
+                b=b,
+                g2=0 if self.params.get('preprocess', 'p') < 2 else gam[1])
+                for gam, l, b, sn in zip(self.estimates.g, self.estimates.lam, self.estimates.bl, self.estimates.neurons_sn)]
+
+            for i, o in enumerate(self.estimates.OASISinstances):
+                o.fit(self.estimates.noisyC[i + self.params.get('init', 'nb'), :self.params.get('online', 'init_batch')])
+                self.estimates.C_on[i, :self.params.get('online', 'init_batch')] = o.c
+        else:
+            self.estimates.C_on[:self.N, :self.params.get('online', 'init_batch')] = self.estimates.C
+
+        self.estimates.Ab, self.ind_A, self.estimates.CY, self.estimates.CC = init_shapes_and_sufficient_stats(
+            Yr[:, :self.params.get('online', 'init_batch')].reshape(
+                self.params.get('data', 'dims') + (-1,), order='F'), self.estimates.A,
+            self.estimates.C_on[:self.N, :self.params.get('online', 'init_batch')], self.estimates.b, self.estimates.noisyC[:self.params.get('init', 'nb'), :self.params.get('online', 'init_batch')])
+
+        self.estimates.CY, self.estimates.CC = self.estimates.CY * 1. / self.params.get('online', 'init_batch'), 1 * self.estimates.CC / self.params.get('online', 'init_batch')
+
+        print('Expecting ' + str(expected_comps) + ' components')
+        self.estimates.CY.resize([expected_comps + self.params.get('init', 'nb'), self.estimates.CY.shape[-1]])
+        if self.params.get('online', 'use_dense'):
+            self.estimates.Ab_dense = np.zeros((self.estimates.CY.shape[-1], expected_comps + self.params.get('init', 'nb')),
+                                     dtype=np.float32)
+            self.estimates.Ab_dense[:, :self.estimates.Ab.shape[1]] = self.estimates.Ab.toarray()
+        self.estimates.C_on = np.vstack(
+            [self.estimates.noisyC[:self.params.get('init', 'nb'), :], self.estimates.C_on.astype(np.float32)])
+
+        self.params.set('init', {'gSiz': np.add(np.multiply(np.ceil(self.params.get('init', 'gSig')).astype(np.int), 2), 1)})
+
+        self.estimates.Yr_buf = RingBuffer(Yr[:, self.params.get('online', 'init_batch') - self.params.get('online', 'minibatch_shape'):
+                                    self.params.get('online', 'init_batch')].T.copy(), self.params.get('online', 'minibatch_shape'))
+        self.estimates.Yres_buf = RingBuffer(self.estimates.Yr_buf - self.estimates.Ab.dot(
+            self.estimates.C_on[:self.M, self.params.get('online', 'init_batch') - self.params.get('online', 'minibatch_shape'):self.params.get('online', 'init_batch')]).T, self.params.get('online', 'minibatch_shape'))
+        self.estimates.sn = np.array(np.std(self.estimates.Yres_buf,axis=0))
+        self.estimates.vr = np.array(np.var(self.estimates.Yres_buf,axis=0))
+        self.estimates.mn = self.estimates.Yres_buf.mean(0)
+        self.estimates.mean_buff = self.estimates.Yres_buf.mean(0)
+        self.estimates.ind_new = []
+        self.estimates.rho_buf = imblur(np.maximum(self.estimates.Yres_buf.T,0).reshape(
+            self.params.get('data', 'dims') + (-1,), order='F'), sig=self.params.get('init', 'gSig'), siz=self.params.get('init', 'gSiz'), nDimBlur=len(self.params.get('data', 'dims')))**2
+        self.estimates.rho_buf = np.reshape(
+            self.estimates.rho_buf, (np.prod(self.params.get('data', 'dims')), -1)).T
+        self.estimates.rho_buf = RingBuffer(self.estimates.rho_buf, self.params.get('online', 'minibatch_shape'))
+        self.estimates.AtA = (self.estimates.Ab.T.dot(self.estimates.Ab)).toarray()
+        self.estimates.AtY_buf = self.estimates.Ab.T.dot(self.estimates.Yr_buf.T)
+        self.estimates.sv = np.sum(self.estimates.rho_buf.get_last_frames(
+            min(self.params.get('online', 'init_batch'), self.params.get('online', 'minibatch_shape')) - 1), 0)
+        self.estimates.groups = list(map(list, update_order(self.estimates.Ab)[0]))
+        # self.update_counter = np.zeros(self.N)
+        self.update_counter = .5**(-np.linspace(0, 1,
+                                                self.N, dtype=np.float32))
+        self.time_neuron_added = []
+        for nneeuu in range(self.N):
+            self.time_neuron_added.append((nneeuu, self.params.get('online', 'init_batch')))
+        self.time_spend = 0
+        # setup per patch classifier
+
+        if self.params.get('online', 'path_to_model') is None or self.params.get('online', 'sniper_mode') is False:
+            loaded_model = None
+            self.params.set('online', {'sniper_mode': False})
+        else:
+            import keras
+            from keras.models import model_from_json
+            path = self.params.get('online', 'path_to_model').split(".")[:-1]
+            json_path = ".".join(path + ["json"])
+            model_path = ".".join(path + ["h5"])
+
+            json_file = open(json_path, 'r')
+            loaded_model_json = json_file.read()
+            json_file.close()
+            loaded_model = model_from_json(loaded_model_json)
+            loaded_model.load_weights(model_path)
+            opt = keras.optimizers.rmsprop(lr=0.0001, decay=1e-6)
+            loaded_model.compile(loss=keras.losses.categorical_crossentropy,
+                                 optimizer=opt, metrics=['accuracy'])
+
+        self.loaded_model = loaded_model
+        return self
+         
+    def fit_next(self, t, frame_in, num_iters_hals=3):
+        """
+        This method fits the next frame using the online cnmf algorithm and
+        updates the object.
+
+        Parameters
+        ----------
+        t : int
+            time measured in number of frames
+
+        frame_in : array
+            flattened array of shape (x*y[*z],) containing the t-th image.
+
+        num_iters_hals: int, optional
+            maximal number of iterations for HALS (NNLS via blockCD)
+
+
+        """
+
+        t_start = time()
+
+        # locally scoped variables for brevity of code and faster look up
+        nb_ = self.params.get('init', 'nb')
+        Ab_ = self.estimates.Ab
+        mbs = self.params.get('online', 'minibatch_shape')
+        expected_comps = self.params.get('online', 'expected_comps')
+        frame = frame_in.astype(np.float32)
+#        print(np.max(1/scipy.sparse.linalg.norm(self.estimates.Ab,axis = 0)))
+        self.estimates.Yr_buf.append(frame)
+        if len(self.estimates.ind_new) > 0:
+            self.estimates.mean_buff = self.estimates.Yres_buf.mean(0)
+
+        if (not self.params.get('online', 'simultaneously')) or self.params.get('preprocess', 'p') == 0:
+            # get noisy fluor value via NNLS (project data on shapes & demix)
+            C_in = self.estimates.noisyC[:self.M, t - 1].copy()
+            self.estimates.C_on[:self.M, t], self.estimates.noisyC[:self.M, t] = HALS4activity(
+                frame, self.estimates.Ab, C_in, self.estimates.AtA, iters=num_iters_hals, groups=self.estimates.groups)
+            if self.params.get('preprocess', 'p'):
+                # denoise & deconvolve
+                for i, o in enumerate(self.estimates.OASISinstances):
+                    o.fit_next(self.estimates.noisyC[nb_ + i, t])
+                    self.estimates.C_on[nb_ + i, t - o.get_l_of_last_pool() +
+                              1: t + 1] = o.get_c_of_last_pool()
+
+        else:
+            # update buffer, initialize C with previous value
+            self.estimates.C_on[:, t] = self.estimates.C_on[:, t - 1]
+            self.estimates.noisyC[:, t] = self.estimates.C_on[:, t - 1]
+            self.estimates.AtY_buf = np.concatenate((self.estimates.AtY_buf[:, 1:], self.estimates.Ab.T.dot(frame)[:, None]), 1) \
+                if self.params.get('online', 'n_refit') else self.estimates.Ab.T.dot(frame)[:, None]
+            # demix, denoise & deconvolve
+            (self.estimates.C_on[:self.M, t + 1 - mbs:t + 1], self.estimates.noisyC[:self.M, t + 1 - mbs:t + 1],
+                self.estimates.OASISinstances) = demix_and_deconvolve(
+                self.estimates.C_on[:self.M, t + 1 - mbs:t + 1],
+                self.estimates.noisyC[:self.M, t + 1 - mbs:t + 1],
+                self.estimates.AtY_buf, self.estimates.AtA, self.estimates.OASISinstances, iters=num_iters_hals,
+                n_refit=self.params.get('online', 'n_refit'))
+            for i, o in enumerate(self.estimates.OASISinstances):
+                self.estimates.C_on[nb_ + i, t - o.get_l_of_last_pool() + 1: t +
+                          1] = o.get_c_of_last_pool()
+
+        #self.estimates.mean_buff = self.estimates.Yres_buf.mean(0)
+        res_frame = frame - self.estimates.Ab.dot(self.estimates.C_on[:self.M, t])
+        mn_ = self.estimates.mn.copy()
+        self.estimates.mn = (t-1)/t*self.estimates.mn + res_frame/t
+        self.estimates.vr = (t-1)/t*self.estimates.vr + (res_frame - mn_)*(res_frame - self.estimates.mn)/t
+        self.estimates.sn = np.sqrt(self.estimates.vr)
+
+        if self.params.get('online', 'update_num_comps'):
+
+            self.estimates.mean_buff += (res_frame-self.estimates.Yres_buf[self.estimates.Yres_buf.cur])/self.params.get('online', 'minibatch_shape')
+            self.estimates.Yres_buf.append(res_frame)
+
+            res_frame = np.reshape(res_frame, self.params.get('data', 'dims'), order='F')
+
+            rho = imblur(np.maximum(res_frame,0), sig=self.params.get('init', 'gSig'),
+                         siz=self.params.get('init', 'gSiz'), nDimBlur=len(self.params.get('data', 'dims')))**2
+
+            rho = np.reshape(rho, np.prod(self.params.get('data', 'dims')))
+            self.estimates.rho_buf.append(rho)
+
+            self.estimates.Ab, Cf_temp, self.estimates.Yres_buf, self.rhos_buf, self.estimates.CC, self.estimates.CY, self.ind_A, self.estimates.sv, self.estimates.groups, self.estimates.ind_new, self.ind_new_all, self.estimates.sv, self.cnn_pos = update_num_components(
+                t, self.estimates.sv, self.estimates.Ab, self.estimates.C_on[:self.M, (t - mbs + 1):(t + 1)],
+                self.estimates.Yres_buf, self.estimates.Yr_buf, self.estimates.rho_buf, self.params.get('data', 'dims'),
+                self.params.get('init', 'gSig'), self.params.get('init', 'gSiz'), self.ind_A, self.estimates.CY, self.estimates.CC, rval_thr=self.params.get('online', 'rval_thr'),
+                thresh_fitness_delta=self.params.get('online', 'thresh_fitness_delta'),
+                thresh_fitness_raw=self.params.get('online', 'thresh_fitness_raw'), thresh_overlap=self.params.get('online', 'thresh_overlap'),
+                groups=self.estimates.groups, batch_update_suff_stat=self.params.get('online', 'batch_update_suff_stat'), gnb=self.params.get('init', 'nb'),
+                sn=self.estimates.sn, g=np.mean(
+                    self.estimates.g) if self.params.get('preprocess', 'p') == 1 else np.mean(self.estimates.g, 0),
+                s_min=self.params.get('temporal', 's_min'),
+                Ab_dense=self.estimates.Ab_dense[:, :self.M] if self.params.get('online', 'use_dense') else None,
+                oases=self.estimates.OASISinstances if self.params.get('preprocess', 'p') else None,
+                N_samples_exceptionality=self.params.get('online', 'N_samples_exceptionality'),
+                max_num_added=self.params.get('online', 'max_num_added'), min_num_trial=self.params.get('online', 'min_num_trial'),
+                loaded_model = self.loaded_model, thresh_CNN_noisy = self.params.get('online', 'thresh_CNN_noisy'),
+                sniper_mode=self.params.get('online', 'sniper_mode'), use_peak_max=self.params.get('online', 'use_peak_max'),
+                test_both=self.params.get('online', 'test_both'))
+
+            num_added = len(self.ind_A) - self.N
+
+            if num_added > 0:
+                self.N += num_added
+                self.M += num_added
+                if self.N + self.params.get('online', 'max_num_added') > expected_comps:
+                    expected_comps += 200
+                    self.params.set('online', {'expected_comps': expected_comps})
+                    self.estimates.CY.resize(
+                        [expected_comps + nb_, self.estimates.CY.shape[-1]])
+                    # refcheck can trigger "ValueError: cannot resize an array references or is referenced
+                    #                       by another array in this way.  Use the resize function"
+                    # np.resize didn't work, but refcheck=False seems fine
+                    self.estimates.C_on.resize(
+                        [expected_comps + nb_, self.estimates.C_on.shape[-1]], refcheck=False)
+                    self.estimates.noisyC.resize(
+                        [expected_comps + nb_, self.estimates.C_on.shape[-1]])
+                    if self.params.get('online', 'use_dense'):  # resize won't work due to contingency issue
+                        # self.estimates.Ab_dense.resize([self.estimates.CY.shape[-1], expected_comps+nb_])
+                        self.estimates.Ab_dense = np.zeros((self.estimates.CY.shape[-1], expected_comps + nb_),
+                                                 dtype=np.float32)
+                        self.estimates.Ab_dense[:, :Ab_.shape[1]] = Ab_.toarray()
+                    print('Increasing number of expected components to:' +
+                          str(expected_comps))
+                self.update_counter.resize(self.N)
+                self.estimates.AtA = (Ab_.T.dot(Ab_)).toarray()
+
+                self.estimates.noisyC[self.M - num_added:self.M, t - mbs +
+                            1:t + 1] = Cf_temp[self.M - num_added:self.M]
+
+                for _ct in range(self.M - num_added, self.M):
+                    self.time_neuron_added.append((_ct - nb_, t))
+                    if self.params.get('preprocess', 'p'):
+                        # N.B. OASISinstances are already updated within update_num_components
+                        self.estimates.C_on[_ct, t - mbs + 1: t +
+                                  1] = self.estimates.OASISinstances[_ct - nb_].get_c(mbs)
+                    else:
+                        self.estimates.C_on[_ct, t - mbs + 1: t + 1] = np.maximum(0,
+                                                                        self.estimates.noisyC[_ct, t - mbs + 1: t + 1])
+                    if self.params.get('online', 'simultaneously') and self.params.get('online', 'n_refit'):
+                        self.estimates.AtY_buf = np.concatenate((
+                            self.estimates.AtY_buf, [Ab_.data[Ab_.indptr[_ct]:Ab_.indptr[_ct + 1]].dot(
+                                self.estimates.Yr_buf.T[Ab_.indices[Ab_.indptr[_ct]:Ab_.indptr[_ct + 1]]])]))
+                    # much faster than Ab_[:, self.N + nb_ - num_added:].toarray()
+                    if self.params.get('online', 'use_dense'):
+                        self.estimates.Ab_dense[Ab_.indices[Ab_.indptr[_ct]:Ab_.indptr[_ct + 1]],
+                                      _ct] = Ab_.data[Ab_.indptr[_ct]:Ab_.indptr[_ct + 1]]
+
+                # set the update counter to 0 for components that are overlaping the newly added
+                if self.params.get('online', 'use_dense'):
+                    idx_overlap = np.concatenate([
+                        self.estimates.Ab_dense[self.ind_A[_ct], nb_:self.M - num_added].T.dot(
+                            self.estimates.Ab_dense[self.ind_A[_ct], _ct + nb_]).nonzero()[0]
+                        for _ct in range(self.N - num_added, self.N)])
+                else:
+                    idx_overlap = Ab_.T.dot(
+                        Ab_[:, -num_added:])[nb_:-num_added].nonzero()[0]
+                self.update_counter[idx_overlap] = 0
+
+        if (t - self.params.get('online', 'init_batch')) % mbs == mbs - 1 and\
+                self.params.get('online', 'batch_update_suff_stat'):
+            # faster update using minibatch of frames
+
+            ccf = self.estimates.C_on[:self.M, t - mbs + 1:t + 1]
+            y = self.estimates.Yr_buf  # .get_last_frames(mbs)[:]
+
+            # much faster: exploit that we only access CY[m, ind_pixels], hence update only these
+            n0 = mbs
+            t0 = 0 * self.params.get('online', 'init_batch')
+            w1 = (t - n0 + t0) * 1. / (t + t0)  # (1 - 1./t)#mbs*1. / t
+            w2 = 1. / (t + t0)  # 1.*mbs /t
+            for m in range(self.N):
+                self.estimates.CY[m + nb_, self.ind_A[m]] *= w1
+                self.estimates.CY[m + nb_, self.ind_A[m]] += w2 * \
+                    ccf[m + nb_].dot(y[:, self.ind_A[m]])
+
+            self.estimates.CY[:nb_] = self.estimates.CY[:nb_] * w1 + \
+                w2 * ccf[:nb_].dot(y)   # background
+            self.estimates.CC = self.estimates.CC * w1 + w2 * ccf.dot(ccf.T)
+
+        if not self.params.get('online', 'batch_update_suff_stat'):
+
+            ccf = self.estimates.C_on[:self.M, t - self.params.get('online', 'minibatch_suff_stat'):t - self.params.get('online', 'minibatch_suff_stat') + 1]
+            y = self.estimates.Yr_buf.get_last_frames(self.params.get('online', 'minibatch_suff_stat') + 1)[:1]
+            # much faster: exploit that we only access CY[m, ind_pixels], hence update only these
+            for m in range(self.N):
+                self.estimates.CY[m + nb_, self.ind_A[m]] *= (1 - 1. / t)
+                self.estimates.CY[m + nb_, self.ind_A[m]] += ccf[m +
+                                                       nb_].dot(y[:, self.ind_A[m]]) / t
+            self.estimates.CY[:nb_] = self.estimates.CY[:nb_] * (1 - 1. / t) + ccf[:nb_].dot(y / t)
+            self.estimates.CC = self.estimates.CC * (1 - 1. / t) + ccf.dot(ccf.T / t)
+
+        # update shapes
+        if True:  # False:  # bulk shape update
+            if (t - self.params.get('online', 'init_batch')) % mbs == mbs - 1:
+                print('Updating Shapes')
+
+                if self.N > self.params.get('online', 'max_comp_update_shape'):
+                    indicator_components = np.where(self.update_counter <=
+                                                    self.params.get('online', 'num_times_comp_updated'))[0]
+                    # np.random.choice(self.N,10,False)
+                    self.update_counter[indicator_components] += 1
+                else:
+                    indicator_components = None
+
+                if self.params.get('online', 'use_dense'):
+                    # update dense Ab and sparse Ab simultaneously;
+                    # this is faster than calling update_shapes with sparse Ab only
+                    Ab_, self.ind_A, self.estimates.Ab_dense[:, :self.M] = update_shapes(
+                        self.estimates.CY, self.estimates.CC, self.estimates.Ab, self.ind_A,
+                        indicator_components=indicator_components,
+                        Ab_dense=self.estimates.Ab_dense[:, :self.M],
+                        sn=self.estimates.sn, q=0.5)
+                else:
+                    Ab_, self.ind_A, _ = update_shapes(self.estimates.CY, self.estimates.CC, Ab_, self.ind_A,
+                                                       indicator_components=indicator_components,
+                                                       sn=self.estimates.sn, q=0.5)
+
+                self.estimates.AtA = (Ab_.T.dot(Ab_)).toarray()
+
+                ind_zero = list(np.where(self.estimates.AtA.diagonal() < 1e-10)[0])
+                if len(ind_zero) > 0:
+                    ind_zero.sort()
+                    ind_zero = ind_zero[::-1]
+                    ind_keep = list(set(range(Ab_.shape[-1])) - set(ind_zero))
+                    ind_keep.sort()
+
+                    if self.params.get('online', 'use_dense'):
+                        self.estimates.Ab_dense = np.delete(
+                            self.estimates.Ab_dense, ind_zero, axis=1)
+                    self.estimates.AtA = np.delete(self.estimates.AtA, ind_zero, axis=0)
+                    self.estimates.AtA = np.delete(self.estimates.AtA, ind_zero, axis=1)
+                    self.estimates.CY = np.delete(self.estimates.CY, ind_zero, axis=0)
+                    self.estimates.CC = np.delete(self.estimates.CC, ind_zero, axis=0)
+                    self.estimates.CC = np.delete(self.estimates.CC, ind_zero, axis=1)
+                    self.M -= len(ind_zero)
+                    self.N -= len(ind_zero)
+                    self.estimates.noisyC = np.delete(self.estimates.noisyC, ind_zero, axis=0)
+                    for ii in ind_zero:
+                        del self.estimates.OASISinstances[ii - self.params.get('init', 'nb')]
+                        #del self.ind_A[ii-self.params.init['nb']]
+
+                    self.estimates.C_on = np.delete(self.estimates.C_on, ind_zero, axis=0)
+                    self.estimates.AtY_buf = np.delete(self.estimates.AtY_buf, ind_zero, axis=0)
+                    #Ab_ = Ab_[:,ind_keep]
+                    Ab_ = csc_matrix(Ab_[:, ind_keep])
+                    #Ab_ = csc_matrix(self.estimates.Ab_dense[:,:self.M])
+                    self.Ab_dense_copy = self.estimates.Ab_dense
+                    self.Ab_copy = Ab_
+                    self.estimates.Ab = Ab_
+                    self.ind_A = list(
+                        [(self.estimates.Ab.indices[self.estimates.Ab.indptr[ii]:self.estimates.Ab.indptr[ii + 1]]) for ii in range(self.params.get('init', 'nb'), self.M)])
+                    self.estimates.groups = list(map(list, update_order(Ab_)[0]))
+
+                if self.params.get('online', 'n_refit'):
+                    self.estimates.AtY_buf = Ab_.T.dot(self.estimates.Yr_buf.T)
+
+        else:  # distributed shape update
+            self.update_counter *= .5**(1. / mbs)
+            # if not num_added:
+            if (not num_added) and (time() - t_start < self.time_spend / (t - self.params.get('online', 'init_batch') + 1)):
+                candidates = np.where(self.update_counter <= 1)[0]
+                if len(candidates):
+                    indicator_components = candidates[:self.N // mbs + 1]
+                    self.update_counter[indicator_components] += 1
+
+                    if self.params.get('online', 'use_dense'):
+                        # update dense Ab and sparse Ab simultaneously;
+                        # this is faster than calling update_shapes with sparse Ab only
+                        Ab_, self.ind_A, self.estimates.Ab_dense[:, :self.M] = update_shapes(
+                            self.estimates.CY, self.estimates.CC, self.estimates.Ab, self.ind_A,
+                            indicator_components, self.estimates.Ab_dense[:, :self.M],
+                            update_bkgrd=(t % mbs == 0))
+                    else:
+                        Ab_, self.ind_A, _ = update_shapes(
+                            self.estimates.CY, self.estimates.CC, Ab_, self.ind_A,
+                            indicator_components=indicator_components,
+                            update_bkgrd=(t % mbs == 0))
+
+                    self.estimates.AtA = (Ab_.T.dot(Ab_)).toarray()
+
+                self.estimates.Ab = Ab_
+            self.time_spend += time() - t_start
+        return self
+         
+    def initialize_online(self):
+        fls = self.params.get('data', 'fnames')
+        opts = self.params.get_group('online')
+        Y = caiman.load(fls[0], subindices=slice(0, opts['init_batch'],
+                 None)).astype(np.float32)
+
+        ds_factor = np.maximum(opts['ds_factor'], 1)
+        if ds_factor > 1:
+            Y = Y.resize(1./ds_factor, 1./ds_factor)
+        mc_flag = self.params.get('online', 'motion_correct')
+        self.estimates.shifts = []  # store motion shifts here
+        self.estimates.time_new_comp = []
+        if mc_flag:
+            max_shifts = self.params.get('online', 'max_shifts')
+            mc = Y.motion_correct(max_shifts, max_shifts)
+            Y = mc[0].astype(np.float32)
+            self.estimates.shifts.extend(mc[1])
+
+        img_min = Y.min()
+        
+        if self.params.get('online', 'normalize'):
+            Y -= img_min
+        img_norm = np.std(Y, axis=0)
+        img_norm += np.median(img_norm)  # normalize data to equalize the FOV
+        print('Size frame:' + str(img_norm.shape))
+        if self.params.get('online', 'normalize'):
+            Y = Y/img_norm[None, :, :]
+        if opts['show_movie']:
+            self.bnd_Y = np.percentile(Y,(0.001,100-0.001))
+        _, d1, d2 = Y.shape
+        Yr = Y.to_2D().T        # convert data into 2D array
+        self.img_min = img_min
+        self.img_norm = img_norm
+        if self.params.get('online', 'init_method') == 'bare':
+            self.estimates.A, self.estimates.b, self.estimates.C, self.estimates.f, self.estimates.YrA = bare_initialization(
+                    Y.transpose(1, 2, 0), gnb=self.params.get('init', 'nb'), k=self.params.get('init', 'K'),
+                    gSig=self.params.get('init', 'gSig'), return_object=False)
+            self.estimates.S = np.zeros_like(self.estimates.C)
+            nr = self.estimates.C.shape[0]
+            self.estimates.g = np.array([-np.poly([0.9] * max(self.params.get('preprocess', 'p'), 1))[1:]
+                               for gg in np.ones(nr)])
+            self.estimates.bl = np.zeros(nr)
+            self.estimates.c1 = np.zeros(nr)
+            self.estimates.neurons_sn = np.std(self.estimates.YrA, axis=-1)
+            self.estimates.lam = np.zeros(nr)
+        elif self.params.get('online', 'init_method') == 'cnmf':
+            cnm = CNMF(n_processes=1, params=self.params)
+            cnm.estimates.shifts = self.estimates.shifts
+            if self.params.get('patch', 'rf') is None:
+                self.dview = None
+                cnm.fit(np.array(Y))
+                self.estimates = cnm.estimates
+#                self.estimates.A, self.estimates.C, self.estimates.b, self.estimates.f,\
+#                self.estimates.S, self.estimates.YrA = cnm.estimates.A, cnm.estimates.C, cnm.estimates.b,\
+#                cnm.estimates.f, cnm.estimates.S, self.estimates.YrA
+                
+            else:
+                f_new = mmapping.save_memmap(fls[:1], base_name='Yr', order='C',
+                                             slices=[slice(0, opts['init_batch']), None, None])
+                Yrm, dims_, T_ = mmapping.load_memmap(f_new)
+                Y = np.reshape(Yrm.T, [T_] + list(dims_), order='F')
+                cnm.fit(Y)
+                self.estimates = cnm.estimates
+#                self.estimates.A, self.estimates.C, self.estimates.b, self.estimates.f,\
+#                self.estimates.S, self.estimates.YrA = cnm.estimates.A, cnm.estimates.C, cnm.estimates.b,\
+#                cnm.estimates.f, cnm.estimates.S, cnm.estimates.YrA
+                if self.params.get('online', 'normalize'):
+                    self.estimates.A /= self.img_norm.reshape(-1, order='F')[:, np.newaxis]
+                    self.estimates.b /= self.img_norm.reshape(-1, order='F')[:, np.newaxis]
+                    self.estimates.A = csc_matrix(self.estimates.A)
+            
+        elif self.params.get('online', 'init_method') == 'seeded':
+            self.estimates.A, self.estimates.b, self.estimates.C, self.estimates.f, self.estimates.YrA = seeded_initialization(
+                    Y.transpose(1, 2, 0), self.estimates.A, gnb=self.params.get('init', 'nb'), k=self.params.get('init', 'k'),
+                    gSig=self.params.get('init', 'gSig'), return_object=False)
+            self.estimates.S = np.zeros_like(self.estimates.C)
+            nr = self.estimates.C.shape[0]
+            self.estimates.g = np.array([-np.poly([0.9] * max(self.params.get('preprocess', 'p'), 1))[1:]
+                               for gg in np.ones(nr)])
+            self.estimates.bl = np.zeros(nr)
+            self.estimates.c1 = np.zeros(nr)
+            self.estimates.neurons_sn = np.std(self.estimates.YrA, axis=-1)
+            self.estimates.lam = np.zeros(nr)
+        else:
+            raise Exception('Unknown initialization method!')
+        dims, Ts = get_file_size(fls)
+        dims = Y.shape[1:]
+        self.params.set('data', {'dims': dims})
+        T1 = np.array(Ts).sum()*self.params.get('online', 'epochs')
+        self._prepare_object(Yr, T1)
+        if opts['show_movie']:
+            self.bnd_AC = np.percentile(self.estimates.A.dot(self.estimates.C),
+                                        (0.001, 100-0.005))
+            self.bnd_BG = np.percentile(self.estimates.b.dot(self.estimates.f),
+                                        (0.001, 100-0.001))
+        return self
+
+    def save(self,filename):
+        '''save object in hdf5 file format
+        Parameters:
+        -----------
+        filename: str
+            path to the hdf5 file containing the saved object
+        '''
+        if '.hdf5' in filename:
+            # keys_types = [(k, type(v)) for k, v in self.__dict__.items()]
+            save_dict_to_hdf5(self.__dict__, filename)
+        else:
+            raise Exception("Filename not supported")
+
+    def fit_online(self, **kwargs):
+        """Implements the caiman online algorithm on the list of files fls. The
+        files are taken in alpha numerical order and are assumed to each have
+        the same number of frames (except the last one that can be shorter).
+        Caiman online is initialized using the seeded or bare initialization
+        methods.
+        Parameters:
+        -----------
+        fls: list
+            list of files to be processed
+
+        init_batch: int
+            number of frames to be processed during initialization
+
+        epochs: int
+            number of passes over the data
+
+        motion_correct: bool
+            flag for performing motion correction
+
+        kwargs: dict
+            additional parameters used to modify self.params.online']
+            see options.['online'] for details
+
+        Returns:
+        --------
+        self (results of caiman online)
+        """
+#        lc = locals()
+#        pr = inspect.signature(self.fit_online)
+#        params = [k for k, v in pr.parameters.items() if '=' in str(v)]
+#        kw2 = {k: lc[k] for k in params}
+#        try:
+#            kwargs_new = {**kw2, **kwargs}
+#        except():  # python 2.7
+#            kwargs_new = kw2.copy()
+#            kwargs_new.update(kwargs)
+#        self.params.set('data', {'fnames': fls})
+#        self.params.set('online', kwargs_new)
+#        for key in kwargs_new:
+#            if hasattr(self, key):
+#                setattr(self, key, kwargs_new[key])
+        fls = self.params.get('data', 'fnames')
+        init_batch = self.params.get('online', 'init_batch')
+        epochs = self.params.get('online', 'epochs')
+        self.initialize_online()
+        extra_files = len(fls) - 1
+        init_files = 1
+        t = init_batch
+        self.Ab_epoch = []
+        max_shifts = self.params.get('online', 'max_shifts')
+        if extra_files == 0:     # check whether there are any additional files
+            process_files = fls[:init_files]     # end processing at this file
+            init_batc_iter = [init_batch]         # place where to start
+        else:
+            process_files = fls[:init_files + extra_files]   # additional files
+            # where to start reading at each file
+            init_batc_iter = [init_batch] + [0]*extra_files
+        for iter in range(epochs):
+            if iter > 0:
+                # if not on first epoch process all files from scratch
+                process_files = fls[:init_files + extra_files]
+                init_batc_iter = [0] * (extra_files + init_files)
+
+            for file_count, ffll in enumerate(process_files):
+                print('Now processing file ' + ffll)
+                Y_ = caiman.load(ffll, subindices=slice(init_batc_iter[file_count], None, None))
+
+                old_comps = self.N     # number of existing components
+                for frame_count, frame in enumerate(Y_):   # process each file
+                    if np.isnan(np.sum(frame)):
+                        raise Exception('Frame ' + str(frame_count) +
+                                        ' contains NaN')
+                    if t % 100 == 0:
+                        print('Epoch: ' + str(iter + 1) + '. ' + str(t) +
+                              ' frames have beeen processed in total. ' +
+                              str(self.N - old_comps) +
+                              ' new components were added. Total # of components is '
+                              + str(self.estimates.Ab.shape[-1] - self.params.get('init', 'nb')))
+                        old_comps = self.N
+
+                    frame_ = frame.copy().astype(np.float32)
+                    if self.params.get('online', 'ds_factor') > 1:
+                        frame_ = cv2.resize(frame_, self.img_norm.shape[::-1])
+                    
+                    if self.params.get('online', 'normalize'):
+                        frame_ -= self.img_min     # make data non-negative
+
+                    if self.params.get('online', 'motion_correct'):    # motion correct
+                        templ = self.estimates.Ab.dot(
+                            self.estimates.C_on[:self.M, t-1]).reshape(self.params.get('data', 'dims'), order='F')*self.img_norm
+                        frame_cor, shift = motion_correct_iteration_fast(
+                            frame_, templ, max_shifts, max_shifts)
+                        self.estimates.shifts.append(shift)
+                    else:
+                        templ = None
+                        frame_cor = frame_
+
+                    if self.params.get('online', 'normalize'):
+                        frame_cor = frame_cor/self.img_norm    # normalize data-frame
+                    self.fit_next(t, frame_cor.reshape(-1, order='F'))
+                    if self.params.get('online', 'show_movie'):
+                        self.t = t
+                        vid_frame = self.create_frame(frame_cor)
+                        cv2.imshow('frame', vid_frame)
+                        for rp in range(len(self.estimates.ind_new)*2):
+                            cv2.imshow('frame', vid_frame)
+                    if cv2.waitKey(1) & 0xFF == ord('q'):
+                        break
+                    t += 1
+            self.Ab_epoch.append(self.estimates.Ab.copy())
+        if self.params.get('online', 'normalize'):
+            self.estimates.Ab /= 1./self.img_norm.reshape(-1, order='F')[:,np.newaxis]
+            self.estimates.Ab = csc_matrix(self.estimates.Ab)
+        self.estimates.A, self.estimates.b = self.estimates.Ab[:, self.params.get('init', 'nb'):], self.estimates.Ab[:, :self.params.get('init', 'nb')].toarray()
+        self.estimates.C, self.estimates.f = self.estimates.C_on[self.params.get('init', 'nb'):self.M, t - t //
+                         epochs:t], self.estimates.C_on[:self.params.get('init', 'nb'), t - t // epochs:t]
+        noisyC = self.estimates.noisyC[self.params.get('init', 'nb'):self.M, t - t // epochs:t]
+        self.estimates.YrA = noisyC - self.estimates.C
+        self.estimates.bl = [osi.b for osi in self.estimates.OASISinstances] if hasattr(
+            self, 'OASISinstances') else [0] * self.estimates.C.shape[0]
+        if self.params.get('online', 'show_movie'):
+            cv2.destroyAllWindows()
+        return self
+    
+    def create_frame(self, frame_cor, show_residuals=True, resize_fact=1):
+        if show_residuals:
+            caption = 'Mean Residual Buffer'
+        else:
+            caption = 'Identified Components'
+        captions = ['Raw Data', 'Inferred Activity', caption, 'Denoised Data']
+        self.captions = captions
+        est = self.estimates
+        gnb = self.M - self.N
+        A, b = est.Ab[:, gnb:], est.Ab[:, :gnb].toarray()
+        C, f = est.C_on[gnb:self.M, :], est.C_on[:gnb, :]
+        # inferred activity due to components (no background)
+        frame_plot = (frame_cor.copy() - self.bnd_Y[0])/np.diff(self.bnd_Y)
+        comps_frame = A.dot(C[:, self.t - 1]).reshape(self.dims, order='F')        
+        bgkrnd_frame = b.dot(f[:, self.t - 1]).reshape(self.dims, order='F')  # denoised frame (components + background)
+        denoised_frame = comps_frame + bgkrnd_frame
+        denoised_frame = (denoised_frame.copy() - self.bnd_Y[0])/np.diff(self.bnd_Y)
+        comps_frame = (comps_frame.copy() - self.bnd_AC[0])/np.diff(self.bnd_AC)
+
+        if show_residuals:
+            #all_comps = np.reshape(self.Yres_buf.mean(0), self.dims, order='F')
+            all_comps = np.reshape(est.mean_buff, self.dims, order='F')
+            all_comps = np.minimum(np.maximum(all_comps, 0)*2 + 0.25, 255)
+        else:
+            all_comps = np.array(A.sum(-1)).reshape(self.dims, order='F')
+                                                  # spatial shapes
+        frame_comp_1 = cv2.resize(np.concatenate([frame_plot, all_comps * 1.], axis=-1),
+                                  (2 * np.int(self.dims[1] * resize_fact), np.int(self.dims[0] * resize_fact)))
+        frame_comp_2 = cv2.resize(np.concatenate([comps_frame, denoised_frame], axis=-1), 
+                                  (2 * np.int(self.dims[1] * resize_fact), np.int(self.dims[0] * resize_fact)))
+        frame_pn = np.concatenate([frame_comp_1, frame_comp_2], axis=0).T
+        vid_frame = np.repeat(frame_pn[:, :, None], 3, axis=-1)
+        vid_frame = np.minimum((vid_frame * 255.), 255).astype('u1')
+
+        if show_residuals and est.ind_new:
+            add_v = np.int(self.dims[1]*resize_fact)
+            for ind_new in est.ind_new:
+                cv2.rectangle(vid_frame,(int(ind_new[0][1]*resize_fact),int(ind_new[1][1]*resize_fact)+add_v),
+                                             (int(ind_new[0][0]*resize_fact),int(ind_new[1][0]*resize_fact)+add_v),(255,0,255),2)
+
+        cv2.putText(vid_frame, captions[0], (5, 20), fontFace=5, fontScale=0.8, color=(
+            0, 255, 0), thickness=1)
+        cv2.putText(vid_frame, captions[1], (np.int(
+            self.dims[0] * resize_fact) + 5, 20), fontFace=5, fontScale=0.8, color=(0, 255, 0), thickness=1)
+        cv2.putText(vid_frame, captions[2], (5, np.int(
+            self.dims[1] * resize_fact) + 20), fontFace=5, fontScale=0.8, color=(0, 255, 0), thickness=1)
+        cv2.putText(vid_frame, captions[3], (np.int(self.dims[0] * resize_fact) + 5, np.int(
+            self.dims[1] * resize_fact) + 20), fontFace=5, fontScale=0.8, color=(0, 255, 0), thickness=1)
+        cv2.putText(vid_frame, 'Frame = ' + str(self.t), (vid_frame.shape[1] // 2 - vid_frame.shape[1] //
+                                                     10, vid_frame.shape[0] - 20), fontFace=5, fontScale=0.8, color=(0, 255, 255), thickness=1)
+        return vid_frame
 
 
 #%%
@@ -80,33 +862,33 @@ def bare_initialization(Y, init_batch=1000, k=1, method_init='greedy_roi', gnb=1
         Y = Y[:, :, :init_batch]
 
     Ain, Cin, b_in, f_in, center = initialize_components(
-        Y, K=k, gSig=gSig, nb=gnb, method=method_init)
+        Y, K=k, gSig=gSig, nb=gnb, method_init=method_init)
     Ain = coo_matrix(Ain)
     b_in = np.array(b_in)
     Yr = np.reshape(Y, (Ain.shape[0], Y.shape[-1]), order='F')
     nA = (Ain.power(2).sum(axis=0))
     nr = nA.size
 
-    YA = scipy.sparse.spdiags(old_div(1., nA), 0, nr, nr) * \
+    YA = spdiags(old_div(1., nA), 0, nr, nr) * \
         (Ain.T.dot(Yr) - (Ain.T.dot(b_in)).dot(f_in))
-    AA = scipy.sparse.spdiags(old_div(1., nA), 0, nr, nr) * (Ain.T.dot(Ain))
+    AA = spdiags(old_div(1., nA), 0, nr, nr) * (Ain.T.dot(Ain))
     YrA = YA - AA.T.dot(Cin)
     if return_object:
-        cnm_init = cm.source_extraction.cnmf.cnmf.CNMF(2, k=k, gSig=gSig, Ain=Ain, Cin=Cin, b_in=np.array(
-            b_in), f_in=f_in, method_init=method_init, p=p, **kwargs)
+        cnm_init = caiman.source_extraction.cnmf.cnmf.CNMF(2, k=k, gSig=gSig, Ain=Ain, Cin=Cin, b_in=np.array(
+            b_in), f_in=f_in, method_init=method_init, p=p, gnb=gnb, **kwargs)
     
-        cnm_init.A, cnm_init.C, cnm_init.b, cnm_init.f, cnm_init.S, cnm_init.YrA = Ain, Cin, b_in, f_in, np.maximum(
-            np.atleast_2d(Cin), 0), YrA
+        cnm_init.estimates.A, cnm_init.estimates.C, cnm_init.estimates.b, cnm_init.estimates.f, cnm_init.estimates.S,\
+            cnm_init.estimates.YrA = Ain, Cin, b_in, f_in, np.maximum(np.atleast_2d(Cin), 0), YrA
+
         #cnm_init.g = np.array([-np.poly([0.9]*max(p,1))[1:] for gg in np.ones(k)])
-        cnm_init.g = np.array([-np.poly([0.9, 0.5][:max(1, p)])[1:]
+        cnm_init.estimates.g = np.array([-np.poly([0.9, 0.5][:max(1, p)])[1:]
                                for gg in np.ones(k)])
-        cnm_init.bl = np.zeros(k)
-        cnm_init.c1 = np.zeros(k)
-        cnm_init.neurons_sn = np.std(YrA, axis=-1)
-        cnm_init.lam = np.zeros(k)
+        cnm_init.estimates.bl = np.zeros(k)
+        cnm_init.estimates.c1 = np.zeros(k)
+        cnm_init.estimates.neurons_sn = np.std(YrA, axis=-1)
+        cnm_init.estimates.lam = np.zeros(k)
         cnm_init.dims = Y.shape[:-1]
-        cnm_init.initbatch = init_batch
-        cnm_init.gnb = gnb
+        cnm_init.params.set('online', {'init_batch': init_batch})
 
         return cnm_init
     else:
@@ -188,25 +970,24 @@ def seeded_initialization(Y, Ain, dims=None, init_batch=1000, order_init=None, g
     nA = (Ain.power(2).sum(axis=0))
     nr = nA.size
 
-    YA = scipy.sparse.spdiags(old_div(1., nA), 0, nr, nr) * \
+    YA = spdiags(old_div(1., nA), 0, nr, nr) * \
         (Ain.T.dot(Yr) - (Ain.T.dot(b_in)).dot(f_in))
-    AA = scipy.sparse.spdiags(old_div(1., nA), 0, nr, nr) * (Ain.T.dot(Ain))
+    AA = spdiags(old_div(1., nA), 0, nr, nr) * (Ain.T.dot(Ain))
     YrA = YA - AA.T.dot(Cin)
     if return_object:
         cnm_init = cm.source_extraction.cnmf.cnmf.CNMF(
             2, Ain=Ain, Cin=Cin, b_in=np.array(b_in), f_in=f_in, p=1, **kwargs)
-        cnm_init.A, cnm_init.C, cnm_init.b, cnm_init.f, cnm_init.S, cnm_init.YrA = Ain, Cin, b_in, f_in, np.fmax(
-            np.atleast_2d(Cin), 0), YrA
+        cnm_init.estimates.A, cnm_init.estimates.C, cnm_init.estimates.b, cnm_init.estimates.f, cnm_init.estimates.S, \
+                cnm_init.estimates.YrA = Ain, Cin, b_in, f_in, np.fmax(np.atleast_2d(Cin), 0), YrA
     #    cnm_init.g = np.array([[gg] for gg in np.ones(nr)*0.9])
-        cnm_init.g = np.array([-np.poly([0.9] * max(p, 1))[1:]
+        cnm_init.estimates.g = np.array([-np.poly([0.9] * max(p, 1))[1:]
                                for gg in np.ones(nr)])
-        cnm_init.bl = np.zeros(nr)
-        cnm_init.c1 = np.zeros(nr)
-        cnm_init.neurons_sn = np.std(YrA, axis=-1)
-        cnm_init.lam = np.zeros(nr)
+        cnm_init.estimates.bl = np.zeros(nr)
+        cnm_init.estimates.c1 = np.zeros(nr)
+        cnm_init.estimates.neurons_sn = np.std(YrA, axis=-1)
+        cnm_init.estimates.lam = np.zeros(nr)
         cnm_init.dims = Y.shape[:-1]
-        cnm_init.initbatch = init_batch
-        cnm_init.gnb = gnb
+        cnm_init.params.set('online', {'init_batch': init_batch})
     
         return cnm_init
     else:
@@ -398,13 +1179,12 @@ def init_shapes_and_sufficient_stats(Y, A, C, b, f, bSiz=3):
     # closing of shapes to not have holes in index matrix ind_A.
     # do this somehow smarter & faster, e.g. smooth only within patch !!
     #a = Ab[:,0]
-
     A_smooth = np.transpose([gaussian_filter(np.array(a).reshape(
         dims, order='F'), 0).ravel(order='F') for a in Ab.T])
     A_smooth[A_smooth < 1e-2] = 0
     # set explicity zeros of Ab to small value, s.t. ind_A and Ab.indptr match
     Ab += 1e-6 * A_smooth
-    Ab = scipy.sparse.csc_matrix(Ab)
+    Ab = csc_matrix(Ab)
     ind_A = [Ab.indices[Ab.indptr[m]:Ab.indptr[m + 1]]
              for m in range(nb, nb + K)]
     Cf = np.r_[f.reshape(nb, -1), C]
@@ -811,8 +1591,8 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
         cin_res = cin_res.get_ordered()
         if accepted:
             if useOASIS:
-                oas = oasis.OASIS(g=g, s_min=s_min,
-                                  num_empty_samples=t + 1 - len(cin_res))
+                oas = OASIS(g=g, s_min=s_min,
+                            num_empty_samples=t + 1 - len(cin_res))
                 for yt in cin_res:
                     oas.fit_next(yt)
                 accepted = oas.get_l_of_last_pool() <= t
@@ -821,8 +1601,7 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                     np.diff(cin_res)[None, :], robust_std=robust_std, N=N_samples_exceptionality)
                 if remove_baseline:
                     num_samps_bl = min(len(cin_res) // 5, 800)
-                    bl = scipy.ndimage.percentile_filter(
-                        cin_res, 8, size=num_samps_bl)
+                    bl = percentile_filter(cin_res, 8, size=num_samps_bl)
                 else:
                     bl = 0
                 fitness_raw, erfc_raw, std_rr, _ = compute_event_exceptionality(
@@ -854,9 +1633,9 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                     # use noise estimate from init batch or use std_rr?
                     #                    sn_ = sqrt((ain**2).dot(sn[indeces]**2)) / sqrt(1 - g**2)
                     sn_ = std_rr
-                    oas = oasis.OASIS(np.ravel(g)[0], 3 * sn_ /
-                                      (sqrt(1 - g**2) if np.size(g) == 1 else
-                                       sqrt((1 + g[1]) * ((1 - g[1])**2 - g[0]**2) / (1 - g[1])))
+                    oas = OASIS(np.ravel(g)[0], 3 * sn_ /
+                                (sqrt(1 - g**2) if np.size(g) == 1 else
+                                 sqrt((1 + g[1]) * ((1 - g[1])**2 - g[0]**2) / (1 - g[1])))
                                       if s_min == 0 else 0,
                                       s_min, num_empty_samples=t +
                                       1 - len(cin_res),
@@ -866,8 +1645,7 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
 
                 oases.append(oas)
 
-            Ain_csc = scipy.sparse.csc_matrix((ain, (indeces, [0] * len(indeces))),
-                                              (np.prod(dims), 1), dtype=np.float32)
+            Ain_csc = csc_matrix((ain, (indeces, [0] * len(indeces))), (np.prod(dims), 1), dtype=np.float32)
             if Ab_dense is None:
                 groups = update_order(Ab, Ain, groups)[0]
             else:
@@ -989,7 +1767,7 @@ def remove_components_online(ind_rem, gnb, Ab, use_dense, Ab_dense, AtA, CY,
 #        #del self.ind_A[ii-self.gnb]
 
     C_on = np.delete(C_on, ind_rem, axis=0)
-    Ab = scipy.sparse.csc_matrix(Ab[:, ind_keep])
+    Ab = csc_matrix(Ab[:, ind_keep])
     ind_A = list(
         [(Ab.indices[Ab.indptr[ii]:Ab.indptr[ii+1]]) for ii in range(gnb, M)])
     groups = list(map(list, update_order(Ab)[0]))
@@ -1109,3 +1887,45 @@ def initialize_movie_online(Y, K, gSig, rf, stride, base_name,
 #    save_object(cnm_init,fls[0][:-4]+ '_DS_' + str(ds)+ '_init.pkl')
 
     return cnm_refine, Cn2, fname_new
+
+def load_OnlineCNMF(filename, dview = None):
+    '''load object saved with the CNMF save method
+    Parameters:
+    ----------
+    filename: str
+        hdf5 file name containing the saved object
+    dview: multiprocessingor ipyparallel object
+        useful to set up parllelization in the objects
+
+    '''
+
+    #load params
+
+    for key,val in load_dict_from_hdf5(filename).items():
+        if key == 'params':
+            prms = CNMFParams()
+            prms.data = val['data']
+            prms.patch = val['patch']
+            prms.preprocess = val['preprocess']
+            prms.init = val['init']
+            prms.spatial = val['spatial']
+            prms.temporal = val['temporal']
+            prms.merging = val['merging']
+            prms.quality = val['quality']
+            prms.quality = val['online']
+
+    new_obj = OnACID(params=prms)
+
+    for key, val in load_dict_from_hdf5(filename).items():
+        if key == 'dview':
+            setattr(new_obj, key, dview)
+        elif key == 'estimates':
+            estim = Estimates()
+            for key_est, val_est in val.items():
+                setattr(estim, key_est, val_est)
+            new_obj.estimates = estim
+        else:
+            if key not in ['params', 'estimates']:
+                setattr(new_obj, key, val)
+
+    return new_obj

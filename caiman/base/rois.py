@@ -420,6 +420,11 @@ def register_ROIs(A1, A2, dims, template1=None, template2=None, align_flag=True,
                 np.float32), np.arange(0., dims[1]).astype(np.float32))
     
     if align_flag:  # first align ROIs from session 2 to the template from session 1
+        template1 -= template1.min()
+        template1 /= template1.max()
+        template2 -= template2.min()
+        template2 /= template2.max()
+        
         if use_opt_flow:
             template1_norm = np.uint8(template1*(template1 > 0)*255)
             template2_norm = np.uint8(template2*(template2 > 0)*255)

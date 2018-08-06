@@ -811,11 +811,9 @@ def view_patches_bar(Yr, A, C, b, f, d1, d2, YrA=None, img=None):
     pl.ion()
     if 'csc_matrix' not in str(type(A)):
         A = csc_matrix(A)
-    if 'array' not in str(type(b)):
-        b = b.toarray()
 
     nr, T = C.shape
-    nb = f.shape[0]
+    nb = 0 if f is None else f.shape[0]
     nA2 = np.sqrt(np.array(A.power(2).sum(axis=0))).squeeze()
 
     if YrA is None:
@@ -949,8 +947,7 @@ def plot_contours(A, Cn, thr=None, thr_method='max', maxthr=0.2, nrgthr=0.9, dis
             thr = maxthr
     else:
         thr_method = 'nrg'
-        warn("The way to call utilities.plot_contours has changed. " +
-             "Look at the definition for more details.")
+
 
     ax = pl.gca()
     if vmax is None and vmin is None:

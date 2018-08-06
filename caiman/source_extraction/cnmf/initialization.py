@@ -169,13 +169,9 @@ try:
 except:
     def profile(a): return a
 
-if sys.version_info >= (3, 0):
-    def xrange(*args, **kwargs):
-        return iter(range(*args, **kwargs))
-
 
 def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter=5, maxIter=5, nb=1,
-                          kernel=None, use_hals=True, normalize_init=True, img=None, method='greedy_roi',
+                          kernel=None, use_hals=True, normalize_init=True, img=None, method_init='greedy_roi',
                           max_iter_snmf=500, alpha_snmf=10e2, sigma_smooth_snmf=(.5, .5, .5),
                           perc_baseline_snmf=20, options_local_NMF=None, rolling_sum=False,
                           rolling_length=100, sn=None, options_total=None, min_corr=0.8, min_pnr=10,
@@ -294,6 +290,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
         Exception('You need to define arguments for local NMF')
 
     """
+    method = method_init
     if method == 'local_nmf':
         tsub_lnmf = tsub
         ssub_lnmf = ssub
@@ -416,8 +413,9 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
 
         Ain = np.reshape(Ain, (np.prod(d), K), order='F')
 
-    if nb > 0 or nb == -1:
-        b_in = np.reshape(b_in, ds + (-1,), order='F')
+    if (nb > 0 or nb == -1) and (ssub != 1 or tsub != 1):
+        sparse_b = spr.issparse(b_in)
+        b_in = np.reshape(b_in.toarray() if sparse_b else b_in, ds + (-1,), order='F')
 
         if len(ds) == 2:
             b_in = resize(b_in, d + (b_in.shape[-1],))
@@ -427,14 +425,16 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
             b_in = resize(b_in, (d[0], d[1] * d[2], b_in.shape[-1]))
 
         b_in = np.reshape(b_in, (np.prod(d), -1), order='F')
+        if sparse_b:
+            b_in = spr.csc_matrix(b_in)
 
-        try:
-            f_in = resize(np.atleast_2d(f_in), [b_in.shape[-1], T])
-        except:
-            f_in = spr.csc_matrix(resize(np.atleast_2d(f_in.toarray()), [b_in.shape[-1], T]))
+        # try:
+        f_in = resize(np.atleast_2d(f_in), [b_in.shape[-1], T])
+        # except:
+        #     f_in = spr.csc_matrix(resize(np.atleast_2d(f_in.toarray()), [b_in.shape[-1], T]))
 
     if Ain.size > 0:
-        Cin = resize(Cin.astype(float), [K, T])
+        Cin = resize(Cin, [K, T])
 
         center = np.asarray(
             [center_of_mass(a.reshape(d, order='F')) for a in Ain.T])
@@ -931,8 +931,8 @@ def hals(Y, A, C, b, f, bSiz=3, maxIter=5):
     if bSiz is not None:
         if isinstance(bSiz, (int, float)):
 	   	     bSiz = [bSiz] * len(dims)
-        ind_A = nd.filters.uniform_filter(np.reshape(A, dims + (K,),
-					order='F'), size=bSiz + [0])
+        ind_A = nd.filters.uniform_filter(np.reshape(A,
+                dims + (K,), order='F'), size=bSiz + [0])
         ind_A = np.reshape(ind_A > 1e-10, (np.prod(dims), K), order='F')
     else:
         ind_A = A>1e-10
@@ -1069,13 +1069,12 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
         B += Y_ds.reshape((-1, total_frames), order='F')  # "Y-B"
 
         print('Update Spatial')
-        options['spatial_params']['dims'] = (d1, d2)
         A, _, C, _ = caiman.source_extraction.cnmf.spatial.update_spatial_components(
             B, C=C, f=np.zeros((0, total_frames), np.float32), A_in=A,
             sn=np.sqrt(downscale((sn**2).reshape(dims, order='F'),
                                  tuple([ssub] * len(dims))).ravel() / tsub) / ssub,
             b_in=np.zeros((d1 * d2, 0), np.float32),
-            dview=None, **options['spatial_params'])
+            dview=None, dims=(d1, d2), **options['spatial_params'])
         print('Update Temporal')
         C, A = caiman.source_extraction.cnmf.temporal.update_temporal_components(
             B, spr.csc_matrix(A, dtype=np.float32),
@@ -1104,17 +1103,16 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
         print('Merge Components')
         A, C = caiman.source_extraction.cnmf.merging.merge_components(
             B, A, [], C, [], C, [], o, options['spatial_params'],
-            dview=None, thr=options['merging']['thr'], mx=np.Inf, fast_merge=True)[:2]
+            dview=None, thr=options['merging']['merge_thr'], mx=np.Inf, fast_merge=True)[:2]
         A = A.astype(np.float32)
         C = C.astype(np.float32)
         print('Update Spatial')
-        options['spatial_params']['dims'] = (d1, d2)
         A, _, C, _ = caiman.source_extraction.cnmf.spatial.update_spatial_components(
             B, C=C, f=np.zeros((0, total_frames), np.float32), A_in=A,
             sn=np.sqrt(downscale((sn**2).reshape(dims, order='F'),
                                  tuple([ssub] * len(dims))).ravel() / tsub) / ssub,
             b_in=np.zeros((d1 * d2, 0), np.float32),
-            dview=None, **options['spatial_params'])
+            dview=None, dims=(d1, d2), **options['spatial_params'])
         A = A.astype(np.float32)
         print('Update Temporal')
         C, A = caiman.source_extraction.cnmf.temporal.update_temporal_components(
@@ -1140,7 +1138,7 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
         else:
             B = Y_ds.reshape((-1, T), order='F') - A.dot(C)
         B = compute_B(b0, W, B)  # "-B"
-        if nb:
+        if nb > 0 or nb == -1:
             B0 = -B
         if ssub > 1:
             B = np.reshape(B, (d1, d2, -1), order='F')
@@ -1154,16 +1152,15 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
         print('Merge Components')
         A, C = caiman.source_extraction.cnmf.merging.merge_components(
             B, A, [], C, [], C, [], o, options['spatial_params'],
-            dview=None, thr=options['merging']['thr'], mx=np.Inf, fast_merge=True)[:2]
+            dview=None, thr=options['merging']['merge_thr'], mx=np.Inf, fast_merge=True)[:2]
         A = A.astype(np.float32)
         C = C.astype(np.float32)
         print('Update Spatial')
-        options['spatial_params']['dims'] = dims
         options['spatial_params']['se'] = np.ones((1,) * len((d1, d2)), dtype=np.uint8)
         A, _, C, _ = caiman.source_extraction.cnmf.spatial.update_spatial_components(
             B, C=C, f=np.zeros((0, T), np.float32), A_in=A, sn=sn,
             b_in=np.zeros((np.prod(dims), 0), np.float32),
-            dview=None, **options['spatial_params'])
+            dview=None, dims=dims, **options['spatial_params'])
         print('Update Temporal')
         C, A, b__, f__, S, bl, c1, neurons_sn, g1, YrA, lam__ = \
             caiman.source_extraction.cnmf.temporal.update_temporal_components(
@@ -1172,14 +1169,14 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
                 dview=None, bl=None, c1=None, sn=None, g=None, **options['temporal_params'])
 
         A = A.toarray()
-        if nb:
+        if nb > 0 or nb == -1:
             B = B0
 
     use_NMF = True
     if nb == -1:
         print('Return full Background')
-        b_in = B
-        f_in = np.eye(T)  # spr.eye(T)
+        b_in = spr.eye(len(B), dtype='float32')
+        f_in = B
     elif nb > 0:
         print('Estimate low rank Background')
         print(nb)
@@ -1194,7 +1191,7 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
     else:
         b_in = np.empty((A.shape[0], 0))
         f_in = np.empty((0, T))
-        if nb == -2:
+        if nb == 0:
             print('Return Background as b and W')
             return (A, C, center.T, b_in.astype(np.float32), f_in.astype(np.float32),
                     (S.astype(np.float32), bl, c1, neurons_sn, g1, YrA,
@@ -1716,26 +1713,45 @@ def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True, ssub=1, tsub=1):
                     downscale(C, (1, tsub))) if A.size > 0 else 0) - \
                 downscale(b0.reshape(dims, order='F'),
                           (ssub, ssub)).reshape((-1, 1), order='F')
-    else:
-        X = None
 
     indices = []
     data = []
     indptr = [0]
-    for p in xrange(len(X)):
+    for p in range(d1*d2):
         index = get_indices_of_pixels_on_ring(p)
         indices += list(index)
-        B = Y[index] - A[index].dot(C) - \
-            b0[index, None] if X is None else X[index]
+        if data_fits_in_memory:
+            B = X[index]
+        elif ssub == 1 and tsub == 1:
+            B = Y[index] - A[index].dot(C) - b0[index, None]
+        else:
+            B = downscale(Y.reshape(dims + (-1,), order='F'),
+                          (ssub, ssub, tsub)).reshape((-1, (T - 1) // tsub + 1), order='F')[index] - \
+                (downscale(A.reshape(dims + (-1,), order='F'),
+                           (ssub, ssub, 1)).reshape((-1, len(C)), order='F')[index].dot(
+                    downscale(C, (1, tsub))) if A.size > 0 else 0) - \
+                downscale(b0.reshape(dims, order='F'),
+                          (ssub, ssub)).reshape((-1, 1), order='F')[index]
         tmp = np.array(B.dot(B.T))
+        if data_fits_in_memory:
+            tmp2 = X[p]
+        elif ssub == 1 and tsub == 1:
+            tmp2 = Y[p] - A[p].dot(C).ravel() - b0[p]
+        else:
+            tmp2 = downscale(Y.reshape(dims + (-1,), order='F'),
+                             (ssub, ssub, tsub)).reshape((-1, (T - 1) // tsub + 1), order='F')[p] - \
+                   (downscale(A.reshape(dims + (-1,), order='F'),
+                              (ssub, ssub, 1)).reshape((-1, len(C)), order='F')[p].dot(
+                       downscale(C, (1, tsub))) if A.size > 0 else 0) - \
+                   downscale(b0.reshape(dims, order='F'),
+                             (ssub, ssub)).reshape((-1, 1), order='F')[p]
         try:
-            data = np.concatenate([data, np.linalg.inv(tmp).
-                dot(B.dot(Y[p] - A[p].dot(C).ravel() - b0[p] if X is None else X[p]))])
+            data += list(np.linalg.inv(tmp).dot(B.dot(tmp2)))
         except:
             # np.linalg.lstsq seems less robust but scipy version is
             # (robust but for the problem size slower) alternative
-            data = np.concatenate([data, (scipy.linalg.lstsq(B.T, Y[p] - A[p].dot(C) - b0[p]
-                if X is None else X[p], check_finite=False)[0])])
+            data += list(scipy.linalg.lstsq(B.T, tmp2, check_finite=False)[0])
+
         indptr.append(len(indices))
     return spr.csr_matrix((data, indices, indptr), dtype='float32'), b0.astype(np.float32)
 
