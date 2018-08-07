@@ -21,10 +21,14 @@ from __future__ import division
 from __future__ import print_function
 from builtins import str
 from builtins import range
-import matplotlib
-from caiman.utils.utils import download_demo
+
+import copy
 import cv2
 import glob
+import matplotlib
+import numpy as np
+import os
+import time
 
 try:
     cv2.setNumThreads(0)
@@ -33,24 +37,20 @@ except:
 
 try:
     if __IPYTHON__:
-        print((1))
         # this is used for debugging purposes only. allows to reload classes
         # when changed
         get_ipython().magic('load_ext autoreload')
         get_ipython().magic('autoreload 2')
 except NameError:
-    print('Not launched under iPython')
+    pass
 
 import caiman as cm
-import numpy as np
-import os
-import time
-import copy
-from caiman.source_extraction.cnmf import cnmf as cnmf
-from caiman.motion_correction import MotionCorrect
 from caiman.components_evaluation import estimate_components_quality
-from caiman.tests.comparison import comparison
+from caiman.motion_correction import MotionCorrect
 from caiman.paths import caiman_datadir
+from caiman.source_extraction.cnmf import cnmf as cnmf
+from caiman.tests.comparison import comparison
+from caiman.utils.utils import download_demo
 
 # GLOBAL VAR
 params_movie = {'fname': ['Sue_2x_3000_40_-46.tif'],

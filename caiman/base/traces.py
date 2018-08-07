@@ -14,6 +14,7 @@ from builtins import str
 from builtins import range
 from past.utils import old_div
 import cv2
+import logging
 import numpy as np
 import pylab as pl
 pl.ion()
@@ -80,14 +81,14 @@ class trace(ts.timeseries):
 
         T, _ = self.shape
         window = int(window_sec * self.fr)
-        print(window)
+        logging.debug(window)
         if window >= T:
             raise ValueError(
                 "The window must be shorter than the total length")
 
         tracesDFF = []
         for tr in self.T:
-            print((tr.shape))
+            logging.debug("TR Shape is " + str(tr.shape))
             traceBL = [np.percentile(tr[i:i + window], minQuantile)
                        for i in range(1, len(tr) - window)]
             missing = np.percentile(tr[-window:], minQuantile)

@@ -53,6 +53,7 @@ import cv2
 import gc
 import h5py
 import itertools
+import logging
 import numpy as np
 from numpy.fft import ifftshift
 import os
@@ -164,7 +165,7 @@ class MotionCorrect(object):
 
         """
         if 'ndarray' in str(type(fname)):
-            print('Creating temporary file for motion correction "tmp_mov_mot_corr.hdf5"')
+            logging.info('Creating file for motion correction "tmp_mov_mot_corr.hdf5"')
             cm.movie(fname).save('./tmp_mov_mot_corr.hdf5')
             fname = ['./tmp_mov_mot_corr.hdf5']
 
@@ -191,28 +192,7 @@ class MotionCorrect(object):
         self.border_nan = border_nan
         self.pw_rigid = pw_rigid
         if self.use_cuda and not HAS_CUDA:
-            print("pycuda is unavailable. Falling back to default FFT.")
-
-    def motion_correct(self, template=None, save_movie=False):
-        if self.min_mov is None:
-            if self.gSig_filt is None:
-                self.min_mov = np.array([cm.load(self.fname[0],
-                                                 subindices=range(400))]).min()
-            else:
-                self.min_mov = np.array([high_pass_filter_space(m_, self.gSig_filt)
-                    for m_ in cm.load(self.fname[0], subindices=range(400))]).min()
-
-        if self.pw_rigid:
-            self.motion_correct_pwrigid(template=template, save_movie=save_movie)
-            b0 = np.ceil(np.maximum(np.max(np.abs(self.x_shifts_els)),
-                                    np.max(np.abs(self.y_shifts_els))))
-        else:
-            self.motion_correct_rigid(template=template, save_movie=save_movie)
-            b0 = np.ceil(np.max(np.abs(self.shifts_rig)))
-        self.border_to_0 = b0.astype(np.int)
-        self.mmap_file = self.fname_tot_els if self.pw_rigid else self.fname_tot_rig
-        
-        return self
+            logging.debug("pycuda is unavailable. Falling back to default FFT.")
 
     def motion_correct_rigid(self, template=None, save_movie=False):
         """
@@ -240,8 +220,8 @@ class MotionCorrect(object):
 
         self.shifts_rig: shifts in x and y per frame
         """
-        print('Rigid Motion Correction')
-        print(-self.min_mov)
+        logging.debug('Entering Rigid Motion Correction')
+        logging.debug(-self.min_mov) # XXX why the minus?
         self.total_template_rig = template
         self.templates_rig = []
         self.fname_tot_rig = []
@@ -311,7 +291,7 @@ class MotionCorrect(object):
         """
         num_iter = 1
         if template is None:
-            print('generating template by rigid motion correction')
+            logging.info('generating template by rigid motion correction')
             self = self.motion_correct_rigid()
             self.total_template_els = self.total_template_rig.copy()
         else:
@@ -621,7 +601,7 @@ def motion_correct_online_multifile(list_files, add_to_movie, order='C', **kwarg
     kwargs_['order'] = order
     total_frames = 0
     for file_ in list_files:
-        print(('Processing:' + file_))
+        logging.info(('Processing:' + file_))
         kwargs_['template'] = template
         kwargs_['save_base_name'] = file_[:-4]
         tffl = tifffile.TiffFile(file_)
@@ -651,7 +631,7 @@ def motion_correct_online(movie_iterable, add_to_movie, max_shift_w=25, max_shif
 
     if 'tifffile' in str(type(movie_iterable[0])):
         if len(movie_iterable) == 1:
-            print(
+            logging.warning(
                 '******** WARNING ****** NEED TO LOAD IN MEMORY SINCE SHAPE OF PAGE IS THE FULL MOVIE')
             movie_iterable = movie_iterable.asarray()
             init_mov = movie_iterable[:init_frames_template]
@@ -662,7 +642,7 @@ def motion_correct_online(movie_iterable, add_to_movie, max_shift_w=25, max_shif
         init_mov = movie_iterable[slice(0, init_frames_template, 1)]
 
     dims = (len(movie_iterable),) + movie_iterable[0].shape
-    print(("dimensions:" + str(dims)))
+    logging.debug(("dimensions:" + str(dims)))
 
     if use_median_as_template:
         template = bin_median(movie_iterable)
@@ -747,9 +727,9 @@ def motion_correct_online(movie_iterable, add_to_movie, max_shift_w=25, max_shif
                               vmax=350, interpolation='none')
                     pl.pause(.001)
 
-                print(('Relative change in template:' + str(
+                logging.debug(('Relative change in template:' + str(
                     old_div(np.sum(np.abs(template - template_old)), np.sum(np.abs(template))))))
-                print(('Iteration:' + str(count)))
+                logging.debug(('Iteration:' + str(count)))
 
             if border_to_0 > 0:
                 new_img[:border_to_0, :] = min_mov
@@ -779,7 +759,7 @@ def motion_correct_online(movie_iterable, add_to_movie, max_shift_w=25, max_shif
 
             if show_movie:
                 cv2.imshow('frame', old_div(new_img, 500))
-                print(shift)
+                logging.info(shift)
                 if not np.any(np.remainder(shift, 1) == (0, 0)):
                     cv2.waitKey(int(1. / 500 * 1000))
 
@@ -788,7 +768,7 @@ def motion_correct_online(movie_iterable, add_to_movie, max_shift_w=25, max_shif
         xcorrs.append(xcorr_tmp)
 
     if save_base_name is not None:
-        print('Flushing memory')
+        logging.debug('Flushing memory')
         big_mov.flush()
         del big_mov
         gc.collect()
@@ -943,7 +923,7 @@ def process_movie_parallel(arg_in):
 
     type_input = str(type(fname))
     if 'movie' in type_input:
-        #        print((type(fname)))
+        #        logging.info((type(fname)))
         Yr = fname
 
     elif 'ndarray' in type_input:
@@ -954,9 +934,9 @@ def process_movie_parallel(arg_in):
         raise Exception('Unknown input type:' + type_input)
 
     if Yr.ndim > 1:
-        #        print('loaded')
+        #        logging.info('loaded')
         if apply_smooth:
-            #            print('applying smoothing')
+            #            logging.info('applying smoothing')
             Yr = Yr.bilateral_blur_2D(
                 diameter=10, sigmaColor=10000, sigmaSpace=0)
 
@@ -965,29 +945,29 @@ def process_movie_parallel(arg_in):
             Yr = Yr[:, margins_out:-margins_out, margins_out:-
                     margins_out]  # borders create troubles
 
-#        print('motion correcting')
+#        logging.info('motion correcting')
 
         Yr, shifts, xcorrs, template = Yr.motion_correct(max_shift_w=max_shift_w, max_shift_h=max_shift_h,
                                                          method='opencv', template=template, remove_blanks=remove_blanks)
 
         if ('movie' in type_input) or ('ndarray' in type_input):
-            #            print('Returning Values')
+            #            logging.debug('Returning Values')
             return Yr, shifts, xcorrs, template
 
         else:
 
-            #            print('median computing')
+            #            logging.debug('median computing')
             template = Yr.bin_median()
-#            print('saving')
+#            logging.debug('saving')
             idx_dot = len(fname.split('.')[-1])
             if save_hdf5:
                 Yr.save(fname[:-idx_dot] + 'hdf5')
-#            print('saving 2')
+#            logging.debug('saving 2')
             np.savez(fname[:-idx_dot] + 'npz', shifts=shifts,
                      xcorrs=xcorrs, template=template)
-#            print('deleting')
+#            logging.debug('deleting')
             del Yr
-#            print('done!')
+#            logging.debug('done!')
             return fname[:-idx_dot]
     else:
         return None
@@ -1043,7 +1023,7 @@ def motion_correct_parallel(file_names, fr=10, template=None, margins_out=0,
                 dview.results.clear()
 
         except UnboundLocalError:
-            print('could not close client')
+            logging.error('could not close client')
 
         raise
 
@@ -2112,38 +2092,39 @@ def compute_metrics_motion_correction(fname, final_size_x, final_size_y, swap_di
 
     if max_shft_y_1 == 0:
         max_shft_y_1 = None
-    print([max_shft_x, max_shft_x_1, max_shft_y, max_shft_y_1])
+    logging.info([max_shft_x, max_shft_x_1, max_shft_y, max_shft_y_1])
     m = m[:, max_shft_x:max_shft_x_1, max_shft_y:max_shft_y_1]
     if np.sum(np.isnan(m)) > 0:
-        print(m.shape)
+        logging.info(m.shape)
+        logging.warning('Movie contains NaN')
         raise Exception('Movie contains NaN')
 
-    print('Local correlations..')
+    logging.debug('Local correlations..')
     img_corr = m.local_correlations(eight_neighbours=True, swap_dim=swap_dim)
-    print(m.shape)
+    logging.debug(m.shape)
     if template is None:
         tmpl = cm.motion_correction.bin_median(m)
     else:
         tmpl = template
 
-    print('Compute Smoothness.. ')
+    logging.debug('Compute Smoothness.. ')
     smoothness = np.sqrt(
         np.sum(np.sum(np.array(np.gradient(np.mean(m, 0)))**2, 0)))
     smoothness_corr = np.sqrt(
         np.sum(np.sum(np.array(np.gradient(img_corr))**2, 0)))
 
-    print('Compute correlations.. ')
+    logging.debug('Compute correlations.. ')
     correlations = []
     count = 0
     for fr in m:
         if count % 100 == 0:
-            print(count)
+            logging.debug(count)
 
         count += 1
         correlations.append(scipy.stats.pearsonr(
             fr.flatten(), tmpl.flatten())[0])
 
-    print('Compute optical flow .. ')
+    logging.info('Compute optical flow .. ')
 
     m = m.resize(1, 1, resize_fact_flow)
     norms = []
@@ -2151,7 +2132,7 @@ def compute_metrics_motion_correction(fname, final_size_x, final_size_y, swap_di
     count = 0
     for fr in m:
         if count % 100 == 0:
-            print(count)
+            logging.debug(count)
 
         count += 1
         flow = cv2.calcOpticalFlowFarneback(
@@ -2267,19 +2248,20 @@ def motion_correct_batch_rigid(fname, max_shifts, dview=None, splits=56, num_spl
         add_to_movie = -np.min(template)
 
     if np.isnan(add_to_movie):
+        logging.error('The movie contains NaNs. NaNs are not allowed!')
         raise Exception('The movie contains NaNs. NaNs are not allowed!')
     else:
-        print('Adding to movie ' + str(add_to_movie))
+        logging.debug('Adding to movie ' + str(add_to_movie))
 
     save_movie = False
     fname_tot_rig = None
     res_rig = []
     for iter_ in range(num_iter):
-        print(iter_)
+        logging.debug(iter_)
         old_templ = new_templ.copy()
         if iter_ == num_iter - 1:
             save_movie = save_movie_rigid
-            print('saving!')
+            logging.debug('saving!')
 
         fname_tot_rig, res_rig = motion_correction_piecewise(fname, splits, strides=None, overlaps=None,
                                                              add_to_movie=add_to_movie, template=old_templ, max_shifts=max_shifts, max_deviation_rigid=0,
@@ -2292,7 +2274,7 @@ def motion_correct_batch_rigid(fname, max_shifts, dview=None, splits=56, num_spl
         if gSig_filt is not None:
             new_templ = high_pass_filter_space(new_templ, gSig_filt)
 
-        print((old_div(np.linalg.norm(new_templ - old_templ), np.linalg.norm(old_templ))))
+        logging.debug((old_div(np.linalg.norm(new_templ - old_templ), np.linalg.norm(old_templ))))
 
     total_template = new_templ
     templates = []
@@ -2382,18 +2364,19 @@ def motion_correct_batch_pwrigid(fname, max_shifts, strides, overlaps, add_to_mo
         new_templ = template
 
     if np.isnan(add_to_movie):
+        logging.error('The template contains NaNs. NaNs are not allowed!')
         raise Exception('The template contains NaNs. NaNs are not allowed!')
     else:
-        print('Adding to movie ' + str(add_to_movie))
+        logging.debug('Adding to movie ' + str(add_to_movie))
 
     for iter_ in range(num_iter):
-        print(iter_)
+        logging.debug(iter_)
         old_templ = new_templ.copy()
 
         if iter_ == num_iter - 1:
             save_movie = save_movie
             if save_movie:
-                print('saving mmap of ' + fname)
+                logging.debug('saving mmap of ' + fname)
 
         fname_tot_els, res_el = motion_correction_piecewise(fname, splits, strides, overlaps,
                                                             add_to_movie=add_to_movie, template=old_templ, max_shifts=max_shifts,
@@ -2471,7 +2454,7 @@ def tile_and_correct_wrapper(params):
     mc = np.zeros(imgs.shape, dtype=np.float32)
     for count, img in enumerate(imgs):
         if count % 10 == 0:
-            print(count)
+            logging.debug(count)
         mc[count], total_shift, start_step, xy_grid = tile_and_correct(img, template, strides, overlaps, max_shifts,
                                                                        add_to_movie=add_to_movie, newoverlaps=newoverlaps,
                                                                        newstrides=newstrides,
@@ -2563,7 +2546,7 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
             d2 = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
             d1 = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         except:
-            print('Roll back top opencv 2')
+            logging.debug('Roll back top opencv 2')
             T = int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_COUNT))
             d2 = int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_WIDTH))
             d1 = int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT))
@@ -2593,7 +2576,7 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
     if num_splits is not None:
         idxs = np.array(idxs)[np.random.randint(0, len(idxs), num_splits)]
         save_movie = False
-        print('**** MOVIE NOT SAVED BECAUSE num_splits is not None ****')
+        logging.warning('**** MOVIE NOT SAVED BECAUSE num_splits is not None ****')
 
     if save_movie:
         if base_name is None:
@@ -2613,7 +2596,7 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
             newoverlaps, newstrides, shifts_opencv, nonneg_movie, gSig_filt, is_fiji, use_cuda, border_nan])
 
     if dview is not None:
-        print('** Starting parallel motion correction **')
+        logging.info('** Starting parallel motion correction **')
         if HAS_CUDA and use_cuda:
             res = dview.map(tile_and_correct_wrapper,pars)
             dview.map(close_cuda_process, range(len(pars)))
@@ -2621,7 +2604,7 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
             res = dview.map_async(tile_and_correct_wrapper, pars).get(4294967)
         else:
             res = dview.map_sync(tile_and_correct_wrapper, pars)
-        print('** Finished parallel motion correction **')
+        logging.info('** Finished parallel motion correction **')
     else:
         res = list(map(tile_and_correct_wrapper, pars))
 

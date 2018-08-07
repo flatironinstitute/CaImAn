@@ -3,7 +3,7 @@
 
 """ functions that creates image from a video file
 
-for plotting purposes mainly, return correlation images ( local or max )
+Primarily intended for plotting, returns correlation images ( local or max )
 
 See Also:
 ------------
@@ -21,13 +21,14 @@ See Also:
 
 from __future__ import division
 from builtins import range
+
+import cv2
 import numpy as np
 from scipy.ndimage import convolve, generate_binary_structure
 from scipy.sparse import coo_matrix
-import cv2
 from caiman.source_extraction.cnmf.pre_processing import get_noise_fft
 import caiman as cm
-print('The above is a dangerous import that can create circular dependencies')
+
 #try:
 #    cv2.setNumThreads(0)
 #except:
@@ -81,7 +82,7 @@ def max_correlation_image(Y, bin_size=1000, eight_neighbours=True, swap_dim=True
         for i in range(n_bins):
             Cn_bins[i] = local_correlations_fft(Y[i * bin_size:(i + 1) * bin_size],
                                                 eight_neighbours=eight_neighbours, swap_dim=False)
-            print(i * bin_size)
+            logging.debug(i * bin_size)
 
         Cn = np.max(Cn_bins, axis=0)
         return Cn
@@ -737,7 +738,6 @@ def local_correlations_movie_offline(file_name, Tot_frames = None, fr = 10, wind
         return mm
 
 def local_correlations_movie_parallel(params):
-        import caiman as cm
         mv_name, idx, eight_neighbours, swap_dim, order_mean, ismulticolor = params
         mv = cm.load(mv_name,subindices=idx)
         if ismulticolor:

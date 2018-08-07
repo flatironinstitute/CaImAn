@@ -26,17 +26,17 @@ See Also:
 from __future__ import division
 from __future__ import print_function
 
-import inspect
-import logging
-import os
-import sys
 from builtins import object
 from builtins import str
 
 import cv2
+import inspect
+import logging
 import numpy as np
+import os
 import psutil
 import scipy
+import sys
 
 from .estimates import Estimates
 from .initialization import initialize_components, compute_W
@@ -308,8 +308,7 @@ class CNMF(object):
         if os.path.exists(fnames[0]):
             _, extension = os.path.splitext(fnames[0])[:2]
         else:
-            print('File list is:')
-            print(fnames[0])
+            logging.warning("Error: File not found, with file list:\n" + fnames[0])
             raise Exception('File not found!')
 
         if extension == '.mmap':
@@ -410,7 +409,7 @@ class CNMF(object):
         if np.isfortran(Yr):
             raise Exception('The file is in F order, it should be in C order (see save_memmap function')
 
-        print((T,) + self.dims)
+        logging.info((T,) + dims)
 
         # Make sure filename is pointed correctly (numpy sets it to None sometimes)
         try:
@@ -426,8 +425,8 @@ class CNMF(object):
                                     'ss': np.ones((3,) * len(self.dims), dtype=np.uint8)
                                     })
 
-        print(('using ' + str(self.params.get('patch', 'n_processes')) + ' processes'))
-        if self.params.get('preprocess', 'n_pixels_per_process') is None:
+        logging.info(('Using ' + str(self.n_processes) + ' processes'))
+        if self.n_pixels_per_process is None:
             avail_memory_per_process = psutil.virtual_memory()[
                 1] / 2.**30 / self.params.get('patch', 'n_processes')
             mem_per_pix = 3.6977678498329843e-09
@@ -437,14 +436,14 @@ class CNMF(object):
 
         self.params.set('spatial', {'n_pixels_per_process': self.params.get('preprocess', 'n_pixels_per_process')})
 
-        print(('using ' + str(self.params.get('preprocess', 'n_pixels_per_process')) + ' pixels per process'))
-        print(('using ' + str(self.params.get('spatial', 'block_size')) + ' block_size'))
+        logging.info('using ' + str(self.params.get('preprocess', 'n_pixels_per_process')) + ' pixels per process')
+        logging.info('using ' + str(self.params.get('spatial', 'block_size')) + ' block_size')
 
         if self.params.get('patch', 'rf') is None:  # no patches
-            print('preprocessing ...')
+            logging.debug('preprocessing ...')
             Yr = self.preprocess(Yr)
             if self.estimates.A is None:
-                print('initializing ...')
+                logging.debug('initializing ...')
                 self.initialize(Y)
 
             if self.params.get('patch', 'only_init'):  # only return values after initialization
@@ -456,22 +455,21 @@ class CNMF(object):
 
 
                 if self.remove_very_bad_comps:
-                    print('removing bad components : ')
-                    #todo update these parameters to reflect the new version of Params
+                    logging.info('removing bad components : ')
                     final_frate = 10
                     r_values_min = 0.5  # threshold on space consistency
                     fitness_min = -15  # threshold on time variability
                     fitness_delta_min = -15
                     Npeaks = 10
-                    traces = np.array(self.estimates.C)
-                    print('estimating the quality...')
+                    traces = np.array(self.C)
+                    logging.info('estimating the quality...')
                     idx_components, idx_components_bad, fitness_raw,\
                         fitness_delta, r_values = estimate_components_quality(
                             traces, Y, self.estimates.A, self.estimates.C, self.estimates.b, self.estimates.f,
                             final_frate=final_frate, Npeaks=Npeaks, r_values_min=r_values_min,
                             fitness_min=fitness_min, fitness_delta_min=fitness_delta_min, return_all=True, N=5)
 
-                    print(('Keeping ' + str(len(idx_components)) +
+                    logging.info(('Keeping ' + str(len(idx_components)) +
                            ' and discarding  ' + str(len(idx_components_bad))))
                     self.estimates.C = self.estimates.C[idx_components]
                     self.estimates.A = self.estimates.A[:, idx_components]
@@ -481,35 +479,36 @@ class CNMF(object):
 
                 return self
 
-            print('update spatial ...')
-            self.update_spatial(Yr, use_init=True)
+            logging.info('update spatial ...')
+            A, b, Cin, self.f_in = update_spatial_components(Yr, C=self.Cin, f=self.f_in, b_in=self.b_in, A_in=self.Ain,
+                                                             sn=sn, dview=self.dview, **options['spatial_params'])
 
-            print('update temporal ...')
+            logging.info('update temporal ...')
             if not self.skip_refinement:
                 # set this to zero for fast updating without deconvolution
                 self.params.set('temporal', {'p': 0})
             else:
                 self.params.set('temporal', {'p': self.params.get('preprocess', 'p')})
-            print('deconvolution ...')
+            logging.info('deconvolution ...')
 
             self.update_temporal(Yr)
 
             if not self.skip_refinement:
-                print('refinement...')
+                logging.info('refinement...')
                 if self.params.get('merging', 'do_merge'):
-                    print('merge components ...')
-                    print(self.estimates.A.shape)
-                    print(self.estimates.C.shape)
+                    logging.debug('merging components ...')
+                    logging.debug(self.estimates.A.shape)
+                    logging.debug(self.estimates.C.shape)
                     self.merge_comps(Yr, mx=50, fast_merge=True)
 
-                print((self.estimates.A.shape))
-                print(self.estimates.C.shape)
-                print('update spatial ...')
+                logging.debug(self.estimates.A.shape)
+                logging.debug(self.estimates.C.shape)
+                logging.info('update spatial ...')
 
                 self.update_spatial(Yr, use_init=False)
                 # set it back to original value to perform full deconvolution
                 self.params.set('temporal', {'p': self.params.get('preprocess', 'p')})
-                print('update temporal ...')
+                logging.info('update temporal ...')
                 self.update_temporal(Yr, use_init=False)
             # else:
             #     todo : ask for those..
@@ -535,7 +534,7 @@ class CNMF(object):
         else:  # use patches
             if self.params.get('patch', 'stride') is None:
                 self.params.set('patch', {'stride': np.int(self.params.get('patch', 'rf') * 2 * .1)})
-                print(
+                logging.debug(
                     ('**** Setting the stride to 10% of 2*rf automatically:' + str(self.params.get('patch', 'stride'))))
 
             if type(images) is np.ndarray:
@@ -562,14 +561,14 @@ class CNMF(object):
                     while len(self.estimates.merged_ROIs) > 0:
                         self.merge_comps(Yr, mx=np.Inf, fast_merge=True)
 
-                    print("update temporal")
+                    logging.debug("update temporal")
                     self.update_temporal(Yr, use_init=False)
 
                     self.params.set('spatial', {'se': np.ones((1,) * len(self.dims), dtype=np.uint8)})
-                    print('update spatial ...')
+                    logging.debug('update spatial ...')
                     self.update_spatial(Yr, use_init=False)
 
-                    print("update temporal")
+                    logging.debug("update temporal")
                     self.update_temporal(Yr, use_init=False)
                 else:
                     while len(self.estimates.merged_ROIs) > 0:
@@ -590,7 +589,7 @@ class CNMF(object):
                 while len(self.estimates.merged_ROIs) > 0:
                     self.merge_comps(Yr, mx=np.Inf)
 
-                print("update temporal")
+                logging.info("update temporal")
                 self.update_temporal(Yr, use_init=False)
 
         self.estimates.normalize_components()

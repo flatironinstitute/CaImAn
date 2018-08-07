@@ -9,15 +9,19 @@ complete demo check the script demo_OnACID_mesoscope.py
 @author: jfriedrich & epnev
 """
 
-import os
+from copy import deepcopy
+import logging
 import numpy as np
+import os
 import pylab as pl
+from scipy.special import log_ndtr
+
 import caiman as cm
 from caiman.source_extraction import cnmf as cnmf
 from caiman.utils.visualization import view_patches_bar, plot_contours
-from copy import deepcopy
-from scipy.special import log_ndtr
 from caiman.paths import caiman_datadir
+
+
 try:
     if __IPYTHON__:
         print("Detected iPython")
@@ -25,6 +29,18 @@ try:
         get_ipython().magic('autoreload 2')
 except NameError:
     pass
+
+#%%
+# Set up the logger; change this if you like.
+# You can log to a file using the filename parameter, or make the output more or less
+# verbose by setting level to logging.DEBUG, logging.INFO, logging.WARNING, or logging.ERROR
+
+logging.basicConfig(format=
+                          "%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s] [%(process)d] %(message)s",
+                    # filename="/tmp/caiman.log",
+                    level=logging.DEBUG)
+
+
 #%%
 def main():
     pass # For compatibility between running under Spyder and the CLI
@@ -89,7 +105,7 @@ def main():
 
 #%% plot contours
     
-    print(('Number of components:' + str(cnm.estimates.A.shape[-1])))
+    logging.info('Number of components:' + str(cnm.estimates.A.shape[-1]))
     Cn = cm.load(fname[0], subindices=slice(0,500)).local_correlations(swap_dim=False)
     cnm.estimates.plot_contours(img=Cn)
 

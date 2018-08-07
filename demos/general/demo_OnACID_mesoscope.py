@@ -14,17 +14,16 @@ import os
 
 try:
     if __IPYTHON__:
-        print('Detected iPython')
-    #  used for debugging purposes only. allows to reload classes when changed
+        # this is used for debugging purposes only. allows to reload classes when changed
         get_ipython().magic('load_ext autoreload')
         get_ipython().magic('autoreload 2')
 except NameError:
     pass
 
 import caiman as cm
+from caiman.paths import caiman_datadir
 from caiman.source_extraction import cnmf as cnmf
 from caiman.utils.utils import download_demo
-from caiman.paths import caiman_datadir
 
 # %%
 def main():
@@ -45,7 +44,9 @@ def main():
     fnames = glob.glob(folder_name + '/*' + extension)
 
     # your list of files should look something like this
-    print(fnames)
+    logging.info(fnames)
+
+#%%   Set up some parameters
 
 # %%   Set up some parameters
 
@@ -98,7 +99,7 @@ def main():
 
 # %% plot contours
 
-    print(('Number of components:' + str(cnm.estimates.A.shape[-1])))
+    logging.info('Number of components: ' + str(cnm.estimates.A.shape[-1]))
     Cn = cm.load(fnames[0], subindices=slice(0,500)).local_correlations(swap_dim=False)
     cnm.estimates.plot_contours(img=Cn)
 
