@@ -317,7 +317,7 @@ def nf_match_neurons_in_binary_masks(masks_gt, masks_comp, thresh_cost=.7, min_d
             pl.show()
             pl.axis('off')
         except Exception as e:
-            logging.warning("not able to plot precision recall usually because we are on travis")
+            logging.warning("not able to plot precision recall: graphics failure")
             logging.warning(e)
     return idx_tp_gt, idx_tp_comp, idx_fn_gt, idx_fp_comp, performance
 

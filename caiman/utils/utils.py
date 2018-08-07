@@ -89,7 +89,7 @@ def download_demo(name='Sue_2x_3000_40_-46.tif', save_folder=''):
         path_movie = os.path.join(base_folder, save_folder, name)
         if not os.path.exists(path_movie):
             url = file_dict[name]
-            logging.info("downloading " + name + " with urllib")
+            logging.info("downloading " + str(name) + " with urllib")
             f = urlopen(url)
             data = f.read()
             with open(path_movie, "wb") as code:

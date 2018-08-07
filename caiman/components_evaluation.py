@@ -214,7 +214,7 @@ def classify_components_ep(Y, A, C, b, f, Athresh=0.1, Npeaks=5, tB=-3, tA=10, t
     significant_samples = []
     for i in range(K):
         if i % 200 == 0:  # Show status periodically
-            logging.info('components evaluated:' + str(i))
+            logging.info('Components evaluated:' + str(i))
         if LOC[i] is not None:
             atemp = A[:, i].toarray().flatten()
             atemp[np.isnan(atemp)] = np.nanmean(atemp)

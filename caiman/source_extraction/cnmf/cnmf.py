@@ -426,7 +426,7 @@ class CNMF(object):
                                     })
 
         logging.info(('Using ' + str(self.params.get('patch', 'n_processes')) + ' processes'))
-        if self.n_pixels_per_process is None:
+        if self.params.get('preprocess', 'n_pixels_per_process') is None:
             avail_memory_per_process = psutil.virtual_memory()[
                 1] / 2.**30 / self.params.get('patch', 'n_processes')
             mem_per_pix = 3.6977678498329843e-09
@@ -480,8 +480,7 @@ class CNMF(object):
                 return self
 
             logging.info('update spatial ...')
-            A, b, Cin, self.f_in = update_spatial_components(Yr, C=self.Cin, f=self.f_in, b_in=self.b_in, A_in=self.Ain,
-                                                             sn=sn, dview=self.dview, **options['spatial_params'])
+            self.update_spatial(Yr, use_init=True)
 
             logging.info('update temporal ...')
             if not self.skip_refinement:

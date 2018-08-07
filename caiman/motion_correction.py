@@ -291,7 +291,7 @@ class MotionCorrect(object):
         """
         num_iter = 1
         if template is None:
-            logging.info('generating template by rigid motion correction')
+            logging.info('Generating template by rigid motion correction')
             self = self.motion_correct_rigid()
             self.total_template_els = self.total_template_rig.copy()
         else:
@@ -642,7 +642,7 @@ def motion_correct_online(movie_iterable, add_to_movie, max_shift_w=25, max_shif
         init_mov = movie_iterable[slice(0, init_frames_template, 1)]
 
     dims = (len(movie_iterable),) + movie_iterable[0].shape
-    logging.debug(("dimensions:" + str(dims)))
+    logging.debug("dimensions:" + str(dims))
 
     if use_median_as_template:
         template = bin_median(movie_iterable)
@@ -727,9 +727,9 @@ def motion_correct_online(movie_iterable, add_to_movie, max_shift_w=25, max_shif
                               vmax=350, interpolation='none')
                     pl.pause(.001)
 
-                logging.debug(('Relative change in template:' + str(
-                    old_div(np.sum(np.abs(template - template_old)), np.sum(np.abs(template))))))
-                logging.debug(('Iteration:' + str(count)))
+                logging.debug('Relative change in template:' + str(
+                    old_div(np.sum(np.abs(template - template_old)), np.sum(np.abs(template)))))
+                logging.debug('Iteration:' + str(count))
 
             if border_to_0 > 0:
                 new_img[:border_to_0, :] = min_mov
