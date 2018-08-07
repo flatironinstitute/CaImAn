@@ -1353,7 +1353,7 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
     center = np.zeros(shape=(2, max_number))  # neuron centers
 
     num_neurons = 0  # number of initialized neurons
-    continue_searching = True
+    continue_searching = True if max_number > 0 else False
     min_v_search = min_corr * min_pnr
     [ii, jj] = np.meshgrid(range(d2), range(d1))
     pixel_v = ((ii * 10 + jj) * 1e-5).astype(np.float32)
