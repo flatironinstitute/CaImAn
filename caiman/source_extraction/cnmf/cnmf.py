@@ -425,7 +425,7 @@ class CNMF(object):
                                     'ss': np.ones((3,) * len(self.dims), dtype=np.uint8)
                                     })
 
-        logging.info(('Using ' + str(self.n_processes) + ' processes'))
+        logging.info(('Using ' + str(self.params.get('patch', 'n_processes')) + ' processes'))
         if self.n_pixels_per_process is None:
             avail_memory_per_process = psutil.virtual_memory()[
                 1] / 2.**30 / self.params.get('patch', 'n_processes')
@@ -503,7 +503,7 @@ class CNMF(object):
 
                 logging.debug(self.estimates.A.shape)
                 logging.debug(self.estimates.C.shape)
-                logging.info('update spatial ...')
+                logging.info('Updating spatial ...')
 
                 self.update_spatial(Yr, use_init=False)
                 # set it back to original value to perform full deconvolution
