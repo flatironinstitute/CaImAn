@@ -36,7 +36,7 @@ from sklearn.decomposition import NMF
 from sklearn.preprocessing import normalize
 
 import caiman
-from caiman.source_extraction.cnmf import params
+#  from caiman.source_extraction.cnmf import params
 from .cnmf import CNMF
 from .estimates import Estimates
 from .initialization import imblur, initialize_components, hals
@@ -45,12 +45,12 @@ from .params import CNMFParams
 from .utilities import update_order, get_file_size
 from ... import mmapping
 from ...components_evaluation import compute_event_exceptionality
-from ...motion_correction import motion_correct_iteration_fast
+from ...motion_correction import motion_correct_iteration_fast, tile_and_correct
 from ...utils.utils import save_dict_to_hdf5, load_dict_from_hdf5
 
 try:
     cv2.setNumThreads(0)
-except:
+except():
     pass
 
 try:
@@ -546,8 +546,8 @@ class OnACID(object):
         self.estimates.shifts = []  # store motion shifts here
         self.estimates.time_new_comp = []
         if mc_flag:
-            max_shifts = self.params.get('online', 'max_shifts')
-            mc = Y.motion_correct(max_shifts, max_shifts)
+            max_shifts_online = self.params.get('online', 'max_shifts_online')
+            mc = Y.motion_correct(max_shifts_online, max_shifts_online)
             Y = mc[0].astype(np.float32)
             self.estimates.shifts.extend(mc[1])
 
@@ -693,7 +693,7 @@ class OnACID(object):
         init_files = 1
         t = init_batch
         self.Ab_epoch = []
-        max_shifts = self.params.get('online', 'max_shifts')
+        max_shifts_online = self.params.get('online', 'max_shifts_online')
         if extra_files == 0:     # check whether there are any additional files
             process_files = fls[:init_files]     # end processing at this file
             init_batc_iter = [init_batch]         # place where to start
@@ -734,8 +734,17 @@ class OnACID(object):
                     if self.params.get('online', 'motion_correct'):    # motion correct
                         templ = self.estimates.Ab.dot(
                             self.estimates.C_on[:self.M, t-1]).reshape(self.params.get('data', 'dims'), order='F')*self.img_norm
-                        frame_cor, shift = motion_correct_iteration_fast(
-                            frame_, templ, max_shifts, max_shifts)
+                        if self.params.get('motion', 'pw_rigid'):
+                            frame_cor1, shift = motion_correct_iteration_fast(
+                                    frame_, templ, max_shifts_online, max_shifts_online)
+                            frame_cor, shift = tile_and_correct(frame_, templ, self.params.motion['strides'], self.params.motion['overlaps'], 
+                                                                self.params.motion['max_shifts'], newoverlaps=None, newstrides=None, upsample_factor_grid=4,
+                                                                upsample_factor_fft=10, show_movie=False, max_deviation_rigid=self.params.motion['max_deviation_rigid'],
+                                                                add_to_movie=0, shifts_opencv=True, gSig_filt=None,
+                                                                use_cuda=False, border_nan='copy')[:2]
+                        else:
+                            frame_cor, shift = motion_correct_iteration_fast(
+                                    frame_, templ, max_shifts_online, max_shifts_online)
                         self.estimates.shifts.append(shift)
                     else:
                         templ = None

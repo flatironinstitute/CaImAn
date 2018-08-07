@@ -383,7 +383,7 @@ class CNMFParams(object):
             max_num_added: int, default: 5
                 Maximum number of new components to be added in each frame
 
-            max_shifts: int, default: 10,
+            max_shifts_online: int, default: 10,
                 Maximum shifts for motion correction during online processing
 
             min_SNR: float, default: 2.5
@@ -653,7 +653,7 @@ class CNMFParams(object):
             'init_method': 'bare',             # initialization method for first batch,
             'max_comp_update_shape': max_comp_update_shape,
             'max_num_added': max_num_added,    # maximum number of new components for each frame
-            'max_shifts': 10,                  # maximum shifts during motion correction
+            'max_shifts_online': 10,           # maximum shifts during motion correction
             'min_SNR': min_SNR,                # minimum SNR for accepting a new trace
             'min_num_trial': min_num_trial,    # number of mew possible components for each frame
             'minibatch_shape': minibatch_shape,  # number of frames in each minibatch
@@ -715,7 +715,7 @@ class CNMFParams(object):
         if self.online['thresh_fitness_raw'] is None:
             self.online['thresh_fitness_raw'] = scipy.special.log_ndtr(
                 -self.online['min_SNR']) * self.online['N_samples_exceptionality']
-        self.online['max_shifts'] = (np.array(self.online['max_shifts']) / self.online['ds_factor']).astype(int)
+        self.online['max_shifts_online'] = (np.array(self.online['max_shifts_online']) / self.online['ds_factor']).astype(int)
         if self.init['gSig'] is None:
             self.init['gSig'] = [-1, -1]
         if self.init['gSiz'] is None:

@@ -59,7 +59,8 @@ def main():
     gnb = 2  # number of background components
     gSig = tuple(np.ceil(np.array(gSig) / ds_factor).astype('int')) # recompute gSig if downsampling is involved
     mot_corr = True  # flag for online motion correction
-    max_shifts = np.ceil(10.).astype('int')  # maximum allowed shift during motion correction
+    pw_rigid = False  # flag for pw-rigid motion correction (slower but potentially more accurate)
+    max_shifts_online = np.ceil(10.).astype('int')  # maximum allowed shift during motion correction
     sniper_mode = False  # use a CNN to detect new neurons (o/w space correlation)
     # set up some additional supporting parameters needed for the algorithm (these are default values but change according to dataset characteristics)
     init_batch = 200  # number of frames for initialization (presumably from the first file)
@@ -85,7 +86,8 @@ def main():
                    'sniper_mode': sniper_mode,
                    'K': K,
                    'epochs': epochs,
-                   'max_shifts': max_shifts,
+                   'max_shifts_online': max_shifts_online,
+                   'pw_rigid': pw_rigid,
                    'show_movie': show_movie}
     opts = cnmf.params.CNMFParams(params_dict=params_dict)
 
