@@ -24,7 +24,7 @@ from builtins import range
 from past.utils import old_div
 
 from copy import copy, deepcopy
-import logger
+import logging
 import numpy as np
 import os
 import scipy
