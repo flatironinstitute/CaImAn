@@ -318,7 +318,7 @@ class Comparison(object):
             diffkeys = [k for k in data['cnmpatch']
                         if data['cnmpatch'][k] != cnmpatch[k]]
             for k in diffkeys:
-                logging.info(k, ':', data['cnmpatch'][k], '->', cnmpatch[k])
+                logging.info("{}:{}->{}".format(k, data['cnmpatch'][k], cnmpatch[k]))
 
             logging.warning(
                 'you are not using the same parameters in your cnmf on patches initialization\n')
