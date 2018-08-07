@@ -1961,11 +1961,12 @@ def tile_and_correct(img, template, strides, overlaps, max_shifts, newoverlaps=N
         if shifts_opencv:
             if gSig_filt is not None:
                 img = img_orig
+
             dims = img.shape
-            x_grid, y_grid = np.meshgrid(np.arange(0., dims[0]).astype(
-                np.float32), np.arange(0., dims[1]).astype(np.float32))
-            m_reg = cv2.remap(img, cv2.resize(shift_img_y.astype(np.float32), dims) + x_grid,
-                              cv2.resize(shift_img_x.astype(np.float32), dims) + y_grid,
+            x_grid, y_grid = np.meshgrid(np.arange(0., dims[1]).astype(
+                np.float32), np.arange(0., dims[0]).astype(np.float32))
+            m_reg = cv2.remap(img, cv2.resize(shift_img_y.astype(np.float32), dims[::-1]) + x_grid,
+                              cv2.resize(shift_img_x.astype(np.float32), dims[::-1]) + y_grid,
                               cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
                              # borderValue=add_to_movie)
             total_shifts = [
