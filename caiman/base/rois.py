@@ -14,26 +14,29 @@ from builtins import map
 from builtins import zip
 from builtins import str
 from builtins import range
+
+import cv2
+import json
+import logging
+import matplotlib.pyplot as pl
+import matplotlib.patches as mpatches
+import numpy as np
+import os
 from past.utils import old_div
 from scipy.ndimage.filters import gaussian_filter
 from scipy.ndimage import label, center_of_mass
 from skimage.morphology import remove_small_objects, remove_small_holes, dilation
 import scipy
-import numpy as np
-import cv2
-import time
+from scipy import ndimage as ndi
 from scipy.optimize import linear_sum_assignment
-import json
+import shutil
 from skimage.filters import sobel
 from skimage.morphology import watershed
-from scipy import ndimage as ndi
 from skimage.draw import polygon
-import matplotlib.pyplot as pl
-import matplotlib.patches as mpatches
-import zipfile
 import tempfile
-import shutil
-import os
+import time
+import zipfile
+
 from ..motion_correction import tile_and_correct
 
 try:
@@ -261,7 +264,7 @@ def nf_match_neurons_in_binary_masks(masks_gt, masks_comp, thresh_cost=.7, min_d
     performance['precision'] = old_div(TP, (TP + FP))
     performance['accuracy'] = old_div((TP + TN), (TP + FP + FN + TN))
     performance['f1_score'] = 2 * TP / (2 * TP + FP + FN)
-    print(performance)
+    logging.debug(performance)
     #%%
     idx_tp = np.where(np.array(costs) < thresh_cost)[0]
     idx_tp_ben = matches[0][idx_tp]    # ground truth
@@ -314,8 +317,8 @@ def nf_match_neurons_in_binary_masks(masks_gt, masks_comp, thresh_cost=.7, min_d
             pl.show()
             pl.axis('off')
         except Exception as e:
-            print("not able to plot precision recall usually because we are on travis")
-            print(e)
+            logging.warning("not able to plot precision recall: graphics failure")
+            logging.warning(e)
     return idx_tp_gt, idx_tp_comp, idx_fn_gt, idx_fp_comp, performance
 
 #%% register_ROIs largely follows the function nf_match_neurons_in_binary_masks
@@ -445,10 +448,8 @@ def register_ROIs(A1, A2, dims, template1=None, template2=None, align_flag=True,
             _sh_ = np.stack(shifts, axis=0)
             shifts_x = np.reshape(_sh_[:, 1], dims_grid,
                                   order='C').astype(np.float32)
-            #print(shifts_x)
             shifts_y = np.reshape(_sh_[:, 0], dims_grid,
                                   order='C').astype(np.float32)
-            #print(shifts_y)
             
             x_remap = (-np.resize(shifts_x, dims) + x_grid).astype(np.float32)
             y_remap = (-np.resize(shifts_y, dims) + y_grid).astype(np.float32)
@@ -509,7 +510,7 @@ def register_ROIs(A1, A2, dims, template1=None, template2=None, align_flag=True,
     performance['precision'] = old_div(TP, (TP + FP))
     performance['accuracy'] = old_div((TP + TN), (TP + FP + FN + TN))
     performance['f1_score'] = 2 * TP / (2 * TP + FP + FN)
-    print(performance)
+    logging.info(performance)
 
     if plot_results:
         if Cn is None:
@@ -549,8 +550,8 @@ def register_ROIs(A1, A2, dims, template1=None, template2=None, align_flag=True,
         pl.title('Mismatches')
         pl.axis('off')
 #        except Exception as e:
-#            print("not able to plot precision recall usually because we are on travis")
-#            print(e)
+#            logging.warning("not able to plot precision recall usually because we are on travis")
+#            logging.warning(e)
 
     return matched_ROIs1, matched_ROIs2, non_matched1, non_matched2, performance, A2
 
@@ -635,7 +636,7 @@ def register_multisession(A, dims, templates = [None], align_flag=True,
                                     enclosed_thr = enclosed_thr)
         
         mat_sess, mat_un, nm_sess, nm_un, _, A2 = reg_results
-        print(len(mat_sess))
+        logging.info(len(mat_sess))
         A_union = A2.copy()
         A_union[:,mat_un] = A[sess][:,mat_sess]
         A_union = np.concatenate((A_union.toarray(), A[sess][:,nm_sess]), axis = 1)
@@ -741,7 +742,7 @@ def distance_masks(M_s, cm_s, max_dist, enclosed_thr=None):
     for gt_comp, test_comp, cmgt_comp, cmtest_comp in zip(M_s[:-1], M_s[1:], cm_s[:-1], cm_s[1:]):
 
         # todo : better with a function that calls itself
-        print('New Pair **')
+        logging.info('New Pair **')
         # not to interfer with M_s
         gt_comp = gt_comp.copy()[:, :]
         test_comp = test_comp.copy()[:, :]
@@ -806,6 +807,7 @@ def find_matches(D_s, print_assignment=False):
         # we make a copy not to set changes in the original
         DD = D.copy()
         if np.sum(np.where(np.isnan(DD))) > 0:
+            logging.error('Exception: Distance Matrix contains NaN, not allowed!')
             raise Exception('Distance Matrix contains NaN, not allowed!')
 
         # we do the hungarian
@@ -818,11 +820,11 @@ def find_matches(D_s, print_assignment=False):
         for row, column in indexes2:
             value = DD[row, column]
             if print_assignment:
-                print(('(%d, %d) -> %f' % (row, column, value)))
+                logging.debug(('(%d, %d) -> %f' % (row, column, value)))
             total.append(value)
-        print(('FOV: %d, shape: %d,%d total cost: %f' %
+        logging.debug(('FOV: %d, shape: %d,%d total cost: %f' %
                (ii, DD.shape[0], DD.shape[1], np.sum(total))))
-        print((time.time() - t_start))
+        logging.debug((time.time() - t_start))
         costs.append(total)
         # send back the results in the format we want
     return matches, costs
@@ -877,7 +879,7 @@ def link_neurons(matches, costs, max_cost=0.6, min_FOV_present=None):
             neurons.append(neuron)
 
     neurons = np.array(neurons).T
-    print(('num_neurons:' + str(num_neurons)))
+    logging.info(('num_neurons:' + str(num_neurons)))
     return neurons
 
 
@@ -976,7 +978,7 @@ def nf_read_roi(fileobj):
     magic = fileobj.read(4)
     if magic != 'Iout':
         #        raise IOError('Magic number not found')
-        print('Magic number not found')
+        logging.warning('Magic number not found')
     version = get16()
 
     # It seems that the roi type field occupies 2 Bytes, but only one is used
@@ -986,11 +988,11 @@ def nf_read_roi(fileobj):
     get8()
 
 #    if not (0 <= roi_type < 11):
-#        print(('roireader: ROI type %s not supported' % roi_type))
+#        logging.error(('roireader: ROI type %s not supported' % roi_type))
 #
 #    if roi_type != 7:
 #
-#        print(('roireader: ROI type %s not supported (!= 7)' % roi_type))
+#        logging.error(('roireader: ROI type %s not supported (!= 7)' % roi_type))
 
     top = get16()
     left = get16()
@@ -1081,7 +1083,7 @@ def nf_merge_roi_zip(fnames, idx_to_keep, new_fold):
         folders_rois.append(dirpath)
         with zipfile.ZipFile(fn) as zf:
             name_rois = zf.namelist()
-            print(len(name_rois))
+            logging.debug(len(name_rois))
         zip_ref = zipfile.ZipFile(fn, 'r')
         zip_ref.extractall(dirpath)
         files_to_keep.append([os.path.join(dirpath, ff)
@@ -1158,8 +1160,7 @@ def extract_binary_masks_blob(A, neuron_radius, dims, num_std_threshold=1, minCi
     neg_examples = []
 
     for count, comp in enumerate(A.tocsc()[:].T):
-
-        print(count)
+        logging.debug(count)
         comp_d = np.array(comp.todense())
         gray_image = np.reshape(comp_d, dims, order='F')
         gray_image = (gray_image - np.min(gray_image)) / \
@@ -1184,7 +1185,7 @@ def extract_binary_masks_blob(A, neuron_radius, dims, num_std_threshold=1, minCi
             edges = (label_objects == (1 + idx_largest))
             edges = ndi.binary_fill_holes(edges)
         else:
-            print('empty component')
+            logging.warning('empty component')
             edges = np.zeros_like(edges)
 
         masks_ws.append(edges)
@@ -1290,7 +1291,7 @@ def detect_duplicates_and_subsets(binary_masks, predictions=None, r_values=None,
     np.fill_diagonal(D, 1)
     overlap = sp_rois.T.dot(sp_rois).toarray()
     sz = np.array(sp_rois.sum(0))
-    print(sz.shape)
+    logging.info(sz.shape)
     overlap = overlap/sz.T
     np.fill_diagonal(overlap, 0)
     # pairs of duplicate indeces
@@ -1305,7 +1306,7 @@ def detect_duplicates_and_subsets(binary_masks, predictions=None, r_values=None,
         metric = r_values.squeeze()
     else:
         metric = sz.squeeze()
-        print('***** USING MAX AREA BY DEFAULT')
+        logging.debug('***** USING MAX AREA BY DEFAULT')
 
     overlap_tmp = overlap.copy() >= thresh_subset
     overlap_tmp = overlap_tmp*metric[:, None]

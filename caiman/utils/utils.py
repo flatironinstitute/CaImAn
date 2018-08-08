@@ -19,34 +19,32 @@ https://docs.python.org/2/library/urllib.html
 #\author: andrea giovannucci
 #\namespace utils
 #\pre none
-from __future__ import print_function
 
-from caiman.paths import caiman_datadir
+import cv2
+import logging
+import h5py
+
 import numpy as np
-import scipy
 import os
+import pickle
+import scipy
 from scipy.ndimage.filters import gaussian_filter
 from tifffile import TiffFile
-import cv2
 
 try:
     cv2.setNumThreads(0)
 except:
     pass
 
+# TODO: Simplify conditional imports below
 try:
     from urllib2 import urlopen
 except ImportError:
     from urllib.request import urlopen
-try:  # python2
-    import cPickle as pickle
-except ImportError:  # python3
-    import pickle
 from ..external.cell_magic_wand import cell_magic_wand
 from ..source_extraction.cnmf.spatial import threshold_components
 
-import h5py
-
+from caiman.paths import caiman_datadir
 
 #%%
 
@@ -91,13 +89,13 @@ def download_demo(name='Sue_2x_3000_40_-46.tif', save_folder=''):
         path_movie = os.path.join(base_folder, save_folder, name)
         if not os.path.exists(path_movie):
             url = file_dict[name]
-            print("downloading " + name + "with urllib")
+            logging.info("downloading " + str(name) + " with urllib")
             f = urlopen(url)
             data = f.read()
             with open(path_movie, "wb") as code:
                 code.write(data)
         else:
-            print("File already downloaded")
+            logging.info("File " + str(name) + " already downloaded")
     else:
         raise Exception('Cannot find the example_movies folder in your caiman_datadir - did you make one with caimanmanager.py?')
     return path_movie
@@ -176,7 +174,7 @@ def get_image_description_SI(fname):
 
     for idx, pag in enumerate(tf.pages):
         if idx % 1000 == 0:
-            print(idx)
+            logging.debug(idx)
     #        i2cd=si_parse(pag.tags['image_description'].value)['I2CData']
         field = pag.tags['image_description'].value
 
@@ -354,7 +352,7 @@ def apply_magic_wand(A, gSig, dims, A_thr=None, coms=None, dview=None,
         params.append([A.tocsc()[:,idx].toarray().reshape(dims, order='F'),
             coms[idx], min_radius, max_radius, roughness, zoom_factor, center_range])
 
-    print(len(params))
+    logging.debug(len(params))
 
     if dview is not None:
         masks = np.array(list(dview.map(cell_magic_wand_wrapper, params)))
@@ -444,18 +442,15 @@ def recursively_save_dict_contents_to_group(h5file, path, dic):
 
     # save items to the hdf5 file
     for key, item in dic.items():
-        # print('**')
-        # print(key,item)
-        # print(type(item).__name__)
         key = str(key)
 
         if key == 'g':
-            print(key + ' is an object type')
+            logging.info(key + ' is an object type')
             item = np.array(list(item))
         if key == 'g_tot':
             item = np.asarray(item, dtype=np.float)
         if key in ['groups', 'idx_tot', 'ind_A', 'Ab_epoch','coordinates','loaded_model', 'optional_outputs']:
-            print(['groups', 'idx_tot', 'ind_A', 'Ab_epoch', 'coordinates', 'loaded_model', 'optional_outputs',
+            logging.info(['groups', 'idx_tot', 'ind_A', 'Ab_epoch', 'coordinates', 'loaded_model', 'optional_outputs',
                    '** not saved'])
             continue
 
@@ -481,7 +476,7 @@ def recursively_save_dict_contents_to_group(h5file, path, dic):
         elif isinstance(item, dict):
             recursively_save_dict_contents_to_group(h5file, path + key + '/', item)
         elif 'sparse' in str(type(item)):
-            print(key + ' is sparse ****')
+            logging.info(key + ' is sparse ****')
             h5file[path + key + '/data'] = item.tocsc().data
             h5file[path + key + '/indptr'] = item.tocsc().indptr
             h5file[path + key + '/indices'] = item.tocsc().indices
@@ -490,7 +485,7 @@ def recursively_save_dict_contents_to_group(h5file, path, dic):
         elif item is None or key == 'dview':
             h5file[path + key] = 'NoneType'
         elif key in ['dims','medw', 'sigma_smooth_snmf', 'dxy', 'max_shifts', 'strides', 'overlaps', 'gSig']:
-            print(key + ' is a tuple ****')
+            logging.info(key + ' is a tuple ****')
             h5file[path + key] = np.array(item)
         elif type(item).__name__ in ['CNMFParams', 'Estimates']: # parameter object
             recursively_save_dict_contents_to_group(h5file, path + key + '/', item.__dict__)

@@ -1,10 +1,20 @@
 #!/usr/bin/env python
 
+import logging
 import numpy.testing as npt
 import numpy as np
 from time import time
+
 from caiman.source_extraction.cnmf.deconvolution import constrained_foopsi
 
+# Set up the logger; change this if you like.
+# You can log to a file using the filename parameter, or make the output more or less
+# verbose by setting level to logging.DEBUG, logging.INFO, logging.WARNING, or logging.ERROR
+
+logging.basicConfig(format=
+                          "%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s] [%(process)d] %(message)s",
+                    # filename="/tmp/caiman.log",
+                    level=logging.DEBUG)
 
 def gen_data(g=[.95], sn=.2, T=1000, framerate=30, firerate=.5, b=10, N=1, seed=0):
     """
@@ -60,23 +70,10 @@ def foo(method, p):
         res = constrained_foopsi(y, g=g, sn=sn, p=p, method=method)
         npt.assert_allclose(np.corrcoef(res[0], c)[0, 1], 1, [.01, .1][i])
         npt.assert_allclose(np.corrcoef(res[-2], s)[0, 1], 1, [.03, .3][i])
-    print(['\n', ''][p - 1] + ' %5s AR%d   %.4fs' % (method, p, time() - t))
-
-
-# def test_cvxpy():
-#     foo('cvxpy', 1)
-#     foo('cvxpy', 2)
+    logging.debug(['\n', ''][p - 1] + ' %5s AR%d   %.4fs' % (method, p, time() - t))
 
 
 def test_oasis():
     foo('oasis', 1)
     foo('oasis', 2)
 
-
-# def test_cvx():
-#     try:  # test only if mosek is installed
-#         import mosek
-#         foo('cvx', 1)
-#         foo('cvx', 2)
-#     except:
-#         pass

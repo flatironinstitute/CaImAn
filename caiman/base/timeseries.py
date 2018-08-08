@@ -165,7 +165,7 @@ class timeseries(np.ndarray):
 
         """
         name, extension = os.path.splitext(file_name)[:2]
-        print(extension)
+        logging.debug("Parsing extension " + str(extension))
 
 
         if extension == '.tif':  # load avi file
@@ -175,8 +175,8 @@ class timeseries(np.ndarray):
 
 
                 for i in range(self.shape[0]):
-                    if i%200 == 0:
-                        print(str(i) + ' frames saved')
+                    if i % 200 == 0:
+                        logging.debug(str(i) + ' frames saved')
 
                     curfr = self[i].copy()
                     if to32 and not('float32' in str(self.dtype)):
@@ -245,9 +245,9 @@ class timeseries(np.ndarray):
                     dset.attrs["file_name"] = [
                         a.encode('utf8') for a in self.file_name]
                 except:
-                    print('No file name saved')
+                    logging.warning('No file saved')
                 if self.meta_data[0] is not None:
-                    print(self.meta_data)
+                    logging.debug("Metadata for saved file: " + str(self.meta_data))
                     dset.attrs["meta_data"] = cpk.dumps(self.meta_data)
 
         elif extension == '.mmap':
@@ -275,7 +275,7 @@ class timeseries(np.ndarray):
             return fname_tot
 
         else:
-            print(extension)
+            logging.error("Extension " + str(extension) + " unknown")
             raise Exception('Extension Unknown')
 
 
@@ -309,5 +309,5 @@ def concatenate(*args, **kwargs):
     try:
         return obj.__class__(np.concatenate(*args, **kwargs), **obj.__dict__)
     except:
-        print('no meta information passed')
+        logging.debug('no meta information passed')
         return obj.__class__(np.concatenate(*args, **kwargs))

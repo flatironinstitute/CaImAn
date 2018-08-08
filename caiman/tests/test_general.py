@@ -22,10 +22,15 @@ from __future__ import division
 from __future__ import print_function
 from builtins import str
 from builtins import range
-import matplotlib
-from caiman.utils.utils import download_demo
+
+import copy
 import cv2
 import glob
+import logging
+import matplotlib
+import numpy as np
+import os
+import time
 
 try:
     cv2.setNumThreads(0)
@@ -34,24 +39,29 @@ except:
 
 try:
     if __IPYTHON__:
-        print((1))
         # this is used for debugging purposes only. allows to reload classes
         # when changed
         get_ipython().magic('load_ext autoreload')
         get_ipython().magic('autoreload 2')
 except NameError:
-    print('Not launched under iPython')
+    pass
+
 
 import caiman as cm
-import numpy as np
-import os
-import time
-import copy
-from caiman.source_extraction.cnmf import cnmf as cnmf
-from caiman.motion_correction import MotionCorrect
 from caiman.components_evaluation import estimate_components_quality
+from caiman.motion_correction import MotionCorrect
+from caiman.source_extraction.cnmf import cnmf as cnmf
 from caiman.tests.comparison import comparison
+from caiman.utils.utils import download_demo
 
+# Set up the logger; change this if you like.
+# You can log to a file using the filename parameter, or make the output more or less
+# verbose by setting level to logging.DEBUG, logging.INFO, logging.WARNING, or logging.ERROR
+
+logging.basicConfig(format=
+                          "%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s] [%(process)d] %(message)s",
+                    # filename="/tmp/caiman.log",
+                    level=logging.DEBUG)
 
 # GLOBAL VAR
 params_movie = {'fname': ['Sue_2x_3000_40_-46.tif'],
@@ -200,7 +210,7 @@ def test_general():
         fname_new = cm.save_memmap_join(
             name_new, base_name='Yr', n_chunks=params_movie['n_chunks'], dview=None)
     else:
-        print('One file only, not saving!')
+        logging.warning('One file only, not saving!')
         fname_new = name_new[0]
 
     Yr, dims, T = cm.load_memmap(fname_new)
@@ -249,7 +259,7 @@ def test_general():
     b_tot = cnm.estimates.b
     f_tot = cnm.estimates.f
     # DISCARDING
-    print(('Number of components:' + str(A_tot.shape[-1])))
+    logging.info(('Number of components:' + str(A_tot.shape[-1])))
     final_frate = params_movie['final_frate']
     # threshold on space consistency
     r_values_min = params_movie['r_values_min_patch']
@@ -302,23 +312,23 @@ def test_general():
         for log_file in log_files:
             os.remove(log_file)
     except:
-        print('Cannot remove log files')
+        logging.warning('Cannot remove log files')
 ############ assertions ##################
     pb = False
     if (comp.information['differences']['params_movie']):
-        print("you need to set the same movie parameters than the ground truth to have a real comparison (use the comp.see() function to explore it)")
+        logging.error("you need to set the same movie parameters than the ground truth to have a real comparison (use the comp.see() function to explore it)")
         pb = True
     if (comp.information['differences']['params_cnm']):
-        print("you need to set the same cnmf parameters than the ground truth to have a real comparison (use the comp.see() function to explore it)")
+        logging.error("you need to set the same cnmf parameters than the ground truth to have a real comparison (use the comp.see() function to explore it)")
         pb = True
     if (comp.information['diff']['rig']['isdifferent']):
-        print("the rigid shifts are different from the groundtruth ")
+        logging.error("the rigid shifts are different from the groundtruth ")
         pb = True
     if (comp.information['diff']['cnmpatch']['isdifferent']):
-        print("the cnmf on patch produces different results than the groundtruth ")
+        logging.error("the cnmf on patch produces different results than the groundtruth ")
         pb = True
     if (comp.information['diff']['cnmfull']['isdifferent']):
-        print("the cnmf full frame produces different  results than the groundtruth ")
+        logging.error("the cnmf full frame produces different  results than the groundtruth ")
         pb = True
 
     assert (not pb)

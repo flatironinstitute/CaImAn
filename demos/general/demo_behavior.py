@@ -15,10 +15,20 @@ from builtins import map
 from builtins import range
 from past.utils import old_div
 
-import os
-import sys
+import copy
 import cv2
 import glob
+from ipyparallel import Client
+import logging
+import numpy as np
+import os
+import psutil
+import pylab as pl
+import scipy
+from scipy.sparse import coo_matrix
+from skimage.external.tifffile import TiffFile
+import sys
+import time
 
 try:
     cv2.setNumThreads(0)
@@ -27,23 +37,12 @@ except:
 
 try:
     if __IPYTHON__:
-        print("Detected iPython")
         # this is used for debugging purposes only. allows to reload classes
         # when changed
         get_ipython().magic('load_ext autoreload')
         get_ipython().magic('autoreload 2')
 except NameError:
     pass
-
-import copy
-from ipyparallel import Client
-import numpy as np
-import psutil
-import pylab as pl
-import time
-from skimage.external.tifffile import TiffFile
-import scipy
-from scipy.sparse import coo_matrix
 
 import caiman as cm
 from caiman.source_extraction.cnmf import cnmf as cnmf
@@ -52,6 +51,16 @@ from caiman.utils.visualization import plot_contours, view_patches_bar
 from caiman.base.rois import extract_binary_masks_blob
 from caiman.behavior import behavior
 from caiman.utils.utils import download_demo
+
+#%%
+# Set up the logger; change this if you like.
+# You can log to a file using the filename parameter, or make the output more or less
+# verbose by setting level to logging.DEBUG, logging.INFO, logging.WARNING, or logging.ERROR
+
+logging.basicConfig(format=
+                          "%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s] [%(process)d] %(message)s",
+                    # filename="/tmp/caiman.log",
+                    level=logging.DEBUG)
 
 #%%
 def main():
@@ -73,6 +82,7 @@ def main():
 #%% visualize movie
     m.play()
 #%% select interesting portion of the FOV (draw a polygon on the figure that pops up, when done press enter)
+    # TODO: Put the message below into the image
     print("Please draw a polygon delimiting the ROI on the image that will be displayed after the image; press enter when done")
     mask = np.array(behavior.select_roi(np.median(m[::100], 0), 1)[0], np.float32)
 #%%

@@ -19,22 +19,24 @@ from builtins import zip
 from builtins import str
 from builtins import map
 from builtins import range
-import subprocess
-import time
+
+import glob
 import ipyparallel
 from ipyparallel import Client
-import shutil
-import glob
-import shlex
-import psutil
-import sys
-import os
-import numpy as np
-from .mmapping import load_memmap
-from multiprocessing import Pool
-import multiprocessing
-import platform
 import logging
+import multiprocessing
+from multiprocessing import Pool
+import numpy as np
+import os
+import platform
+import psutil
+import shlex
+import shutil
+import subprocess
+import sys
+import time
+
+from .mmapping import load_memmap
 
 
 logger = logging.getLogger(__name__)
@@ -78,7 +80,7 @@ def extract_patch_coordinates(dims, rf, stride, border_pix=0, indeces=[slice(Non
     sl_step = [1 for sl in indeces]  # not used
     dims_large = dims
     dims = np.minimum(np.array(dims) - border_pix, sl_stop) - np.maximum(border_pix, sl_start) 
-    
+
     coords_flat = []
     shapes = []
     iters = [list(range(rf[i], dims[i] - rf[i], 2 * rf[i] - stride[i])) + [dims[i] - rf[i]]
@@ -121,8 +123,7 @@ def extract_patch_coordinates(dims, rf, stride, border_pix=0, indeces=[slice(Non
 
     for i, c in enumerate(coords_flat):
         assert len(c) == np.prod(shapes[i])
-#    import pdb
-#    pdb.set_trace()
+
     return map(np.sort, coords_flat), shapes
 
 
@@ -183,7 +184,7 @@ def apply_to_patch(mmap_file, shape, dview, rf, stride, function, *args, **kwarg
     if d2 <= rf2 * 2:
         shape_grid = (shape_grid[0], 1)
 
-    print(shape_grid)
+    logger.debug("Shape of grid is " + str(shape_grid))
 
     args_in = []
 
@@ -191,7 +192,7 @@ def apply_to_patch(mmap_file, shape, dview, rf, stride, function, *args, **kwarg
 
         args_in.append((mmap_file.filename, id_f,
                         id_2d, function, args, kwargs))
-    print((len(idx_flat)))
+    logger.debug("Flat index is of length " + str(len(idx_flat)))
     if dview is not None:
         try:
             file_res = dview.map_sync(function_place_holder, args_in)
@@ -200,7 +201,7 @@ def apply_to_patch(mmap_file, shape, dview, rf, stride, function, *args, **kwarg
         except:
             raise Exception('Something went wrong')
         finally:
-            print('You may think that it went well but reality is harsh')
+            logger.warn('You may think that it went well but reality is harsh') # TODO Figure out a better message
     else:
 
         file_res = list(map(function_place_holder, args_in))
@@ -224,7 +225,7 @@ def function_place_holder(args_in):
     if type(res_fun) is not tuple:
 
         if res_fun.shape == (d1, d2):
-            print('** reshaping form 2D to 1D')
+            logger.debug('** reshaping form 2D to 1D')
             res_fun = np.reshape(res_fun, d1 * d2, order='F')
 
     return res_fun
@@ -268,11 +269,11 @@ def start_server(slurm_script=None, ipcluster="ipcluster", ncpus=None):
     else:
         shell_source(slurm_script)
         pdir, profile = os.environ['IPPPDIR'], os.environ['IPPPROFILE']
-        print([pdir,profile])
+        logger.debug([pdir, profile])
         c = Client(ipython_dir=pdir, profile=profile)
         ee = c[:]
         ne = len(ee)
-        print(('Running on %d engines.' % (ne)))
+        logger.info(('Running on %d engines.' % (ne)))
         c.close()
         sys.stdout.write("start_server: done\n")
 
@@ -280,7 +281,9 @@ def start_server(slurm_script=None, ipcluster="ipcluster", ncpus=None):
 #%%
 def shell_source(script):
     """ Run a source-style bash script, copy resulting env vars to current process. """
-    #introduce echo to indicate the  end of the output
+    # XXX This function is weird and maybe not a good idea. People easily might expect
+    #     it to handle conditionals. Maybe just make them provide a key-value file
+    #introduce echo to indicate the end of the output
     pipe = subprocess.Popen(". %s; env; echo 'FINISHED_CLUSTER'" %
                             script, stdout=subprocess.PIPE, shell=True)
 
@@ -289,7 +292,7 @@ def shell_source(script):
         line = pipe.stdout.readline().decode('utf-8').rstrip()
         if 'FINISHED_CLUSTER' in line: # find the keyword set above to determine the end of the output stream
             break
-        print(line)
+        debug.info("shell_source parsing line[" + str(line) + "]")
         lsp = str(line).split("=", 1)
         if len(lsp) > 1:
             env[lsp[0]] = lsp[1]
@@ -327,14 +330,14 @@ def stop_server(ipcluster='ipcluster', pdir=None, profile=None, dview=None):
             c = Client(ipython_dir=pdir, profile=profile)
             ee = c[:]
             ne = len(ee)
-            print(('Shutting down %d engines.' % (ne)))
+            logger.info(('Shutting down %d engines.' % (ne)))
             c.close()
             c.shutdown(hub=True)
             shutil.rmtree('profile_' + str(profile))
             try:
                 shutil.rmtree('./log/')
             except:
-                print('creating log folder')
+                logger.info('creating log folder') # FIXME Not what this means
 
             files = glob.glob('*.log')
             os.mkdir('./log')
@@ -361,9 +364,8 @@ def stop_server(ipcluster='ipcluster', pdir=None, profile=None, dview=None):
                     sys.stdout.flush()
                     time.sleep(1)
             else:
-                print(line_out)
-                print(
-                    '**** Unrecognized syntax in ipcluster output, waiting for server to stop anyways ****')
+                logger.error(line_out)
+                logger.error('**** Unrecognized syntax in ipcluster output, waiting for server to stop anyways ****')
 
             proc.stderr.close()
 
@@ -405,12 +407,12 @@ def setup_cluster(backend='multiprocessing', n_processes=None, single_thread=Fal
             try:
                 stop_server()
             except:
-                print('Nothing to stop')
+                logger.debug('Nothing to stop')
             slurm_script = 'SLURM/slurmStart.sh'
-            print([str(n_processes),slurm_script])
+            logger.info([str(n_processes), slurm_script])
             start_server(slurm_script=slurm_script, ncpus=n_processes)
             pdir, profile = os.environ['IPPPDIR'], os.environ['IPPPROFILE']
-            print([pdir, profile])
+            logger.info([pdir, profile])
             c = Client(ipython_dir=pdir, profile=profile)
             dview = c[:]
         elif backend == 'ipyparallel':

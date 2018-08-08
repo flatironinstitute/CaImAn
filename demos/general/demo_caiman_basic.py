@@ -17,34 +17,44 @@ are tailored for that environment.
 
 from __future__ import print_function
 from builtins import range
+
 import cv2
+from copy import deepcopy
+import glob
+import logging
+import numpy as np
+import os
 
 try:
     cv2.setNumThreads(0)
-except():
+except:
     pass
 
 try:
     if __IPYTHON__:
-        print("Detected iPython")
         get_ipython().magic('load_ext autoreload')
         get_ipython().magic('autoreload 2')
 except NameError:
     pass
 
-import numpy as np
-import os
-import glob
-from copy import deepcopy
 
 import caiman as cm
-from caiman.source_extraction.cnmf import cnmf as cnmf
 from caiman.paths import caiman_datadir
+from caiman.source_extraction.cnmf import cnmf as cnmf
 from caiman.source_extraction.cnmf import params as params
 
 #%%
+# Set up the logger; change this if you like.
+# You can log to a file using the filename parameter, or make the output more or less
+# verbose by setting level to logging.DEBUG, logging.INFO, logging.WARNING, or logging.ERROR
+
+logging.basicConfig(format=
+                          "%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s] [%(process)d] %(message)s",
+                    # filename="/tmp/caiman.log",
+
+#%%
 def main():
-    pass  # For compatibility between running under Spyder and the CLI
+    pass # For compatibility between running under Spyder and the CLI
 
 #%% start a cluster
 

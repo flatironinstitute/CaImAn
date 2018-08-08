@@ -20,16 +20,18 @@ from builtins import zip
 from builtins import str
 from builtins import map
 from builtins import range
-from copy import deepcopy
 
 from past.utils import old_div
+
+from copy import copy, deepcopy
+import logging
 import numpy as np
-import time
-import scipy
 import os
+import scipy
+import time
+
 from ...mmapping import load_memmap
 from ...cluster import extract_patch_coordinates
-from copy import copy
 
 #%%
 def cnmf_patches(args_in):
@@ -101,9 +103,9 @@ def cnmf_patches(args_in):
     #logger.addHandler(hdlr)
     #logger.setLevel(logging.INFO)
 
-    logger.debug(name_log+'START')
+    logger.debug(name_log + 'START')
 
-    logger.debug(name_log+'Read file')
+    logger.debug(name_log + 'Read file')
     Yr, dims, timesteps = load_memmap(file_name)
 
     # slicing array (takes the min and max index in n-dimensional space and cuts the box they define)
