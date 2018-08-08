@@ -10,7 +10,6 @@ Demo is also available as a jupyter notebook (see demo_pipeline_cnmfE.ipynb)
 from __future__ import division
 from __future__ import print_function
 
-from copy import deepcopy
 import logging
 import matplotlib.pyplot as plt
 import numpy as np
