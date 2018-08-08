@@ -236,6 +236,52 @@ class Estimates(object):
             caiman.utils.visualization.view_patches_bar(Yr, self.A.tocsc()[:,idx], 
                                                         self.C[idx], self.b, self.f, 
                                                         self.dims[0], self.dims[1], YrA=self.R[idx], img=img)
+        return self
+
+    def nb_view_components(self, Yr=None, img=None, idx=None,
+                           denoised_color=None, cmap='jet'):
+        """view spatial and temporal components interactively
+
+        Parameters:
+        -----------
+        Yr :    np.ndarray
+                movie in format pixels (d) x frames (T)
+
+        img :   np.ndarray
+                background image for contour plotting. Default is the mean
+                image of all spatial components (d1 x d2)
+
+        idx :   list
+                list of components to be plotted
+
+
+        """
+        if 'csc_matrix' not in str(type(self.A)):
+            self.A = scipy.sparse.csc_matrix(self.A)
+
+        plt.ion()
+        nr, T = self.C.shape
+        if self.R is None:
+            self.R = self.YrA
+        if self.R.shape != [nr, T]:
+            if self.YrA is None:
+                self.compute_residuals(Yr)
+            else:
+                self.R = self.YrA
+
+        if img is None:
+            img = np.reshape(np.array(self.A.mean(axis=1)), self.dims, order='F')
+
+        if idx is None:
+            caiman.utils.visualization.nb_view_patches(Yr, self.A, self.C,
+                    self.b, self.f, self.dims[0], self.dims[1], YrA=self.R, image_neurons=img,
+                    thr=0.99, denoised_color=denoised_color, cmap=cmap)
+        else:
+            caiman.utils.visualization.nb_view_patches(Yr, self.A.tocsc()[:,idx], 
+                                                        self.C[idx], self.b, self.f, 
+                                                        self.dims[0], self.dims[1], YrA=self.R[idx], image_neurons=img,
+                                                        thr=0.99, denoised_color=denoised_color, cmap=cmap)
+        return self
 
     def play_movie(self, imgs, q_max=99.75, q_min=2, gain_res=1,
                    magnification=1, include_bck=True,
