@@ -65,7 +65,7 @@ def main():
 
     # motion correction parameters
     pw_rigid = True       # flag to select rigid vs pw_rigid motion correction
-    # maximum allow rigid shift in pixels
+    # maximum allowed rigid shift in pixels
     max_shifts = [int(a/b) for a, b in zip(max_shift_um, dxy)]
     # start a new patch for pw-rigid motion correction every x pixels
     strides = tuple([int(a/b) for a, b in zip(patch_motion_um, dxy)])
