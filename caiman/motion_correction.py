@@ -194,6 +194,26 @@ class MotionCorrect(object):
         if self.use_cuda and not HAS_CUDA:
             logging.debug("pycuda is unavailable. Falling back to default FFT.")
 
+    def motion_correct(self, template=None, save_movie=False):
+        if self.min_mov is None:
+            if self.gSig_filt is None:
+                self.min_mov = np.array([cm.load(self.fname[0],
+                                                 subindices=range(400))]).min()
+            else:
+                self.min_mov = np.array([high_pass_filter_space(m_, self.gSig_filt)
+                    for m_ in cm.load(self.fname[0], subindices=range(400))]).min()
+
+        if self.pw_rigid:
+            self.motion_correct_pwrigid(template=template, save_movie=save_movie)
+            b0 = np.ceil(np.maximum(np.max(np.abs(self.x_shifts_els)),
+                                    np.max(np.abs(self.y_shifts_els))))
+        else:
+            self.motion_correct_rigid(template=template, save_movie=save_movie)
+            b0 = np.ceil(np.max(np.abs(self.shifts_rig)))
+        self.border_to_0 = b0.astype(np.int)
+        self.mmap_file = self.fname_tot_els if self.pw_rigid else self.fname_tot_rig
+        return self
+
     def motion_correct_rigid(self, template=None, save_movie=False):
         """
         Perform rigid motion correction
