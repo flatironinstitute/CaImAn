@@ -671,7 +671,8 @@ def nb_imshow(image, cmap='jet'):
 
 
 def nb_plot_contour(image, A, d1, d2, thr=None, thr_method='max', maxthr=0.2, nrgthr=0.9,
-                    face_color=None, line_color='black', alpha=0.4, line_width=2, **kwargs):
+                    face_color=None, line_color='black', alpha=0.4, line_width=2,
+                    coordinates=None, **kwargs):
     """Interactive Equivalent of plot_contours for ipython notebook
 
     Parameters:
@@ -715,7 +716,8 @@ def nb_plot_contour(image, A, d1, d2, thr=None, thr_method='max', maxthr=0.2, nr
     p.circle(center[:, 1], center[:, 0], size=10, color="black",
              fill_color=None, line_width=2, alpha=1)
     coors = plot_contours(coo_matrix(A), image, thr=thr,
-                          thr_method=thr_method, maxthr=maxthr, nrgthr=nrgthr)
+                          thr_method=thr_method, maxthr=maxthr, nrgthr=nrgthr,
+                          coordinates=coordinates)
     pl.close()
     cc1 = [np.clip(cor['coordinates'][:, 0], 0, d2) for cor in coors]
     cc2 = [np.clip(cor['coordinates'][:, 1], 0, d1) for cor in coors]

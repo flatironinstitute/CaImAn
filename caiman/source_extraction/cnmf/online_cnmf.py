@@ -701,6 +701,10 @@ class OnACID(object):
             process_files = fls[:init_files + extra_files]   # additional files
             # where to start reading at each file
             init_batc_iter = [init_batch] + [0]*extra_files
+        if self.params.get('online', 'save_online_movie'):
+            fourcc = cv2.VideoWriter_fourcc('8', 'B', 'P', 'S')
+            out = cv2.VideoWriter(self.params.get('online', 'movie_name_online'),
+                                  fourcc, 30.0, tuple([int(2*x) for x in self.params.get('data', 'dims')]))
         for iter in range(epochs):
             if iter > 0:
                 # if not on first epoch process all files from scratch
@@ -751,11 +755,16 @@ class OnACID(object):
                         frame_cor = frame_
 
                     if self.params.get('online', 'normalize'):
-                        frame_cor = frame_cor/self.img_norm    # normalize data-frame
+                        frame_cor = frame_cor/self.img_norm
                     self.fit_next(t, frame_cor.reshape(-1, order='F'))
                     if self.params.get('online', 'show_movie'):
                         self.t = t
                         vid_frame = self.create_frame(frame_cor)
+                        if self.params.get('online', 'save_online_movie'):
+                            out.write(vid_frame)
+                            for rp in range(len(self.estimates.ind_new)*2):
+                                out.write(vid_frame)
+
                         cv2.imshow('frame', vid_frame)
                         for rp in range(len(self.estimates.ind_new)*2):
                             cv2.imshow('frame', vid_frame)
@@ -773,6 +782,8 @@ class OnACID(object):
         self.estimates.YrA = noisyC - self.estimates.C
         self.estimates.bl = [osi.b for osi in self.estimates.OASISinstances] if hasattr(
             self, 'OASISinstances') else [0] * self.estimates.C.shape[0]
+        if self.params.get('online', 'save_online_movie'):
+            out.release()
         if self.params.get('online', 'show_movie'):
             cv2.destroyAllWindows()
         return self

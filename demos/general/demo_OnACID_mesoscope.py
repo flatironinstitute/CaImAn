@@ -11,6 +11,7 @@ for sharing their data used in this demo.
 import glob
 import numpy as np
 import os
+import logging
 
 try:
     if __IPYTHON__:
@@ -45,8 +46,6 @@ def main():
 
     # your list of files should look something like this
     logging.info(fnames)
-
-#%%   Set up some parameters
 
 # %%   Set up some parameters
 

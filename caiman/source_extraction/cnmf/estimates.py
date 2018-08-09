@@ -152,7 +152,7 @@ class Estimates(object):
 
     def plot_contours(self, img=None, idx=None, crd=None, thr_method='max',
                       thr='0.2'):
-        """view contour plots for each spatial footprint. 
+        """view contours of all spatial footprints.
         Parameters:
         -----------
         img :   np.ndarray
@@ -193,6 +193,53 @@ class Estimates(object):
             plt.subplot(1, 2, 2)
             caiman.utils.visualization.plot_contours(self.A[:, bad], img,
                                                      coordinates=coor_b)
+            plt.title('Rejected Components')
+        return self
+
+    def plot_contours_nb(self, img=None, idx=None, crd=None, thr_method='max',
+                         thr='0.2'):
+        """view contours od all spatial footprints (notebook environment).
+        Parameters:
+        -----------
+        img :   np.ndarray
+                background image for contour plotting. Default is the mean
+                image of all spatial components (d1 x d2)
+        idx :   list
+                list of accepted components
+
+        crd :   list
+                list of coordinates (if empty they are computed)
+
+        thr_method : str
+                     thresholding method for computing contours ('max', 'nrg')
+
+        thr : float
+                threshold value
+        """
+        if 'csc_matrix' not in str(type(self.A)):
+            self.A = scipy.sparse.csc_matrix(self.A)
+        if img is None:
+            img = np.reshape(np.array(self.A.mean(1)), self.dims, order='F')
+        if self.coordinates is None:  # not hasattr(self, 'coordinates'):
+            self.coordinates = caiman.utils.visualization.get_contours(self.A,
+                                    self.dims, thr=thr, thr_method=thr_method)
+        if idx is None:
+            caiman.utils.visualization.nb_plot_contour(img, self.A, self.dims[0],
+                            self.dims[1], coordinates=self.coordinates,
+                            thr_method=thr_method, thr=thr)
+        else:
+            if not isinstance(idx, list):
+                idx = idx.tolist()
+            coor_g = [self.coordinates[cr] for cr in idx]
+            bad = list(set(range(self.A.shape[1])) - set(idx))
+            coor_b = [self.coordinates[cr] for cr in bad]
+            caiman.utils.visualization.nb_plot_contour(img, self.A[:, idx],
+                            self.dims[0], self.dims[1], coordinates=coor_g,
+                            thr_method=thr_method, thr=thr)
+            bad = list(set(range(self.A.shape[1])) - set(idx))
+            caiman.utils.visualization.nb_plot_contour(img, self.A[:, bad],
+                            self.dims[0], self.dims[1], coordinates=coor_b,
+                            thr_method=thr_method, thr=thr)
             plt.title('Rejected Components')
         return self
 
@@ -239,7 +286,7 @@ class Estimates(object):
         return self
 
     def nb_view_components(self, Yr=None, img=None, idx=None,
-                           denoised_color=None, cmap='jet'):
+                           denoised_color=None, cmap='jet', thr=0.99):
         """view spatial and temporal components interactively in a notebook
 
         Parameters:
@@ -254,6 +301,14 @@ class Estimates(object):
         idx :   list
                 list of components to be plotted
 
+        thr: double
+            threshold regulating the extent of the displayed patches
+
+        denoised_color: string or None
+            color name (e.g. 'red') or hex color code (e.g. '#F0027F')
+
+        cmap: string
+            name of colormap (e.g. 'viridis') used to plot image_neurons
 
         """
         if 'csc_matrix' not in str(type(self.A)):
@@ -275,12 +330,12 @@ class Estimates(object):
         if idx is None:
             caiman.utils.visualization.nb_view_patches(Yr, self.A, self.C,
                     self.b, self.f, self.dims[0], self.dims[1], YrA=self.R, image_neurons=img,
-                    thr=0.99, denoised_color=denoised_color, cmap=cmap)
+                    thr=thr, denoised_color=denoised_color, cmap=cmap)
         else:
             caiman.utils.visualization.nb_view_patches(Yr, self.A.tocsc()[:,idx], 
                                                         self.C[idx], self.b, self.f, 
                                                         self.dims[0], self.dims[1], YrA=self.R[idx], image_neurons=img,
-                                                        thr=0.99, denoised_color=denoised_color, cmap=cmap)
+                                                        thr=thr, denoised_color=denoised_color, cmap=cmap)
         return self
 
     def nb_view_components_3d(self, Yr=None, image_type='mean', dims=None,

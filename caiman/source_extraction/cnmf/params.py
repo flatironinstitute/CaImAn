@@ -30,7 +30,7 @@ class CNMFParams(object):
                  n_refit=0, num_times_comp_updated=np.inf, simultaneously=False,
                  sniper_mode=False, test_both=False, thresh_CNN_noisy=0.5,
                  thresh_fitness_delta=-50, thresh_fitness_raw=None, thresh_overlap=0.5,
-                 update_num_comps=True, use_dense=True, use_peak_max=False,
+                 update_num_comps=True, use_dense=True, use_peak_max=True,
                  only_init_patch=False, params_dict={},
                  ):
         """Class for setting the processing parameters. All parameters for CNMF, online-CNMF, quality testing,
@@ -401,6 +401,9 @@ class CNMFParams(object):
             motion_correct: bool, default: True
                 Whether to perform motion correction during online processing
 
+            movie_name_online: str, default: 'online_movie.avi'
+                Name of saved movie (appended in the data directory)
+
             normalize: bool, default: False
                 Whether to normalize each frame prior to online processing
 
@@ -414,6 +417,9 @@ class CNMFParams(object):
 
             rval_thr: float, default: 0.8
                 space correlation threshold for accepting a new component
+
+            save_online_movie: bool, default: False
+                Whether to save the results movie
 
             show_movie: bool, default: False
                 Whether to display movie of online processing
@@ -446,7 +452,7 @@ class CNMFParams(object):
             use_dense: bool, default: True
                 Whether to store and represent A and b as a dense matrix
 
-            use_peak_max: bool, default: False
+            use_peak_max: bool, default: True
                 Whether to find candidate centroids using skimage's find local peaks function
 
         MOTION CORRECTION PARAMETERS (CNMFParams.motion)####
@@ -659,6 +665,7 @@ class CNMFParams(object):
             'minibatch_shape': minibatch_shape,  # number of frames in each minibatch
             'minibatch_suff_stat': minibatch_suff_stat,
             'motion_correct': True,            # flag for motion correction
+            'movie_name_online': 'online_movie.avi',  # filename of saved movie (appended to directory where data is located)
             'normalize': False,                # normalize frame
             'n_refit': n_refit,                # Additional iterations to simultaneously refit
             # path to CNN model for testing new comps
@@ -666,6 +673,7 @@ class CNMFParams(object):
             'path_to_model': os.path.join(caiman_datadir(), 'model',
                                           'cnn_model_online.h5'),
             'rval_thr': rval_thr,              # space correlation threshold
+            'save_online_movie': False,        # flag for saving online movie
             'show_movie': False,               # display movie online
             'simultaneously': simultaneously,  # demix and deconvolve simultaneously
             'sniper_mode': sniper_mode,        # flag for using CNN
@@ -710,6 +718,7 @@ class CNMFParams(object):
             num_splits = T//max(self.motion['num_frames_split'],10)
             self.motion['splits_els'] = num_splits
             self.motion['splits_rig'] = num_splits
+            self.online['movie_name_online'] = os.path.join(os.path.dirname(self.data['fnames'][0]), self.online['movie_name_online'])
         if self.online['N_samples_exceptionality'] is None:
             self.online['N_samples_exceptionality'] = np.ceil(self.data['fr'] * self.data['decay_time']).astype('int')
         if self.online['thresh_fitness_raw'] is None:
