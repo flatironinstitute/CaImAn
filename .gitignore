@@ -20,6 +20,7 @@ Icon
 .Trashes
 .VolumeIcon.icns
 .com.apple.timemachine.donotpresent
+.mypy_cache
 
 # Directories potentially created on remote AFP share
 .AppleDB

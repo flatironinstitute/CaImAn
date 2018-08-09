@@ -992,7 +992,7 @@ def seeded_initialization(Y, Ain, dims=None, init_batch=1000, order_init=None, g
     AA = spdiags(old_div(1., nA), 0, nr, nr) * (Ain.T.dot(Ain))
     YrA = YA - AA.T.dot(Cin)
     if return_object:
-        cnm_init = cm.source_extraction.cnmf.cnmf.CNMF(
+        cnm_init = caiman.source_extraction.cnmf.cnmf.CNMF(
             2, Ain=Ain, Cin=Cin, b_in=np.array(b_in), f_in=f_in, p=1, **kwargs)
         cnm_init.estimates.A, cnm_init.estimates.C, cnm_init.estimates.b, cnm_init.estimates.f, cnm_init.estimates.S, \
                 cnm_init.estimates.YrA = Ain, Cin, b_in, f_in, np.fmax(np.atleast_2d(Cin), 0), YrA
@@ -1811,16 +1811,16 @@ def initialize_movie_online(Y, K, gSig, rf, stride, base_name,
     base_name = base_name + '.mmap'
     fname_new = Y.save(base_name, order='C')
     #%
-    Yr, dims, T = cm.load_memmap(fname_new)
+    Yr, dims, T = caiman.load_memmap(fname_new)
     d1, d2 = dims
     images = np.reshape(Yr.T, [T] + list(dims), order='F')
     Y = np.reshape(Yr, dims + (T,), order='F')
-    Cn2 = cm.local_correlations(Y)
+    Cn2 = caiman.local_correlations(Y)
 #    pl.imshow(Cn2)
     #%
     #% RUN ALGORITHM ON PATCHES
 #    pl.close('all')
-    cnm_init = cm.source_extraction.cnmf.CNMF(n_processes, method_init='greedy_roi', k=K, gSig=gSig, merge_thresh=merge_thresh,
+    cnm_init = caiman.source_extraction.cnmf.CNMF(n_processes, method_init='greedy_roi', k=K, gSig=gSig, merge_thresh=merge_thresh,
                                               p=0, dview=dview, Ain=None, rf=rf, stride=stride, method_deconvolution='oasis', skip_refinement=False,
                                               normalize_init=False, options_local_NMF=None,
                                               minibatch_shape=100, minibatch_suff_stat=5,
@@ -1841,7 +1841,7 @@ def initialize_movie_online(Y, K, gSig, rf, stride, base_name,
     traces = C_tot + YrA_tot
     #        traces_a=traces-scipy.ndimage.percentile_filter(traces,8,size=[1,np.shape(traces)[-1]/5])
     #        traces_b=np.diff(traces,axis=1)
-    fitness_raw, fitness_delta, erfc_raw, erfc_delta, r_values, significant_samples = cm.components_evaluation.evaluate_components(
+    fitness_raw, fitness_delta, erfc_raw, erfc_delta, r_values, significant_samples = caiman.components_evaluation.evaluate_components(
         Y, traces, A_tot, C_tot, b_tot, f_tot, final_frate, remove_baseline=True, N=5, robust_std=False, Athresh=0.1, Npeaks=Npeaks,  thresh_C=0.3)
 
     idx_components_r = np.where(r_values >= rval_thr_init)[0]
@@ -1859,7 +1859,7 @@ def initialize_movie_online(Y, K, gSig, rf, stride, base_name,
     A_tot = A_tot.tocsc()[:, idx_components]
     C_tot = C_tot[idx_components]
     #%
-    cnm_refine = cm.source_extraction.cnmf.CNMF(n_processes, method_init='greedy_roi', k=A_tot.shape, gSig=gSig, merge_thresh=merge_thresh, rf=None, stride=None,
+    cnm_refine = caiman.source_extraction.cnmf.CNMF(n_processes, method_init='greedy_roi', k=A_tot.shape, gSig=gSig, merge_thresh=merge_thresh, rf=None, stride=None,
                                                 p=p, dview=dview, Ain=A_tot, Cin=C_tot, f_in=f_tot, method_deconvolution='oasis', skip_refinement=True,
                                                 normalize_init=False, options_local_NMF=None,
                                                 minibatch_shape=100, minibatch_suff_stat=5,
@@ -1875,7 +1875,7 @@ def initialize_movie_online(Y, K, gSig, rf, stride, base_name,
     traces = C + YrA
 
     fitness_raw, fitness_delta, erfc_raw, erfc_delta, r_values, significant_samples = \
-        cm.components_evaluation.evaluate_components(Y, traces, A, C, b, f, final_frate, remove_baseline=True,
+        caiman.components_evaluation.evaluate_components(Y, traces, A, C, b, f, final_frate, remove_baseline=True,
                                                      N=5, robust_std=False, Athresh=0.1, Npeaks=Npeaks,  thresh_C=0.3)
 
     idx_components_r = np.where(r_values >= rval_thr_refine)[0]

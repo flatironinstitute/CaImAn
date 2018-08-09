@@ -24,6 +24,7 @@ author: Andrea Giovannucci
 #%%
 import cv2
 import h5py
+import logging
 import numpy as np
 import os
 import pylab as plt
