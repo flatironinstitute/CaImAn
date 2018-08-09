@@ -7,8 +7,6 @@ Created on Wed Aug 05 20:38:27 2015
 @author: agiovann
 """
 
-from __future__ import division
-from __future__ import print_function
 # noinspection PyCompatibility
 from past.builtins import basestring
 from builtins import zip

@@ -8,27 +8,30 @@
 #\copyright GNU General Public License v2.0
 #\date Created on Tue Jun 30 21:01:17 2016
 #\author: andrea giovannucci
-from __future__ import division
-from __future__ import print_function
+
 from builtins import str
 from builtins import range
 from past.utils import old_div
+
 import base64
 import cv2
+from IPython.display import HTML
+from math import sqrt, ceil
+import matplotlib as mpl
+import matplotlib.cm as cm
+from matplotlib.widgets import Slider
 import numpy as np
 import pylab as pl
-from tempfile import NamedTemporaryFile
-from IPython.display import HTML
-import sys
-from warnings import warn
-from scipy.sparse import issparse, spdiags, coo_matrix, csc_matrix
-from matplotlib.widgets import Slider
-from ..base.rois import com
 from scipy.ndimage.measurements import center_of_mass
 from scipy.ndimage.filters import median_filter
-import matplotlib.cm as cm
-import matplotlib as mpl
-from math import sqrt, ceil
+from scipy.sparse import issparse, spdiags, coo_matrix, csc_matrix
+from skimage.measure import find_contours
+import sys
+from tempfile import NamedTemporaryFile
+from warnings import warn
+
+from ..base.rois import com
+from ..summary_images import local_correlations
 
 try:
     cv2.setNumThreads(0)
@@ -41,9 +44,6 @@ try:
     from bokeh.models import CustomJS, ColumnDataSource, Range1d
 except:
     print("Bokeh could not be loaded. Either it is not installed or you are not running within a notebook")
-
-from ..summary_images import local_correlations
-from skimage.measure import find_contours
 
 
 #%%

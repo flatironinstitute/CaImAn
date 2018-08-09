@@ -15,7 +15,6 @@ are tailored for that environment.
 
 """
 
-from __future__ import print_function
 from builtins import range
 
 import cv2

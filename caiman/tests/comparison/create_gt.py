@@ -17,8 +17,6 @@ caiman/tests/comparison/comparison.py
 # \author: Jeremie KALFON
 
 
-from __future__ import division
-from __future__ import print_function
 from builtins import str
 from builtins import range
 

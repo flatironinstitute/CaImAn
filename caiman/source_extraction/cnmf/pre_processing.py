@@ -20,14 +20,11 @@ See Also:
 #\date Created on Tue Jun 30 21:01:17 2015
 
 
-from __future__ import division
-from __future__ import print_function
-
+import numpy as np
+import scipy
 import shutil
 import tempfile
 
-import numpy as np
-import scipy
 from builtins import map
 from builtins import range
 from ...mmapping import load_memmap

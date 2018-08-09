@@ -14,30 +14,29 @@ different set of methods like ICA PCA, greedy roi
 #\date Created on Tue Jun 30 21:01:17 2015
 #\author: Eftychios A. Pnevmatikakis
 
-from __future__ import division
-from __future__ import print_function
 from builtins import range
-from past.utils import old_div
+import cv2
+from math import sqrt
+import matplotlib.animation as animation
+import matplotlib.pyplot as plt
 import numpy as np
-from sklearn.decomposition import NMF, FastICA
-from skimage.morphology import disk
+from past.utils import old_div
+import scipy
 import scipy.ndimage as nd
 from scipy.ndimage.measurements import center_of_mass
 from scipy.ndimage.filters import correlate
+import scipy.sparse as spr
+from skimage.morphology import disk
 from skimage.transform import downscale_local_mean
 from skimage.transform import resize as resize_sk
-import scipy.sparse as spr
-import scipy
+from sklearn.decomposition import NMF, FastICA
+from sklearn.utils.extmath import randomized_svd, squared_norm
+import sys
+
 import caiman
 from caiman.source_extraction.cnmf.deconvolution import constrained_foopsi
 from caiman.source_extraction.cnmf.pre_processing import get_noise_fft, get_noise_welch
 from caiman.source_extraction.cnmf.spatial import circular_constraint, connectivity_constraint
-import cv2
-import sys
-import matplotlib.pyplot as plt
-import matplotlib.animation as animation
-from sklearn.utils.extmath import randomized_svd, squared_norm
-from math import sqrt
 
 try:
     cv2.setNumThreads(0)

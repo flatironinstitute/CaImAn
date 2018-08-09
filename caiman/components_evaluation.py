@@ -7,8 +7,6 @@ Created on Thu Oct 20 12:12:34 2016
 @author: agiovann
 """
 
-from __future__ import division
-from __future__ import print_function
 from builtins import range
 from past.utils import old_div
 
@@ -24,6 +22,7 @@ import warnings
 
 from caiman.paths import caiman_datadir
 from .utils.stats import mode_robust, mode_robust_fast
+
 try:
     cv2.setNumThreads(0)
 except:

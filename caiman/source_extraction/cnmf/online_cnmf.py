@@ -14,9 +14,6 @@ imaging data in real time. In Advances in Neural Information Processing Systems
 @url http://papers.nips.cc/paper/6832-onacid-online-analysis-of-calcium-imaging-data-in-real-time
 """
 
-from __future__ import division
-from __future__ import print_function
-
 from builtins import map
 from builtins import range
 from builtins import str

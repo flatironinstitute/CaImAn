@@ -14,7 +14,6 @@ Alongside each array x we ensure the value x.dtype which stores the data type.
 # \copyright GNU General Public License v2.0
 # \date Created on Thu Oct 20 12:07:09 2016
 
-from __future__ import print_function
 from builtins import zip
 from builtins import str
 from builtins import map

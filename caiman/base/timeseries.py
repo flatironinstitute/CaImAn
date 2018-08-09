@@ -22,7 +22,6 @@ author: Andrea Giovannucci
 """
 
 #%%
-from __future__ import print_function
 import cv2
 import h5py
 import numpy as np

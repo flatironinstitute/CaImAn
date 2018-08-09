@@ -7,8 +7,6 @@ Created on Sun Aug  6 11:43:39 2017
 @author: agiovann
 """
 
-from __future__ import division
-from __future__ import print_function
 from builtins import zip
 from builtins import str
 from builtins import map

@@ -1,31 +1,24 @@
 #!/usr/bin/env python
 
-from __future__ import print_function
-
 #%%
+import ca_source_extraction as cse
+import glob
+from ipyparallel import Client
 import matplotlib as mpl
 mpl.use('TKAgg')
 from matplotlib import pyplot as plt
-# plt.ion()
-
-import sys
-import os
 import numpy as np
-import ca_source_extraction as cse
-
-# sys.path.append('../SPGL1_python_port')
-#%
-from time import time
+import os
+import psutil
+import pylab as pl
 from scipy.sparse import coo_matrix
-import tifffile
+import shutil
 import subprocess
+import sys
+from time import time
+import tifffile
 import time as tm
 from time import time
-import pylab as pl
-import psutil
-from ipyparallel import Client
-import shutil
-import glob
 
 #%%
 slurm_script = '/mnt/xfs1/home/agiovann/SOFTWARE/Constrained_NMF/SLURM/slurmStart.sh'

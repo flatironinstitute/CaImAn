@@ -10,13 +10,12 @@ Created on Tue Sep  8 16:23:57 2015
 #\version   1.0
 #\copyright GNU General Public License v2.0
 
-from __future__ import division
-from __future__ import print_function
 from builtins import range
-from past.utils import old_div
-from scipy.sparse import coo_matrix, csgraph, csc_matrix, lil_matrix
-import scipy
 import numpy as np
+from past.utils import old_div
+import scipy
+from scipy.sparse import coo_matrix, csgraph, csc_matrix, lil_matrix
+
 from .spatial import update_spatial_components, threshold_components
 from .temporal import update_temporal_components
 from .deconvolution import constrained_foopsi

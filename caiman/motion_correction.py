@@ -39,8 +39,6 @@ Copyright (C) 2011, the scikit-image team
 
 """
 
-from __future__ import division
-from __future__ import print_function
 from past.builtins import basestring
 #%%
 from builtins import zip
