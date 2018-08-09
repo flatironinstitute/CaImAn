@@ -6,8 +6,6 @@
 Created on Tue Sep  1 16:11:25 2015
 @author: Eftychios A. Pnevmatikakis, based on an implementation by T. Machado,  Andrea Giovannucci & Ben Deverett
 """
-from __future__ import division
-from __future__ import print_function
 
 from builtins import range
 from past.utils import old_div

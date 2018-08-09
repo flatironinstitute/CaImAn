@@ -14,9 +14,6 @@ copyright GNU General Public License v2.0
 authors: @agiovann and @epnev
 """
 
-from __future__ import division
-from __future__ import print_function
-
 import cv2
 import glob
 import logging

@@ -18,10 +18,6 @@ See Also:
 # \copyright GNU General Public License v2.0
 # \date Created on Tue Jun 30 20:56:07 2015 , Updated on Fri Aug 19 17:30:11 2016
 
-
-from __future__ import division
-from __future__ import print_function
-
 from builtins import str
 from builtins import range
 from past.utils import old_div

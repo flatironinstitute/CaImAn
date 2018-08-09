@@ -19,15 +19,15 @@ See Also:
 # \date Created on Thu Oct 20 11:41:21 2016
 
 
-from __future__ import division
 from builtins import range
 
 import cv2
 import numpy as np
 from scipy.ndimage import convolve, generate_binary_structure
 from scipy.sparse import coo_matrix
-from caiman.source_extraction.cnmf.pre_processing import get_noise_fft
+
 import caiman as cm
+from caiman.source_extraction.cnmf.pre_processing import get_noise_fft
 
 #try:
 #    cv2.setNumThreads(0)
