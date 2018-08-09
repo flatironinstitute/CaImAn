@@ -22,6 +22,7 @@ See Also:
 from builtins import range
 
 import cv2
+import logging
 import numpy as np
 from scipy.ndimage import convolve, generate_binary_structure
 from scipy.sparse import coo_matrix
