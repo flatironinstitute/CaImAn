@@ -260,10 +260,9 @@ class CNMFParams(object):
             update_background_components: bool, default: True
                 whether to update the spatial background components
 
-            method_ls: 'lasso_lars'|'nnls_L0'|'lasso_lars_old', default: 'lasso_lars'
+            method_ls: 'lasso_lars'|'nnls_L0', default: 'lasso_lars'
                 'nnls_L0'. Nonnegative least square with L0 penalty
                 'lasso_lars' lasso lars function from scikit learn
-                'lasso_lars_old' lasso lars from old implementation, will be deprecated
 
             block_size : int, default: 5000
                 Number of pixels to process at the same time for dot product. Reduce if you face memory problems
@@ -592,7 +591,6 @@ class CNMFParams(object):
             'method_exp': 'dilate',
             # 'nnls_L0'. Nonnegative least square with L0 penalty
             # 'lasso_lars' lasso lars function from scikit learn
-            # 'lasso_lars_old' lasso lars from old implementation, will be deprecated
             'method_ls': 'lasso_lars',
             # number of pixels to be processed by each worker
             'n_pixels_per_process': n_pixels_per_process,
