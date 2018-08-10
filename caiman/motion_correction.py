@@ -120,6 +120,9 @@ class MotionCorrect(object):
 
        overlaps: tuple
            overlap between pathes (size of patch strides+overlaps)
+           
+       pw_rigig: bool, default: False
+           flag for performing motion correction when calling motion_correct
 
        splits_els':list
            for parallelization split the movies in  num_splits chuncks across time
@@ -145,6 +148,10 @@ class MotionCorrect(object):
 
        border_nan : bool or string, optional
            Specifies how to deal with borders. (True, False, 'copy', 'min')
+           
+       num_frames_split: int, default: 80
+           Number of frames in each batch. Used when cosntructing the options
+           through the params object
 
        Returns:
        -------
@@ -193,6 +200,35 @@ class MotionCorrect(object):
             logging.debug("pycuda is unavailable. Falling back to default FFT.")
 
     def motion_correct(self, template=None, save_movie=False):
+        """general function for performing all types of motion correction. The
+        function will perform either rigid or piecewise rigid motion correction
+        depending on the attribute self.pw_rigid and will perform high pass
+        spatial filtering for determining the motion (used in 1p data) if the
+        attribute self.gSig_filt is not None. A template can be passed, and the
+        output can be saved as a memory mapped file.
+
+        Parameters:
+        -------------
+        template: nd.array, default: None
+            template provided by user for motion correction
+
+        save_movie: bool, default: False
+            flag for saving motion corrected file(s) as memory mapped file(s)
+
+        Returns:
+        -------
+        self
+        important fields
+
+        self.min_mov (float)
+            minimum of movie
+
+        self.border_to_0 (int)
+            maximum shift detected (can be used to exclude boundaries for
+                                    downstream processsing)
+        self.mmap_file (str)
+            path to saved memory mapped file
+        """
         if self.min_mov is None:
             if self.gSig_filt is None:
                 self.min_mov = np.array([cm.load(self.fname[0],
