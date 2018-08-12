@@ -170,8 +170,7 @@ class timeseries(np.ndarray):
 
         if extension == '.tif':  # load avi file
 
-
-            with tifffile.TiffWriter(file_name, bigtiff=bigtiff, imagej=imagej, software=software) as tif:
+            with tifffile.TiffWriter(file_name, bigtiff=bigtiff, imagej=imagej) as tif:
 
 
                 for i in range(self.shape[0]):
