@@ -75,7 +75,7 @@ if preprocessing_from_scratch:
     save_results = True  # set to True if you want to regenerate
 
 mot_corr = False
-base_folder = '/mnt/ceph/users/agiovann/LinuxDropbox/Dropbox/DATA_PAPER_ELIFE/'
+base_folder = '/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/'
 # %% set some global parameters here
 # 'use_cases/edge-cutter/binary_cross_bootstrapped.json'
 global_params = {'min_SNR': .75,  # minimum SNR when considering adding a new neuron
@@ -119,7 +119,7 @@ params_movie[1] = {
     'p': 1,  # order of the autoregressive system
     'fr': 8,
     'gSig': [7, 7],  # expected half size of neurons
-    'decay_time': 0.5,  # rough length of a transient
+    'decay_time': 0.6,  # rough length of a transient
     'gnb': 3,
     'T1': 3000,
 }
@@ -279,13 +279,13 @@ if preprocessing_from_scratch:
         expected_comps = 4000  # maximum number of expected components used for memory pre-allocation (exaggerate here)
         K = 2  # initial number of components
         min_SNR = global_params['min_SNR']
-        min_SNR = 3.0956 * np.log(
+        min_SNR = 0.7*3.0956 * np.log(
             len(fls) * params_movie[ind_dataset]['T1'] / (307.85 * params_movie[ind_dataset]['fr']) + 0.7421)
-        N_samples = np.ceil(params_movie[ind_dataset]['fr'] * params_movie[ind_dataset][
-            'decay_time'])  # number of timesteps to consider when testing new neuron candidates
-        pr_inc = 1 - scipy.stats.norm.cdf(global_params['min_SNR'])  # inclusion probability of noise transient
-        thresh_fitness_raw = np.log(pr_inc) * N_samples  # event exceptionality threshold
-        thresh_fitness_delta = -80.  # make this very neutral
+        #N_samples = np.ceil(params_movie[ind_dataset]['fr'] * params_movie[ind_dataset]['decay_time'])  
+                    # number of timesteps to consider when testing new neuron candidates
+        #pr_inc = 1 - scipy.stats.norm.cdf(global_params['min_SNR'])  # inclusion probability of noise transient
+        #thresh_fitness_raw = np.log(pr_inc) * N_samples  # event exceptionality threshold
+        #thresh_fitness_delta = -80.  # make this very neutral
         p = params_movie[ind_dataset]['p']  # order of AR indicator dynamics
         # rval_thr = global_params['rval_thr']                # correlation threshold for new component inclusion
         rval_thr = 0.06 * np.log(
@@ -311,8 +311,8 @@ if preprocessing_from_scratch:
         except:
             min_num_trial = global_params['min_num_trial']
 
-        T1 = params_movie[ind_dataset]['T1'] * len(
-            fls) * epochs  # total length of all files (if not known use a large number, then truncate at the end)
+        #T1 = params_movie[ind_dataset]['T1'] * len(fls) * epochs  
+            # total length of all files (if not known use a large number, then truncate at the end)
         # minibatch_length = int(global_params['batch_length_dt']*params_movie[ind_dataset]['fr']*params_movie[ind_dataset]['decay_time'])
         # %%
         params_dict = {'fnames': fls,
@@ -401,15 +401,15 @@ if preprocessing_from_scratch:
 
         # %% FIGURE 4 a bottom (need dataset K53!)
         plot_results = False
-        if plot_results:
-            pl.figure(figsize=(30, 20))
+        #if plot_results:
+        #    pl.figure(figsize=(30, 20))
 
         tp_gt, tp_comp, fn_gt, fp_comp, performance_cons_off = compare_components(gt_estimate, cnm.estimates,
                                                                                   Cn=Cn_orig, thresh_cost=.8,
                                                                                   min_dist=10,
                                                                                   print_assignment=False,
                                                                                   labels=['GT', 'CMP'],
-                                                                                  plot_results=False)
+                                                                                  plot_results=plot_results)
 
         pl.rcParams['pdf.fonttype'] = 42
         font = {'family': 'Arial',

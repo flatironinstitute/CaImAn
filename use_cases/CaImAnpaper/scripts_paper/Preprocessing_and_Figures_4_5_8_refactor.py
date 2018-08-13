@@ -64,7 +64,7 @@ skip_refinement = False
 backend_patch = 'local'
 backend_refine = 'local'
 n_processes = 24
-base_folder = '/mnt/ceph/users/agiovann/LinuxDropbox/Dropbox/DATA_PAPER_ELIFE/'
+base_folder = '/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/'
 
 
 # %%
@@ -430,11 +430,11 @@ if preprocessing_from_scratch:
         cnm2.params.set('quality', {'min_SNR': global_params['min_SNR'],
                                     'rval_thr': global_params['rval_thr'],
                                     'rval_lowest': global_params['min_rval_thr_rejected'],
-                                    'Npeaks': global_params['Npeaks'],
+                                    #'Npeaks': global_params['Npeaks'],
                                     'use_cnn': True,
                                     'min_cnn_thr': global_params['min_cnn_thresh'],
                                     'cnn_lowest': global_params['max_classifier_probability_rejected'],
-                                    'thresh_fitness_delta': global_params['max_fitness_delta_accepted'],
+                                    #'thresh_fitness_delta': global_params['max_fitness_delta_accepted'],
                                     'gSig_range': None})
 
         t1 = time.time()
