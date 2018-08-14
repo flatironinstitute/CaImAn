@@ -5,25 +5,29 @@ Functions that are required to operate the package at a basic level
 
 .. autosummary::
 
-   source_extraction.cnmf.pre_processing.preprocess_data
+   caiman.source_extraction.cnmf.CNMF
 
-   initialization.initialize_components
+   caiman.source_extraction.cnmf.CNMF.fit
 
-   spatial.update_spatial_components
+   caiman.source_extraction.online_cnmf.OnACID
 
-   temporal.update_temporal_components
+   caiman.source_extraction.online_cnmf.OnACID.fit_online
 
-   merging.merge_components
+   caiman.source_extraction.params.CNMFparams
 
-   utilities.local_correlations
+   caiman.source_extraction.estimates.Estimates
 
-   utilities.plot_contours
+   caiman.motion_correction.MotionCorrect
 
-   utilities.view_patches_bar
+   caiman.motion_correction.MotionCorrect.motion_correct
 
-   utilities.order_components
+   caiman.movies.movie.load
+   
+   caiman.movies.movie.play
+   
+   caiman.base.rois.register_ROIs
 
-   utilities.manually_refine_components
+   caiman.base.rois.register_multisession
 
 
 Movie Handling
@@ -31,19 +35,21 @@ Movie Handling
 
 .. currentmodule:: caiman.base.movies.py
 
-.. autofunction:: load
-.. autofunction:: load_movie_chain
-.. autofunction:: play
-.. autofunction:: resize
-.. autofunction:: computeDFF
+.. autoclass:: movie
+.. autofunction:: movie.load
+.. autofunction:: movie.load_movie_chain
+.. autofunction:: movie.play
+.. autofunction:: movie.resize
+.. autofunction:: movie.computeDFF
 
 Timeseries Handling
 ---------------
 
 .. currentmodule:: caiman.base.timeseries.py
 
-.. autofunction:: save
-.. autofunction:: concatenate
+.. autoclass:: timeseries
+.. autofunction:: timeseries.save
+.. autofunction:: timeseries.concatenate
 
 ROIs 
 ---------------
@@ -53,7 +59,6 @@ ROIs
 .. autofunction:: com
 .. autofunction:: extract_binary_masks_from_structural_channel
 .. autofunction:: register_ROIs
-.. autofunction:: register_multisession
 .. autofunction:: register_multisession
 
 
@@ -92,10 +97,11 @@ Motion Correction
 
 .. currentmodule:: caiman.motion_correction
 
-.. automodule:: motion_correct
-.. automodule:: motion_correct_rigid
-.. automodule:: motion_correct_pwrigid
-.. automodule:: apply_shifts_movie
+.. autoclass:: MotionCorrect
+.. autofunction:: MotionCorrect.motion_correct
+.. autofunction:: MotionCorrect.motion_correct_rigid
+.. autofunction:: MotionCorrect.motion_correct_pwrigid
+.. autofunction:: MotionCorrect.apply_shifts_movie
 .. autofunction:: motion_correct_oneP_rigid
 .. autofunction:: motion_correct_oneP_nonrigid
 
@@ -106,20 +112,20 @@ Estimates
 .. currentmodule:: caiman.source_extraction.cnmf.utilities
 
 .. autoclass:: Estimates
-.. automodule:: compute_residuals
-.. automodule:: detrend_df_f
-.. automodule:: normalize_components
-.. automodule:: select_components
-.. automodule:: evaluate_components
-.. automodule:: evaluate_components_CNN
-.. automodule:: filter_components
-.. automodule:: remove_duplicates
-.. automodule:: plot_contours
-.. automodule:: plot_contours_nb
-.. automodule:: view_components
-.. automodule:: nb_view_components
-.. automodule:: nb_view_components_3d
-.. automodule:: play_movie
+.. autofunction:: Estimates.compute_residuals
+.. autofunction:: Estimates.detrend_df_f
+.. autofunction:: Estimates.normalize_components
+.. autofunction:: Estimates.select_components
+.. autofunction:: Estimates.evaluate_components
+.. autofunction:: Estimates.evaluate_components_CNN
+.. autofunction:: Estimates.filter_components
+.. autofunction:: Estimates.remove_duplicates
+.. autofunction:: Estimates.plot_contours
+.. autofunction:: Estimates.plot_contours_nb
+.. autofunction:: Estimates.view_components
+.. autofunction:: Estimates.nb_view_components
+.. autofunction:: Estimates.nb_view_components_3d
+.. autofunction:: Estimates.play_movie
 
 Deconvolution
 ---------------
@@ -136,8 +142,82 @@ Parameter Setting
 .. currentmodule:: caiman.source_extraction.cnmf.params
 
 .. autoclass:: CNMFParams
-.. automodule:: set
-.. automodule:: get
-.. automodule:: get_group
-.. automodule:: change_params
+.. autofunction:: CNMFParams.set
+.. autofunction:: CNMFParams.get
+.. autofunction:: CNMFParams.get_group
+.. autofunction:: CNMFParams.change_params
 
+CNMF
+---------------
+
+.. currentmodule:: caiman.source_extraction.cnmf.cnmf
+
+.. autoclass:: CNMF
+.. autofunction:: CNMF.fit
+.. autofunction:: CNMF.refit
+.. autofunction:: CNMF.fit_file
+.. autofunction:: CNMF.save
+.. autofunction:: CNMF.deconvolve
+.. autofunction:: CNMF.update_spatial
+.. autofunction:: CNMF.update_temporal
+.. autofunction:: CNMF.HALS4traces
+.. autofunction:: CNMF.HALS4footprints
+.. autofunction:: CNMF.merge_comps
+.. autofunction:: CNMF.initialize
+.. autofunction:: CNMF.preprocess
+.. autofunction:: CNMF.load_CNMF
+
+
+Online CNMF (OnACID)
+---------------
+
+.. currentmodule:: caiman.source_extraction.cnmf.online_cnmf
+
+.. autoclass:: OnACID
+.. autofunction:: OnACID.fit_online
+.. autofunction:: OnACID.fit_next
+.. autofunction:: OnACID.save
+.. autofunction:: OnACID.initialize_online
+.. autofunction:: OnACID.load_OnlineCNMF
+
+Preprocessing
+---------------
+.. currentmodule:: caiman.source_extraction.cnmf.pre_processing
+
+.. autofunction:: preprocess_data
+
+
+Initialization
+---------------
+.. currentmodule:: caiman.source_extraction.cnmf.initialization
+
+.. autofunction:: initialize_components
+
+
+Spatial Components
+-------------------
+.. currentmodule:: caiman.source_extraction.cnmf.spatial
+
+.. autofunction:: update_spatial_components
+
+
+Temporal Components
+-------------------
+.. currentmodule:: caiman.source_extraction.cnmf.temporal
+
+.. autofunction:: update_temporal_components
+
+
+Merge components
+----------------
+.. currentmodule:: caiman.source_extraction.cnmf.merging
+
+.. autofunction:: merge_components
+
+Utilities
+---------------
+.. currentmodule:: caiman.source_extraction.cnmf.utilities
+
+.. autofunction:: detrend_df_f_auto
+.. autofunction:: update_order
+.. autofunction:: get_file_size
