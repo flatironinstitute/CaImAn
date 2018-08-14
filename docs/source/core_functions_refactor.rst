@@ -87,22 +87,57 @@ Image statistics
 .. autofunction:: correlation_pnr
 
 
-
-
-
-Utilities
+Motion Correction
 ---------------
-.. currentmodule:: utilities
 
-.. autofunction:: local_correlations
-.. autofunction:: plot_contours
-.. autofunction:: view_patches_bar
-.. autofunction:: view_patches
-.. autofunction:: manually_refine_components
-.. autofunction:: nb_view_patches
-.. autofunction:: nb_imshow
-.. autofunction:: nb_plot_contour
-.. autofunction:: start_server
-.. autofunction:: stop_server
-.. autofunction:: order_components		  
-.. autofunction:: extract_DF_F
+.. currentmodule:: caiman.motion_correction
+
+.. automodule:: motion_correct
+.. automodule:: motion_correct_rigid
+.. automodule:: motion_correct_pwrigid
+.. automodule:: apply_shifts_movie
+.. autofunction:: motion_correct_oneP_rigid
+.. autofunction:: motion_correct_oneP_nonrigid
+
+
+Estimates
+---------------
+
+.. currentmodule:: caiman.source_extraction.cnmf.utilities
+
+.. autoclass:: Estimates
+.. automodule:: compute_residuals
+.. automodule:: detrend_df_f
+.. automodule:: normalize_components
+.. automodule:: select_components
+.. automodule:: evaluate_components
+.. automodule:: evaluate_components_CNN
+.. automodule:: filter_components
+.. automodule:: remove_duplicates
+.. automodule:: plot_contours
+.. automodule:: plot_contours_nb
+.. automodule:: view_components
+.. automodule:: nb_view_components
+.. automodule:: nb_view_components_3d
+.. automodule:: play_movie
+
+Deconvolution
+---------------
+
+.. currentmodule:: caiman.source_extraction.cnmf.deconvolution
+
+.. autofunction:: constrained_foopsi
+.. autofunction:: constrained_oasisAR2
+
+
+Parameter Setting
+---------------
+
+.. currentmodule:: caiman.source_extraction.cnmf.params
+
+.. autoclass:: CNMFParams
+.. automodule:: set
+.. automodule:: get
+.. automodule:: get_group
+.. automodule:: change_params
+
