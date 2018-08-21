@@ -1349,7 +1349,7 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
     center = np.zeros(shape=(2, max_number))  # neuron centers
 
     num_neurons = 0  # number of initialized neurons
-    continue_searching = True
+    continue_searching = True if max_number > 0 else False
     min_v_search = min_corr * min_pnr
     [ii, jj] = np.meshgrid(range(d2), range(d1))
     pixel_v = ((ii * 10 + jj) * 1e-5).astype(np.float32)
@@ -1724,14 +1724,9 @@ def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True, ssub=1, tsub=1):
         B = Y[index] - A[index].dot(C) - \
             b0[index, None] if X is None else X[index]
         tmp = np.array(B.dot(B.T))
-        try:
-            data = np.concatenate([data, np.linalg.inv(tmp).
-                dot(B.dot(Y[p] - A[p].dot(C).ravel() - b0[p] if X is None else X[p]))])
-        except:
-            # np.linalg.lstsq seems less robust but scipy version is
-            # (robust but for the problem size slower) alternative
-            data = np.concatenate([data, (scipy.linalg.lstsq(B.T, Y[p] - A[p].dot(C) - b0[p]
-                if X is None else X[p], check_finite=False)[0])])
+        tmp += np.diag(tmp).sum() * 1e-5 * np.eye(len(B))
+        data += list(np.linalg.inv(tmp).dot(
+            B.dot(Y[p] - A[p].dot(C).ravel() - b0[p] if X is None else X[p])))
         indptr.append(len(indices))
     return spr.csr_matrix((data, indices, indptr), dtype='float32'), b0.astype(np.float32)
 
