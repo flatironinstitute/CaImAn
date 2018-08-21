@@ -1349,7 +1349,7 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
     center = np.zeros(shape=(2, max_number))  # neuron centers
 
     num_neurons = 0  # number of initialized neurons
-    continue_searching = True
+    continue_searching = max_number > 0
     min_v_search = min_corr * min_pnr
     [ii, jj] = np.meshgrid(range(d2), range(d1))
     pixel_v = ((ii * 10 + jj) * 1e-5).astype(np.float32)
@@ -1732,6 +1732,7 @@ def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True, ssub=1, tsub=1):
                 downscale(b0.reshape(dims, order='F'),
                           (ssub, ssub)).reshape((-1, 1), order='F')[index]
         tmp = np.array(B.dot(B.T))
+        tmp += np.diag(tmp).sum() * 1e-5 * np.eye(len(B))
         if data_fits_in_memory:
             tmp2 = X[p]
         elif ssub == 1 and tsub == 1:
@@ -1744,13 +1745,7 @@ def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True, ssub=1, tsub=1):
                        downscale(C, (1, tsub))) if A.size > 0 else 0) - \
                    downscale(b0.reshape(dims, order='F'),
                              (ssub, ssub)).reshape((-1, 1), order='F')[p]
-        try:
-            data += list(np.linalg.inv(tmp).dot(B.dot(tmp2)))
-        except:
-            # np.linalg.lstsq seems less robust but scipy version is
-            # (robust but for the problem size slower) alternative
-            data += list(scipy.linalg.lstsq(B.T, tmp2, check_finite=False)[0])
-
+        data += list(np.linalg.inv(tmp).dot(B.dot(tmp2)))
         indptr.append(len(indices))
     return spr.csr_matrix((data, indices, indptr), dtype='float32'), b0.astype(np.float32)
 
