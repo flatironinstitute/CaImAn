@@ -7,7 +7,6 @@ Created on Thu Oct 22 13:22:26 2015
 @author: agiovann
 """
 
-#%%
 from builtins import map
 from builtins import zip
 from builtins import str
@@ -41,9 +40,6 @@ try:
     cv2.setNumThreads(0)
 except:
     pass
-
-#%%
-
 
 def com(A, d1, d2, d3=None):
     """Calculation of the center of mass for spatial components
@@ -80,9 +76,6 @@ def com(A, d1, d2, d3=None):
             dtype=A.dtype)
     cm = (Coor * A / A.sum(axis=0)).T
     return np.array(cm)
-
-#%%
-
 
 def extract_binary_masks_from_structural_channel(Y, min_area_size=30, min_hole_size=15, gSig=5, expand_method='closing', selem=np.ones((3, 3))):
     """Extract binary masks by using adaptive thresholding on a structural channel
@@ -138,8 +131,6 @@ def extract_binary_masks_from_structural_channel(Y, min_area_size=30, min_hole_s
 
     return A, mR
 
-
-#%%
 def mask_to_2d(mask):
     # todo todocument
     if mask.ndim > 2:
@@ -150,8 +141,6 @@ def mask_to_2d(mask):
         dims = np.shape(mask)
         return scipy.sparse.coo_matrix(np.reshape(mask, (np.prod(dims), -1,), order='F'))
 
-
-#%%
 def get_distance_from_A(masks_gt, masks_comp, min_dist=10):
     # todo todocument
 
@@ -166,9 +155,6 @@ def get_distance_from_A(masks_gt, masks_comp, min_dist=10):
     cm_cnmf = [scipy.ndimage.center_of_mass(mm) for mm in masks_comp]
 
     return distance_masks([A_ben, A_cnmf], [cm_ben, cm_cnmf], min_dist)
-
-#%%
-
 
 def nf_match_neurons_in_binary_masks(masks_gt, masks_comp, thresh_cost=.7, min_dist=10, print_assignment=False,
                                      plot_results=False, Cn=None, labels=['Session 1','Session 2'], cmap='viridis', D=None, enclosed_thr=None):
@@ -309,9 +295,6 @@ def nf_match_neurons_in_binary_masks(masks_gt, masks_comp, thresh_cost=.7, min_d
             logging.warning("not able to plot precision recall: graphics failure")
             logging.warning(e)
     return idx_tp_gt, idx_tp_comp, idx_fn_gt, idx_fp_comp, performance
-
-#%% register_ROIs largely follows the function nf_match_neurons_in_binary_masks
-
 
 def register_ROIs(A1, A2, dims, template1=None, template2=None, align_flag=True, 
                   D=None, max_thr = 0, use_opt_flow = True, thresh_cost=.7, 
@@ -541,8 +524,6 @@ def register_ROIs(A1, A2, dims, template1=None, template2=None, align_flag=True,
 
     return matched_ROIs1, matched_ROIs2, non_matched1, non_matched2, performance, A2
 
-#%% register multi session ROIs
-
 def register_multisession(A, dims, templates = [None], align_flag=True, 
                           max_thr = 0, use_opt_flow = True, thresh_cost=.7, 
                           max_dist=10, enclosed_thr=None):
@@ -633,8 +614,6 @@ def register_multisession(A, dims, templates = [None], align_flag=True,
 
     return A_union, assignments, matchings
 
-#%% extract active components
-
 def extract_active_components(assignments, indeces, only = True):
     """
     Computes the indeces of components that were active in a specified set of 
@@ -668,7 +647,7 @@ def extract_active_components(assignments, indeces, only = True):
         components = np.intersect1d(components, not_comps)
 
     return components
-#%% threshold
+
 def norm_nrg(a_):
 
     a = a_.copy()
@@ -680,9 +659,6 @@ def norm_nrg(a_):
     a = np.zeros(np.prod(dims))
     a[indx] = cumEn
     return a.reshape(dims, order='F')
-
-#%% compute mask distances
-
 
 def distance_masks(M_s, cm_s, max_dist, enclosed_thr=None):
     """
@@ -707,7 +683,7 @@ def distance_masks(M_s, cm_s, max_dist, enclosed_thr=None):
         D_s: list of matrix distances
 
     Raises:
-        Exception('Nan value produced. Error in inputs')
+        Exception: 'Nan value produced. Error in inputs'
 
     """
     D_s = []
@@ -768,8 +744,6 @@ def distance_masks(M_s, cm_s, max_dist, enclosed_thr=None):
         D_s.append(D)
     return D_s
 
-
-#%% find matches
 def find_matches(D_s, print_assignment=False):
     # todo todocument
 
@@ -802,8 +776,6 @@ def find_matches(D_s, print_assignment=False):
         # send back the results in the format we want
     return matches, costs
 
-
-#%%
 def link_neurons(matches, costs, max_cost=0.6, min_FOV_present=None):
     """
     Link neurons from different FOVs given matches and costs obtained from the hungarian algorithm
@@ -853,8 +825,6 @@ def link_neurons(matches, costs, max_cost=0.6, min_FOV_present=None):
     logging.info(('num_neurons:' + str(num_neurons)))
     return neurons
 
-
-#%%
 def nf_load_masks(file_name, dims):
     # todo todocument
 
@@ -870,8 +840,6 @@ def nf_load_masks(file_name, dims):
     masks = np.array([tomask(s['coordinates']) for s in regions])
     return masks
 
-
-#%%
 def nf_masks_to_json(binary_masks, json_filename):
     """
     Take as input a tensor of binary mask and produces json format for neurofinder
@@ -895,9 +863,6 @@ def nf_masks_to_json(binary_masks, json_filename):
         f.write(json.dumps(regions))
 
     return regions
-
-#%%
-
 
 def nf_read_roi(fileobj):
     '''
@@ -1002,8 +967,6 @@ def nf_read_roi(fileobj):
 
     return points
 
-
-#%%
 def nf_read_roi_zip(fname, dims, return_names=False):
     # todo todocument
 
@@ -1025,8 +988,6 @@ def nf_read_roi_zip(fname, dims, return_names=False):
         return masks, names
     else:
         return masks
-#%%
-
 
 def nf_merge_roi_zip(fnames, idx_to_keep, new_fold):
     """
@@ -1065,8 +1026,6 @@ def nf_merge_roi_zip(fnames, idx_to_keep, new_fold):
     shutil.make_archive(new_fold, 'zip', new_fold)
     shutil.rmtree(new_fold)
 
-
-#%%
 def extract_binary_masks_blob(A, neuron_radius, dims, num_std_threshold=1, minCircularity=0.5,
                               minInertiaRatio=0.2, minConvexity=.8):
     """
@@ -1165,7 +1124,6 @@ def extract_binary_masks_blob(A, neuron_radius, dims, num_std_threshold=1, minCi
     return np.array(masks_ws), np.array(pos_examples), np.array(neg_examples)
 
 
-#%%
 def extract_binary_masks_blob_parallel(A, neuron_radius, dims, num_std_threshold=1, minCircularity=0.5,
                                        minInertiaRatio=0.2, minConvexity=.8, dview=None):
     # todo todocument
@@ -1192,7 +1150,6 @@ def extract_binary_masks_blob_parallel(A, neuron_radius, dims, num_std_threshold
     return masks, is_pos, is_neg
 
 
-#%%
 def extract_binary_masks_blob_parallel_place_holder(pars):
     A, neuron_radius, dims, num_std_threshold, _, minInertiaRatio, minConvexity = pars
     masks_ws, pos_examples, neg_examples = extract_binary_masks_blob(A, neuron_radius,
@@ -1200,7 +1157,6 @@ def extract_binary_masks_blob_parallel_place_holder(pars):
                                                                      minInertiaRatio=minInertiaRatio, minConvexity=minConvexity)
     return masks_ws, len(pos_examples), len(neg_examples)
 
-#%%
 
 
 def extractROIsFromPCAICA(spcomps, numSTD=4, gaussiansigmax=2, gaussiansigmay=2, thresh=None):
@@ -1242,8 +1198,6 @@ def extractROIsFromPCAICA(spcomps, numSTD=4, gaussiansigmax=2, gaussiansigmay=2,
             allMasks.append(tmp_mask)
 
     return allMasks, maskgrouped
-#%%
-
 
 def detect_duplicates_and_subsets(binary_masks, predictions=None, r_values=None, dist_thr=0.1, min_dist=10,
                                   thresh_subset=0.8):
@@ -1337,7 +1291,6 @@ def detect_duplicates_and_subsets(binary_masks, predictions=None, r_values=None,
 
     return indeces_orig, indeces_to_keep, indeces_to_remove, D, overlap
 
-#%%
 def detect_duplicates(file_name, dist_thr=0.1, FOV=(512, 512)):
     """
     Removes duplicate ROIs from file file_name
