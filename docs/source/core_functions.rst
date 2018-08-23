@@ -43,7 +43,7 @@ Movie Handling
 .. autofunction:: load_movie_chain
 
 Timeseries Handling
----------------
+--------------------
 
 .. currentmodule:: caiman.base.timeseries
 
@@ -63,7 +63,7 @@ ROIs
 
 
 Parallel Processing functions
----------------
+-----------------------------
 
 .. currentmodule:: caiman.cluster
 
@@ -83,7 +83,7 @@ Memory mapping
 
 
 Image statistics
----------------
+-----------------
 
 .. currentmodule:: caiman.summary_images
 
@@ -93,7 +93,7 @@ Image statistics
 
 
 Motion Correction
----------------
+------------------
 
 .. currentmodule:: caiman.motion_correction
 
@@ -137,7 +137,7 @@ Deconvolution
 
 
 Parameter Setting
----------------
+-----------------
 
 .. currentmodule:: caiman.source_extraction.cnmf.params
 
@@ -169,7 +169,7 @@ CNMF
 
 
 Online CNMF (OnACID)
----------------
+-------------------------
 
 .. currentmodule:: caiman.source_extraction.cnmf.online_cnmf
 
