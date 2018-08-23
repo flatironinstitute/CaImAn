@@ -54,7 +54,7 @@ Timeseries Handling
 ROIs 
 ---------------
 
-.. currentmodule:: caiman.base.rois.py
+.. currentmodule:: caiman.base.rois
 
 .. autofunction:: com
 .. autofunction:: extract_binary_masks_from_structural_channel
