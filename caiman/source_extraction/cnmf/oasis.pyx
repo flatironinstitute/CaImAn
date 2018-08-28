@@ -739,7 +739,7 @@ def constrained_oasisAR1(np.ndarray[SINGLE, ndim=1] y, SINGLE g, SINGLE sn,
         thresh = thresh / decimate / decimate
         T = len(y)
     # explicit kernel, useful for constructing solution
-    h = np.exp(log(g) * np.arange(T, dtype=np.float32))
+    h = g ** np.arange(T, dtype=np.float32)
     c = np.empty(T, dtype=np.float32)
     lam = 0  # sn/sqrt(1-g*g)
 
