@@ -238,13 +238,14 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
         A_ = np.delete(A_, list(ff[ff < nr]), 1)
         C = np.delete(C, list(ff[ff < nr]), 0)
         nr = nr - len(ff[ff < nr])
-        if low_rank_background:
-            background_ff = list(filter(lambda i: i >= nb, ff - nr))
-            f = np.delete(f, background_ff, 0)
-        else:
-            background_ff = list(filter(lambda i: i >= 0, ff - nr))
-            f = np.delete(f, background_ff, 0)
-            b_in = np.delete(b_in, background_ff, 1)
+        if update_background_components:
+            if low_rank_background:
+                background_ff = list(filter(lambda i: i >= nb, ff - nr))
+                f = np.delete(f, background_ff, 0)
+            else:
+                background_ff = list(filter(lambda i: i >= 0, ff - nr))
+                f = np.delete(f, background_ff, 0)
+                b_in = np.delete(b_in, background_ff, 1)
 
     A_ = A_[:, :nr]
     A_ = coo_matrix(A_)

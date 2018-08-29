@@ -444,7 +444,8 @@ class CNMF(object):
                 self.initialize(Y)
 
             if self.params.get('patch', 'only_init'):  # only return values after initialization
-                if not self.params.get('init', 'center_psf'):
+                if not (self.params.get('init', 'method_init') == 'corr_pnr' and
+                    self.params.get('init', 'ring_size_factor') is not None):
                     self.compute_residuals(Yr)
                     self.estimates.bl = None
                     self.estimates.c1 = None
@@ -901,21 +902,22 @@ class CNMF(object):
         """
         self.params.set('init', kwargs)
         estim = self.estimates
-        if self.params.get('init', 'center_psf'):
+        if (self.params.get('init', 'method_init') == 'corr_pnr' and
+                self.params.get('init', 'ring_size_factor') is not None):
             estim.A, estim.C, estim.b, estim.f, estim.center, \
-            extra_1p = initialize_components(
-                Y, sn=estim.sn, options_total=self.params.to_dict(),
-                **self.params.get_group('init'))
+                extra_1p = initialize_components(
+                    Y, sn=estim.sn, options_total=self.params.to_dict(),
+                    **self.params.get_group('init'))
             try:
                 estim.S, estim.bl, estim.c1, estim.neurons_sn, \
-                estim.g, estim.YrA = extra_1p
+                    estim.g, estim.YrA = extra_1p
             except:
                 estim.S, estim.bl, estim.c1, estim.neurons_sn, \
-                estim.g, estim.YrA, estim.W, estim.b0 = extra_1p
+                    estim.g, estim.YrA, estim.W, estim.b0 = extra_1p
         else:
             estim.A, estim.C, estim.b, estim.f, estim.center =\
-            initialize_components(Y, sn=estim.sn, options_total=self.params.to_dict(),
-                                  **self.params.get_group('init'))
+                initialize_components(Y, sn=estim.sn, options_total=self.params.to_dict(),
+                                      **self.params.get_group('init'))
 
         self.estimates = estim
 

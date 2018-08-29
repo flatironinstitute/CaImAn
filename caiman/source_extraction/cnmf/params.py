@@ -732,7 +732,10 @@ class CNMFParams(object):
             logging.warning("gnb={}, hence setting keys nb_patch and low_rank_background ".format(gnb) +
                             "in group patch automatically.")
             self.set('patch', {'nb_patch': gnb, 'low_rank_background': None})
-
+        if gnb == -1:
+            logging.warning("gnb=-1, hence setting key update_background_components " +
+                            "in group spatial automatically to False.")
+            self.set('spatial', {'update_background_components': False})
 
     def set(self, group, val_dict, set_if_not_exists=False):
         """ Add key-value pairs to a group. Existing key-value pairs will be overwritten
