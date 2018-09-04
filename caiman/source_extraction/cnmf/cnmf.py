@@ -581,6 +581,10 @@ class CNMF(object):
                             self.params.get('init', 'ring_size_factor') *
                             self.params.get('init', 'gSiz')[0],
                             ssub=self.params.get('init', 'ssub_B'))
+                    if len(self.estimates.C):
+                        self.deconvolve()
+                    else:
+                        self.estimates.S = self.estimates.C
             else:
                 
                 while len(self.estimates.merged_ROIs) > 0:
