@@ -9,8 +9,7 @@
 from builtins import str
 from builtins import map
 from builtins import range
-from past.utils import old_div
-from scipy.sparse import spdiags, coo_matrix  # ,csgraph
+from scipy.sparse import spdiags, diags, coo_matrix  # ,csgraph
 import scipy
 import numpy as np
 import platform
@@ -191,8 +190,8 @@ def update_temporal_components(Y, A, b, Cin, fin, bl=None, c1=None, g=None, sn=N
     d, T = np.shape(Y)
     nr = np.shape(A)[-1]
     if b is not None:
-        if b.shape[0] < b.shape[1]:
-            b = b.T
+        # if b.shape[0] < b.shape[1]:
+        #     b = b.T
         nb = b.shape[1]
     if bl is None:
         bl = np.repeat(None, nr)
@@ -217,11 +216,13 @@ def update_temporal_components(Y, A, b, Cin, fin, bl=None, c1=None, g=None, sn=N
     if 'memmap' in str(type(Y)):
 
         YA = parallel_dot_product(Y, A, dview=dview, block_size=block_size,
-                                  transpose=True, num_blocks_per_run=num_blocks_per_run) * spdiags(old_div(1., nA), 0, nr + nb, nr + nb)
+                                  transpose=True, num_blocks_per_run=num_blocks_per_run) * diags(1. / nA)
     else:
-        YA = (A.T.dot(Y).T) * spdiags(old_div(1., nA), 0, nr + nb, nr + nb)
+        # YA = (A.T.dot(Y).T) * spdiags(old_div(1., nA), 0, nr + nb, nr + nb)
+        YA = (A.T.dot(Y).T) * diags(1. / nA)
 
-    AA = ((A.T.dot(A)) * spdiags(old_div(1., nA), 0, nr + nb, nr + nb)).tocsr()
+    # AA = ((A.T.dot(A)) * spdiags(old_div(1., nA), 0, nr + nb, nr + nb)).tocsr()
+    AA = ((A.T.dot(A)) * diags(1. / nA)).tocsr()
     YrA = YA - AA.T.dot(Cin).T
 
     # creating the patch of components to be computed in parrallel
