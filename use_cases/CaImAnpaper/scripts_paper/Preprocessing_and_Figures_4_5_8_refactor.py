@@ -34,14 +34,15 @@ from caiman.source_extraction.cnmf import cnmf as cnmf
 from caiman.source_extraction.cnmf.estimates import Estimates, compare_components
 from caiman.cluster import setup_cluster
 from caiman.source_extraction.cnmf import params as params
+from caiman.source_extraction.cnmf.cnmf import load_CNMF
 
 # %%  ANALYSIS MODE AND PARAMETERS
 preprocessing_from_scratch = True  # whether to run the full pipeline or just creating figures
 
-if preprocessing_from_scratch:
+if False:
     reload = False
     plot_on = False
-    save_on = True  # set to true to recreate
+    save_on = False  # set to true to recreate
 else:
     reload = True
     plot_on = False
@@ -55,7 +56,7 @@ try:
     print('Processing ID:' + str(ID))
     ID = [np.int(ID)]
 except:
-    ID = np.arange(9)
+    ID = np.arange(2,6)
     print('ID NOT PASSED')
 
 
@@ -171,7 +172,6 @@ params_movie = {'fname': 'N.04.00.t/Yr_d1_512_d2_512_d3_1_order_C_frames_3000_.m
                 'stride_cnmf': 10,  # amounpl.it of overlap between the patches in pixels
                 'K': 5,  # number of components per patch
                 'gSig': [5, 5],  # expected half size of neurons
-
                 'n_chunks': 10,
                 'swap_dim': False,
                 'crop_pix': 0,
@@ -394,34 +394,35 @@ if preprocessing_from_scratch:
         init_method = global_params['init_method']
 
         opts = params.CNMFParams(params_dict=params_dict)
-
-        # %% Extract spatial and temporal components on patches
-        t1 = time.time()
-        print('Starting CNMF')
-        cnm = cnmf.CNMF(n_processes, params=opts, dview=dview)
-        cnm = cnm.fit(images)
-        t_patch = time.time() - t1
-        # %%
-        try:
-            dview.terminate()
-        except:
-            pass
-        c, dview, n_processes = cm.cluster.setup_cluster(
-            backend=backend_refine, n_processes=n_processes, single_thread=False)
-        # %%
-        if plot_on:
-            cnm.estimates.plot_contours(img=Cn)
-
-        # %% UPDATE SOME PARAMETERS
-        cnm.params.change_params({'update_background_components': global_params['update_background_components'],
-                                  'skip_refinement': skip_refinement,
-                                  'n_pixels_per_process': n_pixels_per_process, 'dview': dview})
-        # %%
         if reload:
-            cnm2 = cm.source_extraction.cnmf.load_CNMF(fname_new[:-4] + 'hdf5')
+            cnm2 = load_CNMF(fname_new[:-5] + '_cnmf.hdf5')
         else:
+            # %% Extract spatial and temporal components on patches
+            t1 = time.time()
+            print('Starting CNMF')
+            cnm = cnmf.CNMF(n_processes, params=opts, dview=dview)
+            cnm = cnm.fit(images)
+            t_patch = time.time() - t1
+            # %%
+            try:
+                dview.terminate()
+            except:
+                pass
+            c, dview, n_processes = cm.cluster.setup_cluster(
+                backend=backend_refine, n_processes=n_processes, single_thread=False)
+            # %%
+            if plot_on:
+                cnm.estimates.plot_contours(img=Cn)
+
+            # %% UPDATE SOME PARAMETERS
+            cnm.params.change_params({'update_background_components': global_params['update_background_components'],
+                                      'skip_refinement': skip_refinement,
+                                      'n_pixels_per_process': n_pixels_per_process, 'dview': dview})
+            # %%
+
             cnm2 = cnm.refit(images, dview=dview)
-            cnm2.save(fname_new[:-5] + '_cnmf.hdf5')
+            if save_on:
+                cnm2.save(fname_new[:-5] + '_cnmf.hdf5')
 
         # %%
         if plot_on:
@@ -492,7 +493,8 @@ if preprocessing_from_scratch:
 
         print({a: b.astype(np.float16) for a, b in performance_cons_off.items()})
         cnm2.estimates.A_thr = scipy.sparse.csc_matrix(cnm2.estimates.A_thr)
-        cnm2.save(fname_new[:-5] + '_cnmf_after_analysis.hdf5')
+        if save_on:
+            cnm2.save(fname_new[:-5] + '_cnmf_after_analysis.hdf5')
 
         performance_cons_off['fname_new'] = fname_new
         performance_tmp = performance_cons_off.copy()
@@ -506,7 +508,7 @@ if preprocessing_from_scratch:
 
         performance_tmp['ALL_CCs'] = ALL_CCs
 
-        all_results[fname_new.split('/')[0]] = performance_tmp
+        all_results[fname_new.split('/')[-2]] = performance_tmp
 
         if save_on:
             print('SAVING...' + fname_new[:-5] + '_perf_refactor.npz')

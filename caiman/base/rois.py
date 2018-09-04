@@ -917,13 +917,39 @@ def nf_masks_to_json(binary_masks, json_filename):
     """
     regions = []
     for m in binary_masks:
-        coords = [[x, y] for x, y in zip(*np.where(m))]
+        coords = [[int(x), int(y)] for x, y in zip(*np.where(m))]
         regions.append({"coordinates": coords})
 
     with open(json_filename, 'w') as f:
         f.write(json.dumps(regions))
 
     return regions
+
+#%%
+def nf_masks_to_neurof_dict(binary_masks, dataset_name):
+    """
+    Take as input a tensor of binary mask and produces dict format for neurofinder
+
+    Parameters:
+    -----------
+    binary_masks: 3d ndarray (components x dimension 1  x dimension 2)
+
+    dataset_filename: name of the dataset
+
+    Returns:
+    --------
+    dset: dict
+        dataset in neurofinder format to be saved in json
+
+    """
+    regions = []
+    for m in binary_masks:
+        coords = [[int(x), int(y)] for x, y in zip(*np.where(m))]
+        regions.append({"coordinates": coords})
+
+    dset = {"regions": regions, "dataset": dataset_name}
+
+    return dset
 
 #%%
 
@@ -933,7 +959,7 @@ def nf_read_roi(fileobj):
     points = read_roi(fileobj)
     Read ImageJ's ROI format
 
-    Addapted from https://gist.github.com/luispedro/3437255
+    Adapted from https://gist.github.com/luispedro/3437255
     '''
 # This is based on:
 # http://rsbweb.nih.gov/ij/developer/source/ij/io/RoiDecoder.java.html

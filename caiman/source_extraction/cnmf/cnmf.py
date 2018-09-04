@@ -951,6 +951,12 @@ def load_CNMF(filename, n_processes=1, dview=None):
             setattr(new_obj, key, prms)
         elif key == 'dview':
             setattr(new_obj, key, dview)
+        elif key == 'estimates':
+            estims = Estimates()
+            for kk, vv in val.items():
+                setattr(estims, kk, vv)
+
+            setattr(new_obj, key, estims)
         else:
             setattr(new_obj, key, val)
 

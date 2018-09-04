@@ -16,8 +16,9 @@ from .spatial import threshold_components
 from ...components_evaluation import (
         evaluate_components_CNN, estimate_components_quality_auto,
         select_components_from_metrics)
-from ...base.rois import detect_duplicates_and_subsets, nf_match_neurons_in_binary_masks
+from ...base.rois import detect_duplicates_and_subsets, nf_match_neurons_in_binary_masks, nf_masks_to_neurof_dict
 from .initialization import downscale
+
 
 class Estimates(object):
     def __init__(self, A=None, b=None, C=None, f=None, R=None, dims=None):
@@ -894,6 +895,15 @@ class Estimates(object):
         print('Duplicates gt:' + str(len(duplicates_gt)))
         return duplicates_gt, indeces_keep_gt, indeces_remove_gt, D_gt, overlap_gt
 
+    def masks_2_neurofinder(self, dataset_name):
+        if self.A_thr is None:
+            raise Exception(
+                'You need to compute thresolded components before calling this method: use the threshold_components method')
+        bin_masks = self.A_thr.reshape([self.dims[0], self.dims[1], -1], order='F').transpose([2, 0, 1])
+        return nf_masks_to_neurof_dict(bin_masks, dataset_name)
+
+
+
 
 def compare_components(estimate_gt, estimate_cmp,  Cn=None, thresh_cost=.8, min_dist=10, print_assignment=False, labels=['GT', 'CMP'], plot_results=False):
     if estimate_gt.A_thr is None:
@@ -916,3 +926,4 @@ def compare_components(estimate_gt, estimate_cmp,  Cn=None, thresh_cost=.8, min_
         plot_results=plot_results, Cn=Cn, labels=labels)
 
     return tp_gt, tp_comp, fn_gt, fp_comp, performance_cons_off
+

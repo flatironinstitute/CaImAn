@@ -449,8 +449,8 @@ def recursively_save_dict_contents_to_group(h5file, path, dic):
             item = np.array(list(item))
         if key == 'g_tot':
             item = np.asarray(item, dtype=np.float)
-        if key in ['groups', 'idx_tot', 'ind_A', 'Ab_epoch','coordinates','loaded_model', 'optional_outputs']:
-            logging.info(['groups', 'idx_tot', 'ind_A', 'Ab_epoch', 'coordinates', 'loaded_model', 'optional_outputs',
+        if key in ['groups', 'idx_tot', 'ind_A', 'Ab_epoch','coordinates','loaded_model', 'optional_outputs','merged_ROIs']:
+            logging.info(['groups', 'idx_tot', 'ind_A', 'Ab_epoch', 'coordinates', 'loaded_model', 'optional_outputs', 'merged_ROIs',
                    '** not saved'])
             continue
 
