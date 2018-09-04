@@ -444,10 +444,11 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
     if normalize_init is True:
         if Ain.size > 0:
             Ain = Ain * np.reshape(img, (np.prod(d), -1), order='F')
-
-        b_in = b_in * np.reshape(img, (np.prod(d), -1), order='F')
-    print(center_psf)
-    if center_psf:
+        if sparse_b:
+            b_in = spr.diags(img.ravel(order='F')).dot(b_in)
+        else:
+            b_in = b_in * np.reshape(img, (np.prod(d), -1), order='F')
+    if method == 'corr_pnr' and ring_size_factor is not None:
         return scipy.sparse.csc_matrix(Ain), Cin, b_in, f_in, center, extra_1p
     else:
         return scipy.sparse.csc_matrix(Ain), Cin, b_in, f_in, center
