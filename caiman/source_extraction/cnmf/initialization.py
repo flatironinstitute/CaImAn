@@ -431,6 +431,8 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
         f_in = resize(np.atleast_2d(f_in), [b_in.shape[-1], T])
         # except:
         #     f_in = spr.csc_matrix(resize(np.atleast_2d(f_in.toarray()), [b_in.shape[-1], T]))
+    else:
+        sparse_b = False
 
     if Ain.size > 0:
         Cin = resize(Cin, [K, T])
