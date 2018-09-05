@@ -22,9 +22,9 @@ Functions that are required to operate the package at a basic level
    caiman.motion_correction.MotionCorrect.motion_correct
 
    caiman.base.movies.load
-   
+
    caiman.base.movies.movie.play
-   
+
    caiman.base.rois.register_ROIs
 
    caiman.base.rois.register_multisession
