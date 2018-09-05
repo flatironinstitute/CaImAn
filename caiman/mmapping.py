@@ -34,28 +34,25 @@ def prepare_shape(mytuple):
 def load_memmap(filename, mode='r'):
     """ Load a memory mapped file created by the function save_memmap
 
-    Parameters:
-    -----------
+    Args:
         filename: str
             path of the file to be loaded
         mode: str
             One of 'r', 'r+', 'w+'. How to interact with files
 
     Returns:
-    --------
-    Yr:
-        memory mapped variable
+        Yr:
+            memory mapped variable
 
-    dims: tuple
-        frame dimensions
+        dims: tuple
+            frame dimensions
 
-    T: int
-        number of frames
+        T: int
+            number of frames
 
 
-    Raise:
-     -----
-        exception if not in mmap
+    Raises:
+        Exception "Unknown file extension"
 
     """
     if ('.mmap' in filename):
@@ -79,41 +76,39 @@ def save_memmap_each(fnames, dview=None, base_name=None, resize_fact=(1, 1, 1), 
     """
     Create several memory mapped files using parallel processing
 
-    Parameters:
-    -----------
-    fnames: list of str
-        list of path to the filenames
+    Args:
+        fnames: list of str
+            list of path to the filenames
 
-    dview: ipyparallel dview
-        used to perform computation in parallel. If none it will be signle thread
+        dview: ipyparallel dview
+            used to perform computation in parallel. If none it will be signle thread
 
-    base_name str
-        BaseName for the file to be creates. If not given the file itself is used
+        base_name str
+            BaseName for the file to be creates. If not given the file itself is used
 
-    resize_fact: tuple
-        resampling factors for each dimension x,y,time. .1 = downsample 10X
+        resize_fact: tuple
+            resampling factors for each dimension x,y,time. .1 = downsample 10X
 
-    remove_init: int
-        number of samples to remove from the beginning of each chunk
+        remove_init: int
+            number of samples to remove from the beginning of each chunk
 
-    idx_xy: slice operator
-        used to perform slicing of the movie (to select a subportion of the movie)
+        idx_xy: slice operator
+            used to perform slicing of the movie (to select a subportion of the movie)
 
-    xy_shifts: list
-        x and y shifts computed by a motion correction algorithm to be applied before memory mapping
+        xy_shifts: list
+            x and y shifts computed by a motion correction algorithm to be applied before memory mapping
 
-    add_to_movie: float
-        if movie too negative will make it positive
+        add_to_movie: float
+            if movie too negative will make it positive
 
-    border_to_0: int
-        number of pixels on the border to set to the minimum of the movie
+        border_to_0: int
+            number of pixels on the border to set to the minimum of the movie
 
-    order: (undocumented)
+        order: (undocumented)
 
     Returns:
-    --------
-    fnames_tot: list
-        paths to the created memory map files
+        fnames_tot: list
+            paths to the created memory map files
 
     """
 
@@ -147,21 +142,16 @@ def save_memmap_each(fnames, dview=None, base_name=None, resize_fact=(1, 1, 1), 
 #%%
 def save_memmap_join(mmap_fnames, base_name=None, n_chunks=20, dview=None, add_to_mov = 0):
     """
-    From small memory mappable files creates a large one
+    Makes a large file memmap from a number of smaller files
 
-    Parameters:
-    -----------
+    Args:
+        mmap_fnames: list of memory mapped files
 
-    mmap_fnames: list of memory mapped files
+        base_name: string, will be the first portion of name to be solved
 
-    base_name: string, will be the first portion of name to be solved
+        n_chunks: number of chunks in which to subdivide when saving, smaller requires more memory
 
-    n_chunks: number of chunks in which to subdivide when saving, smaller requires more memory
-
-    dview: cluster handle
-
-    Returns:
-    --------
+        dview: cluster handle
 
     """
 
@@ -310,8 +300,7 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
 
     """ Efficiently write data from a list of tif files into a memory mappable file
 
-    Parameters:
-    ----------
+    Args:
         filenames: list
             list of tif files or list of numpy arrays
 
@@ -337,23 +326,22 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
 
         is_3D: boolean
             whether it is 3D data
-            
+
         add_to_movie: floating-point
             value to add to each image point, typically to keep negative values out.
-        
+
         border_to_0: (undocumented)
-        
+
         dview:       (undocumented)
-        
+
         n_chunks:    (undocumented)
-        
+
         slices: slice object or list of slice objects
             slice can be used to select portion of the movies in time and x,y
             directions. For instance 
             slices = [slice(0,200),slice(0,100),slice(0,100)] will take 
             the first 200 frames and the 100 pixels along x and y dimensions. 
     Returns:
-    -------
         fname_new: the name of the mapped file, the format is such that
             the name will contain the frame dimensions and the number of frames
 
@@ -374,7 +362,7 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
         if recompute_each_memmap or (remove_init>0) or (idx_xy is not None)\
                 or (xy_shifts is not None) or (add_to_movie>0) or (border_to_0>0)\
                 or slices is not None:
-                    
+
             logging.debug('Distributing memory map over many files')
             # Here we make a bunch of memmap files in the right order. Same parameters
             fname_new = cm.save_memmap_each(filenames,
@@ -421,7 +409,7 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
                 Yr = cm.load(f, fr=1, in_memory=True) if (isinstance(f, basestring) or isinstance(f, list)) else cm.movie(f) # TODO: Rewrite more legibly
                 if xy_shifts is not None:
                     Yr = Yr.apply_shifts(xy_shifts, interpolation='cubic', remove_blanks=False)
-                    
+
                 if slices is not None:
                     Yr = Yr[slices]
                 else:
@@ -438,7 +426,7 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
                 if slices is not None:  
                     if type(slices) is list:
                         raise Exception('You cannot slice in x and y and then use add_to_movie: if you only want to slice in time do not pass in a list but just a slice object')
-                    
+
                 min_mov = Yr.calc_min()
                 Yr[:, :border_to_0, :] = min_mov
                 Yr[:, :, :border_to_0] = min_mov
@@ -496,10 +484,11 @@ def parallel_dot_product(A, b, block_size=5000, dview=None, transpose=False, num
     # todo: todocument
     """ Chunk matrix product between matrix and column vectors
 
-    A: memory mapped ndarray
-        pixels x time
+    Args:
+        A: memory mapped ndarray
+            pixels x time
 
-    b: time x comps
+        b: time x comps
     """
 
     import pickle
