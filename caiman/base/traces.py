@@ -35,17 +35,13 @@ class trace(ts.timeseries):
 
     TODO
 
-    Parameters:
-    ----------
-    input_trace: np.ndarray (time x ncells)
-
-    start_time: time beginning trace
-
-    fr: frame rate
-
-    meta_data: dictionary including any custom meta data
-
+    Args:
+        input_trace: np.ndarray (time x ncells)
+        start_time: time beginning trace
+        fr: frame rate
+        meta_data: dictionary including any custom meta data
     """
+
     def __new__(cls, input_arr, **kwargs):
         return super(trace, cls).__new__(cls, input_arr, **kwargs)
 
@@ -63,17 +59,13 @@ class trace(ts.timeseries):
         In order to compute the baseline frames are binned according to the window length parameter
         and then the intermediate values are interpolated.
 
-        Parameters:
-        ----------
-        secsWindow: length of the windows used to compute the quantile
+        Args:
+            secsWindow: length of the windows used to compute the quantile
+            quantilMin : value of the quantile
 
-        quantilMin : value of the quantile
-
-        Raise:
-        -----
-        ValueError("All traces must be positive")
-
-        ValueError("The window must be shorter than the total length")
+        Raises:
+            ValueError "All traces must be positive"
+            ValueError "The window must be shorter than the total length"
         """
         if np.min(self) <= 0:
             raise ValueError("All traces must be positive")
@@ -105,24 +97,20 @@ class trace(ts.timeseries):
 
         author: ben deverett
 
-        Parameters:
-        ----------
-        stacked : bool
-            for multiple columns of data, stack instead of overlaying
-
-        subtract_minimum : bool
-            subtract minimum from each individual trace
-
-        cmap : matplotlib.LinearSegmentedColormap
-            color map for display. Options are found in pl.colormaps(), and are accessed as pl.cm.my_favourite_map
-
-        kwargs : dict
-            any arguments accepted by matplotlib.plot
+        Args:
+            stacked : bool
+                for multiple columns of data, stack instead of overlaying
+            subtract_minimum : bool
+                subtract minimum from each individual trace
+            cmap : matplotlib.LinearSegmentedColormap
+                color map for display. Options are found in pl.colormaps(), and are accessed as pl.cm.my_favourite_map
+            kwargs : dict
+                any arguments accepted by matplotlib.plot
 
         Returns:
-        -------
-        The matplotlib axes object corresponding to the data plot
+            The matplotlib axes object corresponding to the data plot
         """
+
         d = self.copy()
         n = 1  # number of traces
         if len(d.shape) > 1:

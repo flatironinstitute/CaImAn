@@ -17,25 +17,21 @@ from .deconvolution import constrained_foopsi
 from .utilities import update_order_greedy
 import sys
 from ...mmapping import parallel_dot_product
-#%%
-
 
 def make_G_matrix(T, g):
     """
     create matrix of autoregression to enforce indicator dynamics
 
-    Inputs:
-    -----
-    T: positive integer
-        number of time-bins
+    Args:
+        T: positive integer
+            number of time-bins
 
-    g: nd.array, vector p x 1
-        Discrete time constants
+        g: nd.array, vector p x 1
+            Discrete time constants
 
     Output:
-    ------
-    G: sparse diagonal matrix
-        Matrix of autoregression
+        G: sparse diagonal matrix
+            Matrix of autoregression
     """
     if type(g) is np.ndarray:
         if len(g) == 1 and g < 0:
@@ -47,8 +43,6 @@ def make_G_matrix(T, g):
         return G
     else:
         raise Exception('g must be an array')
-#%%
-
 
 def constrained_foopsi_parallel(arg_in):
     """ necessary for parallel computation of the function  constrained_foopsi
@@ -69,118 +63,110 @@ def constrained_foopsi_parallel(arg_in):
 
     return C_, Sp_, Ytemp_, cb_, c1_, sn_, gn_, jj_, lam_
 
-
-#%%
 def update_temporal_components(Y, A, b, Cin, fin, bl=None, c1=None, g=None, sn=None, nb=1, ITER=2, block_size=5000, num_blocks_per_run=20, debug=False, dview=None, **kwargs):
     """Update temporal components and background given spatial components using a block coordinate descent approach.
 
-    Parameters:
-    -----------
+    Args:
+        Y: np.ndarray (2D)
+            input data with time in the last axis (d x T)
 
-    Y: np.ndarray (2D)
-        input data with time in the last axis (d x T)
+        A: sparse matrix (crc format)
+            matrix of temporal components (d x K)
 
-    A: sparse matrix (crc format)
-        matrix of temporal components (d x K)
+        b: ndarray (dx1)
+            current estimate of background component
 
-    b: ndarray (dx1)
-        current estimate of background component
+        Cin: np.ndarray
+            current estimate of temporal components (K x T)
 
-    Cin: np.ndarray
-        current estimate of temporal components (K x T)
+        fin: np.ndarray
+            current estimate of temporal background (vector of length T)
 
-    fin: np.ndarray
-        current estimate of temporal background (vector of length T)
+        g:  np.ndarray
+            Global time constant (not used)
 
-    g:  np.ndarray
-        Global time constant (not used)
+        bl: np.ndarray
+           baseline for fluorescence trace for each column in A
 
-    bl: np.ndarray
-       baseline for fluorescence trace for each column in A
+        c1: np.ndarray
+           initial concentration for each column in A
 
-    c1: np.ndarray
-       initial concentration for each column in A
+        g:  np.ndarray
+           discrete time constant for each column in A
 
-    g:  np.ndarray
-       discrete time constant for each column in A
+        sn: np.ndarray
+           noise level for each column in A
 
-    sn: np.ndarray
-       noise level for each column in A
+        nb: [optional] int
+            Number of background components
 
-    nb: [optional] int
-        Number of background components
+        ITER: positive integer
+            Maximum number of block coordinate descent loops.
 
-    ITER: positive integer
-        Maximum number of block coordinate descent loops.
+        method_foopsi: string
+            Method of deconvolution of neural activity. constrained_foopsi is the only method supported at the moment.
 
-    method_foopsi: string
-        Method of deconvolution of neural activity. constrained_foopsi is the only method supported at the moment.
+        n_processes: int
+            number of processes to use for parallel computation.
+             Should be less than the number of processes started with ipcluster.
 
-    n_processes: int
-        number of processes to use for parallel computation.
-         Should be less than the number of processes started with ipcluster.
+        backend: 'str'
+            single_thread no parallelization
+            ipyparallel, parallelization using the ipyparallel cluster.
+            You should start the cluster (install ipyparallel and then type
+            ipcluster -n 6, where 6 is the number of processes).
+            SLURM: using SLURM scheduler
 
-    backend: 'str'
-        single_thread no parallelization
-        ipyparallel, parallelization using the ipyparallel cluster.
-        You should start the cluster (install ipyparallel and then type
-        ipcluster -n 6, where 6 is the number of processes).
-        SLURM: using SLURM scheduler
+        memory_efficient: Bool
+            whether or not to optimize for memory usage (longer running times). necessary with very large datasets
 
-    memory_efficient: Bool
-        whether or not to optimize for memory usage (longer running times). nevessary with very large datasets
+        **kwargs: dict
+            all parameters passed to constrained_foopsi except bl,c1,g,sn (see documentation).
+             Some useful parameters are
 
-    **kwargs: dict
-        all parameters passed to constrained_foopsi except bl,c1,g,sn (see documentation).
-         Some useful parameters are
+        p: int
+            order of the autoregression model
 
-    p: int
-        order of the autoregression model
+        method: [optional] string
+            solution method for constrained foopsi. Choices are
+                'cvx':      using cvxopt and picos (slow especially without the MOSEK solver)
+                'cvxpy':    using cvxopt and cvxpy with the ECOS solver (faster, default)
 
-    method: [optional] string
-        solution method for constrained foopsi. Choices are
-            'cvx':      using cvxopt and picos (slow especially without the MOSEK solver)
-            'cvxpy':    using cvxopt and cvxpy with the ECOS solver (faster, default)
-
-    solvers: list string
-            primary and secondary (if problem unfeasible for approx solution)
-             solvers to be used with cvxpy, default is ['ECOS','SCS']
+        solvers: list string
+                primary and secondary (if problem unfeasible for approx solution)
+                 solvers to be used with cvxpy, default is ['ECOS','SCS']
 
     Note:
-    ------
-    The temporal components are updated in parallel by default by forming of sequence of vertex covers.
+        The temporal components are updated in parallel by default by forming of sequence of vertex covers.
 
     Returns:
-    --------
+        C:   np.ndarray
+                matrix of temporal components (K x T)
 
-    C:   np.ndarray
-            matrix of temporal components (K x T)
+        f:   np.array
+                vector of temporal background (length T)
 
-    f:   np.array
-            vector of temporal background (length T)
+        S:   np.ndarray
+                matrix of merged deconvolved activity (spikes) (K x T)
 
-    S:   np.ndarray
-            matrix of merged deconvolved activity (spikes) (K x T)
+        bl:  float
+                same as input
 
-    bl:  float
-            same as input
+        c1:  float
+                same as input
 
-    c1:  float
-            same as input
+        g:   float
+                same as input
 
-    g:   float
-            same as input
+        sn:  float
+                same as input
 
-    sn:  float
-            same as input
-
-    YrA: np.ndarray
-            matrix of spatial component filtered raw data, after all contributions have been removed.
-            YrA corresponds to the residual trace for each component and is used for faster plotting (K x T)
+        YrA: np.ndarray
+                matrix of spatial component filtered raw data, after all contributions have been removed.
+                YrA corresponds to the residual trace for each component and is used for faster plotting (K x T)
 
         lam: np.ndarray
-        Automatically tuned sparsity parameter
-
+            Automatically tuned sparsity parameter
     """
 
     if 'p' not in kwargs or kwargs['p'] is None:
@@ -265,91 +251,86 @@ def update_iteration(parrllcomp, len_parrllcomp, nb, C, S, bl, nr,
                      ITER, YrA, c1, sn, g, Cin, T, nA, dview, debug, AA, kwargs):
     """Update temporal components and background given spatial components using a block coordinate descent approach.
 
-    Parameters:
-    -----------
+    Args:
+        YrA: np.ndarray (2D)
+            input data with time in the last axis (d x T)
 
-    YrA: np.ndarray (2D)
-        input data with time in the last axis (d x T)
+        AA: sparse matrix (crc format)
+            matrix of temporal components (d x K)
 
-    AA: sparse matrix (crc format)
-        matrix of temporal components (d x K)
+        Cin: np.ndarray
+            current estimate of temporal components (K x T)
 
-    Cin: np.ndarray
-        current estimate of temporal components (K x T)
+        g:  np.ndarray
+            Global time constant (not used)
 
-    g:  np.ndarray
-        Global time constant (not used)
+        bl: np.ndarray
+           baseline for fluorescence trace for each column in A
 
-    bl: np.ndarray
-       baseline for fluorescence trace for each column in A
+        c1: np.ndarray
+           initial concentration for each column in A
 
-    c1: np.ndarray
-       initial concentration for each column in A
+        g:  np.ndarray
+           discrete time constant for each column in A
 
-    g:  np.ndarray
-       discrete time constant for each column in A
+        sn: np.ndarray
+           noise level for each column in A
 
-    sn: np.ndarray
-       noise level for each column in A
+        nb: [optional] int
+            Number of background components
 
-    nb: [optional] int
-        Number of background components
+        ITER: positive integer
+            Maximum number of block coordinate descent loops.
 
-    ITER: positive integer
-        Maximum number of block coordinate descent loops.
+        backend: 'str'
+            single_thread no parallelization
+            ipyparallel, parallelization using the ipyparallel cluster.
+            You should start the cluster (install ipyparallel and then type
+            ipcluster -n 6, where 6 is the number of processes).
+            SLURM: using SLURM scheduler
 
-    backend: 'str'
-        single_thread no parallelization
-        ipyparallel, parallelization using the ipyparallel cluster.
-        You should start the cluster (install ipyparallel and then type
-        ipcluster -n 6, where 6 is the number of processes).
-        SLURM: using SLURM scheduler
+        memory_efficient: Bool
+            whether or not to optimize for memory usage (longer running times). necessary with very large datasets
 
-    memory_efficient: Bool
-        whether or not to optimize for memory usage (longer running times). nevessary with very large datasets
+        **kwargs: dict
+            all parameters passed to constrained_foopsi except bl,c1,g,sn (see documentation).
+             Some useful parameters are
 
-    **kwargs: dict
-        all parameters passed to constrained_foopsi except bl,c1,g,sn (see documentation).
-         Some useful parameters are
+        p: int
+            order of the autoregression model
 
-    p: int
-        order of the autoregression model
+        method: [optional] string
+            solution method for constrained foopsi. Choices are
+                'cvx':      using cvxopt and picos (slow especially without the MOSEK solver)
+                'cvxpy':    using cvxopt and cvxpy with the ECOS solver (faster, default)
 
-    method: [optional] string
-        solution method for constrained foopsi. Choices are
-            'cvx':      using cvxopt and picos (slow especially without the MOSEK solver)
-            'cvxpy':    using cvxopt and cvxpy with the ECOS solver (faster, default)
-
-    solvers: list string
+        solvers: list string
             primary and secondary (if problem unfeasible for approx solution)
-             solvers to be used with cvxpy, default is ['ECOS','SCS']
+            solvers to be used with cvxpy, default is ['ECOS','SCS']
 
     Note:
-    ------
-    The temporal components are updated in parallel by default by forming of sequence of vertex covers.
+        The temporal components are updated in parallel by default by forming of sequence of vertex covers.
 
     Returns:
-    --------
-
-    C:   np.ndarray
+        C:   np.ndarray
             matrix of temporal components (K x T)
 
-    S:   np.ndarray
+        S:   np.ndarray
             matrix of merged deconvolved activity (spikes) (K x T)
 
-    bl:  float
+        bl:  float
             same as input
 
-    c1:  float
+        c1:  float
             same as input
 
-    g:   float
+        g:   float
             same as input
 
-    sn:  float
+        sn:  float
             same as input
 
-    YrA: np.ndarray
+        YrA: np.ndarray
             matrix of spatial component filtered raw data, after all contributions have been removed.
             YrA corresponds to the residual trace for each component and is used for faster plotting (K x T)
 """

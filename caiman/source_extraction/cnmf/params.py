@@ -40,12 +40,10 @@ class CNMFParams(object):
         when initializing the CNMFParams object. Direct setting of the positional arguments in CNMFParams is only
         present for backwards compatibility reasons and should not be used if possible.
 
-        Parameters/Attributes
-        ----------
-
-        Any parameter that is not set get a default value specified
-        by the dictionary default options
-        DATA PARAMETERS (CNMFParams.data) #####
+        Args:
+            Any parameter that is not set get a default value specified
+            by the dictionary default options
+            DATA PARAMETERS (CNMFParams.data) #####
 
             fnames: list[str]
                 list of complete paths to files that need to be processed
@@ -744,8 +742,7 @@ class CNMFParams(object):
         Args:
             group: The name of the group.
             val_dict: A dictionary with key-value pairs to be set for the group.
-            set_if_not_exists: Whether to set a key-value pair in a group
-                               if the key does not currently exist in the group.
+            set_if_not_exists: Whether to set a key-value pair in a group if the key does not currently exist in the group.
         """
 
         if not hasattr(self, group):

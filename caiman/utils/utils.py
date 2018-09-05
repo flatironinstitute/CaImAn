@@ -55,20 +55,15 @@ def download_demo(name='Sue_2x_3000_40_-46.tif', save_folder=''):
 
     using urllib, you can add you own name and location in this global parameter
 
-        Parameters:
-        -----------
-
-        name: str
-            the path of the file correspondong to a file in the filelist (''Sue_2x_3000_40_-46.tif' or 'demoMovieJ.tif')
-
-        save_folder: str
-            folder inside ./example_movies to which the files will be saved. Will be created if it doesn't exist
+        Args:
+            name: str
+                the path of the file correspondong to a file in the filelist (''Sue_2x_3000_40_-46.tif' or 'demoMovieJ.tif')
+    
+            save_folder: str
+                folder inside ./example_movies to which the files will be saved. Will be created if it doesn't exist
 
     Raise:
-    ---------
         WrongFolder Exception
-
-
     """
 
     #\bug
@@ -103,15 +98,11 @@ def download_demo(name='Sue_2x_3000_40_-46.tif', save_folder=''):
 def val_parse(v):
     """parse values from si tags into python objects if possible from si parse
 
-     Parameters:
-     -----------
+     Args:
+         v: si tags
 
-     v: si tags
-
-     returns:
-     -------
-
-    v: python object
+     Returns:
+        v: python object
 
     """
 
@@ -133,15 +124,11 @@ def val_parse(v):
 def si_parse(imd):
     """parse image_description field embedded by scanimage from get iamge description
 
-     Parameters:
-     -----------
+     Args:
+         imd: image description
 
-     imd: image description
-
-     returns:
-     -------
-
-    imd: the parsed description
+    Returns:
+        imd: the parsed description
 
     """
 
@@ -156,16 +143,10 @@ def si_parse(imd):
 def get_image_description_SI(fname):
     """Given a tif file acquired with Scanimage it returns a dictionary containing the information in the image description field
 
-     Parameters:
-     -----------
-
-     fname: name of the file
-
-     returns:
-     -------
-
+     Args:
+         fname: name of the file
+     Returns:
         image_description: information of the image
-
     """
 
     image_descriptions = []
@@ -295,39 +276,35 @@ def load_object(filename):
 def apply_magic_wand(A, gSig, dims, A_thr=None, coms=None, dview=None,
                      min_frac=0.7, max_frac=1.0, roughness=2, zoom_factor=1,
                      center_range=2):
-    """ Apply cell magic Wand to results of CNMF to EASe matching with labels
+    """ Apply cell magic Wand to results of CNMF to ease matching with labels
 
-    Parameters:
-    -----------
-
-    A:
-        output of CNMF
-
-    gSig: tuple
-        input of CNMF (half neuron size)
-
-    A_thr:
-        thresholded version of A
-
-    coms:
-        centers of the magic wand
-
-    dview:
-        for parallelization
-
-    min_frac:
-        fraction of minimum of gSig to take as minimum size
-
-    max_frac:
-        multiplier of maximum of gSig to take as maximum size
+    Args:
+        A:
+            output of CNMF
+    
+        gSig: tuple
+            input of CNMF (half neuron size)
+    
+        A_thr:
+            thresholded version of A
+    
+        coms:
+            centers of the magic wand
+    
+        dview:
+            for parallelization
+    
+        min_frac:
+            fraction of minimum of gSig to take as minimum size
+    
+        max_frac:
+            multiplier of maximum of gSig to take as maximum size
 
     Returns:
-    ---------
-
-    masks: ndarray
-        binary masks
-
+        masks: ndarray
+            binary masks
     """
+
     if (A_thr is None) and (coms is None):
         import pdb
         pdb.set_trace()
@@ -359,17 +336,9 @@ def apply_magic_wand(A, gSig, dims, A_thr=None, coms=None, dview=None,
     else:
         masks = np.array(list(map(cell_magic_wand_wrapper, params)))
 
-#    masks = np.array([cell_magic_wand(
-#            A.tocsc()[:,idx].toarray().reshape(dims, order='F'),
-#            coms[idx], min_radius, max_radius, roughness=roughness,
-#            zoom_factor=zoom_factor, center_range=center_range)
-#            for idx in range(A.shape[-1])])
-
     return masks
-#%%
-def cell_magic_wand_wrapper(params):
-#     from ..external.cell_magic_wand import cell_magic_wand
 
+def cell_magic_wand_wrapper(params):
       a, com, min_radius, max_radius, roughness, zoom_factor, center_range = params
       msk = cell_magic_wand(a, com, min_radius, max_radius, roughness,
                             zoom_factor, center_range)
@@ -379,34 +348,24 @@ def cell_magic_wand_wrapper(params):
 
 def save_dict_to_hdf5(dic, filename):
     ''' Save dictionary to hdf5 file
-    Parameters
-    ----------
-
-    dic: dictionary
-        input (possibly nested) dictionary
-    filename: str
-        file name to save the dictionary to (in hdf5 format for now)
-
-    Returns:
-    -------
-
-
+    Args:
+        dic: dictionary
+            input (possibly nested) dictionary
+        filename: str
+            file name to save the dictionary to (in hdf5 format for now)
     '''
+
     with h5py.File(filename, 'w') as h5file:
         recursively_save_dict_contents_to_group(h5file, '/', dic)
 
 def load_dict_from_hdf5(filename):
     ''' Load dictionary from hdf5 file
 
-    Parameters
-    ----------
-    filename: str
-        input file to load
-
+    Args:
+        filename: str
+            input file to load
     Returns:
-    -------
         dictionary
-
     '''
 
     with h5py.File(filename, 'r') as h5file:
@@ -415,20 +374,13 @@ def load_dict_from_hdf5(filename):
 
 def recursively_save_dict_contents_to_group(h5file, path, dic):
     '''
-    Parameters:
-    ----------
-
-    h5file: hdf5 object
-        hdf5 file where to store the dictionary
-
-    path: str
-        path within the hdf5 file structure
-
-    dic: dictionary
-        dictionary to save
-
-    Returns:
-    -------
+    Args:
+        h5file: hdf5 object
+            hdf5 file where to store the dictionary
+        path: str
+            path within the hdf5 file structure
+        dic: dictionary
+            dictionary to save
     '''
     # argument type checking
     if not isinstance(dic, dict):
@@ -495,13 +447,13 @@ def recursively_save_dict_contents_to_group(h5file, path, dic):
 
 def recursively_load_dict_contents_from_group( h5file, path):
     '''load dictionary from hdf5 object
-    Parameters:
-    ----------
-    h5file: hdf5 object
-        object where dictionary is stored
-    path: str
-        path within the hdf5 file
+    Args:
+        h5file: hdf5 object
+            object where dictionary is stored
+        path: str
+            path within the hdf5 file
     '''
+
     ans = {}
     for key, item in h5file[path].items():
 

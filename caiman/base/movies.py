@@ -604,6 +604,7 @@ class movie(ts.timeseries):
 
             proj_frame_vectors:the reduced version of the movie vectors using only the principal component projection
         """
+
         # vectorize the images
         num_frames, h, w = np.shape(self)
         frame_size = h * w

@@ -153,19 +153,17 @@ class Estimates(object):
     def plot_contours(self, img=None, idx=None, crd=None, thr_method='max',
                       thr='0.2'):
         """view contours of all spatial footprints.
+
         Args:
             img :   np.ndarray
                 background image for contour plotting. Default is the mean
                 image of all spatial components (d1 x d2)
             idx :   list
                 list of accepted components
-
             crd :   list
                 list of coordinates (if empty they are computed)
-
             thr_method : str
                 thresholding method for computing contours ('max', 'nrg')
-
             thr : float
                 threshold value
         """
@@ -198,19 +196,17 @@ class Estimates(object):
     def plot_contours_nb(self, img=None, idx=None, crd=None, thr_method='max',
                          thr='0.2'):
         """view contours of all spatial footprints (notebook environment).
+
         Args:
             img :   np.ndarray
                 background image for contour plotting. Default is the mean
                 image of all spatial components (d1 x d2)
             idx :   list
                 list of accepted components
-
             crd :   list
                 list of coordinates (if empty they are computed)
-
             thr_method : str
                 thresholding method for computing contours ('max', 'nrg')
-
             thr : float
                 threshold value
         """

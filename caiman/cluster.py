@@ -37,10 +37,7 @@ import time
 
 from .mmapping import load_memmap
 
-
 logger = logging.getLogger(__name__)
-#%%
-
 
 def get_patches_from_image(img, shapes, overlaps):
     # todo todocument
@@ -60,20 +57,19 @@ def get_patches_from_image(img, shapes, overlaps):
 def extract_patch_coordinates(dims, rf, stride, border_pix=0, indeces=[slice(None)]*2):
     """
     Partition the FOV in patches
-
     and return the indexed in 2D and 1D (flatten, order='F') formats
 
-    Parameters:
-    ----------
-    dims: tuple of int
-        dimensions of the original matrix that will be divided in patches
+    Args:
+        dims: tuple of int
+            dimensions of the original matrix that will be divided in patches
 
-    rf: tuple of int
-        radius of receptive field, corresponds to half the size of the square patch
+        rf: tuple of int
+            radius of receptive field, corresponds to half the size of the square patch
 
-    stride: tuple of int
-        degree of overlap of the patches
+        stride: tuple of int
+            degree of overlap of the patches
     """
+
     sl_start = [0 if sl.start is None else sl.start for sl in indeces]
     sl_stop = [dim if sl.stop is None else sl.stop for (sl, dim) in zip(indeces, dims)]
     sl_step = [1 for sl in indeces]  # not used
@@ -131,32 +127,27 @@ def apply_to_patch(mmap_file, shape, dview, rf, stride, function, *args, **kwarg
     """
     apply function to patches in parallel or not
 
-    Parameters:
-    ----------
-    file_name: string
-        full path to an npy file (2D, pixels x time) containing the movie
+    Args:
+        file_name: string
+            full path to an npy file (2D, pixels x time) containing the movie
 
-    shape: tuple of three elements
-        dimensions of the original movie across y, x, and time
+        shape: tuple of three elements
+            dimensions of the original movie across y, x, and time
 
+        rf: int
+            half-size of the square patch in pixel
 
-    rf: int
-        half-size of the square patch in pixel
+        stride: int
+            amount of overlap between patches
 
-    stride: int
-        amount of overlap between patches
-
-
-    dview: ipyparallel view on client
-        if None
+        dview: ipyparallel view on client
+            if None
 
     Returns:
-    -------
-    results
+        results
 
-    Raise:
-    -----
-    Exception('Something went wrong')
+    Raises:
+        Exception 'Something went wrong'
 
     """
     (_, d1, d2) = shape
@@ -236,14 +227,13 @@ def start_server(slurm_script=None, ipcluster="ipcluster", ncpus=None):
     """
     programmatically start the ipyparallel server
 
-    Parameters:
-    ----------
-    ncpus: int
-        number of processors
+    Args:
+        ncpus: int
+            number of processors
 
-    ipcluster : str
-        ipcluster binary file name; requires 4 path separators on Windows. ipcluster="C:\\\\Anaconda2\\\\Scripts\\\\ipcluster.exe"
-         Default: "ipcluster"
+        ipcluster : str
+            ipcluster binary file name; requires 4 path separators on Windows. ipcluster="C:\\\\Anaconda2\\\\Scripts\\\\ipcluster.exe"
+            Default: "ipcluster"
     """
     logger.info("Starting cluster...")
     if ncpus is None:
@@ -276,8 +266,6 @@ def start_server(slurm_script=None, ipcluster="ipcluster", ncpus=None):
         c.close()
         sys.stdout.write("start_server: done\n")
 
-
-#%%
 def shell_source(script):
     """ Run a source-style bash script, copy resulting env vars to current process. """
     # XXX This function is weird and maybe not a good idea. People easily might expect
@@ -298,18 +286,15 @@ def shell_source(script):
 
     os.environ.update(env)
     pipe.stdout.close()
-#%%
-
 
 def stop_server(ipcluster='ipcluster', pdir=None, profile=None, dview=None):
     """
     programmatically stops the ipyparallel server
 
-    Parameters:
-     ----------
-     ipcluster : str
-         ipcluster binary file name; requires 4 path separators on Windows
-         Default: "ipcluster"
+    Args:
+        ipcluster : str
+            ipcluster binary file name; requires 4 path separators on Windows
+            Default: "ipcluster"
 
     """
     if 'multiprocessing' in str(type(dview)):
@@ -374,20 +359,17 @@ def stop_server(ipcluster='ipcluster', pdir=None, profile=None, dview=None):
 
 def setup_cluster(backend='multiprocessing', n_processes=None, single_thread=False):
     """Setup and/or restart a parallel cluster.
-    Parameters:
-    ----------
-    backend: str
-        'multiprocessing' [alias 'local'], 'ipyparallel', and 'SLURM'
-        ipyparallel and SLURM backends try to restart if cluster running.
-        backend='multiprocessing' raises an exception if a cluster is running.
+    Args:
+        backend: str
+            'multiprocessing' [alias 'local'], 'ipyparallel', and 'SLURM'
+            ipyparallel and SLURM backends try to restart if cluster running.
+            backend='multiprocessing' raises an exception if a cluster is running.
 
     Returns:
-    ----------
         c: ipyparallel.Client object; only used for ipyparallel and SLURM backends, else None
         dview: ipyparallel dview object, or for multiprocessing: Pool object
         n_processes: number of workers in dview. None means guess at number of machine cores.
     """
-    #todo: todocument
 
     if n_processes is None:
         if backend == 'SLURM':

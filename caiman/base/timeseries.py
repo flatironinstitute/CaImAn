@@ -116,20 +116,18 @@ class timeseries(np.ndarray):
         """
         Save the timeseries in various formats
 
-        parameters:
-        ----------
-        file_name: str
-            name of file. Possible formats are tif, avi, npz, mmap and hdf5
+        Args:
+            file_name: str
+                name of file. Possible formats are tif, avi, npz, mmap and hdf5
 
-        to32: Bool
-            whether to transform to 32 bits
+            to32: Bool
+                whether to transform to 32 bits
 
-                order: 'F' or 'C'
-                        C or Fortran order
+            order: 'F' or 'C'
+                C or Fortran order
 
-        Raise:
-        -----
-        raise Exception('Extension Unknown')
+        Raises:
+            Exception 'Extension Unknown'
 
         """
         name, extension = os.path.splitext(file_name)[:2]

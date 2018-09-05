@@ -63,20 +63,18 @@ class OnACID(object):
     state of the algorithm (optional)
 
     Methods:
-    ------------
-    initialize_online: 
+        initialize_online: 
+            Initialize the online algorithm using a provided method, and prepare
+            the online object
 
-        Initialize the online algorithm using a provided method, and prepare
-        the online object
+        _prepare_object: 
+            Prepare the online object given a set of estimates
 
-    _prepare_object: 
-        Prepare the online object given a set of estimates
-        
-    fit_next:
-        Fit the algorithm on the next data frame
+        fit_next:
+            Fit the algorithm on the next data frame
 
-    fit_online:
-        Run the entire online pipeline on a given list of files
+        fit_online:
+            Run the entire online pipeline on a given list of files
     """
 
     def __init__(self, params=None, estimates=None):
@@ -152,17 +150,6 @@ class OnACID(object):
             else:
                 use_L1 = False
 
-#            self.estimates.OASISinstances = [OASIS(
-#                g=np.ravel(0.01) if self.params.get('preprocess', 'p') == 0 else (
-#                    np.ravel(g)[0] if g is not None else gam[0]),
-#                lam=0 if not use_L1 else (l if lam is None else lam),
-#                s_min=0 if use_L1 else (s_min if s_min is not None else
-#                                        (self.params.get('temporal', 's_min') if self.params.get('temporal', 's_min') > 0 else
-#                                         (-self.params.get('temporal', 's_min') * sn * np.sqrt(1 - np.sum(gam))))),
-#                b=b if bl is None else bl,
-#                g2=0 if self.params.get('preprocess', 'p') < 2 else (np.ravel(g)[1] if g is not None else gam[1]))
-#                for gam, l, b, sn in zip(self.estimates.g, self.estimates.lam, self.estimates.bl, self.estimates.neurons_sn)]
-            
             self.estimates.OASISinstances = [OASIS(
                 g=np.ravel(0.01) if self.params.get('preprocess', 'p') == 0 else gam[0],
                 lam=0 if not use_L1 else l,
@@ -245,24 +232,21 @@ class OnACID(object):
 
         self.loaded_model = loaded_model
         return self
-         
+
     def fit_next(self, t, frame_in, num_iters_hals=3):
         """
         This method fits the next frame using the online cnmf algorithm and
         updates the object.
 
-        Parameters
-        ----------
-        t : int
-            time measured in number of frames
+        Args
+            t : int
+                time measured in number of frames
 
-        frame_in : array
-            flattened array of shape (x*y[*z],) containing the t-th image.
+            frame_in : array
+                flattened array of shape (x*y[*z],) containing the t-th image.
 
-        num_iters_hals: int, optional
-            maximal number of iterations for HALS (NNLS via blockCD)
-
-
+            num_iters_hals: int, optional
+                maximal number of iterations for HALS (NNLS via blockCD)
         """
 
         t_start = time()
@@ -529,7 +513,7 @@ class OnACID(object):
                 self.estimates.Ab = Ab_
             self.time_spend += time() - t_start
         return self
-         
+
     def initialize_online(self):
         fls = self.params.get('data', 'fnames')
         opts = self.params.get_group('online')
@@ -549,7 +533,7 @@ class OnACID(object):
             self.estimates.shifts.extend(mc[1])
 
         img_min = Y.min()
-        
+
         if self.params.get('online', 'normalize'):
             Y -= img_min
         img_norm = np.std(Y, axis=0)
@@ -585,7 +569,7 @@ class OnACID(object):
 #                self.estimates.A, self.estimates.C, self.estimates.b, self.estimates.f,\
 #                self.estimates.S, self.estimates.YrA = cnm.estimates.A, cnm.estimates.C, cnm.estimates.b,\
 #                cnm.estimates.f, cnm.estimates.S, self.estimates.YrA
-                
+
             else:
                 f_new = mmapping.save_memmap(fls[:1], base_name='Yr', order='C',
                                              slices=[slice(0, opts['init_batch']), None, None])
@@ -600,7 +584,7 @@ class OnACID(object):
                     self.estimates.A /= self.img_norm.reshape(-1, order='F')[:, np.newaxis]
                     self.estimates.b /= self.img_norm.reshape(-1, order='F')[:, np.newaxis]
                     self.estimates.A = csc_matrix(self.estimates.A)
-            
+
         elif self.params.get('online', 'init_method') == 'seeded':
             self.estimates.A, self.estimates.b, self.estimates.C, self.estimates.f, self.estimates.YrA = seeded_initialization(
                     Y.transpose(1, 2, 0), self.estimates.A, gnb=self.params.get('init', 'nb'), k=self.params.get('init', 'k'),
@@ -628,17 +612,18 @@ class OnACID(object):
         return self
 
     def save(self,filename):
-        '''save object in hdf5 file format
-        Parameters:
-        -----------
-        filename: str
-            path to the hdf5 file containing the saved object
-        '''
+        """save object in hdf5 file format
+
+        Args:
+            filename: str
+                path to the hdf5 file containing the saved object
+        """
+
         if '.hdf5' in filename:
             # keys_types = [(k, type(v)) for k, v in self.__dict__.items()]
             save_dict_to_hdf5(self.__dict__, filename)
         else:
-            raise Exception("Filename not supported")
+            raise Exception("Unsupported file extension")
 
     def fit_online(self, **kwargs):
         """Implements the caiman online algorithm on the list of files fls. The
@@ -646,42 +631,28 @@ class OnACID(object):
         the same number of frames (except the last one that can be shorter).
         Caiman online is initialized using the seeded or bare initialization
         methods.
-        Parameters:
-        -----------
-        fls: list
-            list of files to be processed
 
-        init_batch: int
-            number of frames to be processed during initialization
+        Args:
+            fls: list
+                list of files to be processed
 
-        epochs: int
-            number of passes over the data
+            init_batch: int
+                number of frames to be processed during initialization
 
-        motion_correct: bool
-            flag for performing motion correction
+            epochs: int
+                number of passes over the data
 
-        kwargs: dict
-            additional parameters used to modify self.params.online']
-            see options.['online'] for details
+            motion_correct: bool
+                flag for performing motion correction
+
+            kwargs: dict
+                additional parameters used to modify self.params.online']
+                see options.['online'] for details
 
         Returns:
-        --------
-        self (results of caiman online)
+            self (results of caiman online)
         """
-#        lc = locals()
-#        pr = inspect.signature(self.fit_online)
-#        params = [k for k, v in pr.parameters.items() if '=' in str(v)]
-#        kw2 = {k: lc[k] for k in params}
-#        try:
-#            kwargs_new = {**kw2, **kwargs}
-#        except():  # python 2.7
-#            kwargs_new = kw2.copy()
-#            kwargs_new.update(kwargs)
-#        self.params.set('data', {'fnames': fls})
-#        self.params.set('online', kwargs_new)
-#        for key in kwargs_new:
-#            if hasattr(self, key):
-#                setattr(self, key, kwargs_new[key])
+
         fls = self.params.get('data', 'fnames')
         init_batch = self.params.get('online', 'init_batch')
         epochs = self.params.get('online', 'epochs')
@@ -728,7 +699,7 @@ class OnACID(object):
                     frame_ = frame.copy().astype(np.float32)
                     if self.params.get('online', 'ds_factor') > 1:
                         frame_ = cv2.resize(frame_, self.img_norm.shape[::-1])
-                    
+
                     if self.params.get('online', 'normalize'):
                         frame_ -= self.img_min     # make data non-negative
 
@@ -784,7 +755,7 @@ class OnACID(object):
         if self.params.get('online', 'show_movie'):
             cv2.destroyAllWindows()
         return self
-    
+
     def create_frame(self, frame_cor, show_residuals=True, resize_fact=1):
         if show_residuals:
             caption = 'Mean Residual Buffer'
@@ -843,32 +814,30 @@ def bare_initialization(Y, init_batch=1000, k=1, method_init='greedy_roi', gnb=1
                         gSig=[5, 5], motion_flag=False, p=1,
                         return_object=True, **kwargs):
     """
-    Quick and dirty initialization for OnACID, bypassing entirely CNMF
-    Inputs:
-    -------
-    Y               movie object or np.array
-                    matrix of data
+    Quick and dirty initialization for OnACID, bypassing CNMF entirely
+    Args:
+        Y               movie object or np.array
+                        matrix of data
 
-    init_batch      int
-                    number of frames to process
+        init_batch      int
+                        number of frames to process
 
-    method_init     string
-                    initialization method
+        method_init     string
+                        initialization method
 
-    k               int
-                    number of components to find
+        k               int
+                        number of components to find
 
-    gnb             int
-                    number of background components
+        gnb             int
+                        number of background components
 
-    gSig            [int,int]
-                    half-size of component
+        gSig            [int,int]
+                        half-size of component
 
-    motion_flag     bool
-                    also perform motion correction
+        motion_flag     bool
+                        also perform motion correction
 
     Output:
-    -------
         cnm_init    object
                     caiman CNMF-like object to initialize OnACID
     """
@@ -893,7 +862,7 @@ def bare_initialization(Y, init_batch=1000, k=1, method_init='greedy_roi', gnb=1
     if return_object:
         cnm_init = caiman.source_extraction.cnmf.cnmf.CNMF(2, k=k, gSig=gSig, Ain=Ain, Cin=Cin, b_in=np.array(
             b_in), f_in=f_in, method_init=method_init, p=p, gnb=gnb, **kwargs)
-    
+
         cnm_init.estimates.A, cnm_init.estimates.C, cnm_init.estimates.b, cnm_init.estimates.f, cnm_init.estimates.S,\
             cnm_init.estimates.YrA = Ain, Cin, b_in, f_in, np.maximum(np.atleast_2d(Cin), 0), YrA
 
@@ -918,33 +887,30 @@ def seeded_initialization(Y, Ain, dims=None, init_batch=1000, order_init=None, g
 
     """
     Initialization for OnACID based on a set of user given binary masks.
-    Inputs:
-    -------
-    Y               movie object or np.array
-                    matrix of data
+    Args:
+        Y               movie object or np.array
+                        matrix of data
 
-    Ain             bool np.array
-                    2d np.array with binary masks
+        Ain             bool np.array
+                        2d np.array with binary masks
 
-    dims            tuple
-                    dimensions of FOV
+        dims            tuple
+                        dimensions of FOV
 
-    init_batch      int
-                    number of frames to process
+        init_batch      int
+                        number of frames to process
 
-    gnb             int
-                    number of background components
+        gnb             int
+                        number of background components
 
-    order_init:     list
-                    order of elements to be initalized using rank1 nmf restricted to the support of
-                    each component
+        order_init:     list
+                        order of elements to be initalized using rank1 nmf restricted to the support of
+                        each component
 
     Output:
-    -------
         cnm_init    object
                     caiman CNMF-like object to initialize OnACID
     """
-
 
     if 'ndarray' not in str(type(Ain)):
         Ain = Ain.toarray()
@@ -981,7 +947,7 @@ def seeded_initialization(Y, Ain, dims=None, init_batch=1000, order_init=None, g
         Ain = normalize(Ain.astype('float32'), axis=0, norm='l1')
         Cin = np.maximum(Ain.T.dot(Yr) - (Ain.T.dot(b_in)).dot(f_in), 0)
         Ain = HALS4shapes(Yr_no_bg, Ain, Cin, iters=5)
-        
+
     Ain, Cin, b_in, f_in = hals(Yr, Ain, Cin, b_in, f_in, maxIter=8, bSiz=None)
     Ain = csc_matrix(Ain)
     nA = (Ain.power(2).sum(axis=0))
@@ -1005,7 +971,7 @@ def seeded_initialization(Y, Ain, dims=None, init_batch=1000, order_init=None, g
         cnm_init.estimates.lam = np.zeros(nr)
         cnm_init.dims = Y.shape[:-1]
         cnm_init.params.set('online', {'init_batch': init_batch})
-    
+
         return cnm_init
     else:
         return Ain, np.array(b_in), Cin, f_in, YrA
@@ -1035,39 +1001,37 @@ def HALS4activity(Yr, A, noisyC, AtA=None, iters=5, tol=1e-3, groups=None,
     groups to update non-overlapping components in parallel or a specified
     order.
 
-    Parameters
-    ----------
-    Yr : np.array (possibly memory mapped, (x,y,[,z]) x t)
-        Imaging data reshaped in matrix format
+    Args:
+        Yr : np.array (possibly memory mapped, (x,y,[,z]) x t)
+            Imaging data reshaped in matrix format
 
-    A : scipy.sparse.csc_matrix (or np.array) (x,y,[,z]) x # of components)
-        Spatial components and background
+        A : scipy.sparse.csc_matrix (or np.array) (x,y,[,z]) x # of components)
+            Spatial components and background
 
-    noisyC : np.array  (# of components x t)
-        Temporal traces (including residuals plus background)
+        noisyC : np.array  (# of components x t)
+            Temporal traces (including residuals plus background)
 
-    AtA : np.array, optional (# of components x # of components)
-        A.T.dot(A) Overlap matrix of shapes A.
+        AtA : np.array, optional (# of components x # of components)
+            A.T.dot(A) Overlap matrix of shapes A.
 
-    iters : int, optional
-        Maximum number of iterations.
+        iters : int, optional
+            Maximum number of iterations.
 
-    tol : float, optional
-        Change tolerance level
+        tol : float, optional
+            Change tolerance level
 
-    groups : list of sets
-        grouped components to be updated simultaneously
+        groups : list of sets
+            grouped components to be updated simultaneously
 
-    order : list
-        Update components in that order (used if nonempty and groups=None)
+        order : list
+            Update components in that order (used if nonempty and groups=None)
 
-    Output:
-    -------
-    C : np.array (# of components x t)
-        solution of HALS
+    Returns:
+        C : np.array (# of components x t)
+            solution of HALS
 
-    noisyC : np.array (# of components x t)
-        solution of HALS + residuals, i.e, (C + YrA)
+        noisyC : np.array (# of components x t)
+            solution of HALS + residuals, i.e, (C + YrA)
     """
 
     AtY = A.T.dot(Yr)
@@ -1103,25 +1067,25 @@ def demix_and_deconvolve(C, noisyC, AtY, AtA, OASISinstances, iters=3, n_refit=0
     using OASIS within block-coordinate decent
     Newly fits the last elements in buffers C and AtY and possibly refits
     earlier elements.
-    Parameters
-    ----------
-    C : ndarray of float
-        Buffer containing the denoised fluorescence intensities.
-        All elements up to and excluding the last one have been denoised in
-        earlier calls.
-    noisyC : ndarray of float
-        Buffer containing the undenoised fluorescence intensities.
-    AtY : ndarray of float
-        Buffer containing the projections of data Y on shapes A.
-    AtA : ndarray of float
-        Overlap matrix of shapes A.
-    OASISinstances : list of OASIS objects
-        Objects for deconvolution and denoising
-    iters : int, optional
-        Number of iterations.
-    n_refit : int, optional
-        Number of previous OASIS pools to refit
-        0 fits only last pool, np.inf all pools fully (i.e. starting) within buffer
+
+    Args:
+        C : ndarray of float
+            Buffer containing the denoised fluorescence intensities.
+            All elements up to and excluding the last one have been denoised in
+            earlier calls.
+        noisyC : ndarray of float
+            Buffer containing the undenoised fluorescence intensities.
+        AtY : ndarray of float
+            Buffer containing the projections of data Y on shapes A.
+        AtA : ndarray of float
+            Overlap matrix of shapes A.
+        OASISinstances : list of OASIS objects
+            Objects for deconvolution and denoising
+        iters : int, optional
+            Number of iterations.
+        n_refit : int, optional
+            Number of previous OASIS pools to refit
+            0 fits only last pool, np.inf all pools fully (i.e. starting) within buffer
     """
     AtA += np.finfo(float).eps
     T = OASISinstances[0].t + 1
@@ -1188,14 +1152,10 @@ def init_shapes_and_sufficient_stats(Y, A, C, b, f, bSiz=3):
     if isinstance(bSiz, (int, float)):
         bSiz = [bSiz] * len(dims)
 
-    # ind_A = uniform_filter(np.reshape(A, dims + (K,), order='F'), size=bSiz + [0])
-    # ind_A = np.reshape(ind_A > 1e-10, (np.prod(dims), K), order='F')
-    # ind_A = [np.where(a)[0] for a in ind_A.T]
     Ab = np.hstack([b, A])
     # Ab = scipy.sparse.hstack([A.astype('float32'), b.astype('float32')]).tocsc()  might be faster
     # closing of shapes to not have holes in index matrix ind_A.
     # do this somehow smarter & faster, e.g. smooth only within patch !!
-    #a = Ab[:,0]
     A_smooth = np.transpose([gaussian_filter(np.array(a).reshape(
         dims, order='F'), 0).ravel(order='F') for a in Ab.T])
     A_smooth[A_smooth < 1e-2] = 0
@@ -1207,18 +1167,7 @@ def init_shapes_and_sufficient_stats(Y, A, C, b, f, bSiz=3):
     Cf = np.r_[f.reshape(nb, -1), C]
     CY = Cf.dot(np.reshape(Y, (np.prod(dims), T), order='F').T)
     CC = Cf.dot(Cf.T)
-    # # hals
-    # for _ in range(5):
-    #     for m in range(K):  # neurons
-    #         ind_pixels = ind_A[m]
-    #         Ab[ind_pixels, m] = np.clip(
-    #             Ab[ind_pixels, m] + ((CY[m, ind_pixels] - CC[m].dot(Ab[ind_pixels].T)) / CC[m, m]),
-    #             0, np.inf)
-    #     for m in range(K, K + nb):  # background
-    #         Ab[:, m] = np.clip(Ab[:, m] + ((CY[m] - CC[m].dot(Ab.T)) /
-    #                                        CC[m, m]), 0, np.inf)
     return Ab, ind_A, CY, CC
-
 
 @profile
 def update_shapes(CY, CC, Ab, ind_A, sn=None, q=0.5, indicator_components=None, Ab_dense=None, update_bkgrd=True, iters=5):
@@ -1252,13 +1201,6 @@ def update_shapes(CY, CC, Ab, ind_A, sn=None, q=0.5, indicator_components=None, 
                     tmp = tmp / max(1, sqrt(tmp.dot(tmp)))
                     Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]] = tmp
 
-#                    Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]] = np.maximum(
-#                        Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]] +
-#                        ((CY[m, ind_pixels] - Ab.dot(CC[m])[ind_pixels]) / CC[m, m]), 0)
-                    # normalize
-#                    Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]] /= \
-#                        max(1, sqrt(Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]]
-#                                    .dot(Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]])))
                     ind_A[m -
                           nb] = Ab.indices[slice(Ab.indptr[m], Ab.indptr[m + 1])]
                 # N.B. Ab[ind_pixels].dot(CC[m]) is slower for csc matrix due to indexing rows
@@ -1294,8 +1236,6 @@ def update_shapes(CY, CC, Ab, ind_A, sn=None, q=0.5, indicator_components=None, 
 
     return Ab, ind_A, Ab_dense
 
-
-#%%
 class RingBuffer(np.ndarray):
     """ implements ring buffer efficiently"""
 
@@ -1627,18 +1567,6 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                 accepted = (fitness_delta < thresh_fitness_delta) or (
                     fitness_raw < thresh_fitness_raw)
 
-#        if accepted:
-#            dims_ain = (np.abs(np.diff(ijSig[1])[0]), np.abs(np.diff(ijSig[0])[0]))
-#            thrcomp = threshold_components(ain[:,None],
-#                                 dims_ain, medw=None, thr_method='max', maxthr=0.2,
-#                                 nrgthr=0.99, extract_cc=True,
-#                                 se=None, ss=None)
-#
-#            sznr = np.sum(thrcomp>0)
-#            accepted = (sznr >= np.pi*(np.prod(gSig)/4))
-#            if not accepted:
-#                print('Rejected because of size')
-
         if accepted:
             # print('adding component' + str(N + 1) + ' at timestep ' + str(t))
             num_added += 1
@@ -1701,24 +1629,15 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
             slice_within = tuple(slice(ijs[0] - sl.start, ijs[1] - sl.start)
                            for ijs, sl in zip(ijSig, slices))
 
-
             ind_vb = np.ravel_multi_index(
                np.ix_(*[np.arange(ij[0], ij[1])
                       for ij in ijSig]), dims, order='C').ravel()
-
-
-
 
             vb_buf = [imblur(np.maximum(0,vb.reshape(dims,order='F')[slices][slice_within]), sig=gSig, siz=gSiz, nDimBlur=len(dims)) for vb in Yres_buf]
 
             vb_buf2 = np.stack([vb.ravel() for vb in vb_buf])
 
-#            ind_vb = np.ravel_multi_index(
-#                    np.ix_(*[np.arange(s.start, s.stop)
-#                           for s in slices_small]), dims).ravel()
-
             rho_buf[:, ind_vb] = vb_buf2**2
-
 
             sv[ind_vb] = np.sum(rho_buf[:, ind_vb], 0)
 #            sv = np.sum([imblur(vb.reshape(dims,order='F'), sig=gSig, siz=gSiz, nDimBlur=len(dims))**2 for vb in Yres_buf], 0).reshape(-1)
@@ -1750,15 +1669,16 @@ def remove_components_online(ind_rem, gnb, Ab, use_dense, Ab_dense, AtA, CY,
     """
     Remove components indexed by ind_r (indexing starts at zero)
 
-    ind_rem list
-        indeces of components to be removed (starting from zero)
-    gnb int
-        number of global background components
-    Ab  csc_matrix
-        matrix of components + background
-    use_dense bool
-        use dense representation
-    Ab_dense ndarray
+    Args:
+        ind_rem list
+            indeces of components to be removed (starting from zero)
+        gnb int
+            number of global background components
+        Ab  csc_matrix
+            matrix of components + background
+        use_dense bool
+            use dense representation
+        Ab_dense ndarray
     """
 
     ind_rem.sort()
@@ -1781,7 +1701,6 @@ def remove_components_online(ind_rem, gnb, Ab, use_dense, Ab_dense, AtA, CY,
     noisyC = np.delete(noisyC, ind_rem, axis=0)
     for ii in ind_rem:
         del OASISinstances[ii - gnb]
-#        #del self.ind_A[ii-self.gnb]
 
     C_on = np.delete(C_on, ind_rem, axis=0)
     Ab = csc_matrix(Ab[:, ind_keep])
@@ -1790,8 +1709,6 @@ def remove_components_online(ind_rem, gnb, Ab, use_dense, Ab_dense, AtA, CY,
     groups = list(map(list, update_order(Ab)[0]))
 
     return Ab, Ab_dense, CC, CY, M, N, noisyC, OASISinstances, C_on, exp_comps, ind_A, groups, AtA
-#%%
-
 
 def initialize_movie_online(Y, K, gSig, rf, stride, base_name,
                             p=1, merge_thresh=0.95, rval_thr_online=0.9, thresh_fitness_delta_online=-30, thresh_fitness_raw_online=-50,
@@ -1906,15 +1823,14 @@ def initialize_movie_online(Y, K, gSig, rf, stride, base_name,
     return cnm_refine, Cn2, fname_new
 
 def load_OnlineCNMF(filename, dview = None):
-    '''load object saved with the CNMF save method
-    Parameters:
-    ----------
-    filename: str
-        hdf5 file name containing the saved object
-    dview: multiprocessingor ipyparallel object
-        useful to set up parllelization in the objects
+    """load object saved with the CNMF save method
 
-    '''
+    Args:
+        filename: str
+            hdf5 file name containing the saved object
+        dview: multiprocessingor ipyparallel object
+            useful to set up parllelization in the objects
+    """
 
     #load params
 

@@ -869,18 +869,15 @@ def nf_masks_to_neurof_dict(binary_masks, dataset_name):
     """
     Take as input a tensor of binary mask and produces dict format for neurofinder
 
-    Parameters:
-    -----------
-    binary_masks: 3d ndarray (components x dimension 1  x dimension 2)
-
-    dataset_filename: name of the dataset
+    Args:
+        binary_masks: 3d ndarray (components x dimension 1  x dimension 2)
+        dataset_filename: name of the dataset
 
     Returns:
-    --------
-    dset: dict
-        dataset in neurofinder format to be saved in json
-
+        dset: dict
+            dataset in neurofinder format to be saved in json
     """
+
     regions = []
     for m in binary_masks:
         coords = [[int(x), int(y)] for x, y in zip(*np.where(m))]

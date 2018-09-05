@@ -37,10 +37,6 @@ import h5py
 import os
 import cv2
 
-
-# %%
-
-
 def dict_compare(d1, d2):
     d1_keys = set(d1.keys())
     d2_keys = set(d2.keys())
@@ -51,48 +47,40 @@ def dict_compare(d1, d2):
     same = set(o for o in intersect_keys if np.all(d1[o] == d2[o]))
     return added, removed, modified, same
 
-#%%
 def computeDFF_traces(Yr, A, C, bl, quantileMin=8, frames_window=200):
     extract_DF_F(Yr, A, C, bl, quantileMin, frames_window)
 
 
-#%%
 def extract_DF_F(Yr, A, C, bl, quantileMin=8, frames_window=200, block_size=400, dview=None):
     """ Compute DFF function from cnmf output.
-s
+
      Disclaimer: it might be memory inefficient
 
-    Parameters:
-    -----------
-    Yr: ndarray (2D)
-        movie pixels X time
+    Args:
+        Yr: ndarray (2D)
+            movie pixels X time
 
-    A: scipy.sparse.coo_matrix
-        spatial components (from cnmf cnm.A)
+        A: scipy.sparse.coo_matrix
+            spatial components (from cnmf cnm.A)
 
-    C: ndarray
-        temporal components (from cnmf cnm.C)
+        C: ndarray
+            temporal components (from cnmf cnm.C)
 
-    bl: ndarray
-        baseline for each component (from cnmf cnm.bl)
+        bl: ndarray
+            baseline for each component (from cnmf cnm.bl)
 
-    quantile_min: float
-        quantile minimum of the
+        quantile_min: float
+            quantile minimum of the
 
-    frames_window: int
-        number of frames for running quantile
+        frames_window: int
+            number of frames for running quantile
 
     Returns:
-    -------
-
-    Cdf:
-        the computed Calcium acitivty to the derivative of f
+        Cdf:
+            the computed Calcium acitivty to the derivative of f
 
     See Also:
-    -------
-
-    ..image::docs/img/onlycnmf.png
-
+        ..image::docs/img/onlycnmf.png
     """
     nA = np.array(np.sqrt(A.power(2).sum(0)).T)
     A = scipy.sparse.coo_matrix(A / nA.T)
@@ -132,47 +120,42 @@ s
 
     return C_df
 
-
-#%%
 def detrend_df_f(A, b, C, f, YrA=None, quantileMin=8, frames_window=500, 
                  flag_auto=True, use_fast=False):
     """ Compute DF/F signal without using the original data.
     In general much faster than extract_DF_F
 
-    Parameters:
-    -----------
-    A: scipy.sparse.csc_matrix
-        spatial components (from cnmf cnm.A)
+    Args:
+        A: scipy.sparse.csc_matrix
+            spatial components (from cnmf cnm.A)
 
-    b: ndarray
-        spatial background components
+        b: ndarray
+            spatial background components
 
-    C: ndarray
-        temporal components (from cnmf cnm.C)
+        C: ndarray
+            temporal components (from cnmf cnm.C)
 
-    f: ndarray
-        temporal background components
+        f: ndarray
+            temporal background components
 
-    YrA: ndarray
-        residual signals
+        YrA: ndarray
+            residual signals
 
-    quantile_min: float
-        quantile used to estimate the baseline (values in [0,100])
+        quantile_min: float
+            quantile used to estimate the baseline (values in [0,100])
 
-    frames_window: int
-        number of frames for computing running quantile
+        frames_window: int
+            number of frames for computing running quantile
 
-    flag_auto: bool
-        flag for determining quantile automatically
+        flag_auto: bool
+            flag for determining quantile automatically
 
-    use_fast: bool
-        flag for using approximate fast percentile filtering
+        use_fast: bool
+            flag for using approximate fast percentile filtering
 
     Returns:
-    ----------
-    F_df:
-        the computed Calcium acitivty to the derivative of f
-
+        F_df:
+            the computed Calcium acitivty to the derivative of f
     """
 
     if C is None:
@@ -237,9 +220,6 @@ def detrend_df_f(A, b, C, f, YrA=None, quantileMin=8, frames_window=500,
             F_df = (F - Fd) / (Df + Fd)
     return F_df
 
-
-#%%
-
 def fast_prct_filt(input_data, level=8, frames_window=1000):
     """
     Fast approximate percentage filtering
@@ -280,35 +260,33 @@ def detrend_df_f_auto(A, b, C, f, dims=None, YrA=None, use_annulus = True,
     Compute DF/F using an automated level of percentile filtering based on
     kernel density estimation.
 
-    Parameters:
-    -----------
-    A: scipy.sparse.csc_matrix
-        spatial components (from cnmf cnm.A)
+    Args:
+        A: scipy.sparse.csc_matrix
+            spatial components (from cnmf cnm.A)
 
-    b: ndarray
-        spatial backgrounds
+        b: ndarray
+            spatial backgrounds
 
-    C: ndarray
-        temporal components (from cnmf cnm.C)
+        C: ndarray
+            temporal components (from cnmf cnm.C)
 
-    f: ndarray
-        temporal background components
+        f: ndarray
+            temporal background components
 
-    YrA: ndarray
-        residual signals
+        YrA: ndarray
+            residual signals
 
-    frames_window: int
-        number of frames for running quantile
+        frames_window: int
+            number of frames for running quantile
 
-    use_fast: bool
-        flag for using fast approximate percentile filtering
+        use_fast: bool
+            flag for using fast approximate percentile filtering
 
     Returns:
-    ----------
-    F_df:
-        the computed Calcium acitivty to the derivative of f
-
+        F_df:
+            the computed Calcium acitivty to the derivative of f
     """
+
     if 'csc_matrix' not in str(type(A)):
         A = scipy.sparse.csc_matrix(A)
     if 'array' not in str(type(b)):
@@ -383,45 +361,39 @@ def detrend_df_f_auto(A, b, C, f, dims=None, YrA=None, use_annulus = True,
 def manually_refine_components(Y, xxx_todo_changeme, A, C, Cn, thr=0.9, display_numbers=True,
                                max_number=None, cmap=None, **kwargs):
     """Plots contour of spatial components
-
      against a background image and allows to interactively add novel components by clicking with mouse
 
-     Parameters
-     -----------
-     Y: ndarray
-               movie in 2D
+     Args:
+         Y: ndarray
+                   movie in 2D
 
-     (dx,dy): tuple
-               dimensions of the square used to identify neurons (should be set to the galue of gsiz)
+         (dx,dy): tuple
+                   dimensions of the square used to identify neurons (should be set to the galue of gsiz)
 
-     A:   np.ndarray or sparse matrix
-               Matrix of Spatial components (d x K)
+         A:   np.ndarray or sparse matrix
+                   Matrix of Spatial components (d x K)
 
-     Cn:  np.ndarray (2D)
-               Background image (e.g. mean, correlation)
+         Cn:  np.ndarray (2D)
+                   Background image (e.g. mean, correlation)
 
-     thr: scalar between 0 and 1
-               Energy threshold for computing contours (default 0.995)
+         thr: scalar between 0 and 1
+                   Energy threshold for computing contours (default 0.995)
 
-     display_number:     Boolean
-               Display number of ROIs if checked (default True)
+         display_number:     Boolean
+                   Display number of ROIs if checked (default True)
 
-     max_number:    int
-               Display the number for only the first max_number components (default None, display all numbers)
+         max_number:    int
+                   Display the number for only the first max_number components (default None, display all numbers)
 
-     cmap:     string
-               User specifies the colormap (default None, default colormap)
+         cmap:     string
+                   User specifies the colormap (default None, default colormap)
 
+     Returns:
+         A: np.ndarray
+             matrix A os estimated spatial component contributions
 
-
-     Returns
-     --------
-     A: np.ndarray
-         matrix A os estimated  spatial component contributions
-
-     C: np.ndarray
-         array of estimated calcium traces
-
+         C: np.ndarray
+             array of estimated calcium traces
     """
     (dx, dy) = xxx_todo_changeme
     if issparse(A):
@@ -511,21 +483,18 @@ def manually_refine_components(Y, xxx_todo_changeme, A, C, Cn, thr=0.9, display_
 
     return A, C
 
-
-#%%
 def app_vertex_cover(A):
     """ Finds an approximate vertex cover for a symmetric graph with adjacency matrix A.
 
-     Parameters:
-     -----------
-     A:    boolean 2d array (K x K)
-          Adjacency matrix. A is boolean with diagonal set to 0
+    Args:
+        A:  boolean 2d array (K x K)
+            Adjacency matrix. A is boolean with diagonal set to 0
 
-     Returns:
-     --------
-     L:   A vertex cover of A
+    Returns:
+        L:   A vertex cover of A
 
-     @authors by Eftychios A. Pnevmatikakis, Simons Foundation, 2015
+    Authors:
+    Eftychios A. Pnevmatikakis, Simons Foundation, 2015
     """
 
     L = []
@@ -542,21 +511,20 @@ def app_vertex_cover(A):
 def update_order(A, new_a=None, prev_list=None, method='greedy'):
     '''Determines the update order of the temporal components given the spatial
     components by creating a nest of random approximate vertex covers
-     Input:
-     -------
-     A:    np.ndarray
-          matrix of spatial components (d x K)
-     new_a: sparse array
-          spatial component that is added, in order to efficiently update the orders in online scenarios
-     prev_list: list of list
-          orders from previous iteration, you need to pass if new_a is not None
 
-     Outputs:
-     ---------
-     O:   list of sets
-          list of subsets of components. The components of each subset can be updated in parallel
-     lo:  list
-          length of each subset
+     Args:
+         A:    np.ndarray
+              matrix of spatial components (d x K)
+         new_a: sparse array
+              spatial component that is added, in order to efficiently update the orders in online scenarios
+         prev_list: list of list
+              orders from previous iteration, you need to pass if new_a is not None
+
+     Returns:
+         O:  list of sets
+             list of subsets of components. The components of each subset can be updated in parallel
+         lo: list
+             length of each subset
 
     Written by Eftychios A. Pnevmatikakis, Simons Foundation, 2015
     '''
@@ -593,31 +561,27 @@ def update_order(A, new_a=None, prev_list=None, method='greedy'):
 
         return prev_list, count_list
 
-
-#%%
 def order_components(A, C):
     """Order components based on their maximum temporal value and size
 
-    Parameters:
-    -----------
-    A:   sparse matrix (d x K)
-         spatial components
+    Args:
+        A:  sparse matrix (d x K)
+            spatial components
 
-    C:   matrix or np.ndarray (K x T)
-         temporal components
+        C:  matrix or np.ndarray (K x T)
+            temporal components
 
     Returns:
-    -------
-    A_or:  np.ndarray
-        ordered spatial components
+        A_or:  np.ndarray
+            ordered spatial components
 
-    C_or:  np.ndarray
-        ordered temporal components
+        C_or:  np.ndarray
+            ordered temporal components
 
-    srt:   np.ndarray
-        sorting mapping
-
+        srt:   np.ndarray
+            sorting mapping
     """
+
     A = np.array(A.todense())
     nA2 = np.sqrt(np.sum(A**2, axis=0))
     K = len(nA2)
@@ -630,7 +594,6 @@ def order_components(A, C):
     C_or = spdiags(old_div(1., nA2[srt]), 0, K, K) * (C[srt, :])
 
     return A_or, C_or, srt
-
 
 def update_order_random(A, flag_AA=True):
     """Determies the update order of temporal components using
@@ -670,24 +633,23 @@ def update_order_greedy(A, flag_AA=True):
     this, given the spatial components using a greedy method
     Basically we can update the components that are not overlapping, in parallel
 
-    Input:
-     -------
-     A:       sparse crc matrix
-              matrix of spatial components (d x K)
-     OR
-              A.T.dot(A) matrix (d x d) if flag_AA = true
+    Args:
+        A:  sparse crc matrix
+            matrix of spatial components (d x K)
+        OR:
+            A.T.dot(A) matrix (d x d) if flag_AA = true
 
-     flag_AA: boolean (default true)
+        flag_AA: boolean (default true)
 
-     Outputs:
-     ---------
-     parllcomp:   list of sets
-          list of subsets of components. The components of each subset can be updated in parallel
+     Returns:
+         parllcomp:   list of sets
+             list of subsets of components. The components of each subset can be updated in parallel
 
-     len_parrllcomp:  list
-          length of each subset
+         len_parrllcomp:  list
+             length of each subset
 
-    @author: Eftychios A. Pnevmatikakis, Simons Foundation, 2017
+    Author:
+        Eftychios A. Pnevmatikakis, Simons Foundation, 2017
     """
     K = np.shape(A)[-1]
     parllcomp = []
@@ -714,21 +676,19 @@ def update_order_greedy(A, flag_AA=True):
 
 def compute_residuals(Yr_mmap_file, A_, b_, C_, f_, dview=None, block_size=1000, num_blocks_per_run=5):
     '''compute residuals from memory mapped file and output of CNMF
-        Params:
-        -------
-        A_,b_,C_,f_:
+        Args:
+            A_,b_,C_,f_:
                 from CNMF
 
-        block_size: int
-            number of pixels processed together
+            block_size: int
+                number of pixels processed together
 
-        num_blocks_per_run: int
-            nnumber of parallel blocks processes
+            num_blocks_per_run: int
+                nnumber of parallel blocks processes
 
-        Return:
-        -------
-        YrA: ndarray
-            residuals per neuron
+        Returns:
+            YrA: ndarray
+                residuals per neuron
     '''
     if not ('sparse' in str(type(A_))):
         A_ = scipy.sparse.coo_matrix(A_)
@@ -751,14 +711,11 @@ def compute_residuals(Yr_mmap_file, A_, b_, C_, f_, dview=None, block_size=1000,
 
     return (YA - (AA.T.dot(Cf)).T)[:, :A_.shape[-1]].T
 
-
-#%%
 def normalize_AC(A, C, YrA, b, f, neurons_sn):
     """ Normalize to unit norm A and b
-    Parameters:
-    ----------
-    A,C,Yr,b,f:
-        outputs of CNMF
+    Args:
+        A,C,Yr,b,f:
+            outputs of CNMF
     """
     if 'sparse' in str(type(A)):
         nA = np.ravel(np.sqrt(A.power(2).sum(0)))
@@ -798,8 +755,6 @@ def normalize_AC(A, C, YrA, b, f, neurons_sn):
         neurons_sn *= nA
 
     return csc_matrix(A), C, YrA, b, f, neurons_sn
-# %%
-
 
 def get_file_size(file_name, var_name_hdf5=None):
     if isinstance(file_name, str):

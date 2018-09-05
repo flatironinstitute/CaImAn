@@ -495,26 +495,21 @@ def motion_correct_oneP_rigid(
         splits_rig=10,
         save_movie=True,
         border_nan=True):
-    ''' Perform rigid motion correction on one photon imaging movies
+    '''Perform rigid motion correction on one photon imaging movies
+
     Args:
         filename: str
             name of the file to correct
-
         gSig_filt:
             size of the filter. If algorithm does not work change this parameters
-
         max_shifts: tuple of ints
             max shifts in x and y allowed
-
         dview:
             handle to cluster
-
         splits_rig: int
             number of chunks for parallelizing motion correction (remember that it should hold that length_movie/num_splits_to_process_rig>100)
-
         save_movie: bool
             whether to save the movie in memory mapped format
-
         border_nan : bool or string, optional
             Specifies how to deal with borders. (True, False, 'copy', 'min')        
 
@@ -542,8 +537,6 @@ def motion_correct_oneP_rigid(
     mc.motion_correct_rigid(save_movie=save_movie, template=new_templ)
 
     return mc
-#%%
-
 
 def motion_correct_oneP_nonrigid(
         filename,
@@ -559,32 +552,28 @@ def motion_correct_oneP_nonrigid(
         save_movie=True,
         new_templ=None,
         border_nan=True):
-    ''' Perform rigid motion correction on one photon imaging movies
+    '''Perform rigid motion correction on one photon imaging movies
+
     Args:
         filename: str
             name of the file to correct
-
         gSig_filt:
             size of the filter. If algorithm does not work change this parameters
-
         max_shifts: tuple of ints
             max shifts in x and y allowed
-
         dview:
             handle to cluster
-
         splits_rig: int
             number of chunks for parallelizing motion correction (remember that it should hold that length_movie/num_splits_to_process_rig>100)
-
         save_movie: bool
             whether to save the movie in memory mapped format
-
-       border_nan : bool or string, optional
-           Specifies how to deal with borders. (True, False, 'copy', 'min')        
+        border_nan : bool or string, optional
+            specifies how to deal with borders. (True, False, 'copy', 'min')
 
     Returns:
         Motion correction object
     '''
+
     if new_templ is None:
         min_mov = np.array([cm.motion_correction.high_pass_filter_space(
             m_, gSig_filt) for m_ in cm.load(filename, subindices=range(400))]).min()
@@ -611,9 +600,7 @@ def motion_correct_oneP_nonrigid(
         border_nan=border_nan)
 
     mc.motion_correct_pwrigid(save_movie=True, template=new_templ)
-
     return mc
-#%%
 
 def motion_correct_online_multifile(list_files, add_to_movie, order='C', **kwargs):
     # todo todocument

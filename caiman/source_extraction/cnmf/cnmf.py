@@ -12,9 +12,7 @@ Its architecture is similar to the one of scikit-learn calling the function fit 
  you can find out more at how the functions are called and how they are laid out at the ipython notebook
 
 See Also:
-------------
-
-@url http://www.cell.com/neuron/fulltext/S0896-6273(15)01084-3
+    http://www.cell.com/neuron/fulltext/S0896-6273(15)01084-3
 .. mage:: docs/img/quickintro.png
 @author andrea giovannucci
 """
@@ -63,17 +61,15 @@ except:
 class CNMF(object):
     """  Source extraction using constrained non-negative matrix factorization.
 
-
     The general class which is used to produce a factorization of the Y matrix being the video
     it computes it using all the files inside of cnmf folder.
     Its architecture is similar to the one of scikit-learn calling the function fit to run everything which is part
-     of the structure of the class
+    of the structure of the class
 
     it is calling everyfunction from the cnmf folder
     you can find out more at how the functions are called and how they are laid out at the ipython notebook
 
     See Also:
-    ------------
     @url http://www.cell.com/neuron/fulltext/S0896-6273(15)01084-3
     .. image:: docs/img/quickintro.png
     @author andrea giovannucci
@@ -101,165 +97,159 @@ class CNMF(object):
         """
         Constructor of the CNMF method
 
-        Parameters:
-        -----------
+        Args:
+            n_processes: int
+               number of processed used (if in parallel this controls memory usage)
 
-        n_processes: int
-           number of processed used (if in parallel this controls memory usage)
+            k: int
+               number of neurons expected per FOV (or per patch if patches_pars is  None)
 
-        k: int
-           number of neurons expected per FOV (or per patch if patches_pars is  None)
+            gSig: tuple
+                expected half size of neurons
 
-        gSig: tuple
-            expected half size of neurons
+            merge_thresh: float
+                merging threshold, max correlation allowed
 
-        merge_thresh: float
-            merging threshold, max correlation allowed
+            dview: Direct View object
+                for parallelization pruposes when using ipyparallel
 
-        dview: Direct View object
-            for parallelization pruposes when using ipyparallel
+            p: int
+                order of the autoregressive process used to estimate deconvolution
 
-        p: int
-            order of the autoregressive process used to estimate deconvolution
+            Ain: ndarray
+                if know, it is the initial estimate of spatial filters
 
-        Ain: ndarray
-            if know, it is the initial estimate of spatial filters
+            ssub: int
+                downsampleing factor in space
 
-        ssub: int
-            downsampleing factor in space
+            tsub: int
+                 downsampling factor in time
 
-        tsub: int
-             downsampling factor in time
+            p_ssub: int
+                downsampling factor in space for patches
 
-        p_ssub: int
-            downsampling factor in space for patches
+            method_init: str
+               can be greedy_roi or sparse_nmf
 
-        method_init: str
-           can be greedy_roi or sparse_nmf
+            alpha_snmf: float
+                weight of the sparsity regularization
 
-        alpha_snmf: float
-            weight of the sparsity regularization
+            p_tsub: int
+                 downsampling factor in time for patches
 
-        p_tsub: int
-             downsampling factor in time for patches
+            rf: int
+                half-size of the patches in pixels. rf=25, patches are 50x50
 
-        rf: int
-            half-size of the patches in pixels. rf=25, patches are 50x50
+            gnb: int
+                number of global background components
 
-        gnb: int
-            number of global background components
+            nb_patch: int
+                number of background components per patch
 
-        nb_patch: int
-            number of background components per patch
+            stride: int
+                amount of overlap between the patches in pixels
 
-        stride: int
-            amount of overlap between the patches in pixels
+            memory_fact: float
+                unitless number accounting how much memory should be used. You will
+                 need to try different values to see which one would work the default is OK for a 16 GB system
 
-        memory_fact: float
-            unitless number accounting how much memory should be used. You will
-             need to try different values to see which one would work the default is OK for a 16 GB system
+            N_samples_fitness: int
+                number of samples over which exceptional events are computed (See utilities.evaluate_components)
 
-        N_samples_fitness: int
-            number of samples over which exceptional events are computed (See utilities.evaluate_components)
+            only_init_patch= boolean
+                only run initialization on patches
 
-        only_init_patch= boolean
-            only run initialization on patches
+            method_deconvolution = 'oasis' or 'cvxpy'
+                method used for deconvolution. Suggested 'oasis' see
+                Friedrich J, Zhou P, Paninski L. Fast Online Deconvolution of Calcium Imaging Data.
+                PLoS Comput Biol. 2017; 13(3):e1005423.
 
-        method_deconvolution = 'oasis' or 'cvxpy'
-            method used for deconvolution. Suggested 'oasis' see
-            Friedrich J, Zhou P, Paninski L. Fast Online Deconvolution of Calcium Imaging Data.
-            PLoS Comput Biol. 2017; 13(3):e1005423.
+            n_pixels_per_process: int.
+                Number of pixels to be processed in parallel per core (no patch mode). Decrease if memory problems
 
-        n_pixels_per_process: int.
-            Number of pixels to be processed in parallel per core (no patch mode). Decrease if memory problems
+            block_size: int.
+                Number of pixels to be used to perform residual computation in blocks. Decrease if memory problems
 
-        block_size: int.
-            Number of pixels to be used to perform residual computation in blocks. Decrease if memory problems
+            num_blocks_per_run: int
+                In case of memory problems you can reduce this numbers, controlling the number of blocks processed in parallel during residual computing
 
-        num_blocks_per_run: int
-            In case of memory problems you can reduce this numbers, controlling the number of blocks processed in parallel during residual computing
+            check_nan: Boolean.
+                Check if file contains NaNs (costly for very large files so could be turned off)
 
-        check_nan: Boolean.
-            Check if file contains NaNs (costly for very large files so could be turned off)
+            skip_refinement:
+                Bool. If true it only performs one iteration of update spatial update temporal instead of two
 
-        skip_refinement:
-            Bool. If true it only performs one iteration of update spatial update temporal instead of two
+            normalize_init=Bool.
+                Differences in intensities on the FOV might caus troubles in the initialization when patches are not used,
+                 so each pixels can be normalized by its median intensity
 
-        normalize_init=Bool.
-            Differences in intensities on the FOV might caus troubles in the initialization when patches are not used,
-             so each pixels can be normalized by its median intensity
+            options_local_NMF:
+                experimental, not to be used
 
-        options_local_NMF:
-            experimental, not to be used
+            remove_very_bad_comps:Bool
+                whether to remove components with very low values of component quality directly on the patch.
+                 This might create some minor imprecisions.
+                Howeverm benefits can be considerable if done because if many components (>2000) are created
+                and joined together, operation that causes a bottleneck
 
-        remove_very_bad_comps:Bool
-            whether to remove components with very low values of component quality directly on the patch.
-             This might create some minor imprecisions.
-            Howeverm benefits can be considerable if done because if many components (>2000) are created
-            and joined together, operation that causes a bottleneck
+            border_pix:int
+                number of pixels to not consider in the borders
 
-        border_pix:int
-            number of pixels to not consider in the borders
+            low_rank_background:bool
+                if True the background is approximated with gnb components. If false every patch keeps its background (overlaps are randomly assigned to one spatial component only)
+                 In the False case all the nonzero elements of the background components are updated using hals (to be used with one background per patch)
 
-        low_rank_background:bool
-            if True the background is approximated with gnb components. If false every patch keeps its background (overlaps are randomly assigned to one spatial component only)
-             In the False case all the nonzero elements of the background components are updated using hals (to be used with one background per patch)
+            update_background_components:bool
+                whether to update the background components during the spatial phase
 
-        update_background_components:bool
-            whether to update the background components during the spatial phase
+            min_corr: float
+                minimal correlation peak for 1-photon imaging initialization
 
-        min_corr: float
-            minimal correlation peak for 1-photon imaging initialization
+            min_pnr: float
+                minimal peak  to noise ratio for 1-photon imaging initialization
 
-        min_pnr: float
-            minimal peak  to noise ratio for 1-photon imaging initialization
+            ring_size_factor: float
+                it's the ratio between the ring radius and neuron diameters.
 
-        ring_size_factor: float
-            it's the ratio between the ring radius and neuron diameters.
+                    max_comp_update_shape:
+                             threshold number of components after which selective updating starts (using the parameter num_times_comp_updated)
 
-                max_comp_update_shape:
-                         threshold number of components after which selective updating starts (using the parameter num_times_comp_updated)
+                num_times_comp_updated:
+                number of times each component is updated. In inf components are updated at every initbatch time steps
 
-            num_times_comp_updated:
-            number of times each component is updated. In inf components are updated at every initbatch time steps
+            expected_comps: int
+                number of expected components (try to exceed the expected)
 
-        expected_comps: int
-            number of expected components (try to exceed the expected)
+            deconv_flag : bool, optional
+                If True, deconvolution is also performed using OASIS
 
-        deconv_flag : bool, optional
-            If True, deconvolution is also performed using OASIS
+            simultaneously : bool, optional
+                If true, demix and denoise/deconvolve simultaneously. Slower but can be more accurate.
 
-        simultaneously : bool, optional
-            If true, demix and denoise/deconvolve simultaneously. Slower but can be more accurate.
+            n_refit : int, optional
+                Number of pools (cf. oasis.pyx) prior to the last one that are refitted when
+                simultaneously demixing and denoising/deconvolving.
 
-        n_refit : int, optional
-            Number of pools (cf. oasis.pyx) prior to the last one that are refitted when
-            simultaneously demixing and denoising/deconvolving.
+            N_samples_exceptionality : int, optional
+                Number of consecutives intervals to be considered when testing new neuron candidates
 
-        N_samples_exceptionality : int, optional
-            Number of consecutives intervals to be considered when testing new neuron candidates
+            del_duplicates: bool
+                whether to delete the duplicated created in initialization
 
-        del_duplicates: bool
-            whether to delete the duplicated created in initialization
+            max_num_added : int, optional
+                maximum number of components to be added at each step in OnACID
 
-        max_num_added : int, optional
-            maximum number of components to be added at each step in OnACID
+            min_num_trial : int, optional
+                minimum numbers of attempts to include a new components in OnACID
 
-        min_num_trial : int, optional
-            minimum numbers of attempts to include a new components in OnACID
+            thresh_CNN_noisy: float
+                threshold on the per patch CNN classifier for online algorithm
 
-        thresh_CNN_noisy: float
-            threshold on the per patch CNN classifier for online algorithm
+            ssub_B: int, optional
+                downsampleing factor for 1-photon imaging background computation
 
-        ssub_B: int, optional
-            downsampleing factor for 1-photon imaging background computation
-
-        init_iter: int, optional
-            number of iterations for 1-photon imaging initialization
-
-        Returns:
-        --------
-        self
+            init_iter: int, optional
+                number of iterations for 1-photon imaging initialization
         """
 
         self.dview = dview
@@ -270,7 +260,7 @@ class CNMF(object):
         # these are member variables related to the CNMF workflow
         self.skip_refinement = skip_refinement
         self.remove_very_bad_comps = remove_very_bad_comps
-        
+
         if params is None:
             self.params = CNMFParams(
                 border_pix=border_pix, del_duplicates=del_duplicates, low_rank_background=low_rank_background,
@@ -340,9 +330,13 @@ class CNMF(object):
     def refit(self, images, dview=None):
         """
         Refits the data using CNMF initialized from a previous interation
-        :param images:
-        :return: cnm
-            a new CNMF object
+
+        Args:
+            images
+            dview
+        Returns:
+            cnm
+                A new CNMF object
         """
         from copy import deepcopy
         cnm = CNMF(self.params.patch['n_processes'], params=self.params, dview=dview)
@@ -359,23 +353,18 @@ class CNMF(object):
         it is calling everyfunction from the cnmf folder
         you can find out more at how the functions are called and how they are laid out at the ipython notebook
 
-        Parameters:
-        ----------
-        images : mapped np.ndarray of shape (t,x,y[,z]) containing the images that vary over time.
-        
-        indeces: list of slice objects along dimensions (x,y[,z]) for processing only part of the FOV
+        Args:
+            images : mapped np.ndarray of shape (t,x,y[,z]) containing the images that vary over time.
+
+            indeces: list of slice objects along dimensions (x,y[,z]) for processing only part of the FOV
 
         Returns:
-        --------
-        self: updated using the cnmf algorithm with C,A,S,b,f computed according to the given initial values
+            self: updated using the cnmf algorithm with C,A,S,b,f computed according to the given initial values
 
-        Raise:
-        ------
-        raise Exception('You need to provide a memory mapped file as input if you use patches!!')
+        Raises:
+        Exception 'You need to provide a memory mapped file as input if you use patches!!'
 
         See Also:
-        --------
-
         ..image::docs/img/quickintro.png
 
         http://www.cell.com/neuron/fulltext/S0896-6273(15)01084-3
@@ -396,7 +385,7 @@ class CNMF(object):
             logging.warning("Parallel processing in a single patch\
                             is not available for loaded in memory or sliced\
                             data.")
-            
+
         T = images.shape[0]
         self.params.set('online', {'init_batch': T})
         self.dims = images.shape[1:]
@@ -527,7 +516,7 @@ class CNMF(object):
                 b_FOV[ind_nz] = self.estimates.b
                 self.estimates.A = A_FOV
                 self.estimates.b = b_FOV
-            
+
         else:  # use patches
             if self.params.get('patch', 'stride') is None:
                 self.params.set('patch', {'stride': np.int(self.params.get('patch', 'rf') * 2 * .1)})
@@ -586,7 +575,7 @@ class CNMF(object):
                     else:
                         self.estimates.S = self.estimates.C
             else:
-                
+
                 while len(self.estimates.merged_ROIs) > 0:
                     self.merge_comps(Yr, mx=np.Inf)
 
@@ -599,28 +588,23 @@ class CNMF(object):
 
     def save(self,filename):
         '''save object in hdf5 file format
-        Parameters:
-        -----------
-        filename: str
-            path to the hdf5 file containing the saved object
-        '''
-        if '.hdf5' in filename:
-            # keys_types = [(k, type(v)) for k, v in self.__dict__.items()]
-            # ptpt = self.optional_outputs
-            # self.optional_outputs = None
-            save_dict_to_hdf5(self.__dict__, filename)
-            # self.optional_outputs = ptpt
 
+        Args:
+            filename: str
+                path to the hdf5 file containing the saved object
+        '''
+
+        if '.hdf5' in filename:
+            save_dict_to_hdf5(self.__dict__, filename)
         else:
             raise Exception("Filename not supported")
 
     def remove_components(self, ind_rm):
         """remove a specified list of components from the OnACID CNMF object.
 
-        Parameters:
-        -----------
-        ind_rm :    list
-                    indeces of components to be removed
+        Args:
+            ind_rm :    list
+                        indeces of components to be removed
         """
 
         self.estimates.Ab, self.estimates.Ab_dense, self.estimates.CC, self.estimates.CY, self.M,\
@@ -637,11 +621,9 @@ class CNMF(object):
     def compute_residuals(self, Yr):
         """compute residual for each component (variable YrA)
 
-         Parameters:
-         -----------
-         Yr :    np.ndarray
-                 movie in format pixels (d) x frames (T)
-
+         Args:
+             Yr :    np.ndarray
+                     movie in format pixels (d) x frames (T)
         """
 
         if 'csc_matrix' not in str(type(self.estimates.A)):
@@ -729,29 +711,27 @@ class CNMF(object):
         Can use groups to update non-overlapping components in parallel or a
         specified order.
 
-        Parameters
-        ----------
-        Yr : np.array (possibly memory mapped, (x,y,[,z]) x t)
-            Imaging data reshaped in matrix format
+        Args:
+            Yr : np.array (possibly memory mapped, (x,y,[,z]) x t)
+                Imaging data reshaped in matrix format
+    
+            groups : list of sets
+                grouped components to be updated simultaneously
+    
+            use_groups : bool
+                flag for using groups
+    
+            order : list
+                Update components in that order (used if nonempty and groups=None)
+    
+            update_bck : bool
+                Flag for updating temporal background components
+    
+            bck_non_neg : bool
+                Require temporal background to be non-negative
 
-        groups : list of sets
-            grouped components to be updated simultaneously
-
-        use_groups : bool
-            flag for using groups
-
-        order : list
-            Update components in that order (used if nonempty and groups=None)
-
-        update_bck : bool
-            Flag for updating temporal background components
-
-        bck_non_neg : bool
-            Require temporal background to be non-negative
-
-        Output:
-        -------
-        self (updated values for self.estimates.C, self.estimates.f, self.estimates.YrA)
+        Returns:
+            self (updated values for self.estimates.C, self.estimates.f, self.estimates.YrA)
         """
         if update_bck:
             Ab = scipy.sparse.hstack([self.estimates.b, self.estimates.A]).tocsc()
@@ -786,20 +766,19 @@ class CNMF(object):
     def HALS4footprints(self, Yr, update_bck=True, num_iter=2):
         """Uses hierarchical alternating least squares to update shapes and
         background
-        Parameters:
-        -----------
-        Yr: np.array (possibly memory mapped, (x,y,[,z]) x t)
-            Imaging data reshaped in matrix format
 
-        update_bck: bool
-            flag for updating spatial background components
-
-        num_iter: int
-            number of iterations
-
+        Args:
+            Yr: np.array (possibly memory mapped, (x,y,[,z]) x t)
+                Imaging data reshaped in matrix format
+    
+            update_bck: bool
+                flag for updating spatial background components
+    
+            num_iter: int
+                number of iterations
+    
         Returns:
-        --------
-        self (updated values for self.estimates.A and self.estimates.b)
+            self (updated values for self.estimates.A and self.estimates.b)
         """
         if update_bck:
             Ab = np.hstack([self.estimates.b, self.estimates.A.toarray()])
@@ -826,11 +805,10 @@ class CNMF(object):
     def update_temporal(self, Y, use_init=True, **kwargs):
         """Updates temporal components
 
-        Parameters:
-        -----------
-        Y:  np.array (d1*d2) x T
-            input data
-        
+        Args:
+            Y:  np.array (d1*d2) x T
+                input data
+
         """
         lc = locals()
         pr = inspect.signature(self.update_temporal)
@@ -850,21 +828,19 @@ class CNMF(object):
                 Y, self.estimates.A, self.estimates.b, self.estimates.C, self.estimates.f, dview=self.dview,
                 **self.params.get_group('temporal'))
         return self
-    
+
     def update_spatial(self, Y, use_init=True, **kwargs):
         """Updates spatial components
 
-        Parameters:
-        -----------
-        Y:  np.array (d1*d2) x T
-            input data
-        use_init: bool
-            use Cin, f_in for computing A, b otherwise use C, f
-            
+        Args:
+            Y:  np.array (d1*d2) x T
+                input data
+            use_init: bool
+                use Cin, f_in for computing A, b otherwise use C, f
+
         Returns:
-        ---------
-        self
-            modified values self.estimates.A, self.estimates.b possibly self.estimates.C, self.estimates.f
+            self
+                modified values self.estimates.A, self.estimates.b possibly self.estimates.C, self.estimates.f
         """
         lc = locals()
         pr = inspect.signature(self.update_spatial)
@@ -898,9 +874,9 @@ class CNMF(object):
                              bl=self.estimates.bl, c1=self.estimates.c1, sn=self.estimates.neurons_sn,
                              g=self.estimates.g, thr=self.params.get('merging', 'merge_thr'), mx=mx,
                              fast_merge=fast_merge)
-            
+
         return self
-    
+
     def initialize(self, Y, **kwargs):
         """Component initialization
         """
@@ -935,13 +911,12 @@ class CNMF(object):
 
 def load_CNMF(filename, n_processes=1, dview=None):
     '''load object saved with the CNMF save method
-    Parameters:
-    ----------
-    filename: str
-        hdf5 file name containing the saved object
-    dview: multiprocessingor ipyparallel object
-        useful to set up parllelization in the objects
 
+    Args:
+        filename: str
+            hdf5 file name containing the saved object
+        dview: multiprocessingor ipyparallel object
+            useful to set up parllelization in the objects
     '''
     new_obj = CNMF(n_processes)
     for key, val in load_dict_from_hdf5(filename).items():

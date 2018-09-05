@@ -50,41 +50,37 @@ except:
 def view_patches(Yr, A, C, b, f, d1, d2, YrA=None, secs=1):
     """view spatial and temporal components (secs=0 interactive)
 
-     Parameters:
-     -----------
-     Yr:        np.ndarray
-            movie in format pixels (d) x frames (T)
+     Args:
+         Yr:        np.ndarray
+                movie in format pixels (d) x frames (T)
 
-     A:     sparse matrix
-                matrix of spatial components (d x K)
+         A:     sparse matrix
+                    matrix of spatial components (d x K)
 
-     C:     np.ndarray
-                matrix of temporal components (K x T)
+         C:     np.ndarray
+                    matrix of temporal components (K x T)
 
-     b:     np.ndarray
-                spatial background (vector of length d)
+         b:     np.ndarray
+                    spatial background (vector of length d)
 
-     f:     np.ndarray
-                temporal background (vector of length T)
+         f:     np.ndarray
+                    temporal background (vector of length T)
 
-     d1,d2: np.ndarray
-                frame dimensions
+         d1,d2: np.ndarray
+                    frame dimensions
 
-     YrA:   np.ndarray
-                 ROI filtered residual as it is given from update_temporal_components
-                 If not given, then it is computed (K x T)
+         YrA:   np.ndarray
+                     ROI filtered residual as it is given from update_temporal_components
+                     If not given, then it is computed (K x T)
 
-     secs:  float
-                number of seconds in between component scrolling. secs=0 means interactive (click to scroll)
+         secs:  float
+                    number of seconds in between component scrolling. secs=0 means interactive (click to scroll)
 
-     imgs:  np.ndarray
-                background image for contour plotting. Default is the image of all spatial components (d1 x d2)
-
-    See Also:
-    ------------
-    ..image:: doc/img/
+         imgs:  np.ndarray
+                    background image for contour plotting. Default is the image of all spatial components (d1 x d2)
 
     """
+
     pl.ion()
     nr, T = C.shape
     nb = f.shape[0]
@@ -137,33 +133,33 @@ def nb_view_patches(Yr, A, C, b, f, d1, d2, YrA=None, image_neurons=None, thr=0.
     """
     Interactive plotting utility for ipython notebook
 
-    Parameters:
-    -----------
-    Yr: np.ndarray
-        movie
+    Args:
+        Yr: np.ndarray
+            movie
 
-    A,C,b,f: np.ndarrays
-        outputs of matrix factorization algorithm
+        A,C,b,f: np.ndarrays
+            outputs of matrix factorization algorithm
 
-    d1,d2: floats
-        dimensions of movie (x and y)
+        d1,d2: floats
+            dimensions of movie (x and y)
 
-    YrA:   np.ndarray
-        ROI filtered residual as it is given from update_temporal_components
-        If not given, then it is computed (K x T)
+        YrA:   np.ndarray
+            ROI filtered residual as it is given from update_temporal_components
+            If not given, then it is computed (K x T)
 
-    image_neurons: np.ndarray
-        image to be overlaid to neurons (for instance the average)
+        image_neurons: np.ndarray
+            image to be overlaid to neurons (for instance the average)
 
-    thr: double
-        threshold regulating the extent of the displayed patches
+        thr: double
+            threshold regulating the extent of the displayed patches
 
-    denoised_color: string or None
-        color name (e.g. 'red') or hex color code (e.g. '#F0027F')
+        denoised_color: string or None
+            color name (e.g. 'red') or hex color code (e.g. '#F0027F')
 
-    cmap: string
-        name of colormap (e.g. 'viridis') used to plot image_neurons
+        cmap: string
+            name of colormap (e.g. 'viridis') used to plot image_neurons
     """
+
     colormap = cm.get_cmap(cmap)
     grayp = [mpl.colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
     nr, T = C.shape
@@ -252,29 +248,26 @@ def nb_view_patches(Yr, A, C, b, f, d1, d2, YrA=None, image_neurons=None, thr=0.
 def get_contours(A, dims, thr=0.9, thr_method='nrg', swap_dim=False):
     """Gets contour of spatial components and returns their coordinates
 
-     Parameters:
-     -----------
-     A:   np.ndarray or sparse matrix
-               Matrix of Spatial components (d x K)
+     Args:
+         A:   np.ndarray or sparse matrix
+                   Matrix of Spatial components (d x K)
 
-         dims: tuple of ints
-               Spatial dimensions of movie (x, y[, z])
+             dims: tuple of ints
+                   Spatial dimensions of movie (x, y[, z])
 
-         thr: scalar between 0 and 1
-               Energy threshold for computing contours (default 0.9)
+             thr: scalar between 0 and 1
+                   Energy threshold for computing contours (default 0.9)
 
-         thr_method: [optional] string
-              Method of thresholding:
-                  'max' sets to zero pixels that have value less than a fraction of the max value
-                  'nrg' keeps the pixels that contribute up to a specified fraction of the energy
+             thr_method: [optional] string
+                  Method of thresholding:
+                      'max' sets to zero pixels that have value less than a fraction of the max value
+                      'nrg' keeps the pixels that contribute up to a specified fraction of the energy
 
      Returns:
-     --------
-     Coor: list of coordinates with center of mass and
-            contour plot coordinates (per layer) for each component
-
-
+         Coor: list of coordinates with center of mass and
+                contour plot coordinates (per layer) for each component
     """
+
     if 'csc_matrix' not in str(type(A)):
         A = csc_matrix(A)
     d, nr = np.shape(A)
@@ -346,42 +339,40 @@ def nb_view_patches3d(Y_r, A, C, dims, image_type='mean', Yr=None,
     """
     Interactive plotting utility for ipython notbook
 
-    Parameters:
-    -----------
-    Y_r: np.ndarray
-        residual of each trace
+    Args:
+        Y_r: np.ndarray
+            residual of each trace
 
-    A,C,b,f: np.ndarrays
-        outputs of matrix factorization algorithm
+        A,C,b,f: np.ndarrays
+            outputs of matrix factorization algorithm
 
-    dims: tuple of ints
-        dimensions of movie (x, y and z)
+        dims: tuple of ints
+            dimensions of movie (x, y and z)
 
-    image_type: 'mean', 'max' or 'corr'
-        image to be overlaid to neurons
-        (average of shapes, maximum of shapes or nearest neigbor correlation of raw data)
+        image_type: 'mean', 'max' or 'corr'
+            image to be overlaid to neurons
+            (average of shapes, maximum of shapes or nearest neigbor correlation of raw data)
 
-    Yr: np.ndarray
-        movie, only required if image_type=='corr' to calculate correlation image
+        Yr: np.ndarray
+            movie, only required if image_type=='corr' to calculate correlation image
 
-    max_projection: boolean
-        plot max projection along specified axis if True, plot layers if False
+        max_projection: boolean
+            plot max projection along specified axis if True, plot layers if False
 
-    axis: int (0, 1 or 2)
-        axis along which max projection is performed or layers are shown
+        axis: int (0, 1 or 2)
+            axis along which max projection is performed or layers are shown
 
-    thr: scalar between 0 and 1
-        Energy threshold for computing contours
+        thr: scalar between 0 and 1
+            Energy threshold for computing contours
 
-    denoised_color: string or None
-        color name (e.g. 'red') or hex color code (e.g. '#F0027F')
+        denoised_color: string or None
+            color name (e.g. 'red') or hex color code (e.g. '#F0027F')
 
-    cmap: string
-        name of colormap (e.g. 'viridis') used to plot image_neurons
+        cmap: string
+            name of colormap (e.g. 'viridis') used to plot image_neurons
 
-    Raise:
-    ------
-    ValueError("image_type must be 'mean', 'max' or 'corr'")
+    Raises:
+        ValueError "image_type must be 'mean', 'max' or 'corr'"
 
     """
 
@@ -675,42 +666,41 @@ def nb_plot_contour(image, A, d1, d2, thr=None, thr_method='max', maxthr=0.2, nr
                     coordinates=None, **kwargs):
     """Interactive Equivalent of plot_contours for ipython notebook
 
-    Parameters:
-    -----------
-    A:   np.ndarray or sparse matrix
-            Matrix of Spatial components (d x K)
+    Args:
+        A:   np.ndarray or sparse matrix
+                Matrix of Spatial components (d x K)
 
-    Image:  np.ndarray (2D)
-            Background image (e.g. mean, correlation)
+        Image:  np.ndarray (2D)
+                Background image (e.g. mean, correlation)
 
-    d1,d2: floats
-            dimensions os image
+        d1,d2: floats
+                dimensions os image
 
-    thr: scalar between 0 and 1
-            Energy threshold for computing contours
-            Kept for backwards compatibility. If not None then thr_method = 'nrg', and nrgthr = thr
+        thr: scalar between 0 and 1
+                Energy threshold for computing contours
+                Kept for backwards compatibility. If not None then thr_method = 'nrg', and nrgthr = thr
 
-    thr_method: [optional] string
-            Method of thresholding:
-                'max' sets to zero pixels that have value less than a fraction of the max value
-                'nrg' keeps the pixels that contribute up to a specified fraction of the energy
+        thr_method: [optional] string
+                Method of thresholding:
+                    'max' sets to zero pixels that have value less than a fraction of the max value
+                    'nrg' keeps the pixels that contribute up to a specified fraction of the energy
 
-    maxthr: [optional] scalar
-            Threshold of max value
+        maxthr: [optional] scalar
+                Threshold of max value
 
-    nrgthr: [optional] scalar
-            Threshold of energy
+        nrgthr: [optional] scalar
+                Threshold of energy
 
-    display_number:     Boolean
-            Display number of ROIs if checked (default True)
+        display_number:     Boolean
+                Display number of ROIs if checked (default True)
 
-    max_number:    int
-            Display the number for only the first max_number components (default None, display all numbers)
+        max_number:    int
+                Display the number for only the first max_number components (default None, display all numbers)
 
-    cmap:     string
-            User specifies the colormap (default None, default colormap)
-
+        cmap:     string
+                User specifies the colormap (default None, default colormap)
     """
+
     p = nb_imshow(image, cmap='jet')
     center = com(A, d1, d2)
     p.circle(center[:, 1], center[:, 0], size=10, color="black",
@@ -726,9 +716,6 @@ def nb_plot_contour(image, A, d1, d2, thr=None, thr_method='max', maxthr=0.2, nr
               line_color=line_color, line_width=2, **kwargs)
     return p
 
-#%%
-
-
 def playMatrix(mov, gain=1.0, frate=.033):
     for frame in mov:
         if gain != 1:
@@ -740,8 +727,6 @@ def playMatrix(mov, gain=1.0, frate=.033):
             cv2.destroyAllWindows()
             break
     cv2.destroyAllWindows()
-#%% montage
-
 
 def matrixMontage(spcomps, *args, **kwargs):
     numcomps, _, _ = spcomps.shape
@@ -752,7 +737,6 @@ def matrixMontage(spcomps, *args, **kwargs):
         pl.axis('off')
 
 
-#%%
 VIDEO_TAG = """<video controls>
  <source src="data:video/x-m4v;base64,{0}" type="video/mp4">
  Your browser does not support the video tag.
@@ -781,32 +765,31 @@ def display_animation(anim, fps=20):
 def view_patches_bar(Yr, A, C, b, f, d1, d2, YrA=None, img=None):
     """view spatial and temporal components interactively
 
-     Parameters:
-     -----------
-     Yr:    np.ndarray
-            movie in format pixels (d) x frames (T)
-
-     A:     sparse matrix
-                matrix of spatial components (d x K)
-
-     C:     np.ndarray
-                matrix of temporal components (K x T)
-
-     b:     np.ndarray
-                spatial background (vector of length d)
-
-     f:     np.ndarray
-                temporal background (vector of length T)
-
-     d1,d2: np.ndarray
-                frame dimensions
-
-     YrA:   np.ndarray
-                 ROI filtered residual as it is given from update_temporal_components
-                 If not given, then it is computed (K x T)
-
-     img:   np.ndarray
-                background image for contour plotting. Default is the image of all spatial components (d1 x d2)
+     Args:
+         Yr:    np.ndarray
+                movie in format pixels (d) x frames (T)
+    
+         A:     sparse matrix
+                    matrix of spatial components (d x K)
+    
+         C:     np.ndarray
+                    matrix of temporal components (K x T)
+    
+         b:     np.ndarray
+                    spatial background (vector of length d)
+    
+         f:     np.ndarray
+                    temporal background (vector of length T)
+    
+         d1,d2: np.ndarray
+                    frame dimensions
+    
+         YrA:   np.ndarray
+                     ROI filtered residual as it is given from update_temporal_components
+                     If not given, then it is computed (K x T)
+    
+         img:   np.ndarray
+                    background image for contour plotting. Default is the image of all spatial components (d1 x d2)
 
     """
 
@@ -901,41 +884,39 @@ def plot_contours(A, Cn, thr=None, thr_method='max', maxthr=0.2, nrgthr=0.9, dis
                   cmap=None, swap_dim=False, colors='w', vmin=None, vmax=None, coordinates=None, **kwargs):
     """Plots contour of spatial components against a background image and returns their coordinates
 
-     Parameters:
-     -----------
-     A:   np.ndarray or sparse matrix
-               Matrix of Spatial components (d x K)
-
-     Cn:  np.ndarray (2D)
-               Background image (e.g. mean, correlation)
-
-     thr_method: [optional] string
-              Method of thresholding:
-                  'max' sets to zero pixels that have value less than a fraction of the max value
-                  'nrg' keeps the pixels that contribute up to a specified fraction of the energy
-
-     maxthr: [optional] scalar
-                Threshold of max value
-
-     nrgthr: [optional] scalar
-                Threshold of energy
-
-     thr: scalar between 0 and 1
-               Energy threshold for computing contours (default 0.9)
-               Kept for backwards compatibility. If not None then thr_method = 'nrg', and nrgthr = thr
-
-     display_number:     Boolean
-               Display number of ROIs if checked (default True)
-
-     max_number:    int
-               Display the number for only the first max_number components (default None, display all numbers)
-
-     cmap:     string
-               User specifies the colormap (default None, default colormap)
+     Args:
+         A:   np.ndarray or sparse matrix
+                   Matrix of Spatial components (d x K)
+    
+         Cn:  np.ndarray (2D)
+                   Background image (e.g. mean, correlation)
+    
+         thr_method: [optional] string
+                  Method of thresholding:
+                      'max' sets to zero pixels that have value less than a fraction of the max value
+                      'nrg' keeps the pixels that contribute up to a specified fraction of the energy
+    
+         maxthr: [optional] scalar
+                    Threshold of max value
+    
+         nrgthr: [optional] scalar
+                    Threshold of energy
+    
+         thr: scalar between 0 and 1
+                   Energy threshold for computing contours (default 0.9)
+                   Kept for backwards compatibility. If not None then thr_method = 'nrg', and nrgthr = thr
+    
+         display_number:     Boolean
+                   Display number of ROIs if checked (default True)
+    
+         max_number:    int
+                   Display the number for only the first max_number components (default None, display all numbers)
+    
+         cmap:     string
+                   User specifies the colormap (default None, default colormap)
 
      Returns:
-     --------
-     coordinates: list of coordinates with center of mass, contour plot coordinates and bounding box for each component
+          coordinates: list of coordinates with center of mass, contour plot coordinates and bounding box for each component
     """
 
     if swap_dim:
@@ -978,9 +959,7 @@ def plot_contours(A, Cn, thr=None, thr_method='max', maxthr=0.2, nrgthr=0.9, dis
                 ax.text(cm[i, 0], cm[i, 1], str(i + 1), color=colors)
             else:
                 ax.text(cm[i, 1], cm[i, 0], str(i + 1), color=colors)
-
     return coordinates
-
 
 def plot_shapes(Ab, dims, num_comps=15, size=(15, 15), comps_per_row=None,
                 cmap='viridis', smoother=lambda s: median_filter(s, 3)):
@@ -1009,20 +988,14 @@ def inspect_correlation_pnr(correlation_image_pnr, pnr_image):
     """
     inspect correlation and pnr images to infer the min_corr, min_pnr
 
-    Parameters:
-    -----------
-    correlation_image_pnr: ndarray
-        correlation image created with caiman.summary_images.correlation_pnr
-
-    pnr_image: ndarray
-        peak-to-noise image created with caiman.summary_images.correlation_pnr
-
-
-    Returns:
-    -------
-
-
+    Args:
+        correlation_image_pnr: ndarray
+            correlation image created with caiman.summary_images.correlation_pnr
+    
+        pnr_image: ndarray
+            peak-to-noise image created with caiman.summary_images.correlation_pnr
     """
+
     fig = pl.figure(figsize=(10, 4))
     pl.axes([0.05, 0.2, 0.4, 0.7])
     im_cn = pl.imshow(correlation_image_pnr, cmap='jet')
