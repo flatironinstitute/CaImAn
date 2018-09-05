@@ -37,54 +37,50 @@ def cnmf_patches(args_in):
 
          Will be called
 
-        Parameters:
-        ----------
-        file_name: string
-            full path to an npy file (2D, pixels x time) containing the movie
+        Args:
+            file_name: string
+                full path to an npy file (2D, pixels x time) containing the movie
 
-        shape: tuple of thre elements
-            dimensions of the original movie across y, x, and time
+            shape: tuple of thre elements
+                dimensions of the original movie across y, x, and time
 
-        params:
-            CNMFParms object containing all the parameters for the various algorithms
+            params:
+                CNMFParms object containing all the parameters for the various algorithms
 
-        rf: int
-            half-size of the square patch in pixel
+            rf: int
+                half-size of the square patch in pixel
 
-        stride: int
-            amount of overlap between patches
+            stride: int
+                amount of overlap between patches
 
-        gnb: int
-            number of global background components
+            gnb: int
+                number of global background components
 
-        backend: string
-            'ipyparallel' or 'single_thread' or SLURM
+            backend: string
+                'ipyparallel' or 'single_thread' or SLURM
 
-        n_processes: int
-            nuber of cores to be used (should be less than the number of cores started with ipyparallel)
+            n_processes: int
+                nuber of cores to be used (should be less than the number of cores started with ipyparallel)
 
-        memory_fact: double
-            unitless number accounting how much memory should be used.
-            It represents the fration of patch processed in a single thread.
-             You will need to try different values to see which one would work
+            memory_fact: double
+                unitless number accounting how much memory should be used.
+                It represents the fration of patch processed in a single thread.
+                 You will need to try different values to see which one would work
 
-        low_rank_background: bool
-            if True the background is approximated with gnb components. If false every patch keeps its background (overlaps are randomly assigned to one spatial component only)
+            low_rank_background: bool
+                if True the background is approximated with gnb components. If false every patch keeps its background (overlaps are randomly assigned to one spatial component only)
 
         Returns:
-        -------
-        A_tot: matrix containing all the componenents from all the patches
+            A_tot: matrix containing all the componenents from all the patches
 
-        C_tot: matrix containing the calcium traces corresponding to A_tot
+            C_tot: matrix containing the calcium traces corresponding to A_tot
 
-        sn_tot: per pixel noise estimate
+            sn_tot: per pixel noise estimate
 
-        optional_outputs: set of outputs related to the result of CNMF ALGORITHM ON EACH patch
+            optional_outputs: set of outputs related to the result of CNMF ALGORITHM ON EACH patch
 
-        Raise:
-        -----
-
-        Empty Exception
+        Raises:
+            Empty Exception
         """
 
     import logging
@@ -154,54 +150,51 @@ def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None, memory_fact=1,
      recreate the cnmf object and fit the values.
      It will then recreate the full frame by listing all the fitted values together
 
-    Parameters:
-    ----------
-    file_name: string
-        full path to an npy file (2D, pixels x time) containing the movie
+    Args:
+        file_name: string
+            full path to an npy file (2D, pixels x time) containing the movie
 
-    shape: tuple of three elements
-        dimensions of the original movie across y, x, and time
+        shape: tuple of three elements
+            dimensions of the original movie across y, x, and time
 
-    params:
-        CNMFParms object containing all the parameters for the various algorithms
+        params:
+            CNMFParms object containing all the parameters for the various algorithms
 
-    gnb: int
-        number of global background components
+        gnb: int
+            number of global background components
 
-    backend: string
-        'ipyparallel' or 'single_thread' or SLURM
+        backend: string
+            'ipyparallel' or 'single_thread' or SLURM
 
-    n_processes: int
-        nuber of cores to be used (should be less than the number of cores started with ipyparallel)
+        n_processes: int
+            nuber of cores to be used (should be less than the number of cores started with ipyparallel)
 
-    memory_fact: double
-        unitless number accounting how much memory should be used.
-        It represents the fration of patch processed in a single thread.
-         You will need to try different values to see which one would work
+        memory_fact: double
+            unitless number accounting how much memory should be used.
+            It represents the fration of patch processed in a single thread.
+             You will need to try different values to see which one would work
 
-    low_rank_background: bool
-        if True the background is approximated with gnb components. If false every patch keeps its background (overlaps are randomly assigned to one spatial component only)
+        low_rank_background: bool
+            if True the background is approximated with gnb components. If false every patch keeps its background (overlaps are randomly assigned to one spatial component only)
 
-    del_duplicates: bool
-        if True keeps only neurons in each patch that are well centered within the patch.
-        I.e. neurons that are closer to the center of another patch are removed to
-        avoid duplicates, cause the other patch should already account for them.
+        del_duplicates: bool
+            if True keeps only neurons in each patch that are well centered within the patch.
+            I.e. neurons that are closer to the center of another patch are removed to
+            avoid duplicates, cause the other patch should already account for them.
 
     Returns:
-    -------
-    A_tot: matrix containing all the components from all the patches
+        A_tot: matrix containing all the components from all the patches
 
-    C_tot: matrix containing the calcium traces corresponding to A_tot
+        C_tot: matrix containing the calcium traces corresponding to A_tot
 
-    sn_tot: per pixel noise estimate
+        sn_tot: per pixel noise estimate
 
-    optional_outputs: set of outputs related to the result of CNMF ALGORITHM ON EACH patch
+        optional_outputs: set of outputs related to the result of CNMF ALGORITHM ON EACH patch
 
-    Raise:
-    -----
-
-    Empty Exception
+    Raises:
+        Empty Exception
     """
+
     dims = shape[:-1]
     d = np.prod(dims)
     T = shape[-1]

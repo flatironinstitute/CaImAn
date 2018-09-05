@@ -1,14 +1,14 @@
 #!/usr/bin/env python
 
 """ compare how the elements behave
- 
+
 We create a folder ground truth that possess the same thing than the other
 in a form of a dictionnary containing nparrays and other info.
 the other files contains every test and the name is the date of the test
- 
+
 See Also
 ------------
- 
+
 Link 
 
 \image dev/kalfon/img/datacomparison.pdf
@@ -176,48 +176,41 @@ class Comparison(object):
                 have a groundtruth
 
 
-            Parameters:
-            -----------
+            Args:
+                self:  dictionnary
+                   the object of this class tha tcontains every value
 
-            self:  dictionnary
-               the object of this class tha tcontains every value
+                istruth: Boolean
+                    if we want it ot be the ground truth
 
-            istruth: Boolean
-                if we want it ot be the ground truth
+                params:
+                    movie parameters
 
-            params:
-                movie parameters
+                dview :
+                    your dview object
 
-            dview :
-                your dview object
+                n_frames_per_bin:
+                    you need to know those data before
+                    they have been given to the base/rois functions
 
-            n_frames_per_bin:
-                you need to know those data before
-                they have been given to the base/rois functions
+                dims_test:
+                    you need to know those data before
+                    they have been given to the base/rois functions
 
-            dims_test:
-                you need to know those data before
-                they have been given to the base/rois functions
+                Cn:
+                    your correlation image
 
-            Cn:
-                your correlation image
+                Cmap:
+                    a particular colormap for your Cn
 
-            Cmap:
-                a particular colormap for your Cn
-
-                See Also:
-                ---------
-
-            Example of utilisation on Demo Pipeline
+            See Also:
+                Example of utilisation on Demo Pipeline
 \image caiman/tests/comparison/data.pdf
 
+             Raises:
+                 ('we now have ground truth\n')
 
-             Raise:
-             ------
-
-             ('we now have ground truth\n')
-
-             ('we were not able to read the file to compare it\n')
+                 ('we were not able to read the file to compare it\n')
 
                 """
         # getting the DATA FOR COMPARISONS
@@ -385,17 +378,14 @@ def see(filename=None):
 
         if you give nothing it will give you back the groundtruth infos
 
-        Parameters:
-        -----------
-        self:  dictionnary
-           the object of this class tha tcontains every value
-        filename:
-            ( just give the number or name)
+        Args:
+            self:  dictionary
+                the object of this class tha tcontains every value
+            filename:
+                ( just give the number or name)
 
         See Also:
-        ---------
-        @image html caiman/tests/comparison/data.pdf
-
+            @image html caiman/tests/comparison/data.pdf
             """
 
     if filename == None:

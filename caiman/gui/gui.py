@@ -47,8 +47,7 @@ class GUI(animation.TimedAnimation):
 
     def __init__(self, mov, roi, traces, images={}, cmap=pl.cm.viridis, **kwargs):
         """
-            Parameters:
-            ---------
+            Args:
                 mov : 3d np array, 0'th axis is time/frames
 
                 roi : 3d np array, one roi per item in 0'th axis, each of which is a True/False mask indicating roi (True=inside roi)
@@ -58,7 +57,6 @@ class GUI(animation.TimedAnimation):
                 images: dictionary of still images
 
             Attributes:
-            ----------
                 roi_kept : boolean array of length of supplied roi, indicating whether or not roi should be kept based on user input
 
         """
@@ -266,7 +264,7 @@ if __name__ == '__main__':
     # load data
     my_mov = load(fname, fr=30)
     mean, minn, maxx = my_mov.mean(axis=0), my_mov.min(axis=0), my_mov.max(axis=0)
-    my_roi = np.load('/Users/ben/Desktop/roi.npy')
+    my_roi = np.load('/Users/ben/Desktop/roi.npy') # TODO: Remove this entire function?
     tr = np.random.random([3000, 3])
     # run interface
     intfc = GUI(my_mov, my_roi, tr, images=dict(mean=mean, min=minn, max=maxx))
