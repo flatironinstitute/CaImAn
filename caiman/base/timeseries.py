@@ -4,20 +4,6 @@
 """
 Class representing a time series.
 
-    Example of usage
-
-    Parameters:
-    ----------
-
-    input_arr: np.ndarray
-
-    start_time: time beginning movie
-
-    fr: frame rate
-
-    meta_data: dictionary including any custom meta data
-
-
 author: Andrea Giovannucci
 """
 
@@ -47,22 +33,6 @@ except:
 class timeseries(np.ndarray):
     """
     Class representing a time series.
-
-    Example of usage
-
-    Parameters:
-    ----------
-    input_arr: np.ndarray
-
-    fr: frame rate
-
-    start_time: time beginning movie
-
-    meta_data: dictionary including any custom meta data
-
-    Raise:
-    -----
-    Exception('You need to specify the frame rate')
     """
 
     def __new__(cls, input_arr, fr=30, start_time=0, file_name=None, meta_data=None):
@@ -71,19 +41,17 @@ class timeseries(np.ndarray):
 
             Example of usage
 
-            Parameters:
-            ----------
-            input_arr: np.ndarray
+            Args:
+                input_arr: np.ndarray
 
-            fr: frame rate
+                fr: frame rate
 
-            start_time: time beginning movie
+                start_time: time beginning movie
 
-            meta_data: dictionary including any custom meta data
+                meta_data: dictionary including any custom meta data
 
-            Raise:
-            -----
-            Exception('You need to specify the frame rate')
+            Raises:
+                Exception 'You need to specify the frame rate'
             """
         if fr is None:
             raise Exception('You need to specify the frame rate')
@@ -282,9 +250,8 @@ def concatenate(*args, **kwargs):
     """
     Concatenate movies
 
-    Parameters:
-    -----------
-    mov: XMovie object
+    Args:
+        mov: XMovie object
     """
     # todo: todocument return
 
