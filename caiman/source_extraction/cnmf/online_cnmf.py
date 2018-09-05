@@ -243,7 +243,7 @@ class OnACID(object):
                 time measured in number of frames
 
             frame_in : array
-                flattened array of shape (x*y[*z],) containing the t-th image.
+                flattened array of shape (x * y [ * z],) containing the t-th image.
 
             num_iters_hals: int, optional
                 maximal number of iterations for HALS (NNLS via blockCD)

@@ -120,7 +120,7 @@ def update_temporal_components(Y, A, b, Cin, fin, bl=None, c1=None, g=None, sn=N
         memory_efficient: Bool
             whether or not to optimize for memory usage (longer running times). necessary with very large datasets
 
-        **kwargs: dict
+        kwargs: dict
             all parameters passed to constrained_foopsi except bl,c1,g,sn (see documentation).
              Some useful parameters are
 

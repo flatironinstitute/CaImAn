@@ -637,7 +637,7 @@ def constrained_oasisAR2(y, g, sn, optimize_b=True, b_nonneg=True, optimize_g=0,
     """ Infer the most likely discretized spike train underlying an AR(2) fluorescence trace
 
     Solves the noise constrained sparse non-negative deconvolution problem
-    min |s|_1 subject to |c-y|^2 = sn^2 T and s_t = c_t-g1 c_{t-1}-g2 c_{t-2} >= 0
+    min (s)_1 subject to (c-y)^2 = sn^2 T and s_t = c_t-g1 c_{t-1}-g2 c_{t-2} >= 0
 
     Args:
         y : array of float
@@ -676,7 +676,7 @@ def constrained_oasisAR2(y, g, sn, optimize_b=True, b_nonneg=True, optimize_g=0,
             Maximal number of iterations.
     
         penalty : int, optional, default 1
-            Sparsity penalty. 1: min |s|_1  0: min |s|_0
+            Sparsity penalty. 1: min (s)_1  0: min (s)_0
 
     Returns:
         c : array of float

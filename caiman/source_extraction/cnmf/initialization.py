@@ -228,7 +228,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
 
     Returns:
         Ain: np.ndarray
-            (d1*d2[*d3]) x K , spatial filter of each neuron.
+            (d1 * d2 [ * d3]) x K , spatial filter of each neuron.
 
         Cin: np.ndarray
             T x K , calcium activity of each neuron.
@@ -237,7 +237,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
             K x 2 [or 3] , inferred center of each neuron.
 
         bin: np.ndarray
-            (d1*d2[*d3]) x nb, initialization of spatial background.
+            (d1 * d2 [ * d3]) x nb, initialization of spatial background.
 
         fin: np.ndarray
             nb x T matrix, initalization of temporal background
