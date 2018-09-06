@@ -371,8 +371,8 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
 
         Ain = np.reshape(Ain, (np.prod(d), K), order='F')
 
+    sparse_b = spr.issparse(b_in)
     if (nb > 0 or nb == -1) and (ssub != 1 or tsub != 1):
-        sparse_b = spr.issparse(b_in)
         b_in = np.reshape(b_in.toarray() if sparse_b else b_in, ds + (-1,), order='F')
 
         if len(ds) == 2:
@@ -386,12 +386,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
         if sparse_b:
             b_in = spr.csc_matrix(b_in)
 
-        # try:
         f_in = resize(np.atleast_2d(f_in), [b_in.shape[-1], T])
-        # except:
-        #     f_in = spr.csc_matrix(resize(np.atleast_2d(f_in.toarray()), [b_in.shape[-1], T]))
-    else:
-        sparse_b = False
 
     if Ain.size > 0:
         Cin = resize(Cin, [K, T])
