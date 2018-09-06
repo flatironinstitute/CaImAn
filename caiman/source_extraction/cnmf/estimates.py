@@ -578,7 +578,10 @@ class Estimates(object):
             nB_mat = scipy.sparse.spdiags(nB, 0, nB.shape[0], nB.shape[0])
             nB_inv_mat = scipy.sparse.spdiags(1. / nB, 0, nB.shape[0], nB.shape[0])
             self.b = self.b * nB_inv_mat
-            self.f = nB_mat * self.f
+            if max(nB_mat.shape) == 1:
+                self.f = nB_mat.diagonal()[0] * self.f
+            else:
+                self.f = nB_mat * self.f
         return self
 
     def select_components(self, idx_components=None, use_object=False):
