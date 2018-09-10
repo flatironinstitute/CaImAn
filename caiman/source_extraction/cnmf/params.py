@@ -734,6 +734,10 @@ class CNMFParams(object):
             logging.warning("gnb=-1, hence setting key update_background_components " +
                             "in group spatial automatically to False.")
             self.set('spatial', {'update_background_components': False})
+        if method_init=='corr_pnr' and ring_size_factor is not None:
+            logging.warning("using CNMF-E's ringmodel for background hence setting key " + 
+                            "normalize_init in group init automatically to False.")
+            self.set('init', {'normalize_init': False})
 
     def set(self, group, val_dict, set_if_not_exists=False):
         """ Add key-value pairs to a group. Existing key-value pairs will be overwritten
