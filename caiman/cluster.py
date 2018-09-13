@@ -85,12 +85,12 @@ def extract_patch_coordinates(dims, rf, stride, border_pix=0, indeces=[slice(Non
     for count_0, xx in enumerate(iters[0]):
         coords_x = np.arange(xx - rf[0], xx + rf[0] + 1)
         coords_x = coords_x[(coords_x >= 0) & (coords_x < dims[0])]
-        coords_x += border_pix + np.maximum(sl_start[0], border_pix)
+        coords_x += border_pix*0 + np.maximum(sl_start[0], border_pix)
 
         for count_1, yy in enumerate(iters[1]):
             coords_y = np.arange(yy - rf[1], yy + rf[1] + 1)
             coords_y = coords_y[(coords_y >= 0) & (coords_y < dims[1])]
-            coords_y += border_pix + np.maximum(sl_start[1], border_pix)
+            coords_y += border_pix*0 + np.maximum(sl_start[1], border_pix)
 
             if len(dims) == 2:
                 idxs = np.meshgrid(coords_x, coords_y)

@@ -39,7 +39,7 @@ from caiman.source_extraction.cnmf.cnmf import load_CNMF
 # %%  ANALYSIS MODE AND PARAMETERS
 preprocessing_from_scratch = True  # whether to run the full pipeline or just creating figures
 
-if False:
+if preprocessing_from_scratch:
     reload = False
     plot_on = False
     save_on = False  # set to true to recreate
@@ -332,7 +332,7 @@ if preprocessing_from_scratch:
     num_blocks_per_run = 10
     ALL_CCs = []
 
-    for params_movie in np.array(params_movies)[ID]:
+    for params_movie in np.array(params_movies)[4:5]:#[ID]:
         #    params_movie['gnb'] = 3
         params_display = {
             'downsample_ratio': .2,
