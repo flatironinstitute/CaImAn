@@ -341,6 +341,7 @@ class CNMF(object):
         from copy import deepcopy
         cnm = CNMF(self.params.patch['n_processes'], params=self.params, dview=dview)
         cnm.params.patch['rf'] = None
+        cnm.params.patch['only_init'] = False
         estimates = deepcopy(self.estimates)
         estimates.select_components(use_object=True)
         cnm.estimates = estimates
