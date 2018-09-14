@@ -48,7 +48,7 @@ from caiman.cluster import setup_cluster
 preprocessing_from_scratch = True # whether to run the full pipeline or just creating figures
 
 if preprocessing_from_scratch:
-    reload = False
+    reload = True
     plot_on = False
     save_on = False # set to true to recreate
 else:
@@ -312,7 +312,7 @@ if preprocessing_from_scratch:
     num_blocks_per_run=10
     ALL_CCs = []
 
-    for params_movie in np.array(params_movies)[0:1]:
+    for params_movie in np.array(params_movies)[7:8]:
     #    params_movie['gnb'] = 3
         params_display = {
             'downsample_ratio': .2,
