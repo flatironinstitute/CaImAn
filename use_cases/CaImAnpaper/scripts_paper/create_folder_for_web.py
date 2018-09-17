@@ -46,16 +46,16 @@ for bfold,dfold in zip(base_folders[:], dest_folders[:]):
 
     for region in regionslist:
         if 'ben_active_regions_nd.zip' in region:
-            name = os.path.join(regions_dist , 'L1_regions.json')
+            name = os.path.join(regions_dist , 'L4_regions.json')
             masks = nf_read_roi_zip(region, dims)
         elif 'lindsey_active_regions_nd.zip' in region:
-            name = os.path.join(regions_dist , 'L2_regions.json')
-            masks = nf_read_roi_zip(region, dims)
-        elif 'sonia_active_regions_nd.zip' in region:
             name = os.path.join(regions_dist , 'L3_regions.json')
             masks = nf_read_roi_zip(region, dims)
+        elif 'sonia_active_regions_nd.zip' in region:
+            name = os.path.join(regions_dist , 'L2_regions.json')
+            masks = nf_read_roi_zip(region, dims)
         elif 'natalia_active_regions_nd.zip' in region:
-            name = os.path.join(regions_dist , 'L4_regions.json')
+            name = os.path.join(regions_dist , 'L1_regions.json')
             masks = nf_read_roi_zip(region, dims)
         elif 'joined_consensus_active_regions.npy' in region:
             name = os.path.join(regions_dist , 'consensus_regions.json')
@@ -75,6 +75,27 @@ for bfold,dfold in zip(base_folders[:], dest_folders[:]):
 
 
 
+#%%
+if False:
+    #%%
+    import glob
+    import shutil
+    fls = glob.glob('L1_r*')
+    for ff in fls:
+        shutil.move(ff, 'L4__'+ff[3:])
+        print('L4__'+ff[3:])
+    fls = glob.glob('L4_r*')
+    for ff in fls:
+        shutil.move(ff, 'L1__'+ff[3:])
+        print('L1__'+ff[3:])
+    fls = glob.glob('L2_r*')
+    for ff in fls:
+        shutil.move(ff, 'L3__'+ff[3:])
+        print('L3__'+ff[3:])
+    fls = glob.glob('L3_r*')
+    for ff in fls:
+        shutil.move(ff, 'L2__'+ff[3:])
+        print('L2__'+ff[3:])
 
 
 
