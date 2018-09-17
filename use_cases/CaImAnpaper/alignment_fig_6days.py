@@ -29,7 +29,7 @@ import itertools
 base_folder = '/Users/epnevmatikakis/Desktop/untitled folder/'
 #base_folder = '/mnt/ceph/neuro/Sue/k53/'
 
-files = glob(base_folder+'*/*.npz')
+files = glob(base_folder + '*/*.npz')
 
 #%% load data
 data = []
