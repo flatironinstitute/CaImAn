@@ -332,7 +332,7 @@ if preprocessing_from_scratch:
     num_blocks_per_run = 10
     ALL_CCs = []
 
-    for params_movie in np.array(params_movies)[4:5]:#[ID]:
+    for params_movie in np.array(params_movies)[6:7]:#[ID]:
         #    params_movie['gnb'] = 3
         params_display = {
             'downsample_ratio': .2,
@@ -379,7 +379,7 @@ if preprocessing_from_scratch:
                        'merge_thr': params_movie['merge_thresh'],
                        'p': global_params['p'],
                        'nb': global_params['gnb'],
-                       'only_init_patch': global_params['only_init_patch'],
+                       'only_init': global_params['only_init_patch'],
                        'dview': dview,
                        'method_deconvolution': 'oasis',
                        'border_pix': params_movie['crop_pix'],
@@ -388,7 +388,13 @@ if preprocessing_from_scratch:
                        'nb_patch': 1,
                        'check_nan': check_nan,
                        'block_size': block_size,
-                       'num_blocks_per_run': num_blocks_per_run
+                       'num_blocks_per_run': num_blocks_per_run,
+                       'n_pixels_per_process': 4000,
+                       'ssub': 2,
+                       'tsub': 2,
+                       'p_tsub': 1,
+                       'p_ssub': 1,
+                       'thr_method': 'nrg'
                        }
 
         init_method = global_params['init_method']

@@ -601,7 +601,6 @@ class Estimates(object):
             idx_components = self.idx_components
         if idx_components is None:
             idx_components = range(self.A.shape[-1])
-        import pdb
 
         for field in ['C', 'S', 'YrA', 'R', 'g', 'bl', 'c1', 'neurons_sn', 'lam', 'cnn_preds']:
             print(field)

@@ -92,10 +92,10 @@ class CNMFParams(object):
             remove_very_bad_comps: bool, default: True
                 Whether to remove (very) bad quality components during patch processing
 
-            ssub: float, default: 2
+            p_ssub: float, default: 2
                 Spatial downsampling factor
 
-            tsub: float, default: 2
+            p_tsub: float, default: 2
                 Temporal downsampling factor
 
             memory_fact: float, default: 1
@@ -233,7 +233,7 @@ class CNMFParams(object):
             n_pixels_per_process: int, default: 1000
                 number of pixels to be processed by each worker
 
-            thr_method: 'nrg'|'max', default: 'max'
+            thr_method: 'nrg'|'max', default: 'nrg'
                 thresholding method
 
             maxthr: float, default: 0.1
@@ -527,9 +527,9 @@ class CNMFParams(object):
             'remove_very_bad_comps': remove_very_bad_comps,
             'rf': rf,
             'skip_refinement': False,
-            'ssub': p_ssub,             # spatial downsampling factor
+            'p_ssub': p_ssub,             # spatial downsampling factor
             'stride': stride,
-            'tsub': p_tsub,             # temporal downsampling factor
+            'p_tsub': p_tsub,             # temporal downsampling factor
         }
 
         self.preprocess = {
@@ -598,7 +598,7 @@ class CNMFParams(object):
             'num_blocks_per_run': num_blocks_per_run,
             'se': None,                      # Morphological closing structuring element
             'ss': None,                      # Binary element for determining connectivity
-            'thr_method': 'max',             # Method of thresholding ('max' or 'nrg')
+            'thr_method': 'nrg',             # Method of thresholding ('max' or 'nrg')
             # whether to update the background components in the spatial phase
             'update_background_components': update_background_components,
         }
