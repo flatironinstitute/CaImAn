@@ -710,7 +710,7 @@ class Estimates(object):
         return self
 
 
-    def filter_components(self, imgs, **kwargs):
+    def filter_components(self, imgs, params, new_dict={}):
         """Filters components based on given thresholds without re-computing
         the quality metrics. If the quality metrics are not present then it
         calls self.evaluate components.
@@ -763,11 +763,11 @@ class Estimates(object):
                     CNN classifier values for each component
         """
         dims = imgs.shape[1:]
-        self.params.set('quality', kwargs)
+        params.set('quality', new_dict)
 
-        opts = self.params.get_group('quality')
+        opts = params.get_group('quality')
         self.idx_components, self.idx_components_bad, self.cnn_preds = \
-        select_components_from_metrics(self.A, dims, self.params.get('init', 'gSig'), self.r_values,
+        select_components_from_metrics(self.A, dims, params.get('init', 'gSig'), self.r_values,
                                        self.SNR_comp, predictions=self.cnn_preds,
                                        r_values_min=opts['rval_thr'],
                                        r_values_lowest=opts['rval_lowest'],
