@@ -40,7 +40,7 @@ from caiman.source_extraction.cnmf.cnmf import load_CNMF
 preprocessing_from_scratch = True  # whether to run the full pipeline or just creating figures
 
 if preprocessing_from_scratch:
-    reload = False
+    reload = True
     plot_on = False
     save_on = False  # set to true to recreate
 else:
@@ -55,9 +55,11 @@ try:
     ID = str(np.int(ID) - 1)
     print('Processing ID:' + str(ID))
     ID = [np.int(ID)]
+
 except:
-    ID = np.arange(2,6)
+    ID = np.arange(0,1)
     print('ID NOT PASSED')
+
 
 
 print_figs = True
@@ -187,7 +189,7 @@ params_movie = {'fname': 'YST/Yr_d1_200_d2_256_d3_1_order_C_frames_3000_.mmap',
                 'merge_thresh': 0.8,  # merging threshold, max correlation allow
                 'rf': 15,  # half-size of the patches in pixels. rf=25, patches are 50x50    20
                 'stride_cnmf': 10,  # amounpl.it of overlap between the patches in pixels
-                'K': 8,  # number of components per patch
+                'K': 10,  # number of components per patch
                 'gSig': [5, 5],  # expected half size of neurons
                 'fr': 10,
                 'decay_time': 0.75,
@@ -202,7 +204,7 @@ params_movie = {'fname': 'N.00.00/Yr_d1_512_d2_512_d3_1_order_C_frames_2936_.mma
                 'merge_thresh': 0.8,  # merging threshold, max correlation allow
                 'rf': 20,  # half-size of the patches in pixels. rf=25, patches are 50x50    20
                 'stride_cnmf': 10,  # amounpl.it of overlap between the patches in pixels
-                'K': 6,  # number of components per patch
+                'K': 7,  # number of components per patch
                 'gSig': [6, 6],  # expected half size of neurons
                 'decay_time': 0.4,
                 'fr': 8,
@@ -217,7 +219,7 @@ params_movie = {'fname': 'N.01.01/Yr_d1_512_d2_512_d3_1_order_C_frames_1825_.mma
                 'merge_thresh': 0.9,  # merging threshold, max correlation allow
                 'rf': 20,  # half-size of the patches in pixels. rf=25, patches are 50x50    20
                 'stride_cnmf': 10,  # amounpl.it of overlap between the patches in pixels
-                'K': 6,  # number of components per patch
+                'K': 7,  # number of components per patch
                 'gSig': [6, 6],  # expected half size of neurons
                 'decay_time': 1.4,
                 'fr': 8,
@@ -252,7 +254,7 @@ params_movie = {  # 'fname': '/opt/local/Data/labeling/k53_20160530/Yr_d1_512_d2
     'merge_thresh': 0.8,  # merging threshold, max correlation allow
     'rf': 20,  # half-size of the patches in pixels. rf=25, patches are 50x50    20
     'stride_cnmf': 10,  # amounpl.it of overlap between the patches in pixels
-    'K': 9,  # number of components per patch
+    'K': 10,  # number of components per patch
     'gSig': [6, 6],  # expected half size of neurons
     'fr': 30,
     'decay_time': 0.3,
@@ -270,7 +272,7 @@ params_movie = {
     'merge_thresh': 0.8,  # merging threshold, max correlation allow
     'rf': 20,  # half-size of the patches in pixels. rf=25, patches are 50x50    20
     'stride_cnmf': 10,  # amounpl.it of overlap between the patches in pixels
-    'K': 7,  # number of components per patch
+    'K': 8,  # number of components per patch
     'gSig': [7, 7],  # expected half size of neurons
     'fr': 30,
     'decay_time': 0.4,
@@ -289,7 +291,7 @@ params_movie = {
     'merge_thresh': 0.8,  # merging threshold, max correlation allow
     'rf': 40,  # half-size of the patches in pixels. rf=25, patches are 50x50    20
     'stride_cnmf': 20,  # amounpl.it of overlap between the patches in pixels
-    'K': 10,  # number of components per patch
+    'K': 11,  # number of components per patch
     'gSig': [8, 8],  # expected half size of neurons
     'decay_time': 0.5,
     'fr': 30,
@@ -332,7 +334,7 @@ if preprocessing_from_scratch:
     num_blocks_per_run = 10
     ALL_CCs = []
 
-    for params_movie in np.array(params_movies)[6:7]:#[ID]:
+    for params_movie in np.array(params_movies)[ID]:
         #    params_movie['gnb'] = 3
         params_display = {
             'downsample_ratio': .2,
@@ -401,7 +403,7 @@ if preprocessing_from_scratch:
 
         opts = params.CNMFParams(params_dict=params_dict)
         if reload:
-            cnm2 = load_CNMF(fname_new[:-5] + '_cnmf.hdf5')
+            cnm2 = load_CNMF(fname_new[:-5] + '_cnmf_gsig.hdf5')
         else:
             # %% Extract spatial and temporal components on patches
             t1 = time.time()
@@ -428,7 +430,7 @@ if preprocessing_from_scratch:
 
             cnm2 = cnm.refit(images, dview=dview)
             if save_on:
-                cnm2.save(fname_new[:-5] + '_cnmf.hdf5')
+                cnm2.save(fname_new[:-5] + '_cnmf_gsig.hdf5')
 
         # %%
         if plot_on:
@@ -497,10 +499,10 @@ if preprocessing_from_scratch:
                                                                                   labels=['GT', 'Offline'],
                                                                                   plot_results=False)
 
-        print({a: b.astype(np.float16) for a, b in performance_cons_off.items()})
+        print(fname_new+str({a: b.astype(np.float16) for a, b in performance_cons_off.items()}))
         cnm2.estimates.A_thr = scipy.sparse.csc_matrix(cnm2.estimates.A_thr)
         if save_on:
-            cnm2.save(fname_new[:-5] + '_cnmf_after_analysis.hdf5')
+            cnm2.save(fname_new[:-5] + '_cnmf_gsig_after_analysis.hdf5')
 
         performance_cons_off['fname_new'] = fname_new
         performance_tmp = performance_cons_off.copy()
@@ -516,12 +518,12 @@ if preprocessing_from_scratch:
 
         all_results[fname_new.split('/')[-2]] = performance_tmp
 
-        if save_on:
-            print('SAVING...' + fname_new[:-5] + '_perf_refactor.npz')
-            np.savez(fname_new[:-5] + '_perf_refactor.npz', all_results=performance_tmp)
+        if save_on :
+            print('SAVING...' + fname_new[:-5] + '_perf_Sep_2018_gsig.npz')
+            np.savez(fname_new[:-5] + '_perf_Sep_2018_gsig.npz', all_results=performance_tmp)
 
     if save_on:
-        # here evenatually save when in a loop
+        # here eventually save when in a loop
         print('Saving not implementd')
 
 
