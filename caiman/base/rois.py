@@ -629,7 +629,7 @@ def extract_active_components(assignments, indeces, only = True):
 
         only: bool
             If True return components that were active ONLY in these sessions and
-            where inactive in all the others. If False components can be active
+            were inactive in all the others. If False components can be active
             in other sessions as well
 
     Returns:
