@@ -656,26 +656,24 @@ class Estimates(object):
             imgs: np.array (possibly memory mapped, t,x,y[,z])
                 Imaging data
 
-            fr: float
-                Imaging rate
+            params: params object
+                Parameters of the algorithm. The parameters in play here are
+                contained in the subdictionary params.quality:
 
-            decay_time: float
-                length of decay of typical transient (in seconds)
+                min_SNR: float
+                    trace SNR threshold
 
-            min_SNR: float
-                trace SNR threshold
+                rval_thr: float
+                    space correlation threshold
 
-            rval_thr: float
-                space correlation threshold
+                use_cnn: bool
+                    flag for using the CNN classifier
 
-            use_cnn: bool
-                flag for using the CNN classifier
-
-            min_cnn_thr: float
-                CNN classifier threshold
+                min_cnn_thr: float
+                    CNN classifier threshold
 
         Returns:
-            self: CNMF object
+            self: esimates object
                 self.idx_components: np.array
                     indeces of accepted components
                 self.idx_components_bad: np.array
@@ -708,8 +706,7 @@ class Estimates(object):
 
         return self
 
-
-    def filter_components(self, imgs, params, new_dict={}):
+    def filter_components(self, imgs, params, new_dict={}, dview=None):
         """Filters components based on given thresholds without re-computing
         the quality metrics. If the quality metrics are not present then it
         calls self.evaluate components.
@@ -718,35 +715,36 @@ class Estimates(object):
             imgs: np.array (possibly memory mapped, t,x,y[,z])
                 Imaging data
 
-            fr: float
-                Imaging rate
+            params: params object
+                Parameters of the algorithm
 
-            decay_time: float
-                length of decay of typical transient (in seconds)
+            new_dict: dict
+                New dictionary with parameters to be called. The dictionary
+                modifies the params.quality subdictionary in the following
+                entries:
+                    min_SNR: float
+                        trace SNR threshold
 
-            min_SNR: float
-                trace SNR threshold
+                    SNR_lowest: float
+                        minimum required trace SNR
 
-            SNR_lowest: float
-                minimum required trace SNR
+                    rval_thr: float
+                        space correlation threshold
 
-            rval_thr: float
-                space correlation threshold
+                    rval_lowest: float
+                        minimum required space correlation
 
-            rval_lowest: float
-                minimum required space correlation
+                    use_cnn: bool
+                        flag for using the CNN classifier
 
-            use_cnn: bool
-                flag for using the CNN classifier
+                    min_cnn_thr: float
+                        CNN classifier threshold
 
-            min_cnn_thr: float
-                CNN classifier threshold
+                    cnn_lowest: float
+                        minimum required CNN threshold
 
-            cnn_lowest: float
-                minimum required CNN threshold
-
-            gSig_range: list
-                gSig scale values for CNN classifier
+                    gSig_range: list
+                        gSig scale values for CNN classifier
 
         Returns:
             self: CNMF object
@@ -765,17 +763,23 @@ class Estimates(object):
         params.set('quality', new_dict)
 
         opts = params.get_group('quality')
-        self.idx_components, self.idx_components_bad, self.cnn_preds = \
-        select_components_from_metrics(self.A, dims, params.get('init', 'gSig'), self.r_values,
-                                       self.SNR_comp, predictions=self.cnn_preds,
-                                       r_values_min=opts['rval_thr'],
-                                       r_values_lowest=opts['rval_lowest'],
-                                       min_SNR=opts['min_SNR'],
-                                       min_SNR_reject=opts['SNR_lowest'],
-                                       thresh_cnn_min=opts['min_cnn_thr'],
-                                       thresh_cnn_lowest=opts['cnn_lowest'],
-                                       use_cnn=opts['use_cnn'],
-                                       gSig_range=opts['gSig_range'])
+        flag = [a is None for a in [self.r_values, self.SNR_comp, self.cnn_preds]]
+
+        if any(flag):
+            self.evaluate_components(imgs, params, dview=dview)
+        else:
+            self.idx_components, self.idx_components_bad, self.cnn_preds = \
+            select_components_from_metrics(self.A, dims, params.get('init', 'gSig'),
+                                           self.r_values, self.SNR_comp,
+                                           predictions=self.cnn_preds,
+                                           r_values_min=opts['rval_thr'],
+                                           r_values_lowest=opts['rval_lowest'],
+                                           min_SNR=opts['min_SNR'],
+                                           min_SNR_reject=opts['SNR_lowest'],
+                                           thresh_cnn_min=opts['min_cnn_thr'],
+                                           thresh_cnn_lowest=opts['cnn_lowest'],
+                                           use_cnn=opts['use_cnn'],
+                                           gSig_range=opts['gSig_range'])            
 
         return self
 

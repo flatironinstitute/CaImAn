@@ -739,7 +739,7 @@ class CNMFParams(object):
                             "normalize_init in group init automatically to False.")
             self.set('init', {'normalize_init': False})
 
-    def set(self, group, val_dict, set_if_not_exists=False):
+    def set(self, group, val_dict, set_if_not_exists=False, verbose=False):
         """ Add key-value pairs to a group. Existing key-value pairs will be overwritten
             if specified in val_dict, but not deleted.
 
@@ -755,8 +755,9 @@ class CNMFParams(object):
         d = getattr(self, group)
         for k, v in val_dict.items():
             if k not in d and not set_if_not_exists:
-                logging.warning(
-                    "NOT setting value of key {} in group {}, because no prior key existed...".format(k, group))
+                if verbose:
+                    logging.warning(
+                        "NOT setting value of key {} in group {}, because no prior key existed...".format(k, group))
             else:
                 if np.any(d[k] != v):
                     logging.warning(
@@ -821,7 +822,7 @@ class CNMFParams(object):
                 'merging': self.merging, 'motion': self.motion
                 }
 
-    def change_params(self, params_dict):
+    def change_params(self, params_dict, verbose=False):
         for gr in list(self.__dict__.keys()):
-            self.set(gr, params_dict)
+            self.set(gr, params_dict, verbose=verbose)
         return self
