@@ -603,7 +603,7 @@ class Estimates(object):
             idx_components = range(self.A.shape[-1])
 
         for field in ['C', 'S', 'YrA', 'R', 'g', 'bl', 'c1', 'neurons_sn', 'lam', 'cnn_preds']:
-            print(field)
+
             if getattr(self, field) is not None:
                 if type(getattr(self, field)) is list:
                     setattr(self, field, np.array(getattr(self, field)))
@@ -613,7 +613,7 @@ class Estimates(object):
                     print('*** Variable ' + field + ' has not the same number of components as A ***')
 
         for field in ['A', 'A_thr']:
-            print(field)
+
             if getattr(self, field) is not None:
                 if 'sparse' in str(type(getattr(self, field))):
                     setattr(self, field, getattr(self, field).tocsc()[:, idx_components])

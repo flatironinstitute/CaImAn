@@ -482,7 +482,7 @@ def recursively_load_dict_contents_from_group( h5file, path):
                 indices = item[path + key + '/indices']
                 indptr = item[path + key + '/indptr']
                 shape = item[path + key + '/shape']
-                ans[key] = scipy.sparse.csc_matrix((data[:],indices[:],
+                ans[key] = scipy.sparse.csc_matrix((data[:], indices[:],
                     indptr[:]), shape[:])
             else:
                 ans[key] = recursively_load_dict_contents_from_group(h5file, path + key + '/')
