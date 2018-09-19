@@ -1176,17 +1176,16 @@ def update_shapes(CY, CC, Ab, ind_A, sn=None, q=0.5, indicator_components=None, 
     D, M = Ab.shape
     N = len(ind_A)
     nb = M - N
-    if sn is None:
-        L = np.zeros((M,D))
+    if sn is None or q == 0.5:
+        L = np.zeros((M, D), dtype=np.float32)
     else:
         L = norm.ppf(q)*np.outer(np.sqrt(CC.diagonal()), sn)
         L[:nb] = 0
+    if indicator_components is None:
+        idx_comp = range(nb, M)
+    else:
+        idx_comp = np.where(indicator_components)[0] + nb
     for _ in range(iters):  # it's presumably better to run just 1 iter but update more neurons
-        if indicator_components is None:
-            idx_comp = range(nb, M)
-        else:
-            idx_comp = np.where(indicator_components)[0] + nb
-
         if Ab_dense is None:
             for m in idx_comp:  # neurons
                 ind_pixels = ind_A[m - nb]
@@ -1306,7 +1305,10 @@ def rank1nmf(Ypx, ain):
         cin_res = ain.T.dot(Ypx)  # / ain.dot(ain)
         cin = np.maximum(cin_res, 0)
         ain = np.maximum(Ypx.dot(cin.T), 0)
-        ain /= sqrt(ain.dot(ain) + np.finfo(float).eps)
+        try:
+            ain /= sqrt(ain.dot(ain))
+        except:
+            break
         # nc = cin.dot(cin)
         # ain = np.maximum(Ypx.dot(cin.T) / nc, 0)
         # tmp = cin - cin_old
@@ -1319,6 +1321,7 @@ def rank1nmf(Ypx, ain):
 
 
 #%%
+@profile
 def get_candidate_components(sv, dims, Yres_buf, min_num_trial=3, gSig=(5, 5),
                              gHalf=(5, 5), sniper_mode=True, rval_thr=0.85,
                              patch_size=50, loaded_model=None, test_both=False,
@@ -1339,7 +1342,6 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial=3, gSig=(5, 5),
     local_maxima = []
     Y_patch = []
     ksize = tuple([int(3 * i / 2) * 2 + 1 for i in gSig])
-    half_crop_cnn = tuple([int(np.minimum(gs*2, patch_size/2)) for gs in gSig])
     compute_corr = test_both
 
     if use_peak_max:
@@ -1381,27 +1383,24 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial=3, gSig=(5, 5),
             ij = np.unravel_index(ind, dims, order='C')
             local_maxima.append(ij)
 
-        ij = [min(max(ij_val,g_val),dim_val-g_val-1) for ij_val, g_val, dim_val in zip(ij,gHalf,dims)]
-
-        ij_cnn = [min(max(ij_val,g_val),dim_val-g_val-1) for ij_val, g_val, dim_val in zip(ij,half_crop_cnn,dims)]
-
+        ij = [min(max(ij_val, g_val), dim_val-g_val-1)
+              for ij_val, g_val, dim_val in zip(ij, gHalf, dims)]
         ind = np.ravel_multi_index(ij, dims, order='C')
-
-        ijSig = [[max(i - g, 0), min(i+g+1,d)] for i, g, d in zip(ij, gHalf, dims)]
-
+        ijSig = [[max(i - g, 0), min(i+g+1, d)] for i, g, d in zip(ij, gHalf, dims)]
         ijsig_all.append(ijSig)
-        ijSig_cnn = [[max(i - g, 0), min(i+g+1,d)] for i, g, d in zip(ij_cnn, half_crop_cnn, dims)]
-
         indeces = np.ravel_multi_index(np.ix_(*[np.arange(ij[0], ij[1])
-                        for ij in ijSig]), dims, order='F').ravel(order = 'C')
+                                                for ij in ijSig]), dims, order='F').ravel(order='C')
 
-        indeces_ = np.ravel_multi_index(np.ix_(*[np.arange(ij[0], ij[1])
-                        for ij in ijSig]), dims, order='C').ravel(order = 'C')
+        # indeces_ = np.ravel_multi_index(np.ix_(*[np.arange(ij[0], ij[1])
+        #                 for ij in ijSig]), dims, order='C').ravel(order = 'C')
 
         Ypx = Yres_buf.T[indeces, :]
         ain = np.maximum(np.mean(Ypx, 1), 0)
 
         if sniper_mode:
+            half_crop_cnn = tuple([int(np.minimum(gs*2, patch_size/2)) for gs in gSig])
+            ij_cnn = [min(max(ij_val,g_val),dim_val-g_val-1) for ij_val, g_val, dim_val in zip(ij,half_crop_cnn,dims)]
+            ijSig_cnn = [[max(i - g, 0), min(i+g+1,d)] for i, g, d in zip(ij_cnn, half_crop_cnn, dims)]
             indeces_cnn = np.ravel_multi_index(np.ix_(*[np.arange(ij[0], ij[1])
                             for ij in ijSig_cnn]), dims, order='F').ravel(order = 'C')
             Ypx_cnn = Yres_buf.T[indeces_cnn, :]
@@ -1411,7 +1410,7 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial=3, gSig=(5, 5),
             compute_corr = True  # determine when to compute corr coef
 
         na = ain.dot(ain)
-        sv[indeces_] /= 1  # 0
+        # sv[indeces_] /= 1  # 0
         if na:
             ain /= sqrt(na)
             Ain.append(ain)

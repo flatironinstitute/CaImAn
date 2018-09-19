@@ -150,12 +150,9 @@ def compute_event_exceptionality(traces, robust_std=False, N=5, use_mode_fast=Fa
     # compute with this numerically stable function
     erf = scipy.special.log_ndtr(-z)
 
-    filt = np.ones(N)
-
     # moving sum
-    erfc = np.apply_along_axis(lambda m: np.convolve(
-        m, filt, mode='full'), axis=1, arr=erf)
-    erfc = erfc[:, :T]
+    erfc = np.cumsum(erf, 1)
+    erfc[:, N:] -= erfc[:, :-N]
 
     # select the maximum value of such probability for each trace
     fitness = np.min(erfc, 1)
