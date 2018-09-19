@@ -422,7 +422,7 @@ class OnACID(object):
             self.estimates.CC = self.estimates.CC * (1 - 1. / t) + ccf.dot(ccf.T / t)
 
         # update shapes
-        if True:  # False:  # bulk shape update
+        if not self.params.get('online', 'dist_shape_update'):  # False:  # bulk shape update
             if (t - self.params.get('online', 'init_batch')) % mbs == mbs - 1:
                 print('Updating Shapes')
 
@@ -487,7 +487,7 @@ class OnACID(object):
                     self.estimates.AtY_buf = Ab_.T.dot(self.estimates.Yr_buf.T)
 
         else:  # distributed shape update
-            self.update_counter *= .5**(1. / mbs)
+            self.update_counter *= .5**(1. / self.params.get('online', 'update_freq'))
             # if not num_added:
             if (not num_added) and (time() - t_start < self.time_spend / (t - self.params.get('online', 'init_batch') + 1)):
                 candidates = np.where(self.update_counter <= 1)[0]
@@ -500,8 +500,9 @@ class OnACID(object):
                         # this is faster than calling update_shapes with sparse Ab only
                         Ab_, self.ind_A, self.estimates.Ab_dense[:, :self.M] = update_shapes(
                             self.estimates.CY, self.estimates.CC, self.estimates.Ab, self.ind_A,
-                            indicator_components, self.estimates.Ab_dense[:, :self.M],
-                            update_bkgrd=(t % mbs == 0))
+                            indicator_components=indicator_components,
+                            Ab_dense=self.estimates.Ab_dense[:, :self.M],
+                            sn=self.estimates.sn, q=0.5)
                     else:
                         Ab_, self.ind_A, _ = update_shapes(
                             self.estimates.CY, self.estimates.CC, Ab_, self.ind_A,

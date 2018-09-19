@@ -362,6 +362,9 @@ class CNMFParams(object):
             ds_factor: int, default: 1,
                 spatial downsampling factor for faster processing (if > 1)
 
+            dist_shape_update: bool, default: False,
+                update shapes in a distributed fashion
+
             epochs: int, default: 1,
                 number of times to go over data
 
@@ -442,6 +445,9 @@ class CNMFParams(object):
 
             thresh_overlap: float, default: 0.5
                 Intersection-over-Union space overlap threshold for screening new components
+
+            update_freq: int, default: 200
+                Update each shape at least once every X frames when in distributed mode
 
             update_num_comps: bool, default: True
                 Whether to search for new components
@@ -648,6 +654,7 @@ class CNMFParams(object):
         self.online = {
             'N_samples_exceptionality': N_samples_exceptionality,  # timesteps to compute SNR
             'batch_update_suff_stat': batch_update_suff_stat,
+            'dist_shape_update': False,        # update shapes in a distributed way
             'ds_factor': 1,                    # spatial downsampling for faster processing
             'epochs': 1,                       # number of epochs
             'expected_comps': expected_comps,  # number of expected components
@@ -678,6 +685,7 @@ class CNMFParams(object):
             'thresh_fitness_delta': thresh_fitness_delta,
             'thresh_fitness_raw': thresh_fitness_raw,    # threshold for trace SNR (computed below)
             'thresh_overlap': thresh_overlap,
+            'update_freq': 200,                # update every shape at least once every update_freq steps
             'update_num_comps': update_num_comps,  # flag for searching for new components
             'use_dense': use_dense,            # flag for representation and storing of A and b
             'use_peak_max': use_peak_max,      # flag for finding candidate centroids
