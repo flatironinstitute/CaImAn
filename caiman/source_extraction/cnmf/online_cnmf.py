@@ -203,8 +203,7 @@ class OnACID(object):
             min(self.params.get('online', 'init_batch'), self.params.get('online', 'minibatch_shape')) - 1), 0)
         self.estimates.groups = list(map(list, update_order(self.estimates.Ab)[0]))
         # self.update_counter = np.zeros(self.N)
-        self.update_counter = .5**(-np.linspace(0, 1,
-                                                self.N, dtype=np.float32))
+        self.update_counter = 2**np.linspace(0, 1, self.N, dtype=np.float32)
         self.time_neuron_added = []
         for nneeuu in range(self.N):
             self.time_neuron_added.append((nneeuu, self.params.get('online', 'init_batch')))
@@ -233,6 +232,7 @@ class OnACID(object):
         self.loaded_model = loaded_model
         return self
 
+    @profile
     def fit_next(self, t, frame_in, num_iters_hals=3):
         """
         This method fits the next frame using the online cnmf algorithm and
@@ -354,7 +354,6 @@ class OnACID(object):
                     print('Increasing number of expected components to:' +
                           str(expected_comps))
                 self.update_counter.resize(self.N)
-                self.estimates.AtA = (Ab_.T.dot(Ab_)).toarray()
 
                 self.estimates.noisyC[self.M - num_added:self.M, t - mbs +
                             1:t + 1] = Cf_temp[self.M - num_added:self.M]
@@ -377,15 +376,21 @@ class OnACID(object):
                         self.estimates.Ab_dense[Ab_.indices[Ab_.indptr[_ct]:Ab_.indptr[_ct + 1]],
                                       _ct] = Ab_.data[Ab_.indptr[_ct]:Ab_.indptr[_ct + 1]]
 
-                # set the update counter to 0 for components that are overlaping the newly added
+                # self.estimates.AtA = (Ab_.T.dot(Ab_)).toarray()
+                # faster incremental update of AtA instead of above line:
+                AtA = self.estimates.AtA
+                self.estimates.AtA = np.zeros((self.M, self.M), dtype=np.float32)
+                self.estimates.AtA[:-num_added, :-num_added] = AtA
                 if self.params.get('online', 'use_dense'):
-                    idx_overlap = np.concatenate([
-                        self.estimates.Ab_dense[self.ind_A[_ct], nb_:self.M - num_added].T.dot(
-                            self.estimates.Ab_dense[self.ind_A[_ct], _ct + nb_]).nonzero()[0]
-                        for _ct in range(self.N - num_added, self.N)])
+                    self.estimates.AtA[:, -num_added:] = self.estimates.Ab.T.dot(
+                        self.estimates.Ab_dense[:, self.M - num_added:self.M])
                 else:
-                    idx_overlap = Ab_.T.dot(
-                        Ab_[:, -num_added:])[nb_:-num_added].nonzero()[0]
+                    self.estimates.AtA[:, -num_added:] = self.estimates.Ab.T.dot(
+                        self.estimates.Ab[:, -num_added:]).toarray()
+                self.estimates.AtA[-num_added:] = self.estimates.AtA[:, -num_added:].T
+                
+                # set the update counter to 0 for components that are overlaping the newly added
+                idx_overlap = self.estimates.AtA[nb_:-num_added, -num_added:].nonzero()[0]
                 self.update_counter[idx_overlap] = 0
 
         if self.params.get('online', 'batch_update_suff_stat'):
@@ -504,7 +509,7 @@ class OnACID(object):
                         # this is faster than calling update_shapes with sparse Ab only
                         Ab_, self.ind_A, self.estimates.Ab_dense[:, :self.M] = update_shapes(
                             self.estimates.CY, self.estimates.CC, self.estimates.Ab, self.ind_A,
-                            indicator_components=indicator_components,
+                            indicator_components=indicator_components, update_bkgrd=(t % mbs == 0),
                             Ab_dense=self.estimates.Ab_dense[:, :self.M], sn=self.estimates.sn,
                             q=0.5, iters=self.params.get('online', 'iters_shape'))
                     else:
