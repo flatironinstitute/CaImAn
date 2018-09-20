@@ -25,12 +25,12 @@ class CNMFParams(object):
                  do_merge=True, merge_thresh=0.8,
                  decay_time=0.4, fr=30, min_SNR=2.5, rval_thr=0.8,
                  N_samples_exceptionality=None, batch_update_suff_stat=False,
-                 expected_comps=500, max_comp_update_shape=np.inf, max_num_added=5,
-                 min_num_trial=5, minibatch_shape=100, minibatch_suff_stat=5,
+                 expected_comps=500, iters_shape=5, max_comp_update_shape=np.inf,
+                 max_num_added=5, min_num_trial=5, minibatch_shape=100, minibatch_suff_stat=5,
                  n_refit=0, num_times_comp_updated=np.inf, simultaneously=False,
                  sniper_mode=False, test_both=False, thresh_CNN_noisy=0.5,
                  thresh_fitness_delta=-50, thresh_fitness_raw=None, thresh_overlap=0.5,
-                 update_num_comps=True, use_dense=True, use_peak_max=True,
+                 update_freq=200, update_num_comps=True, use_dense=True, use_peak_max=True,
                  only_init_patch=False, params_dict={},
                  ):
         """Class for setting the processing parameters. All parameters for CNMF, online-CNMF, quality testing,
@@ -377,6 +377,9 @@ class CNMFParams(object):
             init_method: 'bare'|'cnmf'|'seeded', default: 'bare',
                 initialization method
 
+            iters_shape: int, default: 5
+                Number of block-coordinate decent iterations for each shape update
+
             max_comp_update_shape: int, default: np.inf
                 Maximum number of spatial components to be updated at each time
 
@@ -660,6 +663,7 @@ class CNMFParams(object):
             'expected_comps': expected_comps,  # number of expected components
             'init_batch': 200,                 # length of mini batch for initialization
             'init_method': 'bare',             # initialization method for first batch,
+            'iters_shape': iters_shape,        # number of block-CD iterations
             'max_comp_update_shape': max_comp_update_shape,
             'max_num_added': max_num_added,    # maximum number of new components for each frame
             'max_shifts_online': 10,           # maximum shifts during motion correction
@@ -685,7 +689,7 @@ class CNMFParams(object):
             'thresh_fitness_delta': thresh_fitness_delta,
             'thresh_fitness_raw': thresh_fitness_raw,    # threshold for trace SNR (computed below)
             'thresh_overlap': thresh_overlap,
-            'update_freq': 200,                # update every shape at least once every update_freq steps
+            'update_freq': update_freq,            # update every shape at least once every update_freq steps
             'update_num_comps': update_num_comps,  # flag for searching for new components
             'use_dense': use_dense,            # flag for representation and storing of A and b
             'use_peak_max': use_peak_max,      # flag for finding candidate centroids

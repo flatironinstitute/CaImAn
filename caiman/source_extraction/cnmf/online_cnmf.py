@@ -388,30 +388,32 @@ class OnACID(object):
                         Ab_[:, -num_added:])[nb_:-num_added].nonzero()[0]
                 self.update_counter[idx_overlap] = 0
 
-        if (t - self.params.get('online', 'init_batch')) % mbs == mbs - 1 and\
-                self.params.get('online', 'batch_update_suff_stat'):
-            # faster update using minibatch of frames
+        if self.params.get('online', 'batch_update_suff_stat'):
+        # faster update using minibatch of frames
+            if ((t + 1 - self.params.get('online', 'init_batch')) %
+                self.params.get('online', 'update_freq') == 0):
 
-            ccf = self.estimates.C_on[:self.M, t - mbs + 1:t + 1]
-            y = self.estimates.Yr_buf  # .get_last_frames(mbs)[:]
+                ccf = self.estimates.C_on[:self.M, t - self.params.get('online', 'update_freq') + 1:t + 1]
+                y = self.estimates.Yr_buf.get_last_frames(self.params.get('online', 'update_freq'))
 
-            # much faster: exploit that we only access CY[m, ind_pixels], hence update only these
-            n0 = mbs
-            t0 = 0 * self.params.get('online', 'init_batch')
-            w1 = (t - n0 + t0) * 1. / (t + t0)  # (1 - 1./t)#mbs*1. / t
-            w2 = 1. / (t + t0)  # 1.*mbs /t
-            for m in range(self.N):
-                self.estimates.CY[m + nb_, self.ind_A[m]] *= w1
-                self.estimates.CY[m + nb_, self.ind_A[m]] += w2 * \
-                    ccf[m + nb_].dot(y[:, self.ind_A[m]])
+                # much faster: exploit that we only access CY[m, ind_pixels], hence update only these
+                n0 = self.params.get('online', 'update_freq')
+                t0 = 0 * self.params.get('online', 'init_batch')
+                w1 = (t - n0 + t0) * 1. / (t + t0)  # (1 - 1./t)#mbs*1. / t
+                w2 = 1. / (t + t0)  # 1.*mbs /t
+                for m in range(self.N):
+                    self.estimates.CY[m + nb_, self.ind_A[m]] *= w1
+                    self.estimates.CY[m + nb_, self.ind_A[m]] += w2 * \
+                        ccf[m + nb_].dot(y[:, self.ind_A[m]])
 
-            self.estimates.CY[:nb_] = self.estimates.CY[:nb_] * w1 + \
-                w2 * ccf[:nb_].dot(y)   # background
-            self.estimates.CC = self.estimates.CC * w1 + w2 * ccf.dot(ccf.T)
+                self.estimates.CY[:nb_] = self.estimates.CY[:nb_] * w1 + \
+                    w2 * ccf[:nb_].dot(y)   # background
+                self.estimates.CC = self.estimates.CC * w1 + w2 * ccf.dot(ccf.T)
 
-        if not self.params.get('online', 'batch_update_suff_stat'):
+        else:
 
-            ccf = self.estimates.C_on[:self.M, t - self.params.get('online', 'minibatch_suff_stat'):t - self.params.get('online', 'minibatch_suff_stat') + 1]
+            ccf = self.estimates.C_on[:self.M, t - self.params.get('online', 'minibatch_suff_stat'):t -
+                                      self.params.get('online', 'minibatch_suff_stat') + 1]
             y = self.estimates.Yr_buf.get_last_frames(self.params.get('online', 'minibatch_suff_stat') + 1)[:1]
             # much faster: exploit that we only access CY[m, ind_pixels], hence update only these
             for m in range(self.N):
@@ -422,8 +424,9 @@ class OnACID(object):
             self.estimates.CC = self.estimates.CC * (1 - 1. / t) + ccf.dot(ccf.T / t)
 
         # update shapes
-        if not self.params.get('online', 'dist_shape_update'):  # False:  # bulk shape update
-            if (t - self.params.get('online', 'init_batch')) % mbs == mbs - 1:
+        if not self.params.get('online', 'dist_shape_update'):  # bulk shape update
+            if ((t + 1 - self.params.get('online', 'init_batch')) %
+                    self.params.get('online', 'update_freq') == 0):
                 print('Updating Shapes')
 
                 if self.N > self.params.get('online', 'max_comp_update_shape'):
@@ -441,11 +444,12 @@ class OnACID(object):
                         self.estimates.CY, self.estimates.CC, self.estimates.Ab, self.ind_A,
                         indicator_components=indicator_components,
                         Ab_dense=self.estimates.Ab_dense[:, :self.M],
-                        sn=self.estimates.sn, q=0.5)
+                        sn=self.estimates.sn, q=0.5, iters=self.params.get('online', 'iters_shape'))
                 else:
-                    Ab_, self.ind_A, _ = update_shapes(self.estimates.CY, self.estimates.CC, Ab_, self.ind_A,
-                                                       indicator_components=indicator_components,
-                                                       sn=self.estimates.sn, q=0.5)
+                    Ab_, self.ind_A, _ = update_shapes(
+                        self.estimates.CY, self.estimates.CC, Ab_, self.ind_A,
+                        indicator_components=indicator_components, sn=self.estimates.sn,
+                        q=0.5, iters=self.params.get('online', 'iters_shape'))
 
                 self.estimates.AtA = (Ab_.T.dot(Ab_)).toarray()
 
@@ -501,13 +505,14 @@ class OnACID(object):
                         Ab_, self.ind_A, self.estimates.Ab_dense[:, :self.M] = update_shapes(
                             self.estimates.CY, self.estimates.CC, self.estimates.Ab, self.ind_A,
                             indicator_components=indicator_components,
-                            Ab_dense=self.estimates.Ab_dense[:, :self.M],
-                            sn=self.estimates.sn, q=0.5)
+                            Ab_dense=self.estimates.Ab_dense[:, :self.M], sn=self.estimates.sn,
+                            q=0.5, iters=self.params.get('online', 'iters_shape'))
                     else:
                         Ab_, self.ind_A, _ = update_shapes(
                             self.estimates.CY, self.estimates.CC, Ab_, self.ind_A,
                             indicator_components=indicator_components,
-                            update_bkgrd=(t % mbs == 0))
+                            update_bkgrd=(t % mbs == 0),
+                            iters=self.params.get('online', 'iters_shape'))
 
                     self.estimates.AtA = (Ab_.T.dot(Ab_)).toarray()
 
@@ -1171,7 +1176,8 @@ def init_shapes_and_sufficient_stats(Y, A, C, b, f, bSiz=3):
     return Ab, ind_A, CY, CC
 
 @profile
-def update_shapes(CY, CC, Ab, ind_A, sn=None, q=0.5, indicator_components=None, Ab_dense=None, update_bkgrd=True, iters=5):
+def update_shapes(CY, CC, Ab, ind_A, sn=None, q=0.5, indicator_components=None,
+                  Ab_dense=None, update_bkgrd=True, iters=5):
 
     D, M = Ab.shape
     N = len(ind_A)
