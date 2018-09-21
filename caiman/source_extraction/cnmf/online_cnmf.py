@@ -501,7 +501,7 @@ class OnACID(object):
             if (not num_added) and (time() - t_start < self.time_spend / (t - self.params.get('online', 'init_batch') + 1)):
                 candidates = np.where(self.update_counter <= 1)[0]
                 if len(candidates):
-                    indicator_components = candidates[:self.N // mbs + 1]
+                    indicator_components = candidates[:self.N // self.params.get('online', 'update_freq') + 1]
                     self.update_counter[indicator_components] += 1
 
                     if self.params.get('online', 'use_dense'):
@@ -509,14 +509,15 @@ class OnACID(object):
                         # this is faster than calling update_shapes with sparse Ab only
                         Ab_, self.ind_A, self.estimates.Ab_dense[:, :self.M] = update_shapes(
                             self.estimates.CY, self.estimates.CC, self.estimates.Ab, self.ind_A,
-                            indicator_components=indicator_components, update_bkgrd=(t % mbs == 0),
+                            indicator_components=indicator_components,
+                            update_bkgrd=(t % self.params.get('online', 'update_freq') == 0),
                             Ab_dense=self.estimates.Ab_dense[:, :self.M], sn=self.estimates.sn,
                             q=0.5, iters=self.params.get('online', 'iters_shape'))
                     else:
                         Ab_, self.ind_A, _ = update_shapes(
                             self.estimates.CY, self.estimates.CC, Ab_, self.ind_A,
                             indicator_components=indicator_components,
-                            update_bkgrd=(t % mbs == 0),
+                            update_bkgrd=(t % self.params.get('online', 'update_freq') == 0),
                             iters=self.params.get('online', 'iters_shape'))
 
                     self.estimates.AtA = (Ab_.T.dot(Ab_)).toarray()
@@ -1643,12 +1644,12 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                 np.ix_(*[np.arange(sl.start, sl.stop)
                          for sl in slices_update]), dims, order='C').ravel()
 
-            rho_buf[:, ind_vb] = np.stack([imblur(
-                vb.reshape(dims, order='F')[slices_filter], sig=gSig, siz=gSiz,
-                nDimBlur=len(dims))[tuple([slice(
-                    slices_update[i].start - slices_filter[i].start,
-                    slices_update[i].stop - slices_filter[i].start)
-                    for i in range(len(dims))])].ravel() for vb in Yres_buf])**2
+            rho_buf[:, ind_vb] = np.stack([cv2.GaussianBlur(
+                vb, tuple(gSiz), gSig[0], None, gSig[1], cv2.BORDER_CONSTANT)[tuple(
+                    [slice(slices_update[i].start - slices_filter[i].start,
+                           slices_update[i].stop - slices_filter[i].start)
+                     for i in range(len(dims))])].ravel() for vb in Yres_buf.reshape(
+                    (-1,) + dims, order='F')[:, slices_filter[0], slices_filter[1]]])**2
 
             sv[ind_vb] = np.sum(rho_buf[:, ind_vb], 0)
 #            sv = np.sum([imblur(vb.reshape(dims,order='F'), sig=gSig, siz=gSiz, nDimBlur=len(dims))**2 for vb in Yres_buf], 0).reshape(-1)
