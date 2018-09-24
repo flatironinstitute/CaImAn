@@ -1644,12 +1644,28 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                 np.ix_(*[np.arange(sl.start, sl.stop)
                          for sl in slices_update]), dims, order='C').ravel()
 
-            rho_buf[:, ind_vb] = np.stack([cv2.GaussianBlur(
-                vb, tuple(gSiz), gSig[0], None, gSig[1], cv2.BORDER_CONSTANT)[tuple(
-                    [slice(slices_update[i].start - slices_filter[i].start,
-                           slices_update[i].stop - slices_filter[i].start)
-                     for i in range(len(dims))])].ravel() for vb in Yres_buf.reshape(
-                    (-1,) + dims, order='F')[:, slices_filter[0], slices_filter[1]]])**2
+            if len(dims) == 3:
+                rho_buf[:, ind_vb] = np.stack([imblur(
+                    vb.reshape(dims, order='F')[slices_filter], sig=gSig, siz=gSiz,
+                    nDimBlur=len(dims))[tuple([slice(
+                        slices_update[i].start - slices_filter[i].start,
+                        slices_update[i].stop - slices_filter[i].start)
+                        for i in range(len(dims))])].ravel() for vb in Yres_buf])**2
+            else:
+                # faster than looping over frames:
+                # transform all frames into one, blur all simultaneously, transform back
+                Y_filter = Yres_buf.reshape((-1,) + dims, order='F'
+                                            )[:, slices_filter[0], slices_filter[1]]
+                T, d0, d1 = Y_filter.shape
+                dg = gHalf[0] + d0
+                tmp = np.concatenate((Y_filter, np.zeros((T, gHalf[0], d1), dtype=np.float32)),
+                                     axis=1).reshape(-1, d1)
+                cv2.GaussianBlur(tmp, tuple(gSiz), gSig[0], tmp, gSig[1], cv2.BORDER_CONSTANT)
+                slices = tuple([slice(slices_update[i].start - slices_filter[i].start,
+                                      slices_update[i].stop - slices_filter[i].start)
+                                for i in range(len(dims))])
+                rho_buf[:, ind_vb] = tmp.reshape(T, -1, d1)[
+                    (slice(None),) + slices].reshape(T, -1)**2
 
             sv[ind_vb] = np.sum(rho_buf[:, ind_vb], 0)
 #            sv = np.sum([imblur(vb.reshape(dims,order='F'), sig=gSig, siz=gSiz, nDimBlur=len(dims))**2 for vb in Yres_buf], 0).reshape(-1)
