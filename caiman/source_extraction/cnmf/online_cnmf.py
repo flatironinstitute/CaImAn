@@ -503,25 +503,28 @@ class OnACID(object):
                 if len(candidates):
                     indicator_components = candidates[:self.N // self.params.get('online', 'update_freq') + 1]
                     self.update_counter[indicator_components] += 1
-
+                    update_bkgrd = (t % self.params.get('online', 'update_freq') == 0)
                     if self.params.get('online', 'use_dense'):
                         # update dense Ab and sparse Ab simultaneously;
                         # this is faster than calling update_shapes with sparse Ab only
                         Ab_, self.ind_A, self.estimates.Ab_dense[:, :self.M] = update_shapes(
                             self.estimates.CY, self.estimates.CC, self.estimates.Ab, self.ind_A,
-                            indicator_components=indicator_components,
-                            update_bkgrd=(t % self.params.get('online', 'update_freq') == 0),
+                            indicator_components=indicator_components, update_bkgrd=update_bkgrd,
                             Ab_dense=self.estimates.Ab_dense[:, :self.M], sn=self.estimates.sn,
                             q=0.5, iters=self.params.get('online', 'iters_shape'))
+                        if update_bkgrd:
+                            self.estimates.AtA = (Ab_.T.dot(Ab_)).toarray()
+                        else:
+                            indicator_components += nb_
+                            self.estimates.AtA[indicator_components, indicator_components[:, None]] = \
+                                self.estimates.Ab_dense[:, indicator_components].T.dot(
+                                self.estimates.Ab_dense[:, indicator_components])
                     else:
                         Ab_, self.ind_A, _ = update_shapes(
                             self.estimates.CY, self.estimates.CC, Ab_, self.ind_A,
-                            indicator_components=indicator_components,
-                            update_bkgrd=(t % self.params.get('online', 'update_freq') == 0),
-                            iters=self.params.get('online', 'iters_shape'))
-
-                    self.estimates.AtA = (Ab_.T.dot(Ab_)).toarray()
-
+                            indicator_components=indicator_components, update_bkgrd=update_bkgrd,
+                            q=0.5, iters=self.params.get('online', 'iters_shape'))
+                        self.estimates.AtA = (Ab_.T.dot(Ab_)).toarray()
                 self.estimates.Ab = Ab_
             self.time_spend += time() - t_start
         return self
