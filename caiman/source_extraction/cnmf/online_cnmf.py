@@ -489,9 +489,10 @@ class OnACID(object):
         else:  # distributed shape update
             self.update_counter *= .5**(1. / self.params.get('online', 'update_freq'))
             # if not num_added:
-            if (not num_added) and (time() - t_start < self.time_spend / (t - self.params.get('online', 'init_batch') + 1)):
+            if (not num_added) and (time() - t_start < 2*self.time_spend / (t - self.params.get('online', 'init_batch') + 1)):
                 candidates = np.where(self.update_counter <= 1)[0]
                 if len(candidates):
+                    self.comp_upd.append(len(candidates))
                     indicator_components = candidates[:self.N // mbs + 1]
                     self.update_counter[indicator_components] += 1
 
@@ -510,8 +511,13 @@ class OnACID(object):
                             update_bkgrd=(t % mbs == 0))
 
                     self.estimates.AtA = (Ab_.T.dot(Ab_)).toarray()
+                else:
+                    self.comp_upd.append(0)
 
                 self.estimates.Ab = Ab_
+            else:
+                self.comp_upd.append(0)
+                
             self.time_spend += time() - t_start
         return self
 
@@ -662,6 +668,8 @@ class OnACID(object):
         init_files = 1
         t = init_batch
         self.Ab_epoch = []
+        t_online = []
+        self.comp_upd = []
         max_shifts_online = self.params.get('online', 'max_shifts_online')
         if extra_files == 0:     # check whether there are any additional files
             process_files = fls[:init_files]     # end processing at this file
@@ -686,6 +694,7 @@ class OnACID(object):
 
                 old_comps = self.N     # number of existing components
                 for frame_count, frame in enumerate(Y_):   # process each file
+                    t_frame_start = time()
                     if np.isnan(np.sum(frame)):
                         raise Exception('Frame ' + str(frame_count) +
                                         ' contains NaN')
@@ -740,6 +749,7 @@ class OnACID(object):
                     if cv2.waitKey(1) & 0xFF == ord('q'):
                         break
                     t += 1
+                    t_online.append(time() - t_frame_start)
             self.Ab_epoch.append(self.estimates.Ab.copy())
         if self.params.get('online', 'normalize'):
             self.estimates.Ab /= 1./self.img_norm.reshape(-1, order='F')[:,np.newaxis]
@@ -755,6 +765,7 @@ class OnACID(object):
             out.release()
         if self.params.get('online', 'show_movie'):
             cv2.destroyAllWindows()
+        self.t_online = t_online
         return self
 
     def create_frame(self, frame_cor, show_residuals=True, resize_fact=1):
