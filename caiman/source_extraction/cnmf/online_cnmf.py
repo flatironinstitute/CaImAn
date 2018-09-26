@@ -202,12 +202,13 @@ class OnACID(object):
         self.estimates.sv = np.sum(self.estimates.rho_buf.get_last_frames(
             min(self.params.get('online', 'init_batch'), self.params.get('online', 'minibatch_shape')) - 1), 0)
         self.estimates.groups = list(map(list, update_order(self.estimates.Ab)[0]))
-        # self.update_counter = np.zeros(self.N)
         self.update_counter = 2**np.linspace(0, 1, self.N, dtype=np.float32)
         self.time_neuron_added = []
         for nneeuu in range(self.N):
             self.time_neuron_added.append((nneeuu, self.params.get('online', 'init_batch')))
-        self.time_spend = 0
+        if self.params.get('online', 'dist_shape_update'):
+            self.time_spend = 0
+            self.comp_upd = []
         # setup per patch classifier
 
         if self.params.get('online', 'path_to_model') is None or self.params.get('online', 'sniper_mode') is False:
