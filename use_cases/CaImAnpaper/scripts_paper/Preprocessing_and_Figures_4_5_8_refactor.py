@@ -40,12 +40,11 @@ from caiman.source_extraction.cnmf.cnmf import load_CNMF
 preprocessing_from_scratch = True  # whether to run the full pipeline or just creating figures
 
 if preprocessing_from_scratch:
-    reload = True
+    reload = False
     plot_on = False
     save_on = False  # set to true to recreate
 else:
     reload = True
-    plot_on = False
     save_on = False
 
 try:
@@ -57,7 +56,7 @@ try:
     ID = [np.int(ID)]
 
 except:
-    ID = np.arange(0,1)
+    ID = np.arange(2,3)
     print('ID NOT PASSED')
 
 
@@ -70,67 +69,18 @@ n_processes = 24
 base_folder = '/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/'
 
 
-# %%
-def precision_snr(snr_gt, snr_gt_fn, snr_cnmf, snr_cnmf_fp, snr_thrs):
-    all_results_fake = []
-    all_results_OR = []
-    all_results_AND = []
-    for snr_thr in snr_thrs:
-        snr_all_gt = np.array(list(snr_gt) + list(snr_gt_fn) + [0] * len(snr_cnmf_fp))
-        snr_all_cnmf = np.array(list(snr_cnmf) + [0] * len(snr_gt_fn) + list(snr_cnmf_fp))
 
-        ind_gt = np.where(snr_all_gt > snr_thr)[0]  # comps in gt above threshold
-        ind_cnmf = np.where(snr_all_cnmf > snr_thr)[0]  # same for cnmf
-
-        # precision: how many detected components above a given SNR are true
-        prec = np.sum(snr_all_gt[ind_cnmf] > 0) / len(ind_cnmf)
-
-        # recall: how many gt components with SNR above the threshold are detected
-        rec = np.sum(snr_all_cnmf[ind_gt] > 0) / len(ind_gt)
-
-        f1 = 2 * prec * rec / (prec + rec)
-
-        results_fake = [prec, rec, f1]
-        # f1 score with OR condition
-
-        ind_OR = np.union1d(ind_gt, ind_cnmf)
-        # indeces of components that are above threshold in either direction
-        ind_gt_OR = np.where(snr_all_gt[ind_OR] > 0)[0]  # gt components
-        ind_cnmf_OR = np.where(snr_all_cnmf[ind_OR] > 0)[0]  # cnmf components
-        prec_OR = np.sum(snr_all_gt[ind_OR][ind_cnmf_OR] > 0) / len(ind_cnmf_OR)
-        rec_OR = np.sum(snr_all_cnmf[ind_OR][ind_gt_OR] > 0) / len(ind_gt_OR)
-        f1_OR = 2 * prec_OR * rec_OR / (prec_OR + rec_OR)
-
-        results_OR = [prec_OR, rec_OR, f1_OR]
-
-        # f1 score with AND condition
-
-        ind_AND = np.intersect1d(ind_gt, ind_cnmf)
-        ind_fp = np.intersect1d(ind_cnmf, np.where(snr_all_gt == 0)[0])
-        ind_fn = np.intersect1d(ind_gt, np.where(snr_all_cnmf == 0)[0])
-
-        prec_AND = len(ind_AND) / (len(ind_AND) + len(ind_fp))
-        rec_AND = len(ind_AND) / (len(ind_AND) + len(ind_fn))
-        f1_AND = 2 * prec_AND * rec_AND / (prec_AND + rec_AND)
-
-        results_AND = [prec_AND, rec_AND, f1_AND]
-        all_results_fake.append(results_fake)
-        all_results_OR.append(results_OR)
-        all_results_AND.append(results_AND)
-
-    return np.array(all_results_fake), np.array(all_results_OR), np.array(all_results_AND)
 
 
 # %%
-global_params = {'min_SNR': 2,  # minimum SNR when considering adding a new neuron
+global_params = {'SNR_lowest': 0.5,
+                 'min_SNR': 2,  # minimum SNR when considering adding a new neuron
                  'gnb': 2,  # number of background components
-                 'rval_thr': 0.80,  # spatial correlation threshold
-                 'min_cnn_thresh': 0.95,
-                 'p': 1,
-                 'min_rval_thr_rejected': 0,
-                 # length of mini batch for OnACID in decay time units (length would be batch_length_dt*decay_time*fr)
+                 'rval_thr': 0.8,  # spatial correlation threshold
+                 'min_rval_thr_rejected': -1.1,
+                 'min_cnn_thresh': 0.99,
                  'max_classifier_probability_rejected': 0.1,
-                 # flag for motion correction (set to False to compare directly on the same FOV)
+                 'p': 1,
                  'max_fitness_delta_accepted': -20,
                  'Npeaks': 5,
                  'min_SNR_patch': -10,
@@ -427,8 +377,9 @@ if preprocessing_from_scratch:
                                       'skip_refinement': skip_refinement,
                                       'n_pixels_per_process': n_pixels_per_process, 'dview': dview})
             # %%
-
+            t1 = time.time()
             cnm2 = cnm.refit(images, dview=dview)
+            t_refit = time.time() - t1
             if save_on:
                 cnm2.save(fname_new[:-5] + '_cnmf_gsig.hdf5')
 
@@ -436,7 +387,8 @@ if preprocessing_from_scratch:
         if plot_on:
             cnm2.estimates.plot_contours(img=Cn)
         # %% check quality of components and eliminate low quality
-        cnm2.params.set('quality', {'min_SNR': global_params['min_SNR'],
+        cnm2.params.set('quality', {'SNR_lowest': global_params['SNR_lowest'],
+                                    'min_SNR': global_params['min_SNR'],
                                     'rval_thr': global_params['rval_thr'],
                                     'rval_lowest': global_params['min_rval_thr_rejected'],
                                     #'Npeaks': global_params['Npeaks'],
@@ -467,14 +419,15 @@ if preprocessing_from_scratch:
         min_size_neuro = 3 * 2 * np.pi
         max_size_neuro = (2 * params_dict['gSig'][0]) ** 2 * np.pi
         gt_estimate.threshold_spatial_components(maxthr=0.2, dview=dview)
-        gt_estimate.remove_small_large_neurons(min_size_neuro, max_size_neuro)
-        _ = gt_estimate.remove_duplicates(predictions=None, r_values=None, dist_thr=0.1, min_dist=10,
+        nrn_size = gt_estimate.remove_small_large_neurons(min_size_neuro, max_size_neuro)
+        nrn_dup = gt_estimate.remove_duplicates(predictions=None, r_values=None, dist_thr=0.1, min_dist=10,
                                           thresh_subset=0.6)
+        idx_components_gt = nrn_size[nrn_dup]
         print(gt_estimate.A_thr.shape)
         # %% prepare CNMF maks
         cnm2.estimates.threshold_spatial_components(maxthr=0.2, dview=dview)
         cnm2.estimates.remove_small_large_neurons(min_size_neuro, max_size_neuro)
-        _ = cnm2.estimates.remove_duplicates(r_values=None, dist_thr=0.1, min_dist=10, thresh_subset=0.6)
+        cnm2.estimates.remove_duplicates(r_values=None, dist_thr=0.1, min_dist=10, thresh_subset=0.6)
 
         # %%
         params_display = {
@@ -510,11 +463,25 @@ if preprocessing_from_scratch:
         performance_tmp['tp_comp'] = tp_comp
         performance_tmp['fn_gt'] = fn_gt
         performance_tmp['fp_comp'] = fp_comp
+        performance_tmp['predictionsCNN'] = cnm2.estimates.cnn_preds
+        performance_tmp['A'] = cnm2.estimates.A
+        performance_tmp['C'] = cnm2.estimates.C
+        performance_tmp['SNR_comp'] = cnm2.estimates.SNR_comp
+        performance_tmp['Cn'] = Cn_orig
+        performance_tmp['params'] = params_movie
+        performance_tmp['dims'] = dims
+        performance_tmp['CCs'] = [scipy.stats.pearsonr(a, b)[0] for a, b in
+                        zip(gt_estimate.C[tp_gt], cnm2.estimates.C[tp_comp])]
 
-        ALL_CCs.append([scipy.stats.pearsonr(a, b)[0] for a, b in
-                        zip(gt_estimate.C[tp_gt], cnm2.estimates.C[tp_comp])])
+        with np.load(os.path.join(base_folder,fname_new.split('/')[-2],'gt_eval.npz')) as ld:
+            print(ld.keys())
+            performance_tmp.update(ld)
 
-        performance_tmp['ALL_CCs'] = ALL_CCs
+        performance_tmp['idx_components_gt'] = idx_components_gt
+        # ALL_CCs.append([scipy.stats.pearsonr(a, b)[0] for a, b in
+        #                 zip(gt_estimate.C[tp_gt], cnm2.estimates.C[tp_comp])])
+        #
+        # performance_tmp['ALL_CCs'] = ALL_CCs
 
         all_results[fname_new.split('/')[-2]] = performance_tmp
 
@@ -524,43 +491,48 @@ if preprocessing_from_scratch:
 
     if save_on:
         # here eventually save when in a loop
+        np.savez(os.path.join(base_folder,'all_res_sept_2018.npz'), all_results=all_results)
         print('Saving not implementd')
 
 
 else:
 
     # %% RELOAD ALL THE RESULTS INSTEAD OF REGENERATING THEM
-    with np.load('RESULTS_SUMMARY/all_results_Jan_2018.npz') as ld:
-        all_results = ld['all_results'][()]
+    base_folder = '/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/'
+    with np.load(os.path.join(base_folder,'all_res_sept_2018.npz')) as ld:
+        all_results_ = ld['all_results'][()]
+
+    #%%
+    # for k, fl_results in all_results_.items():
+    #     print({kk_:vv_ for kk_,vv_ in fl_results.items() if 'gt' in kk_ and kk_ not in ['tp_gt','fn_gt']}.keys())
+    #     print(os.path.join(base_folder,k,'gt_eval.npz'))
+    #     np.savez(os.path.join(base_folder,k,'gt_eval.npz'),**{kk_:vv_ for kk_,vv_ in fl_results.items()
+    #                                                          if ('gt' in kk_ )and (kk_ not in ['tp_gt','fn_gt'])})
     # %% CREATE FIGURES
     if print_figs:
         # %% FIGURE 5a MASKS  (need to use the dataset k53)
         pl.figure('Figure 5a masks')
         idxFile = 7
-        predictionsCNN = all_results['J115']['predictionsCNN']
-        idx_components_cnmf = all_results['J115']['idx_components_cnmf']
-        idx_components_gt = all_results['J115']['idx_components_gt']
-        tp_comp = all_results['J115']['tp_comp']
-        fp_comp = all_results['J115']['fp_comp']
-        tp_gt = all_results['J115']['tp_gt']
-        fn_gt = all_results['J115']['fn_gt']
-        A = all_results['J115']['A']
-        A_gt = all_results['J115']['A_gt']
-        C = all_results['J115']['C']
-        C_gt = all_results['J115']['C_gt']
-        fname_new = params_movies[idxFile]['fname']
-        with np.load(os.path.join(os.path.split(fname_new)[0],
-                                  os.path.split(fname_new)[1][:-4] + 'results_analysis_new_dev.npz'),
-                     encoding='latin1') as ld:
-            dims = (ld['d1'], ld['d2'])
-        Cn = np.array(
-            cm.load(('/'.join(params_movies[idxFile]['gtname'].split('/')[:-1] + ['correlation_image.tif'])))).squeeze()
-
+        name_file = 'J115'
+        predictionsCNN = all_results[name_file ]['predictionsCNN']
+        idx_components_gt = all_results[name_file]['idx_components_gt']
+        tp_comp = all_results[name_file ]['tp_comp']
+        fp_comp = all_results[name_file ]['fp_comp']
+        tp_gt = all_results[name_file ]['tp_gt']
+        fn_gt = all_results[name_file ]['fn_gt']
+        A = all_results[name_file ]['A']
+        A_gt = all_results[name_file ]['A_gt'][()]
+        C = all_results[name_file ]['C']
+        C_gt = all_results[name_file ]['C_gt']
+        fname_new = all_results[name_file ]['params']['fname']
+        dims = all_results[name_file]['dims']
+        Cn = all_results[name_file ]['Cn']
         pl.ylabel('spatial components')
-        idx_comps_high_r = [np.argsort(predictionsCNN[idx_components_cnmf[tp_comp]])[[-6, -5, -4, -3, -2]]]
-        idx_comps_high_r_cnmf = idx_components_cnmf[tp_comp][idx_comps_high_r]
+        idx_comps_high_r = [np.argsort(predictionsCNN[tp_comp])[[-6, -5, -4, -3, -2]]]
+        idx_comps_high_r_cnmf = tp_comp[idx_comps_high_r]
         idx_comps_high_r_gt = idx_components_gt[tp_gt][idx_comps_high_r]
         images_nice = (A.tocsc()[:, idx_comps_high_r_cnmf].toarray().reshape(dims + (-1,), order='F')).transpose(2, 0,
+
                                                                                                                  1)
         images_nice_gt = (A_gt.tocsc()[:, idx_comps_high_r_gt].toarray().reshape(dims + (-1,), order='F')).transpose(2,
                                                                                                                      0,
@@ -602,8 +574,10 @@ else:
             xcorr_online = ld['ALL_CCs']
         #            xcorr_offline = list(np.array(xcorr_offline[[0,1,3,4,5,2,6,7,8,9]]))
 
-        with np.load('RESULTS_SUMMARY/ALL_CORRELATIONS_OFFLINE_CONSENSUS.npz') as ld:
-            xcorr_offline = ld['ALL_CCs']
+        xcorr_offline = []
+        for k, fl_results in all_results.items():
+            xcorr_offline.append(fl_results['CCs'])
+
 
         names = ['0300.T',
                  '0400.T',
@@ -645,27 +619,25 @@ else:
         # %%
         pl.figure('Figure 5b')
         mu_on = np.array([np.median(xc) for xc in xcorr_online[:-1]])
-        mu_off = np.array([np.median(xc) for xc in xcorr_offline[:-1]])
+        mu_off = np.array([np.median(xc) for xc in xcorr_offline[:]])
         pl.plot(np.concatenate([mu_off[:, None], mu_on[:, None]], axis=1).T, 'o-')
         pl.xlabel('Offline and Online')
         pl.ylabel('Correlation coefficient')
         # %% FIGURE 4a TOP (need to use the dataset J115)
         pl.figure('Figure 4a top')
         pl.subplot(1, 2, 1)
-        a1 = plot_contours(A.tocsc()[:, idx_components_cnmf[tp_comp]], Cn, thr=0.9, colors='yellow', vmax=0.75,
+        a1 = plot_contours(A.tocsc()[:, tp_comp], Cn, thr=0.9, colors='yellow', vmax=0.75,
                            display_numbers=False, cmap='gray')
-        a2 = plot_contours(A_gt.tocsc()[:, idx_components_gt[tp_gt]], Cn, thr=0.9, vmax=0.85, colors='r',
+        a2 = plot_contours(A_gt.tocsc()[:, tp_gt], Cn, thr=0.9, vmax=0.85, colors='r',
                            display_numbers=False, cmap='gray')
         pl.subplot(1, 2, 2)
-        a3 = plot_contours(A.tocsc()[:, idx_components_cnmf[fp_comp]], Cn, thr=0.9, colors='yellow', vmax=0.75,
+        a3 = plot_contours(A.tocsc()[:, fp_comp], Cn, thr=0.9, colors='yellow', vmax=0.75,
                            display_numbers=False, cmap='gray')
         a4 = plot_contours(A_gt.tocsc()[:, idx_components_gt[fn_gt]], Cn, thr=0.9, vmax=0.85, colors='r',
                            display_numbers=False, cmap='gray')
         # %% FIGURE 4 c and d
         from matplotlib.pyplot import cm as cmap
-
         pl.figure("Figure 4c and 4d")
-
         color = cmap.jet(np.linspace(0, 1, 10))
         i = 0
         legs = []
@@ -681,24 +653,23 @@ else:
             nm = nm.replace('.', '')
             nm = nm.replace('Data', '')
             idx_components_gt = fl_results['idx_components_gt']
-            idx_components_cnmf = fl_results['idx_components_cnmf']
             tp_gt = fl_results['tp_gt']
             tp_comp = fl_results['tp_comp']
             fn_gt = fl_results['fn_gt']
             fp_comp = fl_results['fp_comp']
-            comp_SNR = fl_results['comp_SNR']
-            comp_SNR_gt = fl_results['comp_SNR_gt']
-            snr_gt = comp_SNR_gt[idx_components_gt[tp_gt]]
-            snr_gt_fn = comp_SNR_gt[idx_components_gt[fn_gt]]
-            snr_cnmf = comp_SNR[idx_components_cnmf[tp_comp]]
-            snr_cnmf_fp = comp_SNR[idx_components_cnmf[fp_comp]]
+            comp_SNR = fl_results['SNR_comp']
+            comp_SNR_gt = fl_results['comp_SNR_gt'][idx_components_gt]
+            snr_gt = comp_SNR_gt[tp_gt]
+            snr_gt_fn = comp_SNR_gt[fn_gt]
+            snr_cnmf = comp_SNR[tp_comp]
+            snr_cnmf_fp = comp_SNR[fp_comp]
             all_results_fake, all_results_OR, all_results_AND = precision_snr(snr_gt, snr_gt_fn, snr_cnmf, snr_cnmf_fp,
                                                                               SNRs)
             all_ys.append(all_results_fake[:, -1])
             pl.fill_between(SNRs, all_results_OR[:, -1], all_results_AND[:, -1], color=color[i], alpha=.1)
             pl.plot(SNRs, all_results_fake[:, -1], '.-', color=color[i])
             #            pl.plot(x[::1]+np.random.normal(scale=.07,size=10),y[::1], 'o',color=color[i])
-            pl.ylim([0.5, 1])
+            pl.ylim([0.65, 1.05])
             legs.append(nm[:7])
             i += 1
         #            break
@@ -713,43 +684,43 @@ else:
         for k, fl_results in all_results.items():
             x = []
             y = []
-            if 'K53' in k:
-                idx_components_gt = fl_results['idx_components_gt']
-                idx_components_cnmf = fl_results['idx_components_cnmf']
-                tp_gt = fl_results['tp_gt']
-                tp_comp = fl_results['tp_comp']
-                fn_gt = fl_results['fn_gt']
-                fp_comp = fl_results['fp_comp']
-                comp_SNR = fl_results['comp_SNR']
-                comp_SNR_gt = fl_results['comp_SNR_gt']
-                snr_gt = comp_SNR_gt[idx_components_gt[tp_gt]]
-                snr_gt_fn = comp_SNR_gt[idx_components_gt[fn_gt]]
-                snr_cnmf = comp_SNR[idx_components_cnmf[tp_comp]]
-                snr_cnmf_fp = comp_SNR[idx_components_cnmf[fp_comp]]
-                all_results_fake, all_results_OR, all_results_AND = precision_snr(snr_gt, snr_gt_fn, snr_cnmf,
-                                                                                  snr_cnmf_fp, SNRs)
-                prec_idx = 0
-                recall_idx = 1
-                f1_idx = 2
 
+            idx_components_gt = fl_results['idx_components_gt']
+            tp_gt = fl_results['tp_gt']
+            tp_comp = fl_results['tp_comp']
+            fn_gt = fl_results['fn_gt']
+            fp_comp = fl_results['fp_comp']
+            comp_SNR = fl_results['SNR_comp']
+            comp_SNR_gt = fl_results['comp_SNR_gt'][idx_components_gt]
+            snr_gt = comp_SNR_gt[tp_gt]
+            snr_gt_fn = comp_SNR_gt[fn_gt]
+            snr_cnmf = comp_SNR[tp_comp]
+            snr_cnmf_fp = comp_SNR[fp_comp]
+            all_results_fake, all_results_OR, all_results_AND = precision_snr(snr_gt, snr_gt_fn, snr_cnmf,
+                                                                              snr_cnmf_fp, SNRs)
+            prec_idx = 0
+            recall_idx = 1
+            f1_idx = 2
+            if 'K53' in k:
                 pl.subplot(1, 3, 2)
                 pl.scatter(snr_gt, snr_cnmf, color='k', alpha=.15)
                 pl.scatter(snr_gt_fn, np.random.normal(scale=.25, size=len(snr_gt_fn)), color='g', alpha=.15)
                 pl.scatter(np.random.normal(scale=.25, size=len(snr_cnmf_fp)), snr_cnmf_fp, color='g', alpha=.15)
                 pl.fill_between([20, 40], [-2, -2], [40, 40], alpha=.05, color='r')
                 pl.fill_between([-2, 40], [20, 20], [40, 40], alpha=.05, color='b')
-                pl.xlabel('SNR GT')
+                pl.xlabel('SNR CA')
                 pl.ylabel('SNR CaImAn')
-                pl.subplot(1, 3, 3)
-                pl.fill_between(SNRs, all_results_OR[:, prec_idx], all_results_AND[:, prec_idx], color='b', alpha=.1)
-                pl.plot(SNRs, all_results_fake[:, prec_idx], '.-', color='b')
-                pl.fill_between(SNRs, all_results_OR[:, recall_idx], all_results_AND[:, recall_idx], color='r',
+            pl.subplot(1, 3, 3)
+            pl.fill_between(SNRs, all_results_OR[:, prec_idx], all_results_AND[:, prec_idx], color='b', alpha=.1)
+            pl.plot(SNRs, all_results_fake[:, prec_idx], '.-', color='b')
+            pl.fill_between(SNRs, all_results_OR[:, recall_idx], all_results_AND[:, recall_idx], color='r',
                                 alpha=.1)
-                pl.plot(SNRs, all_results_fake[:, recall_idx], '.-', color='r')
-                pl.fill_between(SNRs, all_results_OR[:, f1_idx], all_results_AND[:, f1_idx], color='g', alpha=.1)
-                pl.plot(SNRs, all_results_fake[:, f1_idx], '.-', color='g')
-                pl.legend(['precision', 'recall', 'f-1 score'], fontsize=10)
-                pl.xlabel('SNR threshold')
+            pl.plot(SNRs, all_results_fake[:, recall_idx], '.-', color='r')
+
+            # pl.fill_between(SNRs, all_results_OR[:, f1_idx], all_results_AND[:, f1_idx], color='g', alpha=.1)
+            # pl.plot(SNRs, all_results_fake[:, f1_idx], '.-', color='g')
+            pl.legend(['precision', 'recall'], fontsize=10)
+            pl.xlabel('SNR threshold')
         # %% FIGURE 4 b  performance in detecting neurons (results have been manually annotated on an excel spreadsheet and reported here below)
         import pylab as plt
 

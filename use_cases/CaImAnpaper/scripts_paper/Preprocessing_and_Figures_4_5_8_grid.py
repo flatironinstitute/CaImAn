@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+
 """
 Created on Fri Aug 25 14:49:36 2017
 
@@ -59,7 +60,7 @@ try:
     ID = [np.int(ID)]
 
 except:
-    ID = np.arange(0,1)
+    ID = np.arange(0,9)
     print('ID NOT PASSED')
 
 
@@ -70,10 +71,14 @@ backend_patch = 'local'
 backend_refine = 'local'
 n_processes = 24
 base_folder = '/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/'
-SNRs_grid = [1.5, 2, 2.5, 3]#[1:2]
-r_val_grid = [0.6, 0.8, 0.95]#[1:2]
-max_class_prob_rej_grid = np.array([0.05, 0.1, 0.15, 0.2, 0.25])#[1:2]
-thresh_CNN_grid = [0.5, 0.7, 0.95]#[2:3]
+
+SNRs_grid = [1, 1.5, 2, 2.5, 3]#[1:2]
+r_val_grid = [0.6, 0.7, 0.8, 0.9]#[1:2]
+max_class_prob_rej_grid = np.array([0, 0.025, 0.05, 0.1])#[1:2]
+thresh_CNN_grid = [0.9, .95 ,0.99, 1]#[2:3]
+
+
+
 
 # %%
 def precision_snr(snr_gt, snr_gt_fn, snr_cnmf, snr_cnmf_fp, snr_thrs):
@@ -127,14 +132,15 @@ def precision_snr(snr_gt, snr_gt_fn, snr_cnmf, snr_cnmf_fp, snr_thrs):
 
 
 # %%
-global_params = {'min_SNR': 2,  # minimum SNR when considering adding a new neuron
+global_params = {'SNR_lowest': 0.5,
+                 'min_SNR': 2,  # minimum SNR when considering adding a new neuron
                  'gnb': 2,  # number of background components
                  'rval_thr': 0.80,  # spatial correlation threshold
                  'min_cnn_thresh': 0.95,
                  'p': 1,
-                 'min_rval_thr_rejected': 0,
+                 'min_rval_thr_rejected': -1.1,
                  # length of mini batch for OnACID in decay time units (length would be batch_length_dt*decay_time*fr)
-                 'max_classifier_probability_rejected': 0.1,
+                 'max_classifier_probability_rejected': 0,
                  # flag for motion correction (set to False to compare directly on the same FOV)
                  'max_fitness_delta_accepted': -20,
                  'Npeaks': 5,
@@ -186,7 +192,6 @@ params_movie = {'fname': 'N.04.00.t/Yr_d1_512_d2_512_d3_1_order_C_frames_3000_.m
                 'decay_time': 0.5,  # rough length of a transient
                 }
 params_movies.append(params_movie.copy())
-
 # %% yuste
 params_movie = {'fname': 'YST/Yr_d1_200_d2_256_d3_1_order_C_frames_3000_.mmap',
                 'gtname': 'YST/joined_consensus_active_regions.npy',
@@ -325,7 +330,6 @@ def fun_exc(x):
     return -norm.ppf(np.exp(np.array(ev[1]) / N_samples))
 
 
-
 for gr_snr in SNRs_grid:
     for grid_rval in r_val_grid:
         for grid_max_prob_rej in max_class_prob_rej_grid:
@@ -453,14 +457,13 @@ for gr_snr in SNRs_grid:
                         if plot_on:
                             cnm2.estimates.plot_contours(img=Cn)
                         # %% check quality of components and eliminate low quality
-                        cnm2.params.set('quality', {'min_SNR': global_params['min_SNR'],
+                        cnm2.params.set('quality', {'SNR_lowest': global_params['SNR_lowest'],
+                                                    'min_SNR': global_params['min_SNR'],
                                                     'rval_thr': global_params['rval_thr'],
                                                     'rval_lowest': global_params['min_rval_thr_rejected'],
-                                                    #'Npeaks': global_params['Npeaks'],
                                                     'use_cnn': True,
                                                     'min_cnn_thr': global_params['min_cnn_thresh'],
                                                     'cnn_lowest': global_params['max_classifier_probability_rejected'],
-                                                    #'thresh_fitness_delta': global_params['max_fitness_delta_accepted'],
                                                     'gSig_range': None})
 
                         t1 = time.time()
@@ -986,3 +989,155 @@ for gr_snr in SNRs_grid:
                     print([(tm, nm) for tm, nm in zip(time_track_activity, names)])
                     print('Time update shapes')
                     print([(tm, nm) for tm, nm in zip(time_track_neurons, names)])
+
+                    #%% performance grid search parameters
+                    from pandas import DataFrame
+                    # SNRs_grid = [1.5, 2, 2.5, 3]  # [1:2]
+                    # r_val_grid = [0.6, 0.8, 0.95]  # [1:2]
+                    # max_class_prob_rej_grid = np.array([0.05, 0.1, 0.15, 0.2, 0.25])  # [1:2]
+                    # thresh_CNN_grid = [0.5, 0.7, 0.95]  # [2:3]
+                    # SNRs_grid = [1.5, 2, 2.5]  # [1:2]
+                    # r_val_grid = [0.7, 0.8, 0.9]  # [1:2]
+                    # max_class_prob_rej_grid = np.array([0.01, 0.05, 0.1, 0.15])  # [1:2]
+                    # thresh_CNN_grid = [0.9, 0.95, 0.99]  # [2:3]
+                    # grd_fld_nm = 'grid'
+                    SNRs_grid = [1, 1.5, 2, 2.5, 3]  # [1:2]
+                    r_val_grid = [0.6, 0.7, 0.8, 0.9]  # [1:2]
+                    max_class_prob_rej_grid = np.array([0, 0.025, 0.05, 0.1])  # [1:2]
+                    thresh_CNN_grid = [0.9, .95, 0.99, 1]  # [2:3]
+
+                    # SNRs_grid = [1, 1.5, 2, 2.5, 3]  # [1:2]
+                    # r_val_grid = [0.6, 0.7, 0.8, 0.9]  # [1:2]
+                    # max_class_prob_rej_grid = np.array([0, 0.025, 0.05, 0.1])  # [1:2]
+                    # thresh_CNN_grid = [0.9, .95, 0.99, 1]  # [2:3]
+                    grd_fld_nm = 'grid'
+                    records = []
+                    for gr_snr in SNRs_grid:
+                        for grid_rval in r_val_grid:
+                            print(grid_rval)
+                            for grid_max_prob_rej in max_class_prob_rej_grid:
+                                for grid_thresh_CNN in thresh_CNN_grid:
+                                    global_params['min_SNR'] = gr_snr
+                                    global_params['rval_thr'] = grid_rval
+                                    global_params['max_classifier_probability_rejected'] = grid_max_prob_rej
+                                    global_params['min_cnn_thresh'] = grid_thresh_CNN
+                                    for params_movie in np.array(params_movies)[ID]:
+                                        #    params_movie['gnb'] = 3
+                                        params_display = {
+                                            'downsample_ratio': .2,
+                                            'thr_plot': 0.8
+                                        }
+
+                                        fname_new = os.path.join(base_folder, params_movie['fname'])
+                                        grid_fold = os.path.join(os.path.split(fname_new)[0], 'grid')
+                                        os.makedirs(grid_fold, exist_ok=True)
+                                        grid_file = os.path.join(grid_fold,
+                                                                 'perf_grid_' + str(gr_snr) + '_' + str(grid_rval)
+                                                                 + '_' + str(grid_max_prob_rej) + '_' + str(
+                                                                     grid_thresh_CNN) + '.npz')
+                                        if os.path.exists(grid_file):
+                                            with np.load(grid_file) as ld:
+                                                perf = ld['all_results'][()]
+                                                records.append([fname_new.split('/')[-2],str(round(gr_snr,2)), str(round(grid_rval,2)), str(round(grid_max_prob_rej,2)), str(round(grid_thresh_CNN,2)), perf['recall'],perf['precision'],perf['f1_score']])
+                                        else:
+                                            print('SKIPPED:' + grid_file)
+                                        # print(grid_fold + ' ' + str(len(perf['tp_comp']) + len('fp_comp')))
+                                        # print(grid_fold + ' ' + str(len(perf['tp_gt']) + len('fn_gt')))
+
+
+
+                    #%%
+                    np.savez('/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/ALL_RECORDS_GRID_FINAL.npz', records=records)
+                    #%% Max of all datasets
+                    df = DataFrame(records)
+                    df.columns = ['name', 'gr_snr', 'grid_rval', 'grid_max_prob_rej', 'grid_thresh_CNN', 'recall',
+                                  'precision', 'f1_score']
+                    best_res = df.groupby(by=['name'])
+                    best_res = best_res.describe()
+                    max_caiman_batch = best_res['f1_score']['max']
+                    #%%
+                    df = DataFrame(records)
+                    df.columns = ['name', 'gr_snr', 'grid_rval', 'grid_max_prob_rej', 'grid_thresh_CNN','recall', 'precision', 'f1_score']
+                    best_res = df.groupby(by=['gr_snr', 'grid_rval', 'grid_max_prob_rej', 'grid_thresh_CNN'])
+                    best_res = best_res.describe()
+                    print(best_res.loc[:, 'f1_score'].max())
+                    pars = best_res.loc[:, 'f1_score'].idxmax()['mean']
+                    print(pars)
+                    df_result = df[((df['gr_snr'] == pars[0]) & (df['grid_rval'] == pars[1]) & (df['grid_max_prob_rej'] == pars[2]) & (df['grid_thresh_CNN'] == pars[3]))]
+
+                    print(df_result.sort_values(by='name')[['name','precision','recall']])
+                    print(df_result.mean())
+                    df_result = df_result.sort_values(by='name')
+                    max_res = df.groupby(by=['name'])
+                    max_res = max_res.describe()
+                    max_res = max_res.sort_values(by='name')
+                    max_res = max_res['f1_score']['max']
+                    df_result['f1_score_max'] = max_res.values
+                    min_res = df.groupby(by=['name'])
+                    min_res = min_res.describe()
+                    min_res = min_res.sort_values(by='name')
+                    min_res = min_res['f1_score']['min']
+                    df_result['f1_score_min'] = min_res.values
+
+
+                    names = ['N.03.00.t',
+                             'N.04.00.t',
+                             'YST',
+                             'N.00.00',
+                             'N.02.00',
+                             'N.01.01',
+                             'K53',
+                             'J115',
+                             'J123']
+
+                    idx_sort = np.argsort(names)
+                    df_result['L1_f1'] = np.array([np.nan, np.nan, 0.78, np.nan, 0.89, 0.8, 0.89,  0.85, np.nan])[idx_sort]  # Human 1
+                    df_result['L2_f1'] = np.array([0.9, 0.69, 0.9, 0.92, 0.87, 0.89, 0.92, 0.93, 0.83])[idx_sort]  # Human 2
+                    df_result['L3_f1'] = np.array([0.85, 0.75, 0.82, 0.83, 0.84, 0.78, 0.93, 0.94, 0.9])[idx_sort] # Human 3
+                    df_result['L4_f1'] = np.array([0.78, 0.87, 0.79, 0.87, 0.82, 0.75, 0.83, 0.83, 0.91])[idx_sort]
+
+                    # df_result['L1_precision'] = np.array([np.nan, np.nan, 0.78, np.nan, 0.89, 0.8, 0.89,  0.85, np.nan])[idx_sort]  # Human 1
+                    # df_result['L2_precision'] = np.array([0.9, 0.69, 0.9, 0.92, 0.87, 0.89, 0.92, 0.93, 0.83])[idx_sort]  # Human 2
+                    # df_result['L3_precision'] = np.array([0.85, 0.75, 0.82, 0.83, 0.84, 0.78, 0.93, 0.94, 0.9])[idx_sort] # Human 3
+                    # df_result['L4_precision'] = np.array([0.78, 0.87, 0.79, 0.87, 0.82, 0.75, 0.83, 0.83, 0.91])[idx_sort]
+                    #
+                    # df_result['L1_recall'] = np.array([np.nan, np.nan, 0.78, np.nan, 0.89, 0.8, 0.89,  0.85, np.nan])[idx_sort]  # Human 1
+                    # df_result['L2_recall'] = np.array([0.9, 0.69, 0.9, 0.92, 0.87, 0.89, 0.92, 0.93, 0.83])[idx_sort]  # Human 2
+                    # df_result['L3_recall'] = np.array([0.85, 0.75, 0.82, 0.83, 0.84, 0.78, 0.93, 0.94, 0.9])[idx_sort] # Human 3
+                    # df_result['L4_recall'] = np.array([0.78, 0.87, 0.79, 0.87, 0.82, 0.75, 0.83, 0.83, 0.91])[idx_sort]
+
+
+
+
+                    df_result['f1_score_CaImAn_online'] = [0.81, 0.81, 0.82, 0.69, 0.72, 0.78, 0.75, 0.67, 0.72]
+                    df_result['precision_CaImAn_online'] = [0.75, 0.79, 0.80, 0.84, 0.75, 0.8, 0.77, 0.65, 0.75]
+                    df_result['recall_CaImAn_online'] = [0.88, 0.82, 0.84, 0.58, 0.69, 0.76, 0.73, 0.7, 0.69]
+
+                    ax = df_result.plot(x='name', y=['f1_score', 'f1_score_CaImAn_online','L4_f1','L3_f1','L2_f1','L1_f1'], xticks=range(len(df_result)),
+                                        kind='bar', color=[[1,0,0],[0,0,1],[.5,.5,.5],[.6,.6,.6],[.7,.7,.7],[.8,.8,.8]])
+                    ax.set_xticklabels(df_result.name, rotation=45)
+                    pl.legend(['CaImAn batch','CaImAn online','L4','L3','L2','L1'])
+                    # ax.set_xticklabels(df_result.name)
+                    # pl.xlabel('Dataset')
+                    pl.ylabel('F1 score')
+                    pl.ylim([0.55,0.95])
+                    params_display = {
+                        'downsample_ratio': .2,
+                        'thr_plot': 0.8
+                    }
+
+                    pl.rcParams['pdf.fonttype'] = 42
+                    font = {'family': 'Arial',
+                            'weight': 'regular',
+                            'size': 20}
+                    pl.rc('font', **font)
+
+                    # with open('mytable.tex', 'w') as tf:
+                    #     tf.write(df_result[['name','precision','recall','f1_score','f1_score_caiman']].round(2).to_latex())
+                    #%% max versus average
+                    all_labels = np.vstack([df_result['L1_f1'],df_result['L2_f1'], df_result['L3_f1'] , df_result['L4_f1']])
+                    mean_labels = np.nanmean(all_labels,0).T
+                    df_cm = DataFrame({'Human average':mean_labels,'CaImAn batch':max_caiman_batch})
+                    df_cm.plot(kind='bar')
+
+

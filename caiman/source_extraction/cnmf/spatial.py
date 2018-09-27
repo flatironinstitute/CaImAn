@@ -50,7 +50,7 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
                               nrgthr=0.9999, extract_cc=True, b_in=None,
                               se=np.ones((3, 3), dtype=np.int),
                               ss=np.ones((3, 3), dtype=np.int), nb=1,
-                              method_ls='lasso_lars', update_background_components=True, 
+                              method_ls='lasso_lars', update_background_components=True,
                               low_rank_background=True, block_size=1000,
                               num_blocks_per_run=20):
     """update spatial footprints and background through Basis Pursuit Denoising
@@ -171,7 +171,8 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
 
     if dims is None:
         raise Exception('You need to define the input dimensions')
-
+    import pdb
+    pdb.set_trace()
     # shape transformation and tests
     Y, A_in, C, f, n_pixels_per_process, rank_f, d, T = test(
         Y, A_in, C, f, n_pixels_per_process, nb)
@@ -408,38 +409,7 @@ def regression_ipyparallel(pars):
 def construct_ellipse_parallel(pars):
     """update spatial footprints and background through Basis Pursuit Denoising
 
-    for each pixel i solve the problem
-        [A(i,:),b(i)] = argmin sum(A(i,:))
-    subject to
-        || Y(i,:) - A(i,:)*C + b(i)*f || <= sn(i)*sqrt(T);
 
-    for each pixel the search is limited to a few spatial components
-
-    Args:
-        [parsed]
-        cm[i]:
-            center of mass of each neuron
-
-        A[:, i]: the A of each components
-
-        Vr:
-
-        dims:
-            the dimension of each A's ( same usually )
-
-        dist:
-            computed distance matrix
-
-        min_size: [optional] int
-
-        max_size: [optional] int
-
-    Returns:
-        dist: np.ndarray
-            new estimate of spatial footprints
-
-    Raises:
-        Exception 'You cannot pass empty (all zeros) components!'
     """
     Coor, cm, A_i, Vr, dims, dist, max_size, min_size, d = pars
     dist_cm = coo_matrix(np.hstack([Coor[c].reshape(-1, 1) - cm[k]
@@ -860,7 +830,8 @@ def determine_search_location(A, dims, method='ellipse', min_size=3, max_size=8,
     """
 
     from scipy.ndimage.morphology import grey_dilation
-
+    import pdb
+    pdb.set_trace()
     # we initialize the values
     if len(dims) == 2:
         d1, d2 = dims
@@ -914,22 +885,63 @@ def determine_search_location(A, dims, method='ellipse', min_size=3, max_size=8,
             dist_indicator = True * np.ones((d, nr))
 
     elif method == 'dilate':
-        for i in range(nr):
-            A_temp = np.reshape(A[:, i].toarray(), dims[::-1])
-            if len(expandCore) > 0:
-                if len(expandCore.shape) < len(dims):  # default for 3D
-                    expandCore = iterate_structure(
-                        generate_binary_structure(len(dims), 1), 2).astype(int)
-                A_temp = grey_dilation(A_temp, footprint=expandCore)
-            else:
-                A_temp = grey_dilation(A_temp, [1] * len(dims))
+        if dview is None:
+            for i in range(nr):
+                A_temp = np.reshape(A[:, i].toarray(), dims[::-1])
+                if len(expandCore) > 0:
+                    if len(expandCore.shape) < len(dims):  # default for 3D
+                        expandCore = iterate_structure(
+                            generate_binary_structure(len(dims), 1), 2).astype(int)
+                    A_temp = grey_dilation(A_temp, footprint=expandCore)
+                else:
+                    A_temp = grey_dilation(A_temp, [1] * len(dims))
 
-            dist_indicator[:, i] = scipy.sparse.coo_matrix(np.squeeze(np.reshape(A_temp, (d, 1)))[:,None] > 0)
+                dist_indicator[:, i] = scipy.sparse.coo_matrix(np.squeeze(np.reshape(A_temp, (d, 1)))[:,None] > 0)
+
+        else:
+            pars = []
+            for i in range(nr):
+                pars.append([A[:, i], dims, expandCore, d])
+
+            if 'multiprocessing' in str(type(dview)):
+                parallel_result = dview.map_async(
+                    construct_dilate_parallel, pars).get(4294967)
+            else:
+                parallel_result = dview.map_sync(
+                    construct_dilate_parallel, pars)
+                dview.results.clear()
+
+            for i in range(nr):
+                dist_indicator[:, i] = parallel_result[i]
+
     else:
         raise Exception('Not implemented')
         dist_indicator = True * np.ones((d, nr))
 
+
+
     return dist_indicator
+#%%
+def construct_dilate_parallel(pars):
+    """
+    """
+
+    from scipy.ndimage.morphology import generate_binary_structure, iterate_structure, grey_dilation
+
+    A_i, dims, expandCore, d  = pars
+    A_temp = np.reshape(A_i.toarray(), dims[::-1])
+    if len(expandCore) > 0:
+        if len(expandCore.shape) < len(dims):  # default for 3D
+            expandCore = iterate_structure(
+                generate_binary_structure(len(dims), 1), 2).astype(int)
+        A_temp = grey_dilation(A_temp, footprint=expandCore)
+    else:
+        A_temp = grey_dilation(A_temp, [1] * len(dims))
+
+    dist_indicator_i = scipy.sparse.coo_matrix(np.squeeze(np.reshape(A_temp, (d, 1)))[:,None] > 0)
+
+    # search indexes for each component
+    return dist_indicator_i
 #%%
 def computing_indicator(Y, A_in, b, C, f, nb, method, dims, min_size, max_size, dist, expandCore, dview):
     """compute the indices of the distance from the cm to search for the spatial component (calling determine_search_location)
@@ -994,7 +1006,8 @@ def computing_indicator(Y, A_in, b, C, f, nb, method, dims, min_size, max_size, 
 
         Exception 'Failed to delete: " + folder'
            """
-
+    import pdb
+    pdb.set_trace()
     if A_in.dtype == bool:
         dist_indicator = A_in.copy()
         print("spatial support for each components given by the user")

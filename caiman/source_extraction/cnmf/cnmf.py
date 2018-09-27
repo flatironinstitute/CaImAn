@@ -371,6 +371,9 @@ class CNMF(object):
         http://www.cell.com/neuron/fulltext/S0896-6273(15)01084-3
 
         """
+        if False:
+            import pdb
+            pdb.set_trace()
         # Todo : to compartment
         if isinstance(indeces, slice):
             indeces = [indeces]
@@ -715,19 +718,19 @@ class CNMF(object):
         Args:
             Yr : np.array (possibly memory mapped, (x,y,[,z]) x t)
                 Imaging data reshaped in matrix format
-    
+
             groups : list of sets
                 grouped components to be updated simultaneously
-    
+
             use_groups : bool
                 flag for using groups
-    
+
             order : list
                 Update components in that order (used if nonempty and groups=None)
-    
+
             update_bck : bool
                 Flag for updating temporal background components
-    
+
             bck_non_neg : bool
                 Require temporal background to be non-negative
 
@@ -771,13 +774,13 @@ class CNMF(object):
         Args:
             Yr: np.array (possibly memory mapped, (x,y,[,z]) x t)
                 Imaging data reshaped in matrix format
-    
+
             update_bck: bool
                 flag for updating spatial background components
-    
+
             num_iter: int
                 number of iterations
-    
+
         Returns:
             self (updated values for self.estimates.A and self.estimates.b)
         """

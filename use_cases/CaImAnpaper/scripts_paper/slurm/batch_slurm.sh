@@ -7,4 +7,4 @@
 
 # srun starts a process per task, 21 in this case. In the first example, we didn't explicitly set
 # a number of tasks, so srun assumed there would be one per node.
-srun bash -c 'KERAS_BACKEND=tensorflow CUDA_VISIBLE_DEVICES=-1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 /mnt/home/epnevmatikakis/anaconda3/envs/caiman-pip/bin/python /mnt/home/agiovann//SOFTWARE/CaImAn/use_cases/CaImAnpaper/scripts_paper/Preprocessing_and_Figures_4_5_8_grid.py $SLURM_PROCID'
+srun bash -c 'KERAS_BACKEND=tensorflow CUDA_VISIBLE_DEVICES=-1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 /mnt/home/agiovann/anaconda3/envs/caiman3/bin/python /mnt/home/agiovann//SOFTWARE/CaImAn/use_cases/CaImAnpaper/scripts_paper/Preprocessing_and_Figures_4_5_8_grid.py $SLURM_PROCID'
