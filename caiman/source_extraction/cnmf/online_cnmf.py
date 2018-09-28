@@ -311,23 +311,31 @@ class OnACID(object):
             rho = np.reshape(rho, np.prod(self.params.get('data', 'dims')))
             self.estimates.rho_buf.append(rho)
 
-            self.estimates.Ab, Cf_temp, self.estimates.Yres_buf, self.rhos_buf, self.estimates.CC, self.estimates.CY, self.ind_A, self.estimates.sv, self.estimates.groups, self.estimates.ind_new, self.ind_new_all, self.estimates.sv, self.cnn_pos = update_num_components(
+            (self.estimates.Ab, Cf_temp, self.estimates.Yres_buf, self.rhos_buf,
+                self.estimates.CC, self.estimates.CY, self.ind_A, self.estimates.sv,
+                self.estimates.groups, self.estimates.ind_new, self.ind_new_all,
+                self.estimates.sv, self.cnn_pos) = update_num_components(
                 t, self.estimates.sv, self.estimates.Ab, self.estimates.C_on[:self.M, (t - mbs + 1):(t + 1)],
-                self.estimates.Yres_buf, self.estimates.Yr_buf, self.estimates.rho_buf, self.params.get('data', 'dims'),
-                self.params.get('init', 'gSig'), self.params.get('init', 'gSiz'), self.ind_A, self.estimates.CY, self.estimates.CC, rval_thr=self.params.get('online', 'rval_thr'),
+                self.estimates.Yres_buf, self.estimates.Yr_buf, self.estimates.rho_buf,
+                self.params.get('data', 'dims'), self.params.get('init', 'gSig'),
+                self.params.get('init', 'gSiz'), self.ind_A, self.estimates.CY, self.estimates.CC,
+                rval_thr=self.params.get('online', 'rval_thr'),
                 thresh_fitness_delta=self.params.get('online', 'thresh_fitness_delta'),
-                thresh_fitness_raw=self.params.get('online', 'thresh_fitness_raw'), thresh_overlap=self.params.get('online', 'thresh_overlap'),
-                groups=self.estimates.groups, batch_update_suff_stat=self.params.get('online', 'batch_update_suff_stat'), gnb=self.params.get('init', 'nb'),
-                sn=self.estimates.sn, g=np.mean(
-                    self.estimates.g) if self.params.get('preprocess', 'p') == 1 else np.mean(self.estimates.g, 0),
-                s_min=self.params.get('temporal', 's_min'),
-                Ab_dense=self.estimates.Ab_dense[:, :self.M] if self.params.get('online', 'use_dense') else None,
+                thresh_fitness_raw=self.params.get('online', 'thresh_fitness_raw'),
+                thresh_overlap=self.params.get('online', 'thresh_overlap'), groups=self.estimates.groups,
+                batch_update_suff_stat=self.params.get('online', 'batch_update_suff_stat'),
+                gnb=self.params.get('init', 'nb'), sn=self.estimates.sn, 
+                g=(np.mean(self.estimates.g) if self.params.get('preprocess', 'p') == 1 else 
+                    np.mean(self.estimates.g, 0)), s_min=self.params.get('temporal', 's_min'),
+                Ab_dense=self.estimates.Ab_dense if self.params.get('online', 'use_dense') else None,
                 oases=self.estimates.OASISinstances if self.params.get('preprocess', 'p') else None,
                 N_samples_exceptionality=self.params.get('online', 'N_samples_exceptionality'),
-                max_num_added=self.params.get('online', 'max_num_added'), min_num_trial=self.params.get('online', 'min_num_trial'),
-                loaded_model = self.loaded_model, thresh_CNN_noisy = self.params.get('online', 'thresh_CNN_noisy'),
-                sniper_mode=self.params.get('online', 'sniper_mode'), use_peak_max=self.params.get('online', 'use_peak_max'),
-                test_both=self.params.get('online', 'test_both'))
+                max_num_added=self.params.get('online', 'max_num_added'),
+                min_num_trial=self.params.get('online', 'min_num_trial'),
+                loaded_model = self.loaded_model, test_both=self.params.get('online', 'test_both'),
+                thresh_CNN_noisy = self.params.get('online', 'thresh_CNN_noisy'),
+                sniper_mode=self.params.get('online', 'sniper_mode'),
+                use_peak_max=self.params.get('online', 'use_peak_max'))
 
             num_added = len(self.ind_A) - self.N
 
@@ -371,10 +379,7 @@ class OnACID(object):
                         self.estimates.AtY_buf = np.concatenate((
                             self.estimates.AtY_buf, [Ab_.data[Ab_.indptr[_ct]:Ab_.indptr[_ct + 1]].dot(
                                 self.estimates.Yr_buf.T[Ab_.indices[Ab_.indptr[_ct]:Ab_.indptr[_ct + 1]]])]))
-                    # much faster than Ab_[:, self.N + nb_ - num_added:].toarray()
-                    if self.params.get('online', 'use_dense'):
-                        self.estimates.Ab_dense[Ab_.indices[Ab_.indptr[_ct]:Ab_.indptr[_ct + 1]],
-                                      _ct] = Ab_.data[Ab_.indptr[_ct]:Ab_.indptr[_ct + 1]]
+                    # N.B. Ab_dense is already updated within update_num_components as side effect
 
                 # self.estimates.AtA = (Ab_.T.dot(Ab_)).toarray()
                 # faster incremental update of AtA instead of above line:
@@ -1548,11 +1553,11 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
     sv += rho_buf.get_last_frames(1).squeeze()
     sv = np.maximum(sv, 0)
 
-    Ains, Cins, Cins_res, inds, ijsig_all, cnn_pos, local_max = get_candidate_components(sv, dims, Yres_buf=Yres_buf,
-                                                          min_num_trial=min_num_trial, gSig=gSig,
-                                                          gHalf=gHalf, sniper_mode=sniper_mode, rval_thr=rval_thr, patch_size=50,
-                                                          loaded_model=loaded_model, thresh_CNN_noisy=thresh_CNN_noisy,
-                                                          use_peak_max=use_peak_max, test_both=test_both)
+    Ains, Cins, Cins_res, inds, ijsig_all, cnn_pos, local_max = get_candidate_components(
+        sv, dims, Yres_buf=Yres_buf, min_num_trial=min_num_trial, gSig=gSig,
+        gHalf=gHalf, sniper_mode=sniper_mode, rval_thr=rval_thr, patch_size=50,
+        loaded_model=loaded_model, thresh_CNN_noisy=thresh_CNN_noisy,
+        use_peak_max=use_peak_max, test_both=test_both)
 
     ind_new_all = ijsig_all
 
@@ -1569,19 +1574,17 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                 np.ix_(*[np.arange(ij[0], ij[1])
                        for ij in ijSig]), dims, order='F').ravel()
 
-        # use sparse Ain only later iff it is actually added to Ab
-        Ain = np.zeros((np.prod(dims), 1), dtype=np.float32)
-        Ain[indeces, :] = ain[:, None]
-
         cin_circ = cin.get_ordered()
         useOASIS = False  # whether to use faster OASIS for cell detection
         accepted = True   # flag indicating new component has not been rejected yet
 
         if Ab_dense is None:
+            Ain = np.zeros((np.prod(dims), 1), dtype=np.float32)
+            Ain[indeces, :] = ain[:, None]
             ff = np.where((Ab.T.dot(Ain).T > thresh_overlap)
                           [:, gnb:])[1] + gnb
         else:
-            ff = np.where(Ab_dense[indeces, gnb:].T.dot(
+            ff = np.where(Ab_dense[indeces, gnb:M].T.dot(
                 ain).T > thresh_overlap)[0] + gnb
 
         if ff.size > 0:
@@ -1649,8 +1652,8 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
             if Ab_dense is None:
                 groups = update_order(Ab, Ain, groups)[0]
             else:
-                groups = update_order(Ab_dense[indeces], ain, groups)[0]
-                Ab_dense = np.hstack((Ab_dense,Ain))
+                groups = update_order(Ab_dense[indeces, :M], ain, groups)[0]
+                Ab_dense[indeces, M] = ain
             # faster version of scipy.sparse.hstack
             csc_append(Ab, Ain_csc)
             ind_A.append(Ab.indices[Ab.indptr[M]:Ab.indptr[M + 1]])
