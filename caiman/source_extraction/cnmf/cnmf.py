@@ -78,7 +78,8 @@ class CNMF(object):
                  Ain=None, Cin=None, b_in=None, f_in=None, do_merge=True,
                  ssub=2, tsub=2, p_ssub=1, p_tsub=1, method_init='greedy_roi', alpha_snmf=None,
                  rf=None, stride=None, memory_fact=1, gnb=1, nb_patch=1, only_init_patch=False,
-                 method_deconvolution='oasis', n_pixels_per_process=4000, block_size=5000, num_blocks_per_run=20,
+                 method_deconvolution='oasis', n_pixels_per_process=4000, block_size_temp=5000, num_blocks_per_run_temp=20,
+                 block_size_spat=5000, num_blocks_per_run_spat=20,
                  check_nan=True, skip_refinement=False, normalize_init=True, options_local_NMF=None,
                  minibatch_shape=100, minibatch_suff_stat=3,
                  update_num_comps=True, rval_thr=0.9, thresh_fitness_delta=-20,
@@ -170,7 +171,10 @@ class CNMF(object):
             block_size: int.
                 Number of pixels to be used to perform residual computation in blocks. Decrease if memory problems
 
-            num_blocks_per_run: int
+            num_blocks_per_run_spat: int
+                In case of memory problems you can reduce this numbers, controlling the number of blocks processed in parallel during residual computing
+
+            num_blocks_per_run_temp: int
                 In case of memory problems you can reduce this numbers, controlling the number of blocks processed in parallel during residual computing
 
             check_nan: Boolean.
@@ -272,7 +276,8 @@ class CNMF(object):
                 gnb=gnb, normalize_init=normalize_init, options_local_NMF=options_local_NMF,
                 ring_size_factor=ring_size_factor, rolling_length=rolling_length, rolling_sum=rolling_sum,
                 ssub=ssub, ssub_B=ssub_B, tsub=tsub,
-                block_size=block_size, num_blocks_per_run=num_blocks_per_run,
+                block_size_spat=block_size_spat, num_blocks_per_run_spat=num_blocks_per_run_spat,
+                block_size_temp=block_size_temp, num_blocks_per_run_temp=num_blocks_per_run_temp,
                 update_background_components=update_background_components,
                 method_deconvolution=method_deconvolution, p=p, s_min=s_min,
                 do_merge=do_merge, merge_thresh=merge_thresh,
@@ -371,9 +376,6 @@ class CNMF(object):
         http://www.cell.com/neuron/fulltext/S0896-6273(15)01084-3
 
         """
-        if False:
-            import pdb
-            pdb.set_trace()
         # Todo : to compartment
         if isinstance(indeces, slice):
             indeces = [indeces]
@@ -427,7 +429,8 @@ class CNMF(object):
         self.params.set('spatial', {'n_pixels_per_process': self.params.get('preprocess', 'n_pixels_per_process')})
 
         logging.info('using ' + str(self.params.get('preprocess', 'n_pixels_per_process')) + ' pixels per process')
-        logging.info('using ' + str(self.params.get('spatial', 'block_size')) + ' block_size')
+        logging.info('using ' + str(self.params.get('spatial', 'block_size_spat')) + ' block_size_spat')
+        logging.info('using ' + str(self.params.get('temporal', 'block_size_temp')) + ' block_size_temp')
 
         if self.params.get('patch', 'rf') is None:  # no patches
             logging.debug('preprocessing ...')
@@ -439,7 +442,7 @@ class CNMF(object):
             if self.params.get('patch', 'only_init'):  # only return values after initialization
                 if not (self.params.get('init', 'method_init') == 'corr_pnr' and
                     self.params.get('init', 'ring_size_factor') is not None):
-                    self.compute_residuals(Yr)
+                    self.compute_residuals(Yr, self.params.get('temporal', 'block_size_temp'), self.params.get('temporal', 'num_blocks_per_run_temp'))
                     self.estimates.bl = None
                     self.estimates.c1 = None
                     self.estimates.neurons_sn = None
@@ -622,7 +625,7 @@ class CNMF(object):
                 self.params.get('online', 'expected_comps'))
         self.params.set('online', {'expected_comps': expected_comps})
 
-    def compute_residuals(self, Yr):
+    def compute_residuals(self, Yr, block_size, num_blocks_per_run):
         """compute residual for each component (variable YrA)
 
          Args:
@@ -647,8 +650,8 @@ class CNMF(object):
         if 'numpy.ndarray' in str(type(Yr)):
             YA = (Ab.T.dot(Yr)).T * nA2_inv_mat
         else:
-            YA = mmapping.parallel_dot_product(Yr, Ab, dview=self.dview, block_size=2000,
-                                           transpose=True, num_blocks_per_run=5) * nA2_inv_mat
+            YA = mmapping.parallel_dot_product(Yr, Ab, dview=self.dview, block_size=block_size,
+                                           transpose=True, num_blocks_per_run=num_blocks_per_run) * nA2_inv_mat
 
         AA = Ab.T.dot(Ab) * nA2_inv_mat
         self.estimates.YrA = (YA - (AA.T.dot(Cf)).T)[:, :self.estimates.A.shape[-1]].T

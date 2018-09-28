@@ -64,7 +64,10 @@ backend_refine = 'multiprocessing'
 n_proc_list = [24, 12, 6, 3, 2, 1]
 n_processes = n_proc_list[ID_nproc]
 print('n_processes:' + str(n_processes))
-
+n_pixels_per_process = 10000
+block_size = 10000
+num_blocks_per_run = 12
+n_pixels_per_process = 4000
 base_folder = '/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/'
 
 #%%
@@ -96,8 +99,8 @@ global_params = {'SNR_lowest': 0.5,
 params_movies = []
 # %% neurofinder 02.00
 params_movie = {
-#    'fname': '/opt/local/Data/labeling/neurofinder.02.00/Yr_d1_512_d2_512_d3_1_order_C_frames_8000_.mmap',
-     'fname': 'N.02.00/Yr_d1_512_d2_512_d3_1_order_C_frames_8000_.mmap',
+   'fname': '/opt/local/Data/labeling/neurofinder.02.00/Yr_d1_512_d2_512_d3_1_order_C_frames_8000_.mmap',
+     # 'fname': 'N.02.00/Yr_d1_512_d2_512_d3_1_order_C_frames_8000_.mmap',
     'gtname': 'N.02.00/joined_consensus_active_regions.npy',
     # order of the autoregressive system
     'merge_thresh': 0.8,  # merging threshold, max correlation allow
@@ -181,9 +184,6 @@ all_comp_SNR_delta = []
 all_predictions = []
 all_labels = []
 all_results = dict()
-n_pixels_per_process = 4000
-block_size = 4000
-num_blocks_per_run = 10
 ALL_CCs = []
 all_timings = dict()
 
@@ -244,8 +244,10 @@ for params_movie in np.array(params_movies)[ID]:
                    'rolling_sum': True,
                    'nb_patch': 1,
                    'check_nan': check_nan,
-                   'block_size': block_size,
-                   'num_blocks_per_run': num_blocks_per_run,
+                   'block_size_temp': block_size,
+                   'num_blocks_per_run_temp': num_blocks_per_run,
+                    'block_size_spat': block_size,
+                    'num_blocks_per_run_spat': num_blocks_per_run,
                    'n_pixels_per_process': 4000,
                    'ssub': 2,
                    'tsub': 2,

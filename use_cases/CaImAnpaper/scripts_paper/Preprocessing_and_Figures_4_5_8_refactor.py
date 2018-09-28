@@ -56,7 +56,7 @@ try:
     ID = [np.int(ID)]
 
 except:
-    ID = np.arange(2,3)
+    ID = np.arange(5,6)
     print('ID NOT PASSED')
 
 
@@ -67,7 +67,9 @@ backend_patch = 'local'
 backend_refine = 'local'
 n_processes = 24
 base_folder = '/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/'
-
+n_pixels_per_process = 10000
+block_size = 10000
+num_blocks_per_run = 12
 
 
 
@@ -279,9 +281,7 @@ if preprocessing_from_scratch:
     all_predictions = []
     all_labels = []
     all_results = dict()
-    n_pixels_per_process = 4000
-    block_size = 4000
-    num_blocks_per_run = 10
+
     ALL_CCs = []
 
     for params_movie in np.array(params_movies)[ID]:
@@ -339,7 +339,8 @@ if preprocessing_from_scratch:
                        'rolling_sum': True,
                        'nb_patch': 1,
                        'check_nan': check_nan,
-                       'block_size': block_size,
+                       'block_size_temp': block_size,
+                       'block_size_spat': block_size,
                        'num_blocks_per_run': num_blocks_per_run,
                        'n_pixels_per_process': 4000,
                        'ssub': 2,

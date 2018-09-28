@@ -240,15 +240,17 @@ def start_server(slurm_script=None, ipcluster="ipcluster", ncpus=None):
         ncpus = psutil.cpu_count()
 
     if slurm_script is None:
+
         if ipcluster == "ipcluster":
             subprocess.Popen(
                 "ipcluster start -n {0}".format(ncpus), shell=True, close_fds=(os.name != 'nt'))
         else:
             subprocess.Popen(shlex.split(
                 "{0} start -n {1}".format(ipcluster, ncpus)), shell=True, close_fds=(os.name != 'nt'))
-
+        time.sleep(1.5)
         # Check that all processes have started
         client = ipyparallel.Client()
+        time.sleep(1.5)
         while len(client) < ncpus:
             sys.stdout.write(".")  # Give some visual feedback of things starting
             sys.stdout.flush()     # (de-buffered)

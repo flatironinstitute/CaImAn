@@ -20,7 +20,9 @@ class CNMFParams(object):
                  min_pnr=20, gnb=1, normalize_init=True, options_local_NMF=None,
                  ring_size_factor=1.5, rolling_length=100, rolling_sum=True,
                  ssub=2, ssub_B=2, tsub=2,
-                 block_size=5000, num_blocks_per_run=20, update_background_components=True,
+                 block_size_spat=5000, num_blocks_per_run_spat=20,
+                 block_size_temp=5000, num_blocks_per_run_temp=20,
+                 update_background_components=True,
                  method_deconvolution='oasis', p=2, s_min=None,
                  do_merge=True, merge_thresh=0.8,
                  decay_time=0.4, fr=30, min_SNR=2.5, rval_thr=0.8,
@@ -578,7 +580,7 @@ class CNMFParams(object):
         }
 
         self.spatial = {
-            'block_size': block_size,
+            'block_size_spat': block_size_spat, # number of pixels to parallelize residual computation ** DECREASE IF MEMORY ISSUES
             'dist': 3,                       # expansion factor of ellipse
             'expandCore': iterate_structure(generate_binary_structure(2, 1), 2).astype(int),
             # Flag to extract connected components (might want to turn to False for dendritic imaging)
@@ -595,7 +597,7 @@ class CNMFParams(object):
             'nb': gnb,                        # number of background components
             'normalize_yyt_one': True,
             'nrgthr': 0.9999,                # Energy threshold
-            'num_blocks_per_run': num_blocks_per_run,
+            'num_blocks_per_run_spat': num_blocks_per_run_spat, # number of process to parallelize residual computation ** DECREASE IF MEMORY ISSUES
             'se': None,                      # Morphological closing structuring element
             'ss': None,                      # Binary element for determining connectivity
             'thr_method': 'nrg',             # Method of thresholding ('max' or 'nrg')
@@ -609,7 +611,7 @@ class CNMFParams(object):
             'bas_nonneg': False,
             # number of pixels to process at the same time for dot product. Make it
             # smaller if memory problems
-            'block_size': block_size,
+            'block_size_temp': block_size_temp, # number of pixels to parallelize residual computation ** DECREASE IF MEMORY ISSUES
             # bias correction factor (between 0 and 1, close to 1)
             'fudge_factor': .96,
             # number of autocovariance lags to be considered for time constant estimation
@@ -622,7 +624,7 @@ class CNMFParams(object):
             'nb': gnb,                   # number of background components
             'noise_method': 'mean',     # averaging method ('mean','median','logmexp')
             'noise_range': [.25, .5],   # range of normalized frequencies over which to average
-            'num_blocks_per_run': num_blocks_per_run,
+            'num_blocks_per_run_temp': num_blocks_per_run_temp, # number of process to parallelize residual computation ** DECREASE IF MEMORY ISSUES
             'p': p,                     # order of AR indicator dynamics
             's_min': s_min,             # minimum spike threshold
             'solvers': ['ECOS', 'SCS'],

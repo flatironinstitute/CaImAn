@@ -51,8 +51,8 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
                               se=np.ones((3, 3), dtype=np.int),
                               ss=np.ones((3, 3), dtype=np.int), nb=1,
                               method_ls='lasso_lars', update_background_components=True,
-                              low_rank_background=True, block_size=1000,
-                              num_blocks_per_run=20):
+                              low_rank_background=True, block_size_spat=1000,
+                              num_blocks_per_run_spat=20):
     """update spatial footprints and background through Basis Pursuit Denoising
 
     for each pixel i solve the problem
@@ -171,8 +171,7 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
 
     if dims is None:
         raise Exception('You need to define the input dimensions')
-    import pdb
-    pdb.set_trace()
+
     # shape transformation and tests
     Y, A_in, C, f, n_pixels_per_process, rank_f, d, T = test(
         Y, A_in, C, f, n_pixels_per_process, nb)
@@ -182,6 +181,7 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
     # we compute the indicator from distance indicator
     ind2_, nr, C, f, b_, A_in = computing_indicator(
         Y, A_in, b_in, C, f, nb, method_exp, dims, min_size, max_size, dist, expandCore, dview)
+
     if normalize_yyt_one and C is not None:
         C = np.array(C)
         nr_C = np.shape(C)[0]
@@ -203,10 +203,10 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
     cct = np.diag(C.dot(C.T))
     pixel_groups = []
     for i in range(0, np.prod(dims) - n_pixels_per_process + 1, n_pixels_per_process):
-        pixel_groups.append([Y_name, C_name, sn, ind2_, list(
+        pixel_groups.append([Y_name, C_name, sn, ind2_[i:i + n_pixels_per_process], list(
             range(i, i + n_pixels_per_process)), method_ls, cct, ])
     if i < np.prod(dims):
-        pixel_groups.append([Y_name, C_name, sn, ind2_, list(
+        pixel_groups.append([Y_name, C_name, sn, ind2_[i:i + n_pixels_per_process], list(
             range(i, np.prod(dims))), method_ls, cct])
     A_ = np.zeros((d, nr + np.size(f, 0)))  # init A_
     if dview is not None:
@@ -219,7 +219,6 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
             dview.results.clear()
     else:
         parallel_result = list(map(regression_ipyparallel, pixel_groups))
-
     for chunk in parallel_result:
         for pars in chunk:
             px, idxs_, a = pars
@@ -244,13 +243,12 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
                 background_ff = list(filter(lambda i: i >= 0, ff - nr))
                 f = np.delete(f, background_ff, 0)
                 b_in = np.delete(b_in, background_ff, 1)
-
     A_ = A_[:, :nr]
     A_ = coo_matrix(A_)
-
     print("Computing residuals")
+
     if 'memmap' in str(type(Y)):
-        Y_resf = parallel_dot_product(Y, f.T, dview=dview, block_size=block_size, num_blocks_per_run=num_blocks_per_run) - \
+        Y_resf = parallel_dot_product(Y, f.T, dview=dview, block_size=block_size_spat, num_blocks_per_run=num_blocks_per_run_spat) - \
             A_.dot(coo_matrix(C[:nr, :]).dot(f.T))
     else:
         # Y*f' - A*(C*f')
@@ -273,7 +271,6 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
         #    b = np.delete(b_in, background_ff, 0)
         # except NameError:
         b = b_in
-
     print(("--- %s seconds ---" % (time.time() - start_time)))
     try:  # clean up
         # remove temporary file created
@@ -364,9 +361,9 @@ def regression_ipyparallel(pars):
     _, T = np.shape(C)  # initialize values
     As = []
 
-    for y, px in zip(Y, idxs_Y):
-        c = C[idxs_C[px], :]
-        idx_only_neurons = idxs_C[px]
+    for y, px, idx_px_from_0 in zip(Y, idxs_Y, range(len(idxs_C))):
+        c = C[idxs_C[idx_px_from_0], :]
+        idx_only_neurons = idxs_C[idx_px_from_0]
         if len(idx_only_neurons) > 0:
             cct_ = cct[idx_only_neurons[idx_only_neurons < len(cct)]]
         else:
@@ -394,7 +391,7 @@ def regression_ipyparallel(pars):
             if not np.isscalar(a):
                 a = a.T
 
-            As.append((px, idxs_C[px], a))
+            As.append((px, idxs_C[idx_px_from_0], a))
 
     if isinstance(Y_name, basestring):
         del Y
@@ -489,8 +486,9 @@ def threshold_components(A, dims, medw=None, thr_method='max', maxthr=0.1, nrgth
 
     pars = []
     # fo each neurons
+    A_1 = scipy.sparse.csc_matrix(A)
     for i in range(nr):
-        pars.append([scipy.sparse.csc_matrix(A[:, i]), i, dims,
+        pars.append([A_1[:, i], i, dims,
                      medw, d, thr_method, se, ss, maxthr, nrgthr, extract_cc])
 
     if dview is not None:
@@ -502,9 +500,11 @@ def threshold_components(A, dims, medw=None, thr_method='max', maxthr=0.1, nrgth
     else:
         res = list(map(threshold_components_parallel, pars))
 
+
     for r in res:
         At, i = r
         Ath[:, i] = At
+
 
     return Ath
 
@@ -830,8 +830,7 @@ def determine_search_location(A, dims, method='ellipse', min_size=3, max_size=8,
     """
 
     from scipy.ndimage.morphology import grey_dilation
-    import pdb
-    pdb.set_trace()
+
     # we initialize the values
     if len(dims) == 2:
         d1, d2 = dims
@@ -899,6 +898,7 @@ def determine_search_location(A, dims, method='ellipse', min_size=3, max_size=8,
                 dist_indicator[:, i] = scipy.sparse.coo_matrix(np.squeeze(np.reshape(A_temp, (d, 1)))[:,None] > 0)
 
         else:
+            print('dilate...')
             pars = []
             for i in range(nr):
                 pars.append([A[:, i], dims, expandCore, d])
@@ -911,8 +911,10 @@ def determine_search_location(A, dims, method='ellipse', min_size=3, max_size=8,
                     construct_dilate_parallel, pars)
                 dview.results.clear()
 
-            for i in range(nr):
-                dist_indicator[:, i] = parallel_result[i]
+            i = 0
+            for res in parallel_result:
+                dist_indicator[:, i] = res
+                i += 1
 
     else:
         raise Exception('Not implemented')
@@ -1006,8 +1008,7 @@ def computing_indicator(Y, A_in, b, C, f, nb, method, dims, min_size, max_size, 
 
         Exception 'Failed to delete: " + folder'
            """
-    import pdb
-    pdb.set_trace()
+
     if A_in.dtype == bool:
         dist_indicator = A_in.copy()
         print("spatial support for each components given by the user")
@@ -1051,10 +1052,12 @@ def computing_indicator(Y, A_in, b, C, f, nb, method, dims, min_size, max_size, 
                 scipy.sparse.hstack([A_in, scipy.sparse.coo_matrix(b)]), dims, method=method, min_size=min_size, max_size=max_size, dist=dist, expandCore=expandCore,
                 dview=dview)
 
-        ind2_ = [np.where(iid_.toarray().squeeze())[0]  for iid_ in dist_indicator.tocsr()]
+        ind2_ = [np.where(iid_.squeeze())[0]  for iid_ in dist_indicator.astype(np.bool).toarray()]
         ind2_ = [iid_ if (np.size(iid_) > 0) and (np.min(iid_) < nr) else [] for iid_ in ind2_]
 
     return ind2_, nr, C, f, b, A_in
+
+
 
 #%%
 def creatememmap(Y, Cf, dview):
