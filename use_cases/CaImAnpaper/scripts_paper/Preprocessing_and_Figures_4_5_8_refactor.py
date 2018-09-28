@@ -56,7 +56,7 @@ try:
     ID = [np.int(ID)]
 
 except:
-    ID = np.arange(5,6)
+    ID = np.arange(2)
     print('ID NOT PASSED')
 
 
