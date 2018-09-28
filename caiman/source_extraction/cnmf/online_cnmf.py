@@ -1195,6 +1195,7 @@ def init_shapes_and_sufficient_stats(Y, A, C, b, f, bSiz=3):
     CC = Cf.dot(Cf.T)
     return Ab, ind_A, CY, CC
 
+
 @profile
 def update_shapes(CY, CC, Ab, ind_A, sn=None, q=0.5, indicator_components=None,
                   Ab_dense=None, update_bkgrd=True, iters=5):
@@ -1202,65 +1203,93 @@ def update_shapes(CY, CC, Ab, ind_A, sn=None, q=0.5, indicator_components=None,
     D, M = Ab.shape
     N = len(ind_A)
     nb = M - N
-    if sn is None or q == 0.5:
-        L = np.zeros((M, D), dtype=np.float32)
-    else:
-        L = norm.ppf(q)*np.outer(np.sqrt(CC.diagonal()), sn)
-        L[:nb] = 0
     if indicator_components is None:
         idx_comp = range(nb, M)
     else:
         idx_comp = np.where(indicator_components)[0] + nb
-    for _ in range(iters):  # it's presumably better to run just 1 iter but update more neurons
-        if Ab_dense is None:
-            for m in idx_comp:  # neurons
-                ind_pixels = ind_A[m - nb]
+    if sn is None or q == 0.5:  # avoid costly construction of L=np.zeros((M, D), dtype=np.float32)
+        for _ in range(iters):  # it's presumably better to run just 1 iter but update more neurons
+            if Ab_dense is None:
+                for m in idx_comp:  # neurons
+                    ind_pixels = ind_A[m - nb]
+                    tmp = np.maximum(Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]] +
+                        ((CY[m, ind_pixels] - Ab.dot(CC[m])[ind_pixels]) / CC[m, m]), 0)
+                    # normalize
+                    if tmp.dot(tmp) > 0:
+                        tmp *= 1e-3 / \
+                            min(1e-3, sqrt(tmp.dot(tmp)) + np.finfo(float).eps)
+                        tmp = tmp / max(1, sqrt(tmp.dot(tmp)))
+                        Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]] = tmp
+                        ind_A[m - nb] = Ab.indices[slice(Ab.indptr[m], Ab.indptr[m + 1])]
+            else:
+                for m in idx_comp:  # neurons
+                    ind_pixels = ind_A[m - nb]
+                    tmp = np.maximum(Ab_dense[ind_pixels, m] + 
+                        ((CY[m, ind_pixels] - Ab_dense[ind_pixels].dot(CC[m])) / CC[m, m]), 0)
+                    # normalize
+                    if tmp.dot(tmp) > 0:
+                        tmp *= 1e-3 / \
+                            min(1e-3, sqrt(tmp.dot(tmp)) + np.finfo(float).eps)
+                        Ab_dense[ind_pixels, m] = tmp / max(1, sqrt(tmp.dot(tmp)))
+                        Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]] = Ab_dense[ind_pixels, m]
+                        ind_A[m - nb] = Ab.indices[slice(Ab.indptr[m], Ab.indptr[m + 1])]
+            if update_bkgrd:
+                for m in range(nb):  # background
+                    sl = slice(Ab.indptr[m], Ab.indptr[m + 1])
+                    ind_pixels = Ab.indices[sl]
+                    Ab.data[sl] = np.maximum(
+                        Ab.data[sl] + ((CY[m, ind_pixels] - Ab.dot(CC[m])[ind_pixels]) / CC[m, m]), 0)
+                    if Ab_dense is not None:
+                        Ab_dense[ind_pixels, m] = Ab.data[sl]
+    else:
+        L = norm.ppf(q)*np.outer(np.sqrt(CC.diagonal()), sn)
+        L[:nb] = 0
+        for _ in range(iters):  # it's presumably better to run just 1 iter but update more neurons
+            if Ab_dense is None:
+                for m in idx_comp:  # neurons
+                    ind_pixels = ind_A[m - nb]
+                    tmp = np.maximum(Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]] +
+                        ((CY[m, ind_pixels] - L[m, ind_pixels] - Ab.dot(CC[m])[ind_pixels]) / CC[m, m]), 0)
 
-                tmp = np.maximum(Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]] +
+                    if tmp.dot(tmp) > 0:
+                        tmp *= 1e-3 / \
+                            min(1e-3, sqrt(tmp.dot(tmp)) + np.finfo(float).eps)
+                        tmp = tmp / max(1, sqrt(tmp.dot(tmp)))
+                        Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]] = tmp
 
-                    ((CY[m, ind_pixels] - L[m, ind_pixels] - Ab.dot(CC[m])[ind_pixels]) / CC[m, m]), 0)
-
-
-                if tmp.dot(tmp) > 0:
-                    tmp *= 1e-3 / \
-                        min(1e-3, sqrt(tmp.dot(tmp)) + np.finfo(float).eps)
-                    tmp = tmp / max(1, sqrt(tmp.dot(tmp)))
-                    Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]] = tmp
-
-                    ind_A[m -
-                          nb] = Ab.indices[slice(Ab.indptr[m], Ab.indptr[m + 1])]
-                # N.B. Ab[ind_pixels].dot(CC[m]) is slower for csc matrix due to indexing rows
-        else:
-            for m in idx_comp:  # neurons
-                ind_pixels = ind_A[m - nb]
-                tmp = np.maximum(Ab_dense[ind_pixels, m] + ((CY[m, ind_pixels] - L[m, ind_pixels] -
-                                                             Ab_dense[ind_pixels].dot(CC[m])) /
-                                                            CC[m, m]), 0)
-                # normalize
-                if tmp.dot(tmp) > 0:
-                    tmp *= 1e-3 / \
-                        min(1e-3, sqrt(tmp.dot(tmp)) + np.finfo(float).eps)
-                    Ab_dense[ind_pixels, m] = tmp / max(1, sqrt(tmp.dot(tmp)))
-                    Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]
-                            ] = Ab_dense[ind_pixels, m]
-                    ind_A[m -
-                          nb] = Ab.indices[slice(Ab.indptr[m], Ab.indptr[m + 1])]
-            # Ab.data[Ab.indptr[nb]:] = np.concatenate(
-            #     [Ab_dense[ind_A[m - nb], m] for m in range(nb, M)])
-            # N.B. why does selecting only overlapping neurons help surprisingly little, i.e
-            # Ab[ind_pixels][:, overlap[m]].dot(CC[overlap[m], m])
-            # where overlap[m] are the indices of all neurons overlappping with & including m?
-            # sparsify ??
-        if update_bkgrd:
-            for m in range(nb):  # background
-                sl = slice(Ab.indptr[m], Ab.indptr[m + 1])
-                ind_pixels = Ab.indices[sl]
-                Ab.data[sl] = np.maximum(
-                    Ab.data[sl] + ((CY[m, ind_pixels] - Ab.dot(CC[m])[ind_pixels]) / CC[m, m]), 0)
-                if Ab_dense is not None:
-                    Ab_dense[ind_pixels, m] = Ab.data[sl]
+                        ind_A[m -
+                              nb] = Ab.indices[slice(Ab.indptr[m], Ab.indptr[m + 1])]
+                    # N.B. Ab[ind_pixels].dot(CC[m]) is slower for csc matrix due to indexing rows
+            else:
+                for m in idx_comp:  # neurons
+                    ind_pixels = ind_A[m - nb]
+                    tmp = np.maximum(Ab_dense[ind_pixels, m] + ((CY[m, ind_pixels] - L[m, ind_pixels] -
+                                                                 Ab_dense[ind_pixels].dot(CC[m])) /
+                                                                CC[m, m]), 0)
+                    # normalize
+                    if tmp.dot(tmp) > 0:
+                        tmp *= 1e-3 / \
+                            min(1e-3, sqrt(tmp.dot(tmp)) + np.finfo(float).eps)
+                        Ab_dense[ind_pixels, m] = tmp / max(1, sqrt(tmp.dot(tmp)))
+                        Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]] = Ab_dense[ind_pixels, m]
+                        ind_A[m - nb] = Ab.indices[slice(Ab.indptr[m], Ab.indptr[m + 1])]
+                # Ab.data[Ab.indptr[nb]:] = np.concatenate(
+                #     [Ab_dense[ind_A[m - nb], m] for m in range(nb, M)])
+                # N.B. why does selecting only overlapping neurons help surprisingly little, i.e
+                # Ab[ind_pixels][:, overlap[m]].dot(CC[overlap[m], m])
+                # where overlap[m] are the indices of all neurons overlappping with & including m?
+                # sparsify ??
+            if update_bkgrd:
+                for m in range(nb):  # background
+                    sl = slice(Ab.indptr[m], Ab.indptr[m + 1])
+                    ind_pixels = Ab.indices[sl]
+                    Ab.data[sl] = np.maximum(
+                        Ab.data[sl] + ((CY[m, ind_pixels] - Ab.dot(CC[m])[ind_pixels]) / CC[m, m]), 0)
+                    if Ab_dense is not None:
+                        Ab_dense[ind_pixels, m] = Ab.data[sl]
 
     return Ab, ind_A, Ab_dense
+
 
 class RingBuffer(np.ndarray):
     """ implements ring buffer efficiently"""
