@@ -204,38 +204,8 @@ def merge_components(Y, A, b, C, f, S, sn_pix, temporal_params, spatial_params, 
             indx = np.argmax(C_to_norm)
             g_idx = [merged_ROI[indx]]
 
-
-            if fast_merge:
-                # we normalize the values of different A's to be able to compare them efficiently. we then sum them
-                computedA = Acsc.dot(scipy.sparse.diags(
-                    C_to_norm, 0, (len(C_to_norm), len(C_to_norm)))).sum(axis=1)
-
-                # we operate a rank one NMF, refining it multiple times (see cnmf demos )
-                for _ in range(10):
-                    computedC = np.maximum(Acsc.T.dot(computedA).T.dot(
-                        Ctmp) / (computedA.T * computedA), 0)
-                    if computedC * computedC.T == 0:
-                        break
-                    computedA = np.maximum(
-                        Acsc.dot(Ctmp.dot(computedC.T)) / (computedC * computedC.T), 0)
-            else:
-                print('Simple Merging Take Best Neuron')
-                computedC = Ctmp[indx]
-                computedA = Acsc[:, indx]
-
-            # then we de-normalize them using A_to_norm
-            A_to_norm = np.sqrt(computedA.T.dot(computedA)[
-                                0, 0] / Acsc.power(2).sum(0).max())
-            computedA /= A_to_norm
-            computedC *= A_to_norm
-
-            # we then compute the traces ( deconvolution ) to have a clean c and noise in the background
-            if g is not None:
-                computedC, bm, cm, gm, sm, ss, lam_ = constrained_foopsi(
-                    np.array(computedC).squeeze(), g=g_idx, **temporal_params)
-            else:
-                computedC, bm, cm, gm, sm, ss, lam_ = constrained_foopsi(
-                    np.array(computedC).squeeze(), g=None, **temporal_params)
+            bm, cm, computedA, computedC, gm, sm, ss = merge_iteration(Acsc, C_to_norm, Ctmp, fast_merge, g, g_idx,
+                                                                       indx, temporal_params)
 
             A_merged[:, i] = computedA
             C_merged[i, :] = computedC
@@ -278,3 +248,36 @@ def merge_components(Y, A, b, C, f, S, sn_pix, temporal_params, spatial_params, 
         merged_ROIs = []
 
     return A, C, nr, merged_ROIs, S, bl, c1, sn, g
+
+
+def merge_iteration(Acsc, C_to_norm, Ctmp, fast_merge, g, g_idx, indx, temporal_params):
+    if fast_merge:
+        # we normalize the values of different A's to be able to compare them efficiently. we then sum them
+        computedA = Acsc.dot(scipy.sparse.diags(
+            C_to_norm, 0, (len(C_to_norm), len(C_to_norm)))).sum(axis=1)
+
+        # we operate a rank one NMF, refining it multiple times (see cnmf demos )
+        for _ in range(10):
+            computedC = np.maximum(Acsc.T.dot(computedA).T.dot(
+                Ctmp) / (computedA.T * computedA), 0)
+            if computedC * computedC.T == 0:
+                break
+            computedA = np.maximum(
+                Acsc.dot(Ctmp.dot(computedC.T)) / (computedC * computedC.T), 0)
+    else:
+        print('Simple Merging Take Best Neuron')
+        computedC = Ctmp[indx]
+        computedA = Acsc[:, indx]
+    # then we de-normalize them using A_to_norm
+    A_to_norm = np.sqrt(computedA.T.dot(computedA)[
+                            0, 0] / Acsc.power(2).sum(0).max())
+    computedA /= A_to_norm
+    computedC *= A_to_norm
+    # we then compute the traces ( deconvolution ) to have a clean c and noise in the background
+    if g is not None:
+        computedC, bm, cm, gm, sm, ss, lam_ = constrained_foopsi(
+            np.array(computedC).squeeze(), g=g_idx, **temporal_params)
+    else:
+        computedC, bm, cm, gm, sm, ss, lam_ = constrained_foopsi(
+            np.array(computedC).squeeze(), g=None, **temporal_params)
+    return bm, cm, computedA, computedC, gm, sm, ss
