@@ -28,7 +28,6 @@ from scipy.ndimage import percentile_filter
 from scipy.ndimage.filters import gaussian_filter
 from scipy.sparse import coo_matrix, csc_matrix, spdiags
 from scipy.stats import norm
-from skimage.feature import peak_local_max
 from sklearn.decomposition import NMF
 from sklearn.preprocessing import normalize
 
@@ -39,7 +38,7 @@ from .estimates import Estimates
 from .initialization import imblur, initialize_components, hals
 from .oasis import OASIS
 from .params import CNMFParams
-from .utilities import update_order, get_file_size
+from .utilities import update_order, get_file_size, peak_local_max
 from ... import mmapping
 from ...components_evaluation import compute_event_exceptionality
 from ...motion_correction import motion_correct_iteration_fast, tile_and_correct
@@ -761,8 +760,8 @@ class OnACID(object):
                         cv2.imshow('frame', vid_frame)
                         for rp in range(len(self.estimates.ind_new)*2):
                             cv2.imshow('frame', vid_frame)
-                    if cv2.waitKey(1) & 0xFF == ord('q'):
-                        break
+                        if cv2.waitKey(1) & 0xFF == ord('q'):
+                            break
                     t += 1
                     t_online.append(time() - t_frame_start)
             self.Ab_epoch.append(self.estimates.Ab.copy())

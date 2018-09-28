@@ -22,20 +22,164 @@ See Also:
 from builtins import str
 from builtins import range
 from past.utils import old_div
+import cv2
+import h5py
+import logging
 import numpy as np
-from scipy.sparse import spdiags, issparse, csc_matrix, csr_matrix
-import scipy.ndimage.morphology as morph
-from .initialization import greedyROI
-from ...base.rois import com
+import os
 import pylab as pl
 import scipy
+from scipy.sparse import spdiags, issparse, csc_matrix, csr_matrix
+import scipy.ndimage.morphology as morph
+from skimage.feature.peak import _get_high_intensity_peaks
+import tifffile
+from .initialization import greedyROI
+from ...base.rois import com
 from ...mmapping import parallel_dot_product, load_memmap
 from ...utils.stats import df_percentile
-import logging
-import tifffile
-import h5py
-import os
-import cv2
+
+
+def peak_local_max(image, min_distance=1, threshold_abs=None,
+                   threshold_rel=None, exclude_border=True, indices=True,
+                   num_peaks=np.inf, footprint=None):
+    """Find peaks in an image as coordinate list or boolean mask.
+
+    Adapted from skimage to use opencv for speed.
+    Replaced scipy.ndimage.maximum_filter by cv2.dilate.
+
+    Peaks are the local maxima in a region of `2 * min_distance + 1`
+    (i.e. peaks are separated by at least `min_distance`).
+
+    If peaks are flat (i.e. multiple adjacent pixels have identical
+    intensities), the coordinates of all such pixels are returned.
+
+    If both `threshold_abs` and `threshold_rel` are provided, the maximum
+    of the two is chosen as the minimum intensity threshold of peaks.
+
+    Parameters
+    ----------
+    image : ndarray
+        Input image.
+    min_distance : int, optional
+        Minimum number of pixels separating peaks in a region of `2 *
+        min_distance + 1` (i.e. peaks are separated by at least
+        `min_distance`).
+        To find the maximum number of peaks, use `min_distance=1`.
+    threshold_abs : float, optional
+        Minimum intensity of peaks. By default, the absolute threshold is
+        the minimum intensity of the image.
+    threshold_rel : float, optional
+        Minimum intensity of peaks, calculated as `max(image) * threshold_rel`.
+    exclude_border : int, optional
+        If nonzero, `exclude_border` excludes peaks from
+        within `exclude_border`-pixels of the border of the image.
+    indices : bool, optional
+        If True, the output will be an array representing peak
+        coordinates.  If False, the output will be a boolean array shaped as
+        `image.shape` with peaks present at True elements.
+    num_peaks : int, optional
+        Maximum number of peaks. When the number of peaks exceeds `num_peaks`,
+        return `num_peaks` peaks based on highest peak intensity.
+    footprint : ndarray of bools, optional
+        If provided, `footprint == 1` represents the local region within which
+        to search for peaks at every point in `image`.  Overrides
+        `min_distance` (also for `exclude_border`).
+
+    Returns
+    -------
+    output : ndarray or ndarray of bools
+
+        * If `indices = True`  : (row, column, ...) coordinates of peaks.
+        * If `indices = False` : Boolean array shaped like `image`, with peaks
+          represented by True values.
+
+    Notes
+    -----
+    The peak local maximum function returns the coordinates of local peaks
+    (maxima) in an image. A maximum filter is used for finding local maxima.
+    This operation dilates the original image. After comparison of the dilated
+    and original image, this function returns the coordinates or a mask of the
+    peaks where the dilated image equals the original image.
+
+    Examples
+    --------
+    >>> img1 = np.zeros((7, 7))
+    >>> img1[3, 4] = 1
+    >>> img1[3, 2] = 1.5
+    >>> img1
+    array([[ 0. ,  0. ,  0. ,  0. ,  0. ,  0. ,  0. ],
+           [ 0. ,  0. ,  0. ,  0. ,  0. ,  0. ,  0. ],
+           [ 0. ,  0. ,  0. ,  0. ,  0. ,  0. ,  0. ],
+           [ 0. ,  0. ,  1.5,  0. ,  1. ,  0. ,  0. ],
+           [ 0. ,  0. ,  0. ,  0. ,  0. ,  0. ,  0. ],
+           [ 0. ,  0. ,  0. ,  0. ,  0. ,  0. ,  0. ],
+           [ 0. ,  0. ,  0. ,  0. ,  0. ,  0. ,  0. ]])
+
+    >>> peak_local_max(img1, min_distance=1)
+    array([[3, 4],
+           [3, 2]])
+
+    >>> peak_local_max(img1, min_distance=2)
+    array([[3, 2]])
+
+    >>> img2 = np.zeros((20, 20, 20))
+    >>> img2[10, 10, 10] = 1
+    >>> peak_local_max(img2, exclude_border=0)
+    array([[10, 10, 10]])
+
+    """
+    if type(exclude_border) == bool:
+        exclude_border = min_distance if exclude_border else 0
+
+    out = np.zeros_like(image, dtype=np.bool)
+
+    if np.all(image == image.flat[0]):
+        if indices is True:
+            return np.empty((0, 2), np.int)
+        else:
+            return out
+
+    # Non maximum filter
+    if footprint is not None:
+        # image_max = ndi.maximum_filter(image, footprint=footprint,
+        #                                mode='constant')
+        image_max = cv2.dilate(image, footprint=footprint, iterations=1)
+    else:
+        size = 2 * min_distance + 1
+        # image_max = ndi.maximum_filter(image, size=size, mode='constant')
+        image_max = cv2.dilate(image, cv2.getStructuringElement(
+            cv2.MORPH_RECT, (size, size)), iterations=1)
+    mask = image == image_max
+
+    if exclude_border:
+        # zero out the image borders
+        for i in range(mask.ndim):
+            mask = mask.swapaxes(0, i)
+            remove = (footprint.shape[i] if footprint is not None
+                      else 2 * exclude_border)
+            mask[:remove // 2] = mask[-remove // 2:] = False
+            mask = mask.swapaxes(0, i)
+
+    # find top peak candidates above a threshold
+    thresholds = []
+    if threshold_abs is None:
+        threshold_abs = image.min()
+    thresholds.append(threshold_abs)
+    if threshold_rel is not None:
+        thresholds.append(threshold_rel * image.max())
+    if thresholds:
+        mask &= image > max(thresholds)
+
+    # Select highest intensities (num_peaks)
+    coordinates = _get_high_intensity_peaks(image, mask, num_peaks)
+
+    if indices is True:
+        return coordinates
+    else:
+        nd_indices = tuple(coordinates.T)
+        out[nd_indices] = True
+        return out
+
 
 def dict_compare(d1, d2):
     d1_keys = set(d1.keys())
@@ -46,6 +190,7 @@ def dict_compare(d1, d2):
     modified = {o : (d1[o], d2[o]) for o in intersect_keys if np.any(d1[o] != d2[o])}
     same = set(o for o in intersect_keys if np.all(d1[o] == d2[o]))
     return added, removed, modified, same
+
 
 def computeDFF_traces(Yr, A, C, bl, quantileMin=8, frames_window=200):
     extract_DF_F(Yr, A, C, bl, quantileMin, frames_window)
