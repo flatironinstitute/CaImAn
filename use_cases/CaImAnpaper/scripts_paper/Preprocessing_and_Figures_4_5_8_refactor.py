@@ -40,7 +40,7 @@ from caiman.source_extraction.cnmf.cnmf import load_CNMF
 preprocessing_from_scratch = True  # whether to run the full pipeline or just creating figures
 
 if preprocessing_from_scratch:
-    reload = False
+    reload = True
     plot_on = False
     save_on = False  # set to true to recreate
 else:
@@ -56,7 +56,7 @@ try:
     ID = [np.int(ID)]
 
 except:
-    ID = np.arange(1,2)
+    ID = np.arange(7,8)
     print('ID NOT PASSED')
 
 
@@ -130,7 +130,7 @@ params_movie = {'fname': 'N.04.00.t/Yr_d1_512_d2_512_d3_1_order_C_frames_3000_.m
                 'swap_dim': False,
                 'crop_pix': 0,
                 'fr': 8,
-                'decay_time': 0.5,  # rough length of a transient
+                'decay_time': 1.4,  # rough length of a transient
                 }
 params_movies.append(params_movie.copy())
 
@@ -144,7 +144,7 @@ params_movie = {'fname': 'YST/Yr_d1_200_d2_256_d3_1_order_C_frames_3000_.mmap',
                 'K': 10,  # number of components per patch
                 'gSig': [5, 5],  # expected half size of neurons
                 'fr': 10,
-                'decay_time': 0.75,
+                'decay_time': 0.65,
                 'n_chunks': 10,
                 'swap_dim': False,
                 'crop_pix': 0
@@ -158,7 +158,7 @@ params_movie = {'fname': 'N.00.00/Yr_d1_512_d2_512_d3_1_order_C_frames_2936_.mma
                 'stride_cnmf': 10,  # amounpl.it of overlap between the patches in pixels
                 'K': 7,  # number of components per patch
                 'gSig': [6, 6],  # expected half size of neurons
-                'decay_time': 0.4,
+                'decay_time': 0.7,
                 'fr': 8,
                 'n_chunks': 10,
                 'swap_dim': False,
@@ -195,7 +195,7 @@ params_movie = {
     'n_chunks': 10,
     'swap_dim': False,
     'crop_pix': 10,
-    'decay_time': 0.3,
+    'decay_time': 0.75,
 }
 params_movies.append(params_movie.copy())
 # %% Sue Ann k53
@@ -227,7 +227,7 @@ params_movie = {
     'K': 8,  # number of components per patch
     'gSig': [7, 7],  # expected half size of neurons
     'fr': 30,
-    'decay_time': 0.4,
+    'decay_time': 0.8,
     'n_chunks': 10,
     'swap_dim': False,
     'crop_pix': 2,
@@ -245,7 +245,7 @@ params_movie = {
     'stride_cnmf': 20,  # amounpl.it of overlap between the patches in pixels
     'K': 11,  # number of components per patch
     'gSig': [8, 8],  # expected half size of neurons
-    'decay_time': 0.5,
+    'decay_time': 0.75,
     'fr': 30,
     'n_chunks': 10,
     'swap_dim': False,
@@ -341,8 +341,9 @@ if preprocessing_from_scratch:
                        'check_nan': check_nan,
                        'block_size_temp': block_size,
                        'block_size_spat': block_size,
-                       'num_blocks_per_run': num_blocks_per_run,
-                       'n_pixels_per_process': 4000,
+                       'num_blocks_per_run_spat': num_blocks_per_run,
+                       'num_blocks_per_run_temp': num_blocks_per_run,
+                       'n_pixels_per_process': n_pixels_per_process,
                        'ssub': 2,
                        'tsub': 2,
                        'p_tsub': 1,
@@ -355,6 +356,7 @@ if preprocessing_from_scratch:
         opts = params.CNMFParams(params_dict=params_dict)
         if reload:
             cnm2 = load_CNMF(fname_new[:-5] + '_cnmf_gsig.hdf5')
+
         else:
             # %% Extract spatial and temporal components on patches
             t1 = time.time()
@@ -384,6 +386,8 @@ if preprocessing_from_scratch:
             if save_on:
                 cnm2.save(fname_new[:-5] + '_cnmf_gsig.hdf5')
 
+
+
         # %%
         if plot_on:
             cnm2.estimates.plot_contours(img=Cn)
@@ -398,6 +402,8 @@ if preprocessing_from_scratch:
                                     'cnn_lowest': global_params['max_classifier_probability_rejected'],
                                     #'thresh_fitness_delta': global_params['max_fitness_delta_accepted'],
                                     'gSig_range': None})
+
+        cnm2.params.set('data',{'decay_time':params_movie['decay_time']})
 
         t1 = time.time()
         cnm2.estimates.evaluate_components(images, cnm2.params, dview=dview)
@@ -429,7 +435,7 @@ if preprocessing_from_scratch:
         cnm2.estimates.threshold_spatial_components(maxthr=0.2, dview=dview)
         cnm2.estimates.remove_small_large_neurons(min_size_neuro, max_size_neuro)
         cnm2.estimates.remove_duplicates(r_values=None, dist_thr=0.1, min_dist=10, thresh_subset=0.6)
-
+        print('Num neurons to match:' + str(cnm2.estimates.A.shape))
         # %%
         params_display = {
             'downsample_ratio': .2,

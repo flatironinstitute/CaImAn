@@ -420,7 +420,7 @@ def recursively_save_dict_contents_to_group(h5file, path, dic):
             try:
                 h5file[path + key] = item
             except:
-                item = np.array(item).astype('|S9')
+                item = np.array(item).astype('|S32')
                 h5file[path + key] = item
             if not np.array_equal(h5file[path + key].value, item):
                 raise ValueError('The data representation in the HDF5 file does not match the original dict.')

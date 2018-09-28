@@ -77,7 +77,9 @@ r_val_grid = [0.6, 0.7, 0.8, 0.9]#[1:2]
 max_class_prob_rej_grid = np.array([0, 0.025, 0.05, 0.1])#[1:2]
 thresh_CNN_grid = [0.9, .95 ,0.99, 1]#[2:3]
 
-
+block_size = 10000
+num_blocks_per_run = 12
+n_pixels_per_process = 4000
 
 
 # %%
@@ -189,7 +191,7 @@ params_movie = {'fname': 'N.04.00.t/Yr_d1_512_d2_512_d3_1_order_C_frames_3000_.m
                 'swap_dim': False,
                 'crop_pix': 0,
                 'fr': 8,
-                'decay_time': 0.5,  # rough length of a transient
+                'decay_time': 1.4,  # rough length of a transient
                 }
 params_movies.append(params_movie.copy())
 # %% yuste
@@ -202,7 +204,7 @@ params_movie = {'fname': 'YST/Yr_d1_200_d2_256_d3_1_order_C_frames_3000_.mmap',
                 'K': 10,  # number of components per patch
                 'gSig': [5, 5],  # expected half size of neurons
                 'fr': 10,
-                'decay_time': 0.75,
+                'decay_time': 0.65,
                 'n_chunks': 10,
                 'swap_dim': False,
                 'crop_pix': 0
@@ -216,7 +218,7 @@ params_movie = {'fname': 'N.00.00/Yr_d1_512_d2_512_d3_1_order_C_frames_2936_.mma
                 'stride_cnmf': 10,  # amounpl.it of overlap between the patches in pixels
                 'K': 7,  # number of components per patch
                 'gSig': [6, 6],  # expected half size of neurons
-                'decay_time': 0.4,
+                'decay_time': 0.7,
                 'fr': 8,
                 'n_chunks': 10,
                 'swap_dim': False,
@@ -253,7 +255,7 @@ params_movie = {
     'n_chunks': 10,
     'swap_dim': False,
     'crop_pix': 10,
-    'decay_time': 0.3,
+    'decay_time': 0.75,
 }
 params_movies.append(params_movie.copy())
 # %% Sue Ann k53
@@ -285,7 +287,7 @@ params_movie = {
     'K': 8,  # number of components per patch
     'gSig': [7, 7],  # expected half size of neurons
     'fr': 30,
-    'decay_time': 0.4,
+    'decay_time': 0.8,
     'n_chunks': 10,
     'swap_dim': False,
     'crop_pix': 2,
@@ -303,7 +305,7 @@ params_movie = {
     'stride_cnmf': 20,  # amounpl.it of overlap between the patches in pixels
     'K': 11,  # number of components per patch
     'gSig': [8, 8],  # expected half size of neurons
-    'decay_time': 0.5,
+    'decay_time': 0.75,
     'fr': 30,
     'n_chunks': 10,
     'swap_dim': False,
@@ -350,9 +352,6 @@ for gr_snr in SNRs_grid:
                     all_predictions = []
                     all_labels = []
                     all_results = dict()
-                    n_pixels_per_process = 4000
-                    block_size = 4000
-                    num_blocks_per_run = 10
                     ALL_CCs = []
 
                     for params_movie in np.array(params_movies)[ID]:
@@ -410,9 +409,11 @@ for gr_snr in SNRs_grid:
                                        'rolling_sum': True,
                                        'nb_patch': 1,
                                        'check_nan': check_nan,
-                                       'block_size': block_size,
-                                       'num_blocks_per_run': num_blocks_per_run,
-                                       'n_pixels_per_process': 4000,
+                                       'block_size_temp': block_size,
+                                       'block_size_spat': block_size,
+                                       'num_blocks_per_run_spat': num_blocks_per_run,
+                                       'num_blocks_per_run_temp': num_blocks_per_run,
+                                       'n_pixels_per_process': n_pixels_per_process,
                                        'ssub': 2,
                                        'tsub': 2,
                                        'p_tsub': 1,

@@ -936,6 +936,9 @@ def load_CNMF(filename, n_processes=1, dview=None):
             prms.init = val['init']
             prms.merging = val['merging']
             prms.quality = val['quality']
+            prms.data = val['data']
+            prms.online = val['online']
+            prms.motion = val['motion']
             setattr(new_obj, key, prms)
         elif key == 'dview':
             setattr(new_obj, key, dview)
