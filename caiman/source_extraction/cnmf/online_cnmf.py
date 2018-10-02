@@ -403,11 +403,13 @@ class OnACID(object):
             if ((t + 1 - self.params.get('online', 'init_batch')) %
                 self.params.get('online', 'update_freq') == 0):
 
-                ccf = self.estimates.C_on[:self.M, t - self.params.get('online', 'update_freq') + 1:t + 1]
-                y = self.estimates.Yr_buf.get_last_frames(self.params.get('online', 'update_freq'))
+                #ccf = self.estimates.C_on[:self.M, t - self.params.get('online', 'update_freq') + 1:t + 1]
+                #y = self.estimates.Yr_buf.get_last_frames(self.params.get('online', 'update_freq'))
+                ccf = self.estimates.C_on[:self.M, t - mbs + 1:t + 1]
+                y = self.estimates.Yr_buf #.get_last_frames(mbs)
 
                 # much faster: exploit that we only access CY[m, ind_pixels], hence update only these
-                n0 = self.params.get('online', 'update_freq')
+                n0 = mbs #self.params.get('online', 'update_freq')
                 t0 = 0 * self.params.get('online', 'init_batch')
                 w1 = (t - n0 + t0) * 1. / (t + t0)  # (1 - 1./t)#mbs*1. / t
                 w2 = 1. / (t + t0)  # 1.*mbs /t
@@ -509,7 +511,8 @@ class OnACID(object):
                     indicator_components = candidates[:self.N // mbs + 1]
                     self.comp_upd.append(len(indicator_components))
                     self.update_counter[indicator_components] += 1
-                    update_bkgrd = (t % self.params.get('online', 'update_freq') == 0)
+                    #update_bkgrd = (t % self.params.get('online', 'update_freq') == 0)
+                    update_bkgrd = (t % mbs == 0)
                     if self.params.get('online', 'use_dense'):
                         # update dense Ab and sparse Ab simultaneously;
                         # this is faster than calling update_shapes with sparse Ab only
