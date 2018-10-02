@@ -4,7 +4,7 @@
 """
 Stripped demo for running the CNMF source extraction algorithm with CaImAn and
 evaluation the components. The analysis can be run either in the whole FOV
-or in patches. For a complete pipeline (including motion correction) 
+or in patches. For a complete pipeline (including motion correction)
 check demo_pipeline.py
 Data courtesy of W. Yang, D. Peterka and R. Yuste (Columbia University)
 
@@ -48,7 +48,7 @@ from caiman.source_extraction.cnmf import params as params
 # verbose by setting level to logging.DEBUG, logging.INFO, logging.WARNING, or logging.ERROR
 
 logging.basicConfig(format=
-                          "%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s] [%(process)d] %(message)s",
+                          "%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s] [%(process)d] %(message)s",)
                     # filename="/tmp/caiman.log",
 
 #%%
@@ -120,12 +120,12 @@ def main():
     rval_thr = 0.90     # space correlation threshold (if above this, accept)
     use_cnn = True      # use the CNN classifier
     min_cnn_thr = 0.95  # if cnn classifier predicts below this value, reject
-    
+
     cnm2.params.set('quality', {'min_SNR': min_SNR,
                                 'rval_thr': rval_thr,
                                 'use_cnn': use_cnn,
                                 'min_cnn_thr': min_cnn_thr})
-                                
+
     cnm2.estimates.evaluate_components(images, cnm2.params, dview=dview)
 #%% visualize selected and rejected components
     cnm2.estimates.plot_contours(img=Cn, idx=cnm2.estimates.idx_components)

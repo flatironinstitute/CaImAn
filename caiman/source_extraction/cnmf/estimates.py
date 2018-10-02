@@ -271,8 +271,8 @@ class Estimates(object):
             caiman.utils.visualization.view_patches_bar(Yr, self.A, self.C,
                     self.b, self.f, self.dims[0], self.dims[1], YrA=self.R, img=img)
         else:
-            caiman.utils.visualization.view_patches_bar(Yr, self.A.tocsc()[:,idx], 
-                                                        self.C[idx], self.b, self.f, 
+            caiman.utils.visualization.view_patches_bar(Yr, self.A.tocsc()[:,idx],
+                                                        self.C[idx], self.b, self.f,
                                                         self.dims[0], self.dims[1], YrA=self.R[idx], img=img)
         return self
 
@@ -321,8 +321,8 @@ class Estimates(object):
                     self.b, self.f, self.dims[0], self.dims[1], YrA=self.R, image_neurons=img,
                     thr=thr, denoised_color=denoised_color, cmap=cmap)
         else:
-            caiman.utils.visualization.nb_view_patches(Yr, self.A.tocsc()[:,idx], 
-                                                        self.C[idx], self.b, self.f, 
+            caiman.utils.visualization.nb_view_patches(Yr, self.A.tocsc()[:,idx],
+                                                        self.C[idx], self.b, self.f,
                                                         self.dims[0], self.dims[1], YrA=self.R[idx], image_neurons=img,
                                                         thr=thr, denoised_color=denoised_color, cmap=cmap)
         return self
@@ -599,29 +599,27 @@ class Estimates(object):
         """
         if use_object:
             idx_components = self.idx_components
-        if idx_components is None:
-            idx_components = range(self.A.shape[-1])
 
-        for field in ['C', 'S', 'YrA', 'R', 'g', 'bl', 'c1', 'neurons_sn', 'lam', 'cnn_preds']:
-            print(field)
-            if getattr(self, field) is not None:
-                if type(getattr(self, field)) is list:
-                    setattr(self, field, np.array(getattr(self, field)))
-                if len(getattr(self, field)) == self.A.shape[-1]:
-                    setattr(self, field, getattr(self, field)[idx_components])
-                else:
-                    print('*** Variable ' + field + ' has not the same number of components as A ***')
+        if idx_components is not None:
+            for field in ['C', 'S', 'YrA', 'R', 'g', 'bl', 'c1', 'neurons_sn', 'lam', 'cnn_preds','SNR_comp','r_values']:
+                if getattr(self, field) is not None:
+                    if type(getattr(self, field)) is list:
+                        setattr(self, field, np.array(getattr(self, field)))
+                    if len(getattr(self, field)) == self.A.shape[-1]:
+                        setattr(self, field, getattr(self, field)[idx_components])
+                    else:
+                        print('*** Variable ' + field + ' has not the same number of components as A ***')
 
-        for field in ['A', 'A_thr']:
-            print(field)
-            if getattr(self, field) is not None:
-                if 'sparse' in str(type(getattr(self, field))):
-                    setattr(self, field, getattr(self, field).tocsc()[:, idx_components])
-                else:
-                    setattr(self, field, getattr(self, field)[:, idx_components])
+            for field in ['A', 'A_thr']:
+                if getattr(self, field) is not None:
+                    if 'sparse' in str(type(getattr(self, field))):
+                        setattr(self, field, getattr(self, field).tocsc()[:, idx_components])
+                    else:
+                        setattr(self, field, getattr(self, field)[:, idx_components])
 
-        self.idx_components = None
-        self.idx_components_bad = None
+            self.idx_components = None
+            self.idx_components_bad = None
+
         return self
 
     def evaluate_components_CNN(self, params, neuron_class=1):
@@ -689,7 +687,7 @@ class Estimates(object):
         opts = params.get_group('quality')
         idx_components, idx_components_bad, SNR_comp, r_values, cnn_preds = \
         estimate_components_quality_auto(imgs, self.A, self.C, self.b, self.f,
-                                         self.YrA, 
+                                         self.YrA,
                                          params.get('data', 'fr'),
                                          params.get('data', 'decay_time'),
                                          params.get('init', 'gSig'),
@@ -697,7 +695,10 @@ class Estimates(object):
                                          min_SNR=opts['min_SNR'],
                                          r_values_min=opts['rval_thr'],
                                          use_cnn=opts['use_cnn'],
-                                         thresh_cnn_min=opts['min_cnn_thr'])
+                                         thresh_cnn_min=opts['min_cnn_thr'],
+                                         thresh_cnn_lowest=opts['cnn_lowest'],
+                                         r_values_lowest=opts['rval_lowest'],
+                                         min_SNR_reject=opts['SNR_lowest'])
         self.idx_components = idx_components
         self.idx_components_bad = idx_components_bad
         self.SNR_comp = SNR_comp
@@ -779,7 +780,7 @@ class Estimates(object):
                                            thresh_cnn_min=opts['min_cnn_thr'],
                                            thresh_cnn_lowest=opts['cnn_lowest'],
                                            use_cnn=opts['use_cnn'],
-                                           gSig_range=opts['gSig_range'])            
+                                           gSig_range=opts['gSig_range'])
 
         return self
 
@@ -817,6 +818,9 @@ class Estimates(object):
         size_neurons_gt = A_gt_thr_bin.sum(0)
         neurons_to_keep = np.where((size_neurons_gt > min_size_neuro) & (size_neurons_gt < max_size_neuro))[0]
         self.select_components(idx_components=neurons_to_keep)
+        return neurons_to_keep
+
+
 
     def remove_duplicates(self, predictions=None, r_values=None, dist_thr=0.1, min_dist=10, thresh_subset=0.6, plot_duplicates=False):
         ''' remove neurons that heavily overlapand might be duplicates
@@ -837,7 +841,7 @@ class Estimates(object):
         duplicates_gt, indeces_keep_gt, indeces_remove_gt, D_gt, overlap_gt = detect_duplicates_and_subsets(
             A_gt_thr_bin,predictions=predictions, r_values=r_values,dist_thr=dist_thr, min_dist=min_dist,
             thresh_subset=thresh_subset)
-
+        print('Duplicates gt:' + str(len(duplicates_gt)))
         if len(duplicates_gt) > 0:
             if plot_duplicates:
                 plt.figure()
@@ -851,11 +855,17 @@ class Estimates(object):
                 plt.imshow(A_gt_thr_bin[np.array(indeces_remove_gt)[:]].sum(0))
                 plt.colorbar()
                 plt.pause(1)
-            components_to_keep = np.delete(np.arange(self.A.shape[-1]), indeces_remove_gt)
-            self.select_components(idx_components=components_to_keep)
 
-        print('Duplicates gt:' + str(len(duplicates_gt)))
-        return duplicates_gt, indeces_keep_gt, indeces_remove_gt, D_gt, overlap_gt
+            components_to_keep = np.delete(np.arange(self.A.shape[-1]), indeces_remove_gt)
+
+        else:
+            components_to_keep = np.arange(self.A.shape[-1])
+
+
+
+        self.select_components(idx_components=components_to_keep)
+
+        return components_to_keep
 
     def masks_2_neurofinder(self, dataset_name):
         if self.A_thr is None:

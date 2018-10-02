@@ -264,6 +264,7 @@ def evaluate_components_CNN(A, dims, gSig, model_name=os.path.join(caiman_datadi
         else:
             raise FileNotFoundError("File for requested model {} not found".format(model_name))
         with open(model_file, 'r') as json_file:
+            print('USING MODEL:' + model_file)
             loaded_model_json = json_file.read()
 
         loaded_model = model_from_json(loaded_model_json)
@@ -585,6 +586,7 @@ def select_components_from_metrics(A, dims, gSig, r_values, comp_SNR,
     idx_components = np.setdiff1d(idx_components, bad_comps)
     idx_components_bad = np.setdiff1d(
         list(range(len(r_values))), idx_components)
+
 
     return idx_components.astype(np.int), idx_components_bad.astype(np.int), cnn_values
 
