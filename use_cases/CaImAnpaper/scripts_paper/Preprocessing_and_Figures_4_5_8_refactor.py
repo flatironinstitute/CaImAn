@@ -795,36 +795,37 @@ else:
         t_refine = dict()
         t_filter_comps = dict()
 
-        size = np.log10(np.array([2.1, 3.1, 0.6, 3.1, 8.4, 1.9, 121.7, 78.7, 35.8, 50.3]) * 1000)
-        components = np.array([368, 935, 476, 1060, 1099, 1387, 1541, 1013, 398, 1064])
-        components = np.array([368, 935, 476, 1060, 1099, 1387, 1541, 1013, 398, 1064])
+        size = np.log10(np.array([8.4, 121.7, 78.7, 35.8]) * 1000)
+        components = np.array([1099, 1541, 1013, 398])
+        components = np.array([1099,  1541, 1013, 398])
 
-        t_mmap['cluster'] = np.array([np.nan, 41, np.nan, np.nan, 109, np.nan, 561, 378, 135, 212])
-        t_patch['cluster'] = np.array([np.nan, 46, np.nan, np.nan, 92, np.nan, 1063, 469, 142, 372])
-        t_refine['cluster'] = np.array([np.nan, 225, np.nan, np.nan, 256, np.nan, 1065, 675, 265, 422])
-        t_filter_comps['cluster'] = np.array([np.nan, 7, np.nan, np.nan, 11, np.nan, 143, 77, 30, 57])
+        t_mmap['cluster'] = np.array([109,  561, 378, 135])
+        t_patch['cluster'] = np.array([ 92, 1063, 469, 142])
+        t_refine['cluster'] = np.array([256,  1065, 675, 265])
+        t_filter_comps['cluster'] = np.array([11, 143, 77, 30])
 
-        t_mmap['desktop'] = np.array([25, 41, 11, 41, 135, 23, 690, 510, 176, 163])
-        t_patch['desktop'] = np.array([21, 43, 16, 48, 85, 45, 2150, 949, 316, 475])
-        t_refine['desktop'] = np.array([105, 205, 43, 279, 216, 254, 1749, 837, 237, 493])
-        t_filter_comps['desktop'] = np.array([3, 5, 2, 5, 9, 7, 246, 81, 36, 38])
+        # t_mmap['desktop'] = np.array([25, 41, 11, 41, 135, 23, 690, 510, 176, 163])
+        # t_patch['desktop'] = np.array([21, 43, 16, 48, 85, 45, 2150, 949, 316, 475])
+        # t_refine['desktop'] = np.array([105, 205, 43, 279, 216, 254, 1749, 837, 237, 493])
+        # t_filter_comps['desktop'] = np.array([3, 5, 2, 5, 9, 7, 246, 81, 36, 38])
+        t_mmap['desktop'] = np.array([135, 690, 510, 176])
+        t_patch['desktop'] = np.array([83.309, 1797, 858, 274])
+        t_refine['desktop'] = np.array([150.8, 2088.20, 881.20, 180.4])
+        t_filter_comps['desktop'] = np.array([8.844, 214.41, 104.1, 41.299])
 
-        t_mmap['laptop'] = np.array([4.7, 27, 3.6, 18, 144, 11, 731, 287, 125, 248])
-        t_patch['laptop'] = np.array([58, 84, 47, 77, 174, 85, 2398, 1587, 659, 1203])
-        t_refine['laptop'] = np.array([195, 321, 87, 236, 414, 354, 5129, 3087, 807, 1550])
-        t_filter_comps['laptop'] = np.array([5, 10, 5, 7, 15, 11, 719, 263, 74, 100])
+        t_mmap['laptop'] = np.array([144, 731, 287, 125])
+        t_patch['laptop'] = np.array([ 177.893, 4108.8, 2253.366, 855.3])
+        t_refine['laptop'] = np.array([364.8, 3596.7, 1791.04, 540.6])
+        t_filter_comps['laptop'] = np.array([19.78, 733.77, 33.985, 81.68])
 
         # these can be read from the final portion of of the script output
         t_mmap['online'] = np.array(
-            [18.98, 85.21458578, 40.50961256, 17.71901989, 85.23642993, 30.11493444, 34.09690762, 18.95380235,
-             10.85061121, 31.97082043])
+            [85.23642993, 34.09690762, 18.95380235, 10.85061121])
         t_patch['online'] = np.array(
-            [75.73, 266.81324172, 332.06756997, 114.17053413, 267.06141853, 147.59935951, 3297.18628764, 2573.04009032,
-             578.88080835, 1725.74687123])
+            [267.06141853, 3297.18628764, 2573.04009032, 578.88080835])
         t_refine['online'] = np.array(
-            [12.41, 91.77891779, 84.74378371, 31.84973955, 89.29527831, 25.1676743, 1689.06246471, 1282.98535109,
-             61.20671248, 322.67962313])
-        t_filter_comps['online'] = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+            [89.29527831, 1689.06246471, 1282.98535109, 61.20671248])
+        t_filter_comps['online'] = np.array([0, 0, 0, 0])
 
         pl.subplot(1, 4, 1)
         for key in ['cluster', 'desktop', 'laptop', 'online']:
@@ -836,19 +837,19 @@ else:
 
         plt.plot((np.sort(size)), np.log10((np.sort(10 ** size)) / 31.45), '--.k')
         plt.legend(
-            ['acquisition-time', 'cluster (112 CPUs)', 'workstation (24 CPUs)', 'laptop (6 CPUs)', 'online (6 CPUs)'])
+            ['acquisition-time', 'cluster (112 CPUs)', 'workstation (24 CPUs)', 'workstation (3 CPUs)', 'online (6 CPUs)'])
         pl.title('Total execution time')
         pl.xlim([3.8, 5.2])
         pl.ylim([2.35, 4.2])
 
         counter = 2
-        for key in ['cluster', 'laptop', 'online']:
+        for key in ['cluster', 'desktop', 'online']:
             pl.subplot(1, 4, counter)
             counter += 1
             if counter == 3:
                 pl.title('Time per phase (cluster)')
                 plt.ylabel('time (10^3 s)')
-            elif counter == 2:
+            elif counter == 4:
                 pl.title('Time per phase (workstation)')
             else:
                 pl.title('Time per phase (online)')
