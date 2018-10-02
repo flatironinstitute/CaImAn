@@ -442,7 +442,7 @@ class CNMF(object):
             if self.params.get('patch', 'only_init'):  # only return values after initialization
                 if not (self.params.get('init', 'method_init') == 'corr_pnr' and
                     self.params.get('init', 'ring_size_factor') is not None):
-                    self.compute_residuals(Yr, self.params.get('temporal', 'block_size_temp'), self.params.get('temporal', 'num_blocks_per_run_temp'))
+                    self.compute_residuals(Yr)
                     self.estimates.bl = None
                     self.estimates.c1 = None
                     self.estimates.neurons_sn = None
@@ -625,14 +625,14 @@ class CNMF(object):
                 self.params.get('online', 'expected_comps'))
         self.params.set('online', {'expected_comps': expected_comps})
 
-    def compute_residuals(self, Yr, block_size, num_blocks_per_run):
+    def compute_residuals(self, Yr):
         """compute residual for each component (variable YrA)
 
          Args:
              Yr :    np.ndarray
                      movie in format pixels (d) x frames (T)
         """
-
+        block_size, num_blocks_per_run = self.params.get('temporal', 'block_size_temp'), self.params.get('temporal', 'num_blocks_per_run_temp')
         if 'csc_matrix' not in str(type(self.estimates.A)):
             self.estimates.A = scipy.sparse.csc_matrix(self.estimates.A)
         if 'array' not in str(type(self.estimates.b)):
