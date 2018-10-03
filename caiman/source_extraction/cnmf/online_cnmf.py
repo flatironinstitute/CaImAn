@@ -401,16 +401,16 @@ class OnACID(object):
 
         if self.params.get('online', 'batch_update_suff_stat'):
         # faster update using minibatch of frames
-            if ((t + 1 - self.params.get('online', 'init_batch')) %
-                self.params.get('online', 'update_freq') == 0):
+            min_batch = min(self.params.get('online', 'update_freq'), mbs)
+            if ((t + 1 - self.params.get('online', 'init_batch')) % min_batch == 0):
 
-                #ccf = self.estimates.C_on[:self.M, t - self.params.get('online', 'update_freq') + 1:t + 1]
-                #y = self.estimates.Yr_buf.get_last_frames(self.params.get('online', 'update_freq'))
-                ccf = self.estimates.C_on[:self.M, t - mbs + 1:t + 1]
-                y = self.estimates.Yr_buf #.get_last_frames(mbs)
+                ccf = self.estimates.C_on[:self.M, t - min_batch + 1:t + 1]
+                y = self.estimates.Yr_buf.get_last_frames(min_batch)
+                # ccf = self.estimates.C_on[:self.M, t - mbs + 1:t + 1]
+                # y = self.estimates.Yr_buf #.get_last_frames(mbs)
 
                 # much faster: exploit that we only access CY[m, ind_pixels], hence update only these
-                n0 = mbs #self.params.get('online', 'update_freq')
+                n0 = min_batch
                 t0 = 0 * self.params.get('online', 'init_batch')
                 w1 = (t - n0 + t0) * 1. / (t + t0)  # (1 - 1./t)#mbs*1. / t
                 w2 = 1. / (t + t0)  # 1.*mbs /t
