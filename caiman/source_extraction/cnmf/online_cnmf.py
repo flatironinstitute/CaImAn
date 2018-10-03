@@ -1402,6 +1402,7 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial=3, gSig=(5, 5),
     Cin = []
     Cin_res = []
     idx = []
+    all_indices = []
     ijsig_all = []
     cnn_pos = []
     local_maxima = []
@@ -1459,7 +1460,6 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial=3, gSig=(5, 5),
         # indeces_ = np.ravel_multi_index(np.ix_(*[np.arange(ij[0], ij[1])
         #                 for ij in ijSig]), dims, order='C').ravel(order = 'C')
 
-        Ypx = Yres_buf.T[indeces, :]
         ain = np.maximum(mean_buff[indeces], 0)
 
         if sniper_mode:
@@ -1478,7 +1478,7 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial=3, gSig=(5, 5),
         if na:
             ain /= sqrt(na)
             Ain.append(ain)
-            Y_patch.append(Ypx)
+            Y_patch.append(Yres_buf.T[indeces, :]) if compute_corr else all_indices.append(indeces)
             idx.append(ind)
             if sniper_mode:
                 Ain_cnn.append(ain_cnn)
@@ -1517,7 +1517,7 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial=3, gSig=(5, 5),
         idx = list(np.array(idx)[keep_final])
     else:
         Ain = [Ain[kp] for kp in keep_cnn]
-        Y_patch = [Y_patch[kp] for kp in keep_cnn]
+        Y_patch = [Yres_buf.T[all_indices[kp]] for kp in keep_cnn]
         idx = list(np.array(idx)[keep_cnn])
         for i, (ain, Ypx) in enumerate(zip(Ain, Y_patch)):
             ain, cin, cin_res = rank1nmf(Ypx, ain)
