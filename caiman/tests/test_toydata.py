@@ -41,7 +41,7 @@ def pipeline(D):
     # INIT
     params = caiman.source_extraction.cnmf.params.CNMFParams(
         dims=dims, k=4, gSig=[2, 2, 2][:D], p=1,
-        n_pixels_per_process=np.prod(dims), block_size=np.prod(dims))
+        n_pixels_per_process=np.prod(dims), block_size_spat=np.prod(dims), block_size_temp=np.prod(dims))
     params.spatial['thr_method'] = 'nrg'
     params.spatial['extract_cc'] = False
     cnm = cnmf.CNMF(2, params=params)
