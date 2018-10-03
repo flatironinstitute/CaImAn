@@ -877,7 +877,7 @@ def determine_search_location(A, dims, method='ellipse', min_size=3, max_size=8,
             for r in res:
                 dist_indicator.append(r)
 
-            dist_indicator = (np.asarray(dist_indicator)).squeeze().T
+            dist_indicator = scipy.sparse.coo_matrix((np.asarray(dist_indicator)).squeeze().T)
 
         else:
             raise Exception('Not implemented')
@@ -1045,8 +1045,7 @@ def computing_indicator(Y, A_in, b, C, f, nb, method, dims, min_size, max_size, 
 
         if b is None:
             dist_indicator = determine_search_location(
-                A_in, dims, method=method, min_size=min_size, max_size=max_size, dist=dist, expandCore=expandCore,
-                dview=dview)
+                A_in, dims, method=method, min_size=min_size, max_size=max_size, dist=dist, expandCore=expandCore, dview=dview)
         else:
             dist_indicator = determine_search_location(
                 scipy.sparse.hstack([A_in, scipy.sparse.coo_matrix(b)]), dims, method=method, min_size=min_size, max_size=max_size, dist=dist, expandCore=expandCore,
