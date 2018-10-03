@@ -11,6 +11,8 @@ A Computational toolbox for large scale **Ca**lcium **Im**aging data **An**alysi
 
 Recent advances in calcium imaging acquisition techniques are creating datasets of the order of Terabytes/week. Memory and computationally efficient algorithms are required to analyze in reasonable amount of time terabytes of data. This project implements a set of essential methods required in the calcium imaging movies analysis pipeline. Fast and scalable algorithms are implemented for motion correction, movie manipulation, and source and spike extraction. CaImAn also contains some routines for the analyisis of behavior from video cameras. In summary, CaImAn provides a general purpose tool to handle large movies, with special emphasis on tools for two-photon and one-photon calcium imaging and behavioral datasets. 
 
+## Companion paper
+A paper explaining most of the implementation details and benchmarking can be found at this [link](https://www.biorxiv.org/content/early/2018/06/05/339564)
 
 ## Features
 
@@ -38,7 +40,7 @@ Recent advances in calcium imaging acquisition techniques are creating datasets 
 
 * **Denoising, deconvolution and spike extraction**
 
-    * Inferes neural activity from fluorescence traces [[1]](#neuron)
+    * Infers neural activity from fluorescence traces [[1]](#neuron)
     * Also works in online mode (i.e. one sample at a time) [[4]](#oasis)
 
 * **Behavioral Analysis** [[7]](#behavior)
@@ -63,13 +65,15 @@ In May 2018, the way CaImAn is installed changed; we now register the package wi
 * You should not set PYTHONPATH to the CaImAn source directory any more. If you did this before (in your dotfiles or elsewhere) you should remove that.
 * Unless you're installing with `pip install -e` (documented below), you should no longer work out of your checkout directory. The new install mode expects you to use caimanmanager (also documented below) to manage the demos and the place in which you'll be running code. An installed version of caimanmanager will be added to your path and should not be run out of the checkout directory.
 
+In July 2018, Python 2.x support was removed; Python 3.6 or higher is required for CaImAn.
 ### Upgrading CaImAn
 
 If you want to upgrade CaImAn (and have already used the pip installer to install it) following the instructions given in the [wiki](https://github.com/flatironinstitute/CaImAn/wiki/Updating-CaImAn).
 
-### Installation on Mac or Linux (Python 3.x)
 
-   * Download and install Anaconda (Python 3.6) <http://docs.continuum.io/anaconda/install>
+### Installation on Mac or Linux
+
+   * Download and install Anaconda or Miniconda (Python 3.6 version recommended) <http://docs.continuum.io/anaconda/install>
      
    ```bash
    git clone https://github.com/flatironinstitute/CaImAn
@@ -83,16 +87,12 @@ If you want to upgrade CaImAn (and have already used the pip installer to instal
    pip install -e .
    ```
 
-**Note for Python 2 users:** If you wish to install CaImAn for Python 2.7, please use `environment_python2.yml` instead of `environment.yml` when creating the conda environment.
-While the code is compatible with Python 2.7 at the moment, all present and future development is done in Python 3, and we expect Python 2.7 compatibility to break at some point.
-   
-
-**For Linux users:** To make the package available from everywhere and have it working *efficiently* under any configuration ALWAYS run these commands before starting spyder:
+**Performance issues:** To make the package work *efficiently* under any configuration ALWAYS run these commands before starting spyder (this is for linux and OSX but environment variables can be set in windows as well):
 
    ```bash
    export MKL_NUM_THREADS=1
    export OPENBLAS_NUM_THREADS=1
-   ```
+   ```   
 
 ### Setting up caimanmanager
 
@@ -110,31 +110,25 @@ This will place that directory under your home directory in a directory called c
 
 If you prefer to manage this information somewhere else, the `CAIMAN_DATA` environment variable can be set to customise it. The caimanmanager tool and other libraries will respect that.
 
-### Installation on Windows (Python 3.x)
+### Installation on Windows
    * Increase the maximum size of your pagefile to 64G or more (http://www.tomshardware.com/faq/id-2864547/manage-virtual-memory-pagefile-windows.html ) - The Windows memmap interface is sensitive to the maximum setting and leaving it at the default can cause errors when processing larger datasets
-   * Download and install Anaconda (Python 3.6) <http://docs.continuum.io/anaconda/install>. We recommend telling conda to modify your PATH variable (it is a checkbox during Anaconda install, off by default)
-   * Use Conda to install git (With "conda install git")
-   * Microsoft Build Tools for Visual Studio 2017 <https://www.visualstudio.com/downloads/#build-tools-for-visual-studio-2017>. Check the "Build Tools" box, and in the detailed view on the right check the "C/C++ CLI Tools" component too.
+   * Download and install Anaconda (Python 3.6 recommended) <http://docs.continuum.io/anaconda/install>. We recommend telling conda to modify your PATH variable (it is a checkbox during Anaconda install, off by default)
+   * Use Conda to install git (With "conda install git") - use of another commandline git is acceptable, but may lead to issues depending on default settings
+   * Microsoft Build Tools for Visual Studio 2017 <https://www.visualstudio.com/downloads/#build-tools-for-visual-studio-2017>. Check the "Build Tools" box, and in the detailed view on the right check the "C/C++ CLI Tools" component too. The specifics of this occasionally change as Microsoft changes its products and website; you may need to go off-script.
 
-    ```bash
-    
-    git clone  https://github.com/flatironinstitute/CaImAn
-    cd CaImAn
-    git pull
-    ```
-	start>programs>anaconda3>anaconda prompt
-	
-	```bash
-    
-	conda env create -f environment.yml -n caiman
-    activate caiman   
-    pip install . (OR pip install -e . if you want to develop code)
-	conda install numba
-	jupyter notebook --NotebookApp.iopub_data_rate_limit=1.0e10
-    ```
-Then setup ```caimanmanager``` as described above.
+Use the following menu item to launch a anaconda-enabled command prompt: start>programs>anaconda3>anaconda prompt
 
-For Python 2.7 on Windows follow the same procedure with replacing the file `environment.yml` with `environment_python2.yml` as before.	
+   ```bash
+   git clone  https://github.com/flatironinstitute/CaImAn
+   cd CaImAn
+   conda env create -f environment.yml -n caiman
+   activate caiman
+   pip install . (OR pip install -e . if you want to develop code)
+   copy caimanmanager.py ..
+   conda install numba
+   cd ..
+   ```
+Then run ```caimanmanager``` as described above to make a data directory.
 
 Alternative environments:
    * [Using experimental CUDA support](/README-cuda.md)
@@ -181,7 +175,13 @@ A complete list of contributors can be found [here](https://github.com/flatironi
 
 # References
 
-The following references provide the theoretical background and original code for the included methods. 
+The following references provide the theoretical background and original code for the included methods.
+
+### Software package detailed description and benchmarking
+
+If you use this code please cite the corresponding papers where original methods appeared (see References below), as well as: 
+
+<a name="caiman"></a>[1] Giovannucci A., Friedrich J., Gunn P., Kalfon J., Koay S.A., Taxidis J., Najafi F., Gauthier J.L., Zhou P., Tank D.W., Chklovskii D.B., Pnevmatikakis E.A. (2018). CaImAn: An open source tool for scalable Calcium Imaging data Analysis. bioarXiv preprint. [[paper]](https://doi.org/10.1101/339564)
 
 ### Deconvolution and demixing of calcium imaging data
 
@@ -264,11 +264,6 @@ Special thanks to the following people for letting us use their datasets for our
 * Sue Ann Koay, David Tank, Princeton University
 * Manolis Froudarakis, Jake Reimers, Andreas Tolias, Baylor College of Medicine
 
-# Citation
-
-If you use this code please cite the corresponding papers where original methods appeared (see References above), as well as the following abstract:
-
-Giovannucci, A., Friedrich, J., Deverett, B., Staneva, V., Chklovskii, D., & Pnevmatikakis, E. (2017). CaImAn: An open source toolbox for large scale calcium imaging data analysis on standalone machines. Cosyne Abstracts.
 
 # Questions, comments, issues
 

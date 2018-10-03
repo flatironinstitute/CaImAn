@@ -8,19 +8,17 @@ Can easily be extended to include new transformations,
 new preprocessing methods, etc...
 """
 
-from __future__ import absolute_import
-from __future__ import print_function
-
+from functools import partial
+import multiprocessing.pool
 import numpy as np
+import os
 import re
 from scipy import linalg
 import scipy.ndimage as ndi
 from six.moves import range
-import os
 import threading
 import warnings
-import multiprocessing.pool
-from functools import partial
+
 try:
     from keras import backend as K
 except:

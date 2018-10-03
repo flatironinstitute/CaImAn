@@ -40,6 +40,7 @@ standard_movies = [
 # commands
 
 def do_install_to(targdir, inplace=False, force=False):
+	global sourcedir_base
 	if os.path.isdir(targdir) and not force:
 		raise Exception(targdir + " already exists")
 	if not inplace: # In this case we rely on what setup.py put in the share directory for the module
@@ -61,6 +62,7 @@ def do_install_to(targdir, inplace=False, force=False):
 	print("Installed " + targdir)
 
 def do_check_install(targdir, inplace=False):
+	global sourcedir_base
 	if inplace:
 		sourcedir_base = os.getcwd()
 	ok = True
@@ -169,10 +171,13 @@ def main():
 			do_nt_run_demotests(cfg.userdir)
 		else:
 			do_run_demotests(cfg.userdir)
+	elif cfg.command == 'help':
+		print("The following are valid subcommands: install, check, test, demotest")
 	else:
 		raise Exception("Unknown command")
 
 def handle_args():
+	global sourcedir_base
 	parser = argparse.ArgumentParser(description="Tool to manage Caiman data directory")
 	parser.add_argument("command", help="Subcommand to run. install/check/test/demotest")
 	parser.add_argument("--inplace", action='store_true', help="Use only if you did an inplace install of caiman rather than a pure one")

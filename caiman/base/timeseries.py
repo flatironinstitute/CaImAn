@@ -4,32 +4,20 @@
 """
 Class representing a time series.
 
-    Example of usage
-
-    Parameters:
-    ----------
-
-    input_arr: np.ndarray
-
-    start_time: time beginning movie
-
-    fr: frame rate
-
-    meta_data: dictionary including any custom meta data
-
-
 author: Andrea Giovannucci
 """
 
-from __future__ import print_function
 #%%
-import os
-import warnings
-import numpy as np
 import cv2
 import h5py
+import logging
+import numpy as np
+import os
 import pylab as plt
 import pickle as cpk
+from scipy.io import savemat
+import tifffile
+import warnings
 
 try:
     cv2.setNumThreads(0)
@@ -41,33 +29,10 @@ try:
 except:
     pass
 
-from scipy.io import savemat
-try:
-    import tifffile
-    print('tifffile package not found, using skimage instead for imsave')
-except:
-    from skimage.external import tifffile
-
 #%%
 class timeseries(np.ndarray):
     """
     Class representing a time series.
-
-    Example of usage
-
-    Parameters:
-    ----------
-    input_arr: np.ndarray
-
-    fr: frame rate
-
-    start_time: time beginning movie
-
-    meta_data: dictionary including any custom meta data
-
-    Raise:
-    -----
-    Exception('You need to specify the frame rate')
     """
 
     def __new__(cls, input_arr, fr=30, start_time=0, file_name=None, meta_data=None):
@@ -76,19 +41,17 @@ class timeseries(np.ndarray):
 
             Example of usage
 
-            Parameters:
-            ----------
-            input_arr: np.ndarray
+            Args:
+                input_arr: np.ndarray
 
-            fr: frame rate
+                fr: frame rate
 
-            start_time: time beginning movie
+                start_time: time beginning movie
 
-            meta_data: dictionary including any custom meta data
+                meta_data: dictionary including any custom meta data
 
-            Raise:
-            -----
-            Exception('You need to specify the frame rate')
+            Raises:
+                Exception 'You need to specify the frame rate'
             """
         if fr is None:
             raise Exception('You need to specify the frame rate')
@@ -153,35 +116,32 @@ class timeseries(np.ndarray):
         """
         Save the timeseries in various formats
 
-        parameters:
-        ----------
-        file_name: str
-            name of file. Possible formats are tif, avi, npz and hdf5
+        Args:
+            file_name: str
+                name of file. Possible formats are tif, avi, npz, mmap and hdf5
 
-        to32: Bool
-            whether to transform to 32 bits
+            to32: Bool
+                whether to transform to 32 bits
 
-                order: 'F' or 'C'
-                        C or Fortran order
+            order: 'F' or 'C'
+                C or Fortran order
 
-        Raise:
-        -----
-        raise Exception('Extension Unknown')
+        Raises:
+            Exception 'Extension Unknown'
 
         """
         name, extension = os.path.splitext(file_name)[:2]
-        print(extension)
+        logging.debug("Parsing extension " + str(extension))
 
 
         if extension == '.tif':  # load avi file
 
-
-            with tifffile.TiffWriter(file_name, bigtiff=bigtiff, imagej=imagej, software=software) as tif:
+            with tifffile.TiffWriter(file_name, bigtiff=bigtiff, imagej=imagej) as tif:
 
 
                 for i in range(self.shape[0]):
-                    if i%200 == 0:
-                        print(str(i) + ' frames saved')
+                    if i % 200 == 0:
+                        logging.debug(str(i) + ' frames saved')
 
                     curfr = self[i].copy()
                     if to32 and not('float32' in str(self.dtype)):
@@ -236,7 +196,7 @@ class timeseries(np.ndarray):
                 savemat(file_name, {'input_arr': np.rollaxis(
                     input_arr, axis=0, start=3), 'start_time': self.start_time, 'fr': self.fr, 'meta_data': self.meta_data, 'file_name': f_name})
 
-        elif extension == '.hdf5':
+        elif extension in ('.hdf5', '.h5'):
             with h5py.File(file_name, "w") as f:
                 if to32 and not('float32' in str(self.dtype)):
                     input_arr = input_arr.astype(np.float32)
@@ -250,9 +210,9 @@ class timeseries(np.ndarray):
                     dset.attrs["file_name"] = [
                         a.encode('utf8') for a in self.file_name]
                 except:
-                    print('No file name saved')
+                    logging.warning('No file saved')
                 if self.meta_data[0] is not None:
-                    print(self.meta_data)
+                    logging.debug("Metadata for saved file: " + str(self.meta_data))
                     dset.attrs["meta_data"] = cpk.dumps(self.meta_data)
 
         elif extension == '.mmap':
@@ -272,7 +232,7 @@ class timeseries(np.ndarray):
                 1 if len(dims) == 2 else dims[2]) + '_order_' + str(order) + '_frames_' + str(T) + '_.mmap'
             fname_tot = os.path.join(os.path.split(file_name)[0], fname_tot)
             big_mov = np.memmap(fname_tot, mode='w+', dtype=np.float32,
-                                shape=(np.prod(dims), T), order=order)
+                                shape=(np.uint64(np.prod(dims)), np.uint64(T)), order=order)
 
             big_mov[:] = np.asarray(input_arr, dtype=np.float32)
             big_mov.flush()
@@ -280,7 +240,7 @@ class timeseries(np.ndarray):
             return fname_tot
 
         else:
-            print(extension)
+            logging.error("Extension " + str(extension) + " unknown")
             raise Exception('Extension Unknown')
 
 
@@ -288,9 +248,8 @@ def concatenate(*args, **kwargs):
     """
     Concatenate movies
 
-    Parameters:
-    -----------
-    mov: XMovie object
+    Args:
+        mov: XMovie object
     """
     # todo: todocument return
 
@@ -314,5 +273,5 @@ def concatenate(*args, **kwargs):
     try:
         return obj.__class__(np.concatenate(*args, **kwargs), **obj.__dict__)
     except:
-        print('no meta information passed')
+        logging.debug('no meta information passed')
         return obj.__class__(np.concatenate(*args, **kwargs))

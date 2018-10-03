@@ -17,6 +17,7 @@ dependencies:
 - numpy
 - opencv=3.2
 - peakutils
+- pims
 - scipy
 - scikit-image
 - scikit-learn

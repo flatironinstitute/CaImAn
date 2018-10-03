@@ -1,14 +1,14 @@
 #!/usr/bin/env python
 
 """ compare how the elements behave
- 
+
 We create a folder ground truth that possess the same thing than the other
 in a form of a dictionnary containing nparrays and other info.
 the other files contains every test and the name is the date of the test
- 
+
 See Also
 ------------
- 
+
 Link 
 
 \image dev/kalfon/img/datacomparison.pdf
@@ -25,17 +25,26 @@ Link
 #
 
 
-import platform as plt
+import copy
 import datetime
+import logging
+import matplotlib.pyplot as pl
 import numpy as np
 import os
-######## ONLY IF ON TRAVIS ######
+import platform as plt
+import scipy
 
-#############################
-import matplotlib.pyplot as pl
+# Set up the logger; change this if you like.
+# You can log to a file using the filename parameter, or make the output more or less
+# verbose by setting level to logging.DEBUG, logging.INFO, logging.WARNING, or logging.ERROR
+
+logging.basicConfig(format=
+                          "%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s] [%(process)d] %(message)s",
+                    # filename="/tmp/caiman.log",
+                    level=logging.DEBUG)
+
 import caiman as cm
 from caiman.paths import caiman_datadir
-import scipy
 
 
 class Comparison(object):
@@ -156,64 +165,57 @@ class Comparison(object):
         """save the comparison as well as the images of the precision recall calculations
 
 
-            depending on if we say this file will be ground truth or not, it wil be saved in either the tests or the groung truth folder
-            if saved in test, a comparison to groundtruth will be add to the object 
+            depending on if we say this file will be ground truth or not, it wil be saved in either the tests or the ground truth folder
+            if saved in test, a comparison to groundtruth will be added to the object 
             this comparison will be on 
                 data : a normized difference of the normalized value of the arrays
                 time : difference
-            in order for this function to work, you need to
-                previously give it the cnm objects after initializing them ( on patch and full frame)
+            in order for this function to work, you must
+                have previously given it the cnm objects after initializing them ( on patch and full frame)
                 give the values of the time and data 
                 have a groundtruth
 
 
-            Parameters:
-            -----------
+            Args:
+                self:  dictionnary
+                   the object of this class tha tcontains every value
 
-            self:  dictionnary
-               the object of this class tha tcontains every value
+                istruth: Boolean
+                    if we want it ot be the ground truth
 
-            istruth: Boolean
-                if we want it ot be the ground truth
+                params:
+                    movie parameters
 
-            params:
-                movie parameters
+                dview :
+                    your dview object
 
-            dview :
-                your dview object
+                n_frames_per_bin:
+                    you need to know those data before
+                    they have been given to the base/rois functions
 
-            n_frames_per_bin:
-                you need to know those data before
-                they have been given to the base/rois functions
+                dims_test:
+                    you need to know those data before
+                    they have been given to the base/rois functions
 
-            dims_test:
-                you need to know those data before
-                they have been given to the base/rois functions
+                Cn:
+                    your correlation image
 
-            Cn:
-                your correlation image
+                Cmap:
+                    a particular colormap for your Cn
 
-            Cmap:
-                a particular colormap for your Cn
-
-                See Also:
-                ---------
-
-            Example of utilisation on Demo Pipeline
+            See Also:
+                Example of utilisation on Demo Pipeline
 \image caiman/tests/comparison/data.pdf
 
+             Raises:
+                 ('we now have ground truth\n')
 
-             Raise:
-             ------
-
-             ('we now have ground truth\n')
-
-             ('we were not able to read the file to compare it\n')
+                 ('we were not able to read the file to compare it\n')
 
                 """
         # getting the DATA FOR COMPARISONS
         assert (params != None and self.cnmpatch != None)
-        print('we need the parameters in order to save anything\n')
+        logging.info('we need the parameters in order to save anything\n')
         # actions on the sparse matrix
         cnm = self.cnmpatch.__dict__
         cnmpatch = deletesparse(cnm)
@@ -227,7 +229,7 @@ class Comparison(object):
         plat = str(plat)
         pro = plt.processor()
         pro = str(pro)
-        # we store a big file which is containing everything ( INFORMATION)
+        # we store a big file which contains everything (INFORMATION)
         information = {
             'platform': plat,
             'time': dt,
@@ -251,12 +253,12 @@ class Comparison(object):
                 # we just save it
             if os._exists(file_path):
                 os.remove(file_path)
-                print("nothing to remove\n")
-            np.savez(file_path, information=information, A_full=self.comparison['cnmf_full_frame']['ourdata'][0],
+                logging.debug("nothing to remove\n")
+            np.savez_compressed(file_path, information=information, A_full=self.comparison['cnmf_full_frame']['ourdata'][0],
                      C_full=self.comparison['cnmf_full_frame']['ourdata'][
                          1], A_patch=self.comparison['cnmf_on_patch']['ourdata'][0],
                      C_patch=self.comparison['cnmf_on_patch']['ourdata'][1], rig_shifts=self.comparison['rig_shifts']['ourdata'])
-            print('we now have ground truth\n')
+            logging.info('we now have ground truth\n')
             return
 
         else:  # if not we create a comparison first
@@ -271,9 +273,9 @@ class Comparison(object):
             # if we cannot manage to open it or it doesnt exist:
             except (IOError, OSError):
                 # we save but we explain why there were a problem
-                print('we were not able to read the file ' + str(file_path) + ' to compare it\n')
+                logging.warning('we were not able to read the file ' + str(file_path) + ' to compare it\n')
                 file_path = os.path.join(caiman_datadir(), "testdata", "NC" + dt + ".npz")
-                np.savez(file_path, information=information, A_full=self.comparison['cnmf_full_frame']['ourdata'][0],
+                np.savez_compressed(file_path, information=information, A_full=self.comparison['cnmf_full_frame']['ourdata'][0],
                          C_full=self.comparison['cnmf_full_frame']['ourdata'][
                              1], A_patch=self.comparison['cnmf_on_patch']['ourdata'][0],
                          C_patch=self.comparison['cnmf_on_patch']['ourdata'][1], rig_shifts=self.comparison['rig_shifts']['ourdata'])
@@ -294,24 +296,25 @@ class Comparison(object):
             'params_cnm': False}})
         # INFORMATION FOR THE USER
         if data['processor'] != information['processor']:
-            print("you don't have the same processor than groundtruth.. the time difference can vary"
-                  " because of that\n try recreate your own groundtruth before testing\n")
+            logging.info("you don't have the same processor as groundtruth.. the time difference can vary"
+                  " because of that\n try recreate your own groundtruth before testing. Compare: " + str(data['processor']) + " to " + str(information['processor']) + "\n")
             information['differences']['proc'] = True
         if data['params'] != information['params']:
-            print("you do not use the same movie parameters... Things can go wrong\n\n")
-            print('you need to use the same paramters to compare your version of the code with '
-                  'the groundtruth one. look for the groundtruth paramters with the see() method\n')
+            logging.warning("you are not using the same movie parameters... Things can go wrong")
+            logging.warning('you must use the same parameters to compare your version of the code with '
+                  'the groundtruth one. look for the groundtruth parameters with the see() method\n')
             information['differences']['params_movie'] = True
-        if data['cnmpatch'] != cnmpatch:
+        # We must cleanup some fields to permit an accurate comparison
+        if not normalised_compare_cnmpatches(data['cnmpatch'], cnmpatch):
             if data['cnmpatch'].keys() != cnmpatch.keys():
-                print('DIFFERENCES IN THE FIELDS OF CNMF')
+                logging.error('DIFFERENCES IN THE FIELDS OF CNMF') # TODO: Now that we have deeply nested data structures, find a module that gives you tight differences.
             diffkeys = [k for k in data['cnmpatch']
                         if data['cnmpatch'][k] != cnmpatch[k]]
             for k in diffkeys:
-                print(k, ':', data['cnmpatch'][k], '->', cnmpatch[k])
+                logging.info("{}:{}->{}".format(k, data['cnmpatch'][k], cnmpatch[k]))
 
-            print(
-                'you do not use the same paramters in your cnmf on patches initialization\n')
+            logging.warning(
+                'you are not using the same parameters in your cnmf on patches initialization\n')
             information['differences']['params_cnm'] = True
 
         # for rigid
@@ -323,7 +326,7 @@ class Comparison(object):
             pl.gcf().savefig(dr + str(i) + '/' + 'rigidcorrection.pdf')
             pl.close()
         except:
-            print("\n")
+            pass
 
         # for cnmf on patch
         information['diff'].update({
@@ -339,7 +342,7 @@ class Comparison(object):
             pl.gcf().savefig(dr + i + '/' + 'onpatch.pdf')
             pl.close()
         except:
-            print("\n")
+            pass
 
 
 # CNMF FULL FRAME
@@ -356,14 +359,14 @@ class Comparison(object):
             pl.gcf().savefig(dr + i + '/' + 'cnmfull.pdf')
             pl.close()
         except:
-            print("\n")
+            pass
 
 # Saving of everything
         target_dir = os.path.join(caiman_datadir(), "testdata", i)
         if not os.path.exists(target_dir):
             os.makedirs(os.path.join(caiman_datadir(), "testdata", i)) # XXX If we ever go Python3, just use the exist_ok flag to os.makedirs
         file_path = os.path.join(target_dir, i + ".npz")
-        np.savez(file_path, information=information, A_full=self.comparison['cnmf_full_frame']['ourdata'][0],
+        np.savez_compressed(file_path, information=information, A_full=self.comparison['cnmf_full_frame']['ourdata'][0],
                  C_full=self.comparison['cnmf_full_frame']['ourdata'][
                      1], A_patch=self.comparison['cnmf_on_patch']['ourdata'][0],
                  C_patch=self.comparison['cnmf_on_patch']['ourdata'][1], rig_shifts=self.comparison['rig_shifts']['ourdata'])
@@ -375,26 +378,23 @@ def see(filename=None):
 
         if you give nothing it will give you back the groundtruth infos
 
-        Parameters:
-        -----------
-        self:  dictionnary
-           the object of this class tha tcontains every value
-        filename:
-            ( just give the number or name)
+        Args:
+            self:  dictionary
+                the object of this class tha tcontains every value
+            filename:
+                ( just give the number or name)
 
         See Also:
-        ---------
-        @image html caiman/tests/comparison/data.pdf
-
+            @image html caiman/tests/comparison/data.pdf
             """
 
     if filename == None:
         dr = os.path.join(caiman_datadir(), "testdata", "groundtruth.npz")
     else:
         dr = os.path.join(caiman_datadir(), "testdata", filename, filename + ".npz")
-        print(dr)
+        logging.debug("Loading GT file " + str(dr))
     with np.load(dr) as dt:
-        print('here is the info :\n')
+        print('Info :\n')
         see_it(dt)
 
 
@@ -422,7 +422,7 @@ def deletesparse(cnm):
             val = deletesparse(val)
         if not isinstance(val, scipy.sparse.coo.coo_matrix) and not isinstance(val, np.ndarray) \
                 and not isinstance(val, scipy.sparse.csc.csc_matrix) and not keys == 'dview':
-            print(type(val))
+            logging.debug("type of val is " + str(type(val)))
             cnm[keys] = val
         else:
 
@@ -513,5 +513,26 @@ def plotrig(init, curr, timer, sensitivity):
         pl.xlabel('frames')
         pl.ylabel('pixels')
     except:
-        print("not able to plot")
+        logging.warning("not able to plot")
     return info
+
+
+def normalised_compare_cnmpatches(a, b):
+    # This is designed to copy with fields that make it into these objects that need some normalisation before they
+    # are rightly comparable. To deal with that we do a deepcopy and then inline-normalise. Add any new needed keys
+    # into this code. Right now this is manual, but if we need to do more of this we should turn this into a nice
+    # list of fields to ignore, and another list of fields to perform regular transforms on.
+    mutable_a = copy.deepcopy(a)
+    mutable_b = copy.deepcopy(b)
+
+    if 'params' in mutable_a and 'params' in mutable_b:
+        params_a = mutable_a['params']
+        params_b = mutable_b['params']
+        if hasattr(params_a, 'online') and hasattr(params_b, 'online'):
+            if 'path_to_model' in params_a.online and 'path_to_model' in params_b.online:
+                _, params_a.online['path_to_model'] = os.path.split(params_a.online['path_to_model']) # Remove all but the last part
+                _, params_b.online['path_to_model'] = os.path.split(params_b.online['path_to_model'])
+                # print("Normalised A: " + str(params_a.online['path_to_model']))
+                # print("Normalised B: " + str(params_b.online['path_to_model']))
+
+    return mutable_a == mutable_b

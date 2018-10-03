@@ -51,42 +51,46 @@ except:
 c, dview, n_processes =\
     cm.cluster.setup_cluster(backend='local', n_processes=None,
                              single_thread=False)
-#%%
-if False:
-    img = m.local_correlations_movie(swap_dim=False,window=10).astype(np.float32)    
-    img[np.isnan(img)]=0
-    img=img*(img>0.3)
-    img.save('/Users/agiovann/example_movies_ALL/quietBlock_2_ds_2_2_sparse.hdf5')
-    
+
+
 #%% save files to be processed
 # This datafile is distributed with Caiman
 #fnames = ['/Users/agiovann/Dropbox (Simons Foundation)/ImagingData/DataCalciumImaging/purkinje_out/corrected_movies/M_FLUO_1.tif']
-#fname_new  = '/Users/agiovann/example_movies_ALL/memmap__d1_131_d2_131_d3_1_order_C_frames_2991_.mmap' 
+#fname_new  = '/Users/agiovann/example_movies_ALL/memmap__d1_131_d2_131_d3_1_order_C_frames_2991_.mmap'
 #fnames = ['/Users/agiovann/example_movies_ALL/2014-04-05-003.tif']
 
 #fnames = ['/Users/agiovann/example_movies_ALL/quietBlock_1_ds_5.hdf5']
-fnames = ['/Users/agiovann/example_movies_ALL/quietBlock_2_ds_2_2.hdf5']
+#fnames = ['/mnt/ceph/neuro/Tolias/quietBlock_2_ds_2_2.hdf5']
 #fnames=['/Users/agiovann/example_movies_ALL/2014-04-05-003_sparse.tif']
+fnames = ['/mnt/ceph/users/agiovann/ImagingData/Basu/495D2G_MC.hdf5']
+fnames = ['/mnt/ceph/users/agiovann/ImagingData/Basu/495D2G_MC_ds_4_400_400.hdf5']
+#fnames = ['/mnt/ceph/users/agiovann/ImagingData/Basu/495D2G_MC_ds_4_400_400_sparse.hdf5']
+fnames = ['/mnt/ceph/users/agiovann/ImagingData/Basu/495D2G_MC_crop.tif']
+fnames = ['/mnt/ceph/users/agiovann/ImagingData/Basu/495D2G_MC_ds_4_400_400_sparse_-2.hdf5']
+fnames = ['/mnt/ceph/users/agiovann/ImagingData/Basu/495D2G_MC_ds_4_400_400_sparse_1.hdf5']
 
+#%%
+if False:
+    m = cm.load(fnames)
+    img = m.local_correlations_movie(file_name=fnames[0],dview=dview,swap_dim=False, window=100, order_mean = -2).astype(np.float32)
+#    img[np.isnan(img)]=0
+#    img[img>1]=1
+#    img=img*(img>0)
+#%%
 # location of dataset  (can actually be a list of filed to be concatenated)
-add_to_movie = -np.min(cm.load(fnames[0], subindices=range(200))).astype(float)
-# determine minimum value on a small chunk of data
-add_to_movie = np.maximum(add_to_movie, 0)
+add_to_movie = 0
 # if minimum is negative subtract to make the data non-negative
 base_name = 'Yr'
-name_new = cm.save_memmap_each(fnames, dview=dview, base_name=base_name,
-                               add_to_movie=add_to_movie)
-name_new.sort()
-fname_new = cm.save_memmap_join(name_new, base_name='Yr', dview=dview)
+fname_new = cm.save_memmap(fnames, dview=dview, base_name=base_name,
+                               add_to_movie=add_to_movie, order='C')
 #%% LOAD MEMORY MAPPABLE FILE
 Yr, dims, T = cm.load_memmap(fname_new)
 d1, d2 = dims
 images = np.reshape(Yr.T, [T] + list(dims), order='F')
-
 #%% play movie, press q to quit
 play_movie = True
 if play_movie:
-    cm.movie(images).play(fr=50, magnification=2, gain=2.)
+    cm.movie(images).play(fr=50, magnification=2, gain=2)
 
 #%% correlation image. From here infer neuron size and density
 Cn = cm.movie(images).local_correlations(swap_dim=False)
@@ -96,15 +100,14 @@ plt.title('Correlation Image')
 
 #%% set up some parameters
 is_patches = True      # flag for processing in patches or not
-
 if is_patches:          # PROCESS IN PATCHES AND THEN COMBINE
     rf = [50,50]             # half size of each patch
     stride = [20,20]          # overlap between patches
-    K = 15             # number of components in each patch
+    K = 20             # number of components in each patch
 else:                   # PROCESS THE WHOLE FOV AT ONCE
     rf = None           # setting these parameters to None
     stride = None       # will run CNMF on the whole FOV
-    K = 15              # number of neurons expected (in the whole FOV)
+    K = 25              # number of neurons expected (in the whole FOV)
 
 gSig = [6, 6]           # expected half size of neurons
 merge_thresh = 0.80     # merging threshold, max correlation allowed
@@ -116,7 +119,8 @@ border_pix = 5
 #%% Now RUN CNMF
 cnm = cnmf.CNMF(n_processes, method_init='sparse_nmf', k=K, gSig=gSig,
                 merge_thresh=merge_thresh, p=p, dview=dview, gnb=gnb,
-                rf=rf, stride=stride, rolling_sum=False, alpha_snmf = 0, border_pix=border_pix, only_init_patch=False)
+                rf=rf, stride=stride, rolling_sum=False, alpha_snmf = 0.1, border_pix=border_pix,
+                only_init_patch=False)
 cnm = cnm.fit(images)
 
 #%% plot contour plots of components

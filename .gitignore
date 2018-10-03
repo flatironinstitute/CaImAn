@@ -11,6 +11,9 @@ Icon
 
 # Thumbnails
 ._*
+*.log
+*.err
+*.*.out 
 
 # Files that might appear in the root of a volume
 .DocumentRevisions-V100
@@ -20,6 +23,7 @@ Icon
 .Trashes
 .VolumeIcon.icns
 .com.apple.timemachine.donotpresent
+.mypy_cache
 
 # Directories potentially created on remote AFP share
 .AppleDB
