@@ -335,7 +335,8 @@ class OnACID(object):
                 loaded_model = self.loaded_model, test_both=self.params.get('online', 'test_both'),
                 thresh_CNN_noisy = self.params.get('online', 'thresh_CNN_noisy'),
                 sniper_mode=self.params.get('online', 'sniper_mode'),
-                use_peak_max=self.params.get('online', 'use_peak_max'))
+                use_peak_max=self.params.get('online', 'use_peak_max'),
+                mean_buff=self.estimates.mean_buff)
 
             num_added = len(self.ind_A) - self.N
 
@@ -1388,7 +1389,8 @@ def rank1nmf(Ypx, ain):
 def get_candidate_components(sv, dims, Yres_buf, min_num_trial=3, gSig=(5, 5),
                              gHalf=(5, 5), sniper_mode=True, rval_thr=0.85,
                              patch_size=50, loaded_model=None, test_both=False,
-                             thresh_CNN_noisy=0.5, use_peak_max=False, thresh_std_peak_resid = 1):
+                             thresh_CNN_noisy=0.5, use_peak_max=False,
+                             thresh_std_peak_resid = 1, mean_buff=None):
     """
     Extract new candidate components from the residual buffer and test them
     using space correlation or the CNN classifier. The function runs the CNN
@@ -1458,7 +1460,7 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial=3, gSig=(5, 5),
         #                 for ij in ijSig]), dims, order='C').ravel(order = 'C')
 
         Ypx = Yres_buf.T[indeces, :]
-        ain = np.maximum(np.mean(Ypx, 1), 0)
+        ain = np.maximum(mean_buff[indeces], 0)
 
         if sniper_mode:
             half_crop_cnn = tuple([int(np.minimum(gs*2, patch_size/2)) for gs in gSig])
@@ -1466,8 +1468,7 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial=3, gSig=(5, 5),
             ijSig_cnn = [[max(i - g, 0), min(i+g+1,d)] for i, g, d in zip(ij_cnn, half_crop_cnn, dims)]
             indeces_cnn = np.ravel_multi_index(np.ix_(*[np.arange(ij[0], ij[1])
                             for ij in ijSig_cnn]), dims, order='F').ravel(order = 'C')
-            Ypx_cnn = Yres_buf.T[indeces_cnn, :]
-            ain_cnn = Ypx_cnn.mean(1)
+            ain_cnn = mean_buff[indeces_cnn]
 
         else:
             compute_corr = True  # determine when to compute corr coef
@@ -1539,7 +1540,7 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                           Ab_dense=None, max_num_added=1, min_num_trial=1,
                           loaded_model=None, thresh_CNN_noisy=0.99,
                           sniper_mode=False, use_peak_max=False,
-                          test_both=False):
+                          test_both=False, mean_buff=None):
     """
     Checks for new components in the residual buffer and incorporates them if they pass the acceptance tests
     """
@@ -1560,7 +1561,7 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
         sv, dims, Yres_buf=Yres_buf, min_num_trial=min_num_trial, gSig=gSig,
         gHalf=gHalf, sniper_mode=sniper_mode, rval_thr=rval_thr, patch_size=50,
         loaded_model=loaded_model, thresh_CNN_noisy=thresh_CNN_noisy,
-        use_peak_max=use_peak_max, test_both=test_both)
+        use_peak_max=use_peak_max, test_both=test_both, mean_buff=mean_buff)
 
     ind_new_all = ijsig_all
 
