@@ -78,7 +78,8 @@ class CNMF(object):
                  Ain=None, Cin=None, b_in=None, f_in=None, do_merge=True,
                  ssub=2, tsub=2, p_ssub=1, p_tsub=1, method_init='greedy_roi', alpha_snmf=None,
                  rf=None, stride=None, memory_fact=1, gnb=1, nb_patch=1, only_init_patch=False,
-                 method_deconvolution='oasis', n_pixels_per_process=4000, block_size=5000, num_blocks_per_run=20,
+                 method_deconvolution='oasis', n_pixels_per_process=4000, block_size_temp=5000, num_blocks_per_run_temp=20,
+                 block_size_spat=5000, num_blocks_per_run_spat=20,
                  check_nan=True, skip_refinement=False, normalize_init=True, options_local_NMF=None,
                  minibatch_shape=100, minibatch_suff_stat=3,
                  update_num_comps=True, rval_thr=0.9, thresh_fitness_delta=-20,
@@ -170,7 +171,10 @@ class CNMF(object):
             block_size: int.
                 Number of pixels to be used to perform residual computation in blocks. Decrease if memory problems
 
-            num_blocks_per_run: int
+            num_blocks_per_run_spat: int
+                In case of memory problems you can reduce this numbers, controlling the number of blocks processed in parallel during residual computing
+
+            num_blocks_per_run_temp: int
                 In case of memory problems you can reduce this numbers, controlling the number of blocks processed in parallel during residual computing
 
             check_nan: Boolean.
@@ -272,7 +276,8 @@ class CNMF(object):
                 gnb=gnb, normalize_init=normalize_init, options_local_NMF=options_local_NMF,
                 ring_size_factor=ring_size_factor, rolling_length=rolling_length, rolling_sum=rolling_sum,
                 ssub=ssub, ssub_B=ssub_B, tsub=tsub,
-                block_size=block_size, num_blocks_per_run=num_blocks_per_run,
+                block_size_spat=block_size_spat, num_blocks_per_run_spat=num_blocks_per_run_spat,
+                block_size_temp=block_size_temp, num_blocks_per_run_temp=num_blocks_per_run_temp,
                 update_background_components=update_background_components,
                 method_deconvolution=method_deconvolution, p=p, s_min=s_min,
                 do_merge=do_merge, merge_thresh=merge_thresh,
@@ -424,7 +429,8 @@ class CNMF(object):
         self.params.set('spatial', {'n_pixels_per_process': self.params.get('preprocess', 'n_pixels_per_process')})
 
         logging.info('using ' + str(self.params.get('preprocess', 'n_pixels_per_process')) + ' pixels per process')
-        logging.info('using ' + str(self.params.get('spatial', 'block_size')) + ' block_size')
+        logging.info('using ' + str(self.params.get('spatial', 'block_size_spat')) + ' block_size_spat')
+        logging.info('using ' + str(self.params.get('temporal', 'block_size_temp')) + ' block_size_temp')
 
         if self.params.get('patch', 'rf') is None:  # no patches
             logging.debug('preprocessing ...')
@@ -626,7 +632,7 @@ class CNMF(object):
              Yr :    np.ndarray
                      movie in format pixels (d) x frames (T)
         """
-
+        block_size, num_blocks_per_run = self.params.get('temporal', 'block_size_temp'), self.params.get('temporal', 'num_blocks_per_run_temp')
         if 'csc_matrix' not in str(type(self.estimates.A)):
             self.estimates.A = scipy.sparse.csc_matrix(self.estimates.A)
         if 'array' not in str(type(self.estimates.b)):
@@ -644,8 +650,8 @@ class CNMF(object):
         if 'numpy.ndarray' in str(type(Yr)):
             YA = (Ab.T.dot(Yr)).T * nA2_inv_mat
         else:
-            YA = mmapping.parallel_dot_product(Yr, Ab, dview=self.dview, block_size=2000,
-                                           transpose=True, num_blocks_per_run=5) * nA2_inv_mat
+            YA = mmapping.parallel_dot_product(Yr, Ab, dview=self.dview, block_size=block_size,
+                                           transpose=True, num_blocks_per_run=num_blocks_per_run) * nA2_inv_mat
 
         AA = Ab.T.dot(Ab) * nA2_inv_mat
         self.estimates.YrA = (YA - (AA.T.dot(Cf)).T)[:, :self.estimates.A.shape[-1]].T
@@ -715,19 +721,19 @@ class CNMF(object):
         Args:
             Yr : np.array (possibly memory mapped, (x,y,[,z]) x t)
                 Imaging data reshaped in matrix format
-    
+
             groups : list of sets
                 grouped components to be updated simultaneously
-    
+
             use_groups : bool
                 flag for using groups
-    
+
             order : list
                 Update components in that order (used if nonempty and groups=None)
-    
+
             update_bck : bool
                 Flag for updating temporal background components
-    
+
             bck_non_neg : bool
                 Require temporal background to be non-negative
 
@@ -771,13 +777,13 @@ class CNMF(object):
         Args:
             Yr: np.array (possibly memory mapped, (x,y,[,z]) x t)
                 Imaging data reshaped in matrix format
-    
+
             update_bck: bool
                 flag for updating spatial background components
-    
+
             num_iter: int
                 number of iterations
-    
+
         Returns:
             self (updated values for self.estimates.A and self.estimates.b)
         """
@@ -930,6 +936,9 @@ def load_CNMF(filename, n_processes=1, dview=None):
             prms.init = val['init']
             prms.merging = val['merging']
             prms.quality = val['quality']
+            prms.data = val['data']
+            prms.online = val['online']
+            prms.motion = val['motion']
             setattr(new_obj, key, prms)
         elif key == 'dview':
             setattr(new_obj, key, dview)

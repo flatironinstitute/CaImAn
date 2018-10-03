@@ -63,7 +63,7 @@ def constrained_foopsi_parallel(arg_in):
 
     return C_, Sp_, Ytemp_, cb_, c1_, sn_, gn_, jj_, lam_
 
-def update_temporal_components(Y, A, b, Cin, fin, bl=None, c1=None, g=None, sn=None, nb=1, ITER=2, block_size=5000, num_blocks_per_run=20, debug=False, dview=None, **kwargs):
+def update_temporal_components(Y, A, b, Cin, fin, bl=None, c1=None, g=None, sn=None, nb=1, ITER=2, block_size_temp=5000, num_blocks_per_run_temp=20, debug=False, dview=None, **kwargs):
     """Update temporal components and background given spatial components using a block coordinate descent approach.
 
     Args:
@@ -200,24 +200,19 @@ def update_temporal_components(Y, A, b, Cin, fin, bl=None, c1=None, g=None, sn=N
     print('Generating residuals')
 #    dview_res = None if block_size >= 500 else dview
     if 'memmap' in str(type(Y)):
-
-        YA = parallel_dot_product(Y, A, dview=dview, block_size=block_size,
-                                  transpose=True, num_blocks_per_run=num_blocks_per_run) * diags(1. / nA)
+        YA = parallel_dot_product(Y, A, dview=dview, block_size=block_size_temp,
+                                  transpose=True, num_blocks_per_run=num_blocks_per_run_temp) * diags(1. / nA)
     else:
         # YA = (A.T.dot(Y).T) * spdiags(old_div(1., nA), 0, nr + nb, nr + nb)
         YA = (A.T.dot(Y).T) * diags(1. / nA)
-
     # AA = ((A.T.dot(A)) * spdiags(old_div(1., nA), 0, nr + nb, nr + nb)).tocsr()
     AA = ((A.T.dot(A)) * diags(1. / nA)).tocsr()
     YrA = YA - AA.T.dot(Cin).T
-
     # creating the patch of components to be computed in parrallel
     parrllcomp, len_parrllcomp = update_order_greedy(AA[:nr, :][:, :nr])
-
     print("entering the deconvolution ")
     C, S, bl, YrA, c1, sn, g, lam = update_iteration(parrllcomp, len_parrllcomp, nb, C, S, bl, nr,
                                                      ITER, YrA, c1, sn, g, Cin, T, nA, dview, debug, AA, kwargs)
-
     ff = np.where(np.sum(C, axis=1) == 0)  # remove empty components
     if np.size(ff) > 0:  # Eliminating empty temporal components
         ff = ff[0]
@@ -243,7 +238,6 @@ def update_temporal_components(Y, A, b, Cin, fin, bl=None, c1=None, g=None, sn=N
     f = C[nr:, :]
     C = C[:nr, :]
     YrA = np.array(YrA[:, :nr]).T
-
     return C, A, b, f, S, bl, c1, sn, g, YrA, lam
 
 

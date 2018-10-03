@@ -420,7 +420,7 @@ def recursively_save_dict_contents_to_group(h5file, path, dic):
             try:
                 h5file[path + key] = item
             except:
-                item = np.array(item).astype('|S9')
+                item = np.array(item).astype('|S32')
                 h5file[path + key] = item
             if not np.array_equal(h5file[path + key].value, item):
                 raise ValueError('The data representation in the HDF5 file does not match the original dict.')
@@ -482,7 +482,7 @@ def recursively_load_dict_contents_from_group( h5file, path):
                 indices = item[path + key + '/indices']
                 indptr = item[path + key + '/indptr']
                 shape = item[path + key + '/shape']
-                ans[key] = scipy.sparse.csc_matrix((data[:],indices[:],
+                ans[key] = scipy.sparse.csc_matrix((data[:], indices[:],
                     indptr[:]), shape[:])
             else:
                 ans[key] = recursively_load_dict_contents_from_group(h5file, path + key + '/')
