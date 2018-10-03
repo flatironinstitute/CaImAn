@@ -22,6 +22,7 @@ from builtins import range
 from past.utils import old_div
 
 from copy import copy, deepcopy
+from sklearn.decomposition import NMF
 import logging
 import numpy as np
 import os
@@ -419,9 +420,14 @@ def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None, memory_fact=1,
         print("Compressing background components with a low rank NMF")
         B_tot = Im.dot(B_tot)
         Bm = (B_tot)
-        f = np.r_[np.atleast_2d(np.mean(F_tot, axis=0)),
-                  np.random.rand(gnb - 1, T)]
-
+        #f = np.r_[np.atleast_2d(np.mean(F_tot, axis=0)),
+        #          np.random.rand(gnb - 1, T)]
+        mdl = NMF(n_components=gnb, verbose=False, init='nndsvdar', tol=1e-10,
+                  max_iter=100, shuffle=False, random_state=1)
+        _ = mdl.fit_transform(F_tot).T
+        f = mdl.components_.squeeze()
+        #import pdb
+        #pdb.set_trace()
         for _ in range(100):
             f /= np.sqrt((f**2).sum(1)[:, None])
             try:

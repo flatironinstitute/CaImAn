@@ -252,7 +252,7 @@ all_results = dict()
 # %%  download and list all files to be processed
 if preprocessing_from_scratch:
     # %%
-    for ind_dataset in [2]: #range(9):
+    for ind_dataset in range(9):
         use_mmap = True
         ffls = glob.glob(os.path.abspath(base_folder + params_movie[ind_dataset]['folder_name']) + '/*.mmap')
         ffls.sort()
@@ -451,11 +451,13 @@ if preprocessing_from_scratch:
         performance_tmp['fp_comp'] = fp_comp
         performance_tmp['t_online'] = cnm.t_online
         performance_tmp['comp_upd'] = cnm.comp_upd
+        performance_tmp['t_el'] = t_el
+        performance_tmp['CCs'] = xcorrs
         all_results[params_movie[ind_dataset]['folder_name']] = performance_tmp
     
     save_results = not True
     if save_results:
-        path_save_file = os.path.join(base_folder, 'all_results_Sep_2018_online_refactor_optim_'+ str(ID[0])+'.npz')
+        path_save_file = os.path.join(base_folder, 'all_results_Oct_2018_online_refactor_optim.npz')
         np.savez(path_save_file, all_results=all_results)
 
 else:
