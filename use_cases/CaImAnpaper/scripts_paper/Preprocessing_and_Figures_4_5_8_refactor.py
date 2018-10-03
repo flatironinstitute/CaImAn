@@ -56,7 +56,7 @@ try:
     print('Processing ID:' + str(ID))
     ID = [np.int(ID)]
 except:
-    ID = np.arange(2,6)
+    ID = np.arange(2,3)
     print('ID NOT PASSED')
 
 
@@ -332,7 +332,7 @@ if preprocessing_from_scratch:
     num_blocks_per_run = 10
     ALL_CCs = []
 
-    for params_movie in np.array(params_movies)[6:7]:#[ID]:
+    for params_movie in np.array(params_movies)[ID]:
         #    params_movie['gnb'] = 3
         params_display = {
             'downsample_ratio': .2,
