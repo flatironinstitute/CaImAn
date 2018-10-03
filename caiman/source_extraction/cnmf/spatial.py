@@ -206,7 +206,7 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
         pixel_groups.append([Y_name, C_name, sn, ind2_[i:i + n_pixels_per_process], list(
             range(i, i + n_pixels_per_process)), method_ls, cct, ])
     if i < np.prod(dims):
-        pixel_groups.append([Y_name, C_name, sn, ind2_[i:i + n_pixels_per_process], list(
+        pixel_groups.append([Y_name, C_name, sn, ind2_[i:np.prod(dims)], list(
             range(i, np.prod(dims))), method_ls, cct])
     A_ = np.zeros((d, nr + np.size(f, 0)))  # init A_
     if dview is not None:
