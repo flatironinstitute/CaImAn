@@ -73,7 +73,7 @@ cnm_batch = cnmf.CNMF(2, method_init='corr_pnr', k=None, gSig=(gSig, gSig), gSiz
 
 cnm_batch.fit(Y)
 
-print(('Number of components:' + str(cnm_batch.A.shape[-1])))
+print(('Number of components:' + str(cnm_batch.estimates.A.shape[-1])))
 
 
 def tight():
@@ -87,10 +87,10 @@ def tight():
 Cn, pnr = cm.summary_images.correlation_pnr(Y, gSig=gSig, center_psf=True, swap_dim=False)
 plt.figure()
 crd = cm.utils.visualization.plot_contours(A, Cn, thr=.8, lw=3, display_numbers=False)
-crd = cm.utils.visualization.plot_contours(cnm_batch.A, Cn, thr=.8, c='r')
+crd = cm.utils.visualization.plot_contours(cnm_batch.estimates.A, Cn, thr=.8, c='r')
 tight()
 plt.savefig('online1p_batch.pdf', pad_inches=0, bbox_inches='tight') if save_figs else plt.show()
-cm.base.rois.register_ROIs(A, cnm_batch.A, dims, align_flag=0)
+cm.base.rois.register_ROIs(A, cnm_batch.estimates.A, dims, align_flag=0)
 
 
 #%% RUN (offline) CNMF-E algorithm on the initial batch
@@ -105,48 +105,46 @@ cnm_init = cnmf.CNMF(2, method_init='corr_pnr', k=None, gSig=(gSig, gSig), gSiz=
 
 cnm_init.fit(Y[:initbatch])
 
-print(('Number of components:' + str(cnm_init.A.shape[-1])))
+print(('Number of components:' + str(cnm_init.estimates.A.shape[-1])))
 
 Cn_init, pnr_init = cm.summary_images.correlation_pnr(
     Y[:initbatch], gSig=gSig, center_psf=True, swap_dim=False)
 plt.figure()
 crd = cm.utils.visualization.plot_contours(A, Cn_init, thr=.8, lw=3, display_numbers=False)
-crd = cm.utils.visualization.plot_contours(cnm_init.A, Cn_init, thr=.8, c='r')
+crd = cm.utils.visualization.plot_contours(cnm_init.estimates.A, Cn_init, thr=.8, c='r')
 tight()
 plt.savefig('online1p_init.pdf', pad_inches=0, bbox_inches='tight') if save_figs else plt.show()
-cm.base.rois.register_ROIs(A, cnm_init.A, dims, align_flag=0)
+cm.base.rois.register_ROIs(A, cnm_init.estimates.A, dims, align_flag=0)
 
 
 #%% run (online) CNMF-E algorithm
 
-cnm = deepcopy(cnm_init)
 gSiz = 13
-cnm.gSiz = (gSiz, gSiz)
-cnm.ring_size_factor = 18. / gSiz
-cnm.options['init_params']['gSiz'] = (gSiz, gSiz)
-cnm.options['init_params']['ring_size_factor'] = 18. / gSiz
-
-cnm.A = cnm.A[:, :1]
-cnm.YrA = cnm.YrA[:1]
-cnm.C = cnm.C[:1]
-
-cnm._prepare_object(np.asarray(Yr[:, :initbatch]), T, expected_comps)
-t = cnm.initbatch
-# cnm.rval_thr = .6
-# cnm.thresh_fitness_raw = -40
+estim = deepcopy(cnm_init.estimates)
+estim.A = estim.A[:, :1]
+estim.YrA = estim.YrA[:1]
+estim.C = estim.C[:1]
+cnm = cnmf.online_cnmf.OnACID(cnm_init.params, estim)
+cnm.params.set('data', {'dims': dims})
+cnm._prepare_object(np.asarray(Yr[:, :initbatch]), T) #, expected_comps)
+cnm.params.set('init', {'gSiz' : (gSiz, gSiz), 'ring_size_factor' : 18. / gSiz})
+cnm.params.set('online', {'min_num_trial': 1, 'max_num_added': 1, 'thresh_CNN_noisy' : None}) 
+t = initbatch
+cnm.params.online['rval_thr'] = .9995
+cnm.params.online['thresh_fitness_raw'] = -40
 for frame in Y[initbatch:]:
     cnm.fit_next(t, frame.copy().reshape(-1, order='F'))
     t += 1
 
 
-print(('Number of components:' + str(cnm.Ab.shape[-1])))
+print(('Number of components:' + str(cnm.estimates.Ab.shape[-1])))
 
 plt.figure()
 crd = cm.utils.visualization.plot_contours(A, Cn, thr=.8, lw=3, display_numbers=False)
-crd = cm.utils.visualization.plot_contours(cnm.Ab, Cn, thr=.8, c='r')
+crd = cm.utils.visualization.plot_contours(cnm.estimates.Ab, Cn, thr=.8, c='r')
 tight()
 plt.savefig('online1p_online.pdf', pad_inches=0, bbox_inches='tight') if save_figs else plt.show()
-cm.base.rois.register_ROIs(A, cnm.Ab, dims, align_flag=0)
+cm.base.rois.register_ROIs(A, cnm.estimates.Ab, dims, align_flag=0)
 
 
 #%% second run

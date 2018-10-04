@@ -897,10 +897,10 @@ class CNMF(object):
                     **self.params.get_group('init'))
             try:
                 estim.S, estim.bl, estim.c1, estim.neurons_sn, \
-                    estim.g, estim.YrA = extra_1p
+                    estim.g, estim.YrA, estim.lam = extra_1p
             except:
                 estim.S, estim.bl, estim.c1, estim.neurons_sn, \
-                    estim.g, estim.YrA, estim.W, estim.b0 = extra_1p
+                    estim.g, estim.YrA, estim.lam, estim.W, estim.b0 = extra_1p
         else:
             estim.A, estim.C, estim.b, estim.f, estim.center =\
                 initialize_components(Y, sn=estim.sn, options_total=self.params.to_dict(),

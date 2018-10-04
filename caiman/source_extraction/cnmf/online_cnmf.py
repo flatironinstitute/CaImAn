@@ -84,6 +84,8 @@ class OnACID(object):
 
         if estimates is None:
             self.estimates = Estimates()
+        else:
+            self.estimates = estimates
 
     def _prepare_object(self, Yr, T, new_dims=None, idx_components=None):
 

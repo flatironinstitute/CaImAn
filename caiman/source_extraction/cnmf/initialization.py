@@ -1056,7 +1056,7 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
             b_in=np.zeros((np.prod(dims), 0), np.float32),
             dview=None, dims=dims, **options['spatial_params'])
         print('Update Temporal')
-        C, A, b__, f__, S, bl, c1, neurons_sn, g1, YrA, lam__ = \
+        C, A, b__, f__, S, bl, c1, neurons_sn, g1, YrA, lam = \
             caiman.source_extraction.cnmf.temporal.update_temporal_components(
                 B, spr.csc_matrix(A, dtype=np.float32),
                 np.zeros((np.prod(dims), 0), np.float32), C, np.zeros((0, T), np.float32),
@@ -1088,13 +1088,13 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
         if nb == 0:
             print('Return Background as b and W')
             return (A, C, center.T, b_in.astype(np.float32), f_in.astype(np.float32),
-                    (S.astype(np.float32), bl, c1, neurons_sn, g1, YrA,
+                    (S.astype(np.float32), bl, c1, neurons_sn, g1, YrA, lam,
                      W, b0))
         else:
             print("Don't Return Background")
     return (A, C, center.T, b_in.astype(np.float32), f_in.astype(np.float32),
             None if ring_size_factor is None else
-            (S.astype(np.float32), bl, c1, neurons_sn, g1, YrA))
+            (S.astype(np.float32), bl, c1, neurons_sn, g1, YrA, lam))
 
 
 @profile
