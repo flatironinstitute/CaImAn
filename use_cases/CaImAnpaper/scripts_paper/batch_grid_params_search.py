@@ -38,18 +38,12 @@ from caiman.source_extraction.cnmf import params as params
 from caiman.source_extraction.cnmf.cnmf import load_CNMF
 
 # %%  ANALYSIS MODE AND PARAMETERS
-preprocessing_from_scratch = True  # whether to run the full pipeline or just creating figures
+preprocessing_from_scratch = False  # whether to run the full pipeline or just creating figures
 
-if preprocessing_from_scratch:
-    reload = True
-    plot_on = False
-    save_on = False  # set to true to recreate
-    save_grid = True
+plot_on = False
+save_on = False  # set to true to recreate
+save_grid = False
 
-else:
-    reload = True
-    plot_on = False
-    save_on = False
 
 try:
     if 'pydevconsole' in sys.argv[0]:
@@ -65,8 +59,6 @@ except:
 
 
 
-print_figs = True
-skip_refinement = False
 backend_patch = 'local'
 backend_refine = 'local'
 n_processes = 24
@@ -267,197 +259,196 @@ params_movies.append(params_movie.copy())
 
 
 max_counter = len(SNRs_grid)*len(r_val_grid)*len(max_class_prob_rej_grid)*len(thresh_CNN_grid)*len(params_movies)
+if preprocessing_from_scratch:
+    all_perfs = []
+    all_rvalues = []
+    all_comp_SNR_raw = []
+    all_comp_SNR_delta = []
+    all_predictions = []
+    all_labels = []
+    all_results = dict()
+    ALL_CCs = []
 
-all_perfs = []
-all_rvalues = []
-all_comp_SNR_raw = []
-all_comp_SNR_delta = []
-all_predictions = []
-all_labels = []
-all_results = dict()
-ALL_CCs = []
+    for params_movie in np.array(params_movies)[ID]:
+        #    params_movie['gnb'] = 3
+        params_display = {
+            'downsample_ratio': .2,
+            'thr_plot': 0.8
+        }
 
-for params_movie in np.array(params_movies)[ID]:
-    #    params_movie['gnb'] = 3
-    params_display = {
-        'downsample_ratio': .2,
-        'thr_plot': 0.8
-    }
+        fname_new = os.path.join(base_folder, params_movie['fname'])
+        print(fname_new)
+        # %% LOAD MEMMAP FILE
+        Yr, dims, T = cm.load_memmap(fname_new)
+        d1, d2 = dims
+        images = np.reshape(Yr.T, [T] + list(dims), order='F')
+        # TODO: needinfo
+        Y = np.reshape(Yr, dims + (T,), order='F')
+        m_images = cm.movie(images)
+        if plot_on:
+            if m_images.shape[0] < 5000:
+                Cn = m_images.local_correlations(swap_dim=params_movie['swap_dim'], frames_per_chunk=1500)
+                Cn[np.isnan(Cn)] = 0
+            else:
+                Cn = np.array(cm.load(
+                    ('/'.join(
+                        params_movie['gtname'].split('/')[:-2] + ['projections', 'correlation_image.tif'])))).squeeze()
 
-    fname_new = os.path.join(base_folder, params_movie['fname'])
-    print(fname_new)
-    # %% LOAD MEMMAP FILE
-    Yr, dims, T = cm.load_memmap(fname_new)
-    d1, d2 = dims
-    images = np.reshape(Yr.T, [T] + list(dims), order='F')
-    # TODO: needinfo
-    Y = np.reshape(Yr, dims + (T,), order='F')
-    m_images = cm.movie(images)
-    if plot_on:
-        if m_images.shape[0] < 5000:
-            Cn = m_images.local_correlations(swap_dim=params_movie['swap_dim'], frames_per_chunk=1500)
-            Cn[np.isnan(Cn)] = 0
-        else:
-            Cn = np.array(cm.load(
-                ('/'.join(
-                    params_movie['gtname'].split('/')[:-2] + ['projections', 'correlation_image.tif'])))).squeeze()
+        check_nan = False
+        # %% start cluster
+        # TODO: show screenshot 10
+        try:
+            cm.stop_server()
+            dview.terminate()
+        except:
+            print('No clusters to stop')
 
-    check_nan = False
-    # %% start cluster
-    # TODO: show screenshot 10
-    try:
-        cm.stop_server()
-        dview.terminate()
-    except:
-        print('No clusters to stop')
+        c, dview, n_processes = setup_cluster(
+            backend=backend_patch, n_processes=n_processes, single_thread=False)
+        # %%
+        params_dict = {'fnames': [fname_new],
+                       'fr': params_movie['fr'],
+                       'decay_time': params_movie['decay_time'],
+                       'rf': params_movie['rf'],
+                       'stride': params_movie['stride_cnmf'],
+                       'K': params_movie['K'],
+                       'gSig': params_movie['gSig'],
+                       'merge_thr': params_movie['merge_thresh'],
+                       'p': global_params['p'],
+                       'nb': global_params['gnb'],
+                       'only_init': global_params['only_init_patch'],
+                       'dview': dview,
+                       'method_deconvolution': 'oasis',
+                       'border_pix': params_movie['crop_pix'],
+                       'low_rank_background': global_params['low_rank_background'],
+                       'rolling_sum': True,
+                       'nb_patch': 1,
+                       'check_nan': check_nan,
+                       'block_size_temp': block_size,
+                       'block_size_spat': block_size,
+                       'num_blocks_per_run_spat': num_blocks_per_run,
+                       'num_blocks_per_run_temp': num_blocks_per_run,
+                       'n_pixels_per_process': n_pixels_per_process,
+                       'ssub': 2,
+                       'tsub': 2,
+                       'p_tsub': 1,
+                       'p_ssub': 1,
+                       'thr_method': 'nrg'
+                       }
 
-    c, dview, n_processes = setup_cluster(
-        backend=backend_patch, n_processes=n_processes, single_thread=False)
-    # %%
-    params_dict = {'fnames': [fname_new],
-                   'fr': params_movie['fr'],
-                   'decay_time': params_movie['decay_time'],
-                   'rf': params_movie['rf'],
-                   'stride': params_movie['stride_cnmf'],
-                   'K': params_movie['K'],
-                   'gSig': params_movie['gSig'],
-                   'merge_thr': params_movie['merge_thresh'],
-                   'p': global_params['p'],
-                   'nb': global_params['gnb'],
-                   'only_init': global_params['only_init_patch'],
-                   'dview': dview,
-                   'method_deconvolution': 'oasis',
-                   'border_pix': params_movie['crop_pix'],
-                   'low_rank_background': global_params['low_rank_background'],
-                   'rolling_sum': True,
-                   'nb_patch': 1,
-                   'check_nan': check_nan,
-                   'block_size_temp': block_size,
-                   'block_size_spat': block_size,
-                   'num_blocks_per_run_spat': num_blocks_per_run,
-                   'num_blocks_per_run_temp': num_blocks_per_run,
-                   'n_pixels_per_process': n_pixels_per_process,
-                   'ssub': 2,
-                   'tsub': 2,
-                   'p_tsub': 1,
-                   'p_ssub': 1,
-                   'thr_method': 'nrg'
-                   }
+        init_method = global_params['init_method']
 
-    init_method = global_params['init_method']
+        opts = params.CNMFParams(params_dict=params_dict)
 
-    opts = params.CNMFParams(params_dict=params_dict)
-
-    cnm = load_CNMF(fname_new[:-5] + '_cnmf_gsig.hdf5')
-
-
-    # %% prepare ground truth masks
-    gt_file = os.path.join(os.path.split(fname_new)[0],
-                           os.path.split(fname_new)[1][:-4] + 'match_masks.npz')
-    with np.load(gt_file, encoding='latin1') as ld:
-        print(ld.keys())
-        Cn_orig = ld['Cn']
-
-        gt_estimate = Estimates(A=scipy.sparse.csc_matrix(ld['A_gt'][()]), b=ld['b_gt'], C=ld['C_gt'],
-                                f=ld['f_gt'], R=ld['YrA_gt'], dims=(ld['d1'], ld['d2']))
-
-    min_size_neuro = 3 * 2 * np.pi
-    max_size_neuro = (2 * params_dict['gSig'][0]) ** 2 * np.pi
-    gt_estimate.threshold_spatial_components(maxthr=0.2, dview=dview)
-    gt_estimate.remove_small_large_neurons(min_size_neuro, max_size_neuro)
-    _ = gt_estimate.remove_duplicates(predictions=None, r_values=None, dist_thr=0.1, min_dist=10,
-                                      thresh_subset=0.6)
-    print(gt_estimate.A_thr.shape)
-
-    for gr_snr in SNRs_grid:
-        for grid_rval in r_val_grid:
-            for grid_max_prob_rej in max_class_prob_rej_grid:
-                for grid_thresh_CNN in thresh_CNN_grid:
-                    cnm2 = copy.deepcopy(cnm)
-                    global_params['min_SNR'] = gr_snr
-                    global_params['rval_thr'] = grid_rval
-                    global_params['max_classifier_probability_rejected'] = grid_max_prob_rej
-                    global_params['min_cnn_thresh'] = grid_thresh_CNN
-
-                    # %% check quality of components and eliminate low quality
-                    cnm2.params.set('quality', {'SNR_lowest': global_params['SNR_lowest'],
-                                                'min_SNR': global_params['min_SNR'],
-                                                'rval_thr': global_params['rval_thr'],
-                                                'rval_lowest': global_params['min_rval_thr_rejected'],
-                                                'use_cnn': True,
-                                                'min_cnn_thr': global_params['min_cnn_thresh'],
-                                                'cnn_lowest': global_params['max_classifier_probability_rejected'],
-                                                'gSig_range': None})
-
-                    t1 = time.time()
-                    cnm2.estimates.evaluate_components(images, cnm2.params, dview=dview)
-                    cnm2.estimates.select_components(use_object=True)
-                    t_eva_comps = time.time() - t1
-                    print(' ***** ')
-                    print((len(cnm2.estimates.C)))
-                    # %%
-                    if plot_on:
-                        cnm2.estimates.plot_contours(img=Cn)
-
-                    # %% prepare CNMF maks
-                    cnm2.estimates.threshold_spatial_components(maxthr=0.2, dview=dview)
-                    cnm2.estimates.remove_small_large_neurons(min_size_neuro, max_size_neuro)
-                    _ = cnm2.estimates.remove_duplicates(r_values=None, dist_thr=0.1, min_dist=10, thresh_subset=0.6)
-
-                    # %%
-                    params_display = {
-                        'downsample_ratio': .2,
-                        'thr_plot': 0.8
-                    }
-
-                    pl.rcParams['pdf.fonttype'] = 42
-                    font = {'family': 'Arial',
-                            'weight': 'regular',
-                            'size': 20}
-                    pl.rc('font', **font)
-
-                    plot_results = False
-                    if plot_results:
-                        pl.figure(figsize=(30, 20))
-
-                    tp_gt, tp_comp, fn_gt, fp_comp, performance_cons_off = compare_components(gt_estimate, cnm2.estimates,
-                                                                                              Cn=Cn_orig, thresh_cost=.8,
-                                                                                              min_dist=10,
-                                                                                              print_assignment=False,
-                                                                                              labels=['GT', 'Offline'],
-                                                                                              plot_results=False)
-
-                    print(fname_new+str({a: b.astype(np.float16) for a, b in performance_cons_off.items()}))
-                    cnm2.estimates.A_thr = scipy.sparse.csc_matrix(cnm2.estimates.A_thr)
-                    if save_on:
-                        cnm2.save(fname_new[:-5] + '_cnmf_gsig_after_analysis.hdf5')
-
-                    performance_cons_off['fname_new'] = fname_new
-                    performance_tmp = performance_cons_off.copy()
-                    performance_tmp['tp_gt'] = tp_gt
-                    performance_tmp['tp_comp'] = tp_comp
-                    performance_tmp['fn_gt'] = fn_gt
-                    performance_tmp['fp_comp'] = fp_comp
-
-                    ALL_CCs.append([scipy.stats.pearsonr(a, b)[0] for a, b in
-                                    zip(gt_estimate.C[tp_gt], cnm2.estimates.C[tp_comp])])
-
-                    performance_tmp['ALL_CCs'] = ALL_CCs
+        cnm = load_CNMF(fname_new[:-5] + '_cnmf_gsig.hdf5')
 
 
-                    if save_grid:
-                        grid_fold = os.path.join(os.path.split(fname_new)[0], 'grid')
-                        os.makedirs(grid_fold, exist_ok=True)
-                        grid_file = os.path.join(grid_fold, 'perf_grid_' + str(gr_snr) + '_' + str(grid_rval)
-                              + '_' + str(grid_max_prob_rej) + '_' + str(grid_thresh_CNN) + '.npz')
-                        print(grid_file + '__' + str({a: b.astype(np.float16) for a, b in performance_cons_off.items() if type(b) is not str}))
-                        np.savez(grid_file, all_results=performance_tmp)
+        # %% prepare ground truth masks
+        gt_file = os.path.join(os.path.split(fname_new)[0],
+                               os.path.split(fname_new)[1][:-4] + 'match_masks.npz')
+        with np.load(gt_file, encoding='latin1') as ld:
+            print(ld.keys())
+            Cn_orig = ld['Cn']
+
+            gt_estimate = Estimates(A=scipy.sparse.csc_matrix(ld['A_gt'][()]), b=ld['b_gt'], C=ld['C_gt'],
+                                    f=ld['f_gt'], R=ld['YrA_gt'], dims=(ld['d1'], ld['d2']))
+
+        min_size_neuro = 3 * 2 * np.pi
+        max_size_neuro = (2 * params_dict['gSig'][0]) ** 2 * np.pi
+        gt_estimate.threshold_spatial_components(maxthr=0.2, dview=dview)
+        gt_estimate.remove_small_large_neurons(min_size_neuro, max_size_neuro)
+        _ = gt_estimate.remove_duplicates(predictions=None, r_values=None, dist_thr=0.1, min_dist=10,
+                                          thresh_subset=0.6)
+        print(gt_estimate.A_thr.shape)
+
+        for gr_snr in SNRs_grid:
+            for grid_rval in r_val_grid:
+                for grid_max_prob_rej in max_class_prob_rej_grid:
+                    for grid_thresh_CNN in thresh_CNN_grid:
+                        cnm2 = copy.deepcopy(cnm)
+                        global_params['min_SNR'] = gr_snr
+                        global_params['rval_thr'] = grid_rval
+                        global_params['max_classifier_probability_rejected'] = grid_max_prob_rej
+                        global_params['min_cnn_thresh'] = grid_thresh_CNN
+
+                        # %% check quality of components and eliminate low quality
+                        cnm2.params.set('quality', {'SNR_lowest': global_params['SNR_lowest'],
+                                                    'min_SNR': global_params['min_SNR'],
+                                                    'rval_thr': global_params['rval_thr'],
+                                                    'rval_lowest': global_params['min_rval_thr_rejected'],
+                                                    'use_cnn': True,
+                                                    'min_cnn_thr': global_params['min_cnn_thresh'],
+                                                    'cnn_lowest': global_params['max_classifier_probability_rejected'],
+                                                    'gSig_range': None})
+
+                        t1 = time.time()
+                        cnm2.estimates.evaluate_components(images, cnm2.params, dview=dview)
+                        cnm2.estimates.select_components(use_object=True)
+                        t_eva_comps = time.time() - t1
+                        print(' ***** ')
+                        print((len(cnm2.estimates.C)))
+                        # %%
+                        if plot_on:
+                            cnm2.estimates.plot_contours(img=Cn)
+
+                        # %% prepare CNMF maks
+                        cnm2.estimates.threshold_spatial_components(maxthr=0.2, dview=dview)
+                        cnm2.estimates.remove_small_large_neurons(min_size_neuro, max_size_neuro)
+                        _ = cnm2.estimates.remove_duplicates(r_values=None, dist_thr=0.1, min_dist=10, thresh_subset=0.6)
+
+                        # %%
+                        params_display = {
+                            'downsample_ratio': .2,
+                            'thr_plot': 0.8
+                        }
+
+                        pl.rcParams['pdf.fonttype'] = 42
+                        font = {'family': 'Arial',
+                                'weight': 'regular',
+                                'size': 20}
+                        pl.rc('font', **font)
+
+                        plot_results = False
+                        if plot_results:
+                            pl.figure(figsize=(30, 20))
+
+                        tp_gt, tp_comp, fn_gt, fp_comp, performance_cons_off = compare_components(gt_estimate, cnm2.estimates,
+                                                                                                  Cn=Cn_orig, thresh_cost=.8,
+                                                                                                  min_dist=10,
+                                                                                                  print_assignment=False,
+                                                                                                  labels=['GT', 'Offline'],
+                                                                                                  plot_results=False)
+
+                        print(fname_new+str({a: b.astype(np.float16) for a, b in performance_cons_off.items()}))
+                        cnm2.estimates.A_thr = scipy.sparse.csc_matrix(cnm2.estimates.A_thr)
+                        if save_on:
+                            cnm2.save(fname_new[:-5] + '_cnmf_gsig_after_analysis.hdf5')
+
+                        performance_cons_off['fname_new'] = fname_new
+                        performance_tmp = performance_cons_off.copy()
+                        performance_tmp['tp_gt'] = tp_gt
+                        performance_tmp['tp_comp'] = tp_comp
+                        performance_tmp['fn_gt'] = fn_gt
+                        performance_tmp['fp_comp'] = fp_comp
+
+                        ALL_CCs.append([scipy.stats.pearsonr(a, b)[0] for a, b in
+                                        zip(gt_estimate.C[tp_gt], cnm2.estimates.C[tp_comp])])
+
+                        performance_tmp['ALL_CCs'] = ALL_CCs
+
+
+                        if save_grid:
+                            grid_fold = os.path.join(os.path.split(fname_new)[0], 'grid')
+                            os.makedirs(grid_fold, exist_ok=True)
+                            grid_file = os.path.join(grid_fold, 'perf_grid_' + str(gr_snr) + '_' + str(grid_rval)
+                                  + '_' + str(grid_max_prob_rej) + '_' + str(grid_thresh_CNN) + '.npz')
+                            print(grid_file + '__' + str({a: b.astype(np.float16) for a, b in performance_cons_off.items() if type(b) is not str}))
+                            np.savez(grid_file, all_results=performance_tmp)
 
 
 
 
-do_summary_analysis = False
-if do_summary_analysis:
+else:
     #%% performance grid search parameters
     from pandas import DataFrame
     # SNRs_grid = [1.5, 2, 2.5, 3]  # [1:2]
@@ -531,6 +522,10 @@ if do_summary_analysis:
     best_res = best_res.describe()
     print(best_res.loc[:, 'f1_score'].max())
     #%%
+    df = DataFrame(records)
+    df.columns = ['name', 'gr_snr', 'grid_rval', 'grid_max_prob_rej', 'grid_thresh_CNN','recall', 'precision', 'f1_score']
+    best_res = df.groupby(by=['gr_snr', 'grid_rval', 'grid_max_prob_rej', 'grid_thresh_CNN'])
+    best_res = best_res.describe()
     pars = best_res.loc[:, 'f1_score'].idxmax()['mean']
     print(pars)
     df_result = df[((df['gr_snr'] == pars[0]) & (df['grid_rval'] == pars[1]) & (df['grid_max_prob_rej'] == pars[2]) & (df['grid_thresh_CNN'] == pars[3]))]
