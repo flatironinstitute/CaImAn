@@ -469,10 +469,10 @@ if do_summary_analysis:
     # max_class_prob_rej_grid = np.array([0.01, 0.05, 0.1, 0.15])  # [1:2]
     # thresh_CNN_grid = [0.9, 0.95, 0.99]  # [2:3]
     # grd_fld_nm = 'grid'
-    SNRs_grid = [1, 1.5, 2, 2.5, 3]  # [1:2]
-    r_val_grid = [0.6, 0.7, 0.8, 0.9]  # [1:2]
-    max_class_prob_rej_grid = np.array([0, 0.025, 0.05, 0.1])  # [1:2]
-    thresh_CNN_grid = [0.9, .95, 0.99, 1]  # [2:3]
+    # SNRs_grid = [1, 1.5, 2, 2.5, 3]  # [1:2]
+    # r_val_grid = [0.6, 0.7, 0.8, 0.9]  # [1:2]
+    # max_class_prob_rej_grid = np.array([0, 0.025, 0.05, 0.1])  # [1:2]
+    # thresh_CNN_grid = [0.9, .95, 0.99, 1]  # [2:3]
 
     # SNRs_grid = [1, 1.5, 2, 2.5, 3]  # [1:2]
     # r_val_grid = [0.6, 0.7, 0.8, 0.9]  # [1:2]
@@ -523,18 +523,21 @@ if do_summary_analysis:
     best_res = df.groupby(by=['name'])
     best_res = best_res.describe()
     max_caiman_batch = best_res['f1_score']['max']
+    print(max_caiman_batch)
     #%%
     df = DataFrame(records)
     df.columns = ['name', 'gr_snr', 'grid_rval', 'grid_max_prob_rej', 'grid_thresh_CNN','recall', 'precision', 'f1_score']
     best_res = df.groupby(by=['gr_snr', 'grid_rval', 'grid_max_prob_rej', 'grid_thresh_CNN'])
     best_res = best_res.describe()
     print(best_res.loc[:, 'f1_score'].max())
+    #%%
     pars = best_res.loc[:, 'f1_score'].idxmax()['mean']
     print(pars)
     df_result = df[((df['gr_snr'] == pars[0]) & (df['grid_rval'] == pars[1]) & (df['grid_max_prob_rej'] == pars[2]) & (df['grid_thresh_CNN'] == pars[3]))]
 
-    print(df_result.sort_values(by='name')[['name','precision','recall']])
+    print(df_result.sort_values(by='name')[['name','precision','recall','f1_score']])
     print(df_result.mean())
+    #%%
     df_result = df_result.sort_values(by='name')
     max_res = df.groupby(by=['name'])
     max_res = max_res.describe()
