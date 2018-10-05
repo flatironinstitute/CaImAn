@@ -297,7 +297,8 @@ class OnACID(object):
         self.estimates.mn = (t-1)/t*self.estimates.mn + res_frame/t
         self.estimates.vr = (t-1)/t*self.estimates.vr + (res_frame - mn_)*(res_frame - self.estimates.mn)/t
         self.estimates.sn = np.sqrt(self.estimates.vr)
-
+        
+        t_new = time()
         if self.params.get('online', 'update_num_comps'):
 
             self.estimates.mean_buff += (res_frame-self.estimates.Yres_buf[self.estimates.Yres_buf.cur])/self.params.get('online', 'minibatch_shape')
@@ -398,7 +399,7 @@ class OnACID(object):
                 # set the update counter to 0 for components that are overlaping the newly added
                 idx_overlap = self.estimates.AtA[nb_:-num_added, -num_added:].nonzero()[0]
                 self.update_counter[idx_overlap] = 0
-
+        self.t_detect.append(time() - t_new)
         if self.params.get('online', 'batch_update_suff_stat'):
         # faster update using minibatch of frames
             min_batch = min(self.params.get('online', 'update_freq'), mbs)
@@ -437,6 +438,7 @@ class OnACID(object):
             self.estimates.CC = self.estimates.CC * (1 - 1. / t) + ccf.dot(ccf.T / t)
 
         # update shapes
+        t_sh = time()
         if not self.params.get('online', 'dist_shape_update'):  # bulk shape update
             if ((t + 1 - self.params.get('online', 'init_batch')) %
                     self.params.get('online', 'update_freq') == 0):
@@ -540,8 +542,8 @@ class OnACID(object):
                 self.estimates.Ab = Ab_
             else:
                 self.comp_upd.append(0)
-                
-            self.time_spend += time() - t_start
+        self.t_shapes.append(time() - t_sh)
+        self.time_spend += time() - t_start
         return self
 
     def initialize_online(self):
@@ -693,6 +695,8 @@ class OnACID(object):
         self.Ab_epoch = []
         t_online = []
         self.comp_upd = []
+        self.t_shapes = []
+        self.t_detect = []
         max_shifts_online = self.params.get('online', 'max_shifts_online')
         if extra_files == 0:     # check whether there are any additional files
             process_files = fls[:init_files]     # end processing at this file
@@ -789,6 +793,7 @@ class OnACID(object):
         if self.params.get('online', 'show_movie'):
             cv2.destroyAllWindows()
         self.t_online = t_online
+        
         return self
 
     def create_frame(self, frame_cor, show_residuals=True, resize_fact=1):

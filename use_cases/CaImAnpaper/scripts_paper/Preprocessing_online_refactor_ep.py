@@ -33,7 +33,10 @@ import glob
 import os
 import sys
 import time
+import gc
+import keras
 from caiman.base.rois import detect_duplicates_and_subsets
+import matplotlib.pyplot as plt
 
 from builtins import str
 
@@ -61,9 +64,9 @@ try:
     if 'pydevconsole' in sys.argv[0]:
         raise Exception()
     ID = sys.argv[1]
-    ID = str(np.int(ID) - 1)
+    ID = str(np.int(ID) + 0)
     print('Processing ID:' + str(ID))
-    ID = [np.int(ID)]
+    ID = [np.int(ID) + 6]
     plot_on = False
     save_results = True
 
@@ -252,7 +255,9 @@ all_results = dict()
 # %%  download and list all files to be processed
 if preprocessing_from_scratch:
     # %%
-    for ind_dataset in range(9):
+    for ind_dataset in ID:#[1]: #range(6):
+        keras.backend.clear_session()
+        gc.collect()
         use_mmap = True
         ffls = glob.glob(os.path.abspath(base_folder + params_movie[ind_dataset]['folder_name']) + '/*.mmap')
         ffls.sort()
@@ -344,7 +349,7 @@ if preprocessing_from_scratch:
                        'thresh_CNN_noisy': thresh_CNN_noisy,
                        'sniper_mode': global_params['sniper_mode'],
                        'use_dense': False,
-                       'update_freq' : 1000,
+                       'update_freq' : 250,
                        'ds_factor': ds_factor
                        }
         opts = cnmf.params.CNMFParams(params_dict=params_dict)
@@ -452,12 +457,18 @@ if preprocessing_from_scratch:
         performance_tmp['t_online'] = cnm.t_online
         performance_tmp['comp_upd'] = cnm.comp_upd
         performance_tmp['t_el'] = t_el
+        performance_tmp['t_online'] = cnm.t_online
+        performance_tmp['comp_upd'] = cnm.comp_upd
+        performance_tmp['t_detect'] = cnm.t_detect
+        performance_tmp['t_shapes'] = cnm.t_shapes
         performance_tmp['CCs'] = xcorrs
         all_results[params_movie[ind_dataset]['folder_name']] = performance_tmp
     
-    save_results = not True
+        #plt.figure(); plt.stackplot(np.arange(len(cnm.t_detect)), np.array(cnm.t_detect), np.array(cnm.t_shapes), np.array(cnm.t_online)-np.array(cnm.t_detect) - np.array(cnm.t_shapes))
+    
+    save_results = False
     if save_results:
-        path_save_file = os.path.join(base_folder, 'all_results_Oct_2018_online_refactor_optim.npz')
+        path_save_file = os.path.join(base_folder, 'all_results_Oct_2018_online_refactor_optim_gpu_'+ str(ID[0])+'.npz')
         np.savez(path_save_file, all_results=all_results)
 
 else:
