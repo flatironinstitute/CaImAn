@@ -475,11 +475,11 @@ for params_movie in np.array(params_movies)[ID]:
 #     np.savez(os.path.join(base_folder,'all_res_sept_2018.npz'), all_results=all_results)
 #     print('Saving not implementd')
 #%%
-results_old = { 'N.00.00':0.731444,
-                'N.01.01':0.766272,
+results_old = { 'N.00.00': 0.731444,
+                'N.01.01': 0.766272,
                 'N.03.00.t': 0.791908,
-                'N.04.00.t':0.709544,
-                'YST':0.793693}
+                'N.04.00.t': 0.709544,
+                'YST': 0.793693}
 
 # J115         0.799274
 # J123         0.774194
