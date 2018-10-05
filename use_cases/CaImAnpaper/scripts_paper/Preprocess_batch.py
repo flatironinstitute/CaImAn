@@ -51,19 +51,19 @@ try:
     ID = [np.int(ID)]
 
 except:
-    ID = np.arange(4,5)
+    ID = np.arange(7,8)
     print('ID NOT PASSED')
 
 
 
 print_figs = True
 skip_refinement = False
-backend_patch = 'local'
-backend_refine = 'local'
-n_processes = 24
+backend_patch = 'SLURM'
+backend_refine = 'SLURM'
+n_processes = 56
 base_folder = '/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/'
-n_pixels_per_process = 4000
-block_size = 5000
+n_pixels_per_process = 6000
+block_size = 6000
 num_blocks_per_run = 20
 # %%
 global_params = {'SNR_lowest': 0.5,
@@ -89,7 +89,7 @@ global_params = {'SNR_lowest': 0.5,
                  'alpha_snmf': None,
                  'init_method': 'greedy_roi',
                  'filter_after_patch': False,
-                 'tsub': 2 ,
+                 'tsub': 2,
                  'ssub': 2
                  }
 # %%
@@ -453,6 +453,10 @@ for params_movie in np.array(params_movies)[ID]:
     performance_tmp['dims'] = dims
     performance_tmp['CCs'] = [scipy.stats.pearsonr(a, b)[0] for a, b in
                     zip(gt_estimate.C[tp_gt], cnm2.estimates.C[tp_comp])]
+
+    performance_tmp['t_patch'] = t_patch
+    performance_tmp['t_refit'] = t_refit
+    performance_tmp['t_eva'] = t_eva_comps
 
     with np.load(os.path.join(base_folder,fname_new.split('/')[-2],'gt_eval.npz')) as ld:
         print(ld.keys())
