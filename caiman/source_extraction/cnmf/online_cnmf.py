@@ -335,7 +335,8 @@ class OnACID(object):
                 loaded_model = self.loaded_model, test_both=self.params.get('online', 'test_both'),
                 thresh_CNN_noisy = self.params.get('online', 'thresh_CNN_noisy'),
                 sniper_mode=self.params.get('online', 'sniper_mode'),
-                use_peak_max=self.params.get('online', 'use_peak_max'))
+                use_peak_max=self.params.get('online', 'use_peak_max'),
+                mean_buff=self.estimates.mean_buff)
 
             num_added = len(self.ind_A) - self.N
 
@@ -400,16 +401,16 @@ class OnACID(object):
 
         if self.params.get('online', 'batch_update_suff_stat'):
         # faster update using minibatch of frames
-            if ((t + 1 - self.params.get('online', 'init_batch')) %
-                self.params.get('online', 'update_freq') == 0):
+            min_batch = min(self.params.get('online', 'update_freq'), mbs)
+            if ((t + 1 - self.params.get('online', 'init_batch')) % min_batch == 0):
 
-                #ccf = self.estimates.C_on[:self.M, t - self.params.get('online', 'update_freq') + 1:t + 1]
-                #y = self.estimates.Yr_buf.get_last_frames(self.params.get('online', 'update_freq'))
-                ccf = self.estimates.C_on[:self.M, t - mbs + 1:t + 1]
-                y = self.estimates.Yr_buf #.get_last_frames(mbs)
+                ccf = self.estimates.C_on[:self.M, t - min_batch + 1:t + 1]
+                y = self.estimates.Yr_buf.get_last_frames(min_batch)
+                # ccf = self.estimates.C_on[:self.M, t - mbs + 1:t + 1]
+                # y = self.estimates.Yr_buf #.get_last_frames(mbs)
 
                 # much faster: exploit that we only access CY[m, ind_pixels], hence update only these
-                n0 = mbs #self.params.get('online', 'update_freq')
+                n0 = min_batch
                 t0 = 0 * self.params.get('online', 'init_batch')
                 w1 = (t - n0 + t0) * 1. / (t + t0)  # (1 - 1./t)#mbs*1. / t
                 w2 = 1. / (t + t0)  # 1.*mbs /t
@@ -1388,7 +1389,8 @@ def rank1nmf(Ypx, ain):
 def get_candidate_components(sv, dims, Yres_buf, min_num_trial=3, gSig=(5, 5),
                              gHalf=(5, 5), sniper_mode=True, rval_thr=0.85,
                              patch_size=50, loaded_model=None, test_both=False,
-                             thresh_CNN_noisy=0.5, use_peak_max=False, thresh_std_peak_resid = 1):
+                             thresh_CNN_noisy=0.5, use_peak_max=False,
+                             thresh_std_peak_resid = 1, mean_buff=None):
     """
     Extract new candidate components from the residual buffer and test them
     using space correlation or the CNN classifier. The function runs the CNN
@@ -1400,6 +1402,7 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial=3, gSig=(5, 5),
     Cin = []
     Cin_res = []
     idx = []
+    all_indices = []
     ijsig_all = []
     cnn_pos = []
     local_maxima = []
@@ -1457,8 +1460,7 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial=3, gSig=(5, 5),
         # indeces_ = np.ravel_multi_index(np.ix_(*[np.arange(ij[0], ij[1])
         #                 for ij in ijSig]), dims, order='C').ravel(order = 'C')
 
-        Ypx = Yres_buf.T[indeces, :]
-        ain = np.maximum(np.mean(Ypx, 1), 0)
+        ain = np.maximum(mean_buff[indeces], 0)
 
         if sniper_mode:
             half_crop_cnn = tuple([int(np.minimum(gs*2, patch_size/2)) for gs in gSig])
@@ -1466,8 +1468,7 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial=3, gSig=(5, 5),
             ijSig_cnn = [[max(i - g, 0), min(i+g+1,d)] for i, g, d in zip(ij_cnn, half_crop_cnn, dims)]
             indeces_cnn = np.ravel_multi_index(np.ix_(*[np.arange(ij[0], ij[1])
                             for ij in ijSig_cnn]), dims, order='F').ravel(order = 'C')
-            Ypx_cnn = Yres_buf.T[indeces_cnn, :]
-            ain_cnn = Ypx_cnn.mean(1)
+            ain_cnn = mean_buff[indeces_cnn]
 
         else:
             compute_corr = True  # determine when to compute corr coef
@@ -1477,7 +1478,7 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial=3, gSig=(5, 5),
         if na:
             ain /= sqrt(na)
             Ain.append(ain)
-            Y_patch.append(Ypx)
+            Y_patch.append(Yres_buf.T[indeces, :]) if compute_corr else all_indices.append(indeces)
             idx.append(ind)
             if sniper_mode:
                 Ain_cnn.append(ain_cnn)
@@ -1516,7 +1517,7 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial=3, gSig=(5, 5),
         idx = list(np.array(idx)[keep_final])
     else:
         Ain = [Ain[kp] for kp in keep_cnn]
-        Y_patch = [Y_patch[kp] for kp in keep_cnn]
+        Y_patch = [Yres_buf.T[all_indices[kp]] for kp in keep_cnn]
         idx = list(np.array(idx)[keep_cnn])
         for i, (ain, Ypx) in enumerate(zip(Ain, Y_patch)):
             ain, cin, cin_res = rank1nmf(Ypx, ain)
@@ -1539,7 +1540,7 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                           Ab_dense=None, max_num_added=1, min_num_trial=1,
                           loaded_model=None, thresh_CNN_noisy=0.99,
                           sniper_mode=False, use_peak_max=False,
-                          test_both=False):
+                          test_both=False, mean_buff=None):
     """
     Checks for new components in the residual buffer and incorporates them if they pass the acceptance tests
     """
@@ -1560,7 +1561,7 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
         sv, dims, Yres_buf=Yres_buf, min_num_trial=min_num_trial, gSig=gSig,
         gHalf=gHalf, sniper_mode=sniper_mode, rval_thr=rval_thr, patch_size=50,
         loaded_model=loaded_model, thresh_CNN_noisy=thresh_CNN_noisy,
-        use_peak_max=use_peak_max, test_both=test_both)
+        use_peak_max=use_peak_max, test_both=test_both, mean_buff=mean_buff)
 
     ind_new_all = ijsig_all
 
