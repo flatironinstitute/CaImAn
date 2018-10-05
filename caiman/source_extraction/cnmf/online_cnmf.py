@@ -542,8 +542,9 @@ class OnACID(object):
                 self.estimates.Ab = Ab_
             else:
                 self.comp_upd.append(0)
+            self.time_spend += time() - t_start
         self.t_shapes.append(time() - t_sh)
-        self.time_spend += time() - t_start
+
         return self
 
     def initialize_online(self):
@@ -697,6 +698,7 @@ class OnACID(object):
         self.comp_upd = []
         self.t_shapes = []
         self.t_detect = []
+        self.t_motion = []
         max_shifts_online = self.params.get('online', 'max_shifts_online')
         if extra_files == 0:     # check whether there are any additional files
             process_files = fls[:init_files]     # end processing at this file
@@ -739,7 +741,7 @@ class OnACID(object):
 
                     if self.params.get('online', 'normalize'):
                         frame_ -= self.img_min     # make data non-negative
-
+                    t_mot = time()    
                     if self.params.get('online', 'motion_correct'):    # motion correct
                         templ = self.estimates.Ab.dot(
                             self.estimates.C_on[:self.M, t-1]).reshape(self.params.get('data', 'dims'), order='F')*self.img_norm
@@ -758,7 +760,8 @@ class OnACID(object):
                     else:
                         templ = None
                         frame_cor = frame_
-
+                    self.t_motion.append(time() - t_mot)
+                    
                     if self.params.get('online', 'normalize'):
                         frame_cor = frame_cor/self.img_norm
                     self.fit_next(t, frame_cor.reshape(-1, order='F'))

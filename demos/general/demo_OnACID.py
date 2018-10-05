@@ -2,23 +2,20 @@
 # -*- coding: utf-8 -*-
 
 """
-Created on Wed Sep 20 17:52:23 2017
-Basic demo for the OnACID algorithm using CNMF initialization. For a more
-complete demo check the script demo_OnACID_mesoscope.py
+Basic demo for the CaImAn Online algorithm (OnACID) using CNMF initialization.
+It demonstrates the construction of the params and online_cnmf objects and
+the fit function that is used to run the algorithm.
+For a more complete demo check the script demo_OnACID_mesoscope.py
 
 @author: jfriedrich & epnev
 """
 
-from copy import deepcopy
 import logging
 import numpy as np
 import os
-import pylab as pl
-from scipy.special import log_ndtr
 
 import caiman as cm
 from caiman.source_extraction import cnmf as cnmf
-from caiman.utils.visualization import view_patches_bar, plot_contours
 from caiman.paths import caiman_datadir
 
 
@@ -36,52 +33,35 @@ except NameError:
 # verbose by setting level to logging.DEBUG, logging.INFO, logging.WARNING, or logging.ERROR
 
 logging.basicConfig(format=
-                          "%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s] [%(process)d] %(message)s",
-                    # filename="/tmp/caiman.log",
+                    "%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s]"\
+                    "[%(process)d] %(message)s",
                     level=logging.DEBUG)
-
-
-#%%
+    # filename="/tmp/caiman.log"
+# %%
 def main():
-    pass # For compatibility between running under Spyder and the CLI
+    pass  # For compatibility between running under Spyder and the CLI
 
-#%% load data
+# %% load data
 
     fname = [os.path.join(caiman_datadir(), 'example_movies', 'demoMovie.tif')]
-    
+
 # %% set up some parameters
 
     fr = 10  # frame rate (Hz)
-    decay_time = 0.5  # approximate length of transient event in seconds
+    decay_time = .75  # approximate length of transient event in seconds
     gSig = [6, 6]  # expected half size of neurons
     p = 1  # order of AR indicator dynamics
-    min_SNR = 3.5  # minimum SNR for accepting new components
-    rval_thr = 0.90  # correlation threshold for new component inclusion
+    min_SNR = 1  # minimum SNR for accepting candidate components
+    thresh_CNN_noisy = 0.65  # CNN threshold for candidate components
     gnb = 2  # number of background components
+    init_method = 'cnmf'  # initialization method
 
     # set up CNMF initialization parameters
 
-    merge_thresh = 0.8  # merging threshold
     init_batch = 400  # number of frames for initialization
     patch_size = 32  # size of patch
     stride = 3  # amount of overlap between patches
     K = 4  # max number of components in each patch
-
-#    opts = cnmf.params.CNMFParams()
-#    opts.set('data', {'fnames': fname,
-#                      'fr': fr,
-#                      'decay_time': decay_time})
-#    opts.set('patch', {'nb': gnb,
-#                       'rf': patch_size//2,
-#                       'stride': stride})
-#    opts.set('online', {'min_SNR': min_SNR,
-#                        'rval_thr': rval_thr,
-#                        'init_batch': init_batch})
-#    opts.set('init', {'gSig': gSig,
-#                      'K': K,
-#                      'nb': gnb})
-#    opts.set('temporal', {'p': p})
-#    opts.set('merging', {'thr': merge_thresh})
 
     params_dict = {'fr': fr,
                    'fnames': fname,
@@ -89,37 +69,36 @@ def main():
                    'gSig': gSig,
                    'p': p,
                    'min_SNR': min_SNR,
-                   'rval_thr': rval_thr,
                    'nb': gnb,
-                   'thr': merge_thresh,
                    'init_batch': init_batch,
-                   'init_method': 'cnmf',
+                   'init_method': init_method,
                    'rf': patch_size//2,
                    'stride': stride,
-                   'normalize': False,
+                   'sniper_mode': True,
+                   'thresh_CNN_noisy': thresh_CNN_noisy,
                    'K': K}
     opts = cnmf.params.CNMFParams(params_dict=params_dict)
-#%% fit with online object
+# %% fit with online object
     cnm = cnmf.online_cnmf.OnACID(params=opts)
     cnm.fit_online()
 
-#%% plot contours
-    
+# %% plot contours
+
     logging.info('Number of components:' + str(cnm.estimates.A.shape[-1]))
     Cn = cm.load(fname[0], subindices=slice(0,500)).local_correlations(swap_dim=False)
     cnm.estimates.plot_contours(img=Cn)
 
-#%% pass through the CNN classifier with a low threshold (keeps clearer neuron shapes and excludes processes)
+# %% pass through the CNN classifier with a low threshold (keeps clearer neuron shapes and excludes processes)
     use_CNN = True
     if use_CNN:
         # threshold for CNN classifier
         opts.set('quality', {'min_cnn_thr': 0.05})
         cnm.estimates.evaluate_components_CNN(opts)
         cnm.estimates.plot_contours(img=Cn, idx=cnm.estimates.idx_components)
-#%% plot results
+# %% plot results
     cnm.estimates.view_components(img=Cn, idx=cnm.estimates.idx_components)
 
-#%%
+# %%
 # This is to mask the differences between running this demo in Spyder
 # versus from the CLI
 if __name__ == "__main__":

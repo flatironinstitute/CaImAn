@@ -151,7 +151,7 @@ class Estimates(object):
 
 
     def plot_contours(self, img=None, idx=None, crd=None, thr_method='max',
-                      thr='0.2'):
+                      thr='0.2', display_numbers=True):
         """view contours of all spatial footprints.
 
         Args:
@@ -166,6 +166,8 @@ class Estimates(object):
                 thresholding method for computing contours ('max', 'nrg')
             thr : float
                 threshold value
+            display_numbers :   bool
+                flag for displaying the id number of each contour
         """
         if 'csc_matrix' not in str(type(self.A)):
             self.A = scipy.sparse.csc_matrix(self.A)
@@ -175,7 +177,8 @@ class Estimates(object):
             self.coordinates = caiman.utils.visualization.get_contours(self.A, self.dims, thr=thr, thr_method=thr_method)
         plt.figure()
         if idx is None:
-            caiman.utils.visualization.plot_contours(self.A, img, coordinates=self.coordinates)
+            caiman.utils.visualization.plot_contours(self.A, img, coordinates=self.coordinates,
+                                                     display_numbers=display_numbers)
         else:
             if not isinstance(idx, list):
                 idx = idx.tolist()
@@ -184,12 +187,14 @@ class Estimates(object):
             coor_b = [self.coordinates[cr] for cr in bad]
             plt.subplot(1, 2, 1)
             caiman.utils.visualization.plot_contours(self.A[:, idx], img,
-                                                     coordinates=coor_g)
+                                                     coordinates=coor_g,
+                                                     display_numbers=display_numbers)
             plt.title('Accepted Components')
             bad = list(set(range(self.A.shape[1])) - set(idx))
             plt.subplot(1, 2, 2)
             caiman.utils.visualization.plot_contours(self.A[:, bad], img,
-                                                     coordinates=coor_b)
+                                                     coordinates=coor_b,
+                                                     display_numbers=display_numbers)
             plt.title('Rejected Components')
         return self
 
