@@ -1159,9 +1159,19 @@ def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None,
             with tifffile.TiffFile(file_name) as tffl:
                 if subindices is not None:
                     if type(subindices) is list:
-                        input_arr  = tffl.asarray(key=subindices[0])[:, subindices[1], subindices[2]]
+                        try:
+                            input_arr  = tffl.asarray(key=subindices[0])[:, subindices[1], subindices[2]]
+                        except:
+                            logging.warning('Your tif file is saved a single page file. Performance will be affected')
+                            input_arr = tffl.asarray()
+                            input_arr = input_arr[subindices[0], subindices[1], subindices[2]]
                     else:
-                        input_arr  = tffl.asarray(key=subindices)
+                        try:
+                            input_arr  = tffl.asarray(key=subindices)
+                        except:
+                            logging.warning('Your tif file is saved a single page file. Performance will be affected')
+                            input_arr = tffl.asarray()
+                            input_arr = input_arr[subindices[0]]
 
                 else:
                     input_arr = tffl.asarray()

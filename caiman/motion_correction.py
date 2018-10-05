@@ -211,15 +211,15 @@ class MotionCorrect(object):
         Returns:
             self
         """
-        # TODO: Review the docs here, and also why we would ever return self from a
-        #       method that is not a constructor
+        # TODO: Review the docs here, and also why we would ever return self
+        #       from a method that is not a constructor
         if self.min_mov is None:
             if self.gSig_filt is None:
                 self.min_mov = np.array([cm.load(self.fname[0],
-                                                 subindices=range(400))]).min()
+                                                 subindices=slice(400))]).min()
             else:
                 self.min_mov = np.array([high_pass_filter_space(m_, self.gSig_filt)
-                    for m_ in cm.load(self.fname[0], subindices=range(400))]).min()
+                    for m_ in cm.load(self.fname[0], subindices=slice(400))]).min()
 
         if self.pw_rigid:
             self.motion_correct_pwrigid(template=template, save_movie=save_movie)

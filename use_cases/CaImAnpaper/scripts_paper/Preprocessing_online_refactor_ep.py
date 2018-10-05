@@ -461,6 +461,7 @@ if preprocessing_from_scratch:
         performance_tmp['comp_upd'] = cnm.comp_upd
         performance_tmp['t_detect'] = cnm.t_detect
         performance_tmp['t_shapes'] = cnm.t_shapes
+        performance_tmp['CCs'] = xcorrs
         all_results[params_movie[ind_dataset]['folder_name']] = performance_tmp
     
         #plt.figure(); plt.stackplot(np.arange(len(cnm.t_detect)), np.array(cnm.t_detect), np.array(cnm.t_shapes), np.array(cnm.t_online)-np.array(cnm.t_detect) - np.array(cnm.t_shapes))

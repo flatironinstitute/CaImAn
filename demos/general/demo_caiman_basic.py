@@ -99,7 +99,7 @@ def main():
     cnm = cnm.fit_file()
 
 #%% plot contour plots of components
-    Cn = cm.load(fnames[0], subindices=range(1000)).local_correlations(swap_dim=False)
+    Cn = cm.load(fnames[0], subindices=slice(1000)).local_correlations(swap_dim=False)
     cnm.estimates.plot_contours(img=Cn)
 
 #%% load memory mapped file

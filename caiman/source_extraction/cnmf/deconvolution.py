@@ -991,6 +991,9 @@ def estimate_time_constant(fluor, p=2, sn=None, lags=5, fudge_factor=1.):
     g = np.linalg.lstsq(A, xc[lags + 1:])[0]
     gr = np.roots(np.concatenate([np.array([1]), -g.flatten()]))
     gr = old_div((gr + gr.conjugate()), 2.)
+    np.random.seed(45) # We want some variability below, but it doesn't have to be random at
+                       # runtime. A static seed captures our intent, while still not disrupting
+                       # the desired identical results from runs.
     gr[gr > 1] = 0.95 + np.random.normal(0, 0.01, np.sum(gr > 1))
     gr[gr < 0] = 0.15 + np.random.normal(0, 0.01, np.sum(gr < 0))
     g = np.poly(fudge_factor * gr)
