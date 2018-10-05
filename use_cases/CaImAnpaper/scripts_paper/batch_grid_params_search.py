@@ -38,10 +38,8 @@ from caiman.source_extraction.cnmf import params as params
 from caiman.source_extraction.cnmf.cnmf import load_CNMF
 
 # %%  ANALYSIS MODE AND PARAMETERS
-preprocessing_from_scratch = False  # whether to run the full pipeline or just creating figures
-
+preprocessing_from_scratch = False
 plot_on = False
-save_on = False  # set to true to recreate
 save_grid = False
 
 
@@ -98,7 +96,7 @@ global_params = {'SNR_lowest': 0.5,
                  'alpha_snmf': None,
                  'init_method': 'greedy_roi',
                  'filter_after_patch': False,
-                 'tsub': 2 ,
+                 'tsub': 2,
                  'ssub': 2
                  }
 # %%
@@ -421,8 +419,7 @@ if preprocessing_from_scratch:
 
                         print(fname_new+str({a: b.astype(np.float16) for a, b in performance_cons_off.items()}))
                         cnm2.estimates.A_thr = scipy.sparse.csc_matrix(cnm2.estimates.A_thr)
-                        if save_on:
-                            cnm2.save(fname_new[:-5] + '_cnmf_gsig_after_analysis.hdf5')
+
 
                         performance_cons_off['fname_new'] = fname_new
                         performance_tmp = performance_cons_off.copy()
@@ -440,7 +437,7 @@ if preprocessing_from_scratch:
                         if save_grid:
                             grid_fold = os.path.join(os.path.split(fname_new)[0], 'grid')
                             os.makedirs(grid_fold, exist_ok=True)
-                            grid_file = os.path.join(grid_fold, 'perf_grid_' + str(gr_snr) + '_' + str(grid_rval)
+                            grid_file = os.path.join(grid_fold, 'perf_grid_0918_' + str(gr_snr) + '_' + str(grid_rval)
                                   + '_' + str(grid_max_prob_rej) + '_' + str(grid_thresh_CNN) + '.npz')
                             print(grid_file + '__' + str({a: b.astype(np.float16) for a, b in performance_cons_off.items() if type(b) is not str}))
                             np.savez(grid_file, all_results=performance_tmp)
@@ -491,7 +488,7 @@ else:
                         grid_fold = os.path.join(os.path.split(fname_new)[0], 'grid')
                         os.makedirs(grid_fold, exist_ok=True)
                         grid_file = os.path.join(grid_fold,
-                                                 'perf_grid_' + str(gr_snr) + '_' + str(grid_rval)
+                                                 'perf_grid_0918_' + str(gr_snr) + '_' + str(grid_rval)
                                                  + '_' + str(grid_max_prob_rej) + '_' + str(
                                                      grid_thresh_CNN) + '.npz')
                         if os.path.exists(grid_file):
@@ -506,7 +503,12 @@ else:
 
 
     #%%
-    np.savez('/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/ALL_RECORDS_GRID_FINAL.npz', records=records)
+    if False:
+        np.savez('/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/ALL_RECORDS_GRID_FINAL.npz', records=records)
+        #%%
+        with np.load('/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/ALL_RECORDS_GRID_FINAL.npz') as ld:
+            records = ld['records'][()]
+            records = [list(rec) for rec in records]
     #%% Max of all datasets
     df = DataFrame(records)
     df.columns = ['name', 'gr_snr', 'grid_rval', 'grid_max_prob_rej', 'grid_thresh_CNN', 'recall',
