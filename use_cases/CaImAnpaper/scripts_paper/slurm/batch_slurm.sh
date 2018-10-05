@@ -3,7 +3,7 @@
 # The stdout (-o) and stderr (-e) files will be written to the submission directory with
 # names that follow the given templates (in this case, the names will include the
 # SLURM job identifier).
-#SBATCH -p ccb -N9 --ntasks-per-node=1 --exclusive -o sbExample.%j.out -e sbExample.%j.err
+#SBATCH -p ib -N10 --ntasks-per-node=1 --exclusive -o sbExample.%j.out -e sbExample.%j.err
 
 # srun starts a process per task, 21 in this case. In the first example, we didn't explicitly set
 # a number of tasks, so srun assumed there would be one per node.

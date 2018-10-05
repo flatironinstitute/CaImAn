@@ -73,7 +73,7 @@ global_params = {'SNR_lowest': 0.5,
                  'gnb': 2,  # number of background components
                  'rval_thr': 0.85,  # spatial correlation threshold
                  'min_rval_thr_rejected': -1.1,
-                 'min_cnn_thresh': 0.95,
+                 'min_cnn_thresh': 0.99,
                  'max_classifier_probability_rejected': 0.1,
                  'p': 1,
                  'max_fitness_delta_accepted': -20,
@@ -477,11 +477,11 @@ for params_movie in np.array(params_movies)[ID]:
 #     np.savez(os.path.join(base_folder,'all_res_sept_2018.npz'), all_results=all_results)
 #     print('Saving not implementd')
 #%%
-results_old = { 'N.00.00': 0.731444,
-                'N.01.01': 0.766272,
-                'N.03.00.t': 0.791908,
-                'N.04.00.t': 0.709544,
-                'YST': 0.793693}
+results_old = { 'N.00.00': 0.723,
+                'N.01.01': 0.763,
+                'N.03.00.t': 0.779,
+                'N.04.00.t': 0.692,
+                'YST': 0.773}
 
 # J115         0.799274
 # J123         0.774194
@@ -490,12 +490,12 @@ results_old = { 'N.00.00': 0.731444,
 
 results_holding = True
 for kk, res in all_results.items():
-    print(kk+ ' f1_score_old : '+ str(all_results[kk]['f1_score']) + ',' + str(results_old[kk]))
-    if results_old[kk]>all_results[kk]['f1_score']:
+    print(kk+ ' f1_score_new : '+ str(all_results[kk]['f1_score']) + ',f1_score_old:' + str(results_old[kk]), ',delta:' + str(results_old[kk]-all_results[kk]['f1_score']))
+    if (results_old[kk]-all_results[kk]['f1_score']) > 0.01:
         results_holding = False
 
 
-# assert not results_holding, 'F1 scores are decreasing, check your code for errors'
+assert (results_holding), 'F1 scores are decreasing, check your code for errors'
 
 
 
