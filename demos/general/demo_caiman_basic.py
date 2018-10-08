@@ -2,9 +2,9 @@
 # -*- coding: utf-8 -*-
 
 """
-Stripped demo for running the CNMF source extraction algorithm with CaImAn and
-evaluation the components. The analysis can be run either in the whole FOV
-or in patches. For a complete pipeline (including motion correction)
+Basic stripped-down demo for running the CNMF source extraction algorithm with
+CaImAn and evaluation the components. The analysis can be run either in the
+whole FOV or in patches. For a complete pipeline (including motion correction)
 check demo_pipeline.py
 Data courtesy of W. Yang, D. Peterka and R. Yuste (Columbia University)
 
@@ -45,7 +45,9 @@ from caiman.source_extraction.cnmf import params as params
 # verbose by setting level to logging.DEBUG, logging.INFO, logging.WARNING, or logging.ERROR
 
 logging.basicConfig(format=
-                          "%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s] [%(process)d] %(message)s",)
+                    "%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s]"\
+                    "[%(process)d] %(message)s",
+                    level=logging.INFO)
                     # filename="/tmp/caiman.log",
 
 #%%
@@ -60,7 +62,7 @@ def main():
 
 # %% set up some parameters
     fnames = [os.path.join(caiman_datadir(), 'example_movies', 'demoMovie.tif')]
-                            # file to be analyzed
+                            # file(s) to be analyzed
     is_patches = True       # flag for processing in patches or not
     fr = 10                 # approximate frame rate of data
     decay_time = 5.0        # length of transient
@@ -130,7 +132,7 @@ def main():
 # %% visualize selected components
     cnm2.estimates.view_components(images, idx=cnm2.estimates.idx_components, img=Cn)
 
-# %% play movie with results
+# %% play movie with results (original, reconstructed, amplified residual)
     cnm2.estimates.play_movie(images, magnification=4)
 
 # %% STOP CLUSTER and clean up log files
