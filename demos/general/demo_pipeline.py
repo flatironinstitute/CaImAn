@@ -119,7 +119,6 @@ def main():
 
 # %%% MOTION CORRECTION
     # first we create a motion correction object with the specified parameters
-
     mc = MotionCorrect(fnames, dview=dview, **opts.get_group('motion'))
     # note that the file is not loaded in memory
 
@@ -154,6 +153,7 @@ def main():
     cm.stop_server(dview=dview)
     c, dview, n_processes = cm.cluster.setup_cluster(
         backend='local', n_processes=None, single_thread=False)
+
 
 # %%  parameters for source extraction and deconvolution
     p = 1                    # order of the autoregressive system
@@ -201,50 +201,50 @@ def main():
     cnm.estimates.plot_contours(img=Cn)
     plt.title('Contour plots of found components')
 
-# %% COMPONENT EVALUATION
+# %% RE-RUN seeded CNMF on accepted patches to refine and perform deconvolution
+    cnm.params.set('temporal', {'p': p})
+    cnm2 = cnm.refit(images)
+    # %% COMPONENT EVALUATION
     # the components are evaluated in three ways:
     #   a) the shape of each component must be correlated with the data
     #   b) a minimum peak SNR is required over the length of a transient
     #   c) each shape passes a CNN based classifier
-    min_SNR = 2         # signal to noise ratio for accepting a component
-    rval_thr = 0.8      # space correlation threshold for accepting a component
-    cnn_thr = 0.85      # threshold for CNN based classifier
-    cnm.params.set('quality', {'decay_time': decay_time,
+    min_SNR = 2  # signal to noise ratio for accepting a component
+    rval_thr = 0.8  # space correlation threshold for accepting a component
+    cnn_thr = 0.85  # threshold for CNN based classifier
+    cnm2.params.set('quality', {'decay_time': decay_time,
                                'min_SNR': min_SNR,
                                'rval_thr': rval_thr,
                                'use_cnn': False,
                                'min_cnn_thr': cnn_thr})
-    cnm.estimates.evaluate_components(images, cnm.params, dview=dview)
+    cnm2.estimates.evaluate_components(images, cnm2.params, dview=dview)
 
-# %% PLOT COMPONENTS
-    cnm.estimates.plot_contours(img=Cn, idx=cnm.estimates.idx_components)
+    # %% PLOT COMPONENTS
+    cnm2.estimates.plot_contours(img=Cn, idx=cnm2.estimates.idx_components)
 
-# %% VIEW TRACES (accepted and rejected)
+    # %% VIEW TRACES (accepted and rejected)
 
     if display_images:
-        cnm.estimates.view_components(images, img=Cn,
-                                      idx=cnm.estimates.idx_components)
-        cnm.estimates.view_components(images, img=Cn,
-                                      idx=cnm.estimates.idx_components_bad)
-
-# %% RE-RUN seeded CNMF on accepted patches to refine and perform deconvolution
-    cnm.params.set('temporal', {'p': p})
-    cnm2 = cnm.refit(images)
-
-# %% Extract DF/F values
+        cnm2.estimates.view_components(images, img=Cn,
+                                      idx=cnm2.estimates.idx_components)
+        cnm2.estimates.view_components(images, img=Cn,
+                                      idx=cnm2.estimates.idx_components_bad)
+    #%% update object with selected components
+    cnm2.estimates.select_components(use_object=True)
+    #%% Extract DF/F values
     cnm2.estimates.detrend_df_f(quantileMin=8, frames_window=250)
 
-# %% Show final traces
+    #%% Show final traces
     cnm2.estimates.view_components(img=Cn)
 
-# %% reconstruct denoised movie (press q to exit)
+    #%% reconstruct denoised movie (press q to exit)
     if display_images:
         cnm2.estimates.play_movie(images, q_max=99.9, gain_res=2,
                                   magnification=2,
                                   bpx=border_to_0,
                                   include_bck=False)  # background not shown
 
-# %% STOP CLUSTER and clean up log files
+    #%% STOP CLUSTER and clean up log files
     cm.stop_server(dview=dview)
     log_files = glob.glob('*_LOG_*')
     for log_file in log_files:
