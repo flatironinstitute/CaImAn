@@ -7,6 +7,7 @@ Created on Fri Aug 25 14:49:36 2017
 @author: agiovann
 """
 import cv2
+from dask.dataframe.core import idxmaxmin_agg
 
 try:
     cv2.setNumThreads(1)
@@ -40,7 +41,7 @@ from caiman.source_extraction.cnmf.cnmf import load_CNMF
 # %%  ANALYSIS MODE AND PARAMETERS
 preprocessing_from_scratch = False
 plot_on = False
-save_grid = False
+save_grid = True
 
 
 try:
@@ -503,109 +504,8 @@ else:
 
 
     #%%
-    if False:
+    if save_grid:
         np.savez('/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/ALL_RECORDS_GRID_FINAL.npz', records=records)
-        #%%
-        with np.load('/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/ALL_RECORDS_GRID_FINAL.npz') as ld:
-            records = ld['records'][()]
-            records = [list(rec) for rec in records]
-    #%% Max of all datasets
-    df = DataFrame(records)
-    df.columns = ['name', 'gr_snr', 'grid_rval', 'grid_max_prob_rej', 'grid_thresh_CNN', 'recall',
-                  'precision', 'f1_score']
-    best_res = df.groupby(by=['name'])
-    best_res = best_res.describe()
-    max_caiman_batch = best_res['f1_score']['max']
-    print(max_caiman_batch)
-    #%%
-    df = DataFrame(records)
-    df.columns = ['name', 'gr_snr', 'grid_rval', 'grid_max_prob_rej', 'grid_thresh_CNN','recall', 'precision', 'f1_score']
-    best_res = df.groupby(by=['gr_snr', 'grid_rval', 'grid_max_prob_rej', 'grid_thresh_CNN'])
-    best_res = best_res.describe()
-    print(best_res.loc[:, 'f1_score'].max())
-    #%%
-    df = DataFrame(records)
-    df.columns = ['name', 'gr_snr', 'grid_rval', 'grid_max_prob_rej', 'grid_thresh_CNN','recall', 'precision', 'f1_score']
-    best_res = df.groupby(by=['gr_snr', 'grid_rval', 'grid_max_prob_rej', 'grid_thresh_CNN'])
-    best_res = best_res.describe()
-    pars = best_res.loc[:, 'f1_score'].idxmax()['mean']
-    print(pars)
-    df_result = df[((df['gr_snr'] == pars[0]) & (df['grid_rval'] == pars[1]) & (df['grid_max_prob_rej'] == pars[2]) & (df['grid_thresh_CNN'] == pars[3]))]
 
-    print(df_result.sort_values(by='name')[['name','precision','recall','f1_score']])
-    print(df_result.mean())
-    #%%
-    df_result = df_result.sort_values(by='name')
-    max_res = df.groupby(by=['name'])
-    max_res = max_res.describe()
-    max_res = max_res.sort_values(by='name')
-    max_res = max_res['f1_score']['max']
-    df_result['f1_score_max'] = max_res.values
-    min_res = df.groupby(by=['name'])
-    min_res = min_res.describe()
-    min_res = min_res.sort_values(by='name')
-    min_res = min_res['f1_score']['min']
-    df_result['f1_score_min'] = min_res.values
-
-
-    names = ['N.03.00.t',
-             'N.04.00.t',
-             'YST',
-             'N.00.00',
-             'N.02.00',
-             'N.01.01',
-             'K53',
-             'J115',
-             'J123']
-
-    idx_sort = np.argsort(names)
-    df_result['L1_f1'] = np.array([np.nan, np.nan, 0.78, np.nan, 0.89, 0.8, 0.89,  0.85, np.nan])[idx_sort]  # Human 1
-    df_result['L2_f1'] = np.array([0.9, 0.69, 0.9, 0.92, 0.87, 0.89, 0.92, 0.93, 0.83])[idx_sort]  # Human 2
-    df_result['L3_f1'] = np.array([0.85, 0.75, 0.82, 0.83, 0.84, 0.78, 0.93, 0.94, 0.9])[idx_sort] # Human 3
-    df_result['L4_f1'] = np.array([0.78, 0.87, 0.79, 0.87, 0.82, 0.75, 0.83, 0.83, 0.91])[idx_sort]
-
-    # df_result['L1_precision'] = np.array([np.nan, np.nan, 0.78, np.nan, 0.89, 0.8, 0.89,  0.85, np.nan])[idx_sort]  # Human 1
-    # df_result['L2_precision'] = np.array([0.9, 0.69, 0.9, 0.92, 0.87, 0.89, 0.92, 0.93, 0.83])[idx_sort]  # Human 2
-    # df_result['L3_precision'] = np.array([0.85, 0.75, 0.82, 0.83, 0.84, 0.78, 0.93, 0.94, 0.9])[idx_sort] # Human 3
-    # df_result['L4_precision'] = np.array([0.78, 0.87, 0.79, 0.87, 0.82, 0.75, 0.83, 0.83, 0.91])[idx_sort]
-    #
-    # df_result['L1_recall'] = np.array([np.nan, np.nan, 0.78, np.nan, 0.89, 0.8, 0.89,  0.85, np.nan])[idx_sort]  # Human 1
-    # df_result['L2_recall'] = np.array([0.9, 0.69, 0.9, 0.92, 0.87, 0.89, 0.92, 0.93, 0.83])[idx_sort]  # Human 2
-    # df_result['L3_recall'] = np.array([0.85, 0.75, 0.82, 0.83, 0.84, 0.78, 0.93, 0.94, 0.9])[idx_sort] # Human 3
-    # df_result['L4_recall'] = np.array([0.78, 0.87, 0.79, 0.87, 0.82, 0.75, 0.83, 0.83, 0.91])[idx_sort]
-
-
-
-
-    df_result['f1_score_CaImAn_online'] = [0.81, 0.81, 0.82, 0.69, 0.72, 0.78, 0.75, 0.67, 0.72]
-    df_result['precision_CaImAn_online'] = [0.75, 0.79, 0.80, 0.84, 0.75, 0.8, 0.77, 0.65, 0.75]
-    df_result['recall_CaImAn_online'] = [0.88, 0.82, 0.84, 0.58, 0.69, 0.76, 0.73, 0.7, 0.69]
-
-    ax = df_result.plot(x='name', y=['f1_score', 'f1_score_CaImAn_online','L4_f1','L3_f1','L2_f1','L1_f1'], xticks=range(len(df_result)),
-                        kind='bar', color=[[1,0,0],[0,0,1],[.5,.5,.5],[.6,.6,.6],[.7,.7,.7],[.8,.8,.8]])
-    ax.set_xticklabels(df_result.name, rotation=45)
-    pl.legend(['CaImAn batch','CaImAn online','L4','L3','L2','L1'])
-    # ax.set_xticklabels(df_result.name)
-    # pl.xlabel('Dataset')
-    pl.ylabel('F1 score')
-    pl.ylim([0.55,0.95])
-    params_display = {
-        'downsample_ratio': .2,
-        'thr_plot': 0.8
-    }
-
-    pl.rcParams['pdf.fonttype'] = 42
-    font = {'family': 'Arial',
-            'weight': 'regular',
-            'size': 20}
-    pl.rc('font', **font)
-
-    # with open('mytable.tex', 'w') as tf:
-    #     tf.write(df_result[['name','precision','recall','f1_score','f1_score_caiman']].round(2).to_latex())
-    #%% max versus average
-    all_labels = np.vstack([df_result['L1_f1'],df_result['L2_f1'], df_result['L3_f1'] , df_result['L4_f1']])
-    mean_labels = np.nanmean(all_labels,0).T
-    df_cm = DataFrame({'Human average':mean_labels,'CaImAn batch':max_caiman_batch})
-    df_cm.plot(kind='bar')
 
 

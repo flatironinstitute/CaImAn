@@ -58,9 +58,9 @@ except:
 
 print_figs = True
 skip_refinement = False
-backend_patch = 'SLURM'
-backend_refine = 'SLURM'
-n_processes = 56
+backend_patch = 'multiprocessing'
+backend_refine = 'multiprocessing'
+n_processes = 28
 base_folder = '/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/'
 n_pixels_per_process = 6000
 block_size = 6000
@@ -178,6 +178,7 @@ params_movie = {
     # 'fname': '/opt/local/Data/labeling/neurofinder.02.00/Yr_d1_512_d2_512_d3_1_order_C_frames_8000_.mmap',
     'fname': 'N.02.00/Yr_d1_512_d2_512_d3_1_order_C_frames_8000_.mmap',
     'gtname': 'N.02.00/joined_consensus_active_regions.npy',
+    'tiffname': '/mnt/ceph/neuro/labeling/neurofinder.02.00/images/mmap_tifs/images_all_rig__d1_512_d2_512_d3_1_order_F_frames_8000_.tif',
     # order of the autoregressive system
     'merge_thresh': 0.8,  # merging threshold, max correlation allow
     'rf': 20,  # half-size of the patches in pixels. rf=25, patches are 50x50    20
@@ -246,9 +247,10 @@ params_movie = {
 }
 params_movies.append(params_movie.copy())
 
-
-
-
+#%%
+from scipy.io import savemat
+for idx, params_movie in enumerate(params_movies):
+    savemat('/mnt/home/agiovann/SOFTWARE/CaImAn-MATLAB/file_parameters_' + str(idx) + '.mat', params_movie)
 # %%
 all_perfs = []
 all_rvalues = []
