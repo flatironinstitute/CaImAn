@@ -708,9 +708,9 @@ def nb_plot_contour(image, A, d1, d2, thr=None, thr_method='max', maxthr=0.2, nr
     coors = plot_contours(coo_matrix(A), image, thr=thr,
                           thr_method=thr_method, maxthr=maxthr, nrgthr=nrgthr,
                           coordinates=coordinates)
-    pl.close()
-    cc1 = [np.clip(cor['coordinates'][:, 0], 0, d2) for cor in coors]
-    cc2 = [np.clip(cor['coordinates'][:, 1], 0, d1) for cor in coors]
+    #pl.close()
+    cc1 = [np.clip(cor['coordinates'][1:-1, 0], 0, d2) for cor in coors]
+    cc2 = [np.clip(cor['coordinates'][1:-1, 1], 0, d1) for cor in coors]
 
     p.patches(cc1, cc2, alpha=.4, color=face_color,
               line_color=line_color, line_width=2, **kwargs)
