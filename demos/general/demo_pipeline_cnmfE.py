@@ -202,7 +202,7 @@ def main():
 #    cnm1.fit_file(motion_correct=True)
 
 # %% DISCARD LOW QUALITY COMPONENTS
-    min_SNR = 3            # adaptive way to set threshold on the transient size
+    min_SNR = 2.5           # adaptive way to set threshold on the transient size
     r_values_min = 0.85    # threshold on space consistency (if you lower more components
     #                        will be accepted, potentially with worst quality)
     cnm.params.set('quality', {'min_SNR': min_SNR,
