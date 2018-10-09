@@ -232,9 +232,13 @@ class Estimates(object):
             coor_g = [self.coordinates[cr] for cr in idx]
             bad = list(set(range(self.A.shape[1])) - set(idx))
             coor_b = [self.coordinates[cr] for cr in bad]
+            plt.figure(figsize=(10,20))
+            plt.subplot(1, 2, 1)
             caiman.utils.visualization.nb_plot_contour(img, self.A[:, idx],
                             self.dims[0], self.dims[1], coordinates=coor_g,
                             thr_method=thr_method, thr=thr)
+            plt.title('Accepted Components')
+            plt.subplot(1,2,2)
             bad = list(set(range(self.A.shape[1])) - set(idx))
             caiman.utils.visualization.nb_plot_contour(img, self.A[:, bad],
                             self.dims[0], self.dims[1], coordinates=coor_b,
@@ -606,7 +610,7 @@ class Estimates(object):
             idx_components = self.idx_components
 
         if idx_components is not None:
-            for field in ['C', 'S', 'YrA', 'R', 'g', 'bl', 'c1', 'neurons_sn', 'lam', 'cnn_preds','SNR_comp','r_values']:
+            for field in ['C', 'S', 'YrA', 'R', 'g', 'bl', 'c1', 'neurons_sn', 'lam', 'cnn_preds','SNR_comp','r_values','coordinates']:
                 if getattr(self, field) is not None:
                     if type(getattr(self, field)) is list:
                         setattr(self, field, np.array(getattr(self, field)))

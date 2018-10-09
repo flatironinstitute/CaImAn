@@ -57,16 +57,16 @@ logging.basicConfig(format=
                     "[%(process)d] %(message)s",
                     level=logging.INFO)
 
-# %%
+#%%
 def main():
     pass  # For compatibility between running under Spyder and the CLI
 
-# %% Select file(s) to be processed (download if not present)
+#%% Select file(s) to be processed (download if not present)
     fnames = ['Sue_2x_3000_40_-46.tif']  # filename to be processed
     if fnames[0] in ['Sue_2x_3000_40_-46.tif', 'demoMovie.tif']:
         fnames = [download_demo(fnames[0])]
 
-# %% First setup some parameters for data and motion correction
+#%% First setup some parameters for data and motion correction
 
     # dataset dependent parameters
     fr = 30             # imaging rate in frames per second
@@ -166,6 +166,11 @@ def main():
     gSig = [4, 4]            # expected half size of neurons in pixels
     # initialization method (if analyzing dendritic data using 'sparse_nmf')
     method_init = 'greedy_roi'
+    block_size = 5000            # number of pixels to use when computing residuals, reduce if memory issues
+    num_blocks_per_run = 10      # number of processes to use when computing residuals, reduce if memory issues
+    n_pixels_per_process = 4000  # number of pixels to use in each process during spatial update, reduce if memory issues
+    ssub = 2                     # spatial subsampling during initialization
+    tsub = 2                     # temporal subsampling during intialization
 
     # parameters for component evaluation
     opts_dict = {'fnames': fnames,
@@ -178,7 +183,17 @@ def main():
                  'method_init': method_init,
                  'rolling_sum': True,
                  'merge_thr': merge_thresh,
-                 'n_processes': n_processes}
+                 'n_processes': n_processes,
+                 'only_init': True,
+                 'block_size_temp': block_size,
+                 'block_size_spat': block_size,
+                 'num_blocks_per_run_spat': num_blocks_per_run,
+                 'num_blocks_per_run_temp': num_blocks_per_run,
+                 'n_pixels_per_process': n_pixels_per_process,
+                 'ssub': ssub,
+                 'tsub': tsub,
+                 'thr_method': 'nrg'
+                 }
 
     opts.change_params(params_dict=opts_dict)
 # %% RUN CNMF ON PATCHES
@@ -203,22 +218,24 @@ def main():
 
 # %% RE-RUN seeded CNMF on accepted patches to refine and perform deconvolution
     cnm.params.set('temporal', {'p': p})
-    cnm2 = cnm.refit(images)
+    cnm2 = cnm.refit(images, dview=dview)
     # %% COMPONENT EVALUATION
     # the components are evaluated in three ways:
     #   a) the shape of each component must be correlated with the data
     #   b) a minimum peak SNR is required over the length of a transient
     #   c) each shape passes a CNN based classifier
     min_SNR = 2  # signal to noise ratio for accepting a component
-    rval_thr = 0.8  # space correlation threshold for accepting a component
-    cnn_thr = 0.85  # threshold for CNN based classifier
+    rval_thr = 0.85  # space correlation threshold for accepting a component
+    cnn_thr = 0.99  # threshold for CNN based classifier
+    cnn_lowest = 0.1 # neurons with cnn probability lower than this value are rejected
+
     cnm2.params.set('quality', {'decay_time': decay_time,
                                'min_SNR': min_SNR,
                                'rval_thr': rval_thr,
-                               'use_cnn': False,
-                               'min_cnn_thr': cnn_thr})
+                               'use_cnn': True,
+                               'min_cnn_thr': cnn_thr,
+                               'cnn_lowest': cnn_lowest})
     cnm2.estimates.evaluate_components(images, cnm2.params, dview=dview)
-
     # %% PLOT COMPONENTS
     cnm2.estimates.plot_contours(img=Cn, idx=cnm2.estimates.idx_components)
 

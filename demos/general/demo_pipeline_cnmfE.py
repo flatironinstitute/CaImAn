@@ -60,7 +60,6 @@ def main():
                                                      single_thread=False)
 
 # %% First setup some parameters for motion correction
-
     # dataset dependent parameters
     fnames = ['data_endoscope.tif']  # filename to be processed
     fnames = [download_demo(fnames[0])]  # download file if not already present

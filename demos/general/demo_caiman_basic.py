@@ -115,22 +115,28 @@ def main():
     #   c) each shape passes a CNN based classifier (this will pick up only neurons
     #           and filter out active processes)
 
-    min_SNR = 2.5       # peak SNR for accepted components (if above this, acept)
-    rval_thr = 0.90     # space correlation threshold (if above this, accept)
+    min_SNR = 2      # peak SNR for accepted components (if above this, acept)
+    rval_thr = 0.85     # space correlation threshold (if above this, accept)
     use_cnn = True      # use the CNN classifier
-    min_cnn_thr = 0.95  # if cnn classifier predicts below this value, reject
+    min_cnn_thr = 0.99  # if cnn classifier predicts below this value, reject
+    cnn_lowest = 0.1 # neurons with cnn probability lower than this value are rejected
 
     cnm2.params.set('quality', {'min_SNR': min_SNR,
                                 'rval_thr': rval_thr,
                                 'use_cnn': use_cnn,
-                                'min_cnn_thr': min_cnn_thr})
+                                'min_cnn_thr': min_cnn_thr,
+                                'cnn_lowest': cnn_lowest})
 
     cnm2.estimates.evaluate_components(images, cnm2.params, dview=dview)
-# %% visualize selected and rejected components
-    cnm2.estimates.plot_contours(img=Cn, idx=cnm2.estimates.idx_components)
 
-# %% visualize selected components
+    # %% visualize selected and rejected components
+    cnm2.estimates.plot_contours(img=Cn, idx=cnm2.estimates.idx_components)
+    # %% visualize selected components
     cnm2.estimates.view_components(images, idx=cnm2.estimates.idx_components, img=Cn)
+    #%% only select high quality components
+    cnm2.estimates.select_components(use_object=True)
+    #%%
+    cnm2.estimates.plot_contours(img=Cn)
 
 # %% play movie with results (original, reconstructed, amplified residual)
     cnm2.estimates.play_movie(images, magnification=4)
