@@ -7,7 +7,7 @@ CaImAn
 [![Join the chat at https://gitter.im/agiovann/SOURCE_EXTRACTION_PYTHON](https://badges.gitter.im/agiovann/SOURCE_EXTRACTION_PYTHON.svg)](https://gitter.im/agiovann/SOURCE_EXTRACTION_PYTHON?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 
-A Computational toolbox for large scale **Ca**lcium **Im**aging data **An**alysis and behavioral analysis.
+A Python toolbox for large scale **Ca**lcium **Im**aging data **An**alysis and behavioral analysis.
 
 CaImAn implements a set of essential methods required in the analysis pipeline of large scale calcium imaging data. Fast and scalable algorithms are implemented for motion correction, source extraction, spike deconvolution, and component registration across multiple days. It is suitable for both two-photon and one-photon fluorescence microscopy data, and can be run in both batch and online modes. CaImAn also contains some routines for the analysis of behavior from video cameras. A list of features as well as relevant references can be found [here](https://github.com/flatironinstitute/CaImAn/wiki/CaImAn-features-and-references).
 
