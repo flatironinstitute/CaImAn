@@ -9,7 +9,7 @@ CaImAn
 
 A Computational toolbox for large scale **Ca**lcium **Im**aging data **An**alysis and behavioral analysis.
 
-Recent advances in calcium imaging acquisition techniques are creating datasets of the order of Terabytes/week. Memory and computationally efficient algorithms are required to analyze in reasonable amount of time terabytes of data. This project implements a set of essential methods required in the calcium imaging movies analysis pipeline. Fast and scalable algorithms are implemented for motion correction, movie manipulation, and source and spike extraction. CaImAn also contains some routines for the analysis of behavior from video cameras. In summary, CaImAn provides a general purpose tool to handle large movies, with special emphasis on tools for two-photon and one-photon calcium imaging and behavioral datasets. 
+CaImAn implements a set of essential methods required in the analysis pipeline of large scale calcium imaging data. Fast and scalable algorithms are implemented for motion correction, source extraction, spike deconvolution, and component registration across multiple days. It is suitable for both two-photon and one-photon fluorescence microscopy data, and can be run in both batch and online modes. CaImAn also contains some routines for the analysis of behavior from video cameras. A list of features as well as relevant references can be found [here](https://github.com/flatironinstitute/CaImAn/wiki/CaImAn-features-and-references).
 
 ## Companion paper
 A paper explaining most of the implementation details and benchmarking can be found [here](https://www.biorxiv.org/content/early/2018/06/05/339564).
@@ -25,48 +25,17 @@ A paper explaining most of the implementation details and benchmarking can be fo
 }
 ```
 
-## Features
+## New: Code refactoring (October 2018)
 
-* **Handling of very large datasets** 
-    * Memory mapping 
-    * Parallel processing in patches
-    * Frame-by-frame online processing [[6]](#onacid)
-    * OpenCV-based efficient movie playing and resizing
+We recently refactored the code to simplify the parameter setting and usage of the various algorithms. The code now is based revolves around the following objects:
 
-* **Motion correction** [[7]](#normcorre)
-
-    * Fast parallelizable OpenCV and FFT-based motion correction of large movies
-    * Can be run also in online mode (i.e. one frame at a time)
-    * Corrects for non-rigid artifacts due to raster scanning or non-uniform brain motion
-    * FFTs can be computed on GPUs (experimental). Requires pycuda and skcuda to be installed.
-
-* **Source extraction** 
-
-    * Separates different sources based on constrained nonnegative matrix Factorization (CNMF) [[1-3]](#caiman)
-    * Deals with heavily overlapping and neuropil contaminated movies     
-    * Suitable for both 2-photon [[2]](#neuron) and 1-photon [[4]](#cnmfe) calcium imaging data
-    * Selection of inferred sources using a pre-trained convolutional neural network classifier
-    * Online processing available [[6]](#onacid)
-
-* **Denoising, deconvolution and spike extraction**
-
-    * Infers neural activity from fluorescence traces [[2]](#neuron)
-    * Also works in online mode (i.e. one sample at a time) [[5]](#oasis)
-
-* **Behavioral Analysis** [[8]](#behavior)
-
-    * Unsupervised algorithms based on optical flow and NMF to automatically extract motor kinetics 
-    * Scales to large datasets by exploiting online dictionary learning
-    * We also developed a tool for acquiring movies at high speed with low cost equipment [[Github repository]](https://github.com/bensondaled/eyeblink). 
-    
-* **Variance Stabilization** [[9]](#vst)
-    * Noise parameters estimation under the Poisson-Gaussian noise model
-    * Fast algorithm that scales to large datasets
-    * A basic demo can be found at `CaImAn/demos/notebooks/demo_VST.ipynb` 
-
-## New: Online analysis
-
-We recently incorporated a Python implementation of the OnACID [[6]](#onacid) algorithm, that enables processing data in an online mode and in real time. Check the script ```demos/general/demo_OnACID_mesoscope.py``` or the notebook ```demos/notebooks/demo_OnACID_mesoscope.ipynb``` for an application on two-photon mesoscope data provided by the Tolias lab (Baylor College of Medicine).
+* `params`: A single object containing a set of dictionaries with the parameters used in all the algorithms. It can be set and changed easily and is passed into all the algorithms.
+* `MotionCorrect`: An object for motion correction which can be used for both rigid and piece-wise rigid motion correction.
+* `cnmf`: An object for running the CaImAn batch algorithm either in patches or not, suitable for both two-photon (CNMF) and one-photon (CNMF-E) data.
+* `online_cnmf`: An object for running the CaImAn online (OnACID) algorithm on two-photon data with or without motion correction.
+* `estimates`: A single object that stores the results of the algorithms (CaImAn batch, CaImAn online) in a unified way that also contains plotting methods. For an interpretation of the various entries of the `estimates` object see [here](https://github.com/flatironinstitute/CaImAn/wiki/Interpreting-Results).
+   
+To see examples of how these methods are used, please consult the demos. While the `cnmf` methods can also be called in the old way by passing all the parameters when initializing the `cnmf` object, we recommend using the `params` object. Similarly, to run the CaImAn online algorithm it is recommended to pass a `params` object inside the `online_cnmf` object. Older scripts should be usable with the latest version of the code except for online analysis where the `cnmf` object will need to be replaced with an `online_cnmf` object. The results should be read from `estimates`, i.e., `cnm.estimates.C` as opposed to `cnm.C`.
 
 ## Installation for calcium imaging data analysis
 
@@ -230,21 +199,20 @@ Some tools that are currently available in Matlab but have been ported to CaImAn
 - [MCMC spike inference](https://github.com/epnev/continuous_time_ca_sampler) 
 - [Group LASSO initialization and spatial CNMF](https://github.com/danielso/ROI_detect)
 
-
-## Troubleshooting
-
-A list of known issues can be found [here](https://github.com/flatironinstitute/CaImAn/wiki/Known-Issues). If you still encounter problems please open an issue.
-
 ## Dependencies
 
 A list of dependencies can be found in the [environment file](https://github.com/flatironinstitute/CaImAn/blob/master/environment.yml).
 
-# Documentation & Wiki
+## Documentation & Wiki
 
 Documentation of the code can be found [here](http://flatironinstitute.github.io/CaImAn/). 
-Moreover, our [wiki page](https://github.com/flatironinstitute/CaImAn/wiki) covers some aspects of the code.
+Moreover, our [wiki page](https://github.com/flatironinstitute/CaImAn/wiki) covers some aspects of the code. A list of known issues can be found [here](https://github.com/flatironinstitute/CaImAn/wiki/Known-Issues). If you still encounter problems please open an issue.
 
-# Acknowledgements
+## Questions, comments, issues
+
+Please use the [gitter chat room](https://gitter.im/agiovann/Constrained_NMF) for questions and comments and create an issue for any bugs you might encounter.
+
+## Acknowledgements
 
 Special thanks to the following people for letting us use their datasets for our various demo files:
 
@@ -253,11 +221,7 @@ Special thanks to the following people for letting us use their datasets for our
 * Manolis Froudarakis, Jake Reimers, Andreas Tolias, Baylor College of Medicine
 
 
-# Questions, comments, issues
-
-Please use the [gitter chat room](https://gitter.im/agiovann/Constrained_NMF) for questions and comments and create an issue for any bugs you might encounter.
-
-# License
+## License
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
