@@ -9,10 +9,10 @@ CaImAn
 
 A Computational toolbox for large scale **Ca**lcium **Im**aging data **An**alysis and behavioral analysis.
 
-Recent advances in calcium imaging acquisition techniques are creating datasets of the order of Terabytes/week. Memory and computationally efficient algorithms are required to analyze in reasonable amount of time terabytes of data. This project implements a set of essential methods required in the calcium imaging movies analysis pipeline. Fast and scalable algorithms are implemented for motion correction, movie manipulation, and source and spike extraction. CaImAn also contains some routines for the analyisis of behavior from video cameras. In summary, CaImAn provides a general purpose tool to handle large movies, with special emphasis on tools for two-photon and one-photon calcium imaging and behavioral datasets. 
+Recent advances in calcium imaging acquisition techniques are creating datasets of the order of Terabytes/week. Memory and computationally efficient algorithms are required to analyze in reasonable amount of time terabytes of data. This project implements a set of essential methods required in the calcium imaging movies analysis pipeline. Fast and scalable algorithms are implemented for motion correction, movie manipulation, and source and spike extraction. CaImAn also contains some routines for the analysis of behavior from video cameras. In summary, CaImAn provides a general purpose tool to handle large movies, with special emphasis on tools for two-photon and one-photon calcium imaging and behavioral datasets. 
 
 ## Companion paper
-A paper explaining most of the implementation details and benchmarking can be found at this [link](https://www.biorxiv.org/content/early/2018/06/05/339564)
+A paper explaining most of the implementation details and benchmarking can be found [here](https://www.biorxiv.org/content/early/2018/06/05/339564).
 
 ```
 @article{giovannucci2018caiman,
@@ -27,7 +27,7 @@ A paper explaining most of the implementation details and benchmarking can be fo
 
 ## Features
 
-* **Handling of very large datasets**
+* **Handling of very large datasets**[[1]](#caiman)
 
     * Memory mapping 
     * Parallel processing in patches
@@ -176,11 +176,13 @@ Please read [this link](CLUSTER.md) for information on your clustering options a
 * Andrea Giovannucci, **Flatiron Institute, Simons Foundation**
 * Eftychios A. Pnevmatikakis, **Flatiron Institute, Simons Foundation** 
 * Johannes Friedrich, **Flatiron Institute, Simons Foundation**
-* Mariano Tepper, **Flatiron Institute, Simons Foundation**
+* Pat Gunn, **Flatiron Institute, Simons Foundation**
 * Erick, Cobos, **Baylor College of Medicine**
 * Valentina Staneva, **University of Washington**
 * Ben Deverett, **Princeton University**
 * Jérémie Kalfon, **University of Kent, ECE paris** 
+* Mike Schachter, **Inscopix**
+* Brandon Brown, **UCSF**
 
 A complete list of contributors can be found [here](https://github.com/flatironinstitute/CaImAn/graphs/contributors).
 
@@ -239,28 +241,7 @@ A list of known issues can be found [here](https://github.com/flatironinstitute/
 
 ## Dependencies
 
-The code uses the following libraries
-- [NumPy](http://www.numpy.org/)
-- [SciPy](http://www.scipy.org/)
-- [Matplotlib](http://matplotlib.org/)
-- [Scikit-Learn](http://scikit-learn.org/stable/)
-- [ipyparallel](http://ipyparallel.readthedocs.org/en/latest/) for parallel processing
-- [opencv](http://opencv.org/) for efficient image manipulation and visualization
-- [Tifffile](https://pypi.python.org/pypi/tifffile) For reading tiff files. Other choices can work there too.
-- [cvxpy](http://www.cvxpy.org/) for solving optimization problems (for deconvolution, optional)
-- [Spams](http://spams-devel.gforge.inria.fr/) for online dictionary learning (for behavioral analysis, optional)
-
-For the constrained deconvolution method (```deconvolution.constrained_foopsi```) various solvers can be used, some of which require additional packages:
-
-1. ```'cvxpy'```: (default) For this option, the following packages are needed:
-  * [CVXOPT](http://cvxopt.org/) optional.
-  * [CVXPY](http://www.cvxpy.org/) optional.
-2. ```'cvx'```: For this option, the following packages are needed:
-  * [CVXOPT](http://cvxopt.org/) optional.
-  * [PICOS](http://picos.zib.de/) optional.
-
-In general ```'cvxpy'``` can be faster, when using the 'ECOS' or 'SCS' solvers, which are included with the CVXPY installation. Note that these dependencies are circumvented by using the OASIS algoritm for deconvolution.
-
+A list of dependencies can be found in the [environment file](https://github.com/flatironinstitute/CaImAn/blob/master/environment.yml).
 
 # Documentation & Wiki
 
