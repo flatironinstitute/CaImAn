@@ -27,8 +27,7 @@ A paper explaining most of the implementation details and benchmarking can be fo
 
 ## Features
 
-* **Handling of very large datasets**[[1]](#caiman)
-
+* **Handling of very large datasets** 
     * Memory mapping 
     * Parallel processing in patches
     * Frame-by-frame online processing [[6]](#onacid)
@@ -43,7 +42,7 @@ A paper explaining most of the implementation details and benchmarking can be fo
 
 * **Source extraction** 
 
-    * Separates different sources based on constrained nonnegative matrix Factorization (CNMF) [[1-3]](#neuron)
+    * Separates different sources based on constrained nonnegative matrix Factorization (CNMF) [[1-3]](#caiman)
     * Deals with heavily overlapping and neuropil contaminated movies     
     * Suitable for both 2-photon [[2]](#neuron) and 1-photon [[4]](#cnmfe) calcium imaging data
     * Selection of inferred sources using a pre-trained convolutional neural network classifier
@@ -77,6 +76,7 @@ In May 2018, the way CaImAn is installed changed; we now register the package wi
 * Unless you're installing with `pip install -e` (documented below), you should no longer work out of your checkout directory. The new install mode expects you to use caimanmanager (also documented below) to manage the demos and the place in which you'll be running code. An installed version of caimanmanager will be added to your path and should not be run out of the checkout directory.
 
 In July 2018, Python 2.x support was removed; Python 3.6 or higher is required for CaImAn.
+
 ### Upgrading CaImAn
 
 If you want to upgrade CaImAn (and have already used the pip installer to install it) following the instructions given in the [wiki](https://github.com/flatironinstitute/CaImAn/wiki/Updating-CaImAn).
@@ -164,8 +164,6 @@ They are located in the `demos/notebooks`. To launch one of the jupyter notebook
    
 * If you want to directly launch the python files, your python console still must be in the CaImAn directory. 
 
-## On Clustering
-Please read [this link](CLUSTER.md) for information on your clustering options and how to avoid trouble with them.
 
 ## Testing
 
@@ -217,8 +215,6 @@ If you use this code please cite the corresponding papers where original methods
 ### Behavioral Analysis
 
 <a name="behavior"></a>[8] Giovannucci, A., Pnevmatikakis, E. A., Deverett, B., Pereira, T., Fondriest, J., Brady, M. J., ... & Masip, D. (2017). Automated gesture tracking in head-fixed mice. Journal of Neuroscience Methods, 300:184-195. [[paper]](https://doi.org/10.1016/j.jneumeth.2017.07.014).
-
-
 
 ### Variance Stabilization
 
