@@ -40,7 +40,7 @@ from caiman.source_extraction.cnmf.cnmf import load_CNMF
 
 # %%  ANALYSIS MODE AND PARAMETERS
 reload = False
-plot_on = True
+plot_on = False
 save_on = False  # set to true to recreate
 
 
@@ -92,7 +92,7 @@ global_params = {'SNR_lowest': 0.5,
                  'alpha_snmf': None,
                  'init_method': 'greedy_roi',
                  'filter_after_patch': False,
-                 'tsub': 2 ,
+                 'tsub': 2,
                  'ssub': 2
                  }
 # %%
@@ -270,8 +270,7 @@ def from_zip_file_to_movie(zipfile_name):
 
                 if idx%100 == 0:
                     print(idx)
-    min_mov =  np.min(mov)
-    mov = mov - min_mov
+
     return cm.movie(mov)
 
 # %%
@@ -297,6 +296,8 @@ for params_movie in np.array(params_movies)[ID]:
     if not os.path.exists(fname_new): # in case we need to reload from zip files
         fname_zip = os.path.join(base_folder, params_movie['fname'].split('/')[0], 'images', 'images.zip')
         m = from_zip_file_to_movie(fname_zip)
+        min_mov = np.min(m) - 1
+        m -= min_mov
         m.save(fname_new[:fname_new.rfind('_d1_')] + '.mmap', order='C')
 
 
