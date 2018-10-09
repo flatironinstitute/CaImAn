@@ -63,6 +63,7 @@ skip_refinement = False
 backend_patch = 'local'
 backend_refine = 'local'
 n_processes = 24
+# base_folder = '/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/WEBSITE/'
 base_folder = '/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/'
 n_pixels_per_process = 4000
 block_size = 5000
@@ -249,7 +250,28 @@ params_movie = {
 params_movies.append(params_movie.copy())
 
 
+#%%
+def from_zip_file_to_movie(zipfile_name):
+    import sys
+    from zipfile import ZipFile
+    from PIL import Image # $ pip install pillow
+    import caiman as cm
+    mov = []
+    print('unzipping file into movie object')
+    with ZipFile(zipfile_name) as archive:
+        for idx, entry in enumerate(archive.infolist()):
+            with archive.open(entry) as file:
+                if idx == 0:
+                    img = np.array(Image.open(file))
+                    mov = np.zeros([len(archive.infolist()), *img.shape], dtype=np.float32)
+                    mov[idx] = img
+                else:
+                    mov[idx] = np.array(Image.open(file))
 
+                if idx%100 == 0:
+                    print(idx)
+
+    return cm.movie(mov)
 
 # %%
 all_perfs = []
@@ -271,6 +293,13 @@ for params_movie in np.array(params_movies)[ID]:
 
     fname_new = os.path.join(base_folder, params_movie['fname'])
     print(fname_new)
+    if not os.path.exists(fname_new): # in case we need to reload from zip files
+        fname_zip = os.path.join(base_folder, params_movie['fname'].split('/')[0], 'images', 'images.zip')
+        m = from_zip_file_to_movie(fname_zip)
+        m.save(fname_new[:fname_new.rfind('_d1_')] + '.mmap', order='C')
+
+
+
     # %% LOAD MEMMAP FILE
     Yr, dims, T = cm.load_memmap(fname_new)
     d1, d2 = dims
@@ -456,11 +485,11 @@ for params_movie in np.array(params_movies)[ID]:
     performance_tmp['CCs'] = [scipy.stats.pearsonr(a, b)[0] for a, b in
                     zip(gt_estimate.C[tp_gt], cnm2.estimates.C[tp_comp])]
 
-    with np.load(os.path.join(base_folder,fname_new.split('/')[-2],'gt_eval.npz')) as ld:
-        print(ld.keys())
-        performance_tmp.update(ld)
-
-    performance_tmp['idx_components_gt'] = idx_components_gt
+    # with np.load(os.path.join(base_folder,fname_new.split('/')[-2],'gt_eval.npz')) as ld:
+    #     print(ld.keys())
+    #     performance_tmp.update(ld)
+    #
+    # performance_tmp['idx_components_gt'] = idx_components_gt
     # ALL_CCs.append([scipy.stats.pearsonr(a, b)[0] for a, b in
     #                 zip(gt_estimate.C[tp_gt], cnm2.estimates.C[tp_comp])])
     #
@@ -471,31 +500,28 @@ for params_movie in np.array(params_movies)[ID]:
     if save_on :
         print('SAVING...' + fname_new[:-5] + '_perf_Sep_2018_gsig.npz')
         np.savez(fname_new[:-5] + '_perf_Sep_2018_gsig.npz', all_results=performance_tmp)
+
+    results_old = {'N.00.00': 0.723,
+                   'N.01.01': 0.763,
+                   'N.03.00.t': 0.779,
+                   'N.04.00.t': 0.692,
+                   'YST': 0.773}
+
+    results_holding = True
+    for kk, res in all_results.items():
+        print(kk + ' f1_score_new : ' + str(all_results[kk]['f1_score']) + ',f1_score_old:' + str(results_old[kk]),
+              ',delta:' + str(results_old[kk] - all_results[kk]['f1_score']))
+        if (results_old[kk] - all_results[kk]['f1_score']) > 0.01:
+            results_holding = False
+
+    assert results_holding, 'F1 scores are decreasing, check your code for errors'
 #
 # if save_all:
 #     # here eventually save when in a loop
 #     np.savez(os.path.join(base_folder,'all_res_sept_2018.npz'), all_results=all_results)
 #     print('Saving not implementd')
 #%%
-results_old = { 'N.00.00': 0.723,
-                'N.01.01': 0.763,
-                'N.03.00.t': 0.779,
-                'N.04.00.t': 0.692,
-                'YST': 0.773}
 
-# J115         0.799274
-# J123         0.774194
-# K53          0.765217
-# N.02.00      0.797260
-
-results_holding = True
-for kk, res in all_results.items():
-    print(kk+ ' f1_score_new : '+ str(all_results[kk]['f1_score']) + ',f1_score_old:' + str(results_old[kk]), ',delta:' + str(results_old[kk]-all_results[kk]['f1_score']))
-    if (results_old[kk]-all_results[kk]['f1_score']) > 0.01:
-        results_holding = False
-
-
-assert (results_holding), 'F1 scores are decreasing, check your code for errors'
 
 
 
