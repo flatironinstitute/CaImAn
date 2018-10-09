@@ -191,9 +191,7 @@ def main():
                  'num_blocks_per_run_temp': num_blocks_per_run,
                  'n_pixels_per_process': n_pixels_per_process,
                  'ssub': ssub,
-                 'tsub': tsub,
-                 'thr_method': 'nrg'
-                 }
+                 'tsub': tsub}
 
     opts.change_params(params_dict=opts_dict)
 # %% RUN CNMF ON PATCHES
