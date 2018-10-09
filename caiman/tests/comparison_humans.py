@@ -31,7 +31,7 @@ import time
 import pylab as pl
 import scipy
 import sys
-from caiman.utils.visualization import plot_contours
+from caiman.base.movies import from_zip_file_to_movie
 from caiman.source_extraction.cnmf import cnmf as cnmf
 from caiman.source_extraction.cnmf.estimates import Estimates, compare_components
 from caiman.cluster import setup_cluster
@@ -249,29 +249,6 @@ params_movie = {
 }
 params_movies.append(params_movie.copy())
 
-
-#%%
-def from_zip_file_to_movie(zipfile_name):
-    import sys
-    from zipfile import ZipFile
-    from PIL import Image # $ pip install pillow
-    import caiman as cm
-    mov = []
-    print('unzipping file into movie object')
-    with ZipFile(zipfile_name) as archive:
-        for idx, entry in enumerate(archive.infolist()):
-            with archive.open(entry) as file:
-                if idx == 0:
-                    img = np.array(Image.open(file))
-                    mov = np.zeros([len(archive.infolist()), *img.shape], dtype=np.float32)
-                    mov[idx] = img
-                else:
-                    mov[idx] = np.array(Image.open(file))
-
-                if idx%100 == 0:
-                    print(idx)
-
-    return cm.movie(mov)
 
 # %%
 all_perfs = []

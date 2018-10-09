@@ -88,13 +88,6 @@ def precision_snr(snr_gt, snr_gt_fn, snr_cnmf, snr_cnmf_fp, snr_thrs):
 base_folder = '/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/'
 with np.load(os.path.join(base_folder,'all_res_sept_2018.npz')) as ld:
     all_results = ld['all_results'][()]
-
-#%%
-# for k, fl_results in all_results_.items():
-#     print({kk_:vv_ for kk_,vv_ in fl_results.items() if 'gt' in kk_ and kk_ not in ['tp_gt','fn_gt']}.keys())
-#     print(os.path.join(base_folder,k,'gt_eval.npz'))
-#     np.savez(os.path.join(base_folder,k,'gt_eval.npz'),**{kk_:vv_ for kk_,vv_ in fl_results.items()
-#                                                          if ('gt' in kk_ )and (kk_ not in ['tp_gt','fn_gt'])})
 # %% CREATE FIGURES
 if print_figs:
     # %% FIGURE 5a MASKS  (need to use the dataset k53)

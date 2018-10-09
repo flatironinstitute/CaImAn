@@ -28,7 +28,6 @@ import logging
 from matplotlib import animation
 import numpy as np
 import os
-import pickle as cpk
 import pylab as pl
 import scipy.ndimage
 import scipy
@@ -43,6 +42,10 @@ import sys
 import tifffile
 from tqdm import tqdm
 import warnings
+from zipfile import ZipFile
+from PIL import Image  # $ pip install pillow
+import caiman as cm
+
 
 from . import timeseries
 
@@ -1614,5 +1617,22 @@ def to_3D(mov2D, shape, order='F'):
     """
     return np.reshape(mov2D, shape, order=order)
 
+#%%
+def from_zip_file_to_movie(zipfile_name):
+    mov = []
+    print('unzipping file into movie object')
+    with ZipFile(zipfile_name) as archive:
+        for idx, entry in enumerate(archive.infolist()):
+            with archive.open(entry) as file:
+                if idx == 0:
+                    img = np.array(Image.open(file))
+                    mov = np.zeros([len(archive.infolist()), *img.shape], dtype=np.float32)
+                    mov[idx] = img
+                else:
+                    mov[idx] = np.array(Image.open(file))
 
+                if idx%100 == 0:
+                    print(idx)
+
+    return cm.movie(mov)
 

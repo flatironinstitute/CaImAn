@@ -29,18 +29,18 @@ import time
 import pylab as pl
 import scipy
 import sys
-from caiman.utils.visualization import plot_contours
 from caiman.source_extraction.cnmf import cnmf as cnmf
 from caiman.source_extraction.cnmf.estimates import Estimates, compare_components
 from caiman.cluster import setup_cluster
 from caiman.source_extraction.cnmf import params as params
 from caiman.source_extraction.cnmf.cnmf import load_CNMF
-
+from caiman.base.movies import from_zip_file_to_movie
 # %%  ANALYSIS MODE AND PARAMETERS
 reload = False
 plot_on = False
-save_on = True  # set to true to recreate
-
+save_on = True  # set to true to recreate results for each file
+save_all = True  # set to True to generate results for all files
+check_result_consistency = False
 
 try:
     if 'pydevconsole' in sys.argv[0]:
@@ -51,25 +51,26 @@ try:
     ID = [np.int(ID)]
 
 except:
-    ID = np.arange(7,8)
+    ID = np.arange(9)
     print('ID NOT PASSED')
 
 
 
 print_figs = True
 skip_refinement = False
-backend_patch = 'multiprocessing'
-backend_refine = 'multiprocessing'
-n_processes = 28
-base_folder = '/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/'
-n_pixels_per_process = 6000
-block_size = 6000
+backend_patch = 'local'
+backend_refine = 'local'
+n_processes = 24
+base_folder = '/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/WEBSITE/'
+# base_folder = '/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/'
+n_pixels_per_process = 4000
+block_size = 5000
 num_blocks_per_run = 20
 # %%
 global_params = {'SNR_lowest': 0.5,
                  'min_SNR': 2,  # minimum SNR when considering adding a new neuron
                  'gnb': 2,  # number of background components
-                 'rval_thr': 0.8,  # spatial correlation threshold
+                 'rval_thr': 0.85,  # spatial correlation threshold
                  'min_rval_thr_rejected': -1.1,
                  'min_cnn_thresh': 0.99,
                  'max_classifier_probability_rejected': 0.1,
@@ -178,7 +179,6 @@ params_movie = {
     # 'fname': '/opt/local/Data/labeling/neurofinder.02.00/Yr_d1_512_d2_512_d3_1_order_C_frames_8000_.mmap',
     'fname': 'N.02.00/Yr_d1_512_d2_512_d3_1_order_C_frames_8000_.mmap',
     'gtname': 'N.02.00/joined_consensus_active_regions.npy',
-    'tiffname': '/mnt/ceph/neuro/labeling/neurofinder.02.00/images/mmap_tifs/images_all_rig__d1_512_d2_512_d3_1_order_F_frames_8000_.tif',
     # order of the autoregressive system
     'merge_thresh': 0.8,  # merging threshold, max correlation allow
     'rf': 20,  # half-size of the patches in pixels. rf=25, patches are 50x50    20
@@ -247,10 +247,9 @@ params_movie = {
 }
 params_movies.append(params_movie.copy())
 
+
 #%%
-from scipy.io import savemat
-for idx, params_movie in enumerate(params_movies):
-    savemat('/mnt/home/agiovann/SOFTWARE/CaImAn-MATLAB/file_parameters_' + str(idx) + '.mat', params_movie)
+
 # %%
 all_perfs = []
 all_rvalues = []
@@ -271,6 +270,15 @@ for params_movie in np.array(params_movies)[ID]:
 
     fname_new = os.path.join(base_folder, params_movie['fname'])
     print(fname_new)
+    if not os.path.exists(fname_new): # in case we need to reload from zip files
+        fname_zip = os.path.join(base_folder, params_movie['fname'].split('/')[0], 'images', 'images.zip')
+        m = from_zip_file_to_movie(fname_zip)
+        min_mov = np.min(m) - 1
+        m -= min_mov
+        m.save(fname_new[:fname_new.rfind('_d1_')] + '.mmap', order='C')
+
+
+
     # %% LOAD MEMMAP FILE
     Yr, dims, T = cm.load_memmap(fname_new)
     d1, d2 = dims
@@ -331,7 +339,7 @@ for params_movie in np.array(params_movies)[ID]:
 
     opts = params.CNMFParams(params_dict=params_dict)
     if reload:
-        cnm2 = load_CNMF(fname_new[:-5] + '_cnmf_gsig.hdf5')
+        cnm2 = load_CNMF(fname_new[:-5] + '_cnmf_perf_web.hdf5')
 
     else:
         # %% Extract spatial and temporal components on patches
@@ -360,7 +368,7 @@ for params_movie in np.array(params_movies)[ID]:
         cnm2 = cnm.refit(images, dview=dview)
         t_refit = time.time() - t1
         if save_on:
-            cnm2.save(fname_new[:-5] + '_cnmf_gsig.hdf5')
+            cnm2.save(fname_new[:-5] + '_cnmf_perf_web.hdf5')
 
 
 
@@ -438,7 +446,7 @@ for params_movie in np.array(params_movies)[ID]:
     print(fname_new+str({a: b.astype(np.float16) for a, b in performance_cons_off.items()}))
     cnm2.estimates.A_thr = scipy.sparse.csc_matrix(cnm2.estimates.A_thr)
     if save_on:
-        cnm2.save(fname_new[:-5] + '_cnmf_gsig_after_analysis.hdf5')
+        cnm2.save(fname_new[:-5] + '_cnmf_perf_web_after_analysis.hdf5')
 
     performance_cons_off['fname_new'] = fname_new
     performance_tmp = performance_cons_off.copy()
@@ -472,14 +480,30 @@ for params_movie in np.array(params_movies)[ID]:
 
     all_results[fname_new.split('/')[-2]] = performance_tmp
 
-    if save_on :
-        print('SAVING...' + fname_new[:-5] + '_perf_Sep_2018_gsig.npz')
-        np.savez(fname_new[:-5] + '_perf_Sep_2018_gsig.npz', all_results=performance_tmp)
-#
-# if save_all:
-#     # here eventually save when in a loop
-#     np.savez(os.path.join(base_folder,'all_res_sept_2018.npz'), all_results=all_results)
-#     print('Saving not implementd')
+    if save_on:
+        print('SAVING...' + fname_new[:-5] + '_perf_web_gsig.npz')
+        np.savez(fname_new[:-5] + '_perf_web_gsig.npz', all_results=performance_tmp)
+
+    if check_result_consistency:
+        results_old = {'N.00.00': 0.723,
+                       'N.01.01': 0.763,
+                       'N.03.00.t': 0.779,
+                       'N.04.00.t': 0.692,
+                       'YST': 0.773}
+
+        results_holding = True
+        for kk, res in all_results.items():
+            print(kk + ' f1_score_new : ' + str(all_results[kk]['f1_score']) + ',f1_score_old:' + str(results_old[kk]),
+                  ',delta:' + str(results_old[kk] - all_results[kk]['f1_score']))
+            if (results_old[kk] - all_results[kk]['f1_score']) > 0.01:
+                results_holding = False
+
+        assert results_holding, 'F1 scores are decreasing, check your code for errors'
+    #
+    if save_all:
+        # here eventually save when in a loop
+        np.savez(os.path.join(base_folder,'all_res_web.npz'), all_results=all_results)
+        print('Saving not implementd')
 
 
 
