@@ -40,7 +40,7 @@ from caiman.source_extraction.cnmf.cnmf import load_CNMF
 
 # %%  ANALYSIS MODE AND PARAMETERS
 reload = False
-plot_on = False
+plot_on = True
 save_on = False  # set to true to recreate
 
 
@@ -63,8 +63,8 @@ skip_refinement = False
 backend_patch = 'local'
 backend_refine = 'local'
 n_processes = 24
-# base_folder = '/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/WEBSITE/'
-base_folder = '/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/'
+base_folder = '/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/WEBSITE/'
+# base_folder = '/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/'
 n_pixels_per_process = 4000
 block_size = 5000
 num_blocks_per_run = 20
@@ -270,7 +270,8 @@ def from_zip_file_to_movie(zipfile_name):
 
                 if idx%100 == 0:
                     print(idx)
-
+    min_mov =  np.min(mov)
+    mov = mov - min_mov
     return cm.movie(mov)
 
 # %%
