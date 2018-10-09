@@ -215,35 +215,46 @@ class Estimates(object):
             thr : float
                 threshold value
         """
-        if 'csc_matrix' not in str(type(self.A)):
-            self.A = scipy.sparse.csc_matrix(self.A)
-        if img is None:
-            img = np.reshape(np.array(self.A.mean(1)), self.dims, order='F')
-        if self.coordinates is None:  # not hasattr(self, 'coordinates'):
-            self.coordinates = caiman.utils.visualization.get_contours(self.A,
-                                    self.dims, thr=thr, thr_method=thr_method)
-        if idx is None:
-            caiman.utils.visualization.nb_plot_contour(img, self.A, self.dims[0],
-                            self.dims[1], coordinates=self.coordinates,
-                            thr_method=thr_method, thr=thr)
-        else:
-            if not isinstance(idx, list):
-                idx = idx.tolist()
-            coor_g = [self.coordinates[cr] for cr in idx]
-            bad = list(set(range(self.A.shape[1])) - set(idx))
-            coor_b = [self.coordinates[cr] for cr in bad]
-            plt.figure(figsize=(10,20))
-            plt.subplot(1, 2, 1)
-            caiman.utils.visualization.nb_plot_contour(img, self.A[:, idx],
-                            self.dims[0], self.dims[1], coordinates=coor_g,
-                            thr_method=thr_method, thr=thr)
-            plt.title('Accepted Components')
-            plt.subplot(1,2,2)
-            bad = list(set(range(self.A.shape[1])) - set(idx))
-            caiman.utils.visualization.nb_plot_contour(img, self.A[:, bad],
-                            self.dims[0], self.dims[1], coordinates=coor_b,
-                            thr_method=thr_method, thr=thr)
-            plt.title('Rejected Components')
+        try:
+            import bokeh
+            if 'csc_matrix' not in str(type(self.A)):
+                self.A = scipy.sparse.csc_matrix(self.A)
+            if img is None:
+                img = np.reshape(np.array(self.A.mean(1)), self.dims, order='F')
+            if self.coordinates is None:  # not hasattr(self, 'coordinates'):
+                self.coordinates = caiman.utils.visualization.get_contours(self.A,
+                                        self.dims, thr=thr, thr_method=thr_method)
+            if idx is None:
+                p = caiman.utils.visualization.nb_plot_contour(img, self.A, self.dims[0],
+                                self.dims[1], coordinates=self.coordinates,
+                                thr_method=thr_method, thr=thr, show=False)
+                p.title.text = 'Contour plots of found components'
+                bokeh.plotting.show(p)
+            else:
+                if not isinstance(idx, list):
+                    idx = idx.tolist()
+                coor_g = [self.coordinates[cr] for cr in idx]
+                bad = list(set(range(self.A.shape[1])) - set(idx))
+                coor_b = [self.coordinates[cr] for cr in bad]
+                p1 = caiman.utils.visualization.nb_plot_contour(img, self.A[:, idx],
+                                self.dims[0], self.dims[1], coordinates=coor_g,
+                                thr_method=thr_method, thr=thr, show=False)
+                p1.plot_width = 450
+                p1.plot_height = 450 * self.dims[0] // self.dims[1] 
+                p1.title.text = "Accepted Components"
+                bad = list(set(range(self.A.shape[1])) - set(idx))
+                p2 = caiman.utils.visualization.nb_plot_contour(img, self.A[:, bad],
+                                self.dims[0], self.dims[1], coordinates=coor_b,
+                                thr_method=thr_method, thr=thr, show=False)
+                p2.plot_width = 450
+                p2.plot_height = 450 * self.dims[0] // self.dims[1]
+                p2.title.text = 'Rejected Components'
+                bokeh.plotting.show(bokeh.layouts.row(p1, p2))
+        except:
+            print("Bokeh could not be loaded. Either it is not installed or you are not running within a notebook")
+            print("Using non-interactive plot as fallback")
+            self.plot_contours(img=img, idx=idx, crd=crd, thr_method=thr_method,
+                         thr=thr)
         return self
 
     def view_components(self, Yr=None, img=None, idx=None):
