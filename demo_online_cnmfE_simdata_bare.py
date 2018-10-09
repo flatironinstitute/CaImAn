@@ -16,7 +16,7 @@ from scipy.io import loadmat
 from scipy.stats import pearsonr
 
 
-small = False
+small = True
 save_figs = False
 
 

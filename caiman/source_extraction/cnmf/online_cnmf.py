@@ -1614,6 +1614,7 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
     Checks for new components in the residual buffer and incorporates them if they pass the acceptance tests
     """
 
+    import pdb; pdb.set_trace()
     ind_new = []
     gHalf = np.array(gSiz) // 2
 
@@ -1632,6 +1633,7 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
         loaded_model=loaded_model, thresh_CNN_noisy=thresh_CNN_noisy,
         use_peak_max=use_peak_max, test_both=test_both)
 
+    import pdb; pdb.set_trace()
     ind_new_all = ijsig_all
 
     num_added = len(inds)
