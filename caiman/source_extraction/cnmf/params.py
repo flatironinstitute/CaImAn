@@ -33,7 +33,7 @@ class CNMFParams(object):
                  sniper_mode=False, test_both=False, thresh_CNN_noisy=0.5,
                  thresh_fitness_delta=-50, thresh_fitness_raw=None, thresh_overlap=0.5,
                  update_freq=200, update_num_comps=True, use_dense=True, use_peak_max=True,
-                 only_init_patch=False, params_dict={},
+                 only_init_patch=True, params_dict={},
                  ):
         """Class for setting the processing parameters. All parameters for CNMF, online-CNMF, quality testing,
         and motion correction can be set here and then used in the various processing pipeline steps.
@@ -85,7 +85,7 @@ class CNMFParams(object):
                 Delete duplicate components in the overlaping regions between neighboring patches. If False,
                 then merging is used.
 
-            only_init: bool, default: False
+            only_init: bool, default: True
                 whether to run only the initialization
 
             skip_refinement: bool, default: False

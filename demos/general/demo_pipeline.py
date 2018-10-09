@@ -166,9 +166,6 @@ def main():
     gSig = [4, 4]            # expected half size of neurons in pixels
     # initialization method (if analyzing dendritic data using 'sparse_nmf')
     method_init = 'greedy_roi'
-    block_size = 5000            # number of pixels to use when computing residuals, reduce if memory issues
-    num_blocks_per_run = 10      # number of processes to use when computing residuals, reduce if memory issues
-    n_pixels_per_process = 4000  # number of pixels to use in each process during spatial update, reduce if memory issues
     ssub = 2                     # spatial subsampling during initialization
     tsub = 2                     # temporal subsampling during intialization
 
@@ -185,11 +182,6 @@ def main():
                  'merge_thr': merge_thresh,
                  'n_processes': n_processes,
                  'only_init': True,
-                 'block_size_temp': block_size,
-                 'block_size_spat': block_size,
-                 'num_blocks_per_run_spat': num_blocks_per_run,
-                 'num_blocks_per_run_temp': num_blocks_per_run,
-                 'n_pixels_per_process': n_pixels_per_process,
                  'ssub': ssub,
                  'tsub': tsub}
 
