@@ -89,6 +89,10 @@ class OnACID(object):
 
     def _prepare_object(self, Yr, T, new_dims=None, idx_components=None):
 
+        init_batch = self.params.get('online', 'init_batch')
+        is1p = (self.params.get('init', 'method_init') == 'corr_pnr' and 
+                    self.params.get('init', 'ring_size_factor') is not None)
+
         if idx_components is None:
             idx_components = range(self.estimates.A.shape[-1])
 
@@ -161,15 +165,30 @@ class OnACID(object):
                 for gam, l, b, sn in zip(self.estimates.g, self.estimates.lam, self.estimates.bl, self.estimates.neurons_sn)]
 
             for i, o in enumerate(self.estimates.OASISinstances):
-                o.fit(self.estimates.noisyC[i + self.params.get('init', 'nb'), :self.params.get('online', 'init_batch')])
-                self.estimates.C_on[i, :self.params.get('online', 'init_batch')] = o.c
+                o.fit(self.estimates.noisyC[i + self.params.get('init', 'nb'), :init_batch])
+                self.estimates.C_on[i, :init_batch] = o.c
         else:
-            self.estimates.C_on[:self.N, :self.params.get('online', 'init_batch')] = self.estimates.C
+            self.estimates.C_on[:self.N, :init_batch] = self.estimates.C
+
+
+        
+        if is1p:
+            ssub_B = self.params.get('init', 'ssub_B')
+            X = Yr[:, :init_batch] - np.asarray(self.estimates.A.dot(self.estimates.C))
+            self.estimates.b0 = X.mean(1)
+            X -= self.estimates.b0[:, None]
+            X = downscale(X.reshape(self.dims + (-1,), order='F'),
+                          (ssub_B, ssub_B, 1)).reshape((-1, init_batch), order='F')
+            self.estimates.XXt = X.dot(X.T)
+
+
 
         self.estimates.Ab, self.ind_A, self.estimates.CY, self.estimates.CC = init_shapes_and_sufficient_stats(
-            Yr[:, :self.params.get('online', 'init_batch')].reshape(
-                self.params.get('data', 'dims') + (-1,), order='F'), self.estimates.A,
-            self.estimates.C_on[:self.N, :self.params.get('online', 'init_batch')], self.estimates.b, self.estimates.noisyC[:self.params.get('init', 'nb'), :self.params.get('online', 'init_batch')])
+            Yr[:, :init_batch].reshape(self.params.get('data', 'dims') + (-1,), order='F'),
+            self.estimates.A, self.estimates.C_on[:self.N, :init_batch],
+            self.estimates.b, self.estimates.noisyC[:self.params.get('init', 'nb'), :init_batch],
+            W=self.estimates.W if is1p else None, b0=self.estimates.b0 if is1p else None,
+            ssub_B=self.params.get('init', 'ssub_B'))
 
         self.estimates.CY, self.estimates.CC = self.estimates.CY * 1. / self.params.get('online', 'init_batch'), 1 * self.estimates.CC / self.params.get('online', 'init_batch')
 
@@ -188,13 +207,49 @@ class OnACID(object):
                                     self.params.get('online', 'init_batch')].T.copy(), self.params.get('online', 'minibatch_shape'))
         self.estimates.Yres_buf = RingBuffer(self.estimates.Yr_buf - self.estimates.Ab.dot(
             self.estimates.C_on[:self.M, self.params.get('online', 'init_batch') - self.params.get('online', 'minibatch_shape'):self.params.get('online', 'init_batch')]).T, self.params.get('online', 'minibatch_shape'))
+        
+
+
+        if is1p:
+            estim = self.estimates
+            estim.Yres_buf -= estim.b0
+            if ssub_B == 1:
+                estim.Atb = estim.Ab.T.dot(estim.W.dot(estim.b0) - estim.b0)
+                estim.AtW = estim.Ab.T.dot(estim.W)
+                estim.AtWA = estim.AtW.dot(estim.Ab).toarray()
+                estim.Yres_buf -= estim.W.dot(estim.Yres_buf.T).T
+            else:
+                d1, d2 = self.dims
+                A_ds = csc_matrix(downscale(
+                    (estim.Ab_dense[:, :self.N] if self.params.get('online', 'use_dense')
+                        else estim.Ab.toarray()).reshape(
+                        (d1, d2, -1), order='F'), (ssub_B, ssub_B, 1)).reshape(
+                    (-1, self.N), order='F'))
+                estim.Atb = estim.Ab.T.dot(np.repeat(np.repeat(estim.W.dot(
+                    downscale(estim.b0.reshape(self.dims, order='F'), [ssub_B] * 2)
+                    .reshape((-1, 1), order='F'))
+                    .reshape(((d1 - 1) // ssub_B + 1, (d2 - 1) // ssub_B + 1), order='F'),
+                    ssub_B, 0), ssub_B, 1)[:d1, :d2].ravel(order='F') - estim.b0)
+                estim.AtW = A_ds.T.dot(estim.W)
+                estim.AtWA = estim.AtW.dot(A_ds).toarray()
+                estim.Yres_buf -= np.repeat(np.repeat(estim.W.dot(
+                    downscale(estim.Yres_buf.T.reshape(
+                        (d1, d2, -1), order='F'), (ssub_B, ssub_B, 1))
+                    .reshape((-1, self.params.get('online', 'minibatch_shape')), order='F'))
+                    .reshape(((d1 - 1) // ssub_B + 1, (d2 - 1) // ssub_B + 1, -1), order='F'),
+                    ssub_B, 0), ssub_B, 1)[:d1, :d2].reshape(
+                -1, self.params.get('online', 'minibatch_shape'), order='F').T
+
+
+
         self.estimates.sn = np.array(np.std(self.estimates.Yres_buf,axis=0))
         self.estimates.vr = np.array(np.var(self.estimates.Yres_buf,axis=0))
         self.estimates.mn = self.estimates.Yres_buf.mean(0)
         self.estimates.mean_buff = self.estimates.Yres_buf.mean(0)
         self.estimates.ind_new = []
-        self.estimates.rho_buf = imblur(np.maximum(self.estimates.Yres_buf.T,0).reshape(
-            self.params.get('data', 'dims') + (-1,), order='F'), sig=self.params.get('init', 'gSig'), siz=self.params.get('init', 'gSiz'), nDimBlur=len(self.params.get('data', 'dims')))**2
+        self.estimates.rho_buf = imblur(np.maximum(self.estimates.Yres_buf.T, 0).reshape(
+            self.params.get('data', 'dims') + (-1,), order='F'), sig=self.params.get('init', 'gSig'),
+            siz=self.params.get('init', 'gSiz'), nDimBlur=len(self.params.get('data', 'dims')))**2
         self.estimates.rho_buf = np.reshape(
             self.estimates.rho_buf, (np.prod(self.params.get('data', 'dims')), -1)).T
         self.estimates.rho_buf = RingBuffer(self.estimates.rho_buf, self.params.get('online', 'minibatch_shape'))
@@ -232,6 +287,24 @@ class OnACID(object):
                                  optimizer=opt, metrics=['accuracy'])
 
         self.loaded_model = loaded_model
+
+        if is1p:
+            from skimage.morphology import disk
+            radius = int(round(self.params.get('init', 'ring_size_factor') *
+                self.params.get('init', 'gSiz')[0] / float(ssub_B)))
+            ring = disk(radius + 1)
+            ring[1:-1, 1:-1] -= disk(radius)
+            self._ringidx = [i - radius - 1 for i in np.nonzero(ring)]
+            self._dims_B = ((self.dims[0] - 1) // ssub_B + 1, (self.dims[1] - 1) // ssub_B + 1)
+
+            def get_indices_of_pixels_on_ring(self, pixel):
+                pixel = np.unravel_index(pixel, self._dims_B, order='F')
+                x = pixel[0] + self._ringidx[0]
+                y = pixel[1] + self._ringidx[1]
+                inside = (x >= 0) * (x < self._dims_B[0]) * (y >= 0) * (y < self._dims_B[1])
+                return np.ravel_multi_index((x[inside], y[inside]), self._dims_B, order='F')
+            self.get_indices_of_pixels_on_ring = get_indices_of_pixels_on_ring.__get__(self)
+
         return self
 
     @profile
