@@ -24,9 +24,11 @@ pipeline {
             sh 'conda env create -q -f environment.yml -p $CONDA_ENV'
             sh '''#!/bin/bash -ex
               source $CONDA_ENV/bin/activate $CONDA_ENV
+              export KERAS_BACKEND=tensorflow
               pip install .
               TEMPDIR=$(mktemp -d)
               export CAIMAN_DATA=$TEMPDIR/caiman_data
+              export THEANO_FLAGS="base_compiledir=$TEMPDIR/theano_tmp"
               cd $TEMPDIR
               caimanmanager.py install
               nosetests --traverse-namespace caiman
