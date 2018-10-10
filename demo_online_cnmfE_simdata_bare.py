@@ -126,12 +126,12 @@ estim.YrA = estim.YrA[:1]
 estim.C = estim.C[:1]
 cnm = cnmf.online_cnmf.OnACID(cnm_init.params, estim)
 cnm.params.set('data', {'dims': dims})
-cnm._prepare_object(np.asarray(Yr[:, :initbatch]), T) #, expected_comps)
+cnm._prepare_object(np.asarray(Yr[:, :initbatch]), T)
 cnm.params.set('init', {'gSiz' : (gSiz, gSiz), 'ring_size_factor' : 18. / gSiz})
 cnm.params.set('online', {'min_num_trial': 1, 'max_num_added': 1, 'thresh_CNN_noisy' : None}) 
 t = initbatch
-cnm.params.online['rval_thr'] = .9995
-cnm.params.online['thresh_fitness_raw'] = -40
+# cnm.params.online['rval_thr'] = .9995
+# cnm.params.online['thresh_fitness_raw'] = -40
 for frame in Y[initbatch:]:
     cnm.fit_next(t, frame.copy().reshape(-1, order='F'))
     t += 1
