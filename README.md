@@ -95,6 +95,7 @@ If you prefer to manage this information somewhere else, the `CAIMAN_DATA` envir
    * Download and install Anaconda (Python 3.6 recommended) <http://docs.continuum.io/anaconda/install>. We recommend telling conda to modify your PATH variable (it is a checkbox during Anaconda install, off by default)
    * Use Conda to install git (With "conda install git") - use of another commandline git is acceptable, but may lead to issues depending on default settings
    * Microsoft Build Tools for Visual Studio 2017 <https://www.visualstudio.com/downloads/#build-tools-for-visual-studio-2017>. Check the "Build Tools" box, and in the detailed view on the right check the "C/C++ CLI Tools" component too. The specifics of this occasionally change as Microsoft changes its products and website; you may need to go off-script.
+   * As of this writing, there is an upstream versioning issue between scikit and numpy on Windows. If you get a runtime error that skimage/tifffile is compiled against API version 0xc but you have 0xb, you will need to manually upgrade numpy in your conda environment (which may force other version changes).
 
 Use the following menu item to launch a anaconda-enabled command prompt: start>programs>anaconda3>anaconda prompt
 
