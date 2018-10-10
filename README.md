@@ -48,7 +48,7 @@ In July 2018, Python 2.x support was removed; Python 3.6 or higher is required f
 
 ### Upgrading CaImAn
 
-If you want to upgrade CaImAn (and have already used the pip installer to install it) following the instructions given in the [wiki](https://github.com/flatironinstitute/CaImAn/wiki/Updating-CaImAn).
+If you want to upgrade CaImAn (and have already used the pip installer to install it) follow the instructions given in the [wiki](https://github.com/flatironinstitute/CaImAn/wiki/Updating-CaImAn).
 
 
 ### Installation on Mac or Linux
