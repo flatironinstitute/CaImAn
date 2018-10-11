@@ -90,9 +90,9 @@ class OnACID(object):
     def _prepare_object(self, Yr, T, new_dims=None, idx_components=None):
 
         init_batch = self.params.get('online', 'init_batch')
-        is1p = (self.params.get('init', 'method_init') == 'corr_pnr' and 
-                    self.params.get('init', 'ring_size_factor') is not None)
         old_dims = self.params.get('data', 'dims')
+        self.is1p = (self.params.get('init', 'method_init') == 'corr_pnr' and 
+                    self.params.get('init', 'ring_size_factor') is not None)
 
         if idx_components is None:
             idx_components = range(self.estimates.A.shape[-1])
@@ -138,12 +138,12 @@ class OnACID(object):
                     self.estimates.b, new_dims[::-1]).reshape([-1, 1], order='F')
             else:
                 self.estimates.b.shape = (np.prod(new_dims), 0)
-            if is1p:
+            if self.is1p:
                 self.estimates.b0 = self.estimates.b0.reshape(old_dims, order='F')
                 self.estimates.b0 = cv2.resize(
                     self.estimates.b0, new_dims[::-1]).ravel(order='F')
                 # ToDo, but not easy: resize self.estimates.W
-                raise Exception('change of dimensions not implemented for 1p data')
+                raise NotImplementedError('change of dimensions not yet implemented for CNMF-E')
 
             self.estimates.dims = new_dims
         else:
@@ -181,7 +181,7 @@ class OnACID(object):
 
 
         
-        if is1p:
+        if self.is1p:
             ssub_B = self.params.get('init', 'ssub_B')
             X = Yr[:, :init_batch] - np.asarray(self.estimates.A.dot(self.estimates.C))
             self.estimates.b0 = X.mean(1)
@@ -196,7 +196,7 @@ class OnACID(object):
             Yr[:, :init_batch].reshape(self.estimates.dims + (-1,), order='F'),
             self.estimates.A, self.estimates.C_on[:self.N, :init_batch],
             self.estimates.b, self.estimates.noisyC[:self.params.get('init', 'nb'), :init_batch],
-            W=self.estimates.W if is1p else None, b0=self.estimates.b0 if is1p else None,
+            W=self.estimates.W if self.is1p else None, b0=self.estimates.b0 if self.is1p else None,
             ssub_B=self.params.get('init', 'ssub_B'))
 
         self.estimates.CY = self.estimates.CY * 1. / self.params.get('online', 'init_batch')
@@ -211,7 +211,9 @@ class OnACID(object):
         self.estimates.C_on = np.vstack(
             [self.estimates.noisyC[:self.params.get('init', 'nb'), :], self.estimates.C_on.astype(np.float32)])
 
-        self.params.set('init', {'gSiz': np.add(np.multiply(np.ceil(self.params.get('init', 'gSig')).astype(np.int), 2), 1)})
+        if not self.is1p:
+            self.params.set('init', {'gSiz': np.add(np.multiply(np.ceil(
+                self.params.get('init', 'gSig')).astype(np.int), 2), 1)})
 
         self.estimates.Yr_buf = RingBuffer(Yr[:, self.params.get('online', 'init_batch') - self.params.get('online', 'minibatch_shape'):
                                     self.params.get('online', 'init_batch')].T.copy(), self.params.get('online', 'minibatch_shape'))
@@ -220,7 +222,7 @@ class OnACID(object):
         
 
 
-        if is1p:
+        if self.is1p:
             estim = self.estimates
             estim.Yres_buf -= estim.b0
             if ssub_B == 1:
@@ -297,7 +299,7 @@ class OnACID(object):
 
         self.loaded_model = loaded_model
 
-        if is1p:
+        if self.is1p:
             from skimage.morphology import disk
             radius = int(round(self.params.get('init', 'ring_size_factor') *
                 self.params.get('init', 'gSiz')[0] / float(ssub_B)))
@@ -340,6 +342,8 @@ class OnACID(object):
         nb_ = self.params.get('init', 'nb')
         Ab_ = self.estimates.Ab
         mbs = self.params.get('online', 'minibatch_shape')
+        ssub_B = self.params.get('init', 'ssub_B')
+        d1, d2 = self.estimates.dims
         expected_comps = self.params.get('online', 'expected_comps')
         frame = frame_in.astype(np.float32)
 #        print(np.max(1/scipy.sparse.linalg.norm(self.estimates.Ab,axis = 0)))
@@ -350,8 +354,14 @@ class OnACID(object):
         if (not self.params.get('online', 'simultaneously')) or self.params.get('preprocess', 'p') == 0:
             # get noisy fluor value via NNLS (project data on shapes & demix)
             C_in = self.estimates.noisyC[:self.M, t - 1].copy()
-            self.estimates.C_on[:self.M, t], self.estimates.noisyC[:self.M, t] = HALS4activity(
-                frame, self.estimates.Ab, C_in, self.estimates.AtA, iters=num_iters_hals, groups=self.estimates.groups)
+            if self.is1p:
+                self.estimates.C_on[:self.M, t], self.estimates.noisyC[:self.M, t] = demix1p(
+                    frame, self.estimates.Ab, C_in, self.estimates.AtA, Atb=self.estimates.Atb,
+                    AtW=self.estimates.AtW, AtWA=self.estimates.AtWA, iters=num_iters_hals,
+                    groups=self.estimates.groups, dims=self.estimates.dims, ssub_B=ssub_B)
+            else:
+                self.estimates.C_on[:self.M, t], self.estimates.noisyC[:self.M, t] = HALS4activity(
+                    frame, self.estimates.Ab, C_in, self.estimates.AtA, iters=num_iters_hals, groups=self.estimates.groups)
             if self.params.get('preprocess', 'p'):
                 # denoise & deconvolve
                 for i, o in enumerate(self.estimates.OASISinstances):
@@ -360,6 +370,9 @@ class OnACID(object):
                               1: t + 1] = o.get_c_of_last_pool()
 
         else:
+            if self.is1p:
+                raise NotImplementedError(
+                    'simultaneous demixing and deconvolution not implemented yet for CNMF-E')
             # update buffer, initialize C with previous value
             self.estimates.C_on[:, t] = self.estimates.C_on[:, t - 1]
             self.estimates.noisyC[:, t] = self.estimates.C_on[:, t - 1]
@@ -378,6 +391,15 @@ class OnACID(object):
 
         #self.estimates.mean_buff = self.estimates.Yres_buf.mean(0)
         res_frame = frame - self.estimates.Ab.dot(self.estimates.C_on[:self.M, t])
+        if self.is1p:
+            self.estimates.b0 = self.estimates.b0 * (t-1)/t + res_frame/t
+            res_frame -= self.estimates.b0
+            x = res_frame if ssub_B == 1 else downscale(
+                res_frame.reshape(self.estimates.dims, order='F'), [ssub_B] * 2).ravel(order='F')
+            res_frame -= (self.estimates.W.dot(x) if ssub_B == 1 else
+                          np.repeat(np.repeat(self.estimates.W.dot(x).reshape(
+                              ((d1 - 1) // ssub_B + 1, (d2 - 1) // ssub_B + 1), order='F'),
+                              ssub_B, 0), ssub_B, 1)[:d1, :d2].ravel(order='F'))
         mn_ = self.estimates.mn.copy()
         self.estimates.mn = (t-1)/t*self.estimates.mn + res_frame/t
         self.estimates.vr = (t-1)/t*self.estimates.vr + (res_frame - mn_)*(res_frame - self.estimates.mn)/t
@@ -420,7 +442,9 @@ class OnACID(object):
                 loaded_model = self.loaded_model, test_both=self.params.get('online', 'test_both'),
                 thresh_CNN_noisy = self.params.get('online', 'thresh_CNN_noisy'),
                 sniper_mode=self.params.get('online', 'sniper_mode'),
-                use_peak_max=self.params.get('online', 'use_peak_max'))
+                use_peak_max=self.params.get('online', 'use_peak_max'),
+                is1p=self.is1p, ssub_B=ssub_B, W=self.estimates.W if self.is1p else None,
+                b0=self.estimates.b0 if self.is1p else None)
 
             num_added = len(self.ind_A) - self.N
 
@@ -479,6 +503,42 @@ class OnACID(object):
                         self.estimates.Ab[:, -num_added:]).toarray()
                 self.estimates.AtA[-num_added:] = self.estimates.AtA[:, -num_added:].T
                 
+                if self.is1p:
+                    # # update XXt and W: TODO only update necessary pixels not all!
+                    # x = (y - self.Ab.dot(ccf).T - self.b0).T if ssub_B == 1
+                    #         else (downscale((y.T - self.Ab.dot(ccf) - self.b0[:, None])
+                    #                .reshape(self.dims2 + (-1,), order='F'), (ssub_B, ssub_B, 1))
+                    #      .reshape((-1, len(y)), order='F'))
+
+                    # for p in range(self.W.shape[0]):
+                    #     index = self.get_indices_of_pixels_on_ring(p)
+                    #     self.W.data[self.W.indptr[p]:self.W.indptr[p + 1]] = \
+                    #         np.linalg.inv(self.XXt[index[:, None], index]).dot(self.XXt[index, p])
+
+                    if ssub_B == 1:
+                        self.estimates.Atb = Ab_.T.dot(self.estimates.W.dot(
+                            self.estimates.b0) - self.estimates.b0)
+                        self.estimates.AtW = Ab_.T.dot(self.estimates.W)
+                        self.estimates.AtWA = self.estimates.AtW.dot(Ab_).toarray()
+                    else:
+                        d1, d2 = self.estimates.dims
+                        A_ds = csc_matrix(downscale(
+                            (self.estimates.Ab_dense[:, :self.N]
+                                if self.params.get('online', 'use_dense') else
+                                Ab_.toarray()).reshape(
+                                (d1, d2, -1), order='F'), (ssub_B, ssub_B, 1)).reshape(
+                            (-1, self.N), order='F'))
+                        self.estimates.Atb = Ab_.T.dot(np.repeat(np.repeat(self.estimates.W.dot(
+                            downscale(self.estimates.b0.reshape(self.estimates.dims, order='F'),
+                                [ssub_B] * 2).reshape((-1, 1), order='F'))
+                            .reshape(((d1 - 1) // ssub_B + 1, (d2 - 1) // ssub_B + 1), order='F'),
+                            ssub_B, 0), ssub_B, 1)[:d1, :d2].ravel(order='F') - self.estimates.b0)
+                        # self.Atb = A_ds.T.dot(self.W.dot(
+                        #     downscale(self.b0.reshape(self.dims2, order='F'), [ssub_B] * 2)
+                        #     .ravel(order='F'))) * ssub_B**2 - self.Ab.T.dot(self.b0)
+                        self.estimates.AtW = A_ds.T.dot(self.estimates.W)
+                        self.estimates.AtWA = self.estimates.AtW.dot(A_ds).toarray()
+
                 # set the update counter to 0 for components that are overlaping the newly added
                 idx_overlap = self.estimates.AtA[nb_:-num_added, -num_added:].nonzero()[0]
                 self.update_counter[idx_overlap] = 0
@@ -491,7 +551,21 @@ class OnACID(object):
                 #ccf = self.estimates.C_on[:self.M, t - self.params.get('online', 'update_freq') + 1:t + 1]
                 #y = self.estimates.Yr_buf.get_last_frames(self.params.get('online', 'update_freq'))
                 ccf = self.estimates.C_on[:self.M, t - mbs + 1:t + 1]
-                y = self.estimates.Yr_buf #.get_last_frames(mbs)
+                y = self.estimates.Yr_buf.copy() #.get_last_frames(mbs)
+                if self.is1p:  # subtract background
+                    if ssub_B == 1:
+                        x = (y - self.estimates.Ab.dot(ccf).T - self.estimates.b0).T
+                        y -= self.estimates.W.dot(x).T
+                    else:
+                        x = (downscale((y.T - self.estimates.Ab.dot(ccf) - self.estimates.b0[:, None])
+                                       .reshape(self.estimates.dims + (-1,), order='F'),
+                                       (ssub_B, ssub_B, 1)).reshape((-1, len(y)), order='F'))
+                        y -= np.repeat(np.repeat(
+                            self.estimates.W.dot(x).T.reshape((-1, (d1 - 1) // ssub_B + 1,
+                                                     (d2 - 1) // ssub_B + 1), order='F'),
+                            ssub_B, 1), ssub_B, 2)[:, :d1, :d2].reshape((len(y), -1), order='F')
+                    y -= self.estimates.b0
+                    self.estimates.XXt += x.dot(x.T)
 
                 # much faster: exploit that we only access CY[m, ind_pixels], hence update only these
                 n0 = mbs #self.params.get('online', 'update_freq')
@@ -512,6 +586,20 @@ class OnACID(object):
             ccf = self.estimates.C_on[:self.M, t - self.params.get('online', 'minibatch_suff_stat'):t -
                                       self.params.get('online', 'minibatch_suff_stat') + 1]
             y = self.estimates.Yr_buf.get_last_frames(self.params.get('online', 'minibatch_suff_stat') + 1)[:1]
+            if self.center_psf:  # subtract background
+                if ssub_B == 1:
+                    x = (y - self.estimates.Ab.dot(ccf).T - self.b0).T
+                    y -= self.W.dot(x).T
+                    y -= self.b0
+                else:
+                    x = (downscale((y.T - self.estimates.Ab.dot(ccf) - self.estimates.b0[:, None])
+                                   .reshape(self.estimates.dims + (-1,), order='F'), (ssub_B, ssub_B, 1))
+                         .reshape((-1, len(y)), order='F'))
+                    y -= (np.repeat(np.repeat(self.estimates.W.dot(x).T
+                        .reshape((-1, (d1 - 1) // ssub_B + 1, (d2 - 1) // ssub_B + 1), order='F'),
+                        ssub_B, 1), ssub_B, 2)[:, :d1, :d2]
+                        .reshape((len(y), -1), order='F') + self.estimates.b0)
+                self.estimates.XXt += x.dot(x.T)
             # much faster: exploit that we only access CY[m, ind_pixels], hence update only these
             for m in range(self.N):
                 self.estimates.CY[m + nb_, self.ind_A[m]] *= (1 - 1. / t)
@@ -549,6 +637,39 @@ class OnACID(object):
                         q=0.5, iters=self.params.get('online', 'iters_shape'))
 
                 self.estimates.AtA = (Ab_.T.dot(Ab_)).toarray()
+                if self.is1p:
+                    for p in range(self.estimates.W.shape[0]):
+                        index = self.get_indices_of_pixels_on_ring(p)
+                        # for _ in range(3):  # update W via coordinate decent
+                        #     for k, i in enumerate(index):
+                        #         self.W.data[self.W.indptr[p] + k] += ((self.XXt[p, i] -
+                        #                                      self.W.data[self.W.indptr[p]:self.W.indptr[p+1]].dot(self.XXt[index, i])) /
+                        #                                     self.XXt[i, i])
+                        # update W using normal equations
+                        self.estimates.W.data[self.estimates.W.indptr[p]:
+                                              self.estimates.W.indptr[p + 1]] = \
+                            np.linalg.inv(self.estimates.XXt[index[:, None], index]).dot(
+                                self.estimates.XXt[index, p])
+
+                    if ssub_B == 1:
+                        self.estimates.Atb = Ab_.T.dot(self.estimates.W.dot(self.estimates.b0) -
+                                                       self.estimates.b0)
+                        self.estimates.AtW = Ab_.T.dot(self.estimates.W)
+                        self.estimates.AtWA = self.estimates.AtW.dot(Ab_).toarray()
+                    else:
+                        d1, d2 = self.estimates.dims
+                        A_ds = csc_matrix(downscale(
+                            (self.estimates.Ab_dense[:, :self.N] if 
+                                self.params.get('online', 'use_dense') else Ab_.toarray()).reshape(
+                                (d1, d2, -1), order='F'), (ssub_B, ssub_B, 1)).reshape(
+                            (-1, self.N), order='F'))
+                        self.estimates.Atb = Ab_.T.dot(np.repeat(np.repeat(self.estimates.W.dot(
+                            downscale(self.estimates.b0.reshape(self.estimates.dims, order='F'), [ssub_B] * 2)
+                            .reshape((-1, 1), order='F'))
+                            .reshape(((d1 - 1) // ssub_B + 1, (d2 - 1) // ssub_B + 1), order='F'),
+                            ssub_B, 0), ssub_B, 1)[:d1, :d2].ravel(order='F') - self.estimates.b0)
+                        self.estimates.AtW = A_ds.T.dot(self.estimates.W)
+                        self.estimates.AtWA = self.estimates.AtW.dot(A_ds).toarray()
 
                 ind_zero = list(np.where(self.estimates.AtA.diagonal() < 1e-10)[0])
                 if len(ind_zero) > 0:
@@ -1690,7 +1811,7 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                           Ab_dense=None, max_num_added=1, min_num_trial=1,
                           loaded_model=None, thresh_CNN_noisy=0.99,
                           sniper_mode=False, use_peak_max=False,
-                          test_both=False, center_psf=False, ssub_B=1, W=None, b0=None,
+                          test_both=False, is1p=False, ssub_B=1, W=None, b0=None,
                           corr_img=None, first_moment=None, second_moment=None,
                           crosscorr=None, col_ind=None, row_ind=None):
     """
@@ -1829,7 +1950,7 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
             CC = np.vstack([CC1, CC2])
             Cf = np.vstack([Cf, cin_circ])
 
-            if center_psf:  # subtract background TODO: restrict to region where component is located
+            if is1p:  # subtract background TODO: restrict to region where component is located
                 if ssub_B == 1:
                     x = (y - Ab.dot(Cf).T - b0).T
                     y -= W.dot(x).T
@@ -1888,9 +2009,9 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
 
             sv[ind_vb] = np.sum(rho_buf[:, ind_vb], 0)
 
-            if center_psf:
-                # first_moment[indeces] -= cin.mean() * ain
-                first_moment[indeces] -= cin.sum() / t * ain
+            # if is1p:
+            #     # first_moment[indeces] -= cin.mean() * ain
+            #     first_moment[indeces] -= cin.sum() / t * ain
 #            sv = np.sum([imblur(vb.reshape(dims,order='F'), sig=gSig, siz=gSiz, nDimBlur=len(dims))**2 for vb in Yres_buf], 0).reshape(-1)
 #            plt.subplot(1,5,4)
 #            plt.cla()
