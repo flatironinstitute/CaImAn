@@ -3,7 +3,7 @@ channels:
 - defaults
 dependencies:
 - python=3.6
-- tensorflow=1.4.0 # Must list before keras to preempt default keras backend
+- tensorflow-gpu=1.3.0 # Must list before keras to preempt default keras backend
 - bokeh
 - cython
 - future
