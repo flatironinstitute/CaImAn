@@ -1666,6 +1666,7 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
             else:
                 groups = update_order(Ab_dense[indeces, :M], ain, groups)[0]
                 Ab_dense[indeces, M] = ain
+
             # faster version of scipy.sparse.hstack
             csc_append(Ab, Ain_csc)
             ind_A.append(Ab.indices[Ab.indptr[M]:Ab.indptr[M + 1]])
