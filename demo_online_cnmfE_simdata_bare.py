@@ -150,10 +150,10 @@ cm.base.rois.register_ROIs(A, cnm.estimates.Ab, dims, align_flag=0)
 #%% second run
 
 cnm2 = deepcopy(cnm)
-cnm2.C_on = np.zeros((cnm.C_on.shape[0], 2 * T), dtype=np.float32)
-cnm2.noisyC = np.zeros((cnm.noisyC.shape[0], 2 * T), dtype=np.float32)
-cnm2.C_on[:, :T] = cnm.C_on
-cnm2.noisyC[:, :T] = cnm.noisyC
+cnm2.estimates.C_on = np.zeros((cnm.estimates.C_on.shape[0], 2 * T), dtype=np.float32)
+cnm2.estimates.noisyC = np.zeros((cnm.estimates.noisyC.shape[0], 2 * T), dtype=np.float32)
+cnm2.estimates.C_on[:, :T] = cnm.estimates.C_on
+cnm2.estimates.noisyC[:, :T] = cnm.estimates.noisyC
 # cnm2.rval_thr = .9
 # cnm.thresh_fitness_raw = -70
 t = T
@@ -161,60 +161,59 @@ for frame in Y:
     cnm2.fit_next(t, frame.copy().reshape(-1, order='F'))
     t += 1
 
-cnm2.C_on = cnm2.C_on[:, T:]
-cnm2.noisyC = cnm2.noisyC[:, T:]
-
 
 #%% third run
 
 cnm3 = deepcopy(cnm2)
-cnm3.C_on = np.zeros((cnm2.C_on.shape[0], 2 * T), dtype=np.float32)
-cnm3.noisyC = np.zeros((cnm2.noisyC.shape[0], 2 * T), dtype=np.float32)
-cnm3.C_on[:, :T] = cnm2.C_on
-cnm3.noisyC[:, :T] = cnm2.noisyC
-cnm3.update_num_comps = False
-t = T
+cnm3.estimates.C_on = np.zeros((cnm2.estimates.C_on.shape[0], 3 * T), dtype=np.float32)
+cnm3.estimates.noisyC = np.zeros((cnm2.estimates.noisyC.shape[0], 3 * T), dtype=np.float32)
+cnm3.estimates.C_on[:, :2*T] = cnm2.estimates.C_on
+cnm3.estimates.noisyC[:, :2*T] = cnm2.estimates.noisyC
+cnm3.params.set('online', {'update_num_comps': False})
+t = 2 * T
 for frame in Y:
     cnm3.fit_next(t, frame.copy().reshape(-1, order='F'))
     t += 1
 
-cnm3.C_on = cnm3.C_on[:, T:]
-cnm3.noisyC = cnm3.noisyC[:, T:]
+cnm2.estimates.C_on = cnm2.estimates.C_on[:, T:]
+cnm2.estimates.noisyC = cnm2.estimates.noisyC[:, T:]
+cnm3.estimates.C_on = cnm3.estimates.C_on[:, 2*T:]
+cnm3.estimates.noisyC = cnm3.estimates.noisyC[:, 2*T:]
 
 
 #%% compare online to batch
 
 print('RSS of W:  online vs init:' +
-      '{0:.3f}'.format((cnm.W - cnm_init.W).power(2).sum()).rjust(10))
+      '{0:.3f}'.format((cnm.estimates.W - cnm_init.estimates.W).power(2).sum()).rjust(10))
 print('            batch vs init:' +
-      '{0:.3f}'.format((cnm_batch.W - cnm_init.W).power(2).sum()).rjust(10))
+      '{0:.3f}'.format((cnm_batch.estimates.W - cnm_init.estimates.W).power(2).sum()).rjust(10))
 print('          online vs batch:' +
-      '{0:.3f}'.format((cnm.W - cnm_batch.W).power(2).sum()).rjust(10))
+      '{0:.3f}'.format((cnm.estimates.W - cnm_batch.estimates.W).power(2).sum()).rjust(10))
 print('         online2 vs batch:' +
-      '{0:.3f}'.format((cnm2.W - cnm_batch.W).power(2).sum()).rjust(10))
+      '{0:.3f}'.format((cnm2.estimates.W - cnm_batch.estimates.W).power(2).sum()).rjust(10))
 print('         online3 vs batch:' +
-      '{0:.3f}'.format((cnm3.W - cnm_batch.W).power(2).sum()).rjust(10))
+      '{0:.3f}'.format((cnm3.estimates.W - cnm_batch.estimates.W).power(2).sum()).rjust(10))
 
 #%% compare to ground truth 
 
 matched_ROIs1b, matched_ROIs2b, non_matched1b, non_matched2b, performanceb, A2b = register_ROIs(
-    A, cnm_batch.A, dims, align_flag=False)
+    A, cnm_batch.estimates.A, dims, align_flag=False)
 matched_ROIs1, matched_ROIs2, non_matched1, non_matched2, performance, A2 = register_ROIs(
-    A, cnm.Ab, dims, align_flag=False)
+    A, cnm.estimates.Ab, dims, align_flag=False)
 matched_ROIs1i, matched_ROIs2i, non_matched1i, non_matched2i, performancei, A2i = register_ROIs(
-    A, cnm_init.A, dims, align_flag=False)
+    A, cnm_init.estimates.A, dims, align_flag=False)
 matched_ROIs1s, matched_ROIs2s, non_matched1s, non_matched2s, performances, A2s = register_ROIs(
-    A, cnm2.Ab, dims, align_flag=False)
+    A, cnm2.estimates.Ab, dims, align_flag=False)
 
 # traces
 cor_batch = [pearsonr(c1, c2)[0] for (c1, c2) in
-             np.transpose([C[matched_ROIs1b], cnm_batch.C[matched_ROIs2b]], (1, 0, 2))]
+             np.transpose([C[matched_ROIs1b], cnm_batch.estimates.C[matched_ROIs2b]], (1, 0, 2))]
 cor = [pearsonr(c1, c2)[0] for (c1, c2) in
-       np.transpose([C[matched_ROIs1], cnm.C_on[matched_ROIs2]], (1, 0, 2))]
+       np.transpose([C[matched_ROIs1], cnm.estimates.C_on[matched_ROIs2]], (1, 0, 2))]
 cor2 = [pearsonr(c1, c2)[0] for (c1, c2) in
-        np.transpose([C[matched_ROIs1s], cnm2.C_on[matched_ROIs2s]], (1, 0, 2))]
+        np.transpose([C[matched_ROIs1s], cnm2.estimates.C_on[matched_ROIs2s]], (1, 0, 2))]
 cor3 = [pearsonr(c1, c2)[0] for (c1, c2) in
-        np.transpose([C[matched_ROIs1s], cnm3.C_on[matched_ROIs2s]], (1, 0, 2))]
+        np.transpose([C[matched_ROIs1s], cnm3.estimates.C_on[matched_ROIs2s]], (1, 0, 2))]
 
 print('Correlation  mean +- std    median')
 for l, c in (('  batch', cor_batch), (' online', cor), ('online2', cor2), ('online3', cor3)):
@@ -226,17 +225,17 @@ for i in range(N):
     plt.subplot(N, 1, 1 + i)
     plt.plot(C[i], c='k', lw=4, label='truth')
     try:
-        plt.plot(cnm_batch.C[matched_ROIs2b[list(matched_ROIs1b).index(i)]],
+        plt.plot(cnm_batch.estimates.C[matched_ROIs2b[list(matched_ROIs1b).index(i)]],
                  c='r', lw=3, label='batch')
     except ValueError:
         pass
     try:
-        plt.plot(cnm.C_on[matched_ROIs2[list(matched_ROIs1).index(i)]],
+        plt.plot(cnm.estimates.C_on[matched_ROIs2[list(matched_ROIs1).index(i)]],
                  c='y', lw=2, label='online')
     except ValueError:
         pass
     try:
-        plt.plot(cnm2.C_on[matched_ROIs2s[list(matched_ROIs1s).index(i)]],
+        plt.plot(cnm2.estimates.C_on[matched_ROIs2s[list(matched_ROIs1s).index(i)]],
                  c='b', lw=1, label='online 2nd pass')
     except ValueError:
         pass
@@ -248,15 +247,15 @@ plt.savefig('online1p_traces.pdf') if save_figs else plt.show()
 # shapes
 over_batch = [c1.dot(c2) / np.sqrt(c1.dot(c1) * c2.dot(c2)) for (c1, c2) in
               np.transpose([A.T[matched_ROIs1b],
-                            cnm_batch.A.toarray().T[matched_ROIs2b]], (1, 0, 2))]
+                            cnm_batch.estimates.A.toarray().T[matched_ROIs2b]], (1, 0, 2))]
 over = [c1.dot(c2) / np.sqrt(c1.dot(c1) * c2.dot(c2)) for (c1, c2) in
-        np.transpose([A.T[matched_ROIs1], cnm.Ab.toarray().T[matched_ROIs2]], (1, 0, 2))]
+        np.transpose([A.T[matched_ROIs1], cnm.estimates.Ab.toarray().T[matched_ROIs2]], (1, 0, 2))]
 over2 = [c1.dot(c2) / np.sqrt(c1.dot(c1) * c2.dot(c2)) for (c1, c2) in
-         np.transpose([A.T[matched_ROIs1s], cnm2.Ab.toarray().T[matched_ROIs2s]], (1, 0, 2))]
+         np.transpose([A.T[matched_ROIs1s], cnm2.estimates.Ab.toarray().T[matched_ROIs2s]], (1, 0, 2))]
 over3 = [c1.dot(c2) / np.sqrt(c1.dot(c1) * c2.dot(c2)) for (c1, c2) in
-         np.transpose([A.T[matched_ROIs1s], cnm3.Ab.toarray().T[matched_ROIs2s]], (1, 0, 2))]
+         np.transpose([A.T[matched_ROIs1s], cnm3.estimates.Ab.toarray().T[matched_ROIs2s]], (1, 0, 2))]
 over_init = [c1.dot(c2) / np.sqrt(c1.dot(c1) * c2.dot(c2)) for (c1, c2) in
-             np.transpose([A.T[matched_ROIs1i], cnm_init.A.toarray().T[matched_ROIs2i]], (1, 0, 2))]
+             np.transpose([A.T[matched_ROIs1i], cnm_init.estimates.A.toarray().T[matched_ROIs2i]], (1, 0, 2))]
 
 print('Overlap    mean +- std    median')
 for l, c in (('  batch', over_batch), ('   init', over_init), (' online', over),
@@ -301,10 +300,10 @@ def sort_W(W):
     return Q
 
 
-Q_batch = sort_W(cnm_batch.W)
-Q_init = sort_W(cnm_init.W)
-Q = sort_W(cnm.W)
-Q2 = sort_W(cnm2.W)
+Q_batch = sort_W(cnm_batch.estimates.W)
+Q_init = sort_W(cnm_init.estimates.W)
+Q = sort_W(cnm.estimates.W)
+Q2 = sort_W(cnm2.estimates.W)
 
 plt.figure()
 plt.plot(np.nanmean(Q_init, 0), label='init')
