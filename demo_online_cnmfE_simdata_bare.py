@@ -1,4 +1,3 @@
-"""commit 07e349cbd87a17d301b9415e37c2b1bfe8c54d1a"""
 try:
     get_ipython().magic(u'load_ext autoreload')
     get_ipython().magic(u'autoreload 2')
@@ -95,13 +94,23 @@ cm.base.rois.register_ROIs(A, cnm_batch.estimates.A, dims, align_flag=0)
 
 #%% RUN (offline) CNMF-E algorithm on the initial batch
 
-cnm_init = cnmf.CNMF(2, method_init='corr_pnr', k=None, gSig=(gSig, gSig), gSiz=(gSiz0, gSiz0),
+# cnm_init = cnmf.CNMF(2, method_init='corr_pnr', k=None, gSig=(gSig, gSig), gSiz=(gSiz0, gSiz0),
+#                      merge_thresh=.98, p=1, tsub=1, ssub=1, only_init_patch=True, gnb=0,
+#                      min_corr=min_corr, min_pnr=min_pnr, s_min=s_min, normalize_init=False,
+#                      ring_size_factor=18. / gSiz0, center_psf=True, ssub_B=2, init_iter=1,
+#                      minibatch_shape=100, minibatch_suff_stat=5, update_num_comps=True,
+#                      rval_thr=.9, thresh_fitness_delta=-30, thresh_fitness_raw=-50,
+#                      batch_update_suff_stat=False, update_freq=100)
+opts = cnmf.params.CNMFParams(method_init='corr_pnr', k=None, gSig=(gSig, gSig), gSiz=(gSiz0, gSiz0),
                      merge_thresh=.98, p=1, tsub=1, ssub=1, only_init_patch=True, gnb=0,
                      min_corr=min_corr, min_pnr=min_pnr, s_min=s_min, normalize_init=False,
                      ring_size_factor=18. / gSiz0, center_psf=True, ssub_B=2, init_iter=1,
                      minibatch_shape=100, minibatch_suff_stat=5, update_num_comps=True,
-                     rval_thr=.9, thresh_fitness_delta=-30, thresh_fitness_raw=-50,
-                     batch_update_suff_stat=True)
+                     rval_thr=.92, thresh_fitness_delta=-30, thresh_fitness_raw=-50,
+                     batch_update_suff_stat=True, update_freq=100,
+                     min_num_trial=1, max_num_added=1, thresh_CNN_noisy=None,
+                     use_peak_max=False, N_samples_exceptionality=12)
+cnm_init = cnmf.CNMF(2, params=opts)
 
 cnm_init.fit(Y[:initbatch])
 
@@ -124,14 +133,16 @@ estim = deepcopy(cnm_init.estimates)
 estim.A = estim.A[:, :1]
 estim.YrA = estim.YrA[:1]
 estim.C = estim.C[:1]
+estim.c1 = estim.c1[:1]
+estim.bl = estim.bl[:1]
+estim.S = estim.S[:1]
+estim.neurons_sn = estim.neurons_sn[:1]
+estim.lam = estim.lam[:1]
 cnm = cnmf.online_cnmf.OnACID(cnm_init.params, estim)
 cnm.params.set('data', {'dims': dims})
 cnm._prepare_object(np.asarray(Yr[:, :initbatch]), T)
 cnm.params.set('init', {'gSiz' : (gSiz, gSiz), 'ring_size_factor' : 18. / gSiz})
-cnm.params.set('online', {'min_num_trial': 1, 'max_num_added': 1, 'thresh_CNN_noisy' : None}) 
 t = initbatch
-# cnm.params.online['rval_thr'] = .9995
-# cnm.params.online['thresh_fitness_raw'] = -40
 for frame in Y[initbatch:]:
     cnm.fit_next(t, frame.copy().reshape(-1, order='F'))
     t += 1
@@ -154,8 +165,7 @@ cnm2.estimates.C_on = np.zeros((cnm.estimates.C_on.shape[0], 2 * T), dtype=np.fl
 cnm2.estimates.noisyC = np.zeros((cnm.estimates.noisyC.shape[0], 2 * T), dtype=np.float32)
 cnm2.estimates.C_on[:, :T] = cnm.estimates.C_on
 cnm2.estimates.noisyC[:, :T] = cnm.estimates.noisyC
-# cnm2.rval_thr = .9
-# cnm.thresh_fitness_raw = -70
+cnm2.params.set('online', {'rval_thr': .9, 'thresh_fitness_raw': -400, 'thresh_fitness_delta': -350})
 t = T
 for frame in Y:
     cnm2.fit_next(t, frame.copy().reshape(-1, order='F'))
@@ -194,7 +204,21 @@ print('         online2 vs batch:' +
 print('         online3 vs batch:' +
       '{0:.3f}'.format((cnm3.estimates.W - cnm_batch.estimates.W).power(2).sum()).rjust(10))
 
+
 #%% compare to ground truth 
+
+W, _ = cnmf.initialization.compute_W(Yr, A, C, dims, 18, data_fits_in_memory=True, ssub=2, tsub=1)
+print('RSS of W:   init vs truth:' +
+      '{0:.3f}'.format((cnm_init.estimates.W - W).power(2).sum()).rjust(10))
+print('           batch vs truth:' +
+      '{0:.3f}'.format((cnm_batch.estimates.W - W).power(2).sum()).rjust(10))
+print('          online vs truth:' +
+      '{0:.3f}'.format((cnm.estimates.W - W).power(2).sum()).rjust(10))
+print('         online2 vs truth:' +
+      '{0:.3f}'.format((cnm2.estimates.W - W).power(2).sum()).rjust(10))
+print('         online3 vs truth:' +
+      '{0:.3f}'.format((cnm3.estimates.W - W).power(2).sum()).rjust(10))
+
 
 matched_ROIs1b, matched_ROIs2b, non_matched1b, non_matched2b, performanceb, A2b = register_ROIs(
     A, cnm_batch.estimates.A, dims, align_flag=False)

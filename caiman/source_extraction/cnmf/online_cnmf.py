@@ -139,9 +139,7 @@ class OnACID(object):
             else:
                 self.estimates.b.shape = (np.prod(new_dims), 0)
             if self.is1p:
-                self.estimates.b0 = self.estimates.b0.reshape(old_dims, order='F')
-                self.estimates.b0 = cv2.resize(
-                    self.estimates.b0, new_dims[::-1]).ravel(order='F')
+                # self.estimates.b0 is calculated below
                 # ToDo, but not easy: resize self.estimates.W
                 raise NotImplementedError('change of dimensions not yet implemented for CNMF-E')
 
@@ -165,8 +163,7 @@ class OnACID(object):
                 use_L1 = False
 
             self.estimates.OASISinstances = [OASIS(
-                g=np.ravel(0.01) if self.params.get('preprocess', 'p') == 0 else gam[0],
-                lam=0 if not use_L1 else l,
+                g=gam[0], lam=0 if not use_L1 else l,
                 s_min=0 if use_L1 else (self.params.get('temporal', 's_min') if self.params.get('temporal', 's_min') > 0 else
                                          (-self.params.get('temporal', 's_min') * sn * np.sqrt(1 - np.sum(gam)))),
                 b=b,
@@ -218,9 +215,9 @@ class OnACID(object):
         self.estimates.Yr_buf = RingBuffer(Yr[:, self.params.get('online', 'init_batch') - self.params.get('online', 'minibatch_shape'):
                                     self.params.get('online', 'init_batch')].T.copy(), self.params.get('online', 'minibatch_shape'))
         self.estimates.Yres_buf = RingBuffer(self.estimates.Yr_buf - self.estimates.Ab.dot(
-            self.estimates.C_on[:self.M, self.params.get('online', 'init_batch') - self.params.get('online', 'minibatch_shape'):self.params.get('online', 'init_batch')]).T, self.params.get('online', 'minibatch_shape'))
+            self.estimates.C_on[:self.M, self.params.get('online', 'init_batch') - self.params.get('online', 'minibatch_shape'):
+            self.params.get('online', 'init_batch')]).T, self.params.get('online', 'minibatch_shape'))
         
-
 
         if self.is1p:
             estim = self.estimates
@@ -482,8 +479,8 @@ class OnACID(object):
                         self.estimates.C_on[_ct, t - mbs + 1: t +
                                   1] = self.estimates.OASISinstances[_ct - nb_].get_c(mbs)
                     else:
-                        self.estimates.C_on[_ct, t - mbs + 1: t + 1] = np.maximum(0,
-                                                                        self.estimates.noisyC[_ct, t - mbs + 1: t + 1])
+                        self.estimates.C_on[_ct, t - mbs + 1: t + 1] = np.maximum(
+                            0, self.estimates.noisyC[_ct, t - mbs + 1: t + 1])
                     if self.params.get('online', 'simultaneously') and self.params.get('online', 'n_refit'):
                         self.estimates.AtY_buf = np.concatenate((
                             self.estimates.AtY_buf, [Ab_.data[Ab_.indptr[_ct]:Ab_.indptr[_ct + 1]].dot(
@@ -586,11 +583,11 @@ class OnACID(object):
             ccf = self.estimates.C_on[:self.M, t - self.params.get('online', 'minibatch_suff_stat'):t -
                                       self.params.get('online', 'minibatch_suff_stat') + 1]
             y = self.estimates.Yr_buf.get_last_frames(self.params.get('online', 'minibatch_suff_stat') + 1)[:1]
-            if self.center_psf:  # subtract background
+            if self.is1p:  # subtract background
                 if ssub_B == 1:
-                    x = (y - self.estimates.Ab.dot(ccf).T - self.b0).T
-                    y -= self.W.dot(x).T
-                    y -= self.b0
+                    x = (y - self.estimates.Ab.dot(ccf).T - self.estimates.b0).T
+                    y -= self.estimates.W.dot(x).T
+                    y -= self.estimates.b0
                 else:
                     x = (downscale((y.T - self.estimates.Ab.dot(ccf) - self.estimates.b0[:, None])
                                    .reshape(self.estimates.dims + (-1,), order='F'), (ssub_B, ssub_B, 1))
