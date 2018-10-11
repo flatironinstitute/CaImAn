@@ -473,10 +473,11 @@ for params_movie in np.array(params_movies)[ID]:
         performance_tmp.update(ld)
 
     performance_tmp['idx_components_gt'] = idx_components_gt
-    # ALL_CCs.append([scipy.stats.pearsonr(a, b)[0] for a, b in
-    #                 zip(gt_estimate.C[tp_gt], cnm2.estimates.C[tp_comp])])
-    #
-    # performance_tmp['ALL_CCs'] = ALL_CCs
+
+    ALL_CCs.append([scipy.stats.pearsonr(a, b)[0] for a, b in
+                    zip(gt_estimate.C[tp_gt], cnm2.estimates.C[tp_comp])])
+
+    performance_tmp['ALL_CCs'] = ALL_CCs
 
     all_results[fname_new.split('/')[-2]] = performance_tmp
 
@@ -500,10 +501,11 @@ for params_movie in np.array(params_movies)[ID]:
 
         assert results_holding, 'F1 scores are decreasing, check your code for errors'
     #
-    if save_all:
-        # here eventually save when in a loop
-        np.savez(os.path.join(base_folder,'all_res_web.npz'), all_results=all_results)
-        print('Saving not implementd')
+if save_all:
+    # here eventually save when in a loop
+    np.savez(os.path.join(base_folder,'all_res_web.npz'), all_results=all_results)
+    np.savez(os.path.join(base_folder,'all_res_CC.npz'), ALL_CCs=ALL_CCs)
+
 
 
 

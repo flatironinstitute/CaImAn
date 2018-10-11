@@ -28,14 +28,16 @@ import os
 import pylab as pl
 import scipy
 from caiman.utils.visualization import plot_contours
-#%%
+
+# %%
 pl.rcParams['pdf.fonttype'] = 42
 font = {'family': 'Arial',
         'weight': 'regular',
         'size': 20}
 pl.rc('font', **font)
 
-#%%
+
+# %%
 def precision_snr(snr_gt, snr_gt_fn, snr_cnmf, snr_cnmf_fp, snr_thrs):
     all_results_fake = []
     all_results_OR = []
@@ -84,9 +86,11 @@ def precision_snr(snr_gt, snr_gt_fn, snr_cnmf, snr_cnmf_fp, snr_thrs):
         all_results_AND.append(results_AND)
 
     return np.array(all_results_fake), np.array(all_results_OR), np.array(all_results_AND)
-#%% RELOAD ALL THE RESULTS INSTEAD OF REGENERATING THEM
-base_folder = '/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/'
-with np.load(os.path.join(base_folder,'all_res_sept_2018.npz')) as ld:
+
+
+# %% RELOAD ALL THE RESULTS INSTEAD OF REGENERATING THEM
+base_folder = '/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/WEBSITE/'
+with np.load(os.path.join(base_folder, 'all_res_web.npz')) as ld:
     all_results = ld['all_results'][()]
 # %% CREATE FIGURES
 if print_figs:
@@ -94,19 +98,19 @@ if print_figs:
     pl.figure('Figure 5a masks')
     idxFile = 7
     name_file = 'J115'
-    predictionsCNN = all_results[name_file ]['predictionsCNN']
+    predictionsCNN = all_results[name_file]['predictionsCNN']
     idx_components_gt = all_results[name_file]['idx_components_gt']
-    tp_comp = all_results[name_file ]['tp_comp']
-    fp_comp = all_results[name_file ]['fp_comp']
-    tp_gt = all_results[name_file ]['tp_gt']
-    fn_gt = all_results[name_file ]['fn_gt']
-    A = all_results[name_file ]['A']
-    A_gt = all_results[name_file ]['A_gt'][()]
-    C = all_results[name_file ]['C']
-    C_gt = all_results[name_file ]['C_gt']
-    fname_new = all_results[name_file ]['params']['fname']
+    tp_comp = all_results[name_file]['tp_comp']
+    fp_comp = all_results[name_file]['fp_comp']
+    tp_gt = all_results[name_file]['tp_gt']
+    fn_gt = all_results[name_file]['fn_gt']
+    A = all_results[name_file]['A']
+    A_gt = all_results[name_file]['A_gt'][()]
+    C = all_results[name_file]['C']
+    C_gt = all_results[name_file]['C_gt']
+    fname_new = all_results[name_file]['params']['fname']
     dims = all_results[name_file]['dims']
-    Cn = all_results[name_file ]['Cn']
+    Cn = all_results[name_file]['Cn']
     pl.ylabel('spatial components')
     idx_comps_high_r = [np.argsort(predictionsCNN[tp_comp])[[-6, -5, -4, -3, -2]]]
     idx_comps_high_r_cnmf = tp_comp[idx_comps_high_r]
@@ -157,7 +161,6 @@ if print_figs:
     xcorr_offline = []
     for k, fl_results in all_results.items():
         xcorr_offline.append(fl_results['CCs'])
-
 
     names = ['0300.T',
              '0400.T',
@@ -219,6 +222,7 @@ if print_figs:
                        display_numbers=False, cmap='gray')
     # %% FIGURE 4 c and d
     from matplotlib.pyplot import cm as cmap
+
     pl.figure("Figure 4c and 4d")
     color = cmap.jet(np.linspace(0, 1, 10))
     i = 0
@@ -312,9 +316,6 @@ if print_figs:
     # pl.plot(SNRs, np.array(avg_res_f1).mean(0), '.-', color='g')
     pl.legend(['precision', 'recall'], fontsize=10)
     pl.xlabel('SNR threshold')
-
-
-
 
     pl.ylim([0.6, 1.02])
     # %% FIGURE 4 b  performance in detecting neurons (results have been manually annotated on an excel spreadsheet and reported here below)
@@ -532,8 +533,7 @@ print([(tm, nm) for tm, nm in zip(time_track_activity, names)])
 print('Time update shapes')
 print([(tm, nm) for tm, nm in zip(time_track_neurons, names)])
 
-
-#%% OLD ONE!!!
+# %% OLD ONE!!!
 
 # %% RELOAD ALL THE RESULTS INSTEAD OF REGENERATING THEM
 base_folder = '/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/'
@@ -974,6 +974,7 @@ print('Time track activity')
 print([(tm, nm) for tm, nm in zip(time_track_activity, names)])
 print('Time update shapes')
 print([(tm, nm) for tm, nm in zip(time_track_neurons, names)])
+
 
 # %%
 def myfun(x):
