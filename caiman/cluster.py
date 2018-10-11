@@ -14,32 +14,30 @@ Alongside each array x we ensure the value x.dtype which stores the data type.
 # \copyright GNU General Public License v2.0
 # \date Created on Thu Oct 20 12:07:09 2016
 
-from __future__ import print_function
 from builtins import zip
 from builtins import str
 from builtins import map
 from builtins import range
-import subprocess
-import time
+
+import glob
 import ipyparallel
 from ipyparallel import Client
-import shutil
-import glob
-import shlex
-import psutil
-import sys
-import os
-import numpy as np
-from .mmapping import load_memmap
-from multiprocessing import Pool
-import multiprocessing
-import platform
 import logging
+import multiprocessing
+from multiprocessing import Pool
+import numpy as np
+import os
+import platform
+import psutil
+import shlex
+import shutil
+import subprocess
+import sys
+import time
 
+from .mmapping import load_memmap
 
 logger = logging.getLogger(__name__)
-#%%
-
 
 def get_patches_from_image(img, shapes, overlaps):
     # todo todocument
@@ -56,25 +54,27 @@ def get_patches_from_image(img, shapes, overlaps):
 #%%
 
 
-def extract_patch_coordinates(dims, rf, stride, border_pix=0):
+def extract_patch_coordinates(dims, rf, stride, border_pix=0, indeces=[slice(None)]*2):
     """
     Partition the FOV in patches
-
     and return the indexed in 2D and 1D (flatten, order='F') formats
 
-    Parameters:
-    ----------
-    dims: tuple of int
-        dimensions of the original matrix that will be divided in patches
+    Args:
+        dims: tuple of int
+            dimensions of the original matrix that will be divided in patches
 
-    rf: tuple of int
-        radius of receptive field, corresponds to half the size of the square patch
+        rf: tuple of int
+            radius of receptive field, corresponds to half the size of the square patch
 
-    stride: tuple of int
-        degree of overlap of the patches
+        stride: tuple of int
+            degree of overlap of the patches
     """
+
+    sl_start = [0 if sl.start is None else sl.start for sl in indeces]
+    sl_stop = [dim if sl.stop is None else sl.stop for (sl, dim) in zip(indeces, dims)]
+    sl_step = [1 for sl in indeces]  # not used
     dims_large = dims
-    dims = np.array(dims) - border_pix * 2
+    dims = np.minimum(np.array(dims) - border_pix, sl_stop) - np.maximum(border_pix, sl_start) 
 
     coords_flat = []
     shapes = []
@@ -85,12 +85,12 @@ def extract_patch_coordinates(dims, rf, stride, border_pix=0):
     for count_0, xx in enumerate(iters[0]):
         coords_x = np.arange(xx - rf[0], xx + rf[0] + 1)
         coords_x = coords_x[(coords_x >= 0) & (coords_x < dims[0])]
-        coords_x += border_pix
+        coords_x += border_pix*0 + np.maximum(sl_start[0], border_pix)
 
         for count_1, yy in enumerate(iters[1]):
             coords_y = np.arange(yy - rf[1], yy + rf[1] + 1)
             coords_y = coords_y[(coords_y >= 0) & (coords_y < dims[1])]
-            coords_y += border_pix
+            coords_y += border_pix*0 + np.maximum(sl_start[1], border_pix)
 
             if len(dims) == 2:
                 idxs = np.meshgrid(coords_x, coords_y)
@@ -127,32 +127,27 @@ def apply_to_patch(mmap_file, shape, dview, rf, stride, function, *args, **kwarg
     """
     apply function to patches in parallel or not
 
-    Parameters:
-    ----------
-    file_name: string
-        full path to an npy file (2D, pixels x time) containing the movie
+    Args:
+        file_name: string
+            full path to an npy file (2D, pixels x time) containing the movie
 
-    shape: tuple of three elements
-        dimensions of the original movie across y, x, and time
+        shape: tuple of three elements
+            dimensions of the original movie across y, x, and time
 
+        rf: int
+            half-size of the square patch in pixel
 
-    rf: int
-        half-size of the square patch in pixel
+        stride: int
+            amount of overlap between patches
 
-    stride: int
-        amount of overlap between patches
-
-
-    dview: ipyparallel view on client
-        if None
+        dview: ipyparallel view on client
+            if None
 
     Returns:
-    -------
-    results
+        results
 
-    Raise:
-    -----
-    Exception('Something went wrong')
+    Raises:
+        Exception 'Something went wrong'
 
     """
     (_, d1, d2) = shape
@@ -179,7 +174,7 @@ def apply_to_patch(mmap_file, shape, dview, rf, stride, function, *args, **kwarg
     if d2 <= rf2 * 2:
         shape_grid = (shape_grid[0], 1)
 
-    print(shape_grid)
+    logger.debug("Shape of grid is " + str(shape_grid))
 
     args_in = []
 
@@ -187,7 +182,7 @@ def apply_to_patch(mmap_file, shape, dview, rf, stride, function, *args, **kwarg
 
         args_in.append((mmap_file.filename, id_f,
                         id_2d, function, args, kwargs))
-    print((len(idx_flat)))
+    logger.debug("Flat index is of length " + str(len(idx_flat)))
     if dview is not None:
         try:
             file_res = dview.map_sync(function_place_holder, args_in)
@@ -196,7 +191,7 @@ def apply_to_patch(mmap_file, shape, dview, rf, stride, function, *args, **kwarg
         except:
             raise Exception('Something went wrong')
         finally:
-            print('You may think that it went well but reality is harsh')
+            logger.warn('You may think that it went well but reality is harsh') # TODO Figure out a better message
     else:
 
         file_res = list(map(function_place_holder, args_in))
@@ -220,7 +215,7 @@ def function_place_holder(args_in):
     if type(res_fun) is not tuple:
 
         if res_fun.shape == (d1, d2):
-            print('** reshaping form 2D to 1D')
+            logger.debug('** reshaping form 2D to 1D')
             res_fun = np.reshape(res_fun, d1 * d2, order='F')
 
     return res_fun
@@ -232,29 +227,30 @@ def start_server(slurm_script=None, ipcluster="ipcluster", ncpus=None):
     """
     programmatically start the ipyparallel server
 
-    Parameters:
-    ----------
-    ncpus: int
-        number of processors
+    Args:
+        ncpus: int
+            number of processors
 
-    ipcluster : str
-        ipcluster binary file name; requires 4 path separators on Windows. ipcluster="C:\\\\Anaconda2\\\\Scripts\\\\ipcluster.exe"
-         Default: "ipcluster"
+        ipcluster : str
+            ipcluster binary file name; requires 4 path separators on Windows. ipcluster="C:\\\\Anaconda2\\\\Scripts\\\\ipcluster.exe"
+            Default: "ipcluster"
     """
     logger.info("Starting cluster...")
     if ncpus is None:
         ncpus = psutil.cpu_count()
 
     if slurm_script is None:
+
         if ipcluster == "ipcluster":
             subprocess.Popen(
                 "ipcluster start -n {0}".format(ncpus), shell=True, close_fds=(os.name != 'nt'))
         else:
             subprocess.Popen(shlex.split(
                 "{0} start -n {1}".format(ipcluster, ncpus)), shell=True, close_fds=(os.name != 'nt'))
-
+        time.sleep(1.5)
         # Check that all processes have started
         client = ipyparallel.Client()
+        time.sleep(1.5)
         while len(client) < ncpus:
             sys.stdout.write(".")  # Give some visual feedback of things starting
             sys.stdout.flush()     # (de-buffered)
@@ -264,19 +260,19 @@ def start_server(slurm_script=None, ipcluster="ipcluster", ncpus=None):
     else:
         shell_source(slurm_script)
         pdir, profile = os.environ['IPPPDIR'], os.environ['IPPPROFILE']
-        print([pdir,profile])
+        logger.debug([pdir, profile])
         c = Client(ipython_dir=pdir, profile=profile)
         ee = c[:]
         ne = len(ee)
-        print(('Running on %d engines.' % (ne)))
+        logger.info(('Running on %d engines.' % (ne)))
         c.close()
         sys.stdout.write("start_server: done\n")
 
-
-#%%
 def shell_source(script):
     """ Run a source-style bash script, copy resulting env vars to current process. """
-    #introduce echo to indicate the  end of the output
+    # XXX This function is weird and maybe not a good idea. People easily might expect
+    #     it to handle conditionals. Maybe just make them provide a key-value file
+    #introduce echo to indicate the end of the output
     pipe = subprocess.Popen(". %s; env; echo 'FINISHED_CLUSTER'" %
                             script, stdout=subprocess.PIPE, shell=True)
 
@@ -285,25 +281,22 @@ def shell_source(script):
         line = pipe.stdout.readline().decode('utf-8').rstrip()
         if 'FINISHED_CLUSTER' in line: # find the keyword set above to determine the end of the output stream
             break
-        print(line)
+        logger.debug("shell_source parsing line[" + str(line) + "]")
         lsp = str(line).split("=", 1)
         if len(lsp) > 1:
             env[lsp[0]] = lsp[1]
 
     os.environ.update(env)
     pipe.stdout.close()
-#%%
-
 
 def stop_server(ipcluster='ipcluster', pdir=None, profile=None, dview=None):
     """
     programmatically stops the ipyparallel server
 
-    Parameters:
-     ----------
-     ipcluster : str
-         ipcluster binary file name; requires 4 path separators on Windows
-         Default: "ipcluster"
+    Args:
+        ipcluster : str
+            ipcluster binary file name; requires 4 path separators on Windows
+            Default: "ipcluster"
 
     """
     if 'multiprocessing' in str(type(dview)):
@@ -323,14 +316,14 @@ def stop_server(ipcluster='ipcluster', pdir=None, profile=None, dview=None):
             c = Client(ipython_dir=pdir, profile=profile)
             ee = c[:]
             ne = len(ee)
-            print(('Shutting down %d engines.' % (ne)))
+            logger.info(('Shutting down %d engines.' % (ne)))
             c.close()
             c.shutdown(hub=True)
             shutil.rmtree('profile_' + str(profile))
             try:
                 shutil.rmtree('./log/')
             except:
-                print('creating log folder')
+                logger.info('creating log folder') # FIXME Not what this means
 
             files = glob.glob('*.log')
             os.mkdir('./log')
@@ -357,9 +350,8 @@ def stop_server(ipcluster='ipcluster', pdir=None, profile=None, dview=None):
                     sys.stdout.flush()
                     time.sleep(1)
             else:
-                print(line_out)
-                print(
-                    '**** Unrecognized syntax in ipcluster output, waiting for server to stop anyways ****')
+                logger.error(line_out)
+                logger.error('**** Unrecognized syntax in ipcluster output, waiting for server to stop anyways ****')
 
             proc.stderr.close()
 
@@ -369,20 +361,17 @@ def stop_server(ipcluster='ipcluster', pdir=None, profile=None, dview=None):
 
 def setup_cluster(backend='multiprocessing', n_processes=None, single_thread=False):
     """Setup and/or restart a parallel cluster.
-    Parameters:
-    ----------
-    backend: str
-        'multiprocessing' [alias 'local'], 'ipyparallel', and 'SLURM'
-        ipyparallel and SLURM backends try to restart if cluster running.
-        backend='multiprocessing' raises an exception if a cluster is running.
+    Args:
+        backend: str
+            'multiprocessing' [alias 'local'], 'ipyparallel', and 'SLURM'
+            ipyparallel and SLURM backends try to restart if cluster running.
+            backend='multiprocessing' raises an exception if a cluster is running.
 
     Returns:
-    ----------
         c: ipyparallel.Client object; only used for ipyparallel and SLURM backends, else None
         dview: ipyparallel dview object, or for multiprocessing: Pool object
         n_processes: number of workers in dview. None means guess at number of machine cores.
     """
-    #todo: todocument
 
     if n_processes is None:
         if backend == 'SLURM':
@@ -401,12 +390,12 @@ def setup_cluster(backend='multiprocessing', n_processes=None, single_thread=Fal
             try:
                 stop_server()
             except:
-                print('Nothing to stop')
-            slurm_script = 'SLURM/slurmStart.sh'
-            print([str(n_processes),slurm_script])
+                logger.debug('Nothing to stop')
+            slurm_script = '/mnt/home/agiovann/SOFTWARE/CaImAn/SLURM/slurmStart.sh'
+            logger.info([str(n_processes), slurm_script])
             start_server(slurm_script=slurm_script, ncpus=n_processes)
             pdir, profile = os.environ['IPPPDIR'], os.environ['IPPPROFILE']
-            print([pdir, profile])
+            logger.info([pdir, profile])
             c = Client(ipython_dir=pdir, profile=profile)
             dview = c[:]
         elif backend == 'ipyparallel':

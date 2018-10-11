@@ -1,8 +1,12 @@
 #!/usr/bin/env python
 
 """
-Complete demo pipeline for motion correction, source extraction, and
-deconvolution of two-photon calcium imaging data using the CaImAn package.
+Complete demo pipeline for processing two photon calcium imaging data using the
+CaImAn batch algorithm. The processing pipeline included motion correction,
+source extraction and deconvolution. The demo shows how to construct the
+params, MotionCorrect and cnmf objects and call the relevant functions. You
+can also run a large part of the pipeline with a single method (cnmf.fit_file)
+See inside for details.
 
 Demo is also available as a jupyter notebook (see demo_pipeline.ipynb)
 Dataset couresy of Sue Ann Koay and David Tank (Princeton University)
@@ -14,14 +18,12 @@ copyright GNU General Public License v2.0
 authors: @agiovann and @epnev
 """
 
-from __future__ import division
-from __future__ import print_function
-from builtins import range
-
-import os
-import sys
 import cv2
 import glob
+import logging
+import matplotlib.pyplot as plt
+import numpy as np
+import os
 
 try:
     cv2.setNumThreads(0)
@@ -30,7 +32,6 @@ except:
 
 try:
     if __IPYTHON__:
-        print("Running under iPython")
         # this is used for debugging purposes only. allows to reload classes
         # when changed
         get_ipython().magic('load_ext autoreload')
@@ -38,224 +39,225 @@ try:
 except NameError:
     pass
 
-import matplotlib.pyplot as plt
-import numpy as np
-import time
 
 import caiman as cm
-from caiman.utils.utils import download_demo
-from caiman.utils.visualization import plot_contours, view_patches_bar
-from caiman.source_extraction.cnmf import cnmf as cnmf
 from caiman.motion_correction import MotionCorrect
-from caiman.source_extraction.cnmf.utilities import detrend_df_f
-from caiman.components_evaluation import estimate_components_quality_auto
+from caiman.source_extraction.cnmf import cnmf as cnmf
+from caiman.source_extraction.cnmf import params as params
+from caiman.utils.utils import download_demo
+
+# %%
+# Set up the logger (optional); change this if you like.
+# You can log to a file using the filename parameter, or make the output more
+# or less verbose by setting level to logging.DEBUG, logging.INFO,
+# logging.WARNING, or logging.ERROR
+
+logging.basicConfig(format=
+                    "%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s]"\
+                    "[%(process)d] %(message)s",
+                    level=logging.INFO)
 
 #%%
 def main():
-    pass # For compatibility between running under Spyder and the CLI
+    pass  # For compatibility between running under Spyder and the CLI
 
-#%% First setup some parameters
+#%% Select file(s) to be processed (download if not present)
+    fnames = ['Sue_2x_3000_40_-46.tif']  # filename to be processed
+    if fnames[0] in ['Sue_2x_3000_40_-46.tif', 'demoMovie.tif']:
+        fnames = [download_demo(fnames[0])]
+
+#%% First setup some parameters for data and motion correction
 
     # dataset dependent parameters
-    display_images = False              # Set this to true to show movies and plots
-    fname = ['Sue_2x_3000_40_-46.tif']  # filename to be processed
-    fr = 30                             # imaging rate in frames per second
-    decay_time = 0.4                    # length of a typical transient in seconds
+    fr = 30             # imaging rate in frames per second
+    decay_time = 0.4    # length of a typical transient in seconds
+    dxy = (2., 2.)      # spatial resolution in x and y in (um per pixel)
+    # note the lower than usual spatial resolution here
+    max_shift_um = (12., 12.)       # maximum shift in um
+    patch_motion_um = (100., 100.)  # patch size for non-rigid correction in um
 
     # motion correction parameters
-    niter_rig = 1               # number of iterations for rigid motion correction
-    max_shifts = (6, 6)         # maximum allow rigid shift
-    # for parallelization split the movies in  num_splits chuncks across time
-    splits_rig = 56
+    pw_rigid = True       # flag to select rigid vs pw_rigid motion correction
+    # maximum allowed rigid shift in pixels
+    max_shifts = [int(a/b) for a, b in zip(max_shift_um, dxy)]
     # start a new patch for pw-rigid motion correction every x pixels
-    strides = (48, 48)
-    # overlap between pathes (size of patch strides+overlaps)
+    strides = tuple([int(a/b) for a, b in zip(patch_motion_um, dxy)])
+    # overlap between pathes (size of patch in pixels: strides+overlaps)
     overlaps = (24, 24)
-    # for parallelization split the movies in  num_splits chuncks across time
-    splits_els = 56
-    upsample_factor_grid = 4    # upsample factor to avoid smearing when merging patches
     # maximum deviation allowed for patch with respect to rigid shifts
     max_deviation_rigid = 3
 
-    # parameters for source extraction and deconvolution
-    p = 1                       # order of the autoregressive system
-    gnb = 2                     # number of global background components
-    merge_thresh = 0.8          # merging threshold, max correlation allowed
-    # half-size of the patches in pixels. e.g., if rf=25, patches are 50x50
-    rf = 15
-    stride_cnmf = 6             # amount of overlap between the patches in pixels
-    K = 4                       # number of components per patch
-    gSig = [4, 4]               # expected half size of neurons
-    # initialization method (if analyzing dendritic data using 'sparse_nmf')
-    init_method = 'greedy_roi'
-    is_dendrites = False        # flag for analyzing dendritic data
-    # sparsity penalty for dendritic data analysis through sparse NMF
-    alpha_snmf = None
+    mc_dict = {
+        'fnames': fnames,
+        'fr': fr,
+        'decay_time': decay_time,
+        'dxy': dxy,
+        'pw_rigid': pw_rigid,
+        'max_shifts': max_shifts,
+        'strides': strides,
+        'overlaps': overlaps,
+        'max_deviation_rigid': max_deviation_rigid,
+        'border_nan': 'copy'
+    }
 
-    # parameters for component evaluation
-    min_SNR = 2.5               # signal to noise ratio for accepting a component
-    rval_thr = 0.8              # space correlation threshold for accepting a component
-    cnn_thr = 0.8               # threshold for CNN based classifier
+    opts = params.CNMFParams(params_dict=mc_dict)
 
-#%% download the dataset if it's not present in your folder
-    if fname[0] in ['Sue_2x_3000_40_-46.tif', 'demoMovie.tif']:
-        fname = [download_demo(fname[0])]
+# %% play the movie (optional)
+    # playing the movie using opencv. It requires loading the movie in memory.
+    # To close the video press q
+    display_images = False
 
-#%% play the movie
-    # playing the movie using opencv. It requires loading the movie in memory. To
-    # close the video press q
-
-    m_orig = cm.load_movie_chain(fname[:1])
-    downsample_ratio = 0.2
-    offset_mov = -np.min(m_orig[:100])
-    moviehandle = m_orig.resize(1, 1, downsample_ratio)
     if display_images:
-        moviehandle.play(gain=10, offset=offset_mov, fr=30, magnification=2)
+        m_orig = cm.load_movie_chain(fnames)
+        ds_ratio = 0.2
+        moviehandle = m_orig.resize(1, 1, ds_ratio)
+        moviehandle.play(q_max=99.5, fr=60, magnification=2)
 
-#%% start a cluster for parallel processing
+# %% start a cluster for parallel processing
     c, dview, n_processes = cm.cluster.setup_cluster(
         backend='local', n_processes=None, single_thread=False)
 
-
-#%%% MOTION CORRECTION
-    # first we create a motion correction object with the parameters specified
-    min_mov = cm.load(fname[0], subindices=range(200)).min()
-    # this will be subtracted from the movie to make it non-negative
-
-    mc = MotionCorrect(fname[0], min_mov,
-                       dview=dview, max_shifts=max_shifts, niter_rig=niter_rig,
-                       splits_rig=splits_rig,
-                       strides=strides, overlaps=overlaps, splits_els=splits_els,
-                       upsample_factor_grid=upsample_factor_grid,
-                       max_deviation_rigid=max_deviation_rigid,
-                       shifts_opencv=True, nonneg_movie=True)
+# %%% MOTION CORRECTION
+    # first we create a motion correction object with the specified parameters
+    mc = MotionCorrect(fnames, dview=dview, **opts.get_group('motion'))
     # note that the file is not loaded in memory
 
-#%% Run piecewise-rigid motion correction using NoRMCorre
-    mc.motion_correct_pwrigid(save_movie=True)
-    m_els = cm.load(mc.fname_tot_els)
-    bord_px_els = np.ceil(np.maximum(np.max(np.abs(mc.x_shifts_els)),
-                                     np.max(np.abs(mc.y_shifts_els)))).astype(np.int)
-    # maximum shift to be used for trimming against NaNs
-#%% compare with original movie
-    moviehandle = cm.concatenate([m_orig.resize(1, 1, downsample_ratio) + offset_mov,
-                    m_els.resize(1, 1, downsample_ratio)],
-                   axis=2)
-    display_images = False
-    if display_images:
-        moviehandle.play(fr=60, q_max=99.5, magnification=2, offset=0)  # press q to exit
+# %% Run (piecewise-rigid motion) correction using NoRMCorre
+    mc.motion_correct(save_movie=True)
 
-#%% MEMORY MAPPING
+# %% compare with original movie
+    if display_images:
+        m_orig = cm.load_movie_chain(fnames)
+        m_els = cm.load(mc.mmap_file)
+        ds_ratio = 0.2
+        moviehandle = cm.concatenate([m_orig.resize(1, 1, ds_ratio) - mc.min_mov*mc.nonneg_movie,
+                                      m_els.resize(1, 1, ds_ratio)], axis=2)
+        moviehandle.play(fr=60, q_max=99.5, magnification=2)  # press q to exit
+
+# %% MEMORY MAPPING
+    border_to_0 = 0 if mc.border_nan is 'copy' else mc.border_to_0
+    # you can include the boundaries of the FOV if you used the 'copy' option
+    # during motion correction, although be careful about the components near
+    # the boundaries
+
     # memory map the file in order 'C'
-    fnames = mc.fname_tot_els   # name of the pw-rigidly corrected file.
-    border_to_0 = bord_px_els     # number of pixels to exclude
-    fname_new = cm.save_memmap(fnames, base_name='memmap_', order='C',
-                               border_to_0=bord_px_els)  # exclude borders
+    fname_new = cm.save_memmap(mc.mmap_file, base_name='memmap_', order='C',
+                               border_to_0=border_to_0)  # exclude borders
 
     # now load the file
     Yr, dims, T = cm.load_memmap(fname_new)
-    d1, d2 = dims
     images = np.reshape(Yr.T, [T] + list(dims), order='F')
     # load frames in python format (T x X x Y)
 
-#%% restart cluster to clean up memory
+# %% restart cluster to clean up memory
     cm.stop_server(dview=dview)
     c, dview, n_processes = cm.cluster.setup_cluster(
         backend='local', n_processes=None, single_thread=False)
 
-#%% RUN CNMF ON PATCHES
 
+# %%  parameters for source extraction and deconvolution
+    p = 1                    # order of the autoregressive system
+    gnb = 2                  # number of global background components
+    merge_thresh = 0.8       # merging threshold, max correlation allowed
+    rf = 15
+    # half-size of the patches in pixels. e.g., if rf=25, patches are 50x50
+    stride_cnmf = 6          # amount of overlap between the patches in pixels
+    K = 4                    # number of components per patch
+    gSig = [4, 4]            # expected half size of neurons in pixels
+    # initialization method (if analyzing dendritic data using 'sparse_nmf')
+    method_init = 'greedy_roi'
+    ssub = 2                     # spatial subsampling during initialization
+    tsub = 2                     # temporal subsampling during intialization
+
+    # parameters for component evaluation
+    opts_dict = {'fnames': fnames,
+                 'fr': fr,
+                 'nb': gnb,
+                 'rf': rf,
+                 'K': K,
+                 'gSig': gSig,
+                 'stride': stride_cnmf,
+                 'method_init': method_init,
+                 'rolling_sum': True,
+                 'merge_thr': merge_thresh,
+                 'n_processes': n_processes,
+                 'only_init': True,
+                 'ssub': ssub,
+                 'tsub': tsub}
+
+    opts.change_params(params_dict=opts_dict)
+# %% RUN CNMF ON PATCHES
     # First extract spatial and temporal components on patches and combine them
     # for this step deconvolution is turned off (p=0)
-    t1 = time.time()
 
-    cnm = cnmf.CNMF(n_processes=1, k=K, gSig=gSig, merge_thresh=merge_thresh,
-                    p=0, dview=dview, rf=rf, stride=stride_cnmf, memory_fact=1,
-                    method_init=init_method, alpha_snmf=alpha_snmf,
-                    only_init_patch=False, gnb=gnb, border_pix=bord_px_els)
+    opts.set('temporal', {'p': 0})
+    cnm = cnmf.CNMF(n_processes, params=opts, dview=dview)
     cnm = cnm.fit(images)
 
-#%% plot contours of found components
-    Cn = cm.local_correlations(images.transpose(1, 2, 0))
+# %% ALTERNATE WAY TO RUN THE PIPELINE AT ONCE
+    #   you can also perform the motion correction plus cnmf fitting steps
+    #   simultaneously after defining your parameters object using
+    #  cnm1 = cnmf.CNMF(n_processes, params=opts, dview=dview)
+    #  cnm1.fit_file(motion_correct=True)
+
+# %% plot contours of found components
+    Cn = cm.local_correlations(images, swap_dim=False)
     Cn[np.isnan(Cn)] = 0
-    plt.figure()
-    crd = plot_contours(cnm.A, Cn, thr=0.9)
+    cnm.estimates.plot_contours(img=Cn)
     plt.title('Contour plots of found components')
 
-
-#%% COMPONENT EVALUATION
+# %% RE-RUN seeded CNMF on accepted patches to refine and perform deconvolution
+    cnm.params.set('temporal', {'p': p})
+    cnm2 = cnm.refit(images, dview=dview)
+    # %% COMPONENT EVALUATION
     # the components are evaluated in three ways:
     #   a) the shape of each component must be correlated with the data
     #   b) a minimum peak SNR is required over the length of a transient
     #   c) each shape passes a CNN based classifier
+    min_SNR = 2  # signal to noise ratio for accepting a component
+    rval_thr = 0.85  # space correlation threshold for accepting a component
+    cnn_thr = 0.99  # threshold for CNN based classifier
+    cnn_lowest = 0.1 # neurons with cnn probability lower than this value are rejected
 
-    idx_components, idx_components_bad, SNR_comp, r_values, cnn_preds = \
-        estimate_components_quality_auto(images, cnm.A, cnm.C, cnm.b, cnm.f,
-                                         cnm.YrA, fr, decay_time, gSig, dims,
-                                         dview=dview, min_SNR=min_SNR,
-                                         r_values_min=rval_thr, use_cnn=False,
-                                         thresh_cnn_min=cnn_thr)
+    cnm2.params.set('quality', {'decay_time': decay_time,
+                               'min_SNR': min_SNR,
+                               'rval_thr': rval_thr,
+                               'use_cnn': True,
+                               'min_cnn_thr': cnn_thr,
+                               'cnn_lowest': cnn_lowest})
+    cnm2.estimates.evaluate_components(images, cnm2.params, dview=dview)
+    # %% PLOT COMPONENTS
+    cnm2.estimates.plot_contours(img=Cn, idx=cnm2.estimates.idx_components)
 
-#%% PLOT COMPONENTS
-
-    if display_images:
-        plt.figure()
-        plt.subplot(121)
-        crd_good = cm.utils.visualization.plot_contours(
-            cnm.A[:, idx_components], Cn, thr=.8, vmax=0.75)
-        plt.title('Contour plots of accepted components')
-        plt.subplot(122)
-        crd_bad = cm.utils.visualization.plot_contours(
-            cnm.A[:, idx_components_bad], Cn, thr=.8, vmax=0.75)
-        plt.title('Contour plots of rejected components')
-
-#%% VIEW TRACES (accepted and rejected)
+    # %% VIEW TRACES (accepted and rejected)
 
     if display_images:
-        view_patches_bar(Yr, cnm.A.tocsc()[:, idx_components], cnm.C[idx_components],
-                         cnm.b, cnm.f, dims[0], dims[1], YrA=cnm.YrA[idx_components],
-                         img=Cn)
+        cnm2.estimates.view_components(images, img=Cn,
+                                      idx=cnm2.estimates.idx_components)
+        cnm2.estimates.view_components(images, img=Cn,
+                                      idx=cnm2.estimates.idx_components_bad)
+    #%% update object with selected components
+    cnm2.estimates.select_components(use_object=True)
+    #%% Extract DF/F values
+    cnm2.estimates.detrend_df_f(quantileMin=8, frames_window=250)
 
-        view_patches_bar(Yr, cnm.A.tocsc()[:, idx_components_bad], cnm.C[idx_components_bad],
-                         cnm.b, cnm.f, dims[0], dims[1], YrA=cnm.YrA[idx_components_bad],
-                         img=Cn)
+    #%% Show final traces
+    cnm2.estimates.view_components(img=Cn)
 
-#%% RE-RUN seeded CNMF on accepted patches to refine and perform deconvolution
-    A_in, C_in, b_in, f_in = cnm.A[:,
-                                   idx_components], cnm.C[idx_components], cnm.b, cnm.f
-    cnm2 = cnmf.CNMF(n_processes=1, k=A_in.shape[-1], gSig=gSig, p=p, dview=dview,
-                     merge_thresh=merge_thresh, Ain=A_in, Cin=C_in, b_in=b_in,
-                     f_in=f_in, rf=None, stride=None, gnb=gnb,
-                     method_deconvolution='oasis', check_nan=True)
+    #%% reconstruct denoised movie (press q to exit)
+    if display_images:
+        cnm2.estimates.play_movie(images, q_max=99.9, gain_res=2,
+                                  magnification=2,
+                                  bpx=border_to_0,
+                                  include_bck=False)  # background not shown
 
-    cnm2 = cnm2.fit(images)
-
-#%% Extract DF/F values
-
-    F_dff = detrend_df_f(cnm2.A, cnm2.b, cnm2.C, cnm2.f, YrA=cnm2.YrA,
-                         quantileMin=8, frames_window=250)
-
-#%% Show final traces
-    cnm2.view_patches(Yr, dims=dims, img=Cn)
-
-#%% STOP CLUSTER and clean up log files
+    #%% STOP CLUSTER and clean up log files
     cm.stop_server(dview=dview)
     log_files = glob.glob('*_LOG_*')
     for log_file in log_files:
         os.remove(log_file)
 
-#%% reconstruct denoised movie
-    denoised = cm.movie(cnm2.A.dot(cnm2.C) +
-                        cnm2.b.dot(cnm2.f)).reshape(dims + (-1,), order='F').transpose([2, 0, 1])
-
-#%% play along side original data
-    moviehandle = cm.concatenate([m_els.resize(1, 1, downsample_ratio),
-                    denoised.resize(1, 1, downsample_ratio)],
-                   axis=2)
-    if display_images:
-            moviehandle.play(fr=60, gain=15, magnification=2, offset=0)  # press q to exit
-
-#%%
+# %%
 # This is to mask the differences between running this demo in Spyder
 # versus from the CLI
 if __name__ == "__main__":

@@ -7,20 +7,21 @@ Created on Thu Oct 20 12:12:34 2016
 @author: agiovann
 """
 
-from __future__ import division
-from __future__ import print_function
 from builtins import range
 from past.utils import old_div
-import numpy as np
-import os
-from .utils.stats import mode_robust, mode_robust_fast
-from scipy.sparse import csc_matrix
-from scipy.stats import norm
-import scipy
+
 import cv2
 import itertools
-from caiman.paths import caiman_datadir
+import logging
+import numpy as np
+import os
+import scipy
+from scipy.sparse import csc_matrix
+from scipy.stats import norm
 import warnings
+
+from caiman.paths import caiman_datadir
+from .utils.stats import mode_robust, mode_robust_fast
 
 try:
     cv2.setNumThreads(0)
@@ -82,36 +83,33 @@ def compute_event_exceptionality(traces, robust_std=False, N=5, use_mode_fast=Fa
     Then, the probability of having N consecutive events is estimated.
     This probability is used to order the components.
 
-    Parameters:
-    -----------
-    Y: ndarray
-        movie x,y,t
+    Args:
+        Y: ndarray
+            movie x,y,t
 
-    A: scipy sparse array
-        spatial components
+        A: scipy sparse array
+            spatial components
 
-    traces: ndarray
-        Fluorescence traces
+        traces: ndarray
+            Fluorescence traces
 
-    N: int
-        N number of consecutive events
+        N: int
+            N number of consecutive events
 
-    sigma_factor: float
-        multiplicative factor for noise estimate (added for backwards compatibility)
+        sigma_factor: float
+            multiplicative factor for noise estimate (added for backwards compatibility)
 
     Returns:
-    --------
+        fitness: ndarray
+            value estimate of the quality of components (the lesser the better)
 
-    fitness: ndarray
-        value estimate of the quality of components (the lesser the better)
+        erfc: ndarray
+            probability at each time step of observing the N consequtive actual trace values given the distribution of noise
 
-    erfc: ndarray
-        probability at each time step of observing the N consequtive actual trace values given the distribution of noise
-
-    noise_est: ndarray
-        the components ordered according to the fitness
-
+        noise_est: ndarray
+            the components ordered according to the fitness
     """
+
     T = np.shape(traces)[-1]
     if use_mode_fast:
         md = mode_robust_fast(traces, axis=1)
@@ -152,12 +150,9 @@ def compute_event_exceptionality(traces, robust_std=False, N=5, use_mode_fast=Fa
     # compute with this numerically stable function
     erf = scipy.special.log_ndtr(-z)
 
-    filt = np.ones(N)
-
     # moving sum
-    erfc = np.apply_along_axis(lambda m: np.convolve(
-        m, filt, mode='full'), axis=1, arr=erf)
-    erfc = erfc[:, :T]
+    erfc = np.cumsum(erf, 1)
+    erfc[:, N:] -= erfc[:, :-N]
 
     # select the maximum value of such probability for each trace
     fitness = np.min(erfc, 1)
@@ -174,7 +169,7 @@ def find_activity_intervals(C, Npeaks=5, tB=-3, tA=10, thres=0.3):
     for i in range(K):
         if np.sum(np.abs(np.diff(C[i, :]))) == 0:
             L.append([])
-            print('empyty component at:' + str(i))
+            logging.warning('empty component at:' + str(i))
             continue
         indexes = peakutils.indexes(C[i, :], thres=thres)
         srt_ind = indexes[np.argsort(C[i, indexes])][::-1]
@@ -212,7 +207,7 @@ def classify_components_ep(Y, A, C, b, f, Athresh=0.1, Npeaks=5, tB=-3, tA=10, t
     significant_samples = []
     for i in range(K):
         if i % 200 == 0:  # Show status periodically
-            print('components evaluated:' + str(i))
+            logging.info('Components evaluated:' + str(i))
         if LOC[i] is not None:
             atemp = A[:, i].toarray().flatten()
             atemp[np.isnan(atemp)] = np.nanmean(atemp)
@@ -224,7 +219,7 @@ def classify_components_ep(Y, A, C, b, f, Athresh=0.1, Npeaks=5, tB=-3, tA=10, t
 
             if len(indexes) == 0:
                 indexes = set(LOC[i])
-                print('Neuron:' + str(i) + ' includes overlapping spiking neurons')
+                logging.warning('Neuron:' + str(i) + ' includes overlapping spiking neurons')
 
             indexes = np.array(list(indexes)).astype(np.int)
             px = np.where(atemp > 0)[0]
@@ -256,7 +251,7 @@ def evaluate_components_CNN(A, dims, gSig, model_name=os.path.join(caiman_datadi
     os.environ["KERAS_BACKEND"] = "tensorflow"
     from keras.models import model_from_json
 #    except:
-#        print('PROBLEM LOADING KERAS: cannot use classifier')
+#        logging.error('PROBLEM LOADING KERAS: cannot use classifier')
 
 
     if loaded_model is None:
@@ -269,12 +264,13 @@ def evaluate_components_CNN(A, dims, gSig, model_name=os.path.join(caiman_datadi
         else:
             raise FileNotFoundError("File for requested model {} not found".format(model_name))
         with open(model_file, 'r') as json_file:
+            print('USING MODEL:' + model_file)
             loaded_model_json = json_file.read()
 
         loaded_model = model_from_json(loaded_model_json)
         loaded_model.load_weights(model_name + '.h5')
         loaded_model.compile('sgd', 'mse')
-        print("Loaded model from disk")
+        logging.info("Loaded model from disk")
     half_crop = np.minimum(
         gSig[0] * 4 + 1, patch_size), np.minimum(gSig[1] * 4 + 1, patch_size)
     dims = np.array(dims)
@@ -308,72 +304,70 @@ def evaluate_components(Y, traces, A, C, b, f, final_frate, remove_baseline=True
      with the average of the movies over samples where exceptional events happen, after  removing (if possible)
     frames when neighboring neurons were active
 
-    Parameters:
-    ----------
-    Y: ndarray
-        movie x,y,t
+    Args:
+        Y: ndarray
+            movie x,y,t
 
-    A,C,b,f: various types
-        outputs of cnmf
+        A,C,b,f: various types
+            outputs of cnmf
 
-    traces: ndarray
-        Fluorescence traces
+        traces: ndarray
+            Fluorescence traces
 
-    remove_baseline: bool
-        whether to remove the baseline in a rolling fashion *(8 percentile)
+        remove_baseline: bool
+            whether to remove the baseline in a rolling fashion *(8 percentile)
 
-    N: int
-        N number of consecutive events probability multiplied
+        N: int
+            N number of consecutive events probability multiplied
 
 
-    Athresh: float
-        threshold on overlap of A (between 0 and 1)
+        Athresh: float
+            threshold on overlap of A (between 0 and 1)
 
-    Npeaks: int
-        Number of local maxima to consider
+        Npeaks: int
+            Number of local maxima to consider
 
-    thresh_C: float
-        fraction of the maximum of C that is used as minimum peak height
+        thresh_C: float
+            fraction of the maximum of C that is used as minimum peak height
 
-    sigma_factor: float
-        multiplicative factor for noise
+        sigma_factor: float
+            multiplicative factor for noise
 
     Returns:
-    -------
-    idx_components: ndarray
-        the components ordered according to the fitness
+        idx_components: ndarray
+            the components ordered according to the fitness
 
-    fitness_raw: ndarray
-        value estimate of the quality of components (the lesser the better) on the raw trace
+        fitness_raw: ndarray
+            value estimate of the quality of components (the lesser the better) on the raw trace
 
-    fitness_delta: ndarray
-        value estimate of the quality of components (the lesser the better) on diff(trace)
+        fitness_delta: ndarray
+            value estimate of the quality of components (the lesser the better) on diff(trace)
 
-    erfc_raw: ndarray
-        probability at each time step of observing the N consequtive actual trace values given the distribution of noise on the raw trace
+        erfc_raw: ndarray
+            probability at each time step of observing the N consequtive actual trace values given the distribution of noise on the raw trace
 
-    erfc_raw: ndarray
-        probability at each time step of observing the N consequtive actual trace values given the distribution of noise on diff(trace)
+        erfc_raw: ndarray
+            probability at each time step of observing the N consequtive actual trace values given the distribution of noise on diff(trace)
 
-    r_values: list
-        float values representing correlation between component and spatial mask obtained by averaging important points
+        r_values: list
+            float values representing correlation between component and spatial mask obtained by averaging important points
 
-    significant_samples: ndarray
-        indexes of samples used to obtain the spatial mask by average
-
+        significant_samples: ndarray
+            indexes of samples used to obtain the spatial mask by average
     """
+
     tB = np.minimum(-2, np.floor(-5. / 30 * final_frate))
     tA = np.maximum(5, np.ceil(25. / 30 * final_frate))
-    print('tB:' + str(tB) + ',tA:' + str(tA))
+    logging.debug('tB:' + str(tB) + ',tA:' + str(tA))
     dims, T = np.shape(Y)[:-1], np.shape(Y)[-1]
 
     Yr = np.reshape(Y, (np.prod(dims), T), order='F')
 
-    print('Computing event exceptionality delta')
+    logging.info('Computing event exceptionality delta')
     fitness_delta, erfc_delta, _, _ = compute_event_exceptionality(
         np.diff(traces, axis=1), robust_std=robust_std, N=N, sigma_factor=sigma_factor)
 
-    print('Removing Baseline')
+    logging.debug('Removing Baseline')
     if remove_baseline:
         num_samps_bl = np.minimum(old_div(np.shape(traces)[-1], 5), 800)
         slow_baseline = False
@@ -394,12 +388,12 @@ def evaluate_components(Y, traces, A, C, b, f, final_frate, remove_baseline=True
                 traces.T, ((padbefore, padafter), (0, 0)), mode='reflect')
             numFramesNew, num_traces = np.shape(tr_tmp)
             #% compute baseline quickly
-            print("binning data ...")
+            logging.debug("binning data ...")
             tr_BL = np.reshape(tr_tmp, (downsampfact, int(
                 old_div(numFramesNew, downsampfact)), num_traces), order='F')
             tr_BL = np.percentile(tr_BL, 8, axis=0)
-            print("interpolating data ...")
-            print(tr_BL.shape)
+            logging.info("interpolating data ...")
+            logging.info(tr_BL.shape)
             tr_BL = scipy.ndimage.zoom(np.array(tr_BL, dtype=np.float32), [
                                        downsampfact, 1], order=3, mode='constant', cval=0.0, prefilter=True)
             if padafter == 0:
@@ -407,11 +401,11 @@ def evaluate_components(Y, traces, A, C, b, f, final_frate, remove_baseline=True
             else:
                 traces -= tr_BL[padbefore:-padafter].T
 
-    print('Computing event exceptionality')
+    logging.info('Computing event exceptionality')
     fitness_raw, erfc_raw, _, _ = compute_event_exceptionality(
         traces, robust_std=robust_std, N=N, sigma_factor=sigma_factor)
 
-    print('Evaluating spatial footprint')
+    logging.info('Evaluating spatial footprint')
     # compute the overlap between spatial and movie average across samples with significant events
     r_values, significant_samples = classify_components_ep(Yr, A, C, b, f, Athresh=Athresh, Npeaks=Npeaks, tB=tB,
                                                            tA=tA, thres=thresh_C)
@@ -457,67 +451,64 @@ def estimate_components_quality_auto(Y, A, C, b, f, YrA, frate, decay_time, gSig
                                      thresh_fitness_delta=-20., min_SNR_reject=0.5, gSig_range = None):
     ''' estimates the quality of component automatically
 
-    Parameters:
-    -----------
-    Y, A, C, b, f, YrA:
-        from CNMF
+    Args:
+        Y, A, C, b, f, YrA:
+            from CNMF
 
-    frate:
-        frame rate in Hz
+        frate:
+            frame rate in Hz
 
-    decay_time:
-        decay time of transients/indocator
+        decay_time:
+            decay time of transients/indocator
 
-    gSig:
-        same as CNMF parameter
+        gSig:
+            same as CNMF parameter
 
-    gSig_range: list
-        list of possible neuronal sizes
+        gSig_range: list
+            list of possible neuronal sizes
 
-    dims:
-        same as CNMF parameter
+        dims:
+            same as CNMF parameter
 
-    dview:
-        same as CNMF parameter
+        dview:
+            same as CNMF parameter
 
-    min_SNR:
-        adaptive way to set threshold (will be equal to min_SNR)
+        min_SNR:
+            adaptive way to set threshold (will be equal to min_SNR)
 
-    r_values_min:
-        all r values above this are accepted (spatial consistency metric)
+        r_values_min:
+            all r values above this are accepted (spatial consistency metric)
 
-    r_values_lowest:
-        all r values above this are rejected (spatial consistency metric)
+        r_values_lowest:
+            all r values above this are rejected (spatial consistency metric)
 
-    use_cnn:
-        whether to use CNN to filter components (not for 1 photon data)
+        use_cnn:
+            whether to use CNN to filter components (not for 1 photon data)
 
-    thresh_cnn_min:
-        all samples with probabilities larger than this are accepted
+        thresh_cnn_min:
+            all samples with probabilities larger than this are accepted
 
-    thresh_cnn_lowest:
-        all samples with probabilities smaller than this are rejected
+        thresh_cnn_lowest:
+            all samples with probabilities smaller than this are rejected
 
-    min_SNR_reject:
-        adaptive way to set threshold (like min_SNR but used to discard components with std lower than this value)
+        min_SNR_reject:
+            adaptive way to set threshold (like min_SNR but used to discard components with std lower than this value)
 
     Returns:
-    --------
+        idx_components: list
+            list of components that pass the tests
 
-    idx_components: list
-        list of components that pass the tests
+        idx_components_bad: list
+            list of components that fail the tests
 
-    idx_components_bad: list
-        list of components that fail the tests
+        comp_SNR: float
+            peak-SNR over the length of a transient for each component
 
-    comp_SNR: float
-        peak-SNR over the length of a transient for each component
+        r_values: float
+            space correlation values
 
-    r_values: float
-        space correlation values
-
-    cnn_values: float
-        prediction values from the CNN classifier
+        cnn_values: float
+            prediction values from the CNN classifier
     '''
 
     # number of timesteps to consider when testing new neuron candidates
@@ -552,7 +543,7 @@ def select_components_from_metrics(A, dims, gSig, r_values, comp_SNR,
                                    min_SNR=2.5, min_SNR_reject=0.5,
                                    thresh_cnn_min=0.8, thresh_cnn_lowest=0.1,
                                    use_cnn=True, gSig_range=None,
-                                   neuron_class=1, predictions=None):
+                                   neuron_class=1, predictions=None, **kwargs):
     '''Selects components based on pre-computed metrics. For each metric
     space correlation, trace SNR, and CNN classifier both an upper and a lower
     thresholds are considered. A component is accepted if and only if it
@@ -596,6 +587,7 @@ def select_components_from_metrics(A, dims, gSig, r_values, comp_SNR,
     idx_components_bad = np.setdiff1d(
         list(range(len(r_values))), idx_components)
 
+
     return idx_components.astype(np.int), idx_components_bad.astype(np.int), cnn_values
 
 #%%
@@ -615,56 +607,53 @@ def estimate_components_quality(traces, Y, A, C, b, f, final_frate=30, Npeaks=10
      with the average of the movies over samples where exceptional events happen, after  removing (if possible)
     frames when neighboring neurons were active
 
-    Parameters:
-    ----------
-    Y: ndarray
-        movie x,y,t
+    Args:
+        Y: ndarray
+            movie x,y,t
 
-    A,C,b,f: various types
-        outputs of cnmf
+        A,C,b,f: various types
+            outputs of cnmf
 
-    traces: ndarray
-        Fluorescence traces
+        traces: ndarray
+            Fluorescence traces
 
-    N: int
-        N number of consecutive events probability multiplied
+        N: int
+            N number of consecutive events probability multiplied
 
-    Npeaks: int
+        Npeaks: int
 
-    r_values_min: list
-        minimum correlation between component and spatial mask obtained by averaging important points
+        r_values_min: list
+            minimum correlation between component and spatial mask obtained by averaging important points
 
-    fitness_min: ndarray
-        minimum acceptable quality of components (the lesser the better) on the raw trace
+        fitness_min: ndarray
+            minimum acceptable quality of components (the lesser the better) on the raw trace
 
-    fitness_delta_min: ndarray
-        minimum acceptable the quality of components (the lesser the better) on diff(trace)
+        fitness_delta_min: ndarray
+            minimum acceptable the quality of components (the lesser the better) on diff(trace)
 
-    thresh_C: float
-        fraction of the maximum of C that is used as minimum peak height
+        thresh_C: float
+            fraction of the maximum of C that is used as minimum peak height
 
     Returns:
-    -------
-    idx_components: ndarray
-        the components ordered according to the fitness
+        idx_components: ndarray
+            the components ordered according to the fitness
 
-    idx_components_bad: ndarray
-        the components ordered according to the fitness
+        idx_components_bad: ndarray
+            the components ordered according to the fitness
 
-    fitness_raw: ndarray
-        value estimate of the quality of components (the lesser the better) on the raw trace
+        fitness_raw: ndarray
+            value estimate of the quality of components (the lesser the better) on the raw trace
 
-    fitness_delta: ndarray
-        value estimate of the quality of components (the lesser the better) on diff(trace)
+        fitness_delta: ndarray
+            value estimate of the quality of components (the lesser the better) on diff(trace)
 
-    r_values: list
-        float values representing correlation between component and spatial mask obtained by averaging important points
+        r_values: list
+            float values representing correlation between component and spatial mask obtained by averaging important points
 
     """
 
     if 'memmap' not in str(type(Y)):
-
-        print('NOT MEMORY MAPPED. FALLING BACK ON SINGLE CORE IMPLEMENTATION')
+        logging.warning('NOT MEMORY MAPPED. FALLING BACK ON SINGLE CORE IMPLEMENTATION')
         fitness_raw, fitness_delta, erfc_raw, erfc_delta, r_values, _ = \
             evaluate_components(Y, traces, A, C, b, f, final_frate, remove_baseline=remove_baseline,
                                 N=N, robust_std=False, Athresh=0.1, Npeaks=Npeaks, thresh_C=0.3)
@@ -686,23 +675,23 @@ def estimate_components_quality(traces, Y, A, C, b, f, final_frate=30, Npeaks=10
                 idx = list(filter(lambda a: a is not None, idx))
                 params.append([Y.filename, traces[idx], A.tocsc()[:, idx], C[idx], b, f,
                                final_frate, remove_baseline, N, robust_std, Athresh, Npeaks, thresh_C])
-    
+
             if dview is None:
                 res = map(evaluate_components_placeholder, params)
             else:
-                print('EVALUATING IN PARALLEL... NOT RETURNING ERFCs')
+                logging.info('EVALUATING IN PARALLEL... NOT RETURNING ERFCs')
                 if 'multiprocessing' in str(type(dview)):
                     res = dview.map_async(
                         evaluate_components_placeholder, params).get(4294967)
                 else:
                     res = dview.map_sync(evaluate_components_placeholder, params)
-    
+
             for r_ in res:
                 fitness_raw__, fitness_delta__, erfc_raw__, erfc_delta__, r_values__, _ = r_
                 fitness_raw = np.concatenate([fitness_raw, fitness_raw__])
                 fitness_delta = np.concatenate([fitness_delta, fitness_delta__])
                 r_values = np.concatenate([r_values, r_values__])
-    
+
                 if len(erfc_raw) == 0:
                     erfc_raw = erfc_raw__
                     erfc_delta = erfc_delta__

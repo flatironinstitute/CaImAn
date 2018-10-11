@@ -4,18 +4,19 @@ try:
     get_ipython().magic(u'load_ext autoreload')
     get_ipython().magic(u'autoreload 2')
 except:
-    print('Not launched under iPython')
+    pass
 
-import numpy as np
-from scipy.io import loadmat
-from operator import itemgetter
-import matplotlib.pyplot as plt
-from scipy.ndimage import center_of_mass
 import itertools
+import logging
+import matplotlib.pyplot as plt
+import numpy as np
+from operator import itemgetter
+from scipy.io import loadmat
+from scipy.ndimage import center_of_mass
+
 import caiman as cm
 from caiman.source_extraction import cnmf
 from caiman.source_extraction.cnmf.utilities import compute_residuals
-
 
 #%%
 def get_mapping(inferredC, trueC, A):
@@ -187,8 +188,8 @@ idx_components, idx_components_bad = cm.components_evaluation.estimate_component
     traces, Yr, cnm.A, cnm.C, cnm.b, cnm.f, final_frate=final_frate, Npeaks=Npeaks,
     r_values_min=r_values_min, fitness_min=fitness_min, fitness_delta_min=fitness_delta_min, dview=dview)
 
-print(('Keeping ' + str(len(idx_components)) +
-       ' and discarding  ' + str(len(idx_components_bad))))
+logging.info('Keeping ' + str(len(idx_components)) +
+       ' and discarding  ' + str(len(idx_components_bad)))
 
 
 #%%
@@ -234,9 +235,9 @@ else:
         [np.corrcoef(A_cnmfe_patch.toarray()[:, n], A[:, n])[0, 1] for n in range(N)])
 
 
-print(np.median(corC), np.median(corA))
-print(np.median(corC_cnmfe), np.median(corA_cnmfe))
-print(np.median(corC_cnmfe_patch), np.median(corA_cnmfe_patch))
+logging.info(np.median(corC), np.median(corA))
+logging.info(np.median(corC_cnmfe), np.median(corA_cnmfe))
+logging.info(np.median(corC_cnmfe_patch), np.median(corA_cnmfe_patch))
 #%%
 crd = cm.utils.visualization.plot_contours(A_, cn_filter, thr=.95, vmax=0.95)
 plot_centers(A_, A)

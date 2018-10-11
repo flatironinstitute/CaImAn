@@ -17,14 +17,16 @@ caiman/tests/comparison/comparison.py
 # \author: Jeremie KALFON
 
 
-from __future__ import division
-from __future__ import print_function
 from builtins import str
 from builtins import range
-import matplotlib
-from caiman.utils.utils import download_demo
+
+import copy
 import cv2
 import glob
+import matplotlib
+import numpy as np
+import os
+import time
 
 try:
     cv2.setNumThreads(0)
@@ -33,24 +35,20 @@ except:
 
 try:
     if __IPYTHON__:
-        print((1))
         # this is used for debugging purposes only. allows to reload classes
         # when changed
         get_ipython().magic('load_ext autoreload')
         get_ipython().magic('autoreload 2')
 except NameError:
-    print('Not launched under iPython')
+    pass
 
 import caiman as cm
-import numpy as np
-import os
-import time
-import copy
-from caiman.source_extraction.cnmf import cnmf as cnmf
-from caiman.motion_correction import MotionCorrect
 from caiman.components_evaluation import estimate_components_quality
-from caiman.tests.comparison import comparison
+from caiman.motion_correction import MotionCorrect
 from caiman.paths import caiman_datadir
+from caiman.source_extraction.cnmf import cnmf as cnmf
+from caiman.tests.comparison import comparison
+from caiman.utils.utils import download_demo
 
 # GLOBAL VAR
 params_movie = {'fname': ['Sue_2x_3000_40_-46.tif'],
@@ -232,12 +230,13 @@ def create():
                         'only_init_patch'],
                     gnb=params_movie['gnb'], method_deconvolution='oasis')
     comp.cnmpatch = copy.copy(cnm)
+    comp.cnmpatch.estimates = None
     cnm = cnm.fit(images)
-    A_tot = cnm.A
-    C_tot = cnm.C
-    YrA_tot = cnm.YrA
-    b_tot = cnm.b
-    f_tot = cnm.f
+    A_tot = cnm.estimates.A
+    C_tot = cnm.estimates.C
+    YrA_tot = cnm.estimates.YrA
+    b_tot = cnm.estimates.b
+    f_tot = cnm.estimates.f
     # DISCARDING
     print(('Number of components:' + str(A_tot.shape[-1])))
     final_frate = params_movie['final_frate']
@@ -265,7 +264,7 @@ def create():
                     f_in=f_tot, rf=None, stride=None, method_deconvolution='oasis')
     cnm = cnm.fit(images)
     # DISCARDING
-    A, C, b, f, YrA, sn = cnm.A, cnm.C, cnm.b, cnm.f, cnm.YrA, cnm.sn
+    A, C, b, f, YrA, sn = cnm.estimates.A, cnm.estimates.C, cnm.estimates.b, cnm.estimates.f, cnm.estimates.YrA, cnm.estimates.sn
     final_frate = params_movie['final_frate']
     # threshold on space consistency
     r_values_min = params_movie['r_values_min_full']

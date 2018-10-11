@@ -4,27 +4,13 @@
 """
 Class representing a time series.
 
-    Example of usage
-
-    Parameters:
-    ----------
-
-    input_arr: np.ndarray
-
-    start_time: time beginning movie
-
-    fr: frame rate
-
-    meta_data: dictionary including any custom meta data
-
-
 author: Andrea Giovannucci
 """
 
 #%%
-from __future__ import print_function
 import cv2
 import h5py
+import logging
 import numpy as np
 import os
 import pylab as plt
@@ -47,22 +33,6 @@ except:
 class timeseries(np.ndarray):
     """
     Class representing a time series.
-
-    Example of usage
-
-    Parameters:
-    ----------
-    input_arr: np.ndarray
-
-    fr: frame rate
-
-    start_time: time beginning movie
-
-    meta_data: dictionary including any custom meta data
-
-    Raise:
-    -----
-    Exception('You need to specify the frame rate')
     """
 
     def __new__(cls, input_arr, fr=30, start_time=0, file_name=None, meta_data=None):
@@ -71,19 +41,17 @@ class timeseries(np.ndarray):
 
             Example of usage
 
-            Parameters:
-            ----------
-            input_arr: np.ndarray
+            Args:
+                input_arr: np.ndarray
 
-            fr: frame rate
+                fr: frame rate
 
-            start_time: time beginning movie
+                start_time: time beginning movie
 
-            meta_data: dictionary including any custom meta data
+                meta_data: dictionary including any custom meta data
 
-            Raise:
-            -----
-            Exception('You need to specify the frame rate')
+            Raises:
+                Exception 'You need to specify the frame rate'
             """
         if fr is None:
             raise Exception('You need to specify the frame rate')
@@ -148,24 +116,22 @@ class timeseries(np.ndarray):
         """
         Save the timeseries in various formats
 
-        parameters:
-        ----------
-        file_name: str
-            name of file. Possible formats are tif, avi, npz, mmap and hdf5
+        Args:
+            file_name: str
+                name of file. Possible formats are tif, avi, npz, mmap and hdf5
 
-        to32: Bool
-            whether to transform to 32 bits
+            to32: Bool
+                whether to transform to 32 bits
 
-                order: 'F' or 'C'
-                        C or Fortran order
+            order: 'F' or 'C'
+                C or Fortran order
 
-        Raise:
-        -----
-        raise Exception('Extension Unknown')
+        Raises:
+            Exception 'Extension Unknown'
 
         """
         name, extension = os.path.splitext(file_name)[:2]
-        print(extension)
+        logging.debug("Parsing extension " + str(extension))
 
 
         if extension == '.tif':  # load avi file
@@ -174,8 +140,8 @@ class timeseries(np.ndarray):
 
 
                 for i in range(self.shape[0]):
-                    if i%200 == 0:
-                        print(str(i) + ' frames saved')
+                    if i % 200 == 0:
+                        logging.debug(str(i) + ' frames saved')
 
                     curfr = self[i].copy()
                     if to32 and not('float32' in str(self.dtype)):
@@ -187,7 +153,7 @@ class timeseries(np.ndarray):
 
         elif extension == '.npz':
             if to32 and not('float32' in str(self.dtype)):
-                input_arr = input_arr.astype(np.float32)
+                input_arr = self.astype(np.float32)
             else:
                 input_arr = np.array(self)
 
@@ -219,7 +185,7 @@ class timeseries(np.ndarray):
                 f_name = ''
 
             if to32 and not('float32' in str(self.dtype)):
-                input_arr = input_arr.astype(np.float32)
+                input_arr = self.astype(np.float32)
             else:
                 input_arr = np.array(self)
 
@@ -233,7 +199,7 @@ class timeseries(np.ndarray):
         elif extension in ('.hdf5', '.h5'):
             with h5py.File(file_name, "w") as f:
                 if to32 and not('float32' in str(self.dtype)):
-                    input_arr = input_arr.astype(np.float32)
+                    input_arr = self.astype(np.float32)
                 else:
                     input_arr = np.array(self)
 
@@ -244,9 +210,9 @@ class timeseries(np.ndarray):
                     dset.attrs["file_name"] = [
                         a.encode('utf8') for a in self.file_name]
                 except:
-                    print('No file name saved')
+                    logging.warning('No file saved')
                 if self.meta_data[0] is not None:
-                    print(self.meta_data)
+                    logging.debug("Metadata for saved file: " + str(self.meta_data))
                     dset.attrs["meta_data"] = cpk.dumps(self.meta_data)
 
         elif extension == '.mmap':
@@ -255,7 +221,7 @@ class timeseries(np.ndarray):
             T = self.shape[0]
             dims = self.shape[1:]
             if to32 and not('float32' in str(self.dtype)):
-                input_arr = input_arr.astype(np.float32)
+                input_arr = self.astype(np.float32)
             else:
                 input_arr = np.array(self)
 
@@ -274,7 +240,7 @@ class timeseries(np.ndarray):
             return fname_tot
 
         else:
-            print(extension)
+            logging.error("Extension " + str(extension) + " unknown")
             raise Exception('Extension Unknown')
 
 
@@ -282,9 +248,8 @@ def concatenate(*args, **kwargs):
     """
     Concatenate movies
 
-    Parameters:
-    -----------
-    mov: XMovie object
+    Args:
+        mov: XMovie object
     """
     # todo: todocument return
 
@@ -308,5 +273,5 @@ def concatenate(*args, **kwargs):
     try:
         return obj.__class__(np.concatenate(*args, **kwargs), **obj.__dict__)
     except:
-        print('no meta information passed')
+        logging.debug('no meta information passed')
         return obj.__class__(np.concatenate(*args, **kwargs))

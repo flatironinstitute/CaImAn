@@ -31,7 +31,7 @@ with open('README.md', 'r') as rmf:
 binaries = ['caimanmanager.py']
 extra_dirs = ['demos', 'docs', 'model']
 data_files = [('share/caiman', ['LICENSE.txt', 'README.md', 'test_demos.sh']),
-              ('share/caiman/example_movies', ['example_movies/data_endoscope.tif', 'example_movies/demoMovie.tif', 'example_movies/demoMovieJ.tif']),
+              ('share/caiman/example_movies', ['example_movies/data_endoscope.tif', 'example_movies/demoMovie.tif']),
               ('share/caiman/testdata', ['testdata/groundtruth.npz', 'testdata/example.npz'])
              ]
 for part in extra_dirs:

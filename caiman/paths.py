@@ -4,10 +4,7 @@
 
 """
 
-from __future__ import print_function
-
 import os
-import sys # for sys.prefix
 
 def caiman_datadir():
 	"""

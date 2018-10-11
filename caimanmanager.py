@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-from __future__ import print_function
 import argparse
 import distutils.dir_util
 import filecmp
@@ -34,8 +33,7 @@ extra_files = ['test_demos.sh', 'README.md', 'LICENSE.txt']
 extra_dirs  = ['demos', 'docs', 'model', 'testdata']
 standard_movies = [
 		os.path.join('example_movies', 'data_endoscope.tif'),
-		os.path.join('example_movies', 'demoMovie.tif'),
-		os.path.join('example_movies', 'demoMovieJ.tif')]
+		os.path.join('example_movies', 'demoMovie.tif')]
 
 ###############
 # commands
