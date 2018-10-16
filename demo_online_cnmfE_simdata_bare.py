@@ -15,7 +15,7 @@ from scipy.io import loadmat
 from scipy.stats import pearsonr
 
 
-small = True
+small = False
 save_figs = False
 
 
@@ -94,19 +94,12 @@ cm.base.rois.register_ROIs(A, cnm_batch.estimates.A, dims, align_flag=0)
 
 #%% RUN (offline) CNMF-E algorithm on the initial batch
 
-# cnm_init = cnmf.CNMF(2, method_init='corr_pnr', k=None, gSig=(gSig, gSig), gSiz=(gSiz0, gSiz0),
-#                      merge_thresh=.98, p=1, tsub=1, ssub=1, only_init_patch=True, gnb=0,
-#                      min_corr=min_corr, min_pnr=min_pnr, s_min=s_min, normalize_init=False,
-#                      ring_size_factor=18. / gSiz0, center_psf=True, ssub_B=2, init_iter=1,
-#                      minibatch_shape=100, minibatch_suff_stat=5, update_num_comps=True,
-#                      rval_thr=.9, thresh_fitness_delta=-30, thresh_fitness_raw=-50,
-#                      batch_update_suff_stat=False, update_freq=100)
 opts = cnmf.params.CNMFParams(method_init='corr_pnr', k=None, gSig=(gSig, gSig), gSiz=(gSiz0, gSiz0),
                      merge_thresh=.98, p=1, tsub=1, ssub=1, only_init_patch=True, gnb=0,
                      min_corr=min_corr, min_pnr=min_pnr, s_min=s_min, normalize_init=False,
                      ring_size_factor=18. / gSiz0, center_psf=True, ssub_B=2, init_iter=1,
                      minibatch_shape=100, minibatch_suff_stat=5, update_num_comps=True,
-                     rval_thr=.92, thresh_fitness_delta=-30, thresh_fitness_raw=-50,
+                     rval_thr=.85, thresh_fitness_delta=-40, thresh_fitness_raw=-60,
                      batch_update_suff_stat=True, update_freq=100,
                      min_num_trial=1, max_num_added=1, thresh_CNN_noisy=None,
                      use_peak_max=False, N_samples_exceptionality=12)
@@ -165,7 +158,8 @@ cnm2.estimates.C_on = np.zeros((cnm.estimates.C_on.shape[0], 2 * T), dtype=np.fl
 cnm2.estimates.noisyC = np.zeros((cnm.estimates.noisyC.shape[0], 2 * T), dtype=np.float32)
 cnm2.estimates.C_on[:, :T] = cnm.estimates.C_on
 cnm2.estimates.noisyC[:, :T] = cnm.estimates.noisyC
-cnm2.params.set('online', {'rval_thr': .9, 'thresh_fitness_raw': -400, 'thresh_fitness_delta': -350})
+if small:
+    cnm2.params.set('online', {'update_num_comps': False})
 t = T
 for frame in Y:
     cnm2.fit_next(t, frame.copy().reshape(-1, order='F'))

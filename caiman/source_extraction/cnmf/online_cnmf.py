@@ -175,8 +175,6 @@ class OnACID(object):
                 self.estimates.C_on[i, :init_batch] = o.c
         else:
             self.estimates.C_on[:self.N, :init_batch] = self.estimates.C
-
-
         
         if self.is1p:
             ssub_B = self.params.get('init', 'ssub_B')
@@ -186,8 +184,6 @@ class OnACID(object):
             X = downscale(X.reshape(self.estimates.dims + (-1,), order='F'),
                           (ssub_B, ssub_B, 1)).reshape((-1, init_batch), order='F')
             self.estimates.XXt = X.dot(X.T)
-
-
 
         self.estimates.Ab, self.ind_A, self.estimates.CY, self.estimates.CC = init_shapes_and_sufficient_stats(
             Yr[:, :init_batch].reshape(self.estimates.dims + (-1,), order='F'),
@@ -217,7 +213,6 @@ class OnACID(object):
         self.estimates.Yres_buf = RingBuffer(self.estimates.Yr_buf - self.estimates.Ab.dot(
             self.estimates.C_on[:self.M, self.params.get('online', 'init_batch') - self.params.get('online', 'minibatch_shape'):
             self.params.get('online', 'init_batch')]).T, self.params.get('online', 'minibatch_shape'))
-        
 
         if self.is1p:
             estim = self.estimates
@@ -248,7 +243,6 @@ class OnACID(object):
                     .reshape(((d1 - 1) // ssub_B + 1, (d2 - 1) // ssub_B + 1, -1), order='F'),
                     ssub_B, 0), ssub_B, 1)[:d1, :d2].reshape(
                 -1, self.params.get('online', 'minibatch_shape'), order='F').T
-
 
         self.estimates.sn = np.array(np.std(self.estimates.Yres_buf,axis=0))
         self.estimates.vr = np.array(np.var(self.estimates.Yres_buf,axis=0))
@@ -1815,7 +1809,6 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
     Checks for new components in the residual buffer and incorporates them if they pass the acceptance tests
     """
 
-    # import pdb; pdb.set_trace()
     ind_new = []
     gHalf = np.array(gSiz) // 2
 
@@ -1834,7 +1827,6 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
         loaded_model=loaded_model, thresh_CNN_noisy=thresh_CNN_noisy,
         use_peak_max=use_peak_max, test_both=test_both)
 
-    # import pdb; pdb.set_trace()
     ind_new_all = ijsig_all
 
     num_added = len(inds)
