@@ -206,7 +206,7 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
         pixel_groups.append([Y_name, C_name, sn, ind2_[i:i + n_pixels_per_process], list(
             range(i, i + n_pixels_per_process)), method_ls, cct, ])
     if i < np.prod(dims):
-        pixel_groups.append([Y_name, C_name, sn, ind2_[i:i + n_pixels_per_process], list(
+        pixel_groups.append([Y_name, C_name, sn, ind2_[i:np.prod(dims)], list(
             range(i, np.prod(dims))), method_ls, cct])
     A_ = np.zeros((d, nr + np.size(f, 0)))  # init A_
     if dview is not None:
@@ -877,7 +877,7 @@ def determine_search_location(A, dims, method='ellipse', min_size=3, max_size=8,
             for r in res:
                 dist_indicator.append(r)
 
-            dist_indicator = (np.asarray(dist_indicator)).squeeze().T
+            dist_indicator = scipy.sparse.coo_matrix((np.asarray(dist_indicator)).squeeze().T)
 
         else:
             raise Exception('Not implemented')
@@ -1045,8 +1045,7 @@ def computing_indicator(Y, A_in, b, C, f, nb, method, dims, min_size, max_size, 
 
         if b is None:
             dist_indicator = determine_search_location(
-                A_in, dims, method=method, min_size=min_size, max_size=max_size, dist=dist, expandCore=expandCore,
-                dview=dview)
+                A_in, dims, method=method, min_size=min_size, max_size=max_size, dist=dist, expandCore=expandCore, dview=dview)
         else:
             dist_indicator = determine_search_location(
                 scipy.sparse.hstack([A_in, scipy.sparse.coo_matrix(b)]), dims, method=method, min_size=min_size, max_size=max_size, dist=dist, expandCore=expandCore,

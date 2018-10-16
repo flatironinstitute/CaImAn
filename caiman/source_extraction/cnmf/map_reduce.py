@@ -426,6 +426,7 @@ def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None, memory_fact=1,
                   max_iter=100, shuffle=False, random_state=1)
         _ = mdl.fit_transform(F_tot).T
         f = mdl.components_.squeeze()
+        f = np.atleast_2d(f)
         #import pdb
         #pdb.set_trace()
         for _ in range(100):

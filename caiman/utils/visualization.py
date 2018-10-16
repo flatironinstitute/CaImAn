@@ -662,8 +662,8 @@ def nb_imshow(image, cmap='jet'):
 
 
 def nb_plot_contour(image, A, d1, d2, thr=None, thr_method='max', maxthr=0.2, nrgthr=0.9,
-                    face_color=None, line_color='black', alpha=0.4, line_width=2,
-                    coordinates=None, **kwargs):
+                    face_color=None, line_color='red', alpha=0.4, line_width=2,
+                    coordinates=None, show=True, cmap='jet', **kwargs):
     """Interactive Equivalent of plot_contours for ipython notebook
 
     Args:
@@ -701,19 +701,23 @@ def nb_plot_contour(image, A, d1, d2, thr=None, thr_method='max', maxthr=0.2, nr
                 User specifies the colormap (default None, default colormap)
     """
 
-    p = nb_imshow(image, cmap='jet')
+    p = nb_imshow(image, cmap=cmap)
+    p.plot_width = 600
+    p.plot_height = 600 * d1 // d2
     center = com(A, d1, d2)
     p.circle(center[:, 1], center[:, 0], size=10, color="black",
              fill_color=None, line_width=2, alpha=1)
-    coors = plot_contours(coo_matrix(A), image, thr=thr,
-                          thr_method=thr_method, maxthr=maxthr, nrgthr=nrgthr,
-                          coordinates=coordinates)
-    pl.close()
-    cc1 = [np.clip(cor['coordinates'][:, 0], 0, d2) for cor in coors]
-    cc2 = [np.clip(cor['coordinates'][:, 1], 0, d1) for cor in coors]
+    if coordinates is None:
+        coors = get_contours(A, np.shape(image), thr, thr_method)
+    else:
+        coors = coordinates
+    cc1 = [np.clip(cor['coordinates'][1:-1, 0], 0, d2) for cor in coors]
+    cc2 = [np.clip(cor['coordinates'][1:-1, 1], 0, d1) for cor in coors]
 
-    p.patches(cc1, cc2, alpha=.4, color=face_color,
+    p.patches(cc1, cc2, alpha=1, color=face_color,
               line_color=line_color, line_width=2, **kwargs)
+    if show:
+        bpl.show(p)
     return p
 
 def playMatrix(mov, gain=1.0, frate=.033):

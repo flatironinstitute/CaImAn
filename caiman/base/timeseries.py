@@ -153,7 +153,7 @@ class timeseries(np.ndarray):
 
         elif extension == '.npz':
             if to32 and not('float32' in str(self.dtype)):
-                input_arr = input_arr.astype(np.float32)
+                input_arr = self.astype(np.float32)
             else:
                 input_arr = np.array(self)
 
@@ -185,7 +185,7 @@ class timeseries(np.ndarray):
                 f_name = ''
 
             if to32 and not('float32' in str(self.dtype)):
-                input_arr = input_arr.astype(np.float32)
+                input_arr = self.astype(np.float32)
             else:
                 input_arr = np.array(self)
 
@@ -199,7 +199,7 @@ class timeseries(np.ndarray):
         elif extension in ('.hdf5', '.h5'):
             with h5py.File(file_name, "w") as f:
                 if to32 and not('float32' in str(self.dtype)):
-                    input_arr = input_arr.astype(np.float32)
+                    input_arr = self.astype(np.float32)
                 else:
                     input_arr = np.array(self)
 
@@ -221,7 +221,7 @@ class timeseries(np.ndarray):
             T = self.shape[0]
             dims = self.shape[1:]
             if to32 and not('float32' in str(self.dtype)):
-                input_arr = input_arr.astype(np.float32)
+                input_arr = self.astype(np.float32)
             else:
                 input_arr = np.array(self)
 

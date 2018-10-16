@@ -281,7 +281,7 @@ def shell_source(script):
         line = pipe.stdout.readline().decode('utf-8').rstrip()
         if 'FINISHED_CLUSTER' in line: # find the keyword set above to determine the end of the output stream
             break
-        debug.info("shell_source parsing line[" + str(line) + "]")
+        logger.debug("shell_source parsing line[" + str(line) + "]")
         lsp = str(line).split("=", 1)
         if len(lsp) > 1:
             env[lsp[0]] = lsp[1]
@@ -391,7 +391,7 @@ def setup_cluster(backend='multiprocessing', n_processes=None, single_thread=Fal
                 stop_server()
             except:
                 logger.debug('Nothing to stop')
-            slurm_script = 'SLURM/slurmStart.sh'
+            slurm_script = '/mnt/home/agiovann/SOFTWARE/CaImAn/SLURM/slurmStart.sh'
             logger.info([str(n_processes), slurm_script])
             start_server(slurm_script=slurm_script, ncpus=n_processes)
             pdir, profile = os.environ['IPPPDIR'], os.environ['IPPPROFILE']

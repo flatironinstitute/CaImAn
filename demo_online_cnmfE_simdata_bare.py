@@ -135,6 +135,10 @@ cnm = cnmf.online_cnmf.OnACID(cnm_init.params, estim)
 cnm.params.set('data', {'dims': dims})
 cnm._prepare_object(np.asarray(Yr[:, :initbatch]), T)
 cnm.params.set('init', {'gSiz' : (gSiz, gSiz), 'ring_size_factor' : 18. / gSiz})
+cnm.comp_upd = []
+cnm.t_shapes = []
+cnm.t_detect = []
+cnm.t_motion = []
 t = initbatch
 for frame in Y[initbatch:]:
     cnm.fit_next(t, frame.copy().reshape(-1, order='F'))

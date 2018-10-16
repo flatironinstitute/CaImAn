@@ -1,8 +1,16 @@
 #!/usr/bin/env python
 
 """
-Complete demo pipeline for motion correction, source extraction, and deconvolution
+Complete pipeline for motion correction, source extraction, and deconvolution
 of one photon microendoscopic calcium imaging data using the CaImAn package.
+The demo demonstrates how to use the params, MotionCorrect and cnmf objects
+for processing 1p microendoscopic data. The analysis pipeline is similar as in
+the case of 2p data processing with core difference being the usage of the
+CNMF-E algorithm for source extraction (as opposed to plain CNMF). Check
+the companion paper for more details.
+
+You can also run a large part of the pipeline with a single method
+(cnmf.fit_file) See inside for details.
 
 Demo is also available as a jupyter notebook (see demo_pipeline_cnmfE.ipynb)
 """
@@ -32,9 +40,10 @@ from caiman.source_extraction.cnmf import params as params
 # verbose by setting level to logging.DEBUG, logging.INFO, logging.WARNING, or logging.ERROR
 
 logging.basicConfig(format=
-                          "%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s] [%(process)d] %(message)s",
-                    # filename="/tmp/caiman.log",
+                    "%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s]"\
+                    "[%(process)d] %(message)s",
                     level=logging.DEBUG)
+    # filename="/tmp/caiman.log"
 
 #%%
 def main():
@@ -51,9 +60,7 @@ def main():
                                                      single_thread=False)
 
 # %% First setup some parameters for motion correction
-
     # dataset dependent parameters
-    display_images = False           # Set to true to show movies and images
     fnames = ['data_endoscope.tif']  # filename to be processed
     fnames = [download_demo(fnames[0])]  # download file if not already present
     filename_reorder = fnames
@@ -89,6 +96,8 @@ def main():
     opts = params.CNMFParams(params_dict=mc_dict)
 
 # %% MOTION CORRECTION
+#  The pw_rigid flag set above, determines where to use rigid or pw-rigid
+#  motion correction
     if motion_correct:
         # do motion correction rigid
         mc = MotionCorrect(fnames, dview=dview, **opts.get_group('motion'))
@@ -119,7 +128,7 @@ def main():
 # %% Parameters for source extraction and deconvolution (CNMF-E algorithm)
 
     p = 1               # order of the autoregressive system
-    K = None            # upper bound on number of components per patch, in general None
+    K = None            # upper bound on number of components per patch, in general None for 1p data
     gSig = (3, 3)       # gaussian width of a 2D gaussian kernel, which approximates a neuron
     gSiz = (13, 13)     # average diameter of a neuron, in general 4*gSig+1
     Ain = None          # possibility to seed with predetermined binary masks
@@ -192,7 +201,7 @@ def main():
 #    cnm1.fit_file(motion_correct=True)
 
 # %% DISCARD LOW QUALITY COMPONENTS
-    min_SNR = 3            # adaptive way to set threshold on the transient size
+    min_SNR = 2.5           # adaptive way to set threshold on the transient size
     r_values_min = 0.85    # threshold on space consistency (if you lower more components
     #                        will be accepted, potentially with worst quality)
     cnm.params.set('quality', {'min_SNR': min_SNR,
@@ -206,11 +215,13 @@ def main():
 
 # %% PLOT COMPONENTS
     cnm.dims = dims
+    display_images = True           # Set to true to show movies and images
     if display_images:
         cnm.estimates.plot_contours(img=cn_filter, idx=cnm.estimates.idx_components)
         cnm.estimates.view_components(images, idx=cnm.estimates.idx_components)
 
 # %% MOVIES
+    display_images = False           # Set to true to show movies and images
     if display_images:
         # fully reconstructed movie
         cnm.estimates.play_movie(images, q_max=99.5, magnification=2,

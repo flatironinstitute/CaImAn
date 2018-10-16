@@ -7,56 +7,35 @@ CaImAn
 [![Join the chat at https://gitter.im/agiovann/SOURCE_EXTRACTION_PYTHON](https://badges.gitter.im/agiovann/SOURCE_EXTRACTION_PYTHON.svg)](https://gitter.im/agiovann/SOURCE_EXTRACTION_PYTHON?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 
-A Computational toolbox for large scale **Ca**lcium **Im**aging data **An**alysis and behavioral analysis.
+A Python toolbox for large scale **Ca**lcium **Im**aging data **An**alysis and behavioral analysis.
 
-Recent advances in calcium imaging acquisition techniques are creating datasets of the order of Terabytes/week. Memory and computationally efficient algorithms are required to analyze in reasonable amount of time terabytes of data. This project implements a set of essential methods required in the calcium imaging movies analysis pipeline. Fast and scalable algorithms are implemented for motion correction, movie manipulation, and source and spike extraction. CaImAn also contains some routines for the analyisis of behavior from video cameras. In summary, CaImAn provides a general purpose tool to handle large movies, with special emphasis on tools for two-photon and one-photon calcium imaging and behavioral datasets. 
+CaImAn implements a set of essential methods required in the analysis pipeline of large scale calcium imaging data. Fast and scalable algorithms are implemented for motion correction, source extraction, spike deconvolution, and component registration across multiple days. It is suitable for both two-photon and one-photon fluorescence microscopy data, and can be run in both batch and online modes. CaImAn also contains some routines for the analysis of behavior from video cameras. A list of features as well as relevant references can be found [here](https://github.com/flatironinstitute/CaImAn/wiki/CaImAn-features-and-references).
 
 ## Companion paper
-A paper explaining most of the implementation details and benchmarking can be found at this [link](https://www.biorxiv.org/content/early/2018/06/05/339564)
+A paper explaining most of the implementation details and benchmarking can be found [here](https://www.biorxiv.org/content/early/2018/06/05/339564).
 
-## Features
+```
+@article{giovannucci2018caiman,
+  title={CaImAn: An open source tool for scalable Calcium Imaging data Analysis},
+  author={Giovannucci, Andrea and Friedrich, Johannes and Gunn, Pat and Kalfon, Jeremie and Koay, Sue Ann and Taxidis, Jiannis and Najafi, Farzaneh and Gauthier, Jeffrey L and Zhou, Pengcheng and Tank, David W and Chklovskii, Dmitri B and Pnevmatikakis, Eftychios A},
+  journal={bioRxiv},
+  pages={339564},
+  year={2018},
+  publisher={Cold Spring Harbor Laboratory}
+}
+```
 
-* **Handling of very large datasets**
+## New: Code refactoring (October 2018)
 
-    * Memory mapping 
-    * Parallel processing in patches
-    * Frame-by-frame online processing [[5]](#onacid)
-    * OpenCV-based efficient movie playing and resizing
+We recently refactored the code to simplify the parameter setting and usage of the various algorithms. The code now is based revolves around the following objects:
 
-* **Motion correction** [[6]](#normcorre)
-
-    * Fast parallelizable OpenCV and FFT-based motion correction of large movies
-    * Can be run also in online mode (i.e. one frame at a time)
-    * Corrects for non-rigid artifacts due to raster scanning or non-uniform brain motion
-    * FFTs can be computed on GPUs (experimental). Requires pycuda and skcuda to be installed.
-
-* **Source extraction** 
-
-    * Separates different sources based on constrained nonnegative matrix Factorization (CNMF) [[1-2]](#neuron)
-    * Deals with heavily overlapping and neuropil contaminated movies     
-    * Suitable for both 2-photon [[1]](#neuron) and 1-photon [[3]](#cnmfe) calcium imaging data
-    * Selection of inferred sources using a pre-trained convolutional neural network classifier
-    * Online processing available [[5]](#onacid)
-
-* **Denoising, deconvolution and spike extraction**
-
-    * Infers neural activity from fluorescence traces [[1]](#neuron)
-    * Also works in online mode (i.e. one sample at a time) [[4]](#oasis)
-
-* **Behavioral Analysis** [[7]](#behavior)
-
-    * Unsupervised algorithms based on optical flow and NMF to automatically extract motor kinetics 
-    * Scales to large datasets by exploiting online dictionary learning
-    * We also developed a tool for acquiring movies at high speed with low cost equipment [[Github repository]](https://github.com/bensondaled/eyeblink). 
-    
-* **Variance Stabilization** [[8]](#vst)
-    * Noise parameters estimation under the Poisson-Gaussian noise model
-    * Fast algorithm that scales to large datasets
-    * A basic demo can be found at `CaImAn/demos/notebooks/demo_VST.ipynb` 
-
-## New: Online analysis
-
-We recently incorporated a Python implementation of the OnACID [[5]](#onacid) algorithm, that enables processing data in an online mode and in real time. Check the script ```demos/general/demo_OnACID_mesoscope.py``` or the notebook ```demos/notebooks/demo_OnACID_mesoscope.ipynb``` for an application on two-photon mesoscope data provided by the Tolias lab (Baylor College of Medicine).
+* `params`: A single object containing a set of dictionaries with the parameters used in all the algorithms. It can be set and changed easily and is passed into all the algorithms.
+* `MotionCorrect`: An object for motion correction which can be used for both rigid and piece-wise rigid motion correction.
+* `cnmf`: An object for running the CaImAn batch algorithm either in patches or not, suitable for both two-photon (CNMF) and one-photon (CNMF-E) data.
+* `online_cnmf`: An object for running the CaImAn online (OnACID) algorithm on two-photon data with or without motion correction.
+* `estimates`: A single object that stores the results of the algorithms (CaImAn batch, CaImAn online) in a unified way that also contains plotting methods. For an interpretation of the various entries of the `estimates` object see [here](https://github.com/flatironinstitute/CaImAn/wiki/Interpreting-Results).
+   
+To see examples of how these methods are used, please consult the demos. While the `cnmf` methods can also be called in the old way by passing all the parameters when initializing the `cnmf` object, we recommend using the `params` object. Similarly, to run the CaImAn online algorithm it is recommended to pass a `params` object inside the `online_cnmf` object. Older scripts should be usable with the latest version of the code except for online analysis where the `cnmf` object will need to be replaced with an `online_cnmf` object. The results should be read from `estimates`, i.e., `cnm.estimates.C` as opposed to `cnm.C`.
 
 ## Installation for calcium imaging data analysis
 
@@ -66,9 +45,10 @@ In May 2018, the way CaImAn is installed changed; we now register the package wi
 * Unless you're installing with `pip install -e` (documented below), you should no longer work out of your checkout directory. The new install mode expects you to use caimanmanager (also documented below) to manage the demos and the place in which you'll be running code. An installed version of caimanmanager will be added to your path and should not be run out of the checkout directory.
 
 In July 2018, Python 2.x support was removed; Python 3.6 or higher is required for CaImAn.
+
 ### Upgrading CaImAn
 
-If you want to upgrade CaImAn (and have already used the pip installer to install it) following the instructions given in the [wiki](https://github.com/flatironinstitute/CaImAn/wiki/Updating-CaImAn).
+If you want to upgrade CaImAn (and have already used the pip installer to install it) follow the instructions given in the [wiki](https://github.com/flatironinstitute/CaImAn/wiki/Updating-CaImAn).
 
 
 ### Installation on Mac or Linux
@@ -115,6 +95,7 @@ If you prefer to manage this information somewhere else, the `CAIMAN_DATA` envir
    * Download and install Anaconda (Python 3.6 recommended) <http://docs.continuum.io/anaconda/install>. We recommend telling conda to modify your PATH variable (it is a checkbox during Anaconda install, off by default)
    * Use Conda to install git (With "conda install git") - use of another commandline git is acceptable, but may lead to issues depending on default settings
    * Microsoft Build Tools for Visual Studio 2017 <https://www.visualstudio.com/downloads/#build-tools-for-visual-studio-2017>. Check the "Build Tools" box, and in the detailed view on the right check the "C/C++ CLI Tools" component too. The specifics of this occasionally change as Microsoft changes its products and website; you may need to go off-script.
+   * As of this writing, there is an upstream versioning issue between scikit and numpy on Windows. If you get a runtime error that skimage/tifffile is compiled against API version 0xc but you have 0xb, you will need to manually upgrade numpy in your conda environment (which may force other version changes).
 
 Use the following menu item to launch a anaconda-enabled command prompt: start>programs>anaconda3>anaconda prompt
 
@@ -131,7 +112,7 @@ Use the following menu item to launch a anaconda-enabled command prompt: start>p
 Then run ```caimanmanager``` as described above to make a data directory.
 
 Alternative environments:
-   * [Using experimental CUDA support](/README-cuda.md)
+   * [Using CUDA (experimental)](/README-cuda.md)
 
 ### Installation for behavioral analysis
 * Installation on Linux (Windows and MacOS are problematic with anaconda at the moment)
@@ -153,8 +134,6 @@ They are located in the `demos/notebooks`. To launch one of the jupyter notebook
    
 * If you want to directly launch the python files, your python console still must be in the CaImAn directory. 
 
-## On Clustering
-Please read [this link](CLUSTER.md) for information on your clustering options and how to avoid trouble with them.
 
 ## Testing
 
@@ -165,11 +144,13 @@ Please read [this link](CLUSTER.md) for information on your clustering options a
 * Andrea Giovannucci, **Flatiron Institute, Simons Foundation**
 * Eftychios A. Pnevmatikakis, **Flatiron Institute, Simons Foundation** 
 * Johannes Friedrich, **Flatiron Institute, Simons Foundation**
-* Mariano Tepper, **Flatiron Institute, Simons Foundation**
+* Pat Gunn, **Flatiron Institute, Simons Foundation**
 * Erick, Cobos, **Baylor College of Medicine**
 * Valentina Staneva, **University of Washington**
 * Ben Deverett, **Princeton University**
 * Jérémie Kalfon, **University of Kent, ECE paris** 
+* Mike Schachter, **Inscopix**
+* Brandon Brown, **UCSF**
 
 A complete list of contributors can be found [here](https://github.com/flatironinstitute/CaImAn/graphs/contributors).
 
@@ -185,31 +166,29 @@ If you use this code please cite the corresponding papers where original methods
 
 ### Deconvolution and demixing of calcium imaging data
 
-<a name="neuron"></a>[1] Pnevmatikakis, E.A., Soudry, D., Gao, Y., Machado, T., Merel, J., ... & Paninski, L. (2016). Simultaneous denoising, deconvolution, and demixing of calcium imaging data. Neuron 89(2):285-299, [[paper]](http://dx.doi.org/10.1016/j.neuron.2015.11.037), [[Github repository]](https://github.com/epnev/ca_source_extraction). 
+<a name="neuron"></a>[2] Pnevmatikakis, E.A., Soudry, D., Gao, Y., Machado, T., Merel, J., ... & Paninski, L. (2016). Simultaneous denoising, deconvolution, and demixing of calcium imaging data. Neuron 89(2):285-299, [[paper]](http://dx.doi.org/10.1016/j.neuron.2015.11.037), [[Github repository]](https://github.com/epnev/ca_source_extraction). 
 
-<a name="struct"></a>[2] Pnevmatikakis, E.A., Gao, Y., Soudry, D., Pfau, D., Lacefield, C., ... & Paninski, L. (2014). A structured matrix factorization framework for large scale calcium imaging data analysis. arXiv preprint arXiv:1409.2903. [[paper]](http://arxiv.org/abs/1409.2903). 
+<a name="struct"></a>[3] Pnevmatikakis, E.A., Gao, Y., Soudry, D., Pfau, D., Lacefield, C., ... & Paninski, L. (2014). A structured matrix factorization framework for large scale calcium imaging data analysis. arXiv preprint arXiv:1409.2903. [[paper]](http://arxiv.org/abs/1409.2903). 
 
-<a name="cnmfe"></a>[3] Zhou, P., Resendez, S. L., Stuber, G. D., Kass, R. E., & Paninski, L. (2016). Efficient and accurate extraction of in vivo calcium signals from microendoscopic video data. arXiv preprint arXiv:1605.07266. [[paper]](https://arxiv.org/abs/1605.07266), [[Github repository]](https://github.com/zhoupc/CNMF_E).
+<a name="cnmfe"></a>[4] Zhou, P., Resendez, S. L., Stuber, G. D., Kass, R. E., & Paninski, L. (2016). Efficient and accurate extraction of in vivo calcium signals from microendoscopic video data. arXiv preprint arXiv:1605.07266. [[paper]](https://arxiv.org/abs/1605.07266), [[Github repository]](https://github.com/zhoupc/CNMF_E).
 
-<a name="oasis"></a>[4] Friedrich J. and Paninski L. Fast active set methods for online spike inference from calcium imaging. NIPS, 29:1984-1992, 2016. [[paper]](https://papers.nips.cc/paper/6505-fast-active-set-methods-for-online-spike-inference-from-calcium-imaging), [[Github repository]](https://github.com/j-friedrich/OASIS).
+<a name="oasis"></a>[5] Friedrich J. and Paninski L. Fast active set methods for online spike inference from calcium imaging. NIPS, 29:1984-1992, 2016. [[paper]](https://papers.nips.cc/paper/6505-fast-active-set-methods-for-online-spike-inference-from-calcium-imaging), [[Github repository]](https://github.com/j-friedrich/OASIS).
 
 ### Online Analysis
 
-<a name="onacid"></a>[5] Giovannucci, A., Friedrich J., Kaufman M., Churchland A., Chklovskii D., Paninski L., & Pnevmatikakis E.A. (2017). OnACID: Online analysis of calcium imaging data in real data. NIPS 2017, pp. 2378-2388. [[paper]](http://papers.nips.cc/paper/6832-onacid-online-analysis-of-calcium-imaging-data-in-real-time)
+<a name="onacid"></a>[6] Giovannucci, A., Friedrich J., Kaufman M., Churchland A., Chklovskii D., Paninski L., & Pnevmatikakis E.A. (2017). OnACID: Online analysis of calcium imaging data in real data. NIPS 2017, pp. 2378-2388. [[paper]](http://papers.nips.cc/paper/6832-onacid-online-analysis-of-calcium-imaging-data-in-real-time)
 
 ### Motion Correction
 
-<a name="normcorre"></a>[6] Pnevmatikakis, E.A., and Giovannucci A. (2017). NoRMCorre: An online algorithm for piecewise rigid motion correction of calcium imaging data. Journal of Neuroscience Methods, 291:83-92 [[paper]](https://doi.org/10.1016/j.jneumeth.2017.07.031), [[Github repository]](https://github.com/simonsfoundation/normcorre).
+<a name="normcorre"></a>[7] Pnevmatikakis, E.A., and Giovannucci A. (2017). NoRMCorre: An online algorithm for piecewise rigid motion correction of calcium imaging data. Journal of Neuroscience Methods, 291:83-92 [[paper]](https://doi.org/10.1016/j.jneumeth.2017.07.031), [[Github repository]](https://github.com/simonsfoundation/normcorre).
 
 ### Behavioral Analysis
 
-<a name="behavior"></a>[7] Giovannucci, A., Pnevmatikakis, E. A., Deverett, B., Pereira, T., Fondriest, J., Brady, M. J., ... & Masip, D. (2017). Automated gesture tracking in head-fixed mice. Journal of Neuroscience Methods, 300:184-195. [[paper]](https://doi.org/10.1016/j.jneumeth.2017.07.014).
-
-
+<a name="behavior"></a>[8] Giovannucci, A., Pnevmatikakis, E. A., Deverett, B., Pereira, T., Fondriest, J., Brady, M. J., ... & Masip, D. (2017). Automated gesture tracking in head-fixed mice. Journal of Neuroscience Methods, 300:184-195. [[paper]](https://doi.org/10.1016/j.jneumeth.2017.07.014).
 
 ### Variance Stabilization
 
-<a name="vst"></a>[8] Tepper, M., Giovannucci, A., and Pnevmatikakis, E (2018). Anscombe meets Hough: Noise variance stabilization via parametric model estimation. In ICASSP, 2018. [[paper]](https://marianotepper.github.io/papers/anscombe-meets-hough.pdf). [[Github repository]](https://github.com/marianotepper/hough-anscombe)
+<a name="vst"></a>[9] Tepper, M., Giovannucci, A., and Pnevmatikakis, E (2018). Anscombe meets Hough: Noise variance stabilization via parametric model estimation. In ICASSP, 2018. [[paper]](https://marianotepper.github.io/papers/anscombe-meets-hough.pdf). [[Github repository]](https://github.com/marianotepper/hough-anscombe)
 
 
 ## Related packages
@@ -221,42 +200,20 @@ Some tools that are currently available in Matlab but have been ported to CaImAn
 - [MCMC spike inference](https://github.com/epnev/continuous_time_ca_sampler) 
 - [Group LASSO initialization and spatial CNMF](https://github.com/danielso/ROI_detect)
 
-
-## Troubleshooting
-
-A list of known issues can be found [here](https://github.com/flatironinstitute/CaImAn/wiki/Known-Issues). If you still encounter problems please open an issue.
-
 ## Dependencies
 
-The code uses the following libraries
-- [NumPy](http://www.numpy.org/)
-- [SciPy](http://www.scipy.org/)
-- [Matplotlib](http://matplotlib.org/)
-- [Scikit-Learn](http://scikit-learn.org/stable/)
-- [ipyparallel](http://ipyparallel.readthedocs.org/en/latest/) for parallel processing
-- [opencv](http://opencv.org/) for efficient image manipulation and visualization
-- [Tifffile](https://pypi.python.org/pypi/tifffile) For reading tiff files. Other choices can work there too.
-- [cvxpy](http://www.cvxpy.org/) for solving optimization problems (for deconvolution, optional)
-- [Spams](http://spams-devel.gforge.inria.fr/) for online dictionary learning (for behavioral analysis, optional)
+A list of dependencies can be found in the [environment file](https://github.com/flatironinstitute/CaImAn/blob/master/environment.yml).
 
-For the constrained deconvolution method (```deconvolution.constrained_foopsi```) various solvers can be used, some of which require additional packages:
-
-1. ```'cvxpy'```: (default) For this option, the following packages are needed:
-  * [CVXOPT](http://cvxopt.org/) optional.
-  * [CVXPY](http://www.cvxpy.org/) optional.
-2. ```'cvx'```: For this option, the following packages are needed:
-  * [CVXOPT](http://cvxopt.org/) optional.
-  * [PICOS](http://picos.zib.de/) optional.
-
-In general ```'cvxpy'``` can be faster, when using the 'ECOS' or 'SCS' solvers, which are included with the CVXPY installation. Note that these dependencies are circumvented by using the OASIS algoritm for deconvolution.
-
-
-# Documentation & Wiki
+## Documentation & Wiki
 
 Documentation of the code can be found [here](http://flatironinstitute.github.io/CaImAn/). 
-Moreover, our [wiki page](https://github.com/flatironinstitute/CaImAn/wiki) covers some aspects of the code.
+Moreover, our [wiki page](https://github.com/flatironinstitute/CaImAn/wiki) covers some aspects of the code. A list of known issues can be found [here](https://github.com/flatironinstitute/CaImAn/wiki/Known-Issues). If you still encounter problems please open an issue.
 
-# Acknowledgements
+## Questions, comments, issues
+
+Please use the [gitter chat room](https://gitter.im/agiovann/Constrained_NMF) for questions and comments and create an issue for any bugs you might encounter.
+
+## Acknowledgements
 
 Special thanks to the following people for letting us use their datasets for our various demo files:
 
@@ -265,11 +222,7 @@ Special thanks to the following people for letting us use their datasets for our
 * Manolis Froudarakis, Jake Reimers, Andreas Tolias, Baylor College of Medicine
 
 
-# Questions, comments, issues
-
-Please use the [gitter chat room](https://gitter.im/agiovann/Constrained_NMF) for questions and comments and create an issue for any bugs you might encounter.
-
-# License
+## License
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
