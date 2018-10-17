@@ -43,6 +43,7 @@ from ... import mmapping
 from ...components_evaluation import compute_event_exceptionality
 from ...motion_correction import motion_correct_iteration_fast, tile_and_correct
 from ...utils.utils import save_dict_to_hdf5, load_dict_from_hdf5
+from ...summary_images import prepare_local_correlations, update_local_correlations
 
 try:
     cv2.setNumThreads(0)
@@ -307,6 +308,26 @@ class OnACID(object):
                 inside = (x >= 0) * (x < self._dims_B[0]) * (y >= 0) * (y < self._dims_B[1])
                 return np.ravel_multi_index((x[inside], y[inside]), self._dims_B, order='F')
             self.get_indices_of_pixels_on_ring = get_indices_of_pixels_on_ring.__get__(self)
+ 
+            Yres = Yr[:, :init_batch] - self.estimates.Ab.dot(
+                self.estimates.C_on[:self.M, :init_batch])
+            Yres -= self.estimates.b0[:, None]
+            if ssub_B == 1:
+                Yres -= self.estimates.W.dot(Yres)
+            else:
+                Yres -= np.repeat(np.repeat(self.estimates.W.dot(
+                    downscale(Yres.reshape(
+                        (d1, d2, -1), order='F'), (ssub_B, ssub_B, 1))
+                    .reshape((-1, init_batch), order='F'))
+                    .reshape(((d1 - 1) // ssub_B + 1, (d2 - 1) // ssub_B + 1, -1), order='F'),
+                    ssub_B, 0), ssub_B, 1)[:d1, :d2].reshape(-1, init_batch, order='F')
+            Yres = Yres.reshape((d1, d2, -1), order='F')
+            # Yres = imblur(Yres.reshape((d1, d2, -1), order='F'), sig=self.gSig, siz=self.gSiz,
+            #               nDimBlur=len(self.dims2))
+            (self.estimates.first_moment, self.estimates.second_moment,
+                self.estimates.crosscorr, self.estimates.col_ind, self.estimates.row_ind,
+                self.estimates.num_neigbors, self.estimates.corrM, self.estimates.corr_img) = \
+            prepare_local_correlations(Yres, swap_dim=True, eight_neighbours=False)
 
         return self
 
@@ -399,6 +420,12 @@ class OnACID(object):
         t_new = time()
         if self.params.get('online', 'update_num_comps'):
 
+            self.estimates.corr_img = update_local_correlations(
+                t + 1, res_frame.reshape((1,) + self.estimates.dims, order='F'),
+                self.estimates.first_moment, self.estimates.second_moment,
+                self.estimates.crosscorr, self.estimates.col_ind, self.estimates.row_ind,
+                self.estimates.num_neigbors, self.estimates.corrM)
+            #, del_frames=self.Yres_buf[self.Yres_buf.cur])
             self.estimates.mean_buff += (res_frame-self.estimates.Yres_buf[self.estimates.Yres_buf.cur])/self.params.get('online', 'minibatch_shape')
             self.estimates.Yres_buf.append(res_frame)
 
@@ -435,9 +462,15 @@ class OnACID(object):
                 thresh_CNN_noisy = self.params.get('online', 'thresh_CNN_noisy'),
                 sniper_mode=self.params.get('online', 'sniper_mode'),
                 use_peak_max=self.params.get('online', 'use_peak_max'),
-		mean_buff=self.estimates.mean_buff,
+                mean_buff=self.estimates.mean_buff,
                 is1p=self.is1p, ssub_B=ssub_B, W=self.estimates.W if self.is1p else None,
-                b0=self.estimates.b0 if self.is1p else None)
+                b0=self.estimates.b0 if self.is1p else None,
+                corr_img=self.estimates.corr_img if self.is1p else None,
+                first_moment=self.estimates.first_moment if self.is1p else None,
+                second_moment=self.estimates.second_moment if self.is1p else None,
+                crosscorr=self.estimates.crosscorr if self.is1p else None,
+                col_ind=self.estimates.col_ind if self.is1p else None,
+                row_ind=self.estimates.row_ind if self.is1p else None)
 
             num_added = len(self.ind_A) - self.N
 
@@ -1809,7 +1842,7 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                           Ab_dense=None, max_num_added=1, min_num_trial=1,
                           loaded_model=None, thresh_CNN_noisy=0.99,
                           sniper_mode=False, use_peak_max=False, test_both=False,
-			  mean_buff=None, is1p=False, ssub_B=1, W=None, b0=None,
+                          mean_buff=None, is1p=False, ssub_B=1, W=None, b0=None,
                           corr_img=None, first_moment=None, second_moment=None,
                           crosscorr=None, col_ind=None, row_ind=None):
     """
@@ -2006,9 +2039,9 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
 
             sv[ind_vb] = np.sum(rho_buf[:, ind_vb], 0)
 
-            # if is1p:
-            #     # first_moment[indeces] -= cin.mean() * ain
-            #     first_moment[indeces] -= cin.sum() / t * ain
+            if is1p:
+                # first_moment[indeces] -= cin.mean() * ain
+                first_moment[indeces] -= cin.sum() / t * ain
 #            sv = np.sum([imblur(vb.reshape(dims,order='F'), sig=gSig, siz=gSiz, nDimBlur=len(dims))**2 for vb in Yres_buf], 0).reshape(-1)
 #            plt.subplot(1,5,4)
 #            plt.cla()
