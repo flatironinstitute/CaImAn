@@ -120,10 +120,10 @@ def main():
     T_motion = 1e3*np.array(cnm.t_motion)
     T_detect = 1e3*np.array(cnm.t_detect)
     T_shapes = 1e3*np.array(cnm.t_shapes)
-    T_online = 1e3*np.array(cnm.t_online) - T_motion - T_detect - T_shapes
+    T_track = 1e3*np.array(cnm.t_online) - T_motion - T_detect - T_shapes
     plt.figure()
-    plt.stackplot(np.arange(len(T_motion)), T_motion, T_online, T_detect, T_shapes)
-    plt.legend(labels=['motion', 'process', 'detect', 'shapes'], loc=2)
+    plt.stackplot(np.arange(len(T_motion)), T_motion, T_track, T_detect, T_shapes)
+    plt.legend(labels=['motion', 'tracking', 'detect', 'shapes'], loc=2)
     plt.title('Processing time allocation')
     plt.xlabel('Frame #')
     plt.ylabel('Processing time [ms]')
