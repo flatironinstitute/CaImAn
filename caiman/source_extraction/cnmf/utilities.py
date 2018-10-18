@@ -329,7 +329,7 @@ def detrend_df_f(A, b, C, f, YrA=None, quantileMin=8, frames_window=500,
     T = C.shape[-1]
 
     if flag_auto:
-        data_prct, val = df_percentile(F[:frames_window], axis=1)
+        data_prct, val = df_percentile(F[:, :frames_window], axis=1)
         if frames_window is None or frames_window > T:
             Fd = np.stack([np.percentile(f, prctileMin) for f, prctileMin in
                            zip(F, data_prct)])
