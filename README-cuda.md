@@ -21,7 +21,7 @@ If it does not show up, do not go further; debug your setup until this works.
 When cuda is done being set up, enter your conda environment and do the following:
 ```
 conda install -c lukepfister pycuda
-conda install -c lukepfister scikits.cuda
+pip install scikit-cuda
 ```
 
 The above installs pycuda from what (as of this writing) is the best available
