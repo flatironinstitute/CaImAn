@@ -32,7 +32,6 @@ from sklearn.decomposition import NMF
 from sklearn.preprocessing import normalize
 
 import caiman
-#  from caiman.source_extraction.cnmf import params
 from .cnmf import CNMF
 from .estimates import Estimates
 from .initialization import imblur, initialize_components, hals, downscale
@@ -43,7 +42,7 @@ from ... import mmapping
 from ...components_evaluation import compute_event_exceptionality
 from ...motion_correction import motion_correct_iteration_fast, tile_and_correct
 from ...utils.utils import save_dict_to_hdf5, load_dict_from_hdf5
-from ...summary_images import prepare_local_correlations, update_local_correlations
+from ... import summary_images
 
 try:
     cv2.setNumThreads(0)
@@ -327,7 +326,7 @@ class OnACID(object):
             (self.estimates.first_moment, self.estimates.second_moment,
                 self.estimates.crosscorr, self.estimates.col_ind, self.estimates.row_ind,
                 self.estimates.num_neigbors, self.estimates.corrM, self.estimates.corr_img) = \
-            prepare_local_correlations(Yres, swap_dim=True, eight_neighbours=False)
+            summary_images.prepare_local_correlations(Yres, swap_dim=True, eight_neighbours=False)
 
         return self
 
@@ -420,7 +419,7 @@ class OnACID(object):
         t_new = time()
         if self.params.get('online', 'update_num_comps'):
 
-            self.estimates.corr_img = update_local_correlations(
+            self.estimates.corr_img = summary_images.update_local_correlations(
                 t + 1, res_frame.reshape((1,) + self.estimates.dims, order='F'),
                 self.estimates.first_moment, self.estimates.second_moment,
                 self.estimates.crosscorr, self.estimates.col_ind, self.estimates.row_ind,
@@ -475,6 +474,22 @@ class OnACID(object):
             num_added = len(self.ind_A) - self.N
 
             if num_added > 0:
+                # import matplotlib.pyplot as plt
+                # plt.figure(figsize=(15,5))
+                # plt.subplot(131)
+                # plt.imshow(self.estimates.corr_img)
+                # foo = summary_images.update_local_correlations(
+                # np.inf, np.zeros((0,) + self.estimates.dims, order='F'),
+                # self.estimates.first_moment, self.estimates.second_moment,
+                # self.estimates.crosscorr, self.estimates.col_ind, self.estimates.row_ind,
+                # self.estimates.num_neigbors, self.estimates.corrM)
+                # plt.subplot(132)
+                # plt.imshow(foo)
+                # plt.subplot(133)
+                # plt.imshow(self.estimates.Ab_dense[:,self.M].reshape(self.estimates.dims, order='F'))
+                # plt.show()
+                # import pdb;pdb.set_trace()
+
                 self.N += num_added
                 self.M += num_added
                 if self.N + self.params.get('online', 'max_num_added') > expected_comps:
@@ -2000,6 +2015,22 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
             N = N + 1
             M = M + 1
 
+            if is1p:
+                # first_moment[indeces] -= cin.mean() * ain
+                first_moment[indeces] -= cin.sum() / t * ain
+                # (Y-ac')^2 = Y.^2 + (ac'.^2 - 2Y.ac)
+                second_moment[indeces] += (ain**2 * cin.dot(cin) -
+                                           2*cin.dot(Yres_buf[:, indeces]) * ain) / t
+                # TODO: restrict to indices where component is located
+                if Ab_dense is None:
+                    Ain = np.zeros(np.prod(dims), dtype=np.float32)
+                    Ain[indeces] = ain
+                else:
+                    Ain = Ab_dense[:, M - 1]
+                crosscorr += (Ain[row_ind] * Ain[col_ind] * cin.dot(cin) -
+                              cin.dot(Yres_buf[:, row_ind]) * Ain[col_ind] -
+                              cin.dot(Yres_buf[:, col_ind]) * Ain[row_ind]) / t 
+                
             Yres_buf[:, indeces] -= np.outer(cin, ain)
 
             # restrict blurring to region where component is located
@@ -2039,9 +2070,6 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
 
             sv[ind_vb] = np.sum(rho_buf[:, ind_vb], 0)
 
-            if is1p:
-                # first_moment[indeces] -= cin.mean() * ain
-                first_moment[indeces] -= cin.sum() / t * ain
 #            sv = np.sum([imblur(vb.reshape(dims,order='F'), sig=gSig, siz=gSiz, nDimBlur=len(dims))**2 for vb in Yres_buf], 0).reshape(-1)
 #            plt.subplot(1,5,4)
 #            plt.cla()
