@@ -328,6 +328,8 @@ class OnACID(object):
                 self.estimates.num_neigbors, self.estimates.corrM, self.estimates.corr_img) = \
             summary_images.prepare_local_correlations(Yres, swap_dim=True, eight_neighbours=False)
 
+            self.estimates.max_img = Yres.max(-1)
+
         return self
 
     @profile
@@ -420,7 +422,7 @@ class OnACID(object):
         if self.params.get('online', 'update_num_comps'):
 
             if self.is1p:
-                corr_img_mode = 'simple'
+                corr_img_mode = 'simple'  #'exponential'  # 'cumulative'
                 self.estimates.corr_img = summary_images.update_local_correlations(
                     t + 1 if corr_img_mode == 'cumulative' else mbs, 
                     res_frame.reshape((1,) + self.estimates.dims, order='F'),
@@ -432,13 +434,18 @@ class OnACID(object):
             self.estimates.mean_buff += (res_frame-self.estimates.Yres_buf[self.estimates.Yres_buf.cur])/self.params.get('online', 'minibatch_shape')
             self.estimates.Yres_buf.append(res_frame)
 
-            res_frame = np.reshape(res_frame, self.params.get('data', 'dims'), order='F')
+            res_frame = np.reshape(res_frame, self.estimates.dims, order='F')
+
+            if self.is1p:
+                self.estimates.max_img = np.max([self.estimates.max_img, res_frame], 0)
 
             rho = imblur(np.maximum(res_frame,0), sig=self.params.get('init', 'gSig'),
                          siz=self.params.get('init', 'gSiz'), nDimBlur=len(self.params.get('data', 'dims')))**2
 
             rho = np.reshape(rho, np.prod(self.params.get('data', 'dims')))
             self.estimates.rho_buf.append(rho)
+
+            # old_max_img = self.estimates.max_img.copy()
 
             (self.estimates.Ab, Cf_temp, self.estimates.Yres_buf, self.rhos_buf,
                 self.estimates.CC, self.estimates.CY, self.ind_A, self.estimates.sv,
@@ -474,27 +481,31 @@ class OnACID(object):
                 crosscorr=self.estimates.crosscorr if self.is1p else None,
                 col_ind=self.estimates.col_ind if self.is1p else None,
                 row_ind=self.estimates.row_ind if self.is1p else None,
-                corr_img_mode=corr_img_mode)
+                corr_img_mode=corr_img_mode,
+                max_img=self.estimates.max_img if self.is1p else None)
 
             num_added = len(self.ind_A) - self.N
 
             if num_added > 0:
                 # import matplotlib.pyplot as plt
-                # plt.figure(figsize=(15,5))
-                # plt.subplot(131)
+                # plt.figure(figsize=(15, 10))
+                # plt.subplot(231)
                 # plt.imshow(self.estimates.corr_img)
                 # foo = summary_images.update_local_correlations(
                 # np.inf, np.zeros((0,) + self.estimates.dims, order='F'),
                 # self.estimates.first_moment, self.estimates.second_moment,
                 # self.estimates.crosscorr, self.estimates.col_ind, self.estimates.row_ind,
                 # self.estimates.num_neigbors, self.estimates.corrM)
-                # plt.subplot(132)
+                # plt.subplot(232)
                 # plt.imshow(foo)
-                # plt.subplot(133)
+                # plt.subplot(233)
                 # plt.imshow(self.estimates.Ab_dense[:,self.M].reshape(self.estimates.dims, order='F'))
+                # plt.subplot(234)
+                # plt.imshow(old_max_img)
+                # plt.subplot(235)
+                # plt.imshow(self.estimates.max_img)
                 # plt.show()
-                # import pdb;pdb.set_trace()
-
+                
                 self.N += num_added
                 self.M += num_added
                 if self.N + self.params.get('online', 'max_num_added') > expected_comps:
@@ -1864,7 +1875,8 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                           sniper_mode=False, use_peak_max=False, test_both=False,
                           mean_buff=None, is1p=False, ssub_B=1, W=None, b0=None,
                           corr_img=None, first_moment=None, second_moment=None,
-                          crosscorr=None, col_ind=None, row_ind=None, corr_img_mode=None):
+                          crosscorr=None, col_ind=None, row_ind=None, corr_img_mode=None,
+                          max_img=None):
     """
     Checks for new components in the residual buffer and incorporates them if they pass the acceptance tests
     """
@@ -2021,20 +2033,31 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
             M = M + 1
 
             if is1p:
-                div = t if corr_img_mode == 'cumulative' else len(cin)
-                first_moment[indeces] -= cin.sum() / div * ain
-                # (Y-ac')^2 = Y.^2 + (ac'.^2 - 2Y.ac)
-                second_moment[indeces] += (ain**2 * cin.dot(cin) -
-                                           2 * cin.dot(Yres_buf[:, indeces]) * ain) / div
                 # TODO: restrict to indices where component is located
                 if Ab_dense is None:
                     Ain = np.zeros(np.prod(dims), dtype=np.float32)
                     Ain[indeces] = ain
                 else:
                     Ain = Ab_dense[:, M - 1]
-                crosscorr += (Ain[row_ind] * Ain[col_ind] * cin.dot(cin) -
-                              cin.dot(Yres_buf[:, row_ind]) * Ain[col_ind] -
-                              cin.dot(Yres_buf[:, col_ind]) * Ain[row_ind]) / div 
+                if corr_img_mode == 'cumulative':
+                    # first_moment[indeces] = 0
+                    # second_moment[indeces] = 0
+                    first_moment[Ain > 0] = 0
+                    second_moment[Ain > 0] = 0
+                    crosscorr *= (Ain[row_ind]==0) * (Ain[col_ind]==0)
+                else:
+                    div = t if corr_img_mode == 'cumulative' else len(cin)
+                    first_moment[indeces] -= cin.sum() / div * ain
+                    # (Y-ac')^2 = Y.^2 + (ac'.^2 - 2Y.ac)
+                    second_moment[indeces] += (ain**2 * cin.dot(cin) -
+                                               2 * cin.dot(Yres_buf[:, indeces]) * ain) / div
+                    crosscorr += (Ain[row_ind] * Ain[col_ind] * cin.dot(cin) -
+                                  cin.dot(Yres_buf[:, row_ind]) * Ain[col_ind] -
+                                  cin.dot(Yres_buf[:, col_ind]) * Ain[row_ind]) / div
+                max_img[Ain.reshape(dims, order='F') > 0] = 0
+                # max_img[[slice(*i) for i in ijSig]] = first_moment[indeces].reshape(
+                #     np.diff(ijSig).ravel(), order='F')
+
                 
             Yres_buf[:, indeces] -= np.outer(cin, ain)
 
