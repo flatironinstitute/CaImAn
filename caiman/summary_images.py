@@ -647,19 +647,19 @@ def local_correlations_movie(file_name, tot_frames=None, fr=30, window=30, strid
             corr_movie[tt + 1] = update_local_correlations(
                 window, Y[tt * stride + window:(tt + 1) * stride + window],
                 first_moment, second_moment, crosscorr,
-                col_ind, row_ind, num_neigbors, M, cn, Y[tt * stride:(tt + 1) * stride])
+                col_ind, row_ind, num_neigbors, M, Y[tt * stride:(tt + 1) * stride])
     elif mode == 'exponential':
         for tt, frames in enumerate(Y[window:window + (T - window) // stride * stride]
                                     .reshape((-1, stride) + dims)):
             corr_movie[tt + 1] = update_local_correlations(
                 window, frames, first_moment, second_moment, crosscorr,
-                col_ind, row_ind, num_neigbors, M, cn)
+                col_ind, row_ind, num_neigbors, M)
     elif mode == 'cumulative':
         for tt, frames in enumerate(Y[window:window + (T - window) // stride * stride]
                                     .reshape((-1, stride) + dims)):
             corr_movie[tt + 1] = update_local_correlations(
                 tt + window + 1, frames, first_moment, second_moment, crosscorr,
-                col_ind, row_ind, num_neigbors, M, cn)
+                col_ind, row_ind, num_neigbors, M)
     else:
         raise Exception('mode of the moving average must be simple, exponential or cumulative')
     return cm.movie(corr_movie, fr=fr)

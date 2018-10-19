@@ -419,12 +419,16 @@ class OnACID(object):
         t_new = time()
         if self.params.get('online', 'update_num_comps'):
 
-            self.estimates.corr_img = summary_images.update_local_correlations(
-                t + 1, res_frame.reshape((1,) + self.estimates.dims, order='F'),
-                self.estimates.first_moment, self.estimates.second_moment,
-                self.estimates.crosscorr, self.estimates.col_ind, self.estimates.row_ind,
-                self.estimates.num_neigbors, self.estimates.corrM)
-            #, del_frames=self.Yres_buf[self.Yres_buf.cur])
+            if self.is1p:
+                corr_img_mode = 'simple'
+                self.estimates.corr_img = summary_images.update_local_correlations(
+                    t + 1 if corr_img_mode == 'cumulative' else mbs, 
+                    res_frame.reshape((1,) + self.estimates.dims, order='F'),
+                    self.estimates.first_moment, self.estimates.second_moment,
+                    self.estimates.crosscorr, self.estimates.col_ind, self.estimates.row_ind,
+                    self.estimates.num_neigbors, self.estimates.corrM,
+                    del_frames=[self.estimates.Yres_buf[self.estimates.Yres_buf.cur]]
+                    if corr_img_mode == 'simple' else None)
             self.estimates.mean_buff += (res_frame-self.estimates.Yres_buf[self.estimates.Yres_buf.cur])/self.params.get('online', 'minibatch_shape')
             self.estimates.Yres_buf.append(res_frame)
 
@@ -469,7 +473,8 @@ class OnACID(object):
                 second_moment=self.estimates.second_moment if self.is1p else None,
                 crosscorr=self.estimates.crosscorr if self.is1p else None,
                 col_ind=self.estimates.col_ind if self.is1p else None,
-                row_ind=self.estimates.row_ind if self.is1p else None)
+                row_ind=self.estimates.row_ind if self.is1p else None,
+                corr_img_mode=corr_img_mode)
 
             num_added = len(self.ind_A) - self.N
 
@@ -1859,7 +1864,7 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                           sniper_mode=False, use_peak_max=False, test_both=False,
                           mean_buff=None, is1p=False, ssub_B=1, W=None, b0=None,
                           corr_img=None, first_moment=None, second_moment=None,
-                          crosscorr=None, col_ind=None, row_ind=None):
+                          crosscorr=None, col_ind=None, row_ind=None, corr_img_mode=None):
     """
     Checks for new components in the residual buffer and incorporates them if they pass the acceptance tests
     """
@@ -2016,11 +2021,11 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
             M = M + 1
 
             if is1p:
-                # first_moment[indeces] -= cin.mean() * ain
-                first_moment[indeces] -= cin.sum() / t * ain
+                div = t if corr_img_mode == 'cumulative' else len(cin)
+                first_moment[indeces] -= cin.sum() / div * ain
                 # (Y-ac')^2 = Y.^2 + (ac'.^2 - 2Y.ac)
                 second_moment[indeces] += (ain**2 * cin.dot(cin) -
-                                           2*cin.dot(Yres_buf[:, indeces]) * ain) / t
+                                           2 * cin.dot(Yres_buf[:, indeces]) * ain) / div
                 # TODO: restrict to indices where component is located
                 if Ab_dense is None:
                     Ain = np.zeros(np.prod(dims), dtype=np.float32)
@@ -2029,7 +2034,7 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                     Ain = Ab_dense[:, M - 1]
                 crosscorr += (Ain[row_ind] * Ain[col_ind] * cin.dot(cin) -
                               cin.dot(Yres_buf[:, row_ind]) * Ain[col_ind] -
-                              cin.dot(Yres_buf[:, col_ind]) * Ain[row_ind]) / t 
+                              cin.dot(Yres_buf[:, col_ind]) * Ain[row_ind]) / div 
                 
             Yres_buf[:, indeces] -= np.outer(cin, ain)
 
