@@ -15,18 +15,17 @@ from scipy.io import loadmat
 from scipy.stats import pearsonr
 
 
+small = True
+save_figs = False
+
 gSig = 3   # gaussian width of a 2D gaussian kernel, which approximates a neuron
 gSiz0 = 7   # average diameter of a neuron
 min_corr = .9
 min_pnr = 15
 s_min = -10
-initbatch = 500
+initbatch = 200
 expected_comps = 200
 
-
-small = True
-
-save_figs = False
 
 fname = 'test_sim.mat'
 test_sim = loadmat(fname)
@@ -72,7 +71,7 @@ cnm_batch = cnmf.CNMF(2, method_init='corr_pnr', k=None, gSig=(gSig, gSig), gSiz
 
 cnm_batch.fit(Y)
 
-print(('Number of components:' + str(cnm_batch.A.shape[-1])))
+print(('Number of components:' + str(cnm_batch.estimates.A.shape[-1])))
 
 
 def tight():
@@ -85,10 +84,10 @@ def tight():
 Cn, pnr = cm.summary_images.correlation_pnr(Y, gSig=gSig, center_psf=True, swap_dim=False)
 plt.figure()
 crd = cm.utils.visualization.plot_contours(A, Cn, thr=.8, lw=3, display_numbers=False)
-crd = cm.utils.visualization.plot_contours(cnm_batch.A, Cn, thr=.8, c='r')
+crd = cm.utils.visualization.plot_contours(cnm_batch.estimates.A, Cn, thr=.8, c='r')
 tight()
 plt.savefig('online1p_batch.pdf', pad_inches=0, bbox_inches='tight') if save_figs else plt.show()
-cm.base.rois.register_ROIs(A, cnm_batch.A, dims, align_flag=0)
+cm.base.rois.register_ROIs(A, cnm_batch.estimates.A, dims, align_flag=0)
 
 
 #%% RUN (offline) CNMF-E algorithm on the initial batch
@@ -100,7 +99,7 @@ if not seeded:
                          min_corr=min_corr, min_pnr=min_pnr, normalize_init=False,
                          ring_size_factor=18./gSiz0, center_psf=True, ssub_B=2, init_iter=1, s_min=s_min,
                          minibatch_shape=100, minibatch_suff_stat=5, update_num_comps=True,
-                         rval_thr=.9, thresh_fitness_delta=-30, thresh_fitness_raw=-50,
+                         rval_thr=.95, thresh_fitness_delta=-30, thresh_fitness_raw=-50,
                          batch_update_suff_stat=True)
 
     cnm_init.fit(Y[:initbatch])
@@ -115,73 +114,85 @@ else:  # seeded from batch
     cnm_init.W, cnm_init.b0 = cnmf.initialization.compute_W(
         Yr[:, :initbatch], cnm_init.A.toarray(), cnm_init.C, dims, 18, ssub=2)
 
-print(('Number of components:' + str(cnm_init.A.shape[-1])))
+print(('Number of components:' + str(cnm_init.estimates.A.shape[-1])))
 
 Cn_init, pnr_init = cm.summary_images.correlation_pnr(
     Y[:initbatch], gSig=gSig, center_psf=True, swap_dim=False)
 plt.figure()
 crd = cm.utils.visualization.plot_contours(A, Cn_init, thr=.8, lw=3, display_numbers=False)
-crd = cm.utils.visualization.plot_contours(cnm_init.A, Cn_init, thr=.8, c='r')
+crd = cm.utils.visualization.plot_contours(cnm_init.estimates.A, Cn_init, thr=.8, c='r')
 tight()
 plt.savefig('online1p_init.pdf', pad_inches=0, bbox_inches='tight') if save_figs else plt.show()
-cm.base.rois.register_ROIs(A, cnm_init.A, dims, align_flag=0)
+cm.base.rois.register_ROIs(A, cnm_init.estimates.A, dims, align_flag=0)
 
 
 #%% run (online) CNMF-E algorithm
 
-cnm = deepcopy(cnm_init)
 gSiz = 13
-cnm.gSiz = (gSiz, gSiz)
-cnm.ring_size_factor = 18./gSiz
-cnm.options['init_params']['gSiz'] = (gSiz, gSiz)
-cnm.options['init_params']['ring_size_factor'] = 18./gSiz
-
+estim = deepcopy(cnm_init.estimates)
 if seeded:  # remove some components and let them be found in online mode
-    idx = filter(lambda a: a not in [3, 14, 24], range(len(cnm.C)))
-    cnm.C = cnm.C[idx]
-    cnm.YrA = cnm.YrA[idx]
-    cnm.A = cnm.A[:, idx]
+    idx = filter(lambda a: a not in [3, 14, 24], range(len(estim.C)))
+    estim.C = estim.C[idx]
+    estim.YrA = estim.YrA[idx]
+    estim.A = estim.A[:, idx]
     cnm_init.W, cnm_init.b0 = cnmf.initialization.compute_W(
-        Yr[:, :initbatch], cnm.A.toarray(), cnm.C, dims, 18, ssub=2)
-
-cnm._prepare_object(np.asarray(Yr[:, :initbatch]), T, expected_comps)
-t = cnm.initbatch
-
+        Yr[:, :initbatch], estim.A.toarray(), estim.C, dims, 18, ssub=2)
+cnm = cnmf.online_cnmf.OnACID(cnm_init.params, estim)
+cnm.params.set('data', {'dims': dims})
+cnm._prepare_object(np.asarray(Yr[:, :initbatch]), T)
+cnm.params.set('init', {'gSiz' : (gSiz, gSiz), 'ring_size_factor' : 18. / gSiz})
+cnm.comp_upd = []
+cnm.t_shapes = []
+cnm.t_detect = []
+cnm.t_motion = []
+t = initbatch
 for frame in Y[initbatch:]:
     cnm.fit_next(t, frame.copy().reshape(-1, order='F'))
     t += 1
 
-print(('Number of components:' + str(cnm.Ab.shape[-1])))
+print(('Number of components:' + str(cnm.estimates.Ab.shape[-1])))
 
 plt.figure()
 crd = cm.utils.visualization.plot_contours(A, Cn, thr=.8, lw=3, display_numbers=False)
-crd = cm.utils.visualization.plot_contours(cnm.Ab, Cn, thr=.8, c='r')
+crd = cm.utils.visualization.plot_contours(cnm.estimates.Ab, Cn, thr=.8, c='r')
 tight()
 plt.savefig('online1p_online.pdf', pad_inches=0, bbox_inches='tight') if save_figs else plt.show()
-cm.base.rois.register_ROIs(A, cnm.Ab, dims, align_flag=0)
+cm.base.rois.register_ROIs(A, cnm.estimates.Ab, dims, align_flag=0)
 
 
 #%% compare online to batch
 
-print('RSS of W:  online vs init:  {0:.4f}'.format((cnm.W - cnm_init.W).power(2).sum()))
-print('            batch vs init:  {0:.4f}'.format((cnm_batch.W - cnm_init.W).power(2).sum()))
-print('           online vs batch: {0:.4f}'.format((cnm.W - cnm_batch.W).power(2).sum()))
+print('RSS of W:  online vs init:' +
+      '{0:.3f}'.format((cnm.estimates.W - cnm_init.estimates.W).power(2).sum()).rjust(10))
+print('            batch vs init:' +
+      '{0:.3f}'.format((cnm_batch.estimates.W - cnm_init.estimates.W).power(2).sum()).rjust(10))
+print('          online vs batch:' +
+      '{0:.3f}'.format((cnm.estimates.W - cnm_batch.estimates.W).power(2).sum()).rjust(10))
 
 
 #%% compare to ground truth 
 
+W, _ = cnmf.initialization.compute_W(Yr, A, C, dims, 18, data_fits_in_memory=True, ssub=2, tsub=1)
+print('RSS of W:   init vs truth:' +
+      '{0:.3f}'.format((cnm_init.estimates.W - W).power(2).sum()).rjust(10))
+print('           batch vs truth:' +
+      '{0:.3f}'.format((cnm_batch.estimates.W - W).power(2).sum()).rjust(10))
+print('          online vs truth:' +
+      '{0:.3f}'.format((cnm.estimates.W - W).power(2).sum()).rjust(10))
+
+
 matched_ROIs1b, matched_ROIs2b, non_matched1b, non_matched2b, performanceb, A2b = register_ROIs(
-    A, cnm_batch.A, dims, align_flag=False)
+    A, cnm_batch.estimates.A, dims, align_flag=False)
 matched_ROIs1, matched_ROIs2, non_matched1, non_matched2, performance, A2 = register_ROIs(
-    A, cnm.Ab, dims, align_flag=False)
+    A, cnm.estimates.Ab, dims, align_flag=False)
 matched_ROIs1i, matched_ROIs2i, non_matched1i, non_matched2i, performancei, A2i = register_ROIs(
-    A, cnm_init.A, dims, align_flag=False)
+    A, cnm_init.estimates.A, dims, align_flag=False)
 
 #traces
 cor_batch = [pearsonr(c1, c2)[0] for (c1, c2) in
-             np.transpose([C[matched_ROIs1b], cnm_batch.C[matched_ROIs2b]], (1, 0, 2))]
+             np.transpose([C[matched_ROIs1b], cnm_batch.estimates.C[matched_ROIs2b]], (1, 0, 2))]
 cor = [pearsonr(c1, c2)[0] for (c1, c2) in
-       np.transpose([C[matched_ROIs1], cnm.C_on[matched_ROIs2]], (1, 0, 2))]
+       np.transpose([C[matched_ROIs1], cnm.estimates.C_on[matched_ROIs2]], (1, 0, 2))]
 
 print('Correlation  mean   median')
 print('    batch:  {0:.4f}  {1:.4f}'.format(np.mean(cor_batch), np.median(cor_batch)))
@@ -189,15 +200,15 @@ print('   online:  {0:.4f}  {1:.4f}'.format(np.mean(cor), np.median(cor)))
 
 plt.figure(figsize=(20, cnm.N))
 for i in range(len(C)):
-    plt.subplot(cnm.N, 1, 1 + i)
+    plt.subplot(len(C), 1, 1 + i)
     plt.plot(C[i], c='k', lw=4, label='truth')
     try:
-        plt.plot(cnm_batch.C[matched_ROIs2b[list(matched_ROIs1b).index(i)]],
+        plt.plot(cnm_batch.estimates.C[matched_ROIs2b[list(matched_ROIs1b).index(i)]],
                  c='r', lw=3, label='batch')
     except ValueError:
         pass
     try:
-        plt.plot(cnm.C_on[matched_ROIs2[list(matched_ROIs1).index(i)]],
+        plt.plot(cnm.estimates.C_on[matched_ROIs2[list(matched_ROIs1).index(i)]],
                  c='y', lw=2, label='online')
     except ValueError:
         pass
@@ -208,17 +219,16 @@ plt.savefig('online1p_traces.pdf') if save_figs else plt.show()
 
 # shapes
 over_batch = [c1.dot(c2) / np.sqrt(c1.dot(c1) * c2.dot(c2)) for (c1, c2) in
-             np.transpose([A.T[matched_ROIs1b],
-                           cnm_batch.A.toarray().T[matched_ROIs2b]], (1, 0, 2))]
+              np.transpose([A.T[matched_ROIs1b],
+                            cnm_batch.estimates.A.toarray().T[matched_ROIs2b]], (1, 0, 2))]
 over = [c1.dot(c2) / np.sqrt(c1.dot(c1) * c2.dot(c2)) for (c1, c2) in
-       np.transpose([A.T[matched_ROIs1], cnm.Ab.toarray().T[matched_ROIs2]], (1, 0, 2))]
+        np.transpose([A.T[matched_ROIs1], cnm.estimates.Ab.toarray().T[matched_ROIs2]], (1, 0, 2))]
 over_init = [c1.dot(c2) / np.sqrt(c1.dot(c1) * c2.dot(c2)) for (c1, c2) in
-       np.transpose([A.T[matched_ROIs1i], cnm_init.A.toarray().T[matched_ROIs2i]], (1, 0, 2))]
+             np.transpose([A.T[matched_ROIs1i], cnm_init.estimates.A.toarray().T[matched_ROIs2i]], (1, 0, 2))]
 
-print('Overlap   mean   median')
-print(' batch:  {0:.4f}  {1:.4f}'.format(np.mean(over_batch), np.median(over_batch)))
-print('online:  {0:.4f}  {1:.4f}'.format(np.mean(over), np.median(over)))
-print('  init:  {0:.4f}  {1:.4f}'.format(np.mean(over_init), np.median(over_init)))
+print('Overlap    mean +- std    median')
+for l, c in (('  batch', over_batch), ('   init', over_init), (' online', over)):
+    print(l + ':  {0:.4f}+-{1:.4f}  {2:.4f}'.format(np.mean(c), np.std(c), np.median(c)))
 
 
 #%% sorted ring weights
@@ -259,9 +269,9 @@ def sort_W(W):
     return Q
 
 
-Q_batch = sort_W(cnm_batch.W)
-Q_init = sort_W(cnm_init.W)
-Q = sort_W(cnm.W)
+Q_batch = sort_W(cnm_batch.estimates.W)
+Q_init = sort_W(cnm_init.estimates.W)
+Q = sort_W(cnm.estimates.W)
 
 plt.figure()
 plt.plot(np.nanmean(Q, 0))

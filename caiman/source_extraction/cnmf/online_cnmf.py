@@ -1893,15 +1893,40 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
     sv += rho_buf.get_last_frames(1).squeeze()
     sv = np.maximum(sv, 0)
 
+    if max_img is not None:
+        pnr_img = max_img.ravel(order='F') / np.sqrt(second_moment - first_moment**2)
+        pnr_img = max_img / np.sqrt(second_moment - first_moment**2).reshape(dims, order='F')
+
+    # import matplotlib.pyplot as plt
+    # plt.figure(figsize=(15, 10))
+    # plt.subplot(231)
+    # plt.colorbar(plt.imshow(pnr_img))
+    # plt.subplot(232)
+    # plt.colorbar(plt.imshow(corr_img))
+    # plt.subplot(233)
+    # plt.colorbar(plt.imshow(pnr_img*corr_img))
+    # plt.subplot(234)
+    # plt.colorbar(plt.imshow(sv.reshape(dims)))
+    # plt.show()
+    # import pdb;pdb.set_trace()
     Ains, Cins, Cins_res, inds, ijsig_all, cnn_pos, local_max = get_candidate_components(
         sv, dims, Yres_buf=Yres_buf, min_num_trial=min_num_trial, gSig=gSig,
         gHalf=gHalf, sniper_mode=sniper_mode, rval_thr=rval_thr, patch_size=50,
         loaded_model=loaded_model, thresh_CNN_noisy=thresh_CNN_noisy,
         use_peak_max=use_peak_max, test_both=test_both, mean_buff=mean_buff)
+        
+    # foo = get_candidate_components(
+    #     # sv, dims, Yres_buf=Yres_buf, min_num_trial=min_num_trial, gSig=gSig,
+    #     corr_img, dims, Yres_buf=Yres_buf, min_num_trial=min_num_trial, gSig=gSig,
+    #     gHalf=gHalf, sniper_mode=sniper_mode, rval_thr=rval_thr, patch_size=50,
+    #     loaded_model=loaded_model, thresh_CNN_noisy=thresh_CNN_noisy,
+    #     # use_peak_max=use_peak_max, test_both=test_both, mean_buff=mean_buff)
+    #     use_peak_max=True, test_both=test_both, mean_buff=mean_buff)
+    # Ains, Cins, Cins_res, inds, ijsig_all, cnn_pos, local_max = foo
 
     ind_new_all = ijsig_all
 
-    num_added = len(inds)
+    num_added = 0  # len(inds)
     cnt = 0
     for ind, ain, cin, cin_res in zip(inds, Ains, Cins, Cins_res):
         cnt += 1
@@ -2096,6 +2121,17 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                 rho_buf[:, ind_vb] = tmp.reshape(T, -1, d1)[
                     (slice(None),) + slices].reshape(T, -1)**2
 
+            # import matplotlib.pyplot as plt
+            # plt.figure(figsize=(15, 10))
+            # plt.subplot(231)
+            # plt.colorbar(plt.imshow(pnr_img))
+            # plt.subplot(232)
+            # plt.colorbar(plt.imshow(corr_img))
+            # plt.subplot(233)
+            # plt.colorbar(plt.imshow(pnr_img*corr_img))
+            # plt.subplot(234)
+            # plt.colorbar(plt.imshow(sv.reshape(dims)))
+
             sv[ind_vb] = np.sum(rho_buf[:, ind_vb], 0)
 
 #            sv = np.sum([imblur(vb.reshape(dims,order='F'), sig=gSig, siz=gSiz, nDimBlur=len(dims))**2 for vb in Yres_buf], 0).reshape(-1)
@@ -2116,6 +2152,15 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
 #    plt.cla()
 #    plt.imshow(Yres_buf.mean(0).reshape(dims, order = 'F'))
 #    plt.pause(.05)
+
+            # plt.subplot(235)
+            # plt.colorbar(plt.imshow(sv.reshape(dims)))
+            # plt.subplot(236)
+            # plt.colorbar(plt.imshow(Ain.reshape(dims, order='F')))
+            # # plt.colorbar(plt.imshow(Ains.reshape(np.diff(ijsig_all[-1]).ravel())))
+            # plt.show()
+            # import pdb;pdb.set_trace()
+
     return Ab, Cf, Yres_buf, rho_buf, CC, CY, ind_A, sv, groups, ind_new, ind_new_all, sv, cnn_pos
 
 
