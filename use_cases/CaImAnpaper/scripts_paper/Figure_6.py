@@ -39,6 +39,8 @@ from caiman.paths import caiman_datadir
 #%%
 try:
     import sys
+    if 'pydevconsole' in sys.argv[0]:
+        raise Exception()
     ID = sys.argv[1]
     ID = str(np.int(ID)+1)
     print('Processing ID:'+ str(ID))
@@ -136,6 +138,13 @@ if compute_corr:
     np.save('Zebrafish/results_analysis_online_Plane_CN_' + str(ID) + '.npy', Cn)
 else:
     Cn = np.load('Zebrafish/results_analysis_online_Plane_CN_' + str(ID) + '.npy')
+#%%
+big_mov = cm.load(fls[0])
+mean_mov = big_mov.mean(0)
+median_mov = np.median(big_mov,0)
+#%%
+pl.imshow(median_mov[::-1,::-1].T)
+pl.colorbar()
 #%%    Initialize movie
 # load only the first initbatch frames and possibly downsample them
 if ds_factor > 1:
@@ -423,6 +432,7 @@ else:
 
 #        m = cm.movie((A.dot(C)+b.dot(f))[:].reshape(list(dims)+[-1],order='F')).transpose([2,0,1])*img_norm[None,:,:]
         m = cm.movie((A.dot(C))[:].reshape(list(dims)+[-1],order='F')).transpose([2,0,1])*img_norm[None,:,:]
+        mean_img = np.median(m,0)
 
 #%%
 recompute_CN = False
@@ -605,18 +615,21 @@ if plot_figures:
                         Ab_part.toarray().reshape(tuple(dims)+(-1,), order = 'F').transpose([1,0,2]).\
                         reshape((dims[1]*dims[0],-1),order = 'F'), cv2.resize(Cn_,tuple(dims[::-1])).T, thr=0.9, vmax = 0.95,
                         display_numbers=True)
+    pl.colorbar()
     pl.figure("Figure 6a overlay");crd = cm.utils.visualization.plot_contours(
                         Ab_part.toarray().reshape(tuple(dims)+(-1,), order = 'F').transpose([1,0,2]).\
                         reshape((dims[1]*dims[0],-1),order = 'F'), img, thr=0.9, display_numbers=True, vmax = .001)
+    pl.colorbar()
     #%% FIGURE 6c
     pl.figure("Figure 6c")
     count = 0
     for cf,sp_c in zip(Cf[idx+gnb], final_crops[idx]):
         pl.subplot(10,2,2*count+1)
-        pl.imshow(sp_c[10:-10,10:-10])
+        pl.imshow(sp_c[10:-10,10:-10][::-1][::-1].T)
         pl.axis('off')
         pl.subplot(10,2,2*count+2)
-        pl.plot(cf)
+        pl.plot(cf/cf.max())
+        pl.ylim([0,1])
         count+=1
         pl.axis('off')
     #%% create movies
