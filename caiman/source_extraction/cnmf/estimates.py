@@ -545,7 +545,7 @@ class Estimates(object):
                 self.F_dff contains the DF/F normalized traces
         """
 
-        if self.C is None:
+        if self.C is None or self.C.shape[0] == 0:
             logging.warning("There are no components for DF/F extraction!")
             return self
 
