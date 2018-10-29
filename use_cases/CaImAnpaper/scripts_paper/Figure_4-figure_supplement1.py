@@ -34,8 +34,9 @@ F1_arr = np.array([float(rec[6]) for rec in records_online]).reshape(len(inds), 
 
 #%% bar plot
 
+colors = ['r','b','g','m']
 n_groups = len(datasets)
-datasets_names = [ds[:-1] for ds in datasets]
+datasets_names = [ds[:-1] + '\n' + str(ln) for (ds,ln) in zip(datasets, lengths)]
 ind_i = [np.argmax(f) for f in F1_arr.T]
 ind_mean = np.argmax(F1_arr.mean(1))
 ind_small = np.argmax(F1_arr[:,[0,1,3,4,5]].mean(1))
@@ -61,26 +62,26 @@ RC_max = np.array([RC_arr[ind_i[i],i] for i in range(len(datasets))])
 plt.subplots()
 index = np.arange(n_groups)
 bar_width = 0.18
-opacity = 0.8
+opacity = 1
 plt.subplot(3,1,1)
 rects0 = plt.bar(index, F1_small, bar_width,
                  alpha=opacity,
-                 color='r',
+                 color=colors[0],
                  label='low threshold')
  
 rects1 = plt.bar(index + bar_width, F1_large, bar_width,
                  alpha=opacity,
-                 color='b',
+                 color=colors[1],
                  label='high threshold')
  
 rects2 = plt.bar(index + 2*bar_width, F1_mean, bar_width,
                  alpha=opacity,
-                 color='g',
+                 color=colors[2],
                  label='mean')
 
 rects3 = plt.bar(index + 3*bar_width, F1_max, bar_width,
                  alpha=opacity,
-                 color='m',
+                 color=colors[3],
                  label='max')
 
 
@@ -97,22 +98,22 @@ plt.tight_layout()
 plt.subplot(3,1,2)
 rects0 = plt.bar(index, PR_small, bar_width,
                  alpha=opacity,
-                 color='r',
+                 color=colors[0],
                  label='low threshold')
  
 rects1 = plt.bar(index + bar_width, PR_large, bar_width,
                  alpha=opacity,
-                 color='b',
+                 color=colors[1],
                  label='high threshold')
  
 rects2 = plt.bar(index + 2*bar_width, PR_mean, bar_width,
                  alpha=opacity,
-                 color='g',
+                 color=colors[2],
                  label='mean')
 
 rects3 = plt.bar(index + 3*bar_width, PR_max, bar_width,
                  alpha=opacity,
-                 color='m',
+                 color=colors[3],
                  label='max')
 
 
@@ -127,22 +128,22 @@ plt.tight_layout()
 plt.subplot(3,1,3)
 rects0 = plt.bar(index, RC_small, bar_width,
                  alpha=opacity,
-                 color='r',
+                 color=colors[0],
                  label='low threshold')
  
 rects1 = plt.bar(index + bar_width, RC_large, bar_width,
                  alpha=opacity,
-                 color='b',
+                 color=colors[1],
                  label='high threshold')
  
 rects2 = plt.bar(index + 2*bar_width, RC_mean, bar_width,
                  alpha=opacity,
-                 color='g',
+                 color=colors[2],
                  label='mean')
 
 rects3 = plt.bar(index + 3*bar_width, RC_max, bar_width,
                  alpha=opacity,
-                 color='m',
+                 color=colors[3],
                  label='max')
 
 
@@ -155,6 +156,13 @@ plt.xticks(index + bar_width, datasets_names)
  
 plt.tight_layout()
 plt.show()
+
+plt.rcParams['pdf.fonttype'] = 42
+font = {'family': 'Arial',
+        'weight': 'regular',
+        'size': 20}
+
+plt.rc('font', **font)
 
 #%% print the parameter combinations
 

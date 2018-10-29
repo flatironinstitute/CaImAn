@@ -722,6 +722,8 @@ class CNMFParams(object):
         if self.data['dims'] is None and self.data['fnames'] is not None:
             self.data['dims'] = get_file_size(self.data['fnames'])[0]
         if self.data['fnames'] is not None:
+            if isinstance(self.data['fnames'], str):
+                self.data['fnames'] = [self.data['fnames']]
             T = get_file_size(self.data['fnames'])[1]
             if len(self.data['fnames']) > 1:
                 T = T[0]
