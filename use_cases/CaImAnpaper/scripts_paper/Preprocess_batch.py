@@ -30,7 +30,6 @@ import pylab as pl
 import scipy
 import sys
 from caiman.source_extraction.cnmf import cnmf as cnmf
-from caiman.source_extraction.cnmf import cnmf as cnmf
 from caiman.source_extraction.cnmf.estimates import Estimates, compare_components
 from caiman.cluster import setup_cluster
 from caiman.source_extraction.cnmf import params as params
