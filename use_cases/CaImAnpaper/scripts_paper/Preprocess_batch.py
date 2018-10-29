@@ -53,7 +53,7 @@ try:
     ID = [np.int(ID)]
 
 except:
-    ID = [5]#np.arange(9)
+    ID = [2]#np.arange(9)
     print('ID NOT PASSED')
 
 
@@ -283,12 +283,11 @@ for params_movie in np.array(params_movies)[ID]:
     fname_new = os.path.join(base_folder, params_movie['fname'])
     print(fname_new)
     if not os.path.exists(fname_new): # in case we need to reload from zip files
-        if not os.path.exists(fname_new):  # in case we need to reload from zip files
-            fname_zip = os.path.join(base_folder, params_movie['fname'].split('/')[0], 'images', 'images.zip')
-            mov_names = from_zipfiles_to_movie_lists(fname_zip)
-            # min_mov = np.min(cm.load(mov_names[0])) - 1
-            fname_zip = cm.save_memmap(mov_names, dview=dview, order='C')
-            shutil.move(fname_zip,fname_new)  # we get it from the images subfolder
+        fname_zip = os.path.join(base_folder, params_movie['fname'].split('/')[0], 'images', 'images.zip')
+        mov_names = from_zipfiles_to_movie_lists(fname_zip)
+        min_mov = np.min(cm.load(mov_names[0])) - 1
+        fname_zip = cm.save_memmap(mov_names, dview=dview, order='C', add_to_movie=-min_mov)
+        shutil.move(fname_zip,fname_new)  # we get it from the images subfolder
 
 
 
