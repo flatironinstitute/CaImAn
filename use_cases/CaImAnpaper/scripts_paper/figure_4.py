@@ -28,7 +28,7 @@ import pylab as pl
 import scipy
 from caiman.utils.visualization import plot_contours
 import numpy as np
-#from pandas import DataFrame
+from pandas import DataFrame
 import pylab as pl
 pl.rcParams['pdf.fonttype'] = 42
 font = {'family': 'Arial',
