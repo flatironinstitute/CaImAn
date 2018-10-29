@@ -41,7 +41,7 @@ from caiman.source_extraction.cnmf.cnmf import load_CNMF
 # %%  ANALYSIS MODE AND PARAMETERS
 preprocessing_from_scratch = False
 plot_on = False
-save_grid = True
+save_grid = False
 
 
 try:
@@ -448,25 +448,6 @@ if preprocessing_from_scratch:
 
 else:
     #%% performance grid search parameters
-    from pandas import DataFrame
-    # SNRs_grid = [1.5, 2, 2.5, 3]  # [1:2]
-    # r_val_grid = [0.6, 0.8, 0.95]  # [1:2]
-    # max_class_prob_rej_grid = np.array([0.05, 0.1, 0.15, 0.2, 0.25])  # [1:2]
-    # thresh_CNN_grid = [0.5, 0.7, 0.95]  # [2:3]
-    # SNRs_grid = [1.5, 2, 2.5]  # [1:2]
-    # r_val_grid = [0.7, 0.8, 0.9]  # [1:2]
-    # max_class_prob_rej_grid = np.array([0.01, 0.05, 0.1, 0.15])  # [1:2]
-    # thresh_CNN_grid = [0.9, 0.95, 0.99]  # [2:3]
-    # grd_fld_nm = 'grid'
-    # SNRs_grid = [1, 1.5, 2, 2.5, 3]  # [1:2]
-    # r_val_grid = [0.6, 0.7, 0.8, 0.9]  # [1:2]
-    # max_class_prob_rej_grid = np.array([0, 0.025, 0.05, 0.1])  # [1:2]
-    # thresh_CNN_grid = [0.9, .95, 0.99, 1]  # [2:3]
-
-    # SNRs_grid = [1, 1.5, 2, 2.5, 3]  # [1:2]
-    # r_val_grid = [0.6, 0.7, 0.8, 0.9]  # [1:2]
-    # max_class_prob_rej_grid = np.array([0, 0.025, 0.05, 0.1])  # [1:2]
-    # thresh_CNN_grid = [0.9, .95, 0.99, 1]  # [2:3]
     grd_fld_nm = 'grid'
     records = []
     for gr_snr in SNRs_grid:

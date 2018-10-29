@@ -36,10 +36,10 @@ from caiman.source_extraction.cnmf import params as params
 from caiman.source_extraction.cnmf.cnmf import load_CNMF
 from caiman.base.movies import from_zip_file_to_movie
 # %%  ANALYSIS MODE AND PARAMETERS
-reload = False
+reload = True
 plot_on = False
-save_on = True  # set to true to recreate results for each file
-save_all = True  # set to True to generate results for all files
+save_on = False  # set to true to recreate results for each file
+save_all = False  # set to True to generate results for all files
 check_result_consistency = False
 
 try:
@@ -61,7 +61,7 @@ skip_refinement = False
 backend_patch = 'local'
 backend_refine = 'local'
 n_processes = 24
-base_folder = '/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/WEBSITE/'
+base_folder = '/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/WEBSITE'
 # base_folder = '/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/'
 n_pixels_per_process = 4000
 block_size = 5000
@@ -341,6 +341,28 @@ for params_movie in np.array(params_movies)[ID]:
     if reload:
         cnm2 = load_CNMF(fname_new[:-5] + '_cnmf_perf_web.hdf5')
 
+        cnm2.estimates.evaluate_components(images,params=cnm2.params, dview=dview)
+        pl.figure(figsize=(10,7))
+        good_snr = np.where(cnm2.estimates.SNR_comp>5)[0]
+        examples = np.argsort(cnm2.estimates.cnn_preds)[-100:]
+        examples = np.intersect1d(examples, good_snr)[-5:]
+        for count, ex in enumerate(examples):
+            pl.subplot(6,2,2*count+1)
+            img = cnm2.estimates.A[:, ex].toarray().reshape(cnm2.estimates.dims, order='F')
+            cm_ = np.array(scipy.ndimage.measurements.center_of_mass(img)).astype(np.int)
+            pl.axis('off')
+            pl.imshow(img[cm_[0]-15:cm_[0]+15,cm_[1]-15:cm_[1]+15])
+            pl.subplot(6, 2, 2 * count + 2)
+            pl.plot(cnm2.estimates.C[ex])
+            pl.axis('off')
+        pl.subplot(7, 1, 7)
+        pl.plot(images.mean(axis=(1,2)))
+        pl.axis('off')
+        pl.title('Average frame wise movie')
+        pl.savefig(os.path.join(os.path.split(fname_new)[0],'projections','traces_and_masks.jpg'))
+        pl.savefig(os.path.join(os.path.split(fname_new)[0], 'projections', 'traces_and_masks.png'))
+        pl.close()
+        continue
     else:
         # %% Extract spatial and temporal components on patches
         t1 = time.time()
@@ -457,6 +479,7 @@ for params_movie in np.array(params_movies)[ID]:
     performance_tmp['predictionsCNN'] = cnm2.estimates.cnn_preds
     performance_tmp['A'] = cnm2.estimates.A
     performance_tmp['C'] = cnm2.estimates.C
+    performance_tmp['YrA'] = cnm2.estimates.YrA
     performance_tmp['SNR_comp'] = cnm2.estimates.SNR_comp
     performance_tmp['Cn'] = Cn_orig
     performance_tmp['params'] = params_movie
@@ -504,7 +527,6 @@ for params_movie in np.array(params_movies)[ID]:
 if save_all:
     # here eventually save when in a loop
     np.savez(os.path.join(base_folder,'all_res_web.npz'), all_results=all_results)
-    np.savez(os.path.join(base_folder,'all_res_CC.npz'), ALL_CCs=ALL_CCs)
 
 
 

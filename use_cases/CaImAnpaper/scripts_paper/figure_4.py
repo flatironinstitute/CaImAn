@@ -1,8 +1,44 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Fri Aug 25 14:49:36 2017
+
+@author: agiovann
+"""
+import cv2
+
+try:
+    cv2.setNumThreads(1)
+except:
+    print('Open CV is naturally single threaded')
+
+try:
+    if __IPYTHON__:
+        print(1)
+        # this is used for debugging purposes only. allows to reload classes
+        # when changed
+        get_ipython().magic('load_ext autoreload')
+        get_ipython().magic('autoreload 2')
+except NameError:
+    print('Not launched under iPython')
+
+import caiman as cm
+import numpy as np
+import os
+import pylab as pl
+import scipy
+from caiman.utils.visualization import plot_contours
 import numpy as np
 from pandas import DataFrame
 import pylab as pl
+pl.rcParams['pdf.fonttype'] = 42
+font = {'family': 'Arial',
+        'weight': 'regular',
+        'size': 20}
+pl.rc('font', **font)
+base_folder = '/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/WEBSITE/'
+
 #%% Figure 4b and GRID statistics
-with np.load('/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/ALL_RECORDS_GRID_FINAL.npz') as ld:
+with np.load(os.path.join(base_folder,'ALL_RECORDS_GRID_FINAL.npz')) as ld:
     records = ld['records'][()]
     records = [list(rec) for rec in records]
     records = [rec[:5]+[float(rr) for rr in rec[5:]] for rec in records]
@@ -97,3 +133,4 @@ mean_labels = np.nanmean(all_labels,0).T
 df_cm = DataFrame({'Human average':mean_labels,'CaImAn online max':online_F1_max, 'CaImAn online avg': df_result['f1_score_CaImAn_online'].values
                     ,'CaImAn batch max':max_caiman_batch,'CaImAn batch avg': df_result['f1_score'].values})
 df_cm.plot(kind='bar')
+#%%

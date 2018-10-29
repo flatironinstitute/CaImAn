@@ -36,9 +36,58 @@ font = {'family': 'Arial',
 pl.rc('font', **font)
 
 
-
-#%%
 base_folder = '/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/WEBSITE/'
+#%%
+def precision_snr(snr_gt, snr_gt_fn, snr_cnmf, snr_cnmf_fp, snr_thrs):
+    all_results_fake = []
+    all_results_OR = []
+    all_results_AND = []
+    for snr_thr in snr_thrs:
+        snr_all_gt = np.array(list(snr_gt) + list(snr_gt_fn) + [0] * len(snr_cnmf_fp))
+        snr_all_cnmf = np.array(list(snr_cnmf) + [0] * len(snr_gt_fn) + list(snr_cnmf_fp))
+
+        ind_gt = np.where(snr_all_gt > snr_thr)[0]  # comps in gt above threshold
+        ind_cnmf = np.where(snr_all_cnmf > snr_thr)[0]  # same for cnmf
+
+        # precision: how many detected components above a given SNR are true
+        prec = np.sum(snr_all_gt[ind_cnmf] > 0) / len(ind_cnmf)
+
+        # recall: how many gt components with SNR above the threshold are detected
+        rec = np.sum(snr_all_cnmf[ind_gt] > 0) / len(ind_gt)
+
+        f1 = 2 * prec * rec / (prec + rec)
+
+        results_fake = [prec, rec, f1]
+        # f1 score with OR condition
+
+        ind_OR = np.union1d(ind_gt, ind_cnmf)
+        # indeces of components that are above threshold in either direction
+        ind_gt_OR = np.where(snr_all_gt[ind_OR] > 0)[0]  # gt components
+        ind_cnmf_OR = np.where(snr_all_cnmf[ind_OR] > 0)[0]  # cnmf components
+        prec_OR = np.sum(snr_all_gt[ind_OR][ind_cnmf_OR] > 0) / len(ind_cnmf_OR)
+        rec_OR = np.sum(snr_all_cnmf[ind_OR][ind_gt_OR] > 0) / len(ind_gt_OR)
+        f1_OR = 2 * prec_OR * rec_OR / (prec_OR + rec_OR)
+
+        results_OR = [prec_OR, rec_OR, f1_OR]
+
+        # f1 score with AND condition
+
+        ind_AND = np.intersect1d(ind_gt, ind_cnmf)
+        ind_fp = np.intersect1d(ind_cnmf, np.where(snr_all_gt == 0)[0])
+        ind_fn = np.intersect1d(ind_gt, np.where(snr_all_cnmf == 0)[0])
+
+        prec_AND = len(ind_AND) / (len(ind_AND) + len(ind_fp))
+        rec_AND = len(ind_AND) / (len(ind_AND) + len(ind_fn))
+        f1_AND = 2 * prec_AND * rec_AND / (prec_AND + rec_AND)
+
+        results_AND = [prec_AND, rec_AND, f1_AND]
+        all_results_fake.append(results_fake)
+        all_results_OR.append(results_OR)
+        all_results_AND.append(results_AND)
+
+    return np.array(all_results_fake), np.array(all_results_OR), np.array(all_results_AND)
+
+
 #%% to merge results from files
 mergefiles = False
 if mergefiles:

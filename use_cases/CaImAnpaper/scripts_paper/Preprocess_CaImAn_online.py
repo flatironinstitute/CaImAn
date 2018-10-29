@@ -69,7 +69,7 @@ except:
 
 reload = False
 save_results = False
-plot_results = True
+plot_results = False
 
 base_folder = '/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/'
 # %% set some global parameters here
@@ -299,8 +299,10 @@ for ind_dataset in ID:
 
     gt_estimate = Estimates(A=scipy.sparse.csc_matrix(A_gt2), b=None, C=C_gt, f=None, R=None, dims=cnm.dims)
     gt_estimate.threshold_spatial_components(maxthr=global_params['max_thr'], dview=None)
-    gt_estimate.remove_small_large_neurons(min_size_neuro, max_size_neuro)
-    _ = gt_estimate.remove_duplicates(predictions=None, r_values=None, dist_thr=0.1, min_dist=10, thresh_subset=0.6)
+    nrn_size = gt_estimate.remove_small_large_neurons(min_size_neuro, max_size_neuro)
+    nrn_dup = gt_estimate.remove_duplicates(predictions=None, r_values=None, dist_thr=0.1, min_dist=10,
+                                            thresh_subset=0.6)
+    idx_components_gt = nrn_size[nrn_dup]
     print(gt_estimate.A.shape)
 
     # %% compute performance and plot against consensus annotations
@@ -335,6 +337,10 @@ for ind_dataset in ID:
     performance_tmp['A_gt'] = gt_estimate.A
     performance_tmp['C'] = cnm.estimates.C
     performance_tmp['C_gt'] = gt_estimate.C
+    performance_tmp['YrA'] = cnm.estimate.YrA
+    performance_tmp['YrA_gt'] = gt_estimate.YrA
+
+
 
     performance_tmp['idx_components_gt'] = np.arange(gt_estimate.A.shape[-1])
     performance_tmp['idx_components_cnmf'] = np.arange(cnm.estimates.A.shape[-1])
@@ -344,12 +350,14 @@ for ind_dataset in ID:
     performance_tmp['fp_comp'] = fp_comp
     performance_tmp['t_online'] = cnm.t_online
     performance_tmp['comp_upd'] = cnm.comp_upd
+    performance_tmp['dims'] = cnm.dims
     performance_tmp['t_el'] = t_el
     performance_tmp['t_online'] = cnm.t_online
     performance_tmp['comp_upd'] = cnm.comp_upd
     performance_tmp['t_detect'] = cnm.t_detect
     performance_tmp['t_shapes'] = cnm.t_shapes
     performance_tmp['CCs'] = xcorrs
+    performance_tmp['params'] = params_movie
     all_results[params_movie[ind_dataset]['folder_name']] = performance_tmp
 
     # %% Plot Timing performance
@@ -364,7 +372,7 @@ for ind_dataset in ID:
         plt.legend(labels=['process','detect','shapes'])
 
 if save_results:
-    path_save_file = os.path.join(base_folder, 'results_CaImAn_Online_'+ str(ID[0])+'.npz')
+    path_save_file = os.path.join(base_folder, 'results_CaImAn_Online_web' + str(ID[0]) + '.npz')
     np.savez(path_save_file, all_results=all_results)
 
 # %% The variables ALL_CCs and all_results contain all the info necessary to create the figures
