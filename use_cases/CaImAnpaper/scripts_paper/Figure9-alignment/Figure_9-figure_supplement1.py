@@ -15,6 +15,7 @@ from caiman.base.rois import register_multisession, extract_active_components, r
 import matplotlib.lines as mlines
 from scipy.sparse import csc_matrix
 import pickle
+import os
 
 # %% load spatial components and correlation images for each session
 
