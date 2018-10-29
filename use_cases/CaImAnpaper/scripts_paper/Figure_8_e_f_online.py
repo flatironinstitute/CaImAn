@@ -11,38 +11,31 @@ For more information see the companion paper.
 
 import numpy as np
 import os
-import glob
 import matplotlib.pyplot as plt
 
-base_folder = '/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/timings_online_fast'
+base_folder = '/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/WEBSITE/'
+res_file = os.path.join(base_folder, 'all_res_online_web_bk.npz')
 
-datasets = ['N.03.00.t/', 'N.04.00.t/', 'N.02.00/', 'YST/', 'N.00.00/', 'N.01.01/', 'K53/', 'J115/', 'J123/']
-files = glob.glob(os.path.join(base_folder, '*.npz'))
-files.sort()
 #%% gather timings
+
 T = []
 N = []
-F1 = []
-PR = []
-RC = []
 T_online = []
 T_detect = []
 T_shapes = []
 dims = []
 
-for (dataset, file) in zip(datasets, files):
-    with np.load(file) as fl:
+with np.load(res_file) as fl:
+    datasets = fl['all_results'][()].keys()
+    for dataset in datasets:
         D = fl['all_results'][()][dataset]
         dims.append(D['A'].shape[0])
         T.append(D['C'].shape[-1])
         N.append(D['C'].shape[0])
-        F1.append(D['f1_score'])
-        PR.append(D['precision'])
-        RC.append(D['recall'])
         T_detect.append(np.array(D['t_detect']))
         T_shapes.append(np.array(D['t_shapes']))
         T_online.append(np.array(D['t_online'])-T_detect[-1]-T_shapes[-1])
-        
+
 #%% plot frames per second as a function of # of neurons
 T_tot = [np.sum(T_detect[ind][1:T[ind]-200]+T_shapes[ind][1:T[ind]-200]+T_online[ind][1:T[ind]-200]) for ind in range(len(N))]
 fps = [(T[ind]-201)/T_tot[ind] for ind in range(len(N))]
@@ -75,5 +68,5 @@ ax2.legend(loc=2)
 plt.ylim([0, 100])
 plt.xlabel('Frame #')
 plt.ylabel('Processing time [ms]')
-plt.title('Processing time per frame for dataset ' + datasets[ind][:-1] )
+plt.title('Processing time per frame for dataset ' + list(datasets)[ind][:-1] )
 plt.tight_layout()
