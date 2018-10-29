@@ -28,7 +28,7 @@ import pylab as pl
 import scipy
 from caiman.utils.visualization import plot_contours
 import numpy as np
-from pandas import DataFrame
+#from pandas import DataFrame
 import pylab as pl
 pl.rcParams['pdf.fonttype'] = 42
 font = {'family': 'Arial',
@@ -71,6 +71,17 @@ print(df_result.sort_values(by='name')[['name','precision','recall','f1_score']]
 print(df_result.mean())
 print(df_result.std())
 
+
+
+# %% Results for CaImAn Online (modify as needed)
+
+with np.load(os.path.join(base_folder, 'all_records_grid_online.npz')) as ld:
+    records_online = ld['records']
+    records_online = [list(rec) for rec in records_online]
+
+columns_online = ['name', 'trace_SNR', 'thresh_CNN', 'num_comp', 'recall',
+                  'precision', 'F1_score']
+
 #%%
 df_result = df_result.sort_values(by='name')
 max_res = df.groupby(by=['name'])
@@ -100,6 +111,9 @@ df_result['L1_f1'] = np.array([np.nan, np.nan, 0.78, np.nan, 0.89, 0.8, 0.89,  0
 df_result['L2_f1'] = np.array([0.9, 0.69, 0.9, 0.92, 0.87, 0.89, 0.92, 0.93, 0.83])[idx_sort]  # Human 2
 df_result['L3_f1'] = np.array([0.85, 0.75, 0.82, 0.83, 0.84, 0.78, 0.93, 0.94, 0.9])[idx_sort] # Human 3
 df_result['L4_f1'] = np.array([0.78, 0.87, 0.79, 0.87, 0.82, 0.75, 0.83, 0.83, 0.91])[idx_sort]
+
+
+
 
 df_result['f1_score_CaImAn_online'] = np.array([0.74213836,  0.71713147,  0.78541374,  0.77562327,  0.69266771,
     0.74285714,  0.80835509,  0.78950077,  0.83573487])[idx_sort]
