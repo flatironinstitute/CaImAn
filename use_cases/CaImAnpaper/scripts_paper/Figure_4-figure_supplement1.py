@@ -14,51 +14,23 @@ is also ploted. See the companion paper for more details.
 """
 
 import numpy as np
-import glob
 import os
 import matplotlib.pyplot as plt
-#%% list and sort files
+# %% list and sort files
 
-base_folder = '/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/results_online_Oct_2018_grid_500'
+base_folder = '/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/WEBSITE'
 
-files = glob.glob(os.path.join(base_folder, '*.npz'))
-files.sort(key=lambda a: int(a.split('grid')[2].split('.')[0]))
+with np.load(os.path.join(base_folder, 'all_records_grid_online.npz')) as ld:
+    records_online = ld['records']
+    records_online = [list(rec) for rec in records_online]
 
+# %% extract values
 
-#%% read results from each file 
-datasets = ['N.03.00.t/', 'N.04.00.t/', 'N.02.00/', 'YST/', 'N.00.00/', 'N.01.01/', 'K53/', 'J115/', 'J123/']
-
-PRs = []
-RCs = []
-F1s = []
-ACs = []
-inds = []
-
-for file in files:
-    print(file)
-    with np.load(file) as fl:
-        ind = int(file.split('grid')[2].split('.')[0])
-        L = fl['all_results'][()]
-        PR = []
-        RC = []
-        F1 = []
-        AC = []
-        vals = L[datasets[0]]['vals'][ind]
-        inds.append(vals)
-        for dataset in datasets:
-            D = L[dataset]
-            PR.append(D['precision'])
-            RC.append(D['recall'])
-            F1.append(D['f1_score'])
-            AC.append(D['accuracy'])
-        PRs.append(PR)
-        RCs.append(RC)
-        F1s.append(F1)
-        ACs.append(AC)
-
-F1_arr = np.roll(np.array(F1s), 0, axis=0)
-PR_arr = np.roll(np.array(PRs), 0, axis=0)
-RC_arr = np.roll(np.array(RCs), 0, axis=0)
+datasets = [rec[0] for rec in records_online[:9]]
+inds = [rec[1:4] for rec in records_online[::9]]
+RC_arr = np.array([float(rec[4]) for rec in records_online]).reshape(len(inds), 9)
+PR_arr = np.array([float(rec[5]) for rec in records_online]).reshape(len(inds), 9)
+F1_arr = np.array([float(rec[6]) for rec in records_online]).reshape(len(inds), 9)
 
 #%% bar plot
 
@@ -190,4 +162,4 @@ print('Low threshold vals: (min_SNR, CNN_thr, num_comp)= ' + str(inds[ind_small]
 print('High threshold vals: (min_SNR, CNN_thr, num_comp)= ' + str(inds[ind_large]))
 print('Best overall vals: (min_SNR, CNN_thr, num_comp)= ' + str(inds[ind_mean]))
 for (dataset, ind_mx) in zip(datasets, ind_i):
-    print('Best value for dataset ' + str(dataset[:-1]) + ' was obtained for parameters (min_SNR, CNN_thr, num_comp)= ' + str(inds[ind_mx]))
+    print('Best value for dataset ' + str(dataset) + ' was obtained for parameters (min_SNR, CNN_thr, num_comp)= ' + str(inds[ind_mx]))
