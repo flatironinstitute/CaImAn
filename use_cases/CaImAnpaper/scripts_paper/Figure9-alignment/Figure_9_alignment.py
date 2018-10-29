@@ -22,10 +22,12 @@ import matplotlib.lines as mlines
 from scipy.sparse import csc_matrix
 import itertools
 import pickle
+import os
 
 #%% load matrices of spatial components and correlation images for each session
 
-with open("alignment.pickle", "rb") as f:
+base_folder = '/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/WEBSITE/'
+with open(os.path.join(base_folder, 'alignment.pickle'), 'rb') as f:
     A, CI = pickle.load(f)
 
 # A is a list where each entry is the matrix of the spatial components for each session
