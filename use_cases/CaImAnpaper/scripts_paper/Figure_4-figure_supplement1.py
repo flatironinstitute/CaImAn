@@ -14,56 +14,29 @@ is also ploted. See the companion paper for more details.
 """
 
 import numpy as np
-import glob
 import os
 import matplotlib.pyplot as plt
-#%% list and sort files
+# %% list and sort files
 
-base_folder = '/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/results_online_Oct_2018_grid_500'
+base_folder = '/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/WEBSITE'
 
-files = glob.glob(os.path.join(base_folder, '*.npz'))
-files.sort(key=lambda a: int(a.split('grid')[2].split('.')[0]))
+with np.load(os.path.join(base_folder, 'all_records_grid_online.npz')) as ld:
+    records_online = ld['records']
+    records_online = [list(rec) for rec in records_online]
 
+# %% extract values
 
-#%% read results from each file 
-datasets = ['N.03.00.t/', 'N.04.00.t/', 'N.02.00/', 'YST/', 'N.00.00/', 'N.01.01/', 'K53/', 'J115/', 'J123/']
-
-PRs = []
-RCs = []
-F1s = []
-ACs = []
-inds = []
-
-for file in files:
-    print(file)
-    with np.load(file) as fl:
-        ind = int(file.split('grid')[2].split('.')[0])
-        L = fl['all_results'][()]
-        PR = []
-        RC = []
-        F1 = []
-        AC = []
-        vals = L[datasets[0]]['vals'][ind]
-        inds.append(vals)
-        for dataset in datasets:
-            D = L[dataset]
-            PR.append(D['precision'])
-            RC.append(D['recall'])
-            F1.append(D['f1_score'])
-            AC.append(D['accuracy'])
-        PRs.append(PR)
-        RCs.append(RC)
-        F1s.append(F1)
-        ACs.append(AC)
-
-F1_arr = np.roll(np.array(F1s), 0, axis=0)
-PR_arr = np.roll(np.array(PRs), 0, axis=0)
-RC_arr = np.roll(np.array(RCs), 0, axis=0)
+datasets = [rec[0] for rec in records_online[:9]]
+inds = [rec[1:4] for rec in records_online[::9]]
+RC_arr = np.array([float(rec[4]) for rec in records_online]).reshape(len(inds), 9)
+PR_arr = np.array([float(rec[5]) for rec in records_online]).reshape(len(inds), 9)
+F1_arr = np.array([float(rec[6]) for rec in records_online]).reshape(len(inds), 9)
 
 #%% bar plot
 
+colors = ['r','b','g','m']
 n_groups = len(datasets)
-datasets_names = [ds[:-1] for ds in datasets]
+datasets_names = [ds[:-1] + '\n' + str(ln) for (ds,ln) in zip(datasets, lengths)]
 ind_i = [np.argmax(f) for f in F1_arr.T]
 ind_mean = np.argmax(F1_arr.mean(1))
 ind_small = np.argmax(F1_arr[:,[0,1,3,4,5]].mean(1))
@@ -89,26 +62,26 @@ RC_max = np.array([RC_arr[ind_i[i],i] for i in range(len(datasets))])
 plt.subplots()
 index = np.arange(n_groups)
 bar_width = 0.18
-opacity = 0.8
+opacity = 1
 plt.subplot(3,1,1)
 rects0 = plt.bar(index, F1_small, bar_width,
                  alpha=opacity,
-                 color='r',
+                 color=colors[0],
                  label='low threshold')
  
 rects1 = plt.bar(index + bar_width, F1_large, bar_width,
                  alpha=opacity,
-                 color='b',
+                 color=colors[1],
                  label='high threshold')
  
 rects2 = plt.bar(index + 2*bar_width, F1_mean, bar_width,
                  alpha=opacity,
-                 color='g',
+                 color=colors[2],
                  label='mean')
 
 rects3 = plt.bar(index + 3*bar_width, F1_max, bar_width,
                  alpha=opacity,
-                 color='m',
+                 color=colors[3],
                  label='max')
 
 
@@ -125,22 +98,22 @@ plt.tight_layout()
 plt.subplot(3,1,2)
 rects0 = plt.bar(index, PR_small, bar_width,
                  alpha=opacity,
-                 color='r',
+                 color=colors[0],
                  label='low threshold')
  
 rects1 = plt.bar(index + bar_width, PR_large, bar_width,
                  alpha=opacity,
-                 color='b',
+                 color=colors[1],
                  label='high threshold')
  
 rects2 = plt.bar(index + 2*bar_width, PR_mean, bar_width,
                  alpha=opacity,
-                 color='g',
+                 color=colors[2],
                  label='mean')
 
 rects3 = plt.bar(index + 3*bar_width, PR_max, bar_width,
                  alpha=opacity,
-                 color='m',
+                 color=colors[3],
                  label='max')
 
 
@@ -155,22 +128,22 @@ plt.tight_layout()
 plt.subplot(3,1,3)
 rects0 = plt.bar(index, RC_small, bar_width,
                  alpha=opacity,
-                 color='r',
+                 color=colors[0],
                  label='low threshold')
  
 rects1 = plt.bar(index + bar_width, RC_large, bar_width,
                  alpha=opacity,
-                 color='b',
+                 color=colors[1],
                  label='high threshold')
  
 rects2 = plt.bar(index + 2*bar_width, RC_mean, bar_width,
                  alpha=opacity,
-                 color='g',
+                 color=colors[2],
                  label='mean')
 
 rects3 = plt.bar(index + 3*bar_width, RC_max, bar_width,
                  alpha=opacity,
-                 color='m',
+                 color=colors[3],
                  label='max')
 
 
@@ -184,10 +157,17 @@ plt.xticks(index + bar_width, datasets_names)
 plt.tight_layout()
 plt.show()
 
+plt.rcParams['pdf.fonttype'] = 42
+font = {'family': 'Arial',
+        'weight': 'regular',
+        'size': 20}
+
+plt.rc('font', **font)
+
 #%% print the parameter combinations
 
 print('Low threshold vals: (min_SNR, CNN_thr, num_comp)= ' + str(inds[ind_small]))
 print('High threshold vals: (min_SNR, CNN_thr, num_comp)= ' + str(inds[ind_large]))
 print('Best overall vals: (min_SNR, CNN_thr, num_comp)= ' + str(inds[ind_mean]))
 for (dataset, ind_mx) in zip(datasets, ind_i):
-    print('Best value for dataset ' + str(dataset[:-1]) + ' was obtained for parameters (min_SNR, CNN_thr, num_comp)= ' + str(inds[ind_mx]))
+    print('Best value for dataset ' + str(dataset) + ' was obtained for parameters (min_SNR, CNN_thr, num_comp)= ' + str(inds[ind_mx]))

@@ -15,7 +15,8 @@ import os
 
 
 # data from https://www.dropbox.com/sh/6395g5wwlv63f0s/AACTNVivxYs7IIyeS67SdV2Qa?dl=0
-fname = os.path.abspath( './blood_vessel_10Hz.mat')
+base_folder = '/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/WEBSITE'
+fname = os.path.join(base_folder, 'blood_vessel_10Hz.mat')
 Y = h5py.File(fname)['Y'].value.astype(np.float32)
 
 gSig = 3   # gaussian width of a 2D gaussian kernel, which approximates a neuron
@@ -27,7 +28,6 @@ fname_new = cm.save_memmap([Y], base_name='Yr', order='C')
 Yr, dims, T = cm.load_memmap(fname_new)
 Y = Yr.T.reshape((T,) + dims, order='F')
 
-
 #%% run w/o patches
 dview, n_processes = None, 2
 
@@ -36,7 +36,6 @@ cnm = cnmf.CNMF(n_processes=n_processes, method_init='corr_pnr', k=None, dview=d
                 only_init_patch=True, gnb=0, min_corr=.7, min_pnr=7, normalize_init=False,
                 ring_size_factor=1.4, center_psf=True, ssub_B=2, init_iter=1, s_min=-10)
 cnm.fit(Y)
-
 
 #%% run w/ patches
 c, dview, n_processes = cm.cluster.setup_cluster(
@@ -57,16 +56,16 @@ def discard(cnm, final_frate=10,
             # threshold on time variability (if nonsparse activity)
             fitness_delta_min=-30,
             Npeaks=10):
-    traces = cnm.C + cnm.YrA
+    traces = cnm.estimates.C + cnm.estimates.YrA
 
     idx_components, idx_components_bad = cm.components_evaluation.estimate_components_quality(
-        traces, Yr, cnm.A, cnm.C, cnm.b, cnm.f, final_frate=final_frate, Npeaks=Npeaks,
+        traces, Yr, cnm.estimates.A, cnm.estimates.C, cnm.estimates.b, cnm.estimates.f, final_frate=final_frate, Npeaks=Npeaks,
         r_values_min=r_values_min, fitness_min=fitness_min, fitness_delta_min=fitness_delta_min)
 
     print(('Keeping ' + str(len(idx_components)) +
            ' and discarding  ' + str(len(idx_components_bad))))
-    A_ = cnm.A[:, idx_components]
-    C_ = cnm.C[idx_components]
+    A_ = cnm.estimates.A[:, idx_components]
+    C_ = cnm.estimates.C[idx_components]
     return A_, C_, traces[idx_components]
 
 
@@ -109,7 +108,7 @@ C_P = C_P[keep]
 
 #%% load matlab results and match ROIs
 A, C_raw, C = itemgetter('A', 'C_raw', 'C')(loadmat(
-    os.path.abspath('./results_bk.mat')))
+    os.path.join(base_folder, 'results_bk.mat')))
 
 A_ = csc_matrix(A_.toarray().reshape(
     dims + (-1,), order='C').reshape((-1, A_.shape[-1]), order='F'))
@@ -117,7 +116,6 @@ A_P = csc_matrix(A_P.toarray().reshape(
     dims + (-1,), order='C').reshape((-1, A_P.shape[-1]), order='F'))
 
 ids = [616, 524, 452, 305, 256, 573, 181, 574, 575, 619]
-
 
 def match(a, c):
     matched_ROIs1, matched_ROIs2, non_matched1, non_matched2, performance, A2 = register_ROIs(

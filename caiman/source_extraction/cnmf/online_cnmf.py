@@ -796,7 +796,9 @@ class OnACID(object):
         if self.params.get('online', 'show_movie'):
             cv2.destroyAllWindows()
         self.t_online = t_online
-        
+        self.estimates.C_on = self.estimates.C_on[:self.M]
+        self.estimates.noisyC = self.estimates.noisyC[:self.M]
+
         return self
 
     def create_frame(self, frame_cor, show_residuals=True, resize_fact=1):

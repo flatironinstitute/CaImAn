@@ -1,6 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
+Script for generating the results presented in Figure 9 (ROI registration)
+The script loads the set of spatial components founds in each of the 6 sessions
+together with a summary statistic image from each session. It then performs
+the multisession registration for all sessions (and all subsets of sessions)
+using both forward and backward approaches.
+
+For more information check the companion paper.
+
 Created on Wed May 30 14:39:40 2018
 
 @author: epnevmatikakis
