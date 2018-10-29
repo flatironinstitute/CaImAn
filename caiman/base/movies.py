@@ -1651,7 +1651,7 @@ def from_zip_file_to_movie(zipfile_name, start_end = None):
 
     return cm.movie(mov[:counter])
 
-def from_zipfiles_to_movie_lists(zipfile_name, max_frames_per_movie=3000):
+def from_zipfiles_to_movie_lists(zipfile_name, max_frames_per_movie=3000, binary = False):
     '''
     Transform zip file into set of tif movies
     @param zipfile_name:
@@ -1666,9 +1666,15 @@ def from_zipfiles_to_movie_lists(zipfile_name, max_frames_per_movie=3000):
 
     movie_list = []
     for sf in start_frames:
-        fname = os.path.join(base_file_names, 'mov_' + str(sf) + '.mmap')
-        mov = from_zip_file_to_movie(zipfile_name, start_end=(sf, sf+max_frames_per_movie))
-        fname = mov.save(fname, order='C')
+
+        mov = from_zip_file_to_movie(zipfile_name, start_end=(sf, sf + max_frames_per_movie))
+        if binary:
+            fname = os.path.join(base_file_names, 'mov_' + str(sf) + '.mmap')
+            fname = mov.save(fname, order='C')
+        else:
+            fname = os.path.join(base_file_names, 'mov_' + str(sf) + '.tif')
+            mov.save(fname)
+
         movie_list.append(fname)
 
     return movie_list
