@@ -20,7 +20,6 @@ datasets = ['N.03.00.t/', 'N.04.00.t/', 'N.02.00/', 'YST/', 'N.00.00/', 'N.01.01
 files = glob.glob(os.path.join(base_folder, '*.npz'))
 files.sort()
 #%% gather timings
-
 T = []
 N = []
 F1 = []
@@ -45,7 +44,6 @@ for (dataset, file) in zip(datasets, files):
         T_online.append(np.array(D['t_online'])-T_detect[-1]-T_shapes[-1])
         
 #%% plot frames per second as a function of # of neurons
-
 T_tot = [np.sum(T_detect[ind][1:T[ind]-200]+T_shapes[ind][1:T[ind]-200]+T_online[ind][1:T[ind]-200]) for ind in range(len(N))]
 fps = [(T[ind]-201)/T_tot[ind] for ind in range(len(N))]
 pps = np.array(dims)*np.array(fps)
@@ -79,8 +77,3 @@ plt.xlabel('Frame #')
 plt.ylabel('Processing time [ms]')
 plt.title('Processing time per frame for dataset ' + datasets[ind][:-1] )
 plt.tight_layout()
-
-#%%
-with np.load('/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/results_CaImAn_Online_fast_trial2_7.npz') as fl:
-    dataset = datasets[7]
-    D = fl['all_results'][()][dataset]
