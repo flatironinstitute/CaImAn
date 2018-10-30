@@ -66,13 +66,8 @@ except:
 
 base_folder = '/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/WEBSITE/'
 #%%
-decay_time = 1.5
-gSig = (6,6)
-rval_thr = 1
-epochs = 1
-fls = [os.path.join(base_folder,'Zebrafish/Plane' + str(ID) + '.stack.hdf5')];
-K = 100
-min_num_trial = 50
+
+fls = [os.path.join(base_folder,'Zebrafish/Plane' + str(ID) + '.stack.hdf5')]
 
 mmm = cm.load(fls,subindices = 0)
 dims = mmm.shape
@@ -87,10 +82,16 @@ print([K,min_num_trial])
 # frame rate (Hz)
 fr = 2
 # approximate length of transient event in seconds
-#decay_time = 0.5
+decay_time = 1.5
+
+epochs = 1
+
+K = 100
+
+min_num_trial = 50
 
 # expected half size of neurons
-#gSig = (2.5, 2.5)
+gSig = (6,6)
 
 # order of AR indicator dynamics
 p = 1
@@ -99,6 +100,7 @@ min_SNR = 2.5
 # correlation threshold for new component inclusion
 
 #rval_thr = 0.85
+rval_thr = 1
 
 # spatial downsampling factor (increases speed but may lose some fine structure)
 ds_factor = 2
@@ -113,8 +115,6 @@ max_shift = np.ceil(10. / ds_factor).astype('int')
 
 # set up some additional supporting parameters needed for the algorithm (these are default values but change according to dataset characteristics)
 
-# number of shapes to be updated each time (put this to a finite small value to increase speed)
-max_comp_update_shape = np.inf
 # number of files used for initialization
 init_files = 1
 # number of files used for online
@@ -155,7 +155,7 @@ params_dict = {    'fnames': fls,
                    'max_shifts_online': max_shift,
                    'pw_rigid': False,
                    'dist_shape_update': True,
-                   'min_num_trial': 10,
+                   'min_num_trial': min_num_trial,
                    'show_movie': show_movie}
 
 opts = cnmf.params.CNMFParams(params_dict=params_dict)
@@ -170,55 +170,32 @@ if compute_corr:
     mc = m.motion_correct(10,10)[0]
     mp = (mc.computeDFF(3))
     Cn = cv2.resize(mp[0].local_correlations(eight_neighbours=True, swap_dim=False),dims[::-1][:-1])
-    np.save('/mnt/ceph/neuro/zebra/05292014Fish1-4/results_analysis_online_Plane_CN_' + str(ID) + '.npy', Cn)
+    np.save(os.path.join(base_folder,'/mnt/ceph/neuro/zebra/05292014Fish1-4/results_analysis_online_Plane_CN_' + str(ID) + '.npy'), Cn)
+else:
+    try:
+        Cn = np.load(os.path.join(base_folder,
+                     '/mnt/ceph/neuro/zebra/05292014Fish1-4/results_analysis_online_Plane_CN_' + str(ID) + '.npy'))
+    except Exception as e:
+        print(e)
+
 #%%    Initialize movie
 # load only the first initbatch frames and possibly downsample them
-if ds_factor > 1:
-    Y = cm.load(fls[0], subindices=slice(0, initbatch, None)).astype(
-        np.float32).resize(1. / ds_factor, 1. / ds_factor)
-else:
-    Y = cm.load(fls[0], subindices=slice(
-        0, initbatch, None)).astype(np.float32)
-
-if mot_corr:                                        # perform motion correction on the first initbatch frames
-    mc = Y.motion_correct(max_shift, max_shift)
-    Y = mc[0].astype(np.float32)
-    borders = np.max(mc[1])
-else:
-    Y = Y.astype(np.float32)
-
-# minimum value of movie. Subtract it to make the data non-negative
-img_min = Y.min()
-Y -= img_min
-img_norm = np.std(Y, axis=0)
-# normalizing factor to equalize the FOV
-img_norm += np.median(img_norm)
-Y = Y / img_norm[None, :, :]                        # normalize data
-
-_, d1, d2 = Y.shape
-dims = (d1, d2)                                     # dimensions of FOV
-Yr = Y.to_2D().T                                    # convert data into 2D array
-
-Cn_init = Y.local_correlations(swap_dim=False)    # compute correlation image
 if ploton:
-    pl.imshow(Cn_init)
-    pl.title('Correlation Image on initial batch')
+    pl.imshow(Cn)
+    pl.title('Correlation Image')
     pl.colorbar()
 
 #%% initialize OnACID with bare initialization
-t1 = time()
-cnm_init = bare_initialization(Y[:initbatch].transpose(1, 2, 0), init_batch=initbatch, k=K, gnb=gnb,
-                               gSig=gSig, p=0, minibatch_shape=100, minibatch_suff_stat=5,
-                               update_num_comps=True, rval_thr=rval_thr,
-                               thresh_fitness_raw=thresh_fitness_raw,
-                               batch_update_suff_stat=True, max_comp_update_shape=max_comp_update_shape,
-                               deconv_flag=False, use_dense=False,
-                               simultaneously=False, n_refit=0)
-
-time_init = time() - t1
+# cnm_init = bare_initialization(Y[:initbatch].transpose(1, 2, 0), init_batch=initbatch, k=K, gnb=gnb,
+#                                gSig=gSig, p=0, minibatch_shape=100, minibatch_suff_stat=5,
+#                                update_num_comps=True, rval_thr=rval_thr,
+#                                thresh_fitness_raw=thresh_fitness_raw,
+#                                batch_update_suff_stat=True, max_comp_update_shape=max_comp_update_shape,
+#                                deconv_flag=False, use_dense=False,
+#                                simultaneously=False, n_refit=0)
 #%% Plot initialization results
 if ploton:
-    crd = plot_contours(cnm_init.A.tocsc(), Cn_init, thr=0.9)
+    cnm.estimates.plot_contours(img=Cn, thr=0.9)
     A, C, b, f, YrA, sn = cnm_init.A, cnm_init.C, cnm_init.b, cnm_init.f, cnm_init.YrA, cnm_init.sn
     view_patches_bar(Yr, scipy.sparse.coo_matrix(
         A.tocsc()[:, :]), C[:, :], b, f, dims[0], dims[1], YrA=YrA[:, :], img=Cn_init)

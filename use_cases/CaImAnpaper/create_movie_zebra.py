@@ -140,13 +140,12 @@ if compute_corr:
 else:
     Cn = np.load(os.path.join(base_folder,'Zebrafish/results_analysis_online_Plane_CN_' + str(ID) + '.npy'))
 #%%
-create_avg_movie = False
-if create_avg_movie:
-    big_mov = cm.load(fls[0])
-    mean_mov = big_mov.mean(0)
-    median_mov = np.median(big_mov,0)
-    pl.imshow(median_mov[::-1,::-1].T)
-    pl.colorbar()
+big_mov = cm.load(fls[0])
+mean_mov = big_mov.mean(0)
+median_mov = np.median(big_mov,0)
+#%%
+pl.imshow(median_mov[::-1,::-1].T)
+pl.colorbar()
 #%%    Initialize movie
 # load only the first initbatch frames and possibly downsample them
 if ds_factor > 1:
@@ -181,7 +180,7 @@ if ploton:
     pl.title('Correlation Image on initial batch')
     pl.colorbar()
 
-#%% reload dataset
+#%% initialize OnACID with bare initialization
 with np.load(os.path.join(base_folder,'Zebrafish/results_analysis_online_1EPOCH_gSig6_equalized_Plane_' + str(ID) + '.npz')) as ld:
     locals().update(ld)
     print(ld.keys())
