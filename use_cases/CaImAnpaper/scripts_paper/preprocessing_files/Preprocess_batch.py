@@ -37,10 +37,10 @@ from caiman.source_extraction.cnmf.cnmf import load_CNMF
 from caiman.base.movies import from_zipfiles_to_movie_lists
 import shutil
 # %%  ANALYSIS MODE AND PARAMETERS
-reload = True
+reload = False
 plot_on = False
 save_on = False  # set to true to recreate results for each file
-save_all = False  # set to True to generate results for all files
+save_all = True  # set to True to generate results for all files
 check_result_consistency = False
 
 try:
@@ -52,7 +52,7 @@ try:
     ID = [np.int(ID)]
 
 except:
-    ID = [2]#np.arange(9)
+    ID = np.arange(9)
     print('ID NOT PASSED')
 
 
@@ -270,6 +270,25 @@ for params_movie in np.array(params_movies)[ID]:
     }
     # %% start cluster
     # TODO: show screenshot 10
+
+    #%%
+    fname_new = os.path.join(base_folder, params_movie['fname'])
+    print(fname_new)
+    if not os.path.exists(fname_new): # in case we need to reload from zip files
+        try:
+            cm.stop_server()
+            dview.terminate()
+        except:
+            print('No clusters to stop')
+
+        c, dview, n_processes = setup_cluster(
+            backend=backend_patch, n_processes=8, single_thread=False)
+        fname_zip = os.path.join(base_folder, params_movie['fname'].split('/')[0], 'images', 'images.zip')
+        mov_names = from_zipfiles_to_movie_lists(fname_zip)
+        min_mov = np.min(cm.load(mov_names[0])) - 1
+        fname_zip = cm.save_memmap(mov_names, dview=dview, order='C', add_to_movie=-min_mov)
+        shutil.move(fname_zip,fname_new)  # we get it from the images subfolder
+
     try:
         cm.stop_server()
         dview.terminate()
@@ -278,17 +297,6 @@ for params_movie in np.array(params_movies)[ID]:
 
     c, dview, n_processes = setup_cluster(
         backend=backend_patch, n_processes=n_processes, single_thread=False)
-    #%%
-    fname_new = os.path.join(base_folder, params_movie['fname'])
-    print(fname_new)
-    if not os.path.exists(fname_new): # in case we need to reload from zip files
-        fname_zip = os.path.join(base_folder, params_movie['fname'].split('/')[0], 'images', 'images.zip')
-        mov_names = from_zipfiles_to_movie_lists(fname_zip)
-        min_mov = np.min(cm.load(mov_names[0])) - 1
-        fname_zip = cm.save_memmap(mov_names, dview=dview, order='C', add_to_movie=-min_mov)
-        shutil.move(fname_zip,fname_new)  # we get it from the images subfolder
-
-
 
 
 
