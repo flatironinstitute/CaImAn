@@ -182,7 +182,7 @@ if ploton:
     pl.colorbar()
 
 #%% reload dataset
-with np.load(os.path.join(base_folder,'Zebrafish/results_analysis_online_1EPOCH_gSig6_equalized_Plane_NEW_' + str(ID) + '.npz')) as ld:
+with np.load(os.path.join(base_folder,'Zebrafish/results_analysis_online_1EPOCH_gSig6_equalized_Plane_' + str(ID) + '.npz')) as ld:
     locals().update(ld)
     print(ld.keys())
     Ab = Ab[()]
@@ -317,7 +317,7 @@ time_per_neuron = []
 pl.figure()
 for ID in range(11,12):
 #        try:
-        with np.load(os.path.join(base_folder,'Zebrafish/results_analysis_online_1EPOCH_gSig6_equalized_Plane_NEW_' + str(ID) + '.npz')) as ld:
+        with np.load(os.path.join(base_folder,'Zebrafish/results_analysis_online_1EPOCH_gSig6_equalized_Plane_' + str(ID) + '.npz')) as ld:
             locals().update(ld)
             print(ld.keys())
             pl.subplot(5,9,ID)
