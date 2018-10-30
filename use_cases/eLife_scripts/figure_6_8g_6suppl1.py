@@ -2,12 +2,13 @@
 # -*- coding: utf-8 -*-
 
 """
-Complete pipeline for online processing using OnACID.
-@author: Andrea Giovannucci @agiovann and Eftychios Pnevmatikakis @epnev
-Special thanks to Andreas Tolias and his lab at Baylor College of Medicine
-for sharing their data used in this demo.
+This script reproduces the results for Figure 6, Figure 6-figure supplement 1
+and Figure 8g, pertaining to the online analysis of whole brain zebrafish data
+The script will load the results and produce the figures. For a script that
+analyzes the data from scratch check the script 
+/preprocessing_files/preprocess_zebrafish_paper.py
 
-KERAS_BACKEND=tensorflow; CUDA_VISIBLE_DEVICES=-1; spyder
+More info can be found in the companion paper
 """
 import os
 import sys
@@ -212,7 +213,6 @@ if ploton:
 
 
 #%% START CLUSTER
-if plot_figures:
 try:
 #        cm.stop_server()
     dview.terminate()

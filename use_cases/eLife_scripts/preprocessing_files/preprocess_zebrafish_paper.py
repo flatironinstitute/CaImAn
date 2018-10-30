@@ -96,26 +96,12 @@ gSig = tuple((np.array(gSig) / ds_factor))#.astype('int'))
 mot_corr = True
 # maximum allowed shift during motion correction
 max_shift = np.ceil(10. / ds_factor).astype('int')
-# set up some additional supporting parameters needed for the algorithm (these are default values but change according to dataset characteristics)
 
-# number of files used for initialization
-init_files = 1
-# number of files used for online
-online_files = len(fls) - 1
 # number of frames for initialization (presumably from the first file)
 initbatch = 200
 # maximum number of expected components used for memory pre-allocation (exaggerate here)
-expected_comps = 600
-# initial number of components
-# number of timesteps to consider when testing new neuron candidates
-N_samples = np.ceil(fr * decay_time)
-# exceptionality threshold
-thresh_fitness_raw = scipy.special.log_ndtr(-min_SNR) * N_samples
+expected_comps = 2000
 
-# upper bound for number of frames in each file (used right below)
-len_file = 1885#1885 1815
-# total length of all files (if not known use a large number, then truncate at the end)
-T1 = len(fls) * len_file * epochs
 
 show_movie = False
 
@@ -129,6 +115,7 @@ params_dict = {    'fnames': fls,
                    'ds_factor': ds_factor,
                    'nb': gnb,
                    'motion_correct': mot_corr,
+                   'expected_comps' : expected_comps,
                    'init_batch': initbatch,
                    'init_method': 'bare',
                    'normalize': True,
@@ -176,10 +163,10 @@ if save_results:
     cnm.save(os.path.join(base_folder, 'Zebrafish/results_analysis_online_1EPOCH_gSig6_equalized_Plane_NEW_' + str(ID) + '.hdf5'))
 #%%
 pl.figure()
-pl.stackplot(np.arange(len(cnm.t_detect)), 1e3 * np.array(cnm.t_online) - np.array(cnm.t_detect) - np.array(cnm.t_shapes),
+pl.stackplot(np.arange(len(cnm.t_detect)), 1e3*np.array(cnm.t_motion), 1e3 * (np.array(cnm.t_online) - np.array(cnm.t_detect) - np.array(cnm.t_shapes) - np.array(cnm.t_motion)),
               1e3 * np.array(cnm.t_detect), 1e3 * np.array(cnm.t_shapes))
 pl.title('Processing time per frame')
 pl.xlabel('Frame #')
 pl.ylabel('Processing time [ms]')
-pl.ylim([0, 5000])
-pl.legend(labels=['process', 'detect', 'shapes'])
+pl.ylim([0, 1000])
+pl.legend(labels=['motion', 'process', 'detect', 'shapes'])
