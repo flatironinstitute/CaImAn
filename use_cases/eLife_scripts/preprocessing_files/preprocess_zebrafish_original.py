@@ -43,9 +43,14 @@ from caiman.utils.visualization import plot_contours
 import glob
 from caiman.source_extraction.cnmf.online_cnmf import bare_initialization
 from copy import deepcopy
+'''
+WILL NOT WORK WITH CURRENT VERSION OF CAIMAN, SEE PREPROCESS ZEBRAFISH
+'''
 #%%
 try:
     import sys
+    if 'pydevconsole' in sys.argv[0]:
+        raise Exception('Running in PYCHARM')
     ID = sys.argv[1]
     ID = str(np.int(ID)+1)
     print('Processing ID:'+ str(ID))
@@ -54,31 +59,18 @@ try:
     save_init = True     # flag for saving initialization object. Useful if you want to check OnACID with different parameters but same initialization
 except:
     print('ID NOT PASSED')
+    ID = 11
     ploton = False
     save_results = False
     save_init = False # flag for saving initialization object. Useful if you want to check OnACID with different parameters but same initialization
 
-
+base_folder = '/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/WEBSITE/'
 #%%
 decay_time = 1.5
 gSig = (6,6)
 rval_thr = 1
 epochs = 1
-
-#fls = ['/mnt/ceph/neuro/zebra/05292014Fish1-4/images/mmap_tifs/Plane17_100_500_400_-350_mc_noinit_small.tif']
-#K = 10
-#min_num_trial = 50
-#fls = ['/mnt/ceph/neuro/zebra/05292014Fish1-4/images/mmap_tifs/Plane17_100_500_400_-350_mc_small.tif']
-#K = 10
-#min_num_trial = 5
-#fls = ['/mnt/ceph/neuro/zebra/05292014Fish1-4/images/mmap_tifs/Plane17_100_500_400_-350_mc.tif']
-#K = 200
-#min_num_trial = 30
-#
-#fls = ['/mnt/ceph/neuro/zebra/05292014Fish1-4/images/mmap_tifs/Plane12_140_280_620_760.tif']
-
-#fls = ['/mnt/ceph/neuro/zebra/05292014Fish1-4/images/mmap_tifs/Plane17.stack.hdf5']
-fls = ['/mnt/ceph/neuro/zebra/05292014Fish1-4/Plane' + str(ID) + '.stack.hdf5'];
+fls = [os.path.join(base_folder,'Zebrafish/Plane' + str(ID) + '.stack.hdf5')];
 K = 100
 min_num_trial = 50
 

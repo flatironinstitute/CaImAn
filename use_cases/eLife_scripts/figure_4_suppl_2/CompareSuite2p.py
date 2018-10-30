@@ -1,22 +1,18 @@
 import caiman as cm
 import numpy as np
 import os
-import time
 import pylab as pl
 import scipy
 import h5py
 import sys
-from caiman.utils.visualization import plot_contours
-from caiman.source_extraction.cnmf import cnmf as cnmf
 
 from caiman.source_extraction.cnmf.estimates import Estimates, compare_components
 from caiman.cluster import setup_cluster
 from pandas import DataFrame
-from caiman.source_extraction.cnmf import params as params
 
 n_processes = 24
-base_folder = '/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/'
-
+base_folder = '/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/WEBSITE/'
+#YOU WILL NEED TO TRANSFORM THE OUTPUT OF SUITE2P INTO A USABLE FILE USING THE PROVIDED MATLAB SCRIPTS
 # %%
 params_movies = []
 # %%

@@ -27,6 +27,7 @@ import caiman as cm
 from caiman.source_extraction import cnmf as cnmf
 from caiman.source_extraction.cnmf.estimates import Estimates, compare_components
 from caiman.source_extraction.cnmf.online_cnmf import load_OnlineCNMF
+from caiman.base.movies import from_zipfiles_to_movie_lists
 import matplotlib.pyplot as plt
 import scipy
 import cv2
@@ -67,11 +68,15 @@ except:
     ID = [0]
     print('ID NOT PASSED')
 
+if len(ID) == 9:
+    save_file = 'all_res_online_web_bk.npz'
+else:
+    save_file = 'results_CaImAn_Online_web_' + "_".join([str(ind) for ind in ID]) + '.npz'
 reload = False
 save_results = False
-plot_results = True
+plot_results = False
 
-base_folder = '/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/'
+base_folder = '/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/WEBSITE/'
 # %% set some global parameters here
 # 'use_cases/edge-cutter/binary_cross_bootstrapped.json'
 global_params = {'min_SNR': 0.8,       # minimum SNR when considering adding a new neuron
@@ -91,7 +96,7 @@ global_params = {'min_SNR': 0.8,       # minimum SNR when considering adding a n
 params_movie = [{}] * 9  # set up list of dictionaries
 # % neurofinder.03.00.test
 params_movie[0] = {
-    'folder_name': 'N.03.00.t/',
+    'folder_name': 'N.03.00.t',
     'ds_factor': 2,
     'fr': 7,
     'decay_time': 0.4,
@@ -100,7 +105,7 @@ params_movie[0] = {
 }
 # % neurofinder.04.00.test
 params_movie[1] = {
-    'folder_name': 'N.04.00.t/',
+    'folder_name': 'N.04.00.t',
     'epochs': 3,
     'ds_factor': 1,
     'fr': 8,
@@ -111,7 +116,7 @@ params_movie[1] = {
 
 # % neurofinder 02.00
 params_movie[2] = {
-    'folder_name': 'N.02.00/',
+    'folder_name': 'N.02.00',
     'ds_factor': 2,
     'fr': 30,  # imaging rate in Hz
     'gSig': [8, 8],  # expected half size of neuron
@@ -121,7 +126,7 @@ params_movie[2] = {
 
 # % YST
 params_movie[3] = {
-    'folder_name': 'YST/',
+    'folder_name': 'YST',
     'epochs': 2,
     'ds_factor': 1,
     'fr': 10,
@@ -132,7 +137,7 @@ params_movie[3] = {
 
 # % neurofinder.00.00
 params_movie[4] = {
-    'folder_name': 'N.00.00/',
+    'folder_name': 'N.00.00',
     'ds_factor': 1,
     'decay_time': 0.4,
     'epochs': 3,
@@ -142,7 +147,7 @@ params_movie[4] = {
 }
 # % neurofinder.01.01
 params_movie[5] = {
-    'folder_name': 'N.01.01/',
+    'folder_name': 'N.01.01',
     'ds_factor': 1,
     'fr': 8,
     'gnb': 1,
@@ -151,7 +156,7 @@ params_movie[5] = {
 }
 # % Sue Ann k53
 params_movie[6] = {
-    'folder_name': 'K53/',
+    'folder_name': 'K53',
     'epochs': 1,
     'ds_factor': 2,
     'fr': 30,
@@ -162,7 +167,7 @@ params_movie[6] = {
 
 # % J115
 params_movie[7] = {
-    'folder_name': 'J115/',
+    'folder_name': 'J115',
     'epochs': 1,
     'ds_factor': 2,
     'gnb': 2,
@@ -173,9 +178,9 @@ params_movie[7] = {
 
 # % J123
 params_movie[8] = {
-    'folder_name': 'J123/',
+    'folder_name': 'J123',
     'ds_factor': 2,
-    'epochs': 1,
+    'epochs': 2,
     'fr': 30,
     'gnb': 1,
     'decay_time': 0.5,
@@ -184,25 +189,22 @@ params_movie[8] = {
 
 all_results = dict()
 
-# iterate over all datasets to be processed
+
+# %% iterate over all datasets to be processed
+
 for ind_dataset in ID:
     keras.backend.clear_session()
     gc.collect()
-    ffls = glob.glob(os.path.abspath(base_folder + params_movie[ind_dataset]['folder_name']) + '/*.mmap')
-    ffls.sort()
-    fls = []
-    if len(ffls) > 1:  # avoid selecting the joined memmap file
-        for ffll in ffls:
-            if '_d1' not in ffll.split('/')[-1][2:5]:
-                print(ffll.split('/')[-1][2:4])
-                fls.append(ffll)
-    else:
-        fls = ffls
-
+    fname_zip = os.path.join(base_folder, params_movie[ind_dataset]['folder_name'], 'images', 'images.zip')
+    fls = glob.glob(os.path.join(base_folder, params_movie[ind_dataset]['folder_name'], 'images', 'mov*.tif'))
+    if len(fls) == 0:
+        fls = from_zipfiles_to_movie_lists(fname_zip)
+    
+    fls.sort()
     print(fls)
 
-    Cn = np.array(cm.load(os.path.abspath(
-        base_folder + params_movie[ind_dataset]['folder_name']) + '/correlation_image.tif')).squeeze()
+    Cn = np.array(cm.load(os.path.join(base_folder, params_movie[ind_dataset]['folder_name'], 
+                                       'projections', 'correlation_image.tif'))).squeeze()
 
     # %% Set up some parameters
     ds_factor = params_movie[ind_dataset][
@@ -259,7 +261,7 @@ for ind_dataset in ID:
         cnm = cnmf.online_cnmf.OnACID(params=opts)
         cnm.fit_online()
         t_el = time.time() - t1
-        #cnm.save(fls[0][:-4]+'hdf5')
+        #cnm.save(fls[0][:-4]+'hdf5')  # uncomment if you want to save the entire object
     else:
         print('*****  reloading   **********')
         cnm = load_OnlineCNMF(fls[0][:-4]+'hdf5')
@@ -299,8 +301,10 @@ for ind_dataset in ID:
 
     gt_estimate = Estimates(A=scipy.sparse.csc_matrix(A_gt2), b=None, C=C_gt, f=None, R=None, dims=cnm.dims)
     gt_estimate.threshold_spatial_components(maxthr=global_params['max_thr'], dview=None)
-    gt_estimate.remove_small_large_neurons(min_size_neuro, max_size_neuro)
-    _ = gt_estimate.remove_duplicates(predictions=None, r_values=None, dist_thr=0.1, min_dist=10, thresh_subset=0.6)
+    nrn_size = gt_estimate.remove_small_large_neurons(min_size_neuro, max_size_neuro)
+    nrn_dup = gt_estimate.remove_duplicates(predictions=None, r_values=None, dist_thr=0.1, min_dist=10,
+                                            thresh_subset=0.6)
+    idx_components_gt = nrn_size[nrn_dup]
     print(gt_estimate.A.shape)
 
     # %% compute performance and plot against consensus annotations
@@ -316,7 +320,7 @@ for ind_dataset in ID:
             'weight': 'regular',
             'size': 20}
 
-    # %% compute correlations
+    # %% compute correlations for traces of caiman online vs consensus
     plt.rc('font', **font)
     print(gt_file)
     print(params_movie[ind_dataset]['folder_name']+ str({a: b.astype(np.float16) for a, b in performance_cons_off.items()}))
@@ -327,7 +331,7 @@ for ind_dataset in ID:
         plt.subplot(1,2,1); plt.hist(xcorrs, 100); plt.title('Empirical PDF of trace correlation coefficients')
         plt.subplot(1,2,2); plt.hist(xcorrs, 100, cumulative=True); plt.title('Empirical CDF of trace correlation coefficients')
 
-    # %% Save results
+    # %% Save some results
     performance_tmp = performance_cons_off.copy()
     performance_tmp['A_gt_thr'] = gt_estimate.A_thr
     performance_tmp['A_thr'] = cnm.estimates.A_thr
@@ -335,6 +339,8 @@ for ind_dataset in ID:
     performance_tmp['A_gt'] = gt_estimate.A
     performance_tmp['C'] = cnm.estimates.C
     performance_tmp['C_gt'] = gt_estimate.C
+    performance_tmp['YrA'] = cnm.estimates.YrA
+    performance_tmp['YrA_gt'] = gt_estimate.YrA
 
     performance_tmp['idx_components_gt'] = np.arange(gt_estimate.A.shape[-1])
     performance_tmp['idx_components_cnmf'] = np.arange(cnm.estimates.A.shape[-1])
@@ -344,12 +350,14 @@ for ind_dataset in ID:
     performance_tmp['fp_comp'] = fp_comp
     performance_tmp['t_online'] = cnm.t_online
     performance_tmp['comp_upd'] = cnm.comp_upd
+    performance_tmp['dims'] = cnm.dims
     performance_tmp['t_el'] = t_el
     performance_tmp['t_online'] = cnm.t_online
     performance_tmp['comp_upd'] = cnm.comp_upd
     performance_tmp['t_detect'] = cnm.t_detect
     performance_tmp['t_shapes'] = cnm.t_shapes
     performance_tmp['CCs'] = xcorrs
+    performance_tmp['params'] = params_movie
     all_results[params_movie[ind_dataset]['folder_name']] = performance_tmp
 
     # %% Plot Timing performance
@@ -364,7 +372,7 @@ for ind_dataset in ID:
         plt.legend(labels=['process','detect','shapes'])
 
 if save_results:
-    path_save_file = os.path.join(base_folder, 'results_CaImAn_Online_'+ str(ID[0])+'.npz')
+    path_save_file = os.path.join(base_folder, save_file)
     np.savez(path_save_file, all_results=all_results)
 
 # %% The variables ALL_CCs and all_results contain all the info necessary to create the figures

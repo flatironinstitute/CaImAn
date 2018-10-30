@@ -1618,21 +1618,64 @@ def to_3D(mov2D, shape, order='F'):
     return np.reshape(mov2D, shape, order=order)
 
 #%%
-def from_zip_file_to_movie(zipfile_name):
+def from_zip_file_to_movie(zipfile_name, start_end = None):
+    '''
+
+    @param zipfile_name:
+    @param start_end: tuple
+        start and end frame to extract
+    @return:
+    '''
     mov = []
     print('unzipping file into movie object')
+    if start_end is not None:
+        num_frames = start_end[1] - start_end[0]
+
+    counter = 0
     with ZipFile(zipfile_name) as archive:
         for idx, entry in enumerate(archive.infolist()):
-            with archive.open(entry) as file:
-                if idx == 0:
-                    img = np.array(Image.open(file))
-                    mov = np.zeros([len(archive.infolist()), *img.shape], dtype=np.float32)
-                    mov[idx] = img
-                else:
-                    mov[idx] = np.array(Image.open(file))
+            if idx >= start_end[0] and idx < start_end[1]:
+                with archive.open(entry) as file:
+                    if counter == 0:
+                        img = np.array(Image.open(file))
+                        mov = np.zeros([num_frames, *img.shape], dtype=np.float32)
+                        mov[counter] = img
+                    else:
+                        mov[counter] = np.array(Image.open(file))
 
-                if idx%100 == 0:
-                    print(idx)
 
-    return cm.movie(mov)
+                    if counter % 100 == 0:
+                        print([counter, idx])
+
+                    counter += 1
+
+    return cm.movie(mov[:counter])
+
+def from_zipfiles_to_movie_lists(zipfile_name, max_frames_per_movie=3000, binary = False):
+    '''
+    Transform zip file into set of tif movies
+    @param zipfile_name:
+    @param max_frames_per_movie:
+    @return:
+    '''
+    with ZipFile(zipfile_name) as archive:
+        num_frames_total = len(archive.infolist())
+
+    base_file_names = os.path.split(zipfile_name)[0]
+    start_frames = np.arange(0,num_frames_total, max_frames_per_movie)
+
+    movie_list = []
+    for sf in start_frames:
+
+        mov = from_zip_file_to_movie(zipfile_name, start_end=(sf, sf + max_frames_per_movie))
+        if binary:
+            fname = os.path.join(base_file_names, 'movie_' + str(sf) + '.mmap')
+            fname = mov.save(fname, order='C')
+        else:
+            fname = os.path.join(base_file_names, 'movie_' + str(sf) + '.tif')
+            mov.save(fname)
+
+        movie_list.append(fname)
+
+    return movie_list
 

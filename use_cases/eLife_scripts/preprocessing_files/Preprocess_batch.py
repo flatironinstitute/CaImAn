@@ -34,11 +34,12 @@ from caiman.source_extraction.cnmf.estimates import Estimates, compare_component
 from caiman.cluster import setup_cluster
 from caiman.source_extraction.cnmf import params as params
 from caiman.source_extraction.cnmf.cnmf import load_CNMF
-from caiman.base.movies import from_zip_file_to_movie
+from caiman.base.movies import from_zipfiles_to_movie_lists
+import shutil
 # %%  ANALYSIS MODE AND PARAMETERS
 reload = False
 plot_on = False
-save_on = True  # set to true to recreate results for each file
+save_on = False  # set to true to recreate results for each file
 save_all = True  # set to True to generate results for all files
 check_result_consistency = False
 
@@ -61,7 +62,7 @@ skip_refinement = False
 backend_patch = 'local'
 backend_refine = 'local'
 n_processes = 24
-base_folder = '/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/WEBSITE/'
+base_folder = '/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/WEBSITE'
 # base_folder = '/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/'
 n_pixels_per_process = 4000
 block_size = 5000
@@ -267,19 +268,39 @@ for params_movie in np.array(params_movies)[ID]:
         'downsample_ratio': .2,
         'thr_plot': 0.8
     }
+    # %% start cluster
+    # TODO: show screenshot 10
 
+    #%%
     fname_new = os.path.join(base_folder, params_movie['fname'])
     print(fname_new)
     if not os.path.exists(fname_new): # in case we need to reload from zip files
+        try:
+            cm.stop_server()
+            dview.terminate()
+        except:
+            print('No clusters to stop')
+
+        c, dview, n_processes = setup_cluster(
+            backend=backend_patch, n_processes=8, single_thread=False)
         fname_zip = os.path.join(base_folder, params_movie['fname'].split('/')[0], 'images', 'images.zip')
-        m = from_zip_file_to_movie(fname_zip)
-        min_mov = np.min(m) - 1
-        m -= min_mov
-        m.save(fname_new[:fname_new.rfind('_d1_')] + '.mmap', order='C')
+        mov_names = from_zipfiles_to_movie_lists(fname_zip)
+        min_mov = np.min(cm.load(mov_names[0])) - 1
+        fname_zip = cm.save_memmap(mov_names, dview=dview, order='C', add_to_movie=-min_mov)
+        shutil.move(fname_zip,fname_new)  # we get it from the images subfolder
+
+    try:
+        cm.stop_server()
+        dview.terminate()
+    except:
+        print('No clusters to stop')
+
+    c, dview, n_processes = setup_cluster(
+        backend=backend_patch, n_processes=n_processes, single_thread=False)
 
 
 
-    # %% LOAD MEMMAP FILE
+            # %% LOAD MEMMAP FILE
     Yr, dims, T = cm.load_memmap(fname_new)
     d1, d2 = dims
     images = np.reshape(Yr.T, [T] + list(dims), order='F')
@@ -296,16 +317,7 @@ for params_movie in np.array(params_movies)[ID]:
                     params_movie['gtname'].split('/')[:-2] + ['projections', 'correlation_image.tif'])))).squeeze()
 
     check_nan = False
-    # %% start cluster
-    # TODO: show screenshot 10
-    try:
-        cm.stop_server()
-        dview.terminate()
-    except:
-        print('No clusters to stop')
 
-    c, dview, n_processes = setup_cluster(
-        backend=backend_patch, n_processes=n_processes, single_thread=False)
     # %%
     params_dict = {'fnames': [fname_new],
                    'fr': params_movie['fr'],
@@ -340,7 +352,30 @@ for params_movie in np.array(params_movies)[ID]:
     opts = params.CNMFParams(params_dict=params_dict)
     if reload:
         cnm2 = load_CNMF(fname_new[:-5] + '_cnmf_perf_web.hdf5')
-
+        reproduce_images_website = False
+        if reproduce_images_website:
+            cnm2.estimates.evaluate_components(images,params=cnm2.params, dview=dview)
+            pl.figure(figsize=(10,7))
+            good_snr = np.where(cnm2.estimates.SNR_comp>5)[0]
+            examples = np.argsort(cnm2.estimates.cnn_preds)[-100:]
+            examples = np.intersect1d(examples, good_snr)[-5:]
+            for count, ex in enumerate(examples):
+                pl.subplot(6,2,2*count+1)
+                img = cnm2.estimates.A[:, ex].toarray().reshape(cnm2.estimates.dims, order='F')
+                cm_ = np.array(scipy.ndimage.measurements.center_of_mass(img)).astype(np.int)
+                pl.axis('off')
+                pl.imshow(img[cm_[0]-15:cm_[0]+15,cm_[1]-15:cm_[1]+15])
+                pl.subplot(6, 2, 2 * count + 2)
+                pl.plot(cnm2.estimates.C[ex])
+                pl.axis('off')
+            pl.subplot(7, 1, 7)
+            pl.plot(images.mean(axis=(1,2)))
+            pl.axis('off')
+            pl.title('Average frame wise movie')
+            pl.savefig(os.path.join(os.path.split(fname_new)[0],'projections','traces_and_masks.jpg'))
+            pl.savefig(os.path.join(os.path.split(fname_new)[0], 'projections', 'traces_and_masks.png'))
+            pl.close()
+            continue
     else:
         # %% Extract spatial and temporal components on patches
         t1 = time.time()
@@ -457,26 +492,28 @@ for params_movie in np.array(params_movies)[ID]:
     performance_tmp['predictionsCNN'] = cnm2.estimates.cnn_preds
     performance_tmp['A'] = cnm2.estimates.A
     performance_tmp['C'] = cnm2.estimates.C
+    performance_tmp['YrA'] = cnm2.estimates.YrA
     performance_tmp['SNR_comp'] = cnm2.estimates.SNR_comp
     performance_tmp['Cn'] = Cn_orig
     performance_tmp['params'] = params_movie
     performance_tmp['dims'] = dims
     performance_tmp['CCs'] = [scipy.stats.pearsonr(a, b)[0] for a, b in
                     zip(gt_estimate.C[tp_gt], cnm2.estimates.C[tp_comp])]
-
-    performance_tmp['t_patch'] = t_patch
-    performance_tmp['t_refit'] = t_refit
-    performance_tmp['t_eva'] = t_eva_comps
+    if not reload:
+        performance_tmp['t_patch'] = t_patch
+        performance_tmp['t_refit'] = t_refit
+        performance_tmp['t_eva'] = t_eva_comps
 
     with np.load(os.path.join(base_folder,fname_new.split('/')[-2],'gt_eval.npz')) as ld:
         print(ld.keys())
         performance_tmp.update(ld)
 
     performance_tmp['idx_components_gt'] = idx_components_gt
-    # ALL_CCs.append([scipy.stats.pearsonr(a, b)[0] for a, b in
-    #                 zip(gt_estimate.C[tp_gt], cnm2.estimates.C[tp_comp])])
-    #
-    # performance_tmp['ALL_CCs'] = ALL_CCs
+
+    ALL_CCs.append([scipy.stats.pearsonr(a, b)[0] for a, b in
+                    zip(gt_estimate.C[tp_gt], cnm2.estimates.C[tp_comp])])
+
+    performance_tmp['ALL_CCs'] = ALL_CCs
 
     all_results[fname_new.split('/')[-2]] = performance_tmp
 
@@ -500,10 +537,10 @@ for params_movie in np.array(params_movies)[ID]:
 
         assert results_holding, 'F1 scores are decreasing, check your code for errors'
     #
-    if save_all:
-        # here eventually save when in a loop
-        np.savez(os.path.join(base_folder,'all_res_web.npz'), all_results=all_results)
-        print('Saving not implementd')
+if save_all:
+    # here eventually save when in a loop
+    np.savez(os.path.join(base_folder,'all_res_web.npz'), all_results=all_results)
+
 
 
 

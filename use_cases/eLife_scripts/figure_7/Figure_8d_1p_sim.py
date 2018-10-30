@@ -11,7 +11,8 @@ import os
 # set MKL_NUM_THREADS and OPENBLAS_NUM_THREADS to 1 outside via export!
 # takes about 170 mins for all runs
 
-fname = 'test_sim.mat'
+base_folder = '/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/WEBSITE/'
+fname = os.path.join(base_folder,'test_sim.mat')
 dims = (253, 316)
 Yr = loadmat(fname)['Y']
 Y = Yr.T.reshape((-1,) + dims, order='F')
@@ -87,8 +88,8 @@ def get_max_mem(rf='64'):
     patch = []
     for proc in n_procs:
         tmp = results[rf]['%dprocess' % proc]
-        t = np.array(map(lambda a: a[1], tmp))
-        m = np.array(map(lambda a: max(a[0]), tmp))
+        t = np.array(list(map(lambda a: a[1], tmp)))
+        m = np.array(list(map(lambda a: max(a[0]), tmp)))
         patch.append([t, m])
     return np.transpose(patch)
 
@@ -96,8 +97,8 @@ def get_max_mem(rf='64'):
 patch = {}
 for rf in ('64', '48', '32'):
     patch[rf] = get_max_mem(rf)
-nopatch = np.array([map(lambda a: a[1], results['noPatches']),
-                    map(lambda a: max(a[0]), results['noPatches'])])
+nopatch = np.array([list(map(lambda a: a[1], results['noPatches'])),
+                    list(map(lambda a: max(a[0]), results['noPatches']))])
 
 max_time = max([patch[rf][:, 0].max() for rf in ('64', '48', '32')]) / 60
 max_mem = max([patch[rf][:, 1].max() for rf in ('64', '48', '32')]) / 1024

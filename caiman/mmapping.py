@@ -360,7 +360,7 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
 
 
         if recompute_each_memmap or (remove_init>0) or (idx_xy is not None)\
-                or (xy_shifts is not None) or (add_to_movie>0) or (border_to_0>0)\
+                or (xy_shifts is not None) or (add_to_movie != 0) or (border_to_0>0)\
                 or slices is not None:
 
             logging.debug('Distributing memory map over many files')
@@ -376,7 +376,7 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
                                         xy_shifts    = xy_shifts,
                                         slices = slices,
                                         add_to_movie = add_to_movie)
-        else:                            
+        else:
             fname_new = filenames
 
         # The goal is to make a single large memmap file, which we do here
