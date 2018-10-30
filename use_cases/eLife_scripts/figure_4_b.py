@@ -141,7 +141,7 @@ df_result_all['L4_f1'] = np.array([0.78, 0.87, 0.79, 0.87, 0.82, 0.75, 0.83, 0.8
 # df_result_batch['f1_score_CaImAn_online'] = np.array([0.74213836,  0.71713147,  0.78541374,  0.77562327,  0.69266771,
 #     0.74285714,  0.80835509,  0.78950077,  0.83573487])[idx_sort]
 #%%
-ax = df_result_all.plot(x='name', y=['f1_score', 'f1_score_online','L4_f1','L3_f1','L2_f1','L1_f1'], xticks=range(len(df_result)),
+ax = df_result_all.plot(x='name', y=['f1_score', 'f1_score_online','L4_f1','L3_f1','L2_f1','L1_f1'], xticks=range(len(df_result_all)),
                     kind='bar', color=[[1,0,0],[0,0,1],[.5,.5,.5],[.6,.6,.6],[.7,.7,.7],[.8,.8,.8]])
 
 ax.set_xticklabels(df_result_all.name, rotation=45)
