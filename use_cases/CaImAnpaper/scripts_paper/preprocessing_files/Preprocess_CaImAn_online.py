@@ -68,6 +68,10 @@ except:
     ID = [0]
     print('ID NOT PASSED')
 
+if len(ID) == 9:
+    save_file = 'all_res_online_web_bk.npz'
+else:
+    save_file = 'results_CaImAn_Online_web_' + "_".join([str(ind) for ind in ID]) + '.npz'
 reload = False
 save_results = False
 plot_results = False
@@ -368,7 +372,7 @@ for ind_dataset in ID:
         plt.legend(labels=['process','detect','shapes'])
 
 if save_results:
-    path_save_file = os.path.join(base_folder, 'results_CaImAn_Online_web' + str(ID[0]) + '.npz')
+    path_save_file = os.path.join(base_folder, save_file)
     np.savez(path_save_file, all_results=all_results)
 
 # %% The variables ALL_CCs and all_results contain all the info necessary to create the figures
