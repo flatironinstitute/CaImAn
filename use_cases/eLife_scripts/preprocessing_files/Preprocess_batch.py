@@ -36,6 +36,7 @@ from caiman.source_extraction.cnmf import params as params
 from caiman.source_extraction.cnmf.cnmf import load_CNMF
 from caiman.base.movies import from_zipfiles_to_movie_lists
 import shutil
+import glob
 # %%  ANALYSIS MODE AND PARAMETERS
 reload = False
 plot_on = False
@@ -52,7 +53,7 @@ try:
     ID = [np.int(ID)]
 
 except:
-    ID = np.arange(9)
+    ID = [6,7]#np.arange(9)
     print('ID NOT PASSED')
 
 
@@ -67,6 +68,7 @@ base_folder = '/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/WEBSITE'
 n_pixels_per_process = 4000
 block_size = 5000
 num_blocks_per_run = 20
+
 # %%
 global_params = {'SNR_lowest': 0.5,
                  'min_SNR': 2,  # minimum SNR when considering adding a new neuron
@@ -281,12 +283,17 @@ for params_movie in np.array(params_movies)[ID]:
         except:
             print('No clusters to stop')
 
-        c, dview, n_processes = setup_cluster(
+        c, dview, _ = setup_cluster(
             backend=backend_patch, n_processes=8, single_thread=False)
         fname_zip = os.path.join(base_folder, params_movie['fname'].split('/')[0], 'images', 'images.zip')
-        mov_names = from_zipfiles_to_movie_lists(fname_zip)
-        min_mov = np.min(cm.load(mov_names[0])) - 1
-        fname_zip = cm.save_memmap(mov_names, dview=dview, order='C', add_to_movie=-min_mov)
+        mov_names = glob.glob(os.path.join(base_folder, params_movie['fname'].split('/')[0], 'images', '*.tif'))
+        if len(mov_names) > 0:
+            mov_names = sorted(mov_names, key=lambda x: np.int(x.split('_')[-1][:-4]))
+        else:
+            mov_names = from_zipfiles_to_movie_lists(fname_zip)
+
+        add_to_mov = cm.load(mov_names[0]).min()
+        fname_zip = cm.save_memmap(mov_names, dview=dview, order='C', add_to_movie=-add_to_mov + 1)
         shutil.move(fname_zip,fname_new)  # we get it from the images subfolder
 
     try:

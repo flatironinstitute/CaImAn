@@ -75,27 +75,43 @@ for bfold,dfold in zip(base_folders[:], dest_folders[:]):
 
 
 
-#%%
-if False:
-    #%%
-    import glob
-    import shutil
-    fls = glob.glob('L1_r*')
-    for ff in fls:
-        shutil.move(ff, 'L4__'+ff[3:])
-        print('L4__'+ff[3:])
-    fls = glob.glob('L4_r*')
-    for ff in fls:
-        shutil.move(ff, 'L1__'+ff[3:])
-        print('L1__'+ff[3:])
-    fls = glob.glob('L2_r*')
-    for ff in fls:
-        shutil.move(ff, 'L3__'+ff[3:])
-        print('L3__'+ff[3:])
-    fls = glob.glob('L3_r*')
-    for ff in fls:
-        shutil.move(ff, 'L2__'+ff[3:])
-        print('L2__'+ff[3:])
+#%% JUST MOVIES
+
+dest_folders = ['J115', 'J123', 'K53', 'N.00.00', 'N.01.01', 'N.02.00', 'N.03.00.t', 'N.04.00.t', 'YST']
+dest_folder = '/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/WEBSITE'
+
+base_folder = '/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/'
+base_folders = dest_folders
+
+import zipfile
+from glob import glob
+for bfold, dfold in zip(base_folders[-1:], dest_folders[-1:]):
+    datafold = os.path.join(dest_folder, dfold)
+    print(datafold)
+    images_fold = os.path.join(datafold, 'images')
+    os.makedirs(images_fold, exist_ok=True)
+    print(os.path.join(base_folder, bfold) + '/mmap_files/*.mmap')
+    movlist = glob(os.path.join(base_folder, bfold) + '/mmap_files/*.mmap')
+    movlist.sort()
+    print(movlist)
+    counter = 0
+    z = zipfile.ZipFile(os.path.join(images_fold, 'images.zip'), "w")
+    for movname in movlist:
+        mov = np.array(cm.load(movname), dtype=np.float32)
+        print(movname)
+        for idx, fr in enumerate(mov):
+            if counter % 1000 == 0:
+                print(counter)
+            frame_name = os.path.join(images_fold, 'image' + str(counter).zfill(5) + '.tif')
+            im = Image.fromarray(fr)
+            im.save(frame_name)
+            z.write(frame_name, os.path.basename(frame_name))
+            os.remove(frame_name)
+            counter += 1
+    z.close()
+
+
+
 
 
 
