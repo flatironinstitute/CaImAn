@@ -153,8 +153,7 @@ if ploton:
     pl.imshow(Cn)
     pl.title('Correlation Image')
     pl.colorbar()
-#%%
-cnm.estimates.plot_contours()
+
 #%%  save results (optional)
 if save_results:
     np.savez(os.path.join(base_folder, 'Zebrafish/results_analysis_online_1EPOCH_gSig6_equalized_Plane_NEW_' + str(ID) + '.npz'),
@@ -171,3 +170,6 @@ pl.xlabel('Frame #')
 pl.ylabel('Processing time [ms]')
 pl.ylim([0, 1000])
 pl.legend(labels=['motion', 'process', 'detect', 'shapes'])
+
+#%%
+cnm.estimates.plot_contours()

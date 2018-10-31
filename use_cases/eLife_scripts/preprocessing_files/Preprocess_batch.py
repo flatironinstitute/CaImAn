@@ -40,8 +40,8 @@ import glob
 # %%  ANALYSIS MODE AND PARAMETERS
 reload = False
 plot_on = False
-save_on = False  # set to true to recreate results for each file
-save_all = True  # set to True to generate results for all files
+save_on = True  # set to true to recreate results for each file
+save_all = False  # set to True to generate results for all files
 check_result_consistency = False
 
 try:
@@ -53,7 +53,7 @@ try:
     ID = [np.int(ID)]
 
 except:
-    ID = [6,7]#np.arange(9)
+    ID = np.arange(9)
     print('ID NOT PASSED')
 
 
@@ -548,7 +548,18 @@ if save_all:
     # here eventually save when in a loop
     np.savez(os.path.join(base_folder,'all_res_web.npz'), all_results=all_results)
 
+#%%
+join_npz_files_parallel = False
+if join_npz_files_parallel:
+    #%%
+    all_results = dict()
 
-
-
-
+    for params_movie in params_movies:
+        npzfile = os.path.join(base_folder,params_movie['fname'][:-5] + '_perf_web_gsig.npz')
+        print(npzfile)
+        if os.path.exists(npzfile):
+            with np.load(npzfile) as ld:
+                all_results[params_movie['fname'].split('/')[-2]] = ld['all_results'][()]
+        else:
+            print("*** NOT EXIST ***" + npzfile)
+    np.savez(os.path.join(base_folder,'all_res_web.npz'), all_results=all_results)
