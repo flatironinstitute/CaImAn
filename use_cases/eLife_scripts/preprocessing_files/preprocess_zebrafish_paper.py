@@ -51,7 +51,7 @@ try:
     print('Processing ID:'+ str(ID))
     ploton = False
     save_results = True
-    save_init = True     # flag for saving initialization object. Useful if you want to check OnACID with different parameters but same initialization
+    save_init = False     # flag for saving initialization object. Useful if you want to check OnACID with different parameters but same initialization
 except:
     print('ID NOT PASSED')
     ID = 11
@@ -60,10 +60,11 @@ except:
     save_init = False # flag for saving initialization object. Useful if you want to check OnACID with different parameters but same initialization
 
 base_folder = '/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/WEBSITE/'
+base_folder_files = '/mnt/ceph/neuro/zebra/05292014Fish1-4/'
 #%%
 K = 100 #number of initialization neurons
 min_num_trial = 50 # number of neuron candidates per trial
-fls = [os.path.join(base_folder,'Zebrafish/Plane' + str(ID) + '.stack.hdf5')]
+fls = [os.path.join(base_folder_files,'Plane' + str(ID) + '.stack.hdf5')]
 mmm = cm.load(fls,subindices = 0)
 dims = mmm.shape
 K = np.maximum(K,np.round(600/1602720*np.prod(mmm.shape)).astype(np.int))
