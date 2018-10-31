@@ -1,3 +1,12 @@
+# -*- coding: utf-8 -*-
+"""
+This script reproduces the results for Figure 7, analyzing 1p microendoscopic
+data using the CaImAn implementation of the CNMF-E algorithm. The algorithm
+using both a patch-based and a non patch-based approach and compares them with
+the results obtained from the MATLAB implementation.
+
+More info can be found in the companion paper
+"""
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.io import loadmat

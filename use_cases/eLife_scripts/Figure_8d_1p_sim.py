@@ -1,3 +1,12 @@
+# -*- coding: utf-8 -*-
+"""
+This script reproduces the results for Figure 8d, timing information for
+analyzing 1p data using CaImAn. The script tries several combinations of
+number or processes and patch size and plots the required processing time
+vs the overall memory usage. As such it takes a couple of hours to run.
+
+More info can be found in the companion paper
+"""
 import caiman as cm
 from caiman.source_extraction import cnmf
 import pickle

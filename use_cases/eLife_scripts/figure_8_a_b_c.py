@@ -1,15 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-Created on Fri Aug 25 14:49:36 2017
-
-@author: agiovann
+This script reproduces the results for Figure 8a-c (timing information)
+by loading saved values.
+More info can be found in the companion paper.
 """
-import cv2
-
-try:
-    cv2.setNumThreads(1)
-except:
-    print('Open CV is naturally single threaded')
 
 try:
     if __IPYTHON__:
@@ -22,6 +16,8 @@ except NameError:
     print('Not launched under iPython')
 
 import pylab as pl
+from pandas import DataFrame
+import numpy as np
 
 #%%
 pl.rcParams['pdf.fonttype'] = 42
@@ -35,8 +31,7 @@ pl.rcParams['pdf.fonttype'] = 42
 font = {'family': 'Arial',
         'weight': 'regular',
         'size': 20}
-from pandas import DataFrame
-import numpy as np
+
 
 all_timings = DataFrame([
     {'name': 'N.02.00', 'n_processes': 24, 'time_patch': 83.30931520462036, 'time_refit': 150.8432295322418,
@@ -148,12 +143,10 @@ pl.title('total')
 pl.tight_layout()
 
 # %%FIGURE 8 a and b time performances (results have been manually annotated on an excel spreadsheet and reported here below)
-import pylab as plt
 
 pl.figure("Figure 8a and 8b", figsize=(20, 4))
-import numpy as np
 
-plt.rcParams['pdf.fonttype'] = 42
+pl.rcParams['pdf.fonttype'] = 42
 font = {'family': 'Arial',
         'weight': 'regular',
         'size': 20}
@@ -195,18 +188,18 @@ t_filter_comps['online'] = np.array([909.07959843, 9996.35542846, 7175.75227594,
 pl.subplot(1, 4, 1)
 for key in ['cluster', 'desktop', 'laptop', 'online']:
     np.log10(t_mmap[key] + t_patch[key] + t_refine[key] + t_filter_comps[key])
-    plt.scatter((size), np.log10((t_mmap[key] + t_patch[key] + t_refine[key] + t_filter_comps[key])),
+    pl.scatter((size), np.log10((t_mmap[key] + t_patch[key] + t_refine[key] + t_filter_comps[key])),
                 s=np.array(components) / 10)
-    plt.xlabel('size (GB)')
-    plt.ylabel('time (minutes)')
+    pl.xlabel('size (GB)')
+    pl.ylabel('time (minutes)')
 
-plt.plot((np.sort(size)), np.log10((np.sort(10 ** size)) / 31.45), '--.k')
+pl.plot((np.sort(size)), np.log10((np.sort(10 ** size)) / 31.45), '--.k')
 
 axx = pl.gca()
 axx.locator_params(nbins=7)
 axx.set_yticklabels([str(int((10 ** ss) / 60))[:5] for ss in axx.get_yticks()])
 axx.set_xticklabels([str(int((10 ** ss) / 1000))[:5] for ss in axx.get_xticks()])
-plt.legend(
+pl.legend(
     ['acquisition-time', 'cluster (112 CPUs)', 'workstation (24 CPUs)', 'workstation (3 CPUs)', 'online (6 CPUs)'])
 pl.title('Total execution time')
 # pl.xlim([3.8, 5.2])
@@ -224,20 +217,20 @@ for key in ['cluster', 'desktop']:
     else:
         pl.title('Time per phase (online)')
 
-    plt.bar((size), (t_mmap[key]), width=0.12, bottom=0)
-    plt.bar((size), (t_patch[key]), width=0.12, bottom=(t_mmap[key]))
-    plt.bar((size), (t_refine[key]), width=0.12, bottom=(t_mmap[key] + t_patch[key]))
-    plt.bar((size), (t_filter_comps[key]), width=0.12, bottom=(t_mmap[key] + t_patch[key] + t_refine[key]))
+    pl.bar((size), (t_mmap[key]), width=0.12, bottom=0)
+    pl.bar((size), (t_patch[key]), width=0.12, bottom=(t_mmap[key]))
+    pl.bar((size), (t_refine[key]), width=0.12, bottom=(t_mmap[key] + t_patch[key]))
+    pl.bar((size), (t_filter_comps[key]), width=0.12, bottom=(t_mmap[key] + t_patch[key] + t_refine[key]))
     if counter == 5:
-        plt.legend(['Initialization', 'track activity', 'update shapes'])
+        pl.legend(['Initialization', 'track activity', 'update shapes'])
     else:
-        plt.legend(['mem mapping', 'patch init', 'refine sol', 'quality  filter', 'acquisition time'])
+        pl.legend(['mem mapping', 'patch init', 'refine sol', 'quality  filter', 'acquisition time'])
 
-    plt.plot((np.sort(size)), (10 ** np.sort(size)) / 31.45, '--k')
+    pl.plot((np.sort(size)), (10 ** np.sort(size)) / 31.45, '--k')
     pl.xlim([3.6, 5.2])
     axx = pl.gca()
     axx.locator_params(nbins=7)
     axx.set_yticklabels([str(int((ss) / 60))[:5] for ss in axx.get_yticks()])
     axx.set_xticklabels([str(int((10 ** ss) / 1000))[:5] for ss in axx.get_xticks()])
-    plt.xlabel('size (GB)')
-    plt.ylabel('time (minutes)')
+    pl.xlabel('size (GB)')
+    pl.ylabel('time (minutes)')

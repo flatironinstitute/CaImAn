@@ -5,7 +5,7 @@
 This script reproduces the results for Figure 6, Figure 6-figure supplement 1
 and Figure 8g, pertaining to the online analysis of whole brain zebrafish data
 The script will load the results and produce the figures. For a script that
-analyzes the data from scratch check the script 
+analyzes the data from scratch check the script:
 /preprocessing_files/preprocess_zebrafish_paper.py
 
 More info can be found in the companion paper

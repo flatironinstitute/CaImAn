@@ -1,15 +1,16 @@
 # -*- coding: utf-8 -*-
 """
-Created on Fri Aug 25 14:49:36 2017
+This script reproduces the results for Figure 4b
+The script loads the saved results for various parameters combinations and
+plots the F1 score for the parameter combination that maximizes the performance
+on average as well as the maximum F1 score attained for each dataset.
+For running the CaImAn batch and CaImAn online algorithm and
+obtain the results check the scripts:
+/preprocessing_files/Preprocess_batch.py
+/preprocessing_files/Preprocess_CaImAn_online.py
 
-@author: agiovann
+More info can be found in the companion paper
 """
-import cv2
-
-try:
-    cv2.setNumThreads(1)
-except:
-    print('Open CV is naturally single threaded')
 
 try:
     if __IPYTHON__:
@@ -21,15 +22,10 @@ try:
 except NameError:
     print('Not launched under iPython')
 
-import caiman as cm
 import numpy as np
 import os
 import pylab as pl
-import scipy
-from caiman.utils.visualization import plot_contours
-import numpy as np
 from pandas import DataFrame
-import pylab as pl
 pl.rcParams['pdf.fonttype'] = 42
 font = {'family': 'Arial',
         'weight': 'regular',
@@ -37,14 +33,14 @@ font = {'family': 'Arial',
 pl.rc('font', **font)
 base_folder = '/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/WEBSITE/'
 
-#%% Figure 4b and GRID statistics
+# %% Figure 4b and GRID statistics
 with np.load(os.path.join(base_folder,'ALL_RECORDS_GRID_FINAL.npz')) as ld:
     records = ld['records'][()]
     records = [list(rec) for rec in records]
     records = [rec[:5]+[float(rr) for rr in rec[5:]] for rec in records]
 
-columns = ['name', 'gr_snr', 'grid_rval', 'grid_max_prob_rej', 'grid_thresh_CNN', 'recall',
-              'precision', 'f1_score']
+columns = ['name', 'gr_snr', 'grid_rval', 'grid_max_prob_rej',
+           'grid_thresh_CNN', 'recall', 'precision', 'f1_score']
 
 with np.load(os.path.join(base_folder, 'all_records_grid_online.npz')) as ld:
     records_online = ld['records']

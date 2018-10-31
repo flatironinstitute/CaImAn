@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Tue Oct 23 14:18:11 2018
-
-Script for generating the results presented in Supplementary Figure 14 
+Script for generating the results presented in Figure9-supplement 1
 (ROI registration across multiple days)
+The script is intended to demonstrate the process that multiday registration
+works, rather than performing registration across 3 different days which can
+be done at once using the register_multisession function.
+
 @author: epnevmatikakis
 """
 

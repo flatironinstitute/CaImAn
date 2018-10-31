@@ -1,8 +1,13 @@
 # -*- coding: utf-8 -*-
 """
-Created on Fri Aug 25 14:49:36 2017
+This script reproduces the results for all panels of Figure 4, except panel b
+The script loads the saved results and uses them to plot contours and do the
+SNR analysis. For running the CaImAn batch and CaImAn online algorithm and
+obtain the results check the scripts:
+/preprocessing_files/Preprocess_batch.py
+/preprocessing_files/Preprocess_CaImAn_online.py
 
-@author: agiovann
+More info can be found in the companion paper
 """
 import cv2
 
@@ -25,7 +30,6 @@ import caiman as cm
 import numpy as np
 import os
 import pylab as pl
-import scipy
 from caiman.utils.visualization import plot_contours
 
 # %%
@@ -35,9 +39,11 @@ font = {'family': 'Arial',
         'size': 20}
 pl.rc('font', **font)
 
-
 base_folder = '/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/WEBSITE/'
-#%%
+
+# %% function for performing the SNR analysis
+
+
 def precision_snr(snr_gt, snr_gt_fn, snr_cnmf, snr_cnmf_fp, snr_thrs):
     all_results_fake = []
     all_results_OR = []
@@ -88,6 +94,8 @@ def precision_snr(snr_gt, snr_gt_fn, snr_cnmf, snr_cnmf_fp, snr_thrs):
     return np.array(all_results_fake), np.array(all_results_OR), np.array(all_results_AND)
 
 # %% RELOAD ALL THE RESULTS INSTEAD OF REGENERATING THEM
+
+
 with np.load(os.path.join(base_folder, 'all_res_web.npz')) as ld:
     all_results = ld['all_results'][()]
 with np.load(os.path.join(base_folder, 'all_res_online_web_bk.npz')) as ld:
@@ -95,7 +103,7 @@ with np.load(os.path.join(base_folder, 'all_res_online_web_bk.npz')) as ld:
 
 pl.rcParams['pdf.fonttype'] = 42
 
-#%% CREATE FIGURES
+# %% CREATE FIGURES
 idxFile = 7
 name_file = 'J115'
 name_file_online = 'J115/'
@@ -117,17 +125,12 @@ A_gt = all_results[name_file]['A_gt'][()]
 C = all_results[name_file]['C']
 C_gt = all_results[name_file]['C_gt']
 CCs_batch = all_results[name_file]['CCs']
-# YrA_gt = all_results[name_file]['YrA_gt']
-# YrA = all_results[name_file]['YrA']
-
 
 tp_gt_online = all_results_online[name_file_online]['tp_gt']
 tp_comp_online = all_results_online[name_file_online]['tp_comp']
 fn_gt_online = all_results_online[name_file_online]['fn_gt']
 fp_comp_online = all_results_online[name_file_online]['fp_comp']
 A_gt_online = all_results_online[name_file_online]['A_gt']
-
-
 
 A_online = all_results_online[name_file_online]['A']
 # estimate the downsampling ratio and the original size
@@ -140,12 +143,10 @@ except:
 C_online = all_results_online[name_file_online]['C']
 A_gt_online = all_results_online[name_file_online]['A_gt']
 C_gt_online = all_results_online[name_file_online]['C_gt']
-# A_gt_thr_online = all_results_online[name_file]['A_gt_thr']
 A_thr_online = all_results_online[name_file_online]['A_thr']
 A_thr_online = np.vstack([cv2.resize(a.reshape(dims_online, order='F'), dims[::-1]).reshape(-1, order='F') for a in A_thr_online.T]).T
 A_online = np.vstack([cv2.resize(a.toarray().reshape(dims_online, order='F'), dims[::-1]).reshape(-1, order='F') for a in A_online.T]).T
 A_gt_online = np.vstack([cv2.resize(a.toarray().reshape(dims_online, order='F'), dims[::-1]).reshape(-1, order='F') for a in A_gt_online.T]).T
-
 
 pl.ylabel('spatial components')
 idx_comps_high_r = [np.argsort(predictionsCNN[tp_comp])][::-1][:35]
@@ -160,7 +161,7 @@ tp_gt_online, tp_comp_online, fn_gt_online, fp_comp_online, performance_cons_off
     thresh_cost=.8, min_dist=10,
     print_assignment=False, plot_results=False, Cn=None, labels=['GT', 'Offline'])
 
-#%%
+# %%
 pl.figure('Figure 4a top')
 pl.subplot(2, 2, 1)
 a1 = plot_contours(A.tocsc()[:, tp_comp], Cn, thr=0.9, colors='yellow', vmax=0.75,
@@ -216,7 +217,6 @@ for k, fl_results in all_results.items():
     all_ys.append(all_results_fake[:, -1])
     pl.fill_between(SNRs, all_results_OR[:, -1], all_results_AND[:, -1], color=color[i], alpha=.1)
     pl.plot(SNRs, all_results_fake[:, -1], '.-', color=color[i])
-    #            pl.plot(x[::1]+np.random.normal(scale=.07,size=10),y[::1], 'o',color=color[i])
     pl.ylim([0.65, 1.02])
     legs.append(nm[:7])
     i += 1

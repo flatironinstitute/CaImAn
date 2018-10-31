@@ -1,8 +1,14 @@
 # -*- coding: utf-8 -*-
 """
-Created on Fri Aug 25 14:49:36 2017
+This script reproduces the results for all panels of Figure 5, (trace quality)
+The script loads the saved results and uses them to plot the traces and
+correlation coefficients with consensus traces.
+For running the CaImAn batch and CaImAn online algorithm and
+obtain the results check the scripts:
+/preprocessing_files/Preprocess_batch.py
+/preprocessing_files/Preprocess_CaImAn_online.py
 
-@author: agiovann
+More info can be found in the companion paper
 """
 import cv2
 
@@ -24,9 +30,9 @@ except NameError:
 import caiman as cm
 import numpy as np
 import os
+import glob
 import pylab as pl
 import scipy
-from caiman.utils.visualization import plot_contours
 
 # %%
 pl.rcParams['pdf.fonttype'] = 42
@@ -41,7 +47,7 @@ base_folder = '/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/WEBSITE/'
 #%% to merge results from all files
 mergefiles = False
 if mergefiles:
-    fls = glob.glob('.') # here should go the path to the generated files
+    fls = glob.glob('.')  # here should go the path to the generated files
     all_results_online = dict()
     for fl in fls:
         with np.load(fl) as ld:
