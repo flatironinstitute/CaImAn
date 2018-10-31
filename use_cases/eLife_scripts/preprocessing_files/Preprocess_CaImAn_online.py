@@ -199,8 +199,8 @@ for ind_dataset in ID:
     fls = glob.glob(os.path.join(base_folder, params_movie[ind_dataset]['folder_name'], 'images', 'mov*.tif'))
     if len(fls) == 0:
         fls = from_zipfiles_to_movie_lists(fname_zip)
-    
-    fls.sort()
+
+    fls = sorted(fls, key=lambda x: np.int(x.split('_')[-1][:-4]))
     print(fls)
 
     Cn = np.array(cm.load(os.path.join(base_folder, params_movie[ind_dataset]['folder_name'], 
