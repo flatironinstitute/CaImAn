@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
-
 """
-Created on Fri Aug 25 14:49:36 2017
-
-@author: agiovann
+Complete pipeline for CaImAn batch processing and comparison with consensus
+annotation. The script processes one (or more) of the provided datasets and 
+compares against the consensus annotations. It generates the contour plots
+of the detected components (Fig. 4a)
+    For more information check the companion paper.
+@author: Andrea Giovannucci @agiovann and Eftychios Pnevmatikakis @epnev
 """
 import cv2
 
@@ -41,8 +43,7 @@ import glob
 reload = False
 plot_on = False
 save_on = False  # set to true to recreate results for each file
-save_all = True  # set to True to generate results for all files
-check_result_consistency = False
+save_all = False  # set to True to generate results for all files
 
 try:
     if 'pydevconsole' in sys.argv[0]:
@@ -56,15 +57,12 @@ except:
     ID = [6,7]#np.arange(9)
     print('ID NOT PASSED')
 
-
-
 print_figs = True
 skip_refinement = False
 backend_patch = 'local'
 backend_refine = 'local'
 n_processes = 24
 base_folder = '/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/WEBSITE'
-# base_folder = '/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/'
 n_pixels_per_process = 4000
 block_size = 5000
 num_blocks_per_run = 20
@@ -79,18 +77,12 @@ global_params = {'SNR_lowest': 0.5,
                  'max_classifier_probability_rejected': 0.1,
                  'p': 1,
                  'max_fitness_delta_accepted': -20,
-                 'Npeaks': 5,
-                 'min_SNR_patch': -10,
-                 'min_r_val_thr_patch': 0.5,
-                 'fitness_delta_min_patch': -5,
                  'update_background_components': True,
                  # whether to update the background components in the spatial phase
                  'low_rank_background': True,
                  # whether to update the using a low rank approximation. In the False case all the nonzero elements of the background components are updated using hals
                  # (to be used with one background per patch)
                  'only_init_patch': True,
-                 'is_dendrites': False,  # if dendritic. In this case you need to set init_method to sparse_nmf
-                 'alpha_snmf': None,
                  'init_method': 'greedy_roi',
                  'filter_after_patch': False,
                  'tsub': 2,
@@ -101,14 +93,11 @@ params_movies = []
 # %%
 params_movie = {'fname': 'N.03.00.t/Yr_d1_498_d2_467_d3_1_order_C_frames_2250_.mmap',
                 'gtname': 'N.03.00.t/joined_consensus_active_regions.npy',
-                # order of the autoregressive system
                 'merge_thresh': 0.8,  # merging threshold, max correlation allow
                 'rf': 25,  # half-size of the patches in pixels. rf=25, patches are 50x50    20
                 'stride_cnmf': 10,  # amounpl.it of overlap between the patches in pixels
                 'K': 4,  # number of components per patch
                 'gSig': [8, 8],  # expected half size of neurons
-                'n_chunks': 10,
-                'swap_dim': False,
                 'crop_pix': 0,
                 'fr': 7,
                 'decay_time': 0.4,
@@ -117,14 +106,11 @@ params_movies.append(params_movie.copy())
 # %%
 params_movie = {'fname': 'N.04.00.t/Yr_d1_512_d2_512_d3_1_order_C_frames_3000_.mmap',
                 'gtname': 'N.04.00.t/joined_consensus_active_regions.npy',
-                # order of the autoregressive system
                 'merge_thresh': 0.8,  # merging threshold, max correlation allow
                 'rf': 20,  # half-size of the patches in pixels. rf=25, patches are 50x50    20
                 'stride_cnmf': 10,  # amounpl.it of overlap between the patches in pixels
                 'K': 5,  # number of components per patch
                 'gSig': [5, 5],  # expected half size of neurons
-                'n_chunks': 10,
-                'swap_dim': False,
                 'crop_pix': 0,
                 'fr': 8,
                 'decay_time': 1.4,  # rough length of a transient
@@ -134,7 +120,6 @@ params_movies.append(params_movie.copy())
 # %% yuste
 params_movie = {'fname': 'YST/Yr_d1_200_d2_256_d3_1_order_C_frames_3000_.mmap',
                 'gtname': 'YST/joined_consensus_active_regions.npy',
-                # order of the autoregressive system
                 'merge_thresh': 0.8,  # merging threshold, max correlation allow
                 'rf': 15,  # half-size of the patches in pixels. rf=25, patches are 50x50    20
                 'stride_cnmf': 10,  # amounpl.it of overlap between the patches in pixels
@@ -142,8 +127,6 @@ params_movie = {'fname': 'YST/Yr_d1_200_d2_256_d3_1_order_C_frames_3000_.mmap',
                 'gSig': [5, 5],  # expected half size of neurons
                 'fr': 10,
                 'decay_time': 0.75,
-                'n_chunks': 10,
-                'swap_dim': False,
                 'crop_pix': 0
                 }
 params_movies.append(params_movie.copy())
@@ -157,8 +140,6 @@ params_movie = {'fname': 'N.00.00/Yr_d1_512_d2_512_d3_1_order_C_frames_2936_.mma
                 'gSig': [6, 6],  # expected half size of neurons
                 'decay_time': 0.7,
                 'fr': 8,
-                'n_chunks': 10,
-                'swap_dim': False,
                 'crop_pix': 10
                 }
 params_movies.append(params_movie.copy())
@@ -172,34 +153,27 @@ params_movie = {'fname': 'N.01.01/Yr_d1_512_d2_512_d3_1_order_C_frames_1825_.mma
                 'gSig': [6, 6],  # expected half size of neurons
                 'decay_time': 0.4,
                 'fr': 8,
-                'n_chunks': 10,
-                'swap_dim': False,
                 'crop_pix': 2,
                 }
 params_movies.append(params_movie.copy())
 # %% neurofinder 02.00
 params_movie = {
-    # 'fname': '/opt/local/Data/labeling/neurofinder.02.00/Yr_d1_512_d2_512_d3_1_order_C_frames_8000_.mmap',
     'fname': 'N.02.00/Yr_d1_512_d2_512_d3_1_order_C_frames_8000_.mmap',
     'gtname': 'N.02.00/joined_consensus_active_regions.npy',
-    # order of the autoregressive system
     'merge_thresh': 0.8,  # merging threshold, max correlation allow
     'rf': 20,  # half-size of the patches in pixels. rf=25, patches are 50x50    20
     'stride_cnmf': 10,  # amounpl.it of overlap between the patches in pixels
     'K': 6,  # number of components per patch
     'gSig': [5, 5],  # expected half size of neurons
     'fr': 30,  # imaging rate in Hz
-    'n_chunks': 10,
-    'swap_dim': False,
     'crop_pix': 10,
     'decay_time': 0.3,
 }
 params_movies.append(params_movie.copy())
 # %% Sue Ann k53
-params_movie = {  # 'fname': '/opt/local/Data/labeling/k53_20160530/Yr_d1_512_d2_512_d3_1_order_C_frames_116043_.mmap',
+params_movie = {
     'fname': 'K53/Yr_d1_512_d2_512_d3_1_order_C_frames_116043_.mmap',
     'gtname': 'K53/joined_consensus_active_regions.npy',
-    # order of the autoregressive system
     'merge_thresh': 0.8,  # merging threshold, max correlation allow
     'rf': 20,  # half-size of the patches in pixels. rf=25, patches are 50x50    20
     'stride_cnmf': 10,  # amounpl.it of overlap between the patches in pixels
@@ -207,17 +181,13 @@ params_movie = {  # 'fname': '/opt/local/Data/labeling/k53_20160530/Yr_d1_512_d2
     'gSig': [6, 6],  # expected half size of neurons
     'fr': 30,
     'decay_time': 0.3,
-    'n_chunks': 10,
-    'swap_dim': False,
     'crop_pix': 2,
 }
 params_movies.append(params_movie.copy())
 # %% J115
 params_movie = {
-    # 'fname': '/opt/local/Data/labeling/J115_2015-12-09_L01_ELS/Yr_d1_463_d2_472_d3_1_order_C_frames_90000_.mmap',
     'fname': 'J115/Yr_d1_463_d2_472_d3_1_order_C_frames_90000_.mmap',
     'gtname': 'J115/joined_consensus_active_regions.npy',
-    # order of the autoregressive system
     'merge_thresh': 0.8,  # merging threshold, max correlation allow
     'rf': 20,  # half-size of the patches in pixels. rf=25, patches are 50x50    20
     'stride_cnmf': 10,  # amounpl.it of overlap between the patches in pixels
@@ -225,8 +195,6 @@ params_movie = {
     'gSig': [7, 7],  # expected half size of neurons
     'fr': 30,
     'decay_time': 0.4,
-    'n_chunks': 10,
-    'swap_dim': False,
     'crop_pix': 2,
 
 }
@@ -244,8 +212,6 @@ params_movie = {
     'gSig': [8, 8],  # expected half size of neurons
     'decay_time': 0.5,
     'fr': 30,
-    'n_chunks': 10,
-    'swap_dim': False,
     'crop_pix': 2,
 }
 params_movies.append(params_movie.copy())
@@ -270,8 +236,6 @@ for params_movie in np.array(params_movies)[ID]:
         'downsample_ratio': .2,
         'thr_plot': 0.8
     }
-    # %% start cluster
-    # TODO: show screenshot 10
 
     #%%
     fname_new = os.path.join(base_folder, params_movie['fname'])
@@ -316,7 +280,7 @@ for params_movie in np.array(params_movies)[ID]:
     m_images = cm.movie(images)
     if plot_on:
         if m_images.shape[0] < 5000:
-            Cn = m_images.local_correlations(swap_dim=params_movie['swap_dim'], frames_per_chunk=1500)
+            Cn = m_images.local_correlations(swap_dim=False, frames_per_chunk=1500)
             Cn[np.isnan(Cn)] = 0
         else:
             Cn = np.array(cm.load(
@@ -422,11 +386,9 @@ for params_movie in np.array(params_movies)[ID]:
                                 'min_SNR': global_params['min_SNR'],
                                 'rval_thr': global_params['rval_thr'],
                                 'rval_lowest': global_params['min_rval_thr_rejected'],
-                                #'Npeaks': global_params['Npeaks'],
                                 'use_cnn': True,
                                 'min_cnn_thr': global_params['min_cnn_thresh'],
                                 'cnn_lowest': global_params['max_classifier_probability_rejected'],
-                                #'thresh_fitness_delta': global_params['max_fitness_delta_accepted'],
                                 'gSig_range': None})
 
     cnm2.params.set('data',{'decay_time':params_movie['decay_time']})
@@ -528,27 +490,7 @@ for params_movie in np.array(params_movies)[ID]:
         print('SAVING...' + fname_new[:-5] + '_perf_web_gsig.npz')
         np.savez(fname_new[:-5] + '_perf_web_gsig.npz', all_results=performance_tmp)
 
-    if check_result_consistency:
-        results_old = {'N.00.00': 0.723,
-                       'N.01.01': 0.763,
-                       'N.03.00.t': 0.779,
-                       'N.04.00.t': 0.692,
-                       'YST': 0.773}
-
-        results_holding = True
-        for kk, res in all_results.items():
-            print(kk + ' f1_score_new : ' + str(all_results[kk]['f1_score']) + ',f1_score_old:' + str(results_old[kk]),
-                  ',delta:' + str(results_old[kk] - all_results[kk]['f1_score']))
-            if (results_old[kk] - all_results[kk]['f1_score']) > 0.01:
-                results_holding = False
-
-        assert results_holding, 'F1 scores are decreasing, check your code for errors'
     #
 if save_all:
     # here eventually save when in a loop
     np.savez(os.path.join(base_folder,'all_res_web.npz'), all_results=all_results)
-
-
-
-
-
