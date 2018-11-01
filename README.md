@@ -67,12 +67,13 @@ If you want to upgrade CaImAn (and have already used the pip installer to instal
    pip install -e .
    ```
 
-**Performance issues:** To make the package work *efficiently* under any configuration ALWAYS run these commands before starting spyder (this is for linux and OSX but environment variables can be set in windows as well):
+**Performance issues:** To make the package work *efficiently* under any configuration ALWAYS run these commands before starting spyder (this is for Linux and OSX but environment variables can be set on Windows as well):
 
    ```bash
    export MKL_NUM_THREADS=1
    export OPENBLAS_NUM_THREADS=1
    ```   
+On Windows, replace the word "export" with the word "set" to achieve the same effect.
 
 ### Setting up caimanmanager
 
@@ -112,7 +113,7 @@ Use the following menu item to launch a anaconda-enabled command prompt: start>p
 Then run ```caimanmanager``` as described above to make a data directory.
 
 Alternative environments:
-   * [Using CUDA (experimental)](/README-cuda.md)
+   * [Using GPU](/README-GPU.md)
 
 ### Installation for behavioral analysis
 * Installation on Linux (Windows and MacOS are problematic with anaconda at the moment)
