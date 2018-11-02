@@ -13,13 +13,14 @@ import numpy as np
 from operator import itemgetter
 from scipy.io import loadmat
 from scipy.stats import pearsonr
+from skimage.external.tifffile import imsave
 
 
 small = True
 save_figs = False
 
 gSig = 3   # gaussian width of a 2D gaussian kernel, which approximates a neuron
-gSiz0 = 7   # average diameter of a neuron
+gSiz = 9   # average diameter of a neuron
 min_corr = .9
 min_pnr = 15
 s_min = -10
@@ -49,8 +50,9 @@ if small:
 try:
     # Yr, dims, T = cm.load_memmap('Yr_d1_64_d2_96_d3_1_order_C_frames_2000_.mmap' if small
     #                              else 'Yr_d1_253_d2_316_d3_1_order_C_frames_2000_.mmap')
-    Yr, dims, T = cm.load_memmap('Yr_d1_128_d2_128_d3_1_order_C_frames_2000_.mmap' if small
-                                 else 'Yr_d1_253_d2_316_d3_1_order_C_frames_2000_.mmap')
+    fnames = ('Yr_d1_128_d2_128_d3_1_order_C_frames_2000_.mmap' if small
+              else 'Yr_d1_253_d2_316_d3_1_order_C_frames_2000_.mmap',)
+    Yr, dims, T = cm.load_memmap(*fnames)
     Y = Yr.T.reshape((T,) + dims, order='F')
 except:
     Y = Yr.T.reshape((-1,) + dims, order='F')
@@ -60,14 +62,14 @@ except:
     fname_new = cm.save_memmap([Y], base_name='Yr', order='C')
     Yr, dims, T = cm.load_memmap(fname_new)
     Y = Yr.T.reshape((T,) + dims, order='F')
-
+imsave('foo.tif', Y)
 
 #%% RUN (offline) CNMF-E algorithm on the entire batch for sake of comparison
 
-cnm_batch = cnmf.CNMF(2, method_init='corr_pnr', k=None, gSig=(gSig, gSig), gSiz=(gSiz0, gSiz0),
+cnm_batch = cnmf.CNMF(2, method_init='corr_pnr', k=None, gSig=(gSig, gSig), gSiz=(gSiz, gSiz),
                       merge_thresh=.9, p=1, tsub=1, ssub=1, only_init_patch=True, gnb=0,
                       min_corr=min_corr, min_pnr=min_pnr, normalize_init=False,
-                      ring_size_factor=18./gSiz0, center_psf=True, ssub_B=2, init_iter=1, s_min=s_min)
+                      ring_size_factor=18./gSiz, center_psf=True, ssub_B=2, init_iter=1, s_min=s_min)
 
 cnm_batch.fit(Y)
 
@@ -92,27 +94,19 @@ cm.base.rois.register_ROIs(A, cnm_batch.estimates.A, dims, align_flag=0)
 
 #%% RUN (offline) CNMF-E algorithm on the initial batch
 
-seeded = False
-if not seeded:
-    cnm_init = cnmf.CNMF(2, method_init='corr_pnr', k=None, gSig=(gSig, gSig), gSiz=(gSiz0, gSiz0),
-                         merge_thresh=.98, p=1, tsub=1, ssub=1, only_init_patch=True, gnb=0,
-                         min_corr=min_corr, min_pnr=min_pnr, normalize_init=False,
-                         ring_size_factor=18./gSiz0, center_psf=True, ssub_B=2, init_iter=1, s_min=s_min,
-                         minibatch_shape=100, minibatch_suff_stat=5, update_num_comps=True,
-                         rval_thr=.95, thresh_fitness_delta=-30, thresh_fitness_raw=-50,
-                         batch_update_suff_stat=True)
-
-    cnm_init.fit(Y[:initbatch])
-
-else:  # seeded from batch
-    cnm_init = deepcopy(cnm_batch)
-    cnm_init.initbatch = initbatch
-    cnm_init.update_num_comps = False
-    cnm_init.C = cnm_init.C[:, :initbatch]
-    cnm_init.f = cnm_init.f[:, :initbatch]
-    cnm_init.YrA = cnm_init.YrA[:, :initbatch]
-    cnm_init.W, cnm_init.b0 = cnmf.initialization.compute_W(
-        Yr[:, :initbatch], cnm_init.A.toarray(), cnm_init.C, dims, 18, ssub=2)
+opts = cnmf.params.CNMFParams(
+    fnames=['foo.tif'],
+    method_init='corr_pnr', k=None, gSig=(gSig, gSig), gSiz=(gSiz, gSiz),
+    merge_thresh=.98, p=1, tsub=1, ssub=1, only_init_patch=True, gnb=0,
+    min_corr=min_corr, min_pnr=min_pnr, normalize_init=False,
+    ring_size_factor=18./gSiz, center_psf=True, ssub_B=2, init_iter=1, s_min=s_min,
+    minibatch_shape=100, minibatch_suff_stat=5, update_num_comps=True,
+    rval_thr=.95, thresh_fitness_delta=-30, thresh_fitness_raw=-50,
+    batch_update_suff_stat=True, update_freq=100,
+    min_num_trial=1, max_num_added=1, thresh_CNN_noisy=None,
+    use_peak_max=False, N_samples_exceptionality=12)
+cnm_init = cnmf.CNMF(2, params=opts)
+cnm_init.fit(Y[:initbatch])
 
 print(('Number of components:' + str(cnm_init.estimates.A.shape[-1])))
 
@@ -123,24 +117,14 @@ crd = cm.utils.visualization.plot_contours(A, Cn_init, thr=.8, lw=3, display_num
 crd = cm.utils.visualization.plot_contours(cnm_init.estimates.A, Cn_init, thr=.8, c='r')
 tight()
 plt.savefig('online1p_init.pdf', pad_inches=0, bbox_inches='tight') if save_figs else plt.show()
-cm.base.rois.register_ROIs(A, cnm_init.estimates.A, dims, align_flag=0)
+cm.base.rois.register_ROIs(A, cnm_init.estimates.A, dims, align_flag=0, thresh_cost=.9)
 
 
 #%% run (online) CNMF-E algorithm
 
-gSiz = 13
 estim = deepcopy(cnm_init.estimates)
-if seeded:  # remove some components and let them be found in online mode
-    idx = filter(lambda a: a not in [3, 14, 24], range(len(estim.C)))
-    estim.C = estim.C[idx]
-    estim.YrA = estim.YrA[idx]
-    estim.A = estim.A[:, idx]
-    cnm_init.W, cnm_init.b0 = cnmf.initialization.compute_W(
-        Yr[:, :initbatch], estim.A.toarray(), estim.C, dims, 18, ssub=2)
 cnm = cnmf.online_cnmf.OnACID(cnm_init.params, estim)
-cnm.params.set('data', {'dims': dims})
 cnm._prepare_object(np.asarray(Yr[:, :initbatch]), T)
-cnm.params.set('init', {'gSiz' : (gSiz, gSiz), 'ring_size_factor' : 18. / gSiz})
 cnm.comp_upd = []
 cnm.t_shapes = []
 cnm.t_detect = []
@@ -157,7 +141,29 @@ crd = cm.utils.visualization.plot_contours(A, Cn, thr=.8, lw=3, display_numbers=
 crd = cm.utils.visualization.plot_contours(cnm.estimates.Ab, Cn, thr=.8, c='r')
 tight()
 plt.savefig('online1p_online.pdf', pad_inches=0, bbox_inches='tight') if save_figs else plt.show()
-cm.base.rois.register_ROIs(A, cnm.estimates.Ab, dims, align_flag=0)
+cm.base.rois.register_ROIs(A, cnm.estimates.Ab, dims, align_flag=0, thresh_cost=.9)
+
+cnm0 = deepcopy(cnm)
+
+
+# %% fit with online object
+
+opts.set('online', {'init_method': 'cnmf', 'init_batch': initbatch, 'motion_correct': False})
+cnm = cnmf.online_cnmf.OnACID(params=opts)
+# cnm.initialize_online()
+cnm.fit_online()
+
+plt.figure()
+crd = cm.utils.visualization.plot_contours(A, Cn, thr=.8, lw=3, display_numbers=False)
+crd = cm.utils.visualization.plot_contours(cnm.estimates.Ab, Cn, thr=.8, c='r')
+tight()
+plt.savefig('online1p_online.pdf', pad_inches=0, bbox_inches='tight') if save_figs else plt.show()
+cm.base.rois.register_ROIs(A, cnm.estimates.Ab, dims, align_flag=0, thresh_cost=.9)
+
+
+cm.base.rois.register_ROIs(cnm0.estimates.Ab, cnm.estimates.Ab, dims, align_flag=0, thresh_cost=.9)
+not (cnm0.estimates.Ab != cnm.estimates.Ab).sum()
+
 
 
 #%% compare online to batch
