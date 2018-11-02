@@ -702,10 +702,11 @@ class OnACID(object):
                         #                                      self.W.data[self.W.indptr[p]:self.W.indptr[p+1]].dot(self.XXt[index, i])) /
                         #                                     self.XXt[i, i])
                         # update W using normal equations
+                        tmp = self.estimates.XXt[index[:, None], index]
+                        tmp += np.diag(tmp).sum() * 1e-5 * np.eye(len(tmp))
                         self.estimates.W.data[self.estimates.W.indptr[p]:
                                               self.estimates.W.indptr[p + 1]] = \
-                            np.linalg.inv(self.estimates.XXt[index[:, None], index]).dot(
-                                self.estimates.XXt[index, p])
+                            np.linalg.inv(tmp).dot(self.estimates.XXt[index, p])
 
                     if ssub_B == 1:
                         self.estimates.Atb = Ab_.T.dot(self.estimates.W.dot(self.estimates.b0) -
