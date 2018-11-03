@@ -113,7 +113,7 @@ Use the following menu item to launch a anaconda-enabled command prompt: start>p
 Then run ```caimanmanager``` as described above to make a data directory.
 
 Alternative environments:
-   * [Using CUDA (experimental)](/README-cuda.md)
+   * [Using GPU](/README-GPU.md)
 
 ### Installation for behavioral analysis
 * Installation on Linux (Windows and MacOS are problematic with anaconda at the moment)
