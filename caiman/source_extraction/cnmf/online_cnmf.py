@@ -37,6 +37,7 @@ from .estimates import Estimates
 from .initialization import imblur, initialize_components, hals, downscale
 from .oasis import OASIS
 from .params import CNMFParams
+from .pre_processing import get_noise_fft
 from .utilities import update_order, get_file_size, peak_local_max
 from ... import mmapping
 from ...components_evaluation import compute_event_exceptionality
@@ -216,6 +217,7 @@ class OnACID(object):
 
         if self.is1p:
             estim = self.estimates
+            d1, d2 = estim.dims    
             estim.Yres_buf -= estim.b0
             if ssub_B == 1:
                 estim.Atb = estim.Ab.T.dot(estim.W.dot(estim.b0) - estim.b0)
@@ -223,7 +225,6 @@ class OnACID(object):
                 estim.AtWA = estim.AtW.dot(estim.Ab).toarray()
                 estim.Yres_buf -= estim.W.dot(estim.Yres_buf.T).T
             else:
-                d1, d2 = estim.dims
                 A_ds = csc_matrix(downscale(
                     (estim.Ab_dense[:, :self.N] if self.params.get('online', 'use_dense')
                         else estim.Ab.toarray()).reshape(
@@ -321,8 +322,6 @@ class OnACID(object):
                     .reshape(((d1 - 1) // ssub_B + 1, (d2 - 1) // ssub_B + 1, -1), order='F'),
                     ssub_B, 0), ssub_B, 1)[:d1, :d2].reshape(-1, init_batch, order='F')
             Yres = Yres.reshape((d1, d2, -1), order='F')
-            # Yres = imblur(Yres.reshape((d1, d2, -1), order='F'), sig=self.gSig, siz=self.gSiz,
-            #               nDimBlur=len(self.dims2))
             (self.estimates.first_moment, self.estimates.second_moment,
                 self.estimates.crosscorr, self.estimates.col_ind, self.estimates.row_ind,
                 self.estimates.num_neigbors, self.estimates.corrM, self.estimates.corr_img) = \
@@ -841,9 +840,27 @@ class OnACID(object):
         self.img_min = img_min
         self.img_norm = img_norm
         if self.params.get('online', 'init_method') == 'bare':
-            self.estimates.A, self.estimates.b, self.estimates.C, self.estimates.f, self.estimates.YrA = bare_initialization(
-                    Y.transpose(1, 2, 0), gnb=self.params.get('init', 'nb'), k=self.params.get('init', 'K'),
-                    gSig=self.params.get('init', 'gSig'), return_object=False)
+            init = self.params.get_group('init').copy()
+            is1p = (init['method_init'] == 'corr_pnr' and  init['ring_size_factor'] is not None)
+            if is1p:
+                self.estimates.sn, psx = get_noise_fft(
+                    Yr, noise_range=self.params.get('preprocess', 'noise_range'),
+                    noise_method=self.params.get('preprocess', 'noise_method'),
+                    max_num_samples_fft=self.params.get('preprocess', 'max_num_samples_fft'))
+            for key in ('K', 'nb', 'gSig', 'method_init'):
+                init.pop(key, None)
+            tmp = bare_initialization(
+                Y.transpose(1, 2, 0), init_batch=self.params.get('online', 'init_batch'),
+                k=self.params.get('init', 'K'), gnb=self.params.get('init', 'nb'),
+                method_init=self.params.get('init', 'method_init'), sn=self.estimates.sn,
+                gSig=self.params.get('init', 'gSig'), return_object=False,
+                options_total=self.params.to_dict(), **init)
+            if is1p:
+                (self.estimates.A, self.estimates.b, self.estimates.C, self.estimates.f,
+                 self.estimates.YrA, self.estimates.W, self.estimates.b0) = tmp
+            else:
+                (self.estimates.A, self.estimates.b, self.estimates.C, self.estimates.f,
+                 self.estimates.YrA) = tmp
             self.estimates.S = np.zeros_like(self.estimates.C)
             nr = self.estimates.C.shape[0]
             self.estimates.g = np.array([-np.poly([0.9] * max(self.params.get('preprocess', 'p'), 1))[1:]
@@ -1150,18 +1167,24 @@ def bare_initialization(Y, init_batch=1000, k=1, method_init='greedy_roi', gnb=1
     else:
         Y = Y[:, :, :init_batch]
 
-    Ain, Cin, b_in, f_in, center = initialize_components(
-        Y, K=k, gSig=gSig, nb=gnb, method_init=method_init)
-    Ain = coo_matrix(Ain)
-    b_in = np.array(b_in)
-    Yr = np.reshape(Y, (Ain.shape[0], Y.shape[-1]), order='F')
-    nA = (Ain.power(2).sum(axis=0))
-    nr = nA.size
+    try:
+        Ain, Cin, b_in, f_in, center = initialize_components(
+            Y, K=k, gSig=gSig, nb=gnb, method_init=method_init, **kwargs)
+        Ain = coo_matrix(Ain)
+        b_in = np.array(b_in)
+        Yr = np.reshape(Y, (Ain.shape[0], Y.shape[-1]), order='F')
+        nA = (Ain.power(2).sum(axis=0))
+        nr = nA.size
 
-    YA = spdiags(old_div(1., nA), 0, nr, nr) * \
-        (Ain.T.dot(Yr) - (Ain.T.dot(b_in)).dot(f_in))
-    AA = spdiags(old_div(1., nA), 0, nr, nr) * (Ain.T.dot(Ain))
-    YrA = YA - AA.T.dot(Cin)
+        YA = spdiags(old_div(1., nA), 0, nr, nr) * \
+            (Ain.T.dot(Yr) - (Ain.T.dot(b_in)).dot(f_in))
+        AA = spdiags(old_div(1., nA), 0, nr, nr) * (Ain.T.dot(Ain))
+        YrA = YA - AA.T.dot(Cin)
+    except ValueError:
+        Ain, Cin, b_in, f_in, center, extra_1p = initialize_components(
+            Y, K=k, gSig=gSig, nb=gnb, method_init=method_init, **kwargs)
+        Ain = coo_matrix(Ain)
+        YrA, _, W, b0 = extra_1p[-4:]
     if return_object:
         cnm_init = caiman.source_extraction.cnmf.cnmf.CNMF(2, k=k, gSig=gSig, Ain=Ain, Cin=Cin, b_in=np.array(
             b_in), f_in=f_in, method_init=method_init, p=p, gnb=gnb, **kwargs)
@@ -1181,7 +1204,10 @@ def bare_initialization(Y, init_batch=1000, k=1, method_init='greedy_roi', gnb=1
 
         return cnm_init
     else:
-        return Ain, np.array(b_in), Cin, f_in, YrA
+        try:
+            return Ain, np.array(b_in), Cin, f_in, YrA, W, b0
+        except:
+            return Ain, np.array(b_in), Cin, f_in, YrA
 
 
 #%%

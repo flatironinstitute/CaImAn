@@ -89,10 +89,10 @@ crd = cm.utils.visualization.plot_contours(A, Cn, thr=.8, lw=3, display_numbers=
 crd = cm.utils.visualization.plot_contours(cnm_batch.estimates.A, Cn, thr=.8, c='r')
 tight()
 plt.savefig('online1p_batch.pdf', pad_inches=0, bbox_inches='tight') if save_figs else plt.show()
-cm.base.rois.register_ROIs(A, cnm_batch.estimates.A, dims, align_flag=0)
+cm.base.rois.register_ROIs(A, cnm_batch.estimates.A, dims, align_flag=0, thresh_cost=.9)
 
 
-#%% RUN (offline) CNMF-E algorithm on the initial batch
+#%% params
 
 opts = cnmf.params.CNMFParams(
     fnames=['foo.tif'],
@@ -104,7 +104,11 @@ opts = cnmf.params.CNMFParams(
     rval_thr=.95, thresh_fitness_delta=-30, thresh_fitness_raw=-50,
     batch_update_suff_stat=True, update_freq=100,
     min_num_trial=1, max_num_added=1, thresh_CNN_noisy=None,
-    use_peak_max=False, N_samples_exceptionality=12)
+    use_peak_max=False, N_samples_exceptionality=12, n_pixels_per_process=4000)
+
+
+#%% RUN (offline) CNMF-E algorithm on the initial batch
+
 cnm_init = cnmf.CNMF(2, params=opts)
 cnm_init.fit(Y[:initbatch])
 
@@ -150,7 +154,6 @@ cnm0 = deepcopy(cnm)
 
 opts.set('online', {'init_method': 'cnmf', 'init_batch': initbatch, 'motion_correct': False})
 cnm = cnmf.online_cnmf.OnACID(params=opts)
-# cnm.initialize_online()
 cnm.fit_online()
 
 plt.figure()
@@ -163,6 +166,22 @@ cm.base.rois.register_ROIs(A, cnm.estimates.Ab, dims, align_flag=0, thresh_cost=
 
 cm.base.rois.register_ROIs(cnm0.estimates.Ab, cnm.estimates.Ab, dims, align_flag=0, thresh_cost=.9)
 not (cnm0.estimates.Ab != cnm.estimates.Ab).sum()
+
+
+# %% fit with bare online object
+
+opts.set('online', {'init_method': 'bare', 'init_batch': initbatch, 'motion_correct': False})
+cnmB = cnmf.online_cnmf.OnACID(params=opts)
+cnmB.fit_online()
+
+plt.figure()
+crd = cm.utils.visualization.plot_contours(A, Cn, thr=.8, lw=3, display_numbers=False)
+crd = cm.utils.visualization.plot_contours(cnmB.estimates.Ab, Cn, thr=.8, c='r')
+tight()
+plt.show()
+cm.base.rois.register_ROIs(A, cnmB.estimates.Ab, dims, align_flag=0, thresh_cost=.9)
+
+cm.base.rois.register_ROIs(cnm0.estimates.Ab, cnmB.estimates.Ab, dims, align_flag=0, thresh_cost=.9)
 
 
 
