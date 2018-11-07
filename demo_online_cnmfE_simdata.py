@@ -101,10 +101,10 @@ opts = cnmf.params.CNMFParams(
     min_corr=min_corr, min_pnr=min_pnr, normalize_init=False,
     ring_size_factor=18./gSiz, center_psf=True, ssub_B=2, init_iter=1, s_min=s_min,
     minibatch_shape=100, minibatch_suff_stat=5, update_num_comps=True,
-    rval_thr=.95, thresh_fitness_delta=-30, thresh_fitness_raw=-50,
+    rval_thr=.9, thresh_fitness_delta=-300, thresh_fitness_raw=-400,
     batch_update_suff_stat=True, update_freq=100,
     min_num_trial=1, max_num_added=1, thresh_CNN_noisy=None,
-    use_peak_max=False, N_samples_exceptionality=12, n_pixels_per_process=4000)
+    use_peak_max=True, N_samples_exceptionality=12, n_pixels_per_process=4000)
 
 
 #%% RUN (offline) CNMF-E algorithm on the initial batch

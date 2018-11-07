@@ -65,8 +65,21 @@ except IOError:
 
 #%% RUN (offline) CNMF-E algorithm on the entire batch for sake of comparison
 
+# cnm_batch = cnmf.CNMF(2, method_init='corr_pnr', k=None, gSig=(gSig, gSig), gSiz=(gSiz0, gSiz0),
+#                       merge_thresh=.9, p=1, tsub=1, ssub=1, only_init_patch=True, gnb=-1,
+#                       min_corr=min_corr, min_pnr=min_pnr, s_min=s_min, normalize_init=False,
+#                       ring_size_factor=18. / gSiz0, center_psf=True, ssub_B=2, init_iter=1)
+# cnm_batch.fit(Y)
+# [simple, cumulative, exponential] = [cm.summary_images.local_correlations_movie(
+#     Y - cnm_batch.estimates.b.dot(cnm_batch.estimates.f).T.reshape(Y.shape, order='F'),
+#     window=100, mode=mode) for mode in ('simple', 'cumulative', 'exponential')]
+# simple.play(magnification=3)
+# cumulative.play(magnification=3)
+# exponential.play(magnification=3)
+
+
 cnm_batch = cnmf.CNMF(2, method_init='corr_pnr', k=None, gSig=(gSig, gSig), gSiz=(gSiz0, gSiz0),
-                      merge_thresh=.9, p=1, tsub=1, ssub=1, only_init_patch=True, gnb=-1,
+                      merge_thresh=.9, p=1, tsub=1, ssub=1, only_init_patch=True, gnb=0,
                       min_corr=min_corr, min_pnr=min_pnr, s_min=s_min, normalize_init=False,
                       ring_size_factor=18. / gSiz0, center_psf=True, ssub_B=2, init_iter=1)
 
@@ -90,14 +103,6 @@ crd = cm.utils.visualization.plot_contours(cnm_batch.estimates.A, Cn, thr=.8, c=
 tight()
 plt.savefig('online1p_batch.pdf', pad_inches=0, bbox_inches='tight') if save_figs else plt.show()
 cm.base.rois.register_ROIs(A, cnm_batch.estimates.A, dims, align_flag=0)
-
-
-[simple, cumulative, exponential] = [cm.summary_images.local_correlations_movie(
-    Y - cnm_batch.estimates.b.dot(cnm_batch.estimates.f).T.reshape(Y.shape, order='F'),
-    window=100, mode=mode) for mode in ('simple', 'cumulative', 'exponential')]
-simple.play(magnification=3)
-cumulative.play(magnification=3)
-exponential.play(magnification=3)
 
 
 #%% RUN (offline) CNMF-E algorithm on the initial batch
