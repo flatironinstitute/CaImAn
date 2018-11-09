@@ -147,6 +147,7 @@ class Estimates(object):
         self.shifts = []
 
         self.A_thr = None
+        self.discarded_components = None
 
 
 
@@ -619,13 +620,17 @@ class Estimates(object):
         """
         if use_object:
             idx_components = self.idx_components
-
+            idx_components_bad = self.idx_components_bad
+        else:
+            idx_components_bad = np.setdiff1d(np.arange(self.A.shape[-1]), idx_components)
+        self.discarded_components = Estimates()
         if idx_components is not None:
             for field in ['C', 'S', 'YrA', 'R', 'g', 'bl', 'c1', 'neurons_sn', 'lam', 'cnn_preds','SNR_comp','r_values','coordinates']:
                 if getattr(self, field) is not None:
                     if type(getattr(self, field)) is list:
                         setattr(self, field, np.array(getattr(self, field)))
                     if len(getattr(self, field)) == self.A.shape[-1]:
+                        setattr(self.discarded_components, field, getattr(self, field)[idx_components_bad])
                         setattr(self, field, getattr(self, field)[idx_components])
                     else:
                         print('*** Variable ' + field + ' has not the same number of components as A ***')
@@ -633,12 +638,21 @@ class Estimates(object):
             for field in ['A', 'A_thr']:
                 if getattr(self, field) is not None:
                     if 'sparse' in str(type(getattr(self, field))):
+                        setattr(self.discarded_components, field, getattr(self, field).tocsc()[:, idx_components_bad])
                         setattr(self, field, getattr(self, field).tocsc()[:, idx_components])
+
                     else:
+                        setattr(self.discarded_components, field, getattr(self, field)[:, idx_components_bad])
                         setattr(self, field, getattr(self, field)[:, idx_components])
+
+
+            self.nr = len(idx_components)
+            self.discarded_components.nr = len(idx_components_bad)
+            self.discarded_components.dims = self.dims
 
             self.idx_components = None
             self.idx_components_bad = None
+
 
         return self
 
