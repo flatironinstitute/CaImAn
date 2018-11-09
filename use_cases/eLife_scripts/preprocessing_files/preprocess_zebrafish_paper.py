@@ -101,7 +101,7 @@ max_shift = np.ceil(10. / ds_factor).astype('int')
 # number of frames for initialization (presumably from the first file)
 initbatch = 200
 # maximum number of expected components used for memory pre-allocation (exaggerate here)
-expected_comps = 2000
+expected_comps = 3000
 
 
 show_movie = False
