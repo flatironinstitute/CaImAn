@@ -232,7 +232,7 @@ for img in images_nice_online_crop:
 
 
 # %% FIGURE 5a Traces  (need to use the dataset J115)
-pl.figure('Figure 5a tces')
+pl.figure('Figure 5a traces')
 traces_gt = C_gt[idx_comps_high_r_gt] # + YrA_gt[idx_comps_high_r_gt]
 traces_cnmf = C[idx_comps_high_r_cnmf] # + YrA[idx_comps_high_r_cnmf]
 traces_online = C_online[idx_comps_high_r_online]  # + YrA[idx_comps_high_r_cnmf]
