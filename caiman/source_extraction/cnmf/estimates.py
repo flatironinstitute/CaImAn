@@ -628,8 +628,8 @@ class Estimates(object):
             idx_components_bad = np.setdiff1d(np.arange(self.A.shape[-1]), idx_components)
 
         if idx_components is not None:
-
-            self.discarded_components = Estimates()
+            if save_discarded_components:
+                self.discarded_components = Estimates()
 
             for field in ['C', 'S', 'YrA', 'R', 'g', 'bl', 'c1', 'neurons_sn', 'lam', 'cnn_preds','SNR_comp','r_values','coordinates']:
                 if getattr(self, field) is not None:
