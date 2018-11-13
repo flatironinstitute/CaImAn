@@ -259,6 +259,7 @@ for params_movie in np.array(params_movies)[ID]:
         else:
             mov_names = from_zipfiles_to_movie_lists(fname_zip)
 
+        # add_to_mov = cm.load(mov_names[0]).min()
         fname_zip = cm.save_memmap(mov_names, dview=dview, order='C', add_to_movie=0)
         shutil.move(fname_zip,fname_new)  # we get it from the images subfolder
 
