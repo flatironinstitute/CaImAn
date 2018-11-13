@@ -51,7 +51,7 @@ try:
     print('Processing ID:'+ str(ID))
     ploton = False
     save_results = True
-    save_init = True     # flag for saving initialization object. Useful if you want to check OnACID with different parameters but same initialization
+    save_init = False     # flag for saving initialization object. Useful if you want to check OnACID with different parameters but same initialization
 except:
     print('ID NOT PASSED')
     ID = 11
@@ -60,10 +60,11 @@ except:
     save_init = False # flag for saving initialization object. Useful if you want to check OnACID with different parameters but same initialization
 
 base_folder = '/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/WEBSITE/'
+base_folder_files = '/mnt/ceph/neuro/zebra/05292014Fish1-4/'
 #%%
 K = 100 #number of initialization neurons
 min_num_trial = 50 # number of neuron candidates per trial
-fls = [os.path.join(base_folder,'Zebrafish/Plane' + str(ID) + '.stack.hdf5')]
+fls = [os.path.join(base_folder_files,'Plane' + str(ID) + '.stack.hdf5')]
 mmm = cm.load(fls,subindices = 0)
 dims = mmm.shape
 K = np.maximum(K,np.round(600/1602720*np.prod(mmm.shape)).astype(np.int))
@@ -100,7 +101,7 @@ max_shift = np.ceil(10. / ds_factor).astype('int')
 # number of frames for initialization (presumably from the first file)
 initbatch = 200
 # maximum number of expected components used for memory pre-allocation (exaggerate here)
-expected_comps = 2000
+expected_comps = 3000
 
 
 show_movie = False
@@ -152,8 +153,7 @@ if ploton:
     pl.imshow(Cn)
     pl.title('Correlation Image')
     pl.colorbar()
-#%%
-cnm.estimates.plot_contours()
+
 #%%  save results (optional)
 if save_results:
     np.savez(os.path.join(base_folder, 'Zebrafish/results_analysis_online_1EPOCH_gSig6_equalized_Plane_NEW_' + str(ID) + '.npz'),
@@ -170,3 +170,6 @@ pl.xlabel('Frame #')
 pl.ylabel('Processing time [ms]')
 pl.ylim([0, 1000])
 pl.legend(labels=['motion', 'process', 'detect', 'shapes'])
+
+#%%
+cnm.estimates.plot_contours()

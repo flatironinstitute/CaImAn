@@ -42,8 +42,11 @@ import glob
 # %%  ANALYSIS MODE AND PARAMETERS
 reload = False
 plot_on = False
-save_on = False  # set to true to recreate results for each file
+
+save_on = True  # set to true to recreate results for each file
 save_all = False  # set to True to generate results for all files
+check_result_consistency = False
+
 
 try:
     if 'pydevconsole' in sys.argv[0]:
@@ -54,7 +57,7 @@ try:
     ID = [np.int(ID)]
 
 except:
-    ID = [6,7]#np.arange(9)
+    ID = np.arange(9)
     print('ID NOT PASSED')
 
 print_figs = True
@@ -256,8 +259,8 @@ for params_movie in np.array(params_movies)[ID]:
         else:
             mov_names = from_zipfiles_to_movie_lists(fname_zip)
 
-        add_to_mov = cm.load(mov_names[0]).min()
-        fname_zip = cm.save_memmap(mov_names, dview=dview, order='C', add_to_movie=-add_to_mov + 1)
+        # add_to_mov = cm.load(mov_names[0]).min()
+        fname_zip = cm.save_memmap(mov_names, dview=dview, order='C', add_to_movie=0)
         shutil.move(fname_zip,fname_new)  # we get it from the images subfolder
 
     try:
@@ -493,4 +496,20 @@ for params_movie in np.array(params_movies)[ID]:
     #
 if save_all:
     # here eventually save when in a loop
+    np.savez(os.path.join(base_folder,'all_res_web.npz'), all_results=all_results)
+
+#%%
+join_npz_files_parallel = False
+if join_npz_files_parallel:
+    #%%
+    all_results = dict()
+
+    for params_movie in params_movies:
+        npzfile = os.path.join(base_folder,params_movie['fname'][:-5] + '_perf_web_gsig.npz')
+        print(npzfile)
+        if os.path.exists(npzfile):
+            with np.load(npzfile) as ld:
+                all_results[params_movie['fname'].split('/')[-2]] = ld['all_results'][()]
+        else:
+            print("*** NOT EXIST ***" + npzfile)
     np.savez(os.path.join(base_folder,'all_res_web.npz'), all_results=all_results)

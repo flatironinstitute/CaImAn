@@ -140,7 +140,7 @@ def save_memmap_each(fnames, dview=None, base_name=None, resize_fact=(1, 1, 1), 
 
 
 #%%
-def save_memmap_join(mmap_fnames, base_name=None, n_chunks=20, dview=None, add_to_mov = 0):
+def save_memmap_join(mmap_fnames, base_name=None, n_chunks=20, dview=None, add_to_mov=0):
     """
     Makes a large file memmap from a number of smaller files
 
@@ -184,8 +184,12 @@ def save_memmap_join(mmap_fnames, base_name=None, n_chunks=20, dview=None, add_t
     pars = []
     for ref in range(0, d - step + 1, step):
         pars.append([fname_tot, d, tot_frames, mmap_fnames, ref, ref + step, add_to_mov])
-    # last batch should include the leftover pixels
-    pars[-1][-1] = d
+
+    if len(pars[-1]) != 7:
+        raise Exception('You cannot change the number of element in list without changing the statement below (pars[]..)')
+    else:
+        # last batch should include the leftover pixels
+        pars[-1][-2] = d
 
     if dview is not None:
         if 'multiprocessing' in str(type(dview)):
@@ -442,7 +446,7 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
             T, dims = Yr.shape[0], Yr.shape[1:]
             Yr = np.transpose(Yr, list(range(1, len(dims) + 1)) + [0])
             Yr = np.reshape(Yr, (np.prod(dims), T), order='F')
-            Yr = np.ascontiguousarray(Yr, dtype=np.float32) + 0.0001 + add_to_movie
+            Yr = np.ascontiguousarray(Yr, dtype=np.float32) + np.float32(0.0001) + np.float32(add_to_movie)
 
             if idx == 0:
                 fname_tot = base_name + '_d1_' + str(dims[0]) + '_d2_' + str(dims[1]) + '_d3_' + str(
