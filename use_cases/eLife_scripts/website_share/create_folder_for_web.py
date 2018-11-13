@@ -25,11 +25,11 @@ except:
 # %%
 dest_folders = ['J115', 'J123', 'K53', 'N.00.00', 'N.01.01', 'N.02.00', 'N.03.00.t', 'N.04.00.t', 'YST'][ID]
 # dest_folder = '/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/WEBSITE'
-dest_folder = '/mnt/ext4/agiovann/temp'
+dest_folder = '/tmp'
 
 base_files = ['/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/J115/Yr_d1_463_d2_472_d3_1_order_C_frames_90000_.mmap',
               '/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/J123/Yr_d1_458_d2_477_d3_1_order_C_frames_41000_.mmap',
-              '/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/K53/Yr_d1_512_d2_512_d3_1_order_C_frames_116043_.mmap',
+              '/tmp/Yr_d1_512_d2_512_d3_1_order_C_frames_116043_.mmap',
               '/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/N.00.00/Yr_d1_512_d2_512_d3_1_order_C_frames_2936_.mmap',
               '/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/N.01.01/Yr_d1_512_d2_512_d3_1_order_C_frames_1825_.mmap',
               '/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/N.02.00/Yr_d1_512_d2_512_d3_1_order_C_frames_8000_.mmap',
@@ -57,42 +57,16 @@ if only_movies:
         for movname in movlist:
             print(movname)
             mov = cm.load(movname)
-            if mov.shape[0] < 91000: # all cases excepting K53
-                mov = np.array(mov, dtype=np.float32)
-                for idx, fr in enumerate(mov):
-                    if counter % 100 == 0:
-                        print(counter)
-                    frame_name = os.path.join(images_fold, 'image' + str(counter).zfill(5) + '.tif')
-                    im = Image.fromarray(fr)
-                    im.save(frame_name)
-                    z.write(frame_name, os.path.basename(frame_name))
-                    os.remove(frame_name)
-                    counter += 1
-            else: # case K53
-                print('PROCESSING K53')
-                mov = np.array(mov[:60000], dtype=np.float32)
-                for idx, fr in enumerate(mov):
-                    if counter % 100 == 0:
-                        print(counter)
-                    frame_name = os.path.join(images_fold, 'image' + str(counter).zfill(5) + '.tif')
-                    im = Image.fromarray(fr)
-                    im.save(frame_name)
-                    z.write(frame_name, os.path.basename(frame_name))
-                    os.remove(frame_name)
-                    counter += 1
-                del mov
-                mov = cm.load(movname)
-                mov = np.array(mov[60000:], dtype=np.float32)
-                for idx, fr in enumerate(mov):
-                    if counter % 100 == 0:
-                        print(counter)
-                    frame_name = os.path.join(images_fold, 'image' + str(counter).zfill(5) + '.tif')
-                    im = Image.fromarray(fr)
-                    im.save(frame_name)
-                    z.write(frame_name, os.path.basename(frame_name))
-                    os.remove(frame_name)
-                    counter += 1
-
+            mov = np.array(mov, dtype=np.float32)
+            for idx, fr in enumerate(mov):
+                if counter % 100 == 0:
+                    print(counter)
+                frame_name = os.path.join(images_fold, 'image' + str(counter).zfill(5) + '.tif')
+                im = Image.fromarray(fr)
+                im.save(frame_name)
+                z.write(frame_name, os.path.basename(frame_name))
+                os.remove(frame_name)
+                counter += 1
 
         z.close()
 
