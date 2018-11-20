@@ -1,3 +1,4 @@
 Cython
+future
 numpy
 numpydoc
