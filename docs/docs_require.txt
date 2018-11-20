@@ -1,3 +1,4 @@
+pip
 Cython
 future
 numpy
