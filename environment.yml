@@ -3,7 +3,7 @@ channels:
 - defaults
 dependencies:
 - python=3.6
-- tensorflow=1.4.0 # Must list before keras to preempt default keras backend
+- tensorflow # Must list before keras to preempt default keras backend
 - bokeh
 - cython
 - future
@@ -11,11 +11,11 @@ dependencies:
 - ipython
 - ipyparallel
 - jupyter
-- keras=2.1.5
-- matplotlib=2.0.2
+- keras
+- matplotlib
 - nose
 - numpy
-- opencv=3.2
+- opencv
 - peakutils
 - pims
 - scipy
@@ -24,4 +24,4 @@ dependencies:
 - spyder
 - tifffile
 - tqdm
-- tornado=4.5
+- tornado
