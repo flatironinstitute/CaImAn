@@ -3,6 +3,6 @@ Cython
 future
 numpy
 numpydoc
-opencv
+opencv-python
 scipy
 tifffile
