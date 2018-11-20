@@ -9,6 +9,7 @@ matplotlib
 numpy
 numpydoc
 opencv-python
+psutil
 scikit-image
 scikit-learn
 scipy
