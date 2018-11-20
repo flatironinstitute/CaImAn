@@ -6,7 +6,6 @@ h5py
 ipyparallel
 keras
 matplotlib
-multiprocessing
 numpy
 numpydoc
 opencv-python
