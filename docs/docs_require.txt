@@ -1,9 +1,13 @@
+bokeh
 pip
 Cython
 future
 h5py
+keras
+matplotlib
 numpy
 numpydoc
 opencv-python
 scipy
 tifffile
+tqdm
