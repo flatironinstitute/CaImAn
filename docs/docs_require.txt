@@ -1,1 +1,1 @@
-numpydocs
+numpydoc
