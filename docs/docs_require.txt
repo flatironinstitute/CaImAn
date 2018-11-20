@@ -8,6 +8,8 @@ matplotlib
 numpy
 numpydoc
 opencv-python
+scikit-image
+scikit-learn
 scipy
 tifffile
 tqdm
