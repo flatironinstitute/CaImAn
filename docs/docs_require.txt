@@ -1,6 +1,7 @@
 pip
 Cython
 future
+h5py
 numpy
 numpydoc
 opencv-python
