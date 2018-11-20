@@ -2,3 +2,6 @@ Cython
 future
 numpy
 numpydoc
+opencv
+scipy
+tifffile
