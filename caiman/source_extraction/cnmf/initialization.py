@@ -182,8 +182,8 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
         img: optional [np 2d array]
             Image with which to normalize. If not present use the mean + offset
 
-        method: str
-            Initialization method 'greedy_roi' or 'sparse_nmf'
+        method_init: str
+            Initialization method 'greedy_roi', 'corr_pnr'. The latter can only be used for 2D data and it is compulsory for endoscopic one-photon data.
 
         max_iter_snmf: int
             Maximum number of sparse NMF iterations

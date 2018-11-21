@@ -359,12 +359,6 @@ class Estimates(object):
                 movie in format pixels (d) x frames (T) (only required to
                 compute the correlation image)
 
-            img :   np.ndarray
-                background image for contour plotting. Default is the mean
-                image of all spatial components (d1 x d2)
-
-            idx :   list
-                list of components to be plotted
 
             dims: tuple of ints
                 dimensions of movie (x, y and z)
