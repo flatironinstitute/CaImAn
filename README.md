@@ -58,7 +58,7 @@ If you want to upgrade CaImAn (and have already used the pip installer to instal
    ```bash
    git clone https://github.com/flatironinstitute/CaImAn
    cd CaImAn/
-   conda env create -f environment.yml -n caiman
+   conda env create --file environment.yml -n caiman
    source activate caiman
    pip install .
    ```
