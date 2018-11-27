@@ -473,8 +473,8 @@ def ICA_PCA(Y_ds, nr, sigma_smooth=(.5, .5, .5), truncate=2, fun='logcosh',
     model = NMF(n_components=nb, init='random', random_state=0)
 
 
-    b_in = model.fit_transform(np.maximum(m1, 0))
-    f_in = model.components_.squeeze()
+    b_in = model.fit_transform(np.maximum(m1, 0)).astype(np.float32)
+    f_in = model.components_.astype(np.float32)
 
     center = caiman.base.rois.com(A_in, d1, d2)
 
@@ -537,8 +537,8 @@ def sparseNMF(Y_ds, nr, max_iter_snmf=500, alpha=10e2, sigma_smooth=(.5, .5, .5)
     m1 = yr.T - A_in.dot(C_in) + np.maximum(0, bl.flatten())[:, np.newaxis]
     model = NMF(n_components=nb, init='random',
                 random_state=0, max_iter=max_iter_snmf)
-    b_in = model.fit_transform(np.maximum(m1, 0))
-    f_in = model.components_.squeeze()
+    b_in = model.fit_transform(np.maximum(m1, 0)).astype(np.float32)
+    f_in = model.components_.astype(np.float32)
     center = caiman.base.rois.com(A_in, d1, d2)
 
     return A_in, C_in, center, b_in, f_in
@@ -672,7 +672,7 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1,
 #    model = NMF(n_components=nb, init='random', random_state=0)
     model = NMF(n_components=nb, init='nndsvdar')
     b_in = model.fit_transform(np.maximum(res, 0)).astype(np.float32)
-    f_in = model.components_.squeeze().astype(np.float32)
+    f_in = model.components_.astype(np.float32)
 
     return A, C, center, b_in, f_in
 
