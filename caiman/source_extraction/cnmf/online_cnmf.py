@@ -312,7 +312,7 @@ class OnACID(object):
             rho = np.reshape(rho, np.prod(self.params.get('data', 'dims')))
             self.estimates.rho_buf.append(rho)
 
-            (self.estimates.Ab, Cf_temp, self.estimates.Yres_buf, self.rhos_buf,
+            (self.estimates.Ab, Cf_temp, self.estimates.Yres_buf, self.estimates.rho_buf,
                 self.estimates.CC, self.estimates.CY, self.ind_A, self.estimates.sv,
                 self.estimates.groups, self.estimates.ind_new, self.ind_new_all,
                 self.estimates.sv, self.cnn_pos) = update_num_components(
