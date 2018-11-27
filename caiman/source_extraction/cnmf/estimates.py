@@ -412,7 +412,7 @@ class Estimates(object):
     def play_movie(self, imgs, q_max=99.75, q_min=2, gain_res=1,
                    magnification=1, include_bck=True,
                    frame_range=slice(None, None, None),
-                   bpx=0):
+                   bpx=0, thr=0.):
 
         """Displays a movie with three panels (original data (left panel),
         reconstructed data (middle panel), residual (right panel))
@@ -441,6 +441,9 @@ class Estimates(object):
 
             bpx: int
                 number of pixels to exclude on each border
+
+            thr: float (values in [0, 1[)
+                threshold value for contours, no contours if thr=0
 
         Returns:
             self (to stop the movie press 'q')
@@ -480,7 +483,43 @@ class Estimates(object):
 
         Y_res = imgs[frame_range] - Y_rec - B
 
-        caiman.concatenate((imgs[frame_range] - (not include_bck)*B, Y_rec + include_bck*B, Y_res*gain_res), axis=2).play(q_min=q_min, q_max=q_max, magnification=magnification)
+        mov = caiman.concatenate((imgs[frame_range] - (not include_bck)
+                                  * B, Y_rec + include_bck*B, Y_res*gain_res), axis=2)
+        if thr:
+            import cv2
+            contours = []
+            for a in self.A.T.toarray():
+                a = a.reshape(dims, order='F')
+                if bpx > 0:
+                    a = a[bpx:-bpx, bpx:-bpx]
+                # a = cv2.GaussianBlur(a, (9, 9), .5)
+                if magnification != 1:
+                    a = cv2.resize(a, None, fx=magnification, fy=magnification,
+                                   interpolation=cv2.INTER_LINEAR)
+                ret, thresh = cv2.threshold(a, thr * np.max(a), 1., 0)
+                im2, contour, hierarchy = cv2.findContours(
+                    thresh.astype('uint8'), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+                contours.append(contour)
+                contours.append(list([c + np.array([[a.shape[1], 0]]) for c in contour]))
+                contours.append(list([c + np.array([[2 * a.shape[1], 0]]) for c in contour]))
+
+            maxmov = np.nanpercentile(mov[0:10], q_max) if q_max < 100 else np.nanmax(mov)
+            minmov = np.nanpercentile(mov[0:10], q_min) if q_min > 0 else np.nanmin(mov)
+            for iddxx, frame in enumerate(mov):
+                if magnification != 1:
+                    frame = cv2.resize(frame, None, fx=magnification, fy=magnification,
+                                       interpolation=cv2.INTER_LINEAR)
+                frame = np.clip((frame - minmov) * 255. / (maxmov - minmov), 0, 255)
+                frame = np.repeat(frame[..., None], 3, 2)
+                for contour in contours:
+                    cv2.drawContours(frame, contour, -1, (0, 255, 255), 1)
+                cv2.imshow('frame', frame.astype('uint8'))
+                if cv2.waitKey(30) & 0xFF == ord('q'):
+                    break
+            cv2.destroyAllWindows()
+            
+        else:
+            mov.play(q_min=q_min, q_max=q_max, magnification=magnification)
 
         return self
 
