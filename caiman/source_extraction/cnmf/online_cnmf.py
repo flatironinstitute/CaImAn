@@ -480,7 +480,7 @@ class OnACID(object):
                 crosscorr=self.estimates.crosscorr if self.is1p else None,
                 col_ind=self.estimates.col_ind if self.is1p else None,
                 row_ind=self.estimates.row_ind if self.is1p else None,
-                corr_img_mode=corr_img_mode,
+                corr_img_mode=corr_img_mode if self.is1p else None,
                 max_img=self.estimates.max_img if self.is1p else None)
 
             num_added = len(self.ind_A) - self.N
@@ -1780,7 +1780,7 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial=3, gSig=(5, 5),
         img_select_peaks = cv2.GaussianBlur(img_select_peaks , ksize=ksize, sigmaX=gSig[0],
                                                         sigmaY=gSig[1], borderType=cv2.BORDER_REPLICATE) \
                     - cv2.boxFilter(img_select_peaks, ddepth=-1, ksize=ksize, borderType=cv2.BORDER_REPLICATE)
-        thresh_img_sel = np.median(img_select_peaks) + thresh_std_peak_resid  * np.std(img_select_peaks)
+        thresh_img_sel = 0 #np.median(img_select_peaks) + thresh_std_peak_resid  * np.std(img_select_peaks)
 
 #        plt.subplot(1,3,2)
 #        plt.cla()
@@ -1920,36 +1920,76 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
     sv += rho_buf.get_last_frames(1).squeeze()
     sv = np.maximum(sv, 0)
 
-    if max_img is not None:
-        pnr_img = max_img.ravel(order='F') / np.sqrt(second_moment - first_moment**2)
-        pnr_img = max_img / np.sqrt(second_moment - first_moment**2).reshape(dims, order='F')
+    # if max_img is not None:
+    #     pnr_img = max_img.ravel(order='F') / np.sqrt(second_moment - first_moment**2)
+    #     pnr_img = max_img / np.sqrt(second_moment - first_moment**2).reshape(dims, order='F')
 
-    # import matplotlib.pyplot as plt
-    # plt.figure(figsize=(15, 10))
-    # plt.subplot(231)
-    # plt.colorbar(plt.imshow(pnr_img))
-    # plt.subplot(232)
-    # plt.colorbar(plt.imshow(corr_img))
-    # plt.subplot(233)
-    # plt.colorbar(plt.imshow(pnr_img*corr_img))
-    # plt.subplot(234)
-    # plt.colorbar(plt.imshow(sv.reshape(dims)))
-    # plt.show()
-    # import pdb;pdb.set_trace()
-    Ains, Cins, Cins_res, inds, ijsig_all, cnn_pos, local_max = get_candidate_components(
-        sv, dims, Yres_buf=Yres_buf, min_num_trial=min_num_trial, gSig=gSig,
+    # Ains, Cins, Cins_res, inds, ijsig_all, cnn_pos, local_max = get_candidate_components(
+    #     sv, dims, Yres_buf=Yres_buf, min_num_trial=min_num_trial, gSig=gSig,
+    #     gHalf=gHalf, sniper_mode=sniper_mode, rval_thr=rval_thr, patch_size=50,
+    #     loaded_model=loaded_model, thresh_CNN_noisy=thresh_CNN_noisy,
+    #     use_peak_max=use_peak_max, test_both=test_both, mean_buff=mean_buff)
+
+    # cn, pnr = caiman.summary_images.correlation_pnr(Yres_buf.reshape((-1,) + dims, order='F'),
+    #                                                 gSig=1, center_psf=False, swap_dim=False)
+    # Y_filter = Yres_buf.reshape((-1,) + dims, order='F').copy()
+    # for i in range(len(Y_filter)):
+    #      # Y_filter[i] = cv2.GaussianBlur(Y_filter[i], tuple(gSiz), gSig[0])  #, Y_filter[i], gSig[1], cv2.BORDER_CONSTANT)
+    #      Y_filter[i] = cv2.GaussianBlur(Y_filter[i], tuple(gSiz), 1)  #, Y_filter[i], 1, cv2.BORDER_CONSTANT)
+
+    cn = caiman.summary_images.local_correlations_fft(#Y_filter, swap_dim=False)
+        Yres_buf.reshape((-1,) + dims, order='F'), swap_dim=False)
+
+    foo = get_candidate_components(
+        # corr_img, dims, Yres_buf=Yres_buf, min_num_trial=min_num_trial, gSig=gSig,
+        cn, dims, Yres_buf=Yres_buf, min_num_trial=min_num_trial, gSig=gSig,
         gHalf=gHalf, sniper_mode=sniper_mode, rval_thr=rval_thr, patch_size=50,
         loaded_model=loaded_model, thresh_CNN_noisy=thresh_CNN_noisy,
         use_peak_max=use_peak_max, test_both=test_both, mean_buff=mean_buff)
-        
-    # foo = get_candidate_components(
-    #     # sv, dims, Yres_buf=Yres_buf, min_num_trial=min_num_trial, gSig=gSig,
-    #     corr_img, dims, Yres_buf=Yres_buf, min_num_trial=min_num_trial, gSig=gSig,
-    #     gHalf=gHalf, sniper_mode=sniper_mode, rval_thr=rval_thr, patch_size=50,
-    #     loaded_model=loaded_model, thresh_CNN_noisy=thresh_CNN_noisy,
-    #     # use_peak_max=use_peak_max, test_both=test_both, mean_buff=mean_buff)
-    #     use_peak_max=True, test_both=test_both, mean_buff=mean_buff)
-    # Ains, Cins, Cins_res, inds, ijsig_all, cnn_pos, local_max = foo
+    Ains, Cins, Cins_res, inds, ijsig_all, cnn_pos, local_max = foo
+
+    # if not t%100:
+    #     import matplotlib.pyplot as plt
+    #     from scipy.io import loadmat
+    #     from caiman.utils.visualization import plot_contours
+    #     A = loadmat('/mnt/home/jfriedrich/CNMF_E/eLife_submission/code/' +
+    #                 'scripts_figures/fig_striatum/results_bk.mat')['A']
+    #     A = csc_matrix(A.toarray().reshape(
+    #         dims + (-1,), order='F').reshape((-1, A.shape[-1]), order='C'))
+    #     # plt.figure(figsize=(20, 20))
+    #     # plt.subplot(221)
+    #     # plt.colorbar(plt.imshow(pnr_img))
+    #     # plt.subplot(222)
+    #     # # plt.colorbar(plt.imshow(corr_img))
+    #     # plot_contours(A, corr_img, thr=.6, colors='w', display_numbers=False)
+    #     # plt.scatter(*foo[-1].T[::-1], c='r')
+    #     # plt.subplot(223)
+    #     # plt.colorbar(plt.imshow(pnr_img * corr_img))
+    #     # plt.subplot(224)
+    #     # # plt.colorbar(plt.imshow(sv.reshape(dims)))
+    #     # plot_contours(A, sv.reshape(dims), thr=.6, colors='w', display_numbers=False)
+    #     # plt.scatter(*local_max.T[::-1], c='r')
+    #     # plt.show()
+    #     plt.figure(figsize=(20, 20))
+    #     plt.subplot(331)
+    #     plt.colorbar(plt.imshow(pnr_img))
+    #     plt.subplot(332)
+    #     plot_contours(A, corr_img, thr=.6, colors='w', display_numbers=False)
+    #     plt.scatter(*foo[-1].T[::-1], c='r')
+    #     plt.subplot(333)
+    #     plt.colorbar(plt.imshow(pnr_img * corr_img))
+    #     plt.subplot(334)
+    #     plt.colorbar(plt.imshow(pnr))
+    #     plt.subplot(335)
+    #     plot_contours(A, cn, thr=.6, colors='w', display_numbers=False)
+    #     # plt.scatter(*foo[-1].T[::-1], c='r')
+    #     plt.subplot(336)
+    #     plt.colorbar(plt.imshow(pnr * cn))
+    #     plt.subplot(337)
+    #     plot_contours(A, sv.reshape(dims), thr=.6, colors='w', display_numbers=False)
+    #     plt.scatter(*local_max.T[::-1], c='r')
+    #     plt.show()
+    #     import pdb;pdb.set_trace()
 
     ind_new_all = ijsig_all
 
