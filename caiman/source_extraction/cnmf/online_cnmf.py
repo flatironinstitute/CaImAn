@@ -308,7 +308,7 @@ class OnACID(object):
                 inside = (x >= 0) * (x < self._dims_B[0]) * (y >= 0) * (y < self._dims_B[1])
                 return np.ravel_multi_index((x[inside], y[inside]), self._dims_B, order='F')
             self.get_indices_of_pixels_on_ring = get_indices_of_pixels_on_ring.__get__(self)
- 
+
             Yres = Yr[:, :init_batch] - self.estimates.Ab.dot(
                 self.estimates.C_on[:self.M, :init_batch])
             Yres -= self.estimates.b0[:, None]
@@ -322,12 +322,13 @@ class OnACID(object):
                     .reshape(((d1 - 1) // ssub_B + 1, (d2 - 1) // ssub_B + 1, -1), order='F'),
                     ssub_B, 0), ssub_B, 1)[:d1, :d2].reshape(-1, init_batch, order='F')
             Yres = Yres.reshape((d1, d2, -1), order='F')
+
+        if self.params.get('online', 'use_corr_img'):
             (self.estimates.first_moment, self.estimates.second_moment,
                 self.estimates.crosscorr, self.estimates.col_ind, self.estimates.row_ind,
                 self.estimates.num_neigbors, self.estimates.corrM, self.estimates.corr_img) = \
             summary_images.prepare_local_correlations(Yres, swap_dim=True, eight_neighbours=False)
-
-            self.estimates.max_img = Yres.max(-1)
+            # self.estimates.max_img = Yres.max(-1)
 
         return self
 
@@ -420,7 +421,7 @@ class OnACID(object):
         t_new = time()
         if self.params.get('online', 'update_num_comps'):
 
-            if self.is1p:
+            if self.params.get('online', 'use_corr_img'):
                 corr_img_mode = 'simple'  #'exponential'  # 'cumulative'
                 self.estimates.corr_img = summary_images.update_local_correlations(
                     t + 1 if corr_img_mode == 'cumulative' else mbs, 
@@ -435,8 +436,8 @@ class OnACID(object):
 
             res_frame = np.reshape(res_frame, self.estimates.dims, order='F')
 
-            if self.is1p:
-                self.estimates.max_img = np.max([self.estimates.max_img, res_frame], 0)
+            # if self.params.get('online', 'use_corr_img'):
+            #     self.estimates.max_img = np.max([self.estimates.max_img, res_frame], 0)
 
             rho = imblur(np.maximum(res_frame,0), sig=self.params.get('init', 'gSig'),
                          siz=self.params.get('init', 'gSiz'), nDimBlur=len(self.params.get('data', 'dims')))**2
@@ -446,6 +447,7 @@ class OnACID(object):
 
             # old_max_img = self.estimates.max_img.copy()
 
+            use_corr = self.params.get('online', 'use_corr_img')
             (self.estimates.Ab, Cf_temp, self.estimates.Yres_buf, self.rhos_buf,
                 self.estimates.CC, self.estimates.CY, self.ind_A, self.estimates.sv,
                 self.estimates.groups, self.estimates.ind_new, self.ind_new_all,
@@ -472,16 +474,16 @@ class OnACID(object):
                 sniper_mode=self.params.get('online', 'sniper_mode'),
                 use_peak_max=self.params.get('online', 'use_peak_max'),
                 mean_buff=self.estimates.mean_buff,
-                is1p=self.is1p, ssub_B=ssub_B, W=self.estimates.W if self.is1p else None,
+                ssub_B=ssub_B, W=self.estimates.W if self.is1p else None,
                 b0=self.estimates.b0 if self.is1p else None,
-                corr_img=self.estimates.corr_img if self.is1p else None,
-                first_moment=self.estimates.first_moment if self.is1p else None,
-                second_moment=self.estimates.second_moment if self.is1p else None,
-                crosscorr=self.estimates.crosscorr if self.is1p else None,
-                col_ind=self.estimates.col_ind if self.is1p else None,
-                row_ind=self.estimates.row_ind if self.is1p else None,
-                corr_img_mode=corr_img_mode if self.is1p else None,
-                max_img=self.estimates.max_img if self.is1p else None)
+                corr_img=self.estimates.corr_img if use_corr else None,
+                first_moment=self.estimates.first_moment if use_corr else None,
+                second_moment=self.estimates.second_moment if use_corr else None,
+                crosscorr=self.estimates.crosscorr if use_corr else None,
+                col_ind=self.estimates.col_ind if use_corr else None,
+                row_ind=self.estimates.row_ind if use_corr else None,
+                corr_img_mode=corr_img_mode if use_corr else None)  #,
+                # max_img=self.estimates.max_img if use_corr else None)
 
             num_added = len(self.ind_A) - self.N
 
@@ -1900,7 +1902,7 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                           Ab_dense=None, max_num_added=1, min_num_trial=1,
                           loaded_model=None, thresh_CNN_noisy=0.99,
                           sniper_mode=False, use_peak_max=False, test_both=False,
-                          mean_buff=None, is1p=False, ssub_B=1, W=None, b0=None,
+                          mean_buff=None, ssub_B=1, W=None, b0=None,
                           corr_img=None, first_moment=None, second_moment=None,
                           crosscorr=None, col_ind=None, row_ind=None, corr_img_mode=None,
                           max_img=None):
@@ -1924,11 +1926,11 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
     #     pnr_img = max_img.ravel(order='F') / np.sqrt(second_moment - first_moment**2)
     #     pnr_img = max_img / np.sqrt(second_moment - first_moment**2).reshape(dims, order='F')
 
-    # Ains, Cins, Cins_res, inds, ijsig_all, cnn_pos, local_max = get_candidate_components(
-    #     sv, dims, Yres_buf=Yres_buf, min_num_trial=min_num_trial, gSig=gSig,
-    #     gHalf=gHalf, sniper_mode=sniper_mode, rval_thr=rval_thr, patch_size=50,
-    #     loaded_model=loaded_model, thresh_CNN_noisy=thresh_CNN_noisy,
-    #     use_peak_max=use_peak_max, test_both=test_both, mean_buff=mean_buff)
+    Ains, Cins, Cins_res, inds, ijsig_all, cnn_pos, local_max = get_candidate_components(
+        sv, dims, Yres_buf=Yres_buf, min_num_trial=min_num_trial, gSig=gSig,
+        gHalf=gHalf, sniper_mode=sniper_mode, rval_thr=rval_thr, patch_size=50,
+        loaded_model=loaded_model, thresh_CNN_noisy=thresh_CNN_noisy,
+        use_peak_max=use_peak_max, test_both=test_both, mean_buff=mean_buff)
 
     # cn, pnr = caiman.summary_images.correlation_pnr(Yres_buf.reshape((-1,) + dims, order='F'),
     #                                                 gSig=1, center_psf=False, swap_dim=False)
@@ -1937,16 +1939,16 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
     #      # Y_filter[i] = cv2.GaussianBlur(Y_filter[i], tuple(gSiz), gSig[0])  #, Y_filter[i], gSig[1], cv2.BORDER_CONSTANT)
     #      Y_filter[i] = cv2.GaussianBlur(Y_filter[i], tuple(gSiz), 1)  #, Y_filter[i], 1, cv2.BORDER_CONSTANT)
 
-    cn = caiman.summary_images.local_correlations_fft(#Y_filter, swap_dim=False)
-        Yres_buf.reshape((-1,) + dims, order='F'), swap_dim=False)
+    # cn = caiman.summary_images.local_correlations_fft(#Y_filter, swap_dim=False)
+    #     Yres_buf.reshape((-1,) + dims, order='F'), swap_dim=False)
 
-    foo = get_candidate_components(
-        # corr_img, dims, Yres_buf=Yres_buf, min_num_trial=min_num_trial, gSig=gSig,
-        cn, dims, Yres_buf=Yres_buf, min_num_trial=min_num_trial, gSig=gSig,
-        gHalf=gHalf, sniper_mode=sniper_mode, rval_thr=rval_thr, patch_size=50,
-        loaded_model=loaded_model, thresh_CNN_noisy=thresh_CNN_noisy,
-        use_peak_max=use_peak_max, test_both=test_both, mean_buff=mean_buff)
-    Ains, Cins, Cins_res, inds, ijsig_all, cnn_pos, local_max = foo
+    # foo = get_candidate_components(
+    #     # corr_img, dims, Yres_buf=Yres_buf, min_num_trial=min_num_trial, gSig=gSig,
+    #     cn, dims, Yres_buf=Yres_buf, min_num_trial=min_num_trial, gSig=gSig,
+    #     gHalf=gHalf, sniper_mode=sniper_mode, rval_thr=rval_thr, patch_size=50,
+    #     loaded_model=loaded_model, thresh_CNN_noisy=thresh_CNN_noisy,
+    #     use_peak_max=use_peak_max, test_both=test_both, mean_buff=mean_buff)
+    # Ains, Cins, Cins_res, inds, ijsig_all, cnn_pos, local_max = foo
 
     # if not t%100:
     #     import matplotlib.pyplot as plt
@@ -2104,7 +2106,7 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
             CC = np.vstack([CC1, CC2])
             Cf = np.vstack([Cf, cin_circ])
 
-            if is1p:  # subtract background TODO: restrict to region where component is located
+            if W is not None:  # 1p data, subtract background TODO: restrict to region where component is located
                 if ssub_B == 1:
                     x = (y - Ab.dot(Cf).T - b0).T
                     y -= W.dot(x).T
@@ -2124,7 +2126,7 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
             N = N + 1
             M = M + 1
 
-            if is1p:
+            if crosscorr is not None:
                 # TODO: restrict to indices where component is located
                 if Ab_dense is None:
                     Ain = np.zeros(np.prod(dims), dtype=np.float32)
@@ -2146,9 +2148,9 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                     crosscorr += (Ain[row_ind] * Ain[col_ind] * cin.dot(cin) -
                                   cin.dot(Yres_buf[:, row_ind]) * Ain[col_ind] -
                                   cin.dot(Yres_buf[:, col_ind]) * Ain[row_ind]) / div
-                max_img[Ain.reshape(dims, order='F') > 0] = 0
-                # max_img[[slice(*i) for i in ijSig]] = first_moment[indeces].reshape(
-                #     np.diff(ijSig).ravel(), order='F')
+                # max_img[Ain.reshape(dims, order='F') > 0] = 0
+                # # max_img[[slice(*i) for i in ijSig]] = first_moment[indeces].reshape(
+                # #     np.diff(ijSig).ravel(), order='F')
 
                 
             Yres_buf[:, indeces] -= np.outer(cin, ain)

@@ -32,8 +32,8 @@ class CNMFParams(object):
                  n_refit=0, num_times_comp_updated=np.inf, simultaneously=False,
                  sniper_mode=False, test_both=False, thresh_CNN_noisy=0.5,
                  thresh_fitness_delta=-50, thresh_fitness_raw=None, thresh_overlap=0.5,
-                 update_freq=200, update_num_comps=True, use_dense=True, use_peak_max=True,
-                 only_init_patch=True, params_dict={},
+                 update_freq=200, update_num_comps=True, use_corr_img=False, use_dense=True,
+                 use_peak_max=True, only_init_patch=True, params_dict={},
                  ):
         """Class for setting the processing parameters. All parameters for CNMF, online-CNMF, quality testing,
         and motion correction can be set here and then used in the various processing pipeline steps.
@@ -693,6 +693,7 @@ class CNMFParams(object):
             'thresh_overlap': thresh_overlap,
             'update_freq': update_freq,            # update every shape at least once every update_freq steps
             'update_num_comps': update_num_comps,  # flag for searching for new components
+            'use_corr_img': use_corr_img,      # flag for using correlation image to detect new components
             'use_dense': use_dense,            # flag for representation and storing of A and b
             'use_peak_max': use_peak_max,      # flag for finding candidate centroids
         }
