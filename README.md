@@ -109,6 +109,7 @@ Use the following menu item to launch a anaconda-enabled command prompt: start>p
    git clone  https://github.com/flatironinstitute/CaImAn
    cd CaImAn
    conda env create -f environment.yml -n caiman
+   conda install -n caiman vs2017_win-64
    activate caiman
    pip install . (OR pip install -e . if you want to develop code)
    copy caimanmanager.py ..
