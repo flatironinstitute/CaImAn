@@ -88,6 +88,7 @@ class OnACID(object):
         else:
             self.estimates = estimates
 
+    @profile
     def _prepare_object(self, Yr, T, new_dims=None, idx_components=None):
 
         init_batch = self.params.get('online', 'init_batch')
@@ -303,18 +304,21 @@ class OnACID(object):
                 return np.ravel_multi_index((x[inside], y[inside]), self._dims_B, order='F')
             self.get_indices_of_pixels_on_ring = get_indices_of_pixels_on_ring.__get__(self)
 
+            # generate list of indices of XX' that get accessed
+            l = np.prod(self._dims_B)
+            tmp = np.zeros((l, l), dtype=bool)
+            for p in range(l):
+                index = self.get_indices_of_pixels_on_ring(p)
+                tmp[index[:, None], index] = True
+                tmp[index, p] = True
+            self.estimates.XXt_ind = list([np.where(t)[0] for t in tmp])
+
             Yres = Yr[:, :init_batch] - self.estimates.Ab.dot(
                 self.estimates.C_on[:self.M, :init_batch])
             Yres -= self.estimates.b0[:, None]
             if ssub_B == 1:
                 Yres -= self.estimates.W.dot(Yres)
             else:
-                # Yres -= np.repeat(np.repeat(self.estimates.W.dot(
-                #     downscale(Yres.reshape(
-                #         (d1, d2, -1), order='F'), (ssub_B, ssub_B, 1))
-                #     .reshape((-1, init_batch), order='F'))
-                #     .reshape(((d1 - 1) // ssub_B + 1, (d2 - 1) // ssub_B + 1, -1), order='F'),
-                #     ssub_B, 0), ssub_B, 1)[:d1, :d2].reshape(-1, init_batch, order='F')
                 Yres -= np.repeat(np.repeat(self.estimates.W.dot(
                     estim.downscale_matrix.dot(Yres))
                     .reshape(((d1 - 1) // ssub_B + 1, (d2 - 1) // ssub_B + 1, -1), order='F'),
@@ -614,7 +618,11 @@ class OnACID(object):
                                 (d2 - 1) // ssub_B + 1), order='F'),
                             ssub_B, 1), ssub_B, 2)[:, :d1, :d2].reshape((len(y), -1), order='F')
                     y -= self.estimates.b0
-                    self.estimates.XXt += x.dot(x.T)
+                    # self.estimates.XXt += x.dot(x.T)
+                    # exploit that we only access some elements of XXt, hence update only these
+                    XXt = self.estimates.XXt  # alias for faster repeated look up in large loop
+                    for i, idx in enumerate(self.estimates.XXt_ind):
+                        XXt[i, idx] += x[i].dot(x[idx].T)
 
                 # much faster: exploit that we only access CY[m, ind_pixels], hence update only these
                 n0 = min_batch
@@ -647,7 +655,11 @@ class OnACID(object):
                         .reshape((-1, (d1 - 1) // ssub_B + 1, (d2 - 1) // ssub_B + 1), order='F'),
                         ssub_B, 1), ssub_B, 2)[:, :d1, :d2]
                         .reshape((len(y), -1), order='F') + self.estimates.b0)
-                self.estimates.XXt += x.dot(x.T)
+                # self.estimates.XXt += x.dot(x.T)
+                # exploit that we only access some elements of XXt, hence update only these
+                XXt = self.estimates.XXt  # alias for faster repeated look up in large loop
+                for i, idx in enumerate(self.estimates.XXt_ind):
+                    XXt[i, idx] += x[i] * x[idx]
             # much faster: exploit that we only access CY[m, ind_pixels], hence update only these
             for m in range(self.N):
                 self.estimates.CY[m + nb_, self.ind_A[m]] *= (1 - 1. / t)
@@ -687,33 +699,33 @@ class OnACID(object):
 
                 self.estimates.AtA = (Ab_.T.dot(Ab_)).toarray()
                 if self.is1p:
-                    for p in range(self.estimates.W.shape[0]):
-                        index = self.get_indices_of_pixels_on_ring(p)
+                    XXt = self.estimates.XXt  # alias for considerably faster look up in large loop
+                    W = self.estimates.W
+                    for p in range(W.shape[0]):
+                        # index = self.get_indices_of_pixels_on_ring(p)
+                        index =  W.indices[W.indptr[p]:W.indptr[p + 1]]
                         # for _ in range(3):  # update W via coordinate decent
                         #     for k, i in enumerate(index):
                         #         self.W.data[self.W.indptr[p] + k] += ((self.XXt[p, i] -
                         #                                      self.W.data[self.W.indptr[p]:self.W.indptr[p+1]].dot(self.XXt[index, i])) /
                         #                                     self.XXt[i, i])
                         # update W using normal equations
-                        tmp = self.estimates.XXt[index[:, None], index]
-                        tmp += np.diag(tmp).sum() * 1e-5 * np.eye(len(tmp))
-                        self.estimates.W.data[self.estimates.W.indptr[p]:
-                                              self.estimates.W.indptr[p + 1]] = \
-                            np.linalg.inv(tmp).dot(self.estimates.XXt[index, p])
+                        tmp = XXt[index[:, None], index]
+                        tmp[np.diag_indices(len(tmp))] += np.trace(tmp) * 1e-5
+                        W.data[W.indptr[p]:W.indptr[p + 1]] = np.linalg.inv(tmp).dot(XXt[index, p])
 
                     if ssub_B == 1:
-                        self.estimates.Atb = Ab_.T.dot(self.estimates.W.dot(self.estimates.b0) -
-                                                       self.estimates.b0)
-                        self.estimates.AtW = Ab_.T.dot(self.estimates.W)
+                        self.estimates.Atb = Ab_.T.dot(W.dot(self.estimates.b0) - self.estimates.b0)
+                        self.estimates.AtW = Ab_.T.dot(W)
                         self.estimates.AtWA = self.estimates.AtW.dot(Ab_).toarray()
                     else:
                         d1, d2 = self.estimates.dims
                         A_ds = self.estimates.downscale_matrix.dot(self.estimates.Ab)
-                        self.estimates.Atb = Ab_.T.dot(np.repeat(np.repeat(self.estimates.W.dot(
+                        self.estimates.Atb = Ab_.T.dot(np.repeat(np.repeat(W.dot(
                             self.estimates.downscale_matrix.dot(self.estimates.b0).reshape((-1, 1), order='F'))
                             .reshape(((d1 - 1) // ssub_B + 1, (d2 - 1) // ssub_B + 1), order='F'),
                             ssub_B, 0), ssub_B, 1)[:d1, :d2].ravel(order='F') - self.estimates.b0)
-                        self.estimates.AtW = A_ds.T.dot(self.estimates.W)
+                        self.estimates.AtW = A_ds.T.dot(W)
                         self.estimates.AtWA = self.estimates.AtW.dot(A_ds).toarray()
 
                 ind_zero = list(np.where(self.estimates.AtA.diagonal() < 1e-10)[0])
@@ -1913,8 +1925,9 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
     #     pnr_img = max_img / np.sqrt(second_moment - first_moment**2).reshape(dims, order='F')
 
     Ains, Cins, Cins_res, inds, ijsig_all, cnn_pos, local_max = get_candidate_components(
-        sv, dims, Yres_buf=Yres_buf, min_num_trial=min_num_trial, gSig=gSig,
-        gHalf=gHalf, sniper_mode=sniper_mode, rval_thr=rval_thr, patch_size=50,
+        sv if corr_img is None else corr_img, dims, Yres_buf=Yres_buf,
+        min_num_trial=min_num_trial, gSig=gSig, gHalf=gHalf,
+        sniper_mode=sniper_mode, rval_thr=rval_thr, patch_size=50,
         loaded_model=loaded_model, thresh_CNN_noisy=thresh_CNN_noisy,
         use_peak_max=use_peak_max, test_both=test_both, mean_buff=mean_buff)
 

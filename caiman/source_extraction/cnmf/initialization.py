@@ -1626,7 +1626,7 @@ def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True, ssub=1, tsub=1):
                 downscale(b0.reshape(dims, order='F'),
                           (ssub, ssub)).reshape((-1, 1), order='F')[index]
         tmp = np.array(B.dot(B.T))
-        tmp += np.diag(tmp).sum() * 1e-5 * np.eye(len(B))
+        tmp[np.diag_indices(len(tmp))] += np.trace(tmp) * 1e-5
         if data_fits_in_memory:
             tmp2 = X[p]
         elif ssub == 1 and tsub == 1:
