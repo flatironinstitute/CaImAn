@@ -39,6 +39,30 @@ from ...mmapping import parallel_dot_product, load_memmap
 from ...utils.stats import df_percentile
 
 
+def decimation_matrix(dims, sub):
+    D = np.prod(dims)
+    if sub == 2 and D <= 10000:  # faster for small matrices
+        ind = np.arange(D) // 2 - \
+            np.arange(dims[0], dims[0] + D) // (dims[0] * 2) * (dims[0] // 2) - \
+            (dims[0] % 2) * (np.arange(D) % (2 * dims[0]) > dims[0]) * (np.arange(1, 1 + D) % 2)
+    else:
+        def create_decimation_matrix_bruteforce(dims, sub):
+            dims_ds = tuple(1 + (np.array(dims) - 1) // sub)
+            d_ds = np.prod(dims_ds)
+            ds_matrix = np.eye(d_ds)
+            ds_matrix = np.repeat(np.repeat(
+                ds_matrix.reshape((d_ds,) + dims_ds, order='F'), sub, 1),
+                sub, 2)[:, :dims[0], :dims[1]].reshape((d_ds, -1), order='F')
+            ds_matrix /= ds_matrix.sum(1)[:, None]
+            ds_matrix = csc_matrix(ds_matrix, dtype=np.float32)
+            return ds_matrix
+        tmp = create_decimation_matrix_bruteforce((dims[0], sub), sub).indices
+        ind = np.concatenate([tmp] * (dims[1] // sub + 1))[:D] + \
+            np.arange(D) // (dims[0] * sub) * ((dims[0] - 1) // sub + 1)
+    data = 1. / np.unique(ind, return_counts=True)[1][ind]
+    return csc_matrix((data, ind, np.arange(1 + D)), dtype=np.float32)
+
+
 def peak_local_max(image, min_distance=1, threshold_abs=None,
                    threshold_rel=None, exclude_border=True, indices=True,
                    num_peaks=np.inf, footprint=None):

@@ -38,7 +38,7 @@ from .initialization import imblur, initialize_components, hals, downscale
 from .oasis import OASIS
 from .params import CNMFParams
 from .pre_processing import get_noise_fft
-from .utilities import update_order, get_file_size, peak_local_max
+from .utilities import update_order, get_file_size, peak_local_max, decimation_matrix
 from ... import mmapping
 from ...components_evaluation import compute_event_exceptionality
 from ...motion_correction import motion_correct_iteration_fast, tile_and_correct
@@ -182,8 +182,9 @@ class OnACID(object):
             X = Yr[:, :init_batch] - np.asarray(self.estimates.A.dot(self.estimates.C))
             self.estimates.b0 = X.mean(1)
             X -= self.estimates.b0[:, None]
-            X = downscale(X.reshape(self.estimates.dims + (-1,), order='F'),
-                          (ssub_B, ssub_B, 1)).reshape((-1, init_batch), order='F')
+            if ssub_B > 1:
+                self.estimates.downscale_matrix = decimation_matrix(self.estimates.dims, ssub_B)
+                X = self.estimates.downscale_matrix.dot(X)
             self.estimates.XXt = X.dot(X.T)
 
         self.estimates.Ab, self.ind_A, self.estimates.CY, self.estimates.CC = init_shapes_and_sufficient_stats(
@@ -225,22 +226,15 @@ class OnACID(object):
                 estim.AtWA = estim.AtW.dot(estim.Ab).toarray()
                 estim.Yres_buf -= estim.W.dot(estim.Yres_buf.T).T
             else:
-                A_ds = csc_matrix(downscale(
-                    (estim.Ab_dense[:, :self.N] if self.params.get('online', 'use_dense')
-                        else estim.Ab.toarray()).reshape(
-                        (d1, d2, -1), order='F'), (ssub_B, ssub_B, 1)).reshape(
-                    (-1, self.N), order='F'))
+                A_ds = estim.downscale_matrix.dot(estim.Ab)
                 estim.Atb = estim.Ab.T.dot(np.repeat(np.repeat(estim.W.dot(
-                    downscale(estim.b0.reshape(estim.dims, order='F'), [ssub_B] * 2)
-                    .reshape((-1, 1), order='F'))
+                    estim.downscale_matrix.dot(estim.b0).reshape((-1, 1), order='F'))
                     .reshape(((d1 - 1) // ssub_B + 1, (d2 - 1) // ssub_B + 1), order='F'),
                     ssub_B, 0), ssub_B, 1)[:d1, :d2].ravel(order='F') - estim.b0)
                 estim.AtW = A_ds.T.dot(estim.W)
                 estim.AtWA = estim.AtW.dot(A_ds).toarray()
                 estim.Yres_buf -= np.repeat(np.repeat(estim.W.dot(
-                    downscale(estim.Yres_buf.T.reshape(
-                        (d1, d2, -1), order='F'), (ssub_B, ssub_B, 1))
-                    .reshape((-1, self.params.get('online', 'minibatch_shape')), order='F'))
+                    estim.downscale_matrix.dot(estim.Yres_buf.T))
                     .reshape(((d1 - 1) // ssub_B + 1, (d2 - 1) // ssub_B + 1, -1), order='F'),
                     ssub_B, 0), ssub_B, 1)[:d1, :d2].reshape(
                 -1, self.params.get('online', 'minibatch_shape'), order='F').T
@@ -315,12 +309,16 @@ class OnACID(object):
             if ssub_B == 1:
                 Yres -= self.estimates.W.dot(Yres)
             else:
+                # Yres -= np.repeat(np.repeat(self.estimates.W.dot(
+                #     downscale(Yres.reshape(
+                #         (d1, d2, -1), order='F'), (ssub_B, ssub_B, 1))
+                #     .reshape((-1, init_batch), order='F'))
+                #     .reshape(((d1 - 1) // ssub_B + 1, (d2 - 1) // ssub_B + 1, -1), order='F'),
+                #     ssub_B, 0), ssub_B, 1)[:d1, :d2].reshape(-1, init_batch, order='F')
                 Yres -= np.repeat(np.repeat(self.estimates.W.dot(
-                    downscale(Yres.reshape(
-                        (d1, d2, -1), order='F'), (ssub_B, ssub_B, 1))
-                    .reshape((-1, init_batch), order='F'))
+                    estim.downscale_matrix.dot(Yres))
                     .reshape(((d1 - 1) // ssub_B + 1, (d2 - 1) // ssub_B + 1, -1), order='F'),
-                    ssub_B, 0), ssub_B, 1)[:d1, :d2].reshape(-1, init_batch, order='F')
+                    ssub_B, 0), ssub_B, 1)[:d1, :d2].reshape(-1, init_batch, order='F')                
             Yres = Yres.reshape((d1, d2, -1), order='F')
 
         if self.params.get('online', 'use_corr_img'):
@@ -371,7 +369,8 @@ class OnACID(object):
                 self.estimates.C_on[:self.M, t], self.estimates.noisyC[:self.M, t] = demix1p(
                     frame, self.estimates.Ab, C_in, self.estimates.AtA, Atb=self.estimates.Atb,
                     AtW=self.estimates.AtW, AtWA=self.estimates.AtWA, iters=num_iters_hals,
-                    groups=self.estimates.groups, dims=self.estimates.dims, ssub_B=ssub_B)
+                    groups=self.estimates.groups, ssub_B=ssub_B, 
+                    downscale_matrix=self.estimates.downscale_matrix if ssub_B > 1 else None)
             else:
                 self.estimates.C_on[:self.M, t], self.estimates.noisyC[:self.M, t] = HALS4activity(
                     frame, self.estimates.Ab, C_in, self.estimates.AtA, iters=num_iters_hals, groups=self.estimates.groups)
@@ -407,8 +406,7 @@ class OnACID(object):
         if self.is1p:
             self.estimates.b0 = self.estimates.b0 * (t-1)/t + res_frame/t
             res_frame -= self.estimates.b0
-            x = res_frame if ssub_B == 1 else downscale(
-                res_frame.reshape(self.estimates.dims, order='F'), [ssub_B] * 2).ravel(order='F')
+            x = res_frame if ssub_B == 1 else self.estimates.downscale_matrix.dot(res_frame)
             res_frame -= (self.estimates.W.dot(x) if ssub_B == 1 else
                           np.repeat(np.repeat(self.estimates.W.dot(x).reshape(
                               ((d1 - 1) // ssub_B + 1, (d2 - 1) // ssub_B + 1), order='F'),
@@ -482,7 +480,9 @@ class OnACID(object):
                 crosscorr=self.estimates.crosscorr if use_corr else None,
                 col_ind=self.estimates.col_ind if use_corr else None,
                 row_ind=self.estimates.row_ind if use_corr else None,
-                corr_img_mode=corr_img_mode if use_corr else None)  #,
+                corr_img_mode=corr_img_mode if use_corr else None,
+                downscale_matrix=self.estimates.downscale_matrix if
+                (self.is1p and ssub_B > 1) else None)  #,
                 # max_img=self.estimates.max_img if use_corr else None)
 
             num_added = len(self.ind_A) - self.N
@@ -580,15 +580,9 @@ class OnACID(object):
                         self.estimates.AtWA = self.estimates.AtW.dot(Ab_).toarray()
                     else:
                         d1, d2 = self.estimates.dims
-                        A_ds = csc_matrix(downscale(
-                            (self.estimates.Ab_dense[:, :self.N]
-                                if self.params.get('online', 'use_dense') else
-                                Ab_.toarray()).reshape(
-                                (d1, d2, -1), order='F'), (ssub_B, ssub_B, 1)).reshape(
-                            (-1, self.N), order='F'))
+                        A_ds = self.estimates.downscale_matrix.dot(self.estimates.Ab)
                         self.estimates.Atb = Ab_.T.dot(np.repeat(np.repeat(self.estimates.W.dot(
-                            downscale(self.estimates.b0.reshape(self.estimates.dims, order='F'),
-                                [ssub_B] * 2).reshape((-1, 1), order='F'))
+                            self.estimates.downscale_matrix.dot(self.estimates.b0).reshape((-1, 1), order='F'))
                             .reshape(((d1 - 1) // ssub_B + 1, (d2 - 1) // ssub_B + 1), order='F'),
                             ssub_B, 0), ssub_B, 1)[:d1, :d2].ravel(order='F') - self.estimates.b0)
                         # self.Atb = A_ds.T.dot(self.W.dot(
@@ -613,12 +607,11 @@ class OnACID(object):
                         x = (y - self.estimates.Ab.dot(ccf).T - self.estimates.b0).T
                         y -= self.estimates.W.dot(x).T
                     else:
-                        x = (downscale((y.T - self.estimates.Ab.dot(ccf) - self.estimates.b0[:, None])
-                                       .reshape(self.estimates.dims + (-1,), order='F'),
-                                       (ssub_B, ssub_B, 1)).reshape((-1, len(y)), order='F'))
+                        x = self.estimates.downscale_matrix.dot(
+                            y.T - self.estimates.Ab.dot(ccf) - self.estimates.b0[:, None])
                         y -= np.repeat(np.repeat(
                             self.estimates.W.dot(x).T.reshape((-1, (d1 - 1) // ssub_B + 1,
-                                                     (d2 - 1) // ssub_B + 1), order='F'),
+                                (d2 - 1) // ssub_B + 1), order='F'),
                             ssub_B, 1), ssub_B, 2)[:, :d1, :d2].reshape((len(y), -1), order='F')
                     y -= self.estimates.b0
                     self.estimates.XXt += x.dot(x.T)
@@ -648,9 +641,8 @@ class OnACID(object):
                     y -= self.estimates.W.dot(x).T
                     y -= self.estimates.b0
                 else:
-                    x = (downscale((y.T - self.estimates.Ab.dot(ccf) - self.estimates.b0[:, None])
-                                   .reshape(self.estimates.dims + (-1,), order='F'), (ssub_B, ssub_B, 1))
-                         .reshape((-1, len(y)), order='F'))
+                    x = self.estimates.downscale_matrix.dot(
+                        y.T - self.estimates.Ab.dot(ccf) - self.estimates.b0[:, None])
                     y -= (np.repeat(np.repeat(self.estimates.W.dot(x).T
                         .reshape((-1, (d1 - 1) // ssub_B + 1, (d2 - 1) // ssub_B + 1), order='F'),
                         ssub_B, 1), ssub_B, 2)[:, :d1, :d2]
@@ -716,14 +708,9 @@ class OnACID(object):
                         self.estimates.AtWA = self.estimates.AtW.dot(Ab_).toarray()
                     else:
                         d1, d2 = self.estimates.dims
-                        A_ds = csc_matrix(downscale(
-                            (self.estimates.Ab_dense[:, :self.N] if 
-                                self.params.get('online', 'use_dense') else Ab_.toarray()).reshape(
-                                (d1, d2, -1), order='F'), (ssub_B, ssub_B, 1)).reshape(
-                            (-1, self.N), order='F'))
+                        A_ds = self.estimates.downscale_matrix.dot(self.estimates.Ab)
                         self.estimates.Atb = Ab_.T.dot(np.repeat(np.repeat(self.estimates.W.dot(
-                            downscale(self.estimates.b0.reshape(self.estimates.dims, order='F'), [ssub_B] * 2)
-                            .reshape((-1, 1), order='F'))
+                            self.estimates.downscale_matrix.dot(self.estimates.b0).reshape((-1, 1), order='F'))
                             .reshape(((d1 - 1) // ssub_B + 1, (d2 - 1) // ssub_B + 1), order='F'),
                             ssub_B, 0), ssub_B, 1)[:d1, :d2].ravel(order='F') - self.estimates.b0)
                         self.estimates.AtW = A_ds.T.dot(self.estimates.W)
@@ -1392,7 +1379,7 @@ def HALS4activity(Yr, A, noisyC, AtA=None, iters=5, tol=1e-3, groups=None,
 
 
 def demix1p(y, A, noisyC, AtA, Atb, AtW, AtWA, iters=5, tol=1e-3,
-            groups=None, dims=None, ssub_B=1):
+            groups=None, downscale_matrix=None, ssub_B=1):
     """
     Solve C = argmin_C ||Yr-AC-B|| using block-coordinate decent
     where B = W(Y-AC-b0) + b0  (ring model for 1p data)
@@ -1420,9 +1407,8 @@ def demix1p(y, A, noisyC, AtA, Atb, AtW, AtWA, iters=5, tol=1e-3,
         groups of components to update in parallel
     """
     AtY = A.T.dot(y)
-    AtWyb = AtW.dot(y if ssub_B == 1 else downscale(
-        y.reshape(dims, order='F'), [ssub_B] * 2).ravel(order='F') *
-        ssub_B**2) - Atb  # Atb is A'(Wb0-b0)
+    AtWyb = AtW.dot(y if ssub_B == 1 else downscale_matrix.dot(y) *
+                    ssub_B**2) - Atb  # Atb is A'(Wb0-b0)
     num_iters = 0
     C_old = np.zeros_like(noisyC)
     C = noisyC.copy()
@@ -1905,7 +1891,7 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                           mean_buff=None, ssub_B=1, W=None, b0=None,
                           corr_img=None, first_moment=None, second_moment=None,
                           crosscorr=None, col_ind=None, row_ind=None, corr_img_mode=None,
-                          max_img=None):
+                          max_img=None, downscale_matrix=None):
     """
     Checks for new components in the residual buffer and incorporates them if they pass the acceptance tests
     """
@@ -2112,9 +2098,10 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                     y -= W.dot(x).T
                 else:
                     d1, d2 = dims
-                    x = (downscale((y.T - Ab.dot(Cf) - b0[:, None])
-                                   .reshape(dims + (-1,), order='F'), (ssub_B, ssub_B, 1))
-                         .reshape((-1, len(y)), order='F'))
+                    # x = (downscale((y.T - Ab.dot(Cf) - b0[:, None])
+                    #                .reshape(dims + (-1,), order='F'), (ssub_B, ssub_B, 1))
+                    #      .reshape((-1, len(y)), order='F'))
+                    x = downscale_matrix.dot(y.T - Ab.dot(Cf) - b0[:, None])
                     y -= np.repeat(np.repeat(
                         W.dot(x).T.reshape((-1, (d1 - 1) // ssub_B + 1,
                                             (d2 - 1) // ssub_B + 1), order='F'),
