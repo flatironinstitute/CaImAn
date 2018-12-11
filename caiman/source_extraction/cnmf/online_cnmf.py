@@ -42,7 +42,7 @@ from .utilities import update_order, get_file_size, peak_local_max, decimation_m
 from ... import mmapping
 from ...components_evaluation import compute_event_exceptionality
 from ...motion_correction import motion_correct_iteration_fast, tile_and_correct
-from ...utils.utils import save_dict_to_hdf5, load_dict_from_hdf5
+from ...utils.utils import save_dict_to_hdf5, load_dict_from_hdf5, parmap
 from ... import summary_images
 
 try:
@@ -589,9 +589,6 @@ class OnACID(object):
                             self.estimates.downscale_matrix.dot(self.estimates.b0).reshape((-1, 1), order='F'))
                             .reshape(((d1 - 1) // ssub_B + 1, (d2 - 1) // ssub_B + 1), order='F'),
                             ssub_B, 0), ssub_B, 1)[:d1, :d2].ravel(order='F') - self.estimates.b0)
-                        # self.Atb = A_ds.T.dot(self.W.dot(
-                        #     downscale(self.b0.reshape(self.dims2, order='F'), [ssub_B] * 2)
-                        #     .ravel(order='F'))) * ssub_B**2 - self.Ab.T.dot(self.b0)
                         self.estimates.AtW = A_ds.T.dot(self.estimates.W)
                         self.estimates.AtWA = self.estimates.AtW.dot(A_ds).toarray()
 
@@ -701,19 +698,29 @@ class OnACID(object):
                 if self.is1p:
                     XXt = self.estimates.XXt  # alias for considerably faster look up in large loop
                     W = self.estimates.W
-                    for p in range(W.shape[0]):
-                        # index = self.get_indices_of_pixels_on_ring(p)
-                        index =  W.indices[W.indptr[p]:W.indptr[p + 1]]
-                        # for _ in range(3):  # update W via coordinate decent
-                        #     for k, i in enumerate(index):
-                        #         self.W.data[self.W.indptr[p] + k] += ((self.XXt[p, i] -
-                        #                                      self.W.data[self.W.indptr[p]:self.W.indptr[p+1]].dot(self.XXt[index, i])) /
-                        #                                     self.XXt[i, i])
-                        # update W using normal equations
+                    # for p in range(W.shape[0]):
+                    #     # index = self.get_indices_of_pixels_on_ring(p)
+                    #     index = W.indices[W.indptr[p]:W.indptr[p + 1]]
+                    #     # for _ in range(3):  # update W via coordinate decent
+                    #     #     for k, i in enumerate(index):
+                    #     #         self.W.data[self.W.indptr[p] + k] += ((self.XXt[p, i] -
+                    #     #                                      self.W.data[self.W.indptr[p]:self.W.indptr[p+1]].dot(self.XXt[index, i])) /
+                    #     #                                     self.XXt[i, i])
+                    #     # update W using normal equations
+                    #     tmp = XXt[index[:, None], index]
+                    #     tmp[np.diag_indices(len(tmp))] += np.trace(tmp) * 1e-5
+                    #     W.data[W.indptr[p]:W.indptr[p + 1]] = np.linalg.inv(tmp).dot(XXt[index, p])
+
+                    def process_pixel(p):
+                        index = W.indices[W.indptr[p]:W.indptr[p + 1]]
                         tmp = XXt[index[:, None], index]
                         tmp[np.diag_indices(len(tmp))] += np.trace(tmp) * 1e-5
-                        W.data[W.indptr[p]:W.indptr[p + 1]] = np.linalg.inv(tmp).dot(XXt[index, p])
+                        # not sure why next line won't work
+                        # W.data[W.indptr[p]:W.indptr[p + 1]] = np.linalg.inv(tmp).dot(XXt[index, p])
+                        return np.linalg.inv(tmp).dot(XXt[index, p])
 
+                    W.data = np.concatenate(parmap(process_pixel, range(W.shape[0])))
+                    
                     if ssub_B == 1:
                         self.estimates.Atb = Ab_.T.dot(W.dot(self.estimates.b0) - self.estimates.b0)
                         self.estimates.AtW = Ab_.T.dot(W)

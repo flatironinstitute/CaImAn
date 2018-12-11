@@ -19,6 +19,7 @@ import cv2
 from math import sqrt
 import matplotlib.animation as animation
 import matplotlib.pyplot as plt
+from multiprocessing import current_process
 import numpy as np
 from past.utils import old_div
 import scipy
@@ -34,9 +35,10 @@ from sklearn.utils.extmath import randomized_svd, squared_norm
 import sys
 
 import caiman
-from caiman.source_extraction.cnmf.deconvolution import constrained_foopsi
-from caiman.source_extraction.cnmf.pre_processing import get_noise_fft, get_noise_welch
-from caiman.source_extraction.cnmf.spatial import circular_constraint, connectivity_constraint
+from .deconvolution import constrained_foopsi
+from .pre_processing import get_noise_fft, get_noise_welch
+from .spatial import circular_constraint, connectivity_constraint
+from ...utils.utils import parmap
 
 try:
     cv2.setNumThreads(0)
@@ -1547,7 +1549,7 @@ def extract_ac(data_filtered, data_raw, ind_ctr, patch_dims):
 
 
 @profile
-def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True, ssub=1, tsub=1):
+def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True, ssub=1, tsub=1, parallel=True):
     """compute background according to ring model
     solves the problem
         min_{W,b0} ||X-W*X|| with X = Y - A*C - b0*1'
@@ -1569,6 +1571,12 @@ def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True, ssub=1, tsub=1):
             radius of ring
         data_fits_in_memory: [optional] bool
             If true, use faster but more memory consuming computation
+        ssub: int
+            spatial downscale factor
+        tsub: int
+            temporal downscale factor
+        parallel: bool
+            If true, use multiprocessing to process pixels in parallel
 
     Returns:
         W: scipy.sparse.csr_matrix (pixels x pixels)
@@ -1576,6 +1584,10 @@ def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True, ssub=1, tsub=1):
         b0: np.ndarray (pixels,)
             estimate of constant background baselines
     """
+
+    if current_process().name != 'MainProcess':
+        # no parallelization over pixels if already processing patches in parallel
+        parallel = False
 
     T = Y.shape[1]
     d1 = (dims[0] - 1) // ssub + 1
@@ -1607,12 +1619,8 @@ def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True, ssub=1, tsub=1):
                 downscale(b0.reshape(dims, order='F'),
                           (ssub, ssub)).reshape((-1, 1), order='F')
 
-    indices = []
-    data = []
-    indptr = [0]
-    for p in range(d1*d2):
+    def process_pixel(p):
         index = get_indices_of_pixels_on_ring(p)
-        indices += list(index)
         if data_fits_in_memory:
             B = X[index]
         elif ssub == 1 and tsub == 1:
@@ -1634,13 +1642,19 @@ def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True, ssub=1, tsub=1):
         else:
             tmp2 = downscale(Y.reshape(dims + (-1,), order='F'),
                              (ssub, ssub, tsub)).reshape((-1, (T - 1) // tsub + 1), order='F')[p] - \
-                   (downscale(A.reshape(dims + (-1,), order='F'),
-                              (ssub, ssub, 1)).reshape((-1, len(C)), order='F')[p].dot(
-                       downscale(C, (1, tsub))) if A.size > 0 else 0) - \
-                   downscale(b0.reshape(dims, order='F'),
-                             (ssub, ssub)).reshape((-1, 1), order='F')[p]
-        data += list(np.linalg.inv(tmp).dot(B.dot(tmp2)))
-        indptr.append(len(indices))
+                (downscale(A.reshape(dims + (-1,), order='F'),
+                           (ssub, ssub, 1)).reshape((-1, len(C)), order='F')[p].dot(
+                    downscale(C, (1, tsub))) if A.size > 0 else 0) - \
+                downscale(b0.reshape(dims, order='F'),
+                          (ssub, ssub)).reshape((-1, 1), order='F')[p]
+        data = np.linalg.inv(tmp).dot(B.dot(tmp2))
+        return index, data
+
+    Q = list((parmap if parallel else map)(process_pixel, range(len(X))))
+    indices, data = np.transpose(Q)
+    indptr = np.concatenate([[0], np.cumsum(list(map(len, indices)))])
+    indices = np.concatenate(indices)
+    data = np.concatenate(data)
     return spr.csr_matrix((data, indices, indptr), dtype='float32'), b0.astype(np.float32)
 
 #%%

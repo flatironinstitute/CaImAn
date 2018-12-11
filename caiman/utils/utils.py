@@ -23,7 +23,7 @@ https://docs.python.org/2/library/urllib.html
 import cv2
 import logging
 import h5py
-
+import multiprocessing
 import numpy as np
 import os
 import pickle
@@ -487,3 +487,30 @@ def recursively_load_dict_contents_from_group( h5file, path):
             else:
                 ans[key] = recursively_load_dict_contents_from_group(h5file, path + key + '/')
     return ans
+
+
+def fun(f, q_in, q_out):
+    while True:
+        i, x = q_in.get()
+        if i is None:
+            break
+        q_out.put((i, f(x)))
+
+
+def parmap(f, X, nprocs=multiprocessing.cpu_count()):
+    q_in = multiprocessing.Queue(1)
+    q_out = multiprocessing.Queue()
+
+    proc = [multiprocessing.Process(target=fun, args=(f, q_in, q_out))
+            for _ in range(nprocs)]
+    for p in proc:
+        p.daemon = True
+        p.start()
+
+    sent = [q_in.put((i, x)) for i, x in enumerate(X)]
+    [q_in.put((None, None)) for _ in range(nprocs)]
+    res = [q_out.get() for _ in range(len(sent))]
+
+    [p.join() for p in proc]
+
+    return [x for i, x in sorted(res)]
