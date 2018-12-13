@@ -22,6 +22,7 @@ from math import sqrt
 from time import time
 
 import cv2
+from multiprocessing import current_process
 import numpy as np
 from past.utils import old_div
 from scipy.ndimage import percentile_filter
@@ -719,7 +720,10 @@ class OnACID(object):
                         # W.data[W.indptr[p]:W.indptr[p + 1]] = np.linalg.inv(tmp).dot(XXt[index, p])
                         return np.linalg.inv(tmp).dot(XXt[index, p])
 
-                    W.data = np.concatenate(parmap(process_pixel, range(W.shape[0])))
+                    if current_process().name == 'MainProcess':
+                        W.data = np.concatenate(parmap(process_pixel, range(W.shape[0])))
+                    else:
+                        W.data = np.concatenate(list(map(process_pixel, range(W.shape[0]))))
                     
                     if ssub_B == 1:
                         self.estimates.Atb = Ab_.T.dot(W.dot(self.estimates.b0) - self.estimates.b0)
