@@ -118,6 +118,10 @@ Use the following menu item to launch a anaconda-enabled command prompt: start>p
    ```
 Then run ```caimanmanager``` as described above to make a data directory.
 
+Things that can make your life easier on windows (but which take advanced Conda knowledge):
+   * Finding the keras_activate.bat script for your environment and change the KERAS_BACKEND env var from theano to tensorflow
+   * Remove the vs2015_compiler_vars.bat from your environment setup
+
 Alternative environments:
    * [Using GPU](/README-GPU.md)
 
