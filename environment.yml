@@ -15,7 +15,7 @@ dependencies:
 - matplotlib=2.0.2
 - nose
 - numpy
-- opencv=3.2
+- opencv=3.4
 - peakutils
 - pims
 - scipy
