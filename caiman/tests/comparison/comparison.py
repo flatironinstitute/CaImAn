@@ -322,11 +322,11 @@ class Comparison(object):
 
         information['diff'].update({
             'rig': plotrig(init=rig_shifts, curr=self.comparison['rig_shifts']['ourdata'], timer=self.comparison['rig_shifts']['timer'] - data['timer']['rig_shifts'], sensitivity=self.comparison['rig_shifts']['sensitivity'])})
-        try:
-            pl.gcf().savefig(dr + str(i) + '/' + 'rigidcorrection.pdf')
-            pl.close()
-        except:
-            pass
+        #try:
+        #    pl.gcf().savefig(dr + str(i) + '/' + 'rigidcorrection.pdf')
+        #    pl.close()
+        #except:
+        #    pass
 
         # for cnmf on patch
         information['diff'].update({
@@ -338,11 +338,11 @@ class Comparison(object):
                                  'cnmf_on_patch']['sensitivity'],
                              dims_test=dims_test, dims_gt=dims_gt,
                              timer=self.comparison['cnmf_on_patch']['timer'] - data['timer']['cnmf_on_patch'])})
-        try:
-            pl.gcf().savefig(dr + i + '/' + 'onpatch.pdf')
-            pl.close()
-        except:
-            pass
+        #try:
+        #    pl.gcf().savefig(dr + i + '/' + 'onpatch.pdf')
+        #    pl.close()
+        #except:
+        #    pass
 
 
 # CNMF FULL FRAME
@@ -355,11 +355,11 @@ class Comparison(object):
                                 'cnmf_full_frame']['sensitivity'],
                             dims_test=dims_test, dims_gt=dims_gt,
                             timer=self.comparison['cnmf_full_frame']['timer'] - data['timer']['cnmf_full_frame'])})
-        try:
-            pl.gcf().savefig(dr + i + '/' + 'cnmfull.pdf')
-            pl.close()
-        except:
-            pass
+        #try:
+        #    pl.gcf().savefig(dr + i + '/' + 'cnmfull.pdf')
+        #    pl.close()
+        #except:
+        #    pass
 
 # Saving of everything
         target_dir = os.path.join(caiman_datadir(), "testdata", i)
@@ -464,7 +464,7 @@ def cnmf(Cn, A_gt, A_test, C_gt, C_test, dims_gt, dims_test, dview=None, sensiti
 
     idx_tp_gt, idx_tp_comp, idx_fn_gt, idx_fp_comp, performance_off_on =  \
         cm.base.rois.nf_match_neurons_in_binary_masks(masks_gt=maskgt,
-                                                      masks_comp=masktest, Cn=Cn, plot_results=True)
+                                                      masks_comp=masktest, Cn=Cn, plot_results=False)
 
     # the pearson's correlation coefficient of the two Calcium activities thresholded
     # comparing Calcium activities of all the components that are defined by
@@ -500,20 +500,20 @@ def plotrig(init, curr, timer, sensitivity):
     init = init.transpose([1, 0])
     xc = np.arange(curr.shape[1])
     xi = np.arange(init.shape[1])
-    try:
-        pl.figure()
-        pl.subplot(1, 2, 1)
-        pl.plot(xc, curr[0], 'r', xi, init[0], 'b')
-        pl.legend(['x shifts curr', 'x shifts init'])
-        pl.xlabel('frames')
-        pl.ylabel('pixels')
-        pl.subplot(1, 2, 2)
-        pl.plot(xc, curr[1], 'r', xi, init[1], 'b')
-        pl.legend(['yshifts curr', 'y shifts init'])
-        pl.xlabel('frames')
-        pl.ylabel('pixels')
-    except:
-        logging.warning("not able to plot")
+    #try:
+    #    pl.figure()
+    #    pl.subplot(1, 2, 1)
+    #    pl.plot(xc, curr[0], 'r', xi, init[0], 'b')
+    #    pl.legend(['x shifts curr', 'x shifts init'])
+    #    pl.xlabel('frames')
+    #    pl.ylabel('pixels')
+    #    pl.subplot(1, 2, 2)
+    #    pl.plot(xc, curr[1], 'r', xi, init[1], 'b')
+    #    pl.legend(['yshifts curr', 'y shifts init'])
+    #    pl.xlabel('frames')
+    #    pl.ylabel('pixels')
+    #except:
+    #    logging.warning("not able to plot")
     return info
 
 
