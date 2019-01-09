@@ -18,14 +18,13 @@ respectively. To run the algorithms and generate these files you can execute the
 for CaImAn batch and `./preprocessing_files/Preprocess_CaImAn_online.py/` for CaImAn online, respectively. All files are available on Zenodo. 
 
 
-INSTRUCTION
+### INSTRUCTIONS
 
 Download and install CaImAn
 
-In order to get annotations and original movies:
+In order to get annotations and original movies: The files can be downloaded from [zenodo](https://zenodo.org/record/1659149#.XDX8T89Ki9s) or from our [internal website](https://users.flatironinstitute.org/~neuro/caiman_paper/). BEWARE: downloading all the datasets will take approximately 400GB of space(!), but you can choose to download only a smaller subset of the datasets.
 
 In order to reproduce results and get annotations and movies:
-BEWARE THIS WILL TAKE APPROXIMATELY 400GB of space!!!
 - Download and unzip WEBSITE.zip
 - Download all the images_XXX.zip files into the XXX/images/ folder renaming to "images.zip" (notice the XXX stands for the name of the folder . YST, N.01.01, ... etc).
 Example save images_YST.zip as the file WEBSITE/YST/images/images.zip
@@ -37,4 +36,4 @@ This step should be performed in every file used whenever the variable base_fold
 - Run file CaImAn repository file  CaImAn/use_cases/eLife_scripts/preprocessing_files/Preprocess_CaImAn_batch.py
 - Same can be done for CaImAn/use_cases/eLife_scripts/preprocessing_files/Preprocess_CaImAn_online.py
 
-With these you can regenerate 
+With these you can regenerate the results presented in the paper.
