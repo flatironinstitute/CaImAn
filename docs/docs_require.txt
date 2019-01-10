@@ -1,0 +1,17 @@
+bokeh
+pip
+Cython
+future
+h5py
+ipyparallel
+keras
+matplotlib
+numpy
+numpydoc
+opencv-python
+psutil
+scikit-image
+scikit-learn
+scipy
+tifffile
+tqdm

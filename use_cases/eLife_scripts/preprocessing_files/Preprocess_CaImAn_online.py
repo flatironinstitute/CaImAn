@@ -195,7 +195,7 @@ all_results = dict()
 for ind_dataset in ID:
     keras.backend.clear_session()
     gc.collect()
-    fname_zip = os.path.join(base_folder, params_movie[ind_dataset]['folder_name'], 'images', 'images.zip')
+    fname_zip = os.path.join(base_folder, params_movie[ind_dataset]['folder_name'], 'images', 'images_' + params_movie[ind_dataset]['folder_name'] +'.zip')
     fls = glob.glob(os.path.join(base_folder, params_movie[ind_dataset]['folder_name'], 'images', 'mov*.tif'))
     if len(fls) == 0:
         fls = from_zipfiles_to_movie_lists(fname_zip)

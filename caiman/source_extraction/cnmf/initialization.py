@@ -357,7 +357,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
 
     K = np.shape(Ain)[-1]
 
-    if Ain.size > 0 and not center_psf:
+    if Ain.size > 0 and not center_psf and ssub != 1:
 
         Ain = np.reshape(Ain, ds + (K,), order='F')
 

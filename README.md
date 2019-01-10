@@ -50,6 +50,11 @@ In July 2018, Python 2.x support was removed; Python 3.6 or higher is required f
 
 If you want to upgrade CaImAn (and have already used the pip installer to install it) follow the instructions given in the [wiki](https://github.com/flatironinstitute/CaImAn/wiki/Updating-CaImAn).
 
+Also, if you want to install new packages into your conda environment for CaImAn, it is important that you not mix conda-forge and the defaults channel; we recommend only using conda-forge. To ensure you're not mixing channels, perform the install (inside your environment) as follows:
+   ```bash
+   conda install -c conda-forge --override-channels NEW_PACKAGE_NAME
+   ```
+You will notice that any packages installed this way will mention, in their listing, that they're from conda-forge, with none of them having a blank origin. If you fail to do this, differences between how packages are built in conda-forge versus the default conda channels may mean that some packages (e.g. OpenCV) stop working despite showing as installed.
 
 ### Installation on Mac or Linux
 
@@ -104,6 +109,7 @@ Use the following menu item to launch a anaconda-enabled command prompt: start>p
    git clone  https://github.com/flatironinstitute/CaImAn
    cd CaImAn
    conda env create -f environment.yml -n caiman
+   conda install -n caiman vs2017_win-64
    activate caiman
    pip install . (OR pip install -e . if you want to develop code)
    copy caimanmanager.py ..
@@ -111,6 +117,10 @@ Use the following menu item to launch a anaconda-enabled command prompt: start>p
    cd ..
    ```
 Then run ```caimanmanager``` as described above to make a data directory.
+
+Things that can make your life easier on windows (but which take advanced Conda knowledge):
+   * Finding the keras_activate.bat script for your environment and change the KERAS_BACKEND env var from theano to tensorflow
+   * Remove the vs2015_compiler_vars.bat from your environment setup
 
 Alternative environments:
    * [Using GPU](/README-GPU.md)
