@@ -43,7 +43,7 @@ import glob
 reload = False
 plot_on = False
 
-save_on = True  # set to true to recreate results for each file
+save_on = False  # set to true to recreate results for each file
 save_all = False  # set to True to generate results for all files
 check_result_consistency = False
 
@@ -252,7 +252,7 @@ for params_movie in np.array(params_movies)[ID]:
 
         c, dview, _ = setup_cluster(
             backend=backend_patch, n_processes=8, single_thread=False)
-        fname_zip = os.path.join(base_folder, params_movie['fname'].split('/')[0], 'images', 'images.zip')
+        fname_zip = os.path.join(base_folder, params_movie['fname'].split('/')[0], 'images', 'images_' + params_movie['fname'].split('/')[0] + '.zip')
         mov_names = glob.glob(os.path.join(base_folder, params_movie['fname'].split('/')[0], 'images', '*.tif'))
         if len(mov_names) > 0:
             mov_names = sorted(mov_names, key=lambda x: np.int(x.split('_')[-1][:-4]))
