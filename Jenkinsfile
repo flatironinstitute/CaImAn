@@ -21,6 +21,7 @@ pipeline {
             CONDA_ENV = "${env.WORKSPACE}/test/${env.STAGE_NAME}"
           }
           steps {
+            sh 'conda clean --index-cache'
             sh 'conda env create -q -f environment.yml -p $CONDA_ENV'
             sh '''#!/bin/bash -ex
               source $CONDA_ENV/bin/activate $CONDA_ENV
