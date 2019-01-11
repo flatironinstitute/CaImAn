@@ -6,7 +6,7 @@ Created on Thu Oct 20 13:49:57 2016
 
 @author: agiovann
 """
-
+import logging
 from builtins import range
 from past.utils import old_div
 try:
@@ -151,21 +151,28 @@ def df_percentile(inputData, axis = None):
     if axis is not None:
 
         def fnc(x): return df_percentile(x)
-        #import pdb
-        #pdb.set_trace()
         result = np.apply_along_axis(fnc, axis, inputData)
-        data_prct = result[:,0]
-        val = result[:,1]
+        data_prct = result[:, 0]
+        val = result[:, 1]
     else:
         # Create the function that we can use for the half-sample mode
-        bandwidth, mesh, density, cdf = kde(inputData)
+        err = True
+        while err:
+            try:
+                bandwidth, mesh, density, cdf = kde(inputData)
+                err = False
+            except:
+                logging.warning("There are no components for DF/F extraction!")
+                if type(inputData) is not list:
+                    inputData = inputData.tolist()
+                inputData += inputData
+
         data_prct = cdf[np.argmax(density)]*100
         val = mesh[np.argmax(density)]
-        
-    return data_prct, val
-    
 
-     
+    return data_prct, val
+
+
 """
 An implementation of the kde bandwidth selection method outlined in:
 Z. I. Botev, J. F. Grotowski, and D. P. Kroese. Kernel density
@@ -196,7 +203,7 @@ def kde(data, N=None, MIN=None, MAX=None):
 
     # Histogram the data to get a crude first approximation of the density
     M = len(data)
-    DataHist, bins = sci.histogram(data, bins=N, range=(MIN,MAX))
+    DataHist, bins = sci.histogram(data, bins=N, range=(MIN, MAX))
     DataHist = DataHist/M
     DCTData = scipy.fftpack.dct(DataHist, norm=None)
 
@@ -218,10 +225,10 @@ def kde(data, N=None, MIN=None, MAX=None):
     density = scipy.fftpack.idct(SmDCTData, norm=None)*N/R
     mesh = [(bins[i]+bins[i+1])/2 for i in range(N)]
     bandwidth = sci.sqrt(t_star)*R
-    
+
     density = density/sci.trapz(density, mesh)
     cdf = np.cumsum(density)*(mesh[1]-mesh[0])
-    
+
     return bandwidth, mesh, density, cdf
 
 def fixed_point(t, M, I, a2):
