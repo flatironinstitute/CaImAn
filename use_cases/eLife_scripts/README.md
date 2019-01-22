@@ -24,7 +24,7 @@ Download and install CaImAn
 
 In order to get annotations and original movies: The files can be downloaded from [zenodo](https://zenodo.org/record/1659149#.XDX8T89Ki9s) or from our [internal website](https://users.flatironinstitute.org/~neuro/caiman_paper/). BEWARE: downloading all the datasets will take approximately 400GB of space(!), but you can choose to download only a smaller subset of the datasets.
 
-In order to simply get the annotations from the movies:
+In order to simply get the raw annotations of labellers for the movies:
 - Download and unzip WEBSITE_basic.zip
 - browse the  files in the "regions" subfolder for each dataset, you will find L1_regions.json, L2_regions.json, .. etc. Where L1,L2, L3 and L4 are the annotations from different labelers. The json format is the same as the one used in neurofinder.   
 Notice that these are the raw labels from the annotators. 
