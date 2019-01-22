@@ -35,7 +35,7 @@ In order to reproduce results and get annotations and movies:
 - Download and unzip WEBSITE.zip (this file contains also all the raw annotations contained in WEBSITE_basic.zip, so you only need to download this file to access the original annotations)
 - Download all the images_XXX.zip files into the XXX/images/ folder renaming to "images.zip" (notice the XXX stands for the name of the folder . YST, N.01.01, ... etc).
 Example save images_YST.zip as the file WEBSITE/YST/images/images.zip
-- in rhe CaImAn repository file  [CaImAn/use_cases/eLife_scripts/preprocessing_files/Preprocess_CaImAn_batch.py](https://github.com/flatironinstitute/CaImAn/blob/master/use_cases/eLife_scripts/preprocessing_files/Preprocess_CaImAn_batch.py)  change line
+- in the CaImAn repository file  [CaImAn/use_cases/eLife_scripts/preprocessing_files/Preprocess_CaImAn_batch.py](https://github.com/flatironinstitute/CaImAn/blob/master/use_cases/eLife_scripts/preprocessing_files/Preprocess_CaImAn_batch.py)  change line
 base_folder = ... 
 into
 base_folder = '/path_to/WEBSITE' where path_to is the path where you unzipped the WEBSITE.zip folder
