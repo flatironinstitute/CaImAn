@@ -24,8 +24,14 @@ Download and install CaImAn
 
 In order to get annotations and original movies: The files can be downloaded from [zenodo](https://zenodo.org/record/1659149#.XDX8T89Ki9s) or from our [internal website](https://users.flatironinstitute.org/~neuro/caiman_paper/). BEWARE: downloading all the datasets will take approximately 400GB of space(!), but you can choose to download only a smaller subset of the datasets.
 
+In order to simply get the annotations from the movies:
+- Download and unzip WEBSITE_basic.zip
+- browse the  files in the "regions" subfolder for each dataset, you will find L1_regions.json, L2_regions.json, .. etc. Where L1,L2, L3 and L4 are the annotations from different labelers. The json format is the same as the one used in neurofinder.   
+Notice that these are the raw labels from the annotators. 
+- The consensus among annotators is in the file consensus_regions.json. Consider that before using these labels, you might want to remove some duplicates (the labelers sometimes added the same neuron two or three times, it does happen rarely though). 
+
 In order to reproduce results and get annotations and movies:
-- Download and unzip WEBSITE.zip
+- Download and unzip WEBSITE.zip (this file contains also all the raw annotations contained in WEBSITE_basic.zip, so you only need to download this file to access the original annotations)
 - Download all the images_XXX.zip files into the XXX/images/ folder renaming to "images.zip" (notice the XXX stands for the name of the folder . YST, N.01.01, ... etc).
 Example save images_YST.zip as the file WEBSITE/YST/images/images.zip
 - in rhe CaImAn repository file  CaImAn/use_cases/eLife_scripts/preprocessing_files/Preprocess_CaImAn_batch.py  change line
@@ -37,3 +43,5 @@ This step should be performed in every file used whenever the variable base_fold
 - Same can be done for CaImAn/use_cases/eLife_scripts/preprocessing_files/Preprocess_CaImAn_online.py
 
 With these you can regenerate the results presented in the paper.
+
+
