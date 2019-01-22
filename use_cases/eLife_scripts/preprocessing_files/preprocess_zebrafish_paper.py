@@ -4,7 +4,7 @@
 """
 Complete pipeline for online processing using OnACID.
 @author: Andrea Giovannucci @agiovann and Eftychios Pnevmatikakis @epnev
-Special thanks to Andreas Tolias and his lab at Baylor College of Medicine
+Special thanks to Misha Ahrens and his lab at Janelia Research Campus
 for sharing their data used in this demo.
 
 KERAS_BACKEND=tensorflow; CUDA_VISIBLE_DEVICES=-1; spyder
