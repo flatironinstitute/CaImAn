@@ -12,16 +12,17 @@ A Python toolbox for large scale **Ca**lcium **Im**aging data **An**alysis and b
 CaImAn implements a set of essential methods required in the analysis pipeline of large scale calcium imaging data. Fast and scalable algorithms are implemented for motion correction, source extraction, spike deconvolution, and component registration across multiple days. It is suitable for both two-photon and one-photon fluorescence microscopy data, and can be run in both batch and online modes. CaImAn also contains some routines for the analysis of behavior from video cameras. A list of features as well as relevant references can be found [here](https://github.com/flatironinstitute/CaImAn/wiki/CaImAn-features-and-references).
 
 ## Companion paper
-A paper explaining most of the implementation details and benchmarking can be found [here](https://www.biorxiv.org/content/early/2018/06/05/339564).
+A paper explaining most of the implementation details and benchmarking can be found [here](https://elifesciences.org/articles/38173).
 
 ```
-@article{giovannucci2018caiman,
+@article{giovannucci2019caiman,
   title={CaImAn: An open source tool for scalable Calcium Imaging data Analysis},
-  author={Giovannucci, Andrea and Friedrich, Johannes and Gunn, Pat and Kalfon, Jeremie and Koay, Sue Ann and Taxidis, Jiannis and Najafi, Farzaneh and Gauthier, Jeffrey L and Zhou, Pengcheng and Tank, David W and Chklovskii, Dmitri B and Pnevmatikakis, Eftychios A},
-  journal={bioRxiv},
-  pages={339564},
-  year={2018},
-  publisher={Cold Spring Harbor Laboratory}
+  author={Giovannucci, Andrea and Friedrich, Johannes and Gunn, Pat and Kalfon, Jeremie and Brown, Brandon L and Koay, Sue Ann and Taxidis, Jiannis and Najafi, Farzaneh and Gauthier, Jeffrey L and Zhou, Pengcheng and Khakh, Baljit S and Tank, David W and Chklovskii, Dmitri B and Pnevmatikakis, Eftychios A},
+  journal={eLife},
+  volume={8},
+  pages={e38173},
+  year={2019},
+  publisher={eLife Sciences Publications Limited}
 }
 ```
 
