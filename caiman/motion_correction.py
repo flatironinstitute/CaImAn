@@ -2216,7 +2216,7 @@ def motion_correct_batch_rigid(fname, max_shifts, dview=None, splits=56, num_spl
                 np.array([high_pass_filter_space(m_, gSig_filt) for m_ in m]))
 
         template = cm.motion_correction.bin_median(
-            m.motion_correct(max_shifts[0], max_shifts[1], template=None)[0])
+            m.motion_correct(max_shifts[1], max_shifts[0], template=None)[0])
 
     new_templ = template
     if add_to_movie is None:
