@@ -1174,7 +1174,7 @@ def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None,
                         except:
                             logging.warning('Your tif file is saved a single page file. Performance will be affected')
                             input_arr = tffl.asarray()
-                            input_arr = input_arr[subindices[0]]
+                            input_arr = input_arr[subindices]
 
                 else:
                     input_arr = tffl.asarray()

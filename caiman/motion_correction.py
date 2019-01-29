@@ -256,7 +256,7 @@ class MotionCorrect(object):
             self.shifts_rig: shifts in x and y per frame
         """
         logging.debug('Entering Rigid Motion Correction')
-        logging.debug(-self.min_mov) # XXX why the minus?
+        logging.debug(-self.min_mov)  # XXX why the minus?
         self.total_template_rig = template
         self.templates_rig = []
         self.fname_tot_rig = []
@@ -2200,7 +2200,7 @@ def motion_correct_batch_rigid(fname, max_shifts, dview=None, splits=56, num_spl
     """
     corrected_slicer = slice(subidx.start, subidx.stop, subidx.step * 10)
     m = cm.load(fname, subindices=corrected_slicer)
-
+    
     if m.shape[0] < 300:
         m = cm.load(fname, subindices=corrected_slicer)
     elif m.shape[0] < 500:
@@ -2209,7 +2209,13 @@ def motion_correct_batch_rigid(fname, max_shifts, dview=None, splits=56, num_spl
     else:
         corrected_slicer = slice(subidx.start, subidx.stop, subidx.step * 30)
         m = cm.load(fname, subindices=corrected_slicer)
-
+    
+    if len(m.shape) < 3:
+        m = cm.load(fname)
+        m = m[corrected_slicer]
+        logging.warning("Your original file was saved as a single page " +
+                        "file. Consider saving it in multiple smaller files" +
+                        "with size smaller than 4GB (if it is a .tif file)")
     if template is None:
         if gSig_filt is not None:
             m = cm.movie(
@@ -2462,7 +2468,11 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
             T = len(tf.pages)
             if T == 1:  # Fiji-generated TIF
                 is_fiji = True
-                T, d1, d2 = tf[0].shape
+                try:
+                    T, d1, d2 = tf[0].shape
+                except:
+                    T, d1, d2 = tf.asarray().shape
+                    tf.close()
             else:
                 d1, d2 = tf.pages[0].shape
 
