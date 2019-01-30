@@ -48,7 +48,7 @@ ext_modules = [Extension("caiman.source_extraction.cnmf.oasis",
                          sources=["caiman/source_extraction/cnmf/oasis.pyx"],
                          include_dirs=[np.get_include()],
                          language="c++",
-                         extra_compile_args = ["CFLAGS='-libstd=libc++'"])]
+                         extra_compile_args = ['-libstd=libc++'])]
 
 setup(
     name='caiman',
