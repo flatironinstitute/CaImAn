@@ -3,6 +3,7 @@
 from setuptools import setup, find_packages
 import os
 from os import path
+import sys
 import numpy as np
 from Cython.Build import cythonize
 from setuptools.extension import Extension
