@@ -44,11 +44,16 @@ data_files.append(['bin', binaries])
 
 # compile with:     python setup.py build_ext -i
 # clean up with:    python setup.py clean --all
+if sys.platform == 'darwin':
+	extra_compiler_args = ['stdlib=libc++']
+else:
+	extra_compiler_args = []
+
 ext_modules = [Extension("caiman.source_extraction.cnmf.oasis",
                          sources=["caiman/source_extraction/cnmf/oasis.pyx"],
                          include_dirs=[np.get_include()],
                          language="c++",
-                         extra_compile_args = ['-libstd=libc++'])]
+                         extra_compile_args = extra_compiler_args)]
 
 setup(
     name='caiman',
