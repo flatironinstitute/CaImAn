@@ -45,7 +45,7 @@ data_files.append(['bin', binaries])
 # compile with:     python setup.py build_ext -i
 # clean up with:    python setup.py clean --all
 if sys.platform == 'darwin':
-	extra_compiler_args = ['stdlib=libc++']
+	extra_compiler_args = ['-stdlib=libc++']
 else:
 	extra_compiler_args = []
 
