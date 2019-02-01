@@ -911,7 +911,7 @@ def get_file_size(file_name, var_name_hdf5=None):
                 T, dims = siz[0], siz[1:]
             elif extension == '.avi':
                 cap = cv2.VideoCapture(file_name)
-                dims = (0, 0)
+                dims = [0, 0]
                 try:
                     T = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
                     dims[0] = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
