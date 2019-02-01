@@ -442,7 +442,7 @@ def recursively_save_dict_contents_to_group(h5file, path, dic):
         elif type(item).__name__ in ['CNMFParams', 'Estimates']: # parameter object
             recursively_save_dict_contents_to_group(h5file, path + key + '/', item.__dict__)
         else:
-            raise ValueError('Cannot save %s type.' % type(item))
+            raise ValueError("Cannot save %s type for key '%s'." % (type(item), key))
 
 
 def recursively_load_dict_contents_from_group( h5file, path):
