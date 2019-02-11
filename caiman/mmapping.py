@@ -274,8 +274,8 @@ def save_portion(pars):
             f.write(Yr_tot)
             computed_position = idx_end * np.uint64(Yr_tot.dtype.itemsize) * tot_frames
             if f.tell() != computed_position:
-                    logging.debug(f"Error in mmap portion write: at position {f.tell()}")
-                    logging.debug(f"But should be at position {idx_end} * {Yr_tot.dtype.itemsize} * {tot_frames} = {computed_position}")
+                    logging.critical(f"Error in mmap portion write: at position {f.tell()}")
+                    logging.critical(f"But should be at position {idx_end} * {Yr_tot.dtype.itemsize} * {tot_frames} = {computed_position}")
                     f.close()
                     raise Exception('Internal error in mmapping: Actual position does not match computed position')
 
