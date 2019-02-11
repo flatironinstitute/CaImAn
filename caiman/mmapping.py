@@ -270,13 +270,14 @@ def save_portion(pars):
         del big_mov
     else:
         with open(big_mov, 'r+b') as f:
-            f.seek(idx_start * Yr_tot.dtype.itemsize * tot_frames)
+            f.seek(idx_start * np.uint64(Yr_tot.dtype.itemsize) * tot_frames)
             f.write(Yr_tot)
-            if f.tell() != idx_end * Yr_tot.dtype.itemsize * tot_frames:
-                    logging.debug(f.tell())
-                    logging.debug(idx_end * Yr_tot.dtype.itemsize * tot_frames)
+            computed_position = idx_end * np.uint64(Yr_tot.dtype.itemsize) * tot_frames
+            if f.tell() != computed_position:
+                    logging.debug(f"Error in mmap portion write: at position {f.tell()}")
+                    logging.debug(f"But should be at position {idx_end} * {Yr_tot.dtype.itemsize} * {tot_frames} = {computed_position}")
                     f.close()
-                    raise Exception('Writing at the wrong location!')
+                    raise Exception('Internal error in mmapping: Actual position does not match computed position')
 
     del Yr_tot
     logging.debug('done')
