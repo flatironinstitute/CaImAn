@@ -6,7 +6,7 @@ generally useful functions for CaImAn
 
 See Also
 ------------
-https://docs.python.org/2/library/urllib.html
+https://docs.python.org/3/library/urllib.request.htm
 
 """
 
@@ -36,11 +36,7 @@ try:
 except:
     pass
 
-# TODO: Simplify conditional imports below
-try:
-    from urllib2 import urlopen
-except ImportError:
-    from urllib.request import urlopen
+from urllib.request import urlopen
 from ..external.cell_magic_wand import cell_magic_wand
 from ..source_extraction.cnmf.spatial import threshold_components
 
