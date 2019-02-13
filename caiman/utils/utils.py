@@ -6,7 +6,7 @@ generally useful functions for CaImAn
 
 See Also
 ------------
-https://docs.python.org/2/library/urllib.html
+https://docs.python.org/3/library/urllib.request.htm
 
 """
 
@@ -36,11 +36,7 @@ try:
 except:
     pass
 
-# TODO: Simplify conditional imports below
-try:
-    from urllib2 import urlopen
-except ImportError:
-    from urllib.request import urlopen
+from urllib.request import urlopen
 from ..external.cell_magic_wand import cell_magic_wand
 from ..source_extraction.cnmf.spatial import threshold_components
 
@@ -84,7 +80,8 @@ def download_demo(name='Sue_2x_3000_40_-46.tif', save_folder=''):
         path_movie = os.path.join(base_folder, save_folder, name)
         if not os.path.exists(path_movie):
             url = file_dict[name]
-            logging.info("downloading " + str(name) + " with urllib")
+            logging.info(f"downloading {name} with urllib")
+            logging.info(f"GET {url} HTTP/1.1")
             f = urlopen(url)
             data = f.read()
             with open(path_movie, "wb") as code:
@@ -410,8 +407,8 @@ def recursively_save_dict_contents_to_group(h5file, path, dic):
             item = np.array(item)
         if not isinstance(key, str):
             raise ValueError("dict keys must be strings to save to hdf5")
-        # save strings, numpy.int64, and numpy.float64 types
-        if isinstance(item, (np.int64, np.float64, str, np.float, float, np.float32,int)):
+        # save strings, numpy.int64, numpy.int32, and numpy.float64 types
+        if isinstance(item, (np.int64, np.int32, np.float64, str, np.float, float, np.float32,int)):
             h5file[path + key] = item
             if not h5file[path + key].value == item:
                 raise ValueError('The data representation in the HDF5 file does not match the original dict.')
@@ -442,7 +439,7 @@ def recursively_save_dict_contents_to_group(h5file, path, dic):
         elif type(item).__name__ in ['CNMFParams', 'Estimates']: # parameter object
             recursively_save_dict_contents_to_group(h5file, path + key + '/', item.__dict__)
         else:
-            raise ValueError('Cannot save %s type.' % type(item))
+            raise ValueError("Cannot save %s type for key '%s'." % (type(item), key))
 
 
 def recursively_load_dict_contents_from_group( h5file, path):
