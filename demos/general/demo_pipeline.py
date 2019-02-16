@@ -62,7 +62,7 @@ def main():
     pass  # For compatibility between running under Spyder and the CLI
 
 #%% Select file(s) to be processed (download if not present)
-    fnames = ['Sue_2x_3000_40_-46.tif']  # filename to be processed
+    fnames = ['Substack Green.tif']  # filename to be processed
     if fnames[0] in ['Sue_2x_3000_40_-46.tif', 'demoMovie.tif']:
         fnames = [download_demo(fnames[0])]
 
@@ -105,13 +105,13 @@ def main():
 # %% play the movie (optional)
     # playing the movie using opencv. It requires loading the movie in memory.
     # To close the video press q
-    display_images = False
+    display_images = True
 
     if display_images:
         m_orig = cm.load_movie_chain(fnames)
         ds_ratio = 0.2
         moviehandle = m_orig.resize(1, 1, ds_ratio)
-        moviehandle.play(q_max=99.5, fr=60, magnification=2)
+        moviehandle.play(q_max=99.5, fr=10, magnification=2)
 
 # %% start a cluster for parallel processing
     c, dview, n_processes = cm.cluster.setup_cluster(
@@ -132,7 +132,7 @@ def main():
         ds_ratio = 0.2
         moviehandle = cm.concatenate([m_orig.resize(1, 1, ds_ratio) - mc.min_mov*mc.nonneg_movie,
                                       m_els.resize(1, 1, ds_ratio)], axis=2)
-        moviehandle.play(fr=60, q_max=99.5, magnification=2)  # press q to exit
+        moviehandle.play(fr=6, q_max=99.5, magnification=2)  # press q to exit
 
 # %% MEMORY MAPPING
     border_to_0 = 0 if mc.border_nan is 'copy' else mc.border_to_0
@@ -158,12 +158,12 @@ def main():
 # %%  parameters for source extraction and deconvolution
     p = 1                    # order of the autoregressive system
     gnb = 2                  # number of global background components
-    merge_thresh = 0.8       # merging threshold, max correlation allowed
-    rf = 15
+    merge_thresh = 0.99       # merging threshold, max correlation allowed
+    rf = 30
     # half-size of the patches in pixels. e.g., if rf=25, patches are 50x50
-    stride_cnmf = 6          # amount of overlap between the patches in pixels
+    stride_cnmf = 10          # amount of overlap between the patches in pixels
     K = 4                    # number of components per patch
-    gSig = [4, 4]            # expected half size of neurons in pixels
+    gSig = [6, 6]            # expected half size of neurons in pixels
     # initialization method (if analyzing dendritic data using 'sparse_nmf')
     method_init = 'greedy_roi'
     ssub = 2                     # spatial subsampling during initialization

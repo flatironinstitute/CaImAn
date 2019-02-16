@@ -170,16 +170,24 @@ class Estimates(object):
             display_numbers :   bool
                 flag for displaying the id number of each contour
         """
+
+
         if 'csc_matrix' not in str(type(self.A)):
             self.A = scipy.sparse.csc_matrix(self.A)
         if img is None:
             img = np.reshape(np.array(self.A.mean(1)), self.dims, order='F')
         if self.coordinates is None:  # not hasattr(self, 'coordinates'):
-            self.coordinates = caiman.utils.visualization.get_contours(self.A, self.dims, thr=thr, thr_method=thr_method)
+           self.coordinates = caiman.utils.visualization.get_contours(self.A, self.dims, thr_method=thr_method, thr=thr)
+
         plt.figure()
         if idx is None:
-            caiman.utils.visualization.plot_contours(self.A, img, coordinates=self.coordinates,
-                                                     display_numbers=display_numbers)
+            if thr_method == 'max':
+                caiman.utils.visualization.plot_contours(self.A, img, coordinates=self.coordinates,
+                                                         display_numbers=display_numbers, thr_method=thr_method, maxthr=thr)
+            else:
+                caiman.utils.visualization.plot_contours(self.A, img, coordinates=self.coordinates,
+                                                         display_numbers=display_numbers, thr_method=thr_method,
+                                                         nrgthr=thr)
         else:
             if not isinstance(idx, list):
                 idx = idx.tolist()
@@ -187,15 +195,29 @@ class Estimates(object):
             bad = list(set(range(self.A.shape[1])) - set(idx))
             coor_b = [self.coordinates[cr] for cr in bad]
             plt.subplot(1, 2, 1)
-            caiman.utils.visualization.plot_contours(self.A[:, idx], img,
+            if thr_method == 'max':
+                caiman.utils.visualization.plot_contours(self.A[:, idx], img,
                                                      coordinates=coor_g,
-                                                     display_numbers=display_numbers)
+                                                     display_numbers=display_numbers,
+                                                     thr_method=thr_method, maxthr=thr)
+            else:
+                caiman.utils.visualization.plot_contours(self.A[:, idx], img,
+                                                         coordinates=coor_g,
+                                                         display_numbers=display_numbers,
+                                                         thr_method=thr_method, nrgthr=thr)
             plt.title('Accepted Components')
             bad = list(set(range(self.A.shape[1])) - set(idx))
             plt.subplot(1, 2, 2)
-            caiman.utils.visualization.plot_contours(self.A[:, bad], img,
+            if thr_method == 'max':
+                caiman.utils.visualization.plot_contours(self.A[:, bad], img,
                                                      coordinates=coor_b,
-                                                     display_numbers=display_numbers)
+                                                     display_numbers=display_numbers,
+                                                     thr_method=thr_method, maxthr=thr)
+            else:
+                caiman.utils.visualization.plot_contours(self.A[:, bad], img,
+                                                         coordinates=coor_b,
+                                                         display_numbers=display_numbers,
+                                                         thr_method=thr_method, nrgthr=thr)
             plt.title('Rejected Components')
         return self
 
