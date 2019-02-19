@@ -65,14 +65,14 @@ def download_demo(name='Sue_2x_3000_40_-46.tif', save_folder=''):
     #\bug
     #\warning
 
-    file_dict = {'Sue_2x_3000_40_-46.tif': 'https://users.flatironinstitute.org/~neuro/caiman_downloadables/Sue_2x_3000_40_-46.tif',
-                 'demoMovieJ.tif': 'https://users.flatironinstitute.org/~neuro/caiman_downloadables/demoMovieJ.tif',
-                 'demo_behavior.h5': 'https://users.flatironinstitute.org/~neuro/caiman_downloadables/demo_behavior.h5',
-                 'Tolias_mesoscope_1.hdf5': 'https://users.flatironinstitute.org/~neuro/caiman_downloadables/Tolias_mesoscope_1.hdf5',
-                 'Tolias_mesoscope_2.hdf5': 'https://users.flatironinstitute.org/~neuro/caiman_downloadables/Tolias_mesoscope_2.hdf5',
-                 'Tolias_mesoscope_3.hdf5': 'https://users.flatironinstitute.org/~neuro/caiman_downloadables/Tolias_mesoscope_3.hdf5',
-                 'data_endoscope.tif': 'https://users.flatironinstitute.org/~neuro/caiman_downloadables/data_endoscope.tif'}
-    #          ,['./example_movies/demoMovie.tif','https://users.flatironinstitute.org/~neuro/caiman_downloadables/demoMovie.tif']]
+    file_dict = {'Sue_2x_3000_40_-46.tif': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/Sue_2x_3000_40_-46.tif',
+                 'demoMovieJ.tif': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/demoMovieJ.tif',
+                 'demo_behavior.h5': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/demo_behavior.h5',
+                 'Tolias_mesoscope_1.hdf5': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/Tolias_mesoscope_1.hdf5',
+                 'Tolias_mesoscope_2.hdf5': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/Tolias_mesoscope_2.hdf5',
+                 'Tolias_mesoscope_3.hdf5': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/Tolias_mesoscope_3.hdf5',
+                 'data_endoscope.tif': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/data_endoscope.tif'}
+    #          ,['./example_movies/demoMovie.tif','https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/demoMovie.tif']]
     base_folder = os.path.join(caiman_datadir(), 'example_movies')
     if os.path.exists(base_folder):
         if not os.path.isdir(os.path.join(base_folder, save_folder)):
