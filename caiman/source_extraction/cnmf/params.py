@@ -841,4 +841,12 @@ class CNMFParams(object):
     def change_params(self, params_dict, verbose=False):
         for gr in list(self.__dict__.keys()):
             self.set(gr, params_dict, verbose=verbose)
+        for k, v in params_dict.items():
+            flag = True
+            for gr in list(self.__dict__.keys()):
+                d = getattr(self, gr)
+                if k in d:
+                    flag = False
+            if flag:
+                logging.warning('No parameter {} found!'.format(k))
         return self

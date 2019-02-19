@@ -73,6 +73,11 @@ You will notice that any packages installed this way will mention, in their list
    pip install -e .
    ```
 
+  * For right now, on OSX you will need to downgrade the jasper library after building the conda environment (right after the conda env create) for OpenCV to work:
+  ```bash
+  conda install -c conda-forge --override-channels jasper=1.900.1
+  ```
+
 **Performance issues:** To make the package work *efficiently* under any configuration ALWAYS run these commands before starting spyder (this is for Linux and OSX but environment variables can be set on Windows as well):
 
    ```bash
