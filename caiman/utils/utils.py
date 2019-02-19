@@ -82,7 +82,15 @@ def download_demo(name='Sue_2x_3000_40_-46.tif', save_folder=''):
             url = file_dict[name]
             logging.info(f"downloading {name} with urllib")
             logging.info(f"GET {url} HTTP/1.1")
-            f = urlopen(url)
+            try:
+                f = urlopen(url)
+            except:
+                logging.info(f"Trying to set user agent to download demo")
+                from urllib.request import Request
+                req = Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+                f = urlopen(req)
+                
+                
             data = f.read()
             with open(path_movie, "wb") as code:
                 code.write(data)
