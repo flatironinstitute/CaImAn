@@ -10,6 +10,7 @@ dependencies:
 - ipykernel=4.10
 - ipython
 - ipyparallel
+- jasper=1.900.1
 - jupyter
 - keras
 - matplotlib
