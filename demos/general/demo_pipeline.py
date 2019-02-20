@@ -158,7 +158,7 @@ def main():
 # %%  parameters for source extraction and deconvolution
     p = 1                    # order of the autoregressive system
     gnb = 2                  # number of global background components
-    merge_thresh = 0.8       # merging threshold, max correlation allowed
+    merge_thr = 0.85         # merging threshold, max correlation allowed
     rf = 15
     # half-size of the patches in pixels. e.g., if rf=25, patches are 50x50
     stride_cnmf = 6          # amount of overlap between the patches in pixels
@@ -179,7 +179,7 @@ def main():
                  'stride': stride_cnmf,
                  'method_init': method_init,
                  'rolling_sum': True,
-                 'merge_thr': merge_thresh,
+                 'merge_thr': merge_thr,
                  'n_processes': n_processes,
                  'only_init': True,
                  'ssub': ssub,

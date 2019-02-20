@@ -2551,7 +2551,7 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
     if num_splits is not None:
         idxs = np.array(idxs)[np.random.randint(0, len(idxs), num_splits)]
         save_movie = False
-        logging.warning('**** MOVIE NOT SAVED BECAUSE num_splits is not None ****')
+        #logging.warning('**** MOVIE NOT SAVED BECAUSE num_splits is not None ****')
 
     if save_movie:
         if base_name is None:
@@ -2561,6 +2561,7 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
         fname_tot = os.path.join(os.path.split(fname)[0], fname_tot)
         np.memmap(fname_tot, mode='w+', dtype=np.float32,
                   shape=prepare_shape(shape_mov), order=order)
+        logging.info('Saving file as {}'.format(fname_tot))
     else:
         fname_tot = None
 
