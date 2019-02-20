@@ -73,18 +73,15 @@ You will notice that any packages installed this way will mention, in their list
    pip install -e .
    ```
 
-  * For right now, on OSX you will need to downgrade the jasper library after building the conda environment (right after the conda env create) for OpenCV to work:
-  ```bash
-  conda install -c conda-forge --override-channels jasper=1.900.1
-  ```
+### Setting up environment variables 
 
-**Performance issues:** To make the package work *efficiently* under any configuration ALWAYS run these commands before starting spyder (this is for Linux and OSX but environment variables can be set on Windows as well):
+To make the package work *efficiently* and eliminate "crosstalk" between different processes, run these commands before launching Python (this is for Linux and OSX):
 
    ```bash
    export MKL_NUM_THREADS=1
    export OPENBLAS_NUM_THREADS=1
    ```   
-On Windows, replace the word "export" with the word "set" to achieve the same effect.
+On Windows, replace the word "export" with the word "set" to achieve the same effect. The commands should be run every time before launching python. It is recommended that you save these values inside your environment so you don't have to repeat this process every time. You can do this by following the instructions [here](https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#saving-environment-variables).
 
 ### Setting up caimanmanager
 
@@ -179,7 +176,7 @@ The following references provide the theoretical background and original code fo
 
 If you use this code please cite the corresponding papers where original methods appeared (see References below), as well as: 
 
-<a name="caiman"></a>[1] Giovannucci A., Friedrich J., Gunn P., Kalfon J., Koay S.A., Taxidis J., Najafi F., Gauthier J.L., Zhou P., Tank D.W., Chklovskii D.B., Pnevmatikakis E.A. (2018). CaImAn: An open source tool for scalable Calcium Imaging data Analysis. bioarXiv preprint. [[paper]](https://doi.org/10.1101/339564)
+<a name="caiman"></a>[1] Giovannucci A., Friedrich J., Gunn P., Kalfon J., Brown, B., Koay S.A., Taxidis J., Najafi F., Gauthier J.L., Zhou P., Baljit, K.S., Tank D.W., Chklovskii D.B., Pnevmatikakis E.A. (2019). CaImAn: An open source tool for scalable Calcium Imaging data Analysis. eLife 8, e38173. [[paper]](https://elifesciences.org/articles/38173)
 
 ### Deconvolution and demixing of calcium imaging data
 
