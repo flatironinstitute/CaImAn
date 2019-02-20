@@ -81,7 +81,7 @@ To make the package work *efficiently* and eliminate "crosstalk" between differe
    export MKL_NUM_THREADS=1
    export OPENBLAS_NUM_THREADS=1
    ```   
-On Windows, replace the word "export" with the word "set" to achieve the same effect. The commands should be run every time before launching python. It is recommended that you save these values inside your environment so you don't have to repeat this process every time. You can do these by following the instructions [here](https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#saving-environment-variables).
+On Windows, replace the word "export" with the word "set" to achieve the same effect. The commands should be run every time before launching python. It is recommended that you save these values inside your environment so you don't have to repeat this process every time. You can do this by following the instructions [here](https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#saving-environment-variables).
 
 ### Setting up caimanmanager
 
