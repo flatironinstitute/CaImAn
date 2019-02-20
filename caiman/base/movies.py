@@ -254,8 +254,8 @@ class movie(ts.timeseries):
         min_val = np.percentile(self, 1)
         if min_val < - 0.1:
             logging.debug("min_val in extract_shifts: " + str(min_val))
-            warnings.warn(
-                '** Pixel averages are too negative. Removing 1 percentile. **')
+            logging.warning(
+                'Movie average is negative. Removing 1st percentile.')
             self = self - min_val
         else:
             min_val = 0
@@ -273,8 +273,7 @@ class movie(ts.timeseries):
             template = np.median(self, axis=0)
         else:
             if np.percentile(template, 8) < - 0.1:
-                warnings.warn(
-                    'Pixel averages are too negative for template. Removing 1 percentile.')
+                logging.warning('Movie average is negative. Removing 1st percentile.')
                 template = template - np.percentile(template, 1)
 
         template = template[ms_h:h_i - ms_h,
