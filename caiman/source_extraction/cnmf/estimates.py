@@ -152,7 +152,7 @@ class Estimates(object):
 
 
     def plot_contours(self, img=None, idx=None, crd=None, thr_method='max',
-                      thr='0.2', display_numbers=True):
+                      thr='0.2', display_numbers=True, params=None):
         """view contours of all spatial footprints.
 
         Args:
@@ -169,6 +169,8 @@ class Estimates(object):
                 threshold value
             display_numbers :   bool
                 flag for displaying the id number of each contour
+            params : params object
+                set of dictionary containing the various parameters
         """
         if 'csc_matrix' not in str(type(self.A)):
             self.A = scipy.sparse.csc_matrix(self.A)
@@ -176,7 +178,12 @@ class Estimates(object):
             img = np.reshape(np.array(self.A.mean(1)), self.dims, order='F')
         if self.coordinates is None:  # not hasattr(self, 'coordinates'):
             self.coordinates = caiman.utils.visualization.get_contours(self.A, self.dims, thr=thr, thr_method=thr_method)
-        plt.figure()
+        plt.figure()   
+        if params is not None:
+            plt.suptitle('min_SNR=%1.2f, rval_thr=%1.2f, use_cnn=%i'
+                         %(params.quality['SNR_lowest'],
+                           params.quality['rval_thr'],
+                           int(params.quality['use_cnn'])))
         if idx is None:
             caiman.utils.visualization.plot_contours(self.A, img, coordinates=self.coordinates,
                                                      display_numbers=display_numbers)
@@ -200,7 +207,7 @@ class Estimates(object):
         return self
 
     def plot_contours_nb(self, img=None, idx=None, crd=None, thr_method='max',
-                         thr='0.2'):
+                         thr='0.2', params=None):
         """view contours of all spatial footprints (notebook environment).
 
         Args:
@@ -215,6 +222,8 @@ class Estimates(object):
                 thresholding method for computing contours ('max', 'nrg')
             thr : float
                 threshold value
+            params : params object
+                set of dictionary containing the various parameters
         """
         try:
             import bokeh
@@ -230,6 +239,12 @@ class Estimates(object):
                                 self.dims[1], coordinates=self.coordinates,
                                 thr_method=thr_method, thr=thr, show=False)
                 p.title.text = 'Contour plots of found components'
+                if params is not None:
+                    p.xaxis.axis_label = '''\
+                    min_SNR={min_SNR}, rval_thr={rval_thr}, use_cnn={use_cnn}\
+                    '''.format(min_SNR=params.quality['SNR_lowest'],
+                               rval_thr=params.quality['rval_thr'],
+                               use_cnn=params.quality['use_cnn'])
                 bokeh.plotting.show(p)
             else:
                 if not isinstance(idx, list):
@@ -243,6 +258,12 @@ class Estimates(object):
                 p1.plot_width = 450
                 p1.plot_height = 450 * self.dims[0] // self.dims[1]
                 p1.title.text = "Accepted Components"
+                if params is not None:
+                    p1.xaxis.axis_label = '''\
+                    min_SNR={min_SNR}, rval_thr={rval_thr}, use_cnn={use_cnn}\
+                    '''.format(min_SNR=params.quality['SNR_lowest'],
+                               rval_thr=params.quality['rval_thr'],
+                               use_cnn=params.quality['use_cnn'])
                 bad = list(set(range(self.A.shape[1])) - set(idx))
                 p2 = caiman.utils.visualization.nb_plot_contour(img, self.A[:, bad],
                                 self.dims[0], self.dims[1], coordinates=coor_b,
@@ -250,12 +271,18 @@ class Estimates(object):
                 p2.plot_width = 450
                 p2.plot_height = 450 * self.dims[0] // self.dims[1]
                 p2.title.text = 'Rejected Components'
+                if params is not None:
+                    p2.xaxis.axis_label = '''\
+                    min_SNR={min_SNR}, rval_thr={rval_thr}, use_cnn={use_cnn}\
+                    '''.format(min_SNR=params.quality['SNR_lowest'],
+                               rval_thr=params.quality['rval_thr'],
+                               use_cnn=params.quality['use_cnn'])
                 bokeh.plotting.show(bokeh.layouts.row(p1, p2))
         except:
             print("Bokeh could not be loaded. Either it is not installed or you are not running within a notebook")
             print("Using non-interactive plot as fallback")
             self.plot_contours(img=img, idx=idx, crd=crd, thr_method=thr_method,
-                         thr=thr)
+                         thr=thr, params=params)
         return self
 
     def view_components(self, Yr=None, img=None, idx=None):
