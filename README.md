@@ -121,9 +121,12 @@ Use the following menu item to launch a anaconda-enabled command prompt: start>p
    ```
 Then run ```caimanmanager``` as described above to make a data directory.
 
+If you have trouble activating the caiman environment (with your command shell disappearing when you try):
+   * The default binding between Visual Studio and Conda can be broken by subtle version differences that mean the startup script for your environment may crash
+   * You can fix this by doing a file search under your Conda installation directory for vs2015_compiler_vars.bat and deleting it. Find the file with a windows file search (under the start menu) for that filename, and delete the one with conda\envs\caiman as part of the path
+
 Things that can make your life easier on windows (but which take advanced Conda knowledge):
    * Finding the keras_activate.bat script for your environment and change the KERAS_BACKEND env var from theano to tensorflow
-   * Remove the vs2015_compiler_vars.bat from your environment setup
 
 Alternative environments:
    * [Using GPU](/README-GPU.md)
