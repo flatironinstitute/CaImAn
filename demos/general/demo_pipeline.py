@@ -190,7 +190,7 @@ def main():
     # First extract spatial and temporal components on patches and combine them
     # for this step deconvolution is turned off (p=0)
 
-    opts.set('temporal', {'p': 0})
+    opts.change_params({'p': 0})
     cnm = cnmf.CNMF(n_processes, params=opts, dview=dview)
     cnm = cnm.fit(images)
 
@@ -207,7 +207,7 @@ def main():
     plt.title('Contour plots of found components')
 
 # %% RE-RUN seeded CNMF on accepted patches to refine and perform deconvolution
-    cnm.params.set('temporal', {'p': p})
+    cnm.params.change_params({'p': p})
     cnm2 = cnm.refit(images, dview=dview)
     # %% COMPONENT EVALUATION
     # the components are evaluated in three ways:
