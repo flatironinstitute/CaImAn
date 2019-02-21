@@ -57,9 +57,12 @@ Also, if you want to install new packages into your conda environment for CaImAn
    ```
 You will notice that any packages installed this way will mention, in their listing, that they're from conda-forge, with none of them having a blank origin. If you fail to do this, differences between how packages are built in conda-forge versus the default conda channels may mean that some packages (e.g. OpenCV) stop working despite showing as installed.
 
+### Installation on Windows
+On Windows, please follow the install instructions [here](/INSTALL-windows.md) .
+
 ### Installation on Mac or Linux
 
-   * Download and install Anaconda or Miniconda (Python 3.6 version recommended) <http://docs.continuum.io/anaconda/install>
+   * Download and install Anaconda or Miniconda (Python 3.x version) <http://docs.continuum.io/anaconda/install>
      
    ```bash
    git clone https://github.com/flatironinstitute/CaImAn
@@ -81,7 +84,7 @@ To make the package work *efficiently* and eliminate "crosstalk" between differe
    export MKL_NUM_THREADS=1
    export OPENBLAS_NUM_THREADS=1
    ```   
-On Windows, replace the word "export" with the word "set" to achieve the same effect. The commands should be run every time before launching python. It is recommended that you save these values inside your environment so you don't have to repeat this process every time. You can do this by following the instructions [here](https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#saving-environment-variables).
+The commands should be run every time before launching python. It is recommended that you save these values inside your environment so you don't have to repeat this process every time. You can do this by following the instructions [here](https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#saving-environment-variables).
 
 ### Setting up caimanmanager
 
@@ -99,34 +102,7 @@ This will place that directory under your home directory in a directory called c
 
 If you prefer to manage this information somewhere else, the `CAIMAN_DATA` environment variable can be set to customise it. The caimanmanager tool and other libraries will respect that.
 
-### Installation on Windows
-   * Increase the maximum size of your pagefile to 64G or more (http://www.tomshardware.com/faq/id-2864547/manage-virtual-memory-pagefile-windows.html ) - The Windows memmap interface is sensitive to the maximum setting and leaving it at the default can cause errors when processing larger datasets
-   * Download and install Anaconda (Python 3.6 recommended) <http://docs.continuum.io/anaconda/install>. We recommend telling conda to modify your PATH variable (it is a checkbox during Anaconda install, off by default)
-   * Use Conda to install git (With "conda install git") - use of another commandline git is acceptable, but may lead to issues depending on default settings
-   * Microsoft Build Tools for Visual Studio 2017 <https://www.visualstudio.com/downloads/#build-tools-for-visual-studio-2017>. Check the "Build Tools" box, and in the detailed view on the right check the "C/C++ CLI Tools" component too. The specifics of this occasionally change as Microsoft changes its products and website; you may need to go off-script.
-   * As of this writing, there is an upstream versioning issue between scikit and numpy on Windows. If you get a runtime error that skimage/tifffile is compiled against API version 0xc but you have 0xb, you will need to manually upgrade numpy in your conda environment (which may force other version changes).
 
-Use the following menu item to launch a anaconda-enabled command prompt: start>programs>anaconda3>anaconda prompt
-
-   ```bash
-   git clone  https://github.com/flatironinstitute/CaImAn
-   cd CaImAn
-   conda env create -f environment.yml -n caiman
-   conda install -n caiman vs2017_win-64
-   activate caiman
-   pip install . (OR pip install -e . if you want to develop code)
-   copy caimanmanager.py ..
-   conda install numba
-   cd ..
-   ```
-Then run ```caimanmanager``` as described above to make a data directory.
-
-If you have trouble activating the caiman environment (with your command shell disappearing when you try):
-   * The default binding between Visual Studio and Conda can be broken by subtle version differences that mean the startup script for your environment may crash
-   * You can fix this by doing a file search under your Conda installation directory for vs2015_compiler_vars.bat and deleting it. Find the file with a windows file search (under the start menu) for that filename, and delete the one with conda\envs\caiman as part of the path
-
-Things that can make your life easier on windows (but which take advanced Conda knowledge):
-   * Finding the keras_activate.bat script for your environment and change the KERAS_BACKEND env var from theano to tensorflow
 
 Alternative environments:
    * [Using GPU](/README-GPU.md)
