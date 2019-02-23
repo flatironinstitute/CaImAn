@@ -1146,7 +1146,8 @@ def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None,
 
         return load_movie_chain(file_name,fr=fr, start_time=start_time,
                      meta_data=meta_data, subindices=subindices,
-                     bottom=bottom, top=top, left=left, right=right, channel = channel, outtype=outtype)
+                     bottom=bottom, top=top, left=left, right=right, 
+                     channel = channel, outtype=outtype)
 
     if bottom != 0:
         raise Exception('top bottom etc... not supported for single movie input')
@@ -1157,7 +1158,7 @@ def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None,
     if os.path.exists(file_name):
         _, extension = os.path.splitext(file_name)[:2]
 
-        if extension == '.tif' or extension == '.tiff':  # load avi file
+        if extension == '.tif' or extension == '.tiff' or extension == '.TIF':  # load avi file
             with tifffile.TiffFile(file_name) as tffl:
                 if subindices is not None:
                     if type(subindices) is list:
