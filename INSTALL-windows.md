@@ -17,7 +17,7 @@ From that prompt. issue the following commands (if you wish to use the dev branc
    conda install -n caiman vs2017_win-64
    ```
 
-At this point you will want to remove a startup script that visual studio made for your conda environment that can cause conda to crash while entering the caiman environment. Use the Windows find-file utility (under the Start Menu) to look for vs2015_compiler_vars.bat under your home directory. At least one copy should show up. Delete the version that has conda\envs\caiman as part of its location. You may also want to do a search for keras_activate.bat under your home directory, find the one in conda\envs\caiman, and edit it so KERAS_BACKEND is set to tensorflow rather than theano. You may then continue the installation.
+At this point you will want to remove a startup script that visual studio made for your conda environment that can cause conda to crash while entering the caiman environment. Use the Windows find-file utility (under the Start Menu) to look for vs2015_compiler_vars.bat and/or vs2015_compiler_vars.bat under your home directory. At least one copy should show up. Delete the version that has conda\envs\caiman as part of its location. You may also want to do a search for keras_activate.bat under your home directory, find the one in conda\envs\caiman, and edit it so KERAS_BACKEND is set to tensorflow rather than theano. You may then continue the installation.
 
    ```bash
    activate caiman

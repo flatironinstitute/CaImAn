@@ -75,6 +75,20 @@ On Windows, please follow the install instructions [here](/INSTALL-windows.md) .
    ```
    pip install -e .
    ```
+   If any of these steps gives you errors do not proceed to the following step without resolving it
+
+#### known issues
+    
+    With Mojave MAC OS you might find problems with the compiler (errors containing the word gcc). In this case you can try the two followind commands before installing again:
+    
+    ```
+    export MACOSX_DEPLOYMENT_TARGET=10.9    
+    ```
+   or
+   
+   ```
+   xcode-select --install
+   ```
 
 ### Setting up environment variables 
 
@@ -103,9 +117,17 @@ This will place that directory under your home directory in a directory called c
 If you prefer to manage this information somewhere else, the `CAIMAN_DATA` environment variable can be set to customise it. The caimanmanager tool and other libraries will respect that.
 
 
-
 Alternative environments:
    * [Using GPU](/README-GPU.md)
+   
+### Known Issues
+
+A list of known issues can be found [here](https://github.com/flatironinstitute/CaImAn/wiki/Known-Issues). If you still encounter problems please open an issue.  
+
+## Documentation & Wiki
+
+Documentation of the code can be found [here](http://flatironinstitute.github.io/CaImAn/). 
+Moreover, our [wiki page](https://github.com/flatironinstitute/CaImAn/wiki) covers some aspects of the code. 
 
 ### Installation for behavioral analysis
 * Installation on Linux (Windows and MacOS are problematic with anaconda at the moment)
@@ -197,10 +219,7 @@ Some tools that are currently available in Matlab but have been ported to CaImAn
 
 A list of dependencies can be found in the [environment file](https://github.com/flatironinstitute/CaImAn/blob/master/environment.yml).
 
-## Documentation & Wiki
 
-Documentation of the code can be found [here](http://flatironinstitute.github.io/CaImAn/). 
-Moreover, our [wiki page](https://github.com/flatironinstitute/CaImAn/wiki) covers some aspects of the code. A list of known issues can be found [here](https://github.com/flatironinstitute/CaImAn/wiki/Known-Issues). If you still encounter problems please open an issue.
 
 ## Questions, comments, issues
 
