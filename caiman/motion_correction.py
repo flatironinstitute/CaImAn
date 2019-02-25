@@ -2410,7 +2410,7 @@ def tile_and_correct_wrapper(params):
         shifts_opencv, nonneg_movie, gSig_filt, is_fiji, use_cuda, border_nan = params
 
     name, extension = os.path.splitext(img_name)[:2]
-
+    extension = extension.lower()
     shift_info = []
     if extension == '.tif' or extension == '.tiff':  # check if tiff file
 #        with tifffile.TiffFile(img_name) as tffl:
@@ -2461,6 +2461,7 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
     """
     # todo todocument
     name, extension = os.path.splitext(fname)[:2]
+    extension = extension.lower()
     is_fiji = False
 
     if extension == '.tif' or extension == '.tiff':  # check if tiff file
