@@ -905,6 +905,7 @@ def get_file_size(file_name, var_name_hdf5=None):
     if isinstance(file_name, str):
         if os.path.exists(file_name):
             _, extension = os.path.splitext(file_name)[:2]
+            extension = extension.lower()
             if extension == '.tif' or extension == '.tiff':
                 tffl = tifffile.TiffFile(file_name)
                 siz = tffl.series[0].shape

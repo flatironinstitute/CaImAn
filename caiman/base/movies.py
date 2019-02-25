@@ -1157,8 +1157,8 @@ def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None,
 
     if os.path.exists(file_name):
         _, extension = os.path.splitext(file_name)[:2]
-
-        if extension == '.tif' or extension == '.tiff' or extension == '.TIF':  # load avi file
+        extension = extension.lower()
+        if extension == '.tif' or extension == '.tiff':  # load avi file
             with tifffile.TiffFile(file_name) as tffl:
                 if subindices is not None:
                     if type(subindices) is list:
