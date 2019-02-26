@@ -7,4 +7,4 @@ RUN apt-get update && apt-get install -y \
     qtbase5-dev \
   && rm -rf /var/lib/apt/lists/*
 
-RUN mkdir -p /home/jenkins/.conda && chown -R jenkins /home/jenkins
+RUN mkdir -p /home/jenkins/.conda && chown -R 996 /home/jenkins
