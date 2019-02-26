@@ -6,3 +6,5 @@ RUN apt-get update && apt-get install -y \
     xvfb \
     qtbase5-dev \
   && rm -rf /var/lib/apt/lists/*
+
+RUN mkdir -p /home/jenkins/.conda && chown -R jenkins /home/jenkins
