@@ -24,7 +24,7 @@ pipeline {
             sh 'conda clean --index-cache'
             sh 'conda env create -q -f environment.yml -p $CONDA_ENV'
             sh '''#!/bin/bash -ex
-              source $CONDA_ENV/bin/activate $CONDA_ENV
+              source activate $CONDA_ENV
               export KERAS_BACKEND=tensorflow
               pip install .
               TEMPDIR=$(mktemp -d)
