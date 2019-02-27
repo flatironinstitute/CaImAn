@@ -388,8 +388,8 @@ def register_ROIs(A1, A2, dims, template1=None, template2=None, align_flag=True,
     if template1 is None or template2 is None:
         align_flag = False
 
-    x_grid, y_grid = np.meshgrid(np.arange(0., dims[0]).astype(
-                np.float32), np.arange(0., dims[1]).astype(np.float32))
+    x_grid, y_grid = np.meshgrid(np.arange(0., dims[1]).astype(
+                np.float32), np.arange(0., dims[0]).astype(np.float32))
 
     if align_flag:  # first align ROIs from session 2 to the template from session 1
         template1 -= template1.min()

@@ -299,6 +299,7 @@ class CNMF(object):
         fnames = self.params.get('data', 'fnames')
         if os.path.exists(fnames[0]):
             _, extension = os.path.splitext(fnames[0])[:2]
+            extension = extension.lower()
         else:
             logging.warning("Error: File not found, with file list:\n" + fnames[0])
             raise Exception('File not found!')

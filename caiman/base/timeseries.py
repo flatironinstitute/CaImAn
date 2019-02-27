@@ -131,8 +131,8 @@ class timeseries(np.ndarray):
 
         """
         name, extension = os.path.splitext(file_name)[:2]
+        extension = extension.lower()
         logging.debug("Parsing extension " + str(extension))
-
 
         if extension == '.tif':  # load avi file
 

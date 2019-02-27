@@ -195,6 +195,7 @@ class OnACID(object):
             self.params.get('data', 'dims') + (-1,), order='F'), sig=self.params.get('init', 'gSig'), siz=self.params.get('init', 'gSiz'), nDimBlur=len(self.params.get('data', 'dims')))**2
         self.estimates.rho_buf = np.reshape(
             self.estimates.rho_buf, (np.prod(self.params.get('data', 'dims')), -1)).T
+        self.estimates.rho_buf = np.ascontiguousarray(self.estimates.rho_buf)
         self.estimates.rho_buf = RingBuffer(self.estimates.rho_buf, self.params.get('online', 'minibatch_shape'))
         self.estimates.AtA = (self.estimates.Ab.T.dot(self.estimates.Ab)).toarray()
         self.estimates.AtY_buf = self.estimates.Ab.T.dot(self.estimates.Yr_buf.T)
@@ -814,7 +815,7 @@ class OnACID(object):
         C, f = est.C_on[gnb:self.M, :], est.C_on[:gnb, :]
         # inferred activity due to components (no background)
         frame_plot = (frame_cor.copy() - self.bnd_Y[0])/np.diff(self.bnd_Y)
-        comps_frame = A.dot(C[:, self.t - 1]).reshape(self.dims, order='F')        
+        comps_frame = A.dot(C[:, self.t - 1]).reshape(self.dims, order='F')
         bgkrnd_frame = b.dot(f[:, self.t - 1]).reshape(self.dims, order='F')  # denoised frame (components + background)
         denoised_frame = comps_frame + bgkrnd_frame
         denoised_frame = (denoised_frame.copy() - self.bnd_Y[0])/np.diff(self.bnd_Y)
