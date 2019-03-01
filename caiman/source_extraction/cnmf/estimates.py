@@ -689,7 +689,7 @@ class Estimates(object):
             if save_discarded_components:
                 self.discarded_components = Estimates()
 
-            for field in ['C', 'S', 'YrA', 'R', 'g', 'bl', 'c1', 'neurons_sn', 'lam', 'cnn_preds','SNR_comp','r_values','coordinates']:
+            for field in ['C', 'S', 'YrA', 'R', 'F_dff', 'g', 'bl', 'c1', 'neurons_sn', 'lam', 'cnn_preds','SNR_comp','r_values','coordinates']:
                 if getattr(self, field) is not None:
                     if type(getattr(self, field)) is list:
                         setattr(self, field, np.array(getattr(self, field)))
@@ -730,17 +730,17 @@ class Estimates(object):
         @return: None
         '''
         if self.discarded_components is not None:
-            for field in ['C', 'S', 'YrA', 'R', 'g', 'bl', 'c1', 'neurons_sn', 'lam', 'cnn_preds','SNR_comp','r_values','coordinates']:
-                print(field)
+            for field in ['C', 'S', 'YrA', 'R', 'F_dff', 'g', 'bl', 'c1', 'neurons_sn', 'lam', 'cnn_preds','SNR_comp','r_values','coordinates']:
                 if getattr(self, field) is not None:
                     if type(getattr(self, field)) is list:
                         setattr(self, field, np.array(getattr(self, field)))
                     if len(getattr(self, field)) == self.A.shape[-1]:
-                        print([getattr(self, field).shape,getattr(self.discarded_components, field).shape])
                         setattr(self, field, np.concatenate([getattr(self, field), getattr(self.discarded_components, field)], axis=0))
                         setattr(self.discarded_components, field, None)
                     else:
-                        print('*** Variable ' + field + ' has not the same number of components as A ***')
+                        logging.warning('Variable ' + field + ' could not be \
+                                        restored as it does not have the same \
+                                        number of components as A')
 
             for field in ['A', 'A_thr']:
                 print(field)
@@ -753,9 +753,6 @@ class Estimates(object):
                     setattr(self.discarded_components, field, None)
 
             self.nr = self.A.shape[-1]
-
-
-
 
     def evaluate_components_CNN(self, params, neuron_class=1):
         """Estimates the quality of inferred spatial components using a
@@ -773,7 +770,7 @@ class Estimates(object):
         """
         dims = params.get('data', 'dims')
         gSig = params.get('init', 'gSig')
-        min_cnn_thr= params.get('quality', 'min_cnn_thr')
+        min_cnn_thr = params.get('quality', 'min_cnn_thr')
         predictions = evaluate_components_CNN(self.A, dims, gSig)[0]
         self.cnn_preds = predictions[:, neuron_class]
         self.idx_components = np.where(self.cnn_preds >= min_cnn_thr)[0]

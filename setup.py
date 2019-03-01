@@ -82,7 +82,7 @@ setup(
 
         # Specify the Python versions you support here. In particular, ensure
         # that you indicate whether you support Python 2, Python 3 or both.
-        'Programming Language :: Python :: 2,3',
+        'Programming Language :: Python :: 3',
     ],
     keywords='fluorescence calcium ca imaging deconvolution ROI identification',
     packages=find_packages(exclude=['use_cases', 'use_cases.*']),

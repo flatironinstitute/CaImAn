@@ -79,16 +79,14 @@ On Windows, please follow the install instructions [here](/INSTALL-windows.md) .
 
 #### known issues
     
-    With Mojave MAC OS you might find problems with the compiler (errors containing the word gcc). In this case you can try the two followind commands before installing again:
+With OSX Mojave you will need to perform the following steps before your first install:
     
-    ```
-    export MACOSX_DEPLOYMENT_TARGET=10.9    
-    ```
-   or
-   
    ```
    xcode-select --install
+   open /Library/Developer/CommandLineTools/Packages/
    ```
+
+(install the package file you will find in the folder that pops up)
 
 ### Setting up environment variables 
 
