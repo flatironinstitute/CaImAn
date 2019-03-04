@@ -1,4 +1,5 @@
 import pyqtgraph as pg
+from pyqtgraph import FileDialog
 from pyqtgraph.Qt import QtCore, QtGui
 from pyqtgraph.parametertree import Parameter, ParameterTree, ParameterItem, registerParameterType
 import numpy as np
@@ -31,28 +32,36 @@ def make_color_img(img, gain=255, out_type=np.uint8):
     img = np.dstack([img]*3)
     return img
 
+F = FileDialog()
+
+# movie 
+#mov = cm.load('/Users/agiovann/caiman_data/example_movies/memmap__d1_60_d2_80_d3_1_order_C_frames_2000_.mmap')
+mov = cm.load(F.getOpenFileName(caption='Load Movie', filter='*.hdf5;*.tif')[0])
+
+# load object saved by CNMF
+#cnm_obj = load_CNMF('/Users/agiovann/caiman_data/example_movies/demoMovie.hdf5')
+cnm_obj = load_CNMF(F.getOpenFileName(caption='Load CNMF Object',filter='*.hdf5')[0])
+
+# load summary image
+#Cn = cm.load('/Users/agiovann/caiman_data/example_movies/demoMovie_CN.tif')
+Cn = cm.load(F.getOpenFileName(caption='Load Summary Image',filter='*.tif')[0])
 
 
-# load estimates and movie image
-# base_folder = '/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/WEBSITE/'
-base_folder = '/Users/agiovannucci/SOFTWARE/CaImAn/'
-mov = cm.load('/Users/agiovann/caiman_data/example_movies/memmap__d1_60_d2_80_d3_1_order_C_frames_2000_.mmap')
-Cn = cm.load('/Users/agiovann/caiman_data/example_movies/demoMovie_CN.tif')
-cnm_obj = load_CNMF('/Users/agiovann/caiman_data/example_movies/demoMovie.hdf5')
 estimates = cnm_obj.estimates
-estimates.restore_discarded_components()
-estimates.img_components = estimates.A.toarray().reshape((estimates.dims[0], estimates.dims[1],-1), order='F').transpose([2,0,1])
-estimates.cms = np.array([scipy.ndimage.measurements.center_of_mass(comp) for comp in estimates.img_components])
-estimates.idx_components = np.arange(estimates.nr)
-estimates.idx_components_bad = np.array([])
-estimates.background_image = make_color_img(Cn)
-# Generate image data
-estimates.img_components /= estimates.img_components.max(axis=(1,2))[:,None,None]
-estimates.img_components *= 255
-estimates.img_components = estimates.img_components.astype(np.uint8)
-estimates.accepted_list = np.array([], dtype=np.int)
-estimates.rejected_list = np.array([], dtype=np.int) 
-
+if not hasattr(estimates, 'accepted_list'):  
+    estimates.restore_discarded_components()      
+    estimates.accepted_list = np.array([], dtype=np.int)
+    estimates.rejected_list = np.array([], dtype=np.int)
+    estimates.img_components = estimates.A.toarray().reshape((estimates.dims[0], estimates.dims[1],-1), order='F').transpose([2,0,1])
+    estimates.cms = np.array([scipy.ndimage.measurements.center_of_mass(comp) for comp in estimates.img_components])
+    estimates.idx_components = np.arange(estimates.nr)
+    estimates.idx_components_bad = np.array([])
+    estimates.background_image = make_color_img(Cn)
+    # Generate image data
+    estimates.img_components /= estimates.img_components.max(axis=(1,2))[:,None,None]
+    estimates.img_components *= 255
+    estimates.img_components = estimates.img_components.astype(np.uint8)
+ 
 
 
 
@@ -62,7 +71,6 @@ def draw_contours():
     bkgr_contours = estimates.background_image.copy()
     
     if len(estimates.idx_components) > 0:
-        print(estimates.idx_components)
         contours = [cv2.findContours(cv2.threshold(img, np.int(thrshcomp_line.value()), 255, 0)[1], cv2.RETR_TREE,
                                      cv2.CHAIN_APPROX_SIMPLE)[1] for img in estimates.img_components[estimates.idx_components]]
         
@@ -87,7 +95,6 @@ def draw_contours():
         cv2.drawContours(bkgr_contours, sum([contours[jj] for jj in idx6], []), -1, (0, 255, 255), 1)
     
     img.setImage(bkgr_contours, autoLevels=False)
-# Interpret image data as row-major instead of col-major
 # pg.setConfigOptions(imageAxisOrder='row-major')
 
 #%%
@@ -217,7 +224,9 @@ params_action = [{'name': 'Filter components', 'type': 'bool', 'value': True, 't
                  {'name': 'ADD GROUP', 'type': 'action'},
                  {'name': 'REMOVE GROUP', 'type': 'action'},
                  {'name': 'ADD SINGLE', 'type': 'action'},
-                 {'name': 'REMOVE SINGLE', 'type': 'action'}]
+                 {'name': 'REMOVE SINGLE', 'type': 'action'},
+                 {'name': 'SAVE OBJECT', 'type': 'action'}
+                 ]
     
 
 pars_action = Parameter.create(name='params_action', type='group', children=params_action) 
@@ -254,8 +263,17 @@ def remove_single():
     
 pars_action.param('REMOVE SINGLE').sigActivated.connect(remove_single)
 
+def save_object():
+    print('Saving')
+    
+    ffll = F.getSaveFileName(filter='*.hdf5')
+    print(ffll[0])
+    cnm_obj.estimates = estimates
+    cnm_obj.save(ffll[0])
 
+pars_action.param('SAVE OBJECT').sigActivated.connect(save_object)
 
+    
 def action_pars_activated(param, changes):  
     change(None, None)
     
