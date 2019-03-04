@@ -946,7 +946,13 @@ def load_CNMF(filename, n_processes=1, dview=None):
         elif key == 'estimates':
             estims = Estimates()
             for kk, vv in val.items():
-                setattr(estims, kk, vv)
+                if kk == 'discarded_components':
+                    discarded_components = Estimates()
+                    for kk__, vv__ in vv.items():
+                        setattr(discarded_components, kk__, vv__)
+                    setattr(estims, kk, discarded_components)
+                else:
+                    setattr(estims, kk, vv)
 
             setattr(new_obj, key, estims)
         else:
