@@ -77,7 +77,7 @@ def main():
     patch_motion_um = (100., 100.)  # patch size for non-rigid correction in um
 
     # motion correction parameters
-    pw_rigid = True       # flag to select rigid vs pw_rigid motion correction
+    pw_rigid = False       # flag to select rigid vs pw_rigid motion correction
     # maximum allowed rigid shift in pixels
     max_shifts = [int(a/b) for a, b in zip(max_shift_um, dxy)]
     # start a new patch for pw-rigid motion correction every x pixels
@@ -195,6 +195,7 @@ def main():
     cnm = cnm.fit(images)
 
 # %% ALTERNATE WAY TO RUN THE PIPELINE AT ONCE
+    
     #   you can also perform the motion correction plus cnmf fitting steps
     #   simultaneously after defining your parameters object using
     #  cnm1 = cnmf.CNMF(n_processes, params=opts, dview=dview)
@@ -205,7 +206,9 @@ def main():
     Cn[np.isnan(Cn)] = 0
     cnm.estimates.plot_contours(img=Cn)
     plt.title('Contour plots of found components')
-
+#%% save results
+    cnm.save(fname_new[:-4]+'hdf5')
+    cm.movie(Cn).save(fname_new[:-5]+'_Cn.tif')
 # %% RE-RUN seeded CNMF on accepted patches to refine and perform deconvolution
     cnm.params.change_params({'p': p})
     cnm2 = cnm.refit(images, dview=dview)

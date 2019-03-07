@@ -137,6 +137,9 @@ def main():
     cnm2.estimates.select_components(use_object=True)
     #%%
     cnm2.estimates.plot_contours(img=Cn)
+    #%% save results
+    cnm.save(cnm.mmap_file[:-4]+'hdf5')
+    cm.movie(Cn).save(cnm.mmap_file[:-5]+'_Cn.tif')
 
 # %% play movie with results (original, reconstructed, amplified residual)
     cnm2.estimates.play_movie(images, magnification=4)
