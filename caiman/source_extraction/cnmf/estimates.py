@@ -13,6 +13,7 @@ import caiman
 import logging
 from .utilities import detrend_df_f
 from .spatial import threshold_components
+from .merging import merge_iteration
 from ...components_evaluation import (
         evaluate_components_CNN, estimate_components_quality_auto,
         select_components_from_metrics)
@@ -831,8 +832,8 @@ class Estimates(object):
                                          thresh_cnn_lowest=opts['cnn_lowest'],
                                          r_values_lowest=opts['rval_lowest'],
                                          min_SNR_reject=opts['SNR_lowest'])
-        self.idx_components = idx_components
-        self.idx_components_bad = idx_components_bad
+        self.idx_components = idx_components.astype(int)
+        self.idx_components_bad = idx_components_bad.astype(int)
         self.SNR_comp = SNR_comp
         self.r_values = r_values
         self.cnn_preds = cnn_preds
@@ -880,7 +881,7 @@ class Estimates(object):
                         gSig scale values for CNN classifier
 
         Returns:
-            self: CNMF object
+            self: estimates object
                 self.idx_components: np.array
                     indeces of accepted components
                 self.idx_components_bad: np.array
@@ -916,8 +917,127 @@ class Estimates(object):
 
         return self
 
+    def manual_merge(self, components, params):
+        ''' merge a given list of components. The indeces
+        of components are not pythonic, i.e., they start from 1. Moreover,
+        the indeces refer to the absolute indeces, i.e., the indeces before
+        spliting the components in accepted and rejected. If you want to e.g.
+        merge components 1 from idx_components and 10 from idx_components_bad
+        you will to set
+        ```
+        components = [[self.idx_components[0], self.idx_components_bad[9]]]
+        ```
+
+        Args:
+            components: list
+                list of components to be merged. Each element should be a
+                tuple, list or np.array of the components to be merged. No
+                duplicates are allowed. If you're merging only one pair (or
+                set) of components, then use a list with a single (list)
+                element
+            params: params object
+                
+        Returns:
+            self: estimates object
+        '''
+
+        ln = np.sum(np.array([len(comp) for comp in components]))
+        ids = set.union(*[set(comp) for comp in components])
+        if ln != len(ids):
+            raise Exception('The given list contains duplicate entries')
+
+        p = params.temporal['p']
+        nbmrg = len(components)   # number of merging operations
+        d = self.A.shape[0]
+        T = self.C.shape[1]
+        # we initialize the values
+        A_merged = scipy.sparse.lil_matrix((d, nbmrg))
+        C_merged = np.zeros((nbmrg, T))
+        S_merged = np.zeros((nbmrg, T))
+        bl_merged = np.zeros((nbmrg, 1))
+        c1_merged = np.zeros((nbmrg, 1))
+        sn_merged = np.zeros((nbmrg, 1))
+        g_merged = np.zeros((nbmrg, p))
+        merged_ROIs = []
+
+        for i in range(nbmrg):
+            merged_ROI = list(set(components[i]))
+            logging.info('Merging components {}'.format(merged_ROI))
+            merged_ROIs.append(merged_ROI)
+
+            Acsc = self.A.tocsc()[:, merged_ROI]
+            Ctmp = np.array(self.C[merged_ROI]) + np.array(self.YrA[merged_ROI])
+
+            C_to_norm = np.sqrt(np.ravel(Acsc.power(2).sum(
+                axis=0)) * np.sum(Ctmp ** 2, axis=1))
+            indx = np.argmax(C_to_norm)
+            g_idx = [merged_ROI[indx]]
+            fast_merge = True
+            bm, cm, computedA, computedC, gm, \
+            sm, ss = merge_iteration(Acsc, C_to_norm, Ctmp, fast_merge, 
+                                     None, g_idx, indx, params.temporal)
+
+            A_merged[:, i] = computedA
+            C_merged[i, :] = computedC
+            S_merged[i, :] = ss[:T]
+            bl_merged[i] = bm
+            c1_merged[i] = cm
+            sn_merged[i] = sm
+            g_merged[i, :] = gm
+
+        empty = np.ravel((C_merged.sum(1) == 0) + (A_merged.sum(0) == 0))
+        nbmrg -= len(empty)
+        if np.any(empty):
+            A_merged = A_merged[:, ~empty]
+            C_merged = C_merged[~empty]
+            S_merged = S_merged[~empty]
+            bl_merged = bl_merged[~empty]
+            c1_merged = c1_merged[~empty]
+            sn_merged = sn_merged[~empty]
+            g_merged = g_merged[~empty]
+
+        neur_id = np.unique(np.hstack(merged_ROIs))
+        nr = self.C.shape[0]
+        good_neurons = np.setdiff1d(list(range(nr)), neur_id)
+        if self.idx_components is not None:
+            new_indeces = list(range(len(good_neurons),
+                                     len(good_neurons) + nbmrg))
+
+            mapping_mat = np.zeros(nr)
+            mapping_mat[good_neurons] = np.arange(len(good_neurons), dtype=int)
+            gn_ = good_neurons.tolist()
+            new_idx = [mapping_mat[i] for i in self.idx_components if i in gn_]
+            new_idx_bad = [mapping_mat[i] for i in self.idx_components_bad if i in gn_]
+            new_idx.sort()
+            new_idx_bad.sort()
+            self.idx_components = np.array(new_idx + new_indeces, dtype=int)
+            self.idx_components_bad = np.array(new_idx_bad, dtype=int)
+
+        self.A = scipy.sparse.hstack((self.A.tocsc()[:, good_neurons],
+                                      A_merged.tocsc()))
+        self.C = np.vstack((self.C[good_neurons, :], C_merged))
+        # we continue for the variables
+        if self.S is not None:
+            self.S = np.vstack((self.S[good_neurons, :], S_merged))
+        if self.bl is not None:
+            self.bl = np.hstack((self.bl[good_neurons],
+                                 np.array(bl_merged).flatten()))
+        if self.c1 is not None:
+            self.c1 = np.hstack((self.c1[good_neurons],
+                                 np.array(c1_merged).flatten()))
+        if self.sn is not None:
+            self.sn = np.hstack((self.sn[good_neurons],
+                                 np.array(sn_merged).flatten()))
+        if self.g is not None:
+            self.g = np.vstack((np.vstack(self.g)[good_neurons], g_merged))
+        self.nr = nr - len(neur_id) + len(C_merged)
+        if self.coordinates is not None:
+            self.coordinates = caiman.utils.visualization.get_contours(self.A,\
+                                self.dims, thr_method='max', thr='0.2')
+
     def threshold_spatial_components(self, maxthr=0.25, dview=None, **kwargs):
-        ''' threshold spatial components. See parameters of spatial.threshold_components
+        ''' threshold spatial components. See parameters of
+        spatial.threshold_components
 
         @param medw:
         @param thr_method:

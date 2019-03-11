@@ -245,7 +245,7 @@ def merge_components(Y, A, b, C, f, S, sn_pix, temporal_params, spatial_params, 
         nr = nr - len(neur_id) + len(C_merged)
 
     else:
-        print('No neurons merged!')
+        logging.info('No neurons merged!')
         merged_ROIs = []
 
     return A, C, nr, merged_ROIs, S, bl, c1, sn, g
