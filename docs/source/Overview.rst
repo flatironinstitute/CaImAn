@@ -1,15 +1,26 @@
 Overview
 =========
-Python translation of Constrained Non-negative Matrix Factorization algorithm for source extraction from calcium imaging data. 
 
+CaImAn is a Python toolbox for large scale **Ca**lcium **Im**aging data **An**alysis and behavioral analysis.
 
-The code implements a method for simultaneous source extraction and spike inference from large scale calcium imaging movies. The code is suitable for the analysis of somatic imaging data. Implementation for the analysis of dendritic/axonal imaging data will be added in the future. 
+CaImAn implements a set of essential methods required in the analysis pipeline of large scale calcium imaging data. Fast and scalable algorithms are implemented for motion correction, source extraction, spike deconvolution, and component registration across multiple days. It is suitable for both two-photon and one-photon fluorescence microscopy data, and can be run in both batch and online modes. CaImAn also contains some routines for the analysis of behavior from video cameras. A list of features as well as relevant references can be found [here](https://github.com/flatironinstitute/CaImAn/wiki/CaImAn-features-and-references).
 
-The algorithm is presented in more detail in
+## Companion paper
 
-Pnevmatikakis, E.A., Soudry, D., Gao, Y., Machado, T., Merel, J., ... & Paninski, L. (2016). Simultaneous denoising, deconvolution, and demixing of calcium imaging data. Neuron, in press, http://dx.doi.org/10.1016/j.neuron.2015.11.037
+A paper explaining most of the implementation details and benchmarking can be found [here](https://elifesciences.org/articles/38173).
 
-Pnevmatikakis, E.A., Gao, Y., Soudry, D., Pfau, D., Lacefield, C., ... & Paninski, L. (2014). A structured matrix factorization framework for large scale calcium imaging data analysis. arXiv preprint arXiv:1409.2903. http://arxiv.org/abs/1409.2903
+```
+@article{giovannucci2019caiman,
+  title={CaImAn: An open source tool for scalable Calcium Imaging data Analysis},
+  author={Giovannucci, Andrea and Friedrich, Johannes and Gunn, Pat and Kalfon, Jeremie and Brown, Brandon L and Koay, Sue Ann and Taxidis, Jiannis and Najafi, Farzaneh and Gauthier, Jeffrey L and Zhou, Pengcheng and Khakh, Baljit S and Tank, David W and Chklovskii, Dmitri B and Pnevmatikakis, Eftychios A},
+  journal={eLife},
+  volume={8},
+  pages={e38173},
+  year={2019},
+  publisher={eLife Sciences Publications Limited}
+}
+```
+
 
 Contributors
 ------------
@@ -18,8 +29,6 @@ Andrea Giovannucci and
 Eftychios Pnevmatikakis 
 
 Center for Computational Biology, Simons Foundation, New York, NY
-
-
 
 
 Questions, comments, issues
