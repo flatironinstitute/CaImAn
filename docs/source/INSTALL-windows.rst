@@ -34,7 +34,12 @@ start>programs>anaconda3>anaconda prompt From that prompt. issue the
 following commands (if you wish to use the dev branch, you may switch
 branches after the clone):
 
-``bash    git clone https://github.com/flatironinstitute/CaImAn    cd CaImAn    conda env create -f environment.yml -n caiman    conda install -n caiman vs2017_win-64``
+.. code:: bash
+
+   git clone https://github.com/flatironinstitute/CaImAn
+   cd CaImAn
+   conda env create -f environment.yml -n caiman
+   conda install -n caiman vs2017_win-64
 
 At this point you will want to remove a startup script that visual
 studio made for your conda environment that can cause conda to crash
@@ -48,7 +53,13 @@ directory, find the one in conda:raw-latex:`\envs`:raw-latex:`\caiman`,
 and edit it so KERAS\_BACKEND is set to tensorflow rather than theano.
 You may then continue the installation.
 
-``bash    activate caiman    pip install . (OR pip install -e . if you want to develop code)    copy caimanmanager.py ..    conda install numba    cd ..``
+.. code:: bash
+
+   activate caiman
+   pip install . (OR pip install -e . if you want to develop code)
+   copy caimanmanager.py ..
+   conda install numba
+   cd ..
 
 Setting up a data directory with caimanmanager
 ==============================================
@@ -57,7 +68,11 @@ Now that you have stepped out of the caiman source directory, you are
 ready to make a data directory with code samples and datasets. You will
 not use the source tree directory any more.
 
-``caimanmanager.py install`` or
+::
+
+   caimanmanager.py install
+   
+or
 ``python caimanmanager.py install --inplace`` if you used "pip install
 -e ."
 
@@ -79,7 +94,11 @@ Setting up environment variables
 To make the package work *efficiently* and eliminate "crosstalk" between
 different processes, run these commands before launching Python:
 
-``bash    set MKL_NUM_THREADS=1    set OPENBLAS_NUM_THREADS=1    set KERAS_BACKEND=tensorflow``
+.. code:: bash
+
+   set MKL_NUM_THREADS=1
+   set OPENBLAS_NUM_THREADS=1
+   set KERAS_BACKEND=tensorflow
 
 The commands should be run every time you enter the caiman conda
 environment. We recommend you save these values inside your environment
