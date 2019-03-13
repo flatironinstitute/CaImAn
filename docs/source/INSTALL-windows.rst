@@ -2,6 +2,8 @@
    :format: latex
 ..
 
+.. _install-windows:
+
 Installation on Windows
 =======================
 
