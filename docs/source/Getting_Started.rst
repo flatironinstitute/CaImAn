@@ -55,29 +55,32 @@ Result variables for 2p batch analysis
 
 The results of CaImAn are saved in an ``estimates`` object. This is
 stored inside the cnmf object, i.e. it can be accessed using
-``cnmf.estimates``. The variables of interest are: - ``estimates.A``:
-Set of spatial components. Saved as a sparse column format matrix with
-dimensions (# of pixels X # of components). Each column corresponds to a
-spatial component. - ``estimates.C``: Set of temporal components. Saved
-as a numpy array with dimensions (# of components X # of timesteps).
-Each row corresponds to a background component denoised and deconvolved.
-- ``estimates.b``: Set of background spatial components (for 2p
-analysis): Saved as a numpy array with dimensions (# of pixels X # of
-components). Each column corresponds to a spatial background component.
-- ``estimates.f``: Set of temporal background components (for 2p
-analysis). Saved as a numpy array with dimensions (# of background
-components X # of timesteps). Each row corresponds to a temporal
-background component. - ``estimates.S``: Deconvolved neural activity
-(spikes) for each component. Saved as a numpy array with dimensions (#
-of background components X # of timesteps). Each row corresponds to the
-deconvolved neural activity for the corresponding component. -
-``estimates.YrA``: Set or residual components. Saved as a numpy array
-with dimensions (# of components X # of timesteps). Each row corresponds
-to the residual signal after denoising the corresponding component in
-``estimates.C``. - ``estimates.F_dff``: Set of DF/F normalized temporal
-components. Saved as a numpy array with dimensions (# of components X #
-of timesteps). Each row corresponds to the DF/F fluorescence for the
-corresponding component.
+``cnmf.estimates``. The variables of interest are:
+
+-  ``estimates.A``: Set of spatial components. Saved as a sparse column format matrix with
+   dimensions (# of pixels X # of components). Each column corresponds to a
+   spatial component.
+-  ``estimates.C``: Set of temporal components. Saved as a numpy array with dimensions (# of components X # of timesteps).
+   Each row corresponds to a background component denoised and deconvolved.
+-  ``estimates.b``: Set of background spatial components (for 2p
+   analysis): Saved as a numpy array with dimensions (# of pixels X # of
+   components). Each column corresponds to a spatial background component.
+-  ``estimates.f``: Set of temporal background components (for 2p
+   analysis). Saved as a numpy array with dimensions (# of background
+   components X # of timesteps). Each row corresponds to a temporal
+   background component. 
+-  ``estimates.S``: Deconvolved neural activity
+   (spikes) for each component. Saved as a numpy array with dimensions (#
+   of background components X # of timesteps). Each row corresponds to the
+   deconvolved neural activity for the corresponding component. 
+-  ``estimates.YrA``: Set or residual components. Saved as a numpy array
+   with dimensions (# of components X # of timesteps). Each row corresponds
+   to the residual signal after denoising the corresponding component in
+   ``estimates.C``.
+-  ``estimates.F_dff``: Set of DF/F normalized temporal
+   components. Saved as a numpy array with dimensions (# of components X #
+   of timesteps). Each row corresponds to the DF/F fluorescence for the
+   corresponding component.
 
 To view the spatial components, their corresponding vectors need first
 to be reshaped into 2d images. For example if you want to view the i-th
