@@ -12,6 +12,7 @@ Contents:
    :maxdepth: 2
 
    Overview
+   Getting_Started
    core_functions
    
 	      
