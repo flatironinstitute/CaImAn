@@ -25,14 +25,17 @@ A paper explaining most of the implementation details and benchmarking can be fo
   }
 
 
-
-Contributors
+Developers/Contributors
 ------------
 
-Andrea Giovannucci and 
-Eftychios Pnevmatikakis 
+CaImAn is being developed at the `Flatiron Institute <https://www.simonsfoundation.org/flatiron/>`_ with numerous contributions from the broader community. The main developers are
 
-Center for Computational Biology, Simons Foundation, New York, NY
+* Andrea Giovannucci, University of North Carolina at Chapel Hill, previously at Flatiron Institute
+* Eftychios A. Pnevmatikakis, Flatiron Institute
+* Johannes Friedrich, Flatiron Institute
+* Pat Gunn, Flatiron Institute
+
+A complete list of contributors can be found `here <https://github.com/flatironinstitute/CaImAn/graphs/contributors>`_.
 
 
 Questions, comments, issues
