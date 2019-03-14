@@ -8,11 +8,12 @@ Installation
 Download and install Anaconda or Miniconda (Python 3.x version)
 http://docs.continuum.io/anaconda/install
 
+Installation on Windows
+------------
+
 .. raw:: html
 
    <details>
-
-Installation on Windows
 
 The Windows installation process differs more widely from installation
 on Linux or MacOSX and has different issues you may run into.
@@ -119,11 +120,12 @@ following the instructions
 
    </details>
 
+Installation on MacOS and Linux
+-------------
+
 .. raw:: html
 
    <details>
-
-Installation on MacOS and Linux
 
 .. code:: bash
 
