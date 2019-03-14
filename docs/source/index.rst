@@ -12,6 +12,7 @@ Contents:
    :maxdepth: 2
 
    Overview
+   Installation
    Getting_Started
    core_functions
    
