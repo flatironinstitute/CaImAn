@@ -209,18 +209,23 @@ your Conda environment. In this case you can do only steps 1, 5, and 7
 below to update the code. However, if the environment file has changed
 since your last update this may lead to you not the latest version.
 
-From the conda environment you used to install CaImAn: 1.
-``pip uninstall caiman`` 2. remove or rename your ~/caiman_data
-directory 3. Remove your conda environment:
-``conda env remove -n NAME_OF_YOUR_ENVIRONMENT`` 4. Close and reopen
-your shell (to clear out the old conda environment) 5. Do a ``git pull``
-from inside your CaImAn folder. 6. Recreate and reenter your conda
-environment as you did in the
-`README <https://github.com/flatironinstitute/CaImAn>`__ 7. Do a
-``pip install .`` inside that code checkout 8. Run
-``caimanmanager.py install`` to reinstall the data directory (use
-``--inplace`` if you used the ``pip install -e .`` during your initial
-installation).
+From the conda environment you used to install CaImAn: 
+
+1. ``pip uninstall caiman`` 
+
+2. remove or rename your ~/caiman_data directory 
+
+3. Remove your conda environment: ``conda env remove -n NAME_OF_YOUR_ENVIRONMENT``
+
+4. Close and reopen your shell (to clear out the old conda environment) 
+
+5. Do a ``git pull`` from inside your CaImAn folder. 
+
+6. Recreate and reenter your conda environment as you did in the installation instructions 
+
+7. Do a ``pip install .`` inside that code checkout
+
+8. Run ``caimanmanager.py install`` to reinstall the data directory (use ``--inplace`` if you used the ``pip install -e .`` during your initial installation).
 
 -  If you used the ``pip install -e .`` option when installing, then you
    can try updating by simply doing a ``git pull``. Again, this might
@@ -244,7 +249,11 @@ environment for CaImAn, it is important that you not mix conda-forge and
 the defaults channel; we recommend only using conda-forge. To ensure
 you’re not mixing channels, perform the install (inside your
 environment) as follows:
-``bash    conda install -c conda-forge --override-channels NEW_PACKAGE_NAME``
+
+::
+
+   conda install -c conda-forge --override-channels NEW_PACKAGE_NAME
+  
 You will notice that any packages installed this way will mention, in
 their listing, that they’re from conda-forge, with none of them having a
 blank origin. If you fail to do this, differences between how packages
