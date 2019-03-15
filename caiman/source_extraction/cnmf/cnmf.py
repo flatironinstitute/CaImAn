@@ -703,8 +703,8 @@ class CNMF(object):
         self.estimates.S = np.stack([results[1][i] for i in order])
         self.estimates.bl = [results[3][i] for i in order]
         self.estimates.c1 = [results[4][i] for i in order]
-        self.estimates.g = [results[5][i] for i in order]
-        self.estimates.neuron_sn = [results[6][i] for i in order]
+        self.estimates.g = [results[6][i] for i in order]
+        self.estimates.neurons_sn = [results[5][i] for i in order]
         self.estimates.lam = [results[8][i] for i in order]
         self.estimates.YrA = F - self.estimates.C
         return self
