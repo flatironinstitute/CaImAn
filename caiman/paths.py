@@ -6,7 +6,7 @@
 
 import os
 
-def caiman_datadir():
+def caiman_datadir() -> str:
 	"""
 	The datadir is a user-configurable place which holds a user-modifiable copy of
 	data the Caiman libraries need to function, alongside code demos and other things.
@@ -18,5 +18,5 @@ def caiman_datadir():
 	else:
 		return os.path.join(os.path.expanduser("~"), "caiman_data")
 
-def caiman_datadir_exists():
+def caiman_datadir_exists() -> bool:
 	return os.path.isdir(caiman_datadir())
