@@ -517,11 +517,11 @@ def sparseNMF(Y_ds, nr, max_iter_snmf=500, alpha=10e2, sigma_smooth=(.5, .5, .5)
     m = scipy.ndimage.gaussian_filter(np.transpose(
         Y_ds, [2, 0, 1]), sigma=sigma_smooth, mode='nearest', truncate=truncate)
     if remove_baseline:
-        print('REMOVING BASELINE')
+        logging.info('REMOVING BASELINE')
         bl = np.percentile(m, perc_baseline, axis=0)
         m1 = np.maximum(0, m - bl)
     else:
-        print('NOT REMOVING BASELINE')
+        logging.info('NOT REMOVING BASELINE')
         bl = np.zeros(m.shape[1:])
         m1 = m
 
@@ -597,7 +597,7 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1,
 
 
     """
-    print("Greedy initialization of spatial and temporal components using spatial Gaussian filtering")
+    logging.info("Greedy initialization of spatial and temporal components using spatial Gaussian filtering")
     d = np.shape(Y)
     Y[np.isnan(Y)] = 0
     med = np.median(Y, axis=-1)
@@ -1073,7 +1073,7 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
         b_in = spr.eye(len(B), dtype='float32')
         f_in = B
     elif nb > 0:
-        logging.info('Estimate low rank background (rank = {})'.format(nb))
+        logging.info('Estimate low rank background (rank = {0})'.format(nb))
         print(nb)
         if use_NMF:
             model = NMF(n_components=nb, init='nndsvdar')
@@ -1476,9 +1476,9 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
                     break
                 else:
                     if num_neurons % 100 == 1:
-                        logging.info(num_neurons - 1, 'neurons have been initialized')
+                        logging.info('{0} neurons have been initialized'.format(num_neurons - 1))
 
-    logging.info('In total, ', num_neurons, 'neurons were initialized.')
+    logging.info('In total, {0} neurons were initialized.'.format(num_neurons))
     # A = np.reshape(Ain[:num_neurons], (-1, d1 * d2)).transpose()
     A = np.reshape(Ain[:num_neurons], (-1, d1 * d2), order='F').transpose()
     C = Cin[:num_neurons]

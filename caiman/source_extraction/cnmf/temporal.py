@@ -377,8 +377,9 @@ def update_iteration(parrllcomp, len_parrllcomp, nb, C, S, bl, nr,
             YrA -= AA[jo, :].T.dot(Ctemp - C[jo, :]).T
             C[jo, :] = Ctemp.copy()
             S[jo, :] = Stemp
-            print((str(np.sum(len_parrllcomp[:count + 1])) + ' out of total ' +
-                   str(nr) + ' temporal components updated'))
+            logging.info("{0} ".format(np.sum(len_parrllcomp[:count + 1])) +
+                         "out of total {0} temporal components ".format(nr) +
+                         "updated")
 
         for ii in np.arange(nr, nr + nb):
             cc = np.maximum(YrA[:, ii] + Cin[ii], -np.Inf)
@@ -388,8 +389,9 @@ def update_iteration(parrllcomp, len_parrllcomp, nb, C, S, bl, nr,
         if dview is not None and not('multiprocessing' in str(type(dview))):
             dview.results.clear()
 
-        if scipy.linalg.norm(Cin - C, 'fro') <= 1e-3 * scipy.linalg.norm(C, 'fro'):
-            print("stopping: overall temporal component not changing significantly")
+        if scipy.linalg.norm(Cin - C, 'fro') <= 1e-3*scipy.linalg.norm(C, 'fro'):
+            logging.info("stopping: overall temporal component not changing" +
+                         " significantly")
             break
         else:  # we keep Cin and do the iteration once more
             Cin = C

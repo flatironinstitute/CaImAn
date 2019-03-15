@@ -21,7 +21,7 @@ from scipy.linalg import eig
 from scipy.ndimage.morphology import generate_binary_structure, iterate_structure
 from scipy.ndimage import label, binary_dilation
 from sklearn.decomposition import NMF
-from warnings import warn
+import logging
 import scipy
 import time
 import tempfile
@@ -163,7 +163,7 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
 
         Exception "Failed to delete: " + folder
     """
-    print('Initializing update of Spatial Components')
+    #logging.info('Initializing update of Spatial Components')
 
     if expandCore is None:
         expandCore = iterate_structure(
@@ -177,7 +177,7 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
         Y, A_in, C, f, n_pixels_per_process, nb)
 
     start_time = time.time()
-    print('computing the distance indicators')
+    logging.info('Computing support of spatial components')
     # we compute the indicator from distance indicator
     ind2_, nr, C, f, b_, A_in = computing_indicator(
         Y, A_in, b_in, C, f, nb, method_exp, dims, min_size, max_size, dist, expandCore, dview)
@@ -193,13 +193,13 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
     if b_in is None:
         b_in = b_
 
-    print('memmaping')
+    logging.info('Memory mapping')
     # we create a memory map file if not already the case, we send Cf, a
     # matrix that include background components
     C_name, Y_name, folder = creatememmap(Y, np.vstack((C, f)), dview)
 
     # we create a pixel group array (chunks for the cnmf)for the parrallelization of the process
-    print('Updating Spatial Components using lasso lars')
+    logging.info('Updating Spatial Components using lasso lars')
     cct = np.diag(C.dot(C.T))
     pixel_groups = []
     for i in range(0, np.prod(dims) - n_pixels_per_process + 1, n_pixels_per_process):
@@ -224,14 +224,14 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
             px, idxs_, a = pars
             A_[px, idxs_] = a
 
-    print("thresholding components")
+    logging.info("thresholding components")
     A_ = threshold_components(A_, dims, dview=dview, medw=medw, thr_method=thr_method,
                               maxthr=maxthr, nrgthr=nrgthr, extract_cc=extract_cc, se=se, ss=ss)
 
     ff = np.where(np.sum(A_, axis=0) == 0)  # remove empty components
     if np.size(ff) > 0:
         ff = ff[0]
-        print('eliminating {} empty spatial components'.format(len(ff)))
+        logging.info('eliminating {0} empty spatial components'.format(len(ff)))
         A_ = np.delete(A_, list(ff[ff < nr]), 1)
         C = np.delete(C, list(ff[ff < nr]), 0)
         nr = nr - len(ff[ff < nr])
@@ -245,7 +245,7 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
                 b_in = np.delete(b_in, background_ff, 1)
     A_ = A_[:, :nr]
     A_ = coo_matrix(A_)
-    print("Computing residuals")
+    logging.info("Computing residuals")
 
     if 'memmap' in str(type(Y)):
         Y_resf = parallel_dot_product(Y, f.T, dview=dview, block_size=block_size_spat, num_blocks_per_run=num_blocks_per_run_spat) - \
@@ -271,10 +271,12 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
         #    b = np.delete(b_in, background_ff, 0)
         # except NameError:
         b = b_in
-    print(("--- %s seconds ---" % (time.time() - start_time)))
+    # print(("--- %s seconds ---" % (time.time() - start_time)))
+    logging.info('Updating done in ' + 
+                 '{0}s'.format(str(time.time() - start_time).split(".")[0]))
     try:  # clean up
         # remove temporary file created
-        print("Removing tempfiles created")
+        logging.info("Removing created tempfiles")
         shutil.rmtree(folder)
     except:
         raise Exception("Failed to delete: " + folder)

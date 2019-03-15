@@ -389,9 +389,9 @@ class CNMF(object):
         if self.params.get('patch', 'rf') is None and (is_sliced or 'ndarray' in str(type(images))):
             images = images[indeces]
             self.dview = None
-            logging.warning("Parallel processing in a single patch\
-                            is not available for loaded in memory or sliced\
-                            data.")
+            logging.warning("Parallel processing in a single patch "
+                            "is not available for loaded in memory or sliced" +
+                            " data.")
 
         T = images.shape[0]
         self.params.set('online', {'init_batch': T})
@@ -541,7 +541,7 @@ class CNMF(object):
                     indeces=indeces)
 
             self.estimates.bl, self.estimates.c1, self.estimates.g, self.estimates.neurons_sn = None, None, None, None
-            print("merging")
+            logging.info("merging")
             self.estimates.merged_ROIs = [0]
 
 

@@ -91,19 +91,20 @@ def cnmf_patches(args_in):
     logger = logging.getLogger(__name__)
     name_log = os.path.basename(
         file_name[:-5]) + '_LOG_ ' + str(idx_[0]) + '_' + str(idx_[-1])
-    #logger = logging.getLogger(name_log)
-    #hdlr = logging.FileHandler('./' + name_log)
-    #formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
-    #hdlr.setFormatter(formatter)
-    #logger.addHandler(hdlr)
-    #logger.setLevel(logging.INFO)
+    # logger = logging.getLogger(name_log)
+    # hdlr = logging.FileHandler('./' + name_log)
+    # formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
+    # hdlr.setFormatter(formatter)
+    # logger.addHandler(hdlr)
+    # logger.setLevel(logging.INFO)
 
     logger.debug(name_log + 'START')
 
     logger.debug(name_log + 'Read file')
     Yr, dims, timesteps = load_memmap(file_name)
 
-    # slicing array (takes the min and max index in n-dimensional space and cuts the box they define)
+    # slicing array (takes the min and max index in n-dimensional space and
+    # cuts the box they define)
     # for 2d a rectangle/square, for 3d a rectangular cuboid/cube, etc.
     upper_left_corner = min(idx_)
     lower_right_corner = max(idx_)
@@ -115,7 +116,7 @@ def cnmf_patches(args_in):
 
     images = np.reshape(Yr.T, [timesteps] + list(dims), order='F')
     if params.get('patch', 'in_memory'):
-        images = np.array(images[slices],dtype=np.float32)
+        images = np.array(images[slices], dtype=np.float32)
     else:
         images = images[slices]
 
@@ -132,16 +133,18 @@ def cnmf_patches(args_in):
 
         cnm = cnm.fit(images)
         return [idx_, shapes, scipy.sparse.coo_matrix(cnm.estimates.A),
-                cnm.estimates.b, cnm.estimates.C, cnm.estimates.f, cnm.estimates.S, cnm.estimates.bl, cnm.estimates.c1,
-                cnm.estimates.neurons_sn, cnm.estimates.g, cnm.estimates.sn, cnm.params.to_dict(), cnm.estimates.YrA]
+                cnm.estimates.b, cnm.estimates.C, cnm.estimates.f,
+                cnm.estimates.S, cnm.estimates.bl, cnm.estimates.c1,
+                cnm.estimates.neurons_sn, cnm.estimates.g, cnm.estimates.sn,
+                cnm.params.to_dict(), cnm.estimates.YrA]
     else:
         return None
+# %%
 
 
-#%%
-def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None, memory_fact=1,
-                     border_pix=0, low_rank_background=True, del_duplicates=False,
-                     indeces=[slice(None)]*3):
+def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None,
+                     memory_fact=1, border_pix=0, low_rank_background=True,
+                     del_duplicates=False, indeces=[slice(None)]*3):
     """Function that runs CNMF in patches
 
      Either in parallel or sequentially, and return the result for each.
@@ -234,7 +237,7 @@ def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None, memory_fact=1,
             foo[id_f] = 1
             patch_centers.append(scipy.ndimage.center_of_mass(
                 foo.reshape(dims, order='F')))
-    logging.info('Patch size: {}'.format(id_2d))
+    logging.info('Patch size: {0}'.format(id_2d))
     st = time.time()
     if dview is not None:
         if 'multiprocessing' in str(type(dview)):
@@ -253,7 +256,7 @@ def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None, memory_fact=1,
         file_res = list(map(cnmf_patches, args_in))
 
     logging.info('Elapsed time for processing patches: \
-                 {}s'.format(str(time.time() - st).split('.')[0]))
+                 {0}s'.format(str(time.time() - st).split('.')[0]))
     # count components
     count = 0
     count_bgr = 0
