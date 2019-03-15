@@ -245,7 +245,7 @@ def merge_components(Y, A, b, C, f, S, sn_pix, temporal_params, spatial_params, 
         nr = nr - len(neur_id) + len(C_merged)
 
     else:
-        logging.info('No neurons merged!')
+        logging.info('No more components merged!')
         merged_ROIs = []
 
     return A, C, nr, merged_ROIs, S, bl, c1, sn, g
@@ -266,7 +266,7 @@ def merge_iteration(Acsc, C_to_norm, Ctmp, fast_merge, g, g_idx, indx, temporal_
             computedA = np.maximum(
                 Acsc.dot(Ctmp.dot(computedC.T)) / (computedC * computedC.T), 0)
     else:
-        print('Simple Merging Take Best Neuron')
+        logging.info('Simple merging ny taking best neuron')
         computedC = Ctmp[indx]
         computedA = Acsc[:, indx]
     # then we de-normalize them using A_to_norm

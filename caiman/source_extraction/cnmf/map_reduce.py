@@ -217,8 +217,7 @@ def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None, memory_fact=1,
         strides = stride
 
     params_copy = deepcopy(params)
-
-    npx_per_proc = np.int(old_div(np.prod(rfs), memory_fact))
+    npx_per_proc = np.prod(rfs) // memory_fact
     params_copy.set('preprocess', {'n_pixels_per_process': npx_per_proc})
     params_copy.set('spatial', {'n_pixels_per_process': npx_per_proc})
     params_copy.set('temporal', {'n_pixels_per_process': npx_per_proc})
@@ -235,7 +234,7 @@ def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None, memory_fact=1,
             foo[id_f] = 1
             patch_centers.append(scipy.ndimage.center_of_mass(
                 foo.reshape(dims, order='F')))
-    print(id_2d)
+    logging.info('Patch size: {}'.format(id_2d))
     st = time.time()
     if dview is not None:
         if 'multiprocessing' in str(type(dview)):
@@ -248,12 +247,13 @@ def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None, memory_fact=1,
                 print('Something went wrong')
                 raise
             finally:
-                print('You may think that it went well but reality is harsh')
+                logging.info('Patch processing complete')
 
     else:
         file_res = list(map(cnmf_patches, args_in))
 
-    print((time.time() - st))
+    logging.info('Elapsed time for processing patches: \
+                 {}s'.format(str(time.time() - st).split('.')[0]))
     # count components
     count = 0
     count_bgr = 0
@@ -314,7 +314,7 @@ def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None, memory_fact=1,
 
     # instead of filling in the matrices, construct lists with their non-zero
     # entries and coordinates
-    print('Transforming patches into full matrix')
+    logging.info('Embedding patches results into whole FOV')
     for fff in file_res:
         if fff is not None:
 
@@ -365,7 +365,7 @@ def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None, memory_fact=1,
         else:
             empty += 1
 
-    print('Skipped %d Empty Patch', empty)
+    logging.debug('Skipped %d empty patches', empty)
     if count_bgr > 0:
         idx_tot_B = np.concatenate(idx_tot_B)
         b_tot = np.concatenate(b_tot)
@@ -401,7 +401,7 @@ def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None, memory_fact=1,
     optional_outputs['F'] = F_tot
     optional_outputs['mask'] = mask
 
-    print("Generating background")
+    logging.info("Constructing background")
 
     Im = scipy.sparse.csr_matrix(
         (1. / mask, (np.arange(d), np.arange(d))), dtype=np.float32)
@@ -415,9 +415,9 @@ def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None, memory_fact=1,
     elif low_rank_background is None:
         b = Im.dot(B_tot)
         f = F_tot
-        print("Leaving background components intact")
+        logging.info("Leaving background components intact")
     elif low_rank_background:
-        print("Compressing background components with a low rank NMF")
+        logging.info("Compressing background components with a low rank NMF")
         B_tot = Im.dot(B_tot)
         Bm = (B_tot)
         #f = np.r_[np.atleast_2d(np.mean(F_tot, axis=0)),
@@ -427,8 +427,6 @@ def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None, memory_fact=1,
         _ = mdl.fit_transform(F_tot).T
         f = mdl.components_.squeeze()
         f = np.atleast_2d(f)
-        #import pdb
-        #pdb.set_trace()
         for _ in range(100):
             f /= np.sqrt((f**2).sum(1)[:, None])
             try:
@@ -447,7 +445,8 @@ def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None, memory_fact=1,
 #        B_tot = scipy.sparse.coo_matrix(B_tot)
         f *= nB[:, None]
     else:
-        print('Removing overlapping background components from different patches')
+        logging.info('Removing overlapping background components \
+                     from different patches')
         nA = np.ravel(np.sqrt(A_tot.power(2).sum(0)))
         A_tot /= nA
         A_tot = scipy.sparse.coo_matrix(A_tot)
@@ -476,8 +475,8 @@ def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None, memory_fact=1,
         b = B_tot
         f = F_tot
 
-        print('******** USING ONE BACKGROUND PER PATCH ******')
+        logging.info('using one background component per patch')
 
-    print("Generating background DONE")
+    logging.info("Constructing background DONE")
 
     return A_tot, C_tot, YrA_tot, b, f, sn_tot, optional_outputs

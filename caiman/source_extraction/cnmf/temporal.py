@@ -1,14 +1,14 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""A set of routines for estimating the temporal components, given the spatial components and temporal components
-
-@author: agiovann
+"""A set of routines for estimating the temporal components, given the spatial
+components and temporal components
 """
 
 from builtins import str
 from builtins import map
 from builtins import range
+import logging
 from scipy.sparse import spdiags, diags, coo_matrix  # ,csgraph
 import scipy
 import numpy as np
@@ -197,7 +197,7 @@ def update_temporal_components(Y, A, b, Cin, fin, bl=None, c1=None, g=None, sn=N
     C = Cin.copy()
     nA = np.ravel(A.power(2).sum(axis=0))
 
-    print('Generating residuals')
+    logging.info('Generating residuals')
 #    dview_res = None if block_size >= 500 else dview
     if 'memmap' in str(type(Y)):
         YA = parallel_dot_product(Y, A, dview=dview, block_size=block_size_temp,
@@ -210,7 +210,7 @@ def update_temporal_components(Y, A, b, Cin, fin, bl=None, c1=None, g=None, sn=N
     YrA = YA - AA.T.dot(Cin).T
     # creating the patch of components to be computed in parrallel
     parrllcomp, len_parrllcomp = update_order_greedy(AA[:nr, :][:, :nr])
-    print("entering the deconvolution ")
+    logging.info("entering the deconvolution ")
     C, S, bl, YrA, c1, sn, g, lam = update_iteration(parrllcomp, len_parrllcomp, nb, C, S, bl, nr,
                                                      ITER, YrA, c1, sn, g, Cin, T, nA, dview, debug, AA, kwargs)
     ff = np.where(np.sum(C, axis=1) == 0)  # remove empty components
