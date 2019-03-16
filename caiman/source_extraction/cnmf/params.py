@@ -743,7 +743,7 @@ class CNMFParams(object):
             self.init['gSiz'] = [2*gs + 1 for gs in self.init['gSig']]
 
         if gnb <= 0:
-            logging.warning("gnb={}, hence setting keys nb_patch and low_rank_background ".format(gnb) +
+            logging.warning("gnb={0}, hence setting keys nb_patch and low_rank_background ".format(gnb) +
                             "in group patch automatically.")
             self.set('patch', {'nb_patch': gnb, 'low_rank_background': None})
         if gnb == -1:
@@ -766,18 +766,18 @@ class CNMFParams(object):
         """
 
         if not hasattr(self, group):
-            raise KeyError('No group in CNMFParams named {}'.format(group))
+            raise KeyError('No group in CNMFParams named {0}'.format(group))
 
         d = getattr(self, group)
         for k, v in val_dict.items():
             if k not in d and not set_if_not_exists:
                 if verbose:
                     logging.warning(
-                        "NOT setting value of key {} in group {}, because no prior key existed...".format(k, group))
+                        "NOT setting value of key {0} in group {1}, because no prior key existed...".format(k, group))
             else:
                 if np.any(d[k] != v):
                     logging.warning(
-                        "Changing key {} in group {} from {} to {}".format(k, group, d[k], v))
+                        "Changing key {0} in group {1} from {2} to {3}".format(k, group, d[k], v))
                 d[k] = v
 
     def get(self, group, key):
@@ -791,11 +791,11 @@ class CNMFParams(object):
         """
 
         if not hasattr(self, group):
-            raise KeyError('No group in CNMFParams named {}'.format(group))
+            raise KeyError('No group in CNMFParams named {0}'.format(group))
 
         d = getattr(self, group)
         if key not in d:
-            raise KeyError('No key {} in group {}'.format(key, group))
+            raise KeyError('No key {0} in group {1}'.format(key, group))
 
         return d[key]
 
@@ -807,7 +807,7 @@ class CNMFParams(object):
         """
 
         if not hasattr(self, group):
-            raise KeyError('No group in CNMFParams named {}'.format(group))
+            raise KeyError('No group in CNMFParams named {0}'.format(group))
 
         return getattr(self, group)
 
@@ -848,5 +848,5 @@ class CNMFParams(object):
                 if k in d:
                     flag = False
             if flag:
-                logging.warning('No parameter {} found!'.format(k))
+                logging.warning('No parameter {0} found!'.format(k))
         return self

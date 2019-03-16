@@ -389,9 +389,9 @@ class CNMF(object):
         if self.params.get('patch', 'rf') is None and (is_sliced or 'ndarray' in str(type(images))):
             images = images[indeces]
             self.dview = None
-            logging.warning("Parallel processing in a single patch\
-                            is not available for loaded in memory or sliced\
-                            data.")
+            logging.warning("Parallel processing in a single patch "
+                            "is not available for loaded in memory or sliced" +
+                            " data.")
 
         T = images.shape[0]
         self.params.set('online', {'init_batch': T})
@@ -434,10 +434,10 @@ class CNMF(object):
         logging.info('using ' + str(self.params.get('temporal', 'block_size_temp')) + ' block_size_temp')
 
         if self.params.get('patch', 'rf') is None:  # no patches
-            logging.debug('preprocessing ...')
+            logging.info('preprocessing ...')
             Yr = self.preprocess(Yr)
             if self.estimates.A is None:
-                logging.debug('initializing ...')
+                logging.info('initializing ...')
                 self.initialize(Y)
 
             if self.params.get('patch', 'only_init'):  # only return values after initialization
@@ -490,13 +490,9 @@ class CNMF(object):
             if not self.skip_refinement:
                 logging.info('refinement...')
                 if self.params.get('merging', 'do_merge'):
-                    logging.debug('merging components ...')
-                    logging.debug(self.estimates.A.shape)
-                    logging.debug(self.estimates.C.shape)
+                    logging.info('merging components ...')
                     self.merge_comps(Yr, mx=50, fast_merge=True)
 
-                logging.debug(self.estimates.A.shape)
-                logging.debug(self.estimates.C.shape)
                 logging.info('Updating spatial ...')
 
                 self.update_spatial(Yr, use_init=False)
@@ -528,8 +524,8 @@ class CNMF(object):
         else:  # use patches
             if self.params.get('patch', 'stride') is None:
                 self.params.set('patch', {'stride': np.int(self.params.get('patch', 'rf') * 2 * .1)})
-                logging.debug(
-                    ('**** Setting the stride to 10% of 2*rf automatically:' + str(self.params.get('patch', 'stride'))))
+                logging.info(
+                    ('Setting the stride to 10% of 2*rf automatically:' + str(self.params.get('patch', 'stride'))))
 
             if type(images) is np.ndarray:
                 raise Exception(
@@ -545,7 +541,7 @@ class CNMF(object):
                     indeces=indeces)
 
             self.estimates.bl, self.estimates.c1, self.estimates.g, self.estimates.neurons_sn = None, None, None, None
-            print("merging")
+            logging.info("merging")
             self.estimates.merged_ROIs = [0]
 
 
@@ -555,14 +551,14 @@ class CNMF(object):
                     while len(self.estimates.merged_ROIs) > 0:
                         self.merge_comps(Yr, mx=np.Inf, fast_merge=True)
 
-                    logging.debug("update temporal")
+                    logging.info("update temporal")
                     self.update_temporal(Yr, use_init=False)
 
                     self.params.set('spatial', {'se': np.ones((1,) * len(self.dims), dtype=np.uint8)})
-                    logging.debug('update spatial ...')
+                    logging.info('update spatial ...')
                     self.update_spatial(Yr, use_init=False)
 
-                    logging.debug("update temporal")
+                    logging.info("update temporal")
                     self.update_temporal(Yr, use_init=False)
                 else:
                     while len(self.estimates.merged_ROIs) > 0:
@@ -707,8 +703,8 @@ class CNMF(object):
         self.estimates.S = np.stack([results[1][i] for i in order])
         self.estimates.bl = [results[3][i] for i in order]
         self.estimates.c1 = [results[4][i] for i in order]
-        self.estimates.g = [results[5][i] for i in order]
-        self.estimates.neuron_sn = [results[6][i] for i in order]
+        self.estimates.g = [results[6][i] for i in order]
+        self.estimates.neurons_sn = [results[5][i] for i in order]
         self.estimates.lam = [results[8][i] for i in order]
         self.estimates.YrA = F - self.estimates.C
         return self

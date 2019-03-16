@@ -1,6 +1,10 @@
 Overview
 =========
 
+.. image:: ../LOGOS/Caiman_logo_FI.png
+    :width: 200px
+    :align: right
+
 CaImAn is a Python toolbox for large scale **Ca**\ lcium **Im**\ aging data **An**\ alysis and behavioral analysis.
 
 CaImAn implements a set of essential methods required in the analysis pipeline of large scale calcium imaging data. Fast and scalable algorithms are implemented for motion correction, source extraction, spike deconvolution, and component registration across multiple days. It is suitable for both two-photon and one-photon fluorescence microscopy data, and can be run in both batch and online modes. CaImAn also contains some routines for the analysis of behavior from video cameras. A list of features as well as relevant references can be found `here
@@ -25,19 +29,23 @@ A paper explaining most of the implementation details and benchmarking can be fo
   }
 
 
-
-Contributors
+Developers/Contributors
 ------------
 
-Andrea Giovannucci and 
-Eftychios Pnevmatikakis 
+CaImAn is being developed at the `Flatiron Institute <https://www.simonsfoundation.org/flatiron/>`_ with numerous contributions from the broader community. The main developers are
 
-Center for Computational Biology, Simons Foundation, New York, NY
+* Andrea Giovannucci, University of North Carolina at Chapel Hill, previously at Flatiron Institute
+* Eftychios A. Pnevmatikakis, Flatiron Institute
+* Johannes Friedrich, Flatiron Institute
+* Pat Gunn, Flatiron Institute
+
+A complete list of contributors can be found `here <https://github.com/flatironinstitute/CaImAn/graphs/contributors>`_.
 
 
 Questions, comments, issues
 -----------------------------
-Please use the gitter chat room (use the button above) for questions and comments and create an issue for any bugs you might encounter.
+
+Please use our `gitter chat room <https://gitter.im/agiovann/Constrained_NMF>`_ for questions and comments and create an issue on our `repo page <https://github.com/flatironinstitute/CaImAn>`_ for any bugs you might encounter.
 
 License
 --------
