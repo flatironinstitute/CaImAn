@@ -57,6 +57,7 @@ from numpy.fft import ifftshift
 import os
 import pylab as pl
 import tifffile
+from typing import List, Optional
 
 import caiman as cm
 from .mmapping import prepare_shape
@@ -258,9 +259,9 @@ class MotionCorrect(object):
         logging.debug('Entering Rigid Motion Correction')
         logging.debug(-self.min_mov)  # XXX why the minus?
         self.total_template_rig = template
-        self.templates_rig = []
-        self.fname_tot_rig = []
-        self.shifts_rig = []
+        self.templates_rig:List = []
+        self.fname_tot_rig:List = []
+        self.shifts_rig:List = []
 
         for fname_cur in self.fname:
             _fname_tot_rig, _total_template_rig, _templates_rig, _shifts_rig = motion_correct_batch_rigid(
@@ -328,11 +329,11 @@ class MotionCorrect(object):
         else:
             self.total_template_els = template
 
-        self.fname_tot_els = []
-        self.templates_els = []
-        self.x_shifts_els = []
-        self.y_shifts_els = []
-        self.coord_shifts_els = []
+        self.fname_tot_els:List = []
+        self.templates_els:List = []
+        self.x_shifts_els:List = []
+        self.y_shifts_els:List = []
+        self.coord_shifts_els:List = []
         for name_cur in self.fname:
             for num_splits_to_process in self.num_splits_to_process_els:
                 _fname_tot_els, new_template_els, _templates_els,\
@@ -677,13 +678,13 @@ def motion_correct_online(movie_iterable, add_to_movie, max_shift_w=25, max_shif
     min_mov = 0
     buffer_size_frames = 100
     buffer_size_template = 100
-    buffer_frames = collections.deque(maxlen=buffer_size_frames)
-    buffer_templates = collections.deque(maxlen=buffer_size_template)
+    buffer_frames:collections.deque = collections.deque(maxlen=buffer_size_frames)
+    buffer_templates:collections.deque = collections.deque(maxlen=buffer_size_template)
     max_w, max_h, min_w, min_h = 0, 0, 0, 0
 
     big_mov = None
     if return_mov:
-        mov = []
+        mov:Optional[List] = []
     else:
         mov = None
 
@@ -768,7 +769,7 @@ def motion_correct_online(movie_iterable, add_to_movie, max_shift_w=25, max_shif
                 big_mov[:, idx_frame] = np.reshape(
                     new_img, np.prod(dims[1:]), order='F')
 
-            if return_mov and (n_iter == (n + 1)):
+            if mov is not None and (n_iter == (n + 1)):
                 mov.append(new_img)
 
             if show_movie:
@@ -783,7 +784,7 @@ def motion_correct_online(movie_iterable, add_to_movie, max_shift_w=25, max_shif
 
     if save_base_name is not None:
         logging.debug('Flushing memory')
-        big_mov.flush()
+        big_mov.flush() # type: ignore # mypy cannot prove big_mov is not still None
         del big_mov
         gc.collect()
 
@@ -2236,7 +2237,7 @@ def motion_correct_batch_rigid(fname, max_shifts, dview=None, splits=56, num_spl
 
     save_movie = False
     fname_tot_rig = None
-    res_rig = []
+    res_rig:List = []
     for iter_ in range(num_iter):
         logging.debug(iter_)
         old_templ = new_templ.copy()
@@ -2259,7 +2260,7 @@ def motion_correct_batch_rigid(fname, max_shifts, dview=None, splits=56, num_spl
 
     total_template = new_templ
     templates = []
-    shifts = []
+    shifts:List = []
     for rr in res_rig:
         shift_info, idxs, tmpl = rr
         templates.append(tmpl)
@@ -2557,8 +2558,8 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
     if save_movie:
         if base_name is None:
             base_name = os.path.split(fname)[1][:-4]
-        fname_tot = base_name + '_d1_' + str(dims[0]) + '_d2_' + str(dims[1]) + '_d3_' + str(
-            1 if len(dims) == 2 else dims[2]) + '_order_' + str(order) + '_frames_' + str(T) + '_.mmap'
+        fname_tot = base_name + '_d1_' + str(dims[0]) + '_d2_' + str(dims[1]) + '_d3_1' + \
+            '_order_' + str(order) + '_frames_' + str(T) + '_.mmap'
         fname_tot = os.path.join(os.path.split(fname)[0], fname_tot)
         np.memmap(fname_tot, mode='w+', dtype=np.float32,
                   shape=prepare_shape(shape_mov), order=order)

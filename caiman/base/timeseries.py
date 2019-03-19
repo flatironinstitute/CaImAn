@@ -253,7 +253,6 @@ def concatenate(*args, **kwargs):
     """
     # todo: todocument return
 
-    obj = []
     frRef = None
     for arg in args:
         for m in arg:

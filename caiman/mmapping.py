@@ -20,6 +20,7 @@ import numpy as np
 import os
 import sys
 import tifffile
+from typing import Dict
 
 import caiman as cm
 
@@ -216,7 +217,7 @@ def my_map(dv, func, args):
     amr = v.map(func, args)
 
     pending = set(amr.msg_ids)
-    results_all = dict()
+    results_all:Dict = dict()
     counter = 0
     while pending:
         try:
