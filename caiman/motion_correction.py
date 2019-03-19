@@ -93,7 +93,7 @@ class MotionCorrect(object):
     def __init__(self, fname, min_mov=None, dview=None, max_shifts=(6, 6), niter_rig=1, splits_rig=14, num_splits_to_process_rig=None,
                  strides=(96, 96), overlaps=(32, 32), splits_els=14, num_splits_to_process_els=[7, None],
                  upsample_factor_grid=4, max_deviation_rigid=3, shifts_opencv=True, nonneg_movie=True, gSig_filt=None,
-                 use_cuda=False, border_nan=True, pw_rigid=False, num_frames_split=80):
+                 use_cuda=False, border_nan=True, pw_rigid=False, num_frames_split=80, var_name_hdf5='mov'):
         """
         Constructor class for motion correction operations
 
@@ -159,6 +159,9 @@ class MotionCorrect(object):
                Number of frames in each batch. Used when cosntructing the options
                through the params object
 
+           var_name_hdf5: str, default: 'mov'
+               If loading from hdf5, name of the variable to load
+
        Returns:
            self
 
@@ -190,6 +193,7 @@ class MotionCorrect(object):
         self.use_cuda = use_cuda
         self.border_nan = border_nan
         self.pw_rigid = pw_rigid
+        self.var_name_hdf5 = var_name_hdf5
         if self.use_cuda and not HAS_CUDA:
             logging.debug("pycuda is unavailable. Falling back to default FFT.")
 
@@ -277,7 +281,8 @@ class MotionCorrect(object):
                 nonneg_movie=self.nonneg_movie,
                 gSig_filt=self.gSig_filt,
                 use_cuda=self.use_cuda,
-                border_nan=self.border_nan)
+                border_nan=self.border_nan,
+                var_name_hdf5=self.var_name_hdf5)
             if template is None:
                 self.total_template_rig = _total_template_rig
 
@@ -342,7 +347,7 @@ class MotionCorrect(object):
                         max_deviation_rigid=self.max_deviation_rigid, splits=self.splits_els,
                         num_splits_to_process=num_splits_to_process, num_iter=num_iter, template=self.total_template_els,
                         shifts_opencv=self.shifts_opencv, save_movie=save_movie, nonneg_movie=self.nonneg_movie, gSig_filt=self.gSig_filt,
-                        use_cuda=self.use_cuda, border_nan=self.border_nan)
+                        use_cuda=self.use_cuda, border_nan=self.border_nan, var_name_hdf5=self.var_name_hdf5)
                 if show_template:
                     pl.imshow(new_template_els)
                     pl.pause(.5)
@@ -2145,7 +2150,7 @@ def compute_metrics_motion_correction(fname, final_size_x, final_size_y, swap_di
 def motion_correct_batch_rigid(fname, max_shifts, dview=None, splits=56, num_splits_to_process=None, num_iter=1,
                                template=None, shifts_opencv=False, save_movie_rigid=False, add_to_movie=None,
                                nonneg_movie=False, gSig_filt=None, subidx=slice(None, None, 1), use_cuda=False,
-                               border_nan=True):
+                               border_nan=True, var_name_hdf5='mov'):
     """
     Function that perform memory efficient hyper parallelized rigid motion corrections while also saving a memory mappable file
 
@@ -2249,7 +2254,7 @@ def motion_correct_batch_rigid(fname, max_shifts, dview=None, splits=56, num_spl
                                                              dview=dview, save_movie=save_movie, base_name=os.path.split(
                                                                  fname)[-1][:-4] + '_rig_', subidx = subidx,
                                                              num_splits=num_splits_to_process, shifts_opencv=shifts_opencv, nonneg_movie=nonneg_movie, gSig_filt=gSig_filt,
-                                                             use_cuda=use_cuda, border_nan=border_nan)
+                                                             use_cuda=use_cuda, border_nan=border_nan, var_name_hdf5=var_name_hdf5)
 
         new_templ = np.nanmedian(np.dstack([r[-1] for r in res_rig]), -1)
         if gSig_filt is not None:
@@ -2271,7 +2276,7 @@ def motion_correct_batch_pwrigid(fname, max_shifts, strides, overlaps, add_to_mo
                                  dview=None, upsample_factor_grid=4, max_deviation_rigid=3,
                                  splits=56, num_splits_to_process=None, num_iter=1,
                                  template=None, shifts_opencv=False, save_movie=False, nonneg_movie=False, gSig_filt=None,
-                                 use_cuda=False, border_nan=True):
+                                 use_cuda=False, border_nan=True, var_name_hdf5='mov'):
     """
     Function that perform memory efficient hyper parallelized rigid motion corrections while also saving a memory mappable file
 
@@ -2361,7 +2366,7 @@ def motion_correct_batch_pwrigid(fname, max_shifts, strides, overlaps, add_to_mo
                                                             upsample_factor_grid=upsample_factor_grid, order='F', dview=dview, save_movie=save_movie,
                                                             base_name=os.path.split(fname)[-1][:-4] + '_els_', num_splits=num_splits_to_process,
                                                             shifts_opencv=shifts_opencv, nonneg_movie=nonneg_movie, gSig_filt=gSig_filt,
-                                                            use_cuda=use_cuda, border_nan=border_nan)
+                                                            use_cuda=use_cuda, border_nan=border_nan, var_name_hdf5=var_name_hdf5)
 
         new_templ = np.nanmedian(np.dstack([r[-1] for r in res_el]), -1)
         if gSig_filt is not None:
@@ -2407,7 +2412,7 @@ def tile_and_correct_wrapper(params):
 
     img_name, out_fname, idxs, shape_mov, template, strides, overlaps, max_shifts,\
         add_to_movie, max_deviation_rigid, upsample_factor_grid, newoverlaps, newstrides, \
-        shifts_opencv, nonneg_movie, gSig_filt, is_fiji, use_cuda, border_nan = params
+        shifts_opencv, nonneg_movie, gSig_filt, is_fiji, use_cuda, border_nan, var_name_hdf5 = params
 
     name, extension = os.path.splitext(img_name)[:2]
     extension = extension.lower()
@@ -2420,7 +2425,8 @@ def tile_and_correct_wrapper(params):
     elif extension == '.sbx':  # check if sbx file
         imgs = cm.base.movies.sbxread(img_name, idxs[0], len(idxs))
     elif extension == '.sima' or extension == '.hdf5' or extension == '.h5':
-        imgs = cm.load(img_name, subindices=list(idxs))
+        imgs = cm.load(img_name, subindices=list(idxs),
+                       var_name_hdf5=var_name_hdf5)
     elif extension == '.avi':
         imgs = cm.load(img_name, subindices=np.array(idxs))
 
@@ -2455,7 +2461,7 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
                                 max_shifts=(12, 12), max_deviation_rigid=3, newoverlaps=None, newstrides=None,
                                 upsample_factor_grid=4, order='F', dview=None, save_movie=True,
                                 base_name=None, subidx = None, num_splits=None, shifts_opencv=False, nonneg_movie=False, gSig_filt=None,
-                                use_cuda=False, border_nan=True):
+                                use_cuda=False, border_nan=True, var_name_hdf5='mov'):
     """
 
     """
@@ -2500,6 +2506,8 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
             fkeys = list(fl.keys())
             if len(fkeys)==1:
                 fsiz = fl[fkeys[0]].shape
+            elif var_name_hdf5 in fkeys:
+                fsiz = fl[var_name_hdf5].shape
             elif 'mov' in fkeys:
                 fsiz = fl['mov'].shape
             elif 'imaging' in fkeys:
@@ -2570,7 +2578,8 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
     for idx in idxs:
         pars.append([fname, fname_tot, idx, shape_mov, template, strides, overlaps, max_shifts, np.array(
             add_to_movie, dtype=np.float32), max_deviation_rigid, upsample_factor_grid,
-            newoverlaps, newstrides, shifts_opencv, nonneg_movie, gSig_filt, is_fiji, use_cuda, border_nan])
+            newoverlaps, newstrides, shifts_opencv, nonneg_movie, gSig_filt, is_fiji,
+            use_cuda, border_nan, var_name_hdf5])
 
     if dview is not None:
         logging.info('** Starting parallel motion correction **')

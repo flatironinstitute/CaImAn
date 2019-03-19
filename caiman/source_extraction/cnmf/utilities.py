@@ -901,7 +901,25 @@ def normalize_AC(A, C, YrA, b, f, neurons_sn):
 
     return csc_matrix(A), C, YrA, b, f, neurons_sn
 
-def get_file_size(file_name, var_name_hdf5=None):
+
+def get_file_size(file_name, var_name_hdf5='mov'):
+    """ Computes the dimensions of a file or a list of files without loading
+    it/them in memory. An exception is thrown if the files have FOVs with
+    different sizes
+        Args:
+            file_name: str or list
+                locations of file(s) in memory
+
+            var_name_hdf5: 'str'
+                if loading from hdf5 name of the variable to load
+
+        Returns:
+            dims: list
+                dimensions of FOV
+
+            T: list
+                number of timesteps in each file
+    """
     if isinstance(file_name, str):
         if os.path.exists(file_name):
             _, extension = os.path.splitext(file_name)[:2]

@@ -33,7 +33,7 @@ class CNMFParams(object):
                  sniper_mode=False, test_both=False, thresh_CNN_noisy=0.5,
                  thresh_fitness_delta=-50, thresh_fitness_raw=None, thresh_overlap=0.5,
                  update_freq=200, update_num_comps=True, use_dense=True, use_peak_max=True,
-                 only_init_patch=True, params_dict={},
+                 only_init_patch=True, var_name_hdf5='mov', params_dict={},
                  ):
         """Class for setting the processing parameters. All parameters for CNMF, online-CNMF, quality testing,
         and motion correction can be set here and then used in the various processing pipeline steps.
@@ -45,7 +45,7 @@ class CNMFParams(object):
         Args:
             Any parameter that is not set get a default value specified
             by the dictionary default options
-            DATA PARAMETERS (CNMFParams.data) #####
+        DATA PARAMETERS (CNMFParams.data) #####
 
             fnames: list[str]
                 list of complete paths to files that need to be processed
@@ -61,6 +61,9 @@ class CNMFParams(object):
 
             dxy: (float, float)
                 spatial resolution of FOV in pixels per um
+
+            var_name_hdf5: str, default: 'mov'
+                if loading from hdf5 name of the variable to load
 
         PATCH PARAMS (CNMFParams.patch)######
 
@@ -523,7 +526,8 @@ class CNMFParams(object):
             'dims': dims,
             'fr': fr,
             'decay_time': decay_time,
-            'dxy': dxy
+            'dxy': dxy,
+            'var_name_hdf5': var_name_hdf5
         }
 
         self.patch = {

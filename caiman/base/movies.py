@@ -1103,25 +1103,25 @@ def load(file_name, fr=30, start_time=0, meta_data=None, subindices=None,
     Args:
         file_name: string
             name of file. Possible extensions are tif, avi, npy, (npz and hdf5 are usable only if saved by calblitz)
-    
+
         fr: float
             frame rate
-    
+
         start_time: float
             initial time for frame 1
-    
+
         meta_data: dict
             dictionary containing meta information about the movie
-    
+
         subindices: iterable indexes
             for loading only portion of the movie
-    
+
         shape: tuple of two values
             dimension of the movie along x and y if loading from a two dimensional numpy array
-    
+
         num_frames_sub_idx:
             when reading sbx format (experimental and unstable)
-    
+
         var_name_hdf5: str
             if loading from hdf5 name of the variable to load
 
