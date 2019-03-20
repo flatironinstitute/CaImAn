@@ -107,13 +107,6 @@ class movie(ts.timeseries):
         else:
             raise Exception('Input must be an ndarray, use load instead!')
 
-    def motion_correction_online(self, max_shift_w=25, max_shift_h=25, init_frames_template=100,
-                                 show_movie=False, bilateral_blur=False, template=None, min_count=1000):
-        # FIXME: This does not match the signature in motion_correction.py:motion_correct_online
-        return motion_correct_online(self, max_shift_w=max_shift_w, max_shift_h=max_shift_h,
-                                     init_frames_template=init_frames_template, show_movie=show_movie,
-                                     bilateral_blur=bilateral_blur, template=template, min_count=min_count)
-
     def apply_shifts_online(self, xy_shifts, save_base_name=None):
         # todo: todocument
 
