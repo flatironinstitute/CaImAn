@@ -458,7 +458,7 @@ def apply_shift_online(movie_iterable, xy_shifts, save_base_name=None, order='F'
         raise Exception('Number of shifts does not match movie length!')
     count = 0
     new_mov = []
-    dims = (len(movie_iterable),) + movie_iterable[0].shape
+    dims = (len(movie_iterable),) + movie_iterable[0].shape # TODO: Refactor so length is either tracked separately or is last part of tuple
 
     if save_base_name is not None:
         fname_tot = save_base_name + '_d1_' + str(dims[1]) + '_d2_' + str(dims[2]) + '_d3_' + str(
@@ -656,7 +656,7 @@ def motion_correct_online(movie_iterable, add_to_movie, max_shift_w=25, max_shif
     else:
         init_mov = movie_iterable[slice(0, init_frames_template, 1)]
 
-    dims = (len(movie_iterable),) + movie_iterable[0].shape
+    dims = (len(movie_iterable),) + movie_iterable[0].shape # TODO: Refactor so length is either tracked separately or is last part of tuple
     logging.debug("dimensions:" + str(dims))
 
     if use_median_as_template:
@@ -2558,8 +2558,8 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
     if save_movie:
         if base_name is None:
             base_name = os.path.split(fname)[1][:-4]
-        fname_tot = base_name + '_d1_' + str(dims[0]) + '_d2_' + str(dims[1]) + '_d3_1' + \
-            '_order_' + str(order) + '_frames_' + str(T) + '_.mmap'
+        fname_tot = base_name + '_d1_' + str(dims[0]) + '_d2_' + str(dims[1]) + '_d3_' + str(
+            1 if len(dims) == 2 else dims[2]) + '_order_' + str(order) + '_frames_' + str(T) + '_.mmap'
         fname_tot = os.path.join(os.path.split(fname)[0], fname_tot)
         np.memmap(fname_tot, mode='w+', dtype=np.float32,
                   shape=prepare_shape(shape_mov), order=order)

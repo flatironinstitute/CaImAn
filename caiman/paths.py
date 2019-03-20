@@ -6,6 +6,9 @@
 
 import os
 
+
+#######
+# datadir
 def caiman_datadir() -> str:
 	"""
 	The datadir is a user-configurable place which holds a user-modifiable copy of
@@ -20,3 +23,21 @@ def caiman_datadir() -> str:
 
 def caiman_datadir_exists() -> bool:
 	return os.path.isdir(caiman_datadir())
+
+######
+# memmap files
+#
+# Right now these are usually stored in the cwd of the script, although the basename could change that
+# In the future we may consistently store these somewhere under the caiman_datadir
+
+def memmap_frames_filename(basename:str, dims:Tuple, frames:int, order='F') -> str:
+	# Some functions calling this have the first part of *their* dims Tuple be the number of frames.
+	# They *must* pass a slice to this so dims is only X, Y, and optionally Z. Frames is passed separately.
+	dimfield_0 = dims[0]
+	dimfield_1 = dims[1]
+	if len(dims) == 2:
+		dimfield_2 = dims[2]
+	else:
+		dimfield_2 = 1
+	return f"{basename}_d1_{dimfield_0}_d2_{dimfield_1}_d3_{dimfield_2}_order_{order}_frames_{frames}_.mmap"
+
