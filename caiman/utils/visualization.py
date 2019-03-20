@@ -28,6 +28,7 @@ from scipy.sparse import issparse, spdiags, coo_matrix, csc_matrix
 from skimage.measure import find_contours
 import sys
 from tempfile import NamedTemporaryFile
+from typing import Dict
 from warnings import warn
 
 from ..base.rois import com
@@ -288,7 +289,7 @@ def get_contours(A, dims, thr=0.9, thr_method='nrg', swap_dim=False):
 
     # for each patches
     for i in range(nr):
-        pars = dict()
+        pars:Dict = dict()
         # we compute the cumulative sum of the energy of the Ath component that has been ordered from least to highest
         patch_data = A.data[A.indptr[i]:A.indptr[i + 1]]
         indx = np.argsort(patch_data)[::-1]
