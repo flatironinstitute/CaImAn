@@ -5,7 +5,7 @@
 """
 
 import os
-
+from typing import Tuple
 
 #######
 # datadir
@@ -30,7 +30,7 @@ def caiman_datadir_exists() -> bool:
 # Right now these are usually stored in the cwd of the script, although the basename could change that
 # In the future we may consistently store these somewhere under the caiman_datadir
 
-def memmap_frames_filename(basename:str, dims:Tuple, frames:int, order='F') -> str:
+def memmap_frames_filename(basename:str, dims:Tuple, frames:int, order:str='F') -> str:
 	# Some functions calling this have the first part of *their* dims Tuple be the number of frames.
 	# They *must* pass a slice to this so dims is only X, Y, and optionally Z. Frames is passed separately.
 	dimfield_0 = dims[0]
