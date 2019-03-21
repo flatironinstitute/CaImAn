@@ -112,7 +112,8 @@ class timeseries(np.ndarray):
         self.file_name = getattr(obj, 'file_name', None)
         self.meta_data = getattr(obj, 'meta_data', None)
 
-    def save(self, file_name, to32=True, order='F',imagej=False, bigtiff=True, software='CaImAn', compress=0):
+    def save(self, file_name, to32=True, order='F',imagej=False, bigtiff=True,
+             software='CaImAn', compress=0, var_name_hdf5='mov'):
         """
         Save the timeseries in various formats
 
@@ -125,6 +126,9 @@ class timeseries(np.ndarray):
 
             order: 'F' or 'C'
                 C or Fortran order
+
+            var_name_hdf5: str
+                Name of hdf5 file subdirectory
 
         Raises:
             Exception 'Extension Unknown'
@@ -191,10 +195,12 @@ class timeseries(np.ndarray):
 
             if self.meta_data[0] is None:
                 savemat(file_name, {'input_arr': np.rollaxis(
-                    input_arr, axis=0, start=3), 'start_time': self.start_time, 'fr': self.fr, 'meta_data': [], 'file_name': f_name})
+                    input_arr, axis=0, start=3), 'start_time': self.start_time,
+                    'fr': self.fr, 'meta_data': [], 'file_name': f_name})
             else:
                 savemat(file_name, {'input_arr': np.rollaxis(
-                    input_arr, axis=0, start=3), 'start_time': self.start_time, 'fr': self.fr, 'meta_data': self.meta_data, 'file_name': f_name})
+                    input_arr, axis=0, start=3), 'start_time': self.start_time,
+                    'fr': self.fr, 'meta_data': self.meta_data, 'file_name': f_name})
 
         elif extension in ('.hdf5', '.h5'):
             with h5py.File(file_name, "w") as f:
@@ -203,7 +209,7 @@ class timeseries(np.ndarray):
                 else:
                     input_arr = np.array(self)
 
-                dset = f.create_dataset("mov", data=input_arr)
+                dset = f.create_dataset(var_name_hdf5, data=input_arr)
                 dset.attrs["fr"] = self.fr
                 dset.attrs["start_time"] = self.start_time
                 try:

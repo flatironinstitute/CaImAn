@@ -1340,7 +1340,7 @@ def load(file_name, fr=30, start_time=0, meta_data=None, subindices=None,
                         return movie(images.astype(outtype))
                     else:
                         logging.debug('KEYS:' + str(f.keys()))
-                        raise Exception('Key not found in hdf5n file')
+                        raise Exception('Key not found in hdf5 file')
 
         elif extension == '.mmap':
 

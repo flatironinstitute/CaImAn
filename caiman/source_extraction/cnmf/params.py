@@ -724,11 +724,11 @@ class CNMFParams(object):
         
         self.change_params(params_dict)
         if self.data['dims'] is None and self.data['fnames'] is not None:
-            self.data['dims'] = get_file_size(self.data['fnames'])[0]
+            self.data['dims'] = get_file_size(self.data['fnames'], var_name_hdf5=self.data['var_name_hdf5'])[0]
         if self.data['fnames'] is not None:
             if isinstance(self.data['fnames'], str):
                 self.data['fnames'] = [self.data['fnames']]
-            T = get_file_size(self.data['fnames'])[1]
+            T = get_file_size(self.data['fnames'], var_name_hdf5=self.data['var_name_hdf5'])[1]
             if len(self.data['fnames']) > 1:
                 T = T[0]
             num_splits = T//max(self.motion['num_frames_split'],10)

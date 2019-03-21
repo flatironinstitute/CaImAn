@@ -220,10 +220,12 @@ class MotionCorrect(object):
         if self.min_mov is None:
             if self.gSig_filt is None:
                 self.min_mov = np.array([cm.load(self.fname[0],
+                                                 var_name_hdf5=self.var_name_hdf5,
                                                  subindices=slice(400))]).min()
             else:
                 self.min_mov = np.array([high_pass_filter_space(m_, self.gSig_filt)
-                    for m_ in cm.load(self.fname[0], subindices=slice(400))]).min()
+                    for m_ in cm.load(self.fname[0], var_name_hdf5=self.var_name_hdf5,
+                                      subindices=slice(400))]).min()
 
         if self.pw_rigid:
             self.motion_correct_pwrigid(template=template, save_movie=save_movie)
@@ -2204,19 +2206,19 @@ def motion_correct_batch_rigid(fname, max_shifts, dview=None, splits=56, num_spl
 
     """
     corrected_slicer = slice(subidx.start, subidx.stop, subidx.step * 10)
-    m = cm.load(fname, subindices=corrected_slicer)
+    m = cm.load(fname, var_name_hdf5=var_name_hdf5, subindices=corrected_slicer)
     
     if m.shape[0] < 300:
-        m = cm.load(fname, subindices=corrected_slicer)
+        m = cm.load(fname, var_name_hdf5=var_name_hdf5, subindices=corrected_slicer)
     elif m.shape[0] < 500:
         corrected_slicer = slice(subidx.start, subidx.stop, subidx.step * 5)
-        m = cm.load(fname, subindices=corrected_slicer)
+        m = cm.load(fname, var_name_hdf5=var_name_hdf5, subindices=corrected_slicer)
     else:
         corrected_slicer = slice(subidx.start, subidx.stop, subidx.step * 30)
-        m = cm.load(fname, subindices=corrected_slicer)
+        m = cm.load(fname, var_name_hdf5=var_name_hdf5, subindices=corrected_slicer)
     
     if len(m.shape) < 3:
-        m = cm.load(fname)
+        m = cm.load(fname, var_name_hdf5=var_name_hdf5)
         m = m[corrected_slicer]
         logging.warning("Your original file was saved as a single page " +
                         "file. Consider saving it in multiple smaller files" +
