@@ -28,6 +28,7 @@ import logging
 from matplotlib import animation
 import numpy as np
 import os
+from PIL import Image  # $ pip install pillow
 import pylab as pl
 import scipy.ndimage
 import scipy
@@ -41,11 +42,11 @@ from sklearn.metrics.pairwise import euclidean_distances
 import sys
 import tifffile
 from tqdm import tqdm
+from typing import List, Tuple
 import warnings
 from zipfile import ZipFile
-from PIL import Image  # $ pip install pillow
-import caiman as cm
 
+import caiman as cm
 
 from . import timeseries
 
@@ -105,12 +106,6 @@ class movie(ts.timeseries):
             return super(movie, cls).__new__(cls, input_arr, **kwargs)
         else:
             raise Exception('Input must be an ndarray, use load instead!')
-
-    def motion_correction_online(self, max_shift_w=25, max_shift_h=25, init_frames_template=100,
-                                 show_movie=False, bilateral_blur=False, template=None, min_count=1000):
-        return motion_correct_online(self, max_shift_w=max_shift_w, max_shift_h=max_shift_h,
-                                     init_frames_template=init_frames_template, show_movie=show_movie,
-                                     bilateral_blur=bilateral_blur, template=template, min_count=min_count)
 
     def apply_shifts_online(self, xy_shifts, save_base_name=None):
         # todo: todocument
@@ -427,7 +422,7 @@ class movie(ts.timeseries):
             return a * x + b
 
         try:
-            p0 = (y[0] - y[-1], 1e-6, y[-1])
+            p0:Tuple = (y[0] - y[-1], 1e-6, y[-1])
             popt, _ = scipy.optimize.curve_fit(expf, x, y, p0=p0)
             y_fit = expf(x, *popt)
         except:
@@ -825,7 +820,7 @@ class movie(ts.timeseries):
         max_els = 2**31 - 1
         if elm > max_els:
             chunk_size = old_div((max_els), d)
-            new_m = []
+            new_m:List = []
             logging.debug('Resizing in chunks because of opencv bug')
             for chunk in range(0, T, chunk_size):
                 logging.debug([chunk, np.minimum(chunk + chunk_size, T)])
@@ -1629,7 +1624,7 @@ def from_zip_file_to_movie(zipfile_name, start_end = None):
         start and end frame to extract
     @return:
     '''
-    mov = []
+    mov:List = []
     print('unzipping file into movie object')
     if start_end is not None:
         num_frames = start_end[1] - start_end[0]
