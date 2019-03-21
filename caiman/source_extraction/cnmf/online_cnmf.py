@@ -552,7 +552,7 @@ class OnACID(object):
         fls = self.params.get('data', 'fnames')
         opts = self.params.get_group('online')
         Y = caiman.load(fls[0], subindices=slice(0, opts['init_batch'],
-                 None)).astype(np.float32)
+                 None), var_name_hdf5=self.params.get('data', 'var_name_hdf5')).astype(np.float32)
 
         ds_factor = np.maximum(opts['ds_factor'], 1)
         if ds_factor > 1:
@@ -720,7 +720,8 @@ class OnACID(object):
 
             for file_count, ffll in enumerate(process_files):
                 print('Now processing file ' + ffll)
-                Y_ = caiman.load(ffll, subindices=slice(init_batc_iter[file_count], None, None))
+                Y_ = caiman.load(ffll, var_name_hdf5=self.params.get('data', 'var_name_hdf5'), 
+                                 subindices=slice(init_batc_iter[file_count], None, None))
 
                 old_comps = self.N     # number of existing components
                 for frame_count, frame in enumerate(Y_):   # process each file
