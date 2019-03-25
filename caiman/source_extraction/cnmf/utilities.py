@@ -949,7 +949,7 @@ def get_file_size(file_name, var_name_hdf5='mov'):
                     kk = list(f.keys())
                     if len(kk) == 1:
                         siz = f[kk[0]].shape
-                    elif var_name_hdf5 in kk:
+                    elif var_name_hdf5 in f:
                         siz = f[var_name_hdf5].shape
                     else:
                         print(kk)

@@ -1305,7 +1305,7 @@ def load(file_name, fr=30, start_time=0, meta_data=None, subindices=None,
                     fkeys = list(f.keys())
                     if len(fkeys) == 1:
                         var_name_hdf5 = fkeys[0]
-                    if var_name_hdf5 in fkeys:
+                    if var_name_hdf5 in f:
                         if subindices is None:
                             images = np.array(f[var_name_hdf5]).squeeze()
                             if images.ndim > 3:
