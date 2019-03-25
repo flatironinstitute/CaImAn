@@ -2420,19 +2420,21 @@ def tile_and_correct_wrapper(params):
     name, extension = os.path.splitext(img_name)[:2]
     extension = extension.lower()
     shift_info = []
-    if extension == '.tif' or extension == '.tiff':  # check if tiff file
-#        with tifffile.TiffFile(img_name) as tffl:
-#            imgs = tffl.asarray(img_name, key=idxs)
-        imgs = cm.load(img_name, subindices=idxs)
 
-    elif extension == '.sbx':  # check if sbx file
-        imgs = cm.base.movies.sbxread(img_name, idxs[0], len(idxs))
-    elif extension == '.sima' or extension == '.hdf5' or extension == '.h5':
-        imgs = cm.load(img_name, subindices=list(idxs),
-                       var_name_hdf5=var_name_hdf5)
-    elif extension == '.avi':
-        imgs = cm.load(img_name, subindices=np.array(idxs))
+#    if extension == '.tif' or extension == '.tiff':  # check if tiff file
+##        with tifffile.TiffFile(img_name) as tffl:
+##            imgs = tffl.asarray(img_name, key=idxs)
+#        imgs = cm.load(img_name, subindices=idxs)
+#
+#    elif extension == '.sbx':  # check if sbx file
+#        imgs = cm.base.movies.sbxread(img_name, idxs[0], len(idxs))
+#    elif extension == '.sima' or extension == '.hdf5' or extension == '.h5':
+#        imgs = cm.load(img_name, subindices=list(idxs),
+#                       var_name_hdf5=var_name_hdf5)
+#    elif extension == '.avi':
+#        imgs = cm.load(img_name, subindices=np.array(idxs))
 
+    imgs = cm.load(img_name, subindices=idxs)
     mc = np.zeros(imgs.shape, dtype=np.float32)
     for count, img in enumerate(imgs):
         if count % 10 == 0:
