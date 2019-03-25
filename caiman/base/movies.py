@@ -1308,13 +1308,13 @@ def load(file_name, fr=30, start_time=0, meta_data=None, subindices=None,
                     if var_name_hdf5 in f:
                         if subindices is None:
                             images = np.array(f[var_name_hdf5]).squeeze()
-                            if images.ndim > 3:
-                                images = images[:, 0]
+                            #if images.ndim > 3:
+                            #    images = images[:, 0]
                         else:
                             images = np.array(
                                 f[var_name_hdf5][subindices]).squeeze()
-                            if images.ndim > 3:
-                                images = images[:, 0]
+                            #if images.ndim > 3:
+                            #    images = images[:, 0]
 
                         #input_arr = images
                         return movie(images.astype(outtype))
