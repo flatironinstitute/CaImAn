@@ -1549,7 +1549,7 @@ def extract_ac(data_filtered, data_raw, ind_ctr, patch_dims):
 
 
 @profile
-def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True, ssub=1, tsub=1, parallel=True):
+def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True, ssub=1, tsub=1, parallel=False):
     """compute background according to ring model
     solves the problem
         min_{W,b0} ||X-W*X|| with X = Y - A*C - b0*1'

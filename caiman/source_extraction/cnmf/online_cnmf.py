@@ -720,7 +720,7 @@ class OnACID(object):
                         # W.data[W.indptr[p]:W.indptr[p + 1]] = np.linalg.inv(tmp).dot(XXt[index, p])
                         return np.linalg.inv(tmp).dot(XXt[index, p])
 
-                    if current_process().name == 'MainProcess':
+                    if False:  # current_process().name == 'MainProcess':
                         W.data = np.concatenate(parmap(process_pixel, range(W.shape[0])))
                     else:
                         W.data = np.concatenate(list(map(process_pixel, range(W.shape[0]))))
