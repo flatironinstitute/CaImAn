@@ -1158,19 +1158,22 @@ def load(file_name, fr=30, start_time=0, meta_data=None, subindices=None,
         extension = extension.lower()
         if extension == '.tif' or extension == '.tiff':  # load avi file
             with tifffile.TiffFile(file_name) as tffl:
+                multi_page = True if tffl.series[0].shape[0] > 1 else False
+                if len(tffl.pages) == 1:
+                    logging.warning('Your tif file is saved a single page' +
+                                    'file. Performance will be affected')
+                    multi_page = False
                 if subindices is not None:
                     if type(subindices) is list:
-                        try:
+                        if multi_page:
                             input_arr  = tffl.asarray(key=subindices[0])[:, subindices[1], subindices[2]]
-                        except:
-                            logging.warning('Your tif file is saved a single page file. Performance will be affected')
+                        else:
                             input_arr = tffl.asarray()
                             input_arr = input_arr[subindices[0], subindices[1], subindices[2]]
                     else:
-                        try:
+                        if multi_page:
                             input_arr  = tffl.asarray(key=subindices)
-                        except:
-                            logging.warning('Your tif file is saved a single page file. Performance will be affected')
+                        else:
                             input_arr = tffl.asarray()
                             input_arr = input_arr[subindices]
 
@@ -1284,24 +1287,6 @@ def load(file_name, fr=30, start_time=0, meta_data=None, subindices=None,
                 raise Exception('Subindices not implemented')
             with np.load(file_name) as f:
                 return movie(**f).astype(outtype)
-
-#        elif extension in ('.hdf5', '.h5'):
-#            with h5py.File(file_name, "r") as f:
-#                attrs = dict(f[var_name_hdf5].attrs)
-#                if meta_data in attrs:
-#                    attrs['meta_data'] = cpk.loads(attrs['meta_data'])
-#
-#                if subindices is None:
-#                    return movie(f[var_name_hdf5], **attrs).astype(outtype)
-#                else:
-#                    return movie(f[var_name_hdf5][subindices], **attrs).astype(outtype)
-
-        elif extension == '.h5_at':
-            with h5py.File(file_name, "r") as f:
-                if subindices is None:
-                    return movie(f['quietBlock'], fr=fr).astype(outtype)
-                else:
-                    return movie(f['quietBlock'][subindices], fr=fr).astype(outtype)
 
         elif extension in ('.hdf5', '.h5'):
             if is_behavior:
