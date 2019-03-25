@@ -1489,7 +1489,10 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial=3, gSig=(5, 5),
         if na:
             ain /= sqrt(na)
             Ain.append(ain)
-            Y_patch.append(Yres_buf.T[indeces, :]) if compute_corr else all_indices.append(indeces)
+            if compute_corr:
+                Y_patch.append(Yres_buf.T[indeces, :])
+            else:
+                all_indices.append(indeces)
             idx.append(ind)
             if sniper_mode:
                 Ain_cnn.append(ain_cnn)

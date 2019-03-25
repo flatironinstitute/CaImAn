@@ -184,12 +184,12 @@ def get_noise_fft(Y, noise_range=[0.25, 0.5], noise_method='logmexp', max_num_sa
                 cv2.setNumThreads(0)
             except:
                 pass
-            psdx = []
+            psdx_list = []
             for y in Y.reshape(-1, T):
                 dft = cv2.dft(y, flags=cv2.DFT_COMPLEX_OUTPUT).squeeze()[
                     :len(ind)][ind]
-                psdx.append(np.sum(1. / T * dft * dft, 1))
-            psdx = np.reshape(psdx, Y.shape[:-1] + (-1,))
+                psdx_list.append(np.sum(1. / T * dft * dft, 1))
+            psdx = np.reshape(psdx_list, Y.shape[:-1] + (-1,))
         else:
             xdft = np.fft.rfft(Y, axis=-1)
             xdft = xdft[..., ind[:xdft.shape[-1]]]

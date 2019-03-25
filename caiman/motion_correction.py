@@ -60,6 +60,9 @@ import tifffile
 from typing import List, Optional
 
 import caiman as cm
+import caiman.base.movies
+import caiman.motion_correction
+from caiman.paths import memmap_frames_filename
 from .mmapping import prepare_shape
 
 try:
@@ -461,9 +464,7 @@ def apply_shift_online(movie_iterable, xy_shifts, save_base_name=None, order='F'
     dims = (len(movie_iterable),) + movie_iterable[0].shape # TODO: Refactor so length is either tracked separately or is last part of tuple
 
     if save_base_name is not None:
-        fname_tot = save_base_name + '_d1_' + str(dims[1]) + '_d2_' + str(dims[2]) + '_d3_' + str(
-            1 if len(dims) == 3 else dims[3]) + '_order_' + str(order) + '_frames_' + str(dims[0]) + '_.mmap'
-
+        fname_tot = memmap_frames_filename(save_base_name, dims[1:], dims[0], order)
         big_mov = np.memmap(fname_tot, mode='w+', dtype=np.float32,
                             shape=prepare_shape((np.prod(dims[1:]), dims[0])), order=order)
 
@@ -517,7 +518,7 @@ def motion_correct_oneP_rigid(
     Returns:
         Motion correction object
     '''
-    min_mov = np.array([cm.motion_correction.high_pass_filter_space(
+    min_mov = np.array([caiman.motion_correction.high_pass_filter_space(
         m_, gSig_filt) for m_ in cm.load(filename[0], subindices=range(400))]).min()
     new_templ = None
 
@@ -698,8 +699,7 @@ def motion_correct_online(movie_iterable, add_to_movie, max_shift_w=25, max_shif
                 dims = (dims[0], dims[1] + min_h -
                         max_h, dims[2] + min_w - max_w)
 
-            fname_tot = save_base_name + '_d1_' + str(dims[1]) + '_d2_' + str(dims[2]) + '_d3_' + str(
-                1 if len(dims) == 3 else dims[3]) + '_order_' + str(order) + '_frames_' + str(dims[0]) + '_.mmap'
+            fname_tot:Optional[str] = memmap_frames_filename(save_base_name, dims[1:], dims[0], order)
             big_mov = np.memmap(fname_tot, mode='w+', dtype=np.float32,
                                 shape=prepare_shape((np.prod(dims[1:]), dims[0])), order=order)
 
@@ -765,9 +765,8 @@ def motion_correct_online(movie_iterable, add_to_movie, max_shift_w=25, max_shif
                     new_img = new_img[:, :min_w]
 
             if (save_base_name is not None) and (n_iter == (n + 1)):
-
-                big_mov[:, idx_frame] = np.reshape(
-                    new_img, np.prod(dims[1:]), order='F')
+                big_mov[:, idx_frame] = np.reshape(new_img, np.prod(dims[1:]), order='F') # type: ignore
+                                                                                          # mypy cannot prove that big_mov is not still None
 
             if mov is not None and (n_iter == (n + 1)):
                 mov.append(new_img)
@@ -2222,7 +2221,7 @@ def motion_correct_batch_rigid(fname, max_shifts, dview=None, splits=56, num_spl
             m = cm.movie(
                 np.array([high_pass_filter_space(m_, gSig_filt) for m_ in m]))
 
-        template = cm.motion_correction.bin_median(
+        template = caiman.motion_correction.bin_median(
             m.motion_correct(max_shifts[1], max_shifts[0], template=None)[0])
 
     new_templ = template
@@ -2419,7 +2418,7 @@ def tile_and_correct_wrapper(params):
         imgs = cm.load(img_name, subindices=idxs)
 
     elif extension == '.sbx':  # check if sbx file
-        imgs = cm.base.movies.sbxread(img_name, idxs[0], len(idxs))
+        imgs = caiman.base.movies.sbxread(img_name, idxs[0], len(idxs))
     elif extension == '.sima' or extension == '.hdf5' or extension == '.h5':
         imgs = cm.load(img_name, subindices=list(idxs))
     elif extension == '.avi':
@@ -2480,7 +2479,7 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
 
     elif extension == '.sbx':  # check if sbx file
 
-        shape = cm.base.movies.sbxshape(name)
+        shape = caiman.base.movies.sbxshape(name)
         d1 = shape[1]
         d2 = shape[0]
         T = shape[2]
@@ -2558,8 +2557,7 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
     if save_movie:
         if base_name is None:
             base_name = os.path.split(fname)[1][:-4]
-        fname_tot = base_name + '_d1_' + str(dims[0]) + '_d2_' + str(dims[1]) + '_d3_' + str(
-            1 if len(dims) == 2 else dims[2]) + '_order_' + str(order) + '_frames_' + str(T) + '_.mmap'
+        fname_tot = memmap_frames_filename(base_name, dims, T, order)
         fname_tot = os.path.join(os.path.split(fname)[0], fname_tot)
         np.memmap(fname_tot, mode='w+', dtype=np.float32,
                   shape=prepare_shape(shape_mov), order=order)

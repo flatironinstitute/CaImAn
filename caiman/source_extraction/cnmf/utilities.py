@@ -22,6 +22,7 @@ See Also:
 from builtins import str
 from builtins import range
 from past.utils import old_div
+
 import cv2
 import h5py
 import logging
@@ -33,6 +34,8 @@ from scipy.sparse import spdiags, issparse, csc_matrix, csr_matrix
 import scipy.ndimage.morphology as morph
 from skimage.feature.peak import _get_high_intensity_peaks
 import tifffile
+from typing import List
+
 from .initialization import greedyROI
 from ...base.rois import com
 from ...mmapping import parallel_dot_product, load_memmap
@@ -797,7 +800,7 @@ def update_order_greedy(A, flag_AA=True):
         Eftychios A. Pnevmatikakis, Simons Foundation, 2017
     """
     K = np.shape(A)[-1]
-    parllcomp = []
+    parllcomp:List = []
     for i in range(K):
         new_list = True
         for ls in parllcomp:

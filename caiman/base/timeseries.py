@@ -19,6 +19,8 @@ from scipy.io import savemat
 import tifffile
 import warnings
 
+from caiman.paths import memmap_frames_filename
+
 try:
     cv2.setNumThreads(0)
 except:
@@ -228,8 +230,7 @@ class timeseries(np.ndarray):
             input_arr = np.transpose(input_arr, list(range(1, len(dims) + 1)) + [0])
             input_arr = np.reshape(input_arr, (np.prod(dims), T), order='F')
 
-            fname_tot = base_name + '_d1_' + str(dims[0]) + '_d2_' + str(dims[1]) + '_d3_' + str(
-                1 if len(dims) == 2 else dims[2]) + '_order_' + str(order) + '_frames_' + str(T) + '_.mmap'
+            fname_tot = memmap_frames_filename(base_name, dims, T, order)
             fname_tot = os.path.join(os.path.split(file_name)[0], fname_tot)
             big_mov = np.memmap(fname_tot, mode='w+', dtype=np.float32,
                                 shape=(np.uint64(np.prod(dims)), np.uint64(T)), order=order)
