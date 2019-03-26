@@ -1288,7 +1288,7 @@ def load(file_name, fr=30, start_time=0, meta_data=None, subindices=None,
             with np.load(file_name) as f:
                 return movie(**f).astype(outtype)
 
-        elif extension in ('.hdf5', '.h5'):
+        elif extension in ('.hdf5', '.h5', '.nwb'):
             if is_behavior:
                 with h5py.File(file_name, "r") as f:
                     kk = list(f.keys())
