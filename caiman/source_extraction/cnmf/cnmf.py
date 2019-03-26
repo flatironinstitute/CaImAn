@@ -46,7 +46,6 @@ from ... import mmapping
 from ...components_evaluation import estimate_components_quality
 from ...motion_correction import MotionCorrect
 from ...utils.utils import save_dict_to_hdf5, load_dict_from_hdf5
-from .online_cnmf import remove_components_online
 
 try:
     cv2.setNumThreads(0)
