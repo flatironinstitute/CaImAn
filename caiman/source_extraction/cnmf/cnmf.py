@@ -401,7 +401,7 @@ class CNMF(object):
         Y = np.transpose(images, list(range(1, len(self.dims) + 1)) + [0])
         Yr = np.transpose(np.reshape(images, (T, -1), order='F'))
         if np.isfortran(Yr):
-            raise Exception('The file is in F order, it should be in C order (see save_memmap function')
+            raise Exception('The file is in F order, it should be in C order (see save_memmap function)')
 
         logging.info((T,) + self.dims)
 
