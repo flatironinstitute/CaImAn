@@ -35,7 +35,7 @@ def memmap_frames_filename(basename:str, dims:Tuple, frames:int, order:str='F') 
 	# They *must* pass a slice to this so dims is only X, Y, and optionally Z. Frames is passed separately.
 	dimfield_0 = dims[0]
 	dimfield_1 = dims[1]
-	if len(dims) == 2:
+	if len(dims) == 3:
 		dimfield_2 = dims[2]
 	else:
 		dimfield_2 = 1
