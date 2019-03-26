@@ -411,7 +411,8 @@ def setup_cluster(backend='multiprocessing', n_processes=None, single_thread=Fal
                     'A cluster is already runnning. Terminate with dview.terminate() if you want to restart.')
             if (platform.system() == 'Darwin') and (sys.version_info > (3, 0)):
                 try:
-                    if 'kernel' in get_ipython().trait_names(): # If you're on OSX and you're running under Jupyter or Spyder,
+                    if 'kernel' in get_ipython().trait_names(): # type: ignore
+                                                                # If you're on OSX and you're running under Jupyter or Spyder,
                                                                 # which already run the code in a forkserver-friendly way, this
                                                                 # can eliminate some setup and make this a reasonable approach.
                                                                 # Otherwise, seting VECLIB_MAXIMUM_THREADS=1 or using a different

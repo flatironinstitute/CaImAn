@@ -9,33 +9,36 @@ Created on Wed Aug 05 20:38:27 2015
 
 # noinspection PyCompatibility
 from past.builtins import basestring
+from past.utils import old_div
 from builtins import zip
 from builtins import map
 from builtins import str
 from builtins import range
-from past.utils import old_div
+
+import cv2
+import logging
 import numpy as np
+import os
+import scipy
 from scipy.sparse import coo_matrix, csc_matrix, csr_matrix
 from scipy.sparse import spdiags
 from scipy.linalg import eig
-from scipy.ndimage.morphology import generate_binary_structure, iterate_structure
 from scipy.ndimage import label, binary_dilation
-from sklearn.decomposition import NMF
-import logging
-import scipy
-import time
-import tempfile
-import os
-import shutil
-from ...mmapping import load_memmap, parallel_dot_product
 from scipy.ndimage.filters import median_filter
 from scipy.ndimage.morphology import binary_closing
-import cv2
+from scipy.ndimage.morphology import generate_binary_structure, iterate_structure
+import shutil
+from sklearn.decomposition import NMF
+import tempfile
+import time
+from typing import List
+
+from ...mmapping import load_memmap, parallel_dot_product
 
 
 def basis_denoising(y, c, boh, sn, id2_, px):
     if np.size(c) > 0:
-        _, _, a, _, _ = lars_regression_noise(y, c, 1, sn)
+        _, _, a, _, _ = lars_regression_noise(y, c, 1, sn) # FIXME Undefined function
     else:
         return (None, None, None)
     return a, px, id2_
@@ -855,7 +858,7 @@ def determine_search_location(A, dims, method='ellipse', min_size=3, max_size=8,
             Coor['z'] = np.kron(list(range(d3)), np.ones(d2 * d1))
         if not dist == np.inf:  # determine search area for each neuron
             cm = np.zeros((nr, len(dims)))  # vector for center of mass
-            Vr = []  # cell(nr,1);
+            Vr:List = []  # cell(nr,1);
             dist_indicator = []
             pars = []
             # for each dim

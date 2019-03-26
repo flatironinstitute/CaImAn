@@ -467,7 +467,7 @@ class CNMF(object):
                     logging.info(('Keeping ' + str(len(idx_components)) +
                            ' and discarding  ' + str(len(idx_components_bad))))
                     self.estimates.C = self.estimates.C[idx_components]
-                    self.estimates.A = self.estimates.A[:, idx_components]
+                    self.estimates.A = self.estimates.A[:, idx_components] # type: ignore # not provable that self.initialise provides a value
                     self.estimates.YrA = self.estimates.YrA[idx_components]
 
                 self.estimates.normalize_components()
@@ -754,7 +754,7 @@ class CNMF(object):
             groups = list(map(list, update_order(Ab)[0]))
         self.estimates.groups = groups
         C, noisyC = HALS4activity(Yr, Ab, Cf, groups=self.estimates.groups, order=order,
-                                  **kwargs)
+                                  **kwargs) # FIXME: this function is not defined in this scope
         if update_bck:
             if bck_non_neg:
                 self.estimates.f = C[:self.params.get('init', 'nb')]
@@ -797,7 +797,7 @@ class CNMF(object):
             except():
                 Cf = self.estimates.C
             Yr = Yr - self.estimates.b.dot(self.estimates.f)
-        Ab = HALS4shapes(Yr, Ab, Cf, iters=num_iter)
+        Ab = HALS4shapes(Yr, Ab, Cf, iters=num_iter) # FIXME: this function is not defined in this scope
         if update_bck:
             self.estimates.A = scipy.sparse.csc_matrix(Ab[:, self.params.get('init', 'nb'):])
             self.estimates.b = Ab[:, :self.params.get('init', 'nb')]
