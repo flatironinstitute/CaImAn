@@ -1098,25 +1098,25 @@ def load(file_name, fr=30, start_time=0, meta_data=None, subindices=None,
     Args:
         file_name: string
             name of file. Possible extensions are tif, avi, npy, (npz and hdf5 are usable only if saved by calblitz)
-    
+
         fr: float
             frame rate
-    
+
         start_time: float
             initial time for frame 1
-    
+
         meta_data: dict
             dictionary containing meta information about the movie
-    
+
         subindices: iterable indexes
             for loading only portion of the movie
-    
+
         shape: tuple of two values
             dimension of the movie along x and y if loading from a two dimensional numpy array
-    
+
         num_frames_sub_idx:
             when reading sbx format (experimental and unstable)
-    
+
         var_name_hdf5: str
             if loading from hdf5 name of the variable to load
 
@@ -1158,19 +1158,22 @@ def load(file_name, fr=30, start_time=0, meta_data=None, subindices=None,
         extension = extension.lower()
         if extension == '.tif' or extension == '.tiff':  # load avi file
             with tifffile.TiffFile(file_name) as tffl:
+                multi_page = True if tffl.series[0].shape[0] > 1 else False
+                if len(tffl.pages) == 1:
+                    logging.warning('Your tif file is saved a single page' +
+                                    'file. Performance will be affected')
+                    multi_page = False
                 if subindices is not None:
                     if type(subindices) is list:
-                        try:
+                        if multi_page:
                             input_arr  = tffl.asarray(key=subindices[0])[:, subindices[1], subindices[2]]
-                        except:
-                            logging.warning('Your tif file is saved a single page file. Performance will be affected')
+                        else:
                             input_arr = tffl.asarray()
                             input_arr = input_arr[subindices[0], subindices[1], subindices[2]]
                     else:
-                        try:
+                        if multi_page:
                             input_arr  = tffl.asarray(key=subindices)
-                        except:
-                            logging.warning('Your tif file is saved a single page file. Performance will be affected')
+                        else:
                             input_arr = tffl.asarray()
                             input_arr = input_arr[subindices]
 
@@ -1285,24 +1288,6 @@ def load(file_name, fr=30, start_time=0, meta_data=None, subindices=None,
             with np.load(file_name) as f:
                 return movie(**f).astype(outtype)
 
-#        elif extension in ('.hdf5', '.h5'):
-#            with h5py.File(file_name, "r") as f:
-#                attrs = dict(f[var_name_hdf5].attrs)
-#                if meta_data in attrs:
-#                    attrs['meta_data'] = cpk.loads(attrs['meta_data'])
-#
-#                if subindices is None:
-#                    return movie(f[var_name_hdf5], **attrs).astype(outtype)
-#                else:
-#                    return movie(f[var_name_hdf5][subindices], **attrs).astype(outtype)
-
-        elif extension == '.h5_at':
-            with h5py.File(file_name, "r") as f:
-                if subindices is None:
-                    return movie(f['quietBlock'], fr=fr).astype(outtype)
-                else:
-                    return movie(f['quietBlock'][subindices], fr=fr).astype(outtype)
-
         elif extension in ('.hdf5', '.h5'):
             if is_behavior:
                 with h5py.File(file_name, "r") as f:
@@ -1320,22 +1305,22 @@ def load(file_name, fr=30, start_time=0, meta_data=None, subindices=None,
                     fkeys = list(f.keys())
                     if len(fkeys) == 1:
                         var_name_hdf5 = fkeys[0]
-                    if var_name_hdf5 in fkeys:
+                    if var_name_hdf5 in f:
                         if subindices is None:
                             images = np.array(f[var_name_hdf5]).squeeze()
-                            if images.ndim > 3:
-                                images = images[:, 0]
+                            #if images.ndim > 3:
+                            #    images = images[:, 0]
                         else:
                             images = np.array(
                                 f[var_name_hdf5][subindices]).squeeze()
-                            if images.ndim > 3:
-                                images = images[:, 0]
+                            #if images.ndim > 3:
+                            #    images = images[:, 0]
 
                         #input_arr = images
                         return movie(images.astype(outtype))
                     else:
                         logging.debug('KEYS:' + str(f.keys()))
-                        raise Exception('Key not found in hdf5n file')
+                        raise Exception('Key not found in hdf5 file')
 
         elif extension == '.mmap':
 
