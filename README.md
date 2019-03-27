@@ -28,7 +28,7 @@ A paper explaining most of the implementation details and benchmarking can be fo
 
 ## New: Code refactoring (October 2018)
 
-We recently refactored the code to simplify the parameter setting and usage of the various algorithms. The code now is based revolves around the following objects:
+We recently refactored the code to simplify the parameter setting and usage of the various algorithms. The code now is based around the following objects:
 
 * `params`: A single object containing a set of dictionaries with the parameters used in all the algorithms. It can be set and changed easily and is passed into all the algorithms.
 * `MotionCorrect`: An object for motion correction which can be used for both rigid and piece-wise rigid motion correction.
