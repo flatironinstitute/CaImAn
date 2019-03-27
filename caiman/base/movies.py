@@ -99,6 +99,9 @@ class movie(ts.timeseries):
 
             file_name: name associated with the file (e.g. path to the original file)
         """
+        if isinstance(input_arr, movie):
+            return input_arr
+
         if (type(input_arr) is np.ndarray) or \
            (type(input_arr) is h5py._hl.dataset.Dataset) or\
            ('mmap' in str(type(input_arr))) or\
