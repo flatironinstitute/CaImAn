@@ -13,6 +13,7 @@ import caiman
 import logging
 from .utilities import detrend_df_f
 from .spatial import threshold_components
+from .merging import merge_iteration
 from ...components_evaluation import (
         evaluate_components_CNN, estimate_components_quality_auto,
         select_components_from_metrics)
@@ -147,11 +148,12 @@ class Estimates(object):
         self.shifts = []
 
         self.A_thr = None
+        self.discarded_components = None
 
 
 
     def plot_contours(self, img=None, idx=None, crd=None, thr_method='max',
-                      thr='0.2', display_numbers=True):
+                      thr='0.2', display_numbers=True, params=None):
         """view contours of all spatial footprints.
 
         Args:
@@ -168,6 +170,8 @@ class Estimates(object):
                 threshold value
             display_numbers :   bool
                 flag for displaying the id number of each contour
+            params : params object
+                set of dictionary containing the various parameters
         """
         if 'csc_matrix' not in str(type(self.A)):
             self.A = scipy.sparse.csc_matrix(self.A)
@@ -175,7 +179,12 @@ class Estimates(object):
             img = np.reshape(np.array(self.A.mean(1)), self.dims, order='F')
         if self.coordinates is None:  # not hasattr(self, 'coordinates'):
             self.coordinates = caiman.utils.visualization.get_contours(self.A, self.dims, thr=thr, thr_method=thr_method)
-        plt.figure()
+        plt.figure()   
+        if params is not None:
+            plt.suptitle('min_SNR=%1.2f, rval_thr=%1.2f, use_cnn=%i'
+                         %(params.quality['SNR_lowest'],
+                           params.quality['rval_thr'],
+                           int(params.quality['use_cnn'])))
         if idx is None:
             caiman.utils.visualization.plot_contours(self.A, img, coordinates=self.coordinates,
                                                      display_numbers=display_numbers)
@@ -199,7 +208,7 @@ class Estimates(object):
         return self
 
     def plot_contours_nb(self, img=None, idx=None, crd=None, thr_method='max',
-                         thr='0.2'):
+                         thr='0.2', params=None):
         """view contours of all spatial footprints (notebook environment).
 
         Args:
@@ -214,6 +223,8 @@ class Estimates(object):
                 thresholding method for computing contours ('max', 'nrg')
             thr : float
                 threshold value
+            params : params object
+                set of dictionary containing the various parameters
         """
         try:
             import bokeh
@@ -229,6 +240,12 @@ class Estimates(object):
                                 self.dims[1], coordinates=self.coordinates,
                                 thr_method=thr_method, thr=thr, show=False)
                 p.title.text = 'Contour plots of found components'
+                if params is not None:
+                    p.xaxis.axis_label = '''\
+                    min_SNR={min_SNR}, rval_thr={rval_thr}, use_cnn={use_cnn}\
+                    '''.format(min_SNR=params.quality['SNR_lowest'],
+                               rval_thr=params.quality['rval_thr'],
+                               use_cnn=params.quality['use_cnn'])
                 bokeh.plotting.show(p)
             else:
                 if not isinstance(idx, list):
@@ -240,8 +257,14 @@ class Estimates(object):
                                 self.dims[0], self.dims[1], coordinates=coor_g,
                                 thr_method=thr_method, thr=thr, show=False)
                 p1.plot_width = 450
-                p1.plot_height = 450 * self.dims[0] // self.dims[1] 
+                p1.plot_height = 450 * self.dims[0] // self.dims[1]
                 p1.title.text = "Accepted Components"
+                if params is not None:
+                    p1.xaxis.axis_label = '''\
+                    min_SNR={min_SNR}, rval_thr={rval_thr}, use_cnn={use_cnn}\
+                    '''.format(min_SNR=params.quality['SNR_lowest'],
+                               rval_thr=params.quality['rval_thr'],
+                               use_cnn=params.quality['use_cnn'])
                 bad = list(set(range(self.A.shape[1])) - set(idx))
                 p2 = caiman.utils.visualization.nb_plot_contour(img, self.A[:, bad],
                                 self.dims[0], self.dims[1], coordinates=coor_b,
@@ -249,12 +272,18 @@ class Estimates(object):
                 p2.plot_width = 450
                 p2.plot_height = 450 * self.dims[0] // self.dims[1]
                 p2.title.text = 'Rejected Components'
+                if params is not None:
+                    p2.xaxis.axis_label = '''\
+                    min_SNR={min_SNR}, rval_thr={rval_thr}, use_cnn={use_cnn}\
+                    '''.format(min_SNR=params.quality['SNR_lowest'],
+                               rval_thr=params.quality['rval_thr'],
+                               use_cnn=params.quality['use_cnn'])
                 bokeh.plotting.show(bokeh.layouts.row(p1, p2))
         except:
             print("Bokeh could not be loaded. Either it is not installed or you are not running within a notebook")
             print("Using non-interactive plot as fallback")
             self.plot_contours(img=img, idx=idx, crd=crd, thr_method=thr_method,
-                         thr=thr)
+                         thr=thr, params=params)
         return self
 
     def view_components(self, Yr=None, img=None, idx=None):
@@ -358,12 +387,6 @@ class Estimates(object):
                 movie in format pixels (d) x frames (T) (only required to
                 compute the correlation image)
 
-            img :   np.ndarray
-                background image for contour plotting. Default is the mean
-                image of all spatial components (d1 x d2)
-
-            idx :   list
-                list of components to be plotted
 
             dims: tuple of ints
                 dimensions of movie (x, y and z)
@@ -584,7 +607,7 @@ class Estimates(object):
                 self.F_dff contains the DF/F normalized traces
         """
 
-        if self.C is None:
+        if self.C is None or self.C.shape[0] == 0:
             logging.warning("There are no components for DF/F extraction!")
             return self
 
@@ -640,7 +663,7 @@ class Estimates(object):
             self.f = nB_mat * self.f
         return self
 
-    def select_components(self, idx_components=None, use_object=False):
+    def select_components(self, idx_components=None, use_object=False, save_discarded_components=True):
         """Keeps only a selected subset of components and removes the rest.
         The subset can be either user defined with the variable idx_components
         or read from the estimates object. The flag use_object determines this
@@ -653,18 +676,29 @@ class Estimates(object):
             use_object: bool
                 Flag to use self.idx_components for reading the indeces.
 
+            save_discarded_components: bool
+                whether to save the components from initialization so that they can be restored using the restore_discarded_components method
+
         Returns:
             self: Estimates object
         """
         if use_object:
             idx_components = self.idx_components
+            idx_components_bad = self.idx_components_bad
+        else:
+            idx_components_bad = np.setdiff1d(np.arange(self.A.shape[-1]), idx_components)
 
         if idx_components is not None:
-            for field in ['C', 'S', 'YrA', 'R', 'g', 'bl', 'c1', 'neurons_sn', 'lam', 'cnn_preds','SNR_comp','r_values','coordinates']:
+            if save_discarded_components:
+                self.discarded_components = Estimates()
+
+            for field in ['C', 'S', 'YrA', 'R', 'F_dff', 'g', 'bl', 'c1', 'neurons_sn', 'lam', 'cnn_preds','SNR_comp','r_values','coordinates']:
                 if getattr(self, field) is not None:
                     if type(getattr(self, field)) is list:
                         setattr(self, field, np.array(getattr(self, field)))
                     if len(getattr(self, field)) == self.A.shape[-1]:
+                        if save_discarded_components:
+                            setattr(self.discarded_components, field, getattr(self, field)[idx_components_bad])
                         setattr(self, field, getattr(self, field)[idx_components])
                     else:
                         print('*** Variable ' + field + ' has not the same number of components as A ***')
@@ -672,14 +706,56 @@ class Estimates(object):
             for field in ['A', 'A_thr']:
                 if getattr(self, field) is not None:
                     if 'sparse' in str(type(getattr(self, field))):
+                        if save_discarded_components:
+                            setattr(self.discarded_components, field, getattr(self, field).tocsc()[:, idx_components_bad])
                         setattr(self, field, getattr(self, field).tocsc()[:, idx_components])
+
                     else:
+                        if save_discarded_components:
+                            setattr(self.discarded_components, field, getattr(self, field)[:, idx_components_bad])
                         setattr(self, field, getattr(self, field)[:, idx_components])
+
+
+            self.nr = len(idx_components)
+
+            if save_discarded_components:
+                self.discarded_components.nr = len(idx_components_bad)
+                self.discarded_components.dims = self.dims
 
             self.idx_components = None
             self.idx_components_bad = None
 
         return self
+
+    def restore_discarded_components(self):
+        ''' Recover components that are filtered out with the select_components method
+        @param: None
+        @return: None
+        '''
+        if self.discarded_components is not None:
+            for field in ['C', 'S', 'YrA', 'R', 'F_dff', 'g', 'bl', 'c1', 'neurons_sn', 'lam', 'cnn_preds','SNR_comp','r_values','coordinates']:
+                if getattr(self, field) is not None:
+                    if type(getattr(self, field)) is list:
+                        setattr(self, field, np.array(getattr(self, field)))
+                    if len(getattr(self, field)) == self.A.shape[-1]:
+                        setattr(self, field, np.concatenate([getattr(self, field), getattr(self.discarded_components, field)], axis=0))
+                        setattr(self.discarded_components, field, None)
+                    else:
+                        logging.warning('Variable ' + field + ' could not be \
+                                        restored as it does not have the same \
+                                        number of components as A')
+
+            for field in ['A', 'A_thr']:
+                print(field)
+                if getattr(self, field) is not None:
+                    if 'sparse' in str(type(getattr(self, field))):
+                        setattr(self, field, scipy.sparse.hstack([getattr(self, field).tocsc(),getattr(self.discarded_components, field).tocsc()]))
+                    else:
+                        setattr(self, field,np.concatenate([getattr(self, field), getattr(self.discarded_components, field)], axis=0))
+
+                    setattr(self.discarded_components, field, None)
+
+            self.nr = self.A.shape[-1]
 
     def evaluate_components_CNN(self, params, neuron_class=1):
         """Estimates the quality of inferred spatial components using a
@@ -697,7 +773,7 @@ class Estimates(object):
         """
         dims = params.get('data', 'dims')
         gSig = params.get('init', 'gSig')
-        min_cnn_thr= params.get('quality', 'min_cnn_thr')
+        min_cnn_thr = params.get('quality', 'min_cnn_thr')
         predictions = evaluate_components_CNN(self.A, dims, gSig)[0]
         self.cnn_preds = predictions[:, neuron_class]
         self.idx_components = np.where(self.cnn_preds >= min_cnn_thr)[0]
@@ -758,8 +834,8 @@ class Estimates(object):
                                          thresh_cnn_lowest=opts['cnn_lowest'],
                                          r_values_lowest=opts['rval_lowest'],
                                          min_SNR_reject=opts['SNR_lowest'])
-        self.idx_components = idx_components
-        self.idx_components_bad = idx_components_bad
+        self.idx_components = idx_components.astype(int)
+        self.idx_components_bad = idx_components_bad.astype(int)
         self.SNR_comp = SNR_comp
         self.r_values = r_values
         self.cnn_preds = cnn_preds
@@ -807,7 +883,7 @@ class Estimates(object):
                         gSig scale values for CNN classifier
 
         Returns:
-            self: CNMF object
+            self: estimates object
                 self.idx_components: np.array
                     indeces of accepted components
                 self.idx_components_bad: np.array
@@ -843,8 +919,127 @@ class Estimates(object):
 
         return self
 
+    def manual_merge(self, components, params):
+        ''' merge a given list of components. The indeces
+        of components are not pythonic, i.e., they start from 1. Moreover,
+        the indeces refer to the absolute indeces, i.e., the indeces before
+        spliting the components in accepted and rejected. If you want to e.g.
+        merge components 1 from idx_components and 10 from idx_components_bad
+        you will to set
+        ```
+        components = [[self.idx_components[0], self.idx_components_bad[9]]]
+        ```
+
+        Args:
+            components: list
+                list of components to be merged. Each element should be a
+                tuple, list or np.array of the components to be merged. No
+                duplicates are allowed. If you're merging only one pair (or
+                set) of components, then use a list with a single (list)
+                element
+            params: params object
+                
+        Returns:
+            self: estimates object
+        '''
+
+        ln = np.sum(np.array([len(comp) for comp in components]))
+        ids = set.union(*[set(comp) for comp in components])
+        if ln != len(ids):
+            raise Exception('The given list contains duplicate entries')
+
+        p = params.temporal['p']
+        nbmrg = len(components)   # number of merging operations
+        d = self.A.shape[0]
+        T = self.C.shape[1]
+        # we initialize the values
+        A_merged = scipy.sparse.lil_matrix((d, nbmrg))
+        C_merged = np.zeros((nbmrg, T))
+        S_merged = np.zeros((nbmrg, T))
+        bl_merged = np.zeros((nbmrg, 1))
+        c1_merged = np.zeros((nbmrg, 1))
+        sn_merged = np.zeros((nbmrg, 1))
+        g_merged = np.zeros((nbmrg, p))
+        merged_ROIs = []
+
+        for i in range(nbmrg):
+            merged_ROI = list(set(components[i]))
+            logging.info('Merging components {}'.format(merged_ROI))
+            merged_ROIs.append(merged_ROI)
+
+            Acsc = self.A.tocsc()[:, merged_ROI]
+            Ctmp = np.array(self.C[merged_ROI]) + np.array(self.YrA[merged_ROI])
+
+            C_to_norm = np.sqrt(np.ravel(Acsc.power(2).sum(
+                axis=0)) * np.sum(Ctmp ** 2, axis=1))
+            indx = np.argmax(C_to_norm)
+            g_idx = [merged_ROI[indx]]
+            fast_merge = True
+            bm, cm, computedA, computedC, gm, \
+            sm, ss = merge_iteration(Acsc, C_to_norm, Ctmp, fast_merge, 
+                                     None, g_idx, indx, params.temporal)
+
+            A_merged[:, i] = computedA
+            C_merged[i, :] = computedC
+            S_merged[i, :] = ss[:T]
+            bl_merged[i] = bm
+            c1_merged[i] = cm
+            sn_merged[i] = sm
+            g_merged[i, :] = gm
+
+        empty = np.ravel((C_merged.sum(1) == 0) + (A_merged.sum(0) == 0))
+        nbmrg -= len(empty)
+        if np.any(empty):
+            A_merged = A_merged[:, ~empty]
+            C_merged = C_merged[~empty]
+            S_merged = S_merged[~empty]
+            bl_merged = bl_merged[~empty]
+            c1_merged = c1_merged[~empty]
+            sn_merged = sn_merged[~empty]
+            g_merged = g_merged[~empty]
+
+        neur_id = np.unique(np.hstack(merged_ROIs))
+        nr = self.C.shape[0]
+        good_neurons = np.setdiff1d(list(range(nr)), neur_id)
+        if self.idx_components is not None:
+            new_indeces = list(range(len(good_neurons),
+                                     len(good_neurons) + nbmrg))
+
+            mapping_mat = np.zeros(nr)
+            mapping_mat[good_neurons] = np.arange(len(good_neurons), dtype=int)
+            gn_ = good_neurons.tolist()
+            new_idx = [mapping_mat[i] for i in self.idx_components if i in gn_]
+            new_idx_bad = [mapping_mat[i] for i in self.idx_components_bad if i in gn_]
+            new_idx.sort()
+            new_idx_bad.sort()
+            self.idx_components = np.array(new_idx + new_indeces, dtype=int)
+            self.idx_components_bad = np.array(new_idx_bad, dtype=int)
+
+        self.A = scipy.sparse.hstack((self.A.tocsc()[:, good_neurons],
+                                      A_merged.tocsc()))
+        self.C = np.vstack((self.C[good_neurons, :], C_merged))
+        # we continue for the variables
+        if self.S is not None:
+            self.S = np.vstack((self.S[good_neurons, :], S_merged))
+        if self.bl is not None:
+            self.bl = np.hstack((self.bl[good_neurons],
+                                 np.array(bl_merged).flatten()))
+        if self.c1 is not None:
+            self.c1 = np.hstack((self.c1[good_neurons],
+                                 np.array(c1_merged).flatten()))
+        if self.sn is not None:
+            self.sn = np.hstack((self.sn[good_neurons],
+                                 np.array(sn_merged).flatten()))
+        if self.g is not None:
+            self.g = np.vstack((np.vstack(self.g)[good_neurons], g_merged))
+        self.nr = nr - len(neur_id) + len(C_merged)
+        if self.coordinates is not None:
+            self.coordinates = caiman.utils.visualization.get_contours(self.A,\
+                                self.dims, thr_method='max', thr='0.2')
+
     def threshold_spatial_components(self, maxthr=0.25, dview=None, **kwargs):
-        ''' threshold spatial components. See parameters of spatial.threshold_components
+        ''' threshold spatial components. See parameters of
+        spatial.threshold_components
 
         @param medw:
         @param thr_method:

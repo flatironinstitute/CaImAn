@@ -28,6 +28,7 @@ from scipy.sparse import issparse, spdiags, coo_matrix, csc_matrix
 from skimage.measure import find_contours
 import sys
 from tempfile import NamedTemporaryFile
+from typing import Dict
 from warnings import warn
 
 from ..base.rois import com
@@ -230,7 +231,9 @@ def nb_view_patches(Yr, A, C, b, f, d1, d2, YrA=None, image_neurons=None, thr=0.
                                  title="Neuron Number", callback=callback)
     xr = Range1d(start=0, end=image_neurons.shape[1])
     yr = Range1d(start=image_neurons.shape[0], end=0)
-    plot1 = bpl.figure(x_range=xr, y_range=yr, plot_width=300, plot_height=300)
+    plot1 = bpl.figure(x_range=xr, y_range=yr,
+                       plot_width=int(min(1, d2/d1))*300,
+                       plot_height=int(min(1, d1/d2))*300)
 
     plot1.image(image=[image_neurons[::-1, :]], x=0,
                 y=image_neurons.shape[0], dw=d2, dh=d1, palette=grayp)
@@ -286,7 +289,7 @@ def get_contours(A, dims, thr=0.9, thr_method='nrg', swap_dim=False):
 
     # for each patches
     for i in range(nr):
-        pars = dict()
+        pars:Dict = dict()
         # we compute the cumulative sum of the energy of the Ath component that has been ordered from least to highest
         patch_data = A.data[A.indptr[i]:A.indptr[i + 1]]
         indx = np.argsort(patch_data)[::-1]

@@ -3,6 +3,7 @@
 from setuptools import setup, find_packages
 import os
 from os import path
+import sys
 import numpy as np
 from Cython.Build import cythonize
 from setuptools.extension import Extension
@@ -44,10 +45,16 @@ data_files.append(['bin', binaries])
 
 # compile with:     python setup.py build_ext -i
 # clean up with:    python setup.py clean --all
+if sys.platform == 'darwin':
+	extra_compiler_args = ['-stdlib=libc++']
+else:
+	extra_compiler_args = []
+
 ext_modules = [Extension("caiman.source_extraction.cnmf.oasis",
                          sources=["caiman/source_extraction/cnmf/oasis.pyx"],
                          include_dirs=[np.get_include()],
-                         language="c++")]
+                         language="c++",
+                         extra_compile_args = extra_compiler_args)]
 
 setup(
     name='caiman',
@@ -75,7 +82,7 @@ setup(
 
         # Specify the Python versions you support here. In particular, ensure
         # that you indicate whether you support Python 2, Python 3 or both.
-        'Programming Language :: Python :: 2,3',
+        'Programming Language :: Python :: 3',
     ],
     keywords='fluorescence calcium ca imaging deconvolution ROI identification',
     packages=find_packages(exclude=['use_cases', 'use_cases.*']),

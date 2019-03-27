@@ -28,6 +28,7 @@ import logging
 from matplotlib import animation
 import numpy as np
 import os
+from PIL import Image  # $ pip install pillow
 import pylab as pl
 import scipy.ndimage
 import scipy
@@ -41,11 +42,11 @@ from sklearn.metrics.pairwise import euclidean_distances
 import sys
 import tifffile
 from tqdm import tqdm
+from typing import List, Tuple
 import warnings
 from zipfile import ZipFile
-from PIL import Image  # $ pip install pillow
-import caiman as cm
 
+import caiman as cm
 
 from . import timeseries
 
@@ -105,12 +106,6 @@ class movie(ts.timeseries):
             return super(movie, cls).__new__(cls, input_arr, **kwargs)
         else:
             raise Exception('Input must be an ndarray, use load instead!')
-
-    def motion_correction_online(self, max_shift_w=25, max_shift_h=25, init_frames_template=100,
-                                 show_movie=False, bilateral_blur=False, template=None, min_count=1000):
-        return motion_correct_online(self, max_shift_w=max_shift_w, max_shift_h=max_shift_h,
-                                     init_frames_template=init_frames_template, show_movie=show_movie,
-                                     bilateral_blur=bilateral_blur, template=template, min_count=min_count)
 
     def apply_shifts_online(self, xy_shifts, save_base_name=None):
         # todo: todocument
@@ -254,8 +249,8 @@ class movie(ts.timeseries):
         min_val = np.percentile(self, 1)
         if min_val < - 0.1:
             logging.debug("min_val in extract_shifts: " + str(min_val))
-            warnings.warn(
-                '** Pixel averages are too negative. Removing 1 percentile. **')
+            logging.warning(
+                'Movie average is negative. Removing 1st percentile.')
             self = self - min_val
         else:
             min_val = 0
@@ -273,8 +268,7 @@ class movie(ts.timeseries):
             template = np.median(self, axis=0)
         else:
             if np.percentile(template, 8) < - 0.1:
-                warnings.warn(
-                    'Pixel averages are too negative for template. Removing 1 percentile.')
+                logging.warning('Movie average is negative. Removing 1st percentile.')
                 template = template - np.percentile(template, 1)
 
         template = template[ms_h:h_i - ms_h,
@@ -428,7 +422,7 @@ class movie(ts.timeseries):
             return a * x + b
 
         try:
-            p0 = (y[0] - y[-1], 1e-6, y[-1])
+            p0:Tuple = (y[0] - y[-1], 1e-6, y[-1])
             popt, _ = scipy.optimize.curve_fit(expf, x, y, p0=p0)
             y_fit = expf(x, *popt)
         except:
@@ -826,7 +820,7 @@ class movie(ts.timeseries):
         max_els = 2**31 - 1
         if elm > max_els:
             chunk_size = old_div((max_els), d)
-            new_m = []
+            new_m:List = []
             logging.debug('Resizing in chunks because of opencv bug')
             for chunk in range(0, T, chunk_size):
                 logging.debug([chunk, np.minimum(chunk + chunk_size, T)])
@@ -1095,34 +1089,34 @@ class movie(ts.timeseries):
             for i in range(10):
                 cv2.waitKey(100)
 
-def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None,
-         var_name_hdf5 = 'mov', in_memory = False, is_behavior = False, bottom=0,
-         top=0, left=0, right=0, channel = None, outtype=np.float32):
+def load(file_name, fr=30, start_time=0, meta_data=None, subindices=None,
+         shape=None, var_name_hdf5='mov', in_memory=False, is_behavior=False,
+         bottom=0, top=0, left=0, right=0, channel = None, outtype=np.float32):
     """
     load movie from file. SUpports a variety of formats. tif, hdf5, npy and memory mapped. Matlab is experimental.
 
     Args:
         file_name: string
             name of file. Possible extensions are tif, avi, npy, (npz and hdf5 are usable only if saved by calblitz)
-    
+
         fr: float
             frame rate
-    
+
         start_time: float
             initial time for frame 1
-    
+
         meta_data: dict
             dictionary containing meta information about the movie
-    
+
         subindices: iterable indexes
             for loading only portion of the movie
-    
+
         shape: tuple of two values
             dimension of the movie along x and y if loading from a two dimensional numpy array
-    
+
         num_frames_sub_idx:
             when reading sbx format (experimental and unstable)
-    
+
         var_name_hdf5: str
             if loading from hdf5 name of the variable to load
 
@@ -1141,40 +1135,47 @@ def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None,
         Exception 'File not found!'
     """
     # case we load movie from file
+    if max(top, bottom, left, right) > 0 and type(file_name) is str:
+        file_name = [file_name]
+
     if type(file_name) is list:
         if shape is not None:
-            raise Exception('shape not supported for multiple movie input')
+            logging.error('shape not supported for multiple movie input')
 
         return load_movie_chain(file_name,fr=fr, start_time=start_time,
                      meta_data=meta_data, subindices=subindices,
-                     bottom=bottom, top=top, left=left, right=right, channel = channel, outtype=outtype)
+                     bottom=bottom, top=top, left=left, right=right, 
+                     channel = channel, outtype=outtype)
 
-    if bottom != 0:
-        raise Exception('top bottom etc... not supported for single movie input')
+    if max(top, bottom, left, right) > 0:
+        logging.error('top bottom etc... not supported for single movie input')
 
     if channel is not None:
-        raise Exception('channel not supported for single movie input')
+        logging.error('channel not supported for single movie input')
 
     if os.path.exists(file_name):
         _, extension = os.path.splitext(file_name)[:2]
-
+        extension = extension.lower()
         if extension == '.tif' or extension == '.tiff':  # load avi file
             with tifffile.TiffFile(file_name) as tffl:
+                multi_page = True if tffl.series[0].shape[0] > 1 else False
+                if len(tffl.pages) == 1:
+                    logging.warning('Your tif file is saved a single page' +
+                                    'file. Performance will be affected')
+                    multi_page = False
                 if subindices is not None:
                     if type(subindices) is list:
-                        try:
+                        if multi_page:
                             input_arr  = tffl.asarray(key=subindices[0])[:, subindices[1], subindices[2]]
-                        except:
-                            logging.warning('Your tif file is saved a single page file. Performance will be affected')
+                        else:
                             input_arr = tffl.asarray()
                             input_arr = input_arr[subindices[0], subindices[1], subindices[2]]
                     else:
-                        try:
+                        if multi_page:
                             input_arr  = tffl.asarray(key=subindices)
-                        except:
-                            logging.warning('Your tif file is saved a single page file. Performance will be affected')
+                        else:
                             input_arr = tffl.asarray()
-                            input_arr = input_arr[subindices[0]]
+                            input_arr = input_arr[subindices]
 
                 else:
                     input_arr = tffl.asarray()
@@ -1287,25 +1288,7 @@ def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None,
             with np.load(file_name) as f:
                 return movie(**f).astype(outtype)
 
-#        elif extension in ('.hdf5', '.h5'):
-#            with h5py.File(file_name, "r") as f:
-#                attrs = dict(f[var_name_hdf5].attrs)
-#                if meta_data in attrs:
-#                    attrs['meta_data'] = cpk.loads(attrs['meta_data'])
-#
-#                if subindices is None:
-#                    return movie(f[var_name_hdf5], **attrs).astype(outtype)
-#                else:
-#                    return movie(f[var_name_hdf5][subindices], **attrs).astype(outtype)
-
-        elif extension == '.h5_at':
-            with h5py.File(file_name, "r") as f:
-                if subindices is None:
-                    return movie(f['quietBlock'], fr=fr).astype(outtype)
-                else:
-                    return movie(f['quietBlock'][subindices], fr=fr).astype(outtype)
-
-        elif extension in ('.hdf5', '.h5'):
+        elif extension in ('.hdf5', '.h5', '.nwb'):
             if is_behavior:
                 with h5py.File(file_name, "r") as f:
                     kk = list(f.keys())
@@ -1322,22 +1305,22 @@ def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None,
                     fkeys = list(f.keys())
                     if len(fkeys) == 1:
                         var_name_hdf5 = fkeys[0]
-                    if var_name_hdf5 in fkeys:
+                    if var_name_hdf5 in f:
                         if subindices is None:
                             images = np.array(f[var_name_hdf5]).squeeze()
-                            if images.ndim > 3:
-                                images = images[:, 0]
+                            #if images.ndim > 3:
+                            #    images = images[:, 0]
                         else:
                             images = np.array(
                                 f[var_name_hdf5][subindices]).squeeze()
-                            if images.ndim > 3:
-                                images = images[:, 0]
+                            #if images.ndim > 3:
+                            #    images = images[:, 0]
 
                         #input_arr = images
                         return movie(images.astype(outtype))
                     else:
                         logging.debug('KEYS:' + str(f.keys()))
-                        raise Exception('Key not found in hdf5n file')
+                        raise Exception('Key not found in hdf5 file')
 
         elif extension == '.mmap':
 
@@ -1618,21 +1601,64 @@ def to_3D(mov2D, shape, order='F'):
     return np.reshape(mov2D, shape, order=order)
 
 #%%
-def from_zip_file_to_movie(zipfile_name):
-    mov = []
+def from_zip_file_to_movie(zipfile_name, start_end = None):
+    '''
+
+    @param zipfile_name:
+    @param start_end: tuple
+        start and end frame to extract
+    @return:
+    '''
+    mov:List = []
     print('unzipping file into movie object')
+    if start_end is not None:
+        num_frames = start_end[1] - start_end[0]
+
+    counter = 0
     with ZipFile(zipfile_name) as archive:
         for idx, entry in enumerate(archive.infolist()):
-            with archive.open(entry) as file:
-                if idx == 0:
-                    img = np.array(Image.open(file))
-                    mov = np.zeros([len(archive.infolist()), *img.shape], dtype=np.float32)
-                    mov[idx] = img
-                else:
-                    mov[idx] = np.array(Image.open(file))
+            if idx >= start_end[0] and idx < start_end[1]:
+                with archive.open(entry) as file:
+                    if counter == 0:
+                        img = np.array(Image.open(file))
+                        mov = np.zeros([num_frames, *img.shape], dtype=np.float32)
+                        mov[counter] = img
+                    else:
+                        mov[counter] = np.array(Image.open(file))
 
-                if idx%100 == 0:
-                    print(idx)
 
-    return cm.movie(mov)
+                    if counter % 100 == 0:
+                        print([counter, idx])
+
+                    counter += 1
+
+    return cm.movie(mov[:counter])
+
+def from_zipfiles_to_movie_lists(zipfile_name, max_frames_per_movie=3000, binary = False):
+    '''
+    Transform zip file into set of tif movies
+    @param zipfile_name:
+    @param max_frames_per_movie:
+    @return:
+    '''
+    with ZipFile(zipfile_name) as archive:
+        num_frames_total = len(archive.infolist())
+
+    base_file_names = os.path.split(zipfile_name)[0]
+    start_frames = np.arange(0,num_frames_total, max_frames_per_movie)
+
+    movie_list = []
+    for sf in start_frames:
+
+        mov = from_zip_file_to_movie(zipfile_name, start_end=(sf, sf + max_frames_per_movie))
+        if binary:
+            fname = os.path.join(base_file_names, 'movie_' + str(sf) + '.mmap')
+            fname = mov.save(fname, order='C')
+        else:
+            fname = os.path.join(base_file_names, 'movie_' + str(sf) + '.tif')
+            mov.save(fname)
+
+        movie_list.append(fname)
+
+    return movie_list
 

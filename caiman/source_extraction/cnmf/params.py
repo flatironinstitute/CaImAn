@@ -33,7 +33,7 @@ class CNMFParams(object):
                  sniper_mode=False, test_both=False, thresh_CNN_noisy=0.5,
                  thresh_fitness_delta=-50, thresh_fitness_raw=None, thresh_overlap=0.5,
                  update_freq=200, update_num_comps=True, use_corr_img=False, use_dense=True,
-                 use_peak_max=True, only_init_patch=True, params_dict={},
+                 use_peak_max=True, only_init_patch=True, var_name_hdf5='mov', params_dict={},
                  ):
         """Class for setting the processing parameters. All parameters for CNMF, online-CNMF, quality testing,
         and motion correction can be set here and then used in the various processing pipeline steps.
@@ -45,7 +45,7 @@ class CNMFParams(object):
         Args:
             Any parameter that is not set get a default value specified
             by the dictionary default options
-            DATA PARAMETERS (CNMFParams.data) #####
+        DATA PARAMETERS (CNMFParams.data) #####
 
             fnames: list[str]
                 list of complete paths to files that need to be processed
@@ -61,6 +61,9 @@ class CNMFParams(object):
 
             dxy: (float, float)
                 spatial resolution of FOV in pixels per um
+
+            var_name_hdf5: str, default: 'mov'
+                if loading from hdf5 name of the variable to load
 
         PATCH PARAMS (CNMFParams.patch)######
 
@@ -523,7 +526,8 @@ class CNMFParams(object):
             'dims': dims,
             'fr': fr,
             'decay_time': decay_time,
-            'dxy': dxy
+            'dxy': dxy,
+            'var_name_hdf5': var_name_hdf5
         }
 
         self.patch = {
@@ -721,9 +725,11 @@ class CNMFParams(object):
         
         self.change_params(params_dict)
         if self.data['dims'] is None and self.data['fnames'] is not None:
-            self.data['dims'] = get_file_size(self.data['fnames'])[0]
+            self.data['dims'] = get_file_size(self.data['fnames'], var_name_hdf5=self.data['var_name_hdf5'])[0]
         if self.data['fnames'] is not None:
-            T = get_file_size(self.data['fnames'])[1]
+            if isinstance(self.data['fnames'], str):
+                self.data['fnames'] = [self.data['fnames']]
+            T = get_file_size(self.data['fnames'], var_name_hdf5=self.data['var_name_hdf5'])[1]
             if len(self.data['fnames']) > 1:
                 T = T[0]
             num_splits = T//max(self.motion['num_frames_split'],10)
@@ -742,7 +748,7 @@ class CNMFParams(object):
             self.init['gSiz'] = [2*gs + 1 for gs in self.init['gSig']]
 
         if gnb <= 0:
-            logging.warning("gnb={}, hence setting keys nb_patch and low_rank_background ".format(gnb) +
+            logging.warning("gnb={0}, hence setting keys nb_patch and low_rank_background ".format(gnb) +
                             "in group patch automatically.")
             self.set('patch', {'nb_patch': gnb, 'low_rank_background': None})
         if gnb == -1:
@@ -765,18 +771,18 @@ class CNMFParams(object):
         """
 
         if not hasattr(self, group):
-            raise KeyError('No group in CNMFParams named {}'.format(group))
+            raise KeyError('No group in CNMFParams named {0}'.format(group))
 
         d = getattr(self, group)
         for k, v in val_dict.items():
             if k not in d and not set_if_not_exists:
                 if verbose:
                     logging.warning(
-                        "NOT setting value of key {} in group {}, because no prior key existed...".format(k, group))
+                        "NOT setting value of key {0} in group {1}, because no prior key existed...".format(k, group))
             else:
                 if np.any(d[k] != v):
                     logging.warning(
-                        "Changing key {} in group {} from {} to {}".format(k, group, d[k], v))
+                        "Changing key {0} in group {1} from {2} to {3}".format(k, group, d[k], v))
                 d[k] = v
 
     def get(self, group, key):
@@ -790,11 +796,11 @@ class CNMFParams(object):
         """
 
         if not hasattr(self, group):
-            raise KeyError('No group in CNMFParams named {}'.format(group))
+            raise KeyError('No group in CNMFParams named {0}'.format(group))
 
         d = getattr(self, group)
         if key not in d:
-            raise KeyError('No key {} in group {}'.format(key, group))
+            raise KeyError('No key {0} in group {1}'.format(key, group))
 
         return d[key]
 
@@ -806,7 +812,7 @@ class CNMFParams(object):
         """
 
         if not hasattr(self, group):
-            raise KeyError('No group in CNMFParams named {}'.format(group))
+            raise KeyError('No group in CNMFParams named {0}'.format(group))
 
         return getattr(self, group)
 
@@ -840,4 +846,12 @@ class CNMFParams(object):
     def change_params(self, params_dict, verbose=False):
         for gr in list(self.__dict__.keys()):
             self.set(gr, params_dict, verbose=verbose)
+        for k, v in params_dict.items():
+            flag = True
+            for gr in list(self.__dict__.keys()):
+                d = getattr(self, gr)
+                if k in d:
+                    flag = False
+            if flag:
+                logging.warning('No parameter {0} found!'.format(k))
         return self

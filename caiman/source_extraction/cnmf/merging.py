@@ -12,6 +12,7 @@ Created on Tue Sep  8 16:23:57 2015
 
 from builtins import range
 import numpy as np
+import logging
 from past.utils import old_div
 import scipy
 from scipy.sparse import coo_matrix, csgraph, csc_matrix, lil_matrix
@@ -183,7 +184,7 @@ def merge_components(Y, A, b, C, f, S, sn_pix, temporal_params, spatial_params, 
 
         for i in range(nbmrg):
             merged_ROI = np.where(list_conxcomp[:, ind[i]])[0]
-            print((merged_ROI.T))
+            logging.info('Merging components {}'.format(merged_ROI))
             merged_ROIs.append(merged_ROI)
 
             Acsc = A.tocsc()[:, merged_ROI]
@@ -244,7 +245,7 @@ def merge_components(Y, A, b, C, f, S, sn_pix, temporal_params, spatial_params, 
         nr = nr - len(neur_id) + len(C_merged)
 
     else:
-        print('No neurons merged!')
+        logging.info('No more components merged!')
         merged_ROIs = []
 
     return A, C, nr, merged_ROIs, S, bl, c1, sn, g
@@ -265,7 +266,7 @@ def merge_iteration(Acsc, C_to_norm, Ctmp, fast_merge, g, g_idx, indx, temporal_
             computedA = np.maximum(
                 Acsc.dot(Ctmp.dot(computedC.T)) / (computedC * computedC.T), 0)
     else:
-        print('Simple Merging Take Best Neuron')
+        logging.info('Simple merging ny taking best neuron')
         computedC = Ctmp[indx]
         computedA = Acsc[:, indx]
     # then we de-normalize them using A_to_norm

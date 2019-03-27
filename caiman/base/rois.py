@@ -32,6 +32,7 @@ from skimage.morphology import watershed
 from skimage.draw import polygon
 import tempfile
 import time
+from typing import List
 import zipfile
 
 from ..motion_correction import tile_and_correct
@@ -388,8 +389,8 @@ def register_ROIs(A1, A2, dims, template1=None, template2=None, align_flag=True,
     if template1 is None or template2 is None:
         align_flag = False
 
-    x_grid, y_grid = np.meshgrid(np.arange(0., dims[0]).astype(
-                np.float32), np.arange(0., dims[1]).astype(np.float32))
+    x_grid, y_grid = np.meshgrid(np.arange(0., dims[1]).astype(
+                np.float32), np.arange(0., dims[0]).astype(np.float32))
 
     if align_flag:  # first align ROIs from session 2 to the template from session 1
         template1 -= template1.min()
@@ -1260,7 +1261,7 @@ def detect_duplicates_and_subsets(binary_masks, predictions=None, r_values=None,
     one, two = np.unravel_index(max_idx, overlap_tmp.shape)
     max_val = overlap_tmp[one, two]
 
-    indeces_to_keep = []
+    indeces_to_keep:List = []
     indeces_to_remove = []
     while max_val > 0:
         one, two = np.unravel_index(max_idx, overlap_tmp.shape)

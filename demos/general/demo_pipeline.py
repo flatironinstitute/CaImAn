@@ -154,11 +154,10 @@ def main():
     c, dview, n_processes = cm.cluster.setup_cluster(
         backend='local', n_processes=None, single_thread=False)
 
-
 # %%  parameters for source extraction and deconvolution
     p = 1                    # order of the autoregressive system
     gnb = 2                  # number of global background components
-    merge_thresh = 0.8       # merging threshold, max correlation allowed
+    merge_thr = 0.85         # merging threshold, max correlation allowed
     rf = 15
     # half-size of the patches in pixels. e.g., if rf=25, patches are 50x50
     stride_cnmf = 6          # amount of overlap between the patches in pixels
@@ -179,7 +178,7 @@ def main():
                  'stride': stride_cnmf,
                  'method_init': method_init,
                  'rolling_sum': True,
-                 'merge_thr': merge_thresh,
+                 'merge_thr': merge_thr,
                  'n_processes': n_processes,
                  'only_init': True,
                  'ssub': ssub,
@@ -190,7 +189,7 @@ def main():
     # First extract spatial and temporal components on patches and combine them
     # for this step deconvolution is turned off (p=0)
 
-    opts.set('temporal', {'p': 0})
+    opts.change_params({'p': 0})
     cnm = cnmf.CNMF(n_processes, params=opts, dview=dview)
     cnm = cnm.fit(images)
 
@@ -207,7 +206,7 @@ def main():
     plt.title('Contour plots of found components')
 
 # %% RE-RUN seeded CNMF on accepted patches to refine and perform deconvolution
-    cnm.params.set('temporal', {'p': p})
+    cnm.params.change_params({'p': p})
     cnm2 = cnm.refit(images, dview=dview)
     # %% COMPONENT EVALUATION
     # the components are evaluated in three ways:
