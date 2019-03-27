@@ -22,6 +22,7 @@ See Also:
 from builtins import str
 from builtins import range
 from past.utils import old_div
+
 import cv2
 import h5py
 import logging
@@ -33,6 +34,8 @@ from scipy.sparse import spdiags, issparse, csc_matrix, csr_matrix
 import scipy.ndimage.morphology as morph
 from skimage.feature.peak import _get_high_intensity_peaks
 import tifffile
+from typing import List
+
 from .initialization import greedyROI
 from ...base.rois import com
 from ...mmapping import parallel_dot_product, load_memmap
@@ -797,7 +800,7 @@ def update_order_greedy(A, flag_AA=True):
         Eftychios A. Pnevmatikakis, Simons Foundation, 2017
     """
     K = np.shape(A)[-1]
-    parllcomp = []
+    parllcomp:List = []
     for i in range(K):
         new_list = True
         for ls in parllcomp:
@@ -901,7 +904,25 @@ def normalize_AC(A, C, YrA, b, f, neurons_sn):
 
     return csc_matrix(A), C, YrA, b, f, neurons_sn
 
-def get_file_size(file_name, var_name_hdf5=None):
+
+def get_file_size(file_name, var_name_hdf5='mov'):
+    """ Computes the dimensions of a file or a list of files without loading
+    it/them in memory. An exception is thrown if the files have FOVs with
+    different sizes
+        Args:
+            file_name: str or list
+                locations of file(s) in memory
+
+            var_name_hdf5: 'str'
+                if loading from hdf5 name of the variable to load
+
+        Returns:
+            dims: list
+                dimensions of FOV
+
+            T: list
+                number of timesteps in each file
+    """
     if isinstance(file_name, str):
         if os.path.exists(file_name):
             _, extension = os.path.splitext(file_name)[:2]
@@ -918,7 +939,7 @@ def get_file_size(file_name, var_name_hdf5=None):
                     dims[0] = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
                     dims[1] = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
                 except():
-                    print('Roll back top opencv 2')
+                    print('Roll back to opencv 2')
                     T = int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_COUNT))
                     dims[0] = int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_WIDTH))
                     dims[1] = int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT))
@@ -926,12 +947,12 @@ def get_file_size(file_name, var_name_hdf5=None):
                 filename = os.path.split(file_name)[-1]
                 Yr, dims, T = load_memmap(os.path.join(
                         os.path.split(file_name)[0], filename))
-            elif extension == '.h5' or extension == '.hdf5':
+            elif extension in ('.h5', '.hdf5', '.nwb'):
                 with h5py.File(file_name, "r") as f:
                     kk = list(f.keys())
                     if len(kk) == 1:
                         siz = f[kk[0]].shape
-                    elif var_name_hdf5 in kk:
+                    elif var_name_hdf5 in f:
                         siz = f[var_name_hdf5].shape
                     else:
                         print(kk)

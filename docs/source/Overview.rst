@@ -1,34 +1,51 @@
 Overview
 =========
-Python translation of Constrained Non-negative Matrix Factorization algorithm for source extraction from calcium imaging data. 
+
+.. image:: ../LOGOS/Caiman_logo_FI.png
+    :width: 200px
+    :align: right
+
+CaImAn is a Python toolbox for large scale **Ca**\ lcium **Im**\ aging data **An**\ alysis and behavioral analysis.
+
+CaImAn implements a set of essential methods required in the analysis pipeline of large scale calcium imaging data. Fast and scalable algorithms are implemented for motion correction, source extraction, spike deconvolution, and component registration across multiple days. It is suitable for both two-photon and one-photon fluorescence microscopy data, and can be run in both batch and online modes. CaImAn also contains some routines for the analysis of behavior from video cameras. A list of features as well as relevant references can be found `here
+<https://github.com/flatironinstitute/CaImAn/wiki/CaImAn-features-and-references>`_.
+
+Companion paper
+--------------
+
+A paper explaining most of the implementation details and benchmarking can be found `here
+<https://elifesciences.org/articles/38173>`_.
+
+::
+
+  @article{giovannucci2019caiman,
+    title={CaImAn: An open source tool for scalable Calcium Imaging data Analysis},
+    author={Giovannucci, Andrea and Friedrich, Johannes and Gunn, Pat and Kalfon, Jeremie and Brown, Brandon L and Koay, Sue Ann and Taxidis, Jiannis and Najafi, Farzaneh and Gauthier, Jeffrey L and Zhou, Pengcheng and Khakh, Baljit S and Tank, David W and Chklovskii, Dmitri B and Pnevmatikakis, Eftychios A},
+    journal={eLife},
+    volume={8},
+    pages={e38173},
+    year={2019},
+    publisher={eLife Sciences Publications Limited}
+  }
 
 
-The code implements a method for simultaneous source extraction and spike inference from large scale calcium imaging movies. The code is suitable for the analysis of somatic imaging data. Implementation for the analysis of dendritic/axonal imaging data will be added in the future. 
-
-The algorithm is presented in more detail in
-
-Pnevmatikakis, E.A., Soudry, D., Gao, Y., Machado, T., Merel, J., ... & Paninski, L. (2016). Simultaneous denoising, deconvolution, and demixing of calcium imaging data. Neuron, in press, http://dx.doi.org/10.1016/j.neuron.2015.11.037
-
-Pnevmatikakis, E.A., Gao, Y., Soudry, D., Pfau, D., Lacefield, C., ... & Paninski, L. (2014). A structured matrix factorization framework for large scale calcium imaging data analysis. arXiv preprint arXiv:1409.2903. http://arxiv.org/abs/1409.2903
-
-Contributors
+Developers/Contributors
 ------------
 
-Andrea Giovannucci and 
-Eftychios Pnevmatikakis 
+CaImAn is being developed at the `Flatiron Institute <https://www.simonsfoundation.org/flatiron/>`_ with numerous contributions from the broader community. The main developers are
 
-Center for Computational Biology, Simons Foundation, New York, NY
+* Andrea Giovannucci, University of North Carolina at Chapel Hill, previously at Flatiron Institute
+* Eftychios A. Pnevmatikakis, Flatiron Institute
+* Johannes Friedrich, Flatiron Institute
+* Pat Gunn, Flatiron Institute
 
-
+A complete list of contributors can be found `here <https://github.com/flatironinstitute/CaImAn/graphs/contributors>`_.
 
 
 Questions, comments, issues
 -----------------------------
-Please use the gitter chat room (use the button above) for questions and comments and create an issue for any bugs you might encounter.
 
-Important note
-----------------
-The implementation of this package is based on the matlab implementation which can be found [here](https://github.com/epnev/ca_source_extraction). Some of the Matlab features are currently lacking, but will be included in future releases. 
+Please use our `gitter chat room <https://gitter.im/agiovann/Constrained_NMF>`_ for questions and comments and create an issue on our `repo page <https://github.com/flatironinstitute/CaImAn>`_ for any bugs you might encounter.
 
 License
 --------

@@ -57,8 +57,12 @@ from numpy.fft import ifftshift
 import os
 import pylab as pl
 import tifffile
+from typing import List, Optional
 
 import caiman as cm
+import caiman.base.movies
+import caiman.motion_correction
+from caiman.paths import memmap_frames_filename
 from .mmapping import prepare_shape
 
 try:
@@ -93,7 +97,7 @@ class MotionCorrect(object):
     def __init__(self, fname, min_mov=None, dview=None, max_shifts=(6, 6), niter_rig=1, splits_rig=14, num_splits_to_process_rig=None,
                  strides=(96, 96), overlaps=(32, 32), splits_els=14, num_splits_to_process_els=[7, None],
                  upsample_factor_grid=4, max_deviation_rigid=3, shifts_opencv=True, nonneg_movie=True, gSig_filt=None,
-                 use_cuda=False, border_nan=True, pw_rigid=False, num_frames_split=80):
+                 use_cuda=False, border_nan=True, pw_rigid=False, num_frames_split=80, var_name_hdf5='mov'):
         """
         Constructor class for motion correction operations
 
@@ -159,6 +163,9 @@ class MotionCorrect(object):
                Number of frames in each batch. Used when cosntructing the options
                through the params object
 
+           var_name_hdf5: str, default: 'mov'
+               If loading from hdf5, name of the variable to load
+
        Returns:
            self
 
@@ -190,6 +197,7 @@ class MotionCorrect(object):
         self.use_cuda = use_cuda
         self.border_nan = border_nan
         self.pw_rigid = pw_rigid
+        self.var_name_hdf5 = var_name_hdf5
         if self.use_cuda and not HAS_CUDA:
             logging.debug("pycuda is unavailable. Falling back to default FFT.")
 
@@ -216,10 +224,12 @@ class MotionCorrect(object):
         if self.min_mov is None:
             if self.gSig_filt is None:
                 self.min_mov = np.array([cm.load(self.fname[0],
+                                                 var_name_hdf5=self.var_name_hdf5,
                                                  subindices=slice(400))]).min()
             else:
                 self.min_mov = np.array([high_pass_filter_space(m_, self.gSig_filt)
-                    for m_ in cm.load(self.fname[0], subindices=slice(400))]).min()
+                    for m_ in cm.load(self.fname[0], var_name_hdf5=self.var_name_hdf5,
+                                      subindices=slice(400))]).min()
 
         if self.pw_rigid:
             self.motion_correct_pwrigid(template=template, save_movie=save_movie)
@@ -258,9 +268,9 @@ class MotionCorrect(object):
         logging.debug('Entering Rigid Motion Correction')
         logging.debug(-self.min_mov)  # XXX why the minus?
         self.total_template_rig = template
-        self.templates_rig = []
-        self.fname_tot_rig = []
-        self.shifts_rig = []
+        self.templates_rig:List = []
+        self.fname_tot_rig:List = []
+        self.shifts_rig:List = []
 
         for fname_cur in self.fname:
             _fname_tot_rig, _total_template_rig, _templates_rig, _shifts_rig = motion_correct_batch_rigid(
@@ -277,7 +287,8 @@ class MotionCorrect(object):
                 nonneg_movie=self.nonneg_movie,
                 gSig_filt=self.gSig_filt,
                 use_cuda=self.use_cuda,
-                border_nan=self.border_nan)
+                border_nan=self.border_nan,
+                var_name_hdf5=self.var_name_hdf5)
             if template is None:
                 self.total_template_rig = _total_template_rig
 
@@ -328,11 +339,11 @@ class MotionCorrect(object):
         else:
             self.total_template_els = template
 
-        self.fname_tot_els = []
-        self.templates_els = []
-        self.x_shifts_els = []
-        self.y_shifts_els = []
-        self.coord_shifts_els = []
+        self.fname_tot_els:List = []
+        self.templates_els:List = []
+        self.x_shifts_els:List = []
+        self.y_shifts_els:List = []
+        self.coord_shifts_els:List = []
         for name_cur in self.fname:
             for num_splits_to_process in self.num_splits_to_process_els:
                 _fname_tot_els, new_template_els, _templates_els,\
@@ -342,7 +353,7 @@ class MotionCorrect(object):
                         max_deviation_rigid=self.max_deviation_rigid, splits=self.splits_els,
                         num_splits_to_process=num_splits_to_process, num_iter=num_iter, template=self.total_template_els,
                         shifts_opencv=self.shifts_opencv, save_movie=save_movie, nonneg_movie=self.nonneg_movie, gSig_filt=self.gSig_filt,
-                        use_cuda=self.use_cuda, border_nan=self.border_nan)
+                        use_cuda=self.use_cuda, border_nan=self.border_nan, var_name_hdf5=self.var_name_hdf5)
                 if show_template:
                     pl.imshow(new_template_els)
                     pl.pause(.5)
@@ -457,12 +468,10 @@ def apply_shift_online(movie_iterable, xy_shifts, save_base_name=None, order='F'
         raise Exception('Number of shifts does not match movie length!')
     count = 0
     new_mov = []
-    dims = (len(movie_iterable),) + movie_iterable[0].shape
+    dims = (len(movie_iterable),) + movie_iterable[0].shape # TODO: Refactor so length is either tracked separately or is last part of tuple
 
     if save_base_name is not None:
-        fname_tot = save_base_name + '_d1_' + str(dims[1]) + '_d2_' + str(dims[2]) + '_d3_' + str(
-            1 if len(dims) == 3 else dims[3]) + '_order_' + str(order) + '_frames_' + str(dims[0]) + '_.mmap'
-
+        fname_tot = memmap_frames_filename(save_base_name, dims[1:], dims[0], order)
         big_mov = np.memmap(fname_tot, mode='w+', dtype=np.float32,
                             shape=prepare_shape((np.prod(dims[1:]), dims[0])), order=order)
 
@@ -516,7 +525,7 @@ def motion_correct_oneP_rigid(
     Returns:
         Motion correction object
     '''
-    min_mov = np.array([cm.motion_correction.high_pass_filter_space(
+    min_mov = np.array([caiman.motion_correction.high_pass_filter_space(
         m_, gSig_filt) for m_ in cm.load(filename[0], subindices=range(400))]).min()
     new_templ = None
 
@@ -655,7 +664,7 @@ def motion_correct_online(movie_iterable, add_to_movie, max_shift_w=25, max_shif
     else:
         init_mov = movie_iterable[slice(0, init_frames_template, 1)]
 
-    dims = (len(movie_iterable),) + movie_iterable[0].shape
+    dims = (len(movie_iterable),) + movie_iterable[0].shape # TODO: Refactor so length is either tracked separately or is last part of tuple
     logging.debug("dimensions:" + str(dims))
 
     if use_median_as_template:
@@ -677,13 +686,13 @@ def motion_correct_online(movie_iterable, add_to_movie, max_shift_w=25, max_shif
     min_mov = 0
     buffer_size_frames = 100
     buffer_size_template = 100
-    buffer_frames = collections.deque(maxlen=buffer_size_frames)
-    buffer_templates = collections.deque(maxlen=buffer_size_template)
+    buffer_frames:collections.deque = collections.deque(maxlen=buffer_size_frames)
+    buffer_templates:collections.deque = collections.deque(maxlen=buffer_size_template)
     max_w, max_h, min_w, min_h = 0, 0, 0, 0
 
     big_mov = None
     if return_mov:
-        mov = []
+        mov:Optional[List] = []
     else:
         mov = None
 
@@ -697,8 +706,7 @@ def motion_correct_online(movie_iterable, add_to_movie, max_shift_w=25, max_shif
                 dims = (dims[0], dims[1] + min_h -
                         max_h, dims[2] + min_w - max_w)
 
-            fname_tot = save_base_name + '_d1_' + str(dims[1]) + '_d2_' + str(dims[2]) + '_d3_' + str(
-                1 if len(dims) == 3 else dims[3]) + '_order_' + str(order) + '_frames_' + str(dims[0]) + '_.mmap'
+            fname_tot:Optional[str] = memmap_frames_filename(save_base_name, dims[1:], dims[0], order)
             big_mov = np.memmap(fname_tot, mode='w+', dtype=np.float32,
                                 shape=prepare_shape((np.prod(dims[1:]), dims[0])), order=order)
 
@@ -764,11 +772,10 @@ def motion_correct_online(movie_iterable, add_to_movie, max_shift_w=25, max_shif
                     new_img = new_img[:, :min_w]
 
             if (save_base_name is not None) and (n_iter == (n + 1)):
+                big_mov[:, idx_frame] = np.reshape(new_img, np.prod(dims[1:]), order='F') # type: ignore
+                                                                                          # mypy cannot prove that big_mov is not still None
 
-                big_mov[:, idx_frame] = np.reshape(
-                    new_img, np.prod(dims[1:]), order='F')
-
-            if return_mov and (n_iter == (n + 1)):
+            if mov is not None and (n_iter == (n + 1)):
                 mov.append(new_img)
 
             if show_movie:
@@ -783,7 +790,7 @@ def motion_correct_online(movie_iterable, add_to_movie, max_shift_w=25, max_shif
 
     if save_base_name is not None:
         logging.debug('Flushing memory')
-        big_mov.flush()
+        big_mov.flush() # type: ignore # mypy cannot prove big_mov is not still None
         del big_mov
         gc.collect()
 
@@ -2145,7 +2152,7 @@ def compute_metrics_motion_correction(fname, final_size_x, final_size_y, swap_di
 def motion_correct_batch_rigid(fname, max_shifts, dview=None, splits=56, num_splits_to_process=None, num_iter=1,
                                template=None, shifts_opencv=False, save_movie_rigid=False, add_to_movie=None,
                                nonneg_movie=False, gSig_filt=None, subidx=slice(None, None, 1), use_cuda=False,
-                               border_nan=True):
+                               border_nan=True, var_name_hdf5='mov'):
     """
     Function that perform memory efficient hyper parallelized rigid motion corrections while also saving a memory mappable file
 
@@ -2199,19 +2206,19 @@ def motion_correct_batch_rigid(fname, max_shifts, dview=None, splits=56, num_spl
 
     """
     corrected_slicer = slice(subidx.start, subidx.stop, subidx.step * 10)
-    m = cm.load(fname, subindices=corrected_slicer)
+    m = cm.load(fname, var_name_hdf5=var_name_hdf5, subindices=corrected_slicer)
     
     if m.shape[0] < 300:
-        m = cm.load(fname, subindices=corrected_slicer)
+        m = cm.load(fname, var_name_hdf5=var_name_hdf5, subindices=corrected_slicer)
     elif m.shape[0] < 500:
         corrected_slicer = slice(subidx.start, subidx.stop, subidx.step * 5)
-        m = cm.load(fname, subindices=corrected_slicer)
+        m = cm.load(fname, var_name_hdf5=var_name_hdf5, subindices=corrected_slicer)
     else:
         corrected_slicer = slice(subidx.start, subidx.stop, subidx.step * 30)
-        m = cm.load(fname, subindices=corrected_slicer)
+        m = cm.load(fname, var_name_hdf5=var_name_hdf5, subindices=corrected_slicer)
     
     if len(m.shape) < 3:
-        m = cm.load(fname)
+        m = cm.load(fname, var_name_hdf5=var_name_hdf5)
         m = m[corrected_slicer]
         logging.warning("Your original file was saved as a single page " +
                         "file. Consider saving it in multiple smaller files" +
@@ -2221,7 +2228,7 @@ def motion_correct_batch_rigid(fname, max_shifts, dview=None, splits=56, num_spl
             m = cm.movie(
                 np.array([high_pass_filter_space(m_, gSig_filt) for m_ in m]))
 
-        template = cm.motion_correction.bin_median(
+        template = caiman.motion_correction.bin_median(
             m.motion_correct(max_shifts[1], max_shifts[0], template=None)[0])
 
     new_templ = template
@@ -2236,7 +2243,7 @@ def motion_correct_batch_rigid(fname, max_shifts, dview=None, splits=56, num_spl
 
     save_movie = False
     fname_tot_rig = None
-    res_rig = []
+    res_rig:List = []
     for iter_ in range(num_iter):
         logging.debug(iter_)
         old_templ = new_templ.copy()
@@ -2249,7 +2256,7 @@ def motion_correct_batch_rigid(fname, max_shifts, dview=None, splits=56, num_spl
                                                              dview=dview, save_movie=save_movie, base_name=os.path.split(
                                                                  fname)[-1][:-4] + '_rig_', subidx = subidx,
                                                              num_splits=num_splits_to_process, shifts_opencv=shifts_opencv, nonneg_movie=nonneg_movie, gSig_filt=gSig_filt,
-                                                             use_cuda=use_cuda, border_nan=border_nan)
+                                                             use_cuda=use_cuda, border_nan=border_nan, var_name_hdf5=var_name_hdf5)
 
         new_templ = np.nanmedian(np.dstack([r[-1] for r in res_rig]), -1)
         if gSig_filt is not None:
@@ -2259,7 +2266,7 @@ def motion_correct_batch_rigid(fname, max_shifts, dview=None, splits=56, num_spl
 
     total_template = new_templ
     templates = []
-    shifts = []
+    shifts:List = []
     for rr in res_rig:
         shift_info, idxs, tmpl = rr
         templates.append(tmpl)
@@ -2271,7 +2278,7 @@ def motion_correct_batch_pwrigid(fname, max_shifts, strides, overlaps, add_to_mo
                                  dview=None, upsample_factor_grid=4, max_deviation_rigid=3,
                                  splits=56, num_splits_to_process=None, num_iter=1,
                                  template=None, shifts_opencv=False, save_movie=False, nonneg_movie=False, gSig_filt=None,
-                                 use_cuda=False, border_nan=True):
+                                 use_cuda=False, border_nan=True, var_name_hdf5='mov'):
     """
     Function that perform memory efficient hyper parallelized rigid motion corrections while also saving a memory mappable file
 
@@ -2361,7 +2368,7 @@ def motion_correct_batch_pwrigid(fname, max_shifts, strides, overlaps, add_to_mo
                                                             upsample_factor_grid=upsample_factor_grid, order='F', dview=dview, save_movie=save_movie,
                                                             base_name=os.path.split(fname)[-1][:-4] + '_els_', num_splits=num_splits_to_process,
                                                             shifts_opencv=shifts_opencv, nonneg_movie=nonneg_movie, gSig_filt=gSig_filt,
-                                                            use_cuda=use_cuda, border_nan=border_nan)
+                                                            use_cuda=use_cuda, border_nan=border_nan, var_name_hdf5=var_name_hdf5)
 
         new_templ = np.nanmedian(np.dstack([r[-1] for r in res_el]), -1)
         if gSig_filt is not None:
@@ -2407,23 +2414,26 @@ def tile_and_correct_wrapper(params):
 
     img_name, out_fname, idxs, shape_mov, template, strides, overlaps, max_shifts,\
         add_to_movie, max_deviation_rigid, upsample_factor_grid, newoverlaps, newstrides, \
-        shifts_opencv, nonneg_movie, gSig_filt, is_fiji, use_cuda, border_nan = params
+        shifts_opencv, nonneg_movie, gSig_filt, is_fiji, use_cuda, border_nan, var_name_hdf5 = params
 
     name, extension = os.path.splitext(img_name)[:2]
     extension = extension.lower()
     shift_info = []
-    if extension == '.tif' or extension == '.tiff':  # check if tiff file
-#        with tifffile.TiffFile(img_name) as tffl:
-#            imgs = tffl.asarray(img_name, key=idxs)
-        imgs = cm.load(img_name, subindices=idxs)
 
-    elif extension == '.sbx':  # check if sbx file
-        imgs = cm.base.movies.sbxread(img_name, idxs[0], len(idxs))
-    elif extension == '.sima' or extension == '.hdf5' or extension == '.h5':
-        imgs = cm.load(img_name, subindices=list(idxs))
-    elif extension == '.avi':
-        imgs = cm.load(img_name, subindices=np.array(idxs))
+#    if extension == '.tif' or extension == '.tiff':  # check if tiff file
+##        with tifffile.TiffFile(img_name) as tffl:
+##            imgs = tffl.asarray(img_name, key=idxs)
+#        imgs = cm.load(img_name, subindices=idxs)
+#
+#    elif extension == '.sbx':  # check if sbx file
+#        imgs = cm.base.movies.sbxread(img_name, idxs[0], len(idxs))
+#    elif extension == '.sima' or extension == '.hdf5' or extension == '.h5':
+#        imgs = cm.load(img_name, subindices=list(idxs),
+#                       var_name_hdf5=var_name_hdf5)
+#    elif extension == '.avi':
+#        imgs = cm.load(img_name, subindices=np.array(idxs))
 
+    imgs = cm.load(img_name, subindices=idxs)
     mc = np.zeros(imgs.shape, dtype=np.float32)
     for count, img in enumerate(imgs):
         if count % 10 == 0:
@@ -2455,7 +2465,7 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
                                 max_shifts=(12, 12), max_deviation_rigid=3, newoverlaps=None, newstrides=None,
                                 upsample_factor_grid=4, order='F', dview=None, save_movie=True,
                                 base_name=None, subidx = None, num_splits=None, shifts_opencv=False, nonneg_movie=False, gSig_filt=None,
-                                use_cuda=False, border_nan=True):
+                                use_cuda=False, border_nan=True, var_name_hdf5='mov'):
     """
 
     """
@@ -2464,73 +2474,78 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
     extension = extension.lower()
     is_fiji = False
 
-    if extension == '.tif' or extension == '.tiff':  # check if tiff file
-        with tifffile.TiffFile(fname) as tf:
-            T = len(tf.pages)
-            if T == 1:  # Fiji-generated TIF
-                is_fiji = True
-                try:
-                    T, d1, d2 = tf[0].shape
-                except:
-                    T, d1, d2 = tf.asarray().shape
-                    tf.close()
-            else:
-                d1, d2 = tf.pages[0].shape
+#    if extension == '.tif' or extension == '.tiff':  # check if tiff file
+#        with tifffile.TiffFile(fname) as tf:
+#            T = len(tf.pages)
+#            if T == 1:  # Fiji-generated TIF
+#                is_fiji = True
+#                try:
+#                    T, d1, d2 = tf[0].shape
+#                except:
+#                    T, d1, d2 = tf.asarray().shape
+#                    tf.close()
+#            else:
+#                d1, d2 = tf.pages[0].shape
+#
+#    elif extension == '.sbx':  # check if sbx file
+#
+#        shape = cm.base.movies.sbxshape(name)
+#        d1 = shape[1]
+#        d2 = shape[0]
+#        T = shape[2]
+#
+#    elif extension == '.sima':  # check if sbx file
+#        import sima
+#        dataset = sima.ImagingDataset.load(fname)
+#        shape = dataset.sequences[0].shape
+#        d1 = shape[2]
+#        d2 = shape[3]
+#        T = shape[0]
+#        del dataset
+#    elif extension == '.npy':
+#        raise Exception('Numpy not supported at the moment')
+#
+#    elif extension in ('.hdf5', '.h5'):
+#        with h5py.File(fname) as fl:
+#            fkeys = list(fl.keys())
+#            if len(fkeys)==1:
+#                fsiz = fl[fkeys[0]].shape
+#            elif var_name_hdf5 in fkeys:
+#                fsiz = fl[var_name_hdf5].shape
+#            elif 'mov' in fkeys:
+#                fsiz = fl['mov'].shape
+#            elif 'imaging' in fkeys:
+#                fsiz = fl['imaging'].shape
+#            else:
+#                print(fkeys)
+#                raise Exception('Unsupported file key')
+#            if len(fsiz) == 3:
+#                T, d1, d2 = fsiz
+#            elif len(fsiz) == 5:
+#                T, _, d1, d2, _ = fsiz
+#            else:
+#                print(fsiz)
+#                raise Exception('Unsupported file shape')
+#
+#    elif extension == '.avi':
+#        cap = cv2.VideoCapture(fname)
+#        try:
+#            T = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+#            d2 = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+#            d1 = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+#        except:
+#            logging.debug('Roll back top opencv 2')
+#            T = int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_COUNT))
+#            d2 = int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_WIDTH))
+#            d1 = int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT))
+#        cap.release()
+#
+#    else:
+#        raise Exception(
+#            'Unsupported file extension for parallel motion correction')
 
-    elif extension == '.sbx':  # check if sbx file
-
-        shape = cm.base.movies.sbxshape(name)
-        d1 = shape[1]
-        d2 = shape[0]
-        T = shape[2]
-
-    elif extension == '.sima':  # check if sbx file
-        import sima
-        dataset = sima.ImagingDataset.load(fname)
-        shape = dataset.sequences[0].shape
-        d1 = shape[2]
-        d2 = shape[3]
-        T = shape[0]
-        del dataset
-    elif extension == '.npy':
-        raise Exception('Numpy not supported at the moment')
-
-    elif extension in ('.hdf5', '.h5'):
-        with h5py.File(fname) as fl:
-            fkeys = list(fl.keys())
-            if len(fkeys)==1:
-                fsiz = fl[fkeys[0]].shape
-            elif 'mov' in fkeys:
-                fsiz = fl['mov'].shape
-            elif 'imaging' in fkeys:
-                fsiz = fl['imaging'].shape
-            else:
-                print(fkeys)
-                raise Exception('Unsupported file key')
-            if len(fsiz) == 3:
-                T, d1, d2 = fsiz
-            elif len(fsiz) == 5:
-                T, _, d1, d2, _ = fsiz
-            else:
-                print(fsiz)
-                raise Exception('Unsupported file shape')
-
-    elif extension == '.avi':
-        cap = cv2.VideoCapture(fname)
-        try:
-            T = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-            d2 = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-            d1 = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        except:
-            logging.debug('Roll back top opencv 2')
-            T = int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_COUNT))
-            d2 = int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_WIDTH))
-            d1 = int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT))
-        cap.release()
-
-    else:
-        raise Exception(
-            'Unsupported file extension for parallel motion correction')
+    dims, T = cm.source_extraction.cnmf.utilities.get_file_size(fname, var_name_hdf5=var_name_hdf5)
+    d1, d2 = dims
 
     if type(splits) is int:
         if subidx is None:
@@ -2557,8 +2572,7 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
     if save_movie:
         if base_name is None:
             base_name = os.path.split(fname)[1][:-4]
-        fname_tot = base_name + '_d1_' + str(dims[0]) + '_d2_' + str(dims[1]) + '_d3_' + str(
-            1 if len(dims) == 2 else dims[2]) + '_order_' + str(order) + '_frames_' + str(T) + '_.mmap'
+        fname_tot = memmap_frames_filename(base_name, dims, T, order)
         fname_tot = os.path.join(os.path.split(fname)[0], fname_tot)
         np.memmap(fname_tot, mode='w+', dtype=np.float32,
                   shape=prepare_shape(shape_mov), order=order)
@@ -2570,7 +2584,8 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
     for idx in idxs:
         pars.append([fname, fname_tot, idx, shape_mov, template, strides, overlaps, max_shifts, np.array(
             add_to_movie, dtype=np.float32), max_deviation_rigid, upsample_factor_grid,
-            newoverlaps, newstrides, shifts_opencv, nonneg_movie, gSig_filt, is_fiji, use_cuda, border_nan])
+            newoverlaps, newstrides, shifts_opencv, nonneg_movie, gSig_filt, is_fiji,
+            use_cuda, border_nan, var_name_hdf5])
 
     if dview is not None:
         logging.info('** Starting parallel motion correction **')

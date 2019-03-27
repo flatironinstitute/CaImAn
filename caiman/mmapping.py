@@ -18,12 +18,15 @@ from itertools import chain
 import logging
 import numpy as np
 import os
+import pickle
 import sys
 import tifffile
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import caiman as cm
+from caiman.paths import memmap_frames_filename
 
-def prepare_shape(mytuple):
+def prepare_shape(mytuple:Tuple) -> Tuple:
     """ This promotes the elements inside a shape into np.uint64. It is intended to prevent overflows
         with some numpy operations that are sensitive to it, e.g. np.memmap """
     if not isinstance(mytuple, tuple):
@@ -31,7 +34,7 @@ def prepare_shape(mytuple):
     return tuple(map(lambda x: np.uint64(x), mytuple))
 
 #%%
-def load_memmap(filename, mode='r'):
+def load_memmap(filename:str, mode:str='r') -> Union[Tuple[Any, Tuple[int,int],int], Tuple[Any, Tuple[int,int,int], int]]:
     """ Load a memory mapped file created by the function save_memmap
 
     Args:
@@ -71,8 +74,8 @@ def load_memmap(filename, mode='r'):
         raise Exception('Unknown file extension (should be .mmap)')
 
 #%%
-def save_memmap_each(fnames, dview=None, base_name=None, resize_fact=(1, 1, 1), remove_init=0,
-                     idx_xy=None, xy_shifts=None, add_to_movie=0, border_to_0=0, order = 'C', slices=None):
+def save_memmap_each(fnames:List[str], dview=None, base_name:str=None, resize_fact=(1, 1, 1), remove_init:int=0,
+                     idx_xy=None, xy_shifts=None, add_to_movie:float=0, border_to_0:int=0, order:str='C', slices=None) -> List[str]:
     """
     Create several memory mapped files using parallel processing
 
@@ -105,6 +108,8 @@ def save_memmap_each(fnames, dview=None, base_name=None, resize_fact=(1, 1, 1), 
             number of pixels on the border to set to the minimum of the movie
 
         order: (undocumented)
+
+        slices: (undocumented)
 
     Returns:
         fnames_tot: list
@@ -140,7 +145,7 @@ def save_memmap_each(fnames, dview=None, base_name=None, resize_fact=(1, 1, 1), 
 
 
 #%%
-def save_memmap_join(mmap_fnames, base_name=None, n_chunks=20, dview=None, add_to_mov=0):
+def save_memmap_join(mmap_fnames:List[str], base_name:str=None, n_chunks:int=20, dview=None, add_to_mov=0) -> str:
     """
     Makes a large file memmap from a number of smaller files
 
@@ -152,6 +157,8 @@ def save_memmap_join(mmap_fnames, base_name=None, n_chunks=20, dview=None, add_t
         n_chunks: number of chunks in which to subdivide when saving, smaller requires more memory
 
         dview: cluster handle
+
+        add_to_mov: (undocumented)
 
     """
 
@@ -171,9 +178,7 @@ def save_memmap_join(mmap_fnames, base_name=None, n_chunks=20, dview=None, add_t
         base_name = base_name[:base_name.find(
             '_d1_')] + '-#-' + str(len(mmap_fnames))
 
-    fname_tot = (base_name + '_d1_' + str(dims[0]) + '_d2_' + str(dims[1]) + '_d3_' +
-                 str(1 if len(dims) == 2 else dims[2]) + '_order_' + str(order) +
-                 '_frames_' + str(tot_frames) + '_.mmap')
+    fname_tot = memmap_frames_filename(base_name, dims, tot_frames, order)
     fname_tot = os.path.join(os.path.split(mmap_fnames[0])[0], fname_tot)
     logging.info("Memmap file for fname_tot: " + str(fname_tot))
 
@@ -207,7 +212,7 @@ def save_memmap_join(mmap_fnames, base_name=None, n_chunks=20, dview=None, add_t
     sys.stdout.flush()
     return fname_tot
 
-def my_map(dv, func, args):
+def my_map(dv, func, args) -> List:
     v = dv
     rc = v.client
     # scatter 'id', so id=0,1,2 on engines 0,1,2
@@ -216,7 +221,7 @@ def my_map(dv, func, args):
     amr = v.map(func, args)
 
     pending = set(amr.msg_ids)
-    results_all = dict()
+    results_all:Dict = dict()
     counter = 0
     while pending:
         try:
@@ -247,7 +252,7 @@ def my_map(dv, func, args):
     del results_all
     return result_ordered
 
-def save_portion(pars):
+def save_portion(pars) -> int:
     # todo: todocument
     use_mmap_save = False
     big_mov, d, tot_frames, fnames, idx_start, idx_end, add_to_mov = pars
@@ -285,7 +290,7 @@ def save_portion(pars):
 
 
 #%%
-def save_place_holder(pars):
+def save_place_holder(pars:List) -> str:
     """ To use map reduce
     """
     # todo: todocument
@@ -299,9 +304,9 @@ def save_place_holder(pars):
 
 
 #%%
-def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0, idx_xy=None,
-                order='F', xy_shifts=None, is_3D=False, add_to_movie=0, border_to_0=0, dview = None,
-                n_chunks=100, slices=None):
+def save_memmap(filenames:List[str], base_name:str='Yr', resize_fact:Tuple=(1, 1, 1), remove_init:int=0, idx_xy:Tuple=None,
+                order:str='F', xy_shifts:Optional[List]=None, is_3D:bool=False, add_to_movie:float=0, border_to_0=0, dview = None,
+                n_chunks:int=100, slices=None) -> str:
 
     """ Efficiently write data from a list of tif files into a memory mappable file
 
@@ -370,6 +375,7 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
 
             logging.debug('Distributing memory map over many files')
             # Here we make a bunch of memmap files in the right order. Same parameters
+            # TODO: Use separate variables to hold the list here vs the string we return
             fname_new = cm.save_memmap_each(filenames,
                                         base_name    = base_name,
                                         order        = order,
@@ -386,7 +392,7 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
 
         # The goal is to make a single large memmap file, which we do here
         if order == 'F':
-            raise exception('You cannot merge files in F order, they must be in C order for CaImAn')
+            raise Exception('You cannot merge files in F order, they must be in C order for CaImAn')
 
 
         fname_new = cm.save_memmap_join(fname_new, base_name=base_name, dview=dview, n_chunks=n_chunks)
@@ -411,7 +417,10 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
                         Yr = Yr[remove_init:, idx_xy[0], idx_xy[1], idx_xy[2]]
 
             else:
-                Yr = cm.load(f, fr=1, in_memory=True) if (isinstance(f, basestring) or isinstance(f, list)) else cm.movie(f) # TODO: Rewrite more legibly
+                if isinstance(f, basestring) or isinstance(f, list):
+                    Yr = cm.load(f, fr=1, in_memory=True)
+                else:
+                    Yr = cm.movie(f)
                 if xy_shifts is not None:
                     Yr = Yr.apply_shifts(xy_shifts, interpolation='cubic', remove_blanks=False)
 
@@ -485,7 +494,7 @@ def save_memmap(filenames, base_name='Yr', resize_fact=(1, 1, 1), remove_init=0,
 #%%
 
 
-def parallel_dot_product(A, b, block_size=5000, dview=None, transpose=False, num_blocks_per_run=20):
+def parallel_dot_product(A:np.ndarray, b, block_size:int=5000, dview=None, transpose=False, num_blocks_per_run=20) -> np.ndarray:
     # todo: todocument
     """ Chunk matrix product between matrix and column vectors
 
@@ -566,10 +575,9 @@ def parallel_dot_product(A, b, block_size=5000, dview=None, transpose=False, num
 
 
 #%%
-def dot_place_holder(par):
+def dot_place_holder(par:List) -> Tuple:
     # todo: todocument
 
-    import pickle
     A_name, idx_to_pass, b_, transpose = par
     A_, _, _ = load_memmap(A_name)
     b_ = pickle.loads(b_).astype(np.float32)
@@ -594,7 +602,7 @@ def dot_place_holder(par):
 
 #%%
 def save_tif_to_mmap_online(movie_iterable, save_base_name='YrOL_', order='C',
-                            add_to_movie=0, border_to_0=0):
+                            add_to_movie=0, border_to_0=0) -> str:
     # todo: todocument
 
     if isinstance(movie_iterable, basestring): # Allow specifying a filename rather than its data rep
@@ -604,11 +612,9 @@ def save_tif_to_mmap_online(movie_iterable, save_base_name='YrOL_', order='C',
     count = 0
     new_mov = []
 
-    dims = (len(movie_iterable),) + movie_iterable[0].shape
+    dims = (len(movie_iterable),) + movie_iterable[0].shape # TODO: Don't pack length into dims
 
-    fname_tot = (save_base_name + '_d1_' + str(dims[1]) + '_d2_' + str(dims[2]) + '_d3_' +
-                 str(1 if len(dims) == 3 else dims[3]) + '_order_' + str(order) +
-                 '_frames_' + str(dims[0]) + '_.mmap')
+    fname_tot = (memmap_frames_filename(save_base_name, dims[1:], dims[0], order))
 
     big_mov = np.memmap(fname_tot, mode='w+', dtype=np.float32,
                         shape=prepare_shape((np.prod(dims[1:]), dims[0])), order=order)

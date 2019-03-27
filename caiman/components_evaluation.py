@@ -18,6 +18,7 @@ import os
 import scipy
 from scipy.sparse import csc_matrix
 from scipy.stats import norm
+from typing import Any, List
 import warnings
 
 from caiman.paths import caiman_datadir
@@ -165,7 +166,7 @@ def find_activity_intervals(C, Npeaks=5, tB=-3, tA=10, thres=0.3):
     # todo todocument
     import peakutils
     K, T = np.shape(C)
-    L = []
+    L:List = []
     for i in range(K):
         if np.sum(np.abs(np.diff(C[i, :]))) == 0:
             L.append([])
@@ -204,7 +205,7 @@ def classify_components_ep(Y, A, C, b, f, Athresh=0.1, Npeaks=5, tB=-3, tA=10, t
     LOC = find_activity_intervals(C, Npeaks=Npeaks, tB=tB, tA=tA, thres=thres)
     rval = np.zeros(K)
 
-    significant_samples = []
+    significant_samples:List[Any] = []
     for i in range(K):
         if i % 200 == 0:  # Show status periodically
             logging.info('Components evaluated:' + str(i))
@@ -414,20 +415,11 @@ def evaluate_components(Y, traces, A, C, b, f, final_frate, remove_baseline=True
 
 
 #%%
-# FIXME xrange is python2-specific
-def chunker(seq, size):
-    for pos in xrange(0, len(seq), size):
-        yield seq[pos:pos + size]
-#%%
-
 
 def grouper(n, iterable, fillvalue=None):
     "grouper(3, 'ABCDEFG', 'x') --> ABC DEF Gxx"
     args = [iter(iterable)] * n
-    try:  # py3
-        return itertools.zip_longest(*args, fillvalue=fillvalue)
-    except:  # py2
-        return itertools.izip_longest(*args, fillvalue=fillvalue)
+    return itertools.zip_longest(*args, fillvalue=fillvalue)
 
 #%%
 
@@ -556,7 +548,7 @@ def select_components_from_metrics(A, dims, gSig, r_values, comp_SNR,
     idx_components_r = np.where(r_values >= r_values_min)[0]
     idx_components_raw = np.where(comp_SNR > min_SNR)[0]
 
-    idx_components = []
+    idx_components:Any = [] # changes type over the function
 
     if use_cnn:
           # normally 1
