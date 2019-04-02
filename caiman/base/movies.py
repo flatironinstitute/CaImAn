@@ -1311,6 +1311,8 @@ def load(file_name, fr=30, start_time=0, meta_data=None, subindices=None,
                             #if images.ndim > 3:
                             #    images = images[:, 0]
                         else:
+                            if type(subindices).__module__ is 'numpy':
+                                subindices = subindices.tolist()
                             images = np.array(
                                 f[var_name_hdf5][subindices]).squeeze()
                             #if images.ndim > 3:
