@@ -57,6 +57,7 @@ try:
 except:
     def profile(a): return a
 
+LEGAL_H5_EXTENSIONS = ['.h5', '.hdf5']
 
 class CNMF(object):
     """  Source extraction using constrained non-negative matrix factorization.
@@ -384,10 +385,10 @@ class CNMF(object):
         if len(indeces) < len(images.shape):
             indeces = indeces + [slice(None)]*(len(images.shape) - len(indeces))
         dims_orig = images.shape[1:]
-        dims_sliced = images[indeces].shape[1:]
+        dims_sliced = images[tuple(indeces)].shape[1:]
         is_sliced = (dims_orig != dims_sliced)
         if self.params.get('patch', 'rf') is None and (is_sliced or 'ndarray' in str(type(images))):
-            images = images[indeces]
+            images = images[tuple(indeces)]
             self.dview = None
             logging.warning("Parallel processing in a single patch\
                             is not available for loaded in memory or sliced\
@@ -602,7 +603,7 @@ class CNMF(object):
                 path to the hdf5 file containing the saved object
         '''
 
-        if '.hdf5' in filename:
+        if any([(ext in filename) for ext in LEGAL_H5_EXTENSIONS]):
             save_dict_to_hdf5(self.__dict__, filename)
         else:
             raise Exception("Filename not supported")

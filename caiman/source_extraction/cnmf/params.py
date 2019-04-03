@@ -278,7 +278,7 @@ class CNMFParams(object):
             ITER: int, default: 2
                 block coordinate descent iterations
 
-            method_deconvolution: 'oasis'|'cvxpy'|'oasis', default: 'oasis'
+            method_deconvolution: 'oasis'|'cvx'|'cvxpy', default: 'oasis'
                 method for solving the constrained deconvolution problem ('oasis','cvx' or 'cvxpy')
                 if method cvxpy, primary and secondary (if problem unfeasible for approx solution)
 
