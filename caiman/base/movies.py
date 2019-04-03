@@ -442,7 +442,7 @@ class movie(ts.timeseries):
         t, h, w = self.shape
         return self[crop_begin:t - crop_end, crop_top:h - crop_bottom, crop_left:w - crop_right]
 
-    def computeDFF(self, secsWindow:int=5, quantilMin:int=8, method:str='only_baseline', order:str='F') -> Tuple[Any, cm.movie]:
+    def computeDFF(self, secsWindow:int=5, quantilMin:int=8, method:str='only_baseline', order:str='F') -> Tuple[Any, movie]:
         """
         compute the DFF of the movie or remove baseline
 
@@ -1107,7 +1107,7 @@ class movie(ts.timeseries):
 
 def load(file_name, fr:float=30, start_time:float=0, meta_data:Dict=None, subindices=None,
          shape:Tuple[int,int]=None, var_name_hdf5:str='mov', in_memory:bool=False, is_behavior:bool=False,
-         bottom=0, top=0, left=0, right=0, channel=None, outtype=np.float32) -> cm.movie:
+         bottom=0, top=0, left=0, right=0, channel=None, outtype=np.float32) -> movie:
     """
     load movie from file. Supports a variety of formats. tif, hdf5, npy and memory mapped. Matlab is experimental.
 
@@ -1398,7 +1398,7 @@ def load(file_name, fr:float=30, start_time:float=0, meta_data:Dict=None, subind
 def load_movie_chain(file_list:List[str], fr:float=30, start_time=0,
                      meta_data=None, subindices=None,
                      bottom=0, top=0, left=0, right=0, z_top=0,
-                     z_bottom=0, is3D:bool=False, channel=None, outtype=np.float32) -> cm.movie:
+                     z_bottom=0, is3D:bool=False, channel=None, outtype=np.float32) -> movie:
     """ load movies from list of file names
 
     Args:
@@ -1414,7 +1414,7 @@ def load_movie_chain(file_list:List[str], fr:float=30, start_time=0,
             flag for 3d data (adds a fourth dimension)
 
     Returns:
-        movie: cm.movie
+        movie: movie
             movie corresponding to the concatenation og the input files
 
     """
@@ -1626,7 +1626,7 @@ def to_3D(mov2D:np.ndarray, shape:Tuple, order='F') -> np.ndarray:
     """
     return np.reshape(mov2D, shape, order=order)
 
-def from_zip_file_to_movie(zipfile_name:str, start_end:Tuple=None) -> cm.movie:
+def from_zip_file_to_movie(zipfile_name:str, start_end:Tuple=None) -> movie:
     '''
     Read/convert a movie from a zipfile.
 
@@ -1634,7 +1634,7 @@ def from_zip_file_to_movie(zipfile_name:str, start_end:Tuple=None) -> cm.movie:
         zipfile_name: Name of zipfile to read
         start_end: Start and end frame to extract
     Returns:
-        cm.movie
+        movie
     '''
     mov:List = []
     print('unzipping file into movie object')
