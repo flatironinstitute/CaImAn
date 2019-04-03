@@ -134,12 +134,12 @@ def merge_components(Y, A, b, C, f, S, sn_pix, temporal_params, spatial_params, 
     FF2 = A_corr > 0
     C_corr = scipy.sparse.csc_matrix(A_corr.shape)
     for ii in range(nr):
-        overlap_indeces = A_corr[ii, :].nonzero()[1]
-        if len(overlap_indeces) > 0:
+        overlap_indices = A_corr[ii, :].nonzero()[1]
+        if len(overlap_indices) > 0:
             # we chesk the correlation of the calcium traces for eahc overlapping components
             corr_values = [scipy.stats.pearsonr(C[ii, :], C[jj, :])[
-                0] for jj in overlap_indeces]
-            C_corr[ii, overlap_indeces] = corr_values
+                0] for jj in overlap_indices]
+            C_corr[ii, overlap_indices] = corr_values
 
     FF1 = (C_corr + C_corr.T) > thr
     FF3 = FF1.multiply(FF2)
@@ -165,7 +165,7 @@ def merge_components(Y, A, b, C, f, S, sn_pix, temporal_params, spatial_params, 
 #        if not fast_merge:
 #            Y_res = Y - A.dot(C) #residuals=background=noise
         if np.size(cor) > 1:
-            # we get the size (indeces)
+            # we get the size (indices)
             ind = np.argsort(np.squeeze(cor))[::-1]
         else:
             ind = [0]

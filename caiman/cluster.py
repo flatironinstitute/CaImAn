@@ -40,7 +40,7 @@ from .mmapping import load_memmap
 
 logger = logging.getLogger(__name__)
 
-def extract_patch_coordinates(dims:Tuple, rf:Union[List,Tuple], stride:Union[List[int],Tuple], border_pix:int=0, indeces=[slice(None)]*2) -> Tuple[List, List]:
+def extract_patch_coordinates(dims:Tuple, rf:Union[List,Tuple], stride:Union[List[int],Tuple], border_pix:int=0, indices=[slice(None)]*2) -> Tuple[List, List]:
     """
     Partition the FOV in patches
     and return the indexed in 2D and 1D (flatten, order='F') formats
@@ -56,9 +56,9 @@ def extract_patch_coordinates(dims:Tuple, rf:Union[List,Tuple], stride:Union[Lis
             degree of overlap of the patches
     """
 
-    sl_start = [0 if sl.start is None else sl.start for sl in indeces]
-    sl_stop = [dim if sl.stop is None else sl.stop for (sl, dim) in zip(indeces, dims)]
-    sl_step = [1 for sl in indeces]  # not used
+    sl_start = [0 if sl.start is None else sl.start for sl in indices]
+    sl_stop = [dim if sl.stop is None else sl.stop for (sl, dim) in zip(indices, dims)]
+    sl_step = [1 for sl in indices]  # not used
     dims_large = dims
     dims = np.minimum(np.array(dims) - border_pix, sl_stop) - np.maximum(border_pix, sl_start) 
 

@@ -1466,34 +1466,34 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial=3, gSig=(5, 5),
         ind = np.ravel_multi_index(ij, dims, order='C')
         ijSig = [[max(i - g, 0), min(i+g+1, d)] for i, g, d in zip(ij, gHalf, dims)]
         ijsig_all.append(ijSig)
-        indeces = np.ravel_multi_index(np.ix_(*[np.arange(ij[0], ij[1])
+        indices = np.ravel_multi_index(np.ix_(*[np.arange(ij[0], ij[1])
                                                 for ij in ijSig]), dims, order='F').ravel(order='C')
 
-        # indeces_ = np.ravel_multi_index(np.ix_(*[np.arange(ij[0], ij[1])
+        # indices_ = np.ravel_multi_index(np.ix_(*[np.arange(ij[0], ij[1])
         #                 for ij in ijSig]), dims, order='C').ravel(order = 'C')
 
-        ain = np.maximum(mean_buff[indeces], 0)
+        ain = np.maximum(mean_buff[indices], 0)
 
         if sniper_mode:
             half_crop_cnn = tuple([int(np.minimum(gs*2, patch_size/2)) for gs in gSig])
             ij_cnn = [min(max(ij_val,g_val),dim_val-g_val-1) for ij_val, g_val, dim_val in zip(ij,half_crop_cnn,dims)]
             ijSig_cnn = [[max(i - g, 0), min(i+g+1,d)] for i, g, d in zip(ij_cnn, half_crop_cnn, dims)]
-            indeces_cnn = np.ravel_multi_index(np.ix_(*[np.arange(ij[0], ij[1])
+            indices_cnn = np.ravel_multi_index(np.ix_(*[np.arange(ij[0], ij[1])
                             for ij in ijSig_cnn]), dims, order='F').ravel(order = 'C')
-            ain_cnn = mean_buff[indeces_cnn]
+            ain_cnn = mean_buff[indices_cnn]
 
         else:
             compute_corr = True  # determine when to compute corr coef
 
         na = ain.dot(ain)
-        # sv[indeces_] /= 1  # 0
+        # sv[indices_] /= 1  # 0
         if na:
             ain /= sqrt(na)
             Ain.append(ain)
             if compute_corr:
-                Y_patch.append(Yres_buf.T[indeces, :])
+                Y_patch.append(Yres_buf.T[indices, :])
             else:
-                all_indices.append(indeces)
+                all_indices.append(indices)
             idx.append(ind)
             if sniper_mode:
                 Ain_cnn.append(ain_cnn)
@@ -1589,7 +1589,7 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
         ijSig = [[max(i - temp_g, 0), min(i + temp_g + 1, d)] for i, temp_g, d in zip(ij, gHalf, dims)]
         dims_ain = (np.abs(np.diff(ijSig[1])[0]), np.abs(np.diff(ijSig[0])[0]))
 
-        indeces = np.ravel_multi_index(
+        indices = np.ravel_multi_index(
                 np.ix_(*[np.arange(ij[0], ij[1])
                        for ij in ijSig]), dims, order='F').ravel()
 
@@ -1599,11 +1599,11 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
 
         if Ab_dense is None:
             Ain = np.zeros((np.prod(dims), 1), dtype=np.float32)
-            Ain[indeces, :] = ain[:, None]
+            Ain[indices, :] = ain[:, None]
             ff = np.where((Ab.T.dot(Ain).T > thresh_overlap)
                           [:, gnb:])[1] + gnb
         else:
-            ff = np.where(Ab_dense[indeces, gnb:M].T.dot(
+            ff = np.where(Ab_dense[indices, gnb:M].T.dot(
                 ain).T > thresh_overlap)[0] + gnb
 
         if ff.size > 0:
@@ -1620,7 +1620,7 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
             # e.g. 1 * sigma * sqrt(1-sum(gamma)) corresponds roughly to the root mean square (non-zero) spike size, sqrt(<s^2>)
             #      2 * sigma * sqrt(1-sum(gamma)) corresponds roughly to the 95% percentile of (non-zero) spike sizes
             #      3 * sigma * sqrt(1-sum(gamma)) corresponds roughly to the 99.7% percentile of (non-zero) spike sizes
-            s_min = -s_min * sqrt((ain**2).dot(sn[indeces]**2)) * sqrt(1 - np.sum(g))
+            s_min = -s_min * sqrt((ain**2).dot(sn[indices]**2)) * sqrt(1 - np.sum(g))
 
         cin_res = cin_res.get_ordered()
         if accepted:
@@ -1653,7 +1653,7 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                 if not useOASIS:
                     # lambda from Selesnick's 3*sigma*|K| rule
                     # use noise estimate from init batch or use std_rr?
-                    #                    sn_ = sqrt((ain**2).dot(sn[indeces]**2)) / sqrt(1 - g**2)
+                    #                    sn_ = sqrt((ain**2).dot(sn[indices]**2)) / sqrt(1 - g**2)
                     sn_ = std_rr
                     oas = OASIS(np.ravel(g)[0], 3 * sn_ /
                                 (sqrt(1 - g**2) if np.size(g) == 1 else
@@ -1667,12 +1667,12 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
 
                 oases.append(oas)
 
-            Ain_csc = csc_matrix((ain, (indeces, [0] * len(indeces))), (np.prod(dims), 1), dtype=np.float32)
+            Ain_csc = csc_matrix((ain, (indices, [0] * len(indices))), (np.prod(dims), 1), dtype=np.float32)
             if Ab_dense is None:
                 groups = update_order(Ab, Ain, groups)[0]
             else:
-                groups = update_order(Ab_dense[indeces, :M], ain, groups)[0]
-                Ab_dense[indeces, M] = ain
+                groups = update_order(Ab_dense[indices, :M], ain, groups)[0]
+                Ab_dense[indices, M] = ain
 
             # faster version of scipy.sparse.hstack
             csc_append(Ab, Ain_csc)
@@ -1684,7 +1684,7 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
             Cf_ = Cf
             cin_circ_ = cin_circ
 
-            CY[M, indeces] = cin_.dot(Y_buf_[:, indeces]) / tt
+            CY[M, indices] = cin_.dot(Y_buf_[:, indices]) / tt
 
             # preallocate memory for speed up?
             CC1 = np.hstack([CC, Cf_.dot(cin_circ_ / tt)[:, None]])
@@ -1696,7 +1696,7 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
             N = N + 1
             M = M + 1
 
-            Yres_buf[:, indeces] -= np.outer(cin, ain)
+            Yres_buf[:, indices] -= np.outer(cin, ain)
 
             # restrict blurring to region where component is located
             # update bigger region than neural patch to avoid boundary effects
@@ -1765,7 +1765,7 @@ def remove_components_online(ind_rem, gnb, Ab, use_dense, Ab_dense, AtA, CY,
 
     Args:
         ind_rem list
-            indeces of components to be removed (starting from zero)
+            indices of components to be removed (starting from zero)
         gnb int
             number of global background components
         Ab  csc_matrix
