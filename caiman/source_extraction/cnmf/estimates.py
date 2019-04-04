@@ -6,11 +6,13 @@ Created on Thu Jul 12 11:11:45 2018
 @author: epnevmatikakis
 """
 
-import numpy as np
-import matplotlib.pyplot as plt
-import scipy.sparse
-import caiman
 import logging
+import matplotlib.pyplot as plt
+import numpy as np
+import scipy.sparse
+from typing import List
+
+import caiman
 from .utilities import detrend_df_f
 from .spatial import threshold_components
 from .merging import merge_iteration
@@ -145,7 +147,7 @@ class Estimates(object):
         self.groups = None
 
         self.dims = dims
-        self.shifts = []
+        self.shifts:List = []
 
         self.A_thr = None
         self.discarded_components = None

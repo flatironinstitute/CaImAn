@@ -148,11 +148,11 @@ def merge_components(Y, A, b, C, f, S, sn_pix, temporal_params, spatial_params, 
         FF3)  # % extract connected components
 
     p = temporal_params['p']
-    list_conxcomp = []
+    list_conxcomp_initial = []
     for i in range(nb):  # we list them
         if np.sum(connected_comp == i) > 1:
-            list_conxcomp.append((connected_comp == i).T)
-    list_conxcomp = np.asarray(list_conxcomp).T
+            list_conxcomp_initial.append((connected_comp == i).T)
+    list_conxcomp = np.asarray(list_conxcomp_initial).T
 
     if list_conxcomp.ndim > 1:
         cor = np.zeros((np.shape(list_conxcomp)[1], 1))

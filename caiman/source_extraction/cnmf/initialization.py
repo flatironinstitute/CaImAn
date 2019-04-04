@@ -33,6 +33,7 @@ from skimage.transform import resize as resize_sk
 from sklearn.decomposition import NMF, FastICA
 from sklearn.utils.extmath import randomized_svd, squared_norm
 import sys
+from typing import List
 
 import caiman
 from caiman.source_extraction.cnmf.deconvolution import constrained_foopsi
@@ -1608,8 +1609,8 @@ def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True, ssub=1, tsub=1):
                 downscale(b0.reshape(dims, order='F'),
                           (ssub, ssub)).reshape((-1, 1), order='F')
 
-    indices = []
-    data = []
+    indices:List = []
+    data:List = []
     indptr = [0]
     for p in range(d1*d2):
         index = get_indices_of_pixels_on_ring(p)

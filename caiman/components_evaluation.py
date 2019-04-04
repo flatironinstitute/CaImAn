@@ -391,7 +391,7 @@ def evaluate_components_placeholder(params):
 
 def estimate_components_quality_auto(Y, A, C, b, f, YrA, frate, decay_time, gSig, dims, dview=None, min_SNR=2, r_values_min=0.9,
                                      r_values_lowest=-1, Npeaks=10, use_cnn=True, thresh_cnn_min=0.95, thresh_cnn_lowest=0.1,
-                                     thresh_fitness_delta=-20., min_SNR_reject=0.5, gSig_range = None) -> Tuple[List, List, float, float, float]:
+                                     thresh_fitness_delta=-20., min_SNR_reject=0.5, gSig_range = None) -> Tuple[np.array, np.array, float, float, float]:
     ''' estimates the quality of component automatically
 
     Args:
@@ -480,13 +480,12 @@ def estimate_components_quality_auto(Y, A, C, b, f, YrA, frate, decay_time, gSig
 
     return idx_components, idx_components_bad, comp_SNR, r_values, cnn_values
 
-#%%
 def select_components_from_metrics(A, dims, gSig, r_values, comp_SNR,
                                    r_values_min=0.8, r_values_lowest=-1,
                                    min_SNR=2.5, min_SNR_reject=0.5,
                                    thresh_cnn_min=0.8, thresh_cnn_lowest=0.1,
                                    use_cnn=True, gSig_range=None,
-                                   neuron_class=1, predictions=None, **kwargs) -> Tuple[Any, Any, Any]:
+                                   neuron_class=1, predictions=None, **kwargs) -> Tuple[np.array, np.array, Any]:
     '''Selects components based on pre-computed metrics. For each metric
     space correlation, trace SNR, and CNN classifier both an upper and a lower
     thresholds are considered. A component is accepted if and only if it
@@ -533,11 +532,9 @@ def select_components_from_metrics(A, dims, gSig, r_values, comp_SNR,
 
     return idx_components.astype(np.int), idx_components_bad.astype(np.int), cnn_values
 
-#%%
-
 def estimate_components_quality(traces, Y, A, C, b, f, final_frate=30, Npeaks=10, r_values_min=.95,
                                 fitness_min=-100, fitness_delta_min=-100, return_all:bool=False, N=5,
-                                remove_baseline=True, dview=None, robust_std=False, Athresh=0.1, thresh_C=0.3, num_traces_per_group=20) -> Union[Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.array], Tuple[np.ndarray, np.ndarray]]:
+                                remove_baseline=True, dview=None, robust_std=False, Athresh=0.1, thresh_C=0.3, num_traces_per_group=20) -> Tuple[np.ndarray, ...]:
     """ Define a metric and order components according to the probability of some "exceptional events" (like a spike).
 
     Such probability is defined as the likeihood of observing the actual trace value over N samples given an estimated noise distribution.

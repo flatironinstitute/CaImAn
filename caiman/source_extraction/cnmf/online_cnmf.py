@@ -18,10 +18,9 @@ from builtins import map
 from builtins import range
 from builtins import str
 from builtins import zip
-from math import sqrt
-from time import time
 
 import cv2
+from math import sqrt
 import numpy as np
 from past.utils import old_div
 from scipy.ndimage import percentile_filter
@@ -30,6 +29,8 @@ from scipy.sparse import coo_matrix, csc_matrix, spdiags
 from scipy.stats import norm
 from sklearn.decomposition import NMF
 from sklearn.preprocessing import normalize
+from time import time
+from typing import List, Tuple
 
 import caiman
 #  from caiman.source_extraction.cnmf import params
@@ -203,12 +204,12 @@ class OnACID(object):
             min(self.params.get('online', 'init_batch'), self.params.get('online', 'minibatch_shape')) - 1), 0)
         self.estimates.groups = list(map(list, update_order(self.estimates.Ab)[0]))
         self.update_counter = 2**np.linspace(0, 1, self.N, dtype=np.float32)
-        self.time_neuron_added = []
+        self.time_neuron_added:List = []
         for nneeuu in range(self.N):
             self.time_neuron_added.append((nneeuu, self.params.get('online', 'init_batch')))
         if self.params.get('online', 'dist_shape_update'):
             self.time_spend = 0
-            self.comp_upd = []
+            self.comp_upd:List = []
         # setup per patch classifier
 
         if self.params.get('online', 'path_to_model') is None or self.params.get('online', 'sniper_mode') is False:
@@ -694,12 +695,12 @@ class OnACID(object):
         extra_files = len(fls) - 1
         init_files = 1
         t = init_batch
-        self.Ab_epoch = []
+        self.Ab_epoch:List = []
         t_online = []
         self.comp_upd = []
-        self.t_shapes = []
-        self.t_detect = []
-        self.t_motion = []
+        self.t_shapes:List = []
+        self.t_detect:List = []
+        self.t_motion:List = []
         max_shifts_online = self.params.get('online', 'max_shifts_online')
         if extra_files == 0:     # check whether there are any additional files
             process_files = fls[:init_files]     # end processing at this file
@@ -1416,8 +1417,8 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial=3, gSig=(5, 5),
     idx = []
     all_indices = []
     ijsig_all = []
-    cnn_pos = []
-    local_maxima = []
+    cnn_pos:List = []
+    local_maxima:List = []
     Y_patch = []
     ksize = tuple([int(3 * i / 2) * 2 + 1 for i in gSig])
     compute_corr = test_both
@@ -1522,7 +1523,7 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial=3, gSig=(5, 5),
             rval = corr(ain.copy(), np.mean(Ypx, -1))
             if rval > rval_thr:
                 keep_corr.append(i)
-        keep_final = list(set().union(keep_cnn, keep_corr))
+        keep_final:List = list(set().union(keep_cnn, keep_corr))
         if len(keep_final) > 0:
             Ain = np.stack(Ain)[keep_final]
         else:
@@ -1813,15 +1814,11 @@ def initialize_movie_online(Y, K, gSig, rf, stride, base_name,
     Initialize movie using CNMF on minibatch. See CNMF parameters
     """
 
-    _, d1, d2 = Y.shape
-    dims = (d1, d2)
     Yr = Y.to_2D().T
     # merging threshold, max correlation allowed
     # order of the autoregressive system
-    #T = Y.shape[0]
     base_name = base_name + '.mmap'
     fname_new = Y.save(base_name, order='C')
-    #%
     Yr, dims, T = caiman.load_memmap(fname_new)
     d1, d2 = dims
     images = np.reshape(Yr.T, [T] + list(dims), order='F')

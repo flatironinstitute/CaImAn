@@ -34,7 +34,7 @@ def prepare_shape(mytuple:Tuple) -> Tuple:
     return tuple(map(lambda x: np.uint64(x), mytuple))
 
 #%%
-def load_memmap(filename:str, mode:str='r') -> Union[Tuple[Any, Tuple[int,int],int], Tuple[Any, Tuple[int,int,int], int]]:
+def load_memmap(filename:str, mode:str='r') -> Tuple[Any,Tuple,int]:
     """ Load a memory mapped file created by the function save_memmap
 
     Args:
@@ -68,7 +68,10 @@ def load_memmap(filename:str, mode:str='r') -> Union[Tuple[Any, Tuple[int,int],i
                                                    ), int(fpart[-5]), int(fpart[-1]), fpart[-3]
         Yr = np.memmap(file_to_load, mode=mode, shape=prepare_shape((
             d1 * d2 * d3, T)), dtype=np.float32, order=order)
-        return (Yr, (d1, d2), T) if d3 == 1 else (Yr, (d1, d2, d3), T)
+        if d3 == 1:
+            return (Yr, (d1, d2), T)
+        else:
+            return (Yr, (d1, d2, d3), T)
     else:
         logging.error("Unknown extension for file " + str(filename))
         raise Exception('Unknown file extension (should be .mmap)')

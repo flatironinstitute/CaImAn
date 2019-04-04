@@ -22,12 +22,13 @@ from builtins import range
 from past.utils import old_div
 
 from copy import copy, deepcopy
-from sklearn.decomposition import NMF
 import logging
 import numpy as np
 import os
 import scipy
+from sklearn.decomposition import NMF
 import time
+from typing import Set
 
 from ...mmapping import load_memmap
 from ...cluster import extract_patch_coordinates
@@ -461,9 +462,9 @@ def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None,
 #        B_tot = scipy.sparse.coo_matrix(B_tot)
         F_tot *= nB[:, None]
 
-        processed_idx = set([])
+        processed_idx:Set = set([])
         # needed if a patch has more than 1 background component
-        processed_idx_prev = set([])
+        processed_idx_prev:Set = set([])
         for _b in np.arange(B_tot.shape[-1]):
             idx_mask = np.where(B_tot[:, _b])[0]
             idx_mask_repeat = processed_idx.intersection(idx_mask)
