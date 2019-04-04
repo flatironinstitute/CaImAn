@@ -23,6 +23,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from past.utils import old_div
 import scipy
+from scipy.linalg.lapack import dpotrf, dpotrs
 import scipy.ndimage as nd
 from scipy.ndimage.measurements import center_of_mass
 from scipy.ndimage.filters import correlate
@@ -36,9 +37,9 @@ import sys
 from typing import List
 
 import caiman
-from caiman.source_extraction.cnmf.deconvolution import constrained_foopsi
-from caiman.source_extraction.cnmf.pre_processing import get_noise_fft, get_noise_welch
-from caiman.source_extraction.cnmf.spatial import circular_constraint, connectivity_constraint
+from .deconvolution import constrained_foopsi
+from .pre_processing import get_noise_fft, get_noise_welch
+from .spatial import circular_constraint, connectivity_constraint
 
 try:
     cv2.setNumThreads(0)
@@ -1571,6 +1572,10 @@ def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True, ssub=1, tsub=1):
             radius of ring
         data_fits_in_memory: [optional] bool
             If true, use faster but more memory consuming computation
+        ssub: int
+            spatial downscale factor
+        tsub: int
+            temporal downscale factor
 
     Returns:
         W: scipy.sparse.csr_matrix (pixels x pixels)
@@ -1579,7 +1584,6 @@ def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True, ssub=1, tsub=1):
             estimate of constant background baselines
     """
 
-    T = Y.shape[1]
     d1 = (dims[0] - 1) // ssub + 1
     d2 = (dims[1] - 1) // ssub + 1
 
@@ -1589,60 +1593,61 @@ def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True, ssub=1, tsub=1):
     ringidx = [i - radius - 1 for i in np.nonzero(ring)]
 
     def get_indices_of_pixels_on_ring(pixel):
-        pixel = np.unravel_index(pixel, (d1, d2), order='F')
-        x = pixel[0] + ringidx[0]
-        y = pixel[1] + ringidx[1]
+        x = pixel % d1 + ringidx[0]
+        y = pixel // d1 + ringidx[1]
         inside = (x >= 0) * (x < d1) * (y >= 0) * (y < d2)
-        return np.ravel_multi_index((x[inside], y[inside]), (d1, d2), order='F')
+        return x[inside] + y[inside] * d1
 
     b0 = np.array(Y.mean(1)) - A.dot(C.mean(1))
+
+    if ssub > 1:
+        ds_mat = caiman.source_extraction.cnmf.utilities.decimation_matrix(dims, ssub)
+        ds = lambda x: ds_mat.dot(x)
+    else:
+        ds = lambda x: x
 
     if data_fits_in_memory:
         if ssub == 1 and tsub == 1:
             X = Y - A.dot(C) - b0[:, None]
         else:
-            X = downscale(Y.reshape(dims + (-1,), order='F'),
-                          (ssub, ssub, tsub)).reshape((-1, (T - 1) // tsub + 1), order='F') - \
-                (downscale(A.reshape(dims + (-1,), order='F'),
-                           (ssub, ssub, 1)).reshape((-1, len(C)), order='F').dot(
-                    downscale(C, (1, tsub))) if A.size > 0 else 0) - \
-                downscale(b0.reshape(dims, order='F'),
-                          (ssub, ssub)).reshape((-1, 1), order='F')
+            X = downscale(ds(Y), (1, tsub)) - \
+                (ds(A).dot(downscale(C, (1, tsub))) if A.size > 0 else 0) - \
+                ds(b0).reshape((-1, 1), order='F')
 
-    indices:List = []
-    data:List = []
-    indptr = [0]
-    for p in range(d1*d2):
-        index = get_indices_of_pixels_on_ring(p)
-        indices += list(index)
-        if data_fits_in_memory:
+        def process_pixel(p):
+            index = get_indices_of_pixels_on_ring(p)
             B = X[index]
-        elif ssub == 1 and tsub == 1:
-            B = Y[index] - A[index].dot(C) - b0[index, None]
-        else:
-            B = downscale(Y.reshape(dims + (-1,), order='F'),
-                          (ssub, ssub, tsub)).reshape((-1, (T - 1) // tsub + 1), order='F')[index] - \
-                (downscale(A.reshape(dims + (-1,), order='F'),
-                           (ssub, ssub, 1)).reshape((-1, len(C)), order='F')[index].dot(
-                    downscale(C, (1, tsub))) if A.size > 0 else 0) - \
-                downscale(b0.reshape(dims, order='F'),
-                          (ssub, ssub)).reshape((-1, 1), order='F')[index]
-        tmp = np.array(B.dot(B.T))
-        tmp += np.diag(tmp).sum() * 1e-5 * np.eye(len(B))
-        if data_fits_in_memory:
+            tmp = np.array(B.dot(B.T))
+            tmp[np.diag_indices(len(tmp))] += np.trace(tmp) * 1e-5
             tmp2 = X[p]
-        elif ssub == 1 and tsub == 1:
-            tmp2 = Y[p] - A[p].dot(C).ravel() - b0[p]
-        else:
-            tmp2 = downscale(Y.reshape(dims + (-1,), order='F'),
-                             (ssub, ssub, tsub)).reshape((-1, (T - 1) // tsub + 1), order='F')[p] - \
-                   (downscale(A.reshape(dims + (-1,), order='F'),
-                              (ssub, ssub, 1)).reshape((-1, len(C)), order='F')[p].dot(
-                       downscale(C, (1, tsub))) if A.size > 0 else 0) - \
-                   downscale(b0.reshape(dims, order='F'),
-                             (ssub, ssub)).reshape((-1, 1), order='F')[p]
-        data += list(np.linalg.inv(tmp).dot(B.dot(tmp2)))
-        indptr.append(len(indices))
+            data = dpotrs(dpotrf(tmp)[0], B.dot(tmp2))[0]
+            return index, data
+    else:
+
+        def process_pixel(p):
+            index = get_indices_of_pixels_on_ring(p)
+            if ssub == 1 and tsub == 1:
+                B = Y[index] - A[index].dot(C) - b0[index, None]
+            else:
+                B = downscale(ds(Y), (1, tsub))[index] - \
+                    (ds(A)[index].dot(downscale(C, (1, tsub))) if A.size > 0 else 0) - \
+                    ds(b0).reshape((-1, 1), order='F')[index]
+            tmp = np.array(B.dot(B.T))
+            tmp[np.diag_indices(len(tmp))] += np.trace(tmp) * 1e-5
+            if ssub == 1 and tsub == 1:
+                tmp2 = Y[p] - A[p].dot(C).ravel() - b0[p]
+            else:
+                tmp2 = downscale(ds(Y), (1, tsub))[p] - \
+                    (ds(A)[p].dot(downscale(C, (1, tsub))) if A.size > 0 else 0) - \
+                    ds(b0).reshape((-1, 1), order='F')[p]
+            data = dpotrs(dpotrf(tmp)[0], B.dot(tmp2))[0]
+            return index, data
+
+    Q = list(map(process_pixel, range(d1 * d2)))
+    indices, data = np.transpose(Q)
+    indptr = np.concatenate([[0], np.cumsum(list(map(len, indices)))])
+    indices = np.concatenate(indices)
+    data = np.concatenate(data)
     return spr.csr_matrix((data, indices, indptr), dtype='float32'), b0.astype(np.float32)
 
 #%%

@@ -132,7 +132,7 @@ def main():
     gSig = (3, 3)       # gaussian width of a 2D gaussian kernel, which approximates a neuron
     gSiz = (13, 13)     # average diameter of a neuron, in general 4*gSig+1
     Ain = None          # possibility to seed with predetermined binary masks
-    merge_thresh = .7   # merging threshold, max correlation allowed
+    merge_thr = .7      # merging threshold, max correlation allowed
     rf = 40             # half-size of the patches in pixels. e.g., if rf=40, patches are 80x80
     stride_cnmf = 20    # amount of overlap between the patches in pixels
     #                     (keep it at least large as gSiz, i.e 4 times the neuron size gSig)
@@ -160,7 +160,7 @@ def main():
                                     'K': K,
                                     'gSig': gSig,
                                     'gSiz': gSiz,
-                                    'merge_thresh': merge_thresh,
+                                    'merge_thr': merge_thr,
                                     'p': p,
                                     'tsub': tsub,
                                     'ssub': ssub,
