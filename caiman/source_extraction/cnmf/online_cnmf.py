@@ -23,6 +23,7 @@ from time import time
 
 import cv2
 from multiprocessing import current_process
+import logging
 import numpy as np
 from past.utils import old_div
 from scipy.ndimage import percentile_filter
@@ -340,7 +341,7 @@ class OnACID(object):
     @profile
     def fit_next(self, t, frame_in, num_iters_hals=3):
         """
-        This method fits the next frame using the online cnmf algorithm and
+        This method fits the next frame using the CaImAn online algorithm and
         updates the object.
 
         Args
@@ -533,7 +534,7 @@ class OnACID(object):
                         self.estimates.Ab_dense = np.zeros((self.estimates.CY.shape[-1], expected_comps + nb_),
                                                  dtype=np.float32)
                         self.estimates.Ab_dense[:, :Ab_.shape[1]] = Ab_.toarray()
-                    print('Increasing number of expected components to:' +
+                    logging.info('Increasing number of expected components to:' +
                           str(expected_comps))
                 self.update_counter.resize(self.N)
 
@@ -673,7 +674,7 @@ class OnACID(object):
         if not self.params.get('online', 'dist_shape_update'):  # bulk shape update
             if ((t + 1 - self.params.get('online', 'init_batch')) %
                     self.params.get('online', 'update_freq') == 0):
-                print('Updating Shapes')
+                logging.info('Updating Shapes')
 
                 if self.N > self.params.get('online', 'max_comp_update_shape'):
                     indicator_components = np.where(self.update_counter <=
@@ -1099,6 +1100,7 @@ class OnACID(object):
         else:
             caption = 'Identified Components'
         captions = ['Raw Data', 'Inferred Activity', caption, 'Denoised Data']
+        self.dims = self.estimates.dims
         self.captions = captions
         est = self.estimates
         gnb = self.M - self.N
