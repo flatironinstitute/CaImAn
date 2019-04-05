@@ -406,12 +406,13 @@ def recursively_save_dict_contents_to_group(h5file:h5py.File, path:str, dic:Dict
             item = np.array(list(item))
         if key == 'g_tot':
             item = np.asarray(item, dtype=np.float)
-        if key in ['groups', 'idx_tot', 'ind_A', 'Ab_epoch','coordinates','loaded_model', 'optional_outputs','merged_ROIs']:
+        if key in ['groups', 'idx_tot', 'ind_A', 'Ab_epoch', 'coordinates',
+                   'loaded_model', 'optional_outputs', 'merged_ROIs']:
             logging.info(['groups', 'idx_tot', 'ind_A', 'Ab_epoch', 'coordinates', 'loaded_model', 'optional_outputs', 'merged_ROIs',
                    '** not saved'])
             continue
 
-        if isinstance(item, list):
+        if isinstance(item, list) or isinstance(item, tuple):
             item = np.array(item)
         if not isinstance(key, str):
             raise ValueError("dict keys must be strings to save to hdf5")
@@ -441,10 +442,11 @@ def recursively_save_dict_contents_to_group(h5file:h5py.File, path:str, dic:Dict
         # other types cannot be saved and will result in an error
         elif item is None or key == 'dview':
             h5file[path + key] = 'NoneType'
-        elif key in ['dims','medw', 'sigma_smooth_snmf', 'dxy', 'max_shifts', 'strides', 'overlaps', 'gSig']:
+        elif key in ['dims', 'medw', 'sigma_smooth_snmf', 'dxy', 'max_shifts',
+                     'strides', 'overlaps', 'gSig']:
             logging.info(key + ' is a tuple ****')
             h5file[path + key] = np.array(item)
-        elif type(item).__name__ in ['CNMFParams', 'Estimates']: # parameter object
+        elif type(item).__name__ in ['CNMFParams', 'Estimates']: #  parameter object
             recursively_save_dict_contents_to_group(h5file, path + key + '/', item.__dict__)
         else:
             raise ValueError("Cannot save %s type for key '%s'." % (type(item), key))
