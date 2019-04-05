@@ -699,7 +699,8 @@ class OnACID(object):
                         q=0.5, iters=self.params.get('online', 'iters_shape'))
 
                 self.estimates.AtA = (Ab_.T.dot(Ab_)).toarray()
-                if self.is1p:
+                if self.is1p and ((t + 1 - self.params.get('online', 'init_batch')) %
+                    (self.params.get('online', 'W_update_factor') * self.params.get('online', 'update_freq')) == 0):
                     XXt = self.estimates.XXt  # alias for considerably faster look up in large loop
                     W = self.estimates.W
                     # for p in range(W.shape[0]):
@@ -721,7 +722,8 @@ class OnACID(object):
                         tmp[np.diag_indices(len(tmp))] += np.trace(tmp) * 1e-5
                         # not sure why next line won't work
                         # W.data[W.indptr[p]:W.indptr[p + 1]] = np.linalg.inv(tmp).dot(XXt[index, p])
-                        return np.linalg.inv(tmp).dot(XXt[index, p])
+#                        return np.linalg.inv(tmp).dot(XXt[index, p])
+                        return np.linalg.solve(tmp, XXt[index, p])
 
                     if False:  # current_process().name == 'MainProcess':
                         W.data = np.concatenate(parmap(process_pixel, range(W.shape[0])))

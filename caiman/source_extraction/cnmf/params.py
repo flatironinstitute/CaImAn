@@ -700,6 +700,7 @@ class CNMFParams(object):
             'use_corr_img': use_corr_img,      # flag for using correlation image to detect new components
             'use_dense': use_dense,            # flag for representation and storing of A and b
             'use_peak_max': use_peak_max,      # flag for finding candidate centroids
+            'W_update_factor': 2,              # update W less often than shapes by a given factor 
         }
         
         self.motion = {
