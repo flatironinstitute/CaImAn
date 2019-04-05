@@ -24,6 +24,7 @@ from multiprocessing import current_process
 import numpy as np
 from past.utils import old_div
 import scipy
+from scipy.linalg.lapack import dpotrf, dpotrs
 import scipy.ndimage as nd
 from scipy.ndimage.measurements import center_of_mass
 from scipy.ndimage.filters import correlate
@@ -1576,8 +1577,11 @@ def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True, ssub=1, tsub=1, p
             spatial downscale factor
         tsub: int
             temporal downscale factor
+<<<<<<< HEAD
         parallel: bool
             If true, use multiprocessing to process pixels in parallel
+=======
+>>>>>>> dev
 
     Returns:
         W: scipy.sparse.csr_matrix (pixels x pixels)
@@ -1600,13 +1604,18 @@ def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True, ssub=1, tsub=1, p
     ringidx = [i - radius - 1 for i in np.nonzero(ring)]
 
     def get_indices_of_pixels_on_ring(pixel):
-        pixel = np.unravel_index(pixel, (d1, d2), order='F')
-        x = pixel[0] + ringidx[0]
-        y = pixel[1] + ringidx[1]
+        x = pixel % d1 + ringidx[0]
+        y = pixel // d1 + ringidx[1]
         inside = (x >= 0) * (x < d1) * (y >= 0) * (y < d2)
-        return np.ravel_multi_index((x[inside], y[inside]), (d1, d2), order='F')
+        return x[inside] + y[inside] * d1
 
     b0 = np.array(Y.mean(1)) - A.dot(C.mean(1))
+
+    if ssub > 1:
+        ds_mat = caiman.source_extraction.cnmf.utilities.decimation_matrix(dims, ssub)
+        ds = lambda x: ds_mat.dot(x)
+    else:
+        ds = lambda x: x
 
     if data_fits_in_memory:
         if ssub == 1 and tsub == 1:
