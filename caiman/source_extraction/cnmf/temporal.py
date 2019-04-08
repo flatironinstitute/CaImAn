@@ -1,14 +1,14 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""A set of routines for estimating the temporal components, given the spatial components and temporal components
-
-@author: agiovann
+"""A set of routines for estimating the temporal components, given the spatial
+components and temporal components
 """
 
 from builtins import str
 from builtins import map
 from builtins import range
+import logging
 from scipy.sparse import spdiags, diags, coo_matrix  # ,csgraph
 import scipy
 import numpy as np
@@ -197,7 +197,7 @@ def update_temporal_components(Y, A, b, Cin, fin, bl=None, c1=None, g=None, sn=N
     C = Cin.copy()
     nA = np.ravel(A.power(2).sum(axis=0))
 
-    print('Generating residuals')
+    logging.info('Generating residuals')
 #    dview_res = None if block_size >= 500 else dview
     if 'memmap' in str(type(Y)):
         YA = parallel_dot_product(Y, A, dview=dview, block_size=block_size_temp,
@@ -210,7 +210,7 @@ def update_temporal_components(Y, A, b, Cin, fin, bl=None, c1=None, g=None, sn=N
     YrA = YA - AA.T.dot(Cin).T
     # creating the patch of components to be computed in parrallel
     parrllcomp, len_parrllcomp = update_order_greedy(AA[:nr, :][:, :nr])
-    print("entering the deconvolution ")
+    logging.info("entering the deconvolution ")
     C, S, bl, YrA, c1, sn, g, lam = update_iteration(parrllcomp, len_parrllcomp, nb, C, S, bl, nr,
                                                      ITER, YrA, c1, sn, g, Cin, T, nA, dview, debug, AA, kwargs)
     ff = np.where(np.sum(C, axis=1) == 0)  # remove empty components
@@ -377,8 +377,9 @@ def update_iteration(parrllcomp, len_parrllcomp, nb, C, S, bl, nr,
             YrA -= AA[jo, :].T.dot(Ctemp - C[jo, :]).T
             C[jo, :] = Ctemp.copy()
             S[jo, :] = Stemp
-            print((str(np.sum(len_parrllcomp[:count + 1])) + ' out of total ' +
-                   str(nr) + ' temporal components updated'))
+            logging.info("{0} ".format(np.sum(len_parrllcomp[:count + 1])) +
+                         "out of total {0} temporal components ".format(nr) +
+                         "updated")
 
         for ii in np.arange(nr, nr + nb):
             cc = np.maximum(YrA[:, ii] + Cin[ii], -np.Inf)
@@ -388,8 +389,9 @@ def update_iteration(parrllcomp, len_parrllcomp, nb, C, S, bl, nr,
         if dview is not None and not('multiprocessing' in str(type(dview))):
             dview.results.clear()
 
-        if scipy.linalg.norm(Cin - C, 'fro') <= 1e-3 * scipy.linalg.norm(C, 'fro'):
-            print("stopping: overall temporal component not changing significantly")
+        if scipy.linalg.norm(Cin - C, 'fro') <= 1e-3*scipy.linalg.norm(C, 'fro'):
+            logging.info("stopping: overall temporal component not changing" +
+                         " significantly")
             break
         else:  # we keep Cin and do the iteration once more
             Cin = C
