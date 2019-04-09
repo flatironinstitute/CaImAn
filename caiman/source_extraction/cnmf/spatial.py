@@ -903,7 +903,7 @@ def determine_search_location(A, dims, method='ellipse', min_size=3, max_size=8,
                 dist_indicator[:, i] = scipy.sparse.coo_matrix(np.squeeze(np.reshape(A_temp, (d, 1)))[:,None] > 0)
 
         else:
-            print('dilate...')
+            logging.info('dilate in parallel...')
             pars = []
             for i in range(nr):
                 pars.append([A[:, i], dims, expandCore, d])
