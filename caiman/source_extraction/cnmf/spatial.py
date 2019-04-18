@@ -9,33 +9,36 @@ Created on Wed Aug 05 20:38:27 2015
 
 # noinspection PyCompatibility
 from past.builtins import basestring
+from past.utils import old_div
 from builtins import zip
 from builtins import map
 from builtins import str
 from builtins import range
-from past.utils import old_div
+
+import cv2
+import logging
 import numpy as np
+import os
+import scipy
 from scipy.sparse import coo_matrix, csc_matrix, csr_matrix
 from scipy.sparse import spdiags
 from scipy.linalg import eig
-from scipy.ndimage.morphology import generate_binary_structure, iterate_structure
 from scipy.ndimage import label, binary_dilation
-from sklearn.decomposition import NMF
-from warnings import warn
-import scipy
-import time
-import tempfile
-import os
-import shutil
-from ...mmapping import load_memmap, parallel_dot_product
 from scipy.ndimage.filters import median_filter
 from scipy.ndimage.morphology import binary_closing
-import cv2
+from scipy.ndimage.morphology import generate_binary_structure, iterate_structure
+import shutil
+from sklearn.decomposition import NMF
+import tempfile
+import time
+from typing import List
+
+from ...mmapping import load_memmap, parallel_dot_product
 
 
 def basis_denoising(y, c, boh, sn, id2_, px):
     if np.size(c) > 0:
-        _, _, a, _, _ = lars_regression_noise(y, c, 1, sn)
+        _, _, a, _, _ = lars_regression_noise(y, c, 1, sn) # FIXME Undefined function
     else:
         return (None, None, None)
     return a, px, id2_
@@ -163,7 +166,7 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
 
         Exception "Failed to delete: " + folder
     """
-    print('Initializing update of Spatial Components')
+    #logging.info('Initializing update of Spatial Components')
 
     if expandCore is None:
         expandCore = iterate_structure(
@@ -177,7 +180,7 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
         Y, A_in, C, f, n_pixels_per_process, nb)
 
     start_time = time.time()
-    print('computing the distance indicators')
+    logging.info('Computing support of spatial components')
     # we compute the indicator from distance indicator
     ind2_, nr, C, f, b_, A_in = computing_indicator(
         Y, A_in, b_in, C, f, nb, method_exp, dims, min_size, max_size, dist, expandCore, dview)
@@ -193,13 +196,13 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
     if b_in is None:
         b_in = b_
 
-    print('memmaping')
+    logging.info('Memory mapping')
     # we create a memory map file if not already the case, we send Cf, a
     # matrix that include background components
     C_name, Y_name, folder = creatememmap(Y, np.vstack((C, f)), dview)
 
     # we create a pixel group array (chunks for the cnmf)for the parrallelization of the process
-    print('Updating Spatial Components using lasso lars')
+    logging.info('Updating Spatial Components using lasso lars')
     cct = np.diag(C.dot(C.T))
     pixel_groups = []
     for i in range(0, np.prod(dims) - n_pixels_per_process + 1, n_pixels_per_process):
@@ -224,14 +227,14 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
             px, idxs_, a = pars
             A_[px, idxs_] = a
 
-    print("thresholding components")
+    logging.info("thresholding components")
     A_ = threshold_components(A_, dims, dview=dview, medw=medw, thr_method=thr_method,
                               maxthr=maxthr, nrgthr=nrgthr, extract_cc=extract_cc, se=se, ss=ss)
 
     ff = np.where(np.sum(A_, axis=0) == 0)  # remove empty components
     if np.size(ff) > 0:
         ff = ff[0]
-        print('eliminating {} empty spatial components'.format(len(ff)))
+        logging.info('eliminating {0} empty spatial components'.format(len(ff)))
         A_ = np.delete(A_, list(ff[ff < nr]), 1)
         C = np.delete(C, list(ff[ff < nr]), 0)
         nr = nr - len(ff[ff < nr])
@@ -245,7 +248,7 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
                 b_in = np.delete(b_in, background_ff, 1)
     A_ = A_[:, :nr]
     A_ = coo_matrix(A_)
-    print("Computing residuals")
+    logging.info("Computing residuals")
 
     if 'memmap' in str(type(Y)):
         Y_resf = parallel_dot_product(Y, f.T, dview=dview, block_size=block_size_spat, num_blocks_per_run=num_blocks_per_run_spat) - \
@@ -271,10 +274,12 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
         #    b = np.delete(b_in, background_ff, 0)
         # except NameError:
         b = b_in
-    print(("--- %s seconds ---" % (time.time() - start_time)))
+    # print(("--- %s seconds ---" % (time.time() - start_time)))
+    logging.info('Updating done in ' + 
+                 '{0}s'.format(str(time.time() - start_time).split(".")[0]))
     try:  # clean up
         # remove temporary file created
-        print("Removing tempfiles created")
+        logging.info("Removing created tempfiles")
         shutil.rmtree(folder)
     except:
         raise Exception("Failed to delete: " + folder)
@@ -853,7 +858,7 @@ def determine_search_location(A, dims, method='ellipse', min_size=3, max_size=8,
             Coor['z'] = np.kron(list(range(d3)), np.ones(d2 * d1))
         if not dist == np.inf:  # determine search area for each neuron
             cm = np.zeros((nr, len(dims)))  # vector for center of mass
-            Vr = []  # cell(nr,1);
+            Vr:List = []  # cell(nr,1);
             dist_indicator = []
             pars = []
             # for each dim
@@ -898,7 +903,7 @@ def determine_search_location(A, dims, method='ellipse', min_size=3, max_size=8,
                 dist_indicator[:, i] = scipy.sparse.coo_matrix(np.squeeze(np.reshape(A_temp, (d, 1)))[:,None] > 0)
 
         else:
-            print('dilate...')
+            logging.info('dilate in parallel...')
             pars = []
             for i in range(nr):
                 pars.append([A[:, i], dims, expandCore, d])

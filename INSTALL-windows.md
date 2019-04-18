@@ -3,6 +3,7 @@ The Windows installation process differs more widely from installation on Linux 
 
 ### Process
    * Increase the maximum size of your pagefile to 64G or more (http://www.tomshardware.com/faq/id-2864547/manage-virtual-memory-pagefile-windows.html ) - The Windows memmap interface is sensitive to the maximum setting and leaving it at the default can cause errors when processing larger datasets
+   * Remove any associations you may have made between .py files and an existing python interpreter or editor
    * Download and install Anaconda (Python 3.x, not 2.x) <http://docs.continuum.io/anaconda/install>. Allow the installer to modify your PATH variable
    * Use Conda to install git (With "conda install git") - use of another commandline git is acceptable, but may lead to issues depending on default settings
    * Install Microsoft Build Tools for Visual Studio 2017 <https://www.visualstudio.com/downloads/#build-tools-for-visual-studio-2017>. Check the "Build Tools" box, and in the detailed view on the right check the "C/C++ CLI Tools" component too. The specifics of this occasionally change as Microsoft changes its products and website; you may need to go off-script.

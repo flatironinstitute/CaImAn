@@ -988,7 +988,7 @@ def estimate_time_constant(fluor, p=2, sn=None, lags=5, fudge_factor=1.):
 
     A = scipy.linalg.toeplitz(xc[lags + np.arange(lags)],
                               xc[lags + np.arange(p)]) - sn**2 * np.eye(lags, p)
-    g = np.linalg.lstsq(A, xc[lags + 1:])[0]
+    g = np.linalg.lstsq(A, xc[lags + 1:], rcond=None)[0]
     gr = np.roots(np.concatenate([np.array([1]), -g.flatten()]))
     gr = old_div((gr + gr.conjugate()), 2.)
     np.random.seed(45) # We want some variability below, but it doesn't have to be random at
