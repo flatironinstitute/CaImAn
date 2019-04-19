@@ -29,6 +29,8 @@ Functions that are required to operate the package at a basic level
 
    caiman.base.rois.register_multisession
 
+   caiman.source_extraction.cnmf.utilities.detrend_df_f
+
 
 Movie Handling
 ---------------
@@ -51,25 +53,15 @@ Timeseries Handling
 .. automethod:: timeseries.save
 .. autofunction:: concatenate
 
-ROIs 
+ROIs
 ---------------
 
 .. currentmodule:: caiman.base.rois
 
-.. automethod:: com
-.. automethod:: extract_binary_masks_from_structural_channel
-.. automethod:: register_ROIs
-.. automethod:: register_multisession
-
-
-Parallel Processing functions
------------------------------
-
-.. currentmodule:: caiman.cluster
-
-.. autofunction:: apply_to_patch
-.. autofunction:: start_server
-.. autofunction:: stop_server
+.. autofunction:: register_ROIs
+.. autofunction:: register_multisession
+.. autofunction:: com
+.. autofunction:: extract_binary_masks_from_structural_channel
 
 
 Memory mapping
@@ -160,6 +152,8 @@ CNMF
 .. automethod:: CNMF.deconvolve
 .. automethod:: CNMF.update_spatial
 .. automethod:: CNMF.update_temporal
+.. automethod:: CNMF.compute_residuals
+.. automethod:: CNMF.remove_components
 .. automethod:: CNMF.HALS4traces
 .. automethod:: CNMF.HALS4footprints
 .. automethod:: CNMF.merge_comps
@@ -214,10 +208,21 @@ Merge components
 
 .. autofunction:: merge_components
 
+
 Utilities
 ---------------
 .. currentmodule:: caiman.source_extraction.cnmf.utilities
 
-.. autofunction:: detrend_df_f_auto
+.. autofunction:: detrend_df_f
 .. autofunction:: update_order
 .. autofunction:: get_file_size
+
+
+Parallel Processing functions
+-----------------------------
+
+.. currentmodule:: caiman.cluster
+
+.. autofunction:: apply_to_patch
+.. autofunction:: start_server
+.. autofunction:: stop_server

@@ -2,7 +2,7 @@ Overview
 =========
 
 .. image:: ../LOGOS/Caiman_logo_FI.png
-    :width: 200px
+    :width: 300px
     :align: right
 
 CaImAn is a Python toolbox for large scale **Ca**\ lcium **Im**\ aging data **An**\ alysis and behavioral analysis.
@@ -34,8 +34,8 @@ Developers/Contributors
 
 CaImAn is being developed at the `Flatiron Institute <https://www.simonsfoundation.org/flatiron/>`_ with numerous contributions from the broader community. The main developers are
 
-* Andrea Giovannucci, University of North Carolina at Chapel Hill, previously at Flatiron Institute
 * Eftychios A. Pnevmatikakis, Flatiron Institute
+* Andrea Giovannucci, University of North Carolina at Chapel Hill, previously at Flatiron Institute
 * Johannes Friedrich, Flatiron Institute
 * Pat Gunn, Flatiron Institute
 

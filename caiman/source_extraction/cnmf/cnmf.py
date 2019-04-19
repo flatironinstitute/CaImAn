@@ -292,10 +292,29 @@ class CNMF(object):
             )
         else:
             self.params = params
+            params.set('patch', {'n_processes': n_processes})
+
         self.estimates = Estimates(A=Ain, C=Cin, b=b_in, f=f_in,
                                    dims=self.params.data['dims'])
 
     def fit_file(self, motion_correct=False, indeces=[slice(None)]*2):
+        """
+        This method packages the analysis pipeline (motion correction, memory
+        mapping, patch based CNMF processing) in a single method that can be
+        called on a specific (sequence of) file(s). It is assumed that the CNMF
+        object already contains a params object where the location of the files
+        and all the relevant parameters have been specified. The method does
+        not perform the quality evaluation step. Consult demo_pipeline for an
+        example.
+
+        Args:
+            motion_correct (bool)
+                flag for performing motion correction
+            indeces (list of slice objects)
+                perform analysis only on a part of the FOV
+        Returns:
+            cnmf object with the current estimates
+        """
         fnames = self.params.get('data', 'fnames')
         if os.path.exists(fnames[0]):
             _, extension = os.path.splitext(fnames[0])[:2]
@@ -356,8 +375,7 @@ class CNMF(object):
     def fit(self, images, indeces=[slice(None), slice(None)]):
         """
         This method uses the cnmf algorithm to find sources in data.
-
-        it is calling everyfunction from the cnmf folder
+        it is calling every function from the cnmf folder
         you can find out more at how the functions are called and how they are laid out at the ipython notebook
 
         Args:
@@ -604,7 +622,8 @@ class CNMF(object):
             raise Exception("Filename not supported")
 
     def remove_components(self, ind_rm):
-        """remove a specified list of components from the OnACID CNMF object.
+        """
+        Remove a specified list of components from the CNMF object.
 
         Args:
             ind_rm :    list
@@ -623,7 +642,10 @@ class CNMF(object):
         self.params.set('online', {'expected_comps': expected_comps})
 
     def compute_residuals(self, Yr):
-        """compute residual for each component (variable YrA)
+        """
+        Compute residual trace for each component (variable YrA).
+        WARNING: At the moment this method is valid only for the 2p processing
+        pipeline
 
          Args:
              Yr :    np.ndarray
@@ -859,7 +881,6 @@ class CNMF(object):
         for key in kwargs_new:
             if hasattr(self, key):
                 setattr(self, key, kwargs_new[key])
-
         self.estimates.A, self.estimates.b, self.estimates.C, self.estimates.f =\
             update_spatial_components(Y, C=self.estimates.C, f=self.estimates.f, A_in=self.estimates.A,
                                       b_in=self.estimates.b, dview=self.dview,
@@ -908,6 +929,15 @@ class CNMF(object):
         return self
 
     def preprocess(self, Yr):
+        """
+        Examines data to remove corrupted pixels and computes the noise level
+        estimate fo each pixel.
+
+        Args:
+            Yr: np.array (or memmap.array)
+                2d array of data (pixels x timesteps) typically in memory
+                mapped form
+        """
         Yr, self.estimates.sn, self.estimates.g, self.estimates.psx = preprocess_data(
             Yr, dview=self.dview, **self.params.get_group('preprocess'))
         return Yr
