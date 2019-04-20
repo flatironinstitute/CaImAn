@@ -1602,7 +1602,7 @@ def update_shapes(CY, CC, Ab, ind_A, sn=None, q=0.5, indicator_components=None,
                 for m in idx_comp:  # neurons
                     ind_pixels = ind_A[m - nb]
                     tmp = np.maximum(Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]] +
-                        ((CY[m, ind_pixels] - Ab.dot(CC[m])[ind_pixels]) / CC[m, m]), 0)
+                        ((CY[m, ind_pixels] - Ab.dot(CC[m])[ind_pixels]) / (CC[m, m] + np.finfo(CC.dtype).eps)), 0)
                     # normalize
                     if tmp.dot(tmp) > 0:
                         tmp *= 1e-3 / \
@@ -1614,7 +1614,7 @@ def update_shapes(CY, CC, Ab, ind_A, sn=None, q=0.5, indicator_components=None,
                 for m in idx_comp:  # neurons
                     ind_pixels = ind_A[m - nb]
                     tmp = np.maximum(Ab_dense[ind_pixels, m] + 
-                        ((CY[m, ind_pixels] - Ab_dense[ind_pixels].dot(CC[m])) / CC[m, m]), 0)
+                        ((CY[m, ind_pixels] - Ab_dense[ind_pixels].dot(CC[m])) / (CC[m, m] + np.finfo(CC.dtype).eps)), 0)
                     # normalize
                     if tmp.dot(tmp) > 0:
                         tmp *= 1e-3 / \
@@ -1627,7 +1627,7 @@ def update_shapes(CY, CC, Ab, ind_A, sn=None, q=0.5, indicator_components=None,
                     sl = slice(Ab.indptr[m], Ab.indptr[m + 1])
                     ind_pixels = Ab.indices[sl]
                     Ab.data[sl] = np.maximum(
-                        Ab.data[sl] + ((CY[m, ind_pixels] - Ab.dot(CC[m])[ind_pixels]) / CC[m, m]), 0)
+                        Ab.data[sl] + ((CY[m, ind_pixels] - Ab.dot(CC[m])[ind_pixels]) / (CC[m, m] + np.finfo(CC.dtype).eps)), 0)
                     if Ab_dense is not None:
                         Ab_dense[ind_pixels, m] = Ab.data[sl]
     else:
@@ -1638,7 +1638,7 @@ def update_shapes(CY, CC, Ab, ind_A, sn=None, q=0.5, indicator_components=None,
                 for m in idx_comp:  # neurons
                     ind_pixels = ind_A[m - nb]
                     tmp = np.maximum(Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]] +
-                        ((CY[m, ind_pixels] - L[m, ind_pixels] - Ab.dot(CC[m])[ind_pixels]) / CC[m, m]), 0)
+                        ((CY[m, ind_pixels] - L[m, ind_pixels] - Ab.dot(CC[m])[ind_pixels]) / (CC[m, m] + np.finfo(CC.dtype).eps)), 0)
 
                     if tmp.dot(tmp) > 0:
                         tmp *= 1e-3 / \
@@ -1654,7 +1654,7 @@ def update_shapes(CY, CC, Ab, ind_A, sn=None, q=0.5, indicator_components=None,
                     ind_pixels = ind_A[m - nb]
                     tmp = np.maximum(Ab_dense[ind_pixels, m] + ((CY[m, ind_pixels] - L[m, ind_pixels] -
                                                                  Ab_dense[ind_pixels].dot(CC[m])) /
-                                                                CC[m, m]), 0)
+                                                                (CC[m, m] + np.finfo(CC.dtype).eps)), 0)
                     # normalize
                     if tmp.dot(tmp) > 0:
                         tmp *= 1e-3 / \
@@ -1673,7 +1673,7 @@ def update_shapes(CY, CC, Ab, ind_A, sn=None, q=0.5, indicator_components=None,
                     sl = slice(Ab.indptr[m], Ab.indptr[m + 1])
                     ind_pixels = Ab.indices[sl]
                     Ab.data[sl] = np.maximum(
-                        Ab.data[sl] + ((CY[m, ind_pixels] - Ab.dot(CC[m])[ind_pixels]) / CC[m, m]), 0)
+                        Ab.data[sl] + ((CY[m, ind_pixels] - Ab.dot(CC[m])[ind_pixels]) / (CC[m, m] + np.finfo(CC.dtype).eps)), 0)
                     if Ab_dense is not None:
                         Ab_dense[ind_pixels, m] = Ab.data[sl]
 
