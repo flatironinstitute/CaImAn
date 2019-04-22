@@ -247,8 +247,9 @@ def merge_components(Y, A, b, C, f, S, sn_pix, temporal_params, spatial_params, 
     else:
         logging.info('No more components merged!')
         merged_ROIs = []
+        empty = []
 
-    return A, C, nr, merged_ROIs, S, bl, c1, sn, g
+    return A, C, nr, merged_ROIs, S, bl, c1, sn, g, empty
 
 
 def merge_iteration(Acsc, C_to_norm, Ctmp, fast_merge, g, g_idx, indx, temporal_params):
