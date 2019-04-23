@@ -211,7 +211,8 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
     if i < np.prod(dims):
         pixel_groups.append([Y_name, C_name, sn, ind2_[i:np.prod(dims)], list(
             range(i, np.prod(dims))), method_ls, cct])
-    A_ = np.zeros((d, nr + np.size(f, 0)))  # init A_
+    #A_ = np.zeros((d, nr + np.size(f, 0)))  # init A_
+    A_ = scipy.sparse.lil_matrix((d, nr + np.size(f, 0)))
     if dview is not None:
         if 'multiprocessing' in str(type(dview)):
             parallel_result = dview.map_async(
@@ -230,7 +231,6 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
     logging.info("thresholding components")
     A_ = threshold_components(A_, dims, dview=dview, medw=medw, thr_method=thr_method,
                               maxthr=maxthr, nrgthr=nrgthr, extract_cc=extract_cc, se=se, ss=ss)
-
     ff = np.where(np.sum(A_, axis=0) == 0)  # remove empty components
     if np.size(ff) > 0:
         ff = ff[0]
@@ -487,8 +487,7 @@ def threshold_components(A, dims, medw=None, thr_method='max', maxthr=0.1, nrgth
     # dims and nm of neurones
     d, nr = np.shape(A)
     # instanciation of A thresh.
-    Ath = np.zeros((d, nr))
-
+    #Ath = np.zeros((d, nr))
     pars = []
     # fo each neurons
     A_1 = scipy.sparse.csc_matrix(A)
@@ -505,11 +504,17 @@ def threshold_components(A, dims, medw=None, thr_method='max', maxthr=0.1, nrgth
     else:
         res = list(map(threshold_components_parallel, pars))
 
-
+    res.sort(key = lambda x: x[1])
+    indices = []
+    indptr = [0]
+    data = []
     for r in res:
         At, i = r
-        Ath[:, i] = At
+        indptr.append(indptr[-1]+At.indptr[-1])
+        indices.extend(At.indices.tolist())
+        data.extend(At.data.tolist())
 
+    Ath = csc_matrix((data, indices, indptr), shape=(d, nr))
 
     return Ath
 
@@ -604,7 +609,7 @@ def threshold_components_parallel(pars):
         BW = BW.flatten()
         Ath2[BW] = Ath[BW]
 
-    return Ath2, i
+    return csr_matrix(Ath2), i
 
 
 # %%
@@ -843,7 +848,7 @@ def determine_search_location(A, dims, method='ellipse', min_size=3, max_size=8,
         d1, d2, d3 = dims
     d, nr = np.shape(A)
     A = csc_matrix(A)
-    dist_indicator = scipy.sparse.csc_matrix((d, nr),dtype= np.float32)
+    dist_indicator = scipy.sparse.lil_matrix((d, nr),dtype= np.float32)
 
     if method == 'ellipse':
         Coor = dict()
@@ -927,7 +932,7 @@ def determine_search_location(A, dims, method='ellipse', min_size=3, max_size=8,
 
 
 
-    return dist_indicator
+    return csc_matrix(dist_indicator)
 #%%
 def construct_dilate_parallel(pars):
     """
