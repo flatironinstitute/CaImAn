@@ -402,10 +402,10 @@ class CNMF(object):
         if len(indeces) < len(images.shape):
             indeces = indeces + [slice(None)]*(len(images.shape) - len(indeces))
         dims_orig = images.shape[1:]
-        dims_sliced = images[indeces].shape[1:]
+        dims_sliced = images[tuple(indeces)].shape[1:]
         is_sliced = (dims_orig != dims_sliced)
         if self.params.get('patch', 'rf') is None and (is_sliced or 'ndarray' in str(type(images))):
-            images = images[indeces]
+            images = images[tuple(indeces)]
             self.dview = None
             logging.warning("Parallel processing in a single patch "
                             "is not available for loaded in memory or sliced" +
