@@ -260,10 +260,10 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
 
     if 'memmap' in str(type(Y)):
         Y_resf = parallel_dot_product(Y, f.T, dview=dview, block_size=block_size_spat, num_blocks_per_run=num_blocks_per_run_spat) - \
-            A_.dot(coo_matrix(C[:nr, :]).dot(f.T))
+            A_.dot(C[:nr].dot(f.T))
     else:
         # Y*f' - A*(C*f')
-        Y_resf = np.dot(Y, f.T) - A_.dot(coo_matrix(C[:nr, :]).dot(f.T))
+        Y_resf = np.dot(Y, f.T) - A_.dot(C[:nr].dot(f.T))
 
     if update_background_components:
 
