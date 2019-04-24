@@ -34,6 +34,7 @@ import time
 from typing import List
 
 from ...mmapping import load_memmap, parallel_dot_product
+from ...utils.utils import csc_column_remove
 
 
 def basis_denoising(y, c, boh, sn, id2_, px):
@@ -244,7 +245,8 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
     if np.size(ff) > 0:
         logging.info('removing {0} empty spatial component(s)'.format(ff.shape[0]))
         if any(ff < nr):
-            A_ = np.delete(A_, list(ff[ff < nr]), 1)
+            #A_ = np.delete(A_, list(ff[ff < nr]), 1)
+            A_ = csc_column_remove(A_, list(ff[ff < nr]))
             C = np.delete(C, list(ff[ff < nr]), 0)
             nr = nr - len(ff[ff < nr])
         if update_background_components:
@@ -941,8 +943,6 @@ def determine_search_location(A, dims, method='ellipse', min_size=3, max_size=8,
 
             i = 0
             for res in parallel_result:
-                #import pdb
-                #pdb.set_trace()
                 indptr.append(indptr[-1] + len(res.row))
                 indices.extend(res.row)
                 data.extend(len(res.row)*[True])

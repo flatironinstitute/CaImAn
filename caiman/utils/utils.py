@@ -30,7 +30,7 @@ import pickle
 import scipy
 from scipy.ndimage.filters import gaussian_filter
 from tifffile import TiffFile
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any, Dict, List, Tuple, Union, Iterable
 
 try:
     cv2.setNumThreads(0)
@@ -494,3 +494,33 @@ def recursively_load_dict_contents_from_group(h5file:h5py.File, path:str) -> Dic
             else:
                 ans[key] = recursively_load_dict_contents_from_group(h5file, path + key + '/')
     return ans
+
+
+def csc_column_remove(A: scipy.sparse.csc_matrix, ind: Iterable[int]) -> scipy.sparse.csc_matrix:
+    """ Removes specified columns for a scipy.sparse csc_matrix
+    Args:
+        A: scipy.sparse.csc_matrix
+            Input matrix
+        ind: iterable[int]
+            list or np.array with columns to be removed
+    """
+    d1, d2 = A.shape
+    if 'csc_matrix' not in str(type(A)):
+        logging.warning("Original matrix not in csc_format. Converting it" +
+                        " anyway.")
+        A = scipy.sparse.csc_matrix(A)
+    indptr = A.indptr
+    ind_diff = np.diff(A.indptr).tolist()
+    ind_sort = sorted(ind, reverse=True)
+    data_list = [A.data[indptr[i]:indptr[i+1]] for i in range(d2)]
+    indices_list = [A.indices[indptr[i]:indptr[i+1]] for i in range(d2)]
+    for i in ind_sort:
+        del data_list[i]
+        del indices_list[i]
+        del ind_diff[i]
+    indptr_final = np.cumsum([0] + ind_diff)
+    data_final = [item for sublist in data_list for item in sublist]
+    indices_final = [item for sublist in indices_list for item in sublist]
+    A = scipy.sparse.csc_matrix((data_final, indices_final, indptr_final),
+                                shape=[d1, d2 - len(ind)])
+    return A
