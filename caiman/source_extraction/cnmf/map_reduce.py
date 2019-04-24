@@ -427,7 +427,11 @@ def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None,
         #          np.random.rand(gnb - 1, T)]
         mdl = NMF(n_components=gnb, verbose=False, init='nndsvdar', tol=1e-10,
                   max_iter=100, shuffle=False, random_state=1)
+        # Filter out nan components in the bg components
+        nan_components = np.any(np.isnan(F_tot), axis=1)
+        F_tot = F_tot[~nan_components, :]
         _ = mdl.fit_transform(F_tot).T
+        Bm = Bm[:, ~nan_components]
         f = mdl.components_.squeeze()
         f = np.atleast_2d(f)
         for _ in range(100):
