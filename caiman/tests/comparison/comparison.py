@@ -263,7 +263,7 @@ class Comparison(object):
 
         else:  # if not we create a comparison first
             try:
-                with np.load(file_path, encoding='latin1') as dt:
+                with np.load(file_path, encoding='latin1', allow_pickle=True) as dt:
                     rig_shifts = dt['rig_shifts'][()]
                     A_patch = dt['A_patch'][()]
                     A_full = dt['A_full'][()]
