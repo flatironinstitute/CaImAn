@@ -239,13 +239,14 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
     logging.info("thresholding components")
     A_ = threshold_components(A_, dims, dview=dview, medw=medw, thr_method=thr_method,
                               maxthr=maxthr, nrgthr=nrgthr, extract_cc=extract_cc, se=se, ss=ss)
-    ff = np.where(np.sum(A_, axis=0) == 0)  # remove empty components
+    #ff = np.where(np.sum(A_, axis=0) == 0)  # remove empty components
+    ff = np.asarray(A_.sum(0) == 0).nonzero()[1]
     if np.size(ff) > 0:
-        ff = ff[0]
-        logging.info('eliminating {0} empty spatial components'.format(len(ff)))
-        A_ = np.delete(A_, list(ff[ff < nr]), 1)
-        C = np.delete(C, list(ff[ff < nr]), 0)
-        nr = nr - len(ff[ff < nr])
+        logging.info('removing {0} empty spatial component(s)'.format(ff.shape[0]))
+        if any(ff < nr):
+            A_ = np.delete(A_, list(ff[ff < nr]), 1)
+            C = np.delete(C, list(ff[ff < nr]), 0)
+            nr = nr - len(ff[ff < nr])
         if update_background_components:
             if low_rank_background:
                 background_ff = list(filter(lambda i: i >= nb, ff - nr))
@@ -254,6 +255,7 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
                 background_ff = list(filter(lambda i: i >= 0, ff - nr))
                 f = np.delete(f, background_ff, 0)
                 b_in = np.delete(b_in, background_ff, 1)
+
     A_ = A_[:, :nr]
     A_ = coo_matrix(A_)
     logging.info("Computing residuals")
@@ -523,7 +525,6 @@ def threshold_components(A, dims, medw=None, thr_method='max', maxthr=0.1, nrgth
         data.extend(At.data.tolist())
 
     Ath = csc_matrix((data, indices, indptr), shape=(d, nr))
-
     return Ath
 
 
@@ -599,7 +600,7 @@ def threshold_components_parallel(pars):
 
     # if we have deleted the element
     if BW.max() == 0:
-        return Ath2, i
+        return csr_matrix(Ath2), i
     #
     # we want to extract the largest connected component ( to remove small unconnected pixel )
     if extract_cc:
@@ -856,7 +857,8 @@ def determine_search_location(A, dims, method='ellipse', min_size=3, max_size=8,
         d1, d2, d3 = dims
     d, nr = np.shape(A)
     A = csc_matrix(A)
-    dist_indicator = scipy.sparse.lil_matrix((d, nr),dtype= np.float32)
+#    dist_indicator = scipy.sparse.lil_matrix((d, nr),dtype= np.float32)
+#    dist_indicator = scipy.sparse.csc_matrix((d, nr), dtype=np.float32)
 
     if method == 'ellipse':
         Coor = dict()
@@ -902,6 +904,9 @@ def determine_search_location(A, dims, method='ellipse', min_size=3, max_size=8,
             dist_indicator = True * np.ones((d, nr))
 
     elif method == 'dilate':
+        indptr = [0]
+        indices = []
+        data = []
         if dview is None:
             for i in range(nr):
                 A_temp = np.reshape(A[:, i].toarray(), dims[::-1])
@@ -913,7 +918,12 @@ def determine_search_location(A, dims, method='ellipse', min_size=3, max_size=8,
                 else:
                     A_temp = grey_dilation(A_temp, [1] * len(dims))
 
-                dist_indicator[:, i] = scipy.sparse.coo_matrix(np.squeeze(np.reshape(A_temp, (d, 1)))[:,None] > 0)
+                nz = np.where(np.squeeze(np.reshape(A_temp, (d, 1)))[:, None] > 0)[0].tolist()
+                indptr.append(indptr[-1] + len(nz))
+                indices.extend(nz)
+                data.extend(len(nz)*[True])
+                #dist_indicator[:, i] = scipy.sparse.coo_matrix(np.squeeze(np.reshape(A_temp, (d, 1)))[:, None] > 0)
+            dist_indicator = csc_matrix((data, indices, indptr), shape=(d, nr))
 
         else:
             logging.info('dilate in parallel...')
@@ -931,8 +941,14 @@ def determine_search_location(A, dims, method='ellipse', min_size=3, max_size=8,
 
             i = 0
             for res in parallel_result:
-                dist_indicator[:, i] = res
+                #import pdb
+                #pdb.set_trace()
+                indptr.append(indptr[-1] + len(res.row))
+                indices.extend(res.row)
+                data.extend(len(res.row)*[True])
+                #dist_indicator[:, i] = res
                 i += 1
+            dist_indicator = csc_matrix((data, indices, indptr), shape=(d, nr))
 
     else:
         raise Exception('Not implemented')
