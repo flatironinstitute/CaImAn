@@ -34,7 +34,7 @@ import time
 from typing import List
 
 from ...mmapping import load_memmap, parallel_dot_product
-from ...utils.utils import csc_column_remove
+from ...utils.stats import csc_column_remove
 
 
 def basis_denoising(y, c, boh, sn, id2_, px):
@@ -516,7 +516,7 @@ def threshold_components(A, dims, medw=None, thr_method='max', maxthr=0.1, nrgth
     else:
         res = list(map(threshold_components_parallel, pars))
 
-    res.sort(key = lambda x: x[1])
+    res.sort(key=lambda x: x[1])
     indices = []
     indptr = [0]
     data = []
