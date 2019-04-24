@@ -208,11 +208,11 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
     for i in range(0, np.prod(dims) - n_pixels_per_process + 1, n_pixels_per_process):
         pixel_groups.append([Y_name, C_name, sn, ind2_[i:i + n_pixels_per_process], list(
             range(i, i + n_pixels_per_process)), method_ls, cct, ])
-    if i < np.prod(dims):
-        pixel_groups.append([Y_name, C_name, sn, ind2_[i:np.prod(dims)], list(
-            range(i, np.prod(dims))), method_ls, cct])
+    if i + n_pixels_per_process < np.prod(dims):
+        pixel_groups.append([Y_name, C_name, sn, ind2_[(i + n_pixels_per_process):np.prod(dims)], list(
+            range(i + n_pixels_per_process, np.prod(dims))), method_ls, cct])
     #A_ = np.zeros((d, nr + np.size(f, 0)))  # init A_
-    A_ = scipy.sparse.lil_matrix((d, nr + np.size(f, 0)))
+    #A_ = scipy.sparse.lil_matrix((d, nr + np.size(f, 0)))
     if dview is not None:
         if 'multiprocessing' in str(type(dview)):
             parallel_result = dview.map_async(
@@ -223,10 +223,18 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
             dview.results.clear()
     else:
         parallel_result = list(map(regression_ipyparallel, pixel_groups))
+    data = []
+    rows = []
+    cols = []
     for chunk in parallel_result:
         for pars in chunk:
             px, idxs_, a = pars
-            A_[px, idxs_] = a
+            #A_[px, idxs_] = a
+            nz = np.where(a>0)[0]
+            data.extend(a[nz])
+            rows.extend(len(nz)*[px])
+            cols.extend(idxs_[nz])
+    A_ = scipy.sparse.coo_matrix((data, (rows, cols)), shape=(d, nr + np.size(f, 0)))
 
     logging.info("thresholding components")
     A_ = threshold_components(A_, dims, dview=dview, medw=medw, thr_method=thr_method,
