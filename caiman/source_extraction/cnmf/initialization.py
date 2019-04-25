@@ -666,8 +666,8 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1,
                     rolling_filter, 1., rho[tuple([slice(*a) for a in Mod])]**2)
                 v[tuple([slice(*a) for a in Mod])] = np.amax(rho_filt, axis=-1)
             else:
-                v[tuple([slice(*a) for a in Mod])] = np.sum(rho[[slice(*a)
-                                                          for a in Mod]]**2, axis=-1)
+                v[tuple([slice(*a) for a in Mod])] = \
+                    np.sum(rho[tuple([slice(*a) for a in Mod])]**2, axis=-1)
 
     res = np.reshape(Y, (np.prod(d[0:-1]), d[-1]),
                      order='F') + med.flatten(order='F')[:, None]
