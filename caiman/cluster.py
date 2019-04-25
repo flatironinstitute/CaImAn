@@ -367,7 +367,7 @@ def setup_cluster(backend='multiprocessing', n_processes=None, single_thread=Fal
             ipyparallel and SLURM backends try to restart if cluster running.
             backend='multiprocessing' raises an exception if a cluster is running.
         ignore_preexisting: bool
-            If True, skips check for the existence of an already running multiprocessing
+            If True, ignores the existence of an already running multiprocessing
             pool, which is usually indicative of a previously-started CaImAn cluster
 
     Returns:
