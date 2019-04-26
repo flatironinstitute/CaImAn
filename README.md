@@ -30,6 +30,8 @@ A paper explaining most of the implementation details and benchmarking can be fo
 }
 ```
 
+All the results and figures of the paper can be regenerated using this package. For more information visit this [page](https://github.com/flatironinstitute/CaImAn/tree/master/use_cases/eLife_scripts).
+
 ## New: Code refactoring (October 2018)
 
 We recently refactored the code to simplify the parameter setting and usage of the various algorithms. The code now is based around the following objects:
