@@ -260,6 +260,7 @@ class CNMF(object):
 
         # these are movie properties that will be refactored into the Movie object
         self.dims = None
+        self.empty_merged = None
 
         # these are member variables related to the CNMF workflow
         self.skip_refinement = skip_refinement
@@ -585,7 +586,7 @@ class CNMF(object):
                             not_merged = np.setdiff1d(list(range(len(self.estimates.YrA))),
                                                       np.unique(np.concatenate(self.estimates.merged_ROIs)))
                             self.estimates.YrA = np.concatenate([self.estimates.YrA[not_merged],
-                                                       np.array([self.estimates.YrA[m].mean(0) for m in self.estimates.merged_ROIs])])
+                                                       np.array([self.estimates.YrA[m].mean(0) for ind, m in enumerate(self.estimates.merged_ROIs) if not self.empty_merged[ind]])])
                     if self.params.get('init', 'nb') == 0:
                         self.estimates.W, self.estimates.b0 = compute_W(
                             Yr, self.estimates.A.toarray(), self.estimates.C, self.dims,
@@ -597,7 +598,6 @@ class CNMF(object):
                     else:
                         self.estimates.S = self.estimates.C
             else:
-
                 while len(self.estimates.merged_ROIs) > 0:
                     self.merge_comps(Yr, mx=np.Inf)
 
@@ -892,7 +892,7 @@ class CNMF(object):
         """merges components
         """
         self.estimates.A, self.estimates.C, self.estimates.nr, self.estimates.merged_ROIs, self.estimates.S, \
-        self.estimates.bl, self.estimates.c1, self.estimates.neurons_sn, self.estimates.g=\
+        self.estimates.bl, self.estimates.c1, self.estimates.neurons_sn, self.estimates.g, self.empty_merged=\
             merge_components(Y, self.estimates.A, self.estimates.b, self.estimates.C, self.estimates.f, self.estimates.S,
                              self.estimates.sn, self.params.get_group('temporal'),
                              self.params.get_group('spatial'), dview=self.dview,

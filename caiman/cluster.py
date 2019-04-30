@@ -74,7 +74,7 @@ def extract_patch_coordinates(dims, rf, stride, border_pix=0, indeces=[slice(Non
     sl_stop = [dim if sl.stop is None else sl.stop for (sl, dim) in zip(indeces, dims)]
     sl_step = [1 for sl in indeces]  # not used
     dims_large = dims
-    dims = np.minimum(np.array(dims) - border_pix, sl_stop) - np.maximum(border_pix, sl_start) 
+    dims = np.minimum(np.array(dims) - border_pix, sl_stop) - np.maximum(border_pix, sl_start)
 
     coords_flat = []
     shapes = []
@@ -359,13 +359,16 @@ def stop_server(ipcluster='ipcluster', pdir=None, profile=None, dview=None):
 #%%
 
 
-def setup_cluster(backend='multiprocessing', n_processes=None, single_thread=False):
+def setup_cluster(backend='multiprocessing', n_processes=None, single_thread=False, ignore_preexisting=False):
     """Setup and/or restart a parallel cluster.
     Args:
         backend: str
             'multiprocessing' [alias 'local'], 'ipyparallel', and 'SLURM'
             ipyparallel and SLURM backends try to restart if cluster running.
             backend='multiprocessing' raises an exception if a cluster is running.
+        ignore_preexisting: bool
+            If True, ignores the existence of an already running multiprocessing
+            pool, which is usually indicative of a previously-started CaImAn cluster
 
     Returns:
         c: ipyparallel.Client object; only used for ipyparallel and SLURM backends, else None
@@ -407,8 +410,13 @@ def setup_cluster(backend='multiprocessing', n_processes=None, single_thread=Fal
 
         elif (backend == 'multiprocessing') or (backend == 'local'):
             if len(multiprocessing.active_children()) > 0:
-                raise Exception(
-                    'A cluster is already runnning. Terminate with dview.terminate() if you want to restart.')
+                if ignore_preexisting:
+                    logger.warn('Found an existing multiprocessing pool. '
+                                'This is often indicative of an already-running CaImAn cluster. '
+                                'You have configured the cluster setup to not raise an exception.')
+                else:
+                    raise Exception(
+                        'A cluster is already runnning. Terminate with dview.terminate() if you want to restart.')
             if (platform.system() == 'Darwin') and (sys.version_info > (3, 0)):
                 try:
                     if 'kernel' in get_ipython().trait_names(): # type: ignore
@@ -423,7 +431,7 @@ def setup_cluster(backend='multiprocessing', n_processes=None, single_thread=Fal
                 except: # If we're not running under ipython, don't do anything.
                     pass
             c = None
-            
+
             dview = Pool(n_processes)
         else:
             raise Exception('Unknown Backend')
