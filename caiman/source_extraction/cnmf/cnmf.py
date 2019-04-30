@@ -298,7 +298,7 @@ class CNMF(object):
         self.estimates = Estimates(A=Ain, C=Cin, b=b_in, f=f_in,
                                    dims=self.params.data['dims'])
 
-    def fit_file(self, motion_correct=False, indeces=[slice(None)]*2):
+    def fit_file(self, motion_correct=False, indices=[slice(None)]*2):
         """
         This method packages the analysis pipeline (motion correction, memory
         mapping, patch based CNMF processing) in a single method that can be
@@ -311,7 +311,7 @@ class CNMF(object):
         Args:
             motion_correct (bool)
                 flag for performing motion correction
-            indeces (list of slice objects)
+            indices (list of slice objects)
                 perform analysis only on a part of the FOV
         Returns:
             cnmf object with the current estimates
@@ -403,10 +403,10 @@ class CNMF(object):
         if len(indices) < len(images.shape):
             indices = indices + [slice(None)]*(len(images.shape) - len(indices))
         dims_orig = images.shape[1:]
-        dims_sliced = images[tuple(indeces)].shape[1:]
+        dims_sliced = images[tuple(indices)].shape[1:]
         is_sliced = (dims_orig != dims_sliced)
         if self.params.get('patch', 'rf') is None and (is_sliced or 'ndarray' in str(type(images))):
-            images = images[tuple(indeces)]
+            images = images[tuple(indices)]
             self.dview = None
             logging.warning("Parallel processing in a single patch "
                             "is not available for loaded in memory or sliced" +
