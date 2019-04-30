@@ -579,7 +579,8 @@ class Estimates(object):
         return self
 
     def detrend_df_f(self, quantileMin=8, frames_window=500,
-                     flag_auto=True, use_fast=False, use_residuals=True):
+                     flag_auto=True, use_fast=False, use_residuals=True,
+                     detrend_only=False):
         """Computes DF/F normalized fluorescence for the extracted traces. See
         caiman.source.extraction.utilities.detrend_df_f for details
 
@@ -599,6 +600,11 @@ class Estimates(object):
 
             use_residuals: bool
                 flag for using non-deconvolved traces in DF/F calculation
+
+            detrend_only: bool (False)
+                flag for only subtracting baseline and not normalizing by it.
+                Used in 1p data processing where baseline fluorescence cannot
+                be determined.
 
         Returns:
             self: CNMF object
@@ -623,7 +629,8 @@ class Estimates(object):
         self.F_dff = detrend_df_f(self.A, self.b, self.C, self.f, self.YrA,
                                   quantileMin=quantileMin,
                                   frames_window=frames_window,
-                                  flag_auto=flag_auto, use_fast=use_fast)
+                                  flag_auto=flag_auto, use_fast=use_fast,
+                                  detrend_only=detrend_only)
         return self
 
     def normalize_components(self):
