@@ -132,7 +132,7 @@ def merge_components(Y, A, b, C, f, S, sn_pix, temporal_params, spatial_params, 
     A_corr.setdiag(0)
     A_corr = A_corr.tocsc()
     FF2 = A_corr > 0
-    C_corr = scipy.sparse.csc_matrix(A_corr.shape)
+    C_corr = scipy.sparse.lil_matrix(A_corr.shape)
     for ii in range(nr):
         overlap_indeces = A_corr[ii, :].nonzero()[1]
         if len(overlap_indeces) > 0:
@@ -247,8 +247,9 @@ def merge_components(Y, A, b, C, f, S, sn_pix, temporal_params, spatial_params, 
     else:
         logging.info('No more components merged!')
         merged_ROIs = []
+        empty = []
 
-    return A, C, nr, merged_ROIs, S, bl, c1, sn, g
+    return A, C, nr, merged_ROIs, S, bl, c1, sn, g, empty
 
 
 def merge_iteration(Acsc, C_to_norm, Ctmp, fast_merge, g, g_idx, indx, temporal_params):

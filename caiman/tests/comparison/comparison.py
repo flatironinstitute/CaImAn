@@ -444,8 +444,8 @@ def cnmf(Cn, A_gt, A_test, C_gt, C_test, dims_gt, dims_test, dview=None, sensiti
         se=None, ss=None, dview=dview)
 
     # compute C using this A thr
-    A_test_thr = A_test_thr > 0
-    A_gt_thr = A_gt_thr > 0
+    A_test_thr = A_test_thr.toarray() > 0
+    A_gt_thr = A_gt_thr.toarray() > 0
     # we do not compute a threshold on the size of neurons
     C_test_thr = C_test
     C_gt_thr = C_gt
