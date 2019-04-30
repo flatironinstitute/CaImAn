@@ -260,6 +260,7 @@ class CNMF(object):
 
         # these are movie properties that will be refactored into the Movie object
         self.dims = None
+        self.empty_merged = None
 
         # these are member variables related to the CNMF workflow
         self.skip_refinement = skip_refinement
@@ -292,10 +293,29 @@ class CNMF(object):
             )
         else:
             self.params = params
+            params.set('patch', {'n_processes': n_processes})
+
         self.estimates = Estimates(A=Ain, C=Cin, b=b_in, f=f_in,
                                    dims=self.params.data['dims'])
 
-    def fit_file(self, motion_correct=False, indices=[slice(None)]*2):
+    def fit_file(self, motion_correct=False, indeces=[slice(None)]*2):
+        """
+        This method packages the analysis pipeline (motion correction, memory
+        mapping, patch based CNMF processing) in a single method that can be
+        called on a specific (sequence of) file(s). It is assumed that the CNMF
+        object already contains a params object where the location of the files
+        and all the relevant parameters have been specified. The method does
+        not perform the quality evaluation step. Consult demo_pipeline for an
+        example.
+
+        Args:
+            motion_correct (bool)
+                flag for performing motion correction
+            indeces (list of slice objects)
+                perform analysis only on a part of the FOV
+        Returns:
+            cnmf object with the current estimates
+        """
         fnames = self.params.get('data', 'fnames')
         if os.path.exists(fnames[0]):
             _, extension = os.path.splitext(fnames[0])[:2]
@@ -356,8 +376,7 @@ class CNMF(object):
     def fit(self, images, indices=[slice(None), slice(None)]):
         """
         This method uses the cnmf algorithm to find sources in data.
-
-        it is calling everyfunction from the cnmf folder
+        it is calling every function from the cnmf folder
         you can find out more at how the functions are called and how they are laid out at the ipython notebook
 
         Args:
@@ -384,10 +403,10 @@ class CNMF(object):
         if len(indices) < len(images.shape):
             indices = indices + [slice(None)]*(len(images.shape) - len(indices))
         dims_orig = images.shape[1:]
-        dims_sliced = images[indices].shape[1:]
+        dims_sliced = images[tuple(indeces)].shape[1:]
         is_sliced = (dims_orig != dims_sliced)
         if self.params.get('patch', 'rf') is None and (is_sliced or 'ndarray' in str(type(images))):
-            images = images[indices]
+            images = images[tuple(indeces)]
             self.dview = None
             logging.warning("Parallel processing in a single patch "
                             "is not available for loaded in memory or sliced" +
@@ -567,7 +586,7 @@ class CNMF(object):
                             not_merged = np.setdiff1d(list(range(len(self.estimates.YrA))),
                                                       np.unique(np.concatenate(self.estimates.merged_ROIs)))
                             self.estimates.YrA = np.concatenate([self.estimates.YrA[not_merged],
-                                                       np.array([self.estimates.YrA[m].mean(0) for m in self.estimates.merged_ROIs])])
+                                                       np.array([self.estimates.YrA[m].mean(0) for ind, m in enumerate(self.estimates.merged_ROIs) if not self.empty_merged[ind]])])
                     if self.params.get('init', 'nb') == 0:
                         self.estimates.W, self.estimates.b0 = compute_W(
                             Yr, self.estimates.A.toarray(), self.estimates.C, self.dims,
@@ -579,7 +598,6 @@ class CNMF(object):
                     else:
                         self.estimates.S = self.estimates.C
             else:
-
                 while len(self.estimates.merged_ROIs) > 0:
                     self.merge_comps(Yr, mx=np.Inf)
 
@@ -604,7 +622,8 @@ class CNMF(object):
             raise Exception("Filename not supported")
 
     def remove_components(self, ind_rm):
-        """remove a specified list of components from the OnACID CNMF object.
+        """
+        Remove a specified list of components from the CNMF object.
 
         Args:
             ind_rm :    list
@@ -623,7 +642,10 @@ class CNMF(object):
         self.params.set('online', {'expected_comps': expected_comps})
 
     def compute_residuals(self, Yr):
-        """compute residual for each component (variable YrA)
+        """
+        Compute residual trace for each component (variable YrA).
+        WARNING: At the moment this method is valid only for the 2p processing
+        pipeline
 
          Args:
              Yr :    np.ndarray
@@ -859,7 +881,6 @@ class CNMF(object):
         for key in kwargs_new:
             if hasattr(self, key):
                 setattr(self, key, kwargs_new[key])
-
         self.estimates.A, self.estimates.b, self.estimates.C, self.estimates.f =\
             update_spatial_components(Y, C=self.estimates.C, f=self.estimates.f, A_in=self.estimates.A,
                                       b_in=self.estimates.b, dview=self.dview,
@@ -871,7 +892,7 @@ class CNMF(object):
         """merges components
         """
         self.estimates.A, self.estimates.C, self.estimates.nr, self.estimates.merged_ROIs, self.estimates.S, \
-        self.estimates.bl, self.estimates.c1, self.estimates.neurons_sn, self.estimates.g=\
+        self.estimates.bl, self.estimates.c1, self.estimates.neurons_sn, self.estimates.g, self.empty_merged=\
             merge_components(Y, self.estimates.A, self.estimates.b, self.estimates.C, self.estimates.f, self.estimates.S,
                              self.estimates.sn, self.params.get_group('temporal'),
                              self.params.get_group('spatial'), dview=self.dview,
@@ -908,6 +929,15 @@ class CNMF(object):
         return self
 
     def preprocess(self, Yr):
+        """
+        Examines data to remove corrupted pixels and computes the noise level
+        estimate fo each pixel.
+
+        Args:
+            Yr: np.array (or memmap.array)
+                2d array of data (pixels x timesteps) typically in memory
+                mapped form
+        """
         Yr, self.estimates.sn, self.estimates.g, self.estimates.psx = preprocess_data(
             Yr, dview=self.dview, **self.params.get_group('preprocess'))
         return Yr

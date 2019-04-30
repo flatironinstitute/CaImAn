@@ -581,7 +581,8 @@ class Estimates(object):
         return self
 
     def detrend_df_f(self, quantileMin=8, frames_window=500,
-                     flag_auto=True, use_fast=False, use_residuals=True):
+                     flag_auto=True, use_fast=False, use_residuals=True,
+                     detrend_only=False):
         """Computes DF/F normalized fluorescence for the extracted traces. See
         caiman.source.extraction.utilities.detrend_df_f for details
 
@@ -601,6 +602,11 @@ class Estimates(object):
 
             use_residuals: bool
                 flag for using non-deconvolved traces in DF/F calculation
+
+            detrend_only: bool (False)
+                flag for only subtracting baseline and not normalizing by it.
+                Used in 1p data processing where baseline fluorescence cannot
+                be determined.
 
         Returns:
             self: CNMF object
@@ -625,7 +631,8 @@ class Estimates(object):
         self.F_dff = detrend_df_f(self.A, self.b, self.C, self.f, self.YrA,
                                   quantileMin=quantileMin,
                                   frames_window=frames_window,
-                                  flag_auto=flag_auto, use_fast=use_fast)
+                                  flag_auto=flag_auto, use_fast=use_fast,
+                                  detrend_only=detrend_only)
         return self
 
     def normalize_components(self):
@@ -1068,7 +1075,7 @@ class Estimates(object):
         if self.A_thr is None:
             raise Exception('You need to compute thresolded components before calling remove_duplicates: use the threshold_components method')
 
-        A_gt_thr_bin = self.A_thr > 0
+        A_gt_thr_bin = self.A_thr.toarray() > 0
         size_neurons_gt = A_gt_thr_bin.sum(0)
         neurons_to_keep = np.where((size_neurons_gt > min_size_neuro) & (size_neurons_gt < max_size_neuro))[0]
         self.select_components(idx_components=neurons_to_keep)
@@ -1090,7 +1097,7 @@ class Estimates(object):
         if self.A_thr is None:
             raise Exception('You need to compute thresolded components before calling remove_duplicates: use the threshold_components method')
 
-        A_gt_thr_bin = (self.A_thr > 0).reshape([self.dims[0], self.dims[1], -1], order='F').transpose([2, 0, 1]) * 1.
+        A_gt_thr_bin = (self.A_thr.toarray() > 0).reshape([self.dims[0], self.dims[1], -1], order='F').transpose([2, 0, 1]) * 1.
 
         duplicates_gt, indices_keep_gt, indices_remove_gt, D_gt, overlap_gt = detect_duplicates_and_subsets(
             A_gt_thr_bin,predictions=predictions, r_values=r_values,dist_thr=dist_thr, min_dist=min_dist,
@@ -1140,8 +1147,8 @@ def compare_components(estimate_gt, estimate_cmp,  Cn=None, thresh_cost=.8, min_
         plt.figure(figsize=(20, 10))
 
     dims = estimate_gt.dims
-    A_gt_thr_bin = (estimate_gt.A_thr>0).reshape([dims[0], dims[1], -1], order='F').transpose([2, 0, 1]) * 1.
-    A_thr_bin = (estimate_cmp.A_thr>0).reshape([dims[0], dims[1], -1], order='F').transpose([2, 0, 1]) * 1.
+    A_gt_thr_bin = (estimate_gt.A_thr.toarray()>0).reshape([dims[0], dims[1], -1], order='F').transpose([2, 0, 1]) * 1.
+    A_thr_bin = (estimate_cmp.A_thr.toarray()>0).reshape([dims[0], dims[1], -1], order='F').transpose([2, 0, 1]) * 1.
 
     tp_gt, tp_comp, fn_gt, fp_comp, performance_cons_off = nf_match_neurons_in_binary_masks(
         A_gt_thr_bin, A_thr_bin, thresh_cost=thresh_cost, min_dist=min_dist, print_assignment=print_assignment,

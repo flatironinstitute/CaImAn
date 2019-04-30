@@ -15,6 +15,7 @@ except:
     pass
 
 import numpy as np
+import scipy
 
 #%%
 
@@ -182,15 +183,10 @@ Daniel B. Smith, PhD
 Updated 1-23-2013
 """
 
-
-import scipy as sci
-import scipy.optimize
-import scipy.fftpack
-
 def kde(data, N=None, MIN=None, MAX=None):
 
     # Parameters to set up the mesh on which to calculate
-    N = 2**12 if N is None else int(2**sci.ceil(sci.log2(N)))
+    N = 2**12 if N is None else int(2**scipy.ceil(scipy.log2(N)))
     if MIN is None or MAX is None:
         minimum = min(data)
         maximum = max(data)
@@ -203,7 +199,7 @@ def kde(data, N=None, MIN=None, MAX=None):
 
     # Histogram the data to get a crude first approximation of the density
     M = len(data)
-    DataHist, bins = sci.histogram(data, bins=N, range=(MIN, MAX))
+    DataHist, bins = scipy.histogram(data, bins=N, range=(MIN, MAX))
     DataHist = DataHist/M
     DCTData = scipy.fftpack.dct(DataHist, norm=None)
 
@@ -220,26 +216,57 @@ def kde(data, N=None, MIN=None, MAX=None):
         return None
 
     # Smooth the DCTransformed data using t_star
-    SmDCTData = DCTData*sci.exp(-sci.arange(N)**2*sci.pi**2*t_star/2)
+    SmDCTData = DCTData*scipy.exp(-scipy.arange(N)**2*scipy.pi**2*t_star/2)
     # Inverse DCT to get density
     density = scipy.fftpack.idct(SmDCTData, norm=None)*N/R
     mesh = [(bins[i]+bins[i+1])/2 for i in range(N)]
-    bandwidth = sci.sqrt(t_star)*R
+    bandwidth = scipy.sqrt(t_star)*R
 
-    density = density/sci.trapz(density, mesh)
+    density = density/scipy.trapz(density, mesh)
     cdf = np.cumsum(density)*(mesh[1]-mesh[0])
 
     return bandwidth, mesh, density, cdf
 
+
 def fixed_point(t, M, I, a2):
     l=7
-    I = sci.float64(I)
-    M = sci.float64(M)
-    a2 = sci.float64(a2)
-    f = 2*sci.pi**(2*l)*sci.sum(I**l*a2*sci.exp(-I*sci.pi**2*t))
+    I = scipy.float64(I)
+    M = scipy.float64(M)
+    a2 = scipy.float64(a2)
+    f = 2*scipy.pi**(2*l)*scipy.sum(I**l*a2*scipy.exp(-I*scipy.pi**2*t))
     for s in range(l, 1, -1):
-        K0 = sci.prod(range(1, 2*s, 2))/sci.sqrt(2*sci.pi)
+        K0 = scipy.prod(range(1, 2*s, 2))/scipy.sqrt(2*scipy.pi)
         const = (1 + (1/2)**(s + 1/2))/3
         time=(2*const*K0/M/f)**(2/(3+2*s))
-        f=2*sci.pi**(2*s)*sci.sum(I**s*a2*sci.exp(-I*sci.pi**2*time))
-    return t-(2*M*sci.sqrt(sci.pi)*f)**(-2/5)
+        f=2*scipy.pi**(2*s)*scipy.sum(I**s*a2*scipy.exp(-I*scipy.pi**2*time))
+    return t-(2*M*scipy.sqrt(scipy.pi)*f)**(-2/5)
+
+
+def csc_column_remove(A, ind):
+    """ Removes specified columns for a scipy.sparse csc_matrix
+    Args:
+        A: scipy.sparse.csc_matrix
+            Input matrix
+        ind: iterable[int]
+            list or np.array with columns to be removed
+    """
+    d1, d2 = A.shape
+    if 'csc_matrix' not in str(type(A)):
+        logging.warning("Original matrix not in csc_format. Converting it" +
+                        " anyway.")
+        A = scipy.sparse.csc_matrix(A)
+    indptr = A.indptr
+    ind_diff = np.diff(A.indptr).tolist()
+    ind_sort = sorted(ind, reverse=True)
+    data_list = [A.data[indptr[i]:indptr[i+1]] for i in range(d2)]
+    indices_list = [A.indices[indptr[i]:indptr[i+1]] for i in range(d2)]
+    for i in ind_sort:
+        del data_list[i]
+        del indices_list[i]
+        del ind_diff[i]
+    indptr_final = np.cumsum([0] + ind_diff)
+    data_final = [item for sublist in data_list for item in sublist]
+    indices_final = [item for sublist in indices_list for item in sublist]
+    A = scipy.sparse.csc_matrix((data_final, indices_final, indptr_final),
+                                shape=[d1, d2 - len(ind)])
+    return A

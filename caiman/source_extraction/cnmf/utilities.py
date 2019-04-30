@@ -293,7 +293,7 @@ def extract_DF_F(Yr, A, C, bl, quantileMin=8, frames_window=200, block_size=400,
     return C_df
 
 def detrend_df_f(A, b, C, f, YrA=None, quantileMin=8, frames_window=500, 
-                 flag_auto=True, use_fast=False):
+                 flag_auto=True, use_fast=False, detrend_only=False):
     """ Compute DF/F signal without using the original data.
     In general much faster than extract_DF_F
 
@@ -323,7 +323,12 @@ def detrend_df_f(A, b, C, f, YrA=None, quantileMin=8, frames_window=500,
             flag for determining quantile automatically
 
         use_fast: bool
-            flag for using approximate fast percentile filtering
+            flag for u´sing approximate fast percentile filtering
+
+        detrend_only: bool (False)
+            flag for only subtracting baseline and not normalizing by it.
+            Used in 1p data processing where baseline fluorescence cannot be
+            determined.
 
     Returns:
         F_df:
@@ -333,7 +338,14 @@ def detrend_df_f(A, b, C, f, YrA=None, quantileMin=8, frames_window=500,
     if C is None:
         logging.warning("There are no components for DF/F extraction!")
         return None
-
+    
+    if b is None or f is None:
+        b = np.zeros((A.shape[0], 1))
+        f = np.zeros((1, C.shape[1]))
+        logging.warning("Background components not present. Results should" +
+                        " not be interpreted as DF/F normalized but only" +
+                        " as detrended.")
+        detrend_only = True
     if 'csc_matrix' not in str(type(A)):
         A = scipy.sparse.csc_matrix(A)
     if 'array' not in str(type(b)):
@@ -362,7 +374,10 @@ def detrend_df_f(A, b, C, f, YrA=None, quantileMin=8, frames_window=500,
                            zip(F, data_prct)])
             Df = np.stack([np.percentile(f, prctileMin) for f, prctileMin in
                            zip(B, data_prct)])
-            F_df = (F - Fd[:, None]) / (Df[:, None] + Fd[:, None])
+            if not detrend_only:
+                F_df = (F - Fd) / (Df[:, None] + Fd[:, None])
+            else:
+                F_df = F - Fd
         else:
             if use_fast:
                 Fd = np.stack([fast_prct_filt(f, level=prctileMin,
@@ -378,18 +393,28 @@ def detrend_df_f(A, b, C, f, YrA=None, quantileMin=8, frames_window=500,
                 Df = np.stack([scipy.ndimage.percentile_filter(
                     f, prctileMin, (frames_window)) for f, prctileMin in
                     zip(B, data_prct)])
-            F_df = (F - Fd) / (Df + Fd)
+            if not detrend_only:
+                F_df = (F - Fd) / (Df + Fd)
+            else:
+                F_df = F - Fd
     else:
         if frames_window is None or frames_window > T:
             Fd = np.percentile(F, quantileMin, axis=1)
             Df = np.percentile(B, quantileMin, axis=1)
-            F_df = (F - Fd) / (Df[:, None] + Fd[:, None])
+            if not detrend_only:
+                F_df = (F - Fd) / (Df[:, None] + Fd[:, None])
+            else:
+                F_df = F - Fd
         else:
             Fd = scipy.ndimage.percentile_filter(
                 F, quantileMin, (frames_window, 1))
             Df = scipy.ndimage.percentile_filter(
                 B, quantileMin, (frames_window, 1))
-            F_df = (F - Fd) / (Df + Fd)
+            if not detrend_only:
+                F_df = (F - Fd) / (Df + Fd)
+            else:
+                F_df = F - Fd
+
     return F_df
 
 def fast_prct_filt(input_data, level=8, frames_window=1000):
