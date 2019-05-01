@@ -1,7 +1,7 @@
 channels:
 - conda-forge
 dependencies:
-- python=3.7
+- python=3.6
 - tensorflow # Must list before keras to preempt default keras backend
 - bokeh
 - cython

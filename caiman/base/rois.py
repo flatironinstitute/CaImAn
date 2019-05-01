@@ -190,16 +190,16 @@ def nf_match_neurons_in_binary_masks(masks_gt, masks_comp, thresh_cost=.7, min_d
 
     Returns:
         idx_tp_1:
-            indeces true pos ground truth mask
+            indices true pos ground truth mask
 
         idx_tp_2:
-            indeces true pos comp
+            indices true pos comp
 
         idx_fn_1:
-            indeces false neg
+            indices false neg
 
         idx_fp_2:
-            indeces false pos
+            indices false pos
 
     """
 
@@ -357,16 +357,16 @@ def register_ROIs(A1, A2, dims, template1=None, template2=None, align_flag=True,
 
     Returns:
         matched_ROIs1: list
-            indeces of matched ROIs from session 1
+            indices of matched ROIs from session 1
 
         matched_ROIs2: list
-            indeces of matched ROIs from session 2
+            indices of matched ROIs from session 2
 
         non_matched1: list
-            indeces of non-matched ROIs from session 1
+            indices of non-matched ROIs from session 1
 
         non_matched2: list
-            indeces of non-matched ROIs from session 2
+            indices of non-matched ROIs from session 2
 
         performance:  list
             (precision, recall, accuracy, f_1 score) with A1 taken as ground truth
@@ -450,7 +450,7 @@ def register_ROIs(A1, A2, dims, template1=None, template2=None, align_flag=True,
     matches = matches[0]
     costs = costs[0]
 
-    #%% store indeces
+    #%% store indices
 
     idx_tp = np.where(np.array(costs) < thresh_cost)[0]
     if len(idx_tp) > 0:
@@ -615,16 +615,16 @@ def register_multisession(A, dims, templates = [None], align_flag=True,
 
     return A_union, assignments, matchings
 
-def extract_active_components(assignments, indeces, only = True):
+def extract_active_components(assignments, indices, only = True):
     """
-    Computes the indeces of components that were active in a specified set of 
+    Computes the indices of components that were active in a specified set of 
     sessions. 
 
     Args:
         assignments: ndarray # of components X # of sessions
             assignments matrix returned by function register_multisession
 
-        indeces: list int
+        indices: list int
             set of sessions to look for active neurons. Session 1 corresponds to a
             pythonic index 0 etc
 
@@ -635,14 +635,14 @@ def extract_active_components(assignments, indeces, only = True):
 
     Returns:
         components: list int
-            indeces of components 
+            indices of components 
 
     """
 
-    components = np.where(np.isnan(assignments[:,indeces]).sum(-1) == 0)[0]
+    components = np.where(np.isnan(assignments[:,indices]).sum(-1) == 0)[0]
 
     if only:
-        not_inds = list(np.setdiff1d(range(assignments.shape[-1]), indeces))
+        not_inds = list(np.setdiff1d(range(assignments.shape[-1]), indices))
         not_comps = np.where(np.isnan(assignments[:,not_inds]).sum(-1) == 
                              len(not_inds))[0]
         components = np.intersect1d(components, not_comps)
@@ -1240,10 +1240,10 @@ def detect_duplicates_and_subsets(binary_masks, predictions=None, r_values=None,
     logging.info(sz.shape)
     overlap = overlap/sz.T
     np.fill_diagonal(overlap, 0)
-    # pairs of duplicate indeces
+    # pairs of duplicate indices
 
-    indeces_orig = np.where((D < dist_thr) | ((overlap) >= thresh_subset))
-    indeces_orig = [(a, b) for a, b in zip(indeces_orig[0], indeces_orig[1])]
+    indices_orig = np.where((D < dist_thr) | ((overlap) >= thresh_subset))
+    indices_orig = [(a, b) for a, b in zip(indices_orig[0], indices_orig[1])]
 
     use_max_area = False
     if predictions is not None:
@@ -1261,63 +1261,63 @@ def detect_duplicates_and_subsets(binary_masks, predictions=None, r_values=None,
     one, two = np.unravel_index(max_idx, overlap_tmp.shape)
     max_val = overlap_tmp[one, two]
 
-    indeces_to_keep:List = []
-    indeces_to_remove = []
+    indices_to_keep:List = []
+    indices_to_remove = []
     while max_val > 0:
         one, two = np.unravel_index(max_idx, overlap_tmp.shape)
         if metric[one] > metric[two]:
-            #indeces_to_keep.append(one)
+            #indices_to_keep.append(one)
             overlap_tmp[:,two] = 0
             overlap_tmp[two,:] = 0
-            indeces_to_remove.append(two)
-            #if two in indeces_to_keep:
-            #    indeces_to_keep.remove(two)
+            indices_to_remove.append(two)
+            #if two in indices_to_keep:
+            #    indices_to_keep.remove(two)
         else:
             overlap_tmp[:,one] = 0
             overlap_tmp[one,:] = 0
-            indeces_to_remove.append(one)
-            #indeces_to_keep.append(two)
-            #if one in indeces_to_keep:
-            #    indeces_to_keep.remove(one)
+            indices_to_remove.append(one)
+            #indices_to_keep.append(two)
+            #if one in indices_to_keep:
+            #    indices_to_keep.remove(one)
 
         max_idx = np.argmax(overlap_tmp)
         one, two = np.unravel_index(max_idx, overlap_tmp.shape)
         max_val = overlap_tmp[one, two]
 
-    #indeces_to_remove = np.setdiff1d(np.unique(indeces_orig),indeces_to_keep)
-    indeces_to_keep = np.setdiff1d(np.unique(indeces_orig),indeces_to_remove)
+    #indices_to_remove = np.setdiff1d(np.unique(indices_orig),indices_to_keep)
+    indices_to_keep = np.setdiff1d(np.unique(indices_orig),indices_to_remove)
 
-#    if len(indeces) > 0:
+#    if len(indices) > 0:
 #        if use_max_area:
 #            # if is to  deal with tie breaks in case of same area
-#            indeces_keep = np.argmax([[overlap[sec, frst], overlap[frst, sec]]
-#                    for frst, sec in indeces], 1)
-#            indeces_remove = np.argmin([[overlap[sec, frst], overlap[frst, sec]]
-#                    for frst, sec in indeces], 1)
+#            indices_keep = np.argmax([[overlap[sec, frst], overlap[frst, sec]]
+#                    for frst, sec in indices], 1)
+#            indices_remove = np.argmin([[overlap[sec, frst], overlap[frst, sec]]
+#                    for frst, sec in indices], 1)
 #
 #
 #        else: #use CNN
-#            indeces_keep = np.argmin([[metric[sec], metric[frst]]
-#                for frst, sec in indeces], 1)
-#            indeces_remove = np.argmax([[metric[sec], metric[frst]]
-#                for frst, sec in indeces], 1)
+#            indices_keep = np.argmin([[metric[sec], metric[frst]]
+#                for frst, sec in indices], 1)
+#            indices_remove = np.argmax([[metric[sec], metric[frst]]
+#                for frst, sec in indices], 1)
 #
-#        indeces_keep = np.unique([elms[ik] for ik, elms in
-#                                      zip(indeces_keep, indeces)])
-#        indeces_remove = np.unique([elms[ik] for ik, elms in
-#                                       zip(indeces_remove, indeces)])
+#        indices_keep = np.unique([elms[ik] for ik, elms in
+#                                      zip(indices_keep, indices)])
+#        indices_remove = np.unique([elms[ik] for ik, elms in
+#                                       zip(indices_remove, indices)])
 #
-#        multiple_appearance = np.intersect1d(indeces_keep,indeces_remove)
+#        multiple_appearance = np.intersect1d(indices_keep,indices_remove)
 #        for mapp in multiple_appearance:
-#            indeces_remove.remove(mapp)
+#            indices_remove.remove(mapp)
 #    else:
-#        indeces_keep = []
-#        indeces_remove = []
-#        indeces_keep = []
-#        indeces_remove = []
+#        indices_keep = []
+#        indices_remove = []
+#        indices_keep = []
+#        indices_remove = []
 
 
-    return indeces_orig, indeces_to_keep, indeces_to_remove, D, overlap
+    return indices_orig, indices_to_keep, indices_to_remove, D, overlap
 
 def detect_duplicates(file_name, dist_thr=0.1, FOV=(512, 512)):
     """
@@ -1331,9 +1331,9 @@ def detect_duplicates(file_name, dist_thr=0.1, FOV=(512, 512)):
         FOV:        dimensions of the FOV
 
     Returns:
-        duplicates  : list of indeces with duplicate entries
+        duplicates  : list of indices with duplicate entries
 
-        ind_keep    : list of kept indeces
+        ind_keep    : list of kept indices
 
     """
     rois = nf_read_roi_zip(file_name, FOV)
@@ -1342,10 +1342,10 @@ def detect_duplicates(file_name, dist_thr=0.1, FOV=(512, 512)):
         np.reshape(rois, (rois.shape[0], np.prod(FOV))).T)
     D = distance_masks([sp_rois, sp_rois], [cm, cm], 10)[0]
     np.fill_diagonal(D, 1)
-    indeces = np.where(D < dist_thr)      # pairs of duplicate indeces
+    indices = np.where(D < dist_thr)      # pairs of duplicate indices
 
-    ind = list(np.unique(indeces[1][indeces[1] > indeces[0]]))
+    ind = list(np.unique(indices[1][indices[1] > indices[0]]))
     ind_keep = list(set(range(D.shape[0])) - set(ind))
-    duplicates = list(np.unique(np.concatenate((indeces[0], indeces[1]))))
+    duplicates = list(np.unique(np.concatenate((indices[0], indices[1]))))
 
     return duplicates, ind_keep
