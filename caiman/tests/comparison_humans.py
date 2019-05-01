@@ -400,7 +400,7 @@ for params_movie in np.array(params_movies)[ID]:
         cnm2.estimates.plot_contours(img=Cn)
     # %% prepare ground truth masks
     gt_file = os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:-4] + 'match_masks.npz')
-    with np.load(gt_file, encoding='latin1') as ld:
+    with np.load(gt_file, encoding='latin1', allow_pickle=True) as ld:
         print(ld.keys())
         Cn_orig = ld['Cn']
 

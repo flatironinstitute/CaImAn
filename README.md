@@ -123,6 +123,7 @@ If you prefer to manage this information somewhere else, the `CAIMAN_DATA` envir
 
 Alternative environments:
    * [Using GPU](/README-GPU.md)
+   * [Older Linux Distros](/README-Distros.md)
    
 ### Known Issues
 

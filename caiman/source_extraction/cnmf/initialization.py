@@ -34,6 +34,7 @@ from skimage.transform import resize as resize_sk
 from sklearn.decomposition import NMF, FastICA
 from sklearn.utils.extmath import randomized_svd, squared_norm
 import sys
+from typing import List
 
 import caiman
 from .deconvolution import constrained_foopsi
@@ -634,7 +635,7 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1,
                  for c in range(len(ij))]
         # we create an array of it (fl like) and compute the trace like the pixel ij trough time
         dataTemp = np.array(
-            Y[[slice(*a) for a in ijSig]].copy(), dtype=np.float32)
+            Y[tuple([slice(*a) for a in ijSig])].copy(), dtype=np.float32)
         traceTemp = np.array(np.squeeze(rho[ij]), dtype=np.float32)
 
         coef, score = finetune(dataTemp, traceTemp, nIter=nIter)
@@ -645,29 +646,29 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1,
                               for s in ijSig], indexing='xy')
         arr = np.array([np.reshape(s, (1, np.size(s)), order='F').squeeze()
                         for s in xySig], dtype=np.int)
-        indeces = np.ravel_multi_index(arr, d[0:-1], order='F')
+        indices = np.ravel_multi_index(arr, d[0:-1], order='F')
 
-        A[indeces, k] = np.reshape(
+        A[indices, k] = np.reshape(
             coef, (1, np.size(coef)), order='C').squeeze()
-        Y[[slice(*a) for a in ijSig]] -= dataSig.copy()
+        Y[tuple([slice(*a) for a in ijSig])] -= dataSig.copy()
         if k < nr - 1:
             Mod = [[np.maximum(ij[c] - 2 * gHalf[c], 0),
                     np.minimum(ij[c] + 2 * gHalf[c] + 1, d[c])] for c in range(len(ij))]
             ModLen = [m[1] - m[0] for m in Mod]
             Lag = [ijSig[c] - Mod[c][0] for c in range(len(ij))]
             dataTemp = np.zeros(ModLen)
-            dataTemp[[slice(*a) for a in Lag]] = coef
+            dataTemp[tuple([slice(*a) for a in Lag])] = coef
             dataTemp = imblur(dataTemp[..., np.newaxis],
                               sig=gSig, siz=gSiz, kernel=kernel)
             temp = dataTemp * score.reshape([1] * (Y.ndim - 1) + [-1])
-            rho[[slice(*a) for a in Mod]] -= temp.copy()
+            rho[tuple([slice(*a) for a in Mod])] -= temp.copy()
             if rolling_sum:
                 rho_filt = scipy.signal.lfilter(
-                    rolling_filter, 1., rho[[slice(*a) for a in Mod]]**2)
-                v[[slice(*a) for a in Mod]] = np.amax(rho_filt, axis=-1)
+                    rolling_filter, 1., rho[tuple([slice(*a) for a in Mod])]**2)
+                v[tuple([slice(*a) for a in Mod])] = np.amax(rho_filt, axis=-1)
             else:
-                v[[slice(*a) for a in Mod]] = np.sum(rho[[slice(*a)
-                                                          for a in Mod]]**2, axis=-1)
+                v[tuple([slice(*a) for a in Mod])] = \
+                    np.sum(rho[tuple([slice(*a) for a in Mod])]**2, axis=-1)
 
     res = np.reshape(Y, (np.prod(d[0:-1]), d[-1]),
                      order='F') + med.flatten(order='F')[:, None]
