@@ -34,7 +34,7 @@ pl.rc('font', **font)
 base_folder = '/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/WEBSITE/'
 
 # %% Figure 4b and GRID statistics
-with np.load(os.path.join(base_folder,'ALL_RECORDS_GRID_FINAL.npz')) as ld:
+with np.load(os.path.join(base_folder,'ALL_RECORDS_GRID_FINAL.npz'), allow_pickle=True) as ld:
     records = ld['records'][()]
     records = [list(rec) for rec in records]
     records = [rec[:5]+[float(rr) for rr in rec[5:]] for rec in records]
@@ -42,7 +42,7 @@ with np.load(os.path.join(base_folder,'ALL_RECORDS_GRID_FINAL.npz')) as ld:
 columns = ['name', 'gr_snr', 'grid_rval', 'grid_max_prob_rej',
            'grid_thresh_CNN', 'recall', 'precision', 'f1_score']
 
-with np.load(os.path.join(base_folder, 'all_records_grid_online.npz')) as ld:
+with np.load(os.path.join(base_folder, 'all_records_grid_online.npz'), allow_pickle=True) as ld:
     records_online = ld['records']
     records_online = [list(rec) for rec in records_online]
     records_online = [rec[:4] + [float(rr) for rr in rec[4:]] for rec in records_online]
