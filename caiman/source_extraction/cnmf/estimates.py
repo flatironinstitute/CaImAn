@@ -1068,7 +1068,7 @@ class Estimates(object):
     def remove_small_large_neurons(self, min_size_neuro, max_size_neuro):
         ''' remove neurons that are too large or too small
 
-	Args:
+    	Args:
             min_size_neuro: min size in pixels
             max_size_neuro: max size in pixels
         '''
@@ -1078,7 +1078,11 @@ class Estimates(object):
         A_gt_thr_bin = self.A_thr.toarray() > 0
         size_neurons_gt = A_gt_thr_bin.sum(0)
         neurons_to_keep = np.where((size_neurons_gt > min_size_neuro) & (size_neurons_gt < max_size_neuro))[0]
-        self.select_components(idx_components=neurons_to_keep)
+        #self.select_components(idx_components=neurons_to_keep)
+        if self.idx_components is None:
+            self.idx_components = np.arange(self.A.shape[-1])
+        self.idx_components = np.intersect1d(self.idx_components, neurons_to_keep)
+        self.idx_components_bad = np.setdiff1d(np.arange(self.A.shape[-1]), self.idx_components)
         return neurons_to_keep
 
 
