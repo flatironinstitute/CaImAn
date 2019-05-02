@@ -260,6 +260,7 @@ class CNMF(object):
 
         # these are movie properties that will be refactored into the Movie object
         self.dims = None
+        self.empty_merged = None
 
         # these are member variables related to the CNMF workflow
         self.skip_refinement = skip_refinement
@@ -297,7 +298,7 @@ class CNMF(object):
         self.estimates = Estimates(A=Ain, C=Cin, b=b_in, f=f_in,
                                    dims=self.params.data['dims'])
 
-    def fit_file(self, motion_correct=False, indeces=[slice(None)]*2):
+    def fit_file(self, motion_correct=False, indices=[slice(None)]*2):
         """
         This method packages the analysis pipeline (motion correction, memory
         mapping, patch based CNMF processing) in a single method that can be
@@ -310,7 +311,7 @@ class CNMF(object):
         Args:
             motion_correct (bool)
                 flag for performing motion correction
-            indeces (list of slice objects)
+            indices (list of slice objects)
                 perform analysis only on a part of the FOV
         Returns:
             cnmf object with the current estimates
@@ -350,7 +351,7 @@ class CNMF(object):
 
         images = np.reshape(Yr.T, [T] + list(dims), order='F')
         self.mmap_file = fname_new
-        return self.fit(images, indeces=indeces)
+        return self.fit(images, indices=indices)
 
     def refit(self, images, dview=None):
         """
@@ -372,7 +373,7 @@ class CNMF(object):
         cnm.estimates = estimates
         return cnm.fit(images)
 
-    def fit(self, images, indeces=[slice(None), slice(None)]):
+    def fit(self, images, indices=[slice(None), slice(None)]):
         """
         This method uses the cnmf algorithm to find sources in data.
         it is calling every function from the cnmf folder
@@ -381,7 +382,7 @@ class CNMF(object):
         Args:
             images : mapped np.ndarray of shape (t,x,y[,z]) containing the images that vary over time.
 
-            indeces: list of slice objects along dimensions (x,y[,z]) for processing only part of the FOV
+            indices: list of slice objects along dimensions (x,y[,z]) for processing only part of the FOV
 
         Returns:
             self: updated using the cnmf algorithm with C,A,S,b,f computed according to the given initial values
@@ -396,18 +397,18 @@ class CNMF(object):
 
         """
         # Todo : to compartment
-        if isinstance(indeces, slice):
-            indeces = [indeces]
-        indeces = [slice(None)] + indeces
-        if len(indeces) < len(images.shape):
-            indeces = indeces + [slice(None)]*(len(images.shape) - len(indeces))
+        if isinstance(indices, slice):
+            indices = [indices]
+        indices = [slice(None)] + indices
+        if len(indices) < len(images.shape):
+            indices = indices + [slice(None)]*(len(images.shape) - len(indices))
         dims_orig = images.shape[1:]
-        dims_sliced = images[indeces].shape[1:]
+        dims_sliced = images[tuple(indices)].shape[1:]
         is_sliced = (dims_orig != dims_sliced)
         if self.params.get('patch', 'rf') is None and (is_sliced or 'ndarray' in str(type(images))):
-            images = images[indeces]
+            images = images[tuple(indices)]
             self.dview = None
-            logging.warning("Parallel processing in a single patch "
+            logging.info("Parallel processing in a single patch "
                             "is not available for loaded in memory or sliced" +
                             " data.")
 
@@ -525,7 +526,7 @@ class CNMF(object):
             # embed in the whole FOV
             if is_sliced:
                 FOV = np.zeros(dims_orig, order='C')
-                FOV[indeces[1:]] = 1
+                FOV[indices[1:]] = 1
                 FOV = FOV.flatten(order='F')
                 ind_nz = np.where(FOV>0)[0].tolist()
                 self.estimates.A = self.estimates.A.tocsc()
@@ -556,7 +557,7 @@ class CNMF(object):
                     gnb=self.params.get('init', 'nb'), border_pix=self.params.get('patch', 'border_pix'),
                     low_rank_background=self.params.get('patch', 'low_rank_background'),
                     del_duplicates=self.params.get('patch', 'del_duplicates'),
-                    indeces=indeces)
+                    indices=indices)
 
             self.estimates.bl, self.estimates.c1, self.estimates.g, self.estimates.neurons_sn = None, None, None, None
             logging.info("merging")
@@ -585,7 +586,7 @@ class CNMF(object):
                             not_merged = np.setdiff1d(list(range(len(self.estimates.YrA))),
                                                       np.unique(np.concatenate(self.estimates.merged_ROIs)))
                             self.estimates.YrA = np.concatenate([self.estimates.YrA[not_merged],
-                                                       np.array([self.estimates.YrA[m].mean(0) for m in self.estimates.merged_ROIs])])
+                                                       np.array([self.estimates.YrA[m].mean(0) for ind, m in enumerate(self.estimates.merged_ROIs) if not self.empty_merged[ind]])])
                     if self.params.get('init', 'nb') == 0:
                         self.estimates.W, self.estimates.b0 = compute_W(
                             Yr, self.estimates.A.toarray(), self.estimates.C, self.dims,
@@ -597,7 +598,6 @@ class CNMF(object):
                     else:
                         self.estimates.S = self.estimates.C
             else:
-
                 while len(self.estimates.merged_ROIs) > 0:
                     self.merge_comps(Yr, mx=np.Inf)
 
@@ -627,7 +627,7 @@ class CNMF(object):
 
         Args:
             ind_rm :    list
-                        indeces of components to be removed
+                        indices of components to be removed
         """
 
         self.estimates.Ab, self.estimates.Ab_dense, self.estimates.CC, self.estimates.CY, self.M,\
@@ -892,7 +892,7 @@ class CNMF(object):
         """merges components
         """
         self.estimates.A, self.estimates.C, self.estimates.nr, self.estimates.merged_ROIs, self.estimates.S, \
-        self.estimates.bl, self.estimates.c1, self.estimates.neurons_sn, self.estimates.g=\
+        self.estimates.bl, self.estimates.c1, self.estimates.neurons_sn, self.estimates.g, self.empty_merged=\
             merge_components(Y, self.estimates.A, self.estimates.b, self.estimates.C, self.estimates.f, self.estimates.S,
                              self.estimates.sn, self.params.get_group('temporal'),
                              self.params.get_group('spatial'), dview=self.dview,

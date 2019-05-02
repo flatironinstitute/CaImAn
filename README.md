@@ -1,3 +1,7 @@
+Position available
+======
+
+The CaImAn team is hiring! We're looking for a data scientist/software engineer with a strong research component. For more information please follow [this link](https://simonsfoundation.wd1.myworkdayjobs.com/en-US/simonsfoundationcareers/job/162-Fifth-Avenue/Software-Engineer_R0000500).
 
 CaImAn
 ======
@@ -25,6 +29,8 @@ A paper explaining most of the implementation details and benchmarking can be fo
   publisher={eLife Sciences Publications Limited}
 }
 ```
+
+All the results and figures of the paper can be regenerated using this package. For more information visit this [page](https://github.com/flatironinstitute/CaImAn/tree/master/use_cases/eLife_scripts).
 
 ## New: Code refactoring (October 2018)
 
@@ -117,6 +123,7 @@ If you prefer to manage this information somewhere else, the `CAIMAN_DATA` envir
 
 Alternative environments:
    * [Using GPU](/README-GPU.md)
+   * [Older Linux Distros](/README-Distros.md)
    
 ### Known Issues
 

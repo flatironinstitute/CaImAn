@@ -18,7 +18,7 @@ import os
 import scipy
 from scipy.sparse import csc_matrix
 from scipy.stats import norm
-from typing import Any, List
+from typing import Any, List, Tuple, Union
 import warnings
 
 from caiman.paths import caiman_datadir
@@ -29,44 +29,6 @@ try:
 except:
     pass
 
-def estimate_noise_mode(traces, robust_std=False, use_mode_fast=False, return_all=False):
-    """ estimate the noise in the traces under assumption that signals are sparse and only positive. The last dimension should be time.
-
-    """
-    # todo todocument
-    if use_mode_fast:
-        md = mode_robust_fast(traces, axis=1)
-    else:
-        md = mode_robust(traces, axis=1)
-
-    ff1 = traces - md[:, None]
-    # only consider values under the mode to determine the noise standard deviation
-    ff1 = -ff1 * (ff1 < 0)
-    if robust_std:
-        # compute 25 percentile
-        ff1 = np.sort(ff1, axis=1)
-        ff1[ff1 == 0] = np.nan
-        Ns = np.round(np.sum(ff1 > 0, 1) * .5)
-        iqr_h = np.zeros(traces.shape[0])
-
-        for idx, _ in enumerate(ff1):
-            iqr_h[idx] = ff1[idx, -Ns[idx]]
-
-        # approximate standard deviation as iqr/1.349
-        sd_r = 2 * iqr_h / 1.349
-
-    else:
-        Ns = np.sum(ff1 > 0, 1)
-        sd_r = np.sqrt(old_div(np.sum(ff1**2, 1), Ns))
-
-    if return_all:
-        return md, sd_r
-    else:
-        return sd_r
-#
-
-
-#%%
 try:
     profile
 except:
@@ -74,7 +36,7 @@ except:
 
 
 @profile
-def compute_event_exceptionality(traces, robust_std=False, N=5, use_mode_fast=False, sigma_factor=3.):
+def compute_event_exceptionality(traces:np.ndarray, robust_std:bool=False, N:int=5, use_mode_fast:bool=False, sigma_factor:float=3.) -> Tuple[np.ndarray, np.ndarray, Any, Any]:
     """
     Define a metric and order components according to the probability of some "exceptional events" (like a spike).
 
@@ -162,7 +124,7 @@ def compute_event_exceptionality(traces, robust_std=False, N=5, use_mode_fast=Fa
 
 
 #%%
-def find_activity_intervals(C, Npeaks=5, tB=-3, tA=10, thres=0.3):
+def find_activity_intervals(C, Npeaks:int=5, tB=-3, tA=10, thres:float=0.3) -> List:
     # todo todocument
     import peakutils
     K, T = np.shape(C)
@@ -192,7 +154,7 @@ def find_activity_intervals(C, Npeaks=5, tB=-3, tA=10, thres=0.3):
 
 
 #%%
-def classify_components_ep(Y, A, C, b, f, Athresh=0.1, Npeaks=5, tB=-3, tA=10, thres=0.3):
+def classify_components_ep(Y, A, C, b, f, Athresh=0.1, Npeaks=5, tB=-3, tA=10, thres=0.3) -> Tuple[np.ndarray, List]:
     # todo todocument
 
     K, _ = np.shape(C)
@@ -238,7 +200,7 @@ def classify_components_ep(Y, A, C, b, f, Athresh=0.1, Npeaks=5, tB=-3, tA=10, t
 #%%
 
 
-def evaluate_components_CNN(A, dims, gSig, model_name=os.path.join(caiman_datadir(), 'model', 'cnn_model'), patch_size=50, loaded_model=None, isGPU=False):
+def evaluate_components_CNN(A, dims, gSig, model_name:str=os.path.join(caiman_datadir(), 'model', 'cnn_model'), patch_size:int=50, loaded_model=None, isGPU:bool=False) -> Tuple[Any, np.array]:
     """ evaluate component quality using a CNN network
 
     """
@@ -248,12 +210,8 @@ def evaluate_components_CNN(A, dims, gSig, model_name=os.path.join(caiman_datadi
 
         os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 
-#    try:
     os.environ["KERAS_BACKEND"] = "tensorflow"
     from keras.models import model_from_json
-#    except:
-#        logging.error('PROBLEM LOADING KERAS: cannot use classifier')
-
 
     if loaded_model is None:
         if os.path.isfile(os.path.join(caiman_datadir(), model_name + ".json")):
@@ -291,8 +249,8 @@ def evaluate_components_CNN(A, dims, gSig, model_name=os.path.join(caiman_datadi
 #%%
 
 
-def evaluate_components(Y, traces, A, C, b, f, final_frate, remove_baseline=True, N=5, robust_std=False,
-                        Athresh=0.1, Npeaks=5, thresh_C=0.3, sigma_factor=3.):
+def evaluate_components(Y:np.ndarray, traces:np.ndarray, A, C, b, f, final_frate, remove_baseline:bool=True, N:int=5, robust_std:bool=False,
+                        Athresh:float=0.1, Npeaks:int=5, thresh_C:float=0.3, sigma_factor:float=3.) -> Tuple[Any, Any, Any, Any, Any, Any]:
     """ Define a metric and order components according to the probability of some "exceptional events" (like a spike).
 
     Such probability is defined as the likeihood of observing the actual trace value over N samples given an estimated noise distribution.
@@ -309,11 +267,13 @@ def evaluate_components(Y, traces, A, C, b, f, final_frate, remove_baseline=True
         Y: ndarray
             movie x,y,t
 
+        traces: ndarray
+            Fluorescence traces
+
         A,C,b,f: various types
             outputs of cnmf
 
-        traces: ndarray
-            Fluorescence traces
+        final_frate: (undocumented)
 
         remove_baseline: bool
             whether to remove the baseline in a rolling fashion *(8 percentile)
@@ -413,16 +373,10 @@ def evaluate_components(Y, traces, A, C, b, f, final_frate, remove_baseline=True
 
     return fitness_raw, fitness_delta, erfc_raw, erfc_delta, r_values, significant_samples
 
-
-#%%
-
-def grouper(n, iterable, fillvalue=None):
+def grouper(n:int, iterable, fillvalue:bool=None):
     "grouper(3, 'ABCDEFG', 'x') --> ABC DEF Gxx"
     args = [iter(iterable)] * n
     return itertools.zip_longest(*args, fillvalue=fillvalue)
-
-#%%
-
 
 def evaluate_components_placeholder(params):
     import caiman as cm
@@ -435,12 +389,9 @@ def evaluate_components_placeholder(params):
 
     return fitness_raw, fitness_delta, [], [], r_values, significant_samples
 
-#%%
-
-
 def estimate_components_quality_auto(Y, A, C, b, f, YrA, frate, decay_time, gSig, dims, dview=None, min_SNR=2, r_values_min=0.9,
                                      r_values_lowest=-1, Npeaks=10, use_cnn=True, thresh_cnn_min=0.95, thresh_cnn_lowest=0.1,
-                                     thresh_fitness_delta=-20., min_SNR_reject=0.5, gSig_range = None):
+                                     thresh_fitness_delta=-20., min_SNR_reject=0.5, gSig_range = None) -> Tuple[np.array, np.array, float, float, float]:
     ''' estimates the quality of component automatically
 
     Args:
@@ -516,7 +467,7 @@ def estimate_components_quality_auto(Y, A, C, b, f, YrA, frate, decay_time, gSig
 
     traces = C + YrA
 
-    _, _, fitness_raw, _, r_values = estimate_components_quality(
+    _, _, fitness_raw, _, r_values = estimate_components_quality( # type: ignore # mypy cannot reason about return_all
         traces, Y, A, C, b, f, final_frate=frate, Npeaks=Npeaks, r_values_min=r_values_min, fitness_min=fitness_min,
         fitness_delta_min=thresh_fitness_delta, return_all=True, dview=dview, num_traces_per_group=50, N=N_samples)
 
@@ -529,13 +480,12 @@ def estimate_components_quality_auto(Y, A, C, b, f, YrA, frate, decay_time, gSig
 
     return idx_components, idx_components_bad, comp_SNR, r_values, cnn_values
 
-#%%
 def select_components_from_metrics(A, dims, gSig, r_values, comp_SNR,
                                    r_values_min=0.8, r_values_lowest=-1,
                                    min_SNR=2.5, min_SNR_reject=0.5,
                                    thresh_cnn_min=0.8, thresh_cnn_lowest=0.1,
                                    use_cnn=True, gSig_range=None,
-                                   neuron_class=1, predictions=None, **kwargs):
+                                   neuron_class=1, predictions=None, **kwargs) -> Tuple[np.array, np.array, Any]:
     '''Selects components based on pre-computed metrics. For each metric
     space correlation, trace SNR, and CNN classifier both an upper and a lower
     thresholds are considered. A component is accepted if and only if it
@@ -582,11 +532,9 @@ def select_components_from_metrics(A, dims, gSig, r_values, comp_SNR,
 
     return idx_components.astype(np.int), idx_components_bad.astype(np.int), cnn_values
 
-#%%
-
 def estimate_components_quality(traces, Y, A, C, b, f, final_frate=30, Npeaks=10, r_values_min=.95,
-                                fitness_min=-100, fitness_delta_min=-100, return_all=False, N=5,
-                                remove_baseline=True, dview=None, robust_std=False, Athresh=0.1, thresh_C=0.3, num_traces_per_group=20):
+                                fitness_min=-100, fitness_delta_min=-100, return_all:bool=False, N=5,
+                                remove_baseline=True, dview=None, robust_std=False, Athresh=0.1, thresh_C=0.3, num_traces_per_group=20) -> Tuple[np.ndarray, ...]:
     """ Define a metric and order components according to the probability of some "exceptional events" (like a spike).
 
     Such probability is defined as the likeihood of observing the actual trace value over N samples given an estimated noise distribution.
@@ -643,6 +591,7 @@ def estimate_components_quality(traces, Y, A, C, b, f, final_frate=30, Npeaks=10
             float values representing correlation between component and spatial mask obtained by averaging important points
 
     """
+    # TODO: Consider always returning it all and let the caller ignore what it does not want
 
     if 'memmap' not in str(type(Y)):
         logging.warning('NOT MEMORY MAPPED. FALLING BACK ON SINGLE CORE IMPLEMENTATION')

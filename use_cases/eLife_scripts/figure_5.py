@@ -50,15 +50,15 @@ if mergefiles:
     fls = glob.glob('.')  # here should go the path to the generated files
     all_results_online = dict()
     for fl in fls:
-        with np.load(fl) as ld:
+        with np.load(fl, allow_pickle=True) as ld:
             all_results_online.update((ld['all_results'][()]))
 
     np.savez(os.path.join(base_folder, 'all_res_online_web.npz'), all_results=all_results_online)
 
 # %% RELOAD ALL THE RESULTS INSTEAD OF REGENERATING THEM
-with np.load(os.path.join(base_folder, 'all_res_web.npz')) as ld:
+with np.load(os.path.join(base_folder, 'all_res_web.npz'), allow_pickle=True) as ld:
     all_results = ld['all_results'][()]
-with np.load(os.path.join(base_folder, 'all_res_online_web_bk.npz')) as ld:
+with np.load(os.path.join(base_folder, 'all_res_online_web_bk.npz'), allow_pickle=True) as ld:
     all_results_online = ld['all_results'][()]
 
 pl.rcParams['pdf.fonttype'] = 42

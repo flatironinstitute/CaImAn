@@ -244,7 +244,7 @@ for ind_dataset in ID:
 
     # %% load consensus annotations and filter for size
     gt_file = glob.glob(os.path.join(base_folder, params_movie[ind_dataset]['folder_name'], '*masks.npz'))[0]
-    with np.load(gt_file, encoding='latin1') as ld:
+    with np.load(gt_file, encoding='latin1', allow_pickle=True) as ld:
         d1_or = int(ld['d1'])
         d2_or = int(ld['d2'])
         dims_or = (d1_or, d2_or)

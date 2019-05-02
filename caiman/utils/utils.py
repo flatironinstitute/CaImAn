@@ -31,7 +31,7 @@ import pickle
 import scipy
 from scipy.ndimage.filters import gaussian_filter
 from tifffile import TiffFile
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any, Dict, List, Tuple, Union, Iterable
 
 try:
     cv2.setNumThreads(0)
@@ -344,11 +344,12 @@ def apply_magic_wand(A, gSig, dims, A_thr=None, coms=None, dview=None,
 
     return masks
 
+
 def cell_magic_wand_wrapper(params):
-      a, com, min_radius, max_radius, roughness, zoom_factor, center_range = params
-      msk = cell_magic_wand(a, com, min_radius, max_radius, roughness,
-                            zoom_factor, center_range)
-      return msk
+    a, com, min_radius, max_radius, roughness, zoom_factor, center_range = params
+    msk = cell_magic_wand(a, com, min_radius, max_radius, roughness,
+                          zoom_factor, center_range)
+    return msk
 #%% From https://codereview.stackexchange.com/questions/120802/recursively-save-python-dictionaries-to-hdf5-files-using-h5py
 
 

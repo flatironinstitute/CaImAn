@@ -96,9 +96,9 @@ def precision_snr(snr_gt, snr_gt_fn, snr_cnmf, snr_cnmf_fp, snr_thrs):
 # %% RELOAD ALL THE RESULTS INSTEAD OF REGENERATING THEM
 
 
-with np.load(os.path.join(base_folder, 'all_res_web.npz')) as ld:
+with np.load(os.path.join(base_folder, 'all_res_web.npz'), allow_pickle=True) as ld:
     all_results = ld['all_results'][()]
-with np.load(os.path.join(base_folder, 'all_res_online_web_bk.npz')) as ld:
+with np.load(os.path.join(base_folder, 'all_res_online_web_bk.npz'), allow_pickle=True) as ld:
     all_results_online = ld['all_results'][()]
 
 pl.rcParams['pdf.fonttype'] = 42

@@ -34,27 +34,13 @@ import shutil
 import subprocess
 import sys
 import time
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from .mmapping import load_memmap
 
 logger = logging.getLogger(__name__)
 
-def get_patches_from_image(img, shapes, overlaps):
-    # todo todocument
-    d1, d2 = np.shape(img)
-    rf = np.divide(shapes, 2)
-    _, coords_2d = extract_patch_coordinates(d1, d2, rf=rf, stride=overlaps)
-    imgs = np.empty(coords_2d.shape[:2], dtype=np.object)
-
-    for idx_0, count_0 in enumerate(coords_2d):
-        for idx_1, count_1 in enumerate(count_0):
-            imgs[idx_0, idx_1] = img[count_1[0], count_1[1]]
-
-    return imgs, coords_2d
-#%%
-
-
-def extract_patch_coordinates(dims, rf, stride, border_pix=0, indeces=[slice(None)]*2):
+def extract_patch_coordinates(dims:Tuple, rf:Union[List,Tuple], stride:Union[List[int],Tuple], border_pix:int=0, indices=[slice(None)]*2) -> Tuple[List, List]:
     """
     Partition the FOV in patches
     and return the indexed in 2D and 1D (flatten, order='F') formats
@@ -70,11 +56,11 @@ def extract_patch_coordinates(dims, rf, stride, border_pix=0, indeces=[slice(Non
             degree of overlap of the patches
     """
 
-    sl_start = [0 if sl.start is None else sl.start for sl in indeces]
-    sl_stop = [dim if sl.stop is None else sl.stop for (sl, dim) in zip(indeces, dims)]
-    sl_step = [1 for sl in indeces]  # not used
+    sl_start = [0 if sl.start is None else sl.start for sl in indices]
+    sl_stop = [dim if sl.stop is None else sl.stop for (sl, dim) in zip(indices, dims)]
+    sl_step = [1 for sl in indices]  # not used
     dims_large = dims
-    dims = np.minimum(np.array(dims) - border_pix, sl_stop) - np.maximum(border_pix, sl_start) 
+    dims = np.minimum(np.array(dims) - border_pix, sl_stop) - np.maximum(border_pix, sl_start)
 
     coords_flat = []
     shapes = []
@@ -119,29 +105,29 @@ def extract_patch_coordinates(dims, rf, stride, border_pix=0, indeces=[slice(Non
     for i, c in enumerate(coords_flat):
         assert len(c) == np.prod(shapes[i])
 
-    return map(np.sort, coords_flat), shapes
+    return list(map(np.sort, coords_flat)), shapes
 
 
 #%%
-def apply_to_patch(mmap_file, shape, dview, rf, stride, function, *args, **kwargs):
+def apply_to_patch(mmap_file, shape:Tuple[Any,Any,Any], dview, rf, stride, function, *args, **kwargs) -> Tuple[List,Any,Tuple]:
     """
     apply function to patches in parallel or not
 
     Args:
-        file_name: string
-            full path to an npy file (2D, pixels x time) containing the movie
+        mmap_file: Memory-mapped variable
+            Variable handle, first thing returned by load_memmap()
 
         shape: tuple of three elements
             dimensions of the original movie across y, x, and time
+
+        dview: ipyparallel view on client
+            if None
 
         rf: int
             half-size of the square patch in pixel
 
         stride: int
             amount of overlap between patches
-
-        dview: ipyparallel view on client
-            if None
 
     Returns:
         results
@@ -150,6 +136,8 @@ def apply_to_patch(mmap_file, shape, dview, rf, stride, function, *args, **kwarg
         Exception 'Something went wrong'
 
     """
+    # This function is (currently) only used in some demos and use_cases code. Unclear if it's still necessary,
+    # and it's been broken for awhile.
     (_, d1, d2) = shape
 
     if not np.isscalar(rf):
@@ -165,7 +153,7 @@ def apply_to_patch(mmap_file, shape, dview, rf, stride, function, *args, **kwarg
         stride2 = stride
 
     idx_flat, idx_2d = extract_patch_coordinates(
-        d1, d2, rf=(rf1, rf2), stride=(stride1, stride2))
+        (d1, d2), rf=(rf1, rf2), stride=(stride1, stride2))
 
     shape_grid = tuple(np.ceil(
         (d1 * 1. / (rf1 * 2 - stride1), d2 * 1. / (rf2 * 2 - stride2))).astype(np.int))
@@ -179,9 +167,9 @@ def apply_to_patch(mmap_file, shape, dview, rf, stride, function, *args, **kwarg
     args_in = []
 
     for id_f, id_2d in zip(idx_flat[:], idx_2d[:]):
-
         args_in.append((mmap_file.filename, id_f,
                         id_2d, function, args, kwargs))
+
     logger.debug("Flat index is of length " + str(len(idx_flat)))
     if dview is not None:
         try:
@@ -223,7 +211,7 @@ def function_place_holder(args_in):
 #%%
 
 
-def start_server(slurm_script=None, ipcluster="ipcluster", ncpus=None):
+def start_server(slurm_script:str=None, ipcluster:str="ipcluster", ncpus:int=None) -> None:
     """
     programmatically start the ipyparallel server
 
@@ -268,7 +256,7 @@ def start_server(slurm_script=None, ipcluster="ipcluster", ncpus=None):
         c.close()
         sys.stdout.write("start_server: done\n")
 
-def shell_source(script):
+def shell_source(script:str) -> None:
     """ Run a source-style bash script, copy resulting env vars to current process. """
     # XXX This function is weird and maybe not a good idea. People easily might expect
     #     it to handle conditionals. Maybe just make them provide a key-value file
@@ -289,14 +277,18 @@ def shell_source(script):
     os.environ.update(env)
     pipe.stdout.close()
 
-def stop_server(ipcluster='ipcluster', pdir=None, profile=None, dview=None):
+def stop_server(ipcluster:str='ipcluster', pdir:str=None, profile:str=None, dview=None) -> None:
     """
     programmatically stops the ipyparallel server
 
     Args:
         ipcluster : str
             ipcluster binary file name; requires 4 path separators on Windows
-            Default: "ipcluster"
+            Default: "ipcluster"a
+
+        pdir : Undocumented
+        profile: Undocumented
+        dview: Undocumented
 
     """
     if 'multiprocessing' in str(type(dview)):
@@ -359,13 +351,16 @@ def stop_server(ipcluster='ipcluster', pdir=None, profile=None, dview=None):
 #%%
 
 
-def setup_cluster(backend='multiprocessing', n_processes=None, single_thread=False):
+def setup_cluster(backend:str='multiprocessing', n_processes:int=None, single_thread:bool=False, ignore_preexisting:bool=False) -> Tuple[Any, Any, Optional[int]]:
     """Setup and/or restart a parallel cluster.
     Args:
         backend: str
             'multiprocessing' [alias 'local'], 'ipyparallel', and 'SLURM'
             ipyparallel and SLURM backends try to restart if cluster running.
             backend='multiprocessing' raises an exception if a cluster is running.
+        ignore_preexisting: bool
+            If True, ignores the existence of an already running multiprocessing
+            pool, which is usually indicative of a previously-started CaImAn cluster
 
     Returns:
         c: ipyparallel.Client object; only used for ipyparallel and SLURM backends, else None
@@ -407,8 +402,13 @@ def setup_cluster(backend='multiprocessing', n_processes=None, single_thread=Fal
 
         elif (backend == 'multiprocessing') or (backend == 'local'):
             if len(multiprocessing.active_children()) > 0:
-                raise Exception(
-                    'A cluster is already runnning. Terminate with dview.terminate() if you want to restart.')
+                if ignore_preexisting:
+                    logger.warn('Found an existing multiprocessing pool. '
+                                'This is often indicative of an already-running CaImAn cluster. '
+                                'You have configured the cluster setup to not raise an exception.')
+                else:
+                    raise Exception(
+                        'A cluster is already runnning. Terminate with dview.terminate() if you want to restart.')
             if (platform.system() == 'Darwin') and (sys.version_info > (3, 0)):
                 try:
                     if 'kernel' in get_ipython().trait_names(): # type: ignore
@@ -423,7 +423,7 @@ def setup_cluster(backend='multiprocessing', n_processes=None, single_thread=Fal
                 except: # If we're not running under ipython, don't do anything.
                     pass
             c = None
-            
+
             dview = Pool(n_processes)
         else:
             raise Exception('Unknown Backend')

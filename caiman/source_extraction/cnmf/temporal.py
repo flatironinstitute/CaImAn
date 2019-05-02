@@ -216,6 +216,7 @@ def update_temporal_components(Y, A, b, Cin, fin, bl=None, c1=None, g=None, sn=N
     ff = np.where(np.sum(C, axis=1) == 0)  # remove empty components
     if np.size(ff) > 0:  # Eliminating empty temporal components
         ff = ff[0]
+        logging.info('removing {0} empty spatial component(s)'.format(len(ff)))
         keep = list(range(A.shape[1]))
         for i in ff:
             keep.remove(i)
@@ -389,11 +390,17 @@ def update_iteration(parrllcomp, len_parrllcomp, nb, C, S, bl, nr,
         if dview is not None and not('multiprocessing' in str(type(dview))):
             dview.results.clear()
 
-        if scipy.linalg.norm(Cin - C, 'fro') <= 1e-3*scipy.linalg.norm(C, 'fro'):
-            logging.info("stopping: overall temporal component not changing" +
-                         " significantly")
+        try:
+            if scipy.linalg.norm(Cin - C, 'fro') <= 1e-3*scipy.linalg.norm(C, 'fro'):
+                logging.info("stopping: overall temporal component not changing" +
+                             " significantly")
+                break
+            else:  # we keep Cin and do the iteration once more
+                Cin = C.copy()
+        except ValueError:
+            logging.warning("Aborting updating of temporal components due" +
+                            " to possible numerical issues.")
+            C = Cin.copy()
             break
-        else:  # we keep Cin and do the iteration once more
-            Cin = C
 
     return C, S, bl, YrA, c1, sn, g, lam
