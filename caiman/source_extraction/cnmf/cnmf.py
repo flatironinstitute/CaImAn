@@ -408,7 +408,7 @@ class CNMF(object):
         if self.params.get('patch', 'rf') is None and (is_sliced or 'ndarray' in str(type(images))):
             images = images[tuple(indices)]
             self.dview = None
-            logging.warning("Parallel processing in a single patch "
+            logging.info("Parallel processing in a single patch "
                             "is not available for loaded in memory or sliced" +
                             " data.")
 
