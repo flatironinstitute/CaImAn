@@ -932,7 +932,8 @@ class Estimates(object):
     def deconvole(self, params, dview=None, dff_flag=False):
         ''' performs deconvolution on the estimated traces using the parameters
         specified in params. Deconvolution on detrended and normalized (DF/F)
-        traces can be performed by setting dff_flag=True
+        traces can be performed by setting dff_flag=True. In this case the
+        results of the deconvolution are stored in F_dff_dec and S_dff
         
         Args:
             params: params object
@@ -979,21 +980,27 @@ class Estimates(object):
         self.YrA = F - self.C
         
         if dff_flag:
-            args_in = [(self.F_dff[jj], None, jj, 0, 0, self.g[jj], None,
-                    args) for jj in range(F.shape[0])]
-
-            if 'multiprocessing' in str(type(dview)):
-                results = dview.map_async(
-                    constrained_foopsi_parallel, args_in).get(4294967)
-            elif dview is not None:
-                results = dview.map_sync(constrained_foopsi_parallel, args_in)
+            if self.F_dff is None:
+                logging.warning('The F_dff field is empty. Run the method' +
+                                ' estimates.detrend_df_f before attempting' +
+                                ' to deconvolve.')
             else:
-                results = list(map(constrained_foopsi_parallel, args_in))
+                args_in = [(self.F_dff[jj], None, jj, 0, 0, self.g[jj], None,
+                        args) for jj in range(F.shape[0])]
     
-            results = list(zip(*results))
-            order = list(results[7])
-            self.F_dff = np.stack([results[0][i] for i in order])
-            self.S_dff = np.stack([results[1][i] for i in order])
+                if 'multiprocessing' in str(type(dview)):
+                    results = dview.map_async(
+                        constrained_foopsi_parallel, args_in).get(4294967)
+                elif dview is not None:
+                    results = dview.map_sync(constrained_foopsi_parallel,
+                                             args_in)
+                else:
+                    results = list(map(constrained_foopsi_parallel, args_in))
+        
+                results = list(zip(*results))
+                order = list(results[7])
+                self.F_dff_dec = np.stack([results[0][i] for i in order])
+                self.S_dff = np.stack([results[1][i] for i in order])
             
 
     def manual_merge(self, components, params):
