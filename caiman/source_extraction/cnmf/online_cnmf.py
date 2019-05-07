@@ -1042,8 +1042,6 @@ class OnACID(object):
                         templ = self.estimates.Ab.dot(
                             self.estimates.C_on[:self.M, t-1]).reshape(self.params.get('data', 'dims'), order='F')*self.img_norm
                         if self.params.get('motion', 'pw_rigid'):
-                            frame_cor1, shift = motion_correct_iteration_fast(
-                                    frame_, templ, max_shifts_online, max_shifts_online)
                             frame_cor, shift = tile_and_correct(frame_, templ, self.params.motion['strides'], self.params.motion['overlaps'], 
                                                                 self.params.motion['max_shifts'], newoverlaps=None, newstrides=None, upsample_factor_grid=4,
                                                                 upsample_factor_fft=10, show_movie=False, max_deviation_rigid=self.params.motion['max_deviation_rigid'],
@@ -1452,11 +1450,11 @@ def demix1p(y, A, noisyC, AtA, Atb, AtW, AtWA, iters=5, tol=1e-3,
         AtB = AtWyb - AtWA.dot(C)  # A'B = A'WY - A'WAC - A'(Wb0-b0)
         if groups is None:
             for m in range(len(AtY)):
-                noisyC[m] = C[m] + (AtY[m] - AtA[m].dot(C) - AtB[m]) / AtA[m, m]
+                noisyC[m] = C[m] + (AtY[m] - AtA[m].dot(C) - AtB[m]) / (AtA[m, m] + np.finfo(C.dtype).eps)
                 C[m] = max(noisyC[m], 0)
         else:
             for m in groups:
-                noisyC[m] = C[m] + (AtY[m] - AtA[m].dot(C) - AtB[m]) / AtA.diagonal()[m]
+                noisyC[m] = C[m] + (AtY[m] - AtA[m].dot(C) - AtB[m]) / (AtA.diagonal()[m] + np.finfo(C.dtype).eps)
                 C[m] = np.maximum(noisyC[m], 0)
         num_iters += 1
     return C, noisyC
@@ -1751,7 +1749,7 @@ def rank1nmf(Ypx, ain):
         cin = np.maximum(cin_res, 0)
         ain = np.maximum(Ypx.dot(cin.T), 0)
         try:
-            ain /= sqrt(ain.dot(ain))
+            ain /= (sqrt(ain.dot(ain)) + np.finfo(np.float32).eps)
         except:
             break
         # nc = cin.dot(cin)
@@ -2122,7 +2120,7 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
             Cf_ = Cf
             cin_circ_ = cin_circ
 
-            CY[M, indices] = cin_.dot(Y_buf_[:, indices]) / tt
+            CY[M, indices] = cin_.dot(Y_buf[:, indices]) / tt
 
             # preallocate memory for speed up?
             CC1 = np.hstack([CC, Cf_.dot(cin_circ_ / tt)[:, None]])
@@ -2147,7 +2145,7 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                         ssub_B, 1), ssub_B, 2)[:, :d1, :d2].reshape((len(y), -1), order='F')
                 y -= b0
 
-            CY[M, indeces] = cin_circ_.dot(y[:, indeces]) / tt
+            CY[M, indices] = cin_circ_.dot(y[:, indices]) / tt
 
             N = N + 1
             M = M + 1
@@ -2179,7 +2177,7 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                 # #     np.diff(ijSig).ravel(), order='F')
 
                 
-            Yres_buf[:, indeces] -= np.outer(cin, ain)
+            Yres_buf[:, indices] -= np.outer(cin, ain)
 
             # restrict blurring to region where component is located
             # update bigger region than neural patch to avoid boundary effects
