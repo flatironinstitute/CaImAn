@@ -44,7 +44,7 @@ from .pre_processing import get_noise_fft
 from .utilities import update_order, get_file_size, peak_local_max, decimation_matrix
 from ... import mmapping
 from ...components_evaluation import compute_event_exceptionality
-from ...motion_correction import motion_correct_iteration_fast, tile_and_correct
+from ...motion_correction import motion_correct_iteration_fast, tile_and_correct, high_pass_filter_space
 from ...utils.utils import save_dict_to_hdf5, load_dict_from_hdf5, parmap
 from ... import summary_images
 
@@ -994,6 +994,8 @@ class OnACID(object):
         self.t_shapes:List = []
         self.t_detect:List = []
         self.t_motion:List = []
+        ssub_B = self.params.get('init', 'ssub_B')
+        d1, d2 = self.params.get('data', 'dims')
         max_shifts_online = self.params.get('online', 'max_shifts_online')
         if extra_files == 0:     # check whether there are any additional files
             process_files = fls[:init_files]     # end processing at this file
@@ -1013,7 +1015,7 @@ class OnACID(object):
                 init_batc_iter = [0] * (extra_files + init_files)
 
             for file_count, ffll in enumerate(process_files):
-                print('Now processing file ' + ffll)
+                logging.info('Now processing file {}'.format(ffll))
                 Y_ = caiman.load(ffll, var_name_hdf5=self.params.get('data', 'var_name_hdf5'), 
                                  subindices=slice(init_batc_iter[file_count], None, None))
 
@@ -1024,11 +1026,11 @@ class OnACID(object):
                         raise Exception('Frame ' + str(frame_count) +
                                         ' contains NaN')
                     if t % 100 == 0:
-                        print('Epoch: ' + str(iter + 1) + '. ' + str(t) +
-                              ' frames have beeen processed in total. ' +
-                              str(self.N - old_comps) +
-                              ' new components were added. Total # of components is '
-                              + str(self.estimates.Ab.shape[-1] - self.params.get('init', 'nb')))
+                        logging.info('Epoch: ' + str(iter + 1) + '. ' + str(t) +
+                                     ' frames have beeen processed in total. ' +
+                                     str(self.N - old_comps) +
+                                     ' new components were added. Total # of components is '
+                                     + str(self.estimates.Ab.shape[-1] - self.params.get('init', 'nb')))
                         old_comps = self.N
 
                     frame_ = frame.copy().astype(np.float32)
@@ -1040,16 +1042,38 @@ class OnACID(object):
                     t_mot = time()    
                     if self.params.get('online', 'motion_correct'):    # motion correct
                         templ = self.estimates.Ab.dot(
-                            self.estimates.C_on[:self.M, t-1]).reshape(self.params.get('data', 'dims'), order='F')*self.img_norm
+                                self.estimates.C_on[:self.M, t-1]).reshape(self.params.get('data', 'dims'), order='F')#*self.img_norm
+                        if self.is1p and self.estimates.W is not None:
+                            if ssub_B == 1:
+                                B = self.estimates.W.dot(frame_.flatten(order='F') - templ.flatten() - self.estimates.b0) + self.estimates.b0
+                                B = B.reshape(self.params.get('data', 'dims'), order='F')
+                            else:
+                                b0 = self.estimates.b0.reshape((d1, d2), order='F')#*self.img_norm
+                                bc2 = downscale(frame_ - templ - b0, (ssub_B, ssub_B)).flatten(order='F')
+                                Wb = self.estimates.W.dot(bc2).reshape(((d1 - 1) // ssub_B + 1, (d2 - 1) // ssub_B + 1), order='F')
+                                B = b0 + np.repeat(np.repeat(Wb, ssub_B, 0), ssub_B, 1)[:d1, :d2]
+                            templ += B
+                        if self.params.get('online', 'normalize'):
+                            templ *= self.img_norm
+                        if self.is1p:
+                            templ = high_pass_filter_space(templ, self.params.motion['gSig_filt'])
                         if self.params.get('motion', 'pw_rigid'):
                             frame_cor, shift = tile_and_correct(frame_, templ, self.params.motion['strides'], self.params.motion['overlaps'], 
                                                                 self.params.motion['max_shifts'], newoverlaps=None, newstrides=None, upsample_factor_grid=4,
                                                                 upsample_factor_fft=10, show_movie=False, max_deviation_rigid=self.params.motion['max_deviation_rigid'],
-                                                                add_to_movie=0, shifts_opencv=True, gSig_filt=None,
+                                                                add_to_movie=0, shifts_opencv=True, gSig_filt=self.params.motion['gSig_filt'],
                                                                 use_cuda=False, border_nan='copy')[:2]
                         else:
+                            if self.is1p:
+                                frame_orig = frame_.copy()
+                                frame_ = high_pass_filter_space(frame_, self.params.motion['gSig_filt'])
                             frame_cor, shift = motion_correct_iteration_fast(
                                     frame_, templ, max_shifts_online, max_shifts_online)
+                            if self.is1p:
+                                M = np.float32([[1, 0, shift[1]], [0, 1, shift[0]]])
+                                frame_cor = cv2.warpAffine(
+                                    frame_orig, M, frame.shape, flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REFLECT)
+
                         self.estimates.shifts.append(shift)
                     else:
                         templ = None
@@ -1076,7 +1100,7 @@ class OnACID(object):
                     t_online.append(time() - t_frame_start)
             self.Ab_epoch.append(self.estimates.Ab.copy())
         if self.params.get('online', 'normalize'):
-            self.estimates.Ab /= 1./self.img_norm.reshape(-1, order='F')[:,np.newaxis]
+            self.estimates.Ab *= self.img_norm.reshape(-1, order='F')[:,np.newaxis]
             self.estimates.Ab = csc_matrix(self.estimates.Ab)
         self.estimates.A, self.estimates.b = self.estimates.Ab[:, self.params.get('init', 'nb'):], self.estimates.Ab[:, :self.params.get('init', 'nb')].toarray()
         self.estimates.C, self.estimates.f = self.estimates.C_on[self.params.get('init', 'nb'):self.M, t - t //
