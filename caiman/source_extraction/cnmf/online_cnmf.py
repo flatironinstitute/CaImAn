@@ -1137,8 +1137,6 @@ class OnACID(object):
         if self.is1p:
             ssub_B = self.params.get('init', 'ssub_B')
             if ssub_B == 1:
-                print(frame_cor.shape)
-                print(comps_frame.shape)
                 B = self.estimates.W.dot((frame_cor - comps_frame).flatten(order='F') - self.estimates.b0) + self.estimates.b0
                 bgkrnd_frame = B.reshape(self.dims, order='F')
             else:
