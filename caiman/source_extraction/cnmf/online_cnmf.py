@@ -201,7 +201,7 @@ class OnACID(object):
         self.estimates.CY = self.estimates.CY * 1. / self.params.get('online', 'init_batch')
         self.estimates.CC = 1 * self.estimates.CC / self.params.get('online', 'init_batch')
 
-        print('Expecting ' + str(expected_comps) + ' components')
+        logging.info('Expecting ' + str(expected_comps) + ' components')
         self.estimates.CY.resize([expected_comps + self.params.get('init', 'nb'), self.estimates.CY.shape[-1]])
         if self.params.get('online', 'use_dense'):
             self.estimates.Ab_dense = np.zeros((self.estimates.CY.shape[-1], expected_comps + self.params.get('init', 'nb')),
@@ -1045,7 +1045,7 @@ class OnACID(object):
                                 self.estimates.C_on[:self.M, t-1]).reshape(self.params.get('data', 'dims'), order='F')#*self.img_norm
                         if self.is1p and self.estimates.W is not None:
                             if ssub_B == 1:
-                                B = self.estimates.W.dot(frame_.flatten(order='F') - templ.flatten() - self.estimates.b0) + self.estimates.b0
+                                B = self.estimates.W.dot((frame_ - templ).flatten(order='F') - self.estimates.b0) + self.estimates.b0
                                 B = B.reshape(self.params.get('data', 'dims'), order='F')
                             else:
                                 b0 = self.estimates.b0.reshape((d1, d2), order='F')#*self.img_norm
@@ -1072,7 +1072,7 @@ class OnACID(object):
                             if self.is1p:
                                 M = np.float32([[1, 0, shift[1]], [0, 1, shift[0]]])
                                 frame_cor = cv2.warpAffine(
-                                    frame_orig, M, frame.shape, flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REFLECT)
+                                    frame_orig, M, frame.shape[::-1], flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REFLECT)
 
                         self.estimates.shifts.append(shift)
                     else:
@@ -1134,7 +1134,20 @@ class OnACID(object):
         # inferred activity due to components (no background)
         frame_plot = (frame_cor.copy() - self.bnd_Y[0])/np.diff(self.bnd_Y)
         comps_frame = A.dot(C[:, self.t - 1]).reshape(self.dims, order='F')
-        bgkrnd_frame = b.dot(f[:, self.t - 1]).reshape(self.dims, order='F')  # denoised frame (components + background)
+        if self.is1p:
+            ssub_B = self.params.get('init', 'ssub_B')
+            if ssub_B == 1:
+                print(frame_cor.shape)
+                print(comps_frame.shape)
+                B = self.estimates.W.dot((frame_cor - comps_frame).flatten(order='F') - self.estimates.b0) + self.estimates.b0
+                bgkrnd_frame = B.reshape(self.dims, order='F')
+            else:
+                b0 = self.estimates.b0.reshape(self.dims, order='F')#*self.img_norm
+                bc2 = downscale(frame_cor - comps_frame - b0, (ssub_B, ssub_B)).flatten(order='F')
+                Wb = self.estimates.W.dot(bc2).reshape(((self.dims[0] - 1) // ssub_B + 1, (self.dims[1] - 1) // ssub_B + 1), order='F')
+                bgkrnd_frame = b0 + np.repeat(np.repeat(Wb, ssub_B, 0), ssub_B, 1)[:self.dims[0], :self.dims[1]]
+        else:
+            bgkrnd_frame = b.dot(f[:, self.t - 1]).reshape(self.dims, order='F')  # denoised frame (components + background)
         denoised_frame = comps_frame + bgkrnd_frame
         denoised_frame = (denoised_frame.copy() - self.bnd_Y[0])/np.diff(self.bnd_Y)
         comps_frame = (comps_frame.copy() - self.bnd_AC[0])/np.diff(self.bnd_AC)
