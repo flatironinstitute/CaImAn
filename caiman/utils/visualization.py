@@ -142,7 +142,7 @@ def nb_view_patches(Yr, A, C, b, f, d1, d2, YrA=None, image_neurons=None, thr=0.
             outputs of matrix factorization algorithm
 
         d1,d2: floats
-            dimensions of movie (x and y)
+            dimensions of movie (y and x)
 
         YrA:   np.ndarray
             ROI filtered residual as it is given from update_temporal_components
@@ -232,8 +232,7 @@ def nb_view_patches(Yr, A, C, b, f, d1, d2, YrA=None, image_neurons=None, thr=0.
     xr = Range1d(start=0, end=image_neurons.shape[1])
     yr = Range1d(start=image_neurons.shape[0], end=0)
     plot1 = bpl.figure(x_range=xr, y_range=yr,
-                       plot_width=int(min(1, d2/d1)*300),
-                       plot_height=int(min(1, d1/d2)*300))
+                       plot_width=300, plot_height=int(d1/d2*300))
 
     plot1.image(image=[image_neurons[::-1, :]], x=0,
                 y=image_neurons.shape[0], dw=d2, dh=d1, palette=grayp)
