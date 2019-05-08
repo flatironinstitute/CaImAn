@@ -624,7 +624,7 @@ class OnACID(object):
                     # exploit that we only access some elements of XXt, hence update only these
                     XXt = self.estimates.XXt  # alias for faster repeated look up in large loop
                     for i, idx in enumerate(self.estimates.XXt_ind):
-                        XXt[i, idx] += x[i].dot(x[idx].T)
+                        XXt[i, idx] += (x[i].dot(x[idx].T)).flatten()
 
                 # much faster: exploit that we only access CY[m, ind_pixels], hence update only these
                 n0 = min_batch
@@ -661,7 +661,7 @@ class OnACID(object):
                 # exploit that we only access some elements of XXt, hence update only these
                 XXt = self.estimates.XXt  # alias for faster repeated look up in large loop
                 for i, idx in enumerate(self.estimates.XXt_ind):
-                    XXt[i, idx] += x[i] * x[idx]
+                    XXt[i, idx] += (x[i] * x[idx]).flatten()
             # much faster: exploit that we only access CY[m, ind_pixels], hence update only these
             for m in range(self.N):
                 self.estimates.CY[m + nb_, self.ind_A[m]] *= (1 - 1. / t)
@@ -848,7 +848,7 @@ class OnACID(object):
             Y -= img_min
         img_norm = np.std(Y, axis=0)
         img_norm += np.median(img_norm)  # normalize data to equalize the FOV
-        print('Size frame:' + str(img_norm.shape))
+        logging.info('Frame size:' + str(img_norm.shape))
         if self.params.get('online', 'normalize'):
             Y = Y/img_norm[None, :, :]
         if opts['show_movie']:
@@ -1005,9 +1005,11 @@ class OnACID(object):
             # where to start reading at each file
             init_batc_iter = [init_batch] + [0]*extra_files
         if self.params.get('online', 'save_online_movie'):
+            resize_fact = 2
             fourcc = cv2.VideoWriter_fourcc('8', 'B', 'P', 'S')
             out = cv2.VideoWriter(self.params.get('online', 'movie_name_online'),
-                                  fourcc, 30.0, tuple([int(2*x) for x in self.params.get('data', 'dims')]))
+                                  fourcc, 30, tuple([int(resize_fact*2*x) for x in self.params.get('data', 'dims')]),
+                                  True)
         for iter in range(epochs):
             if iter > 0:
                 # if not on first epoch process all files from scratch
@@ -1085,7 +1087,7 @@ class OnACID(object):
                     self.fit_next(t, frame_cor.reshape(-1, order='F'))
                     if self.params.get('online', 'show_movie'):
                         self.t = t
-                        vid_frame = self.create_frame(frame_cor)
+                        vid_frame = self.create_frame(frame_cor, resize_fact=resize_fact)
                         if self.params.get('online', 'save_online_movie'):
                             out.write(vid_frame)
                             for rp in range(len(self.estimates.ind_new)*2):
@@ -1119,7 +1121,7 @@ class OnACID(object):
 
         return self
 
-    def create_frame(self, frame_cor, show_residuals=True, resize_fact=1):
+    def create_frame(self, frame_cor, show_residuals=True, resize_fact=3):
         if show_residuals:
             caption = 'Mean Residual Buffer'
         else:
@@ -1153,9 +1155,12 @@ class OnACID(object):
         if show_residuals:
             #all_comps = np.reshape(self.Yres_buf.mean(0), self.dims, order='F')
             all_comps = np.reshape(est.mean_buff, self.dims, order='F')
-            all_comps = np.minimum(np.maximum(all_comps, 0)*2 + 0.25, 255)
+            fac = 0.5
         else:
             all_comps = np.array(A.sum(-1)).reshape(self.dims, order='F')
+            fac = 2
+        #all_comps = (all_comps.copy() - self.bnd_Y[0])/np.diff(self.bnd_Y)
+        all_comps = np.minimum(np.maximum(all_comps, 0)*fac + 0.25, 255)
                                                   # spatial shapes
         frame_comp_1 = cv2.resize(np.concatenate([frame_plot, all_comps * 1.], axis=-1),
                                   (2 * np.int(self.dims[1] * resize_fact), np.int(self.dims[0] * resize_fact)))
@@ -1165,7 +1170,8 @@ class OnACID(object):
         vid_frame = np.repeat(frame_pn[:, :, None], 3, axis=-1)
         vid_frame = np.minimum((vid_frame * 255.), 255).astype('u1')
 
-        if show_residuals and est.ind_new:
+        #if show_residuals and est.ind_new:
+        if est.ind_new:
             add_v = np.int(self.dims[1]*resize_fact)
             for ind_new in est.ind_new:
                 cv2.rectangle(vid_frame,(int(ind_new[0][1]*resize_fact),int(ind_new[1][1]*resize_fact)+add_v),

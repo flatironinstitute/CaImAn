@@ -319,7 +319,7 @@ def evaluate_components(Y:np.ndarray, traces:np.ndarray, A, C, b, f, final_frate
 
     tB = np.minimum(-2, np.floor(-5. / 30 * final_frate))
     tA = np.maximum(5, np.ceil(25. / 30 * final_frate))
-    logging.debug('tB:' + str(tB) + ',tA:' + str(tA))
+    logging.info('tB:' + str(tB) + ',tA:' + str(tA))
     dims, T = np.shape(Y)[:-1], np.shape(Y)[-1]
 
     Yr = np.reshape(Y, (np.prod(dims), T), order='F')
@@ -339,7 +339,6 @@ def evaluate_components(Y:np.ndarray, traces:np.ndarray, A, C, b, f, final_frate
                     traces, 8, size=[1, num_samps_bl])
 
         else:  # fast baseline removal
-
             downsampfact = num_samps_bl
             elm_missing = int(np.ceil(T * 1.0 / downsampfact)
                               * downsampfact - T)
@@ -350,8 +349,8 @@ def evaluate_components(Y:np.ndarray, traces:np.ndarray, A, C, b, f, final_frate
             numFramesNew, num_traces = np.shape(tr_tmp)
             #% compute baseline quickly
             logging.debug("binning data ...")
-            tr_BL = np.reshape(tr_tmp, (downsampfact, int(
-                old_div(numFramesNew, downsampfact)), num_traces), order='F')
+            tr_BL = np.reshape(tr_tmp, (downsampfact,
+                numFramesNew // downsampfact, num_traces), order='F')
             tr_BL = np.percentile(tr_BL, 8, axis=0)
             logging.info("interpolating data ...")
             logging.info(tr_BL.shape)
@@ -597,7 +596,8 @@ def estimate_components_quality(traces, Y, A, C, b, f, final_frate=30, Npeaks=10
         logging.warning('NOT MEMORY MAPPED. FALLING BACK ON SINGLE CORE IMPLEMENTATION')
         fitness_raw, fitness_delta, erfc_raw, erfc_delta, r_values, _ = \
             evaluate_components(Y, traces, A, C, b, f, final_frate, remove_baseline=remove_baseline,
-                                N=N, robust_std=False, Athresh=0.1, Npeaks=Npeaks, thresh_C=0.3)
+                                N=N, robust_std=robust_std, Athresh=Athresh,
+                                Npeaks=Npeaks, thresh_C=thresh_C)
 
     else:  # memory mapped case
         fitness_raw = []
