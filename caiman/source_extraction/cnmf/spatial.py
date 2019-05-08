@@ -185,6 +185,12 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
     # we compute the indicator from distance indicator
     ind2_, nr, C, f, b_, A_in = computing_indicator(
         Y, A_in, b_in, C, f, nb, method_exp, dims, min_size, max_size, dist, expandCore, dview)
+    
+    if np.size(ff) > 0:
+        logging.info("Eliminating nan components: {}".format(ff))
+        ff = ff[0]
+        A_in = csc_column_remove(A_in, list(ff))
+        C = np.delete(C, list(ff), 0)
 
     if normalize_yyt_one and C is not None:
         C = np.array(C)
@@ -386,7 +392,8 @@ def regression_ipyparallel(pars):
         else:
             cct_ = []
 
-        if np.size(c) > 0:
+        # skip if no components OR pixel has 0 activity
+        if np.size(c) > 0 and noise_sn[px] > 0:
             sn = noise_sn[px] ** 2 * T
             if method_least_square == 'lasso_lars_old':
                 raise Exception("Obsolete parameter") # Old code, support was removed
