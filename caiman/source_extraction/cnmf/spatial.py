@@ -186,6 +186,8 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
     ind2_, nr, C, f, b_, A_in = computing_indicator(
         Y, A_in, b_in, C, f, nb, method_exp, dims, min_size, max_size, dist, expandCore, dview)
     
+    # remove components that have a nan
+    ff = np.where(np.isnan(np.sum(C, axis=1)))
     if np.size(ff) > 0:
         logging.info("Eliminating nan components: {}".format(ff))
         ff = ff[0]
