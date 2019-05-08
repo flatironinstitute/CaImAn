@@ -453,7 +453,12 @@ class OnACID(object):
             self.estimates.rho_buf.append(rho)
 
             # old_max_img = self.estimates.max_img.copy()
-
+            if self.params.get('preprocess', 'p') == 1:
+                g_est = np.mean(self.estimates.g)
+            elif self.params.get('preprocess', 'p') == 2:
+                g_est = np.mean(self.estimates, 0)
+            else:
+                g_est = 0
             use_corr = self.params.get('online', 'use_corr_img')
             (self.estimates.Ab, Cf_temp, self.estimates.Yres_buf, self.estimates.rho_buf,
                 self.estimates.CC, self.estimates.CY, self.ind_A, self.estimates.sv,
@@ -469,8 +474,7 @@ class OnACID(object):
                 thresh_overlap=self.params.get('online', 'thresh_overlap'), groups=self.estimates.groups,
                 batch_update_suff_stat=self.params.get('online', 'batch_update_suff_stat'),
                 gnb=self.params.get('init', 'nb'), sn=self.estimates.sn, 
-                g=(np.mean(self.estimates.g) if self.params.get('preprocess', 'p') == 1 else 
-                    np.mean(self.estimates.g, 0)), s_min=self.params.get('temporal', 's_min'),
+                g=g_est, s_min=self.params.get('temporal', 's_min'),
                 Ab_dense=self.estimates.Ab_dense if self.params.get('online', 'use_dense') else None,
                 oases=self.estimates.OASISinstances if self.params.get('preprocess', 'p') else None,
                 N_samples_exceptionality=self.params.get('online', 'N_samples_exceptionality'),

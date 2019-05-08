@@ -1530,7 +1530,8 @@ def extract_ac(data_filtered, data_raw, ind_ctr, patch_dims):
     XX = np.dot(X.T, X)
     Xy = np.dot(X.T, data_raw)
     try:
-        ai = np.linalg.inv(XX).dot(Xy)[0]
+        #ai = np.linalg.inv(XX).dot(Xy)[0]
+        ai = np.linalg.solve(XX, Xy)[0]
     except:
         ai = scipy.linalg.lstsq(XX, Xy)[0][0]
     ai = ai.reshape(patch_dims)
@@ -1658,7 +1659,8 @@ def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True, ssub=1, tsub=1, p
                     downscale(C, (1, tsub))) if A.size > 0 else 0) - \
                 downscale(b0.reshape(dims, order='F'),
                           (ssub, ssub)).reshape((-1, 1), order='F')[p]
-        data = np.linalg.inv(tmp).dot(B.dot(tmp2))
+        #data = np.linalg.inv(tmp).dot(B.dot(tmp2))
+        data = np.linalg.solve(tmp, B.dot(tmp2))
         return index, data
 
     Q = list((parmap if parallel else map)(process_pixel, range(len(X))))
