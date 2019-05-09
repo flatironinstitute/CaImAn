@@ -375,9 +375,9 @@ def detrend_df_f(A, b, C, f, YrA=None, quantileMin=8, frames_window=500,
             Df = np.stack([np.percentile(f, prctileMin) for f, prctileMin in
                            zip(B, data_prct)])
             if not detrend_only:
-                F_df = (F - Fd) / (Df[:, None] + Fd[:, None])
+                F_df = (F - Fd[:, None]) / (Df[:, None] + Fd[:, None])
             else:
-                F_df = F - Fd
+                F_df = F - Fd[:, None]
         else:
             if use_fast:
                 Fd = np.stack([fast_prct_filt(f, level=prctileMin,
@@ -402,9 +402,9 @@ def detrend_df_f(A, b, C, f, YrA=None, quantileMin=8, frames_window=500,
             Fd = np.percentile(F, quantileMin, axis=1)
             Df = np.percentile(B, quantileMin, axis=1)
             if not detrend_only:
-                F_df = (F - Fd) / (Df[:, None] + Fd[:, None])
+                F_df = (F - Fd[:, None]) / (Df[:, None] + Fd[:, None])
             else:
-                F_df = F - Fd
+                F_df = F - Fd[:, None]
         else:
             Fd = scipy.ndimage.percentile_filter(
                 F, quantileMin, (frames_window, 1))
