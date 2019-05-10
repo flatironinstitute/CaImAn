@@ -281,7 +281,8 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
 
         if b_in is None:
             # update baseline based on residual
-            b = np.fmax(Y_resf.dot(np.linalg.inv(f.dot(f.T))), 0)
+            #b = np.fmax(Y_resf.dot(np.linalg.inv(f.dot(f.T))), 0)
+            b = np.fmax(np.linalg.solve(f.dot(f.T), Y_resf.T), 0).T
         else:
             ind_b = [np.where(_b)[0] for _b in b_in.T]
             b = HALS4shape_bckgrnd(Y_resf, b_in, f, ind_b)
