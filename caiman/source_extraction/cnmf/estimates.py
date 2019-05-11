@@ -929,7 +929,7 @@ class Estimates(object):
 
         return self
 
-    def deconvole(self, params, dview=None, dff_flag=False):
+    def deconvolve(self, params, dview=None, dff_flag=False):
         ''' performs deconvolution on the estimated traces using the parameters
         specified in params. Deconvolution on detrended and normalized (DF/F)
         traces can be performed by setting dff_flag=True. In this case the
