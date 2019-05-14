@@ -189,7 +189,16 @@ class OnACID(object):
             if ssub_B > 1:
                 self.estimates.downscale_matrix = decimation_matrix(self.estimates.dims, ssub_B)
                 X = self.estimates.downscale_matrix.dot(X)
-            self.estimates.XXt = X.dot(X.T)
+            if self.params.get('online', 'full_XXt'):
+                self.estimates.XXt = X.dot(X.T)
+            else:
+                self.XXt_mats = []
+                self.XXt_vecs = []
+                W = self.estimates.W
+                for p in range(X.shape[0]):
+                    index = W.indices[W.indptr[p]:W.indptr[p + 1]]
+                    self.XXt_mats.append(X[index].dot(X[index].T))
+                    self.XXt_vecs.append(X[index].dot(X[p].T))
 
         self.estimates.Ab, self.ind_A, self.estimates.CY, self.estimates.CC = init_shapes_and_sufficient_stats(
             Yr[:, :init_batch].reshape(self.estimates.dims + (-1,), order='F'),
@@ -310,13 +319,14 @@ class OnACID(object):
             self.get_indices_of_pixels_on_ring = get_indices_of_pixels_on_ring.__get__(self)
 
             # generate list of indices of XX' that get accessed
-            l = np.prod(self._dims_B)
-            tmp = np.zeros((l, l), dtype=bool)
-            for p in range(l):
-                index = self.get_indices_of_pixels_on_ring(p)
-                tmp[index[:, None], index] = True
-                tmp[index, p] = True
-            self.estimates.XXt_ind = list([np.where(t)[0] for t in tmp])
+            if self.params.get('online', 'full_XXt'):
+                l = np.prod(self._dims_B)
+                tmp = np.zeros((l, l), dtype=bool)
+                for p in range(l):
+                    index = self.get_indices_of_pixels_on_ring(p)
+                    tmp[index[:, None], index] = True
+                    tmp[index, p] = True
+                self.estimates.XXt_ind = list([np.where(t)[0] for t in tmp])
 
             Yres = Yr[:, :init_batch] - self.estimates.Ab.dot(
                 self.estimates.C_on[:self.M, :init_batch])
@@ -626,10 +636,19 @@ class OnACID(object):
                     y -= self.estimates.b0
                     # self.estimates.XXt += x.dot(x.T)
                     # exploit that we only access some elements of XXt, hence update only these
-                    XXt = self.estimates.XXt  # alias for faster repeated look up in large loop
-                    for i, idx in enumerate(self.estimates.XXt_ind):
-                        XXt[i, idx] += (x[i].dot(x[idx].T)).flatten()
 
+                    if self.params.get('online', 'full_XXt'):
+                        XXt = self.estimates.XXt  # alias for faster repeated look up in large loop
+                        for i, idx in enumerate(self.estimates.XXt_ind):
+                            XXt[i, idx] += (x[i].dot(x[idx].T)).flatten()
+                    else:
+                        XXt_mats = self.XXt_mats
+                        XXt_vecs = self.XXt_vecs
+                        W = self.estimates.W
+                        for p in range(len(XXt_mats)):
+                            index = W.indices[W.indptr[p]:W.indptr[p + 1]]
+                            XXt_mats[p] += x[index].dot(x[index].T)
+                            XXt_vecs[p] += x[index].dot(x[p].T)
                 # much faster: exploit that we only access CY[m, ind_pixels], hence update only these
                 n0 = min_batch
                 t0 = 0 * self.params.get('online', 'init_batch')
@@ -663,9 +682,18 @@ class OnACID(object):
                         .reshape((len(y), -1), order='F') + self.estimates.b0)
                 # self.estimates.XXt += x.dot(x.T)
                 # exploit that we only access some elements of XXt, hence update only these
-                XXt = self.estimates.XXt  # alias for faster repeated look up in large loop
-                for i, idx in enumerate(self.estimates.XXt_ind):
-                    XXt[i, idx] += (x[i] * x[idx]).flatten()
+                if self.params.get('online', 'full_XXt'):
+                    XXt = self.estimates.XXt  # alias for faster repeated look up in large loop
+                    for i, idx in enumerate(self.estimates.XXt_ind):
+                        XXt[i, idx] += (x[i] * x[idx]).flatten()
+                else:
+                    XXt_mats = self.XXt_mats
+                    XXt_vecs = self.XXt_vecs
+                    W = self.estimates.W
+                    for p in range(len(XXt_mats)):
+                        index = W.indices[W.indptr[p]:W.indptr[p + 1]]
+                        XXt_mats[p] += np.outer(x[index], x[index])
+                        XXt_vecs[p] += np.outer(x[index], x[p])
             # much faster: exploit that we only access CY[m, ind_pixels], hence update only these
             for m in range(self.N):
                 self.estimates.CY[m + nb_, self.ind_A[m]] *= (1 - 1. / t)
@@ -706,7 +734,6 @@ class OnACID(object):
                 self.estimates.AtA = (Ab_.T.dot(Ab_)).toarray()
                 if self.is1p and ((t + 1 - self.params.get('online', 'init_batch')) %
                     (self.params.get('online', 'W_update_factor') * self.params.get('online', 'update_freq')) == 0):
-                    XXt = self.estimates.XXt  # alias for considerably faster look up in large loop
                     W = self.estimates.W
                     # for p in range(W.shape[0]):
                     #     # index = self.get_indices_of_pixels_on_ring(p)
@@ -720,20 +747,29 @@ class OnACID(object):
                     #     tmp = XXt[index[:, None], index]
                     #     tmp[np.diag_indices(len(tmp))] += np.trace(tmp) * 1e-5
                     #     W.data[W.indptr[p]:W.indptr[p + 1]] = np.linalg.inv(tmp).dot(XXt[index, p])
-
-                    def process_pixel(p):
-                        index = W.indices[W.indptr[p]:W.indptr[p + 1]]
-                        tmp = XXt[index[:, None], index]
-                        tmp[np.diag_indices(len(tmp))] += np.trace(tmp) * 1e-5
-                        # not sure why next line won't work
-                        # W.data[W.indptr[p]:W.indptr[p + 1]] = np.linalg.inv(tmp).dot(XXt[index, p])
-#                        return np.linalg.inv(tmp).dot(XXt[index, p])
-                        return np.linalg.solve(tmp, XXt[index, p])
-
-                    if False:  # current_process().name == 'MainProcess':
-                        W.data = np.concatenate(parmap(process_pixel, range(W.shape[0])))
+                    if self.params.get('online', 'full_XXt'):
+                        XXt = self.estimates.XXt  # alias for considerably faster look up in large loop
+                        def process_pixel(p):
+                            index = W.indices[W.indptr[p]:W.indptr[p + 1]]
+                            tmp = XXt[index[:, None], index]
+                            tmp[np.diag_indices(len(tmp))] += np.trace(tmp) * 1e-5
+                            # not sure why next line won't work
+                            # W.data[W.indptr[p]:W.indptr[p + 1]] = np.linalg.inv(tmp).dot(XXt[index, p])
+    #                        return np.linalg.inv(tmp).dot(XXt[index, p])
+                            return np.linalg.solve(tmp, XXt[index, p])
+                        if False:  # current_process().name == 'MainProcess':
+                            W.data = np.concatenate(parmap(process_pixel, range(W.shape[0])))
+                        else:
+                            W.data = np.concatenate(list(map(process_pixel, range(W.shape[0]))))
                     else:
-                        W.data = np.concatenate(list(map(process_pixel, range(W.shape[0]))))
+                        XXt_mats = self.XXt_mats
+                        XXt_vecs = self.XXt_vecs
+                        def process_pixel2(p):
+                            #return np.linalg.solve(a[0], a[1])
+                            return np.linalg.solve(XXt_mats[p], XXt_vecs[p])
+                        W.data = np.concatenate(list(map(process_pixel2, range(W.shape[0]))))
+                        #W.data = np.concatenate(parmap(process_pixel2, range(W.shape[0])))
+                        #W.data = np.concatenate(parmap(process_pixel2, zip(XXt_mats, XXt_vecs)))
                     
                     if ssub_B == 1:
                         self.estimates.Atb = Ab_.T.dot(W.dot(self.estimates.b0) - self.estimates.b0)
@@ -787,7 +823,7 @@ class OnACID(object):
                     self.estimates.AtY_buf = Ab_.T.dot(self.estimates.Yr_buf.T)
 
         else:  # distributed shape update
-            self.update_counter *= .5**(1. / self.params.get('online', 'update_freq'))
+            self.update_counter *= 2**(-1. / self.params.get('online', 'update_freq'))
             # if not num_added:
             if (not num_added) and (time() - t_start < 2*self.time_spend / (t - self.params.get('online', 'init_batch') + 1)):
                 candidates = np.where(self.update_counter <= 1)[0]

@@ -378,6 +378,10 @@ class CNMFParams(object):
             expected_comps: int, default: 500
                 number of expected components (for memory allocation purposes)
 
+            full_XXt: bool, default: False
+                save the full residual sufficient statistic matrix for updating W in 1p.
+                If set to False, a list of submatrices is saved (typically faster).
+            
             init_batch: int, default: 200,
                 length of mini batch used for initialization
 
@@ -669,6 +673,7 @@ class CNMFParams(object):
             'ds_factor': 1,                    # spatial downsampling for faster processing
             'epochs': 1,                       # number of epochs
             'expected_comps': expected_comps,  # number of expected components
+            'full_XXt': False,                 # store entire XXt matrix (as opposed to a list of sub-matrices) 
             'init_batch': 200,                 # length of mini batch for initialization
             'init_method': 'bare',             # initialization method for first batch,
             'iters_shape': iters_shape,        # number of block-CD iterations
