@@ -1044,7 +1044,7 @@ class Estimates(object):
             self.coordinates = caiman.utils.visualization.get_contours(self.A,\
                                 self.dims, thr_method='max', thr='0.2')
 
-    def threshold_spatial_components(self, maxthr=0.25, dview=None, **kwargs):
+    def threshold_spatial_components(self, maxthr=0.25, dview=None):
         ''' threshold spatial components. See parameters of
         spatial.threshold_components
 
@@ -1060,7 +1060,7 @@ class Estimates(object):
 
         if self.A_thr is None:
             A_thr = threshold_components(self.A, self.dims,  maxthr=maxthr, dview=dview, medw=None, thr_method='max', nrgthr=0.99,
-                                         extract_cc=True, se=None, ss=None, **kwargs)
+                                         extract_cc=True, se=None, ss=None)
             self.A_thr = A_thr
         else:
             print('A_thr already computed. If you want to recompute set self.A_thr to None')
