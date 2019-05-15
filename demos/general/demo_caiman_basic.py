@@ -39,7 +39,7 @@ from caiman.paths import caiman_datadir
 from caiman.source_extraction.cnmf import cnmf as cnmf
 from caiman.source_extraction.cnmf import params as params
 
-# %%
+    # %%
 # Set up the logger; change this if you like.
 # You can log to a file using the filename parameter, or make the output more or less
 # verbose by setting level to logging.DEBUG, logging.INFO, logging.WARNING, or logging.ERROR
@@ -138,7 +138,7 @@ def main():
     #%%
     cnm2.estimates.plot_contours(img=Cn)
     #%% save results
-    cnm.save(cnm.mmap_file[:-4]+'hdf5')
+    cnm2.save(cnm.mmap_file[:-4]+'hdf5')
     cm.movie(Cn).save(cnm.mmap_file[:-5]+'_Cn.tif')
 
 # %% play movie with results (original, reconstructed, amplified residual)
