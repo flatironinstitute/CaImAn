@@ -443,7 +443,8 @@ def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None,
             except np.linalg.LinAlgError:  # singular matrix
                 b = np.fmax(Bm.dot(scipy.linalg.lstsq(f.T, F_tot.T)[0].T), 0)
             try:
-                f = np.linalg.inv(b.T.dot(b)).dot((Bm.T.dot(b)).T.dot(F_tot))
+                #f = np.linalg.inv(b.T.dot(b)).dot((Bm.T.dot(b)).T.dot(F_tot))
+                f = np.linalg.solve(b.T.dot(b), (Bm.T.dot(b)).T.dot(F_tot))
             except np.linalg.LinAlgError:  # singular matrix
                 f = scipy.linalg.lstsq(b, Bm.toarray())[0].dot(F_tot)
 
