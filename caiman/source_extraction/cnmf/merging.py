@@ -132,14 +132,14 @@ def merge_components(Y, A, b, C, f, S, sn_pix, temporal_params, spatial_params, 
     A_corr.setdiag(0)
     A_corr = A_corr.tocsc()
     FF2 = A_corr > 0
-    C_corr = scipy.sparse.csc_matrix(A_corr.shape)
+    C_corr = scipy.sparse.lil_matrix(A_corr.shape)
     for ii in range(nr):
-        overlap_indeces = A_corr[ii, :].nonzero()[1]
-        if len(overlap_indeces) > 0:
+        overlap_indices = A_corr[ii, :].nonzero()[1]
+        if len(overlap_indices) > 0:
             # we chesk the correlation of the calcium traces for eahc overlapping components
             corr_values = [scipy.stats.pearsonr(C[ii, :], C[jj, :])[
-                0] for jj in overlap_indeces]
-            C_corr[ii, overlap_indeces] = corr_values
+                0] for jj in overlap_indices]
+            C_corr[ii, overlap_indices] = corr_values
 
     FF1 = (C_corr + C_corr.T) > thr
     FF3 = FF1.multiply(FF2)
@@ -148,11 +148,11 @@ def merge_components(Y, A, b, C, f, S, sn_pix, temporal_params, spatial_params, 
         FF3)  # % extract connected components
 
     p = temporal_params['p']
-    list_conxcomp = []
+    list_conxcomp_initial = []
     for i in range(nb):  # we list them
         if np.sum(connected_comp == i) > 1:
-            list_conxcomp.append((connected_comp == i).T)
-    list_conxcomp = np.asarray(list_conxcomp).T
+            list_conxcomp_initial.append((connected_comp == i).T)
+    list_conxcomp = np.asarray(list_conxcomp_initial).T
 
     if list_conxcomp.ndim > 1:
         cor = np.zeros((np.shape(list_conxcomp)[1], 1))
@@ -165,7 +165,7 @@ def merge_components(Y, A, b, C, f, S, sn_pix, temporal_params, spatial_params, 
 #        if not fast_merge:
 #            Y_res = Y - A.dot(C) #residuals=background=noise
         if np.size(cor) > 1:
-            # we get the size (indeces)
+            # we get the size (indices)
             ind = np.argsort(np.squeeze(cor))[::-1]
         else:
             ind = [0]
@@ -245,10 +245,11 @@ def merge_components(Y, A, b, C, f, S, sn_pix, temporal_params, spatial_params, 
         nr = nr - len(neur_id) + len(C_merged)
 
     else:
-        print('No neurons merged!')
+        logging.info('No more components merged!')
         merged_ROIs = []
+        empty = []
 
-    return A, C, nr, merged_ROIs, S, bl, c1, sn, g
+    return A, C, nr, merged_ROIs, S, bl, c1, sn, g, empty
 
 
 def merge_iteration(Acsc, C_to_norm, Ctmp, fast_merge, g, g_idx, indx, temporal_params):
@@ -266,7 +267,7 @@ def merge_iteration(Acsc, C_to_norm, Ctmp, fast_merge, g, g_idx, indx, temporal_
             computedA = np.maximum(
                 Acsc.dot(Ctmp.dot(computedC.T)) / (computedC * computedC.T), 0)
     else:
-        print('Simple Merging Take Best Neuron')
+        logging.info('Simple merging ny taking best neuron')
         computedC = Ctmp[indx]
         computedA = Acsc[:, indx]
     # then we de-normalize them using A_to_norm

@@ -263,7 +263,7 @@ class Comparison(object):
 
         else:  # if not we create a comparison first
             try:
-                with np.load(file_path, encoding='latin1') as dt:
+                with np.load(file_path, encoding='latin1', allow_pickle=True) as dt:
                     rig_shifts = dt['rig_shifts'][()]
                     A_patch = dt['A_patch'][()]
                     A_full = dt['A_full'][()]
@@ -444,8 +444,8 @@ def cnmf(Cn, A_gt, A_test, C_gt, C_test, dims_gt, dims_test, dview=None, sensiti
         se=None, ss=None, dview=dview)
 
     # compute C using this A thr
-    A_test_thr = A_test_thr > 0
-    A_gt_thr = A_gt_thr > 0
+    A_test_thr = A_test_thr.toarray() > 0
+    A_gt_thr = A_gt_thr.toarray() > 0
     # we do not compute a threshold on the size of neurons
     C_test_thr = C_test
     C_gt_thr = C_gt

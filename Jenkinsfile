@@ -14,11 +14,12 @@ pipeline {
           agent {
             dockerfile {
               dir "test/linux-python3"
-              args '-v /etc/passwd:/etc/passwd -v /etc/group:/etc/group -v /home/jenkins/.conda3/pkgs:/home/jenkins/.conda/pkgs:rw,z'
+              args '-v /etc/passwd:/etc/passwd -v /etc/group:/etc/group'
             }
           }
           environment {
             CONDA_ENV = "${env.WORKSPACE}/test/${env.STAGE_NAME}"
+            HOME = pwd(tmp:true)
           }
           steps {
             sh 'conda clean --index-cache'
@@ -71,7 +72,7 @@ pipeline {
           steps {
             bat '%ANACONDA3%\\scripts\\conda info'
             bat '%ANACONDA3%\\scripts\\conda env create -q -f environment.yml -p %CONDA_ENV%'
-            bat 'del "%CONDA_ENV%\\etc\\conda\\activate.d\\vs2015_compiler_vars.bat'
+            bat 'if exist "%CONDA_ENV%\\etc\\conda\\activate.d\\vs*_compiler_vars.bat" del "%CONDA_ENV%\\etc\\conda\\activate.d\\vs*_compiler_vars.bat"'
             bat '%ANACONDA3%\\scripts\\activate %CONDA_ENV% && set KERAS_BACKEND=tensorflow && pip install . && copy caimanmanager.py %TEMP% && cd %TEMP% && set "CAIMAN_DATA=%TEMP%\\caiman_data" && (if exist caiman_data (rmdir caiman_data /s /q && echo "Removed old caiman_data" ) else (echo "Host is fresh")) && python caimanmanager.py install --force && python caimanmanager.py test'
           }
         }

@@ -20,7 +20,7 @@ import matplotlib.pyplot as plt
 
 base_folder = '/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/WEBSITE'
 
-with np.load(os.path.join(base_folder, 'all_records_grid_online.npz')) as ld:
+with np.load(os.path.join(base_folder, 'all_records_grid_online.npz'), allow_pickle=True) as ld:
     records_online = ld['records']
     records_online = [list(rec) for rec in records_online]
 

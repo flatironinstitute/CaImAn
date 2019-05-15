@@ -6,13 +6,16 @@ Created on Thu Jul 12 11:11:45 2018
 @author: epnevmatikakis
 """
 
-import numpy as np
-import matplotlib.pyplot as plt
-import scipy.sparse
-import caiman
 import logging
+import matplotlib.pyplot as plt
+import numpy as np
+import scipy.sparse
+from typing import List
+
+import caiman
 from .utilities import detrend_df_f
 from .spatial import threshold_components
+from .merging import merge_iteration
 from ...components_evaluation import (
         evaluate_components_CNN, estimate_components_quality_auto,
         select_components_from_metrics)
@@ -79,10 +82,10 @@ class Estimates(object):
                 contour plot for each spatial footprint
 
             idx_components: list
-                indeces of accepted components
+                indices of accepted components
 
             idx_components_bad: list
-                indeces of rejected components
+                indices of rejected components
 
             SNR_comp: np.ndarray
                 trace SNR for each component
@@ -144,7 +147,7 @@ class Estimates(object):
         self.groups = None
 
         self.dims = dims
-        self.shifts = []
+        self.shifts:List = []
 
         self.A_thr = None
         self.discarded_components = None
@@ -578,7 +581,8 @@ class Estimates(object):
         return self
 
     def detrend_df_f(self, quantileMin=8, frames_window=500,
-                     flag_auto=True, use_fast=False, use_residuals=True):
+                     flag_auto=True, use_fast=False, use_residuals=True,
+                     detrend_only=False):
         """Computes DF/F normalized fluorescence for the extracted traces. See
         caiman.source.extraction.utilities.detrend_df_f for details
 
@@ -598,6 +602,11 @@ class Estimates(object):
 
             use_residuals: bool
                 flag for using non-deconvolved traces in DF/F calculation
+
+            detrend_only: bool (False)
+                flag for only subtracting baseline and not normalizing by it.
+                Used in 1p data processing where baseline fluorescence cannot
+                be determined.
 
         Returns:
             self: CNMF object
@@ -622,7 +631,8 @@ class Estimates(object):
         self.F_dff = detrend_df_f(self.A, self.b, self.C, self.f, self.YrA,
                                   quantileMin=quantileMin,
                                   frames_window=frames_window,
-                                  flag_auto=flag_auto, use_fast=use_fast)
+                                  flag_auto=flag_auto, use_fast=use_fast,
+                                  detrend_only=detrend_only)
         return self
 
     def normalize_components(self):
@@ -668,10 +678,10 @@ class Estimates(object):
 
         Args:
             idx_components: list
-                indeces of components to be kept
+                indices of components to be kept
 
             use_object: bool
-                Flag to use self.idx_components for reading the indeces.
+                Flag to use self.idx_components for reading the indices.
 
             save_discarded_components: bool
                 whether to save the components from initialization so that they can be restored using the restore_discarded_components method
@@ -778,7 +788,7 @@ class Estimates(object):
 
     def evaluate_components(self, imgs, params, dview=None):
         """Computes the quality metrics for each component and stores the
-        indeces of the components that pass user specified thresholds. The
+        indices of the components that pass user specified thresholds. The
         various thresholds and parameters can be passed as inputs. If left
         empty then they are read from self.params.quality']
 
@@ -805,9 +815,9 @@ class Estimates(object):
         Returns:
             self: esimates object
                 self.idx_components: np.array
-                    indeces of accepted components
+                    indices of accepted components
                 self.idx_components_bad: np.array
-                    indeces of rejected components
+                    indices of rejected components
                 self.SNR_comp: np.array
                     SNR values for each temporal trace
                 self.r_values: np.array
@@ -831,8 +841,8 @@ class Estimates(object):
                                          thresh_cnn_lowest=opts['cnn_lowest'],
                                          r_values_lowest=opts['rval_lowest'],
                                          min_SNR_reject=opts['SNR_lowest'])
-        self.idx_components = idx_components
-        self.idx_components_bad = idx_components_bad
+        self.idx_components = idx_components.astype(int)
+        self.idx_components_bad = idx_components_bad.astype(int)
         self.SNR_comp = SNR_comp
         self.r_values = r_values
         self.cnn_preds = cnn_preds
@@ -886,11 +896,11 @@ class Estimates(object):
                         gSig scale values for CNN classifier
 
         Returns:
-            self: CNMF object
+            self: estimates object
                 self.idx_components: np.array
-                    indeces of accepted components
+                    indices of accepted components
                 self.idx_components_bad: np.array
-                    indeces of rejected components
+                    indices of rejected components
                 self.SNR_comp: np.array
                     SNR values for each temporal trace
                 self.r_values: np.array
@@ -931,8 +941,127 @@ class Estimates(object):
 
         return self
 
+    def manual_merge(self, components, params):
+        ''' merge a given list of components. The indices
+        of components are not pythonic, i.e., they start from 1. Moreover,
+        the indices refer to the absolute indices, i.e., the indices before
+        spliting the components in accepted and rejected. If you want to e.g.
+        merge components 1 from idx_components and 10 from idx_components_bad
+        you will to set
+        ```
+        components = [[self.idx_components[0], self.idx_components_bad[9]]]
+        ```
+
+        Args:
+            components: list
+                list of components to be merged. Each element should be a
+                tuple, list or np.array of the components to be merged. No
+                duplicates are allowed. If you're merging only one pair (or
+                set) of components, then use a list with a single (list)
+                element
+            params: params object
+                
+        Returns:
+            self: estimates object
+        '''
+
+        ln = np.sum(np.array([len(comp) for comp in components]))
+        ids = set.union(*[set(comp) for comp in components])
+        if ln != len(ids):
+            raise Exception('The given list contains duplicate entries')
+
+        p = params.temporal['p']
+        nbmrg = len(components)   # number of merging operations
+        d = self.A.shape[0]
+        T = self.C.shape[1]
+        # we initialize the values
+        A_merged = scipy.sparse.lil_matrix((d, nbmrg))
+        C_merged = np.zeros((nbmrg, T))
+        S_merged = np.zeros((nbmrg, T))
+        bl_merged = np.zeros((nbmrg, 1))
+        c1_merged = np.zeros((nbmrg, 1))
+        sn_merged = np.zeros((nbmrg, 1))
+        g_merged = np.zeros((nbmrg, p))
+        merged_ROIs = []
+
+        for i in range(nbmrg):
+            merged_ROI = list(set(components[i]))
+            logging.info('Merging components {}'.format(merged_ROI))
+            merged_ROIs.append(merged_ROI)
+
+            Acsc = self.A.tocsc()[:, merged_ROI]
+            Ctmp = np.array(self.C[merged_ROI]) + np.array(self.YrA[merged_ROI])
+
+            C_to_norm = np.sqrt(np.ravel(Acsc.power(2).sum(
+                axis=0)) * np.sum(Ctmp ** 2, axis=1))
+            indx = np.argmax(C_to_norm)
+            g_idx = [merged_ROI[indx]]
+            fast_merge = True
+            bm, cm, computedA, computedC, gm, \
+            sm, ss = merge_iteration(Acsc, C_to_norm, Ctmp, fast_merge, 
+                                     None, g_idx, indx, params.temporal)
+
+            A_merged[:, i] = computedA
+            C_merged[i, :] = computedC
+            S_merged[i, :] = ss[:T]
+            bl_merged[i] = bm
+            c1_merged[i] = cm
+            sn_merged[i] = sm
+            g_merged[i, :] = gm
+
+        empty = np.ravel((C_merged.sum(1) == 0) + (A_merged.sum(0) == 0))
+        nbmrg -= len(empty)
+        if np.any(empty):
+            A_merged = A_merged[:, ~empty]
+            C_merged = C_merged[~empty]
+            S_merged = S_merged[~empty]
+            bl_merged = bl_merged[~empty]
+            c1_merged = c1_merged[~empty]
+            sn_merged = sn_merged[~empty]
+            g_merged = g_merged[~empty]
+
+        neur_id = np.unique(np.hstack(merged_ROIs))
+        nr = self.C.shape[0]
+        good_neurons = np.setdiff1d(list(range(nr)), neur_id)
+        if self.idx_components is not None:
+            new_indices = list(range(len(good_neurons),
+                                     len(good_neurons) + nbmrg))
+
+            mapping_mat = np.zeros(nr)
+            mapping_mat[good_neurons] = np.arange(len(good_neurons), dtype=int)
+            gn_ = good_neurons.tolist()
+            new_idx = [mapping_mat[i] for i in self.idx_components if i in gn_]
+            new_idx_bad = [mapping_mat[i] for i in self.idx_components_bad if i in gn_]
+            new_idx.sort()
+            new_idx_bad.sort()
+            self.idx_components = np.array(new_idx + new_indices, dtype=int)
+            self.idx_components_bad = np.array(new_idx_bad, dtype=int)
+
+        self.A = scipy.sparse.hstack((self.A.tocsc()[:, good_neurons],
+                                      A_merged.tocsc()))
+        self.C = np.vstack((self.C[good_neurons, :], C_merged))
+        # we continue for the variables
+        if self.S is not None:
+            self.S = np.vstack((self.S[good_neurons, :], S_merged))
+        if self.bl is not None:
+            self.bl = np.hstack((self.bl[good_neurons],
+                                 np.array(bl_merged).flatten()))
+        if self.c1 is not None:
+            self.c1 = np.hstack((self.c1[good_neurons],
+                                 np.array(c1_merged).flatten()))
+        if self.sn is not None:
+            self.sn = np.hstack((self.sn[good_neurons],
+                                 np.array(sn_merged).flatten()))
+        if self.g is not None:
+            self.g = np.vstack((np.vstack(self.g)[good_neurons], g_merged))
+        self.nr = nr - len(neur_id) + len(C_merged)
+        if self.coordinates is not None:
+            self.coordinates = caiman.utils.visualization.get_contours(self.A,\
+                                self.dims, thr_method='max', thr='0.2')
+
     def threshold_spatial_components(self, maxthr=0.25, dview=None, **kwargs):
-        ''' threshold spatial components. See parameters of spatial.threshold_components
+        ''' threshold spatial components. See parameters of
+        spatial.threshold_components
 
         @param medw:
         @param thr_method:
@@ -961,7 +1090,7 @@ class Estimates(object):
         if self.A_thr is None:
             raise Exception('You need to compute thresolded components before calling remove_duplicates: use the threshold_components method')
 
-        A_gt_thr_bin = self.A_thr > 0
+        A_gt_thr_bin = self.A_thr.toarray() > 0
         size_neurons_gt = A_gt_thr_bin.sum(0)
         neurons_to_keep = np.where((size_neurons_gt > min_size_neuro) & (size_neurons_gt < max_size_neuro))[0]
         self.select_components(idx_components=neurons_to_keep)
@@ -983,9 +1112,9 @@ class Estimates(object):
         if self.A_thr is None:
             raise Exception('You need to compute thresolded components before calling remove_duplicates: use the threshold_components method')
 
-        A_gt_thr_bin = (self.A_thr > 0).reshape([self.dims[0], self.dims[1], -1], order='F').transpose([2, 0, 1]) * 1.
+        A_gt_thr_bin = (self.A_thr.toarray() > 0).reshape([self.dims[0], self.dims[1], -1], order='F').transpose([2, 0, 1]) * 1.
 
-        duplicates_gt, indeces_keep_gt, indeces_remove_gt, D_gt, overlap_gt = detect_duplicates_and_subsets(
+        duplicates_gt, indices_keep_gt, indices_remove_gt, D_gt, overlap_gt = detect_duplicates_and_subsets(
             A_gt_thr_bin,predictions=predictions, r_values=r_values,dist_thr=dist_thr, min_dist=min_dist,
             thresh_subset=thresh_subset)
         print('Duplicates gt:' + str(len(duplicates_gt)))
@@ -996,14 +1125,14 @@ class Estimates(object):
                 plt.imshow(A_gt_thr_bin[np.array(duplicates_gt).flatten()].sum(0))
                 plt.colorbar()
                 plt.subplot(1, 3, 2)
-                plt.imshow(A_gt_thr_bin[np.array(indeces_keep_gt)[:]].sum(0))
+                plt.imshow(A_gt_thr_bin[np.array(indices_keep_gt)[:]].sum(0))
                 plt.colorbar()
                 plt.subplot(1, 3, 3)
-                plt.imshow(A_gt_thr_bin[np.array(indeces_remove_gt)[:]].sum(0))
+                plt.imshow(A_gt_thr_bin[np.array(indices_remove_gt)[:]].sum(0))
                 plt.colorbar()
                 plt.pause(1)
 
-            components_to_keep = np.delete(np.arange(self.A.shape[-1]), indeces_remove_gt)
+            components_to_keep = np.delete(np.arange(self.A.shape[-1]), indices_remove_gt)
 
         else:
             components_to_keep = np.arange(self.A.shape[-1])
@@ -1033,8 +1162,8 @@ def compare_components(estimate_gt, estimate_cmp,  Cn=None, thresh_cost=.8, min_
         plt.figure(figsize=(20, 10))
 
     dims = estimate_gt.dims
-    A_gt_thr_bin = (estimate_gt.A_thr>0).reshape([dims[0], dims[1], -1], order='F').transpose([2, 0, 1]) * 1.
-    A_thr_bin = (estimate_cmp.A_thr>0).reshape([dims[0], dims[1], -1], order='F').transpose([2, 0, 1]) * 1.
+    A_gt_thr_bin = (estimate_gt.A_thr.toarray()>0).reshape([dims[0], dims[1], -1], order='F').transpose([2, 0, 1]) * 1.
+    A_thr_bin = (estimate_cmp.A_thr.toarray()>0).reshape([dims[0], dims[1], -1], order='F').transpose([2, 0, 1]) * 1.
 
     tp_gt, tp_comp, fn_gt, fp_comp, performance_cons_off = nf_match_neurons_in_binary_masks(
         A_gt_thr_bin, A_thr_bin, thresh_cost=thresh_cost, min_dist=min_dist, print_assignment=print_assignment,

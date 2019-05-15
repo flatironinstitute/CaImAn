@@ -22,6 +22,7 @@ See Also:
 from builtins import str
 from builtins import range
 from past.utils import old_div
+
 import cv2
 import h5py
 import logging
@@ -33,10 +34,36 @@ from scipy.sparse import spdiags, issparse, csc_matrix, csr_matrix
 import scipy.ndimage.morphology as morph
 from skimage.feature.peak import _get_high_intensity_peaks
 import tifffile
+from typing import List
+
 from .initialization import greedyROI
 from ...base.rois import com
 from ...mmapping import parallel_dot_product, load_memmap
 from ...utils.stats import df_percentile
+
+
+def decimation_matrix(dims, sub):
+    D = np.prod(dims)
+    if sub == 2 and D <= 10000:  # faster for small matrices
+        ind = np.arange(D) // 2 - \
+            np.arange(dims[0], dims[0] + D) // (dims[0] * 2) * (dims[0] // 2) - \
+            (dims[0] % 2) * (np.arange(D) % (2 * dims[0]) > dims[0]) * (np.arange(1, 1 + D) % 2)
+    else:
+        def create_decimation_matrix_bruteforce(dims, sub):
+            dims_ds = tuple(1 + (np.array(dims) - 1) // sub)
+            d_ds = np.prod(dims_ds)
+            ds_matrix = np.eye(d_ds)
+            ds_matrix = np.repeat(np.repeat(
+                ds_matrix.reshape((d_ds,) + dims_ds, order='F'), sub, 1),
+                sub, 2)[:, :dims[0], :dims[1]].reshape((d_ds, -1), order='F')
+            ds_matrix /= ds_matrix.sum(1)[:, None]
+            ds_matrix = csc_matrix(ds_matrix, dtype=np.float32)
+            return ds_matrix
+        tmp = create_decimation_matrix_bruteforce((dims[0], sub), sub).indices
+        ind = np.concatenate([tmp] * (dims[1] // sub + 1))[:D] + \
+            np.arange(D) // (dims[0] * sub) * ((dims[0] - 1) // sub + 1)
+    data = 1. / np.unique(ind, return_counts=True)[1][ind]
+    return csc_matrix((data, ind, np.arange(1 + D)), dtype=np.float32)
 
 
 def peak_local_max(image, min_distance=1, threshold_abs=None,
@@ -266,7 +293,7 @@ def extract_DF_F(Yr, A, C, bl, quantileMin=8, frames_window=200, block_size=400,
     return C_df
 
 def detrend_df_f(A, b, C, f, YrA=None, quantileMin=8, frames_window=500, 
-                 flag_auto=True, use_fast=False):
+                 flag_auto=True, use_fast=False, detrend_only=False):
     """ Compute DF/F signal without using the original data.
     In general much faster than extract_DF_F
 
@@ -296,7 +323,12 @@ def detrend_df_f(A, b, C, f, YrA=None, quantileMin=8, frames_window=500,
             flag for determining quantile automatically
 
         use_fast: bool
-            flag for using approximate fast percentile filtering
+            flag for u´sing approximate fast percentile filtering
+
+        detrend_only: bool (False)
+            flag for only subtracting baseline and not normalizing by it.
+            Used in 1p data processing where baseline fluorescence cannot be
+            determined.
 
     Returns:
         F_df:
@@ -306,7 +338,14 @@ def detrend_df_f(A, b, C, f, YrA=None, quantileMin=8, frames_window=500,
     if C is None:
         logging.warning("There are no components for DF/F extraction!")
         return None
-
+    
+    if b is None or f is None:
+        b = np.zeros((A.shape[0], 1))
+        f = np.zeros((1, C.shape[1]))
+        logging.warning("Background components not present. Results should" +
+                        " not be interpreted as DF/F normalized but only" +
+                        " as detrended.")
+        detrend_only = True
     if 'csc_matrix' not in str(type(A)):
         A = scipy.sparse.csc_matrix(A)
     if 'array' not in str(type(b)):
@@ -335,7 +374,10 @@ def detrend_df_f(A, b, C, f, YrA=None, quantileMin=8, frames_window=500,
                            zip(F, data_prct)])
             Df = np.stack([np.percentile(f, prctileMin) for f, prctileMin in
                            zip(B, data_prct)])
-            F_df = (F - Fd[:, None]) / (Df[:, None] + Fd[:, None])
+            if not detrend_only:
+                F_df = (F - Fd[:, None]) / (Df[:, None] + Fd[:, None])
+            else:
+                F_df = F - Fd[:, None]
         else:
             if use_fast:
                 Fd = np.stack([fast_prct_filt(f, level=prctileMin,
@@ -351,18 +393,28 @@ def detrend_df_f(A, b, C, f, YrA=None, quantileMin=8, frames_window=500,
                 Df = np.stack([scipy.ndimage.percentile_filter(
                     f, prctileMin, (frames_window)) for f, prctileMin in
                     zip(B, data_prct)])
-            F_df = (F - Fd) / (Df + Fd)
+            if not detrend_only:
+                F_df = (F - Fd) / (Df + Fd)
+            else:
+                F_df = F - Fd
     else:
         if frames_window is None or frames_window > T:
             Fd = np.percentile(F, quantileMin, axis=1)
             Df = np.percentile(B, quantileMin, axis=1)
-            F_df = (F - Fd) / (Df[:, None] + Fd[:, None])
+            if not detrend_only:
+                F_df = (F - Fd[:, None]) / (Df[:, None] + Fd[:, None])
+            else:
+                F_df = F - Fd[:, None]
         else:
             Fd = scipy.ndimage.percentile_filter(
                 F, quantileMin, (frames_window, 1))
             Df = scipy.ndimage.percentile_filter(
                 B, quantileMin, (frames_window, 1))
-            F_df = (F - Fd) / (Df + Fd)
+            if not detrend_only:
+                F_df = (F - Fd) / (Df + Fd)
+            else:
+                F_df = F - Fd
+
     return F_df
 
 def fast_prct_filt(input_data, level=8, frames_window=1000):
@@ -797,7 +849,7 @@ def update_order_greedy(A, flag_AA=True):
         Eftychios A. Pnevmatikakis, Simons Foundation, 2017
     """
     K = np.shape(A)[-1]
-    parllcomp = []
+    parllcomp:List = []
     for i in range(K):
         new_list = True
         for ls in parllcomp:
@@ -901,7 +953,25 @@ def normalize_AC(A, C, YrA, b, f, neurons_sn):
 
     return csc_matrix(A), C, YrA, b, f, neurons_sn
 
-def get_file_size(file_name, var_name_hdf5=None):
+
+def get_file_size(file_name, var_name_hdf5='mov'):
+    """ Computes the dimensions of a file or a list of files without loading
+    it/them in memory. An exception is thrown if the files have FOVs with
+    different sizes
+        Args:
+            file_name: str or list
+                locations of file(s) in memory
+
+            var_name_hdf5: 'str'
+                if loading from hdf5 name of the variable to load
+
+        Returns:
+            dims: list
+                dimensions of FOV
+
+            T: list
+                number of timesteps in each file
+    """
     if isinstance(file_name, str):
         if os.path.exists(file_name):
             _, extension = os.path.splitext(file_name)[:2]
@@ -918,7 +988,7 @@ def get_file_size(file_name, var_name_hdf5=None):
                     dims[0] = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
                     dims[1] = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
                 except():
-                    print('Roll back top opencv 2')
+                    print('Roll back to opencv 2')
                     T = int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_COUNT))
                     dims[0] = int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_WIDTH))
                     dims[1] = int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT))
@@ -926,12 +996,12 @@ def get_file_size(file_name, var_name_hdf5=None):
                 filename = os.path.split(file_name)[-1]
                 Yr, dims, T = load_memmap(os.path.join(
                         os.path.split(file_name)[0], filename))
-            elif extension == '.h5' or extension == '.hdf5':
+            elif extension in ('.h5', '.hdf5', '.nwb'):
                 with h5py.File(file_name, "r") as f:
                     kk = list(f.keys())
                     if len(kk) == 1:
                         siz = f[kk[0]].shape
-                    elif var_name_hdf5 in kk:
+                    elif var_name_hdf5 in f:
                         siz = f[var_name_hdf5].shape
                     else:
                         print(kk)

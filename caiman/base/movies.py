@@ -28,6 +28,7 @@ import logging
 from matplotlib import animation
 import numpy as np
 import os
+from PIL import Image  # $ pip install pillow
 import pylab as pl
 import scipy.ndimage
 import scipy
@@ -41,11 +42,11 @@ from sklearn.metrics.pairwise import euclidean_distances
 import sys
 import tifffile
 from tqdm import tqdm
+from typing import Any, Dict, List, Tuple, Union
 import warnings
 from zipfile import ZipFile
-from PIL import Image  # $ pip install pillow
-import caiman as cm
 
+import caiman as cm
 
 from . import timeseries
 
@@ -105,12 +106,6 @@ class movie(ts.timeseries):
             return super(movie, cls).__new__(cls, input_arr, **kwargs)
         else:
             raise Exception('Input must be an ndarray, use load instead!')
-
-    def motion_correction_online(self, max_shift_w=25, max_shift_h=25, init_frames_template=100,
-                                 show_movie=False, bilateral_blur=False, template=None, min_count=1000):
-        return motion_correct_online(self, max_shift_w=max_shift_w, max_shift_h=max_shift_h,
-                                     init_frames_template=init_frames_template, show_movie=show_movie,
-                                     bilateral_blur=bilateral_blur, template=template, min_count=min_count)
 
     def apply_shifts_online(self, xy_shifts, save_base_name=None):
         # todo: todocument
@@ -231,9 +226,9 @@ class movie(ts.timeseries):
         num_frames = num_windows * window
         return np.nanmedian(np.nanmean(np.reshape(self[:num_frames], (window, num_windows, d1, d2)), axis=0), axis=0)
 
-    def extract_shifts(self, max_shift_w=5, max_shift_h=5, template=None, method='opencv'):
+    def extract_shifts(self, max_shift_w:int=5, max_shift_h:int=5, template=None, method:str='opencv') -> Tuple[List, List]:
         """
-        Performs motion corretion using the opencv matchtemplate function. At every iteration a template is built by taking the median of all frames and then used to align the other frames.
+        Performs motion correction using the opencv matchtemplate function. At every iteration a template is built by taking the median of all frames and then used to align the other frames.
 
         Args:
             max_shift_w,max_shift_h: maximum pixel shifts allowed when correcting in the width and height direction
@@ -427,7 +422,7 @@ class movie(ts.timeseries):
             return a * x + b
 
         try:
-            p0 = (y[0] - y[-1], 1e-6, y[-1])
+            p0:Tuple = (y[0] - y[-1], 1e-6, y[-1])
             popt, _ = scipy.optimize.curve_fit(expf, x, y, p0=p0)
             y_fit = expf(x, *popt)
         except:
@@ -447,7 +442,7 @@ class movie(ts.timeseries):
         t, h, w = self.shape
         return self[crop_begin:t - crop_end, crop_top:h - crop_bottom, crop_left:w - crop_right]
 
-    def computeDFF(self, secsWindow=5, quantilMin=8, method='only_baseline', order='F'):
+    def computeDFF(self, secsWindow:int=5, quantilMin:int=8, method:str='only_baseline', order:str='F') -> Tuple[Any, Any]:
         """
         compute the DFF of the movie or remove baseline
 
@@ -518,7 +513,7 @@ class movie(ts.timeseries):
         logging.debug('Final Size Movie:' + np.str(self.shape))
         return mov_out, movie(movBL, fr=self.fr, start_time=self.start_time, meta_data=self.meta_data, file_name=self.file_name)
 
-    def NonnegativeMatrixFactorization(self, n_components=30, init='nndsvd', beta=1, tol=5e-7, sparseness='components', **kwargs):
+    def NonnegativeMatrixFactorization(self, n_components:int=30, init:str='nndsvd', beta:int=1, tol=5e-7, sparseness:str='components', **kwargs) -> Tuple[np.ndarray, np.ndarray]:
         """
         See documentation for scikit-learn NMF
         """
@@ -537,7 +532,7 @@ class movie(ts.timeseries):
 
         return space_components, time_components
 
-    def online_NMF(self, n_components=30, method='nnsc', lambda1=100, iterations=-5, model=None, **kwargs):
+    def online_NMF(self, n_components:int=30, method:str='nnsc', lambda1:int=100, iterations:int=-5, model=None, **kwargs) -> Tuple[np.ndarray, np.ndarray]:
         """ Method performing online matrix factorization and using the spams
 
         (http://spams-devel.gforge.inria.fr/doc-python/html/index.html) package from Inria.
@@ -590,7 +585,7 @@ class movie(ts.timeseries):
 
         return time_comps, np.array(space_comps)
 
-    def IPCA(self, components=50, batch=1000):
+    def IPCA(self, components:int=50, batch:int=1000) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Iterative Principal Component analysis, see sklearn.decomposition.incremental_pca
 
@@ -635,7 +630,7 @@ class movie(ts.timeseries):
 
         return eigenseries, eigenframes, proj_frame_vectors
 
-    def IPCA_stICA(self, componentsPCA=50, componentsICA=40, batch=1000, mu=1, ICAfun='logcosh', **kwargs):
+    def IPCA_stICA(self, componentsPCA:int=50, componentsICA:int=40, batch:int=1000, mu:float=1, ICAfun:str='logcosh', **kwargs) -> np.ndarray:
         """
         Compute PCA + ICA a la Mukamel 2009.
 
@@ -653,6 +648,7 @@ class movie(ts.timeseries):
         Returns:
             ind_frames [components, height, width] = array of independent component "eigenframes"
         """
+        # FIXME: mu defaults to 1, not 0.05
         eigenseries, eigenframes, _proj = self.IPCA(componentsPCA, batch)
         # normalize the series
 
@@ -680,7 +676,7 @@ class movie(ts.timeseries):
 
         return ind_frames
 
-    def IPCA_denoise(self, components=50, batch=1000):
+    def IPCA_denoise(self, components:int=50, batch:int=1000):
         """
         Create a denoised version of the movie using only the first 'components' components
         """
@@ -689,7 +685,7 @@ class movie(ts.timeseries):
             clean_vectors.T), np.shape(self)), **self.__dict__)
         return self
 
-    def IPCA_io(self, n_components=50, fun='logcosh', max_iter=1000, tol=1e-20):
+    def IPCA_io(self, n_components:int=50, fun:str='logcosh', max_iter:int=1000, tol=1e-20) -> np.ndarray:
         """ DO NOT USE STILL UNDER DEVELOPMENT
         """
         pca_comp = n_components
@@ -712,11 +708,11 @@ class movie(ts.timeseries):
 
         return mask
 
-    def local_correlations(self, eight_neighbours=False, swap_dim=True, frames_per_chunk=1500, order_mean=1):
+    def local_correlations(self, eight_neighbours:bool=False, swap_dim:bool=True, frames_per_chunk:int=1500, order_mean=1) -> np.ndarray:
         """Computes the correlation image for the input dataset Y
 
             Args:
-                Y:  np.ndarray (3D or 4D)
+                self:  np.ndarray (3D or 4D)
                     Input movie data in 3D or 4D format
     
                 eight_neighbours: Boolean
@@ -726,6 +722,10 @@ class movie(ts.timeseries):
                 swap_dim: Boolean
                     True indicates that time is listed in the last axis of Y (matlab format)
                     and moves it in the front
+
+                frames_per_chunk: int (undocumented)
+
+                order_mean: (undocumented)
 
             Returns:
                 rho: d1 x d2 [x d3] matrix, cross-correlation with adjacent pixels
@@ -758,7 +758,7 @@ class movie(ts.timeseries):
 
         return Cn
 
-    def partition_FOV_KMeans(self, tradeoff_weight=.5, fx=.25, fy=.25, n_clusters=4, max_iter=500):
+    def partition_FOV_KMeans(self, tradeoff_weight:float=.5, fx:float=.25, fy:float=.25, n_clusters:int=4, max_iter:int=500) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Partition the FOV in clusters that are grouping pixels close in space and in mutual correlation
 
@@ -772,7 +772,7 @@ class movie(ts.timeseries):
         Returns:
             fovs:array 2D encoding the partitions of the FOV
     
-            mcoef: matric of pairwise correlation coefficients
+            mcoef: matrix of pairwise correlation coefficients
     
             distanceMatrix: matrix of picel distances
         """
@@ -795,7 +795,7 @@ class movie(ts.timeseries):
             1., fx), old_div(1., fy), interpolation=cv2.INTER_NEAREST)
         return np.uint8(fovs), mcoef, distanceMatrix
 
-    def extract_traces_from_masks(self, masks):
+    def extract_traces_from_masks(self, masks:np.ndarray) -> trace:
         """
         Args:
             masks: array, 3D with each 2D slice bein a mask (integer or fractional)
@@ -825,7 +825,7 @@ class movie(ts.timeseries):
         max_els = 2**31 - 1
         if elm > max_els:
             chunk_size = old_div((max_els), d)
-            new_m = []
+            new_m:List = []
             logging.debug('Resizing in chunks because of opencv bug')
             for chunk in range(0, T, chunk_size):
                 logging.debug([chunk, np.minimum(chunk + chunk_size, T)])
@@ -861,7 +861,7 @@ class movie(ts.timeseries):
 
         return self
 
-    def guided_filter_blur_2D(self, guide_filter, radius=5, eps=0):
+    def guided_filter_blur_2D(self, guide_filter, radius:int=5, eps=0):
         """
         performs guided filtering on each frame. See opencv documentation of cv2.ximgproc.guidedFilter
         """
@@ -873,7 +873,7 @@ class movie(ts.timeseries):
 
         return self
 
-    def bilateral_blur_2D(self, diameter=5, sigmaColor=10000, sigmaSpace=0):
+    def bilateral_blur_2D(self, diameter:int=5, sigmaColor:int=10000, sigmaSpace=0):
         """
         performs bilateral filtering on each frame. See opencv documentation of cv2.bilateralFilter
         """
@@ -938,16 +938,12 @@ class movie(ts.timeseries):
 
         return self
 
-    def resample(self):
-        # FIXME what is this function used for?
-        pass
-
-    def to_2D(self, order='F'):
+    def to_2D(self, order='F') -> np.ndarray:
         [T, d1, d2] = self.shape
         d = d1 * d2
         return np.reshape(self, (T, d), order=order)
 
-    def zproject(self, method='mean', cmap=pl.cm.gray, aspect='auto', **kwargs):
+    def zproject(self, method='mean', cmap=pl.cm.gray, aspect='auto', **kwargs) -> np.ndarray:
         """
         Compute and plot projection across time:
 
@@ -961,7 +957,8 @@ class movie(ts.timeseries):
         Raises:
              Exception 'Method not implemented'
         """
-        # todo: todocument
+        # TODO: make the imshow optional
+        # TODO: todocument
         if method == 'mean':
             zp = np.mean(self, axis=0)
         elif method == 'median':
@@ -973,17 +970,31 @@ class movie(ts.timeseries):
         pl.imshow(zp, cmap=cmap, aspect=aspect, **kwargs)
         return zp
 
-    def play(self, gain=1, fr=None, magnification=1, offset=0, interpolation=cv2.INTER_LINEAR,
-             backend='opencv', do_loop=False, bord_px=None, q_max=100, q_min = 0, plot_text = False):
+    def play(self, gain:float=1, fr=None, magnification=1, offset=0, interpolation=cv2.INTER_LINEAR,
+             backend:str='opencv', do_loop:bool=False, bord_px=None, q_max=100, q_min = 0, plot_text:bool=False) -> None:
         """
         Play the movie using opencv
 
         Args:
-            gain: adjust  movie brightness
+            gain: adjust movie brightness
 
-            frate : playing speed if different from original (inter frame interval in seconds)
+            fr: framerate, playing speed if different from original (inter frame interval in seconds)
+
+            magnification: (undocumented)
+
+            offset: (undocumented)
+
+            interpolation: (undocumented)
 
             backend: 'pylab' or 'opencv', the latter much faster
+
+            do_loop: Whether to loop the video
+
+            bord_px: (undocumented)
+
+            q_max, q_min: (undocumented)
+
+            plot_text: (undocumented)
 
         Raises:
             Exception 'Unknown backend!'
@@ -992,7 +1003,7 @@ class movie(ts.timeseries):
         if backend == 'pylab':
             logging.warning('*** WARNING *** SPEED MIGHT BE LOW. USE opencv backend if available')
 
-        gain *= 1.
+        gain *= 1. # convert to float in case we were passed an int
         if q_max < 100:
             maxmov = np.nanpercentile(self[0:10], q_max)
         else:
@@ -1094,36 +1105,43 @@ class movie(ts.timeseries):
             for i in range(10):
                 cv2.waitKey(100)
 
-def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None,
-         var_name_hdf5 = 'mov', in_memory = False, is_behavior = False, bottom=0,
-         top=0, left=0, right=0, channel = None, outtype=np.float32):
+def load(file_name, fr:float=30, start_time:float=0, meta_data:Dict=None, subindices=None,
+         shape:Tuple[int,int]=None, var_name_hdf5:str='mov', in_memory:bool=False, is_behavior:bool=False,
+         bottom=0, top=0, left=0, right=0, channel=None, outtype=np.float32) -> Any:
     """
-    load movie from file. SUpports a variety of formats. tif, hdf5, npy and memory mapped. Matlab is experimental.
+    load movie from file. Supports a variety of formats. tif, hdf5, npy and memory mapped. Matlab is experimental.
 
     Args:
         file_name: string
             name of file. Possible extensions are tif, avi, npy, (npz and hdf5 are usable only if saved by calblitz)
-    
+
         fr: float
             frame rate
-    
+
         start_time: float
             initial time for frame 1
-    
+
         meta_data: dict
             dictionary containing meta information about the movie
-    
+
         subindices: iterable indexes
             for loading only portion of the movie
-    
+
         shape: tuple of two values
             dimension of the movie along x and y if loading from a two dimensional numpy array
-    
-        num_frames_sub_idx:
-            when reading sbx format (experimental and unstable)
-    
+
         var_name_hdf5: str
             if loading from hdf5 name of the variable to load
+
+        in_memory: (undocumented)
+
+        is_behavior: (undocumented)
+
+        bottom,top,left,right: (undocumented)
+
+        channel: (undocumented)
+
+        outtype: The data type for the movie
 
     Returns:
         mov: caiman.movie
@@ -1140,39 +1158,45 @@ def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None,
         Exception 'File not found!'
     """
     # case we load movie from file
+    if max(top, bottom, left, right) > 0 and type(file_name) is str:
+        file_name = [file_name]
+
     if type(file_name) is list:
         if shape is not None:
-            raise Exception('shape not supported for multiple movie input')
+            logging.error('shape not supported for multiple movie input')
 
         return load_movie_chain(file_name,fr=fr, start_time=start_time,
                      meta_data=meta_data, subindices=subindices,
                      bottom=bottom, top=top, left=left, right=right, 
                      channel = channel, outtype=outtype)
 
-    if bottom != 0:
-        raise Exception('top bottom etc... not supported for single movie input')
+    if max(top, bottom, left, right) > 0:
+        logging.error('top bottom etc... not supported for single movie input')
 
     if channel is not None:
-        raise Exception('channel not supported for single movie input')
+        logging.error('channel not supported for single movie input')
 
     if os.path.exists(file_name):
         _, extension = os.path.splitext(file_name)[:2]
         extension = extension.lower()
         if extension == '.tif' or extension == '.tiff':  # load avi file
             with tifffile.TiffFile(file_name) as tffl:
+                multi_page = True if tffl.series[0].shape[0] > 1 else False
+                if len(tffl.pages) == 1:
+                    logging.warning('Your tif file is saved a single page' +
+                                    'file. Performance will be affected')
+                    multi_page = False
                 if subindices is not None:
                     if type(subindices) is list:
-                        try:
+                        if multi_page:
                             input_arr  = tffl.asarray(key=subindices[0])[:, subindices[1], subindices[2]]
-                        except:
-                            logging.warning('Your tif file is saved a single page file. Performance will be affected')
+                        else:
                             input_arr = tffl.asarray()
                             input_arr = input_arr[subindices[0], subindices[1], subindices[2]]
                     else:
-                        try:
+                        if multi_page:
                             input_arr  = tffl.asarray(key=subindices)
-                        except:
-                            logging.warning('Your tif file is saved a single page file. Performance will be affected')
+                        else:
                             input_arr = tffl.asarray()
                             input_arr = input_arr[subindices]
 
@@ -1195,7 +1219,7 @@ def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None,
                 height = int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT))
 
             cv_failed = False
-            dims = [length, height, width]
+            dims:Union[Tuple,List] = [length, height, width]
             if length == 0 or width == 0 or height == 0: #CV failed to load
                 cv_failed = True            
             if subindices is not None:
@@ -1287,25 +1311,7 @@ def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None,
             with np.load(file_name) as f:
                 return movie(**f).astype(outtype)
 
-#        elif extension in ('.hdf5', '.h5'):
-#            with h5py.File(file_name, "r") as f:
-#                attrs = dict(f[var_name_hdf5].attrs)
-#                if meta_data in attrs:
-#                    attrs['meta_data'] = cpk.loads(attrs['meta_data'])
-#
-#                if subindices is None:
-#                    return movie(f[var_name_hdf5], **attrs).astype(outtype)
-#                else:
-#                    return movie(f[var_name_hdf5][subindices], **attrs).astype(outtype)
-
-        elif extension == '.h5_at':
-            with h5py.File(file_name, "r") as f:
-                if subindices is None:
-                    return movie(f['quietBlock'], fr=fr).astype(outtype)
-                else:
-                    return movie(f['quietBlock'][subindices], fr=fr).astype(outtype)
-
-        elif extension in ('.hdf5', '.h5'):
+        elif extension in ('.hdf5', '.h5', '.nwb'):
             if is_behavior:
                 with h5py.File(file_name, "r") as f:
                     kk = list(f.keys())
@@ -1322,22 +1328,24 @@ def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None,
                     fkeys = list(f.keys())
                     if len(fkeys) == 1:
                         var_name_hdf5 = fkeys[0]
-                    if var_name_hdf5 in fkeys:
+                    if var_name_hdf5 in f:
                         if subindices is None:
                             images = np.array(f[var_name_hdf5]).squeeze()
-                            if images.ndim > 3:
-                                images = images[:, 0]
+                            #if images.ndim > 3:
+                            #    images = images[:, 0]
                         else:
+                            if type(subindices).__module__ is 'numpy':
+                                subindices = subindices.tolist()
                             images = np.array(
                                 f[var_name_hdf5][subindices]).squeeze()
-                            if images.ndim > 3:
-                                images = images[:, 0]
+                            #if images.ndim > 3:
+                            #    images = images[:, 0]
 
                         #input_arr = images
                         return movie(images.astype(outtype))
                     else:
                         logging.debug('KEYS:' + str(f.keys()))
-                        raise Exception('Key not found in hdf5n file')
+                        raise Exception('Key not found in hdf5 file')
 
         elif extension == '.mmap':
 
@@ -1389,10 +1397,10 @@ def load(file_name,fr=30,start_time=0,meta_data=None,subindices=None,shape=None,
     return movie(input_arr.astype(outtype), fr=fr, start_time=start_time, file_name=os.path.split(file_name)[-1], meta_data=meta_data)
 
 
-def load_movie_chain(file_list, fr=30, start_time=0,
+def load_movie_chain(file_list:List[str], fr:float=30, start_time=0,
                      meta_data=None, subindices=None,
-                     bottom=0, top=0, left=0, right=0, z_top = 0,
-                     z_bottom = 0, is3D = False, channel=None, outtype=np.float32):
+                     bottom=0, top=0, left=0, right=0, z_top=0,
+                     z_bottom=0, is3D:bool=False, channel=None, outtype=np.float32) -> Any:
     """ load movies from list of file names
 
     Args:
@@ -1408,7 +1416,7 @@ def load_movie_chain(file_list, fr=30, start_time=0,
             flag for 3d data (adds a fourth dimension)
 
     Returns:
-        movie: cm.movie
+        movie: movie
             movie corresponding to the concatenation og the input files
 
     """
@@ -1437,47 +1445,47 @@ def load_movie_chain(file_list, fr=30, start_time=0,
         mov.append(m)
     return ts.concatenate(mov, axis=0)
 
+####
+# TODO: Consider pulling these functions that work with .mat files into a separate file
 
-def loadmat_sbx(filename):
+def loadmat_sbx(filename:str):
     """
-    this function should be called instead of direct spio.loadmat
+    this wrapper should be called instead of directly calling spio.loadmat
 
-    as it cures the problem of not properly recovering python dictionaries
-    from mat files. It calls the function check keys to cure all entries
+    It solves the problem of not properly recovering python dictionaries
+    from mat files. It calls the function check keys to fix all entries
     which are still mat-objects
     """
     data_ = loadmat(filename, struct_as_record=False, squeeze_me=True)
-    return _check_keys(data_)
+    _check_keys(data_)
+    return data_
 
-
-def _check_keys(dict):
+def _check_keys(checkdict:Dict) -> None:
     """
-    checks if entries in dictionary rare mat-objects. If yes todict is called to change them to nested dictionaries
+    checks if entries in dictionary rare mat-objects. If yes todict is called to change them to nested dictionaries.
+    Modifies its parameter in-place.
     """
 
-    for key in dict:
-        if isinstance(dict[key], scipy.io.matlab.mio5_params.mat_struct):
-            dict[key] = _todict(dict[key])
+    for key in checkdict:
+        if isinstance(checkdict[key], scipy.io.matlab.mio5_params.mat_struct):
+            checkdict[key] = _todict(checkdict[key])
 
-    return dict
-
-
-def _todict(matobj):
+def _todict(matobj) -> Dict:
     """
     A recursive function which constructs from matobjects nested dictionaries
     """
 
-    dict = {}
+    ret = {}
     for strg in matobj._fieldnames:
         elem = matobj.__dict__[strg]
         if isinstance(elem, scipy.io.matlab.mio5_params.mat_struct):
-            dict[strg] = _todict(elem)
+            ret[strg] = _todict(elem)
         else:
-            dict[strg] = elem
-    return dict
+            ret[strg] = elem
+    return ret
 
 
-def sbxread(filename, k=0, n_frames=np.inf):
+def sbxread(filename:str, k:int=0, n_frames=np.inf) -> np.ndarray:
     """
     Args:
         filename: str
@@ -1525,11 +1533,13 @@ def sbxread(filename, k=0, n_frames=np.inf):
     return x.transpose([2, 1, 0])
 
 
-def sbxreadskip(filename, skip):
+def sbxreadskip(filename:str, skip) -> np.ndarray:
     """
     Args:
         filename: str
             filename should be full path excluding .sbx
+
+        skip: (undocumented)
     """
     # Check if contains .sbx and if so just truncate
     if '.sbx' in filename:
@@ -1579,11 +1589,12 @@ def sbxreadskip(filename, skip):
     return x.transpose([2, 1, 0])
 
 
-def sbxshape(filename):
+def sbxshape(filename:str) -> Tuple[int,int,int]:
     """
     Args:
         filename should be full path excluding .sbx
     """
+    # TODO: Document meaning of return values
 
     # Check if contains .sbx and if so just truncate
     if '.sbx' in filename:
@@ -1611,22 +1622,23 @@ def sbxshape(filename):
     return x
 
 
-def to_3D(mov2D, shape, order='F'):
+def to_3D(mov2D:np.ndarray, shape:Tuple, order='F') -> np.ndarray:
     """
     transform a vectorized movie into a 3D shape
     """
     return np.reshape(mov2D, shape, order=order)
 
-#%%
-def from_zip_file_to_movie(zipfile_name, start_end = None):
+def from_zip_file_to_movie(zipfile_name:str, start_end:Tuple=None) -> Any:
     '''
+    Read/convert a movie from a zipfile.
 
-    @param zipfile_name:
-    @param start_end: tuple
-        start and end frame to extract
-    @return:
+    Args:
+        zipfile_name: Name of zipfile to read
+        start_end: Start and end frame to extract
+    Returns:
+        movie
     '''
-    mov = []
+    mov:List = []
     print('unzipping file into movie object')
     if start_end is not None:
         num_frames = start_end[1] - start_end[0]
@@ -1634,7 +1646,7 @@ def from_zip_file_to_movie(zipfile_name, start_end = None):
     counter = 0
     with ZipFile(zipfile_name) as archive:
         for idx, entry in enumerate(archive.infolist()):
-            if idx >= start_end[0] and idx < start_end[1]:
+            if idx >= start_end[0] and idx < start_end[1]: # type: ignore # FIXME: default value would not work with this
                 with archive.open(entry) as file:
                     if counter == 0:
                         img = np.array(Image.open(file))
@@ -1651,13 +1663,17 @@ def from_zip_file_to_movie(zipfile_name, start_end = None):
 
     return cm.movie(mov[:counter])
 
-def from_zipfiles_to_movie_lists(zipfile_name, max_frames_per_movie=3000, binary = False):
+def from_zipfiles_to_movie_lists(zipfile_name:str, max_frames_per_movie:int=3000, binary:bool=False) -> List[str]:
     '''
     Transform zip file into set of tif movies
-    @param zipfile_name:
-    @param max_frames_per_movie:
-    @return:
+    Args:
+        zipfile_name: Name of zipfile to read
+        max_frames_per_movie: (undocumented)
+        binary: (undocumented)
+    Returns:
+        List of filenames in the movie list
     '''
+    # TODO: Filter contents of zipfile for appropriate filenames, so we can have a README in there
     with ZipFile(zipfile_name) as archive:
         num_frames_total = len(archive.infolist())
 
