@@ -153,6 +153,11 @@ A visual interface will appear, you will be able to:
 
 <img src="docs/img/GUI_img.png" width="1000" align="center">
 
+## Exporting Results
+Currently it is possible to store the results in two formats:
+1. HDF5 file with all the details of the CNMF function. The results are stored in the `estimates` field.
+2. NWB file with a Processing module called `Estimates` that contains the processing results.
+
 ## Documentation & Wiki
 
 Documentation of the code can be found [here](http://flatironinstitute.github.io/CaImAn/). 
