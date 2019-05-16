@@ -1002,7 +1002,10 @@ def get_file_size(file_name, var_name_hdf5='mov'):
                     if len(kk) == 1:
                         siz = f[kk[0]].shape
                     elif var_name_hdf5 in f:
-                        siz = f[var_name_hdf5].shape
+                        if extension == '.nwb':
+                            siz = f[var_name_hdf5]['data'].shape  
+                        else:
+                            siz = f[var_name_hdf5].shape
                     else:
                         print(kk)
                         raise Exception('Variable not found. Use one of the above')

@@ -1184,57 +1184,70 @@ class Estimates(object):
         
         else: # if the file already exist in the .nwb format then just add the results to it
             print('Saving the results...')
-            io = NWBHDF5IO(filename, 'r')
-            nwbfile = io.read()
-            # Add processing results
-            mod = nwbfile.create_processing_module('Estimates', 'contains caiman estimates for the main imagin plane')
-            img_seg = ImageSegmentation()
-            mod.add_data_interface(img_seg)
-            fl = Fluorescence()
-            mod.add_data_interface(fl)
-#            mot_crct = MotionCorrection()
-#            mod.add_data_interface(mot_crct)
-            
-            # Add the ROI-related stuff
-            if imaging_plane_name is None:
-                imaging_plane_name = nwbfile.imaging_planes.keys()[0]
-            if imaging_series_name is None:
-                imaging_series_name = nwbfile.acquisition.keys()[0]
-            
-            imaging_plane = nwbfile.imaging_planes[imaging_plane_name]
-            image_series = nwbfile.acquisition[imaging_series_name]
-            
-            ps = img_seg.create_plane_segmentation('CNMF_ROIs',
-                                                   imaging_plane, 'planeseg', image_series)
-            
-            # Add ROIs
-            # Neurons
-            for roi in self.estimates.A.T:
-                ps.add_roi(image_mask=roi.reshape(self.estimates.dims))
-            # Backgrounds
-            for bg in self.estimates.b.T:
-                ps.add_roi(image_mask=bg)
-            
-            # Add Traces
-            n_rois = len(self.estimates.A.T)
-            n_bg = len(self.estimate.f)
-            rt_region_roi = ps.create_roi_table_region('ROIs',
-                                                   region=list(range(n_rois)))
-    
-            rt_region_bg = ps.create_roi_table_region('Background',
-                                                   region=list(range(n_rois,n_rois+n_bg)))
-            
-            timestamps = list(range(self.estimates.f.shape[1]))
-            
-            # Neurons
-            rrs1 = fl.create_roi_response_series('ROI_Fluorescence_Response', self.estimates.C.T, 'lumens', rt_region_roi, timestamps=timestamps)
-            # Background
-            rrs2 = fl.create_roi_response_series('Background_Fluorescence_Response', self.estimates.f.T, 'lumens', rt_region_bg, timestamps=timestamps)
-            
-            # Add MotionCorreciton
-#            create_corrected_image_stack(corrected, original, xy_translation, name='CorrectedImageStack')
-            
-            with NWBHDF5IO(filename, 'w') as io:
+            import pdb
+            pdb.set_trace()
+            with  NWBHDF5IO(filename, 'r+') as io:
+                nwbfile = io.read()
+                # Add processing results
+                mod = nwbfile.create_processing_module('Estimates', 'contains caiman estimates for the main imagin plane')
+                img_seg = ImageSegmentation()
+                mod.add_data_interface(img_seg)
+                fl = Fluorescence()
+                mod.add_data_interface(fl)
+    #            mot_crct = MotionCorrection()
+    #            mod.add_data_interface(mot_crct)
+
+                # Add the ROI-related stuff
+                if imaging_plane_name is None:
+                    imaging_plane_name = [imp for imp in nwbfile.imaging_planes.keys()]
+                    if len(imaging_plane_name)>1:
+                        raise Exception('There is more than one imaging plane in the file, you need to specify the name via '
+                                        'the "imaging_plane_name" parameter')
+                    else:
+                        imaging_plane_name = imaging_plane_name[0]
+
+                if imaging_series_name is None:
+                    imaging_series_name = [imp for imp in nwbfile.acquisition.keys()]
+                    if len(imaging_series_name)>1:
+                        raise Exception('There is more than one imaging plane in the file, you need to specify the name via '
+                                        'the "imaging_series_name" parameter')
+                    else:
+                        imaging_series_name = imaging_series_name[0]
+
+
+                imaging_plane = nwbfile.imaging_planes[imaging_plane_name]
+                image_series = nwbfile.acquisition[imaging_series_name]
+
+                ps = img_seg.create_plane_segmentation('CNMF_ROIs',
+                                                       imaging_plane, 'planeseg', image_series)
+
+                # Add ROIs
+                # Neurons
+                for roi in self.A.T:
+                    ps.add_roi(image_mask=roi.T.toarray().reshape(self.dims))
+                # Backgrounds
+                for bg in self.b.T:
+                    ps.add_roi(image_mask=bg.reshape(self.dims))
+
+                # Add Traces
+                n_rois = self.A.shape[-1]
+                n_bg = len(self.f)
+                rt_region_roi = ps.create_roi_table_region('ROIs',
+                                                       region=list(range(n_rois)))
+
+                rt_region_bg = ps.create_roi_table_region('Background',
+                                                       region=list(range(n_rois,n_rois+n_bg)))
+
+                timestamps = list(range(self.f.shape[1]))
+
+                # Neurons
+                rrs1 = fl.create_roi_response_series('ROI_Fluorescence_Response', self.C.T, 'lumens', rt_region_roi, timestamps=timestamps)
+                # Background
+                rrs2 = fl.create_roi_response_series('Background_Fluorescence_Response', self.f.T, 'lumens', rt_region_bg, timestamps=timestamps)
+
+                # Add MotionCorreciton
+    #            create_corrected_image_stack(corrected, original, xy_translation, name='CorrectedImageStack')
+
                 io.write(nwbfile)
 
 
