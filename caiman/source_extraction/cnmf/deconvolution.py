@@ -502,19 +502,23 @@ def _nnls(KK, Ky, s=None, mask=None, tol=1e-9, max_iter=None):
         P[w] = True
 
         try:  # likely unnnecessary try-except-clause for robustness sake
-            mu = np.linalg.inv(KK[P][:, P]).dot(Ky[P])
+            #mu = np.linalg.inv(KK[P][:, P]).dot(Ky[P])
+            mu = np.linalg.solve(KK[P][:, P], Ky[P])
         except:
-            mu = np.linalg.inv(KK[P][:, P] + tol * np.eye(P.sum())).dot(Ky[P])
+            #mu = np.linalg.inv(KK[P][:, P] + tol * np.eye(P.sum())).dot(Ky[P])
+            mu = np.linalg.solve(KK[P][:, P] + tol * np.eye(P.sum()), Ky[P])
             print(r'added $\epsilon$I to avoid singularity')
         while len(mu > 0) and min(mu) < 0:
             a = min(s[P][mu < 0] / (s[P][mu < 0] - mu[mu < 0]))
             s[P] += a * (mu - s[P])
             P[s <= tol] = False
             try:
-                mu = np.linalg.inv(KK[P][:, P]).dot(Ky[P])
+                #mu = np.linalg.inv(KK[P][:, P]).dot(Ky[P])
+                mu = np.linalg.solve(KK[P][:, P], Ky[P])
             except:
-                mu = np.linalg.inv(KK[P][:, P] + tol *
-                                   np.eye(P.sum())).dot(Ky[P])
+                #mu = np.linalg.inv(KK[P][:, P] + tol *
+                #                   np.eye(P.sum())).dot(Ky[P])
+                mu = np.linalg.solve(KK[P][:, P] + tol * np.eye(P.sum()), Ky[P])
                 print(r'added $\epsilon$I to avoid singularity')
         s[P] = mu.copy()
         l = Ky - KK[:, P].dot(s[P])

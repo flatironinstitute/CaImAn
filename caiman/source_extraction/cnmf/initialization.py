@@ -1528,7 +1528,8 @@ def extract_ac(data_filtered, data_raw, ind_ctr, patch_dims):
     XX = np.dot(X.T, X)
     Xy = np.dot(X.T, data_raw)
     try:
-        ai = np.linalg.inv(XX).dot(Xy)[0]
+        #ai = np.linalg.inv(XX).dot(Xy)[0]
+        ai = np.linalg.solve(XX, Xy)[0]
     except:
         ai = scipy.linalg.lstsq(XX, Xy)[0][0]
     ai = ai.reshape(patch_dims)
