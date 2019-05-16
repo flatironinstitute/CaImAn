@@ -149,7 +149,7 @@ A visual interface will appear, you will be able to:
 * select subset of neurons based on different quality metrics
 * save the resulting selection to a file in hdf5 format
 
-<img src="docs/img/GUI_img.png" width="500" align="center">
+<img src="docs/img/GUI_img.png" width="1000" align="center">
 
 ## Documentation & Wiki
 
