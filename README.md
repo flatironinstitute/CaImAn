@@ -124,10 +124,32 @@ If you prefer to manage this information somewhere else, the `CAIMAN_DATA` envir
 Alternative environments:
    * [Using GPU](/README-GPU.md)
    * [Older Linux Distros](/README-Distros.md)
-   
+      
 ### Known Issues
 
 A list of known issues can be found [here](https://github.com/flatironinstitute/CaImAn/wiki/Known-Issues). If you still encounter problems please open an issue.  
+
+
+## Graphical interface
+
+CaImAn comes with an experimental visual interface. In order to use it, first load either 
+* demo_OnACID_mesoscope.py
+* demo_caiman_basic.py
+* demo_pipeline.py
+Then you can start the visual interface by running the following command from the base caiman folder:
+```bash
+ipython caiman/gui/gui_pyqtgraph_layout.py
+```
+You will then load the file that is generated at the end of each file (ending in .hdf5)
+
+A visual interface will appear, you will be able to:
+* regulate gain and contrast for the background image (correlation image)
+* regulate the threshold over the spatial masks to visualize components contours
+* click on neurons and see the corresponding trace and mask
+* select subset of neurons based on different quality metrics
+* save the resulting selection to a file in hdf5 format
+
+<img src="docs/img/GUI_img.png" width="1000" align="center">
 
 ## Documentation & Wiki
 
