@@ -1139,6 +1139,91 @@ class Estimates(object):
         bin_masks = self.A_thr.reshape([self.dims[0], self.dims[1], -1], order='F').transpose([2, 0, 1])
         return nf_masks_to_neurof_dict(bin_masks, dataset_name)
 
+    def save(self,
+             filename,
+             imaging_plane_name = None,
+             imaging_series_name = None,
+             sess_desc='CaImAn Results',
+             exp_desc=None,
+             imaging_rate=30,
+             location='somewhere in the brain',
+             orig_file_format='tiff'):
+        """save object in hdf5 file format
+
+        Args:
+            filename: str
+                path to the hdf5 file containing the saved object
+        """
+    #%%
+        from pynwb import NWBHDF5IO
+        from pynwb.ophys import ImageSegmentation, Fluorescence,MotionCorrection
+        import os
+        
+    #%%
+        if '.nwb' != filename[-4:]:
+            raise Exception("Wrong filename")
+        
+        if not os.path.isfile(filename): # if the file doesn't exist create new and add the orginal data path
+            raise Exception('filename should be an existing NWB file. \
+                            Consdier using cnmf.movie.save method to create one.')
+        
+        else: # if the file already exist in the .nwb format then just add the results to it
+            print('Saving the results...')
+            io = NWBHDF5IO(filename, 'r')
+            nwbfile = io.read()
+            # Add processing results
+            mod = nwbfile.create_processing_module('Estimates', 'contains caiman estimates for the main imagin plane')
+            img_seg = ImageSegmentation()
+            mod.add_data_interface(img_seg)
+            fl = Fluorescence()
+            mod.add_data_interface(fl)
+#            mot_crct = MotionCorrection()
+#            mod.add_data_interface(mot_crct)
+            
+            # Add the ROI-related stuff
+            if imaging_plane_name is None:
+                imaging_plane_name = nwbfile.imaging_planes.keys()[0]
+            if imaging_series_name is None:
+                imaging_series_name = nwbfile.acquisition.keys()[0]
+            
+            imaging_plane = nwbfile.imaging_planes[imaging_plane_name]
+            image_series = nwbfile.acquisition[imaging_series_name]
+            
+            ps = img_seg.create_plane_segmentation('CNMF_ROIs',
+                                                   imaging_plane, 'planeseg', image_series)
+            
+            # Add ROIs
+            # Neurons
+            for roi in self.estimates.A.T:
+                ps.add_roi(image_mask=roi.reshape(self.estimates.dims))
+            # Backgrounds
+            for bg in self.estimates.b.T:
+                ps.add_roi(image_mask=bg)
+            
+            # Add Traces
+            n_rois = len(self.estimates.A.T)
+            n_bg = len(self.estimate.f)
+            rt_region_roi = ps.create_roi_table_region('ROIs',
+                                                   region=list(range(n_rois)))
+    
+            rt_region_bg = ps.create_roi_table_region('Background',
+                                                   region=list(range(n_rois,n_rois+n_bg)))
+            
+            timestamps = list(range(self.estimates.f.shape[1]))
+            
+            # Neurons
+            rrs1 = fl.create_roi_response_series('ROI_Fluorescence_Response', self.estimates.C.T, 'lumens', rt_region_roi, timestamps=timestamps)
+            # Background
+            rrs2 = fl.create_roi_response_series('Background_Fluorescence_Response', self.estimates.f.T, 'lumens', rt_region_bg, timestamps=timestamps)
+            
+            # Add MotionCorreciton
+#            create_corrected_image_stack(corrected, original, xy_translation, name='CorrectedImageStack')
+            
+            with NWBHDF5IO(filename, 'w') as io:
+                io.write(nwbfile)
+
+
+
 def compare_components(estimate_gt, estimate_cmp,  Cn=None, thresh_cost=.8, min_dist=10, print_assignment=False, labels=['GT', 'CMP'], plot_results=False):
     if estimate_gt.A_thr is None:
         raise Exception(

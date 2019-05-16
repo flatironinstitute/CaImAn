@@ -3,9 +3,11 @@ Position available
 
 The CaImAn team is hiring! We're looking for a data scientist/software engineer with a strong research component. For more information please follow [this link](https://simonsfoundation.wd1.myworkdayjobs.com/en-US/simonsfoundationcareers/job/162-Fifth-Avenue/Software-Engineer_R0000500).
 
+
 CaImAn
 ======
 <img src="https://github.com/flatironinstitute/CaImAn/blob/master/docs/LOGOS/Caiman_logo_FI.png" width="500" align="right">
+
 
 
 [![Join the chat at https://gitter.im/agiovann/SOURCE_EXTRACTION_PYTHON](https://badges.gitter.im/agiovann/SOURCE_EXTRACTION_PYTHON.svg)](https://gitter.im/agiovann/SOURCE_EXTRACTION_PYTHON?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
