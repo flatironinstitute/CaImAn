@@ -26,3 +26,4 @@ dependencies:
 - tifffile
 - tqdm
 - pyqtgraph
+- pynwb
