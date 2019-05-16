@@ -849,7 +849,7 @@ class Estimates(object):
 
         return self
 
-    def filter_components(self, imgs, params, new_dict={}, dview=None, select_mode='All'):
+    def filter_components(self, imgs, params, new_dict={}, dview=None):
         """Filters components based on given thresholds without re-computing
         the quality metrics. If the quality metrics are not present then it
         calls self.evaluate components.
@@ -860,12 +860,6 @@ class Estimates(object):
 
             params: params object
                 Parameters of the algorithm
-
-            select_mode: str
-                Can be 'All' (no subselection is made, but quality filtering is performed),
-                'Accepted' (subselection of accepted components, a field named self.accepted_list must exist),
-                'Rejected' (subselection of rejected components, a field named self.rejected_list must exist),
-                'Unassigned' (both fields above need to exist)
 
             new_dict: dict
                 New dictionary with parameters to be called. The dictionary
@@ -929,15 +923,6 @@ class Estimates(object):
                                            thresh_cnn_lowest=opts['cnn_lowest'],
                                            use_cnn=opts['use_cnn'],
                                            gSig_range=opts['gSig_range'])
-
-        if select_mode == 'Accepted':
-           self.idx_components = np.array(np.intersect1d(self.idx_components,self.accepted_list))
-        elif select_mode == 'Rejected':
-           self.idx_components = np.array(np.intersect1d(self.idx_components,self.rejected_list))
-        elif select_mode == 'Unassigned':
-           self.idx_components = np.array(np.setdiff1d(self.idx_components,np.union1d(self.rejected_list,self.accepted_list)))
-
-        self.idx_components_bad = np.array(np.setdiff1d(range(len(self.SNR_comp)),self.idx_components))
 
         return self
 
