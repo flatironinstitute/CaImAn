@@ -371,6 +371,7 @@ class CNMF(object):
         estimates = deepcopy(self.estimates)
         estimates.select_components(use_object=True)
         cnm.estimates = estimates
+        cnm.mmap_file = self.mmap_file
         return cnm.fit(images)
 
     def fit(self, images, indices=[slice(None), slice(None)]):
@@ -427,6 +428,7 @@ class CNMF(object):
         try:
             Y.filename = images.filename
             Yr.filename = images.filename
+            self.mmap_file = images.filename
         except AttributeError:  # if no memmapping cause working with small data
             pass
 
@@ -605,6 +607,7 @@ class CNMF(object):
                 self.update_temporal(Yr, use_init=False)
 
         self.estimates.normalize_components()
+
         return self
 
 

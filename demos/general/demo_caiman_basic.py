@@ -98,7 +98,7 @@ def main():
     cnm = cnm.fit_file()
 
 # %% plot contour plots of components
-    Cn = cm.load(fnames[0], subindices=slice(1000)).local_correlations(swap_dim=False)
+    Cn = cm.load(fnames[0]).local_correlations(swap_dim=False)
     cnm.estimates.plot_contours(img=Cn)
 
 # %% load memory mapped file
@@ -133,13 +133,12 @@ def main():
     cnm2.estimates.plot_contours(img=Cn, idx=cnm2.estimates.idx_components)
     # %% visualize selected components
     cnm2.estimates.view_components(images, idx=cnm2.estimates.idx_components, img=Cn)
-    #%% only select high quality components
-    cnm2.estimates.select_components(use_object=True)
-    #%%
-    cnm2.estimates.plot_contours(img=Cn)
+    #%% only select high quality components (destructive)
+    # cnm2.estimates.select_components(use_object=True)
+    # cnm2.estimates.plot_contours(img=Cn)
     #%% save results
-    cnm2.save(cnm.mmap_file[:-4]+'hdf5')
-    cm.movie(Cn).save(cnm.mmap_file[:-5]+'_Cn.tif')
+    cnm2.estimates.Cn = Cn
+    cnm2.save(cnm2.mmap_file[:-4]+'hdf5')
 
 # %% play movie with results (original, reconstructed, amplified residual)
     cnm2.estimates.play_movie(images, magnification=4)
