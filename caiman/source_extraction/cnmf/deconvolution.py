@@ -502,19 +502,23 @@ def _nnls(KK, Ky, s=None, mask=None, tol=1e-9, max_iter=None):
         P[w] = True
 
         try:  # likely unnnecessary try-except-clause for robustness sake
-            mu = np.linalg.inv(KK[P][:, P]).dot(Ky[P])
+            #mu = np.linalg.inv(KK[P][:, P]).dot(Ky[P])
+            mu = np.linalg.solve(KK[P][:, P], Ky[P])
         except:
-            mu = np.linalg.inv(KK[P][:, P] + tol * np.eye(P.sum())).dot(Ky[P])
+            #mu = np.linalg.inv(KK[P][:, P] + tol * np.eye(P.sum())).dot(Ky[P])
+            mu = np.linalg.solve(KK[P][:, P] + tol * np.eye(P.sum()), Ky[P])
             print(r'added $\epsilon$I to avoid singularity')
         while len(mu > 0) and min(mu) < 0:
             a = min(s[P][mu < 0] / (s[P][mu < 0] - mu[mu < 0]))
             s[P] += a * (mu - s[P])
             P[s <= tol] = False
             try:
-                mu = np.linalg.inv(KK[P][:, P]).dot(Ky[P])
+                #mu = np.linalg.inv(KK[P][:, P]).dot(Ky[P])
+                mu = np.linalg.solve(KK[P][:, P], Ky[P])
             except:
-                mu = np.linalg.inv(KK[P][:, P] + tol *
-                                   np.eye(P.sum())).dot(Ky[P])
+                #mu = np.linalg.inv(KK[P][:, P] + tol *
+                #                   np.eye(P.sum())).dot(Ky[P])
+                mu = np.linalg.solve(KK[P][:, P] + tol * np.eye(P.sum()), Ky[P])
                 print(r'added $\epsilon$I to avoid singularity')
         s[P] = mu.copy()
         l = Ky - KK[:, P].dot(s[P])
@@ -988,7 +992,7 @@ def estimate_time_constant(fluor, p=2, sn=None, lags=5, fudge_factor=1.):
 
     A = scipy.linalg.toeplitz(xc[lags + np.arange(lags)],
                               xc[lags + np.arange(p)]) - sn**2 * np.eye(lags, p)
-    g = np.linalg.lstsq(A, xc[lags + 1:])[0]
+    g = np.linalg.lstsq(A, xc[lags + 1:], rcond=None)[0]
     gr = np.roots(np.concatenate([np.array([1]), -g.flatten()]))
     gr = old_div((gr + gr.conjugate()), 2.)
     np.random.seed(45) # We want some variability below, but it doesn't have to be random at

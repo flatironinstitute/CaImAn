@@ -21,15 +21,16 @@ https://docs.python.org/3/library/urllib.request.htm
 #\pre none
 
 import cv2
-import logging
 import h5py
-
+import logging
+import matplotlib.pyplot as plt
 import numpy as np
 import os
 import pickle
 import scipy
 from scipy.ndimage.filters import gaussian_filter
 from tifffile import TiffFile
+from typing import Any, Dict, List, Tuple, Union, Iterable
 
 try:
     cv2.setNumThreads(0)
@@ -37,15 +38,15 @@ except:
     pass
 
 from urllib.request import urlopen
+
 from ..external.cell_magic_wand import cell_magic_wand
 from ..source_extraction.cnmf.spatial import threshold_components
-
 from caiman.paths import caiman_datadir
 
 #%%
 
 
-def download_demo(name='Sue_2x_3000_40_-46.tif', save_folder=''):
+def download_demo(name:str='Sue_2x_3000_40_-46.tif', save_folder:str='') -> str:
     """download a file from the file list with the url of its location
 
 
@@ -57,7 +58,8 @@ def download_demo(name='Sue_2x_3000_40_-46.tif', save_folder=''):
     
             save_folder: str
                 folder inside ./example_movies to which the files will be saved. Will be created if it doesn't exist
-
+        Returns:
+            Path of the saved file
     Raise:
         WrongFolder Exception
     """
@@ -126,8 +128,8 @@ def val_parse(v):
             return v
 
 
-def si_parse(imd):
-    """parse image_description field embedded by scanimage from get iamge description
+def si_parse(imd:str) -> Dict:
+    """parse image_description field embedded by scanimage from get image description
 
      Args:
          imd: image description
@@ -137,15 +139,15 @@ def si_parse(imd):
 
     """
 
-    imd = imd.split('\n')
-    imd = [i for i in imd if '=' in i]
-    imd = [i.split('=') for i in imd]
-    imd = [[ii.strip(' \r') for ii in i] for i in imd]
-    imd = {i[0]: val_parse(i[1]) for i in imd}
-    return imd
+    imddata:Any = imd.split('\n')
+    imddata = [i for i in imddata if '=' in i]
+    imddata = [i.split('=') for i in imddata]
+    imddata = [[ii.strip(' \r') for ii in i] for i in imddata]
+    imddata = {i[0]: val_parse(i[1]) for i in imddata}
+    return imddata
 
 
-def get_image_description_SI(fname):
+def get_image_description_SI(fname:str) -> List:
     """Given a tif file acquired with Scanimage it returns a dictionary containing the information in the image description field
 
      Args:
@@ -160,8 +162,7 @@ def get_image_description_SI(fname):
 
     for idx, pag in enumerate(tf.pages):
         if idx % 1000 == 0:
-            logging.debug(idx)
-    #        i2cd=si_parse(pag.tags['image_description'].value)['I2CData']
+            logging.debug(idx) # progress report to the user
         field = pag.tags['image_description'].value
 
         image_descriptions.append(si_parse(field))
@@ -170,9 +171,9 @@ def get_image_description_SI(fname):
 
 
 #%% Generate data
-def gen_data(dims=(48, 48), N=10, sig=(3, 3), tau=1., noise=.3, T=2000,
-             framerate=30, firerate=.5, seed=3, cmap=False, truncate=np.exp(-2),
-             difference_of_Gaussians=True, fluctuating_bkgrd=[50, 300]):
+def gen_data(dims:Tuple[int,int]=(48, 48), N:int=10, sig:Tuple[int,int]=(3, 3), tau:float=1., noise:float=.3, T:int=2000,
+             framerate:int=30, firerate:float=.5, seed:int=3, cmap:bool=False, truncate:float=np.exp(-2),
+             difference_of_Gaussians:bool=True, fluctuating_bkgrd:List=[50, 300]) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, Tuple[int, int]]:
     bkgrd = 10  # fluorescence baseline
     np.random.seed(seed)
     boundary = 4
@@ -238,7 +239,6 @@ def gen_data(dims=(48, 48), N=10, sig=(3, 3), tau=1., noise=.3, T=2000,
         * (np.prod(dims), T)).astype('float32') + trueA.dot(trueC)
 
     if cmap:
-        import matplotlib.pyplot as plt
         import caiman as cm
         Y = np.reshape(Yr, dims + (T,), order='F')
         Cn = cm.local_correlations(Y)
@@ -264,23 +264,23 @@ def gen_data(dims=(48, 48), N=10, sig=(3, 3), tau=1., noise=.3, T=2000,
         plt.imshow(Cn, cmap=cmap)
         plt.title('Correlation')
         plt.show()
-    return Yr, trueC, trueS, trueA, trueb, truef, centers, dims
+    return Yr, trueC, trueS, trueA, trueb, truef, centers, dims # XXX dims is always the same as passed into the function?
 
 
 #%%
-def save_object(obj, filename):
+def save_object(obj, filename:str) -> None:
     with open(filename, 'wb') as output:
         pickle.dump(obj, output, pickle.HIGHEST_PROTOCOL)
 
 
-def load_object(filename):
+def load_object(filename:str) -> Any:
     with open(filename, 'rb') as input_obj:
         obj = pickle.load(input_obj)
     return obj
 #%%
 def apply_magic_wand(A, gSig, dims, A_thr=None, coms=None, dview=None,
                      min_frac=0.7, max_frac=1.0, roughness=2, zoom_factor=1,
-                     center_range=2):
+                     center_range=2) -> np.ndarray:
     """ Apply cell magic Wand to results of CNMF to ease matching with labels
 
     Args:
@@ -343,15 +343,16 @@ def apply_magic_wand(A, gSig, dims, A_thr=None, coms=None, dview=None,
 
     return masks
 
+
 def cell_magic_wand_wrapper(params):
-      a, com, min_radius, max_radius, roughness, zoom_factor, center_range = params
-      msk = cell_magic_wand(a, com, min_radius, max_radius, roughness,
-                            zoom_factor, center_range)
-      return msk
+    a, com, min_radius, max_radius, roughness, zoom_factor, center_range = params
+    msk = cell_magic_wand(a, com, min_radius, max_radius, roughness,
+                          zoom_factor, center_range)
+    return msk
 #%% From https://codereview.stackexchange.com/questions/120802/recursively-save-python-dictionaries-to-hdf5-files-using-h5py
 
 
-def save_dict_to_hdf5(dic, filename):
+def save_dict_to_hdf5(dic:Dict, filename:str) -> None:
     ''' Save dictionary to hdf5 file
     Args:
         dic: dictionary
@@ -363,7 +364,7 @@ def save_dict_to_hdf5(dic, filename):
     with h5py.File(filename, 'w') as h5file:
         recursively_save_dict_contents_to_group(h5file, '/', dic)
 
-def load_dict_from_hdf5(filename):
+def load_dict_from_hdf5(filename:str) -> Dict:
     ''' Load dictionary from hdf5 file
 
     Args:
@@ -377,7 +378,7 @@ def load_dict_from_hdf5(filename):
         return recursively_load_dict_contents_from_group(h5file, '/')
 
 
-def recursively_save_dict_contents_to_group(h5file, path, dic):
+def recursively_save_dict_contents_to_group(h5file:h5py.File, path:str, dic:Dict) -> None:
     '''
     Args:
         h5file: hdf5 object
@@ -406,12 +407,13 @@ def recursively_save_dict_contents_to_group(h5file, path, dic):
             item = np.array(list(item))
         if key == 'g_tot':
             item = np.asarray(item, dtype=np.float)
-        if key in ['groups', 'idx_tot', 'ind_A', 'Ab_epoch','coordinates','loaded_model', 'optional_outputs','merged_ROIs']:
+        if key in ['groups', 'idx_tot', 'ind_A', 'Ab_epoch', 'coordinates',
+                   'loaded_model', 'optional_outputs', 'merged_ROIs']:
             logging.info(['groups', 'idx_tot', 'ind_A', 'Ab_epoch', 'coordinates', 'loaded_model', 'optional_outputs', 'merged_ROIs',
                    '** not saved'])
             continue
 
-        if isinstance(item, list):
+        if isinstance(item, list) or isinstance(item, tuple):
             item = np.array(item)
         if not isinstance(key, str):
             raise ValueError("dict keys must be strings to save to hdf5")
@@ -441,16 +443,17 @@ def recursively_save_dict_contents_to_group(h5file, path, dic):
         # other types cannot be saved and will result in an error
         elif item is None or key == 'dview':
             h5file[path + key] = 'NoneType'
-        elif key in ['dims','medw', 'sigma_smooth_snmf', 'dxy', 'max_shifts', 'strides', 'overlaps', 'gSig']:
+        elif key in ['dims', 'medw', 'sigma_smooth_snmf', 'dxy', 'max_shifts',
+                     'strides', 'overlaps', 'gSig']:
             logging.info(key + ' is a tuple ****')
             h5file[path + key] = np.array(item)
-        elif type(item).__name__ in ['CNMFParams', 'Estimates']: # parameter object
+        elif type(item).__name__ in ['CNMFParams', 'Estimates']: #  parameter object
             recursively_save_dict_contents_to_group(h5file, path + key + '/', item.__dict__)
         else:
             raise ValueError("Cannot save %s type for key '%s'." % (type(item), key))
 
 
-def recursively_load_dict_contents_from_group( h5file, path):
+def recursively_load_dict_contents_from_group(h5file:h5py.File, path:str) -> Dict:
     '''load dictionary from hdf5 object
     Args:
         h5file: hdf5 object
@@ -459,7 +462,7 @@ def recursively_load_dict_contents_from_group( h5file, path):
             path within the hdf5 file
     '''
 
-    ans = {}
+    ans:Dict = {}
     for key, item in h5file[path].items():
 
         if isinstance(item, h5py._hl.dataset.Dataset):

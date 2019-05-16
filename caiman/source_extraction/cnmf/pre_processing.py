@@ -21,7 +21,7 @@ import numpy as np
 import scipy
 import shutil
 import tempfile
-
+import logging
 from builtins import map
 from builtins import range
 from ...mmapping import load_memmap
@@ -50,8 +50,9 @@ def interpolate_missing_data(Y):
         Exception 'The algorithm has not been tested with missing values (NaNs). Remove NaNs and rerun the algorithm.'
     """
     coor = []
-    print('checking if missing data')
+    logging.info('Checking for missing data entries (NaN)')
     if np.any(np.isnan(Y)):
+        logging.info('Interpolating missing data')
         for idx, row in enumerate(Y):
             nans = np.where(np.isnan(row))[0]
             n_nans = np.where(~np.isnan(row))[0]
@@ -183,12 +184,12 @@ def get_noise_fft(Y, noise_range=[0.25, 0.5], noise_method='logmexp', max_num_sa
                 cv2.setNumThreads(0)
             except:
                 pass
-            psdx = []
+            psdx_list = []
             for y in Y.reshape(-1, T):
                 dft = cv2.dft(y, flags=cv2.DFT_COMPLEX_OUTPUT).squeeze()[
                     :len(ind)][ind]
-                psdx.append(np.sum(1. / T * dft * dft, 1))
-            psdx = np.reshape(psdx, Y.shape[:-1] + (-1,))
+                psdx_list.append(np.sum(1. / T * dft * dft, 1))
+            psdx = np.reshape(psdx_list, Y.shape[:-1] + (-1,))
         else:
             xdft = np.fft.rfft(Y, axis=-1)
             xdft = xdft[..., ind[:xdft.shape[-1]]]
@@ -488,7 +489,10 @@ def nextpow2(value):
     return exponent
 
 
-def preprocess_data(Y, sn=None, dview=None, n_pixels_per_process=100, noise_range=[0.25, 0.5], noise_method='logmexp', compute_g=False, p=2, lags=5, include_noise=False, pixels=None, max_num_samples_fft=3000, check_nan=True):
+def preprocess_data(Y, sn=None, dview=None, n_pixels_per_process=100,
+                    noise_range=[0.25, 0.5], noise_method='logmexp',
+                    compute_g=False, p=2, lags=5, include_noise=False,
+                    pixels=None, max_num_samples_fft=3000, check_nan=True):
     """
     Performs the pre-processing operations described above.
 

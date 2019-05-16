@@ -1,6 +1,6 @@
 # .readthedocs.yml
 build:
-  image:latest
+  image: latest
 
 python:
   version: 3.6

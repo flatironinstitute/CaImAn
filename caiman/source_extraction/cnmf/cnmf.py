@@ -260,6 +260,7 @@ class CNMF(object):
 
         # these are movie properties that will be refactored into the Movie object
         self.dims = None
+        self.empty_merged = None
 
         # these are member variables related to the CNMF workflow
         self.skip_refinement = skip_refinement
@@ -292,10 +293,29 @@ class CNMF(object):
             )
         else:
             self.params = params
+            params.set('patch', {'n_processes': n_processes})
+
         self.estimates = Estimates(A=Ain, C=Cin, b=b_in, f=f_in,
                                    dims=self.params.data['dims'])
 
-    def fit_file(self, motion_correct=False, indeces=[slice(None)]*2):
+    def fit_file(self, motion_correct=False, indices=[slice(None)]*2):
+        """
+        This method packages the analysis pipeline (motion correction, memory
+        mapping, patch based CNMF processing) in a single method that can be
+        called on a specific (sequence of) file(s). It is assumed that the CNMF
+        object already contains a params object where the location of the files
+        and all the relevant parameters have been specified. The method does
+        not perform the quality evaluation step. Consult demo_pipeline for an
+        example.
+
+        Args:
+            motion_correct (bool)
+                flag for performing motion correction
+            indices (list of slice objects)
+                perform analysis only on a part of the FOV
+        Returns:
+            cnmf object with the current estimates
+        """
         fnames = self.params.get('data', 'fnames')
         if os.path.exists(fnames[0]):
             _, extension = os.path.splitext(fnames[0])[:2]
@@ -331,7 +351,7 @@ class CNMF(object):
 
         images = np.reshape(Yr.T, [T] + list(dims), order='F')
         self.mmap_file = fname_new
-        return self.fit(images, indeces=indeces)
+        return self.fit(images, indices=indices)
 
     def refit(self, images, dview=None):
         """
@@ -353,17 +373,16 @@ class CNMF(object):
         cnm.estimates = estimates
         return cnm.fit(images)
 
-    def fit(self, images, indeces=[slice(None), slice(None)]):
+    def fit(self, images, indices=[slice(None), slice(None)]):
         """
         This method uses the cnmf algorithm to find sources in data.
-
-        it is calling everyfunction from the cnmf folder
+        it is calling every function from the cnmf folder
         you can find out more at how the functions are called and how they are laid out at the ipython notebook
 
         Args:
             images : mapped np.ndarray of shape (t,x,y[,z]) containing the images that vary over time.
 
-            indeces: list of slice objects along dimensions (x,y[,z]) for processing only part of the FOV
+            indices: list of slice objects along dimensions (x,y[,z]) for processing only part of the FOV
 
         Returns:
             self: updated using the cnmf algorithm with C,A,S,b,f computed according to the given initial values
@@ -378,20 +397,20 @@ class CNMF(object):
 
         """
         # Todo : to compartment
-        if isinstance(indeces, slice):
-            indeces = [indeces]
-        indeces = [slice(None)] + indeces
-        if len(indeces) < len(images.shape):
-            indeces = indeces + [slice(None)]*(len(images.shape) - len(indeces))
+        if isinstance(indices, slice):
+            indices = [indices]
+        indices = [slice(None)] + indices
+        if len(indices) < len(images.shape):
+            indices = indices + [slice(None)]*(len(images.shape) - len(indices))
         dims_orig = images.shape[1:]
-        dims_sliced = images[indeces].shape[1:]
+        dims_sliced = images[tuple(indices)].shape[1:]
         is_sliced = (dims_orig != dims_sliced)
         if self.params.get('patch', 'rf') is None and (is_sliced or 'ndarray' in str(type(images))):
-            images = images[indeces]
+            images = images[tuple(indices)]
             self.dview = None
-            logging.warning("Parallel processing in a single patch\
-                            is not available for loaded in memory or sliced\
-                            data.")
+            logging.info("Parallel processing in a single patch "
+                            "is not available for loaded in memory or sliced" +
+                            " data.")
 
         T = images.shape[0]
         self.params.set('online', {'init_batch': T})
@@ -400,7 +419,7 @@ class CNMF(object):
         Y = np.transpose(images, list(range(1, len(self.dims) + 1)) + [0])
         Yr = np.transpose(np.reshape(images, (T, -1), order='F'))
         if np.isfortran(Yr):
-            raise Exception('The file is in F order, it should be in C order (see save_memmap function')
+            raise Exception('The file is in F order, it should be in C order (see save_memmap function)')
 
         logging.info((T,) + self.dims)
 
@@ -434,10 +453,10 @@ class CNMF(object):
         logging.info('using ' + str(self.params.get('temporal', 'block_size_temp')) + ' block_size_temp')
 
         if self.params.get('patch', 'rf') is None:  # no patches
-            logging.debug('preprocessing ...')
+            logging.info('preprocessing ...')
             Yr = self.preprocess(Yr)
             if self.estimates.A is None:
-                logging.debug('initializing ...')
+                logging.info('initializing ...')
                 self.initialize(Y)
 
             if self.params.get('patch', 'only_init'):  # only return values after initialization
@@ -467,7 +486,7 @@ class CNMF(object):
                     logging.info(('Keeping ' + str(len(idx_components)) +
                            ' and discarding  ' + str(len(idx_components_bad))))
                     self.estimates.C = self.estimates.C[idx_components]
-                    self.estimates.A = self.estimates.A[:, idx_components]
+                    self.estimates.A = self.estimates.A[:, idx_components] # type: ignore # not provable that self.initialise provides a value
                     self.estimates.YrA = self.estimates.YrA[idx_components]
 
                 self.estimates.normalize_components()
@@ -490,13 +509,9 @@ class CNMF(object):
             if not self.skip_refinement:
                 logging.info('refinement...')
                 if self.params.get('merging', 'do_merge'):
-                    logging.debug('merging components ...')
-                    logging.debug(self.estimates.A.shape)
-                    logging.debug(self.estimates.C.shape)
+                    logging.info('merging components ...')
                     self.merge_comps(Yr, mx=50, fast_merge=True)
 
-                logging.debug(self.estimates.A.shape)
-                logging.debug(self.estimates.C.shape)
                 logging.info('Updating spatial ...')
 
                 self.update_spatial(Yr, use_init=False)
@@ -511,7 +526,7 @@ class CNMF(object):
             # embed in the whole FOV
             if is_sliced:
                 FOV = np.zeros(dims_orig, order='C')
-                FOV[indeces[1:]] = 1
+                FOV[indices[1:]] = 1
                 FOV = FOV.flatten(order='F')
                 ind_nz = np.where(FOV>0)[0].tolist()
                 self.estimates.A = self.estimates.A.tocsc()
@@ -528,8 +543,8 @@ class CNMF(object):
         else:  # use patches
             if self.params.get('patch', 'stride') is None:
                 self.params.set('patch', {'stride': np.int(self.params.get('patch', 'rf') * 2 * .1)})
-                logging.debug(
-                    ('**** Setting the stride to 10% of 2*rf automatically:' + str(self.params.get('patch', 'stride'))))
+                logging.info(
+                    ('Setting the stride to 10% of 2*rf automatically:' + str(self.params.get('patch', 'stride'))))
 
             if type(images) is np.ndarray:
                 raise Exception(
@@ -542,10 +557,10 @@ class CNMF(object):
                     gnb=self.params.get('init', 'nb'), border_pix=self.params.get('patch', 'border_pix'),
                     low_rank_background=self.params.get('patch', 'low_rank_background'),
                     del_duplicates=self.params.get('patch', 'del_duplicates'),
-                    indeces=indeces)
+                    indices=indices)
 
             self.estimates.bl, self.estimates.c1, self.estimates.g, self.estimates.neurons_sn = None, None, None, None
-            print("merging")
+            logging.info("merging")
             self.estimates.merged_ROIs = [0]
 
 
@@ -555,14 +570,14 @@ class CNMF(object):
                     while len(self.estimates.merged_ROIs) > 0:
                         self.merge_comps(Yr, mx=np.Inf, fast_merge=True)
 
-                    logging.debug("update temporal")
+                    logging.info("update temporal")
                     self.update_temporal(Yr, use_init=False)
 
                     self.params.set('spatial', {'se': np.ones((1,) * len(self.dims), dtype=np.uint8)})
-                    logging.debug('update spatial ...')
+                    logging.info('update spatial ...')
                     self.update_spatial(Yr, use_init=False)
 
-                    logging.debug("update temporal")
+                    logging.info("update temporal")
                     self.update_temporal(Yr, use_init=False)
                 else:
                     while len(self.estimates.merged_ROIs) > 0:
@@ -571,7 +586,7 @@ class CNMF(object):
                             not_merged = np.setdiff1d(list(range(len(self.estimates.YrA))),
                                                       np.unique(np.concatenate(self.estimates.merged_ROIs)))
                             self.estimates.YrA = np.concatenate([self.estimates.YrA[not_merged],
-                                                       np.array([self.estimates.YrA[m].mean(0) for m in self.estimates.merged_ROIs])])
+                                                       np.array([self.estimates.YrA[m].mean(0) for ind, m in enumerate(self.estimates.merged_ROIs) if not self.empty_merged[ind]])])
                     if self.params.get('init', 'nb') == 0:
                         self.estimates.W, self.estimates.b0 = compute_W(
                             Yr, self.estimates.A.toarray(), self.estimates.C, self.dims,
@@ -583,7 +598,6 @@ class CNMF(object):
                     else:
                         self.estimates.S = self.estimates.C
             else:
-
                 while len(self.estimates.merged_ROIs) > 0:
                     self.merge_comps(Yr, mx=np.Inf)
 
@@ -608,11 +622,12 @@ class CNMF(object):
             raise Exception("Filename not supported")
 
     def remove_components(self, ind_rm):
-        """remove a specified list of components from the OnACID CNMF object.
+        """
+        Remove a specified list of components from the CNMF object.
 
         Args:
             ind_rm :    list
-                        indeces of components to be removed
+                        indices of components to be removed
         """
 
         self.estimates.Ab, self.estimates.Ab_dense, self.estimates.CC, self.estimates.CY, self.M,\
@@ -627,7 +642,10 @@ class CNMF(object):
         self.params.set('online', {'expected_comps': expected_comps})
 
     def compute_residuals(self, Yr):
-        """compute residual for each component (variable YrA)
+        """
+        Compute residual trace for each component (variable YrA).
+        WARNING: At the moment this method is valid only for the 2p processing
+        pipeline
 
          Args:
              Yr :    np.ndarray
@@ -707,8 +725,8 @@ class CNMF(object):
         self.estimates.S = np.stack([results[1][i] for i in order])
         self.estimates.bl = [results[3][i] for i in order]
         self.estimates.c1 = [results[4][i] for i in order]
-        self.estimates.g = [results[5][i] for i in order]
-        self.estimates.neuron_sn = [results[6][i] for i in order]
+        self.estimates.g = [results[6][i] for i in order]
+        self.estimates.neurons_sn = [results[5][i] for i in order]
         self.estimates.lam = [results[8][i] for i in order]
         self.estimates.YrA = F - self.estimates.C
         return self
@@ -758,7 +776,7 @@ class CNMF(object):
             groups = list(map(list, update_order(Ab)[0]))
         self.estimates.groups = groups
         C, noisyC = HALS4activity(Yr, Ab, Cf, groups=self.estimates.groups, order=order,
-                                  **kwargs)
+                                  **kwargs) # FIXME: this function is not defined in this scope
         if update_bck:
             if bck_non_neg:
                 self.estimates.f = C[:self.params.get('init', 'nb')]
@@ -801,7 +819,7 @@ class CNMF(object):
             except():
                 Cf = self.estimates.C
             Yr = Yr - self.estimates.b.dot(self.estimates.f)
-        Ab = HALS4shapes(Yr, Ab, Cf, iters=num_iter)
+        Ab = HALS4shapes(Yr, Ab, Cf, iters=num_iter) # FIXME: this function is not defined in this scope
         if update_bck:
             self.estimates.A = scipy.sparse.csc_matrix(Ab[:, self.params.get('init', 'nb'):])
             self.estimates.b = Ab[:, :self.params.get('init', 'nb')]
@@ -863,7 +881,6 @@ class CNMF(object):
         for key in kwargs_new:
             if hasattr(self, key):
                 setattr(self, key, kwargs_new[key])
-
         self.estimates.A, self.estimates.b, self.estimates.C, self.estimates.f =\
             update_spatial_components(Y, C=self.estimates.C, f=self.estimates.f, A_in=self.estimates.A,
                                       b_in=self.estimates.b, dview=self.dview,
@@ -875,7 +892,7 @@ class CNMF(object):
         """merges components
         """
         self.estimates.A, self.estimates.C, self.estimates.nr, self.estimates.merged_ROIs, self.estimates.S, \
-        self.estimates.bl, self.estimates.c1, self.estimates.neurons_sn, self.estimates.g=\
+        self.estimates.bl, self.estimates.c1, self.estimates.neurons_sn, self.estimates.g, self.empty_merged=\
             merge_components(Y, self.estimates.A, self.estimates.b, self.estimates.C, self.estimates.f, self.estimates.S,
                              self.estimates.sn, self.params.get_group('temporal'),
                              self.params.get_group('spatial'), dview=self.dview,
@@ -912,6 +929,15 @@ class CNMF(object):
         return self
 
     def preprocess(self, Yr):
+        """
+        Examines data to remove corrupted pixels and computes the noise level
+        estimate fo each pixel.
+
+        Args:
+            Yr: np.array (or memmap.array)
+                2d array of data (pixels x timesteps) typically in memory
+                mapped form
+        """
         Yr, self.estimates.sn, self.estimates.g, self.estimates.psx = preprocess_data(
             Yr, dview=self.dview, **self.params.get_group('preprocess'))
         return Yr

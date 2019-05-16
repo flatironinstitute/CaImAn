@@ -1,7 +1,13 @@
+Position available
+======
+
+The CaImAn team is hiring! We're looking for a data scientist/software engineer with a strong research component. For more information please follow [this link](https://simonsfoundation.wd1.myworkdayjobs.com/en-US/simonsfoundationcareers/job/162-Fifth-Avenue/Software-Engineer_R0000500).
+
 
 CaImAn
 ======
 <img src="https://github.com/flatironinstitute/CaImAn/blob/master/docs/LOGOS/Caiman_logo_FI.png" width="500" align="right">
+
 
 
 [![Join the chat at https://gitter.im/agiovann/SOURCE_EXTRACTION_PYTHON](https://badges.gitter.im/agiovann/SOURCE_EXTRACTION_PYTHON.svg)](https://gitter.im/agiovann/SOURCE_EXTRACTION_PYTHON?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
@@ -26,9 +32,11 @@ A paper explaining most of the implementation details and benchmarking can be fo
 }
 ```
 
+All the results and figures of the paper can be regenerated using this package. For more information visit this [page](https://github.com/flatironinstitute/CaImAn/tree/master/use_cases/eLife_scripts).
+
 ## New: Code refactoring (October 2018)
 
-We recently refactored the code to simplify the parameter setting and usage of the various algorithms. The code now is based revolves around the following objects:
+We recently refactored the code to simplify the parameter setting and usage of the various algorithms. The code now is based around the following objects:
 
 * `params`: A single object containing a set of dictionaries with the parameters used in all the algorithms. It can be set and changed easily and is passed into all the algorithms.
 * `MotionCorrect`: An object for motion correction which can be used for both rigid and piece-wise rigid motion correction.
@@ -117,6 +125,7 @@ If you prefer to manage this information somewhere else, the `CAIMAN_DATA` envir
 
 Alternative environments:
    * [Using GPU](/README-GPU.md)
+   * [Older Linux Distros](/README-Distros.md)
    
 ### Known Issues
 

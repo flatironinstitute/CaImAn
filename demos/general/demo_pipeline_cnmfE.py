@@ -132,7 +132,7 @@ def main():
     gSig = (3, 3)       # gaussian width of a 2D gaussian kernel, which approximates a neuron
     gSiz = (13, 13)     # average diameter of a neuron, in general 4*gSig+1
     Ain = None          # possibility to seed with predetermined binary masks
-    merge_thresh = .7   # merging threshold, max correlation allowed
+    merge_thr = .7      # merging threshold, max correlation allowed
     rf = 40             # half-size of the patches in pixels. e.g., if rf=40, patches are 80x80
     stride_cnmf = 20    # amount of overlap between the patches in pixels
     #                     (keep it at least large as gSiz, i.e 4 times the neuron size gSig)
@@ -160,7 +160,7 @@ def main():
                                     'K': K,
                                     'gSig': gSig,
                                     'gSiz': gSiz,
-                                    'merge_thresh': merge_thresh,
+                                    'merge_thr': merge_thr,
                                     'p': p,
                                     'tsub': tsub,
                                     'ssub': ssub,
@@ -183,7 +183,11 @@ def main():
 
 # %% compute some summary images (correlation and peak to noise)
     # change swap dim if output looks weird, it is a problem with tiffile
-    cn_filter, pnr = cm.summary_images.correlation_pnr(images, gSig=gSig[0], swap_dim=False)
+    cn_filter, pnr = cm.summary_images.correlation_pnr(images[::1], gSig=gSig[0], swap_dim=False)
+    # if your images file is too long this computation will take unnecessarily
+    # long time and consume a lot of memory. Consider changing images[::1] to
+    # images[::5] or something similar to compute on a subset of the data
+
     # inspect the summary images and set the parameters
     inspect_correlation_pnr(cn_filter, pnr)
     # print parameters set above, modify them if necessary based on summary images

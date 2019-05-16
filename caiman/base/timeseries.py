@@ -18,6 +18,15 @@ import pickle as cpk
 from scipy.io import savemat
 import tifffile
 import warnings
+from datetime import datetime
+from dateutil.tz import tzlocal
+from pynwb import NWBHDF5IO
+import numpy as np
+from pynwb import NWBFile
+from pynwb.ophys import TwoPhotonSeries, OpticalChannel, ImageSegmentation, Fluorescence, MotionCorrection
+from pynwb.device import Device
+import os
+from caiman.paths import memmap_frames_filename
 
 try:
     cv2.setNumThreads(0)
@@ -112,7 +121,29 @@ class timeseries(np.ndarray):
         self.file_name = getattr(obj, 'file_name', None)
         self.meta_data = getattr(obj, 'meta_data', None)
 
-    def save(self, file_name, to32=True, order='F',imagej=False, bigtiff=True, software='CaImAn', compress=0):
+    def save(self,
+             file_name,
+             to32=True,
+             order='F',
+             imagej=False,
+             bigtiff=True,
+             software='CaImAn',
+             compress=0,
+             var_name_hdf5='mov',
+             sess_desc='some_description',
+             identifier = 'some identifier',
+             exp_desc = 'experiment description',
+             imaging_plane_description = 'spome imaging plane description',
+             location = 'somewhere in the brain',
+             emission_lambda = 600.,
+             indicator = 'OGB-1',
+             location = location,
+             starting_time = 0,
+             experimenter='Dr Who',
+             lab_name='NEL',
+             institution='UNC-CH',
+             experiment_description='Experiment Description',
+             session_id='Session ID'):
         """
         Save the timeseries in various formats
 
@@ -125,6 +156,9 @@ class timeseries(np.ndarray):
 
             order: 'F' or 'C'
                 C or Fortran order
+
+            var_name_hdf5: str
+                Name of hdf5 file subdirectory
 
         Raises:
             Exception 'Extension Unknown'
@@ -191,10 +225,12 @@ class timeseries(np.ndarray):
 
             if self.meta_data[0] is None:
                 savemat(file_name, {'input_arr': np.rollaxis(
-                    input_arr, axis=0, start=3), 'start_time': self.start_time, 'fr': self.fr, 'meta_data': [], 'file_name': f_name})
+                    input_arr, axis=0, start=3), 'start_time': self.start_time,
+                    'fr': self.fr, 'meta_data': [], 'file_name': f_name})
             else:
                 savemat(file_name, {'input_arr': np.rollaxis(
-                    input_arr, axis=0, start=3), 'start_time': self.start_time, 'fr': self.fr, 'meta_data': self.meta_data, 'file_name': f_name})
+                    input_arr, axis=0, start=3), 'start_time': self.start_time,
+                    'fr': self.fr, 'meta_data': self.meta_data, 'file_name': f_name})
 
         elif extension in ('.hdf5', '.h5'):
             with h5py.File(file_name, "w") as f:
@@ -203,7 +239,7 @@ class timeseries(np.ndarray):
                 else:
                     input_arr = np.array(self)
 
-                dset = f.create_dataset("mov", data=input_arr)
+                dset = f.create_dataset(var_name_hdf5, data=input_arr)
                 dset.attrs["fr"] = self.fr
                 dset.attrs["start_time"] = self.start_time
                 try:
@@ -214,7 +250,7 @@ class timeseries(np.ndarray):
                 if self.meta_data[0] is not None:
                     logging.debug("Metadata for saved file: " + str(self.meta_data))
                     dset.attrs["meta_data"] = cpk.dumps(self.meta_data)
-
+                
         elif extension == '.mmap':
             base_name = name
 
@@ -228,8 +264,7 @@ class timeseries(np.ndarray):
             input_arr = np.transpose(input_arr, list(range(1, len(dims) + 1)) + [0])
             input_arr = np.reshape(input_arr, (np.prod(dims), T), order='F')
 
-            fname_tot = base_name + '_d1_' + str(dims[0]) + '_d2_' + str(dims[1]) + '_d3_' + str(
-                1 if len(dims) == 2 else dims[2]) + '_order_' + str(order) + '_frames_' + str(T) + '_.mmap'
+            fname_tot = memmap_frames_filename(base_name, dims, T, order)
             fname_tot = os.path.join(os.path.split(file_name)[0], fname_tot)
             big_mov = np.memmap(fname_tot, mode='w+', dtype=np.float32,
                                 shape=(np.uint64(np.prod(dims)), np.uint64(T)), order=order)
@@ -238,6 +273,60 @@ class timeseries(np.ndarray):
             big_mov.flush()
             del big_mov, input_arr
             return fname_tot
+        
+        
+        
+        elif extension == '.nwb':
+            if to32 and not('float32' in str(self.dtype)):
+                input_arr = self.astype(np.float32)
+            else:
+                input_arr = np.array(self)
+            # Create NWB file
+            nwbfile = NWBFile(sess_desc, identifier,
+                              datetime.now(tzlocal()),
+                              experimenter=experimenter,
+                              lab=lab_name,
+                              institution=institution,
+                              experiment_description=experiment_description,
+                              session_id=session_id)
+            # Get the device
+            device = Device('imaging_device')
+            nwbfile.add_device(device)
+            # OpticalChannel
+            optical_channel = OpticalChannel('main_opt_channel',
+                                             'main optical channel',
+                                             emission_lambda = emission_lambda)
+            imaging_plane = nwbfile.create_imaging_plane(name = 'main_imaging_plane',
+                                                optical_channel = optical_channel,
+                                                description = imaging_plane_description,
+                                                device = device,
+                                                excitation_lambda = excitation_lambda,
+                                                self.fr,
+                                                indicator = indicator,
+                                                location = location)
+            # Images
+            image_series = TwoPhotonSeries(name='original_data', dimension=self.shape[1:],
+                                   data = input_arr,
+                                   imaging_plane=imaging_plane,
+                                   starting_frame=[0],
+                                   starting_time=starting_time,
+                                   rate=self.fr)
+            
+            nwbfile.add_acquisition(image_series)
+            
+            with NWBHDF5IO(file_name, 'w') as io:
+                io.write(nwbfile)
+            
+            return file_name
+        
+        
+        
+        
+        
+        
+        
+        
+        
 
         else:
             logging.error("Extension " + str(extension) + " unknown")
@@ -253,7 +342,6 @@ def concatenate(*args, **kwargs):
     """
     # todo: todocument return
 
-    obj = []
     frRef = None
     for arg in args:
         for m in arg:
