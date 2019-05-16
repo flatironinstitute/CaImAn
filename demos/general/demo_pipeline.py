@@ -8,6 +8,7 @@ params, MotionCorrect and cnmf objects and call the relevant functions. You
 can also run a large part of the pipeline with a single method (cnmf.fit_file)
 See inside for details.
 
+
 Demo is also available as a jupyter notebook (see demo_pipeline.ipynb)
 Dataset couresy of Sue Ann Koay and David Tank (Princeton University)
 
@@ -154,6 +155,7 @@ def main():
     c, dview, n_processes = cm.cluster.setup_cluster(
         backend='local', n_processes=None, single_thread=False)
 
+
 # %%  parameters for source extraction and deconvolution
     p = 1                    # order of the autoregressive system
     gnb = 2                  # number of global background components
@@ -206,8 +208,8 @@ def main():
     cnm.estimates.plot_contours(img=Cn)
     plt.title('Contour plots of found components')
 #%% save results
-    cnm.save(fname_new[:-4]+'hdf5')
-    cm.movie(Cn).save(fname_new[:-5]+'_Cn.tif')
+    cnm.save(fname_new[:-5]+'_init.hdf5')
+    cnm.estimates.Cn = Cn
 # %% RE-RUN seeded CNMF on accepted patches to refine and perform deconvolution
     cnm.params.change_params({'p': p})
     cnm2 = cnm.refit(images, dview=dview)
@@ -239,13 +241,16 @@ def main():
         cnm2.estimates.view_components(images, img=Cn,
                                       idx=cnm2.estimates.idx_components_bad)
     #%% update object with selected components
-    cnm2.estimates.select_components(use_object=True)
+    #cnm2.estimates.select_components(use_object=True)
     #%% Extract DF/F values
     cnm2.estimates.detrend_df_f(quantileMin=8, frames_window=250)
 
+
     #%% Show final traces
     cnm2.estimates.view_components(img=Cn)
-
+    #%%
+    cnm2.estimates.Cn = Cn
+    cnm2.save(cnm2.mmap_file[:-4] + 'hdf5')
     #%% reconstruct denoised movie (press q to exit)
     if display_images:
         cnm2.estimates.play_movie(images, q_max=99.9, gain_res=2,

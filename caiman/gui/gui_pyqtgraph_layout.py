@@ -5,9 +5,13 @@ from pyqtgraph.parametertree import Parameter, ParameterTree, ParameterItem, reg
 import numpy as np
 import caiman as cm
 from caiman.source_extraction.cnmf.cnmf import load_CNMF
+from caiman.source_extraction.cnmf.online_cnmf import load_OnlineCNMF
+
 import cv2
 import scipy
 import os
+# Always start by initializing Qt (only once per application)
+app = QtGui.QApplication([])
 
 try:
     cv2.setNumThreads(1)
@@ -34,22 +38,24 @@ def make_color_img(img, gain=255, out_type=np.uint8):
 
 F = FileDialog()
 
-# movie 
-#mov = cm.load('/Users/agiovann/caiman_data/example_movies/memmap__d1_60_d2_80_d3_1_order_C_frames_2000_.mmap')
-mov = cm.load(F.getOpenFileName(caption='Load Movie', filter='*.hdf5;*.tif')[0])
-
 # load object saved by CNMF
-#cnm_obj = load_CNMF('/Users/agiovann/caiman_data/example_movies/demoMovie.hdf5')
+# cnm_obj = load_CNMF('/Users/agiovann/caiman_data/example_movies/memmap__d1_60_d2_80_d3_1_order_C_frames_2000_save.hdf5')
 cnm_obj = load_CNMF(F.getOpenFileName(caption='Load CNMF Object',filter='*.hdf5')[0])
 
+
+# movie
+# mov = cm.load('/Users/agiovann/caiman_data/example_movies/memmap__d1_60_d2_80_d3_1_order_C_frames_2000_.mmap')
+mov = cm.load(cnm_obj.mmap_file)
+
 # load summary image
-#Cn = cm.load('/Users/agiovann/caiman_data/example_movies/demoMovie_CN.tif')
-Cn = cm.load(F.getOpenFileName(caption='Load Summary Image',filter='*.tif')[0])
+# Cn = cm.load('/Users/agiovann/caiman_data/example_movies/memmap__d1_60_d2_80_d3_1_order_C_frames_2000__Cn.tif')
+Cn = cnm_obj.estimates.Cn
 
 
 estimates = cnm_obj.estimates
-if not hasattr(estimates, 'accepted_list'):  
-    estimates.restore_discarded_components()      
+if not hasattr(estimates, 'accepted_list'):
+    # if estimates.discarded_components.A.shape[-1] > 0:
+    #     estimates.restore_discarded_components()
     estimates.accepted_list = np.array([], dtype=np.int)
     estimates.rejected_list = np.array([], dtype=np.int)
     estimates.img_components = estimates.A.toarray().reshape((estimates.dims[0], estimates.dims[1],-1), order='F').transpose([2,0,1])
@@ -72,10 +78,11 @@ def draw_contours():
     
     if len(estimates.idx_components) > 0:
         contours = [cv2.findContours(cv2.threshold(img, np.int(thrshcomp_line.value()), 255, 0)[1], cv2.RETR_TREE,
-                                     cv2.CHAIN_APPROX_SIMPLE)[1] for img in estimates.img_components[estimates.idx_components]]
+                                     cv2.CHAIN_APPROX_SIMPLE)[0] for img in estimates.img_components[estimates.idx_components]]
         
         SNRs = np.array(estimates.r_values)
         iidd = np.array(estimates.idx_components)
+        
         idx1 = np.where(SNRs[iidd]<0.1)[0]
         idx2 = np.where((SNRs[iidd]>=0.1) & 
                         (SNRs[iidd]<0.25))[0]
@@ -86,6 +93,8 @@ def draw_contours():
         idx5 = np.where((SNRs[iidd]>=0.75) & 
                         (SNRs[iidd]<0.9))[0]
         idx6 = np.where(SNRs[iidd]>=0.9)[0]
+        
+        
     
         cv2.drawContours(bkgr_contours, sum([contours[jj] for jj in idx1], []), -1, (255, 0, 0), 1)
         cv2.drawContours(bkgr_contours, sum([contours[jj] for jj in idx2], []), -1, (0, 255, 0), 1)
@@ -98,8 +107,7 @@ def draw_contours():
 # pg.setConfigOptions(imageAxisOrder='row-major')
 
 #%%
-# Always start by initializing Qt (only once per application)
-app = QtGui.QApplication([])
+
 
 ## Define a top-level widget to hold everything
 w = QtGui.QWidget()
@@ -198,7 +206,7 @@ def mouseClickEvent(event):
     distances = np.sum(((x,y)-estimates.cms[estimates.idx_components])**2, axis=1)**0.5
     min_dist_comp = np.argmin(distances)
     estimates.components_to_plot = estimates.idx_components[min_dist_comp]
-    p2.plot(estimates.C[estimates.components_to_plot] + estimates.R[estimates.components_to_plot], clear=True)
+    p2.plot(estimates.C[estimates.components_to_plot] + estimates.YrA[estimates.components_to_plot], clear=True)
     img2.setImage(estimates.A[:,estimates.components_to_plot].toarray().reshape(estimates.dims, order='F'), autoLevels=True)
     p3.setTitle("pos: (%0.1f, %0.1f)  component: %d  value: %g dist:%f" % (x, y, estimates.components_to_plot,
                                                                             val, distances[min_dist_comp]))
