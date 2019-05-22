@@ -39,6 +39,16 @@ from caiman.source_extraction.cnmf.cnmf import load_CNMF
 from caiman.base.movies import from_zipfiles_to_movie_lists
 import shutil
 import glob
+import logging
+import warnings
+
+logging.basicConfig(format=
+                    "%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s]"\
+                    "[%(process)d] %(message)s",
+                    level=logging.INFO)
+
+warnings.filterwarnings("ignore", category=FutureWarning)
+
 # %%  ANALYSIS MODE AND PARAMETERS
 reload = False
 plot_on = False
@@ -58,6 +68,7 @@ try:
 
 except:
     ID = np.arange(9)
+    ID = [8]
     print('ID NOT PASSED')
 
 print_figs = True
@@ -482,7 +493,7 @@ for params_movie in np.array(params_movies)[ID]:
         print(ld.keys())
         performance_tmp.update(ld)
 
-    performance_tmp['idx_components_gt'] = idx_components_gt
+    performance_tmp['idx_components_gt'] = gt_estimate.idx_components
 
     ALL_CCs.append([scipy.stats.pearsonr(a, b)[0] for a, b in
                     zip(gt_estimate.C[tp_gt], cnm2.estimates.C[tp_comp])])

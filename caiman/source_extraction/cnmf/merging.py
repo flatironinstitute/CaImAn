@@ -112,6 +112,7 @@ def merge_components(Y, A, b, C, f, S, sn_pix, temporal_params, spatial_params, 
 
     #tests and initialization
     nr = A.shape[1]
+    A = csc_matrix(A)
     if bl is not None and len(bl) != nr:
         raise Exception(
             "The number of elements of bl must match the number of components")
@@ -172,49 +173,75 @@ def merge_components(Y, A, b, C, f, S, sn_pix, temporal_params, spatial_params, 
 
         nbmrg = min((np.size(ind), mx))   # number of merging operations
 
-        # we initialize the values
-        A_merged = lil_matrix((d, nbmrg))
-        C_merged = np.zeros((nbmrg, t))
-        S_merged = np.zeros((nbmrg, t))
-        bl_merged = np.zeros((nbmrg, 1))
-        c1_merged = np.zeros((nbmrg, 1))
-        sn_merged = np.zeros((nbmrg, 1))
-        g_merged = np.zeros((nbmrg, p))
-        merged_ROIs = []
+#        # we initialize the values
+#        A_merged = lil_matrix((d, nbmrg))
+#        C_merged = np.zeros((nbmrg, t))
+#        S_merged = np.zeros((nbmrg, t))
+#        bl_merged = np.zeros((nbmrg, 1))
+#        c1_merged = np.zeros((nbmrg, 1))
+#        sn_merged = np.zeros((nbmrg, 1))
+#        g_merged = np.zeros((nbmrg, p))
+#        merged_ROIs = []
+            
+        merged_ROIs = [np.where(list_conxcomp[:, ind[i]])[0] for i in range(nbmrg)]
+        Acsc_mats = [csc_matrix(A[:, merged_ROI]) for merged_ROI in merged_ROIs]
+        Ctmp_mats = [C[merged_ROI] for merged_ROI in merged_ROIs]
+        C_to_norms = [np.sqrt(np.ravel(Acsc.power(2).sum(
+                axis=0)) * np.sum(Ctmp ** 2, axis=1)) for (Acsc, Ctmp) in zip(Acsc_mats, Ctmp_mats)]
+        indxs = [np.argmax(C_to_norm) for C_to_norm in C_to_norms]
+        g_idxs = [merged_ROI[indx] for (merged_ROI, indx) in zip(merged_ROIs, indxs)]
+        fms = [fast_merge]*nbmrg
+        tps = [temporal_params]*nbmrg
+        gs = [g]*nbmrg
+        
+        if dview is None:
+           merge_res = list(map(merge_iter, zip(Acsc_mats, C_to_norms, Ctmp_mats, fms, gs, g_idxs, indxs, tps)))
+        elif 'multiprocessin' in str(type(dview)):
+           merge_res = list(dview.map(merge_iter, zip(Acsc_mats, C_to_norms, Ctmp_mats, fms, gs, g_idxs, indxs, tps)))
+        else:
+           merge_res = list(dview.map_sync(merge_iter, zip(Acsc_mats, C_to_norms, Ctmp_mats, fms, gs, g_idxs, indxs, tps)))
+           dview.results.clear()        
+        #merge_res = list(dview.map(merge_iter, zip(Acsc_mats, C_to_norms, Ctmp_mats, fms, gs, g_idxs, indxs, tps)))
+        bl_merged = np.array([res[0] for res in merge_res])
+        c1_merged = np.array([res[1] for res in merge_res])
+        A_merged = scipy.sparse.hstack([csc_matrix(res[2]) for res in merge_res])
+        C_merged = np.vstack([res[3] for res in merge_res])
+        g_merged = np.vstack([res[4] for res in merge_res])
+        sn_merged = np.array([res[5] for res in merge_res])
+        S_merged = np.vstack([res[6] for res in merge_res])
 
-        for i in range(nbmrg):
-            merged_ROI = np.where(list_conxcomp[:, ind[i]])[0]
-            logging.info('Merging components {}'.format(merged_ROI))
-            merged_ROIs.append(merged_ROI)
-
-            Acsc = A.tocsc()[:, merged_ROI]
-            Ctmp = np.array(C)[merged_ROI, :]
-
-
-            # # we l2 the traces to have normalization values
-            # C_to_norm = np.sqrt([computedC.dot(computedC)
-            #                      for computedC in C[merged_ROI]])
-#            fast_merge = False
-
-            # from here we are computing initial values for C and A
-
-
-            # this is a  big normalization value that for every one of the merged neuron
-            C_to_norm = np.sqrt(np.ravel(Acsc.power(2).sum(
-                axis=0)) * np.sum(Ctmp ** 2, axis=1))
-            indx = np.argmax(C_to_norm)
-            g_idx = [merged_ROI[indx]]
-
-            bm, cm, computedA, computedC, gm, sm, ss = merge_iteration(Acsc, C_to_norm, Ctmp, fast_merge, g, g_idx,
-                                                                       indx, temporal_params)
-
-            A_merged[:, i] = computedA
-            C_merged[i, :] = computedC
-            S_merged[i, :] = ss[:t]
-            bl_merged[i] = bm
-            c1_merged[i] = cm
-            sn_merged[i] = sm
-            g_merged[i, :] = gm
+#        for i in range(nbmrg):
+#            merged_ROI = np.where(list_conxcomp[:, ind[i]])[0]
+#            logging.info('Merging components {}'.format(merged_ROI))
+#            merged_ROIs.append(merged_ROI)
+#            Acsc = A.tocsc()[:, merged_ROI]
+#            Ctmp = np.array(C)[merged_ROI, :]
+#
+#
+#            # # we l2 the traces to have normalization values
+#            # C_to_norm = np.sqrt([computedC.dot(computedC)
+#            #                      for computedC in C[merged_ROI]])
+##            fast_merge = False
+#
+#            # from here we are computing initial values for C and A
+#
+#
+#            # this is a  big normalization value that for every one of the merged neuron
+#            C_to_norm = np.sqrt(np.ravel(Acsc.power(2).sum(
+#                axis=0)) * np.sum(Ctmp ** 2, axis=1))
+#            indx = np.argmax(C_to_norm)
+#            g_idx = [merged_ROI[indx]]
+#
+#            bm, cm, computedA, computedC, gm, sm, ss = merge_iteration(Acsc, C_to_norm, Ctmp, fast_merge, g, g_idx,
+#                                                                       indx, temporal_params)
+#
+#            A_merged[:, i] = computedA
+#            C_merged[i, :] = computedC
+#            S_merged[i, :] = ss[:t]
+#            bl_merged[i] = bm
+#            c1_merged[i] = cm
+#            sn_merged[i] = sm
+#            g_merged[i, :] = gm
 
         empty = np.ravel((C_merged.sum(1) == 0) + (A_merged.sum(0) == 0))
         if np.any(empty):
@@ -251,6 +278,11 @@ def merge_components(Y, A, b, C, f, S, sn_pix, temporal_params, spatial_params, 
 
     return A, C, nr, merged_ROIs, S, bl, c1, sn, g, empty
 
+def merge_iter(a):
+    Acsc, C_to_norm, Ctmp, fast_merge, g, g_idx, indx, temporal_params = a
+    res = merge_iteration(Acsc, C_to_norm, Ctmp, fast_merge, g, g_idx,
+                          indx, temporal_params)
+    return res
 
 def merge_iteration(Acsc, C_to_norm, Ctmp, fast_merge, g, g_idx, indx, temporal_params):
     if fast_merge:

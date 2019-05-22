@@ -266,18 +266,16 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
                 f = np.delete(f, background_ff, 0)
                 b_in = np.delete(b_in, background_ff, 1)
 
-    A_ = A_[:, :nr]
-    A_ = coo_matrix(A_)
-    logging.info("Computing residuals")
-
-    if 'memmap' in str(type(Y)):
-        Y_resf = parallel_dot_product(Y, f.T, dview=dview, block_size=block_size_spat, num_blocks_per_run=num_blocks_per_run_spat) - \
-            A_.dot(C[:nr].dot(f.T))
-    else:
-        # Y*f' - A*(C*f')
-        Y_resf = np.dot(Y, f.T) - A_.dot(C[:nr].dot(f.T))
-
+    A_ = A_[:, :nr]    
     if update_background_components:
+        A_ = csr_matrix(A_)
+        logging.info("Computing residuals")
+        if 'memmap' in str(type(Y)):
+            Y_resf = parallel_dot_product(Y, f.T, dview=dview, block_size=block_size_spat, num_blocks_per_run=num_blocks_per_run_spat) - \
+                A_.dot(C[:nr].dot(f.T))
+        else:
+            # Y*f' - A*(C*f')
+            Y_resf = np.dot(Y, f.T) - A_.dot(C[:nr].dot(f.T))
 
         if b_in is None:
             # update baseline based on residual
@@ -305,7 +303,7 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
     except:
         raise Exception("Failed to delete: " + folder)
 
-    return A_, b, C, f
+    return csc_matrix(A_), b, C, f
 
 
 #%%
