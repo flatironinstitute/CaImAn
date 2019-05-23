@@ -68,7 +68,6 @@ try:
 
 except:
     ID = np.arange(9)
-    ID = [8]
     print('ID NOT PASSED')
 
 print_figs = True
@@ -382,7 +381,7 @@ for params_movie in np.array(params_movies)[ID]:
         # %% UPDATE SOME PARAMETERS
         cnm.params.change_params({'update_background_components': global_params['update_background_components'],
                                   'skip_refinement': skip_refinement,
-                                  'n_pixels_per_process': n_pixels_per_process, 'dview': dview})
+                                  'n_pixels_per_process': n_pixels_per_process, 'dview': dview});
         # %%
         t1 = time.time()
         cnm2 = cnm.refit(images, dview=dview)

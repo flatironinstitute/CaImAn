@@ -31,6 +31,7 @@ import shutil
 from sklearn.decomposition import NMF
 import tempfile
 import time
+import psutil
 from typing import List
 
 from ...mmapping import load_memmap, parallel_dot_product
@@ -270,7 +271,9 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
         A_ = csr_matrix(A_)
         logging.info("Computing residuals")
         if 'memmap' in str(type(Y)):
-            Y_resf = parallel_dot_product(Y, f.T, dview=dview, block_size=block_size_spat, num_blocks_per_run=num_blocks_per_run_spat) - \
+            bl_siz1 = Y.shape[0] // (num_blocks_per_run_spat - 1)
+            bl_siz2 = psutil.virtual_memory().available // (4*Y.shape[-1]*(num_blocks_per_run_spat + 1))
+            Y_resf = parallel_dot_product(Y, f.T, dview=dview, block_size=min(bl_siz1, bl_siz2), num_blocks_per_run=num_blocks_per_run_spat) - \
                 A_.dot(C[:nr].dot(f.T))
         else:
             # Y*f' - A*(C*f')

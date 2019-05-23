@@ -13,6 +13,7 @@ from scipy.sparse import spdiags, diags, coo_matrix, csc_matrix  # ,csgraph
 import scipy
 import numpy as np
 import platform
+import psutil
 from .deconvolution import constrained_foopsi
 from .utilities import update_order_greedy
 import sys
@@ -200,8 +201,11 @@ def update_temporal_components(Y, A, b, Cin, fin, bl=None, c1=None, g=None, sn=N
     logging.info('Generating residuals')
 #    dview_res = None if block_size >= 500 else dview
     if 'memmap' in str(type(Y)):
-        YA = parallel_dot_product(Y, A, dview=dview, block_size=block_size_temp,
-                                  transpose=True, num_blocks_per_run=num_blocks_per_run_temp) * diags(1. / nA)
+        bl_siz1 = d // (np.maximum(num_blocks_per_run_temp - 1, 1))
+        bl_siz2 = int(psutil.virtual_memory().available/(num_blocks_per_run_temp + 1) - 4*A.nnz) // int(4*T)
+        # block_size_temp
+        YA = parallel_dot_product(Y, A.tocsr(), dview=dview, block_size=min(bl_siz1, bl_siz2),
+                                  transpose=True, num_blocks_per_run=num_blocks_per_run_temp) * diags(1. / nA);
     else:
         YA = (A.T.dot(Y).T) * diags(1. / nA)
     AA = ((A.T.dot(A)) * diags(1. / nA)).tocsr()
