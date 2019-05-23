@@ -220,7 +220,6 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
     if i + n_pixels_per_process < np.prod(dims):
         pixel_groups.append([Y_name, C_name, sn, ind2_[(i + n_pixels_per_process):np.prod(dims)], list(
             range(i + n_pixels_per_process, np.prod(dims))), method_ls, cct])
-    #A_ = np.zeros((d, nr + np.size(f, 0)))  # init A_
     #A_ = scipy.sparse.lil_matrix((d, nr + np.size(f, 0)))
     if dview is not None:
         if 'multiprocessing' in str(type(dview)):
@@ -384,7 +383,6 @@ def regression_ipyparallel(pars):
 
     _, T = np.shape(C)  # initialize values
     As = []
-
     for y, px, idx_px_from_0 in zip(Y, idxs_Y, range(len(idxs_C))):
         c = C[idxs_C[idx_px_from_0], :]
         idx_only_neurons = idxs_C[idx_px_from_0]
@@ -405,7 +403,11 @@ def regression_ipyparallel(pars):
             elif method_least_square == 'lasso_lars':  # lasso lars function from scikit learn
                 lambda_lasso = 0 if np.size(cct_) == 0 else \
                     .5 * noise_sn[px] * np.sqrt(np.max(cct_)) / T
-                clf = linear_model.LassoLars(alpha=lambda_lasso, positive=True, fit_intercept=True)
+                clf = linear_model.LassoLars(alpha=lambda_lasso, positive=True,
+                                             fit_intercept=True)
+#                clf = linear_model.Lasso(alpha=lambda_lasso, positive=True,
+#                                         fit_intercept=True, normalize=True,
+#                                         selection='random')
                 a_lrs = clf.fit(np.array(c.T), np.ravel(y))
                 a = a_lrs.coef_
 
