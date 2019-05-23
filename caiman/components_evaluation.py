@@ -169,7 +169,7 @@ def classify_components_ep(Y, A, C, b, f, Athresh=0.1, Npeaks=5, tB=-3, tA=10, t
 
     significant_samples:List[Any] = []
     for i in range(K):
-        if i % 200 == 0:  # Show status periodically
+        if (i+1) % 200 == 0:  # Show status periodically
             logging.info('Components evaluated:' + str(i))
         if LOC[i] is not None:
             atemp = A[:, i].toarray().flatten()
@@ -182,7 +182,7 @@ def classify_components_ep(Y, A, C, b, f, Athresh=0.1, Npeaks=5, tB=-3, tA=10, t
 
             if len(indexes) == 0:
                 indexes = set(LOC[i])
-                logging.warning('Neuron:' + str(i) + ' includes overlapping spiking neurons')
+                logging.debug('Neuron:' + str(i) + ' includes overlapping spiking neurons')
 
             indexes = np.array(list(indexes)).astype(np.int)
             px = np.where(atemp > 0)[0]
@@ -223,13 +223,13 @@ def evaluate_components_CNN(A, dims, gSig, model_name:str=os.path.join(caiman_da
         else:
             raise FileNotFoundError("File for requested model {} not found".format(model_name))
         with open(model_file, 'r') as json_file:
-            print('USING MODEL:' + model_file)
+            logging.debug('USING MODEL:' + model_file)
             loaded_model_json = json_file.read()
 
         loaded_model = model_from_json(loaded_model_json)
         loaded_model.load_weights(model_name + '.h5')
         loaded_model.compile('sgd', 'mse')
-        logging.info("Loaded model from disk")
+        logging.debug("Loaded CNN model from disk")
     half_crop = np.minimum(
         gSig[0] * 4 + 1, patch_size), np.minimum(gSig[1] * 4 + 1, patch_size)
     dims = np.array(dims)
@@ -324,7 +324,7 @@ def evaluate_components(Y:np.ndarray, traces:np.ndarray, A, C, b, f, final_frate
 
     Yr = np.reshape(Y, (np.prod(dims), T), order='F')
 
-    logging.info('Computing event exceptionality delta')
+    logging.debug('Computing event exceptionality delta')
     fitness_delta, erfc_delta, _, _ = compute_event_exceptionality(
         np.diff(traces, axis=1), robust_std=robust_std, N=N, sigma_factor=sigma_factor)
 
@@ -353,8 +353,8 @@ def evaluate_components(Y:np.ndarray, traces:np.ndarray, A, C, b, f, final_frate
             tr_BL = np.reshape(tr_tmp, (downsampfact, int(
                 old_div(numFramesNew, downsampfact)), num_traces), order='F')
             tr_BL = np.percentile(tr_BL, 8, axis=0)
-            logging.info("interpolating data ...")
-            logging.info(tr_BL.shape)
+            logging.debug("interpolating data ...")
+            logging.debug(tr_BL.shape)
             tr_BL = scipy.ndimage.zoom(np.array(tr_BL, dtype=np.float32), [
                                        downsampfact, 1], order=3, mode='constant', cval=0.0, prefilter=True)
             if padafter == 0:
@@ -362,11 +362,11 @@ def evaluate_components(Y:np.ndarray, traces:np.ndarray, A, C, b, f, final_frate
             else:
                 traces -= tr_BL[padbefore:-padafter].T
 
-    logging.info('Computing event exceptionality')
+    logging.debug('Computing event exceptionality')
     fitness_raw, erfc_raw, _, _ = compute_event_exceptionality(
         traces, robust_std=robust_std, N=N, sigma_factor=sigma_factor)
 
-    logging.info('Evaluating spatial footprint')
+    logging.debug('Evaluating spatial footprint')
     # compute the overlap between spatial and movie average across samples with significant events
     r_values, significant_samples = classify_components_ep(Yr, A, C, b, f, Athresh=Athresh, Npeaks=Npeaks, tB=tB,
                                                            tA=tA, thres=thresh_C)
@@ -620,7 +620,7 @@ def estimate_components_quality(traces, Y, A, C, b, f, final_frate=30, Npeaks=10
             if dview is None:
                 res = map(evaluate_components_placeholder, params)
             else:
-                logging.info('EVALUATING IN PARALLEL... NOT RETURNING ERFCs')
+                logging.info('Component evaluation in parallel')
                 if 'multiprocessing' in str(type(dview)):
                     res = dview.map_async(
                         evaluate_components_placeholder, params).get(4294967)
