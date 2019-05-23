@@ -693,7 +693,7 @@ class OnACID(object):
                     for p in range(len(XXt_mats)):
                         index = W.indices[W.indptr[p]:W.indptr[p + 1]]
                         XXt_mats[p] += np.outer(x[index], x[index])
-                        XXt_vecs[p] += np.outer(x[index], x[p])
+                        XXt_vecs[p] += x[index].dot(x[p].T)
             # much faster: exploit that we only access CY[m, ind_pixels], hence update only these
             for m in range(self.N):
                 self.estimates.CY[m + nb_, self.ind_A[m]] *= (1 - 1. / t)

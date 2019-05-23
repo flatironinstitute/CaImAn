@@ -707,7 +707,7 @@ class CNMFParams(object):
             'use_corr_img': use_corr_img,      # flag for using correlation image to detect new components
             'use_dense': use_dense,            # flag for representation and storing of A and b
             'use_peak_max': use_peak_max,      # flag for finding candidate centroids
-            'W_update_factor': 2,              # update W less often than shapes by a given factor 
+            'W_update_factor': 1,              # update W less often than shapes by a given factor 
         }
 
         self.motion = {
@@ -754,6 +754,8 @@ class CNMFParams(object):
             self.init['gSig'] = [-1, -1]
         if self.init['gSiz'] is None:
             self.init['gSiz'] = [2*gs + 1 for gs in self.init['gSig']]
+        if self.motion['gSig_filt'] is None:
+            self.motion['gSig_filt'] = self.init['gSig']
 
         if gnb <= 0:
             logging.warning("gnb={0}, hence setting keys nb_patch and low_rank_background ".format(gnb) +
