@@ -23,6 +23,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from past.utils import old_div
 import scipy
+from scipy.linalg.lapack import dpotrf, dpotrs
 import scipy.ndimage as nd
 from scipy.ndimage.measurements import center_of_mass
 from scipy.ndimage.filters import correlate
@@ -33,11 +34,12 @@ from skimage.transform import resize as resize_sk
 from sklearn.decomposition import NMF, FastICA
 from sklearn.utils.extmath import randomized_svd, squared_norm
 import sys
+from typing import List
 
 import caiman
-from caiman.source_extraction.cnmf.deconvolution import constrained_foopsi
-from caiman.source_extraction.cnmf.pre_processing import get_noise_fft, get_noise_welch
-from caiman.source_extraction.cnmf.spatial import circular_constraint, connectivity_constraint
+from .deconvolution import constrained_foopsi
+from .pre_processing import get_noise_fft, get_noise_welch
+from .spatial import circular_constraint, connectivity_constraint
 
 try:
     cv2.setNumThreads(0)
@@ -633,7 +635,7 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1,
                  for c in range(len(ij))]
         # we create an array of it (fl like) and compute the trace like the pixel ij trough time
         dataTemp = np.array(
-            Y[[slice(*a) for a in ijSig]].copy(), dtype=np.float32)
+            Y[tuple([slice(*a) for a in ijSig])].copy(), dtype=np.float32)
         traceTemp = np.array(np.squeeze(rho[ij]), dtype=np.float32)
 
         coef, score = finetune(dataTemp, traceTemp, nIter=nIter)
@@ -644,29 +646,29 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1,
                               for s in ijSig], indexing='xy')
         arr = np.array([np.reshape(s, (1, np.size(s)), order='F').squeeze()
                         for s in xySig], dtype=np.int)
-        indeces = np.ravel_multi_index(arr, d[0:-1], order='F')
+        indices = np.ravel_multi_index(arr, d[0:-1], order='F')
 
-        A[indeces, k] = np.reshape(
+        A[indices, k] = np.reshape(
             coef, (1, np.size(coef)), order='C').squeeze()
-        Y[[slice(*a) for a in ijSig]] -= dataSig.copy()
+        Y[tuple([slice(*a) for a in ijSig])] -= dataSig.copy()
         if k < nr - 1:
             Mod = [[np.maximum(ij[c] - 2 * gHalf[c], 0),
                     np.minimum(ij[c] + 2 * gHalf[c] + 1, d[c])] for c in range(len(ij))]
             ModLen = [m[1] - m[0] for m in Mod]
             Lag = [ijSig[c] - Mod[c][0] for c in range(len(ij))]
             dataTemp = np.zeros(ModLen)
-            dataTemp[[slice(*a) for a in Lag]] = coef
+            dataTemp[tuple([slice(*a) for a in Lag])] = coef
             dataTemp = imblur(dataTemp[..., np.newaxis],
                               sig=gSig, siz=gSiz, kernel=kernel)
             temp = dataTemp * score.reshape([1] * (Y.ndim - 1) + [-1])
-            rho[[slice(*a) for a in Mod]] -= temp.copy()
+            rho[tuple([slice(*a) for a in Mod])] -= temp.copy()
             if rolling_sum:
                 rho_filt = scipy.signal.lfilter(
-                    rolling_filter, 1., rho[[slice(*a) for a in Mod]]**2)
-                v[[slice(*a) for a in Mod]] = np.amax(rho_filt, axis=-1)
+                    rolling_filter, 1., rho[tuple([slice(*a) for a in Mod])]**2)
+                v[tuple([slice(*a) for a in Mod])] = np.amax(rho_filt, axis=-1)
             else:
-                v[[slice(*a) for a in Mod]] = np.sum(rho[[slice(*a)
-                                                          for a in Mod]]**2, axis=-1)
+                v[tuple([slice(*a) for a in Mod])] = \
+                    np.sum(rho[tuple([slice(*a) for a in Mod])]**2, axis=-1)
 
     res = np.reshape(Y, (np.prod(d[0:-1]), d[-1]),
                      order='F') + med.flatten(order='F')[:, None]
@@ -846,7 +848,7 @@ def hals(Y, A, C, b, f, bSiz=3, maxIter=5):
 
     def HALS4activity(Yr, A, C, iters=2):
         U = A.T.dot(Yr)
-        V = A.T.dot(A)
+        V = A.T.dot(A) + np.finfo(A.dtype).eps
         for _ in range(iters):
             for m in range(len(U)):  # neurons and background
                 C[m] = np.clip(C[m] + (U[m] - V[m].dot(C)) /
@@ -855,7 +857,7 @@ def hals(Y, A, C, b, f, bSiz=3, maxIter=5):
 
     def HALS4shape(Yr, A, C, iters=2):
         U = C.dot(Yr.T)
-        V = C.dot(C.T)
+        V = C.dot(C.T) + np.finfo(C.dtype).eps
         for _ in range(iters):
             for m in range(K):  # neurons
                 ind_pixels = np.squeeze(ind_A[:, m].toarray())
@@ -1526,7 +1528,8 @@ def extract_ac(data_filtered, data_raw, ind_ctr, patch_dims):
     XX = np.dot(X.T, X)
     Xy = np.dot(X.T, data_raw)
     try:
-        ai = np.linalg.inv(XX).dot(Xy)[0]
+        #ai = np.linalg.inv(XX).dot(Xy)[0]
+        ai = np.linalg.solve(XX, Xy)[0]
     except:
         ai = scipy.linalg.lstsq(XX, Xy)[0][0]
     ai = ai.reshape(patch_dims)
@@ -1570,6 +1573,10 @@ def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True, ssub=1, tsub=1):
             radius of ring
         data_fits_in_memory: [optional] bool
             If true, use faster but more memory consuming computation
+        ssub: int
+            spatial downscale factor
+        tsub: int
+            temporal downscale factor
 
     Returns:
         W: scipy.sparse.csr_matrix (pixels x pixels)
@@ -1578,7 +1585,6 @@ def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True, ssub=1, tsub=1):
             estimate of constant background baselines
     """
 
-    T = Y.shape[1]
     d1 = (dims[0] - 1) // ssub + 1
     d2 = (dims[1] - 1) // ssub + 1
 
@@ -1588,60 +1594,61 @@ def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True, ssub=1, tsub=1):
     ringidx = [i - radius - 1 for i in np.nonzero(ring)]
 
     def get_indices_of_pixels_on_ring(pixel):
-        pixel = np.unravel_index(pixel, (d1, d2), order='F')
-        x = pixel[0] + ringidx[0]
-        y = pixel[1] + ringidx[1]
+        x = pixel % d1 + ringidx[0]
+        y = pixel // d1 + ringidx[1]
         inside = (x >= 0) * (x < d1) * (y >= 0) * (y < d2)
-        return np.ravel_multi_index((x[inside], y[inside]), (d1, d2), order='F')
+        return x[inside] + y[inside] * d1
 
     b0 = np.array(Y.mean(1)) - A.dot(C.mean(1))
+
+    if ssub > 1:
+        ds_mat = caiman.source_extraction.cnmf.utilities.decimation_matrix(dims, ssub)
+        ds = lambda x: ds_mat.dot(x)
+    else:
+        ds = lambda x: x
 
     if data_fits_in_memory:
         if ssub == 1 and tsub == 1:
             X = Y - A.dot(C) - b0[:, None]
         else:
-            X = downscale(Y.reshape(dims + (-1,), order='F'),
-                          (ssub, ssub, tsub)).reshape((-1, (T - 1) // tsub + 1), order='F') - \
-                (downscale(A.reshape(dims + (-1,), order='F'),
-                           (ssub, ssub, 1)).reshape((-1, len(C)), order='F').dot(
-                    downscale(C, (1, tsub))) if A.size > 0 else 0) - \
-                downscale(b0.reshape(dims, order='F'),
-                          (ssub, ssub)).reshape((-1, 1), order='F')
+            X = downscale(ds(Y), (1, tsub)) - \
+                (ds(A).dot(downscale(C, (1, tsub))) if A.size > 0 else 0) - \
+                ds(b0).reshape((-1, 1), order='F')
 
-    indices = []
-    data = []
-    indptr = [0]
-    for p in range(d1*d2):
-        index = get_indices_of_pixels_on_ring(p)
-        indices += list(index)
-        if data_fits_in_memory:
+        def process_pixel(p):
+            index = get_indices_of_pixels_on_ring(p)
             B = X[index]
-        elif ssub == 1 and tsub == 1:
-            B = Y[index] - A[index].dot(C) - b0[index, None]
-        else:
-            B = downscale(Y.reshape(dims + (-1,), order='F'),
-                          (ssub, ssub, tsub)).reshape((-1, (T - 1) // tsub + 1), order='F')[index] - \
-                (downscale(A.reshape(dims + (-1,), order='F'),
-                           (ssub, ssub, 1)).reshape((-1, len(C)), order='F')[index].dot(
-                    downscale(C, (1, tsub))) if A.size > 0 else 0) - \
-                downscale(b0.reshape(dims, order='F'),
-                          (ssub, ssub)).reshape((-1, 1), order='F')[index]
-        tmp = np.array(B.dot(B.T))
-        tmp += np.diag(tmp).sum() * 1e-5 * np.eye(len(B))
-        if data_fits_in_memory:
+            tmp = np.array(B.dot(B.T))
+            tmp[np.diag_indices(len(tmp))] += np.trace(tmp) * 1e-5
             tmp2 = X[p]
-        elif ssub == 1 and tsub == 1:
-            tmp2 = Y[p] - A[p].dot(C).ravel() - b0[p]
-        else:
-            tmp2 = downscale(Y.reshape(dims + (-1,), order='F'),
-                             (ssub, ssub, tsub)).reshape((-1, (T - 1) // tsub + 1), order='F')[p] - \
-                   (downscale(A.reshape(dims + (-1,), order='F'),
-                              (ssub, ssub, 1)).reshape((-1, len(C)), order='F')[p].dot(
-                       downscale(C, (1, tsub))) if A.size > 0 else 0) - \
-                   downscale(b0.reshape(dims, order='F'),
-                             (ssub, ssub)).reshape((-1, 1), order='F')[p]
-        data += list(np.linalg.inv(tmp).dot(B.dot(tmp2)))
-        indptr.append(len(indices))
+            data = dpotrs(dpotrf(tmp)[0], B.dot(tmp2))[0]
+            return index, data
+    else:
+
+        def process_pixel(p):
+            index = get_indices_of_pixels_on_ring(p)
+            if ssub == 1 and tsub == 1:
+                B = Y[index] - A[index].dot(C) - b0[index, None]
+            else:
+                B = downscale(ds(Y), (1, tsub))[index] - \
+                    (ds(A)[index].dot(downscale(C, (1, tsub))) if A.size > 0 else 0) - \
+                    ds(b0).reshape((-1, 1), order='F')[index]
+            tmp = np.array(B.dot(B.T))
+            tmp[np.diag_indices(len(tmp))] += np.trace(tmp) * 1e-5
+            if ssub == 1 and tsub == 1:
+                tmp2 = Y[p] - A[p].dot(C).ravel() - b0[p]
+            else:
+                tmp2 = downscale(ds(Y), (1, tsub))[p] - \
+                    (ds(A)[p].dot(downscale(C, (1, tsub))) if A.size > 0 else 0) - \
+                    ds(b0).reshape((-1, 1), order='F')[p]
+            data = dpotrs(dpotrf(tmp)[0], B.dot(tmp2))[0]
+            return index, data
+
+    Q = list(map(process_pixel, range(d1 * d2)))
+    indices, data = np.transpose(Q)
+    indptr = np.concatenate([[0], np.cumsum(list(map(len, indices)))])
+    indices = np.concatenate(indices)
+    data = np.concatenate(data)
     return spr.csr_matrix((data, indices, indptr), dtype='float32'), b0.astype(np.float32)
 
 #%%

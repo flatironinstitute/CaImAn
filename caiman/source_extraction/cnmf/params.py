@@ -8,6 +8,8 @@ from scipy.ndimage.morphology import generate_binary_structure, iterate_structur
 from ...paths import caiman_datadir
 from .utilities import dict_compare, get_file_size
 
+from pprint import pformat
+
 class CNMFParams(object):
 
     def __init__(self, fnames=None, dims=None, dxy=(1, 1),
@@ -700,7 +702,7 @@ class CNMFParams(object):
             'use_dense': use_dense,            # flag for representation and storing of A and b
             'use_peak_max': use_peak_max,      # flag for finding candidate centroids
         }
-        
+
         self.motion = {
             'border_nan': 'copy',                 # flag for allowing NaN in the boundaries
             'gSig_filt': None,                  # size of kernel for high pass spatial filtering in 1p data
@@ -721,7 +723,7 @@ class CNMFParams(object):
             'upsample_factor_grid': 4,          # motion field upsampling factor during FFT shifts
             'use_cuda': False                   # flag for using a GPU
         }
-        
+
         self.change_params(params_dict)
         if self.data['dims'] is None and self.data['fnames'] is not None:
             self.data['dims'] = get_file_size(self.data['fnames'], var_name_hdf5=self.data['var_name_hdf5'])[0]
@@ -758,7 +760,7 @@ class CNMFParams(object):
                             "in group spatial automatically to False.")
             self.set('spatial', {'update_background_components': False})
         if method_init=='corr_pnr' and ring_size_factor is not None:
-            logging.warning("using CNMF-E's ringmodel for background hence setting key " + 
+            logging.warning("using CNMF-E's ringmodel for background hence setting key " +
                             "normalize_init in group init automatically to False.")
             self.set('init', {'normalize_init': False})
 
@@ -844,6 +846,15 @@ class CNMFParams(object):
                 'patch_params': self.patch, 'online': self.online, 'quality': self.quality,
                 'merging': self.merging, 'motion': self.motion
                 }
+
+    def __repr__(self):
+
+        formatted_outputs = [
+            '{}:\n\n{}'.format(group_name, pformat(group_dict))
+            for group_name, group_dict in self.to_dict().items()
+        ]
+
+        return 'CNMFParams:\n\n' + '\n\n'.join(formatted_outputs)
 
     def change_params(self, params_dict, verbose=False):
         for gr in list(self.__dict__.keys()):

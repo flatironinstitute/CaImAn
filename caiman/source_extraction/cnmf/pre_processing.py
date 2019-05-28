@@ -347,7 +347,7 @@ def fft_psd_multithreading(args):
         Y, _, _ = load_memmap(Y)
 
     idxs = list(range(i, i + num_pixels))
-    print(len(idxs))
+    #print(len(idxs))
     res, psx = get_noise_fft(Y[idxs], **kwargs)
 
     return (idxs, res, psx)
@@ -489,7 +489,10 @@ def nextpow2(value):
     return exponent
 
 
-def preprocess_data(Y, sn=None, dview=None, n_pixels_per_process=100, noise_range=[0.25, 0.5], noise_method='logmexp', compute_g=False, p=2, lags=5, include_noise=False, pixels=None, max_num_samples_fft=3000, check_nan=True):
+def preprocess_data(Y, sn=None, dview=None, n_pixels_per_process=100,
+                    noise_range=[0.25, 0.5], noise_method='logmexp',
+                    compute_g=False, p=2, lags=5, include_noise=False,
+                    pixels=None, max_num_samples_fft=3000, check_nan=True):
     """
     Performs the pre-processing operations described above.
 

@@ -4,8 +4,6 @@
 
 """
 Created on Fri Aug 25 14:49:36 2017
-
-@author: agiovann
 """
 import cv2
 
@@ -31,6 +29,8 @@ import time
 import pylab as pl
 import scipy
 import sys
+import logging
+import warnings
 from caiman.base.movies import from_zip_file_to_movie
 from caiman.source_extraction.cnmf import cnmf as cnmf
 from caiman.source_extraction.cnmf.estimates import Estimates, compare_components
@@ -38,6 +38,12 @@ from caiman.cluster import setup_cluster
 from caiman.source_extraction.cnmf import params as params
 from caiman.source_extraction.cnmf.cnmf import load_CNMF
 
+logging.basicConfig(format=
+                    "%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s]"\
+                    "[%(process)d] %(message)s",
+                    level=logging.ERROR)
+
+warnings.filterwarnings("ignore", category=FutureWarning)
 # %%  ANALYSIS MODE AND PARAMETERS
 reload = False
 plot_on = False
@@ -362,7 +368,7 @@ for params_movie in np.array(params_movies)[ID]:
         # %% UPDATE SOME PARAMETERS
         cnm.params.change_params({'update_background_components': global_params['update_background_components'],
                                   'skip_refinement': skip_refinement,
-                                  'n_pixels_per_process': n_pixels_per_process, 'dview': dview})
+                                  'n_pixels_per_process': n_pixels_per_process, 'dview': dview});
         # %%
         t1 = time.time()
         cnm2 = cnm.refit(images, dview=dview)
@@ -400,7 +406,7 @@ for params_movie in np.array(params_movies)[ID]:
         cnm2.estimates.plot_contours(img=Cn)
     # %% prepare ground truth masks
     gt_file = os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:-4] + 'match_masks.npz')
-    with np.load(gt_file, encoding='latin1') as ld:
+    with np.load(gt_file, encoding='latin1', allow_pickle=True) as ld:
         print(ld.keys())
         Cn_orig = ld['Cn']
 
@@ -413,12 +419,13 @@ for params_movie in np.array(params_movies)[ID]:
     nrn_size = gt_estimate.remove_small_large_neurons(min_size_neuro, max_size_neuro)
     nrn_dup = gt_estimate.remove_duplicates(predictions=None, r_values=None, dist_thr=0.1, min_dist=10,
                                       thresh_subset=0.6)
-    idx_components_gt = nrn_size[nrn_dup]
+    gt_estimate.select_components(use_object=True)
     print(gt_estimate.A_thr.shape)
     # %% prepare CNMF maks
     cnm2.estimates.threshold_spatial_components(maxthr=0.2, dview=dview)
     cnm2.estimates.remove_small_large_neurons(min_size_neuro, max_size_neuro)
     cnm2.estimates.remove_duplicates(r_values=None, dist_thr=0.1, min_dist=10, thresh_subset=0.6)
+    cnm2.estimates.select_components(use_object=True)
     print('Num neurons to match:' + str(cnm2.estimates.A.shape))
     # %%
     params_display = {
@@ -499,9 +506,3 @@ for params_movie in np.array(params_movies)[ID]:
 #     # here eventually save when in a loop
 #     np.savez(os.path.join(base_folder,'all_res_sept_2018.npz'), all_results=all_results)
 #     print('Saving not implementd')
-#%%
-
-
-
-
-

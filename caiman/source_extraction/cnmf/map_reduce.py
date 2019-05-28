@@ -22,12 +22,13 @@ from builtins import range
 from past.utils import old_div
 
 from copy import copy, deepcopy
-from sklearn.decomposition import NMF
 import logging
 import numpy as np
 import os
 import scipy
+from sklearn.decomposition import NMF
 import time
+from typing import Set
 
 from ...mmapping import load_memmap
 from ...cluster import extract_patch_coordinates
@@ -144,7 +145,7 @@ def cnmf_patches(args_in):
 
 def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None,
                      memory_fact=1, border_pix=0, low_rank_background=True,
-                     del_duplicates=False, indeces=[slice(None)]*3):
+                     del_duplicates=False, indices=[slice(None)]*3):
     """Function that runs CNMF in patches
 
      Either in parallel or sequentially, and return the result for each.
@@ -226,7 +227,7 @@ def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None,
     params_copy.set('temporal', {'n_pixels_per_process': npx_per_proc})
 
     idx_flat, idx_2d = extract_patch_coordinates(
-        dims, rfs, strides, border_pix=border_pix, indeces=indeces[1:])
+        dims, rfs, strides, border_pix=border_pix, indices=indices[1:])
     args_in = []
     patch_centers = []
     for id_f, id_2d in zip(idx_flat, idx_2d):
@@ -427,7 +428,11 @@ def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None,
         #          np.random.rand(gnb - 1, T)]
         mdl = NMF(n_components=gnb, verbose=False, init='nndsvdar', tol=1e-10,
                   max_iter=100, shuffle=False, random_state=1)
+        # Filter out nan components in the bg components
+        nan_components = np.any(np.isnan(F_tot), axis=1)
+        F_tot = F_tot[~nan_components, :]
         _ = mdl.fit_transform(F_tot).T
+        Bm = Bm[:, ~nan_components]
         f = mdl.components_.squeeze()
         f = np.atleast_2d(f)
         for _ in range(100):
@@ -438,7 +443,8 @@ def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None,
             except np.linalg.LinAlgError:  # singular matrix
                 b = np.fmax(Bm.dot(scipy.linalg.lstsq(f.T, F_tot.T)[0].T), 0)
             try:
-                f = np.linalg.inv(b.T.dot(b)).dot((Bm.T.dot(b)).T.dot(F_tot))
+                #f = np.linalg.inv(b.T.dot(b)).dot((Bm.T.dot(b)).T.dot(F_tot))
+                f = np.linalg.solve(b.T.dot(b), (Bm.T.dot(b)).T.dot(F_tot))
             except np.linalg.LinAlgError:  # singular matrix
                 f = scipy.linalg.lstsq(b, Bm.toarray())[0].dot(F_tot)
 
@@ -461,9 +467,9 @@ def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None,
 #        B_tot = scipy.sparse.coo_matrix(B_tot)
         F_tot *= nB[:, None]
 
-        processed_idx = set([])
+        processed_idx:Set = set([])
         # needed if a patch has more than 1 background component
-        processed_idx_prev = set([])
+        processed_idx_prev:Set = set([])
         for _b in np.arange(B_tot.shape[-1]):
             idx_mask = np.where(B_tot[:, _b])[0]
             idx_mask_repeat = processed_idx.intersection(idx_mask)

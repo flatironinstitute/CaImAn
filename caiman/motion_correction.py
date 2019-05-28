@@ -40,7 +40,6 @@ Copyright (C) 2011, the scikit-image team
 """
 
 from past.builtins import basestring
-#%%
 from builtins import zip
 from builtins import map
 from builtins import str
@@ -223,7 +222,6 @@ class MotionCorrect(object):
         #       from a method that is not a constructor
         if self.min_mov is None:
             if self.gSig_filt is None:
-
                 self.min_mov = np.array([cm.load(self.fname[0],
                                                  var_name_hdf5=self.var_name_hdf5,
                                                  subindices=slice(400))]).min()
@@ -2487,76 +2485,6 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
     extension = extension.lower()
     is_fiji = False
 
-#    if extension == '.tif' or extension == '.tiff':  # check if tiff file
-#        with tifffile.TiffFile(fname) as tf:
-#            T = len(tf.pages)
-#            if T == 1:  # Fiji-generated TIF
-#                is_fiji = True
-#                try:
-#                    T, d1, d2 = tf[0].shape
-#                except:
-#                    T, d1, d2 = tf.asarray().shape
-#                    tf.close()
-#            else:
-#                d1, d2 = tf.pages[0].shape
-#
-#    elif extension == '.sbx':  # check if sbx file
-#
-#        shape = cm.base.movies.sbxshape(name)
-#        d1 = shape[1]
-#        d2 = shape[0]
-#        T = shape[2]
-#
-#    elif extension == '.sima':  # check if sbx file
-#        import sima
-#        dataset = sima.ImagingDataset.load(fname)
-#        shape = dataset.sequences[0].shape
-#        d1 = shape[2]
-#        d2 = shape[3]
-#        T = shape[0]
-#        del dataset
-#    elif extension == '.npy':
-#        raise Exception('Numpy not supported at the moment')
-#
-#    elif extension in ('.hdf5', '.h5'):
-#        with h5py.File(fname) as fl:
-#            fkeys = list(fl.keys())
-#            if len(fkeys)==1:
-#                fsiz = fl[fkeys[0]].shape
-#            elif var_name_hdf5 in fkeys:
-#                fsiz = fl[var_name_hdf5].shape
-#            elif 'mov' in fkeys:
-#                fsiz = fl['mov'].shape
-#            elif 'imaging' in fkeys:
-#                fsiz = fl['imaging'].shape
-#            else:
-#                print(fkeys)
-#                raise Exception('Unsupported file key')
-#            if len(fsiz) == 3:
-#                T, d1, d2 = fsiz
-#            elif len(fsiz) == 5:
-#                T, _, d1, d2, _ = fsiz
-#            else:
-#                print(fsiz)
-#                raise Exception('Unsupported file shape')
-#
-#    elif extension == '.avi':
-#        cap = cv2.VideoCapture(fname)
-#        try:
-#            T = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-#            d2 = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-#            d1 = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-#        except:
-#            logging.debug('Roll back top opencv 2')
-#            T = int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_COUNT))
-#            d2 = int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_WIDTH))
-#            d1 = int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT))
-#        cap.release()
-#
-#    else:
-#        raise Exception(
-#            'Unsupported file extension for parallel motion correction')
-
     dims, T = cm.source_extraction.cnmf.utilities.get_file_size(fname, var_name_hdf5=var_name_hdf5)
     d1, d2 = dims
 
@@ -2585,7 +2513,7 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
     if save_movie:
         if base_name is None:
             base_name = os.path.split(fname)[1][:-4]
-        fname_tot = memmap_frames_filename(base_name, dims, T, order)
+        fname_tot:Optional[str] = memmap_frames_filename(base_name, dims, T, order)
         if isinstance(fname,tuple):
             fname_tot = os.path.join(os.path.split(fname[0])[0], fname_tot)
         else:

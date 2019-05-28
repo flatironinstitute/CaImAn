@@ -407,7 +407,7 @@ for params_movie in np.array(params_movies)[ID]:
         cnm2.estimates.plot_contours(img=Cn)
     # %% prepare ground truth masks
     gt_file = os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:-4] + 'match_masks.npz')
-    with np.load(gt_file, encoding='latin1') as ld:
+    with np.load(gt_file, encoding='latin1', allow_pickle=True) as ld:
         print(ld.keys())
         Cn_orig = ld['Cn']
 
@@ -420,12 +420,14 @@ for params_movie in np.array(params_movies)[ID]:
     nrn_size = gt_estimate.remove_small_large_neurons(min_size_neuro, max_size_neuro)
     nrn_dup = gt_estimate.remove_duplicates(predictions=None, r_values=None, dist_thr=0.1, min_dist=10,
                                       thresh_subset=0.6)
-    idx_components_gt = nrn_size[nrn_dup]
+    #idx_components_gt = nrn_size[nrn_dup]
+    gt_estimate.select_components(use_object=True)
     print(gt_estimate.A_thr.shape)
     # %% prepare CNMF maks
     cnm2.estimates.threshold_spatial_components(maxthr=0.2, dview=dview)
     cnm2.estimates.remove_small_large_neurons(min_size_neuro, max_size_neuro)
     cnm2.estimates.remove_duplicates(r_values=None, dist_thr=0.1, min_dist=10, thresh_subset=0.6)
+    cnm2.estimates.select_components(use_object=True)
     print('Num neurons to match:' + str(cnm2.estimates.A.shape))
     # %%
     params_display = {
@@ -476,7 +478,7 @@ for params_movie in np.array(params_movies)[ID]:
         performance_tmp['t_refit'] = t_refit
         performance_tmp['t_eva'] = t_eva_comps
 
-    with np.load(os.path.join(base_folder,fname_new.split('/')[-2],'gt_eval.npz')) as ld:
+    with np.load(os.path.join(base_folder,fname_new.split('/')[-2],'gt_eval.npz'), allow_pickle=True) as ld:
         print(ld.keys())
         performance_tmp.update(ld)
 
@@ -508,7 +510,7 @@ if join_npz_files_parallel:
         npzfile = os.path.join(base_folder,params_movie['fname'][:-5] + '_perf_web_gsig.npz')
         print(npzfile)
         if os.path.exists(npzfile):
-            with np.load(npzfile) as ld:
+            with np.load(npzfile, allow_pickle=True) as ld:
                 all_results[params_movie['fname'].split('/')[-2]] = ld['all_results'][()]
         else:
             print("*** NOT EXIST ***" + npzfile)

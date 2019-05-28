@@ -34,6 +34,7 @@ import time
 from typing import List
 
 from ...mmapping import load_memmap, parallel_dot_product
+from ...utils.stats import csc_column_remove
 
 
 def basis_denoising(y, c, boh, sn, id2_, px):
@@ -184,6 +185,14 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
     # we compute the indicator from distance indicator
     ind2_, nr, C, f, b_, A_in = computing_indicator(
         Y, A_in, b_in, C, f, nb, method_exp, dims, min_size, max_size, dist, expandCore, dview)
+    
+    # remove components that have a nan
+    ff = np.where(np.isnan(np.sum(C, axis=1)))
+    if np.size(ff) > 0:
+        logging.info("Eliminating nan components: {}".format(ff))
+        ff = ff[0]
+        A_in = csc_column_remove(A_in, list(ff))
+        C = np.delete(C, list(ff), 0)
 
     if normalize_yyt_one and C is not None:
         C = np.array(C)
@@ -208,10 +217,11 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
     for i in range(0, np.prod(dims) - n_pixels_per_process + 1, n_pixels_per_process):
         pixel_groups.append([Y_name, C_name, sn, ind2_[i:i + n_pixels_per_process], list(
             range(i, i + n_pixels_per_process)), method_ls, cct, ])
-    if i < np.prod(dims):
-        pixel_groups.append([Y_name, C_name, sn, ind2_[i:np.prod(dims)], list(
-            range(i, np.prod(dims))), method_ls, cct])
-    A_ = np.zeros((d, nr + np.size(f, 0)))  # init A_
+    if i + n_pixels_per_process < np.prod(dims):
+        pixel_groups.append([Y_name, C_name, sn, ind2_[(i + n_pixels_per_process):np.prod(dims)], list(
+            range(i + n_pixels_per_process, np.prod(dims))), method_ls, cct])
+    #A_ = np.zeros((d, nr + np.size(f, 0)))  # init A_
+    #A_ = scipy.sparse.lil_matrix((d, nr + np.size(f, 0)))
     if dview is not None:
         if 'multiprocessing' in str(type(dview)):
             parallel_result = dview.map_async(
@@ -222,22 +232,31 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
             dview.results.clear()
     else:
         parallel_result = list(map(regression_ipyparallel, pixel_groups))
+    data = []
+    rows = []
+    cols = []
     for chunk in parallel_result:
         for pars in chunk:
             px, idxs_, a = pars
-            A_[px, idxs_] = a
+            #A_[px, idxs_] = a
+            nz = np.where(a>0)[0]
+            data.extend(a[nz])
+            rows.extend(len(nz)*[px])
+            cols.extend(idxs_[nz])
+    A_ = scipy.sparse.coo_matrix((data, (rows, cols)), shape=(d, nr + np.size(f, 0)))
 
     logging.info("thresholding components")
     A_ = threshold_components(A_, dims, dview=dview, medw=medw, thr_method=thr_method,
                               maxthr=maxthr, nrgthr=nrgthr, extract_cc=extract_cc, se=se, ss=ss)
-
-    ff = np.where(np.sum(A_, axis=0) == 0)  # remove empty components
+    #ff = np.where(np.sum(A_, axis=0) == 0)  # remove empty components
+    ff = np.asarray(A_.sum(0) == 0).nonzero()[1]
     if np.size(ff) > 0:
-        ff = ff[0]
-        logging.info('eliminating {0} empty spatial components'.format(len(ff)))
-        A_ = np.delete(A_, list(ff[ff < nr]), 1)
-        C = np.delete(C, list(ff[ff < nr]), 0)
-        nr = nr - len(ff[ff < nr])
+        logging.info('removing {0} empty spatial component(s)'.format(ff.shape[0]))
+        if any(ff < nr):
+            #A_ = np.delete(A_, list(ff[ff < nr]), 1)
+            A_ = csc_column_remove(A_, list(ff[ff < nr]))
+            C = np.delete(C, list(ff[ff < nr]), 0)
+            nr = nr - len(ff[ff < nr])
         if update_background_components:
             if low_rank_background:
                 background_ff = list(filter(lambda i: i >= nb, ff - nr))
@@ -246,22 +265,24 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
                 background_ff = list(filter(lambda i: i >= 0, ff - nr))
                 f = np.delete(f, background_ff, 0)
                 b_in = np.delete(b_in, background_ff, 1)
+
     A_ = A_[:, :nr]
     A_ = coo_matrix(A_)
     logging.info("Computing residuals")
 
     if 'memmap' in str(type(Y)):
         Y_resf = parallel_dot_product(Y, f.T, dview=dview, block_size=block_size_spat, num_blocks_per_run=num_blocks_per_run_spat) - \
-            A_.dot(coo_matrix(C[:nr, :]).dot(f.T))
+            A_.dot(C[:nr].dot(f.T))
     else:
         # Y*f' - A*(C*f')
-        Y_resf = np.dot(Y, f.T) - A_.dot(coo_matrix(C[:nr, :]).dot(f.T))
+        Y_resf = np.dot(Y, f.T) - A_.dot(C[:nr].dot(f.T))
 
     if update_background_components:
 
         if b_in is None:
             # update baseline based on residual
-            b = np.fmax(Y_resf.dot(np.linalg.inv(f.dot(f.T))), 0)
+            #b = np.fmax(Y_resf.dot(np.linalg.inv(f.dot(f.T))), 0)
+            b = np.fmax(np.linalg.solve(f.dot(f.T), Y_resf.T), 0).T
         else:
             ind_b = [np.where(_b)[0] for _b in b_in.T]
             b = HALS4shape_bckgrnd(Y_resf, b_in, f, ind_b)
@@ -374,7 +395,8 @@ def regression_ipyparallel(pars):
         else:
             cct_ = []
 
-        if np.size(c) > 0:
+        # skip if no components OR pixel has 0 activity
+        if np.size(c) > 0 and noise_sn[px] > 0:
             sn = noise_sn[px] ** 2 * T
             if method_least_square == 'lasso_lars_old':
                 raise Exception("Obsolete parameter") # Old code, support was removed
@@ -487,8 +509,7 @@ def threshold_components(A, dims, medw=None, thr_method='max', maxthr=0.1, nrgth
     # dims and nm of neurones
     d, nr = np.shape(A)
     # instanciation of A thresh.
-    Ath = np.zeros((d, nr))
-
+    #Ath = np.zeros((d, nr))
     pars = []
     # fo each neurons
     A_1 = scipy.sparse.csc_matrix(A)
@@ -505,12 +526,17 @@ def threshold_components(A, dims, medw=None, thr_method='max', maxthr=0.1, nrgth
     else:
         res = list(map(threshold_components_parallel, pars))
 
-
+    res.sort(key=lambda x: x[1])
+    indices = []
+    indptr = [0]
+    data = []
     for r in res:
         At, i = r
-        Ath[:, i] = At
+        indptr.append(indptr[-1]+At.indptr[-1])
+        indices.extend(At.indices.tolist())
+        data.extend(At.data.tolist())
 
-
+    Ath = csc_matrix((data, indices, indptr), shape=(d, nr))
     return Ath
 
 
@@ -586,7 +612,7 @@ def threshold_components_parallel(pars):
 
     # if we have deleted the element
     if BW.max() == 0:
-        return Ath2, i
+        return csr_matrix(Ath2), i
     #
     # we want to extract the largest connected component ( to remove small unconnected pixel )
     if extract_cc:
@@ -604,7 +630,7 @@ def threshold_components_parallel(pars):
         BW = BW.flatten()
         Ath2[BW] = Ath[BW]
 
-    return Ath2, i
+    return csr_matrix(Ath2), i
 
 
 # %%
@@ -843,7 +869,8 @@ def determine_search_location(A, dims, method='ellipse', min_size=3, max_size=8,
         d1, d2, d3 = dims
     d, nr = np.shape(A)
     A = csc_matrix(A)
-    dist_indicator = scipy.sparse.csc_matrix((d, nr),dtype= np.float32)
+#    dist_indicator = scipy.sparse.lil_matrix((d, nr),dtype= np.float32)
+#    dist_indicator = scipy.sparse.csc_matrix((d, nr), dtype=np.float32)
 
     if method == 'ellipse':
         Coor = dict()
@@ -889,6 +916,9 @@ def determine_search_location(A, dims, method='ellipse', min_size=3, max_size=8,
             dist_indicator = True * np.ones((d, nr))
 
     elif method == 'dilate':
+        indptr = [0]
+        indices = []
+        data = []
         if dview is None:
             for i in range(nr):
                 A_temp = np.reshape(A[:, i].toarray(), dims[::-1])
@@ -900,10 +930,15 @@ def determine_search_location(A, dims, method='ellipse', min_size=3, max_size=8,
                 else:
                     A_temp = grey_dilation(A_temp, [1] * len(dims))
 
-                dist_indicator[:, i] = scipy.sparse.coo_matrix(np.squeeze(np.reshape(A_temp, (d, 1)))[:,None] > 0)
+                nz = np.where(np.squeeze(np.reshape(A_temp, (d, 1)))[:, None] > 0)[0].tolist()
+                indptr.append(indptr[-1] + len(nz))
+                indices.extend(nz)
+                data.extend(len(nz)*[True])
+                #dist_indicator[:, i] = scipy.sparse.coo_matrix(np.squeeze(np.reshape(A_temp, (d, 1)))[:, None] > 0)
+            dist_indicator = csc_matrix((data, indices, indptr), shape=(d, nr))
 
         else:
-            print('dilate...')
+            logging.info('dilate in parallel...')
             pars = []
             for i in range(nr):
                 pars.append([A[:, i], dims, expandCore, d])
@@ -918,8 +953,12 @@ def determine_search_location(A, dims, method='ellipse', min_size=3, max_size=8,
 
             i = 0
             for res in parallel_result:
-                dist_indicator[:, i] = res
+                indptr.append(indptr[-1] + len(res.row))
+                indices.extend(res.row)
+                data.extend(len(res.row)*[True])
+                #dist_indicator[:, i] = res
                 i += 1
+            dist_indicator = csc_matrix((data, indices, indptr), shape=(d, nr))
 
     else:
         raise Exception('Not implemented')
@@ -927,7 +966,7 @@ def determine_search_location(A, dims, method='ellipse', min_size=3, max_size=8,
 
 
 
-    return dist_indicator
+    return csc_matrix(dist_indicator)
 #%%
 def construct_dilate_parallel(pars):
     """

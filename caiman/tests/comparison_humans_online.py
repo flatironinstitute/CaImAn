@@ -36,6 +36,7 @@ import sys
 import time
 import gc
 import keras
+import logging
 
 from builtins import str
 
@@ -44,6 +45,10 @@ try:
 except:
     print('Open CV is naturally single threaded')
 
+logging.basicConfig(format=
+                    "%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s]"\
+                    "[%(process)d] %(message)s",
+                    level=logging.ERROR)
 # %% Select a dataset (specify the ID variable as a list of datasets to be processed)
 # 0: neuforinder.03.00.test (N.03.00.t)
 # 1: neurofinder.04.00.test (N.04.00.t)
@@ -54,7 +59,7 @@ except:
 # 6: sue_ann_k53_20160530 (K53)
 # 7: J115 (J115)
 # 8: J123 (J123)
-
+    
 try:
     if 'pydevconsole' in sys.argv[0]:
         raise Exception()
@@ -241,10 +246,11 @@ for ind_dataset in ID:
     cnm.estimates.threshold_spatial_components(maxthr=global_params['max_thr'], dview=None)
     cnm.estimates.remove_small_large_neurons(min_size_neuro, max_size_neuro)
     _ = cnm.estimates.remove_duplicates(r_values=None, dist_thr=0.1, min_dist=10, thresh_subset=0.6)
+    cnm.estimates.select_components(use_object=True)
 
     # %% load consensus annotations and filter for size
     gt_file = glob.glob(os.path.join(base_folder, params_movie[ind_dataset]['folder_name'], '*masks.npz'))[0]
-    with np.load(gt_file, encoding='latin1') as ld:
+    with np.load(gt_file, encoding='latin1', allow_pickle=True) as ld:
         d1_or = int(ld['d1'])
         d2_or = int(ld['d2'])
         dims_or = (d1_or, d2_or)
@@ -261,6 +267,7 @@ for ind_dataset in ID:
     gt_estimate.threshold_spatial_components(maxthr=global_params['max_thr'], dview=None)
     gt_estimate.remove_small_large_neurons(min_size_neuro, max_size_neuro)
     _ = gt_estimate.remove_duplicates(predictions=None, r_values=None, dist_thr=0.1, min_dist=10, thresh_subset=0.6)
+    gt_estimate.select_components(use_object=True)
     print(gt_estimate.A.shape)
 
     # %% compute performance and plot against consensus annotations
