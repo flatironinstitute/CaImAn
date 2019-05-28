@@ -1141,10 +1141,21 @@ def load(file_name, fr=30, start_time=0, meta_data=None, subindices=None,
     if type(file_name) is list:
         if shape is not None:
             logging.error('shape not supported for multiple movie input')
-
-        return load_movie_chain(file_name,fr=fr, start_time=start_time,
+        else:
+            return load_movie_chain(file_name,fr=fr, start_time=start_time,
                      meta_data=meta_data, subindices=subindices,
                      bottom=bottom, top=top, left=left, right=right, 
+                     channel = channel, outtype=outtype)
+
+    elif isinstance(file_name,tuple):
+        print('**** PROCESSING AS SINGLE FRAMES *****')
+        if shape is not None:
+            logging.error('shape not supported for multiple movie input')
+        else:
+            return load_movie_chain(tuple([iidd for iidd in np.array(file_name)[subindices]]),
+                     fr=fr, start_time=start_time,
+                     meta_data=meta_data, subindices=None,
+                     bottom=bottom, top=top, left=left, right=right,
                      channel = channel, outtype=outtype)
 
     if max(top, bottom, left, right) > 0:
@@ -1366,7 +1377,8 @@ def load(file_name, fr=30, start_time=0, meta_data=None, subindices=None,
                     subindices, :, :, :, :].squeeze()
 
         else:
-            raise Exception('Unknown file type')
+
+            raise Exception('Unknown file type:' )
     else:
         logging.error('File request:[' + str(file_name) + "] not found!")
         raise Exception('File not found!')
@@ -1398,6 +1410,7 @@ def load_movie_chain(file_list, fr=30, start_time=0,
 
     """
     mov = []
+
     for f in tqdm(file_list):
         m = load(f, fr=fr, start_time=start_time,
                  meta_data=meta_data, subindices=subindices, in_memory=True, outtype=outtype)

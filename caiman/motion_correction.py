@@ -223,6 +223,7 @@ class MotionCorrect(object):
         #       from a method that is not a constructor
         if self.min_mov is None:
             if self.gSig_filt is None:
+
                 self.min_mov = np.array([cm.load(self.fname[0],
                                                  var_name_hdf5=self.var_name_hdf5,
                                                  subindices=slice(400))]).min()
@@ -2251,10 +2252,15 @@ def motion_correct_batch_rigid(fname, max_shifts, dview=None, splits=56, num_spl
             save_movie = save_movie_rigid
             logging.debug('saving!')
 
+
+        if isinstance(fname, tuple):
+            base_name=os.path.split(fname[0])[-1][:-4] + '_rig_'
+        else:
+            base_name=os.path.split(fname[0])[-1][:-4] + '_rig_'
+
         fname_tot_rig, res_rig = motion_correction_piecewise(fname, splits, strides=None, overlaps=None,
                                                              add_to_movie=add_to_movie, template=old_templ, max_shifts=max_shifts, max_deviation_rigid=0,
-                                                             dview=dview, save_movie=save_movie, base_name=os.path.split(
-                                                                 fname)[-1][:-4] + '_rig_', subidx = subidx,
+                                                             dview=dview, save_movie=save_movie, base_name=base_name, subidx = subidx,
                                                              num_splits=num_splits_to_process, shifts_opencv=shifts_opencv, nonneg_movie=nonneg_movie, gSig_filt=gSig_filt,
                                                              use_cuda=use_cuda, border_nan=border_nan, var_name_hdf5=var_name_hdf5)
 
@@ -2416,7 +2422,11 @@ def tile_and_correct_wrapper(params):
         add_to_movie, max_deviation_rigid, upsample_factor_grid, newoverlaps, newstrides, \
         shifts_opencv, nonneg_movie, gSig_filt, is_fiji, use_cuda, border_nan, var_name_hdf5 = params
 
-    name, extension = os.path.splitext(img_name)[:2]
+
+    if isinstance(img_name,tuple):
+        name, extension = os.path.splitext(img_name[0])[:2]
+    else:
+        name, extension = os.path.splitext(img_name)[:2]
     extension = extension.lower()
     shift_info = []
 
@@ -2470,7 +2480,10 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
 
     """
     # todo todocument
-    name, extension = os.path.splitext(fname)[:2]
+    if isinstance(fname,tuple):
+        name, extension = os.path.splitext(fname[0])[:2]
+    else:
+        name, extension = os.path.splitext(fname)[:2]
     extension = extension.lower()
     is_fiji = False
 
@@ -2573,7 +2586,11 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
         if base_name is None:
             base_name = os.path.split(fname)[1][:-4]
         fname_tot = memmap_frames_filename(base_name, dims, T, order)
-        fname_tot = os.path.join(os.path.split(fname)[0], fname_tot)
+        if isinstance(fname,tuple):
+            fname_tot = os.path.join(os.path.split(fname[0])[0], fname_tot)
+        else:
+            fname_tot = os.path.join(os.path.split(fname)[0], fname_tot)
+
         np.memmap(fname_tot, mode='w+', dtype=np.float32,
                   shape=prepare_shape(shape_mov), order=order)
         logging.info('Saving file as {}'.format(fname_tot))

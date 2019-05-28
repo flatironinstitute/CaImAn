@@ -734,7 +734,10 @@ class CNMFParams(object):
             num_splits = T//max(self.motion['num_frames_split'],10)
             self.motion['splits_els'] = num_splits
             self.motion['splits_rig'] = num_splits
-            self.online['movie_name_online'] = os.path.join(os.path.dirname(self.data['fnames'][0]), self.online['movie_name_online'])
+            if isinstance(self.data['fnames'][0],tuple):
+                self.online['movie_name_online'] = os.path.join(os.path.dirname(self.data['fnames'][0][0]), self.online['movie_name_online'])
+            else:
+                self.online['movie_name_online'] = os.path.join(os.path.dirname(self.data['fnames'][0]), self.online['movie_name_online'])
         if self.online['N_samples_exceptionality'] is None:
             self.online['N_samples_exceptionality'] = np.ceil(self.data['fr'] * self.data['decay_time']).astype('int')
         if self.online['thresh_fitness_raw'] is None:
