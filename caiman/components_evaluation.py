@@ -223,15 +223,15 @@ def classify_components_ep(Y, A, C, b, f, Athresh=0.1, Npeaks=5, tB=-3, tA=10, t
 
             if len(indexes) == 0:
                 indexes = set(LOC[i])
-                logging.warning('Component {0} is only active jointly with ' +
-                                'neighboring components. Space correlation ' +
-                                'calculation might be unreliable.').format(i)
+                logging.warning('Component {0} is only active '.format(i) +
+                                'jointly with neighboring components. Space ' +
+                                'correlation calculation might be unreliable.')
 
             indexes = np.array(list(indexes)).astype(np.int)
             px = np.where(atemp > 0)[0]
             if px.size < 3:
-                logging.warning('Component {0} is almost empty. Space ' +
-                                'correlation is set to 0.').format(i)
+                logging.warning('Component {0} is almost empty. '.format(i) +
+                                'Space correlation is set to 0.')
                 rval[i] = 0
                 significant_samples.append({0})
             else:
@@ -402,8 +402,8 @@ def evaluate_components(Y:np.ndarray, traces:np.ndarray, A, C, b, f, final_frate
             tr_BL = np.reshape(tr_tmp, (downsampfact, int(
                 old_div(numFramesNew, downsampfact)), num_traces), order='F')
             tr_BL = np.percentile(tr_BL, 8, axis=0)
-            logging.info("interpolating data ...")
-            logging.info(tr_BL.shape)
+            logging.debug("interpolating data ...")
+            logging.debug(tr_BL.shape)
             tr_BL = scipy.ndimage.zoom(np.array(tr_BL, dtype=np.float32), [
                                        downsampfact, 1], order=3, mode='constant', cval=0.0, prefilter=True)
             if padafter == 0:
