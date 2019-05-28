@@ -155,7 +155,48 @@ def find_activity_intervals(C, Npeaks:int=5, tB=-3, tA=10, thres:float=0.3) -> L
 
 #%%
 def classify_components_ep(Y, A, C, b, f, Athresh=0.1, Npeaks=5, tB=-3, tA=10, thres=0.3) -> Tuple[np.ndarray, List]:
-    # todo todocument
+    """Computes the space correlation values between the detected spatial
+    footprints and the original data when background and neighboring component
+    activity has been removed.
+    Args:
+        Y: ndarray
+            movie x,y,t
+
+        A: scipy sparse array
+            spatial components
+
+        C: ndarray
+            Fluorescence traces
+
+        b: ndarrray
+            Spatial background components
+
+        f: ndarrray
+            Temporal background components
+
+        Athresh: float
+            Degree of spatial overlap for a neighboring component to be
+            considered overlapping
+
+        Npeaks: int
+            Number of peaks to consider for computing spatial correlation
+
+        tB: int
+            Number of frames to include before peak
+
+        tA: int
+            Number of frames to include after peak
+
+        thres: float
+            threshold value for computing distinct peaks
+
+    Returns:
+        rval: ndarray
+            Space correlation values
+
+        significant_samples: list
+            Frames that were used for computing correlation values
+    """
 
     K, _ = np.shape(C)
     A = csc_matrix(A)
@@ -182,15 +223,23 @@ def classify_components_ep(Y, A, C, b, f, Athresh=0.1, Npeaks=5, tB=-3, tA=10, t
 
             if len(indexes) == 0:
                 indexes = set(LOC[i])
-                logging.warning('Neuron:' + str(i) + ' includes overlapping spiking neurons')
+                logging.warning('Component {0} is only active jointly with ' +
+                                'neighboring components. Space correlation ' +
+                                'calculation might be unreliable.').format(i)
 
             indexes = np.array(list(indexes)).astype(np.int)
             px = np.where(atemp > 0)[0]
-            ysqr = np.array(Y[px, :])
-            ysqr[np.isnan(ysqr)] = np.nanmean(ysqr)
-            mY = np.mean(ysqr[:, indexes], axis=-1)
-            significant_samples.append(indexes)
-            rval[i] = scipy.stats.pearsonr(mY, atemp[px])[0]
+            if px.size < 3:
+                logging.warning('Component {0} is almost empty. Space ' +
+                                'correlation is set to 0.').format(i)
+                rval[i] = 0
+                significant_samples.append({0})
+            else:
+                ysqr = np.array(Y[px, :])
+                ysqr[np.isnan(ysqr)] = np.nanmean(ysqr)
+                mY = np.mean(ysqr[:, indexes], axis=-1)
+                significant_samples.append(indexes)
+                rval[i] = scipy.stats.pearsonr(mY, atemp[px])[0]
 
         else:
             rval[i] = 0
