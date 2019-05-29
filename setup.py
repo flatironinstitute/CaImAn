@@ -46,7 +46,8 @@ data_files.append(['bin', binaries])
 # compile with:     python setup.py build_ext -i
 # clean up with:    python setup.py clean --all
 if sys.platform == 'darwin':
-	extra_compiler_args = ['-stdlib=libc++']
+        # see https://github.com/pandas-dev/pandas/issues/23424
+	extra_compiler_args = ['-stdlib=libc++']  # not needed #, '-mmacosx-version-min=10.9']
 else:
 	extra_compiler_args = []
 
@@ -54,7 +55,9 @@ ext_modules = [Extension("caiman.source_extraction.cnmf.oasis",
                          sources=["caiman/source_extraction/cnmf/oasis.pyx"],
                          include_dirs=[np.get_include()],
                          language="c++",
-                         extra_compile_args = extra_compiler_args)]
+                         extra_compile_args = extra_compiler_args,
+                         extra_link_args = extra_compiler_args,
+                         )]
 
 setup(
     name='caiman',
