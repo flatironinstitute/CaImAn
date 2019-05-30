@@ -126,7 +126,7 @@ If you prefer to manage this information somewhere else, the `CAIMAN_DATA` envir
 Alternative environments:
    * [Using GPU](/README-GPU.md)
    * [Older Linux Distros](/README-Distros.md)
-      
+   
 ### Known Issues
 
 A list of known issues can be found [here](https://github.com/flatironinstitute/CaImAn/wiki/Known-Issues). If you still encounter problems please open an issue.  

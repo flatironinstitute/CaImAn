@@ -849,7 +849,7 @@ class Estimates(object):
 
         return self
 
-    def filter_components(self, imgs, params, new_dict={}, dview=None, select_mode='All'):
+    def filter_components(self, imgs, params, new_dict={}, dview=None):
         """Filters components based on given thresholds without re-computing
         the quality metrics. If the quality metrics are not present then it
         calls self.evaluate components.
@@ -860,12 +860,6 @@ class Estimates(object):
 
             params: params object
                 Parameters of the algorithm
-
-            select_mode: str
-                Can be 'All' (no subselection is made, but quality filtering is performed),
-                'Accepted' (subselection of accepted components, a field named self.accepted_list must exist),
-                'Rejected' (subselection of rejected components, a field named self.rejected_list must exist),
-                'Unassigned' (both fields above need to exist)
 
             new_dict: dict
                 New dictionary with parameters to be called. The dictionary
@@ -929,15 +923,6 @@ class Estimates(object):
                                            thresh_cnn_lowest=opts['cnn_lowest'],
                                            use_cnn=opts['use_cnn'],
                                            gSig_range=opts['gSig_range'])
-
-        if select_mode == 'Accepted':
-           self.idx_components = np.array(np.intersect1d(self.idx_components,self.accepted_list))
-        elif select_mode == 'Rejected':
-           self.idx_components = np.array(np.intersect1d(self.idx_components,self.rejected_list))
-        elif select_mode == 'Unassigned':
-           self.idx_components = np.array(np.setdiff1d(self.idx_components,np.union1d(self.rejected_list,self.accepted_list)))
-
-        self.idx_components_bad = np.array(np.setdiff1d(range(len(self.SNR_comp)),self.idx_components))
 
         return self
 
@@ -1080,12 +1065,22 @@ class Estimates(object):
         else:
             print('A_thr already computed. If you want to recompute set self.A_thr to None')
 
-    def remove_small_large_neurons(self, min_size_neuro, max_size_neuro):
+    def remove_small_large_neurons(self, min_size_neuro, max_size_neuro,
+                                   select_comp=False):
         ''' remove neurons that are too large or too small
 
     	Args:
-            min_size_neuro: min size in pixels
-            max_size_neuro: max size in pixels
+            min_size_neuro: int
+                min size in pixels
+            max_size_neuro: int
+                max size in pixels
+            select_comp: bool
+                remove components that are too small/large from main estimates
+                fields. See estimates.selecte_components() for more details.
+
+        Returns:
+            neurons_to_keep: np.array
+                indeces of components with size within the acceptable range
         '''
         if self.A_thr is None:
             raise Exception('You need to compute thresolded components before calling remove_duplicates: use the threshold_components method')
@@ -1093,16 +1088,20 @@ class Estimates(object):
         A_gt_thr_bin = self.A_thr.toarray() > 0
         size_neurons_gt = A_gt_thr_bin.sum(0)
         neurons_to_keep = np.where((size_neurons_gt > min_size_neuro) & (size_neurons_gt < max_size_neuro))[0]
-        #self.select_components(idx_components=neurons_to_keep)
+#        self.select_components(idx_components=neurons_to_keep)
         if self.idx_components is None:
             self.idx_components = np.arange(self.A.shape[-1])
         self.idx_components = np.intersect1d(self.idx_components, neurons_to_keep)
         self.idx_components_bad = np.setdiff1d(np.arange(self.A.shape[-1]), self.idx_components)
+        if select_comp:
+            self.select_components(use_object=True)
         return neurons_to_keep
 
 
 
-    def remove_duplicates(self, predictions=None, r_values=None, dist_thr=0.1, min_dist=10, thresh_subset=0.6, plot_duplicates=False):
+    def remove_duplicates(self, predictions=None, r_values=None, dist_thr=0.1,
+                          min_dist=10, thresh_subset=0.6, plot_duplicates=False,
+                          select_comp=False):
         ''' remove neurons that heavily overlapand might be duplicates
 
         Args:
@@ -1141,9 +1140,13 @@ class Estimates(object):
         else:
             components_to_keep = np.arange(self.A.shape[-1])
 
-
-
-        self.select_components(idx_components=components_to_keep)
+        if self.idx_components is None:
+            self.idx_components = np.arange(self.A.shape[-1])
+        self.idx_components = np.intersect1d(self.idx_components, components_to_keep)
+        self.idx_components_bad = np.setdiff1d(np.arange(self.A.shape[-1]), self.idx_components)
+        #self.select_components(idx_components=components_to_keep)
+        if select_comp:
+            self.select_components(use_object=True)
 
         return components_to_keep
 

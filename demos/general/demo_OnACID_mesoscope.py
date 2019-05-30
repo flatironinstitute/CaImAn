@@ -105,15 +105,18 @@ def main():
     cnm = cnmf.online_cnmf.OnACID(params=opts)
     cnm.fit_online()
 
-# %% plot contours (this may take time)
+# %% plot contours
+
     logging.info('Number of components: ' + str(cnm.estimates.A.shape[-1]))
-    images = cm.load(fnames)
-    Cn = images.local_correlations(swap_dim=False, frames_per_chunk=500)
+    Cn = cm.load(fnames[0], subindices=slice(0,500)).local_correlations(swap_dim=False)
     cnm.estimates.plot_contours(img=Cn, display_numbers=False)
+
 # %% view components
     cnm.estimates.view_components(img=Cn)
+
 # %% plot timing performance (if a movie is generated during processing, timing
 # will be severely over-estimated)
+
     T_motion = 1e3*np.array(cnm.t_motion)
     T_detect = 1e3*np.array(cnm.t_detect)
     T_shapes = 1e3*np.array(cnm.t_shapes)
@@ -124,36 +127,7 @@ def main():
     plt.title('Processing time allocation')
     plt.xlabel('Frame #')
     plt.ylabel('Processing time [ms]')
-#%% RUN IF YOU WANT TO VISUALIZE THE RESULTS (might take time)
-    c, dview, n_processes = \
-        cm.cluster.setup_cluster(backend='local', n_processes=None,
-                                 single_thread=False)
-
-    memmap_file = images.save(fnames[0][:-4] + 'mmap')
-    cnm.mmap_file = memmap_file
-    Yr, dims, T = cm.load_memmap(memmap_file)
-
-    images = np.reshape(Yr.T, [T] + list(dims), order='F')
-    min_SNR = 2  # peak SNR for accepted components (if above this, acept)
-    rval_thr = 0.85  # space correlation threshold (if above this, accept)
-    use_cnn = True  # use the CNN classifier
-    min_cnn_thr = 0.99  # if cnn classifier predicts below this value, reject
-    cnn_lowest = 0.1  # neurons with cnn probability lower than this value are rejected
-
-
-    cnm.params.set('quality',   {'min_SNR': min_SNR,
-                                'rval_thr': rval_thr,
-                                'use_cnn': use_cnn,
-                                'min_cnn_thr': min_cnn_thr,
-                                'cnn_lowest': cnn_lowest})
-
-    cnm.estimates.evaluate_components(images, cnm.params, dview=dview)
-    cnm.estimates.Cn = Cn
-    cnm.save(fnames[0][:-3]+'_obj.hdf5')
-
-    dview.terminate()
-
-#%%
+# %%
 # This is to mask the differences between running this demo in Spyder
 # versus from the CLI
 if __name__ == "__main__":
