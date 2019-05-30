@@ -156,7 +156,24 @@ def main():
         backend='local', n_processes=3, single_thread=False)
     
 #%% process cells using volspike function
-    output = dview.map_async(volspike, args).get()    
+    output = dview.map_async(volspike, args).get()   
+    
+    
+#%% some visualization
+    n = 1                              # cell you are interested in
+    %matplotlib auto
+    
+    plt.figure()
+    plt.plot(output[n]['yFilt'])
+    plt.plot(output[n]['spikeTimes'], np.max(output[n]['yFilt'])*1*np.ones(output[n]['spikeTimes'].shape), color='g', marker='o', fillstyle='none', linestyle='none')
+    plt.title('signal and spike times')
+    plt.show()
+    
+    plt.figure()
+    plt.imshow(output[n]['spatialFilter'])
+    plt.colorbar()
+    plt.title('spatial filter')
+    plt.show()    
 
 #%% STOP CLUSTER and clean up log files
     cm.stop_server(dview=dview)
