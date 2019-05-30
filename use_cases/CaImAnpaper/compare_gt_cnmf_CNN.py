@@ -68,7 +68,7 @@ def precision_snr(snr_gt, snr_gt_fn, snr_cnmf, snr_cnmf_fp, snr_thrs):
             # f1 score with OR condition
 
             ind_OR = np.union1d(ind_gt, ind_cnmf)
-                    # indeces of components that are above threshold in either direction
+                    # indices of components that are above threshold in either direction
             ind_gt_OR = np.where(snr_all_gt[ind_OR] > 0)[0]     # gt components
             ind_cnmf_OR = np.where(snr_all_cnmf[ind_OR] > 0)[0] # cnmf components
             prec_OR = np.sum(snr_all_gt[ind_OR][ind_cnmf_OR] > 0)/len(ind_cnmf_OR)
@@ -721,7 +721,7 @@ for params_movie in np.array(params_movies)[:]:
         crd = plot_contours(A.tocsc()[:, idx_components_bad], Cn, thr=params_display['thr_plot'], vmax = 0.85)
     #%%  detect duplicates
     thresh_subset = 0.6
-    duplicates, indeces_keep, indeces_remove, D, overlap = detect_duplicates_and_subsets(
+    duplicates, indices_keep, indices_remove, D, overlap = detect_duplicates_and_subsets(
             A_thr[:,idx_components].reshape([dims[0],dims[1],-1],order = 'F').transpose([2,0,1])*1., predictionsCNN[idx_components], r_values = None,
             dist_thr=0.1, min_dist = 10,thresh_subset = thresh_subset)
 
@@ -733,17 +733,17 @@ for params_movie in np.array(params_movies)[:]:
             pl.imshow(A_thr[:,idx_components].reshape([dims[0],dims[1],-1],order = 'F').transpose([2,0,1])[np.unique(duplicates).flatten()].sum(0))
             pl.colorbar()
             pl.subplot(1,3,2)
-            pl.imshow(A_thr[:,idx_components].reshape([dims[0],dims[1],-1],order = 'F').transpose([2,0,1])[np.array(indeces_keep)[:]].sum(0))
+            pl.imshow(A_thr[:,idx_components].reshape([dims[0],dims[1],-1],order = 'F').transpose([2,0,1])[np.array(indices_keep)[:]].sum(0))
             pl.colorbar()
             pl.subplot(1,3,3)
-            pl.imshow(A_thr[:,idx_components].reshape([dims[0],dims[1],-1],order = 'F').transpose([2,0,1])[np.array(indeces_remove)[:]].sum(0))
+            pl.imshow(A_thr[:,idx_components].reshape([dims[0],dims[1],-1],order = 'F').transpose([2,0,1])[np.array(indices_remove)[:]].sum(0))
             pl.colorbar()
             pl.pause(1)
-        idx_components_cnmf = np.delete(idx_components_cnmf,indeces_remove)
+        idx_components_cnmf = np.delete(idx_components_cnmf,indices_remove)
 
     print('Duplicates CNMF:'+str(len(duplicates)))
 
-    duplicates_gt, indeces_keep_gt, indeces_remove_gt, D_gt, overlap_gt = detect_duplicates_and_subsets(
+    duplicates_gt, indices_keep_gt, indices_remove_gt, D_gt, overlap_gt = detect_duplicates_and_subsets(
             A_gt_thr.reshape([dims[0],dims[1],-1],order = 'F').transpose([2,0,1])*1., predictions = None, r_values = None,
             dist_thr=0.1, min_dist = 10,thresh_subset = thresh_subset)
 
@@ -755,14 +755,14 @@ for params_movie in np.array(params_movies)[:]:
             pl.imshow(A_gt_thr.reshape([dims[0],dims[1],-1],order = 'F').transpose([2,0,1])[np.array(duplicates_gt).flatten()].sum(0))
             pl.colorbar()
             pl.subplot(1,3,2)
-            pl.imshow(A_gt_thr.reshape([dims[0],dims[1],-1],order = 'F').transpose([2,0,1])[np.array(indeces_keep_gt)[:]].sum(0))
+            pl.imshow(A_gt_thr.reshape([dims[0],dims[1],-1],order = 'F').transpose([2,0,1])[np.array(indices_keep_gt)[:]].sum(0))
             pl.colorbar()
             pl.subplot(1,3,3)
-            pl.imshow(A_gt_thr.reshape([dims[0],dims[1],-1],order = 'F').transpose([2,0,1])[np.array(indeces_remove_gt)[:]].sum(0))
+            pl.imshow(A_gt_thr.reshape([dims[0],dims[1],-1],order = 'F').transpose([2,0,1])[np.array(indices_remove_gt)[:]].sum(0))
             pl.colorbar()
 
             pl.pause(1)
-        idx_components_gt = np.delete(idx_components_gt,indeces_remove_gt)
+        idx_components_gt = np.delete(idx_components_gt,indices_remove_gt)
     print('Duplicates gt:'+str(len(duplicates_gt)))
 
 
