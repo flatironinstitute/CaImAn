@@ -3,7 +3,7 @@
 """
 Created on Fri Apr 19 14:50:09 2019
 
-@author: Changjia Cai
+@author: Changjia Cai based on Matlab code
 """
 import numpy as np
 import matplotlib.pyplot as plt
@@ -19,12 +19,12 @@ from caiman.base.movies import movie
 import caiman as cm
 
 #%%
-def spikePursuit(pars):
+def volspike(pars):
     """ Function for finding spikes of one single cell with given ROI in 
-        voltage imaging. Using function denoiseSpikes for finding temporal
-        filters and spikes of one dimensional signal, using ridge regression
-        to find the best spatial filters. Do these two steps iteratively for 5 
-        times to find best spikes estimation.   
+        voltage imaging. Using function denoiseSpikes to find spikes 
+        of one dimensional signal, using ridge regression to find the 
+        best spatial filters. Do these two steps iteratively to find
+        best spike time.   
     
         Args:
             pars: a list with four variables
@@ -32,17 +32,17 @@ def spikePursuit(pars):
                     the path of memory map file for the entire video
             
                 index: int
-                    the index of the cell currently processing
+                    the index of the cell to process
             
                 ROI: 2-D array
                     the corresponding matrix of the ROI
             
                 sampleRate: int 
-                    the sampleRate of the video
+                    the sample rate of the video
             
-        Returns: a dictionary
-            output including spike times, spatial filters etc   
-    
+        Returns: 
+            output: a dictionary
+                output including spike times, spatial filters etc      
     """
     opts = {'doCrossVal':False, #cross-validate to optimize regression regularization parameters?
             'doGlobalSubtract':False,
@@ -58,18 +58,17 @@ def spikePursuit(pars):
             'highPassRegression':False #regress on a high-passed version of the data. Slightly improves detection of spikes, but makes subthreshold unreliable.
            }
     output = {'rawROI':{}}   
-    output['time'] = {}
     fname_new, cellN, bw, sampleRate = pars
     opts['windowLength'] = sampleRate*0.02 #window length for spike templates    
     print('processing cell:', cellN)
-
+    
     Yr, dims, T = cm.load_memmap(fname_new)
     if bw.shape == dims:
         images = np.reshape(Yr.T, [T] + list(dims), order='F')
     elif bw.shape == dims[::-1]:
         images = np.reshape(Yr.T, [T] + list(dims), order='F').transpose([0,2,1])
     else:
-        print('size of ROI and Video not accrods')
+        print('size of ROI and video does not accrod')
 
     # extract relevant region and align
     bwexp = dilation(bw,np.ones([opts['contextSize'],opts['contextSize']]), shift_x=True, shift_y=True)
@@ -81,7 +80,8 @@ def spikePursuit(pars):
     bw = (bw>0)
     notbw = (notbw>0)
     ref = np.median(data[:500,:,:],axis=0)
-
+    
+    # visualize ROI
     #fig = plt.figure()
     #plt.subplot(131);plt.imshow(ref);plt.axis('image');plt.xlabel('mean Intensity')
     #plt.subplot(132);plt.imshow(bw);plt.axis('image');plt.xlabel('initial ROI')
@@ -97,33 +97,32 @@ def spikePursuit(pars):
     # remove low frequency components
     data_hp = highpassVideo(data.T, 1/opts['tau_lp'], sampleRate).T
     data_lp = data-data_hp
-    data_pred = np.empty_like(data_hp)    
-    
+    data_pred = np.empty_like(data_hp)     
     if opts['highPassRegression']:
         data_pred[:] = highpassVideo(data, 1/opts['tau_pred'], sampleRate)
     else:
         data_pred[:] = data_hp   
-
+    
+    # initial trace
     t = np.nanmean(data_hp[:,bw.ravel()],1)
     t = t-np.mean(t)
     
-    # remove any variance in trace that can be predicted from the background PCs
+    # remove any variance in trace that can be predicted from the background principal components
     Ub, Sb, Vb = svds(data_hp[:,notbw.ravel()], opts['nPC_bg'])
     reg = LinearRegression(fit_intercept=False).fit(Ub,t)
     t = np.double(t - np.matmul(Ub,reg.coef_))
-      
+    
+    # find out spikes of initial trace      
     Xspikes, spikeTimes, guessData, output['rawROI']['falsePosRate'], output['rawROI']['detectionRate'], output['rawROI']['templates'], low_spk = denoiseSpikes(-t, opts['windowLength'], sampleRate, False, 100)
 
     Xspikes = -Xspikes
-    output['rawROI']['X'] = t
-    output['rawROI']['Xspikes'] = Xspikes
-    output['rawROI']['spikeTimes'] = spikeTimes
-    output['rawROI']['spatialFilter'] = bw
+    output['rawROI']['X'] = t.copy()
+    output['rawROI']['Xspikes'] = Xspikes.copy()
+    output['rawROI']['spikeTimes'] = spikeTimes.copy()
+    output['rawROI']['spatialFilter'] = bw.copy()
     output['rawROI']['X'] = output['rawROI']['X']*np.mean(t[output['rawROI']['spikeTimes']])/np.mean(output['rawROI']['X'][output['rawROI']['spikeTimes']]) # correct shrinkage
     output['num_spikes'] = [spikeTimes.shape[0]]
-    templates = output['rawROI']['templates']
-    
-    
+    templates = output['rawROI']['templates']    
     selectSpikes = np.zeros(Xspikes.shape)
     selectSpikes[spikeTimes] = 1
     sgn = np.mean(Xspikes[selectSpikes>0])
@@ -138,10 +137,9 @@ def spikePursuit(pars):
                       (movie.gaussian_blur_2D(np.reshape(pred, 
                       (data_hp.shape[0], ref.shape[0], ref.shape[1])),
                       kernel_size_x=7, kernel_size_y=7,kernel_std_x=1.5, 
-                      kernel_std_y=1.5, borderType=cv2.BORDER_REPLICATE),data_hp.shape)))
-     
+                      kernel_std_y=1.5, borderType=cv2.BORDER_REPLICATE),data_hp.shape)))     
 
-    #%% Cross-validation of regularized regression parameters
+    # Cross-validation of regularized regression parameters
     lambdamax = np.single(np.linalg.norm(pred[:,1:], ord='fro') ** 2)
     lambdas = lambdamax * np.logspace(-4, -2, 3)
     I0 = np.eye(pred.shape[1], dtype=np.single)
@@ -160,8 +158,7 @@ def spikePursuit(pars):
     selectPred = np.ones(data_hp.shape[0])
     if opts['highPassRegression']:
         selectPred[:np.int16(sampleRate/2+1)] = 0
-        selectPred[-1-np.int16(sampleRate/2):] = 0
-    
+        selectPred[-1-np.int16(sampleRate/2):] = 0    
     sigma = opts['sigmas'][s_max]         
     
     pred = np.empty_like(data_pred)
@@ -172,8 +169,7 @@ def spikePursuit(pars):
                        kernel_size_x=np.int(2*np.ceil(2*sigma)+1), 
                        kernel_size_y=np.int(2*np.ceil(2*sigma)+1),
                        kernel_std_x=sigma, kernel_std_y=sigma, 
-                       borderType=cv2.BORDER_REPLICATE),data_pred.shape)))
-        
+                       borderType=cv2.BORDER_REPLICATE),data_pred.shape)))      
     
     recon = np.empty_like(data_hp)
     recon[:] = data_hp
@@ -188,12 +184,11 @@ def spikePursuit(pars):
     temp = np.linalg.inv(np.matmul(np.transpose(pred[selectPred>0,:]), pred[selectPred>0,:]) + lambdas[l_max] * I0)
     kk = np.matmul(temp, np.transpose(pred[selectPred>0,:]))
     
-
     # Identify spatial filters with regularized regression
     for iteration in range(opts['nIter']):
         doPlot = False
         if iteration == opts['nIter'] - 1:
-            doPlot = False
+            doPlot = True
             
         #print('Identifying spatial filters')
         #print(iteration)
@@ -205,8 +200,10 @@ def spikePursuit(pars):
         X = np.matmul(recon, weights)
         X = X - np.mean(X)
         
-        a=np.reshape(weights[1:], ref.shape, order='C')            
-        spatialFilter = movie.gaussian_blur_2D(a[np.newaxis,:,:],
+        spatialFilter = np.empty_like(weights)
+        spatialFilter[:] = weights                    
+        spatialFilter = movie.gaussian_blur_2D(np.reshape(spatialFilter[1:],
+                       ref.shape, order='C')[np.newaxis,:,:],
                        kernel_size_x=np.int(2*np.ceil(2*sigma)+1), 
                        kernel_size_y=np.int(2*np.ceil(2*sigma)+1),
                        kernel_std_x=sigma, kernel_std_y=sigma, 
@@ -217,14 +214,12 @@ def spikePursuit(pars):
         
         if iteration < opts['nIter']-1:
             b = LinearRegression(fit_intercept=False).fit(Ub,X).coef_
-            
             if doPlot:
                 plt.figure()
                 plt.plot(X)
                 plt.plot(np.matmul(Ub,b))
                 plt.title('Denoised trace vs background')
-                plt.show()
-                
+                plt.show()                
             X = X - np.matmul(Ub,b)
         else:
             if opts['doGlobalSubtract']:
@@ -278,7 +273,7 @@ def spikePursuit(pars):
     output['F0'] = np.nanmean(data_lp[:,bw.flatten()] + output['meanIM'][bw][np.newaxis,:], 1) 
     output['dFF'] = X / output['F0']
     output['rawROI']['dFF'] = output['rawROI']['X'] / output['F0']
-    output['Vb'] = Vb    # background components
+    output['bg_pc'] = Ub    # background components
     output['low_spk'] = low_spk
     output['weights'] = weights
     output['cellN'] = cellN
@@ -301,9 +296,10 @@ def denoiseSpikes(data, windowLength, sampleRate=400, doPlot=True, doClip=150):
             number of samples per second in the video
             
         doPlot: boolean, default:True
-            if Ture, will plot histogram of spikes heights, signals, spiketimes, temporal filters
+            if Ture, will plot trace of signals and spiketimes, peak triggered 
+            average, histogram of heights, 
             
-        doClip: int
+        doClip: int, default:150
             maximum number of spikes accepted
             
     Returns:
@@ -326,7 +322,7 @@ def denoiseSpikes(data, windowLength, sampleRate=400, doPlot=True, doClip=150):
             temporal filter which is the peak triggered average
             
         low_spk: boolean
-            false if number of spikes is smaller than 30            
+            true if number of spikes is smaller than 30            
     """
     
     # highpass filter and threshold
@@ -348,12 +344,11 @@ def denoiseSpikes(data, windowLength, sampleRate=400, doPlot=True, doClip=150):
 
     # matched filter
     datafilt = whitenedMatchedFilter(data, locs, window)
-    #datafilt = data
     
     # spikes detected after filter
     pks2 = datafilt[signal.find_peaks(datafilt, height=None)[0]]
     
-    thresh2, falsePosRate, detectionRate, _ = getThresh(pks2, doClip=0, pnorm=0.5)
+    thresh2, falsePosRate, detectionRate, _ = getThresh(pks2, doClip=0, pnorm=0.5) # doClip=0 means no clipping 
     spikeTimes = signal.find_peaks(datafilt, height=thresh2)[0]
     
     guessData = np.zeros(data.shape)
@@ -385,8 +380,7 @@ def denoiseSpikes(data, windowLength, sampleRate=400, doPlot=True, doClip=150):
        plt.plot(np.transpose(PTD), c=[0.5,0.5,0.5])
        plt.plot(PTA, c='black', linewidth=2)
        plt.title('Peak-triggered average')
-       plt.show()
-    
+       plt.show()    
        
        plt.figure()
        plt.subplot(211)
@@ -402,7 +396,7 @@ def denoiseSpikes(data, windowLength, sampleRate=400, doPlot=True, doClip=150):
     return datafilt, spikeTimes, guessData, falsePosRate, detectionRate, templates, low_spk
 
 def getThresh(pks, doClip, pnorm=0.5):
-    """ Function for deciding threshold for peaks given heights of all peaks.
+    """ Function for deciding threshold given heights of all peaks.
     
     Args:
         pks: 1-D array
@@ -415,19 +409,27 @@ def getThresh(pks, doClip, pnorm=0.5):
     
     Returns:
         thresh: float
-            threshold for choosing as spikes or not 
-    
+            threshold for choosing spikes 
+            
+        falsePosRate: float
+            possibility of misclassify noise as real spikes
+            
+        detectionRate: float
+            possibility of real spikes being detected
+            
+        low_spk: boolean
+            true if number of spikes is smaller than 30     
     """
+    # find median of the kernel density estimation of peak heights
     spread = np.array([pks.min(), pks.max()])
     spread = spread + np.diff(spread) * np.array([-0.05, 0.05])
-    low_spk = False
-    
+    low_spk = False    
     pts = np.linspace(spread[0], spread[1], 2001)
     KD = sm.nonparametric.KDEUnivariate(pks)
     KD.fit(bw='scott')
     f = KD.evaluate(pts)
     xi = pts
-    center = np.where(xi>np.median(pks))[0][0]
+    center = np.where(xi>np.median(pks))[0][0] 
 
     fmodel = np.concatenate([f[0:center+1], np.flipud(f[0:center])])
     if len(fmodel) < len(f):
@@ -438,22 +440,20 @@ def getThresh(pks, doClip, pnorm=0.5):
     # adjust the model so it doesn't exceed the data:
     csf = np.cumsum(f) / np.sum(f)
     csmodel = np.cumsum(fmodel) / np.max([np.sum(f), np.sum(fmodel)])
-    lastpt = np.where(np.logical_and(csf[0:-1]>csmodel[0:-1]+np.spacing(1), csf[1:]<csmodel[1:]))[0]
-     
+    lastpt = np.where(np.logical_and(csf[0:-1]>csmodel[0:-1]+np.spacing(1), csf[1:]<csmodel[1:]))[0]     
     if not lastpt.size:
         lastpt = center
     else:
         lastpt = lastpt[0]
-        
     fmodel[0:lastpt+1] = f[0:lastpt+1]
     fmodel[lastpt:] = np.minimum(fmodel[lastpt:],f[lastpt:])
     
+    # find threshold
     csf = np.cumsum(f)
     csmodel = np.cumsum(fmodel)
     csf2 = csf[-1] - csf
     csmodel2 = csmodel[-1] - csmodel
-    obj = csf2 ** pnorm - csmodel2 ** pnorm
-    
+    obj = csf2 ** pnorm - csmodel2 ** pnorm    
     maxind = np.argmax(obj)
     thresh = xi[maxind]   
     
@@ -472,9 +472,9 @@ def getThresh(pks, doClip, pnorm=0.5):
 
 def whitenedMatchedFilter(data, locs, window):
     """ 
-    Function for filtering the original signal in order to get better 
-        SNR ratio. Use welch method to approximate the spectral density of the 
-        signal. Rescale the signal in time domain.    
+    Function for using whitened matched filter to the original signal for better
+    SNR. Use welch method to approximate the spectral density of the signal.
+    Rescale the signal in frequency domain.    
     """    
     N = np.ceil(np.log2(len(data)))
     censor = np.zeros(len(data))
@@ -482,12 +482,11 @@ def whitenedMatchedFilter(data, locs, window):
     censor = np.int16(np.convolve(censor.flatten(), np.ones([1, len(window)]).flatten(), 'same'))
     censor = (censor<0.5)    
     noise = data[censor]
-    _,pxx = signal.welch(noise, fs=1, window=signal.get_window('hamming',1000), nfft=2**N, detrend=False, nperseg=1000)
-    
+    _,pxx = signal.welch(noise, fs=2*np.pi, window=signal.get_window('hamming',1000), nfft=2**N, detrend=False, nperseg=1000)
     Nf2 = np.concatenate([pxx,np.flipud(pxx[1:-1])])
     scaling = 1 / np.sqrt(Nf2)
     
-    # Use pyfftw
+    # Use pyfftw for fast fourier transform
     a = pyfftw.empty_aligned(data.shape[0], dtype='float64')
     a[:] = data
     dataScaled = np.real(pyfftw.interfaces.scipy_fftpack.ifft(pyfftw.interfaces.scipy_fftpack.fft(a,2**N) * scaling))
