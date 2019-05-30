@@ -139,6 +139,8 @@ def cnmf_patches(args_in):
                 cnm.estimates.neurons_sn, cnm.estimates.g, cnm.estimates.sn,
                 cnm.params.to_dict(), cnm.estimates.YrA]
     else:
+        raise RuntimeError('cannot merge if there are empty patches.')
+
         return None
 # %%
 
@@ -324,6 +326,11 @@ def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None,
 
             idx_, shapes, A, b, C, f, S, bl, c1, neurons_sn, g, sn, _, YrA = fff
             A = A.tocsc()
+
+            # check A for nans, which result in corrupted outputs.  Better to fail here if any found
+            nnan = np.isnan(A.data).sum()
+            if nnan > 0:
+                raise RuntimeError('found %d/%d nans in A, cannot continue' % (nnan, len(A.data)))
 
             sn_tot[idx_] = sn
             f_tot.append(f)
