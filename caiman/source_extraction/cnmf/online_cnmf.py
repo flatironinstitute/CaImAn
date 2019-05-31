@@ -79,14 +79,14 @@ class OnACID(object):
                 self.params = CNMFParams()
             else:
                 self.params = params
-    
+
             if estimates is None:
                 self.estimates = Estimates()
         else:
             if params is None or estimates is None:
                 raise ValueError("Cannot Specify Estimates and Params While \
                                  Loading Object From File")
-#            else:
+#            else:  #TO DO
 #                load_CNMF_from_file(path)
 
     def _prepare_object(self, Yr, T, new_dims=None, idx_components=None):
@@ -122,7 +122,8 @@ class OnACID(object):
                 print(tmp.shape)
                 new_Yr[:, ffrr] = tmp.reshape([np.prod(new_dims)], order='F')
             Yr = new_Yr
-            A_new = csc_matrix((np.prod(new_dims), self.estimates.A.shape[-1]), dtype=np.float32)
+            A_new = csc_matrix((np.prod(new_dims), self.estimates.A.shape[-1]),
+                               dtype=np.float32)
             for neur in range(self.N):
                 a = self.estimates.A.tocsc()[:, neur].toarray()
                 a = a.reshape(self.dims, order='F')
@@ -238,7 +239,7 @@ class OnACID(object):
         return self
 
     def load_CNMF_from_file(path):
-
+        # TO DO
         return
 
     @profile
@@ -262,7 +263,7 @@ class OnACID(object):
 
         # locally scoped variables for brevity of code and faster look up
         nb_ = self.params.get('init', 'nb')
-        Ab_ = self.estimates.Ab 
+        Ab_ = self.estimates.Ab
         mbs = self.params.get('online', 'minibatch_shape')
         expected_comps = self.params.get('online', 'expected_comps')
         frame = frame_in.astype(np.float32)
@@ -282,7 +283,7 @@ class OnACID(object):
                     o.fit_next(self.estimates.noisyC[nb_ + i, t])
                     self.estimates.C_on[nb_ + i, t - o.get_l_of_last_pool() +
                               1: t + 1] = o.get_c_of_last_pool()
-                    
+
         else:
             # update buffer, initialize C with previous value
             self.estimates.C_on[:, t] = self.estimates.C_on[:, t - 1]
@@ -514,7 +515,7 @@ class OnACID(object):
                     self.estimates.AtY_buf = Ab_.T.dot(self.estimates.Yr_buf.T)
 
         else:  # distributed shape update
-            self.update_counter *= .5 ** (1. / self.params.get('online', 'update_freq'))
+            self.update_counter *= .5**(1. / self.params.get('online', 'update_freq'))
             # if not num_added:
             if (not num_added) and (time() - t_start < 2*self.time_spend / (t - self.params.get('online', 'init_batch') + 1)):
                 candidates = np.where(self.update_counter <= 1)[0]
@@ -651,7 +652,7 @@ class OnACID(object):
             self.bnd_BG = np.percentile(self.estimates.b.dot(self.estimates.f),
                                         (0.001, 100-0.001))
         return self
-    
+
     def save(self,filename):
         """save object in hdf5 file format
 
@@ -665,98 +666,87 @@ class OnACID(object):
             save_dict_to_hdf5(self.__dict__, filename)
         else:
             raise Exception("Unsupported file extension")
-    
-    def save_nwb(self,filename, ID, sess_desc='CaImAn Results', exp_desc=None,
-                 imaging_rate=30,location='somewhere in the brain',orig_file_format='tiff'):
-        """save object in hdf5 file format
 
-        Args:
-            filename: str
-                path to the hdf5 file containing the saved object
-        """
-    #%%
-        if '.nwb' != filename[-4:]:
-            raise Exception("Unsupported file extension")
-            
-        from datetime import datetime
-        from dateutil.tz import tzlocal
-        from pynwb import NWBHDF5IO
-        
-        import numpy as np
-        
-        from pynwb import NWBFile
-        from pynwb.ophys import TwoPhotonSeries, OpticalChannel, ImageSegmentation, Fluorescence, MotionCorrection
-        from pynwb.device import Device
-        #%%
-        # Create NWB file
-        nwbfile = NWBFile(sess_desc, ID, datetime.now(tzlocal()),
-                  experimenter='Dr. Giovannucci',
-                  lab='NEL',
-                  institution='UNC-CH',
-                  experiment_description=exp_desc,
-                  session_id='Results Only')
-        # Get the device
-        device = Device('imaging_device_1')
-        nwbfile.add_device(device)
-        # OpticalChannel
-        optical_channel = OpticalChannel('main_opt_channel', 'description', 500.)
-        imaging_plane = nwbfile.create_imaging_plane('main_imging_pln',
-                                            optical_channel,
-                                            'a very interesting part of the brain',
-                                            device, 600., self.params.fr, 'main_indicator',
-                                            location,
-                                            None, 1.0,
-                                            'manifold unit', 'A frame to refer to')
-        # Images
-        image_series = TwoPhotonSeries(name='main_data', dimension=self.estimates.dims,
-                               external_file= self.params.get('data', 'fnames'),
-                               imaging_plane=imaging_plane,
-                               starting_frame=[0], format=orig_file_format, starting_time=0.0, rate=imaging_rate)
-        nwbfile.add_acquisition(image_series)
-        
-        # Add processing results
-        mod = nwbfile.create_processing_module('ophys', 'contains caiman estimates')
-        img_seg = ImageSegmentation()
-        mod.add_data_interface(img_seg)
-        fl = Fluorescence()
-        mod.add_data_interface(fl)
-        
-        # Add the ROI-related stuff
-        ps = img_seg.create_plane_segmentation('CNMF Rresults',
-                                               imaging_plane, 'my_planeseg', image_series)
-        
-        # Add ROIs
-        # Neurons
-        for roi in self.estimates.A.T:
-            ps.add_roi(image_mask=roi)
-        # Backgrounds
-        for bg in self.estimates.b.T:
-            ps.add_roi(image_mask=bg)
-        
-        # Add Traces
-        n_rois = len(self.estimates.A.T)
-        n_bg = len(self.estimate.f)
-        rt_region_roi = ps.create_roi_table_region('ROIs',
-                                               region=list(range(n_rois)))
-
-        rt_region_bg = ps.create_roi_table_region('BackGround',
-                                               region=list(range(n_rois,n_rois+n_bg)))
-        
-        timestamps = list(range(self.estimates.f.shape[1]))
-        # Neurons
-        rrs1 = fl.create_roi_response_series('ROI_Fluorescence_Response', self.estimates.C.T, 'lumens', rt_region_roi, timestamps=timestamps)
-        # Background
-        rrs2 = fl.create_roi_response_series('Background_Fluorescence_Response', self.estimates.f.T, 'lumens', rt_region_bg, timestamps=timestamps)
-        
-        
-        with NWBHDF5IO(filename, 'w') as io:
-            io.write(nwbfile)
-
-        
-
-
-
-
+#    def save_NWB(self, filename, ID, sess_desc='CaImAn Results', exp_desc=None,
+#                 imaging_rate=30, location='somewhere in the brain',
+#                 orig_file_format='tiff'):
+#        """save object in hdf5 file format
+#
+#        Args:
+#            filename: str
+#                path to the hdf5 file containing the saved object
+#        """
+#        if '.nwb' != filename[-4:]:
+#            raise Exception("Unsupported file extension")   
+#        from datetime import datetime
+#        from dateutil.tz import tzlocal
+#        from pynwb import NWBHDF5IO
+#
+#        from pynwb import NWBFile
+#        from pynwb.ophys import TwoPhotonSeries, OpticalChannel, ImageSegmentation, Fluorescence, MotionCorrection
+#        from pynwb.device import Device
+#        # Create NWB file
+#        nwbfile = NWBFile(sess_desc, ID, datetime.now(tzlocal()),
+#                  experimenter='Dr. Giovannucci',
+#                  lab='NEL',
+#                  institution='UNC-CH',
+#                  experiment_description=exp_desc,
+#                  session_id='Results Only')
+#        # Get the device
+#        device = Device('imaging_device_1')
+#        nwbfile.add_device(device)
+#        # OpticalChannel
+#        optical_channel = OpticalChannel('main_opt_channel', 'description', 500.)
+#        imaging_plane = nwbfile.create_imaging_plane('main_imging_pln',
+#                                            optical_channel,
+#                                            'a very interesting part of the brain',
+#                                            device, 600., self.params.fr, 'main_indicator',
+#                                            location,
+#                                            None, 1.0,
+#                                            'manifold unit', 'A frame to refer to')
+#        # Images
+#        image_series = TwoPhotonSeries(name='main_data', dimension=self.estimates.dims,
+#                               external_file= self.params.get('data', 'fnames'),
+#                               imaging_plane=imaging_plane,
+#                               starting_frame=[0], format=orig_file_format, starting_time=0.0, rate=imaging_rate)
+#        nwbfile.add_acquisition(image_series)
+#        
+#        # Add processing results
+#        mod = nwbfile.create_processing_module('ophys', 'contains caiman estimates')
+#        img_seg = ImageSegmentation()
+#        mod.add_data_interface(img_seg)
+#        fl = Fluorescence()
+#        mod.add_data_interface(fl)
+#        
+#        # Add the ROI-related stuff
+#        ps = img_seg.create_plane_segmentation('CNMF Rresults',
+#                                               imaging_plane, 'my_planeseg', image_series)
+#        
+#        # Add ROIs
+#        # Neurons
+#        for roi in self.estimates.A.T:
+#            ps.add_roi(image_mask=roi)
+#        # Backgrounds
+#        for bg in self.estimates.b.T:
+#            ps.add_roi(image_mask=bg)
+#        
+#        # Add Traces
+#        n_rois = len(self.estimates.A.T)
+#        n_bg = len(self.estimate.f)
+#        rt_region_roi = ps.create_roi_table_region('ROIs',
+#                                               region=list(range(n_rois)))
+#
+#        rt_region_bg = ps.create_roi_table_region('BackGround',
+#                                               region=list(range(n_rois,n_rois+n_bg)))
+#        
+#        timestamps = list(range(self.estimates.f.shape[1]))
+#        # Neurons
+#        rrs1 = fl.create_roi_response_series('ROI_Fluorescence_Response', self.estimates.C.T, 'lumens', rt_region_roi, timestamps=timestamps)
+#        # Background
+#        rrs2 = fl.create_roi_response_series('Background_Fluorescence_Response', self.estimates.f.T, 'lumens', rt_region_bg, timestamps=timestamps)
+#
+#        with NWBHDF5IO(filename, 'w') as io:
+#            io.write(nwbfile)
 
 
     def fit_online(self, **kwargs):

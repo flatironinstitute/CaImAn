@@ -1183,9 +1183,7 @@ class Estimates(object):
                             Consider using the cnmf.movie.save method to create one.')
         
         else: # if the file already exist in the .nwb format then just add the results to it
-            print('Saving the results...')
-            import pdb
-            pdb.set_trace()
+            logging.info('Saving the results in the NWB file...')
             with  NWBHDF5IO(filename, 'r+') as io:
                 nwbfile = io.read()
                 # Add processing results
