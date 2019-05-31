@@ -1157,33 +1157,30 @@ class Estimates(object):
         bin_masks = self.A_thr.reshape([self.dims[0], self.dims[1], -1], order='F').transpose([2, 0, 1])
         return nf_masks_to_neurof_dict(bin_masks, dataset_name)
 
-    def save(self,
-             filename,
-             imaging_plane_name = None,
-             imaging_series_name = None,
-             sess_desc='CaImAn Results',
-             exp_desc=None,
-             imaging_rate=30,
-             location='somewhere in the brain',
-             orig_file_format='tiff'):
+    def save_NWB(self,
+                 filename,
+                 imaging_plane_name=None,
+                 imaging_series_name=None,
+                 sess_desc='CaImAn Results',
+                 exp_desc=None,
+                 imaging_rate=30,
+                 location='somewhere in the brain',
+                 orig_file_format='tiff'):
         """save object in hdf5 file format
 
         Args:
             filename: str
                 path to the hdf5 file containing the saved object
         """
-    #%%
         from pynwb import NWBHDF5IO
-        from pynwb.ophys import ImageSegmentation, Fluorescence,MotionCorrection
+        from pynwb.ophys import ImageSegmentation, Fluorescence, MotionCorrection
         import os
-        
-    #%%
-        if '.nwb' != filename[-4:]:
+        if '.nwb' != os.path.split(filename)[-1].lower():
             raise Exception("Wrong filename")
-        
+
         if not os.path.isfile(filename): # if the file doesn't exist create new and add the orginal data path
-            raise Exception('filename should be an existing NWB file. \
-                            Consdier using cnmf.movie.save method to create one.')
+            raise Exception('filename should be an existing NWB file.\
+                            Consider using the cnmf.movie.save method to create one.')
         
         else: # if the file already exist in the .nwb format then just add the results to it
             print('Saving the results...')
@@ -1225,13 +1222,10 @@ class Estimates(object):
                                                        imaging_plane, 'planeseg', image_series)
 
                 # Add ROIs
-                # Neurons
-                for roi in self.A.T:
+                for roi in self.A.T:  # Neurons
                     ps.add_roi(image_mask=roi.T.toarray().reshape(self.dims))
-                # Backgrounds
-                for bg in self.b.T:
+                for bg in self.b.T:  # Backgrounds
                     ps.add_roi(image_mask=bg.reshape(self.dims))
-
                 # Add Traces
                 n_rois = self.A.shape[-1]
                 n_bg = len(self.f)
@@ -1250,9 +1244,7 @@ class Estimates(object):
 
                 # Add MotionCorreciton
     #            create_corrected_image_stack(corrected, original, xy_translation, name='CorrectedImageStack')
-
                 io.write(nwbfile)
-
 
 
 def compare_components(estimate_gt, estimate_cmp,  Cn=None, thresh_cost=.8, min_dist=10, print_assignment=False, labels=['GT', 'CMP'], plot_results=False):
@@ -1275,4 +1267,3 @@ def compare_components(estimate_gt, estimate_cmp,  Cn=None, thresh_cost=.8, min_
         plot_results=plot_results, Cn=Cn, labels=labels)
 
     return tp_gt, tp_comp, fn_gt, fp_comp, performance_cons_off
-
