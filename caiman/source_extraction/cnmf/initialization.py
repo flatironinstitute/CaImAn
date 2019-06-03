@@ -24,14 +24,11 @@ from multiprocessing import current_process
 import numpy as np
 from past.utils import old_div
 import scipy
-from scipy.linalg.lapack import dpotrf, dpotrs
 import scipy.ndimage as nd
 from scipy.ndimage.measurements import center_of_mass
 from scipy.ndimage.filters import correlate
 import scipy.sparse as spr
 from skimage.morphology import disk
-from skimage.transform import downscale_local_mean
-from skimage.transform import resize as resize_sk
 from sklearn.decomposition import NMF, FastICA
 from sklearn.utils.extmath import randomized_svd, squared_norm
 import sys
@@ -42,6 +39,7 @@ from .deconvolution import constrained_foopsi
 from .pre_processing import get_noise_fft, get_noise_welch
 from .spatial import circular_constraint, connectivity_constraint
 from ...utils.utils import parmap
+from ...utils.stats import pd_solve
 
 try:
     cv2.setNumThreads(0)
@@ -67,6 +65,14 @@ def resize(Y, size, interpolation=cv2.INTER_LINEAR):
         raise NotImplementedError
 
 #%%
+def decimate_last_axis(y, sub):
+    q = y.shape[-1] // sub
+    r = y.shape[-1] % sub
+    Y_ds = np.zeros(y.shape[:-1] + (q + (r > 0),), dtype=y.dtype)
+    Y_ds[..., :q] = y[..., :q * sub].reshape(y.shape[:-1] + (-1, sub)).mean(-1)
+    if r > 0:
+        Y_ds[..., -1] = y[..., -r:].mean(-1)
+    return Y_ds
 
 
 def downscale(Y, ds, opencv=False):
@@ -90,45 +96,53 @@ def downscale(Y, ds, opencv=False):
             from skimage.transform._warps import block_reduce
             return block_reduce(Y, ds, np.nanmean, np.nan)
         elif d == 1:
-            Y = Y[:, None, None]
-            ds = (ds, 1, 1)
+            return decimate_last_axis(Y, ds)
         elif d == 2:
             Y = Y[..., None]
             ds = tuple(ds) + (1,)
-        q = np.array(Y.shape) // np.array(ds)
-        r = np.array(Y.shape) % np.array(ds)
-        s = q * np.array(ds)
-        Y_ds = np.zeros(q + (r > 0), dtype=Y.dtype)
-        Y_ds[:q[0], :q[1], :q[2]] = (Y[:s[0], :s[1], :s[2]]
-                                     .reshape(q[0], ds[0], q[1], ds[1], q[2], ds[2])
-                                     .mean(1).mean(2).mean(3))
-        if r[0]:
-            Y_ds[-1, :q[1], :q[2]] = (Y[-r[0]:, :s[1], :s[2]]
-                                      .reshape(r[0], q[1], ds[1], q[2], ds[2])
-                                      .mean(0).mean(1).mean(2))
-            if r[1]:
-                Y_ds[-1, -1, :q[2]] = (Y[-r[0]:, -r[1]:, :s[2]]
-                                       .reshape(r[0], r[1], q[2], ds[2])
-                                       .mean(0).mean(0).mean(1))
+
+        if d == 3 and Y.shape[-1] > 1 and ds[0] == ds[1]:
+            ds_mat = caiman.source_extraction.cnmf.utilities.decimation_matrix(Y.shape[:2], ds[0])
+            Y_ds = ds_mat.dot(Y.reshape((-1, Y.shape[-1]), order='F')).reshape(
+                (1 + (Y.shape[0] - 1) // ds[0], 1 + (Y.shape[1] - 1) // ds[0], -1), order='F')
+            if ds[2] > 1:
+                Y_ds = decimate_last_axis(Y_ds, ds[2])
+        else:
+            q = np.array(Y.shape) // np.array(ds)
+            r = np.array(Y.shape) % np.array(ds)
+            s = q * np.array(ds)
+            Y_ds = np.zeros(q + (r > 0), dtype=Y.dtype)
+            Y_ds[:q[0], :q[1], :q[2]] = (Y[:s[0], :s[1], :s[2]]
+                                         .reshape(q[0], ds[0], q[1], ds[1], q[2], ds[2])
+                                         .mean(1).mean(2).mean(3))
+            if r[0]:
+                Y_ds[-1, :q[1], :q[2]] = (Y[-r[0]:, :s[1], :s[2]]
+                                          .reshape(r[0], q[1], ds[1], q[2], ds[2])
+                                          .mean(0).mean(1).mean(2))
+                if r[1]:
+                    Y_ds[-1, -1, :q[2]] = (Y[-r[0]:, -r[1]:, :s[2]]
+                                           .reshape(r[0], r[1], q[2], ds[2])
+                                           .mean(0).mean(0).mean(1))
+                    if r[2]:
+                        Y_ds[-1, -1, -1] = Y[-r[0]:, -r[1]:, -r[2]:].mean()
                 if r[2]:
-                    Y_ds[-1, -1, -1] = Y[-r[0]:, -r[1]:, -r[2]:].mean()
+                    Y_ds[-1, :q[1], -1] = (Y[-r[0]:, :s[1]:, -r[2]:]
+                                           .reshape(r[0], q[1], ds[1], r[2])
+                                           .mean(0).mean(1).mean(1))
+            if r[1]:
+                Y_ds[:q[0], -1, :q[2]] = (Y[:s[0], -r[1]:, :s[2]]
+                                          .reshape(q[0], ds[0], r[1], q[2], ds[2])
+                                          .mean(1).mean(1).mean(2))
+                if r[2]:
+                    Y_ds[:q[0], -1, -1] = (Y[:s[0]:, -r[1]:, -r[2]:]
+                                           .reshape(q[0], ds[0], r[1], r[2])
+                                           .mean(1).mean(1).mean(1))
             if r[2]:
-                Y_ds[-1, :q[1], -1] = (Y[-r[0]:, :s[1]:, -r[2]:]
-                                       .reshape(r[0], q[1], ds[1], r[2])
-                                       .mean(0).mean(1).mean(1))
-        if r[1]:
-            Y_ds[:q[0], -1, :q[2]] = (Y[:s[0], -r[1]:, :s[2]]
-                                      .reshape(q[0], ds[0], r[1], q[2], ds[2])
-                                      .mean(1).mean(1).mean(2))
-            if r[2]:
-                Y_ds[:q[0], -1, -1] = (Y[:s[0]:, -r[1]:, -r[2]:]
-                                       .reshape(q[0], ds[0], r[1], r[2])
-                                       .mean(1).mean(1).mean(1))
-        if r[2]:
-            Y_ds[:q[0], :q[1], -1] = (Y[:s[0], :s[1], -r[2]:]
-                                      .reshape(q[0], ds[0], q[1], ds[1], r[2])
-                                      .mean(1).mean(2).mean(2))
-    return Y_ds if d == 3 else (Y_ds[:, :, 0] if d == 2 else Y_ds[:, 0, 0])
+                Y_ds[:q[0], :q[1], -1] = (Y[:s[0], :s[1], -r[2]:]
+                                          .reshape(q[0], ds[0], q[1], ds[1], r[2])
+                                          .mean(1).mean(2).mean(2))
+    return Y_ds if d == 3 else Y_ds[:, :, 0]
+
 
 
 #%%
@@ -839,7 +853,7 @@ def hals(Y, A, C, b, f, bSiz=3, maxIter=5):
     nb = b.shape[1]  # number of background components
     if bSiz is not None:
         if isinstance(bSiz, (int, float)):
-	   	     bSiz = [bSiz] * len(dims)
+             bSiz = [bSiz] * len(dims)
         ind_A = nd.filters.uniform_filter(np.reshape(A,
                 dims + (K,), order='F'), size=bSiz + [0])
         ind_A = np.reshape(ind_A > 1e-10, (np.prod(dims), K), order='F')
@@ -1023,7 +1037,7 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
         logging.info('Recomputing background')
         # background according to ringmodel
         W, b0 = compute_W(Y_ds.reshape((-1, total_frames), order='F'),
-                          A.toarray(), C, (d1, d2), ring_size_factor * gSiz, ssub=ssub_B)
+                          A, C, (d1, d2), ring_size_factor * gSiz, ssub=ssub_B)
 
         # 2nd iteration on non-decimated data
         K = C.shape[0]
@@ -1497,6 +1511,7 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
     return A, C, C_raw, S, center
 
 
+@profile
 def extract_ac(data_filtered, data_raw, ind_ctr, patch_dims):
     # parameters
     min_corr_neuron = 0.9  # 7
@@ -1531,7 +1546,8 @@ def extract_ac(data_filtered, data_raw, ind_ctr, patch_dims):
     Xy = np.dot(X.T, data_raw)
     try:
         #ai = np.linalg.inv(XX).dot(Xy)[0]
-        ai = np.linalg.solve(XX, Xy)[0]
+        # ai = np.linalg.solve(XX, Xy)[0]
+        ai = pd_solve(XX, Xy)[0]
     except:
         ai = scipy.linalg.lstsq(XX, Xy)[0][0]
     ai = ai.reshape(patch_dims)
@@ -1579,11 +1595,8 @@ def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True, ssub=1, tsub=1, p
             spatial downscale factor
         tsub: int
             temporal downscale factor
-<<<<<<< HEAD
         parallel: bool
             If true, use multiprocessing to process pixels in parallel
-=======
->>>>>>> dev
 
     Returns:
         W: scipy.sparse.csr_matrix (pixels x pixels)
@@ -1623,47 +1636,40 @@ def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True, ssub=1, tsub=1, p
         if ssub == 1 and tsub == 1:
             X = Y - A.dot(C) - b0[:, None]
         else:
-            X = downscale(Y.reshape(dims + (-1,), order='F'),
-                          (ssub, ssub, tsub)).reshape((-1, (T - 1) // tsub + 1), order='F') - \
-                (downscale(A.reshape(dims + (-1,), order='F'),
-                           (ssub, ssub, 1)).reshape((-1, len(C)), order='F').dot(
-                    downscale(C, (1, tsub))) if A.size > 0 else 0) - \
-                downscale(b0.reshape(dims, order='F'),
-                          (ssub, ssub)).reshape((-1, 1), order='F')
+            X = decimate_last_axis(ds(Y), tsub) - \
+                (ds(A).dot(decimate_last_axis(C, tsub)) if A.size > 0 else 0) - \
+                ds(b0).reshape((-1, 1), order='F')
 
-    def process_pixel(p):
-        index = get_indices_of_pixels_on_ring(p)
-        if data_fits_in_memory:
+        def process_pixel(p):
+            index = get_indices_of_pixels_on_ring(p)
             B = X[index]
-        elif ssub == 1 and tsub == 1:
-            B = Y[index] - A[index].dot(C) - b0[index, None]
-        else:
-            B = downscale(Y.reshape(dims + (-1,), order='F'),
-                          (ssub, ssub, tsub)).reshape((-1, (T - 1) // tsub + 1), order='F')[index] - \
-                (downscale(A.reshape(dims + (-1,), order='F'),
-                           (ssub, ssub, 1)).reshape((-1, len(C)), order='F')[index].dot(
-                    downscale(C, (1, tsub))) if A.size > 0 else 0) - \
-                downscale(b0.reshape(dims, order='F'),
-                          (ssub, ssub)).reshape((-1, 1), order='F')[index]
-        tmp = np.array(B.dot(B.T))
-        tmp[np.diag_indices(len(tmp))] += np.trace(tmp) * 1e-5
-        if data_fits_in_memory:
+            tmp = np.array(B.dot(B.T))
+            tmp[np.diag_indices(len(tmp))] += np.trace(tmp) * 1e-5
             tmp2 = X[p]
-        elif ssub == 1 and tsub == 1:
-            tmp2 = Y[p] - A[p].dot(C).ravel() - b0[p]
-        else:
-            tmp2 = downscale(Y.reshape(dims + (-1,), order='F'),
-                             (ssub, ssub, tsub)).reshape((-1, (T - 1) // tsub + 1), order='F')[p] - \
-                (downscale(A.reshape(dims + (-1,), order='F'),
-                           (ssub, ssub, 1)).reshape((-1, len(C)), order='F')[p].dot(
-                    downscale(C, (1, tsub))) if A.size > 0 else 0) - \
-                downscale(b0.reshape(dims, order='F'),
-                          (ssub, ssub)).reshape((-1, 1), order='F')[p]
-        #data = np.linalg.inv(tmp).dot(B.dot(tmp2))
-        data = np.linalg.solve(tmp, B.dot(tmp2))
-        return index, data
+            data = pd_solve(tmp, B.dot(tmp2))
+            return index, data
+    else:
 
-    Q = list((parmap if parallel else map)(process_pixel, range(len(X))))
+        def process_pixel(p):
+            index = get_indices_of_pixels_on_ring(p)
+            if ssub == 1 and tsub == 1:
+                B = Y[index] - A[index].dot(C) - b0[index, None]
+            else:
+                B = decimate_last_axis(ds(Y), tsub)[index] - \
+                    (ds(A)[index].dot(decimate_last_axis(C, tsub)) if A.size > 0 else 0) - \
+                    ds(b0).reshape((-1, 1), order='F')[index]
+            tmp = np.array(B.dot(B.T))
+            tmp[np.diag_indices(len(tmp))] += np.trace(tmp) * 1e-5
+            if ssub == 1 and tsub == 1:
+                tmp2 = Y[p] - A[p].dot(C).ravel() - b0[p]
+            else:
+                tmp2 = decimate_last_axis(ds(Y), tsub)[p] - \
+                    (ds(A)[p].dot(decimate_last_axis(C, tsub)) if A.size > 0 else 0) - \
+                    ds(b0).reshape((-1, 1), order='F')[p]
+            data = pd_solve(tmp, B.dot(tmp2))
+            return index, data
+
+    Q = list((parmap if parallel else map)(process_pixel, range(d1 * d2)))
     indices, data = np.transpose(Q)
     indptr = np.concatenate([[0], np.cumsum(list(map(len, indices)))])
     indices = np.concatenate(indices)

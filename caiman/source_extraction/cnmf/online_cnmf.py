@@ -46,6 +46,7 @@ from ... import mmapping
 from ...components_evaluation import compute_event_exceptionality
 from ...motion_correction import motion_correct_iteration_fast, tile_and_correct, high_pass_filter_space
 from ...utils.utils import save_dict_to_hdf5, load_dict_from_hdf5, parmap
+from ...utils.stats import pd_solve
 from ... import summary_images
 
 try:
@@ -194,11 +195,14 @@ class OnACID(object):
             else:
                 self.XXt_mats = []
                 self.XXt_vecs = []
+                self.W_ind = []
                 W = self.estimates.W
                 for p in range(X.shape[0]):
                     index = W.indices[W.indptr[p]:W.indptr[p + 1]]
-                    self.XXt_mats.append(X[index].dot(X[index].T))
-                    self.XXt_vecs.append(X[index].dot(X[p].T))
+                    self.W_ind.append(index)
+                    x_i = X[index]
+                    self.XXt_mats.append(x_i.dot(x_i.T))
+                    self.XXt_vecs.append(x_i.dot(X[p].T))
 
         self.estimates.Ab, self.ind_A, self.estimates.CY, self.estimates.CC = init_shapes_and_sufficient_stats(
             Yr[:, :init_batch].reshape(self.estimates.dims + (-1,), order='F'),
@@ -646,9 +650,10 @@ class OnACID(object):
                         XXt_vecs = self.XXt_vecs
                         W = self.estimates.W
                         for p in range(len(XXt_mats)):
-                            index = W.indices[W.indptr[p]:W.indptr[p + 1]]
-                            XXt_mats[p] += x[index].dot(x[index].T)
-                            XXt_vecs[p] += x[index].dot(x[p].T)
+                            # index = W.indices[W.indptr[p]:W.indptr[p + 1]]
+                            x_i = x[self.W_ind[p]]
+                            XXt_mats[p] += x_i.dot(x_i.T)
+                            XXt_vecs[p] += x_i.dot(x[p].T)
                 # much faster: exploit that we only access CY[m, ind_pixels], hence update only these
                 n0 = min_batch
                 t0 = 0 * self.params.get('online', 'init_batch')
@@ -691,9 +696,10 @@ class OnACID(object):
                     XXt_vecs = self.XXt_vecs
                     W = self.estimates.W
                     for p in range(len(XXt_mats)):
-                        index = W.indices[W.indptr[p]:W.indptr[p + 1]]
-                        XXt_mats[p] += np.outer(x[index], x[index])
-                        XXt_vecs[p] += x[index].dot(x[p].T)
+                        # index = W.indices[W.indptr[p]:W.indptr[p + 1]]
+                        x_i = x[self.W_ind[p]]
+                        XXt_mats[p] += np.outer(x_i, x_i)
+                        XXt_vecs[p] += x_i.dot(x[p].T)
             # much faster: exploit that we only access CY[m, ind_pixels], hence update only these
             for m in range(self.N):
                 self.estimates.CY[m + nb_, self.ind_A[m]] *= (1 - 1. / t)
@@ -750,13 +756,11 @@ class OnACID(object):
                     if self.params.get('online', 'full_XXt'):
                         XXt = self.estimates.XXt  # alias for considerably faster look up in large loop
                         def process_pixel(p):
-                            index = W.indices[W.indptr[p]:W.indptr[p + 1]]
+                            # index = W.indices[W.indptr[p]:W.indptr[p + 1]]
+                            index = self.W_ind[p]
                             tmp = XXt[index[:, None], index]
                             tmp[np.diag_indices(len(tmp))] += np.trace(tmp) * 1e-5
-                            # not sure why next line won't work
-                            # W.data[W.indptr[p]:W.indptr[p + 1]] = np.linalg.inv(tmp).dot(XXt[index, p])
-    #                        return np.linalg.inv(tmp).dot(XXt[index, p])
-                            return np.linalg.solve(tmp, XXt[index, p])
+                            return pd_solve(tmp, XXt[index, p])
                         if False:  # current_process().name == 'MainProcess':
                             W.data = np.concatenate(parmap(process_pixel, range(W.shape[0])))
                         else:
@@ -765,11 +769,12 @@ class OnACID(object):
                         XXt_mats = self.XXt_mats
                         XXt_vecs = self.XXt_vecs
                         def process_pixel2(p):
-                            #return np.linalg.solve(a[0], a[1])
                             return np.linalg.solve(XXt_mats[p], XXt_vecs[p])
+                            #return pd_solve(XXt_mats[p], XXt_vecs[p])
+                            #return pd_solve(p[0], p[1])
                         W.data = np.concatenate(list(map(process_pixel2, range(W.shape[0]))))
-                        #W.data = np.concatenate(parmap(process_pixel2, range(W.shape[0])))
                         #W.data = np.concatenate(parmap(process_pixel2, zip(XXt_mats, XXt_vecs)))
+                        #W.data = np.concatenate(dview.map_async(process_pixel2, zip(XXt_mats, XXt_vecs)).get())
                     
                     if ssub_B == 1:
                         self.estimates.Atb = Ab_.T.dot(W.dot(self.estimates.b0) - self.estimates.b0)
@@ -1359,6 +1364,7 @@ def seeded_initialization(Y, Ain, dims=None, init_batch=1000, order_init=None, g
     Y_resf = np.dot(Yr, f_in.T)
 #    b_in = np.maximum(Y_resf.dot(np.linalg.inv(f_in.dot(f_in.T))), 0)
     b_in = np.maximum(np.linalg.solve(f_in.dot(f_in.T), Y_resf.T), 0).T
+    # b_in = np.maximum(pd_solve(f_in.dot(f_in.T), Y_resf.T), 0).T
     Yr_no_bg = (Yr - b_in.dot(f_in)).astype(np.float32)
 
     Cin = np.zeros([Ain.shape[-1],Yr.shape[-1]], dtype = np.float32)
