@@ -20,7 +20,7 @@ from builtins import str
 from builtins import zip
 
 import cv2
-from multiprocessing import current_process
+from multiprocessing import current_process, cpu_count
 import logging
 from math import sqrt
 import numpy as np
@@ -80,7 +80,7 @@ class OnACID(object):
             Run the entire online pipeline on a given list of files
     """
 
-    def __init__(self, params=None, estimates=None):
+    def __init__(self, params=None, estimates=None, dview=None):
         if params is None:
             self.params = CNMFParams()
         else:
@@ -90,6 +90,9 @@ class OnACID(object):
             self.estimates = Estimates()
         else:
             self.estimates = estimates
+
+        self.dview = dview
+
 
     @profile
     def _prepare_object(self, Yr, T, new_dims=None, idx_components=None):
@@ -764,12 +767,20 @@ class OnACID(object):
                     else:
                         XXt_mats = self.XXt_mats
                         XXt_vecs = self.XXt_vecs
-                        def process_pixel2(p):
-                            #return np.linalg.solve(a[0], a[1])
-                            return np.linalg.solve(XXt_mats[p], XXt_vecs[p])
-                        W.data = np.concatenate(list(map(process_pixel2, range(W.shape[0]))))
-                        #W.data = np.concatenate(parmap(process_pixel2, range(W.shape[0])))
-                        #W.data = np.concatenate(parmap(process_pixel2, zip(XXt_mats, XXt_vecs)))
+#                        def process_pixel2(p):
+#                            #return np.linalg.solve(a[0], a[1])
+#                            return np.linalg.solve(XXt_mats[p], XXt_vecs[p])
+                       # W.data = np.concatenate(list(map(process_pixel2, range(W.shape[0]))))
+                        if self.dview is None: 
+                            W.data = np.concatenate(list(map(inv_mat_vec, zip(XXt_mats, XXt_vecs))))
+                        elif 'multiprocessing' in str(type(self.dview)):
+                            W.data = np.concatenate(list(self.dview.imap(inv_mat_vec, zip(XXt_mats, XXt_vecs), chunksize=256)))
+                        else:
+                            W.data = np.concatenate(list(self.dview.map_sync(inv_mat_vec, zip(XXt_mats, XXt_vecs))))
+                            self.dview.results.clear()
+                           
+                       #W.data = np.concatenate(parmap(process_pixel2, range(W.shape[0])))
+                       #W.data = np.concatenate(parmap(process_pixel2, zip(XXt_mats, XXt_vecs)))
                     
                     if ssub_B == 1:
                         self.estimates.Atb = Ab_.T.dot(W.dot(self.estimates.b0) - self.estimates.b0)
@@ -928,10 +939,11 @@ class OnACID(object):
             self.estimates.neurons_sn = np.std(self.estimates.YrA, axis=-1)
             self.estimates.lam = np.zeros(nr)
         elif self.params.get('online', 'init_method') == 'cnmf':
-            cnm = CNMF(n_processes=1, params=self.params)
+            n_processes = cpu_count() - 1 or 1
+            cnm = CNMF(n_processes=n_processes, params=self.params, dview=self.dview)
             cnm.estimates.shifts = self.estimates.shifts
             if self.params.get('patch', 'rf') is None:
-                self.dview = None
+                cnm.dview = None
                 cnm.fit(np.array(Y))
                 self.estimates = cnm.estimates
 #                self.estimates.A, self.estimates.C, self.estimates.b, self.estimates.f,\
@@ -2501,7 +2513,7 @@ def load_OnlineCNMF(filename, dview = None):
     Args:
         filename: str
             hdf5 file name containing the saved object
-        dview: multiprocessingor ipyparallel object
+        dview: multiprocessing or ipyparallel object
             useful to set up parllelization in the objects
     """
 
@@ -2535,3 +2547,6 @@ def load_OnlineCNMF(filename, dview = None):
                 setattr(new_obj, key, val)
 
     return new_obj
+
+def inv_mat_vec(A):
+    return np.linalg.solve(A[0], A[1])
