@@ -2254,7 +2254,7 @@ def motion_correct_batch_rigid(fname, max_shifts, dview=None, splits=56, num_spl
         if isinstance(fname, tuple):
             base_name=os.path.split(fname[0])[-1][:-4] + '_rig_'
         else:
-            base_name=os.path.split(fname[0])[-1][:-4] + '_rig_'
+            base_name=os.path.split(fname)[-1][:-4] + '_rig_'
 
         fname_tot_rig, res_rig = motion_correction_piecewise(fname, splits, strides=None, overlaps=None,
                                                              add_to_movie=add_to_movie, template=old_templ, max_shifts=max_shifts, max_deviation_rigid=0,
@@ -2363,14 +2363,22 @@ def motion_correct_batch_pwrigid(fname, max_shifts, strides, overlaps, add_to_mo
         if iter_ == num_iter - 1:
             save_movie = save_movie
             if save_movie:
-                logging.debug('saving mmap of ' + fname)
+                if isinstance(fname, tuple):
+                    logging.debug('saving mmap of ' + fname[0] + 'to' +fname[-1])
+                else:
+                    logging.debug('saving mmap of ' + fname)
+
+        if isinstance(fname, tuple):
+            base_name=os.path.split(fname[0])[-1][:-4] + '_els_'
+        else:
+            base_name=os.path.split(fname)[-1][:-4] + '_els_'
 
         fname_tot_els, res_el = motion_correction_piecewise(fname, splits, strides, overlaps,
                                                             add_to_movie=add_to_movie, template=old_templ, max_shifts=max_shifts,
                                                             max_deviation_rigid=max_deviation_rigid,
                                                             newoverlaps=newoverlaps, newstrides=newstrides,
                                                             upsample_factor_grid=upsample_factor_grid, order='F', dview=dview, save_movie=save_movie,
-                                                            base_name=os.path.split(fname)[-1][:-4] + '_els_', num_splits=num_splits_to_process,
+                                                            base_name=base_name, num_splits=num_splits_to_process,
                                                             shifts_opencv=shifts_opencv, nonneg_movie=nonneg_movie, gSig_filt=gSig_filt,
                                                             use_cuda=use_cuda, border_nan=border_nan, var_name_hdf5=var_name_hdf5)
 
