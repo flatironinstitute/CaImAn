@@ -363,7 +363,7 @@ for ind_dataset in ID:
     # %% Plot Timing performance
     if plot_results:
         plt.figure(); 
-        plt.stackplot(np.arange(len(cnm.t_detect)),  1e3*np.array(cnm.t_online)-np.array(cnm.t_detect) - np.array(cnm.t_shapes),
+        plt.stackplot(np.arange(len(cnm.t_detect)),  1e3*(np.array(cnm.t_online) - np.array(cnm.t_detect) - np.array(cnm.t_shapes)),
                       1e3*np.array(cnm.t_detect), 1e3*np.array(cnm.t_shapes))
         plt.title('Processing time per frame')
         plt.xlabel('Frame #')
