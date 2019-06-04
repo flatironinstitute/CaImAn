@@ -44,7 +44,7 @@ from .utilities import update_order, get_file_size, peak_local_max
 from ... import mmapping
 from ...components_evaluation import compute_event_exceptionality
 from ...motion_correction import motion_correct_iteration_fast, tile_and_correct
-from ...utils.utils import save_dict_to_hdf5, load_dict_from_hdf5
+from ...utils.utils import save_dict_to_hdf5, load_dict_from_hdf5, load_graph
 
 try:
     cv2.setNumThreads(0)
@@ -216,49 +216,37 @@ class OnACID(object):
         if self.params.get('online', 'path_to_model') is None or self.params.get('online', 'sniper_mode') is False:
             loaded_model = None
             self.params.set('online', {'sniper_mode': False})
-        elif False:
-            import keras
-            from keras.models import model_from_json
-            path = self.params.get('online', 'path_to_model').split(".")[:-1]
-            json_path = ".".join(path + ["json"])
-            model_path = ".".join(path + ["h5"])
-
-            json_file = open(json_path, 'r')
-            loaded_model_json = json_file.read()
-            json_file.close()
-            loaded_model = model_from_json(loaded_model_json)
-            loaded_model.load_weights(model_path)
-            opt = keras.optimizers.rmsprop(lr=0.0001, decay=1e-6)
-            loaded_model.compile(loss=keras.losses.categorical_crossentropy,
-                                 optimizer=opt, metrics=['accuracy'])
-            self.tf_in = None
-            self.tf_out = None
         else:
-            path = self.params.get('online', 'path_to_model').split(".")[:-1]
-            model_path = '.'.join(path + ['h5', 'pb'])
-            def load_graph(frozen_graph_filename):
-                # We load the protobuf file from the disk and parse it to retrieve the 
-                # unserialized graph_def
-                with tf.gfile.GFile(frozen_graph_filename, "rb") as f:
-                    graph_def = tf.GraphDef()
-                    graph_def.ParseFromString(f.read())
-            
-                # Then, we can use again a convenient built-in function to import a graph_def into the 
-                # current default Graph
-                with tf.Graph().as_default() as graph:
-                    tf.import_graph_def(
-                        graph_def,
-                        input_map=None,
-                        return_elements=None,
-                        name="prefix",
-                        op_dict=None,
-                        producer_op_list=None
-                    )
-                return graph
-        loaded_model = load_graph(model_path)
-        self.tf_in = loaded_model.get_tensor_by_name('prefix/conv2d_1_input:0')
-        self.tf_out = loaded_model.get_tensor_by_name('prefix/output_node0:0')
-        self.loaded_model = tf.Session(graph=loaded_model)
+            try:
+                import keras
+                from keras.models import model_from_json
+                #logging.debug('Using Keras')
+                use_keras = True
+            except(ModuleNotFoundError):
+                use_keras = False
+                #logging.debug('Using Tensorflow')
+            if use_keras:
+                path = self.params.get('online', 'path_to_model').split(".")[:-1]
+                json_path = ".".join(path + ["json"])
+                model_path = ".".join(path + ["h5"])
+                json_file = open(json_path, 'r')
+                loaded_model_json = json_file.read()
+                json_file.close()
+                loaded_model = model_from_json(loaded_model_json)
+                loaded_model.load_weights(model_path)
+                opt = keras.optimizers.rmsprop(lr=0.0001, decay=1e-6)
+                loaded_model.compile(loss=keras.losses.categorical_crossentropy,
+                                     optimizer=opt, metrics=['accuracy'])
+                self.tf_in = None
+                self.tf_out = None
+                self.loaded_model = loaded_model
+            else:
+                path = self.params.get('online', 'path_to_model').split(".")[:-1]
+                model_path = '.'.join(path + ['h5', 'pb'])
+                loaded_model = load_graph(model_path)
+                self.tf_in = loaded_model.get_tensor_by_name('prefix/conv2d_1_input:0')
+                self.tf_out = loaded_model.get_tensor_by_name('prefix/output_node0:0')
+                self.loaded_model = tf.Session(graph=loaded_model)
         return self
 
     @profile
@@ -1535,11 +1523,9 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial=3, gSig=(5, 5),
         Ain2 /= np.std(Ain2,axis=1)[:,None]
         Ain2 = np.reshape(Ain2,(-1,) + tuple(np.diff(ijSig_cnn).squeeze()),order= 'F')
         Ain2 = np.stack([cv2.resize(ain,(patch_size ,patch_size)) for ain in Ain2])
-        if False:
+        if tf_in is None:
             predictions = loaded_model.predict(Ain2[:,:,:,np.newaxis], batch_size=min_num_trial, verbose=0)
         else:
-            x = tf_in #loaded_model.get_tensor_by_name('prefix/conv2d_1_input:0')
-            y = tf_out #loaded_model.get_tensor_by_name('prefix/output_node0:0')
             predictions = loaded_model.run(tf_out, feed_dict={tf_in: Ain2[:, :, :, np.newaxis]})
         keep_cnn = list(np.where(predictions[:, 0] > thresh_CNN_noisy)[0])
         discard = list(np.where(predictions[:, 0] <= thresh_CNN_noisy)[0])
