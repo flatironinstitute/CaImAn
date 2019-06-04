@@ -31,6 +31,7 @@ from sklearn.decomposition import NMF
 from sklearn.preprocessing import normalize
 from time import time
 from typing import List, Tuple
+import tensorflow as tf
 
 import caiman
 #  from caiman.source_extraction.cnmf import params
@@ -215,7 +216,7 @@ class OnACID(object):
         if self.params.get('online', 'path_to_model') is None or self.params.get('online', 'sniper_mode') is False:
             loaded_model = None
             self.params.set('online', {'sniper_mode': False})
-        else:
+        elif False:
             import keras
             from keras.models import model_from_json
             path = self.params.get('online', 'path_to_model').split(".")[:-1]
@@ -230,8 +231,34 @@ class OnACID(object):
             opt = keras.optimizers.rmsprop(lr=0.0001, decay=1e-6)
             loaded_model.compile(loss=keras.losses.categorical_crossentropy,
                                  optimizer=opt, metrics=['accuracy'])
-
-        self.loaded_model = loaded_model
+            self.tf_in = None
+            self.tf_out = None
+        else:
+            path = self.params.get('online', 'path_to_model').split(".")[:-1]
+            model_path = '.'.join(path + ['h5', 'pb'])
+            def load_graph(frozen_graph_filename):
+                # We load the protobuf file from the disk and parse it to retrieve the 
+                # unserialized graph_def
+                with tf.gfile.GFile(frozen_graph_filename, "rb") as f:
+                    graph_def = tf.GraphDef()
+                    graph_def.ParseFromString(f.read())
+            
+                # Then, we can use again a convenient built-in function to import a graph_def into the 
+                # current default Graph
+                with tf.Graph().as_default() as graph:
+                    tf.import_graph_def(
+                        graph_def,
+                        input_map=None,
+                        return_elements=None,
+                        name="prefix",
+                        op_dict=None,
+                        producer_op_list=None
+                    )
+                return graph
+        loaded_model = load_graph(model_path)
+        self.tf_in = loaded_model.get_tensor_by_name('prefix/conv2d_1_input:0')
+        self.tf_out = loaded_model.get_tensor_by_name('prefix/output_node0:0')
+        self.loaded_model = tf.Session(graph=loaded_model)
         return self
 
     @profile
@@ -339,7 +366,8 @@ class OnACID(object):
                 thresh_CNN_noisy = self.params.get('online', 'thresh_CNN_noisy'),
                 sniper_mode=self.params.get('online', 'sniper_mode'),
                 use_peak_max=self.params.get('online', 'use_peak_max'),
-                mean_buff=self.estimates.mean_buff)
+                mean_buff=self.estimates.mean_buff, tf_in=self.tf_in,
+                tf_out=self.tf_out)
 
             num_added = len(self.ind_A) - self.N
 
@@ -1403,7 +1431,8 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial=3, gSig=(5, 5),
                              gHalf=(5, 5), sniper_mode=True, rval_thr=0.85,
                              patch_size=50, loaded_model=None, test_both=False,
                              thresh_CNN_noisy=0.5, use_peak_max=False,
-                             thresh_std_peak_resid = 1, mean_buff=None):
+                             thresh_std_peak_resid = 1, mean_buff=None,
+                             tf_in=None, tf_out=None):
     """
     Extract new candidate components from the residual buffer and test them
     using space correlation or the CNN classifier. The function runs the CNN
@@ -1506,7 +1535,12 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial=3, gSig=(5, 5),
         Ain2 /= np.std(Ain2,axis=1)[:,None]
         Ain2 = np.reshape(Ain2,(-1,) + tuple(np.diff(ijSig_cnn).squeeze()),order= 'F')
         Ain2 = np.stack([cv2.resize(ain,(patch_size ,patch_size)) for ain in Ain2])
-        predictions = loaded_model.predict(Ain2[:,:,:,np.newaxis], batch_size=min_num_trial, verbose=0)
+        if False:
+            predictions = loaded_model.predict(Ain2[:,:,:,np.newaxis], batch_size=min_num_trial, verbose=0)
+        else:
+            x = tf_in #loaded_model.get_tensor_by_name('prefix/conv2d_1_input:0')
+            y = tf_out #loaded_model.get_tensor_by_name('prefix/output_node0:0')
+            predictions = loaded_model.run(tf_out, feed_dict={tf_in: Ain2[:, :, :, np.newaxis]})
         keep_cnn = list(np.where(predictions[:, 0] > thresh_CNN_noisy)[0])
         discard = list(np.where(predictions[:, 0] <= thresh_CNN_noisy)[0])
         cnn_pos = Ain2[keep_cnn]
@@ -1556,7 +1590,8 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                           Ab_dense=None, max_num_added=1, min_num_trial=1,
                           loaded_model=None, thresh_CNN_noisy=0.99,
                           sniper_mode=False, use_peak_max=False,
-                          test_both=False, mean_buff=None):
+                          test_both=False, mean_buff=None, tf_in=None,
+                          tf_out=None):
     """
     Checks for new components in the residual buffer and incorporates them if they pass the acceptance tests
     """
@@ -1577,7 +1612,8 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
         sv, dims, Yres_buf=Yres_buf, min_num_trial=min_num_trial, gSig=gSig,
         gHalf=gHalf, sniper_mode=sniper_mode, rval_thr=rval_thr, patch_size=50,
         loaded_model=loaded_model, thresh_CNN_noisy=thresh_CNN_noisy,
-        use_peak_max=use_peak_max, test_both=test_both, mean_buff=mean_buff)
+        use_peak_max=use_peak_max, test_both=test_both, mean_buff=mean_buff,
+        tf_in=tf_in, tf_out=tf_out)
 
     ind_new_all = ijsig_all
 
