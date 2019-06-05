@@ -23,6 +23,7 @@ import warnings
 
 from caiman.paths import caiman_datadir
 from .utils.stats import mode_robust, mode_robust_fast
+from .utils.utils import load_graph
 
 try:
     cv2.setNumThreads(0)
@@ -155,7 +156,48 @@ def find_activity_intervals(C, Npeaks:int=5, tB=-3, tA=10, thres:float=0.3) -> L
 
 #%%
 def classify_components_ep(Y, A, C, b, f, Athresh=0.1, Npeaks=5, tB=-3, tA=10, thres=0.3) -> Tuple[np.ndarray, List]:
-    # todo todocument
+    """Computes the space correlation values between the detected spatial
+    footprints and the original data when background and neighboring component
+    activity has been removed.
+    Args:
+        Y: ndarray
+            movie x,y,t
+
+        A: scipy sparse array
+            spatial components
+
+        C: ndarray
+            Fluorescence traces
+
+        b: ndarrray
+            Spatial background components
+
+        f: ndarrray
+            Temporal background components
+
+        Athresh: float
+            Degree of spatial overlap for a neighboring component to be
+            considered overlapping
+
+        Npeaks: int
+            Number of peaks to consider for computing spatial correlation
+
+        tB: int
+            Number of frames to include before peak
+
+        tA: int
+            Number of frames to include after peak
+
+        thres: float
+            threshold value for computing distinct peaks
+
+    Returns:
+        rval: ndarray
+            Space correlation values
+
+        significant_samples: list
+            Frames that were used for computing correlation values
+    """
 
     K, _ = np.shape(C)
     A = csc_matrix(A)
@@ -182,15 +224,23 @@ def classify_components_ep(Y, A, C, b, f, Athresh=0.1, Npeaks=5, tB=-3, tA=10, t
 
             if len(indexes) == 0:
                 indexes = set(LOC[i])
-                logging.debug('Neuron:' + str(i) + ' includes overlapping spiking neurons')
+                logging.warning('Component {0} is only active '.format(i) +
+                                'jointly with neighboring components. Space ' +
+                                'correlation calculation might be unreliable.')
 
             indexes = np.array(list(indexes)).astype(np.int)
             px = np.where(atemp > 0)[0]
-            ysqr = np.array(Y[px, :])
-            ysqr[np.isnan(ysqr)] = np.nanmean(ysqr)
-            mY = np.mean(ysqr[:, indexes], axis=-1)
-            significant_samples.append(indexes)
-            rval[i] = scipy.stats.pearsonr(mY, atemp[px])[0]
+            if px.size < 3:
+                logging.warning('Component {0} is almost empty. '.format(i) +
+                                'Space correlation is set to 0.')
+                rval[i] = 0
+                significant_samples.append({0})
+            else:
+                ysqr = np.array(Y[px, :])
+                ysqr[np.isnan(ysqr)] = np.nanmean(ysqr)
+                mY = np.mean(ysqr[:, indexes], axis=-1)
+                significant_samples.append(indexes)
+                rval[i] = scipy.stats.pearsonr(mY, atemp[px])[0]
 
         else:
             rval[i] = 0
@@ -209,27 +259,44 @@ def evaluate_components_CNN(A, dims, gSig, model_name:str=os.path.join(caiman_da
     if not isGPU:
 
         os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
-
-    os.environ["KERAS_BACKEND"] = "tensorflow"
-    from keras.models import model_from_json
+    try:
+        os.environ["KERAS_BACKEND"] = "tensorflow"
+        from keras.models import model_from_json
+        use_keras = True
+        logging.debug('Using Keras')
+    except(ModuleNotFoundError):
+        import tensorflow as tf
+        use_keras = False
+        logging.debug('Using Tensorflow')
 
     if loaded_model is None:
-        if os.path.isfile(os.path.join(caiman_datadir(), model_name + ".json")):
-            model_file    = os.path.join(caiman_datadir(), model_name + ".json")
-            model_weights = os.path.join(caiman_datadir(), model_name + ".h5")
-        elif os.path.isfile(model_name + ".json"):
-            model_file    = model_name + ".json"
-            model_weights = model_name + ".h5"
-        else:
-            raise FileNotFoundError("File for requested model {} not found".format(model_name))
-        with open(model_file, 'r') as json_file:
-            logging.debug('USING MODEL:' + model_file)
-            loaded_model_json = json_file.read()
+        if use_keras:
+            if os.path.isfile(os.path.join(caiman_datadir(), model_name + ".json")):
+                model_file    = os.path.join(caiman_datadir(), model_name + ".json")
+                model_weights = os.path.join(caiman_datadir(), model_name + ".h5")
+            elif os.path.isfile(model_name + ".json"):
+                model_file    = model_name + ".json"
+                model_weights = model_name + ".h5"
+            else:
+                raise FileNotFoundError("File for requested model {} not found".format(model_name))
+            with open(model_file, 'r') as json_file:
+                print('USING MODEL:' + model_file)
+                loaded_model_json = json_file.read()
 
-        loaded_model = model_from_json(loaded_model_json)
-        loaded_model.load_weights(model_name + '.h5')
-        loaded_model.compile('sgd', 'mse')
-        logging.debug("Loaded CNN model from disk")
+            loaded_model = model_from_json(loaded_model_json)
+            loaded_model.load_weights(model_name + '.h5')
+            loaded_model.compile('sgd', 'mse')
+        else:
+            if os.path.isfile(os.path.join(caiman_datadir(), model_name + ".h5.pb")):
+                model_file    = os.path.join(caiman_datadir(), model_name + ".h5.pb")
+            elif os.path.isfile(model_name + ".h5.pb"):
+                model_file    = model_name + ".h5.pb"
+            else:
+                raise FileNotFoundError("File for requested model {} not found".format(model_name))
+            loaded_model = load_graph(model_file)
+
+        logging.debug("Loaded model from disk")
+
     half_crop = np.minimum(
         gSig[0] * 4 + 1, patch_size), np.minimum(gSig[1] * 4 + 1, patch_size)
     dims = np.array(dims)
@@ -242,8 +309,15 @@ def evaluate_components_CNN(A, dims, gSig, model_name:str=os.path.join(caiman_da
                                                        com[1] - half_crop[1]:com[1] + half_crop[1]] for mm, com in zip(A.tocsc().T, coms)]
     final_crops = np.array([cv2.resize(
         im / np.linalg.norm(im), (patch_size, patch_size)) for im in crop_imgs])
-    predictions = loaded_model.predict(
-        final_crops[:, :, :, np.newaxis], batch_size=32, verbose=1)
+    if use_keras:
+        predictions = loaded_model.predict(
+            final_crops[:, :, :, np.newaxis], batch_size=32, verbose=1)
+    else:
+        tf_in = loaded_model.get_tensor_by_name('prefix/conv2d_20_input:0')
+        tf_out = loaded_model.get_tensor_by_name('prefix/output_node0:0')
+        with tf.Session(graph=loaded_model) as sess:
+            predictions = sess.run(
+                tf_out, feed_dict={tf_in: final_crops[:, :, :, np.newaxis]})
 
     return predictions, final_crops
 #%%
