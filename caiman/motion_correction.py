@@ -2432,7 +2432,7 @@ def tile_and_correct_wrapper(params):
 #    elif extension == '.avi':
 #        imgs = cm.load(img_name, subindices=np.array(idxs))
 
-    imgs = cm.load(img_name, subindices=idxs)
+    imgs = cm.load(img_name, subindices=idxs, var_name_hdf5 = var_name_hdf5)
     mc = np.zeros(imgs.shape, dtype=np.float32)
     for count, img in enumerate(imgs):
         if count % 10 == 0:

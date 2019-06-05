@@ -1328,16 +1328,22 @@ def load(file_name, fr:float=30, start_time:float=0, meta_data:Dict=None, subind
                     fkeys = list(f.keys())
                     if len(fkeys) == 1:
                         var_name_hdf5 = fkeys[0]
+
+                    if extension == '.nwb':
+                        fgroup = f[var_name_hdf5]['data']
+                    else:
+                        fgroup = f[var_name_hdf5]
+
                     if var_name_hdf5 in f:
                         if subindices is None:
-                            images = np.array(f[var_name_hdf5]).squeeze()
+                            images = np.array(fgroup).squeeze()
                             #if images.ndim > 3:
                             #    images = images[:, 0]
                         else:
                             if type(subindices).__module__ is 'numpy':
                                 subindices = subindices.tolist()
                             images = np.array(
-                                f[var_name_hdf5][subindices]).squeeze()
+                                fgroup[subindices]).squeeze()
                             #if images.ndim > 3:
                             #    images = images[:, 0]
 
@@ -1400,7 +1406,7 @@ def load(file_name, fr:float=30, start_time:float=0, meta_data:Dict=None, subind
 def load_movie_chain(file_list:List[str], fr:float=30, start_time=0,
                      meta_data=None, subindices=None,
                      bottom=0, top=0, left=0, right=0, z_top=0,
-                     z_bottom=0, is3D:bool=False, channel=None, outtype=np.float32) -> Any:
+                     z_bottom=0, is3D:bool=False, channel=None, outtype=np.float32, var_name_hdf5:str='mov') -> Any:
     """ load movies from list of file names
 
     Args:
@@ -1423,7 +1429,7 @@ def load_movie_chain(file_list:List[str], fr:float=30, start_time=0,
     mov = []
     for f in tqdm(file_list):
         m = load(f, fr=fr, start_time=start_time,
-                 meta_data=meta_data, subindices=subindices, in_memory=True, outtype=outtype)
+                 meta_data=meta_data, subindices=subindices, in_memory=True, outtype=outtype, var_name_hdf5=var_name_hdf5)
         if channel is not None:
             logging.debug(m.shape)
             m = m[channel].squeeze()

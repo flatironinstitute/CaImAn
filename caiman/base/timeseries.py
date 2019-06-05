@@ -18,6 +18,9 @@ import pickle as cpk
 from scipy.io import savemat
 import tifffile
 import warnings
+from datetime import datetime
+from dateutil.tz import tzlocal
+
 
 from caiman.paths import memmap_frames_filename
 
@@ -114,8 +117,28 @@ class timeseries(np.ndarray):
         self.file_name = getattr(obj, 'file_name', None)
         self.meta_data = getattr(obj, 'meta_data', None)
 
-    def save(self, file_name, to32=True, order='F',imagej=False, bigtiff=True,
-             software='CaImAn', compress=0, var_name_hdf5='mov'):
+    def save(self,
+             file_name,
+             to32=True,
+             order='F',
+             imagej=False,
+             bigtiff=True,
+             excitation_lambda=488.0,
+             compress=0,
+             var_name_hdf5='mov',
+             sess_desc='some_description',
+             identifier = 'some identifier',
+             exp_desc = 'experiment description',
+             imaging_plane_description = 'spome imaging plane description',
+             emission_lambda = 520.0,
+             indicator = 'OGB-1',
+             location = 'brain',
+             starting_time = 0.,
+             experimenter='Dr Who',
+             lab_name='NEL',
+             institution='UNC-CH',
+             experiment_description='Experiment Description',
+             session_id='Session ID'):
         """
         Save the timeseries in various formats
 
@@ -245,6 +268,64 @@ class timeseries(np.ndarray):
             big_mov.flush()
             del big_mov, input_arr
             return fname_tot
+
+
+
+        elif extension == '.nwb':
+            from pynwb import NWBHDF5IO
+            from pynwb import NWBFile
+            from pynwb.ophys import TwoPhotonSeries, OpticalChannel, ImageSegmentation, Fluorescence, MotionCorrection
+            from pynwb.device import Device
+            if to32 and not('float32' in str(self.dtype)):
+                input_arr = self.astype(np.float32)
+            else:
+                input_arr = np.array(self)
+            # Create NWB file
+            nwbfile = NWBFile(sess_desc, identifier,
+                              datetime.now(tzlocal()),
+                              experimenter=experimenter,
+                              lab=lab_name,
+                              institution=institution,
+                              experiment_description=experiment_description,
+                              session_id=session_id)
+            # Get the device
+            device = Device('imaging_device')
+            nwbfile.add_device(device)
+            # OpticalChannel
+            optical_channel = OpticalChannel('main_opt_channel',
+                                             'main optical channel',
+                                             emission_lambda = emission_lambda)
+            imaging_plane = nwbfile.create_imaging_plane(name = 'main_imaging_plane',
+                                                optical_channel = optical_channel,
+                                                description = imaging_plane_description,
+                                                device = device,
+                                                excitation_lambda = excitation_lambda,
+                                                imaging_rate = self.fr,
+                                                indicator = indicator,
+                                                location = location)
+            # Images
+            image_series = TwoPhotonSeries(name='mov', dimension=self.shape[1:],
+                                   data = input_arr,
+                                   imaging_plane=imaging_plane,
+                                   starting_frame=[0],
+                                   starting_time=starting_time,
+                                   rate=self.fr)
+
+            nwbfile.add_acquisition(image_series)
+
+            with NWBHDF5IO(file_name, 'w') as io:
+                io.write(nwbfile)
+
+            return file_name
+
+
+
+
+
+
+
+
+
 
         else:
             logging.error("Extension " + str(extension) + " unknown")

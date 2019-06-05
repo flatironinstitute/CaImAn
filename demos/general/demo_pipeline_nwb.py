@@ -62,22 +62,33 @@ def main():
     pass  # For compatibility between running under Spyder and the CLI
 
 #%% Select file(s) to be processed (download if not present)
-    fnames = ['Sue_2x_3000_40_-46.tif']  # filename to be processed
-    if fnames[0] in ['Sue_2x_3000_40_-46.tif', 'demoMovie.tif']:
-        fnames = [download_demo(fnames[0])]
+    fnames = ['/Users/agiovann/caiman_data/example_movies/Sue_2x_3000_40_-46.nwb']  # filename to be created or processed
+    # dataset dependent parameters
+    fr = 15  # imaging rate in frames per second
+    decay_time = 0.4  # length of a typical transient in seconds
 
+
+#%% if it does not exists, create a NWB file
+    if not os.path.exists(fnames[0]):
+        fnames_orig = ['Sue_2x_3000_40_-46.tif']  # filename to be processed
+        if fnames_orig[0] in ['Sue_2x_3000_40_-46.tif', 'demoMovie.tif']:
+            fnames_orig = [download_demo(fnames_orig[0])]
+        orig_movie = cm.load(fnames_orig, fr = fr)
+        orig_movie.save(fnames[0], sess_desc='test',identifier = 'demo 1',
+             exp_desc = 'demo movie', imaging_plane_description = 'single plane',
+             emission_lambda = 520.0, indicator = 'GCAMP6f', location = 'parietal cortex', starting_time = 0.,
+             experimenter='Sue An Koay', lab_name='Tank Lab', institution='Princeton U',
+             experiment_description='Experiment Description', session_id='Session 1')
 #%% First setup some parameters for data and motion correction
 
-    # dataset dependent parameters
-    fr = 30             # imaging rate in frames per second
-    decay_time = 0.4    # length of a typical transient in seconds
-    dxy = (2., 2.)      # spatial resolution in x and y in (um per pixel)
-    # note the lower than usual spatial resolution here
-    max_shift_um = (12., 12.)       # maximum shift in um
-    patch_motion_um = (100., 100.)  # patch size for non-rigid correction in um
+
 
     # motion correction parameters
-    pw_rigid = True       # flag to select rigid vs pw_rigid motion correction
+    dxy = (2., 2.)  # spatial resolution in x and y in (um per pixel)
+    # note the lower than usual spatial resolution here
+    max_shift_um = (12., 12.)  # maximum shift in um
+    patch_motion_um = (100., 100.)  # patch size for non-rigid correction in um
+    pw_rigid = False       # flag to select rigid vs pw_rigid motion correction
     # maximum allowed rigid shift in pixels
     max_shifts = [int(a/b) for a, b in zip(max_shift_um, dxy)]
     # start a new patch for pw-rigid motion correction every x pixels
@@ -87,6 +98,7 @@ def main():
     # maximum deviation allowed for patch with respect to rigid shifts
     max_deviation_rigid = 3
 
+    
     mc_dict = {
         'fnames': fnames,
         'fr': fr,
@@ -97,7 +109,8 @@ def main():
         'strides': strides,
         'overlaps': overlaps,
         'max_deviation_rigid': max_deviation_rigid,
-        'border_nan': 'copy'
+        'border_nan': 'copy',
+        'var_name_hdf5': 'acquisition/mov'    
     }
 
     opts = params.CNMFParams(params_dict=mc_dict)
@@ -105,10 +118,9 @@ def main():
 # %% play the movie (optional)
     # playing the movie using opencv. It requires loading the movie in memory.
     # To close the video press q
-    display_images = False
-
+    display_images = True
     if display_images:
-        m_orig = cm.load_movie_chain(fnames)
+        m_orig = cm.load_movie_chain(fnames, var_name_hdf5=opts.data['var_name_hdf5'])
         ds_ratio = 0.2
         moviehandle = m_orig.resize(1, 1, ds_ratio)
         moviehandle.play(q_max=99.5, fr=60, magnification=2)
@@ -119,15 +131,15 @@ def main():
 
 # %%% MOTION CORRECTION
     # first we create a motion correction object with the specified parameters
-    mc = MotionCorrect(fnames, dview=dview, **opts.get_group('motion'))
+    mc = MotionCorrect(fnames, dview=dview, var_name_hdf5=opts.data['var_name_hdf5'], **opts.get_group('motion'))
     # note that the file is not loaded in memory
 
 # %% Run (piecewise-rigid motion) correction using NoRMCorre
-    mc.motion_correct(save_movie=True)
+    mc.motion_correct(save_movie=True,)
 
 # %% compare with original movie
     if display_images:
-        m_orig = cm.load_movie_chain(fnames)
+        m_orig = cm.load_movie_chain(fnames, var_name_hdf5=opts.data['var_name_hdf5'])
         m_els = cm.load(mc.mmap_file)
         ds_ratio = 0.2
         moviehandle = cm.concatenate([m_orig.resize(1, 1, ds_ratio) - mc.min_mov*mc.nonneg_movie,
@@ -194,6 +206,7 @@ def main():
     cnm = cnm.fit(images)
 
 # %% ALTERNATE WAY TO RUN THE PIPELINE AT ONCE
+    
     #   you can also perform the motion correction plus cnmf fitting steps
     #   simultaneously after defining your parameters object using
     #  cnm1 = cnmf.CNMF(n_processes, params=opts, dview=dview)
@@ -205,8 +218,8 @@ def main():
     cnm.estimates.plot_contours(img=Cn)
     plt.title('Contour plots of found components')
 #%% save results
-    cnm.save(fname_new[:-5]+'_init.hdf5')
-    cnm.estimates.Cn = Cn
+    cnm.save(fname_new[:-4]+'hdf5')
+    cm.movie(Cn).save(fname_new[:-5]+'_Cn.tif')
 # %% RE-RUN seeded CNMF on accepted patches to refine and perform deconvolution
     cnm.params.change_params({'p': p})
     cnm2 = cnm.refit(images, dview=dview)
@@ -238,15 +251,14 @@ def main():
         cnm2.estimates.view_components(images, img=Cn,
                                       idx=cnm2.estimates.idx_components_bad)
     #%% update object with selected components
-    cnm2.estimates.select_components(use_object=True)
+    # cnm2.estimates.select_components(use_object=True)
     #%% Extract DF/F values
+
     cnm2.estimates.detrend_df_f(quantileMin=8, frames_window=250)
 
     #%% Show final traces
     cnm2.estimates.view_components(img=Cn)
-    #%%
-    cnm2.estimates.Cn = Cn
-    cnm2.save(cnm2.mmap_file[:-4] + 'hdf5')
+
     #%% reconstruct denoised movie (press q to exit)
     if display_images:
         cnm2.estimates.play_movie(images, q_max=99.9, gain_res=2,
@@ -255,11 +267,13 @@ def main():
                                   include_bck=False)  # background not shown
 
     #%% STOP CLUSTER and clean up log files
+
     cm.stop_server(dview=dview)
     log_files = glob.glob('*_LOG_*')
     for log_file in log_files:
         os.remove(log_file)
-
+    #%% save in NWB format
+    cnm2.estimates.save(fnames[0])
 # %%
 # This is to mask the differences between running this demo in Spyder
 # versus from the CLI

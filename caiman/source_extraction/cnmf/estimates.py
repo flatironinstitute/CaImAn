@@ -849,7 +849,7 @@ class Estimates(object):
 
         return self
 
-    def filter_components(self, imgs, params, new_dict={}, dview=None):
+    def filter_components(self, imgs, params, new_dict={}, dview=None, select_mode='All'):
         """Filters components based on given thresholds without re-computing
         the quality metrics. If the quality metrics are not present then it
         calls self.evaluate components.
@@ -860,6 +860,12 @@ class Estimates(object):
 
             params: params object
                 Parameters of the algorithm
+
+            select_mode: str
+                Can be 'All' (no subselection is made, but quality filtering is performed),
+                'Accepted' (subselection of accepted components, a field named self.accepted_list must exist),
+                'Rejected' (subselection of rejected components, a field named self.rejected_list must exist),
+                'Unassigned' (both fields above need to exist)
 
             new_dict: dict
                 New dictionary with parameters to be called. The dictionary
@@ -923,6 +929,15 @@ class Estimates(object):
                                            thresh_cnn_lowest=opts['cnn_lowest'],
                                            use_cnn=opts['use_cnn'],
                                            gSig_range=opts['gSig_range'])
+
+        if select_mode == 'Accepted':
+           self.idx_components = np.array(np.intersect1d(self.idx_components,self.accepted_list))
+        elif select_mode == 'Rejected':
+           self.idx_components = np.array(np.intersect1d(self.idx_components,self.rejected_list))
+        elif select_mode == 'Unassigned':
+           self.idx_components = np.array(np.setdiff1d(self.idx_components,np.union1d(self.rejected_list,self.accepted_list)))
+
+        self.idx_components_bad = np.array(np.setdiff1d(range(len(self.SNR_comp)),self.idx_components))
 
         return self
 
@@ -1140,13 +1155,9 @@ class Estimates(object):
         else:
             components_to_keep = np.arange(self.A.shape[-1])
 
-        if self.idx_components is None:
-            self.idx_components = np.arange(self.A.shape[-1])
-        self.idx_components = np.intersect1d(self.idx_components, components_to_keep)
-        self.idx_components_bad = np.setdiff1d(np.arange(self.A.shape[-1]), self.idx_components)
-        #self.select_components(idx_components=components_to_keep)
-        if select_comp:
-            self.select_components(use_object=True)
+
+
+        self.select_components(idx_components=components_to_keep)
 
         return components_to_keep
 
@@ -1156,6 +1167,104 @@ class Estimates(object):
                 'You need to compute thresolded components before calling this method: use the threshold_components method')
         bin_masks = self.A_thr.reshape([self.dims[0], self.dims[1], -1], order='F').transpose([2, 0, 1])
         return nf_masks_to_neurof_dict(bin_masks, dataset_name)
+
+    def save(self,
+             filename,
+             imaging_plane_name = None,
+             imaging_series_name = None,
+             sess_desc='CaImAn Results',
+             exp_desc=None,
+             imaging_rate=30,
+             location='somewhere in the brain',
+             orig_file_format='tiff'):
+        """save object in hdf5 file format
+
+        Args:
+            filename: str
+                path to the hdf5 file containing the saved object
+        """
+    #%%
+        from pynwb import NWBHDF5IO
+        from pynwb.ophys import ImageSegmentation, Fluorescence,MotionCorrection
+        import os
+
+    #%%
+        if '.nwb' != filename[-4:]:
+            raise Exception("Wrong filename")
+
+        if not os.path.isfile(filename): # if the file doesn't exist create new and add the orginal data path
+            raise Exception('filename should be an existing NWB file. \
+                            Consdier using cnmf.movie.save method to create one.')
+
+        else: # if the file already exist in the .nwb format then just add the results to it
+            print('Saving the results...')
+            import pdb
+            pdb.set_trace()
+            with  NWBHDF5IO(filename, 'r+') as io:
+                nwbfile = io.read()
+                # Add processing results
+                mod = nwbfile.create_processing_module('Estimates', 'contains caiman estimates for the main imagin plane')
+                img_seg = ImageSegmentation()
+                mod.add_data_interface(img_seg)
+                fl = Fluorescence()
+                mod.add_data_interface(fl)
+    #            mot_crct = MotionCorrection()
+    #            mod.add_data_interface(mot_crct)
+
+                # Add the ROI-related stuff
+                if imaging_plane_name is None:
+                    imaging_plane_name = [imp for imp in nwbfile.imaging_planes.keys()]
+                    if len(imaging_plane_name)>1:
+                        raise Exception('There is more than one imaging plane in the file, you need to specify the name via '
+                                        'the "imaging_plane_name" parameter')
+                    else:
+                        imaging_plane_name = imaging_plane_name[0]
+
+                if imaging_series_name is None:
+                    imaging_series_name = [imp for imp in nwbfile.acquisition.keys()]
+                    if len(imaging_series_name)>1:
+                        raise Exception('There is more than one imaging plane in the file, you need to specify the name via '
+                                        'the "imaging_series_name" parameter')
+                    else:
+                        imaging_series_name = imaging_series_name[0]
+
+
+                imaging_plane = nwbfile.imaging_planes[imaging_plane_name]
+                image_series = nwbfile.acquisition[imaging_series_name]
+
+                ps = img_seg.create_plane_segmentation('CNMF_ROIs',
+                                                       imaging_plane, 'planeseg', image_series)
+
+                # Add ROIs
+                # Neurons
+                for roi in self.A.T:
+                    ps.add_roi(image_mask=roi.T.toarray().reshape(self.dims))
+                # Backgrounds
+                for bg in self.b.T:
+                    ps.add_roi(image_mask=bg.reshape(self.dims))
+
+                # Add Traces
+                n_rois = self.A.shape[-1]
+                n_bg = len(self.f)
+                rt_region_roi = ps.create_roi_table_region('ROIs',
+                                                       region=list(range(n_rois)))
+
+                rt_region_bg = ps.create_roi_table_region('Background',
+                                                       region=list(range(n_rois,n_rois+n_bg)))
+
+                timestamps = list(range(self.f.shape[1]))
+
+                # Neurons
+                rrs1 = fl.create_roi_response_series('ROI_Fluorescence_Response', self.C.T, 'lumens', rt_region_roi, timestamps=timestamps)
+                # Background
+                rrs2 = fl.create_roi_response_series('Background_Fluorescence_Response', self.f.T, 'lumens', rt_region_bg, timestamps=timestamps)
+
+                # Add MotionCorreciton
+    #            create_corrected_image_stack(corrected, original, xy_translation, name='CorrectedImageStack')
+
+                io.write(nwbfile)
+
+
 
 def compare_components(estimate_gt, estimate_cmp,  Cn=None, thresh_cost=.8, min_dist=10, print_assignment=False, labels=['GT', 'CMP'], plot_results=False):
     if estimate_gt.A_thr is None:

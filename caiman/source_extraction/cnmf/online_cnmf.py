@@ -77,14 +77,21 @@ class OnACID(object):
             Run the entire online pipeline on a given list of files
     """
 
-    def __init__(self, params=None, estimates=None):
-        if params is None:
-            self.params = CNMFParams()
-        else:
-            self.params = params
+    def __init__(self, params=None, estimates=None, path=None):
+        if path is None:
+            if params is None:
+                self.params = CNMFParams()
+            else:
+                self.params = params
 
-        if estimates is None:
-            self.estimates = Estimates()
+            if estimates is None:
+                self.estimates = Estimates()
+        else:
+            if params is None or estimates is None:
+                raise ValueError("Cannot Specify Estimates and Params While \
+                                 Loading Object From File")
+#            else:
+#                load_CNMF_from_file(path)
 
     def _prepare_object(self, Yr, T, new_dims=None, idx_components=None):
 
@@ -660,6 +667,99 @@ class OnACID(object):
         else:
             raise Exception("Unsupported file extension")
 
+    def save_nwb(self,filename, ID, sess_desc='CaImAn Results', exp_desc=None,
+                 imaging_rate=30,location='somewhere in the brain',orig_file_format='tiff'):
+        """save object in hdf5 file format
+
+        Args:
+            filename: str
+                path to the hdf5 file containing the saved object
+        """
+    #%%
+        if '.nwb' != filename[-4:]:
+            raise Exception("Unsupported file extension")
+
+        from datetime import datetime
+        from dateutil.tz import tzlocal
+        from pynwb import NWBHDF5IO
+
+        import numpy as np
+
+        from pynwb import NWBFile
+        from pynwb.ophys import TwoPhotonSeries, OpticalChannel, ImageSegmentation, Fluorescence, MotionCorrection
+        from pynwb.device import Device
+        #%%
+        # Create NWB file
+        nwbfile = NWBFile(sess_desc, ID, datetime.now(tzlocal()),
+                  experimenter='Dr. Giovannucci',
+                  lab='NEL',
+                  institution='UNC-CH',
+                  experiment_description=exp_desc,
+                  session_id='Results Only')
+        # Get the device
+        device = Device('imaging_device_1')
+        nwbfile.add_device(device)
+        # OpticalChannel
+        optical_channel = OpticalChannel('main_opt_channel', 'description', 500.)
+        imaging_plane = nwbfile.create_imaging_plane('main_imging_pln',
+                                            optical_channel,
+                                            'a very interesting part of the brain',
+                                            device, 600., self.params.fr, 'main_indicator',
+                                            location,
+                                            None, 1.0,
+                                            'manifold unit', 'A frame to refer to')
+        # Images
+        image_series = TwoPhotonSeries(name='main_data', dimension=self.estimates.dims,
+                               external_file= self.params.get('data', 'fnames'),
+                               imaging_plane=imaging_plane,
+                               starting_frame=[0], format=orig_file_format, starting_time=0.0, rate=imaging_rate)
+        nwbfile.add_acquisition(image_series)
+
+        # Add processing results
+        mod = nwbfile.create_processing_module('ophys', 'contains caiman estimates')
+        img_seg = ImageSegmentation()
+        mod.add_data_interface(img_seg)
+        fl = Fluorescence()
+        mod.add_data_interface(fl)
+
+        # Add the ROI-related stuff
+        ps = img_seg.create_plane_segmentation('CNMF Rresults',
+                                               imaging_plane, 'my_planeseg', image_series)
+
+        # Add ROIs
+        # Neurons
+        for roi in self.estimates.A.T:
+            ps.add_roi(image_mask=roi)
+        # Backgrounds
+        for bg in self.estimates.b.T:
+            ps.add_roi(image_mask=bg)
+
+        # Add Traces
+        n_rois = len(self.estimates.A.T)
+        n_bg = len(self.estimate.f)
+        rt_region_roi = ps.create_roi_table_region('ROIs',
+                                               region=list(range(n_rois)))
+
+        rt_region_bg = ps.create_roi_table_region('BackGround',
+                                               region=list(range(n_rois,n_rois+n_bg)))
+
+        timestamps = list(range(self.estimates.f.shape[1]))
+        # Neurons
+        rrs1 = fl.create_roi_response_series('ROI_Fluorescence_Response', self.estimates.C.T, 'lumens', rt_region_roi, timestamps=timestamps)
+        # Background
+        rrs2 = fl.create_roi_response_series('Background_Fluorescence_Response', self.estimates.f.T, 'lumens', rt_region_bg, timestamps=timestamps)
+
+
+        with NWBHDF5IO(filename, 'w') as io:
+            io.write(nwbfile)
+
+
+
+
+
+
+
+
     def fit_online(self, **kwargs):
         """Implements the caiman online algorithm on the list of files fls. The
         files are taken in alpha numerical order and are assumed to each have
@@ -713,15 +813,19 @@ class OnACID(object):
             fourcc = cv2.VideoWriter_fourcc('8', 'B', 'P', 'S')
             out = cv2.VideoWriter(self.params.get('online', 'movie_name_online'),
                                   fourcc, 30.0, tuple([int(2*x) for x in self.params.get('data', 'dims')]))
+
+        # Iterate through the epochs
         for iter in range(epochs):
             if iter > 0:
                 # if not on first epoch process all files from scratch
                 process_files = fls[:init_files + extra_files]
                 init_batc_iter = [0] * (extra_files + init_files)
 
+            # Go through all files
             for file_count, ffll in enumerate(process_files):
                 print('Now processing file ' + ffll)
-                Y_ = caiman.load(ffll, var_name_hdf5=self.params.get('data', 'var_name_hdf5'), 
+                # load the file
+                Y_ = caiman.load(ffll, var_name_hdf5=self.params.get('data', 'var_name_hdf5'),
                                  subindices=slice(init_batc_iter[file_count], None, None))
 
                 old_comps = self.N     # number of existing components
@@ -738,13 +842,16 @@ class OnACID(object):
                               + str(self.estimates.Ab.shape[-1] - self.params.get('init', 'nb')))
                         old_comps = self.N
 
+                    # Downsample and normalize
                     frame_ = frame.copy().astype(np.float32)
                     if self.params.get('online', 'ds_factor') > 1:
                         frame_ = cv2.resize(frame_, self.img_norm.shape[::-1])
 
                     if self.params.get('online', 'normalize'):
                         frame_ -= self.img_min     # make data non-negative
-                    t_mot = time()    
+                    t_mot = time()
+
+                    # Motion Correction
                     if self.params.get('online', 'motion_correct'):    # motion correct
                         templ = self.estimates.Ab.dot(
                             self.estimates.C_on[:self.M, t-1]).reshape(self.params.get('data', 'dims'), order='F')*self.img_norm
@@ -767,7 +874,11 @@ class OnACID(object):
                     
                     if self.params.get('online', 'normalize'):
                         frame_cor = frame_cor/self.img_norm
+
+                    # Fit next frame
                     self.fit_next(t, frame_cor.reshape(-1, order='F'))
+
+                    # Show
                     if self.params.get('online', 'show_movie'):
                         self.t = t
                         vid_frame = self.create_frame(frame_cor)
@@ -971,7 +1082,6 @@ def seeded_initialization(Y, Ain, dims=None, init_batch=1000, order_init=None, g
         not_px = np.array(not_px).flatten()
     Yr = np.reshape(Y, (Ain.shape[0], Y.shape[-1]), order='F')
     model = NMF(n_components=gnb, init='nndsvdar', max_iter=10)
-    b_temp = model.fit_transform(np.maximum(Yr[not_px], 0))
     f_in = model.components_.squeeze()
     f_in = np.atleast_2d(f_in)
     Y_resf = np.dot(Yr, f_in.T)
@@ -1508,7 +1618,6 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial=3, gSig=(5, 5),
         Ain2 = np.stack([cv2.resize(ain,(patch_size ,patch_size)) for ain in Ain2])
         predictions = loaded_model.predict(Ain2[:,:,:,np.newaxis], batch_size=min_num_trial, verbose=0)
         keep_cnn = list(np.where(predictions[:, 0] > thresh_CNN_noisy)[0])
-        discard = list(np.where(predictions[:, 0] <= thresh_CNN_noisy)[0])
         cnn_pos = Ain2[keep_cnn]
     else:
         keep_cnn = []  # list(range(len(Ain_cnn)))
@@ -1588,7 +1697,6 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
         ij = np.unravel_index(ind, dims)
 
         ijSig = [[max(i - temp_g, 0), min(i + temp_g + 1, d)] for i, temp_g, d in zip(ij, gHalf, dims)]
-        dims_ain = (np.abs(np.diff(ijSig[1])[0]), np.abs(np.diff(ijSig[0])[0]))
 
         indices = np.ravel_multi_index(
                 np.ix_(*[np.arange(ij[0], ij[1])
@@ -1724,7 +1832,6 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                 Y_filter = Yres_buf.reshape((-1,) + dims, order='F'
                                             )[:, slices_filter[0], slices_filter[1]]
                 T, d0, d1 = Y_filter.shape
-                dg = gHalf[0] + d0
                 tmp = np.concatenate((Y_filter, np.zeros((T, gHalf[0], d1), dtype=np.float32)),
                                      axis=1).reshape(-1, d1)
                 cv2.GaussianBlur(tmp, tuple(gSiz), gSig[0], tmp, gSig[1], cv2.BORDER_CONSTANT)
@@ -1899,6 +2006,7 @@ def initialize_movie_online(Y, K, gSig, rf, stride, base_name,
     print((len(traces)))
     print((len(idx_components)))
     #%
+    cnm_refine.sn = sn
     cnm_refine.idx_components = idx_components
     cnm_refine.idx_components_bad = idx_components_bad
     cnm_refine.r_values = r_values
