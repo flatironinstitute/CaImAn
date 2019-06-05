@@ -808,8 +808,12 @@ class OnACID(object):
                          epochs:t], self.estimates.C_on[:self.params.get('init', 'nb'), t - t // epochs:t]
         noisyC = self.estimates.noisyC[self.params.get('init', 'nb'):self.M, t - t // epochs:t]
         self.estimates.YrA = noisyC - self.estimates.C
-        self.estimates.bl = [osi.b for osi in self.estimates.OASISinstances] if hasattr(
-            self, 'OASISinstances') else [0] * self.estimates.C.shape[0]
+        if self.estimates.OASISinstances is not None:
+            self.estimates.bl = [osi.b for osi in self.estimates.OASISinstances]
+            self.estimates.S = np.stack([osi.s for osi in self.estimates.OASISinstances])
+        else:
+            self.estimates.bl = [0] * self.estimates.C.shape[0]
+            self.estimates.S = np.zeros_like(self.estimates.C)
         if self.params.get('online', 'save_online_movie'):
             out.release()
         if self.params.get('online', 'show_movie'):
