@@ -12,24 +12,8 @@ import os
 import psutil
 import scipy
 import sys
-from spikePursuit import volspike
-from Volparams import volparams
-
-"""
-from .estimates import Estimates
-from .initialization import initialize_components, compute_W
-from .map_reduce import run_CNMF_patches
-from .merging import merge_components
-from .params import CNMFParams
-from .pre_processing import preprocess_data
-from .spatial import update_spatial_components
-from .temporal import update_temporal_components, constrained_foopsi_parallel
-from .utilities import update_order
-from ... import mmapping
-from ...components_evaluation import estimate_components_quality
-from ...motion_correction import MotionCorrect
-from ...utils.utils import save_dict_to_hdf5, load_dict_from_hdf5
-"""
+from .spikePursuit import volspike
+from .Volparams import volparams
 
 try:
     cv2.setNumThreads(0)
@@ -41,10 +25,8 @@ try:
 except:
     def profile(a): return a
 
-
 class VOLPY(object):
     """ Spike Detection in Voltage Imaging
-
         The general file class which is used to find spikes of voltage imaging.
         Its architecture is similar to the one of scikit-learn calling the function fit to run everything which is part
         of the structure of the class. The output will be recorded in self.estimate.
@@ -96,7 +78,6 @@ class VOLPY(object):
                 but makes subthreshold unreliable"""
 
         self.dview = dview
-
         if params is None:
             self.params =volparams(doCrossVal=doCrossVal, doGlobalSubtract=doGlobalSubtract,
             contextSize=contextSize, censorSize=censorSize, nPC_bg=nPC_bg, tau_lp=tau_lp, tau_pred=tau_pred, sigmas=sigmas,
@@ -104,20 +85,11 @@ class VOLPY(object):
         else:
             self.params = params
             #params.set('patch', {'n_processes': n_processes})
-
         self.estimates = {}
 
-    def fit(self, images):
-        """Run the volspike function to detect spikes
-        Args:
-            images: ndarray
-                mapped np.ndarray of shape (t,x,y[,z]) containing the images that vary over time.
-
-        Return:
-            self:
-                self.estimates include the estimated spiketimes, trace etc
-
-
+    def fit(self):
+        """Run the volspike function to detect spikes and save the result 
+        into self.estimate        
         """
         args = dict()
         args['fnames'] = self.params.data['fnames']
@@ -148,7 +120,6 @@ class VOLPY(object):
             results = list(map(volspike, args_in))
 
         N = len(results)
-
         self.estimates['spikeTimes'] = [results[i]['spikeTimes'] for i in range(N)]
         self.estimates['trace'] = [results[i]['yFilt'] for i in range(N)]
         self.estimates['spatialFilter'] = [results[i]['spatialFilter'] for i in range(N)]

@@ -1,14 +1,11 @@
 #!/usr/bin/env python
 
 """
-Demo pipeline for processing voltage imaging data using the
-CaImAn batch algorithm. The processing pipeline included motion correction
-and spike finding with given ROIs.
+Demo pipeline for processing voltage imaging data. The processing pipeline
+includes motion correction and spike detection with given ROIs.
 
 """
 import os
-os.environ['MKL_NUM_THREADS'] = '1'
-os.environ['OPENBLAS_NUM_THREADS'] = '1'
 import cv2
 import glob
 import logging
@@ -16,7 +13,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scipy.io
 import sys
-sys.path.append('/home/nel/Code/Volpy')
 
 try:
     cv2.setNumThreads(0)
@@ -34,14 +30,11 @@ except NameError:
 
 import caiman as cm
 from caiman.motion_correction import MotionCorrect
-from caiman.source_extraction.volpy.volpy_function import *
 from caiman.utils.utils import download_demo
 from caiman.source_extraction.cnmf import params as params
-from Volparams import volparams
-from volpy import VOLPY
-import os
+from caiman.source_extraction.volpy.Volparams import volparams
+from caiman.source_extraction.volpy.volpy import VOLPY
 import matplotlib.pyplot as plt
-
 
 # %%
 # Set up the logger (optional); change this if you like.
@@ -52,7 +45,6 @@ logging.basicConfig(format=
                     "%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s]" \
                     "[%(process)d] %(message)s",
                     level=logging.INFO)
-
 
 # %%
 def main():
@@ -69,15 +61,17 @@ def main():
         file_list = [dr + 'cameraTube051_{:05n}.tif'.format(i + 1) for i in
                      np.arange(n_files * n, n_files * (n + 1), 1)]
     # %% Select file(s) to be processed
-    fnames = [tuple([ff for ff in file_list[:3000]])]
-
+    # May do motion correction for several blocks of files at the same time
+    # eg. fnames = [tuple([ff for ff in file_list[12000:13000]]), tuple([ff for ff in file_list[13000:14000]])]
+    fnames = [tuple([ff for ff in file_list[:5000]])]
+    
     # %% First setup some parameters for data and motion correction
     # dataset parameters
-    fr = 400  # imaging rate in frames per second
-    index = [1,2] # index of neurons for processing
+    fr = 400  # sample rate of the movie
     rois_path = '/home/nel/Code/Voltage_imaging/exampledata/ROIs/403106_3min_rois.mat'
     f = scipy.io.loadmat(rois_path)
     ROIs = f['roi'].T  # all ROIs that are given
+    index = list(range(10)) # index of neurons for processing
 
     # motion correction parameters
     motion_correct = True  # flag for motion correction
@@ -111,7 +105,7 @@ def main():
     # %% play the movie (optional)
     # playing the movie using opencv. It requires loading the movie in memory.
     # To close the video press q
-    display_images = False
+    display_images = True
 
     if display_images:
         m_orig = cm.load(list(fnames[0]))
@@ -127,15 +121,9 @@ def main():
     # first we create a motion correction object with the specified parameters
     mc_rig = MotionCorrect(fnames, dview=dview, **opts.get_group('motion'))
     # note that the file is not loaded in memory
-    #   Run rigid motion correction using NoRMCorre
+    # Run rigid motion correction using NoRMCorre
     mc_rig.motion_correct(save_movie=True)
 
-    # %% piecewise rigid motion correction
-    """
-    opts.get_group('motion')['pw_rigid'] = True
-    mc_els = MotionCorrect(fnames, dview=dview, **opts.get_group('motion'))
-    mc_els.motion_correct(save_movie=True)
-    """
     # %% rigid motion correction compared with original movie
     display_images = True
 
@@ -148,37 +136,28 @@ def main():
         moviehandle.play(fr=60, q_max=99.5, magnification=2)  # press q to exit
 
     # %% movie subtracted from the mean
-        m_orig2 = m_orig - np.mean(m_orig, axis=0)
-        m_rig2 = m_rig - np.mean(m_rig, axis=0)
-        moviehandle1 = cm.concatenate([m_orig2.resize(1, 1, ds_ratio) - mc_rig.min_mov * mc_rig.nonneg_movie,
-                                       m_rig2.resize(1, 1, ds_ratio) - mc_rig.min_mov * mc_rig.nonneg_movie], axis=2)
-        moviehandle1.play(fr=60, q_max=99.5, magnification=2)  # subtract the background
+        m_orig2 = (m_orig - np.mean(m_orig, axis=0))
+        m_rig2 = (m_rig - np.mean(m_rig, axis=0))
+        moviehandle1 = cm.concatenate([m_orig2.resize(1, 1, ds_ratio),
+                                       m_rig2.resize(1, 1, ds_ratio)], axis=2)
+        moviehandle1.play(fr=60, q_max=99.5, magnification=2) 
 
     # %% file name, index of cell, ROI, sample rate into args
     fname_new = mc_rig.mmap_file[0]  # memory map file name
-
     opts.change_params(params_dict={'fnames':fname_new})
-
-    Yr, dims, T = cm.load_memmap(fname_new)
-    if ROIs[0].shape == dims:
-        images = np.reshape(Yr.T, [T] + list(dims), order='F')
-    elif ROIs[0].shape == dims[::-1]:
-        images = np.reshape(Yr.T, [T] + list(dims), order='F').transpose([0, 2, 1])
-    else:
-        print('size of ROI and video does not accrod')
 
     # %% restart cluster to clean up memory
     cm.stop_server(dview=dview)
     c, dview, n_processes = cm.cluster.setup_cluster(
-        backend='local', n_processes=2, single_thread=False)
+        backend='local', n_processes=12, single_thread=False)
 
     # %% process cells using volspike function
     vpy = VOLPY(n_processes=n_processes, dview=dview, params=opts)
-    vpy.fit(images)
+    vpy.fit()
+
     # %% some visualization
     vpy.estimates['cellN']
-    n = 1  # cell you are interested in
-
+    n = 0  # cell you are interested in
 
     plt.figure()
     plt.plot(vpy.estimates['trace'][n])
@@ -193,13 +172,11 @@ def main():
     plt.title('spatial filter')
     plt.show()
 
-
     # %% STOP CLUSTER and clean up log files
     cm.stop_server(dview=dview)
     log_files = glob.glob('*_LOG_*')
     for log_file in log_files:
         os.remove(log_file)
-
 
 # %%
 # This is to mask the differences between running this demo in Spyder

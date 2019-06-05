@@ -3,10 +3,6 @@ import logging
 import numpy as np
 import scipy
 from scipy.ndimage.morphology import generate_binary_structure, iterate_structure
-
-#from ...paths import caiman_datadir
-#from .utilities import dict_compare, get_file_size
-
 from pprint import pformat
 
 class volparams(object):

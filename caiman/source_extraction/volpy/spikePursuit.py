@@ -3,7 +3,7 @@
 """
 Created on Fri Apr 19 14:50:09 2019
 
-@author: Changjia Cai based on Matlab code
+@author: Changjia Cai based on Matlab code provided by Kaspar and Amrita
 """
 import numpy as np
 import matplotlib.pyplot as plt
@@ -21,7 +21,7 @@ import caiman as cm
 
 # %%
 def volspike(pars):
-    """ Function for finding spikes of one single cell with given ROI in
+    """ Main function for finding spikes of one single neuron with given ROI in
         voltage imaging. Using function denoiseSpikes to find spikes
         of one dimensional signal, using ridge regression to find the
         best spatial filters. Do these two steps iteratively to find
@@ -33,8 +33,8 @@ def volspike(pars):
 
                 args: dictionary
 
-                    images: 3-d array
-                        memory map file for the whole video
+                    fnames: str
+                        name of the memory map file
 
                     fr: int
                         sample rate of the video
@@ -124,8 +124,6 @@ def volspike(pars):
     bw = (bw > 0)
     notbw = (notbw > 0)
     ref = np.median(data[:500, :, :], axis=0)
-    #import pdb
-    #pdb.set_trace()
 
     # visualize ROI
     # fig = plt.figure()
@@ -149,7 +147,7 @@ def volspike(pars):
     else:
         data_pred[:] = data_hp
 
-        # initial trace
+    # initial trace
     t = np.nanmean(data_hp[:, bw.ravel()], 1)
     t = t - np.mean(t)
 
@@ -273,6 +271,8 @@ def volspike(pars):
                 plt.show()
             X = X - np.matmul(Ub, b)
         else:
+            b = LinearRegression(fit_intercept=False).fit(Ub, X).coef_
+            X = X - np.matmul(Ub, b)
             if doGlobalSubtract:
                 print('do global subtract')
             # need to add
