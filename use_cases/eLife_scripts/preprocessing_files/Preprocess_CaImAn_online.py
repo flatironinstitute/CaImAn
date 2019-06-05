@@ -36,7 +36,6 @@ import os
 import sys
 import time
 import gc
-import keras
 
 from builtins import str
 
@@ -193,7 +192,6 @@ all_results = dict()
 # %% iterate over all datasets to be processed
 
 for ind_dataset in ID:
-    keras.backend.clear_session()
     gc.collect()
     fname_zip = os.path.join(base_folder, params_movie[ind_dataset]['folder_name'], 'images', 'images_' + params_movie[ind_dataset]['folder_name'] +'.zip')
     fls = glob.glob(os.path.join(base_folder, params_movie[ind_dataset]['folder_name'], 'images', 'mov*.tif'))
