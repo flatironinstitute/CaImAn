@@ -23,6 +23,7 @@ import warnings
 
 from caiman.paths import caiman_datadir
 from .utils.stats import mode_robust, mode_robust_fast
+from .utils.utils import load_graph
 
 try:
     cv2.setNumThreads(0)
@@ -258,26 +259,42 @@ def evaluate_components_CNN(A, dims, gSig, model_name:str=os.path.join(caiman_da
     if not isGPU:
 
         os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
-
-    os.environ["KERAS_BACKEND"] = "tensorflow"
-    from keras.models import model_from_json
+    try:
+        os.environ["KERAS_BACKEND"] = "tensorflow"
+        from keras.models import model_from_json
+        use_keras = True
+        logging.debug('Using Keras')
+    except(ModuleNotFoundError):
+        import tensorflow as tf
+        use_keras = False
+        logging.debug('Using Tensorflow')
 
     if loaded_model is None:
-        if os.path.isfile(os.path.join(caiman_datadir(), model_name + ".json")):
-            model_file    = os.path.join(caiman_datadir(), model_name + ".json")
-            model_weights = os.path.join(caiman_datadir(), model_name + ".h5")
-        elif os.path.isfile(model_name + ".json"):
-            model_file    = model_name + ".json"
-            model_weights = model_name + ".h5"
-        else:
-            raise FileNotFoundError("File for requested model {} not found".format(model_name))
-        with open(model_file, 'r') as json_file:
-            print('USING MODEL:' + model_file)
-            loaded_model_json = json_file.read()
+        if use_keras:
+            if os.path.isfile(os.path.join(caiman_datadir(), model_name + ".json")):
+                model_file    = os.path.join(caiman_datadir(), model_name + ".json")
+                model_weights = os.path.join(caiman_datadir(), model_name + ".h5")
+            elif os.path.isfile(model_name + ".json"):
+                model_file    = model_name + ".json"
+                model_weights = model_name + ".h5"
+            else:
+                raise FileNotFoundError("File for requested model {} not found".format(model_name))
+            with open(model_file, 'r') as json_file:
+                print('USING MODEL:' + model_file)
+                loaded_model_json = json_file.read()
 
-        loaded_model = model_from_json(loaded_model_json)
-        loaded_model.load_weights(model_name + '.h5')
-        loaded_model.compile('sgd', 'mse')
+            loaded_model = model_from_json(loaded_model_json)
+            loaded_model.load_weights(model_name + '.h5')
+            loaded_model.compile('sgd', 'mse')
+        else:
+            if os.path.isfile(os.path.join(caiman_datadir(), model_name + ".h5.pb")):
+                model_file    = os.path.join(caiman_datadir(), model_name + ".h5.pb")
+            elif os.path.isfile(model_name + ".h5.pb"):
+                model_file    = model_name + ".h5.pb"
+            else:
+                raise FileNotFoundError("File for requested model {} not found".format(model_name))
+            loaded_model = load_graph(model_file)
+
         logging.info("Loaded model from disk")
     half_crop = np.minimum(
         gSig[0] * 4 + 1, patch_size), np.minimum(gSig[1] * 4 + 1, patch_size)
@@ -291,8 +308,15 @@ def evaluate_components_CNN(A, dims, gSig, model_name:str=os.path.join(caiman_da
                                                        com[1] - half_crop[1]:com[1] + half_crop[1]] for mm, com in zip(A.tocsc().T, coms)]
     final_crops = np.array([cv2.resize(
         im / np.linalg.norm(im), (patch_size, patch_size)) for im in crop_imgs])
-    predictions = loaded_model.predict(
-        final_crops[:, :, :, np.newaxis], batch_size=32, verbose=1)
+    if use_keras:
+        predictions = loaded_model.predict(
+            final_crops[:, :, :, np.newaxis], batch_size=32, verbose=1)
+    else:
+        tf_in = loaded_model.get_tensor_by_name('prefix/conv2d_20_input:0')
+        tf_out = loaded_model.get_tensor_by_name('prefix/output_node0:0')
+        with tf.Session(graph=loaded_model) as sess:
+            predictions = sess.run(
+                tf_out, feed_dict={tf_in: final_crops[:, :, :, np.newaxis]})
 
     return predictions, final_crops
 #%%
