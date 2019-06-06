@@ -184,7 +184,7 @@ def main():
                  'ssub': ssub,
                  'tsub': tsub}
 
-    opts.change_params(params_dict=opts_dict)
+    opts.change_params(params_dict=opts_dict);
 # %% RUN CNMF ON PATCHES
     # First extract spatial and temporal components on patches and combine them
     # for this step deconvolution is turned off (p=0)
@@ -205,8 +205,9 @@ def main():
     cnm.estimates.plot_contours(img=Cn)
     plt.title('Contour plots of found components')
 #%% save results
-    cnm.save(fname_new[:-5]+'_init.hdf5')
     cnm.estimates.Cn = Cn
+    cnm.save(fname_new[:-5]+'_init.hdf5')
+
 # %% RE-RUN seeded CNMF on accepted patches to refine and perform deconvolution
     cnm.params.change_params({'p': p})
     cnm2 = cnm.refit(images, dview=dview)
