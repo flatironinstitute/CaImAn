@@ -214,6 +214,7 @@ def main():
     plt.title('Contour plots of found components')
 
 #%% save results in a separate file (just for demonstration purposes)
+    cnm.estimates.Cn = Cn
     cnm.save(fname_new[:-4]+'hdf5')
     #cm.movie(Cn).save(fname_new[:-5]+'_Cn.tif')
 
@@ -237,6 +238,9 @@ def main():
                                'min_cnn_thr': cnn_thr,
                                'cnn_lowest': cnn_lowest});
     cnm2.estimates.evaluate_components(images, cnm2.params, dview=dview)
+    #%%
+    cnm2.estimates.Cn = Cn
+    cnm2.save(fname_new[:-4] + 'hdf5')
     # %% PLOT COMPONENTS
     cnm2.estimates.plot_contours(img=Cn, idx=cnm2.estimates.idx_components)
 
