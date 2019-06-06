@@ -134,12 +134,13 @@ A list of known issues can be found [here](https://github.com/flatironinstitute/
 
 ## Graphical interface
 
-CaImAn comes with an experimental visual interface. In order to use it, first load either 
+CaImAn comes with an experimental visual interface. In order to use it, first load and run either 
 * demo_OnACID_mesoscope.py
 * demo_caiman_basic.py
 * demo_pipeline.py
+
 Then you can start the visual interface by running the following command from the base caiman folder:
-```bash
+```
 ipython caiman/gui/gui_pyqtgraph_layout.py
 ```
 You will then load the file that is generated at the end of each file (ending in .hdf5)
@@ -153,10 +154,12 @@ A visual interface will appear, you will be able to:
 
 <img src="docs/img/GUI_img.png" width="1000" align="center">
 
-## Exporting Results
-Currently it is possible to store the results in two formats:
-1. HDF5 file with all the details of the CNMF function. The results are stored in the `estimates` field.
-2. NWB file with a Processing module called `Estimates` that contains the processing results.
+## Exporting results
+It is currently possible to export the results in two formats:
+* an HDF5 file that contains all the details of the CNMF object, 
+the method to use is included in the 
+* [NWB](https://www.nwb.org/) format, you can consult this [demo](https://github.com/flatironinstitute/CaImAn/blob/GUI_AG_3.0/demos/general/demo_pipeline_nwb.py)
+ for details 
 
 ## Documentation & Wiki
 

@@ -204,7 +204,9 @@ def main():
     Cn[np.isnan(Cn)] = 0
     cnm.estimates.plot_contours(img=Cn)
     plt.title('Contour plots of found components')
-
+#%% save results
+    cnm.save(fname_new[:-5]+'_init.hdf5')
+    cnm.estimates.Cn = Cn
 # %% RE-RUN seeded CNMF on accepted patches to refine and perform deconvolution
     cnm.params.change_params({'p': p})
     cnm2 = cnm.refit(images, dview=dview)
@@ -242,7 +244,9 @@ def main():
 
     #%% Show final traces
     cnm2.estimates.view_components(img=Cn)
-
+    #%%
+    cnm2.estimates.Cn = Cn
+    cnm2.save(cnm2.mmap_file[:-4] + 'hdf5')
     #%% reconstruct denoised movie (press q to exit)
     if display_images:
         cnm2.estimates.play_movie(images, q_max=99.9, gain_res=2,

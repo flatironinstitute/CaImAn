@@ -1003,7 +1003,7 @@ def get_file_size(file_name, var_name_hdf5='mov'):
                         siz = f[kk[0]].shape
                     elif var_name_hdf5 in f:
                         if extension == '.nwb':
-                            siz = f[var_name_hdf5]['data'].shape  
+                            siz = f[var_name_hdf5]['data'].shape
                         else:
                             siz = f[var_name_hdf5].shape
                     else:

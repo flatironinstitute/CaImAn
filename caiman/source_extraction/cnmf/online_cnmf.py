@@ -88,7 +88,7 @@ class OnACID(object):
             if params is None or estimates is None:
                 raise ValueError("Cannot Specify Estimates and Params While \
                                  Loading Object From File")
-#            else:  #TO DO
+#            else:
 #                load_CNMF_from_file(path)
 
     def _prepare_object(self, Yr, T, new_dims=None, idx_components=None):
@@ -819,15 +819,15 @@ class OnACID(object):
             fourcc = cv2.VideoWriter_fourcc('8', 'B', 'P', 'S')
             out = cv2.VideoWriter(self.params.get('online', 'movie_name_online'),
                                   fourcc, 30.0, tuple([int(2*x) for x in self.params.get('data', 'dims')]))
-        
+
         # Iterate through the epochs
         for iter in range(epochs):
             if iter > 0:
                 # if not on first epoch process all files from scratch
                 process_files = fls[:init_files + extra_files]
                 init_batc_iter = [0] * (extra_files + init_files)
-            
-            # Go through all files
+
+             Go through all files
             for file_count, ffll in enumerate(process_files):
                 print('Now processing file ' + ffll)
                 # load the file
@@ -847,7 +847,7 @@ class OnACID(object):
                               ' new components were added. Total # of components is '
                               + str(self.estimates.Ab.shape[-1] - self.params.get('init', 'nb')))
                         old_comps = self.N
-                    
+
                     # Downsample and normalize
                     frame_ = frame.copy().astype(np.float32)
                     if self.params.get('online', 'ds_factor') > 1:
@@ -856,7 +856,7 @@ class OnACID(object):
                     if self.params.get('online', 'normalize'):
                         frame_ -= self.img_min     # make data non-negative
                     t_mot = time()
-                    
+
                     # Motion Correction
                     if self.params.get('online', 'motion_correct'):    # motion correct
                         templ = self.estimates.Ab.dot(
@@ -880,10 +880,8 @@ class OnACID(object):
                     
                     if self.params.get('online', 'normalize'):
                         frame_cor = frame_cor/self.img_norm
-                    
                     # Fit next frame
                     self.fit_next(t, frame_cor.reshape(-1, order='F'))
-                    
                     # Show
                     if self.params.get('online', 'show_movie'):
                         self.t = t
@@ -2004,6 +2002,7 @@ def initialize_movie_online(Y, K, gSig, rf, stride, base_name,
     print((len(traces)))
     print((len(idx_components)))
     #%
+    cnm_refine.sn = sn
     cnm_refine.idx_components = idx_components
     cnm_refine.idx_components_bad = idx_components_bad
     cnm_refine.r_values = r_values

@@ -304,6 +304,7 @@ class timeseries(np.ndarray):
                 io.write(nwbfile)
             
             return file_name
+
         else:
             logging.error("Extension " + str(extension) + " unknown")
             raise Exception('Extension Unknown')
