@@ -219,7 +219,7 @@ class OnACID(object):
         # setup per patch classifier
 
         if self.params.get('online', 'path_to_model') is None or self.params.get('online', 'sniper_mode') is False:
-            loaded_model = None
+            self.loaded_model = None
             self.params.set('online', {'sniper_mode': False})
         else:
             try:
