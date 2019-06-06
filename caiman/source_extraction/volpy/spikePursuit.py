@@ -11,9 +11,9 @@ from skimage.morphology import dilation
 from skimage.morphology import disk
 from sklearn.linear_model import LinearRegression
 from scipy import signal
+from scipy import stats    
 from scipy.sparse.linalg import svds
 import pyfftw
-import statsmodels.api as sm
 import cv2
 from caiman.base.movies import movie
 import caiman as cm
@@ -483,9 +483,8 @@ def getThresh(pks, doClip, pnorm=0.5):
     spread = spread + np.diff(spread) * np.array([-0.05, 0.05])
     low_spk = False
     pts = np.linspace(spread[0], spread[1], 2001)
-    KD = sm.nonparametric.KDEUnivariate(pks)
-    KD.fit(bw='scott')
-    f = KD.evaluate(pts)
+    kde = stats.gaussian_kde(pks)
+    f = kde(pts)    
     xi = pts
     center = np.where(xi > np.median(pks))[0][0]
 

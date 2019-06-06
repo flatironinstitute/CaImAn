@@ -31,7 +31,6 @@ except NameError:
 import caiman as cm
 from caiman.motion_correction import MotionCorrect
 from caiman.utils.utils import download_demo
-from caiman.source_extraction.cnmf import params as params
 from caiman.source_extraction.volpy.Volparams import volparams
 from caiman.source_extraction.volpy.volpy import VOLPY
 import matplotlib.pyplot as plt
@@ -71,7 +70,7 @@ def main():
     rois_path = '/home/nel/Code/Voltage_imaging/exampledata/ROIs/403106_3min_rois.mat'
     f = scipy.io.loadmat(rois_path)
     ROIs = f['roi'].T  # all ROIs that are given
-    index = list(range(10)) # index of neurons for processing
+    index = list(range(ROIs.shape[0])) # index of neurons for processing
 
     # motion correction parameters
     motion_correct = True  # flag for motion correction
@@ -144,6 +143,7 @@ def main():
 
     # %% file name, index of cell, ROI, sample rate into args
     fname_new = mc_rig.mmap_file[0]  # memory map file name
+    fname_new = '/home/nel/Code/Voltage_imaging/exampledata/403106_3min_raw/raw_data/cameraTube051_00001_rig__d1_128_d2_512_d3_1_order_F_frames_36000_.mmap'
     opts.change_params(params_dict={'fnames':fname_new})
 
     # %% restart cluster to clean up memory
@@ -152,8 +152,11 @@ def main():
         backend='local', n_processes=12, single_thread=False)
 
     # %% process cells using volspike function
+    import time
+    tic = time.time()
     vpy = VOLPY(n_processes=n_processes, dview=dview, params=opts)
     vpy.fit()
+    total_time = time.time()-tic
 
     # %% some visualization
     vpy.estimates['cellN']
