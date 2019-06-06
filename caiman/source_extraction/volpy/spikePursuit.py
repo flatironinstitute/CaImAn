@@ -256,11 +256,6 @@ def volspike(pars):
                                                kernel_std_x=sigma, kernel_std_y=sigma,
                                                borderType=cv2.BORDER_REPLICATE)[0]
 
-        if doPlot == True:
-            plt.figure()
-            plt.imshow(spatialFilter)
-            plt.show()
-
         if iteration < nIter - 1:
             b = LinearRegression(fit_intercept=False).fit(Ub, X).coef_
             if doPlot:
