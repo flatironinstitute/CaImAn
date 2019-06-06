@@ -156,8 +156,8 @@ A visual interface will appear, you will be able to:
 It is currently possible to export the results in two formats:
 * an HDF5 file that contains all the details of the CNMF object, 
 the method to use is included in the 
-* 
-
+* [NWB](https://www.nwb.org/) format, you can consult this [demo](https://github.com/flatironinstitute/CaImAn/blob/GUI_AG_3.0/demos/general/demo_pipeline_nwb.py)
+ for details 
 ## Documentation & Wiki
 
 Documentation of the code can be found [here](http://flatironinstitute.github.io/CaImAn/). 
