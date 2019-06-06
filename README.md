@@ -132,10 +132,11 @@ A list of known issues can be found [here](https://github.com/flatironinstitute/
 
 ## Graphical interface
 
-CaImAn comes with an experimental visual interface. In order to use it, first load either 
+CaImAn comes with an experimental visual interface. In order to use it, first load and run either 
 * demo_OnACID_mesoscope.py
 * demo_caiman_basic.py
 * demo_pipeline.py
+
 Then you can start the visual interface by running the following command from the base caiman folder:
 ```bash
 ipython caiman/gui/gui_pyqtgraph_layout.py
