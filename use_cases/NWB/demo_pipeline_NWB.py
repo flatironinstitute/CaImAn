@@ -113,7 +113,7 @@ def main():
 # %% play the movie (optional)
     # playing the movie using opencv. It requires loading the movie in memory.
     # To close the video press q
-    display_images = False
+    display_images = True
     if display_images:
         m_orig = cm.load_movie_chain(fnames, var_name_hdf5=opts.data['var_name_hdf5'])
         ds_ratio = 0.2
@@ -215,7 +215,7 @@ def main():
 
 #%% save results in a separate file (just for demonstration purposes)
     cnm.save(fname_new[:-4]+'hdf5')
-    cm.movie(Cn).save(fname_new[:-5]+'_Cn.tif')
+    #cm.movie(Cn).save(fname_new[:-5]+'_Cn.tif')
 
 # %% RE-RUN seeded CNMF on accepted patches to refine and perform deconvolution
     cnm.params.change_params({'p': p})

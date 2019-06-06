@@ -1325,8 +1325,8 @@ def load(file_name, fr:float=30, start_time:float=0, meta_data:Dict=None, subind
                     input_arr = np.vstack(input_arr)
 
             else:
-                if extension == '.nwb':
-                    var_name_hdf5 += '/data'
+#                if extension == '.nwb':
+#                    var_name_hdf5 += '/data'
                 with h5py.File(file_name, "r") as f:
                     fkeys = list(f.keys())
                     if len(fkeys) == 1:

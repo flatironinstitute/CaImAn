@@ -827,7 +827,7 @@ class OnACID(object):
                 process_files = fls[:init_files + extra_files]
                 init_batc_iter = [0] * (extra_files + init_files)
 
-             Go through all files
+        #     Go through all files
             for file_count, ffll in enumerate(process_files):
                 print('Now processing file ' + ffll)
                 # load the file
