@@ -118,7 +118,7 @@ def main():
 # %% play the movie (optional)
     # playing the movie using opencv. It requires loading the movie in memory.
     # To close the video press q
-    display_images = True
+    display_images = False
     if display_images:
         m_orig = cm.load_movie_chain(fnames, var_name_hdf5=opts.data['var_name_hdf5'])
         ds_ratio = 0.2
@@ -218,8 +218,8 @@ def main():
     cnm.estimates.plot_contours(img=Cn)
     plt.title('Contour plots of found components')
 #%% save results
-    cnm.save(fname_new[:-4]+'hdf5')
-    cm.movie(Cn).save(fname_new[:-5]+'_Cn.tif')
+    cnm.estimates.Cn = Cn
+    cnm.save(cnm.mmap_file[:-4] + 'hdf5')
 # %% RE-RUN seeded CNMF on accepted patches to refine and perform deconvolution
     cnm.params.change_params({'p': p})
     cnm2 = cnm.refit(images, dview=dview)
@@ -242,7 +242,6 @@ def main():
     cnm2.estimates.evaluate_components(images, cnm2.params, dview=dview)
     # %% PLOT COMPONENTS
     cnm2.estimates.plot_contours(img=Cn, idx=cnm2.estimates.idx_components)
-
     # %% VIEW TRACES (accepted and rejected)
 
     if display_images:
@@ -253,12 +252,13 @@ def main():
     #%% update object with selected components
     # cnm2.estimates.select_components(use_object=True)
     #%% Extract DF/F values
-
     cnm2.estimates.detrend_df_f(quantileMin=8, frames_window=250)
 
     #%% Show final traces
     cnm2.estimates.view_components(img=Cn)
-
+    #%%
+    cnm2.estimates.Cn = Cn
+    cnm2.save(cnm2.mmap_file[:-4] + 'hdf5')
     #%% reconstruct denoised movie (press q to exit)
     if display_images:
         cnm2.estimates.play_movie(images, q_max=99.9, gain_res=2,

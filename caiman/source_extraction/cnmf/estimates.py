@@ -1198,8 +1198,6 @@ class Estimates(object):
 
         else: # if the file already exist in the .nwb format then just add the results to it
             print('Saving the results...')
-            import pdb
-            pdb.set_trace()
             with  NWBHDF5IO(filename, 'r+') as io:
                 nwbfile = io.read()
                 # Add processing results
