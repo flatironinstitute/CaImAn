@@ -34,6 +34,7 @@ from caiman.motion_correction import MotionCorrect
 from caiman.source_extraction.cnmf import cnmf as cnmf
 from caiman.source_extraction.cnmf import params as params
 from caiman.utils.utils import download_demo
+from caiman.paths import caiman_datadir
 
 # %%
 # Set up the logger (optional); change this if you like.
@@ -44,14 +45,15 @@ from caiman.utils.utils import download_demo
 logging.basicConfig(format=
                     "%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s]"\
                     "[%(process)d] %(message)s",
-                    level=logging.INFO)
+                    level=logging.WARNING)
 
 #%%
 def main():
     pass  # For compatibility between running under Spyder and the CLI
 
 #%% Select file(s) to be processed (download if not present)
-    fnames = ['/Users/agiovann/caiman_data/example_movies/Sue_2x_3000_40_-46.nwb']  # filename to be created or processed
+    fnames = [os.path.join(caiman_datadir(), 'example_movies/Sue_2x_3000_40_-46.nwb')]  
+        # filename to be created or processed
     # dataset dependent parameters
     fr = 15  # imaging rate in frames per second
     decay_time = 0.4  # length of a typical transient in seconds
@@ -59,10 +61,11 @@ def main():
 
 #%% load the file and save it in the NWB format (if it doesn't exist already)
     if not os.path.exists(fnames[0]):
-        fnames_orig = ['Sue_2x_3000_40_-46.tif']  # filename to be processed
-        if fnames_orig[0] in ['Sue_2x_3000_40_-46.tif', 'demoMovie.tif']:
-            fnames_orig = [download_demo(fnames_orig[0])]
+        fnames_orig = 'Sue_2x_3000_40_-46.tif'  # filename to be processed
+        if fnames_orig in ['Sue_2x_3000_40_-46.tif', 'demoMovie.tif']:
+            fnames_orig = [download_demo(fnames_orig)]
         orig_movie = cm.load(fnames_orig, fr=fr)
+
         # save file in NWB format with various additional info
         orig_movie.save(fnames[0], sess_desc='test', identifier='demo 1',
              exp_desc='demo movie', imaging_plane_description='single plane',
@@ -110,7 +113,7 @@ def main():
 # %% play the movie (optional)
     # playing the movie using opencv. It requires loading the movie in memory.
     # To close the video press q
-    display_images = True
+    display_images = False
     if display_images:
         m_orig = cm.load_movie_chain(fnames, var_name_hdf5=opts.data['var_name_hdf5'])
         ds_ratio = 0.2
@@ -127,7 +130,7 @@ def main():
     # note that the file is not loaded in memory
 
 # %% Run (piecewise-rigid motion) correction using NoRMCorre
-    mc.motion_correct(save_movie=True,)
+    mc.motion_correct(save_movie=True)
 
 # %% compare with original movie
     if display_images:
@@ -188,7 +191,7 @@ def main():
                  'ssub': ssub,
                  'tsub': tsub}
 
-    opts.change_params(params_dict=opts_dict)
+    opts.change_params(params_dict=opts_dict);
 # %% RUN CNMF ON PATCHES
     # First extract spatial and temporal components on patches and combine them
     # for this step deconvolution is turned off (p=0)
@@ -209,9 +212,11 @@ def main():
     Cn[np.isnan(Cn)] = 0
     cnm.estimates.plot_contours(img=Cn)
     plt.title('Contour plots of found components')
-#%% save results
+
+#%% save results in a separate file (just for demonstration purposes)
     cnm.save(fname_new[:-4]+'hdf5')
     cm.movie(Cn).save(fname_new[:-5]+'_Cn.tif')
+
 # %% RE-RUN seeded CNMF on accepted patches to refine and perform deconvolution
     cnm.params.change_params({'p': p})
     cnm2 = cnm.refit(images, dview=dview)
@@ -230,7 +235,7 @@ def main():
                                'rval_thr': rval_thr,
                                'use_cnn': True,
                                'min_cnn_thr': cnn_thr,
-                               'cnn_lowest': cnn_lowest})
+                               'cnn_lowest': cnn_lowest});
     cnm2.estimates.evaluate_components(images, cnm2.params, dview=dview)
     # %% PLOT COMPONENTS
     cnm2.estimates.plot_contours(img=Cn, idx=cnm2.estimates.idx_components)
@@ -266,9 +271,7 @@ def main():
         os.remove(log_file)
     #%% save the results in the original NWB file
 
-    cnm2.estimates.save(fnames[0])
-
-
+    cnm2.estimates.save_NWB(fnames[0], imaging_rate=fr)
 
 # %%
 # This is to mask the differences between running this demo in Spyder

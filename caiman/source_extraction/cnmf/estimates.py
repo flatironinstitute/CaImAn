@@ -1175,7 +1175,7 @@ class Estimates(object):
         from pynwb import NWBHDF5IO
         from pynwb.ophys import ImageSegmentation, Fluorescence, MotionCorrection
         import os
-        if '.nwb' != os.path.split(filename)[-1].lower():
+        if '.nwb' != os.path.splitext(filename)[-1].lower():
             raise Exception("Wrong filename")
 
         if not os.path.isfile(filename): # if the file doesn't exist create new and add the orginal data path

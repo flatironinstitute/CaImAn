@@ -1165,10 +1165,11 @@ def load(file_name, fr:float=30, start_time:float=0, meta_data:Dict=None, subind
         if shape is not None:
             logging.error('shape not supported for multiple movie input')
 
-        return load_movie_chain(file_name,fr=fr, start_time=start_time,
+        return load_movie_chain(file_name, fr=fr, start_time=start_time,
                      meta_data=meta_data, subindices=subindices,
                      bottom=bottom, top=top, left=left, right=right, 
-                     channel = channel, outtype=outtype)
+                     channel = channel, outtype=outtype,
+                     var_name_hdf5=var_name_hdf5)
 
     if max(top, bottom, left, right) > 0:
         logging.error('top bottom etc... not supported for single movie input')
@@ -1324,6 +1325,8 @@ def load(file_name, fr:float=30, start_time:float=0, meta_data:Dict=None, subind
                     input_arr = np.vstack(input_arr)
 
             else:
+                if extension == '.nwb':
+                    var_name_hdf5 += '/data'
                 with h5py.File(file_name, "r") as f:
                     fkeys = list(f.keys())
                     if len(fkeys) == 1:
@@ -1398,9 +1401,10 @@ def load(file_name, fr:float=30, start_time:float=0, meta_data:Dict=None, subind
 
 
 def load_movie_chain(file_list:List[str], fr:float=30, start_time=0,
-                     meta_data=None, subindices=None,
+                     meta_data=None, subindices=None, var_name_hdf5:str='mov',
                      bottom=0, top=0, left=0, right=0, z_top=0,
-                     z_bottom=0, is3D:bool=False, channel=None, outtype=np.float32) -> Any:
+                     z_bottom=0, is3D:bool=False, channel=None, 
+                     outtype=np.float32, ) -> Any:
     """ load movies from list of file names
 
     Args:
@@ -1423,7 +1427,8 @@ def load_movie_chain(file_list:List[str], fr:float=30, start_time=0,
     mov = []
     for f in tqdm(file_list):
         m = load(f, fr=fr, start_time=start_time,
-                 meta_data=meta_data, subindices=subindices, in_memory=True, outtype=outtype)
+                 meta_data=meta_data, subindices=subindices,
+                 in_memory=True, outtype=outtype, var_name_hdf5=var_name_hdf5)
         if channel is not None:
             logging.debug(m.shape)
             m = m[channel].squeeze()
