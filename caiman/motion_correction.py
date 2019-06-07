@@ -400,8 +400,10 @@ class MotionCorrect(object):
                     sh[0], sh[1]), 0, is_freq=False, border_nan=border_nan) for img, sh in zip(
                     Y, self.shifts_rig)]
         else:
-            dims_grid = tuple(np.max(np.stack(self.coord_shifts_els[0], axis=1), axis=1) - np.min(
-                np.stack(self.coord_shifts_els[0], axis=1), axis=1) + 1)
+            #dims_grid = tuple(np.max(np.stack(self.coord_shifts_els[0], axis=1), axis=1) - np.min(
+            #    np.stack(self.coord_shifts_els[0], axis=1), axis=1) + 1)
+            d1, d2 = Y[0].shape
+            dims_grid = (d1//self.strides[0] + 1, d2//self.strides[1] + 1)
             shifts_x = np.stack([np.reshape(_sh_, dims_grid, order='C').astype(
                 np.float32) for _sh_ in self.x_shifts_els], axis=0)
             shifts_y = np.stack([np.reshape(_sh_, dims_grid, order='C').astype(

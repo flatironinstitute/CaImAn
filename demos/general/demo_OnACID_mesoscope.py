@@ -131,10 +131,19 @@ def main():
     c, dview, n_processes = \
         cm.cluster.setup_cluster(backend='local', n_processes=None,
                                  single_thread=False)
-    if not pw_rigid:
+    if opts.motion['motion_correct']:
         shifts = cnm.estimates.shifts[-cnm.estimates.C.shape[-1]:]
-        memmap_file = cm.motion_correction.apply_shift_online(images, shifts,
-                                                    save_base_name='MC')
+        if not opts.motion['pw_rigid']:
+            memmap_file = cm.motion_correction.apply_shift_online(images, shifts,
+                                                        save_base_name='MC')
+        else:
+            mc = cm.motion_correction.MotionCorrect(fnames, dview=dview,
+                                                    **opts.get_group('motion'))
+
+            mc.x_shifts_els = [[sx[0] for sx in sh] for sh in shifts]
+            mc.y_shifts_els = [[sx[1] for sx in sh] for sh in shifts]
+            #im_reg = mc.apply_shifts_movie(fnames, rigid_shifts=False)
+            #memmap_file = cm.mmapping.save_memmap()
     else:  # To do: apply non-rigid shifts on the fly
         memmap_file = images.save(fnames[0][:-4] + 'mmap')
     cnm.mmap_file = memmap_file

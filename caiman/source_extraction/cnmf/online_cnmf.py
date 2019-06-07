@@ -864,13 +864,11 @@ class OnACID(object):
                         templ = self.estimates.Ab.dot(
                             self.estimates.C_on[:self.M, t-1]).reshape(self.params.get('data', 'dims'), order='F')*self.img_norm
                         if self.params.get('motion', 'pw_rigid'):
-                            frame_cor1, shift = motion_correct_iteration_fast(
-                                    frame_, templ, max_shifts_online, max_shifts_online)
-                            frame_cor, shift = tile_and_correct(frame_, templ, self.params.motion['strides'], self.params.motion['overlaps'], 
-                                                                self.params.motion['max_shifts'], newoverlaps=None, newstrides=None, upsample_factor_grid=4,
-                                                                upsample_factor_fft=10, show_movie=False, max_deviation_rigid=self.params.motion['max_deviation_rigid'],
-                                                                add_to_movie=0, shifts_opencv=True, gSig_filt=None,
-                                                                use_cuda=False, border_nan='copy')[:2]
+                            frame_cor, shift, _, xy_grid = tile_and_correct(frame_, templ, self.params.motion['strides'], self.params.motion['overlaps'],
+                                                                            self.params.motion['max_shifts'], newoverlaps=None, newstrides=None, upsample_factor_grid=4,
+                                                                            upsample_factor_fft=10, show_movie=False, max_deviation_rigid=self.params.motion['max_deviation_rigid'],
+                                                                            add_to_movie=0, shifts_opencv=True, gSig_filt=None,
+                                                                            use_cuda=False, border_nan='copy')
                         else:
                             frame_cor, shift = motion_correct_iteration_fast(
                                     frame_, templ, max_shifts_online, max_shifts_online)
@@ -902,6 +900,7 @@ class OnACID(object):
                     t_online.append(time() - t_frame_start)
         
             self.Ab_epoch.append(self.estimates.Ab.copy())
+
         if self.params.get('online', 'normalize'):
             self.estimates.Ab /= 1./self.img_norm.reshape(-1, order='F')[:,np.newaxis]
             self.estimates.Ab = csc_matrix(self.estimates.Ab)
