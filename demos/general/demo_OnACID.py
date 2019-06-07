@@ -35,7 +35,7 @@ except NameError:
 logging.basicConfig(format=
                     "%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s]"\
                     "[%(process)d] %(message)s",
-                    level=logging.DEBUG)
+                    level=logging.WARNING)
     # filename="/tmp/caiman.log"
 # %%
 def main():

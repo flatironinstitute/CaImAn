@@ -47,7 +47,7 @@ from caiman.source_extraction.cnmf import params as params
 logging.basicConfig(format=
                     "%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s]"\
                     "[%(process)d] %(message)s",
-                    level=logging.INFO)
+                    level=logging.WARNING)
                     # filename="/tmp/caiman.log",
 
 #%%

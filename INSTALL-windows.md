@@ -6,7 +6,7 @@ The Windows installation process differs more widely from installation on Linux 
    * Remove any associations you may have made between .py files and an existing python interpreter or editor
    * Download and install Anaconda (Python 3.x, not 2.x) <http://docs.continuum.io/anaconda/install>. Allow the installer to modify your PATH variable
    * Use Conda to install git (With "conda install git") - use of another commandline git is acceptable, but may lead to issues depending on default settings
-   * Install Microsoft Build Tools for Visual Studio 2017 <https://www.visualstudio.com/downloads/#build-tools-for-visual-studio-2017>. Check the "Build Tools" box, and in the detailed view on the right check the "C/C++ CLI Tools" component too. The specifics of this occasionally change as Microsoft changes its products and website; you may need to go off-script.
+   * Install Visual Studio (Community Edition is fine). <https://www.visualstudio.com/downloads/#build-tools-for-visual-studio-2017>. You will want the complete desktop install (other major components are not necessary, like mobile development). Click into the details and be sure that the Windows SDK is selected (the most recent version matching your Windows version is fine - you only need/want one). There also may be mention of CLI build tools (for C/C++) under the details window - hopefully these are selected by default but if not, select them too. Follow any instructions you find on the Microsoft website to complete the VC++ install.
 
 Use the following menu item to launch a anaconda-enabled command prompt: start>programs>anaconda3>anaconda prompt
 From that prompt. issue the following commands (if you wish to use the dev branch, you may switch branches after the clone):
@@ -15,16 +15,12 @@ From that prompt. issue the following commands (if you wish to use the dev branc
    git clone https://github.com/flatironinstitute/CaImAn
    cd CaImAn
    conda env create -f environment.yml -n caiman
-   conda install -n caiman vs2017_win-64
    ```
 
-At this point you will want to remove a startup script that visual studio made for your conda environment that can cause conda to crash while entering the caiman environment. Use the Windows find-file utility (under the Start Menu) to look for vs2015_compiler_vars.bat and/or vs2017_compiler_vars.bat under your home directory. If you find one, delete the version that has conda\envs\caiman as part of its location. Some systems versions will not have this file (this is fine and leaves you with nothing to do for this step). You may also want to do a search for keras_activate.bat under your home directory, find the one in conda\envs\caiman, and edit it so KERAS_BACKEND is set to tensorflow rather than theano. You may then continue the installation.
-
    ```bash
-   activate caiman
+   conda activate caiman
    pip install . (OR pip install -e . if you want to develop code)
    copy caimanmanager.py ..
-   conda install numba
    cd ..
    ```
 
