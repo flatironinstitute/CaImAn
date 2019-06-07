@@ -461,13 +461,39 @@ def apply_shift_iteration(img, shift, border_nan=False, border_type=cv2.BORDER_R
 
 #%%
 def apply_shift_online(movie_iterable, xy_shifts, save_base_name=None, order='F'):
-    # todo todocument
+    """
+    Applies rigid shifts to a loaded movie. Useful when processing a dataset
+    with CaImAn online and you want to obtain the registered movie after
+    processing is finished or when operating with dual channels.
+    When save_base_name is None the registered file is returned as a caiman
+    movie. Otherwise a memory mapped file is saved.
+    Currently only rigid shifts are supported supported.
+
+    Args:
+        movie_iterable: cm.movie or np.array
+            Movie to be registered in T x X x Y format
+
+        xy_shifts: list
+            list of shifts to be applied
+
+        save_base_name: str or None
+            prefix for memory mapped file otherwise registered file is returned
+            to memory
+
+        order: 'F' or 'C'
+            order of memory mapped file
+
+    Returns:
+        name of registered memory mapped file if save_base_name is not None,
+        otherwise registered file
+    """
+    # todo use for non rigid shifts
 
     if len(movie_iterable) != len(xy_shifts):
         raise Exception('Number of shifts does not match movie length!')
     count = 0
     new_mov = []
-    dims = (len(movie_iterable),) + movie_iterable[0].shape # TODO: Refactor so length is either tracked separately or is last part of tuple
+    dims = (len(movie_iterable),) + movie_iterable[0].shape  # TODO: Refactor so length is either tracked separately or is last part of tuple
 
     if save_base_name is not None:
         fname_tot = memmap_frames_filename(save_base_name, dims[1:], dims[0], order)

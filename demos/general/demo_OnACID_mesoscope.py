@@ -131,8 +131,12 @@ def main():
     c, dview, n_processes = \
         cm.cluster.setup_cluster(backend='local', n_processes=None,
                                  single_thread=False)
-
-    memmap_file = images.save(fnames[0][:-4] + 'mmap')
+    if not pw_rigid:
+        shifts = cnm.estimates.shifts[-cnm.estimates.C.shape[-1]:]
+        memmap_file = cm.motion_correction.apply_shift_online(images, shifts,
+                                                    save_base_name='MC')
+    else:  # To do: apply non-rigid shifts on the fly
+        memmap_file = images.save(fnames[0][:-4] + 'mmap')
     cnm.mmap_file = memmap_file
     Yr, dims, T = cm.load_memmap(memmap_file)
 
