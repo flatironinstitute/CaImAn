@@ -437,7 +437,8 @@ class Estimates(object):
     def play_movie(self, imgs, q_max=99.75, q_min=2, gain_res=1,
                    magnification=1, include_bck=True,
                    frame_range=slice(None, None, None),
-                   bpx=0, thr=0.):
+                   bpx=0, thr=0., save_movie=False,
+                   movie_name='results_movie.avi'):
         """Displays a movie with three panels (original data (left panel),
         reconstructed data (middle panel), residual (right panel))
 
@@ -469,6 +470,12 @@ class Estimates(object):
             thr: float (values in [0, 1[)
                 threshold value for contours, no contours if thr=0
 
+            save_movie: bool
+                flag to save an avi file of the movie
+
+            movie_name: str
+                name of saved file
+
         Returns:
             self (to stop the movie press 'q')
         """
@@ -478,6 +485,7 @@ class Estimates(object):
         Y_rec = self.A.dot(self.C[:, frame_range])
         Y_rec = Y_rec.reshape(dims + (-1,), order='F')
         Y_rec = Y_rec.transpose([2, 0, 1])
+
         if self.W is not None:
             ssub_B = int(round(np.sqrt(np.prod(dims) / self.W.shape[0])))
             B = imgs[frame_range].reshape((-1, np.prod(dims)), order='F').T - \
@@ -509,8 +517,16 @@ class Estimates(object):
 
         mov = caiman.concatenate((imgs[frame_range] - (not include_bck) * B,
                                   Y_rec + include_bck * B, Y_res * gain_res), axis=2)
+        
+
         if thr > 0:
-            import cv2
+            if save_movie:
+                import cv2
+                #fourcc = cv2.VideoWriter_fourcc('8', 'B', 'P', 'S')
+                #fourcc = cv2.VideoWriter_fourcc(*'XVID')
+                fourcc = cv2.VideoWriter_fourcc(*'MP4V')
+                out = cv2.VideoWriter(movie_name, fourcc, 30.0,
+                                      tuple([int(magnification*s) for s in mov.shape[1:][::-1]]))
             contours = []
             for a in self.A.T.toarray():
                 a = a.reshape(dims, order='F')
@@ -520,7 +536,7 @@ class Estimates(object):
                     a = cv2.resize(a, None, fx=magnification, fy=magnification,
                                    interpolation=cv2.INTER_LINEAR)
                 ret, thresh = cv2.threshold(a, thr * np.max(a), 1., 0)
-                im2, contour, hierarchy = cv2.findContours(
+                contour, hierarchy = cv2.findContours(
                     thresh.astype('uint8'), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
                 contours.append(contour)
                 contours.append(list([c + np.array([[a.shape[1], 0]]) for c in contour]))
@@ -537,12 +553,17 @@ class Estimates(object):
                 for contour in contours:
                     cv2.drawContours(frame, contour, -1, (0, 255, 255), 1)
                 cv2.imshow('frame', frame.astype('uint8'))
+                if save_movie:
+                    out.write(frame.astype('uint8'))
                 if cv2.waitKey(30) & 0xFF == ord('q'):
                     break
+            if save_movie:
+                out.release()
             cv2.destroyAllWindows()
 
         else:
-            mov.play(q_min=q_min, q_max=q_max, magnification=magnification)
+            mov.play(q_min=q_min, q_max=q_max, magnification=magnification,
+                     save_movie=save_movie, movie_name=movie_name)
 
         return self
 

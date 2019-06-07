@@ -971,7 +971,8 @@ class movie(ts.timeseries):
         return zp
 
     def play(self, gain:float=1, fr=None, magnification=1, offset=0, interpolation=cv2.INTER_LINEAR,
-             backend:str='opencv', do_loop:bool=False, bord_px=None, q_max=100, q_min = 0, plot_text:bool=False) -> None:
+             backend:str='opencv', do_loop:bool=False, bord_px=None, q_max=100, q_min = 0, plot_text:bool=False,
+             save_movie:bool=False, movie_name:str='movie.avi') -> None:
         """
         Play the movie using opencv
 
@@ -980,7 +981,8 @@ class movie(ts.timeseries):
 
             fr: framerate, playing speed if different from original (inter frame interval in seconds)
 
-            magnification: (undocumented)
+            magnification: int
+                magnification factor
 
             offset: (undocumented)
 
@@ -990,11 +992,20 @@ class movie(ts.timeseries):
 
             do_loop: Whether to loop the video
 
-            bord_px: (undocumented)
+            bord_px: int
+                truncate pixels from the borders
 
-            q_max, q_min: (undocumented)
+            q_max, q_min: float in [0, 100]
+                 percentile for maximum/minimum plotting value
 
-            plot_text: (undocumented)
+            plot_text: bool
+                show some text
+
+            save_movie: bool
+                flag to save an avi file of the movie
+
+            movie_name: str
+                name of saved file
 
         Raises:
             Exception 'Unknown backend!'
@@ -1047,7 +1058,17 @@ class movie(ts.timeseries):
 
         looping = True
         terminated = False
-
+        if save_movie:
+            #fourcc = cv2.VideoWriter_fourcc('8', 'B', 'P', 'S')
+            #fourcc = cv2.VideoWriter_fourcc(*'XVID')
+            #fourcc = cv2.VideoWriter_fourcc(*'DIVX')
+            #fourcc = cv2.VideoWriter_fourcc(*'X264')
+            fourcc = cv2.VideoWriter_fourcc(*'MP4V')
+            frame_in = self[0]
+            if bord_px is not None and np.sum(bord_px) > 0:
+                frame_in = frame_in[bord_px:-bord_px, bord_px:-bord_px]
+            out = cv2.VideoWriter(movie_name, fourcc, 30.,
+                                  tuple([int(magnification*s) for s in frame_in.shape[::-1]]))
         while looping:
 
             for iddxx, frame in enumerate(self):
@@ -1066,7 +1087,8 @@ class movie(ts.timeseries):
                                     frame.shape[0] - (text_height + 5)), fontFace=5, fontScale=0.8, color=(255, 255, 255), thickness=1)
 
                     cv2.imshow('frame', frame)
-
+                    if save_movie:
+                        out.write(frame.astype('uint8'))
                     if cv2.waitKey(int(1. / fr * 1000)) & 0xFF == ord('q'):
                         looping = False
                         terminated = True
@@ -1093,6 +1115,10 @@ class movie(ts.timeseries):
 
             if terminated:
                 break
+
+            if save_movie:
+                out.release()
+                save_movie = False
 
             if do_loop:
                 looping = True
