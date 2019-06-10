@@ -74,7 +74,7 @@ def main():
     # (these are default values but can change depending on dataset properties)
     init_batch = 200  # number of frames for initialization (presumably from the first file)
     K = 2  # initial number of components
-    epochs = 2  # number of passes over the data
+    epochs = 1  # number of passes over the data
     show_movie = False # show the movie as the data gets processed
 
     params_dict = {'fnames': fnames,
@@ -131,7 +131,7 @@ def main():
     c, dview, n_processes = \
         cm.cluster.setup_cluster(backend='local', n_processes=None,
                                  single_thread=False)
-    if opts.motion['motion_correct']:
+    if opts.online['motion_correct']:
         shifts = cnm.estimates.shifts[-cnm.estimates.C.shape[-1]:]
         if not opts.motion['pw_rigid']:
             memmap_file = cm.motion_correction.apply_shift_online(images, shifts,
@@ -140,10 +140,11 @@ def main():
             mc = cm.motion_correction.MotionCorrect(fnames, dview=dview,
                                                     **opts.get_group('motion'))
 
-            mc.x_shifts_els = [[sx[0] for sx in sh] for sh in shifts]
-            mc.y_shifts_els = [[sx[1] for sx in sh] for sh in shifts]
-            #im_reg = mc.apply_shifts_movie(fnames, rigid_shifts=False)
-            #memmap_file = cm.mmapping.save_memmap()
+            mc.y_shifts_els = [[sx[0] for sx in sh] for sh in shifts]
+            mc.x_shifts_els = [[sx[1] for sx in sh] for sh in shifts]
+            memmap_file = mc.apply_shifts_movie(fnames, rigid_shifts=False,
+                                                save_memmap=True,
+                                                save_base_name='MC')
     else:  # To do: apply non-rigid shifts on the fly
         memmap_file = images.save(fnames[0][:-4] + 'mmap')
     cnm.mmap_file = memmap_file
@@ -156,7 +157,6 @@ def main():
     min_cnn_thr = 0.99  # if cnn classifier predicts below this value, reject
     cnn_lowest = 0.1  # neurons with cnn probability lower than this value are rejected
 
-
     cnm.params.set('quality',   {'min_SNR': min_SNR,
                                 'rval_thr': rval_thr,
                                 'use_cnn': use_cnn,
@@ -165,7 +165,7 @@ def main():
 
     cnm.estimates.evaluate_components(images, cnm.params, dview=dview)
     cnm.estimates.Cn = Cn
-    cnm.save(fnames[0][:-3]+'_obj.hdf5')
+    cnm.save(os.path.splitext(fnames[0])[0]+'_results.hdf5')
 
     dview.terminate()
 

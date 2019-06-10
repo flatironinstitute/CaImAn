@@ -41,7 +41,8 @@ from .params import CNMFParams
 from .utilities import update_order, get_file_size, peak_local_max
 from ... import mmapping
 from ...components_evaluation import compute_event_exceptionality
-from ...motion_correction import motion_correct_iteration_fast, tile_and_correct
+from ...motion_correction import (motion_correct_iteration_fast,
+                                  tile_and_correct, sliding_window)
 from ...utils.utils import save_dict_to_hdf5, load_dict_from_hdf5, load_graph
 
 try:
@@ -584,14 +585,19 @@ class OnACID(object):
         ds_factor = np.maximum(opts['ds_factor'], 1)
         if ds_factor > 1:
             Y = Y.resize(1./ds_factor, 1./ds_factor)
-        mc_flag = self.params.get('online', 'motion_correct')
         self.estimates.shifts = []  # store motion shifts here
         self.estimates.time_new_comp = []
-        if mc_flag:
+        if self.params.get('online', 'motion_correct'):
             max_shifts_online = self.params.get('online', 'max_shifts_online')
             mc = Y.motion_correct(max_shifts_online, max_shifts_online)
             Y = mc[0].astype(np.float32)
-            self.estimates.shifts.extend(mc[1])
+            if self.params.get('motion', 'pw_rigid'):
+                n_p = len([(it[0], it[1])
+                 for it in sliding_window(Y[0], self.params.get('motion', 'overlaps'), self.params.get('motion', 'strides'))])
+                for sh in mc[1]:
+                    self.estimates.shifts.append([tuple(sh) for i in range(n_p)])
+            else:
+                self.estimates.shifts.extend(mc[1])                
 
         img_min = Y.min()
 
