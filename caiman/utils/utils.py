@@ -353,7 +353,7 @@ def cell_magic_wand_wrapper(params):
 #%% From https://codereview.stackexchange.com/questions/120802/recursively-save-python-dictionaries-to-hdf5-files-using-h5py
 
 
-def save_dict_to_hdf5(dic:Dict, filename:str) -> None:
+def save_dict_to_hdf5(dic:Dict, filename:str, subdir:str='/') -> None:
     ''' Save dictionary to hdf5 file
     Args:
         dic: dictionary
@@ -363,7 +363,7 @@ def save_dict_to_hdf5(dic:Dict, filename:str) -> None:
     '''
 
     with h5py.File(filename, 'w') as h5file:
-        recursively_save_dict_contents_to_group(h5file, '/', dic)
+        recursively_save_dict_contents_to_group(h5file, subdir, dic)
 
 def load_dict_from_hdf5(filename:str) -> Dict:
     ''' Load dictionary from hdf5 file
