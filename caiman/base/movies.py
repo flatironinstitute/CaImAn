@@ -1364,10 +1364,10 @@ def load(file_name, fr:float=30, start_time:float=0, meta_data:Dict=None, subind
             return movie(images, fr=fr)
 
         elif extension == '.sbx':
+            logging.debug('sbx')
             if subindices is not None:
-                return movie(sbxreadskip(file_name[:-4], skip=subindices.step), fr=fr).astype(outtype)
+                return movie(sbxreadskip(file_name[:-4], subindices), fr=fr).astype(outtype)
             else:
-                logging.debug('sbx')
                 return movie(sbxread(file_name[:-4], k=0, n_frames=np.inf), fr=fr).astype(outtype)
 
         elif extension == '.sima':
@@ -1533,18 +1533,19 @@ def sbxread(filename:str, k:int=0, n_frames=np.inf) -> np.ndarray:
     return x.transpose([2, 1, 0])
 
 
-def sbxreadskip(filename:str, skip) -> np.ndarray:
+def sbxreadskip(filename:str, subindices:slice) -> np.ndarray:
     """
     Args:
         filename: str
             filename should be full path excluding .sbx
 
-        skip: (undocumented)
+        slice: pass a slice to slice along the last dimension
     """
     # Check if contains .sbx and if so just truncate
     if '.sbx' in filename:
         filename = filename[:-4]
 
+           
     # Load info
     info = loadmat_sbx(filename + '.mat')['info']
 
@@ -1560,31 +1561,77 @@ def sbxreadskip(filename:str, skip) -> np.ndarray:
         factor = 2
 
     # Determine number of frames in whole file
-    max_idx = os.path.getsize(
-        filename + '.sbx') / info['recordsPerBuffer'] / info['sz'][1] * factor / 4 - 1
+    max_idx = np.int(os.path.getsize(
+        filename + '.sbx') / info['recordsPerBuffer'] / info['sz'][1] * factor / 4 - 1)
 
     # Paramters
-    N = max_idx + 1  # Last frame
+    if isinstance(subindices, slice):
+        if subindices.start is None:
+            start = 0
+        else:
+            start = subindices.start
+            
+        if subindices.stop is None:
+            N = max_idx + 1  # Last frame
+        else:
+            N = np.minimum(subindices.stop, max_idx + 1) .astype(np.int)   
+        
+        if subindices.step is None:
+            skip = 1
+        else:
+            skip = subindices.step
+
+        
+        iterable_elements = range(start, N, skip)
+
+    else:
+
+        N = len(subindices)
+        iterable_elements = subindices
+        skip = 0
+        
+    N_time = len(list(iterable_elements))
+
     nSamples = info['sz'][1] * info['recordsPerBuffer'] * 2 * info['nChan']
 
     # Open File
     fo = open(filename + '.sbx')
 
     # Note: SBX files store the values strangely, its necessary to subtract the values from the max int16 to get the correct ones
-    for k in range(0, N, skip):
-        fo.seek(k * nSamples, 0)
+    
+    
+    
+    counter = 0    
+    
+    if skip == 1:
+          # Note: SBX files store the values strangely, its necessary to subtract the values from the max int16 to get the correct ones
+        fo.seek(start * nSamples, 0)
         ii16 = np.iinfo(np.uint16)
-        tmp = ii16.max - \
-            np.fromfile(fo, dtype='uint16', count=int(nSamples / 2 * 1))
+        x = ii16.max - np.fromfile(fo, dtype='uint16', count=int(nSamples / 2 * (N-start)))
+        x = x.reshape((int(info['nChan']), int(info['sz'][1]), int(
+            info['recordsPerBuffer']), int(N-start)), order='F')
+        x = x[0, :, :, :]
+        
+    else:
+        for k in iterable_elements:
+            if counter%100 == 0:
+                print('Reading Iteration:' + str(k))
+            fo.seek(k * nSamples, 0)
+            ii16 = np.iinfo(np.uint16)
+            tmp = ii16.max - \
+                np.fromfile(fo, dtype='uint16', count=int(nSamples / 2 * 1))
+    
+            tmp = tmp.reshape((int(info['nChan']), int(info['sz'][1]), int(
+                info['recordsPerBuffer']), int(1)), order='F')
+            if counter==0:
+                x = np.zeros((tmp.shape[1],tmp.shape[2], tmp.shape[0],N_time))
+                x[:,:,:,0] = tmp
+            else:
+                x[:,:,:,counter] = tmp
+            
+            counter += 1
 
-        tmp = tmp.reshape((int(info['nChan']), int(info['sz'][1]), int(
-            info['recordsPerBuffer']), int(1)), order='F')
-        if k is 0:
-            x = tmp
-        else:
-            x = np.concatenate((x, tmp), axis=3)
-
-    x = x[0, :, :, :]
+        x = x[:, :, 0, :]
 
     return x.transpose([2, 1, 0])
 
