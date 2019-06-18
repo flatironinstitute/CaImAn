@@ -216,6 +216,8 @@ class OnACID(object):
         if self.params.get('online', 'path_to_model') is None or self.params.get('online', 'sniper_mode') is False:
             loaded_model = None
             self.params.set('online', {'sniper_mode': False})
+            self.tf_in = None
+            self.tf_out = None
         else:
             try:
                 import keras
@@ -239,14 +241,14 @@ class OnACID(object):
                                      optimizer=opt, metrics=['accuracy'])
                 self.tf_in = None
                 self.tf_out = None
-                self.loaded_model = loaded_model
             else:
                 path = self.params.get('online', 'path_to_model').split(".")[:-1]
                 model_path = '.'.join(path + ['h5', 'pb'])
                 loaded_model = load_graph(model_path)
                 self.tf_in = loaded_model.get_tensor_by_name('prefix/conv2d_1_input:0')
                 self.tf_out = loaded_model.get_tensor_by_name('prefix/output_node0:0')
-                self.loaded_model = tf.Session(graph=loaded_model)
+                loaded_model = tf.Session(graph=loaded_model)
+        self.loaded_model = loaded_model
         return self
 
     @profile
