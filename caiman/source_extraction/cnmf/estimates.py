@@ -180,7 +180,7 @@ class Estimates(object):
         if img is None:
             img = np.reshape(np.array(self.A.mean(1)), self.dims, order='F')
         if self.coordinates is None:  # not hasattr(self, 'coordinates'):
-            self.coordinates = caiman.utils.visualization.get_contours(self.A, self.dims, thr=thr, thr_method=thr_method)
+            self.coordinates = caiman.utils.visualization.get_contours(self.A, img.shape, thr=thr, thr_method=thr_method)
         plt.figure()   
         if params is not None:
             plt.suptitle('min_SNR=%1.2f, rval_thr=%1.2f, use_cnn=%i'
@@ -1059,7 +1059,8 @@ class Estimates(object):
         '''
 
         if self.A_thr is None:
-            A_thr = threshold_components(self.A, self.dims,  maxthr=maxthr, dview=dview, medw=None, thr_method='max', nrgthr=0.99,
+            A_thr = threshold_components(self.A, self.dims,  maxthr=maxthr, dview=dview,
+                                         medw=None, thr_method='max', nrgthr=0.99,
                                          extract_cc=True, se=None, ss=None, **kwargs)
             self.A_thr = A_thr
         else:
