@@ -24,3 +24,5 @@ dependencies:
 - spyder
 - tifffile
 - tqdm
+- pyqtgraph
+- pynwb

@@ -368,21 +368,32 @@ class MotionCorrect(object):
             self.x_shifts_els += _x_shifts_els
             self.y_shifts_els += _y_shifts_els
             self.coord_shifts_els += _coord_shifts_els
-        return self
+#        return self
 
-    def apply_shifts_movie(self, fname, rigid_shifts=True, border_nan=True):
+    def apply_shifts_movie(self, fname, rigid_shifts=True, save_memmap=False,
+                           save_base_name='MC', order='F'):
         """
         Applies shifts found by registering one file to a different file. Useful
         for cases when shifts computed from a structural channel are applied to a
         functional channel. Currently only application of shifts through openCV is
-        supported.
+        supported. Returns either cm.movie or the path to a memory mapped file.
 
         Args:
-            fname: str
-                name of the movie to motion correct. It should not contain nans. All the loadable formats from CaImAn are acceptable
+            fname: str of List[str]
+                name(s) of the movie to motion correct. It should not contain
+                nans. All the loadable formats from CaImAn are acceptable
 
-            rigid_shifts: bool
+            rigid_shifts: bool (True)
                 apply rigid or pw-rigid shifts (must exist in the mc object)
+
+            save_memmap: bool (False)
+                flag for saving the resulting file in memory mapped form
+
+            save_base_name: str ['MC']
+                base name for memory mapped file name
+
+            order: 'F' or 'C' ['F']
+                order of resulting memory mapped file
 
         Returns:
             m_reg: caiman movie object
@@ -393,27 +404,40 @@ class MotionCorrect(object):
 
         if rigid_shifts is True:
             if self.shifts_opencv:
-                m_reg = [apply_shift_iteration(img, shift, border_nan=border_nan)
+                m_reg = [apply_shift_iteration(img, shift, border_nan=self.border_nan)
                          for img, shift in zip(Y, self.shifts_rig)]
             else:
                 m_reg = [apply_shifts_dft(img, (
-                    sh[0], sh[1]), 0, is_freq=False, border_nan=border_nan) for img, sh in zip(
+                    sh[0], sh[1]), 0, is_freq=False, border_nan=self.border_nan) for img, sh in zip(
                     Y, self.shifts_rig)]
         else:
-            dims_grid = tuple(np.max(np.stack(self.coord_shifts_els[0], axis=1), axis=1) - np.min(
-                np.stack(self.coord_shifts_els[0], axis=1), axis=1) + 1)
+            xy_grid = [(it[0], it[1]) for it in sliding_window(Y[0], self.overlaps, self.strides)]
+            dims_grid = tuple(np.max(np.stack(xy_grid, axis=1), axis=1) - np.min(
+                np.stack(xy_grid, axis=1), axis=1) + 1)
             shifts_x = np.stack([np.reshape(_sh_, dims_grid, order='C').astype(
                 np.float32) for _sh_ in self.x_shifts_els], axis=0)
             shifts_y = np.stack([np.reshape(_sh_, dims_grid, order='C').astype(
                 np.float32) for _sh_ in self.y_shifts_els], axis=0)
             dims = Y.shape[1:]
-            x_grid, y_grid = np.meshgrid(np.arange(0., dims[0]).astype(
-                np.float32), np.arange(0., dims[1]).astype(np.float32))
+#            x_grid, y_grid = np.meshgrid(np.arange(0., dims[0]).astype(
+#                np.float32), np.arange(0., dims[1]).astype(np.float32))
+            x_grid, y_grid = np.meshgrid(np.arange(0., dims[1]).astype(
+                np.float32), np.arange(0., dims[0]).astype(np.float32))
             m_reg = [cv2.remap(img,
-                               -cv2.resize(shiftY, dims) + x_grid, -cv2.resize(shiftX, dims) + y_grid, cv2.INTER_CUBIC)
+                               -cv2.resize(shiftY, dims[::-1]) + x_grid, -cv2.resize(shiftX, dims[::-1]) + y_grid, cv2.INTER_CUBIC)
                      for img, shiftX, shiftY in zip(Y, shifts_x, shifts_y)]
-
-        return cm.movie(np.stack(m_reg, axis=0))
+            if save_memmap:
+                Y = np.array(Y)
+                dims = Y.shape
+                fname_tot = memmap_frames_filename(save_base_name, dims[1:], dims[0], order)
+                big_mov = np.memmap(fname_tot, mode='w+', dtype=np.float32,
+                            shape=prepare_shape((np.prod(dims[1:]), dims[0])), order=order)
+                big_mov[:] = np.reshape(Y.transpose(1, 2, 0), (np.prod(dims[1:]), dims[0]), order=order)
+                big_mov.flush()
+                del big_mov
+                return fname_tot
+            else:
+                return cm.movie(np.stack(m_reg, axis=0))
 
 
 #%%
@@ -461,13 +485,39 @@ def apply_shift_iteration(img, shift, border_nan=False, border_type=cv2.BORDER_R
 
 #%%
 def apply_shift_online(movie_iterable, xy_shifts, save_base_name=None, order='F'):
-    # todo todocument
+    """
+    Applies rigid shifts to a loaded movie. Useful when processing a dataset
+    with CaImAn online and you want to obtain the registered movie after
+    processing is finished or when operating with dual channels.
+    When save_base_name is None the registered file is returned as a caiman
+    movie. Otherwise a memory mapped file is saved.
+    Currently only rigid shifts are supported supported.
+
+    Args:
+        movie_iterable: cm.movie or np.array
+            Movie to be registered in T x X x Y format
+
+        xy_shifts: list
+            list of shifts to be applied
+
+        save_base_name: str or None
+            prefix for memory mapped file otherwise registered file is returned
+            to memory
+
+        order: 'F' or 'C'
+            order of memory mapped file
+
+    Returns:
+        name of registered memory mapped file if save_base_name is not None,
+        otherwise registered file
+    """
+    # todo use for non rigid shifts
 
     if len(movie_iterable) != len(xy_shifts):
         raise Exception('Number of shifts does not match movie length!')
     count = 0
     new_mov = []
-    dims = (len(movie_iterable),) + movie_iterable[0].shape # TODO: Refactor so length is either tracked separately or is last part of tuple
+    dims = (len(movie_iterable),) + movie_iterable[0].shape  # TODO: Refactor so length is either tracked separately or is last part of tuple
 
     if save_base_name is not None:
         fname_tot = memmap_frames_filename(save_base_name, dims[1:], dims[0], order)
@@ -2432,7 +2482,7 @@ def tile_and_correct_wrapper(params):
 #    elif extension == '.avi':
 #        imgs = cm.load(img_name, subindices=np.array(idxs))
 
-    imgs = cm.load(img_name, subindices=idxs)
+    imgs = cm.load(img_name, subindices=idxs, var_name_hdf5=var_name_hdf5)
     mc = np.zeros(imgs.shape, dtype=np.float32)
     for count, img in enumerate(imgs):
         if count % 10 == 0:
