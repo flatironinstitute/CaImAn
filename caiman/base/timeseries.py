@@ -279,10 +279,10 @@ class timeseries(np.ndarray):
             device = Device('imaging_device')
             nwbfile.add_device(device)
             # OpticalChannel
-            optical_channel = OpticalChannel('main_opt_channel',
+            optical_channel = OpticalChannel('OpticalChannel',
                                              'main optical channel',
                                              emission_lambda=emission_lambda)
-            imaging_plane = nwbfile.create_imaging_plane(name='main_imaging_plane',
+            imaging_plane = nwbfile.create_imaging_plane(name='ImagingPlane',
                                                 optical_channel=optical_channel,
                                                 description=imaging_plane_description,
                                                 device=device,
@@ -291,7 +291,7 @@ class timeseries(np.ndarray):
                                                 indicator=indicator,
                                                 location=location)
             # Images
-            image_series = TwoPhotonSeries(name='mov', dimension=self.shape[1:],
+            image_series = TwoPhotonSeries(name=var_name_hdf5, dimension=self.shape[1:],
                                            data=input_arr,
                                            imaging_plane=imaging_plane,
                                            starting_frame=[0],

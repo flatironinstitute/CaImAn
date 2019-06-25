@@ -721,7 +721,7 @@ class OnACID(object):
 #        device = Device('imaging_device_1')
 #        nwbfile.add_device(device)
 #        # OpticalChannel
-#        optical_channel = OpticalChannel('main_opt_channel', 'description', 500.)
+#        optical_channel = OpticalChannel('OpticalChannel', 'description', 500.)
 #        imaging_plane = nwbfile.create_imaging_plane('main_imging_pln',
 #                                            optical_channel,
 #                                            'a very interesting part of the brain',
@@ -745,7 +745,7 @@ class OnACID(object):
 #        
 #        # Add the ROI-related stuff
 #        ps = img_seg.create_plane_segmentation('CNMF Rresults',
-#                                               imaging_plane, 'my_planeseg', image_series)
+#                                               imaging_plane, 'PlaneSegmentation', image_series)
 #        
 #        # Add ROIs
 #        # Neurons
@@ -766,7 +766,7 @@ class OnACID(object):
 #        
 #        timestamps = list(range(self.estimates.f.shape[1]))
 #        # Neurons
-#        rrs1 = fl.create_roi_response_series('ROI_Fluorescence_Response', self.estimates.C.T, 'lumens', rt_region_roi, timestamps=timestamps)
+#        rrs1 = fl.create_roi_response_series('RoiResponseSeries', self.estimates.C.T, 'lumens', rt_region_roi, timestamps=timestamps)
 #        # Background
 #        rrs2 = fl.create_roi_response_series('Background_Fluorescence_Response', self.estimates.f.T, 'lumens', rt_region_bg, timestamps=timestamps)
 #
