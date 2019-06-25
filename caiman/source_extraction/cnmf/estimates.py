@@ -1219,7 +1219,7 @@ class Estimates(object):
             with  NWBHDF5IO(filename, 'r+') as io:
                 nwbfile = io.read()
                 # Add processing results
-                mod = nwbfile.create_processing_module('Estimates', 'contains caiman estimates for the main imagin plane')
+                mod = nwbfile.create_processing_module('ophys', 'contains caiman estimates for the main imagin plane')
                 img_seg = ImageSegmentation()
                 mod.add_data_interface(img_seg)
                 fl = Fluorescence()
@@ -1268,7 +1268,7 @@ class Estimates(object):
                 timestamps = list(range(self.f.shape[1]))
 
                 # Neurons
-                rrs1 = fl.create_roi_response_series('ROI_Fluorescence_Response', self.C.T, 'lumens', rt_region_roi, timestamps=timestamps)
+                rrs1 = fl.create_roi_response_series('RoiResponseSeries', self.C.T, 'lumens', rt_region_roi, timestamps=timestamps)
                 # Background
                 rrs2 = fl.create_roi_response_series('Background_Fluorescence_Response', self.f.T, 'lumens', rt_region_bg, timestamps=timestamps)
 
