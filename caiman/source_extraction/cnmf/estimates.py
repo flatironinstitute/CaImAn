@@ -1059,8 +1059,8 @@ class Estimates(object):
         '''
 
         if self.A_thr is None:
-            A_thr = threshold_components(self.A, self.dims,  maxthr=maxthr, dview=dview, medw=None, thr_method='max', nrgthr=0.99,
-                                         extract_cc=True, se=None, ss=None, **kwargs)
+            A_thr = threshold_components(self.A, self.dims,  maxthr=maxthr, dview=dview, medw=None, thr_method='max',
+                                         nrgthr=0.99, extract_cc=True, se=None, ss=None, **kwargs)
             self.A_thr = A_thr
         else:
             print('A_thr already computed. If you want to recompute set self.A_thr to None')
@@ -1069,7 +1069,7 @@ class Estimates(object):
                                    select_comp=False):
         ''' remove neurons that are too large or too small
 
-    	Args:
+        Args:
             min_size_neuro: int
                 min size in pixels
             max_size_neuro: int
@@ -1083,7 +1083,8 @@ class Estimates(object):
                 indeces of components with size within the acceptable range
         '''
         if self.A_thr is None:
-            raise Exception('You need to compute thresolded components before calling remove_duplicates: use the threshold_components method')
+            raise Exception('You need to compute thresholded components before calling remove_duplicates: use the '
+                            'threshold_components method')
 
         A_gt_thr_bin = self.A_thr.toarray() > 0
         size_neurons_gt = A_gt_thr_bin.sum(0)
@@ -1096,8 +1097,6 @@ class Estimates(object):
         if select_comp:
             self.select_components(use_object=True)
         return neurons_to_keep
-
-
 
     def remove_duplicates(self, predictions=None, r_values=None, dist_thr=0.1,
                           min_dist=10, thresh_subset=0.6, plot_duplicates=False,
@@ -1113,7 +1112,8 @@ class Estimates(object):
             plot_duplicates
         '''
         if self.A_thr is None:
-            raise Exception('You need to compute thresolded components before calling remove_duplicates: use the threshold_components method')
+            raise Exception('You need to compute thresolded components before calling remove_duplicates: use the'
+                            ' threshold_components method')
 
         A_gt_thr_bin = (self.A_thr.toarray() > 0).reshape([self.dims[0], self.dims[1], -1], order='F').transpose([2, 0, 1]) * 1.
 
@@ -1153,7 +1153,8 @@ class Estimates(object):
     def masks_2_neurofinder(self, dataset_name):
         if self.A_thr is None:
             raise Exception(
-                'You need to compute thresolded components before calling this method: use the threshold_components method')
+                'You need to compute thresolded components before calling this method: use the threshold_components '
+                'method')
         bin_masks = self.A_thr.reshape([self.dims[0], self.dims[1], -1], order='F').transpose([2, 0, 1])
         return nf_masks_to_neurof_dict(bin_masks, dataset_name)
 
@@ -1178,16 +1179,16 @@ class Estimates(object):
         if '.nwb' != os.path.splitext(filename)[-1].lower():
             raise Exception("Wrong filename")
 
-        if not os.path.isfile(filename): # if the file doesn't exist create new and add the orginal data path
+        if not os.path.isfile(filename):  # if the file doesn't exist create new and add the orginal data path
             raise Exception('filename should be an existing NWB file.\
                             Consider using the cnmf.movie.save method to create one.')
         
         else: # if the file already exist in the .nwb format then just add the results to it
             logging.info('Saving the results in the NWB file...')
-            with  NWBHDF5IO(filename, 'r+') as io:
+            with NWBHDF5IO(filename, 'r+') as io:
                 nwbfile = io.read()
                 # Add processing results
-                mod = nwbfile.create_processing_module('Estimates', 'contains caiman estimates for the main imagin plane')
+                mod = nwbfile.create_processing_module('ophys', 'contains caiman estimates for the main imagin plane')
                 img_seg = ImageSegmentation()
                 mod.add_data_interface(img_seg)
                 fl = Fluorescence()
@@ -1198,26 +1199,27 @@ class Estimates(object):
                 # Add the ROI-related stuff
                 if imaging_plane_name is None:
                     imaging_plane_name = [imp for imp in nwbfile.imaging_planes.keys()]
-                    if len(imaging_plane_name)>1:
-                        raise Exception('There is more than one imaging plane in the file, you need to specify the name via '
-                                        'the "imaging_plane_name" parameter')
+                    if len(imaging_plane_name) > 1:
+                        raise Exception('There is more than one imaging plane in the file, you need to specify the name'
+                                        ' via the "imaging_plane_name" parameter')
                     else:
                         imaging_plane_name = imaging_plane_name[0]
 
                 if imaging_series_name is None:
                     imaging_series_name = [imp for imp in nwbfile.acquisition.keys()]
-                    if len(imaging_series_name)>1:
-                        raise Exception('There is more than one imaging plane in the file, you need to specify the name via '
-                                        'the "imaging_series_name" parameter')
+                    if len(imaging_series_name) > 1:
+                        raise Exception('There is more than one imaging plane in the file, you need to specify the name'
+                                        ' via the "imaging_series_name" parameter')
                     else:
                         imaging_series_name = imaging_series_name[0]
-
 
                 imaging_plane = nwbfile.imaging_planes[imaging_plane_name]
                 image_series = nwbfile.acquisition[imaging_series_name]
 
-                ps = img_seg.create_plane_segmentation('CNMF_ROIs',
-                                                       imaging_plane, 'planeseg', image_series)
+                ps = img_seg.create_plane_segmentation(description='CNMF_ROIs',
+                                                       imaging_plane=imaging_plane,
+                                                       name='PlaneSegmentation',
+                                                       reference_images=image_series)
 
                 # Add ROIs
                 for roi in self.A.T:  # Neurons
@@ -1227,31 +1229,36 @@ class Estimates(object):
                 # Add Traces
                 n_rois = self.A.shape[-1]
                 n_bg = len(self.f)
-                rt_region_roi = ps.create_roi_table_region('ROIs',
-                                                       region=list(range(n_rois)))
+                rt_region_roi = ps.create_roi_table_region(
+                    'ROIs', region=list(range(n_rois)))
 
-                rt_region_bg = ps.create_roi_table_region('Background',
-                                                       region=list(range(n_rois,n_rois+n_bg)))
+                rt_region_bg = ps.create_roi_table_region(
+                    'Background', region=list(range(n_rois,n_rois+n_bg)))
 
                 timestamps = list(range(self.f.shape[1]))
 
                 # Neurons
-                rrs1 = fl.create_roi_response_series('ROI_Fluorescence_Response', self.C.T, 'lumens', rt_region_roi, timestamps=timestamps)
+                rrs1 = fl.create_roi_response_series('RoiResponseSeries', self.C.T, 'lumens', rt_region_roi,
+                                                     timestamps=timestamps)
                 # Background
-                rrs2 = fl.create_roi_response_series('Background_Fluorescence_Response', self.f.T, 'lumens', rt_region_bg, timestamps=timestamps)
+                rrs2 = fl.create_roi_response_series('Background_Fluorescence_Response', self.f.T, 'lumens',
+                                                     rt_region_bg, timestamps=timestamps)
 
                 # Add MotionCorreciton
     #            create_corrected_image_stack(corrected, original, xy_translation, name='CorrectedImageStack')
                 io.write(nwbfile)
 
 
-def compare_components(estimate_gt, estimate_cmp,  Cn=None, thresh_cost=.8, min_dist=10, print_assignment=False, labels=['GT', 'CMP'], plot_results=False):
+def compare_components(estimate_gt, estimate_cmp,  Cn=None, thresh_cost=.8, min_dist=10, print_assignment=False,
+                       labels=['GT', 'CMP'], plot_results=False):
     if estimate_gt.A_thr is None:
         raise Exception(
-            'You need to compute thresolded components for first argument before calling remove_duplicates: use the threshold_components method')
+            'You need to compute thresolded components for first argument before calling remove_duplicates: use the'
+            ' threshold_components method')
     if estimate_cmp.A_thr is None:
         raise Exception(
-            'You need to compute thresolded components for second argument before calling remove_duplicates: use the threshold_components method')
+            'You need to compute thresolded components for second argument before calling remove_duplicates: use the'
+            ' threshold_components method')
 
     if plot_results:
         plt.figure(figsize=(20, 10))

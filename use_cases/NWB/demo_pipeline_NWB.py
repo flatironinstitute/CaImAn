@@ -74,7 +74,8 @@ def main():
              experimenter='Sue An Koay', lab_name='Tank Lab',
              institution='Princeton U',
              experiment_description='Experiment Description',
-             session_id='Session 1')
+             session_id='Session 1',
+             var_name_hdf5='TwoPhotonSeries')
 #%% First setup some parameters for data and motion correction
 
 
@@ -105,7 +106,7 @@ def main():
         'overlaps': overlaps,
         'max_deviation_rigid': max_deviation_rigid,
         'border_nan': 'copy',
-        'var_name_hdf5': 'acquisition/mov'    
+        'var_name_hdf5': 'acquisition/TwoPhotonSeries'
     }
 
     opts = params.CNMFParams(params_dict=mc_dict)
@@ -228,7 +229,7 @@ def main():
     min_SNR = 2  # signal to noise ratio for accepting a component
     rval_thr = 0.85  # space correlation threshold for accepting a component
     cnn_thr = 0.99  # threshold for CNN based classifier
-    cnn_lowest = 0.1 # neurons with cnn probability lower than this value are rejected
+    cnn_lowest = 0.1  # neurons with cnn probability lower than this value are rejected
 
     cnm2.params.set('quality', {'decay_time': decay_time,
                                'min_SNR': min_SNR,
