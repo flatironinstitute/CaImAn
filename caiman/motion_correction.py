@@ -2254,12 +2254,16 @@ def motion_correct_batch_rigid(fname, max_shifts, dview=None, splits=56, num_spl
         Exception 'The movie contains nans. Nans are not allowed!'
 
     """
-    corrected_slicer = slice(subidx.start, subidx.stop, subidx.step * 10)
-    m = cm.load(fname, var_name_hdf5=var_name_hdf5, subindices=corrected_slicer)
     
-    if m.shape[0] < 300:
+    
+    dims, T = cm.source_extraction.cnmf.utilities.get_file_size(fname, var_name_hdf5=var_name_hdf5)
+    
+    
+    
+    if T < 3000:
+        corrected_slicer = slice(subidx.start, subidx.stop, subidx.step * 10)
         m = cm.load(fname, var_name_hdf5=var_name_hdf5, subindices=corrected_slicer)
-    elif m.shape[0] < 500:
+    elif T < 5000:
         corrected_slicer = slice(subidx.start, subidx.stop, subidx.step * 5)
         m = cm.load(fname, var_name_hdf5=var_name_hdf5, subindices=corrected_slicer)
     else:
@@ -2483,6 +2487,7 @@ def tile_and_correct_wrapper(params):
 #        imgs = cm.load(img_name, subindices=np.array(idxs))
 
     imgs = cm.load(img_name, subindices=idxs, var_name_hdf5=var_name_hdf5)
+
     mc = np.zeros(imgs.shape, dtype=np.float32)
     for count, img in enumerate(imgs):
         if count % 10 == 0:
@@ -2526,7 +2531,7 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
     dims, T = cm.source_extraction.cnmf.utilities.get_file_size(fname, var_name_hdf5=var_name_hdf5)
     d1, d2 = dims
 
-    if type(splits) is int:
+    if isinstance(splits, int):
         if subidx is None:
             rng = range(T)
         else:
@@ -2537,6 +2542,7 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
     else:
         idxs = splits
         save_movie = False
+        
     if template is None:
         raise Exception('Not implemented')
 
@@ -2560,6 +2566,7 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
         fname_tot = None
 
     pars = []
+
     for idx in idxs:
         pars.append([fname, fname_tot, idx, shape_mov, template, strides, overlaps, max_shifts, np.array(
             add_to_movie, dtype=np.float32), max_deviation_rigid, upsample_factor_grid,
