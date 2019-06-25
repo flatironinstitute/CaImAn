@@ -32,6 +32,10 @@ A paper explaining most of the implementation details and benchmarking can be fo
 
 All the results and figures of the paper can be regenerated using this package. For more information visit this [page](https://github.com/flatironinstitute/CaImAn/tree/master/use_cases/eLife_scripts).
 
+## New: Removing Keras dependency (June 2019)
+
+To circumvent a problem arising in Windows installation, we recently removed keras from the list of dependencies. Keras was being used to deploy the pretrained neural network models for component screening. The neural network models are being deployed through tensorflow and for that we included tensorflow compatible versions of the models inside the folder `model`. Existing users who already have keras in their environment will continue using keras as it is slightly faster. However if you create an environment without it you may want to either reinstall caimanmanager or simply copy the files `model/*.pb` into the folder `caiman_data/model/` for the files to be discoverable. New CaImAn users do not need to do anything as this is being taken care of during the installation process.
+
 ## New: Code refactoring (October 2018)
 
 We recently refactored the code to simplify the parameter setting and usage of the various algorithms. The code now is based around the following objects:
