@@ -737,7 +737,7 @@ class OnACID(object):
 #        
 #        # Add the ROI-related stuff
 #        ps = img_seg.create_plane_segmentation('CNMF Rresults',
-#                                               imaging_plane, 'my_PlaneSegmentation', image_series)
+#                                               imaging_plane, 'PlaneSegmentation', image_series)
 #        
 #        # Add ROIs
 #        # Neurons
