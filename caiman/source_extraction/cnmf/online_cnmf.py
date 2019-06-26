@@ -78,19 +78,15 @@ class OnACID(object):
 
     def __init__(self, params=None, estimates=None, path=None):
         if path is None:
-            if params is None:
-                self.params = CNMFParams()
-            else:
-                self.params = params
-
-            if estimates is None:
-                self.estimates = Estimates()
+            self.params = CNMFParams() if params is None else params
+            self.estimates = Estimates() if estimates is None else estimates
         else:
-            if params is None or estimates is None:
-                raise ValueError("Cannot Specify Estimates and Params While \
-                                 Loading Object From File")
-#            else:
-#                load_CNMF_from_file(path)
+            onacid = load_OnlineCNMF(path)
+            self.params = params if params is not None else onacid.params
+            self.estimates= estimates if estimates is not None else onacid.estimates
+#            if params is None or estimates is None:
+#                raise ValueError("Cannot Specify Estimates and Params While \
+#                                 Loading Object From File")
 
     def _prepare_object(self, Yr, T, new_dims=None, idx_components=None):
 
@@ -258,10 +254,6 @@ class OnACID(object):
                 loaded_model = tf.Session(graph=loaded_model)
         self.loaded_model = loaded_model
         return self
-
-    def load_CNMF_from_file(path):
-        # TO DO
-        return
 
     @profile
     def fit_next(self, t, frame_in, num_iters_hals=3):
@@ -693,87 +685,6 @@ class OnACID(object):
             save_dict_to_hdf5(self.__dict__, filename)
         else:
             raise Exception("Unsupported file extension")
-
-#    def save_NWB(self, filename, ID, sess_desc='CaImAn Results', exp_desc=None,
-#                 imaging_rate=30, location='somewhere in the brain',
-#                 orig_file_format='tiff'):
-#        """save object in hdf5 file format
-#
-#        Args:
-#            filename: str
-#                path to the hdf5 file containing the saved object
-#        """
-#        if '.nwb' != filename[-4:]:
-#            raise Exception("Unsupported file extension")   
-#        from datetime import datetime
-#        from dateutil.tz import tzlocal
-#        from pynwb import NWBHDF5IO
-#
-#        from pynwb import NWBFile
-#        from pynwb.ophys import TwoPhotonSeries, OpticalChannel, ImageSegmentation, Fluorescence, MotionCorrection
-#        from pynwb.device import Device
-#        # Create NWB file
-#        nwbfile = NWBFile(sess_desc, ID, datetime.now(tzlocal()),
-#                  experimenter='Dr. Giovannucci',
-#                  lab='NEL',
-#                  institution='UNC-CH',
-#                  experiment_description=exp_desc,
-#                  session_id='Results Only')
-#        # Get the device
-#        device = Device('imaging_device_1')
-#        nwbfile.add_device(device)
-#        # OpticalChannel
-#        optical_channel = OpticalChannel('OpticalChannel', 'description', 500.)
-#        imaging_plane = nwbfile.create_imaging_plane('main_imging_pln',
-#                                            optical_channel,
-#                                            'a very interesting part of the brain',
-#                                            device, 600., self.params.fr, 'main_indicator',
-#                                            location,
-#                                            None, 1.0,
-#                                            'manifold unit', 'A frame to refer to')
-#        # Images
-#        image_series = TwoPhotonSeries(name='main_data', dimension=self.estimates.dims,
-#                               external_file= self.params.get('data', 'fnames'),
-#                               imaging_plane=imaging_plane,
-#                               starting_frame=[0], format=orig_file_format, starting_time=0.0, rate=imaging_rate)
-#        nwbfile.add_acquisition(image_series)
-#        
-#        # Add processing results
-#        mod = nwbfile.create_processing_module('ophys', 'contains caiman estimates')
-#        img_seg = ImageSegmentation()
-#        mod.add_data_interface(img_seg)
-#        fl = Fluorescence()
-#        mod.add_data_interface(fl)
-#        
-#        # Add the ROI-related stuff
-#        ps = img_seg.create_plane_segmentation('CNMF Rresults',
-#                                               imaging_plane, 'PlaneSegmentation', image_series)
-#        
-#        # Add ROIs
-#        # Neurons
-#        for roi in self.estimates.A.T:
-#            ps.add_roi(image_mask=roi)
-#        # Backgrounds
-#        for bg in self.estimates.b.T:
-#            ps.add_roi(image_mask=bg)
-#        
-#        # Add Traces
-#        n_rois = len(self.estimates.A.T)
-#        n_bg = len(self.estimate.f)
-#        rt_region_roi = ps.create_roi_table_region('ROIs',
-#                                               region=list(range(n_rois)))
-#
-#        rt_region_bg = ps.create_roi_table_region('BackGround',
-#                                               region=list(range(n_rois,n_rois+n_bg)))
-#        
-#        timestamps = list(range(self.estimates.f.shape[1]))
-#        # Neurons
-#        rrs1 = fl.create_roi_response_series('RoiResponseSeries', self.estimates.C.T, 'lumens', rt_region_roi, timestamps=timestamps)
-#        # Background
-#        rrs2 = fl.create_roi_response_series('Background_Fluorescence_Response', self.estimates.f.T, 'lumens', rt_region_bg, timestamps=timestamps)
-#
-#        with NWBHDF5IO(filename, 'w') as io:
-#            io.write(nwbfile)
 
 
     def fit_online(self, **kwargs):
