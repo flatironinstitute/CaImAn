@@ -1196,6 +1196,7 @@ class Estimates(object):
                  sess_desc='CaImAn Results',
                  exp_desc=None,
                  imaging_rate=30,
+                 starting_time = 0.,
                  location='somewhere in the brain',
                  orig_file_format='tiff'):
         """save object in hdf5 file format
@@ -1219,7 +1220,20 @@ class Estimates(object):
             with  NWBHDF5IO(filename, 'r+') as io:
                 nwbfile = io.read()
                 # Add processing results
-                mod = nwbfile.create_processing_module('ophys', 'contains caiman estimates for the main imagin plane')
+
+                # Create the module as 'ophys' unless it is taken and append 'ophysX' instead
+                ophysmodules = [s[5:] for s in list(nwbfile.modules) if s.startswith('ophys')]
+                if any('' in s for s in ophysmodules):
+                    if any([s for s in ophysmodules if s.isdigit()]):
+                        nummodules = max([int(s) for s in ophysmodules if s.isdigit()])+1
+                        print('ophys module previously created, writing to ophys'+str(nummodules)+' instead')
+                        mod = nwbfile.create_processing_module('ophys'+str(nummodules), 'contains caiman estimates for the main imaging plane')                        
+                    else:
+                        print('ophys module previously created, writing to ophys1 instead')
+                        mod = nwbfile.create_processing_module('ophys1', 'contains caiman estimates for the main imaging plane')                        
+                else:
+                    mod = nwbfile.create_processing_module('ophys', 'contains caiman estimates for the main imaging plane')
+                      
                 img_seg = ImageSegmentation()
                 mod.add_data_interface(img_seg)
                 fl = Fluorescence()
@@ -1265,7 +1279,7 @@ class Estimates(object):
                 rt_region_bg = ps.create_roi_table_region('Background',
                                                        region=list(range(n_rois,n_rois+n_bg)))
 
-                timestamps = list(range(self.f.shape[1]))
+                timestamps = np.arange(self.f.shape[1])/imaging_rate+starting_time
 
                 # Neurons
                 rrs1 = fl.create_roi_response_series('RoiResponseSeries', self.C.T, 'lumens', rt_region_roi, timestamps=timestamps)
