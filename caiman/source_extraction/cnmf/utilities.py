@@ -38,6 +38,7 @@ from typing import List
 
 from .initialization import greedyROI
 from ...base.rois import com
+
 from ...mmapping import parallel_dot_product, load_memmap
 from ...utils.stats import df_percentile
 
@@ -1011,6 +1012,25 @@ def get_file_size(file_name, var_name_hdf5='mov'):
                                       'named {0}'.format(var_name_hdf5))
                         raise Exception('Variable not found. Use one of the above')
                 T, dims = siz[0], siz[1:]
+            elif extension in ('.sbx'):
+                from ...base.movies import loadmat_sbx
+                info = loadmat_sbx(file_name[:-4]+ '.mat')['info']
+                dims = tuple((info['sz']).astype(int))
+                # Defining number of channels/size factor
+                if info['channels'] == 1:
+                    info['nChan'] = 2
+                    factor = 1
+                elif info['channels'] == 2:
+                    info['nChan'] = 1
+                    factor = 2
+                elif info['channels'] == 3:
+                    info['nChan'] = 1
+                    factor = 2
+            
+                # Determine number of frames in whole file
+                T = int(os.path.getsize(
+                    file_name[:-4] + '.sbx') / info['recordsPerBuffer'] / info['sz'][1] * factor / 4 - 1)
+                
             else:
                 raise Exception('Unknown file type')
         else:
