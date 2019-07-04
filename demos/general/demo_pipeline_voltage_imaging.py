@@ -90,6 +90,7 @@ def main():
         'fr': fr,
         'index': index,
         'ROIs':ROIs,
+        'weights':None,  #opts.change_params(params_dict={'weights':vpy.estimates['weights']})
         'pw_rigid': pw_rigid,
         'max_shifts': max_shifts,
         'gSig_filt': gSig_filt,

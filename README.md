@@ -32,19 +32,7 @@ A paper explaining most of the implementation details and benchmarking can be fo
 
 All the results and figures of the paper can be regenerated using this package. For more information visit this [page](https://github.com/flatironinstitute/CaImAn/tree/master/use_cases/eLife_scripts).
 
-## New: Code refactoring (October 2018)
-
-We recently refactored the code to simplify the parameter setting and usage of the various algorithms. The code now is based around the following objects:
-
-* `params`: A single object containing a set of dictionaries with the parameters used in all the algorithms. It can be set and changed easily and is passed into all the algorithms.
-* `MotionCorrect`: An object for motion correction which can be used for both rigid and piece-wise rigid motion correction.
-* `cnmf`: An object for running the CaImAn batch algorithm either in patches or not, suitable for both two-photon (CNMF) and one-photon (CNMF-E) data.
-* `online_cnmf`: An object for running the CaImAn online (OnACID) algorithm on two-photon data with or without motion correction.
-* `estimates`: A single object that stores the results of the algorithms (CaImAn batch, CaImAn online) in a unified way that also contains plotting methods. For an interpretation of the various entries of the `estimates` object see [here](https://github.com/flatironinstitute/CaImAn/wiki/Interpreting-Results).
-   
-To see examples of how these methods are used, please consult the demos. While the `cnmf` methods can also be called in the old way by passing all the parameters when initializing the `cnmf` object, we recommend using the `params` object. Similarly, to run the CaImAn online algorithm it is recommended to pass a `params` object inside the `online_cnmf` object. Older scripts should be usable with the latest version of the code except for online analysis where the `cnmf` object will need to be replaced with an `online_cnmf` object. The results should be read from `estimates`, i.e., `cnm.estimates.C` as opposed to `cnm.C`.
-
-## New: Voltage Imaging (June 2019)
+## New: Voltage Imaging (July 2019)
 
 We recently added the code for analyzing voltage imaging data. The analysis is based on following objects:
 

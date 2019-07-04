@@ -289,7 +289,7 @@ class CNMF(object):
                 n_refit=n_refit, num_times_comp_updated=num_times_comp_updated, simultaneously=simultaneously,
                 sniper_mode=sniper_mode, test_both=test_both, thresh_CNN_noisy=thresh_CNN_noisy,
                 thresh_fitness_delta=thresh_fitness_delta, thresh_fitness_raw=thresh_fitness_raw, thresh_overlap=thresh_overlap,
-                update_num_comps=update_num_comps, use_dense=use_dense, use_peak_max=use_peak_max
+                update_num_comps=update_num_comps, use_dense=use_dense, use_peak_max=use_peak_max, alpha_snmf=alpha_snmf
             )
         else:
             self.params = params

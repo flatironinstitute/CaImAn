@@ -92,9 +92,6 @@ class VOLPY(object):
         into self.estimate        
         """
         args = dict()
-        args['fnames'] = self.params.data['fnames']
-        args['fr'] = self.params.data['fr']
-        args['ROIs'] = self.params.data['ROIs']
         args['doCrossVal'] = self.params.volspike['doCrossVal']
         args['doGlobalSubtract'] = self.params.volspike['doGlobalSubtract']
         args['contextSize'] = self.params.volspike['contextSize']
@@ -109,8 +106,15 @@ class VOLPY(object):
         args['highPassRegression'] = self.params.volspike['highPassRegression']
 
         args_in = []
+        fnames = self.params.data['fnames']
+        fr = self.params.data['fr']
         for i in self.params.data['index']:
-            args_in.append([args, i])
+            ROIs = self.params.data['ROIs'][i]
+            if  self.params.data['weights'] == None:
+                weights = None
+            else:
+                weights = self.params.data['weights'][i]
+            args_in.append([fnames, fr, i, ROIs, weights, args])
 
         if 'multiprocessing' in str(type(self.dview)):
             results = self.dview.map_async(volspike, args_in).get(4294967)
