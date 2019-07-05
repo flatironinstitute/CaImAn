@@ -15,11 +15,14 @@ from typing import List
 import caiman
 from .utilities import detrend_df_f
 from .spatial import threshold_components
+from .temporal import constrained_foopsi_parallel
 from .merging import merge_iteration
 from ...components_evaluation import (
         evaluate_components_CNN, estimate_components_quality_auto,
         select_components_from_metrics)
-from ...base.rois import detect_duplicates_and_subsets, nf_match_neurons_in_binary_masks, nf_masks_to_neurof_dict
+from ...base.rois import (
+        detect_duplicates_and_subsets, nf_match_neurons_in_binary_masks,
+        nf_masks_to_neurof_dict)
 from .initialization import downscale
 
 
@@ -437,7 +440,8 @@ class Estimates(object):
     def play_movie(self, imgs, q_max=99.75, q_min=2, gain_res=1,
                    magnification=1, include_bck=True,
                    frame_range=slice(None, None, None),
-                   bpx=0, thr=0.):
+                   bpx=0, thr=0., save_movie=False,
+                   movie_name='results_movie.avi'):
         """Displays a movie with three panels (original data (left panel),
         reconstructed data (middle panel), residual (right panel))
 
@@ -469,6 +473,12 @@ class Estimates(object):
             thr: float (values in [0, 1[)
                 threshold value for contours, no contours if thr=0
 
+            save_movie: bool
+                flag to save an avi file of the movie
+
+            movie_name: str
+                name of saved file
+
         Returns:
             self (to stop the movie press 'q')
         """
@@ -478,6 +488,7 @@ class Estimates(object):
         Y_rec = self.A.dot(self.C[:, frame_range])
         Y_rec = Y_rec.reshape(dims + (-1,), order='F')
         Y_rec = Y_rec.transpose([2, 0, 1])
+
         if self.W is not None:
             ssub_B = int(round(np.sqrt(np.prod(dims) / self.W.shape[0])))
             B = imgs[frame_range].reshape((-1, np.prod(dims)), order='F').T - \
@@ -509,8 +520,16 @@ class Estimates(object):
 
         mov = caiman.concatenate((imgs[frame_range] - (not include_bck) * B,
                                   Y_rec + include_bck * B, Y_res * gain_res), axis=2)
+        
+
         if thr > 0:
-            import cv2
+            if save_movie:
+                import cv2
+                #fourcc = cv2.VideoWriter_fourcc('8', 'B', 'P', 'S')
+                #fourcc = cv2.VideoWriter_fourcc(*'XVID')
+                fourcc = cv2.VideoWriter_fourcc(*'MP4V')
+                out = cv2.VideoWriter(movie_name, fourcc, 30.0,
+                                      tuple([int(magnification*s) for s in mov.shape[1:][::-1]]))
             contours = []
             for a in self.A.T.toarray():
                 a = a.reshape(dims, order='F')
@@ -520,7 +539,7 @@ class Estimates(object):
                     a = cv2.resize(a, None, fx=magnification, fy=magnification,
                                    interpolation=cv2.INTER_LINEAR)
                 ret, thresh = cv2.threshold(a, thr * np.max(a), 1., 0)
-                im2, contour, hierarchy = cv2.findContours(
+                contour, hierarchy = cv2.findContours(
                     thresh.astype('uint8'), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
                 contours.append(contour)
                 contours.append(list([c + np.array([[a.shape[1], 0]]) for c in contour]))
@@ -537,12 +556,17 @@ class Estimates(object):
                 for contour in contours:
                     cv2.drawContours(frame, contour, -1, (0, 255, 255), 1)
                 cv2.imshow('frame', frame.astype('uint8'))
+                if save_movie:
+                    out.write(frame.astype('uint8'))
                 if cv2.waitKey(30) & 0xFF == ord('q'):
                     break
+            if save_movie:
+                out.release()
             cv2.destroyAllWindows()
 
         else:
-            mov.play(q_min=q_min, q_max=q_max, magnification=magnification)
+            mov.play(q_min=q_min, q_max=q_max, magnification=magnification,
+                     save_movie=save_movie, movie_name=movie_name)
 
         return self
 
@@ -849,7 +873,7 @@ class Estimates(object):
 
         return self
 
-    def filter_components(self, imgs, params, new_dict={}, dview=None):
+    def filter_components(self, imgs, params, new_dict={}, dview=None, select_mode='All'):
         """Filters components based on given thresholds without re-computing
         the quality metrics. If the quality metrics are not present then it
         calls self.evaluate components.
@@ -860,6 +884,12 @@ class Estimates(object):
 
             params: params object
                 Parameters of the algorithm
+
+            select_mode: str
+                Can be 'All' (no subselection is made, but quality filtering is performed),
+                'Accepted' (subselection of accepted components, a field named self.accepted_list must exist),
+                'Rejected' (subselection of rejected components, a field named self.rejected_list must exist),
+                'Unassigned' (both fields above need to exist)
 
             new_dict: dict
                 New dictionary with parameters to be called. The dictionary
@@ -924,7 +954,90 @@ class Estimates(object):
                                            use_cnn=opts['use_cnn'],
                                            gSig_range=opts['gSig_range'])
 
+        if select_mode == 'Accepted':
+           self.idx_components = np.array(np.intersect1d(self.idx_components,self.accepted_list))
+        elif select_mode == 'Rejected':
+           self.idx_components = np.array(np.intersect1d(self.idx_components,self.rejected_list))
+        elif select_mode == 'Unassigned':
+           self.idx_components = np.array(np.setdiff1d(self.idx_components,np.union1d(self.rejected_list,self.accepted_list)))
+
+        self.idx_components_bad = np.array(np.setdiff1d(range(len(self.SNR_comp)),self.idx_components))
+
         return self
+
+    def deconvolve(self, params, dview=None, dff_flag=False):
+        ''' performs deconvolution on the estimated traces using the parameters
+        specified in params. Deconvolution on detrended and normalized (DF/F)
+        traces can be performed by setting dff_flag=True. In this case the
+        results of the deconvolution are stored in F_dff_dec and S_dff
+        
+        Args:
+            params: params object
+                Parameters of the algorithm
+            dff_flag: bool (True)
+                Flag for deconvolving the DF/F traces
+
+        Returns:
+            self: estimates object
+        '''
+
+        F = self.C + self.YrA
+        args = dict()
+        args['p'] = params.get('preprocess', 'p')
+        args['method_deconvolution'] = params.get('temporal', 'method_deconvolution')
+        args['bas_nonneg'] = params.get('temporal', 'bas_nonneg')
+        args['noise_method'] = params.get('temporal', 'noise_method')
+        args['s_min'] = params.get('temporal', 's_min')
+        args['optimize_g'] = params.get('temporal', 'optimize_g')
+        args['noise_range'] = params.get('temporal', 'noise_range')
+        args['fudge_factor'] = params.get('temporal', 'fudge_factor')
+
+        args_in = [(F[jj], None, jj, None, None, None, None,
+                    args) for jj in range(F.shape[0])]
+
+        if 'multiprocessing' in str(type(dview)):
+            results = dview.map_async(
+                constrained_foopsi_parallel, args_in).get(4294967)
+        elif dview is not None:
+            results = dview.map_sync(constrained_foopsi_parallel, args_in)
+        else:
+            results = list(map(constrained_foopsi_parallel, args_in))
+
+        results = list(zip(*results))
+
+        order = list(results[7])
+        self.C = np.stack([results[0][i] for i in order])
+        self.S = np.stack([results[1][i] for i in order])
+        self.bl = [results[3][i] for i in order]
+        self.c1 = [results[4][i] for i in order]
+        self.g = [results[6][i] for i in order]
+        self.neurons_sn = [results[5][i] for i in order]
+        self.lam = [results[8][i] for i in order]
+        self.YrA = F - self.C
+        
+        if dff_flag:
+            if self.F_dff is None:
+                logging.warning('The F_dff field is empty. Run the method' +
+                                ' estimates.detrend_df_f before attempting' +
+                                ' to deconvolve.')
+            else:
+                args_in = [(self.F_dff[jj], None, jj, 0, 0, self.g[jj], None,
+                        args) for jj in range(F.shape[0])]
+    
+                if 'multiprocessing' in str(type(dview)):
+                    results = dview.map_async(
+                        constrained_foopsi_parallel, args_in).get(4294967)
+                elif dview is not None:
+                    results = dview.map_sync(constrained_foopsi_parallel,
+                                             args_in)
+                else:
+                    results = list(map(constrained_foopsi_parallel, args_in))
+        
+                results = list(zip(*results))
+                order = list(results[7])
+                self.F_dff_dec = np.stack([results[0][i] for i in order])
+                self.S_dff = np.stack([results[1][i] for i in order])
+            
 
     def manual_merge(self, components, params):
         ''' merge a given list of components. The indices
@@ -1141,13 +1254,9 @@ class Estimates(object):
         else:
             components_to_keep = np.arange(self.A.shape[-1])
 
-        if self.idx_components is None:
-            self.idx_components = np.arange(self.A.shape[-1])
-        self.idx_components = np.intersect1d(self.idx_components, components_to_keep)
-        self.idx_components_bad = np.setdiff1d(np.arange(self.A.shape[-1]), self.idx_components)
-        #self.select_components(idx_components=components_to_keep)
-        if select_comp:
-            self.select_components(use_object=True)
+
+
+        self.select_components(idx_components=components_to_keep)
 
         return components_to_keep
 
@@ -1157,6 +1266,108 @@ class Estimates(object):
                 'You need to compute thresolded components before calling this method: use the threshold_components method')
         bin_masks = self.A_thr.reshape([self.dims[0], self.dims[1], -1], order='F').transpose([2, 0, 1])
         return nf_masks_to_neurof_dict(bin_masks, dataset_name)
+
+    def save_NWB(self,
+                 filename,
+                 imaging_plane_name=None,
+                 imaging_series_name=None,
+                 sess_desc='CaImAn Results',
+                 exp_desc=None,
+                 imaging_rate=30,
+                 starting_time = 0.,
+                 location='somewhere in the brain',
+                 orig_file_format='tiff'):
+        """save object in hdf5 file format
+
+        Args:
+            filename: str
+                path to the hdf5 file containing the saved object
+        """
+        from pynwb import NWBHDF5IO
+        from pynwb.ophys import ImageSegmentation, Fluorescence, MotionCorrection
+        import os
+        if '.nwb' != os.path.splitext(filename)[-1].lower():
+            raise Exception("Wrong filename")
+
+        if not os.path.isfile(filename): # if the file doesn't exist create new and add the orginal data path
+            raise Exception('filename should be an existing NWB file.\
+                            Consider using the cnmf.movie.save method to create one.')
+        
+        else: # if the file already exist in the .nwb format then just add the results to it
+            logging.info('Saving the results in the NWB file...')
+            with  NWBHDF5IO(filename, 'r+') as io:
+                nwbfile = io.read()
+                # Add processing results
+
+                # Create the module as 'ophys' unless it is taken and append 'ophysX' instead
+                ophysmodules = [s[5:] for s in list(nwbfile.modules) if s.startswith('ophys')]
+                if any('' in s for s in ophysmodules):
+                    if any([s for s in ophysmodules if s.isdigit()]):
+                        nummodules = max([int(s) for s in ophysmodules if s.isdigit()])+1
+                        print('ophys module previously created, writing to ophys'+str(nummodules)+' instead')
+                        mod = nwbfile.create_processing_module('ophys'+str(nummodules), 'contains caiman estimates for the main imaging plane')                        
+                    else:
+                        print('ophys module previously created, writing to ophys1 instead')
+                        mod = nwbfile.create_processing_module('ophys1', 'contains caiman estimates for the main imaging plane')                        
+                else:
+                    mod = nwbfile.create_processing_module('ophys', 'contains caiman estimates for the main imaging plane')
+                      
+                img_seg = ImageSegmentation()
+                mod.add_data_interface(img_seg)
+                fl = Fluorescence()
+                mod.add_data_interface(fl)
+    #            mot_crct = MotionCorrection()
+    #            mod.add_data_interface(mot_crct)
+
+                # Add the ROI-related stuff
+                if imaging_plane_name is None:
+                    imaging_plane_name = [imp for imp in nwbfile.imaging_planes.keys()]
+                    if len(imaging_plane_name)>1:
+                        raise Exception('There is more than one imaging plane in the file, you need to specify the name via '
+                                        'the "imaging_plane_name" parameter')
+                    else:
+                        imaging_plane_name = imaging_plane_name[0]
+
+                if imaging_series_name is None:
+                    imaging_series_name = [imp for imp in nwbfile.acquisition.keys()]
+                    if len(imaging_series_name)>1:
+                        raise Exception('There is more than one imaging plane in the file, you need to specify the name via '
+                                        'the "imaging_series_name" parameter')
+                    else:
+                        imaging_series_name = imaging_series_name[0]
+
+
+                imaging_plane = nwbfile.imaging_planes[imaging_plane_name]
+                image_series = nwbfile.acquisition[imaging_series_name]
+
+                ps = img_seg.create_plane_segmentation('CNMF_ROIs',
+                                                       imaging_plane, 'planeseg', image_series)
+
+                # Add ROIs
+                for roi in self.A.T:  # Neurons
+                    ps.add_roi(image_mask=roi.T.toarray().reshape(self.dims))
+                for bg in self.b.T:  # Backgrounds
+                    ps.add_roi(image_mask=bg.reshape(self.dims))
+                # Add Traces
+                n_rois = self.A.shape[-1]
+                n_bg = len(self.f)
+                rt_region_roi = ps.create_roi_table_region('ROIs',
+                                                       region=list(range(n_rois)))
+
+                rt_region_bg = ps.create_roi_table_region('Background',
+                                                       region=list(range(n_rois,n_rois+n_bg)))
+
+                timestamps = np.arange(self.f.shape[1])/imaging_rate+starting_time
+
+                # Neurons
+                rrs1 = fl.create_roi_response_series('RoiResponseSeries', self.C.T, 'lumens', rt_region_roi, timestamps=timestamps)
+                # Background
+                rrs2 = fl.create_roi_response_series('Background_Fluorescence_Response', self.f.T, 'lumens', rt_region_bg, timestamps=timestamps)
+
+                # Add MotionCorreciton
+    #            create_corrected_image_stack(corrected, original, xy_translation, name='CorrectedImageStack')
+                io.write(nwbfile)
+
 
 def compare_components(estimate_gt, estimate_cmp,  Cn=None, thresh_cost=.8, min_dist=10, print_assignment=False, labels=['GT', 'CMP'], plot_results=False):
     if estimate_gt.A_thr is None:
@@ -1178,4 +1389,3 @@ def compare_components(estimate_gt, estimate_cmp,  Cn=None, thresh_cost=.8, min_
         plot_results=plot_results, Cn=Cn, labels=labels)
 
     return tp_gt, tp_comp, fn_gt, fp_comp, performance_cons_off
-
