@@ -732,6 +732,8 @@ class CNMFParams(object):
         }
 
         self.change_params(params_dict)
+
+    def check_consistency(self):
         if self.data['dims'] is None and self.data['fnames'] is not None:
             self.data['dims'] = get_file_size(self.data['fnames'], var_name_hdf5=self.data['var_name_hdf5'])[0]
         if self.data['fnames'] is not None:
@@ -757,15 +759,15 @@ class CNMFParams(object):
         if self.motion['gSig_filt'] is None:
             self.motion['gSig_filt'] = self.init['gSig']
 
-        if gnb <= 0:
-            logging.warning("gnb={0}, hence setting keys nb_patch and low_rank_background ".format(gnb) +
-                            "in group patch automatically.")
-            self.set('patch', {'nb_patch': gnb, 'low_rank_background': None})
-        if gnb == -1:
+        if self.init['nb'] <= 0:
+            logging.warning("gnb={0}, hence setting keys nb_patch ".format(self.init['nb']) +
+                            "and low_rank_background in group patch automatically.")
+            self.set('patch', {'nb_patch': self.init['nb'], 'low_rank_background': None})
+        if self.init['nb'] == -1:
             logging.warning("gnb=-1, hence setting key update_background_components " +
                             "in group spatial automatically to False.")
             self.set('spatial', {'update_background_components': False})
-        if method_init=='corr_pnr' and ring_size_factor is not None:
+        if self.init['method_init']=='corr_pnr' and self.init['ring_size_factor'] is not None:
             logging.warning("using CNMF-E's ringmodel for background hence setting key " +
                             "normalize_init in group init automatically to False.")
             self.set('init', {'normalize_init': False})
@@ -873,4 +875,5 @@ class CNMFParams(object):
                     flag = False
             if flag:
                 logging.warning('No parameter {0} found!'.format(k))
+        self.check_consistency()
         return self
