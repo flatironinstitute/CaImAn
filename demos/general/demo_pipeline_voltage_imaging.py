@@ -49,40 +49,34 @@ logging.basicConfig(format=
 def main():
     pass  # For compatibility between running under Spyder and the CLI
 
-    # %% Set up directory for tif files, dividing files into several file_list
-    dr = '/home/nel/Code/Voltage_imaging/exampledata/403106_3min_raw/raw_data/'
-    num_files_total = len([f for f in os.listdir(dr) if f.endswith('.tif')])
-
-    n_blocks = 1
-    n_files = np.int(np.floor(num_files_total / n_blocks))
-
-    for n in range(n_blocks):
-        file_list = [dr + 'cameraTube051_{:05n}.tif'.format(i + 1) for i in
-                     np.arange(n_files * n, n_files * (n + 1), 1)]
-    # %% Select file(s) to be processed
-    # May do motion correction for several blocks of files at the same time
-    # eg. fnames = [tuple([ff for ff in file_list[12000:13000]]), tuple([ff for ff in file_list[13000:14000]])]
-    fnames = [tuple([ff for ff in file_list[:10000]])]
+    # %% Please download the .npz file manually to your file path. 
+    url = 'https://www.dropbox.com/s/tuv1bx9w6wdywnm/demo_voltage_imaging.npz?dl=0'  
     
-    # %% First setup some parameters for data and motion correction
+    # %% Load demo movie and ROIs
+    file_path = '/home/nel/Code/Voltage_imaging/exampledata/403106_3min/demo_voltage_imaging.npz'
+    m = np.load(file_path)
+    mv = cm.movie(m.f.arr_0)
+    ROIs = m.f.arr_1
+    
+    # %% Save the movie  
+    fnames = '/home/nel/Code/Voltage_imaging/exampledata/403106_3min/demomovie_voltage_imaging.hdf5'
+    mv.save(fnames)                                 # neglect the warning
+
+    # %% Setup some parameters for data and motion correction
     # dataset parameters
-    fr = 400  # sample rate of the movie
-    rois_path = '/home/nel/Code/Voltage_imaging/exampledata/ROIs/403106_3min_rois.mat'
-    f = scipy.io.loadmat(rois_path)
-    ROIs = f['roi'].T  # all ROIs that are given
-    index = list(range(5)) # index of neurons for processing
-
+    fr = 400                                        # sample rate of the movie
+    index = list(range(ROIs.shape[0]))              # index of neurons
+    weights = None                                  # reuse spatial weights by 
+                                                    # opts.change_params(params_dict={'weights':vpy.estimates['weights']})
     # motion correction parameters
-    motion_correct = True  # flag for motion correction
-    pw_rigid = False  # flag for pw-rigid motion correction
-
-    gSig_filt = (3, 3)  # size of filter, in general gSig (see below),
-    #                      change this one if algorithm does not work
-    max_shifts = (5, 5)  # maximum allowed rigid shift
-    strides = (48, 48)  # start a new patch for pw-rigid motion correction every x pixels
-    overlaps = (24, 24)  # overlap between pathes (size of patch strides+overlaps)
-    # maximum deviation allowed for patch with respect to rigid shifts
-    max_deviation_rigid = 3
+    motion_correct = True                           # flag for motion correction
+    pw_rigid = True                                 # flag for pw-rigid motion correction
+    gSig_filt = (3, 3)                              # size of filter, in general gSig (see below),
+                                                    # change this one if algorithm does not work
+    max_shifts = (5, 5)                             # maximum allowed rigid shift
+    strides = (48, 48)                              # start a new patch for pw-rigid motion correction every x pixels
+    overlaps = (24, 24)                             # overlap between pathes (size of patch strides+overlaps)
+    max_deviation_rigid = 3                         # maximum deviation allowed for patch with respect to rigid shifts
     border_nan = 'copy'
 
     mc_dict = {
@@ -90,7 +84,7 @@ def main():
         'fr': fr,
         'index': index,
         'ROIs':ROIs,
-        'weights':None,  #opts.change_params(params_dict={'weights':vpy.estimates['weights']})
+        'weights':weights,              
         'pw_rigid': pw_rigid,
         'max_shifts': max_shifts,
         'gSig_filt': gSig_filt,
@@ -108,7 +102,7 @@ def main():
     display_images = True
 
     if display_images:
-        m_orig = cm.load(list(fnames[0]))
+        m_orig = cm.load(fnames)
         ds_ratio = 0.2
         moviehandle = m_orig.resize(1, 1, ds_ratio)
         moviehandle.play(q_max=99.5, fr=60, magnification=2)
@@ -118,20 +112,19 @@ def main():
         backend='local', n_processes=12, single_thread=False)
 
     # %%% MOTION CORRECTION
-    # first we create a motion correction object with the specified parameters
-    mc_rig = MotionCorrect(fnames, dview=dview, **opts.get_group('motion'))
-    # note that the file is not loaded in memory
-    # Run rigid motion correction using NoRMCorre
-    mc_rig.motion_correct(save_movie=True)
+    # Create a motion correction object with the specified parameters
+    mc_pw = MotionCorrect(fnames, dview=dview, **opts.get_group('motion'))
+    # Run piecewise rigid motion correction 
+    mc_pw.motion_correct(save_movie=True)
 
-    # %% rigid motion correction compared with original movie
+    # %% motion correction compared with original movie
     display_images = True
 
     if display_images:
-        m_orig = cm.load(list(fnames[0]))
-        m_rig = cm.load(mc_rig.mmap_file)
+        m_orig = cm.load(fnames)
+        m_rig = cm.load(mc_pw.mmap_file)
         ds_ratio = 0.2
-        moviehandle = cm.concatenate([m_orig.resize(1, 1, ds_ratio) - mc_rig.min_mov * mc_rig.nonneg_movie,
+        moviehandle = cm.concatenate([m_orig.resize(1, 1, ds_ratio) - mc_pw.min_mov * mc_pw.nonneg_movie,
                                       m_rig.resize(1, 1, ds_ratio)], axis=2)
         moviehandle.play(fr=60, q_max=99.5, magnification=2)  # press q to exit
 
@@ -142,8 +135,8 @@ def main():
                                        m_rig2.resize(1, 1, ds_ratio)], axis=2)
         moviehandle1.play(fr=60, q_max=99.5, magnification=2) 
 
-    # %% file name, index of cell, ROI, sample rate into args
-    fname_new = mc_rig.mmap_file[0]  # memory map file name
+   # %% change fnames to the new motion corrected one
+    fname_new = mc_pw.mmap_file[0]  # memory map file name
     opts.change_params(params_dict={'fnames':fname_new})
 
     # %% restart cluster to clean up memory
