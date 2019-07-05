@@ -216,9 +216,7 @@ class OnACID(object):
         # setup per patch classifier
 
         if self.params.get('online', 'path_to_model') is None or self.params.get('online', 'sniper_mode') is False:
-            self.loaded_model = None
-            self.tf_in = None
-            self.tf_out = None
+            loaded_model = None
             self.params.set('online', {'sniper_mode': False})
             self.tf_in = None
             self.tf_out = None
