@@ -32,6 +32,16 @@ A paper explaining most of the implementation details and benchmarking can be fo
 
 All the results and figures of the paper can be regenerated using this package. For more information visit this [page](https://github.com/flatironinstitute/CaImAn/tree/master/use_cases/eLife_scripts).
 
+## New: Voltage Imaging (June 2019)
+
+We recently added the code for analyzing voltage imaging data. The analysis is based on following objects:
+
+* `volparams`: An object for setting parameters of voltage imaging. It can be set and changed easily and is passed into the algorithms.
+* `MotionCorrect`: An object for motion correction which can be used for both rigid and piece-wise rigid motion correction.
+* `VOLPY`: An object for running the spike detection algorithm and saving results.
+   
+To see examples of how these methods are used, please consult the demo_pipeline_voltage_imaging.py in demos. 
+
 ## New: Code refactoring (October 2018)
 
 We recently refactored the code to simplify the parameter setting and usage of the various algorithms. The code now is based around the following objects:
@@ -44,15 +54,6 @@ We recently refactored the code to simplify the parameter setting and usage of t
    
 To see examples of how these methods are used, please consult the demos. While the `cnmf` methods can also be called in the old way by passing all the parameters when initializing the `cnmf` object, we recommend using the `params` object. Similarly, to run the CaImAn online algorithm it is recommended to pass a `params` object inside the `online_cnmf` object. Older scripts should be usable with the latest version of the code except for online analysis where the `cnmf` object will need to be replaced with an `online_cnmf` object. The results should be read from `estimates`, i.e., `cnm.estimates.C` as opposed to `cnm.C`.
 
-## New: Voltage Imaging (June 2019)
-
-We recently added the code for analyzing voltage imaging data. The analysis is based on following objects:
-
-* `volparams`: An object for setting parameters of voltage imaging. It can be set and changed easily and is passed into the algorithms.
-* `MotionCorrect`: An object for motion correction which can be used for both rigid and piece-wise rigid motion correction.
-* `VOLPY`: An object for running the spike detection algorithm and saving results.
-   
-To see examples of how these methods are used, please consult the demo_pipeline_voltage_imaging.py in demos. 
 ## Installation for calcium imaging data analysis
 
 ### Installation Changes
