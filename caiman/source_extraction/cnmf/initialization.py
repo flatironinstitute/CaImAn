@@ -848,7 +848,7 @@ def hals(Y, A, C, b, f, bSiz=3, maxIter=5):
 
     def HALS4activity(Yr, A, C, iters=2):
         U = A.T.dot(Yr)
-        V = A.T.dot(A)
+        V = A.T.dot(A) + np.finfo(A.dtype).eps
         for _ in range(iters):
             for m in range(len(U)):  # neurons and background
                 C[m] = np.clip(C[m] + (U[m] - V[m].dot(C)) /
@@ -857,7 +857,7 @@ def hals(Y, A, C, b, f, bSiz=3, maxIter=5):
 
     def HALS4shape(Yr, A, C, iters=2):
         U = C.dot(Yr.T)
-        V = C.dot(C.T)
+        V = C.dot(C.T) + np.finfo(C.dtype).eps
         for _ in range(iters):
             for m in range(K):  # neurons
                 ind_pixels = np.squeeze(ind_A[:, m].toarray())
@@ -1528,7 +1528,8 @@ def extract_ac(data_filtered, data_raw, ind_ctr, patch_dims):
     XX = np.dot(X.T, X)
     Xy = np.dot(X.T, data_raw)
     try:
-        ai = np.linalg.inv(XX).dot(Xy)[0]
+        #ai = np.linalg.inv(XX).dot(Xy)[0]
+        ai = np.linalg.solve(XX, Xy)[0]
     except:
         ai = scipy.linalg.lstsq(XX, Xy)[0][0]
     ai = ai.reshape(patch_dims)

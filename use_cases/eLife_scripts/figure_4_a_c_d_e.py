@@ -67,7 +67,7 @@ def precision_snr(snr_gt, snr_gt_fn, snr_cnmf, snr_cnmf_fp, snr_thrs):
         # f1 score with OR condition
 
         ind_OR = np.union1d(ind_gt, ind_cnmf)
-        # indeces of components that are above threshold in either direction
+        # indices of components that are above threshold in either direction
         ind_gt_OR = np.where(snr_all_gt[ind_OR] > 0)[0]  # gt components
         ind_cnmf_OR = np.where(snr_all_cnmf[ind_OR] > 0)[0]  # cnmf components
         prec_OR = np.sum(snr_all_gt[ind_OR][ind_cnmf_OR] > 0) / len(ind_cnmf_OR)

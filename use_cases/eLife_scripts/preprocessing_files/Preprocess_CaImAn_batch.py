@@ -420,12 +420,14 @@ for params_movie in np.array(params_movies)[ID]:
     nrn_size = gt_estimate.remove_small_large_neurons(min_size_neuro, max_size_neuro)
     nrn_dup = gt_estimate.remove_duplicates(predictions=None, r_values=None, dist_thr=0.1, min_dist=10,
                                       thresh_subset=0.6)
-    idx_components_gt = nrn_size[nrn_dup]
+    #idx_components_gt = nrn_size[nrn_dup]
+    gt_estimate.select_components(use_object=True)
     print(gt_estimate.A_thr.shape)
     # %% prepare CNMF maks
     cnm2.estimates.threshold_spatial_components(maxthr=0.2, dview=dview)
     cnm2.estimates.remove_small_large_neurons(min_size_neuro, max_size_neuro)
     cnm2.estimates.remove_duplicates(r_values=None, dist_thr=0.1, min_dist=10, thresh_subset=0.6)
+    cnm2.estimates.select_components(use_object=True)
     print('Num neurons to match:' + str(cnm2.estimates.A.shape))
     # %%
     params_display = {

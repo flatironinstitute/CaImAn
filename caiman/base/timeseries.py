@@ -18,7 +18,11 @@ import pickle as cpk
 from scipy.io import savemat
 import tifffile
 import warnings
-
+from datetime import datetime
+from dateutil.tz import tzlocal
+from pynwb import NWBHDF5IO, NWBFile
+from pynwb.ophys import TwoPhotonSeries, OpticalChannel
+from pynwb.device import Device
 from caiman.paths import memmap_frames_filename
 
 try:
@@ -114,10 +118,31 @@ class timeseries(np.ndarray):
         self.file_name = getattr(obj, 'file_name', None)
         self.meta_data = getattr(obj, 'meta_data', None)
 
-    def save(self, file_name, to32=True, order='F',imagej=False, bigtiff=True,
-             software='CaImAn', compress=0, var_name_hdf5='mov'):
+    def save(self,
+             file_name,
+             to32=True,
+             order='F',
+             imagej=False,
+             bigtiff=True,
+             excitation_lambda=488.0,
+             compress=0,
+             var_name_hdf5='mov',
+             sess_desc='some_description',
+             identifier='some identifier',
+             exp_desc='experiment description',
+             imaging_plane_description='some imaging plane description',
+             emission_lambda=520.0,
+             indicator='OGB-1',
+             location='brain',
+             starting_time=0.,
+             experimenter='Dr Who',
+             lab_name='',
+             institution='',
+             experiment_description='Experiment Description',
+             session_id='Session ID'):
         """
-        Save the timeseries in various formats
+        Save the timeseries in single precision. Supported formats include
+        TIFF, NPZ, AVI, MAT, HDF5/H5, MMAP, and NWB
 
         Args:
             file_name: str
@@ -140,23 +165,16 @@ class timeseries(np.ndarray):
         extension = extension.lower()
         logging.debug("Parsing extension " + str(extension))
 
-        if extension == '.tif':  # load avi file
-
+        if extension == '.tif':
             with tifffile.TiffWriter(file_name, bigtiff=bigtiff, imagej=imagej) as tif:
-
-
                 for i in range(self.shape[0]):
                     if i % 200 == 0:
                         logging.debug(str(i) + ' frames saved')
 
                     curfr = self[i].copy()
                     if to32 and not('float32' in str(self.dtype)):
-                         curfr = curfr.astype(np.float32)
-
+                        curfr = curfr.astype(np.float32)
                     tif.save(curfr, compress=compress)
-
-
-
         elif extension == '.npz':
             if to32 and not('float32' in str(self.dtype)):
                 input_arr = self.astype(np.float32)
@@ -165,7 +183,6 @@ class timeseries(np.ndarray):
 
             np.savez(file_name, input_arr=input_arr, start_time=self.start_time,
                      fr=self.fr, meta_data=self.meta_data, file_name=self.file_name)
-
         elif extension == '.avi':
             codec = None
             try:
@@ -221,8 +238,7 @@ class timeseries(np.ndarray):
                     logging.warning('No file saved')
                 if self.meta_data[0] is not None:
                     logging.debug("Metadata for saved file: " + str(self.meta_data))
-                    dset.attrs["meta_data"] = cpk.dumps(self.meta_data)
-
+                    dset.attrs["meta_data"] = cpk.dumps(self.meta_data)  
         elif extension == '.mmap':
             base_name = name
 
@@ -239,12 +255,55 @@ class timeseries(np.ndarray):
             fname_tot = memmap_frames_filename(base_name, dims, T, order)
             fname_tot = os.path.join(os.path.split(file_name)[0], fname_tot)
             big_mov = np.memmap(fname_tot, mode='w+', dtype=np.float32,
-                                shape=(np.uint64(np.prod(dims)), np.uint64(T)), order=order)
+                                shape=(np.uint64(np.prod(dims)),
+                                       np.uint64(T)), order=order)
 
             big_mov[:] = np.asarray(input_arr, dtype=np.float32)
             big_mov.flush()
             del big_mov, input_arr
             return fname_tot
+        elif extension == '.nwb':
+            if to32 and not('float32' in str(self.dtype)):
+                input_arr = self.astype(np.float32)
+            else:
+                input_arr = np.array(self)
+            # Create NWB file
+            nwbfile = NWBFile(sess_desc, identifier,
+                              datetime.now(tzlocal()),
+                              experimenter=experimenter,
+                              lab=lab_name,
+                              institution=institution,
+                              experiment_description=experiment_description,
+                              session_id=session_id)
+            # Get the device
+            device = Device('imaging_device')
+            nwbfile.add_device(device)
+            # OpticalChannel
+            optical_channel = OpticalChannel('OpticalChannel',
+                                             'main optical channel',
+                                             emission_lambda=emission_lambda)
+            imaging_plane = nwbfile.create_imaging_plane(name='ImagingPlane',
+                                                optical_channel=optical_channel,
+                                                description=imaging_plane_description,
+                                                device=device,
+                                                excitation_lambda=excitation_lambda,
+                                                imaging_rate=self.fr,
+                                                indicator=indicator,
+                                                location=location)
+            # Images
+            image_series = TwoPhotonSeries(name=var_name_hdf5, dimension=self.shape[1:],
+                                           data=input_arr,
+                                           imaging_plane=imaging_plane,
+                                           starting_frame=[0],
+                                           starting_time=starting_time,
+                                           rate=self.fr)
+            
+            nwbfile.add_acquisition(image_series)
+            
+            with NWBHDF5IO(file_name, 'w') as io:
+                io.write(nwbfile)
+            
+            return file_name
 
         else:
             logging.error("Extension " + str(extension) + " unknown")

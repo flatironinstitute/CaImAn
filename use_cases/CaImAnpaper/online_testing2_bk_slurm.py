@@ -610,7 +610,7 @@ for ind_dataset in ID[:]:
     #A_thr = A_thr[:,idx_size_neuro]
     print(A_thr.shape)
     #%%
-    duplicates_gt, indeces_keep_gt, indeces_remove_gt, D_gt, overlap_gt = detect_duplicates_and_subsets(
+    duplicates_gt, indices_keep_gt, indices_remove_gt, D_gt, overlap_gt = detect_duplicates_and_subsets(
             A_gt_thr_bin[:,idx_size_neurons_gt].reshape([dims[0],dims[1],-1],order = 'F').transpose([2,0,1])*1.,
             predictions = None, r_values = None,
             dist_thr=0.1, min_dist = 10,thresh_subset = 0.6)
@@ -624,13 +624,13 @@ for ind_dataset in ID[:]:
             pl.imshow(A_gt_thr_bin[:,idx_size_neurons_gt].reshape([dims[0],dims[1],-1],order = 'F').transpose([2,0,1])[np.array(duplicates_gt).flatten()].sum(0))
             pl.colorbar()
             pl.subplot(1,3,2)
-            pl.imshow(A_gt_thr_bin[:,idx_size_neurons_gt].reshape([dims[0],dims[1],-1],order = 'F').transpose([2,0,1])[np.array(indeces_keep_gt)[:]].sum(0))
+            pl.imshow(A_gt_thr_bin[:,idx_size_neurons_gt].reshape([dims[0],dims[1],-1],order = 'F').transpose([2,0,1])[np.array(indices_keep_gt)[:]].sum(0))
             pl.colorbar()
             pl.subplot(1,3,3)
-            pl.imshow(A_gt_thr_bin[:,idx_size_neurons_gt].reshape([dims[0],dims[1],-1],order = 'F').transpose([2,0,1])[np.array(indeces_remove_gt)[:]].sum(0))
+            pl.imshow(A_gt_thr_bin[:,idx_size_neurons_gt].reshape([dims[0],dims[1],-1],order = 'F').transpose([2,0,1])[np.array(indices_remove_gt)[:]].sum(0))
             pl.colorbar()
             pl.pause(1)
-        idx_components_gt = np.delete(idx_components_gt,indeces_remove_gt)
+        idx_components_gt = np.delete(idx_components_gt,indices_remove_gt)
     print('Duplicates gt:'+str(len(duplicates_gt)))
 
     #%% compute results
@@ -651,7 +651,7 @@ for ind_dataset in ID[:]:
         idx_neurons = np.intersect1d(idx_components_cnn,idx_size_neurons)
         #%% detect duplicates
 
-        duplicates, indeces_keep, indeces_remove, D, overlap = detect_duplicates_and_subsets(
+        duplicates, indices_keep, indices_remove, D, overlap = detect_duplicates_and_subsets(
                     A_thr_bin[:,idx_neurons].reshape([dims[0],dims[1],-1],order = 'F').transpose([2,0,1])*1.,
                     predictions[idx_neurons,1], r_values = None,
                     dist_thr=0.1, min_dist = 10, thresh_subset = 0.6)
@@ -666,13 +666,13 @@ for ind_dataset in ID[:]:
                 pl.imshow(A_thr_bin[:,idx_neurons].reshape([dims[0],dims[1],-1],order = 'F').transpose([2,0,1])[np.unique(duplicates).flatten()].sum(0))
                 pl.colorbar()
                 pl.subplot(1,3,2)
-                pl.imshow(A_thr_bin[:,idx_neurons].reshape([dims[0],dims[1],-1],order = 'F').transpose([2,0,1])[np.array(indeces_keep)[:]].sum(0))
+                pl.imshow(A_thr_bin[:,idx_neurons].reshape([dims[0],dims[1],-1],order = 'F').transpose([2,0,1])[np.array(indices_keep)[:]].sum(0))
                 pl.colorbar()
                 pl.subplot(1,3,3)
-                pl.imshow(A_thr_bin[:,idx_neurons].reshape([dims[0],dims[1],-1],order = 'F').transpose([2,0,1])[np.array(indeces_remove)[:]].sum(0))
+                pl.imshow(A_thr_bin[:,idx_neurons].reshape([dims[0],dims[1],-1],order = 'F').transpose([2,0,1])[np.array(indices_remove)[:]].sum(0))
                 pl.colorbar()
                 pl.pause(1)
-            idx_components_cnmf = np.delete(idx_components_cnmf,indeces_remove)
+            idx_components_cnmf = np.delete(idx_components_cnmf,indices_remove)
 
         print('Duplicates CNMF:'+str(len(duplicates)))
 
@@ -714,7 +714,7 @@ for ind_dataset in ID[:]:
         #%% detect duplicates
         from caiman.base.rois import detect_duplicates_and_subsets
 
-        duplicates, indeces_keep, indeces_remove, D, overlap = detect_duplicates_and_subsets(
+        duplicates, indices_keep, indices_remove, D, overlap = detect_duplicates_and_subsets(
                     A_thr_bin[:,idx_neurons].reshape([dims[0],dims[1],-1],order = 'F').transpose([2,0,1])*1.,
                     predictions[idx_neurons,1], r_values = None,
                     dist_thr=0.1, min_dist = 10, thresh_subset = 0.6)
@@ -729,13 +729,13 @@ for ind_dataset in ID[:]:
                 pl.imshow(A_thr_bin[:,idx_neurons].reshape([dims[0],dims[1],-1],order = 'F').transpose([2,0,1])[np.unique(duplicates).flatten()].sum(0))
                 pl.colorbar()
                 pl.subplot(1,3,2)
-                pl.imshow(A_thr_bin[:,idx_neurons].reshape([dims[0],dims[1],-1],order = 'F').transpose([2,0,1])[np.array(indeces_keep)[:]].sum(0))
+                pl.imshow(A_thr_bin[:,idx_neurons].reshape([dims[0],dims[1],-1],order = 'F').transpose([2,0,1])[np.array(indices_keep)[:]].sum(0))
                 pl.colorbar()
                 pl.subplot(1,3,3)
-                pl.imshow(A_thr_bin[:,idx_neurons].reshape([dims[0],dims[1],-1],order = 'F').transpose([2,0,1])[np.array(indeces_remove)[:]].sum(0))
+                pl.imshow(A_thr_bin[:,idx_neurons].reshape([dims[0],dims[1],-1],order = 'F').transpose([2,0,1])[np.array(indices_remove)[:]].sum(0))
                 pl.colorbar()
                 pl.pause(1)
-            idx_components_cnmf = np.delete(idx_components_cnmf,indeces_remove)
+            idx_components_cnmf = np.delete(idx_components_cnmf,indices_remove)
 
         print('Duplicates CNMF:'+str(len(duplicates)))
 

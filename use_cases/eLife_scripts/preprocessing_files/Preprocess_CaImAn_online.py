@@ -36,7 +36,6 @@ import os
 import sys
 import time
 import gc
-import keras
 
 from builtins import str
 
@@ -193,7 +192,6 @@ all_results = dict()
 # %% iterate over all datasets to be processed
 
 for ind_dataset in ID:
-    keras.backend.clear_session()
     gc.collect()
     fname_zip = os.path.join(base_folder, params_movie[ind_dataset]['folder_name'], 'images', 'images_' + params_movie[ind_dataset]['folder_name'] +'.zip')
     fls = glob.glob(os.path.join(base_folder, params_movie[ind_dataset]['folder_name'], 'images', 'mov*.tif'))
@@ -283,6 +281,7 @@ for ind_dataset in ID:
     cnm.estimates.threshold_spatial_components(maxthr=global_params['max_thr'], dview=None)
     cnm.estimates.remove_small_large_neurons(min_size_neuro, max_size_neuro)
     _ = cnm.estimates.remove_duplicates(r_values=None, dist_thr=0.1, min_dist=10, thresh_subset=0.6)
+    cnm.estimates.select_components(use_object=True)
 
     # %% load consensus annotations and filter for size
     gt_file = glob.glob(os.path.join(base_folder, params_movie[ind_dataset]['folder_name'], '*masks.npz'))[0]
@@ -304,7 +303,8 @@ for ind_dataset in ID:
     nrn_size = gt_estimate.remove_small_large_neurons(min_size_neuro, max_size_neuro)
     nrn_dup = gt_estimate.remove_duplicates(predictions=None, r_values=None, dist_thr=0.1, min_dist=10,
                                             thresh_subset=0.6)
-    idx_components_gt = nrn_size[nrn_dup]
+    idx_components_gt = gt_estimate.idx_components
+    gt_estimate.select_components(use_object=True)
     print(gt_estimate.A.shape)
 
     # %% compute performance and plot against consensus annotations
@@ -363,7 +363,7 @@ for ind_dataset in ID:
     # %% Plot Timing performance
     if plot_results:
         plt.figure(); 
-        plt.stackplot(np.arange(len(cnm.t_detect)),  1e3*np.array(cnm.t_online)-np.array(cnm.t_detect) - np.array(cnm.t_shapes),
+        plt.stackplot(np.arange(len(cnm.t_detect)),  1e3*(np.array(cnm.t_online) - np.array(cnm.t_detect) - np.array(cnm.t_shapes)),
                       1e3*np.array(cnm.t_detect), 1e3*np.array(cnm.t_shapes))
         plt.title('Processing time per frame')
         plt.xlabel('Frame #')
