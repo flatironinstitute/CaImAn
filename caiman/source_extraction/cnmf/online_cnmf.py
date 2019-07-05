@@ -24,7 +24,7 @@ import numpy as np
 from past.utils import old_div
 from scipy.ndimage import percentile_filter
 from scipy.ndimage.filters import gaussian_filter
-from scipy.sparse import coo_matrix, csc_matrix, spdiags
+from scipy.sparse import coo_matrix, csc_matrix, spdiags, hstack
 from scipy.stats import norm
 from sklearn.decomposition import NMF
 from sklearn.preprocessing import normalize
@@ -829,9 +829,18 @@ class OnACID(object):
         if self.estimates.OASISinstances is not None:
             self.estimates.bl = [osi.b for osi in self.estimates.OASISinstances]
             self.estimates.S = np.stack([osi.s for osi in self.estimates.OASISinstances])
+            self.estimates.S = self.estimates.S[:, t - t // epochs:t]
         else:
             self.estimates.bl = [0] * self.estimates.C.shape[0]
             self.estimates.S = np.zeros_like(self.estimates.C)
+        if self.params.get('online', 'ds_factor') > 1:
+            dims = Y_.shape[1:]
+            self.estimates.A = hstack([coo_matrix(cv2.resize(self.estimates.A[:, i].reshape(self.dims, order='F').toarray(),
+                                                            dims[::-1]).reshape(-1, order='F')[:,None]) for i in range(self.N)], format='csc')
+            self.estimates.b = np.concatenate([cv2.resize(self.estimates.b[:, i].reshape(self.dims, order='F'),
+                                                          dims[::-1]).reshape(-1, order='F')[:,None] for i in range(self.params.get('init', 'nb'))], axis=1)
+            self.params.set('data', {'dims': dims})
+            self.estimates.dims = dims
         if self.params.get('online', 'save_online_movie'):
             out.release() 
         if self.params.get('online', 'show_movie'):
