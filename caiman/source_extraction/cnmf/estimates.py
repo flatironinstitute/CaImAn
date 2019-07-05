@@ -15,11 +15,14 @@ from typing import List
 import caiman
 from .utilities import detrend_df_f
 from .spatial import threshold_components
+from .temporal import constrained_foopsi_parallel
 from .merging import merge_iteration
 from ...components_evaluation import (
         evaluate_components_CNN, estimate_components_quality_auto,
         select_components_from_metrics)
-from ...base.rois import detect_duplicates_and_subsets, nf_match_neurons_in_binary_masks, nf_masks_to_neurof_dict
+from ...base.rois import (
+        detect_duplicates_and_subsets, nf_match_neurons_in_binary_masks,
+        nf_masks_to_neurof_dict)
 from .initialization import downscale
 
 
@@ -961,6 +964,80 @@ class Estimates(object):
         self.idx_components_bad = np.array(np.setdiff1d(range(len(self.SNR_comp)),self.idx_components))
 
         return self
+
+    def deconvolve(self, params, dview=None, dff_flag=False):
+        ''' performs deconvolution on the estimated traces using the parameters
+        specified in params. Deconvolution on detrended and normalized (DF/F)
+        traces can be performed by setting dff_flag=True. In this case the
+        results of the deconvolution are stored in F_dff_dec and S_dff
+        
+        Args:
+            params: params object
+                Parameters of the algorithm
+            dff_flag: bool (True)
+                Flag for deconvolving the DF/F traces
+
+        Returns:
+            self: estimates object
+        '''
+
+        F = self.C + self.YrA
+        args = dict()
+        args['p'] = params.get('preprocess', 'p')
+        args['method_deconvolution'] = params.get('temporal', 'method_deconvolution')
+        args['bas_nonneg'] = params.get('temporal', 'bas_nonneg')
+        args['noise_method'] = params.get('temporal', 'noise_method')
+        args['s_min'] = params.get('temporal', 's_min')
+        args['optimize_g'] = params.get('temporal', 'optimize_g')
+        args['noise_range'] = params.get('temporal', 'noise_range')
+        args['fudge_factor'] = params.get('temporal', 'fudge_factor')
+
+        args_in = [(F[jj], None, jj, None, None, None, None,
+                    args) for jj in range(F.shape[0])]
+
+        if 'multiprocessing' in str(type(dview)):
+            results = dview.map_async(
+                constrained_foopsi_parallel, args_in).get(4294967)
+        elif dview is not None:
+            results = dview.map_sync(constrained_foopsi_parallel, args_in)
+        else:
+            results = list(map(constrained_foopsi_parallel, args_in))
+
+        results = list(zip(*results))
+
+        order = list(results[7])
+        self.C = np.stack([results[0][i] for i in order])
+        self.S = np.stack([results[1][i] for i in order])
+        self.bl = [results[3][i] for i in order]
+        self.c1 = [results[4][i] for i in order]
+        self.g = [results[6][i] for i in order]
+        self.neurons_sn = [results[5][i] for i in order]
+        self.lam = [results[8][i] for i in order]
+        self.YrA = F - self.C
+        
+        if dff_flag:
+            if self.F_dff is None:
+                logging.warning('The F_dff field is empty. Run the method' +
+                                ' estimates.detrend_df_f before attempting' +
+                                ' to deconvolve.')
+            else:
+                args_in = [(self.F_dff[jj], None, jj, 0, 0, self.g[jj], None,
+                        args) for jj in range(F.shape[0])]
+    
+                if 'multiprocessing' in str(type(dview)):
+                    results = dview.map_async(
+                        constrained_foopsi_parallel, args_in).get(4294967)
+                elif dview is not None:
+                    results = dview.map_sync(constrained_foopsi_parallel,
+                                             args_in)
+                else:
+                    results = list(map(constrained_foopsi_parallel, args_in))
+        
+                results = list(zip(*results))
+                order = list(results[7])
+                self.F_dff_dec = np.stack([results[0][i] for i in order])
+                self.S_dff = np.stack([results[1][i] for i in order])
+            
 
     def manual_merge(self, components, params):
         ''' merge a given list of components. The indices
