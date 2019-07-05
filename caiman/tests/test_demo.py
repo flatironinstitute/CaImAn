@@ -30,19 +30,19 @@ def demo(parallel=False):
     if parallel:
         cm.cluster.stop_server(dview=dview)
 
-    # verifying the spatial components
-    npt.assert_allclose(cnm.estimates.A.sum(), 281.1, 1e-2)
-    # verifying the temporal components
-    npt.assert_allclose(cnm.estimates.C.sum(), 66271668, 1e-2)
+    cnm.save('test_file.hdf5')
+    cnm2 = cnmf.cnmf.load_CNMF('test_file.hdf5')
+    npt.assert_allclose(cnm.estimates.A.sum(), cnm2.estimates.A.sum())
+    npt.assert_allclose(cnm.estimates.C, cnm2.estimates.C)
     try:
         dview.terminate()
     except:
         pass
 
 def test_single_thread():
-    #demo()
+    demo()
     pass
 
 def test_parallel():
-    #demo(True)
+    demo(True)
     pass

@@ -23,4 +23,7 @@ dependencies:
 - scikit-learn
 - spyder
 - tifffile
+- tk=8.6.8
 - tqdm
+- pyqtgraph
+- pynwb

@@ -307,6 +307,9 @@ class CNMFParams(object):
             lags: int, default: 5
                 number of autocovariance lags to be considered for time constant estimation
 
+            optimize_g: bool, default: False
+                flag for optimizing time constants
+
             fudge_factor: float (close but smaller than 1) default: .96
                 bias correction factor for discrete time constants
 
@@ -631,6 +634,7 @@ class CNMFParams(object):
             'fudge_factor': .96,
             # number of autocovariance lags to be considered for time constant estimation
             'lags': 5,
+            'optimize_g': False,         # flag for optimizing time constants
             'memory_efficient': False,
             # method for solving the constrained deconvolution problem ('oasis','cvx' or 'cvxpy')
             # if method cvxpy, primary and secondary (if problem unfeasible for approx
