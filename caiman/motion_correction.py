@@ -423,21 +423,22 @@ class MotionCorrect(object):
 #                np.float32), np.arange(0., dims[1]).astype(np.float32))
             x_grid, y_grid = np.meshgrid(np.arange(0., dims[1]).astype(
                 np.float32), np.arange(0., dims[0]).astype(np.float32))
-            m_reg = [cv2.remap(img,
-                               -cv2.resize(shiftY, dims[::-1]) + x_grid, -cv2.resize(shiftX, dims[::-1]) + y_grid, cv2.INTER_CUBIC)
+            m_reg = [cv2.remap(img, -cv2.resize(shiftY, dims[::-1]) + x_grid,
+                               -cv2.resize(shiftX, dims[::-1]) + y_grid,
+                               cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
                      for img, shiftX, shiftY in zip(Y, shifts_x, shifts_y)]
-            if save_memmap:
-                Y = np.array(Y)
-                dims = Y.shape
-                fname_tot = memmap_frames_filename(save_base_name, dims[1:], dims[0], order)
-                big_mov = np.memmap(fname_tot, mode='w+', dtype=np.float32,
-                            shape=prepare_shape((np.prod(dims[1:]), dims[0])), order=order)
-                big_mov[:] = np.reshape(Y.transpose(1, 2, 0), (np.prod(dims[1:]), dims[0]), order=order)
-                big_mov.flush()
-                del big_mov
-                return fname_tot
-            else:
-                return cm.movie(np.stack(m_reg, axis=0))
+        m_reg = np.stack(m_reg, axis=0)
+        if save_memmap:
+            dims = m_reg.shape
+            fname_tot = memmap_frames_filename(save_base_name, dims[1:], dims[0], order)
+            big_mov = np.memmap(fname_tot, mode='w+', dtype=np.float32,
+                        shape=prepare_shape((np.prod(dims[1:]), dims[0])), order=order)
+            big_mov[:] = np.reshape(m_reg.transpose(1, 2, 0), (np.prod(dims[1:]), dims[0]), order=order)
+            big_mov.flush()
+            del big_mov
+            return fname_tot
+        else:
+            return cm.movie(m_reg)
 
 
 #%%

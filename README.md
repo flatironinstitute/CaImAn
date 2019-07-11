@@ -34,6 +34,15 @@ A paper explaining most of the implementation details and benchmarking can be fo
 
 All the results and figures of the paper can be regenerated using this package. For more information visit this [page](https://github.com/flatironinstitute/CaImAn/tree/master/use_cases/eLife_scripts).
 
+## New: Exporting results, GUI and NWB support (July 2019)
+
+You can now use the `save` method included in both the `CNMF` and `OnACID` objects to export the results (and parameters used) of your analysis. The results are saved in an HDF5 file that you can then load in a graphical user interface for more inspection. The GUI will allow you to inspect the results and modify the selected components based on the various quality metrics. For more information click [here](GUI.md)
+
+The [Neurodata Without Borders (NWB)](https://www.nwb.org/) file format is now supported by CaImAn. You read and analyze NWB files and can save the results of the analysis (`Estimates` object) back to the original NWB file. Consult this [demo](use_cases/NWB/demo_pipeline_NWB.py) for an example on how to use this feature.
+
+**To use CaImAn with these additional features you'll need to create a new environment following the usual instructions.**
+
+
 ## New: Removing Keras dependency (June 2019)
 
 To circumvent a problem arising in Windows installation, we recently removed keras from the list of dependencies. Keras was being used to deploy the pretrained neural network models for component screening. The neural network models are being deployed through tensorflow and for that we included tensorflow compatible versions of the models inside the folder `model`. Existing users who already have keras in their environment will continue using keras as it is slightly faster. However if you create an environment without it you may want to either reinstall caimanmanager or simply copy the files `model/*.pb` into the folder `caiman_data/model/` for the files to be discoverable. New CaImAn users do not need to do anything as this is being taken care of during the installation process.
@@ -134,35 +143,6 @@ Alternative environments:
 ### Known Issues
 
 A list of known issues can be found [here](https://github.com/flatironinstitute/CaImAn/wiki/Known-Issues). If you still encounter problems please open an issue.  
-
-
-## Graphical interface
-
-CaImAn comes with an experimental visual interface. To see an example on how use it, first load and run either 
-* demo_OnACID_mesoscope.py
-* demo_caiman_basic.py
-* demo_pipeline.py
-
-Then you can start the visual interface by running the following command from the base caiman folder (make sure you are within your caiman environment):
-```
-ipython caiman/gui/gui_pyqtgraph_layout.py
-```
-You will then be asked to load the file that is generated at the end of each file (ending in .hdf5)
-
-A visual interface will appear, you will be able to:
-* regulate gain and contrast for the background image (correlation image)
-* regulate the threshold over the spatial masks to visualize components contours
-* click on neurons and see the corresponding trace and mask
-* select subset of neurons based on different quality metrics
-* save the resulting selection to a file in hdf5 format
-
-<img src="docs/img/GUI_img.png" width="1000" align="center">
-
-## Exporting results
-It is currently possible to export the results in two formats:
-* an HDF5 file that contains all the details of the CNMF object, 
-the method to use is included in the 
-* If you're using the [NWB](https://www.nwb.org/) file format, you can save the results of the analysis (`Estimates` object) back to the original NWB file. Consult this [demo](use_cases/NWB/demo_pipeline_NWB.py) for an example on how to use this feature. 
 
 ## Documentation & Wiki
 
