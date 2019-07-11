@@ -423,8 +423,9 @@ class MotionCorrect(object):
 #                np.float32), np.arange(0., dims[1]).astype(np.float32))
             x_grid, y_grid = np.meshgrid(np.arange(0., dims[1]).astype(
                 np.float32), np.arange(0., dims[0]).astype(np.float32))
-            m_reg = [cv2.remap(img,
-                               -cv2.resize(shiftY, dims[::-1]) + x_grid, -cv2.resize(shiftX, dims[::-1]) + y_grid, cv2.INTER_CUBIC)
+            m_reg = [cv2.remap(img, -cv2.resize(shiftY, dims[::-1]) + x_grid,
+                               -cv2.resize(shiftX, dims[::-1]) + y_grid,
+                               cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
                      for img, shiftX, shiftY in zip(Y, shifts_x, shifts_y)]
             if save_memmap:
                 Y = np.array(Y)
