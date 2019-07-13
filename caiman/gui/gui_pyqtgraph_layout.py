@@ -61,15 +61,12 @@ Cn = cnm_obj.estimates.Cn
 estimates = cnm_obj.estimates
 min_mov_denoise = np.min(estimates.A.dot(estimates.C))
 max_mov_denoise = np.max(estimates.A.dot(estimates.C))
-min_background = []
-max_background = []
 background_num = -1
 neuron_selected = False
 nr_index = 0
 
-for i in range(0,estimates.f.shape[0]):
-    min_background.append(np.min(estimates.b[:,i].reshape(4800,1).dot(estimates.f[i,:].reshape(1,2000))))
-    max_background.append(np.max(estimates.b[:,i].reshape(4800,1).dot(estimates.f[i,:].reshape(1,2000))))
+min_background = np.min(estimates.b, axis=0)*np.min(estimates.f, axis=1)
+max_background = np.max(estimates.b, axis=0)*np.max(estimates.f, axis=1)
 
 
 if not hasattr(estimates, 'accepted_list'):
@@ -399,7 +396,7 @@ def show_background_button():
 def show_background_update():
     global bg_index, min_background, max_background, background_scaled
     bg_index = int(bg_vline.value())
-    if bg_index > 0 and bg_index < 2001:
+    if bg_index > -1 and bg_index < estimates.f.shape[-1]:
         # upper left component scrolls through the frames of the background
         background = estimates.b[:,background_num].dot(estimates.f[background_num,bg_index]).reshape(estimates.dims, order='F')
         background_scaled = make_color_img(background, min_max=(min_background[background_num], max_background[background_num]))
