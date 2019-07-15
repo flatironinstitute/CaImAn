@@ -481,7 +481,7 @@ class Estimates(object):
         if self.W is not None:
             ssub_B = int(round(np.sqrt(np.prod(dims) / self.W.shape[0])))
             B = imgs[frame_range].reshape((-1, np.prod(dims)), order='F').T - \
-                self.A.dot(self.C[:, frame_range])
+                self.A.dot(self.C[:, frame_range]+self.YrA[:, frame_range])
             if ssub_B == 1:
                 B = self.b0[:, None] + self.W.dot(B - self.b0[:, None])
             else:

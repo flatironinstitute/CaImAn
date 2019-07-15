@@ -75,7 +75,15 @@ def com(A, d1, d2, d3=None):
             np.outer(np.ones(d3), np.outer(np.arange(d2), np.ones(d1)).ravel()).ravel(),
             np.outer(np.arange(d3), np.outer(np.ones(d2), np.ones(d1)).ravel()).ravel()],
             dtype=A.dtype)
+
+    try:
+        (Coor * A / A.sum(axis=0)).T
+    except:        
+        import pdb
+        pdb.set_trace()
+        
     cm = (Coor * A / A.sum(axis=0)).T
+   
     return np.array(cm)
 
 def extract_binary_masks_from_structural_channel(Y, min_area_size=30, min_hole_size=15, gSig=5, expand_method='closing', selem=np.ones((3, 3))):
