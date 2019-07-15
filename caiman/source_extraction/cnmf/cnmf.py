@@ -504,7 +504,7 @@ class CNMF(object):
                 self.params.set('temporal', {'p': 0})
             else:
                 self.params.set('temporal', {'p': self.params.get('preprocess', 'p')})
-            logging.info('deconvolution ...')
+                logging.info('deconvolution ...')
 
             self.update_temporal(Yr)
 
@@ -676,6 +676,7 @@ class CNMF(object):
 
         AA = Ab.T.dot(Ab) * nA2_inv_mat
         self.estimates.YrA = (YA - (AA.T.dot(Cf)).T)[:, :self.estimates.A.shape[-1]].T
+        self.estimates.R = self.estimates.YrA
 
         return self
 
@@ -855,6 +856,7 @@ class CNMF(object):
         self.estimates.g, self.estimates.YrA, self.estimates.lam = update_temporal_components(
                 Y, self.estimates.A, self.estimates.b, self.estimates.C, self.estimates.f, dview=self.dview,
                 **self.params.get_group('temporal'))
+        self.estimates.R = self.estimates.YrA
         return self
 
     def update_spatial(self, Y, use_init=True, **kwargs):
