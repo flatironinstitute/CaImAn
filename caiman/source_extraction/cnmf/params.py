@@ -1,6 +1,6 @@
 import logging
 import os
-
+import subprocess
 import numpy as np
 import scipy
 from scipy.ndimage.morphology import generate_binary_structure, iterate_structure
@@ -532,7 +532,9 @@ class CNMFParams(object):
             'fr': fr,
             'decay_time': decay_time,
             'dxy': dxy,
-            'var_name_hdf5': var_name_hdf5
+            'var_name_hdf5': var_name_hdf5,
+            'caiman_version': 1.5,
+            'last_commit': None,
         }
 
         self.patch = {
@@ -729,6 +731,11 @@ class CNMFParams(object):
         }
 
         self.change_params(params_dict)
+        try:
+            lc = subprocess.check_output(["git", "rev-parse", "HEAD"]).decode("utf-8").split("\n")[0]
+            self.data['last_commit'] = lc
+        except subprocess.CalledProcessError:
+            pass
         if self.data['dims'] is None and self.data['fnames'] is not None:
             self.data['dims'] = get_file_size(self.data['fnames'], var_name_hdf5=self.data['var_name_hdf5'])[0]
         if self.data['fnames'] is not None:
