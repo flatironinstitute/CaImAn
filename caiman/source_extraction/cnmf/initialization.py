@@ -489,6 +489,12 @@ def sparseNMF(Y_ds, nr, max_iter_snmf=500, alpha=10e2, sigma_smooth=(.5, .5, .5)
     Initialization using sparse NMF
 
     Args:
+        Y_ds: nd.array or movie (T, x, y [,z])
+            data
+
+        nr: int
+            number of components
+
         max_iter_snm: int
             number of iterations
 
@@ -506,8 +512,8 @@ def sparseNMF(Y_ds, nr, max_iter_snmf=500, alpha=10e2, sigma_smooth=(.5, .5, .5)
 
     Returns:
         A: np.array
-            2d array of size (# of pixels) x nr with the spatial components. Each column is
-            ordered columnwise (matlab format, order='F')
+            2d array of size (# of pixels) x nr with the spatial components.
+            Each column is ordered columnwise (matlab format, order='F')
 
         C: np.array
             2d array of size nr X T with the temporal components
@@ -517,7 +523,8 @@ def sparseNMF(Y_ds, nr, max_iter_snmf=500, alpha=10e2, sigma_smooth=(.5, .5, .5)
     """
 
     m = scipy.ndimage.gaussian_filter(np.transpose(
-        Y_ds, [2, 0, 1]), sigma=sigma_smooth, mode='nearest', truncate=truncate)
+        Y_ds, np.roll(np.arange(Y_ds.ndim), 1)), sigma=sigma_smooth,
+        mode='nearest', truncate=truncate)
     if remove_baseline:
         logging.info('REMOVING BASELINE')
         bl = np.percentile(m, perc_baseline, axis=0)
@@ -527,11 +534,11 @@ def sparseNMF(Y_ds, nr, max_iter_snmf=500, alpha=10e2, sigma_smooth=(.5, .5, .5)
         bl = np.zeros(m.shape[1:])
         m1 = m
 
-    T, d1, d2 = np.shape(m1)
-    d = d1 * d2
+    T, dims = m1.shape[0], m1.shape[1:]
+    d = np.prod(dims)
     yr = np.reshape(m1, [T, d], order='F')
     mdl = NMF(n_components=nr, verbose=False, init='nndsvd', tol=1e-10,
-          max_iter=max_iter_snmf, shuffle=False, alpha=alpha, l1_ratio=1)
+              max_iter=max_iter_snmf, shuffle=False, alpha=alpha, l1_ratio=1)
     C = mdl.fit_transform(yr).T
     A = mdl.components_.T
     A_in = A
@@ -542,7 +549,7 @@ def sparseNMF(Y_ds, nr, max_iter_snmf=500, alpha=10e2, sigma_smooth=(.5, .5, .5)
                 random_state=0, max_iter=max_iter_snmf)
     b_in = model.fit_transform(np.maximum(m1, 0)).astype(np.float32)
     f_in = model.components_.astype(np.float32)
-    center = caiman.base.rois.com(A_in, d1, d2)
+    center = caiman.base.rois.com(A_in, *dims)
 
     return A_in, C_in, center, b_in, f_in
 

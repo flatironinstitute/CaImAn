@@ -533,7 +533,7 @@ class CNMFParams(object):
             'decay_time': decay_time,
             'dxy': dxy,
             'var_name_hdf5': var_name_hdf5,
-            'caiman_version': 1.5,
+            'caiman_version': 1.5.2,
             'last_commit': None,
         }
 
