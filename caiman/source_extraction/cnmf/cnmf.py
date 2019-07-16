@@ -94,7 +94,7 @@ class CNMF(object):
                  max_num_added=3, min_num_trial=2, thresh_CNN_noisy=0.5,
                  fr=30, decay_time=0.4, min_SNR=2.5, ssub_B=2, init_iter=2,
                  sniper_mode=False, use_peak_max=False, test_both=False,
-                 expected_comps=500, params=None):
+                 expected_comps=500, max_merge_area=None, params=None):
         """
         Constructor of the CNMF method
 
@@ -254,6 +254,9 @@ class CNMF(object):
 
             init_iter: int, optional
                 number of iterations for 1-photon imaging initialization
+
+            max_merge_area: int, optional
+                maximum area (in pixels) of merged components, used to determine whether to merge components during fitting process
         """
 
         self.dview = dview
@@ -289,7 +292,7 @@ class CNMF(object):
                 n_refit=n_refit, num_times_comp_updated=num_times_comp_updated, simultaneously=simultaneously,
                 sniper_mode=sniper_mode, test_both=test_both, thresh_CNN_noisy=thresh_CNN_noisy,
                 thresh_fitness_delta=thresh_fitness_delta, thresh_fitness_raw=thresh_fitness_raw, thresh_overlap=thresh_overlap,
-                update_num_comps=update_num_comps, use_dense=use_dense, use_peak_max=use_peak_max
+                update_num_comps=update_num_comps, use_dense=use_dense, use_peak_max=use_peak_max, max_merge_area=max_merge_area
             )
         else:
             self.params = params
@@ -512,7 +515,7 @@ class CNMF(object):
                 logging.info('refinement...')
                 if self.params.get('merging', 'do_merge'):
                     logging.info('merging components ...')
-                    self.merge_comps(Yr, mx=50, fast_merge=True)
+                    self.merge_comps(Yr, mx=50, fast_merge=True, max_merge_area=self.params.get('merging', 'max_merge_area'))
 
                 logging.info('Updating spatial ...')
 
@@ -892,7 +895,7 @@ class CNMF(object):
 
         return self
 
-    def merge_comps(self, Y, mx=50, fast_merge=True):
+    def merge_comps(self, Y, mx=50, fast_merge=True, max_merge_area=None):
         """merges components
         """
         self.estimates.A, self.estimates.C, self.estimates.nr, self.estimates.merged_ROIs, self.estimates.S, \
@@ -902,7 +905,7 @@ class CNMF(object):
                              self.params.get_group('spatial'), dview=self.dview,
                              bl=self.estimates.bl, c1=self.estimates.c1, sn=self.estimates.neurons_sn,
                              g=self.estimates.g, thr=self.params.get('merging', 'merge_thr'), mx=mx,
-                             fast_merge=fast_merge)
+                             fast_merge=fast_merge, max_merge_area=max_merge_area)
 
         return self
 
