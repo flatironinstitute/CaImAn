@@ -1,6 +1,6 @@
 import logging
 import os
-import subprocess
+
 import numpy as np
 import scipy
 from scipy.ndimage.morphology import generate_binary_structure, iterate_structure
@@ -35,7 +35,7 @@ class CNMFParams(object):
                  sniper_mode=False, test_both=False, thresh_CNN_noisy=0.5,
                  thresh_fitness_delta=-50, thresh_fitness_raw=None, thresh_overlap=0.5,
                  update_freq=200, update_num_comps=True, use_dense=True, use_peak_max=True,
-                 only_init_patch=True, var_name_hdf5='mov', params_dict={},
+                 only_init_patch=True, var_name_hdf5='mov', max_merge_area=None, params_dict={},
                  ):
         """Class for setting the processing parameters. All parameters for CNMF, online-CNMF, quality testing,
         and motion correction can be set here and then used in the various processing pipeline steps.
@@ -307,9 +307,6 @@ class CNMFParams(object):
             lags: int, default: 5
                 number of autocovariance lags to be considered for time constant estimation
 
-            optimize_g: bool, default: False
-                flag for optimizing time constants
-
             fudge_factor: float (close but smaller than 1) default: .96
                 bias correction factor for discrete time constants
 
@@ -334,6 +331,9 @@ class CNMFParams(object):
 
             thr: float, default: 0.8
                 Trace correlation threshold for merging two components.
+
+            max_merge_area: int or None, default: None
+                maximum area (in pixels) of merged components, used to determine whether to merge components during fitting process
 
         QUALITY EVALUATION PARAMETERS (CNMFParams.quality)###########
 
@@ -532,9 +532,7 @@ class CNMFParams(object):
             'fr': fr,
             'decay_time': decay_time,
             'dxy': dxy,
-            'var_name_hdf5': var_name_hdf5,
-            'caiman_version': 1.5,
-            'last_commit': None,
+            'var_name_hdf5': var_name_hdf5
         }
 
         self.patch = {
@@ -636,7 +634,6 @@ class CNMFParams(object):
             'fudge_factor': .96,
             # number of autocovariance lags to be considered for time constant estimation
             'lags': 5,
-            'optimize_g': False,         # flag for optimizing time constants
             'memory_efficient': False,
             # method for solving the constrained deconvolution problem ('oasis','cvx' or 'cvxpy')
             # if method cvxpy, primary and secondary (if problem unfeasible for approx
@@ -655,6 +652,7 @@ class CNMFParams(object):
         self.merging = {
             'do_merge': do_merge,
             'merge_thr': merge_thresh,
+            'max_merge_area': max_merge_area
         }
 
         self.quality = {
@@ -731,11 +729,6 @@ class CNMFParams(object):
         }
 
         self.change_params(params_dict)
-        try:
-            lc = subprocess.check_output(["git", "rev-parse", "HEAD"]).decode("utf-8").split("\n")[0]
-            self.data['last_commit'] = lc
-        except subprocess.CalledProcessError:
-            pass
         if self.data['dims'] is None and self.data['fnames'] is not None:
             self.data['dims'] = get_file_size(self.data['fnames'], var_name_hdf5=self.data['var_name_hdf5'])[0]
         if self.data['fnames'] is not None:

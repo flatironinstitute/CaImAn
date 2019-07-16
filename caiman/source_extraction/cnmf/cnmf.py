@@ -94,7 +94,7 @@ class CNMF(object):
                  max_num_added=3, min_num_trial=2, thresh_CNN_noisy=0.5,
                  fr=30, decay_time=0.4, min_SNR=2.5, ssub_B=2, init_iter=2,
                  sniper_mode=False, use_peak_max=False, test_both=False,
-                 expected_comps=500, params=None):
+                 expected_comps=500, max_merge_area=None, params=None):
         """
         Constructor of the CNMF method
 
@@ -254,6 +254,9 @@ class CNMF(object):
 
             init_iter: int, optional
                 number of iterations for 1-photon imaging initialization
+
+            max_merge_area: int, optional
+                maximum area (in pixels) of merged components, used to determine whether to merge components during fitting process
         """
 
         self.dview = dview
@@ -289,7 +292,7 @@ class CNMF(object):
                 n_refit=n_refit, num_times_comp_updated=num_times_comp_updated, simultaneously=simultaneously,
                 sniper_mode=sniper_mode, test_both=test_both, thresh_CNN_noisy=thresh_CNN_noisy,
                 thresh_fitness_delta=thresh_fitness_delta, thresh_fitness_raw=thresh_fitness_raw, thresh_overlap=thresh_overlap,
-                update_num_comps=update_num_comps, use_dense=use_dense, use_peak_max=use_peak_max
+                update_num_comps=update_num_comps, use_dense=use_dense, use_peak_max=use_peak_max, max_merge_area=max_merge_area
             )
         else:
             self.params = params
@@ -371,7 +374,6 @@ class CNMF(object):
         estimates = deepcopy(self.estimates)
         estimates.select_components(use_object=True)
         cnm.estimates = estimates
-        cnm.mmap_file = self.mmap_file
         return cnm.fit(images)
 
     def fit(self, images, indices=[slice(None), slice(None)]):
@@ -428,7 +430,6 @@ class CNMF(object):
         try:
             Y.filename = images.filename
             Yr.filename = images.filename
-            self.mmap_file = images.filename
         except AttributeError:  # if no memmapping cause working with small data
             pass
 
@@ -504,7 +505,7 @@ class CNMF(object):
                 self.params.set('temporal', {'p': 0})
             else:
                 self.params.set('temporal', {'p': self.params.get('preprocess', 'p')})
-                logging.info('deconvolution ...')
+            logging.info('deconvolution ...')
 
             self.update_temporal(Yr)
 
@@ -512,7 +513,7 @@ class CNMF(object):
                 logging.info('refinement...')
                 if self.params.get('merging', 'do_merge'):
                     logging.info('merging components ...')
-                    self.merge_comps(Yr, mx=50, fast_merge=True)
+                    self.merge_comps(Yr, mx=50, fast_merge=True, max_merge_area=self.params.get('merging', 'max_merge_area'))
 
                 logging.info('Updating spatial ...')
 
@@ -676,7 +677,6 @@ class CNMF(object):
 
         AA = Ab.T.dot(Ab) * nA2_inv_mat
         self.estimates.YrA = (YA - (AA.T.dot(Cf)).T)[:, :self.estimates.A.shape[-1]].T
-        self.estimates.R = self.estimates.YrA
 
         return self
 
@@ -856,7 +856,6 @@ class CNMF(object):
         self.estimates.g, self.estimates.YrA, self.estimates.lam = update_temporal_components(
                 Y, self.estimates.A, self.estimates.b, self.estimates.C, self.estimates.f, dview=self.dview,
                 **self.params.get_group('temporal'))
-        self.estimates.R = self.estimates.YrA
         return self
 
     def update_spatial(self, Y, use_init=True, **kwargs):
@@ -892,7 +891,7 @@ class CNMF(object):
 
         return self
 
-    def merge_comps(self, Y, mx=50, fast_merge=True):
+    def merge_comps(self, Y, mx=50, fast_merge=True, max_merge_area=None):
         """merges components
         """
         self.estimates.A, self.estimates.C, self.estimates.nr, self.estimates.merged_ROIs, self.estimates.S, \
@@ -902,7 +901,7 @@ class CNMF(object):
                              self.params.get_group('spatial'), dview=self.dview,
                              bl=self.estimates.bl, c1=self.estimates.c1, sn=self.estimates.neurons_sn,
                              g=self.estimates.g, thr=self.params.get('merging', 'merge_thr'), mx=mx,
-                             fast_merge=fast_merge)
+                             fast_merge=fast_merge, max_merge_area=max_merge_area)
 
         return self
 
@@ -976,14 +975,7 @@ def load_CNMF(filename, n_processes=1, dview=None):
         elif key == 'estimates':
             estims = Estimates()
             for kk, vv in val.items():
-                if kk == 'discarded_components':
-                    if vv is not None:
-                        discarded_components = Estimates()
-                        for kk__, vv__ in vv.items():
-                            setattr(discarded_components, kk__, vv__)
-                        setattr(estims, kk, discarded_components)
-                else:
-                    setattr(estims, kk, vv)
+                setattr(estims, kk, vv)
 
             setattr(new_obj, key, estims)
         else:
