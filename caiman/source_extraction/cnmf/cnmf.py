@@ -374,6 +374,7 @@ class CNMF(object):
         estimates = deepcopy(self.estimates)
         estimates.select_components(use_object=True)
         cnm.estimates = estimates
+        cnm.mmap_file = self.mmap_file
         return cnm.fit(images)
 
     def fit(self, images, indices=[slice(None), slice(None)]):
@@ -430,6 +431,7 @@ class CNMF(object):
         try:
             Y.filename = images.filename
             Yr.filename = images.filename
+            self.mmap_file = images.filename
         except AttributeError:  # if no memmapping cause working with small data
             pass
 
@@ -505,7 +507,7 @@ class CNMF(object):
                 self.params.set('temporal', {'p': 0})
             else:
                 self.params.set('temporal', {'p': self.params.get('preprocess', 'p')})
-            logging.info('deconvolution ...')
+                logging.info('deconvolution ...')
 
             self.update_temporal(Yr)
 
@@ -677,6 +679,7 @@ class CNMF(object):
 
         AA = Ab.T.dot(Ab) * nA2_inv_mat
         self.estimates.YrA = (YA - (AA.T.dot(Cf)).T)[:, :self.estimates.A.shape[-1]].T
+        self.estimates.R = self.estimates.YrA
 
         return self
 
@@ -856,6 +859,7 @@ class CNMF(object):
         self.estimates.g, self.estimates.YrA, self.estimates.lam = update_temporal_components(
                 Y, self.estimates.A, self.estimates.b, self.estimates.C, self.estimates.f, dview=self.dview,
                 **self.params.get_group('temporal'))
+        self.estimates.R = self.estimates.YrA
         return self
 
     def update_spatial(self, Y, use_init=True, **kwargs):
@@ -975,7 +979,14 @@ def load_CNMF(filename, n_processes=1, dview=None):
         elif key == 'estimates':
             estims = Estimates()
             for kk, vv in val.items():
-                setattr(estims, kk, vv)
+                if kk == 'discarded_components':
+                    if vv is not None:
+                        discarded_components = Estimates()
+                        for kk__, vv__ in vv.items():
+                            setattr(discarded_components, kk__, vv__)
+                        setattr(estims, kk, discarded_components)
+                else:
+                    setattr(estims, kk, vv)
 
             setattr(new_obj, key, estims)
         else:

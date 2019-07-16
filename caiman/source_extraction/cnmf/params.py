@@ -1,6 +1,6 @@
 import logging
 import os
-
+import subprocess
 import numpy as np
 import scipy
 from scipy.ndimage.morphology import generate_binary_structure, iterate_structure
@@ -307,6 +307,9 @@ class CNMFParams(object):
             lags: int, default: 5
                 number of autocovariance lags to be considered for time constant estimation
 
+            optimize_g: bool, default: False
+                flag for optimizing time constants
+
             fudge_factor: float (close but smaller than 1) default: .96
                 bias correction factor for discrete time constants
 
@@ -532,7 +535,9 @@ class CNMFParams(object):
             'fr': fr,
             'decay_time': decay_time,
             'dxy': dxy,
-            'var_name_hdf5': var_name_hdf5
+            'var_name_hdf5': var_name_hdf5,
+            'caiman_version': 1.5,
+            'last_commit': None,
         }
 
         self.patch = {
@@ -634,6 +639,7 @@ class CNMFParams(object):
             'fudge_factor': .96,
             # number of autocovariance lags to be considered for time constant estimation
             'lags': 5,
+            'optimize_g': False,         # flag for optimizing time constants
             'memory_efficient': False,
             # method for solving the constrained deconvolution problem ('oasis','cvx' or 'cvxpy')
             # if method cvxpy, primary and secondary (if problem unfeasible for approx
@@ -729,6 +735,11 @@ class CNMFParams(object):
         }
 
         self.change_params(params_dict)
+        try:
+            lc = subprocess.check_output(["git", "rev-parse", "HEAD"]).decode("utf-8").split("\n")[0]
+            self.data['last_commit'] = lc
+        except subprocess.CalledProcessError:
+            pass
         if self.data['dims'] is None and self.data['fnames'] is not None:
             self.data['dims'] = get_file_size(self.data['fnames'], var_name_hdf5=self.data['var_name_hdf5'])[0]
         if self.data['fnames'] is not None:

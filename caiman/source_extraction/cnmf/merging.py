@@ -191,14 +191,10 @@ def merge_components(Y, A, b, C, f, S, sn_pix, temporal_params, spatial_params, 
             Acsc = A.tocsc()[:, merged_ROI]
             Ctmp = np.array(C)[merged_ROI, :]
 
-            print(np.sum(Acsc > 0))
-
             # don't merge if the size of the merged ROI exceeds max_merge_area
             if max_merge_area is not None and np.sum(Acsc > 0) > max_merge_area:
-                print("Skipping merge of {}...".format(merged_ROI))
                 continue
             
-            print('Merging components {}'.format(merged_ROI))
             logging.info('Merging components {}'.format(merged_ROI))
             merged_ROIs.append(merged_ROI)
 
