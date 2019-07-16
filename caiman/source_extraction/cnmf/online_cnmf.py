@@ -2252,26 +2252,26 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                 # TODO: restrict to indices where component is located
                 if Ab_dense is None:
                     Ain = np.zeros(np.prod(dims), dtype=np.float32)
-                    Ain[indeces] = ain
+                    Ain[indices] = ain
                 else:
                     Ain = Ab_dense[:, M - 1]
                 if corr_img_mode == 'cumulative':
-                    # first_moment[indeces] = 0
-                    # second_moment[indeces] = 0
+                    # first_moment[indices] = 0
+                    # second_moment[indices] = 0
                     first_moment[Ain > 0] = 0
                     second_moment[Ain > 0] = 0
                     crosscorr *= (Ain[row_ind]==0) * (Ain[col_ind]==0)
                 else:
                     div = t if corr_img_mode == 'cumulative' else len(cin)
-                    first_moment[indeces] -= cin.sum() / div * ain
+                    first_moment[indices] -= cin.sum() / div * ain
                     # (Y-ac')^2 = Y.^2 + (ac'.^2 - 2Y.ac)
-                    second_moment[indeces] += (ain**2 * cin.dot(cin) -
-                                               2 * cin.dot(Yres_buf[:, indeces]) * ain) / div
+                    second_moment[indices] += (ain**2 * cin.dot(cin) -
+                                               2 * cin.dot(Yres_buf[:, indices]) * ain) / div
                     crosscorr += (Ain[row_ind] * Ain[col_ind] * cin.dot(cin) -
                                   cin.dot(Yres_buf[:, row_ind]) * Ain[col_ind] -
                                   cin.dot(Yres_buf[:, col_ind]) * Ain[row_ind]) / div
                 # max_img[Ain.reshape(dims, order='F') > 0] = 0
-                # # max_img[[slice(*i) for i in ijSig]] = first_moment[indeces].reshape(
+                # # max_img[[slice(*i) for i in ijSig]] = first_moment[indices].reshape(
                 # #     np.diff(ijSig).ravel(), order='F')
 
                 
