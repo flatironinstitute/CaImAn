@@ -38,7 +38,7 @@ from typing import List
 
 import caiman
 from .deconvolution import constrained_foopsi
-#from .utilities import fast_graph_Laplacian_patches
+from .utilities import fast_graph_Laplacian_patches
 from .pre_processing import get_noise_fft, get_noise_welch
 from .spatial import circular_constraint, connectivity_constraint
 
@@ -320,6 +320,11 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
         Ain, Cin, _, b_in, f_in = sparseNMF(
             Y_ds, nr=K, nb=nb, max_iter_snmf=max_iter_snmf, alpha=alpha_snmf,
             sigma_smooth=sigma_smooth_snmf, remove_baseline=remove_baseline, perc_baseline=perc_baseline_snmf)
+    
+    elif method == 'graph_nmf':
+        Ain, Cin, _, b_in, f_in = graphNMF(
+            Y_ds, nr=K, nb=nb, max_iter_snmf=max_iter_snmf, alpha=alpha_snmf,
+            sigma_smooth=sigma_smooth_snmf, remove_baseline=remove_baseline, perc_baseline=perc_baseline_snmf)
 
     elif method == 'pca_ica':
         Ain, Cin, _, b_in, f_in = ICA_PCA(
@@ -476,7 +481,6 @@ def ICA_PCA(Y_ds, nr, sigma_smooth=(.5, .5, .5), truncate=2, fun='logcosh',
 
     model = NMF(n_components=nb, init='random', random_state=0)
 
-
     b_in = model.fit_transform(np.maximum(m1, 0)).astype(np.float32)
     f_in = model.components_.astype(np.float32)
 
@@ -556,7 +560,7 @@ def sparseNMF(Y_ds, nr, max_iter_snmf=500, alpha=10e2, sigma_smooth=(.5, .5, .5)
 
 def graphNMF(Y_ds, nr, max_iter_snmf=500, alpha=10e2,
              sigma_smooth=(.5, .5, .5), remove_baseline=True,
-             perc_baseline=20, nb=1, truncate=2):
+             perc_baseline=20, nb=1, truncate=2, tol=1e-3):
     
     m = scipy.ndimage.gaussian_filter(np.transpose(
     Y_ds, np.roll(np.arange(Y_ds.ndim), 1)), sigma=sigma_smooth,
@@ -580,8 +584,16 @@ def graphNMF(Y_ds, nr, max_iter_snmf=500, alpha=10e2,
     W = fast_graph_Laplacian_patches([np.reshape(m, [T, d], order='F').T, [], 'heat', 1, 0, 20, True, False])
     D = scipy.sparse.spdiags(W.sum(0), 0, W.shape[0], W.shape[0])
     for it in range(max_iter_snmf):
+        C_ = C.copy()
+        A_ = A.copy()
         C = C*(yr.dot(A)/(C.T.dot(A.T.dot(A))+np.finfo(C.dtype).eps)).T
         A = A*(yr.T.dot(C.T) + alpha*(W.dot(A)))/(A.dot(C.dot(C.T)) + alpha*D.dot(A) + np.finfo(C.dtype).eps)
+        nA = np.sqrt((A**2).sum(0))
+        A /= nA
+        C *= nA[:, np.newaxis]
+        if (np.linalg.norm(C - C_)/np.linalg.norm(C_) < tol) & (np.linalg.norm(A - A_)/np.linalg.norm(A_) < tol):
+            logging.info('Graph NMF converged after {} iterations'.format(it+1))
+            break
     A_in = A
     C_in = C
 
