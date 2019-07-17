@@ -38,7 +38,6 @@ from typing import List
 
 from .initialization import greedyROI
 from ...base.rois import com
-
 from ...mmapping import parallel_dot_product, load_memmap
 from ...cluster import extract_patch_coordinates
 from ...utils.stats import df_percentile
@@ -653,7 +652,6 @@ def manually_refine_components(Y, xxx_todo_changeme, A, C, Cn, thr=0.9, display_
             y2_tiny = np.reshape(y3_tiny, (dx_sz * dy_sz, T), order='F')
             a2_tiny = np.reshape(a3_tiny, (dx_sz * dy_sz, nr), order='F')
             y2_res = y2_tiny - a2_tiny.dot(C)
-
             y3_res = np.reshape(y2_res, (dy_sz, dx_sz, T), order='F')
             a__, c__, center__, b_in__, f_in__ = greedyROI(
                 y3_res, nr=1, gSig=[np.floor(old_div(dx_sz, 2)), np.floor(old_div(dy_sz, 2))], gSiz=[dx_sz, dy_sz])

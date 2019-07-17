@@ -154,6 +154,24 @@ class CNMFParams(object):
             K: int, default: 30
                 number of components to be found (per patch or whole FOV depending on whether rf=None)
 
+            SC_kernel: {'heat', 'cos', binary'}, default: 'heat'
+                kernel for graph affinity matrix
+
+            SC_sigma: float, default: 1
+                variance for SC kernel
+
+            SC_thr: float, default: 0,
+                threshold for affinity matrix
+
+            SC_normalize: bool, default: True
+                standardize entries prior to computing the affinity matrix
+
+            SC_use_NN: bool, default: False
+                sparsify affinity matrix by using only nearest neighbors
+
+            SC_nnn: int, default: 20
+                number of nearest neighbors to use
+
             gSig: [int, int], default: [5, 5]
                 radius of average neurons (in pixels)
 
@@ -171,6 +189,9 @@ class CNMFParams(object):
 
             nb: int, default: 1
                 number of background components
+
+            lambda_gnmf: float, default: 1.
+                regularization weight for graph NMF
 
             maxIter: int, default: 5
                 number of HALS iterations during initialization
@@ -571,6 +592,14 @@ class CNMFParams(object):
 
         self.init = {
             'K': k,                   # number of components,
+            'SC_kernel': 'heat',         # kernel for graph affinity matrix
+            'SC_sigma' : 1,              # std for SC kernel
+            'SC_thr': 0,                 # threshold for affinity matrix
+            'SC_normalize': True,        # standardize entries prior to 
+                                         # computing affinity matrix
+            'SC_use_NN': False,          # sparsify affinity matrix by using
+                                         # only nearest neighbors
+            'SC_nnn': 20,                # number of nearest neighbors to use
             'alpha_snmf': alpha_snmf,
             'center_psf': center_psf,
             'gSig': gSig,
@@ -578,6 +607,7 @@ class CNMFParams(object):
             'gSiz': gSiz,
             'init_iter': init_iter,
             'kernel': None,           # user specified template for greedyROI
+            'lambda_gnmf' :1,         # regularization weight for graph NMF  
             'maxIter': 5,             # number of HALS iterations
             'max_iter_snmf': 500,
             'method_init': method_init,    # can be greedy_roi, greedy_pnr sparse_nmf, local_NMF
