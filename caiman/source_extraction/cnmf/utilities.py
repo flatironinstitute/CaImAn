@@ -1132,8 +1132,11 @@ def fast_graph_Laplacian_patches(pars):
     fast_graph_Laplacian above for definition of arguments.
     """
     mmap_file, indices, kernel, sigma, thr, p, normalize, use_NN = pars
-    Y = load_memmap(mmap_file)[0]
-    Yind = np.array(Y[indices])
+    if type(mmap_file) not in {'str', 'list'}:
+        Yind = mmap_file
+    else:
+        Y = load_memmap(mmap_file)[0]
+        Yind = np.array(Y[indices])
     if normalize:
         Yind -= Yind.mean(1)[:, np.newaxis]
         Yind /= np.sqrt((Yind**2).sum(1)[:, np.newaxis])
@@ -1146,7 +1149,7 @@ def fast_graph_Laplacian_patches(pars):
     if kernel.lower() == 'binary':
         W[W>0] = 1
     if use_NN:
-        ind = np.argpartition(W, -p, axis=1)[:-p]
+        ind = np.argpartition(W, -p, axis=1)[:, :-p]
         for i in range(W.shape[0]):
             W[i, ind[i]] = 0
         W = scipy.sparse.csr_matrix(W)
