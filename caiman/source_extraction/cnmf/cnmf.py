@@ -76,7 +76,7 @@ class CNMF(object):
     """
     def __init__(self, n_processes, k=5, gSig=[4, 4], gSiz=None, merge_thresh=0.8, p=2, dview=None,
                  Ain=None, Cin=None, b_in=None, f_in=None, do_merge=True,
-                 ssub=2, tsub=2, p_ssub=1, p_tsub=1, method_init='greedy_roi', alpha_snmf=None,
+                 ssub=2, tsub=2, p_ssub=1, p_tsub=1, method_init='greedy_roi', alpha_snmf=100,
                  rf=None, stride=None, memory_fact=1, gnb=1, nb_patch=1, only_init_patch=False,
                  method_deconvolution='oasis', n_pixels_per_process=4000, block_size_temp=5000, num_blocks_per_run_temp=20,
                  block_size_spat=5000, num_blocks_per_run_spat=20,
@@ -504,7 +504,7 @@ class CNMF(object):
                 self.params.set('temporal', {'p': 0})
             else:
                 self.params.set('temporal', {'p': self.params.get('preprocess', 'p')})
-            logging.info('deconvolution ...')
+                logging.info('deconvolution ...')
 
             self.update_temporal(Yr)
 
@@ -676,6 +676,7 @@ class CNMF(object):
 
         AA = Ab.T.dot(Ab) * nA2_inv_mat
         self.estimates.YrA = (YA - (AA.T.dot(Cf)).T)[:, :self.estimates.A.shape[-1]].T
+        self.estimates.R = self.estimates.YrA
 
         return self
 
@@ -855,6 +856,7 @@ class CNMF(object):
         self.estimates.g, self.estimates.YrA, self.estimates.lam = update_temporal_components(
                 Y, self.estimates.A, self.estimates.b, self.estimates.C, self.estimates.f, dview=self.dview,
                 **self.params.get_group('temporal'))
+        self.estimates.R = self.estimates.YrA
         return self
 
     def update_spatial(self, Y, use_init=True, **kwargs):
