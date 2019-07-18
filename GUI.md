@@ -13,6 +13,7 @@ command from the base caiman folder (make sure you are within your caiman enviro
 ipython caiman/gui/gui_pyqtgraph_layout.py
 ```
 You will then be asked to load the file that is generated at the end of each file (ending in .hdf5)
+The associated .mmap files also need to be present in the same directory as the .hdf5
 
 A visual interface will appear, where you will be able to:
 * regulate gain and contrast for the background image (correlation image)
