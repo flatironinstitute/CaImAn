@@ -24,7 +24,7 @@ from .utilities import update_order_greedy
 
 
 
-def merge_components(Y, A, b, C, f, S, sn_pix, temporal_params, spatial_params, dview=None, thr=0.85, fast_merge=True, mx=1000, bl=None, c1=None, sn=None, g=None):
+def merge_components(Y, A, b, C, f, S, sn_pix, temporal_params, spatial_params, dview=None, thr=0.85, fast_merge=True, mx=1000, bl=None, c1=None, sn=None, g=None, max_merge_area=None):
     """ Merging of spatially overlapping components that have highly correlated temporal activity
 
     The correlation threshold for merging overlapping components is user specified in thr
@@ -77,6 +77,9 @@ def merge_components(Y, A, b, C, f, S, sn_pix, temporal_params, spatial_params, 
              discrete time constant for each row in C
         sn:
              noise level for each row in C
+
+        max_merge_area: int
+            maximum area (in pixels) of merged components, used to determine whether to merge
 
     Returns:
         A:     sparse matrix
@@ -184,12 +187,16 @@ def merge_components(Y, A, b, C, f, S, sn_pix, temporal_params, spatial_params, 
 
         for i in range(nbmrg):
             merged_ROI = np.where(list_conxcomp[:, ind[i]])[0]
-            logging.info('Merging components {}'.format(merged_ROI))
-            merged_ROIs.append(merged_ROI)
 
             Acsc = A.tocsc()[:, merged_ROI]
             Ctmp = np.array(C)[merged_ROI, :]
 
+            # don't merge if the size of the merged ROI exceeds max_merge_area
+            if max_merge_area is not None and np.sum(Acsc > 0) > max_merge_area:
+                continue
+            
+            logging.info('Merging components {}'.format(merged_ROI))
+            merged_ROIs.append(merged_ROI)
 
             # # we l2 the traces to have normalization values
             # C_to_norm = np.sqrt([computedC.dot(computedC)
@@ -226,23 +233,24 @@ def merge_components(Y, A, b, C, f, S, sn_pix, temporal_params, spatial_params, 
             sn_merged = sn_merged[~empty]
             g_merged = g_merged[~empty]
 
-        # we want to remove merged neuron from the initial part and replace them with merged ones
-        neur_id = np.unique(np.hstack(merged_ROIs))
-        good_neurons = np.setdiff1d(list(range(nr)), neur_id)
-        A = scipy.sparse.hstack((A.tocsc()[:, good_neurons], A_merged.tocsc()))
-        C = np.vstack((C[good_neurons, :], C_merged))
-        # we continue for the variables
-        if S is not None:
-            S = np.vstack((S[good_neurons, :], S_merged))
-        if bl is not None:
-            bl = np.hstack((bl[good_neurons], np.array(bl_merged).flatten()))
-        if c1 is not None:
-            c1 = np.hstack((c1[good_neurons], np.array(c1_merged).flatten()))
-        if sn is not None:
-            sn = np.hstack((sn[good_neurons], np.array(sn_merged).flatten()))
-        if g is not None:
-            g = np.vstack((np.vstack(g)[good_neurons], g_merged))
-        nr = nr - len(neur_id) + len(C_merged)
+        if len(merged_ROIs) > 0:
+            # we want to remove merged neuron from the initial part and replace them with merged ones
+            neur_id = np.unique(np.hstack(merged_ROIs))
+            good_neurons = np.setdiff1d(list(range(nr)), neur_id)
+            A = scipy.sparse.hstack((A.tocsc()[:, good_neurons], A_merged.tocsc()))
+            C = np.vstack((C[good_neurons, :], C_merged))
+            # we continue for the variables
+            if S is not None:
+                S = np.vstack((S[good_neurons, :], S_merged))
+            if bl is not None:
+                bl = np.hstack((bl[good_neurons], np.array(bl_merged).flatten()))
+            if c1 is not None:
+                c1 = np.hstack((c1[good_neurons], np.array(c1_merged).flatten()))
+            if sn is not None:
+                sn = np.hstack((sn[good_neurons], np.array(sn_merged).flatten()))
+            if g is not None:
+                g = np.vstack((np.vstack(g)[good_neurons], g_merged))
+            nr = nr - len(neur_id) + len(C_merged)
 
     else:
         logging.info('No more components merged!')

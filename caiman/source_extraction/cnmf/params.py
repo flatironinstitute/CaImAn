@@ -35,7 +35,7 @@ class CNMFParams(object):
                  sniper_mode=False, test_both=False, thresh_CNN_noisy=0.5,
                  thresh_fitness_delta=-50, thresh_fitness_raw=None, thresh_overlap=0.5,
                  update_freq=200, update_num_comps=True, use_dense=True, use_peak_max=True,
-                 only_init_patch=True, var_name_hdf5='mov', params_dict={},
+                 only_init_patch=True, var_name_hdf5='mov', max_merge_area=None, params_dict={},
                  ):
         """Class for setting the processing parameters. All parameters for CNMF, online-CNMF, quality testing,
         and motion correction can be set here and then used in the various processing pipeline steps.
@@ -334,6 +334,9 @@ class CNMFParams(object):
 
             thr: float, default: 0.8
                 Trace correlation threshold for merging two components.
+
+            max_merge_area: int or None, default: None
+                maximum area (in pixels) of merged components, used to determine whether to merge components during fitting process
 
         QUALITY EVALUATION PARAMETERS (CNMFParams.quality)###########
 
@@ -655,6 +658,7 @@ class CNMFParams(object):
         self.merging = {
             'do_merge': do_merge,
             'merge_thr': merge_thresh,
+            'max_merge_area': max_merge_area
         }
 
         self.quality = {
