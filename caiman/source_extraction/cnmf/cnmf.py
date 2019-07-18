@@ -76,7 +76,7 @@ class CNMF(object):
     """
     def __init__(self, n_processes, k=5, gSig=[4, 4], gSiz=None, merge_thresh=0.8, p=2, dview=None,
                  Ain=None, Cin=None, b_in=None, f_in=None, do_merge=True,
-                 ssub=2, tsub=2, p_ssub=1, p_tsub=1, method_init='greedy_roi', alpha_snmf=None,
+                 ssub=2, tsub=2, p_ssub=1, p_tsub=1, method_init='greedy_roi', alpha_snmf=100,
                  rf=None, stride=None, memory_fact=1, gnb=1, nb_patch=1, only_init_patch=False,
                  method_deconvolution='oasis', n_pixels_per_process=4000, block_size_temp=5000, num_blocks_per_run_temp=20,
                  block_size_spat=5000, num_blocks_per_run_spat=20,
@@ -94,7 +94,7 @@ class CNMF(object):
                  max_num_added=3, min_num_trial=2, thresh_CNN_noisy=0.5,
                  fr=30, decay_time=0.4, min_SNR=2.5, ssub_B=2, init_iter=2,
                  sniper_mode=False, use_peak_max=False, test_both=False,
-                 expected_comps=500, params=None):
+                 expected_comps=500, max_merge_area=None, params=None):
         """
         Constructor of the CNMF method
 
@@ -254,6 +254,9 @@ class CNMF(object):
 
             init_iter: int, optional
                 number of iterations for 1-photon imaging initialization
+
+            max_merge_area: int, optional
+                maximum area (in pixels) of merged components, used to determine whether to merge components during fitting process
         """
 
         self.dview = dview
@@ -289,7 +292,8 @@ class CNMF(object):
                 n_refit=n_refit, num_times_comp_updated=num_times_comp_updated, simultaneously=simultaneously,
                 sniper_mode=sniper_mode, test_both=test_both, thresh_CNN_noisy=thresh_CNN_noisy,
                 thresh_fitness_delta=thresh_fitness_delta, thresh_fitness_raw=thresh_fitness_raw, thresh_overlap=thresh_overlap,
-                update_num_comps=update_num_comps, use_dense=use_dense, use_peak_max=use_peak_max
+                update_num_comps=update_num_comps, use_dense=use_dense, use_peak_max=use_peak_max, alpha_snmf=alpha_snmf,
+		max_merge_area=max_merge_area
             )
         else:
             self.params = params
@@ -512,7 +516,7 @@ class CNMF(object):
                 logging.info('refinement...')
                 if self.params.get('merging', 'do_merge'):
                     logging.info('merging components ...')
-                    self.merge_comps(Yr, mx=50, fast_merge=True)
+                    self.merge_comps(Yr, mx=50, fast_merge=True, max_merge_area=self.params.get('merging', 'max_merge_area'))
 
                 logging.info('Updating spatial ...')
 
@@ -892,7 +896,7 @@ class CNMF(object):
 
         return self
 
-    def merge_comps(self, Y, mx=50, fast_merge=True):
+    def merge_comps(self, Y, mx=50, fast_merge=True, max_merge_area=None):
         """merges components
         """
         self.estimates.A, self.estimates.C, self.estimates.nr, self.estimates.merged_ROIs, self.estimates.S, \
@@ -902,7 +906,7 @@ class CNMF(object):
                              self.params.get_group('spatial'), dview=self.dview,
                              bl=self.estimates.bl, c1=self.estimates.c1, sn=self.estimates.neurons_sn,
                              g=self.estimates.g, thr=self.params.get('merging', 'merge_thr'), mx=mx,
-                             fast_merge=fast_merge)
+                             fast_merge=fast_merge, max_merge_area=max_merge_area)
 
         return self
 

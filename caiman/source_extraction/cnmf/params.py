@@ -17,7 +17,7 @@ class CNMFParams(object):
                  memory_fact=1, n_processes=1, nb_patch=1, p_ssub=2, p_tsub=2,
                  remove_very_bad_comps=False, rf=None, stride=None,
                  check_nan=True, n_pixels_per_process=None,
-                 k=30, alpha_snmf=10e2, center_psf=False, gSig=[5, 5], gSiz=None,
+                 k=30, alpha_snmf=100, center_psf=False, gSig=[5, 5], gSiz=None,
                  init_iter=2, method_init='greedy_roi', min_corr=.85,
                  min_pnr=20, gnb=1, normalize_init=True, options_local_NMF=None,
                  ring_size_factor=1.5, rolling_length=100, rolling_sum=True,
@@ -35,7 +35,7 @@ class CNMFParams(object):
                  sniper_mode=False, test_both=False, thresh_CNN_noisy=0.5,
                  thresh_fitness_delta=-50, thresh_fitness_raw=None, thresh_overlap=0.5,
                  update_freq=200, update_num_comps=True, use_dense=True, use_peak_max=True,
-                 only_init_patch=True, var_name_hdf5='mov', params_dict={},
+                 only_init_patch=True, var_name_hdf5='mov', max_merge_area=None, params_dict={},
                  ):
         """Class for setting the processing parameters. All parameters for CNMF, online-CNMF, quality testing,
         and motion correction can be set here and then used in the various processing pipeline steps.
@@ -229,7 +229,7 @@ class CNMFParams(object):
             max_iter_snmf : int, default: 500
                 maximum number of iterations for sparse NMF initialization
 
-            alpha_snmf: float, default: 10e2
+            alpha_snmf: float, default: 100
                 sparse NMF sparsity regularization weight
 
             sigma_smooth_snmf : (float, float, float), default: (.5,.5,.5)
@@ -355,6 +355,9 @@ class CNMFParams(object):
 
             thr: float, default: 0.8
                 Trace correlation threshold for merging two components.
+
+            max_merge_area: int or None, default: None
+                maximum area (in pixels) of merged components, used to determine whether to merge components during fitting process
 
         QUALITY EVALUATION PARAMETERS (CNMFParams.quality)###########
 
@@ -685,6 +688,7 @@ class CNMFParams(object):
         self.merging = {
             'do_merge': do_merge,
             'merge_thr': merge_thresh,
+            'max_merge_area': max_merge_area
         }
 
         self.quality = {

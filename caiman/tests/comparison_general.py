@@ -79,7 +79,6 @@ params_movie = {'fname': ['Sue_2x_3000_40_-46.tif'],
                 'is_dendrites': False,
                 'init_method': 'greedy_roi',
                 'gSig': [4, 4],  # expected half size of neurons
-                'alpha_snmf': None,  # this controls sparsity
                 'final_frate': 30,
                 'r_values_min_patch': .7,  # threshold on space consistency
                 'fitness_min_patch': -40,  # threshold on time variability
@@ -232,7 +231,6 @@ def test_general():
     K = params_movie['K']
     init_method = params_movie['init_method']
     gSig = params_movie['gSig']
-    alpha_snmf = params_movie['alpha_snmf']
 
     if params_movie['is_dendrites'] == True:
         if params_movie['init_method'] is not 'sparse_nmf':
@@ -245,7 +243,7 @@ def test_general():
     t1 = time.time()
     cnm = cnmf.CNMF(n_processes=1, k=K, gSig=gSig, merge_thresh=params_movie['merge_thresh'], p=params_movie['p'],
                     dview=None, rf=rf, stride=stride_cnmf, memory_fact=params_movie['memory_fact'],
-                    method_init=init_method, alpha_snmf=alpha_snmf, only_init_patch=params_movie[
+                    method_init=init_method, alpha_snmf=100, only_init_patch=params_movie[
                         'only_init_patch'],
                     gnb=params_movie['gnb'], method_deconvolution='oasis')
     comp.cnmpatch = copy.copy(cnm)
