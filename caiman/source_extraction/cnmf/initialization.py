@@ -38,6 +38,7 @@ from typing import List
 
 import caiman
 from .deconvolution import constrained_foopsi
+#from .utilities import fast_graph_Laplacian_patches
 from .pre_processing import get_noise_fft, get_noise_welch
 from .spatial import circular_constraint, connectivity_constraint
 
@@ -140,7 +141,9 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
                           max_iter_snmf=500, alpha_snmf=10e2, sigma_smooth_snmf=(.5, .5, .5),
                           perc_baseline_snmf=20, options_local_NMF=None, rolling_sum=False,
                           rolling_length=100, sn=None, options_total=None, min_corr=0.8, min_pnr=10,
-                          ring_size_factor=1.5, center_psf=False, ssub_B=2, init_iter=2, remove_baseline = True):
+                          ring_size_factor=1.5, center_psf=False, ssub_B=2, init_iter=2, remove_baseline = True,
+                          SC_kernel='heat', SC_sigma=1, SC_thr=0, SC_normalize=True, SC_use_NN=False,
+                          SC_nnn=20, lambda_gnmf=1):
     """
     Initalize components
 
@@ -319,6 +322,14 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
         Ain, Cin, _, b_in, f_in = sparseNMF(
             Y_ds, nr=K, nb=nb, max_iter_snmf=max_iter_snmf, alpha=alpha_snmf,
             sigma_smooth=sigma_smooth_snmf, remove_baseline=remove_baseline, perc_baseline=perc_baseline_snmf)
+    
+    elif method == 'graph_nmf':
+        Ain, Cin, _, b_in, f_in = graphNMF(
+            Y_ds, nr=K, nb=nb, max_iter_snmf=max_iter_snmf, lambda_gnmf=lambda_gnmf,
+            sigma_smooth=sigma_smooth_snmf, remove_baseline=remove_baseline,
+            perc_baseline=perc_baseline_snmf, SC_kernel=SC_kernel,
+            SC_sigma=SC_sigma, SC_use_NN=SC_use_NN, SC_nnn=SC_nnn,
+            SC_normalize=SC_normalize, SC_thr=SC_thr)
 
     elif method == 'pca_ica':
         Ain, Cin, _, b_in, f_in = ICA_PCA(
@@ -475,7 +486,6 @@ def ICA_PCA(Y_ds, nr, sigma_smooth=(.5, .5, .5), truncate=2, fun='logcosh',
 
     model = NMF(n_components=nb, init='random', random_state=0)
 
-
     b_in = model.fit_transform(np.maximum(m1, 0)).astype(np.float32)
     f_in = model.components_.astype(np.float32)
 
@@ -545,6 +555,58 @@ def sparseNMF(Y_ds, nr, max_iter_snmf=500, alpha=10e2, sigma_smooth=(.5, .5, .5)
     C_in = C
 
     m1 = yr.T - A_in.dot(C_in) + np.maximum(0, bl.flatten())[:, np.newaxis]
+    model = NMF(n_components=nb, init='random',
+                random_state=0, max_iter=max_iter_snmf)
+    b_in = model.fit_transform(np.maximum(m1, 0)).astype(np.float32)
+    f_in = model.components_.astype(np.float32)
+    center = caiman.base.rois.com(A_in, *dims)
+
+    return A_in, C_in, center, b_in, f_in
+
+def graphNMF(Y_ds, nr, max_iter_snmf=500, lambda_gnmf=1,
+             sigma_smooth=(.5, .5, .5), remove_baseline=True,
+             perc_baseline=20, nb=1, truncate=2, tol=1e-3, SC_kernel='heat',
+             SC_normalize=True, SC_thr=0, SC_sigma=1, SC_use_NN=False,
+             SC_nnn=20):
+    
+    m = scipy.ndimage.gaussian_filter(np.transpose(
+    Y_ds, np.roll(np.arange(Y_ds.ndim), 1)), sigma=sigma_smooth,
+    mode='nearest', truncate=truncate)
+    if remove_baseline:
+        logging.info('REMOVING BASELINE')
+        bl = np.percentile(m, perc_baseline, axis=0)
+        m1 = np.maximum(0, m - bl)
+    else:
+        logging.info('NOT REMOVING BASELINE')
+        bl = np.zeros(m.shape[1:])
+        m1 = m
+
+    T, dims = m1.shape[0], m1.shape[1:]
+    d = np.prod(dims)
+    yr = np.reshape(m1, [T, d], order='F')
+    mdl = NMF(n_components=nr, verbose=False, init='nndsvd', tol=1e-10,
+              max_iter=5)
+    C = mdl.fit_transform(yr).T
+    A = mdl.components_.T
+    W = caiman.source_extraction.cnmf.utilities.fast_graph_Laplacian_patches(
+            [np.reshape(m, [T, d], order='F').T, [], 'heat', SC_sigma, SC_thr,
+             SC_nnn, SC_normalize, SC_use_NN])
+    D = scipy.sparse.spdiags(W.sum(0), 0, W.shape[0], W.shape[0])
+    for it in range(max_iter_snmf):
+        C_ = C.copy()
+        A_ = A.copy()
+        C = C*(yr.dot(A)/(C.T.dot(A.T.dot(A))+np.finfo(C.dtype).eps)).T
+        A = A*(yr.T.dot(C.T) + lambda_gnmf*(W.dot(A)))/(A.dot(C.dot(C.T)) + lambda_gnmf*D.dot(A) + np.finfo(C.dtype).eps)
+        nA = np.sqrt((A**2).sum(0))
+        A /= nA
+        C *= nA[:, np.newaxis]
+        if (np.linalg.norm(C - C_)/np.linalg.norm(C_) < tol) & (np.linalg.norm(A - A_)/np.linalg.norm(A_) < tol):
+            logging.info('Graph NMF converged after {} iterations'.format(it+1))
+            break
+    A_in = A
+    C_in = C
+
+    m1 = yr.T - A_in.dot(C_in) + np.maximum(0, bl.flatten(order='F'))[:, np.newaxis]
     model = NMF(n_components=nb, init='random',
                 random_state=0, max_iter=max_iter_snmf)
     b_in = model.fit_transform(np.maximum(m1, 0)).astype(np.float32)

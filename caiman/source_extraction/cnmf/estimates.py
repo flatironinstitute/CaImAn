@@ -677,7 +677,7 @@ class Estimates(object):
         if self.YrA is not None:
             self.YrA = nA_mat * self.YrA
         if self.R is not None:
-            self.R = nA_mat * self.R
+            self.R = nA_mat * self.YrA
         if self.bl is not None:
             self.bl = nA * self.bl
         if self.c1 is not None:
