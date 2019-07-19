@@ -1068,7 +1068,7 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
         # 1st iteration on decimated data
         logging.info('Merging components')
         A, C = caiman.source_extraction.cnmf.merging.merge_components(
-            B, A, [], C, [], C, [], o, options['spatial_params'],
+            B, A, [], C, None, [], C, [], o, options['spatial_params'],
             dview=None, thr=options['merging']['merge_thr'], mx=np.Inf, fast_merge=True)[:2]
         A = A.astype(np.float32)
         C = C.astype(np.float32)
@@ -1117,7 +1117,7 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
 
         logging.info('Merging components')
         A, C = caiman.source_extraction.cnmf.merging.merge_components(
-            B, A, [], C, [], C, [], o, options['spatial_params'],
+            B, A, [], C, None, [], C, [], o, options['spatial_params'],
             dview=None, thr=options['merging']['merge_thr'], mx=np.Inf, fast_merge=True)[:2]
         A = A.astype(np.float32)
         C = C.astype(np.float32)
