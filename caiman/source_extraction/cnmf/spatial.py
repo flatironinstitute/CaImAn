@@ -191,6 +191,14 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
         ff = ff[0]
         A_in = csc_column_remove(A_in, list(ff))
         C = np.delete(C, list(ff), 0)
+        
+    # remove empty components    
+    ff = np.where(np.sum(C, axis=1)==0)
+    if np.size(ff) > 0:
+        logging.info("Eliminating empty components: {}".format(ff))
+        ff = ff[0]
+        A_in = csc_column_remove(A_in, list(ff))
+        C = np.delete(C, list(ff), 0)
 
     if normalize_yyt_one and C is not None:
         C = np.array(C)

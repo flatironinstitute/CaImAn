@@ -3,9 +3,11 @@ Position available
 
 The CaImAn team is hiring! We're looking for a data scientist/software engineer with a strong research component. For more information please follow [this link](https://simonsfoundation.wd1.myworkdayjobs.com/en-US/simonsfoundationcareers/job/162-Fifth-Avenue/Software-Engineer_R0000500).
 
+
 CaImAn
 ======
 <img src="https://github.com/flatironinstitute/CaImAn/blob/master/docs/LOGOS/Caiman_logo_FI.png" width="500" align="right">
+
 
 
 [![Join the chat at https://gitter.im/agiovann/SOURCE_EXTRACTION_PYTHON](https://badges.gitter.im/agiovann/SOURCE_EXTRACTION_PYTHON.svg)](https://gitter.im/agiovann/SOURCE_EXTRACTION_PYTHON?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
@@ -31,6 +33,15 @@ A paper explaining most of the implementation details and benchmarking can be fo
 ```
 
 All the results and figures of the paper can be regenerated using this package. For more information visit this [page](https://github.com/flatironinstitute/CaImAn/tree/master/use_cases/eLife_scripts).
+
+## New: Exporting results, GUI and NWB support (July 2019)
+
+You can now use the `save` method included in both the `CNMF` and `OnACID` objects to export the results (and parameters used) of your analysis. The results are saved in an HDF5 file that you can then load in a graphical user interface for more inspection. The GUI will allow you to inspect the results and modify the selected components based on the various quality metrics. For more information click [here](GUI.md)
+
+The [Neurodata Without Borders (NWB)](https://www.nwb.org/) file format is now supported by CaImAn. You read and analyze NWB files and can save the results of the analysis (`Estimates` object) back to the original NWB file. Consult this [demo](use_cases/NWB/demo_pipeline_NWB.py) for an example on how to use this feature.
+
+**To use CaImAn with these additional features you'll need to create a new environment following the usual instructions.**
+
 
 ## New: Removing Keras dependency (June 2019)
 

@@ -236,8 +236,8 @@ for ind_dataset in ID:
 
     # %% remove small and duplicate components
 
-    min_radius = max(cnm.params.init['gSig'][0] / 2., 2.)  # minimum acceptable radius
-    max_radius = 2. * cnm.params.init['gSig'][0]  # maximum acceptable radius
+    min_radius = max(cnm.params.init['gSig'][0]*ds_factor / 2., 2.)  # minimum acceptable radius
+    max_radius = 2. * cnm.params.init['gSig'][0]*ds_factor  # maximum acceptable radius
     min_size_neuro = min_radius ** 2 * np.pi
     max_size_neuro = max_radius ** 2 * np.pi
 
@@ -256,12 +256,13 @@ for ind_dataset in ID:
         C_gt = ld['C_gt']
         Cn_orig = ld['Cn']
         if ds_factor > 1:
-            A_gt2= np.concatenate([cv2.resize(A_gt[:, fr_].reshape(dims_or, order='F'), cnm.dims[::-1]).reshape(-1, order='F')[:,None] for fr_ in range(A_gt.shape[-1])], axis = 1)
-            Cn_orig = cv2.resize(Cn_orig, cnm.dims[::-1])
+            #A_gt2= np.concatenate([cv2.resize(A_gt[:, fr_].reshape(dims_or, order='F'), cnm.dims[::-1]).reshape(-1, order='F')[:,None] for fr_ in range(A_gt.shape[-1])], axis = 1)
+            A_gt2 = A_gt.copy()
+            Cn_orig = cv2.resize(Cn_orig, dims_or[::-1])
         else:
             A_gt2 = A_gt.copy()
 
-    gt_estimate = Estimates(A=scipy.sparse.csc_matrix(A_gt2), b=None, C=C_gt, f=None, R=None, dims=cnm.dims)
+    gt_estimate = Estimates(A=scipy.sparse.csc_matrix(A_gt2), b=None, C=C_gt, f=None, R=None, dims=dims_or)
     gt_estimate.threshold_spatial_components(maxthr=global_params['max_thr'], dview=None)
     gt_estimate.remove_small_large_neurons(min_size_neuro, max_size_neuro)
     _ = gt_estimate.remove_duplicates(predictions=None, r_values=None, dist_thr=0.1, min_dist=10, thresh_subset=0.6)

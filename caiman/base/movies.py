@@ -975,7 +975,8 @@ class movie(ts.timeseries):
         return zp
 
     def play(self, gain:float=1, fr=None, magnification=1, offset=0, interpolation=cv2.INTER_LINEAR,
-             backend:str='opencv', do_loop:bool=False, bord_px=None, q_max=100, q_min = 0, plot_text:bool=False) -> None:
+             backend:str='opencv', do_loop:bool=False, bord_px=None, q_max=100, q_min = 0, plot_text:bool=False,
+             save_movie:bool=False, movie_name:str='movie.avi') -> None:
         """
         Play the movie using opencv
 
@@ -984,7 +985,8 @@ class movie(ts.timeseries):
 
             fr: framerate, playing speed if different from original (inter frame interval in seconds)
 
-            magnification: (undocumented)
+            magnification: int
+                magnification factor
 
             offset: (undocumented)
 
@@ -994,11 +996,20 @@ class movie(ts.timeseries):
 
             do_loop: Whether to loop the video
 
-            bord_px: (undocumented)
+            bord_px: int
+                truncate pixels from the borders
 
-            q_max, q_min: (undocumented)
+            q_max, q_min: float in [0, 100]
+                 percentile for maximum/minimum plotting value
 
-            plot_text: (undocumented)
+            plot_text: bool
+                show some text
+
+            save_movie: bool
+                flag to save an avi file of the movie
+
+            movie_name: str
+                name of saved file
 
         Raises:
             Exception 'Unknown backend!'
@@ -1051,7 +1062,17 @@ class movie(ts.timeseries):
 
         looping = True
         terminated = False
-
+        if save_movie:
+            #fourcc = cv2.VideoWriter_fourcc('8', 'B', 'P', 'S')
+            #fourcc = cv2.VideoWriter_fourcc(*'XVID')
+            #fourcc = cv2.VideoWriter_fourcc(*'DIVX')
+            #fourcc = cv2.VideoWriter_fourcc(*'X264')
+            fourcc = cv2.VideoWriter_fourcc(*'MP4V')
+            frame_in = self[0]
+            if bord_px is not None and np.sum(bord_px) > 0:
+                frame_in = frame_in[bord_px:-bord_px, bord_px:-bord_px]
+            out = cv2.VideoWriter(movie_name, fourcc, 30.,
+                                  tuple([int(magnification*s) for s in frame_in.shape[::-1]]))
         while looping:
 
             for iddxx, frame in enumerate(self):
@@ -1070,7 +1091,8 @@ class movie(ts.timeseries):
                                     frame.shape[0] - (text_height + 5)), fontFace=5, fontScale=0.8, color=(255, 255, 255), thickness=1)
 
                     cv2.imshow('frame', frame)
-
+                    if save_movie:
+                        out.write(frame.astype('uint8'))
                     if cv2.waitKey(int(1. / fr * 1000)) & 0xFF == ord('q'):
                         looping = False
                         terminated = True
@@ -1097,6 +1119,10 @@ class movie(ts.timeseries):
 
             if terminated:
                 break
+
+            if save_movie:
+                out.release()
+                save_movie = False
 
             if do_loop:
                 looping = True
@@ -1169,10 +1195,11 @@ def load(file_name:Union[str,List[str]], fr:float=30, start_time:float=0, meta_d
         if shape is not None:
             logging.error('shape not supported for multiple movie input')
 
-        return load_movie_chain(file_name,fr=fr, start_time=start_time,
+        return load_movie_chain(file_name, fr=fr, start_time=start_time,
                      meta_data=meta_data, subindices=subindices,
                      bottom=bottom, top=top, left=left, right=right, 
-                     channel = channel, outtype=outtype)
+                     channel = channel, outtype=outtype,
+                     var_name_hdf5=var_name_hdf5)
 
     if max(top, bottom, left, right) > 0:
         logging.error('top bottom etc... not supported for single movie input')
@@ -1332,16 +1359,22 @@ def load(file_name:Union[str,List[str]], fr:float=30, start_time:float=0, meta_d
                     fkeys = list(f.keys())
                     if len(fkeys) == 1:
                         var_name_hdf5 = fkeys[0]
+
+                    if extension == '.nwb':
+                        fgroup = f[var_name_hdf5]['data']
+                    else:
+                        fgroup = f[var_name_hdf5]
+
                     if var_name_hdf5 in f:
                         if subindices is None:
-                            images = np.array(f[var_name_hdf5]).squeeze()
+                            images = np.array(fgroup).squeeze()
                             #if images.ndim > 3:
                             #    images = images[:, 0]
                         else:
                             if type(subindices).__module__ is 'numpy':
                                 subindices = subindices.tolist()
                             images = np.array(
-                                f[var_name_hdf5][subindices]).squeeze()
+                                fgroup[subindices]).squeeze()
                             #if images.ndim > 3:
                             #    images = images[:, 0]
 
@@ -1368,10 +1401,10 @@ def load(file_name:Union[str,List[str]], fr:float=30, start_time:float=0, meta_d
             return movie(images, fr=fr)
 
         elif extension == '.sbx':
+            logging.debug('sbx')
             if subindices is not None:
-                return movie(sbxreadskip(file_name[:-4], skip=subindices.step), fr=fr).astype(outtype)
+                return movie(sbxreadskip(file_name[:-4], subindices), fr=fr).astype(outtype)
             else:
-                logging.debug('sbx')
                 return movie(sbxread(file_name[:-4], k=0, n_frames=np.inf), fr=fr).astype(outtype)
 
         elif extension == '.sima':
@@ -1402,9 +1435,10 @@ def load(file_name:Union[str,List[str]], fr:float=30, start_time:float=0, meta_d
 
 
 def load_movie_chain(file_list:List[str], fr:float=30, start_time=0,
-                     meta_data=None, subindices=None,
+                     meta_data=None, subindices=None, var_name_hdf5:str='mov',
                      bottom=0, top=0, left=0, right=0, z_top=0,
-                     z_bottom=0, is3D:bool=False, channel=None, outtype=np.float32) -> Any:
+                     z_bottom=0, is3D:bool=False, channel=None, 
+                     outtype=np.float32) -> Any:
     """ load movies from list of file names
 
     Args:
@@ -1427,7 +1461,8 @@ def load_movie_chain(file_list:List[str], fr:float=30, start_time=0,
     mov = []
     for f in tqdm(file_list):
         m = load(f, fr=fr, start_time=start_time,
-                 meta_data=meta_data, subindices=subindices, in_memory=True, outtype=outtype)
+                 meta_data=meta_data, subindices=subindices,
+                 in_memory=True, outtype=outtype, var_name_hdf5=var_name_hdf5)
         if channel is not None:
             logging.debug(m.shape)
             m = m[channel].squeeze()
@@ -1537,18 +1572,19 @@ def sbxread(filename:str, k:int=0, n_frames=np.inf) -> np.ndarray:
     return x.transpose([2, 1, 0])
 
 
-def sbxreadskip(filename:str, skip) -> np.ndarray:
+def sbxreadskip(filename:str, subindices:slice) -> np.ndarray:
     """
     Args:
         filename: str
             filename should be full path excluding .sbx
 
-        skip: (undocumented)
+        slice: pass a slice to slice along the last dimension
     """
     # Check if contains .sbx and if so just truncate
     if '.sbx' in filename:
         filename = filename[:-4]
 
+           
     # Load info
     info = loadmat_sbx(filename + '.mat')['info']
 
@@ -1564,31 +1600,77 @@ def sbxreadskip(filename:str, skip) -> np.ndarray:
         factor = 2
 
     # Determine number of frames in whole file
-    max_idx = os.path.getsize(
-        filename + '.sbx') / info['recordsPerBuffer'] / info['sz'][1] * factor / 4 - 1
+    max_idx = np.int(os.path.getsize(
+        filename + '.sbx') / info['recordsPerBuffer'] / info['sz'][1] * factor / 4 - 1)
 
     # Paramters
-    N = max_idx + 1  # Last frame
+    if isinstance(subindices, slice):
+        if subindices.start is None:
+            start = 0
+        else:
+            start = subindices.start
+            
+        if subindices.stop is None:
+            N = max_idx + 1  # Last frame
+        else:
+            N = np.minimum(subindices.stop, max_idx + 1) .astype(np.int)   
+        
+        if subindices.step is None:
+            skip = 1
+        else:
+            skip = subindices.step
+
+        
+        iterable_elements = range(start, N, skip)
+
+    else:
+
+        N = len(subindices)
+        iterable_elements = subindices
+        skip = 0
+        
+    N_time = len(list(iterable_elements))
+
     nSamples = info['sz'][1] * info['recordsPerBuffer'] * 2 * info['nChan']
 
     # Open File
     fo = open(filename + '.sbx')
 
     # Note: SBX files store the values strangely, its necessary to subtract the values from the max int16 to get the correct ones
-    for k in range(0, N, skip):
-        fo.seek(k * nSamples, 0)
+    
+    
+    
+    counter = 0    
+    
+    if skip == 1:
+          # Note: SBX files store the values strangely, its necessary to subtract the values from the max int16 to get the correct ones
+        fo.seek(start * nSamples, 0)
         ii16 = np.iinfo(np.uint16)
-        tmp = ii16.max - \
-            np.fromfile(fo, dtype='uint16', count=int(nSamples / 2 * 1))
+        x = ii16.max - np.fromfile(fo, dtype='uint16', count=int(nSamples / 2 * (N-start)))
+        x = x.reshape((int(info['nChan']), int(info['sz'][1]), int(
+            info['recordsPerBuffer']), int(N-start)), order='F')
+        x = x[0, :, :, :]
+        
+    else:
+        for k in iterable_elements:
+            if counter%100 == 0:
+                print('Reading Iteration:' + str(k))
+            fo.seek(k * nSamples, 0)
+            ii16 = np.iinfo(np.uint16)
+            tmp = ii16.max - \
+                np.fromfile(fo, dtype='uint16', count=int(nSamples / 2 * 1))
+    
+            tmp = tmp.reshape((int(info['nChan']), int(info['sz'][1]), int(
+                info['recordsPerBuffer']), int(1)), order='F')
+            if counter==0:
+                x = np.zeros((tmp.shape[1],tmp.shape[2], tmp.shape[0],N_time))
+                x[:,:,:,0] = tmp
+            else:
+                x[:,:,:,counter] = tmp
+            
+            counter += 1
 
-        tmp = tmp.reshape((int(info['nChan']), int(info['sz'][1]), int(
-            info['recordsPerBuffer']), int(1)), order='F')
-        if k is 0:
-            x = tmp
-        else:
-            x = np.concatenate((x, tmp), axis=3)
-
-    x = x[0, :, :, :]
+        x = x[:, :, 0, :]
 
     return x.transpose([2, 1, 0])
 
