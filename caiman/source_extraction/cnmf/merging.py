@@ -24,51 +24,60 @@ from .utilities import update_order_greedy
 
 
 
-def merge_components(Y, A, b, C, f, S, sn_pix, temporal_params, spatial_params, dview=None, thr=0.85, fast_merge=True, mx=1000, bl=None, c1=None, sn=None, g=None, max_merge_area=None):
+def merge_components(Y, A, b, C, R, f, S, sn_pix, temporal_params,
+                     spatial_params, dview=None, thr=0.85, fast_merge=True,
+                     mx=1000, bl=None, c1=None, sn=None, g=None,
+                     max_merge_area=None):
     """ Merging of spatially overlapping components that have highly correlated temporal activity
 
     The correlation threshold for merging overlapping components is user specified in thr
 
     Args:
         Y: np.ndarray
-            residual movie after subtracting all found components (Y_res = Y - A*C - b*f) (d x T)
+            residual movie after subtracting all found components
+            (Y_res = Y - A*C - b*f) (d x T)
 
         A: sparse matrix
             matrix of spatial components (d x K)
 
         b: np.ndarray
              spatial background (vector of length d)
-        
+
         C: np.ndarray
              matrix of temporal components (K x T)
-        
+
+        R: np.ndarray
+             array of residuals (K x T)
+
         f:     np.ndarray
              temporal background (vector of length T)
-        
+
         S:     np.ndarray
              matrix of deconvolved activity (spikes) (K x T)
-        
+
         sn_pix: ndarray
              noise standard deviation for each pixel
-        
+
         temporal_params: dictionary
-             all the parameters that can be passed to the update_temporal_components function
-        
+             all the parameters that can be passed to the
+             update_temporal_components function
+
         spatial_params: dictionary
-             all the parameters that can be passed to the update_spatial_components function
-        
+             all the parameters that can be passed to the
+             update_spatial_components function
+
         thr:   scalar between 0 and 1
              correlation threshold for merging (default 0.85)
-        
+
         mx:    int
              maximum number of merging operations (default 50)
-        
+
         sn_pix:    nd.array
              noise level for each pixel (vector of length d)
-        
+
         fast_merge: bool
             if true perform rank 1 merging, otherwise takes best neuron
-        
+
         bl:
              baseline for fluorescence trace for each row in C
         c1:
@@ -79,36 +88,39 @@ def merge_components(Y, A, b, C, f, S, sn_pix, temporal_params, spatial_params, 
              noise level for each row in C
 
         max_merge_area: int
-            maximum area (in pixels) of merged components, used to determine whether to merge
+            maximum area (in pixels) of merged components,
+            used to determine whether to merge
 
     Returns:
         A:     sparse matrix
                 matrix of merged spatial components (d x K)
-        
+
         C:     np.ndarray
                 matrix of merged temporal components (K x T)
-        
+
         nr:    int
             number of components after merging
-        
+
         merged_ROIs: list
             index of components that have been merged
-        
+
         S:     np.ndarray
                 matrix of merged deconvolved activity (spikes) (K x T)
-        
+
         bl: float
             baseline for fluorescence trace
-        
+
         c1: float
             initial concentration
-        
+
         g:  float
             discrete time constant
-        
+
         sn: float
             noise level
 
+        R:  np.ndarray
+            residuals
     Raises:
         Exception "The number of elements of bl\c1\g\sn must match the number of components"
     """
@@ -127,6 +139,8 @@ def merge_components(Y, A, b, C, f, S, sn_pix, temporal_params, spatial_params, 
     if g is not None and len(g) != nr:
         raise Exception(
             "The number of elements of g must match the number of components")
+    if R is None:
+        R = np.zeros_like(C)
 
     [d, t] = np.shape(Y)
 
@@ -178,6 +192,7 @@ def merge_components(Y, A, b, C, f, S, sn_pix, temporal_params, spatial_params, 
         # we initialize the values
         A_merged = lil_matrix((d, nbmrg))
         C_merged = np.zeros((nbmrg, t))
+        R_merged = np.zeros((nbmrg, t))
         S_merged = np.zeros((nbmrg, t))
         bl_merged = np.zeros((nbmrg, 1))
         c1_merged = np.zeros((nbmrg, 1))
@@ -189,7 +204,7 @@ def merge_components(Y, A, b, C, f, S, sn_pix, temporal_params, spatial_params, 
             merged_ROI = np.where(list_conxcomp[:, ind[i]])[0]
 
             Acsc = A.tocsc()[:, merged_ROI]
-            Ctmp = np.array(C)[merged_ROI, :]
+            Ctmp = np.array(C + R)[merged_ROI, :]
 
             # don't merge if the size of the merged ROI exceeds max_merge_area
             if max_merge_area is not None and np.sum(Acsc > 0) > max_merge_area:
@@ -212,11 +227,12 @@ def merge_components(Y, A, b, C, f, S, sn_pix, temporal_params, spatial_params, 
             indx = np.argmax(C_to_norm)
             g_idx = [merged_ROI[indx]]
 
-            bm, cm, computedA, computedC, gm, sm, ss = merge_iteration(Acsc, C_to_norm, Ctmp, fast_merge, g, g_idx,
-                                                                       indx, temporal_params)
+            bm, cm, computedA, computedC, gm, sm, ss, yra = merge_iteration(Acsc, C_to_norm, Ctmp, fast_merge, g, g_idx,
+                                                                            indx, temporal_params)
 
             A_merged[:, i] = computedA
             C_merged[i, :] = computedC
+            R_merged[i, :] = yra 
             S_merged[i, :] = ss[:t]
             bl_merged[i] = bm
             c1_merged[i] = cm
@@ -227,6 +243,7 @@ def merge_components(Y, A, b, C, f, S, sn_pix, temporal_params, spatial_params, 
         if np.any(empty):
             A_merged = A_merged[:, ~empty]
             C_merged = C_merged[~empty]
+            R_merged = R_merged[~empty]
             S_merged = S_merged[~empty]
             bl_merged = bl_merged[~empty]
             c1_merged = c1_merged[~empty]
@@ -242,6 +259,8 @@ def merge_components(Y, A, b, C, f, S, sn_pix, temporal_params, spatial_params, 
             # we continue for the variables
             if S is not None:
                 S = np.vstack((S[good_neurons, :], S_merged))
+            if R is not None:
+                R = np.vstack((R[good_neurons, :], R_merged))
             if bl is not None:
                 bl = np.hstack((bl[good_neurons], np.array(bl_merged).flatten()))
             if c1 is not None:
@@ -257,7 +276,7 @@ def merge_components(Y, A, b, C, f, S, sn_pix, temporal_params, spatial_params, 
         merged_ROIs = []
         empty = []
 
-    return A, C, nr, merged_ROIs, S, bl, c1, sn, g, empty
+    return A, C, nr, merged_ROIs, S, bl, c1, sn, g, empty, R
 
 
 def merge_iteration(Acsc, C_to_norm, Ctmp, fast_merge, g, g_idx, indx, temporal_params):
@@ -283,11 +302,14 @@ def merge_iteration(Acsc, C_to_norm, Ctmp, fast_merge, g, g_idx, indx, temporal_
                             0, 0] / Acsc.power(2).sum(0).max())
     computedA /= A_to_norm
     computedC *= A_to_norm
+
+    r = (computedA.T.dot(Acsc.dot(Ctmp)))/(computedA.T.dot(computedA)) - computedC
     # we then compute the traces ( deconvolution ) to have a clean c and noise in the background
+    c_in =  np.array(computedC+r).squeeze()
     if g is not None:
-        computedC, bm, cm, gm, sm, ss, lam_ = constrained_foopsi(
-            np.array(computedC).squeeze(), g=g_idx, **temporal_params)
+        deconvC, bm, cm, gm, sm, ss, lam_ = constrained_foopsi(
+            c_in, g=g_idx, **temporal_params)
     else:
-        computedC, bm, cm, gm, sm, ss, lam_ = constrained_foopsi(
-            np.array(computedC).squeeze(), g=None, **temporal_params)
-    return bm, cm, computedA, computedC, gm, sm, ss
+        deconvC, bm, cm, gm, sm, ss, lam_ = constrained_foopsi(
+            c_in, g=None, **temporal_params)
+    return bm, cm, computedA, deconvC, gm, sm, ss, c_in - deconvC
