@@ -738,7 +738,7 @@ class CNMFParams(object):
         try:
             lc = subprocess.check_output(["git", "rev-parse", "HEAD"]).decode("utf-8").split("\n")[0]
             self.data['last_commit'] = lc
-        except subprocess.CalledProcessError:
+        except:  #subprocess.CalledProcessError:
             pass
         if self.data['dims'] is None and self.data['fnames'] is not None:
             self.data['dims'] = get_file_size(self.data['fnames'], var_name_hdf5=self.data['var_name_hdf5'])[0]
