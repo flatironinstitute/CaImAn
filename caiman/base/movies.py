@@ -1563,7 +1563,9 @@ def sbxread(filename:str, k:int=0, n_frames=np.inf) -> np.ndarray:
     x = ii16.max - np.fromfile(fo, dtype='uint16', count=int(nSamples / 2 * N))
     x = x.reshape((int(info['nChan']), int(info['sz'][1]), int(
         info['recordsPerBuffer']), int(N)), order='F')
+
     x = x[0, :, :, :]
+
     fo.close()
 
     return x.transpose([2, 1, 0])
@@ -1644,6 +1646,7 @@ def sbxreadskip(filename:str, subindices:slice) -> np.ndarray:
         x = ii16.max - np.fromfile(fo, dtype='uint16', count=int(nSamples / 2 * (N-start)))
         x = x.reshape((int(info['nChan']), int(info['sz'][1]), int(
             info['recordsPerBuffer']), int(N-start)), order='F')
+
         x = x[0, :, :, :]
 
     else:
@@ -1657,16 +1660,14 @@ def sbxreadskip(filename:str, subindices:slice) -> np.ndarray:
                 np.fromfile(fo, dtype='uint16', count=int(nSamples / 2 * 1))
 
             tmp = tmp.reshape((int(info['nChan']), int(info['sz'][1]), int(
-                info['recordsPerBuffer']), int(1)), order='F')
+                info['recordsPerBuffer'])), order='F')
             if counter == 0:
-                x = np.zeros((tmp.shape[1], tmp.shape[2], tmp.shape[0], N_time))
-                x[:,:,:,0] = tmp
-            else:
-                x[:,:,:,counter] = tmp
+                x = np.zeros((tmp.shape[0], tmp.shape[1], tmp.shape[2], N_time))
 
+            x[:, :, :, counter] = tmp
             counter += 1
 
-        x = x[:, :, 0, :]
+        x = x[0, :, :, :]
     fo.close()
 
     return x.transpose([2, 1, 0])
