@@ -1627,6 +1627,7 @@ def sbxreadskip(filename:str, subindices:slice) -> np.ndarray:
     N_time = len(list(iterable_elements))
 
     nSamples = info['sz'][1] * info['recordsPerBuffer'] * 2 * info['nChan']
+    assert nSamples >= 0
 
     # Open File
     fo = open(filename + '.sbx')
@@ -1637,6 +1638,7 @@ def sbxreadskip(filename:str, subindices:slice) -> np.ndarray:
 
     if skip == 1:
           # Note: SBX files store the values strangely, its necessary to subtract the values from the max int16 to get the correct ones
+        assert start * nSamples > 0
         fo.seek(start * nSamples, 0)
         ii16 = np.iinfo(np.uint16)
         x = ii16.max - np.fromfile(fo, dtype='uint16', count=int(nSamples / 2 * (N-start)))
@@ -1646,8 +1648,9 @@ def sbxreadskip(filename:str, subindices:slice) -> np.ndarray:
 
     else:
         for k in iterable_elements:
+            assert k >= 0
             if counter % 100 == 0:
-                print('Reading Iteration:' + str(k))
+                print(f'Reading Iteration: {k}')
             fo.seek(k * nSamples, 0)
             ii16 = np.iinfo(np.uint16)
             tmp = ii16.max - \
@@ -1655,7 +1658,7 @@ def sbxreadskip(filename:str, subindices:slice) -> np.ndarray:
 
             tmp = tmp.reshape((int(info['nChan']), int(info['sz'][1]), int(
                 info['recordsPerBuffer']), int(1)), order='F')
-            if counter==0:
+            if counter == 0:
                 x = np.zeros((tmp.shape[1], tmp.shape[2], tmp.shape[0], N_time))
                 x[:,:,:,0] = tmp
             else:
