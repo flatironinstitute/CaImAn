@@ -74,7 +74,8 @@ def download_demo(name:str='Sue_2x_3000_40_-46.tif', save_folder:str='') -> str:
                  'Tolias_mesoscope_1.hdf5': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/Tolias_mesoscope_1.hdf5',
                  'Tolias_mesoscope_2.hdf5': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/Tolias_mesoscope_2.hdf5',
                  'Tolias_mesoscope_3.hdf5': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/Tolias_mesoscope_3.hdf5',
-                 'data_endoscope.tif': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/data_endoscope.tif'}
+                 'data_endoscope.tif': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/data_endoscope.tif',
+                 'data_dendritic.tif': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/2014-04-05-003.tif'}
     #          ,['./example_movies/demoMovie.tif','https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/demoMovie.tif']]
     base_folder = os.path.join(caiman_datadir(), 'example_movies')
     if os.path.exists(base_folder):
@@ -353,7 +354,7 @@ def cell_magic_wand_wrapper(params):
 #%% From https://codereview.stackexchange.com/questions/120802/recursively-save-python-dictionaries-to-hdf5-files-using-h5py
 
 
-def save_dict_to_hdf5(dic:Dict, filename:str) -> None:
+def save_dict_to_hdf5(dic:Dict, filename:str, subdir:str='/') -> None:
     ''' Save dictionary to hdf5 file
     Args:
         dic: dictionary
@@ -363,7 +364,7 @@ def save_dict_to_hdf5(dic:Dict, filename:str) -> None:
     '''
 
     with h5py.File(filename, 'w') as h5file:
-        recursively_save_dict_contents_to_group(h5file, '/', dic)
+        recursively_save_dict_contents_to_group(h5file, subdir, dic)
 
 def load_dict_from_hdf5(filename:str) -> Dict:
     ''' Load dictionary from hdf5 file
@@ -409,7 +410,8 @@ def recursively_save_dict_contents_to_group(h5file:h5py.File, path:str, dic:Dict
         if key == 'g_tot':
             item = np.asarray(item, dtype=np.float)
         if key in ['groups', 'idx_tot', 'ind_A', 'Ab_epoch', 'coordinates',
-                   'loaded_model', 'optional_outputs', 'merged_ROIs']:
+                   'loaded_model', 'optional_outputs', 'merged_ROIs', 'tf_in',
+                   'tf_out']:
             logging.info(['groups', 'idx_tot', 'ind_A', 'Ab_epoch', 'coordinates', 'loaded_model', 'optional_outputs', 'merged_ROIs',
                    '** not saved'])
             continue
@@ -513,7 +515,6 @@ def load_graph(frozen_graph_filename):
             input_map=None,
             return_elements=None,
             name="prefix",
-            op_dict=None,
             producer_op_list=None
         )
     return graph

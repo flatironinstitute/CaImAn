@@ -27,54 +27,58 @@ from .utilities import update_order_greedy
 def merge_components(Y, A, b, C, R, f, S, sn_pix, temporal_params,
                      spatial_params, dview=None, thr=0.85, fast_merge=True,
                      mx=1000, bl=None, c1=None, sn=None, g=None,
-                     merge_parallel=False):
+                     merge_parallel=False, max_merge_area=None):
+
     """ Merging of spatially overlapping components that have highly correlated temporal activity
 
     The correlation threshold for merging overlapping components is user specified in thr
 
     Args:
         Y: np.ndarray
-            residual movie after subtracting all found components (Y_res = Y - A*C - b*f) (d x T)
+            residual movie after subtracting all found components
+            (Y_res = Y - A*C - b*f) (d x T)
 
         A: sparse matrix
             matrix of spatial components (d x K)
 
         b: np.ndarray
              spatial background (vector of length d)
-        
+
         C: np.ndarray
              matrix of temporal components (K x T)
 
         R: np.ndarray
-             array of residuals (K x T)        
+             array of residuals (K x T)
 
         f:     np.ndarray
              temporal background (vector of length T)
-        
+
         S:     np.ndarray
              matrix of deconvolved activity (spikes) (K x T)
-        
+
         sn_pix: ndarray
              noise standard deviation for each pixel
-        
+
         temporal_params: dictionary
-             all the parameters that can be passed to the update_temporal_components function
-        
+             all the parameters that can be passed to the
+             update_temporal_components function
+
         spatial_params: dictionary
-             all the parameters that can be passed to the update_spatial_components function
-        
+             all the parameters that can be passed to the
+             update_spatial_components function
+
         thr:   scalar between 0 and 1
              correlation threshold for merging (default 0.85)
-        
+
         mx:    int
              maximum number of merging operations (default 50)
-        
+
         sn_pix:    nd.array
              noise level for each pixel (vector of length d)
-        
+
         fast_merge: bool
             if true perform rank 1 merging, otherwise takes best neuron
-        
+
         bl:
              baseline for fluorescence trace for each row in C
         c1:
@@ -87,34 +91,40 @@ def merge_components(Y, A, b, C, R, f, S, sn_pix, temporal_params,
         merge_parallel: bool
              perform merging in parallel
 
+        max_merge_area: int
+            maximum area (in pixels) of merged components,
+            used to determine whether to merge
+
     Returns:
         A:     sparse matrix
                 matrix of merged spatial components (d x K)
-        
+
         C:     np.ndarray
                 matrix of merged temporal components (K x T)
-        
+
         nr:    int
             number of components after merging
-        
+
         merged_ROIs: list
             index of components that have been merged
-        
+
         S:     np.ndarray
                 matrix of merged deconvolved activity (spikes) (K x T)
-        
+
         bl: float
             baseline for fluorescence trace
-        
+
         c1: float
             initial concentration
-        
+
         g:  float
             discrete time constant
-        
+
         sn: float
             noise level
 
+        R:  np.ndarray
+            residuals
     Raises:
         Exception "The number of elements of bl\c1\g\sn must match the number of components"
     """
@@ -136,6 +146,7 @@ def merge_components(Y, A, b, C, R, f, S, sn_pix, temporal_params,
             "The number of elements of g must match the number of components")
     if R is None:
         R = np.zeros_like(C)
+
     [d, t] = np.shape(Y)
 
     # % find graph of overlapping spatial components
@@ -277,6 +288,7 @@ def merge_components(Y, A, b, C, R, f, S, sn_pix, temporal_params,
                 if g.shape[1] == 0:
                     g = np.zeros((len(good_neurons), 1))
                 g = np.vstack((g, g_merged))
+
             nr = nr - len(neur_id) + len(C_merged)
 
     else:

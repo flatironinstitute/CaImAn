@@ -44,8 +44,6 @@ def basis_denoising(y, c, boh, sn, id2_, px):
     else:
         return (None, None, None)
     return a, px, id2_
-#%% update_spatial_components (in parallel)
-
 
 def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
                               min_size=3, max_size=8, dist=3,
@@ -194,6 +192,14 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
         ff = ff[0]
         A_in = csc_column_remove(A_in, list(ff))
         C = np.delete(C, list(ff), 0)
+        
+    # remove empty components    
+    ff = np.where(np.sum(C, axis=1)==0)
+    if np.size(ff) > 0:
+        logging.info("Eliminating empty components: {}".format(ff))
+        ff = ff[0]
+        A_in = csc_column_remove(A_in, list(ff))
+        C = np.delete(C, list(ff), 0)
 
     if normalize_yyt_one and C is not None:
         C = np.array(C)
@@ -232,9 +238,9 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
             dview.results.clear()
     else:
         parallel_result = list(map(regression_ipyparallel, pixel_groups))
-    data = []
-    rows = []
-    cols = []
+    data:List = []
+    rows:List = []
+    cols:List = []
     for chunk in parallel_result:
         for pars in chunk:
             px, idxs_, a = pars
@@ -307,8 +313,6 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
 
     return csc_matrix(A_), b, C, f
 
-
-#%%
 def HALS4shape_bckgrnd(Y_resf, B, F, ind_B, iters=5):
     K = B.shape[-1]
     U = Y_resf.T
@@ -323,7 +327,6 @@ def HALS4shape_bckgrnd(Y_resf, B, F, ind_B, iters=5):
     return B
 
 
-# %%lars_regression_noise_ipyparallel
 def regression_ipyparallel(pars):
     """update spatial footprints and background through Basis Pursuit Denoising
 
@@ -432,7 +435,6 @@ def regression_ipyparallel(pars):
 
     return As
 
-# %%
 def construct_ellipse_parallel(pars):
     """update spatial footprints and background through Basis Pursuit Denoising
 
@@ -454,10 +456,6 @@ def construct_ellipse_parallel(pars):
 
     # search indexes for each component
     return np.sqrt(np.sum([old_div((dist_cm * V[:, k]) ** 2, dkk[k]) for k in range(len(dkk))], 0)) <= dist
-
-
-# %% threshold_components
-
 
 def threshold_components(A, dims, medw=None, thr_method='max', maxthr=0.1, nrgthr=0.9999, extract_cc=True,
                          se=None, ss=None, dview=None):
@@ -530,9 +528,9 @@ def threshold_components(A, dims, medw=None, thr_method='max', maxthr=0.1, nrgth
         res = list(map(threshold_components_parallel, pars))
 
     res.sort(key=lambda x: x[1])
-    indices = []
+    indices:List = []
     indptr = [0]
-    data = []
+    data:List = []
     for r in res:
         At, i = r
         indptr.append(indptr[-1]+At.indptr[-1])
@@ -635,10 +633,6 @@ def threshold_components_parallel(pars):
 
     return csr_matrix(Ath2), i
 
-
-# %%
-
-
 def nnls_L0(X, Yp, noise):
     """
     Nonnegative least square with L0 penalty
@@ -679,7 +673,9 @@ def nnls_L0(X, Yp, noise):
         else:
             W_lam[eliminate[np.argmin(np.array(eliminate)[:, 1])][0]] = 0
 
-# %% auxiliary functions
+#####
+# auxiliary functions
+
 def calcAvec(new, dQ, W, lambda_, active_set, M, positive):
     """
     calculate the vector to travel along
@@ -920,7 +916,7 @@ def determine_search_location(A, dims, method='ellipse', min_size=3, max_size=8,
 
     elif method == 'dilate':
         indptr = [0]
-        indices = []
+        indices:List = []
         data = []
         if dview is None:
             for i in range(nr):
@@ -967,10 +963,8 @@ def determine_search_location(A, dims, method='ellipse', min_size=3, max_size=8,
         raise Exception('Not implemented')
         dist_indicator = True * np.ones((d, nr))
 
-
-
     return csc_matrix(dist_indicator)
-#%%
+
 def construct_dilate_parallel(pars):
     """
     """
@@ -991,7 +985,7 @@ def construct_dilate_parallel(pars):
 
     # search indexes for each component
     return dist_indicator_i
-#%%
+
 def computing_indicator(Y, A_in, b, C, f, nb, method, dims, min_size, max_size, dist, expandCore, dview):
     """compute the indices of the distance from the cm to search for the spatial component (calling determine_search_location)
 
@@ -1103,9 +1097,6 @@ def computing_indicator(Y, A_in, b, C, f, nb, method, dims, min_size, max_size, 
 
     return ind2_, nr, C, f, b, A_in
 
-
-
-#%%
 def creatememmap(Y, Cf, dview):
     """memmap the C and Y objects in parallel
 
@@ -1130,7 +1121,7 @@ def creatememmap(Y, Cf, dview):
            """
     if os.environ.get('SLURM_SUBMIT_DIR') is not None:
         tmpf = os.environ.get('SLURM_SUBMIT_DIR')
-        print(('cluster temporary folder:' + tmpf))
+        print(f'cluster temporary folder: {tmpf}')
         folder = tempfile.mkdtemp(dir=tmpf)
     else:
         folder = tempfile.mkdtemp()

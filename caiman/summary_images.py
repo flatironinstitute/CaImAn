@@ -26,6 +26,7 @@ import logging
 import numpy as np
 from scipy.ndimage import convolve, generate_binary_structure
 from scipy.sparse import coo_matrix
+from typing import Any, List, Optional, Tuple
 
 import caiman as cm
 from caiman.source_extraction.cnmf.pre_processing import get_noise_fft
@@ -37,7 +38,7 @@ from caiman.source_extraction.cnmf.pre_processing import get_noise_fft
 #%%
 
 
-def max_correlation_image(Y, bin_size=1000, eight_neighbours=True, swap_dim=True):
+def max_correlation_image(Y, bin_size:int=1000, eight_neighbours:bool=True, swap_dim:bool=True) -> np.ndarray:
     """Computes the max-correlation image for the input dataset Y with bin_size
 
     Args:
@@ -85,7 +86,7 @@ def max_correlation_image(Y, bin_size=1000, eight_neighbours=True, swap_dim=True
 
 
 #%%
-def local_correlations_fft(Y, eight_neighbours=True, swap_dim=True, opencv=True, rolling_window = None):
+def local_correlations_fft(Y, eight_neighbours:bool=True, swap_dim:bool=True, opencv:bool=True, rolling_window = None) -> np.ndarray:
     """Computes the correlation image for the input dataset Y using a faster FFT based method
 
     Args:
@@ -102,6 +103,8 @@ def local_correlations_fft(Y, eight_neighbours=True, swap_dim=True, opencv=True,
     
         opencv: Boolean
             If True process using open cv method
+
+        rolling_window: (undocumented)
 
     Returns:
         Cn: d1 x d2 [x d3] matrix, cross-correlation with adjacent pixels
@@ -167,7 +170,7 @@ def local_correlations_fft(Y, eight_neighbours=True, swap_dim=True, opencv=True,
 
     return Cn
 
-def local_correlations_multicolor(Y, swap_dim=True, order_mean=1):
+def local_correlations_multicolor(Y, swap_dim:bool=True) -> np.ndarray:
     """Computes the correlation image with color depending on orientation
 
     Args:
@@ -199,7 +202,7 @@ def local_correlations_multicolor(Y, swap_dim=True, order_mean=1):
     return np.dstack([rho_h[:,1:]/2, rho_d1/2, rho_d2/2])
 
 
-def local_correlations(Y, eight_neighbours=True, swap_dim=True, order_mean=1):
+def local_correlations(Y, eight_neighbours:bool=True, swap_dim:bool=True, order_mean=1) -> np.ndarray:
     """Computes the correlation image for the input dataset Y
 
     Args:
@@ -213,6 +216,8 @@ def local_correlations(Y, eight_neighbours=True, swap_dim=True, order_mean=1):
         swap_dim: Boolean
             True indicates that time is listed in the last axis of Y (matlab format)
             and moves it in the front
+
+        order_mean: (undocumented)
 
     Returns:
         rho: d1 x d2 [x d3] matrix, cross-correlation with adjacent pixels
@@ -300,7 +305,7 @@ def local_correlations(Y, eight_neighbours=True, swap_dim=True, order_mean=1):
     return rho
 
 
-def correlation_pnr(Y, gSig=None, center_psf=True, swap_dim=True, background_filter='disk'):
+def correlation_pnr(Y, gSig=None, center_psf:bool=True, swap_dim:bool=True, background_filter:str='disk') -> Tuple[np.ndarray, np.ndarray]:
     """
     compute the correlation image and the peak-to-noise ratio (PNR) image.
     If gSig is provided, then spatially filtered the video.
@@ -310,11 +315,13 @@ def correlation_pnr(Y, gSig=None, center_psf=True, swap_dim=True, background_fil
             Input movie data in 3D or 4D format
         gSig:  scalar or vector.
             gaussian width. If gSig == None, no spatial filtering
-        center_psf: Boolearn
+        center_psf: Boolean
             True indicates subtracting the mean of the filtering kernel
         swap_dim: Boolean
             True indicates that time is listed in the last axis of Y (matlab format)
             and moves it in the front
+        background_filter: str
+            (undocumented)
 
     Returns:
         cn: np.ndarray (2D or 3D).
@@ -377,7 +384,7 @@ def correlation_pnr(Y, gSig=None, center_psf=True, swap_dim=True, background_fil
     return cn, pnr
 
 
-def iter_chunk_array(arr, chunk_size):
+def iter_chunk_array(arr:np.array, chunk_size:int):
     if ((arr.shape[0] // chunk_size) - 1) > 0:
         for i in range((arr.shape[0] // chunk_size) - 1):
             yield arr[chunk_size * i:chunk_size * (i + 1)]
@@ -386,7 +393,7 @@ def iter_chunk_array(arr, chunk_size):
         yield arr
 
 
-def correlation_image_ecobost(mov, chunk_size=1000, dview=None):
+def correlation_image_ecobost(mov, chunk_size:int=1000, dview=None):
     """ Compute correlation image as Erick. Removes the mean from each chunk
     before computing the correlation
     Args:
@@ -444,11 +451,11 @@ def correlation_image_ecobost(mov, chunk_size=1000, dview=None):
 
     return correlation_image
 
-
-def map_corr(scan):
+def map_corr(scan) -> Tuple[Any, Any, Any, int]:
     '''This part of the code is in a mapping function that's run over different
     movies in parallel
     '''
+    # TODO: Tighten prototype above
     if type(scan) is str:
         scan = cm.load(scan)
 
@@ -483,7 +490,7 @@ def map_corr(scan):
     return chunk_sum, chunk_sqsum, chunk_xysum, num_frames
 
 
-def prepare_local_correlations(Y, swap_dim=False, eight_neighbours=False):
+def prepare_local_correlations(Y, swap_dim:bool=False, eight_neighbours:bool=False) -> Tuple[Any, Any, Any, Any, Any, Any, Any, Any]:
     """Computes the correlation image and some statistics to update it online
 
     Args:
@@ -499,6 +506,7 @@ def prepare_local_correlations(Y, swap_dim=False, eight_neighbours=False):
             Use 18 neighbors if true, and 6 if false for 4D data
 
     """
+    # TODO: Tighten prototype above
     if swap_dim:
         Y = np.transpose(Y, (Y.ndim - 1,) + tuple(range(Y.ndim - 1)))
 
@@ -560,7 +568,7 @@ def prepare_local_correlations(Y, swap_dim=False, eight_neighbours=False):
 
 
 def update_local_correlations(t, frames, first_moment, second_moment, crosscorr,
-                              col_ind, row_ind, num_neigbors, M, cn, del_frames=None):
+                              col_ind, row_ind, num_neigbors, M, cn, del_frames=None) -> np.ndarray:
     """Updates sufficient statistics in place and returns correlation image"""
     dims = frames.shape[1:]
     stride = len(frames)
@@ -600,8 +608,8 @@ def update_local_correlations(t, frames, first_moment, second_moment, crosscorr,
     return cn
 
 
-def local_correlations_movie(file_name, tot_frames=None, fr=30, window=30, stride=1,
-                             swap_dim=False, eight_neighbours=True, mode='simple'):
+def local_correlations_movie(file_name, tot_frames:Optional[int]=None, fr:int=30, window:int=30, stride:int=1,
+                             swap_dim:bool=False, eight_neighbours:bool=True, mode:str='simple'):
     """
     Compute an online correlation image as moving average
 
@@ -663,17 +671,14 @@ def local_correlations_movie(file_name, tot_frames=None, fr=30, window=30, strid
         raise Exception('mode of the moving average must be simple, exponential or cumulative')
     return cm.movie(corr_movie, fr=fr)
 
-def local_correlations_movie_offline(file_name, Tot_frames = None, fr = 10, window=30, stride = 3, swap_dim=True, eight_neighbours=True, order_mean = 1, ismulticolor = False, dview = None):
+def local_correlations_movie_offline(file_name, Tot_frames = None, fr:int=10, window:int=30, stride:int=3, swap_dim:bool=True, eight_neighbours:bool=True, order_mean:int=1, ismulticolor:bool=False, dview=None):
 
         if Tot_frames is None:
             Tot_frames = cm.load(file_name).shape[0]
 
-        params = [[file_name,range(j,j + window), eight_neighbours, swap_dim, order_mean, ismulticolor] for j in range(0,Tot_frames - window,stride)]
+        params:List = [[file_name,range(j,j + window), eight_neighbours, swap_dim, order_mean, ismulticolor] for j in range(0,Tot_frames - window,stride)]
         if dview is None:
-#            parallel_result = [self[j:j + window, :, :].local_correlations(
-#                    eight_neighbours=True,swap_dim=swap_dim, order_mean=order_mean)[np.newaxis, :, :] for j in range(T - window)]
             parallel_result = list(map(local_correlations_movie_parallel,params))
-
         else:
             if 'multiprocessing' in str(type(dview)):
                 parallel_result = dview.map_async(
@@ -686,10 +691,10 @@ def local_correlations_movie_offline(file_name, Tot_frames = None, fr = 10, wind
         mm = cm.movie(np.concatenate(parallel_result, axis=0),fr=fr)
         return mm
 
-def local_correlations_movie_parallel(params):
+def local_correlations_movie_parallel(params:Tuple) -> np.ndarray:
         mv_name, idx, eight_neighbours, swap_dim, order_mean, ismulticolor = params
         mv = cm.load(mv_name,subindices=idx)
         if ismulticolor:
-            return local_correlations_multicolor(mv,swap_dim=swap_dim, order_mean=order_mean)[None,:,:].astype(np.float32)
+            return local_correlations_multicolor(mv,swap_dim=swap_dim)[None,:,:].astype(np.float32)
         else:
             return local_correlations(mv, eight_neighbours=eight_neighbours, swap_dim=swap_dim, order_mean=order_mean)[None,:,:].astype(np.float32)

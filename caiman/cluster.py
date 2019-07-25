@@ -187,7 +187,7 @@ def apply_to_patch(mmap_file, shape:Tuple[Any,Any,Any], dview, rf, stride, funct
 #%%
 
 
-def function_place_holder(args_in):
+def function_place_holder(args_in:Tuple) -> np.ndarray:
     #todo: todocument
 
     file_name, idx_, shapes, function, args, kwargs = args_in

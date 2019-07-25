@@ -47,7 +47,7 @@ from caiman.source_extraction.cnmf import params as params
 logging.basicConfig(format=
                     "%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s]"\
                     "[%(process)d] %(message)s",
-                    level=logging.INFO)
+                    level=logging.WARNING)
                     # filename="/tmp/caiman.log",
 
 #%%
@@ -133,10 +133,12 @@ def main():
     cnm2.estimates.plot_contours(img=Cn, idx=cnm2.estimates.idx_components)
     # %% visualize selected components
     cnm2.estimates.view_components(images, idx=cnm2.estimates.idx_components, img=Cn)
-    #%% only select high quality components
-    cnm2.estimates.select_components(use_object=True)
-    #%%
-    cnm2.estimates.plot_contours(img=Cn)
+    #%% only select high quality components (destructive)
+    # cnm2.estimates.select_components(use_object=True)
+    # cnm2.estimates.plot_contours(img=Cn)
+    #%% save results
+    cnm2.estimates.Cn = Cn
+    cnm2.save(cnm2.mmap_file[:-4]+'hdf5')
 
 # %% play movie with results (original, reconstructed, amplified residual)
     cnm2.estimates.play_movie(images, magnification=4)
