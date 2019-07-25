@@ -273,10 +273,11 @@ def merge_components(Y, A, b, C, R, f, S, sn_pix, temporal_params,
             if sn is not None:
                 sn = np.hstack((sn[good_neurons], np.array(sn_merged).flatten()))
             if g is not None:
-                g = np.vstack(g)[good_neurons]
-                if g.shape[1] == 0:
-                    g = np.zeros((len(good_neurons), 1))
-                g = np.vstack((g, g_merged))
+                g = np.vstack((np.vstack(g)[good_neurons], g_merged))
+#                g = np.vstack(g)[good_neurons]
+#                if g.shape[1] == 0:
+#                    g = np.zeros((len(good_neurons), 1))
+#                g = np.vstack((g, g_merged))
             nr = nr - len(neur_id) + len(C_merged)
 
     else:
