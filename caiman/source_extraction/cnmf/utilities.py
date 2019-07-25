@@ -39,6 +39,7 @@ from typing import List
 from .initialization import greedyROI
 from ...base.rois import com
 from ...mmapping import parallel_dot_product, load_memmap
+from ...cluster import extract_patch_coordinates
 from ...utils.stats import df_percentile
 
 
@@ -651,7 +652,6 @@ def manually_refine_components(Y, xxx_todo_changeme, A, C, Cn, thr=0.9, display_
             y2_tiny = np.reshape(y3_tiny, (dx_sz * dy_sz, T), order='F')
             a2_tiny = np.reshape(a3_tiny, (dx_sz * dy_sz, nr), order='F')
             y2_res = y2_tiny - a2_tiny.dot(C)
-
             y3_res = np.reshape(y2_res, (dy_sz, dx_sz, T), order='F')
             a__, c__, center__, b_in__, f_in__ = greedyROI(
                 y3_res, nr=1, gSig=[np.floor(old_div(dx_sz, 2)), np.floor(old_div(dy_sz, 2))], gSiz=[dx_sz, dy_sz])
@@ -1002,11 +1002,34 @@ def get_file_size(file_name, var_name_hdf5='mov'):
                     if len(kk) == 1:
                         siz = f[kk[0]].shape
                     elif var_name_hdf5 in f:
-                        siz = f[var_name_hdf5].shape
+                        if extension == '.nwb':
+                            siz = f[var_name_hdf5]['data'].shape
+                        else:
+                            siz = f[var_name_hdf5].shape
                     else:
-                        print(kk)
+                        logging.error('The file does not contain a variable' +
+                                      'named {0}'.format(var_name_hdf5))
                         raise Exception('Variable not found. Use one of the above')
                 T, dims = siz[0], siz[1:]
+            elif extension in ('.sbx'):
+                from ...base.movies import loadmat_sbx
+                info = loadmat_sbx(file_name[:-4]+ '.mat')['info']
+                dims = tuple((info['sz']).astype(int))
+                # Defining number of channels/size factor
+                if info['channels'] == 1:
+                    info['nChan'] = 2
+                    factor = 1
+                elif info['channels'] == 2:
+                    info['nChan'] = 1
+                    factor = 2
+                elif info['channels'] == 3:
+                    info['nChan'] = 1
+                    factor = 2
+            
+                # Determine number of frames in whole file
+                T = int(os.path.getsize(
+                    file_name[:-4] + '.sbx') / info['recordsPerBuffer'] / info['sz'][1] * factor / 4 - 1)
+                
             else:
                 raise Exception('Unknown file type')
         else:
@@ -1024,3 +1047,146 @@ def get_file_size(file_name, var_name_hdf5='mov'):
     else:
         raise Exception('Unknown input type')
     return dims, T
+
+
+def fast_graph_Laplacian(mmap_file, dims, max_radius=10, kernel='heat',
+                         dview=None, sigma=1, thr=0.05, p=10, normalize=True,
+                         use_NN=False, rf=None, strides=None):
+    """ Computes an approximate affinity maps and its graph Laplacian for all
+    pixels. For each pixel it restricts its attention to a given radius around
+    it.
+        Args:
+            mmap_file: str
+                Memory mapped file in pixel first order
+
+            max_radius: float
+                Maximum radius around each pixel
+
+            kernel: str {'heat', 'binary', 'cos'}
+                type of kernel
+
+            dview: dview object
+                multiprocessing or ipyparallel object for parallelization
+
+            sigma: float
+                standard deviation of Gaussian (heat) kernel
+
+            thr: float
+                threshold for affinity matrix
+
+            p: int
+                number of neighbors
+
+            normalize: bool
+                normalize vectors before computing affinity
+
+            use_NN: bool
+                use only p nearest neighbors
+
+        Returns:
+            W: scipy.sparse.csr_matrix
+                Graph affinity matrix
+
+            D: scipy.sparse.spdiags
+                Diagonal of affinity matrix
+                
+            L: scipy.sparse.csr_matrix
+                Graph Laplacian matrix
+    """
+    Np = np.prod(np.array(dims))
+    if rf is None:
+        pars = []
+        for i in range(Np):
+            pars.append([i, mmap_file, dims, max_radius, kernel, sigma, thr,
+                         p, normalize, use_NN])
+        if dview is None:
+            res = list(map(fast_graph_Laplacian_pixel, pars))
+        else:
+            res = dview.map(fast_graph_Laplacian_pixel, pars, chunksize=128)
+        indptr = np.cumsum(np.array([0] + [len(r[0]) for r in res]))
+        indeces = [item for sublist in res for item in sublist[0]]
+        data = [item for sublist in res for item in sublist[1]]
+        W = scipy.sparse.csr_matrix((data, indeces, indptr), shape=[Np, Np])
+        D = scipy.sparse.spdiags(W.sum(0), 0, Np, Np)
+        L = D - W
+    else:
+        indices, _ = extract_patch_coordinates(dims, rf, strides)
+        pars = []
+        for i in range(len(indices)):
+            pars.append([mmap_file, indices[i], kernel, sigma, thr, p,
+                         normalize, use_NN])
+        if dview is None:
+            res = list(map(fast_graph_Laplacian_patches, pars))
+        else:
+            res = dview.map(fast_graph_Laplacian_patches, pars)
+        W = res
+        D = [scipy.sparse.spdiags(w.sum(0), 0, w.shape[0], w.shape[0]) for w in W]
+        L = [d - w for (d, w) in zip(W, D)]
+    return W, D, L
+
+
+def fast_graph_Laplacian_patches(pars):
+    """ Computes the full graph affinity matrix on a patch. See 
+    fast_graph_Laplacian above for definition of arguments.
+    """
+    mmap_file, indices, kernel, sigma, thr, p, normalize, use_NN = pars
+    if type(mmap_file) not in {'str', 'list'}:
+        Yind = mmap_file
+    else:
+        Y = load_memmap(mmap_file)[0]
+        Yind = np.array(Y[indices])
+    if normalize:
+        Yind -= Yind.mean(1)[:, np.newaxis]
+        Yind /= np.sqrt((Yind**2).sum(1)[:, np.newaxis])
+        yf = np.ones((Yind.shape[0], 1))
+    else:
+        yf = (Yind**2).sum(1)[:, np.newaxis]
+    yyt = Yind.dot(Yind.T)
+    W = np.exp(-(yf + yf.T - 2*yyt)/sigma) if kernel.lower() == 'heat' else yyt
+    W[W<thr] = 0
+    if kernel.lower() == 'binary':
+        W[W>0] = 1
+    if use_NN:
+        ind = np.argpartition(W, -p, axis=1)[:, :-p]
+        for i in range(W.shape[0]):
+            W[i, ind[i]] = 0
+        W = scipy.sparse.csr_matrix(W)
+        W = (W + W.T)/2
+    return W
+    
+def fast_graph_Laplacian_pixel(pars):
+    """ Computes the i-th row of the Graph affinity matrix. See 
+    fast_graph_Laplacian above for definition of arguments.
+    """
+    i, mmap_file, dims, max_radius, kernel, sigma, thr, p, normalize, use_NN = pars 
+    iy, ix = np.unravel_index(i, dims, order='F')
+    xx = np.arange(0, dims[1]) - ix
+    yy = np.arange(0, dims[0]) - iy
+    [XX, YY] = np.meshgrid(xx, yy)
+    R = np.sqrt(XX**2 + YY**2)
+    R = R.flatten('F')
+    indeces = np.where(R < max_radius)[0]
+    Y = load_memmap(mmap_file)[0]
+    Yind = np.array(Y[indeces])
+    y = np.array(Y[i, :])
+    if normalize:
+        Yind -= Yind.mean(1)[:, np.newaxis]
+        Yind /= np.sqrt((Yind**2).sum(1)[:, np.newaxis])
+        y -= y.mean()
+        y /= np.sqrt((y**2).sum())
+    D = Yind - y
+    if kernel.lower() == 'heat':
+        w = np.exp(-np.sum(D**2, axis=1)/sigma)
+    else: # kernel.lower() == 'cos':
+        w = Yind.dot(y.T)
+
+    w[w<thr] = 0
+    if kernel.lower() == 'binary':
+        w[w>0] = 1
+    if use_NN:
+        ind = np.argpartition(w, -p)[-p:]
+    else:
+        ind = np.where(w>0)[0]
+
+    return indeces[ind].tolist(), w[ind].tolist()
+    
