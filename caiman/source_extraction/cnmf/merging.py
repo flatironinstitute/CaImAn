@@ -24,7 +24,10 @@ from .utilities import update_order_greedy
 
 
 
-def merge_components(Y, A, b, C, f, S, sn_pix, temporal_params, spatial_params, dview=None, thr=0.85, fast_merge=True, mx=1000, bl=None, c1=None, sn=None, g=None):
+def merge_components(Y, A, b, C, R, f, S, sn_pix, temporal_params,
+                     spatial_params, dview=None, thr=0.85, fast_merge=True,
+                     mx=1000, bl=None, c1=None, sn=None, g=None,
+                     merge_parallel=False):
     """ Merging of spatially overlapping components that have highly correlated temporal activity
 
     The correlation threshold for merging overlapping components is user specified in thr
@@ -41,7 +44,10 @@ def merge_components(Y, A, b, C, f, S, sn_pix, temporal_params, spatial_params, 
         
         C: np.ndarray
              matrix of temporal components (K x T)
-        
+
+        R: np.ndarray
+             array of residuals (K x T)        
+
         f:     np.ndarray
              temporal background (vector of length T)
         
@@ -77,6 +83,9 @@ def merge_components(Y, A, b, C, f, S, sn_pix, temporal_params, spatial_params, 
              discrete time constant for each row in C
         sn:
              noise level for each row in C
+
+        merge_parallel: bool
+             perform merging in parallel
 
     Returns:
         A:     sparse matrix
@@ -125,7 +134,8 @@ def merge_components(Y, A, b, C, f, S, sn_pix, temporal_params, spatial_params, 
     if g is not None and len(g) != nr:
         raise Exception(
             "The number of elements of g must match the number of components")
-
+    if R is None:
+        R = np.zeros_like(C)
     [d, t] = np.shape(Y)
 
     # % find graph of overlapping spatial components
@@ -173,113 +183,108 @@ def merge_components(Y, A, b, C, f, S, sn_pix, temporal_params, spatial_params, 
 
         nbmrg = min((np.size(ind), mx))   # number of merging operations
 
-#        # we initialize the values
-#        A_merged = lil_matrix((d, nbmrg))
-#        C_merged = np.zeros((nbmrg, t))
-#        S_merged = np.zeros((nbmrg, t))
-#        bl_merged = np.zeros((nbmrg, 1))
-#        c1_merged = np.zeros((nbmrg, 1))
-#        sn_merged = np.zeros((nbmrg, 1))
-#        g_merged = np.zeros((nbmrg, p))
-#        merged_ROIs = []
+        if merge_parallel:
+            merged_ROIs = [np.where(list_conxcomp[:, ind[i]])[0] for i in range(nbmrg)]
+            Acsc_mats = [csc_matrix(A[:, merged_ROI]) for merged_ROI in merged_ROIs]
+            Ctmp_mats = [C[merged_ROI] + R[merged_ROI] for merged_ROI in merged_ROIs]
+            C_to_norms = [np.sqrt(np.ravel(Acsc.power(2).sum(
+                    axis=0)) * np.sum(Ctmp ** 2, axis=1)) for (Acsc, Ctmp) in zip(Acsc_mats, Ctmp_mats)]
+            indxs = [np.argmax(C_to_norm) for C_to_norm in C_to_norms]
+            g_idxs = [merged_ROI[indx] for (merged_ROI, indx) in zip(merged_ROIs, indxs)]
+            fms = [fast_merge]*nbmrg
+            tps = [temporal_params]*nbmrg
+            gs = [g]*nbmrg
             
-        merged_ROIs = [np.where(list_conxcomp[:, ind[i]])[0] for i in range(nbmrg)]
-        Acsc_mats = [csc_matrix(A[:, merged_ROI]) for merged_ROI in merged_ROIs]
-        Ctmp_mats = [C[merged_ROI] for merged_ROI in merged_ROIs]
-        C_to_norms = [np.sqrt(np.ravel(Acsc.power(2).sum(
-                axis=0)) * np.sum(Ctmp ** 2, axis=1)) for (Acsc, Ctmp) in zip(Acsc_mats, Ctmp_mats)]
-        indxs = [np.argmax(C_to_norm) for C_to_norm in C_to_norms]
-        g_idxs = [merged_ROI[indx] for (merged_ROI, indx) in zip(merged_ROIs, indxs)]
-        fms = [fast_merge]*nbmrg
-        tps = [temporal_params]*nbmrg
-        gs = [g]*nbmrg
-        
-        if dview is None:
-           merge_res = list(map(merge_iter, zip(Acsc_mats, C_to_norms, Ctmp_mats, fms, gs, g_idxs, indxs, tps)))
-        elif 'multiprocessin' in str(type(dview)):
-           merge_res = list(dview.map(merge_iter, zip(Acsc_mats, C_to_norms, Ctmp_mats, fms, gs, g_idxs, indxs, tps)))
+            if dview is None:
+               merge_res = list(map(merge_iter, zip(Acsc_mats, C_to_norms, Ctmp_mats, fms, gs, g_idxs, indxs, tps)))
+            elif 'multiprocessin' in str(type(dview)):
+               merge_res = list(dview.map(merge_iter, zip(Acsc_mats, C_to_norms, Ctmp_mats, fms, gs, g_idxs, indxs, tps)))
+            else:
+               merge_res = list(dview.map_sync(merge_iter, zip(Acsc_mats, C_to_norms, Ctmp_mats, fms, gs, g_idxs, indxs, tps)))
+               dview.results.clear()        
+            #merge_res = list(dview.map(merge_iter, zip(Acsc_mats, C_to_norms, Ctmp_mats, fms, gs, g_idxs, indxs, tps)))
+            bl_merged = np.array([res[0] for res in merge_res])
+            c1_merged = np.array([res[1] for res in merge_res])
+            A_merged = scipy.sparse.hstack([csc_matrix(res[2]) for res in merge_res])
+            C_merged = np.vstack([res[3] for res in merge_res])
+            g_merged = np.vstack([res[4] for res in merge_res])
+            sn_merged = np.array([res[5] for res in merge_res])
+            S_merged = np.vstack([res[6] for res in merge_res])
+            R_merged = np.vstack([res[7] for res in merge_res])
         else:
-           merge_res = list(dview.map_sync(merge_iter, zip(Acsc_mats, C_to_norms, Ctmp_mats, fms, gs, g_idxs, indxs, tps)))
-           dview.results.clear()        
-        #merge_res = list(dview.map(merge_iter, zip(Acsc_mats, C_to_norms, Ctmp_mats, fms, gs, g_idxs, indxs, tps)))
-        bl_merged = np.array([res[0] for res in merge_res])
-        c1_merged = np.array([res[1] for res in merge_res])
-        A_merged = scipy.sparse.hstack([csc_matrix(res[2]) for res in merge_res])
-        C_merged = np.vstack([res[3] for res in merge_res])
-        g_merged = np.vstack([res[4] for res in merge_res])
-        sn_merged = np.array([res[5] for res in merge_res])
-        S_merged = np.vstack([res[6] for res in merge_res])
+            # we initialize the values
+            A_merged = lil_matrix((d, nbmrg))
+            C_merged = np.zeros((nbmrg, t))
+            R_merged = np.zeros((nbmrg, t))
+            S_merged = np.zeros((nbmrg, t))
+            bl_merged = np.zeros((nbmrg, 1))
+            c1_merged = np.zeros((nbmrg, 1))
+            sn_merged = np.zeros((nbmrg, 1))
+            g_merged = np.zeros((nbmrg, p))
+            merged_ROIs = []
+            for i in range(nbmrg):
+                merged_ROI = np.where(list_conxcomp[:, ind[i]])[0]
+                logging.info('Merging components {}'.format(merged_ROI))
+                merged_ROIs.append(merged_ROI)
+                Acsc = A.tocsc()[:, merged_ROI]
+                Ctmp = np.array(C)[merged_ROI, :] + np.array(R)[merged_ROI, :]
+                C_to_norm = np.sqrt(np.ravel(Acsc.power(2).sum(
+                    axis=0)) * np.sum(Ctmp ** 2, axis=1))
+                indx = np.argmax(C_to_norm)
+                g_idx = [merged_ROI[indx]]
+                bm, cm, computedA, computedC, gm, sm, ss, yra = merge_iteration(Acsc, C_to_norm, Ctmp, fast_merge, g, g_idx,
+                                                                                indx, temporal_params)
 
-#        for i in range(nbmrg):
-#            merged_ROI = np.where(list_conxcomp[:, ind[i]])[0]
-#            logging.info('Merging components {}'.format(merged_ROI))
-#            merged_ROIs.append(merged_ROI)
-#            Acsc = A.tocsc()[:, merged_ROI]
-#            Ctmp = np.array(C)[merged_ROI, :]
-#
-#
-#            # # we l2 the traces to have normalization values
-#            # C_to_norm = np.sqrt([computedC.dot(computedC)
-#            #                      for computedC in C[merged_ROI]])
-##            fast_merge = False
-#
-#            # from here we are computing initial values for C and A
-#
-#
-#            # this is a  big normalization value that for every one of the merged neuron
-#            C_to_norm = np.sqrt(np.ravel(Acsc.power(2).sum(
-#                axis=0)) * np.sum(Ctmp ** 2, axis=1))
-#            indx = np.argmax(C_to_norm)
-#            g_idx = [merged_ROI[indx]]
-#
-#            bm, cm, computedA, computedC, gm, sm, ss = merge_iteration(Acsc, C_to_norm, Ctmp, fast_merge, g, g_idx,
-#                                                                       indx, temporal_params)
-#
-#            A_merged[:, i] = computedA
-#            C_merged[i, :] = computedC
-#            S_merged[i, :] = ss[:t]
-#            bl_merged[i] = bm
-#            c1_merged[i] = cm
-#            sn_merged[i] = sm
-#            g_merged[i, :] = gm
+                A_merged[:, i] = computedA
+                C_merged[i, :] = computedC
+                R_merged[i, :] = yra
+                S_merged[i, :] = ss[:t]
+                bl_merged[i] = bm
+                c1_merged[i] = cm
+                sn_merged[i] = sm
+                g_merged[i, :] = gm
 
         empty = np.ravel((C_merged.sum(1) == 0) + (A_merged.sum(0) == 0))
         if np.any(empty):
             A_merged = A_merged[:, ~empty]
             C_merged = C_merged[~empty]
+            R_merged = R_merged[~empty]
             S_merged = S_merged[~empty]
             bl_merged = bl_merged[~empty]
             c1_merged = c1_merged[~empty]
             sn_merged = sn_merged[~empty]
             g_merged = g_merged[~empty]
 
-        # we want to remove merged neuron from the initial part and replace them with merged ones
-        neur_id = np.unique(np.hstack(merged_ROIs))
-        good_neurons = np.setdiff1d(list(range(nr)), neur_id)
-        A = scipy.sparse.hstack((A.tocsc()[:, good_neurons], A_merged.tocsc()))
-        C = np.vstack((C[good_neurons, :], C_merged))
-        # we continue for the variables
-        if S is not None:
-            S = np.vstack((S[good_neurons, :], S_merged))
-        if bl is not None:
-            bl = np.hstack((bl[good_neurons], np.array(bl_merged).flatten()))
-        if c1 is not None:
-            c1 = np.hstack((c1[good_neurons], np.array(c1_merged).flatten()))
-        if sn is not None:
-            sn = np.hstack((sn[good_neurons], np.array(sn_merged).flatten()))
-        if g is not None:
-            g = np.vstack(g)[good_neurons]
-            if g.shape[1] == 0:
-                g = np.zeros((len(good_neurons), 1))
-            g = np.vstack((g, g_merged))
-        nr = nr - len(neur_id) + len(C_merged)
+        if len(merged_ROIs) > 0:
+            # we want to remove merged neuron from the initial part and replace them with merged ones
+            neur_id = np.unique(np.hstack(merged_ROIs))
+            good_neurons = np.setdiff1d(list(range(nr)), neur_id)
+            A = scipy.sparse.hstack((A.tocsc()[:, good_neurons], A_merged.tocsc()))
+            C = np.vstack((C[good_neurons, :], C_merged))
+            # we continue for the variables
+            if S is not None:
+                S = np.vstack((S[good_neurons, :], S_merged))
+            if R is not None:
+                R = np.vstack((R[good_neurons, :], R_merged))
+            if bl is not None:
+                bl = np.hstack((bl[good_neurons], np.array(bl_merged).flatten()))
+            if c1 is not None:
+                c1 = np.hstack((c1[good_neurons], np.array(c1_merged).flatten()))
+            if sn is not None:
+                sn = np.hstack((sn[good_neurons], np.array(sn_merged).flatten()))
+            if g is not None:
+                g = np.vstack(g)[good_neurons]
+                if g.shape[1] == 0:
+                    g = np.zeros((len(good_neurons), 1))
+                g = np.vstack((g, g_merged))
+            nr = nr - len(neur_id) + len(C_merged)
 
     else:
         logging.info('No more components merged!')
         merged_ROIs = []
         empty = []
 
-    return A, C, nr, merged_ROIs, S, bl, c1, sn, g, empty
+    return A, C, nr, merged_ROIs, S, bl, c1, sn, g, empty, R
 
 def merge_iter(a):
     Acsc, C_to_norm, Ctmp, fast_merge, g, g_idx, indx, temporal_params = a
@@ -310,11 +315,14 @@ def merge_iteration(Acsc, C_to_norm, Ctmp, fast_merge, g, g_idx, indx, temporal_
                             0, 0] / Acsc.power(2).sum(0).max())
     computedA /= A_to_norm
     computedC *= A_to_norm
+
+    r = (computedA.T.dot(Acsc.dot(Ctmp)))/(computedA.T.dot(computedA)) - computedC
     # we then compute the traces ( deconvolution ) to have a clean c and noise in the background
+    c_in =  np.array(computedC+r).squeeze()
     if g is not None:
-        computedC, bm, cm, gm, sm, ss, lam_ = constrained_foopsi(
-            np.array(computedC).squeeze(), g=g_idx, **temporal_params)
+        deconvC, bm, cm, gm, sm, ss, lam_ = constrained_foopsi(
+            c_in, g=g_idx, **temporal_params)
     else:
-        computedC, bm, cm, gm, sm, ss, lam_ = constrained_foopsi(
-            np.array(computedC).squeeze(), g=None, **temporal_params)
-    return bm, cm, computedA, computedC, gm, sm, ss
+        deconvC, bm, cm, gm, sm, ss, lam_ = constrained_foopsi(
+            c_in, g=None, **temporal_params)
+    return bm, cm, computedA, deconvC, gm, sm, ss, c_in - deconvC

@@ -892,13 +892,14 @@ class CNMF(object):
         """merges components
         """
         self.estimates.A, self.estimates.C, self.estimates.nr, self.estimates.merged_ROIs, self.estimates.S, \
-        self.estimates.bl, self.estimates.c1, self.estimates.neurons_sn, self.estimates.g, self.empty_merged=\
-            merge_components(Y, self.estimates.A, self.estimates.b, self.estimates.C, self.estimates.f, self.estimates.S,
-                             self.estimates.sn, self.params.get_group('temporal'),
+        self.estimates.bl, self.estimates.c1, self.estimates.neurons_sn, self.estimates.g, self.empty_merged, \
+        self.YrA =\
+            merge_components(Y, self.estimates.A, self.estimates.b, self.estimates.C, self.estimates.YrA,
+                             self.estimates.f, self.estimates.S, self.estimates.sn, self.params.get_group('temporal'),
                              self.params.get_group('spatial'), dview=self.dview,
                              bl=self.estimates.bl, c1=self.estimates.c1, sn=self.estimates.neurons_sn,
                              g=self.estimates.g, thr=self.params.get('merging', 'merge_thr'), mx=mx,
-                             fast_merge=fast_merge)
+                             fast_merge=fast_merge, merge_parallel=self.params.get('merging', 'merge_parallel'))
 
         return self
 

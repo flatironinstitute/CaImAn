@@ -332,6 +332,9 @@ class CNMFParams(object):
             thr: float, default: 0.8
                 Trace correlation threshold for merging two components.
 
+            merge_parallel: bool, default: False
+                Perform merging in parallel
+
         QUALITY EVALUATION PARAMETERS (CNMFParams.quality)###########
 
             min_SNR: float, default: 2.5
@@ -649,6 +652,7 @@ class CNMFParams(object):
         self.merging = {
             'do_merge': do_merge,
             'merge_thr': merge_thresh,
+            'merge_parallel': False
         }
 
         self.quality = {
