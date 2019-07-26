@@ -907,7 +907,8 @@ class CNMF(object):
                              self.params.get_group('spatial'), dview=self.dview,
                              bl=self.estimates.bl, c1=self.estimates.c1, sn=self.estimates.neurons_sn,
                              g=self.estimates.g, thr=self.params.get('merging', 'merge_thr'), mx=mx,
-                             fast_merge=fast_merge, max_merge_area=max_merge_area)
+                             fast_merge=fast_merge, merge_parallel=self.params.get('merging', 'merge_parallel'),
+                             max_merge_area=max_merge_area)
 
         return self
 

@@ -31,6 +31,7 @@ import shutil
 from sklearn.decomposition import NMF
 import tempfile
 import time
+import psutil
 from typing import List
 
 from ...mmapping import load_memmap, parallel_dot_product
@@ -226,7 +227,6 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
     if i + n_pixels_per_process < np.prod(dims):
         pixel_groups.append([Y_name, C_name, sn, ind2_[(i + n_pixels_per_process):np.prod(dims)], list(
             range(i + n_pixels_per_process, np.prod(dims))), method_ls, cct])
-    #A_ = np.zeros((d, nr + np.size(f, 0)))  # init A_
     #A_ = scipy.sparse.lil_matrix((d, nr + np.size(f, 0)))
     if dview is not None:
         if 'multiprocessing' in str(type(dview)):
@@ -272,18 +272,18 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
                 f = np.delete(f, background_ff, 0)
                 b_in = np.delete(b_in, background_ff, 1)
 
-    A_ = A_[:, :nr]
-    A_ = coo_matrix(A_)
-    logging.info("Computing residuals")
-
-    if 'memmap' in str(type(Y)):
-        Y_resf = parallel_dot_product(Y, f.T, dview=dview, block_size=block_size_spat, num_blocks_per_run=num_blocks_per_run_spat) - \
-            A_.dot(C[:nr].dot(f.T))
-    else:
-        # Y*f' - A*(C*f')
-        Y_resf = np.dot(Y, f.T) - A_.dot(C[:nr].dot(f.T))
-
+    A_ = A_[:, :nr]    
     if update_background_components:
+        A_ = csr_matrix(A_)
+        logging.info("Computing residuals")
+        if 'memmap' in str(type(Y)):
+            bl_siz1 = Y.shape[0] // (num_blocks_per_run_spat - 1)
+            bl_siz2 = psutil.virtual_memory().available // (4*Y.shape[-1]*(num_blocks_per_run_spat + 1))
+            Y_resf = parallel_dot_product(Y, f.T, dview=dview, block_size=min(bl_siz1, bl_siz2), num_blocks_per_run=num_blocks_per_run_spat) - \
+                A_.dot(C[:nr].dot(f.T))
+        else:
+            # Y*f' - A*(C*f')
+            Y_resf = np.dot(Y, f.T) - A_.dot(C[:nr].dot(f.T))
 
         if b_in is None:
             # update baseline based on residual
@@ -311,7 +311,7 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
     except:
         raise Exception("Failed to delete: " + folder)
 
-    return A_, b, C, f
+    return csc_matrix(A_), b, C, f
 
 def HALS4shape_bckgrnd(Y_resf, B, F, ind_B, iters=5):
     K = B.shape[-1]
@@ -389,7 +389,6 @@ def regression_ipyparallel(pars):
 
     _, T = np.shape(C)  # initialize values
     As = []
-
     for y, px, idx_px_from_0 in zip(Y, idxs_Y, range(len(idxs_C))):
         c = C[idxs_C[idx_px_from_0], :]
         idx_only_neurons = idxs_C[idx_px_from_0]
@@ -410,7 +409,11 @@ def regression_ipyparallel(pars):
             elif method_least_square == 'lasso_lars':  # lasso lars function from scikit learn
                 lambda_lasso = 0 if np.size(cct_) == 0 else \
                     .5 * noise_sn[px] * np.sqrt(np.max(cct_)) / T
-                clf = linear_model.LassoLars(alpha=lambda_lasso, positive=True, fit_intercept=True)
+                clf = linear_model.LassoLars(alpha=lambda_lasso, positive=True,
+                                             fit_intercept=True)
+#                clf = linear_model.Lasso(alpha=lambda_lasso, positive=True,
+#                                         fit_intercept=True, normalize=True,
+#                                         selection='random')
                 a_lrs = clf.fit(np.array(c.T), np.ravel(y))
                 a = a_lrs.coef_
 

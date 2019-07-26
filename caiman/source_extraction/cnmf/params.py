@@ -356,6 +356,9 @@ class CNMFParams(object):
             thr: float, default: 0.8
                 Trace correlation threshold for merging two components.
 
+            merge_parallel: bool, default: False
+                Perform merging in parallel
+
             max_merge_area: int or None, default: None
                 maximum area (in pixels) of merged components, used to determine whether to merge components during fitting process
 
@@ -688,6 +691,7 @@ class CNMFParams(object):
         self.merging = {
             'do_merge': do_merge,
             'merge_thr': merge_thresh,
+            'merge_parallel': False,
             'max_merge_area': max_merge_area
         }
 
