@@ -381,6 +381,55 @@ class Estimates(object):
                                                         thr=thr, denoised_color=denoised_color, cmap=cmap)
         return self
 
+    def hv_view_components(self, Yr=None, img=None, idx=None,
+                           denoised_color=None, cmap='viridis'):
+        """view spatial and temporal components interactively in a notebook
+
+        Args:
+            Yr :    np.ndarray
+                movie in format pixels (d) x frames (T)
+
+            img :   np.ndarray
+                background image for contour plotting. Default is the mean
+                image of all spatial components (d1 x d2)
+
+            idx :   list
+                list of components to be plotted
+
+            denoised_color: string or None
+                color name (e.g. 'red') or hex color code (e.g. '#F0027F')
+
+            cmap: string
+                name of colormap (e.g. 'viridis') used to plot image_neurons
+        """
+        if 'csc_matrix' not in str(type(self.A)):
+            self.A = scipy.sparse.csc_matrix(self.A)
+
+        plt.ion()
+        nr, T = self.C.shape
+        if self.R is None:
+            self.R = self.YrA
+        if self.R.shape != [nr, T]:
+            if self.YrA is None:
+                self.compute_residuals(Yr)
+            else:
+                self.R = self.YrA
+
+        if img is None:
+            img = np.reshape(np.array(self.A.mean(axis=1)), self.dims, order='F')
+
+        if idx is None:
+            hv_plot = caiman.utils.visualization.hv_view_patches(
+                Yr, self.A, self.C, self.b, self.f, self.dims[0], self.dims[1],
+                YrA=self.R, image_neurons=img, denoised_color=denoised_color,
+                cmap=cmap)
+        else:
+            hv_plot = caiman.utils.visualization.hv_view_patches(
+                Yr, self.A.tocsc()[:, idx], self.C[idx], self.b, self.f,
+                self.dims[0], self.dims[1], YrA=self.R[idx], image_neurons=img,
+                denoised_color=denoised_color, cmap=cmap)
+        return hv_plot
+
     def nb_view_components_3d(self, Yr=None, image_type='mean', dims=None,
                               max_projection=False, axis=0,
                               denoised_color=None, cmap='jet', thr=0.9):
