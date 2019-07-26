@@ -76,7 +76,7 @@ class CNMF(object):
     """
     def __init__(self, n_processes, k=5, gSig=[4, 4], gSiz=None, merge_thresh=0.8, p=2, dview=None,
                  Ain=None, Cin=None, b_in=None, f_in=None, do_merge=True,
-                 ssub=2, tsub=2, p_ssub=1, p_tsub=1, method_init='greedy_roi', alpha_snmf=None,
+                 ssub=2, tsub=2, p_ssub=1, p_tsub=1, method_init='greedy_roi', alpha_snmf=100,
                  rf=None, stride=None, memory_fact=1, gnb=1, nb_patch=1, only_init_patch=False,
                  method_deconvolution='oasis', n_pixels_per_process=4000, block_size_temp=5000, num_blocks_per_run_temp=20,
                  block_size_spat=5000, num_blocks_per_run_spat=20,
@@ -292,7 +292,8 @@ class CNMF(object):
                 n_refit=n_refit, num_times_comp_updated=num_times_comp_updated, simultaneously=simultaneously,
                 sniper_mode=sniper_mode, test_both=test_both, thresh_CNN_noisy=thresh_CNN_noisy,
                 thresh_fitness_delta=thresh_fitness_delta, thresh_fitness_raw=thresh_fitness_raw, thresh_overlap=thresh_overlap,
-                update_num_comps=update_num_comps, use_dense=use_dense, use_peak_max=use_peak_max, max_merge_area=max_merge_area
+                update_num_comps=update_num_comps, use_dense=use_dense, use_peak_max=use_peak_max, alpha_snmf=alpha_snmf,
+                max_merge_area=max_merge_area
             )
         else:
             self.params = params
@@ -587,11 +588,11 @@ class CNMF(object):
                 else:
                     while len(self.estimates.merged_ROIs) > 0:
                         self.merge_comps(Yr, mx=np.Inf, fast_merge=True)
-                        if len(self.estimates.merged_ROIs) > 0:
-                            not_merged = np.setdiff1d(list(range(len(self.estimates.YrA))),
-                                                      np.unique(np.concatenate(self.estimates.merged_ROIs)))
-                            self.estimates.YrA = np.concatenate([self.estimates.YrA[not_merged],
-                                                       np.array([self.estimates.YrA[m].mean(0) for ind, m in enumerate(self.estimates.merged_ROIs) if not self.empty_merged[ind]])])
+                        #if len(self.estimates.merged_ROIs) > 0:
+                            #not_merged = np.setdiff1d(list(range(len(self.estimates.YrA))),
+                            #                          np.unique(np.concatenate(self.estimates.merged_ROIs)))
+                            #self.estimates.YrA = np.concatenate([self.estimates.YrA[not_merged],
+                            #                           np.array([self.estimates.YrA[m].mean(0) for ind, m in enumerate(self.estimates.merged_ROIs) if not self.empty_merged[ind]])])
                     if self.params.get('init', 'nb') == 0:
                         self.estimates.W, self.estimates.b0 = compute_W(
                             Yr, self.estimates.A.toarray(), self.estimates.C, self.dims,
@@ -899,13 +900,15 @@ class CNMF(object):
         """merges components
         """
         self.estimates.A, self.estimates.C, self.estimates.nr, self.estimates.merged_ROIs, self.estimates.S, \
-        self.estimates.bl, self.estimates.c1, self.estimates.neurons_sn, self.estimates.g, self.empty_merged=\
-            merge_components(Y, self.estimates.A, self.estimates.b, self.estimates.C, self.estimates.f, self.estimates.S,
-                             self.estimates.sn, self.params.get_group('temporal'),
+        self.estimates.bl, self.estimates.c1, self.estimates.neurons_sn, self.estimates.g, self.empty_merged, \
+        self.estimates.YrA =\
+            merge_components(Y, self.estimates.A, self.estimates.b, self.estimates.C, self.estimates.YrA,
+                             self.estimates.f, self.estimates.S, self.estimates.sn, self.params.get_group('temporal'),
                              self.params.get_group('spatial'), dview=self.dview,
                              bl=self.estimates.bl, c1=self.estimates.c1, sn=self.estimates.neurons_sn,
                              g=self.estimates.g, thr=self.params.get('merging', 'merge_thr'), mx=mx,
-                             fast_merge=fast_merge, max_merge_area=max_merge_area)
+                             fast_merge=fast_merge, merge_parallel=self.params.get('merging', 'merge_parallel'),
+                             max_merge_area=max_merge_area)
 
         return self
 

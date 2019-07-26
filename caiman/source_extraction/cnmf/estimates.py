@@ -677,7 +677,7 @@ class Estimates(object):
         if self.YrA is not None:
             self.YrA = nA_mat * self.YrA
         if self.R is not None:
-            self.R = nA_mat * self.R
+            self.R = nA_mat * self.YrA
         if self.bl is not None:
             self.bl = nA * self.bl
         if self.c1 is not None:
@@ -1075,6 +1075,7 @@ class Estimates(object):
         # we initialize the values
         A_merged = scipy.sparse.lil_matrix((d, nbmrg))
         C_merged = np.zeros((nbmrg, T))
+        R_merged = np.zeros((nbmrg, T))
         S_merged = np.zeros((nbmrg, T))
         bl_merged = np.zeros((nbmrg, 1))
         c1_merged = np.zeros((nbmrg, 1))
@@ -1096,11 +1097,12 @@ class Estimates(object):
             g_idx = [merged_ROI[indx]]
             fast_merge = True
             bm, cm, computedA, computedC, gm, \
-            sm, ss = merge_iteration(Acsc, C_to_norm, Ctmp, fast_merge, 
-                                     None, g_idx, indx, params.temporal)
+            sm, ss, yra = merge_iteration(Acsc, C_to_norm, Ctmp, fast_merge,
+                                          None, g_idx, indx, params.temporal)
 
             A_merged[:, i] = computedA
             C_merged[i, :] = computedC
+            R_merged[i, :] = yra
             S_merged[i, :] = ss[:T]
             bl_merged[i] = bm
             c1_merged[i] = cm
@@ -1112,6 +1114,7 @@ class Estimates(object):
         if np.any(empty):
             A_merged = A_merged[:, ~empty]
             C_merged = C_merged[~empty]
+            R_merged = R_merged[~empty]
             S_merged = S_merged[~empty]
             bl_merged = bl_merged[~empty]
             c1_merged = c1_merged[~empty]
@@ -1139,6 +1142,9 @@ class Estimates(object):
                                       A_merged.tocsc()))
         self.C = np.vstack((self.C[good_neurons, :], C_merged))
         # we continue for the variables
+        if self.YrA is not None:
+            self.YrA = np.vstack((self.YrA[good_neurons, :], R_merged))
+            self.R = self.YrA
         if self.S is not None:
             self.S = np.vstack((self.S[good_neurons, :], S_merged))
         if self.bl is not None:
@@ -1157,7 +1163,7 @@ class Estimates(object):
             self.coordinates = caiman.utils.visualization.get_contours(self.A,\
                                 self.dims, thr_method='max', thr='0.2')
 
-    def threshold_spatial_components(self, maxthr=0.25, dview=None, **kwargs):
+    def threshold_spatial_components(self, maxthr=0.25, dview=None):
         ''' threshold spatial components. See parameters of
         spatial.threshold_components
 
@@ -1174,7 +1180,8 @@ class Estimates(object):
         if self.A_thr is None:
             A_thr = threshold_components(self.A, self.dims,  maxthr=maxthr, dview=dview,
                                          medw=None, thr_method='max', nrgthr=0.99,
-                                         extract_cc=True, se=None, ss=None, **kwargs)
+                                         extract_cc=True, se=None, ss=None)
+
             self.A_thr = A_thr
         else:
             print('A_thr already computed. If you want to recompute set self.A_thr to None')

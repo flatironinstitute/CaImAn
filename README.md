@@ -252,6 +252,7 @@ Special thanks to the following people for letting us use their datasets for our
 * Weijian Yang, Darcy Peterka, Rafael Yuste, Columbia University
 * Sue Ann Koay, David Tank, Princeton University
 * Manolis Froudarakis, Jake Reimers, Andreas Tolias, Baylor College of Medicine
+* Clay Lacefield, Randy Bruno, Columbia University
 
 
 ## License

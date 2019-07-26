@@ -17,7 +17,7 @@ class CNMFParams(object):
                  memory_fact=1, n_processes=1, nb_patch=1, p_ssub=2, p_tsub=2,
                  remove_very_bad_comps=False, rf=None, stride=None,
                  check_nan=True, n_pixels_per_process=None,
-                 k=30, alpha_snmf=10e2, center_psf=False, gSig=[5, 5], gSiz=None,
+                 k=30, alpha_snmf=100, center_psf=False, gSig=[5, 5], gSiz=None,
                  init_iter=2, method_init='greedy_roi', min_corr=.85,
                  min_pnr=20, gnb=1, normalize_init=True, options_local_NMF=None,
                  ring_size_factor=1.5, rolling_length=100, rolling_sum=True,
@@ -154,6 +154,24 @@ class CNMFParams(object):
             K: int, default: 30
                 number of components to be found (per patch or whole FOV depending on whether rf=None)
 
+            SC_kernel: {'heat', 'cos', binary'}, default: 'heat'
+                kernel for graph affinity matrix
+
+            SC_sigma: float, default: 1
+                variance for SC kernel
+
+            SC_thr: float, default: 0,
+                threshold for affinity matrix
+
+            SC_normalize: bool, default: True
+                standardize entries prior to computing the affinity matrix
+
+            SC_use_NN: bool, default: False
+                sparsify affinity matrix by using only nearest neighbors
+
+            SC_nnn: int, default: 20
+                number of nearest neighbors to use
+
             gSig: [int, int], default: [5, 5]
                 radius of average neurons (in pixels)
 
@@ -171,6 +189,9 @@ class CNMFParams(object):
 
             nb: int, default: 1
                 number of background components
+
+            lambda_gnmf: float, default: 1.
+                regularization weight for graph NMF
 
             maxIter: int, default: 5
                 number of HALS iterations during initialization
@@ -208,7 +229,7 @@ class CNMFParams(object):
             max_iter_snmf : int, default: 500
                 maximum number of iterations for sparse NMF initialization
 
-            alpha_snmf: float, default: 10e2
+            alpha_snmf: float, default: 100
                 sparse NMF sparsity regularization weight
 
             sigma_smooth_snmf : (float, float, float), default: (.5,.5,.5)
@@ -334,6 +355,9 @@ class CNMFParams(object):
 
             thr: float, default: 0.8
                 Trace correlation threshold for merging two components.
+
+            merge_parallel: bool, default: False
+                Perform merging in parallel
 
             max_merge_area: int or None, default: None
                 maximum area (in pixels) of merged components, used to determine whether to merge components during fitting process
@@ -536,7 +560,7 @@ class CNMFParams(object):
             'decay_time': decay_time,
             'dxy': dxy,
             'var_name_hdf5': var_name_hdf5,
-            'caiman_version': 1.5,
+            'caiman_version': '1.5.2',
             'last_commit': None,
         }
 
@@ -574,6 +598,14 @@ class CNMFParams(object):
 
         self.init = {
             'K': k,                   # number of components,
+            'SC_kernel': 'heat',         # kernel for graph affinity matrix
+            'SC_sigma' : 1,              # std for SC kernel
+            'SC_thr': 0,                 # threshold for affinity matrix
+            'SC_normalize': True,        # standardize entries prior to 
+                                         # computing affinity matrix
+            'SC_use_NN': False,          # sparsify affinity matrix by using
+                                         # only nearest neighbors
+            'SC_nnn': 20,                # number of nearest neighbors to use
             'alpha_snmf': alpha_snmf,
             'center_psf': center_psf,
             'gSig': gSig,
@@ -581,6 +613,7 @@ class CNMFParams(object):
             'gSiz': gSiz,
             'init_iter': init_iter,
             'kernel': None,           # user specified template for greedyROI
+            'lambda_gnmf' :1,         # regularization weight for graph NMF  
             'maxIter': 5,             # number of HALS iterations
             'max_iter_snmf': 500,
             'method_init': method_init,    # can be greedy_roi, greedy_pnr sparse_nmf, local_NMF
@@ -658,6 +691,7 @@ class CNMFParams(object):
         self.merging = {
             'do_merge': do_merge,
             'merge_thr': merge_thresh,
+            'merge_parallel': False,
             'max_merge_area': max_merge_area
         }
 
