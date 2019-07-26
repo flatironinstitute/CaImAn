@@ -15,7 +15,7 @@ import numpy as np
 import logging
 from past.utils import old_div
 import scipy
-from scipy.sparse import coo_matrix, csgraph, csc_matrix, lil_matrix
+from scipy.sparse import csgraph, csc_matrix, lil_matrix, csr_matrix
 
 from .spatial import update_spatial_components, threshold_components
 from .temporal import update_temporal_components
@@ -216,7 +216,7 @@ def merge_components(Y, A, b, C, R, f, S, sn_pix, temporal_params,
             #merge_res = list(dview.map(merge_iter, zip(Acsc_mats, C_to_norms, Ctmp_mats, fms, gs, g_idxs, indxs, tps)))
             bl_merged = np.array([res[0] for res in merge_res])
             c1_merged = np.array([res[1] for res in merge_res])
-            A_merged = scipy.sparse.hstack([csc_matrix(res[2]) for res in merge_res])
+            A_merged = scipy.sparse.vstack([csc_matrix(res[2]) for res in merge_res]).T
             C_merged = np.vstack([res[3] for res in merge_res])
             g_merged = np.vstack([res[4] for res in merge_res])
             sn_merged = np.array([res[5] for res in merge_res])
@@ -246,7 +246,7 @@ def merge_components(Y, A, b, C, R, f, S, sn_pix, temporal_params,
                 bm, cm, computedA, computedC, gm, sm, ss, yra = merge_iteration(Acsc, C_to_norm, Ctmp, fast_merge, g, g_idx,
                                                                                 indx, temporal_params)
 
-                A_merged[:, i] = computedA
+                A_merged[:, i] = csr_matrix(computedA).T
                 C_merged[i, :] = computedC
                 R_merged[i, :] = yra
                 S_merged[i, :] = ss[:t]
@@ -308,28 +308,37 @@ def merge_iter(a):
 def merge_iteration(Acsc, C_to_norm, Ctmp, fast_merge, g, g_idx, indx, temporal_params):
     if fast_merge:
         # we normalize the values of different A's to be able to compare them efficiently. we then sum them
-        computedA = Acsc.dot(scipy.sparse.diags(
-            C_to_norm, 0, (len(C_to_norm), len(C_to_norm)))).sum(axis=1)
 
-        # we operate a rank one NMF, refining it multiple times (see cnmf demos )
+        computedA = Acsc.dot(C_to_norm)
         for _ in range(10):
-            computedC = np.maximum(Acsc.T.dot(computedA).T.dot(
-                Ctmp) / (computedA.T * computedA), 0)
-            if computedC * computedC.T == 0:
+            computedC = np.maximum((Acsc.T.dot(computedA)).dot(Ctmp) /
+                                   (computedA.T.dot(computedA)), 0)
+            nc = computedC.T.dot(computedC)
+            if nc == 0:
                 break
-            computedA = np.maximum(
-                Acsc.dot(Ctmp.dot(computedC.T)) / (computedC * computedC.T), 0)
+            computedA = np.maximum(Acsc.dot(Ctmp.dot(computedC.T)) / nc, 0)
+
+#        computedA = Acsc.dot(scipy.sparse.diags(
+#            C_to_norm, 0, (len(C_to_norm), len(C_to_norm)))).sum(axis=1)
+#
+#        # we operate a rank one NMF, refining it multiple times (see cnmf demos )
+#        for _ in range(10):
+#            computedC = np.maximum(Acsc.T.dot(computedA).T.dot(
+#                Ctmp) / (computedA.T * computedA), 0)
+#            if computedC * computedC.T == 0:
+#                break
+#            computedA = np.maximum(
+#                Acsc.dot(Ctmp.dot(computedC.T)) / (computedC * computedC.T), 0)
     else:
         logging.info('Simple merging ny taking best neuron')
         computedC = Ctmp[indx]
         computedA = Acsc[:, indx]
     # then we de-normalize them using A_to_norm
-    A_to_norm = np.sqrt(computedA.T.dot(computedA)[
-                            0, 0] / Acsc.power(2).sum(0).max())
+    A_to_norm = np.sqrt(computedA.T.dot(computedA)) #/Acsc.power(2).sum(0).max())
     computedA /= A_to_norm
     computedC *= A_to_norm
-
-    r = (computedA.T.dot(Acsc.dot(Ctmp)))/(computedA.T.dot(computedA)) - computedC
+    # r = (computedA.T.dot(Acsc.dot(Ctmp)))/(computedA.T.dot(computedA)) - computedC
+    r = ((Acsc.T.dot(computedA)).dot(Ctmp))/(computedA.T.dot(computedA)) - computedC
     # we then compute the traces ( deconvolution ) to have a clean c and noise in the background
     c_in =  np.array(computedC+r).squeeze()
     if g is not None:
