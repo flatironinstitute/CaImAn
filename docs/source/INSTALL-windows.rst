@@ -25,11 +25,8 @@ Process
    commandline git is acceptable, but may lead to issues depending on
    default settings
 -  Install Microsoft Build Tools for Visual Studio 2017
-   https://www.visualstudio.com/downloads/#build-tools-for-visual-studio-2017.
-   Check the "Build Tools" box, and in the detailed view on the right
-   check the "C/C++ CLI Tools" component too. The specifics of this
-   occasionally change as Microsoft changes its products and website;
-   you may need to go off-script.
+   https://www.visualstudio.com/downloads/#build-tools-for-visual-studio-2017. You will want the complete desktop install (other major components are not necessary, like mobile development). Click into the details and be sure that the Windows SDK is selected (the most recent version matching your Windows version is fine - you only need/want one). There also may be mention of CLI build tools (for C/C++) under the details window - hopefully these are selected by default but if not, select them too. Follow any instructions you find on the Microsoft website to complete the VC++ install.
+
 
 Use the following menu item to launch a anaconda-enabled command prompt:
 start>programs>anaconda3>anaconda prompt From that prompt. issue the
@@ -41,26 +38,13 @@ branches after the clone):
    git clone https://github.com/flatironinstitute/CaImAn
    cd CaImAn
    conda env create -f environment.yml -n caiman
-   conda install -n caiman vs2017_win-64
 
-At this point you will want to remove a startup script that visual
-studio made for your conda environment that can cause conda to crash
-while entering the caiman environment. Use the Windows find-file utility
-(under the Start Menu) to look for vs2015\_compiler\_vars.bat and/or
-vs2015\_compiler\_vars.bat under your home directory. At least one copy
-should show up. Delete the version that has
-conda:raw-latex:`\envs`:raw-latex:`\caiman `as part of its location. You
-may also want to do a search for keras\_activate.bat under your home
-directory, find the one in conda:raw-latex:`\envs`:raw-latex:`\caiman`,
-and edit it so KERAS\_BACKEND is set to tensorflow rather than theano.
-You may then continue the installation.
 
 .. code:: bash
 
-   activate caiman
+   conda activate caiman
    pip install . (OR pip install -e . if you want to develop code)
    copy caimanmanager.py ..
-   conda install numba
    cd ..
 
 Setting up a data directory with caimanmanager

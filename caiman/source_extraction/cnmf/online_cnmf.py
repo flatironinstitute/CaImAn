@@ -18,7 +18,6 @@ from builtins import map
 from builtins import range
 from builtins import str
 from builtins import zip
-
 import cv2
 from multiprocessing import current_process, cpu_count
 import logging
@@ -27,12 +26,13 @@ import numpy as np
 from past.utils import old_div
 from scipy.ndimage import percentile_filter
 from scipy.ndimage.filters import gaussian_filter
-from scipy.sparse import coo_matrix, csc_matrix, spdiags
+from scipy.sparse import coo_matrix, csc_matrix, spdiags, hstack
 from scipy.stats import norm
 from sklearn.decomposition import NMF
 from sklearn.preprocessing import normalize
 from time import time
 from typing import List, Tuple
+import tensorflow as tf
 
 import caiman
 from .cnmf import CNMF
@@ -45,9 +45,11 @@ from .utilities import update_order, get_file_size, peak_local_max, decimation_m
 from ... import mmapping
 from ...components_evaluation import compute_event_exceptionality
 from ...motion_correction import motion_correct_iteration_fast, tile_and_correct, high_pass_filter_space
-from ...utils.utils import save_dict_to_hdf5, load_dict_from_hdf5, parmap
+from ...utils.utils import save_dict_to_hdf5, load_dict_from_hdf5, parmap, load_graph
 from ...utils.stats import pd_solve
 from ... import summary_images
+from ...motion_correction import (motion_correct_iteration_fast,
+                                  tile_and_correct, sliding_window)
 
 try:
     cv2.setNumThreads(0)
@@ -58,7 +60,6 @@ try:
     profile
 except:
     def profile(a): return a
-
 
 class OnACID(object):
     """  Source extraction of streaming data using online matrix factorization.
@@ -81,19 +82,18 @@ class OnACID(object):
             Run the entire online pipeline on a given list of files
     """
 
-    def __init__(self, params=None, estimates=None, dview=None):
-        if params is None:
-            self.params = CNMFParams()
+    def __init__(self, params=None, estimates=None, path=None, dview=None):
+        if path is None:
+            self.params = CNMFParams() if params is None else params
+            self.estimates = Estimates() if estimates is None else estimates
         else:
-            self.params = params
-
-        if estimates is None:
-            self.estimates = Estimates()
-        else:
-            self.estimates = estimates
-
+            onacid = load_OnlineCNMF(path)
+            self.params = params if params is not None else onacid.params
+            self.estimates= estimates if estimates is not None else onacid.estimates
         self.dview = dview
-
+#            if params is None or estimates is None:
+#                raise ValueError("Cannot Specify Estimates and Params While \
+#                                 Loading Object From File")
 
     @profile
     def _prepare_object(self, Yr, T, new_dims=None, idx_components=None):
@@ -132,7 +132,8 @@ class OnACID(object):
                 print(tmp.shape)
                 new_Yr[:, ffrr] = tmp.reshape([np.prod(new_dims)], order='F')
             Yr = new_Yr
-            A_new = csc_matrix((np.prod(new_dims), self.estimates.A.shape[-1]), dtype=np.float32)
+            A_new = csc_matrix((np.prod(new_dims), self.estimates.A.shape[-1]),
+                               dtype=np.float32)
             for neur in range(self.N):
                 a = self.estimates.A.tocsc()[:, neur].toarray()
                 a = a.reshape(old_dims, order='F')
@@ -289,22 +290,38 @@ class OnACID(object):
         if self.params.get('online', 'path_to_model') is None or self.params.get('online', 'sniper_mode') is False:
             loaded_model = None
             self.params.set('online', {'sniper_mode': False})
+            self.tf_in = None
+            self.tf_out = None
         else:
-            import keras
-            from keras.models import model_from_json
-            path = self.params.get('online', 'path_to_model').split(".")[:-1]
-            json_path = ".".join(path + ["json"])
-            model_path = ".".join(path + ["h5"])
-
-            json_file = open(json_path, 'r')
-            loaded_model_json = json_file.read()
-            json_file.close()
-            loaded_model = model_from_json(loaded_model_json)
-            loaded_model.load_weights(model_path)
-            opt = keras.optimizers.rmsprop(lr=0.0001, decay=1e-6)
-            loaded_model.compile(loss=keras.losses.categorical_crossentropy,
-                                 optimizer=opt, metrics=['accuracy'])
-
+            try:
+                import keras
+                from keras.models import model_from_json
+                #logging.debug('Using Keras')
+                use_keras = True
+            except(ModuleNotFoundError):
+                use_keras = False
+                #logging.debug('Using Tensorflow')
+            if use_keras:
+                path = self.params.get('online', 'path_to_model').split(".")[:-1]
+                json_path = ".".join(path + ["json"])
+                model_path = ".".join(path + ["h5"])
+                json_file = open(json_path, 'r')
+                loaded_model_json = json_file.read()
+                json_file.close()
+                loaded_model = model_from_json(loaded_model_json)
+                loaded_model.load_weights(model_path)
+                opt = keras.optimizers.rmsprop(lr=0.0001, decay=1e-6)
+                loaded_model.compile(loss=keras.losses.categorical_crossentropy,
+                                     optimizer=opt, metrics=['accuracy'])
+                self.tf_in = None
+                self.tf_out = None
+            else:
+                path = self.params.get('online', 'path_to_model').split(".")[:-1]
+                model_path = '.'.join(path + ['h5', 'pb'])
+                loaded_model = load_graph(model_path)
+                self.tf_in = loaded_model.get_tensor_by_name('prefix/conv2d_1_input:0')
+                self.tf_out = loaded_model.get_tensor_by_name('prefix/output_node0:0')
+                loaded_model = tf.Session(graph=loaded_model)
         self.loaded_model = loaded_model
 
         if self.is1p:
@@ -502,6 +519,7 @@ class OnACID(object):
                 sniper_mode=self.params.get('online', 'sniper_mode'),
                 use_peak_max=self.params.get('online', 'use_peak_max'),
                 mean_buff=self.estimates.mean_buff,
+                tf_in=self.tf_in, tf_out=self.tf_out,
                 ssub_B=ssub_B, W=self.estimates.W if self.is1p else None,
                 b0=self.estimates.b0 if self.is1p else None,
                 corr_img=self.estimates.corr_img if use_corr else None,
@@ -672,7 +690,6 @@ class OnACID(object):
                 self.estimates.CC = self.estimates.CC * w1 + w2 * ccf.dot(ccf.T)
 
         else:
-
             ccf = self.estimates.C_on[:self.M, t - self.params.get('online', 'minibatch_suff_stat'):t -
                                       self.params.get('online', 'minibatch_suff_stat') + 1]
             y = self.estimates.Yr_buf.get_last_frames(self.params.get('online', 'minibatch_suff_stat') + 1)[:1]
@@ -884,18 +901,23 @@ class OnACID(object):
         opts = self.params.get_group('online')
         Y = caiman.load(fls[0], subindices=slice(0, opts['init_batch'],
                  None), var_name_hdf5=self.params.get('data', 'var_name_hdf5')).astype(np.float32)
-
+        # Downsample if needed
         ds_factor = np.maximum(opts['ds_factor'], 1)
         if ds_factor > 1:
             Y = Y.resize(1./ds_factor, 1./ds_factor)
-        mc_flag = self.params.get('online', 'motion_correct')
         self.estimates.shifts = []  # store motion shifts here
         self.estimates.time_new_comp = []
-        if mc_flag:
+        if self.params.get('online', 'motion_correct'):
             max_shifts_online = self.params.get('online', 'max_shifts_online')
             mc = Y.motion_correct(max_shifts_online, max_shifts_online)
             Y = mc[0].astype(np.float32)
-            self.estimates.shifts.extend(mc[1])
+            if self.params.get('motion', 'pw_rigid'):
+                n_p = len([(it[0], it[1])
+                 for it in sliding_window(Y[0], self.params.get('motion', 'overlaps'), self.params.get('motion', 'strides'))])
+                for sh in mc[1]:
+                    self.estimates.shifts.append([tuple(sh) for i in range(n_p)])
+            else:
+                self.estimates.shifts.extend(mc[1])                
 
         img_min = Y.min()
 
@@ -1009,6 +1031,7 @@ class OnACID(object):
         else:
             raise Exception("Unsupported file extension")
 
+
     def fit_online(self, **kwargs):
         """Implements the caiman online algorithm on the list of files fls. The
         files are taken in alpha numerical order and are assumed to each have
@@ -1036,7 +1059,7 @@ class OnACID(object):
         Returns:
             self (results of caiman online)
         """
-
+        
         fls = self.params.get('data', 'fnames')
         init_batch = self.params.get('online', 'init_batch')
         epochs = self.params.get('online', 'epochs')
@@ -1066,17 +1089,19 @@ class OnACID(object):
             out = cv2.VideoWriter(self.params.get('online', 'movie_name_online'),
                                   fourcc, 30, tuple([int(resize_fact*2*x) for x in self.params.get('data', 'dims')]),
                                   True)
+        # Iterate through the epochs
         for iter in range(epochs):
             if iter > 0:
                 # if not on first epoch process all files from scratch
                 process_files = fls[:init_files + extra_files]
                 init_batc_iter = [0] * (extra_files + init_files)
 
+        #     Go through all files
             for file_count, ffll in enumerate(process_files):
                 logging.info('Now processing file {}'.format(ffll))
                 Y_ = caiman.load(ffll, var_name_hdf5=self.params.get('data', 'var_name_hdf5'), 
                                  subindices=slice(init_batc_iter[file_count], None, None))
-
+                
                 old_comps = self.N     # number of existing components
                 for frame_count, frame in enumerate(Y_):   # process each file
                     t_frame_start = time()
@@ -1091,13 +1116,16 @@ class OnACID(object):
                                      + str(self.estimates.Ab.shape[-1] - self.params.get('init', 'nb')))
                         old_comps = self.N
 
+                    # Downsample and normalize
                     frame_ = frame.copy().astype(np.float32)
                     if self.params.get('online', 'ds_factor') > 1:
                         frame_ = cv2.resize(frame_, self.img_norm.shape[::-1])
-
+                    
                     if self.params.get('online', 'normalize'):
                         frame_ -= self.img_min     # make data non-negative
-                    t_mot = time()    
+                    t_mot = time()
+
+                    # Motion Correction
                     if self.params.get('online', 'motion_correct'):    # motion correct
                         templ = self.estimates.Ab.dot(
                                 self.estimates.C_on[:self.M, t-1]).reshape(self.params.get('data', 'dims'), order='F')#*self.img_norm
@@ -1116,11 +1144,11 @@ class OnACID(object):
                         if self.is1p:
                             templ = high_pass_filter_space(templ, self.params.motion['gSig_filt'])
                         if self.params.get('motion', 'pw_rigid'):
-                            frame_cor, shift = tile_and_correct(frame_, templ, self.params.motion['strides'], self.params.motion['overlaps'], 
-                                                                self.params.motion['max_shifts'], newoverlaps=None, newstrides=None, upsample_factor_grid=4,
-                                                                upsample_factor_fft=10, show_movie=False, max_deviation_rigid=self.params.motion['max_deviation_rigid'],
-                                                                add_to_movie=0, shifts_opencv=True, gSig_filt=self.params.motion['gSig_filt'],
-                                                                use_cuda=False, border_nan='copy')[:2]
+                            frame_cor, shift, _, xy_grid = tile_and_correct(frame_, templ, self.params.motion['strides'], self.params.motion['overlaps'],
+                                                                            self.params.motion['max_shifts'], newoverlaps=None, newstrides=None, upsample_factor_grid=4,
+                                                                            upsample_factor_fft=10, show_movie=False, max_deviation_rigid=self.params.motion['max_deviation_rigid'],
+                                                                            add_to_movie=0, shifts_opencv=True, gSig_filt=None,
+                                                                            use_cuda=False, border_nan='copy')
                         else:
                             if self.is1p:
                                 frame_orig = frame_.copy()
@@ -1140,7 +1168,9 @@ class OnACID(object):
                     
                     if self.params.get('online', 'normalize'):
                         frame_cor = frame_cor/self.img_norm
+                    # Fit next frame
                     self.fit_next(t, frame_cor.reshape(-1, order='F'))
+                    # Show
                     if self.params.get('online', 'show_movie'):
                         self.t = t
                         vid_frame = self.create_frame(frame_cor, resize_fact=resize_fact)
@@ -1156,7 +1186,9 @@ class OnACID(object):
                             break
                     t += 1
                     t_online.append(time() - t_frame_start)
+        
             self.Ab_epoch.append(self.estimates.Ab.copy())
+
         if self.params.get('online', 'normalize'):
             self.estimates.Ab *= self.img_norm.reshape(-1, order='F')[:,np.newaxis]
             self.estimates.Ab = csc_matrix(self.estimates.Ab)
@@ -1165,12 +1197,25 @@ class OnACID(object):
                          epochs:t], self.estimates.C_on[:self.params.get('init', 'nb'), t - t // epochs:t]
         noisyC = self.estimates.noisyC[self.params.get('init', 'nb'):self.M, t - t // epochs:t]
         self.estimates.YrA = noisyC - self.estimates.C
-        self.estimates.bl = [osi.b for osi in self.estimates.OASISinstances] if hasattr(
-            self, 'OASISinstances') else [0] * self.estimates.C.shape[0]
+        if self.estimates.OASISinstances is not None:
+            self.estimates.bl = [osi.b for osi in self.estimates.OASISinstances]
+            self.estimates.S = np.stack([osi.s for osi in self.estimates.OASISinstances])
+            self.estimates.S = self.estimates.S[:, t - t // epochs:t]
+        else:
+            self.estimates.bl = [0] * self.estimates.C.shape[0]
+            self.estimates.S = np.zeros_like(self.estimates.C)
+        if self.params.get('online', 'ds_factor') > 1:
+            dims = Y_.shape[1:]
+            self.estimates.A = hstack([coo_matrix(cv2.resize(self.estimates.A[:, i].reshape(self.dims, order='F').toarray(),
+                                                            dims[::-1]).reshape(-1, order='F')[:,None]) for i in range(self.N)], format='csc')
+            self.estimates.b = np.concatenate([cv2.resize(self.estimates.b[:, i].reshape(self.dims, order='F'),
+                                                          dims[::-1]).reshape(-1, order='F')[:,None] for i in range(self.params.get('init', 'nb'))], axis=1)
+            self.params.set('data', {'dims': dims})
+            self.estimates.dims = dims
         if self.params.get('online', 'save_online_movie'):
-            out.release()
+            out.release() 
         if self.params.get('online', 'show_movie'):
-            cv2.destroyAllWindows()
+            cv2.destroyAllWindows() 
         self.t_online = t_online
         self.estimates.C_on = self.estimates.C_on[:self.M]
         self.estimates.noisyC = self.estimates.noisyC[:self.M]
@@ -1369,7 +1414,6 @@ def seeded_initialization(Y, Ain, dims=None, init_batch=1000, order_init=None, g
         not_px = np.array(not_px).flatten()
     Yr = np.reshape(Y, (Ain.shape[0], Y.shape[-1]), order='F')
     model = NMF(n_components=gnb, init='nndsvdar', max_iter=10)
-    b_temp = model.fit_transform(np.maximum(Yr[not_px], 0))
     f_in = model.components_.squeeze()
     f_in = np.atleast_2d(f_in)
     Y_resf = np.dot(Yr, f_in.T)
@@ -1860,14 +1904,14 @@ def rank1nmf(Ypx, ain):
     cin = np.maximum(cin_res, 0)
     return ain, cin, cin_res
 
-
 #%%
 @profile
 def get_candidate_components(sv, dims, Yres_buf, min_num_trial=3, gSig=(5, 5),
                              gHalf=(5, 5), sniper_mode=True, rval_thr=0.85,
                              patch_size=50, loaded_model=None, test_both=False,
                              thresh_CNN_noisy=0.5, use_peak_max=False,
-                             thresh_std_peak_resid = 1, mean_buff=None):
+                             thresh_std_peak_resid = 1, mean_buff=None,
+                             tf_in=None, tf_out=None):
     """
     Extract new candidate components from the residual buffer and test them
     using space correlation or the CNN classifier. The function runs the CNN
@@ -1970,9 +2014,11 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial=3, gSig=(5, 5),
         Ain2 /= np.std(Ain2,axis=1)[:,None]
         Ain2 = np.reshape(Ain2,(-1,) + tuple(np.diff(ijSig_cnn).squeeze()),order= 'F')
         Ain2 = np.stack([cv2.resize(ain,(patch_size ,patch_size)) for ain in Ain2])
-        predictions = loaded_model.predict(Ain2[:,:,:,np.newaxis], batch_size=min_num_trial, verbose=0)
+        if tf_in is None:
+            predictions = loaded_model.predict(Ain2[:,:,:,np.newaxis], batch_size=min_num_trial, verbose=0)
+        else:
+            predictions = loaded_model.run(tf_out, feed_dict={tf_in: Ain2[:, :, :, np.newaxis]})
         keep_cnn = list(np.where(predictions[:, 0] > thresh_CNN_noisy)[0])
-        discard = list(np.where(predictions[:, 0] <= thresh_CNN_noisy)[0])
         cnn_pos = Ain2[keep_cnn]
     else:
         keep_cnn = []  # list(range(len(Ain_cnn)))
@@ -2023,7 +2069,8 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                           mean_buff=None, ssub_B=1, W=None, b0=None,
                           corr_img=None, first_moment=None, second_moment=None,
                           crosscorr=None, col_ind=None, row_ind=None, corr_img_mode=None,
-                          max_img=None, downscale_matrix=None):
+                          max_img=None, downscale_matrix=None, tf_in=None,
+                          tf_out=None):
     """
     Checks for new components in the residual buffer and incorporates them if they pass the acceptance tests
     """
@@ -2049,7 +2096,8 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
         min_num_trial=min_num_trial, gSig=gSig, gHalf=gHalf,
         sniper_mode=sniper_mode, rval_thr=rval_thr, patch_size=50,
         loaded_model=loaded_model, thresh_CNN_noisy=thresh_CNN_noisy,
-        use_peak_max=use_peak_max, test_both=test_both, mean_buff=mean_buff)
+        use_peak_max=use_peak_max, test_both=test_both, mean_buff=mean_buff,
+        tf_in=tf_in, tf_out=tf_out)
 
     # cn, pnr = caiman.summary_images.correlation_pnr(Yres_buf.reshape((-1,) + dims, order='F'),
     #                                                 gSig=1, center_psf=False, swap_dim=False)
@@ -2121,7 +2169,6 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
         ij = np.unravel_index(ind, dims)
 
         ijSig = [[max(i - temp_g, 0), min(i + temp_g + 1, d)] for i, temp_g, d in zip(ij, gHalf, dims)]
-        dims_ain = (np.abs(np.diff(ijSig[1])[0]), np.abs(np.diff(ijSig[0])[0]))
 
         indices = np.ravel_multi_index(
                 np.ix_(*[np.arange(ij[0], ij[1])
@@ -2302,7 +2349,6 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                 Y_filter = Yres_buf.reshape((-1,) + dims, order='F'
                                             )[:, slices_filter[0], slices_filter[1]]
                 T, d0, d1 = Y_filter.shape
-                dg = gHalf[0] + d0
                 tmp = np.concatenate((Y_filter, np.zeros((T, gHalf[0], d1), dtype=np.float32)),
                                      axis=1).reshape(-1, d1)
                 cv2.GaussianBlur(tmp, tuple(gSiz), gSig[0], tmp, gSig[1], cv2.BORDER_CONSTANT)
@@ -2325,35 +2371,7 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
 
             sv[ind_vb] = np.sum(rho_buf[:, ind_vb], 0)
 
-#            sv = np.sum([imblur(vb.reshape(dims,order='F'), sig=gSig, siz=gSiz, nDimBlur=len(dims))**2 for vb in Yres_buf], 0).reshape(-1)
-#            plt.subplot(1,5,4)
-#            plt.cla()
-#            plt.imshow(sv.reshape(dims), vmax=30)
-#            plt.pause(.05)
-#            plt.subplot(1,5,5)
-#            plt.cla()
-#            plt.imshow(Yres_buf.mean(0).reshape(dims,order='F'))
-#            plt.imshow(np.sum([imblur(vb.reshape(dims,order='F'),\
-#                                       sig=gSig, siz=gSiz, nDimBlur=len(dims))**2\
-#                                        for vb in Yres_buf],axis=0), vmax=30)
-#            plt.pause(.05)
-
-    #print(np.min(sv))
-#    plt.subplot(1,3,3)
-#    plt.cla()
-#    plt.imshow(Yres_buf.mean(0).reshape(dims, order = 'F'))
-#    plt.pause(.05)
-
-            # plt.subplot(235)
-            # plt.colorbar(plt.imshow(sv.reshape(dims)))
-            # plt.subplot(236)
-            # plt.colorbar(plt.imshow(Ain.reshape(dims, order='F')))
-            # # plt.colorbar(plt.imshow(Ains.reshape(np.diff(ijsig_all[-1]).ravel())))
-            # plt.show()
-            # import pdb;pdb.set_trace()
-
     return Ab, Cf, Yres_buf, rho_buf, CC, CY, ind_A, sv, groups, ind_new, ind_new_all, sv, cnn_pos
-
 
 #%% remove components online
 
@@ -2475,7 +2493,7 @@ def initialize_movie_online(Y, K, gSig, rf, stride, base_name,
 
     cnm_refine = cnm_refine.fit(images)
     #%
-    A, C, b, f, YrA, sn = cnm_refine.A, cnm_refine.C, cnm_refine.b, cnm_refine.f, cnm_refine.YrA, cnm_refine.sn
+    A, C, b, f, YrA = cnm_refine.A, cnm_refine.C, cnm_refine.b, cnm_refine.f, cnm_refine.YrA
     #%
     final_frate = 10
     Npeaks = 10
@@ -2498,6 +2516,7 @@ def initialize_movie_online(Y, K, gSig, rf, stride, base_name,
     print((len(traces)))
     print((len(idx_components)))
     #%
+    cnm_refine.sn = sn
     cnm_refine.idx_components = idx_components
     cnm_refine.idx_components_bad = idx_components_bad
     cnm_refine.r_values = r_values

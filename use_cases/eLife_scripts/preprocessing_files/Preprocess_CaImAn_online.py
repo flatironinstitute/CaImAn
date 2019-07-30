@@ -36,7 +36,6 @@ import os
 import sys
 import time
 import gc
-import keras
 
 from builtins import str
 
@@ -65,7 +64,7 @@ try:
     ID = [np.int(ID)]
 
 except:
-    ID = [0]
+    ID = range(9)
     print('ID NOT PASSED')
 
 if len(ID) == 9:
@@ -193,7 +192,6 @@ all_results = dict()
 # %% iterate over all datasets to be processed
 
 for ind_dataset in ID:
-    keras.backend.clear_session()
     gc.collect()
     fname_zip = os.path.join(base_folder, params_movie[ind_dataset]['folder_name'], 'images', 'images_' + params_movie[ind_dataset]['folder_name'] +'.zip')
     fls = glob.glob(os.path.join(base_folder, params_movie[ind_dataset]['folder_name'], 'images', 'mov*.tif'))
@@ -275,8 +273,8 @@ for ind_dataset in ID:
 
     # %% remove small and duplicate components
 
-    min_radius = max(cnm.params.init['gSig'][0] / 2., 2.)  # minimum acceptable radius
-    max_radius = 2. * cnm.params.init['gSig'][0]  # maximum acceptable radius
+    min_radius = max(cnm.params.init['gSig'][0]*ds_factor / 2., 2.)  # minimum acceptable radius
+    max_radius = 2. * cnm.params.init['gSig'][0]*ds_factor  # maximum acceptable radius
     min_size_neuro = min_radius ** 2 * np.pi
     max_size_neuro = max_radius ** 2 * np.pi
 
@@ -294,13 +292,14 @@ for ind_dataset in ID:
         A_gt = ld['A_gt'][()].toarray()
         C_gt = ld['C_gt']
         Cn_orig = ld['Cn']
+        A_gt2 = A_gt.copy()
         if ds_factor > 1:
-            A_gt2= np.concatenate([cv2.resize(A_gt[:, fr_].reshape(dims_or, order='F'), cnm.dims[::-1]).reshape(-1, order='F')[:,None] for fr_ in range(A_gt.shape[-1])], axis = 1)
-            Cn_orig = cv2.resize(Cn_orig, cnm.dims[::-1])
-        else:
-            A_gt2 = A_gt.copy()
+#            A_gt2= np.concatenate([cv2.resize(A_gt[:, fr_].reshape(dims_or, order='F'), cnm.dims[::-1]).reshape(-1, order='F')[:,None] for fr_ in range(A_gt.shape[-1])], axis = 1)
+            Cn_orig = cv2.resize(Cn_orig, dims_or[::-1])
+#        else:
+#            A_gt2 = A_gt.copy()
 
-    gt_estimate = Estimates(A=scipy.sparse.csc_matrix(A_gt2), b=None, C=C_gt, f=None, R=None, dims=cnm.dims)
+    gt_estimate = Estimates(A=scipy.sparse.csc_matrix(A_gt2), b=None, C=C_gt, f=None, R=None, dims=dims_or)
     gt_estimate.threshold_spatial_components(maxthr=global_params['max_thr'], dview=None)
     nrn_size = gt_estimate.remove_small_large_neurons(min_size_neuro, max_size_neuro)
     nrn_dup = gt_estimate.remove_duplicates(predictions=None, r_values=None, dist_thr=0.1, min_dist=10,
@@ -365,7 +364,7 @@ for ind_dataset in ID:
     # %% Plot Timing performance
     if plot_results:
         plt.figure(); 
-        plt.stackplot(np.arange(len(cnm.t_detect)),  1e3*np.array(cnm.t_online)-np.array(cnm.t_detect) - np.array(cnm.t_shapes),
+        plt.stackplot(np.arange(len(cnm.t_detect)),  1e3*(np.array(cnm.t_online) - np.array(cnm.t_detect) - np.array(cnm.t_shapes)),
                       1e3*np.array(cnm.t_detect), 1e3*np.array(cnm.t_shapes))
         plt.title('Processing time per frame')
         plt.xlabel('Frame #')

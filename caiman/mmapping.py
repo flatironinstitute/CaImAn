@@ -566,7 +566,6 @@ def parallel_dot_product(A:np.ndarray, b, block_size:int=5000, dview=None, trans
 
             else:
                 logging.debug('Filling')
-
                 for res in results:
                     output[res[0]] = res[1]
 
@@ -587,9 +586,10 @@ def dot_place_holder(par:List) -> Tuple:
     logging.debug((idx_to_pass[-1]))
     if 'sparse' in str(type(b_)):
         if transpose:
+#            outp = (b_.tocsr()[idx_to_pass].T.dot(
+#                A_[idx_to_pass])).T.astype(np.float32)
             outp = (b_.T.tocsc()[:, idx_to_pass].dot(
                 A_[idx_to_pass])).T.astype(np.float32)
-
         else:
             outp = (b_.T.dot(A_[idx_to_pass].T)).T.astype(np.float32)
     else:
