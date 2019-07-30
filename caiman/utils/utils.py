@@ -22,12 +22,14 @@ https://docs.python.org/3/library/urllib.request.htm
 
 import cv2
 import h5py
+import inspect
 import logging
 import matplotlib.pyplot as plt
 import numpy as np
 import os
 import pickle
 import scipy
+import subprocess
 import tensorflow as tf
 from scipy.ndimage.filters import gaussian_filter
 from tifffile import TiffFile
@@ -43,6 +45,7 @@ from urllib.request import urlopen
 from ..external.cell_magic_wand import cell_magic_wand
 from ..source_extraction.cnmf.spatial import threshold_components
 from caiman.paths import caiman_datadir
+import caiman.utils
 
 #%%
 
@@ -518,3 +521,55 @@ def load_graph(frozen_graph_filename):
             producer_op_list=None
         )
     return graph
+
+def get_caiman_version() -> Tuple[str, str]:
+    """ Get the version of CaImAn, as best we can determine"""
+    # This does its best to determine the version of CaImAn. This uses the first successful
+    # from these methods:
+    # 'GITW' ) git rev-parse if caiman is built from "pip install -e ." and we are working
+    #    out of the checkout directory (the user may have since updated without reinstall)
+    # 'GITI') Crumbs left from setup.py run from a git checkout (done from git rev-parse in setup.py)
+    # 'RELF') A release file left in the process to cut a release
+    # 'FILE') The date of some frequently changing files, which act as a very rough
+    #    approximation when no other methods are possible
+    #
+    # Data is returned as a tuple of method and version, with method being the 4-letter string above
+    # and version being a format-dependent string
+
+    # Attempt 'GITW'.
+    # TODO:
+    # A) Find a place to do it that's better than cwd
+    # B) Hide the output from the terminal
+    try:
+        rev = subprocess.check_output(["git", "rev-parse", "HEAD"], stderr=subprocess.DEVNULL).decode("utf-8").split("\n")[0]
+    except:
+        rev = None
+    if rev is not None:
+        return 'GITW', rev
+
+    # Attempt: 'GITI'. This is made by setup.py from the git version
+    setupfile = os.path.join(caiman_datadir(), 'GITVERSION')
+    if os.path.isfile(setupfile):
+        with open(setupfile, 'r') as sfh:
+            for line in sfh:
+                if ':' in line: # expect a line like "Version:1.3"
+                    _, version = line.rstrip().split(':')
+                    return 'GITI', version 
+    # Attempt: 'RELF'
+    relfile = os.path.join(caiman_datadir(), 'RELEASE')
+    if os.path.isfile(relfile):
+        with open(relfile, 'r') as sfh:
+            for line in sfh:
+                if ':' in line: # expect a line like "Version:1.3"
+                    _, version = line.rstrip().split(':')
+                    return 'RELF', version 
+
+    # Attempt: 'FILE'
+    # Right now this samples the utils directory
+    modpath = os.path.dirname(inspect.getfile(caiman.utils)) # Probably something like /mnt/home/pgunn/miniconda3/envs/caiman/lib/python3.7/site-packages/caiman
+    newest = 0
+    for fn in os.listdir(modpath):
+        last_modified = os.stat(os.path.join(modpath, fn)).st_mtime
+        if last_modified > newest:
+            newest = last_modified
+    return 'FILE', str(int(newest))
