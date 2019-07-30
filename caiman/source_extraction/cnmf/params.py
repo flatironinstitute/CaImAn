@@ -67,6 +67,18 @@ class CNMFParams(object):
             var_name_hdf5: str, default: 'mov'
                 if loading from hdf5 name of the variable to load
 
+            caiman_version: str
+                version of CaImAn being used
+
+            last_commit: str
+                hash of last commit in the caiman repo
+
+            mmap_F: list[str]
+                paths to F-order memory mapped files after motion correction
+
+            mmap_C: str
+                path to C-order memory mapped file after motion correction
+
         PATCH PARAMS (CNMFParams.patch)######
 
             rf: int or None, default: None
@@ -562,6 +574,8 @@ class CNMFParams(object):
             'var_name_hdf5': var_name_hdf5,
             'caiman_version': '1.5.2',
             'last_commit': None,
+            'mmap_F': None,
+            'mmap_C': None
         }
 
         self.patch = {
