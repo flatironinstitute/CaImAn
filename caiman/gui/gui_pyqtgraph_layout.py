@@ -42,74 +42,23 @@ def make_color_img(img, gain=255, min_max=None,out_type=np.uint8):
     return img
 
 
-def load_NWB(fpath):
-    from pynwb import NWBHDF5IO
-    from caiman.source_extraction.cnmf.estimates import Estimates
-    from scipy.sparse import csc_matrix
-    with NWBHDF5IO(fpath, 'r') as io:
-        nwb = io.read()
-        ophys = nwb.processing['ophys']
-        rrs = ophys.data_interfaces['Fluorescence'].roi_response_series['RoiResponseSeries']
-        C = rrs.data[:].T
-        rois = rrs.rois
-        roi_indices = rois.data
-        A = rois.table['image_mask'][roi_indices, ...]
-        A = A.reshape((A.shape[0], -1)).T
-        A = csc_matrix(A)
-        r = rois.table['r'][roi_indices]
-        snr = rois.table['snr'][roi_indices]
-        cnn = rois.table['cnn'][roi_indices]
-        keep = rois.table['keep'][roi_indices]
-        brs = ophys.data_interfaces['Fluorescence'].roi_response_series['Background_Fluorescence_Response']
-        f = brs.data[:].T
-        brois = brs.rois
-        broi_indices = brois.data
-        b = brois.table['image_mask'][broi_indices, ...]
-        b = b.reshape((b.shape[0], -1)).T
-        YrA = ophys.data_interfaces['residuals'].data[:].T
-
-        frame_rate = ophys.data_interfaces['ImageSegmentation'].plane_segmentations['PlaneSegmentation']. \
-            imaging_plane.imaging_rate
-
-        estimates = Estimates(A=A, b=b, C=C, f=f)
-        estimates.SNR_comp = snr
-        estimates.r_values = r
-        estimates.cnn_preds = cnn
-        estimates.nr = len(r)
-        estimates.YrA = YrA
-        estimates.idx_components = np.where(keep)[0]
-        mov = nwb.acquisition['TwoPhotonSeries'].data[:]
-
-        if 'images' not in ophys.data_interfaces:
-            Cn = cm.local_correlations(mov, swap_dim=False)
-            Cn[np.isnan(Cn)] = 0
-        estimates.Cn = Cn
-
-        estimates.dims = mov.shape[1:]
-        params_obj = CNMFParams(dims=mov.shape[1:])
-        params_obj.set('data', {'fr': frame_rate})
-
-        return params_obj, estimates, mov
-
-
 F = FileDialog()
 
 # load object saved by CNMF
 # cnm_obj = load_CNMF('/Users/agiovann/caiman_data/example_movies/memmap__d1_60_d2_80_d3_1_order_C_frames_2000_save.hdf5')
 fpath = F.getOpenFileName(caption='Load CNMF Object', filter='*.hdf5;;*nwb')[0]
-if fpath[-4:] == 'hdf5':
-    cnm_obj = load_CNMF(fpath)
+cnm_obj = load_CNMF(fpath)
 
-    # movie
-    # mov = cm.load('/Users/agiovann/caiman_data/example_movies/memmap__d1_60_d2_80_d3_1_order_C_frames_2000_.mmap')
+# movie
+# mov = cm.load('/Users/agiovann/caiman_data/example_movies/memmap__d1_60_d2_80_d3_1_order_C_frames_2000_.mmap')
+if fpath[-3:] == 'nwb':
+    mov = cm.load(cnm_obj.mmap_file, var_name_hdf5='acquisition/TwoPhotonSeries')
+else:
     mov = cm.load(cnm_obj.mmap_file)
-    # load summary image
-    # Cn = cm.load('/Users/agiovann/caiman_data/example_movies/memmap__d1_60_d2_80_d3_1_order_C_frames_2000__Cn.tif')
-    estimates = cnm_obj.estimates
-    params_obj = cnm_obj.params
-
-elif fpath[-3:] == 'nwb':
-    params_obj, estimates, mov = load_NWB(fpath)
+# load summary image
+# Cn = cm.load('/Users/agiovann/caiman_data/example_movies/memmap__d1_60_d2_80_d3_1_order_C_frames_2000__Cn.tif')
+estimates = cnm_obj.estimates
+params_obj = cnm_obj.params
 
 min_mov = np.min(mov)
 max_mov = np.max(mov)

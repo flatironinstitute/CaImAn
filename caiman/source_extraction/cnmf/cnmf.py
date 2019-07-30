@@ -33,6 +33,9 @@ import psutil
 import scipy
 import sys
 
+from scipy.sparse import csc_matrix
+
+import caiman as cm
 from .estimates import Estimates
 from .initialization import initialize_components, compute_W
 from .map_reduce import run_CNMF_patches
@@ -958,41 +961,91 @@ def load_CNMF(filename, n_processes=1, dview=None):
 
     Args:
         filename: str
-            hdf5 file name containing the saved object
-        dview: multiprocessingor ipyparallel object
+            hdf5 (or nwb) file name containing the saved object
+        dview: multiprocessing or ipyparallel object
             useful to set up parllelization in the objects
     '''
     new_obj = CNMF(n_processes)
-    for key, val in load_dict_from_hdf5(filename).items():
-        if key == 'params':
-            prms = CNMFParams()
-            prms.spatial = val['spatial']
-            prms.temporal = val['temporal']
-            prms.patch = val['patch']
-            prms.preprocess = val['preprocess']
-            prms.init = val['init']
-            prms.merging = val['merging']
-            prms.quality = val['quality']
-            prms.data = val['data']
-            prms.online = val['online']
-            prms.motion = val['motion']
-            setattr(new_obj, key, prms)
-        elif key == 'dview':
-            setattr(new_obj, key, dview)
-        elif key == 'estimates':
-            estims = Estimates()
-            for kk, vv in val.items():
-                if kk == 'discarded_components':
-                    if vv is not None:
-                        discarded_components = Estimates()
-                        for kk__, vv__ in vv.items():
-                            setattr(discarded_components, kk__, vv__)
-                        setattr(estims, kk, discarded_components)
-                else:
-                    setattr(estims, kk, vv)
+    if filename[-4:] == 'hdf5':
+        for key, val in load_dict_from_hdf5(filename).items():
+            if key == 'params':
+                prms = CNMFParams()
+                prms.spatial = val['spatial']
+                prms.temporal = val['temporal']
+                prms.patch = val['patch']
+                prms.preprocess = val['preprocess']
+                prms.init = val['init']
+                prms.merging = val['merging']
+                prms.quality = val['quality']
+                prms.data = val['data']
+                prms.online = val['online']
+                prms.motion = val['motion']
+                setattr(new_obj, key, prms)
+            elif key == 'dview':
+                setattr(new_obj, key, dview)
+            elif key == 'estimates':
+                estims = Estimates()
+                for kk, vv in val.items():
+                    if kk == 'discarded_components':
+                        if vv is not None:
+                            discarded_components = Estimates()
+                            for kk__, vv__ in vv.items():
+                                setattr(discarded_components, kk__, vv__)
+                            setattr(estims, kk, discarded_components)
+                    else:
+                        setattr(estims, kk, vv)
 
-            setattr(new_obj, key, estims)
-        else:
-            setattr(new_obj, key, val)
+                setattr(new_obj, key, estims)
+            else:
+                setattr(new_obj, key, val)
+    elif filename[-3:] == 'nwb':
+        from pynwb import NWBHDF5IO
+        with NWBHDF5IO(filename, 'r') as io:
+            nwb = io.read()
+            ophys = nwb.processing['ophys']
+            rrs = ophys.data_interfaces['Fluorescence'].roi_response_series['RoiResponseSeries']
+            C = rrs.data[:].T
+            rois = rrs.rois
+            roi_indices = rois.data
+            A = rois.table['image_mask'][roi_indices, ...]
+            A = A.reshape((A.shape[0], -1)).T
+            A = csc_matrix(A)
+            r = rois.table['r'][roi_indices]
+            snr = rois.table['snr'][roi_indices]
+            cnn = rois.table['cnn'][roi_indices]
+            keep = rois.table['keep'][roi_indices]
+            brs = ophys.data_interfaces['Fluorescence'].roi_response_series['Background_Fluorescence_Response']
+            f = brs.data[:].T
+            brois = brs.rois
+            broi_indices = brois.data
+            b = brois.table['image_mask'][broi_indices, ...]
+            b = b.reshape((b.shape[0], -1)).T
+            YrA = ophys.data_interfaces['residuals'].data[:].T
+
+            frame_rate = ophys.data_interfaces['ImageSegmentation'].plane_segmentations['PlaneSegmentation']. \
+                imaging_plane.imaging_rate
+
+            estims = Estimates(A=A, b=b, C=C, f=f)
+            estims.SNR_comp = snr
+            estims.r_values = r
+            estims.cnn_preds = cnn
+            estims.nr = len(r)
+            estims.YrA = YrA
+            estims.idx_components = np.where(keep)[0]
+            mov = nwb.acquisition['TwoPhotonSeries'].data[:]
+
+            if 'images' not in ophys.data_interfaces:
+                Cn = cm.local_correlations(mov, swap_dim=False)
+                Cn[np.isnan(Cn)] = 0
+            estims.Cn = Cn
+
+            estims.dims = mov.shape[1:]
+            prms = CNMFParams(dims=mov.shape[1:])
+            prms.set('data', {'fr': frame_rate})
+
+            setattr(new_obj, 'params', prms)
+            setattr(new_obj, 'dview', dview)
+            setattr(new_obj, 'estimates', estims)
+            setattr(new_obj, 'mmap_file', filename)
 
     return new_obj

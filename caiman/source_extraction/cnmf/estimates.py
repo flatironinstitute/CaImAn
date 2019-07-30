@@ -1301,7 +1301,7 @@ class Estimates(object):
         
         else: # if the file already exist in the .nwb format then just add the results to it
             logging.info('Saving the results in the NWB file...')
-            with  NWBHDF5IO(filename, 'r+') as io:
+            with NWBHDF5IO(filename, 'r+') as io:
                 nwbfile = io.read()
                 # Add processing results
 
