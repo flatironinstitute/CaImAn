@@ -541,7 +541,7 @@ def estimate_components_quality_auto(Y, A, C, b, f, YrA, frate, decay_time, gSig
 
     traces = C + YrA
     _, _, fitness_raw, _, r_values = estimate_components_quality( # type: ignore # mypy cannot reason about return_all
-        traces, Y.T, A, C, b, f, final_frate=frate, Npeaks=Npeaks, r_values_min=r_values_min, fitness_min=fitness_min,
+        traces, Y, A, C, b, f, final_frate=frate, Npeaks=Npeaks, r_values_min=r_values_min, fitness_min=fitness_min,
         fitness_delta_min=thresh_fitness_delta, return_all=True, dview=dview, num_traces_per_group=50, N=N_samples)
 
     comp_SNR = -norm.ppf(np.exp(fitness_raw / N_samples))
