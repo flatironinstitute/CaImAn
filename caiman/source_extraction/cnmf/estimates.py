@@ -837,7 +837,7 @@ class Estimates(object):
                     CNN classifier threshold
 
         Returns:
-            self: esimates object
+            self: estimates object
                 self.idx_components: np.array
                     indices of accepted components
                 self.idx_components_bad: np.array
@@ -852,19 +852,18 @@ class Estimates(object):
         dims = imgs.shape[1:]
         opts = params.get_group('quality')
         idx_components, idx_components_bad, SNR_comp, r_values, cnn_preds = \
-        estimate_components_quality_auto(imgs, self.A, self.C, self.b, self.f,
-                                         self.YrA,
-                                         params.get('data', 'fr'),
-                                         params.get('data', 'decay_time'),
-                                         params.get('init', 'gSig'),
-                                         dims, dview=dview,
-                                         min_SNR=opts['min_SNR'],
-                                         r_values_min=opts['rval_thr'],
-                                         use_cnn=opts['use_cnn'],
-                                         thresh_cnn_min=opts['min_cnn_thr'],
-                                         thresh_cnn_lowest=opts['cnn_lowest'],
-                                         r_values_lowest=opts['rval_lowest'],
-                                         min_SNR_reject=opts['SNR_lowest'])
+            estimate_components_quality_auto(imgs, self.A, self.C, self.b, self.f, self.YrA,
+                                             params.get('data', 'fr'),
+                                             params.get('data', 'decay_time'),
+                                             params.get('init', 'gSig'),
+                                             dims, dview=dview,
+                                             min_SNR=opts['min_SNR'],
+                                             r_values_min=opts['rval_thr'],
+                                             use_cnn=opts['use_cnn'],
+                                             thresh_cnn_min=opts['min_cnn_thr'],
+                                             thresh_cnn_lowest=opts['cnn_lowest'],
+                                             r_values_lowest=opts['rval_lowest'],
+                                             min_SNR_reject=opts['SNR_lowest'])
         self.idx_components = idx_components.astype(int)
         self.idx_components_bad = idx_components_bad.astype(int)
         self.SNR_comp = SNR_comp
@@ -1290,7 +1289,7 @@ class Estimates(object):
             filename: str
                 path to the hdf5 file containing the saved object
         """
-        from pynwb import NWBHDF5IO
+        from pynwb import NWBHDF5IO, TimeSeries
         from pynwb.ophys import ImageSegmentation, Fluorescence, MotionCorrection
         import os
         if '.nwb' != os.path.splitext(filename)[-1].lower():
@@ -1312,10 +1311,12 @@ class Estimates(object):
                     if any([s for s in ophysmodules if s.isdigit()]):
                         nummodules = max([int(s) for s in ophysmodules if s.isdigit()])+1
                         print('ophys module previously created, writing to ophys'+str(nummodules)+' instead')
-                        mod = nwbfile.create_processing_module('ophys'+str(nummodules), 'contains caiman estimates for the main imaging plane')                        
+                        mod = nwbfile.create_processing_module('ophys'+str(nummodules), 'contains caiman estimates for '
+                                                                                        'the main imaging plane')
                     else:
                         print('ophys module previously created, writing to ophys1 instead')
-                        mod = nwbfile.create_processing_module('ophys1', 'contains caiman estimates for the main imaging plane')                        
+                        mod = nwbfile.create_processing_module('ophys1', 'contains caiman estimates for the main '
+                                                                         'imaging plane')
                 else:
                     mod = nwbfile.create_processing_module('ophys', 'contains caiman estimates for the main imaging plane')
                       
@@ -1330,53 +1331,64 @@ class Estimates(object):
                 if imaging_plane_name is None:
                     imaging_plane_name = [imp for imp in nwbfile.imaging_planes.keys()]
                     if len(imaging_plane_name)>1:
-                        raise Exception('There is more than one imaging plane in the file, you need to specify the name via '
-                                        'the "imaging_plane_name" parameter')
+                        raise Exception('There is more than one imaging plane in the file, you need to specify the name'
+                                        ' via the "imaging_plane_name" parameter')
                     else:
                         imaging_plane_name = imaging_plane_name[0]
 
                 if imaging_series_name is None:
                     imaging_series_name = [imp for imp in nwbfile.acquisition.keys()]
                     if len(imaging_series_name)>1:
-                        raise Exception('There is more than one imaging plane in the file, you need to specify the name via '
-                                        'the "imaging_series_name" parameter')
+                        raise Exception('There is more than one imaging plane in the file, you need to specify the name'
+                                        ' via the "imaging_series_name" parameter')
                     else:
                         imaging_series_name = imaging_series_name[0]
-
 
                 imaging_plane = nwbfile.imaging_planes[imaging_plane_name]
                 image_series = nwbfile.acquisition[imaging_series_name]
 
-                ps = img_seg.create_plane_segmentation('CNMF_ROIs',
-                                                       imaging_plane, 'planeseg', image_series)
+                ps = img_seg.create_plane_segmentation(
+                    'CNMF_ROIs', imaging_plane, 'PlaneSegmentation', image_series)
+
+                ps.add_column('r', 'description of r values')
+                ps.add_column('snr', 'signal to noise ratio')
+                ps.add_column('cnn', 'description of CNN')
+                ps.add_column('keep', 'in idx_components')
 
                 # Add ROIs
-                for roi in self.A.T:  # Neurons
-                    ps.add_roi(image_mask=roi.T.toarray().reshape(self.dims))
+                for i, (roi, snr, r, cnn) in enumerate(zip(self.A.T, self.SNR_comp, self.r_values, self.cnn_preds)):
+                    ps.add_roi(image_mask=roi.T.toarray().reshape(self.dims), r=r, snr=snr, cnn=cnn,
+                               keep=i in self.idx_components)
                 for bg in self.b.T:  # Backgrounds
-                    ps.add_roi(image_mask=bg.reshape(self.dims))
+                    ps.add_roi(image_mask=bg.reshape(self.dims), r=np.nan, snr=np.nan, cnn=np.nan, keep=False)
                 # Add Traces
                 n_rois = self.A.shape[-1]
                 n_bg = len(self.f)
-                rt_region_roi = ps.create_roi_table_region('ROIs',
-                                                       region=list(range(n_rois)))
+                rt_region_roi = ps.create_roi_table_region(
+                    'ROIs', region=list(range(n_rois)))
 
-                rt_region_bg = ps.create_roi_table_region('Background',
-                                                       region=list(range(n_rois,n_rois+n_bg)))
+                rt_region_bg = ps.create_roi_table_region(
+                    'Background', region=list(range(n_rois, n_rois+n_bg)))
 
                 timestamps = np.arange(self.f.shape[1])/imaging_rate+starting_time
 
                 # Neurons
-                rrs1 = fl.create_roi_response_series('RoiResponseSeries', self.C.T, 'lumens', rt_region_roi, timestamps=timestamps)
+                rrs1 = fl.create_roi_response_series('RoiResponseSeries', self.C.T, 'lumens', rt_region_roi,
+                                                     timestamps=timestamps)
                 # Background
-                rrs2 = fl.create_roi_response_series('Background_Fluorescence_Response', self.f.T, 'lumens', rt_region_bg, timestamps=timestamps)
+                rrs2 = fl.create_roi_response_series('Background_Fluorescence_Response', self.f.T, 'lumens',
+                                                     rt_region_bg, timestamps=timestamps)
+
+                mod.add(TimeSeries(name='residuals', description='residuals', data=self.YrA.T, timestamps=timestamps,
+                                   unit='NA'))
 
                 # Add MotionCorreciton
     #            create_corrected_image_stack(corrected, original, xy_translation, name='CorrectedImageStack')
                 io.write(nwbfile)
 
 
-def compare_components(estimate_gt, estimate_cmp,  Cn=None, thresh_cost=.8, min_dist=10, print_assignment=False, labels=['GT', 'CMP'], plot_results=False):
+def compare_components(estimate_gt, estimate_cmp,  Cn=None, thresh_cost=.8, min_dist=10, print_assignment=False,
+                       labels=['GT', 'CMP'], plot_results=False):
     if estimate_gt.A_thr is None:
         raise Exception(
             'You need to compute thresolded components for first argument before calling remove_duplicates: use the threshold_components method')
