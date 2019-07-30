@@ -528,8 +528,8 @@ def get_caiman_version() -> Tuple[str, str]:
     # from these methods:
     # 'GITW' ) git rev-parse if caiman is built from "pip install -e ." and we are working
     #    out of the checkout directory (the user may have since updated without reinstall)
-    # 'GITI') Crumbs left from setup.py run from a git checkout (done from git rev-parse in setup.py)
-    # 'RELF') A release file left in the process to cut a release
+    # 'RELF') A release file left in the process to cut a release. Should have a single line
+    #    in it whick looks like "Version:1.4"
     # 'FILE') The date of some frequently changing files, which act as a very rough
     #    approximation when no other methods are possible
     #
@@ -547,14 +547,6 @@ def get_caiman_version() -> Tuple[str, str]:
     if rev is not None:
         return 'GITW', rev
 
-    # Attempt: 'GITI'. This is made by setup.py from the git version
-    setupfile = os.path.join(caiman_datadir(), 'GITVERSION')
-    if os.path.isfile(setupfile):
-        with open(setupfile, 'r') as sfh:
-            for line in sfh:
-                if ':' in line: # expect a line like "Version:1.3"
-                    _, version = line.rstrip().split(':')
-                    return 'GITI', version 
     # Attempt: 'RELF'
     relfile = os.path.join(caiman_datadir(), 'RELEASE')
     if os.path.isfile(relfile):
