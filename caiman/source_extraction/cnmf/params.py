@@ -36,7 +36,7 @@ class CNMFParams(object):
                  thresh_fitness_delta=-50, thresh_fitness_raw=None, thresh_overlap=0.5,
                  update_freq=200, update_num_comps=True, use_dense=True, use_peak_max=True,
                  only_init_patch=True, var_name_hdf5='mov', max_merge_area=None, 
-		 use_corr_image=False, params_dict={},
+                 use_corr_img=False, params_dict={},
                  ):
         """Class for setting the processing parameters. All parameters for CNMF, online-CNMF, quality testing,
         and motion correction can be set here and then used in the various processing pipeline steps.

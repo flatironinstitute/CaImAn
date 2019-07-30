@@ -437,13 +437,14 @@ class Estimates(object):
 
         return self
 
+
     def play_movie(self, imgs, q_max=99.75, q_min=2, gain_res=1,
                    magnification=1, include_bck=True,
                    frame_range=slice(None, None, None),
                    bpx=0, thr=0., save_movie=False,
                    movie_name='results_movie.avi'):
-
-	"""Displays a movie with three panels (original data (left panel),
+        """
+        Displays a movie with three panels (original data (left panel),
         reconstructed data (middle panel), residual (right panel))
 
         Args:
@@ -483,6 +484,7 @@ class Estimates(object):
         Returns:
             self (to stop the movie press 'q')
         """
+
         dims = imgs.shape[1:]
         if 'movie' not in str(type(imgs)):
             imgs = caiman.movie(imgs)
