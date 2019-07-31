@@ -1189,7 +1189,7 @@ def load(file_name:Union[str,List[str]], fr:float=30, start_time:float=0, meta_d
     """
     # case we load movie from file
     if max(top, bottom, left, right) > 0 and type(file_name) is str:
-        file_name = [file_name] # type: ignore # mypy doesn't like that this changes type # type: ignore # mypy doesn't like that this changes type # type: ignore # mypy doesn't like that this changes type # type: ignore # mypy doesn't like that this changes type # type: ignore # mypy doesn't like that this changes type
+        file_name = [file_name] # type: ignore # mypy doesn't like that this changes type
 
     if type(file_name) is list:
         if shape is not None:
