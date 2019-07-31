@@ -46,7 +46,7 @@ F = FileDialog()
 
 # load object saved by CNMF
 # cnm_obj = load_CNMF('/Users/agiovann/caiman_data/example_movies/memmap__d1_60_d2_80_d3_1_order_C_frames_2000_save.hdf5')
-fpath = F.getOpenFileName(caption='Load CNMF Object', filter='*.hdf5;;*nwb')[0]
+fpath = F.getOpenFileName(caption='Load CNMF Object', filter='HDF5 (*.h5 *.hdf5);;NWB (*.nwb)')[0]
 cnm_obj = load_CNMF(fpath)
 
 # movie
@@ -59,6 +59,9 @@ else:
 # Cn = cm.load('/Users/agiovann/caiman_data/example_movies/memmap__d1_60_d2_80_d3_1_order_C_frames_2000__Cn.tif')
 estimates = cnm_obj.estimates
 params_obj = cnm_obj.params
+
+if not hasattr(estimates, 'Cn'):
+    estimates.Cn = cm.local_correlations(mov, swap_dim=False)
 
 min_mov = np.min(mov)
 max_mov = np.max(mov)

@@ -1003,49 +1003,56 @@ def load_CNMF(filename, n_processes=1, dview=None):
         with NWBHDF5IO(filename, 'r') as io:
             nwb = io.read()
             ophys = nwb.processing['ophys']
-            rrs = ophys.data_interfaces['Fluorescence'].roi_response_series['RoiResponseSeries']
+            rrs_group = ophys.data_interfaces['Fluorescence'].roi_response_series
+            rrs = rrs_group['RoiResponseSeries']
             C = rrs.data[:].T
             rois = rrs.rois
             roi_indices = rois.data
             A = rois.table['image_mask'][roi_indices, ...]
+            dims = A.shape[1:]
             A = A.reshape((A.shape[0], -1)).T
             A = csc_matrix(A)
-            r = rois.table['r'][roi_indices]
-            snr = rois.table['snr'][roi_indices]
-            cnn = rois.table['cnn'][roi_indices]
-            keep = rois.table['keep'][roi_indices]
-            brs = ophys.data_interfaces['Fluorescence'].roi_response_series['Background_Fluorescence_Response']
-            f = brs.data[:].T
-            brois = brs.rois
-            broi_indices = brois.data
-            b = brois.table['image_mask'][broi_indices, ...]
-            b = b.reshape((b.shape[0], -1)).T
-            YrA = ophys.data_interfaces['residuals'].data[:].T
+            if 'Background_Fluorescence_Response' in rrs_group:
+                brs = rrs_group['Background_Fluorescence_Response']
+                f = brs.data[:].T
+                brois = brs.rois
+                broi_indices = brois.data
+                b = brois.table['image_mask'][broi_indices, ...]
+                b = b.reshape((b.shape[0], -1)).T
+            else:
+                b = None #np.zeros(mov.shape[1:])
+                f = None
+            estims = Estimates(A=A, b=b, C=C, f=f)
+            estims.YrA = ophys.data_interfaces['residuals'].data[:].T
 
             frame_rate = ophys.data_interfaces['ImageSegmentation'].plane_segmentations['PlaneSegmentation']. \
                 imaging_plane.imaging_rate
 
-            estims = Estimates(A=A, b=b, C=C, f=f)
-            estims.SNR_comp = snr
-            estims.r_values = r
-            estims.cnn_preds = cnn
-            estims.nr = len(r)
-            estims.YrA = YrA
-            estims.idx_components = np.where(keep)[0]
-            mov = nwb.acquisition['TwoPhotonSeries'].data[:]
+            if 'r' in rois.table:
+                estims.r_values = rois.table['r'][roi_indices]
+            if 'snr' in rois.table:
+                estims.SNR_comp = rois.table['snr'][roi_indices]
+            if 'cnn' in rois.table:
+                estims.cnn_preds = rois.table['cnn'][roi_indices]
+            if 'keep' in rois.table:
+                keep = rois.table['keep'][roi_indices]
+                estims.idx_components = np.where(keep)[0]
+            estims.nr = len(roi_indices)
 
-            if 'images' not in ophys.data_interfaces:
-                Cn = cm.local_correlations(mov, swap_dim=False)
-                Cn[np.isnan(Cn)] = 0
-            estims.Cn = Cn
+            if 'summary_images' in ophys.data_interfaces:
+                if 'Cn' in ophys.data_interfaces['summary_images']:
+                    estims.Cn = ophys.data_interfaces['summary_images']['Cn']
+            if hasattr(nwb.acquisition['TwoPhotonSeries'], 'external_file'):
+                setattr(new_obj, 'mmap_file', nwb.acquisition['TwoPhotonSeries'].external_file[0])
+            else:
+                setattr(new_obj, 'mmap_file', filename)
 
-            estims.dims = mov.shape[1:]
-            prms = CNMFParams(dims=mov.shape[1:])
+            estims.dims = dims
+            prms = CNMFParams(dims=dims)
             prms.set('data', {'fr': frame_rate})
 
             setattr(new_obj, 'params', prms)
             setattr(new_obj, 'dview', dview)
             setattr(new_obj, 'estimates', estims)
-            setattr(new_obj, 'mmap_file', filename)
 
     return new_obj
