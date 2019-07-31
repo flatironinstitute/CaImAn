@@ -55,6 +55,7 @@ try:
 except:
     def profile(a): return a
 
+
 class OnACID(object):
     """  Source extraction of streaming data using online matrix factorization.
     The class can be initialized by passing a "params" object for setting up
@@ -83,7 +84,7 @@ class OnACID(object):
         else:
             onacid = load_OnlineCNMF(path)
             self.params = params if params is not None else onacid.params
-            self.estimates= estimates if estimates is not None else onacid.estimates
+            self.estimates = estimates if estimates is not None else onacid.estimates
 #            if params is None or estimates is None:
 #                raise ValueError("Cannot Specify Estimates and Params While \
 #                                 Loading Object From File")
@@ -105,7 +106,8 @@ class OnACID(object):
 
         expected_comps = self.params.get('online', 'expected_comps')
         if expected_comps <= self.N + self.params.get('online', 'max_num_added'):
-            expected_comps = self.N + self.params.get('online', 'max_num_added') + 200
+            expected_comps = self.N + \
+                self.params.get('online', 'max_num_added') + 200
             self.params.set('online', {'expected_comps': expected_comps})
 
         if Yr.shape[-1] != self.params.get('online', 'init_batch'):
@@ -143,8 +145,10 @@ class OnACID(object):
             (self.params.get('init', 'nb') + expected_comps, T), dtype=np.float32)
         self.estimates.C_on = np.zeros((expected_comps, T), dtype=np.float32)
 
-        self.estimates.noisyC[self.params.get('init', 'nb'):self.M, :self.params.get('online', 'init_batch')] = self.estimates.C + self.estimates.YrA
-        self.estimates.noisyC[:self.params.get('init', 'nb'), :self.params.get('online', 'init_batch')] = self.estimates.f
+        self.estimates.noisyC[self.params.get('init', 'nb'):self.M, :self.params.get(
+            'online', 'init_batch')] = self.estimates.C + self.estimates.YrA
+        self.estimates.noisyC[:self.params.get('init', 'nb'), :self.params.get(
+            'online', 'init_batch')] = self.estimates.f
         self.estimates.dims = self.dims
         if self.params.get('preprocess', 'p'):
             # if no parameter for calculating the spike size threshold is given, then use L1 penalty
@@ -154,65 +158,79 @@ class OnACID(object):
                 use_L1 = False
 
             self.estimates.OASISinstances = [OASIS(
-                g=np.ravel(0.01) if self.params.get('preprocess', 'p') == 0 else gam[0],
+                g=np.ravel(0.01) if self.params.get(
+                    'preprocess', 'p') == 0 else gam[0],
                 lam=0 if not use_L1 else l,
                 s_min=0 if use_L1 else (self.params.get('temporal', 's_min') if self.params.get('temporal', 's_min') > 0 else
-                                         (-self.params.get('temporal', 's_min') * sn * np.sqrt(1 - np.sum(gam)))),
+                                        (-self.params.get('temporal', 's_min') * sn * np.sqrt(1 - np.sum(gam)))),
                 b=b,
                 g2=0 if self.params.get('preprocess', 'p') < 2 else gam[1])
                 for gam, l, b, sn in zip(self.estimates.g, self.estimates.lam, self.estimates.bl, self.estimates.neurons_sn)]
 
             for i, o in enumerate(self.estimates.OASISinstances):
-                o.fit(self.estimates.noisyC[i + self.params.get('init', 'nb'), :self.params.get('online', 'init_batch')])
-                self.estimates.C_on[i, :self.params.get('online', 'init_batch')] = o.c
+                o.fit(self.estimates.noisyC[i + self.params.get('init',
+                                                                'nb'), :self.params.get('online', 'init_batch')])
+                self.estimates.C_on[i, :self.params.get(
+                    'online', 'init_batch')] = o.c
         else:
-            self.estimates.C_on[:self.N, :self.params.get('online', 'init_batch')] = self.estimates.C
+            self.estimates.C_on[:self.N, :self.params.get(
+                'online', 'init_batch')] = self.estimates.C
 
         self.estimates.Ab, self.ind_A, self.estimates.CY, self.estimates.CC = init_shapes_and_sufficient_stats(
             Yr[:, :self.params.get('online', 'init_batch')].reshape(
                 self.params.get('data', 'dims') + (-1,), order='F'), self.estimates.A,
             self.estimates.C_on[:self.N, :self.params.get('online', 'init_batch')], self.estimates.b, self.estimates.noisyC[:self.params.get('init', 'nb'), :self.params.get('online', 'init_batch')])
 
-        self.estimates.CY, self.estimates.CC = self.estimates.CY * 1. / self.params.get('online', 'init_batch'), 1 * self.estimates.CC / self.params.get('online', 'init_batch')
+        self.estimates.CY, self.estimates.CC = self.estimates.CY * 1. / \
+            self.params.get('online', 'init_batch'), 1 * \
+            self.estimates.CC / self.params.get('online', 'init_batch')
 
         print('Expecting ' + str(expected_comps) + ' components')
-        self.estimates.CY.resize([expected_comps + self.params.get('init', 'nb'), self.estimates.CY.shape[-1]])
+        self.estimates.CY.resize(
+            [expected_comps + self.params.get('init', 'nb'), self.estimates.CY.shape[-1]])
         if self.params.get('online', 'use_dense'):
             self.estimates.Ab_dense = np.zeros((self.estimates.CY.shape[-1], expected_comps + self.params.get('init', 'nb')),
-                                     dtype=np.float32)
-            self.estimates.Ab_dense[:, :self.estimates.Ab.shape[1]] = self.estimates.Ab.toarray()
+                                               dtype=np.float32)
+            self.estimates.Ab_dense[:, :self.estimates.Ab.shape[1]
+                                    ] = self.estimates.Ab.toarray()
         self.estimates.C_on = np.vstack(
             [self.estimates.noisyC[:self.params.get('init', 'nb'), :], self.estimates.C_on.astype(np.float32)])
 
-        self.params.set('init', {'gSiz': np.add(np.multiply(np.ceil(self.params.get('init', 'gSig')).astype(np.int), 2), 1)})
+        self.params.set('init', {'gSiz': np.add(np.multiply(
+            np.ceil(self.params.get('init', 'gSig')).astype(np.int), 2), 1)})
 
         self.estimates.Yr_buf = RingBuffer(Yr[:, self.params.get('online', 'init_batch') - self.params.get('online', 'minibatch_shape'):
-                                    self.params.get('online', 'init_batch')].T.copy(), self.params.get('online', 'minibatch_shape'))
+                                              self.params.get('online', 'init_batch')].T.copy(), self.params.get('online', 'minibatch_shape'))
         self.estimates.Yres_buf = RingBuffer(self.estimates.Yr_buf - self.estimates.Ab.dot(
             self.estimates.C_on[:self.M, self.params.get('online', 'init_batch') - self.params.get('online', 'minibatch_shape'):self.params.get('online', 'init_batch')]).T, self.params.get('online', 'minibatch_shape'))
-        self.estimates.sn = np.array(np.std(self.estimates.Yres_buf,axis=0))
-        self.estimates.vr = np.array(np.var(self.estimates.Yres_buf,axis=0))
+        self.estimates.sn = np.array(np.std(self.estimates.Yres_buf, axis=0))
+        self.estimates.vr = np.array(np.var(self.estimates.Yres_buf, axis=0))
         self.estimates.mn = self.estimates.Yres_buf.mean(0)
         self.estimates.mean_buff = self.estimates.Yres_buf.mean(0)
         self.estimates.ind_new = []
-        self.estimates.rho_buf = imblur(np.maximum(self.estimates.Yres_buf.T,0).reshape(
+        self.estimates.rho_buf = imblur(np.maximum(self.estimates.Yres_buf.T, 0).reshape(
             self.params.get('data', 'dims') + (-1,), order='F'), sig=self.params.get('init', 'gSig'), siz=self.params.get('init', 'gSiz'), nDimBlur=len(self.params.get('data', 'dims')))**2
         self.estimates.rho_buf = np.reshape(
             self.estimates.rho_buf, (np.prod(self.params.get('data', 'dims')), -1)).T
         self.estimates.rho_buf = np.ascontiguousarray(self.estimates.rho_buf)
-        self.estimates.rho_buf = RingBuffer(self.estimates.rho_buf, self.params.get('online', 'minibatch_shape'))
-        self.estimates.AtA = (self.estimates.Ab.T.dot(self.estimates.Ab)).toarray()
-        self.estimates.AtY_buf = self.estimates.Ab.T.dot(self.estimates.Yr_buf.T)
+        self.estimates.rho_buf = RingBuffer(
+            self.estimates.rho_buf, self.params.get('online', 'minibatch_shape'))
+        self.estimates.AtA = (self.estimates.Ab.T.dot(
+            self.estimates.Ab)).toarray()
+        self.estimates.AtY_buf = self.estimates.Ab.T.dot(
+            self.estimates.Yr_buf.T)
         self.estimates.sv = np.sum(self.estimates.rho_buf.get_last_frames(
             min(self.params.get('online', 'init_batch'), self.params.get('online', 'minibatch_shape')) - 1), 0)
-        self.estimates.groups = list(map(list, update_order(self.estimates.Ab)[0]))
+        self.estimates.groups = list(
+            map(list, update_order(self.estimates.Ab)[0]))
         self.update_counter = 2**np.linspace(0, 1, self.N, dtype=np.float32)
-        self.time_neuron_added:List = []
+        self.time_neuron_added: List = []
         for nneeuu in range(self.N):
-            self.time_neuron_added.append((nneeuu, self.params.get('online', 'init_batch')))
+            self.time_neuron_added.append(
+                (nneeuu, self.params.get('online', 'init_batch')))
         if self.params.get('online', 'dist_shape_update'):
             self.time_spend = 0
-            self.comp_upd:List = []
+            self.comp_upd: List = []
         # setup per patch classifier
 
         if self.params.get('online', 'path_to_model') is None or self.params.get('online', 'sniper_mode') is False:
@@ -230,7 +248,8 @@ class OnACID(object):
                 use_keras = False
                 #logging.debug('Using Tensorflow')
             if use_keras:
-                path = self.params.get('online', 'path_to_model').split(".")[:-1]
+                path = self.params.get(
+                    'online', 'path_to_model').split(".")[:-1]
                 json_path = ".".join(path + ["json"])
                 model_path = ".".join(path + ["h5"])
                 json_file = open(json_path, 'r')
@@ -244,11 +263,14 @@ class OnACID(object):
                 self.tf_in = None
                 self.tf_out = None
             else:
-                path = self.params.get('online', 'path_to_model').split(".")[:-1]
+                path = self.params.get(
+                    'online', 'path_to_model').split(".")[:-1]
                 model_path = '.'.join(path + ['h5', 'pb'])
                 loaded_model = load_graph(model_path)
-                self.tf_in = loaded_model.get_tensor_by_name('prefix/conv2d_1_input:0')
-                self.tf_out = loaded_model.get_tensor_by_name('prefix/output_node0:0')
+                self.tf_in = loaded_model.get_tensor_by_name(
+                    'prefix/conv2d_1_input:0')
+                self.tf_out = loaded_model.get_tensor_by_name(
+                    'prefix/output_node0:0')
                 loaded_model = tf.Session(graph=loaded_model)
         self.loaded_model = loaded_model
         return self
@@ -293,7 +315,7 @@ class OnACID(object):
                 for i, o in enumerate(self.estimates.OASISinstances):
                     o.fit_next(self.estimates.noisyC[nb_ + i, t])
                     self.estimates.C_on[nb_ + i, t - o.get_l_of_last_pool() +
-                              1: t + 1] = o.get_c_of_last_pool()
+                                        1: t + 1] = o.get_c_of_last_pool()
 
         else:
             # update buffer, initialize C with previous value
@@ -310,24 +332,28 @@ class OnACID(object):
                 n_refit=self.params.get('online', 'n_refit'))
             for i, o in enumerate(self.estimates.OASISinstances):
                 self.estimates.C_on[nb_ + i, t - o.get_l_of_last_pool() + 1: t +
-                          1] = o.get_c_of_last_pool()
+                                    1] = o.get_c_of_last_pool()
 
         #self.estimates.mean_buff = self.estimates.Yres_buf.mean(0)
-        res_frame = frame - self.estimates.Ab.dot(self.estimates.C_on[:self.M, t])
+        res_frame = frame - \
+            self.estimates.Ab.dot(self.estimates.C_on[:self.M, t])
         mn_ = self.estimates.mn.copy()
         self.estimates.mn = (t-1)/t*self.estimates.mn + res_frame/t
-        self.estimates.vr = (t-1)/t*self.estimates.vr + (res_frame - mn_)*(res_frame - self.estimates.mn)/t
+        self.estimates.vr = (t-1)/t*self.estimates.vr + \
+            (res_frame - mn_)*(res_frame - self.estimates.mn)/t
         self.estimates.sn = np.sqrt(self.estimates.vr)
-        
+
         t_new = time()
         if self.params.get('online', 'update_num_comps'):
 
-            self.estimates.mean_buff += (res_frame-self.estimates.Yres_buf[self.estimates.Yres_buf.cur])/self.params.get('online', 'minibatch_shape')
+            self.estimates.mean_buff += (res_frame-self.estimates.Yres_buf[self.estimates.Yres_buf.cur])/self.params.get(
+                'online', 'minibatch_shape')
             self.estimates.Yres_buf.append(res_frame)
 
-            res_frame = np.reshape(res_frame, self.params.get('data', 'dims'), order='F')
+            res_frame = np.reshape(
+                res_frame, self.params.get('data', 'dims'), order='F')
 
-            rho = imblur(np.maximum(res_frame,0), sig=self.params.get('init', 'gSig'),
+            rho = imblur(np.maximum(res_frame, 0), sig=self.params.get('init', 'gSig'),
                          siz=self.params.get('init', 'gSiz'), nDimBlur=len(self.params.get('data', 'dims')))**2
 
             rho = np.reshape(rho, np.prod(self.params.get('data', 'dims')))
@@ -337,25 +363,35 @@ class OnACID(object):
                 self.estimates.CC, self.estimates.CY, self.ind_A, self.estimates.sv,
                 self.estimates.groups, self.estimates.ind_new, self.ind_new_all,
                 self.estimates.sv, self.cnn_pos) = update_num_components(
-                t, self.estimates.sv, self.estimates.Ab, self.estimates.C_on[:self.M, (t - mbs + 1):(t + 1)],
+                t, self.estimates.sv, self.estimates.Ab, self.estimates.C_on[:self.M, (
+                    t - mbs + 1):(t + 1)],
                 self.estimates.Yres_buf, self.estimates.Yr_buf, self.estimates.rho_buf,
-                self.params.get('data', 'dims'), self.params.get('init', 'gSig'),
-                self.params.get('init', 'gSiz'), self.ind_A, self.estimates.CY, self.estimates.CC,
+                self.params.get('data', 'dims'), self.params.get(
+                    'init', 'gSig'),
+                self.params.get(
+                    'init', 'gSiz'), self.ind_A, self.estimates.CY, self.estimates.CC,
                 rval_thr=self.params.get('online', 'rval_thr'),
-                thresh_fitness_delta=self.params.get('online', 'thresh_fitness_delta'),
-                thresh_fitness_raw=self.params.get('online', 'thresh_fitness_raw'),
+                thresh_fitness_delta=self.params.get(
+                    'online', 'thresh_fitness_delta'),
+                thresh_fitness_raw=self.params.get(
+                    'online', 'thresh_fitness_raw'),
                 thresh_overlap=self.params.get('online', 'thresh_overlap'), groups=self.estimates.groups,
-                batch_update_suff_stat=self.params.get('online', 'batch_update_suff_stat'),
-                gnb=self.params.get('init', 'nb'), sn=self.estimates.sn, 
-                g=(np.mean(self.estimates.g) if self.params.get('preprocess', 'p') == 1 else 
+                batch_update_suff_stat=self.params.get(
+                    'online', 'batch_update_suff_stat'),
+                gnb=self.params.get('init', 'nb'), sn=self.estimates.sn,
+                g=(np.mean(self.estimates.g) if self.params.get('preprocess', 'p') == 1 else
                     np.mean(self.estimates.g, 0)), s_min=self.params.get('temporal', 's_min'),
-                Ab_dense=self.estimates.Ab_dense if self.params.get('online', 'use_dense') else None,
-                oases=self.estimates.OASISinstances if self.params.get('preprocess', 'p') else None,
-                N_samples_exceptionality=self.params.get('online', 'N_samples_exceptionality'),
+                Ab_dense=self.estimates.Ab_dense if self.params.get(
+                    'online', 'use_dense') else None,
+                oases=self.estimates.OASISinstances if self.params.get(
+                    'preprocess', 'p') else None,
+                N_samples_exceptionality=self.params.get(
+                    'online', 'N_samples_exceptionality'),
                 max_num_added=self.params.get('online', 'max_num_added'),
                 min_num_trial=self.params.get('online', 'min_num_trial'),
-                loaded_model = self.loaded_model, test_both=self.params.get('online', 'test_both'),
-                thresh_CNN_noisy = self.params.get('online', 'thresh_CNN_noisy'),
+                loaded_model=self.loaded_model, test_both=self.params.get(
+                    'online', 'test_both'),
+                thresh_CNN_noisy=self.params.get('online', 'thresh_CNN_noisy'),
                 sniper_mode=self.params.get('online', 'sniper_mode'),
                 use_peak_max=self.params.get('online', 'use_peak_max'),
                 mean_buff=self.estimates.mean_buff, tf_in=self.tf_in,
@@ -368,7 +404,8 @@ class OnACID(object):
                 self.M += num_added
                 if self.N + self.params.get('online', 'max_num_added') > expected_comps:
                     expected_comps += 200
-                    self.params.set('online', {'expected_comps': expected_comps})
+                    self.params.set(
+                        'online', {'expected_comps': expected_comps})
                     self.estimates.CY.resize(
                         [expected_comps + nb_, self.estimates.CY.shape[-1]])
                     # refcheck can trigger "ValueError: cannot resize an array references or is referenced
@@ -378,27 +415,29 @@ class OnACID(object):
                         [expected_comps + nb_, self.estimates.C_on.shape[-1]], refcheck=False)
                     self.estimates.noisyC.resize(
                         [expected_comps + nb_, self.estimates.C_on.shape[-1]])
-                    if self.params.get('online', 'use_dense'):  # resize won't work due to contingency issue
+                    # resize won't work due to contingency issue
+                    if self.params.get('online', 'use_dense'):
                         # self.estimates.Ab_dense.resize([self.estimates.CY.shape[-1], expected_comps+nb_])
                         self.estimates.Ab_dense = np.zeros((self.estimates.CY.shape[-1], expected_comps + nb_),
-                                                 dtype=np.float32)
-                        self.estimates.Ab_dense[:, :Ab_.shape[1]] = Ab_.toarray()
+                                                           dtype=np.float32)
+                        self.estimates.Ab_dense[:,
+                                                :Ab_.shape[1]] = Ab_.toarray()
                     print('Increasing number of expected components to:' +
                           str(expected_comps))
                 self.update_counter.resize(self.N)
 
                 self.estimates.noisyC[self.M - num_added:self.M, t - mbs +
-                            1:t + 1] = Cf_temp[self.M - num_added:self.M]
+                                      1:t + 1] = Cf_temp[self.M - num_added:self.M]
 
                 for _ct in range(self.M - num_added, self.M):
                     self.time_neuron_added.append((_ct - nb_, t))
                     if self.params.get('preprocess', 'p'):
                         # N.B. OASISinstances are already updated within update_num_components
                         self.estimates.C_on[_ct, t - mbs + 1: t +
-                                  1] = self.estimates.OASISinstances[_ct - nb_].get_c(mbs)
+                                            1] = self.estimates.OASISinstances[_ct - nb_].get_c(mbs)
                     else:
                         self.estimates.C_on[_ct, t - mbs + 1: t + 1] = np.maximum(0,
-                                                                        self.estimates.noisyC[_ct, t - mbs + 1: t + 1])
+                                                                                  self.estimates.noisyC[_ct, t - mbs + 1: t + 1])
                     if self.params.get('online', 'simultaneously') and self.params.get('online', 'n_refit'):
                         self.estimates.AtY_buf = np.concatenate((
                             self.estimates.AtY_buf, [Ab_.data[Ab_.indptr[_ct]:Ab_.indptr[_ct + 1]].dot(
@@ -408,7 +447,8 @@ class OnACID(object):
                 # self.estimates.AtA = (Ab_.T.dot(Ab_)).toarray()
                 # faster incremental update of AtA instead of above line:
                 AtA = self.estimates.AtA
-                self.estimates.AtA = np.zeros((self.M, self.M), dtype=np.float32)
+                self.estimates.AtA = np.zeros(
+                    (self.M, self.M), dtype=np.float32)
                 self.estimates.AtA[:-num_added, :-num_added] = AtA
                 if self.params.get('online', 'use_dense'):
                     self.estimates.AtA[:, -num_added:] = self.estimates.Ab.T.dot(
@@ -417,13 +457,14 @@ class OnACID(object):
                     self.estimates.AtA[:, -num_added:] = self.estimates.Ab.T.dot(
                         self.estimates.Ab[:, -num_added:]).toarray()
                 self.estimates.AtA[-num_added:] = self.estimates.AtA[:, -num_added:].T
-                
+
                 # set the update counter to 0 for components that are overlaping the newly added
-                idx_overlap = self.estimates.AtA[nb_:-num_added, -num_added:].nonzero()[0]
+                idx_overlap = self.estimates.AtA[nb_:-
+                                                 num_added, -num_added:].nonzero()[0]
                 self.update_counter[idx_overlap] = 0
         self.t_detect.append(time() - t_new)
         if self.params.get('online', 'batch_update_suff_stat'):
-        # faster update using minibatch of frames
+            # faster update using minibatch of frames
             min_batch = min(self.params.get('online', 'update_freq'), mbs)
             if ((t + 1 - self.params.get('online', 'init_batch')) % min_batch == 0):
 
@@ -444,19 +485,23 @@ class OnACID(object):
 
                 self.estimates.CY[:nb_] = self.estimates.CY[:nb_] * w1 + \
                     w2 * ccf[:nb_].dot(y)   # background
-                self.estimates.CC = self.estimates.CC * w1 + w2 * ccf.dot(ccf.T)
+                self.estimates.CC = self.estimates.CC * \
+                    w1 + w2 * ccf.dot(ccf.T)
 
         else:
             ccf = self.estimates.C_on[:self.M, t - self.params.get('online', 'minibatch_suff_stat'):t -
                                       self.params.get('online', 'minibatch_suff_stat') + 1]
-            y = self.estimates.Yr_buf.get_last_frames(self.params.get('online', 'minibatch_suff_stat') + 1)[:1]
+            y = self.estimates.Yr_buf.get_last_frames(
+                self.params.get('online', 'minibatch_suff_stat') + 1)[:1]
             # much faster: exploit that we only access CY[m, ind_pixels], hence update only these
             for m in range(self.N):
                 self.estimates.CY[m + nb_, self.ind_A[m]] *= (1 - 1. / t)
                 self.estimates.CY[m + nb_, self.ind_A[m]] += ccf[m +
-                                                       nb_].dot(y[:, self.ind_A[m]]) / t
-            self.estimates.CY[:nb_] = self.estimates.CY[:nb_] * (1 - 1. / t) + ccf[:nb_].dot(y / t)
-            self.estimates.CC = self.estimates.CC * (1 - 1. / t) + ccf.dot(ccf.T / t)
+                                                                 nb_].dot(y[:, self.ind_A[m]]) / t
+            self.estimates.CY[:nb_] = self.estimates.CY[:nb_] * \
+                (1 - 1. / t) + ccf[:nb_].dot(y / t)
+            self.estimates.CC = self.estimates.CC * \
+                (1 - 1. / t) + ccf.dot(ccf.T / t)
 
         # update shapes
         t_sh = time()
@@ -489,7 +534,8 @@ class OnACID(object):
 
                 self.estimates.AtA = (Ab_.T.dot(Ab_)).toarray()
 
-                ind_zero = list(np.where(self.estimates.AtA.diagonal() < 1e-10)[0])
+                ind_zero = list(
+                    np.where(self.estimates.AtA.diagonal() < 1e-10)[0])
                 if len(ind_zero) > 0:
                     ind_zero.sort()
                     ind_zero = ind_zero[::-1]
@@ -499,20 +545,29 @@ class OnACID(object):
                     if self.params.get('online', 'use_dense'):
                         self.estimates.Ab_dense = np.delete(
                             self.estimates.Ab_dense, ind_zero, axis=1)
-                    self.estimates.AtA = np.delete(self.estimates.AtA, ind_zero, axis=0)
-                    self.estimates.AtA = np.delete(self.estimates.AtA, ind_zero, axis=1)
-                    self.estimates.CY = np.delete(self.estimates.CY, ind_zero, axis=0)
-                    self.estimates.CC = np.delete(self.estimates.CC, ind_zero, axis=0)
-                    self.estimates.CC = np.delete(self.estimates.CC, ind_zero, axis=1)
+                    self.estimates.AtA = np.delete(
+                        self.estimates.AtA, ind_zero, axis=0)
+                    self.estimates.AtA = np.delete(
+                        self.estimates.AtA, ind_zero, axis=1)
+                    self.estimates.CY = np.delete(
+                        self.estimates.CY, ind_zero, axis=0)
+                    self.estimates.CC = np.delete(
+                        self.estimates.CC, ind_zero, axis=0)
+                    self.estimates.CC = np.delete(
+                        self.estimates.CC, ind_zero, axis=1)
                     self.M -= len(ind_zero)
                     self.N -= len(ind_zero)
-                    self.estimates.noisyC = np.delete(self.estimates.noisyC, ind_zero, axis=0)
+                    self.estimates.noisyC = np.delete(
+                        self.estimates.noisyC, ind_zero, axis=0)
                     for ii in ind_zero:
-                        del self.estimates.OASISinstances[ii - self.params.get('init', 'nb')]
+                        del self.estimates.OASISinstances[ii -
+                                                          self.params.get('init', 'nb')]
                         #del self.ind_A[ii-self.params.init['nb']]
 
-                    self.estimates.C_on = np.delete(self.estimates.C_on, ind_zero, axis=0)
-                    self.estimates.AtY_buf = np.delete(self.estimates.AtY_buf, ind_zero, axis=0)
+                    self.estimates.C_on = np.delete(
+                        self.estimates.C_on, ind_zero, axis=0)
+                    self.estimates.AtY_buf = np.delete(
+                        self.estimates.AtY_buf, ind_zero, axis=0)
                     #Ab_ = Ab_[:,ind_keep]
                     Ab_ = csc_matrix(Ab_[:, ind_keep])
                     #Ab_ = csc_matrix(self.estimates.Ab_dense[:,:self.M])
@@ -521,13 +576,15 @@ class OnACID(object):
                     self.estimates.Ab = Ab_
                     self.ind_A = list(
                         [(self.estimates.Ab.indices[self.estimates.Ab.indptr[ii]:self.estimates.Ab.indptr[ii + 1]]) for ii in range(self.params.get('init', 'nb'), self.M)])
-                    self.estimates.groups = list(map(list, update_order(Ab_)[0]))
+                    self.estimates.groups = list(
+                        map(list, update_order(Ab_)[0]))
 
                 if self.params.get('online', 'n_refit'):
                     self.estimates.AtY_buf = Ab_.T.dot(self.estimates.Yr_buf.T)
 
         else:  # distributed shape update
-            self.update_counter *= .5**(1. / self.params.get('online', 'update_freq'))
+            self.update_counter *= .5**(1. /
+                                        self.params.get('online', 'update_freq'))
             # if not num_added:
             if (not num_added) and (time() - t_start < 2*self.time_spend / (t - self.params.get('online', 'init_batch') + 1)):
                 candidates = np.where(self.update_counter <= 1)[0]
@@ -543,7 +600,8 @@ class OnACID(object):
                         Ab_, self.ind_A, self.estimates.Ab_dense[:, :self.M] = update_shapes(
                             self.estimates.CY, self.estimates.CC, self.estimates.Ab, self.ind_A,
                             indicator_components=indicator_components, update_bkgrd=update_bkgrd,
-                            Ab_dense=self.estimates.Ab_dense[:, :self.M], sn=self.estimates.sn,
+                            Ab_dense=self.estimates.Ab_dense[:,
+                                                             :self.M], sn=self.estimates.sn,
                             q=0.5, iters=self.params.get('online', 'iters_shape'))
                         if update_bkgrd:
                             self.estimates.AtA = (Ab_.T.dot(Ab_)).toarray()
@@ -572,7 +630,7 @@ class OnACID(object):
         fls = self.params.get('data', 'fnames')
         opts = self.params.get_group('online')
         Y = caiman.load(fls[0], subindices=slice(0, opts['init_batch'],
-                 None), var_name_hdf5=self.params.get('data', 'var_name_hdf5')).astype(np.float32)
+                                                 None), var_name_hdf5=self.params.get('data', 'var_name_hdf5')).astype(np.float32)
         # Downsample if needed
         ds_factor = np.maximum(opts['ds_factor'], 1)
         if ds_factor > 1:
@@ -585,11 +643,12 @@ class OnACID(object):
             Y = mc[0].astype(np.float32)
             if self.params.get('motion', 'pw_rigid'):
                 n_p = len([(it[0], it[1])
-                 for it in sliding_window(Y[0], self.params.get('motion', 'overlaps'), self.params.get('motion', 'strides'))])
+                           for it in sliding_window(Y[0], self.params.get('motion', 'overlaps'), self.params.get('motion', 'strides'))])
                 for sh in mc[1]:
-                    self.estimates.shifts.append([tuple(sh) for i in range(n_p)])
+                    self.estimates.shifts.append(
+                        [tuple(sh) for i in range(n_p)])
             else:
-                self.estimates.shifts.extend(mc[1])                
+                self.estimates.shifts.extend(mc[1])
 
         img_min = Y.min()
 
@@ -601,19 +660,19 @@ class OnACID(object):
         if self.params.get('online', 'normalize'):
             Y = Y/img_norm[None, :, :]
         if opts['show_movie']:
-            self.bnd_Y = np.percentile(Y,(0.001,100-0.001))
+            self.bnd_Y = np.percentile(Y, (0.001, 100-0.001))
         _, d1, d2 = Y.shape
         Yr = Y.to_2D().T        # convert data into 2D array
         self.img_min = img_min
         self.img_norm = img_norm
         if self.params.get('online', 'init_method') == 'bare':
             self.estimates.A, self.estimates.b, self.estimates.C, self.estimates.f, self.estimates.YrA = bare_initialization(
-                    Y.transpose(1, 2, 0), gnb=self.params.get('init', 'nb'), k=self.params.get('init', 'K'),
-                    gSig=self.params.get('init', 'gSig'), return_object=False)
+                Y.transpose(1, 2, 0), gnb=self.params.get('init', 'nb'), k=self.params.get('init', 'K'),
+                gSig=self.params.get('init', 'gSig'), return_object=False)
             self.estimates.S = np.zeros_like(self.estimates.C)
             nr = self.estimates.C.shape[0]
             self.estimates.g = np.array([-np.poly([0.9] * max(self.params.get('preprocess', 'p'), 1))[1:]
-                               for gg in np.ones(nr)])
+                                         for gg in np.ones(nr)])
             self.estimates.bl = np.zeros(nr)
             self.estimates.c1 = np.zeros(nr)
             self.estimates.neurons_sn = np.std(self.estimates.YrA, axis=-1)
@@ -640,18 +699,20 @@ class OnACID(object):
 #                self.estimates.S, self.estimates.YrA = cnm.estimates.A, cnm.estimates.C, cnm.estimates.b,\
 #                cnm.estimates.f, cnm.estimates.S, cnm.estimates.YrA
                 if self.params.get('online', 'normalize'):
-                    self.estimates.A /= self.img_norm.reshape(-1, order='F')[:, np.newaxis]
-                    self.estimates.b /= self.img_norm.reshape(-1, order='F')[:, np.newaxis]
+                    self.estimates.A /= self.img_norm.reshape(-1, order='F')[
+                        :, np.newaxis]
+                    self.estimates.b /= self.img_norm.reshape(-1, order='F')[
+                        :, np.newaxis]
                     self.estimates.A = csc_matrix(self.estimates.A)
 
         elif self.params.get('online', 'init_method') == 'seeded':
             self.estimates.A, self.estimates.b, self.estimates.C, self.estimates.f, self.estimates.YrA = seeded_initialization(
-                    Y.transpose(1, 2, 0), self.estimates.A, gnb=self.params.get('init', 'nb'), k=self.params.get('init', 'K'),
-                    gSig=self.params.get('init', 'gSig'), return_object=False)
+                Y.transpose(1, 2, 0), self.estimates.A, gnb=self.params.get('init', 'nb'), k=self.params.get('init', 'K'),
+                gSig=self.params.get('init', 'gSig'), return_object=False)
             self.estimates.S = np.zeros_like(self.estimates.C)
             nr = self.estimates.C.shape[0]
             self.estimates.g = np.array([-np.poly([0.9] * max(self.params.get('preprocess', 'p'), 1))[1:]
-                               for gg in np.ones(nr)])
+                                         for gg in np.ones(nr)])
             self.estimates.bl = np.zeros(nr)
             self.estimates.c1 = np.zeros(nr)
             self.estimates.neurons_sn = np.std(self.estimates.YrA, axis=-1)
@@ -670,7 +731,7 @@ class OnACID(object):
                                         (0.001, 100-0.001))
         return self
 
-    def save(self,filename):
+    def save(self, filename):
         """save object in hdf5 file format
 
         Args:
@@ -683,7 +744,6 @@ class OnACID(object):
             save_dict_to_hdf5(self.__dict__, filename)
         else:
             raise Exception("Unsupported file extension")
-
 
     def fit_online(self, **kwargs):
         """Implements the caiman online algorithm on the list of files fls. The
@@ -712,7 +772,7 @@ class OnACID(object):
         Returns:
             self (results of caiman online)
         """
-        
+
         fls = self.params.get('data', 'fnames')
         init_batch = self.params.get('online', 'init_batch')
         epochs = self.params.get('online', 'epochs')
@@ -720,12 +780,12 @@ class OnACID(object):
         extra_files = len(fls) - 1
         init_files = 1
         t = init_batch
-        self.Ab_epoch:List = []
+        self.Ab_epoch: List = []
         t_online = []
         self.comp_upd = []
-        self.t_shapes:List = []
-        self.t_detect:List = []
-        self.t_motion:List = []
+        self.t_shapes: List = []
+        self.t_detect: List = []
+        self.t_motion: List = []
         max_shifts_online = self.params.get('online', 'max_shifts_online')
         if extra_files == 0:     # check whether there are any additional files
             process_files = fls[:init_files]     # end processing at this file
@@ -750,9 +810,9 @@ class OnACID(object):
             for file_count, ffll in enumerate(process_files):
                 print('Now processing file ' + ffll)
                 # load the file
-                Y_ = caiman.load(ffll, var_name_hdf5=self.params.get('data', 'var_name_hdf5'), 
+                Y_ = caiman.load(ffll, var_name_hdf5=self.params.get('data', 'var_name_hdf5'),
                                  subindices=slice(init_batc_iter[file_count], None, None))
-                
+
                 old_comps = self.N     # number of existing components
                 for frame_count, frame in enumerate(Y_):   # process each file
                     t_frame_start = time()
@@ -771,7 +831,7 @@ class OnACID(object):
                     frame_ = frame.copy().astype(np.float32)
                     if self.params.get('online', 'ds_factor') > 1:
                         frame_ = cv2.resize(frame_, self.img_norm.shape[::-1])
-                    
+
                     if self.params.get('online', 'normalize'):
                         frame_ -= self.img_min     # make data non-negative
                     t_mot = time()
@@ -788,13 +848,13 @@ class OnACID(object):
                                                                             use_cuda=False, border_nan='copy')
                         else:
                             frame_cor, shift = motion_correct_iteration_fast(
-                                    frame_, templ, max_shifts_online, max_shifts_online)
+                                frame_, templ, max_shifts_online, max_shifts_online)
                         self.estimates.shifts.append(shift)
                     else:
                         templ = None
                         frame_cor = frame_
                     self.t_motion.append(time() - t_mot)
-                    
+
                     if self.params.get('online', 'normalize'):
                         frame_cor = frame_cor/self.img_norm
                     # Fit next frame
@@ -815,20 +875,25 @@ class OnACID(object):
                             break
                     t += 1
                     t_online.append(time() - t_frame_start)
-        
+
             self.Ab_epoch.append(self.estimates.Ab.copy())
 
         if self.params.get('online', 'normalize'):
-            self.estimates.Ab /= 1./self.img_norm.reshape(-1, order='F')[:,np.newaxis]
+            self.estimates.Ab /= 1. / \
+                self.img_norm.reshape(-1, order='F')[:, np.newaxis]
             self.estimates.Ab = csc_matrix(self.estimates.Ab)
-        self.estimates.A, self.estimates.b = self.estimates.Ab[:, self.params.get('init', 'nb'):], self.estimates.Ab[:, :self.params.get('init', 'nb')].toarray()
+        self.estimates.A, self.estimates.b = self.estimates.Ab[:, self.params.get(
+            'init', 'nb'):], self.estimates.Ab[:, :self.params.get('init', 'nb')].toarray()
         self.estimates.C, self.estimates.f = self.estimates.C_on[self.params.get('init', 'nb'):self.M, t - t //
-                         epochs:t], self.estimates.C_on[:self.params.get('init', 'nb'), t - t // epochs:t]
-        noisyC = self.estimates.noisyC[self.params.get('init', 'nb'):self.M, t - t // epochs:t]
+                                                                 epochs:t], self.estimates.C_on[:self.params.get('init', 'nb'), t - t // epochs:t]
+        noisyC = self.estimates.noisyC[self.params.get(
+            'init', 'nb'):self.M, t - t // epochs:t]
         self.estimates.YrA = noisyC - self.estimates.C
         if self.estimates.OASISinstances is not None:
-            self.estimates.bl = [osi.b for osi in self.estimates.OASISinstances]
-            self.estimates.S = np.stack([osi.s for osi in self.estimates.OASISinstances])
+            self.estimates.bl = [
+                osi.b for osi in self.estimates.OASISinstances]
+            self.estimates.S = np.stack(
+                [osi.s for osi in self.estimates.OASISinstances])
             self.estimates.S = self.estimates.S[:, t - t // epochs:t]
         else:
             self.estimates.bl = [0] * self.estimates.C.shape[0]
@@ -836,15 +901,15 @@ class OnACID(object):
         if self.params.get('online', 'ds_factor') > 1:
             dims = Y_.shape[1:]
             self.estimates.A = hstack([coo_matrix(cv2.resize(self.estimates.A[:, i].reshape(self.dims, order='F').toarray(),
-                                                            dims[::-1]).reshape(-1, order='F')[:,None]) for i in range(self.N)], format='csc')
+                                                             dims[::-1]).reshape(-1, order='F')[:, None]) for i in range(self.N)], format='csc')
             self.estimates.b = np.concatenate([cv2.resize(self.estimates.b[:, i].reshape(self.dims, order='F'),
-                                                          dims[::-1]).reshape(-1, order='F')[:,None] for i in range(self.params.get('init', 'nb'))], axis=1)
+                                                          dims[::-1]).reshape(-1, order='F')[:, None] for i in range(self.params.get('init', 'nb'))], axis=1)
             self.params.set('data', {'dims': dims})
             self.estimates.dims = dims
         if self.params.get('online', 'save_online_movie'):
-            out.release() 
+            out.release()
         if self.params.get('online', 'show_movie'):
-            cv2.destroyAllWindows() 
+            cv2.destroyAllWindows()
         self.t_online = t_online
         self.estimates.C_on = self.estimates.C_on[:self.M]
         self.estimates.noisyC = self.estimates.noisyC[:self.M]
@@ -865,10 +930,13 @@ class OnACID(object):
         # inferred activity due to components (no background)
         frame_plot = (frame_cor.copy() - self.bnd_Y[0])/np.diff(self.bnd_Y)
         comps_frame = A.dot(C[:, self.t - 1]).reshape(self.dims, order='F')
-        bgkrnd_frame = b.dot(f[:, self.t - 1]).reshape(self.dims, order='F')  # denoised frame (components + background)
+        # denoised frame (components + background)
+        bgkrnd_frame = b.dot(f[:, self.t - 1]).reshape(self.dims, order='F')
         denoised_frame = comps_frame + bgkrnd_frame
-        denoised_frame = (denoised_frame.copy() - self.bnd_Y[0])/np.diff(self.bnd_Y)
-        comps_frame = (comps_frame.copy() - self.bnd_AC[0])/np.diff(self.bnd_AC)
+        denoised_frame = (denoised_frame.copy() -
+                          self.bnd_Y[0])/np.diff(self.bnd_Y)
+        comps_frame = (comps_frame.copy() -
+                       self.bnd_AC[0])/np.diff(self.bnd_AC)
 
         if show_residuals:
             #all_comps = np.reshape(self.Yres_buf.mean(0), self.dims, order='F')
@@ -876,10 +944,10 @@ class OnACID(object):
             all_comps = np.minimum(np.maximum(all_comps, 0)*2 + 0.25, 255)
         else:
             all_comps = np.array(A.sum(-1)).reshape(self.dims, order='F')
-                                                  # spatial shapes
+            # spatial shapes
         frame_comp_1 = cv2.resize(np.concatenate([frame_plot, all_comps * 1.], axis=-1),
                                   (2 * np.int(self.dims[1] * resize_fact), np.int(self.dims[0] * resize_fact)))
-        frame_comp_2 = cv2.resize(np.concatenate([comps_frame, denoised_frame], axis=-1), 
+        frame_comp_2 = cv2.resize(np.concatenate([comps_frame, denoised_frame], axis=-1),
                                   (2 * np.int(self.dims[1] * resize_fact), np.int(self.dims[0] * resize_fact)))
         frame_pn = np.concatenate([frame_comp_1, frame_comp_2], axis=0).T
         vid_frame = np.repeat(frame_pn[:, :, None], 3, axis=-1)
@@ -888,8 +956,8 @@ class OnACID(object):
         if show_residuals and est.ind_new:
             add_v = np.int(self.dims[1]*resize_fact)
             for ind_new in est.ind_new:
-                cv2.rectangle(vid_frame,(int(ind_new[0][1]*resize_fact),int(ind_new[1][1]*resize_fact)+add_v),
-                                             (int(ind_new[0][0]*resize_fact),int(ind_new[1][0]*resize_fact)+add_v),(255,0,255),2)
+                cv2.rectangle(vid_frame, (int(ind_new[0][1]*resize_fact), int(ind_new[1][1]*resize_fact)+add_v),
+                              (int(ind_new[0][0]*resize_fact), int(ind_new[1][0]*resize_fact)+add_v), (255, 0, 255), 2)
 
         cv2.putText(vid_frame, captions[0], (5, 20), fontFace=5, fontScale=0.8, color=(
             0, 255, 0), thickness=1)
@@ -900,11 +968,11 @@ class OnACID(object):
         cv2.putText(vid_frame, captions[3], (np.int(self.dims[0] * resize_fact) + 5, np.int(
             self.dims[1] * resize_fact) + 20), fontFace=5, fontScale=0.8, color=(0, 255, 0), thickness=1)
         cv2.putText(vid_frame, 'Frame = ' + str(self.t), (vid_frame.shape[1] // 2 - vid_frame.shape[1] //
-                                                     10, vid_frame.shape[0] - 20), fontFace=5, fontScale=0.8, color=(0, 255, 255), thickness=1)
+                                                          10, vid_frame.shape[0] - 20), fontFace=5, fontScale=0.8, color=(0, 255, 255), thickness=1)
         return vid_frame
 
 
-#%%
+# %%
 def bare_initialization(Y, init_batch=1000, k=1, method_init='greedy_roi', gnb=1,
                         gSig=[5, 5], motion_flag=False, p=1,
                         return_object=True, **kwargs):
@@ -959,11 +1027,12 @@ def bare_initialization(Y, init_batch=1000, k=1, method_init='greedy_roi', gnb=1
             b_in), f_in=f_in, method_init=method_init, p=p, gnb=gnb, **kwargs)
 
         cnm_init.estimates.A, cnm_init.estimates.C, cnm_init.estimates.b, cnm_init.estimates.f, cnm_init.estimates.S,\
-            cnm_init.estimates.YrA = Ain, Cin, b_in, f_in, np.maximum(np.atleast_2d(Cin), 0), YrA
+            cnm_init.estimates.YrA = Ain, Cin, b_in, f_in, np.maximum(
+                np.atleast_2d(Cin), 0), YrA
 
         #cnm_init.g = np.array([-np.poly([0.9]*max(p,1))[1:] for gg in np.ones(k)])
         cnm_init.estimates.g = np.array([-np.poly([0.9, 0.5][:max(1, p)])[1:]
-                               for gg in np.ones(k)])
+                                         for gg in np.ones(k)])
         cnm_init.estimates.bl = np.zeros(k)
         cnm_init.estimates.c1 = np.zeros(k)
         cnm_init.estimates.neurons_sn = np.std(YrA, axis=-1)
@@ -976,10 +1045,9 @@ def bare_initialization(Y, init_batch=1000, k=1, method_init='greedy_roi', gnb=1
         return Ain, np.array(b_in), Cin, f_in, YrA
 
 
-#%%
+# %%
 def seeded_initialization(Y, Ain, dims=None, init_batch=1000, order_init=None, gnb=1, p=1,
                           return_object=True, **kwargs):
-
     """
     Initialization for OnACID based on a set of user given binary masks.
     Args:
@@ -1025,18 +1093,19 @@ def seeded_initialization(Y, Ain, dims=None, init_batch=1000, order_init=None, g
     b_in = np.maximum(np.linalg.solve(f_in.dot(f_in.T), Y_resf.T), 0).T
     Yr_no_bg = (Yr - b_in.dot(f_in)).astype(np.float32)
 
-    Cin = np.zeros([Ain.shape[-1],Yr.shape[-1]], dtype = np.float32)
-    if order_init is not None: #initialize using rank-1 nmf for each component
+    Cin = np.zeros([Ain.shape[-1], Yr.shape[-1]], dtype=np.float32)
+    if order_init is not None:  # initialize using rank-1 nmf for each component
 
         model_comp = NMF(n_components=1, init='nndsvdar', max_iter=50)
         for count, idx_in in enumerate(order_init):
-            if count%10 == 0:
+            if count % 10 == 0:
                 print(count)
-            idx_domain = np.where(Ain[:,idx_in])[0]
-            Ain[idx_domain,idx_in] = model_comp.fit_transform(\
-                                   np.maximum(Yr_no_bg[idx_domain], 0)).squeeze()
+            idx_domain = np.where(Ain[:, idx_in])[0]
+            Ain[idx_domain, idx_in] = model_comp.fit_transform(
+                np.maximum(Yr_no_bg[idx_domain], 0)).squeeze()
             Cin[idx_in] = model_comp.components_.squeeze()
-            Yr_no_bg[idx_domain] -= np.outer(Ain[idx_domain, idx_in],Cin[idx_in])
+            Yr_no_bg[idx_domain] -= np.outer(Ain[idx_domain,
+                                                 idx_in], Cin[idx_in])
     else:
         Ain = normalize(Ain.astype('float32'), axis=0, norm='l1')
         Cin = np.maximum(Ain.T.dot(Yr) - (Ain.T.dot(b_in)).dot(f_in), 0)
@@ -1055,10 +1124,11 @@ def seeded_initialization(Y, Ain, dims=None, init_batch=1000, order_init=None, g
         cnm_init = caiman.source_extraction.cnmf.cnmf.CNMF(
             2, Ain=Ain, Cin=Cin, b_in=np.array(b_in), f_in=f_in, p=1, **kwargs)
         cnm_init.estimates.A, cnm_init.estimates.C, cnm_init.estimates.b, cnm_init.estimates.f, cnm_init.estimates.S, \
-                cnm_init.estimates.YrA = Ain, Cin, b_in, f_in, np.fmax(np.atleast_2d(Cin), 0), YrA
+            cnm_init.estimates.YrA = Ain, Cin, b_in, f_in, np.fmax(
+                np.atleast_2d(Cin), 0), YrA
     #    cnm_init.g = np.array([[gg] for gg in np.ones(nr)*0.9])
         cnm_init.estimates.g = np.array([-np.poly([0.9] * max(p, 1))[1:]
-                               for gg in np.ones(nr)])
+                                         for gg in np.ones(nr)])
         cnm_init.estimates.bl = np.zeros(nr)
         cnm_init.estimates.c1 = np.zeros(nr)
         cnm_init.estimates.neurons_sn = np.std(YrA, axis=-1)
@@ -1237,7 +1307,7 @@ def demix_and_deconvolve(C, noisyC, AtY, AtA, OASISinstances, iters=3, n_refit=0
     return C, noisyC, OASISinstances
 
 
-#%% Estimate shapes on small initial batch
+# %% Estimate shapes on small initial batch
 def init_shapes_and_sufficient_stats(Y, A, C, b, f, bSiz=3):
     # smooth the components
     dims, T = np.shape(Y)[:-1], np.shape(Y)[-1]
@@ -1275,32 +1345,37 @@ def update_shapes(CY, CC, Ab, ind_A, sn=None, q=0.5, indicator_components=None,
         idx_comp = range(nb, M)
     else:
         idx_comp = np.where(indicator_components)[0] + nb
-    if sn is None or q == 0.5:  # avoid costly construction of L=np.zeros((M, D), dtype=np.float32)
+    # avoid costly construction of L=np.zeros((M, D), dtype=np.float32)
+    if sn is None or q == 0.5:
         for _ in range(iters):  # it's presumably better to run just 1 iter but update more neurons
             if Ab_dense is None:
                 for m in idx_comp:  # neurons
                     ind_pixels = ind_A[m - nb]
                     tmp = np.maximum(Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]] +
-                        ((CY[m, ind_pixels] - Ab.dot(CC[m])[ind_pixels]) / CC[m, m]), 0)
+                                     ((CY[m, ind_pixels] - Ab.dot(CC[m])[ind_pixels]) / CC[m, m]), 0)
                     # normalize
                     if tmp.dot(tmp) > 0:
                         tmp *= 1e-3 / \
                             min(1e-3, sqrt(tmp.dot(tmp)) + np.finfo(float).eps)
                         tmp = tmp / max(1, sqrt(tmp.dot(tmp)))
                         Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]] = tmp
-                        ind_A[m - nb] = Ab.indices[slice(Ab.indptr[m], Ab.indptr[m + 1])]
+                        ind_A[m -
+                              nb] = Ab.indices[slice(Ab.indptr[m], Ab.indptr[m + 1])]
             else:
                 for m in idx_comp:  # neurons
                     ind_pixels = ind_A[m - nb]
-                    tmp = np.maximum(Ab_dense[ind_pixels, m] + 
-                        ((CY[m, ind_pixels] - Ab_dense[ind_pixels].dot(CC[m])) / CC[m, m]), 0)
+                    tmp = np.maximum(Ab_dense[ind_pixels, m] +
+                                     ((CY[m, ind_pixels] - Ab_dense[ind_pixels].dot(CC[m])) / CC[m, m]), 0)
                     # normalize
                     if tmp.dot(tmp) > 0:
                         tmp *= 1e-3 / \
                             min(1e-3, sqrt(tmp.dot(tmp)) + np.finfo(float).eps)
-                        Ab_dense[ind_pixels, m] = tmp / max(1, sqrt(tmp.dot(tmp)))
-                        Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]] = Ab_dense[ind_pixels, m]
-                        ind_A[m - nb] = Ab.indices[slice(Ab.indptr[m], Ab.indptr[m + 1])]
+                        Ab_dense[ind_pixels, m] = tmp / \
+                            max(1, sqrt(tmp.dot(tmp)))
+                        Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]
+                                ] = Ab_dense[ind_pixels, m]
+                        ind_A[m -
+                              nb] = Ab.indices[slice(Ab.indptr[m], Ab.indptr[m + 1])]
             if update_bkgrd:
                 for m in range(nb):  # background
                     sl = slice(Ab.indptr[m], Ab.indptr[m + 1])
@@ -1317,7 +1392,7 @@ def update_shapes(CY, CC, Ab, ind_A, sn=None, q=0.5, indicator_components=None,
                 for m in idx_comp:  # neurons
                     ind_pixels = ind_A[m - nb]
                     tmp = np.maximum(Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]] +
-                        ((CY[m, ind_pixels] - L[m, ind_pixels] - Ab.dot(CC[m])[ind_pixels]) / CC[m, m]), 0)
+                                     ((CY[m, ind_pixels] - L[m, ind_pixels] - Ab.dot(CC[m])[ind_pixels]) / CC[m, m]), 0)
 
                     if tmp.dot(tmp) > 0:
                         tmp *= 1e-3 / \
@@ -1338,9 +1413,12 @@ def update_shapes(CY, CC, Ab, ind_A, sn=None, q=0.5, indicator_components=None,
                     if tmp.dot(tmp) > 0:
                         tmp *= 1e-3 / \
                             min(1e-3, sqrt(tmp.dot(tmp)) + np.finfo(float).eps)
-                        Ab_dense[ind_pixels, m] = tmp / max(1, sqrt(tmp.dot(tmp)))
-                        Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]] = Ab_dense[ind_pixels, m]
-                        ind_A[m - nb] = Ab.indices[slice(Ab.indptr[m], Ab.indptr[m + 1])]
+                        Ab_dense[ind_pixels, m] = tmp / \
+                            max(1, sqrt(tmp.dot(tmp)))
+                        Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]
+                                ] = Ab_dense[ind_pixels, m]
+                        ind_A[m -
+                              nb] = Ab.indices[slice(Ab.indptr[m], Ab.indptr[m + 1])]
                 # Ab.data[Ab.indptr[nb]:] = np.concatenate(
                 #     [Ab_dense[ind_A[m - nb], m] for m in range(nb, M)])
                 # N.B. why does selecting only overlapping neurons help surprisingly little, i.e
@@ -1397,7 +1475,7 @@ class RingBuffer(np.ndarray):
             return np.concatenate([self[(self.cur - num_frames):], self[:self.cur]], axis=0)
 
 
-#%%
+# %%
 def csc_append(a, b):
     """ Takes in 2 csc_matrices and appends the second one to the right of the first one.
     Much faster than scipy.sparse.vstack but assumes the type to be csc and overwrites
@@ -1442,13 +1520,13 @@ def rank1nmf(Ypx, ain):
     cin = np.maximum(cin_res, 0)
     return ain, cin, cin_res
 
-#%%
+# %%
 @profile
 def get_candidate_components(sv, dims, Yres_buf, min_num_trial=3, gSig=(5, 5),
                              gHalf=(5, 5), sniper_mode=True, rval_thr=0.85,
                              patch_size=50, loaded_model=None, test_both=False,
                              thresh_CNN_noisy=0.5, use_peak_max=False,
-                             thresh_std_peak_resid = 1, mean_buff=None,
+                             thresh_std_peak_resid=1, mean_buff=None,
                              tf_in=None, tf_out=None):
     """
     Extract new candidate components from the residual buffer and test them
@@ -1463,8 +1541,8 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial=3, gSig=(5, 5),
     idx = []
     all_indices = []
     ijsig_all = []
-    cnn_pos:List = []
-    local_maxima:List = []
+    cnn_pos: List = []
+    local_maxima: List = []
     Y_patch = []
     ksize = tuple([int(3 * i / 2) * 2 + 1 for i in gSig])
     compute_corr = test_both
@@ -1476,10 +1554,12 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial=3, gSig=(5, 5),
 #        plt.cla()
 #        plt.imshow(img_select_peaks)
 
-        img_select_peaks = cv2.GaussianBlur(img_select_peaks , ksize=ksize, sigmaX=gSig[0],
-                                                        sigmaY=gSig[1], borderType=cv2.BORDER_REPLICATE) \
-                    - cv2.boxFilter(img_select_peaks, ddepth=-1, ksize=ksize, borderType=cv2.BORDER_REPLICATE)
-        thresh_img_sel = np.median(img_select_peaks) + thresh_std_peak_resid  * np.std(img_select_peaks)
+        img_select_peaks = cv2.GaussianBlur(img_select_peaks, ksize=ksize, sigmaX=gSig[0],
+                                            sigmaY=gSig[1], borderType=cv2.BORDER_REPLICATE) \
+            - cv2.boxFilter(img_select_peaks, ddepth=-1,
+                            ksize=ksize, borderType=cv2.BORDER_REPLICATE)
+        thresh_img_sel = np.median(img_select_peaks) + \
+            thresh_std_peak_resid * np.std(img_select_peaks)
 
 #        plt.subplot(1,3,2)
 #        plt.cla()
@@ -1495,10 +1575,10 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial=3, gSig=(5, 5),
 #        img_select_peaks = clahe.apply(img_select_peaks)
 
         local_maxima = peak_local_max(img_select_peaks,
-                                      min_distance=np.max(np.array(gSig)).astype(np.int),
-                                      num_peaks=min_num_trial,threshold_abs=thresh_img_sel, exclude_border = False)
-        min_num_trial = np.minimum(len(local_maxima),min_num_trial)
-
+                                      min_distance=np.max(
+                                          np.array(gSig)).astype(np.int),
+                                      num_peaks=min_num_trial, threshold_abs=thresh_img_sel, exclude_border=False)
+        min_num_trial = np.minimum(len(local_maxima), min_num_trial)
 
     for i in range(min_num_trial):
         if use_peak_max:
@@ -1511,7 +1591,8 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial=3, gSig=(5, 5),
         ij = [min(max(ij_val, g_val), dim_val-g_val-1)
               for ij_val, g_val, dim_val in zip(ij, gHalf, dims)]
         ind = np.ravel_multi_index(ij, dims, order='C')
-        ijSig = [[max(i - g, 0), min(i+g+1, d)] for i, g, d in zip(ij, gHalf, dims)]
+        ijSig = [[max(i - g, 0), min(i+g+1, d)]
+                 for i, g, d in zip(ij, gHalf, dims)]
         ijsig_all.append(ijSig)
         indices = np.ravel_multi_index(np.ix_(*[np.arange(ij[0], ij[1])
                                                 for ij in ijSig]), dims, order='F').ravel(order='C')
@@ -1522,11 +1603,14 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial=3, gSig=(5, 5),
         ain = np.maximum(mean_buff[indices], 0)
 
         if sniper_mode:
-            half_crop_cnn = tuple([int(np.minimum(gs*2, patch_size/2)) for gs in gSig])
-            ij_cnn = [min(max(ij_val,g_val),dim_val-g_val-1) for ij_val, g_val, dim_val in zip(ij,half_crop_cnn,dims)]
-            ijSig_cnn = [[max(i - g, 0), min(i+g+1,d)] for i, g, d in zip(ij_cnn, half_crop_cnn, dims)]
+            half_crop_cnn = tuple(
+                [int(np.minimum(gs*2, patch_size/2)) for gs in gSig])
+            ij_cnn = [min(max(ij_val, g_val), dim_val-g_val-1)
+                      for ij_val, g_val, dim_val in zip(ij, half_crop_cnn, dims)]
+            ijSig_cnn = [[max(i - g, 0), min(i+g+1, d)]
+                         for i, g, d in zip(ij_cnn, half_crop_cnn, dims)]
             indices_cnn = np.ravel_multi_index(np.ix_(*[np.arange(ij[0], ij[1])
-                            for ij in ijSig_cnn]), dims, order='F').ravel(order = 'C')
+                                                        for ij in ijSig_cnn]), dims, order='F').ravel(order='C')
             ain_cnn = mean_buff[indices_cnn]
 
         else:
@@ -1548,14 +1632,18 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial=3, gSig=(5, 5),
     if sniper_mode & (len(Ain_cnn) > 0):
         Ain_cnn = np.stack(Ain_cnn)
         Ain2 = Ain_cnn.copy()
-        Ain2 -= np.median(Ain2,axis=1)[:,None]
-        Ain2 /= np.std(Ain2,axis=1)[:,None]
-        Ain2 = np.reshape(Ain2,(-1,) + tuple(np.diff(ijSig_cnn).squeeze()),order= 'F')
-        Ain2 = np.stack([cv2.resize(ain,(patch_size ,patch_size)) for ain in Ain2])
+        Ain2 -= np.median(Ain2, axis=1)[:, None]
+        Ain2 /= np.std(Ain2, axis=1)[:, None]
+        Ain2 = np.reshape(
+            Ain2, (-1,) + tuple(np.diff(ijSig_cnn).squeeze()), order='F')
+        Ain2 = np.stack([cv2.resize(ain, (patch_size, patch_size))
+                         for ain in Ain2])
         if tf_in is None:
-            predictions = loaded_model.predict(Ain2[:,:,:,np.newaxis], batch_size=min_num_trial, verbose=0)
+            predictions = loaded_model.predict(
+                Ain2[:, :, :, np.newaxis], batch_size=min_num_trial, verbose=0)
         else:
-            predictions = loaded_model.run(tf_out, feed_dict={tf_in: Ain2[:, :, :, np.newaxis]})
+            predictions = loaded_model.run(
+                tf_out, feed_dict={tf_in: Ain2[:, :, :, np.newaxis]})
         keep_cnn = list(np.where(predictions[:, 0] > thresh_CNN_noisy)[0])
         cnn_pos = Ain2[keep_cnn]
     else:
@@ -1571,7 +1659,7 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial=3, gSig=(5, 5),
             rval = corr(ain.copy(), np.mean(Ypx, -1))
             if rval > rval_thr:
                 keep_corr.append(i)
-        keep_final:List = list(set().union(keep_cnn, keep_corr))
+        keep_final: List = list(set().union(keep_cnn, keep_corr))
         if len(keep_final) > 0:
             Ain = np.stack(Ain)[keep_final]
         else:
@@ -1592,7 +1680,7 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial=3, gSig=(5, 5),
     return Ain, Cin, Cin_res, idx, ijsig_all, cnn_pos, local_maxima
 
 
-#%%
+# %%
 @profile
 def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                           dims, gSig, gSiz, ind_A, CY, CC, groups, oases, gnb=1,
@@ -1637,11 +1725,12 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
         cnt += 1
         ij = np.unravel_index(ind, dims)
 
-        ijSig = [[max(i - temp_g, 0), min(i + temp_g + 1, d)] for i, temp_g, d in zip(ij, gHalf, dims)]
+        ijSig = [[max(i - temp_g, 0), min(i + temp_g + 1, d)]
+                 for i, temp_g, d in zip(ij, gHalf, dims)]
 
         indices = np.ravel_multi_index(
-                np.ix_(*[np.arange(ij[0], ij[1])
-                       for ij in ijSig]), dims, order='F').ravel()
+            np.ix_(*[np.arange(ij[0], ij[1])
+                     for ij in ijSig]), dims, order='F').ravel()
 
         cin_circ = cin.get_ordered()
         useOASIS = False  # whether to use faster OASIS for cell detection
@@ -1657,7 +1746,7 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                 ain).T > thresh_overlap)[0] + gnb
 
         if ff.size > 0:
-#                accepted = False
+            #                accepted = False
             cc = [corr(cin_circ.copy(), cins) for cins in Cf[ff, :]]
             if np.any(np.array(cc) > .25) and accepted:
                 accepted = False         # reject component as duplicate
@@ -1670,7 +1759,8 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
             # e.g. 1 * sigma * sqrt(1-sum(gamma)) corresponds roughly to the root mean square (non-zero) spike size, sqrt(<s^2>)
             #      2 * sigma * sqrt(1-sum(gamma)) corresponds roughly to the 95% percentile of (non-zero) spike sizes
             #      3 * sigma * sqrt(1-sum(gamma)) corresponds roughly to the 99.7% percentile of (non-zero) spike sizes
-            s_min = -s_min * sqrt((ain**2).dot(sn[indices]**2)) * sqrt(1 - np.sum(g))
+            s_min = -s_min * \
+                sqrt((ain**2).dot(sn[indices]**2)) * sqrt(1 - np.sum(g))
 
         cin_res = cin_res.get_ordered()
         if accepted:
@@ -1708,16 +1798,17 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                     oas = OASIS(np.ravel(g)[0], 3 * sn_ /
                                 (sqrt(1 - g**2) if np.size(g) == 1 else
                                  sqrt((1 + g[1]) * ((1 - g[1])**2 - g[0]**2) / (1 - g[1])))
-                                      if s_min == 0 else 0,
-                                      s_min, num_empty_samples=t +
-                                      1 - len(cin_res),
-                                      g2=0 if np.size(g) == 1 else g[1])
+                                if s_min == 0 else 0,
+                                s_min, num_empty_samples=t +
+                                1 - len(cin_res),
+                                g2=0 if np.size(g) == 1 else g[1])
                     for yt in cin_res:
                         oas.fit_next(yt)
 
                 oases.append(oas)
 
-            Ain_csc = csc_matrix((ain, (indices, [0] * len(indices))), (np.prod(dims), 1), dtype=np.float32)
+            Ain_csc = csc_matrix(
+                (ain, (indices, [0] * len(indices))), (np.prod(dims), 1), dtype=np.float32)
             if Ab_dense is None:
                 groups = update_order(Ab, Ain, groups)[0]
             else:
@@ -1762,7 +1853,8 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
 
             if len(dims) == 3:
                 rho_buf[:, ind_vb] = np.stack([imblur(
-                    vb.reshape(dims, order='F')[slices_filter], sig=gSig, siz=gSiz,
+                    vb.reshape(dims, order='F')[
+                        slices_filter], sig=gSig, siz=gSiz,
                     nDimBlur=len(dims))[tuple([slice(
                         slices_update[i].start - slices_filter[i].start,
                         slices_update[i].stop - slices_filter[i].start)
@@ -1775,7 +1867,8 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                 T, d0, d1 = Y_filter.shape
                 tmp = np.concatenate((Y_filter, np.zeros((T, gHalf[0], d1), dtype=np.float32)),
                                      axis=1).reshape(-1, d1)
-                cv2.GaussianBlur(tmp, tuple(gSiz), gSig[0], tmp, gSig[1], cv2.BORDER_CONSTANT)
+                cv2.GaussianBlur(tmp, tuple(
+                    gSiz), gSig[0], tmp, gSig[1], cv2.BORDER_CONSTANT)
                 slices = tuple([slice(slices_update[i].start - slices_filter[i].start,
                                       slices_update[i].stop - slices_filter[i].start)
                                 for i in range(len(dims))])
@@ -1786,11 +1879,11 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
 
     return Ab, Cf, Yres_buf, rho_buf, CC, CY, ind_A, sv, groups, ind_new, ind_new_all, sv, cnn_pos
 
-#%% remove components online
+# %% remove components online
+
 
 def remove_components_online(ind_rem, gnb, Ab, use_dense, Ab_dense, AtA, CY,
                              CC, M, N, noisyC, OASISinstances, C_on, exp_comps):
-
     """
     Remove components indexed by ind_r (indexing starts at zero)
 
@@ -1835,6 +1928,7 @@ def remove_components_online(ind_rem, gnb, Ab, use_dense, Ab_dense, AtA, CY,
 
     return Ab, Ab_dense, CC, CY, M, N, noisyC, OASISinstances, C_on, exp_comps, ind_A, groups, AtA
 
+
 def initialize_movie_online(Y, K, gSig, rf, stride, base_name,
                             p=1, merge_thresh=0.95, rval_thr_online=0.9, thresh_fitness_delta_online=-30, thresh_fitness_raw_online=-50,
                             rval_thr_init=.5, thresh_fitness_delta_init=-20, thresh_fitness_raw_init=-20,
@@ -1855,15 +1949,15 @@ def initialize_movie_online(Y, K, gSig, rf, stride, base_name,
     Y = np.reshape(Yr, dims + (T,), order='F')
     Cn2 = caiman.local_correlations(Y)
 #    pl.imshow(Cn2)
-    #%
-    #% RUN ALGORITHM ON PATCHES
+    # %
+    # % RUN ALGORITHM ON PATCHES
 #    pl.close('all')
     cnm_init = caiman.source_extraction.cnmf.CNMF(n_processes, method_init='greedy_roi', k=K, gSig=gSig, merge_thresh=merge_thresh,
-                                              p=0, dview=dview, Ain=None, rf=rf, stride=stride, method_deconvolution='oasis', skip_refinement=False,
-                                              normalize_init=False, options_local_NMF=None,
-                                              minibatch_shape=100, minibatch_suff_stat=5,
-                                              update_num_comps=True, rval_thr=rval_thr_online, thresh_fitness_delta=thresh_fitness_delta_online, thresh_fitness_raw=thresh_fitness_raw_online,
-                                              batch_update_suff_stat=True, max_comp_update_shape=5)
+                                                  p=0, dview=dview, Ain=None, rf=rf, stride=stride, method_deconvolution='oasis', skip_refinement=False,
+                                                  normalize_init=False, options_local_NMF=None,
+                                                  minibatch_shape=100, minibatch_suff_stat=5,
+                                                  update_num_comps=True, rval_thr=rval_thr_online, thresh_fitness_delta=thresh_fitness_delta_online, thresh_fitness_raw=thresh_fitness_raw_online,
+                                                  batch_update_suff_stat=True, max_comp_update_shape=5)
 
     cnm_init = cnm_init.fit(images)
     A_tot = cnm_init.A
@@ -1874,7 +1968,7 @@ def initialize_movie_online(Y, K, gSig, rf, stride, base_name,
 
     print(('Number of components:' + str(A_tot.shape[-1])))
 
-    #%
+    # %
 
     traces = C_tot + YrA_tot
     #        traces_a=traces-scipy.ndimage.percentile_filter(traces,8,size=[1,np.shape(traces)[-1]/5])
@@ -1896,25 +1990,25 @@ def initialize_movie_online(Y, K, gSig, rf, stride, base_name,
 
     A_tot = A_tot.tocsc()[:, idx_components]
     C_tot = C_tot[idx_components]
-    #%
+    # %
     cnm_refine = caiman.source_extraction.cnmf.CNMF(n_processes, method_init='greedy_roi', k=A_tot.shape, gSig=gSig, merge_thresh=merge_thresh, rf=None, stride=None,
-                                                p=p, dview=dview, Ain=A_tot, Cin=C_tot, f_in=f_tot, method_deconvolution='oasis', skip_refinement=True,
-                                                normalize_init=False, options_local_NMF=None,
-                                                minibatch_shape=100, minibatch_suff_stat=5,
-                                                update_num_comps=True, rval_thr=rval_thr_refine, thresh_fitness_delta=thresh_fitness_delta_refine, thresh_fitness_raw=thresh_fitness_raw_refine,
-                                                batch_update_suff_stat=True, max_comp_update_shape=5)
+                                                    p=p, dview=dview, Ain=A_tot, Cin=C_tot, f_in=f_tot, method_deconvolution='oasis', skip_refinement=True,
+                                                    normalize_init=False, options_local_NMF=None,
+                                                    minibatch_shape=100, minibatch_suff_stat=5,
+                                                    update_num_comps=True, rval_thr=rval_thr_refine, thresh_fitness_delta=thresh_fitness_delta_refine, thresh_fitness_raw=thresh_fitness_raw_refine,
+                                                    batch_update_suff_stat=True, max_comp_update_shape=5)
 
     cnm_refine = cnm_refine.fit(images)
-    #%
+    # %
     A, C, b, f, YrA = cnm_refine.A, cnm_refine.C, cnm_refine.b, cnm_refine.f, cnm_refine.YrA
-    #%
+    # %
     final_frate = 10
     Npeaks = 10
     traces = C + YrA
 
     fitness_raw, fitness_delta, erfc_raw, erfc_delta, r_values, significant_samples = \
         caiman.components_evaluation.evaluate_components(Y, traces, A, C, b, f, final_frate, remove_baseline=True,
-                                                     N=5, robust_std=False, Athresh=0.1, Npeaks=Npeaks,  thresh_C=0.3)
+                                                         N=5, robust_std=False, Athresh=0.1, Npeaks=Npeaks,  thresh_C=0.3)
 
     idx_components_r = np.where(r_values >= rval_thr_refine)[0]
     idx_components_raw = np.where(fitness_raw < thresh_fitness_raw_refine)[0]
@@ -1928,7 +2022,7 @@ def initialize_movie_online(Y, K, gSig, rf, stride, base_name,
     print(' ***** ')
     print((len(traces)))
     print((len(idx_components)))
-    #%
+    # %
     cnm_refine.sn = sn
     cnm_refine.idx_components = idx_components
     cnm_refine.idx_components_bad = idx_components_bad
@@ -1937,14 +2031,15 @@ def initialize_movie_online(Y, K, gSig, rf, stride, base_name,
     cnm_refine.fitness_delta = fitness_delta
     cnm_refine.Cn2 = Cn2
 
-    #%
+    # %
 
 #    cnm_init.dview = None
 #    save_object(cnm_init,fls[0][:-4]+ '_DS_' + str(ds)+ '_init.pkl')
 
     return cnm_refine, Cn2, fname_new
 
-def load_OnlineCNMF(filename, dview = None):
+
+def load_OnlineCNMF(filename, dview=None):
     """load object saved with the CNMF save method
 
     Args:
@@ -1954,9 +2049,9 @@ def load_OnlineCNMF(filename, dview = None):
             useful to set up parllelization in the objects
     """
 
-    #load params
+    # load params
 
-    for key,val in load_dict_from_hdf5(filename).items():
+    for key, val in load_dict_from_hdf5(filename).items():
         if key == 'params':
             prms = CNMFParams()
             prms.data = val['data']
