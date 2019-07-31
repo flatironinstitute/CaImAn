@@ -108,8 +108,10 @@ class OnACID(object):
 
         self.estimates.A = self.estimates.A.astype(np.float32)
         self.estimates.C = self.estimates.C.astype(np.float32)
-        self.estimates.f = self.estimates.f.astype(np.float32)
-        self.estimates.b = self.estimates.b.astype(np.float32)
+        if self.estimates.f is not None:
+            self.estimates.f = self.estimates.f.astype(np.float32)
+        if self.estimates.b is not None:
+            self.estimates.b = self.estimates.b.astype(np.float32)
         self.estimates.YrA = self.estimates.YrA.astype(np.float32)
         self.estimates.select_components(idx_components=idx_components)
         self.N = self.estimates.A.shape[-1]
@@ -201,7 +203,7 @@ class OnACID(object):
                 self.XXt_vecs = []
                 self.W_ind = []
                 W = self.estimates.W
-                for p in range(X.shape[0]):
+                for p in range(W.shape[0]):
                     index = W.indices[W.indptr[p]:W.indptr[p + 1]]
                     self.W_ind.append(index)
                     x_i = X[index]
@@ -1120,7 +1122,7 @@ class OnACID(object):
                     frame_ = frame.copy().astype(np.float32)
                     if self.params.get('online', 'ds_factor') > 1:
                         frame_ = cv2.resize(frame_, self.img_norm.shape[::-1])
-                    
+
                     if self.params.get('online', 'normalize'):
                         frame_ -= self.img_min     # make data non-negative
                     t_mot = time()
@@ -1158,12 +1160,13 @@ class OnACID(object):
                             if self.is1p:
                                 M = np.float32([[1, 0, shift[1]], [0, 1, shift[0]]])
                                 frame_cor = cv2.warpAffine(
-                                    frame_orig, M, frame.shape[::-1], flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REFLECT)
+                                    frame_orig, M, frame_.shape[::-1], flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REFLECT)
 
                         self.estimates.shifts.append(shift)
                     else:
                         templ = None
                         frame_cor = frame_
+
                     self.t_motion.append(time() - t_mot)
                     
                     if self.params.get('online', 'normalize'):
@@ -1690,11 +1693,14 @@ def init_shapes_and_sufficient_stats(Y, A, C, b, f, W=None, b0=None, ssub_B=1, b
     # smooth the components
     dims, T = np.shape(Y)[:-1], np.shape(Y)[-1]
     K = A.shape[1]  # number of neurons
-    nb = b.shape[1]  # number of background components
+    if W is None:
+        nb = b.shape[1]  # number of background components
     # if isinstance(bSiz, (int, float)):
     #     bSiz = [bSiz] * len(dims)
-
-    Ab = np.hstack([b, A])
+        Ab = np.hstack([b, A])
+    else:
+        Ab = A
+        nb = 0
     # Ab = scipy.sparse.hstack([A.astype('float32'), b.astype('float32')]).tocsc()  might be faster
     # closing of shapes to not have holes in index matrix ind_A.
     # do this somehow smarter & faster, e.g. smooth only within patch !!
