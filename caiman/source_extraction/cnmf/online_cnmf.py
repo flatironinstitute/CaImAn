@@ -44,12 +44,12 @@ from .pre_processing import get_noise_fft
 from .utilities import update_order, get_file_size, peak_local_max, decimation_matrix
 from ... import mmapping
 from ...components_evaluation import compute_event_exceptionality
-from ...motion_correction import motion_correct_iteration_fast, tile_and_correct, high_pass_filter_space
+from ...motion_correction import (motion_correct_iteration_fast,
+                                  tile_and_correct, high_pass_filter_space,
+                                  sliding_window)
 from ...utils.utils import save_dict_to_hdf5, load_dict_from_hdf5, parmap, load_graph
 from ...utils.stats import pd_solve
 from ... import summary_images
-from ...motion_correction import (motion_correct_iteration_fast,
-                                  tile_and_correct, sliding_window)
 
 try:
     cv2.setNumThreads(0)
