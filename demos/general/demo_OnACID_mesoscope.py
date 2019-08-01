@@ -165,7 +165,7 @@ def main():
 
     cnm.estimates.evaluate_components(images, cnm.params, dview=dview)
     cnm.estimates.Cn = Cn
-    cnm.save(os.path.splitext(fnames[0])[0]+'_results.hdf5')
+    cnm.save(os.path.splitext(fnames[0])[0]+'_results.h5')
 
     dview.terminate()
 

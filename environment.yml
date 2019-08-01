@@ -7,7 +7,7 @@ dependencies:
 - cython
 - future
 - h5py
-- ipykernel=4.10
+- ipykernel
 - ipython
 - ipyparallel
 - jupyter
@@ -23,7 +23,7 @@ dependencies:
 - scikit-learn
 - spyder
 - tifffile
-- tk=8.6.8
+- tk !=8.6.9
 - tqdm
 - pyqtgraph
 - pynwb
