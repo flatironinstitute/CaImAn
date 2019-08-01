@@ -21,6 +21,7 @@ from builtins import zip
 import cv2
 from multiprocessing import current_process, cpu_count
 import logging
+import os
 from math import sqrt
 import numpy as np
 from past.utils import old_div
@@ -974,20 +975,16 @@ class OnACID(object):
                 cnm.dview = None
                 cnm.fit(np.array(Y))
                 self.estimates = cnm.estimates
-#                self.estimates.A, self.estimates.C, self.estimates.b, self.estimates.f,\
-#                self.estimates.S, self.estimates.YrA = cnm.estimates.A, cnm.estimates.C, cnm.estimates.b,\
-#                cnm.estimates.f, cnm.estimates.S, self.estimates.YrA
 
             else:
-                f_new = mmapping.save_memmap(fls[:1], base_name='Yr', order='C',
+                Y.save('init_file.hdf5')
+                f_new = mmapping.save_memmap(['init_file.hdf5'], base_name='Yr', order='C',
                                              slices=[slice(0, opts['init_batch']), None, None])
+
                 Yrm, dims_, T_ = mmapping.load_memmap(f_new)
                 Y = np.reshape(Yrm.T, [T_] + list(dims_), order='F')
                 cnm.fit(Y)
                 self.estimates = cnm.estimates
-#                self.estimates.A, self.estimates.C, self.estimates.b, self.estimates.f,\
-#                self.estimates.S, self.estimates.YrA = cnm.estimates.A, cnm.estimates.C, cnm.estimates.b,\
-#                cnm.estimates.f, cnm.estimates.S, cnm.estimates.YrA
                 if self.params.get('online', 'normalize'):
                     self.estimates.A /= self.img_norm.reshape(-1, order='F')[:, np.newaxis]
                     self.estimates.b /= self.img_norm.reshape(-1, order='F')[:, np.newaxis]
