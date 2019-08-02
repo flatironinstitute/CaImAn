@@ -1206,10 +1206,17 @@ class OnACID(object):
             self.estimates.S = np.zeros_like(self.estimates.C)
         if self.params.get('online', 'ds_factor') > 1:
             dims = Y_.shape[1:]
-            self.estimates.A = hstack([coo_matrix(cv2.resize(self.estimates.A[:, i].reshape(self.dims, order='F').toarray(),
+            self.estimates.A = hstack([coo_matrix(cv2.resize(self.estimates.A[:, i].reshape(self.estimates.dims, order='F').toarray(),
                                                             dims[::-1]).reshape(-1, order='F')[:,None]) for i in range(self.N)], format='csc')
-            self.estimates.b = np.concatenate([cv2.resize(self.estimates.b[:, i].reshape(self.dims, order='F'),
-                                                          dims[::-1]).reshape(-1, order='F')[:,None] for i in range(self.params.get('init', 'nb'))], axis=1)
+            if self.estimates.b.shape[-1] > 0:
+                self.estimates.b = np.concatenate([cv2.resize(self.estimates.b[:, i].reshape(self.estimates.dims, order='F'),
+                                                              dims[::-1]).reshape(-1, order='F')[:,None] for i in range(self.params.get('init', 'nb'))], axis=1)
+            else:
+                self.estimates.b = np.resize(self.estimates.b, (self.estimates.A.shape[0], 0))
+            if self.estimates.b0 is not None:
+                b0 = self.estimates.b0.reshape(self.estimates.dims, order='F')
+                b0 = np.resize(b0, dims)
+                self.estimates.b0 = b0.reshape((-1, 1), order='F')
             self.params.set('data', {'dims': dims})
             self.estimates.dims = dims
         if self.params.get('online', 'save_online_movie'):
@@ -1238,7 +1245,7 @@ class OnACID(object):
         frame_plot = (frame_cor.copy() - self.bnd_Y[0])/np.diff(self.bnd_Y)
         comps_frame = A.dot(C[:, self.t - 1]).reshape(self.dims, order='F')
         if self.is1p:
-            ssub_B = self.params.get('init', 'ssub_B')
+            ssub_B = self.params.get('init', 'ssub_B') * self.params.get('init', 'ssub')
             if ssub_B == 1:
                 B = self.estimates.W.dot((frame_cor - comps_frame).flatten(order='F') - self.estimates.b0) + self.estimates.b0
                 bgkrnd_frame = B.reshape(self.dims, order='F')

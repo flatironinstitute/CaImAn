@@ -484,27 +484,30 @@ class Estimates(object):
         Returns:
             self (to stop the movie press 'q')
         """
-
         dims = imgs.shape[1:]
         if 'movie' not in str(type(imgs)):
             imgs = caiman.movie(imgs)
-        Y_rec = self.A.dot(self.C[:, frame_range])
-        Y_rec = Y_rec.reshape(dims + (-1,), order='F')
+        AC = self.A.dot(self.C[:, frame_range])
+        Y_rec = AC.reshape(dims + (-1,), order='F')
         Y_rec = Y_rec.transpose([2, 0, 1])
-
         if self.W is not None:
             ssub_B = int(round(np.sqrt(np.prod(dims) / self.W.shape[0])))
-            B = imgs[frame_range].reshape((-1, np.prod(dims)), order='F').T - \
-                self.A.dot(self.C[:, frame_range])
+            B = imgs[frame_range].reshape((-1, np.prod(dims)), order='F').T - AC
             if ssub_B == 1:
                 B = self.b0[:, None] + self.W.dot(B - self.b0[:, None])
             else:
-                B = self.b0[:, None] + (np.repeat(np.repeat(self.W.dot(
-                    downscale(B.reshape(dims + (B.shape[-1],), order='F'),
-                              (ssub_B, ssub_B, 1)).reshape((-1, B.shape[-1]), order='F') -
-                    downscale(self.b0.reshape(dims, order='F'),
+#                B = self.b0[:, None] + (np.repeat(np.repeat(self.W.dot(
+#                    downscale(B.reshape(dims + (B.shape[-1],), order='F'),
+#                              (ssub_B, ssub_B, 1)).reshape((-1, B.shape[-1]), order='F') -
+#                    downscale(self.b0.reshape(dims, order='F'),
+#                              (ssub_B, ssub_B)).reshape((-1, 1), order='F'))
+#                    .reshape(((dims[0] - 1) // ssub_B + 1, (dims[1] - 1) // ssub_B + 1, -1), order='F'),
+#                    ssub_B, 0), ssub_B, 1)[:dims[0], :dims[1]].reshape((-1, B.shape[-1]), order='F'))
+                WB = self.W.dot(downscale(B.reshape(dims + (B.shape[-1],), order='F'),
+                              (ssub_B, ssub_B, 1)).reshape((-1, B.shape[-1]), order='F'))
+                Wb0 = self.W.dot(downscale(self.b0.reshape(dims, order='F'),
                               (ssub_B, ssub_B)).reshape((-1, 1), order='F'))
-                    .reshape(((dims[0] - 1) // ssub_B + 1, (dims[1] - 1) // ssub_B + 1, -1), order='F'),
+                B = self.b0[:, None] + (np.repeat(np.repeat((WB - Wb0).reshape(((dims[0] - 1) // ssub_B + 1, (dims[1] - 1) // ssub_B + 1, -1), order='F'),
                     ssub_B, 0), ssub_B, 1)[:dims[0], :dims[1]].reshape((-1, B.shape[-1]), order='F'))
             B = B.reshape(dims + (-1,), order='F').transpose([2, 0, 1])
         elif self.b is not None and self.f is not None:
