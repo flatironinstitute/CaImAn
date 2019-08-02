@@ -110,6 +110,7 @@ def main():
         cnm = cnmf.online_cnmf.OnACID(params=opts)
         cnm.fit_online(save_init_file=init_file_save)
 
+    #%%
 # %% plot contours (this may take time)
     logging.info('Number of components: ' + str(cnm.estimates.A.shape[-1]))
     images = cm.load(fnames)
