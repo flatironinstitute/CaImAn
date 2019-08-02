@@ -4,7 +4,7 @@
 """
 Complete pipeline for online processing using CaImAn Online (OnACID).
 The demo demonstates the analysis of a sequence of files using the CaImAn online
-algorithm. The steps include i) motion correction, ii) tracking current 
+algorithm. The steps include i) motion correction, ii) tracking current
 components, iii) detecting new components, iv) updating of spatial footprints.
 The script demonstrates how to construct and use the params and online_cnmf
 objects required for the analysis, and presents the various parameters that
@@ -32,6 +32,7 @@ except NameError:
 import caiman as cm
 from caiman.paths import caiman_datadir
 from caiman.source_extraction import cnmf as cnmf
+from caiman.source_extraction.cnmf.online_cnmf import load_OnlineCNMF
 from caiman.utils.utils import download_demo
 
 # %%
@@ -45,13 +46,12 @@ def main():
     download_demo('Tolias_mesoscope_1.hdf5', fld_name)
     download_demo('Tolias_mesoscope_2.hdf5', fld_name)
     download_demo('Tolias_mesoscope_3.hdf5', fld_name)
-
-    # folder where files are located
+#
+#    # folder where files are located
     folder_name = os.path.join(caiman_datadir(), 'example_movies', fld_name)
     extension = 'hdf5'                                  # extension of files
     # read all files to be processed
     fnames = glob.glob(folder_name + '/*' + extension)
-
     # your list of files should look something like this
     logging.info(fnames)
 
@@ -59,7 +59,7 @@ def main():
 
     fr = 15  # frame rate (Hz)
     decay_time = 0.5  # approximate length of transient event in seconds
-    gSig = (3, 3)  # expected half size of neurons
+    gSig = (5, 5)  # expected half size of neurons
     p = 1  # order of AR indicator dynamics
     min_SNR = 1   # minimum SNR for accepting new components
     ds_factor = 1  # spatial downsampling factor (increases speed but may lose some fine structure)
@@ -73,7 +73,7 @@ def main():
     # set up some additional supporting parameters needed for the algorithm
     # (these are default values but can change depending on dataset properties)
     init_batch = 200  # number of frames for initialization (presumably from the first file)
-    K = 2  # initial number of components
+    K = 50  # initial number of components
     epochs = 1  # number of passes over the data
     show_movie = False # show the movie as the data gets processed
 
@@ -101,9 +101,24 @@ def main():
     opts = cnmf.params.CNMFParams(params_dict=params_dict)
 
 # %% fit online
-
+    init_file_save = fnames[0][:-4]+'_init.hdf5'
     cnm = cnmf.online_cnmf.OnACID(params=opts)
-    cnm.fit_online()
+    if os.path.exists(init_file_save):
+        logging.warning('Reloading initialization file')
+        init_cnmf = load_OnlineCNMF(init_file_save)
+        cnm.fit_online(estimates=init_cnmf.estimates)
+    else:
+        logging.warning('Computing and saving initialization file')
+        cnm = cnmf.online_cnmf.OnACID(params=opts)
+        cnm.fit_online(save_init_file=init_file_save)
+#%%
+
+    cnm.fit_online(estimates=init_cnmf.estimates)
+# %% fit online
+    cnm = cnmf.online_cnmf.OnACID(params=opts)
+#    cnm.fit_online(save_init_file='/mnt/home/agiovann/SOFTWARE/CaImAn/example_movies/demoMovie_init.hdf5')
+
+
 
 # %% plot contours (this may take time)
     logging.info('Number of components: ' + str(cnm.estimates.A.shape[-1]))
