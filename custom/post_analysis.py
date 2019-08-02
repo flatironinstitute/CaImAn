@@ -112,7 +112,7 @@ def plot_component_traces(cnm, idx, param='F_dff', comp_array=None):
 
     Args:
         cnm:        CNMF object that includes the estimates object
-        idx:        indices of components to be plotted
+        idx:        indices of components to be plotted. Can also be 'all', in which case all traces are plotted.
         param:      Specific parameter of the estimates object that should be correlated. Defaults to 'F_dff' for
                     detrended traces, can also be 'C' for pre-detrended or 'S' for deconvolved traces.
         comp_array: Previously calculated data arrays with individual components in rows and measurements in columns
