@@ -24,7 +24,11 @@ Motion Correction tips
 -  Motion correction works in parallel by splitting each file in
    multiple chunks and processing them in parallel. Make sure that the
    length of each chunk is not too small by setting the parameter
-   ``params.motion.num_frames_split``.
+   ``params.motion.num_frames_split``. On the other hand, too large
+   chunks can negatively impact computation time even with parallelization.
+   If you experience problems with large datasets, try scaling the number
+   of chunks (``params.motion.splits_els`` and ``params.motion.split_rig``)
+   with the length of your recording (e.g. ``int((number of total frames)/200)``).
 
 CaImAn Online Processing tips
 -----------------------------
@@ -79,12 +83,16 @@ CaImAn Batch processing tips
 
 -  Important parameters for selecting components based on quality are
 
--  the CNN lower bound and upper threshold ``params.quality.cnn_lowest``
-   and ``params.quality.min_cnn_thr``
+   -  the CNN lower bound and upper threshold ``params.quality.cnn_lowest``
+      and ``params.quality.min_cnn_thr``
 
--  the trace SNR ``params.quality.min_SNR``
+   -  the trace SNR ``params.quality.min_SNR``
 
--  the footprint consistency threshold ``params.quality.rval_thr``
+   -  the footprint consistency threshold ``params.quality.rval_thr``
+
+    Each quality check has a low threshold (``rval_lowest (default -1), SNR_lowest (default 0.5), cnn_lowest (default 0.1)``)
+    and high threshold (``rval_thr (default 0.8), min_SNR (default 2.5), min_cnn_thr (default 0.9)``). A component has
+    to exceed ALL low thresholds as well as ONE high threshold to be accepted.
 
 The user should explore these parameters around the default to optimize
 for specific data sets.
