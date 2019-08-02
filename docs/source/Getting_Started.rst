@@ -64,7 +64,10 @@ crucial to be adapted to the specific dataset for proper analysis performance:
 
 -  ``fnames``: List of paths to the file(s) to be analysed. Memmap and hdf5 result files will be saved in the same directory.
 -  ``fr``: Imaging frame rate in frames per second.
--  ``decay_time``: Length of a typical transient in seconds. Default of ``0.4``. (half-decay time?)
+-  ``decay_time``: Length of a typical transient in seconds. ``decay_time`` is an approximation of the time
+   scale over which to expect a significant shift in the calcium signal during a transient. It defaults to ``0.4``, which is
+   appropriate for fast indicators (GCaMP6f), slow indicators might use 1 or even more. However, `decay_time` does not have to 
+   precisely fit the data, approximations are enough.
 -  ``p``: Order of the autoregressive model. ``p = 0`` turns deconvolution off. If transients in your data rise
    instantaneously, set ``p = 1`` (occurs at low sample rate or slow indicator). If transients have visible rise time,
     set ``p = 2``. If the wrong order is chosen, spikes are extracted unreliably.
