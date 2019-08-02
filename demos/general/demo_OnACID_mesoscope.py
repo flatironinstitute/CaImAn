@@ -46,12 +46,10 @@ def main():
     download_demo('Tolias_mesoscope_1.hdf5', fld_name)
     download_demo('Tolias_mesoscope_2.hdf5', fld_name)
     download_demo('Tolias_mesoscope_3.hdf5', fld_name)
-#
-#    # folder where files are located
+    # extension of files
     folder_name = os.path.join(caiman_datadir(), 'example_movies', fld_name)
-    extension = 'hdf5'                                  # extension of files
     # read all files to be processed
-    fnames = glob.glob(folder_name + '/*' + extension)
+    fnames = [folder_name + '/' + ffnn for ffnn in  ['Tolias_mesoscope_1.hdf5','Tolias_mesoscope_2.hdf5','Tolias_mesoscope_3.hdf5']]
     # your list of files should look something like this
     logging.info(fnames)
 
@@ -111,14 +109,6 @@ def main():
         logging.warning('Computing and saving initialization file')
         cnm = cnmf.online_cnmf.OnACID(params=opts)
         cnm.fit_online(save_init_file=init_file_save)
-#%%
-
-    cnm.fit_online(estimates=init_cnmf.estimates)
-# %% fit online
-    cnm = cnmf.online_cnmf.OnACID(params=opts)
-#    cnm.fit_online(save_init_file='/mnt/home/agiovann/SOFTWARE/CaImAn/example_movies/demoMovie_init.hdf5')
-
-
 
 # %% plot contours (this may take time)
     logging.info('Number of components: ' + str(cnm.estimates.A.shape[-1]))
