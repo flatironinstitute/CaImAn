@@ -1215,7 +1215,7 @@ class OnACID(object):
                 self.estimates.b = np.resize(self.estimates.b, (self.estimates.A.shape[0], 0))
             if self.estimates.b0 is not None:
                 b0 = self.estimates.b0.reshape(self.estimates.dims, order='F')
-                b0 = np.resize(b0, dims)
+                b0 = cv2.resize(b0, dims[::-1])
                 self.estimates.b0 = b0.reshape((-1, 1), order='F')
             self.params.set('data', {'dims': dims})
             self.estimates.dims = dims

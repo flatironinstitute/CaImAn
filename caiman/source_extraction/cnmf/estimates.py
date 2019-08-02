@@ -507,8 +507,8 @@ class Estimates(object):
                               (ssub_B, ssub_B, 1)).reshape((-1, B.shape[-1]), order='F'))
                 Wb0 = self.W.dot(downscale(self.b0.reshape(dims, order='F'),
                               (ssub_B, ssub_B)).reshape((-1, 1), order='F'))
-                B = self.b0[:, None] + (np.repeat(np.repeat((WB - Wb0).reshape(((dims[0] - 1) // ssub_B + 1, (dims[1] - 1) // ssub_B + 1, -1), order='F'),
-                    ssub_B, 0), ssub_B, 1)[:dims[0], :dims[1]].reshape((-1, B.shape[-1]), order='F'))
+                B = self.b0.flatten('F')[:, None] + (np.repeat(np.repeat((WB - Wb0).reshape(((dims[0] - 1) // ssub_B + 1, (dims[1] - 1) // ssub_B + 1, -1), order='F'),
+                                     ssub_B, 0), ssub_B, 1)[:dims[0], :dims[1]].reshape((-1, B.shape[-1]), order='F'))
             B = B.reshape(dims + (-1,), order='F').transpose([2, 0, 1])
         elif self.b is not None and self.f is not None:
             B = self.b.dot(self.f[:, frame_range])
