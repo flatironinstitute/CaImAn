@@ -305,19 +305,19 @@ def hv_view_patches(Yr, A, C, b, f, d1, d2, YrA=None, image_neurons=None, denois
 
     def plot_unit(uid, scl):
         trace = (
-            hv.Curve(Y_r[uid, :], kdims='time').opts(framewise=True)
-            * (hv.Curve(C[uid, :], kdims='time')
+            hv.Curve(Y_r[uid, :], kdims='frame #').opts(framewise=True)
+            * (hv.Curve(C[uid, :], kdims='frame #')
                .opts(color=denoised_color, framewise=True))
-        ).opts(aspect=2, frame_height=200)
+        ).opts(aspect=3, frame_height=200)
         A_scl = norm(Ad[:, :, uid], (scl, 1))
         im_hsv_scl = im_hsv.copy()
         im_hsv_scl[:, :, 2] = im_hsv[:, :, 2] * A_scl
         im_u = (hv.HSV(im_hsv_scl, kdims=['height', 'width'])
                 .opts(aspect='equal', frame_height=200))
-        return im_u + trace
+        return hv.Layout([im_u] + [trace]).cols(1) #im_u + trace
 
     return (hv.DynamicMap(plot_unit, kdims=['unit_id', 'scale'])
-            .redim.range(unit_id=(0, nr), scale=(0.0, 1.0)))
+            .redim.range(unit_id=(0, nr-1), scale=(0.0, 1.0)))
 
 
 def get_contours(A, dims, thr=0.9, thr_method='nrg', swap_dim=False):

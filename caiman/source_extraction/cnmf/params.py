@@ -668,8 +668,8 @@ class CNMFParams(object):
             'normalize_yyt_one': True,
             'nrgthr': 0.9999,                # Energy threshold
             'num_blocks_per_run_spat': num_blocks_per_run_spat, # number of process to parallelize residual computation ** DECREASE IF MEMORY ISSUES
-            'se': None,                      # Morphological closing structuring element
-            'ss': None,                      # Binary element for determining connectivity
+            'se': np.ones((3, 3), dtype='uint8'),  # Morphological closing structuring element
+            'ss': np.ones((3, 3), dtype='uint8'),  # Binary element for determining connectivity
             'thr_method': 'nrg',             # Method of thresholding ('max' or 'nrg')
             # whether to update the background components in the spatial phase
             'update_background_components': update_background_components,
@@ -805,7 +805,8 @@ class CNMFParams(object):
         if self.init['gSig'] is None:
             self.init['gSig'] = [-1, -1]
         if self.init['gSiz'] is None:
-            self.init['gSiz'] = [2*gs + 1 for gs in self.init['gSig']]
+            self.init['gSiz'] = [2*gs + 3 for gs in self.init['gSig']]
+        self.init['gSiz'] = [gz if gz % 2 else gz + 1 for gz in self.init['gSiz']]
 
         if gnb <= 0:
             logging.warning("gnb={0}, hence setting keys nb_patch and low_rank_background ".format(gnb) +
