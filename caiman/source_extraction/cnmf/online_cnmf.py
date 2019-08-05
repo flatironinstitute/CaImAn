@@ -18,6 +18,8 @@ from builtins import map
 from builtins import range
 from builtins import str
 from builtins import zip
+from numba import njit
+import itertools
 import cv2
 from math import sqrt
 import numpy as np
@@ -54,6 +56,20 @@ try:
     profile
 except:
     def profile(a): return a
+
+
+#@njit(fastmath=True, parallel=True)
+#def fast_bkcd(CY, CC, ind_A, N, nb_, t,  ccf, y):
+#    for m in range(N):
+#        for jj in ind_A[m]:
+#            if jj>=0:
+#                CY[m + nb_, jj] *= (1 - 1. / t)
+#                CY[m + nb_, jj] += ccf[m + nb_]@(y[:, jj]) / t
+#
+#    CY[:nb_] = CY[:nb_] * (1 - 1. / t) + ccf[:nb_].dot(y / t)
+#    CC = CC * (1 - 1. / t) + ccf@(ccf.T / t)
+#    return CY, CC
+
 
 class OnACID(object):
     """  Source extraction of streaming data using online matrix factorization.
@@ -207,6 +223,8 @@ class OnACID(object):
             min(self.params.get('online', 'init_batch'), self.params.get('online', 'minibatch_shape')) - 1), 0)
         self.estimates.groups = list(map(list, update_order(self.estimates.Ab)[0]))
         self.update_counter = 2**np.linspace(0, 1, self.N, dtype=np.float32)
+        self.estimates.CC = np.ascontiguousarray(self.estimates.CC)
+        self.estimates.CY = np.ascontiguousarray(self.estimates.CY)
         self.time_neuron_added:List = []
         for nneeuu in range(self.N):
             self.time_neuron_added.append((nneeuu, self.params.get('online', 'init_batch')))
@@ -450,13 +468,23 @@ class OnACID(object):
             ccf = self.estimates.C_on[:self.M, t - self.params.get('online', 'minibatch_suff_stat'):t -
                                       self.params.get('online', 'minibatch_suff_stat') + 1]
             y = self.estimates.Yr_buf.get_last_frames(self.params.get('online', 'minibatch_suff_stat') + 1)[:1]
-            # much faster: exploit that we only access CY[m, ind_pixels], hence update only these
-            for m in range(self.N):
-                self.estimates.CY[m + nb_, self.ind_A[m]] *= (1 - 1. / t)
-                self.estimates.CY[m + nb_, self.ind_A[m]] += ccf[m +
-                                                       nb_].dot(y[:, self.ind_A[m]]) / t
-            self.estimates.CY[:nb_] = self.estimates.CY[:nb_] * (1 - 1. / t) + ccf[:nb_].dot(y / t)
-            self.estimates.CC = self.estimates.CC * (1 - 1. / t) + ccf.dot(ccf.T / t)
+#            self.estimates.CC = np.ascontiguousarray(self.estimates.CC)
+#            self.estimates.CY = np.ascontiguousarray(self.estimates.CY)
+            ccf = np.ascontiguousarray(ccf)
+            y = np.asfortranarray(y)
+#            self.y__ = y
+#            self.ccf__ = ccf
+#            self.t__ = t
+#            self.nb__ = nb_
+#            # much faster: exploit that we only access CY[m, ind_pixels], hence update only these
+#            if True:
+#                ind_in = np.array(list(itertools.zip_longest(*self.ind_A, fillvalue=-1)), dtype=np.int)
+#                self.ind_in = ind_in
+#                self.estimates.CY, self.estimates.CC = fast_bkcd(self.estimates.CY, self.estimates.CC, ind_in, self.N, nb_, t,  ccf, y)
+#            else:
+                 # much faster: exploit that we only access CY[m, ind_pixels], hence update only these
+            self = self.fast_bkcd_py(nb_, t, ccf, y)
+
 
         # update shapes
         t_sh = time()
@@ -565,6 +593,16 @@ class OnACID(object):
                 self.comp_upd.append(0)
             self.time_spend += time() - t_start
         self.t_shapes.append(time() - t_sh)
+
+        return self
+
+    @profile
+    def fast_bkcd_py(self, nb_, t, ccf, y):
+        for m in range(self.N):
+            self.estimates.CY[m + nb_, self.ind_A[m]] *= (1 - 1. / t)
+            self.estimates.CY[m + nb_, self.ind_A[m]] += ccf[m + nb_].dot(y[:, self.ind_A[m]]) / t
+        self.estimates.CY[:nb_] = self.estimates.CY[:nb_] * (1 - 1. / t) + ccf[:nb_].dot(y / t)
+        self.estimates.CC = self.estimates.CC * (1 - 1. / t) + ccf.dot(ccf.T / t)
 
         return self
 
