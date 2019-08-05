@@ -186,7 +186,7 @@ class OnACID(object):
             self.estimates.C_on[:self.N, :init_batch] = self.estimates.C
         
         if self.is1p:
-            ssub_B = self.params.get('init', 'ssub_B')
+            ssub_B = self.params.get('init', 'ssub_B') * self.params.get('init', 'ssub')
             X = Yr[:, :init_batch] - np.asarray(self.estimates.A.dot(self.estimates.C))
             self.estimates.b0 = X.mean(1)
             X -= self.estimates.b0[:, None]
@@ -212,7 +212,7 @@ class OnACID(object):
             self.estimates.A, self.estimates.C_on[:self.N, :init_batch],
             self.estimates.b, self.estimates.noisyC[:self.params.get('init', 'nb'), :init_batch],
             W=self.estimates.W if self.is1p else None, b0=self.estimates.b0 if self.is1p else None,
-            ssub_B=self.params.get('init', 'ssub_B'))
+            ssub_B=self.params.get('init', 'ssub_B') * self.params.get('init', 'ssub'))
 
         self.estimates.CY = self.estimates.CY * 1. / self.params.get('online', 'init_batch')
         self.estimates.CC = 1 * self.estimates.CC / self.params.get('online', 'init_batch')
@@ -379,7 +379,7 @@ class OnACID(object):
         nb_ = self.params.get('init', 'nb')
         Ab_ = self.estimates.Ab
         mbs = self.params.get('online', 'minibatch_shape')
-        ssub_B = self.params.get('init', 'ssub_B')
+        ssub_B = self.params.get('init', 'ssub_B') * self.params.get('init', 'ssub')
         d1, d2 = self.estimates.dims
         expected_comps = self.params.get('online', 'expected_comps')
         frame = frame_in.astype(np.float32)
@@ -1050,7 +1050,7 @@ class OnACID(object):
         self.t_shapes:List = []
         self.t_detect:List = []
         self.t_motion:List = []
-        ssub_B = self.params.get('init', 'ssub_B')
+        ssub_B = self.params.get('init', 'ssub_B') * self.params.get('init', 'ssub')
         d1, d2 = self.params.get('data', 'dims')
         max_shifts_online = self.params.get('online', 'max_shifts_online')
         if extra_files == 0:     # check whether there are any additional files
@@ -1193,7 +1193,7 @@ class OnACID(object):
         frame_plot = (frame_cor.copy() - self.bnd_Y[0])/np.diff(self.bnd_Y)
         comps_frame = A.dot(C[:, self.t - 1]).reshape(self.dims, order='F')
         if self.is1p:
-            ssub_B = self.params.get('init', 'ssub_B')
+            ssub_B = self.params.get('init', 'ssub_B') * self.params.get('init', 'ssub')
             if ssub_B == 1:
                 B = self.estimates.W.dot((frame_cor - comps_frame).flatten(order='F') - self.estimates.b0) + self.estimates.b0
                 bgkrnd_frame = B.reshape(self.dims, order='F')
