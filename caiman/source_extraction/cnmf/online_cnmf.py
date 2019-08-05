@@ -1040,7 +1040,9 @@ class OnACID(object):
         fls = self.params.get('data', 'fnames')
         init_batch = self.params.get('online', 'init_batch')
         epochs = self.params.get('online', 'epochs')
+        self.t_init = -time()
         self.initialize_online()
+        self.t_init += time()
         extra_files = len(fls) - 1
         init_files = 1
         t = init_batch
