@@ -56,7 +56,7 @@ def download_demo(name:str='Sue_2x_3000_40_-46.tif', save_folder:str='') -> str:
         Args:
             name: str
                 the path of the file correspondong to a file in the filelist (''Sue_2x_3000_40_-46.tif' or 'demoMovieJ.tif')
-    
+
             save_folder: str
                 folder inside ./example_movies to which the files will be saved. Will be created if it doesn't exist
         Returns:
@@ -93,8 +93,8 @@ def download_demo(name:str='Sue_2x_3000_40_-46.tif', save_folder:str='') -> str:
                 from urllib.request import Request
                 req = Request(url, headers={'User-Agent': 'Mozilla/5.0'})
                 f = urlopen(req)
-                
-                
+
+
             data = f.read()
             with open(path_movie, "wb") as code:
                 code.write(data)
@@ -288,22 +288,22 @@ def apply_magic_wand(A, gSig, dims, A_thr=None, coms=None, dview=None,
     Args:
         A:
             output of CNMF
-    
+
         gSig: tuple
             input of CNMF (half neuron size)
-    
+
         A_thr:
             thresholded version of A
-    
+
         coms:
             centers of the magic wand
-    
+
         dview:
             for parallelization
-    
+
         min_frac:
             fraction of minimum of gSig to take as minimum size
-    
+
         max_frac:
             multiplier of maximum of gSig to take as maximum size
 
@@ -481,6 +481,8 @@ def recursively_load_dict_contents_from_group(h5file:h5py.File, path:str) -> Dic
                     ans[key] = tuple(item.value)
                 else:
                     ans[key] = item.value
+            elif key in ['shifts']:
+                    ans[key] = list(item.value)
             else:
                 if type(item.value) == np.bool_:
                     ans[key] = bool(item.value)
@@ -488,7 +490,7 @@ def recursively_load_dict_contents_from_group(h5file:h5py.File, path:str) -> Dic
                     ans[key] = item.value
 
         elif isinstance(item, h5py._hl.group.Group):
-            if key == 'A':
+            if key == 'A' or key == 'Ab':
                 data =  item[path + key + '/data']
                 indices = item[path + key + '/indices']
                 indptr = item[path + key + '/indptr']
