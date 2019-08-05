@@ -1,0 +1,4 @@
+[style]
+based_on_style = google
+spaces_before_comment = 8,16,24,32,40,48,56,64,72,80
+column_limit = 120
