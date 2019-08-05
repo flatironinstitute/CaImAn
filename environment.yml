@@ -18,12 +18,12 @@ dependencies:
 - opencv
 - peakutils
 - pims
-- scipy
+- pynwb
+- pyqtgraph
 - scikit-image
 - scikit-learn
-- spyder
+- scipy
 - tifffile
 - tk=8.6.8
 - tqdm
-- pyqtgraph
-- pynwb
+- yapf
