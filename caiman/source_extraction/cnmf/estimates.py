@@ -1416,7 +1416,7 @@ class Estimates(object):
             with NWBHDF5IO(filename, 'w') as io:
                 io.write(nwbfile)
 
-        time.sleep(4)
+        time.sleep(4)  # ensure the file is fully closed before opening again in append mode
         logging.info('Saving the results in the NWB file...')
 
         with NWBHDF5IO(filename, 'r+') as io:
