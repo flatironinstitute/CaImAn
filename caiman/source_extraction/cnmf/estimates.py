@@ -1149,7 +1149,7 @@ class Estimates(object):
             sm, ss, yra = merge_iteration(Acsc, C_to_norm, Ctmp, fast_merge,
                                           None, g_idx, indx, params.temporal)
 
-            A_merged[:, i] = computedA
+            A_merged[:, i] = computedA[:, np.newaxis]
             C_merged[i, :] = computedC
             R_merged[i, :] = yra
             S_merged[i, :] = ss[:T]

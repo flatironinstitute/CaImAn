@@ -170,19 +170,19 @@ def df_percentile(inputData, axis = None):
                     inputData = inputData.tolist()
                 inputData += inputData
 
-            data_prct = cdf[np.argmax(density)]*100
-            val = mesh[np.argmax(density)]
-            if data_prct >= 100 or data_prct < 0:
-                logging.warning('Invalid percentile computed possibly due ' +
-                                'short trace. Duplicating and recomuputing.')
-                if type(inputData) is not list:
-                    inputData = inputData.tolist()
-                inputData *= 2
-                err = True
-            if np.isnan(data_prct):
-                logging.warning('NaN percentile computed. Reverting to median.')
-                data_prct = 50
-                val = np.median(np.array(inputData))
+        data_prct = cdf[np.argmax(density)]*100
+        val = mesh[np.argmax(density)]
+        if data_prct >= 100 or data_prct < 0:
+            logging.warning('Invalid percentile computed possibly due ' +
+                            'short trace. Duplicating and recomuputing.')
+            if type(inputData) is not list:
+                inputData = inputData.tolist()
+            inputData *= 2
+            err = True
+        if np.isnan(data_prct):
+            logging.warning('NaN percentile computed. Reverting to median.')
+            data_prct = 50
+            val = np.median(np.array(inputData))
 
     return data_prct, val
 
