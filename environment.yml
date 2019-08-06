@@ -7,6 +7,7 @@ dependencies:
 - cython
 - future
 - h5py
+- holoviews
 - ipykernel=4.10
 - ipython
 - ipyparallel

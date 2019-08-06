@@ -15,6 +15,7 @@ import itertools
 import logging
 import numpy as np
 import os
+import tensorflow as tf
 import scipy
 from scipy.sparse import csc_matrix
 from scipy.stats import norm
@@ -257,17 +258,15 @@ def evaluate_components_CNN(A, dims, gSig, model_name:str=os.path.join(caiman_da
 
     import os
     if not isGPU:
-
         os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
     try:
         os.environ["KERAS_BACKEND"] = "tensorflow"
-        from keras.models import model_from_json
+        from tensorflow.keras.models import model_from_json
         use_keras = True
-        logging.debug('Using Keras')
+        logging.info('Using Keras')
     except(ModuleNotFoundError):
-        import tensorflow as tf
         use_keras = False
-        logging.debug('Using Tensorflow')
+        logging.info('Using Tensorflow')
 
     if loaded_model is None:
         if use_keras:
@@ -318,6 +317,7 @@ def evaluate_components_CNN(A, dims, gSig, model_name:str=os.path.join(caiman_da
         with tf.Session(graph=loaded_model) as sess:
             predictions = sess.run(
                 tf_out, feed_dict={tf_in: final_crops[:, :, :, np.newaxis]})
+            sess.close()
 
     return predictions, final_crops
 #%%
