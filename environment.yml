@@ -28,3 +28,4 @@ dependencies:
 - tk=8.6.8
 - tqdm
 - yapf
+- holoviews
