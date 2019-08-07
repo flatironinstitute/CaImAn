@@ -18,7 +18,7 @@ from builtins import map
 from builtins import range
 from builtins import str
 from builtins import zip
-from numba import njit
+#from numba import njit
 import itertools
 import cv2
 from math import sqrt
