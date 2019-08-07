@@ -112,7 +112,7 @@ class CNMF(object):
                 merging threshold, max correlation allowed
 
             dview: Direct View object
-                for parallelization pruposes when using ipyparallel
+                for parallelization purposes when using ipyparallel
 
             p: int
                 order of the autoregressive process used to estimate deconvolution
@@ -193,7 +193,7 @@ class CNMF(object):
             remove_very_bad_comps:Bool
                 whether to remove components with very low values of component quality directly on the patch.
                  This might create some minor imprecisions.
-                Howeverm benefits can be considerable if done because if many components (>2000) are created
+                However benefits can be considerable if done because if many components (>2000) are created
                 and joined together, operation that causes a bottleneck
 
             border_pix:int
@@ -958,41 +958,101 @@ def load_CNMF(filename, n_processes=1, dview=None):
 
     Args:
         filename: str
-            hdf5 file name containing the saved object
-        dview: multiprocessingor ipyparallel object
+            hdf5 (or nwb) file name containing the saved object
+        dview: multiprocessing or ipyparallel object
             useful to set up parllelization in the objects
     '''
     new_obj = CNMF(n_processes)
-    for key, val in load_dict_from_hdf5(filename).items():
-        if key == 'params':
-            prms = CNMFParams()
-            prms.spatial = val['spatial']
-            prms.temporal = val['temporal']
-            prms.patch = val['patch']
-            prms.preprocess = val['preprocess']
-            prms.init = val['init']
-            prms.merging = val['merging']
-            prms.quality = val['quality']
-            prms.data = val['data']
-            prms.online = val['online']
-            prms.motion = val['motion']
-            setattr(new_obj, key, prms)
-        elif key == 'dview':
-            setattr(new_obj, key, dview)
-        elif key == 'estimates':
-            estims = Estimates()
-            for kk, vv in val.items():
-                if kk == 'discarded_components':
-                    if vv is not None:
-                        discarded_components = Estimates()
-                        for kk__, vv__ in vv.items():
-                            setattr(discarded_components, kk__, vv__)
-                        setattr(estims, kk, discarded_components)
-                else:
-                    setattr(estims, kk, vv)
+    if os.path.splitext(filename)[1].lower() in ('.hdf5', '.h5'):
+        for key, val in load_dict_from_hdf5(filename).items():
+            if key == 'params':
+                prms = CNMFParams()
+                prms.spatial = val['spatial']
+                prms.temporal = val['temporal']
+                prms.patch = val['patch']
+                prms.preprocess = val['preprocess']
+                prms.init = val['init']
+                prms.merging = val['merging']
+                prms.quality = val['quality']
+                prms.data = val['data']
+                prms.online = val['online']
+                prms.motion = val['motion']
+                setattr(new_obj, key, prms)
+            elif key == 'dview':
+                setattr(new_obj, key, dview)
+            elif key == 'estimates':
+                estims = Estimates()
+                for kk, vv in val.items():
+                    if kk == 'discarded_components':
+                        if vv is not None:
+                            discarded_components = Estimates()
+                            for kk__, vv__ in vv.items():
+                                setattr(discarded_components, kk__, vv__)
+                            setattr(estims, kk, discarded_components)
+                    else:
+                        setattr(estims, kk, vv)
 
-            setattr(new_obj, key, estims)
-        else:
-            setattr(new_obj, key, val)
+                setattr(new_obj, key, estims)
+            else:
+                setattr(new_obj, key, val)
+    elif os.path.splitext(filename)[1].lower() == '.nwb':
+        from pynwb import NWBHDF5IO
+        with NWBHDF5IO(filename, 'r') as io:
+            nwb = io.read()
+            ophys = nwb.processing['ophys']
+            rrs_group = ophys.data_interfaces['Fluorescence'].roi_response_series
+            rrs = rrs_group['RoiResponseSeries']
+            C = rrs.data[:].T
+            rois = rrs.rois
+            roi_indices = rois.data
+            A = rois.table['image_mask'][roi_indices, ...]
+            dims = A.shape[1:]
+            A = A.reshape((A.shape[0], -1)).T
+            A = scipy.sparse.csc_matrix(A)
+            if 'Background_Fluorescence_Response' in rrs_group:
+                brs = rrs_group['Background_Fluorescence_Response']
+                f = brs.data[:].T
+                brois = brs.rois
+                broi_indices = brois.data
+                b = brois.table['image_mask'][broi_indices, ...]
+                b = b.reshape((b.shape[0], -1)).T
+            else:
+                b = None #np.zeros(mov.shape[1:])
+                f = None
+            estims = Estimates(A=A, b=b, C=C, f=f)
+            estims.YrA = ophys.data_interfaces['residuals'].data[:].T
+
+            frame_rate = ophys.data_interfaces['ImageSegmentation'].plane_segmentations['PlaneSegmentation']. \
+                imaging_plane.imaging_rate
+
+            if 'r' in rois.table:
+                estims.r_values = rois.table['r'][roi_indices]
+            if 'snr' in rois.table:
+                estims.SNR_comp = rois.table['snr'][roi_indices]
+            if 'cnn' in rois.table:
+                estims.cnn_preds = rois.table['cnn'][roi_indices]
+            if 'keep' in rois.table:
+                keep = rois.table['keep'][roi_indices]
+                estims.idx_components = np.where(keep)[0]
+            estims.nr = len(roi_indices)
+
+            if 'summary_images' in ophys.data_interfaces:
+                if 'Cn' in ophys.data_interfaces['summary_images']:
+                    estims.Cn = ophys.data_interfaces['summary_images']['Cn']
+            if hasattr(nwb.acquisition['TwoPhotonSeries'], 'external_file'):
+                setattr(new_obj, 'mmap_file', nwb.acquisition['TwoPhotonSeries'].external_file[0])
+            else:
+                setattr(new_obj, 'mmap_file', filename)
+
+            estims.dims = dims
+            prms = CNMFParams(dims=dims)
+            prms.set('data', {'fr': frame_rate})
+
+            setattr(new_obj, 'params', prms)
+            setattr(new_obj, 'dview', dview)
+            setattr(new_obj, 'estimates', estims)
+
+    else:
+        raise NotImplementedError('unsupported file extension')
 
     return new_obj
