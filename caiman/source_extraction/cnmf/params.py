@@ -1,10 +1,10 @@
 import logging
 import os
-
 import numpy as np
 import scipy
 from scipy.ndimage.morphology import generate_binary_structure, iterate_structure
 
+import caiman.utils.utils
 from ...paths import caiman_datadir
 from .utilities import dict_compare, get_file_size
 
@@ -17,7 +17,7 @@ class CNMFParams(object):
                  memory_fact=1, n_processes=1, nb_patch=1, p_ssub=2, p_tsub=2,
                  remove_very_bad_comps=False, rf=None, stride=None,
                  check_nan=True, n_pixels_per_process=None,
-                 k=30, alpha_snmf=10e2, center_psf=False, gSig=[5, 5], gSiz=None,
+                 k=30, alpha_snmf=100, center_psf=False, gSig=[5, 5], gSiz=None,
                  init_iter=2, method_init='greedy_roi', min_corr=.85,
                  min_pnr=20, gnb=1, normalize_init=True, options_local_NMF=None,
                  ring_size_factor=1.5, rolling_length=100, rolling_sum=True,
@@ -35,7 +35,7 @@ class CNMFParams(object):
                  sniper_mode=False, test_both=False, thresh_CNN_noisy=0.5,
                  thresh_fitness_delta=-50, thresh_fitness_raw=None, thresh_overlap=0.5,
                  update_freq=200, update_num_comps=True, use_dense=True, use_peak_max=True,
-                 only_init_patch=True, var_name_hdf5='mov', params_dict={},
+                 only_init_patch=True, var_name_hdf5='mov', max_merge_area=None, params_dict={},
                  ):
         """Class for setting the processing parameters. All parameters for CNMF, online-CNMF, quality testing,
         and motion correction can be set here and then used in the various processing pipeline steps.
@@ -66,6 +66,18 @@ class CNMFParams(object):
 
             var_name_hdf5: str, default: 'mov'
                 if loading from hdf5 name of the variable to load
+
+            caiman_version: str
+                version of CaImAn being used
+
+            last_commit: str
+                hash of last commit in the caiman repo
+
+            mmap_F: list[str]
+                paths to F-order memory mapped files after motion correction
+
+            mmap_C: str
+                path to C-order memory mapped file after motion correction
 
         PATCH PARAMS (CNMFParams.patch)######
 
@@ -154,6 +166,24 @@ class CNMFParams(object):
             K: int, default: 30
                 number of components to be found (per patch or whole FOV depending on whether rf=None)
 
+            SC_kernel: {'heat', 'cos', binary'}, default: 'heat'
+                kernel for graph affinity matrix
+
+            SC_sigma: float, default: 1
+                variance for SC kernel
+
+            SC_thr: float, default: 0,
+                threshold for affinity matrix
+
+            SC_normalize: bool, default: True
+                standardize entries prior to computing the affinity matrix
+
+            SC_use_NN: bool, default: False
+                sparsify affinity matrix by using only nearest neighbors
+
+            SC_nnn: int, default: 20
+                number of nearest neighbors to use
+
             gSig: [int, int], default: [5, 5]
                 radius of average neurons (in pixels)
 
@@ -171,6 +201,9 @@ class CNMFParams(object):
 
             nb: int, default: 1
                 number of background components
+
+            lambda_gnmf: float, default: 1.
+                regularization weight for graph NMF
 
             maxIter: int, default: 5
                 number of HALS iterations during initialization
@@ -208,7 +241,7 @@ class CNMFParams(object):
             max_iter_snmf : int, default: 500
                 maximum number of iterations for sparse NMF initialization
 
-            alpha_snmf: float, default: 10e2
+            alpha_snmf: float, default: 100
                 sparse NMF sparsity regularization weight
 
             sigma_smooth_snmf : (float, float, float), default: (.5,.5,.5)
@@ -307,6 +340,9 @@ class CNMFParams(object):
             lags: int, default: 5
                 number of autocovariance lags to be considered for time constant estimation
 
+            optimize_g: bool, default: False
+                flag for optimizing time constants
+
             fudge_factor: float (close but smaller than 1) default: .96
                 bias correction factor for discrete time constants
 
@@ -331,6 +367,12 @@ class CNMFParams(object):
 
             thr: float, default: 0.8
                 Trace correlation threshold for merging two components.
+
+            merge_parallel: bool, default: False
+                Perform merging in parallel
+
+            max_merge_area: int or None, default: None
+                maximum area (in pixels) of merged components, used to determine whether to merge components during fitting process
 
         QUALITY EVALUATION PARAMETERS (CNMFParams.quality)###########
 
@@ -532,7 +574,11 @@ class CNMFParams(object):
             'fr': fr,
             'decay_time': decay_time,
             'dxy': dxy,
-            'var_name_hdf5': var_name_hdf5
+            'var_name_hdf5': var_name_hdf5,
+            'caiman_version': '1.5.2',
+            'last_commit': None,
+            'mmap_F': None,
+            'mmap_C': None
         }
 
         self.patch = {
@@ -569,6 +615,14 @@ class CNMFParams(object):
 
         self.init = {
             'K': k,                   # number of components,
+            'SC_kernel': 'heat',         # kernel for graph affinity matrix
+            'SC_sigma' : 1,              # std for SC kernel
+            'SC_thr': 0,                 # threshold for affinity matrix
+            'SC_normalize': True,        # standardize entries prior to 
+                                         # computing affinity matrix
+            'SC_use_NN': False,          # sparsify affinity matrix by using
+                                         # only nearest neighbors
+            'SC_nnn': 20,                # number of nearest neighbors to use
             'alpha_snmf': alpha_snmf,
             'center_psf': center_psf,
             'gSig': gSig,
@@ -576,6 +630,7 @@ class CNMFParams(object):
             'gSiz': gSiz,
             'init_iter': init_iter,
             'kernel': None,           # user specified template for greedyROI
+            'lambda_gnmf' :1,         # regularization weight for graph NMF  
             'maxIter': 5,             # number of HALS iterations
             'max_iter_snmf': 500,
             'method_init': method_init,    # can be greedy_roi, greedy_pnr sparse_nmf, local_NMF
@@ -616,8 +671,8 @@ class CNMFParams(object):
             'normalize_yyt_one': True,
             'nrgthr': 0.9999,                # Energy threshold
             'num_blocks_per_run_spat': num_blocks_per_run_spat, # number of process to parallelize residual computation ** DECREASE IF MEMORY ISSUES
-            'se': None,                      # Morphological closing structuring element
-            'ss': None,                      # Binary element for determining connectivity
+            'se': np.ones((3, 3), dtype='uint8'),  # Morphological closing structuring element
+            'ss': np.ones((3, 3), dtype='uint8'),  # Binary element for determining connectivity
             'thr_method': 'nrg',             # Method of thresholding ('max' or 'nrg')
             # whether to update the background components in the spatial phase
             'update_background_components': update_background_components,
@@ -634,6 +689,7 @@ class CNMFParams(object):
             'fudge_factor': .96,
             # number of autocovariance lags to be considered for time constant estimation
             'lags': 5,
+            'optimize_g': False,         # flag for optimizing time constants
             'memory_efficient': False,
             # method for solving the constrained deconvolution problem ('oasis','cvx' or 'cvxpy')
             # if method cvxpy, primary and secondary (if problem unfeasible for approx
@@ -652,6 +708,8 @@ class CNMFParams(object):
         self.merging = {
             'do_merge': do_merge,
             'merge_thr': merge_thresh,
+            'merge_parallel': False,
+            'max_merge_area': max_merge_area
         }
 
         self.quality = {
@@ -729,6 +787,7 @@ class CNMFParams(object):
         }
 
         self.change_params(params_dict)
+        self.data['last_commit'] = '-'.join(caiman.utils.utils.get_caiman_version())
         if self.data['dims'] is None and self.data['fnames'] is not None:
             self.data['dims'] = get_file_size(self.data['fnames'], var_name_hdf5=self.data['var_name_hdf5'])[0]
         if self.data['fnames'] is not None:
@@ -753,7 +812,8 @@ class CNMFParams(object):
         if self.init['gSig'] is None:
             self.init['gSig'] = [-1, -1]
         if self.init['gSiz'] is None:
-            self.init['gSiz'] = [2*gs + 1 for gs in self.init['gSig']]
+            self.init['gSiz'] = [2*gs + 3 for gs in self.init['gSig']]
+        self.init['gSiz'] = [gz if gz % 2 else gz + 1 for gz in self.init['gSiz']]
 
         if gnb <= 0:
             logging.warning("gnb={0}, hence setting keys nb_patch and low_rank_background ".format(gnb) +

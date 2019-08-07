@@ -11,15 +11,19 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scipy.sparse
 from typing import List
+import time
 
 import caiman
 from .utilities import detrend_df_f
 from .spatial import threshold_components
+from .temporal import constrained_foopsi_parallel
 from .merging import merge_iteration
 from ...components_evaluation import (
         evaluate_components_CNN, estimate_components_quality_auto,
         select_components_from_metrics)
-from ...base.rois import detect_duplicates_and_subsets, nf_match_neurons_in_binary_masks, nf_masks_to_neurof_dict
+from ...base.rois import (
+        detect_duplicates_and_subsets, nf_match_neurons_in_binary_masks,
+        nf_masks_to_neurof_dict)
 from .initialization import downscale
 
 
@@ -180,7 +184,7 @@ class Estimates(object):
         if img is None:
             img = np.reshape(np.array(self.A.mean(1)), self.dims, order='F')
         if self.coordinates is None:  # not hasattr(self, 'coordinates'):
-            self.coordinates = caiman.utils.visualization.get_contours(self.A, self.dims, thr=thr, thr_method=thr_method)
+            self.coordinates = caiman.utils.visualization.get_contours(self.A, img.shape, thr=thr, thr_method=thr_method)
         plt.figure()   
         if params is not None:
             plt.suptitle('min_SNR=%1.2f, rval_thr=%1.2f, use_cnn=%i'
@@ -377,6 +381,55 @@ class Estimates(object):
                                                         self.dims[0], self.dims[1], YrA=self.R[idx], image_neurons=img,
                                                         thr=thr, denoised_color=denoised_color, cmap=cmap)
         return self
+
+    def hv_view_components(self, Yr=None, img=None, idx=None,
+                           denoised_color=None, cmap='viridis'):
+        """view spatial and temporal components interactively in a notebook
+
+        Args:
+            Yr :    np.ndarray
+                movie in format pixels (d) x frames (T)
+
+            img :   np.ndarray
+                background image for contour plotting. Default is the mean
+                image of all spatial components (d1 x d2)
+
+            idx :   list
+                list of components to be plotted
+
+            denoised_color: string or None
+                color name (e.g. 'red') or hex color code (e.g. '#F0027F')
+
+            cmap: string
+                name of colormap (e.g. 'viridis') used to plot image_neurons
+        """
+        if 'csc_matrix' not in str(type(self.A)):
+            self.A = scipy.sparse.csc_matrix(self.A)
+
+        plt.ion()
+        nr, T = self.C.shape
+        if self.R is None:
+            self.R = self.YrA
+        if self.R.shape != [nr, T]:
+            if self.YrA is None:
+                self.compute_residuals(Yr)
+            else:
+                self.R = self.YrA
+
+        if img is None:
+            img = np.reshape(np.array(self.A.mean(axis=1)), self.dims, order='F')
+
+        if idx is None:
+            hv_plot = caiman.utils.visualization.hv_view_patches(
+                Yr, self.A, self.C, self.b, self.f, self.dims[0], self.dims[1],
+                YrA=self.R, image_neurons=img, denoised_color=denoised_color,
+                cmap=cmap)
+        else:
+            hv_plot = caiman.utils.visualization.hv_view_patches(
+                Yr, self.A.tocsc()[:, idx], self.C[idx], self.b, self.f,
+                self.dims[0], self.dims[1], YrA=self.R[idx], image_neurons=img,
+                denoised_color=denoised_color, cmap=cmap)
+        return hv_plot
 
     def nb_view_components_3d(self, Yr=None, image_type='mean', dims=None,
                               max_projection=False, axis=0,
@@ -674,7 +727,7 @@ class Estimates(object):
         if self.YrA is not None:
             self.YrA = nA_mat * self.YrA
         if self.R is not None:
-            self.R = nA_mat * self.R
+            self.R = nA_mat * self.YrA
         if self.bl is not None:
             self.bl = nA * self.bl
         if self.c1 is not None:
@@ -834,7 +887,7 @@ class Estimates(object):
                     CNN classifier threshold
 
         Returns:
-            self: esimates object
+            self: estimates object
                 self.idx_components: np.array
                     indices of accepted components
                 self.idx_components_bad: np.array
@@ -849,19 +902,18 @@ class Estimates(object):
         dims = imgs.shape[1:]
         opts = params.get_group('quality')
         idx_components, idx_components_bad, SNR_comp, r_values, cnn_preds = \
-        estimate_components_quality_auto(imgs, self.A, self.C, self.b, self.f,
-                                         self.YrA,
-                                         params.get('data', 'fr'),
-                                         params.get('data', 'decay_time'),
-                                         params.get('init', 'gSig'),
-                                         dims, dview=dview,
-                                         min_SNR=opts['min_SNR'],
-                                         r_values_min=opts['rval_thr'],
-                                         use_cnn=opts['use_cnn'],
-                                         thresh_cnn_min=opts['min_cnn_thr'],
-                                         thresh_cnn_lowest=opts['cnn_lowest'],
-                                         r_values_lowest=opts['rval_lowest'],
-                                         min_SNR_reject=opts['SNR_lowest'])
+            estimate_components_quality_auto(imgs, self.A, self.C, self.b, self.f, self.YrA,
+                                             params.get('data', 'fr'),
+                                             params.get('data', 'decay_time'),
+                                             params.get('init', 'gSig'),
+                                             dims, dview=dview,
+                                             min_SNR=opts['min_SNR'],
+                                             r_values_min=opts['rval_thr'],
+                                             use_cnn=opts['use_cnn'],
+                                             thresh_cnn_min=opts['min_cnn_thr'],
+                                             thresh_cnn_lowest=opts['cnn_lowest'],
+                                             r_values_lowest=opts['rval_lowest'],
+                                             min_SNR_reject=opts['SNR_lowest'])
         self.idx_components = idx_components.astype(int)
         self.idx_components_bad = idx_components_bad.astype(int)
         self.SNR_comp = SNR_comp
@@ -962,6 +1014,80 @@ class Estimates(object):
 
         return self
 
+    def deconvolve(self, params, dview=None, dff_flag=False):
+        ''' performs deconvolution on the estimated traces using the parameters
+        specified in params. Deconvolution on detrended and normalized (DF/F)
+        traces can be performed by setting dff_flag=True. In this case the
+        results of the deconvolution are stored in F_dff_dec and S_dff
+        
+        Args:
+            params: params object
+                Parameters of the algorithm
+            dff_flag: bool (True)
+                Flag for deconvolving the DF/F traces
+
+        Returns:
+            self: estimates object
+        '''
+
+        F = self.C + self.YrA
+        args = dict()
+        args['p'] = params.get('preprocess', 'p')
+        args['method_deconvolution'] = params.get('temporal', 'method_deconvolution')
+        args['bas_nonneg'] = params.get('temporal', 'bas_nonneg')
+        args['noise_method'] = params.get('temporal', 'noise_method')
+        args['s_min'] = params.get('temporal', 's_min')
+        args['optimize_g'] = params.get('temporal', 'optimize_g')
+        args['noise_range'] = params.get('temporal', 'noise_range')
+        args['fudge_factor'] = params.get('temporal', 'fudge_factor')
+
+        args_in = [(F[jj], None, jj, None, None, None, None,
+                    args) for jj in range(F.shape[0])]
+
+        if 'multiprocessing' in str(type(dview)):
+            results = dview.map_async(
+                constrained_foopsi_parallel, args_in).get(4294967)
+        elif dview is not None:
+            results = dview.map_sync(constrained_foopsi_parallel, args_in)
+        else:
+            results = list(map(constrained_foopsi_parallel, args_in))
+
+        results = list(zip(*results))
+
+        order = list(results[7])
+        self.C = np.stack([results[0][i] for i in order])
+        self.S = np.stack([results[1][i] for i in order])
+        self.bl = [results[3][i] for i in order]
+        self.c1 = [results[4][i] for i in order]
+        self.g = [results[6][i] for i in order]
+        self.neurons_sn = [results[5][i] for i in order]
+        self.lam = [results[8][i] for i in order]
+        self.YrA = F - self.C
+        
+        if dff_flag:
+            if self.F_dff is None:
+                logging.warning('The F_dff field is empty. Run the method' +
+                                ' estimates.detrend_df_f before attempting' +
+                                ' to deconvolve.')
+            else:
+                args_in = [(self.F_dff[jj], None, jj, 0, 0, self.g[jj], None,
+                        args) for jj in range(F.shape[0])]
+    
+                if 'multiprocessing' in str(type(dview)):
+                    results = dview.map_async(
+                        constrained_foopsi_parallel, args_in).get(4294967)
+                elif dview is not None:
+                    results = dview.map_sync(constrained_foopsi_parallel,
+                                             args_in)
+                else:
+                    results = list(map(constrained_foopsi_parallel, args_in))
+        
+                results = list(zip(*results))
+                order = list(results[7])
+                self.F_dff_dec = np.stack([results[0][i] for i in order])
+                self.S_dff = np.stack([results[1][i] for i in order])
+            
+
     def manual_merge(self, components, params):
         ''' merge a given list of components. The indices
         of components are not pythonic, i.e., they start from 1. Moreover,
@@ -998,6 +1124,7 @@ class Estimates(object):
         # we initialize the values
         A_merged = scipy.sparse.lil_matrix((d, nbmrg))
         C_merged = np.zeros((nbmrg, T))
+        R_merged = np.zeros((nbmrg, T))
         S_merged = np.zeros((nbmrg, T))
         bl_merged = np.zeros((nbmrg, 1))
         c1_merged = np.zeros((nbmrg, 1))
@@ -1019,11 +1146,12 @@ class Estimates(object):
             g_idx = [merged_ROI[indx]]
             fast_merge = True
             bm, cm, computedA, computedC, gm, \
-            sm, ss = merge_iteration(Acsc, C_to_norm, Ctmp, fast_merge, 
-                                     None, g_idx, indx, params.temporal)
+            sm, ss, yra = merge_iteration(Acsc, C_to_norm, Ctmp, fast_merge,
+                                          None, g_idx, indx, params.temporal)
 
-            A_merged[:, i] = computedA
+            A_merged[:, i] = computedA[:, np.newaxis]
             C_merged[i, :] = computedC
+            R_merged[i, :] = yra
             S_merged[i, :] = ss[:T]
             bl_merged[i] = bm
             c1_merged[i] = cm
@@ -1035,6 +1163,7 @@ class Estimates(object):
         if np.any(empty):
             A_merged = A_merged[:, ~empty]
             C_merged = C_merged[~empty]
+            R_merged = R_merged[~empty]
             S_merged = S_merged[~empty]
             bl_merged = bl_merged[~empty]
             c1_merged = c1_merged[~empty]
@@ -1062,6 +1191,9 @@ class Estimates(object):
                                       A_merged.tocsc()))
         self.C = np.vstack((self.C[good_neurons, :], C_merged))
         # we continue for the variables
+        if self.YrA is not None:
+            self.YrA = np.vstack((self.YrA[good_neurons, :], R_merged))
+            self.R = self.YrA
         if self.S is not None:
             self.S = np.vstack((self.S[good_neurons, :], S_merged))
         if self.bl is not None:
@@ -1080,7 +1212,7 @@ class Estimates(object):
             self.coordinates = caiman.utils.visualization.get_contours(self.A,\
                                 self.dims, thr_method='max', thr='0.2')
 
-    def threshold_spatial_components(self, maxthr=0.25, dview=None, **kwargs):
+    def threshold_spatial_components(self, maxthr=0.25, dview=None):
         ''' threshold spatial components. See parameters of
         spatial.threshold_components
 
@@ -1095,8 +1227,10 @@ class Estimates(object):
         '''
 
         if self.A_thr is None:
-            A_thr = threshold_components(self.A, self.dims,  maxthr=maxthr, dview=dview, medw=None, thr_method='max', nrgthr=0.99,
-                                         extract_cc=True, se=None, ss=None, **kwargs)
+            A_thr = threshold_components(self.A, self.dims,  maxthr=maxthr, dview=dview,
+                                         medw=None, thr_method='max', nrgthr=0.99,
+                                         extract_cc=True, se=None, ss=None)
+
             self.A_thr = A_thr
         else:
             print('A_thr already computed. If you want to recompute set self.A_thr to None')
@@ -1195,89 +1329,186 @@ class Estimates(object):
                  imaging_series_name=None,
                  sess_desc='CaImAn Results',
                  exp_desc=None,
-                 imaging_rate=30,
-                 location='somewhere in the brain',
-                 orig_file_format='tiff'):
-        """save object in hdf5 file format
+                 identifier=None,
+                 imaging_rate=30.,
+                 starting_time=0.,
+                 session_start_time=None,
+                 excitation_lambda=488.0,
+                 imaging_plane_description='some imaging plane description',
+                 emission_lambda=520.0,
+                 indicator='OGB-1',
+                 location='brain',
+                 raw_data_file=None):
+        """writes NWB file
 
         Args:
             filename: str
-                path to the hdf5 file containing the saved object
+
+            imaging_plane_name: str, optional
+
+            imaging_series_name: str, optional
+
+            sess_desc: str, optional
+
+            exp_desc: str, optional
+
+            identifier: str, optional
+
+            imaging_rate: float, optional
+                default: 30 (Hz)
+
+            starting_time: float, optional
+                default: 0.0 (seconds)
+
+            location: str, optional
+
+            session_start_time: datetime.datetime, optional
+                Only required for new files
+
+            excitation_lambda: float
+
+            imaging_plane_description: str
+
+            emission_lambda: float
+
+            indicator: str
+
+            location: str
         """
-        from pynwb import NWBHDF5IO
-        from pynwb.ophys import ImageSegmentation, Fluorescence, MotionCorrection
+
+        from pynwb import NWBHDF5IO, TimeSeries, NWBFile
+        from pynwb.base import Images
+        from pynwb.image import GrayscaleImage
+        from pynwb.ophys import ImageSegmentation, Fluorescence, OpticalChannel, ImageSeries
+        from pynwb.device import Device
         import os
+
+        if identifier is None:
+            import uuid
+            identifier = uuid.uuid1().hex
+
         if '.nwb' != os.path.splitext(filename)[-1].lower():
             raise Exception("Wrong filename")
 
-        if not os.path.isfile(filename): # if the file doesn't exist create new and add the orginal data path
-            raise Exception('filename should be an existing NWB file.\
-                            Consider using the cnmf.movie.save method to create one.')
-        
-        else: # if the file already exist in the .nwb format then just add the results to it
-            logging.info('Saving the results in the NWB file...')
-            with  NWBHDF5IO(filename, 'r+') as io:
-                nwbfile = io.read()
-                # Add processing results
-                mod = nwbfile.create_processing_module('ophys', 'contains caiman estimates for the main imagin plane')
-                img_seg = ImageSegmentation()
-                mod.add_data_interface(img_seg)
-                fl = Fluorescence()
-                mod.add_data_interface(fl)
-    #            mot_crct = MotionCorrection()
-    #            mod.add_data_interface(mot_crct)
+        if not os.path.isfile(filename):  # if the file doesn't exist create new and add the original data path
+            print('filename does not exist. Creating new NWB file with only estimates output')
 
-                # Add the ROI-related stuff
-                if imaging_plane_name is None:
-                    imaging_plane_name = [imp for imp in nwbfile.imaging_planes.keys()]
-                    if len(imaging_plane_name)>1:
-                        raise Exception('There is more than one imaging plane in the file, you need to specify the name via '
-                                        'the "imaging_plane_name" parameter')
-                    else:
-                        imaging_plane_name = imaging_plane_name[0]
+            nwbfile = NWBFile(sess_desc, identifier, session_start_time, experiment_description=exp_desc)
+            device = Device('imaging_device')
+            nwbfile.add_device(device)
+            optical_channel = OpticalChannel('OpticalChannel',
+                                             'main optical channel',
+                                             emission_lambda=emission_lambda)
+            nwbfile.create_imaging_plane(name='ImagingPlane',
+                                         optical_channel=optical_channel,
+                                         description=imaging_plane_description,
+                                         device=device,
+                                         excitation_lambda=excitation_lambda,
+                                         imaging_rate=imaging_rate,
+                                         indicator=indicator,
+                                         location=location)
+            if raw_data_file:
+                nwbfile.add_acquisition(ImageSeries(name='TwoPhotonSeries',
+                                                    external_file=[raw_data_file],
+                                                    format='external',
+                                                    rate=imaging_rate,
+                                                    starting_frame=[0]))
+            with NWBHDF5IO(filename, 'w') as io:
+                io.write(nwbfile)
 
-                if imaging_series_name is None:
-                    imaging_series_name = [imp for imp in nwbfile.acquisition.keys()]
-                    if len(imaging_series_name)>1:
-                        raise Exception('There is more than one imaging plane in the file, you need to specify the name via '
-                                        'the "imaging_series_name" parameter')
-                    else:
-                        imaging_series_name = imaging_series_name[0]
+        time.sleep(4)  # ensure the file is fully closed before opening again in append mode
+        logging.info('Saving the results in the NWB file...')
 
+        with NWBHDF5IO(filename, 'r+') as io:
+            nwbfile = io.read()
+            # Add processing results
 
+            # Create the module as 'ophys' unless it is taken and append 'ophysX' instead
+            ophysmodules = [s[5:] for s in list(nwbfile.modules) if s.startswith('ophys')]
+            if any('' in s for s in ophysmodules):
+                if any([s for s in ophysmodules if s.isdigit()]):
+                    nummodules = max([int(s) for s in ophysmodules if s.isdigit()])+1
+                    print('ophys module previously created, writing to ophys'+str(nummodules)+' instead')
+                    mod = nwbfile.create_processing_module('ophys'+str(nummodules), 'contains caiman estimates for '
+                                                                                    'the main imaging plane')
+                else:
+                    print('ophys module previously created, writing to ophys1 instead')
+                    mod = nwbfile.create_processing_module('ophys1', 'contains caiman estimates for the main '
+                                                                     'imaging plane')
+            else:
+                mod = nwbfile.create_processing_module('ophys', 'contains caiman estimates for the main imaging plane')
+
+            img_seg = ImageSegmentation()
+            mod.add_data_interface(img_seg)
+            fl = Fluorescence()
+            mod.add_data_interface(fl)
+#            mot_crct = MotionCorrection()
+#            mod.add_data_interface(mot_crct)
+
+            # Add the ROI-related stuff
+            if imaging_plane_name is not None:
                 imaging_plane = nwbfile.imaging_planes[imaging_plane_name]
+            else:
+                if len(nwbfile.imaging_planes) == 1:
+                    imaging_plane = list(nwbfile.imaging_planes.values())[0]
+                else:
+                    raise Exception('There is more than one imaging plane in the file, you need to specify the name'
+                                    ' via the "imaging_plane_name" parameter')
+
+            if imaging_series_name is not None:
                 image_series = nwbfile.acquisition[imaging_series_name]
+            else:
+                if not len(nwbfile.acquisition):
+                    image_series = None
+                elif len(nwbfile.acquisition) == 1:
+                    image_series = list(nwbfile.acquisition.values())[0]
+                else:
+                    raise Exception('There is more than one imaging plane in the file, you need to specify the name'
+                                    ' via the "imaging_series_name" parameter')
 
-                ps = img_seg.create_plane_segmentation('CNMF_ROIs',
-                                                       imaging_plane, 'planeseg', image_series)
+            ps = img_seg.create_plane_segmentation('CNMF_ROIs', imaging_plane, 'PlaneSegmentation', image_series)
 
-                # Add ROIs
-                for roi in self.A.T:  # Neurons
-                    ps.add_roi(image_mask=roi.T.toarray().reshape(self.dims))
-                for bg in self.b.T:  # Backgrounds
-                    ps.add_roi(image_mask=bg.reshape(self.dims))
-                # Add Traces
-                n_rois = self.A.shape[-1]
-                n_bg = len(self.f)
-                rt_region_roi = ps.create_roi_table_region('ROIs',
-                                                       region=list(range(n_rois)))
+            ps.add_column('r', 'description of r values')
+            ps.add_column('snr', 'signal to noise ratio')
+            ps.add_column('cnn', 'description of CNN')
+            ps.add_column('keep', 'in idx_components')
 
-                rt_region_bg = ps.create_roi_table_region('Background',
-                                                       region=list(range(n_rois,n_rois+n_bg)))
+            # Add ROIs
+            for i, (roi, snr, r, cnn) in enumerate(zip(self.A.T, self.SNR_comp, self.r_values, self.cnn_preds)):
+                ps.add_roi(image_mask=roi.T.toarray().reshape(self.dims), r=r, snr=snr, cnn=cnn,
+                           keep=i in self.idx_components)
+            for bg in self.b.T:  # Backgrounds
+                ps.add_roi(image_mask=bg.reshape(self.dims), r=np.nan, snr=np.nan, cnn=np.nan, keep=False)
+            # Add Traces
+            n_rois = self.A.shape[-1]
+            n_bg = len(self.f)
+            rt_region_roi = ps.create_roi_table_region(
+                'ROIs', region=list(range(n_rois)))
 
-                timestamps = list(range(self.f.shape[1]))
+            rt_region_bg = ps.create_roi_table_region(
+                'Background', region=list(range(n_rois, n_rois+n_bg)))
 
-                # Neurons
-                rrs1 = fl.create_roi_response_series('RoiResponseSeries', self.C.T, 'lumens', rt_region_roi, timestamps=timestamps)
-                # Background
-                rrs2 = fl.create_roi_response_series('Background_Fluorescence_Response', self.f.T, 'lumens', rt_region_bg, timestamps=timestamps)
+            timestamps = np.arange(self.f.shape[1]) / imaging_rate + starting_time
+
+            # Neurons
+            fl.create_roi_response_series('RoiResponseSeries', self.C.T, 'lumens', rt_region_roi, timestamps=timestamps)
+            # Background
+            fl.create_roi_response_series('Background_Fluorescence_Response', self.f.T, 'lumens', rt_region_bg,
+                                          timestamps=timestamps)
+
+            mod.add(TimeSeries(name='residuals', description='residuals', data=self.YrA.T, timestamps=timestamps,
+                               unit='NA'))
+            if hasattr(self, 'Cn'):
+                images = Images('summary_images')
+                images.add_image(GrayscaleImage(name='local_correlations', data=self.Cn))
 
                 # Add MotionCorreciton
     #            create_corrected_image_stack(corrected, original, xy_translation, name='CorrectedImageStack')
                 io.write(nwbfile)
 
 
-def compare_components(estimate_gt, estimate_cmp,  Cn=None, thresh_cost=.8, min_dist=10, print_assignment=False, labels=['GT', 'CMP'], plot_results=False):
+def compare_components(estimate_gt, estimate_cmp,  Cn=None, thresh_cost=.8, min_dist=10, print_assignment=False,
+                       labels=['GT', 'CMP'], plot_results=False):
     if estimate_gt.A_thr is None:
         raise Exception(
             'You need to compute thresolded components for first argument before calling remove_duplicates: use the threshold_components method')

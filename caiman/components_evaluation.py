@@ -15,6 +15,7 @@ import itertools
 import logging
 import numpy as np
 import os
+import tensorflow as tf
 import scipy
 from scipy.sparse import csc_matrix
 from scipy.stats import norm
@@ -211,7 +212,7 @@ def classify_components_ep(Y, A, C, b, f, Athresh=0.1, Npeaks=5, tB=-3, tA=10, t
 
     significant_samples:List[Any] = []
     for i in range(K):
-        if i % 200 == 0:  # Show status periodically
+        if (i+1) % 200 == 0:  # Show status periodically
             logging.info('Components evaluated:' + str(i))
         if LOC[i] is not None:
             atemp = A[:, i].toarray().flatten()
@@ -257,17 +258,15 @@ def evaluate_components_CNN(A, dims, gSig, model_name:str=os.path.join(caiman_da
 
     import os
     if not isGPU:
-
         os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
     try:
         os.environ["KERAS_BACKEND"] = "tensorflow"
-        from keras.models import model_from_json
+        from tensorflow.keras.models import model_from_json
         use_keras = True
-        logging.debug('Using Keras')
+        logging.info('Using Keras')
     except(ModuleNotFoundError):
-        import tensorflow as tf
         use_keras = False
-        logging.debug('Using Tensorflow')
+        logging.info('Using Tensorflow')
 
     if loaded_model is None:
         if use_keras:
@@ -295,7 +294,8 @@ def evaluate_components_CNN(A, dims, gSig, model_name:str=os.path.join(caiman_da
                 raise FileNotFoundError("File for requested model {} not found".format(model_name))
             loaded_model = load_graph(model_file)
 
-        logging.info("Loaded model from disk")
+        logging.debug("Loaded model from disk")
+
     half_crop = np.minimum(
         gSig[0] * 4 + 1, patch_size), np.minimum(gSig[1] * 4 + 1, patch_size)
     dims = np.array(dims)
@@ -317,6 +317,7 @@ def evaluate_components_CNN(A, dims, gSig, model_name:str=os.path.join(caiman_da
         with tf.Session(graph=loaded_model) as sess:
             predictions = sess.run(
                 tf_out, feed_dict={tf_in: final_crops[:, :, :, np.newaxis]})
+            sess.close()
 
     return predictions, final_crops
 #%%
@@ -326,11 +327,11 @@ def evaluate_components(Y:np.ndarray, traces:np.ndarray, A, C, b, f, final_frate
                         Athresh:float=0.1, Npeaks:int=5, thresh_C:float=0.3, sigma_factor:float=3.) -> Tuple[Any, Any, Any, Any, Any, Any]:
     """ Define a metric and order components according to the probability of some "exceptional events" (like a spike).
 
-    Such probability is defined as the likeihood of observing the actual trace value over N samples given an estimated noise distribution.
+    Such probability is defined as the likelihood of observing the actual trace value over N samples given an estimated noise distribution.
     The function first estimates the noise distribution by considering the dispersion around the mode.
     This is done only using values lower than the mode.
     The estimation of the noise std is made robust by using the approximation std=iqr/1.349.
-    Then, the probavility of having N consecutive eventsis estimated.
+    Then, the probability of having N consecutive events is estimated.
     This probability is used to order the components.
     The algorithm also measures the reliability of the spatial mask by comparing the filters in A
      with the average of the movies over samples where exceptional events happen, after  removing (if possible)
@@ -397,7 +398,7 @@ def evaluate_components(Y:np.ndarray, traces:np.ndarray, A, C, b, f, final_frate
 
     Yr = np.reshape(Y, (np.prod(dims), T), order='F')
 
-    logging.info('Computing event exceptionality delta')
+    logging.debug('Computing event exceptionality delta')
     fitness_delta, erfc_delta, _, _ = compute_event_exceptionality(
         np.diff(traces, axis=1), robust_std=robust_std, N=N, sigma_factor=sigma_factor)
 
@@ -435,11 +436,11 @@ def evaluate_components(Y:np.ndarray, traces:np.ndarray, A, C, b, f, final_frate
             else:
                 traces -= tr_BL[padbefore:-padafter].T
 
-    logging.info('Computing event exceptionality')
+    logging.debug('Computing event exceptionality')
     fitness_raw, erfc_raw, _, _ = compute_event_exceptionality(
         traces, robust_std=robust_std, N=N, sigma_factor=sigma_factor)
 
-    logging.info('Evaluating spatial footprint')
+    logging.debug('Evaluating spatial footprint')
     # compute the overlap between spatial and movie average across samples with significant events
     r_values, significant_samples = classify_components_ep(Yr, A, C, b, f, Athresh=Athresh, Npeaks=Npeaks, tB=tB,
                                                            tA=tA, thres=thresh_C)
@@ -539,7 +540,6 @@ def estimate_components_quality_auto(Y, A, C, b, f, YrA, frate, decay_time, gSig
         -min_SNR_reject) * N_samples
 
     traces = C + YrA
-
     _, _, fitness_raw, _, r_values = estimate_components_quality( # type: ignore # mypy cannot reason about return_all
         traces, Y, A, C, b, f, final_frate=frate, Npeaks=Npeaks, r_values_min=r_values_min, fitness_min=fitness_min,
         fitness_delta_min=thresh_fitness_delta, return_all=True, dview=dview, num_traces_per_group=50, N=N_samples)
@@ -610,11 +610,11 @@ def estimate_components_quality(traces, Y, A, C, b, f, final_frate=30, Npeaks=10
                                 remove_baseline=True, dview=None, robust_std=False, Athresh=0.1, thresh_C=0.3, num_traces_per_group=20) -> Tuple[np.ndarray, ...]:
     """ Define a metric and order components according to the probability of some "exceptional events" (like a spike).
 
-    Such probability is defined as the likeihood of observing the actual trace value over N samples given an estimated noise distribution.
+    Such probability is defined as the likelihood of observing the actual trace value over N samples given an estimated noise distribution.
     The function first estimates the noise distribution by considering the dispersion around the mode.
     This is done only using values lower than the mode.
     The estimation of the noise std is made robust by using the approximation std=iqr/1.349.
-    Then, the probavility of having N consecutive eventsis estimated.
+    Then, the probability of having N consecutive events is estimated.
     This probability is used to order the components.
     The algorithm also measures the reliability of the spatial mask by comparing the filters in A
      with the average of the movies over samples where exceptional events happen, after  removing (if possible)
@@ -693,7 +693,7 @@ def estimate_components_quality(traces, Y, A, C, b, f, final_frate=30, Npeaks=10
             if dview is None:
                 res = map(evaluate_components_placeholder, params)
             else:
-                logging.info('EVALUATING IN PARALLEL... NOT RETURNING ERFCs')
+                logging.info('Component evaluation in parallel')
                 if 'multiprocessing' in str(type(dview)):
                     res = dview.map_async(
                         evaluate_components_placeholder, params).get(4294967)

@@ -335,6 +335,7 @@ for params_movie in np.array(params_movies)[ID]:
                    'block_size_spat': block_size,
                    'num_blocks_per_run_spat': num_blocks_per_run,
                    'num_blocks_per_run_temp': num_blocks_per_run,
+                   'merge_parallel': True,
                    'n_pixels_per_process': n_pixels_per_process,
                    'ssub': global_params['ssub'],
                    'tsub': global_params['tsub'],
@@ -487,20 +488,20 @@ for params_movie in np.array(params_movies)[ID]:
         print('SAVING...' + fname_new[:-5] + '_perf_Sep_2018_gsig.npz')
         np.savez(fname_new[:-5] + '_perf_Sep_2018_gsig.npz', all_results=performance_tmp)
 
-    results_old = {'N.00.00': 0.723,
-                   'N.01.01': 0.763,
-                   'N.03.00.t': 0.779,
-                   'N.04.00.t': 0.692,
-                   'YST': 0.773}
+results_old = {'N.00.00': 0.723,
+               'N.01.01': 0.763,
+               'N.03.00.t': 0.779,
+               'N.04.00.t': 0.692,
+               'YST': 0.773}
 
-    results_holding = True
-    for kk, res in all_results.items():
-        print(kk + ' f1_score_new : ' + str(all_results[kk]['f1_score']) + ',f1_score_old:' + str(results_old[kk]),
-              ',delta:' + str(results_old[kk] - all_results[kk]['f1_score']))
-        if (results_old[kk] - all_results[kk]['f1_score']) > 0.01:
-            results_holding = False
+results_holding = True
+for kk, res in all_results.items():
+    print(kk + ' f1_score_new : ' + str(all_results[kk]['f1_score']) + ',f1_score_old:' + str(results_old[kk]),
+          ',delta:' + str(results_old[kk] - all_results[kk]['f1_score']))
+    if (results_old[kk] - all_results[kk]['f1_score']) > 0.01:
+        results_holding = False
 
-    assert results_holding, 'F1 scores are decreasing, check your code for errors'
+assert results_holding, 'F1 scores are decreasing, check your code for errors'
 #
 # if save_all:
 #     # here eventually save when in a loop

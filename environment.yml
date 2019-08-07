@@ -7,6 +7,7 @@ dependencies:
 - cython
 - future
 - h5py
+- holoviews
 - ipykernel=4.10
 - ipython
 - ipyparallel
@@ -18,12 +19,12 @@ dependencies:
 - opencv
 - peakutils
 - pims
-- scipy
+- pynwb
+- pyqtgraph
 - scikit-image
 - scikit-learn
-- spyder
+- scipy
 - tifffile
 - tk=8.6.8
 - tqdm
-- pyqtgraph
-- pynwb
+- yapf

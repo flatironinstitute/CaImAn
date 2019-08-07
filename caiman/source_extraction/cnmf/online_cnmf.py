@@ -24,13 +24,14 @@ import numpy as np
 from past.utils import old_div
 from scipy.ndimage import percentile_filter
 from scipy.ndimage.filters import gaussian_filter
-from scipy.sparse import coo_matrix, csc_matrix, spdiags
+from scipy.sparse import coo_matrix, csc_matrix, spdiags, hstack
 from scipy.stats import norm
 from sklearn.decomposition import NMF
 from sklearn.preprocessing import normalize
 from time import time
 from typing import List, Tuple
 import tensorflow as tf
+import logging
 
 import caiman
 from .cnmf import CNMF
@@ -216,21 +217,18 @@ class OnACID(object):
         # setup per patch classifier
 
         if self.params.get('online', 'path_to_model') is None or self.params.get('online', 'sniper_mode') is False:
-            self.loaded_model = None
-            self.tf_in = None
-            self.tf_out = None
+            loaded_model = None
             self.params.set('online', {'sniper_mode': False})
             self.tf_in = None
             self.tf_out = None
         else:
             try:
-                import keras
-                from keras.models import model_from_json
-                #logging.debug('Using Keras')
+                from tensorflow.keras.models import model_from_json
+                logging.info('Using Keras')
                 use_keras = True
             except(ModuleNotFoundError):
                 use_keras = False
-                #logging.debug('Using Tensorflow')
+                logging.info('Using Tensorflow')
             if use_keras:
                 path = self.params.get('online', 'path_to_model').split(".")[:-1]
                 json_path = ".".join(path + ["json"])
@@ -240,9 +238,9 @@ class OnACID(object):
                 json_file.close()
                 loaded_model = model_from_json(loaded_model_json)
                 loaded_model.load_weights(model_path)
-                opt = keras.optimizers.rmsprop(lr=0.0001, decay=1e-6)
-                loaded_model.compile(loss=keras.losses.categorical_crossentropy,
-                                     optimizer=opt, metrics=['accuracy'])
+                #opt = tf.keras.optimizers.rmsprop(lr=0.0001, decay=1e-6)
+                #loaded_model.compile(loss=tf.keras.losses.categorical_crossentropy,
+                #                     optimizer=opt, metrics=['accuracy'])
                 self.tf_in = None
                 self.tf_out = None
             else:
@@ -831,9 +829,18 @@ class OnACID(object):
         if self.estimates.OASISinstances is not None:
             self.estimates.bl = [osi.b for osi in self.estimates.OASISinstances]
             self.estimates.S = np.stack([osi.s for osi in self.estimates.OASISinstances])
+            self.estimates.S = self.estimates.S[:, t - t // epochs:t]
         else:
             self.estimates.bl = [0] * self.estimates.C.shape[0]
             self.estimates.S = np.zeros_like(self.estimates.C)
+        if self.params.get('online', 'ds_factor') > 1:
+            dims = Y_.shape[1:]
+            self.estimates.A = hstack([coo_matrix(cv2.resize(self.estimates.A[:, i].reshape(self.dims, order='F').toarray(),
+                                                            dims[::-1]).reshape(-1, order='F')[:,None]) for i in range(self.N)], format='csc')
+            self.estimates.b = np.concatenate([cv2.resize(self.estimates.b[:, i].reshape(self.dims, order='F'),
+                                                          dims[::-1]).reshape(-1, order='F')[:,None] for i in range(self.params.get('init', 'nb'))], axis=1)
+            self.params.set('data', {'dims': dims})
+            self.estimates.dims = dims
         if self.params.get('online', 'save_online_movie'):
             out.release() 
         if self.params.get('online', 'show_movie'):

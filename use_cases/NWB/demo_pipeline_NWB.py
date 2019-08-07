@@ -28,6 +28,8 @@ try:
 except NameError:
     pass
 
+from datetime import datetime
+from dateutil.tz import tzlocal
 
 import caiman as cm
 from caiman.motion_correction import MotionCorrect
@@ -52,12 +54,13 @@ def main():
     pass  # For compatibility between running under Spyder and the CLI
 
 #%% Select file(s) to be processed (download if not present)
-    fnames = [os.path.join(caiman_datadir(), 'example_movies/Sue_2x_3000_40_-46.nwb')]  
+    fnames = [os.path.join(caiman_datadir(), 'example_movies/Sue_2x_3000_40_-46.nwb')]
+    # estimates save path can be same or different from raw data path
+    save_path = os.path.join(caiman_datadir(), 'example_movies/Sue_2x_3000_40_-46_CNMF_estimates.nwb')
         # filename to be created or processed
     # dataset dependent parameters
-    fr = 15  # imaging rate in frames per second
+    fr = 15.  # imaging rate in frames per second
     decay_time = 0.4  # length of a typical transient in seconds
-
 
 #%% load the file and save it in the NWB format (if it doesn't exist already)
     if not os.path.exists(fnames[0]):
@@ -70,8 +73,8 @@ def main():
         orig_movie.save(fnames[0], sess_desc='test', identifier='demo 1',
              exp_desc='demo movie', imaging_plane_description='single plane',
              emission_lambda=520.0, indicator='GCAMP6f',
-             location='parietal cortex', starting_time=0.,
-             experimenter='Sue An Koay', lab_name='Tank Lab',
+             location='parietal cortex',
+             experimenter='Sue Ann Koay', lab_name='Tank Lab',
              institution='Princeton U',
              experiment_description='Experiment Description',
              session_id='Session 1',
@@ -89,7 +92,7 @@ def main():
     max_shifts = [int(a/b) for a, b in zip(max_shift_um, dxy)]
     # start a new patch for pw-rigid motion correction every x pixels
     strides = tuple([int(a/b) for a, b in zip(patch_motion_um, dxy)])
-    # overlap between pathes (size of patch in pixels: strides+overlaps)
+    # overlap between patches (size of patch in pixels: strides+overlaps)
     overlaps = (24, 24)
     # maximum deviation allowed for patch with respect to rigid shifts
     max_deviation_rigid = 3
@@ -114,7 +117,7 @@ def main():
 # %% play the movie (optional)
     # playing the movie using opencv. It requires loading the movie in memory.
     # To close the video press q
-    display_images = True
+    display_images = False
     if display_images:
         m_orig = cm.load_movie_chain(fnames, var_name_hdf5=opts.data['var_name_hdf5'])
         ds_ratio = 0.2
@@ -276,7 +279,8 @@ def main():
         os.remove(log_file)
     #%% save the results in the original NWB file
 
-    cnm2.estimates.save_NWB(fnames[0], imaging_rate=fr)
+    cnm2.estimates.save_NWB(save_path, imaging_rate=fr, session_start_time=datetime.now(tzlocal()),
+                            raw_data_file=fnames[0])
 
 # %%
 # This is to mask the differences between running this demo in Spyder

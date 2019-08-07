@@ -215,7 +215,7 @@ class MotionCorrect(object):
         output can be saved as a memory mapped file.
 
         Args:
-            template: nd.array, default: None
+            template: ndarray, default: None
                 template provided by user for motion correction
 
             save_movie: bool, default: False
@@ -253,7 +253,7 @@ class MotionCorrect(object):
         self.mmap_file = self.fname_tot_els if self.pw_rigid else self.fname_tot_rig
         return self
 
-    def motion_correct_rigid(self, template=None, save_movie=False):
+    def motion_correct_rigid(self, template=None, save_movie=False) -> None:
         """
         Perform rigid motion correction
 
@@ -263,9 +263,6 @@ class MotionCorrect(object):
 
             save_movie_rigid:Bool
                 save the movies vs just get the template
-
-        Returns:
-            self
 
         Important Fields:
             self.fname_tot_rig: name of the mmap file saved
@@ -308,27 +305,18 @@ class MotionCorrect(object):
             self.fname_tot_rig += [_fname_tot_rig]
             self.shifts_rig += _shifts_rig
 
-        return self
-
-    def motion_correct_pwrigid(
-            self,
-            save_movie=True,
-            template=None,
-            show_template=False):
+    def motion_correct_pwrigid(self, save_movie:bool=True, template:np.ndarray=None, show_template:bool=False) -> None:
         """Perform pw-rigid motion correction
 
         Args:
-            template: ndarray 2D (or 3D)
-                if known, one can pass a template to register the frames to
-
             save_movie:Bool
                 save the movies vs just get the template
 
+            template: ndarray 2D (or 3D)
+                if known, one can pass a template to register the frames to
+
             show_template: boolean
                 whether to show the updated template at each iteration
-
-        Returns:
-            self
 
         Important Fields:
             self.fname_tot_els: name of the mmap file saved
@@ -347,7 +335,7 @@ class MotionCorrect(object):
         num_iter = 1
         if template is None:
             logging.info('Generating template by rigid motion correction')
-            self = self.motion_correct_rigid()
+            self.motion_correct_rigid()
             self.total_template_els = self.total_template_rig.copy()
         else:
             self.total_template_els = template
@@ -388,10 +376,9 @@ class MotionCorrect(object):
             if self.is3D:
                 self.z_shifts_els += _z_shifts_els
             self.coord_shifts_els += _coord_shifts_els
-#        return self
 
-    def apply_shifts_movie(self, fname, rigid_shifts=True, save_memmap=False,
-                           save_base_name='MC', order='F'):
+    def apply_shifts_movie(self, fname, rigid_shifts:bool=True, save_memmap:bool=False,
+                           save_base_name:str='MC', order:str='F'):
         """
         Applies shifts found by registering one file to a different file. Useful
         for cases when shifts computed from a structural channel are applied to a
@@ -443,25 +430,26 @@ class MotionCorrect(object):
 #                np.float32), np.arange(0., dims[1]).astype(np.float32))
             x_grid, y_grid = np.meshgrid(np.arange(0., dims[1]).astype(
                 np.float32), np.arange(0., dims[0]).astype(np.float32))
-            m_reg = [cv2.remap(img,
-                               -cv2.resize(shiftY, dims[::-1]) + x_grid, -cv2.resize(shiftX, dims[::-1]) + y_grid, cv2.INTER_CUBIC)
+            m_reg = [cv2.remap(img, -cv2.resize(shiftY, dims[::-1]) + x_grid,
+                               -cv2.resize(shiftX, dims[::-1]) + y_grid,
+                               cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
                      for img, shiftX, shiftY in zip(Y, shifts_x, shifts_y)]
-            if save_memmap:
-                Y = np.array(Y)
-                dims = Y.shape
-                fname_tot = memmap_frames_filename(save_base_name, dims[1:], dims[0], order)
-                big_mov = np.memmap(fname_tot, mode='w+', dtype=np.float32,
-                            shape=prepare_shape((np.prod(dims[1:]), dims[0])), order=order)
-                big_mov[:] = np.reshape(Y.transpose(1, 2, 0), (np.prod(dims[1:]), dims[0]), order=order)
-                big_mov.flush()
-                del big_mov
-                return fname_tot
-            else:
-                return cm.movie(np.stack(m_reg, axis=0))
+        m_reg = np.stack(m_reg, axis=0)
+        if save_memmap:
+            dims = m_reg.shape
+            fname_tot = memmap_frames_filename(save_base_name, dims[1:], dims[0], order)
+            big_mov = np.memmap(fname_tot, mode='w+', dtype=np.float32,
+                        shape=prepare_shape((np.prod(dims[1:]), dims[0])), order=order)
+            big_mov[:] = np.reshape(m_reg.transpose(1, 2, 0), (np.prod(dims[1:]), dims[0]), order=order)
+            big_mov.flush()
+            del big_mov
+            return fname_tot
+        else:
+            return cm.movie(m_reg)
 
 
 #%%
-def apply_shift_iteration(img, shift, border_nan=False, border_type=cv2.BORDER_REFLECT):
+def apply_shift_iteration(img, shift, border_nan:bool=False, border_type=cv2.BORDER_REFLECT):
     # todo todocument
 
     sh_x_n, sh_y_n = shift
@@ -1304,8 +1292,8 @@ def init_cuda_process():
 
     cudadrv.init()
     dev = cudadrv.Device(0)
-    cudactx = dev.make_context()
-    atexit.register(cudactx.pop)
+    cudactx = dev.make_context() # type: ignore
+    atexit.register(cudactx.pop) # type: ignore
 
 
 def close_cuda_process(n):
@@ -1313,9 +1301,11 @@ def close_cuda_process(n):
     Cleanup cuda process
     """
 
+    global cudactx
+
     import skcuda.misc as cudamisc
     try:
-        cudamisc.done_context(cudactx)
+        cudamisc.done_context(cudactx) # type: ignore
     except:
         pass
 
@@ -1586,7 +1576,7 @@ def register_translation(src_image, target_image, upsample_factor=1,
         from skcuda.fft import fft as cudafft
         from skcuda.fft import ifft as cudaifft
         try:
-            cudactx
+            cudactx # type: ignore
         except NameError:
             init_cuda_process()
 
