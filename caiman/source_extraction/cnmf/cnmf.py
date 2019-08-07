@@ -33,9 +33,6 @@ import psutil
 import scipy
 import sys
 
-from scipy.sparse import csc_matrix
-
-import caiman as cm
 from .estimates import Estimates
 from .initialization import initialize_components, compute_W
 from .map_reduce import run_CNMF_patches
@@ -115,7 +112,7 @@ class CNMF(object):
                 merging threshold, max correlation allowed
 
             dview: Direct View object
-                for parallelization pruposes when using ipyparallel
+                for parallelization purposes when using ipyparallel
 
             p: int
                 order of the autoregressive process used to estimate deconvolution
@@ -966,7 +963,7 @@ def load_CNMF(filename, n_processes=1, dview=None):
             useful to set up parllelization in the objects
     '''
     new_obj = CNMF(n_processes)
-    if filename[-4:] == 'hdf5':
+    if os.path.splitext(filename)[1].lower() in ('.hdf5', '.h5'):
         for key, val in load_dict_from_hdf5(filename).items():
             if key == 'params':
                 prms = CNMFParams()
@@ -998,7 +995,7 @@ def load_CNMF(filename, n_processes=1, dview=None):
                 setattr(new_obj, key, estims)
             else:
                 setattr(new_obj, key, val)
-    elif filename[-3:] == 'nwb':
+    elif os.path.splitext(filename)[1].lower() == '.nwb':
         from pynwb import NWBHDF5IO
         with NWBHDF5IO(filename, 'r') as io:
             nwb = io.read()
@@ -1011,7 +1008,7 @@ def load_CNMF(filename, n_processes=1, dview=None):
             A = rois.table['image_mask'][roi_indices, ...]
             dims = A.shape[1:]
             A = A.reshape((A.shape[0], -1)).T
-            A = csc_matrix(A)
+            A = scipy.sparse.csc_matrix(A)
             if 'Background_Fluorescence_Response' in rrs_group:
                 brs = rrs_group['Background_Fluorescence_Response']
                 f = brs.data[:].T
@@ -1054,5 +1051,8 @@ def load_CNMF(filename, n_processes=1, dview=None):
             setattr(new_obj, 'params', prms)
             setattr(new_obj, 'dview', dview)
             setattr(new_obj, 'estimates', estims)
+
+    else:
+        raise NotImplementedError('unsupported file extension')
 
     return new_obj
