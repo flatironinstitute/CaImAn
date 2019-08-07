@@ -35,7 +35,7 @@ def make_color_img(img, gain=255, min_max=None,out_type=np.uint8):
         max_ = img.max()
     else:
         min_, max_ = min_max    
-        
+
     img = (img-min_)/(max_-min_)*gain
     img = img.astype(out_type)
     img = np.dstack([img]*3)
@@ -45,29 +45,33 @@ def make_color_img(img, gain=255, min_max=None,out_type=np.uint8):
 F = FileDialog()
 
 # load object saved by CNMF
-# cnm_obj = load_CNMF('/Users/agiovann/caiman_data/example_movies/memmap__d1_60_d2_80_d3_1_order_C_frames_2000_save.hdf5')
 fpath = F.getOpenFileName(caption='Load CNMF Object', filter='HDF5 (*.h5 *.hdf5);;NWB (*.nwb)')[0]
 cnm_obj = load_CNMF(fpath)
 
 # movie
-# mov = cm.load('/Users/agiovann/caiman_data/example_movies/memmap__d1_60_d2_80_d3_1_order_C_frames_2000_.mmap')
+if not os.path.exists(cnm_obj.mmap_file):
+    M = FileDialog()
+    cnm_obj.mmap_file = M.getOpenFileName(caption='Load memory mapped file', filter='*.mmap')[0]
+
 if fpath[-3:] == 'nwb':
     mov = cm.load(cnm_obj.mmap_file, var_name_hdf5='acquisition/TwoPhotonSeries')
 else:
     mov = cm.load(cnm_obj.mmap_file)
-# load summary image
-# Cn = cm.load('/Users/agiovann/caiman_data/example_movies/memmap__d1_60_d2_80_d3_1_order_C_frames_2000__Cn.tif')
+
 estimates = cnm_obj.estimates
 params_obj = cnm_obj.params
-
-if not hasattr(estimates, 'Cn'):
-    estimates.Cn = cm.local_correlations(mov, swap_dim=False)
 
 min_mov = np.min(mov)
 max_mov = np.max(mov)
 
-min_mov_denoise = np.min(estimates.A.dot(estimates.C))
-max_mov_denoise = np.max(estimates.A.dot(estimates.C))
+
+if not hasattr(estimates, 'Cn'):
+    estimates.Cn = cm.local_correlations(mov, swap_dim=False)
+Cn = estimates.Cn
+
+
+min_mov_denoise = np.min(estimates.A)*estimates.C.min()
+max_mov_denoise = np.max(estimates.A)*estimates.C.max()
 background_num = -1
 neuron_selected = False
 nr_index = 0
@@ -116,7 +120,7 @@ def draw_contours_overall(md):
 def draw_contours():
     global thrshcomp_line, estimates, img
     bkgr_contours = estimates.background_image.copy()
-    
+
     if len(estimates.idx_components) > 0:
         contours = [cv2.findContours(cv2.threshold(img, np.int(thrshcomp_line.value()), 255, 0)[1], cv2.RETR_TREE,
                                      cv2.CHAIN_APPROX_SIMPLE)[0] for img in estimates.img_components[estimates.idx_components]]

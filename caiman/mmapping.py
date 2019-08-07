@@ -294,9 +294,11 @@ def save_portion(pars) -> int:
         del big_mov
     else:
         with open(big_mov, 'r+b') as f:
-            f.seek(np.uint64(idx_start * Yr_tot.dtype.itemsize * tot_frames))
+            idx_start = np.uint64(idx_start)
+            tot_frames = np.uint64(tot_frames)
+            f.seek(np.uint64(idx_start * np.uint64(Yr_tot.dtype.itemsize) * tot_frames))
             f.write(Yr_tot)
-            computed_position = np.uint64(idx_end * Yr_tot.dtype.itemsize * tot_frames)
+            computed_position = np.uint64(idx_end * np.uint64(Yr_tot.dtype.itemsize) * tot_frames)
             if f.tell() != computed_position:
                 logging.critical(f"Error in mmap portion write: at position {f.tell()}")
                 logging.critical(
