@@ -193,7 +193,7 @@ class CNMF(object):
             remove_very_bad_comps:Bool
                 whether to remove components with very low values of component quality directly on the patch.
                  This might create some minor imprecisions.
-                Howeverm benefits can be considerable if done because if many components (>2000) are created
+                However benefits can be considerable if done because if many components (>2000) are created
                 and joined together, operation that causes a bottleneck
 
             border_pix:int
