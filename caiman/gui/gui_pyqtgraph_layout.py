@@ -43,18 +43,19 @@ def make_color_img(img, gain=255, min_max=None,out_type=np.uint8):
 F = FileDialog()
 
 # load object saved by CNMF
-# cnm_obj = load_CNMF('/Users/agiovann/caiman_data/example_movies/memmap__d1_60_d2_80_d3_1_order_C_frames_2000_save.hdf5')
-cnm_obj = load_CNMF(F.getOpenFileName(caption='Load CNMF Object',filter='*.hdf5')[0])
+CNMF_filename = F.getOpenFileName(caption='Load CNMF Object',filter='*.*5')[0]
+cnm_obj = load_CNMF(CNMF_filename)
 
+# load movie
+if not os.path.exists(cnm_obj.mmap_file):
+    M = FileDialog()
+    cnm_obj.mmap_file = M.getOpenFileName(caption='Load memory mapped file', filter='*.mmap')[0]
 
-# movie
-# mov = cm.load('/Users/agiovann/caiman_data/example_movies/memmap__d1_60_d2_80_d3_1_order_C_frames_2000_.mmap')
 mov = cm.load(cnm_obj.mmap_file)
 min_mov = np.min(mov)
 max_mov = np.max(mov)
 
 # load summary image
-# Cn = cm.load('/Users/agiovann/caiman_data/example_movies/memmap__d1_60_d2_80_d3_1_order_C_frames_2000__Cn.tif')
 Cn = cnm_obj.estimates.Cn
 
 
