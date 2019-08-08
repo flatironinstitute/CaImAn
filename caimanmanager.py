@@ -45,7 +45,7 @@ standard_movies = [
 def do_install_to(targdir: str, inplace: bool = False, force: bool = False) -> None:
     global sourcedir_base
     if os.path.isdir(targdir) and not force:
-        raise Exception(targdir + " already exists")
+        raise Exception(targdir + " already exists. You may move it out of the way, remove it, or use --force")
     if not inplace:    # In this case we rely on what setup.py put in the share directory for the module
         if not force:
             shutil.copytree(sourcedir_base, targdir)
