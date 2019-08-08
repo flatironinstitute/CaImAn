@@ -24,6 +24,7 @@ from ...base.rois import (
         detect_duplicates_and_subsets, nf_match_neurons_in_binary_masks,
         nf_masks_to_neurof_dict)
 from .initialization import downscale
+from .deconvolution import constrained_foopsi
 
 
 class Estimates(object):
@@ -810,7 +811,7 @@ class Estimates(object):
         self.idx_components = np.where(self.cnn_preds >= min_cnn_thr)[0]
         return self
 
-    def evaluate_components(self, imgs, params, dview=None):
+    def evaluate_components(self, imgs, params, dview=None, components_to_update=None):
         """Computes the quality metrics for each component and stores the
         indices of the components that pass user specified thresholds. The
         various thresholds and parameters can be passed as inputs. If left
@@ -1039,7 +1040,7 @@ class Estimates(object):
                 self.S_dff = np.stack([results[1][i] for i in order])
             
 
-    def manual_merge(self, components, params):
+    def manual_merge(self, components, imgs, params):
         ''' merge a given list of components. The indices
         of components are not pythonic, i.e., they start from 1. Moreover,
         the indices refer to the absolute indices, i.e., the indices before
@@ -1091,16 +1092,15 @@ class Estimates(object):
             Acsc = self.A.tocsc()[:, merged_ROI]
             Ctmp = np.array(self.C[merged_ROI]) + np.array(self.YrA[merged_ROI])
 
-            C_to_norm = np.sqrt(np.ravel(Acsc.power(2).sum(
-                axis=0)) * np.sum(Ctmp ** 2, axis=1))
+            C_to_norm = np.sqrt(np.ravel(Acsc.power(2).sum(axis=0)) * np.sum(Ctmp ** 2, axis=1))
             indx = np.argmax(C_to_norm)
             g_idx = [merged_ROI[indx]]
             fast_merge = True
             bm, cm, computedA, computedC, gm, \
             sm, ss, yra = merge_iteration(Acsc, C_to_norm, Ctmp, fast_merge,
                                           None, g_idx, indx, params.temporal)
-
-            A_merged[:, i] = computedA
+            
+            A_merged[:, i] = computedA[:,np.newaxis]
             C_merged[i, :] = computedC
             R_merged[i, :] = yra
             S_merged[i, :] = ss[:T]
@@ -1110,8 +1110,8 @@ class Estimates(object):
             g_merged[i, :] = gm
 
         empty = np.ravel((C_merged.sum(1) == 0) + (A_merged.sum(0) == 0))
-        nbmrg -= len(empty)
         if np.any(empty):
+            nbmrg -= len(empty)
             A_merged = A_merged[:, ~empty]
             C_merged = C_merged[~empty]
             R_merged = R_merged[~empty]
@@ -1162,6 +1162,62 @@ class Estimates(object):
         if self.coordinates is not None:
             self.coordinates = caiman.utils.visualization.get_contours(self.A,\
                                 self.dims, thr_method='max', thr='0.2')
+            
+        self.evaluate_components(imgs, params, dview=None)
+        
+    def manual_add(self, components, imgs, imgs_residual, params):
+        ''' Manual add new neuron that is calculated from nmf.   
+        ```
+        components = [A_new, C_new]
+        ```
+
+        Args:
+            components: list 
+                components list is made of two elements. The first is the new spatial
+                component, the second is the new temporal component.
+            imgs: movie object
+                raw movie
+            imgs_residual: movie object
+                movie subtract from the signal and the background
+            params: params object
+                
+        Returns:
+            self: estimates object
+        '''
+        A_merged = components[0]
+        C_merged = components[1]
+        A_to_norm = np.sqrt(A_merged.T.dot(A_merged)).item()
+        A_merged /= A_to_norm
+        C_merged *= A_to_norm
+        
+        self.A = scipy.sparse.hstack((self.A.tocsc(), A_merged))
+        self.C = np.vstack((self.C, C_merged))
+        self.idx_components = np.arange(self.idx_components.shape[0]+1, dtype=int)
+        self.compute_residuals(np.array(imgs))
+        self.YrA = self.R
+        
+        Acsc = self.A.tocsc()[:, -1]
+        Ctmp = np.array(self.C[-1]) + np.array(self.YrA[-1])
+        computedA = Acsc
+        computedC = Ctmp
+        
+        #r = ((Acsc.T.dot(computedA)).todense() * Ctmp)/(computedA.T.dot(computedA)).todense() - computedC
+        #c_in =  np.array(computedC+r).squeeze()
+        
+        c_in = computedC
+        deconvC, bm, cm, gm, sm, ss, lam_ = constrained_foopsi(
+            c_in, g=None, **params.temporal)        
+        self.C[-1] = deconvC
+        self.YrA[-1] = c_in-deconvC        
+        self.S = np.vstack((self.S, ss))
+        self.bl = np.hstack((self.bl,np.array(bm)))
+        self.c1 = np.hstack((self.c1,np.array(cm)))
+        self.sn = np.hstack((self.sn,np.array(sm))) 
+        self.g = np.vstack((np.vstack(self.g), gm))
+        self.nr = self.nr + 1
+        
+        self.evaluate_components(imgs, params, dview=None)
+
 
     def threshold_spatial_components(self, maxthr=0.25, dview=None):
         ''' threshold spatial components. See parameters of
