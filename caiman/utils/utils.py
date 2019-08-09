@@ -78,6 +78,8 @@ def download_demo(name:str='Sue_2x_3000_40_-46.tif', save_folder:str='') -> str:
                  'Tolias_mesoscope_2.hdf5': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/Tolias_mesoscope_2.hdf5',
                  'Tolias_mesoscope_3.hdf5': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/Tolias_mesoscope_3.hdf5',
                  'data_endoscope.tif': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/data_endoscope.tif',
+                 'gmc_960_30mw_00001_red.tif': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/gmc_960_30mw_00001_red.tif',
+                 'gmc_960_30mw_00001_green.tif': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/gmc_960_30mw_00001_green.tif',
                  'alignment.pickle': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/alignment.pickle',
                  'data_dendritic.tif': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/2014-04-05-003.tif'}
     #          ,['./example_movies/demoMovie.tif','https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/demoMovie.tif']]

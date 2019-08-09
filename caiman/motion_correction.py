@@ -357,8 +357,8 @@ class MotionCorrect(object):
             self.y_shifts_els += _y_shifts_els
             self.coord_shifts_els += _coord_shifts_els
 
-    def apply_shifts_movie(self, fname, rigid_shifts:bool=True, save_memmap:bool=False,
-                           save_base_name:str='MC', order:str='F'):
+    def apply_shifts_movie(self, fname, rigid_shifts:bool=None, save_memmap:bool=False,
+                           save_base_name:str='MC', order:str='F', remove_min:bool=True):
         """
         Applies shifts found by registering one file to a different file. Useful
         for cases when shifts computed from a structural channel are applied to a
@@ -372,6 +372,7 @@ class MotionCorrect(object):
 
             rigid_shifts: bool (True)
                 apply rigid or pw-rigid shifts (must exist in the mc object)
+                deprectated (read directly from mc.pw_rigid)
 
             save_memmap: bool (False)
                 flag for saving the resulting file in memory mapped form
@@ -382,14 +383,27 @@ class MotionCorrect(object):
             order: 'F' or 'C' ['F']
                 order of resulting memory mapped file
 
+            remove_min: bool (True)
+                If minimum value is negative, subtract it from the data
+
         Returns:
             m_reg: caiman movie object
                 caiman movie object with applied shifts (not memory mapped)
         """
 
         Y = cm.load(fname).astype(np.float32)
+        if remove_min: 
+            ymin = Y.min()
+            if ymin < 0:
+                Y -= Y.min()
 
-        if rigid_shifts is True:
+        if rigid_shifts is not None:
+            logging.warning('The rigid_shifts flag is deprecated and it is ' +
+                            'being ignored. The value is read directly from' +
+                            ' mc.pw_rigid and is current set to the opposite' +
+                            ' of {}'.format(self.pw_rigid))            
+        
+        if self.pw_rigid is False:
             if self.shifts_opencv:
                 m_reg = [apply_shift_iteration(img, shift, border_nan=self.border_nan)
                          for img, shift in zip(Y, self.shifts_rig)]
@@ -406,8 +420,6 @@ class MotionCorrect(object):
             shifts_y = np.stack([np.reshape(_sh_, dims_grid, order='C').astype(
                 np.float32) for _sh_ in self.y_shifts_els], axis=0)
             dims = Y.shape[1:]
-#            x_grid, y_grid = np.meshgrid(np.arange(0., dims[0]).astype(
-#                np.float32), np.arange(0., dims[1]).astype(np.float32))
             x_grid, y_grid = np.meshgrid(np.arange(0., dims[1]).astype(
                 np.float32), np.arange(0., dims[0]).astype(np.float32))
             m_reg = [cv2.remap(img, -cv2.resize(shiftY, dims[::-1]) + x_grid,
@@ -420,13 +432,12 @@ class MotionCorrect(object):
             fname_tot = memmap_frames_filename(save_base_name, dims[1:], dims[0], order)
             big_mov = np.memmap(fname_tot, mode='w+', dtype=np.float32,
                         shape=prepare_shape((np.prod(dims[1:]), dims[0])), order=order)
-            big_mov[:] = np.reshape(m_reg.transpose(1, 2, 0), (np.prod(dims[1:]), dims[0]), order=order)
+            big_mov[:] = np.reshape(m_reg.transpose(1, 2, 0), (np.prod(dims[1:]), dims[0]), order='F')
             big_mov.flush()
             del big_mov
             return fname_tot
         else:
             return cm.movie(m_reg)
-
 
 #%%
 def apply_shift_iteration(img, shift, border_nan:bool=False, border_type=cv2.BORDER_REFLECT):

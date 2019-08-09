@@ -488,6 +488,7 @@ for params_movie in np.array(params_movies)[ID]:
         print('SAVING...' + fname_new[:-5] + '_perf_Sep_2018_gsig.npz')
         np.savez(fname_new[:-5] + '_perf_Sep_2018_gsig.npz', all_results=performance_tmp)
 
+cm.stop_server(dview=dview)
 results_old = {'N.00.00': 0.723,
                'N.01.01': 0.763,
                'N.03.00.t': 0.779,
