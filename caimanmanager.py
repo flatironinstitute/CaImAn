@@ -5,6 +5,8 @@ import distutils.dir_util
 import filecmp
 import glob
 import os
+import platform
+import psutil
 import shutil
 import string
 import subprocess
@@ -45,7 +47,7 @@ standard_movies = [
 def do_install_to(targdir: str, inplace: bool = False, force: bool = False) -> None:
     global sourcedir_base
     if os.path.isdir(targdir) and not force:
-        raise Exception(targdir + " already exists")
+        raise Exception(targdir + " already exists. You may move it out of the way, remove it, or use --force")
     if not inplace:    # In this case we rely on what setup.py put in the share directory for the module
         if not force:
             shutil.copytree(sourcedir_base, targdir)
@@ -154,6 +156,18 @@ def comparitor_all_left_only_files(comparitor, path_prepend: str):
             ret.append(*to_append)
     return ret
 
+###############
+#
+
+def system_diagnose() -> None:
+    # Print out some diagnostic information useful for tickets.
+    platstring = platform.platform() # Do not try to parse this. Format is variable by platform.
+    py_version = platform.python_version()
+    py_family = platform.python_implementation() # Probably CPython, but if not that's fun.
+    memory = psutil.virtual_memory()
+    pcpu = psutil.cpu_count(logical=False)
+    swap = psutil.swap_memory()
+    print("\n==============\n".join([f"Platform: {platstring}", f"Python version: {py_version}", f"Python Family: {py_family}", f"Memory: {memory}", f"Physical CPUs: {pcpu}", f"Swap: {swap}"]))
 
 ###############
 
@@ -190,6 +204,8 @@ def main():
             do_nt_run_demotests(cfg.userdir)
         else:
             do_run_demotests(cfg.userdir)
+    elif cfg.command == 'diagnose':
+        system_diagnose()
     elif cfg.command == 'help':
         print("The following are valid subcommands: install, check, test, demotest")
     else:
