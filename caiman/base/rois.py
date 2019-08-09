@@ -21,7 +21,7 @@ import os
 from past.utils import old_div
 from scipy.ndimage.filters import gaussian_filter
 from scipy.ndimage import label, center_of_mass
-from skimage.morphology import remove_small_objects, remove_small_holes, dilation
+from skimage.morphology import remove_small_objects, remove_small_holes, dilation, closing
 import scipy
 from scipy import ndimage as ndi
 from scipy.optimize import linear_sum_assignment
@@ -72,14 +72,11 @@ def com(A: np.ndarray, d1: int, d2: int, d3: Optional[int] = None) -> np.array:
                          dtype=A.dtype)
     else:
         Coor = np.matrix([
-            np.outer(np.ones(d3),
-                     np.outer(np.ones(d2), np.arange(d1)).ravel()).ravel(),
-            np.outer(np.ones(d3),
-                     np.outer(np.arange(d2), np.ones(d1)).ravel()).ravel(),
-            np.outer(np.arange(d3),
-                     np.outer(np.ones(d2), np.ones(d1)).ravel()).ravel()
-        ],
-                         dtype=A.dtype)
+            np.outer(np.ones(d3), np.outer(np.ones(d2), np.arange(d1)).ravel()).ravel(),
+            np.outer(np.ones(d3), np.outer(np.arange(d2), np.ones(d1)).ravel()).ravel(),
+            np.outer(np.arange(d3), np.outer(np.ones(d2), np.ones(d1)).ravel()).ravel()],
+            dtype=A.dtype)
+
     cm = (Coor * A / A.sum(axis=0)).T
     return np.array(cm)
 
@@ -119,13 +116,13 @@ def extract_binary_masks_from_structural_channel(Y,
                             mean image used to detect cell boundaries
     """
 
-    mR = Y.mean(axis=0)
+    mR = Y.mean(axis=0) if Y.ndim == 3 else Y
     img = cv2.blur(mR, (gSig, gSig))
     img = (img - np.min(img)) / (np.max(img) - np.min(img)) * 255.
     img = img.astype(np.uint8)
 
     th = cv2.adaptiveThreshold(img, np.max(img), cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, gSig, 0)
-    th = remove_small_holes(th > 0, min_size=min_hole_size)
+    th = remove_small_holes(th > 0, area_threshold=min_hole_size)
     th = remove_small_objects(th, min_size=min_area_size)
     areas = label(th)
 
@@ -136,7 +133,7 @@ def extract_binary_masks_from_structural_channel(Y,
         if expand_method == 'dilation':
             temp = dilation(temp, selem=selem)
         elif expand_method == 'closing':
-            temp = dilation(temp, selem=selem)
+            temp = closing(temp, selem=selem)
 
         A[:, i] = temp.flatten('F')
 
