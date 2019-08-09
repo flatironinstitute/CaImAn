@@ -6,7 +6,7 @@ from . import gat, regions
 
 def compute_score(sigmas, tol):
     x = (sigmas - 1) / tol
-    weights = np.exp(-(x ** 2))
+    weights = np.exp(-(x**2))
     score = np.sum(weights)
     if score > 0:
         sigma_est = np.sum(sigmas * weights) / score
@@ -15,9 +15,7 @@ def compute_score(sigmas, tol):
     return sigma_est, score
 
 
-AccumulatorSpace = namedtuple('AccumulatorSpace', ['score', 'sigma_sq_range',
-                                                   'alpha_range', 'sigma_sq',
-                                                   'alpha'])
+AccumulatorSpace = namedtuple('AccumulatorSpace', ['score', 'sigma_sq_range', 'alpha_range', 'sigma_sq', 'alpha'])
 
 
 def hough_estimation(blocks, sigma_sq_range, alpha_range, tol=1e-2):
@@ -39,8 +37,7 @@ def hough_estimation(blocks, sigma_sq_range, alpha_range, tol=1e-2):
 
     print('\tHighest score=', score[best_params[0], best_params[1]])
 
-    acc = AccumulatorSpace(score, sigma_sq_range, alpha_range, sigma_sq_est,
-                           alpha_est)
+    acc = AccumulatorSpace(score, sigma_sq_range, alpha_range, sigma_sq_est, alpha_est)
     return sigma_sq_est, alpha_est, acc
 
 
@@ -71,9 +68,7 @@ def initial_estimate_sigma_alpha(blocks):
 
 
 EstimationResult = namedtuple('EstimationResult',
-                              ['alpha_init', 'sigma_sq_init',
-                               'alpha', 'sigma_sq',
-                               'acc_space_init', 'acc_space'])
+                              ['alpha_init', 'sigma_sq_init', 'alpha', 'sigma_sq', 'acc_space_init', 'acc_space'])
 
 
 def estimate_vst_movie(movie, block_size=8, stride=8):
@@ -91,29 +86,21 @@ def estimate_vst_image(img, block_size=8, stride=8):
 
 def estimate_vst_blocks(blocks):
     sigma_sq_init, alpha_init = initial_estimate_sigma_alpha(blocks)
-    print('\tinitial alpha = {}; sigma^2 = {}'.format(alpha_init,
-                                                      sigma_sq_init))
+    print('\tinitial alpha = {}; sigma^2 = {}'.format(alpha_init, sigma_sq_init))
 
     diff_s = np.maximum(2e3, np.abs(sigma_sq_init))
     diff_a = alpha_init * 0.9
 
-    sigma_sq_range = np.linspace(sigma_sq_init - diff_s, sigma_sq_init + diff_s,
-                                 num=100)
-    alpha_range = np.linspace(alpha_init - diff_a, alpha_init + diff_a,
-                              num=100)
-    sigma_sq_mid, alpha_mid, acc_init = hough_estimation(blocks, sigma_sq_range,
-                                                        alpha_range)
+    sigma_sq_range = np.linspace(sigma_sq_init - diff_s, sigma_sq_init + diff_s, num=100)
+    alpha_range = np.linspace(alpha_init - diff_a, alpha_init + diff_a, num=100)
+    sigma_sq_mid, alpha_mid, acc_init = hough_estimation(blocks, sigma_sq_range, alpha_range)
     print('\tmid alpha = {}; sigma^2 = {}'.format(alpha_mid, sigma_sq_mid))
 
     diff_s /= 10
     diff_a /= 4
-    sigma_sq_range = np.linspace(sigma_sq_mid - diff_s, sigma_sq_mid + diff_s,
-                                 num=100)
-    alpha_range = np.linspace(alpha_mid - diff_a, alpha_mid + diff_a,
-                              num=100)
-    sigma_sq_final, alpha_final, acc = hough_estimation(blocks, sigma_sq_range,
-                                                        alpha_range)
+    sigma_sq_range = np.linspace(sigma_sq_mid - diff_s, sigma_sq_mid + diff_s, num=100)
+    alpha_range = np.linspace(alpha_mid - diff_a, alpha_mid + diff_a, num=100)
+    sigma_sq_final, alpha_final, acc = hough_estimation(blocks, sigma_sq_range, alpha_range)
     print('\talpha = {}; sigma^2 = {}'.format(alpha_final, sigma_sq_final))
 
-    return EstimationResult(alpha_init, sigma_sq_init, alpha_final,
-                            sigma_sq_final, acc_init, acc)
+    return EstimationResult(alpha_init, sigma_sq_init, alpha_final, sigma_sq_final, acc_init, acc)
