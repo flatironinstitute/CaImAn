@@ -94,6 +94,8 @@ global_params = {
 
 params_movie = [{}] * 5        # set up list of dictionaries
 
+# yapf: disable
+
 # % neurofinder.00.00
 params_movie[0] = {
     'folder_name': 'N.00.00/',
@@ -101,11 +103,18 @@ params_movie[0] = {
     'decay_time': 0.4,
     'epochs': 3,
     'fr': 16,
-    'gSig': [8, 8],                    # expected half size of neurons
+    'gSig': [8, 8],  # expected half size of neurons
     'gnb': 2,
 }
-                                       # % neurofinder.01.01
-params_movie[1] = {'folder_name': 'N.01.01/', 'ds_factor': 1, 'fr': 8, 'gnb': 1, 'decay_time': 1.4, 'gSig': [6, 6]}
+# % neurofinder.01.01
+params_movie[1] = {
+    'folder_name': 'N.01.01/',
+    'ds_factor': 1,
+    'fr': 8,
+    'gnb': 1,
+    'decay_time': 1.4,
+    'gSig': [6, 6]
+}
 
 # % neurofinder.03.00.test
 params_movie[2] = {
@@ -113,7 +122,7 @@ params_movie[2] = {
     'ds_factor': 2,
     'fr': 7,
     'decay_time': 0.4,
-    'gSig': [12, 12],                  # expected half size of neurons
+    'gSig': [12, 12],  # expected half size of neurons
     'gnb': 3,
 }
 
@@ -125,7 +134,7 @@ params_movie[3] = {
     'fr': 10,
     'decay_time': .75,
     'gnb': 3,
-    'gSig': [6, 6],            # expected half size of neurons
+    'gSig': [6, 6],  # expected half size of neurons
 }
 
 # % neurofinder.04.00.test
@@ -134,10 +143,12 @@ params_movie[4] = {
     'epochs': 2,
     'ds_factor': 1,
     'fr': 8,
-    'gSig': [7, 7],                    # expected half size of neurons
-    'decay_time': 1.2,                 # rough length of a transient
+    'gSig': [7, 7],  # expected half size of neurons
+    'decay_time': 1.2,  # rough length of a transient
     'gnb': 3,
 }
+
+# yapf: enable
 
 all_results = dict()
 
