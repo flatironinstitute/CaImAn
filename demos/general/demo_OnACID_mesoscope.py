@@ -15,7 +15,6 @@ Special thanks to Andreas Tolias and his lab at Baylor College of Medicine
 for sharing the data used in this demo.
 """
 
-import glob
 import numpy as np
 import os
 import logging
@@ -39,25 +38,19 @@ from caiman.utils.utils import download_demo
 def main():
     pass # For compatibility between running under Spyder and the CLI
 
-# %%  download and list all files to be processed
+# %%  download (if not already present) and list all files to be processed
 
     # folder inside ./example_movies where files will be saved
     fld_name = 'Mesoscope'
-    download_demo('Tolias_mesoscope_1.hdf5', fld_name)
-    download_demo('Tolias_mesoscope_2.hdf5', fld_name)
-    download_demo('Tolias_mesoscope_3.hdf5', fld_name)
-    # extension of files
-    folder_name = os.path.join(caiman_datadir(), 'example_movies', fld_name)
-    # read all files to be processed
-    fnames = [folder_name + '/' + ffnn for ffnn in  ['Tolias_mesoscope_1.hdf5','Tolias_mesoscope_2.hdf5','Tolias_mesoscope_3.hdf5']]
-    # your list of files should look something like this
+    files = ['Tolias_mesoscope_1.hdf5','Tolias_mesoscope_2.hdf5','Tolias_mesoscope_3.hdf5']
+    fnames = [download_demo(fl, fld_name) for fl in files]
     logging.info(fnames)
 
 # %%   Set up some parameters
 
     fr = 15  # frame rate (Hz)
     decay_time = 0.5  # approximate length of transient event in seconds
-    gSig = (5, 5)  # expected half size of neurons
+    gSig = (3, 3)  # expected half size of neurons
     p = 1  # order of AR indicator dynamics
     min_SNR = 1   # minimum SNR for accepting new components
     ds_factor = 1  # spatial downsampling factor (increases speed but may lose some fine structure)
@@ -71,8 +64,8 @@ def main():
     # set up some additional supporting parameters needed for the algorithm
     # (these are default values but can change depending on dataset properties)
     init_batch = 200  # number of frames for initialization (presumably from the first file)
-    K = 50  # initial number of components
-    epochs = 1  # number of passes over the data
+    K = 10  # initial number of components
+    epochs = 2  # number of passes over the data
     show_movie = False # show the movie as the data gets processed
 
     params_dict = {'fnames': fnames,
@@ -99,19 +92,11 @@ def main():
     opts = cnmf.params.CNMFParams(params_dict=params_dict)
 
 # %% fit online
-    init_file_save = fnames[0][:-4]+'_init.hdf5'
-    cnm = cnmf.online_cnmf.OnACID(params=opts)
-    if os.path.exists(init_file_save):
-        logging.warning('Reloading initialization file')
-        init_cnmf = load_OnlineCNMF(init_file_save)
-        cnm.fit_online(estimates=init_cnmf.estimates)
-    else:
-        logging.warning('Computing and saving initialization file')
-        cnm = cnmf.online_cnmf.OnACID(params=opts)
-        cnm.fit_online(save_init_file=init_file_save)
 
-    #%%
-# %% plot contours (this may take time)
+    cnm = cnmf.online_cnmf.OnACID(params=opts)
+    cnm.fit_online()
+
+# %% plot contours
     logging.info('Number of components: ' + str(cnm.estimates.A.shape[-1]))
     images = cm.load(fnames)
     Cn = images.local_correlations(swap_dim=False, frames_per_chunk=500)
@@ -121,7 +106,7 @@ def main():
     cnm.estimates.view_components(img=Cn)
 
 # %% plot timing performance (if a movie is generated during processing, timing
-# will be severely over-estimated)
+#    will be severely over-estimated)
 
     T_motion = 1e3*np.array(cnm.t_motion)
     T_detect = 1e3*np.array(cnm.t_detect)
@@ -133,10 +118,13 @@ def main():
     plt.title('Processing time allocation')
     plt.xlabel('Frame #')
     plt.ylabel('Processing time [ms]')
-#%% RUN IF YOU WANT TO VISUALIZE THE RESULTS (might take time)
+
+#%% run if you want to apply the CaImAn batch quality tests to the results of
+#   of CaImAn Online (might take time)
     c, dview, n_processes = \
         cm.cluster.setup_cluster(backend='local', n_processes=None,
                                  single_thread=False)
+    # first apply the inferred shifts to the original data and memory map
     if opts.online['motion_correct']:
         shifts = cnm.estimates.shifts[-cnm.estimates.C.shape[-1]:]
         if not opts.motion['pw_rigid']:
@@ -156,6 +144,7 @@ def main():
     cnm.mmap_file = memmap_file
     Yr, dims, T = cm.load_memmap(memmap_file)
 
+    # now apply the component quality tests
     images = np.reshape(Yr.T, [T] + list(dims), order='F')
     min_SNR = 2  # peak SNR for accepted components (if above this, acept)
     rval_thr = 0.85  # space correlation threshold (if above this, accept)

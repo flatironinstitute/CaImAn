@@ -82,7 +82,7 @@ global_params = {'min_SNR': 1.2,       # minimum SNR when considering adding a n
                  'p': 1,               # order of indicator dynamics 
                  'gnb': 2,             # number of background components
                  'epochs': 2,          # number of passes over the data
-                 'rval_thr': 0.75,      # spatial correlation threshold
+                 'rval_thr': 0.75,     # spatial correlation threshold
                  'max_thr': 0.15,      # parameter for thresholding components when cleaning up shapes
                  'mot_corr': False,    # flag for motion correction (set to False to compare directly on the same FOV)
                  'min_num_trial': 10,  # maximum number of candidate components per frame
