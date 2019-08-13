@@ -302,7 +302,7 @@ class CNMF(object):
         self.estimates = Estimates(A=Ain, C=Cin, b=b_in, f=f_in,
                                    dims=self.params.data['dims'])
 
-    def fit_file(self, motion_correct=False, indices=[slice(None)]*2):
+    def fit_file(self, motion_correct=False, indices=None):
         """
         This method packages the analysis pipeline (motion correction, memory
         mapping, patch based CNMF processing) in a single method that can be
@@ -320,6 +320,8 @@ class CNMF(object):
         Returns:
             cnmf object with the current estimates
         """
+        if indices is None:
+            indices = [slice(None)] * 2
         fnames = self.params.get('data', 'fnames')
         if os.path.exists(fnames[0]):
             _, extension = os.path.splitext(fnames[0])[:2]
