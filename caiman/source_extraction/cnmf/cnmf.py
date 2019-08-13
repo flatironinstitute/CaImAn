@@ -347,7 +347,9 @@ class CNMF(object):
                 else:
                     b0 = np.ceil(np.max(np.abs(mc.shifts_rig))).astype(np.int)
                     self.estimates.shifts = mc.shifts_rig
-                b0 = 0 if self.params.get('motion', 'border_nan') is 'copy' else 0
+                # FIXME Huh?
+                # b0 = 0 if self.params.get('motion', 'border_nan') is 'copy' else 0
+                b0 = 0
                 fname_new = mmapping.save_memmap(fname_mc, base_name='memmap_', order='C',
                                                  border_to_0=b0)
             else:
