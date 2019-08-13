@@ -146,7 +146,7 @@ A list of known issues can be found [here](https://github.com/flatironinstitute/
 
 ## Documentation & Wiki
 
-Documentation of the code can be found [here](http://flatironinstitute.github.io/CaImAn/). 
+Documentation of the code can be found [here](https://caiman.readthedocs.io/en/master/). 
 Moreover, our [wiki page](https://github.com/flatironinstitute/CaImAn/wiki) covers some aspects of the code. 
 
 ### Installation for behavioral analysis

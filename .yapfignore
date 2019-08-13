@@ -1,0 +1,6 @@
+# We mostly just want to run yapf on the module code
+docs/
+demos/obsolete/
+sandbox/
+SLURM/
+use_cases/

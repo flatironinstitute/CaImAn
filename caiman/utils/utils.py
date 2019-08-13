@@ -22,12 +22,14 @@ https://docs.python.org/3/library/urllib.request.htm
 
 import cv2
 import h5py
+import inspect
 import logging
 import matplotlib.pyplot as plt
 import numpy as np
 import os
 import pickle
 import scipy
+import subprocess
 import tensorflow as tf
 from scipy.ndimage.filters import gaussian_filter
 from tifffile import TiffFile
@@ -43,6 +45,7 @@ from urllib.request import urlopen
 from ..external.cell_magic_wand import cell_magic_wand
 from ..source_extraction.cnmf.spatial import threshold_components
 from caiman.paths import caiman_datadir
+import caiman.utils
 
 #%%
 
@@ -75,6 +78,9 @@ def download_demo(name:str='Sue_2x_3000_40_-46.tif', save_folder:str='') -> str:
                  'Tolias_mesoscope_2.hdf5': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/Tolias_mesoscope_2.hdf5',
                  'Tolias_mesoscope_3.hdf5': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/Tolias_mesoscope_3.hdf5',
                  'data_endoscope.tif': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/data_endoscope.tif',
+                 'gmc_960_30mw_00001_red.tif': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/gmc_960_30mw_00001_red.tif',
+                 'gmc_960_30mw_00001_green.tif': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/gmc_960_30mw_00001_green.tif',
+                 'alignment.pickle': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/alignment.pickle',
                  'data_dendritic.tif': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/2014-04-05-003.tif'}
     #          ,['./example_movies/demoMovie.tif','https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/demoMovie.tif']]
     base_folder = os.path.join(caiman_datadir(), 'example_movies')
@@ -518,3 +524,47 @@ def load_graph(frozen_graph_filename):
             producer_op_list=None
         )
     return graph
+
+def get_caiman_version() -> Tuple[str, str]:
+    """ Get the version of CaImAn, as best we can determine"""
+    # This does its best to determine the version of CaImAn. This uses the first successful
+    # from these methods:
+    # 'GITW' ) git rev-parse if caiman is built from "pip install -e ." and we are working
+    #    out of the checkout directory (the user may have since updated without reinstall)
+    # 'RELF') A release file left in the process to cut a release. Should have a single line
+    #    in it whick looks like "Version:1.4"
+    # 'FILE') The date of some frequently changing files, which act as a very rough
+    #    approximation when no other methods are possible
+    #
+    # Data is returned as a tuple of method and version, with method being the 4-letter string above
+    # and version being a format-dependent string
+
+    # Attempt 'GITW'.
+    # TODO:
+    # A) Find a place to do it that's better than cwd
+    # B) Hide the output from the terminal
+    try:
+        rev = subprocess.check_output(["git", "rev-parse", "HEAD"], stderr=subprocess.DEVNULL).decode("utf-8").split("\n")[0]
+    except:
+        rev = None
+    if rev is not None:
+        return 'GITW', rev
+
+    # Attempt: 'RELF'
+    relfile = os.path.join(caiman_datadir(), 'RELEASE')
+    if os.path.isfile(relfile):
+        with open(relfile, 'r') as sfh:
+            for line in sfh:
+                if ':' in line: # expect a line like "Version:1.3"
+                    _, version = line.rstrip().split(':')
+                    return 'RELF', version 
+
+    # Attempt: 'FILE'
+    # Right now this samples the utils directory
+    modpath = os.path.dirname(inspect.getfile(caiman.utils)) # Probably something like /mnt/home/pgunn/miniconda3/envs/caiman/lib/python3.7/site-packages/caiman
+    newest = 0
+    for fn in os.listdir(modpath):
+        last_modified = os.stat(os.path.join(modpath, fn)).st_mtime
+        if last_modified > newest:
+            newest = last_modified
+    return 'FILE', str(int(newest))
