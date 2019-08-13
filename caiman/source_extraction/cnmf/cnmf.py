@@ -321,7 +321,7 @@ class CNMF(object):
             cnmf object with the current estimates
         """
         if indices is None:
-            indices = [slice(None)] * 2
+            indices = (slice(None), slice(None))
         fnames = self.params.get('data', 'fnames')
         if os.path.exists(fnames[0]):
             _, extension = os.path.splitext(fnames[0])[:2]
@@ -380,7 +380,7 @@ class CNMF(object):
         cnm.mmap_file = self.mmap_file
         return cnm.fit(images)
 
-    def fit(self, images, indices=[slice(None), slice(None)]):
+    def fit(self, images, indices=(slice(None), slice(None))):
         """
         This method uses the cnmf algorithm to find sources in data.
         it is calling every function from the cnmf folder
