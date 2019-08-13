@@ -22,6 +22,7 @@ import pickle
 import sys
 import tifffile
 from typing import Any, Dict, List, Optional, Tuple, Union
+import pathlib
 
 import caiman as cm
 from caiman.paths import memmap_frames_filename
@@ -55,26 +56,27 @@ def load_memmap(filename:str, mode:str='r') -> Tuple[Any,Tuple,int]:
 
 
     Raises:
-        Exception "Unknown file extension"
+        ValueError "Unknown file extension"
 
     """
-    if ('.mmap' in filename):
-        # Strip path components and use CAIMAN_DATA/example_movies
-        # TODO: Eventually get the code to save these in a different dir
-        file_to_load = filename
-        filename = os.path.split(filename)[-1]
-        fpart = filename.split('_')[1:-1] # The filename encodes the structure of the map
-        d1, d2, d3, T, order = int(fpart[-9]), int(fpart[-7]
-                                                   ), int(fpart[-5]), int(fpart[-1]), fpart[-3]
-        Yr = np.memmap(file_to_load, mode=mode, shape=prepare_shape((
-            d1 * d2 * d3, T)), dtype=np.float32, order=order)
-        if d3 == 1:
-            return (Yr, (d1, d2), T)
-        else:
-            return (Yr, (d1, d2, d3), T)
-    else:
+    if pathlib.Path(filename).suffix != '.mmap':
         logging.error("Unknown extension for file " + str(filename))
-        raise Exception('Unknown file extension (should be .mmap)')
+        raise ValueError('Unknown file extension (should be .mmap)')
+
+    # Strip path components and use CAIMAN_DATA/example_movies
+    # TODO: Eventually get the code to save these in a different dir
+    file_to_load = filename
+    filename = os.path.split(filename)[-1]
+    fpart = filename.split('_')[1:-1] # The filename encodes the structure of the map
+    d1, d2, d3, T, order = int(fpart[-9]), int(fpart[-7]
+                                                ), int(fpart[-5]), int(fpart[-1]), fpart[-3]
+    Yr = np.memmap(file_to_load, mode=mode, shape=prepare_shape((
+        d1 * d2 * d3, T)), dtype=np.float32, order=order)
+    if d3 == 1:
+        return (Yr, (d1, d2), T)
+    else:
+        return (Yr, (d1, d2, d3), T)
+
 
 #%%
 def save_memmap_each(fnames:List[str], dview=None, base_name:str=None, resize_fact=(1, 1, 1), remove_init:int=0,
@@ -353,9 +355,9 @@ def save_memmap(filenames:List[str], base_name:str='Yr', resize_fact:Tuple=(1, 1
 
         slices: slice object or list of slice objects
             slice can be used to select portion of the movies in time and x,y
-            directions. For instance 
-            slices = [slice(0,200),slice(0,100),slice(0,100)] will take 
-            the first 200 frames and the 100 pixels along x and y dimensions. 
+            directions. For instance
+            slices = [slice(0,200),slice(0,100),slice(0,100)] will take
+            the first 200 frames and the 100 pixels along x and y dimensions.
     Returns:
         fname_new: the name of the mapped file, the format is such that
             the name will contain the frame dimensions and the number of frames
@@ -441,7 +443,7 @@ def save_memmap(filenames:List[str], base_name:str='Yr', resize_fact:Tuple=(1, 1
                         Yr = np.array(Yr)[remove_init:, idx_xy[0], idx_xy[1], idx_xy[2]]
 
             if border_to_0 > 0:
-                if slices is not None:  
+                if slices is not None:
                     if type(slices) is list:
                         raise Exception('You cannot slice in x and y and then use add_to_movie: if you only want to slice in time do not pass in a list but just a slice object')
 
