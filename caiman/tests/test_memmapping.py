@@ -1,5 +1,3 @@
-import pathlib
-
 from caiman import mmapping
 from caiman.paths import caiman_datadir
 
