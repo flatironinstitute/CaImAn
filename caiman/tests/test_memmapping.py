@@ -1,5 +1,4 @@
 from caiman import mmapping
-from caiman.paths import caiman_datadir
 
 def test_load_raises_wrong_ext():
     fname = "a.mmapp"
