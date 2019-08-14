@@ -2368,8 +2368,8 @@ def tile_and_correct_3d(img, template, strides, overlaps, max_shifts, newoverlap
             x_grid, y_grid, z_grid = np.meshgrid(np.arange(0., dims[1]).astype(
                 np.float32), np.arange(0., dims[0]).astype(np.float32),
                 np.arange(0., dims[2]).astype(np.float32))
-            m_reg = warp_sk(img, np.stack((resize_sk(shift_img_y.astype(np.float32), dims) + x_grid,
-                              resize_sk(shift_img_x.astype(np.float32), dims) + y_grid,
+            m_reg = warp_sk(img, np.stack((resize_sk(shift_img_y.astype(np.float32), dims) + y_grid,
+                              resize_sk(shift_img_x.astype(np.float32), dims) + x_grid,
                               resize_sk(shift_img_z.astype(np.float32), dims) + z_grid),axis=0),
                               order=3, mode='constant')
                              # borderValue=add_to_movie)
