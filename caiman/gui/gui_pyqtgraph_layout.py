@@ -7,12 +7,12 @@ import caiman as cm
 from caiman.source_extraction.cnmf.cnmf import load_CNMF
 from caiman.source_extraction.cnmf.online_cnmf import load_OnlineCNMF
 from caiman.source_extraction.cnmf.spatial import threshold_components
-from sklearn.decomposition import NMF, PCA
+from sklearn.decomposition import NMF
 import matplotlib.pyplot as plt
-
+import scipy.sparse
 import cv2
 import scipy
-import os
+
 # Always start by initializing Qt (only once per application)
 app = QtGui.QApplication([])
 
@@ -56,8 +56,10 @@ min_mov = np.min(mov)
 max_mov = np.max(mov)
 mode = 'reset'
 estimates = cnm_obj.estimates
-bg = np.dot(estimates.b.reshape([estimates.dims[0],estimates.dims[1],-1], order='F'), estimates.f).transpose([2,0,1])
-
+min_mov_denoise = np.min(estimates.A.dot(estimates.C))
+max_mov_denoise = np.max(estimates.A.dot(estimates.C))
+min_background = np.min(estimates.b, axis=0)*np.min(estimates.f, axis=1)
+max_background = np.max(estimates.b, axis=0)*np.max(estimates.f, axis=1)
 
 # load summary image
 # Cn = cm.load('/Users/agiovann/caiman_data/example_movies/memmap__d1_60_d2_80_d3_1_order_C_frames_2000__Cn.tif')
@@ -66,18 +68,11 @@ def init():
     global cnm_obj, Cn, estimates, min_mov_denoise, max_mov_denoise, background_num, neuron_selected, nr_index
     global neurons_list, min_background, max_background, index_flag
     Cn = cnm_obj.estimates.Cn
-    
     estimates = cnm_obj.estimates
-    min_mov_denoise = np.min(estimates.A.dot(estimates.C))
-    max_mov_denoise = np.max(estimates.A.dot(estimates.C))
     background_num = -1
     neuron_selected = False
     nr_index = 0
     neurons_list = []
-    
-    min_background = np.min(estimates.b, axis=0)*np.min(estimates.f, axis=1)
-    max_background = np.max(estimates.b, axis=0)*np.max(estimates.f, axis=1)
-    
     
     #if not hasattr(estimates, 'accepted_list'):
         # if estimates.discarded_components.A.shape[-1] > 0:
@@ -93,8 +88,6 @@ def init():
     estimates.img_components /= estimates.img_components.max(axis=(1,2))[:,None,None]
     estimates.img_components *= 255
     estimates.img_components = estimates.img_components.astype(np.uint8)
-    print(estimates.idx_components.shape)
-    print(cnm_obj.estimates.idx_components.shape)
  
 init()
 
@@ -515,18 +508,17 @@ def remove_group():
 pars_action.param('REMOVE GROUP').sigActivated.connect(remove_group)
 
 def add_single():
-    global mode, neurons_list, cnm_obj, estimates, mov, new_components, mov_residual
+    global mode, neurons_list, cnm_obj, estimates, mov, new_components
     if mode is 'neurons':
         estimates.accepted_list = np.union1d(estimates.accepted_list,estimates.components_to_plot)
         estimates.rejected_list = np.setdiff1d(estimates.rejected_list,estimates.components_to_plot)
         change(None, None)
         
     if mode is 'add_neuron':
-        cnm_obj.estimates.manual_add(new_components, mov, mov_residual, cnm_obj.params)
+        cnm_obj.estimates.manual_add(new_components, mov, cnm_obj.params)
         init()
         mode = 'neurons'
         draw_contours_overall(mode)
-        compute_residual_mov()
         
     if mode is 'merge_neurons':
         neurons_list = list(set(neurons_list))
@@ -537,7 +529,6 @@ def add_single():
             init()
             mode = 'neurons'
             draw_contours_overall(mode)
-            compute_residual_mov()
     
 pars_action.param('ADD SINGLE').sigActivated.connect(add_single)
 
@@ -549,15 +540,14 @@ def remove_single():
 pars_action.param('REMOVE SINGLE').sigActivated.connect(remove_single)
 
 def add_new_neuron():
-    global mode, mov, mov_residual, estimates
+    global mode, mov, estimates
     mode = 'add_neuron'
     p2.setTitle("mode: %s" % (mode))
-    compute_residual_mov()    
 
 pars_action.param('ADD NEW NEURON').sigActivated.connect(add_new_neuron)
 
 def add_neuron_clicked():
-    global x,y,i,j,thrshcomp_line, new_components, mov, mov_residual
+    global x,y,i,j,thrshcomp_line, new_components, mov
     W_, H, mask, weight, new_components = nmf_extract()    
     
     # Visualize
@@ -568,26 +558,40 @@ def add_neuron_clicked():
     cv2.drawContours(image_temp, contour, -1, (128, 0, 128), 1)
     cv2.circle(image_temp,(y,x),1,(255,0,0),-1)
     img.setImage(image_temp, autoLevels=False) 
-    p2.plot(H[0], clear=True)
-    
-def nmf_extract(kernel_size=12, maxthr=0.25):
-    global x, y, mov, mov_residual
+    p2.plot(new_components[1].flatten(), clear=True)
+
+def nmf_extract(kernel_size=12, maxthr=0.05):
+    global x, y, mov, new_components
     
     # The original point
     seed = np.zeros(shape=mov.shape[1:], dtype=np.uint8)
     seed[x,y] = 1    
     
-    # Apply dilation to get ROI
+    # Apply dilation to get ROI, prepare the residual movie in that specific area
     kernel = np.ones((kernel_size,kernel_size), np.uint8)
     mask = cv2.dilate(seed, kernel)
-    W = np.reshape(mask,-1, order='C').copy()    
+   
+    xrange = [np.where(mask==1)[0].min(), np.where(mask==1)[0].max()] 
+    yrange = [np.where(mask==1)[1].min(), np.where(mask==1)[1].max()]
     
+    mov_patch = mov[:,xrange[0]:xrange[1]+1,yrange[0]:yrange[1]+1].transpose([1,2,0]).reshape((-1,estimates.C.shape[1]),order='C')
+    bg_patch = np.dot(estimates.b.reshape((estimates.dims[0],estimates.dims[1],-1),
+                                          order='F')[xrange[0]:xrange[1]+1,yrange[0]:yrange[1]+1,:],estimates.f).reshape((-1,
+                                                    estimates.C.shape[1]),order='C')
+    indA = np.where(estimates.A[np.reshape(mask,-1, order='F').copy()==1].sum(axis=0)>0)[1]
+    temp = np.array(estimates.A[:,indA].todense().copy()).reshape((estimates.dims[0],estimates.dims[1],-1),order='F')     
+    if len(temp.shape)<3:
+        temp = temp[:,:,np.newaxis]
+    rec_patch = np.dot(np.array(temp[xrange[0]:xrange[1]+1,yrange[0]:yrange[1]+1,:]),estimates.C[indA,:]).reshape((-1,estimates.C.shape[1]),order='C')
+
+    mov_patch_residual = mov_patch - bg_patch - rec_patch
+    mov_patch_residual[mov_patch_residual<0] = 0
+    Yr = np.asarray(mov_patch_residual , dtype=np.float)
+
     # Apply NMF
-    pixels = (W==1)   
-    Yr = np.asarray((mov_residual-np.min(mov_residual, 0)).to_2D(order='C').T[pixels, :], dtype=np.float)
-    WW = W[pixels][:,np.newaxis].astype(np.float)
+    WW = np.ones((kernel_size**2,1))
     HH = np.mean(Yr, axis=0)[np.newaxis,:].astype(np.float)
-    nmf = NMF(n_components=1, init='custom', l1_ratio=1, alpha=100)
+    nmf = NMF(n_components=1, init='custom', l1_ratio=1, alpha=10)
     W_ = nmf.fit_transform(X=Yr, W=WW, H=HH)
     H = nmf.components_
 
@@ -601,13 +605,11 @@ def nmf_extract(kernel_size=12, maxthr=0.25):
     A_new = np.zeros(mov.shape[1:])
     A_new[np.where(mask)] =np.squeeze(np.array(W_))/ norm_factor
     weight = A_new.copy()
-    A_new = A_new.reshape([-1,1], order='F') 
+    A_new = scipy.sparse.lil_matrix(A_new.reshape([-1,1], order='F')) 
     C_new = H * norm_factor
     new_components = [A_new, C_new]
     
     return W_, H, mask, weight, new_components
-    
-    
     
 def merge_neurons():
     global mode
@@ -618,18 +620,16 @@ pars_action.param('MERGE NEURONS').sigActivated.connect(merge_neurons)
 
 
 def save_object():
-    print('Saving')
-    
+    print('Saving')    
     ffll = F.getSaveFileName(filter='*.hdf5')
     print(ffll[0])
     cnm_obj.estimates = estimates
     cnm_obj.save(ffll[0])
 
 pars_action.param('SAVE OBJECT').sigActivated.connect(save_object)
-
     
 def action_pars_activated(param, changes): 
-    global estiamtes
+    global estimates
     change(None, None)
     
 pars_action.sigTreeStateChanged.connect(action_pars_activated)
@@ -646,10 +646,7 @@ def change(param, changes):
             params_obj.quality.update({'cnn_lowest': 0,'min_cnn_thr':0,'rval_thr':-1,'rval_lowest':-1,'min_SNR':0,'SNR_lowest':0})
     
     estimates.filter_components(mov, params_obj, dview=None, 
-                                    select_mode=pars_action.param('View components').value())
-    
-    print(estimates.idx_components.shape)
-    
+                                    select_mode=pars_action.param('View components').value())    
     if mode is "background":
         return
     else:
@@ -657,10 +654,6 @@ def change(param, changes):
     
 pars.sigTreeStateChanged.connect(change)
 
-def compute_residual_mov():
-    global bg, mov, mov_residual, estimates
-    reconstructed = (np.array(np.dot(estimates.A.todense(), estimates.C))).reshape([estimates.dims[0],estimates.dims[1],-1], order='F').transpose([2,0,1])
-    mov_residual = mov - bg - reconstructed
 
 change(None, None) # set params to default
 t.setParameters(pars, showTop=False)
