@@ -408,6 +408,8 @@ class CNMF(object):
         # Todo : to compartment
         if isinstance(indices, slice):
             indices = [indices]
+        if isinstance(indices, tuple):
+            indices = list(indices)
         indices = [slice(None)] + indices
         if len(indices) < len(images.shape):
             indices = indices + [slice(None)]*(len(images.shape) - len(indices))
