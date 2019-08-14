@@ -2323,7 +2323,7 @@ def tile_and_correct_3d(img, template, strides, overlaps, max_shifts, newoverlap
         new_img = apply_shifts_dft( # TODO: check
             sfr_freq, (rigid_shts[0], rigid_shts[1], rigid_shts[2]), diffphase, border_nan=border_nan)
 
-        return new_img - add_to_movie, (-rigid_shts[0], -rigid_shts[1]), None, None
+        return new_img - add_to_movie, (-rigid_shts[0], -rigid_shts[1], -rigid_shts[2]), None, None
     else:
         # extract patches
         templates = [
@@ -2727,7 +2727,8 @@ def motion_correct_batch_rigid(fname, max_shifts, dview=None, splits=56, num_spl
     for rr in res_rig:
         shift_info, idxs, tmpl = rr
         templates.append(tmpl)
-        shifts += [[sh[0][0], sh[0][1]] for sh in shift_info[:len(idxs)]]
+        shifts += [sh[0] for sh in shift_info[:len(idxs)]]
+ #       shifts += [[sh[0][0], sh[0][1]] for sh in shift_info[:len(idxs)]]
  #       if is3D:
  #           shifts += [[sh[0][0], sh[0][1], sh[0][2]] for sh in shift_info[:len(idxs)]]            
  #       else:
