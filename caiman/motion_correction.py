@@ -240,9 +240,9 @@ class MotionCorrect(object):
             self.motion_correct_pwrigid(template=template, save_movie=save_movie)
             if self.is3D:
                 # TODO - error at this point after saving
-                b0 = np.ceil(np.maximum(np.max(np.abs(self.x_shifts_els)),
-                                    np.max(np.abs(self.y_shifts_els)),
-                                    np.max(np.abs(self.z_shifts_els))))
+                b0 = np.ceil(np.max([np.max(np.abs(self.x_shifts_els)),
+                                     np.max(np.abs(self.y_shifts_els)),
+                                     np.max(np.abs(self.z_shifts_els))]))
             else:
                 b0 = np.ceil(np.maximum(np.max(np.abs(self.x_shifts_els)),
                                     np.max(np.abs(self.y_shifts_els))))
