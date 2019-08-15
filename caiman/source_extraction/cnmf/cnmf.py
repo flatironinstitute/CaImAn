@@ -32,6 +32,8 @@ import os
 import psutil
 import scipy
 import sys
+import glob
+import pathlib
 
 from .estimates import Estimates
 from .initialization import initialize_components, compute_W
@@ -46,6 +48,8 @@ from ... import mmapping
 from ...components_evaluation import estimate_components_quality
 from ...motion_correction import MotionCorrect
 from ...utils.utils import save_dict_to_hdf5, load_dict_from_hdf5
+from caiman import summary_images
+from caiman import cluster
 
 try:
     cv2.setNumThreads(0)
@@ -302,24 +306,28 @@ class CNMF(object):
         self.estimates = Estimates(A=Ain, C=Cin, b=b_in, f=f_in,
                                    dims=self.params.data['dims'])
 
-    def fit_file(self, motion_correct=False, indices=[slice(None)]*2):
+    def fit_file(self, motion_correct=False, indices=None, include_eval=False):
         """
         This method packages the analysis pipeline (motion correction, memory
-        mapping, patch based CNMF processing) in a single method that can be
-        called on a specific (sequence of) file(s). It is assumed that the CNMF
-        object already contains a params object where the location of the files
-        and all the relevant parameters have been specified. The method does
-        not perform the quality evaluation step. Consult demo_pipeline for an
-        example.
+        mapping, patch based CNMF processing and component evaluation) in a
+        single method that can be called on a specific (sequence of) file(s).
+        It is assumed that the CNMF object already contains a params object
+        where the location of the files and all the relevant parameters have
+        been specified. The method will perform the last step, i.e. component
+        evaluation, if the flag "include_eval" is set to `True`.
 
         Args:
             motion_correct (bool)
                 flag for performing motion correction
             indices (list of slice objects)
                 perform analysis only on a part of the FOV
+            include_eval (bool)
+                flag for performing component evaluation
         Returns:
             cnmf object with the current estimates
         """
+        if indices is None:
+            indices = (slice(None), slice(None))
         fnames = self.params.get('data', 'fnames')
         if os.path.exists(fnames[0]):
             _, extension = os.path.splitext(fnames[0])[:2]
@@ -328,6 +336,7 @@ class CNMF(object):
             logging.warning("Error: File not found, with file list:\n" + fnames[0])
             raise Exception('File not found!')
 
+        base_name = pathlib.Path(fnames[0]).stem + "_memmap_"
         if extension == '.mmap':
             fname_new = fnames[0]
             Yr, dims, T = mmapping.load_memmap(fnames[0])
@@ -345,17 +354,45 @@ class CNMF(object):
                 else:
                     b0 = np.ceil(np.max(np.abs(mc.shifts_rig))).astype(np.int)
                     self.estimates.shifts = mc.shifts_rig
-                b0 = 0 if self.params.get('motion', 'border_nan') is 'copy' else 0
-                fname_new = mmapping.save_memmap(fname_mc, base_name='memmap_', order='C',
+                # TODO - b0 is currently direction inspecific, which can cause
+                # sub-optimal behavior. See
+                # https://github.com/flatironinstitute/CaImAn/pull/618#discussion_r313960370
+                # for further details.
+                # b0 = 0 if self.params.get('motion', 'border_nan') is 'copy' else 0
+                b0 = 0
+                fname_new = mmapping.save_memmap(fname_mc, base_name=base_name, order='C',
                                                  border_to_0=b0)
             else:
-                fname_new = mmapping.save_memmap(fnames, base_name='memmap_', order='C')
-                # now load the file
+                fname_new = mmapping.save_memmap(fnames, base_name=base_name, order='C')
             Yr, dims, T = mmapping.load_memmap(fname_new)
 
         images = np.reshape(Yr.T, [T] + list(dims), order='F')
         self.mmap_file = fname_new
-        return self.fit(images, indices=indices)
+        if not include_eval:
+            return self.fit(images, indices=indices)
+
+        fit_cnm = self.fit(images, indices=indices)
+        Cn = summary_images.local_correlations(images, swap_dim=False)
+        Cn[np.isnan(Cn)] = 0
+        fit_cnm.save(fname_new[:-5]+'_init.hdf5')
+        fit_cnm.params.change_params({'p': self.params.get('preprocess', 'p')})
+        # %% RE-RUN seeded CNMF on accepted patches to refine and perform deconvolution
+        cnm2 = fit_cnm.refit(images, dview=self.dview)
+        cnm2.estimates.evaluate_components(images, cnm2.params, dview=self.dview)
+        #%% update object with selected components
+        cnm2.estimates.select_components(use_object=True)
+        #%% Extract DF/F values
+        cnm2.estimates.detrend_df_f(quantileMin=8, frames_window=250)
+        cnm2.estimates.Cn = Cn
+        cnm2.save(cnm2.mmap_file[:-4] + 'hdf5')
+
+        cluster.stop_server(dview=self.dview)
+        log_files = glob.glob('*_LOG_*')
+        for log_file in log_files:
+            os.remove(log_file)
+
+        return cnm2
+
 
     def refit(self, images, dview=None):
         """
@@ -378,7 +415,7 @@ class CNMF(object):
         cnm.mmap_file = self.mmap_file
         return cnm.fit(images)
 
-    def fit(self, images, indices=[slice(None), slice(None)]):
+    def fit(self, images, indices=(slice(None), slice(None))):
         """
         This method uses the cnmf algorithm to find sources in data.
         it is calling every function from the cnmf folder
@@ -404,6 +441,8 @@ class CNMF(object):
         # Todo : to compartment
         if isinstance(indices, slice):
             indices = [indices]
+        if isinstance(indices, tuple):
+            indices = list(indices)
         indices = [slice(None)] + indices
         if len(indices) < len(images.shape):
             indices = indices + [slice(None)]*(len(images.shape) - len(indices))
