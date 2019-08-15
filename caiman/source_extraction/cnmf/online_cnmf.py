@@ -604,19 +604,35 @@ class OnACID(object):
                     #         np.linalg.inv(self.XXt[index[:, None], index]).dot(self.XXt[index, p])
 
                     if ssub_B == 1:
-                        self.estimates.Atb = Ab_.T.dot(self.estimates.W.dot(
-                            self.estimates.b0) - self.estimates.b0)
-                        self.estimates.AtW = Ab_.T.dot(self.estimates.W)
-                        self.estimates.AtWA = self.estimates.AtW.dot(Ab_).toarray()
+                        # self.estimates.AtW = Ab_.T.dot(self.estimates.W)
+                        # self.estimates.AtWA = self.estimates.AtW.dot(Ab_).toarray()
+                        # faster incremental update of AtW and AtWA instead of above lines:
+                        csr_append(self.estimates.AtW, Ab_.T[-num_added:].dot(self.estimates.W))
+                        AtWA = self.estimates.AtWA
+                        self.estimates.AtWA = np.zeros((self.M, self.M), dtype=np.float32)
+                        self.estimates.AtWA[:-num_added, :-num_added] = AtWA
+                        self.estimates.AtWA[:, -num_added:] = self.estimates.AtW.dot(
+                            Ab_[:, -num_added:]).toarray()
+                        self.estimates.AtWA[-num_added:] = self.estimates.AtW[-num_added:].dot(
+                            Ab_).toarray()
+                        self.estimates.Atb = self.estimates.AtW.dot(
+                            self.estimates.b0) - Ab_.T.dot(self.estimates.b0)
                     else:
-                        d1, d2 = self.estimates.dims
                         A_ds = self.estimates.downscale_matrix.dot(self.estimates.Ab)
-                        self.estimates.Atb = Ab_.T.dot(np.repeat(np.repeat(self.estimates.W.dot(
-                            self.estimates.downscale_matrix.dot(self.estimates.b0).reshape((-1, 1), order='F'))
-                            .reshape(((d1 - 1) // ssub_B + 1, (d2 - 1) // ssub_B + 1), order='F'),
-                            ssub_B, 0), ssub_B, 1)[:d1, :d2].ravel(order='F') - self.estimates.b0)
-                        self.estimates.AtW = A_ds.T.dot(self.estimates.W)
-                        self.estimates.AtWA = self.estimates.AtW.dot(A_ds).toarray()
+                        # self.estimates.AtW = A_ds.T.dot(self.estimates.W)
+                        # self.estimates.AtWA = self.estimates.AtW.dot(A_ds).toarray()
+                        # faster incremental update of AtW and AtWA instead of above lines:
+                        csr_append(self.estimates.AtW, A_ds.T[-num_added:].dot(self.estimates.W))
+                        AtWA = self.estimates.AtWA
+                        self.estimates.AtWA = np.zeros((self.M, self.M), dtype=np.float32)
+                        self.estimates.AtWA[:-num_added, :-num_added] = AtWA
+                        self.estimates.AtWA[:, -num_added:] = self.estimates.AtW.dot(
+                            A_ds[:, -num_added:]).toarray()
+                        self.estimates.AtWA[-num_added:] = self.estimates.AtW[-num_added:].dot(
+                            A_ds).toarray()
+                        self.estimates.Atb = ssub_B**2 * self.estimates.AtW.dot(
+                            self.estimates.downscale_matrix.dot(
+                                self.estimates.b0)) - Ab_.T.dot(self.estimates.b0)
 
                 # set the update counter to 0 for components that are overlaping the newly added
                 idx_overlap = self.estimates.AtA[nb_:-num_added, -num_added:].nonzero()[0]
@@ -1820,13 +1836,22 @@ class RingBuffer(np.ndarray):
 #%%
 def csc_append(a, b):
     """ Takes in 2 csc_matrices and appends the second one to the right of the first one.
-    Much faster than scipy.sparse.vstack but assumes the type to be csc and overwrites
+    Much faster than scipy.sparse.hstack but assumes the type to be csc and overwrites
     the first matrix instead of copying it. The data, indices, and indptr still get copied."""
-
     a.data = np.concatenate((a.data, b.data))
     a.indices = np.concatenate((a.indices, b.indices))
     a.indptr = np.concatenate((a.indptr, (b.indptr + a.nnz)[1:]))
     a._shape = (a.shape[0], a.shape[1] + b.shape[1])
+
+
+def csr_append(a, b):
+    """ Takes in 2 csr_matrices and appends the second one below the first one.
+    Much faster than scipy.sparse.vstack but assumes the type to be csr and overwrites
+    the first matrix instead of copying it. The data, indices, and indptr still get copied."""
+    a.data = np.concatenate((a.data, b.data))
+    a.indices = np.concatenate((a.indices, b.indices))
+    a.indptr = np.concatenate((a.indptr, (b.indptr + a.nnz)[1:]))
+    a._shape = (a.shape[0] + b.shape[0], a.shape[1])
 
 
 def corr(a, b):
