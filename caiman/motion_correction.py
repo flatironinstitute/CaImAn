@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 
 """
-@author Andrea Giovannucci,
 
 The functions apply_shifts_dft, register_translation, _compute_error, _compute_phasediff, and _upsampled_dft are from
 SIMA (https://github.com/losonczylab/sima), licensed under the  GNU GENERAL PUBLIC LICENSE, Version 2, 1991.
@@ -2368,13 +2367,13 @@ def tile_and_correct_3d(img, template, strides, overlaps, max_shifts, newoverlap
             x_grid, y_grid, z_grid = np.meshgrid(np.arange(0., dims[1]).astype(
                 np.float32), np.arange(0., dims[0]).astype(np.float32),
                 np.arange(0., dims[2]).astype(np.float32))
-            m_reg = warp_sk(img, np.stack((resize_sk(shift_img_y.astype(np.float32), dims) + y_grid,
-                              resize_sk(shift_img_x.astype(np.float32), dims) + x_grid,
+            m_reg = warp_sk(img, np.stack((resize_sk(shift_img_x.astype(np.float32), dims) + y_grid,
+                              resize_sk(shift_img_y.astype(np.float32), dims) + x_grid,
                               resize_sk(shift_img_z.astype(np.float32), dims) + z_grid),axis=0),
                               order=3, mode='constant')
                              # borderValue=add_to_movie)
             total_shifts = [
-                    (-x, -y, -z) for x, y, z in zip(shift_img_x.reshape(num_tiles), shift_img_y.reshape(num_tiles), shift_img_z.reshape(num_tiles))]
+                    (-x, -y, z) for x, y, z in zip(shift_img_x.reshape(num_tiles), shift_img_y.reshape(num_tiles), shift_img_z.reshape(num_tiles))]
             return m_reg - add_to_movie, total_shifts, None, None
 
         # create automatically upsample parameters if not passed
