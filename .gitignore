@@ -97,7 +97,6 @@ nosetests.xml
 coverage.xml
 *,cover
 .hypothesis/
-!testdata/*.mmap
 
 # Translations
 *.mo
