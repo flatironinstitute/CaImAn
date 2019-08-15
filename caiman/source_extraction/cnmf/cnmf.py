@@ -33,6 +33,7 @@ import psutil
 import scipy
 import sys
 import glob
+import pathlib
 
 from .estimates import Estimates
 from .initialization import initialize_components, compute_W
@@ -335,6 +336,7 @@ class CNMF(object):
             logging.warning("Error: File not found, with file list:\n" + fnames[0])
             raise Exception('File not found!')
 
+        base_name = pathlib.Path(fnames[0]).stem + "_memmap_"
         if extension == '.mmap':
             fname_new = fnames[0]
             Yr, dims, T = mmapping.load_memmap(fnames[0])
@@ -352,13 +354,16 @@ class CNMF(object):
                 else:
                     b0 = np.ceil(np.max(np.abs(mc.shifts_rig))).astype(np.int)
                     self.estimates.shifts = mc.shifts_rig
+                # TODO - b0 is currently direction inspecific, which can cause
+                # sub-optimal behavior. See
+                # https://github.com/flatironinstitute/CaImAn/pull/618#discussion_r313960370
+                # for further details.
                 # b0 = 0 if self.params.get('motion', 'border_nan') is 'copy' else 0
                 b0 = 0
-                fname_new = mmapping.save_memmap(fname_mc, base_name='memmap_', order='C',
+                fname_new = mmapping.save_memmap(fname_mc, base_name=base_name, order='C',
                                                  border_to_0=b0)
             else:
-                fname_new = mmapping.save_memmap(fnames, base_name='memmap_', order='C')
-                # now load the file
+                fname_new = mmapping.save_memmap(fnames, base_name=base_name, order='C')
             Yr, dims, T = mmapping.load_memmap(fname_new)
 
         images = np.reshape(Yr.T, [T] + list(dims), order='F')
