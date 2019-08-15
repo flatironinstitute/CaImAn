@@ -573,7 +573,7 @@ def select_components_from_metrics(A, dims, gSig, r_values, comp_SNR,
     idx_components_raw = np.where(comp_SNR > min_SNR)[0]
 
     idx_components:Any = [] # changes type over the function
-
+    
     if use_cnn:
           # normally 1
         if gSig_range is None:
@@ -670,7 +670,7 @@ def estimate_components_quality(traces, Y, A, C, b, f, final_frate=30, Npeaks=10
     if 'memmap' not in str(type(Y)):
         logging.warning('NOT MEMORY MAPPED. FALLING BACK ON SINGLE CORE IMPLEMENTATION')
         fitness_raw, fitness_delta, erfc_raw, erfc_delta, r_values, _ = \
-            evaluate_components(Y.transpose([1,2,0]), traces, A, C, b, f, final_frate, 
+            evaluate_components(Y, traces, A, C, b, f, final_frate, 
                                 remove_baseline=remove_baseline, N=N, robust_std=False, Athresh=0.1, Npeaks=Npeaks, thresh_C=0.3)
         
     else:  # memory mapped case

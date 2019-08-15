@@ -571,40 +571,65 @@ class Estimates(object):
 
         return self
 
-    def compute_residuals(self, Yr):
+    def compute_residuals(self, Yr, comp=None):
+        
         """compute residual for each component (variable R)
 
          Args:
              Yr :    np.ndarray
                  movie in format pixels (d) x frames (T)
+            comp: list object
+                List that contains 4 elements [A, C, b, f]
+                When list is not None, the algorithm will only compute_residuals on these elements
         """
-        if len(Yr.shape) > 2:
-            Yr = np.reshape(Yr.transpose(1,2,0), (-1, Yr.shape[0]), order='F')
-        if 'csc_matrix' not in str(type(self.A)):
-            self.A = scipy.sparse.csc_matrix(self.A)
-        if 'array' not in str(type(self.b)):
-            self.b = self.b.toarray()
-        if 'array' not in str(type(self.C)):
-            self.C = self.C.toarray()
-        if 'array' not in str(type(self.f)):
-            self.f = self.f.toarray()
-
-        Ab = scipy.sparse.hstack((self.A, self.b)).tocsc()
-        nA2 = np.ravel(Ab.power(2).sum(axis=0))
-        nA2_inv_mat = scipy.sparse.spdiags(
-            1. / nA2, 0, nA2.shape[0], nA2.shape[0])
-        Cf = np.vstack((self.C, self.f))
-        if 'numpy.ndarray' in str(type(Yr)):
-            YA = (Ab.T.dot(Yr)).T * nA2_inv_mat
+        if comp is None:
+            if len(Yr.shape) > 2:
+                Yr = np.reshape(Yr.transpose(1,2,0), (-1, Yr.shape[0]), order='F')
+            if 'csc_matrix' not in str(type(self.A)):
+                self.A = scipy.sparse.csc_matrix(self.A)
+            if 'array' not in str(type(self.b)):
+                self.b = self.b.toarray()
+            if 'array' not in str(type(self.C)):
+                self.C = self.C.toarray()
+            if 'array' not in str(type(self.f)):
+                self.f = self.f.toarray()
+    
+            Ab = scipy.sparse.hstack((self.A, self.b)).tocsc()
+            nA2 = np.ravel(Ab.power(2).sum(axis=0))
+            nA2_inv_mat = scipy.sparse.spdiags(
+                1. / nA2, 0, nA2.shape[0], nA2.shape[0])
+            Cf = np.vstack((self.C, self.f))
+            if 'numpy.ndarray' in str(type(Yr)):
+                YA = (Ab.T.dot(Yr)).T * nA2_inv_mat
+            else:
+                YA = caiman.mmapping.parallel_dot_product(Yr, Ab, dview=self.dview,
+                            block_size=2000, transpose=True, num_blocks_per_run=5) * nA2_inv_mat
+    
+            AA = Ab.T.dot(Ab) * nA2_inv_mat
+            self.R = (YA - (AA.T.dot(Cf)).T)[:, :self.A.shape[-1]].T
+            return self
+        
         else:
-            YA = caiman.mmapping.parallel_dot_product(Yr, Ab, dview=self.dview,
-                        block_size=2000, transpose=True, num_blocks_per_run=5) * nA2_inv_mat
-
-        AA = Ab.T.dot(Ab) * nA2_inv_mat
-        self.R = (YA - (AA.T.dot(Cf)).T)[:, :self.A.shape[-1]].T
-
-        return self
-
+            if len(Yr.shape) > 2:
+                Yr = np.reshape(Yr.transpose(1,2,0), (-1, Yr.shape[0]), order='F')
+            A = comp[0]
+            C = comp[1]
+            b = comp[2]
+            f = comp[3]
+            Ab = scipy.sparse.hstack((A, b)).tocsc()
+            nA2 = np.ravel(Ab.power(2).sum(axis=0))
+            nA2_inv_mat = scipy.sparse.spdiags(
+                1. / nA2, 0, nA2.shape[0], nA2.shape[0])
+            Cf = np.vstack((C, f))
+            YA = (Ab.T.dot(Yr)).T * nA2_inv_mat
+            AA = Ab.T.dot(Ab) * nA2_inv_mat
+            R = (YA - (AA.T.dot(Cf)).T)[:, :A.shape[-1]].T
+  
+            return R
+            
+            
+        
+        
     def detrend_df_f(self, quantileMin=8, frames_window=500,
                      flag_auto=True, use_fast=False, use_residuals=True,
                      detrend_only=False):
@@ -838,7 +863,8 @@ class Estimates(object):
                     CNN classifier threshold
                     
             comp: list object
-                List that contains 
+                List that contains 3 elements [A, C, YrA]
+                When list is not None, the algorithm will only evaluate result on these elements
                 
 
         Returns:
@@ -881,6 +907,7 @@ class Estimates(object):
             return self
         
         else:
+            dims = imgs.shape[:2]
             A = comp[0]
             C = comp[1]
             R = comp[2]
@@ -1155,7 +1182,7 @@ class Estimates(object):
         nr = self.C.shape[0]
         good_neurons = np.setdiff1d(list(range(nr)), neur_id)
         
-        good_merged, bad_merged, SNR_merged, r_merged, cnn_merged = self.evaluate_components(imgs, params, 
+        good_merged, bad_merged, SNR_merged, r_merged, cnn_merged = self.evaluate_components(imgs.transpose([1,2,0]), params, 
                                                                           dview=None,comp=[A_merged, C_merged, R_merged])        
         
         if self.idx_components is not None:
@@ -1202,10 +1229,10 @@ class Estimates(object):
         self.cnn_preds = np.hstack((self.cnn_preds[good_neurons], cnn_merged[good_merged]))
         
                 
-    def manual_add(self, components, imgs, params):
+    def manual_add(self, imgs, params, comp):
         ''' Manual add new neuron that is calculated from nmf.   
         ```
-        components = [A_new, C_new]
+        components = [A_new, C_new, YrA_new]
         ```
 
         Args:
@@ -1224,12 +1251,13 @@ class Estimates(object):
         d = self.A.shape[0]
         T = self.C.shape[1]
         # we initialize the values
-        A_merged = scipy.sparse.lil_matrix((d, 1))
+        A_merged = scipy.sparse.lil_matrix((d, 1)).tocsc()
         C_merged = np.zeros((1, T))
         R_merged = np.zeros((1, T))
         
-        A_merged[:,0] = components[0]
-        C_merged[0,:] = components[1]
+        A_merged[:,0] = comp[0]
+        C_merged[0,:] = comp[1]
+        R_merged[0,:] = comp[2]
         
         A_to_norm = np.sqrt(A_merged.T.dot(A_merged)).todense()[0,0]
         A_merged /= A_to_norm
@@ -1237,21 +1265,20 @@ class Estimates(object):
         
         self.A = scipy.sparse.hstack((self.A.tocsc(), A_merged))
         self.C = np.vstack((self.C, C_merged))
-        self.compute_residuals(np.array(imgs))
+        #self.compute_residuals(np.array(imgs))
+        self.R = np.vstack((self.R, R_merged))
         self.YrA = self.R
-        R_merged[0,:] = self.R[-1]
+        #R_merged[0,:] = self.R[-1]
         comp = [A_merged, C_merged, R_merged]
-        good_merged, bad_merged, SNR_merged, r_merged, cnn_merged = self.evaluate_components(imgs, params, 
+        good_merged, bad_merged, SNR_merged, r_merged, cnn_merged = self.evaluate_components(imgs.transpose([1,2,0]), params, 
                                                                                                  dview=None,comp=[A_merged, C_merged, R_merged])        
         if len(good_merged)>0:
             Acsc = self.A.tocsc()[:, -1]
             Ctmp = np.array(self.C[-1]) + np.array(self.YrA[-1])
             computedA = Acsc
             computedC = Ctmp
-            
             #r = ((Acsc.T.dot(computedA)).todense() * Ctmp)/(computedA.T.dot(computedA)).todense() - computedC
             #c_in =  np.array(computedC+r).squeeze()
-            
             c_in = computedC
             deconvC, bm, cm, gm, sm, ss, lam_ = constrained_foopsi(
                 c_in, g=None, **params.temporal)        
@@ -1268,7 +1295,7 @@ class Estimates(object):
             self.cnn_preds = np.hstack((self.cnn_preds, cnn_merged))
             self.idx_components = np.arange(self.idx_components.shape[0]+1, dtype=int)
         else:
-            self.A = self.A[:,:-1]
+            self.A = self.A.tocsc()[:,:-1]
             self.C = self.C[:-1,:]
             self.R = self.R[:-1,:]
         

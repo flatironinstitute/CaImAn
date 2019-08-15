@@ -515,7 +515,7 @@ def add_single():
         change(None, None)
         
     if mode is 'add_neuron':
-        cnm_obj.estimates.manual_add(new_components, mov, cnm_obj.params)
+        cnm_obj.estimates.manual_add(mov, cnm_obj.params, new_components)
         init()
         mode = 'neurons'
         draw_contours_overall(mode)
@@ -574,17 +574,17 @@ def nmf_extract(kernel_size=12, maxthr=0.05):
     xrange = [np.where(mask==1)[0].min(), np.where(mask==1)[0].max()] 
     yrange = [np.where(mask==1)[1].min(), np.where(mask==1)[1].max()]
     
-    mov_patch = mov[:,xrange[0]:xrange[1]+1,yrange[0]:yrange[1]+1].transpose([1,2,0]).reshape((-1,estimates.C.shape[1]),order='C')
-    bg_patch = np.dot(estimates.b.reshape((estimates.dims[0],estimates.dims[1],-1),
-                                          order='F')[xrange[0]:xrange[1]+1,yrange[0]:yrange[1]+1,:],estimates.f).reshape((-1,
-                                                    estimates.C.shape[1]),order='C')
-    indA = np.where(estimates.A[np.reshape(mask,-1, order='F').copy()==1].sum(axis=0)>0)[1]
-    temp = np.array(estimates.A[:,indA].todense().copy()).reshape((estimates.dims[0],estimates.dims[1],-1),order='F')     
+    mov_patch = mov[:,xrange[0]:xrange[1]+1,yrange[0]:yrange[1]+1].transpose([1,2,0])
+    b_patch = estimates.b.reshape((estimates.dims[0],estimates.dims[1],-1),
+                                          order='F')[xrange[0]:xrange[1]+1,yrange[0]:yrange[1]+1,:]
+    bg_patch = np.dot(b_patch,estimates.f)
+    indA = np.where(estimates.A.tocsc()[np.reshape(mask,-1, order='F').copy()==1].sum(axis=0)>0)[1]
+    temp = np.array(estimates.A.tocsc()[:,indA].todense().copy()).reshape((estimates.dims[0],estimates.dims[1],-1),order='F')     
     if len(temp.shape)<3:
         temp = temp[:,:,np.newaxis]
-    rec_patch = np.dot(np.array(temp[xrange[0]:xrange[1]+1,yrange[0]:yrange[1]+1,:]),estimates.C[indA,:]).reshape((-1,estimates.C.shape[1]),order='C')
+    rec_patch = np.dot(np.array(temp[xrange[0]:xrange[1]+1,yrange[0]:yrange[1]+1,:]),estimates.C[indA,:])
 
-    mov_patch_residual = mov_patch - bg_patch - rec_patch
+    mov_patch_residual = (mov_patch - bg_patch - rec_patch).reshape((-1, estimates.C.shape[1]),order='C')
     mov_patch_residual[mov_patch_residual<0] = 0
     Yr = np.asarray(mov_patch_residual , dtype=np.float)
 
@@ -607,7 +607,25 @@ def nmf_extract(kernel_size=12, maxthr=0.05):
     weight = A_new.copy()
     A_new = scipy.sparse.lil_matrix(A_new.reshape([-1,1], order='F')) 
     C_new = H * norm_factor
-    new_components = [A_new, C_new]
+    
+    # Compute the residual YrA of the new neuron
+    Y = mov_patch.transpose([2,0,1])
+    if len(indA)>0:
+        temp = np.array(scipy.sparse.hstack((estimates.A.tocsc()[:,indA], A_new)).todense()).reshape((estimates.dims[0],estimates.dims[1],-1),order='F')
+        A = np.array(temp[xrange[0]:xrange[1]+1,yrange[0]:yrange[1]+1,:]).reshape((-1,len(indA)+1), order='F')
+        A = scipy.sparse.lil_matrix(A)
+        C = np.vstack((estimates.C[indA,:], C_new))
+    else:
+        temp = np.array(A_new.todense()).reshape((estimates.dims[0],estimates.dims[1],-1),order='F')
+        A = np.array(temp[xrange[0]:xrange[1]+1,yrange[0]:yrange[1]+1,:]).reshape((-1,len(indA)+1), order='F')
+        A = scipy.sparse.lil_matrix(A)
+        C = C_new
+    b = b_patch.reshape((b_patch.shape[0]*b_patch.shape[1], -1), order='F')
+    f = estimates.f
+    comp = [A,C,b,f]
+    YrA_new = cnm_obj.estimates.compute_residuals(Y, comp=comp)[-1,:]
+    
+    new_components = [A_new, C_new, YrA_new]
     
     return W_, H, mask, weight, new_components
     
