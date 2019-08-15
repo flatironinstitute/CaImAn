@@ -8,6 +8,25 @@ Installation
 Download and install Anaconda or Miniconda (Python 3.x version)
 http://docs.continuum.io/anaconda/install
 
+Package-based Process
+---------------------
+   -  This process is the same on every operating system
+   -  Follow this process if you won't need to work with the CaImAn sources
+      and instead wish to use it as a library (the demos still work this way, and
+      you can use/modify them).
+   -  You do not need a compiler for this route.
+   -  You should not download the sources (with git or otherwise) for this route.
+   -  This route also sets environment variables for you (skip that section below)
+   -  Download and install Anaconda (Python 3.x)
+      http://docs.continuum.io/anaconda/install. Allow the installer to
+      modify your PATH variable
+   -  Create a new environment with the caiman package from conda-forge:
+>>>
+conda create -n caiman caiman
+
+   -  Skip ahead to the section on setting up a data directory with caimanmanager
+
+
 Installation on Windows
 ------------
 
@@ -18,15 +37,15 @@ Installation on Windows
 The Windows installation process differs more widely from installation
 on Linux or MacOSX and has different issues you may run into.
 
-Process
+
+Windows Build Process
 -------
 
--  Increase the maximum size of your pagefile to 64G or more
-   (http://www.tomshardware.com/faq/id-2864547/manage-virtual-memory-pagefile-windows.html
-   ) - The Windows memmap interface is sensitive to the maximum setting
-   and leaving it at the default can cause errors when processing larger
-   datasets
-
+   -  Increase the maximum size of your pagefile to 64G or more
+      (http://www.tomshardware.com/faq/id-2864547/manage-virtual-memory-pagefile-windows.html).
+      The Windows memmap interface is sensitive to the maximum setting
+      and leaving it at the default can cause errors when processing larger
+      datasets
    -  Download and install Anaconda (Python 3.x)
       http://docs.continuum.io/anaconda/install. Allow the installer to
       modify your PATH variable
@@ -58,15 +77,12 @@ while entering the caiman environment. Use the Windows find-file utility
 (under the Start Menu) to look for vs2015_compiler_vars.bat and/or
 vs2015_compiler_vars.bat under your home directory. At least one copy
 should show up. Delete the version that has
-conda:raw-latex:`\envs`:raw-latex:`\caiman `as part of its location. You
-may also want to do a search for keras_activate.bat under your home
-directory, find the one in conda:raw-latex:`\envs`:raw-latex:`\caiman`,
-and edit it so KERAS_BACKEND is set to tensorflow rather than theano.
+conda:raw-latex:`\envs`:raw-latex:`\caiman` as part of its location. 
 You may then continue the installation.
 
 .. code:: bash
 
-     activate caiman
+     conda activate caiman
      pip install . (OR pip install -e . if you want to develop code)
      copy caimanmanager.py ..
      conda install numba
@@ -108,13 +124,14 @@ different processes, run these commands before launching Python:
 
      set MKL_NUM_THREADS=1
      set OPENBLAS_NUM_THREADS=1
-     set KERAS_BACKEND=tensorflow
 
 The commands should be run every time you enter the caiman conda
 environment. We recommend you save these values inside your environment
 so you do not have to repeat this process every time. You can do this by
 following the instructions
 `here <https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#saving-environment-variables>`__.
+
+If you installed using the conda-forge package, this is done automatically for you.
 
 .. raw:: html
 
@@ -139,7 +156,7 @@ If you want to develop code then replace the last command with
 ``pip install -e .`` If any of these steps gives you errors do not
 proceed to the following step without resolving it
 
-known issues
+Known issues
 ~~~~~~~~~~~~
 
 If you recently upgraded to OSX Mojave you may need to perform the
@@ -165,13 +182,14 @@ for Linux and OSX):
 
      export MKL_NUM_THREADS=1
      export OPENBLAS_NUM_THREADS=1
-     export KERAS_BACKEND=tensorflow
 
 The commands should be run every time before launching python. It is
 recommended that you save these values inside your environment so you
 don’t have to repeat this process every time. You can do this by
 following the instructions
 `here <https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#saving-environment-variables>`__.
+
+If you installed using the conda-forge package, this is done automatically for you.
 
 Setting up caimanmanager
 ------------------------
@@ -202,30 +220,57 @@ caimanmanager tool and other libraries will respect that.
 Upgrading
 =========
 
+Upgrading and caiman_data
+-------------------------
+When you upgrade CaImAn, sometimes the underlying APIs change. When this happens and it impacts a demo (or otherwise requires changes to caiman_data), we
+update the demo and data. This means that upgrading CaImAn works best if you also replace the caiman_data directory with a new version. However, you may
+have made your own changes to the demos (e.g. to work with your data). If you have done this, you may need to massage your changes into the new versions of
+the demos. For this reason, we recommend:
+
+1. If you have not modified anything in caiman_data, remove it before upgrading and have caimanmanager make a new one after the upgrade.
+
+2. If you have modified things in caiman_data but your changes are trivial, remove and recreate as above.
+
+3. If you have extensively modified things in caiman_data, rename the caiman_manager directory, have caimanmanager make a new one after the upgrade, and then massage your changes back in.
+
+
+Upgrading and the conda-forge package
+-------------------------------------
+
+1. Remove your conda environment: ``conda env remove -n caiman`` (or whatever you called the conda environment you used)
+
+2. remove or rename your ~/caiman_data directory 
+
+3. Repeat the install instructions
+
+
+Upgrading and source-based installations
+----------------------------------------
+
 If you already have CaImAn installed with the pip installer (May 2018 or
 later), but want to upgrade, please follow the procedure below. If you
 reinstall CaImAn frequently, you can try skip deleting and recreating
 your Conda environment. In this case you can do only steps 1, 5, and 7
 below to update the code. However, if the environment file has changed
-since your last update this may lead to you not the latest version.
+since your last update this may lead to you not the latest version. None of this applies
+to the conda-forge route (where you should just delete your conda environment and repeat the
+install instructions).
 
 From the conda environment you used to install CaImAn: 
 
 1. ``pip uninstall caiman`` 
 
-2. remove or rename your ~/caiman_data directory 
+2. Remove your conda environment: ``conda env remove -n caiman`` (or whatever you called the conda environment you used)
 
-3. Remove your conda environment: ``conda env remove -n NAME_OF_YOUR_ENVIRONMENT``
+3. Close and reopen your shell (to clear out the old conda environment) 
 
-4. Close and reopen your shell (to clear out the old conda environment) 
+4. Do a ``git pull`` from inside your CaImAn folder. 
 
-5. Do a ``git pull`` from inside your CaImAn folder. 
+5. Recreate and reenter your conda environment as you did in the installation instructions 
 
-6. Recreate and reenter your conda environment as you did in the installation instructions 
+6. Do a ``pip install .`` inside that code checkout
 
-7. Do a ``pip install .`` inside that code checkout
-
-8. Run ``caimanmanager.py install`` to reinstall the data directory (use ``--inplace`` if you used the ``pip install -e .`` during your initial installation).
+7. Run ``caimanmanager.py install`` to reinstall the data directory (use ``--inplace`` if you used the ``pip install -e .`` during your initial installation).
 
 -  If you used the ``pip install -e .`` option when installing, then you
    can try updating by simply doing a ``git pull``. Again, this might
