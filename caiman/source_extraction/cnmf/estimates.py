@@ -15,8 +15,8 @@ from typing import List
 import caiman
 from .utilities import detrend_df_f
 from .spatial import threshold_components
-from caiman.source_extraction.cnmf.temporal import constrained_foopsi_parallel
-from caiman.source_extraction.cnmf.merging import merge_iteration
+from .temporal import constrained_foopsi_parallel
+from .merging import merge_iteration
 from ...components_evaluation import (
         evaluate_components_CNN, estimate_components_quality_auto,
         select_components_from_metrics)
@@ -572,7 +572,6 @@ class Estimates(object):
         return self
 
     def compute_residuals(self, Yr, comp=None):
-        
         """compute residual for each component (variable R)
 
          Args:
@@ -580,7 +579,7 @@ class Estimates(object):
                  movie in format pixels (d) x frames (T)
             comp: list object
                 List that contains 4 elements [A, C, b, f]
-                When list is not None, the algorithm will only compute_residuals on these elements
+                When list is not None, the algorithm will only compute_residuals on these components
         """
         if comp is None:
             if len(Yr.shape) > 2:
@@ -607,6 +606,7 @@ class Estimates(object):
     
             AA = Ab.T.dot(Ab) * nA2_inv_mat
             self.R = (YA - (AA.T.dot(Cf)).T)[:, :self.A.shape[-1]].T
+
             return self
         
         else:
@@ -836,7 +836,7 @@ class Estimates(object):
         self.idx_components = np.where(self.cnn_preds >= min_cnn_thr)[0]
         return self
 
-    def evaluate_components(self, imgs, params, dview=None, components_to_update=None, comp=None):
+    def evaluate_components(self, imgs, params, dview=None, comp=None):
         """Computes the quality metrics for each component and stores the
         indices of the components that pass user specified thresholds. The
         various thresholds and parameters can be passed as inputs. If left
@@ -861,7 +861,6 @@ class Estimates(object):
 
                 min_cnn_thr: float
                     CNN classifier threshold
-                    
             comp: list object
                 List that contains 3 elements [A, C, YrA]
                 When list is not None, the algorithm will only evaluate result on these elements
@@ -1119,8 +1118,8 @@ class Estimates(object):
             params: params object
                 
         Returns:
-            self: estimates object        
-            '''
+            self: estimates object
+        '''
         ln = np.sum(np.array([len(comp) for comp in components]))
         ids = set.union(*[set(comp) for comp in components])
         if ln != len(ids):
@@ -1143,7 +1142,7 @@ class Estimates(object):
 
         for i in range(nbmrg):
             merged_ROI = list(set(components[i]))
-            #logging.info('Merging components {}'.format(merged_ROI))
+            logging.info('Merging components {}'.format(merged_ROI))
             merged_ROIs.append(merged_ROI)
 
             Acsc = self.A.tocsc()[:, merged_ROI]

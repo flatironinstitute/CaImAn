@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 import scipy.sparse
 import cv2
 import scipy
-
+import os
 # Always start by initializing Qt (only once per application)
 app = QtGui.QApplication([])
 
@@ -48,6 +48,7 @@ F = FileDialog()
 # load object saved by CNMF
 # cnm_obj = load_CNMF('/Users/agiovann/caiman_data/example_movies/memmap__d1_60_d2_80_d3_1_order_C_frames_2000_save.hdf5')
 cnm_obj = load_CNMF(F.getOpenFileName(caption='Load CNMF Object',filter='*.hdf5')[0])
+
 
 # movie
 # mov = cm.load('/Users/agiovann/caiman_data/example_movies/memmap__d1_60_d2_80_d3_1_order_C_frames_2000_.mmap')
@@ -336,6 +337,8 @@ def move(event):
 p1.mouseMoveEvent = move 
 
 
+
+
 ## PARAMS
 params = [{'name': 'min_cnn_thr', 'type': 'float', 'value': 0.99, 'limits': (0, 1),'step':0.01},
             {'name': 'cnn_lowest', 'type': 'float', 'value': 0.1, 'limits': (0, 1),'step':0.01},
@@ -423,6 +426,9 @@ def show_background_update():
 pars.param('SHOW BACKGROUND').sigActivated.connect(show_background_button)
 
 
+
+
+
 def show_neurons_button():
     global mode, neuron_selected
     mode = "neurons"
@@ -431,6 +437,7 @@ def show_neurons_button():
     #clear the upper right image
     zeros = np.asarray([ [0] * 80 for _ in range(60)])
     img2.setImage(make_color_img(zeros), autoLevels=False)
+
 
 
 def show_neurons_clicked():
@@ -473,6 +480,7 @@ def show_neurons_clicked():
     nr_vline.sigPositionChanged.connect(show_neurons_update)
     nr_index = 0
 
+
 def show_neurons_update():
     global nr_index, frame_denoise_scaled, estimates, raw_mov_scaled
     global min_mov, max_mov, min_mov_denoise, max_mov_denoise
@@ -491,7 +499,14 @@ def show_neurons_update():
         img2.setImage(frame_denoise_scaled,autoLevels=False)
         draw_contours_update(frame_denoise_scaled, img2)
 
+
 pars.param('SHOW NEURONS').sigActivated.connect(show_neurons_button)
+
+
+
+
+
+
 
 def add_group():
     estimates.accepted_list = np.union1d(estimates.accepted_list,estimates.idx_components)
@@ -645,12 +660,14 @@ def save_object():
     cnm_obj.save(ffll[0])
 
 pars_action.param('SAVE OBJECT').sigActivated.connect(save_object)
-    
+
+
 def action_pars_activated(param, changes): 
     global estimates
     change(None, None)
     
 pars_action.sigTreeStateChanged.connect(action_pars_activated)
+
 
 ## If anything changes in the tree, print a message
 def change(param, changes):
@@ -664,14 +681,13 @@ def change(param, changes):
             params_obj.quality.update({'cnn_lowest': 0,'min_cnn_thr':0,'rval_thr':-1,'rval_lowest':-1,'min_SNR':0,'SNR_lowest':0})
     
     estimates.filter_components(mov, params_obj, dview=None, 
-                                    select_mode=pars_action.param('View components').value())    
+                                    select_mode=pars_action.param('View components').value())
     if mode is "background":
         return
     else:
         draw_contours()                
     
 pars.sigTreeStateChanged.connect(change)
-
 
 change(None, None) # set params to default
 t.setParameters(pars, showTop=False)
