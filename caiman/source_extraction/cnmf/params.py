@@ -685,7 +685,7 @@ class CNMFParams(object):
             'minibatch_shape': minibatch_shape,  # number of frames in each minibatch
             'minibatch_suff_stat': minibatch_suff_stat,
             'motion_correct': True,            # flag for motion correction
-            'movie_name_online': 'online_movie.avi',  # filename of saved movie (appended to directory where data is located)
+            'movie_name_online': 'online_movie.mp4',  # filename of saved movie (appended to directory where data is located)
             'normalize': False,                # normalize frame
             'n_refit': n_refit,                # Additional iterations to simultaneously refit
             # path to CNN model for testing new comps

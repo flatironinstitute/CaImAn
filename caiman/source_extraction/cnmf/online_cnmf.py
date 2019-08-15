@@ -473,7 +473,7 @@ class OnACID(object):
             if self.params.get('preprocess', 'p') == 1:
                 g_est = np.mean(self.estimates.g)
             elif self.params.get('preprocess', 'p') == 2:
-                g_est = np.mean(self.estimates, 0)
+                g_est = np.mean(self.estimates.g, 0)
             else:
                 g_est = 0
             use_corr = self.params.get('online', 'use_corr_img')
@@ -1064,7 +1064,7 @@ class OnACID(object):
             init_batc_iter = [init_batch] + [0]*extra_files
         if self.params.get('online', 'save_online_movie'):
             resize_fact = 2
-            fourcc = cv2.VideoWriter_fourcc('8', 'B', 'P', 'S')
+            fourcc = cv2.VideoWriter_fourcc(*'H264')
             out = cv2.VideoWriter(self.params.get('online', 'movie_name_online'),
                                   fourcc, 30, tuple([int(resize_fact*2*x) for x in self.params.get('data', 'dims')]),
                                   True)
@@ -1213,12 +1213,12 @@ class OnACID(object):
         if show_residuals:
             #all_comps = np.reshape(self.Yres_buf.mean(0), self.dims, order='F')
             all_comps = np.reshape(est.mean_buff, self.dims, order='F')
-            fac = 0.5
+            fac = 1. / np.percentile(est.mean_buff, 99.995)
         else:
             all_comps = np.array(A.sum(-1)).reshape(self.dims, order='F')
             fac = 2
         #all_comps = (all_comps.copy() - self.bnd_Y[0])/np.diff(self.bnd_Y)
-        all_comps = np.minimum(np.maximum(all_comps, 0)*fac + 0.25, 255)
+        all_comps = np.minimum(np.maximum(all_comps, 0)*fac, 1)
                                                   # spatial shapes
         frame_comp_1 = cv2.resize(np.concatenate([frame_plot, all_comps * 1.], axis=-1),
                                   (2 * np.int(self.dims[1] * resize_fact), np.int(self.dims[0] * resize_fact)))
