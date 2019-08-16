@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-
 """ create a groundtruth for different videos
 
 use for nosetests and continuous integration development.
@@ -15,7 +14,6 @@ caiman/tests/comparison/comparison.py
 # \copyright GNU General Public License v2.0
 # \date Created on june 2017
 # \author: Jeremie KALFON
-
 
 from builtins import str
 from builtins import range
@@ -51,41 +49,39 @@ from caiman.tests.comparison import comparison
 from caiman.utils.utils import download_demo
 
 # GLOBAL VAR
-params_movie = {'fname': ['Sue_2x_3000_40_-46.tif'],
-                'niter_rig': 1,
-                'max_shifts': (3, 3),  # maximum allow rigid shift
-                'splits_rig': 20,  # for parallelization split the movies in  num_splits chuncks across time
-                # if none all the splits are processed and the movie is saved
-                'num_splits_to_process_rig': None,
-                'p': 1,  # order of the autoregressive system
-                'merge_thresh': 0.8,  # merging threshold, max correlation allowed
-                'rf': 15,  # half-size of the patches in pixels. rf=25, patches are 50x50
-                'stride_cnmf': 6,  # amounpl.it of overlap between the patches in pixels
-                'K': 4,  # number of components per patch
-                # if dendritic. In this case you need to set init_method to
-                # sparse_nmf
-                'is_dendrites': False,
-                'init_method': 'greedy_roi',
-                'gSig': [4, 4],  # expected half size of neurons
-                'alpha_snmf': None,  # this controls sparsity
-                'final_frate': 30,
-                'r_values_min_patch': .7,  # threshold on space consistency
-                'fitness_min_patch': -40,  # threshold on time variability
-                # threshold on time variability (if nonsparse activity)
-                'fitness_delta_min_patch': -40,
-                'Npeaks': 10,
-                'r_values_min_full': .85,
-                'fitness_min_full': - 50,
-                'fitness_delta_min_full': - 50,
-                'only_init_patch': True,
-                'gnb': 1,
-                'memory_fact': 1,
-                'n_chunks': 10
-                }
-params_display = {
-    'downsample_ratio': .2,
-    'thr_plot': 0.9
+params_movie = {
+    'fname': ['Sue_2x_3000_40_-46.tif'],
+    'niter_rig': 1,
+    'max_shifts': (3, 3),                      # maximum allow rigid shift
+    'splits_rig': 20,                          # for parallelization split the movies in  num_splits chuncks across time
+                                               # if none all the splits are processed and the movie is saved
+    'num_splits_to_process_rig': None,
+    'p': 1,                                    # order of the autoregressive system
+    'merge_thresh': 0.8,                       # merging threshold, max correlation allowed
+    'rf': 15,                                  # half-size of the patches in pixels. rf=25, patches are 50x50
+    'stride_cnmf': 6,                          # amounpl.it of overlap between the patches in pixels
+    'K': 4,                                    # number of components per patch
+                                               # if dendritic. In this case you need to set init_method to
+                                               # sparse_nmf
+    'is_dendrites': False,
+    'init_method': 'greedy_roi',
+    'gSig': [4, 4],                            # expected half size of neurons
+    'alpha_snmf': None,                        # this controls sparsity
+    'final_frate': 30,
+    'r_values_min_patch': .7,                  # threshold on space consistency
+    'fitness_min_patch': -40,                  # threshold on time variability
+                                               # threshold on time variability (if nonsparse activity)
+    'fitness_delta_min_patch': -40,
+    'Npeaks': 10,
+    'r_values_min_full': .85,
+    'fitness_min_full': -50,
+    'fitness_delta_min_full': -50,
+    'only_init_patch': True,
+    'gnb': 1,
+    'memory_fact': 1,
+    'n_chunks': 10
 }
+params_display = {'downsample_ratio': .2, 'thr_plot': 0.9}
 
 # params_movie = {'fname': [u'./example_movies/demoMovieJ.tif'],
 #                 'max_shifts': (2, 2),  # maximum allow rigid shift (2,2)
@@ -150,7 +146,7 @@ def create():
     num_splits_to_process_rig = params_movie['num_splits_to_process_rig']
 
     download_demo(fname[0])
-    fname = os.path.join(caiman_datadir(),'example_movies', fname[0])
+    fname = os.path.join(caiman_datadir(), 'example_movies', fname[0])
     m_orig = cm.load(fname)
     min_mov = m_orig[:400].min()
     comp = comparison.Comparison()
@@ -158,10 +154,14 @@ def create():
 
     ################ RIG CORRECTION #################
     t1 = time.time()
-    mc = MotionCorrect(fname, min_mov,
-                       max_shifts=max_shifts, niter_rig=niter_rig, splits_rig=splits_rig,
+    mc = MotionCorrect(fname,
+                       min_mov,
+                       max_shifts=max_shifts,
+                       niter_rig=niter_rig,
+                       splits_rig=splits_rig,
                        num_splits_to_process_rig=num_splits_to_process_rig,
-                       shifts_opencv=True, nonneg_movie=True)
+                       shifts_opencv=True,
+                       nonneg_movie=True)
     mc.motion_correct_rigid(save_movie=True)
     m_rig = cm.load(mc.fname_tot_rig)
     bord_px_rig = np.ceil(np.max(mc.shifts_rig)).astype(np.int)
@@ -172,24 +172,27 @@ def create():
     if 'max_shifts' not in params_movie:
         fnames = params_movie['fname']
         border_to_0 = 0
-    else:  # elif not params_movie.has_key('overlaps'):
+    else:      # elif not params_movie.has_key('overlaps'):
         fnames = [mc.fname_tot_rig]
         border_to_0 = bord_px_rig
         m_els = m_rig
 
     idx_xy = None
-    add_to_movie = -np.nanmin(m_els) + 1  # movie must be positive
+    add_to_movie = -np.nanmin(m_els) + 1                                       # movie must be positive
     remove_init = 0
     downsample_factor = 1
     base_name = fname[0].split('/')[-1][:-4]
-    name_new = cm.save_memmap_each(fnames, base_name=base_name, resize_fact=(
-        1, 1, downsample_factor), remove_init=remove_init,
-        idx_xy=idx_xy, add_to_movie=add_to_movie, border_to_0=border_to_0)
+    name_new = cm.save_memmap_each(fnames,
+                                   base_name=base_name,
+                                   resize_fact=(1, 1, downsample_factor),
+                                   remove_init=remove_init,
+                                   idx_xy=idx_xy,
+                                   add_to_movie=add_to_movie,
+                                   border_to_0=border_to_0)
     name_new.sort()
 
     if len(name_new) > 1:
-        fname_new = cm.save_memmap_join(
-            name_new, base_name='Yr', n_chunks=params_movie['n_chunks'], dview=None)
+        fname_new = cm.save_memmap_join(name_new, base_name='Yr', n_chunks=params_movie['n_chunks'], dview=None)
     else:
         print('One file only, not saving!')
         fname_new = name_new[0]
@@ -203,8 +206,7 @@ def create():
         raise Exception('Movie too negative, add_to_movie should be larger')
     if np.sum(np.isnan(images)) > 0:
         # TODO: same here
-        raise Exception(
-            'Movie contains nan! You did not remove enough borders')
+        raise Exception('Movie contains nan! You did not remove enough borders')
 
     Cn = cm.local_correlations(Y)
     Cn[np.isnan(Cn)] = 0
@@ -224,11 +226,20 @@ def create():
 
             ################ CNMF PART PATCH #################
     t1 = time.time()
-    cnm = cnmf.CNMF(n_processes=1, k=K, gSig=gSig, merge_thresh=params_movie['merge_thresh'], p=params_movie['p'],
-                    dview=None, rf=rf, stride=stride_cnmf, memory_fact=params_movie['memory_fact'],
-                    method_init=init_method, alpha_snmf=alpha_snmf, only_init_patch=params_movie[
-                        'only_init_patch'],
-                    gnb=params_movie['gnb'], method_deconvolution='oasis')
+    cnm = cnmf.CNMF(n_processes=1,
+                    k=K,
+                    gSig=gSig,
+                    merge_thresh=params_movie['merge_thresh'],
+                    p=params_movie['p'],
+                    dview=None,
+                    rf=rf,
+                    stride=stride_cnmf,
+                    memory_fact=params_movie['memory_fact'],
+                    method_init=init_method,
+                    alpha_snmf=alpha_snmf,
+                    only_init_patch=params_movie['only_init_patch'],
+                    gnb=params_movie['gnb'],
+                    method_deconvolution='oasis')
     comp.cnmpatch = copy.copy(cnm)
     comp.cnmpatch.estimates = None
     cnm = cnm.fit(images)
@@ -247,10 +258,17 @@ def create():
     fitness_delta_min = params_movie['fitness_delta_min_patch']
     Npeaks = params_movie['Npeaks']
     traces = C_tot + YrA_tot
-    idx_components, idx_components_bad = estimate_components_quality(
-        traces, Y, A_tot, C_tot, b_tot, f_tot, final_frate=final_frate,
-        Npeaks=Npeaks, r_values_min=r_values_min, fitness_min=fitness_min,
-        fitness_delta_min=fitness_delta_min)
+    idx_components, idx_components_bad = estimate_components_quality(traces,
+                                                                     Y,
+                                                                     A_tot,
+                                                                     C_tot,
+                                                                     b_tot,
+                                                                     f_tot,
+                                                                     final_frate=final_frate,
+                                                                     Npeaks=Npeaks,
+                                                                     r_values_min=r_values_min,
+                                                                     fitness_min=fitness_min,
+                                                                     fitness_delta_min=fitness_delta_min)
     #######
     A_tot = A_tot.tocsc()[:, idx_components]
     C_tot = C_tot[idx_components]
@@ -260,8 +278,17 @@ def create():
 
     ################ CNMF PART FULL #################
     t1 = time.time()
-    cnm = cnmf.CNMF(n_processes=1, k=A_tot.shape, gSig=gSig, merge_thresh=merge_thresh, p=p, Ain=A_tot, Cin=C_tot,
-                    f_in=f_tot, rf=None, stride=None, method_deconvolution='oasis')
+    cnm = cnmf.CNMF(n_processes=1,
+                    k=A_tot.shape,
+                    gSig=gSig,
+                    merge_thresh=merge_thresh,
+                    p=p,
+                    Ain=A_tot,
+                    Cin=C_tot,
+                    f_in=f_tot,
+                    rf=None,
+                    stride=None,
+                    method_deconvolution='oasis')
     cnm = cnm.fit(images)
     # DISCARDING
     A, C, b, f, YrA, sn = cnm.estimates.A, cnm.estimates.C, cnm.estimates.b, cnm.estimates.f, cnm.estimates.YrA, cnm.estimates.sn
@@ -274,14 +301,23 @@ def create():
     Npeaks = params_movie['Npeaks']
     traces = C + YrA
     idx_components, idx_components_bad, fitness_raw, fitness_delta, r_values = estimate_components_quality(
-        traces, Y, A, C, b, f, final_frate=final_frate, Npeaks=Npeaks, r_values_min=r_values_min, fitness_min=fitness_min,
-        fitness_delta_min=fitness_delta_min, return_all=True)
+        traces,
+        Y,
+        A,
+        C,
+        b,
+        f,
+        final_frate=final_frate,
+        Npeaks=Npeaks,
+        r_values_min=r_values_min,
+        fitness_min=fitness_min,
+        fitness_delta_min=fitness_delta_min,
+        return_all=True)
     ###########
     A_tot_full = A_tot.tocsc()[:, idx_components]
     C_tot_full = C_tot[idx_components]
     comp.comparison['cnmf_full_frame']['timer'] = time.time() - t1
-    comp.comparison['cnmf_full_frame']['ourdata'] = [
-        A_tot_full.copy(), C_tot_full.copy()]
+    comp.comparison['cnmf_full_frame']['ourdata'] = [A_tot_full.copy(), C_tot_full.copy()]
     #################### ########################
     print(comp.dims)
     comp.save_with_compare(istruth=True, params=params_movie, Cn=Cn)
