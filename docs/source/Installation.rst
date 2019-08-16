@@ -42,6 +42,10 @@ conda install caiman -c conda-forge
 
 -  Skip ahead to the section on setting up a data directory with caimanmanager
 
+.. raw:: html
+
+   </details>
+
 Development mode Installation Process
 -------------------------------------
 
@@ -52,9 +56,6 @@ Development mode Installation Process
 This will allow you to modify the source files of CaImAn and will make it easier
 to contribute to the CaImAn project, fix bugs etc.
 
-.. raw:: html
-
-   </details>
 
 Installation on Windows
 ------------
