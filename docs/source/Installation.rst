@@ -44,9 +44,18 @@ conda install caiman -c conda-forge
 
 -  Skip ahead to the section on setting up a data directory with caimanmanager
 
+Known issues
+~~~~~~~~~~~~
+
+If you are on Windows, have used CaImAn before using our github repo and now want to use the conda-forge package,
+you might encounter some errors with Python reading the files from the wrong directory. In this case rename
+(or remove) the caiman directory that contains the source of the repo and the caiman_data folder and then proceed
+with setting up the caiman_data folder as explained below. 
+
 .. raw:: html
 
    </details>
+
 
 Development mode Installation Process
 -------------------------------------
@@ -170,7 +179,7 @@ For **Linux (and OSX)** run these commands before launching Python:
      export MKL_NUM_THREADS=1
      export OPENBLAS_NUM_THREADS=1
 
-For **Windows** run the same command, replacing the word ``export`` with the word ``set``. 
+For **Windows** run the same commands, replacing the word ```export``` with the word ```set```. 
 
 The commands should be run *every time* before launching python. It is
 recommended that you save these values inside your environment so you
