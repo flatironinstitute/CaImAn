@@ -1,3 +1,6 @@
+CaImAn Tips
+===========
+
 Motion Correction tips
 ----------------------
 
@@ -24,7 +27,11 @@ Motion Correction tips
 -  Motion correction works in parallel by splitting each file in
    multiple chunks and processing them in parallel. Make sure that the
    length of each chunk is not too small by setting the parameter
-   ``params.motion.num_frames_split``.
+   ``params.motion.num_frames_split``. On the other hand, too large
+   chunks can negatively impact computation time even with parallelization.
+   If you experience problems with large datasets, try scaling the number
+   of chunks (``params.motion.splits_els`` and ``params.motion.split_rig``)
+   with the length of your recording (e.g. ``int((number of total frames)/200)``).
 
 CaImAn Online Processing tips
 -----------------------------
@@ -44,7 +51,7 @@ CaImAn Online Processing tips
    ``params.online.min_num_trial`` (e.g., 5) will lead to higher
    precision values, although potentially at the expense of lower
    recall. n general they are preferable for datasets that are longer
-   (e.g., 10000 frames or more).
+   (e.g., more than 10000 frames).
 
 -  If your analysis setup allows it, multiple epochs over the data can
    be very beneficial, especially in the strict regime or high
@@ -75,16 +82,20 @@ CaImAn Batch processing tips
    controls the size of patches and their overlap. Given the patch size
    and the correlation image the user can set an upper bound on the
    number of neurons per patches. We suggest to start exploring regions
-   that contain 4-10 neurons.
+   that contain 5-10 neurons.
 
 -  Important parameters for selecting components based on quality are
 
--  the CNN lower bound and upper threshold ``params.quality.cnn_lowest``
-   and ``params.quality.min_cnn_thr``
+   -  the CNN lower bound and upper threshold ``params.quality['cnn_lowest']``
+      and ``params.quality['min_cnn_thr']``
 
--  the trace SNR ``params.quality.min_SNR``
+   -  the trace SNR ``params.quality['min_SNR']``
 
--  the footprint consistency threshold ``params.quality.rval_thr``
+   -  the footprint consistency threshold ``params.quality['rval_thr']``
+
+    Each quality check has a low threshold (``rval_lowest (default -1), SNR_lowest (default 0.5), cnn_lowest (default 0.1)``)
+    and high threshold (``rval_thr (default 0.8), min_SNR (default 2.5), min_cnn_thr (default 0.9)``). A component has
+    to exceed ALL low thresholds as well as at least ONE high threshold to be accepted.
 
 The user should explore these parameters around the default to optimize
 for specific data sets.
@@ -141,5 +152,11 @@ Deconvolution tips
    activity. You can use the ``estimates.detrend_df_f`` methods for
    that.
 
--  For interpreting the deconvolved neural activity varible ``S``, see
-   `here <https://github.com/flatironinstitute/CaImAn-MATLAB/wiki/Interpretation-of-spiking-variable-S>`__.
+-  When using the `constrained_foopsi` method for deconvolution the spiking variable `S`
+   does not immediately correspond to number of spikes or the spiking probability in each
+   timebin. It merely represents a measure of "deconvolved neural activity" that is loosely
+   proportional to the firing rate of the neuron at each time. To convert into actual spike
+   counts some reference point is needed to threshold and quantize this signal. For example,
+   if you deconvolve DF/F traces and have knowledge of what change in DF/F units a spike is
+   inducing, you can use this information to approximate the number of spikes (under certain
+   linearity assumptions)..

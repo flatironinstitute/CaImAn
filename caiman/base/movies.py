@@ -200,6 +200,87 @@ class movie(ts.timeseries):
 
         return self, shifts, xcorrs, template
 
+    def motion_correct_3d(self,
+                       max_shift_z=5,
+                       max_shift_w=5,
+                       max_shift_h=5,
+                       num_frames_template=None,
+                       template=None,
+                       method='opencv',
+                       remove_blanks=False, interpolation='cubic'):
+        """
+        Extract shifts and motion corrected movie automatically,
+
+        for more control consider the functions extract_shifts and apply_shifts
+        Disclaimer, it might change the object itself.
+
+        Args:
+            max_shift,z,max_shift_w,max_shift_h: maximum pixel shifts allowed when 
+                    correcting in the axial, width, and height directions
+
+            template: if a good template for frame by frame correlation exists
+                      it can be passed. If None it is automatically computed
+
+            method: depends on what is installed 'opencv' or 'skimage'. 'skimage'
+                    is an order of magnitude slower
+
+            num_frames_template: if only a subset of the movies needs to be loaded
+                                 for efficiency/speed reasons
+
+
+        Returns:
+            self: motion corected movie, it might change the object itself
+
+            shifts : tuple, contains x, y, and z shifts and correlation with template
+
+            xcorrs: cross correlation of the movies with the template
+
+            template: the computed template
+        """
+
+        if template is None:  # if template is not provided it is created
+            if num_frames_template is None:
+                num_frames_template = old_div(
+                    10e7, (self.shape[1] * self.shape[2]))
+
+            frames_to_skip = int(np.maximum(
+                1, old_div(self.shape[0], num_frames_template)))
+
+            # sometimes it is convenient to only consider a subset of the
+            # movie when computing the median
+            submov = self[::frames_to_skip, :].copy()
+            templ = submov.bin_median_3d()  # create template with portion of movie
+            shifts, xcorrs = submov.extract_shifts_3d(max_shift_z=max_shift_z, # NOTE: extract_shifts_3d has not been implemented yet - use skimage
+                max_shift_w=max_shift_w, max_shift_h=max_shift_h, template=templ, method=method)
+            submov.apply_shifts_3d( # NOTE: apply_shifts_3d has not been implemented yet
+                shifts, interpolation=interpolation, method=method)
+            template = submov.bin_median_3d()
+            del submov
+            m = self.copy()
+            shifts, xcorrs = m.extract_shifts_3d(max_shift_z=max_shift_z,
+                max_shift_w=max_shift_w, max_shift_h=max_shift_h, template=template, method=method)
+            m = m.apply_shifts_3d(
+                shifts, interpolation=interpolation, method=method)
+            template = (m.bin_median_3d())
+            del m
+        else:
+            template = template - np.percentile(template, 8)
+
+        # now use the good template to correct
+        shifts, xcorrs = self.extract_shifts_3d(max_shift_z=max_shift_z,
+            max_shift_w=max_shift_w, max_shift_h=max_shift_h, template=template, method=method)
+        self = self.apply_shifts_3d(
+            shifts, interpolation=interpolation, method=method)
+
+        if remove_blanks:
+            max_z, max_h, max_w = np.max(shifts, axis=0)
+            min_z, min_h, min_w = np.min(shifts, axis=0)
+            self = self.crop(crop_top=max_z, crop_bottom=min_z, # NOTE: edge boundaries for z dimension need to be tested
+                             crop_left=max_h, crop_right=-min_h + 1, crop_begin=max_w, crop_end=-min_w)
+
+        return self, shifts, xcorrs, template
+
+
     def bin_median(self, window:int=10) -> np.ndarray:
         """ compute median of 3D array in along axis o by binning values
 
@@ -219,6 +300,26 @@ class movie(ts.timeseries):
         num_windows = np.int(old_div(T, window))
         num_frames = num_windows * window
         return np.nanmedian(np.nanmean(np.reshape(self[:num_frames], (window, num_windows, d1, d2)), axis=0), axis=0)
+
+    def bin_median_3d(self, window=10):
+        """ compute median of 4D array in along axis o by binning values
+
+        Args:
+            mat: ndarray
+                input 4D matrix, (T, h, w, z)
+
+            window: int
+                number of frames in a bin
+
+        Returns:
+            img:
+                median image
+
+        """
+        T, d1, d2, d3 = np.shape(self)
+        num_windows = np.int(old_div(T, window))
+        num_frames = num_windows * window
+        return np.nanmedian(np.nanmean(np.reshape(self[:num_frames], (window, num_windows, d1, d2, d3)), axis=0), axis=0)
 
     def extract_shifts(self, max_shift_w:int=5, max_shift_h:int=5, template=None, method:str='opencv') -> Tuple[List, List]:
         """
@@ -1137,7 +1238,7 @@ class movie(ts.timeseries):
 
 def load(file_name:Union[str,List[str]], fr:float=30, start_time:float=0, meta_data:Dict=None, subindices=None,
          shape:Tuple[int,int]=None, var_name_hdf5:str='mov', in_memory:bool=False, is_behavior:bool=False,
-         bottom=0, top=0, left=0, right=0, channel=None, outtype=np.float32) -> Any:
+         bottom=0, top=0, left=0, right=0, channel=None, outtype=np.float32, is3D:bool=False) -> Any:
     """
     load movie from file. Supports a variety of formats. tif, hdf5, npy and memory mapped. Matlab is experimental.
 
@@ -1189,7 +1290,7 @@ def load(file_name:Union[str,List[str]], fr:float=30, start_time:float=0, meta_d
     """
     # case we load movie from file
     if max(top, bottom, left, right) > 0 and type(file_name) is str:
-        file_name = [file_name] # type: ignore # mypy doesn't like that this changes type # type: ignore # mypy doesn't like that this changes type # type: ignore # mypy doesn't like that this changes type # type: ignore # mypy doesn't like that this changes type # type: ignore # mypy doesn't like that this changes type
+        file_name = [file_name] # type: ignore # mypy doesn't like that this changes type
 
     if type(file_name) is list:
         if shape is not None:
@@ -1199,7 +1300,7 @@ def load(file_name:Union[str,List[str]], fr:float=30, start_time:float=0, meta_d
                      meta_data=meta_data, subindices=subindices,
                      bottom=bottom, top=top, left=left, right=right, 
                      channel = channel, outtype=outtype,
-                     var_name_hdf5=var_name_hdf5)
+                     var_name_hdf5=var_name_hdf5,is3D=is3D)
 
     if max(top, bottom, left, right) > 0:
         logging.error('top bottom etc... not supported for single movie input')
@@ -1373,10 +1474,12 @@ def load(file_name:Union[str,List[str]], fr:float=30, start_time:float=0, meta_d
                         else:
                             if type(subindices).__module__ is 'numpy':
                                 subindices = subindices.tolist()
-                            images = np.array(
-                                fgroup[subindices]).squeeze()
-                            #if images.ndim > 3:
-                            #    images = images[:, 0]
+                            if len(fgroup.shape) > 3:
+                                images = np.array(
+                                    fgroup[subindices]).squeeze()
+                            else:
+                                images = np.array(
+                                    fgroup[subindices]).squeeze()
 
                         #input_arr = images
                         return movie(images.astype(outtype))

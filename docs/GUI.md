@@ -1,6 +1,6 @@
 ## Graphical interface
 
-<img src="docs/img/GUI_img.png" width="1000" align="center">
+<img src="img/GUI_img.png" width="1000" align="center">
 
 CaImAn comes with an experimental visual interface. To see an example on how use it, first load and run either 
 * demo_OnACID_mesoscope.py

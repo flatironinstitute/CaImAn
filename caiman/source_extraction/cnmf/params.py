@@ -1,10 +1,10 @@
 import logging
 import os
-import subprocess
 import numpy as np
 import scipy
 from scipy.ndimage.morphology import generate_binary_structure, iterate_structure
 
+import caiman.utils.utils
 from ...paths import caiman_datadir
 from .utilities import dict_compare, get_file_size
 
@@ -66,6 +66,18 @@ class CNMFParams(object):
 
             var_name_hdf5: str, default: 'mov'
                 if loading from hdf5 name of the variable to load
+
+            caiman_version: str
+                version of CaImAn being used
+
+            last_commit: str
+                hash of last commit in the caiman repo
+
+            mmap_F: list[str]
+                paths to F-order memory mapped files after motion correction
+
+            mmap_C: str
+                path to C-order memory mapped file after motion correction
 
         PATCH PARAMS (CNMFParams.patch)######
 
@@ -506,7 +518,10 @@ class CNMFParams(object):
 
             gSig_filt: int or None, default: None
                 size of kernel for high pass spatial filtering in 1p data. If None no spatial filtering is performed
-
+            
+            is3D: bool, default: False
+                flag for 3D recordings for motion correction
+                
             max_deviation_rigid: int, default: 3
                 maximum deviation in pixels between rigid shifts and shifts of individual patches
 
@@ -560,8 +575,10 @@ class CNMFParams(object):
             'decay_time': decay_time,
             'dxy': dxy,
             'var_name_hdf5': var_name_hdf5,
-            'caiman_version': '1.5.3',
+            'caiman_version': '1.6',
             'last_commit': None,
+            'mmap_F': None,
+            'mmap_C': None
         }
 
         self.patch = {
@@ -654,8 +671,8 @@ class CNMFParams(object):
             'normalize_yyt_one': True,
             'nrgthr': 0.9999,                # Energy threshold
             'num_blocks_per_run_spat': num_blocks_per_run_spat, # number of process to parallelize residual computation ** DECREASE IF MEMORY ISSUES
-            'se': None,                      # Morphological closing structuring element
-            'ss': None,                      # Binary element for determining connectivity
+            'se': np.ones((3, 3), dtype='uint8'),  # Morphological closing structuring element
+            'ss': np.ones((3, 3), dtype='uint8'),  # Binary element for determining connectivity
             'thr_method': 'nrg',             # Method of thresholding ('max' or 'nrg')
             # whether to update the background components in the spatial phase
             'update_background_components': update_background_components,
@@ -748,8 +765,9 @@ class CNMFParams(object):
         }
 
         self.motion = {
-            'border_nan': 'copy',                 # flag for allowing NaN in the boundaries
+            'border_nan': 'copy',               # flag for allowing NaN in the boundaries
             'gSig_filt': None,                  # size of kernel for high pass spatial filtering in 1p data
+            'is3D': False,                      # flag for 3D recordings for motion correction
             'max_deviation_rigid': 3,           # maximum deviation between rigid and non-rigid
             'max_shifts': (6, 6),               # maximum shifts per dimension (in pixels)
             'min_mov': None,                    # minimum value of movie
@@ -769,17 +787,16 @@ class CNMFParams(object):
         }
 
         self.change_params(params_dict)
-        try:
-            lc = subprocess.check_output(["git", "rev-parse", "HEAD"]).decode("utf-8").split("\n")[0]
-            self.data['last_commit'] = lc
-        except:  #subprocess.CalledProcessError:
-            pass
+        self.data['last_commit'] = '-'.join(caiman.utils.utils.get_caiman_version())
         if self.data['dims'] is None and self.data['fnames'] is not None:
             self.data['dims'] = get_file_size(self.data['fnames'], var_name_hdf5=self.data['var_name_hdf5'])[0]
         if self.data['fnames'] is not None:
             if isinstance(self.data['fnames'], str):
                 self.data['fnames'] = [self.data['fnames']]
-            T = get_file_size(self.data['fnames'], var_name_hdf5=self.data['var_name_hdf5'])[1]
+            if self.motion['is3D']:
+                T = get_file_size(self.data['fnames'], var_name_hdf5=self.data['var_name_hdf5'])[0][0]                
+            else:
+                T = get_file_size(self.data['fnames'], var_name_hdf5=self.data['var_name_hdf5'])[1]
             if len(self.data['fnames']) > 1:
                 T = T[0]
             num_splits = T//max(self.motion['num_frames_split'],10)
@@ -795,7 +812,8 @@ class CNMFParams(object):
         if self.init['gSig'] is None:
             self.init['gSig'] = [-1, -1]
         if self.init['gSiz'] is None:
-            self.init['gSiz'] = [2*gs + 1 for gs in self.init['gSig']]
+            self.init['gSiz'] = [2*gs + 3 for gs in self.init['gSig']]
+        self.init['gSiz'] = [gz if gz % 2 else gz + 1 for gz in self.init['gSiz']]
 
         if gnb <= 0:
             logging.warning("gnb={0}, hence setting keys nb_patch and low_rank_background ".format(gnb) +

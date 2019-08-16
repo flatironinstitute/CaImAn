@@ -9,14 +9,14 @@
 Contents:
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 3
 
    Overview
    Installation
    Getting_Started
-   CaImAn-Tips.md
-   On-file-types-and-sizes.md
-   CaImAn-features-and-references
+   CaImAn_Tips
+   On_file_types_and_sizes
+   CaImAn_features_and_references
    core_functions
    
 	      
