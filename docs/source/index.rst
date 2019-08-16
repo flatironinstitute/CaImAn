@@ -14,8 +14,8 @@ Contents:
    Overview
    Installation
    Getting_Started
-   CaImAn-Tips.md
-   On-file-types-and-sizes.md
+   CaImAn-Tips
+   On-file-types-and-sizes
    CaImAn-features-and-references
    core_functions
    
