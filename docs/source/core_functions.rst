@@ -53,36 +53,6 @@ Timeseries Handling
 .. automethod:: timeseries.save
 .. autofunction:: concatenate
 
-ROIs
----------------
-
-.. currentmodule:: caiman.base.rois
-
-.. autofunction:: register_ROIs
-.. autofunction:: register_multisession
-.. autofunction:: com
-.. autofunction:: extract_binary_masks_from_structural_channel
-
-
-Memory mapping
----------------
-
-.. currentmodule:: caiman.mmapping
-
-.. autofunction:: load_memmap
-.. autofunction:: save_memmap_join
-.. autofunction:: save_memmap
-
-
-Image statistics
------------------
-
-.. currentmodule:: caiman.summary_images
-
-.. autofunction:: local_correlations
-.. autofunction:: max_correlation_image
-.. autofunction:: correlation_pnr
-
 
 Motion Correction
 ------------------
@@ -139,6 +109,7 @@ Parameter Setting
 .. automethod:: CNMFParams.get_group
 .. automethod:: CNMFParams.change_params
 
+
 CNMF
 ---------------
 
@@ -174,6 +145,7 @@ Online CNMF (OnACID)
 .. automethod:: OnACID.initialize_online
 .. autofunction:: load_OnlineCNMF
 
+
 Preprocessing
 ---------------
 .. currentmodule:: caiman.source_extraction.cnmf.pre_processing
@@ -186,6 +158,14 @@ Initialization
 .. currentmodule:: caiman.source_extraction.cnmf.initialization
 
 .. autofunction:: initialize_components
+
+.. autofunction:: greedyROI
+
+.. autofunction:: greedyROI_corr
+
+.. autofunction:: graphNMF
+
+.. autofunction:: sparseNMF
 
 
 Spatial Components
@@ -216,6 +196,37 @@ Utilities
 .. autofunction:: detrend_df_f
 .. autofunction:: update_order
 .. autofunction:: get_file_size
+
+
+ROIs
+---------------
+
+.. currentmodule:: caiman.base.rois
+
+.. autofunction:: register_ROIs
+.. autofunction:: register_multisession
+.. autofunction:: com
+.. autofunction:: extract_binary_masks_from_structural_channel
+
+
+Memory mapping
+---------------
+
+.. currentmodule:: caiman.mmapping
+
+.. autofunction:: load_memmap
+.. autofunction:: save_memmap_join
+.. autofunction:: save_memmap
+
+
+Image statistics
+-----------------
+
+.. currentmodule:: caiman.summary_images
+
+.. autofunction:: local_correlations
+.. autofunction:: max_correlation_image
+.. autofunction:: correlation_pnr
 
 
 Parallel Processing functions
