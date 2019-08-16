@@ -55,25 +55,9 @@ The [Neurodata Without Borders (NWB)](https://www.nwb.org/) file format is now s
 
 To circumvent a problem arising in Windows installation, we recently removed keras from the list of dependencies. Keras was being used to deploy the pretrained neural network models for component screening. The neural network models are being deployed through tensorflow and for that we included tensorflow compatible versions of the models inside the folder `model`. Existing users who already have keras in their environment will continue using keras as it is slightly faster. However if you create an environment without it you may want to either reinstall caimanmanager or simply copy the files `model/*.pb` into the folder `caiman_data/model/` for the files to be discoverable. New CaImAn users do not need to do anything as this is being taken care of during the installation process.
 
-## New: Code refactoring (October 2018)
-
-We recently refactored the code to simplify the parameter setting and usage of the various algorithms. The code now is based around the following objects:
-
-* `params`: A single object containing a set of dictionaries with the parameters used in all the algorithms. It can be set and changed easily and is passed into all the algorithms.
-* `MotionCorrect`: An object for motion correction which can be used for both rigid and piece-wise rigid motion correction.
-* `cnmf`: An object for running the CaImAn batch algorithm either in patches or not, suitable for both two-photon (CNMF) and one-photon (CNMF-E) data.
-* `online_cnmf`: An object for running the CaImAn online (OnACID) algorithm on two-photon data with or without motion correction.
-* `estimates`: A single object that stores the results of the algorithms (CaImAn batch, CaImAn online) in a unified way that also contains plotting methods. For an interpretation of the various entries of the `estimates` object see [here](https://github.com/flatironinstitute/CaImAn/wiki/Interpreting-Results).
-   
-To see examples of how these methods are used, please consult the demos. While the `cnmf` methods can also be called in the old way by passing all the parameters when initializing the `cnmf` object, we recommend using the `params` object. Similarly, to run the CaImAn online algorithm it is recommended to pass a `params` object inside the `online_cnmf` object. Older scripts should be usable with the latest version of the code except for online analysis where the `cnmf` object will need to be replaced with an `online_cnmf` object. The results should be read from `estimates`, i.e., `cnm.estimates.C` as opposed to `cnm.C`.
-
 ## Installation for calcium imaging data analysis
 
 Installation and updating instructions can be found [here](./docs/source/Installation.rst).
-
-### Known Issues
-
-A list of known issues can be found [here](https://github.com/flatironinstitute/CaImAn/wiki/Known-Issues). If you still encounter problems please open an issue.  
 
 ## Documentation & Wiki
 
